@@ -42,6 +42,11 @@ describe("qcut-shot helpers", () => {
 				"bright",
 				"--mood",
 				"polished",
+				"--promo",
+				"--shot-duration",
+				"2.5",
+				"--promo-presets",
+				"entrance:laser-etch,loop:wave,exit:typewriter-out",
 			],
 		});
 
@@ -52,6 +57,13 @@ describe("qcut-shot helpers", () => {
 		expect(options.movement).toBe("slider");
 		expect(options.lighting).toBe("bright");
 		expect(options.mood).toBe("polished");
+		expect(options.promo).toBe(true);
+		expect(options.shotDuration).toBe(2.5);
+		expect(options.promoPresets).toEqual([
+			{ phase: "entrance", presetId: "laser-etch" },
+			{ phase: "loop", presetId: "wave" },
+			{ phase: "exit", presetId: "typewriter-out" },
+		]);
 	});
 
 	test("loadStyleInstructions composes custom shot dimensions", () => {
@@ -240,6 +252,10 @@ describe("qcut-shot helpers", () => {
 				analysis,
 				breakdown,
 				styleInstructions,
+				promo: {
+					shotDuration: 2.5,
+					presets: [{ phase: "entrance", presetId: "laser-etch" }],
+				},
 			},
 		});
 
@@ -252,5 +268,61 @@ describe("qcut-shot helpers", () => {
 
 		expect(manifest.characters.map((c) => c.id)).toEqual(["hero"]);
 		expect(manifest.scenes[0]?.characterIds).toEqual(["hero"]);
+
+		const promoTimeline = JSON.parse(
+			readFileSync(join(dir, "shot-plan", "promo-timeline.json"), "utf8"),
+		) as {
+			tracks: Array<{
+				alias: string;
+				type: string;
+				elements: Array<Record<string, unknown>>;
+			}>;
+		};
+		const promoActions = JSON.parse(
+			readFileSync(join(dir, "shot-plan", "promo-actions.json"), "utf8"),
+		) as Array<Record<string, unknown>>;
+		const promoDemo = JSON.parse(
+			readFileSync(join(dir, "shot-plan", "promo-demo.json"), "utf8"),
+		) as {
+			timeline: string;
+			capture: { actions: string };
+		};
+
+		expect(promoTimeline.tracks.map(({ alias, type }) => ({ alias, type }))).toEqual(
+			[{ alias: "visuals", type: "media" }],
+		);
+		expect(promoTimeline.tracks[0]?.elements[0]).toMatchObject({
+			type: "media",
+			startTime: 0,
+			duration: 2.5,
+		});
+		expect(promoActions.at(-1)).toMatchObject({
+			action: "hide",
+			chapter: "outro",
+		});
+		expect(promoActions).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					action: "click",
+					target: "text.add",
+				}),
+				expect.objectContaining({
+					action: "type",
+					text: "Opening Scene",
+				}),
+				expect.objectContaining({
+					action: "click",
+					target: "text.animation.entrance.laser-etch",
+				}),
+				expect.objectContaining({
+					action: "click",
+					target: "timeline.play",
+				}),
+			]),
+		);
+		expect(promoDemo).toMatchObject({
+			timeline: "@promo-timeline.json",
+			capture: { actions: "@promo-actions.json" },
+		});
 	});
 });
