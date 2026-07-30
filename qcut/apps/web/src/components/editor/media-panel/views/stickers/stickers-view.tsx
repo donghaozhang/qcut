@@ -110,7 +110,7 @@ export function StickersView() {
 	const handleLocalReferenceSelect = async ({ file }: { file: File }) => {
 		const mediaItemId = await handleStickerUpload({ file });
 		if (!mediaItemId) {
-			throw new Error("Unable to add local sticker reference");
+			throw new Error("Unable to add sticker lab asset");
 		}
 	};
 
