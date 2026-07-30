@@ -1,3 +1,6 @@
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { parseCliArgs } from "../native-pipeline/cli/cli.js";
 import {
@@ -347,6 +350,101 @@ describe("editor pointer CLI handlers", () => {
 		]);
 	});
 
+	it("waits for sequence postconditions after dispatching the action", async () => {
+		const callOrder: string[] = [];
+		let clicked = false;
+		const post = vi.fn(async () => {
+			callOrder.push("click");
+			clicked = true;
+			return { action: "click" };
+		});
+		const get = vi.fn(async () => {
+			callOrder.push("snapshot");
+			return {
+				elements: clicked
+					? [
+							{
+								ref: "@ready",
+								testId: "animation-panel",
+								bounds: { x: 10, y: 10, width: 100, height: 30 },
+							},
+						]
+					: [],
+			};
+		});
+		const client = {
+			get,
+			post,
+			requireCapability: vi.fn(async () => undefined),
+		} as unknown as EditorApiClient;
+
+		const result = await handlePointerCommand({
+			client,
+			options: makeOptions({
+				command: "editor:pointer:sequence",
+				values: {
+					actions: JSON.stringify([
+						{
+							action: "click",
+							ref: "@text-animation",
+							waitFor: "testid:animation-panel",
+						},
+					]),
+				},
+			}),
+		});
+
+		expect(result.success).toBe(true);
+		expect(callOrder).toEqual(["click", "snapshot"]);
+	});
+
+	it("hides the pointer in a sequence and writes a default labeled event track", async () => {
+		const tempDir = mkdtempSync(join(tmpdir(), "qcut-pointer-sequence-"));
+		const recordingPath = join(tempDir, "promo.mp4");
+		const expectedTrackPath = join(tempDir, "promo.pointer.json");
+		const post = vi.fn(async (url: string) => {
+			if (url.endsWith("/start")) return { captureStartedAt: Date.now() };
+			if (url.endsWith("/stop")) return { filePath: null };
+			if (url.endsWith("/hide")) return { action: "hidden", visible: false };
+			throw new Error(`Unexpected POST ${url}`);
+		});
+		const client = { post } as unknown as EditorApiClient;
+
+		try {
+			const result = await handlePointerCommand({
+				client,
+				options: makeOptions({
+					command: "editor:pointer:sequence",
+					values: {
+						actions: JSON.stringify([
+							{
+								action: "hide",
+								label: "Clean outro",
+								chapter: "outro",
+							},
+						]),
+						record: recordingPath,
+					},
+				}),
+			});
+			const data = result.data as { eventTrack?: string };
+			const track = JSON.parse(readFileSync(expectedTrackPath, "utf8"));
+
+			expect(result.success).toBe(true);
+			expect(data.eventTrack).toBe(expectedTrackPath);
+			expect(track.events[0]).toEqual(
+				expect.objectContaining({
+					action: "hide",
+					label: "Clean outro",
+					chapter: "outro",
+					success: true,
+				})
+			);
+		} finally {
+			rmSync(tempDir, { recursive: true, force: true });
+		}
+	});
+
 	it("scopes sequence value waits to the most recently clicked ref", async () => {
 		const post = vi.fn(async () => ({ ok: true }));
 		const get = vi.fn(async () => ({
@@ -464,6 +562,38 @@ describe("editor pointer CLI handlers", () => {
 		expect(result.success).toBe(true);
 		expect(post).toHaveBeenCalledWith("/api/claude/pointer/click", {
 			ref: "@play",
+			inputMode: "background",
+		});
+	});
+
+	it("resolves text animation preset targets from phase and preset id", async () => {
+		const get = vi.fn(async () => ({
+			elements: [
+				{
+					ref: "@wave",
+					testId: "text-animation-card-loop-wave",
+					bounds: { x: 940, y: 330, width: 90, height: 72 },
+				},
+			],
+		}));
+		const post = vi.fn(async () => ({ action: "click" }));
+		const client = {
+			get,
+			post,
+			requireCapability: vi.fn(async () => undefined),
+		} as unknown as EditorApiClient;
+
+		const result = await handlePointerCommand({
+			client,
+			options: makeOptions({
+				command: "editor:pointer:click",
+				values: { target: "text.animation.loop.wave" },
+			}),
+		});
+
+		expect(result.success).toBe(true);
+		expect(post).toHaveBeenCalledWith("/api/claude/pointer/click", {
+			ref: "@wave",
 			inputMode: "background",
 		});
 	});
