@@ -4,7 +4,10 @@ import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { visualizer } from "rollup-plugin-visualizer";
 import path from "path";
-import { createLicenseServerBuildConfig } from "../../electron/license-server-build-config";
+import {
+	createLicenseServerBuildConfig,
+	resolveLicenseServerDevelopmentCacheDirectory,
+} from "../../electron/license-server-build-config";
 import { createLicenseServerBuildPlugin } from "./license-server-build-plugin";
 
 export default defineConfig(({ mode }) => {
@@ -14,9 +17,14 @@ export default defineConfig(({ mode }) => {
 	const licenseServerBuildConfig = createLicenseServerBuildConfig({
 		configuredUrl: env.VITE_LICENSE_SERVER_URL,
 	});
+	const developmentCacheDirectory =
+		resolveLicenseServerDevelopmentCacheDirectory({
+			webRoot: __dirname,
+		});
 
 	return {
 		base: isWebBuild ? "/" : "./", // "/" for web hosting, "./" for Electron file://
+		cacheDir: developmentCacheDirectory,
 		publicDir: "public", // Ensure public directory is properly copied
 		define: {
 			// Required for React scheduler in Electron production builds
