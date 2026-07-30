@@ -197,12 +197,14 @@ export async function loadRemoteStickerReferenceFile({
 	getToken = getSessionToken,
 	licenseServerUrl = LICENSE_SERVER_URL,
 	reference,
+	signal,
 }: {
 	ensureResources?: typeof ensureAssetResources;
 	fetchImpl?: typeof fetch;
 	getToken?: SessionTokenReader;
 	licenseServerUrl?: string;
 	reference: RemoteStickerReference;
+	signal?: AbortSignal;
 }): Promise<File> {
 	const asset = buildStickerLabAssetEntry({ licenseServerUrl, reference });
 	const resources = await ensureResources({
@@ -213,6 +215,7 @@ export async function loadRemoteStickerReferenceFile({
 			licenseServerUrl,
 		}),
 		roles: ["source"],
+		signal,
 	});
 	const blob = remoteResourceBlob({ reference, resources });
 	return new File([blob], reference.fileName, { type: reference.mimeType });
@@ -225,6 +228,7 @@ export async function loadStickerLabReferenceFile({
 	licenseServerUrl,
 	readFile,
 	reference,
+	signal,
 }: {
 	ensureResources?: typeof ensureAssetResources;
 	fetchImpl?: typeof fetch;
@@ -232,6 +236,7 @@ export async function loadStickerLabReferenceFile({
 	licenseServerUrl?: string;
 	readFile?: LocalStickerFileReader;
 	reference: StickerLabReference;
+	signal?: AbortSignal;
 }): Promise<File> {
 	if ("filePath" in reference) {
 		return loadLocalStickerReferenceFile({ readFile, reference });
@@ -242,5 +247,6 @@ export async function loadStickerLabReferenceFile({
 		getToken,
 		licenseServerUrl,
 		reference,
+		signal,
 	});
 }
