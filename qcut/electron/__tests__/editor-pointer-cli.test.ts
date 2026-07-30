@@ -534,6 +534,56 @@ describe("editor pointer CLI handlers", () => {
 		});
 	});
 
+	it("waits for requested state after the pointer action", async () => {
+		let clicked = false;
+		const get = vi.fn(async () => ({
+			elements: [
+				{
+					ref: "@text-tab",
+					testId: "text-panel-tab",
+					bounds: { x: 20, y: 30, width: 40, height: 40 },
+				},
+				...(clicked
+					? [
+							{
+								ref: "@add-text",
+								testId: "text-overlay-button",
+								bounds: { x: 80, y: 120, width: 100, height: 60 },
+							},
+						]
+					: []),
+			],
+		}));
+		const post = vi.fn(async () => {
+			clicked = true;
+			return { action: "click" };
+		});
+		const client = {
+			get,
+			post,
+			requireCapability: vi.fn(async () => undefined),
+		} as unknown as EditorApiClient;
+
+		const result = await handlePointerCommand({
+			client,
+			options: makeOptions({
+				command: "editor:pointer:click",
+				values: {
+					target: "panel.text",
+					waitFor: "text.add",
+					timeoutMs: 100,
+				},
+			}),
+		});
+
+		expect(result.success).toBe(true);
+		expect(post).toHaveBeenCalledWith("/api/claude/pointer/click", {
+			ref: "@text-tab",
+			inputMode: "background",
+		});
+		expect(get).toHaveBeenCalledTimes(2);
+	});
+
 	it("resolves semantic timeline play without a raw test id", async () => {
 		const get = vi.fn(async () => ({
 			elements: [
@@ -784,6 +834,60 @@ describe("editor pointer CLI handlers", () => {
 			inputMode: "foreground",
 		});
 		expect(requireCapability).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		["text.add", "text-overlay-button"],
+		[
+			"text.animation.entrance.typewriter-cursor",
+			"text-animation-card-entrance-typewriter-cursor",
+		],
+	])("resolves semantic text target %s", async (target, testId) => {
+		const get = vi.fn(async () => ({
+			elements: [
+				{
+					ref: "@text-target",
+					testId,
+					bounds: { x: 100, y: 200, width: 80, height: 40 },
+				},
+			],
+		}));
+		const post = vi.fn(async () => ({ action: "click" }));
+		const client = {
+			get,
+			post,
+			requireCapability: vi.fn(async () => undefined),
+		} as unknown as EditorApiClient;
+
+		const result = await handlePointerCommand({
+			client,
+			options: makeOptions({
+				command: "editor:pointer:click",
+				values: { target },
+			}),
+		});
+
+		expect(result.success).toBe(true);
+		expect(post).toHaveBeenCalledWith("/api/claude/pointer/click", {
+			ref: "@text-target",
+			inputMode: "background",
+		});
+	});
+
+	it("supports hiding the virtual pointer inside a sequence", async () => {
+		const post = vi.fn(async () => ({ action: "hidden" }));
+		const client = { post } as unknown as EditorApiClient;
+
+		const result = await handlePointerCommand({
+			client,
+			options: makeOptions({
+				command: "editor:pointer:sequence",
+				values: { actions: JSON.stringify([{ action: "hide" }]) },
+			}),
+		});
+
+		expect(result.success).toBe(true);
+		expect(post).toHaveBeenCalledWith("/api/claude/pointer/hide", {});
 	});
 
 	it("rejects background input when the running editor is too old", async () => {

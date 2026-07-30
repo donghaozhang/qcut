@@ -56,11 +56,11 @@ import {
 	storeCustomTextPresets,
 	type TextStylePreset,
 } from "@/lib/text/text-presets";
-import { fitTextElementBoxToContent } from "@/lib/text/text-box-sizing";
 import {
 	TEXT_KEYFRAME_PROPERTIES,
 	upsertTextKeyframe,
 } from "@/lib/text/text-keyframes";
+import { fitTextElementBoxToContent } from "@/lib/text/text-box-sizing";
 import type { EasingType, Keyframe } from "@/lib/remotion/keyframe-converter";
 import {
 	PropertyItem,
@@ -827,13 +827,12 @@ export function TextProperties({
 						value={element.content}
 						className="min-h-24 resize-y bg-background/50"
 						onChange={(event) => {
-							const content = event.target.value;
 							const fitted = fitTextElementBoxToContent({
-								element: { ...element, content },
+								element: { ...element, content: event.target.value },
 								mode: "grow",
 							});
 							update({
-								content,
+								content: fitted.content,
 								width: fitted.width,
 								height: fitted.height,
 							});

@@ -219,7 +219,9 @@ function actualReadBackValue({
 		const animations = actual.textAnimations;
 		if (!isRecord(animations)) return;
 		const phaseState = animations[phase];
-		if (!isRecord(phaseState)) return;
+		if (!isRecord(phaseState)) {
+			return stringValue(request, "presetId") === "none" ? "none" : undefined;
+		}
 		const sourcePreset = phaseState.sourcePreset;
 		return isRecord(sourcePreset) ? stringValue(sourcePreset, "id") : undefined;
 	}

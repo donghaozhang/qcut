@@ -30,6 +30,8 @@ export function writePromoArtifacts({
 }): void {
 	const selectedPresets =
 		presets && presets.length > 0 ? presets : DEFAULT_PROMO_PRESETS;
+	const selectAllShortcut =
+		process.platform === "darwin" ? "Meta+A" : "Control+A";
 	const totalDuration = breakdown.scenes.length * shotDuration;
 	const media = breakdown.scenes.map((scene) => ({
 		alias: `shot-${scene.index}`,
@@ -101,7 +103,7 @@ export function writePromoArtifacts({
 				},
 				{
 					action: "press",
-					keys: ["Meta+A"],
+					keys: [selectAllShortcut],
 					chapter: "text-workflow",
 				},
 				{
@@ -122,7 +124,7 @@ export function writePromoArtifacts({
 				},
 				{
 					action: "press",
-					keys: ["Meta+A"],
+					keys: [selectAllShortcut],
 					chapter: "text-workflow",
 				},
 				{

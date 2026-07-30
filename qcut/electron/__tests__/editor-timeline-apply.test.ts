@@ -387,6 +387,48 @@ describe("editor timeline apply", () => {
 		);
 	});
 
+	it("verifies a cleared text animation phase as none", async () => {
+		const clearedManifest = {
+			...manifest,
+			tracks: manifest.tracks.map((track, index) =>
+				index === 1
+					? {
+							...track,
+							elements: [
+								{
+									...track.elements[0],
+									textAnimationPreset: {
+										phase: "entrance",
+										presetId: "none",
+									},
+								},
+							],
+						}
+					: track
+			),
+		};
+		const { client } = makeClient({
+			textElement: {
+				startTime: 0,
+				duration: 2,
+				content: "Hello from CLI",
+				fontSize: 72,
+				color: "#ffcc00",
+				textAnimations: { schemaVersion: 1 },
+			},
+		});
+
+		const result = await timelineApplyManifest(
+			client,
+			makeOptions(clearedManifest)
+		);
+
+		expect(result.success).toBe(true);
+		expect(result.data).toEqual(
+			expect.objectContaining({ atomic: true, verified: true })
+		);
+	});
+
 	it("rolls back when read-back verification differs", async () => {
 		const { client, post } = makeClient({ finalName: "Wrong name" });
 		const result = await timelineApplyManifest(client, makeOptions(manifest));

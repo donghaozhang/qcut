@@ -49,13 +49,6 @@ const SEMANTIC_TARGET_TEST_IDS: Record<string, string[]> = {
 	"panel.filters": ["filters-panel-tab"],
 	"panel.adjustments": ["adjustments-panel-tab"],
 	"panel.templates": ["templates-panel-tab"],
-	"text.add": ["text-overlay-button"],
-	"text.content": ["text-content-input"],
-	"text.font-size": ["text-font-size-input"],
-	"text.animation": ["text-animation-group-toggle"],
-	"text.animation.entrance": ["text-animation-phase-entrance"],
-	"text.animation.loop": ["text-animation-phase-loop"],
-	"text.animation.exit": ["text-animation-phase-exit"],
 	"export.button": ["export-button", "export-start-button"],
 	"export.start": ["export-start-button"],
 	"timeline.playhead": ["timeline-playhead"],
@@ -66,7 +59,17 @@ const SEMANTIC_TARGET_TEST_IDS: Record<string, string[]> = {
 	"timeline.pause": ["timeline-pause-button", "preview-pause-button"],
 	"preview.canvas": ["preview-canvas", "preview-panel"],
 	"media.import": ["import-media-button"],
+	"text.add": ["text-overlay-button"],
+	"text.content": ["text-content-input"],
+	"text.font-size": ["text-font-size-input"],
+	"text.animation": ["text-animation-group-toggle"],
+	"text.animation.entrance": ["text-animation-phase-entrance"],
+	"text.animation.loop": ["text-animation-phase-loop"],
+	"text.animation.exit": ["text-animation-phase-exit"],
 };
+
+const TEXT_ANIMATION_TARGET_PATTERN =
+	/^text\.animation\.(entrance|loop|exit)\.([a-z0-9-]+)$/;
 
 function resolveSemanticTargetTestIds({
 	target,
@@ -76,14 +79,20 @@ function resolveSemanticTargetTestIds({
 	if (target.startsWith("testid:")) {
 		return [target.slice("testid:".length)];
 	}
-	const textAnimationPreset = /^text\.animation\.(entrance|loop|exit)\.(.+)$/.exec(
-		target
-	);
+	const textAnimationPreset = TEXT_ANIMATION_TARGET_PATTERN.exec(target);
 	if (textAnimationPreset) {
 		const [, phase, presetId] = textAnimationPreset;
 		return [`text-animation-card-${phase}-${presetId}`];
 	}
 	return SEMANTIC_TARGET_TEST_IDS[target] ?? [target];
+}
+
+function isSemanticTarget({ target }: { target: string }): boolean {
+	return (
+		Boolean(SEMANTIC_TARGET_TEST_IDS[target]) ||
+		target.startsWith("testid:") ||
+		TEXT_ANIMATION_TARGET_PATTERN.test(target)
+	);
 }
 
 const BACKGROUND_POINTER_CAPABILITY = {
@@ -634,7 +643,7 @@ async function waitForRequestedState({
 			};
 		}
 	}
-	if (SEMANTIC_TARGET_TEST_IDS[value] || value.startsWith("testid:")) {
+	if (isSemanticTarget({ target: value })) {
 		try {
 			const matched = await waitForSemanticTarget({
 				client,
@@ -665,16 +674,6 @@ async function postTargetAction({
 	options: CLIRunOptions;
 	action: "move" | "hover" | "click" | "double-click" | "right-click";
 }): Promise<CLIResult> {
-	if (options.waitFor) {
-		const waited = await waitForRequestedState({
-			client,
-			value: options.waitFor,
-			timeoutMs: options.timeoutMs,
-			intervalMs: options.intervalMs,
-			projectId: options.projectId,
-		});
-		if (!waited.success) return waited;
-	}
 	const target = await resolvePointerTarget({
 		client,
 		options: {
@@ -699,6 +698,16 @@ async function postTargetAction({
 			? { durationMs: scaledDuration(options.durationMs, speed, 220) }
 			: {}),
 	});
+	if (options.waitFor) {
+		const waited = await waitForRequestedState({
+			client,
+			value: options.waitFor,
+			timeoutMs: options.timeoutMs,
+			intervalMs: options.intervalMs,
+			projectId: options.projectId,
+		});
+		if (!waited.success) return waited;
+	}
 	return { success: true, data };
 }
 
@@ -1173,6 +1182,11 @@ async function executeSequenceAction({
 				deltaY: numberValue(action, "deltaY"),
 			},
 		});
+	}
+
+	if (name === "hide") {
+		const data = await client.post("/api/claude/pointer/hide", {});
+		return { success: true, data };
 	}
 
 	if (name === "press" || name === "keyboard:press") {

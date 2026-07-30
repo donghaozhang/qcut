@@ -303,6 +303,10 @@ describe("qcut-shot helpers", () => {
 		expect(promoActions).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({
+					action: "press",
+					keys: [process.platform === "darwin" ? "Meta+A" : "Control+A"],
+				}),
+				expect.objectContaining({
 					action: "click",
 					target: "text.add",
 				}),

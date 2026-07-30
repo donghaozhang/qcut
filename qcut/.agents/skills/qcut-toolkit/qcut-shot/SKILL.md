@@ -12,17 +12,17 @@ CLI-first shot planning and frame generation.
 ```bash
 export QCUT_SHOT_ROOT="/Users/peter/Desktop/code/qcut/qcut/.claude/skills/qcut-toolkit/qcut-shot"
 
-npx -y bun "$QCUT_SHOT_ROOT/scripts/main.ts" story.md
-npx -y bun "$QCUT_SHOT_ROOT/scripts/main.ts" story.md --style cinematic --shots 8
-npx -y bun "$QCUT_SHOT_ROOT/scripts/main.ts" story.md --medium live-action --format film
-npx -y bun "$QCUT_SHOT_ROOT/scripts/main.ts" story.md --medium animation --format short-film --style custom --framing macro --movement slider --lighting bright --mood polished
-npx -y bun "$QCUT_SHOT_ROOT/scripts/main.ts" story.md --style custom --framing macro --movement slider --lighting bright --mood polished
-npx -y bun "$QCUT_SHOT_ROOT/scripts/main.ts" story.md --prompts-only
-npx -y bun "$QCUT_SHOT_ROOT/scripts/main.ts" promo.md --promo --shots 8
-npx -y bun "$QCUT_SHOT_ROOT/scripts/main.ts" promo.md --promo --shot-duration 2.8 \
+npx -y bun@1.3.10 "$QCUT_SHOT_ROOT/scripts/main.ts" story.md
+npx -y bun@1.3.10 "$QCUT_SHOT_ROOT/scripts/main.ts" story.md --style cinematic --shots 8
+npx -y bun@1.3.10 "$QCUT_SHOT_ROOT/scripts/main.ts" story.md --medium live-action --format film
+npx -y bun@1.3.10 "$QCUT_SHOT_ROOT/scripts/main.ts" story.md --medium animation --format short-film --style custom --framing macro --movement slider --lighting bright --mood polished
+npx -y bun@1.3.10 "$QCUT_SHOT_ROOT/scripts/main.ts" story.md --style custom --framing macro --movement slider --lighting bright --mood polished
+npx -y bun@1.3.10 "$QCUT_SHOT_ROOT/scripts/main.ts" story.md --prompts-only
+npx -y bun@1.3.10 "$QCUT_SHOT_ROOT/scripts/main.ts" promo.md --promo --shots 8
+npx -y bun@1.3.10 "$QCUT_SHOT_ROOT/scripts/main.ts" promo.md --promo --shot-duration 2.8 \
   --promo-presets entrance:laser-etch,loop:wave,exit:typewriter-out
-npx -y bun "$QCUT_SHOT_ROOT/scripts/main.ts" shot-plan/my-story --images-only
-npx -y bun "$QCUT_SHOT_ROOT/scripts/main.ts" shot-plan/my-story --regenerate 2,5
+npx -y bun@1.3.10 "$QCUT_SHOT_ROOT/scripts/main.ts" shot-plan/my-story --images-only
+npx -y bun@1.3.10 "$QCUT_SHOT_ROOT/scripts/main.ts" shot-plan/my-story --regenerate 2,5
 ```
 
 ## Options
@@ -75,8 +75,9 @@ shot-plan/{topic-slug}/
 └── ...
 ```
 
-`--promo` produces a clean exported title reel and a recorded editor demo from
-the same shot plan. After the shot images exist and QCut is running:
+`--promo` writes timeline, pointer-action, and demo-run plans alongside the shot
+artifacts. It does not launch QCut, export video, or record the editor. After the
+shot images exist and QCut is running, execute the generated demo plan:
 
 ```bash
 bun run pipeline editor:demo:run \
@@ -84,6 +85,9 @@ bun run pipeline editor:demo:run \
   --recording-quality 1440p \
   --json
 ```
+
+This follow-up applies the timeline, records the editor workflow, and exports the
+final title reel.
 
 The timeline manifest uses declarative `textAnimationPreset` requests. QCut
 resolves them through its bundled preset catalog, so the skill does not copy or
