@@ -59,6 +59,9 @@ function scaleEffectIntensity({
 		case "scale":
 			return {
 				...effect,
+				...(effect.shakeEm !== undefined
+					? { shakeEm: effect.shakeEm * factor }
+					: {}),
 				hiddenScale: 1 - (1 - effect.hiddenScale) * factor,
 				overshoot: effect.overshoot * factor,
 			};

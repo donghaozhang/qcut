@@ -244,6 +244,15 @@ function resolveEffectEnvelope({
 						progress,
 						padding: effect.overshoot,
 					});
+		if (effect.shakeEm) {
+			envelope.translateX = context.fontSize * effect.shakeEm;
+			envelope.translateY = context.fontSize * effect.shakeEm;
+			envelope.filterPadding =
+				context.fontSize *
+				effect.shakeEm *
+				0.6 *
+				TEXT_ANIMATION_FILTER_BLUR_EXTENT;
+		}
 		return envelope;
 	}
 	if (effect.kind === "bounce") {
@@ -293,8 +302,12 @@ function resolveEffectEnvelope({
 			envelope.translateX = travel;
 			envelope.translateY = travel;
 		}
-		envelope.rotationDeg =
-			360 * effect.turns * Math.max(1, maximumAbsolute({ range: progress }));
+		if (effect.spin !== false) {
+			envelope.rotationDeg =
+				360 *
+				effect.turns *
+				Math.max(1, maximumAbsolute({ range: progress }));
+		}
 		return envelope;
 	}
 	if (effect.kind === "laser") {

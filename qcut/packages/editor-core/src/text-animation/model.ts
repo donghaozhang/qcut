@@ -199,7 +199,7 @@ export interface TextSpiralEffect {
 /**
  * Jianying's RotateFlyOut.lua: the unit shrinks to nothing in place while
  * spinning and dropping, all on a cubic-in drive. 随机飞出 uses two full
- * negative turns; 弹性伸缩 reads as a half-turn tumble with no drop.
+ * negative turns; 弹性伸缩 reads as a half-turn tumble with a slight drop.
  */
 export interface TextTumbleEffect {
 	kind: "tumble";
