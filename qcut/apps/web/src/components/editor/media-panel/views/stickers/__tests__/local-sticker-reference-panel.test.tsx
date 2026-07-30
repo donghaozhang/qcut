@@ -438,7 +438,7 @@ describe("LocalStickerReferencePanel", () => {
 		const updatedReference = updatedCatalog.categories[0]?.items[0];
 		if (!updatedReference) throw new Error("Expected a remote sticker fixture");
 		updatedReference.asset.objectKey =
-			"jianying/2026-07-31/assets/popular-1-updated.gif";
+			"catalogs/qcut-original-test/assets/popular-1-updated.gif";
 		updatedReference.asset.checksumSha256 = "b".repeat(64);
 		rerender(
 			<LocalStickerReferencePanel
@@ -453,9 +453,10 @@ describe("LocalStickerReferencePanel", () => {
 			expect(referenceMocks.loadFile).toHaveBeenCalledTimes(4)
 		);
 		expect(referenceMocks.loadFile).toHaveBeenCalledWith({
+			provenance: catalog.provenance,
 			reference: expect.objectContaining({
 				asset: expect.objectContaining({
-					objectKey: "jianying/2026-07-31/assets/popular-1-updated.gif",
+					objectKey: "catalogs/qcut-original-test/assets/popular-1-updated.gif",
 				}),
 			}),
 			signal: expect.any(AbortSignal),
