@@ -802,16 +802,14 @@ function TextTemplate({
 	}, [definition, downloadStatus]);
 
 	return (
-		<div
-			className="group relative w-full"
-			data-testid={
-				template.id === "default-text" ? "text-overlay-button" : undefined
-			}
-		>
+		<div className="group relative w-full">
 			<div
 				role="button"
 				tabIndex={0}
 				aria-label={templateAccessibilityLabel}
+				data-testid={
+					template.id === "default-text" ? "text-overlay-button" : undefined
+				}
 				className="relative cursor-default"
 				onClick={handleActivate}
 				onKeyDown={(event: KeyboardEvent<HTMLDivElement>) => {
