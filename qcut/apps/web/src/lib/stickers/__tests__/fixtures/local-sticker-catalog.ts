@@ -65,9 +65,11 @@ export function createLocalStickerCatalog(): LocalStickerCatalog {
 }
 
 export function createRemoteStickerReference({
+	checksumSha256 = "9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a",
 	id,
 	mimeType = "image/gif",
 }: {
+	checksumSha256?: string;
 	id: string;
 	mimeType?: "image/gif" | "image/png";
 }): RemoteStickerReference {
@@ -88,12 +90,17 @@ export function createRemoteStickerReference({
 					loop: true,
 				}
 			: { kind: "static" },
+		sourceAsset: {
+			collection: "qcut-original",
+			id: `qcut-original:${id}`,
+			path: `apps/web/public/stickers/qcut-original/capybara/${id}.svg`,
+			checksumSha256,
+		},
 		asset: {
 			kind: "supabase-storage",
-			objectKey: `jianying/2026-07-31/assets/${id}.${extension}`,
+			objectKey: `catalogs/qcut-original-test/assets/${id}.${extension}`,
 			byteSize: 4,
-			checksumSha256:
-				"9f64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a",
+			checksumSha256,
 		},
 	};
 }
@@ -101,7 +108,19 @@ export function createRemoteStickerReference({
 export function createRemoteStickerCatalog(): RemoteStickerCatalog {
 	return {
 		version: 2,
-		catalogId: "jianying-2026-07-31",
+		catalogId: "qcut-original-test",
+		provenance: {
+			creator: "QCut",
+			license: {
+				name: "MIT",
+				commercialUse: "allowed",
+				attributionRequired: false,
+				licenseFile: "LICENSE",
+			},
+			sourceCollections: ["qcut-original"],
+			sourceTreeGitOid: "1ae49f649f9e3950609f874085048669e0f76232",
+			transformation: "Rasterized QCut-authored SVG assets to PNG",
+		},
 		categories: [
 			{
 				id: "popular",
@@ -110,6 +129,8 @@ export function createRemoteStickerCatalog(): RemoteStickerCatalog {
 				items: [
 					createRemoteStickerReference({ id: "popular-1" }),
 					createRemoteStickerReference({
+						checksumSha256:
+							"af64a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a",
 						id: "popular-2",
 						mimeType: "image/png",
 					}),
