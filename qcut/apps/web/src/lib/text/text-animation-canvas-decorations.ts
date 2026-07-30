@@ -174,6 +174,7 @@ function drawParticles({
 	ctx: CanvasTextContext;
 	decoration: Extract<TextAnimationDecorationState, { kind: "particles" }>;
 }): void {
+	const inheritedAlpha = ctx.globalAlpha;
 	for (const item of decoration.items) {
 		if (item.opacity <= 0 || item.sizePx <= 0) continue;
 		ctx.save();
@@ -183,28 +184,21 @@ function drawParticles({
 		const color = decoration.palette[item.colorIndex] ?? "#f43f5e";
 		ctx.fillStyle = color;
 		if (decoration.shape === "spark") {
-			// Dotted spark trail: item.x/y is the ray tip, sizePx its length;
-			// dots taper and brighten toward the tip like the reference
-			// starburst footage.
-			const angleRad = (item.rotationDeg * Math.PI) / 180;
-			const dirX = Math.sin(angleRad);
-			const dirY = -Math.cos(angleRad);
+			// Dotted spark trail. The context is already translated to the ray
+			// tip and rotated to its heading, so local +y walks back toward the
+			// burst origin; dots taper and brighten toward the tip like the
+			// reference starburst footage.
 			const dots = 9;
 			ctx.fillStyle = "#fff7e6";
 			for (let dot = 0; dot < dots; dot++) {
 				const along = 0.25 + (dot / (dots - 1)) * 0.75;
 				const radius = 0.8 + (dot / (dots - 1)) * 1.4;
 				ctx.globalAlpha =
+					inheritedAlpha *
 					clampTextAnimationOpacity({ value: item.opacity }) *
 					(0.35 + 0.65 * (dot / (dots - 1)));
 				ctx.beginPath();
-				ctx.arc(
-					item.x - dirX * item.sizePx * (1 - along),
-					item.y - dirY * item.sizePx * (1 - along),
-					radius,
-					0,
-					Math.PI * 2
-				);
+				ctx.arc(0, item.sizePx * (1 - along), radius, 0, Math.PI * 2);
 				ctx.fill();
 			}
 			ctx.restore();

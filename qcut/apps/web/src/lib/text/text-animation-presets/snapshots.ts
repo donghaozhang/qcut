@@ -26,6 +26,9 @@ const RESTART_LOOP_PRESET_IDS = new Set([
 	"wave-squeeze",
 	"fold",
 	"arc-up",
+	// Ballistic bursts must not alternate: a reversed cycle would suck the
+	// particles back into the emitter.
+	"lucky-bag",
 ]);
 
 function isLoopPreset({
@@ -66,13 +69,18 @@ export function createTextAnimationPhaseSnapshot({
 			}),
 		},
 		sequence,
+		// Shatter rasterises the whole element and burst emits from the layout
+		// centre, so both are container-level regardless of the sequence unit —
+		// a per-unit target would silently drop shatter or duplicate particles.
 		target:
-			effect.kind === "typewriter" ||
-			effect.kind === "laser" ||
-			effect.kind === "heart" ||
-			sequence.unit !== "all"
-				? "text"
-				: "textAndBackground",
+			effect.kind === "shatter" || effect.kind === "burst"
+				? "textAndBackground"
+				: effect.kind === "typewriter" ||
+						effect.kind === "laser" ||
+						effect.kind === "heart" ||
+						sequence.unit !== "all"
+					? "text"
+					: "textAndBackground",
 		effect,
 	};
 

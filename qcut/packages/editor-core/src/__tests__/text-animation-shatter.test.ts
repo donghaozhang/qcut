@@ -89,6 +89,63 @@ describe("shatter tile math (LumiDust port)", () => {
 		expect(first.alpha).toBeLessThan(last.alpha);
 	});
 
+	it("keeps a rotated wipe front inside the sweep range", () => {
+		// An unnormalised projection overflows [0, 1] off-axis, which left the
+		// text pre-shattered at progress 0 and never finished at progress 1.
+		const rotated = state({ front: "wipe", frontRotDeg: 45, feather: 0.35 });
+		const atStart = computeShatterTiles({
+			width: 200,
+			height: 100,
+			state: { ...rotated, progress: 0 },
+		});
+		expect(atStart.every((tile) => tile.alpha === 1)).toBe(true);
+		const atEnd = computeShatterTiles({
+			width: 200,
+			height: 100,
+			state: { ...rotated, progress: 1 },
+		});
+		expect(atEnd.every((tile) => tile.alpha < 0.05)).toBe(true);
+	});
+
+	it("lifts released dust when gravity is rotated upward", () => {
+		const tiles = computeShatterTiles({
+			width: 40,
+			height: 20,
+			state: state({
+				progress: 1,
+				gravityRotDeg: 180,
+				gravityPx: 40,
+				distortionPx: 0,
+			}),
+		});
+		expect(tiles.every((tile) => tile.dy < 0)).toBe(true);
+		const down = computeShatterTiles({
+			width: 40,
+			height: 20,
+			state: state({
+				progress: 1,
+				gravityRotDeg: 0,
+				gravityPx: 40,
+				distortionPx: 0,
+			}),
+		});
+		expect(down.every((tile) => tile.dy > 0)).toBe(true);
+	});
+
+	it("caps tile count so a fine grid on a big raster stays affordable", () => {
+		const tiles = computeShatterTiles({
+			width: 1700,
+			height: 600,
+			state: state({ tilePx: 4 }),
+		});
+		expect(tiles.length).toBeLessThanOrEqual(8000);
+		// Coverage is preserved: the grid still spans the whole raster.
+		const maxRight = Math.max(...tiles.map((tile) => tile.sx + tile.size));
+		const maxBottom = Math.max(...tiles.map((tile) => tile.sy + tile.size));
+		expect(maxRight).toBeGreaterThanOrEqual(1700);
+		expect(maxBottom).toBeGreaterThanOrEqual(600);
+	});
+
 	it("hashes stable platform-independent noise", () => {
 		expect(shatterNoise({ x: 3, y: 5, seed: 7, channel: 1 })).toBe(
 			shatterNoise({ x: 3, y: 5, seed: 7, channel: 1 })

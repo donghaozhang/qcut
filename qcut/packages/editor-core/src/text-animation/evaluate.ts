@@ -18,6 +18,24 @@ import { evaluateTextAnimationEffect } from "./effect-state.js";
 import { segmentText } from "./segmentation.js";
 
 const MAX_DECORATIONS_PER_FRAME = 256;
+/**
+ * Sprite budget across every particles decoration in a frame. The decoration
+ * cap alone does not bound cost here: one particles decoration carries a whole
+ * emitter's worth of items, so a per-unit burst would multiply past it.
+ */
+const MAX_PARTICLE_ITEMS_PER_FRAME = 600;
+
+function particleItemCount({
+	decorations,
+}: {
+	decorations: readonly TextAnimationDecorationState[];
+}): number {
+	let total = 0;
+	for (const decoration of decorations) {
+		if (decoration.kind === "particles") total += decoration.items.length;
+	}
+	return total;
+}
 
 function identityVisual(): TextAnimationVisualState {
 	return { ...IDENTITY_TEXT_ANIMATION_VISUAL_STATE };
@@ -126,7 +144,28 @@ function appendDecorations({
 	source: TextAnimationDecorationState[];
 }): void {
 	if (target.length >= MAX_DECORATIONS_PER_FRAME) return;
-	target.push(...source.slice(0, MAX_DECORATIONS_PER_FRAME - target.length));
+	let itemBudget =
+		MAX_PARTICLE_ITEMS_PER_FRAME - particleItemCount({ decorations: target });
+	for (const decoration of source.slice(
+		0,
+		MAX_DECORATIONS_PER_FRAME - target.length
+	)) {
+		if (decoration.kind !== "particles") {
+			target.push(decoration);
+			continue;
+		}
+		if (itemBudget <= 0) continue;
+		if (decoration.items.length <= itemBudget) {
+			target.push(decoration);
+			itemBudget -= decoration.items.length;
+			continue;
+		}
+		target.push({
+			...decoration,
+			items: decoration.items.slice(0, itemBudget),
+		});
+		itemBudget = 0;
+	}
 }
 
 function applyPhase({

@@ -31,7 +31,13 @@ function burstEffect(
 	};
 }
 
-function evaluateBurstFrame({ frame }: { frame: number }) {
+function evaluateBurstFrame({
+	frame,
+	fps = 10,
+}: {
+	frame: number;
+	fps?: number;
+}) {
 	const element = createElement({
 		overrides: {
 			content: "AB",
@@ -45,7 +51,7 @@ function evaluateBurstFrame({ frame }: { frame: number }) {
 			}),
 		},
 	});
-	const compiled = compileTextAnimation({ element, fps: 10 });
+	const compiled = compileTextAnimation({ element, fps });
 	return evaluateTextAnimationFrame({
 		compiled,
 		frame,
@@ -92,6 +98,29 @@ describe("burst sprite particles", () => {
 		expect(state.container.opacity).toBe(1);
 		expect(state.container.translateX).toBe(0);
 		expect(state.container.translateY).toBe(0);
+	});
+
+	it("fades every particle out before the phase ends", () => {
+		// Lives used to run past progress 1, so particles were still near full
+		// opacity when the phase stopped emitting and vanished in one frame.
+		const lastFrame = evaluateBurstFrame({ frame: 29, fps: 30 });
+		const decoration = lastFrame.decorations.find(
+			(item) => item.kind === "particles"
+		);
+		if (decoration?.kind !== "particles") throw new Error("missing particles");
+		// Worst-case residual is one frame of the fade ramp for the latest-born
+		// particle: (1/fps) / (0.3 * (1 - maxBirth)) ≈ 0.17 at 30fps.
+		for (const item of decoration.items) {
+			expect(item.opacity).toBeLessThan(0.2);
+		}
+		// Mid-phase the same emitter is bright, so the tail is a real fade and
+		// not just an empty frame.
+		const midFrame = evaluateBurstFrame({ frame: 12, fps: 30 });
+		const mid = midFrame.decorations.find((item) => item.kind === "particles");
+		if (mid?.kind !== "particles") throw new Error("missing particles");
+		expect(Math.max(...mid.items.map((item) => item.opacity))).toBeGreaterThan(
+			0.8
+		);
 	});
 
 	it("has no live particles at the very start of the phase", () => {

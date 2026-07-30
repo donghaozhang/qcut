@@ -303,8 +303,11 @@ export function effectForPreset({
 				kind: "shatter",
 				tilePx: 4,
 				distortion: 0.5,
-				gravity: { value: -0.9, unit: "em" },
-				gravityRotDeg: 0,
+				// Released dust drifts upward in the reference. Distances are
+				// magnitudes (normalize clamps negatives to zero), so the
+				// direction rides on gravityRotDeg.
+				gravity: { value: 0.9, unit: "em" },
+				gravityRotDeg: 180,
 				front: "noise",
 				frontRotDeg: 0,
 				feather: 0.35,

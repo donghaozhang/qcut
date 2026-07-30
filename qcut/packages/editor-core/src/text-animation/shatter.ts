@@ -87,6 +87,13 @@ function shatterValueNoise({
 	return top + (bottom - top) * sy;
 }
 
+/**
+ * Upper bound on tiles per frame. Each tile is one drawImage call, so a small
+ * tilePx on a large raster would otherwise cost tens of thousands of draws per
+ * frame; past this budget the effective tile grows so cost stays flat.
+ */
+const MAX_SHATTER_TILES = 8000;
+
 /** Lattice cell size for the dissolve front, in tiles. */
 const SHATTER_NOISE_CELL_TILES = 3.5;
 
@@ -112,13 +119,20 @@ export function computeShatterTiles({
 	height: number;
 	state: TextAnimationShatterState;
 }): ShatterTile[] {
-	const size = Math.max(2, Math.round(state.tilePx));
+	const requestedSize = Math.max(2, Math.round(state.tilePx));
+	const requestedTiles =
+		Math.ceil(width / requestedSize) * Math.ceil(height / requestedSize);
+	const size =
+		requestedTiles > MAX_SHATTER_TILES
+			? Math.ceil(requestedSize * Math.sqrt(requestedTiles / MAX_SHATTER_TILES))
+			: requestedSize;
 	const columns = Math.max(1, Math.ceil(width / size));
 	const rows = Math.max(1, Math.ceil(height / size));
 	const tiles: ShatterTile[] = [];
 	const gravityAngle = (state.gravityRotDeg * Math.PI) / 180;
+	// gravityRotDeg 0 pushes released dust down the screen, 180 lifts it.
 	const gravityX = Math.sin(gravityAngle) * state.gravityPx;
-	const gravityY = -Math.cos(gravityAngle) * -state.gravityPx;
+	const gravityY = Math.cos(gravityAngle) * state.gravityPx;
 	const frontAngle = (state.frontRotDeg * Math.PI) / 180;
 	const feather = Math.max(0.001, state.feather);
 
@@ -129,8 +143,13 @@ export function computeShatterTiles({
 			// Dissolve front position for this tile in [0, 1].
 			const site =
 				state.front === "wipe"
-					? (u - 0.5) * Math.cos(frontAngle) +
-						(v - 0.5) * Math.sin(frontAngle) +
+					? // Normalised by the projection's own extent: an unscaled dot
+						// product spans 0.5 ± (|cos| + |sin|)/2, which overflows
+						// [0, 1] off-axis and leaves corners that never dissolve.
+						((u - 0.5) * Math.cos(frontAngle) +
+							(v - 0.5) * Math.sin(frontAngle)) /
+							(Math.abs(Math.cos(frontAngle)) +
+								Math.abs(Math.sin(frontAngle))) +
 						0.5
 					: shatterValueNoise({
 							x: column / SHATTER_NOISE_CELL_TILES,

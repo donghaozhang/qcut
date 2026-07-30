@@ -285,6 +285,8 @@ function heartDecorations({
 }
 
 const BURST_BASE_LIFE = 0.62;
+/** Latest fraction of the phase at which a particle may be born. */
+const BURST_MAX_BIRTH = 0.35;
 
 function burstDecorations({
 	effect,
@@ -316,9 +318,13 @@ function burstDecorations({
 		// Closed-form ballistics: every value below is a pure function of the
 		// phase progress, mirroring the LumiDust prefab schema (pLifeRandom,
 		// pSizeRandom, pSizeOverLife/pOpacityOverLife, gravity).
-		const birth = noise(0) * 0.35;
-		const life =
-			BURST_BASE_LIFE * (1 + (noise(1) - 0.5) * 2 * effect.lifeRandom);
+		const birth = noise(0) * BURST_MAX_BIRTH;
+		// Clamped to the phase remainder: a particle still mid-flight when the
+		// phase ends would be cut off mid-opacity instead of fading out.
+		const life = Math.min(
+			BURST_BASE_LIFE * (1 + (noise(1) - 0.5) * 2 * effect.lifeRandom),
+			1 - birth
+		);
 		const age = (progress - birth) / Math.max(Number.EPSILON, life);
 		if (age <= 0 || age >= 1) continue;
 		const angleRad =

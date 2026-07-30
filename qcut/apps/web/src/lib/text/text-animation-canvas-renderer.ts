@@ -153,8 +153,82 @@ function drawGlyph({
 	drawGlyphDecoration({ ctx, element, grapheme });
 }
 
-/** Padding around the text raster so released tiles can drift, px. */
-const SHATTER_RASTER_PADDING = 96;
+/** Bounds on the raster margin that captures stroke and shadow ink, px. */
+const SHATTER_PADDING_MIN = 8;
+const SHATTER_PADDING_MAX = 256;
+
+/**
+ * Margin needed so the raster holds every pixel the resting text paints.
+ * Sized from the element's own stroke and shadow reach: a fixed margin either
+ * clips a big glow (the tiles then pop at shatter start) or wastes tiles on
+ * plain text.
+ */
+function shatterRasterPadding({ style }: { style: ResolvedTextStyle }): number {
+	const shadowReach =
+		style.shadowOpacity > 0
+			? style.shadowBlur +
+				Math.max(Math.abs(style.shadowOffsetX), Math.abs(style.shadowOffsetY))
+			: 0;
+	const strokeReach = style.strokeWidth > 0 ? style.strokeWidth * 2 : 0;
+	return Math.min(
+		SHATTER_PADDING_MAX,
+		Math.max(SHATTER_PADDING_MIN, Math.ceil(shadowReach + strokeReach + 4))
+	);
+}
+
+/**
+ * Scratch raster reused across frames. Only ever written after a full clear,
+ * so it holds no state between frames — it exists to avoid allocating a
+ * canvas per rendered frame.
+ */
+let shatterRaster: {
+	canvas: OffscreenCanvas | HTMLCanvasElement;
+	ctx: CanvasTextContext;
+	width: number;
+	height: number;
+} | null = null;
+
+function acquireShatterRaster({
+	width,
+	height,
+}: {
+	width: number;
+	height: number;
+}): {
+	canvas: OffscreenCanvas | HTMLCanvasElement;
+	ctx: CanvasTextContext;
+} | null {
+	if (
+		shatterRaster &&
+		shatterRaster.width === width &&
+		shatterRaster.height === height
+	) {
+		shatterRaster.ctx.clearRect(0, 0, width, height);
+		return { canvas: shatterRaster.canvas, ctx: shatterRaster.ctx };
+	}
+	let canvas: OffscreenCanvas | HTMLCanvasElement;
+	if (typeof OffscreenCanvas !== "undefined") {
+		canvas = new OffscreenCanvas(width, height);
+	} else if (typeof document !== "undefined") {
+		const element = document.createElement("canvas");
+		element.width = width;
+		element.height = height;
+		canvas = element;
+	} else {
+		return null;
+	}
+	const ctx = canvas.getContext("2d") as CanvasTextContext | null;
+	if (!ctx) return null;
+	shatterRaster = { canvas, ctx, width, height };
+	return { canvas, ctx };
+}
+
+/** Whether this environment can rasterise at all (jsdom without canvas cannot). */
+function canRasterizeShatter(): boolean {
+	return (
+		typeof OffscreenCanvas !== "undefined" || typeof document !== "undefined"
+	);
+}
 
 /**
  * LumiDust-style tile pass: render the resting text once to an offscreen
@@ -175,33 +249,16 @@ function drawShatteredText({
 	shatter: NonNullable<TextAnimationVisualState["shatter"]>;
 }): boolean {
 	const bounds = layout.animationLayout.bounds;
-	const width = Math.max(
-		1,
-		Math.ceil(bounds.width + SHATTER_RASTER_PADDING * 2)
-	);
-	const height = Math.max(
-		1,
-		Math.ceil(bounds.height + SHATTER_RASTER_PADDING * 2)
-	);
-	let source: OffscreenCanvas | HTMLCanvasElement;
-	if (typeof OffscreenCanvas !== "undefined") {
-		source = new OffscreenCanvas(width, height);
-	} else if (typeof document !== "undefined") {
-		const canvas = document.createElement("canvas");
-		canvas.width = width;
-		canvas.height = height;
-		source = canvas;
-	} else {
-		return false;
-	}
-	const sourceCtx = source.getContext("2d") as CanvasTextContext | null;
-	if (!sourceCtx) return false;
+	const padding = shatterRasterPadding({ style });
+	const width = Math.max(1, Math.ceil(bounds.width + padding * 2));
+	const height = Math.max(1, Math.ceil(bounds.height + padding * 2));
+	const raster = acquireShatterRaster({ width, height });
+	if (!raster) return false;
+	const source = raster.canvas;
+	const sourceCtx = raster.ctx;
 
 	sourceCtx.save();
-	sourceCtx.translate(
-		SHATTER_RASTER_PADDING - bounds.x,
-		SHATTER_RASTER_PADDING - bounds.y
-	);
+	sourceCtx.translate(padding - bounds.x, padding - bounds.y);
 	sourceCtx.font = `${element.fontStyle} ${element.fontWeight} ${element.fontSize}px ${canvasFontFamily(element.fontFamily)}`;
 	drawBackground({ ctx: sourceCtx, element, style, bounds });
 	for (const grapheme of layout.graphemes) {
@@ -220,8 +277,8 @@ function drawShatteredText({
 			tile.sy,
 			tile.size,
 			tile.size,
-			bounds.x - SHATTER_RASTER_PADDING + tile.sx + tile.dx,
-			bounds.y - SHATTER_RASTER_PADDING + tile.sy + tile.dy,
+			bounds.x - padding + tile.sx + tile.dx,
+			bounds.y - padding + tile.sy + tile.dy,
 			tile.size,
 			tile.size
 		);
@@ -293,18 +350,37 @@ export function renderCanonicalTextAnimationToCanvas({
 		visual: state.container,
 		bounds: layout.animationLayout.bounds,
 	});
-	if (state.container.shatter) {
-		const rendered = drawShatteredText({
+	if (state.container.shatter && canRasterizeShatter()) {
+		// Background and glyphs live inside the raster, but decorations from
+		// other active phases (a loop's hearts, a burst's particles) still have
+		// to render around it.
+		drawTextAnimationDecorations({
+			ctx,
+			decorations: state.decorations,
+			layer: "behind",
+			compiled,
+			activePhases: state.activePhases,
+			layout,
+			element: renderedElement,
+		});
+		drawShatteredText({
 			ctx,
 			element: renderedElement,
 			style,
 			layout,
 			shatter: state.container.shatter,
 		});
-		if (rendered) {
-			ctx.restore();
-			return true;
-		}
+		drawTextAnimationDecorations({
+			ctx,
+			decorations: state.decorations,
+			layer: "front",
+			compiled,
+			activePhases: state.activePhases,
+			layout,
+			element: renderedElement,
+		});
+		ctx.restore();
+		return true;
 	}
 	drawBackground({
 		ctx,

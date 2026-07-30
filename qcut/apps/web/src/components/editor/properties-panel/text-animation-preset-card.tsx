@@ -47,10 +47,17 @@ export function textAnimationVisualStyle({
 }: {
 	visual: TextAnimationVisualState;
 }): CSSProperties {
+	// The DOM preview cannot displace raster tiles, so a shatter reads as a
+	// blurred fade whose strength tracks the dissolve front. The real preview
+	// and the export both go through the canvas tile pass.
+	const shatterBlurPx = visual.shatter ? visual.shatter.progress * 3 : 0;
+	const blurPx = Math.max(visual.blurPx, shatterBlurPx);
 	return {
 		clipPath: maskClipPath({ mask: visual.mask }),
-		filter: visual.blurPx > 0 ? `blur(${visual.blurPx}px)` : undefined,
-		opacity: visual.opacity,
+		filter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
+		opacity: visual.shatter
+			? visual.opacity * (1 - visual.shatter.progress * 0.85)
+			: visual.opacity,
 		transform: `translate3d(${visual.translateX}px, ${visual.translateY}px, 0) rotate(${visual.rotationDeg}deg) scale(${visual.scaleX}, ${visual.scaleY})`,
 		transformOrigin:
 			visual.transformOrigin === "bottomCenter" ? "50% 100%" : undefined,

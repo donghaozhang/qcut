@@ -267,6 +267,41 @@ describe("text animation preset registry", () => {
 		expect(granularPresetIds).not.toContain("fade-characters");
 	});
 
+	it("keeps particle preset parameters intact through normalization", () => {
+		const element = createTextElement({
+			animations: {
+				schemaVersion: 1,
+				exit: createTextAnimationPhaseSnapshot({
+					preset: findPreset({ phase: "exit", presetId: "particle-shatter" }),
+				}),
+			} as TextAnimationsV1,
+		});
+		const exit = normalizeTextAnimations({ element }).animation?.exit;
+		if (exit?.effect.kind !== "shatter") throw new Error("expected shatter");
+		// Distances are magnitudes, so the upward drift has to live in the
+		// rotation — a negative gravity would be clamped to zero here.
+		expect(exit.effect.gravity.value).toBeGreaterThan(0);
+		expect(exit.effect.gravityRotDeg).toBe(180);
+		// Rasterising the element is container-level by construction.
+		expect(exit.target).toBe("textAndBackground");
+
+		const loop = createTextAnimationPhaseSnapshot({
+			preset: findPreset({ phase: "loop", presetId: "lucky-bag" }),
+		});
+		if (!("repeat" in loop)) throw new Error("expected a loop snapshot");
+		// Alternate would run the ballistics backwards on every odd cycle,
+		// sucking the coins back into the emitter.
+		expect(loop.repeat.mode).toBe("restart");
+		expect(loop.target).toBe("textAndBackground");
+
+		const entrance = createTextAnimationPhaseSnapshot({
+			preset: findPreset({ phase: "entrance", presetId: "confetti-burst" }),
+		});
+		if (entrance.effect.kind !== "burst") throw new Error("expected burst");
+		expect(entrance.effect.rays?.count).toBeGreaterThan(0);
+		expect(entrance.timing.easing).toBe("linear");
+	});
+
 	it("applies the bounce-up spring once across quarter-cycle samples", () => {
 		const preset = findPreset({
 			phase: "entrance",
