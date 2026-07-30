@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
 	createLocalStickerReference,
+	createRemoteStickerCatalog,
 	createRemoteStickerReference,
 } from "./fixtures/local-sticker-catalog";
 import {
@@ -10,6 +11,8 @@ import {
 	loadRemoteStickerReferenceFile,
 	loadStickerLabReferenceFile,
 } from "../local-sticker-reference";
+
+const REMOTE_PROVENANCE = createRemoteStickerCatalog().provenance;
 
 describe("local sticker reference files", () => {
 	it("loads an owned image file through the injected desktop reader", async () => {
@@ -50,8 +53,9 @@ describe("local sticker reference files", () => {
 
 		expect(
 			buildStickerLabAssetEntry({
-				reference,
 				licenseServerUrl: "https://license.example/",
+				provenance: REMOTE_PROVENANCE,
+				reference,
 			})
 		).toMatchObject({
 			id: `sticker-lab:${reference.asset.objectKey}`,
@@ -60,12 +64,17 @@ describe("local sticker reference files", () => {
 			files: [
 				{
 					role: "source",
-					url: "https://license.example/api/sticker-lab/assets?objectKey=jianying%2F2026-07-31%2Fassets%2Fcurved-arrow.gif",
+					url: "https://license.example/api/sticker-lab/assets?objectKey=catalogs%2Fqcut-original-test%2Fassets%2Fcurved-arrow.gif",
 					mimeType: "image/gif",
 					byteSize: reference.asset.byteSize,
 					checksumSha256: reference.asset.checksumSha256,
 				},
 			],
+			license: {
+				name: "MIT",
+				commercialUse: "allowed",
+				attributionRequired: false,
+			},
 		});
 	});
 
@@ -137,10 +146,11 @@ describe("local sticker reference files", () => {
 		]);
 
 		const file = await loadRemoteStickerReferenceFile({
-			reference,
 			ensureResources,
 			getToken: async () => "unused-on-cache-hit",
 			licenseServerUrl: "https://license.example",
+			provenance: REMOTE_PROVENANCE,
+			reference,
 			signal: abortController.signal,
 		});
 
@@ -188,13 +198,22 @@ describe("local sticker reference files", () => {
 			},
 		]);
 		const remoteFile = await loadStickerLabReferenceFile({
-			reference: remote,
 			ensureResources,
+			provenance: REMOTE_PROVENANCE,
+			reference: remote,
 			signal: abortController.signal,
 		});
 		expect(remoteFile.name).toBe("remote-arrow.gif");
 		expect(ensureResources).toHaveBeenCalledWith(
 			expect.objectContaining({ signal: abortController.signal })
 		);
+	});
+
+	it("requires provenance before loading a remote reference", async () => {
+		await expect(
+			loadStickerLabReferenceFile({
+				reference: createRemoteStickerReference({ id: "remote-arrow" }),
+			})
+		).rejects.toThrow("require catalog provenance");
 	});
 });
