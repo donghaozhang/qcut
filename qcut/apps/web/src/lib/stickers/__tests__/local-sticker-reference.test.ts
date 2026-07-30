@@ -1,62 +1,32 @@
 import { describe, expect, it, vi } from "vitest";
-import {
-	buildLocalStickerReferences,
-	loadLocalStickerReferenceFile,
-} from "../local-sticker-reference";
+import { createLocalStickerReference } from "./fixtures/local-sticker-catalog";
+import { loadLocalStickerReferenceFile } from "../local-sticker-reference";
 
-describe("local sticker references", () => {
-	it("only exposes the reference in a configured development build", () => {
-		expect(
-			buildLocalStickerReferences({
-				filePath: "/tmp/arrow.png",
-				isEnabled: false,
-			})
-		).toEqual([]);
-		expect(
-			buildLocalStickerReferences({
-				filePath: "   ",
-				isEnabled: true,
-			})
-		).toEqual([]);
-
-		const [reference] = buildLocalStickerReferences({
-			filePath: " /tmp/arrow.png ",
-			isEnabled: true,
-		});
-		expect(reference).toMatchObject({
-			displayName: "手绘弯箭头",
-			filePath: "/tmp/arrow.png",
-			frameCount: 4,
-			frameRate: 5,
-			cycleDuration: 0.8,
-		});
-	});
-
+describe("local sticker reference files", () => {
 	it("loads an owned image file through the injected desktop reader", async () => {
-		const [reference] = buildLocalStickerReferences({
-			filePath: "/tmp/arrow.png",
-			isEnabled: true,
-		});
-		const readFile = vi.fn(async () => new Uint8Array([137, 80, 78, 71]));
+		const reference = createLocalStickerReference({ id: "curved-arrow" });
+		const bytes = new Uint8Array([137, 80, 78, 71]);
+		const readFile = vi.fn(async () => bytes);
 
 		const file = await loadLocalStickerReferenceFile({
 			reference,
 			readFile,
 		});
 
-		expect(readFile).toHaveBeenCalledWith({ filePath: "/tmp/arrow.png" });
-		expect(file.name).toBe("hand-drawn-curved-arrow.png");
+		expect(readFile).toHaveBeenCalledWith({ filePath: reference.filePath });
+		expect(file.name).toBe("curved-arrow.png");
 		expect(file.type).toBe("image/png");
+		expect([...new Uint8Array(await file.arrayBuffer())]).toEqual([
+			137, 80, 78, 71,
+		]);
+		bytes.fill(0);
 		expect([...new Uint8Array(await file.arrayBuffer())]).toEqual([
 			137, 80, 78, 71,
 		]);
 	});
 
 	it("rejects a missing local file", async () => {
-		const [reference] = buildLocalStickerReferences({
-			filePath: "/tmp/missing.png",
-			isEnabled: true,
-		});
+		const reference = createLocalStickerReference({ id: "missing" });
 
 		await expect(
 			loadLocalStickerReferenceFile({
