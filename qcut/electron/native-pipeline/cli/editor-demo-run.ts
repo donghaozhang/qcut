@@ -116,6 +116,20 @@ function resolveRecordingPath({
 		: path.resolve(path.dirname(planPath), plannedPath);
 }
 
+export function resolveDemoExportPath({
+	planPath,
+	plannedPath,
+}: {
+	planPath: string;
+	plannedPath?: string;
+}): string {
+	const defaultPath = `${path.basename(planPath, path.extname(planPath))}-export.mp4`;
+	const requestedPath = plannedPath ?? defaultPath;
+	return path.isAbsolute(requestedPath)
+		? requestedPath
+		: path.resolve(path.dirname(planPath), requestedPath);
+}
+
 function captureExpectedDurationMs({
 	actionResult,
 }: {
@@ -211,13 +225,10 @@ async function runDemoExport({
 	} = exportPlan;
 	const configuredOutput =
 		stringValue(request, "outputPath") ?? stringValue(exportPlan, "output");
-	const outputPath = path.resolve(
-		configuredOutput ??
-			path.join(
-				path.dirname(planPath),
-				`${path.basename(planPath, path.extname(planPath))}-export.mp4`
-			)
-	);
+	const outputPath = resolveDemoExportPath({
+		planPath,
+		plannedPath: configuredOutput,
+	});
 	request.outputPath = outputPath;
 
 	onProgress({
