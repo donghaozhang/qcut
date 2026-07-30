@@ -68,14 +68,30 @@ const SEMANTIC_TARGET_TEST_IDS: Record<string, string[]> = {
 	"text.animation.exit": ["text-animation-phase-exit"],
 };
 
-const TEXT_ANIMATION_PRESET_TARGET =
+const TEXT_ANIMATION_TARGET_PATTERN =
 	/^text\.animation\.(entrance|loop|exit)\.([a-z0-9-]+)$/;
+
+function resolveSemanticTargetTestIds({
+	target,
+}: {
+	target: string;
+}): string[] {
+	if (target.startsWith("testid:")) {
+		return [target.slice("testid:".length)];
+	}
+	const textAnimationPreset = TEXT_ANIMATION_TARGET_PATTERN.exec(target);
+	if (textAnimationPreset) {
+		const [, phase, presetId] = textAnimationPreset;
+		return [`text-animation-card-${phase}-${presetId}`];
+	}
+	return SEMANTIC_TARGET_TEST_IDS[target] ?? [target];
+}
 
 function isSemanticTarget({ target }: { target: string }): boolean {
 	return (
 		Boolean(SEMANTIC_TARGET_TEST_IDS[target]) ||
 		target.startsWith("testid:") ||
-		TEXT_ANIMATION_PRESET_TARGET.test(target)
+		TEXT_ANIMATION_TARGET_PATTERN.test(target)
 	);
 }
 
@@ -180,15 +196,7 @@ function findSemanticTarget({
 	target: string;
 }): EditorSnapshotElement | undefined {
 	const normalized = target.trim();
-	const explicitTestId = normalized.startsWith("testid:")
-		? normalized.slice("testid:".length)
-		: undefined;
-	const animationPreset = normalized.match(TEXT_ANIMATION_PRESET_TARGET);
-	const testIds = explicitTestId
-		? [explicitTestId]
-		: animationPreset
-			? [`text-animation-card-${animationPreset[1]}-${animationPreset[2]}`]
-			: (SEMANTIC_TARGET_TEST_IDS[normalized] ?? [normalized]);
+	const testIds = resolveSemanticTargetTestIds({ target: normalized });
 	return snapshot.elements.find(
 		(element) =>
 			element.bounds.width > 0 &&
@@ -1060,7 +1068,7 @@ function stringValue(
 	return typeof value === "string" ? value : undefined;
 }
 
-async function runSequenceAction({
+async function executeSequenceAction({
 	client,
 	baseOptions,
 	action,
@@ -1084,7 +1092,7 @@ async function runSequenceAction({
 		...baseOptions,
 		foreground,
 		speed,
-		waitFor: stringValue(action, "waitFor"),
+		waitFor: undefined,
 		timeoutMs: numberValue(action, "timeoutMs") ?? baseOptions.timeoutMs,
 	};
 
@@ -1284,7 +1292,45 @@ async function runSequenceAction({
 		return { success: true, data: await getEditorSnapshot(client) };
 	}
 
+	if (name === "hide") {
+		const data = await client.post("/api/claude/pointer/hide", {});
+		return { success: true, data };
+	}
+
 	return { success: false, error: `Unsupported sequence action: ${name}` };
+}
+
+async function runSequenceAction({
+	client,
+	baseOptions,
+	action,
+}: {
+	client: EditorApiClient;
+	baseOptions: CLIRunOptions;
+	action: Record<string, unknown>;
+}): Promise<CLIResult> {
+	const result = await executeSequenceAction({ client, baseOptions, action });
+	const waitFor = stringValue(action, "waitFor");
+	if (!result.success || !waitFor) return result;
+
+	const waited = await waitForRequestedState({
+		client,
+		value: waitFor,
+		timeoutMs: numberValue(action, "timeoutMs") ?? baseOptions.timeoutMs,
+		intervalMs: numberValue(action, "intervalMs") ?? baseOptions.intervalMs,
+		projectId: stringValue(action, "projectId") ?? baseOptions.projectId,
+	});
+	if (!waited.success) {
+		return {
+			success: false,
+			error: `Action completed, but waitFor '${waitFor}' failed: ${waited.error}`,
+			data: { action: result.data, waitFor: waited.data },
+		};
+	}
+	return {
+		success: true,
+		data: { action: result.data, waitFor: waited.data },
+	};
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -1411,6 +1457,7 @@ export async function runPointerSequence({
 	let recordingStart: unknown;
 	let recording: unknown;
 	let recordingOutputPath: string | undefined;
+	let eventTrackOutputPath = options.eventTrack;
 	let captureStartedAt: number | undefined;
 	let appliedPrerollMs = 0;
 	let appliedPostrollMs = 0;
@@ -1419,6 +1466,13 @@ export async function runPointerSequence({
 		recordingOutputPath = await resolveRecordingOutputPath({
 			requestedPath: options.record,
 		});
+		eventTrackOutputPath ??= path.join(
+			path.dirname(recordingOutputPath),
+			`${path.basename(
+				recordingOutputPath,
+				path.extname(recordingOutputPath)
+			)}.pointer.json`
+		);
 		recordingStart = await client.post("/api/claude/screen-recording/start", {
 			fileName: path.basename(recordingOutputPath),
 			captureMode: "editor",
@@ -1481,6 +1535,8 @@ export async function runPointerSequence({
 				from: action.from ?? action.fromTarget,
 				to: action.to ?? action.toTarget,
 				toTime: action.toTime,
+				label: stringValue(action, "label"),
+				chapter: stringValue(action, "chapter"),
 				success: result.success,
 				result: result.data,
 			});
@@ -1508,10 +1564,10 @@ export async function runPointerSequence({
 			}
 		}
 		let eventTrack: string | undefined;
-		if (options.eventTrack) {
+		if (eventTrackOutputPath) {
 			try {
 				eventTrack = await writePointerEventTrack({
-					requestedPath: options.eventTrack,
+					requestedPath: eventTrackOutputPath,
 					captureStartedAt: eventTrackStartedAt,
 					sequenceStartedAt,
 					endedAt: captureEndedAt,
@@ -1557,9 +1613,9 @@ export async function runPointerSequence({
 			outputPath: recordingOutputPath,
 		});
 	}
-	const eventTrack = options.eventTrack
+	const eventTrack = eventTrackOutputPath
 		? await writePointerEventTrack({
-				requestedPath: options.eventTrack,
+				requestedPath: eventTrackOutputPath,
 				captureStartedAt: eventTrackStartedAt,
 				sequenceStartedAt,
 				endedAt: captureEndedAt,

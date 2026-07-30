@@ -24,11 +24,21 @@ function makeOptions(manifest: object): CLIRunOptions {
 function makeClient({
 	finalName = "Titles",
 	videoElement = { startTime: 0, duration: 2 },
+	textElement = {
+		startTime: 0,
+		duration: 2,
+		content: "Hello from CLI",
+		fontSize: 72,
+		color: "#ffcc00",
+	},
 	mediaFiles = [],
+	textAboveMedia = false,
 }: {
 	finalName?: string;
 	videoElement?: Record<string, unknown>;
+	textElement?: Record<string, unknown>;
 	mediaFiles?: Array<{ id: string; name: string; size: number }>;
+	textAboveMedia?: boolean;
 } = {}) {
 	let timelineReads = 0;
 	const get = vi.fn(async (url: string) => {
@@ -52,40 +62,37 @@ function makeClient({
 					],
 				};
 			}
-			return {
-				tracks: [
+			const mediaTrack = {
+				id: "main-track",
+				index: textAboveMedia ? 1 : 0,
+				name: "Main Video",
+				type: "media",
+				isMain: true,
+				elements: [
 					{
-						id: "main-track",
-						index: 0,
-						name: "Main Video",
-						type: "media",
-						isMain: true,
-						elements: [
-							{
-								id: "video-1",
-								...videoElement,
-							},
-						],
-						transitions: [],
-					},
-					{
-						id: "track-1",
-						index: 1,
-						name: finalName,
-						type: "text",
-						elements: [
-							{
-								id: "element-1",
-								startTime: 0,
-								duration: 2,
-								content: "Hello from CLI",
-								fontSize: 72,
-								color: "#ffcc00",
-							},
-						],
-						transitions: [],
+						id: "video-1",
+						...videoElement,
 					},
 				],
+				transitions: [],
+			};
+			const textTrack = {
+				id: "track-1",
+				index: textAboveMedia ? 0 : 1,
+				name: finalName,
+				type: "text",
+				elements: [
+					{
+						id: "element-1",
+						...textElement,
+					},
+				],
+				transitions: [],
+			};
+			return {
+				tracks: textAboveMedia
+					? [textTrack, mediaTrack]
+					: [mediaTrack, textTrack],
 			};
 		}
 		throw new Error(`Unexpected GET ${url}`);
@@ -110,10 +117,15 @@ function makeClient({
 		}
 		if (url === "/api/claude/timeline/project-1/elements/batch") {
 			return {
-				added: [
-					{ index: 0, success: true, elementId: "video-1" },
-					{ index: 1, success: true, elementId: "element-1" },
-				],
+				added: textAboveMedia
+					? [
+							{ index: 0, success: true, elementId: "element-1" },
+							{ index: 1, success: true, elementId: "video-1" },
+						]
+					: [
+							{ index: 0, success: true, elementId: "video-1" },
+							{ index: 1, success: true, elementId: "element-1" },
+						],
 				failedCount: 0,
 			};
 		}
@@ -303,6 +315,117 @@ describe("editor timeline apply", () => {
 		expect(post).toHaveBeenCalledWith(
 			"/api/claude/transaction/transaction-1/commit",
 			{}
+		);
+	});
+
+	it("keeps overlay tracks above the required main media track", async () => {
+		const layeredManifest = {
+			...manifest,
+			tracks: [manifest.tracks[1], manifest.tracks[0]],
+		};
+		const { client, post } = makeClient({ textAboveMedia: true });
+		const result = await timelineApplyManifest(
+			client,
+			makeOptions(layeredManifest)
+		);
+
+		expect(result).toEqual(expect.objectContaining({ success: true }));
+		expect(post).toHaveBeenCalledWith(
+			"/api/claude/timeline/project-1/tracks",
+			expect.objectContaining({ type: "text", name: "Titles", index: 0 })
+		);
+		expect(client.patch).toHaveBeenCalledWith(
+			"/api/claude/timeline/project-1/tracks/main-track",
+			expect.objectContaining({ index: 1, name: "Main Video" })
+		);
+	});
+
+	it("verifies declarative text animation presets against canonical state", async () => {
+		const animatedManifest = {
+			...manifest,
+			tracks: manifest.tracks.map((track, index) =>
+				index === 1
+					? {
+							...track,
+							elements: [
+								{
+									...track.elements[0],
+									textAnimationPreset: {
+										phase: "entrance",
+										presetId: "laser-etch",
+									},
+								},
+							],
+						}
+					: track
+			),
+		};
+		const { client } = makeClient({
+			textElement: {
+				startTime: 0,
+				duration: 2,
+				content: "Hello from CLI",
+				fontSize: 72,
+				color: "#ffcc00",
+				textAnimations: {
+					schemaVersion: 1,
+					entrance: {
+						sourcePreset: { id: "laser-etch", version: 1 },
+					},
+				},
+			},
+		});
+
+		const result = await timelineApplyManifest(
+			client,
+			makeOptions(animatedManifest)
+		);
+
+		expect(result.success).toBe(true);
+		expect(result.data).toEqual(
+			expect.objectContaining({ atomic: true, verified: true })
+		);
+	});
+
+	it("verifies a cleared text animation phase as none", async () => {
+		const clearedManifest = {
+			...manifest,
+			tracks: manifest.tracks.map((track, index) =>
+				index === 1
+					? {
+							...track,
+							elements: [
+								{
+									...track.elements[0],
+									textAnimationPreset: {
+										phase: "entrance",
+										presetId: "none",
+									},
+								},
+							],
+						}
+					: track
+			),
+		};
+		const { client } = makeClient({
+			textElement: {
+				startTime: 0,
+				duration: 2,
+				content: "Hello from CLI",
+				fontSize: 72,
+				color: "#ffcc00",
+				textAnimations: { schemaVersion: 1 },
+			},
+		});
+
+		const result = await timelineApplyManifest(
+			client,
+			makeOptions(clearedManifest)
+		);
+
+		expect(result.success).toBe(true);
+		expect(result.data).toEqual(
+			expect.objectContaining({ atomic: true, verified: true })
 		);
 	});
 

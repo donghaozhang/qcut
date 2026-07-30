@@ -2,7 +2,10 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { runEditorDemo } from "../native-pipeline/cli/editor-demo-run.js";
+import {
+	resolveDemoExportPath,
+	runEditorDemo,
+} from "../native-pipeline/cli/editor-demo-run.js";
 import type { CLIRunOptions } from "../native-pipeline/cli/cli-runner/types.js";
 import type { EditorApiClient } from "../native-pipeline/editor/editor-api-client.js";
 
@@ -14,6 +17,28 @@ afterEach(() => {
 });
 
 describe("editor demo run", () => {
+	it("resolves relative export paths next to the plan", () => {
+		const planDirectory = join(tmpdir(), "portable-demo");
+		const planPath = join(planDirectory, "promo.json");
+		const absoluteExportPath = join(tmpdir(), "final.mp4");
+
+		expect(
+			resolveDemoExportPath({
+				planPath,
+				plannedPath: "promo-final.mp4",
+			})
+		).toBe(join(planDirectory, "promo-final.mp4"));
+		expect(
+			resolveDemoExportPath({
+				planPath,
+				plannedPath: absoluteExportPath,
+			})
+		).toBe(absoluteExportPath);
+		expect(resolveDemoExportPath({ planPath })).toBe(
+			join(planDirectory, "promo-export.mp4")
+		);
+	});
+
 	it("prepares the active project, skips idle actions, and writes an event track", async () => {
 		tempDir = mkdtempSync(join(tmpdir(), "qcut-demo-"));
 		const planPath = join(tempDir, "promo.json");

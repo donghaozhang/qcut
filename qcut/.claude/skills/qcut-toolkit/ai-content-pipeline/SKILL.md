@@ -133,6 +133,29 @@ aicp generate-avatar \
   --model omnihuman_v1_5
 ```
 
+### Generate Voiceover
+
+Use ByteDance Seed Audio for narration intended for a finished video:
+
+```bash
+bun run pipeline gen tts \
+  -m seed_audio \
+  -t "(用自然、自信、克制的产品宣传片语气，节奏明快，避免播音腔)<旁白正文>" \
+  --audio-format mp3 \
+  --sample-rate 48000 \
+  --multilingual \
+  -o media/generated/audio
+```
+
+Write the parenthesized performance direction in the same language as the
+copy. Prefer one request for one continuous narrator track so the speaker stays
+consistent. For split cues, pin the voice with `--audio-url` and reference it
+as `@Audio1` in subsequent prompts.
+
+Do not use operating-system TTS for final narration. It is acceptable only as
+a disposable timing placeholder. If Seed Audio cannot run, report the failure
+instead of silently shipping the placeholder.
+
 ### Transfer Motion
 
 ```bash

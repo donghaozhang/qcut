@@ -1,5 +1,14 @@
 import { VALID_FORMATS, VALID_FRAMINGS, VALID_LIGHTINGS, VALID_MEDIA, VALID_MOODS, VALID_MOVEMENTS } from "./constants";
-import type { CLIOptions, ContentFormat, Framing, Lighting, Medium, Movement, ShotMood } from "./types";
+import type {
+	CLIOptions,
+	ContentFormat,
+	Framing,
+	Lighting,
+	Medium,
+	Movement,
+	PromoTextAnimationPreset,
+	ShotMood,
+} from "./types";
 import { parseNumberList } from "./utils";
 
 function parseEnum({
@@ -18,6 +27,30 @@ function parseEnum({
 		throw new Error(`Invalid value for ${flag}: ${value}`);
 	}
 	return value;
+}
+
+function parsePromoPresets({
+	value,
+}: {
+	value?: string;
+}): PromoTextAnimationPreset[] {
+	if (!value?.trim()) {
+		throw new Error("Missing value for --promo-presets");
+	}
+	return value.split(",").map((entry) => {
+		const [phase, presetId] = entry.split(":", 2).map((part) => part.trim());
+		if (
+			phase !== "entrance" &&
+			phase !== "exit" &&
+			phase !== "loop"
+		) {
+			throw new Error(`Invalid promo preset phase: ${phase}`);
+		}
+		if (!presetId) {
+			throw new Error(`Promo preset is missing an ID: ${entry}`);
+		}
+		return { phase, presetId };
+	});
 }
 
 /** Parses CLI arguments into structured options. */
@@ -41,6 +74,9 @@ export function parseArgs({ argv }: { argv: string[] }): CLIOptions {
 	let provider: string | undefined;
 	let model: string | undefined;
 	let dryRun = false;
+	let promo = false;
+	let shotDuration = 3;
+	let promoPresets: PromoTextAnimationPreset[] | undefined;
 
 	for (let index = 0; index < args.length; index += 1) {
 		const value = args[index];
@@ -133,6 +169,24 @@ export function parseArgs({ argv }: { argv: string[] }): CLIOptions {
 		}
 		if (value === "--dry-run") {
 			dryRun = true;
+			continue;
+		}
+		if (value === "--promo") {
+			promo = true;
+			continue;
+		}
+		if (value === "--shot-duration") {
+			const parsed = Number(args[index + 1]);
+			if (!Number.isFinite(parsed) || parsed < 1 || parsed > 30) {
+				throw new Error("--shot-duration must be between 1 and 30 seconds");
+			}
+			shotDuration = parsed;
+			index += 1;
+			continue;
+		}
+		if (value === "--promo-presets") {
+			promoPresets = parsePromoPresets({ value: args[index + 1] });
+			index += 1;
 		}
 	}
 
@@ -159,5 +213,8 @@ export function parseArgs({ argv }: { argv: string[] }): CLIOptions {
 		provider,
 		model,
 		dryRun,
+		promo,
+		shotDuration,
+		promoPresets,
 	};
 }

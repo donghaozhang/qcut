@@ -83,6 +83,11 @@ async function main(): Promise<void> {
 	console.log(`Shot directory: ${project.shotDir}`);
 	console.log(`Shots: ${resolve(project.shotDir, "shots.md")}`);
 	console.log(`Prompts: ${project.promptsDir}`);
+	if (project.promo) {
+		console.log(`Promo timeline: ${resolve(project.shotDir, "promo-timeline.json")}`);
+		console.log(`Promo actions: ${resolve(project.shotDir, "promo-actions.json")}`);
+		console.log(`Promo demo: ${resolve(project.shotDir, "promo-demo.json")}`);
+	}
 
 	if (options.promptsOnly) {
 		console.log("Stopped after prompt generation because --prompts-only was provided.");

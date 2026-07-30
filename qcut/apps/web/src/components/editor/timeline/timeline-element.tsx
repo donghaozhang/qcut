@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { handleMediaProcessingError } from "@/lib/debug/error-handler";
-import { useFilmstripThumbnails } from "@/hooks/timeline/use-filmstrip-thumbnails";
 import { platform } from "@qcut/platform-core";
 import { Button } from "../../ui/button";
 import {
@@ -128,6 +127,7 @@ import { registerCloudTaskRuntimeActions } from "@/lib/cloud-tasks/task-runtime-
 import { useVideoEditRequestStore } from "@/stores/video-edit-request-store";
 import { useTranslation } from "@/lib/i18n";
 import { localizeTimelineElementName } from "@/lib/i18n/timeline-names";
+import { VideoTimelineClip } from "./video-timeline-clip";
 
 function shellQuote({ value }: { value: string }): string {
 	return `'${value.replace(/'/g, "'\\''")}'`;
@@ -298,38 +298,6 @@ function TimelineElementComponent({
 		(speedStatus !== null ||
 			element.reverse === true ||
 			(element.freezeFrameDuration ?? 0) > 0);
-
-	// Viewport-aware filmstrip: only extract frames for visible clips
-	const elementRef = useRef<HTMLDivElement>(null);
-	const [isVisible, setIsVisible] = useState(true);
-
-	useEffect(() => {
-		const el = elementRef.current;
-		if (!el) return;
-		const observer = new IntersectionObserver(
-			([entry]) => setIsVisible(entry.isIntersecting),
-			{ threshold: 0 }
-		);
-		observer.observe(el);
-		return () => observer.disconnect();
-	}, []);
-
-	// Filmstrip thumbnails for video clips
-	const filmstrip = useFilmstripThumbnails({
-		mediaId: "mediaId" in element ? element.mediaId : "",
-		file: mediaItem?.type === "video" ? mediaItem.file : undefined,
-		duration: element.duration,
-		trimStart: element.trimStart,
-		trimEnd: element.trimEnd,
-		zoomLevel,
-		trackHeight: getTrackHeight(track.type, track.height),
-		clipWidthPx: elementWidth,
-		enabled:
-			mediaItem?.type === "video" &&
-			mediaItem?.thumbnailStatus === "ready" &&
-			elementWidth >= 12 &&
-			isVisible,
-	});
 
 	// Log if we have a media item but no URL
 	if (mediaItem && !mediaItemUrl) {
@@ -1437,75 +1405,23 @@ function TimelineElementComponent({
 		}
 
 		if (mediaItem.type === "video") {
-			// Show loading indicator while thumbnail generates
-			if (
-				mediaItem.thumbnailStatus === "loading" ||
-				mediaItem.thumbnailStatus === "pending"
-			) {
-				return (
-					<div className="w-full h-full flex items-center justify-center bg-[var(--color-timeline-video-clip)]">
-						<span className="text-xs text-foreground/60 truncate px-2">
-							{displayName} (loading...)
-						</span>
-					</div>
-				);
-			}
-
-			const { frames, tileWidth, tileHeight } = filmstrip;
-			const hasFilmstrip = frames.length > 0;
-
-			// Show filmstrip tiles (or single-thumbnail fallback)
-			if (hasFilmstrip || mediaItem.thumbnailUrl) {
-				return (
-					<div className="w-full h-full flex items-center justify-center">
-						<div className="bg-[var(--color-timeline-video-clip)] py-3 w-full h-full relative">
-							{/* Filmstrip frame tiles */}
-							<div
-								className="absolute top-3 bottom-3 left-0 right-0 flex flex-row overflow-hidden pointer-events-none"
-								aria-label={`Filmstrip thumbnails of ${mediaItem.name}`}
-							>
-								{hasFilmstrip ? (
-									frames.map((frame, i) => (
-										<div
-											key={`${frame.time}-${i}`}
-											style={{
-												width: tileWidth,
-												height: tileHeight,
-												backgroundImage: `url(${frame.url || mediaItem.thumbnailUrl})`,
-												backgroundSize: "cover",
-												backgroundPosition: "center",
-												flexShrink: 0,
-												borderRight:
-													i < frames.length - 1
-														? "1px solid rgba(255, 255, 255, 0.3)"
-														: "none",
-											}}
-										/>
-									))
-								) : (
-									<div
-										className="w-full h-full"
-										style={{
-											backgroundImage: `url(${mediaItem.thumbnailUrl})`,
-											backgroundRepeat: "repeat-x",
-											backgroundSize: `${tileWidth}px ${tileHeight}px`,
-											backgroundPosition: "left center",
-										}}
-									/>
-								)}
-							</div>
-						</div>
-					</div>
-				);
-			}
-
-			// Fallback: no thumbnail
 			return (
-				<div className="w-full h-full flex items-center justify-center bg-[var(--color-timeline-video-clip)]">
-					<span className="text-xs text-foreground/80 truncate px-2">
-						{displayName}
-					</span>
-				</div>
+				<VideoTimelineClip
+					clipWidthPx={elementWidth}
+					displayName={displayName}
+					duration={element.duration}
+					mediaId={mediaItem.id}
+					mediaDuration={mediaItem.duration}
+					mediaFile={mediaItem.file}
+					mediaUrl={mediaItem.url}
+					sourcePath={mediaItem.localPath}
+					thumbnailStatus={mediaItem.thumbnailStatus}
+					thumbnailUrl={mediaItem.thumbnailUrl}
+					trackHeight={getTrackHeight(track.type, track.height)}
+					trimEnd={element.trimEnd}
+					trimStart={element.trimStart}
+					zoomLevel={zoomLevel}
+				/>
 			);
 		}
 
@@ -1558,7 +1474,6 @@ function TimelineElementComponent({
 		>
 			<ContextMenuTrigger asChild>
 				<div
-					ref={elementRef}
 					className={`absolute top-0 h-full select-none timeline-element ${
 						isBeingDragged ||
 						isPrecisionEditing ||

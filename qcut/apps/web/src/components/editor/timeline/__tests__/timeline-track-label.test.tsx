@@ -86,4 +86,41 @@ describe("TimelineTrackLabel", () => {
 		expect(onResizeStart).toHaveBeenCalledOnce();
 		expect(onResizeHeight).toHaveBeenCalledWith(56);
 	});
+
+	it("shows a cover badge only on the main track", () => {
+		const commonProps = {
+			dragHandleProps: null,
+			isDragging: false,
+			onToggleHidden: vi.fn(),
+			onToggleLocked: vi.fn(),
+			onToggleMuted: vi.fn(),
+			onToggleSolo: vi.fn(),
+			onResizeStart: vi.fn(),
+			onResizeHeight: vi.fn(),
+		};
+		const mainTrack: TimelineTrack = {
+			id: "main-track",
+			name: "Main Track",
+			type: "media",
+			elements: [],
+			isMain: true,
+		};
+		const secondaryTrack: TimelineTrack = {
+			...mainTrack,
+			id: "secondary-track",
+			name: "B-roll",
+			isMain: false,
+		};
+		const { rerender } = render(
+			<TimelineTrackLabel track={mainTrack} {...commonProps} />
+		);
+
+		expect(screen.getByTestId("main-track-cover-badge")).toHaveTextContent(
+			"Cover"
+		);
+
+		rerender(<TimelineTrackLabel track={secondaryTrack} {...commonProps} />);
+
+		expect(screen.queryByTestId("main-track-cover-badge")).toBeNull();
+	});
 });

@@ -59,6 +59,14 @@ export async function planShotsAsync({ options }: { options: CLIOptions }): Prom
 		analysis,
 		breakdown,
 		styleInstructions,
+		...(options.promo
+			? {
+					promo: {
+						shotDuration: options.shotDuration ?? 3,
+						presets: options.promoPresets,
+					},
+				}
+			: {}),
 	};
 }
 
