@@ -20,6 +20,12 @@ const RESTART_LOOP_PRESET_IDS = new Set([
 	"flip",
 	"ring-orbit",
 	"jitter",
+	"vortex",
+	"pendulum",
+	"zoom-each",
+	"wave-squeeze",
+	"fold",
+	"arc-up",
 ]);
 
 function isLoopPreset({

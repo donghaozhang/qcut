@@ -214,6 +214,94 @@ export function effectForPreset({
 			// Jianying's stepped shake: local time floored to quarters, offsets
 			// from sine products keyed on the unit's rank.
 			return { kind: "jitter", steps: 4, amplitudeX: 0.04, amplitudeY: 0.027 };
+		case "loop:vortex":
+			// Jianying's 漩涡 (their Lua: translate.x = sin(2πt)·charW,
+			// translate.y = cos(2πt), per-char phase window) — a small circle
+			// per character with no glyph spin.
+			return {
+				kind: "orbit",
+				rotation: "clockwise",
+				turns: 1,
+				radius: { value: 0.35, unit: "em" },
+				spin: false,
+				fade: false,
+			};
+		case "loop:pendulum":
+			return {
+				kind: "rotate",
+				degrees: 16,
+				oscillation: {
+					cycles: 1,
+					phaseEasing: "smoothstep",
+					pivot: "bottomCenter",
+				},
+				fade: false,
+			};
+		case "loop:zoom-each":
+			// 逐字放大: each character swells in sequence via the loop's
+			// cyclic stagger.
+			return {
+				kind: "scale",
+				hiddenScale: 1.5,
+				overshoot: 0,
+				fade: false,
+				pulse: { cycles: 1, easing: "smoothstep" },
+			};
+		case "loop:wave-squeeze":
+			return { kind: "squeeze", amount: 0.45, spatialCycles: 1.2 };
+		case "loop:fold":
+			return { kind: "fold", minimumScale: 0.05, phaseStepDeg: 90 };
+		case "loop:arc-up":
+			return { kind: "arc", riseEm: 0.45, tiltDeg: 14 };
+		case "exit:spiral-down":
+			return {
+				kind: "spiral",
+				turns: 1.25,
+				radius: { value: 0.8, unit: "em" },
+				drop: { value: 1.1, unit: "boxHeight" },
+				fade: true,
+			};
+		case "exit:elastic-out":
+			// The stretch-then-collapse lives in the scale overshoot: raw
+			// spring easing overshoots past 1 early in the exit and clamps the
+			// presence to zero, vanishing the text at a quarter progress.
+			return {
+				kind: "scale",
+				hiddenScale: 0,
+				overshoot: 0.45,
+				fade: true,
+			};
+		case "exit:fly-up-out":
+			return {
+				kind: "slide",
+				direction: "up",
+				distance: { value: 1.3, unit: "boxHeight" },
+				fade: true,
+			};
+		case "exit:flicker-scatter":
+			return {
+				kind: "scatter",
+				distance: { value: 1.6, unit: "em" },
+				flicker: true,
+				rotateDeg: 40,
+				seed: presetSeed({ presetId }),
+			};
+		case "exit:random-fly-out":
+			return {
+				kind: "scatter",
+				distance: { value: 2.4, unit: "em" },
+				flicker: false,
+				rotateDeg: 70,
+				seed: presetSeed({ presetId }),
+			};
+		case "exit:shrink-shake":
+			return {
+				kind: "scale",
+				shakeEm: 0.06,
+				hiddenScale: 0.15,
+				overshoot: 0,
+				fade: true,
+			};
 		case "entrance:scale-up":
 			// Jianying's EnlargeIn.lua: scale 0.5 -> 1 and alpha 0 -> 1, both
 			// quadOut, with no overshoot.
@@ -316,7 +404,14 @@ function staggerRatioForPreset({
 		presetId === "wave" ||
 		presetId === "sway" ||
 		presetId === "jitter" ||
-		presetId === "flip"
+		presetId === "flip" ||
+		// Spatially phased or seeded per unit inside the effect itself.
+		presetId === "wave-squeeze" ||
+		presetId === "fold" ||
+		presetId === "arc-up" ||
+		presetId === "flicker-scatter" ||
+		presetId === "random-fly-out" ||
+		presetId === "shrink-shake"
 	) {
 		return 0;
 	}
@@ -324,6 +419,10 @@ function staggerRatioForPreset({
 	// Spreading phases across nearly the whole cycle is what turns orbit's
 	// shared circle into Jianying's ring layout.
 	if (presetId === "ring-orbit") return 0.95;
+	// Jianying's 漩涡 spreads its per-char windows across most of the cycle.
+	if (presetId === "vortex") return 0.8;
+	if (presetId === "spiral-down") return 0.3;
+	if (presetId === "fly-up-out") return 0.4;
 	return 0.58;
 }
 
@@ -353,6 +452,16 @@ export function sequenceForPreset({
 		"jitter",
 		"ring-orbit",
 		"flip",
+		"vortex",
+		"zoom-each",
+		"wave-squeeze",
+		"fold",
+		"arc-up",
+		"spiral-down",
+		"fly-up-out",
+		"flicker-scatter",
+		"random-fly-out",
+		"shrink-shake",
 	]);
 	const order = presetId === "typewriter-out" ? "reverse" : "forward";
 	const staggerRatio = staggerRatioForPreset({

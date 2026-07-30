@@ -315,6 +315,36 @@ function resolveEffectEnvelope({
 		envelope.translateY = context.fontSize * effect.amplitudeY;
 		return envelope;
 	}
+	if (effect.kind === "arc") {
+		envelope.translateY = context.fontSize * effect.riseEm;
+		envelope.rotationDeg = Math.abs(effect.tiltDeg);
+		return envelope;
+	}
+	if (effect.kind === "squeeze") {
+		envelope.scale = 1 + effect.amount * 0.3;
+		return envelope;
+	}
+	if (effect.kind === "fold") {
+		return envelope;
+	}
+	if (effect.kind === "spiral") {
+		envelope.translateX = resolveDistance({
+			distance: effect.radius,
+			...context,
+		});
+		envelope.translateY =
+			envelope.translateX +
+			resolveDistance({ distance: effect.drop, ...context });
+		envelope.rotationDeg = 360 * effect.turns;
+		return envelope;
+	}
+	if (effect.kind === "scatter") {
+		const travel = resolveDistance({ distance: effect.distance, ...context });
+		envelope.translateX = travel;
+		envelope.translateY = travel;
+		envelope.rotationDeg = effect.rotateDeg;
+		return envelope;
+	}
 	const distance = resolveDistance({
 		distance: effect.distance,
 		...context,
