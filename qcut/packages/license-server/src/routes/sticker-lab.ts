@@ -5,7 +5,7 @@ import { authMiddleware } from "../middleware/auth";
 const STICKER_BUCKET = "sticker-lab";
 const SIGNED_URL_TTL_SECONDS = 600;
 const STICKER_OBJECT_KEY_PATTERN =
-	/^jianying\/[a-z0-9-]+\/assets\/[a-z0-9-]+\.(gif|png)$/;
+	/^catalogs\/qcut-original(?:-[a-z0-9]+)+\/assets\/[a-z0-9]+(?:-[a-z0-9]+)*\.(gif|png)$/;
 
 function isStickerLabUserAllowed({
 	userId,
