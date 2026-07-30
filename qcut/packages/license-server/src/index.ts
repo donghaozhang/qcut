@@ -14,6 +14,7 @@ import { reviewRoutes } from "./routes/reviews";
 import { userLibraryRoutes } from "./routes/user-library";
 import { keysRoutes } from "./routes/keys";
 import { audioMetricsRoutes } from "./routes/audio-metrics";
+import { stickerLabRoutes } from "./routes/sticker-lab";
 import { getMockResponse, isMockMode } from "./middleware/mock";
 import { getAllowedCorsOrigins } from "./services/payment-config";
 
@@ -91,5 +92,6 @@ app.route("/api/reviews", reviewRoutes);
 app.route("/api/library", userLibraryRoutes);
 app.route("/api/keys", keysRoutes);
 app.route("/api/audio-metrics", audioMetricsRoutes);
+app.route("/api/sticker-lab", stickerLabRoutes);
 
 export default app;
