@@ -197,6 +197,14 @@ function TextAnimationPresetPreviewContent({
 			style={{
 				...textAnimationVisualStyle({ visual: frameState.container }),
 				opacity: frameState.render ? frameState.container.opacity : 0,
+				// The evaluated layout is 54px wide; scaling it up fills the
+				// card the way Jianying's thumbnails do instead of floating a
+				// small line in empty space. Scale composes with the frame
+				// transform, so the animation math is untouched.
+				transform: `scale(1.5) ${
+					textAnimationVisualStyle({ visual: frameState.container })
+						.transform ?? ""
+				}`,
 				width: preview.layout.bounds.width,
 			}}
 		>
@@ -226,6 +234,20 @@ function TextAnimationPresetPreviewContent({
 	);
 }
 
+/**
+ * Static pose per phase, chosen so every idle thumbnail stays legible the way
+ * Jianying's do: entrances mostly arrived, exits only starting to leave, and
+ * loops frozen mid-motion in their signature shape.
+ */
+const STATIC_PREVIEW_PROGRESS: Record<
+	TextAnimationPresetDefinition["phase"],
+	number
+> = {
+	entrance: 0.8,
+	exit: 0.25,
+	loop: 0.35,
+};
+
 export function TextAnimationPresetCard({
 	isPreviewing,
 	name,
@@ -238,6 +260,7 @@ export function TextAnimationPresetCard({
 	const progress = useTextAnimationPreview({
 		active: isPreviewing,
 		duration: preset.defaultDuration,
+		staticProgress: STATIC_PREVIEW_PROGRESS[preset.phase],
 	});
 	const preview = useMemo(
 		() => createTextAnimationPresetPreview({ preset }),
