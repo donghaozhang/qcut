@@ -179,6 +179,16 @@ export interface ClaudeTextProperties {
 	animationDelay?: number;
 	/** Untrusted JSON; the renderer validates and normalizes it before use. */
 	textAnimations?: unknown;
+	/**
+	 * Declarative preset request for CLI and timeline manifests. The renderer
+	 * resolves this against the bundled preset catalog and stores textAnimations.
+	 */
+	textAnimationPreset?: {
+		phase: "entrance" | "exit" | "loop";
+		presetId: string;
+		duration?: number;
+		delay?: number;
+	};
 	keyframes?: Record<string, unknown>;
 	blendMode?:
 		| "normal"
