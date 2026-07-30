@@ -3,11 +3,12 @@ import { getLocalStickerLabSource } from "@/lib/stickers/local-sticker-lab-confi
 import { buildLegacyLocalStickerCatalog } from "@/lib/stickers/local-sticker-legacy-catalog";
 import {
 	loadLocalStickerManifest,
-	type LocalStickerCatalog,
+	loadRemoteStickerManifest,
+	type StickerLabCatalog,
 } from "@/lib/stickers/local-sticker-manifest";
 
 export interface LocalStickerCatalogState {
-	catalog: LocalStickerCatalog | null;
+	catalog: StickerLabCatalog | null;
 	error: string | null;
 	isAvailable: boolean;
 	isLoading: boolean;
@@ -47,11 +48,18 @@ export function useLocalStickerCatalog(): LocalStickerCatalogState {
 		}
 
 		let disposed = false;
+		const abortController = new AbortController();
 		const loadCatalog = async () => {
 			try {
-				const catalog = await loadLocalStickerManifest({
-					manifestPath: source.manifestPath,
-				});
+				const catalog =
+					source.kind === "manifest"
+						? await loadLocalStickerManifest({
+								manifestPath: source.manifestPath,
+							})
+						: await loadRemoteStickerManifest({
+								manifestUrl: source.manifestUrl,
+								signal: abortController.signal,
+							});
 				if (disposed) return;
 				setState({
 					catalog,
@@ -66,7 +74,7 @@ export function useLocalStickerCatalog(): LocalStickerCatalogState {
 					error:
 						error instanceof Error
 							? error.message
-							: "Unable to load local sticker manifest",
+							: "Unable to load sticker lab manifest",
 					isAvailable: true,
 					isLoading: false,
 				});
@@ -76,6 +84,7 @@ export function useLocalStickerCatalog(): LocalStickerCatalogState {
 		loadCatalog();
 		return () => {
 			disposed = true;
+			abortController.abort();
 		};
 	}, [source]);
 
