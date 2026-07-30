@@ -17,6 +17,7 @@ import { renderTextToCanvas } from "@/lib/text/text-canvas-renderer";
 import { resolveTextStyle } from "@/lib/text/text-style";
 import type { TextElement } from "@/types/timeline";
 import type { PreviewDimensions } from "./types";
+import { resolveTextPreviewDomGeometry } from "./text-preview-dom-geometry";
 
 export type TextPreviewRenderMode = "canvas" | "dom";
 
@@ -86,6 +87,12 @@ export function TextAnimationCanvas({
 		boxWidth,
 		boxHeight,
 		fps,
+	});
+	const interactionGeometry = resolveTextPreviewDomGeometry({
+		boxWidth,
+		boxHeight,
+		previewScale,
+		rotation: element.rotation,
 	});
 
 	useEffect(() => {
@@ -181,11 +188,11 @@ export function TextAnimationCanvas({
 				onPointerDown={onPointerDown}
 				role="button"
 				style={{
-					height: `${boxHeight}px`,
+					height: `${interactionGeometry.frame.height}px`,
 					left: `${50 + (element.x / canvasWidth) * 100}%`,
 					top: `${50 + (element.y / canvasHeight) * 100}%`,
-					transform: `translate(-50%, -50%) rotate(${element.rotation}deg) scale(${previewScale})`,
-					width: `${boxWidth}px`,
+					transform: interactionGeometry.frame.transform,
+					width: `${interactionGeometry.frame.width}px`,
 					zIndex,
 				}}
 				tabIndex={0}

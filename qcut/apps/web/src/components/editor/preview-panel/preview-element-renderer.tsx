@@ -86,6 +86,7 @@ import {
 	resolveTextPreviewRenderMode,
 	TextAnimationCanvas,
 } from "./text-animation-canvas";
+import { resolveTextPreviewDomGeometry } from "./text-preview-dom-geometry";
 import { EffectOverlayLayers } from "@/components/editor/effects/effect-overlay-layers";
 import { EffectCompositeCanvas } from "@/components/editor/effects/effect-composite-canvas";
 import { EffectDistortionCanvas } from "@/components/editor/effects/effect-distortion-canvas";
@@ -404,6 +405,12 @@ export function PreviewElementRenderer({
 			});
 
 			const scaleRatio = previewDimensions.width / canvasSize.width;
+			const textDomGeometry = resolveTextPreviewDomGeometry({
+				boxWidth,
+				boxHeight,
+				previewScale: scaleRatio,
+				rotation: displayElement.rotation,
+			});
 			const isDraggingThisElement =
 				dragState.isDragging && dragState.elementId === element.id;
 			const displayX = isDraggingThisElement
@@ -469,10 +476,10 @@ export function PreviewElementRenderer({
 					style={{
 						left: `${50 + ((displayX + animationState.offsetX) / canvasSize.width) * 100}%`,
 						top: `${50 + ((displayY + animationState.offsetY) / canvasSize.height) * 100}%`,
-						transform: `translate(-50%, -50%) rotate(${displayElement.rotation}deg) scale(${scaleRatio})`,
+						transform: textDomGeometry.frame.transform,
 						opacity: displayElement.opacity * animationState.opacity,
-						width: `${boxWidth}px`,
-						height: `${boxHeight}px`,
+						width: `${textDomGeometry.frame.width}px`,
+						height: `${textDomGeometry.frame.height}px`,
 						mixBlendMode: textStyle.blendMode,
 						zIndex: index + 1,
 					}}
@@ -485,8 +492,11 @@ export function PreviewElementRenderer({
 							alignItems: "stretch",
 							justifyContent: verticalAlignToFlex(textStyle.verticalAlign),
 							boxSizing: "border-box",
-							width: "100%",
-							height: "100%",
+							width: `${textDomGeometry.content.width}px`,
+							height: `${textDomGeometry.content.height}px`,
+							flexShrink: textDomGeometry.content.flexShrink,
+							transform: textDomGeometry.content.transform,
+							transformOrigin: textDomGeometry.content.transformOrigin,
 							fontSize: `${displayElement.fontSize}px`,
 							color: displayElement.color,
 							backgroundColor: colorWithOpacity(
