@@ -302,15 +302,18 @@ export function effectForPreset({
 			return {
 				kind: "shatter",
 				tilePx: 4,
-				distortion: 0.5,
-				// Released dust drifts upward in the reference. Distances are
-				// magnitudes (normalize clamps negatives to zero), so the
-				// direction rides on gravityRotDeg.
-				gravity: { value: 0.9, unit: "em" },
+				// Fitted against the reference 25/50/75% frames: released dust
+				// sparkles roughly in place rather than migrating off the glyph,
+				// so the drift stays a fraction of the em box. Distances are
+				// magnitudes (normalization clamps negatives to zero), so the
+				// upward direction rides on gravityRotDeg.
+				distortion: 0.18,
+				gravity: { value: 0.22, unit: "em" },
 				gravityRotDeg: 180,
 				front: "noise",
-				frontRotDeg: 0,
-				feather: 0.35,
+				// A wide feather is what makes the mid-exit frame read as a dense
+				// sparkle mass instead of a hard erosion edge.
+				feather: 0.5,
 			};
 		case "exit:spiral-down":
 			// Reference tumbles at full brightness and vanishes by falling

@@ -99,9 +99,10 @@ const SHATTER_NOISE_CELL_TILES = 3.5;
 
 /**
  * The reference frames erode glyph tops first and leave baseline mounds for
- * last; this vertical bias is mixed into the noise site.
+ * last, so the dissolve site mixes in the tile's vertical position. Fitted at
+ * 0.3: stronger reads as a hard top-down wipe, weaker loses the mounds.
  */
-const SHATTER_VERTICAL_BIAS = 0.5;
+const SHATTER_VERTICAL_BIAS = 0.3;
 
 /**
  * Ports LumiDust's vertex math (evidence:

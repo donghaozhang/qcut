@@ -189,6 +189,26 @@ QCut 侧参数命名照抄此表,便于后续对照。
 - [ ] jianying-reference 技能回填新经验(如有新增)
 - [ ] PR + CI + 对比图入 PR 正文
 
+## 3b. 标定结果与无头验证法(2026-07-30 收口)
+
+粒子碎落最终拟合值(对齐 25/50/75% 参照帧):
+
+| 参数 | 值 | 依据 |
+|---|---|---|
+| `tilePx` | 4 | 参照帧颗粒尺度 |
+| `distortion` | 0.18 em | 释放尘埃基本**原位闪烁**,不整体迁离字形 |
+| `gravity` | 0.22 em @ `gravityRotDeg 180` | 上飘;**注意** `normalizeDistance` 把负值夹为 0,方向必须走角度 |
+| `feather` | 0.5 | 宽前沿才是中段"致密闪烁"而非硬擦除边 |
+| `SHATTER_VERTICAL_BIAS` | 0.3 | 字顶先蚀、基线残丘最后消失;更大像自上而下硬擦 |
+
+**无头标定法**(不占用编辑器、不依赖用户机器空闲):PIL 把演示文字栅格成 RGBA →
+bun 直接 import `shatter.ts` 的 `computeShatterTiles`(真实引擎代码)按 tile 位移合成 →
+PIL 拼对比图。一轮迭代数秒,可在别人正在使用 QCut 时安全进行。脚本形态见会话
+scratchpad `headless/render-shatter.ts`。
+
+已知残余差异:剪映有 DeepGlow 辉光与逐粒子运动拖尾(尘埃呈上升条纹),QCut 当前
+为无拖尾的方块颗粒 —— 结构同级、亮度与拖尾待后续。
+
 ## 4. 文件触点清单(预估)
 
 ```
