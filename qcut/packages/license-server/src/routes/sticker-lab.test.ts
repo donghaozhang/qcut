@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const storageMocks = vi.hoisted(() => ({
 	createSignedUrl: vi.fn(),
@@ -32,21 +32,25 @@ function buildAssetUrl({ objectKey }: { objectKey?: string } = {}) {
 }
 
 beforeEach(() => {
-	process.env.MOCK_MODE = "true";
-	delete process.env.STICKER_LAB_ALLOWED_USER_IDS;
+	vi.stubEnv("MOCK_MODE", "true");
+	vi.stubEnv("STICKER_LAB_ALLOWED_USER_IDS", "");
 	vi.clearAllMocks();
 	storageMocks.from.mockReturnValue({
 		createSignedUrl: storageMocks.createSignedUrl,
 	});
 });
 
+afterEach(() => {
+	vi.unstubAllEnvs();
+});
+
 function allowMockUser() {
-	process.env.STICKER_LAB_ALLOWED_USER_IDS = "mock-user-001";
+	vi.stubEnv("STICKER_LAB_ALLOWED_USER_IDS", "mock-user-001");
 }
 
 describe("sticker lab routes", () => {
 	it("requires authentication", async () => {
-		delete process.env.MOCK_MODE;
+		vi.stubEnv("MOCK_MODE", "false");
 
 		const response = await buildApp().request(buildAssetUrl());
 
@@ -67,8 +71,10 @@ describe("sticker lab routes", () => {
 	});
 
 	it("forbids authenticated users outside the allowlist", async () => {
-		process.env.STICKER_LAB_ALLOWED_USER_IDS =
-			" , another-user, a-third-user, ";
+		vi.stubEnv(
+			"STICKER_LAB_ALLOWED_USER_IDS",
+			" , another-user, a-third-user, "
+		);
 
 		const response = await buildApp().request(
 			buildAssetUrl({
@@ -110,16 +116,23 @@ describe("sticker lab routes", () => {
 
 	it("rejects traversal attempts", async () => {
 		allowMockUser();
-		const traversalKeys = [
-			"jianying/2026-07-31/assets/../secret.gif",
-			"jianying/../assets/secret.gif",
-			"jianying/2026-07-31/assets/%2e%2e%2fsecret.gif",
+		const encodedTraversalUrl =
+			"/api/sticker-lab/assets?objectKey=jianying%2F2026-07-31%2Fassets%2F%2e%2e%2Fsecret.gif";
+		const traversalUrls = [
+			buildAssetUrl({
+				objectKey: "jianying/2026-07-31/assets/../secret.gif",
+			}),
+			buildAssetUrl({ objectKey: "jianying/../assets/secret.gif" }),
+			encodedTraversalUrl,
 		];
+		expect(
+			new URL(encodedTraversalUrl, "https://qcut.test").searchParams.get(
+				"objectKey"
+			)
+		).toContain("/../");
 
 		const responses = await Promise.all(
-			traversalKeys.map((objectKey) =>
-				buildApp().request(buildAssetUrl({ objectKey }))
-			)
+			traversalUrls.map((requestUrl) => buildApp().request(requestUrl))
 		);
 
 		for (const response of responses) {
@@ -129,8 +142,10 @@ describe("sticker lab routes", () => {
 	});
 
 	it("redirects authenticated requests to a short-lived signed URL", async () => {
-		process.env.STICKER_LAB_ALLOWED_USER_IDS =
-			" another-user, , mock-user-001, ";
+		vi.stubEnv(
+			"STICKER_LAB_ALLOWED_USER_IDS",
+			" another-user, , mock-user-001, "
+		);
 		const objectKey = "jianying/2026-07-31/assets/sticker-123.gif";
 		const signedUrl =
 			"https://example.supabase.co/storage/v1/object/sign/sticker-lab/sticker.gif?token=signed";
