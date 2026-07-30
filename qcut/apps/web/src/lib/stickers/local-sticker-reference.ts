@@ -16,12 +16,14 @@ import {
 } from "./local-sticker-file-reader";
 import type {
 	LocalStickerReference,
+	RemoteStickerProvenance,
 	RemoteStickerReference,
 	StickerLabReference,
 } from "./local-sticker-manifest";
 
 export type {
 	LocalStickerReference,
+	RemoteStickerProvenance,
 	RemoteStickerReference,
 	StickerLabReference,
 } from "./local-sticker-manifest";
@@ -76,9 +78,11 @@ export function stickerLabAssetUrl({
 
 export function buildStickerLabAssetEntry({
 	licenseServerUrl = LICENSE_SERVER_URL,
+	provenance,
 	reference,
 }: {
 	licenseServerUrl?: string;
+	provenance: RemoteStickerProvenance;
 	reference: RemoteStickerReference;
 }): AssetManifestEntry {
 	return {
@@ -104,13 +108,15 @@ export function buildStickerLabAssetEntry({
 			},
 		],
 		license: {
-			name: "Reference-only source asset",
-			commercialUse: "restricted",
-			attributionRequired: false,
+			name: provenance.license.name,
+			commercialUse: provenance.license.commercialUse,
+			attributionRequired: provenance.license.attributionRequired,
 		},
 		metadata: {
 			objectKey: reference.asset.objectKey,
 			playback: reference.playback,
+			provenance,
+			sourceAsset: reference.sourceAsset,
 			sourceKind: reference.sourceKind,
 		},
 	};
@@ -196,6 +202,7 @@ export async function loadRemoteStickerReferenceFile({
 	fetchImpl = fetch,
 	getToken = getSessionToken,
 	licenseServerUrl = LICENSE_SERVER_URL,
+	provenance,
 	reference,
 	signal,
 }: {
@@ -203,10 +210,15 @@ export async function loadRemoteStickerReferenceFile({
 	fetchImpl?: typeof fetch;
 	getToken?: SessionTokenReader;
 	licenseServerUrl?: string;
+	provenance: RemoteStickerProvenance;
 	reference: RemoteStickerReference;
 	signal?: AbortSignal;
 }): Promise<File> {
-	const asset = buildStickerLabAssetEntry({ licenseServerUrl, reference });
+	const asset = buildStickerLabAssetEntry({
+		licenseServerUrl,
+		provenance,
+		reference,
+	});
 	const resources = await ensureResources({
 		asset,
 		fetchImpl: createStickerLabAssetFetch({
@@ -226,6 +238,7 @@ export async function loadStickerLabReferenceFile({
 	fetchImpl,
 	getToken,
 	licenseServerUrl,
+	provenance,
 	readFile,
 	reference,
 	signal,
@@ -234,6 +247,7 @@ export async function loadStickerLabReferenceFile({
 	fetchImpl?: typeof fetch;
 	getToken?: SessionTokenReader;
 	licenseServerUrl?: string;
+	provenance?: RemoteStickerProvenance;
 	readFile?: LocalStickerFileReader;
 	reference: StickerLabReference;
 	signal?: AbortSignal;
@@ -241,11 +255,15 @@ export async function loadStickerLabReferenceFile({
 	if ("filePath" in reference) {
 		return loadLocalStickerReferenceFile({ readFile, reference });
 	}
+	if (!provenance) {
+		throw new Error("Remote sticker references require catalog provenance");
+	}
 	return loadRemoteStickerReferenceFile({
 		ensureResources,
 		fetchImpl,
 		getToken,
 		licenseServerUrl,
+		provenance,
 		reference,
 		signal,
 	});
