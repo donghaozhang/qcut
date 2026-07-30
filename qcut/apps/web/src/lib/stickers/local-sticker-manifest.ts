@@ -3,13 +3,13 @@ import {
 	readLocalStickerFile,
 	type LocalStickerFileReader,
 } from "./local-sticker-file-reader";
+import { readRemoteStickerManifestResponse } from "./remote-sticker-manifest-reader";
 
 const STICKER_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const ABSOLUTE_LOCAL_PATH_PATTERN = /^(?:\/|[a-zA-Z]:[\\/]|\\\\)/;
 const SUPABASE_OBJECT_KEY_PATTERN =
 	/^jianying\/[a-z0-9-]+\/assets\/[a-z0-9-]+\.(gif|png)$/;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
-const MAX_REMOTE_MANIFEST_BYTES = 1024 * 1024;
 
 function hasDotPathSegment({ filePath }: { filePath: string }): boolean {
 	return filePath
@@ -419,22 +419,12 @@ export async function loadRemoteStickerManifest({
 			`Unable to fetch sticker lab manifest (${response.status}): ${manifestUrl}`
 		);
 	}
-	const contentLength = Number.parseInt(
-		response.headers.get("content-length") ?? "",
-		10
-	);
-	if (
-		Number.isFinite(contentLength) &&
-		contentLength > MAX_REMOTE_MANIFEST_BYTES
-	) {
-		throw new Error("Sticker lab manifest exceeds 1048576 bytes");
-	}
-	const bytes = new Uint8Array(await response.arrayBuffer());
+	const bytes = await readRemoteStickerManifestResponse({
+		manifestUrl,
+		response,
+	});
 	if (!bytes.byteLength) {
 		throw new Error(`Unable to fetch sticker lab manifest: ${manifestUrl}`);
-	}
-	if (bytes.byteLength > MAX_REMOTE_MANIFEST_BYTES) {
-		throw new Error("Sticker lab manifest exceeds 1048576 bytes");
 	}
 
 	let jsonText: string;
