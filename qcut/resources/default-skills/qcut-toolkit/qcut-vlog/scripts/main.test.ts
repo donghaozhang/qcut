@@ -3,6 +3,8 @@ import {
 	existsSync,
 	mkdtempSync,
 	readFileSync,
+	statSync,
+	utimesSync,
 	writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -274,6 +276,10 @@ describe("qcut-vlog orchestration", () => {
 			"qcut edit subtitle-export",
 		]);
 
+		const sharedTimestamp =
+			statSync(editableVideo).mtimeMs / 1000;
+		utimesSync(cutoutVideo, sharedTimestamp, sharedTimestamp);
+		utimesSync(editableVideo, sharedTimestamp, sharedTimestamp);
 		const resumed = await runVlog({
 			argv: [
 				input,

@@ -60,9 +60,11 @@ export const StickerElement = memo<StickerElementProps>(
 		const [canvasSize, setCanvasSize] = useState({ width: 0, height: 0 });
 
 		useLayoutEffect(() => {
-			const canvas = canvasRef.current;
-			if (!canvas) return;
+			let disposed = false;
+			let observer: ResizeObserver | null = null;
 			const updateCanvasSize = () => {
+				const canvas = canvasRef.current;
+				if (!canvas) return;
 				const bounds = canvas.getBoundingClientRect();
 				setCanvasSize((previous) =>
 					previous.width === bounds.width && previous.height === bounds.height
@@ -70,14 +72,28 @@ export const StickerElement = memo<StickerElementProps>(
 						: { width: bounds.width, height: bounds.height }
 				);
 			};
-			updateCanvasSize();
-			const observer =
-				typeof ResizeObserver === "undefined"
-					? null
-					: new ResizeObserver(updateCanvasSize);
-			observer?.observe(canvas);
+			const attach = () => {
+				if (disposed) return;
+				const canvas = canvasRef.current;
+				if (!canvas) {
+					// When the ref div mounts in the same commit as this element, the
+					// parent ref is not attached yet — retry on the next frame or the
+					// canvas is never measured and the sticker collapses to 0x0 at
+					// the top-left corner.
+					requestAnimationFrame(attach);
+					return;
+				}
+				updateCanvasSize();
+				observer =
+					typeof ResizeObserver === "undefined"
+						? null
+						: new ResizeObserver(updateCanvasSize);
+				observer?.observe(canvas);
+			};
+			attach();
 			window.addEventListener("resize", updateCanvasSize);
 			return () => {
+				disposed = true;
 				observer?.disconnect();
 				window.removeEventListener("resize", updateCanvasSize);
 			};

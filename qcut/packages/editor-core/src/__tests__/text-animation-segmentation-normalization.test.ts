@@ -177,4 +177,141 @@ describe("text animation normalization", () => {
 			overshoot: 0,
 		});
 	});
+
+	it("normalizes optional loop profiles without changing the schema", () => {
+		const animation: TextAnimationsV1 = {
+			schemaVersion: 1,
+			entrance: createPhase({
+				effect: {
+					kind: "rotate",
+					degrees: 20,
+					fade: false,
+					oscillation: {
+						cycles: Number.POSITIVE_INFINITY,
+						phaseEasing: "smoothstep",
+						pivot: "bottomCenter",
+					},
+				},
+			}),
+			exit: createPhase({
+				effect: {
+					kind: "scale",
+					hiddenScale: 0.85,
+					overshoot: 0,
+					fade: false,
+					pulse: { cycles: -2, easing: "smoothstep" },
+				},
+			}),
+			loop: {
+				...createPhase({
+					effect: {
+						kind: "bounce",
+						direction: "up",
+						distance: { value: 0.2, unit: "em" },
+						hiddenScale: 1,
+						spring: {
+							mass: 1,
+							stiffness: 210,
+							damping: 14,
+							velocity: 0,
+						},
+						spatialWave: {
+							spatialCycles: 500,
+							phaseOffset: Number.NaN,
+						},
+					},
+				}),
+				repeat: { mode: "restart", gap: 0, phaseOffset: 0 },
+			},
+		};
+		const result = normalizeTextAnimations({
+			element: createElement({ overrides: { textAnimations: animation } }),
+		});
+
+		expect(result.animation?.schemaVersion).toBe(1);
+		expect(result.animation?.entrance?.effect).toMatchObject({
+			oscillation: {
+				cycles: 1,
+				phaseEasing: "smoothstep",
+				pivot: "bottomCenter",
+			},
+		});
+		expect(result.animation?.exit?.effect).toMatchObject({
+			pulse: { cycles: 1, easing: "smoothstep" },
+		});
+		expect(result.animation?.loop?.effect).toMatchObject({
+			spatialWave: { spatialCycles: 100, phaseOffset: 0 },
+		});
+	});
+
+	it("migrates persisted 3D effect kinds onto the 2D replacements", () => {
+		const animation = {
+			schemaVersion: 1,
+			entrance: createPhase({
+				effect: { kind: "flip3d", axis: "y", maxAngleDeg: 60 } as never,
+			}),
+			exit: createPhase({
+				effect: { kind: "cylinder3d", turns: 1 } as never,
+			}),
+			loop: {
+				...createPhase({
+					effect: { kind: "jitter3d", positionJitter: 0.03 } as never,
+				}),
+				repeat: { mode: "restart", gap: 0, phaseOffset: 0 },
+			},
+		} as TextAnimationsV1;
+		const result = normalizeTextAnimations({
+			element: createElement({ overrides: { textAnimations: animation } }),
+		});
+
+		expect(result.animation?.entrance?.effect).toMatchObject({
+			kind: "flip",
+			maxAngleDeg: 60,
+		});
+		expect(result.animation?.exit?.effect).toMatchObject({
+			kind: "orbit",
+			ring: true,
+			radius: { value: 1.05, unit: "boxHeight" },
+		});
+		expect(result.animation?.loop?.effect).toMatchObject({ kind: "jitter" });
+	});
+
+	it("clamps the flip and jitter parameters into renderable ranges", () => {
+		const animation: TextAnimationsV1 = {
+			schemaVersion: 1,
+			entrance: createPhase({
+				effect: {
+					kind: "flip",
+					maxAngleDeg: 500,
+					perspective: 5,
+				},
+			}),
+			loop: {
+				...createPhase({
+					effect: {
+						kind: "jitter",
+						steps: 500,
+						amplitudeX: 10,
+						amplitudeY: -3,
+					},
+				}),
+				repeat: { mode: "restart", gap: 0, phaseOffset: 0 },
+			},
+		};
+		const result = normalizeTextAnimations({
+			element: createElement({ overrides: { textAnimations: animation } }),
+		});
+
+		expect(result.animation?.entrance?.effect).toMatchObject({
+			kind: "flip",
+			maxAngleDeg: 180,
+			perspective: 1,
+		});
+		expect(result.animation?.loop?.effect).toMatchObject({
+			kind: "jitter",
+			steps: 60,
+			amplitudeX: 2,
+			amplitudeY: 0,
+		});
+	});
 });

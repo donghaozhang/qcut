@@ -11,6 +11,23 @@ import type {
 	TextAnimationPresetDefinition,
 } from "./types";
 
+const RESTART_LOOP_PRESET_IDS = new Set([
+	"pulse",
+	"rotate",
+	"shimmer",
+	"sway",
+	"wave",
+	"flip",
+	"ring-orbit",
+	"jitter",
+	"vortex",
+	"pendulum",
+	"zoom-each",
+	"wave-squeeze",
+	"fold",
+	"arc-up",
+]);
+
 function isLoopPreset({
 	preset,
 }: {
@@ -64,10 +81,7 @@ export function createTextAnimationPhaseSnapshot({
 	return {
 		...base,
 		repeat: {
-			mode:
-				preset.id === "rotate" || preset.id === "shimmer"
-					? "restart"
-					: "alternate",
+			mode: RESTART_LOOP_PRESET_IDS.has(preset.id) ? "restart" : "alternate",
 			gap: 0,
 			phaseOffset: 0,
 		},

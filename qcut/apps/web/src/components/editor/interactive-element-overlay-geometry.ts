@@ -1,3 +1,4 @@
+import { resolveTextStyle } from "@/lib/text/text-style";
 import type { TimelineElement } from "@/types/timeline";
 
 export interface ElementTransform {
@@ -32,6 +33,19 @@ export function getTimelineElementTransform({
 }: {
 	element: TimelineElement;
 }): ElementTransform {
+	if (element.type === "text") {
+		// Mirror the renderer's fallbacks: writing a different default back to
+		// the store (200x100 vs the rendered 640x180) rewraps the text on the
+		// first interaction.
+		const style = resolveTextStyle(element);
+		return {
+			x: element.x ?? 0,
+			y: element.y ?? 0,
+			width: style.width,
+			height: style.height,
+			rotation: element.rotation ?? 0,
+		};
+	}
 	return {
 		x: element.x ?? 0,
 		y: element.y ?? 0,
@@ -57,29 +71,52 @@ export function getInteractiveElementPreviewScale({
 	return 1;
 }
 
+export interface ElementContentBounds {
+	/** Content-rect center offset from the element center, project px, unrotated. */
+	offsetX: number;
+	offsetY: number;
+	width: number;
+	height: number;
+}
+
 export function getInteractiveElementOverlayStyle({
 	canvasSize,
 	previewDimensions,
 	transform,
+	contentBounds,
 }: {
 	canvasSize: { width: number; height: number };
 	previewDimensions: { width: number; height: number };
 	transform: ElementTransform;
+	contentBounds?: ElementContentBounds;
 }): ElementOverlayStyle {
 	const scale = getInteractiveElementPreviewScale({
 		canvasSize,
 		previewDimensions,
 	});
+	// The element rotates about its own center, so a content rect whose center
+	// is offset from the element center orbits that pivot when rotated.
+	const radians = ((transform.rotation || 0) * Math.PI) / 180;
+	const offsetX = contentBounds?.offsetX ?? 0;
+	const offsetY = contentBounds?.offsetY ?? 0;
+	const rotatedOffsetX =
+		offsetX * Math.cos(radians) - offsetY * Math.sin(radians);
+	const rotatedOffsetY =
+		offsetX * Math.sin(radians) + offsetY * Math.cos(radians);
+	const centerX = transform.x + rotatedOffsetX;
+	const centerY = transform.y + rotatedOffsetY;
+	const width = contentBounds?.width ?? transform.width;
+	const height = contentBounds?.height ?? transform.height;
 	const left =
-		canvasSize.width > 0 ? 50 + (transform.x / canvasSize.width) * 100 : 50;
+		canvasSize.width > 0 ? 50 + (centerX / canvasSize.width) * 100 : 50;
 	const top =
-		canvasSize.height > 0 ? 50 + (transform.y / canvasSize.height) * 100 : 50;
+		canvasSize.height > 0 ? 50 + (centerY / canvasSize.height) * 100 : 50;
 
 	return {
 		left: `${left}%`,
 		top: `${top}%`,
-		width: `${transform.width * scale}px`,
-		height: `${transform.height * scale}px`,
+		width: `${width * scale}px`,
+		height: `${height * scale}px`,
 		transform: `translate(-50%, -50%) rotate(${transform.rotation}deg)`,
 		transformOrigin: "center",
 	};

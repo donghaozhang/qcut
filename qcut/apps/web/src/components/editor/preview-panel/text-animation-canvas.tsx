@@ -72,10 +72,12 @@ export function TextAnimationCanvas({
 	const [fontRevision, setFontRevision] = useState(0);
 	const canvasWidth = Math.max(1, Math.round(canvasSize.width));
 	const canvasHeight = Math.max(1, Math.round(canvasSize.height));
-	const previewWidth = previewDimensions.width || canvasWidth;
-	const previewHeight = previewDimensions.height || canvasHeight;
-	const previewScaleX = previewWidth / canvasWidth;
-	const previewScaleY = previewHeight / canvasHeight;
+	const previewScale =
+		previewDimensions.width > 0
+			? previewDimensions.width / canvasWidth
+			: previewDimensions.height > 0
+				? previewDimensions.height / canvasHeight
+				: 1;
 	const blendMode = resolveTextStyle(element).blendMode;
 	const fontRequest = `${element.fontStyle} ${element.fontWeight} 16px ${canvasFontFamily(element.fontFamily)}`;
 	const crop = resolveTextAnimationPreviewCrop({
@@ -151,11 +153,11 @@ export function TextAnimationCanvas({
 				aria-hidden="true"
 				className="pointer-events-none absolute left-0 top-0 block"
 				style={{
-					height: `${crop.height * previewScaleY}px`,
-					left: `${crop.x * previewScaleX}px`,
+					height: `${crop.height * previewScale}px`,
+					left: `${crop.x * previewScale}px`,
 					mixBlendMode: blendMode,
-					top: `${crop.y * previewScaleY}px`,
-					width: `${crop.width * previewScaleX}px`,
+					top: `${crop.y * previewScale}px`,
+					width: `${crop.width * previewScale}px`,
 					zIndex,
 				}}
 			>
@@ -164,8 +166,8 @@ export function TextAnimationCanvas({
 					data-text-animation-canvas={element.id}
 					height={crop.height}
 					style={{
-						height: `${crop.height * previewScaleY}px`,
-						width: `${crop.width * previewScaleX}px`,
+						height: `${crop.height * previewScale}px`,
+						width: `${crop.width * previewScale}px`,
 					}}
 					width={crop.width}
 				/>
@@ -182,7 +184,7 @@ export function TextAnimationCanvas({
 					height: `${boxHeight}px`,
 					left: `${50 + (element.x / canvasWidth) * 100}%`,
 					top: `${50 + (element.y / canvasHeight) * 100}%`,
-					transform: `translate(-50%, -50%) rotate(${element.rotation}deg) scale(${previewScaleX})`,
+					transform: `translate(-50%, -50%) rotate(${element.rotation}deg) scale(${previewScale})`,
 					width: `${boxWidth}px`,
 					zIndex,
 				}}

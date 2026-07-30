@@ -181,6 +181,12 @@ describe("text animation preset registry", () => {
 		}
 	});
 
+	it("uses Jianying's 1.2 second default for the ring orbit loop", () => {
+		expect(
+			findPreset({ phase: "loop", presetId: "ring-orbit" }).defaultDuration
+		).toBe(1.2);
+	});
+
 	it("creates complete canonical phase snapshots", () => {
 		for (const phase of TEXT_ANIMATION_PHASES) {
 			for (const preset of TEXT_ANIMATION_PRESETS[phase]) {
@@ -309,6 +315,58 @@ describe("text animation preset registry", () => {
 		).toBe(true);
 	});
 
+	it("uses the Jianying loop formulas for pulse, sway, and wave", () => {
+		const pulse = samplePhase({ phase: "loop", presetId: "pulse" });
+		const sway = samplePhase({ phase: "loop", presetId: "sway" });
+		const wave = samplePhase({ phase: "loop", presetId: "wave" });
+		const pulseSnapshot = createTextAnimationPhaseSnapshot({
+			preset: findPreset({ phase: "loop", presetId: "pulse" }),
+		});
+		const swaySnapshot = createTextAnimationPhaseSnapshot({
+			preset: findPreset({ phase: "loop", presetId: "sway" }),
+		});
+		const waveSnapshot = createTextAnimationPhaseSnapshot({
+			preset: findPreset({ phase: "loop", presetId: "wave" }),
+		});
+
+		expect(
+			roundedSamples({
+				values: pulse.map(({ container }) => container.scaleX),
+			})
+		).toEqual([1, 0.925, 0.85, 0.925]);
+		expect(
+			roundedSamples({
+				values: sway.map(({ units }) => units.at(0)?.visual.rotationDeg ?? 0),
+			})
+		).toEqual([20, 0, -20, 0]);
+		expect(
+			sway.every(({ units }) =>
+				units.every(({ visual }) => visual.transformOrigin === "bottomCenter")
+			)
+		).toBe(true);
+		expect(
+			new Set(
+				wave.at(0)?.units.map(({ visual }) => visual.translateY.toFixed(4))
+			).size
+		).toBeGreaterThan(1);
+		expect(pulseSnapshot).toMatchObject({
+			timing: { duration: 1.5 },
+			repeat: { mode: "restart" },
+			effect: {
+				kind: "scale",
+				pulse: { cycles: 5, easing: "smoothstep" },
+			},
+		});
+		expect(swaySnapshot).toMatchObject({
+			sequence: { unit: "grapheme", staggerRatio: 0 },
+			repeat: { mode: "restart" },
+		});
+		expect(waveSnapshot).toMatchObject({
+			sequence: { unit: "grapheme", staggerRatio: 0 },
+			repeat: { mode: "restart" },
+		});
+	});
+
 	it("removes only the selected phase when None is applied", () => {
 		const entrance = TEXT_ANIMATION_PRESETS.entrance[1];
 		const exit = TEXT_ANIMATION_PRESETS.exit[1];
@@ -373,6 +431,30 @@ describe("text animation preset registry", () => {
 			})
 		).toBeCloseTo(0.35);
 		expect(updated.entrance?.timing).toEqual(animations.entrance?.timing);
+	});
+
+	it.each([
+		["flip", 0.5],
+		["ring-orbit", 0.5],
+		["jitter", 0.4],
+	] as const)("round-trips %s intensity", (presetId, intensity) => {
+		const preset = findPreset({ phase: "loop", presetId });
+		const animations = applyTextAnimationPreset({
+			animations: undefined,
+			preset,
+		});
+		const updated = updateTextAnimationPhaseIntensity({
+			animations,
+			phase: "loop",
+			intensity,
+		});
+
+		expect(
+			getTextAnimationPhaseIntensity({
+				animations: updated,
+				phase: "loop",
+			})
+		).toBeCloseTo(intensity);
 	});
 
 	it("searches localized names and aliases", () => {

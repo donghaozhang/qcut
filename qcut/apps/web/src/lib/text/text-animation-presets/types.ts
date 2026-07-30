@@ -11,6 +11,7 @@ export type TextAnimationPreviewKind =
 	| "slide-up"
 	| "slide-right-blur"
 	| "rotate-fly"
+	| "flip"
 	| "scale"
 	| "orbit"
 	| "bounce-up"
@@ -28,7 +29,21 @@ export type TextAnimationPreviewKind =
 	| "shimmer"
 	| "wave"
 	| "flicker"
-	| "breathe";
+	| "breathe"
+	| "ring-orbit"
+	| "jitter"
+	| "vortex"
+	| "pendulum"
+	| "zoom-each"
+	| "wave-squeeze"
+	| "fold"
+	| "arc-up"
+	| "spiral-down"
+	| "elastic-out"
+	| "fly-up-out"
+	| "flicker-scatter"
+	| "random-fly-out"
+	| "shrink-shake";
 
 export interface TextAnimationPresetDefinition {
 	id: string;

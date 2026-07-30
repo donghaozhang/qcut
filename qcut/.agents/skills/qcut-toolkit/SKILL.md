@@ -22,8 +22,8 @@ Handles:
 - Running editor media/timeline/export/diagnostic commands (`editor:*`)
 - Running additional native pipeline commands when needed
 
-### 2. qcut-vlog — Talking-Head & Vlog Cleanup
-**When:** Cleaning and naturally enhancing a talking-head/vlog, replacing its background, regenerating aligned subtitles, and exporting editable plus hard-captioned versions
+### 2. qcut-vlog — Talking-Head Edit & Publishing Package
+**When:** Turning talking-head/vlog footage into a verified social-ready edit and publishing package: clean baseline, restrained sticker/SFX variant, rights-aware B-roll version, Xiaohongshu copy, and a 9:16 cover
 **Invoke:** `/qcut-vlog`
 **Skill path:** `.claude/skills/qcut-toolkit/qcut-vlog/SKILL.md`
 
@@ -34,7 +34,9 @@ Handles:
 - Person cutout and still-image background replacement through the native CLI
 - Post-cut retranscription so subtitle timing cannot drift
 - Editable MP4 plus sidecar SRT, alongside a hard-captioned publishing MP4
-- Separate background and subtitle verification frames
+- Sticker/SFX variant with a semantic cue sheet and a preserved audio master
+- B-roll research with license archiving, FFmpeg 8 color preflight, and boundary checks
+- Xiaohongshu titles, body copy, hashtags, and an exact 1080×1920 cover
 - Safe resume based on artifact dependency timestamps
 
 ### 3. qcut-cityfilm — Reference-Driven City / Promo Films
@@ -111,7 +113,19 @@ Handles:
 - E2E testing: navigate to editor, trigger exports, check state, FPS benchmarks
 - Managing pymobiledevice3 tunnels for advanced device access
 
-### 9. pr-comments — PR Review Processing
+### 9. jianying-reference — Jianying Effect Reverse-Engineering
+**When:** Matching a QCut effect to Jianying's (剪映) behavior, finding out exactly how a Jianying text animation / filter / transition is implemented, harvesting its effect-package source, capturing stepped reference frames
+**Invoke:** `/jianying-reference`
+**Skill path:** `.claude/skills/qcut-toolkit/jianying-reference/SKILL.md`
+
+Handles:
+- Mapping a Jianying effect card to its on-disk package via mtime markers
+- Reading TextAnim.lua / Transform.lua tweens for exact easing, distances, and per-character timing
+- Node-graph (lsproj/lsanim) parameter extraction where the Lua tier is absent
+- Stepped-frame capture protocol in the Jianying UI (playhead anchoring, preview-contamination checks)
+- Porting the math into editor-core presets and locking it with frame-parity tests
+
+### 10. pr-comments — PR Review Processing
 **When:** Exporting PR comments, evaluating code reviews, fixing review feedback from CodeRabbit/Gemini bots
 **Invoke:** `/pr-comments`
 **Skill path:** `.claude/skills/pr-comments/SKILL.md`
@@ -141,8 +155,9 @@ When the user's request involves multiple sub-skills, chain them in this order:
 | User says | Route to |
 |-----------|----------|
 | "organize", "set up project", "clean up files" | native-cli |
-| "vlog", "talking head", "剪口播", "去口头词", "去停顿", "人像滤镜", "美颜", "口播字幕", "抠像换背景" | qcut-vlog |
+| "vlog", "talking head", "剪口播", "去口头词", "去停顿", "人像滤镜", "美颜", "口播字幕", "抠像换背景", "B-roll", "小红书文案", "封面", "发布包" | qcut-vlog |
 | "复刻宣传片", "城市宣传片", "参考片拆解", "city film", "travel promo", "reference-driven edit", "多语言配音成片" | qcut-cityfilm |
+| "对标剪映", "对齐剪映", "剪映怎么实现的", "剪映参照", "逆向剪映", "match Jianying", "剪映动画", "剪映特效分析" | jianying-reference |
 | "convert", "compress", "trim", "resize", "extract audio", "gif", "subtitle" | ffmpeg-skill |
 | "generate image", "generate video", "avatar", "lipsync", "transcribe", "analyze video", "AI pipeline" | ai-content-pipeline |
 | "add to timeline", "update project settings", "list media", "export preset", "configure for TikTok" | native-cli |

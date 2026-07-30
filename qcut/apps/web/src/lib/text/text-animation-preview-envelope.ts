@@ -244,6 +244,15 @@ function resolveEffectEnvelope({
 						progress,
 						padding: effect.overshoot,
 					});
+		if (effect.shakeEm) {
+			envelope.translateX = context.fontSize * effect.shakeEm;
+			envelope.translateY = context.fontSize * effect.shakeEm;
+			envelope.filterPadding =
+				context.fontSize *
+				effect.shakeEm *
+				0.6 *
+				TEXT_ANIMATION_FILTER_BLUR_EXTENT;
+		}
 		return envelope;
 	}
 	if (effect.kind === "bounce") {
@@ -293,8 +302,10 @@ function resolveEffectEnvelope({
 			envelope.translateX = travel;
 			envelope.translateY = travel;
 		}
-		envelope.rotationDeg =
-			360 * effect.turns * Math.max(1, maximumAbsolute({ range: progress }));
+		if (effect.spin !== false) {
+			envelope.rotationDeg =
+				360 * effect.turns * Math.max(1, maximumAbsolute({ range: progress }));
+		}
 		return envelope;
 	}
 	if (effect.kind === "laser") {
@@ -303,6 +314,54 @@ function resolveEffectEnvelope({
 		envelope.decorationPadding =
 			effect.glowPx * TEXT_ANIMATION_FILTER_BLUR_EXTENT +
 			effect.thicknessPx / 2;
+		return envelope;
+	}
+	if (effect.kind === "flip") {
+		envelope.rotationDeg = effect.maxAngleDeg;
+		envelope.scale = 1 + effect.perspective;
+		return envelope;
+	}
+	if (effect.kind === "jitter") {
+		envelope.translateX = context.fontSize * effect.amplitudeX;
+		envelope.translateY = context.fontSize * effect.amplitudeY;
+		return envelope;
+	}
+	if (effect.kind === "arc") {
+		envelope.translateY = context.fontSize * effect.riseEm;
+		envelope.rotationDeg = Math.abs(effect.tiltDeg);
+		return envelope;
+	}
+	if (effect.kind === "squeeze") {
+		envelope.scale = 1 + effect.amount * 0.3;
+		return envelope;
+	}
+	if (effect.kind === "fold") {
+		return envelope;
+	}
+	if (effect.kind === "spiral") {
+		envelope.translateX = resolveDistance({
+			distance: effect.radius,
+			...context,
+		});
+		envelope.translateY =
+			envelope.translateX +
+			resolveDistance({ distance: effect.drop, ...context });
+		envelope.rotationDeg = 360 * effect.turns;
+		return envelope;
+	}
+	if (effect.kind === "tumble") {
+		envelope.translateY = resolveDistance({
+			distance: effect.drop,
+			...context,
+		});
+		envelope.rotationDeg = Math.abs(effect.spinDeg);
+		return envelope;
+	}
+	if (effect.kind === "scatter") {
+		const travel = resolveDistance({ distance: effect.distance, ...context });
+		envelope.translateX = travel;
+		envelope.translateY = travel;
+		envelope.rotationDeg = effect.rotateDeg;
 		return envelope;
 	}
 	const distance = resolveDistance({

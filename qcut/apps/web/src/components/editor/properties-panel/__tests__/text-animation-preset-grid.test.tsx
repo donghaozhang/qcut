@@ -17,7 +17,7 @@ describe("TextAnimationPresetGrid", () => {
 		vi.clearAllMocks();
 	});
 
-	it("renders a three-column single-select grid with None first", () => {
+	it("renders a four-column single-select grid with None first", () => {
 		render(
 			<TextAnimationPresetGrid
 				ariaLabel="入场动画预设"
@@ -30,7 +30,7 @@ describe("TextAnimationPresetGrid", () => {
 		);
 
 		const grid = screen.getByTestId("text-animation-preset-grid");
-		expect(grid).toHaveClass("grid-cols-3");
+		expect(grid).toHaveClass("grid-cols-4");
 		expect(screen.getAllByRole("radio")).toHaveLength(3);
 		expect(screen.getAllByRole("radio")[0]).toHaveAccessibleName(/^无, 0\.6s$/);
 		expect(screen.getAllByText("无")).not.toHaveLength(0);
@@ -127,5 +127,26 @@ describe("TextAnimationPresetGrid", () => {
 		expect(
 			screen.queryByTestId("text-animation-preset-grid")
 		).not.toBeInTheDocument();
+	});
+
+	it("renders the Jianying-derived loop presets through the shared preview", () => {
+		const loopPresets = TEXT_ANIMATION_PRESETS.loop.filter((preset) =>
+			["flip", "ring-orbit", "jitter"].includes(preset.id)
+		);
+		render(
+			<TextAnimationPresetGrid
+				ariaLabel="循环动画预设"
+				emptyLabel="没有动画"
+				onSelect={vi.fn()}
+				presets={loopPresets}
+				selectedPresetId="flip"
+				translate={translate}
+			/>
+		);
+
+		expect(loopPresets).toHaveLength(3);
+		expect(screen.getByText("空间翻转")).toBeInTheDocument();
+		expect(screen.getByText("环绕")).toBeInTheDocument();
+		expect(screen.getByText("颤抖")).toBeInTheDocument();
 	});
 });

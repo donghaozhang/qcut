@@ -20,6 +20,7 @@ import { TimelineTrackContent } from "./timeline-track";
 import { EffectsTimeline } from "./effects-timeline";
 import { SpeedRegionRow } from "./speed-region-row";
 import { useScreenRecordingEnhancementStore } from "@/stores/screen-recording-store";
+import { useEffectsStore } from "@/stores/ai/effects-store";
 import { EFFECTS_ENABLED } from "@/config/features";
 import {
 	getTrackHeight,
@@ -113,6 +114,21 @@ export function TimelineTracksArea({
 	const [visibleTimeRange, setVisibleTimeRange] =
 		useState<TimelineVisibleRange>(INITIAL_VISIBLE_TIME_RANGE);
 	const viewportFrameRef = useRef(0);
+	const activeEffects = useEffectsStore((state) => state.activeEffects);
+	const hasTimelineEffects = useMemo(
+		() =>
+			tracks.some((track) =>
+				track.elements.some((element) =>
+					(activeEffects.get(element.id) ?? []).some((effect) => effect.enabled)
+				)
+			),
+		[tracks, activeEffects]
+	);
+	const effectsLaneVisible =
+		EFFECTS_ENABLED &&
+		tracks.length > 0 &&
+		showEffectsTrack &&
+		hasTimelineEffects;
 	const hasSpeedRegions = useScreenRecordingEnhancementStore(
 		(s) => s.speedRegions.length > 0
 	);
@@ -238,13 +254,15 @@ export function TimelineTracksArea({
 								</Droppable>
 							</DragDropContext>
 							{/* Effects Track Label */}
-							{EFFECTS_ENABLED && tracks.length > 0 && showEffectsTrack && (
+							{effectsLaneVisible && (
 								<div
-									className="flex items-center px-3 border-t-2 border-purple-500/30 group bg-purple-500/10"
+									className="flex items-center px-3 border-t border-muted/30 group"
 									style={{ height: "64px" }}
 								>
 									<div className="flex items-center flex-1 min-w-0">
-										<span className="text-sm text-purple-400">Effects</span>
+										<span className="truncate text-xs text-muted-foreground">
+											Effects
+										</span>
 									</div>
 								</div>
 							)}
@@ -293,9 +311,7 @@ export function TimelineTracksArea({
 								Math.min(
 									800,
 									getTotalTracksHeight(tracks) +
-										(EFFECTS_ENABLED && tracks.length > 0 && showEffectsTrack
-											? TIMELINE_CONSTANTS.TRACK_HEIGHT
-											: 0) +
+										(effectsLaneVisible ? TIMELINE_CONSTANTS.TRACK_HEIGHT : 0) +
 										(hasSpeedRegions && tracks.length > 0 ? 24 : 0)
 								)
 							)}px`,
@@ -385,9 +401,9 @@ export function TimelineTracksArea({
 									</ContextMenu>
 								))}
 								{/* Effects Timeline Visualization */}
-								{EFFECTS_ENABLED && tracks.length > 0 && showEffectsTrack && (
+								{effectsLaneVisible && (
 									<div
-										className="absolute left-0 right-0 border-t-2 border-purple-500/30"
+										className="absolute left-0 right-0 border-t border-muted/30"
 										style={{
 											top: `${getTotalTracksHeight(tracks)}px`,
 											height: `${TIMELINE_CONSTANTS.TRACK_HEIGHT}px`,
@@ -408,7 +424,7 @@ export function TimelineTracksArea({
 									<div
 										className="absolute left-0 right-0"
 										style={{
-											top: `${getTotalTracksHeight(tracks) + (EFFECTS_ENABLED && showEffectsTrack ? TIMELINE_CONSTANTS.TRACK_HEIGHT : 0)}px`,
+											top: `${getTotalTracksHeight(tracks) + (effectsLaneVisible ? TIMELINE_CONSTANTS.TRACK_HEIGHT : 0)}px`,
 										}}
 									>
 										<SpeedRegionRow

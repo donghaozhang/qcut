@@ -10,6 +10,20 @@ import { dirname, join, parse, resolve } from "node:path";
 import { finished } from "node:stream/promises";
 import type { CommandResult, ToolCommand, Toolchain } from "./types";
 
+function hasPipelineScript({ directory }: { directory: string }): boolean {
+	const packagePath = join(directory, "package.json");
+	if (!existsSync(packagePath)) return false;
+	try {
+		const packageData = JSON.parse(readFileSync(packagePath, "utf8")) as {
+			scripts?: Record<string, unknown>;
+		};
+		const pipeline = packageData.scripts?.pipeline;
+		return typeof pipeline === "string" && pipeline.trim().length > 0;
+	} catch {
+		return false;
+	}
+}
+
 function findPipelineRepository({
 	start,
 }: {
@@ -18,20 +32,29 @@ function findPipelineRepository({
 	let current = resolve(start);
 	const root = parse(current).root;
 	while (true) {
-		const packagePath = join(current, "package.json");
-		if (existsSync(packagePath)) {
-			try {
-				const packageData = JSON.parse(readFileSync(packagePath, "utf8")) as {
-					scripts?: Record<string, unknown>;
-				};
-				if (typeof packageData.scripts?.pipeline === "string") return current;
-			} catch {
-				// Keep walking; a parent may be the QCut repository root.
-			}
-		}
+		if (hasPipelineScript({ directory: current })) return current;
 		if (current === root) return;
 		current = dirname(current);
 	}
+}
+
+function resolvePipelineRepository({
+	scriptDirectory,
+	env,
+}: {
+	scriptDirectory: string;
+	env: NodeJS.ProcessEnv;
+}): string | undefined {
+	const override = env.QCUT_VLOG_REPO;
+	if (!override) return findPipelineRepository({ start: scriptDirectory });
+
+	const repositoryRoot = resolve(override);
+	if (!hasPipelineScript({ directory: repositoryRoot })) {
+		throw new Error(
+			`QCUT_VLOG_REPO must point to a repository with a pipeline script: ${repositoryRoot}`
+		);
+	}
+	return repositoryRoot;
 }
 
 function resolveOverride({
@@ -91,7 +114,10 @@ export function resolveToolchain({
 	scriptDirectory: string;
 	env?: NodeJS.ProcessEnv;
 }): Toolchain {
-	const repositoryRoot = findPipelineRepository({ start: scriptDirectory });
+	const repositoryRoot = resolvePipelineRepository({
+		scriptDirectory,
+		env,
+	});
 	const qcutOverride = resolveOverride({
 		value: env.QCUT_VLOG_QCUT_BIN,
 		name: "QCUT_VLOG_QCUT_BIN",

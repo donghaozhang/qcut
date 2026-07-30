@@ -4,6 +4,8 @@ test.describe("Text properties", () => {
 	test("edits typography, presets, animation, and keyframes", async ({
 		page,
 	}, testInfo) => {
+		await page.getByTestId("language-selector").click();
+		await page.getByRole("menuitemradio", { name: "English" }).click();
 		await page.getByTestId("new-project-button").click();
 		await page.waitForSelector('[data-testid="timeline-track"]');
 		await ensureTextTabActive(page);
@@ -22,34 +24,43 @@ test.describe("Text properties", () => {
 		await expect(
 			properties.getByLabel("Apply Yellow pop text preset")
 		).toBeVisible();
+		const highlightPreset = properties.getByLabel(
+			"Apply Highlight text preset"
+		);
+		const highlightPreview = highlightPreset.getByTestId("text-preset-preview");
+		await expect(highlightPreview).toHaveText("T");
+		expect(
+			await highlightPreset.evaluate((element) => element.style.backgroundColor)
+		).toBe("");
+		expect(
+			await highlightPreview.evaluate(
+				(element) => element.style.backgroundColor
+			)
+		).not.toBe("");
+		await highlightPreset.click();
+		await expect(properties.getByLabel("Text color")).toHaveValue("#111111");
 
 		await properties.getByLabel("Apply Yellow pop text preset").click();
-		await properties.getByRole("button", { name: "Animation" }).click();
-		await properties.getByRole("button", { name: "slide up" }).click();
+		await properties.getByRole("tab", { name: "Animation" }).click();
+		await properties.getByRole("radio", { name: "slide up" }).click();
 		await expect(
 			properties.getByRole("slider", { name: "Duration" })
 		).toBeVisible();
 
+		await properties.getByRole("tab", { name: "Text" }).click();
 		await properties.getByRole("button", { name: "Keyframes" }).click();
-		await expect(
-			properties.getByRole("button", {
-				name: "Collapse X position keyframes",
-			})
-		).toBeVisible();
-		await expect(properties.getByText("(0 keyframes)")).toBeVisible();
-		await properties
-			.getByRole("button", {
-				name: "Add keyframe at current frame",
-				exact: true,
-			})
-			.click();
-		await expect(properties.getByText("(1 keyframe)")).toBeVisible();
+		const keyframeCount = properties.getByTestId("keyframe-count");
+		await expect(keyframeCount).toContainText("0");
+		await properties.getByTestId("keyframe-add-current").click();
+		await expect(keyframeCount).toContainText("1");
 
 		await page
 			.locator("[data-ruler-area]")
 			.click({ position: { x: 25, y: 20 } });
 		await expect(
-			page.getByTestId("preview-panel").getByText("Default text")
+			page
+				.getByTestId("preview-panel")
+				.getByRole("button", { name: /Default text/ })
 		).toBeVisible();
 		await page.waitForTimeout(750);
 

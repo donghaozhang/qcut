@@ -205,6 +205,40 @@ describe("resolveTextAnimationPreviewCrop", () => {
 		expect(decorated.height).toBeGreaterThan(plain.height + 250);
 	});
 
+	it("reserves per-unit travel for the stepped jitter loop", () => {
+		const plain = cropFor({
+			element: createTextElement({
+				textAnimations: {
+					schemaVersion: 1,
+					entrance: phase({
+						effect: { kind: "fade", minimumOpacity: 0 },
+					}),
+				},
+			}),
+		});
+		const animated = cropFor({
+			element: createTextElement({
+				textAnimations: {
+					schemaVersion: 1,
+					loop: {
+						...phase({
+							effect: {
+								kind: "jitter",
+								steps: 4,
+								amplitudeX: 0.04,
+								amplitudeY: 0.027,
+							},
+						}),
+						repeat: { mode: "restart", gap: 0, phaseOffset: 0 },
+					},
+				},
+			}),
+		});
+
+		expect(animated.width).toBeGreaterThan(plain.width);
+		expect(animated.height).toBeGreaterThan(plain.height);
+	});
+
 	it("keeps ten representative 4K layers far below ten full canvases", () => {
 		const crop = cropFor({
 			element: createTextElement({

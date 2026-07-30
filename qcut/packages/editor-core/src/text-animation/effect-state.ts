@@ -9,7 +9,11 @@ import {
 	type TextAnimationLayout,
 	type TextAnimationVisualState,
 } from "./model.js";
-import { clampUnitInterval, springProgress } from "./easing.js";
+import {
+	clampUnitInterval,
+	easeTextAnimationProgress,
+	springProgress,
+} from "./easing.js";
 
 export interface TextAnimationEffectResult {
 	visual: TextAnimationVisualState;
@@ -39,6 +43,35 @@ function lerp({
 
 function identityVisual(): TextAnimationVisualState {
 	return { ...IDENTITY_TEXT_ANIMATION_VISUAL_STATE };
+}
+
+function loopFraction({ value }: { value: number }): number {
+	return value - Math.floor(value);
+}
+
+function smoothstep({ progress }: { progress: number }): number {
+	return progress * progress * (3 - 2 * progress);
+}
+
+function trianglePulse({ progress }: { progress: number }): number {
+	const cycleProgress = loopFraction({ value: progress });
+	return cycleProgress <= 0.5 ? cycleProgress * 2 : (1 - cycleProgress) * 2;
+}
+
+function oscillationPhase({
+	progress,
+	cycles,
+	phaseEasing,
+}: {
+	progress: number;
+	cycles: number;
+	phaseEasing: "linear" | "smoothstep";
+}): number {
+	const cycleProgress = loopFraction({ value: progress * cycles });
+	if (phaseEasing === "linear") return cycleProgress;
+	const half = Math.floor(cycleProgress * 2);
+	const halfProgress = loopFraction({ value: cycleProgress * 2 });
+	return (half + smoothstep({ progress: halfProgress })) / 2;
 }
 
 function directionVector({
@@ -140,6 +173,44 @@ function unitBounds({
 		...glyphs.map((glyph) => glyph.bounds.y + glyph.bounds.height)
 	);
 	return { x: left, y: top, width: right - left, height: bottom - top };
+}
+
+function unitHorizontalProgress({
+	unit,
+	layout,
+}: {
+	unit: CompiledTextAnimationUnit;
+	layout: TextAnimationLayout;
+}): number {
+	const bounds = unitBounds({ unit, layout });
+	return clampUnitInterval({
+		value:
+			(bounds.x + bounds.width / 2 - layout.bounds.x) /
+			Math.max(Number.EPSILON, layout.bounds.width),
+	});
+}
+
+function spatialWaveMovement({
+	effect,
+	progress,
+	unit,
+	layout,
+}: {
+	effect: Extract<TextAnimationEffect, { kind: "bounce" }>;
+	progress: number;
+	unit: CompiledTextAnimationUnit;
+	layout: TextAnimationLayout;
+}): number | null {
+	if (!effect.spatialWave) return null;
+	const bounds = unitBounds({ unit, layout });
+	const centerX = bounds.x + bounds.width / 2;
+	const horizontalProgress =
+		(centerX - layout.bounds.x) / Math.max(Number.EPSILON, layout.bounds.width);
+	const phase =
+		effect.spatialWave.spatialCycles * horizontalProgress -
+		progress +
+		effect.spatialWave.phaseOffset;
+	return Math.sin(phase * Math.PI * 2);
 }
 
 function heartDecorations({
@@ -255,38 +326,154 @@ function loopVisual({
 		if (effect.fade) visual.opacity = 1 - pulse * 0.25;
 	}
 	if (effect.kind === "rotate") {
-		visual.rotationDeg = effect.degrees * progress;
+		if (effect.oscillation) {
+			const phase = oscillationPhase({
+				progress,
+				cycles: effect.oscillation.cycles,
+				phaseEasing: effect.oscillation.phaseEasing,
+			});
+			visual.rotationDeg = effect.degrees * Math.cos(phase * Math.PI * 2);
+			visual.transformOrigin = effect.oscillation.pivot;
+		} else {
+			visual.rotationDeg = effect.degrees * progress;
+		}
 	}
 	if (effect.kind === "scale") {
+		const pulseProgress = effect.pulse
+			? trianglePulse({ progress: progress * effect.pulse.cycles })
+			: pulse;
+		const shapedPulse =
+			effect.pulse?.easing === "smoothstep"
+				? smoothstep({ progress: pulseProgress })
+				: pulseProgress;
 		const scale = lerp({
 			from: 1,
 			to: effect.hiddenScale,
-			progress: pulse,
+			progress: shapedPulse,
 		});
-		visual.scaleX = scale;
-		visual.scaleY = scale;
-		if (effect.fade) visual.opacity = 1 - pulse * 0.2;
+		const axis = effect.axis ?? "uniform";
+		if (axis !== "y") visual.scaleX = scale;
+		if (axis !== "x") visual.scaleY = scale;
+		if (effect.fade) visual.opacity = 1 - shapedPulse * 0.2;
 	}
 	if (effect.kind === "bounce") {
 		const vector = directionVector({ direction: effect.direction });
 		const pixels = resolveDistance({ distance: effect.distance, layout });
-		visual.translateX = vector.x * pixels * pulse;
-		visual.translateY = vector.y * pixels * pulse;
+		const movement =
+			spatialWaveMovement({ effect, progress, unit, layout }) ?? pulse;
+		visual.translateX = vector.x * pixels * movement;
+		visual.translateY = vector.y * pixels * movement;
 		const scale = lerp({
 			from: 1,
 			to: effect.hiddenScale,
-			progress: pulse * 0.35,
+			progress: (effect.spatialWave ? 0 : pulse) * 0.35,
 		});
 		visual.scaleX = scale;
 		visual.scaleY = scale;
+	}
+	if (effect.kind === "flip") {
+		// Jianying's 空间翻转: rotate every unit rigidly about the layout
+		// center (tilt = cos phase) while a position-keyed scale gradient
+		// (sin phase) fakes the perspective of the plane yawing toward and
+		// away from the viewer.
+		const swing = Math.sin(progress * Math.PI * 2);
+		const tilt = Math.cos(progress * Math.PI * 2);
+		const angle = (effect.maxAngleDeg * Math.PI) / 180;
+		const theta = angle * tilt;
+		const bounds = unitBounds({ unit, layout });
+		const offsetX =
+			bounds.x + bounds.width / 2 - (layout.bounds.x + layout.bounds.width / 2);
+		const offsetY =
+			bounds.y +
+			bounds.height / 2 -
+			(layout.bounds.y + layout.bounds.height / 2);
+		visual.translateX =
+			offsetX * Math.cos(theta) - offsetY * Math.sin(theta) - offsetX;
+		visual.translateY =
+			offsetX * Math.sin(theta) + offsetY * Math.cos(theta) - offsetY;
+		visual.rotationDeg = effect.maxAngleDeg * tilt;
+		const lineRatio =
+			layout.bounds.width > 0 ? offsetX / layout.bounds.width : 0;
+		const scale = 1 + effect.perspective * lineRatio * swing * 2;
+		visual.scaleX = scale;
+		visual.scaleY = scale;
+	}
+	if (effect.kind === "jitter") {
+		// Ported from Jianying's stepped shake: local time is floored into
+		// `steps` poses per cycle, then each unit's offset comes from a product
+		// of sines phase-shifted by its 1-based rank. The constants are theirs.
+		const step = 1 / Math.max(1, effect.steps);
+		const quantized = Math.floor(progress / step) * step;
+		const rank = unit.index + 1;
+		const swingX = Math.sin(quantized * Math.PI * 2);
+		const swingY = Math.cos(quantized * Math.PI * 2);
+		visual.translateX =
+			Math.cos(24.8 * swingX + 7.9 * rank) *
+			Math.sin(swingX * Math.PI * 2 + rank) *
+			effect.amplitudeX *
+			layout.fontSize;
+		visual.translateY =
+			Math.sin(19.1 * swingY + 33.6 * rank) *
+			Math.cos(swingY * Math.PI * 2 - rank) *
+			effect.amplitudeY *
+			layout.fontSize;
+	}
+	if (effect.kind === "arc") {
+		// Jianying's 上弧: the line bows into an arc (peak at the center) and
+		// relaxes each cycle; the ends tilt outward with the arc's slope.
+		const wave = (1 - Math.cos(progress * Math.PI * 2)) / 2;
+		const across = unitHorizontalProgress({ unit, layout });
+		visual.translateY =
+			-effect.riseEm * layout.fontSize * Math.sin(Math.PI * across) * wave;
+		visual.rotationDeg = effect.tiltDeg * Math.cos(Math.PI * across) * wave;
+	}
+	if (effect.kind === "squeeze") {
+		// Jianying's 波浪挤压: a squash wave travels through the line, with a
+		// touch of horizontal spread to keep the glyph's area believable.
+		const across = unitHorizontalProgress({ unit, layout });
+		const crest =
+			(1 + Math.sin(Math.PI * 2 * (effect.spatialCycles * across - progress))) /
+			2;
+		visual.scaleY = 1 - effect.amount * crest;
+		visual.scaleX = 1 + effect.amount * 0.3 * crest;
+	}
+	if (effect.kind === "fold") {
+		// Jianying's 折叠: units fold flat and reopen, phase-stepped by rank
+		// so the fold ripples along the line.
+		const phase =
+			progress * Math.PI * 2 +
+			unit.rank * ((effect.phaseStepDeg * Math.PI) / 180);
+		visual.scaleX = Math.max(effect.minimumScale, Math.abs(Math.cos(phase)));
 	}
 	if (effect.kind === "orbit") {
 		const sign = effect.rotation === "clockwise" ? 1 : -1;
 		const angle = sign * progress * Math.PI * 2 * effect.turns;
 		const radius = resolveDistance({ distance: effect.radius, layout });
-		visual.translateX = radius * (Math.cos(angle) - 1);
-		visual.translateY = radius * Math.sin(angle);
-		visual.rotationDeg = (angle * 180) / Math.PI;
+		if (effect.ring) {
+			// Jianying's 环绕: every unit rides the same centered circle
+			// (x = sin, y = cos), so first cancel the unit's own layout
+			// offset, then place it by its wrapped phase angle.
+			const bounds = unitBounds({ unit, layout });
+			const centerOffsetX =
+				layout.bounds.x +
+				layout.bounds.width / 2 -
+				(bounds.x + bounds.width / 2);
+			const centerOffsetY =
+				layout.bounds.y +
+				layout.bounds.height / 2 -
+				(bounds.y + bounds.height / 2);
+			visual.translateX = centerOffsetX + radius * Math.sin(angle);
+			visual.translateY = centerOffsetY + radius * Math.cos(angle);
+			if (effect.spin !== false) {
+				visual.rotationDeg = (-angle * 180) / Math.PI;
+			}
+		} else {
+			visual.translateX = radius * (Math.cos(angle) - 1);
+			visual.translateY = radius * Math.sin(angle);
+			if (effect.spin !== false) {
+				visual.rotationDeg = (angle * 180) / Math.PI;
+			}
+		}
 		if (effect.fade) visual.opacity = 1 - pulse * 0.2;
 	}
 	if (effect.kind === "laser") {
@@ -393,8 +580,28 @@ function edgeVisual({
 				progress: presence,
 			}) +
 			Math.sin(presence * Math.PI) * effect.overshoot;
-		visual.scaleX = scale;
-		visual.scaleY = scale;
+		const axis = effect.axis ?? "uniform";
+		if (axis !== "y") visual.scaleX = scale;
+		if (axis !== "x") visual.scaleY = scale;
+		if (effect.shakeEm) {
+			// Jianying's 收缩震动: the shrink rides a quantized shake, reusing
+			// the stepped-pose constants from their 颤抖.
+			const step =
+				Math.floor((role === "exit" ? 1 - presence : presence) * 8) / 8;
+			const rank = unit.index + 1;
+			visual.translateX +=
+				Math.cos(24.8 * step + 7.9 * rank) * effect.shakeEm * layout.fontSize;
+			visual.translateY +=
+				Math.sin(19.1 * step + 33.6 * rank) *
+				effect.shakeEm *
+				layout.fontSize *
+				0.7;
+			// The captured reference renders the shake as motion-blur smear.
+			visual.blurPx = Math.max(
+				visual.blurPx,
+				effect.shakeEm * layout.fontSize * 0.6
+			);
+		}
 		if (effect.fade) visual.opacity = presence;
 	}
 	if (effect.kind === "bounce") {
@@ -422,6 +629,86 @@ function edgeVisual({
 		visual.scaleY = scale;
 		visual.opacity = clampUnitInterval({ value: resolvedPresence });
 	}
+	if (effect.kind === "spiral") {
+		// Jianying's 螺旋下降: units corkscrew outward while dropping away,
+		// accelerating into the fall.
+		const radialProgress = role === "entrance" ? 1 - progress : progress;
+		const angle = Math.PI * 2 * effect.turns * radialProgress;
+		const radius =
+			resolveDistance({ distance: effect.radius, layout }) * radialProgress;
+		visual.translateX = Math.cos(angle) * radius;
+		visual.translateY =
+			Math.sin(angle) * radius +
+			resolveDistance({ distance: effect.drop, layout }) * radialProgress ** 2;
+		visual.rotationDeg = (angle * 180) / Math.PI;
+		if (effect.fade) visual.opacity = presence;
+	}
+	if (effect.kind === "tumble") {
+		// Jianying's RotateFlyOut: cubic-in shrink to zero with spin and
+		// drop; the glyph vanishes by scale, not by fading.
+		const out = role === "entrance" ? 1 - progress : progress;
+		const drive = out ** 3;
+		const scale = Math.max(0, 1 - drive);
+		visual.scaleX = scale;
+		visual.scaleY = scale;
+		visual.rotationDeg = effect.spinDeg * drive;
+		visual.translateY =
+			resolveDistance({ distance: effect.drop, layout }) * drive;
+		if (effect.fade) visual.opacity = presence;
+	}
+	if (effect.kind === "scatter") {
+		// Seeded dispersal: each unit picks its own direction and spin, and
+		// with flicker enabled it strobes while it flies (Jianying's 闪烁散开
+		// vs 随机飞出).
+		const dispersal = role === "entrance" ? 1 - progress : progress;
+		const heading =
+			seededValue({
+				seed: effect.seed,
+				unitIndex: unit.index,
+				particleIndex: 0,
+				channel: 0,
+			}) *
+			Math.PI *
+			2;
+		// Jianying holds the character near home through the first half and
+		// only drifts late; the strobe carries the early phase.
+		const drift = Math.max(0, dispersal - 0.5) * 2;
+		const travel =
+			resolveDistance({ distance: effect.distance, layout }) * drift ** 2;
+		visual.translateX = Math.cos(heading) * travel;
+		visual.translateY = Math.sin(heading) * travel;
+		visual.rotationDeg =
+			(seededValue({
+				seed: effect.seed,
+				unitIndex: unit.index,
+				particleIndex: 0,
+				channel: 1,
+			}) -
+				0.5) *
+			2 *
+			effect.rotateDeg *
+			dispersal;
+		const strobe = effect.flicker
+			? Math.sin(
+					dispersal * Math.PI * 26 +
+						seededValue({
+							seed: effect.seed,
+							unitIndex: unit.index,
+							particleIndex: 0,
+							channel: 2,
+						}) *
+							Math.PI *
+							2
+				) > -0.35
+				? 1
+				: 0.3
+			: 1;
+		// Brightness stays full until the late drift; the strobe reads as
+		// flicker rather than a fade-out.
+		visual.opacity = clampUnitInterval({
+			value: (1 - drift ** 2) * strobe,
+		});
+	}
 	if (effect.kind === "orbit") {
 		const sign = effect.rotation === "clockwise" ? 1 : -1;
 		const radialProgress = role === "entrance" ? 1 - progress : progress;
@@ -430,7 +717,9 @@ function edgeVisual({
 			resolveDistance({ distance: effect.radius, layout }) * radialProgress;
 		visual.translateX = Math.cos(angle) * radius;
 		visual.translateY = Math.sin(angle) * radius;
-		visual.rotationDeg = (angle * 180) / Math.PI;
+		if (effect.spin !== false) {
+			visual.rotationDeg = (angle * 180) / Math.PI;
+		}
 		if (effect.fade) visual.opacity = presence;
 	}
 	if (effect.kind === "laser") {

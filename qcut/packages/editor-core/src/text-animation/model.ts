@@ -62,6 +62,12 @@ export interface TextAnimationPresetRef {
 export interface TextTypewriterEffect {
 	kind: "typewriter";
 	reveal: "step" | "fade" | "wipe";
+	/**
+	 * Optional per-unit slot weights, cycled over the unit ranks. Jianying's
+	 * human-rhythm typewriter uses an irregular fixed table so typing speeds
+	 * up and pauses instead of ticking uniformly.
+	 */
+	rhythm?: readonly number[];
 	cursor?: {
 		text: string;
 		color?: string;
@@ -96,13 +102,26 @@ export interface TextRotateEffect {
 	travelDirection?: TextAnimationDirection;
 	distance?: TextAnimationDistance;
 	fade: boolean;
+	oscillation?: {
+		cycles: number;
+		phaseEasing: "linear" | "smoothstep";
+		pivot: "center" | "bottomCenter";
+	};
 }
 
 export interface TextScaleEffect {
 	kind: "scale";
+	/** Quantized positional shake while scaling, in em (Jianying's 收缩震动). */
+	shakeEm?: number;
 	hiddenScale: number;
 	overshoot: number;
 	fade: boolean;
+	/** Scale axis; Jianying's 翻动 flip-open scales X only. Defaults to uniform. */
+	axis?: "uniform" | "x" | "y";
+	pulse?: {
+		cycles: number;
+		easing: "linear" | "smoothstep";
+	};
 }
 
 export interface TextBounceEffect {
@@ -116,6 +135,10 @@ export interface TextBounceEffect {
 		damping: number;
 		velocity: number;
 	};
+	spatialWave?: {
+		spatialCycles: number;
+		phaseOffset: number;
+	};
 }
 
 export interface TextOrbitEffect {
@@ -123,7 +146,82 @@ export interface TextOrbitEffect {
 	rotation: "clockwise" | "counterclockwise";
 	turns: number;
 	radius: TextAnimationDistance;
+	/**
+	 * Ring mode collapses each unit to the layout center before orbiting, so
+	 * staggered units form Jianying's 环绕 ring instead of tracing circles
+	 * around their own line positions.
+	 */
+	ring?: boolean;
+	/** Set false to translate without rotating the glyph (Jianying's 漩涡). */
+	spin?: boolean;
 	fade: boolean;
+}
+
+/**
+ * Jianying's 上弧 loop: the line bows into an upward arc and relaxes, ends
+ * tilting outward with the arc's slope.
+ */
+export interface TextArcEffect {
+	kind: "arc";
+	/** Peak rise of the line center, in em. */
+	riseEm: number;
+	/** Outward tilt of the line ends at full rise, in degrees. */
+	tiltDeg: number;
+}
+
+/** Jianying's 波浪挤压: a squash wave travels through the characters. */
+export interface TextSqueezeEffect {
+	kind: "squeeze";
+	/** Vertical squash at the wave crest, 0..1. */
+	amount: number;
+	/** Spatial wave cycles across the line. */
+	spatialCycles: number;
+}
+
+/** Jianying's 折叠: characters fold flat and reopen, phase-stepped by rank. */
+export interface TextFoldEffect {
+	kind: "fold";
+	/** Narrowest horizontal scale at the fold, kept > 0 to stay visible. */
+	minimumScale: number;
+	/** Phase step between neighbouring units, in degrees. */
+	phaseStepDeg: number;
+}
+
+/** Jianying's 螺旋下降: units corkscrew outward and drop away. */
+export interface TextSpiralEffect {
+	kind: "spiral";
+	turns: number;
+	radius: TextAnimationDistance;
+	drop: TextAnimationDistance;
+	fade: boolean;
+}
+
+/**
+ * Jianying's RotateFlyOut.lua: the unit shrinks to nothing in place while
+ * spinning and dropping, all on a cubic-in drive. 随机飞出 uses two full
+ * negative turns; 弹性伸缩 reads as a half-turn tumble with a slight drop.
+ */
+export interface TextTumbleEffect {
+	kind: "tumble";
+	/** Total spin at the vanish point, in degrees (theirs: -720). */
+	spinDeg: number;
+	/** Fall distance at the vanish point (theirs: 1.5–2.5 char heights). */
+	drop: TextAnimationDistance;
+	fade: boolean;
+}
+
+/**
+ * Seeded per-unit dispersal, covering Jianying's 随机飞出 and, with flicker,
+ * 闪烁散开.
+ */
+export interface TextScatterEffect {
+	kind: "scatter";
+	distance: TextAnimationDistance;
+	/** Strobe the unit's opacity while it disperses. */
+	flicker: boolean;
+	/** Maximum random spin picked per unit, in degrees. */
+	rotateDeg: number;
+	seed: number;
 }
 
 export interface TextLaserEffect {
@@ -147,6 +245,36 @@ export interface TextHeartEffect {
 	seed: number;
 }
 
+/**
+ * Jianying's 空间翻转: the block swings through a planar tilt while a
+ * position-keyed scale gradient fakes the perspective of a yawing plane —
+ * the end swinging toward the viewer grows, the receding end shrinks. The
+ * tilt and the gradient run 90° out of phase, matching the projection of a
+ * 3D yaw viewed slightly off-axis.
+ */
+export interface TextFlipEffect {
+	kind: "flip";
+	/** Peak planar tilt of the block, in degrees. */
+	maxAngleDeg: number;
+	/** Scale spread across the line at full swing, 0..1 of the base size. */
+	perspective: number;
+}
+
+/**
+ * Stepped per-unit shake. Jianying quantizes local time into a handful of
+ * poses per cycle and derives each unit's offset from a chaotic but
+ * deterministic product of sines, phase-shifted by unit rank.
+ */
+export interface TextJitterEffect {
+	kind: "jitter";
+	/** Discrete poses per cycle. Jianying uses 4 (local time floored to 1/4). */
+	steps: number;
+	/** Horizontal travel at full swing, in em. */
+	amplitudeX: number;
+	/** Vertical travel at full swing, in em. */
+	amplitudeY: number;
+}
+
 export type TextAnimationEffect =
 	| TextTypewriterEffect
 	| TextFadeEffect
@@ -157,7 +285,15 @@ export type TextAnimationEffect =
 	| TextBounceEffect
 	| TextOrbitEffect
 	| TextLaserEffect
-	| TextHeartEffect;
+	| TextHeartEffect
+	| TextFlipEffect
+	| TextJitterEffect
+	| TextArcEffect
+	| TextSqueezeEffect
+	| TextFoldEffect
+	| TextSpiralEffect
+	| TextScatterEffect
+	| TextTumbleEffect;
 
 export interface TextAnimationPhaseBase {
 	sourcePreset?: TextAnimationPresetRef;
@@ -223,6 +359,7 @@ export interface TextAnimationVisualState {
 	rotationDeg: number;
 	blurPx: number;
 	mask?: TextAnimationMaskState;
+	transformOrigin?: "center" | "bottomCenter";
 }
 
 export interface TextAnimationUnitState {
@@ -284,6 +421,14 @@ export interface CompiledTextAnimationUnit {
 	rank: number;
 }
 
+export interface CompiledTextAnimationRhythm {
+	weights: readonly number[];
+	prefixTotals: readonly number[];
+	cycleTotal: number;
+	total: number;
+	span: number;
+}
+
 export interface CompiledTextAnimationPhase<
 	TPhase extends TextAnimationPhaseBase,
 > {
@@ -293,6 +438,7 @@ export interface CompiledTextAnimationPhase<
 	startFrame: number;
 	endFrame: number;
 	units: CompiledTextAnimationUnit[];
+	typewriterRhythm?: CompiledTextAnimationRhythm;
 }
 
 export interface CompiledTextAnimation {

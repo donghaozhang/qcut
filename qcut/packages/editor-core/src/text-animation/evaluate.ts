@@ -2,6 +2,7 @@ import {
 	IDENTITY_TEXT_ANIMATION_VISUAL_STATE,
 	type CompiledTextAnimation,
 	type CompiledTextAnimationPhase,
+	type CompiledTextAnimationRhythm,
 	type CompiledTextAnimationUnit,
 	type TextAnimationActivePhase,
 	type TextAnimationDecorationState,
@@ -34,6 +35,7 @@ function composeVisual({
 		mask =
 			base.mask.progress <= overlay.mask.progress ? base.mask : overlay.mask;
 	}
+	const transformOrigin = overlay.transformOrigin ?? base.transformOrigin;
 	return {
 		opacity: base.opacity * overlay.opacity,
 		translateX: base.translateX + overlay.translateX,
@@ -43,6 +45,7 @@ function composeVisual({
 		rotationDeg: base.rotationDeg + overlay.rotationDeg,
 		blurPx: Math.max(base.blurPx, overlay.blurPx),
 		...(mask ? { mask } : {}),
+		...(transformOrigin ? { transformOrigin } : {}),
 	};
 }
 
@@ -51,14 +54,23 @@ function phaseUnitProgress({
 	unit,
 	unitCount,
 	staggerRatio,
+	wrap = false,
 }: {
 	phaseProgress: number;
 	unit: CompiledTextAnimationUnit;
 	unitCount: number;
 	staggerRatio: number;
+	wrap?: boolean;
 }): number {
 	const startRatio =
 		unitCount <= 1 ? 0 : (unit.rank / (unitCount - 1)) * staggerRatio;
+	if (wrap) {
+		// Loop phases treat stagger as a cyclic offset: every unit runs the
+		// full cycle, shifted by its rank. This is what lays orbiting units
+		// out around the ring like Jianying's 环绕 instead of freezing early
+		// ranks at 0 and late ranks at 1.
+		return (((phaseProgress - startRatio) % 1) + 1) % 1;
+	}
 	return clampUnitInterval({
 		value: (phaseProgress - startRatio) / Math.max(0.05, 1 - staggerRatio),
 	});
@@ -68,16 +80,36 @@ function phaseUnitProgress({
  * Jianying's typewriter gives every unit an equal slot of the phase and
  * completes unit `rank` at (rank + 1) / (unitCount + 1): nothing is revealed
  * at progress 0 and the final unit lands one slot before the phase ends.
+ *
+ * With a rhythm table the slots keep the same overall span but take their
+ * widths from the cycled weights, reproducing Jianying's human-rhythm typing
+ * (fast bursts and long pauses) deterministically.
  */
 function typewriterUnitProgress({
 	phaseProgress,
 	unit,
 	unitCount,
+	rhythmTiming,
 }: {
 	phaseProgress: number;
 	unit: CompiledTextAnimationUnit;
 	unitCount: number;
+	rhythmTiming?: CompiledTextAnimationRhythm;
 }): number {
+	if (rhythmTiming) {
+		const rhythmIndex = unit.rank % rhythmTiming.weights.length;
+		const completedCycles = Math.floor(unit.rank / rhythmTiming.weights.length);
+		const before =
+			completedCycles * rhythmTiming.cycleTotal +
+			(rhythmTiming.prefixTotals.at(rhythmIndex) ?? 0);
+		const slotStart = (before / rhythmTiming.total) * rhythmTiming.span;
+		const slotWidth =
+			((rhythmTiming.weights.at(rhythmIndex) ?? 0) / rhythmTiming.total) *
+			rhythmTiming.span;
+		return clampUnitInterval({
+			value: (phaseProgress - slotStart) / Math.max(1e-6, slotWidth),
+		});
+	}
 	return clampUnitInterval({
 		value: phaseProgress * (unitCount + 1) - unit.rank,
 	});
@@ -139,12 +171,14 @@ function applyPhase({
 					phaseProgress,
 					unit,
 					unitCount: phase.units.length,
+					rhythmTiming: phase.typewriterRhythm,
 				})
 			: phaseUnitProgress({
 					phaseProgress,
 					unit,
 					unitCount: phase.units.length,
 					staggerRatio: phase.config.sequence.staggerRatio,
+					wrap: role === "loop",
 				});
 		const progress = easeTextAnimationProgress({
 			progress: rawProgress,
@@ -260,6 +294,7 @@ function cursorDecoration({
 			phaseProgress,
 			unit,
 			unitCount: phase.units.length,
+			rhythmTiming: phase.typewriterRhythm,
 		});
 		const progress = easeTextAnimationProgress({
 			progress: rawProgress,
