@@ -42,6 +42,10 @@ import {
 } from "./utility/utility-bridge.js";
 import { resolveInitialWindowSize } from "./window-sizing.js";
 import { toReleaseVersion } from "./update-version.js";
+import {
+	readLicenseServerBuildConfig,
+	resolveLicenseServerBuildConfigPath,
+} from "./license-server-build-config.js";
 import { resolveLicenseServerCspOrigins } from "./license-server-csp.js";
 
 // Type definitions
@@ -481,8 +485,15 @@ function createStaticServer(): Promise<http.Server> {
 
 /** Create the main BrowserWindow with CSP headers and protocol handling. */
 function createWindow(): void {
+	const licenseServerBuildConfig = readLicenseServerBuildConfig({
+		configPath: resolveLicenseServerBuildConfigPath({
+			isPackaged: app.isPackaged,
+			appPath: app.getAppPath(),
+			moduleDir: __dirname,
+		}),
+	});
 	const licenseServerConnectSources = resolveLicenseServerCspOrigins({
-		configuredUrl: process.env.VITE_LICENSE_SERVER_URL,
+		configuredUrl: licenseServerBuildConfig.licenseServerUrl,
 	}).join(" ");
 
 	// ③ "Replace" rather than "append" CSP - completely override all existing CSP policies
