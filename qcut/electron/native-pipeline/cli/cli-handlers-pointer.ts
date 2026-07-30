@@ -59,7 +59,25 @@ const SEMANTIC_TARGET_TEST_IDS: Record<string, string[]> = {
 	"timeline.pause": ["timeline-pause-button", "preview-pause-button"],
 	"preview.canvas": ["preview-canvas", "preview-panel"],
 	"media.import": ["import-media-button"],
+	"text.add": ["text-overlay-button"],
+	"text.content": ["text-content-input"],
+	"text.font-size": ["text-font-size-input"],
+	"text.animation": ["text-animation-group-toggle"],
+	"text.animation.entrance": ["text-animation-phase-entrance"],
+	"text.animation.loop": ["text-animation-phase-loop"],
+	"text.animation.exit": ["text-animation-phase-exit"],
 };
+
+const TEXT_ANIMATION_PRESET_TARGET =
+	/^text\.animation\.(entrance|loop|exit)\.([a-z0-9-]+)$/;
+
+function isSemanticTarget({ target }: { target: string }): boolean {
+	return (
+		Boolean(SEMANTIC_TARGET_TEST_IDS[target]) ||
+		target.startsWith("testid:") ||
+		TEXT_ANIMATION_PRESET_TARGET.test(target)
+	);
+}
 
 const BACKGROUND_POINTER_CAPABILITY = {
 	name: "state.pointer",
@@ -165,9 +183,12 @@ function findSemanticTarget({
 	const explicitTestId = normalized.startsWith("testid:")
 		? normalized.slice("testid:".length)
 		: undefined;
+	const animationPreset = normalized.match(TEXT_ANIMATION_PRESET_TARGET);
 	const testIds = explicitTestId
 		? [explicitTestId]
-		: (SEMANTIC_TARGET_TEST_IDS[normalized] ?? [normalized]);
+		: animationPreset
+			? [`text-animation-card-${animationPreset[1]}-${animationPreset[2]}`]
+			: (SEMANTIC_TARGET_TEST_IDS[normalized] ?? [normalized]);
 	return snapshot.elements.find(
 		(element) =>
 			element.bounds.width > 0 &&
@@ -614,7 +635,7 @@ async function waitForRequestedState({
 			};
 		}
 	}
-	if (SEMANTIC_TARGET_TEST_IDS[value] || value.startsWith("testid:")) {
+	if (isSemanticTarget({ target: value })) {
 		try {
 			const matched = await waitForSemanticTarget({
 				client,
@@ -645,16 +666,6 @@ async function postTargetAction({
 	options: CLIRunOptions;
 	action: "move" | "hover" | "click" | "double-click" | "right-click";
 }): Promise<CLIResult> {
-	if (options.waitFor) {
-		const waited = await waitForRequestedState({
-			client,
-			value: options.waitFor,
-			timeoutMs: options.timeoutMs,
-			intervalMs: options.intervalMs,
-			projectId: options.projectId,
-		});
-		if (!waited.success) return waited;
-	}
 	const target = await resolvePointerTarget({
 		client,
 		options: {
@@ -679,6 +690,16 @@ async function postTargetAction({
 			? { durationMs: scaledDuration(options.durationMs, speed, 220) }
 			: {}),
 	});
+	if (options.waitFor) {
+		const waited = await waitForRequestedState({
+			client,
+			value: options.waitFor,
+			timeoutMs: options.timeoutMs,
+			intervalMs: options.intervalMs,
+			projectId: options.projectId,
+		});
+		if (!waited.success) return waited;
+	}
 	return { success: true, data };
 }
 
@@ -1153,6 +1174,11 @@ async function runSequenceAction({
 				deltaY: numberValue(action, "deltaY"),
 			},
 		});
+	}
+
+	if (name === "hide") {
+		const data = await client.post("/api/claude/pointer/hide", {});
+		return { success: true, data };
 	}
 
 	if (name === "press" || name === "keyboard:press") {
