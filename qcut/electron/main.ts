@@ -43,8 +43,9 @@ import {
 import { resolveInitialWindowSize } from "./window-sizing.js";
 import { toReleaseVersion } from "./update-version.js";
 import {
-	readLicenseServerBuildConfig,
-	resolveLicenseServerBuildConfigPath,
+	loadInitialLicenseServerRuntimeConfig,
+	refreshLicenseServerRuntimeConfig,
+	resolveLicenseServerRuntimeConfigLocation,
 } from "./license-server-build-config.js";
 import { resolveLicenseServerCspOrigins } from "./license-server-csp.js";
 
@@ -485,16 +486,18 @@ function createStaticServer(): Promise<http.Server> {
 
 /** Create the main BrowserWindow with CSP headers and protocol handling. */
 function createWindow(): void {
-	const licenseServerBuildConfig = readLicenseServerBuildConfig({
-		configPath: resolveLicenseServerBuildConfigPath({
+	const isDev = !app.isPackaged && process.env.NODE_ENV === "development";
+	const licenseServerConfigLocation = resolveLicenseServerRuntimeConfigLocation(
+		{
+			isDevelopment: isDev,
 			isPackaged: app.isPackaged,
 			appPath: app.getAppPath(),
 			moduleDir: __dirname,
-		}),
+		}
+	);
+	let licenseServerBuildConfig = loadInitialLicenseServerRuntimeConfig({
+		location: licenseServerConfigLocation,
 	});
-	const licenseServerConnectSources = resolveLicenseServerCspOrigins({
-		configuredUrl: licenseServerBuildConfig.licenseServerUrl,
-	}).join(" ");
 
 	// ③ "Replace" rather than "append" CSP - completely override all existing CSP policies
 	session.defaultSession.webRequest.onHeadersReceived(
@@ -517,6 +520,15 @@ function createWindow(): void {
 				callback({ responseHeaders });
 				return;
 			}
+
+			licenseServerBuildConfig = refreshLicenseServerRuntimeConfig({
+				currentConfig: licenseServerBuildConfig,
+				isMainFrame: details.resourceType === "mainFrame",
+				location: licenseServerConfigLocation,
+			});
+			const licenseServerConnectSources = resolveLicenseServerCspOrigins({
+				configuredUrl: licenseServerBuildConfig?.licenseServerUrl,
+			}).join(" ");
 
 			responseHeaders["Content-Security-Policy"] = [
 				"default-src 'self' blob: data: app: https://cdn.tldraw.com; " +
@@ -606,7 +618,6 @@ function createWindow(): void {
 	}
 
 	// Load the app
-	const isDev = process.env.NODE_ENV === "development";
 	if (isDev) {
 		mainWindow.loadURL("http://localhost:5173");
 		// Open DevTools in development
