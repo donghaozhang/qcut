@@ -1,12 +1,16 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createLocalStickerCatalog } from "@/lib/stickers/__tests__/fixtures/local-sticker-catalog";
+import {
+	createLocalStickerCatalog,
+	createRemoteStickerCatalog,
+} from "@/lib/stickers/__tests__/fixtures/local-sticker-catalog";
 import type { LocalStickerLabSource } from "@/lib/stickers/local-sticker-lab-config";
 import { useLocalStickerCatalog } from "../hooks/use-local-sticker-catalog";
 
 const catalogMocks = vi.hoisted(() => ({
 	getSource: vi.fn<() => LocalStickerLabSource | null>(),
 	loadManifest: vi.fn(),
+	loadRemoteManifest: vi.fn(),
 }));
 
 vi.mock("@/lib/stickers/local-sticker-lab-config", async (importOriginal) => {
@@ -28,6 +32,7 @@ vi.mock("@/lib/stickers/local-sticker-manifest", async (importOriginal) => {
 	return {
 		...actual,
 		loadLocalStickerManifest: catalogMocks.loadManifest,
+		loadRemoteStickerManifest: catalogMocks.loadRemoteManifest,
 	};
 });
 
@@ -35,6 +40,7 @@ describe("useLocalStickerCatalog", () => {
 	beforeEach(() => {
 		catalogMocks.getSource.mockReset();
 		catalogMocks.loadManifest.mockReset();
+		catalogMocks.loadRemoteManifest.mockReset();
 	});
 
 	it("stays unavailable when the local lab is not configured", () => {
@@ -73,6 +79,40 @@ describe("useLocalStickerCatalog", () => {
 		});
 	});
 
+	it("fetches a configured remote v2 manifest", async () => {
+		const catalog = createRemoteStickerCatalog();
+		catalogMocks.getSource.mockReturnValue({
+			kind: "remote-manifest",
+			manifestUrl: "/sticker-lab/catalog.json",
+		});
+		catalogMocks.loadRemoteManifest.mockResolvedValue(catalog);
+
+		const { result } = renderHook(() => useLocalStickerCatalog());
+
+		await waitFor(() => expect(result.current.isLoading).toBe(false));
+		expect(result.current.catalog).toEqual(catalog);
+		expect(catalogMocks.loadRemoteManifest).toHaveBeenCalledWith({
+			manifestUrl: "/sticker-lab/catalog.json",
+			signal: expect.any(AbortSignal),
+		});
+		expect(catalogMocks.loadManifest).not.toHaveBeenCalled();
+	});
+
+	it("aborts a remote manifest request when the panel unmounts", () => {
+		catalogMocks.getSource.mockReturnValue({
+			kind: "remote-manifest",
+			manifestUrl: "/sticker-lab/catalog.json",
+		});
+		catalogMocks.loadRemoteManifest.mockReturnValue(new Promise(() => {}));
+
+		const { unmount } = renderHook(() => useLocalStickerCatalog());
+		const signal = catalogMocks.loadRemoteManifest.mock.calls[0]?.[0]
+			.signal as AbortSignal;
+
+		unmount();
+		expect(signal.aborted).toBe(true);
+	});
+
 	it("keeps the lab visible when its manifest is invalid", async () => {
 		catalogMocks.getSource.mockReturnValue({
 			kind: "manifest",
@@ -103,9 +143,11 @@ describe("useLocalStickerCatalog", () => {
 
 		await waitFor(() => expect(result.current.isLoading).toBe(false));
 		expect(result.current.catalog?.categories[0]?.items).toHaveLength(1);
-		expect(result.current.catalog?.categories[0]?.items[0]?.filePath).toBe(
-			"/tmp/arrow.png"
-		);
+		const reference = result.current.catalog?.categories[0]?.items[0];
+		expect(
+			reference && "filePath" in reference ? reference.filePath : null
+		).toBe("/tmp/arrow.png");
 		expect(catalogMocks.loadManifest).not.toHaveBeenCalled();
+		expect(catalogMocks.loadRemoteManifest).not.toHaveBeenCalled();
 	});
 });
