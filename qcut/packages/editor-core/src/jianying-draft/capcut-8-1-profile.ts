@@ -160,7 +160,7 @@ export const CAPCUT_8_1_EXCLUDED_PLATFORM_IDENTITY_FIELDS = [
 
 export type CapCut81MaterialBucketKey =
 	(typeof CAPCUT_8_1_MATERIAL_BUCKET_KEYS)[number];
-export type CapCut81AssetMediaFolder = "audio" | "image" | "video";
+export type CapCut81AssetMediaFolder = "audio" | "image" | "lut" | "video";
 export type CapCut81EmptyMaterials = Record<
 	CapCut81MaterialBucketKey,
 	unknown[]
@@ -175,7 +175,7 @@ export interface CapCut81PlaceholderAssetPath {
 const UUID_PATTERN =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const PLACEHOLDER_ASSET_PATH_PATTERN =
-	/^##_draftpath_placeholder_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_##\/assets\/(audio|image|video)\/([^/\\]+)$/i;
+	/^##_draftpath_placeholder_([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})_##\/assets\/(audio|image|lut|video)\/([^/\\]+)$/i;
 
 function assertUuid({ label, value }: { label: string; value: string }): void {
 	if (!UUID_PATTERN.test(value)) {
