@@ -114,7 +114,8 @@ export function fitTextElementBoxToContent({
 	}
 
 	// Preserve intentionally constrained boxes whose content already wraps.
-	if (fittedWidth > currentWidth || fittedHeight > currentHeight) return element;
+	if (fittedWidth > currentWidth || fittedHeight > currentHeight)
+		return element;
 
 	return {
 		...element,
