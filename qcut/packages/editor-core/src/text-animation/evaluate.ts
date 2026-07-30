@@ -46,6 +46,9 @@ function composeVisual({
 		blurPx: Math.max(base.blurPx, overlay.blurPx),
 		...(mask ? { mask } : {}),
 		...(transformOrigin ? { transformOrigin } : {}),
+		...((overlay.shatter ?? base.shatter)
+			? { shatter: overlay.shatter ?? base.shatter }
+			: {}),
 	};
 }
 

@@ -357,11 +357,29 @@ function resolveEffectEnvelope({
 		envelope.rotationDeg = Math.abs(effect.spinDeg);
 		return envelope;
 	}
+	if (effect.kind === "shatter") {
+		const drift =
+			context.fontSize * effect.distortion +
+			resolveDistance({ distance: effect.gravity, ...context });
+		envelope.translateX = drift;
+		envelope.translateY = drift;
+		return envelope;
+	}
 	if (effect.kind === "scatter") {
 		const travel = resolveDistance({ distance: effect.distance, ...context });
 		envelope.translateX = travel;
 		envelope.translateY = travel;
 		envelope.rotationDeg = effect.rotateDeg;
+		return envelope;
+	}
+	if (effect.kind === "burst") {
+		// Particles fly from the layout center: fastest launch (1.4×) plus the
+		// gravity drop bounds their reach.
+		const reach =
+			resolveDistance({ distance: effect.speed, ...context }) * 1.4 +
+			resolveDistance({ distance: effect.gravity, ...context });
+		envelope.translateX = reach;
+		envelope.translateY = reach;
 		return envelope;
 	}
 	const distance = resolveDistance({

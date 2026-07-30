@@ -12,6 +12,8 @@ export {
 	segmentGraphemesFallback,
 	segmentText,
 } from "./segmentation.js";
+export { computeShatterTiles, shatterNoise } from "./shatter.js";
+export type { ShatterTile } from "./shatter.js";
 
 export type {
 	CompiledTextAnimation,
@@ -54,6 +56,8 @@ export type {
 	TextSpiralEffect,
 	TextScatterEffect,
 	TextTumbleEffect,
+	TextShatterEffect,
+	TextAnimationShatterState,
 	TextHeartEffect,
 	TextLaserEffect,
 	TextOrbitEffect,

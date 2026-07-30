@@ -142,6 +142,16 @@ export const EXIT_TEXT_ANIMATION_PRESETS = [
 		searchTerms: ["random", "fly", "burst", "随机", "飞出", "四散"],
 	},
 	{
+		id: "particle-shatter",
+		phase: "exit",
+		nameKey: "textProperties.animationPreset.particleShatter",
+		previewKind: "particle-shatter",
+		defaultDuration: 0.8,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["particle", "shatter", "dissolve", "粒子", "碎落", "溶解"],
+	},
+	{
 		id: "shrink-shake",
 		phase: "exit",
 		nameKey: "textProperties.animationPreset.shrinkShake",
@@ -353,5 +363,15 @@ export const LOOP_TEXT_ANIMATION_PRESETS = [
 		defaultDelay: 0,
 		defaultIntensity: 1,
 		searchTerms: ["arc", "bow", "curve", "上弧", "弧形", "拱起"],
+	},
+	{
+		id: "lucky-bag",
+		phase: "loop",
+		nameKey: "textProperties.animationPreset.luckyBag",
+		previewKind: "lucky-bag",
+		defaultDuration: 1.2,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["lucky", "coin", "burst", "福袋", "炸开", "金币"],
 	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];

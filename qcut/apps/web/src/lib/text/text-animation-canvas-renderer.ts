@@ -1,7 +1,9 @@
 import {
+	computeShatterTiles,
 	evaluateTextAnimationFrame,
 	normalizeTextAnimations,
 	type TextAnimationRect,
+	type TextAnimationVisualState,
 } from "@qcut/editor-core";
 import { canvasFontFamily } from "@/lib/text/canvas-font";
 import type { TextElement } from "@/types/timeline";
@@ -151,6 +153,83 @@ function drawGlyph({
 	drawGlyphDecoration({ ctx, element, grapheme });
 }
 
+/** Padding around the text raster so released tiles can drift, px. */
+const SHATTER_RASTER_PADDING = 96;
+
+/**
+ * LumiDust-style tile pass: render the resting text once to an offscreen
+ * raster, then draw each tile displaced by the shatter state. Falls back to
+ * the normal path when no offscreen canvas is available.
+ */
+function drawShatteredText({
+	ctx,
+	element,
+	style,
+	layout,
+	shatter,
+}: {
+	ctx: CanvasTextContext;
+	element: TextElement;
+	style: ResolvedTextStyle;
+	layout: ReturnType<typeof buildTextAnimationCanvasLayout>;
+	shatter: NonNullable<TextAnimationVisualState["shatter"]>;
+}): boolean {
+	const bounds = layout.animationLayout.bounds;
+	const width = Math.max(
+		1,
+		Math.ceil(bounds.width + SHATTER_RASTER_PADDING * 2)
+	);
+	const height = Math.max(
+		1,
+		Math.ceil(bounds.height + SHATTER_RASTER_PADDING * 2)
+	);
+	let source: OffscreenCanvas | HTMLCanvasElement;
+	if (typeof OffscreenCanvas !== "undefined") {
+		source = new OffscreenCanvas(width, height);
+	} else if (typeof document !== "undefined") {
+		const canvas = document.createElement("canvas");
+		canvas.width = width;
+		canvas.height = height;
+		source = canvas;
+	} else {
+		return false;
+	}
+	const sourceCtx = source.getContext("2d") as CanvasTextContext | null;
+	if (!sourceCtx) return false;
+
+	sourceCtx.save();
+	sourceCtx.translate(
+		SHATTER_RASTER_PADDING - bounds.x,
+		SHATTER_RASTER_PADDING - bounds.y
+	);
+	sourceCtx.font = `${element.fontStyle} ${element.fontWeight} ${element.fontSize}px ${canvasFontFamily(element.fontFamily)}`;
+	drawBackground({ ctx: sourceCtx, element, style, bounds });
+	for (const grapheme of layout.graphemes) {
+		drawGlyph({ ctx: sourceCtx, element, style, grapheme });
+	}
+	sourceCtx.restore();
+
+	const tiles = computeShatterTiles({ width, height, state: shatter });
+	const baseAlpha = ctx.globalAlpha;
+	for (const tile of tiles) {
+		if (tile.alpha <= 0.004) continue;
+		ctx.globalAlpha = baseAlpha * tile.alpha;
+		ctx.drawImage(
+			source as CanvasImageSource,
+			tile.sx,
+			tile.sy,
+			tile.size,
+			tile.size,
+			bounds.x - SHATTER_RASTER_PADDING + tile.sx + tile.dx,
+			bounds.y - SHATTER_RASTER_PADDING + tile.sy + tile.dy,
+			tile.size,
+			tile.size
+		);
+	}
+	ctx.globalAlpha = baseAlpha;
+	return true;
+}
+
 export function renderCanonicalTextAnimationToCanvas({
 	ctx,
 	canvas,
@@ -214,6 +293,19 @@ export function renderCanonicalTextAnimationToCanvas({
 		visual: state.container,
 		bounds: layout.animationLayout.bounds,
 	});
+	if (state.container.shatter) {
+		const rendered = drawShatteredText({
+			ctx,
+			element: renderedElement,
+			style,
+			layout,
+			shatter: state.container.shatter,
+		});
+		if (rendered) {
+			ctx.restore();
+			return true;
+		}
+	}
 	drawBackground({
 		ctx,
 		element: renderedElement,

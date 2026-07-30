@@ -250,6 +250,8 @@ export type {
 	TextSpiralEffect,
 	TextScatterEffect,
 	TextTumbleEffect,
+	TextShatterEffect,
+	TextAnimationShatterState,
 	TextHeartEffect,
 	TextLaserEffect,
 	TextOrbitEffect,
@@ -495,3 +497,6 @@ export {
 
 // Utils
 export { generateUUID } from "./utils.js";
+
+export { computeShatterTiles, shatterNoise } from "./text-animation/shatter.js";
+export type { ShatterTile } from "./text-animation/shatter.js";

@@ -68,6 +68,9 @@ function decorationKey({
 	if (decoration.kind === "laser") {
 		return `laser:${decoration.unitIndex}`;
 	}
+	if (decoration.kind === "particles") {
+		return `particles:${decoration.shape}`;
+	}
 	return `heart:${decoration.id}`;
 }
 
@@ -170,6 +173,32 @@ function TextAnimationPreviewDecoration({
 				className="pointer-events-none absolute"
 				style={laserStyle({ decoration, preview })}
 			/>
+		);
+	}
+	if (decoration.kind === "particles") {
+		return (
+			<>
+				{decoration.items.map((item, index) => (
+					<span
+						className="pointer-events-none absolute"
+						key={`${decoration.shape}:${index}`}
+						style={{
+							backgroundColor: decoration.palette[item.colorIndex] ?? "#f43f5e",
+							borderRadius: decoration.shape === "coin" ? "50%" : 1,
+							height:
+								decoration.shape === "coin" ? item.sizePx : item.sizePx * 0.9,
+							left: item.x,
+							opacity: item.opacity,
+							top: item.y,
+							transform: `translate(-50%, -50%) rotate(${item.rotationDeg}deg)`,
+							width:
+								decoration.shape === "coin"
+									? item.sizePx
+									: item.sizePx * (decoration.shape === "ribbon" ? 0.38 : 0.7),
+						}}
+					/>
+				))}
+			</>
 		);
 	}
 	return (

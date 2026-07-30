@@ -253,6 +253,61 @@ export function effectForPreset({
 			return { kind: "fold", minimumScale: 0.05, phaseStepDeg: 90 };
 		case "loop:arc-up":
 			return { kind: "arc", riseEm: 0.45, tiltDeg: 14 };
+		case "entrance:confetti-burst":
+			// 彩带喷射: ribbons fountain upward from the text and rain back
+			// down while the text holds. Palette and fan pending calibration
+			// against the Jianying capture.
+			return {
+				kind: "burst",
+				shape: "ribbon",
+				count: 42,
+				speed: { value: 5.5, unit: "em" },
+				directionDeg: 0,
+				spreadDeg: 70,
+				gravity: { value: 3, unit: "em" },
+				lifeRandom: 0.45,
+				sizeEm: 0.24,
+				sizeRandom: 0.4,
+				palette: [
+					"#f43f5e",
+					"#fb923c",
+					"#facc15",
+					"#22c55e",
+					"#3b82f6",
+					"#a855f7",
+				],
+				flutter: 0.8,
+				seed: presetSeed({ presetId }),
+			};
+		case "loop:lucky-bag":
+			// 福袋炸开: coins pop out in every direction each cycle.
+			return {
+				kind: "burst",
+				shape: "coin",
+				count: 26,
+				speed: { value: 3.4, unit: "em" },
+				directionDeg: 0,
+				spreadDeg: 360,
+				gravity: { value: 2, unit: "em" },
+				lifeRandom: 0.35,
+				sizeEm: 0.26,
+				sizeRandom: 0.35,
+				palette: ["#fbbf24", "#f59e0b", "#fde68a", "#ef4444"],
+				flutter: 0.25,
+				seed: presetSeed({ presetId }),
+			};
+		case "exit:particle-shatter":
+			// LumiDust port: noise dissolve front, seeded tile drift, gravity.
+			return {
+				kind: "shatter",
+				tilePx: 6,
+				distortion: 0.6,
+				gravity: { value: 1.2, unit: "em" },
+				gravityRotDeg: 0,
+				front: "noise",
+				frontRotDeg: 0,
+				feather: 0.35,
+			};
 		case "exit:spiral-down":
 			// Reference tumbles at full brightness and vanishes by falling
 			// away, not by fading.
@@ -506,6 +561,8 @@ export function easingForPreset({
 		return "linear";
 	}
 	if (
+		presetId === "particle-shatter" ||
+		presetId === "confetti-burst" ||
 		presetId === "fly-up-out" ||
 		presetId === "elastic-out" ||
 		presetId === "random-fly-out" ||
