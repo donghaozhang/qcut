@@ -15,6 +15,9 @@ describe("local sticker lab config", () => {
 	});
 
 	it("uses the bundled remote manifest URL by default", () => {
+		expect(DEFAULT_STICKER_LAB_MANIFEST_URL).toBe(
+			"/sticker-lab/qcut-original-2026-07-31.json"
+		);
 		expect(buildLocalStickerLabSource({ isEnabled: true })).toEqual({
 			kind: "remote-manifest",
 			manifestUrl: DEFAULT_STICKER_LAB_MANIFEST_URL,
