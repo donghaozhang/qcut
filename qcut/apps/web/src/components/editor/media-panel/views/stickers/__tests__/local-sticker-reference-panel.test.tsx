@@ -6,7 +6,10 @@ import {
 	within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createLocalStickerCatalog } from "@/lib/stickers/__tests__/fixtures/local-sticker-catalog";
+import {
+	createLocalStickerCatalog,
+	createRemoteStickerCatalog,
+} from "@/lib/stickers/__tests__/fixtures/local-sticker-catalog";
 import { LocalStickerReferencePanel } from "../components/local-sticker-reference-panel";
 
 const referenceMocks = vi.hoisted(() => ({
@@ -20,7 +23,7 @@ vi.mock("@/lib/stickers/local-sticker-reference", async (importOriginal) => {
 		>();
 	return {
 		...actual,
-		loadLocalStickerReferenceFile: referenceMocks.loadFile,
+		loadStickerLabReferenceFile: referenceMocks.loadFile,
 	};
 });
 
@@ -172,7 +175,7 @@ describe("LocalStickerReferencePanel", () => {
 			name: "添加贴纸 popular-1到时间线",
 		});
 		await waitFor(() => {
-			expect(within(button).getByTitle("本机贴纸无法载入")).toBeInTheDocument();
+			expect(within(button).getByTitle("实验贴纸无法载入")).toBeInTheDocument();
 		});
 
 		const updatedCatalog = structuredClone(initialCatalog);
@@ -191,7 +194,7 @@ describe("LocalStickerReferencePanel", () => {
 
 		await waitFor(() => expect(button).toBeEnabled());
 		expect(
-			within(button).queryByTitle("本机贴纸无法载入")
+			within(button).queryByTitle("实验贴纸无法载入")
 		).not.toBeInTheDocument();
 	});
 
@@ -326,7 +329,7 @@ describe("LocalStickerReferencePanel", () => {
 			expect(failed).toBeDisabled();
 			expect(healthy).toBeEnabled();
 		});
-		expect(within(failed).getByTitle("本机贴纸无法载入")).toBeInTheDocument();
+		expect(within(failed).getByTitle("实验贴纸无法载入")).toBeInTheDocument();
 		expect(failed).toHaveAttribute(
 			"aria-describedby",
 			"local-sticker-load-error-popular-2"
@@ -367,5 +370,49 @@ describe("LocalStickerReferencePanel", () => {
 		expect(screen.getByRole("alert")).toHaveTextContent(
 			"Invalid local sticker manifest"
 		);
+	});
+
+	it("loads remote references and includes asset identity in reload keys", async () => {
+		const catalog = createRemoteStickerCatalog();
+		const { rerender } = render(
+			<LocalStickerReferencePanel
+				catalog={catalog}
+				error={null}
+				isLoading={false}
+				onSelect={async () => {}}
+			/>
+		);
+
+		const button = screen.getByRole("button", {
+			name: "添加贴纸 popular-1到时间线",
+		});
+		await waitFor(() => expect(button).toBeEnabled());
+		expect(referenceMocks.loadFile).toHaveBeenCalledTimes(2);
+
+		const updatedCatalog = structuredClone(catalog);
+		const updatedReference = updatedCatalog.categories[0]?.items[0];
+		if (!updatedReference) throw new Error("Expected a remote sticker fixture");
+		updatedReference.asset.objectKey =
+			"jianying/2026-07-31/assets/popular-1-updated.gif";
+		updatedReference.asset.checksumSha256 = "b".repeat(64);
+		rerender(
+			<LocalStickerReferencePanel
+				catalog={updatedCatalog}
+				error={null}
+				isLoading={false}
+				onSelect={async () => {}}
+			/>
+		);
+
+		await waitFor(() =>
+			expect(referenceMocks.loadFile).toHaveBeenCalledTimes(4)
+		);
+		expect(referenceMocks.loadFile).toHaveBeenCalledWith({
+			reference: expect.objectContaining({
+				asset: expect.objectContaining({
+					objectKey: "jianying/2026-07-31/assets/popular-1-updated.gif",
+				}),
+			}),
+		});
 	});
 });
