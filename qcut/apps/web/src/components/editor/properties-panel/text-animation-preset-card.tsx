@@ -47,10 +47,17 @@ export function textAnimationVisualStyle({
 }: {
 	visual: TextAnimationVisualState;
 }): CSSProperties {
+	// The DOM preview cannot displace raster tiles, so a shatter reads as a
+	// blurred fade whose strength tracks the dissolve front. The real preview
+	// and the export both go through the canvas tile pass.
+	const shatterBlurPx = visual.shatter ? visual.shatter.progress * 3 : 0;
+	const blurPx = Math.max(visual.blurPx, shatterBlurPx);
 	return {
 		clipPath: maskClipPath({ mask: visual.mask }),
-		filter: visual.blurPx > 0 ? `blur(${visual.blurPx}px)` : undefined,
-		opacity: visual.opacity,
+		filter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
+		opacity: visual.shatter
+			? visual.opacity * (1 - visual.shatter.progress * 0.85)
+			: visual.opacity,
 		transform: `translate3d(${visual.translateX}px, ${visual.translateY}px, 0) rotate(${visual.rotationDeg}deg) scale(${visual.scaleX}, ${visual.scaleY})`,
 		transformOrigin:
 			visual.transformOrigin === "bottomCenter" ? "50% 100%" : undefined,
@@ -67,6 +74,9 @@ function decorationKey({
 	}
 	if (decoration.kind === "laser") {
 		return `laser:${decoration.unitIndex}`;
+	}
+	if (decoration.kind === "particles") {
+		return `particles:${decoration.shape}`;
 	}
 	return `heart:${decoration.id}`;
 }
@@ -170,6 +180,57 @@ function TextAnimationPreviewDecoration({
 				className="pointer-events-none absolute"
 				style={laserStyle({ decoration, preview })}
 			/>
+		);
+	}
+	if (decoration.kind === "particles") {
+		if (decoration.shape === "spark") {
+			return (
+				<>
+					{decoration.items.map((item, index) => (
+						<span
+							className="pointer-events-none absolute origin-left"
+							key={`spark:${index}`}
+							style={{
+								backgroundColor: "#fff7e6",
+								height: 1.5,
+								left:
+									item.x -
+									Math.sin((item.rotationDeg * Math.PI) / 180) * item.sizePx,
+								opacity: item.opacity * 0.8,
+								top:
+									item.y +
+									Math.cos((item.rotationDeg * Math.PI) / 180) * item.sizePx,
+								transform: `rotate(${item.rotationDeg - 90}deg)`,
+								width: item.sizePx,
+							}}
+						/>
+					))}
+				</>
+			);
+		}
+		return (
+			<>
+				{decoration.items.map((item, index) => (
+					<span
+						className="pointer-events-none absolute"
+						key={`${decoration.shape}:${index}`}
+						style={{
+							backgroundColor: decoration.palette[item.colorIndex] ?? "#f43f5e",
+							borderRadius: decoration.shape === "coin" ? "50%" : 1,
+							height:
+								decoration.shape === "coin" ? item.sizePx : item.sizePx * 0.9,
+							left: item.x,
+							opacity: item.opacity,
+							top: item.y,
+							transform: `translate(-50%, -50%) rotate(${item.rotationDeg}deg)`,
+							width:
+								decoration.shape === "coin"
+									? item.sizePx
+									: item.sizePx * (decoration.shape === "ribbon" ? 0.38 : 0.7),
+						}}
+					/>
+				))}
+			</>
 		);
 	}
 	return (

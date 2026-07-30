@@ -434,6 +434,143 @@ export function normalizeTextAnimationEffect({
 			fade,
 		};
 	}
+	if (record.kind === "shatter") {
+		return {
+			kind: "shatter",
+			tilePx: numberInRange({
+				value: record.tilePx,
+				fallback: 6,
+				minimum: 2,
+				maximum: 64,
+			}),
+			distortion: numberInRange({
+				value: record.distortion,
+				fallback: 0.6,
+				minimum: 0,
+				maximum: 8,
+			}),
+			gravity: normalizeDistance({
+				value: record.gravity,
+				fallback: { value: 1.2, unit: "em" },
+			}),
+			gravityRotDeg: numberInRange({
+				value: record.gravityRotDeg,
+				fallback: 0,
+				minimum: -180,
+				maximum: 180,
+			}),
+			front: record.front === "wipe" ? "wipe" : "noise",
+			frontRotDeg: numberInRange({
+				value: record.frontRotDeg,
+				fallback: 0,
+				minimum: -180,
+				maximum: 180,
+			}),
+			feather: numberInRange({
+				value: record.feather,
+				fallback: 0.35,
+				minimum: 0.01,
+				maximum: 1,
+			}),
+		};
+	}
+	if (record.kind === "burst") {
+		const shape =
+			record.shape === "coin" || record.shape === "rect"
+				? record.shape
+				: "ribbon";
+		const palette = Array.isArray(record.palette)
+			? record.palette
+					.filter((entry): entry is string => typeof entry === "string")
+					.slice(0, 12)
+			: [];
+		return {
+			kind: "burst",
+			shape,
+			count: Math.trunc(
+				numberInRange({
+					value: record.count,
+					fallback: 36,
+					minimum: 1,
+					maximum: 200,
+				})
+			),
+			speed: normalizeDistance({
+				value: record.speed,
+				fallback: { value: 5, unit: "em" },
+			}),
+			directionDeg: numberInRange({
+				value: record.directionDeg,
+				fallback: 0,
+				minimum: -360,
+				maximum: 360,
+			}),
+			spreadDeg: numberInRange({
+				value: record.spreadDeg,
+				fallback: 80,
+				minimum: 1,
+				maximum: 360,
+			}),
+			gravity: normalizeDistance({
+				value: record.gravity,
+				fallback: { value: 2.4, unit: "em" },
+			}),
+			lifeRandom: numberInRange({
+				value: record.lifeRandom,
+				fallback: 0.4,
+				minimum: 0,
+				maximum: 1,
+			}),
+			sizeEm: numberInRange({
+				value: record.sizeEm,
+				fallback: 0.22,
+				minimum: 0.02,
+				maximum: 2,
+			}),
+			sizeRandom: numberInRange({
+				value: record.sizeRandom,
+				fallback: 0.4,
+				minimum: 0,
+				maximum: 1,
+			}),
+			palette:
+				palette.length > 0
+					? palette
+					: ["#f43f5e", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7"],
+			flutter: numberInRange({
+				value: record.flutter,
+				fallback: shape === "ribbon" ? 0.8 : 0.25,
+				minimum: 0,
+				maximum: 1,
+			}),
+			...(record.rays && typeof record.rays === "object"
+				? {
+						rays: {
+							count: Math.trunc(
+								numberInRange({
+									value: (record.rays as Record<string, unknown>).count,
+									fallback: 22,
+									minimum: 0,
+									maximum: 64,
+								})
+							),
+							length: normalizeDistance({
+								value: (record.rays as Record<string, unknown>).length,
+								fallback: { value: 3, unit: "em" },
+							}),
+						},
+					}
+				: {}),
+			seed: Math.trunc(
+				numberInRange({
+					value: record.seed,
+					fallback: 1,
+					minimum: 0,
+					maximum: 0xffff_ffff,
+				})
+			),
+		};
+	}
 	if (record.kind === "tumble") {
 		return {
 			kind: "tumble",

@@ -43,7 +43,10 @@ export type TextAnimationPreviewKind =
 	| "fly-up-out"
 	| "flicker-scatter"
 	| "random-fly-out"
-	| "shrink-shake";
+	| "shrink-shake"
+	| "particle-shatter"
+	| "confetti-burst"
+	| "lucky-bag";
 
 export interface TextAnimationPresetDefinition {
 	id: string;

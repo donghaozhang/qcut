@@ -78,6 +78,12 @@ function normalizePhaseBase({
 		sequence = { ...sequence, unit: "grapheme" };
 		target = "text";
 	}
+	if (effect.kind === "shatter" || effect.kind === "burst") {
+		// Shatter rasterises the whole element and burst emits from the layout
+		// centre, so neither has a per-unit meaning: a persisted "text" target
+		// would drop the shatter entirely or duplicate every particle.
+		target = "textAndBackground";
+	}
 	if (target === "textAndBackground") {
 		sequence = { ...sequence, unit: "all" };
 	}
