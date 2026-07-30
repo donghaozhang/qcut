@@ -29,10 +29,21 @@ Each package: `effect/<numeric-id>/<md5-hash>/` containing one of:
   `PrinterOne.lua`, `EnlargeIn.lua`, `BounceIn.lua`, … plus `config.json`,
   `anim.prefab`. The Lua declares tweens explicitly:
   `tween:fromTo(obj, {alpha=0}, {alpha=1}, dur, Amaz.Ease.quadOut, ...)`.
-- **Node-graph format** (partial): `textAnim.lsproj` + `studioAnim.lsanim` +
-  `res/`. Node params and `paramsKeyFrames` are readable JSON (glow curves,
-  selector ranges); the per-char driver script `res/*.jsdat` is encrypted —
-  fall back to frame captures for the motion itself.
+- **Node-graph format** (partial → often better than it looks): `textAnim.lsproj`
+  + `studioAnim.lsanim` + `res/`. The driver (`.lsproj`, `res/*.jsdat`) is
+  encrypted, but three readable layers usually remain:
+  1. **`res/` node names** expose the effect graph — e.g. 粒子碎落 =
+     `LinearWipe` + `Dust` + `DeepGlowSimple`, which is the architecture.
+  2. **Compiled shader products are PLAINTEXT** even when `.ausl` sources are
+     encrypted: read `…/xshader/shaderLib/shaderMetal/*.vert|*.frag` (or
+     `shaderGLES/`). For GPU-particle effects the entire closed-form motion
+     lives in the vertex shader (instanceID → noise sample → offset ×
+     release-front weight + rotated gravity) — a line-by-line whitebox.
+  3. **`strings` on `.prefab` files** yields the full emitter parameter
+     schema (`particleTotalNum`, `pSize*`, `pOpacityOverLife`, `gravity`,
+     `gravityRot`, `emitterScale/Translation`, `pLifeRandom`, …); calibrate
+     the numeric values from stepped frames.
+  Only fall back to pure frame captures when all three layers come up empty.
 - AE-keyframe hybrids: `TextAnim.lua` that samples baked curves via
   `self.Position:getCurPartVal(progress)` — curve data lives in sibling JSON;
   treat as node-graph tier.
@@ -141,6 +152,18 @@ const jy = (f: number) => Math.min(N, Math.floor(Math.min(1, f / F) * (N + 1)));
    `editor:timeline:apply --verify` compares JSON strings, so preset effect
    objects must emit keys in the normalizer's order or verification fails on
    a semantically identical animation.
+
+## Capture Traps
+
+- A fully occluded Electron window stops rendering; window-id screencapture
+  (`screencapture -l <id>`) then returns a stale backing store. Keep the
+  window on a visible display (move it with System Events if the user is
+  working on the main one) before seek-and-capture.
+- Directory names lie: `AmazingFeature_particle` in several packages is a
+  noise-grain shader, not a particle emitter. Verify by reading the shader,
+  not the folder name.
+- The panel window can get resized between sessions — re-anchor card
+  coordinates from a fresh screenshot instead of reusing yesterday's grid.
 
 ## Scope Notes
 
