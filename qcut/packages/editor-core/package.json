@@ -15,7 +15,8 @@
 		"./assets": "./src/assets/index.ts",
 		"./collaboration": "./src/collaboration/index.ts",
 		"./templates": "./src/templates/index.ts",
-		"./text-animation": "./src/text-animation/index.ts"
+		"./text-animation": "./src/text-animation/index.ts",
+		"./jianying-draft": "./src/jianying-draft/index.ts"
 	},
 	"devDependencies": {
 		"@types/node": "^24.10.13"
