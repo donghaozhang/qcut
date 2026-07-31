@@ -411,6 +411,25 @@ export function PreviewElementRenderer({
 				previewScale: scaleRatio,
 				rotation: displayElement.rotation,
 			});
+			const previewScale = textDomGeometry.scale;
+			const previewTextStyle = {
+				fontSize: displayElement.fontSize * previewScale,
+				letterSpacing: textStyle.letterSpacing * previewScale,
+				backgroundPadding: textStyle.backgroundPadding * previewScale,
+				backgroundRadius: textStyle.backgroundRadius * previewScale,
+				strokeWidth: textStyle.strokeWidth * previewScale,
+				shadowOffsetX: textStyle.shadowOffsetX * previewScale,
+				shadowOffsetY: textStyle.shadowOffsetY * previewScale,
+				shadowBlur: textStyle.shadowBlur * previewScale,
+				glowBlur: textStyle.glowBlur * previewScale,
+			};
+			const previewTextShadow = buildTextShadow({
+				...textStyle,
+				shadowOffsetX: previewTextStyle.shadowOffsetX,
+				shadowOffsetY: previewTextStyle.shadowOffsetY,
+				shadowBlur: previewTextStyle.shadowBlur,
+				glowBlur: previewTextStyle.glowBlur,
+			});
 			const isDraggingThisElement =
 				dragState.isDragging && dragState.elementId === element.id;
 			const displayX = isDraggingThisElement
@@ -495,9 +514,7 @@ export function PreviewElementRenderer({
 							width: `${textDomGeometry.content.width}px`,
 							height: `${textDomGeometry.content.height}px`,
 							flexShrink: textDomGeometry.content.flexShrink,
-							transform: textDomGeometry.content.transform,
-							transformOrigin: textDomGeometry.content.transformOrigin,
-							fontSize: `${displayElement.fontSize}px`,
+							fontSize: `${previewTextStyle.fontSize}px`,
 							color: displayElement.color,
 							backgroundColor: colorWithOpacity(
 								displayElement.backgroundColor,
@@ -507,18 +524,18 @@ export function PreviewElementRenderer({
 							fontWeight: displayElement.fontWeight,
 							fontStyle: displayElement.fontStyle,
 							textDecoration: displayElement.textDecoration,
-							letterSpacing: `${textStyle.letterSpacing}px`,
+							letterSpacing: `${previewTextStyle.letterSpacing}px`,
 							lineHeight: textStyle.lineHeight,
-							padding: `${textStyle.backgroundPadding}px`,
-							borderRadius: `${textStyle.backgroundRadius}px`,
+							padding: `${previewTextStyle.backgroundPadding}px`,
+							borderRadius: `${previewTextStyle.backgroundRadius}px`,
 							whiteSpace: "pre-wrap",
 							overflowWrap: "anywhere",
 							overflow: "hidden",
 							WebkitTextStroke:
-								textStyle.strokeWidth > 0
-									? `${textStyle.strokeWidth}px ${colorWithOpacity(textStyle.strokeColor, textStyle.strokeOpacity)}`
+								previewTextStyle.strokeWidth > 0
+									? `${previewTextStyle.strokeWidth}px ${colorWithOpacity(textStyle.strokeColor, textStyle.strokeOpacity)}`
 									: undefined,
-							textShadow: buildTextShadow(textStyle),
+							textShadow: previewTextShadow,
 							...(fontClassName
 								? {}
 								: { fontFamily: displayElement.fontFamily }),
@@ -535,7 +552,7 @@ export function PreviewElementRenderer({
 										aria-hidden="true"
 										className="absolute left-1/2 top-1/2"
 										style={{
-											transform: `translate(-50%, -50%) translate(${character.x}px, ${character.y}px) rotate(${character.rotation}deg)`,
+											transform: `translate(-50%, -50%) translate(${character.x * previewScale}px, ${character.y * previewScale}px) rotate(${character.rotation}deg)`,
 										}}
 									>
 										{character.character === " "
