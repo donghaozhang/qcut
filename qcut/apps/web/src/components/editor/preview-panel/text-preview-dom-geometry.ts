@@ -1,4 +1,5 @@
 export interface TextPreviewDomGeometry {
+	scale: number;
 	frame: {
 		width: number;
 		height: number;
@@ -8,8 +9,6 @@ export interface TextPreviewDomGeometry {
 		width: number;
 		height: number;
 		flexShrink: 0;
-		transform: string;
-		transformOrigin: "top left";
 	};
 }
 
@@ -30,17 +29,16 @@ export function resolveTextPreviewDomGeometry({
 }): TextPreviewDomGeometry {
 	const scale = positiveFiniteOrOne({ value: previewScale });
 	return {
+		scale,
 		frame: {
 			width: boxWidth * scale,
 			height: boxHeight * scale,
 			transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
 		},
 		content: {
-			width: boxWidth,
-			height: boxHeight,
+			width: boxWidth * scale,
+			height: boxHeight * scale,
 			flexShrink: 0,
-			transform: `scale(${scale})`,
-			transformOrigin: "top left",
 		},
 	};
 }
