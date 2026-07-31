@@ -1,0 +1,12 @@
+import type { FilterPreset } from "../filter-types";
+import { JIANYING_PORTRAIT_PARITY_FILTER_PRESETS } from "./portrait-presets";
+import { JIANYING_LANDSCAPE_PARITY_FILTER_PRESETS } from "./landscape-presets";
+import { JIANYING_FOOD_PARITY_FILTER_PRESETS } from "./food-presets";
+import { JIANYING_CAMERA_PARITY_FILTER_PRESETS } from "./camera-presets";
+
+export const JIANYING_PARITY_FILTER_PRESETS: FilterPreset[] = [
+	...JIANYING_PORTRAIT_PARITY_FILTER_PRESETS,
+	...JIANYING_LANDSCAPE_PARITY_FILTER_PRESETS,
+	...JIANYING_FOOD_PARITY_FILTER_PRESETS,
+	...JIANYING_CAMERA_PARITY_FILTER_PRESETS,
+];
