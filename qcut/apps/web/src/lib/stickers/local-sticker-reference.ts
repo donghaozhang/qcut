@@ -76,6 +76,23 @@ export function stickerLabAssetUrl({
 	)}`;
 }
 
+/**
+ * Preview URL for the grid. Served to every signed-in user, unlike the
+ * full-resolution asset, which the license server gates on an allow list.
+ */
+export function stickerLabThumbnailUrl({
+	licenseServerUrl = LICENSE_SERVER_URL,
+	objectKey,
+}: {
+	licenseServerUrl?: string;
+	objectKey: string;
+}): string {
+	const serverUrl = licenseServerUrl.replace(/\/+$/, "");
+	return `${serverUrl}/api/sticker-lab/thumbnail?objectKey=${encodeURIComponent(
+		objectKey
+	)}`;
+}
+
 export function buildStickerLabAssetEntry({
 	licenseServerUrl = LICENSE_SERVER_URL,
 	provenance,
@@ -231,6 +248,44 @@ export async function loadRemoteStickerReferenceFile({
 	});
 	const blob = remoteResourceBlob({ reference, resources });
 	return new File([blob], reference.fileName, { type: reference.mimeType });
+}
+
+/**
+ * Fetches the preview-sized render of a remote reference. Separate from
+ * loadStickerLabReferenceFile so browsing never requires the entitlement that
+ * placing a sticker on the timeline does.
+ */
+export async function loadStickerLabThumbnail({
+	fetchImpl,
+	getToken,
+	licenseServerUrl = LICENSE_SERVER_URL,
+	reference,
+	signal,
+}: {
+	fetchImpl?: typeof fetch;
+	getToken?: SessionTokenReader;
+	licenseServerUrl?: string;
+	reference: RemoteStickerReference;
+	signal?: AbortSignal;
+}): Promise<Blob> {
+	const authorizedFetch = createStickerLabAssetFetch({
+		fetchImpl,
+		getToken,
+		licenseServerUrl,
+	});
+	const response = await authorizedFetch(
+		stickerLabThumbnailUrl({
+			licenseServerUrl,
+			objectKey: reference.asset.objectKey,
+		}),
+		{ signal }
+	);
+	if (!response.ok) {
+		throw new Error(
+			`Sticker lab thumbnail request failed: ${response.status}`
+		);
+	}
+	return response.blob();
 }
 
 export async function loadStickerLabReferenceFile({
