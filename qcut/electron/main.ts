@@ -48,6 +48,10 @@ import {
 	resolveLicenseServerRuntimeConfigLocation,
 } from "./license-server-build-config.js";
 import { resolveLicenseServerCspOrigins } from "./license-server-csp.js";
+import {
+	setupJianyingDraftExportIPC,
+	type JianyingDraftExportIPCController,
+} from "./jianying-draft-export-handler.js";
 
 // Type definitions
 interface ReleaseNote {
@@ -85,6 +89,8 @@ installEpipeGuard();
 
 let updateController: AutoUpdateController | null = null;
 let codexPluginUpdateController: CodexPluginUpdateController | null = null;
+let jianyingDraftExportController: JianyingDraftExportIPCController | null =
+	null;
 
 // Import handlers (compiled TypeScript - relative to dist/electron output)
 const {
@@ -875,6 +881,14 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 			["MoyinMediaIPC", setupMoyinMediaIPC],
 			["LicenseIPC", setupLicenseIPC],
 			["YouTubeIPC", () => setupYouTubeIPC(() => mainWindow)],
+			[
+				"JianyingDraftExportIPC",
+				() => {
+					jianyingDraftExportController = setupJianyingDraftExportIPC({
+						getMainWindow: () => mainWindow,
+					});
+				},
+			],
 		];
 
 		for (const [name, setup] of handlers) {
@@ -960,6 +974,8 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 // bound. before-quit fires on every platform.
 app.on("before-quit", () => {
 	if (isHeadlessRecorder) return;
+	jianyingDraftExportController?.dispose();
+	jianyingDraftExportController = null;
 	try {
 		const { cleanupAllAudioFiles } = require("./audio-temp-handler.js");
 		cleanupAllAudioFiles();
