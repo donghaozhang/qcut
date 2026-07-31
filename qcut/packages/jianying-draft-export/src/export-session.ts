@@ -22,6 +22,8 @@ export interface StandaloneJianyingDraftExportSessionOptions {
 	/** Main-owned executable path; never accept it from renderer IPC. */
 	ffprobePath: string;
 	ffprobeTimeoutMilliseconds?: number;
+	maxConcurrentCommits?: number;
+	maxConcurrentPlans?: number;
 	maxStoredPlans?: number;
 	planTtlMilliseconds?: number;
 }
@@ -96,6 +98,8 @@ export class StandaloneJianyingDraftExportSession {
 		{
 			ffprobePath,
 			ffprobeTimeoutMilliseconds,
+			maxConcurrentCommits,
+			maxConcurrentPlans,
 			maxStoredPlans,
 			planTtlMilliseconds,
 		}: StandaloneJianyingDraftExportSessionOptions = {
@@ -117,6 +121,8 @@ export class StandaloneJianyingDraftExportSession {
 				: { ffprobeTimeoutMilliseconds }),
 		});
 		this.#core = new TrustedJianyingDraftExportSessionCore({
+			...(maxConcurrentCommits === undefined ? {} : { maxConcurrentCommits }),
+			...(maxConcurrentPlans === undefined ? {} : { maxConcurrentPlans }),
 			...(maxStoredPlans === undefined ? {} : { maxStoredPlans }),
 			normalizePlanRequest: normalizeStandaloneJianyingDraftPlanRequest,
 			...(planTtlMilliseconds === undefined ? {} : { planTtlMilliseconds }),
