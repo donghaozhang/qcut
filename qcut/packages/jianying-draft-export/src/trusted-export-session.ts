@@ -5,11 +5,18 @@ import {
 	type JianyingDraftIssue,
 } from "@qcut/editor-core/jianying-draft";
 import { normalizeCommitRequest } from "./commit-runtime-validation.js";
-import type { NormalizedStandaloneJianyingDraftPlanRequest } from "./runtime-validation.js";
+import {
+	assertNormalizedMediaSourcesUnchanged,
+	type NormalizedStandaloneJianyingDraftPlanRequest,
+} from "./runtime-validation.js";
 import { createJianyingDraftIssueFingerprint } from "./writer.js";
 
 const DEFAULT_MAX_STORED_PLANS = 128;
+const DEFAULT_MAX_CONCURRENT_COMMITS = 1;
+const DEFAULT_MAX_CONCURRENT_PLANS = 4;
 const DEFAULT_PLAN_TTL_MILLISECONDS = 5 * 60 * 1000;
+const MAX_CONCURRENT_COMMITS = 4;
+const MAX_CONCURRENT_PLANS = 16;
 const MAX_PLAN_TTL_MILLISECONDS = 24 * 60 * 60 * 1000;
 
 export interface TrustedJianyingDraftExportPlan {
@@ -88,6 +95,8 @@ interface StoredPlan {
 }
 
 interface TrustedJianyingDraftExportSessionCoreOptions<Result> {
+	maxConcurrentCommits?: number;
+	maxConcurrentPlans?: number;
 	maxStoredPlans?: number;
 	normalizePlanRequest: ({
 		input,
@@ -97,6 +106,15 @@ interface TrustedJianyingDraftExportSessionCoreOptions<Result> {
 		nowUnixMilliseconds: number;
 	}) => Promise<NormalizedStandaloneJianyingDraftPlanRequest>;
 	planTtlMilliseconds?: number;
+	preflight?: ({
+		request,
+		requestFingerprint,
+	}: {
+		request: NormalizedStandaloneJianyingDraftPlanRequest;
+		requestFingerprint: string;
+	}) =>
+		| Promise<{ issues: JianyingDraftIssue[] }>
+		| { issues: JianyingDraftIssue[] };
 	trustedBinding: Readonly<Record<string, unknown>>;
 	write: ({
 		acceptedWarningFingerprints,
@@ -172,12 +190,34 @@ function arraysEqual({
 }
 
 function validateSessionLimits({
+	maxConcurrentCommits,
+	maxConcurrentPlans,
 	maxStoredPlans,
 	planTtlMilliseconds,
 }: {
+	maxConcurrentCommits: number;
+	maxConcurrentPlans: number;
 	maxStoredPlans: number;
 	planTtlMilliseconds: number;
 }): void {
+	if (
+		!Number.isSafeInteger(maxConcurrentPlans) ||
+		maxConcurrentPlans < 1 ||
+		maxConcurrentPlans > MAX_CONCURRENT_PLANS
+	) {
+		throw new Error(
+			`JianYing maxConcurrentPlans must be an integer between 1 and ${MAX_CONCURRENT_PLANS}.`
+		);
+	}
+	if (
+		!Number.isSafeInteger(maxConcurrentCommits) ||
+		maxConcurrentCommits < 1 ||
+		maxConcurrentCommits > MAX_CONCURRENT_COMMITS
+	) {
+		throw new Error(
+			`JianYing maxConcurrentCommits must be an integer between 1 and ${MAX_CONCURRENT_COMMITS}.`
+		);
+	}
 	if (
 		!Number.isSafeInteger(maxStoredPlans) ||
 		maxStoredPlans < 1 ||
@@ -199,35 +239,77 @@ function validateSessionLimits({
 }
 
 export class TrustedJianyingDraftExportSessionCore<Result> {
+	#inFlightCommits = 0;
+	#inFlightPlans = 0;
+	readonly #maxConcurrentCommits: number;
+	readonly #maxConcurrentPlans: number;
 	readonly #maxStoredPlans: number;
 	readonly #normalizePlanRequest: TrustedJianyingDraftExportSessionCoreOptions<Result>["normalizePlanRequest"];
 	readonly #plans = new Map<string, StoredPlan>();
 	readonly #planTtlMilliseconds: number;
+	readonly #preflight: NonNullable<
+		TrustedJianyingDraftExportSessionCoreOptions<Result>["preflight"]
+	>;
 	readonly #trustedBinding: Readonly<Record<string, unknown>>;
 	readonly #write: TrustedJianyingDraftExportSessionCoreOptions<Result>["write"];
 
 	constructor({
+		maxConcurrentCommits = DEFAULT_MAX_CONCURRENT_COMMITS,
+		maxConcurrentPlans = DEFAULT_MAX_CONCURRENT_PLANS,
 		maxStoredPlans = DEFAULT_MAX_STORED_PLANS,
 		normalizePlanRequest,
 		planTtlMilliseconds = DEFAULT_PLAN_TTL_MILLISECONDS,
+		preflight,
 		trustedBinding,
 		write,
 	}: TrustedJianyingDraftExportSessionCoreOptions<Result>) {
-		validateSessionLimits({ maxStoredPlans, planTtlMilliseconds });
+		validateSessionLimits({
+			maxConcurrentCommits,
+			maxConcurrentPlans,
+			maxStoredPlans,
+			planTtlMilliseconds,
+		});
+		this.#maxConcurrentCommits = maxConcurrentCommits;
+		this.#maxConcurrentPlans = maxConcurrentPlans;
 		this.#maxStoredPlans = maxStoredPlans;
 		this.#normalizePlanRequest = normalizePlanRequest;
 		this.#planTtlMilliseconds = planTtlMilliseconds;
+		this.#preflight =
+			preflight ??
+			(({ request, requestFingerprint }) =>
+				buildJianyingDraft({
+					createdAtUnixSeconds: request.createdAtUnixSeconds,
+					draftOutputDirectory: join(
+						request.outputParentDirectory,
+						`.qcut-jianying-plan-${requestFingerprint.slice(0, 16)}`
+					),
+					snapshot: request.snapshot,
+					targetPlatform: request.targetPlatform,
+				}));
 		this.#trustedBinding = Object.freeze({ ...trustedBinding });
 		this.#write = write;
 	}
 
-	#prunePlans({ nowUnixMilliseconds }: { nowUnixMilliseconds: number }): void {
+	#deleteExpiredPlans({
+		nowUnixMilliseconds,
+	}: {
+		nowUnixMilliseconds: number;
+	}): void {
 		for (const [token, plan] of this.#plans) {
 			if (plan.expiresAtUnixMilliseconds <= nowUnixMilliseconds) {
 				this.#plans.delete(token);
 			}
 		}
-		while (this.#plans.size >= this.#maxStoredPlans) {
+	}
+
+	#reservePlan({ nowUnixMilliseconds }: { nowUnixMilliseconds: number }): void {
+		this.#deleteExpiredPlans({ nowUnixMilliseconds });
+		if (this.#inFlightPlans >= this.#maxConcurrentPlans) {
+			throw new Error(
+				"JianYing export session has too many plan operations in flight."
+			);
+		}
+		while (this.#plans.size + this.#inFlightPlans >= this.#maxStoredPlans) {
 			const consumedToken = [...this.#plans.entries()].find(
 				([, plan]) => plan.status === "consumed"
 			)?.[0];
@@ -238,6 +320,16 @@ export class TrustedJianyingDraftExportSessionCore<Result> {
 			}
 			this.#plans.delete(consumedToken);
 		}
+		this.#inFlightPlans += 1;
+	}
+
+	#reserveCommit(): void {
+		if (this.#inFlightCommits >= this.#maxConcurrentCommits) {
+			throw new Error(
+				"JianYing export session has too many commit operations in flight."
+			);
+		}
+		this.#inFlightCommits += 1;
 	}
 
 	#createPlanToken(): string {
@@ -254,59 +346,55 @@ export class TrustedJianyingDraftExportSessionCore<Result> {
 		input: unknown;
 	}): Promise<TrustedJianyingDraftExportPlan> {
 		const nowUnixMilliseconds = Date.now();
-		this.#prunePlans({ nowUnixMilliseconds });
-		const normalizedRequest = await this.#normalizePlanRequest({
-			input,
-			nowUnixMilliseconds,
-		});
-		const requestFingerprint = createRequestFingerprint({
-			request: normalizedRequest,
-			trustedBinding: this.#trustedBinding,
-		});
-		const preflight = buildJianyingDraft({
-			createdAtUnixSeconds: normalizedRequest.createdAtUnixSeconds,
-			draftOutputDirectory: join(
-				normalizedRequest.outputParentDirectory,
-				`.qcut-jianying-plan-${requestFingerprint.slice(0, 16)}`
-			),
-			snapshot: normalizedRequest.snapshot,
-			targetPlatform: normalizedRequest.targetPlatform,
-		});
-		const warningFingerprints = getIssueFingerprints({
-			issues: preflight.issues,
-			severity: "warning",
-		});
-		const blockerFingerprints = getIssueFingerprints({
-			issues: preflight.issues,
-			severity: "error",
-		});
-		const issueSetFingerprint = createIssueSetFingerprint({
-			issues: preflight.issues,
-		});
-		const plannedAtUnixMilliseconds = Date.now();
-		const expiresAtUnixMilliseconds =
-			plannedAtUnixMilliseconds + this.#planTtlMilliseconds;
-		this.#prunePlans({ nowUnixMilliseconds: plannedAtUnixMilliseconds });
-		const planToken = this.#createPlanToken();
-		this.#plans.set(planToken, {
-			blockerFingerprints,
-			expiresAtUnixMilliseconds,
-			issueSetFingerprint,
-			normalizedRequest,
-			requestFingerprint,
-			status: "ready",
-			warningFingerprints,
-		});
-		return Object.freeze({
-			blockerFingerprints: Object.freeze([...blockerFingerprints]),
-			canCommit: blockerFingerprints.length === 0,
-			expiresAtUnixMilliseconds,
-			issueSetFingerprint,
-			issues: cloneIssues({ issues: preflight.issues }),
-			planToken,
-			requestFingerprint,
-			warningFingerprints: Object.freeze([...warningFingerprints]),
-		});
+		this.#reservePlan({ nowUnixMilliseconds });
+		try {
+			const normalizedRequest = await this.#normalizePlanRequest({
+				input,
+				nowUnixMilliseconds,
+			});
+			const requestFingerprint = createRequestFingerprint({
+				request: normalizedRequest,
+				trustedBinding: this.#trustedBinding,
+			});
+			const preflight = await this.#preflight({
+				request: normalizedRequest,
+				requestFingerprint,
+			});
+			const warningFingerprints = getIssueFingerprints({
+				issues: preflight.issues,
+				severity: "warning",
+			});
+			const blockerFingerprints = getIssueFingerprints({
+				issues: preflight.issues,
+				severity: "error",
+			});
+			const issueSetFingerprint = createIssueSetFingerprint({
+				issues: preflight.issues,
+			});
+			const expiresAtUnixMilliseconds = Date.now() + this.#planTtlMilliseconds;
+			const planToken = this.#createPlanToken();
+			this.#plans.set(planToken, {
+				blockerFingerprints,
+				expiresAtUnixMilliseconds,
+				issueSetFingerprint,
+				normalizedRequest,
+				requestFingerprint,
+				status: "ready",
+				warningFingerprints,
+			});
+			return Object.freeze({
+				blockerFingerprints: Object.freeze([...blockerFingerprints]),
+				canCommit: blockerFingerprints.length === 0,
+				expiresAtUnixMilliseconds,
+				issueSetFingerprint,
+				issues: cloneIssues({ issues: preflight.issues }),
+				planToken,
+				requestFingerprint,
+				warningFingerprints: Object.freeze([...warningFingerprints]),
+			});
+		} finally {
+			this.#inFlightPlans -= 1;
+		}
 	}
 
 	async commit({ input }: { input: unknown }): Promise<Result> {
@@ -323,43 +411,51 @@ export class TrustedJianyingDraftExportSessionCore<Result> {
 		if (plan.status === "consumed") {
 			throw new StandaloneJianyingDraftPlanConsumedError();
 		}
+		this.#reserveCommit();
 		plan.status = "consumed";
-
-		const preflight = buildJianyingDraft({
-			createdAtUnixSeconds: plan.normalizedRequest.createdAtUnixSeconds,
-			draftOutputDirectory: join(
-				plan.normalizedRequest.outputParentDirectory,
-				`.qcut-jianying-plan-${plan.requestFingerprint.slice(0, 16)}`
-			),
-			snapshot: plan.normalizedRequest.snapshot,
-			targetPlatform: plan.normalizedRequest.targetPlatform,
-		});
-		const currentIssueSetFingerprint = createIssueSetFingerprint({
-			issues: preflight.issues,
-		});
-		if (currentIssueSetFingerprint !== plan.issueSetFingerprint) {
-			throw new StandaloneJianyingDraftPlanStateChangedError();
-		}
-		if (plan.blockerFingerprints.length > 0) {
-			throw new StandaloneJianyingDraftPlanBlockedError({
-				blockerFingerprints: plan.blockerFingerprints,
+		try {
+			try {
+				await assertNormalizedMediaSourcesUnchanged({
+					request: plan.normalizedRequest,
+				});
+			} catch {
+				throw new StandaloneJianyingDraftPlanStateChangedError();
+			}
+			const preflight = await this.#preflight({
+				request: plan.normalizedRequest,
+				requestFingerprint: plan.requestFingerprint,
 			});
-		}
-		if (
-			!arraysEqual({
-				left: commitRequest.acceptedWarningFingerprints,
-				right: plan.warningFingerprints,
-			})
-		) {
-			throw new StandaloneJianyingDraftWarningAcceptanceError({
-				requiredWarningFingerprints: plan.warningFingerprints,
+			const currentIssueSetFingerprint = createIssueSetFingerprint({
+				issues: preflight.issues,
 			});
-		}
+			if (currentIssueSetFingerprint !== plan.issueSetFingerprint) {
+				throw new StandaloneJianyingDraftPlanStateChangedError();
+			}
+			if (plan.blockerFingerprints.length > 0) {
+				throw new StandaloneJianyingDraftPlanBlockedError({
+					blockerFingerprints: plan.blockerFingerprints,
+				});
+			}
+			if (
+				!arraysEqual({
+					left: commitRequest.acceptedWarningFingerprints,
+					right: plan.warningFingerprints,
+				})
+			) {
+				throw new StandaloneJianyingDraftWarningAcceptanceError({
+					requiredWarningFingerprints: plan.warningFingerprints,
+				});
+			}
 
-		return this.#write({
-			acceptedWarningFingerprints: Object.freeze([...plan.warningFingerprints]),
-			request: plan.normalizedRequest,
-		});
+			return await this.#write({
+				acceptedWarningFingerprints: Object.freeze([
+					...plan.warningFingerprints,
+				]),
+				request: plan.normalizedRequest,
+			});
+		} finally {
+			this.#inFlightCommits -= 1;
+		}
 	}
 
 	dispose(): void {
