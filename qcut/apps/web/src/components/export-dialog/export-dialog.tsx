@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useExportStore } from "@/stores/export-store";
 import { PanelView } from "@/types/panel";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import { useProjectStore } from "@/stores/project-store";
 import { useAsyncMediaItems } from "@/hooks/media/use-async-media-store";
 import { ExportCanvas, ExportCanvasRef } from "@/components/export-canvas";
 import { Button } from "@/components/ui/button";
@@ -62,12 +63,15 @@ import {
 } from "./export-settings-cards";
 import { CaptionExportCard, AudioExportCard } from "./export-media-cards";
 import { ExportWarnings } from "./export-warnings";
+import { CapCutDraftExportCard } from "./capcut-draft-export-card";
 
 /** Modal dialog for configuring and triggering project export. */
 export function ExportDialog() {
 	const { error } = useExportStore();
 	const { getTotalDuration, tracks } = useTimelineStore();
+	const activeProject = useProjectStore((state) => state.activeProject);
 	const { mediaItems, loading: mediaItemsLoading } = useAsyncMediaItems();
+	const [capCutExportBusy, setCapCutExportBusy] = useState(false);
 
 	// Caption export state
 	const [exportCaptionsEnabled, setExportCaptionsEnabled] = useState(false);
@@ -185,7 +189,7 @@ export function ExportDialog() {
 	]);
 
 	const handleClose = () => {
-		if (!exportProgress.progress.isExporting) {
+		if (!exportProgress.progress.isExporting && !capCutExportBusy) {
 			// Switch back to properties view when closing export
 			const { setPanelView } = useExportStore.getState();
 			setPanelView(PanelView.PROPERTIES);
@@ -202,7 +206,7 @@ export function ExportDialog() {
 			exportCaptionsEnabled,
 		});
 
-		if (!exportValidation.canExport) {
+		if (!exportValidation.canExport || capCutExportBusy) {
 			debugWarn("[ExportPanel] cannot export: validation failed", {
 				hasTimelineContent: exportValidation.hasTimelineContent,
 				timelineDuration: exportSettings.timelineDuration,
@@ -360,9 +364,9 @@ export function ExportDialog() {
 		>
 			<div className="flex items-center justify-between p-4 border-b border-border">
 				<div>
-					<h2 className="text-lg font-semibold">Export Video</h2>
+					<h2 className="text-lg font-semibold">Export</h2>
 					<p className="text-sm text-muted-foreground">
-						Configure export settings and render your video
+						Render a video or create an editable CapCut draft
 					</p>
 				</div>
 				<Button
@@ -370,7 +374,7 @@ export function ExportDialog() {
 					variant="text"
 					size="icon"
 					onClick={handleClose}
-					disabled={isExporting}
+					disabled={isExporting || capCutExportBusy}
 					className="h-8 w-8"
 					aria-label="Close export dialog"
 				>
@@ -399,7 +403,7 @@ export function ExportDialog() {
 					<Button
 						type="button"
 						onClick={handleExport}
-						disabled={!exportValidation.canExport}
+						disabled={!exportValidation.canExport || capCutExportBusy}
 						className="w-full"
 						size="lg"
 						data-testid="export-start-button"
@@ -464,6 +468,14 @@ export function ExportDialog() {
 
 			{/* Settings Section - Scrollable Content */}
 			<div className="flex-1 overflow-auto p-4 space-y-2">
+				<CapCutDraftExportCard
+					disabled={isExporting}
+					mediaItems={mediaItems}
+					onBusyChange={setCapCutExportBusy}
+					project={activeProject}
+					tracks={tracks}
+				/>
+
 				<FilenameCard
 					filename={exportSettings.filename}
 					onFilenameChange={exportSettings.handleFilenameChange}
