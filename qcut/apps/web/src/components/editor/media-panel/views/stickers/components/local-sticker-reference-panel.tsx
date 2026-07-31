@@ -10,6 +10,7 @@ import {
 import { debugError } from "@/lib/debug/debug-config";
 import {
 	loadStickerLabReferenceFile,
+	loadStickerLabThumbnail,
 	type StickerLabReference,
 } from "@/lib/stickers/local-sticker-reference";
 import type {
@@ -19,8 +20,12 @@ import type {
 } from "@/lib/stickers/local-sticker-manifest";
 import { cn } from "@/lib/utils";
 
+/** A 403 from the license server means the lab entitlement is missing. */
+function isForbiddenError({ error }: { error: unknown }): boolean {
+	return error instanceof Error && /\b403\b/.test(error.message);
+}
+
 interface LoadedReference {
-	file: File;
 	loadKey: string;
 	previewUrl: string;
 }
@@ -97,17 +102,27 @@ function LocalStickerReferenceItem({
 
 		const loadPreview = async () => {
 			try {
-				const file = await loadStickerLabReferenceFile({
-					provenance,
-					reference,
-					signal: abortController.signal,
-				});
-				previewUrl = URL.createObjectURL(file);
+				// Browsing only needs the preview tier, which every signed-in
+				// user may sign. The full-resolution file is fetched when the
+				// sticker is actually placed, so a viewer without the lab
+				// entitlement still sees the catalogue instead of error tiles.
+				const blob =
+					"filePath" in reference
+						? await loadStickerLabReferenceFile({
+								provenance,
+								reference,
+								signal: abortController.signal,
+							})
+						: await loadStickerLabThumbnail({
+								reference,
+								signal: abortController.signal,
+							});
+				previewUrl = URL.createObjectURL(blob);
 				if (disposed) {
 					URL.revokeObjectURL(previewUrl);
 					return;
 				}
-				setLoaded({ file, loadKey, previewUrl });
+				setLoaded({ loadKey, previewUrl });
 			} catch (error) {
 				if (disposed || isAbortError({ error })) return;
 				debugError("[StickerLab] Failed to load reference", error);
@@ -128,10 +143,18 @@ function LocalStickerReferenceItem({
 		setIsAdding(true);
 		setSelectError(null);
 		try {
-			await onSelect({ file: activeLoaded.file });
+			const file = await loadStickerLabReferenceFile({
+				provenance,
+				reference,
+			});
+			await onSelect({ file });
 		} catch (error) {
 			debugError("[StickerLab] Failed to add local reference", error);
-			setSelectError("无法添加到时间线，请重试");
+			setSelectError(
+				isForbiddenError({ error })
+					? "该实验素材未对当前账号开放"
+					: "无法添加到时间线，请重试"
+			);
 		} finally {
 			setIsAdding(false);
 		}
