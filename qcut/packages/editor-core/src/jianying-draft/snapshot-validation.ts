@@ -58,6 +58,19 @@ function hasValidMediaMetadata({
 	);
 }
 
+function hasUnverifiedDefaultCoverGeometry({
+	media,
+	snapshot,
+}: {
+	media: QCutDraftExportMedia;
+	snapshot: QCutDraftExportSnapshotV1;
+}): boolean {
+	if (media.type === "audio") return false;
+	const mediaAspectRatio = media.width / media.height;
+	const canvasAspectRatio = snapshot.project.width / snapshot.project.height;
+	return Math.abs(mediaAspectRatio - canvasAspectRatio) > 1e-9;
+}
+
 function hasValidElementNumbers({
 	element,
 }: {
@@ -68,6 +81,10 @@ function hasValidElementNumbers({
 		element.startTime,
 		element.trimStart,
 		element.trimEnd,
+		...(element.freezeFrameTime === undefined ? [] : [element.freezeFrameTime]),
+		...(element.freezeFrameDuration === undefined
+			? []
+			: [element.freezeFrameDuration]),
 	];
 	const finiteTransforms = [
 		element.x ?? 0,
@@ -130,6 +147,89 @@ function hasProjectAudioMixEdits({
 	);
 }
 
+function collectHiddenTimelineIssues({
+	snapshot,
+}: {
+	snapshot: QCutDraftExportSnapshotV1;
+}): JianyingDraftIssue[] {
+	const issues: JianyingDraftIssue[] = [];
+	const tracks = [...snapshot.tracks].sort((left, right) =>
+		left.id.localeCompare(right.id)
+	);
+
+	for (const track of tracks) {
+		if (track.hidden) {
+			issues.push({
+				code: "UNSUPPORTED_HIDDEN_TRACK",
+				severity: "error",
+				message: `Track ${track.id} is hidden in QCut and cannot be preserved as a disabled track in the target draft.`,
+				trackId: track.id,
+			});
+		}
+
+		const hiddenElements = track.elements
+			.filter(({ hidden }) => hidden)
+			.sort((left, right) => left.id.localeCompare(right.id));
+		for (const element of hiddenElements) {
+			issues.push({
+				code: "UNSUPPORTED_HIDDEN_ELEMENT",
+				severity: "error",
+				message: `Element ${element.id} on track ${track.id} is hidden in QCut and cannot be preserved as a disabled element in the target draft.`,
+				elementId: element.id,
+				trackId: track.id,
+			});
+		}
+	}
+
+	return issues;
+}
+
+function collectUnexportedMediaBinIssues({
+	snapshot,
+}: {
+	snapshot: QCutDraftExportSnapshotV1;
+}): JianyingDraftIssue[] {
+	const timelineMediaIds = new Set<string>();
+	for (const track of snapshot.tracks) {
+		for (const element of track.elements) {
+			if (element.type === "media" || element.type === "sticker") {
+				timelineMediaIds.add(element.mediaId);
+			}
+		}
+	}
+
+	const unexportedMediaIds = [
+		...new Set(
+			snapshot.media
+				.map(({ id }) => id)
+				.filter((mediaId) => !timelineMediaIds.has(mediaId))
+		),
+	].sort((left, right) => left.localeCompare(right));
+
+	return unexportedMediaIds.map((mediaId) => ({
+		code: "UNEXPORTED_MEDIA_BIN_ASSET",
+		severity: "warning",
+		message: `Media ${mediaId} is not referenced by a timeline media or sticker element, so its media-bin asset will not be copied into the target draft.`,
+		mediaId,
+	}));
+}
+
+function collectEmptyTrackIssues({
+	snapshot,
+}: {
+	snapshot: QCutDraftExportSnapshotV1;
+}): JianyingDraftIssue[] {
+	return snapshot.tracks
+		.filter((track) => !track.hidden && track.elements.length === 0)
+		.sort((left, right) => left.id.localeCompare(right.id))
+		.map((track) => ({
+			code: "UNEXPORTED_EMPTY_TRACK",
+			severity: "warning" as const,
+			message: `Empty track ${track.id} and its name, ${track.type} role, lock, and mute state are not represented in the target draft.`,
+			trackId: track.id,
+		}));
+}
+
 export function validateJianyingExportSnapshot({
 	createdAtUnixSeconds,
 	draftOutputDirectory,
@@ -182,7 +282,7 @@ export function validateJianyingExportSnapshot({
 	if (hasVisibleProjectBackground({ snapshot })) {
 		issues.push({
 			code: "UNSUPPORTED_PROJECT_BACKGROUND",
-			severity: "warning",
+			severity: "error",
 			message:
 				"Project background color or blur is not mapped in the plaintext baseline.",
 		});
@@ -190,7 +290,7 @@ export function validateJianyingExportSnapshot({
 	if (hasProjectAudioMixEdits({ snapshot })) {
 		issues.push({
 			code: "UNSUPPORTED_PROJECT_AUDIO_MIX",
-			severity: "warning",
+			severity: "error",
 			message: "Project master and submix buses are not mapped yet.",
 		});
 	}
@@ -205,6 +305,11 @@ export function validateJianyingExportSnapshot({
 		}
 		mediaIds.add(media.id);
 	}
+	issues.push(
+		...collectHiddenTimelineIssues({ snapshot }),
+		...collectEmptyTrackIssues({ snapshot }),
+		...collectUnexportedMediaBinIssues({ snapshot })
+	);
 
 	return issues;
 }
@@ -250,6 +355,16 @@ export function validateJianyingMediaElement({
 			message: `Media ${media.id} needs a local path and valid dimensions/duration.`,
 			elementId: element.id,
 			mediaId: media.id,
+		});
+	}
+	if (hasUnverifiedDefaultCoverGeometry({ media, snapshot })) {
+		issues.push({
+			code: "UNVERIFIED_MEDIA_FIT",
+			elementId: element.id,
+			mediaId: media.id,
+			message: `Media ${media.id} has a different aspect ratio from the project canvas; QCut cover geometry has not yet been verified against CapCut 8.1.`,
+			severity: "error",
+			trackId: track.id,
 		});
 	}
 	if (!hasValidElementNumbers({ element })) {
@@ -342,6 +457,11 @@ export function validateJianyingMediaElement({
 			mediaId: media.id,
 		});
 	}
-	issues.push(...collectLossyMediaFeatureIssues({ element }));
+	issues.push(
+		...collectLossyMediaFeatureIssues({
+			element,
+			mediaName: media.name,
+		})
+	);
 	return issues;
 }
