@@ -70,6 +70,7 @@ import {
 	getRecord,
 	getString,
 	type JsonValue,
+	validationIssue,
 } from "./runtime-json.js";
 import {
 	createAllowedKeySet,
@@ -85,6 +86,7 @@ const AUDIO_STEM_NAMES = new Set([
 	"guitar",
 	"piano",
 ]);
+const MAX_COLOR_CUBE_SIZE = 32;
 
 const MEDIA_ELEMENT_KEYS = createAllowedKeySet<MediaElement>({
 	keys: {
@@ -996,12 +998,70 @@ function validateMediaColor({
 	const lutPath = `${path}.lut`;
 	const lut = getRecord({ path: lutPath, value: color.lut });
 	assertKeys({ allowed: COLOR_LUT_KEYS, path: lutPath, record: lut });
+	getBoolean({ path: `${lutPath}.enabled`, value: lut.enabled });
+	getString({
+		allowEmpty: true,
+		path: `${lutPath}.presetId`,
+		value: lut.presetId,
+	});
+	getString({
+		allowEmpty: true,
+		path: `${lutPath}.name`,
+		value: lut.name,
+	});
+	getFiniteNumber({ path: `${lutPath}.intensity`, value: lut.intensity });
+	getFiniteNumber({
+		path: `${lutPath}.skinProtection`,
+		value: lut.skinProtection,
+	});
 	if (lut.cube !== undefined) {
 		const cubePath = `${lutPath}.cube`;
 		const cube = getRecord({ path: cubePath, value: lut.cube });
 		assertKeys({ allowed: COLOR_CUBE_KEYS, path: cubePath, record: cube });
-		for (const key of ["domainMin", "domainMax", "values"]) {
-			getArray({ path: `${cubePath}.${key}`, value: cube[key] });
+		const size = getFiniteNumber({
+			path: `${cubePath}.size`,
+			value: cube.size,
+		});
+		if (!Number.isSafeInteger(size) || size < 2 || size > MAX_COLOR_CUBE_SIZE) {
+			throw validationIssue({
+				message: `Expected a LUT cube size from 2 through ${MAX_COLOR_CUBE_SIZE}.`,
+				path: `${cubePath}.size`,
+			});
+		}
+		for (const key of ["domainMin", "domainMax"] as const) {
+			const entries = getArray({
+				path: `${cubePath}.${key}`,
+				value: cube[key],
+			});
+			if (entries.length !== 3) {
+				throw validationIssue({
+					message: "Expected exactly three channel values.",
+					path: `${cubePath}.${key}`,
+				});
+			}
+			for (const [index, entry] of entries.entries()) {
+				getFiniteNumber({
+					path: `${cubePath}.${key}[${index}]`,
+					value: entry,
+				});
+			}
+		}
+		const values = getArray({
+			path: `${cubePath}.values`,
+			value: cube.values,
+		});
+		const expectedValueCount = size ** 3 * 3;
+		if (values.length !== expectedValueCount) {
+			throw validationIssue({
+				message: `Expected exactly ${expectedValueCount} LUT channel values.`,
+				path: `${cubePath}.values`,
+			});
+		}
+		for (const [index, entry] of values.entries()) {
+			getFiniteNumber({
+				path: `${cubePath}.values[${index}]`,
+				value: entry,
+			});
 		}
 	}
 
