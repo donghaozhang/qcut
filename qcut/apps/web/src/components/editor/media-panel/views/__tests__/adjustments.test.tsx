@@ -58,7 +58,7 @@ function installTimelineState({
 		},
 	];
 	const pushHistory = vi.fn();
-	const addTrack = vi.fn(() => "adjustment-track");
+	const insertTrackAt = vi.fn(() => "adjustment-track");
 	const getTotalDuration = vi.fn(() => 12);
 	const addElementToTrack = vi.fn(() => "adjustment-2");
 	const updateAdjustmentElement = vi.fn();
@@ -69,7 +69,7 @@ function installTimelineState({
 			? [{ trackId: "adjustment-track", elementId: "adjustment-1" }]
 			: [],
 		pushHistory,
-		addTrack: addTrack as TimelineStore["addTrack"],
+		insertTrackAt: insertTrackAt as TimelineStore["insertTrackAt"],
 		getTotalDuration: getTotalDuration as TimelineStore["getTotalDuration"],
 		addElementToTrack:
 			addElementToTrack as unknown as TimelineStore["addElementToTrack"],
@@ -77,7 +77,12 @@ function installTimelineState({
 			updateAdjustmentElement as unknown as TimelineStore["updateAdjustmentElement"],
 	});
 	usePlaybackStore.setState({ currentTime: 2 });
-	return { addTrack, addElementToTrack, pushHistory, updateAdjustmentElement };
+	return {
+		insertTrackAt,
+		addElementToTrack,
+		pushHistory,
+		updateAdjustmentElement,
+	};
 }
 
 const cubeLut = [
@@ -117,7 +122,8 @@ describe("AdjustmentsView", () => {
 
 		fireEvent.click(screen.getByText("新建调节"));
 
-		expect(timeline.addTrack).toHaveBeenCalledWith("adjustment");
+		// Above the topmost media track (index 1 in the fixture), never appended.
+		expect(timeline.insertTrackAt).toHaveBeenCalledWith("adjustment", 1);
 		expect(timeline.addElementToTrack).toHaveBeenCalledWith(
 			"adjustment-track",
 			expect.objectContaining({

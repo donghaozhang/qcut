@@ -57,7 +57,7 @@ export function AdjustmentsView() {
 	const [activeShelf, setActiveShelf] = useState<AdjustmentShelf>("mine");
 	const selectedElements = useTimelineStore((state) => state.selectedElements);
 	const tracks = useTimelineStore((state) => state.tracks);
-	const addTrack = useTimelineStore((state) => state.addTrack);
+	const insertTrackAt = useTimelineStore((state) => state.insertTrackAt);
 	const addElementToTrack = useTimelineStore(
 		(state) => state.addElementToTrack
 	);
@@ -77,7 +77,7 @@ export function AdjustmentsView() {
 		name?: string;
 	} = {}) => {
 		const created = addAdjustmentLayer({
-			timeline: { addTrack, addElementToTrack, getTotalDuration },
+			timeline: { tracks, insertTrackAt, addElementToTrack, getTotalDuration },
 			currentTime,
 			name,
 		});
