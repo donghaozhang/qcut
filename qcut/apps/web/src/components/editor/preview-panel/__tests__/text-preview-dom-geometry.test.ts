@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { resolveTextPreviewDomGeometry } from "../text-preview-dom-geometry";
 
 describe("resolveTextPreviewDomGeometry", () => {
-	it("keeps centering outside the scaled text content", () => {
+	it("resolves the frame and content directly in preview pixels", () => {
 		const geometry = resolveTextPreviewDomGeometry({
 			boxWidth: 820,
 			boxHeight: 180,
@@ -10,17 +10,16 @@ describe("resolveTextPreviewDomGeometry", () => {
 			rotation: 12,
 		});
 
+		expect(geometry.scale).toBe(0.5);
 		expect(geometry.frame).toEqual({
 			width: 410,
 			height: 90,
 			transform: "translate(-50%, -50%) rotate(12deg)",
 		});
 		expect(geometry.content).toEqual({
-			width: 820,
-			height: 180,
+			width: 410,
+			height: 90,
 			flexShrink: 0,
-			transform: "scale(0.5)",
-			transformOrigin: "top left",
 		});
 	});
 
@@ -34,6 +33,22 @@ describe("resolveTextPreviewDomGeometry", () => {
 
 		expect(geometry.frame.width).toBe(640);
 		expect(geometry.frame.height).toBe(180);
-		expect(geometry.content.transform).toBe("scale(1)");
+		expect(geometry.content.width).toBe(640);
+		expect(geometry.content.height).toBe(180);
+		expect(geometry.scale).toBe(1);
+	});
+
+	it("keeps a Chinese title frame and content aligned at editor scale", () => {
+		const geometry = resolveTextPreviewDomGeometry({
+			boxWidth: 518,
+			boxHeight: 123,
+			previewScale: 928 / 1920,
+			rotation: 0,
+		});
+
+		expect(geometry.frame.width).toBeCloseTo(250.37, 2);
+		expect(geometry.frame.height).toBeCloseTo(59.45, 2);
+		expect(geometry.content.width).toBe(geometry.frame.width);
+		expect(geometry.content.height).toBe(geometry.frame.height);
 	});
 });
