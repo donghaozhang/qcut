@@ -329,6 +329,39 @@ describe("sticker lab private reference tier", () => {
 		expect(storageMocks.from).not.toHaveBeenCalled();
 	});
 
+	it("forbids private originals outside the allowlist", async () => {
+		// The allow-list check must come before key parsing, so this holds even
+		// if the key branches are ever reordered.
+		const response = await buildApp().request(
+			buildAssetUrl({ objectKey: privateObjectKey })
+		);
+
+		expect(response.status).toBe(403);
+		expect(storageMocks.from).not.toHaveBeenCalled();
+	});
+
+	it("rejects traversal attempts against private thumbnail keys", async () => {
+		allowMockUser();
+		const traversalKeys = [
+			"jianying/2026-07-31/assets/../7437023238108105995.gif",
+			"jianying/../2026-07-31/assets/7437023238108105995.gif",
+		];
+
+		const responses = await Promise.all(
+			traversalKeys.flatMap((objectKey) => [
+				buildApp().request(buildThumbnailUrl({ objectKey })),
+				buildApp().request(
+					`/api/sticker-lab/thumbnail?objectKey=${encodeURIComponent(objectKey)}`
+				),
+			])
+		);
+
+		for (const response of responses) {
+			expect(response.status).toBe(400);
+		}
+		expect(storageMocks.from).not.toHaveBeenCalled();
+	});
+
 	it("signs private thumbnails without a transform for allow-listed users", async () => {
 		allowMockUser();
 		storageMocks.createSignedUrl.mockResolvedValue({
@@ -408,15 +441,32 @@ describe("sticker lab private reference tier", () => {
 		expect(storageMocks.download).not.toHaveBeenCalled();
 	});
 
-	it("returns 404 when the private manifest object is missing", async () => {
+	it("returns a sanitized 404 when the private manifest object is missing", async () => {
 		allowMockUser();
 		storageMocks.download.mockResolvedValue({
 			data: null,
-			error: { message: "Object not found" },
+			error: { message: "SUPABASE_SERVICE_KEY=do-not-leak" },
 		});
 
 		const response = await buildApp().request(manifestUrl);
+		const responseText = await response.text();
 
 		expect(response.status).toBe(404);
+		expect(responseText).toBe('{"error":"Private manifest unavailable"}');
+		expect(responseText).not.toContain("do-not-leak");
+	});
+
+	it("sanitizes exceptions raised while downloading the private manifest", async () => {
+		allowMockUser();
+		storageMocks.download.mockRejectedValue(
+			new Error("service-role secret leaked by upstream")
+		);
+
+		const response = await buildApp().request(manifestUrl);
+		const responseText = await response.text();
+
+		expect(response.status).toBe(502);
+		expect(responseText).toBe('{"error":"Private manifest unavailable"}');
+		expect(responseText).not.toContain("service-role");
 	});
 });

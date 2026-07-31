@@ -109,21 +109,26 @@ function LocalStickerReferenceItem({
 
 		const loadPreview = async () => {
 			try {
-				// Browsing only needs the preview tier, which every signed-in
-				// user may sign. The full-resolution file is fetched when the
-				// sticker is actually placed, so a viewer without the lab
-				// entitlement still sees the catalogue instead of error tiles.
-				const blob =
-					"filePath" in reference
-						? await loadStickerLabReferenceFile({
-								provenance,
-								reference,
-								signal: abortController.signal,
-							})
-						: await loadStickerLabThumbnail({
-								reference,
-								signal: abortController.signal,
-							});
+				// Public references browse via the preview tier, which every
+				// signed-in user may sign; the full-resolution file is fetched
+				// when the sticker is placed, so a viewer without the lab
+				// entitlement sees the catalogue instead of error tiles.
+				// Private references have no un-entitled viewers and their
+				// "thumbnail" is the original GIF anyway, so they go through
+				// the cached loader — otherwise every category switch would
+				// re-download megabytes of animation.
+				const usesUncachedThumbnail =
+					!("filePath" in reference) && "sourceAsset" in reference;
+				const blob = usesUncachedThumbnail
+					? await loadStickerLabThumbnail({
+							reference,
+							signal: abortController.signal,
+						})
+					: await loadStickerLabReferenceFile({
+							provenance,
+							reference,
+							signal: abortController.signal,
+						});
 				previewUrl = URL.createObjectURL(blob);
 				if (disposed) {
 					URL.revokeObjectURL(previewUrl);
@@ -413,7 +418,9 @@ export function LocalStickerReferencePanel({
 				) : null}
 			</div>
 
-			{isLoading ? (
+			{/* Public-catalog loading and errors must not mask the private
+			    catalogue, which loads independently. */}
+			{isLoading && activeCatalogKey === "public" ? (
 				<div
 					className="flex min-h-0 flex-1 items-center justify-center gap-2 text-xs text-muted-foreground"
 					data-testid="local-sticker-catalog-loading"
@@ -421,7 +428,7 @@ export function LocalStickerReferencePanel({
 					<Loader2 className="size-4 animate-spin" aria-hidden="true" />
 					<span>正在读取贴纸实验目录</span>
 				</div>
-			) : error ? (
+			) : error && activeCatalogKey === "public" ? (
 				<div
 					className="m-3 flex gap-2 rounded border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive"
 					role="alert"
