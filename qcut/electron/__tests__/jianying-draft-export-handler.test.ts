@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
 import { CapCutAppRunningError } from "../capcut-8-1-install-guard.js";
@@ -7,6 +8,28 @@ import {
 	CAPCUT_8_1_MIGRATION_INSTALL_CHANNEL,
 	CAPCUT_8_1_MIGRATION_PLAN_CHANNEL,
 } from "../jianying-draft-export-contract.js";
+
+// The handler composes these with path.join, so the expectations have to as
+// well: hardcoded forward slashes pass on POSIX and fail on Windows.
+const DOCUMENTS_DIRECTORY = "/documents";
+const CAPCUT_DRAFT_EXPORT_DIRECTORY = join(
+	DOCUMENTS_DIRECTORY,
+	"QCut",
+	"Exports",
+	"CapCut Drafts"
+);
+const CAPCUT_ALLOWED_SOURCE_DIRECTORY = join(
+	DOCUMENTS_DIRECTORY,
+	"QCut",
+	"Projects"
+);
+const CAPCUT_DRAFT_STORE_DIRECTORY = join(
+	"/Users/test/Videos",
+	"CapCut",
+	"User Data",
+	"Projects",
+	"com.lveditor.draft"
+);
 
 const { mockGetPath, mockHandle, mockRemoveHandler } = vi.hoisted(() => ({
 	mockGetPath: vi.fn((name: string) =>
@@ -244,7 +267,7 @@ describe("JianYing draft export IPC", () => {
 		const ensureDirectory = vi.fn(async () => undefined);
 		setupJianyingDraftExportIPC({
 			ensureDirectory,
-			getDocumentsDirectory: () => "/documents",
+			getDocumentsDirectory: () => DOCUMENTS_DIRECTORY,
 			getMainWindow: () => mainWindow,
 			loadRuntime: vi.fn(async () => runtime.module),
 			resolveFfprobePath: vi.fn(async () => "/trusted/qcut/ffprobe"),
@@ -263,13 +286,13 @@ describe("JianYing draft export IPC", () => {
 			value: runtimePlan,
 		});
 		expect(ensureDirectory).toHaveBeenCalledWith({
-			directoryPath: "/documents/QCut/Exports/CapCut Drafts",
+			directoryPath: CAPCUT_DRAFT_EXPORT_DIRECTORY,
 		});
 		expect(runtime.constructorOptions).toEqual([
 			{
-				allowedSourceRootDirectory: "/documents/QCut/Projects",
+				allowedSourceRootDirectory: CAPCUT_ALLOWED_SOURCE_DIRECTORY,
 				ffprobePath: "/trusted/qcut/ffprobe",
-				outputParentDirectory: "/documents/QCut/Exports/CapCut Drafts",
+				outputParentDirectory: CAPCUT_DRAFT_EXPORT_DIRECTORY,
 			},
 		]);
 		expect(runtime.plan).toHaveBeenCalledWith({ input: request });
@@ -400,8 +423,7 @@ describe("JianYing draft export IPC", () => {
 			assertTargetAppClosed,
 			capCutAppPath: "/Applications/CapCut.app",
 			outputDirectory: runtimeCommitResult.outputDirectory,
-			targetDraftStoreDirectory:
-				"/Users/test/Videos/CapCut/User Data/Projects/com.lveditor.draft",
+			targetDraftStoreDirectory: CAPCUT_DRAFT_STORE_DIRECTORY,
 		});
 		expect(result).toEqual({
 			ok: true,
