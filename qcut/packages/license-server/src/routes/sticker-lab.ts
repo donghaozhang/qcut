@@ -14,6 +14,15 @@ const STICKER_THUMBNAIL_EDGE_PIXELS = 192;
 const STICKER_THUMBNAIL_QUALITY = 60;
 const STICKER_OBJECT_KEY_PATTERN =
 	/^catalogs\/qcut-original(?:-[a-z0-9]+)+\/assets\/[a-z0-9]+(?:-[a-z0-9]+)*\.(gif|png)$/;
+/**
+ * Harvested third-party reference catalogue. Unlike the public catalogue,
+ * every tier of it — manifest, previews, originals — is restricted to the
+ * allow list; it must never be browsable by ordinary signed-in users.
+ */
+const PRIVATE_REFERENCE_OBJECT_KEY_PATTERN =
+	/^jianying\/[0-9]{4}-[0-9]{2}-[0-9]{2}\/assets\/[0-9]+\.(gif|png)$/;
+const PRIVATE_REFERENCE_MANIFEST_OBJECT_KEY =
+	"jianying/2026-07-31/manifest.json";
 
 function isStickerLabUserAllowed({
 	userId,
@@ -34,6 +43,14 @@ function isStickerLabUserAllowed({
 const stickerLabRoutes = new Hono();
 stickerLabRoutes.use("/*", authMiddleware);
 
+function isPrivateReferenceObjectKey({
+	objectKey,
+}: {
+	objectKey: string;
+}): boolean {
+	return PRIVATE_REFERENCE_OBJECT_KEY_PATTERN.test(objectKey);
+}
+
 stickerLabRoutes.get("/assets", async (c) => {
 	const userId = c.get("userId") as string | undefined;
 	if (!isStickerLabUserAllowed({ userId })) {
@@ -41,7 +58,11 @@ stickerLabRoutes.get("/assets", async (c) => {
 	}
 
 	const objectKey = c.req.query("objectKey");
-	if (!objectKey || !STICKER_OBJECT_KEY_PATTERN.test(objectKey)) {
+	if (
+		!objectKey ||
+		(!STICKER_OBJECT_KEY_PATTERN.test(objectKey) &&
+			!isPrivateReferenceObjectKey({ objectKey }))
+	) {
 		return c.json({ error: "Invalid sticker object key" }, 400);
 	}
 
@@ -49,10 +70,21 @@ stickerLabRoutes.get("/assets", async (c) => {
 });
 
 stickerLabRoutes.get("/thumbnail", async (c) => {
+	const objectKey = c.req.query("objectKey");
+	if (objectKey && isPrivateReferenceObjectKey({ objectKey })) {
+		// The harvested reference catalogue has no public preview tier: even
+		// thumbnails require the allow list. Skip the transform — these are
+		// animated GIFs and the viewer is entitled to the original anyway.
+		const userId = c.get("userId") as string | undefined;
+		if (!isStickerLabUserAllowed({ userId })) {
+			return c.json({ error: "Forbidden" }, 403);
+		}
+		return signStickerObject({ c, objectKey });
+	}
+
 	// Deliberately no allow-list check: previews are what makes the lab
 	// browsable for everyone. The transform is applied server-side, so the
 	// signed URL cannot be edited into a full-resolution download.
-	const objectKey = c.req.query("objectKey");
 	if (!objectKey || !STICKER_OBJECT_KEY_PATTERN.test(objectKey)) {
 		return c.json({ error: "Invalid sticker object key" }, 400);
 	}
@@ -67,6 +99,30 @@ stickerLabRoutes.get("/thumbnail", async (c) => {
 			resize: "contain",
 		},
 	});
+});
+
+stickerLabRoutes.get("/private-manifest", async (c) => {
+	const userId = c.get("userId") as string | undefined;
+	if (!isStickerLabUserAllowed({ userId })) {
+		return c.json({ error: "Forbidden" }, 403);
+	}
+
+	try {
+		const { data, error } = await getSupabase()
+			.storage.from(STICKER_BUCKET)
+			.download(PRIVATE_REFERENCE_MANIFEST_OBJECT_KEY);
+		if (error || !data) {
+			return c.json({ error: "Private manifest unavailable" }, 404);
+		}
+		return new Response(await data.arrayBuffer(), {
+			headers: {
+				"Content-Type": "application/json",
+				"Cache-Control": "no-store",
+			},
+		});
+	} catch {
+		return c.json({ error: "Private manifest unavailable" }, 502);
+	}
 });
 
 async function signStickerObject({

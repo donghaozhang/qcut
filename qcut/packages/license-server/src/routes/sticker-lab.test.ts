@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const storageMocks = vi.hoisted(() => ({
 	createSignedUrl: vi.fn(),
+	download: vi.fn(),
 	from: vi.fn(),
 }));
 
@@ -37,6 +38,7 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	storageMocks.from.mockReturnValue({
 		createSignedUrl: storageMocks.createSignedUrl,
+		download: storageMocks.download,
 	});
 });
 
@@ -289,5 +291,132 @@ describe("sticker lab preview tier", () => {
 
 		expect(preview.status).toBe(302);
 		expect(original.status).toBe(403);
+	});
+});
+
+describe("sticker lab private reference tier", () => {
+	const privateObjectKey = "jianying/2026-07-31/assets/7437023238108105995.gif";
+	const manifestUrl = "/api/sticker-lab/private-manifest";
+
+	it("signs private reference originals for allow-listed users", async () => {
+		allowMockUser();
+		const signedUrl = "https://storage.example/private.gif?token=signed";
+		storageMocks.createSignedUrl.mockResolvedValue({
+			data: { signedUrl },
+			error: null,
+		});
+
+		const response = await buildApp().request(
+			buildAssetUrl({ objectKey: privateObjectKey })
+		);
+
+		expect(response.status).toBe(302);
+		expect(response.headers.get("Location")).toBe(signedUrl);
+		expect(storageMocks.createSignedUrl).toHaveBeenCalledWith(
+			privateObjectKey,
+			600
+		);
+	});
+
+	it("forbids private thumbnails outside the allowlist", async () => {
+		// Unlike the public catalogue there is no browse-only tier: harvested
+		// third-party artwork must never be visible to ordinary users.
+		const response = await buildApp().request(
+			buildThumbnailUrl({ objectKey: privateObjectKey })
+		);
+
+		expect(response.status).toBe(403);
+		expect(storageMocks.from).not.toHaveBeenCalled();
+	});
+
+	it("signs private thumbnails without a transform for allow-listed users", async () => {
+		allowMockUser();
+		storageMocks.createSignedUrl.mockResolvedValue({
+			data: { signedUrl: "https://storage.example/private.gif" },
+			error: null,
+		});
+
+		const response = await buildApp().request(
+			buildThumbnailUrl({ objectKey: privateObjectKey })
+		);
+
+		expect(response.status).toBe(302);
+		expect(storageMocks.createSignedUrl).toHaveBeenCalledWith(
+			privateObjectKey,
+			600
+		);
+	});
+
+	it("rejects malformed private object keys", async () => {
+		allowMockUser();
+		const invalidKeys = [
+			"jianying/2026-07-31/assets/sticker-abc.gif",
+			"jianying/2026-07-31/assets/../123.gif",
+			"jianying/2026-7-31/assets/123.gif",
+			"jianying/2026-07-31/123.gif",
+			"jianying/2026-07-31/assets/123.jpg",
+		];
+
+		const responses = await Promise.all(
+			invalidKeys.map((objectKey) =>
+				buildApp().request(buildAssetUrl({ objectKey }))
+			)
+		);
+
+		for (const response of responses) {
+			expect(response.status).toBe(400);
+		}
+		expect(storageMocks.from).not.toHaveBeenCalled();
+	});
+
+	it("serves the private manifest to allow-listed users", async () => {
+		allowMockUser();
+		const manifestJson = JSON.stringify({
+			version: 2,
+			catalogId: "jianying-2026-07-31",
+			categories: [],
+		});
+		storageMocks.download.mockResolvedValue({
+			data: new Blob([manifestJson], { type: "application/json" }),
+			error: null,
+		});
+
+		const response = await buildApp().request(manifestUrl);
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get("Content-Type")).toBe("application/json");
+		expect(response.headers.get("Cache-Control")).toBe("no-store");
+		await expect(response.text()).resolves.toBe(manifestJson);
+		expect(storageMocks.download).toHaveBeenCalledWith(
+			"jianying/2026-07-31/manifest.json"
+		);
+	});
+
+	it("forbids the private manifest outside the allowlist", async () => {
+		const response = await buildApp().request(manifestUrl);
+
+		expect(response.status).toBe(403);
+		expect(storageMocks.download).not.toHaveBeenCalled();
+	});
+
+	it("requires authentication for the private manifest", async () => {
+		vi.stubEnv("MOCK_MODE", "false");
+
+		const response = await buildApp().request(manifestUrl);
+
+		expect(response.status).toBe(401);
+		expect(storageMocks.download).not.toHaveBeenCalled();
+	});
+
+	it("returns 404 when the private manifest object is missing", async () => {
+		allowMockUser();
+		storageMocks.download.mockResolvedValue({
+			data: null,
+			error: { message: "Object not found" },
+		});
+
+		const response = await buildApp().request(manifestUrl);
+
+		expect(response.status).toBe(404);
 	});
 });

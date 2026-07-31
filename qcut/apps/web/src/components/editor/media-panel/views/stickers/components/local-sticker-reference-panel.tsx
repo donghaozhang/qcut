@@ -11,12 +11,15 @@ import { debugError } from "@/lib/debug/debug-config";
 import {
 	loadStickerLabReferenceFile,
 	loadStickerLabThumbnail,
+	PRIVATE_REFERENCE_PROVENANCE,
 	type StickerLabReference,
 } from "@/lib/stickers/local-sticker-reference";
-import type {
-	LocalStickerPlayback,
-	RemoteStickerProvenance,
-	StickerLabCatalog,
+import {
+	isRemoteStickerCatalog,
+	type LocalStickerPlayback,
+	type PrivateStickerCatalog,
+	type RemoteStickerProvenance,
+	type StickerLabCatalog,
 } from "@/lib/stickers/local-sticker-manifest";
 import { cn } from "@/lib/utils";
 
@@ -282,21 +285,46 @@ export function LocalStickerReferencePanel({
 	error,
 	isLoading,
 	onSelect,
+	privateCatalog = null,
 }: {
 	catalog: StickerLabCatalog | null;
 	error: string | null;
 	isLoading: boolean;
 	onSelect: ({ file }: { file: File }) => Promise<void>;
+	privateCatalog?: PrivateStickerCatalog | null;
 }) {
 	const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
 		null
 	);
+	const [activeCatalogKey, setActiveCatalogKey] = useState<
+		"public" | "private"
+	>("public");
 	const categoryTabRefs = useRef(new Map<string, HTMLButtonElement>());
-	const categories = catalog?.categories ?? [];
-	const provenance = catalog?.version === 2 ? catalog.provenance : undefined;
+	const activeCatalog =
+		activeCatalogKey === "private" && privateCatalog ? privateCatalog : catalog;
+	const categories = activeCatalog?.categories ?? [];
+	// Check the public catalogue first: its shape is a superset of the private
+	// one, so the negated private guard would (structurally) swallow it.
+	const provenance = activeCatalog
+		? isRemoteStickerCatalog(activeCatalog)
+			? activeCatalog.provenance
+			: activeCatalog.version === 2
+				? PRIVATE_REFERENCE_PROVENANCE
+				: undefined
+		: undefined;
 	const selectedCategory =
 		categories.find((category) => category.id === selectedCategoryId) ??
 		categories[0];
+
+	const switchCatalog = ({
+		catalogKey,
+	}: {
+		catalogKey: "public" | "private";
+	}) => {
+		if (catalogKey === activeCatalogKey) return;
+		setActiveCatalogKey(catalogKey);
+		setSelectedCategoryId(null);
+	};
 
 	const selectAndFocusCategory = ({
 		categoryIndex,
@@ -345,6 +373,44 @@ export function LocalStickerReferencePanel({
 				<p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">
 					实验素材按需载入，不随 QCut 安装包分发
 				</p>
+				{privateCatalog ? (
+					<div
+						className="mt-1.5 flex gap-1"
+						role="tablist"
+						aria-label="贴纸实验室目录"
+					>
+						<button
+							type="button"
+							role="tab"
+							aria-selected={activeCatalogKey === "public"}
+							data-testid="sticker-lab-catalog-public"
+							className={cn(
+								"rounded-full px-2 py-0.5 text-[10px] transition-colors",
+								activeCatalogKey === "public"
+									? "bg-primary/15 font-medium text-primary"
+									: "bg-foreground/5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+							)}
+							onClick={() => switchCatalog({ catalogKey: "public" })}
+						>
+							QCut 原创
+						</button>
+						<button
+							type="button"
+							role="tab"
+							aria-selected={activeCatalogKey === "private"}
+							data-testid="sticker-lab-catalog-private"
+							className={cn(
+								"rounded-full px-2 py-0.5 text-[10px] transition-colors",
+								activeCatalogKey === "private"
+									? "bg-primary/15 font-medium text-primary"
+									: "bg-foreground/5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+							)}
+							onClick={() => switchCatalog({ catalogKey: "private" })}
+						>
+							剪映参照 · 内部
+						</button>
+					</div>
+				) : null}
 			</div>
 
 			{isLoading ? (

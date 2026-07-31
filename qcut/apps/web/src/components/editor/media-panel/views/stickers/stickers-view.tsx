@@ -217,6 +217,7 @@ export function StickersView() {
 							error={localStickerCatalog.error}
 							isLoading={localStickerCatalog.isLoading}
 							onSelect={handleLocalReferenceSelect}
+							privateCatalog={localStickerCatalog.privateCatalog}
 						/>
 					) : (
 						<div className="flex h-full min-h-0 flex-col">

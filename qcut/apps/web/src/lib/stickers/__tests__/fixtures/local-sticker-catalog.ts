@@ -2,6 +2,8 @@ import type {
 	LocalStickerCatalog,
 	LocalStickerCategory,
 	LocalStickerReference,
+	PrivateStickerCatalog,
+	PrivateStickerReference,
 	RemoteStickerCatalog,
 	RemoteStickerReference,
 } from "../../local-sticker-manifest";
@@ -102,6 +104,57 @@ export function createRemoteStickerReference({
 			byteSize: 4,
 			checksumSha256,
 		},
+	};
+}
+
+export function createPrivateStickerReference({
+	checksumSha256 = "b964a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a",
+	numericId,
+}: {
+	checksumSha256?: string;
+	numericId: string;
+}): PrivateStickerReference {
+	return {
+		id: numericId,
+		displayName: `参照贴纸 ${numericId}`,
+		fileName: `${numericId}-参照.gif`,
+		mimeType: "image/gif",
+		sourceKind: "preview-gif",
+		playback: {
+			kind: "animated",
+			frameCount: 8,
+			frameRate: 5,
+			cycleDuration: 1.6,
+			loop: true,
+		},
+		asset: {
+			kind: "supabase-storage",
+			objectKey: `jianying/2026-07-31/assets/${numericId}.gif`,
+			byteSize: 4,
+			checksumSha256,
+		},
+	};
+}
+
+export function createPrivateStickerCatalog(): PrivateStickerCatalog {
+	return {
+		version: 2,
+		catalogId: "jianying-2026-07-31",
+		categories: [
+			{
+				id: "hot",
+				label: "热门",
+				sourcePanel: "剪映贴纸面板 / 热门",
+				items: [
+					createPrivateStickerReference({ numericId: "7437023238108105995" }),
+					createPrivateStickerReference({
+						checksumSha256:
+							"c964a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a",
+						numericId: "6911930254453984525",
+					}),
+				],
+			},
+		],
 	};
 }
 

@@ -3,7 +3,10 @@ import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { cwd } from "node:process";
 import { describe, expect, it } from "vitest";
-import { parseLocalStickerManifest } from "../local-sticker-manifest";
+import {
+	isRemoteStickerCatalog,
+	parseLocalStickerManifest,
+} from "../local-sticker-manifest";
 
 const repositoryRootCandidate = cwd();
 const REPOSITORY_ROOT = existsSync(
@@ -30,8 +33,10 @@ describe("QCut original sticker lab inventory", () => {
 	it("ships 42 categories with at least 10 distinct stickers each", () => {
 		const manifestText = readFileSync(MANIFEST_PATH, "utf8");
 		const catalog = parseLocalStickerManifest({ jsonText: manifestText });
-		if (catalog.version !== 2) {
-			throw new Error("Expected the bundled sticker lab catalog to use v2");
+		if (!isRemoteStickerCatalog(catalog)) {
+			throw new Error(
+				"Expected the bundled sticker lab catalog to use v2 with provenance"
+			);
 		}
 
 		expect(catalog.catalogId).toBe("qcut-original-42x10-r2-2026-07-31");
@@ -79,8 +84,10 @@ describe("QCut original sticker lab inventory", () => {
 		const catalog = parseLocalStickerManifest({
 			jsonText: readFileSync(MANIFEST_PATH, "utf8"),
 		});
-		if (catalog.version !== 2) {
-			throw new Error("Expected the bundled sticker lab catalog to use v2");
+		if (!isRemoteStickerCatalog(catalog)) {
+			throw new Error(
+				"Expected the bundled sticker lab catalog to use v2 with provenance"
+			);
 		}
 
 		expect(catalog.provenance).toMatchObject({
