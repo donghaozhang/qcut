@@ -281,9 +281,7 @@ export async function loadStickerLabThumbnail({
 		{ signal }
 	);
 	if (!response.ok) {
-		throw new Error(
-			`Sticker lab thumbnail request failed: ${response.status}`
-		);
+		throw new Error(`Sticker lab thumbnail request failed: ${response.status}`);
 	}
 	return response.blob();
 }
