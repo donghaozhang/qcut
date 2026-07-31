@@ -35,14 +35,26 @@ export async function mapWithConcurrency<Item, Result>({
 	}
 	const results: Result[] = new Array(items.length);
 	let nextIndex = 0;
+	let firstFailure: unknown;
+	let hasFailed = false;
 	const runNext = async (): Promise<void> => {
+		if (hasFailed) return;
 		const index = nextIndex;
 		nextIndex += 1;
 		if (index >= items.length) return;
-		results[index] = await mapper(items[index] as Item, index);
+		try {
+			results[index] = await mapper(items[index] as Item, index);
+		} catch (error) {
+			if (!hasFailed) {
+				firstFailure = error;
+				hasFailed = true;
+			}
+			return;
+		}
 		await runNext();
 	};
 	const workerCount = Math.min(concurrency, items.length);
 	await Promise.all(Array.from({ length: workerCount }, () => runNext()));
+	if (hasFailed) throw firstFailure;
 	return results;
 }
