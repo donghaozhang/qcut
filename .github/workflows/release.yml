@@ -92,6 +92,10 @@ jobs:
         env:
           # vite build exceeds Node's default ~2GB heap on the macOS runner
           NODE_OPTIONS: --max-old-space-size=4096
+          # Ships the sticker lab. Everyone can browse the previews; the
+          # full-resolution originals stay behind the license server's
+          # allow list.
+          VITE_QCUT_ENABLE_STICKER_LAB: "true"
 
       - name: Build Electron scripts
         run: bun run build:electron
@@ -173,6 +177,10 @@ jobs:
         env:
           # vite build exceeds Node's default ~2GB heap on the macOS runner
           NODE_OPTIONS: --max-old-space-size=4096
+          # Ships the sticker lab. Everyone can browse the previews; the
+          # full-resolution originals stay behind the license server's
+          # allow list.
+          VITE_QCUT_ENABLE_STICKER_LAB: "true"
 
       - name: Build Electron scripts
         run: bun run build:electron
@@ -268,6 +276,10 @@ jobs:
         env:
           # vite build exceeds Node's default ~2GB heap on the macOS runner
           NODE_OPTIONS: --max-old-space-size=4096
+          # Ships the sticker lab. Everyone can browse the previews; the
+          # full-resolution originals stay behind the license server's
+          # allow list.
+          VITE_QCUT_ENABLE_STICKER_LAB: "true"
 
       - name: Build Electron scripts
         run: bun run build:electron
