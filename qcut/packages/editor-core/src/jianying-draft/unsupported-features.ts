@@ -15,23 +15,49 @@ function hasKeyframeEntries({
 	);
 }
 
+function hasConfiguredColorFilter({
+	filter,
+}: {
+	filter: NonNullable<MediaElement["color"]>["filter"];
+}): boolean {
+	return filter.presetId !== "none";
+}
+
+function hasConfiguredLut({
+	lut,
+}: {
+	lut: NonNullable<MediaElement["color"]>["lut"];
+}): boolean {
+	return (
+		lut.enabled ||
+		lut.presetId !== "none" ||
+		lut.intensity !== 100 ||
+		lut.skinProtection !== 0 ||
+		lut.cube !== undefined
+	);
+}
+
 function hasColorEdits({ element }: { element: MediaElement }): boolean {
 	const hasLegacyAdjustments = Object.values(element.adjustments ?? {}).some(
 		(value) => value !== 0
 	);
 	const color = element.color;
-	if (!color?.enabled) return hasLegacyAdjustments;
+	if (!color) return hasLegacyAdjustments;
 
 	const hasBasicEdits = Object.entries(color.basic).some(
 		([property, value]) =>
 			property !== "enabled" && typeof value === "number" && value !== 0
 	);
+	const hasHslEdits = Object.values(color.hsl.ranges).some((range) =>
+		Object.values(range).some((value) => value !== 0)
+	);
 	return (
 		hasLegacyAdjustments ||
-		(color.filter.presetId !== "none" && color.filter.intensity > 0) ||
-		(color.basic.enabled && hasBasicEdits) ||
-		color.lut.enabled ||
+		hasConfiguredColorFilter({ filter: color.filter }) ||
+		hasBasicEdits ||
+		hasConfiguredLut({ lut: color.lut }) ||
 		color.hsl.enabled ||
+		hasHslEdits ||
 		color.curves.enabled ||
 		color.secondaryCurves.enabled ||
 		color.wheels.enabled ||
@@ -44,14 +70,36 @@ function hasColorEdits({ element }: { element: MediaElement }): boolean {
 
 function hasMaskOrCutoutEdits({ element }: { element: MediaElement }): boolean {
 	const masks = [element.mask, ...(element.masks ?? [])];
-	const hasActiveMask = masks.some(
-		(mask) => mask && mask.enabled !== false && mask.type !== "none"
+	const hasConfiguredMask = masks.some(
+		(mask) =>
+			mask &&
+			(mask.type !== "none" ||
+				hasKeyframeEntries({ value: mask.keyframes }) ||
+				mask.tracking !== undefined ||
+				Boolean(mask.sourceMediaId?.trim()))
 	);
-	return (
-		hasActiveMask ||
-		element.customCutout?.enabled === true ||
-		element.chromaKey?.enabled === true
-	);
+	const customCutout = element.customCutout;
+	const hasConfiguredCutout =
+		customCutout !== undefined &&
+		(customCutout.enabled ||
+			customCutout.strokes.length > 0 ||
+			(customCutout.status !== undefined && customCutout.status !== "idle") ||
+			Boolean(customCutout.error?.trim()) ||
+			Boolean(customCutout.sourceMediaId?.trim()) ||
+			Boolean(customCutout.resultMaskId?.trim()) ||
+			Boolean(customCutout.generatedFrom?.trim()));
+	const chromaKey = element.chromaKey;
+	const hasConfiguredChromaKey =
+		chromaKey !== undefined &&
+		(chromaKey.enabled ||
+			chromaKey.color.toLowerCase() !== "#00ff00" ||
+			(chromaKey.similarity !== 0 && chromaKey.similarity !== 0.2) ||
+			(chromaKey.blend !== 0 && chromaKey.blend !== 0.1) ||
+			chromaKey.shadow !== 0 ||
+			chromaKey.cleanup !== 0 ||
+			chromaKey.spill !== 0 ||
+			hasKeyframeEntries({ value: chromaKey.keyframes }));
+	return hasConfiguredMask || hasConfiguredCutout || hasConfiguredChromaKey;
 }
 
 function hasEnhancementEdits({ element }: { element: MediaElement }): boolean {
@@ -109,15 +157,13 @@ function hasAudioEdits({ element }: { element: MediaElement }): boolean {
 		(module) => module.enabled
 	);
 	const hasVoiceEnhancement =
-		audio.voiceEnhance.enabled &&
-		(audio.voiceEnhance.clarity !== 0 ||
-			audio.voiceEnhance.warmth !== 0 ||
-			audio.voiceEnhance.presence !== 0);
+		audio.voiceEnhance.clarity !== 0 ||
+		audio.voiceEnhance.warmth !== 0 ||
+		audio.voiceEnhance.presence !== 0;
 	const hasEqualizer =
-		audio.equalizer.enabled &&
-		(audio.equalizer.lowGainDb !== 0 ||
-			audio.equalizer.midGainDb !== 0 ||
-			audio.equalizer.highGainDb !== 0);
+		audio.equalizer.lowGainDb !== 0 ||
+		audio.equalizer.midGainDb !== 0 ||
+		audio.equalizer.highGainDb !== 0;
 
 	return (
 		hasLegacyEdits ||
@@ -127,9 +173,9 @@ function hasAudioEdits({ element }: { element: MediaElement }): boolean {
 		audio.channelMode !== "stereo" ||
 		(audio.panEnabled && Math.abs(audio.pan) > Number.EPSILON) ||
 		audio.loudness.enabled ||
-		(audio.denoise.enabled && audio.denoise.amount > 0) ||
+		audio.denoise.amount > 0 ||
 		hasVoiceEnhancement ||
-		(audio.pitch.enabled && audio.pitch.semitones !== 0) ||
+		audio.pitch.semitones !== 0 ||
 		hasEqualizer ||
 		audio.parametricEqualizer.enabled ||
 		hasRepair ||
@@ -145,18 +191,50 @@ function hasAudioEdits({ element }: { element: MediaElement }): boolean {
 	);
 }
 
+function hasAudioLyrics({ element }: { element: MediaElement }): boolean {
+	const lyrics = element.audio?.lyrics;
+	if (!lyrics) return false;
+	return (
+		lyrics.status !== "idle" ||
+		lyrics.text.trim().length > 0 ||
+		lyrics.words.length > 0 ||
+		Boolean(lyrics.language?.trim()) ||
+		Boolean(lyrics.sourceMediaId?.trim()) ||
+		Boolean(lyrics.captionTrackId?.trim()) ||
+		lyrics.sourceFormat !== undefined ||
+		Object.keys(lyrics.speakerNames ?? {}).length > 0 ||
+		lyrics.maxWordsPerLine !== undefined ||
+		Boolean(lyrics.error?.trim())
+	);
+}
+
+function hasInactiveFreezeFramePosition({
+	element,
+}: {
+	element: MediaElement;
+}): boolean {
+	const duration = element.freezeFrameDuration ?? 0;
+	return (
+		element.freezeFrameTime !== undefined &&
+		Number.isFinite(duration) &&
+		duration === 0
+	);
+}
+
 function addFeatureIssue({
 	element,
 	issues,
 	message,
+	severity = "warning",
 }: {
 	element: MediaElement;
 	issues: JianyingDraftIssue[];
 	message: string;
+	severity?: JianyingDraftIssue["severity"];
 }): void {
 	issues.push({
 		code: "UNSUPPORTED_MEDIA_FEATURE",
-		severity: "warning",
+		severity,
 		message,
 		elementId: element.id,
 		mediaId: element.mediaId,
@@ -212,11 +290,47 @@ export function hasLossyTrackAudioSettings({
 
 export function collectLossyMediaFeatureIssues({
 	element,
+	mediaName,
 }: {
 	element: MediaElement;
+	mediaName?: string;
 }): JianyingDraftIssue[] {
 	const issues: JianyingDraftIssue[] = [];
 
+	if (element.groupId?.trim()) {
+		addFeatureIssue({
+			element,
+			issues,
+			message: "Timeline element grouping is not mapped yet.",
+		});
+	}
+	if (element.templateBinding !== undefined) {
+		addFeatureIssue({
+			element,
+			issues,
+			message:
+				"QCut template binding metadata is not represented in the draft.",
+		});
+	}
+	if (element.colorLabel?.trim()) {
+		addFeatureIssue({
+			element,
+			issues,
+			message: "Timeline element color labels are not mapped yet.",
+		});
+	}
+	if (
+		mediaName !== undefined &&
+		element.name.trim().length > 0 &&
+		element.name !== mediaName
+	) {
+		addFeatureIssue({
+			element,
+			issues,
+			message:
+				"Custom timeline element names are not represented separately from media names.",
+		});
+	}
 	if (
 		hasEntries({ value: element.effects }) ||
 		hasEntries({ value: element.effectChains }) ||
@@ -226,6 +340,7 @@ export function collectLossyMediaFeatureIssues({
 			element,
 			issues,
 			message: "QCut effects are not represented in the plaintext baseline.",
+			severity: "error",
 		});
 	}
 	if (hasColorEdits({ element })) {
@@ -233,6 +348,7 @@ export function collectLossyMediaFeatureIssues({
 			element,
 			issues,
 			message: "Color adjustments need a JianYing-native mapping or baking.",
+			severity: "error",
 		});
 	}
 	if (hasMaskOrCutoutEdits({ element })) {
@@ -240,6 +356,7 @@ export function collectLossyMediaFeatureIssues({
 			element,
 			issues,
 			message: "Masks and cutouts need a JianYing-native mapping or baking.",
+			severity: "error",
 		});
 	}
 	if (hasEnhancementEdits({ element })) {
@@ -247,6 +364,7 @@ export function collectLossyMediaFeatureIssues({
 			element,
 			issues,
 			message: "AI media enhancements are not represented in the draft.",
+			severity: "error",
 		});
 	}
 	if (hasCropPerspectiveOrFitEdits({ element })) {
@@ -254,6 +372,7 @@ export function collectLossyMediaFeatureIssues({
 			element,
 			issues,
 			message: "Crop, perspective, and fit-mode settings are not mapped yet.",
+			severity: "error",
 		});
 	}
 	if (element.width !== undefined || element.height !== undefined) {
@@ -261,6 +380,7 @@ export function collectLossyMediaFeatureIssues({
 			element,
 			issues,
 			message: "Explicit media bounds need a verified JianYing scale mapping.",
+			severity: "error",
 		});
 	}
 	if (element.blendMode !== undefined && element.blendMode !== "normal") {
@@ -268,6 +388,7 @@ export function collectLossyMediaFeatureIssues({
 			element,
 			issues,
 			message: "Non-normal blend modes are not mapped yet.",
+			severity: "error",
 		});
 	}
 	if (
@@ -282,6 +403,26 @@ export function collectLossyMediaFeatureIssues({
 			element,
 			issues,
 			message: "Clip animations need a JianYing-native mapping or baking.",
+			severity: "error",
+		});
+	}
+	if (
+		(element.animationInType === "none" &&
+			element.animationInDuration !== undefined &&
+			element.animationInDuration !== 0.5) ||
+		(element.animationOutType === "none" &&
+			element.animationOutDuration !== undefined &&
+			element.animationOutDuration !== 0.5) ||
+		(element.comboAnimationType === "none" &&
+			element.comboAnimationIntensity !== undefined &&
+			element.comboAnimationIntensity !== 0.5)
+	) {
+		addFeatureIssue({
+			element,
+			issues,
+			message:
+				"Disabled clip animations retain non-default parameters that are not represented in the draft.",
+			severity: "error",
 		});
 	}
 	if (hasKeyframeEntries({ value: element.keyframes })) {
@@ -289,6 +430,7 @@ export function collectLossyMediaFeatureIssues({
 			element,
 			issues,
 			message: "Transform keyframes are not mapped in the first baseline.",
+			severity: "error",
 		});
 	}
 	if (hasAudioEdits({ element })) {
@@ -296,6 +438,22 @@ export function collectLossyMediaFeatureIssues({
 			element,
 			issues,
 			message: "Advanced QCut audio processing is not mapped yet.",
+			severity: "error",
+		});
+	}
+	if (hasAudioLyrics({ element })) {
+		addFeatureIssue({
+			element,
+			issues,
+			message: "Audio lyrics and word timings are not mapped yet.",
+			severity: "error",
+		});
+	}
+	if (hasInactiveFreezeFramePosition({ element })) {
+		addFeatureIssue({
+			element,
+			issues,
+			message: "Inactive freeze-frame position metadata is not preserved.",
 		});
 	}
 	if (
@@ -306,8 +464,44 @@ export function collectLossyMediaFeatureIssues({
 			element,
 			issues,
 			message: "Frame interpolation settings are not represented in the draft.",
+			severity: "error",
 		});
 	}
 
+	return issues;
+}
+
+export function collectLossyTrackMetadataIssues({
+	isImplicitMainTrack,
+	track,
+}: {
+	isImplicitMainTrack: boolean;
+	track: TimelineTrack;
+}): JianyingDraftIssue[] {
+	const issues: JianyingDraftIssue[] = [];
+	if (track.height !== undefined) {
+		issues.push({
+			code: "UNSUPPORTED_TRACK_METADATA",
+			severity: "warning",
+			message: `Track ${track.id} custom lane height is not represented in the draft.`,
+			trackId: track.id,
+		});
+	}
+	if (track.isMain && !isImplicitMainTrack) {
+		issues.push({
+			code: "UNSUPPORTED_TRACK_METADATA",
+			severity: "warning",
+			message: `Track ${track.id} cannot retain its QCut main-track designation without changing render order.`,
+			trackId: track.id,
+		});
+	}
+	if (track.isMain === false && isImplicitMainTrack) {
+		issues.push({
+			code: "UNSUPPORTED_TRACK_METADATA",
+			severity: "warning",
+			message: `Track ${track.id} is explicitly non-main in QCut but becomes the target draft's implicit main video track.`,
+			trackId: track.id,
+		});
+	}
 	return issues;
 }
