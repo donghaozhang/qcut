@@ -203,7 +203,7 @@ export const useCaptionsStore = create<CaptionsStore>((set, get) => ({
 				duration: segment.end - segment.start,
 				startTime: segment.start,
 				trimStart: 0,
-				trimEnd: segment.end - segment.start,
+				trimEnd: 0,
 				text: segment.text,
 				language: transcriptionResult.language,
 				confidence: 1 - segment.no_speech_prob, // Convert no_speech_prob to confidence

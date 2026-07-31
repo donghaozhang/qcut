@@ -5,6 +5,7 @@ const TYPECHECK_TARGETS = [
 	"electron/tsconfig.json",
 	"packages/agent-worker/tsconfig.json",
 	"packages/editor-core/tsconfig.json",
+	"packages/jianying-draft-export/tsconfig.json",
 	"packages/license-server/tsconfig.json",
 	"packages/platform-core/tsconfig.json",
 	"packages/platform-desktop/tsconfig.json",

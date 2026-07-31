@@ -99,6 +99,19 @@ export interface JianyingSpeedMaterial {
 	type: "speed";
 }
 
+export interface JianyingTransitionMaterial {
+	category_id: "";
+	category_name: "";
+	duration: number;
+	effect_id: string;
+	id: string;
+	is_overlap: boolean;
+	name: string;
+	platform: "all";
+	resource_id: string;
+	type: "transition";
+}
+
 export interface JianyingVideoMaterial {
 	audio_fade: null;
 	category_id: "";
@@ -147,9 +160,38 @@ export interface JianyingAudioMaterial {
 	wave_points: unknown[];
 }
 
+export interface JianyingTextMaterial {
+	alignment: 0 | 1 | 2;
+	background_alpha?: number;
+	background_color?: string;
+	background_height?: number;
+	background_horizontal_offset?: number;
+	background_round_radius?: number;
+	background_style?: 1;
+	background_vertical_offset?: number;
+	background_width?: number;
+	check_flag: number;
+	content: string;
+	fixed_height: -1;
+	fixed_width: -1;
+	font_size: number;
+	force_apply_line_max_width: boolean;
+	global_alpha: number;
+	id: string;
+	letter_spacing: number;
+	line_feed: 1;
+	line_max_width: number;
+	line_spacing: number;
+	text_color: string;
+	type: "text" | "subtitle";
+	typesetting: 0;
+}
+
 export interface JianyingDraftMaterials {
 	audios: JianyingAudioMaterial[];
 	speeds: JianyingSpeedMaterial[];
+	texts: JianyingTextMaterial[];
+	transitions: JianyingTransitionMaterial[];
 	videos: JianyingVideoMaterial[];
 	[key: string]: unknown[];
 }
@@ -191,13 +233,13 @@ export interface JianyingDraftSegment {
 }
 
 export interface JianyingDraftTrack {
-	attribute: 0 | 1;
+	attribute: 0 | 1 | 4 | 5;
 	flag: 0;
 	id: string;
 	is_default_name: boolean;
 	name: string;
 	segments: JianyingDraftSegment[];
-	type: "video" | "audio";
+	type: "video" | "audio" | "text";
 }
 
 export interface JianyingDraftPlatform {
@@ -256,7 +298,7 @@ export interface JianyingDraftCompatibility {
 	appVersion: "5.9.0";
 	baseline: "synthetic-plaintext-5.9";
 	contentFileName: "draft_info.json" | "draft_content.json";
-	contentFileNameEvidence: "platform-heuristic";
+	contentFileNameEvidence: "plaintext-5.9-reference";
 	registeredWithApp: false;
 	verifiedWithInstalledApp: false;
 }

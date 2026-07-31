@@ -116,6 +116,7 @@ describe("JianYing draft primitives", () => {
 			expect.objectContaining({
 				code: "UNSUPPORTED_MEDIA_FEATURE",
 				message: "Advanced QCut audio processing is not mapped yet.",
+				severity: "error",
 			})
 		);
 	});
@@ -132,6 +133,7 @@ describe("JianYing draft primitives", () => {
 				code: "UNSUPPORTED_MEDIA_FEATURE",
 				message:
 					"Explicit media bounds need a verified JianYing scale mapping.",
+				severity: "error",
 			})
 		);
 	});

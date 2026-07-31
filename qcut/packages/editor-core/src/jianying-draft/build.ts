@@ -11,19 +11,37 @@ import {
 	mapMediaElementToJianying,
 	type MappedMediaElement,
 } from "./media-mapping.js";
+import { mapStaticStickerToJianying } from "./sticker-mapping.js";
+import {
+	createStickerSemanticDowngradeIssue,
+	validateJianyingStickerElement,
+} from "./sticker-validation.js";
+import {
+	mapCaptionElementToJianying,
+	mapTextElementToJianying,
+} from "./text-mapping.js";
+import { collectLossyTextFeatureIssues } from "./text-unsupported-features.js";
+import { validateJianyingTextElement } from "./text-validation.js";
 import { secondsToMicroseconds } from "./time.js";
+import { mapTrackTransitionsToJianying } from "./transition-build.js";
 import type {
 	JianyingDraftBuildResult,
 	JianyingDraftContent,
 	JianyingDraftIssue,
 	JianyingDraftPlatform,
-	JianyingSpeedMaterial,
 	JianyingDraftTargetPlatform,
 	JianyingDraftTrack,
+	JianyingDraftSegment,
+	JianyingSpeedMaterial,
+	JianyingTextMaterial,
+	JianyingTransitionMaterial,
 	QCutDraftExportMedia,
 	QCutDraftExportSnapshotV1,
 } from "./types.js";
-import { hasLossyTrackAudioSettings } from "./unsupported-features.js";
+import {
+	collectLossyTrackMetadataIssues,
+	hasLossyTrackAudioSettings,
+} from "./unsupported-features.js";
 import {
 	validateJianyingExportSnapshot,
 	validateJianyingMediaElement,
@@ -44,7 +62,9 @@ interface BuildTrackContext {
 	mediaById: Map<string, QCutDraftExportMedia>;
 	options: BuildJianyingDraftOptions;
 	speedMaterialsById: Map<string, JianyingSpeedMaterial>;
+	textMaterialsById: Map<string, JianyingTextMaterial>;
 	track: TimelineTrack;
+	transitionMaterialsById: Map<string, JianyingTransitionMaterial>;
 }
 
 function createPlatform({
@@ -91,6 +111,15 @@ function addUnsupportedElementIssue({
 	});
 }
 
+function getTrackAttribute({
+	track,
+}: {
+	track: TimelineTrack;
+}): JianyingDraftTrack["attribute"] {
+	if (track.muted) return track.locked ? 5 : 1;
+	return track.locked ? 4 : 0;
+}
+
 function mapTrack({
 	assetsByMediaId,
 	issues,
@@ -98,9 +127,14 @@ function mapTrack({
 	mediaById,
 	options,
 	speedMaterialsById,
+	textMaterialsById,
 	track,
+	transitionMaterialsById,
 }: BuildTrackContext): JianyingDraftTrack | null {
-	if (track.type !== "media" && track.type !== "audio") {
+	const isMediaTrack = track.type === "media" || track.type === "audio";
+	const isTextTrack = track.type === "text" || track.type === "captions";
+	const isStickerTrack = track.type === "sticker";
+	if (!isMediaTrack && !isTextTrack && !isStickerTrack) {
 		for (const element of track.elements) {
 			if (!element.hidden) {
 				addUnsupportedElementIssue({ element, issues, track });
@@ -108,26 +142,92 @@ function mapTrack({
 		}
 		return null;
 	}
-	if ((track.transitions?.length ?? 0) > 0) {
-		issues.push({
-			code: "UNSUPPORTED_TRACK_TRANSITION",
-			severity: "error",
-			message: `Track ${track.id} contains transitions that need mapping or baking.`,
-			trackId: track.id,
-		});
-	}
 	if (hasLossyTrackAudioSettings({ track })) {
 		issues.push({
 			code: "UNSUPPORTED_TRACK_AUDIO_MIX",
-			severity: "warning",
+			severity: "error",
 			message: `Track ${track.id} audio-bus processing is not mapped yet.`,
 			trackId: track.id,
 		});
 	}
 
-	const segments: MappedMediaElement["segment"][] = [];
+	const segments: JianyingDraftSegment[] = [];
+	const segmentsByElementId = new Map<string, JianyingDraftSegment>();
 	for (const element of track.elements) {
 		if (element.hidden) continue;
+		if (isStickerTrack) {
+			if (element.type !== "sticker") {
+				addUnsupportedElementIssue({ element, issues, track });
+				continue;
+			}
+			const media = mediaById.get(element.mediaId);
+			const elementIssues = validateJianyingStickerElement({
+				element,
+				media,
+				track,
+			});
+			issues.push(...elementIssues);
+			if (
+				media?.type !== "image" ||
+				elementIssues.some(({ severity }) => severity === "error")
+			) {
+				continue;
+			}
+			const mapped = mapStaticStickerToJianying({
+				canvasHeight: options.snapshot.project.height,
+				canvasWidth: options.snapshot.project.width,
+				draftOutputDirectory: options.draftOutputDirectory,
+				element,
+				media,
+				targetPlatform: options.targetPlatform,
+			});
+			segments.push(mapped.segment);
+			segmentsByElementId.set(element.id, mapped.segment);
+			assetsByMediaId.set(media.id, mapped.asset);
+			speedMaterialsById.set(mapped.speedMaterial.id, mapped.speedMaterial);
+			if (!mappedMaterialsByMediaId.has(media.id)) {
+				mappedMaterialsByMediaId.set(media.id, mapped);
+			}
+			issues.push(createStickerSemanticDowngradeIssue({ element, track }));
+			continue;
+		}
+		if (isTextTrack) {
+			const matchesTrack =
+				(track.type === "text" && element.type === "text") ||
+				(track.type === "captions" && element.type === "captions");
+			if (
+				!matchesTrack ||
+				(element.type !== "text" && element.type !== "captions")
+			) {
+				addUnsupportedElementIssue({ element, issues, track });
+				continue;
+			}
+			const elementIssues = validateJianyingTextElement({ element, track });
+			const featureIssues = collectLossyTextFeatureIssues({ element, track });
+			issues.push(...elementIssues, ...featureIssues);
+			if (
+				[...elementIssues, ...featureIssues].some(
+					({ severity }) => severity === "error"
+				)
+			) {
+				continue;
+			}
+			const mapped =
+				element.type === "text"
+					? mapTextElementToJianying({
+							canvasHeight: options.snapshot.project.height,
+							canvasWidth: options.snapshot.project.width,
+							element,
+						})
+					: mapCaptionElementToJianying({
+							canvasHeight: options.snapshot.project.height,
+							element,
+						});
+			segments.push(mapped.segment);
+			segmentsByElementId.set(element.id, mapped.segment);
+			textMaterialsById.set(mapped.material.id, mapped.material);
+			continue;
+		}
 		if (element.type !== "media") {
 			addUnsupportedElementIssue({ element, issues, track });
 			continue;
@@ -154,16 +254,24 @@ function mapTrack({
 				options.snapshot.timelineDurationByElementId[element.id],
 		});
 		segments.push(mapped.segment);
+		segmentsByElementId.set(element.id, mapped.segment);
 		assetsByMediaId.set(media.id, mapped.asset);
 		speedMaterialsById.set(mapped.speedMaterial.id, mapped.speedMaterial);
 		if (!mappedMaterialsByMediaId.has(media.id)) {
 			mappedMaterialsByMediaId.set(media.id, mapped);
 		}
 	}
+	mapTrackTransitionsToJianying({
+		issues,
+		segmentsByElementId,
+		timelineDurationByElementId: options.snapshot.timelineDurationByElementId,
+		track,
+		transitionMaterialsById,
+	});
 	if (segments.length === 0) return null;
 
 	return {
-		attribute: track.muted ? 1 : 0,
+		attribute: getTrackAttribute({ track }),
 		flag: 0,
 		id: createDeterministicJianyingId({
 			namespace: "track",
@@ -175,7 +283,12 @@ function mapTrack({
 			(left, right) =>
 				left.target_timerange.start - right.target_timerange.start
 		),
-		type: track.type === "audio" ? "audio" : "video",
+		type:
+			track.type === "audio"
+				? "audio"
+				: track.type === "media" || track.type === "sticker"
+					? "video"
+					: "text",
 	};
 }
 
@@ -188,10 +301,21 @@ function orderExportTracks({
 		({ hidden }) => !hidden
 	);
 	const visualTracks = orderedTracks
-		.filter(({ type }) => type !== "audio")
+		.filter(({ type }) => type === "media" || type === "sticker")
 		.reverse();
 	const audioTracks = orderedTracks.filter(({ type }) => type === "audio");
-	return [...visualTracks, ...audioTracks];
+	const textTracks = orderedTracks
+		.filter(({ type }) => type === "text" || type === "captions")
+		.reverse();
+	const remainingTracks = orderedTracks.filter(
+		({ type }) =>
+			type !== "media" &&
+			type !== "sticker" &&
+			type !== "audio" &&
+			type !== "text" &&
+			type !== "captions"
+	);
+	return [...visualTracks, ...audioTracks, ...textTracks, ...remainingTracks];
 }
 
 function createDraftContent({
@@ -200,12 +324,16 @@ function createDraftContent({
 	mappedMaterialsByMediaId,
 	options,
 	speedMaterialsById,
+	textMaterialsById,
+	transitionMaterialsById,
 }: {
 	createdAtUnixSeconds: number;
 	draftTracks: JianyingDraftTrack[];
 	mappedMaterialsByMediaId: Map<string, MappedMediaElement>;
 	options: BuildJianyingDraftOptions;
 	speedMaterialsById: Map<string, JianyingSpeedMaterial>;
+	textMaterialsById: Map<string, JianyingTextMaterial>;
+	transitionMaterialsById: Map<string, JianyingTransitionMaterial>;
 }): JianyingDraftContent {
 	const materials = createEmptyJianyingMaterials();
 	for (const mapped of mappedMaterialsByMediaId.values()) {
@@ -213,6 +341,8 @@ function createDraftContent({
 		if (mapped.audioMaterial) materials.audios.push(mapped.audioMaterial);
 	}
 	materials.speeds.push(...speedMaterialsById.values());
+	materials.texts.push(...textMaterialsById.values());
+	materials.transitions.push(...transitionMaterialsById.values());
 	const duration = draftTracks.reduce(
 		(maximum, { segments }) =>
 			Math.max(
@@ -290,8 +420,11 @@ export function buildJianyingDraft({
 	const mediaById = new Map(snapshot.media.map((media) => [media.id, media]));
 	const mappedMaterialsByMediaId = new Map<string, MappedMediaElement>();
 	const speedMaterialsById = new Map<string, JianyingSpeedMaterial>();
+	const textMaterialsById = new Map<string, JianyingTextMaterial>();
+	const transitionMaterialsById = new Map<string, JianyingTransitionMaterial>();
 	const assetsByMediaId = new Map<string, MappedMediaElement["asset"]>();
 	const mappedTracks: JianyingDraftTrack[] = [];
+	let hasMappedVideoTrack = false;
 
 	const hasFatalSnapshotIssue = issues.some(
 		({ code }) => code === "INVALID_EXPORT_SNAPSHOT"
@@ -305,9 +438,22 @@ export function buildJianyingDraft({
 				mediaById,
 				options,
 				speedMaterialsById,
+				textMaterialsById,
 				track,
+				transitionMaterialsById,
 			});
-			if (mappedTrack) mappedTracks.push(mappedTrack);
+			const isImplicitMainTrack =
+				mappedTrack?.type === "video" && !hasMappedVideoTrack;
+			issues.push(
+				...collectLossyTrackMetadataIssues({
+					isImplicitMainTrack,
+					track,
+				})
+			);
+			if (mappedTrack) {
+				mappedTracks.push(mappedTrack);
+				if (mappedTrack.type === "video") hasMappedVideoTrack = true;
+			}
 		}
 	}
 	const draftTracks = mappedTracks.map((track, renderIndex) => ({
@@ -323,6 +469,8 @@ export function buildJianyingDraft({
 		mappedMaterialsByMediaId,
 		options,
 		speedMaterialsById,
+		textMaterialsById,
+		transitionMaterialsById,
 	});
 	issues.push(...validateJianyingDraftContent({ content }));
 
@@ -333,9 +481,8 @@ export function buildJianyingDraft({
 			appSource: "lv",
 			appVersion: "5.9.0",
 			baseline: "synthetic-plaintext-5.9",
-			contentFileName:
-				targetPlatform === "macos" ? "draft_info.json" : "draft_content.json",
-			contentFileNameEvidence: "platform-heuristic",
+			contentFileName: "draft_content.json",
+			contentFileNameEvidence: "plaintext-5.9-reference",
 			registeredWithApp: false,
 			verifiedWithInstalledApp: false,
 		},

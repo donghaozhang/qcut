@@ -61,6 +61,11 @@ import {
 	createUpdatesAPI,
 	createMoyinAPI,
 } from "./preload-integrations.js";
+import {
+	CAPCUT_8_1_MIGRATION_COMMIT_CHANNEL,
+	CAPCUT_8_1_MIGRATION_INSTALL_CHANNEL,
+	CAPCUT_8_1_MIGRATION_PLAN_CHANNEL,
+} from "./jianying-draft-export-contract.js";
 
 // Expose the API to the renderer process
 const electronAPI: ElectronAPI & Record<string, unknown> = {
@@ -76,6 +81,14 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 	},
 	getPendingOpenMediaFiles: (): Promise<string[]> =>
 		ipcRenderer.invoke("app:get-pending-open-media-files"),
+	jianyingDraftExport: {
+		commitCapCut81Migration: (request) =>
+			ipcRenderer.invoke(CAPCUT_8_1_MIGRATION_COMMIT_CHANNEL, request),
+		installCapCut81Migration: (request) =>
+			ipcRenderer.invoke(CAPCUT_8_1_MIGRATION_INSTALL_CHANNEL, request),
+		planCapCut81Migration: (request) =>
+			ipcRenderer.invoke(CAPCUT_8_1_MIGRATION_PLAN_CHANNEL, request),
+	},
 
 	// File operations
 	openFileDialog: async (): Promise<string | null> => {

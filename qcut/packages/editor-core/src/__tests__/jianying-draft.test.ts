@@ -99,7 +99,7 @@ function createSnapshot({
 	return {
 		media,
 		project: {
-			backgroundColor: "#000000",
+			backgroundColor: "transparent",
 			backgroundType: "color",
 			fps: 30,
 			height: 1080,
@@ -169,18 +169,12 @@ describe("JianYing draft baseline", () => {
 		});
 
 		expect(result.canWrite).toBe(true);
-		expect(result.issues).toContainEqual(
-			expect.objectContaining({
-				code: "UNSUPPORTED_PROJECT_BACKGROUND",
-				severity: "warning",
-			})
-		);
 		expect(result.compatibility).toEqual({
 			appSource: "lv",
 			appVersion: "5.9.0",
 			baseline: "synthetic-plaintext-5.9",
-			contentFileName: "draft_info.json",
-			contentFileNameEvidence: "platform-heuristic",
+			contentFileName: "draft_content.json",
+			contentFileNameEvidence: "plaintext-5.9-reference",
 			registeredWithApp: false,
 			verifiedWithInstalledApp: false,
 		});
@@ -205,6 +199,39 @@ describe("JianYing draft baseline", () => {
 			transform: { x: 0.1, y: -0.1 },
 		});
 		expect(segment?.uniform_scale).toEqual({ on: true, value: 1 });
+	});
+
+	it("blocks default cover geometry until mismatched aspect ratios are verified", () => {
+		const verticalMedia: QCutDraftExportMedia = {
+			...videoMedia,
+			height: 1920,
+			id: "vertical-video",
+			width: 1080,
+		};
+		const element = createMediaElement({
+			id: "vertical-clip",
+			mediaId: verticalMedia.id,
+		});
+		const result = buildJianyingDraft({
+			draftOutputDirectory: "/exports/vertical",
+			snapshot: createSnapshot({
+				media: [verticalMedia],
+				timelineDurationByElementId: { [element.id]: 10 },
+				tracks: [createTrack({ element, id: "vertical-track", order: 0 })],
+			}),
+			targetPlatform: "macos",
+		});
+
+		expect(result.canWrite).toBe(false);
+		expect(result.issues).toContainEqual({
+			code: "UNVERIFIED_MEDIA_FIT",
+			elementId: element.id,
+			mediaId: verticalMedia.id,
+			message:
+				"Media vertical-video has a different aspect ratio from the project canvas; QCut cover geometry has not yet been verified against CapCut 8.1.",
+			severity: "error",
+			trackId: "vertical-track",
+		});
 	});
 
 	it("exports visual tracks from bottom to top and deduplicates media", () => {
@@ -294,7 +321,7 @@ describe("JianYing draft baseline", () => {
 		).toEqual([0, 2_000_000]);
 	});
 
-	it("blocks unsupported visible elements instead of silently dropping them", () => {
+	it("blocks visible elements on unsupported track types", () => {
 		const text = createTextElement({ id: "title-1" });
 		const result = buildJianyingDraft({
 			draftOutputDirectory: "/exports/draft-3",
@@ -306,7 +333,7 @@ describe("JianYing draft baseline", () => {
 						element: text,
 						id: "text-track",
 						order: 0,
-						type: "text",
+						type: "effect",
 					}),
 				],
 			}),
@@ -386,6 +413,40 @@ describe("JianYing draft baseline", () => {
 			})
 		);
 		expect(result.content.tracks).toHaveLength(0);
+	});
+
+	it("blocks a stale playback-aware timeline duration", () => {
+		const element = createMediaElement({
+			duration: 10,
+			id: "stale-duration",
+			mediaId: videoMedia.id,
+			playbackRate: 2,
+			trimEnd: 2,
+			trimStart: 2,
+		});
+		const result = buildJianyingDraft({
+			draftOutputDirectory: "/exports/stale-duration",
+			snapshot: createSnapshot({
+				media: [videoMedia],
+				timelineDurationByElementId: { [element.id]: 4 },
+				tracks: [
+					createTrack({
+						element,
+						id: "stale-track",
+						order: 0,
+					}),
+				],
+			}),
+			targetPlatform: "macos",
+		});
+
+		expect(result.canWrite).toBe(false);
+		expect(result.issues).toContainEqual(
+			expect.objectContaining({
+				code: "TIMELINE_DURATION_MISMATCH",
+				elementId: element.id,
+			})
+		);
 	});
 
 	it("reports malformed element time without throwing", () => {

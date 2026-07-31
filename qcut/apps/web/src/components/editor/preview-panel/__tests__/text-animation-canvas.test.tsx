@@ -219,8 +219,11 @@ describe("TextAnimationCanvas", () => {
 		});
 		expect(interaction.style.left).toBe("60%");
 		expect(interaction.style.top).toBe("45%");
-		expect(interaction.style.width).toBe("640px");
-		expect(interaction.style.height).toBe("180px");
+		expect(interaction.style.width).toBe("320px");
+		expect(interaction.style.height).toBe("90px");
+		expect(interaction.style.transform).toBe(
+			"translate(-50%, -50%) rotate(12deg)"
+		);
 
 		fireEvent.pointerDown(interaction);
 		fireEvent.click(interaction, { shiftKey: true });

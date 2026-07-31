@@ -32,6 +32,7 @@ export default defineConfig({
 			"packages/platform-desktop/**/__tests__/**/*.{test,spec}.?(c|m)[jt]s?(x)",
 			"packages/platform-web/**/__tests__/**/*.{test,spec}.?(c|m)[jt]s?(x)",
 			"packages/editor-core/**/__tests__/**/*.{test,spec}.?(c|m)[jt]s?(x)",
+			"packages/jianying-draft-export/**/__tests__/**/*.{test,spec}.?(c|m)[jt]s?(x)",
 			// Scoped to qcut-cityfilm: sibling skills (e.g. qcut-vlog) use bun:test,
 			// which Vitest cannot resolve.
 			".agents/skills/qcut-toolkit/qcut-cityfilm/scripts/**/*.{test,spec}.?(c|m)[jt]s?(x)",
