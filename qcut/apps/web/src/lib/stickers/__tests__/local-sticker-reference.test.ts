@@ -10,6 +10,8 @@ import {
 	loadLocalStickerReferenceFile,
 	loadRemoteStickerReferenceFile,
 	loadStickerLabReferenceFile,
+	loadStickerLabThumbnail,
+	stickerLabThumbnailUrl,
 } from "../local-sticker-reference";
 
 const REMOTE_PROVENANCE = createRemoteStickerCatalog().provenance;
@@ -215,5 +217,62 @@ describe("local sticker reference files", () => {
 				reference: createRemoteStickerReference({ id: "remote-arrow" }),
 			})
 		).rejects.toThrow("require catalog provenance");
+	});
+});
+
+describe("sticker lab preview tier", () => {
+	const licenseServerUrl = "https://license.example";
+
+	it("targets the preview endpoint rather than the gated asset one", () => {
+		const reference = createRemoteStickerReference({ id: "preview-01" });
+
+		expect(
+			stickerLabThumbnailUrl({
+				licenseServerUrl,
+				objectKey: reference.asset.objectKey,
+			})
+		).toBe(
+			`${licenseServerUrl}/api/sticker-lab/thumbnail?objectKey=${encodeURIComponent(
+				reference.asset.objectKey
+			)}`
+		);
+	});
+
+	it("sends the session token so previews stay behind sign-in", async () => {
+		const reference = createRemoteStickerReference({ id: "preview-02" });
+		const bytes = new Uint8Array([1, 2, 3, 4]);
+		const fetchImpl = vi.fn(
+			async () => new Response(bytes, { status: 200 })
+		) as unknown as typeof fetch;
+
+		const blob = await loadStickerLabThumbnail({
+			fetchImpl,
+			getToken: async () => "session-token",
+			licenseServerUrl,
+			reference,
+		});
+
+		expect(await blob.arrayBuffer()).toEqual(bytes.buffer);
+		const [, init] = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock
+			.calls[0];
+		expect(new Headers(init?.headers).get("Authorization")).toBe(
+			"Bearer session-token"
+		);
+	});
+
+	it("surfaces the status when a preview cannot be signed", async () => {
+		const reference = createRemoteStickerReference({ id: "preview-03" });
+		const fetchImpl = vi.fn(
+			async () => new Response("nope", { status: 403 })
+		) as unknown as typeof fetch;
+
+		await expect(
+			loadStickerLabThumbnail({
+				fetchImpl,
+				getToken: async () => "session-token",
+				licenseServerUrl,
+				reference,
+			})
+		).rejects.toThrow("403");
 	});
 });

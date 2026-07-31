@@ -14,6 +14,7 @@ import { LocalStickerReferencePanel } from "../components/local-sticker-referenc
 
 const referenceMocks = vi.hoisted(() => ({
 	loadFile: vi.fn(),
+	loadThumbnail: vi.fn(),
 }));
 
 vi.mock("@/lib/stickers/local-sticker-reference", async (importOriginal) => {
@@ -24,6 +25,7 @@ vi.mock("@/lib/stickers/local-sticker-reference", async (importOriginal) => {
 	return {
 		...actual,
 		loadStickerLabReferenceFile: referenceMocks.loadFile,
+		loadStickerLabThumbnail: referenceMocks.loadThumbnail,
 	};
 });
 
@@ -34,6 +36,18 @@ describe("LocalStickerReferencePanel", () => {
 	beforeEach(() => {
 		referenceMocks.loadFile.mockReset();
 		referenceMocks.loadFile.mockImplementation(
+			async ({
+				reference,
+			}: {
+				reference: { fileName: string; mimeType: string };
+			}) =>
+				new File([new Uint8Array([137, 80, 78, 71])], reference.fileName, {
+					type: reference.mimeType,
+				})
+		);
+		referenceMocks.loadThumbnail.mockReset();
+		// Remote references preview through the ungated thumbnail tier.
+		referenceMocks.loadThumbnail.mockImplementation(
 			async ({
 				reference,
 			}: {
@@ -417,7 +431,7 @@ describe("LocalStickerReferencePanel", () => {
 		);
 	});
 
-	it("loads remote references and includes asset identity in reload keys", async () => {
+	it("previews remote references through the ungated thumbnail tier", async () => {
 		const catalog = createRemoteStickerCatalog();
 		const { rerender } = render(
 			<LocalStickerReferencePanel
@@ -432,7 +446,9 @@ describe("LocalStickerReferencePanel", () => {
 			name: "添加贴纸 popular-1到时间线",
 		});
 		await waitFor(() => expect(button).toBeEnabled());
-		expect(referenceMocks.loadFile).toHaveBeenCalledTimes(2);
+		// Browsing must not touch the entitlement-gated full asset.
+		expect(referenceMocks.loadThumbnail).toHaveBeenCalledTimes(2);
+		expect(referenceMocks.loadFile).not.toHaveBeenCalled();
 
 		const updatedCatalog = structuredClone(catalog);
 		const updatedReference = updatedCatalog.categories[0]?.items[0];
@@ -450,10 +466,9 @@ describe("LocalStickerReferencePanel", () => {
 		);
 
 		await waitFor(() =>
-			expect(referenceMocks.loadFile).toHaveBeenCalledTimes(4)
+			expect(referenceMocks.loadThumbnail).toHaveBeenCalledTimes(4)
 		);
-		expect(referenceMocks.loadFile).toHaveBeenCalledWith({
-			provenance: catalog.provenance,
+		expect(referenceMocks.loadThumbnail).toHaveBeenCalledWith({
 			reference: expect.objectContaining({
 				asset: expect.objectContaining({
 					objectKey: "catalogs/qcut-original-test/assets/popular-1-updated.gif",

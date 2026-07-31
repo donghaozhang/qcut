@@ -202,3 +202,6 @@ apps/web/audio-cdn/openverse-raw.json
 # Sticker lab payloads live in private storage; Git carries only manifests.
 apps/web/public/sticker-lab/*
 !apps/web/public/sticker-lab/*.json
+
+# Local Cloudflare Worker secrets (never commit)
+**/.dev.vars
