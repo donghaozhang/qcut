@@ -477,4 +477,32 @@ describe("LocalStickerReferencePanel", () => {
 			signal: expect.any(AbortSignal),
 		});
 	});
+
+	it("reads a missing entitlement as locked rather than broken", async () => {
+		// This is the default path for every user outside the allow list, so it
+		// must not look like a failure.
+		referenceMocks.loadFile.mockRejectedValue(
+			new Error("Asset request failed: 403")
+		);
+		const catalog = createRemoteStickerCatalog();
+		render(
+			<LocalStickerReferencePanel
+				catalog={catalog}
+				error={null}
+				isLoading={false}
+				onSelect={async () => {}}
+			/>
+		);
+
+		const button = screen.getByRole("button", {
+			name: "添加贴纸 popular-1到时间线",
+		});
+		await waitFor(() => expect(button).toBeEnabled());
+		fireEvent.click(button);
+
+		await waitFor(() =>
+			expect(screen.getByText("仅限内测账号使用")).toBeInTheDocument()
+		);
+		expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+	});
 });
