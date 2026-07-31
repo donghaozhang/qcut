@@ -60,14 +60,9 @@ export async function authMiddleware(c: Context, next: Next) {
 
 		return c.json({ error: "Invalid token" }, 401);
 	} catch (error) {
-		return c.json(
-			{
-				error:
-					error instanceof Error
-						? `Auth middleware failed: ${error.message}`
-						: "Auth middleware failed",
-			},
-			500
-		);
+		// Driver/connection exceptions can carry hostnames or SQL fragments;
+		// log them server-side but never echo them to the client.
+		console.error("[auth] middleware failed:", error);
+		return c.json({ error: "Authentication failed" }, 500);
 	}
 }
