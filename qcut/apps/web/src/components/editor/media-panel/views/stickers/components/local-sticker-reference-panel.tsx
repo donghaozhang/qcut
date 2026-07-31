@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, ImageIcon, Loader2, Play } from "lucide-react";
+import { AlertCircle, ImageIcon, Loader2, Lock, Play } from "lucide-react";
 import {
 	useEffect,
 	useRef,
@@ -87,6 +87,9 @@ function LocalStickerReferenceItem({
 	const [isAdding, setIsAdding] = useState(false);
 	const [loadAttempt, setLoadAttempt] = useState(0);
 	const [selectError, setSelectError] = useState<string | null>(null);
+	// Not an error: the lab ships to everyone, but placing an original needs
+	// an entitlement most viewers do not have.
+	const [isLocked, setIsLocked] = useState(false);
 	const referenceKey = getReferenceKey({ reference });
 	const loadKey = `${referenceKey}\0${loadAttempt}`;
 	const activeLoaded = loaded?.loadKey === loadKey ? loaded : null;
@@ -99,6 +102,7 @@ function LocalStickerReferenceItem({
 		setLoaded(null);
 		setHasError(false);
 		setSelectError(null);
+		setIsLocked(false);
 
 		const loadPreview = async () => {
 			try {
@@ -150,11 +154,11 @@ function LocalStickerReferenceItem({
 			await onSelect({ file });
 		} catch (error) {
 			debugError("[StickerLab] Failed to add local reference", error);
-			setSelectError(
-				isForbiddenError({ error })
-					? "该实验素材未对当前账号开放"
-					: "无法添加到时间线，请重试"
-			);
+			if (isForbiddenError({ error })) {
+				setIsLocked(true);
+				return;
+			}
+			setSelectError("无法添加到时间线，请重试");
 		} finally {
 			setIsAdding(false);
 		}
@@ -257,6 +261,12 @@ function LocalStickerReferenceItem({
 						重试
 					</button>
 				</div>
+			)}
+			{isLocked && (
+				<p className="flex items-center gap-1 text-[9px] text-muted-foreground">
+					<Lock className="size-2.5" />
+					仅限内测账号使用
+				</p>
 			)}
 			{selectError && (
 				<p className="text-[9px] text-destructive" role="alert">
