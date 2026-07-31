@@ -241,10 +241,7 @@ function validateCapCut81MaskReferences({
 			throw new Error(`Duplicate common_mask material: ${id}.`);
 		}
 		const resourceType = mask.resource_type;
-		if (
-			resourceType !== "circle" &&
-			resourceType !== "rectangle"
-		) {
+		if (resourceType !== "circle" && resourceType !== "rectangle") {
 			throw new Error(`Mask ${id} is outside the verified CapCut 8.1 subset.`);
 		}
 		if (
@@ -257,17 +254,20 @@ function validateCapCut81MaskReferences({
 		masksById.set(id, mask);
 	}
 
-	const referenceCounts = new Map(
-		[...masksById.keys()].map((id) => [id, 0])
-	);
+	const referenceCounts = new Map([...masksById.keys()].map((id) => [id, 0]));
 	for (const track of content.tracks) {
 		for (const segment of track.segments) {
 			for (const reference of segment.extra_material_refs) {
 				if (!masksById.has(reference)) continue;
 				if (track.type !== "video") {
-					throw new Error(`Mask ${reference} is referenced by a non-video track.`);
+					throw new Error(
+						`Mask ${reference} is referenced by a non-video track.`
+					);
 				}
-				referenceCounts.set(reference, (referenceCounts.get(reference) ?? 0) + 1);
+				referenceCounts.set(
+					reference,
+					(referenceCounts.get(reference) ?? 0) + 1
+				);
 			}
 		}
 	}
@@ -289,7 +289,10 @@ function validateCapCut81CustomLuts({
 	for (const value of content.materials.effects) {
 		const effect = requireRecord({ label: "effect material", value });
 		if (effect.type !== "lut" || effect.source_platform !== 0) continue;
-		const id = requireString({ label: "custom LUT effect id", value: effect.id });
+		const id = requireString({
+			label: "custom LUT effect id",
+			value: effect.id,
+		});
 		const name = requireString({
 			label: `custom LUT ${id} name`,
 			value: effect.name,
@@ -309,14 +312,18 @@ function validateCapCut81CustomLuts({
 			adjustBundlePath !== CAPCUT_8_1_DEFAULT_ADJUST_BUNDLE_PATH_PLACEHOLDER ||
 			remainingPaths.length > 0
 		) {
-			throw new Error(`Custom LUT ${id} does not use both portable path tokens.`);
+			throw new Error(
+				`Custom LUT ${id} does not use both portable path tokens.`
+			);
 		}
 		if (
 			effect.effect_id !== "" ||
 			effect.resource_id !== "" ||
 			effect.lumi_hub_path !== `${path}/lumi_hub_path`
 		) {
-			throw new Error(`Custom LUT ${id} does not match the import-time oracle.`);
+			throw new Error(
+				`Custom LUT ${id} does not match the import-time oracle.`
+			);
 		}
 		placeholderIds.add(parsedAssetPath.placeholderId);
 		if (lutEffects.has(id)) {
@@ -368,7 +375,9 @@ function validateCapCut81CustomLuts({
 			}
 			const [lutId] = customLutReferences;
 			if (!lutId || referencedLuts.has(lutId)) {
-				throw new Error(`Custom LUT ${lutId ?? ""} is referenced more than once.`);
+				throw new Error(
+					`Custom LUT ${lutId ?? ""} is referenced more than once.`
+				);
 			}
 			referencedLuts.add(lutId);
 		}
@@ -377,7 +386,9 @@ function validateCapCut81CustomLuts({
 		referencedLuts.size !== lutEffects.size ||
 		referencedPlaceholders.size !== adjustPlaceholders.size
 	) {
-		throw new Error("Custom LUT effects and adjust placeholders must not be orphaned.");
+		throw new Error(
+			"Custom LUT effects and adjust placeholders must not be orphaned."
+		);
 	}
 }
 
