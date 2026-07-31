@@ -11,12 +11,15 @@ import { debugError } from "@/lib/debug/debug-config";
 import {
 	loadStickerLabReferenceFile,
 	loadStickerLabThumbnail,
+	PRIVATE_REFERENCE_PROVENANCE,
 	type StickerLabReference,
 } from "@/lib/stickers/local-sticker-reference";
-import type {
-	LocalStickerPlayback,
-	RemoteStickerProvenance,
-	StickerLabCatalog,
+import {
+	isRemoteStickerCatalog,
+	type LocalStickerPlayback,
+	type PrivateStickerCatalog,
+	type RemoteStickerProvenance,
+	type StickerLabCatalog,
 } from "@/lib/stickers/local-sticker-manifest";
 import { cn } from "@/lib/utils";
 
@@ -106,21 +109,26 @@ function LocalStickerReferenceItem({
 
 		const loadPreview = async () => {
 			try {
-				// Browsing only needs the preview tier, which every signed-in
-				// user may sign. The full-resolution file is fetched when the
-				// sticker is actually placed, so a viewer without the lab
-				// entitlement still sees the catalogue instead of error tiles.
-				const blob =
-					"filePath" in reference
-						? await loadStickerLabReferenceFile({
-								provenance,
-								reference,
-								signal: abortController.signal,
-							})
-						: await loadStickerLabThumbnail({
-								reference,
-								signal: abortController.signal,
-							});
+				// Public references browse via the preview tier, which every
+				// signed-in user may sign; the full-resolution file is fetched
+				// when the sticker is placed, so a viewer without the lab
+				// entitlement sees the catalogue instead of error tiles.
+				// Private references have no un-entitled viewers and their
+				// "thumbnail" is the original GIF anyway, so they go through
+				// the cached loader — otherwise every category switch would
+				// re-download megabytes of animation.
+				const usesUncachedThumbnail =
+					!("filePath" in reference) && "sourceAsset" in reference;
+				const blob = usesUncachedThumbnail
+					? await loadStickerLabThumbnail({
+							reference,
+							signal: abortController.signal,
+						})
+					: await loadStickerLabReferenceFile({
+							provenance,
+							reference,
+							signal: abortController.signal,
+						});
 				previewUrl = URL.createObjectURL(blob);
 				if (disposed) {
 					URL.revokeObjectURL(previewUrl);
@@ -282,21 +290,46 @@ export function LocalStickerReferencePanel({
 	error,
 	isLoading,
 	onSelect,
+	privateCatalog = null,
 }: {
 	catalog: StickerLabCatalog | null;
 	error: string | null;
 	isLoading: boolean;
 	onSelect: ({ file }: { file: File }) => Promise<void>;
+	privateCatalog?: PrivateStickerCatalog | null;
 }) {
 	const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
 		null
 	);
+	const [activeCatalogKey, setActiveCatalogKey] = useState<
+		"public" | "private"
+	>("public");
 	const categoryTabRefs = useRef(new Map<string, HTMLButtonElement>());
-	const categories = catalog?.categories ?? [];
-	const provenance = catalog?.version === 2 ? catalog.provenance : undefined;
+	const activeCatalog =
+		activeCatalogKey === "private" && privateCatalog ? privateCatalog : catalog;
+	const categories = activeCatalog?.categories ?? [];
+	// Check the public catalogue first: its shape is a superset of the private
+	// one, so the negated private guard would (structurally) swallow it.
+	const provenance = activeCatalog
+		? isRemoteStickerCatalog(activeCatalog)
+			? activeCatalog.provenance
+			: activeCatalog.version === 2
+				? PRIVATE_REFERENCE_PROVENANCE
+				: undefined
+		: undefined;
 	const selectedCategory =
 		categories.find((category) => category.id === selectedCategoryId) ??
 		categories[0];
+
+	const switchCatalog = ({
+		catalogKey,
+	}: {
+		catalogKey: "public" | "private";
+	}) => {
+		if (catalogKey === activeCatalogKey) return;
+		setActiveCatalogKey(catalogKey);
+		setSelectedCategoryId(null);
+	};
 
 	const selectAndFocusCategory = ({
 		categoryIndex,
@@ -345,9 +378,49 @@ export function LocalStickerReferencePanel({
 				<p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">
 					实验素材按需载入，不随 QCut 安装包分发
 				</p>
+				{privateCatalog ? (
+					<div
+						className="mt-1.5 flex gap-1"
+						role="tablist"
+						aria-label="贴纸实验室目录"
+					>
+						<button
+							type="button"
+							role="tab"
+							aria-selected={activeCatalogKey === "public"}
+							data-testid="sticker-lab-catalog-public"
+							className={cn(
+								"rounded-full px-2 py-0.5 text-[10px] transition-colors",
+								activeCatalogKey === "public"
+									? "bg-primary/15 font-medium text-primary"
+									: "bg-foreground/5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+							)}
+							onClick={() => switchCatalog({ catalogKey: "public" })}
+						>
+							QCut 原创
+						</button>
+						<button
+							type="button"
+							role="tab"
+							aria-selected={activeCatalogKey === "private"}
+							data-testid="sticker-lab-catalog-private"
+							className={cn(
+								"rounded-full px-2 py-0.5 text-[10px] transition-colors",
+								activeCatalogKey === "private"
+									? "bg-primary/15 font-medium text-primary"
+									: "bg-foreground/5 text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+							)}
+							onClick={() => switchCatalog({ catalogKey: "private" })}
+						>
+							剪映参照 · 内部
+						</button>
+					</div>
+				) : null}
 			</div>
 
-			{isLoading ? (
+			{/* Public-catalog loading and errors must not mask the private
+			    catalogue, which loads independently. */}
+			{isLoading && activeCatalogKey === "public" ? (
 				<div
 					className="flex min-h-0 flex-1 items-center justify-center gap-2 text-xs text-muted-foreground"
 					data-testid="local-sticker-catalog-loading"
@@ -355,7 +428,7 @@ export function LocalStickerReferencePanel({
 					<Loader2 className="size-4 animate-spin" aria-hidden="true" />
 					<span>正在读取贴纸实验目录</span>
 				</div>
-			) : error ? (
+			) : error && activeCatalogKey === "public" ? (
 				<div
 					className="m-3 flex gap-2 rounded border border-destructive/40 bg-destructive/10 p-2 text-xs text-destructive"
 					role="alert"

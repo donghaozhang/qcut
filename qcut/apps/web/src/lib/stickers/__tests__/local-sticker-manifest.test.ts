@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import {
 	createLocalStickerCatalog,
+	createPrivateStickerCatalog,
+	createPrivateStickerReference,
 	createRemoteStickerCatalog,
 } from "./fixtures/local-sticker-catalog";
 import {
+	isPrivateStickerCatalog,
 	loadLocalStickerManifest,
+	loadPrivateStickerManifest,
 	loadRemoteStickerManifest,
 	parseLocalStickerManifest,
 } from "../local-sticker-manifest";
@@ -616,5 +620,120 @@ describe("local sticker manifest", () => {
 		expect(() =>
 			parseLocalStickerManifest({ jsonText: JSON.stringify(candidate) })
 		).toThrow("must not contain dot path segments");
+	});
+});
+
+describe("private reference manifests", () => {
+	it("parses a version 2 catalog without provenance as a private reference", () => {
+		const catalog = parseLocalStickerManifest({
+			jsonText: JSON.stringify(createPrivateStickerCatalog()),
+		});
+
+		expect(catalog.version).toBe(2);
+		expect(isPrivateStickerCatalog(catalog)).toBe(true);
+	});
+
+	it("rejects private catalogs outside the jianying namespace", () => {
+		const catalog = createPrivateStickerCatalog();
+		const candidate = { ...catalog, catalogId: "qcut-original-test" };
+
+		expect(() =>
+			parseLocalStickerManifest({ jsonText: JSON.stringify(candidate) })
+		).toThrow("jianying- prefix");
+	});
+
+	it("rejects object keys from another catalog's namespace", () => {
+		const catalog = createPrivateStickerCatalog();
+		const foreign = createPrivateStickerReference({
+			checksumSha256:
+				"d964a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a",
+			numericId: "7000000000000000001",
+		});
+		foreign.asset.objectKey =
+			"jianying/2026-08-01/assets/7000000000000000001.gif";
+		const candidate = {
+			...catalog,
+			categories: [
+				{
+					...catalog.categories[0],
+					items: [...catalog.categories[0].items, foreign],
+				},
+			],
+		};
+
+		expect(() =>
+			parseLocalStickerManifest({ jsonText: JSON.stringify(candidate) })
+		).toThrow("must belong to catalog jianying-2026-07-31");
+	});
+
+	it("rejects public catalog object keys inside a private manifest", () => {
+		const catalog = createPrivateStickerCatalog();
+		const candidate = JSON.parse(JSON.stringify(catalog));
+		candidate.categories[0].items[0].asset.objectKey =
+			"catalogs/qcut-original-test/assets/sticker-1.gif";
+
+		expect(() =>
+			parseLocalStickerManifest({ jsonText: JSON.stringify(candidate) })
+		).toThrow("Invalid sticker lab manifest");
+	});
+
+	it("allows the animated-GIF budgets the harvested catalog needs", () => {
+		// The public v2 budgets (1MB per category) would reject the harvested
+		// GIF catalogue outright; the private schema has its own budgets.
+		const catalog = createPrivateStickerCatalog();
+		const candidate = JSON.parse(JSON.stringify(catalog));
+		candidate.categories[0].items[0].asset.byteSize = 16 * 1024 * 1024;
+		candidate.categories[0].items[1].asset.byteSize = 16 * 1024 * 1024;
+
+		const parsed = parseLocalStickerManifest({
+			jsonText: JSON.stringify(candidate),
+		});
+		expect(isPrivateStickerCatalog(parsed)).toBe(true);
+	});
+
+	it("loads the private manifest and rejects a public manifest in its place", async () => {
+		const privateCatalog = createPrivateStickerCatalog();
+		const fetchPrivate = vi.fn(async () =>
+			Promise.resolve(
+				new Response(JSON.stringify(privateCatalog), {
+					status: 200,
+					headers: { "Content-Type": "application/json" },
+				})
+			)
+		);
+
+		await expect(
+			loadPrivateStickerManifest({
+				manifestUrl: "/api/sticker-lab/private-manifest",
+				fetchImpl: fetchPrivate,
+			})
+		).resolves.toEqual(privateCatalog);
+
+		const fetchPublic = async () =>
+			new Response(JSON.stringify(createRemoteStickerCatalog()), {
+				status: 200,
+				headers: { "Content-Type": "application/json" },
+			});
+		await expect(
+			loadPrivateStickerManifest({
+				manifestUrl: "/api/sticker-lab/private-manifest",
+				fetchImpl: fetchPublic,
+			})
+		).rejects.toThrow("without provenance");
+	});
+
+	it("keeps the remote loader strict about provenance", async () => {
+		const fetchImpl = async () =>
+			new Response(JSON.stringify(createPrivateStickerCatalog()), {
+				status: 200,
+				headers: { "Content-Type": "application/json" },
+			});
+
+		await expect(
+			loadRemoteStickerManifest({
+				manifestUrl: "/sticker-lab/catalog.json",
+				fetchImpl,
+			})
+		).rejects.toThrow("with provenance");
 	});
 });

@@ -2,6 +2,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	createLocalStickerCatalog,
+	createPrivateStickerCatalog,
 	createRemoteStickerCatalog,
 } from "@/lib/stickers/__tests__/fixtures/local-sticker-catalog";
 import type { LocalStickerLabSource } from "@/lib/stickers/local-sticker-lab-config";
@@ -10,6 +11,7 @@ import { useLocalStickerCatalog } from "../hooks/use-local-sticker-catalog";
 const catalogMocks = vi.hoisted(() => ({
 	getSource: vi.fn<() => LocalStickerLabSource | null>(),
 	loadManifest: vi.fn(),
+	loadPrivateManifest: vi.fn(),
 	loadRemoteManifest: vi.fn(),
 }));
 
@@ -32,6 +34,7 @@ vi.mock("@/lib/stickers/local-sticker-manifest", async (importOriginal) => {
 	return {
 		...actual,
 		loadLocalStickerManifest: catalogMocks.loadManifest,
+		loadPrivateStickerManifest: catalogMocks.loadPrivateManifest,
 		loadRemoteStickerManifest: catalogMocks.loadRemoteManifest,
 	};
 });
@@ -40,7 +43,12 @@ describe("useLocalStickerCatalog", () => {
 	beforeEach(() => {
 		catalogMocks.getSource.mockReset();
 		catalogMocks.loadManifest.mockReset();
+		catalogMocks.loadPrivateManifest.mockReset();
 		catalogMocks.loadRemoteManifest.mockReset();
+		// Default: the viewer is not on the allow list.
+		catalogMocks.loadPrivateManifest.mockRejectedValue(
+			new Error("Unable to fetch sticker lab manifest (403)")
+		);
 	});
 
 	it("stays unavailable when the local lab is not configured", () => {
@@ -53,7 +61,9 @@ describe("useLocalStickerCatalog", () => {
 			error: null,
 			isAvailable: false,
 			isLoading: false,
+			privateCatalog: null,
 		});
+		expect(catalogMocks.loadPrivateManifest).not.toHaveBeenCalled();
 		expect(catalogMocks.loadManifest).not.toHaveBeenCalled();
 	});
 
@@ -130,7 +140,50 @@ describe("useLocalStickerCatalog", () => {
 			error: "Invalid local sticker manifest",
 			isAvailable: true,
 			isLoading: false,
+			privateCatalog: null,
 		});
+	});
+
+	it("loads the private reference catalog for entitled users", async () => {
+		const catalog = createLocalStickerCatalog();
+		const privateCatalog = createPrivateStickerCatalog();
+		catalogMocks.getSource.mockReturnValue({
+			kind: "manifest",
+			manifestPath: "/tmp/sticker-manifest.json",
+		});
+		catalogMocks.loadManifest.mockResolvedValue(catalog);
+		catalogMocks.loadPrivateManifest.mockResolvedValue(privateCatalog);
+
+		const { result } = renderHook(() => useLocalStickerCatalog());
+
+		await waitFor(() =>
+			expect(result.current.privateCatalog).toEqual(privateCatalog)
+		);
+		expect(result.current.catalog).toEqual(catalog);
+		expect(catalogMocks.loadPrivateManifest).toHaveBeenCalledWith(
+			expect.objectContaining({
+				manifestUrl: expect.stringContaining(
+					"/api/sticker-lab/private-manifest"
+				),
+				signal: expect.any(AbortSignal),
+			})
+		);
+	});
+
+	it("keeps the private catalog null when the server denies access", async () => {
+		const catalog = createLocalStickerCatalog();
+		catalogMocks.getSource.mockReturnValue({
+			kind: "manifest",
+			manifestPath: "/tmp/sticker-manifest.json",
+		});
+		catalogMocks.loadManifest.mockResolvedValue(catalog);
+
+		const { result } = renderHook(() => useLocalStickerCatalog());
+
+		await waitFor(() => expect(result.current.isLoading).toBe(false));
+		expect(result.current.privateCatalog).toBeNull();
+		// A 403 on the private tier is not an error state for the lab.
+		expect(result.current.error).toBeNull();
 	});
 
 	it("hydrates the legacy single-file source without reading a manifest", async () => {

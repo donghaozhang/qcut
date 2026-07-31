@@ -97,6 +97,7 @@ export function TimelineToolbar({
 	const { locale, t } = useTranslation();
 	const tracks = useTimelineStore((s) => s.tracks);
 	const addTrack = useTimelineStore((s) => s.addTrack);
+	const insertTrackAt = useTimelineStore((s) => s.insertTrackAt);
 	const addElementToTrack = useTimelineStore((s) => s.addElementToTrack);
 	const getTotalDuration = useTimelineStore((s) => s.getTotalDuration);
 	const addMarkdownAtTime = useTimelineStore((s) => s.addMarkdownAtTime);
@@ -387,7 +388,7 @@ export function TimelineToolbar({
 			return;
 		}
 		addAdjustmentLayer({
-			timeline: { addTrack, addElementToTrack, getTotalDuration },
+			timeline: { tracks, insertTrackAt, addElementToTrack, getTotalDuration },
 			currentTime,
 		});
 	};

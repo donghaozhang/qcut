@@ -8,9 +8,12 @@ import {
 	ABSOLUTE_LOCAL_PATH_PATTERN,
 	GIT_OID_PATTERN,
 	hasDotPathSegment,
+	MAX_PRIVATE_REFERENCE_CATALOG_BYTES,
+	MAX_PRIVATE_REFERENCE_CATEGORY_BYTES,
 	MAX_REMOTE_ASSET_BYTES,
 	MAX_REMOTE_CATALOG_BYTES,
 	MAX_REMOTE_CATEGORY_BYTES,
+	PRIVATE_REFERENCE_OBJECT_KEY_PATTERN,
 	SHA256_PATTERN,
 	SOURCE_ASSET_ID_PATTERN,
 	STICKER_ID_PATTERN,
@@ -205,6 +208,47 @@ const remoteStickerReferenceSchema = z
 		}
 	});
 
+/**
+ * Reference item in the allow-list-only harvested catalogue. Unlike the public
+ * catalogue there is no repo source asset to point at — the artwork was
+ * captured from a third-party app for internal parity study, so only the
+ * remote object and its integrity data exist.
+ */
+const privateStickerReferenceSchema = z
+	.object({
+		...commonStickerReferenceShape,
+		mimeType: z.enum(["image/png", "image/gif"]),
+		asset: z
+			.object({
+				kind: z.literal("supabase-storage"),
+				objectKey: z.string().regex(PRIVATE_REFERENCE_OBJECT_KEY_PATTERN),
+				byteSize: z.number().int().positive().max(MAX_REMOTE_ASSET_BYTES),
+				checksumSha256: z.string().regex(SHA256_PATTERN),
+			})
+			.strict(),
+	})
+	.strict()
+	.superRefine((reference, context) => {
+		validateReferencePlayback({ context, reference });
+
+		const expectedExtension =
+			reference.mimeType === "image/gif" ? ".gif" : ".png";
+		if (!reference.asset.objectKey.endsWith(expectedExtension)) {
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["asset", "objectKey"],
+				message: `${reference.mimeType} assets require ${expectedExtension} object keys`,
+			});
+		}
+		if (!reference.fileName.toLocaleLowerCase().endsWith(expectedExtension)) {
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["fileName"],
+				message: `${reference.mimeType} assets require ${expectedExtension} file names`,
+			});
+		}
+	});
+
 const commonCategoryShape = {
 	id: z.string().trim().regex(STICKER_ID_PATTERN),
 	label: z.string().trim().min(1).max(80),
@@ -330,6 +374,84 @@ const stickerLabManifestV2Schema = z
 		}
 	});
 
+const privateStickerCategorySchema = z
+	.object({
+		...commonCategoryShape,
+		items: z.array(privateStickerReferenceSchema).min(1).max(100),
+	})
+	.strict();
+
+/**
+ * The harvested reference catalogue: version 2 without provenance. The public
+ * v2 schema demands provenance, repo source assets, and tight byte budgets —
+ * none of which exist for captured third-party artwork. Everything here is
+ * still integrity-checked, but the object keys live under the jianying/
+ * prefix that the license server only signs for allow-listed users.
+ */
+const privateStickerCatalogSchema = z
+	.object({
+		version: z.literal(2),
+		catalogId: z
+			.string()
+			.trim()
+			.regex(STICKER_ID_PATTERN)
+			.refine((catalogId) => catalogId.startsWith("jianying-"), {
+				message: "Private reference catalogs must use the jianying- prefix",
+			}),
+		categories: z.array(privateStickerCategorySchema).min(1).max(100),
+	})
+	.strict()
+	.superRefine((manifest, context) => {
+		validateUniqueManifestEntries({
+			categories: manifest.categories,
+			context,
+		});
+		// catalogId "jianying-2026-07-31" owns the "jianying/2026-07-31/assets/"
+		// namespace in the bucket.
+		const catalogObjectPrefix = `${manifest.catalogId.replace(
+			/^jianying-/,
+			"jianying/"
+		)}/assets/`;
+		let catalogBytes = 0;
+		for (const [categoryIndex, category] of manifest.categories.entries()) {
+			const categoryBytes = category.items.reduce(
+				(totalBytes, item) => totalBytes + item.asset.byteSize,
+				0
+			);
+			catalogBytes += categoryBytes;
+			if (categoryBytes > MAX_PRIVATE_REFERENCE_CATEGORY_BYTES) {
+				context.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ["categories", categoryIndex, "items"],
+					message: `Category assets exceed ${MAX_PRIVATE_REFERENCE_CATEGORY_BYTES} bytes`,
+				});
+			}
+			for (const [itemIndex, item] of category.items.entries()) {
+				if (!item.asset.objectKey.startsWith(catalogObjectPrefix)) {
+					context.addIssue({
+						code: z.ZodIssueCode.custom,
+						path: [
+							"categories",
+							categoryIndex,
+							"items",
+							itemIndex,
+							"asset",
+							"objectKey",
+						],
+						message: `Object key must belong to catalog ${manifest.catalogId}`,
+					});
+				}
+			}
+		}
+		if (catalogBytes > MAX_PRIVATE_REFERENCE_CATALOG_BYTES) {
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["categories"],
+				message: `Catalog assets exceed ${MAX_PRIVATE_REFERENCE_CATALOG_BYTES} bytes`,
+			});
+		}
+	});
+
 export type LocalStickerSourceKind = z.infer<
 	typeof localStickerSourceKindSchema
 >;
@@ -343,14 +465,37 @@ export type RemoteStickerReference = z.infer<
 export type RemoteStickerProvenance = z.infer<
 	typeof remoteStickerProvenanceSchema
 >;
+export type PrivateStickerReference = z.infer<
+	typeof privateStickerReferenceSchema
+>;
 export type StickerLabReference =
 	| LocalStickerReference
-	| RemoteStickerReference;
+	| RemoteStickerReference
+	| PrivateStickerReference;
 export type LocalStickerCategory = z.infer<typeof localStickerCategorySchema>;
 export type RemoteStickerCategory = z.infer<typeof remoteStickerCategorySchema>;
+export type PrivateStickerCategory = z.infer<
+	typeof privateStickerCategorySchema
+>;
 export type LocalStickerCatalog = z.infer<typeof localStickerManifestV1Schema>;
 export type RemoteStickerCatalog = z.infer<typeof stickerLabManifestV2Schema>;
-export type StickerLabCatalog = LocalStickerCatalog | RemoteStickerCatalog;
+export type PrivateStickerCatalog = z.infer<typeof privateStickerCatalogSchema>;
+export type StickerLabCatalog =
+	| LocalStickerCatalog
+	| RemoteStickerCatalog
+	| PrivateStickerCatalog;
+
+export function isPrivateStickerCatalog(
+	catalog: StickerLabCatalog
+): catalog is PrivateStickerCatalog {
+	return catalog.version === 2 && !("provenance" in catalog);
+}
+
+export function isRemoteStickerCatalog(
+	catalog: StickerLabCatalog
+): catalog is RemoteStickerCatalog {
+	return catalog.version === 2 && "provenance" in catalog;
+}
 
 function formatManifestIssues({ error }: { error: z.ZodError }): string {
 	return error.issues
@@ -372,8 +517,16 @@ function parseManifestCandidate({
 		"version" in candidate
 			? candidate.version
 			: undefined;
+	// Version 2 covers two shapes: the public catalogue carries provenance,
+	// the allow-list-only harvested reference catalogue does not.
 	const schema =
-		version === 2 ? stickerLabManifestV2Schema : localStickerManifestV1Schema;
+		version === 2
+			? typeof candidate === "object" &&
+				candidate !== null &&
+				"provenance" in candidate
+				? stickerLabManifestV2Schema
+				: privateStickerCatalogSchema
+			: localStickerManifestV1Schema;
 	const result = schema.safeParse(candidate);
 	if (!result.success) {
 		throw new Error(
@@ -428,15 +581,15 @@ export async function loadLocalStickerManifest({
 	return parseLocalStickerManifest({ jsonText });
 }
 
-export async function loadRemoteStickerManifest({
-	fetchImpl = fetch,
+async function fetchStickerManifest({
+	fetchImpl,
 	manifestUrl,
 	signal,
 }: {
-	fetchImpl?: typeof fetch;
+	fetchImpl: typeof fetch;
 	manifestUrl: string;
 	signal?: AbortSignal;
-}): Promise<RemoteStickerCatalog> {
+}): Promise<StickerLabCatalog> {
 	const response = await fetchImpl(manifestUrl, { signal });
 	if (!response.ok) {
 		throw new Error(
@@ -457,9 +610,49 @@ export async function loadRemoteStickerManifest({
 	} catch {
 		throw new Error("Invalid sticker lab manifest: expected UTF-8 JSON");
 	}
-	const catalog = parseLocalStickerManifest({ jsonText });
-	if (catalog.version !== 2) {
-		throw new Error("Remote sticker lab manifests must use version 2");
+	return parseLocalStickerManifest({ jsonText });
+}
+
+export async function loadRemoteStickerManifest({
+	fetchImpl = fetch,
+	manifestUrl,
+	signal,
+}: {
+	fetchImpl?: typeof fetch;
+	manifestUrl: string;
+	signal?: AbortSignal;
+}): Promise<RemoteStickerCatalog> {
+	const catalog = await fetchStickerManifest({
+		fetchImpl,
+		manifestUrl,
+		signal,
+	});
+	if (catalog.version !== 2 || !("provenance" in catalog)) {
+		throw new Error(
+			"Remote sticker lab manifests must use version 2 with provenance"
+		);
+	}
+	return catalog;
+}
+
+export async function loadPrivateStickerManifest({
+	fetchImpl = fetch,
+	manifestUrl,
+	signal,
+}: {
+	fetchImpl?: typeof fetch;
+	manifestUrl: string;
+	signal?: AbortSignal;
+}): Promise<PrivateStickerCatalog> {
+	const catalog = await fetchStickerManifest({
+		fetchImpl,
+		manifestUrl,
+		signal,
+	});
+	if (!isPrivateStickerCatalog(catalog)) {
+		throw new Error(
+			"Private sticker reference manifests must use version 2 without provenance"
+		);
 	}
 	return catalog;
 }

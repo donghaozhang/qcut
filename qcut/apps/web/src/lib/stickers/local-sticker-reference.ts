@@ -16,6 +16,7 @@ import {
 } from "./local-sticker-file-reader";
 import type {
 	LocalStickerReference,
+	PrivateStickerReference,
 	RemoteStickerProvenance,
 	RemoteStickerReference,
 	StickerLabReference,
@@ -23,10 +24,35 @@ import type {
 
 export type {
 	LocalStickerReference,
+	PrivateStickerReference,
 	RemoteStickerProvenance,
 	RemoteStickerReference,
 	StickerLabReference,
 } from "./local-sticker-manifest";
+
+/** Any reference whose artwork lives in the private Supabase bucket. */
+export type RemoteCatalogStickerReference =
+	| RemoteStickerReference
+	| PrivateStickerReference;
+
+/**
+ * License metadata attached to cached copies of the harvested reference
+ * catalogue. Deliberately honest: the artwork is third-party and restricted,
+ * it exists purely so allow-listed internal accounts can study parity.
+ */
+export const PRIVATE_REFERENCE_PROVENANCE: RemoteStickerProvenance = {
+	creator: "Jianying (harvested reference)",
+	license: {
+		name: "Third-party reference — internal use only",
+		commercialUse: "restricted",
+		attributionRequired: false,
+		licenseFile: "docs/task/sticker-lab-private-reference/README.md",
+	},
+	sourceCollections: ["jianying-reference"],
+	sourceTreeGitOid: "0000000000000000000000000000000000000000",
+	transformation:
+		"Captured Jianying sticker previews for allow-listed internal parity reference",
+};
 
 type SessionTokenReader = () => Promise<string>;
 
@@ -93,6 +119,20 @@ export function stickerLabThumbnailUrl({
 	)}`;
 }
 
+/**
+ * Manifest of the harvested reference catalogue. The license server only
+ * serves it to allow-listed users, so a 403 here simply means the viewer
+ * gets the public catalogue alone.
+ */
+export function stickerLabPrivateManifestUrl({
+	licenseServerUrl = LICENSE_SERVER_URL,
+}: {
+	licenseServerUrl?: string;
+} = {}): string {
+	const serverUrl = licenseServerUrl.replace(/\/+$/, "");
+	return `${serverUrl}/api/sticker-lab/private-manifest`;
+}
+
 export function buildStickerLabAssetEntry({
 	licenseServerUrl = LICENSE_SERVER_URL,
 	provenance,
@@ -100,7 +140,7 @@ export function buildStickerLabAssetEntry({
 }: {
 	licenseServerUrl?: string;
 	provenance: RemoteStickerProvenance;
-	reference: RemoteStickerReference;
+	reference: RemoteCatalogStickerReference;
 }): AssetManifestEntry {
 	return {
 		schemaVersion: ASSET_MANIFEST_SCHEMA_VERSION,
@@ -133,7 +173,10 @@ export function buildStickerLabAssetEntry({
 			objectKey: reference.asset.objectKey,
 			playback: reference.playback,
 			provenance,
-			sourceAsset: reference.sourceAsset,
+			// Harvested references have no repo source asset to record.
+			...("sourceAsset" in reference
+				? { sourceAsset: reference.sourceAsset }
+				: {}),
 			sourceKind: reference.sourceKind,
 		},
 	};
@@ -197,7 +240,7 @@ function remoteResourceBlob({
 	reference,
 	resources,
 }: {
-	reference: RemoteStickerReference;
+	reference: RemoteCatalogStickerReference;
 	resources: ResolvedAssetResource[];
 }): Blob {
 	const source = resources.find((resource) => resource.role === "source");
@@ -228,7 +271,7 @@ export async function loadRemoteStickerReferenceFile({
 	getToken?: SessionTokenReader;
 	licenseServerUrl?: string;
 	provenance: RemoteStickerProvenance;
-	reference: RemoteStickerReference;
+	reference: RemoteCatalogStickerReference;
 	signal?: AbortSignal;
 }): Promise<File> {
 	const asset = buildStickerLabAssetEntry({
@@ -265,7 +308,7 @@ export async function loadStickerLabThumbnail({
 	fetchImpl?: typeof fetch;
 	getToken?: SessionTokenReader;
 	licenseServerUrl?: string;
-	reference: RemoteStickerReference;
+	reference: RemoteCatalogStickerReference;
 	signal?: AbortSignal;
 }): Promise<Blob> {
 	const authorizedFetch = createStickerLabAssetFetch({

@@ -8,6 +8,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	createLocalStickerCatalog,
+	createPrivateStickerCatalog,
 	createRemoteStickerCatalog,
 } from "@/lib/stickers/__tests__/fixtures/local-sticker-catalog";
 import { LocalStickerReferencePanel } from "../components/local-sticker-reference-panel";
@@ -504,5 +505,63 @@ describe("LocalStickerReferencePanel", () => {
 			expect(screen.getByText("仅限内测账号使用")).toBeInTheDocument()
 		);
 		expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+	});
+
+	it("renders the private catalogue even while the public manifest fails", async () => {
+		render(
+			<LocalStickerReferencePanel
+				catalog={null}
+				error="Invalid local sticker manifest"
+				isLoading={false}
+				onSelect={async () => {}}
+				privateCatalog={createPrivateStickerCatalog()}
+			/>
+		);
+
+		fireEvent.click(screen.getByTestId("sticker-lab-catalog-private"));
+
+		await waitFor(() =>
+			expect(
+				screen.getByTestId("local-sticker-category-grid")
+			).toBeInTheDocument()
+		);
+		// The public catalog's failure must not mask the private view.
+		expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+		expect(screen.getAllByTestId("local-sticker-reference-item")).toHaveLength(
+			2
+		);
+	});
+
+	it("previews private references through the cached original loader", async () => {
+		render(
+			<LocalStickerReferencePanel
+				catalog={createRemoteStickerCatalog()}
+				error={null}
+				isLoading={false}
+				onSelect={async () => {}}
+				privateCatalog={createPrivateStickerCatalog()}
+			/>
+		);
+
+		fireEvent.click(screen.getByTestId("sticker-lab-catalog-private"));
+		await waitFor(() =>
+			expect(referenceMocks.loadFile).toHaveBeenCalledTimes(2)
+		);
+
+		// Private previews go through the IndexedDB-cached original loader —
+		// the uncached thumbnail tier would re-download megabytes of GIF on
+		// every category switch. (The public tab rendered first and may use
+		// thumbnails freely; none of those calls may carry a private key.)
+		for (const call of referenceMocks.loadThumbnail.mock.calls) {
+			expect(call[0].reference.asset.objectKey).not.toMatch(/^jianying\//);
+		}
+		expect(referenceMocks.loadFile).toHaveBeenCalledWith(
+			expect.objectContaining({
+				provenance: expect.objectContaining({
+					creator: "Jianying (harvested reference)",
+					license: expect.objectContaining({ commercialUse: "restricted" }),
+				}),
+			})
+		);
 	});
 });
