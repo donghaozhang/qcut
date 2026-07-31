@@ -4,14 +4,27 @@ import { TanStackRouterVite } from "@tanstack/router-plugin/vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 import { visualizer } from "rollup-plugin-visualizer";
 import path from "path";
+import {
+	createLicenseServerBuildConfig,
+	resolveLicenseServerDevelopmentCacheDirectory,
+} from "../../electron/license-server-build-config";
+import { createLicenseServerBuildPlugin } from "./license-server-build-plugin";
 
 export default defineConfig(({ mode }) => {
 	const env = loadEnv(mode, process.cwd(), "");
 	const buildTarget = env.VITE_BUILD_TARGET ?? "electron";
 	const isWebBuild = buildTarget === "web";
+	const licenseServerBuildConfig = createLicenseServerBuildConfig({
+		configuredUrl: env.VITE_LICENSE_SERVER_URL,
+	});
+	const developmentCacheDirectory =
+		resolveLicenseServerDevelopmentCacheDirectory({
+			webRoot: __dirname,
+		});
 
 	return {
 		base: isWebBuild ? "/" : "./", // "/" for web hosting, "./" for Electron file://
+		cacheDir: developmentCacheDirectory,
 		publicDir: "public", // Ensure public directory is properly copied
 		define: {
 			// Required for React scheduler in Electron production builds
@@ -22,6 +35,9 @@ export default defineConfig(({ mode }) => {
 			),
 			// Expose build target for runtime checks
 			"__QCUT_BUILD_TARGET__": JSON.stringify(buildTarget),
+			"import.meta.env.VITE_LICENSE_SERVER_URL": JSON.stringify(
+				licenseServerBuildConfig.licenseServerUrl
+			),
 		},
 		resolve: {
 			alias: {
@@ -64,6 +80,9 @@ export default defineConfig(({ mode }) => {
 			],
 		},
 		plugins: [
+			createLicenseServerBuildPlugin({
+				buildConfig: licenseServerBuildConfig,
+			}),
 			tsconfigPaths(), // Support for TypeScript path mapping
 			TanStackRouterVite({
 				routesDirectory: "src/routes",

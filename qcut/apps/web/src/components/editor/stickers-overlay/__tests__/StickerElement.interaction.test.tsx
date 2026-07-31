@@ -1,5 +1,6 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { useRef } from "react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { OverlaySticker } from "@/types/sticker-overlay";
 import { StickerElement } from "../StickerElement";
@@ -63,7 +64,51 @@ const mediaItem: MediaItem = {
 	url: "blob:badge",
 };
 
+function StickerWithCanvas() {
+	const canvasRef = useRef<HTMLDivElement>(null);
+	return (
+		<div ref={canvasRef} data-testid="sticker-canvas">
+			<StickerElement
+				sticker={sticker}
+				mediaItem={mediaItem}
+				canvasRef={canvasRef}
+				renderMode="visual"
+			/>
+		</div>
+	);
+}
+
 describe("StickerElement interaction modes", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it("measures a canvas ref mounted in the same commit", async () => {
+		vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue({
+			x: 0,
+			y: 0,
+			width: 1000,
+			height: 500,
+			top: 0,
+			right: 1000,
+			bottom: 500,
+			left: 0,
+			toJSON: () => ({}),
+		});
+
+		const { container } = render(<StickerWithCanvas />);
+
+		await waitFor(() => {
+			const visual = container.querySelector<HTMLElement>(
+				"[data-sticker-render-mode='visual']"
+			);
+			expect(visual?.style.left).toBe("450px");
+			expect(visual?.style.top).toBe("200px");
+			expect(visual?.style.width).toBe("100px");
+			expect(visual?.style.height).toBe("100px");
+		});
+	});
+
 	it("renders the visual sticker without a pointer target", () => {
 		const { container } = render(
 			<StickerElement
