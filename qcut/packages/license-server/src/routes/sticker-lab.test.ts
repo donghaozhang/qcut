@@ -44,6 +44,15 @@ afterEach(() => {
 	vi.unstubAllEnvs();
 });
 
+function buildThumbnailUrl({ objectKey }: { objectKey?: string } = {}) {
+	const query = new URLSearchParams();
+	if (objectKey !== undefined) {
+		query.set("objectKey", objectKey);
+	}
+	const suffix = query.size > 0 ? `?${query.toString()}` : "";
+	return `/api/sticker-lab/thumbnail${suffix}`;
+}
+
 function allowMockUser() {
 	vi.stubEnv("STICKER_LAB_ALLOWED_USER_IDS", "mock-user-001");
 }
@@ -201,5 +210,84 @@ describe("sticker lab routes", () => {
 		expect(response.status).toBe(502);
 		expect(responseText).toBe('{"error":"Failed to sign sticker asset"}');
 		expect(responseText).not.toContain("service-role");
+	});
+});
+
+describe("sticker lab preview tier", () => {
+	const objectKey = "catalogs/qcut-original-test/assets/sticker-123.gif";
+
+	it("serves previews to signed-in users outside the allowlist", async () => {
+		// Browsing must not require the entitlement; only placing does.
+		storageMocks.createSignedUrl.mockResolvedValue({
+			data: { signedUrl: "https://storage.example/preview" },
+			error: null,
+		});
+
+		const response = await buildApp().request(buildThumbnailUrl({ objectKey }));
+
+		expect(response.status).toBe(302);
+		expect(response.headers.get("location")).toBe(
+			"https://storage.example/preview"
+		);
+		expect(response.headers.get("cache-control")).toBe("no-store");
+	});
+
+	it("signs previews with a server-side transform", async () => {
+		// The size is applied when signing, so a preview link cannot be edited
+		// into a full-resolution download.
+		storageMocks.createSignedUrl.mockResolvedValue({
+			data: { signedUrl: "https://storage.example/preview" },
+			error: null,
+		});
+
+		await buildApp().request(buildThumbnailUrl({ objectKey }));
+
+		expect(storageMocks.createSignedUrl).toHaveBeenCalledWith(
+			objectKey,
+			expect.any(Number),
+			{
+				transform: {
+					width: 192,
+					height: 192,
+					quality: 60,
+					resize: "contain",
+				},
+			}
+		);
+	});
+
+	it("still requires authentication", async () => {
+		vi.stubEnv("MOCK_MODE", "false");
+
+		const response = await buildApp().request(buildThumbnailUrl({ objectKey }));
+
+		expect(response.status).toBe(401);
+		expect(storageMocks.from).not.toHaveBeenCalled();
+	});
+
+	it("applies the same object key whitelist as the full asset", async () => {
+		const responses = await Promise.all(
+			[undefined, "", "catalogs/another-catalog/assets/sticker.gif"].map(
+				(key) => buildApp().request(buildThumbnailUrl({ objectKey: key }))
+			)
+		);
+
+		for (const response of responses) {
+			expect(response.status).toBe(400);
+		}
+		expect(storageMocks.from).not.toHaveBeenCalled();
+	});
+
+	it("keeps the full asset gated while the preview is open", async () => {
+		storageMocks.createSignedUrl.mockResolvedValue({
+			data: { signedUrl: "https://storage.example/preview" },
+			error: null,
+		});
+
+		const preview = await buildApp().request(buildThumbnailUrl({ objectKey }));
+		const original = await buildApp().request(buildAssetUrl({ objectKey }));
+
+		expect(preview.status).toBe(302);
+		expect(original.status).toBe(403);
 	});
 });
