@@ -2,6 +2,7 @@ const MAX_ARRAY_LENGTH = 100_000;
 const MAX_INPUT_DEPTH = 64;
 const MAX_INPUT_NODES = 250_000;
 const MAX_STRING_LENGTH = 4 * 1024 * 1024;
+const MAX_TOTAL_STRING_LENGTH = 16 * 1024 * 1024;
 const FORBIDDEN_RECORD_KEYS = new Set([
 	"__proto__",
 	"constructor",
@@ -44,6 +45,7 @@ export class StandaloneJianyingDraftRequestValidationError extends Error {
 interface CloneState {
 	activeObjects: WeakSet<object>;
 	nodeCount: number;
+	totalStringLength: number;
 }
 
 export function validationIssue({
@@ -77,6 +79,24 @@ function assertInputBudget({
 	}
 }
 
+function assertStringBudget({
+	length,
+	path,
+	state,
+}: {
+	length: number;
+	path: string;
+	state: CloneState;
+}): void {
+	state.totalStringLength += length;
+	if (state.totalStringLength > MAX_TOTAL_STRING_LENGTH) {
+		throw validationIssue({
+			message: `Input contains more than ${MAX_TOTAL_STRING_LENGTH} total string characters.`,
+			path,
+		});
+	}
+}
+
 function cloneJsonValueAtPath({
 	depth,
 	path,
@@ -99,6 +119,9 @@ function cloneJsonValueAtPath({
 				message: `String exceeds ${MAX_STRING_LENGTH} characters.`,
 				path,
 			});
+		}
+		if (typeof value === "string") {
+			assertStringBudget({ length: value.length, path, state });
 		}
 		return value;
 	}
@@ -158,6 +181,17 @@ function cloneJsonValueAtPath({
 		const descriptors = Object.getOwnPropertyDescriptors(value);
 		const cloned: { [key: string]: JsonValue } = {};
 		for (const key of Object.keys(descriptors).sort()) {
+			if (key.length > MAX_STRING_LENGTH) {
+				throw validationIssue({
+					message: `Property name exceeds ${MAX_STRING_LENGTH} characters.`,
+					path,
+				});
+			}
+			assertStringBudget({
+				length: key.length,
+				path,
+				state,
+			});
 			if (FORBIDDEN_RECORD_KEYS.has(key)) {
 				throw validationIssue({
 					message: `Property ${JSON.stringify(key)} is not allowed.`,
@@ -188,7 +222,11 @@ export function cloneJsonValue({ value }: { value: unknown }): JsonValue {
 	return cloneJsonValueAtPath({
 		depth: 0,
 		path: "$",
-		state: { activeObjects: new WeakSet(), nodeCount: 0 },
+		state: {
+			activeObjects: new WeakSet(),
+			nodeCount: 0,
+			totalStringLength: 0,
+		},
 		value,
 	});
 }
