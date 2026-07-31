@@ -123,5 +123,9 @@ Quality rules:
 ## Notes
 
 - References live in `qcut-shot/references/`.
+- Promo finals must pass frame-by-frame QA before delivery; the accumulated
+  playbook (dead-canvas splicing, tail-take re-recording, track ordering in
+  plan timelines, screen-recording permission/resolution traps) lives in
+  `references/promo-iteration-lessons.md`.
 - Image rendering uses the local `qcut-shot/scripts/image-gen.ts` renderer.
 - If rendering cannot run, the command still produces `analysis.md`, `shots.md`, `shots.json`, and prompt files.
