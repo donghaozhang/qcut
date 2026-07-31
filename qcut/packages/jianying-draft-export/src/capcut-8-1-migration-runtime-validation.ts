@@ -43,10 +43,12 @@ function copyPresentProperty({
 }
 
 export async function normalizeCapCut81MigrationPlanRequest({
+	allowedSourceRootDirectory,
 	input,
 	nowUnixMilliseconds,
 	outputParentDirectory,
 }: {
+	allowedSourceRootDirectory?: string;
 	input: unknown;
 	nowUnixMilliseconds: number;
 	outputParentDirectory: string;
@@ -68,6 +70,9 @@ export async function normalizeCapCut81MigrationPlanRequest({
 		copyPresentProperty({ key, request, target: standaloneRequest });
 	}
 	return normalizeStandaloneJianyingDraftPlanRequest({
+		...(allowedSourceRootDirectory === undefined
+			? {}
+			: { allowedSourceRootDirectory }),
 		input: standaloneRequest,
 		nowUnixMilliseconds,
 	});
