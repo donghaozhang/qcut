@@ -49,6 +49,9 @@ const TRACK_TYPES = new Set([
 	"hyperframes",
 	"markdown",
 ]);
+const MAX_SNAPSHOT_ELEMENTS = 20_000;
+const MAX_SNAPSHOT_MEDIA_ITEMS = 10_000;
+const MAX_SNAPSHOT_TRACKS = 1_000;
 const SNAPSHOT_KEYS = createAllowedKeySet<QCutDraftExportSnapshotV1>({
 	keys: {
 		media: true,
@@ -295,6 +298,12 @@ function validateSnapshotMedia({
 	value: JsonValue | undefined;
 }): void {
 	const media = getArray({ path, value });
+	if (media.length > MAX_SNAPSHOT_MEDIA_ITEMS) {
+		throw validationIssue({
+			message: `Media exceeds ${MAX_SNAPSHOT_MEDIA_ITEMS} entries.`,
+			path,
+		});
+	}
 	for (const [index, entry] of media.entries()) {
 		const entryPath = `${path}[${index}]`;
 		const item = getRecord({ path: entryPath, value: entry });
@@ -472,6 +481,13 @@ function validateSnapshotTracks({
 	value: JsonValue | undefined;
 }): void {
 	const tracks = getArray({ path, value });
+	if (tracks.length > MAX_SNAPSHOT_TRACKS) {
+		throw validationIssue({
+			message: `Tracks exceed ${MAX_SNAPSHOT_TRACKS} entries.`,
+			path,
+		});
+	}
+	let elementCount = 0;
 	for (const [index, entry] of tracks.entries()) {
 		const trackPath = `${path}[${index}]`;
 		const track = getRecord({ path: trackPath, value: entry });
@@ -491,6 +507,13 @@ function validateSnapshotTracks({
 			path: `${trackPath}.elements`,
 			value: track.elements,
 		});
+		elementCount += elements.length;
+		if (elementCount > MAX_SNAPSHOT_ELEMENTS) {
+			throw validationIssue({
+				message: `Snapshot exceeds ${MAX_SNAPSHOT_ELEMENTS} track elements.`,
+				path: `${trackPath}.elements`,
+			});
+		}
 		for (const [elementIndex, element] of elements.entries()) {
 			validateTrackElement({
 				path: `${trackPath}.elements[${elementIndex}]`,
