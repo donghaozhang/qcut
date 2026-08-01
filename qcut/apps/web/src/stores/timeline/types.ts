@@ -592,6 +592,7 @@ export interface TimelineStore {
 				| "opacity"
 				| "color"
 				| "adjustments"
+				| "masks"
 				| "effects"
 				| "effectChains"
 			>
