@@ -7,7 +7,6 @@ import {
 	Plus,
 	Trash2,
 } from "lucide-react";
-import { Input } from "@/components/ui/input";
 import {
 	Select,
 	SelectContent,
@@ -24,7 +23,7 @@ import {
 } from "@/lib/video/media-mask-stack";
 import type { MediaMask, MediaMaskBlendMode } from "@/types/timeline";
 import { MaskIconButton } from "./media-mask-controls";
-import { MASK_SHAPES, maskIcon } from "./media-mask-shapes";
+import { MASK_SHAPES } from "./media-mask-shapes";
 import { PropertyItemLabel } from "./property-item";
 
 export function MediaMaskLayerList({
@@ -57,55 +56,38 @@ export function MediaMaskLayerList({
 			<div className="flex min-w-0 items-center gap-2">
 				<div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1 [scrollbar-width:thin]">
 					{masks.map((mask, index) => {
-						const Icon = maskIcon({ type: mask.type });
 						const selected = mask.id === selectedMaskId;
 						const maskId = mask.id ?? `mask-${index + 1}`;
 						const shapeLabel =
 							MASK_SHAPES.find((shape) => shape.type === mask.type)?.label ??
 							"蒙版";
+						const name = mask.name ?? `蒙版 ${index + 1}`;
 						return (
-							<div
+							<button
+								type="button"
 								key={maskId}
 								className={cn(
-									"flex h-8 min-w-[132px] shrink-0 items-center rounded-sm border bg-muted/35 px-1",
+									"flex h-8 min-w-[92px] shrink-0 items-center justify-center gap-1 rounded-sm border bg-muted/35 px-2 text-xs outline-hidden hover:bg-accent focus-visible:ring-1 focus-visible:ring-ring",
 									selected
-										? "border-cyan-400/80 bg-cyan-400/5"
+										? "border-cyan-400/80 bg-cyan-400/10 text-foreground"
 										: "border-border/70"
 								)}
+								onClick={() => onSelect(maskId)}
+								onKeyDown={(event) => {
+									if (event.key !== "Enter" && event.key !== " ") return;
+									event.preventDefault();
+									onSelect(maskId);
+								}}
+								aria-label={`选择${name}${shapeLabel}`}
+								aria-pressed={selected}
 							>
-								<button
-									type="button"
-									className="flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
-									onClick={() => onSelect(maskId)}
-									onKeyDown={(event) => {
-										if (event.key !== "Enter" && event.key !== " ") return;
-										event.preventDefault();
-										onSelect(maskId);
-									}}
-									aria-label={`选择${mask.name ?? `蒙版 ${index + 1}`}`}
-								>
-									<Icon className="size-3.5" />
-								</button>
-								<Input
-									aria-label="蒙版名称"
-									value={mask.name ?? `蒙版 ${index + 1}`}
-									onFocus={() => onSelect(maskId)}
-									onChange={(event) =>
-										onChange(
-											updateMediaMaskInStack({
-												masks,
-												maskId,
-												updates: { name: event.target.value },
-											}),
-											false
-										)
-									}
-									className="h-7 min-w-12 flex-1 border-0 bg-transparent px-0.5 text-[11px] shadow-none"
-								/>
-								<span className="shrink-0 pr-1 text-[10px] text-muted-foreground">
+								<span className="truncate">
+									{name.replace("蒙版 ", "蒙版")}
+								</span>
+								<span className="shrink-0 text-[11px] text-muted-foreground">
 									{shapeLabel}
 								</span>
-							</div>
+							</button>
 						);
 					})}
 				</div>
