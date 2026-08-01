@@ -143,13 +143,13 @@ export const JIANYING_STYLIZED_PARITY_FILTER_PRESETS: FilterPreset[] = [
 	},
 	{
 		id: "jy-ink-wash",
-		version: 1,
+		version: 2,
 		name: "Ink Wash",
 		localizedName: "水墨意境",
 		category: "stylized",
 		tags: ["stylized", "creative", "风格化", "创意", "水墨意境", "Ink Wash"],
 		thumbnail: "/images/filter-previews/jy-ink-wash.webp",
-		lutAssetId: "qcut/filter/jy-ink-wash/v1",
+		lutAssetId: "qcut/filter/jy-ink-wash/v2",
 		defaultIntensity: 100,
 		isNew: true,
 		recipe: {
@@ -164,6 +164,38 @@ export const JIANYING_STYLIZED_PARITY_FILTER_PRESETS: FilterPreset[] = [
 			saturation: 0.534,
 			hueShift: -7.8,
 			monochrome: 0.276,
+			polynomialCorrection: {
+				linear: [
+					// biome-ignore lint/suspicious/noApproximativeNumericConstant: fitted coefficient, not Math.LN2
+					[0.8396, -0.6931, 0.0195],
+					[-0.0944, 1.3644, -0.2425],
+					[-0.1465, 0.0706, 1.0927],
+				],
+				squared: [
+					[-1.4839, 1.0662, -1.2797],
+					[0.2127, -2.0461, 0.4701],
+					[0.0118, -0.5091, 1.3662],
+				],
+				cross: [
+					[-0.2262, 5.0942, -1.3868],
+					[1.1859, -0.7757, 1.5197],
+					[1.1648, -0.4097, -1.3129],
+				],
+				cubic: {
+					pure: [
+						[0.6441, 1.134, 2.3007],
+						[0.4337, 1.3671, 0.8366],
+						[0.1856, 1.4698, -1.3033],
+					],
+					mixed: [
+						[0.1635, -1.1538, -2.7597, -1.2091, -5.0058, -0.4189],
+						[0.2992, -1.5266, -2.8182, 1.0204, 0.3393, -3.5314],
+						[1.09, -1.1871, -2.385, -0.6952, 0.5208, 0.911],
+					],
+					triple: [5.1409, 2.9641, 1.0169],
+				},
+				offset: [0.1158, -0.0562, -0.0374],
+			},
 		},
 	},
 ];
