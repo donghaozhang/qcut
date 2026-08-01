@@ -17,6 +17,7 @@ import {
 	upsertCurveShapeKeyframe,
 } from "@/lib/color/color-curve-keyframes";
 import { buildSecondaryCurve } from "@/lib/color/color-secondary-curves";
+import { createMediaMask } from "@/lib/video/media-mask-stack";
 import {
 	createColorPreset,
 	loadColorPresets,
@@ -40,6 +41,7 @@ import { ColorCurvesSettings } from "./color-curves-settings";
 import { ColorHslSettings } from "./color-hsl-settings";
 import { ColorLutSettings } from "./color-lut-settings";
 import { ColorManagementSettingsPanel } from "./color-management-settings";
+import { ColorMaskSettings } from "./color-mask-settings";
 import { ColorSecondaryCurvesSettings } from "./color-secondary-curves-settings";
 import { ColorWheelSettingsPanel } from "./color-wheel-settings";
 import { MediaMaskProperties } from "./media-mask-properties";
@@ -260,6 +262,33 @@ export function AdjustmentProperties({
 		onInteractionStart: beginInteraction,
 		onInteractionEnd: endInteraction,
 	};
+	const createGradeMask = () => {
+		const id = `color-grade-mask-${generateUUID()}`;
+		const mask = createMediaMask({
+			id,
+			index: masks.length,
+			name: `调色蒙版 ${masks.length + 1}`,
+			type: "ellipse",
+		});
+		const nextSettings = {
+			...settings,
+			mask: {
+				...settings.mask,
+				enabled: true,
+				maskIds: [...new Set([...settings.mask.maskIds, id])],
+			},
+		};
+		updateAdjustmentElement(
+			trackId,
+			element.id,
+			{
+				color: nextSettings,
+				adjustments: buildLegacyColorAdjustments({ settings: nextSettings }),
+				masks: [...masks, mask],
+			},
+			true
+		);
+	};
 
 	return (
 		<div data-testid="adjustment-properties">
@@ -327,6 +356,11 @@ export function AdjustmentProperties({
 							}
 							onInteractionStart={beginInteraction}
 							onInteractionEnd={endInteraction}
+						/>
+						<ColorMaskSettings
+							bindings={bindings}
+							masks={masks}
+							onCreateMask={createGradeMask}
 						/>
 					</TabsContent>
 				</div>

@@ -56,6 +56,27 @@ describe("font glyph coverage", () => {
 		});
 	});
 
+	it("reports a missing requested font face before reading its properties", () => {
+		const fontBytes = Buffer.from("font-collection-snapshot");
+		// fontkit returns null for a missing face although @types/fontkit omits it.
+		vi.mocked(createFontFromBytes).mockReturnValue(null as never);
+
+		expect(() =>
+			inspectFontBytesGlyphCoverage({
+				fontBytes,
+				fontPath: "/fonts/qcut-collection.ttc",
+				postscriptName: "MissingFace-Regular",
+				text: "A",
+			})
+		).toThrow(
+			"Font /fonts/qcut-collection.ttc does not contain the requested PostScript name MissingFace-Regular."
+		);
+		expect(createFontFromBytes).toHaveBeenCalledWith(
+			fontBytes,
+			"MissingFace-Regular"
+		);
+	});
+
 	it("checks Unicode scalars instead of UTF-16 code units", () => {
 		const report = inspectLoadedFontGlyphCoverage({
 			font: createFont({

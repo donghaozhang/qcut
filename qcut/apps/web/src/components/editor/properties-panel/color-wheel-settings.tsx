@@ -18,7 +18,10 @@ import {
 	DEFAULT_MEDIA_COLOR_SETTINGS,
 	removeColorKeyframes,
 } from "@/lib/color/color-properties";
-import { ColorModuleSection } from "./color-property-controls";
+import {
+	ColorKeyframedControl,
+	ColorModuleSection,
+} from "./color-property-controls";
 import type { ColorSettingsEditorBindings } from "./color-properties-types";
 
 type WheelName = "shadows" | "midtones" | "highlights" | "offset";
@@ -336,6 +339,33 @@ export function ColorWheelSettingsPanel({
 					))}
 				</div>
 			</div>
+			<details className="border-t border-border/70 pt-2">
+				<summary className="cursor-pointer text-xs text-muted-foreground">
+					亮度与关键帧
+				</summary>
+				<div className="space-y-3 pt-2">
+					{WHEEL_NAMES.map((wheel) => (
+						<div key={wheel} className="space-y-1">
+							<p className="text-xs font-medium">{wheelLabels[wheel]}</p>
+							<ColorKeyframedControl
+								property={`wheels.${wheel}.x`}
+								bindings={bindings}
+								label={`${wheelLabels[wheel]} X`}
+							/>
+							<ColorKeyframedControl
+								property={`wheels.${wheel}.y`}
+								bindings={bindings}
+								label={`${wheelLabels[wheel]} Y`}
+							/>
+							<ColorKeyframedControl
+								property={`wheels.${wheel}.luminance`}
+								bindings={bindings}
+								label={`${wheelLabels[wheel]}亮度`}
+							/>
+						</div>
+					))}
+				</div>
+			</details>
 			<div className="flex justify-end border-t border-border/70 pt-3">
 				<Button type="button" size="sm" onClick={() => bindings.onSavePreset()}>
 					保存预设

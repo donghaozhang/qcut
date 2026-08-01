@@ -526,7 +526,9 @@ export function MediaMaskOverlay({
 							title="调整圆角"
 							data-testid="media-mask-roundness-handle"
 						>
-							<SquareRoundCorner className="size-3.5" />
+							<SquareRoundCorner className="size-3.5">
+								<title>调整圆角</title>
+							</SquareRoundCorner>
 						</button>,
 						document.body
 					)

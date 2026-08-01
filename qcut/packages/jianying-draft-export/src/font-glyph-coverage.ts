@@ -36,14 +36,20 @@ function requireSingleFont({
 	fontPath,
 	postscriptName,
 }: {
-	font: Font | FontCollection;
+	font: Font | FontCollection | null;
 	fontPath: string;
 	postscriptName?: string;
 }): Font {
-	if (font.type !== "TTC" && font.type !== "DFont") return font as Font;
-	const collection = font as FontCollection;
+	if (!font) {
+		throw new Error(
+			postscriptName
+				? `Font ${fontPath} does not contain the requested PostScript name ${postscriptName}.`
+				: `Font ${fontPath} could not be opened.`
+		);
+	}
+	if (!("fonts" in font)) return font;
 	if (!postscriptName) {
-		const names = collection.fonts
+		const names = font.fonts
 			.map((candidate) => candidate.postscriptName)
 			.filter((name) => name.length > 0)
 			.join(", ");
@@ -51,7 +57,7 @@ function requireSingleFont({
 			`Font collection ${fontPath} requires a PostScript name. Available faces: ${names || "unknown"}.`
 		);
 	}
-	const selectedFont = collection.getFont(postscriptName);
+	const selectedFont = font.getFont(postscriptName);
 	if (!selectedFont) {
 		throw new Error(
 			`Font collection ${fontPath} does not contain ${postscriptName}.`
@@ -111,7 +117,7 @@ export function inspectFontBytesGlyphCoverage({
 		);
 	}
 	const requestedPostscriptName = postscriptName?.trim() || undefined;
-	const openedFont = requestedPostscriptName
+	const openedFont: Font | FontCollection | null = requestedPostscriptName
 		? create(fontBytes, requestedPostscriptName)
 		: create(fontBytes);
 	const font = requireSingleFont({

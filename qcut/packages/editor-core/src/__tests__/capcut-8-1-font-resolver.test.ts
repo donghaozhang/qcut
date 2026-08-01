@@ -163,6 +163,17 @@ describe("CapCut 8.1 font resolver", () => {
 		});
 	});
 
+	it("allows text-default symbols unless they request emoji presentation", () => {
+		expect(resolveFont({ content: "© 2026 QCut" }).ok).toBe(true);
+
+		const resolution = resolveFont({ content: "©️ 2026 QCut" });
+		expect(resolution.ok).toBe(false);
+		if (resolution.ok) return;
+		expect(resolution.errors).toContainEqual(
+			expect.objectContaining({ code: "UNVERIFIED_CAPCUT_EMOJI_FONT" })
+		);
+	});
+
 	it.each([
 		{ character: "Ж", codePoint: "U+0416", content: "Журнал" },
 		{ character: "م", codePoint: "U+0645", content: "مرحبا" },

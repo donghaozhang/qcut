@@ -81,7 +81,7 @@ export type CapCut81FontResolution =
 	| CapCut81UnsupportedFontResolution;
 
 const EMOJI_CONTENT_PATTERN =
-	/(?:\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20e3|\ufe0f)/u;
+	/(?:\p{Emoji_Presentation}|\p{Regional_Indicator}|\p{Extended_Pictographic}\ufe0f|\u20e3)/u;
 const SYSTEM_FALLBACK_NON_HAN_PATTERN =
 	/^(?:\p{Script=Latin}|\p{Script=Common}|\p{Script=Inherited})$/u;
 
