@@ -26,9 +26,10 @@ QCut 不读取、覆盖或解密用户现有草稿。自动 GUI 回归也不得�
 - 同一份 CapCut 导出帧中，原生标题 `QCut → 剪映` 和底部原生中文字幕完整，
   只有中间烧进源视频的旧测试文案仍有方框。
 
-因此，已证明的结论是：旧 fixture 在生成视频像素时使用了未受控或不完整的字体
-fallback，方框在 CapCut 导入前就已存在。旧生成命令没有保留，不能把根因进一步
-归到某一个具体字体。
+因此，已证明的结论只到这里：方框已经存在于旧 fixture 的源视频像素中，发生在
+CapCut 导入之前。最可能的原因是旧 fixture 的文字渲染输入或字体 fallback 不完整；
+但旧输入和生成命令都没有保留，不能排除输入本身已经包含方框，也不能把根因归到
+某一个具体字体。
 
 本机 cmap 检查提供了边界证据：
 
@@ -112,9 +113,10 @@ shaping 或正确渲染的充分条件，更不是“所有中文字体 fidelity
 `styles[].font` 和顶层 `materials.fonts` 都不存在。中文仍能显示，说明这个
 `font_path` 不是“所有字符只由 en.ttf 渲染”的证明；CapCut 内部仍会做 fallback。
 
-显式字体必须在独立 macOS 用户或 VM 中逐个采集。每次只对固定文案
-`剪映字体参考ABC123` 改一个字体，保存并完全退出后分别复制修改前、修改后的同一
-草稿快照；material ID、文字、字号、样式和所有非字体字段必须保持不变。分析命令：
+显式字体必须在独立 macOS 用户或 VM 中逐个采集。必须新建专用单文字草稿：只有一个
+text material、一个 text track 和一个引用该 material 的 segment；segment 必须
+`visible=true` 且 duration 大于 0。每次只对固定文案 `剪映字体参考ABC123` 改一个
+字体，保存并完全退出后分别复制修改前、修改后的同一草稿快照。分析命令：
 
 ```bash
 bun run capcut:e2e:font-reference -- \
@@ -125,12 +127,33 @@ bun run capcut:e2e:font-reference -- \
   --output /absolute/path/to/reference.json
 ```
 
-分析器同时读取根目录和 timeline 的 `draft_info.json`，记录文件 hash，并只接受
-`font_*`、material `fonts`、顶层 `materials.fonts` 和 `styles[].font` 的变化。
-无字体变化、root/timeline 不一致、material ID 变化或任何非字体语义变化都会拒绝。
-至少要分别采集系统默认、一个 CapCut 内置中文字体和一个下载中文字体，再检查实际
-字体文件的 cmap 与授权/复制规则，才能把该字体加入 `CapCut81FontResolver`。字体
-不存在、文件 hash 漂移或目标文字缺字时必须阻断；不能静默换成系统字体。
+分析器同时读取根目录和 timeline 的 `draft_info.json`，要求同一快照内的两份内容全
+语义一致（包括 `update_time`），并要求草稿自报 `platform.app_id=359289`、
+`app_version=8.1.1`、
+`app_source=cc`。这些字段只是草稿自报元数据，不是应用来源或 GUI 操作的签名证明。
+
+before/after 比较覆盖整份规范化草稿，只排除目标 material 的 `font_id`、
+`font_name`、`font_path`、`font_resource_id` 和 `fonts`，目标
+`styles[].font`，以及单文字约束下的顶层 `materials.fonts`。此外，只把真实 8.1.1
+草稿已确认会在再次保存时变化的**顶层** `update_time` 规范化；它必须是非负安全整数。
+`create_time`、任何嵌套的 `update_time`/timestamp、字号、轨道、segment、时长、其他
+素材、未知的 `font_*` 字段或任意其他变化都会拒绝。after 至少要有一个
+目标 material 或 `styles[].font` 的 canonical binding 变化；只新增或修改未被目标
+引用的顶层 `materials.fonts` 不能单独通过。after 还必须在这些 binding 的某个值中
+精确包含 `--font-label`（子串不算）；如果名称只出现在顶层字体资源中，该资源 ID
+还必须被目标 material 或 style 明确引用。输出 manifest 的 `verificationStatus` 固定为
+`unverified-draft-self-report`；CLI 也会在 stdout 的 JSON 中返回这个状态。
+
+规范化不会丢弃取证信息：manifest 仍分别记录 before/after 的实际 `updateTime`、根与
+timeline 原始文件的 byte size/SHA-256，以及包含原始 `update_time` 的完整语义
+SHA-256；只有用于判定“非字体字段是否相同”的 `normalizedDraftSemanticSha256` 使用
+稳定化后的顶层 `update_time`。
+
+这个 manifest 只能作为候选字段证据，不能直接进入 `CapCut81FontResolver`。至少要
+分别采集系统默认、一个 CapCut 内置中文字体和一个下载中文字体，再绑定来自隔离 GUI
+session、且覆盖已验证应用签名/版本、before/after hash 与真实保存动作的 receipt，
+然后检查实际字体文件的 cmap 与授权/复制规则，才能进入 resolver。字体不存在、文件
+hash 漂移、receipt 缺失或目标文字缺字时必须阻断；不能静默换成系统字体。
 
 原始草稿和 CapCut 字体资源只留在忽略的本地证据目录，不提交或分发；仓库只记录
 人工审阅后的字段规则、测试和非专有的 hash 证据。
@@ -157,12 +180,26 @@ hash 未变化。
 收集到的文件也只能标为 `capture-only / unverified`；只有后续视觉 oracle 或绑定
 hash 的人工审查回执才能把具体检查升级为 verified。
 
-真实 adapter 接入前还必须校验当前 Aqua / console 登录 UID，并在每次 GUI 操作后
-校验 CapCut PID 的 euid、container 和草稿 store 都属于同一独立用户。仅修改 `HOME`
-或从另一个 shell UID 启动进程不构成 GUI 隔离；发现 Peter 已运行的 CapCut PID 时
-必须立即拒绝。安装后的草稿还要逐文件比对源 bundle，保存和重开后重新解析结构、
-素材 hash 与时间线语义；截图和导出视频必须以单文件描述符快照的 hash 绑定到最终
-oracle 结果。
+runner 已实现真实 adapter 所需的 fail-closed 边界：
+
+- 精确校验 CapCut 8.1.1 的 bundle ID、版本、Team ID、Developer ID 证书链、designated
+  requirement 和 CDHash；应用、可执行文件、`Info.plist` 与字体在每个 adapter step
+  前后都重新快照并验签。
+- 校验 Aqua / console 登录 UID；用双次 `ps` 与 `lsof -d txt` 把唯一主进程的
+  PID、UID、PPID、PGID、启动时间和可执行文件 vnode 绑定到计划内应用。launch 必须
+  产生新世代，运行中世代必须连续，quit 后必须消失。
+- 每步保护所有非当前草稿；安装后逐文件比对源 bundle。保存、重开和最终阶段都会
+  解析四份 `draft_info.json` 镜像，核对结构、时间线语义及视频、音频、贴纸和 LUT
+  的实际 bytes/SHA-256。
+- 截图和导出使用同一文件描述符快照绑定。视觉 bridge 固定覆盖 13 个检查，使用随
+  QCut 分发的 FFmpeg/FFprobe 8.1.2 重新探测 30 fps CFR、重新抽取指定帧，并从绑定的
+  PNG 独立复算 LUT/mask；manifest 自报的比较结果不能直接升级为 verified。
+
+这些是边界采样，不是内核级连续审计：不能证明两次采样之间发生后又恢复的修改，也
+不声称能发现任意改名并移出应用 bundle 的外部子进程。runner 仍没有默认 GUI adapter，
+视觉 extraction → capture → review → verification 也尚无单一操作入口。更重要的是，
+当前机器没有独立 Aqua 用户或 VM，所以这些保护目前只有模拟 adapter、真实本机只读
+验签和历史导出证据，不能替代新 bundle 的真实 GUI 运行。
 
 ## 下一阶段与发布门槛
 

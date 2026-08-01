@@ -1,43 +1,44 @@
 import { createHash } from "node:crypto";
 import { readdir, writeFile } from "node:fs/promises";
 import { dirname, extname, join, resolve } from "node:path";
-import { isDeepStrictEqual } from "node:util";
+import {
+	collectFontBindingChangedPaths,
+	fontBindingContainsExactLabel,
+} from "./font-reference-binding.js";
+import type { CapCut81FontBindingSnapshot } from "./font-reference-binding.js";
+import {
+	assertRootTimelineSemanticAgreement,
+	parseCapCut81FontReferenceDraft,
+} from "./font-reference-draft.js";
+import type { CapCut81TextSegmentEvidence } from "./font-reference-draft.js";
 import { readRegularFileSnapshot } from "./disposable-store-control-file.js";
 import { requireCanonicalPath } from "./gui-regression-filesystem.js";
 
 const MAXIMUM_FONT_REFERENCE_DRAFT_BYTES = 256 * 1024 * 1024;
 const FONT_REFERENCE_SCHEMA = "qcut.capcut-8-1.font-reference" as const;
-const FONT_REFERENCE_SCHEMA_VERSION = 1 as const;
+const FONT_REFERENCE_SCHEMA_VERSION = 2 as const;
+export const CAPCUT_FONT_REFERENCE_VERIFICATION_STATUS =
+	"unverified-draft-self-report" as const;
 
-interface FieldSnapshot {
-	present: boolean;
-	value: unknown;
-}
+export type { CapCut81FontBindingSnapshot } from "./font-reference-binding.js";
 
-export interface CapCut81FontBindingSnapshot {
-	materialFields: Readonly<Record<string, unknown>>;
-	materialFonts: FieldSnapshot;
-	styleFonts: readonly (FieldSnapshot & { styleIndex: number })[];
-	text: string;
-	topLevelFontMaterials: FieldSnapshot;
+interface DraftInfoEvidence {
+	bytes: number;
+	path: string;
+	sha256: string;
 }
 
 export interface CapCut81FontReferenceDraftEvidence {
 	binding: CapCut81FontBindingSnapshot;
 	canonicalDraftDirectory: string;
-	nonFontTargetSha256: string;
-	rootDraftInfo: {
-		bytes: number;
-		path: string;
-		sha256: string;
-	};
+	canonicalDraftSemanticSha256: string;
+	normalizedDraftSemanticSha256: string;
+	rootDraftInfo: DraftInfoEvidence;
 	targetMaterialId: string;
-	timelineDraftInfo: {
-		bytes: number;
-		path: string;
-		sha256: string;
-	};
+	textSegment: CapCut81TextSegmentEvidence;
+	timelineDraftInfo: DraftInfoEvidence;
 	timelineId: string;
+	updateTime: number;
 }
 
 export interface CapCut81FontReferencePair {
@@ -48,191 +49,7 @@ export interface CapCut81FontReferencePair {
 	schema: typeof FONT_REFERENCE_SCHEMA;
 	schemaVersion: typeof FONT_REFERENCE_SCHEMA_VERSION;
 	targetText: string;
-}
-
-interface ParsedTextTarget {
-	binding: CapCut81FontBindingSnapshot;
-	materialId: string;
-	nonFontTarget: unknown;
-}
-
-function requireRecord({
-	label,
-	value,
-}: {
-	label: string;
-	value: unknown;
-}): Record<string, unknown> {
-	if (value === null || typeof value !== "object" || Array.isArray(value)) {
-		throw new Error(`${label} must be an object.`);
-	}
-	return value as Record<string, unknown>;
-}
-
-function requireArray({
-	label,
-	value,
-}: {
-	label: string;
-	value: unknown;
-}): unknown[] {
-	if (!Array.isArray(value)) throw new Error(`${label} must be an array.`);
-	return value;
-}
-
-function requireString({
-	label,
-	value,
-}: {
-	label: string;
-	value: unknown;
-}): string {
-	if (typeof value !== "string" || value.length === 0) {
-		throw new Error(`${label} must be a non-empty string.`);
-	}
-	return value;
-}
-
-function parseJsonRecord({
-	label,
-	text,
-}: {
-	label: string;
-	text: string;
-}): Record<string, unknown> {
-	let parsed: unknown;
-	try {
-		parsed = JSON.parse(text);
-	} catch {
-		throw new Error(`${label} must contain valid JSON.`);
-	}
-	return requireRecord({ label, value: parsed });
-}
-
-function snapshotField({
-	key,
-	record,
-}: {
-	key: string;
-	record: Record<string, unknown>;
-}): FieldSnapshot {
-	return {
-		present: Object.hasOwn(record, key),
-		value: Object.hasOwn(record, key) ? record[key] : null,
-	};
-}
-
-function isMaterialFontField({ key }: { key: string }): boolean {
-	return key === "fonts" || key.startsWith("font_");
-}
-
-function sortedRecord({
-	entries,
-}: {
-	entries: readonly (readonly [string, unknown])[];
-}): Record<string, unknown> {
-	return Object.fromEntries(
-		[...entries].sort(([left], [right]) => left.localeCompare(right))
-	);
-}
-
-function stripStyleFont({
-	style,
-}: {
-	style: Record<string, unknown>;
-}): Record<string, unknown> {
-	return sortedRecord({
-		entries: Object.entries(style).filter(([key]) => key !== "font"),
-	});
-}
-
-function extractTextTarget({
-	draftInfoText,
-	label,
-	targetText,
-}: {
-	draftInfoText: string;
-	label: string;
-	targetText: string;
-}): ParsedTextTarget {
-	const root = parseJsonRecord({ label, text: draftInfoText });
-	const materials = requireRecord({
-		label: `${label} materials`,
-		value: root.materials,
-	});
-	const texts = requireArray({
-		label: `${label} text materials`,
-		value: materials.texts,
-	});
-	const matches = texts.flatMap((value, index) => {
-		const material = requireRecord({
-			label: `${label} text material ${index}`,
-			value,
-		});
-		const payload = parseJsonRecord({
-			label: `${label} text material ${index} content`,
-			text: requireString({
-				label: `${label} text material ${index} content`,
-				value: material.content,
-			}),
-		});
-		return payload.text === targetText ? [{ material, payload }] : [];
-	});
-	if (matches.length !== 1) {
-		throw new Error(
-			`${label} must contain exactly one text material with ${JSON.stringify(targetText)}; found ${matches.length}.`
-		);
-	}
-	const match = matches[0];
-	if (!match) throw new Error(`${label} target material is unavailable.`);
-	const styles = requireArray({
-		label: `${label} target styles`,
-		value: match.payload.styles,
-	}).map((value, styleIndex) => ({
-		style: requireRecord({
-			label: `${label} target style ${styleIndex}`,
-			value,
-		}),
-		styleIndex,
-	}));
-	if (styles.length === 0) {
-		throw new Error(`${label} target must contain at least one text style.`);
-	}
-	const materialFields = sortedRecord({
-		entries: Object.entries(match.material).filter(([key]) =>
-			key.startsWith("font_")
-		),
-	});
-	const nonFontPayload = sortedRecord({
-		entries: Object.entries(match.payload).map(([key, value]) => [
-			key,
-			key === "styles"
-				? styles.map(({ style }) => stripStyleFont({ style }))
-				: value,
-		]),
-	});
-	const nonFontTarget = sortedRecord({
-		entries: Object.entries(match.material)
-			.filter(([key]) => !isMaterialFontField({ key }))
-			.map(([key, value]) => [key, key === "content" ? nonFontPayload : value]),
-	});
-	return {
-		binding: {
-			materialFields,
-			materialFonts: snapshotField({ key: "fonts", record: match.material }),
-			styleFonts: styles.map(({ style, styleIndex }) => ({
-				...snapshotField({ key: "font", record: style }),
-				styleIndex,
-			})),
-			text: targetText,
-			topLevelFontMaterials: snapshotField({ key: "fonts", record: materials }),
-		},
-		materialId: requireString({
-			label: `${label} target material id`,
-			value: match.material.id,
-		}),
-		nonFontTarget,
-	};
+	verificationStatus: typeof CAPCUT_FONT_REFERENCE_VERIFICATION_STATUS;
 }
 
 function sha256Bytes({ bytes }: { bytes: Buffer }): string {
@@ -245,7 +62,13 @@ function sha256Value({ value }: { value: unknown }): string {
 		.digest("hex");
 }
 
-async function readDraftInfo({ label, path }: { label: string; path: string }) {
+async function readDraftInfo({
+	label,
+	path,
+}: {
+	label: string;
+	path: string;
+}): Promise<{ bytes: Buffer; evidence: DraftInfoEvidence }> {
 	const snapshot = await readRegularFileSnapshot({
 		label,
 		maximumBytes: MAXIMUM_FONT_REFERENCE_DRAFT_BYTES,
@@ -261,6 +84,43 @@ async function readDraftInfo({ label, path }: { label: string; path: string }) {
 	};
 }
 
+async function resolveSingleTimeline({
+	draftDirectory,
+}: {
+	draftDirectory: string;
+}): Promise<{ timelineId: string; timelinePath: string }> {
+	const timelinesDirectory = await requireCanonicalPath({
+		expectedKind: "directory",
+		label: "CapCut font reference Timelines directory",
+		path: join(draftDirectory, "Timelines"),
+	});
+	const entries = await readdir(timelinesDirectory.canonicalPath, {
+		withFileTypes: true,
+	});
+	if (entries.some((entry) => entry.isSymbolicLink())) {
+		throw new Error(
+			"CapCut font reference Timelines must not contain symlinks."
+		);
+	}
+	const timelineIds = entries
+		.filter((entry) => entry.isDirectory())
+		.map(({ name }) => name)
+		.sort();
+	if (timelineIds.length !== 1) {
+		throw new Error(
+			`CapCut font reference must contain exactly one timeline; found ${timelineIds.length}.`
+		);
+	}
+	const timelineId = timelineIds[0];
+	if (!timelineId) {
+		throw new Error("CapCut font reference timeline is missing.");
+	}
+	return {
+		timelineId,
+		timelinePath: join(timelinesDirectory.canonicalPath, timelineId),
+	};
+}
+
 export async function inspectCapCut81FontReferenceDraft({
 	draftDirectory,
 	targetText,
@@ -273,31 +133,9 @@ export async function inspectCapCut81FontReferenceDraft({
 		label: "CapCut font reference draft",
 		path: draftDirectory,
 	});
-	const timelinesDirectory = await requireCanonicalPath({
-		expectedKind: "directory",
-		label: "CapCut font reference Timelines directory",
-		path: join(draft.canonicalPath, "Timelines"),
+	const { timelineId, timelinePath } = await resolveSingleTimeline({
+		draftDirectory: draft.canonicalPath,
 	});
-	const timelineEntries = await readdir(timelinesDirectory.canonicalPath, {
-		withFileTypes: true,
-	});
-	const timelineIds = timelineEntries
-		.filter((entry) => entry.isDirectory() && !entry.isSymbolicLink())
-		.map(({ name }) => name)
-		.sort();
-	if (timelineEntries.some((entry) => entry.isSymbolicLink())) {
-		throw new Error(
-			"CapCut font reference Timelines must not contain symlinks."
-		);
-	}
-	if (timelineIds.length !== 1) {
-		throw new Error(
-			`CapCut font reference must contain exactly one timeline; found ${timelineIds.length}.`
-		);
-	}
-	const timelineId = timelineIds[0];
-	if (!timelineId)
-		throw new Error("CapCut font reference timeline is missing.");
 	const [rootDraftInfo, timelineDraftInfo] = await Promise.all([
 		readDraftInfo({
 			label: "CapCut font reference root draft_info.json",
@@ -305,87 +143,60 @@ export async function inspectCapCut81FontReferenceDraft({
 		}),
 		readDraftInfo({
 			label: "CapCut font reference timeline draft_info.json",
-			path: join(
-				timelinesDirectory.canonicalPath,
-				timelineId,
-				"draft_info.json"
-			),
+			path: join(timelinePath, "draft_info.json"),
 		}),
 	]);
-	const rootTarget = extractTextTarget({
+	const root = parseCapCut81FontReferenceDraft({
 		draftInfoText: rootDraftInfo.bytes.toString("utf8"),
 		label: "Root draft_info.json",
 		targetText,
 	});
-	const timelineTarget = extractTextTarget({
+	const timeline = parseCapCut81FontReferenceDraft({
 		draftInfoText: timelineDraftInfo.bytes.toString("utf8"),
 		label: "Timeline draft_info.json",
 		targetText,
 	});
-	if (!isDeepStrictEqual(rootTarget, timelineTarget)) {
-		throw new Error(
-			"Root and timeline draft_info.json disagree on the target text material."
-		);
-	}
+	assertRootTimelineSemanticAgreement({ root, timeline });
 	return {
-		binding: rootTarget.binding,
+		binding: root.binding,
 		canonicalDraftDirectory: draft.canonicalPath,
-		nonFontTargetSha256: sha256Value({ value: rootTarget.nonFontTarget }),
+		canonicalDraftSemanticSha256: sha256Value({
+			value: root.canonicalDraft,
+		}),
+		normalizedDraftSemanticSha256: sha256Value({
+			value: root.normalizedDraft,
+		}),
 		rootDraftInfo: rootDraftInfo.evidence,
-		targetMaterialId: rootTarget.materialId,
+		targetMaterialId: root.materialId,
+		textSegment: root.textSegment,
 		timelineDraftInfo: timelineDraftInfo.evidence,
 		timelineId,
+		updateTime: root.updateTime,
 	};
 }
 
-function collectChangedPaths({
+function assertSameNonFontDraft({
 	after,
 	before,
 }: {
-	after: CapCut81FontBindingSnapshot;
-	before: CapCut81FontBindingSnapshot;
-}): string[] {
-	const materialKeys = new Set([
-		...Object.keys(before.materialFields),
-		...Object.keys(after.materialFields),
-	]);
-	const changedMaterialPaths = [...materialKeys]
-		.sort()
-		.filter(
-			(key) =>
-				!isDeepStrictEqual(
-					before.materialFields[key],
-					after.materialFields[key]
-				)
-		)
-		.map((key) => `material.${key}`);
-	const styleCount = Math.max(
-		before.styleFonts.length,
-		after.styleFonts.length
-	);
-	const changedStylePaths = Array.from(
-		{ length: styleCount },
-		(_, styleIndex) =>
-			isDeepStrictEqual(
-				before.styleFonts[styleIndex],
-				after.styleFonts[styleIndex]
-			)
-				? null
-				: `content.styles[${styleIndex}].font`
-	).filter((path): path is string => path !== null);
-	return [
-		...changedMaterialPaths,
-		...(isDeepStrictEqual(before.materialFonts, after.materialFonts)
-			? []
-			: ["material.fonts"]),
-		...(isDeepStrictEqual(
-			before.topLevelFontMaterials,
-			after.topLevelFontMaterials
-		)
-			? []
-			: ["materials.fonts"]),
-		...changedStylePaths,
-	];
+	after: CapCut81FontReferenceDraftEvidence;
+	before: CapCut81FontReferenceDraftEvidence;
+}): void {
+	const sameSnapshotIdentity =
+		before.timelineId === after.timelineId &&
+		before.targetMaterialId === after.targetMaterialId;
+	if (!sameSnapshotIdentity) {
+		throw new Error(
+			"Font reference pair changed timeline or target material identity."
+		);
+	}
+	if (
+		before.normalizedDraftSemanticSha256 !== after.normalizedDraftSemanticSha256
+	) {
+		throw new Error(
+			"Font reference pair changed draft semantics outside the allowed target font bindings."
+		);
+	}
 }
 
 export async function analyzeCapCut81FontReferencePair({
@@ -399,7 +210,8 @@ export async function analyzeCapCut81FontReferencePair({
 	fontLabel: string;
 	targetText: string;
 }): Promise<CapCut81FontReferencePair> {
-	if (fontLabel.trim().length === 0 || targetText.length === 0) {
+	const normalizedFontLabel = fontLabel.trim();
+	if (normalizedFontLabel.length === 0 || targetText.length === 0) {
 		throw new Error("Font label and target text must be non-empty.");
 	}
 	const [before, after] = await Promise.all([
@@ -417,29 +229,40 @@ export async function analyzeCapCut81FontReferencePair({
 			"Before and after font references must be separate snapshots."
 		);
 	}
-	if (
-		before.targetMaterialId !== after.targetMaterialId ||
-		before.nonFontTargetSha256 !== after.nonFontTargetSha256
-	) {
-		throw new Error(
-			"Font reference pair changed non-font target semantics or material identity."
-		);
-	}
-	const changedPaths = collectChangedPaths({
+	assertSameNonFontDraft({ after, before });
+	const changedPaths = collectFontBindingChangedPaths({
 		after: after.binding,
 		before: before.binding,
 	});
 	if (changedPaths.length === 0) {
-		throw new Error("Font reference pair contains no font-field change.");
+		throw new Error(
+			"Font reference pair contains no canonical font-identity binding change."
+		);
+	}
+	if (changedPaths.every((path) => path === "materials.fonts")) {
+		throw new Error(
+			"Top-level materials.fonts cannot establish a target text font binding by itself."
+		);
+	}
+	if (
+		!fontBindingContainsExactLabel({
+			binding: after.binding,
+			fontLabel: normalizedFontLabel,
+		})
+	) {
+		throw new Error(
+			"After-draft font bindings must contain the exact UI font label."
+		);
 	}
 	return {
 		after,
 		before,
 		changedPaths,
-		fontLabel: fontLabel.trim(),
+		fontLabel: normalizedFontLabel,
 		schema: FONT_REFERENCE_SCHEMA,
 		schemaVersion: FONT_REFERENCE_SCHEMA_VERSION,
 		targetText,
+		verificationStatus: CAPCUT_FONT_REFERENCE_VERIFICATION_STATUS,
 	};
 }
 

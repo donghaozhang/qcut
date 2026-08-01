@@ -1,6 +1,7 @@
 import { join, resolve } from "node:path";
 import {
 	analyzeCapCut81FontReferencePair,
+	CAPCUT_FONT_REFERENCE_VERIFICATION_STATUS,
 	writeCapCut81FontReference,
 } from "./font-reference.js";
 
@@ -65,14 +66,21 @@ export async function runCapCut81FontReferenceCli({
 	args,
 }: {
 	args: readonly string[];
-}): Promise<CapCut81FontReferenceCliOptions> {
+}): Promise<
+	CapCut81FontReferenceCliOptions & {
+		verificationStatus: typeof CAPCUT_FONT_REFERENCE_VERIFICATION_STATUS;
+	}
+> {
 	const options = parseCapCut81FontReferenceCliOptions({ args });
 	const reference = await analyzeCapCut81FontReferencePair(options);
 	await writeCapCut81FontReference({
 		outputPath: options.outputPath,
 		reference,
 	});
-	return options;
+	return {
+		...options,
+		verificationStatus: reference.verificationStatus,
+	};
 }
 
 const entryPath = process.argv[1] ? resolve(process.argv[1]) : "";
@@ -84,8 +92,10 @@ const expectedEntryPath = join(
 );
 if (entryPath === expectedEntryPath) {
 	runCapCut81FontReferenceCli({ args: process.argv.slice(2) })
-		.then(({ outputPath }) => {
-			process.stdout.write(`${outputPath}\n`);
+		.then(({ outputPath, verificationStatus }) => {
+			process.stdout.write(
+				`${JSON.stringify({ outputPath, verificationStatus })}\n`
+			);
 		})
 		.catch((error: unknown) => {
 			process.stderr.write(
