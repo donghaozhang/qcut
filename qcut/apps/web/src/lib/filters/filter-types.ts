@@ -23,10 +23,23 @@ export type FilterColorMatrix = [
 	[number, number, number],
 ];
 
-export interface FilterQuadraticColorCorrection {
+export type FilterCubicMixedMatrix = [
+	[number, number, number, number, number, number],
+	[number, number, number, number, number, number],
+	[number, number, number, number, number, number],
+];
+
+export interface FilterCubicColorTerms {
+	pure: FilterColorMatrix;
+	mixed: FilterCubicMixedMatrix;
+	triple: [number, number, number];
+}
+
+export interface FilterPolynomialColorCorrection {
 	linear: FilterColorMatrix;
 	squared: FilterColorMatrix;
 	cross: FilterColorMatrix;
+	cubic?: FilterCubicColorTerms;
 	offset: [number, number, number];
 }
 
@@ -43,7 +56,7 @@ export interface FilterLutRecipe {
 	monochrome?: number;
 	shadowTint?: [number, number, number];
 	highlightTint?: [number, number, number];
-	quadraticCorrection?: FilterQuadraticColorCorrection;
+	polynomialCorrection?: FilterPolynomialColorCorrection;
 }
 
 export interface FilterExtras {

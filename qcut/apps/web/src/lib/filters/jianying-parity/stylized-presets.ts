@@ -25,7 +25,7 @@ export const JIANYING_STYLIZED_PARITY_FILTER_PRESETS: FilterPreset[] = [
 			hueShift: 2.0995,
 			monochrome: 0.66,
 			fade: 0.012,
-			quadraticCorrection: {
+			polynomialCorrection: {
 				linear: [
 					[0.8486, -0.0135, -0.3431],
 					[-0.2542, 1.1268, -0.2033],
@@ -47,28 +47,47 @@ export const JIANYING_STYLIZED_PARITY_FILTER_PRESETS: FilterPreset[] = [
 	},
 	{
 		id: "jy-ink-film",
-		version: 1,
+		version: 2,
 		name: "Ink Film",
 		localizedName: "墨色胶卷",
 		category: "stylized",
 		tags: ["stylized", "creative", "风格化", "创意", "墨色胶卷", "Ink Film"],
 		thumbnail: "/images/filter-previews/jy-ink-film.webp",
-		lutAssetId: "qcut/filter/jy-ink-film/v1",
+		lutAssetId: "qcut/filter/jy-ink-film/v2",
 		defaultIntensity: 100,
 		isNew: true,
 		recipe: {
-			exposure: 0.012,
-			gamma: 0.647,
-			blackLift: -0.157,
-			shadowTint: [-0.198, 0.35, 0.229],
-			highlightTint: [-0.172, 0.008, 0.35],
-			temperature: 0.237,
-			tint: 0.884,
-			contrast: -0.088,
-			saturation: 0.643,
-			hueShift: -3,
-			monochrome: 0.16,
-			fade: 0.073,
+			polynomialCorrection: {
+				linear: [
+					[-0.003, -0.068, 0.104],
+					[0.099, 0.327, 0.143],
+					[0.092, 0.238, 0.183],
+				],
+				squared: [
+					[1.089, 0.057, -0.586],
+					[-0.002, 0.733, 0.113],
+					[0.085, 0.354, 0.679],
+				],
+				cross: [
+					[0.385, -0.009, 0.179],
+					[-0.189, 0.012, -0.218],
+					[-0.304, 0.114, -0.058],
+				],
+				cubic: {
+					pure: [
+						[-0.4, 0.319, 0.403],
+						[0.063, -0.319, 0.21],
+						[0.085, 0.076, -0.056],
+					],
+					mixed: [
+						[0.03, -0.17, -0.729, 0.423, 0.257, -0.247],
+						[-0.019, -0.015, 0.08, 0.066, -0.159, -0.219],
+						[-0.047, -0.144, 0.096, -0.378, -0.229, -0.229],
+					],
+					triple: [-0.144, 0.145, 0.303],
+				},
+				offset: [0.022, 0.028, 0.003],
+			},
 		},
 	},
 	{
