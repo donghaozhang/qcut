@@ -81,12 +81,12 @@ describe("CapCut 8.1 font resolver", () => {
 		);
 	});
 
-	it.each(["\u4db5", "\u9fd0"])(
-		"accepts a Han code point at a verified cmap boundary: %s",
-		(character) => {
-			expect(resolveFont({ content: character }).ok).toBe(true);
-		}
-	);
+	it.each([
+		"\u4db5",
+		"\u9fd0",
+	])("accepts a Han code point at a verified cmap boundary: %s", (character) => {
+		expect(resolveFont({ content: character }).ok).toBe(true);
+	});
 
 	it("treats an explicit system request as the verified default", () => {
 		const resolution = resolveFont({ requestedFamily: " System " });
