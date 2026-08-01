@@ -280,8 +280,13 @@ const pseudo3dSlideshow = categoryExpansion({
 			"立方旋转",
 			"page",
 			"cube",
-			0.7,
-			{ tuning: { intensity: 1 }, tags: ["cube", "3d"], popular: true },
+			1,
+			{
+				easing: "linear",
+				tuning: { intensity: 1 },
+				tags: ["cube", "3d"],
+				popular: true,
+			},
 		],
 		[
 			"cube-rotate-2",
