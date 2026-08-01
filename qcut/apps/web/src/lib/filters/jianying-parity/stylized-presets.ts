@@ -1,4 +1,8 @@
 import type { FilterPreset } from "../filter-types";
+import {
+	SILVER_BLUE_BACKGROUND_RECIPE,
+	SILVER_BLUE_SKIN_TONE_RECIPE,
+} from "./silver-blue-recipes";
 
 export const JIANYING_STYLIZED_PARITY_FILTER_PRESETS: FilterPreset[] = [
 	{
@@ -92,29 +96,17 @@ export const JIANYING_STYLIZED_PARITY_FILTER_PRESETS: FilterPreset[] = [
 	},
 	{
 		id: "jy-silver-blue",
-		version: 1,
+		version: 2,
 		name: "Silver Blue",
 		localizedName: "银蓝",
 		category: "stylized",
 		tags: ["stylized", "creative", "风格化", "创意", "银蓝", "Silver Blue"],
 		thumbnail: "/images/filter-previews/jy-silver-blue.webp",
-		lutAssetId: "qcut/filter/jy-silver-blue/v1",
+		lutAssetId: "qcut/filter/jy-silver-blue/v2",
 		defaultIntensity: 100,
 		isNew: true,
-		recipe: {
-			exposure: -0.964,
-			gamma: 1.587,
-			blackLift: 0.214,
-			shadowTint: [-0.175, 0.35, 0.338],
-			highlightTint: [-0.35, -0.212, 0.35],
-			temperature: 0.356,
-			tint: 1.2,
-			contrast: 2.994,
-			saturation: 1.088,
-			hueShift: 2.1,
-			monochrome: 0.772,
-			fade: 0.303,
-		},
+		recipe: SILVER_BLUE_BACKGROUND_RECIPE,
+		skinToneRecipe: SILVER_BLUE_SKIN_TONE_RECIPE,
 	},
 	{
 		id: "jy-black-gold",
