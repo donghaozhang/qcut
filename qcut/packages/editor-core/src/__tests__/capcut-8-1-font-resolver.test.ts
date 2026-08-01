@@ -35,7 +35,7 @@ describe("CapCut 8.1 font resolver", () => {
 			appVersion: CAPCUT_8_1_APP_VERSION,
 			coverage: {
 				emoji: false,
-				systemFallbackAllowlist: ["latin", "han", "common", "inherited"],
+				systemFallbackAllowlist: ["latin", "bmp-han", "common", "inherited"],
 				verifiedScripts: ["latin", "simplified-chinese"],
 			},
 			draftFields: CAPCUT_8_1_SYSTEM_DEFAULT_FONT_DRAFT_FIELDS,
@@ -133,6 +133,7 @@ describe("CapCut 8.1 font resolver", () => {
 		{ character: "Ж", codePoint: "U+0416", content: "Журнал" },
 		{ character: "م", codePoint: "U+0645", content: "مرحبا" },
 		{ character: "न", codePoint: "U+0928", content: "नमस्ते" },
+		{ character: "𠀀", codePoint: "U+20000", content: "𠀀" },
 	])("blocks an unverified script beginning with $character", ({
 		character,
 		codePoint,
@@ -144,7 +145,7 @@ describe("CapCut 8.1 font resolver", () => {
 		if (resolution.ok) return;
 		expect(resolution.errors).toContainEqual({
 			code: "UNVERIFIED_CAPCUT_TEXT_SCRIPT",
-			message: `Character ${JSON.stringify(character)} (${codePoint}) is outside the conservative CapCut 8.1 system-fallback script allowlist (Latin, Han, Common, Inherited).`,
+			message: `Character ${JSON.stringify(character)} (${codePoint}) is outside the conservative CapCut 8.1 system-fallback allowlist (Latin, BMP Han, Common, Inherited).`,
 			severity: "error",
 		});
 	});
