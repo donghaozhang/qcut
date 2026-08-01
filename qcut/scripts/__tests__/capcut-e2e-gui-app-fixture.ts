@@ -4,12 +4,37 @@ import {
 	CAPCUT_GUI_APP_BUNDLE_IDENTIFIER,
 	CAPCUT_GUI_APP_VERSION,
 	CAPCUT_GUI_SYSTEM_FONT_FILE_NAMES,
+	capCutGuiAppProfileTesting,
+	type CapCutGuiAppInspector,
 } from "../capcut-e2e/gui-regression-app-profile.js";
+import {
+	CAPCUT_GUI_APP_DESIGNATED_REQUIREMENT,
+	CAPCUT_GUI_APP_SIGNING_AUTHORITIES,
+	CAPCUT_GUI_APP_TEAM_IDENTIFIER,
+	CAPCUT_GUI_CODESIGN_PATH,
+	type CapCutGuiAppSignatureReceipt,
+} from "../capcut-e2e/gui-regression-app-signature.js";
 
 export const FIXTURE_CAPCUT_EXECUTABLE = "fixture-capcut-executable";
 export const FIXTURE_CAPCUT_ENGLISH_FONT = "fixture-capcut-en-font";
 export const FIXTURE_CAPCUT_SIMPLIFIED_CHINESE_FONT =
 	"fixture-capcut-zh-hans-font";
+export const FIXTURE_CAPCUT_SIGNATURE_RECEIPT = Object.freeze({
+	authorities: CAPCUT_GUI_APP_SIGNING_AUTHORITIES,
+	cdHash: "0123456789abcdef0123456789abcdef01234567",
+	codesignPath: CAPCUT_GUI_CODESIGN_PATH,
+	designatedRequirement: CAPCUT_GUI_APP_DESIGNATED_REQUIREMENT,
+	identifier: CAPCUT_GUI_APP_BUNDLE_IDENTIFIER,
+	teamIdentifier: CAPCUT_GUI_APP_TEAM_IDENTIFIER,
+}) satisfies CapCutGuiAppSignatureReceipt;
+
+export const inspectFixtureCapCutApp: CapCutGuiAppInspector = async ({
+	capCutAppPath,
+}) =>
+	capCutGuiAppProfileTesting.inspectCapCutAppWithSignatureInspector({
+		capCutAppPath,
+		inspectSignature: async () => FIXTURE_CAPCUT_SIGNATURE_RECEIPT,
+	});
 
 export function createInfoPlist({
 	bundleIdentifier = CAPCUT_GUI_APP_BUNDLE_IDENTIFIER,

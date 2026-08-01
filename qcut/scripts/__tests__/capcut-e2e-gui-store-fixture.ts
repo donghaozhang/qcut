@@ -1,4 +1,4 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { cp, lstat, mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { type GuiFixture, writeJson } from "./capcut-e2e-gui-fixture.js";
 
@@ -21,12 +21,25 @@ export async function writeRootDraftIds({
 				fixture.canonicalStorePath,
 				bundle.draftFolderName
 			);
-			await mkdir(draftDirectory, { recursive: true });
-			await writeFile(
-				join(draftDirectory, "draft_info.json"),
-				`${bundle.draftId}\n`,
-				"utf8"
-			);
+			const alreadyInstalled = await lstat(draftDirectory)
+				.then((stats) => stats.isDirectory() && !stats.isSymbolicLink())
+				.catch((error: unknown) => {
+					if (
+						typeof error === "object" &&
+						error !== null &&
+						"code" in error &&
+						error.code === "ENOENT"
+					) {
+						return false;
+					}
+					throw error;
+				});
+			if (alreadyInstalled) return;
+			await cp(bundle.draftDirectory, draftDirectory, {
+				errorOnExist: true,
+				force: false,
+				recursive: true,
+			});
 		})
 	);
 	await writeJson({

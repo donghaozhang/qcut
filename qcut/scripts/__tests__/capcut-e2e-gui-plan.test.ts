@@ -1,7 +1,6 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { inspectCapCutApp } from "../capcut-e2e/gui-regression-app-profile.js";
 import { CAPCUT_GUI_CASE_EXPECTATIONS } from "../capcut-e2e/gui-regression-contract.js";
 import { assertRootFingerprintUnchanged } from "../capcut-e2e/gui-regression-evidence.js";
 import {
@@ -11,6 +10,7 @@ import {
 } from "../capcut-e2e/gui-regression-runner.js";
 import {
 	cleanupGuiFixtures,
+	createFixtureSessionInspector,
 	createInfoPlist,
 	createGuiFixture,
 	getFixtureCapCutSystemFontPath,
@@ -134,7 +134,8 @@ describe("CapCut GUI execute TOCTOU guard", () => {
 		await expect(
 			capCutGuiRegressionRunnerTesting.executeCapCutGuiRegression({
 				adapter: { performStep },
-				inspectApp: inspectCapCutApp,
+				inspectApp: fixture.inspectApp,
+				inspectSession: createFixtureSessionInspector(),
 				plan,
 				planPath: join(plan.evidenceDirectory, "gui-regression-plan.json"),
 				verifyBundle: fixture.verifyBundle,
@@ -161,7 +162,8 @@ describe("CapCut GUI execute TOCTOU guard", () => {
 		await expect(
 			capCutGuiRegressionRunnerTesting.executeCapCutGuiRegression({
 				adapter: { performStep },
-				inspectApp: inspectCapCutApp,
+				inspectApp: fixture.inspectApp,
+				inspectSession: createFixtureSessionInspector(),
 				plan,
 				planPath: join(plan.evidenceDirectory, "gui-regression-plan.json"),
 				verifyBundle: fixture.verifyBundle,
@@ -189,7 +191,8 @@ describe("CapCut GUI execute TOCTOU guard", () => {
 		await expect(
 			capCutGuiRegressionRunnerTesting.executeCapCutGuiRegression({
 				adapter: { performStep },
-				inspectApp: inspectCapCutApp,
+				inspectApp: fixture.inspectApp,
+				inspectSession: createFixtureSessionInspector(),
 				plan,
 				planPath: join(plan.evidenceDirectory, "gui-regression-plan.json"),
 				verifyBundle: fixture.verifyBundle,
@@ -214,7 +217,8 @@ describe("CapCut GUI execute TOCTOU guard", () => {
 		await expect(
 			capCutGuiRegressionRunnerTesting.executeCapCutGuiRegression({
 				adapter: { performStep },
-				inspectApp: inspectCapCutApp,
+				inspectApp: fixture.inspectApp,
+				inspectSession: createFixtureSessionInspector(),
 				plan,
 				planPath: join(plan.evidenceDirectory, "gui-regression-plan.json"),
 				verifyBundle: fixture.verifyBundle,
@@ -245,7 +249,8 @@ describe("CapCut GUI execute TOCTOU guard", () => {
 		await expect(
 			capCutGuiRegressionRunnerTesting.executeCapCutGuiRegression({
 				adapter: { performStep },
-				inspectApp: inspectCapCutApp,
+				inspectApp: fixture.inspectApp,
+				inspectSession: createFixtureSessionInspector(),
 				plan,
 				planPath: join(plan.evidenceDirectory, "gui-regression-plan.json"),
 				verifyBundle: fixture.verifyBundle,
@@ -273,7 +278,8 @@ describe("CapCut GUI execute TOCTOU guard", () => {
 		await expect(
 			capCutGuiRegressionRunnerTesting.executeCapCutGuiRegression({
 				adapter: { performStep },
-				inspectApp: inspectCapCutApp,
+				inspectApp: fixture.inspectApp,
+				inspectSession: createFixtureSessionInspector(),
 				plan,
 				planPath: join(plan.evidenceDirectory, "gui-regression-plan.json"),
 				verifyBundle: fixture.verifyBundle,
@@ -297,7 +303,8 @@ describe("CapCut GUI execute TOCTOU guard", () => {
 		await expect(
 			capCutGuiRegressionRunnerTesting.executeCapCutGuiRegression({
 				adapter: { performStep },
-				inspectApp: inspectCapCutApp,
+				inspectApp: fixture.inspectApp,
+				inspectSession: createFixtureSessionInspector(),
 				plan,
 				planPath: join(plan.evidenceDirectory, "gui-regression-plan.json"),
 				verifyBundle: fixture.verifyBundle,

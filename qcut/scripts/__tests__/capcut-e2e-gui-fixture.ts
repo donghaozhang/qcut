@@ -33,7 +33,27 @@ import {
 	type CapCutGuiProcessIdentity,
 } from "../capcut-e2e/gui-regression-identity.js";
 import { capCutGuiRegressionPreflightTesting } from "../capcut-e2e/gui-regression-preflight.js";
-import { writeFixtureCapCutApp } from "./capcut-e2e-gui-app-fixture.js";
+import type {
+	CapCutGuiSessionInspector,
+	CapCutGuiSessionReport,
+} from "../capcut-e2e/gui-regression-session-guard.js";
+import {
+	createBundleSemanticFixture,
+	INVERT_LUT,
+} from "./capcut-e2e-bundle-semantic-fixture.js";
+import {
+	inspectFixtureCapCutApp,
+	writeFixtureCapCutApp,
+} from "./capcut-e2e-gui-app-fixture.js";
+import type {
+	FixtureBundle,
+	GuiFixture,
+} from "./capcut-e2e-gui-fixture-types.js";
+
+export type {
+	FixtureBundle,
+	GuiFixture,
+} from "./capcut-e2e-gui-fixture-types.js";
 
 export {
 	createInfoPlist,
@@ -42,41 +62,6 @@ export {
 } from "./capcut-e2e-gui-app-fixture.js";
 
 const temporaryDirectories: string[] = [];
-
-interface FixtureBundle {
-	bundleDirectory: string;
-	caseId: (typeof CAPCUT_GUI_CASE_IDS)[number];
-	completeMarkerPath: string;
-	content: { bytes: number; sha256: string };
-	contentText: string;
-	copiedAssets: CapCutGuiAssetIntegrity[];
-	draftDirectory: string;
-	draftFiles: { bytes: number; relativePath: string; sha256: string }[];
-	draftId: string;
-	draftName: string;
-	draftFolderName: string;
-	generatedAssets: CapCutGuiAssetIntegrity[];
-	ids: {
-		draftId: string;
-		placeholderId: string;
-		projectId: string;
-		timelineId: string;
-	};
-	migrationManifestPath: string;
-	timelineMaterialsSize: number;
-}
-
-export interface GuiFixture {
-	appPath: string;
-	bundleManifestPath: string;
-	bundles: FixtureBundle[];
-	canonicalHomePath: string;
-	canonicalStorePath: string;
-	dedicatedTestHomeDirectory: string;
-	rootMetaInfoPath: string;
-	runId: string;
-	verifyBundle: CapCutGuiBundleVerifier;
-}
 
 export function getProcessUid(): number {
 	if (typeof process.geteuid !== "function") {
@@ -110,6 +95,12 @@ async function createFixtureBundle({
 }): Promise<FixtureBundle> {
 	const draftFolderName = `draft-${index + 1}`;
 	const draftName = `GUI ${caseId}`;
+	const ids = {
+		draftId: `draft-id-${index + 1}`,
+		placeholderId: `placeholder-id-${index + 1}`,
+		projectId: `project-id-${index + 1}`,
+		timelineId: `timeline-id-${index + 1}`,
+	};
 	const bundleDirectory = join(root, "bundles", caseId);
 	const draftDirectory = join(
 		bundleDirectory,
@@ -117,14 +108,33 @@ async function createFixtureBundle({
 		draftFolderName
 	);
 	const assetDirectory = join(draftDirectory, "assets");
-	await mkdir(assetDirectory, { recursive: true });
-	const contentText = JSON.stringify({ caseId, native: true });
-	const contentPath = join(draftDirectory, "draft_content.json");
+	const timelineDirectory = join(draftDirectory, "Timelines", ids.timelineId);
+	await Promise.all([
+		mkdir(assetDirectory, { recursive: true }),
+		mkdir(timelineDirectory, { recursive: true }),
+	]);
+	const contentText = JSON.stringify(createBundleSemanticFixture({ caseId }));
+	const contentRelativePaths = [
+		"draft_info.json",
+		"template-2.tmp",
+		`Timelines/${ids.timelineId}/draft_info.json`,
+		`Timelines/${ids.timelineId}/template-2.tmp`,
+	] as const;
 	const copiedAssetText = `copied-${caseId}`;
 	const copiedAssetPath = join(assetDirectory, "source.bin");
+	const generatedAssetPath = join(assetDirectory, "invert.cube");
 	await Promise.all([
-		writeFile(contentPath, contentText, "utf8"),
+		...contentRelativePaths.map((relativePath) =>
+			writeFile(
+				join(draftDirectory, ...relativePath.split("/")),
+				contentText,
+				"utf8"
+			)
+		),
 		writeFile(copiedAssetPath, copiedAssetText, "utf8"),
+		...(caseId === "lut-mask"
+			? [writeFile(generatedAssetPath, INVERT_LUT, "utf8")]
+			: []),
 	]);
 	const copiedAssets = [
 		{
@@ -137,18 +147,12 @@ async function createFixtureBundle({
 		caseId === "lut-mask"
 			? [
 					{
-						bytes: 3,
+						bytes: Buffer.byteLength(INVERT_LUT),
 						relativePath: "assets/invert.cube",
-						sha256: sha256Text({ value: "lut" }),
+						sha256: sha256Text({ value: INVERT_LUT }),
 					},
 				]
 			: [];
-	const ids = {
-		draftId: `draft-id-${index + 1}`,
-		placeholderId: `placeholder-id-${index + 1}`,
-		projectId: `project-id-${index + 1}`,
-		timelineId: `timeline-id-${index + 1}`,
-	};
 	const completeMarkerPath = join(bundleDirectory, "QCUT_EXPORT_COMPLETE.json");
 	const migrationManifestPath = join(
 		bundleDirectory,
@@ -165,15 +169,13 @@ async function createFixtureBundle({
 		sha256: sha256Text({ value: contentText }),
 	};
 	const draftFiles = [
-		{
+		...contentRelativePaths.map((relativePath) => ({
 			bytes: content.bytes,
-			relativePath: relative(bundleDirectory, contentPath),
+			relativePath,
 			sha256: content.sha256,
-		},
-		{
-			...copiedAssets[0],
-			relativePath: relative(bundleDirectory, copiedAssetPath),
-		},
+		})),
+		...(copiedAssets[0] ? [copiedAssets[0]] : []),
+		...generatedAssets,
 	];
 	return {
 		bundleDirectory,
@@ -183,6 +185,7 @@ async function createFixtureBundle({
 		contentText,
 		copiedAssets,
 		draftDirectory,
+		draftDirectories: ["assets", "Timelines", `Timelines/${ids.timelineId}`],
 		draftFiles,
 		draftFolderName,
 		draftId: ids.draftId,
@@ -215,6 +218,7 @@ function createFixtureVerifier({
 		});
 		return {
 			contentText: bundle.contentText,
+			draftDirectories: bundle.draftDirectories,
 			draftFiles: bundle.draftFiles,
 			draftFolderName: bundle.draftFolderName,
 			manifest: {
@@ -325,6 +329,7 @@ export async function createGuiFixture(): Promise<GuiFixture> {
 		canonicalHomePath,
 		canonicalStorePath,
 		dedicatedTestHomeDirectory,
+		inspectApp: inspectFixtureCapCutApp,
 		rootMetaInfoPath,
 		runId,
 		verifyBundle: createFixtureVerifier({ bundles }),
@@ -349,6 +354,80 @@ export function createIdentity({
 		processUid: getProcessUid(),
 		userInfoHomePath: homePath,
 		username,
+	};
+}
+
+export function createFixtureSessionInspector(): CapCutGuiSessionInspector {
+	let generation = 0;
+	let wasRunning = false;
+	return async ({ app, expectation, identity, store }) => {
+		const containerPath = join(
+			identity.userInfoHomePath,
+			"Library",
+			"Containers",
+			"com.lemon.lvoverseas"
+		);
+		const isRunning = expectation.processState === "present";
+		if (isRunning && !wasRunning) generation += 1;
+		wasRunning = isRunning;
+		const processId = 4242 + generation;
+		const processes = isRunning
+			? [
+					{
+						canonicalExecutablePath: app.executablePath,
+						executableDeviceId: app.executableIntegrity.device,
+						executableInode: app.executableIntegrity.inode,
+						executablePath: app.executablePath,
+						pgid: processId,
+						pid: processId,
+						ppid: 1,
+						startIdentity: `Sat Aug 1 12:00:${String(generation).padStart(2, "0")} 2026`,
+						uid: identity.processUid,
+					},
+				]
+			: [];
+		return {
+			consoleDevicePath: "/dev/console",
+			consoleOwnerUid: identity.processUid,
+			container: {
+				canonicalPath: containerPath,
+				identity: createFixtureFileIdentity({
+					inode: "31",
+					ownerUid: identity.processUid,
+				}),
+				ownerUid: identity.processUid,
+				path: containerPath,
+				status: "present",
+			},
+			processes,
+			store: {
+				canonicalPath: store.canonicalStorePath,
+				identity: createFixtureFileIdentity({
+					inode: "32",
+					ownerUid: identity.processUid,
+				}),
+				ownerUid: identity.processUid,
+				path: store.canonicalStorePath,
+				status: "present",
+			},
+		} satisfies CapCutGuiSessionReport;
+	};
+}
+
+function createFixtureFileIdentity({
+	inode,
+	ownerUid,
+}: {
+	inode: string;
+	ownerUid: number;
+}) {
+	return {
+		changedTimeNanoseconds: "1",
+		deviceId: "1",
+		inode,
+		mode: "16877",
+		modifiedTimeNanoseconds: "1",
+		ownerUid,
 	};
 }
 
@@ -389,6 +468,7 @@ export async function preflightFixture({
 		},
 		runtime: {
 			identity,
+			inspectApp: fixture.inspectApp,
 			platform: "darwin",
 			preflightStore: preflightDisposableCapCutStore,
 			readOwner,

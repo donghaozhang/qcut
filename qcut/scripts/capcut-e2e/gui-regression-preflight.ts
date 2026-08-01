@@ -6,6 +6,7 @@ import {
 import {
 	inspectCapCutApp,
 	parseCapCutAppMetadata,
+	type CapCutGuiAppInspector,
 	type CapCutGuiAppReport,
 } from "./gui-regression-app-profile.js";
 import {
@@ -70,6 +71,7 @@ export interface CapCutGuiRegressionPreflightOptions {
 
 interface PreflightRuntime {
 	identity: CapCutGuiProcessIdentity;
+	inspectApp: CapCutGuiAppInspector;
 	platform: NodeJS.Platform;
 	preflightStore: typeof preflightDisposableCapCutStore;
 	readOwner: CapCutGuiOwnerReader;
@@ -104,7 +106,7 @@ async function preflightWithRuntime({
 		store,
 	});
 	const [app, bundleRun] = await Promise.all([
-		inspectCapCutApp({ capCutAppPath: options.capCutAppPath }),
+		runtime.inspectApp({ capCutAppPath: options.capCutAppPath }),
 		inspectBundleRun({
 			bundleManifestPath: options.bundleManifestPath,
 			expectedOwnerUid: identity.processUid,
@@ -149,6 +151,7 @@ export async function preflightCapCutGuiRegression({
 		},
 		runtime: {
 			identity: readActualProcessIdentity(),
+			inspectApp: inspectCapCutApp,
 			platform: process.platform,
 			preflightStore: preflightDisposableCapCutStore,
 			readOwner: readOwnerUid,

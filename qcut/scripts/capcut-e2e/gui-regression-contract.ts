@@ -60,7 +60,9 @@ export interface CapCutGuiBundleVerificationReport {
 		sha256: string;
 	};
 	copiedAssets: readonly CapCutGuiAssetIntegrity[];
+	draftDirectories: readonly string[];
 	draftFileCount: number;
+	draftFiles: readonly CapCutGuiDraftFileIntegrity[];
 	draftFilesInventorySha256: string;
 	draftFolderName: string;
 	generatedAssets: readonly CapCutGuiAssetIntegrity[];
@@ -74,6 +76,12 @@ export interface CapCutGuiBundleVerificationReport {
 	outputDirectory: string;
 	timelineMaterialsSize: number;
 	totalDraftFileBytes: number;
+}
+
+export interface CapCutGuiDraftFileIntegrity {
+	bytes: number;
+	relativePath: string;
+	sha256: string;
 }
 
 export interface CapCutGuiRegressionStep {

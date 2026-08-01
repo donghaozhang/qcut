@@ -10,6 +10,7 @@ import type {
 	CapCutGuiAssetIntegrity,
 	CapCutGuiBundleCase,
 	CapCutGuiBundleVerificationReport,
+	CapCutGuiDraftFileIntegrity,
 } from "./gui-regression-contract.js";
 
 export type CapCutGuiBundleVerifier =
@@ -38,6 +39,70 @@ function sortAssetIntegrity({
 	return [...assets].sort((left, right) =>
 		left.relativePath.localeCompare(right.relativePath)
 	);
+}
+
+function sortDraftFileIntegrity({
+	draftFiles,
+}: {
+	draftFiles: readonly CapCutGuiDraftFileIntegrity[];
+}): CapCutGuiDraftFileIntegrity[] {
+	return [...draftFiles].sort((left, right) =>
+		left.relativePath.localeCompare(right.relativePath)
+	);
+}
+
+function requireSafeDraftRelativePath({
+	label,
+	relativePath,
+}: {
+	label: string;
+	relativePath: string;
+}): void {
+	const segments = relativePath.split("/");
+	if (
+		relativePath.length === 0 ||
+		relativePath.startsWith("/") ||
+		relativePath.includes("\\") ||
+		segments.some(
+			(segment) => segment.length === 0 || segment === "." || segment === ".."
+		)
+	) {
+		throw new Error(`${label} must be a safe POSIX path inside the draft.`);
+	}
+}
+
+function normalizeVerifiedDraftInventory({
+	verified,
+}: {
+	verified: VerifiedMigrationBundle;
+}): {
+	draftDirectories: string[];
+	draftFiles: CapCutGuiDraftFileIntegrity[];
+} {
+	const draftDirectories = [...verified.draftDirectories].sort();
+	const draftFiles = sortDraftFileIntegrity({
+		draftFiles: verified.draftFiles,
+	});
+	for (const [index, relativePath] of draftDirectories.entries()) {
+		requireSafeDraftRelativePath({
+			label: `Verified draft directory ${index}`,
+			relativePath,
+		});
+	}
+	for (const [index, draftFile] of draftFiles.entries()) {
+		requireSafeDraftRelativePath({
+			label: `Verified draft file ${index}`,
+			relativePath: draftFile.relativePath,
+		});
+	}
+	if (
+		new Set(draftDirectories).size !== draftDirectories.length ||
+		new Set(draftFiles.map(({ relativePath }) => relativePath)).size !==
+			draftFiles.length
+	) {
+		throw new Error("Verified draft inventory contains duplicate paths.");
+	}
+	return { draftDirectories, draftFiles };
 }
 
 function assertAssetInventoryMatches({
@@ -158,6 +223,9 @@ export async function verifyGuiBundleCaseIntegrity({
 }): Promise<CapCutGuiBundleVerificationReport> {
 	const verified = await verifyBundle({ outputDirectory });
 	assertVerifiedSummary({ expected, outputDirectory, verified });
+	const { draftDirectories, draftFiles } = normalizeVerifiedDraftInventory({
+		verified,
+	});
 	const [completeMarker, migrationManifest] = await Promise.all([
 		describeIntegrityFile({
 			expectedSha256: expected.completeMarkerSha256,
@@ -174,7 +242,9 @@ export async function verifyGuiBundleCaseIntegrity({
 		completeMarker,
 		content: verified.manifest.content,
 		copiedAssets: sortAssetIntegrity({ assets: verified.manifest.assets }),
+		draftDirectories,
 		draftFileCount: verified.draftFiles.length,
+		draftFiles,
 		draftFilesInventorySha256: createDraftFilesInventorySha256({
 			draftFiles: verified.draftFiles,
 		}),

@@ -7,6 +7,11 @@ import {
 	CAPCUT_GUI_APP_VERSION,
 	CAPCUT_GUI_SYSTEM_FONT_FILE_NAMES,
 } from "../capcut-e2e/gui-regression-app-profile.js";
+import {
+	CAPCUT_GUI_APP_DESIGNATED_REQUIREMENT,
+	CAPCUT_GUI_APP_TEAM_IDENTIFIER,
+	CAPCUT_GUI_CODESIGN_PATH,
+} from "../capcut-e2e/gui-regression-app-signature.js";
 import { CAPCUT_GUI_EXECUTION_CONFIRMATION } from "../capcut-e2e/gui-regression-execution-sentinel.js";
 import { readOwnerUid } from "../capcut-e2e/gui-regression-identity.js";
 import { capCutGuiRegressionPreflightTesting } from "../capcut-e2e/gui-regression-preflight.js";
@@ -222,6 +227,13 @@ describe("CapCut GUI application and bundle verification", () => {
 				sha256: expect.stringMatching(/^[a-f0-9]{64}$/u),
 			},
 			executablePath: join(fixture.appPath, "Contents", "MacOS", "CapCut"),
+			signature: {
+				cdHash: expect.stringMatching(/^[a-f0-9]{40}$/u),
+				codesignPath: CAPCUT_GUI_CODESIGN_PATH,
+				designatedRequirement: CAPCUT_GUI_APP_DESIGNATED_REQUIREMENT,
+				identifier: CAPCUT_GUI_APP_BUNDLE_IDENTIFIER,
+				teamIdentifier: CAPCUT_GUI_APP_TEAM_IDENTIFIER,
+			},
 			systemFonts: {
 				english: {
 					bytes: expect.any(Number),
@@ -269,6 +281,7 @@ describe("CapCut GUI execute authorization", () => {
 		const identity = createIdentity({ homePath: fixture.canonicalHomePath });
 		const baseRuntime = {
 			identity,
+			inspectApp: fixture.inspectApp,
 			platform: "darwin" as const,
 			preflightStore: preflightDisposableCapCutStore,
 			readOwner: readOwnerUid,

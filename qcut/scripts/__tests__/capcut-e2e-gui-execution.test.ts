@@ -3,9 +3,13 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
 	CAPCUT_GUI_SYSTEM_FONT_FILE_NAMES,
-	inspectCapCutApp,
+	type CapCutGuiAppInspector,
 } from "../capcut-e2e/gui-regression-app-profile.js";
 import type { CapCutGuiStepAction } from "../capcut-e2e/gui-regression-contract.js";
+import {
+	verifyCapCutGuiDraftPhase,
+	type CapCutGuiDraftPhaseVerifier,
+} from "../capcut-e2e/gui-regression-draft-verification.js";
 import {
 	CAPCUT_GUI_ADAPTER_APPLICATION_STATE,
 	CAPCUT_GUI_VISUAL_VERIFICATION_REVIEW_GATE,
@@ -16,6 +20,7 @@ import {
 } from "../capcut-e2e/gui-regression-runner.js";
 import {
 	cleanupGuiFixtures,
+	createFixtureSessionInspector,
 	createGuiFixture,
 	getFixtureCapCutSystemFontPath,
 	type GuiFixture,
@@ -29,7 +34,6 @@ import {
 } from "./capcut-e2e-gui-store-fixture.js";
 
 afterEach(cleanupGuiFixtures);
-
 interface ExecutionHarness {
 	fixture: GuiFixture;
 	plan: CapCutGuiRegressionPlan;
@@ -88,36 +92,42 @@ function quiescentStepResult() {
 async function executeHarness({
 	adapter,
 	harness,
-	inspectApp = inspectCapCutApp,
+	inspectApp = harness.fixture.inspectApp,
+	inspectSession = createFixtureSessionInspector(),
 	verifyBundle = harness.fixture.verifyBundle,
+	verifyDraftPhase = verifyCapCutGuiDraftPhase,
 }: {
 	adapter: CapCutGuiRegressionExecutionAdapter;
 	harness: ExecutionHarness;
-	inspectApp?: typeof inspectCapCutApp;
+	inspectApp?: CapCutGuiAppInspector;
+	inspectSession?: ReturnType<typeof createFixtureSessionInspector>;
 	verifyBundle?: GuiFixture["verifyBundle"];
+	verifyDraftPhase?: CapCutGuiDraftPhaseVerifier;
 }) {
 	return capCutGuiRegressionRunnerTesting.executeCapCutGuiRegression({
 		adapter,
 		inspectApp,
+		inspectSession,
 		plan: harness.plan,
 		planPath: harness.planPath,
 		verifyBundle,
+		verifyDraftPhase,
 	});
 }
 
 describe("CapCut GUI per-step TOCTOU guard", () => {
-	it("revalidates all source bundles and the app before every step", async () => {
-		const harness = await createExecutionHarness({ adapterStepCount: 2 });
+	it("revalidates all source bundles and the app around every step", async () => {
+		const harness = await createExecutionHarness({ adapterStepCount: 3 });
 		const { fixture } = harness;
 		const draftIds = fixture.bundles.map(({ draftId }) => draftId);
-		const inspectApp = vi.fn(inspectCapCutApp);
+		const inspectApp = vi.fn(harness.fixture.inspectApp);
 		const verifyBundle = vi.fn(fixture.verifyBundle);
 		let stepCalls = 0;
 		const performStep = vi.fn(async ({ step }) => {
 			stepCalls += 1;
 			await writeStepEvidenceFiles({ evidencePaths: step.evidencePaths });
 			await writeRootDraftIds({
-				draftIds: stepCalls === 1 ? draftIds.slice(0, 1) : draftIds,
+				draftIds: draftIds.slice(0, stepCalls),
 				fixture,
 			});
 			return quiescentStepResult();
@@ -130,10 +140,17 @@ describe("CapCut GUI per-step TOCTOU guard", () => {
 			verifyBundle,
 		});
 
-		expect(performStep).toHaveBeenCalledTimes(2);
-		expect(inspectApp).toHaveBeenCalledTimes(3);
-		expect(verifyBundle).toHaveBeenCalledTimes(9);
-		expect(result.stepResults).toHaveLength(2);
+		expect(performStep).toHaveBeenCalledTimes(3);
+		expect(inspectApp).toHaveBeenCalledTimes(7);
+		expect(verifyBundle).toHaveBeenCalledTimes(21);
+		expect(result.stepResults).toHaveLength(3);
+		expect(result.draftVerifications).toHaveLength(9);
+		expect(result.finalDraftVerifications).toHaveLength(3);
+		expect(result.draftVerifications).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ status: "source-byte-equivalent" }),
+			])
+		);
 	});
 
 	it.each([
@@ -192,7 +209,15 @@ describe("CapCut GUI per-step TOCTOU guard", () => {
 		const performStep = vi.fn(async ({ step }) => {
 			stepCalls += 1;
 			await writeStepEvidenceFiles({ evidencePaths: step.evidencePaths });
-			if (stepCalls === 1) await mutate({ fixture: harness.fixture });
+			if (stepCalls === 1) {
+				const firstBundle = harness.fixture.bundles[0];
+				if (!firstBundle) throw new Error("Fixture requires a planned bundle.");
+				await writeRootDraftIds({
+					draftIds: [firstBundle.draftId],
+					fixture: harness.fixture,
+				});
+				await mutate({ fixture: harness.fixture });
+			}
 			return quiescentStepResult();
 		});
 
@@ -202,17 +227,39 @@ describe("CapCut GUI per-step TOCTOU guard", () => {
 		expect(performStep).toHaveBeenCalledTimes(1);
 	});
 
+	it("revalidates the signed app immediately after the adapter returns", async () => {
+		const harness = await createExecutionHarness({});
+		const inspectApp = vi.fn(harness.fixture.inspectApp);
+		const inspectSession = vi.fn(createFixtureSessionInspector());
+		const performStep = vi.fn(async () => {
+			await writeFile(
+				join(harness.fixture.appPath, "Contents", "MacOS", "CapCut"),
+				"changed-before-post-step-boundary",
+				"utf8"
+			);
+			return quiescentStepResult();
+		});
+
+		await expect(
+			executeHarness({
+				adapter: { performStep },
+				harness,
+				inspectApp,
+				inspectSession,
+			})
+		).rejects.toThrow("application changed after plan creation");
+		expect(inspectApp).toHaveBeenCalledTimes(2);
+		expect(inspectSession).toHaveBeenCalledTimes(2);
+	});
+
 	it("binds each step start to the preceding step end fingerprint", async () => {
 		const harness = await createExecutionHarness({ adapterStepCount: 2 });
 		const { fixture } = harness;
 		const draftIds = fixture.bundles.map(({ draftId }) => draftId);
-		let inspectionCount = 0;
-		const inspectApp = vi.fn(async ({ capCutAppPath }) => {
-			inspectionCount += 1;
-			if (inspectionCount === 2) {
-				await writeRootDraftIds({ draftIds: draftIds.slice(0, 2), fixture });
-			}
-			return inspectCapCutApp({ capCutAppPath });
+		const verifyDraftPhase = vi.fn(async (request) => {
+			const receipt = await verifyCapCutGuiDraftPhase(request);
+			await writeRootDraftIds({ draftIds: draftIds.slice(0, 2), fixture });
+			return receipt;
 		});
 		const performStep = vi.fn(async ({ step }) => {
 			await writeStepEvidenceFiles({ evidencePaths: step.evidencePaths });
@@ -221,9 +268,10 @@ describe("CapCut GUI per-step TOCTOU guard", () => {
 		});
 
 		await expect(
-			executeHarness({ adapter: { performStep }, harness, inspectApp })
+			executeHarness({ adapter: { performStep }, harness, verifyDraftPhase })
 		).rejects.toThrow("changed between adapter step boundaries");
 		expect(performStep).toHaveBeenCalledTimes(1);
+		expect(verifyDraftPhase).toHaveBeenCalledTimes(1);
 	});
 
 	it("rejects an unexpected draft ID immediately after a step", async () => {
@@ -376,16 +424,19 @@ describe("CapCut GUI per-step TOCTOU guard", () => {
 
 describe("CapCut GUI capture-only evidence semantics", () => {
 	it("cannot promote arbitrary non-empty PNG files to visual verification", async () => {
-		const harness = await createExecutionHarness({
-			adapterAction: "capture-first-open",
-		});
+		const harness = await createExecutionHarness({ adapterStepCount: 5 });
 		const draftIds = harness.fixture.bundles.map(({ draftId }) => draftId);
+		let installedDraftCount = 0;
 		const performStep = vi.fn(async ({ step }) => {
+			if (step.action === "install-bundle") installedDraftCount += 1;
 			await writeStepEvidenceFiles({
 				content: "this is not a PNG and proves no visual check",
 				evidencePaths: step.evidencePaths,
 			});
-			await writeRootDraftIds({ draftIds, fixture: harness.fixture });
+			await writeRootDraftIds({
+				draftIds: draftIds.slice(0, installedDraftCount),
+				fixture: harness.fixture,
+			});
 			return quiescentStepResult();
 		});
 
@@ -402,26 +453,43 @@ describe("CapCut GUI capture-only evidence semantics", () => {
 
 		expect(result).toMatchObject({
 			evidenceStatus: "capture-only",
-			schemaVersion: 2,
+			schemaVersion: 3,
 			verifiedCheckIds: [],
 			visualVerificationReviewGate: CAPCUT_GUI_VISUAL_VERIFICATION_REVIEW_GATE,
 			visualVerificationStatus: "unverified",
 		});
-		expect(result.stepResults[0]?.expectedCheckIds.length).toBeGreaterThan(0);
-		expect(result.capturedEvidence).toEqual(
-			harness.plan.steps[1]?.evidencePaths.map((path) =>
+		const captureStep = result.stepResults.find(
+			({ action }) => action === "capture-first-open"
+		);
+		if (!captureStep)
+			throw new Error("Fixture requires a capture step result.");
+		expect(captureStep.expectedCheckIds.length).toBeGreaterThan(0);
+		const expectedEvidencePaths = harness.plan.steps
+			.slice(1, -1)
+			.flatMap(({ evidencePaths }) => evidencePaths);
+		expect(result.capturedEvidence.map(({ path }) => path)).toEqual(
+			expectedEvidencePaths
+		);
+		expect(captureStep.capturedEvidence).toEqual(
+			captureStep.expectedCheckIds.map((checkId) =>
 				expect.objectContaining({
 					bytes: expect.any(Number),
 					device: expect.any(String),
 					evidenceStatus: "captured",
 					inode: expect.any(String),
 					modifiedAtMilliseconds: expect.any(Number),
-					path,
+					path: expect.stringContaining(checkId),
 					sha256: expect.stringMatching(/^[a-f0-9]{64}$/u),
 					visualVerificationStatus: "unverified",
 				})
 			)
 		);
+		expect(
+			result.capturedEvidence.every(
+				({ visualVerificationStatus }) =>
+					visualVerificationStatus === "unverified"
+			)
+		).toBe(true);
 		expect(persisted).toMatchObject({
 			evidenceStatus: "capture-only",
 			verifiedCheckIds: [],

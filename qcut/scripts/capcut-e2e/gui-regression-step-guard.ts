@@ -66,6 +66,47 @@ export async function assertCapCutGuiStepBoundary({
 	store: DisposableCapCutStorePreflightReport;
 	verifyBundle: CapCutGuiBundleVerifier;
 }): Promise<CapCutGuiRootFingerprint> {
+	await assertCapCutGuiImmutableInputsBoundary({
+		app,
+		bundleRun,
+		executionSentinel,
+		identity,
+		inspectApp,
+		store,
+		verifyBundle,
+	});
+	const rootFingerprintAtBoundary = await captureCapCutGuiRootFingerprint({
+		bundles: bundleRun.bundles,
+		canonicalStorePath: store.canonicalStorePath,
+		expectedStoreSentinelIntegrity:
+			expectedRootFingerprint.storeSentinelIntegrity,
+		ownerUid: identity.processUid,
+		rootMetaInfoPath: store.rootMetaInfo.path,
+	});
+	assertRootFingerprintContinuity({
+		actual: rootFingerprintAtBoundary,
+		expected: expectedRootFingerprint,
+	});
+	return rootFingerprintAtBoundary;
+}
+
+export async function assertCapCutGuiImmutableInputsBoundary({
+	app,
+	bundleRun,
+	executionSentinel,
+	identity,
+	inspectApp,
+	store,
+	verifyBundle,
+}: {
+	app: CapCutGuiAppReport;
+	bundleRun: CapCutGuiBundleRunReport;
+	executionSentinel: CapCutGuiExecutionSentinel;
+	identity: CapCutGuiProcessIdentityReport;
+	inspectApp: CapCutGuiAppInspector;
+	store: DisposableCapCutStorePreflightReport;
+	verifyBundle: CapCutGuiBundleVerifier;
+}): Promise<void> {
 	await reverifyPlannedGuiBundles({
 		bundles: bundleRun.bundles,
 		verifyBundle,
@@ -83,17 +124,4 @@ export async function assertCapCutGuiStepBoundary({
 		actual: sentinelAtBoundary,
 		expected: executionSentinel,
 	});
-	const rootFingerprintAtBoundary = await captureCapCutGuiRootFingerprint({
-		bundles: bundleRun.bundles,
-		canonicalStorePath: store.canonicalStorePath,
-		expectedStoreSentinelIntegrity:
-			expectedRootFingerprint.storeSentinelIntegrity,
-		ownerUid: identity.processUid,
-		rootMetaInfoPath: store.rootMetaInfo.path,
-	});
-	assertRootFingerprintContinuity({
-		actual: rootFingerprintAtBoundary,
-		expected: expectedRootFingerprint,
-	});
-	return rootFingerprintAtBoundary;
 }

@@ -9,7 +9,6 @@ import {
 } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { inspectCapCutApp } from "../capcut-e2e/gui-regression-app-profile.js";
 import { CAPCUT_GUI_EVIDENCE_MAXIMUM_BYTES } from "../capcut-e2e/gui-regression-evidence.js";
 import {
 	CAPCUT_GUI_ADAPTER_APPLICATION_STATE,
@@ -19,6 +18,7 @@ import {
 } from "../capcut-e2e/gui-regression-runner.js";
 import {
 	cleanupGuiFixtures,
+	createFixtureSessionInspector,
 	createGuiFixture,
 	type GuiFixture,
 	preflightFixture,
@@ -58,8 +58,22 @@ async function createEvidenceHarness({
 				action !== "capture-root-before" && action !== "capture-root-after"
 		)
 		.slice(0, adapterStepCount);
+	const selectedCaseIds = new Set(
+		adapterSteps.flatMap(({ caseId }) => (caseId ? [caseId] : []))
+	);
+	const selectedBundles = completePlan.bundleRun.bundles.filter(({ caseId }) =>
+		selectedCaseIds.has(caseId)
+	);
 	const plan = {
 		...completePlan,
+		bundleRun: { ...completePlan.bundleRun, bundles: selectedBundles },
+		rootFingerprints: {
+			...completePlan.rootFingerprints,
+			after: {
+				...completePlan.rootFingerprints.after,
+				expectedDraftIds: selectedBundles.map(({ draftId }) => draftId),
+			},
+		},
 		steps: [rootBefore, ...adapterSteps, rootAfter],
 	};
 	await mkdir(plan.evidenceDirectory);
@@ -74,24 +88,42 @@ function quiescentStepResult() {
 	return { applicationState: CAPCUT_GUI_ADAPTER_APPLICATION_STATE } as const;
 }
 
+function createCurrentDraftInstaller({ fixture }: { fixture: GuiFixture }) {
+	const installedDraftIds: string[] = [];
+	return async ({
+		step,
+	}: {
+		step: CapCutGuiRegressionPlan["steps"][number];
+	}) => {
+		if (step.action !== "install-bundle") return;
+		const bundle = fixture.bundles.find(({ caseId }) => caseId === step.caseId);
+		if (!bundle) throw new Error(`Missing fixture bundle for ${step.caseId}.`);
+		installedDraftIds.push(bundle.draftId);
+		await writeRootDraftIds({ draftIds: installedDraftIds, fixture });
+	};
+}
+
 describe("CapCut GUI immutable evidence records", () => {
 	it("records same-FD snapshot identity and SHA-256 in the result", async () => {
 		const harness = await createEvidenceHarness({});
 		const content = "captured evidence is not visual verification";
-		const draftIds = harness.fixture.bundles.map(({ draftId }) => draftId);
+		const installCurrentDraft = createCurrentDraftInstaller({
+			fixture: harness.fixture,
+		});
 		const performStep = vi.fn(async ({ step }) => {
 			await writeStepEvidenceFiles({
 				content,
 				evidencePaths: step.evidencePaths,
 			});
-			await writeRootDraftIds({ draftIds, fixture: harness.fixture });
+			await installCurrentDraft({ step });
 			return quiescentStepResult();
 		});
 
 		const result =
 			await capCutGuiRegressionRunnerTesting.executeCapCutGuiRegression({
 				adapter: { performStep },
-				inspectApp: inspectCapCutApp,
+				inspectApp: harness.fixture.inspectApp,
+				inspectSession: createFixtureSessionInspector(),
 				plan: harness.plan,
 				planPath: harness.planPath,
 				verifyBundle: harness.fixture.verifyBundle,
@@ -118,7 +150,9 @@ describe("CapCut GUI immutable evidence records", () => {
 
 	it("refuses result persistence after captured evidence is replaced", async () => {
 		const harness = await createEvidenceHarness({ adapterStepCount: 2 });
-		const draftIds = harness.fixture.bundles.map(({ draftId }) => draftId);
+		const installCurrentDraft = createCurrentDraftInstaller({
+			fixture: harness.fixture,
+		});
 		const firstEvidencePath = harness.plan.steps[1]?.evidencePaths[0];
 		if (!firstEvidencePath) throw new Error("Fixture requires evidence.");
 		let stepCalls = 0;
@@ -128,9 +162,7 @@ describe("CapCut GUI immutable evidence records", () => {
 				content: "same bytes",
 				evidencePaths: step.evidencePaths,
 			});
-			if (stepCalls === 1) {
-				await writeRootDraftIds({ draftIds, fixture: harness.fixture });
-			}
+			await installCurrentDraft({ step });
 			if (stepCalls === 2) {
 				const bytes = await readFile(firstEvidencePath);
 				await rm(firstEvidencePath);
@@ -142,7 +174,8 @@ describe("CapCut GUI immutable evidence records", () => {
 		await expect(
 			capCutGuiRegressionRunnerTesting.executeCapCutGuiRegression({
 				adapter: { performStep },
-				inspectApp: inspectCapCutApp,
+				inspectApp: harness.fixture.inspectApp,
+				inspectSession: createFixtureSessionInspector(),
 				plan: harness.plan,
 				planPath: harness.planPath,
 				verifyBundle: harness.fixture.verifyBundle,
@@ -158,19 +191,22 @@ describe("CapCut GUI immutable evidence records", () => {
 			const evidencePath = harness.plan.steps[1]?.evidencePaths[0];
 			if (!evidencePath) throw new Error("Fixture requires evidence.");
 			const targetPath = join(harness.fixture.canonicalHomePath, "target.bin");
-			const draftIds = harness.fixture.bundles.map(({ draftId }) => draftId);
-			const performStep = vi.fn(async () => {
+			const installCurrentDraft = createCurrentDraftInstaller({
+				fixture: harness.fixture,
+			});
+			const performStep = vi.fn(async ({ step }) => {
 				await mkdir(dirname(evidencePath), { recursive: true });
 				await writeFile(targetPath, "target", "utf8");
 				await symlink(targetPath, evidencePath, "file");
-				await writeRootDraftIds({ draftIds, fixture: harness.fixture });
+				await installCurrentDraft({ step });
 				return quiescentStepResult();
 			});
 
 			await expect(
 				capCutGuiRegressionRunnerTesting.executeCapCutGuiRegression({
 					adapter: { performStep },
-					inspectApp: inspectCapCutApp,
+					inspectApp: harness.fixture.inspectApp,
+					inspectSession: createFixtureSessionInspector(),
 					plan: harness.plan,
 					planPath: harness.planPath,
 					verifyBundle: harness.fixture.verifyBundle,
@@ -184,18 +220,21 @@ describe("CapCut GUI immutable evidence records", () => {
 		const harness = await createEvidenceHarness({});
 		const evidencePath = harness.plan.steps[1]?.evidencePaths[0];
 		if (!evidencePath) throw new Error("Fixture requires evidence.");
-		const draftIds = harness.fixture.bundles.map(({ draftId }) => draftId);
-		const performStep = vi.fn(async () => {
+		const installCurrentDraft = createCurrentDraftInstaller({
+			fixture: harness.fixture,
+		});
+		const performStep = vi.fn(async ({ step }) => {
 			await mkdir(dirname(evidencePath), { recursive: true });
 			await writeFile(evidencePath, "", "utf8");
-			await writeRootDraftIds({ draftIds, fixture: harness.fixture });
+			await installCurrentDraft({ step });
 			return quiescentStepResult();
 		});
 
 		await expect(
 			capCutGuiRegressionRunnerTesting.executeCapCutGuiRegression({
 				adapter: { performStep },
-				inspectApp: inspectCapCutApp,
+				inspectApp: harness.fixture.inspectApp,
+				inspectSession: createFixtureSessionInspector(),
 				plan: harness.plan,
 				planPath: harness.planPath,
 				verifyBundle: harness.fixture.verifyBundle,
@@ -208,19 +247,22 @@ describe("CapCut GUI immutable evidence records", () => {
 		const harness = await createEvidenceHarness({});
 		const evidencePath = harness.plan.steps[1]?.evidencePaths[0];
 		if (!evidencePath) throw new Error("Fixture requires evidence.");
-		const draftIds = harness.fixture.bundles.map(({ draftId }) => draftId);
-		const performStep = vi.fn(async () => {
+		const installCurrentDraft = createCurrentDraftInstaller({
+			fixture: harness.fixture,
+		});
+		const performStep = vi.fn(async ({ step }) => {
 			await mkdir(dirname(evidencePath), { recursive: true });
 			await writeFile(evidencePath, "", "utf8");
 			await truncate(evidencePath, CAPCUT_GUI_EVIDENCE_MAXIMUM_BYTES + 1);
-			await writeRootDraftIds({ draftIds, fixture: harness.fixture });
+			await installCurrentDraft({ step });
 			return quiescentStepResult();
 		});
 
 		await expect(
 			capCutGuiRegressionRunnerTesting.executeCapCutGuiRegression({
 				adapter: { performStep },
-				inspectApp: inspectCapCutApp,
+				inspectApp: harness.fixture.inspectApp,
+				inspectSession: createFixtureSessionInspector(),
 				plan: harness.plan,
 				planPath: harness.planPath,
 				verifyBundle: harness.fixture.verifyBundle,

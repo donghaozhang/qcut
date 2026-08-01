@@ -1,9 +1,8 @@
-import { isAbsolute, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import {
-	CAPCUT_GUI_CASE_EXPECTATIONS,
-	buildCapCutGuiRegressionSteps,
-	type CapCutGuiRegressionStep,
-} from "./gui-regression-contract.js";
+	verifyCapCutGuiDraftPhase,
+	type CapCutGuiDraftPhaseVerifier,
+} from "./gui-regression-draft-verification.js";
 import {
 	inspectCapCutApp,
 	type CapCutGuiAppInspector,
@@ -16,193 +15,66 @@ import {
 	assertNoUnexpectedDraftIds,
 	assertExpectedDraftIds,
 	assertGuiEvidenceRecordsUnchanged,
+	assertRootFingerprintContinuity,
 	assertRootFingerprintUnchanged,
 	captureCapCutGuiRootFingerprint,
 	createGuiEvidenceDirectory,
 	requireGuiEvidenceFiles,
-	type CapCutGuiCapturedEvidenceFile,
 	type CapCutGuiRootFingerprint,
 	writeJsonEvidence,
 } from "./gui-regression-evidence.js";
-import { isSameOrDescendantPath } from "./gui-regression-filesystem.js";
+import { buildCapCutGuiRegressionPlan } from "./gui-regression-plan.js";
+import { preflightCapCutGuiRegression } from "./gui-regression-preflight.js";
 import {
-	CAPCUT_GUI_EXECUTION_CONFIRMATION,
-	preflightCapCutGuiRegression,
-	type CapCutGuiRegressionMode,
-	type CapCutGuiRegressionPreflightOptions,
-	type CapCutGuiRegressionPreflightReport,
-} from "./gui-regression-preflight.js";
-import { assertCapCutGuiStepBoundary } from "./gui-regression-step-guard.js";
+	advanceCapCutGuiProcessGeneration,
+	assertCapCutGuiProcessGenerationContinuity,
+	getCapCutGuiMainProcessGeneration,
+	type CapCutGuiProcessGenerationState,
+} from "./gui-regression-process-generation.js";
+import {
+	CAPCUT_GUI_ADAPTER_APPLICATION_STATE,
+	CAPCUT_GUI_VISUAL_VERIFICATION_REVIEW_GATE,
+	assertCapCutGuiAdapterResult,
+	type CapCutGuiRegressionExecutionAdapter,
+	type CapCutGuiRegressionExecutionResult,
+	type CapCutGuiRegressionPlan,
+	type CapCutGuiRegressionStepExecutionResult,
+	type RunCapCutGuiRegressionOptions,
+} from "./gui-regression-runner-contract.js";
+import {
+	assertCapCutGuiSessionBoundary,
+	getCapCutGuiSessionExpectationAfterStep,
+	inspectCapCutGuiSession,
+	type CapCutGuiSessionExpectation,
+	type CapCutGuiSessionInspector,
+} from "./gui-regression-session-guard.js";
+import {
+	verifyDraftsAfterGuiStep,
+	verifyFinalDrafts,
+} from "./gui-regression-step-draft-verification.js";
+import {
+	assertCapCutGuiImmutableInputsBoundary,
+	assertCapCutGuiStepBoundary,
+} from "./gui-regression-step-guard.js";
 
 const PLAN_FILE_NAME = "gui-regression-plan.json";
 const EXECUTION_RESULT_FILE_NAME = "gui-regression-result.json";
 const PROJECT_ROOT = resolve(process.cwd());
 
-export const CAPCUT_GUI_ADAPTER_APPLICATION_STATE = "quiescent";
-export const CAPCUT_GUI_VISUAL_VERIFICATION_REVIEW_GATE =
-	"manual-or-automated-visual-oracle-required";
-
 export type { CapCutGuiRootFingerprint } from "./gui-regression-evidence.js";
-
-export interface CapCutGuiRegressionPlan {
-	app: CapCutGuiRegressionPreflightReport["app"];
-	bundleRun: CapCutGuiRegressionPreflightReport["bundleRun"];
-	caseExpectations: typeof CAPCUT_GUI_CASE_EXPECTATIONS;
-	createdAt: string;
-	evidenceDirectory: string;
-	executionGate: {
-		confirmationValue: typeof CAPCUT_GUI_EXECUTION_CONFIRMATION;
-		requiresDedicatedMacOsLoginOrVm: true;
-		requiresExecutionSentinel: true;
-	};
-	executionSentinel: CapCutGuiRegressionPreflightReport["executionSentinel"];
-	identity: CapCutGuiRegressionPreflightReport["identity"];
-	mode: CapCutGuiRegressionMode;
-	rootFingerprints: {
-		after: {
-			expectedDraftIds: readonly string[];
-			path: string;
-			status: "pending";
-		};
-		before: CapCutGuiRootFingerprint;
-	};
-	schema: "qcut.capcut-e2e.gui-regression-plan";
-	schemaVersion: 1;
-	steps: readonly CapCutGuiRegressionStep[];
-	store: CapCutGuiRegressionPreflightReport["store"];
-}
-
-export interface CapCutGuiRegressionExecutionResult {
-	capturedEvidence: readonly CapCutGuiCapturedEvidenceFile[];
-	completedAt: string;
-	evidenceStatus: "capture-only";
-	planPath: string;
-	rootFingerprintAfter: CapCutGuiRootFingerprint;
-	runId: string;
-	schema: "qcut.capcut-e2e.gui-regression-result";
-	schemaVersion: 2;
-	stepResults: readonly CapCutGuiRegressionStepExecutionResult[];
-	stepsCompleted: number;
-	verifiedCheckIds: readonly [];
-	visualVerificationReviewGate: typeof CAPCUT_GUI_VISUAL_VERIFICATION_REVIEW_GATE;
-	visualVerificationStatus: "unverified";
-}
-
-export interface CapCutGuiRegressionStepExecutionResult {
-	action: CapCutGuiRegressionStep["action"];
-	capturedEvidence: readonly CapCutGuiCapturedEvidenceFile[];
-	caseId?: CapCutGuiRegressionStep["caseId"];
-	expectedCheckIds: readonly string[];
-	rootFingerprintAfter: CapCutGuiRootFingerprint;
-	rootFingerprintBefore: CapCutGuiRootFingerprint;
-	sequence: number;
-	visualVerificationStatus: "unverified";
-}
-
-export interface CapCutGuiRegressionAdapterStepResult {
-	applicationState: typeof CAPCUT_GUI_ADAPTER_APPLICATION_STATE;
-}
-
-export interface CapCutGuiRegressionExecutionAdapter {
-	performStep: ({
-		plan,
-		step,
-	}: {
-		plan: CapCutGuiRegressionPlan;
-		step: CapCutGuiRegressionStep;
-	}) => Promise<CapCutGuiRegressionAdapterStepResult>;
-}
-
-export interface RunCapCutGuiRegressionOptions
-	extends CapCutGuiRegressionPreflightOptions {
-	evidenceDirectory: string;
-}
-
-function requireEvidenceDirectoryPath({
-	evidenceDirectory,
-	preflight,
-}: {
-	evidenceDirectory: string;
-	preflight: CapCutGuiRegressionPreflightReport;
-}): string {
-	if (!isAbsolute(evidenceDirectory)) {
-		throw new Error("CapCut GUI evidence directory must be an absolute path.");
-	}
-	const requestedPath = resolve(evidenceDirectory);
-	if (
-		!isSameOrDescendantPath({
-			candidatePath: requestedPath,
-			parentPath: preflight.store.dedicatedTestHomePath,
-		}) ||
-		requestedPath === preflight.store.dedicatedTestHomePath
-	) {
-		throw new Error(
-			"CapCut GUI evidence directory must be a new descendant of the isolated account home."
-		);
-	}
-	if (
-		isSameOrDescendantPath({
-			candidatePath: requestedPath,
-			parentPath: preflight.store.canonicalStorePath,
-		}) ||
-		isSameOrDescendantPath({
-			candidatePath: preflight.store.canonicalStorePath,
-			parentPath: requestedPath,
-		})
-	) {
-		throw new Error(
-			"CapCut GUI evidence directory must not overlap the disposable draft store."
-		);
-	}
-	return requestedPath;
-}
-
-export function buildCapCutGuiRegressionPlan({
-	createdAt = new Date().toISOString(),
-	evidenceDirectory,
-	preflight,
-}: {
-	createdAt?: string;
-	evidenceDirectory: string;
-	preflight: CapCutGuiRegressionPreflightReport;
-}): CapCutGuiRegressionPlan {
-	const canonicalEvidenceDirectory = requireEvidenceDirectoryPath({
-		evidenceDirectory,
-		preflight,
-	});
-	return {
-		app: preflight.app,
-		bundleRun: preflight.bundleRun,
-		caseExpectations: CAPCUT_GUI_CASE_EXPECTATIONS,
-		createdAt,
-		evidenceDirectory: canonicalEvidenceDirectory,
-		executionGate: {
-			confirmationValue: CAPCUT_GUI_EXECUTION_CONFIRMATION,
-			requiresDedicatedMacOsLoginOrVm: true,
-			requiresExecutionSentinel: true,
-		},
-		executionSentinel: preflight.executionSentinel,
-		identity: preflight.identity,
-		mode: preflight.mode,
-		rootFingerprints: {
-			after: {
-				expectedDraftIds: preflight.bundleRun.bundles.map(
-					({ draftId }) => draftId
-				),
-				path: join(canonicalEvidenceDirectory, "root-fingerprint-after.json"),
-				status: "pending",
-			},
-			before: preflight.rootFingerprint,
-		},
-		schema: "qcut.capcut-e2e.gui-regression-plan",
-		schemaVersion: 1,
-		steps: buildCapCutGuiRegressionSteps({
-			bundles: preflight.bundleRun.bundles,
-			evidenceDirectory: canonicalEvidenceDirectory,
-		}),
-		store: preflight.store,
-	};
-}
+export { buildCapCutGuiRegressionPlan } from "./gui-regression-plan.js";
+export {
+	CAPCUT_GUI_ADAPTER_APPLICATION_STATE,
+	CAPCUT_GUI_VISUAL_VERIFICATION_REVIEW_GATE,
+};
+export type {
+	CapCutGuiRegressionAdapterStepResult,
+	CapCutGuiRegressionExecutionAdapter,
+	CapCutGuiRegressionExecutionResult,
+	CapCutGuiRegressionPlan,
+	CapCutGuiRegressionStepExecutionResult,
+	RunCapCutGuiRegressionOptions,
+} from "./gui-regression-runner-contract.js";
 
 async function writePlan({
 	plan,
@@ -222,14 +94,18 @@ async function executeAdapterSteps({
 	adapter,
 	initialRootFingerprint,
 	inspectApp,
+	inspectSession,
 	plan,
 	verifyBundle,
+	verifyDraftPhase,
 }: {
 	adapter: CapCutGuiRegressionExecutionAdapter;
 	initialRootFingerprint: CapCutGuiRootFingerprint;
 	inspectApp: CapCutGuiAppInspector;
+	inspectSession: CapCutGuiSessionInspector;
 	plan: CapCutGuiRegressionPlan;
 	verifyBundle: CapCutGuiBundleVerifier;
+	verifyDraftPhase: CapCutGuiDraftPhaseVerifier;
 }): Promise<{
 	rootFingerprintAfter: CapCutGuiRootFingerprint;
 	stepResults: CapCutGuiRegressionStepExecutionResult[];
@@ -244,7 +120,9 @@ async function executeAdapterSteps({
 	);
 	const executionState = await adapterSteps.reduce<
 		Promise<{
+			processGenerationState: CapCutGuiProcessGenerationState;
 			rootFingerprintAfter: CapCutGuiRootFingerprint;
+			sessionExpectation: CapCutGuiSessionExpectation;
 			stepResults: CapCutGuiRegressionStepExecutionResult[];
 		}>
 	>(
@@ -260,14 +138,50 @@ async function executeAdapterSteps({
 				store: plan.store,
 				verifyBundle,
 			});
+			const sessionReportBefore = await assertCapCutGuiSessionBoundary({
+				app: plan.app,
+				expectation: previous.sessionExpectation,
+				identity: plan.identity,
+				inspectSession,
+				store: plan.store,
+			});
 			const adapterResult = await adapter.performStep({ plan, step });
-			if (
-				adapterResult?.applicationState !== CAPCUT_GUI_ADAPTER_APPLICATION_STATE
-			) {
-				throw new Error(
-					"CapCut GUI adapter must return only after the operation and application are quiescent."
-				);
-			}
+			assertCapCutGuiAdapterResult({ result: adapterResult });
+			await assertCapCutGuiImmutableInputsBoundary({
+				app: plan.app,
+				bundleRun: plan.bundleRun,
+				executionSentinel,
+				identity: plan.identity,
+				inspectApp,
+				store: plan.store,
+				verifyBundle,
+			});
+			const sessionExpectation = getCapCutGuiSessionExpectationAfterStep({
+				containerWasRequired: previous.sessionExpectation.containerRequired,
+				stepAction: step.action,
+			});
+			const sessionReportAfter = await assertCapCutGuiSessionBoundary({
+				app: plan.app,
+				expectation: sessionExpectation,
+				identity: plan.identity,
+				inspectSession,
+				store: plan.store,
+			});
+			const processGenerationState = advanceCapCutGuiProcessGeneration({
+				afterReport: sessionReportAfter,
+				app: plan.app,
+				beforeReport: sessionReportBefore,
+				state: previous.processGenerationState,
+				stepAction: step.action,
+			});
+			const mainProcessGenerationBefore = getCapCutGuiMainProcessGeneration({
+				app: plan.app,
+				report: sessionReportBefore,
+			});
+			const mainProcessGenerationAfter = getCapCutGuiMainProcessGeneration({
+				app: plan.app,
+				report: sessionReportAfter,
+			});
 			const rootFingerprintAfter = await captureCapCutGuiRootFingerprint({
 				bundles: plan.bundleRun.bundles,
 				canonicalStorePath: plan.store.canonicalStorePath,
@@ -280,19 +194,31 @@ async function executeAdapterSteps({
 				actualDraftIds: rootFingerprintAfter.draftIds,
 				allowedDraftIds: plan.rootFingerprints.after.expectedDraftIds,
 			});
+			const draftVerifications = await verifyDraftsAfterGuiStep({
+				bundles: plan.bundleRun.bundles,
+				rootFingerprintAfter,
+				rootFingerprintBefore,
+				step,
+				verifyDraftPhase,
+			});
 			const capturedEvidence = await requireGuiEvidenceFiles({
 				evidencePaths: step.evidencePaths,
 				ownerUid: plan.identity.processUid,
 			});
 			return {
+				processGenerationState,
 				rootFingerprintAfter,
+				sessionExpectation,
 				stepResults: [
 					...previous.stepResults,
 					{
 						action: step.action,
 						capturedEvidence,
 						...(step.caseId === undefined ? {} : { caseId: step.caseId }),
+						...(draftVerifications.length > 0 ? { draftVerifications } : {}),
 						expectedCheckIds: step.expectedCheckIds,
+						mainProcessGenerationAfter,
+						mainProcessGenerationBefore,
 						rootFingerprintAfter,
 						rootFingerprintBefore,
 						sequence: step.sequence,
@@ -302,7 +228,12 @@ async function executeAdapterSteps({
 			};
 		},
 		Promise.resolve({
+			processGenerationState: { current: null, seenGenerationKeys: [] },
 			rootFingerprintAfter: initialRootFingerprint,
+			sessionExpectation: {
+				containerRequired: false,
+				processState: "absent",
+			},
 			stepResults: [],
 		})
 	);
@@ -316,21 +247,40 @@ async function executeAdapterSteps({
 		store: plan.store,
 		verifyBundle,
 	});
-	return executionState;
+	const finalSessionReport = await assertCapCutGuiSessionBoundary({
+		app: plan.app,
+		expectation: executionState.sessionExpectation,
+		identity: plan.identity,
+		inspectSession,
+		store: plan.store,
+	});
+	assertCapCutGuiProcessGenerationContinuity({
+		app: plan.app,
+		report: finalSessionReport,
+		state: executionState.processGenerationState,
+	});
+	return {
+		rootFingerprintAfter: executionState.rootFingerprintAfter,
+		stepResults: executionState.stepResults,
+	};
 }
 
 async function executeCapCutGuiRegression({
 	adapter,
 	inspectApp,
+	inspectSession,
 	plan,
 	planPath,
 	verifyBundle,
+	verifyDraftPhase = verifyCapCutGuiDraftPhase,
 }: {
 	adapter: CapCutGuiRegressionExecutionAdapter;
 	inspectApp: CapCutGuiAppInspector;
+	inspectSession: CapCutGuiSessionInspector;
 	plan: CapCutGuiRegressionPlan;
 	planPath: string;
 	verifyBundle: CapCutGuiBundleVerifier;
+	verifyDraftPhase?: CapCutGuiDraftPhaseVerifier;
 }): Promise<CapCutGuiRegressionExecutionResult> {
 	if (plan.mode !== "execute") {
 		throw new Error("Only an execute-mode plan can be executed.");
@@ -338,6 +288,13 @@ async function executeCapCutGuiRegression({
 	if (plan.executionSentinel === null) {
 		throw new Error("Execute plan is missing its bound execution sentinel.");
 	}
+	await assertCapCutGuiSessionBoundary({
+		app: plan.app,
+		expectation: { containerRequired: false, processState: "absent" },
+		identity: plan.identity,
+		inspectSession,
+		store: plan.store,
+	});
 	const rootFingerprintAtExecutionBoundary =
 		await captureCapCutGuiRootFingerprint({
 			bundles: plan.bundleRun.bundles,
@@ -359,13 +316,33 @@ async function executeCapCutGuiRegression({
 		adapter,
 		initialRootFingerprint: rootFingerprintAtExecutionBoundary,
 		inspectApp,
+		inspectSession,
 		plan,
 		verifyBundle,
+		verifyDraftPhase,
 	});
 	const { rootFingerprintAfter, stepResults } = executionState;
 	assertExpectedDraftIds({
 		actualDraftIds: rootFingerprintAfter.draftIds,
 		expectedDraftIds: plan.rootFingerprints.after.expectedDraftIds,
+	});
+	const finalDraftVerifications = await verifyFinalDrafts({
+		bundles: plan.bundleRun.bundles,
+		rootFingerprint: rootFingerprintAfter,
+		verifyDraftPhase,
+	});
+	const rootFingerprintAfterFinalVerification =
+		await captureCapCutGuiRootFingerprint({
+			bundles: plan.bundleRun.bundles,
+			canonicalStorePath: plan.store.canonicalStorePath,
+			expectedStoreSentinelIntegrity:
+				plan.rootFingerprints.before.storeSentinelIntegrity,
+			ownerUid: plan.identity.processUid,
+			rootMetaInfoPath: plan.store.rootMetaInfo.path,
+		});
+	assertRootFingerprintContinuity({
+		actual: rootFingerprintAfterFinalVerification,
+		expected: rootFingerprintAfter,
 	});
 	await writeJsonEvidence({
 		path: plan.rootFingerprints.after.path,
@@ -381,12 +358,19 @@ async function executeCapCutGuiRegression({
 	const result: CapCutGuiRegressionExecutionResult = {
 		capturedEvidence,
 		completedAt: new Date().toISOString(),
+		draftVerifications: [
+			...stepResults.flatMap(
+				({ draftVerifications }) => draftVerifications ?? []
+			),
+			...finalDraftVerifications,
+		],
 		evidenceStatus: "capture-only",
+		finalDraftVerifications,
 		planPath,
 		rootFingerprintAfter,
 		runId: plan.bundleRun.runId,
 		schema: "qcut.capcut-e2e.gui-regression-result",
-		schemaVersion: 2,
+		schemaVersion: 3,
 		stepResults,
 		stepsCompleted: stepResults.length + 2,
 		verifiedCheckIds: [],
@@ -430,11 +414,13 @@ export async function runCapCutGuiRegression({
 		? await executeCapCutGuiRegression({
 				adapter,
 				inspectApp: inspectCapCutApp,
+				inspectSession: inspectCapCutGuiSession,
 				plan,
 				planPath,
 				verifyBundle: createProductionBundleVerifier({
 					projectRoot: PROJECT_ROOT,
 				}),
+				verifyDraftPhase: verifyCapCutGuiDraftPhase,
 			})
 		: null;
 	return { executionResult, plan, planPath };

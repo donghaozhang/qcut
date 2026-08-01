@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { readRegularFileSnapshot } from "../capcut-e2e/disposable-store-control-file.js";
 import { CAPCUT_E2E_SENTINEL_FILE_NAME } from "../capcut-e2e/disposable-store-guard.js";
-import { inspectCapCutApp } from "../capcut-e2e/gui-regression-app-profile.js";
+import { verifyCapCutGuiDraftPhase } from "../capcut-e2e/gui-regression-draft-verification.js";
 import {
 	CAPCUT_GUI_ADAPTER_APPLICATION_STATE,
 	buildCapCutGuiRegressionPlan,
@@ -12,6 +12,7 @@ import {
 } from "../capcut-e2e/gui-regression-runner.js";
 import {
 	cleanupGuiFixtures,
+	createFixtureSessionInspector,
 	createGuiFixture,
 	type GuiFixture,
 	preflightFixture,
@@ -109,7 +110,8 @@ describe("CapCut GUI physical store inventory", () => {
 		await expect(
 			capCutGuiRegressionRunnerTesting.executeCapCutGuiRegression({
 				adapter: { performStep },
-				inspectApp: inspectCapCutApp,
+				inspectApp: harness.fixture.inspectApp,
+				inspectSession: createFixtureSessionInspector(),
 				plan: harness.plan,
 				planPath: harness.planPath,
 				verifyBundle: harness.fixture.verifyBundle,
@@ -127,11 +129,17 @@ describe("CapCut GUI physical store inventory", () => {
 			bundle.draftFolderName,
 			"draft_info.json"
 		);
-		let inspectionCount = 0;
-		const inspectApp = vi.fn(async ({ capCutAppPath }) => {
-			inspectionCount += 1;
-			if (inspectionCount === 2) await writeFile(draftFile, "BBBB", "utf8");
-			return inspectCapCutApp({ capCutAppPath });
+		let mutated = false;
+		const verifyDraftPhase = vi.fn(async (request) => {
+			const receipt = await verifyCapCutGuiDraftPhase(request);
+			if (!mutated && request.phase === "installed") {
+				const original = await readFile(draftFile);
+				const replacement = Buffer.from(original);
+				replacement[0] = replacement[0] === 0x7b ? 0x5b : 0x7b;
+				await writeFile(draftFile, replacement);
+				mutated = true;
+			}
+			return receipt;
 		});
 		const performStep = vi.fn(async ({ step }) => {
 			await writeStepEvidenceFiles({ evidencePaths: step.evidencePaths });
@@ -139,44 +147,70 @@ describe("CapCut GUI physical store inventory", () => {
 				draftIds: [bundle.draftId],
 				fixture: harness.fixture,
 			});
-			await writeFile(draftFile, "AAAA", "utf8");
 			return quiescentStepResult();
 		});
 
 		await expect(
 			capCutGuiRegressionRunnerTesting.executeCapCutGuiRegression({
 				adapter: { performStep },
-				inspectApp,
+				inspectApp: harness.fixture.inspectApp,
+				inspectSession: createFixtureSessionInspector(),
 				plan: harness.plan,
 				planPath: harness.planPath,
 				verifyBundle: harness.fixture.verifyBundle,
+				verifyDraftPhase,
 			})
 		).rejects.toThrow("changed between adapter step boundaries");
 		expect(performStep).toHaveBeenCalledTimes(1);
+		expect(verifyDraftPhase).toHaveBeenCalledTimes(1);
 	});
 
 	it("accepts and hashes a legitimate inventory file larger than 1 MiB", async () => {
-		const harness = await createInventoryHarness({ adapterStepCount: 1 });
+		const harness = await createInventoryHarness({ adapterStepCount: 3 });
 		const draftIds = harness.fixture.bundles.map(({ draftId }) => draftId);
 		const largeFile = join(
 			harness.fixture.canonicalStorePath,
 			harness.fixture.bundles[0]?.draftFolderName ?? "missing",
 			"large-source.bin"
 		);
+		let installedDraftCount = 0;
 		const performStep = vi.fn(async ({ step }) => {
+			installedDraftCount += 1;
 			await writeStepEvidenceFiles({ evidencePaths: step.evidencePaths });
-			await writeRootDraftIds({ draftIds, fixture: harness.fixture });
-			await writeFile(largeFile, Buffer.alloc(1024 * 1024 + 1, 7));
+			await writeRootDraftIds({
+				draftIds: draftIds.slice(0, installedDraftCount),
+				fixture: harness.fixture,
+			});
+			if (installedDraftCount === 1) {
+				await writeFile(largeFile, Buffer.alloc(1024 * 1024 + 1, 7));
+			}
 			return quiescentStepResult();
 		});
 
 		const result =
 			await capCutGuiRegressionRunnerTesting.executeCapCutGuiRegression({
 				adapter: { performStep },
-				inspectApp: inspectCapCutApp,
+				inspectApp: harness.fixture.inspectApp,
+				inspectSession: createFixtureSessionInspector(),
 				plan: harness.plan,
 				planPath: harness.planPath,
 				verifyBundle: harness.fixture.verifyBundle,
+				verifyDraftPhase: async (request) =>
+					request.phase === "installed"
+						? {
+								caseId: request.bundle.caseId,
+								directoryCount: 0,
+								draftDirectory: join(
+									request.rootFingerprint.storePath,
+									request.bundle.verification.draftFolderName
+								),
+								fileCount: 0,
+								installedInventorySha256: "0".repeat(64),
+								phase: "installed",
+								sourceInventorySha256: "0".repeat(64),
+								status: "source-byte-equivalent",
+							}
+						: verifyCapCutGuiDraftPhase(request),
 			});
 		const entry = result.rootFingerprintAfter.storeInventory.find(
 			({ relativePath }) => relativePath.endsWith("large-source.bin")
@@ -228,7 +262,8 @@ describe("CapCut GUI physical store inventory", () => {
 		await expect(
 			capCutGuiRegressionRunnerTesting.executeCapCutGuiRegression({
 				adapter: { performStep },
-				inspectApp: inspectCapCutApp,
+				inspectApp: harness.fixture.inspectApp,
+				inspectSession: createFixtureSessionInspector(),
 				plan: harness.plan,
 				planPath: harness.planPath,
 				verifyBundle: harness.fixture.verifyBundle,

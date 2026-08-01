@@ -60,6 +60,7 @@ export interface MigrationBundleWriteResult {
 
 export interface VerifiedMigrationBundle {
 	contentText: string;
+	draftDirectories: readonly string[];
 	draftFiles: readonly {
 		bytes: number;
 		relativePath: string;
