@@ -1,25 +1,64 @@
 ---
 name: jianying-filter-parity
-description: Clone a Jianying (剪映) filter look into QCut as a fitted FilterLutRecipe preset — capture references from the Jianying desktop UI, least-squares fit the recipe, register it in the filter catalog, and lock it with parity tests. Use for 剪映滤镜, 滤镜对标, 拟合滤镜, 复刻滤镜, adding jy-* filter presets, or matching a reference color grade.
+description: Trace a Jianying (剪映) filter from its local resource database to the downloaded package, classify its LUT/shader/segmentation implementation, then reproduce pure color grades in QCut with measured parity. Use for 剪映滤镜, 滤镜对标, 滤镜缓存, 拟合滤镜, 复刻滤镜, adding jy-* filter presets, or matching a reference color grade.
 argument-hint: <filter-name-or-family>
 ---
 
 # Jianying Filter Parity
 
 QCut filters ("System A", `apps/web/src/lib/filters/`) are procedurally
-generated 17³ LUTs: each preset is a `FilterLutRecipe` (exposure, contrast,
-saturation, temperature, tint, fade, gamma, blackLift, hueShift,
-shadow/highlight tint) fed through `transformFilterColor` in `filter-lut.ts`.
-That function is **pure**, so any external look can be cloned by numerically
-fitting the recipe against a reference before/after image pair. This produced
-PR #347 (8 summer/cinema looks) and PR #373 (30 jy-* presets); typical fit
-quality is 3–8 RMSE/255.
+generated 17³ LUTs: each preset is a `FilterLutRecipe` fed through the pure
+`transformFilterColor` function in `filter-lut.ts`. This model can closely fit
+some global color grades, but it cannot express every Jianying filter. A card
+may instead use a higher-resolution 3D LUT, per-hue behavior, separate skin and
+background LUTs, segmentation, textures, or a multi-pass shader graph.
 
-For filters that are *effect packages* (shaders, textures) rather than pure
-color grades, harvest the package with the `jianying-reference` skill instead
-— this skill covers the LUT-fit path only.
+**Inspect the downloaded package before fitting screenshots.** Package evidence
+defines what the filter actually is; captures verify that the package mapping
+and replay are correct. Only then decide whether a `FilterLutRecipe` is an
+appropriate implementation target.
 
-## Step 0 — Build a calibration chart (do this instead of a photo)
+## Step 0 — Map the card to its local package
+
+Jianying stores UI metadata and packages separately:
+
+```text
+~/Movies/JianyingPro/User Data/Cache/ressdk_db/*/rp.db
+~/Movies/JianyingPro/User Data/Cache/artistEffect/<resource-id>/<md5>/
+~/Movies/JianyingPro/User Data/Cache/effect/<resource-id>/<md5>/
+```
+
+Run the read-only inspector with the exact visible card title:
+
+```bash
+bun .agents/skills/qcut-toolkit/jianying-filter-parity/scripts/inspect-filter-cache.ts "静谧暗调"
+```
+
+The tool preserves 64-bit IDs as strings, searches both resource databases,
+maps `title → resource ID + md5`, locates packages in both mixed cache roots,
+and classifies common implementations:
+
+- `3d-lut`: a `VF_V` float32 cube plus a sampler3D shader;
+- `skin-segmented-dual-lut`: separate background/skin LUT images and a skin mask;
+- `shader-or-effect-package`: inspect readable shaders, Lua, config, and graph;
+- `unknown`: gather more UI/cache evidence before fitting.
+
+An exact title can return multiple resources. Disambiguate with the UI card
+order, cover image, or the `jianying-reference` one-card mtime probe. Never pick
+the first title match silently. If the package is absent, apply that one card in
+a disposable draft to force its download, then rerun the inspector.
+
+A file that cannot be read or parsed is reported in that package's `issues`
+array rather than aborting the run, so a half-downloaded asset never hides the
+packages that did resolve. Treat a non-empty `issues` list as an incomplete
+download: reopen the card in Jianying to finish it and rerun before concluding
+anything about `kind`.
+
+Read [cache-formats.md](references/cache-formats.md) before decoding or replaying
+a package. Cached assets are local interoperability evidence: do not copy LUTs,
+textures, shaders, Lua, or derived tables into the repo or product.
+
+## Step 1 — Build a calibration chart (do this instead of a photo)
 
 Fitting against a photo wastes most samples on one narrow region of color
 space. Generate a **576-patch chart** at the project resolution instead:
@@ -40,7 +79,7 @@ interior ×2, cube edges ×0.5, saturated hues ×0.35. Report a separate
 "natural" RMSE over grays/skin/interior only — that number, not the raw
 fit, is what decides whether a preset ships.
 
-## Step 1 — Capture references from Jianying desktop (macOS)
+## Step 2 — Capture references from Jianying desktop (macOS)
 
 1. Add the filter as a **track segment** via the hover "+" button on the
    filter card. This is the only trustworthy path: segment intensity is
@@ -61,7 +100,7 @@ fit, is what decides whether a preset ships.
 - Both captures go through the same display transform, so it cancels in the
   fit; captured pairs differ from true video frames by only ~2–3/255.
 
-## Step 2 — Fit the recipe
+## Step 3 — Fit the recipe
 
 Build a one-off bun harness (they have always been ad-hoc; keep it out of
 the repo):
@@ -72,7 +111,7 @@ the repo):
 2. Load both captures, sample a few thousand pixel-aligned (original,
    filtered) pairs.
 3. Optimize the recipe parameters with random-restart + coordinate descent
-   minimizing RGB RMSE. Accept at ≤8 RMSE/255; the best fits land near 3.
+   minimizing RGB RMSE. Report both weighted and natural-color RMSE.
 4. **Do not hand-"fix" fitted values afterwards.** Outliers like
    `contrast: 2.82` or `gamma: 2.26` are legitimate fit results;
    `buildFilterCube` output is verified bounded by the catalog test.
@@ -84,8 +123,16 @@ the repo):
    keeps the catalogue honest. Rules of thumb: ≤12 natural RMSE is a close
    clone, 12–20 is a recognizable interpretation, >25 means the look needs
    machinery QCut does not have — drop it rather than shipping a stand-in.
+6. Compare the fit against the **package replay**, not only the screenshot.
+   A package replay that differs from the Jianying capture by >8 natural RMSE
+   usually means the resource mapping, sampler coordinates, intensity, or
+   segmented path is wrong. Fix that evidence chain before judging QCut.
 
-## Step 3 — Register the preset
+For skin-segmented dual-LUT packages, a calibration chart validates only the
+background path. Capture a common face clip to measure the skin path. Do not
+claim full parity from a chart-only fit.
+
+## Step 4 — Register the preset
 
 Follow the PR #373 layout in `apps/web/src/lib/filters/jianying-parity/`:
 
@@ -102,7 +149,7 @@ Follow the PR #373 layout in `apps/web/src/lib/filters/jianying-parity/`:
   `EXPECTED_LOCALIZED_NAMES` order and per-family counts are a deliberate
   catalog snapshot — extend them, don't loosen them.
 
-## Step 4 — Thumbnails and verification
+## Step 5 — Thumbnails and verification
 
 - Generate the `/images/filter-previews/jy-*.webp` thumbnail with the
   existing generator. It needs the `packages/nexusai-website` showcase assets
@@ -115,13 +162,19 @@ Follow the PR #373 layout in `apps/web/src/lib/filters/jianying-parity/`:
   presets but needs a real ffmpeg at
   `electron/resources/ffmpeg/darwin-arm64/ffmpeg` (not in git — symlink in
   worktrees, remove before committing).
-- Frame-verify at least one preset visually against the Jianying reference
-  (side-by-side crop) before opening the PR.
+- Frame-verify every new preset against the same input at 100% intensity.
+  Produce a labeled side-by-side image with Jianying/package replay on the left
+  and QCut on the right, and record package-replay, natural, and all-chart RMSE.
+- Keep raw cache assets and captured frames in a scratch directory outside the
+  worktree. Comparison screenshots are acceptable evidence; proprietary package
+  contents are not.
 
 ## Related
 
 - `jianying-reference` — package harvesting + stepped-frame capture for
   non-LUT effects (text animations, transitions, shader filters, stickers).
+- `scripts/inspect-filter-cache.ts` — exact-title database mapping and safe
+  package classification without copying package contents.
 - PR #373 shows the salvage pattern: presets carry fitted recipes as pure
   data, so they can be lifted from an abandoned branch with zero mechanism
   changes.
