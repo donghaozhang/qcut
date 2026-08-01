@@ -1,7 +1,7 @@
 import { constants as fileSystemConstants, type BigIntStats } from "node:fs";
 import { lstat, open } from "node:fs/promises";
 
-const MAXIMUM_CONTROL_FILE_BYTES = 1024 * 1024;
+const DEFAULT_MAXIMUM_CONTROL_FILE_BYTES = 1024 * 1024;
 
 export interface RegularFileSnapshot {
 	bytes: Buffer;
@@ -57,11 +57,16 @@ function isSameFileIdentity({
 
 export async function readRegularFileSnapshot({
 	label,
+	maximumBytes = DEFAULT_MAXIMUM_CONTROL_FILE_BYTES,
 	path,
 }: {
 	label: string;
+	maximumBytes?: number;
 	path: string;
 }): Promise<RegularFileSnapshot> {
+	if (!Number.isSafeInteger(maximumBytes) || maximumBytes <= 0) {
+		throw new Error(`${label} maximumBytes must be a positive safe integer.`);
+	}
 	const pathStatsBeforeOpen = await requirePathStats({ label, path });
 	if (pathStatsBeforeOpen.isSymbolicLink()) {
 		throw new Error(`${label} must not be a symbolic link.`);
@@ -85,8 +90,8 @@ export async function readRegularFileSnapshot({
 		if (!openedStats.isFile()) {
 			throw new Error(`${label} must be a regular file.`);
 		}
-		if (openedStats.size > BigInt(MAXIMUM_CONTROL_FILE_BYTES)) {
-			throw new Error(`${label} exceeds ${MAXIMUM_CONTROL_FILE_BYTES} bytes.`);
+		if (openedStats.size > BigInt(maximumBytes)) {
+			throw new Error(`${label} exceeds ${maximumBytes} bytes.`);
 		}
 		if (
 			!isSameFileIdentity({ left: pathStatsBeforeOpen, right: openedStats })
