@@ -97,7 +97,7 @@ export interface ClaudeTransition {
 	type: string;
 	duration: number;
 	direction?: "left" | "right" | "up" | "down";
-	easing?: "linear" | "easeInOut";
+	easing?: "linear" | "easeInOut" | "easeInOutQuint";
 	tuning?: Record<string, unknown>;
 	maskShape?: string;
 }
