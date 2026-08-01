@@ -33,17 +33,42 @@ const EXPECTED_LOCALIZED_NAMES = [
 	"奥林巴斯",
 	"大疆电影感",
 	"富士XT5",
+	"怀旧",
+	"旧时光帧",
+	"复古电影感",
+	"国民旧照",
+	"琥珀",
+	"黑白记忆",
+	"江浙沪",
+	"高清黑白",
+	"森山",
+	"蓝调",
+	"夜景去雾",
+	"夜景增色II",
+	"都市电影II",
+	"冷烟花",
+	"橙蓝",
+	"石山",
+	"冰瀑",
+	"旷野",
+	"雨空",
+	"越野",
+	"静谧暗调",
+	"墨色胶卷",
+	"银蓝",
+	"黑金",
+	"水墨意境",
 ];
 
 describe("Jianying parity filter presets", () => {
-	it("ships all thirty validated looks with stable metadata", () => {
-		expect(JIANYING_PARITY_FILTER_PRESETS).toHaveLength(30);
+	it("ships all fifty-five validated looks with stable metadata", () => {
+		expect(JIANYING_PARITY_FILTER_PRESETS).toHaveLength(55);
 		expect(
 			JIANYING_PARITY_FILTER_PRESETS.map((preset) => preset.localizedName)
 		).toEqual(EXPECTED_LOCALIZED_NAMES);
 		expect(
 			new Set(JIANYING_PARITY_FILTER_PRESETS.map((preset) => preset.id)).size
-		).toBe(30);
+		).toBe(55);
 
 		const categoryCounts = new Map<string, number>();
 		for (const preset of JIANYING_PARITY_FILTER_PRESETS) {
@@ -65,6 +90,11 @@ describe("Jianying parity filter presets", () => {
 			landscape: 8,
 			food: 8,
 			camera: 6,
+			film: 5,
+			monochrome: 5,
+			night: 5,
+			outdoor: 5,
+			stylized: 5,
 		});
 	});
 
