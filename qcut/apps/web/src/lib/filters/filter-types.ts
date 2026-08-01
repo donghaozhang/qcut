@@ -138,5 +138,6 @@ export interface FilterPreset {
 	isNew?: boolean;
 	skinProtection?: number;
 	recipe: FilterLutRecipe;
+	skinToneRecipe?: FilterLutRecipe;
 	extras?: FilterExtras;
 }

@@ -8,6 +8,7 @@ import {
 } from "../filter-lut";
 import type { FilterColorMatrix } from "../filter-types";
 import type {
+	FilterPreset,
 	FilterQuarticColorMatrix,
 	FilterQuinticColorMatrix,
 } from "../filter-types";
@@ -154,6 +155,51 @@ describe("filter LUT", () => {
 		expect(result.r).toBeCloseTo(0.0128, 8);
 		expect(result.g).toBeCloseTo(0.1024, 8);
 		expect(result.b).toBeCloseTo(0.00512, 8);
+	});
+
+	it("blends an alternate recipe for likely skin tones", () => {
+		const preset: FilterPreset = {
+			id: "skin-tone-test",
+			version: 1,
+			name: "Skin Tone Test",
+			localizedName: "Skin Tone Test",
+			category: "portrait",
+			tags: [],
+			thumbnail: "/skin-tone-test.webp",
+			lutAssetId: "test/skin-tone/v1",
+			defaultIntensity: 100,
+			recipe: {},
+			skinToneRecipe: {
+				polynomialCorrection: {
+					linear: ZERO_COLOR_MATRIX,
+					squared: ZERO_COLOR_MATRIX,
+					cross: ZERO_COLOR_MATRIX,
+					offset: [1, 0, 0],
+				},
+			},
+		};
+		const cube = buildFilterCube({ preset, size: 5 });
+		const colorAt = ({
+			red,
+			green,
+			blue,
+		}: {
+			red: number;
+			green: number;
+			blue: number;
+		}) => {
+			const index = ((blue * cube.size + green) * cube.size + red) * 3;
+			return cube.values.slice(index, index + 3);
+		};
+
+		const warmSkin = colorAt({ red: 3, green: 2, blue: 1 });
+		expect(warmSkin[0]).toBeGreaterThan(0.95);
+		expect(warmSkin[1]).toBeLessThan(0.1);
+		expect(warmSkin[2]).toBeLessThan(0.1);
+		const coolBlue = colorAt({ red: 1, green: 2, blue: 3 });
+		expect(coolBlue[0]).toBeCloseTo(0.25, 12);
+		expect(coolBlue[1]).toBeCloseTo(0.5, 12);
+		expect(coolBlue[2]).toBeCloseTo(0.75, 12);
 	});
 
 	it("clamps polynomial correction output to the LUT domain", () => {

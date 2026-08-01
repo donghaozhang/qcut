@@ -4,6 +4,7 @@ import {
 	hslToRgb,
 	luminance,
 	rgbToHsl,
+	skinToneWeight,
 	type RgbColor,
 } from "@/lib/color/color-space-math";
 import type { FilterLutRecipe, FilterPreset } from "./filter-types";
@@ -246,15 +247,29 @@ export function buildFilterCube({
 	for (let blue = 0; blue < size; blue += 1) {
 		for (let green = 0; green < size; green += 1) {
 			for (let red = 0; red < size; red += 1) {
+				const color = {
+					r: red / (size - 1),
+					g: green / (size - 1),
+					b: blue / (size - 1),
+				};
 				const transformed = transformFilterColor({
-					color: {
-						r: red / (size - 1),
-						g: green / (size - 1),
-						b: blue / (size - 1),
-					},
+					color,
 					recipe: preset.recipe,
 				});
-				values.push(transformed.r, transformed.g, transformed.b);
+				if (!preset.skinToneRecipe) {
+					values.push(transformed.r, transformed.g, transformed.b);
+					continue;
+				}
+				const skinToneTransformed = transformFilterColor({
+					color,
+					recipe: preset.skinToneRecipe,
+				});
+				const amount = skinToneWeight({ color });
+				values.push(
+					mix({ left: transformed.r, right: skinToneTransformed.r, amount }),
+					mix({ left: transformed.g, right: skinToneTransformed.g, amount }),
+					mix({ left: transformed.b, right: skinToneTransformed.b, amount })
+				);
 			}
 		}
 	}
