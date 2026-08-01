@@ -211,8 +211,8 @@ const jy = (f: number) => Math.min(N, Math.floor(Math.min(1, f / F) * (N + 1)));
 
 ## Scope Notes
 
-- Works identically for filters (see the LUT-fitting playbook in project
-  memory), transitions, and stickers — only the panel and the package contents
+- Works identically for filters (pure color grades have their own skill:
+  `jianying-filter-parity`), transitions, and stickers — only the panel and the package contents
   differ.
 - `Cache/effect` only contains effects that have been applied at least once on
   this machine; apply the card once to force the download.
