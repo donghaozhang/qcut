@@ -3,6 +3,7 @@
 
 #include "graphics-probe.h"
 #include "probe-utils.h"
+#include "transition-probe.h"
 
 #include <array>
 #include <cstddef>
@@ -10,6 +11,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -20,7 +22,6 @@ namespace fs = std::filesystem;
 
 constexpr std::size_t kConfigStorageSize = 0x100;
 constexpr std::size_t kBridgeStorageSize = 0x200;
-constexpr std::size_t kTransitionSegmentStorageSize = 0x400;
 constexpr std::size_t kSandboxRootOffset = 0x18;
 constexpr std::array<std::size_t, 4> kConfigStringOffsets = {
     0x18,
@@ -54,32 +55,12 @@ constexpr std::string_view kGetIOSurface =
 constexpr std::string_view kDefaultLaunchJSFileName =
     "_ZN8lumigene27LumiGeneRuntimeBridgeConfig24defaultLaunchJSFileName_E";
 
-constexpr std::string_view kTransitionConstructor =
-    "_ZN13AmazingEngine17TransitionSegmentC1Ev";
-constexpr std::string_view kTransitionDestructor =
-    "_ZN13AmazingEngine17TransitionSegmentD1Ev";
-constexpr std::string_view kTransitionLoadSegment =
-    "_ZN13AmazingEngine17TransitionSegment11loadSegmentERKNSt3__112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE";
-constexpr std::string_view kTransitionUnloadSegment =
-    "_ZN13AmazingEngine17TransitionSegment13unloadSegmentEv";
-constexpr std::string_view kConfigureABValue = "bef_effect_config_ab_value";
-constexpr std::array<std::string_view, 6> kTransitionMethods = {
-    "_ZN13AmazingEngine17TransitionSegment12syncResourceEv",
-    "_ZN13AmazingEngine17TransitionSegment13renderSegmentEd13DeviceTextureS1_",
-    "_ZN13AmazingEngine17TransitionSegment14releaseSegmentEv",
-    "_ZN13AmazingEngine17TransitionSegment15generateSegmentEv",
-    "_ZN13AmazingEngine17TransitionSegment18setTransitionInputEPNS_7SegmentES2_",
-    "_ZN13AmazingEngine17TransitionSegment21updateTransitionInputE13DeviceTextureS1_",
-};
-
 using ObjectMethod = void (*)(void*);
 using ConstObjectPredicate = bool (*)(const void*);
 using RegisterConfigMethod = void (*)(void*, const void*);
 using LaunchMethod = bool (*)(void*);
 using UpdateFrameMethod = void (*)(void*, double);
 using GetIOSurfaceMethod = IOSurfaceRef (*)(const void*);
-using LoadSegmentMethod = void (*)(void*, const std::string&);
-using ConfigureABValueMethod = int (*)(const char*, const void*, int);
 
 struct RuntimeSymbols {
   ObjectMethod configConstructor;
@@ -94,14 +75,6 @@ struct RuntimeSymbols {
   ObjectMethod syncRender;
   GetIOSurfaceMethod getIOSurface;
   const std::string* defaultLaunchJSFileName;
-};
-
-struct TransitionSymbols {
-  ObjectMethod constructor;
-  ObjectMethod destructor;
-  LoadSegmentMethod loadSegment;
-  ObjectMethod unloadSegment;
-  ConfigureABValueMethod configureABValue;
 };
 
 template <std::size_t Size>
@@ -136,32 +109,6 @@ using jianying_probe::resolveSymbol;
       .getIOSurface = resolveSymbol<GetIOSurfaceMethod>(runtime, kGetIOSurface),
       .defaultLaunchJSFileName =
           resolveSymbol<const std::string*>(runtime, kDefaultLaunchJSFileName),
-  };
-}
-
-[[nodiscard]] TransitionSymbols loadTransitionCore(
-    const fs::path& runtimeRoot) {
-  void* transitionCore =
-      openLibrary(runtimeRoot / "Frameworks" / "libcccreator.dylib");
-  void* constructor = resolveSymbol<void*>(transitionCore, kTransitionConstructor);
-  void* destructor = resolveSymbol<void*>(transitionCore, kTransitionDestructor);
-  LoadSegmentMethod loadSegment =
-      resolveSymbol<LoadSegmentMethod>(transitionCore, kTransitionLoadSegment);
-  ObjectMethod unloadSegment =
-      resolveSymbol<ObjectMethod>(transitionCore, kTransitionUnloadSegment);
-  ConfigureABValueMethod configureABValue =
-      resolveSymbol<ConfigureABValueMethod>(transitionCore, kConfigureABValue);
-
-  for (const std::string_view method : kTransitionMethods) {
-    static_cast<void>(resolveSymbol<void*>(transitionCore, method));
-  }
-
-  return {
-      .constructor = reinterpret_cast<ObjectMethod>(constructor),
-      .destructor = reinterpret_cast<ObjectMethod>(destructor),
-      .loadSegment = loadSegment,
-      .unloadSegment = unloadSegment,
-      .configureABValue = configureABValue,
   };
 }
 
@@ -231,45 +178,6 @@ void configure(ObjectStorage<kConfigStorageSize>& config,
   return launched;
 }
 
-void inspectTransitionCore(const fs::path& runtimeRoot,
-                           const fs::path* packagePath,
-                           bool enableTransitionII) {
-  [NSApplication sharedApplication];
-
-  const TransitionSymbols symbols = loadTransitionCore(runtimeRoot);
-  ObjectStorage<kTransitionSegmentStorageSize> segment;
-  symbols.constructor(segment.data());
-  std::cout << "[transition] TransitionSegment constructed\n";
-
-  if (packagePath != nullptr) {
-    if (enableTransitionII) {
-      const bool enabled = true;
-      const int result = symbols.configureABValue(
-          "enable_transition_ii", &enabled, 0);
-      std::cout << "[transition] enable_transition_ii result = " << result
-                << '\n';
-    }
-
-    const std::string path = packagePath->string();
-    symbols.loadSegment(segment.data(), path);
-
-    const auto* bytes = static_cast<const std::byte*>(segment.data());
-    const auto* storedPath =
-        reinterpret_cast<const std::string*>(bytes + 0x2b0);
-    void* parsedConfig =
-        *reinterpret_cast<void* const*>(bytes + 0x328);
-    std::cout << "[transition] loadSegment returned\n";
-    std::cout << "[transition] stored package = " << *storedPath << '\n';
-    std::cout << "[transition] parsed config = " << parsedConfig << '\n';
-
-    symbols.unloadSegment(segment.data());
-    std::cout << "[transition] unloadSegment returned\n";
-  }
-
-  symbols.destructor(segment.data());
-  std::cout << "[transition] TransitionSegment destroyed\n";
-}
-
 [[nodiscard]] int run(const fs::path& runtimeRoot, std::string_view mode) {
   static_assert(sizeof(std::string) == 0x18,
                 "The inferred Jianying config layout requires libc++ std::string");
@@ -298,23 +206,58 @@ void inspectTransitionCore(const fs::path& runtimeRoot,
   }
 
   if (mode == "transition") {
-    inspectTransitionCore(runtimeRoot, nullptr, false);
+    jianying_probe::inspectTransitionCore({
+        .runtimeRoot = runtimeRoot,
+        .packagePath = std::nullopt,
+    });
     return 0;
   }
 
   if (mode == "transition-load") {
     const char* package = std::getenv("JY_TRANSITION_PACKAGE");
     if (package == nullptr || !fs::is_directory(package)) {
-      throw std::runtime_error(
-          "transition-load requires JY_TRANSITION_PACKAGE to name a package directory");
+      throw std::runtime_error("transition-load requires JY_TRANSITION_PACKAGE "
+                               "to name a package directory");
     }
 
     const fs::path packagePath(package);
     const char* transitionII = std::getenv("JY_ENABLE_TRANSITION_II");
     const bool enableTransitionII =
         transitionII != nullptr && std::string_view(transitionII) == "1";
-    inspectTransitionCore(runtimeRoot, &packagePath, enableTransitionII);
+    jianying_probe::inspectTransitionCore({
+        .runtimeRoot = runtimeRoot,
+        .packagePath = packagePath,
+        .enableTransitionII = enableTransitionII,
+    });
     return 0;
+  }
+
+  if (mode == "transition-frame") {
+    const char* package = std::getenv("JY_TRANSITION_PACKAGE");
+    if (package == nullptr || !fs::is_directory(package)) {
+      throw std::runtime_error(
+          "transition-frame requires JY_TRANSITION_PACKAGE to name a package "
+          "directory");
+    }
+
+    double progress = 0.5;
+    if (const char* value = std::getenv("JY_TRANSITION_PROGRESS")) {
+      std::size_t parsedLength = 0;
+      const std::string progressText(value);
+      progress = std::stod(progressText, &parsedLength);
+      if (parsedLength != progressText.size()) {
+        throw std::runtime_error(
+            "JY_TRANSITION_PROGRESS must be a number between 0 and 1");
+      }
+    }
+
+    return jianying_probe::renderTransitionFrame({
+               .runtimeRoot = runtimeRoot,
+               .packagePath = fs::path(package),
+               .progress = progress,
+           })
+               ? 0
+               : 7;
   }
 
   if (!inspectConfig(symbols, sandboxRoot)) {
@@ -336,7 +279,8 @@ int main(int argc, char* argv[]) {
     if (argc != 3) {
       std::cerr << "Usage: " << argv[0]
                 << " <runtime-root> "
-                   "<inspect|config|launch|gpu|textures|transition|transition-load>\n";
+                   "<inspect|config|launch|gpu|textures|transition|transition-"
+                   "load|transition-frame>\n";
       return 2;
     }
 

@@ -16,9 +16,9 @@ if [[ ! -f "$RUNTIME_ROOT/Frameworks/libLumiGeneRuntime.dylib" ]]; then
 fi
 
 case "$MODE" in
-  inspect | config | launch | gpu | textures | transition | transition-load) ;;
+  inspect | config | launch | gpu | textures | transition | transition-load | transition-frame) ;;
   *)
-    printf 'Usage: %s [inspect|config|launch|gpu|textures|transition|transition-load]\n' "$0" >&2
+    printf 'Usage: %s [inspect|config|launch|gpu|textures|transition|transition-load|transition-frame]\n' "$0" >&2
     exit 2
     ;;
 esac
@@ -33,6 +33,7 @@ xcrun clang++ \
   -Werror \
   "$SCRIPT_DIR/probe.mm" \
   "$SCRIPT_DIR/graphics-probe.mm" \
+  "$SCRIPT_DIR/transition-probe.mm" \
   -framework AppKit \
   -framework IOSurface \
   -o "$PROBE"

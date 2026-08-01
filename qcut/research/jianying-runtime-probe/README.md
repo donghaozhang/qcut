@@ -47,6 +47,9 @@ JY_TRANSITION_PACKAGE=/path/to/Cache/effect/id/md5 \
 JY_ENABLE_TRANSITION_II=1 \
   JY_TRANSITION_PACKAGE=/path/to/Cache/effect/id/md5 \
   ./run-probe.sh transition-load
+JY_TRANSITION_PROGRESS=0.5 \
+  JY_TRANSITION_PACKAGE=/path/to/Cache/effect/id/md5 \
+  ./run-probe.sh transition-frame
 ```
 
 - `inspect` loads the copied libraries and resolves the bridge ABI without
@@ -67,6 +70,11 @@ JY_ENABLE_TRANSITION_II=1 \
   package at its original cache path. It never copies that package into QCut.
 - `JY_ENABLE_TRANSITION_II=1` reconstructs Jianying's in-process AB injection by
   calling `bef_effect_config_ab_value` before loading the package.
+- `transition-frame` binds two solid-color textures to real VideoSegments, loads
+  the cached transition, drives the exported SwingManager seek path, reads back
+  the output texture, and validates a linear dissolve.
+  `JY_TRANSITION_PROGRESS` defaults to `0.5` and accepts values from `0` through
+  `1`.
 
 `libcccreator` has a large dependency graph. The copied binary is loaded from
 the ignored local directory while unresolved sibling libraries are read from
@@ -118,25 +126,49 @@ following without launching the Jianying app process:
 9. The renderer creates two RGBA input `DeviceTexture` objects, one output
    texture, and an output framebuffer; one empty render pass completes and all
    objects are released cleanly.
+10. `bef_swing_manager_create_with_gpdevice` creates the Amazer global context
+    and viewer while retaining the supplied host `GPDevice`.
+11. Amazer creates a separate `AmazingEngineMainDevice`; converting all three
+    host textures through `SwingTexture::convertMetalTextureInPlace` produces
+    valid friend textures for that device.
+12. Two real `VideoSegment` objects and one real `TransitionSegment` can be
+    assigned time ranges and unique render indices, linked as left/right inputs,
+    and registered with the manager's simplified segment graph.
+13. `bef_swing_manager_seek_frame_device_texture` fills the transition's current
+    frame cache from those VideoSegments and renders into the supplied output.
+14. The tested dissolve package returned exact RGBA values at all three sampled
+    points: `0 -> (255, 0, 0, 255)`, `0.5 -> (128, 0, 128, 255)`, and
+    `1 -> (0, 0, 255, 255)`.
 
 The dependencies now divide into three groups:
 
 - Copied into the ignored local runtime: five dylibs, `lumi_js_resources`, and
   `VEMetalBinary_Mac.bundle`.
-- Reconstructed by the probe at runtime: the AB value, `GPDevice`,
-  `RendererDevice`, two input textures, the output texture, and its framebuffer.
-  These are process-local objects, not files that can be copied.
+- Reconstructed by the probe at runtime: the AB value, host `GPDevice`,
+  `RendererDevice`, SwingManager/Amazer/viewer context, two VideoSegments, one
+  TransitionSegment, three host textures, and their effect-device friend
+  textures. These are process-local objects, not files that can be copied.
 - Not found as standalone files: a transition license/AB configuration and
   `lumigene-core.js`. The tested transition accepts the empty license once the
   AB value is injected; LumiGene still expects its entry script from a host
   source or virtual filesystem that the probe has not reconstructed.
 
-The remaining host contract is narrower:
+The remaining work is now a media pipeline rather than an unknown transition
+rendering contract:
 
 - LumiGene defaults to `lumigene-core.js`. No standalone copy was found in the
   installed app bundle or current user cache, so the bridge creates its surface
-  but reports that the game JS could not be loaded.
-- Executing `TransitionSegment::renderSegment` still needs Jianying's
-  higher-level Swing/AmazingManager scene, viewer, and global-manager wiring.
-  The GPU context, textures, output target, package loading, and AB gate are no
-  longer the blockers.
+  but reports that the game JS could not be loaded. This did not block the
+  tested CCCreator/Swing transition path.
+- Decode both source videos into timestamped GPU frames, then update the two
+  VideoSegments before each manager seek.
+- Map trims, overlap duration, frame rate, and transition progress onto the
+  manager's microsecond timeline without duplicate or missing boundary frames.
+- Render at production dimensions and preserve pixel format, color space, HDR,
+  alpha state, and orientation across decode, friend-texture conversion, and
+  output.
+- Feed rendered frames to a hardware encoder and mux or retime audio. The probe
+  currently performs a tiny CPU readback only for validation.
+- Test additional transition packages and provide a fallback for missing,
+  incompatible, licensed, or version-specific resources. The exact private ABI
+  used here is tied to Jianying `11.1.12975` and is not a shippable dependency.

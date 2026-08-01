@@ -3,16 +3,21 @@
 #include "graphics-probe.h"
 #include "probe-utils.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <string>
 #include <string_view>
-#include <type_traits>
 
 namespace jianying_probe {
 namespace {
+
+constexpr int kMetalRendererType = 6;
+constexpr int kRgba8PixelFormat = 0x2b;
+constexpr int kLinearFilter = 1;
+constexpr int kClampWrap = 1;
 
 constexpr std::string_view kCreateGraphicsDevice =
     "_ZN13AmazingEngine8GPDevice12createDeviceENS_12RendererTypeEj";
@@ -30,6 +35,9 @@ constexpr std::string_view kCreateTexture2D =
     "_ZN13AmazingEngine14RendererDevice15createTexture2DEiiPKPKvNS_14AMGPixelFormatENS_13AMGFilterModeES6_NS_11AMGWrapModeES7_PiPKcbb";
 constexpr std::string_view kDestroyTexture =
     "_ZN13AmazingEngine14RendererDevice14destroyTextureE13DeviceTexture";
+constexpr std::string_view kReadImage =
+    "_ZN13AmazingEngine14RendererDevice9readImageE13DeviceTextureiiPvNS_"
+    "8FlipModeENS_10RotateModeENS_13AMGFilterModeENS_14AMGPixelFormatE";
 constexpr std::string_view kTextureGetWidth =
     "_ZN13DeviceWrapperI11TextureBaseE8getWidthEv";
 constexpr std::string_view kTextureGetHeight =
@@ -55,25 +63,6 @@ using ObjectMethod = void (*)(void*);
 using CreateGraphicsDeviceMethod = void* (*)(int, unsigned int);
 using GetObjectMethod = void* (*)(void*);
 
-// Non-trivial lifetime preserves DeviceTexture's arm64 indirect-passing ABI.
-struct DeviceTextureProbe {
-  void* texture = nullptr;
-  std::uint64_t metadata = 0;
-
-  DeviceTextureProbe() = default;
-  DeviceTextureProbe(const DeviceTextureProbe& other)
-      : texture(other.texture), metadata(other.metadata) {}
-  DeviceTextureProbe& operator=(const DeviceTextureProbe& other) {
-    texture = other.texture;
-    metadata = other.metadata;
-    return *this;
-  }
-  ~DeviceTextureProbe() {}
-};
-
-static_assert(sizeof(DeviceTextureProbe) == 0x10);
-static_assert(!std::is_trivially_copy_constructible_v<DeviceTextureProbe>);
-
 struct RenderTargetAttachmentProbe {
   DeviceTextureProbe texture;
   std::array<std::byte, 0x10> options{};
@@ -91,10 +80,13 @@ struct RenderTargetDescProbe {
 static_assert(sizeof(RenderTargetAttachmentProbe) == 0x20);
 static_assert(sizeof(RenderTargetDescProbe) == 0x38);
 
-using CreateTexture2DMethod = DeviceTextureProbe (*)(
-    void*, int, int, const void* const*, int, int, int, int, int, int*,
-    const char*, bool, bool);
+using CreateTexture2DMethod = DeviceTextureProbe (*)(void*, int, int,
+                                                     const void* const*, int,
+                                                     int, int, int, int, int*,
+                                                     const char*, bool, bool);
 using DestroyTextureMethod = void (*)(void*, DeviceTextureProbe);
+using ReadImageMethod = void (*)(void*, DeviceTextureProbe, int, int, void*,
+                                 int, int, int, int);
 using TextureIntegerProperty = int (*)(const void*);
 using TextureIdProperty = std::uint64_t (*)(const void*);
 using CreateFramebufferMethod = void* (*)(void*, const RenderTargetDescProbe*);
@@ -112,6 +104,7 @@ struct GraphicsSymbols {
   ObjectMethod releaseMemory;
   CreateTexture2DMethod createTexture2D;
   DestroyTextureMethod destroyTexture;
+  ReadImageMethod readImage;
   TextureIntegerProperty textureGetWidth;
   TextureIntegerProperty textureGetHeight;
   TextureIntegerProperty textureGetPixelFormat;
@@ -122,6 +115,12 @@ struct GraphicsSymbols {
   BeginRenderMethod beginRender;
   EndRenderMethod endRender;
   ObjectMethod endFrame;
+};
+
+struct ProbeTextures {
+  DeviceTextureProbe inputA;
+  DeviceTextureProbe inputB;
+  DeviceTextureProbe output;
 };
 
 [[nodiscard]] GraphicsSymbols loadGraphics(const fs::path& runtimeRoot) {
@@ -143,6 +142,7 @@ struct GraphicsSymbols {
           resolveSymbol<CreateTexture2DMethod>(graphics, kCreateTexture2D),
       .destroyTexture =
           resolveSymbol<DestroyTextureMethod>(graphics, kDestroyTexture),
+      .readImage = resolveSymbol<ReadImageMethod>(graphics, kReadImage),
       .textureGetWidth =
           resolveSymbol<TextureIntegerProperty>(graphics, kTextureGetWidth),
       .textureGetHeight =
@@ -182,12 +182,82 @@ void printTexture(const GraphicsSymbols& symbols, std::string_view label,
   std::cout << '\n';
 }
 
+[[nodiscard]] ProbeTextures createProbeTextures(const GraphicsSymbols& symbols,
+                                                void* renderer) {
+  std::array<std::uint8_t, kProbePixelBytes> redPixels{};
+  std::array<std::uint8_t, kProbePixelBytes> bluePixels{};
+  for (std::size_t offset = 0; offset < redPixels.size(); offset += 4) {
+    redPixels[offset] = 0xff;
+    redPixels[offset + 3] = 0xff;
+    bluePixels[offset + 2] = 0xff;
+    bluePixels[offset + 3] = 0xff;
+  }
+
+  const void* redMipData[] = {redPixels.data()};
+  const void* blueMipData[] = {bluePixels.data()};
+  return {
+      .inputA = symbols.createTexture2D(
+          renderer, kProbeTextureSize, kProbeTextureSize, redMipData,
+          kRgba8PixelFormat, kLinearFilter, kLinearFilter, kClampWrap,
+          kClampWrap, nullptr, "qcut probe input A", false, false),
+      .inputB = symbols.createTexture2D(
+          renderer, kProbeTextureSize, kProbeTextureSize, blueMipData,
+          kRgba8PixelFormat, kLinearFilter, kLinearFilter, kClampWrap,
+          kClampWrap, nullptr, "qcut probe input B", false, false),
+      .output = symbols.createTexture2D(
+          renderer, kProbeTextureSize, kProbeTextureSize, nullptr,
+          kRgba8PixelFormat, kLinearFilter, kLinearFilter, kClampWrap,
+          kClampWrap, nullptr, "qcut probe output", false, false),
+  };
+}
+
+[[nodiscard]] bool allTexturesCreated(const ProbeTextures& textures) {
+  return textures.inputA.texture != nullptr &&
+         textures.inputB.texture != nullptr &&
+         textures.output.texture != nullptr;
+}
+
+void destroyProbeTextures(const GraphicsSymbols& symbols, void* renderer,
+                          const ProbeTextures& textures) {
+  if (textures.output.texture != nullptr) {
+    symbols.destroyTexture(renderer, textures.output);
+  }
+  if (textures.inputB.texture != nullptr) {
+    symbols.destroyTexture(renderer, textures.inputB);
+  }
+  if (textures.inputA.texture != nullptr) {
+    symbols.destroyTexture(renderer, textures.inputA);
+  }
+  std::cout << "[texture] all probe textures released\n";
+}
+
+void readTexture(const GraphicsSymbols& symbols, void* renderer,
+                 const DeviceTextureProbe& texture,
+                 std::array<std::uint8_t, kProbePixelBytes>& pixels) {
+  constexpr int kNoFlip = 0;
+  constexpr int kNoRotation = 0;
+  symbols.readImage(renderer, texture, kProbeTextureSize, kProbeTextureSize,
+                    pixels.data(), kNoFlip, kNoRotation, kLinearFilter,
+                    kRgba8PixelFormat);
+}
+
+[[nodiscard]] bool matchesSolidColor(
+    const std::array<std::uint8_t, kProbePixelBytes>& pixels,
+    const std::array<std::uint8_t, 4>& expected) {
+  for (std::size_t offset = 0; offset < pixels.size(); offset += 4) {
+    if (!std::equal(expected.begin(), expected.end(),
+                    pixels.begin() + offset)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 }  // namespace
 
 bool inspectGraphicsContext(const fs::path& runtimeRoot, bool createTextures) {
   [NSApplication sharedApplication];
 
-  constexpr int kMetalRendererType = 6;
   const GraphicsSymbols symbols = loadGraphics(runtimeRoot);
   void* device = symbols.createDevice(kMetalRendererType, 0);
   std::cout << "[gpu] GPDevice = " << device << '\n';
@@ -205,41 +275,14 @@ bool inspectGraphicsContext(const fs::path& runtimeRoot, bool createTextures) {
     return renderer != nullptr;
   }
 
-  constexpr int kTextureSize = 4;
-  constexpr int kRgba8PixelFormat = 0x2b;
-  constexpr int kLinearFilter = 1;
-  constexpr int kClampWrap = 1;
-  std::array<std::uint8_t, kTextureSize * kTextureSize * 4> redPixels{};
-  std::array<std::uint8_t, kTextureSize * kTextureSize * 4> bluePixels{};
-  for (std::size_t offset = 0; offset < redPixels.size(); offset += 4) {
-    redPixels[offset] = 0xff;
-    redPixels[offset + 3] = 0xff;
-    bluePixels[offset + 2] = 0xff;
-    bluePixels[offset + 3] = 0xff;
-  }
-
-  const void* redMipData[] = {redPixels.data()};
-  const void* blueMipData[] = {bluePixels.data()};
-  DeviceTextureProbe inputA = symbols.createTexture2D(
-      renderer, kTextureSize, kTextureSize, redMipData, kRgba8PixelFormat,
-      kLinearFilter, kLinearFilter, kClampWrap, kClampWrap, nullptr,
-      "qcut probe input A", false, false);
-  DeviceTextureProbe inputB = symbols.createTexture2D(
-      renderer, kTextureSize, kTextureSize, blueMipData, kRgba8PixelFormat,
-      kLinearFilter, kLinearFilter, kClampWrap, kClampWrap, nullptr,
-      "qcut probe input B", false, false);
-  DeviceTextureProbe output = symbols.createTexture2D(
-      renderer, kTextureSize, kTextureSize, nullptr, kRgba8PixelFormat,
-      kLinearFilter, kLinearFilter, kClampWrap, kClampWrap, nullptr,
-      "qcut probe output", false, false);
-
-  printTexture(symbols, "input A", inputA);
-  printTexture(symbols, "input B", inputB);
-  printTexture(symbols, "output", output);
+  const ProbeTextures textures = createProbeTextures(symbols, renderer);
+  printTexture(symbols, "input A", textures.inputA);
+  printTexture(symbols, "input B", textures.inputB);
+  printTexture(symbols, "output", textures.output);
   bool renderTargetCreated = false;
-  if (output.texture != nullptr) {
+  if (textures.output.texture != nullptr) {
     RenderTargetAttachmentProbe colorAttachment;
-    colorAttachment.texture = output;
+    colorAttachment.texture = textures.output;
     RenderTargetDescProbe renderTargetDesc;
     renderTargetDesc.colorAttachments = &colorAttachment;
     renderTargetDesc.label = "qcut probe render target";
@@ -258,24 +301,73 @@ bool inspectGraphicsContext(const fs::path& runtimeRoot, bool createTextures) {
     }
   }
 
-  const bool texturesCreated = inputA.texture != nullptr &&
-                               inputB.texture != nullptr &&
-                               output.texture != nullptr &&
-                               renderTargetCreated;
+  const bool texturesCreated =
+      allTexturesCreated(textures) && renderTargetCreated;
 
-  if (output.texture != nullptr) {
-    symbols.destroyTexture(renderer, output);
-  }
-  if (inputB.texture != nullptr) {
-    symbols.destroyTexture(renderer, inputB);
-  }
-  if (inputA.texture != nullptr) {
-    symbols.destroyTexture(renderer, inputA);
-  }
-  std::cout << "[texture] all probe textures released\n";
+  destroyProbeTextures(symbols, renderer, textures);
 
   releaseGraphicsDevice(symbols, device);
   return texturesCreated;
+}
+
+GraphicsFrameProbeResult renderGraphicsProbeFrame(
+    const GraphicsFrameProbeRequest& request) {
+  [NSApplication sharedApplication];
+
+  GraphicsFrameProbeResult result;
+  if (request.renderer == nullptr) {
+    return result;
+  }
+
+  const GraphicsSymbols symbols = loadGraphics(request.runtimeRoot);
+  void* device = symbols.createDevice(kMetalRendererType, 0);
+  std::cout << "[gpu] GPDevice = " << device << '\n';
+  if (device == nullptr) {
+    return result;
+  }
+
+  symbols.init(device);
+  void* renderer = symbols.getRendererDevice(device);
+  std::cout << "[gpu] RendererDevice = " << renderer << '\n';
+  if (renderer == nullptr) {
+    releaseGraphicsDevice(symbols, device);
+    return result;
+  }
+
+  const ProbeTextures textures = createProbeTextures(symbols, renderer);
+  printTexture(symbols, "input A", textures.inputA);
+  printTexture(symbols, "input B", textures.inputB);
+  printTexture(symbols, "output", textures.output);
+  if (!allTexturesCreated(textures)) {
+    destroyProbeTextures(symbols, renderer, textures);
+    releaseGraphicsDevice(symbols, device);
+    return result;
+  }
+
+  readTexture(symbols, renderer, textures.inputA, result.inputAPixels);
+  readTexture(symbols, renderer, textures.inputB, result.inputBPixels);
+  result.inputsReadable =
+      matchesSolidColor(result.inputAPixels, {0xff, 0x00, 0x00, 0xff}) &&
+      matchesSolidColor(result.inputBPixels, {0x00, 0x00, 0xff, 0xff});
+  std::cout << "[readback] input textures = "
+            << (result.inputsReadable ? "expected RGBA" : "unexpected bytes")
+            << '\n';
+
+  const GraphicsFrameResources resources = {
+      .graphicsDevice = device,
+      .inputA = textures.inputA,
+      .inputB = textures.inputB,
+      .output = textures.output,
+      .callbackContext = request.callbackContext,
+  };
+  result.rendered = request.renderer(resources);
+  if (result.rendered) {
+    readTexture(symbols, renderer, textures.output, result.outputPixels);
+  }
+
+  destroyProbeTextures(symbols, renderer, textures);
+  releaseGraphicsDevice(symbols, device);
+  return result;
 }
 
 }  // namespace jianying_probe
