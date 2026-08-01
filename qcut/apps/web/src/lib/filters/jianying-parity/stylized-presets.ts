@@ -25,7 +25,7 @@ export const JIANYING_STYLIZED_PARITY_FILTER_PRESETS: FilterPreset[] = [
 			hueShift: 2.0995,
 			monochrome: 0.66,
 			fade: 0.012,
-			quadraticCorrection: {
+			polynomialCorrection: {
 				linear: [
 					[0.8486, -0.0135, -0.3431],
 					[-0.2542, 1.1268, -0.2033],

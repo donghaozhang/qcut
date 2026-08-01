@@ -48,12 +48,12 @@ describe("filter LUT", () => {
 		expect(result.g).toBeCloseTo(result.b, 6);
 	});
 
-	it("preserves colors with an identity quadratic correction", () => {
+	it("preserves colors with an identity polynomial correction", () => {
 		const color = { r: 0.25, g: 0.5, b: 0.75 };
 		const result = transformFilterColor({
 			color,
 			recipe: {
-				quadraticCorrection: {
+				polynomialCorrection: {
 					linear: IDENTITY_COLOR_MATRIX,
 					squared: ZERO_COLOR_MATRIX,
 					cross: ZERO_COLOR_MATRIX,
@@ -67,11 +67,11 @@ describe("filter LUT", () => {
 		expect(result.b).toBeCloseTo(color.b, 12);
 	});
 
-	it("applies quadratic cross terms in rg, rb, gb order", () => {
+	it("applies polynomial cross terms in rg, rb, gb order", () => {
 		const result = transformFilterColor({
 			color: { r: 0.2, g: 0.4, b: 0.8 },
 			recipe: {
-				quadraticCorrection: {
+				polynomialCorrection: {
 					linear: ZERO_COLOR_MATRIX,
 					squared: ZERO_COLOR_MATRIX,
 					cross: [
@@ -89,11 +89,38 @@ describe("filter LUT", () => {
 		expect(result.b).toBeCloseTo(0.32, 6);
 	});
 
-	it("clamps quadratic correction output to the LUT domain", () => {
+	it("applies cubic terms in their documented order", () => {
 		const result = transformFilterColor({
 			color: { r: 0.2, g: 0.4, b: 0.8 },
 			recipe: {
-				quadraticCorrection: {
+				polynomialCorrection: {
+					linear: ZERO_COLOR_MATRIX,
+					squared: ZERO_COLOR_MATRIX,
+					cross: ZERO_COLOR_MATRIX,
+					cubic: {
+						pure: IDENTITY_COLOR_MATRIX,
+						mixed: [
+							[1, 0, 0, 0, 0, 0],
+							[0, 0, 1, 0, 0, 0],
+							[0, 0, 0, 0, 1, 0],
+						],
+						triple: [1, 1, 1],
+					},
+					offset: [0, 0, 0],
+				},
+			},
+		});
+
+		expect(result.r).toBeCloseTo(0.088, 6);
+		expect(result.g).toBeCloseTo(0.16, 6);
+		expect(result.b).toBeCloseTo(0.704, 6);
+	});
+
+	it("clamps polynomial correction output to the LUT domain", () => {
+		const result = transformFilterColor({
+			color: { r: 0.2, g: 0.4, b: 0.8 },
+			recipe: {
+				polynomialCorrection: {
 					linear: [
 						[2, 0, 0],
 						[0, -2, 0],
