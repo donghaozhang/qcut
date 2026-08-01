@@ -278,10 +278,10 @@ export function ColorCurveEditor({
 				{selectedPoint ? (
 					<>
 						<label className="flex items-center gap-1 text-[10px] text-muted-foreground">
-							In
+							输入
 							<Input
 								type="number"
-								aria-label={`${label} point input`}
+								aria-label={`${label} 曲线点输入`}
 								value={Math.round(selectedPoint.x * 1000) / 10}
 								min={0}
 								max={100}
@@ -303,10 +303,10 @@ export function ColorCurveEditor({
 							/>
 						</label>
 						<label className="flex items-center gap-1 text-[10px] text-muted-foreground">
-							Out
+							输出
 							<Input
 								type="number"
-								aria-label={`${label} point output`}
+								aria-label={`${label} 曲线点输出`}
 								value={
 									centeredOutput
 										? Math.round((selectedPoint.y - 0.5) * 2000) / 10
@@ -331,17 +331,15 @@ export function ColorCurveEditor({
 						</label>
 					</>
 				) : (
-					<span className="text-[10px] text-muted-foreground">
-						Select a point
-					</span>
+					<span className="text-[10px] text-muted-foreground">选择一个点</span>
 				)}
 				<Button
 					type="button"
 					variant="text"
 					size="icon"
 					className="ml-auto size-7"
-					aria-label={`Delete ${label} curve point`}
-					title={`Delete ${label} curve point`}
+					aria-label={`删除 ${label} 曲线点`}
+					title={`删除 ${label} 曲线点`}
 					disabled={
 						!selectedPoint ||
 						selectedPoint === ordered[0] ||
