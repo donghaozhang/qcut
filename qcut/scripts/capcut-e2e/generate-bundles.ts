@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
-import { join, resolve } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import {
 	readFixtureRun,
 	type SourceRunEvidence,
@@ -46,6 +46,7 @@ import {
 const PROJECT_ROOT = resolve(process.cwd());
 const RUNS_ROOT = join(PROJECT_ROOT, ".tmp", "capcut-e2e", "runs");
 const BUNDLE_MANIFEST_FILE_NAME = "bundle-run-manifest.json";
+const DEFAULT_CAPCUT_APP_PATH = "/Applications/CapCut.app";
 const STICKER_PATH = join(
 	PROJECT_ROOT,
 	"plugins",
@@ -99,6 +100,11 @@ export interface BundleRunManifest {
 	targetPlatform: "macos" | "windows";
 }
 
+export interface BundleGeneratorCliOptions {
+	capCutAppPath: string;
+	runId: string;
+}
+
 function createTextSha256({ value }: { value: string }): string {
 	return createHash("sha256").update(value, "utf8").digest("hex");
 }
@@ -111,14 +117,31 @@ function validateRunId({ runId }: { runId: string }): void {
 	}
 }
 
-export function parseBundleRunId({ args }: { args: string[] }): string {
-	if (args.length !== 2 || args[0] !== "--run-id" || !args[1]) {
+export function parseBundleGeneratorCliOptions({
+	args,
+}: {
+	args: string[];
+}): BundleGeneratorCliOptions {
+	if (
+		(args.length !== 2 && args.length !== 4) ||
+		args[0] !== "--run-id" ||
+		!args[1] ||
+		(args.length === 4 &&
+			(args[2] !== "--capcut-app-path" || !args[3] || !isAbsolute(args[3])))
+	) {
 		throw new Error(
-			"Usage: bun scripts/capcut-e2e/generate-bundles.ts --run-id <existing-fixture-run>"
+			"Usage: bun scripts/capcut-e2e/generate-bundles.ts --run-id <existing-fixture-run> [--capcut-app-path <absolute-CapCut.app>]"
 		);
 	}
 	validateRunId({ runId: args[1] });
-	return args[1];
+	return {
+		capCutAppPath: args[3] ?? DEFAULT_CAPCUT_APP_PATH,
+		runId: args[1],
+	};
+}
+
+export function parseBundleRunId({ args }: { args: string[] }): string {
+	return parseBundleGeneratorCliOptions({ args }).runId;
 }
 
 function getTargetPlatform(): "macos" | "windows" {
@@ -311,11 +334,16 @@ async function generateBundleCases({
 }
 
 export async function generateMigrationBundles({
+	capCutAppPath = DEFAULT_CAPCUT_APP_PATH,
 	runId,
 }: {
+	capCutAppPath?: string;
 	runId: string;
 }): Promise<{ manifest: BundleRunManifest; manifestPath: string }> {
 	validateRunId({ runId });
+	if (!isAbsolute(capCutAppPath)) {
+		throw new Error("CapCut application path must be absolute.");
+	}
 	const fixtureRun = await readFixtureRun({ runId, runsRoot: RUNS_ROOT });
 	const targetKey = getBundledTargetKey();
 	const [ffmpegPath, ffprobePath] = await Promise.all([
@@ -354,6 +382,7 @@ export async function generateMigrationBundles({
 	try {
 		const session = new migrationApi.CapCut81MigrationExportSession({
 			allowedSourceRootDirectory: PROJECT_ROOT,
+			capCutAppPath,
 			ffprobePath,
 			outputParentDirectory: outputLayout.stagingDirectory,
 		});
@@ -418,9 +447,9 @@ export async function generateMigrationBundles({
 
 async function main(): Promise<void> {
 	try {
-		const result = await generateMigrationBundles({
-			runId: parseBundleRunId({ args: process.argv.slice(2) }),
-		});
+		const result = await generateMigrationBundles(
+			parseBundleGeneratorCliOptions({ args: process.argv.slice(2) })
+		);
 		process.stdout.write(
 			`${JSON.stringify(
 				{

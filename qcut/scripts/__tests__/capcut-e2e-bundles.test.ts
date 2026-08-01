@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { parseBundleRunId } from "../capcut-e2e/generate-bundles.js";
+import {
+	parseBundleGeneratorCliOptions,
+	parseBundleRunId,
+} from "../capcut-e2e/generate-bundles.js";
 import {
 	buildMigrationCases,
 	type MigrationCaseDefinition,
@@ -202,6 +205,32 @@ describe("CapCut migration bundle cases", () => {
 		expect(() => parseBundleRunId({ args: ["--run-id", "../escape"] })).toThrow(
 			"Run ID"
 		);
+	});
+
+	it("accepts only an absolute explicit CapCut application override", () => {
+		expect(
+			parseBundleGeneratorCliOptions({
+				args: [
+					"--run-id",
+					"proof-1",
+					"--capcut-app-path",
+					"/Test/Applications/CapCut.app",
+				],
+			})
+		).toEqual({
+			capCutAppPath: "/Test/Applications/CapCut.app",
+			runId: "proof-1",
+		});
+		expect(() =>
+			parseBundleGeneratorCliOptions({
+				args: [
+					"--run-id",
+					"proof-1",
+					"--capcut-app-path",
+					"relative/CapCut.app",
+				],
+			})
+		).toThrow("absolute-CapCut.app");
 	});
 
 	it("requires each case's exact copied and generated asset inventory", () => {

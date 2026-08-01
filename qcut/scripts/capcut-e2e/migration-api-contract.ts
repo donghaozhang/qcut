@@ -89,6 +89,7 @@ export interface MigrationExportSession {
 interface MigrationSessionConstructor {
 	new (options: {
 		allowedSourceRootDirectory: string;
+		capCutAppPath: string;
 		ffprobePath: string;
 		outputParentDirectory: string;
 	}): MigrationExportSession;
