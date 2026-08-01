@@ -10,6 +10,10 @@ import { useMediaStore, type MediaItem } from "@/stores/media/media-store";
 import { platform } from "@qcut/platform-core";
 import { normalizeTextAnimations } from "@qcut/editor-core";
 import type {
+	AdjustmentElement,
+	MediaAdjustments,
+	MediaColorSettings,
+	MediaMask,
 	TextAnimationsV1,
 	TextElement,
 	TimelineElement,
@@ -47,6 +51,7 @@ const CLAUDE_MEDIA_ELEMENT_TYPES = {
 } as const;
 
 const DEFAULT_MEDIA_DURATION_SECONDS = 10;
+const DEFAULT_ADJUSTMENT_DURATION_SECONDS = 10;
 const DEFAULT_TEXT_DURATION_SECONDS = 5;
 const DEFAULT_TEXT_CONTENT = "Text";
 const CLAUDE_DETERMINISTIC_MEDIA_ID_PREFIX = "media_";
@@ -464,6 +469,43 @@ export function isClaudeMediaElementType({
 	);
 }
 
+type ClaudeAdjustmentFields = Partial<{
+	name: string;
+	opacity: number;
+	color: MediaColorSettings;
+	adjustments: MediaAdjustments;
+	masks: MediaMask[];
+}>;
+
+export function getClaudeAdjustmentFields({
+	element,
+}: {
+	element: Partial<ClaudeElement> & Record<string, unknown>;
+}): ClaudeAdjustmentFields {
+	const fields: ClaudeAdjustmentFields = {};
+	const rawColor = element.color;
+	const rawAdjustments = element.adjustments;
+	const rawMasks = element.masks;
+
+	if (typeof element.name === "string" && element.name.trim().length > 0) {
+		fields.name = element.name;
+	}
+	if (isFiniteNumber(element.opacity)) {
+		fields.opacity = element.opacity;
+	}
+	if (isPlainObject(rawColor)) {
+		fields.color = rawColor as unknown as MediaColorSettings;
+	}
+	if (isPlainObject(rawAdjustments)) {
+		fields.adjustments = rawAdjustments as unknown as MediaAdjustments;
+	}
+	if (Array.isArray(rawMasks)) {
+		fields.masks = rawMasks as unknown as MediaMask[];
+	}
+
+	return fields;
+}
+
 /** Get element start time, defaulting to 0 if not set. */
 function getElementStartTime({
 	element,
@@ -773,6 +815,49 @@ export function addClaudeTextElement({
 	});
 
 	debugLog("[ClaudeTimelineBridge] Added text element:", content);
+}
+
+/** Add a Claude adjustment element to the timeline store. */
+export function addClaudeAdjustmentElement({
+	element,
+	timelineStore,
+}: {
+	element: Partial<ClaudeElement> & { trackId?: string };
+	timelineStore: TimelineStoreState;
+}): string | null {
+	const existingTrack = element.trackId
+		? timelineStore.tracks.find((track) => track.id === element.trackId)
+		: null;
+	const trackId =
+		existingTrack?.type === "adjustment"
+			? existingTrack.id
+			: timelineStore.findOrCreateTrack("adjustment");
+	const startTime = getElementStartTime({ element });
+	const duration = getElementDuration({
+		element,
+		fallbackDuration: DEFAULT_ADJUSTMENT_DURATION_SECONDS,
+	});
+	const adjustmentFields = getClaudeAdjustmentFields({
+		element: element as Partial<ClaudeElement> & Record<string, unknown>,
+	});
+
+	const elementId = timelineStore.addElementToTrack(trackId, {
+		type: "adjustment",
+		name: adjustmentFields.name ?? "自定义调节",
+		startTime,
+		duration,
+		trimStart: 0,
+		trimEnd: 0,
+		opacity: adjustmentFields.opacity ?? 1,
+		...(adjustmentFields.color ? { color: adjustmentFields.color } : {}),
+		...(adjustmentFields.adjustments
+			? { adjustments: adjustmentFields.adjustments }
+			: {}),
+		...(adjustmentFields.masks ? { masks: adjustmentFields.masks } : {}),
+	});
+
+	debugLog("[ClaudeTimelineBridge] Added adjustment element:", elementId);
+	return elementId;
 }
 
 const DEFAULT_STICKER_DURATION_SECONDS = 5;
@@ -1406,6 +1491,15 @@ function formatElementForExport({
 				opacity: element.opacity,
 				zIndex: element.zIndex,
 			};
+		case "adjustment":
+			return {
+				...baseElement,
+				name: element.name,
+				opacity: element.opacity,
+				color: element.color as Record<string, unknown> | undefined,
+				adjustments: element.adjustments as Record<string, unknown> | undefined,
+				masks: element.masks as Record<string, unknown>[] | undefined,
+			} as unknown as ClaudeElement;
 		case "effect":
 			return {
 				...baseElement,
@@ -1465,6 +1559,12 @@ export async function applyTimelineToStore(
 					added++;
 				} else if (element.type === "text") {
 					addClaudeTextElement({
+						element,
+						timelineStore: useTimelineStore.getState(),
+					});
+					added++;
+				} else if (element.type === "adjustment") {
+					addClaudeAdjustmentElement({
 						element,
 						timelineStore: useTimelineStore.getState(),
 					});
