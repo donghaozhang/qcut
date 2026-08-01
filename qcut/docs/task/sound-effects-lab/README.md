@@ -1,186 +1,228 @@
 # QCut Sound Effects Lab / QCut 音效实验室
 
-Date / 日期: 2026-08-01  
+Date / 日期: 2026-08-01
 Branch / 分支: `codex/sound-effects-lab`
+PR: [#392](https://github.com/Quriosity-agent/qcut/pull/392)
 
 ## 中文
 
-### 目标与边界
+### 当前状态
 
-音效实验室是一个默认关闭、仅供本地开发和内部对标使用的剪映音效参照目录。
-它复用 QCut 现有音频卡片、试听播放器、素材缓存和时间线导入链路，但不把剪映
-音频、缓存目录、签名 URL 或机器专属 manifest 放进 Git，也没有上传到 Supabase。
+音效实验室已经从“仅本机文件”扩展为与贴纸实验室相同的私有发布架构:
 
-剪映中的 `free` / `VIP` 只表示剪映产品内的访问规则，不是再分发许可证。因此:
+- 私有 Supabase bucket: `sound-effects-lab`;
+- 私有 manifest 和 382 个 MP3 已上传，Git 和安装包都不包含这些音频;
+- license server 提供白名单 manifest 接口和 10 分钟音效签名接口;
+- `SOUND_EFFECTS_LAB_ALLOWED_USER_IDS` 是独立、fail-closed 的账号 ID
+  白名单，不复用贴纸实验室白名单;
+- 客户端只有在私有 manifest 请求成功后才显示入口，未登录、403、网络错误
+  或无效 manifest 都不会暴露实验室;
+- 仍保留 schema v1 本地 manifest，方便采集和离线开发;默认私有模式使用
+  不含本机路径的 schema v2 manifest。
 
-- 实验室资源标记为 `commercialUse: restricted` 和“禁止分发”；
-- 本地参照音效不能收藏、不能写入最近使用，避免持久化临时 `blob:` URL；
-- 用户明确点击加入时间线后，QCut 才读取并导入该本地文件；
-- 正式发布目录只能换成 QCut 自有、CC0、AI 生成或另行授权的音效。
+这些资源来自剪映参照目录，只允许内部对标。客户端统一标记
+`commercialUse: "restricted"` 和“禁止分发”，不能收藏、不能写入最近使用，
+也不能通过拖拽绕开受控导入。
 
-### 架构
+### 完整流程
 
 ```text
-combined-title-file-map.json
-  -> build-local-sound-effects-lab-manifest.ts
-     - 检查每个本地路径
-     - 重新计算并比对 MD5
-     - 计算 SHA-256 / 字节数
-     - 用 ffprobe 读取真实时长
-  -> sound-effects-lab.local.json (仅本机)
-  -> Electron platform.files.readFile
-  -> 延迟生成 File + blob URL
-  -> AudioLibraryItem / AudioPreviewPlayer
-  -> addSoundToTimeline
+VITE_QCUT_ENABLE_SOUND_EFFECTS_LAB=true
+  -> Electron 读取当前 QCut 登录 token
+  -> GET /api/sound-effects-lab/private-manifest
+  -> authMiddleware 验证有效 session
+  -> SOUND_EFFECTS_LAB_ALLOWED_USER_IDS 检查账号 ID
+  -> license server 从私有 bucket 下载 manifest
+  -> 客户端执行 schema / 重复项 / 路径 / 大小 / SHA-256 约束校验
+  -> 授权成功后显示“音效实验室 / 剪映参照目录”
+  -> 可见卡片请求 GET /api/sound-effects-lab/assets?objectKey=...
+  -> license server 再次验证 session + 白名单 + object key
+  -> 302 到 600 秒 Supabase signed URL
+  -> 客户端下载、校验大小和 SHA-256，并缓存到 IndexedDB
+  -> File + blob URL -> 试听播放器 -> 加入时间线
 ```
 
-关键实现:
+入口不是仅靠前端 feature flag 保护。即使手动构造请求，没有有效 session 和
+白名单账号也无法取得 manifest 或签名 URL。
 
-- `apps/web/src/lib/audio/local-sound-effects-manifest.ts`:严格 schema、路径和
-  唯一性校验；
-- `apps/web/src/hooks/media/use-local-sound-effects-lab.ts`:默认关闭的本地目录
-  加载状态；
-- `apps/web/src/components/editor/media-panel/views/sound-effects-lab.tsx`:
-  分类、搜索、分批挂载、试听和导入 UI；
-- `scripts/build-local-sound-effects-lab-manifest.ts`:从采集映射生成完整性
-  manifest；
-- `apps/web/src/lib/assets/freesound-asset.ts`:给本地参照音频保留 restricted
-  license、字节数和 SHA-256。
+### Supabase 与接口
 
-### 本地库存
+| 项目 | 值 |
+|---|---|
+| Bucket | `sound-effects-lab` |
+| 可见性 | private |
+| 单文件上限 | 50 MiB |
+| MIME | `audio/mpeg`, `application/json` |
+| Manifest | `jianying/2026-08-01/manifest.json` |
+| 音效对象 | `jianying/2026-08-01/assets/<md5>.mp3` |
+| Manifest API | `GET /api/sound-effects-lab/private-manifest` |
+| 音效 API | `GET /api/sound-effects-lab/assets?objectKey=...` |
+| Signed URL TTL | 600 秒 |
+| 当前 Worker | `e3ca8422-498e-4cd8-a6a0-807a6635e371` |
 
-生成的 manifest:
+生产 Worker 显式允许 `http://localhost:5173` 和
+`http://127.0.0.1:5173`，供 Vite Electron 开发版做带登录态的生产 E2E。
+正式安装包继续使用默认的 `app://.` origin。
 
-`~/Documents/QCut/exports/jianying-sfx-lab-2026-08-01/sound-effects-lab.local.json`
+### 测试账号白名单
+
+`SOUND_EFFECTS_LAB_ALLOWED_USER_IDS` 当前包含:
+
+| 账号 | QCut user ID | 状态 |
+|---|---|---|
+| `qcutlove@qcut.app` | `79bf60b02770d2cc510da53e471590f4` | 生产 API 与 Electron E2E 通过 |
+| `qcut-love2@qcut.app` | `3c81ac37cdd53e079e3ed35e96ac5fac` | 已写入生产白名单 |
+
+Wrangler secret 只保存逗号分隔 ID;文档和 Git 不保存 session token、密码或
+Supabase service-role key。普通已登录但不在白名单内的真实账号请求 manifest
+返回 403。
+
+### 库存与完整性
+
+本地生成文件:
+
+- `~/Documents/QCut/exports/jianying-sfx-lab-2026-08-01/sound-effects-lab.local.json`
+- `~/Documents/QCut/exports/jianying-sfx-lab-2026-08-01/sound-effects-lab.private.json`
 
 | 指标 | 结果 |
 |---|---:|
 | 分类 | 20 |
 | 音效 | 382 |
 | 唯一 resource ID / numeric ID | 382 / 382 |
-| 唯一 MD5 / SHA-256 | 382 / 382 |
+| 唯一 object key / MD5 / SHA-256 | 382 / 382 / 382 |
 | 缺失文件 / 未声明分类引用 | 0 / 0 |
+| Supabase MP3 对象 | 382 |
 | 总大小 | 84,579,696 bytes (约 80.7 MiB) |
 | 总时长 | 3,262.541 秒 (约 54 分 23 秒) |
 
-分类数量:
+20 个分类中，`尴尬` 当前确认到 16 个唯一资源，其余分类各 20 个。UI 每次
+最多挂载 60 张卡，避免一次下载全部 382 个音效。
 
-| 分类 | 数量 | 分类 | 数量 |
-|---|---:|---|---:|
-| 热门 | 20 | 网感口播🔥 | 20 |
-| 综艺感 | 20 | 魔法 | 20 |
-| 知识科普 | 20 | 转场 | 20 |
-| 笑声 | 20 | 打斗 | 20 |
-| 尴尬 | 16 | 最新 | 20 |
-| 热梗语录 | 20 | 震惊 | 20 |
-| 抽象 | 20 | 提示音 | 20 |
-| 机械 | 20 | 悬疑 | 20 |
-| BGM | 20 | 美食 | 20 |
-| 动物 | 20 | 环境音 | 20 |
+### 生成与上传
 
-`尴尬` 为 16 条，因为当前剪映目录总共只确认到 16 个唯一资源；其余类别已到
-20 条。实验室 UI 默认只挂载 60 张卡，避免一次为 382 个文件创建对象 URL。
-
-### 启用和重建
-
-先生成 manifest:
+生成本地 v1 和无本机路径的私有 v2 manifest:
 
 ```bash
 bun run build:sound-effects-lab-manifest -- \
   --input "$HOME/Documents/QCut/exports/jianying-sfx-batch-02-2026-08-01/combined-title-file-map.json" \
   --output "$HOME/Documents/QCut/exports/jianying-sfx-lab-2026-08-01/sound-effects-lab.local.json" \
+  --remote-output "$HOME/Documents/QCut/exports/jianying-sfx-lab-2026-08-01/sound-effects-lab.private.json" \
   --catalog-date 2026-08-01
 ```
 
-再启动桌面开发版:
+上传器要求从环境读取 `SUPABASE_URL` 和 `SUPABASE_SERVICE_KEY`。它先
+验证两份 manifest 对应关系、本地文件大小和 SHA-256，并在 382 个音效全部
+成功后最后上传 manifest:
+
+```bash
+bun run upload:sound-effects-lab -- \
+  --local-manifest "$HOME/Documents/QCut/exports/jianying-sfx-lab-2026-08-01/sound-effects-lab.local.json" \
+  --private-manifest "$HOME/Documents/QCut/exports/jianying-sfx-lab-2026-08-01/sound-effects-lab.private.json"
+```
+
+私有模式启动:
 
 ```bash
 cd apps/web
 VITE_QCUT_ENABLE_SOUND_EFFECTS_LAB=true \
-VITE_QCUT_SOUND_EFFECTS_LAB_MANIFEST_PATH="$HOME/Documents/QCut/exports/jianying-sfx-lab-2026-08-01/sound-effects-lab.local.json" \
-bun run dev
+VITE_LICENSE_SERVER_URL=https://qcut-license-server.zdhpeter.workers.dev \
+bun run dev --host 127.0.0.1
 ```
 
-另一个终端运行:
-
-```bash
-NODE_ENV=development bun run electron
-```
-
-未同时提供 enable flag 和 manifest 路径时，入口不会出现或显示明确配置错误。
+如同时设置 `VITE_QCUT_SOUND_EFFECTS_LAB_MANIFEST_PATH`，客户端切换到本机
+schema v1 开发模式，不访问私有 manifest。
 
 ### 验证结果
 
-自动化验证:
+自动化:
 
-- Web 和 scripts TypeScript 检查通过；
-- manifest、配置、本地文件、受限 license、UI、试听回归、音频 store 和贴纸
-  manifest 共 86 个相关测试通过；
-- 382 个真实文件重新计算完整性，0 缺失、0 重复内容、0 未知分类引用。
+- license server:24 个文件，194 个测试通过;
+- Web 相关回归:11 个文件，110 个测试通过;
+- 私有发布器:2 个测试通过，包括“同大小但 SHA-256 被替换”拒绝上传;
+- Web、license server 和发布脚本 TypeScript 检查通过;
+- 真实私有 schema v2 manifest 通过前端严格解析。
 
-Electron 真实验证:
+生产 API:
 
-1. 音频侧栏出现烧瓶图标和“音效实验室 / 剪映参照目录”；
-2. 目录显示 382 个音效和 20 个分类，首屏成功读取 60 张卡；
-3. 选择“转场”得到 20 条，搜索“唰”得到 1 条；
-4. 点击“仙尘音效”后卡片切换为暂停态，底部播放器出现；
-5. 点击“唰”加入时间线后，同名 UI 节点从 1 增至 2，时间线出现音频轨道，
-   卡片显示缓存勾选且无页面错误。
+- 白名单账号 manifest:200，20 分类 / 382 项;
+- 首个音效接口:302 到 Supabase signed URL;
+- 下载 5,600 bytes，SHA-256 与 manifest 一致;
+- 非白名单真实登录账号:403;
+- bucket 回查:382 个 MP3，总计 84,579,696 bytes。
 
-首次真实测试发现一条 BGM 长 888.792 秒，超过原先 10 分钟 schema 上限，
-导致目录按 fail-closed 拒绝加载。上限已调整为 30 分钟，并加入 888.792 秒
-回归测试；修复后完整目录加载成功。
+Electron 真实 E2E:
 
-本地截图证据(不进 Git):
+1. `qcutlove@qcut.app` 登录态从生产 Worker 获得私有 manifest;
+2. 页面显示 382 个音效和 20 个分类;
+3. “仙尘音效”试听按钮切换为暂停，底部播放器实时出现;
+4. 点击加入时间线后，timeline element 从 0 增至 1，真实时长
+   `2.742813` 秒。
 
-- `evidence/03-audio-library-lab-entry.png`:实验室入口；
-- `evidence/04-sound-effects-lab-382.png`:382 条目录；
-- `evidence/05-sound-effects-lab-playing.png`:真实试听状态；
-- `evidence/06-sound-effects-lab-filtered.png`:分类和搜索；
-- `evidence/07-sound-effect-added-to-timeline.png`:加入时间线。
+截图证据不进 Git，保存在:
 
-完整路径:
 `~/Documents/QCut/exports/jianying-sfx-lab-2026-08-01/evidence/`
+
+- `09-supabase-private-lab-382.png`:私有目录 382 / 20;
+- `10-supabase-private-playing.png`:真实远程音效播放中;
+- `11-supabase-private-added-to-timeline.png`:音频波形已加入时间线。
+
+### 发现并修复的问题
+
+1. 生产 Worker 原本不允许 Vite 的 localhost origin，浏览器 CORS 拦截后入口
+   正确地 fail closed。已显式配置两个开发 origin 并重新部署。
+2. 一条真实 BGM 为 888.792 秒，超过原 10 分钟 schema 上限。上限调整为
+   30 分钟并加入回归测试。
+3. bucket 在迁移落库前已经由 Storage API 创建。迁移改为 upsert，后续
+   `db push` 不会因重复 bucket 失败。
+4. 上传器原先只复核文件大小。现在上传前重新计算 SHA-256，避免同大小内容
+   被替换。
 
 ### 下一步
 
-1. 对 382 条参照音效做响度、峰值、静音头尾和重复听感 QA；
-2. 用参照 taxonomy 建立可公开发布的自有/CC0/生成音效替换清单；
-3. 给正式资源补齐语言、情绪、场景、响度和商业授权 metadata；
-4. 只有资源权利确认后，才设计 Supabase 发布 manifest 和权限策略；
-5. 如果继续扩充剪映参照批次，生成器和 schema 已支持最多 2,000 条，但仍应
-   保持本地私有。
+1. 对 382 条音效执行响度、峰值、静音头尾、损坏帧和主观重复 QA。
+2. 在每次新增 catalog date 时同步 Worker 的 manifest object key，之后可将
+   当前硬编码日期改为受验证的版本配置。
+3. 把生产 API 和 Electron 白名单 smoke test 固化为独立 E2E 测试账号流程。
+4. 公开发布前，用 QCut 自有、CC0、AI 生成或另行授权的音效替换所有剪映
+   参照资源;当前私有 bucket 不能作为公开音效 CDN。
 
 ## English
 
-### Purpose and boundary
+### Architecture and access
 
-Sound Effects Lab is an opt-in, desktop-only Jianying reference catalog for
-internal parity work. It reuses QCut's audio cards, preview player, asset cache,
-and timeline insertion path. Jianying payloads, cache databases, signed URLs,
-and machine-specific manifests are neither committed nor uploaded.
+Sound Effects Lab now mirrors the private Jianying tier of Sticker Lab. The
+`sound-effects-lab` Supabase bucket is private and contains a path-free
+schema-v2 manifest plus 382 MP3 objects. Neither the audio nor the manifest is
+committed or packaged.
 
-Every reference is marked restricted and non-redistributable. Reference cards
-cannot be favorited or persisted in recents because their `blob:` URLs are
-session-scoped. A file is read only when its visible card mounts, and it is
-materialized into the project only after the user chooses Add to timeline.
+The license server authenticates the QCut session and checks the independent,
+fail-closed `SOUND_EFFECTS_LAB_ALLOWED_USER_IDS` secret before serving the
+manifest or issuing a 600-second signed asset URL. The client keeps the entry
+hidden until the manifest request succeeds. It validates the manifest, asset
+size, and SHA-256, then stores downloaded resources in the existing IndexedDB
+asset cache. Local schema-v1 manifests remain available for collection work.
 
-### Verified inventory and behavior
+The production allowlist contains `qcutlove@qcut.app`
+(`79bf60b02770d2cc510da53e471590f4`) and `qcut-love2@qcut.app`
+(`3c81ac37cdd53e079e3ed35e96ac5fac`). Credentials and tokens are not stored
+in Git.
 
-The local manifest contains 382 unique sounds across 20 categories: 382 unique
-resource IDs, numeric IDs, MD5 hashes, and SHA-256 hashes; zero missing files;
-84,579,696 bytes; and 3,262.541 seconds of audio. Every category contains 20
-references except Embarrassing (`尴尬`), where the currently confirmed Jianying
-catalog has 16 unique resources.
+### Verification
 
-Desktop E2E verified catalog loading, 60-card lazy paging, category filtering,
-search, real playback, and insertion of a local MP3 into an existing timeline.
-The first run exposed a real 888.792-second BGM that exceeded the original
-10-minute guardrail. The limit is now 30 minutes and covered by a regression
-test.
+Production contains 382 MP3 objects across 20 categories, totaling 84,579,696
+bytes. A real allowlisted Electron session loaded the 382-item manifest,
+streamed a signed audio object, showed the active player, and inserted a
+2.742813-second waveform into the timeline. A real authenticated
+non-allowlisted account received 403.
 
-### Release rule
+Automated verification passed 194 license-server tests, 110 related Web tests,
+and two private-publisher tests, plus TypeScript checks. Evidence screenshots
+are in
+`~/Documents/QCut/exports/jianying-sfx-lab-2026-08-01/evidence/`.
 
-This catalog is evidence, not a distributable asset source. A production QCut
-catalog must replace every reference with QCut-owned, CC0, generated, or
-separately licensed audio before any Supabase publication or product release.
+### Release boundary
+
+All references remain third-party, restricted, and non-redistributable. The
+private bucket is an internal parity source, not a public QCut audio CDN.
+Public release requires replacing every item with QCut-owned, CC0, generated,
+or separately licensed audio.
