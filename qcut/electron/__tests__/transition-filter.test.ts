@@ -66,6 +66,7 @@ describe("FFmpeg transition filters", () => {
 					type: config.type,
 					direction: config.direction,
 					duration: preset.defaultDuration,
+					easing: config.easing ?? "easeInOut",
 					tuning: config.tuning,
 				}),
 				presetId: preset.id,
@@ -237,6 +238,20 @@ describe("FFmpeg transition filters", () => {
 
 			expect(filter.expression, preset.id).not.toMatch(/\b(?:st|ld)\(/);
 		}
+	});
+
+	it("uses the Jianying quint curve for move transition exports", () => {
+		const filter = buildXfadeTransitionFilter({
+			transition: transition({
+				type: "push",
+				direction: "right",
+				easing: "easeInOutQuint",
+			}),
+		});
+
+		expect(filter.expression).toContain("16*pow((1-P),5)");
+		expect(filter.expression).toContain("1-16*pow(1-(1-P),5)");
+		expect(filter.expression).not.toContain("4*pow((1-P),3)");
 	});
 
 	it("preserves motion-blur travel direction in the export expression", () => {
