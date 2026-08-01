@@ -24,6 +24,10 @@ import {
 } from "node:path";
 import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
+import {
+	CAPCUT_OFFICIAL_BUNDLE_IDENTIFIER,
+	parseCapCutBundleMetadata,
+} from "./capcut-app-bundle-metadata.js";
 import type {
 	CapCut81MigrationInstallResult,
 	InstallTrustedCapCut81MigrationBundleOptions,
@@ -37,7 +41,6 @@ import {
 import { getCapCut81AbsolutePathApi } from "./capcut-8-1-migration-validation.js";
 
 const CAPCUT_DEFAULT_ADJUST_TOKEN = "##_capcut_default_adjust_bundle_##";
-const CAPCUT_OFFICIAL_BUNDLE_IDENTIFIER = "com.lemon.lvoverseas";
 const CAPCUT_SUPPORTED_VERSION_PATTERN = /^8\.1\.(0|[1-9][0-9]*)$/;
 const DRAFT_PLACEHOLDER_PREFIX = "##_draftpath_placeholder_";
 const DRAFT_STORE_DIRECTORY_NAME = "com.lveditor.draft";
@@ -63,12 +66,6 @@ interface RegularFileIdentity {
 interface VerifiedCapCutAppPaths {
 	capCutAppPath: string;
 	defaultAdjustBundlePath: string;
-}
-
-interface CapCutBundleMetadata {
-	bundleIdentifier: string;
-	bundleVersion: string;
-	shortVersion: string;
 }
 
 interface CapCut81MigrationInstallerTestingHooks {
@@ -215,56 +212,6 @@ function requireRecord({
 		throw new Error(`${label} must be a JSON object.`);
 	}
 	return value as Record<string, unknown>;
-}
-
-function decodeXmlText({ value }: { value: string }): string {
-	const decoded = value
-		.replaceAll("&lt;", "<")
-		.replaceAll("&gt;", ">")
-		.replaceAll("&quot;", '"')
-		.replaceAll("&apos;", "'")
-		.replaceAll("&amp;", "&");
-	if (/&[^;]+;/.test(decoded)) {
-		throw new Error("CapCut Info.plist contains an unsupported XML entity.");
-	}
-	return decoded;
-}
-
-function readPlistString({ key, text }: { key: string; text: string }): string {
-	const match = new RegExp(
-		`<key>\\s*${key}\\s*</key>\\s*<string>([^<]*)</string>`
-	).exec(text);
-	if (!match?.[1]) {
-		throw new Error(`CapCut Info.plist is missing ${key}.`);
-	}
-	return decodeXmlText({ value: match[1] });
-}
-
-function parseCapCutBundleMetadata({
-	infoPlistText,
-}: {
-	infoPlistText: string;
-}): CapCutBundleMetadata {
-	if (
-		!infoPlistText.trimStart().startsWith("<?xml") ||
-		!infoPlistText.includes("<plist")
-	) {
-		throw new Error("CapCut Info.plist must use the verified XML format.");
-	}
-	return {
-		bundleIdentifier: readPlistString({
-			key: "CFBundleIdentifier",
-			text: infoPlistText,
-		}),
-		bundleVersion: readPlistString({
-			key: "CFBundleVersion",
-			text: infoPlistText,
-		}),
-		shortVersion: readPlistString({
-			key: "CFBundleShortVersionString",
-			text: infoPlistText,
-		}),
-	};
 }
 
 function isSameOrDescendant({

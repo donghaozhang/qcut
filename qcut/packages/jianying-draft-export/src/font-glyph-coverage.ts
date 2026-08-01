@@ -1,6 +1,6 @@
-import { stat } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import { resolve } from "node:path";
-import { open, type Font, type FontCollection } from "fontkit";
+import { create, type Font, type FontCollection } from "fontkit";
 
 const MAXIMUM_FONT_BYTES = 128 * 1024 * 1024;
 
@@ -94,6 +94,36 @@ export function inspectLoadedFontGlyphCoverage({
 	};
 }
 
+export function inspectFontBytesGlyphCoverage({
+	fontBytes,
+	fontPath,
+	postscriptName,
+	text,
+}: {
+	fontBytes: Buffer;
+	fontPath: string;
+	postscriptName?: string;
+	text: string;
+}): FontGlyphCoverageReport {
+	if (fontBytes.length === 0 || fontBytes.length > MAXIMUM_FONT_BYTES) {
+		throw new Error(
+			`Font bytes must be between 1 and ${MAXIMUM_FONT_BYTES} bytes: ${fontPath}`
+		);
+	}
+	const requestedPostscriptName = postscriptName?.trim() || undefined;
+	const openedFont = requestedPostscriptName
+		? create(fontBytes, requestedPostscriptName)
+		: create(fontBytes);
+	const font = requireSingleFont({
+		font: openedFont,
+		fontPath,
+		...(requestedPostscriptName
+			? { postscriptName: requestedPostscriptName }
+			: {}),
+	});
+	return inspectLoadedFontGlyphCoverage({ font, fontPath, text });
+}
+
 export async function inspectFontGlyphCoverage({
 	fontPath,
 	postscriptName,
@@ -113,20 +143,11 @@ export async function inspectFontGlyphCoverage({
 			`Font file exceeds ${MAXIMUM_FONT_BYTES} bytes: ${absoluteFontPath}`
 		);
 	}
-	const requestedPostscriptName = postscriptName?.trim() || undefined;
-	const openedFont = requestedPostscriptName
-		? await open(absoluteFontPath, requestedPostscriptName)
-		: await open(absoluteFontPath);
-	const font = requireSingleFont({
-		font: openedFont,
+	const fontBytes = await readFile(absoluteFontPath);
+	return inspectFontBytesGlyphCoverage({
+		fontBytes,
 		fontPath: absoluteFontPath,
-		...(requestedPostscriptName
-			? { postscriptName: requestedPostscriptName }
-			: {}),
-	});
-	return inspectLoadedFontGlyphCoverage({
-		font,
-		fontPath: absoluteFontPath,
+		...(postscriptName ? { postscriptName } : {}),
 		text,
 	});
 }

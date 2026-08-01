@@ -29,6 +29,18 @@ export type {
 	CapCut81MigrationExportSessionOptions,
 	CapCut81MigrationPlanRequest,
 } from "./capcut-8-1-migration-session.js";
+export {
+	CapCut81FontStackInspectionError,
+	inspectCapCut81SystemFontStack,
+} from "./capcut-8-1-system-font-stack.js";
+export type {
+	CapCut81FontGlyphCoverageInspector,
+	CapCut81FontStackInspectionErrorCode,
+	CapCut81RegularFileEvidence,
+	CapCut81SystemFontEvidence,
+	CapCut81SystemFontStackEvidence,
+	CapCut81SystemFontStackInspection,
+} from "./capcut-8-1-system-font-stack.js";
 export type {
 	CapCut81MigrationBundleIds,
 	CapCut81MigrationBundleWriteResult,
@@ -48,6 +60,7 @@ export type {
 } from "./export-session.js";
 export {
 	assertFontCoversText,
+	inspectFontBytesGlyphCoverage,
 	inspectFontGlyphCoverage,
 	inspectLoadedFontGlyphCoverage,
 } from "./font-glyph-coverage.js";

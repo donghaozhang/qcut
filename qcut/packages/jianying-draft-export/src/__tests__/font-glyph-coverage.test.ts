@@ -1,8 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { create as createFontFromBytes, type Font } from "fontkit";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+	inspectFontBytesGlyphCoverage,
 	inspectLoadedFontGlyphCoverage,
 	type FontGlyphLookup,
 } from "../font-glyph-coverage.js";
+
+vi.mock("fontkit", () => ({ create: vi.fn() }));
 
 function createFont({
 	supportedCodePoints,
@@ -18,7 +22,40 @@ function createFont({
 	};
 }
 
+beforeEach(() => {
+	vi.mocked(createFontFromBytes).mockReset();
+});
+
 describe("font glyph coverage", () => {
+	it("loads cmap coverage from the supplied bytes without reopening fontPath", () => {
+		const fontBytes = Buffer.from("immutable-font-snapshot");
+		const font = {
+			...createFont({ supportedCodePoints: [0x41] }),
+			type: "TTF",
+		} as unknown as Font;
+		vi.mocked(createFontFromBytes).mockReturnValue(font);
+
+		const report = inspectFontBytesGlyphCoverage({
+			fontBytes,
+			fontPath: "/does/not/exist/snapshot.ttf",
+			text: "A剪",
+		});
+
+		expect(createFontFromBytes).toHaveBeenCalledOnce();
+		expect(createFontFromBytes).toHaveBeenCalledWith(fontBytes);
+		expect(report).toMatchObject({
+			fontPath: "/does/not/exist/snapshot.ttf",
+			missing: [
+				{
+					character: "剪",
+					codePoint: 0x526a,
+					index: 1,
+					unicode: "U+526A",
+				},
+			],
+		});
+	});
+
 	it("checks Unicode scalars instead of UTF-16 code units", () => {
 		const report = inspectLoadedFontGlyphCoverage({
 			font: createFont({
