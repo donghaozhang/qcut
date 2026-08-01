@@ -4,6 +4,7 @@ import {
 	hslToRgb,
 	luminance,
 	rgbToHsl,
+	skinToneWeight,
 	type RgbColor,
 } from "@/lib/color/color-space-math";
 import type { FilterLutRecipe, FilterPreset } from "./filter-types";
@@ -53,6 +54,25 @@ function dotProduct({
 	return result;
 }
 
+function totalDegreeTerms({
+	color,
+	degree,
+}: {
+	color: RgbColor;
+	degree: number;
+}) {
+	const terms: number[] = [];
+	for (let redPower = degree; redPower >= 0; redPower -= 1) {
+		for (let greenPower = degree - redPower; greenPower >= 0; greenPower -= 1) {
+			const bluePower = degree - redPower - greenPower;
+			terms.push(
+				color.r ** redPower * color.g ** greenPower * color.b ** bluePower
+			);
+		}
+	}
+	return terms;
+}
+
 function applyPolynomialCorrection({
 	color,
 	recipe,
@@ -78,6 +98,13 @@ function applyPolynomialCorrection({
 		b * b * g,
 	];
 	const cubicTripleTerm = r * g * b;
+	const higherOrder = correction.higherOrder;
+	const quarticTerms = higherOrder?.quartic
+		? totalDegreeTerms({ color, degree: 4 })
+		: [];
+	const quinticTerms = higherOrder?.quintic
+		? totalDegreeTerms({ color, degree: 5 })
+		: [];
 	const evaluateChannel = ({ channel }: { channel: 0 | 1 | 2 }) => {
 		const cubic = correction.cubic;
 		const cubicValue = cubic
@@ -91,6 +118,19 @@ function applyPolynomialCorrection({
 				}) +
 				cubic.triple[channel] * cubicTripleTerm
 			: 0;
+		const higherOrderValue =
+			(higherOrder?.quartic
+				? dotProduct({
+						coefficients: higherOrder.quartic[channel],
+						terms: quarticTerms,
+					})
+				: 0) +
+			(higherOrder?.quintic
+				? dotProduct({
+						coefficients: higherOrder.quintic[channel],
+						terms: quinticTerms,
+					})
+				: 0);
 		return (
 			dotProduct({
 				coefficients: correction.linear[channel],
@@ -105,6 +145,7 @@ function applyPolynomialCorrection({
 				terms: crossTerms,
 			}) +
 			cubicValue +
+			higherOrderValue +
 			correction.offset[channel]
 		);
 	};
@@ -206,15 +247,29 @@ export function buildFilterCube({
 	for (let blue = 0; blue < size; blue += 1) {
 		for (let green = 0; green < size; green += 1) {
 			for (let red = 0; red < size; red += 1) {
+				const color = {
+					r: red / (size - 1),
+					g: green / (size - 1),
+					b: blue / (size - 1),
+				};
 				const transformed = transformFilterColor({
-					color: {
-						r: red / (size - 1),
-						g: green / (size - 1),
-						b: blue / (size - 1),
-					},
+					color,
 					recipe: preset.recipe,
 				});
-				values.push(transformed.r, transformed.g, transformed.b);
+				if (!preset.skinToneRecipe) {
+					values.push(transformed.r, transformed.g, transformed.b);
+					continue;
+				}
+				const skinToneTransformed = transformFilterColor({
+					color,
+					recipe: preset.skinToneRecipe,
+				});
+				const amount = skinToneWeight({ color });
+				values.push(
+					mix({ left: transformed.r, right: skinToneTransformed.r, amount }),
+					mix({ left: transformed.g, right: skinToneTransformed.g, amount }),
+					mix({ left: transformed.b, right: skinToneTransformed.b, amount })
+				);
 			}
 		}
 	}
