@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useProjectStore } from "@/stores/project-store";
@@ -60,7 +60,7 @@ describe("AdjustmentProperties", () => {
 		);
 	});
 
-	it("only exposes color controls supported by the adjustment preview", () => {
+	it("exposes the full adjustment tabs from the reference color panel", () => {
 		useTimelineStore.setState({
 			updateAdjustmentElement: vi.fn(),
 			pushHistory: vi.fn(),
@@ -71,9 +71,50 @@ describe("AdjustmentProperties", () => {
 		);
 
 		expect(screen.getByTestId("color-module-basic")).toBeVisible();
-		expect(screen.queryByText("HSL")).not.toBeInTheDocument();
-		expect(screen.queryByText("曲线")).not.toBeInTheDocument();
-		expect(screen.queryByText("色轮")).not.toBeInTheDocument();
-		expect(screen.queryByText("蒙版")).not.toBeInTheDocument();
+		expect(screen.getByRole("tab", { name: "基础" })).toBeInTheDocument();
+		expect(screen.getByRole("tab", { name: "HSL" })).toBeInTheDocument();
+		expect(screen.getByRole("tab", { name: "曲线" })).toBeInTheDocument();
+		expect(screen.getByRole("tab", { name: "色轮" })).toBeInTheDocument();
+		expect(screen.getByRole("tab", { name: "蒙版" })).toBeInTheDocument();
+		expect(screen.getByTestId("color-module-lut")).toBeVisible();
+		expect(screen.getByText("色彩")).toBeVisible();
+		expect(screen.getByText("明度")).toBeVisible();
+		expect(screen.getByText("效果")).toBeVisible();
+	});
+
+	it("adds editable masks to the selected adjustment layer", async () => {
+		const updateAdjustmentElement = vi.fn();
+		useTimelineStore.setState({
+			updateAdjustmentElement:
+				updateAdjustmentElement as unknown as TimelineStore["updateAdjustmentElement"],
+			pushHistory: vi.fn(),
+		});
+
+		render(
+			<AdjustmentProperties element={adjustment} trackId="adjustment-track" />
+		);
+
+		const maskTab = screen.getByRole("tab", { name: "蒙版" });
+		fireEvent.pointerDown(maskTab, { button: 0, ctrlKey: false });
+		fireEvent.mouseDown(maskTab, { button: 0, ctrlKey: false });
+		fireEvent.click(maskTab);
+		await waitFor(() =>
+			expect(screen.getByTestId("media-mask-shape-grid")).toBeVisible()
+		);
+		fireEvent.click(screen.getByLabelText("选择矩形蒙版"));
+
+		expect(updateAdjustmentElement).toHaveBeenCalledWith(
+			"adjustment-track",
+			"adjustment-1",
+			{
+				masks: [
+					expect.objectContaining({
+						type: "rectangle",
+						name: "蒙版 1",
+					}),
+				],
+			},
+			true
+		);
 	});
 });
