@@ -94,7 +94,7 @@ const AUDIO_ROWS_SQL = `
 		CAST(json_extract(item.value, '$.common_attr.publish_source') AS TEXT) AS publishSource,
 		CAST(json_extract(item.value, '$.common_attr.category_ids') AS TEXT) AS categoryIds,
 		CAST(json_extract(item.value, '$.audio_effect.duration_ms') AS INTEGER) AS durationMs,
-		CAST(json_extract(item.value, '$.audio_effect.duration') AS INTEGER) AS durationSeconds,
+		CAST(json_extract(item.value, '$.audio_effect.duration') AS REAL) AS durationSeconds,
 		CAST(json_extract(item.value, '$.common_attr.download_info.format') AS TEXT) AS downloadFormat,
 		CAST(json_extract(item.value, '$.common_attr.download_info.url') AS TEXT) AS downloadUrl,
 		CAST(json_extract(item.value, '$.author.name') AS TEXT) AS authorName,
@@ -153,7 +153,7 @@ function normalizeAudioRecord({ row }: { row: RawAudioRow }): AudioRecord | null
 		metadataMd5: row.md5 ?? "",
 		publishSource: row.publishSource ?? "",
 		categoryIds: stringArray({ value: row.categoryIds }),
-		durationMs: row.durationMs ?? (row.durationSeconds ?? 0) * 1000,
+		durationMs: row.durationMs ?? Math.round((row.durationSeconds ?? 0) * 1000),
 		downloadFormat: row.downloadFormat ?? "",
 		downloadUrl: row.downloadUrl ?? "",
 		author: {

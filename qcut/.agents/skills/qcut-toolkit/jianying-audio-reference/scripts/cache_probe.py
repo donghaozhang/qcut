@@ -53,7 +53,12 @@ def download_entries(music_root: Path) -> list[dict[str, str]]:
     config_path = music_root / "downLoadcfg"
     if not config_path.is_file():
         return []
-    config = json.loads(config_path.read_text(encoding="utf-8"))
+    try:
+        config = json.loads(config_path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError):
+        return []
+    if not isinstance(config, dict):
+        return []
     raw_entries = config.get("list", [])
     if not isinstance(raw_entries, list):
         return []
@@ -128,6 +133,9 @@ def read_snapshot(snapshot_path: Path) -> dict[str, object]:
         raise ValueError("Snapshot is missing files")
     if not isinstance(snapshot.get("download_entries"), list):
         raise ValueError("Snapshot is missing download_entries")
+    music_root = snapshot.get("music_root")
+    if not isinstance(music_root, str) or not music_root.strip():
+        raise ValueError("Snapshot is missing music_root")
     return snapshot
 
 
@@ -166,8 +174,8 @@ def run_mark(args: argparse.Namespace) -> int:
 def run_diff(args: argparse.Namespace) -> int:
     snapshot_path = Path(args.snapshot).expanduser().resolve()
     snapshot = read_snapshot(snapshot_path)
-    snapshot_root = snapshot.get("music_root")
-    music_root = resolved_music_root(args.root or str(snapshot_root))
+    snapshot_root = str(snapshot["music_root"])
+    music_root = resolved_music_root(args.root or snapshot_root)
     previous_files = snapshot["files"]
     previous_entries = snapshot["download_entries"]
     if not isinstance(previous_files, dict) or not isinstance(previous_entries, list):

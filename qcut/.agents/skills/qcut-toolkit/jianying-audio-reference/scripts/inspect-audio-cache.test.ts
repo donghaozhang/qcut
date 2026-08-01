@@ -38,12 +38,20 @@ function audioItem({
 	id,
 	md5,
 	url,
+	durationMs = 365,
+	durationSeconds = 1,
 }: {
 	title: string;
 	id: string;
 	md5: string;
 	url: string;
+	durationMs?: number | null;
+	durationSeconds?: number;
 }) {
+	const audioEffect = {
+		duration: durationSeconds,
+		...(durationMs === null ? {} : { duration_ms: durationMs }),
+	};
 	return {
 		common_attr: {
 			title,
@@ -60,7 +68,7 @@ function audioItem({
 			copyright: { copyright_text: "", artist_name: "" },
 			status: 102,
 		},
-		audio_effect: { duration: 1, duration_ms: 365 },
+		audio_effect: audioEffect,
 		author: { name: "reference", source: 1, uid: "author-1" },
 	};
 }
@@ -120,6 +128,37 @@ describe("Jianying audio cache inspector", () => {
 				expect.objectContaining({ id: "5914402", name: "网感口播🔥" }),
 			])
 		);
+	});
+
+	test("preserves fractional second durations when duration_ms is absent", () => {
+		const { database, databasePath } = fixtureCache();
+		database
+			.query("INSERT INTO http_cache (url, response_body, timestamp) VALUES (?, ?, ?)")
+			.run(
+				"/artist/v1/effect/category_audio_test",
+				JSON.stringify({
+					data: {
+						effect_item_list: [
+							audioItem({
+								title: "小数时长",
+								id: "fractional-duration",
+								md5: "",
+								url: "https://example.test/fractional.mp3",
+								durationMs: null,
+								durationSeconds: 1.5,
+							}),
+						],
+					},
+				}),
+				"2026-08-01 00:01:00"
+			);
+		database.close();
+
+		const [record] = findAudioRecords({
+			databasePaths: [databasePath],
+			title: "小数时长",
+		});
+		expect(record?.durationMs).toBe(1500);
 	});
 
 	test("verifies a legacy content-md5 payload", () => {

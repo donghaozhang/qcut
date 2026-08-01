@@ -1,22 +1,56 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, statSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import type { AudioRecord } from "./inspect-audio-cache";
 import { jsonObjectValue, parseJsonObject, stringValue } from "./json-values";
+
+const FFPROBE_TIMEOUT_MILLISECONDS = 10_000;
+const nodeRequire = createRequire(import.meta.url);
 
 interface DownloadEntry {
 	hex: string;
 	path: string;
 }
 
-interface AudioProbe {
+export interface AudioProbe {
 	format: string | null;
 	durationSeconds: number | null;
 	codec: string | null;
 	sampleRate: number | null;
 	channels: number | null;
 }
+
+export interface AudioProbeError {
+	code:
+		| "ffprobe-unavailable"
+		| "ffprobe-timeout"
+		| "ffprobe-failed"
+		| "invalid-ffprobe-output";
+	message: string;
+}
+
+export interface AudioProbeResult {
+	probe: AudioProbe | null;
+	error: AudioProbeError | null;
+}
+
+interface FfprobeInvocation {
+	binaryPath: string;
+	args: string[];
+	timeoutMilliseconds: number;
+}
+
+interface FfprobeProcessResult {
+	status: number | null;
+	stdout: string;
+	stderr: string;
+	error?: NodeJS.ErrnoException;
+}
+
+type ResolveFfprobePath = () => string | null;
+type RunFfprobe = (invocation: FfprobeInvocation) => FfprobeProcessResult;
 
 export interface LocalAudioEvidence {
 	state: "verified" | "present" | "missing" | "requires-cache-probe";
@@ -26,6 +60,7 @@ export interface LocalAudioEvidence {
 	contentMd5: string | null;
 	metadataMd5Matches: boolean | null;
 	probe: AudioProbe | null;
+	probeError: AudioProbeError | null;
 }
 
 function numberValue({ value }: { value: unknown }): number | null {
@@ -59,10 +94,66 @@ function md5File({ filePath }: { filePath: string }): string {
 	return createHash("md5").update(readFileSync(filePath)).digest("hex");
 }
 
-function probeAudio({ filePath }: { filePath: string }): AudioProbe | null {
-	const result = spawnSync(
-		"ffprobe",
-		[
+export function resolveBundledFfprobePath(): string | null {
+	try {
+		const moduleValue = jsonObjectValue({ value: nodeRequire("ffprobe-static") });
+		const defaultValue = jsonObjectValue({ value: moduleValue?.default });
+		return (
+			stringValue({ value: moduleValue?.path }) ||
+			stringValue({ value: defaultValue?.path }) ||
+			null
+		);
+	} catch {
+		return null;
+	}
+}
+
+function runFfprobe({
+	binaryPath,
+	args,
+	timeoutMilliseconds,
+}: FfprobeInvocation): FfprobeProcessResult {
+	const result = spawnSync(binaryPath, args, {
+		encoding: "utf8",
+		timeout: timeoutMilliseconds,
+	});
+	return {
+		status: result.status,
+		stdout: result.stdout ?? "",
+		stderr: result.stderr ?? "",
+		...(result.error ? { error: result.error } : {}),
+	};
+}
+
+function failedProbe({
+	code,
+	message,
+}: {
+	code: AudioProbeError["code"];
+	message: string;
+}): AudioProbeResult {
+	return { probe: null, error: { code, message } };
+}
+
+export function probeAudio({
+	filePath,
+	resolveFfprobePath = resolveBundledFfprobePath,
+	runProbe = runFfprobe,
+}: {
+	filePath: string;
+	resolveFfprobePath?: ResolveFfprobePath;
+	runProbe?: RunFfprobe;
+}): AudioProbeResult {
+	const ffprobePath = resolveFfprobePath();
+	if (!ffprobePath) {
+		return failedProbe({
+			code: "ffprobe-unavailable",
+			message: "The bundled ffprobe-static binary could not be resolved.",
+		});
+	}
+	const result = runProbe({
+		binaryPath: ffprobePath,
+		args: [
 			"-v",
 			"error",
 			"-show_entries",
@@ -71,10 +162,45 @@ function probeAudio({ filePath }: { filePath: string }): AudioProbe | null {
 			"json",
 			filePath,
 		],
-		{ encoding: "utf8" }
-	);
-	if (result.status !== 0) return null;
-	const root = parseJsonObject({ value: result.stdout });
+		timeoutMilliseconds: FFPROBE_TIMEOUT_MILLISECONDS,
+	});
+	if (result.error?.code === "ENOENT") {
+		return failedProbe({
+			code: "ffprobe-unavailable",
+			message: `The bundled ffprobe binary does not exist at ${ffprobePath}.`,
+		});
+	}
+	if (result.error?.code === "ETIMEDOUT") {
+		return failedProbe({
+			code: "ffprobe-timeout",
+			message: `ffprobe exceeded ${FFPROBE_TIMEOUT_MILLISECONDS} ms.`,
+		});
+	}
+	if (result.error || result.status !== 0) {
+		return failedProbe({
+			code: "ffprobe-failed",
+			message:
+				result.stderr.trim() ||
+				result.error?.message ||
+				`ffprobe exited with status ${String(result.status)}.`,
+		});
+	}
+	let rootValue: unknown;
+	try {
+		rootValue = JSON.parse(result.stdout);
+	} catch {
+		return failedProbe({
+			code: "invalid-ffprobe-output",
+			message: "ffprobe returned invalid JSON.",
+		});
+	}
+	const root = jsonObjectValue({ value: rootValue });
+	if (!root) {
+		return failedProbe({
+			code: "invalid-ffprobe-output",
+			message: "ffprobe returned a non-object JSON payload.",
+		});
+	}
 	const format = jsonObjectValue({ value: root.format }) ?? {};
 	const streams = Array.isArray(root.streams) ? root.streams : [];
 	const audio =
@@ -82,11 +208,14 @@ function probeAudio({ filePath }: { filePath: string }): AudioProbe | null {
 			.map((stream) => jsonObjectValue({ value: stream }))
 			.find((stream) => stream?.codec_type === "audio") ?? {};
 	return {
-		format: stringValue({ value: format.format_name }) || null,
-		durationSeconds: numberValue({ value: format.duration }),
-		codec: stringValue({ value: audio.codec_name }) || null,
-		sampleRate: numberValue({ value: audio.sample_rate }),
-		channels: numberValue({ value: audio.channels }),
+		probe: {
+			format: stringValue({ value: format.format_name }) || null,
+			durationSeconds: numberValue({ value: format.duration }),
+			codec: stringValue({ value: audio.codec_name }) || null,
+			sampleRate: numberValue({ value: audio.sample_rate }),
+			channels: numberValue({ value: audio.channels }),
+		},
+		error: null,
 	};
 }
 
@@ -131,6 +260,7 @@ export function resolveLocalAudio({
 			contentMd5: null,
 			metadataMd5Matches: null,
 			probe: null,
+			probeError: null,
 		};
 	}
 	const contentMd5 = verify ? md5File({ filePath: resolvedPath }) : null;
@@ -138,6 +268,9 @@ export function resolveLocalAudio({
 		contentMd5 && record.metadataMd5
 			? contentMd5 === record.metadataMd5
 			: null;
+	const probeResult = verify
+		? probeAudio({ filePath: resolvedPath })
+		: { probe: null, error: null };
 	return {
 		state: verify && metadataMd5Matches !== false ? "verified" : "present",
 		path: resolvedPath,
@@ -145,6 +278,7 @@ export function resolveLocalAudio({
 		sizeBytes: statSync(resolvedPath).size,
 		contentMd5,
 		metadataMd5Matches,
-		probe: verify ? probeAudio({ filePath: resolvedPath }) : null,
+		probe: probeResult.probe,
+		probeError: probeResult.error,
 	};
 }

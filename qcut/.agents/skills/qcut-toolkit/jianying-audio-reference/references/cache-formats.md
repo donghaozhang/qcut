@@ -84,13 +84,18 @@ ffprobe -v error -show_streams -show_format -of json \
 Some `.mp3` paths can contain an ISO Base Media audio container instead of an
 MPEG layer-3 stream. Trust FFprobe codec/container output, not the extension.
 
-`downLoadcfg` is JSON with entries shaped like:
+`downLoadcfg` is a top-level JSON object whose `list` array contains entries
+shaped like:
 
 ```json
 {
-  "date": "1783053546128",
-  "hex": "request-cache-key",
-  "path": "content-md5.mp3"
+  "list": [
+    {
+      "date": "1783053546128",
+      "hex": "request-cache-key",
+      "path": "content-md5.mp3"
+    }
+  ]
 }
 ```
 
