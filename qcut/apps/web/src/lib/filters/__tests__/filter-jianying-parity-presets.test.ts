@@ -65,6 +65,7 @@ const UPGRADED_PRESET_VERSIONS: Record<string, number> = {
 	"jy-ink-film": 2,
 	"jy-ink-wash": 2,
 	"jy-quiet-dark": 2,
+	"jy-silver-blue": 2,
 };
 
 describe("Jianying parity filter presets", () => {
