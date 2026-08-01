@@ -19,6 +19,27 @@ For filters that are *effect packages* (shaders, textures) rather than pure
 color grades, harvest the package with the `jianying-reference` skill instead
 — this skill covers the LUT-fit path only.
 
+## Step 0 — Build a calibration chart (do this instead of a photo)
+
+Fitting against a photo wastes most samples on one narrow region of color
+space. Generate a **576-patch chart** at the project resolution instead:
+8×8×8 RGB cube (512) + 16-step gray ramp + 16 skin tones + 32 saturated
+hues, each patch a flat 60×60 block. Import it as a still, drop it on the
+timeline, and sample **patch means** (9×9 px at each patch center) — one
+clean (before, after) pair per patch, immune to the preview's scaling and
+compression.
+
+Locate the canvas rect in the capture programmatically before sampling:
+find the saturated hue row's x-extent and its bottom edge, then derive
+`(x0, y0, w, h)` from the known 16:9 aspect. Verify by reading back the
+gray ramp — patch *i* must read ≈ `i*255/15`. A mis-derived rect silently
+poisons every fit (cost us one full pass).
+
+Weight the fit toward what real footage contains: grays/skin ×3, cube
+interior ×2, cube edges ×0.5, saturated hues ×0.35. Report a separate
+"natural" RMSE over grays/skin/interior only — that number, not the raw
+fit, is what decides whether a preset ships.
+
 ## Step 1 — Capture references from Jianying desktop (macOS)
 
 1. Add the filter as a **track segment** via the hover "+" button on the
@@ -55,6 +76,14 @@ the repo):
 4. **Do not hand-"fix" fitted values afterwards.** Outliers like
    `contrast: 2.82` or `gamma: 2.26` are legitimate fit results;
    `buildFilterCube` output is verified bounded by the catalog test.
+5. **Fit more candidates than you ship and keep the closest.** QCut's
+   recipe is a global tone/color transform — Jianying looks built on
+   per-hue targeting or texture overlays cannot be expressed and fit at
+   25–35 natural RMSE no matter the optimizer. Capturing 7–9 candidates
+   per family and keeping the best 5 costs ~2 extra minutes per filter and
+   keeps the catalogue honest. Rules of thumb: ≤12 natural RMSE is a close
+   clone, 12–20 is a recognizable interpretation, >25 means the look needs
+   machinery QCut does not have — drop it rather than shipping a stand-in.
 
 ## Step 3 — Register the preset
 
