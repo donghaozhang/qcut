@@ -204,7 +204,7 @@ export type ClipTransitionType =
 
 export type ClipTransitionDirection = "left" | "right" | "up" | "down";
 
-export type ClipTransitionEasing = "linear" | "easeInOut";
+export type ClipTransitionEasing = "linear" | "easeInOut" | "easeInOutQuint";
 
 export interface ClipTransitionTuning {
 	tint?: string;

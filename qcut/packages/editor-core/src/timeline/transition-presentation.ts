@@ -54,6 +54,9 @@ export function easeClipTransitionProgress({
 }): number {
 	const clamped = clampProgress({ progress });
 	if (easing === "linear") return clamped;
+	if (easing === "easeInOutQuint") {
+		return clamped < 0.5 ? 16 * clamped ** 5 : 1 - 16 * (1 - clamped) ** 5;
+	}
 	return clamped < 0.5
 		? 4 * clamped * clamped * clamped
 		: 1 - (-2 * clamped + 2) ** 3 / 2;
