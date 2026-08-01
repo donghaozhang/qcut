@@ -303,7 +303,7 @@ describe("TransitionsView", () => {
 				presetId: "dissolve",
 				type: "dissolve",
 				duration: 0.5,
-				easing: "easeInOut",
+				easing: "linear",
 			}),
 		]);
 		expect(toast.success).toHaveBeenCalledWith("已应用叠化。");
@@ -379,7 +379,7 @@ describe("TransitionsView", () => {
 				direction: undefined,
 				tuning: undefined,
 				duration: 0.5,
-				easing: "easeInOut",
+				easing: "linear",
 			});
 			expect(toast.error).toHaveBeenCalledWith(
 				"这个剪辑点没有足够空间容纳转场。"
