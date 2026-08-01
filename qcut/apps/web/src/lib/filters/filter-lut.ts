@@ -39,6 +39,45 @@ function tintColor({
 	};
 }
 
+function applyQuadraticCorrection({
+	color,
+	recipe,
+}: {
+	color: RgbColor;
+	recipe: FilterLutRecipe;
+}): RgbColor {
+	const correction = recipe.quadraticCorrection;
+	if (!correction) return color;
+
+	const { r, g, b } = color;
+	const linearTerms = [r, g, b];
+	const squaredTerms = [r * r, g * g, b * b];
+	// Cross-term columns are rg, rb, and gb.
+	const crossTerms = [r * g, r * b, g * b];
+	const channels = correction.linear.map((linearRow, index) => {
+		const squaredRow = correction.squared[index];
+		const crossRow = correction.cross[index];
+		return (
+			linearRow[0] * linearTerms[0] +
+			linearRow[1] * linearTerms[1] +
+			linearRow[2] * linearTerms[2] +
+			squaredRow[0] * squaredTerms[0] +
+			squaredRow[1] * squaredTerms[1] +
+			squaredRow[2] * squaredTerms[2] +
+			crossRow[0] * crossTerms[0] +
+			crossRow[1] * crossTerms[1] +
+			crossRow[2] * crossTerms[2] +
+			correction.offset[index]
+		);
+	});
+
+	return {
+		r: clamp01(channels[0]),
+		g: clamp01(channels[1]),
+		b: clamp01(channels[2]),
+	};
+}
+
 export function transformFilterColor({
 	color,
 	recipe,
@@ -110,11 +149,12 @@ export function transformFilterColor({
 	};
 
 	const fade = clamp01(recipe.fade ?? 0) * 0.42;
-	return {
+	result = {
 		r: clamp01(mix({ left: result.r, right: 0.5, amount: fade })),
 		g: clamp01(mix({ left: result.g, right: 0.5, amount: fade })),
 		b: clamp01(mix({ left: result.b, right: 0.5, amount: fade })),
 	};
+	return applyQuadraticCorrection({ color: result, recipe });
 }
 
 export function buildFilterCube({

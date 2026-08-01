@@ -17,6 +17,19 @@ export const FILTER_CONTENT_CATEGORIES = [
 
 export type FilterCategory = (typeof FILTER_CONTENT_CATEGORIES)[number];
 
+export type FilterColorMatrix = [
+	[number, number, number],
+	[number, number, number],
+	[number, number, number],
+];
+
+export interface FilterQuadraticColorCorrection {
+	linear: FilterColorMatrix;
+	squared: FilterColorMatrix;
+	cross: FilterColorMatrix;
+	offset: [number, number, number];
+}
+
 export interface FilterLutRecipe {
 	exposure?: number;
 	contrast?: number;
@@ -30,6 +43,7 @@ export interface FilterLutRecipe {
 	monochrome?: number;
 	shadowTint?: [number, number, number];
 	highlightTint?: [number, number, number];
+	quadraticCorrection?: FilterQuadraticColorCorrection;
 }
 
 export interface FilterExtras {
