@@ -10,6 +10,21 @@ export {
 	validateCapCut81Content,
 } from "./capcut-8-1-content.js";
 export {
+	CAPCUT_8_1_LEGACY_DEFAULT_FONT_ALIAS,
+	CAPCUT_8_1_SYSTEM_DEFAULT_FONT_DRAFT_FIELDS,
+	CAPCUT_8_1_SYSTEM_DEFAULT_FONT_FAMILY,
+	resolveCapCut81Font,
+} from "./capcut-8-1-font-resolver.js";
+export type {
+	CapCut81FontResolution,
+	CapCut81FontResolutionError,
+	CapCut81FontResolutionWarning,
+	CapCut81FontRun,
+	CapCut81SystemDefaultFontResolution,
+	CapCut81UnsupportedFontResolution,
+	ResolveCapCut81FontOptions,
+} from "./capcut-8-1-font-resolver.js";
+export {
 	CAPCUT_8_1_DEFAULT_ADJUST_BUNDLE_PATH_PLACEHOLDER,
 	mapMediaElementLutToCapCut81,
 } from "./capcut-8-1-lut.js";
