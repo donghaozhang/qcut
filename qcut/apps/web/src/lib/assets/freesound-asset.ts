@@ -134,15 +134,17 @@ export function createAudioLibraryAssetEntry({
 	kind: Extract<AssetKind, "sound-effect" | "music">;
 	category?: string;
 }): AssetManifestEntry {
-	const isLocalReference = sound.source === "local-reference";
+	const isSoundEffectsLabReference = sound.source === "sound-effects-lab";
 	const files: AssetManifestFile[] = [];
 	if (sound.previewUrl) {
 		files.push({
 			role: "preview",
 			url: sound.previewUrl,
 			mimeType: sound.previewUrl.endsWith(".ogg") ? "audio/ogg" : "audio/mpeg",
-			byteSize: isLocalReference ? sound.filesize : undefined,
-			checksumSha256: isLocalReference ? sound.checksumSha256 : undefined,
+			byteSize: isSoundEffectsLabReference ? sound.filesize : undefined,
+			checksumSha256: isSoundEffectsLabReference
+				? sound.checksumSha256
+				: undefined,
 		});
 	}
 	if (sound.downloadUrl) {
@@ -172,7 +174,7 @@ export function createAudioLibraryAssetEntry({
 		tags: uniqueSoundTags({ tags: sound.tags }),
 		delivery: isBundled ? "bundled" : "remote",
 		files,
-		license: isLocalReference
+		license: isSoundEffectsLabReference
 			? {
 					name: "Third-party reference - internal use only",
 					commercialUse: "restricted",

@@ -1,6 +1,6 @@
 export type LocalSoundEffectsLabSource =
 	| { kind: "manifest"; manifestPath: string }
-	| { kind: "missing-manifest" };
+	| { kind: "private-manifest" };
 
 export function buildLocalSoundEffectsLabSource({
 	isEnabled,
@@ -12,8 +12,9 @@ export function buildLocalSoundEffectsLabSource({
 	if (!isEnabled) return null;
 
 	const normalizedManifestPath = manifestPath?.trim();
-	if (!normalizedManifestPath) return { kind: "missing-manifest" };
-	return { kind: "manifest", manifestPath: normalizedManifestPath };
+	return normalizedManifestPath
+		? { kind: "manifest", manifestPath: normalizedManifestPath }
+		: { kind: "private-manifest" };
 }
 
 export function getLocalSoundEffectsLabSource(): LocalSoundEffectsLabSource | null {

@@ -11,13 +11,13 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import {
-	loadLocalSoundEffectFile,
-	localSoundEffectReferenceToSound,
+	loadSoundEffectReferenceFile,
+	soundEffectReferenceToSound,
 } from "@/lib/audio/local-sound-effect-reference";
 import type {
-	LocalSoundEffectReference,
 	LocalSoundEffectsCategory,
-	LocalSoundEffectsLabManifest,
+	SoundEffectsLabManifest,
+	SoundEffectsLabReference,
 } from "@/lib/audio/local-sound-effects-manifest";
 import { debugError } from "@/lib/debug/debug-config";
 import { useTranslation } from "@/lib/i18n";
@@ -36,7 +36,7 @@ function referenceMatches({
 	categoryId: string;
 	categoryLabels: readonly string[];
 	query: string;
-	reference: LocalSoundEffectReference;
+	reference: SoundEffectsLabReference;
 }): boolean {
 	if (
 		categoryId !== ALL_CATEGORIES &&
@@ -52,7 +52,7 @@ function referenceMatches({
 		.includes(normalizedQuery);
 }
 
-function LocalSoundEffectItem({
+function SoundEffectReferenceItem({
 	categories,
 	isPlaying,
 	onPlay,
@@ -61,7 +61,7 @@ function LocalSoundEffectItem({
 	categories: readonly LocalSoundEffectsCategory[];
 	isPlaying: boolean;
 	onPlay: ({ sound }: { sound: SoundEffect }) => void;
-	reference: LocalSoundEffectReference;
+	reference: SoundEffectsLabReference;
 }) {
 	const { t } = useTranslation();
 	const [loadAttempt, setLoadAttempt] = useState(0);
@@ -70,20 +70,24 @@ function LocalSoundEffectItem({
 
 	useEffect(() => {
 		let disposed = false;
+		const abortController = new AbortController();
 		let previewUrl: string | undefined;
 		setSound(null);
 		setError(null);
 
 		const loadSound = async () => {
 			try {
-				const file = await loadLocalSoundEffectFile({ reference });
+				const file = await loadSoundEffectReferenceFile({
+					reference,
+					signal: abortController.signal,
+				});
 				previewUrl = URL.createObjectURL(file);
 				if (disposed) {
 					URL.revokeObjectURL(previewUrl);
 					return;
 				}
 				setSound(
-					localSoundEffectReferenceToSound({
+					soundEffectReferenceToSound({
 						categories,
 						previewUrl,
 						reference,
@@ -105,6 +109,7 @@ function LocalSoundEffectItem({
 		void loadSound();
 		return () => {
 			disposed = true;
+			abortController.abort();
 			if (previewUrl) URL.revokeObjectURL(previewUrl);
 		};
 	}, [categories, loadAttempt, reference, t]);
@@ -169,7 +174,7 @@ export function SoundEffectsLabPanel({
 	onStop,
 	playingId,
 }: {
-	catalog: LocalSoundEffectsLabManifest | null;
+	catalog: SoundEffectsLabManifest | null;
 	error: string | null;
 	isLoading: boolean;
 	onPlay: ({ sound }: { sound: SoundEffect }) => void;
@@ -311,7 +316,7 @@ export function SoundEffectsLabPanel({
 							</div>
 							<div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2">
 								{visibleItems.map((reference) => (
-									<LocalSoundEffectItem
+									<SoundEffectReferenceItem
 										key={reference.id}
 										categories={catalog.categories}
 										isPlaying={playingId === reference.numericId}

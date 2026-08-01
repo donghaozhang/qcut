@@ -26,7 +26,7 @@ vi.mock("@/lib/audio/local-sound-effect-reference", async () => {
 	>("@/lib/audio/local-sound-effect-reference");
 	return {
 		...actual,
-		loadLocalSoundEffectFile: vi.fn(
+		loadSoundEffectReferenceFile: vi.fn(
 			async () =>
 				new File([new Uint8Array([1, 2, 3, 4])], "reference.mp3", {
 					type: "audio/mpeg",
@@ -105,7 +105,7 @@ describe("SoundEffectsLabPanel", () => {
 			sound: expect.objectContaining({
 				name: "测试音效",
 				previewUrl: "blob:reference",
-				source: "local-reference",
+				source: "sound-effects-lab",
 			}),
 		});
 
@@ -114,7 +114,7 @@ describe("SoundEffectsLabPanel", () => {
 			expect(addSoundToTimeline).toHaveBeenCalledWith(
 				expect.objectContaining({
 					kind: "sound-effect",
-					sound: expect.objectContaining({ source: "local-reference" }),
+					sound: expect.objectContaining({ source: "sound-effects-lab" }),
 				})
 			)
 		);

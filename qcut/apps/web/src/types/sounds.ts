@@ -19,7 +19,7 @@ export type SoundEffect = {
 	downloads: number;
 	rating: number;
 	ratingCount: number;
-	source?: "freesound" | "qcut" | "project" | "local-reference";
+	source?: "freesound" | "qcut" | "project" | "sound-effects-lab";
 	mediaId?: string;
 	kind?: "sound-effect" | "music";
 	localizedName?: string;

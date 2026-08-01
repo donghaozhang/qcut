@@ -126,7 +126,7 @@ describe("sounds store asset identity", () => {
 		useSoundsStore
 			.getState()
 			.markSoundRecent(
-				{ ...sound(), source: "local-reference" },
+				{ ...sound(), source: "sound-effects-lab" },
 				"sound-effect"
 			);
 

@@ -24,7 +24,7 @@ describe("local reference audio asset", () => {
 			downloads: 0,
 			rating: 0,
 			ratingCount: 0,
-			source: "local-reference",
+			source: "sound-effects-lab",
 			kind: "sound-effect",
 			checksumSha256:
 				"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",

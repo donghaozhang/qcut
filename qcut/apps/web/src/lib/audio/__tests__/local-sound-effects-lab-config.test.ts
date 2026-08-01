@@ -11,9 +11,9 @@ describe("local Sound Effects Lab config", () => {
 		).toBeNull();
 	});
 
-	it("reports an enabled lab with no manifest path", () => {
+	it("uses the private manifest when no local override is configured", () => {
 		expect(buildLocalSoundEffectsLabSource({ isEnabled: true })).toEqual({
-			kind: "missing-manifest",
+			kind: "private-manifest",
 		});
 	});
 

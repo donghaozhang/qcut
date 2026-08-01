@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import {
 	loadLocalSoundEffectsLabManifest,
+	loadPrivateSoundEffectsLabManifest,
 	parseLocalSoundEffectsLabManifest,
+	parsePrivateSoundEffectsLabManifest,
 } from "../local-sound-effects-manifest";
 
 function manifestFixture() {
@@ -36,6 +38,38 @@ function manifestFixture() {
 				batch: "01" as const,
 				mappingStrategy: "metadata-md5" as const,
 				categoryIds: ["jianying-0123456789ab", "jianying-abcdef012345"],
+			},
+		],
+	};
+}
+
+function privateManifestFixture() {
+	const localManifest = manifestFixture();
+	const localItem = localManifest.items[0];
+	return {
+		...localManifest,
+		schemaVersion: 2 as const,
+		items: [
+			{
+				id: localItem.id,
+				numericId: localItem.numericId,
+				title: localItem.title,
+				fileName: localItem.fileName,
+				mimeType: localItem.mimeType,
+				byteSize: localItem.byteSize,
+				duration: localItem.duration,
+				contentMd5: localItem.contentMd5,
+				contentSha256: localItem.contentSha256,
+				resourceId: localItem.resourceId,
+				batch: localItem.batch,
+				mappingStrategy: localItem.mappingStrategy,
+				categoryIds: localItem.categoryIds,
+				asset: {
+					kind: "supabase-storage" as const,
+					objectKey: `jianying/2026-08-01/assets/${localItem.fileName}`,
+					byteSize: localItem.byteSize,
+					checksumSha256: localItem.contentSha256,
+				},
 			},
 		],
 	};
@@ -141,5 +175,66 @@ describe("local Sound Effects Lab manifest", () => {
 			})
 		).rejects.toThrow("path must be absolute");
 		expect(readFile).not.toHaveBeenCalled();
+	});
+});
+
+describe("private Sound Effects Lab manifest", () => {
+	it("parses a strict Supabase catalog without local paths", () => {
+		const manifest = privateManifestFixture();
+		const jsonText = JSON.stringify(manifest);
+
+		expect(parsePrivateSoundEffectsLabManifest({ jsonText })).toEqual(manifest);
+		expect(jsonText).not.toContain("/Users/test");
+	});
+
+	it("rejects object keys outside the catalog namespace", () => {
+		const manifest = privateManifestFixture();
+		manifest.items[0].asset.objectKey =
+			"jianying/2026-07-31/assets/0291b72047769e085e7595ce5d65dbd2.mp3";
+
+		expect(() =>
+			parsePrivateSoundEffectsLabManifest({
+				jsonText: JSON.stringify(manifest),
+			})
+		).toThrow("Object key must belong to catalog");
+	});
+
+	it("rejects asset integrity metadata that differs from the reference", () => {
+		const manifest = privateManifestFixture();
+		manifest.items[0].asset.byteSize = 5;
+
+		expect(() =>
+			parsePrivateSoundEffectsLabManifest({
+				jsonText: JSON.stringify(manifest),
+			})
+		).toThrow("asset byteSize must match reference byteSize");
+	});
+
+	it("fetches and validates an authenticated private manifest", async () => {
+		const manifest = privateManifestFixture();
+		const fetchImpl = vi.fn(
+			async () =>
+				new Response(JSON.stringify(manifest), {
+					headers: { "Content-Type": "application/json" },
+				})
+		);
+
+		await expect(
+			loadPrivateSoundEffectsLabManifest({
+				fetchImpl: fetchImpl as typeof fetch,
+				manifestUrl:
+					"https://license.example/api/sound-effects-lab/private-manifest",
+			})
+		).resolves.toEqual(manifest);
+	});
+
+	it("rejects forbidden private manifest responses", async () => {
+		await expect(
+			loadPrivateSoundEffectsLabManifest({
+				fetchImpl: async () => new Response("Forbidden", { status: 403 }),
+				manifestUrl:
+					"https://license.example/api/sound-effects-lab/private-manifest",
+			})
+		).rejects.toThrow("(403)");
 	});
 });

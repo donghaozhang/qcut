@@ -193,7 +193,7 @@ export function AudioLibraryItem({
 		kind: assetKind,
 		id: sound.id,
 	});
-	const isLocalReference = sound.source === "local-reference";
+	const isSoundEffectsLabReference = sound.source === "sound-effects-lab";
 
 	const handleAdd = async ({
 		mode = "single",
@@ -225,9 +225,9 @@ export function AudioLibraryItem({
 				isDragging && "border-primary/70 opacity-55"
 			)}
 			data-testid={`audio-library-item-${assetKind}-${sound.id}`}
-			draggable={!isLocalReference}
+			draggable={!isSoundEffectsLabReference}
 			onDragStart={(event) => {
-				if (isLocalReference) return;
+				if (isSoundEffectsLabReference) return;
 				cancelHoverPlay();
 				setIsDragging(true);
 				event.dataTransfer.effectAllowed = "copy";
@@ -343,7 +343,7 @@ export function AudioLibraryItem({
 							{description || sound.username}
 						</div>
 					</div>
-					{isLocalReference ? null : (
+					{isSoundEffectsLabReference ? null : (
 						<Button
 							type="button"
 							variant="text"
@@ -457,7 +457,7 @@ export function AudioLibraryItem({
 								<Download className="size-3.5" />
 							)}
 						</Button>
-						{(!isLocalReference && folders.length > 0) ||
+						{(!isSoundEffectsLabReference && folders.length > 0) ||
 						needsAttribution ||
 						(assetKind === "music" && (sound.bpm || sound.loopable)) ? (
 							<DropdownMenu>
