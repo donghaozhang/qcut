@@ -394,6 +394,7 @@ export type AudioLibrarySectionId =
 	| "downloads"
 	| "project-audio"
 	| "project-recommended"
+	| "sound-effects-lab"
 	| "ai-music"
 	| "ai-voice";
 
