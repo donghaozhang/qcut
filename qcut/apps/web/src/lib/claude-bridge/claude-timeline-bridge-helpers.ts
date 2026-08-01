@@ -842,6 +842,9 @@ export function addClaudeAdjustmentElement({
 	});
 
 	const elementId = timelineStore.addElementToTrack(trackId, {
+		...(typeof element.id === "string" && element.id.trim().length > 0
+			? { id: element.id }
+			: {}),
 		type: "adjustment",
 		name: adjustmentFields.name ?? "自定义调节",
 		startTime,
