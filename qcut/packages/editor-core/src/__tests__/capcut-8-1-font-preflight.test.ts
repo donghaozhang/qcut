@@ -258,6 +258,22 @@ describe("CapCut 8.1 font preflight", () => {
 		);
 	});
 
+	it("blocks non-BMP Han outside the verified CapCut font coverage", () => {
+		const result = buildCapCutFontSnapshot({
+			element: createTextElement({ content: "𠀀" }),
+		});
+
+		expect(result.canWrite).toBe(false);
+		expect(result.issues).toContainEqual(
+			expect.objectContaining({
+				code: "UNVERIFIED_CAPCUT_TEXT_SCRIPT",
+				elementId: "text-1",
+				severity: "error",
+				trackId: "text-track",
+			})
+		);
+	});
+
 	it("blocks CapCut text preflight on Windows", () => {
 		const result = buildCapCutFontSnapshot({
 			element: createTextElement(),
