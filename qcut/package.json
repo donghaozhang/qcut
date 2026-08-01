@@ -76,6 +76,7 @@
 		"build:web": "cd apps/web && VITE_BUILD_TARGET=web bun run build:web",
 		"build": "turbo run build && bun run build:electron",
 		"build:cli-image": "bun run scripts/build-cli-image.ts",
+		"build:sound-effects-lab-manifest": "bun run scripts/build-local-sound-effects-lab-manifest.ts",
 		"dogfood:daytona-worker": "bun run scripts/daytona-worker-dogfood.ts",
 		"check-types": "bun scripts/check-types.ts",
 		"postinstall": "bun run setup-ffmpeg && bun scripts/patch-node-pty.ts",
