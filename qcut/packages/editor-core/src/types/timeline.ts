@@ -892,6 +892,8 @@ export interface AdjustmentElement extends BaseTimelineElement {
 	adjustments?: MediaAdjustments;
 	/** Canonical non-destructive color grading state for adjustment layers. */
 	color?: MediaColorSettings;
+	/** Ordered mask stack limiting where the adjustment layer applies. */
+	masks?: MediaMask[];
 }
 
 /** Independently editable effect range targeting one timeline element. */
