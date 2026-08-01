@@ -1,4 +1,8 @@
 import type { FilterPreset } from "../filter-types";
+import {
+	SILVER_BLUE_BACKGROUND_RECIPE,
+	SILVER_BLUE_SKIN_TONE_RECIPE,
+} from "./silver-blue-recipes";
 
 export const JIANYING_STYLIZED_PARITY_FILTER_PRESETS: FilterPreset[] = [
 	{
@@ -92,53 +96,61 @@ export const JIANYING_STYLIZED_PARITY_FILTER_PRESETS: FilterPreset[] = [
 	},
 	{
 		id: "jy-silver-blue",
-		version: 1,
+		version: 2,
 		name: "Silver Blue",
 		localizedName: "银蓝",
 		category: "stylized",
 		tags: ["stylized", "creative", "风格化", "创意", "银蓝", "Silver Blue"],
 		thumbnail: "/images/filter-previews/jy-silver-blue.webp",
-		lutAssetId: "qcut/filter/jy-silver-blue/v1",
+		lutAssetId: "qcut/filter/jy-silver-blue/v2",
 		defaultIntensity: 100,
 		isNew: true,
-		recipe: {
-			exposure: -0.964,
-			gamma: 1.587,
-			blackLift: 0.214,
-			shadowTint: [-0.175, 0.35, 0.338],
-			highlightTint: [-0.35, -0.212, 0.35],
-			temperature: 0.356,
-			tint: 1.2,
-			contrast: 2.994,
-			saturation: 1.088,
-			hueShift: 2.1,
-			monochrome: 0.772,
-			fade: 0.303,
-		},
+		recipe: SILVER_BLUE_BACKGROUND_RECIPE,
+		skinToneRecipe: SILVER_BLUE_SKIN_TONE_RECIPE,
 	},
 	{
 		id: "jy-black-gold",
-		version: 1,
+		version: 2,
 		name: "Black Gold",
 		localizedName: "黑金",
 		category: "stylized",
 		tags: ["stylized", "creative", "风格化", "创意", "黑金", "Black Gold"],
 		thumbnail: "/images/filter-previews/jy-black-gold.webp",
-		lutAssetId: "qcut/filter/jy-black-gold/v1",
+		lutAssetId: "qcut/filter/jy-black-gold/v2",
 		defaultIntensity: 100,
 		isNew: true,
 		recipe: {
-			exposure: 0.228,
-			gamma: 0.667,
-			blackLift: -0.045,
-			shadowTint: [0.35, -0.207, -0.35],
-			highlightTint: [0.308, -0.35, 0.35],
-			temperature: 1.2,
-			tint: -1.139,
-			contrast: 0.016,
-			saturation: 0.388,
-			hueShift: 15.3,
-			fade: 0.103,
+			polynomialCorrection: {
+				linear: [
+					[-0.2861, -0.0706, 0.0377],
+					[0.0306, -0.5702, -0.0008],
+					[0.0956, -0.6101, -0.2399],
+				],
+				squared: [
+					[2.4949, 1.0095, 0.1098],
+					[0.2474, 3.1084, 0.1054],
+					[-0.0829, 2.5401, 0.4523],
+				],
+				cross: [
+					[0.313, -0.0301, -0.1487],
+					[0.4945, -0.1077, -0.0187],
+					[0.0789, -0.0072, 0.9617],
+				],
+				cubic: {
+					pure: [
+						[-1.2999, -0.1244, 0.0154],
+						[-0.1862, -1.7491, -0.0262],
+						[-0.0853, -1.31, -0.2019],
+					],
+					mixed: [
+						[-0.4211, 0.0441, -0.6888, -0.1225, -0.1694, 0.078],
+						[-0.0213, 0.0619, -0.4285, -0.0453, -0.0379, -0.0162],
+						[0.0777, 0.0228, 0.1648, -0.8481, -0.1027, -0.0139],
+					],
+					triple: [0.1671, 0.0857, 0.0299],
+				},
+				offset: [0.0304, 0.0416, 0.0588],
+			},
 		},
 	},
 	{

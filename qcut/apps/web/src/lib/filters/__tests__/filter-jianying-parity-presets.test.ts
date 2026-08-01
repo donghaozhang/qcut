@@ -61,9 +61,14 @@ const EXPECTED_LOCALIZED_NAMES = [
 ];
 
 const UPGRADED_PRESET_VERSIONS: Record<string, number> = {
+	"jy-black-gold": 2,
+	"jy-blue-tone-mono": 2,
+	"jy-cool-fireworks": 2,
 	"jy-ink-film": 2,
 	"jy-ink-wash": 2,
+	"jy-orange-teal": 2,
 	"jy-quiet-dark": 2,
+	"jy-silver-blue": 2,
 };
 
 describe("Jianying parity filter presets", () => {

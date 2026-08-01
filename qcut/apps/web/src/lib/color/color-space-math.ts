@@ -69,6 +69,20 @@ export function circularHueDistance(left: number, right: number): number {
 	return Math.min(distance, 1 - distance);
 }
 
+export function skinToneWeight({ color }: { color: RgbColor }): number {
+	const hsl = rgbToHsl(color);
+	const hueWeight = Math.max(
+		0,
+		1 - circularHueDistance(hsl.h, 28 / 360) / 0.09
+	);
+	return (
+		hueWeight *
+		Math.min(1, hsl.s * 2) *
+		Math.min(1, hsl.l * 4) *
+		Math.min(1, (1 - hsl.l) * 4)
+	);
+}
+
 export function sampleCurve({
 	points,
 	value,
