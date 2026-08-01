@@ -46,6 +46,16 @@ export type {
 	StandaloneJianyingDraftExportPlan,
 	StandaloneJianyingDraftExportSessionOptions,
 } from "./export-session.js";
+export {
+	assertFontCoversText,
+	inspectFontGlyphCoverage,
+	inspectLoadedFontGlyphCoverage,
+} from "./font-glyph-coverage.js";
+export type {
+	FontGlyphCoverageReport,
+	FontGlyphLookup,
+	MissingFontGlyph,
+} from "./font-glyph-coverage.js";
 export { StandaloneJianyingDraftRequestValidationError } from "./runtime-validation.js";
 export type {
 	StandaloneJianyingDraftPlanRequest,
