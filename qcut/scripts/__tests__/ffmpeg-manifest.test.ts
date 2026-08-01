@@ -49,6 +49,9 @@ describe("FFmpeg binary manifest", () => {
 			"--enable-libx264",
 			"--enable-libx265",
 			"--enable-libass",
+			"--enable-libfreetype",
+			"--enable-fontconfig",
+			"--enable-libharfbuzz",
 			"--enable-libvmaf",
 			"--enable-libzimg",
 		]);
