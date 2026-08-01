@@ -78,8 +78,11 @@ JY_TRANSITION_PACKAGE=/path/to/Cache/effect/id/md5 \
   `JY_TRANSITION_PROGRESS` defaults to `0.5` and accepts values from `0` through
   `1`.
 - `render-transition-video.sh` uses FFmpeg to normalize two real videos to RGBA,
-  keeps the non-overlapping frames, renders the tail of A against the head of B
-  through `TransitionSegment`, and encodes the combined frames as H.264 MP4.
+  preserves their adjacent timeline duration, centers the transition across the
+  cut, renders it through `TransitionSegment`, and encodes the combined frames
+  as BT.709 H.264 MP4. When whole-file inputs provide no trim handles, the host
+  holds A's final frame after the cut and B's first frame before the cut, matching
+  the observed Jianying timeline behavior.
   The optional final argument is transition duration in seconds. Frame rate
   defaults to `30`; `JY_VIDEO_FPS`, `JY_VIDEO_WIDTH`, and `JY_VIDEO_HEIGHT` can
   override normalization.
@@ -96,7 +99,21 @@ The video wrapper is deliberately an interoperability prototype:
 - The private Swing host is rebuilt for every transition frame. This proves
   repeatable multi-frame rendering but is not the production performance model.
 - FFmpeg normalizes orientation, aspect ratio, frame rate, and pixel format.
-  Source HDR and color metadata are not preserved by this first path.
+  Source HDR and original color metadata are normalized to BT.709 rather than
+  preserved by this first path.
+
+For a parity check, export the same source files, resolution, frame rate, cut,
+and transition duration from Jianying and the probe. Compare decoded PNG frames,
+not MP4 bytes. For `N` transition frames, the probe centers the window on the
+cut and samples progress frame `round(p * (N - 1))` for
+`p = 0 / 0.25 / 0.5 / 0.75 / 1`. The repository's transition reference tool
+can calculate decoded RGB metrics from those five pairs:
+
+```bash
+bun .agents/skills/qcut-toolkit/jianying-transition-reference/scripts/inspect-transition.ts \
+  parity-report --title 叠化 --manifest /path/to/manifest.json \
+  --formula 'C(p) = (1 - p) A + p B'
+```
 
 `libcccreator` has a large dependency graph. The copied binary is loaded from
 the ignored local directory while unresolved sibling libraries are read from
@@ -161,11 +178,22 @@ established all of the following without launching the Jianying app process:
 14. The tested dissolve package returned exact RGBA values at all three sampled
     points: `0 -> (255, 0, 0, 255)`, `0.5 -> (128, 0, 128, 255)`, and
     `1 -> (0, 0, 255, 255)`.
-15. Two independently encoded MP4 inputs can be decoded, overlapped through
-    three consecutive private-engine renders, and encoded into a valid MP4. The
-    integration fixture produced `21` frames at `64x64`, `6 fps`, and `3.5`
-    seconds. Its encoded transition frames were `(254, 0, 0)`, `(127, 0, 127)`,
-    and `(0, 0, 255)` after H.264 quantization.
+15. Two independently encoded MP4 inputs can be decoded, transitioned across
+    their adjacent cut, and encoded into a valid MP4 without shortening the
+    timeline. The integration fixture produced `24` frames at `64x64`, `6 fps`,
+    and `4` seconds. Its encoded transition frames were `(254, 0, 0)`,
+    `(127, 0, 127)`, and `(1, 0, 255)` after H.264 quantization.
+16. The same two `1280x720`, `30 fps`, four-second calibration clips were
+    rendered by Jianying and by this probe with the same `0.5` second dissolve.
+    Jianying's 4K HEVC export was normalized to `1280x720` BT.709 before the
+    decoded-pixel comparison. Both comparison streams contain `240` frames over
+    `8` seconds, with the 15 transition frames at indices `113` through `127`.
+    Across progress
+    `0 / 0.25 / 0.5 / 0.75 / 1`, decoded RGB RMSE averaged `4.934` and peaked at
+    `6.159`, below the parity target of `8`. The complete transition interval
+    measured `34.500 dB` RGB PSNR and `0.988790` SSIM. Remaining pixel error is
+    concentrated around hard edges and is consistent with independent scaling,
+    codec, and YUV 4:2:0 conversion paths rather than a timing or blend mismatch.
 
 The dependencies now divide into three groups:
 
@@ -191,7 +219,7 @@ discovering an unknown transition rendering contract:
   `CVPixelBuffer`/Metal texture interop, and direct encoder surfaces.
 - Keep one initialized SwingManager and segment graph alive across the overlap
   instead of rebuilding the private host for each frame.
-- Read QCut or Jianying timeline metadata for trims, transition placement, and
+- Read QCut or Jianying timeline metadata for trims, source handles, and
   duration rather than accepting two whole files and one duration argument.
 - Render at production dimensions and preserve pixel format, color space, HDR,
   alpha state, and orientation across decode, friend-texture conversion, and

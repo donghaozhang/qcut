@@ -86,6 +86,9 @@ readonly RAW_INPUT_A="$TEMP_DIR/input-a.rgba"
 readonly RAW_INPUT_B="$TEMP_DIR/input-b.rgba"
 readonly RAW_OUTPUT="$TEMP_DIR/output.rgba"
 readonly NORMALIZE_FILTER="fps=${FRAME_RATE},scale=${width}:${height}:force_original_aspect_ratio=decrease:flags=lanczos,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,format=rgba"
+readonly ENCODE_FILTER='scale=in_range=full:out_range=limited:out_color_matrix=bt709,'\
+'format=yuv420p,'\
+'setparams=range=limited:color_primaries=bt709:color_trc=bt709:colorspace=bt709'
 
 printf '[ffmpeg] decoding and normalizing input A to %sx%s @ %s fps\n' "$width" "$height" "$FRAME_RATE"
 ffmpeg -hide_banner -loglevel error -y -i "$INPUT_A" -map 0:v:0 -an -sn -dn \
@@ -95,7 +98,7 @@ printf '[ffmpeg] decoding and normalizing input B to %sx%s @ %s fps\n' "$width" 
 ffmpeg -hide_banner -loglevel error -y -i "$INPUT_B" -map 0:v:0 -an -sn -dn \
   -vf "$NORMALIZE_FILTER" -pix_fmt rgba -f rawvideo "$RAW_INPUT_B"
 
-printf '[transition] rendering %s second overlap through Jianying\n' "$TRANSITION_DURATION"
+printf '[transition] rendering %s seconds centered across the adjacent cut\n' "$TRANSITION_DURATION"
 JY_RAW_INPUT_A="$RAW_INPUT_A" \
 JY_RAW_INPUT_B="$RAW_INPUT_B" \
 JY_RAW_OUTPUT="$RAW_OUTPUT" \
@@ -111,7 +114,9 @@ printf '[ffmpeg] encoding video-only MP4: %s\n' "$OUTPUT"
 ffmpeg -hide_banner -loglevel error -y \
   -f rawvideo -pixel_format rgba -video_size "${width}x${height}" \
   -framerate "$FRAME_RATE" -i "$RAW_OUTPUT" -an \
-  -c:v libx264 -preset "$PRESET" -crf "$CRF" -pix_fmt yuv420p \
+  -vf "$ENCODE_FILTER" \
+  -c:v libx264 -preset "$PRESET" -crf "$CRF" \
+  -color_range tv -colorspace bt709 -color_trc bt709 -color_primaries bt709 \
   -movflags +faststart "$OUTPUT"
 
 ffmpeg -hide_banner -loglevel error -i "$OUTPUT" -map 0:v:0 -f null -

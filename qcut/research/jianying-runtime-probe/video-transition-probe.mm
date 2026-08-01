@@ -137,10 +137,12 @@ RawVideoTransitionResult renderRawVideoTransition(
       rawFrameCount(request.inputAPath, frameBytes);
   const std::size_t inputBFrames =
       rawFrameCount(request.inputBPath, frameBytes);
-  const std::size_t overlapFrames = transitionFrameCount(request);
-  if (overlapFrames > inputAFrames || overlapFrames > inputBFrames) {
+  const std::size_t transitionFrames = transitionFrameCount(request);
+  const std::size_t framesBeforeCut = transitionFrames / 2;
+  const std::size_t framesAtOrAfterCut = transitionFrames - framesBeforeCut;
+  if (framesBeforeCut > inputAFrames || framesAtOrAfterCut > inputBFrames) {
     throw std::runtime_error(
-        "transition is longer than one of the normalized input videos");
+        "centered transition extends beyond a normalized input video");
   }
   if (inputBFrames > std::numeric_limits<std::size_t>::max() - inputAFrames) {
     throw std::runtime_error("combined output frame count overflows size_t");
@@ -155,16 +157,22 @@ RawVideoTransitionResult renderRawVideoTransition(
 
   std::vector<std::uint8_t> frameA(frameBytes);
   std::vector<std::uint8_t> frameB(frameBytes);
-  const std::size_t prefixFrames = inputAFrames - overlapFrames;
+  const std::size_t prefixFrames = inputAFrames - framesBeforeCut;
   copyFrames(inputA, output, frameA, prefixFrames, "raw input A");
+  readFrame(inputB, frameB, "raw input B transition head");
 
-  for (std::size_t index = 0; index < overlapFrames; ++index) {
-    readFrame(inputA, frameA, "raw input A transition tail");
-    readFrame(inputB, frameB, "raw input B transition head");
+  for (std::size_t index = 0; index < transitionFrames; ++index) {
+    if (index < framesBeforeCut) {
+      readFrame(inputA, frameA, "raw input A transition tail");
+    }
+    if (index > framesBeforeCut) {
+      readFrame(inputB, frameB, "raw input B transition head");
+    }
     const double progress =
-        static_cast<double>(index) / static_cast<double>(overlapFrames - 1);
+        static_cast<double>(index) /
+        static_cast<double>(transitionFrames - 1);
     std::cout << "[video] transition frame " << index + 1 << '/'
-              << overlapFrames << ", progress = " << progress << '\n';
+              << transitionFrames << ", progress = " << progress << '\n';
 
     const TransitionPixelFrameResult rendered = renderTransitionPixelFrame({
         .runtimeRoot = request.runtimeRoot,
@@ -183,25 +191,27 @@ RawVideoTransitionResult renderRawVideoTransition(
     writeFrame(output, rendered.outputPixels);
   }
 
-  const std::size_t suffixFrames = inputBFrames - overlapFrames;
+  const std::size_t suffixFrames = inputBFrames - framesAtOrAfterCut;
   copyFrames(inputB, output, frameB, suffixFrames, "raw input B");
   output.close();
   if (!output) {
     throw std::runtime_error("failed to finalize raw transition output");
   }
 
-  const std::size_t outputFrames = inputAFrames + inputBFrames - overlapFrames;
+  const std::size_t outputFrames = inputAFrames + inputBFrames;
   if (outputFrames > std::numeric_limits<std::uintmax_t>::max() / frameBytes ||
       fs::file_size(request.outputPath) != outputFrames * frameBytes) {
     throw std::runtime_error("raw transition output has an unexpected size");
   }
   std::cout << "[video] frames: A=" << inputAFrames << ", B=" << inputBFrames
-            << ", transition=" << overlapFrames << ", output=" << outputFrames
-            << '\n';
+            << ", transition=" << transitionFrames
+            << ", before-cut=" << framesBeforeCut
+            << ", at-or-after-cut=" << framesAtOrAfterCut
+            << ", output=" << outputFrames << '\n';
   return {
       .inputAFrames = inputAFrames,
       .inputBFrames = inputBFrames,
-      .transitionFrames = overlapFrames,
+      .transitionFrames = transitionFrames,
       .outputFrames = outputFrames,
   };
 }
