@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	CAPCUT_8_1_APP_VERSION,
 	CAPCUT_8_1_SYSTEM_DEFAULT_FONT_DRAFT_FIELDS,
+	CAPCUT_8_1_VERIFIED_HAN_RANGES,
 	resolveCapCut81Font,
 } from "../jianying-draft/index.js";
 
@@ -35,7 +36,13 @@ describe("CapCut 8.1 font resolver", () => {
 			appVersion: CAPCUT_8_1_APP_VERSION,
 			coverage: {
 				emoji: false,
-				systemFallbackAllowlist: ["latin", "bmp-han", "common", "inherited"],
+				systemFallbackAllowlist: [
+					"latin",
+					"verified-bmp-han",
+					"common",
+					"inherited",
+				],
+				verifiedHanRanges: CAPCUT_8_1_VERIFIED_HAN_RANGES,
 				verifiedScripts: ["latin", "simplified-chinese"],
 			},
 			draftFields: CAPCUT_8_1_SYSTEM_DEFAULT_FONT_DRAFT_FIELDS,
@@ -53,6 +60,33 @@ describe("CapCut 8.1 font resolver", () => {
 
 		expect(resolution.ok).toBe(true);
 	});
+
+	it.each([
+		{ character: "\u4db6", unicode: "U+4DB6" },
+		{ character: "\u9fd1", unicode: "U+9FD1" },
+		{ character: "\uf900", unicode: "U+F900" },
+	])("blocks a Han code point outside verified cmap ranges: $unicode", ({
+		character,
+		unicode,
+	}) => {
+		const resolution = resolveFont({ content: character });
+
+		expect(resolution.ok).toBe(false);
+		if (resolution.ok) return;
+		expect(resolution.errors).toContainEqual(
+			expect.objectContaining({
+				code: "UNVERIFIED_CAPCUT_TEXT_SCRIPT",
+				message: expect.stringContaining(unicode),
+			})
+		);
+	});
+
+	it.each(["\u4db5", "\u9fd0"])(
+		"accepts a Han code point at a verified cmap boundary: %s",
+		(character) => {
+			expect(resolveFont({ content: character }).ok).toBe(true);
+		}
+	);
 
 	it("treats an explicit system request as the verified default", () => {
 		const resolution = resolveFont({ requestedFamily: " System " });
@@ -145,7 +179,7 @@ describe("CapCut 8.1 font resolver", () => {
 		if (resolution.ok) return;
 		expect(resolution.errors).toContainEqual({
 			code: "UNVERIFIED_CAPCUT_TEXT_SCRIPT",
-			message: `Character ${JSON.stringify(character)} (${codePoint}) is outside the conservative CapCut 8.1 system-fallback allowlist (Latin, BMP Han, Common, Inherited).`,
+			message: `Character ${JSON.stringify(character)} (${codePoint}) is outside the conservative CapCut 8.1 system-fallback allowlist (Latin, Common, Inherited, and the verified Han ranges ${CAPCUT_8_1_VERIFIED_HAN_RANGES.join(", ")}).`,
 			severity: "error",
 		});
 	});

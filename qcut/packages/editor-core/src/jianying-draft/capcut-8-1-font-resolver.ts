@@ -9,6 +9,11 @@ export const CAPCUT_8_1_SYSTEM_DEFAULT_FONT_DRAFT_FIELDS = {
 	styleFontField: "omit",
 } as const;
 
+export const CAPCUT_8_1_VERIFIED_HAN_RANGES = [
+	"U+3400-U+4DB5",
+	"U+4E00-U+9FD0",
+] as const;
+
 export interface CapCut81FontRun {
 	end: number;
 	family: string;
@@ -49,10 +54,11 @@ export interface CapCut81SystemDefaultFontResolution {
 		emoji: false;
 		systemFallbackAllowlist: readonly [
 			"latin",
-			"bmp-han",
+			"verified-bmp-han",
 			"common",
 			"inherited",
 		];
+		verifiedHanRanges: typeof CAPCUT_8_1_VERIFIED_HAN_RANGES;
 		verifiedScripts: readonly ["latin", "simplified-chinese"];
 	};
 	draftFields: typeof CAPCUT_8_1_SYSTEM_DEFAULT_FONT_DRAFT_FIELDS;
@@ -78,8 +84,15 @@ const EMOJI_CONTENT_PATTERN =
 	/(?:\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20e3|\ufe0f)/u;
 const SYSTEM_FALLBACK_NON_HAN_PATTERN =
 	/^(?:\p{Script=Latin}|\p{Script=Common}|\p{Script=Inherited})$/u;
-const SYSTEM_FALLBACK_BMP_HAN_PATTERN =
-	/^[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]$/u;
+
+function isVerifiedBmpHan({ character }: { character: string }): boolean {
+	const codePoint = character.codePointAt(0);
+	if (codePoint === undefined) return false;
+	return (
+		(codePoint >= 0x3400 && codePoint <= 0x4db5) ||
+		(codePoint >= 0x4e00 && codePoint <= 0x9fd0)
+	);
+}
 
 function createResolutionError({
 	code,
@@ -116,7 +129,7 @@ function findFirstUnverifiedScriptCharacter({
 	for (const character of content) {
 		if (
 			!SYSTEM_FALLBACK_NON_HAN_PATTERN.test(character) &&
-			!SYSTEM_FALLBACK_BMP_HAN_PATTERN.test(character)
+			!isVerifiedBmpHan({ character })
 		) {
 			return character;
 		}
@@ -187,7 +200,7 @@ function collectBlockingErrors({
 		errors.push(
 			createResolutionError({
 				code: "UNVERIFIED_CAPCUT_TEXT_SCRIPT",
-				message: `Character ${JSON.stringify(unverifiedScriptCharacter)} (${formatUnicodeCodePoint({ character: unverifiedScriptCharacter })}) is outside the conservative CapCut 8.1 system-fallback allowlist (Latin, BMP Han, Common, Inherited).`,
+				message: `Character ${JSON.stringify(unverifiedScriptCharacter)} (${formatUnicodeCodePoint({ character: unverifiedScriptCharacter })}) is outside the conservative CapCut 8.1 system-fallback allowlist (Latin, Common, Inherited, and the verified Han ranges ${CAPCUT_8_1_VERIFIED_HAN_RANGES.join(", ")}).`,
 			})
 		);
 	}
@@ -246,7 +259,13 @@ export function resolveCapCut81Font({
 		appVersion: CAPCUT_8_1_APP_VERSION,
 		coverage: {
 			emoji: false,
-			systemFallbackAllowlist: ["latin", "bmp-han", "common", "inherited"],
+			systemFallbackAllowlist: [
+				"latin",
+				"verified-bmp-han",
+				"common",
+				"inherited",
+			],
+			verifiedHanRanges: CAPCUT_8_1_VERIFIED_HAN_RANGES,
 			verifiedScripts: ["latin", "simplified-chinese"],
 		},
 		draftFields: CAPCUT_8_1_SYSTEM_DEFAULT_FONT_DRAFT_FIELDS,
