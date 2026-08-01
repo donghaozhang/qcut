@@ -1,5 +1,6 @@
 import type {
 	ClipTransitionDirection,
+	ClipTransitionEasing,
 	ClipTransitionMaskShape,
 	ClipTransitionTuning,
 	ClipTransitionType,
@@ -12,6 +13,7 @@ import {
 } from "../transition-preset-types";
 
 interface ExpandedPresetOptions {
+	easing?: ClipTransitionEasing;
 	direction?: ClipTransitionDirection;
 	tuning?: ClipTransitionTuning;
 	maskShape?: ClipTransitionMaskShape;
@@ -51,6 +53,7 @@ export function categoryExpansion({
 				type,
 				clipType,
 				defaultDuration,
+				easing: options?.easing,
 				direction: options?.direction,
 				tuning: options?.tuning,
 				maskShape: options?.maskShape,
