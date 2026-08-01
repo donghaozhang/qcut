@@ -48,6 +48,12 @@ order, cover image, or the `jianying-reference` one-card mtime probe. Never pick
 the first title match silently. If the package is absent, apply that one card in
 a disposable draft to force its download, then rerun the inspector.
 
+A file that cannot be read or parsed is reported in that package's `issues`
+array rather than aborting the run, so a half-downloaded asset never hides the
+packages that did resolve. Treat a non-empty `issues` list as an incomplete
+download: reopen the card in Jianying to finish it and rerun before concluding
+anything about `kind`.
+
 Read [cache-formats.md](references/cache-formats.md) before decoding or replaying
 a package. Cached assets are local interoperability evidence: do not copy LUTs,
 textures, shaders, Lua, or derived tables into the repo or product.

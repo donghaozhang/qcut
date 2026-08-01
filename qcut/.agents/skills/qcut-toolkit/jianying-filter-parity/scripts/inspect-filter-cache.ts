@@ -54,6 +54,12 @@ interface InspectedPackage {
 	luaFiles: string[];
 	shaderFiles: string[];
 	configFiles: string[];
+	/**
+	 * Per-file read/parse failures. A partially downloaded package is the exact
+	 * state this tool exists to diagnose, so a malformed asset is reported as
+	 * evidence rather than aborting the scan.
+	 */
+	issues: string[];
 }
 
 const DEFAULT_CACHE_ROOT = path.join(
@@ -277,6 +283,16 @@ function listPackageFiles({ packageRoot }: { packageRoot: string }): string[] {
 	return relativeFiles.sort();
 }
 
+function describeIssue({
+	relativePath,
+	error,
+}: {
+	relativePath: string;
+	error: unknown;
+}): string {
+	return `${relativePath}: ${error instanceof Error ? error.message : String(error)}`;
+}
+
 export function inspectPackage({
 	packageRoot,
 }: {
@@ -288,30 +304,39 @@ export function inspectPackage({
 	const luaFiles: string[] = [];
 	const shaderFiles: string[] = [];
 	const configFiles: string[] = [];
+	const issues: string[] = [];
 
 	for (const relativePath of relativeFiles) {
 		const absolutePath = path.join(packageRoot, relativePath);
 		const lowerPath = relativePath.toLowerCase();
 		if (lowerPath.endsWith(".cube.vf")) {
-			cubes.push({
-				path: relativePath,
-				...parseVfHeader({
-					buffer: readFileSync(absolutePath),
-					filePath: absolutePath,
-				}),
-			});
+			try {
+				cubes.push({
+					path: relativePath,
+					...parseVfHeader({
+						buffer: readFileSync(absolutePath),
+						filePath: absolutePath,
+					}),
+				});
+			} catch (error) {
+				issues.push(describeIssue({ relativePath, error }));
+			}
 		}
 		if (
 			lowerPath.endsWith("filter_bg.png") ||
 			lowerPath.endsWith("filter_skin.png")
 		) {
-			imageLuts.push({
-				path: relativePath,
-				...parsePngDimensions({
-					buffer: readFileSync(absolutePath),
-					filePath: absolutePath,
-				}),
-			});
+			try {
+				imageLuts.push({
+					path: relativePath,
+					...parsePngDimensions({
+						buffer: readFileSync(absolutePath),
+						filePath: absolutePath,
+					}),
+				});
+			} catch (error) {
+				issues.push(describeIssue({ relativePath, error }));
+			}
 		}
 		if (lowerPath.endsWith(".lua")) luaFiles.push(relativePath);
 		if (
@@ -351,6 +376,7 @@ export function inspectPackage({
 		luaFiles,
 		shaderFiles,
 		configFiles,
+		issues,
 	};
 }
 
@@ -459,6 +485,13 @@ function runCli() {
 					...(matches.some(({ packages }) => packages.length === 0)
 						? [
 								"At least one matching resource is not downloaded in artistEffect/effect.",
+							]
+						: []),
+					...(matches.some(({ packages }) =>
+						packages.some(({ issues }) => issues.length > 0)
+					)
+						? [
+								"At least one package asset could not be read or parsed; see package issues. A partial download is the usual cause — reopen the card in Jianying to finish it, then rerun.",
 							]
 						: []),
 				],

@@ -100,6 +100,48 @@ describe("inspect-filter-cache", () => {
 		}
 	});
 
+	test("reports malformed assets as issues instead of aborting the scan", () => {
+		const temporaryRoot = mkdtempSync(
+			path.join(os.tmpdir(), "qcut-filter-partial-")
+		);
+		try {
+			mkdirSync(path.join(temporaryRoot, "Partial/texture"), {
+				recursive: true,
+			});
+			mkdirSync(path.join(temporaryRoot, "Partial/image"), { recursive: true });
+			// A download interrupted mid-write: valid header, truncated payload.
+			writeFileSync(
+				path.join(temporaryRoot, "Partial/texture/truncated.cube.vf"),
+				createVfCube({ size: 17 }).subarray(0, 100)
+			);
+			writeFileSync(
+				path.join(temporaryRoot, "Partial/texture/filter.cube.vf"),
+				createVfCube({ size: 17 })
+			);
+			writeFileSync(
+				path.join(temporaryRoot, "Partial/image/filter_bg.png"),
+				Buffer.alloc(24)
+			);
+
+			const inspected = inspectPackage({ packageRoot: temporaryRoot });
+
+			// The intact cube is still classified and returned.
+			expect(inspected.kind).toBe("3d-lut");
+			expect(inspected.cubes).toHaveLength(1);
+			expect(inspected.cubes[0]?.path).toBe("Partial/texture/filter.cube.vf");
+			// Both bad files are surfaced as evidence, keyed by relative path.
+			expect(inspected.issues).toHaveLength(2);
+			expect(inspected.issues.join("\n")).toContain(
+				"Partial/texture/truncated.cube.vf: Invalid VF payload length"
+			);
+			expect(inspected.issues.join("\n")).toContain(
+				"Partial/image/filter_bg.png: Unsupported PNG texture"
+			);
+		} finally {
+			rmSync(temporaryRoot, { recursive: true, force: true });
+		}
+	});
+
 	test("maps exact HTTP-cache titles without losing 64-bit resource IDs", () => {
 		const temporaryRoot = mkdtempSync(
 			path.join(os.tmpdir(), "qcut-filter-db-")
