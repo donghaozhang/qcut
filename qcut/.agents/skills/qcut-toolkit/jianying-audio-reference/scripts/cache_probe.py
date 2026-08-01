@@ -55,7 +55,7 @@ def download_entries(music_root: Path) -> list[dict[str, str]]:
         return []
     try:
         config = json.loads(config_path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError):
+    except (FileNotFoundError, UnicodeDecodeError, json.JSONDecodeError):
         return []
     if not isinstance(config, dict):
         return []

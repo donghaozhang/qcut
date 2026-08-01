@@ -38,6 +38,13 @@ class DownloadEntriesTest(unittest.TestCase):
                 [{"date": "1", "hex": "request", "path": "audio.mp3"}],
             )
 
+    def test_invalid_utf8_config_is_empty(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            music_root = Path(temporary_directory)
+            (music_root / "downLoadcfg").write_bytes(b'\xff\xfe{"list": [')
+
+            self.assertEqual(cache_probe.download_entries(music_root), [])
+
 
 class ReadSnapshotTest(unittest.TestCase):
     def write_snapshot(self, directory: Path, music_root: object) -> Path:
