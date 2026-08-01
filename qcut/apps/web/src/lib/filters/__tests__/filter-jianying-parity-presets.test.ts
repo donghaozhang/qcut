@@ -61,6 +61,7 @@ const EXPECTED_LOCALIZED_NAMES = [
 ];
 
 const UPGRADED_PRESET_VERSIONS: Record<string, number> = {
+	"jy-black-gold": 2,
 	"jy-ink-film": 2,
 	"jy-ink-wash": 2,
 	"jy-quiet-dark": 2,
