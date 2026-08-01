@@ -26,6 +26,9 @@ class DownloadEntriesTest(unittest.TestCase):
                         "list": [
                             {"date": "1", "hex": "request", "path": "audio.mp3"},
                             {"date": "2", "hex": "", "path": "missing-key.mp3"},
+                            {"date": None, "hex": None, "path": None},
+                            {"date": 3, "hex": 123, "path": 456},
+                            {"date": 4, "hex": "numeric-date", "path": "numeric.mp3"},
                             "unexpected",
                         ]
                     }
@@ -35,7 +38,14 @@ class DownloadEntriesTest(unittest.TestCase):
 
             self.assertEqual(
                 cache_probe.download_entries(music_root),
-                [{"date": "1", "hex": "request", "path": "audio.mp3"}],
+                [
+                    {"date": "1", "hex": "request", "path": "audio.mp3"},
+                    {
+                        "date": "4",
+                        "hex": "numeric-date",
+                        "path": "numeric.mp3",
+                    },
+                ],
             )
 
     def test_invalid_utf8_config_is_empty(self) -> None:

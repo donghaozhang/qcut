@@ -1,5 +1,10 @@
+import { existsSync } from "node:fs";
+import { isAbsolute } from "node:path";
 import { describe, expect, test } from "bun:test";
-import { probeAudio } from "./audio-cache-files";
+import {
+	probeAudio,
+	resolveBundledFfprobePath,
+} from "./audio-cache-files";
 
 const VALID_PROBE_OUTPUT = JSON.stringify({
 	format: { format_name: "mov,mp4", duration: "1.5" },
@@ -14,6 +19,14 @@ const VALID_PROBE_OUTPUT = JSON.stringify({
 });
 
 describe("Jianying audio payload probe", () => {
+	test("resolves the installed ffprobe-static binary", () => {
+		const binaryPath = resolveBundledFfprobePath();
+		expect(binaryPath).not.toBeNull();
+		if (!binaryPath) return;
+		expect(isAbsolute(binaryPath)).toBe(true);
+		expect(existsSync(binaryPath)).toBe(true);
+	});
+
 	test("uses the bundled path and a bounded ffprobe invocation", () => {
 		const invocation = { binaryPath: "", timeoutMilliseconds: 0 };
 		const result = probeAudio({
@@ -86,5 +99,16 @@ describe("Jianying audio payload probe", () => {
 			code: "ffprobe-failed",
 			message: "Invalid data found when processing input",
 		});
+	});
+
+	test("rejects malformed and non-object ffprobe output", () => {
+		for (const stdout of ["{", "[]"]) {
+			const result = probeAudio({
+				filePath: "/cache/audio.mp3",
+				resolveFfprobePath: () => "/bundled/ffprobe",
+				runProbe: () => ({ status: 0, stdout, stderr: "" }),
+			});
+			expect(result.error?.code).toBe("invalid-ffprobe-output");
+		}
 	});
 });

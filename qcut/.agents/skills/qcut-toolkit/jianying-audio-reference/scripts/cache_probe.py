@@ -66,11 +66,23 @@ def download_entries(music_root: Path) -> list[dict[str, str]]:
     for raw_entry in raw_entries:
         if not isinstance(raw_entry, dict):
             continue
-        date = str(raw_entry.get("date", ""))
-        hex_value = str(raw_entry.get("hex", ""))
-        path_value = str(raw_entry.get("path", ""))
-        if hex_value and path_value:
-            entries.append({"date": date, "hex": hex_value, "path": path_value})
+        date = raw_entry.get("date", "")
+        hex_value = raw_entry.get("hex")
+        path_value = raw_entry.get("path")
+        if not isinstance(hex_value, str) or not hex_value:
+            continue
+        if not isinstance(path_value, str) or not path_value:
+            continue
+        normalized_date = date
+        if isinstance(date, (int, float)) and not isinstance(date, bool):
+            normalized_date = str(date)
+        entries.append(
+            {
+                "date": normalized_date if isinstance(normalized_date, str) else "",
+                "hex": hex_value,
+                "path": path_value,
+            }
+        )
     return entries
 
 
