@@ -60,6 +60,10 @@ const EXPECTED_LOCALIZED_NAMES = [
 	"水墨意境",
 ];
 
+const UPGRADED_PRESET_VERSIONS: Record<string, number> = {
+	"jy-quiet-dark": 2,
+};
+
 describe("Jianying parity filter presets", () => {
 	it("ships all fifty-five validated looks with stable metadata", () => {
 		expect(JIANYING_PARITY_FILTER_PRESETS).toHaveLength(55);
@@ -72,17 +76,20 @@ describe("Jianying parity filter presets", () => {
 
 		const categoryCounts = new Map<string, number>();
 		for (const preset of JIANYING_PARITY_FILTER_PRESETS) {
+			const expectedVersion = UPGRADED_PRESET_VERSIONS[preset.id] ?? 1;
 			categoryCounts.set(
 				preset.category,
 				(categoryCounts.get(preset.category) ?? 0) + 1
 			);
-			expect(preset.version).toBe(1);
+			expect(preset.version).toBe(expectedVersion);
 			expect(preset.defaultIntensity).toBe(100);
 			expect(preset.isNew).toBe(true);
 			expect(preset.thumbnail).toBe(
 				`/images/filter-previews/${preset.id}.webp`
 			);
-			expect(preset.lutAssetId).toBe(`qcut/filter/${preset.id}/v1`);
+			expect(preset.lutAssetId).toBe(
+				`qcut/filter/${preset.id}/v${expectedVersion}`
+			);
 		}
 
 		expect(Object.fromEntries(categoryCounts)).toEqual({
