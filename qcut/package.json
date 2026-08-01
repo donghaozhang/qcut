@@ -1,7 +1,7 @@
 {
 	"name": "qcut",
-	"version": "2026.8.109",
-	"qcutReleaseVersion": "2026.08.01.9",
+	"version": "2026.8.201",
+	"qcutReleaseVersion": "2026.08.02.1",
 	"description": "QCut - Open-source video editor",
 	"author": {
 		"name": "QCut Team",
