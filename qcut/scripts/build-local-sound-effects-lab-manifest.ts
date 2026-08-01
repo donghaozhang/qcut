@@ -40,6 +40,7 @@ interface CliOptions {
 	ffprobePath: string;
 	inputPath: string;
 	outputPath: string;
+	remoteOutputPath?: string;
 }
 
 interface FfprobeOutput {
@@ -65,9 +66,10 @@ export function parseCliOptions({
 }): CliOptions {
 	const inputPath = argumentValue({ args, name: "--input" });
 	const outputPath = argumentValue({ args, name: "--output" });
+	const remoteOutputPath = argumentValue({ args, name: "--remote-output" });
 	if (!inputPath || !outputPath) {
 		throw new Error(
-			"Usage: bun scripts/build-local-sound-effects-lab-manifest.ts --input <combined-map.json> --output <manifest.json> [--catalog-date YYYY-MM-DD] [--ffprobe /path/to/ffprobe]"
+			"Usage: bun scripts/build-local-sound-effects-lab-manifest.ts --input <combined-map.json> --output <local-manifest.json> [--remote-output <private-manifest.json>] [--catalog-date YYYY-MM-DD] [--ffprobe /path/to/ffprobe]"
 		);
 	}
 	const catalogDate =
@@ -84,6 +86,7 @@ export function parseCliOptions({
 			"ffprobe",
 		inputPath: resolve(inputPath),
 		outputPath: resolve(outputPath),
+		remoteOutputPath: remoteOutputPath ? resolve(remoteOutputPath) : undefined,
 	};
 }
 
@@ -212,6 +215,43 @@ export function buildManifest({
 	};
 }
 
+export function buildPrivateManifest({
+	catalogDate,
+	localManifest,
+}: {
+	catalogDate: string;
+	localManifest: ReturnType<typeof buildManifest>;
+}) {
+	return {
+		schemaVersion: 2 as const,
+		catalogId: localManifest.catalogId,
+		generatedAt: localManifest.generatedAt,
+		provenance: localManifest.provenance,
+		categories: localManifest.categories,
+		items: localManifest.items.map((item) => ({
+			id: item.id,
+			numericId: item.numericId,
+			title: item.title,
+			fileName: item.fileName,
+			mimeType: item.mimeType,
+			byteSize: item.byteSize,
+			duration: item.duration,
+			contentMd5: item.contentMd5,
+			contentSha256: item.contentSha256,
+			resourceId: item.resourceId,
+			batch: item.batch,
+			mappingStrategy: item.mappingStrategy,
+			categoryIds: item.categoryIds,
+			asset: {
+				kind: "supabase-storage" as const,
+				objectKey: `jianying/${catalogDate}/assets/${item.fileName}`,
+				byteSize: item.byteSize,
+				checksumSha256: item.contentSha256,
+			},
+		})),
+	};
+}
+
 export function run({ options }: { options: CliOptions }): void {
 	const candidate: unknown = JSON.parse(
 		readFileSync(options.inputPath, "utf8")
@@ -224,12 +264,26 @@ export function run({ options }: { options: CliOptions }): void {
 	});
 	mkdirSync(dirname(options.outputPath), { recursive: true });
 	writeFileSync(options.outputPath, `${JSON.stringify(manifest, null, 2)}\n`);
+	const privateManifest = options.remoteOutputPath
+		? buildPrivateManifest({
+				catalogDate: options.catalogDate,
+				localManifest: manifest,
+			})
+		: undefined;
+	if (options.remoteOutputPath && privateManifest) {
+		mkdirSync(dirname(options.remoteOutputPath), { recursive: true });
+		writeFileSync(
+			options.remoteOutputPath,
+			`${JSON.stringify(privateManifest, null, 2)}\n`
+		);
+	}
 	process.stdout.write(
 		`${JSON.stringify(
 			{
 				status: "ok",
 				inputPath: options.inputPath,
 				outputPath: options.outputPath,
+				remoteOutputPath: options.remoteOutputPath,
 				categories: manifest.categories.length,
 				items: manifest.items.length,
 			},
