@@ -10,6 +10,7 @@ import type {
 } from "../../../../../electron/types/claude-api";
 import { debugError } from "@/lib/debug/debug-config";
 import {
+	addClaudeAdjustmentElement,
 	getClaudeTextProperties,
 	getClaudeMediaTimingProperties,
 	syncProjectMediaIfNeeded,
@@ -155,6 +156,11 @@ export function setupBatchHandlers({
 									selectElement: false,
 								}
 							);
+						} else if (normalizedType === "adjustment") {
+							createdElementId = addClaudeAdjustmentElement({
+								element,
+								timelineStore,
+							});
 						} else if (normalizedType === "text") {
 							const style = element.style || {};
 							const textProperties = getClaudeTextProperties({ element });
