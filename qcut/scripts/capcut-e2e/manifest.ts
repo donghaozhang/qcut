@@ -27,6 +27,17 @@ export interface CapCutE2eFontFileReport extends FileIntegrityReport {
 	path: string;
 }
 
+export interface CapCutE2eSourceFrameCalibrationEvidence {
+	clipARoiSha256: string;
+	clipBRoiSha256: string;
+	ordinalStripSha256: readonly [string, string];
+}
+
+export type CapCutE2eSourceFrameCalibrationReport =
+	CapCutE2eFixtureSpec["sourceFrameCalibration"] & {
+		evidence: CapCutE2eSourceFrameCalibrationEvidence;
+	};
+
 export interface CapCutE2eManifest {
 	artifacts: CapCutE2eArtifactReport[];
 	audioToneEvidence: SourceAudioToneEvidence;
@@ -45,7 +56,8 @@ export interface CapCutE2eManifest {
 		cjk: FontGlyphCoverageReport;
 	};
 	runId: string;
-	schemaVersion: 1;
+	schemaVersion: 2;
+	sourceFrameCalibration: CapCutE2eSourceFrameCalibrationReport;
 	spec: CapCutE2eFixtureSpec;
 	targetKey: string;
 }
@@ -174,6 +186,8 @@ export function validateSourceVideoProbe({
 			spec.width ||
 		requireNumber({ label: "Video height", value: video.height }) !==
 			spec.height ||
+		requireNumber({ label: "Video frame count", value: video.nb_frames }) !==
+			spec.clipDurationSeconds * 2 * spec.fps ||
 		requireString({ label: "Video pixel format", value: video.pix_fmt }) !==
 			"yuv420p"
 	) {
@@ -270,6 +284,118 @@ export async function describeArtifacts({
 	);
 }
 
+function requireCalibrationArtifact({
+	artifacts,
+	fileName,
+}: {
+	artifacts: CapCutE2eArtifactReport[];
+	fileName: string;
+}): CapCutE2eArtifactReport {
+	const matches = artifacts.filter(
+		(artifact) => artifact.fileName === fileName
+	);
+	if (matches.length !== 1 || !matches[0]) {
+		throw new Error(
+			`Calibration artifact ${fileName} must appear exactly once.`
+		);
+	}
+	return matches[0];
+}
+
+export function buildSourceFrameCalibrationReport({
+	artifacts,
+}: {
+	artifacts: CapCutE2eArtifactReport[];
+}): CapCutE2eSourceFrameCalibrationReport {
+	const names = CAPCUT_E2E_FIXTURE_SPEC.fileNames;
+	const clipAReference = requireCalibrationArtifact({
+		artifacts,
+		fileName: names.calibrationRoiAReference,
+	});
+	const clipAStart = requireCalibrationArtifact({
+		artifacts,
+		fileName: names.calibrationRoiAStart,
+	});
+	const clipASeam = requireCalibrationArtifact({
+		artifacts,
+		fileName: names.calibrationRoiASeam,
+	});
+	const clipAEnd = requireCalibrationArtifact({
+		artifacts,
+		fileName: names.calibrationRoiAEnd,
+	});
+	const clipAAdjacent = requireCalibrationArtifact({
+		artifacts,
+		fileName: names.calibrationRoiAAdjacent,
+	});
+	const clipBReference = requireCalibrationArtifact({
+		artifacts,
+		fileName: names.calibrationRoiBReference,
+	});
+	const clipBAdjacent = requireCalibrationArtifact({
+		artifacts,
+		fileName: names.calibrationRoiBAdjacent,
+	});
+	const clipBStart = requireCalibrationArtifact({
+		artifacts,
+		fileName: names.calibrationRoiBStart,
+	});
+	const clipBSeam = requireCalibrationArtifact({
+		artifacts,
+		fileName: names.calibrationRoiBSeam,
+	});
+	const clipBEnd = requireCalibrationArtifact({
+		artifacts,
+		fileName: names.calibrationRoiBEnd,
+	});
+	const ordinalReference = requireCalibrationArtifact({
+		artifacts,
+		fileName: names.calibrationOrdinalReference,
+	});
+	const ordinalAdjacent = requireCalibrationArtifact({
+		artifacts,
+		fileName: names.calibrationOrdinalAdjacent,
+	});
+	const clipAArtifacts = [
+		clipAStart,
+		clipAReference,
+		clipAAdjacent,
+		clipASeam,
+		clipAEnd,
+	];
+	const clipBArtifacts = [
+		clipBStart,
+		clipBSeam,
+		clipBReference,
+		clipBAdjacent,
+		clipBEnd,
+	];
+	if (clipAArtifacts.some(({ sha256 }) => sha256 !== clipAReference.sha256)) {
+		throw new Error(
+			"Clip A comparison ROI is not invariant across frames 0/45/46/83/89."
+		);
+	}
+	if (clipBArtifacts.some(({ sha256 }) => sha256 !== clipBReference.sha256)) {
+		throw new Error(
+			"Clip B comparison ROI is not invariant across frames 90/97/135/136/179."
+		);
+	}
+	if (clipAReference.sha256 === clipBReference.sha256) {
+		throw new Error("Clip A and Clip B comparison plates must be distinct.");
+	}
+	if (ordinalReference.sha256 === ordinalAdjacent.sha256) {
+		throw new Error("Ordinal strip must change across frames 45/46.");
+	}
+	return {
+		...CAPCUT_E2E_FIXTURE_SPEC.sourceFrameCalibration,
+		evidence: {
+			clipARoiSha256: clipAReference.sha256,
+			clipBRoiSha256: clipBReference.sha256,
+			ordinalStripSha256: [ordinalReference.sha256, ordinalAdjacent.sha256],
+		},
+	};
+}
+
 export async function describeFontFiles({
 	fontPaths,
 }: {
@@ -302,7 +428,7 @@ export function validateManifest({
 }: {
 	manifest: CapCutE2eManifest;
 }): void {
-	if (manifest.schemaVersion !== 1) {
+	if (manifest.schemaVersion !== 2) {
 		throw new Error(
 			`Unsupported CapCut E2E manifest ${manifest.schemaVersion}.`
 		);
@@ -311,6 +437,16 @@ export function validateManifest({
 	if (!isDeepStrictEqual(manifest.spec, CAPCUT_E2E_FIXTURE_SPEC)) {
 		throw new Error(
 			"Manifest fixture spec must exactly match the locked CapCut E2E fixture spec."
+		);
+	}
+	if (
+		!isDeepStrictEqual(
+			manifest.sourceFrameCalibration,
+			buildSourceFrameCalibrationReport({ artifacts: manifest.artifacts })
+		)
+	) {
+		throw new Error(
+			"Manifest source-frame calibration must match the locked fixture spec."
 		);
 	}
 	if (

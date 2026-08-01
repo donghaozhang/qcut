@@ -6,8 +6,12 @@ Generate a self-contained run under `.tmp/capcut-e2e/runs/<run-id>`:
 bun run capcut:e2e:fixtures
 ```
 
-The six-second H.264 source video is video-only: Clip A uses `testsrc2`, Clip B
-uses SMPTE bars, and every rendered label is printable ASCII. A separate
+The six-second H.264 source video is video-only: Clip A freezes the first
+`testsrc2` frame and Clip B freezes the first SMPTE-bars frame. Both plates add
+different asymmetric corner marks. The top 96-pixel strip shows the zero-based
+global frame ordinal; the locked comparison ROI is `1280x624+0+96`, so visual
+metrics never compare that changing strip. Every rendered label is printable
+ASCII. A separate
 `source-audio.wav` contains mono 48 kHz PCM s16le audio (440 Hz for three
 seconds, then 660 Hz for three seconds), so a draft can place video and audio
 without doubling embedded sound. Chinese is rendered only in
@@ -21,11 +25,16 @@ audio windows from zero crossings: Clip A must be 440 Hz and Clip B 660 Hz,
 each within ±1 Hz, and the recorded frequency must equal
 `zeroCrossings / (2 * durationSeconds)`. Generation fails if any check differs.
 
-Manifest schema `1` is the first stable fixture schema. Earlier development
-runs under `.tmp/capcut-e2e/runs` are intentionally incompatible and should be
-regenerated. Bundle generation re-hashes every artifact and both font files
-before using a run; the spec and file-name set must exactly match the locked
-schema.
+Manifest schema `2` records exact source-frame calibration: frame 45 at
+1,500,000µs for Plate A and frame 135 at 4,500,000µs for Plate B, selected with
+FFmpeg's zero-based frame index. Generation also keeps twelve hashed pixel
+proofs: the comparison ROI must have identical PNG hashes at A frames
+0/45/46/83/89 and B frames 90/97/135/136/179, the A/B hashes must differ, and
+ordinal-strip frames 45/46 must have different hashes. Schema-1 runs under
+`.tmp/capcut-e2e/runs` are
+intentionally incompatible and should be regenerated. Bundle generation
+re-hashes every artifact and both font files before using a run; the spec and
+file-name set must exactly match the locked schema.
 
 On macOS the default CJK font is CapCut's
 `Contents/Resources/Font/SystemFont/zh-hans.ttf`. Override it on any platform

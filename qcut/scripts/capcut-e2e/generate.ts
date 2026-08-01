@@ -14,6 +14,7 @@ import {
 	buildSourceVideoArgs,
 } from "./ffmpeg-args.js";
 import {
+	buildSourceFrameCalibrationReport,
 	describeArtifacts,
 	describeFontFiles,
 	type CapCutE2eManifest,
@@ -27,6 +28,7 @@ import {
 	requireBundledToolVersion,
 	resolveBundledToolPath,
 	runFfmpeg,
+	sha256File,
 } from "./runtime.js";
 import {
 	CAPCUT_E2E_FIXTURE_SPEC,
@@ -54,6 +56,10 @@ export interface FixtureFontPaths {
 export interface FixtureFontReports {
 	ascii: FontGlyphCoverageReport;
 	cjk: FontGlyphCoverageReport;
+}
+
+interface GeneratedDrawtextArtifacts extends FixtureFontReports {
+	fontSha256: { ascii: string; cjk: string };
 }
 
 export interface GenerateFixtureResult {
@@ -115,16 +121,22 @@ export async function generateDrawtextArtifacts({
 	assertCoverage,
 	ffmpegPath,
 	fontPaths,
+	hashFile = sha256File,
 	outputPaths,
 	run = runFfmpeg,
 }: {
 	assertCoverage: FontCoverageAssertion;
 	ffmpegPath: string;
 	fontPaths: FixtureFontPaths;
+	hashFile?: typeof sha256File;
 	outputPaths: { cjkProof: string; sourceVideo: string };
 	run?: FfmpegRunner;
-}): Promise<FixtureFontReports> {
+}): Promise<GeneratedDrawtextArtifacts> {
 	// Both checks complete before either drawtext process is allowed to start.
+	const [asciiInitialSha256, cjkInitialSha256] = await Promise.all([
+		hashFile({ filePath: fontPaths.ascii }),
+		hashFile({ filePath: fontPaths.cjk }),
+	]);
 	const [ascii, cjk] = await Promise.all([
 		assertCoverage({
 			fontPath: fontPaths.ascii,
@@ -135,6 +147,9 @@ export async function generateDrawtextArtifacts({
 			text: CAPCUT_E2E_FIXTURE_SPEC.cjkProofText,
 		}),
 	]);
+	if ((await hashFile({ filePath: fontPaths.ascii })) !== asciiInitialSha256) {
+		throw new Error("ASCII font changed between cmap coverage and drawtext.");
+	}
 	await run({
 		args: buildSourceVideoArgs({
 			asciiFontPath: fontPaths.ascii,
@@ -142,6 +157,12 @@ export async function generateDrawtextArtifacts({
 		}),
 		ffmpegPath,
 	});
+	if ((await hashFile({ filePath: fontPaths.ascii })) !== asciiInitialSha256) {
+		throw new Error("ASCII font changed while drawtext was rendering.");
+	}
+	if ((await hashFile({ filePath: fontPaths.cjk })) !== cjkInitialSha256) {
+		throw new Error("CJK font changed between cmap coverage and drawtext.");
+	}
 	await run({
 		args: buildCjkProofArgs({
 			cjkFontPath: fontPaths.cjk,
@@ -149,7 +170,14 @@ export async function generateDrawtextArtifacts({
 		}),
 		ffmpegPath,
 	});
-	return { ascii, cjk };
+	if ((await hashFile({ filePath: fontPaths.cjk })) !== cjkInitialSha256) {
+		throw new Error("CJK font changed while drawtext was rendering.");
+	}
+	return {
+		ascii,
+		cjk,
+		fontSha256: { ascii: asciiInitialSha256, cjk: cjkInitialSha256 },
+	};
 }
 
 function createRunId(): string {
@@ -208,6 +236,30 @@ export async function generateCapCutE2eFixture({
 	await mkdir(runDirectory);
 	const names = CAPCUT_E2E_FIXTURE_SPEC.fileNames;
 	const outputPaths = {
+		calibrationOrdinalAdjacent: join(
+			runDirectory,
+			names.calibrationOrdinalAdjacent
+		),
+		calibrationOrdinalReference: join(
+			runDirectory,
+			names.calibrationOrdinalReference
+		),
+		calibrationRoiAAdjacent: join(runDirectory, names.calibrationRoiAAdjacent),
+		calibrationRoiAEnd: join(runDirectory, names.calibrationRoiAEnd),
+		calibrationRoiAReference: join(
+			runDirectory,
+			names.calibrationRoiAReference
+		),
+		calibrationRoiASeam: join(runDirectory, names.calibrationRoiASeam),
+		calibrationRoiAStart: join(runDirectory, names.calibrationRoiAStart),
+		calibrationRoiBAdjacent: join(runDirectory, names.calibrationRoiBAdjacent),
+		calibrationRoiBEnd: join(runDirectory, names.calibrationRoiBEnd),
+		calibrationRoiBReference: join(
+			runDirectory,
+			names.calibrationRoiBReference
+		),
+		calibrationRoiBSeam: join(runDirectory, names.calibrationRoiBSeam),
+		calibrationRoiBStart: join(runDirectory, names.calibrationRoiBStart),
 		cjkProof: join(runDirectory, names.cjkProof),
 		manifest: join(runDirectory, names.manifest),
 		sourceAudio: join(runDirectory, names.sourceAudio),
@@ -216,7 +268,7 @@ export async function generateCapCutE2eFixture({
 		sourceVideo: join(runDirectory, names.sourceVideo),
 	};
 	const fontPaths = resolveFixtureFontPaths();
-	const fontReports = await generateDrawtextArtifacts({
+	const { fontSha256, ...fontReports } = await generateDrawtextArtifacts({
 		assertCoverage,
 		ffmpegPath,
 		fontPaths,
@@ -226,12 +278,73 @@ export async function generateCapCutE2eFixture({
 		args: buildSourceAudioArgs({ outputPath: outputPaths.sourceAudio }),
 		ffmpegPath,
 	});
-	const framesPerClip =
-		CAPCUT_E2E_FIXTURE_SPEC.clipDurationSeconds * CAPCUT_E2E_FIXTURE_SPEC.fps;
+	const calibration = CAPCUT_E2E_FIXTURE_SPEC.sourceFrameCalibration;
+	const calibrationExtractions = [
+		{
+			cropRegion: calibration.comparisonRoi,
+			frameIndex: calibration.invarianceSamples.clipAFrameIndices[0],
+			outputPath: outputPaths.calibrationRoiAStart,
+		},
+		{
+			cropRegion: calibration.comparisonRoi,
+			frameIndex: calibration.invarianceSamples.clipAFrameIndices[1],
+			outputPath: outputPaths.calibrationRoiAReference,
+		},
+		{
+			cropRegion: calibration.comparisonRoi,
+			frameIndex: calibration.invarianceSamples.clipAFrameIndices[2],
+			outputPath: outputPaths.calibrationRoiAAdjacent,
+		},
+		{
+			cropRegion: calibration.comparisonRoi,
+			frameIndex: calibration.invarianceSamples.clipAFrameIndices[3],
+			outputPath: outputPaths.calibrationRoiASeam,
+		},
+		{
+			cropRegion: calibration.comparisonRoi,
+			frameIndex: calibration.invarianceSamples.clipAFrameIndices[4],
+			outputPath: outputPaths.calibrationRoiAEnd,
+		},
+		{
+			cropRegion: calibration.comparisonRoi,
+			frameIndex: calibration.invarianceSamples.clipBFrameIndices[0],
+			outputPath: outputPaths.calibrationRoiBStart,
+		},
+		{
+			cropRegion: calibration.comparisonRoi,
+			frameIndex: calibration.invarianceSamples.clipBFrameIndices[1],
+			outputPath: outputPaths.calibrationRoiBSeam,
+		},
+		{
+			cropRegion: calibration.comparisonRoi,
+			frameIndex: calibration.invarianceSamples.clipBFrameIndices[2],
+			outputPath: outputPaths.calibrationRoiBReference,
+		},
+		{
+			cropRegion: calibration.comparisonRoi,
+			frameIndex: calibration.invarianceSamples.clipBFrameIndices[3],
+			outputPath: outputPaths.calibrationRoiBAdjacent,
+		},
+		{
+			cropRegion: calibration.comparisonRoi,
+			frameIndex: calibration.invarianceSamples.clipBFrameIndices[4],
+			outputPath: outputPaths.calibrationRoiBEnd,
+		},
+		{
+			cropRegion: calibration.ordinalStrip,
+			frameIndex: calibration.invarianceSamples.ordinalFrameIndices[0],
+			outputPath: outputPaths.calibrationOrdinalReference,
+		},
+		{
+			cropRegion: calibration.ordinalStrip,
+			frameIndex: calibration.invarianceSamples.ordinalFrameIndices[1],
+			outputPath: outputPaths.calibrationOrdinalAdjacent,
+		},
+	];
 	await Promise.all([
 		runFfmpeg({
 			args: buildFrameExtractionArgs({
-				frameIndex: Math.floor(framesPerClip / 2),
+				frameIndex: calibration.sourceFrameAIndex,
 				inputPath: outputPaths.sourceVideo,
 				outputPath: outputPaths.sourceFrameA,
 			}),
@@ -239,12 +352,23 @@ export async function generateCapCutE2eFixture({
 		}),
 		runFfmpeg({
 			args: buildFrameExtractionArgs({
-				frameIndex: framesPerClip + Math.floor(framesPerClip / 2),
+				frameIndex: calibration.sourceFrameBIndex,
 				inputPath: outputPaths.sourceVideo,
 				outputPath: outputPaths.sourceFrameB,
 			}),
 			ffmpegPath,
 		}),
+		...calibrationExtractions.map(({ cropRegion, frameIndex, outputPath }) =>
+			runFfmpeg({
+				args: buildFrameExtractionArgs({
+					cropRegion,
+					frameIndex,
+					inputPath: outputPaths.sourceVideo,
+					outputPath,
+				}),
+				ffmpegPath,
+			})
+		),
 	]);
 	const [sourceAudio, sourceVideo, audioToneEvidence] = await Promise.all([
 		probeMedia({
@@ -271,6 +395,18 @@ export async function generateCapCutE2eFixture({
 	const [artifacts, fontFiles] = await Promise.all([
 		describeArtifacts({
 			filePaths: [
+				outputPaths.calibrationOrdinalAdjacent,
+				outputPaths.calibrationOrdinalReference,
+				outputPaths.calibrationRoiAAdjacent,
+				outputPaths.calibrationRoiAEnd,
+				outputPaths.calibrationRoiAReference,
+				outputPaths.calibrationRoiASeam,
+				outputPaths.calibrationRoiAStart,
+				outputPaths.calibrationRoiBAdjacent,
+				outputPaths.calibrationRoiBEnd,
+				outputPaths.calibrationRoiBReference,
+				outputPaths.calibrationRoiBSeam,
+				outputPaths.calibrationRoiBStart,
 				outputPaths.cjkProof,
 				outputPaths.sourceAudio,
 				outputPaths.sourceFrameA,
@@ -280,6 +416,12 @@ export async function generateCapCutE2eFixture({
 		}),
 		describeFontFiles({ fontPaths }),
 	]);
+	if (
+		fontFiles.ascii.sha256 !== fontSha256.ascii ||
+		fontFiles.cjk.sha256 !== fontSha256.cjk
+	) {
+		throw new Error("Fixture fonts changed after drawtext rendering.");
+	}
 	const manifest: CapCutE2eManifest = {
 		artifacts,
 		audioToneEvidence,
@@ -289,7 +431,8 @@ export async function generateCapCutE2eFixture({
 		fontFiles,
 		fontReports,
 		runId,
-		schemaVersion: 1,
+		schemaVersion: 2,
+		sourceFrameCalibration: buildSourceFrameCalibrationReport({ artifacts }),
 		spec: CAPCUT_E2E_FIXTURE_SPEC,
 		targetKey,
 	};

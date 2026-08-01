@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { FontGlyphCoverageReport } from "../capcut-e2e/font-coverage-contract.js";
 import {
 	buildCjkProofArgs,
+	buildFrameExtractionArgs,
 	buildSourceAudioArgs,
 	buildSourceVideoArgs,
 } from "../capcut-e2e/ffmpeg-args.js";
@@ -37,6 +38,7 @@ describe("CapCut E2E font preflight", () => {
 			},
 			ffmpegPath: "/tools/ffmpeg",
 			fontPaths: { ascii: "/fonts/ascii.ttf", cjk: "/fonts/cjk.ttf" },
+			hashFile: async () => "stable-font-hash",
 			outputPaths: {
 				cjkProof: "/output/cjk-font-proof.png",
 				sourceVideo: "/output/source-video.mp4",
@@ -52,6 +54,34 @@ describe("CapCut E2E font preflight", () => {
 			"ffmpeg:/output/source-video.mp4",
 			"ffmpeg:/output/cjk-font-proof.png",
 		]);
+	});
+
+	it("fails closed when a covered font mutates during drawtext", async () => {
+		let asciiHashCalls = 0;
+		let drawtextRuns = 0;
+		await expect(
+			generateDrawtextArtifacts({
+				assertCoverage: async ({ fontPath, text }) =>
+					report({ fontPath, text }),
+				ffmpegPath: "/tools/ffmpeg",
+				fontPaths: { ascii: "/fonts/ascii.ttf", cjk: "/fonts/cjk.ttf" },
+				hashFile: async ({ filePath }) => {
+					if (filePath === "/fonts/ascii.ttf") {
+						asciiHashCalls += 1;
+						return asciiHashCalls >= 3 ? "mutated" : "stable-ascii";
+					}
+					return "stable-cjk";
+				},
+				outputPaths: {
+					cjkProof: "/output/cjk-font-proof.png",
+					sourceVideo: "/output/source-video.mp4",
+				},
+				run: async () => {
+					drawtextRuns += 1;
+				},
+			})
+		).rejects.toThrow("ASCII font changed while drawtext was rendering");
+		expect(drawtextRuns).toBe(1);
 	});
 
 	it("uses separate explicit fonts for ASCII source pixels and CJK proof", () => {
@@ -71,6 +101,12 @@ describe("CapCut E2E font preflight", () => {
 		expect(source).not.toContain("剪映");
 		expect(source).toContain("testsrc2=size=");
 		expect(source).toContain("smptebars=size=");
+		expect(source).toContain("trim=end_frame=1");
+		expect(source).toContain("loop=loop=89:size=1:start=0");
+		expect(source).toContain("GLOBAL FRAME %{eif\\:n+0\\:d\\:3}");
+		expect(source).toContain("GLOBAL FRAME %{eif\\:n+90\\:d\\:3}");
+		expect(source).toContain("drawbox=x=0:y=0:w=iw:h=96");
+		expect(source).toContain("-crf 0");
 		expect(source).toContain("-an");
 		expect(proof).toContain("/fonts/cjk.ttf");
 		expect(proof).toContain("剪映真实导入测试");
@@ -87,6 +123,16 @@ describe("CapCut E2E font preflight", () => {
 		expect(audio).toContain("sample_rates=48000");
 		expect(audio).toContain("channel_layouts=mono");
 		expect(audio).toContain("/output/source-audio.wav");
+	});
+
+	it("extracts calibration pixels with a locked crop after frame selection", () => {
+		const args = buildFrameExtractionArgs({
+			cropRegion: { height: 624, width: 1280, x: 0, y: 96 },
+			frameIndex: 45,
+			inputPath: "/run/source-video.mp4",
+			outputPath: "/run/calibration-roi-a-n045.png",
+		});
+		expect(args).toContain("select=eq(n\\,45),crop=1280:624:0:96");
 	});
 
 	it("uses CapCut zh-hans.ttf by default on macOS and accepts an absolute override", () => {

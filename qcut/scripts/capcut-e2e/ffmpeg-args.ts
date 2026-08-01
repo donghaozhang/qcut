@@ -15,11 +15,13 @@ function drawTextFilter({
 	fontPath,
 	fontSize,
 	text,
+	x,
 	y,
 }: {
 	fontPath: string;
 	fontSize: number;
 	text: string;
+	x: string;
 	y: string;
 }): string {
 	const options = [
@@ -29,7 +31,7 @@ function drawTextFilter({
 		"fontcolor=white",
 		"borderw=3",
 		"bordercolor=black@0.65",
-		"x=(w-text_w)/2",
+		`x=${x}`,
 		`y=${y}`,
 	];
 	return `drawtext=${options.join(":")}`;
@@ -37,30 +39,64 @@ function drawTextFilter({
 
 function buildClipFilters({
 	clipLabel,
+	clipOffsetFrames,
 	fontPath,
+	plate,
 }: {
 	clipLabel: string;
+	clipOffsetFrames: number;
 	fontPath: string;
+	plate: "a" | "b";
 }): string {
 	const labels = CAPCUT_E2E_FIXTURE_SPEC.labels;
+	const asymmetricPlateMarkers =
+		plate === "a"
+			? [
+					"drawbox=x=42:y=138:w=174:h=92:color=0xFF3B30@0.92:t=fill",
+					"drawbox=x=iw-282:y=ih-176:w=236:h=108:color=0x34C759@0.92:t=fill",
+				]
+			: [
+					"drawbox=x=iw-226:y=138:w=184:h=92:color=0xAF52DE@0.92:t=fill",
+					"drawbox=x=46:y=ih-190:w=252:h=122:color=0xFF9500@0.92:t=fill",
+				];
+	const ordinalExpression = `%{eif:n+${clipOffsetFrames}:d:3}`;
 	return [
+		...asymmetricPlateMarkers,
 		drawTextFilter({
 			fontPath,
 			fontSize: 64,
 			text: labels.title,
+			x: "(w-text_w)/2",
 			y: "120",
 		}),
 		drawTextFilter({
 			fontPath,
 			fontSize: 108,
 			text: clipLabel,
+			x: "(w-text_w)/2",
 			y: "(h-text_h)/2",
 		}),
 		drawTextFilter({
 			fontPath,
 			fontSize: 34,
 			text: labels.safety,
+			x: "(w-text_w)/2",
 			y: "h-text_h-72",
+		}),
+		`drawbox=x=0:y=0:w=iw:h=${CAPCUT_E2E_FIXTURE_SPEC.sourceFrameCalibration.ordinalStrip.height}:color=black@1:t=fill`,
+		drawTextFilter({
+			fontPath,
+			fontSize: 44,
+			text: `${labels.ordinal} ${ordinalExpression}`,
+			x: "48",
+			y: "24",
+		}),
+		drawTextFilter({
+			fontPath,
+			fontSize: 44,
+			text: clipLabel,
+			x: "w-text_w-48",
+			y: "24",
 		}),
 	].join(",");
 }
@@ -74,17 +110,23 @@ export function buildSourceVideoArgs({
 }): string[] {
 	const spec = CAPCUT_E2E_FIXTURE_SPEC;
 	const size = `${spec.width}x${spec.height}`;
+	const framesPerClip = spec.clipDurationSeconds * spec.fps;
 	const clipA = buildClipFilters({
 		clipLabel: spec.labels.clipA,
+		clipOffsetFrames: 0,
 		fontPath: asciiFontPath,
+		plate: "a",
 	});
 	const clipB = buildClipFilters({
 		clipLabel: spec.labels.clipB,
+		clipOffsetFrames: framesPerClip,
 		fontPath: asciiFontPath,
+		plate: "b",
 	});
+	const freezeFirstFrame = `trim=end_frame=1,loop=loop=${framesPerClip - 1}:size=1:start=0,setpts=N/(${spec.fps}*TB)`;
 	const filterComplex = [
-		`[0:v]${clipA},format=yuv420p[clip-a]`,
-		`[1:v]${clipB},format=yuv420p[clip-b]`,
+		`[0:v]${freezeFirstFrame},${clipA},format=yuv420p[clip-a]`,
+		`[1:v]${freezeFirstFrame},${clipB},format=yuv420p[clip-b]`,
 		"[clip-a][clip-b]concat=n=2:v=1:a=0[video]",
 	].join(";");
 	return [
@@ -94,11 +136,11 @@ export function buildSourceVideoArgs({
 		"-f",
 		"lavfi",
 		"-i",
-		`${spec.patterns.clipA}=size=${size}:rate=${spec.fps}:duration=${spec.clipDurationSeconds}`,
+		`${spec.patterns.clipA}=size=${size}:rate=${spec.fps}:duration=1`,
 		"-f",
 		"lavfi",
 		"-i",
-		`${spec.patterns.clipB}=size=${size}:rate=${spec.fps}:duration=${spec.clipDurationSeconds}`,
+		`${spec.patterns.clipB}=size=${size}:rate=${spec.fps}:duration=1`,
 		"-filter_complex",
 		filterComplex,
 		"-map",
@@ -108,7 +150,7 @@ export function buildSourceVideoArgs({
 		"-preset",
 		"medium",
 		"-crf",
-		"18",
+		"0",
 		"-pix_fmt",
 		"yuv420p",
 		"-r",
@@ -187,6 +229,7 @@ export function buildCjkProofArgs({
 			fontPath: cjkFontPath,
 			fontSize: 112,
 			text: spec.cjkProofText,
+			x: "(w-text_w)/2",
 			y: "(h-text_h)/2",
 		}),
 		"-frames:v",
@@ -199,14 +242,19 @@ export function buildCjkProofArgs({
 }
 
 export function buildFrameExtractionArgs({
+	cropRegion,
 	frameIndex,
 	inputPath,
 	outputPath,
 }: {
+	cropRegion?: { height: number; width: number; x: number; y: number };
 	frameIndex: number;
 	inputPath: string;
 	outputPath: string;
 }): string[] {
+	const cropFilter = cropRegion
+		? `,crop=${cropRegion.width}:${cropRegion.height}:${cropRegion.x}:${cropRegion.y}`
+		: "";
 	return [
 		"-hide_banner",
 		"-loglevel",
@@ -214,7 +262,7 @@ export function buildFrameExtractionArgs({
 		"-i",
 		inputPath,
 		"-vf",
-		`select=eq(n\\,${frameIndex})`,
+		`select=eq(n\\,${frameIndex})${cropFilter}`,
 		"-frames:v",
 		"1",
 		"-fps_mode",
