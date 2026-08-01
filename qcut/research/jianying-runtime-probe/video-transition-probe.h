@@ -15,6 +15,7 @@ struct RawVideoTransitionRequest {
   int height;
   double frameRate;
   double transitionDurationSeconds;
+  bool holdExactEndpoints;
 };
 
 struct RawVideoTransitionResult {

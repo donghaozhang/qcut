@@ -157,6 +157,8 @@ RawVideoTransitionResult renderRawVideoTransition(
 
   std::vector<std::uint8_t> frameA(frameBytes);
   std::vector<std::uint8_t> frameB(frameBytes);
+  TransitionPixelSession transitionSession(
+      request.runtimeRoot, request.packagePath, request.width, request.height);
   const std::size_t prefixFrames = inputAFrames - framesBeforeCut;
   copyFrames(inputA, output, frameA, prefixFrames, "raw input A");
   readFrame(inputB, frameB, "raw input B transition head");
@@ -168,20 +170,26 @@ RawVideoTransitionResult renderRawVideoTransition(
     if (index > framesBeforeCut) {
       readFrame(inputB, frameB, "raw input B transition head");
     }
-    const double progress =
+    const double timelineProgress =
         static_cast<double>(index) /
-        static_cast<double>(transitionFrames - 1);
+        static_cast<double>(framesBeforeCut * 2);
     std::cout << "[video] transition frame " << index + 1 << '/'
-              << transitionFrames << ", progress = " << progress << '\n';
+              << transitionFrames << ", timeline progress = "
+              << timelineProgress << '\n';
 
-    const TransitionPixelFrameResult rendered = renderTransitionPixelFrame({
-        .runtimeRoot = request.runtimeRoot,
-        .packagePath = request.packagePath,
-        .width = request.width,
-        .height = request.height,
+    if (request.holdExactEndpoints && index == 0) {
+      writeFrame(output, frameA);
+      continue;
+    }
+    if (request.holdExactEndpoints && timelineProgress >= 1.0) {
+      writeFrame(output, frameB);
+      continue;
+    }
+
+    const TransitionPixelFrameResult rendered = transitionSession.renderFrame({
         .inputAPixels = frameA,
         .inputBPixels = frameB,
-        .progress = progress,
+        .progress = timelineProgress,
     });
     if (!rendered.rendered || rendered.outputPixels.size() != frameBytes) {
       throw std::runtime_error(

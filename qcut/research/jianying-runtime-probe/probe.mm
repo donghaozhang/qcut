@@ -122,6 +122,17 @@ using jianying_probe::resolveSymbol;
   return value;
 }
 
+[[nodiscard]] bool optionalBooleanEnvironment(const char* name) {
+  const char* value = std::getenv(name);
+  if (value == nullptr || std::string_view(value) == "0") {
+    return false;
+  }
+  if (std::string_view(value) == "1") {
+    return true;
+  }
+  throw std::runtime_error(std::string(name) + " must be 0 or 1");
+}
+
 [[nodiscard]] RuntimeSymbols loadRuntime(const fs::path& runtimeRoot) {
   const fs::path frameworks = runtimeRoot / "Frameworks";
   openLibrary(frameworks / "libAGFX.dylib");
@@ -312,6 +323,8 @@ void configure(ObjectStorage<kConfigStorageSize>& config,
         .frameRate = requirePositiveNumberEnvironment("JY_VIDEO_FPS"),
         .transitionDurationSeconds =
             requirePositiveNumberEnvironment("JY_TRANSITION_DURATION"),
+        .holdExactEndpoints =
+            optionalBooleanEnvironment("JY_TRANSITION_HOLD_EXACT_ENDPOINTS"),
     });
     return result.outputFrames > 0 ? 0 : 8;
   }
