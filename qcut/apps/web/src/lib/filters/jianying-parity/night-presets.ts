@@ -1,4 +1,8 @@
 import type { FilterPreset } from "../filter-types";
+import {
+	ORANGE_TEAL_BACKGROUND_RECIPE,
+	ORANGE_TEAL_SKIN_TONE_RECIPE,
+} from "./orange-teal-recipes";
 
 export const JIANYING_NIGHT_PARITY_FILTER_PRESETS: FilterPreset[] = [
 	{
@@ -106,27 +110,16 @@ export const JIANYING_NIGHT_PARITY_FILTER_PRESETS: FilterPreset[] = [
 	},
 	{
 		id: "jy-orange-teal",
-		version: 1,
+		version: 2,
 		name: "Orange Teal",
 		localizedName: "橙蓝",
 		category: "night",
 		tags: ["night", "cityscape", "夜景", "橙蓝", "Orange Teal"],
 		thumbnail: "/images/filter-previews/jy-orange-teal.webp",
-		lutAssetId: "qcut/filter/jy-orange-teal/v1",
+		lutAssetId: "qcut/filter/jy-orange-teal/v2",
 		defaultIntensity: 100,
 		isNew: true,
-		recipe: {
-			exposure: 0.193,
-			gamma: 0.749,
-			blackLift: -0.059,
-			shadowTint: [-0.341, -0.08, -0.27],
-			highlightTint: [0.217, 0.35, 0.172],
-			temperature: -0.119,
-			tint: 1.2,
-			contrast: -0.06,
-			saturation: 1.61,
-			hueShift: -9.2,
-			fade: 0.974,
-		},
+		recipe: ORANGE_TEAL_BACKGROUND_RECIPE,
+		skinToneRecipe: ORANGE_TEAL_SKIN_TONE_RECIPE,
 	},
 ];
