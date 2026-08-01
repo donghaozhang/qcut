@@ -279,7 +279,7 @@ describe("CapCut migration runtime font preflight", () => {
 		expect(plan.canCommit).toBe(true);
 		expect(plan.issues).toContainEqual(
 			expect.objectContaining({
-				code: "CAPCUT_8_1_FONT_STACK_VERIFIED",
+				code: "CAPCUT_8_1_FONT_FILES_CMAP_VERIFIED",
 				message: expect.stringContaining(app.appPath),
 				severity: "info",
 			})

@@ -99,8 +99,8 @@ function createEvidenceIssue({
 	evidence: CapCut81SystemFontStackEvidence;
 }): JianyingDraftIssue {
 	return {
-		code: "CAPCUT_8_1_FONT_STACK_VERIFIED",
-		message: `CapCut 8.1.1 system font stack evidence: ${JSON.stringify(evidence)}`,
+		code: "CAPCUT_8_1_FONT_FILES_CMAP_VERIFIED",
+		message: `CapCut 8.1.1 font-file cmap evidence (necessary only; not proof of rendered fallback): ${JSON.stringify(evidence)}`,
 		severity: "info",
 	};
 }

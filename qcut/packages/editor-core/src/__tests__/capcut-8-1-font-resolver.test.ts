@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	CAPCUT_8_1_APP_VERSION,
 	CAPCUT_8_1_SYSTEM_DEFAULT_FONT_DRAFT_FIELDS,
-	CAPCUT_8_1_VERIFIED_HAN_RANGES,
+	CAPCUT_8_1_CMAP_COVERED_HAN_RANGES,
 	resolveCapCut81Font,
 } from "../jianying-draft/index.js";
 
@@ -38,12 +38,12 @@ describe("CapCut 8.1 font resolver", () => {
 				emoji: false,
 				systemFallbackAllowlist: [
 					"latin",
-					"verified-bmp-han",
+					"cmap-covered-bmp-han",
 					"common",
 					"inherited",
 				],
-				verifiedHanRanges: CAPCUT_8_1_VERIFIED_HAN_RANGES,
-				verifiedScripts: ["latin", "simplified-chinese"],
+				cmapCoveredHanRanges: CAPCUT_8_1_CMAP_COVERED_HAN_RANGES,
+				cmapPreflightScripts: ["latin", "simplified-chinese"],
 			},
 			draftFields: CAPCUT_8_1_SYSTEM_DEFAULT_FONT_DRAFT_FIELDS,
 			kind: "system-default",
@@ -179,7 +179,7 @@ describe("CapCut 8.1 font resolver", () => {
 		if (resolution.ok) return;
 		expect(resolution.errors).toContainEqual({
 			code: "UNVERIFIED_CAPCUT_TEXT_SCRIPT",
-			message: `Character ${JSON.stringify(character)} (${codePoint}) is outside the conservative CapCut 8.1 system-fallback allowlist (Latin, Common, Inherited, and the verified Han ranges ${CAPCUT_8_1_VERIFIED_HAN_RANGES.join(", ")}).`,
+			message: `Character ${JSON.stringify(character)} (${codePoint}) is outside the conservative CapCut 8.1 cmap-preflight allowlist (Latin, Common, Inherited, and the cmap-covered Han ranges ${CAPCUT_8_1_CMAP_COVERED_HAN_RANGES.join(", ")}).`,
 			severity: "error",
 		});
 	});
