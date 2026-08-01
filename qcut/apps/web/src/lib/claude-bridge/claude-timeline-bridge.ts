@@ -26,6 +26,7 @@ const CLAUDE_TRACK_ELEMENT_TYPES = {
 	media: "media",
 	text: "text",
 	sticker: "sticker",
+	adjustment: "adjustment",
 	captions: "captions",
 	remotion: "remotion",
 	markdown: "markdown",
@@ -55,6 +56,7 @@ export function normalizeClaudeElementType({
 		type === CLAUDE_TRACK_ELEMENT_TYPES.media ||
 		type === CLAUDE_TRACK_ELEMENT_TYPES.text ||
 		type === CLAUDE_TRACK_ELEMENT_TYPES.sticker ||
+		type === CLAUDE_TRACK_ELEMENT_TYPES.adjustment ||
 		type === CLAUDE_TRACK_ELEMENT_TYPES.captions ||
 		type === CLAUDE_TRACK_ELEMENT_TYPES.remotion ||
 		type === CLAUDE_TRACK_ELEMENT_TYPES.markdown
