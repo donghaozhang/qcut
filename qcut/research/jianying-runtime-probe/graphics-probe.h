@@ -4,6 +4,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <memory>
 #include <span>
 #include <type_traits>
 #include <vector>
@@ -62,6 +63,34 @@ struct GraphicsFrameProbeResult {
   std::vector<std::uint8_t> inputAPixels;
   std::vector<std::uint8_t> inputBPixels;
   std::vector<std::uint8_t> outputPixels;
+};
+
+struct GraphicsSessionFrameRequest {
+  GraphicsFrameRenderer renderer = nullptr;
+  void* callbackContext = nullptr;
+  std::span<const std::uint8_t> inputAPixels;
+  std::span<const std::uint8_t> inputBPixels;
+  bool verifyInputReadback = true;
+};
+
+class GraphicsProbeSession {
+ public:
+  GraphicsProbeSession(const std::filesystem::path& runtimeRoot, int width,
+                       int height);
+  ~GraphicsProbeSession();
+
+  GraphicsProbeSession(const GraphicsProbeSession&) = delete;
+  GraphicsProbeSession& operator=(const GraphicsProbeSession&) = delete;
+  GraphicsProbeSession(GraphicsProbeSession&&) noexcept;
+  GraphicsProbeSession& operator=(GraphicsProbeSession&&) noexcept;
+
+  [[nodiscard]] bool ready() const;
+  [[nodiscard]] GraphicsFrameProbeResult renderFrame(
+      const GraphicsSessionFrameRequest& request);
+
+ private:
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
 };
 
 [[nodiscard]] bool inspectGraphicsContext(

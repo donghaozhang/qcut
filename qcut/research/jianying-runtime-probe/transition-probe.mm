@@ -247,12 +247,6 @@ class SegmentHandle {
   std::string_view label_;
 };
 
-struct HostRenderContext {
-  const TransitionSymbols& symbols;
-  const fs::path& packagePath;
-  double progress;
-};
-
 template <typename Function>
 [[nodiscard]] Function resolveImageOffset(ObjectMethod knownSymbol,
                                           std::uintptr_t offset,
@@ -400,136 +394,196 @@ void printTransitionInputState(const void* transition, std::string_view stage) {
   return bridged;
 }
 
+class SwingRenderSession {
+ public:
+  SwingRenderSession(const TransitionSymbols& symbols,
+                     const fs::path& packagePath,
+                     const GraphicsFrameResources& resources)
+      : symbols_(symbols), graphicsDevice_(resources.graphicsDevice) {
+    manager_ = std::make_unique<SwingManagerHandle>(
+        symbols.createSwingManager, symbols.destroySwingManager,
+        resources.width, resources.height, resources.graphicsDevice);
+    if (manager_->get() == nullptr) {
+      return;
+    }
+
+    void* globalContext = symbols.getSwingManagerAmazer(manager_->get());
+    void* viewer = symbols.getSwingManagerViewer(manager_->get());
+    void* managerGraphicsDevice =
+        symbols.getSwingManagerGraphicsDevice(manager_->get());
+    std::cout << "[host] SwingManager global context = " << globalContext
+              << '\n';
+    std::cout << "[host] SwingManager viewer = " << viewer << '\n';
+    std::cout << "[host] SwingManager GPDevice = " << managerGraphicsDevice
+              << " (requested " << resources.graphicsDevice << ")\n";
+    if (globalContext == nullptr || viewer == nullptr ||
+        managerGraphicsDevice != resources.graphicsDevice) {
+      return;
+    }
+
+    const int simplifyResult = symbols.setManagerParameterBoolApi(
+        manager_->get(), "EnableSwingSimplify", true);
+    std::cout << "[host] EnableSwingSimplify result = " << simplifyResult
+              << '\n';
+    if (simplifyResult != 0) {
+      return;
+    }
+
+    contextScope_ = std::make_unique<AmazerContextScope>(
+        symbols.contextScopeConstructor, symbols.contextScopeDestructor,
+        globalContext);
+    inputSegmentA_ = std::make_unique<SegmentHandle>(
+        symbols.createSegmentApi, symbols.destroySegmentApi, manager_->get(),
+        kVideoSegmentType, "", "left video segment");
+    inputSegmentB_ = std::make_unique<SegmentHandle>(
+        symbols.createSegmentApi, symbols.destroySegmentApi, manager_->get(),
+        kVideoSegmentType, "", "right video segment");
+
+    const std::string package = packagePath.string();
+    transitionSegment_ = std::make_unique<SegmentHandle>(
+        symbols.createSegmentApi, symbols.destroySegmentApi, manager_->get(),
+        kTransitionSegmentType, package.c_str(), "transition segment");
+    void* transition = transitionSegment_->get();
+    if (inputSegmentA_->get() == nullptr || inputSegmentB_->get() == nullptr ||
+        transition == nullptr) {
+      return;
+    }
+
+    printTransitionLoadState(transition);
+    std::cout << "[host] generated scenes = " << sceneCount(transition)
+              << '\n';
+    symbols.syncResource(transition);
+
+    const int timeRangeAResult = symbols.setSegmentTimeRangeApi(
+        inputSegmentA_->get(), 0, kProbeTimelineDuration);
+    const int timeRangeBResult = symbols.setSegmentTimeRangeApi(
+        inputSegmentB_->get(), 0, kProbeTimelineDuration);
+    const int transitionTimeRangeResult = symbols.setSegmentTimeRangeApi(
+        transition, 0, kProbeTimelineDuration);
+    const int renderIndexAResult =
+        symbols.setSegmentRenderIndexApi(inputSegmentA_->get(), 0);
+    const int renderIndexBResult =
+        symbols.setSegmentRenderIndexApi(inputSegmentB_->get(), 1);
+    const int transitionRenderIndexResult =
+        symbols.setSegmentRenderIndexApi(transition, 2);
+    const int setInputResult = symbols.setTransitionInput(
+        transition, inputSegmentA_->get(), inputSegmentB_->get());
+    const int addInputAResult =
+        symbols.addManagerSegmentApi(manager_->get(), inputSegmentA_->get());
+    const int addInputBResult =
+        symbols.addManagerSegmentApi(manager_->get(), inputSegmentB_->get());
+    const int addTransitionResult =
+        symbols.addManagerSegmentApi(manager_->get(), transition);
+
+    std::cout << "[host] time ranges = " << timeRangeAResult << ", "
+              << timeRangeBResult << ", " << transitionTimeRangeResult
+              << '\n';
+    std::cout << "[host] render index results (A=0, B=1, transition=2) = "
+              << renderIndexAResult << ", " << renderIndexBResult << ", "
+              << transitionRenderIndexResult << '\n';
+    std::cout << "[host] transition input = " << setInputResult << '\n';
+    std::cout << "[host] add segments = " << addInputAResult << ", "
+              << addInputBResult << ", " << addTransitionResult << '\n';
+    printTransitionInputState(transition, "logical input binding");
+
+    ready_ = timeRangeAResult == 0 && timeRangeBResult == 0 &&
+             transitionTimeRangeResult == 0 && renderIndexAResult == 0 &&
+             renderIndexBResult == 0 && transitionRenderIndexResult == 0 &&
+             setInputResult == 0 && addInputAResult == 0 &&
+             addInputBResult == 0 && addTransitionResult == 0;
+  }
+
+  ~SwingRenderSession() {
+    if (transitionSegment_ != nullptr &&
+        transitionSegment_->get() != nullptr) {
+      static_cast<void>(symbols_.setTransitionInput(
+          transitionSegment_->get(), nullptr, nullptr));
+    }
+    transitionSegment_.reset();
+    inputSegmentB_.reset();
+    inputSegmentA_.reset();
+    contextScope_.reset();
+    manager_.reset();
+  }
+
+  SwingRenderSession(const SwingRenderSession&) = delete;
+  SwingRenderSession& operator=(const SwingRenderSession&) = delete;
+
+  [[nodiscard]] bool render(const GraphicsFrameResources& resources,
+                            double progress) {
+    if (!ready_ || resources.graphicsDevice != graphicsDevice_) {
+      return false;
+    }
+
+    const auto frameTimestamp = static_cast<std::int64_t>(
+        std::llround(progress * kProbeTimelineDuration));
+    const DeviceTextureProbe inputA =
+        bridgeTexture(symbols_, manager_->get(), resources.inputA,
+                      frameTimestamp, "input A");
+    const DeviceTextureProbe inputB =
+        bridgeTexture(symbols_, manager_->get(), resources.inputB,
+                      frameTimestamp, "input B");
+    const DeviceTextureProbe output =
+        bridgeTexture(symbols_, manager_->get(), resources.output,
+                      frameTimestamp, "output");
+    if (inputA.texture == nullptr || inputB.texture == nullptr ||
+        output.texture == nullptr) {
+      return false;
+    }
+
+    const int textureAResult =
+        symbols_.setVideoDeviceTextureApi(inputSegmentA_->get(), &inputA);
+    const int textureBResult =
+        symbols_.setVideoDeviceTextureApi(inputSegmentB_->get(), &inputB);
+    const int setInputResult = symbols_.setTransitionInput(
+        transitionSegment_->get(), inputSegmentA_->get(),
+        inputSegmentB_->get());
+    const bool frameReady = textureAResult == 0 && textureBResult == 0 &&
+                            setInputResult == 0;
+    int seekResult = -1;
+    if (frameReady) {
+      seekResult = symbols_.seekManagerDeviceTextureApi(
+          manager_->get(), frameTimestamp, &inputA, &output);
+      std::cout << "[host] manager seek result = " << seekResult
+                << ", progress = " << progress << '\n';
+      printTransitionInputState(transitionSegment_->get(), "manager seek");
+    }
+    static_cast<void>(symbols_.setTransitionInput(transitionSegment_->get(),
+                                                  nullptr, nullptr));
+    return frameReady && seekResult == 0;
+  }
+
+ private:
+  const TransitionSymbols& symbols_;
+  void* graphicsDevice_ = nullptr;
+  std::unique_ptr<SwingManagerHandle> manager_;
+  std::unique_ptr<AmazerContextScope> contextScope_;
+  std::unique_ptr<SegmentHandle> inputSegmentA_;
+  std::unique_ptr<SegmentHandle> inputSegmentB_;
+  std::unique_ptr<SegmentHandle> transitionSegment_;
+  bool ready_ = false;
+};
+
+struct HostRenderContext {
+  const TransitionSymbols& symbols;
+  const fs::path& packagePath;
+  double progress;
+  std::unique_ptr<SwingRenderSession> session;
+};
+
 [[nodiscard]] bool renderWithSwingHost(
     const GraphicsFrameResources& resources) {
   if (resources.callbackContext == nullptr) {
     return false;
   }
 
-  const auto& context =
-      *static_cast<const HostRenderContext*>(resources.callbackContext);
-  const TransitionSymbols& symbols = context.symbols;
-
-  SwingManagerHandle manager(symbols.createSwingManager,
-                             symbols.destroySwingManager, resources.width,
-                             resources.height,
-                             resources.graphicsDevice);
-  if (manager.get() == nullptr) {
-    return false;
+  auto& context =
+      *static_cast<HostRenderContext*>(resources.callbackContext);
+  if (context.session == nullptr) {
+    context.session = std::make_unique<SwingRenderSession>(
+        context.symbols, context.packagePath, resources);
   }
-
-  void* globalContext = symbols.getSwingManagerAmazer(manager.get());
-  void* viewer = symbols.getSwingManagerViewer(manager.get());
-  void* managerGraphicsDevice =
-      symbols.getSwingManagerGraphicsDevice(manager.get());
-  std::cout << "[host] SwingManager global context = " << globalContext << '\n';
-  std::cout << "[host] SwingManager viewer = " << viewer << '\n';
-  std::cout << "[host] SwingManager GPDevice = " << managerGraphicsDevice
-            << " (requested " << resources.graphicsDevice << ")\n";
-  if (globalContext == nullptr || viewer == nullptr ||
-      managerGraphicsDevice != resources.graphicsDevice) {
-    return false;
-  }
-
-  const int simplifyResult = symbols.setManagerParameterBoolApi(
-      manager.get(), "EnableSwingSimplify", true);
-  std::cout << "[host] EnableSwingSimplify result = " << simplifyResult << '\n';
-  if (simplifyResult != 0) {
-    return false;
-  }
-
-  AmazerContextScope contextScope(symbols.contextScopeConstructor,
-                                  symbols.contextScopeDestructor,
-                                  globalContext);
-
-  const auto frameTimestamp = static_cast<std::int64_t>(
-      std::llround(context.progress * kProbeTimelineDuration));
-  const DeviceTextureProbe inputA = bridgeTexture(
-      symbols, manager.get(), resources.inputA, frameTimestamp, "input A");
-  const DeviceTextureProbe inputB = bridgeTexture(
-      symbols, manager.get(), resources.inputB, frameTimestamp, "input B");
-  const DeviceTextureProbe output = bridgeTexture(
-      symbols, manager.get(), resources.output, frameTimestamp, "output");
-  if (inputA.texture == nullptr || inputB.texture == nullptr ||
-      output.texture == nullptr) {
-    return false;
-  }
-
-  SegmentHandle inputSegmentA(symbols.createSegmentApi,
-                              symbols.destroySegmentApi, manager.get(),
-                              kVideoSegmentType, "", "left video segment");
-  SegmentHandle inputSegmentB(symbols.createSegmentApi,
-                              symbols.destroySegmentApi, manager.get(),
-                              kVideoSegmentType, "", "right video segment");
-
-  const std::string packagePath = context.packagePath.string();
-  SegmentHandle transitionSegment(
-      symbols.createSegmentApi, symbols.destroySegmentApi, manager.get(),
-      kTransitionSegmentType, packagePath.c_str(), "transition segment");
-  void* transition = transitionSegment.get();
-  if (inputSegmentA.get() == nullptr || inputSegmentB.get() == nullptr ||
-      transition == nullptr) {
-    return false;
-  }
-
-  printTransitionLoadState(transition);
-  std::cout << "[host] generated scenes = " << sceneCount(transition) << '\n';
-  symbols.syncResource(transition);
-
-  const int timeRangeAResult = symbols.setSegmentTimeRangeApi(
-      inputSegmentA.get(), 0, kProbeTimelineDuration);
-  const int timeRangeBResult = symbols.setSegmentTimeRangeApi(
-      inputSegmentB.get(), 0, kProbeTimelineDuration);
-  const int transitionTimeRangeResult =
-      symbols.setSegmentTimeRangeApi(transition, 0, kProbeTimelineDuration);
-  const int renderIndexAResult =
-      symbols.setSegmentRenderIndexApi(inputSegmentA.get(), 0);
-  const int renderIndexBResult =
-      symbols.setSegmentRenderIndexApi(inputSegmentB.get(), 1);
-  const int transitionRenderIndexResult =
-      symbols.setSegmentRenderIndexApi(transition, 2);
-  const int textureAResult =
-      symbols.setVideoDeviceTextureApi(inputSegmentA.get(), &inputA);
-  const int textureBResult =
-      symbols.setVideoDeviceTextureApi(inputSegmentB.get(), &inputB);
-  const int setInputResult = symbols.setTransitionInput(
-      transition, inputSegmentA.get(), inputSegmentB.get());
-  const int addInputAResult =
-      symbols.addManagerSegmentApi(manager.get(), inputSegmentA.get());
-  const int addInputBResult =
-      symbols.addManagerSegmentApi(manager.get(), inputSegmentB.get());
-  const int addTransitionResult =
-      symbols.addManagerSegmentApi(manager.get(), transition);
-
-  std::cout << "[host] time ranges = " << timeRangeAResult << ", "
-            << timeRangeBResult << ", " << transitionTimeRangeResult << '\n';
-  std::cout << "[host] render index results (A=0, B=1, transition=2) = "
-            << renderIndexAResult << ", " << renderIndexBResult << ", "
-            << transitionRenderIndexResult << '\n';
-  std::cout << "[host] video textures = " << textureAResult << ", "
-            << textureBResult << '\n';
-  std::cout << "[host] transition input = " << setInputResult << '\n';
-  std::cout << "[host] add segments = " << addInputAResult << ", "
-            << addInputBResult << ", " << addTransitionResult << '\n';
-  printTransitionInputState(transition, "logical input binding");
-
-  const bool setupSucceeded =
-      timeRangeAResult == 0 && timeRangeBResult == 0 &&
-      transitionTimeRangeResult == 0 && renderIndexAResult == 0 &&
-      renderIndexBResult == 0 && transitionRenderIndexResult == 0 &&
-      textureAResult == 0 && textureBResult == 0 && setInputResult == 0 &&
-      addInputAResult == 0 && addInputBResult == 0 && addTransitionResult == 0;
-  int seekResult = -1;
-  if (setupSucceeded) {
-    seekResult = symbols.seekManagerDeviceTextureApi(
-        manager.get(), frameTimestamp, &inputA, &output);
-    std::cout << "[host] manager seek result = " << seekResult
-              << ", progress = " << context.progress << '\n';
-    printTransitionInputState(transition, "manager seek");
-  }
-
-  static_cast<void>(symbols.setTransitionInput(transition, nullptr, nullptr));
-  return setupSucceeded && seekResult == 0;
+  return context.session->render(resources, context.progress);
 }
 
 [[nodiscard]] int channelError(std::uint8_t actual, std::uint8_t expected) {
@@ -584,17 +638,15 @@ void validateProgress(double progress) {
 
   const TransitionSymbols symbols = loadTransitionCore(runtimeRoot);
   enableTransitionII(symbols);
+  GraphicsProbeSession graphics(runtimeRoot, width, height);
   HostRenderContext context = {
       .symbols = symbols,
       .packagePath = packagePath,
       .progress = progress,
   };
-  return renderGraphicsProbeFrame({
-      .runtimeRoot = runtimeRoot,
+  return graphics.renderFrame({
       .renderer = renderWithSwingHost,
       .callbackContext = &context,
-      .width = width,
-      .height = height,
       .inputAPixels = inputAPixels,
       .inputBPixels = inputBPixels,
       .verifyInputReadback = verifyInputReadback,
@@ -602,6 +654,62 @@ void validateProgress(double progress) {
 }
 
 }  // namespace
+
+struct TransitionPixelSession::Impl {
+  TransitionSymbols symbols;
+  fs::path packagePath;
+  GraphicsProbeSession graphics;
+  HostRenderContext context;
+
+  Impl(const fs::path& runtimeRoot, const fs::path& transitionPackagePath,
+       int width, int height)
+      : symbols(loadTransitionCore(runtimeRoot)),
+        packagePath(transitionPackagePath),
+        graphics(runtimeRoot, width, height),
+        context{
+            .symbols = symbols,
+            .packagePath = packagePath,
+            .progress = 0.0,
+        } {
+    enableTransitionII(symbols);
+  }
+
+  [[nodiscard]] TransitionPixelFrameResult renderFrame(
+      const TransitionSessionFrameRequest& request) {
+    validateProgress(request.progress);
+    context.progress = request.progress;
+    GraphicsFrameProbeResult result = graphics.renderFrame({
+        .renderer = renderWithSwingHost,
+        .callbackContext = &context,
+        .inputAPixels = request.inputAPixels,
+        .inputBPixels = request.inputBPixels,
+        .verifyInputReadback = false,
+    });
+    return {
+        .rendered = result.rendered && result.inputsReadable,
+        .outputPixels = std::move(result.outputPixels),
+    };
+  }
+};
+
+TransitionPixelSession::TransitionPixelSession(
+    const fs::path& runtimeRoot, const fs::path& packagePath, int width,
+    int height)
+    : impl_(std::make_unique<Impl>(runtimeRoot, packagePath, width, height)) {}
+
+TransitionPixelSession::~TransitionPixelSession() = default;
+TransitionPixelSession::TransitionPixelSession(
+    TransitionPixelSession&&) noexcept = default;
+TransitionPixelSession& TransitionPixelSession::operator=(
+    TransitionPixelSession&&) noexcept = default;
+
+TransitionPixelFrameResult TransitionPixelSession::renderFrame(
+    const TransitionSessionFrameRequest& request) {
+  if (impl_ == nullptr) {
+    return {};
+  }
+  return impl_->renderFrame(request);
+}
 
 void inspectTransitionCore(const TransitionInspectRequest& request) {
   [NSApplication sharedApplication];
@@ -641,13 +749,13 @@ bool renderTransitionFrame(const TransitionFrameRequest& request) {
 
 TransitionPixelFrameResult renderTransitionPixelFrame(
     const TransitionPixelFrameRequest& request) {
-  GraphicsFrameProbeResult result = renderTransitionPixels(
-      request.runtimeRoot, request.packagePath, request.width, request.height,
-      request.inputAPixels, request.inputBPixels, request.progress, false);
-  return {
-      .rendered = result.rendered && result.inputsReadable,
-      .outputPixels = std::move(result.outputPixels),
-  };
+  TransitionPixelSession session(request.runtimeRoot, request.packagePath,
+                                 request.width, request.height);
+  return session.renderFrame({
+      .inputAPixels = request.inputAPixels,
+      .inputBPixels = request.inputBPixels,
+      .progress = request.progress,
+  });
 }
 
 }  // namespace jianying_probe

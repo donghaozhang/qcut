@@ -285,6 +285,126 @@ void readTexture(const GraphicsSymbols& symbols, void* renderer,
 
 }  // namespace
 
+struct GraphicsProbeSession::Impl {
+  GraphicsSymbols symbols;
+  FrameDimensions dimensions;
+  void* device = nullptr;
+  void* renderer = nullptr;
+
+  Impl(const fs::path& runtimeRoot, int width, int height)
+      : symbols(loadGraphics(runtimeRoot)),
+        dimensions(resolveDimensions(width, height)) {
+    device = symbols.createDevice(kMetalRendererType, 0);
+    std::cout << "[gpu] GPDevice = " << device << '\n';
+    if (device == nullptr) {
+      return;
+    }
+
+    symbols.init(device);
+    renderer = symbols.getRendererDevice(device);
+    std::cout << "[gpu] RendererDevice = " << renderer << '\n';
+    if (renderer == nullptr) {
+      releaseGraphicsDevice(symbols, device);
+      device = nullptr;
+    }
+  }
+
+  ~Impl() {
+    if (device != nullptr) {
+      releaseGraphicsDevice(symbols, device);
+    }
+  }
+
+  [[nodiscard]] bool ready() const {
+    return device != nullptr && renderer != nullptr;
+  }
+};
+
+GraphicsProbeSession::GraphicsProbeSession(const fs::path& runtimeRoot,
+                                           int width, int height) {
+  [NSApplication sharedApplication];
+  impl_ = std::make_unique<Impl>(runtimeRoot, width, height);
+}
+
+GraphicsProbeSession::~GraphicsProbeSession() = default;
+GraphicsProbeSession::GraphicsProbeSession(GraphicsProbeSession&&) noexcept =
+    default;
+GraphicsProbeSession& GraphicsProbeSession::operator=(
+    GraphicsProbeSession&&) noexcept = default;
+
+bool GraphicsProbeSession::ready() const {
+  return impl_ != nullptr && impl_->ready();
+}
+
+GraphicsFrameProbeResult GraphicsProbeSession::renderFrame(
+    const GraphicsSessionFrameRequest& request) {
+  GraphicsFrameProbeResult result;
+  if (!ready() || request.renderer == nullptr) {
+    return result;
+  }
+
+  std::vector<std::uint8_t> defaultInputA;
+  std::vector<std::uint8_t> defaultInputB;
+  std::span<const std::uint8_t> inputAPixels = request.inputAPixels;
+  std::span<const std::uint8_t> inputBPixels = request.inputBPixels;
+  if (inputAPixels.empty() && inputBPixels.empty()) {
+    defaultInputA =
+        makeSolidPixels(impl_->dimensions, {0xff, 0x00, 0x00, 0xff});
+    defaultInputB =
+        makeSolidPixels(impl_->dimensions, {0x00, 0x00, 0xff, 0xff});
+    inputAPixels = defaultInputA;
+    inputBPixels = defaultInputB;
+  }
+  if (inputAPixels.size() != impl_->dimensions.pixelBytes ||
+      inputBPixels.size() != impl_->dimensions.pixelBytes) {
+    throw std::runtime_error("input RGBA byte count does not match dimensions");
+  }
+
+  const ProbeTextures textures =
+      createProbeTextures(impl_->symbols, impl_->renderer, impl_->dimensions,
+                          inputAPixels, inputBPixels);
+  printTexture(impl_->symbols, "input A", textures.inputA);
+  printTexture(impl_->symbols, "input B", textures.inputB);
+  printTexture(impl_->symbols, "output", textures.output);
+  if (!allTexturesCreated(textures)) {
+    destroyProbeTextures(impl_->symbols, impl_->renderer, textures);
+    return result;
+  }
+
+  result.inputsReadable = true;
+  if (request.verifyInputReadback) {
+    readTexture(impl_->symbols, impl_->renderer, textures.inputA,
+                impl_->dimensions, result.inputAPixels);
+    readTexture(impl_->symbols, impl_->renderer, textures.inputB,
+                impl_->dimensions, result.inputBPixels);
+    result.inputsReadable =
+        matchesPixels(result.inputAPixels, inputAPixels) &&
+        matchesPixels(result.inputBPixels, inputBPixels);
+    std::cout << "[readback] input textures = "
+              << (result.inputsReadable ? "expected RGBA"
+                                        : "unexpected bytes")
+              << '\n';
+  }
+
+  const GraphicsFrameResources resources = {
+      .width = impl_->dimensions.width,
+      .height = impl_->dimensions.height,
+      .graphicsDevice = impl_->device,
+      .inputA = textures.inputA,
+      .inputB = textures.inputB,
+      .output = textures.output,
+      .callbackContext = request.callbackContext,
+  };
+  result.rendered = request.renderer(resources);
+  if (result.rendered) {
+    readTexture(impl_->symbols, impl_->renderer, textures.output,
+                impl_->dimensions, result.outputPixels);
+  }
+
+  destroyProbeTextures(impl_->symbols, impl_->renderer, textures);
+  return result;
+}
+
 bool inspectGraphicsContext(const fs::path& runtimeRoot, bool createTextures) {
   [NSApplication sharedApplication];
 
@@ -349,90 +469,15 @@ bool inspectGraphicsContext(const fs::path& runtimeRoot, bool createTextures) {
 
 GraphicsFrameProbeResult renderGraphicsProbeFrame(
     const GraphicsFrameProbeRequest& request) {
-  [NSApplication sharedApplication];
-
-  GraphicsFrameProbeResult result;
-  if (request.renderer == nullptr) {
-    return result;
-  }
-
-  const FrameDimensions dimensions =
-      resolveDimensions(request.width, request.height);
-  std::vector<std::uint8_t> defaultInputA;
-  std::vector<std::uint8_t> defaultInputB;
-  std::span<const std::uint8_t> inputAPixels = request.inputAPixels;
-  std::span<const std::uint8_t> inputBPixels = request.inputBPixels;
-  if (inputAPixels.empty() && inputBPixels.empty()) {
-    defaultInputA =
-        makeSolidPixels(dimensions, {0xff, 0x00, 0x00, 0xff});
-    defaultInputB =
-        makeSolidPixels(dimensions, {0x00, 0x00, 0xff, 0xff});
-    inputAPixels = defaultInputA;
-    inputBPixels = defaultInputB;
-  }
-  if (inputAPixels.size() != dimensions.pixelBytes ||
-      inputBPixels.size() != dimensions.pixelBytes) {
-    throw std::runtime_error("input RGBA byte count does not match dimensions");
-  }
-
-  const GraphicsSymbols symbols = loadGraphics(request.runtimeRoot);
-  void* device = symbols.createDevice(kMetalRendererType, 0);
-  std::cout << "[gpu] GPDevice = " << device << '\n';
-  if (device == nullptr) {
-    return result;
-  }
-
-  symbols.init(device);
-  void* renderer = symbols.getRendererDevice(device);
-  std::cout << "[gpu] RendererDevice = " << renderer << '\n';
-  if (renderer == nullptr) {
-    releaseGraphicsDevice(symbols, device);
-    return result;
-  }
-
-  const ProbeTextures textures = createProbeTextures(
-      symbols, renderer, dimensions, inputAPixels, inputBPixels);
-  printTexture(symbols, "input A", textures.inputA);
-  printTexture(symbols, "input B", textures.inputB);
-  printTexture(symbols, "output", textures.output);
-  if (!allTexturesCreated(textures)) {
-    destroyProbeTextures(symbols, renderer, textures);
-    releaseGraphicsDevice(symbols, device);
-    return result;
-  }
-
-  result.inputsReadable = true;
-  if (request.verifyInputReadback) {
-    readTexture(symbols, renderer, textures.inputA, dimensions,
-                result.inputAPixels);
-    readTexture(symbols, renderer, textures.inputB, dimensions,
-                result.inputBPixels);
-    result.inputsReadable = matchesPixels(result.inputAPixels, inputAPixels) &&
-                            matchesPixels(result.inputBPixels, inputBPixels);
-    std::cout << "[readback] input textures = "
-              << (result.inputsReadable ? "expected RGBA"
-                                        : "unexpected bytes")
-              << '\n';
-  }
-
-  const GraphicsFrameResources resources = {
-      .width = dimensions.width,
-      .height = dimensions.height,
-      .graphicsDevice = device,
-      .inputA = textures.inputA,
-      .inputB = textures.inputB,
-      .output = textures.output,
+  GraphicsProbeSession session(request.runtimeRoot, request.width,
+                               request.height);
+  return session.renderFrame({
+      .renderer = request.renderer,
       .callbackContext = request.callbackContext,
-  };
-  result.rendered = request.renderer(resources);
-  if (result.rendered) {
-    readTexture(symbols, renderer, textures.output, dimensions,
-                result.outputPixels);
-  }
-
-  destroyProbeTextures(symbols, renderer, textures);
-  releaseGraphicsDevice(symbols, device);
-  return result;
+      .inputAPixels = request.inputAPixels,
+      .inputBPixels = request.inputBPixels,
+      .verifyInputReadback = request.verifyInputReadback,
+  });
 }
 
 }  // namespace jianying_probe

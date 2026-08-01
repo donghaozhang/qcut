@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <memory>
 #include <optional>
 #include <span>
 #include <vector>
@@ -33,6 +34,32 @@ struct TransitionPixelFrameRequest {
 struct TransitionPixelFrameResult {
   bool rendered = false;
   std::vector<std::uint8_t> outputPixels;
+};
+
+struct TransitionSessionFrameRequest {
+  std::span<const std::uint8_t> inputAPixels;
+  std::span<const std::uint8_t> inputBPixels;
+  double progress;
+};
+
+class TransitionPixelSession {
+ public:
+  TransitionPixelSession(const std::filesystem::path& runtimeRoot,
+                         const std::filesystem::path& packagePath, int width,
+                         int height);
+  ~TransitionPixelSession();
+
+  TransitionPixelSession(const TransitionPixelSession&) = delete;
+  TransitionPixelSession& operator=(const TransitionPixelSession&) = delete;
+  TransitionPixelSession(TransitionPixelSession&&) noexcept;
+  TransitionPixelSession& operator=(TransitionPixelSession&&) noexcept;
+
+  [[nodiscard]] TransitionPixelFrameResult renderFrame(
+      const TransitionSessionFrameRequest& request);
+
+ private:
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
 };
 
 void inspectTransitionCore(const TransitionInspectRequest& request);
