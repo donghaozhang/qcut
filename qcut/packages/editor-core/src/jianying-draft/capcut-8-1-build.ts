@@ -18,6 +18,7 @@ import { createDeterministicJianyingId } from "./deterministic-id.js";
 import { mapMediaElementStaticMaskToCapCut81 } from "./mask-mapping.js";
 import { validateCapCut81MediaMaskElement } from "./mask-validation.js";
 import { secondsToMicroseconds } from "./time.js";
+import { prepareCapCut81TextFontForLegacySerializer } from "./text-unsupported-features.js";
 import { CAPCUT_NATIVE_DISSOLVE_METADATA } from "./transition-mapping.js";
 import { validateJianyingTrackTransition } from "./transition-validation.js";
 import type {
@@ -244,15 +245,31 @@ function collectTransitionCanonicalizationIssues({
 function prepareCapCut81Snapshot({
 	placeholderId,
 	snapshot,
+	targetPlatform,
 }: {
 	placeholderId: string;
 	snapshot: QCutDraftExportSnapshotV1;
+	targetPlatform: JianyingDraftTargetPlatform;
 }): PreparedCapCut81Snapshot {
 	const issues: JianyingDraftIssue[] = [];
 	const elementMappings: CapCut81ElementMapping[] = [];
 	const projectedTracks = snapshot.tracks.map((track) => ({
 		...structuredClone(track),
 		elements: track.elements.map((timelineElement) => {
+			if (
+				!track.hidden &&
+				!timelineElement.hidden &&
+				((track.type === "text" && timelineElement.type === "text") ||
+					(track.type === "captions" && timelineElement.type === "captions"))
+			) {
+				const fontPreparation = prepareCapCut81TextFontForLegacySerializer({
+					element: timelineElement,
+					targetPlatform,
+					track,
+				});
+				issues.push(...fontPreparation.issues);
+				return fontPreparation.projectedElement;
+			}
 			if (timelineElement.type !== "media") {
 				return structuredClone(timelineElement);
 			}
@@ -409,7 +426,11 @@ export function buildCapCut81Draft({
 	targetPlatform,
 	timelineId,
 }: BuildCapCut81DraftOptions): CapCut81DraftBuildResult {
-	const prepared = prepareCapCut81Snapshot({ placeholderId, snapshot });
+	const prepared = prepareCapCut81Snapshot({
+		placeholderId,
+		snapshot,
+		targetPlatform,
+	});
 	const baseBuildResult = buildJianyingDraft({
 		createdAtUnixSeconds,
 		draftOutputDirectory,

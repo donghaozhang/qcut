@@ -8,6 +8,8 @@ import {
 	type CapCut81MigrationBundleWriteResult,
 	writeTrustedCapCut81MigrationBundle,
 } from "./capcut-8-1-migration-writer.js";
+import type { CapCut81FontGlyphCoverageInspector } from "./capcut-8-1-system-font-stack.js";
+import { collectCapCut81RuntimeFontIssues } from "./capcut-8-1-text-font-preflight.js";
 import {
 	StandaloneJianyingDraftPlanBlockedError,
 	StandaloneJianyingDraftPlanConsumedError,
@@ -22,9 +24,13 @@ import {
 export interface CapCut81MigrationExportSessionOptions {
 	/** Trusted main-process project scope; renderer IPC must never provide it. */
 	allowedSourceRootDirectory?: string;
+	/** Trusted main-process application bundle; renderer IPC must never provide it. */
+	capCutAppPath?: string;
 	/** Trusted main-process executable; renderer IPC must never provide it. */
 	ffprobePath: string;
 	ffprobeTimeoutMilliseconds?: number;
+	/** Trusted host test seam; renderer IPC cannot provide functions. */
+	inspectFontGlyphCoverage?: CapCut81FontGlyphCoverageInspector;
 	maxConcurrentCommits?: number;
 	maxConcurrentPlans?: number;
 	maxStoredPlans?: number;
@@ -47,8 +53,10 @@ export {
 
 interface BoundMigrationOptions {
 	allowedSourceRootDirectory?: string;
+	capCutAppPath?: string;
 	ffprobePath: string;
 	ffprobeTimeoutMilliseconds?: number;
+	inspectFontGlyphCoverage?: CapCut81FontGlyphCoverageInspector;
 	outputParentDirectory: string;
 }
 
@@ -68,6 +76,13 @@ function validateMigrationOptions({
 		throw new Error(
 			"CapCut 8.1 migration allowedSourceRootDirectory must be absolute."
 		);
+	}
+	if (
+		options.capCutAppPath !== undefined &&
+		(options.capCutAppPath.trim().length === 0 ||
+			!isAbsolute(options.capCutAppPath))
+	) {
+		throw new Error("CapCut 8.1 migration capCutAppPath must be absolute.");
 	}
 	if (options.ffprobePath.trim().length === 0) {
 		throw new Error("CapCut 8.1 migration ffprobePath must not be empty.");
@@ -94,8 +109,10 @@ export class CapCut81MigrationExportSession {
 
 	constructor({
 		allowedSourceRootDirectory,
+		capCutAppPath,
 		ffprobePath,
 		ffprobeTimeoutMilliseconds,
+		inspectFontGlyphCoverage,
 		maxConcurrentCommits,
 		maxConcurrentPlans,
 		maxStoredPlans,
@@ -107,6 +124,7 @@ export class CapCut81MigrationExportSession {
 				...(allowedSourceRootDirectory === undefined
 					? {}
 					: { allowedSourceRootDirectory }),
+				...(capCutAppPath === undefined ? {} : { capCutAppPath }),
 				ffprobePath,
 				...(ffprobeTimeoutMilliseconds === undefined
 					? {}
@@ -118,10 +136,16 @@ export class CapCut81MigrationExportSession {
 			...(allowedSourceRootDirectory === undefined
 				? {}
 				: { allowedSourceRootDirectory: resolve(allowedSourceRootDirectory) }),
+			...(capCutAppPath === undefined
+				? {}
+				: { capCutAppPath: resolve(capCutAppPath) }),
 			ffprobePath: resolve(ffprobePath),
 			...(ffprobeTimeoutMilliseconds === undefined
 				? {}
 				: { ffprobeTimeoutMilliseconds }),
+			...(inspectFontGlyphCoverage === undefined
+				? {}
+				: { inspectFontGlyphCoverage }),
 			outputParentDirectory: resolve(outputParentDirectory),
 		});
 		this.#core =
@@ -144,8 +168,8 @@ export class CapCut81MigrationExportSession {
 							nowUnixMilliseconds,
 							outputParentDirectory: boundOptions.outputParentDirectory,
 						}),
-					preflight: ({ request, requestFingerprint }) =>
-						buildCapCut81Draft({
+					preflight: async ({ request, requestFingerprint }) => {
+						const buildResult = buildCapCut81Draft({
 							createdAtUnixSeconds: request.createdAtUnixSeconds,
 							draftOutputDirectory: resolve(
 								request.outputParentDirectory,
@@ -155,7 +179,24 @@ export class CapCut81MigrationExportSession {
 							snapshot: request.snapshot,
 							targetPlatform: request.targetPlatform,
 							timelineId: PREFLIGHT_TIMELINE_ID,
-						}),
+						});
+						const runtimeFontIssues = await collectCapCut81RuntimeFontIssues({
+							...(boundOptions.capCutAppPath === undefined
+								? {}
+								: { capCutAppPath: boundOptions.capCutAppPath }),
+							...(boundOptions.inspectFontGlyphCoverage === undefined
+								? {}
+								: {
+										inspectGlyphCoverage: boundOptions.inspectFontGlyphCoverage,
+									}),
+							snapshot: request.snapshot,
+							targetPlatform: request.targetPlatform,
+						});
+						return {
+							...buildResult,
+							issues: [...buildResult.issues, ...runtimeFontIssues],
+						};
+					},
 					...(planTtlMilliseconds === undefined ? {} : { planTtlMilliseconds }),
 					trustedBinding: Object.freeze({
 						...(boundOptions.allowedSourceRootDirectory === undefined
@@ -164,6 +205,9 @@ export class CapCut81MigrationExportSession {
 									allowedSourceRootDirectory:
 										boundOptions.allowedSourceRootDirectory,
 								}),
+						...(boundOptions.capCutAppPath === undefined
+							? {}
+							: { capCutAppPath: boundOptions.capCutAppPath }),
 						exportKind: "capcut-8.1-migration",
 						ffprobePath: boundOptions.ffprobePath,
 						...(boundOptions.ffprobeTimeoutMilliseconds === undefined

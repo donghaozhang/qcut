@@ -20,6 +20,7 @@ const storeMocks = vi.hoisted(() => {
 		}>,
 		findOrCreateTrack: vi.fn(),
 		addElementToTrack: vi.fn(),
+		updateAdjustmentElement: vi.fn(),
 		removeElementFromTrack: vi.fn(),
 		pushHistory: vi.fn(),
 	};
@@ -186,6 +187,7 @@ describe("setupClaudeTimelineBridge - add element", () => {
 
 		storeMocks.timelineStoreState.findOrCreateTrack.mockReset();
 		storeMocks.timelineStoreState.addElementToTrack.mockReset();
+		storeMocks.timelineStoreState.updateAdjustmentElement.mockReset();
 		storeMocks.timelineStoreState.removeElementFromTrack.mockReset();
 
 		storeMocks.timelineStoreState.findOrCreateTrack.mockImplementation(
@@ -451,6 +453,56 @@ describe("setupClaudeTimelineBridge - add element", () => {
 			"missing-image.png"
 		);
 	});
+
+	it("adds an adjustment element with masks", async () => {
+		const masks = [
+			{
+				id: "mask-circle",
+				type: "ellipse",
+				centerX: 0.5,
+				centerY: 0.5,
+				width: 0.4,
+				height: 0.4,
+				rotation: 12,
+				feather: 8,
+				invert: false,
+			},
+		];
+		storeMocks.timelineStoreState.tracks = [
+			{
+				id: "adjustment-track",
+				name: "调整轨道",
+				type: "adjustment",
+				elements: [],
+			},
+		];
+
+		const { addElementHandler } = setupTimelineBridgeWithHandlers();
+
+		await addElementHandler({
+			type: "adjustment",
+			trackId: "adjustment-track",
+			name: "CLI 调节",
+			startTime: 1,
+			duration: 4,
+			opacity: 0.8,
+			masks,
+		});
+
+		expect(
+			storeMocks.timelineStoreState.addElementToTrack
+		).toHaveBeenCalledWith(
+			"adjustment-track",
+			expect.objectContaining({
+				type: "adjustment",
+				name: "CLI 调节",
+				startTime: 1,
+				duration: 4,
+				opacity: 0.8,
+				masks,
+			})
+		);
+	});
 });
 
 // ---------------------------------------------------------------------------
@@ -547,6 +599,7 @@ describe("setupClaudeTimelineBridge - batch add elements", () => {
 
 		storeMocks.timelineStoreState.findOrCreateTrack.mockReset();
 		storeMocks.timelineStoreState.addElementToTrack.mockReset();
+		storeMocks.timelineStoreState.updateAdjustmentElement.mockReset();
 		storeMocks.timelineStoreState.removeElementFromTrack.mockReset();
 		storeMocks.timelineStoreState.pushHistory.mockReset();
 
@@ -557,6 +610,12 @@ describe("setupClaudeTimelineBridge - batch add elements", () => {
 		storeMocks.timelineStoreState.tracks = [
 			{ id: "track-1", name: "Video", type: "media", elements: [] },
 			{ id: "track-2", name: "Text", type: "text", elements: [] },
+			{
+				id: "track-3",
+				name: "Adjustment",
+				type: "adjustment",
+				elements: [],
+			},
 		];
 
 		storeMocks.mediaStoreState.mediaItems = [];
@@ -790,6 +849,59 @@ describe("setupClaudeTimelineBridge - batch add elements", () => {
 			"track-2",
 			expect.objectContaining({ type: "text", content: "Hello World" }),
 			{ pushHistory: false, selectElement: false }
+		);
+	});
+
+	it("batch adds adjustment elements with masks", async () => {
+		const masks = [
+			{
+				id: "mask-circle",
+				type: "ellipse",
+				centerX: 0.35,
+				centerY: 0.48,
+				width: 0.42,
+				height: 0.42,
+				rotation: 18,
+				feather: 12,
+				invert: false,
+			},
+			{
+				id: "mask-rect",
+				type: "rectangle",
+				centerX: 0.62,
+				centerY: 0.52,
+				width: 0.36,
+				height: 0.3,
+				rotation: -12,
+				roundness: 34,
+				feather: 8,
+				invert: false,
+			},
+		];
+		const { batchAddHandler, sendBatchAddResponse } = setupBatchAddBridge();
+
+		await batchAddHandler({
+			requestId: "req-adjustment",
+			elements: [
+				{
+					type: "adjustment",
+					trackId: "track-3",
+					startTime: 0,
+					duration: 8,
+					name: "CLI 调节",
+					masks,
+				},
+			],
+		});
+
+		const response: ClaudeBatchAddResponse =
+			sendBatchAddResponse.mock.calls[0][1];
+		expect(response.added[0].success).toBe(true);
+		expect(
+			storeMocks.timelineStoreState.addElementToTrack
+		).toHaveBeenCalledWith(
+			"track-3",
+			expect.objectContaining({ type: "adjustment", masks })
 		);
 	});
 

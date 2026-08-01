@@ -35,7 +35,7 @@ function previewTransition({
 		tuning: config?.tuning,
 		maskShape: config?.maskShape,
 		duration: preset.defaultDuration,
-		easing: "easeInOut",
+		easing: config?.easing ?? "easeInOut",
 	};
 }
 

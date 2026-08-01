@@ -12,6 +12,14 @@ set -euo pipefail
 : "${QCUT_API_PORT:=8765}"
 export QCUT_API_HOST QCUT_API_PORT
 
+_qcut_cmd=$(command -v qcut 2>/dev/null || true)
+if [ -z "$_qcut_cmd" ] || [ ! -x "$_qcut_cmd" ]; then
+	qcut() {
+		bun --silent run qcut -- "$@"
+	}
+fi
+unset _qcut_cmd
+
 RED=$'\033[0;31m'
 GREEN=$'\033[0;32m'
 YELLOW=$'\033[0;33m'

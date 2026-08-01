@@ -447,6 +447,99 @@ describe("clip transition presentation", () => {
 		expect(
 			easeClipTransitionProgress({ progress: 2, easing: "easeInOut" })
 		).toBe(1);
+		expect(
+			CLIP_TRANSITION_PROGRESS_STOPS.map((progress) =>
+				easeClipTransitionProgress({
+					progress,
+					easing: "easeInOutQuint",
+				})
+			)
+		).toEqual([0, 0.015625, 0.5, 0.984375, 1]);
+	});
+
+	it("matches Jianying's dual-input linear dissolve at five stops", () => {
+		const dissolve = transition({ type: "dissolve" });
+		const outgoingRgb = [240, 32, 80];
+		const incomingRgb = [16, 224, 176];
+		const qcutFrames = CLIP_TRANSITION_PROGRESS_STOPS.map((progress) => {
+			const incoming = getClipTransitionLayerPresentation({
+				transition: dissolve,
+				role: "to",
+				progress,
+				canvasWidth: 1,
+				canvasHeight: 1,
+			});
+			return outgoingRgb.map(
+				(channel, index) =>
+					channel * (1 - incoming.opacity) +
+					(incomingRgb[index] ?? 0) * incoming.opacity
+			);
+		});
+		const jianyingFrames = CLIP_TRANSITION_PROGRESS_STOPS.map((progress) =>
+			outgoingRgb.map(
+				(channel, index) =>
+					channel * (1 - progress) + (incomingRgb[index] ?? 0) * progress
+			)
+		);
+
+		expect(qcutFrames).toEqual(jianyingFrames);
+		expect(qcutFrames.at(0)).toEqual(outgoingRgb);
+		expect(qcutFrames.at(-1)).toEqual(incomingRgb);
+	});
+
+	it.each([
+		{
+			name: "move-left",
+			direction: "right" as const,
+			expected: [
+				[0, 1_920],
+				[-30, 1_890],
+				[-960, 960],
+				[-1_890, 30],
+				[-1_920, 0],
+			],
+		},
+		{
+			name: "move-right",
+			direction: "left" as const,
+			expected: [
+				[0, -1_920],
+				[30, -1_890],
+				[960, -960],
+				[1_890, -30],
+				[1_920, 0],
+			],
+		},
+	])("uses Jianying's quint displacement for $name", ({
+		name,
+		direction,
+		expected,
+	}) => {
+		const move: ClipTransition = {
+			...transition({ type: "push", direction }),
+			presetId: name,
+			duration: 1,
+			easing: "easeInOutQuint",
+		};
+		const offsets = CLIP_TRANSITION_PROGRESS_STOPS.map((progress) => {
+			const outgoing = getClipTransitionLayerPresentation({
+				transition: move,
+				role: "from",
+				progress,
+				canvasWidth: 1_920,
+				canvasHeight: 1_080,
+			});
+			const incoming = getClipTransitionLayerPresentation({
+				transition: move,
+				role: "to",
+				progress,
+				canvasWidth: 1_920,
+				canvasHeight: 1_080,
+			});
+			return [outgoing.offsetX, incoming.offsetX];
+		});
+
+		expect(offsets).toEqual(expected);
 	});
 });
 

@@ -1,6 +1,8 @@
 import type { ClipTransitionPresetConfig } from "./transition-preset-types";
 
-export const TRANSITION_PARITY_PROGRESS_STOPS = [0.25, 0.5, 0.75] as const;
+export const TRANSITION_PARITY_PROGRESS_STOPS = [
+	0, 0.25, 0.5, 0.75, 1,
+] as const;
 
 type TransitionParityVisualSemantics =
 	| "crossfade"
@@ -19,6 +21,7 @@ export interface TransitionParityCase {
 	qcutPresetId: string;
 	visualSemantics: TransitionParityVisualSemantics;
 	expectedConfig: ClipTransitionPresetConfig;
+	expectedDuration?: number;
 }
 
 export const TRANSITION_PARITY_CASES = [
@@ -26,7 +29,8 @@ export const TRANSITION_PARITY_CASES = [
 		jianyingName: "叠化",
 		qcutPresetId: "dissolve",
 		visualSemantics: "crossfade",
-		expectedConfig: { type: "dissolve" },
+		expectedConfig: { type: "dissolve", easing: "linear" },
+		expectedDuration: 0.5,
 	},
 	{
 		jianyingName: "叠化拉近",
@@ -43,9 +47,11 @@ export const TRANSITION_PARITY_CASES = [
 		visualSemantics: "page-flip",
 		expectedConfig: {
 			type: "page-flip",
+			easing: "linear",
 			direction: "left",
 			tuning: { intensity: 0.7 },
 		},
+		expectedDuration: 0.5,
 	},
 	{
 		jianyingName: "立方旋转",
@@ -53,8 +59,10 @@ export const TRANSITION_PARITY_CASES = [
 		visualSemantics: "cube-rotation",
 		expectedConfig: {
 			type: "cube",
+			easing: "linear",
 			tuning: { intensity: 1 },
 		},
+		expectedDuration: 1,
 	},
 	{
 		jianyingName: "左移",
@@ -62,8 +70,10 @@ export const TRANSITION_PARITY_CASES = [
 		visualSemantics: "move-left",
 		expectedConfig: {
 			type: "push",
+			easing: "easeInOutQuint",
 			direction: "right",
 		},
+		expectedDuration: 1,
 	},
 	{
 		jianyingName: "右移",
@@ -71,8 +81,10 @@ export const TRANSITION_PARITY_CASES = [
 		visualSemantics: "move-right",
 		expectedConfig: {
 			type: "push",
+			easing: "easeInOutQuint",
 			direction: "left",
 		},
+		expectedDuration: 1,
 	},
 	{
 		jianyingName: "推镜虚化",
@@ -89,9 +101,11 @@ export const TRANSITION_PARITY_CASES = [
 		visualSemantics: "horizontal-motion-blur",
 		expectedConfig: {
 			type: "motion-blur",
+			easing: "linear",
 			direction: "left",
 			tuning: { intensity: 0.65 },
 		},
+		expectedDuration: 0.8,
 	},
 	{
 		jianyingName: "圆形遮罩 II",

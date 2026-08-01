@@ -16,6 +16,10 @@
 		"declaration": false,
 		"sourceMap": true
 	},
-	"include": ["afterPack.ts"],
+	"include": [
+		"afterPack.ts",
+		"capcut-e2e/**/*.ts",
+		"__tests__/capcut-e2e-*.test.ts"
+	],
 	"exclude": ["node_modules", "dist"]
 }

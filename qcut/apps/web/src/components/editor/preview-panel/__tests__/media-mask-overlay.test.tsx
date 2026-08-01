@@ -68,6 +68,11 @@ describe("MediaMaskOverlay", () => {
 		).toBeVisible();
 		expect(screen.getByRole("button", { name: "左侧缩放主体" })).toBeVisible();
 		expect(screen.getByTestId("media-mask-feather-outline")).toBeVisible();
+		expect(
+			screen
+				.getByTestId("media-mask-roundness-handle")
+				.querySelector("svg > title")
+		).toHaveTextContent("调整圆角");
 	});
 
 	it("shows feather range handles instead of resize handles for linear masks", () => {

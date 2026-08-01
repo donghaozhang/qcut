@@ -72,7 +72,7 @@ export function ColorMaskSettings({
 				}}
 			>
 				<Plus className="size-3.5" />
-				Ellipse mask
+				椭圆蒙版
 			</Button>
 			<ColorToggleRow
 				label="反转"

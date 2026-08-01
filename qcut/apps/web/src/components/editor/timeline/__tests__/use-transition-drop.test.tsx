@@ -154,4 +154,31 @@ describe("useTransitionDrop", () => {
 
 		expect(addTransition).not.toHaveBeenCalled();
 	});
+
+	it("preserves a preset's quint progress policy", () => {
+		const { result } = renderTransitionDrop();
+
+		act(() => {
+			result.current.handleTransitionDrop(
+				dropEvent({
+					payload: {
+						kind: "qcut-transition-preset",
+						id: "move-left",
+						type: "push",
+						direction: "right",
+						easing: "easeInOutQuint",
+						defaultDuration: 1,
+					},
+				})
+			);
+		});
+
+		expect(addTransition).toHaveBeenCalledWith(
+			expect.objectContaining({
+				presetId: "move-left",
+				duration: 1,
+				easing: "easeInOutQuint",
+			})
+		);
+	});
 });

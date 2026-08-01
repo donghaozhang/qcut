@@ -9,6 +9,7 @@ import {
 	CLIP_TRANSITION_MASK_SHAPES,
 	CLIP_TRANSITION_MIN_DURATION_SECONDS,
 	CLIP_TRANSITION_TYPES,
+	isClipTransitionEasing,
 	isClipTransitionMaskShape,
 	isClipTransitionType,
 } from "../timeline/transitions.js";
@@ -120,6 +121,11 @@ describe("clip transitions", () => {
 		expect(isClipTransitionMaskShape({ value: "not-a-mask" })).toBe(false);
 		expect(isClipTransitionMaskShape({ value: null })).toBe(false);
 		expect(isClipTransitionMaskShape({ value: 42 })).toBe(false);
+	});
+
+	it("recognizes the Jianying quint transition curve", () => {
+		expect(isClipTransitionEasing({ value: "easeInOutQuint" })).toBe(true);
+		expect(isClipTransitionEasing({ value: "easeInOutQuart" })).toBe(false);
 	});
 
 	it("resolves a transition window centered on a touching cut", () => {

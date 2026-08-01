@@ -136,6 +136,17 @@ function semanticProgressExpression({
 }): string {
 	const linear = "(1-P)";
 	if (transition.easing === "linear") return linear;
+	if (transition.easing === "easeInOutQuint") {
+		return (
+			"if(lt(" +
+			linear +
+			",0.5),16*pow(" +
+			linear +
+			",5),1-16*pow(1-" +
+			linear +
+			",5))"
+		);
+	}
 	return (
 		"if(lt(" +
 		linear +

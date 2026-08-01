@@ -248,7 +248,10 @@ export function normalizeMediaMask(
 	};
 }
 
-export function resolveMediaMasks(element: MediaElement): MediaMask[] {
+export function resolveMediaMasks(element: {
+	mask?: MediaMask;
+	masks?: MediaMask[];
+}): MediaMask[] {
 	const source = element.masks?.length
 		? element.masks
 		: element.mask && element.mask.type !== "none"

@@ -74,6 +74,7 @@ function encodeDragPayload({
 		kind: "qcut-transition-preset",
 		id: preset.id,
 		type: config.type,
+		easing: config.easing,
 		direction: config.direction,
 		tuning: config.tuning,
 		maskShape: config.maskShape,
@@ -253,7 +254,7 @@ export function TransitionsView() {
 				duration ?? preset.defaultDuration,
 				applyState.maxDuration
 			),
-			easing: "easeInOut",
+			easing: config.easing ?? "easeInOut",
 		});
 		if (!transitionId) {
 			toast.error("这个剪辑点没有足够空间容纳转场。");

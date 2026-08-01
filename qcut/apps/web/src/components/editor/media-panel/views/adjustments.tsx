@@ -1,5 +1,12 @@
 import { useMemo, useRef, useState } from "react";
-import { ChevronDown, CirclePlus, FileUp, Layers, Upload } from "lucide-react";
+import {
+	ChevronDown,
+	CirclePlus,
+	FileUp,
+	Layers,
+	Plus,
+	Upload,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
@@ -146,9 +153,10 @@ export function AdjustmentsView() {
 					type="button"
 					variant="secondary"
 					size="sm"
-					className="mb-2 h-7 w-full justify-start rounded-sm px-2 text-[11px] text-primary"
+					className="mb-2 h-7 w-full justify-start gap-1 rounded-sm px-2 text-[11px] text-primary"
 					onClick={() => createAdjustment()}
 				>
+					<Plus className="size-3" />
 					新建调节
 				</Button>
 				<button
@@ -183,9 +191,13 @@ export function AdjustmentsView() {
 					<div className="space-y-3">
 						<button
 							type="button"
-							className="flex h-[88px] w-[88px] flex-col items-center justify-center rounded-md bg-card text-center text-xs font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+							className="group relative flex h-[88px] w-[88px] flex-col items-center justify-center rounded-md bg-card text-center text-xs font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
 							onClick={() => createAdjustment()}
+							aria-label="添加自定义调节到时间线"
 						>
+							<span className="absolute right-1.5 top-1.5 grid size-4 place-items-center rounded-full bg-primary text-primary-foreground opacity-90 transition-opacity group-hover:opacity-100">
+								<Plus className="size-3" />
+							</span>
 							<Layers className="mb-2 size-4 text-primary" />
 							自定义调节
 						</button>

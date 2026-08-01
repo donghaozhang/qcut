@@ -7,10 +7,12 @@ import {
 	isClaudeMediaElementType,
 	addClaudeMediaElement,
 	addClaudeTextElement,
+	addClaudeAdjustmentElement,
 	addClaudeStickerElement,
 	addClaudeCaptionElement,
 	addClaudeMarkdownElement,
 	addClaudeRemotionElement,
+	getClaudeAdjustmentFields,
 	getClaudeTextProperties,
 	getClaudeMediaTimingProperties,
 } from "./claude-timeline-bridge-helpers";
@@ -192,6 +194,20 @@ export const applyElementChanges = ({
 			}
 		}
 
+		if (element.type === "adjustment") {
+			const adjustmentUpdates = getClaudeAdjustmentFields({
+				element: changes as Partial<ClaudeElement> & Record<string, unknown>,
+			});
+			if (Object.keys(adjustmentUpdates).length > 0) {
+				timelineStore.updateAdjustmentElement(
+					track.id,
+					elementId,
+					adjustmentUpdates,
+					false
+				);
+			}
+		}
+
 		return true;
 	} catch (error) {
 		debugError(
@@ -226,6 +242,14 @@ export function setupElementHandlers({
 
 			if (element.type === "text") {
 				addClaudeTextElement({
+					element,
+					timelineStore,
+				});
+				return;
+			}
+
+			if (element.type === "adjustment") {
+				addClaudeAdjustmentElement({
 					element,
 					timelineStore,
 				});

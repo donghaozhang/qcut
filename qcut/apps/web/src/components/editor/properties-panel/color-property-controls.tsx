@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, Diamond, RotateCcw } from "lucide-react";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -140,12 +141,13 @@ export function ColorModuleSection({
 			data-testid={testId}
 		>
 			<summary className="flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
-				<Switch
+				<Checkbox
 					aria-label={`启用${title}`}
 					checked={enabled}
 					onClick={(event) => event.stopPropagation()}
 					onKeyDown={(event) => event.stopPropagation()}
-					onCheckedChange={onEnabledChange}
+					onCheckedChange={(checked) => onEnabledChange(checked === true)}
+					className="size-3.5 border-none bg-muted-foreground/50 data-[state=checked]:bg-primary [&_svg]:size-3"
 				/>
 				<span
 					className={cn(
@@ -233,11 +235,52 @@ export function ColorNumberControl({
 	const supportsKeyframes = Boolean(onToggleKeyframe);
 	return (
 		<div
-			className="space-y-1.5"
+			className="py-0.5"
 			data-testid={`color-control-${label.toLowerCase().replaceAll(" ", "-")}`}
 		>
-			<div className="flex items-center gap-1">
-				<span className="min-w-0 flex-1 text-xs">{label}</span>
+			<div className="flex min-w-0 items-center gap-2">
+				<span className="w-14 shrink-0 truncate text-xs" title={label}>
+					{label}
+				</span>
+				<div
+					className="min-w-0 flex-1"
+					onPointerDown={onInteractionStart}
+					onPointerUp={onInteractionEnd}
+					onPointerCancel={onInteractionEnd}
+				>
+					<Slider
+						aria-label={label}
+						value={[Math.min(max, Math.max(min, value))]}
+						min={min}
+						max={max}
+						step={step}
+						onValueChange={([next]) => onChange(next)}
+					/>
+				</div>
+				<div className="flex w-[70px] shrink-0 items-center gap-1">
+					<Input
+						type="number"
+						aria-label={`${label}数值`}
+						value={Number(value.toFixed(step < 1 ? 2 : 0))}
+						min={min}
+						max={max}
+						step={step}
+						onFocus={onInteractionStart}
+						onBlur={onInteractionEnd}
+						onChange={(event) => {
+							const next = Number(event.target.value);
+							if (Number.isFinite(next)) onChange(next);
+						}}
+						className="h-7 w-14 rounded-sm px-2 text-right text-xs"
+					/>
+					{suffix ? (
+						<span className="w-3 text-[10px] text-muted-foreground">
+							{suffix}
+						</span>
+					) : (
+						<span className="w-3" />
+					)}
+				</div>
 				{supportsKeyframes ? (
 					<div className="flex items-center">
 						<ColorIconButton
@@ -270,40 +313,6 @@ export function ColorNumberControl({
 						</ColorIconButton>
 					</div>
 				) : null}
-				<Input
-					type="number"
-					aria-label={`${label}数值`}
-					value={Number(value.toFixed(step < 1 ? 2 : 0))}
-					min={min}
-					max={max}
-					step={step}
-					onFocus={onInteractionStart}
-					onBlur={onInteractionEnd}
-					onChange={(event) => {
-						const next = Number(event.target.value);
-						if (Number.isFinite(next)) onChange(next);
-					}}
-					className="h-7 w-20 text-right text-xs"
-				/>
-				{suffix ? (
-					<span className="w-5 text-[10px] text-muted-foreground">
-						{suffix}
-					</span>
-				) : null}
-			</div>
-			<div
-				onPointerDown={onInteractionStart}
-				onPointerUp={onInteractionEnd}
-				onPointerCancel={onInteractionEnd}
-			>
-				<Slider
-					aria-label={label}
-					value={[Math.min(max, Math.max(min, value))]}
-					min={min}
-					max={max}
-					step={step}
-					onValueChange={([next]) => onChange(next)}
-				/>
 			</div>
 		</div>
 	);

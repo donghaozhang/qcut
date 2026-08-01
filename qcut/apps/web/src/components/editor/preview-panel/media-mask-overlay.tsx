@@ -7,10 +7,13 @@ import {
 	type KeyboardEvent as ReactKeyboardEvent,
 	type PointerEvent as ReactPointerEvent,
 } from "react";
+import { createPortal } from "react-dom";
+import { SquareRoundCorner } from "lucide-react";
 import { updateMediaMaskAtFrame } from "@/lib/video/media-mask-stack";
 import { resolveMediaMasks } from "@/lib/video/video-properties";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type {
+	AdjustmentElement,
 	MediaElement,
 	MediaMask,
 	MediaMaskMirrorMode,
@@ -40,7 +43,7 @@ import {
 } from "./media-mask-overlay-utils";
 
 interface MediaMaskOverlayProps {
-	element: MediaElement;
+	element: MediaElement | AdjustmentElement;
 	trackId: string;
 	mask: MediaMask;
 	currentTime: number;
@@ -56,8 +59,13 @@ export function MediaMaskOverlay({
 }: MediaMaskOverlayProps) {
 	const containerRef = useRef<HTMLDivElement>(null);
 	const [interaction, setInteraction] = useState<MaskInteraction | null>(null);
+	const [roundnessHandlePosition, setRoundnessHandlePosition] =
+		useState<CSSProperties>();
 	const updateMediaElement = useTimelineStore(
 		(state) => state.updateMediaElement
+	);
+	const updateAdjustmentElement = useTimelineStore(
+		(state) => state.updateAdjustmentElement
 	);
 	const pushHistory = useTimelineStore((state) => state.pushHistory);
 	const maskId = mask.id ?? "mask";
@@ -79,9 +87,26 @@ export function MediaMaskOverlay({
 					? updateMediaMaskAtFrame({ mask: item, updates, frame })
 					: item
 			);
+			if (element.type === "adjustment") {
+				updateAdjustmentElement(
+					trackId,
+					element.id,
+					{ masks: nextMasks },
+					history
+				);
+				return;
+			}
 			updateMediaElement(trackId, element.id, { masks: nextMasks }, history);
 		},
-		[currentTime, element, fps, mask.id, trackId, updateMediaElement]
+		[
+			currentTime,
+			element,
+			fps,
+			mask.id,
+			trackId,
+			updateAdjustmentElement,
+			updateMediaElement,
+		]
 	);
 
 	const beginInteraction = useCallback(
@@ -298,6 +323,13 @@ export function MediaMaskOverlay({
 			history: true,
 		});
 	};
+	const cycleRoundness = (event: ReactPointerEvent | ReactKeyboardEvent) => {
+		event.preventDefault();
+		event.stopPropagation();
+		const current = mask.roundness ?? 0;
+		const next = current >= 1 ? 0 : Math.min(1, current + 0.25);
+		updateMask({ updates: { roundness: next }, history: true });
+	};
 
 	const setMirrorMode = ({
 		event,
@@ -423,6 +455,55 @@ export function MediaMaskOverlay({
 				? "left-1/2 right-0"
 				: "left-[42%] right-[42%]";
 	const points = mask.points ?? [];
+	const canRoundCorners = mask.type === "rectangle" || mask.type === "text";
+
+	useEffect(() => {
+		if (!canRoundCorners) {
+			setRoundnessHandlePosition(undefined);
+			return;
+		}
+		const updateHandlePosition = () => {
+			const bounds = containerRef.current?.getBoundingClientRect();
+			if (!bounds) return;
+			const previewBounds = containerRef.current
+				?.closest('[data-testid="preview-panel"]')
+				?.getBoundingClientRect();
+			const clampBounds = {
+				left: Math.max(bounds.left, previewBounds?.left ?? 0),
+				top: Math.max(bounds.top, previewBounds?.top ?? 0),
+				right: Math.min(
+					bounds.right,
+					previewBounds?.right ?? window.innerWidth
+				),
+				bottom: Math.min(
+					bounds.bottom,
+					previewBounds?.bottom ?? window.innerHeight
+				),
+			};
+			setRoundnessHandlePosition({
+				left: clamp({
+					value: bounds.left + (mask.centerX - displayWidth / 2) * bounds.width,
+					min: clampBounds.left + 4,
+					max: Math.max(clampBounds.left + 4, clampBounds.right - 28),
+				}),
+				top: clamp({
+					value:
+						bounds.top + (mask.centerY - displayHeight / 2) * bounds.height,
+					min: clampBounds.top + 4,
+					max: Math.max(clampBounds.top + 4, clampBounds.bottom - 28),
+				}),
+			});
+		};
+		updateHandlePosition();
+		window.addEventListener("resize", updateHandlePosition);
+		return () => window.removeEventListener("resize", updateHandlePosition);
+	}, [
+		canRoundCorners,
+		displayHeight,
+		displayWidth,
+		mask.centerX,
+		mask.centerY,
+	]);
 
 	return (
 		<div
@@ -430,6 +511,28 @@ export function MediaMaskOverlay({
 			className="pointer-events-none absolute inset-0 z-30"
 			data-testid="media-mask-canvas-overlay"
 		>
+			{canRoundCorners && typeof document !== "undefined"
+				? createPortal(
+						<button
+							type="button"
+							className="pointer-events-auto fixed z-50 flex size-6 items-center justify-center rounded-full border border-cyan-200/80 bg-background/90 text-cyan-200 shadow hover:bg-cyan-400/20 focus-visible:outline-hidden focus-visible:ring-1 focus-visible:ring-cyan-200"
+							style={roundnessHandlePosition ?? { left: 4, top: 4 }}
+							onPointerDown={cycleRoundness}
+							onKeyDown={(event) => {
+								if (event.key !== "Enter" && event.key !== " ") return;
+								cycleRoundness(event);
+							}}
+							aria-label={`调整${mask.name ?? "蒙版"}圆角`}
+							title="调整圆角"
+							data-testid="media-mask-roundness-handle"
+						>
+							<SquareRoundCorner className="size-3.5">
+								<title>调整圆角</title>
+							</SquareRoundCorner>
+						</button>,
+						document.body
+					)
+				: null}
 			<div
 				className="pointer-events-auto absolute border-2 border-cyan-400"
 				style={shapeStyle}
