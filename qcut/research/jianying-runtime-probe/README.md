@@ -50,6 +50,8 @@ JY_ENABLE_TRANSITION_II=1 \
 JY_TRANSITION_PROGRESS=0.5 \
   JY_TRANSITION_PACKAGE=/path/to/Cache/effect/id/md5 \
   ./run-probe.sh transition-frame
+JY_TRANSITION_PACKAGE=/path/to/Cache/effect/id/md5 \
+  ./render-transition-video.sh input-a.mp4 input-b.mp4 output.mp4 0.5
 ```
 
 - `inspect` loads the copied libraries and resolves the bridge ABI without
@@ -75,6 +77,26 @@ JY_TRANSITION_PROGRESS=0.5 \
   the output texture, and validates a linear dissolve.
   `JY_TRANSITION_PROGRESS` defaults to `0.5` and accepts values from `0` through
   `1`.
+- `render-transition-video.sh` uses FFmpeg to normalize two real videos to RGBA,
+  keeps the non-overlapping frames, renders the tail of A against the head of B
+  through `TransitionSegment`, and encodes the combined frames as H.264 MP4.
+  The optional final argument is transition duration in seconds. Frame rate
+  defaults to `30`; `JY_VIDEO_FPS`, `JY_VIDEO_WIDTH`, and `JY_VIDEO_HEIGHT` can
+  override normalization.
+
+This command does not need a Jianying draft or project file. It needs the local
+runtime and the downloaded transition package; a project file would only supply
+timeline placement, source trims, duration, and the selected resource ID.
+
+The video wrapper is deliberately an interoperability prototype:
+
+- Output is video-only. Audio mixing and muxing are not implemented yet.
+- Both decoded inputs and the rendered output use temporary raw RGBA files, so
+  long or high-resolution videos require substantial temporary disk space.
+- The private Swing host is rebuilt for every transition frame. This proves
+  repeatable multi-frame rendering but is not the production performance model.
+- FFmpeg normalizes orientation, aspect ratio, frame rate, and pixel format.
+  Source HDR and color metadata are not preserved by this first path.
 
 `libcccreator` has a large dependency graph. The copied binary is loaded from
 the ignored local directory while unresolved sibling libraries are read from
@@ -104,8 +126,8 @@ redistributable.
 
 ## Verified result
 
-Local run on 2026-08-01 against Jianying `11.1.12975` established all of the
-following without launching the Jianying app process:
+Local runs on 2026-08-01 and 2026-08-02 against Jianying `11.1.12975`
+established all of the following without launching the Jianying app process:
 
 1. The copied AGFX, EGL, GLES, LumiGene, and CCCreator libraries load with
    `dlopen`.
@@ -139,6 +161,11 @@ following without launching the Jianying app process:
 14. The tested dissolve package returned exact RGBA values at all three sampled
     points: `0 -> (255, 0, 0, 255)`, `0.5 -> (128, 0, 128, 255)`, and
     `1 -> (0, 0, 255, 255)`.
+15. Two independently encoded MP4 inputs can be decoded, overlapped through
+    three consecutive private-engine renders, and encoded into a valid MP4. The
+    integration fixture produced `21` frames at `64x64`, `6 fps`, and `3.5`
+    seconds. Its encoded transition frames were `(254, 0, 0)`, `(127, 0, 127)`,
+    and `(0, 0, 255)` after H.264 quantization.
 
 The dependencies now divide into three groups:
 
@@ -153,22 +180,24 @@ The dependencies now divide into three groups:
   AB value is injected; LumiGene still expects its entry script from a host
   source or virtual filesystem that the probe has not reconstructed.
 
-The remaining work is now a media pipeline rather than an unknown transition
-rendering contract:
+The remaining work is productionizing the proven media path rather than
+discovering an unknown transition rendering contract:
 
 - LumiGene defaults to `lumigene-core.js`. No standalone copy was found in the
   installed app bundle or current user cache, so the bridge creates its surface
   but reports that the game JS could not be loaded. This did not block the
   tested CCCreator/Swing transition path.
-- Decode both source videos into timestamped GPU frames, then update the two
-  VideoSegments before each manager seek.
-- Map trims, overlap duration, frame rate, and transition progress onto the
-  manager's microsecond timeline without duplicate or missing boundary frames.
+- Replace full-file RGBA intermediates and CPU readback with streaming decode,
+  `CVPixelBuffer`/Metal texture interop, and direct encoder surfaces.
+- Keep one initialized SwingManager and segment graph alive across the overlap
+  instead of rebuilding the private host for each frame.
+- Read QCut or Jianying timeline metadata for trims, transition placement, and
+  duration rather than accepting two whole files and one duration argument.
 - Render at production dimensions and preserve pixel format, color space, HDR,
   alpha state, and orientation across decode, friend-texture conversion, and
   output.
-- Feed rendered frames to a hardware encoder and mux or retime audio. The probe
-  currently performs a tiny CPU readback only for validation.
+- Add audio overlap policy, retiming, and muxing; the current MP4 intentionally
+  has no audio track.
 - Test additional transition packages and provide a fallback for missing,
   incompatible, licensed, or version-specific resources. The exact private ABI
   used here is tied to Jianying `11.1.12975` and is not a shippable dependency.

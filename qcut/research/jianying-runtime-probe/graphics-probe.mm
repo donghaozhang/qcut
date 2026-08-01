@@ -8,8 +8,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
+#include <limits>
+#include <span>
+#include <stdexcept>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace jianying_probe {
 namespace {
@@ -123,6 +127,12 @@ struct ProbeTextures {
   DeviceTextureProbe output;
 };
 
+struct FrameDimensions {
+  int width;
+  int height;
+  std::size_t pixelBytes;
+};
+
 [[nodiscard]] GraphicsSymbols loadGraphics(const fs::path& runtimeRoot) {
   void* graphics =
       openLibrary(runtimeRoot / "Frameworks" / "libAGFX.dylib");
@@ -182,30 +192,54 @@ void printTexture(const GraphicsSymbols& symbols, std::string_view label,
   std::cout << '\n';
 }
 
-[[nodiscard]] ProbeTextures createProbeTextures(const GraphicsSymbols& symbols,
-                                                void* renderer) {
-  std::array<std::uint8_t, kProbePixelBytes> redPixels{};
-  std::array<std::uint8_t, kProbePixelBytes> bluePixels{};
-  for (std::size_t offset = 0; offset < redPixels.size(); offset += 4) {
-    redPixels[offset] = 0xff;
-    redPixels[offset + 3] = 0xff;
-    bluePixels[offset + 2] = 0xff;
-    bluePixels[offset + 3] = 0xff;
+[[nodiscard]] FrameDimensions resolveDimensions(int width, int height) {
+  constexpr int kMaximumDimension = 16'384;
+  if (width <= 0 || height <= 0 || width > kMaximumDimension ||
+      height > kMaximumDimension) {
+    throw std::runtime_error("frame dimensions must be between 1 and 16384");
   }
 
-  const void* redMipData[] = {redPixels.data()};
-  const void* blueMipData[] = {bluePixels.data()};
+  const auto widthValue = static_cast<std::size_t>(width);
+  const auto heightValue = static_cast<std::size_t>(height);
+  if (heightValue > std::numeric_limits<std::size_t>::max() / widthValue / 4) {
+    throw std::runtime_error("frame dimensions overflow RGBA byte count");
+  }
+
+  return {
+      .width = width,
+      .height = height,
+      .pixelBytes = widthValue * heightValue * 4,
+  };
+}
+
+[[nodiscard]] std::vector<std::uint8_t> makeSolidPixels(
+    const FrameDimensions& dimensions,
+    const std::array<std::uint8_t, 4>& color) {
+  std::vector<std::uint8_t> pixels(dimensions.pixelBytes);
+  for (std::size_t offset = 0; offset < pixels.size(); offset += 4) {
+    std::copy(color.begin(), color.end(), pixels.begin() + offset);
+  }
+  return pixels;
+}
+
+[[nodiscard]] ProbeTextures createProbeTextures(
+    const GraphicsSymbols& symbols, void* renderer,
+    const FrameDimensions& dimensions,
+    std::span<const std::uint8_t> inputAPixels,
+    std::span<const std::uint8_t> inputBPixels) {
+  const void* inputAMipData[] = {inputAPixels.data()};
+  const void* inputBMipData[] = {inputBPixels.data()};
   return {
       .inputA = symbols.createTexture2D(
-          renderer, kProbeTextureSize, kProbeTextureSize, redMipData,
+          renderer, dimensions.width, dimensions.height, inputAMipData,
           kRgba8PixelFormat, kLinearFilter, kLinearFilter, kClampWrap,
           kClampWrap, nullptr, "qcut probe input A", false, false),
       .inputB = symbols.createTexture2D(
-          renderer, kProbeTextureSize, kProbeTextureSize, blueMipData,
+          renderer, dimensions.width, dimensions.height, inputBMipData,
           kRgba8PixelFormat, kLinearFilter, kLinearFilter, kClampWrap,
           kClampWrap, nullptr, "qcut probe input B", false, false),
       .output = symbols.createTexture2D(
-          renderer, kProbeTextureSize, kProbeTextureSize, nullptr,
+          renderer, dimensions.width, dimensions.height, nullptr,
           kRgba8PixelFormat, kLinearFilter, kLinearFilter, kClampWrap,
           kClampWrap, nullptr, "qcut probe output", false, false),
   };
@@ -233,24 +267,20 @@ void destroyProbeTextures(const GraphicsSymbols& symbols, void* renderer,
 
 void readTexture(const GraphicsSymbols& symbols, void* renderer,
                  const DeviceTextureProbe& texture,
-                 std::array<std::uint8_t, kProbePixelBytes>& pixels) {
+                 const FrameDimensions& dimensions,
+                 std::vector<std::uint8_t>& pixels) {
   constexpr int kNoFlip = 0;
   constexpr int kNoRotation = 0;
-  symbols.readImage(renderer, texture, kProbeTextureSize, kProbeTextureSize,
+  pixels.resize(dimensions.pixelBytes);
+  symbols.readImage(renderer, texture, dimensions.width, dimensions.height,
                     pixels.data(), kNoFlip, kNoRotation, kLinearFilter,
                     kRgba8PixelFormat);
 }
 
-[[nodiscard]] bool matchesSolidColor(
-    const std::array<std::uint8_t, kProbePixelBytes>& pixels,
-    const std::array<std::uint8_t, 4>& expected) {
-  for (std::size_t offset = 0; offset < pixels.size(); offset += 4) {
-    if (!std::equal(expected.begin(), expected.end(),
-                    pixels.begin() + offset)) {
-      return false;
-    }
-  }
-  return true;
+[[nodiscard]] bool matchesPixels(const std::vector<std::uint8_t>& actual,
+                                 std::span<const std::uint8_t> expected) {
+  return actual.size() == expected.size() &&
+         std::equal(actual.begin(), actual.end(), expected.begin());
 }
 
 }  // namespace
@@ -275,7 +305,14 @@ bool inspectGraphicsContext(const fs::path& runtimeRoot, bool createTextures) {
     return renderer != nullptr;
   }
 
-  const ProbeTextures textures = createProbeTextures(symbols, renderer);
+  const FrameDimensions dimensions =
+      resolveDimensions(kProbeTextureSize, kProbeTextureSize);
+  const std::vector<std::uint8_t> redPixels =
+      makeSolidPixels(dimensions, {0xff, 0x00, 0x00, 0xff});
+  const std::vector<std::uint8_t> bluePixels =
+      makeSolidPixels(dimensions, {0x00, 0x00, 0xff, 0xff});
+  const ProbeTextures textures = createProbeTextures(
+      symbols, renderer, dimensions, redPixels, bluePixels);
   printTexture(symbols, "input A", textures.inputA);
   printTexture(symbols, "input B", textures.inputB);
   printTexture(symbols, "output", textures.output);
@@ -319,6 +356,25 @@ GraphicsFrameProbeResult renderGraphicsProbeFrame(
     return result;
   }
 
+  const FrameDimensions dimensions =
+      resolveDimensions(request.width, request.height);
+  std::vector<std::uint8_t> defaultInputA;
+  std::vector<std::uint8_t> defaultInputB;
+  std::span<const std::uint8_t> inputAPixels = request.inputAPixels;
+  std::span<const std::uint8_t> inputBPixels = request.inputBPixels;
+  if (inputAPixels.empty() && inputBPixels.empty()) {
+    defaultInputA =
+        makeSolidPixels(dimensions, {0xff, 0x00, 0x00, 0xff});
+    defaultInputB =
+        makeSolidPixels(dimensions, {0x00, 0x00, 0xff, 0xff});
+    inputAPixels = defaultInputA;
+    inputBPixels = defaultInputB;
+  }
+  if (inputAPixels.size() != dimensions.pixelBytes ||
+      inputBPixels.size() != dimensions.pixelBytes) {
+    throw std::runtime_error("input RGBA byte count does not match dimensions");
+  }
+
   const GraphicsSymbols symbols = loadGraphics(request.runtimeRoot);
   void* device = symbols.createDevice(kMetalRendererType, 0);
   std::cout << "[gpu] GPDevice = " << device << '\n';
@@ -334,7 +390,8 @@ GraphicsFrameProbeResult renderGraphicsProbeFrame(
     return result;
   }
 
-  const ProbeTextures textures = createProbeTextures(symbols, renderer);
+  const ProbeTextures textures = createProbeTextures(
+      symbols, renderer, dimensions, inputAPixels, inputBPixels);
   printTexture(symbols, "input A", textures.inputA);
   printTexture(symbols, "input B", textures.inputB);
   printTexture(symbols, "output", textures.output);
@@ -344,16 +401,23 @@ GraphicsFrameProbeResult renderGraphicsProbeFrame(
     return result;
   }
 
-  readTexture(symbols, renderer, textures.inputA, result.inputAPixels);
-  readTexture(symbols, renderer, textures.inputB, result.inputBPixels);
-  result.inputsReadable =
-      matchesSolidColor(result.inputAPixels, {0xff, 0x00, 0x00, 0xff}) &&
-      matchesSolidColor(result.inputBPixels, {0x00, 0x00, 0xff, 0xff});
-  std::cout << "[readback] input textures = "
-            << (result.inputsReadable ? "expected RGBA" : "unexpected bytes")
-            << '\n';
+  result.inputsReadable = true;
+  if (request.verifyInputReadback) {
+    readTexture(symbols, renderer, textures.inputA, dimensions,
+                result.inputAPixels);
+    readTexture(symbols, renderer, textures.inputB, dimensions,
+                result.inputBPixels);
+    result.inputsReadable = matchesPixels(result.inputAPixels, inputAPixels) &&
+                            matchesPixels(result.inputBPixels, inputBPixels);
+    std::cout << "[readback] input textures = "
+              << (result.inputsReadable ? "expected RGBA"
+                                        : "unexpected bytes")
+              << '\n';
+  }
 
   const GraphicsFrameResources resources = {
+      .width = dimensions.width,
+      .height = dimensions.height,
       .graphicsDevice = device,
       .inputA = textures.inputA,
       .inputB = textures.inputB,
@@ -362,7 +426,8 @@ GraphicsFrameProbeResult renderGraphicsProbeFrame(
   };
   result.rendered = request.renderer(resources);
   if (result.rendered) {
-    readTexture(symbols, renderer, textures.output, result.outputPixels);
+    readTexture(symbols, renderer, textures.output, dimensions,
+                result.outputPixels);
   }
 
   destroyProbeTextures(symbols, renderer, textures);

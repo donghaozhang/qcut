@@ -4,6 +4,7 @@
 #include "graphics-probe.h"
 #include "probe-utils.h"
 #include "transition-probe.h"
+#include "video-transition-probe.h"
 
 #include <array>
 #include <cstddef>
@@ -11,6 +12,7 @@
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
+#include <limits>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -87,6 +89,38 @@ struct alignas(16) ObjectStorage {
 
 using jianying_probe::openLibrary;
 using jianying_probe::resolveSymbol;
+
+[[nodiscard]] std::string requireEnvironment(const char* name) {
+  const char* value = std::getenv(name);
+  if (value == nullptr || *value == '\0') {
+    throw std::runtime_error(std::string("missing environment variable: ") +
+                             name);
+  }
+  return value;
+}
+
+[[nodiscard]] int requirePositiveIntegerEnvironment(const char* name) {
+  const std::string text = requireEnvironment(name);
+  std::size_t parsedLength = 0;
+  const long long value = std::stoll(text, &parsedLength);
+  if (parsedLength != text.size() || value <= 0 ||
+      value > std::numeric_limits<int>::max()) {
+    throw std::runtime_error(std::string(name) +
+                             " must be a positive integer");
+  }
+  return static_cast<int>(value);
+}
+
+[[nodiscard]] double requirePositiveNumberEnvironment(const char* name) {
+  const std::string text = requireEnvironment(name);
+  std::size_t parsedLength = 0;
+  const double value = std::stod(text, &parsedLength);
+  if (parsedLength != text.size() || value <= 0.0) {
+    throw std::runtime_error(std::string(name) +
+                             " must be a positive number");
+  }
+  return value;
+}
 
 [[nodiscard]] RuntimeSymbols loadRuntime(const fs::path& runtimeRoot) {
   const fs::path frameworks = runtimeRoot / "Frameworks";
@@ -260,6 +294,28 @@ void configure(ObjectStorage<kConfigStorageSize>& config,
                : 7;
   }
 
+  if (mode == "transition-video") {
+    const fs::path packagePath = requireEnvironment("JY_TRANSITION_PACKAGE");
+    if (!fs::is_directory(packagePath)) {
+      throw std::runtime_error(
+          "JY_TRANSITION_PACKAGE must name a package directory");
+    }
+
+    const auto result = jianying_probe::renderRawVideoTransition({
+        .runtimeRoot = runtimeRoot,
+        .packagePath = packagePath,
+        .inputAPath = requireEnvironment("JY_RAW_INPUT_A"),
+        .inputBPath = requireEnvironment("JY_RAW_INPUT_B"),
+        .outputPath = requireEnvironment("JY_RAW_OUTPUT"),
+        .width = requirePositiveIntegerEnvironment("JY_VIDEO_WIDTH"),
+        .height = requirePositiveIntegerEnvironment("JY_VIDEO_HEIGHT"),
+        .frameRate = requirePositiveNumberEnvironment("JY_VIDEO_FPS"),
+        .transitionDurationSeconds =
+            requirePositiveNumberEnvironment("JY_TRANSITION_DURATION"),
+    });
+    return result.outputFrames > 0 ? 0 : 8;
+  }
+
   if (!inspectConfig(symbols, sandboxRoot)) {
     std::cerr << "[config] inferred layout did not pass validation\n";
     return 3;
@@ -280,7 +336,7 @@ int main(int argc, char* argv[]) {
       std::cerr << "Usage: " << argv[0]
                 << " <runtime-root> "
                    "<inspect|config|launch|gpu|textures|transition|transition-"
-                   "load|transition-frame>\n";
+                   "load|transition-frame|transition-video>\n";
       return 2;
     }
 

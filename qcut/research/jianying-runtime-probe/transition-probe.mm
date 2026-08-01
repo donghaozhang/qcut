@@ -16,6 +16,7 @@
 #include <string>
 #include <string_view>
 #include <type_traits>
+#include <utility>
 
 namespace jianying_probe {
 namespace {
@@ -177,10 +178,12 @@ class AmazerContextScope {
 class SwingManagerHandle {
  public:
   SwingManagerHandle(CreateSwingManagerApiMethod create,
-                     DestroySwingManagerApiMethod destroy, void* graphicsDevice)
+                     DestroySwingManagerApiMethod destroy, int width, int height,
+                     void* graphicsDevice)
       : destroy_(destroy) {
-    const int result = create(&manager_, kProbeTextureSize, kProbeTextureSize,
-                              nullptr, false, graphicsDevice);
+    const int result =
+        create(&manager_, static_cast<unsigned int>(width),
+               static_cast<unsigned int>(height), nullptr, false, graphicsDevice);
     std::cout << "[host] swing_manager_create_with_gpdevice result = " << result
               << '\n';
     if (result != 0) {
@@ -246,7 +249,8 @@ class SegmentHandle {
 
 struct HostRenderContext {
   const TransitionSymbols& symbols;
-  const TransitionFrameRequest& request;
+  const fs::path& packagePath;
+  double progress;
 };
 
 template <typename Function>
@@ -407,7 +411,8 @@ void printTransitionInputState(const void* transition, std::string_view stage) {
   const TransitionSymbols& symbols = context.symbols;
 
   SwingManagerHandle manager(symbols.createSwingManager,
-                             symbols.destroySwingManager,
+                             symbols.destroySwingManager, resources.width,
+                             resources.height,
                              resources.graphicsDevice);
   if (manager.get() == nullptr) {
     return false;
@@ -438,7 +443,7 @@ void printTransitionInputState(const void* transition, std::string_view stage) {
                                   globalContext);
 
   const auto frameTimestamp = static_cast<std::int64_t>(
-      std::llround(context.request.progress * kProbeTimelineDuration));
+      std::llround(context.progress * kProbeTimelineDuration));
   const DeviceTextureProbe inputA = bridgeTexture(
       symbols, manager.get(), resources.inputA, frameTimestamp, "input A");
   const DeviceTextureProbe inputB = bridgeTexture(
@@ -457,7 +462,7 @@ void printTransitionInputState(const void* transition, std::string_view stage) {
                               symbols.destroySegmentApi, manager.get(),
                               kVideoSegmentType, "", "right video segment");
 
-  const std::string packagePath = context.request.packagePath.string();
+  const std::string packagePath = context.packagePath.string();
   SegmentHandle transitionSegment(
       symbols.createSegmentApi, symbols.destroySegmentApi, manager.get(),
       kTransitionSegmentType, packagePath.c_str(), "transition segment");
@@ -519,7 +524,7 @@ void printTransitionInputState(const void* transition, std::string_view stage) {
     seekResult = symbols.seekManagerDeviceTextureApi(
         manager.get(), frameTimestamp, &inputA, &output);
     std::cout << "[host] manager seek result = " << seekResult
-              << ", progress = " << context.request.progress << '\n';
+              << ", progress = " << context.progress << '\n';
     printTransitionInputState(transition, "manager seek");
   }
 
@@ -534,6 +539,12 @@ void printTransitionInputState(const void* transition, std::string_view stage) {
 [[nodiscard]] bool validateOutput(const GraphicsFrameProbeResult& result,
                                   double progress) {
   constexpr int kMaximumChannelError = 8;
+  if (result.outputPixels.empty() ||
+      result.inputAPixels.size() != result.outputPixels.size() ||
+      result.inputBPixels.size() != result.outputPixels.size()) {
+    return false;
+  }
+
   int maximumError = 0;
   std::array<std::uint64_t, 4> sums{};
   for (std::size_t offset = 0; offset < result.outputPixels.size();
@@ -550,12 +561,44 @@ void printTransitionInputState(const void* transition, std::string_view stage) {
     }
   }
 
-  constexpr std::size_t kPixelCount = kProbeTextureSize * kProbeTextureSize;
-  std::cout << "[readback] average RGBA = (" << sums[0] / kPixelCount << ", "
-            << sums[1] / kPixelCount << ", " << sums[2] / kPixelCount << ", "
-            << sums[3] / kPixelCount << ")\n";
+  const std::size_t pixelCount = result.outputPixels.size() / 4;
+  std::cout << "[readback] average RGBA = (" << sums[0] / pixelCount << ", "
+            << sums[1] / pixelCount << ", " << sums[2] / pixelCount << ", "
+            << sums[3] / pixelCount << ")\n";
   std::cout << "[validation] maximum channel error = " << maximumError << '\n';
   return maximumError <= kMaximumChannelError;
+}
+
+void validateProgress(double progress) {
+  if (!std::isfinite(progress) || progress < 0.0 || progress > 1.0) {
+    throw std::runtime_error("transition progress must be between 0 and 1");
+  }
+}
+
+[[nodiscard]] GraphicsFrameProbeResult renderTransitionPixels(
+    const fs::path& runtimeRoot, const fs::path& packagePath, int width,
+    int height, std::span<const std::uint8_t> inputAPixels,
+    std::span<const std::uint8_t> inputBPixels, double progress,
+    bool verifyInputReadback) {
+  validateProgress(progress);
+
+  const TransitionSymbols symbols = loadTransitionCore(runtimeRoot);
+  enableTransitionII(symbols);
+  HostRenderContext context = {
+      .symbols = symbols,
+      .packagePath = packagePath,
+      .progress = progress,
+  };
+  return renderGraphicsProbeFrame({
+      .runtimeRoot = runtimeRoot,
+      .renderer = renderWithSwingHost,
+      .callbackContext = &context,
+      .width = width,
+      .height = height,
+      .inputAPixels = inputAPixels,
+      .inputBPixels = inputBPixels,
+      .verifyInputReadback = verifyInputReadback,
+  });
 }
 
 }  // namespace
@@ -585,28 +628,26 @@ void inspectTransitionCore(const TransitionInspectRequest& request) {
 }
 
 bool renderTransitionFrame(const TransitionFrameRequest& request) {
-  if (!std::isfinite(request.progress) || request.progress < 0.0 ||
-      request.progress > 1.0) {
-    throw std::runtime_error("transition progress must be between 0 and 1");
-  }
-
-  const TransitionSymbols symbols = loadTransitionCore(request.runtimeRoot);
-  enableTransitionII(symbols);
-  HostRenderContext context = {
-      .symbols = symbols,
-      .request = request,
-  };
-  const GraphicsFrameProbeResult result = renderGraphicsProbeFrame({
-      .runtimeRoot = request.runtimeRoot,
-      .renderer = renderWithSwingHost,
-      .callbackContext = &context,
-  });
+  const GraphicsFrameProbeResult result = renderTransitionPixels(
+      request.runtimeRoot, request.packagePath, kProbeTextureSize,
+      kProbeTextureSize, {}, {}, request.progress, true);
 
   const bool outputMatches = result.rendered && result.inputsReadable &&
                              validateOutput(result, request.progress);
   std::cout << "[validation] dissolve output = "
             << (outputMatches ? "PASS" : "FAIL") << '\n';
   return outputMatches;
+}
+
+TransitionPixelFrameResult renderTransitionPixelFrame(
+    const TransitionPixelFrameRequest& request) {
+  GraphicsFrameProbeResult result = renderTransitionPixels(
+      request.runtimeRoot, request.packagePath, request.width, request.height,
+      request.inputAPixels, request.inputBPixels, request.progress, false);
+  return {
+      .rendered = result.rendered && result.inputsReadable,
+      .outputPixels = std::move(result.outputPixels),
+  };
 }
 
 }  // namespace jianying_probe

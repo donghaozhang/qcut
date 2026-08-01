@@ -4,7 +4,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <span>
 #include <type_traits>
+#include <vector>
 
 namespace jianying_probe {
 
@@ -32,6 +34,8 @@ static_assert(sizeof(DeviceTextureProbe) == 0x10);
 static_assert(!std::is_trivially_copy_constructible_v<DeviceTextureProbe>);
 
 struct GraphicsFrameResources {
+  int width;
+  int height;
   void* graphicsDevice;
   const DeviceTextureProbe& inputA;
   const DeviceTextureProbe& inputB;
@@ -43,16 +47,21 @@ using GraphicsFrameRenderer = bool (*)(const GraphicsFrameResources&);
 
 struct GraphicsFrameProbeRequest {
   std::filesystem::path runtimeRoot;
-  GraphicsFrameRenderer renderer;
-  void* callbackContext;
+  GraphicsFrameRenderer renderer = nullptr;
+  void* callbackContext = nullptr;
+  int width = kProbeTextureSize;
+  int height = kProbeTextureSize;
+  std::span<const std::uint8_t> inputAPixels;
+  std::span<const std::uint8_t> inputBPixels;
+  bool verifyInputReadback = true;
 };
 
 struct GraphicsFrameProbeResult {
   bool rendered = false;
   bool inputsReadable = false;
-  std::array<std::uint8_t, kProbePixelBytes> inputAPixels{};
-  std::array<std::uint8_t, kProbePixelBytes> inputBPixels{};
-  std::array<std::uint8_t, kProbePixelBytes> outputPixels{};
+  std::vector<std::uint8_t> inputAPixels;
+  std::vector<std::uint8_t> inputBPixels;
+  std::vector<std::uint8_t> outputPixels;
 };
 
 [[nodiscard]] bool inspectGraphicsContext(
