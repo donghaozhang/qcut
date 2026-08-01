@@ -26,6 +26,7 @@ all_suites=(
 	03-ui-panel-state
 	04-screen-recording
 	05-timeline-context-menu
+	06-adjustment-mask-cli
 )
 
 should_run() {
