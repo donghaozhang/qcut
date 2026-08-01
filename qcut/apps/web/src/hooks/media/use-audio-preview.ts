@@ -7,6 +7,8 @@ import {
 } from "@/lib/debug/error-handler";
 import type { SoundEffect } from "@/types/sounds";
 
+const REMOTE_AUDIO_URL_PATTERN = /^https?:\/\//i;
+
 export function useAudioPreview({
 	onEnded,
 }: {
@@ -69,7 +71,11 @@ export function useAudioPreview({
 
 			try {
 				let audioUrl = sound.previewUrl;
-				if (sound.source !== "qcut" && platform().sounds) {
+				if (
+					REMOTE_AUDIO_URL_PATTERN.test(sound.previewUrl) &&
+					sound.source !== "qcut" &&
+					platform().sounds
+				) {
 					const result = await platform().sounds.downloadPreview({
 						url: sound.previewUrl,
 						id: sound.id,

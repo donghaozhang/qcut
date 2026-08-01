@@ -201,7 +201,7 @@ function soundToSavedSound({
 		license: sound.license,
 		savedAt: timestamp,
 		description: sound.description,
-		source: sound.source,
+		source: sound.source === "local-reference" ? undefined : sound.source,
 		mediaId: sound.mediaId,
 		localizedName: sound.localizedName,
 		localizedDescription: sound.localizedDescription,
@@ -389,6 +389,7 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 		soundEffect: SoundEffect,
 		kind: AudioAssetKind = "sound-effect"
 	) => {
+		if (soundEffect.source === "local-reference") return;
 		try {
 			const savedSound = soundToSavedSound({
 				sound: soundEffect,
@@ -517,6 +518,7 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 	},
 
 	markSoundRecent: (sound, kind: AudioAssetKind = "sound-effect") => {
+		if (sound.source === "local-reference") return;
 		const recentSound = soundToSavedSound({
 			sound,
 			kind,
