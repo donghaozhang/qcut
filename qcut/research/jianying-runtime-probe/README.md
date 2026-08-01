@@ -52,6 +52,9 @@ JY_TRANSITION_PROGRESS=0.5 \
   ./run-probe.sh transition-frame
 JY_TRANSITION_PACKAGE=/path/to/Cache/effect/id/md5 \
   ./render-transition-video.sh input-a.mp4 input-b.mp4 output.mp4 0.5
+bun transition-parity-matrix.ts \
+  --matrix /path/to/local-matrix.json \
+  --output /path/to/ignored-evidence-directory
 ```
 
 - `inspect` loads the copied libraries and resolves the bridge ABI without
@@ -85,7 +88,9 @@ JY_TRANSITION_PACKAGE=/path/to/Cache/effect/id/md5 \
   the observed Jianying timeline behavior.
   The optional final argument is transition duration in seconds. Frame rate
   defaults to `30`; `JY_VIDEO_FPS`, `JY_VIDEO_WIDTH`, and `JY_VIDEO_HEIGHT` can
-  override normalization.
+  override normalization. `JY_TRANSITION_HOLD_EXACT_ENDPOINTS=1` bypasses the
+  package render at the first and last available transition endpoints for
+  packages where Jianying holds the source frame exactly.
 
 This command does not need a Jianying draft or project file. It needs the local
 runtime and the downloaded transition package; a project file would only supply
@@ -96,24 +101,40 @@ The video wrapper is deliberately an interoperability prototype:
 - Output is video-only. Audio mixing and muxing are not implemented yet.
 - Both decoded inputs and the rendered output use temporary raw RGBA files, so
   long or high-resolution videos require substantial temporary disk space.
-- The private Swing host is rebuilt for every transition frame. This proves
-  repeatable multi-frame rendering but is not the production performance model.
+- One AGFX device, SwingManager, transition segment, and pair of video segments
+  remain alive across the overlap. Each frame still crosses CPU RGBA files and
+  GPU readback, so this is not the production performance model.
 - FFmpeg normalizes orientation, aspect ratio, frame rate, and pixel format.
   Source HDR and original color metadata are normalized to BT.709 rather than
   preserved by this first path.
 
-For a parity check, export the same source files, resolution, frame rate, cut,
-and transition duration from Jianying and the probe. Compare decoded PNG frames,
-not MP4 bytes. For `N` transition frames, the probe centers the window on the
-cut and samples progress frame `round(p * (N - 1))` for
-`p = 0 / 0.25 / 0.5 / 0.75 / 1`. The repository's transition reference tool
-can calculate decoded RGB metrics from those five pairs:
+For a parity check, export the same source files, engine render resolution, frame
+rate, cut, and transition duration from Jianying and the probe. Compare decoded
+PNG frames, not MP4 bytes. The engine timestamp for zero-based transition frame
+`i` is `i / (2 * floor(N / 2))`; this keeps the cut frame at exactly `0.5` for
+both odd and even windows. Evidence stops use source frame
+`round(p * (N - 1))` for `p = 0 / 0.25 / 0.5 / 0.75 / 1`. The repository's
+transition reference tool can calculate decoded RGB metrics from those pairs:
 
 ```bash
 bun .agents/skills/qcut-toolkit/jianying-transition-reference/scripts/inspect-transition.ts \
   parity-report --title 叠化 --manifest /path/to/manifest.json \
   --formula 'C(p) = (1 - p) A + p B'
 ```
+
+`transition-parity-matrix.ts` automates the repeatable form of that protocol.
+Start from `transition-parity-matrix.example.json`; keep the populated matrix in
+an ignored local directory because it contains Jianying cache and export paths.
+Set matrix `renderSize` to Jianying's engine/export resolution. The tool renders
+at that size and, when necessary, normalizes the candidate at CRF 0 to the
+reference dimensions before comparison. For every entry, it confirms
+frame-comparable metadata, extracts all five stops, calculates decoded RGB
+MAE/RMSE/P95/max error, measures full-interval RGB PSNR/RMSE and SSIM, and
+generates side-by-side and 8x difference evidence images. It writes aggregate
+JSON and Markdown reports and refuses to place evidence in a non-ignored
+repository directory. `--reuse` accepts an existing render only when its saved
+request fingerprint still matches the inputs, package identity, dimensions,
+timing, endpoint policy, and renderer sources.
 
 `libcccreator` has a large dependency graph. The copied binary is loaded from
 the ignored local directory while unresolved sibling libraries are read from
@@ -184,16 +205,19 @@ established all of the following without launching the Jianying app process:
     and `4` seconds. Its encoded transition frames were `(254, 0, 0)`,
     `(127, 0, 127)`, and `(1, 0, 255)` after H.264 quantization.
 16. The same two `1280x720`, `30 fps`, four-second calibration clips were
-    rendered by Jianying and by this probe with the same `0.5` second dissolve.
-    Jianying's 4K HEVC export was normalized to `1280x720` BT.709 before the
-    decoded-pixel comparison. Both comparison streams contain `240` frames over
-    `8` seconds, with the 15 transition frames at indices `113` through `127`.
-    Across progress
-    `0 / 0.25 / 0.5 / 0.75 / 1`, decoded RGB RMSE averaged `4.934` and peaked at
-    `6.159`, below the parity target of `8`. The complete transition interval
-    measured `34.500 dB` RGB PSNR and `0.988790` SSIM. Remaining pixel error is
-    concentrated around hard edges and is consistent with independent scaling,
-    codec, and YUV 4:2:0 conversion paths rather than a timing or blend mismatch.
+    rendered by Jianying and this probe through the same `3840x2160` engine path,
+    then normalized at CRF 0 to `1280x720` BT.709 for decoded-pixel comparison.
+    A 2026-08-02 matrix covered `淡入淡出`, `叠化`, `叠化拉近`, `翻页`,
+    `横移模糊`, `立方旋转`, `拍立得`, `前后对比`, `前后对比 II`, `推镜虚化`,
+    `雾化交叠`, `右移`, and `左移`. All `13/13` passed the strict decoded RGB
+    RMSE threshold of `8`: the worst five-stop sample was `4.751`, the worst full
+    transition interval was `3.837`, minimum PSNR was `36.452 dB`, and minimum
+    SSIM was `0.996470`. The evidence set contains 65 aligned frame pairs, 65
+    amplified difference images, and one five-stop contact sheet per transition.
+    Rendering `拍立得` directly at the 720p comparison size produced a misleading
+    full-interval RMSE of `11.120`; matching Jianying's 4K render path reduced it
+    to `2.490`, demonstrating why engine resolution is part of the parity
+    contract for blur and glow graphs.
 
 The dependencies now divide into three groups:
 
@@ -217,8 +241,8 @@ discovering an unknown transition rendering contract:
   tested CCCreator/Swing transition path.
 - Replace full-file RGBA intermediates and CPU readback with streaming decode,
   `CVPixelBuffer`/Metal texture interop, and direct encoder surfaces.
-- Keep one initialized SwingManager and segment graph alive across the overlap
-  instead of rebuilding the private host for each frame.
+- Reuse initialized engine infrastructure across adjacent transitions while
+  preserving package-local segment state for each overlap.
 - Read QCut or Jianying timeline metadata for trims, source handles, and
   duration rather than accepting two whole files and one duration argument.
 - Render at production dimensions and preserve pixel format, color space, HDR,
