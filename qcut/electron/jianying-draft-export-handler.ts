@@ -96,6 +96,7 @@ interface CapCut81MigrationExportSessionLike {
 interface CapCut81MigrationExportSessionConstructor {
 	new (options: {
 		allowedSourceRootDirectory: string;
+		capCutAppPath: string;
 		ffprobePath: string;
 		outputParentDirectory: string;
 	}): CapCut81MigrationExportSessionLike;
@@ -452,6 +453,7 @@ export function setupJianyingDraftExportIPC({
 		async (): Promise<CapCut81MigrationExportSessionLike> => {
 			try {
 				const documentsDirectory = getDocumentsDirectory();
+				const capCutAppPath = getCapCutAppPath();
 				const outputParentDirectory = join(
 					documentsDirectory,
 					...CAPCUT_DRAFT_EXPORT_PATH_PARTS
@@ -471,6 +473,7 @@ export function setupJianyingDraftExportIPC({
 				const SessionConstructor = getRuntimeConstructor({ runtimeModule });
 				const createdSession = new SessionConstructor({
 					allowedSourceRootDirectory,
+					capCutAppPath,
 					ffprobePath,
 					outputParentDirectory,
 				});
