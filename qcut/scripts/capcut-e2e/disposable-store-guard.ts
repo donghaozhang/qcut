@@ -63,7 +63,18 @@ function isSameOrDescendantPath({
 	ancestorPath: string;
 	candidatePath: string;
 }): boolean {
-	const relativePath = relative(ancestorPath, candidatePath);
+	const isCaseInsensitivePlatform =
+		process.platform === "darwin" || process.platform === "win32";
+	const comparableAncestorPath = isCaseInsensitivePlatform
+		? ancestorPath.toLowerCase()
+		: ancestorPath;
+	const comparableCandidatePath = isCaseInsensitivePlatform
+		? candidatePath.toLowerCase()
+		: candidatePath;
+	const relativePath = relative(
+		comparableAncestorPath,
+		comparableCandidatePath
+	);
 	return (
 		relativePath === "" ||
 		(relativePath !== ".." &&

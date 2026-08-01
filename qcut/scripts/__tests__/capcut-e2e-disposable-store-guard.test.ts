@@ -192,6 +192,30 @@ describe("disposable CapCut store guard", () => {
 		).rejects.toThrow("or any descendant");
 	});
 
+	it.skipIf(process.platform !== "darwin" && process.platform !== "win32")(
+		"rejects mixed-case descendants before touching the filesystem",
+		async () => {
+			const temporaryDirectory = await createTemporaryDirectory();
+			const forbiddenHomeDirectory = join(
+				temporaryDirectory,
+				"Users",
+				"Operator"
+			);
+
+			await expect(
+				preflightDisposableCapCutStore({
+					dedicatedTestHomeDirectory: join(
+						temporaryDirectory,
+						"users",
+						"operator",
+						"disposable-home"
+					),
+					forbiddenHomeDirectory,
+				})
+			).rejects.toThrow("or any descendant");
+		}
+	);
+
 	it("rejects a missing sentinel", async () => {
 		const fixture = await createFixture({ includeSentinel: false });
 

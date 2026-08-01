@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 
 export interface MigrationPlanIssue {
 	code: string;
@@ -148,8 +149,8 @@ export async function loadMigrationApi({
 		"capcut-8-1-migration-bundle-reader.ts"
 	);
 	const [sessionValue, verifierValue]: [unknown, unknown] = await Promise.all([
-		import(sessionPath),
-		import(verifierPath),
+		import(pathToFileURL(sessionPath).href),
+		import(pathToFileURL(verifierPath).href),
 	]);
 	if (!isSessionModule({ value: sessionValue })) {
 		throw new Error(

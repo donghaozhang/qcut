@@ -232,10 +232,23 @@ describe("CapCut bundle semantic verification", () => {
 			textPayloads: ["原生字幕验证 ABC123", "剪映真实导入测试 ABC123"],
 		});
 
+		const missingPhotoIdContent = nativeContent();
+		Reflect.deleteProperty(missingPhotoIdContent.materials.videos[0], "id");
+		expect(() =>
+			verifyBundleCaseSemantics({
+				caseId: "native-text-sticker",
+				contentText: JSON.stringify(missingPhotoIdContent),
+			})
+		).toThrow("Native photo material ID must be a string");
+
 		const payload = JSON.parse(content.materials.texts[0].content) as {
 			styles: Array<Record<string, unknown>>;
 		};
-		payload.styles[0]!.font = "missing-cjk-font";
+		const firstStyle = payload.styles.at(0);
+		if (!firstStyle) {
+			throw new Error("Native text fixture must contain a style.");
+		}
+		firstStyle.font = "missing-cjk-font";
 		content.materials.texts[0].content = JSON.stringify(payload);
 		expect(() =>
 			verifyBundleCaseSemantics({
@@ -285,7 +298,7 @@ describe("CapCut bundle semantic verification", () => {
 			verifyBundleCaseSemantics({
 				caseId: "lut-mask",
 				contentText: JSON.stringify(lutMaskContent()),
-				generatedLutText: INVERT_LUT.replace("0 0 0", "0 0 0.1"),
+				generatedLutText: INVERT_LUT.replace(/0 0 0\n$/, "0 0 0.1\n"),
 			})
 		).toThrow("Generated 2x2 invert LUT body changed");
 	});

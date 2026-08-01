@@ -185,6 +185,10 @@ export function verifyNativeSemantics({
 		expected: { height: 512, name: "icon.png", width: 512 },
 		label: "Sticker material",
 	});
+	const photoId = requireString({
+		label: "Native photo material ID",
+		value: photo.id,
+	});
 	const sourceVideo = requireSingle({
 		label: "Native source video material",
 		values: videos.filter(({ type }) => type === "video"),
@@ -233,7 +237,7 @@ export function verifyNativeSemantics({
 		label: "Native sticker photo segment",
 		values: getTracks({ content, type: "video" })
 			.flatMap((track) => getSegments({ label: "Native video track", track }))
-			.filter(({ material_id }) => material_id === photo.id),
+			.filter(({ material_id }) => material_id === photoId),
 	});
 	const stickerRange = getRangeEvidence({ segment: photoSegment });
 	requireExactValue({

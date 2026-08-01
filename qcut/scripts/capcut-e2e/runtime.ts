@@ -74,6 +74,9 @@ export async function runCommand({
 	});
 	const stdoutPromise = readProcessOutput({ stream: child.stdout });
 	const stderrPromise = readProcessOutput({ stream: child.stderr });
+	// timeout may reject before either stream read settles
+	stdoutPromise.catch(() => {});
+	stderrPromise.catch(() => {});
 	let timeout: NodeJS.Timeout | undefined;
 	const timeoutPromise = new Promise<never>((_resolve, reject) => {
 		timeout = setTimeout(() => {
