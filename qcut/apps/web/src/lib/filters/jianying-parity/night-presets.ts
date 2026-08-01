@@ -1,4 +1,5 @@
 import type { FilterPreset } from "../filter-types";
+import { COOL_FIREWORKS_RECIPE } from "./cool-fireworks-recipe";
 import {
 	ORANGE_TEAL_BACKGROUND_RECIPE,
 	ORANGE_TEAL_SKIN_TONE_RECIPE,
@@ -85,28 +86,16 @@ export const JIANYING_NIGHT_PARITY_FILTER_PRESETS: FilterPreset[] = [
 	},
 	{
 		id: "jy-cool-fireworks",
-		version: 1,
+		version: 2,
 		name: "Cool Fireworks",
 		localizedName: "冷烟花",
 		category: "night",
 		tags: ["night", "cityscape", "夜景", "冷烟花", "Cool Fireworks"],
 		thumbnail: "/images/filter-previews/jy-cool-fireworks.webp",
-		lutAssetId: "qcut/filter/jy-cool-fireworks/v1",
+		lutAssetId: "qcut/filter/jy-cool-fireworks/v2",
 		defaultIntensity: 100,
 		isNew: true,
-		recipe: {
-			exposure: -0.06,
-			gamma: 0.78,
-			blackLift: 0.02,
-			shadowTint: [-0.126, 0.159, 0.186],
-			highlightTint: [-0.35, -0.149, 0.35],
-			temperature: 1.2,
-			tint: 0.646,
-			contrast: 0.167,
-			saturation: 1.501,
-			hueShift: 5.5,
-			monochrome: 0.485,
-		},
+		recipe: COOL_FIREWORKS_RECIPE,
 	},
 	{
 		id: "jy-orange-teal",
