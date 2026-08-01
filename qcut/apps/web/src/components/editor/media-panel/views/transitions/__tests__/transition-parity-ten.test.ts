@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	type TransitionParityCase,
 	TRANSITION_PARITY_CASES,
 	TRANSITION_PARITY_PROGRESS_STOPS,
 } from "../transition-parity-ten";
@@ -20,16 +21,18 @@ describe("Jianying exact-ten transition parity manifest", () => {
 		expect(TRANSITION_PARITY_CASES).toHaveLength(10);
 		expect(new Set(jianyingNames).size).toBe(10);
 		expect(new Set(qcutPresetIds).size).toBe(10);
-		expect(TRANSITION_PARITY_PROGRESS_STOPS).toEqual([0.25, 0.5, 0.75]);
+		expect(TRANSITION_PARITY_PROGRESS_STOPS).toEqual([0, 0.25, 0.5, 0.75, 1]);
 	});
 
 	it.each(
 		TRANSITION_PARITY_CASES
-	)("maps $jianyingName to the expected $visualSemantics config", ({
-		jianyingName,
-		qcutPresetId,
-		expectedConfig,
-	}) => {
+	)("maps $jianyingName to the expected $visualSemantics config", (item) => {
+		const {
+			jianyingName,
+			qcutPresetId,
+			expectedConfig,
+			expectedDuration,
+		}: TransitionParityCase = item;
 		const matchingPresets = transitionPresets.filter(
 			(preset) => preset.id === qcutPresetId
 		);
@@ -43,5 +46,8 @@ describe("Jianying exact-ten transition parity manifest", () => {
 		expect(getClipTransitionPresetConfig({ preset }), qcutPresetId).toEqual(
 			expectedConfig
 		);
+		if (expectedDuration !== undefined) {
+			expect(preset.defaultDuration, qcutPresetId).toBe(expectedDuration);
+		}
 	});
 });

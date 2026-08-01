@@ -210,9 +210,16 @@ export function createCrudOperations(
 						}
 					: elementData;
 
+			const requestedId =
+				"id" in normalizedElementData &&
+				typeof normalizedElementData.id === "string" &&
+				normalizedElementData.id.trim().length > 0
+					? normalizedElementData.id
+					: generateUUID();
+
 			const newElement: TimelineElement = {
 				...normalizedElementData,
-				id: generateUUID(),
+				id: requestedId,
 				startTime: normalizedElementData.startTime ?? 0,
 				trimStart: normalizedElementData.trimStart ?? 0,
 				trimEnd: normalizedElementData.trimEnd ?? 0,

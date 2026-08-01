@@ -51,6 +51,7 @@ import {
 import { resolveTimelineStickerVisualAtTime } from "@/lib/stickers/timeline-sticker-visual";
 import { resolveTimelineElementEffects } from "@/lib/effects/adjustment-layer";
 import { canvasFontFamily } from "@/lib/text/canvas-font";
+import { drawMediaSourceWithMasks } from "@/lib/video/media-mask-canvas";
 
 let exportCompositor: ScreenRecordingExportCompositor | null = null;
 let compositorFrameCanvas: HTMLCanvasElement | null = null;
@@ -265,6 +266,7 @@ async function applyCanvasAdjustment({
 		currentTime,
 		fps: context.fps,
 	});
+	const masks = element.masks ?? [];
 	ctx.save();
 	ctx.globalAlpha = element.opacity ?? 1;
 	applyEffectsToCanvas(ctx, parameters);
@@ -276,12 +278,20 @@ async function applyCanvasAdjustment({
 			y: 0,
 			width: canvas.width,
 			height: canvas.height,
-			masks: [],
+			masks,
 			settings: color,
 			frameSeed: Math.round(currentTime * context.fps),
 		});
 	} else {
-		ctx.drawImage(adjustmentFrameCanvas, 0, 0);
+		await drawMediaSourceWithMasks({
+			context: ctx,
+			source: adjustmentFrameCanvas,
+			x: 0,
+			y: 0,
+			width: canvas.width,
+			height: canvas.height,
+			masks,
+		});
 	}
 	ctx.restore();
 	applyAdvancedCanvasEffects(ctx, parameters);

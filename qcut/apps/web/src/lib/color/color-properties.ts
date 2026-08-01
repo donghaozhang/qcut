@@ -184,6 +184,13 @@ const HSL_KEYFRAME_DEFINITIONS = Object.fromEntries(
 	)
 ) as Partial<Record<ColorKeyframeProperty, ColorKeyframeDefinition>>;
 
+const WHEEL_KEYFRAME_LABELS = {
+	shadows: "阴影",
+	midtones: "中间调",
+	highlights: "高光",
+	offset: "全局",
+} as const;
+
 const WHEEL_KEYFRAME_DEFINITIONS = Object.fromEntries(
 	(["shadows", "midtones", "highlights", "offset"] as const).flatMap((wheel) =>
 		(["x", "y", "luminance"] as const).map((parameter) => [
@@ -191,8 +198,8 @@ const WHEEL_KEYFRAME_DEFINITIONS = Object.fromEntries(
 			{
 				label:
 					parameter === "luminance"
-						? `${wheel[0].toUpperCase()}${wheel.slice(1)} luminance`
-						: `${wheel[0].toUpperCase()}${wheel.slice(1)} ${parameter.toUpperCase()}`,
+						? `${WHEEL_KEYFRAME_LABELS[wheel]} 明度`
+						: `${WHEEL_KEYFRAME_LABELS[wheel]} ${parameter.toUpperCase()}`,
 				min: parameter === "luminance" ? -100 : -1,
 				max: parameter === "luminance" ? 100 : 1,
 				step: parameter === "luminance" ? 1 : 0.01,

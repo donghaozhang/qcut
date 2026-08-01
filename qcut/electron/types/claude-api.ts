@@ -97,7 +97,7 @@ export interface ClaudeTransition {
 	type: string;
 	duration: number;
 	direction?: "left" | "right" | "up" | "down";
-	easing?: "linear" | "easeInOut";
+	easing?: "linear" | "easeInOut" | "easeInOutQuint";
 	tuning?: Record<string, unknown>;
 	maskShape?: string;
 }
@@ -224,6 +224,7 @@ export interface ClaudeElement
 	extends ClaudeTextProperties,
 		ClaudeMediaTimingProperties {
 	id: string;
+	trackId?: string;
 	trackIndex: number;
 	startTime: number;
 	endTime: number;
@@ -251,6 +252,10 @@ export interface ClaudeElement
 	content?: string;
 	markdownContent?: string;
 	style?: Record<string, unknown>;
+	name?: string;
+	opacity?: number;
+	adjustments?: Record<string, unknown>;
+	masks?: Record<string, unknown>[];
 	backgroundColor?: string;
 	textColor?: string;
 	componentPath?: string;
@@ -448,6 +453,7 @@ export interface ClaudeBatchAddElementRequest
 		| "image"
 		| "text"
 		| "sticker"
+		| "adjustment"
 		| "caption"
 		| "captions"
 		| "remotion"
@@ -462,6 +468,10 @@ export interface ClaudeBatchAddElementRequest
 	content?: string;
 	markdownContent?: string;
 	style?: Record<string, unknown>;
+	name?: string;
+	opacity?: number;
+	adjustments?: Record<string, unknown>;
+	masks?: Record<string, unknown>[];
 }
 
 export interface ClaudeBatchAddItemResult {

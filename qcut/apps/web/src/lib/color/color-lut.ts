@@ -2,12 +2,12 @@ import type { ColorCubeLut } from "@/types/timeline";
 import { clamp01, luminance, type RgbColor } from "./color-space-math";
 
 export const COLOR_LUT_PRESETS = [
-	{ id: "none", name: "None" },
-	{ id: "cinematic", name: "Cinematic Teal & Gold" },
-	{ id: "warm-film", name: "Warm Film" },
-	{ id: "cool-clean", name: "Cool Clean" },
-	{ id: "vintage", name: "Vintage Fade" },
-	{ id: "monochrome", name: "Monochrome" },
+	{ id: "none", name: "无" },
+	{ id: "cinematic", name: "电影青橙" },
+	{ id: "warm-film", name: "暖色胶片" },
+	{ id: "cool-clean", name: "冷调清透" },
+	{ id: "vintage", name: "复古褪色" },
+	{ id: "monochrome", name: "黑白" },
 ] as const;
 
 export type ColorLutPresetId = (typeof COLOR_LUT_PRESETS)[number]["id"];

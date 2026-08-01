@@ -205,6 +205,7 @@ export function TransitionProperties({
 							<SelectContent>
 								<SelectItem value="linear">线性</SelectItem>
 								<SelectItem value="easeInOut">缓入缓出</SelectItem>
+								<SelectItem value="easeInOutQuint">五次缓入缓出</SelectItem>
 							</SelectContent>
 						</Select>
 					</PropertyItem>

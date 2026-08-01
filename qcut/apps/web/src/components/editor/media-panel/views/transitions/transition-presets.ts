@@ -69,6 +69,7 @@ const dissolvePresets: TransitionPreset[] = [
 		type: "dissolve",
 		clipType: "dissolve",
 		defaultDuration: 0.5,
+		easing: "linear",
 		tags: ["crossfade", "soft", "classic"],
 		popular: true,
 	}),
@@ -342,6 +343,7 @@ export function getClipTransitionPresetConfig({
 }): ClipTransitionPresetConfig | null {
 	return {
 		type: preset.clipType,
+		...(preset.easing ? { easing: preset.easing } : {}),
 		...(preset.direction ? { direction: preset.direction } : {}),
 		...(preset.tuning ? { tuning: preset.tuning } : {}),
 		...(preset.maskShape ? { maskShape: preset.maskShape } : {}),

@@ -167,6 +167,7 @@ const ADJUSTMENT_ELEMENT_KEYS = createElementAllowedKeySet<AdjustmentElement>({
 	keys: {
 		adjustments: true,
 		color: true,
+		masks: true,
 		opacity: true,
 	},
 });
@@ -1087,8 +1088,8 @@ function validateAdjustmentElement({
 			value: element.adjustments,
 		});
 	}
-	if (element.color !== undefined) {
-		// The media validator owns the full color schema. A synthetic media shell
+	if (element.color !== undefined || element.masks !== undefined) {
+		// The media validator owns the full color and mask schemas. A synthetic media shell
 		// lets adjustment layers share the same strict nested validation.
 		validateMediaElement({
 			element: {

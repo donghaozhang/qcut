@@ -259,7 +259,7 @@ describe("JianYing draft export IPC", () => {
 		expect(loadRuntime).toHaveBeenCalledOnce();
 	});
 
-	it("binds FFprobe and the fixed Documents export directory in main", async () => {
+	it("binds CapCut, FFprobe, and the fixed Documents export directory in main", async () => {
 		const { event, mainWindow } = createMockWindowContext();
 		const runtime = createRuntime({
 			plan: vi.fn(async () => runtimePlan),
@@ -267,6 +267,7 @@ describe("JianYing draft export IPC", () => {
 		const ensureDirectory = vi.fn(async () => undefined);
 		setupJianyingDraftExportIPC({
 			ensureDirectory,
+			getCapCutAppPath: () => "/trusted/Applications/CapCut.app",
 			getDocumentsDirectory: () => DOCUMENTS_DIRECTORY,
 			getMainWindow: () => mainWindow,
 			loadRuntime: vi.fn(async () => runtime.module),
@@ -291,6 +292,7 @@ describe("JianYing draft export IPC", () => {
 		expect(runtime.constructorOptions).toEqual([
 			{
 				allowedSourceRootDirectory: CAPCUT_ALLOWED_SOURCE_DIRECTORY,
+				capCutAppPath: "/trusted/Applications/CapCut.app",
 				ffprobePath: "/trusted/qcut/ffprobe",
 				outputParentDirectory: CAPCUT_DRAFT_EXPORT_DIRECTORY,
 			},

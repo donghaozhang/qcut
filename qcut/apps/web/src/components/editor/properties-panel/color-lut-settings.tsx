@@ -96,6 +96,7 @@ export function ColorLutSettings({
 				})
 			}
 			testId="color-module-lut"
+			defaultExpanded
 		>
 			<div className="flex items-center gap-2">
 				<Select

@@ -168,7 +168,7 @@ describe("getTransitionPresetById", () => {
 
 describe("getClipTransitionPresetConfig", () => {
 	it.each([
-		["dissolve", { type: "dissolve" }],
+		["dissolve", { type: "dissolve", easing: "linear" }],
 		["soft-dissolve", { type: "dissolve" }],
 		["fade-to-black", { type: "fade-black" }],
 		["page-turn-left", { type: "wipe", direction: "left" }],
@@ -331,7 +331,7 @@ describe("getClipTransitionPresetConfig", () => {
 						tuning: config.tuning,
 						maskShape: config.maskShape,
 						duration: preset.defaultDuration,
-						easing: "easeInOut",
+						easing: config.easing ?? "easeInOut",
 					},
 					role,
 					progress: 0.5,
@@ -359,6 +359,7 @@ describe("getClipTransitionPresetConfig", () => {
 		};
 		expect(getClipTransitionPresetConfig({ preset: unavailable })).toEqual({
 			type: "dissolve",
+			easing: "linear",
 		});
 	});
 });

@@ -307,6 +307,7 @@ export {
 	findClosestMediaSeam,
 	getAudioCrossfadeMaxDuration,
 	getTransitionMaxDuration,
+	isClipTransitionEasing,
 	isClipTransitionType,
 	reconcileTrackAudioCrossfades,
 	reconcileTimelineTransitions,

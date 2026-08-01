@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
 	buildLegacyColorAdjustments,
 	DEFAULT_MEDIA_COLOR_SETTINGS,
@@ -16,6 +17,7 @@ import {
 	upsertCurveShapeKeyframe,
 } from "@/lib/color/color-curve-keyframes";
 import { buildSecondaryCurve } from "@/lib/color/color-secondary-curves";
+import { createMediaMask } from "@/lib/video/media-mask-stack";
 import {
 	createColorPreset,
 	loadColorPresets,
@@ -33,10 +35,16 @@ import type {
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import { useColorPreviewStore } from "@/stores/editor/color-preview-store";
 import type { ColorSettingsEditorBindings } from "./color-properties-types";
 import { ColorBasicSettings } from "./color-basic-settings";
-import { ColorPresetControls } from "./color-preset-controls";
+import { ColorCurvesSettings } from "./color-curves-settings";
+import { ColorHslSettings } from "./color-hsl-settings";
+import { ColorLutSettings } from "./color-lut-settings";
+import { ColorManagementSettingsPanel } from "./color-management-settings";
+import { ColorMaskSettings } from "./color-mask-settings";
+import { ColorSecondaryCurvesSettings } from "./color-secondary-curves-settings";
+import { ColorWheelSettingsPanel } from "./color-wheel-settings";
+import { MediaMaskProperties } from "./media-mask-properties";
 
 function curveShapeSamples({
 	property,
@@ -65,17 +73,10 @@ export function AdjustmentProperties({
 	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
 	const interactionActive = useRef(false);
 	const [presets, setPresets] = useState(loadColorPresets);
-	const [selectedPresetId, setSelectedPresetId] = useState<string>();
-	const previewBypassed = useColorPreviewStore((state) => state.bypassed);
-	const setPreviewBypassed = useColorPreviewStore((state) => state.setBypassed);
-	useEffect(
-		() => () => {
-			useColorPreviewStore.getState().setBypassed(false);
-		},
-		[]
-	);
+	const [activeColorTab, setActiveColorTab] = useState("basic");
 
 	const settings = normalizeMediaColorSettings({ element });
+	const masks = element.masks ?? [];
 	const resolvedSettings = resolveMediaColorAtTime({
 		element,
 		currentTime,
@@ -240,41 +241,9 @@ export function AdjustmentProperties({
 		try {
 			persistColorPresets({ presets: next });
 			setPresets(next);
-			setSelectedPresetId(preset.id);
 			toast.success("调色预设已保存");
 		} catch {
 			toast.error("无法保存调色预设");
-		}
-	};
-	const applySelectedPreset = () => {
-		const preset = presets.find(
-			(candidate) => candidate.id === selectedPresetId
-		);
-		if (!preset) return;
-		const normalized = normalizeMediaColorSettings({
-			element: { color: preset.color, adjustments: undefined },
-		});
-		persistSettings({
-			next: {
-				...normalized,
-				keyframes: structuredClone(settings.keyframes ?? {}),
-				curveShapeKeyframes: structuredClone(
-					settings.curveShapeKeyframes ?? {}
-				),
-			},
-		});
-		toast.success(`已应用 ${preset.name}`);
-	};
-	const deleteSelectedPreset = () => {
-		if (!selectedPresetId) return;
-		const next = presets.filter((preset) => preset.id !== selectedPresetId);
-		try {
-			persistColorPresets({ presets: next });
-			setPresets(next);
-			setSelectedPresetId(undefined);
-			toast.success("调色预设已删除");
-		} catch {
-			toast.error("无法删除调色预设");
 		}
 	};
 
@@ -293,36 +262,109 @@ export function AdjustmentProperties({
 		onInteractionStart: beginInteraction,
 		onInteractionEnd: endInteraction,
 	};
+	const createGradeMask = () => {
+		const id = `color-grade-mask-${generateUUID()}`;
+		const mask = createMediaMask({
+			id,
+			index: masks.length,
+			name: `调色蒙版 ${masks.length + 1}`,
+			type: "ellipse",
+		});
+		const nextSettings = {
+			...settings,
+			mask: {
+				...settings.mask,
+				enabled: true,
+				maskIds: [...new Set([...settings.mask.maskIds, id])],
+			},
+		};
+		updateAdjustmentElement(
+			trackId,
+			element.id,
+			{
+				color: nextSettings,
+				adjustments: buildLegacyColorAdjustments({ settings: nextSettings }),
+				masks: [...masks, mask],
+			},
+			true
+		);
+	};
 
 	return (
 		<div data-testid="adjustment-properties">
-			<div className="mb-3 flex items-center justify-between gap-3 border-b border-border/70 pb-3">
-				<span className="text-xs font-medium">调节</span>
-				<Switch
-					aria-label="启用调节"
-					checked={settings.enabled}
-					onCheckedChange={(enabled) =>
-						persistSettings({ next: { ...settings, enabled } })
+			<Tabs value={activeColorTab} onValueChange={setActiveColorTab}>
+				<TabsList className="grid h-8 w-full grid-cols-5 gap-0.5 rounded-sm p-0.5">
+					<TabsTrigger value="basic" className="px-1 text-xs">
+						基础
+					</TabsTrigger>
+					<TabsTrigger value="hsl" className="px-1 text-xs">
+						HSL
+					</TabsTrigger>
+					<TabsTrigger value="curves" className="px-1 text-xs">
+						曲线
+					</TabsTrigger>
+					<TabsTrigger value="wheels" className="px-1 text-xs">
+						色轮
+					</TabsTrigger>
+					<TabsTrigger value="mask" className="px-1 text-xs">
+						蒙版
+					</TabsTrigger>
+				</TabsList>
+
+				<div className="my-3 flex items-center justify-between gap-3 border-b border-border/70 pb-3">
+					<span className="text-xs font-medium">调节</span>
+					<Switch
+						aria-label="启用调节"
+						checked={settings.enabled}
+						onCheckedChange={(enabled) =>
+							persistSettings({ next: { ...settings, enabled } })
+						}
+					/>
+				</div>
+				<div
+					className={
+						settings.enabled ? undefined : "pointer-events-none opacity-45"
 					}
-				/>
-			</div>
-			<ColorPresetControls
-				presets={presets}
-				selectedPresetId={selectedPresetId}
-				bypassed={previewBypassed}
-				onSelectedPresetChange={setSelectedPresetId}
-				onApplyPreset={applySelectedPreset}
-				onDeletePreset={deleteSelectedPreset}
-				onSavePreset={saveColorPreset}
-				onBypassedChange={setPreviewBypassed}
-			/>
-			<div
-				className={
-					settings.enabled ? undefined : "pointer-events-none opacity-45"
-				}
-			>
-				<ColorBasicSettings bindings={bindings} />
-			</div>
+				>
+					<TabsContent value="basic" className="mt-2">
+						<ColorLutSettings bindings={bindings} />
+						<ColorBasicSettings bindings={bindings} />
+						<ColorManagementSettingsPanel bindings={bindings} />
+					</TabsContent>
+					<TabsContent value="hsl" className="mt-2">
+						<ColorHslSettings bindings={bindings} />
+					</TabsContent>
+					<TabsContent value="curves" className="mt-2">
+						<ColorCurvesSettings bindings={bindings} />
+						<ColorSecondaryCurvesSettings bindings={bindings} />
+					</TabsContent>
+					<TabsContent value="wheels" className="mt-2">
+						<ColorWheelSettingsPanel bindings={bindings} />
+					</TabsContent>
+					<TabsContent value="mask" className="mt-2">
+						<MediaMaskProperties
+							elementId={element.id}
+							masks={masks}
+							currentFrame={currentFrame}
+							onChange={(nextMasks, history = true) =>
+								updateAdjustmentElement(
+									trackId,
+									element.id,
+									{ masks: nextMasks },
+									history
+								)
+							}
+							onInteractionStart={beginInteraction}
+							onInteractionEnd={endInteraction}
+						/>
+						<ColorMaskSettings
+							bindings={bindings}
+							masks={masks}
+							onCreateMask={createGradeMask}
+						/>
+					</TabsContent>
+				</div>
+			</Tabs>
 		</div>
 	);
 }

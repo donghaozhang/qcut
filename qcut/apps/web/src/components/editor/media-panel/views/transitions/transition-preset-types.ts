@@ -1,5 +1,6 @@
 import type {
 	ClipTransitionDirection,
+	ClipTransitionEasing,
 	ClipTransitionMaskShape,
 	ClipTransitionTuning,
 	ClipTransitionType,
@@ -68,6 +69,7 @@ export interface TransitionPreset {
 	version: number;
 	delivery: "bundled" | "remote";
 	preview: TransitionPreviewAsset;
+	easing?: ClipTransitionEasing;
 	direction?: ClipTransitionDirection;
 	clipType: ClipTransitionType;
 	tuning?: ClipTransitionTuning;
@@ -80,6 +82,7 @@ export interface TransitionPreset {
 
 export interface ClipTransitionPresetConfig {
 	type: ClipTransitionType;
+	easing?: ClipTransitionEasing;
 	direction?: ClipTransitionDirection;
 	tuning?: ClipTransitionTuning;
 	maskShape?: ClipTransitionMaskShape;

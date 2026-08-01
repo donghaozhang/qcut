@@ -254,7 +254,14 @@ function normalizeBatchTrackElementType({
 	type,
 }: {
 	type: ClaudeBatchAddElementRequest["type"];
-}): "media" | "text" | "sticker" | "captions" | "remotion" | "markdown" {
+}):
+	| "media"
+	| "text"
+	| "sticker"
+	| "adjustment"
+	| "captions"
+	| "remotion"
+	| "markdown" {
 	if (type === "video" || type === "audio" || type === "image") {
 		return "media";
 	}
@@ -266,6 +273,7 @@ function normalizeBatchTrackElementType({
 		type === "media" ||
 		type === "text" ||
 		type === "sticker" ||
+		type === "adjustment" ||
 		type === "captions" ||
 		type === "remotion" ||
 		type === "markdown"
@@ -289,6 +297,7 @@ function isTrackCompatibleWithElementType({
 
 	if (normalizedElementType === "text") return trackType === "text";
 	if (normalizedElementType === "sticker") return trackType === "sticker";
+	if (normalizedElementType === "adjustment") return trackType === "adjustment";
 	if (normalizedElementType === "captions") return trackType === "captions";
 	if (normalizedElementType === "remotion") return trackType === "remotion";
 	if (normalizedElementType === "markdown") return trackType === "markdown";

@@ -261,7 +261,7 @@ export interface VideoTransition {
 		| "cube"
 		| "color-swipe";
 	direction?: "left" | "right" | "up" | "down";
-	easing: "linear" | "easeInOut";
+	easing: "linear" | "easeInOut" | "easeInOutQuint";
 	duration: number;
 	tuning?: {
 		tint?: string;

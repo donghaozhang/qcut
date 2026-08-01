@@ -8,9 +8,11 @@
 		".": "./src/index.ts"
 	},
 	"dependencies": {
-		"@qcut/editor-core": "workspace:*"
+		"@qcut/editor-core": "workspace:*",
+		"fontkit": "2.0.4"
 	},
 	"devDependencies": {
+		"@types/fontkit": "2.0.9",
 		"@types/node": "^24.10.13"
 	}
 }

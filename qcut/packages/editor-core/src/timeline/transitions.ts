@@ -143,7 +143,17 @@ const TRANSITION_DIRECTIONS = new Set<ClipTransitionDirection>([
 const TRANSITION_EASINGS = new Set<ClipTransitionEasing>([
 	"linear",
 	"easeInOut",
+	"easeInOutQuint",
 ]);
+
+export function isClipTransitionEasing(input: {
+	value: unknown;
+}): input is { value: ClipTransitionEasing } {
+	return (
+		typeof input.value === "string" &&
+		TRANSITION_EASINGS.has(input.value as ClipTransitionEasing)
+	);
+}
 
 function defaultElementDuration({
 	element,

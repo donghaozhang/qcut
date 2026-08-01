@@ -162,6 +162,31 @@ describe("Timeline Store Operations", () => {
 		expect(result.current.history).toHaveLength(previousHistoryLength + 1);
 	});
 
+	it("preserves a caller-provided element id", () => {
+		const { result } = renderHook(() => useTimelineStore());
+		const trackId = result.current.tracks[0].id;
+		const element = {
+			id: "cli-returned-element",
+			type: "media",
+			mediaId: "test-media",
+			name: "CLI Clip",
+			startTime: 0,
+			duration: 5,
+			trimStart: 0,
+			trimEnd: 0,
+		} as CreateMediaElement & { id: string };
+
+		let elementId: string | null = null;
+		act(() => {
+			elementId = result.current.addElementToTrack(trackId, element);
+		});
+
+		expect(elementId).toBe("cli-returned-element");
+		expect(result.current.tracks[0].elements[0]?.id).toBe(
+			"cli-returned-element"
+		);
+	});
+
 	it("stacks audio onto a free or new track instead of rejecting overlaps", () => {
 		const { result } = renderHook(() => useTimelineStore());
 		const song = {
