@@ -112,4 +112,16 @@ describe("payment-config", () => {
 		expect(origins).not.toContain("http://localhost:5173");
 		expect(origins).not.toContain("http://127.0.0.1:5173");
 	});
+
+	it("honors explicitly configured Vite origins in production", () => {
+		delete process.env.NODE_ENV;
+		process.env.ENVIRONMENT = "production";
+		process.env.CORS_ALLOWED_ORIGINS =
+			"http://localhost:5173,http://127.0.0.1:5173";
+
+		const origins = getAllowedCorsOrigins();
+
+		expect(origins).toContain("http://localhost:5173");
+		expect(origins).toContain("http://127.0.0.1:5173");
+	});
 });

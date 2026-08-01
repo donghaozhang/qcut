@@ -65,3 +65,17 @@ CDN 有版权风险;等价合法通道是仓库已有的 Freesound CC0 导入器
   也不在线上)。本次未动;若要上架,把条目补回 tracks.json 重新发布即可。
 - 音效音量未做响度归一(沿用现有管线行为)。
 - manifest 客户端 localStorage 缓存 1 小时,老用户最多 1 小时后可见新音效。
+
+## 2026-08-01:私有音效实验室
+
+“音效实验室”现支持两种内部模式:本机 schema v1 manifest 用于采集开发;
+私有 schema v2 manifest 通过 license server 从 Supabase 的
+`sound-effects-lab` private bucket 下发。382 条剪映参照音效和 manifest 不进
+Git/安装包，只有有效 QCut session 且账号 ID 位于独立
+`SOUND_EFFECTS_LAB_ALLOWED_USER_IDS` 白名单时，客户端才显示入口并取得
+600 秒音效签名 URL。
+
+生产环境已上传 20 分类 / 382 个 MP3，并用真实白名单 Electron 登录态完成
+manifest、试听和加入时间线 E2E;非白名单真实账号返回 403。架构、两个测试
+账号、上传命令、测试数字、截图证据、失败修复和下一步见
+[Sound Effects Lab](../sound-effects-lab/README.md)。

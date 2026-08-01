@@ -122,6 +122,17 @@ describe("sounds store asset identity", () => {
 		]);
 	});
 
+	it("does not persist local reference sounds in recent history", () => {
+		useSoundsStore
+			.getState()
+			.markSoundRecent(
+				{ ...sound(), source: "sound-effects-lab" },
+				"sound-effect"
+			);
+
+		expect(useSoundsStore.getState().recentSounds).toEqual([]);
+	});
+
 	it("keeps music and sound-effect favorites distinct", async () => {
 		await useSoundsStore.getState().saveSoundEffect(sound(), "music");
 		expect(useSoundsStore.getState().isSoundSaved(91, "music")).toBe(true);
