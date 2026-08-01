@@ -1,12 +1,7 @@
 #!/usr/bin/env bun
 
 import { Database } from "bun:sqlite";
-import {
-	existsSync,
-	readdirSync,
-	readFileSync,
-	statSync,
-} from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { parseArgs } from "node:util";
@@ -88,7 +83,13 @@ function normalizeRecord({
 	};
 }
 
-function tableExists({ database, table }: { database: Database; table: string }) {
+function tableExists({
+	database,
+	table,
+}: {
+	database: Database;
+	table: string;
+}) {
 	const result = database
 		.query<{ present: number }, [string]>(
 			"SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?) AS present"
@@ -446,13 +447,19 @@ function runCli() {
 				matches,
 				warnings: [
 					...(matches.length === 0
-						? ["No exact title match was found in the local resource databases."]
+						? [
+								"No exact title match was found in the local resource databases.",
+							]
 						: []),
 					...(matches.length > 1
-						? ["Multiple resources share this title; disambiguate with UI order or an mtime probe."]
+						? [
+								"Multiple resources share this title; disambiguate with UI order or an mtime probe.",
+							]
 						: []),
 					...(matches.some(({ packages }) => packages.length === 0)
-						? ["At least one matching resource is not downloaded in artistEffect/effect."]
+						? [
+								"At least one matching resource is not downloaded in artistEffect/effect.",
+							]
 						: []),
 				],
 			},

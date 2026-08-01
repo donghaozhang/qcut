@@ -1,11 +1,6 @@
 import { Database } from "bun:sqlite";
 import { describe, expect, test } from "bun:test";
-import {
-	mkdtempSync,
-	mkdirSync,
-	rmSync,
-	writeFileSync,
-} from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
@@ -49,15 +44,21 @@ describe("inspect-filter-cache", () => {
 
 	test("parses PNG LUT dimensions", () => {
 		expect(
-			parsePngDimensions({ buffer: createPngHeader({ width: 512, height: 512 }) })
+			parsePngDimensions({
+				buffer: createPngHeader({ width: 512, height: 512 }),
+			})
 		).toEqual({ width: 512, height: 512 });
 	});
 
 	test("classifies float cube and skin-segmented dual-LUT packages", () => {
-		const temporaryRoot = mkdtempSync(path.join(os.tmpdir(), "qcut-filter-cache-"));
+		const temporaryRoot = mkdtempSync(
+			path.join(os.tmpdir(), "qcut-filter-cache-")
+		);
 		try {
 			const cubeRoot = path.join(temporaryRoot, "cube");
-			mkdirSync(path.join(cubeRoot, "AmazingFeature/texture"), { recursive: true });
+			mkdirSync(path.join(cubeRoot, "AmazingFeature/texture"), {
+				recursive: true,
+			});
 			mkdirSync(path.join(cubeRoot, "AmazingFeature/lua"), { recursive: true });
 			writeFileSync(
 				path.join(cubeRoot, "AmazingFeature/texture/filter.cube.vf"),
@@ -100,7 +101,9 @@ describe("inspect-filter-cache", () => {
 	});
 
 	test("maps exact HTTP-cache titles without losing 64-bit resource IDs", () => {
-		const temporaryRoot = mkdtempSync(path.join(os.tmpdir(), "qcut-filter-db-"));
+		const temporaryRoot = mkdtempSync(
+			path.join(os.tmpdir(), "qcut-filter-db-")
+		);
 		try {
 			const databasePath = path.join(temporaryRoot, "rp.db");
 			const database = new Database(databasePath);
@@ -128,7 +131,9 @@ describe("inspect-filter-cache", () => {
 				},
 			});
 			database
-				.query("INSERT INTO http_cache (response_body, timestamp) VALUES (?, ?)")
+				.query(
+					"INSERT INTO http_cache (response_body, timestamp) VALUES (?, ?)"
+				)
 				.run(responseBody, "2026-08-01 12:00:00");
 			database.close();
 
