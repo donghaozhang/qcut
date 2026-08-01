@@ -4,7 +4,24 @@ import type {
 	TextElement,
 	TimelineTrack,
 } from "../types/timeline.js";
-import type { JianyingDraftIssue } from "./types.js";
+import {
+	CAPCUT_8_1_LEGACY_DEFAULT_FONT_ALIAS,
+	resolveCapCut81Font,
+} from "./capcut-8-1-font-resolver.js";
+import { CAPCUT_8_1_APP_VERSION } from "./capcut-8-1-profile.js";
+import type {
+	JianyingDraftIssue,
+	JianyingDraftTargetPlatform,
+} from "./types.js";
+
+export type JianyingTextFontProfile =
+	| {
+			kind: "capcut-8.1";
+			targetPlatform: JianyingDraftTargetPlatform;
+	  }
+	| { kind: "legacy" };
+
+const LEGACY_TEXT_FONT_PROFILE: JianyingTextFontProfile = { kind: "legacy" };
 
 function addIssue({
 	code,
@@ -51,6 +68,122 @@ function hasNonDefaultInactiveAnimationTiming({
 			Math.abs(animationDuration - 0.6) > Number.EPSILON) ||
 		(animationDelay !== undefined && Math.abs(animationDelay) > Number.EPSILON)
 	);
+}
+
+function collectFontIssues({
+	content,
+	element,
+	fontFamily,
+	fontProfile,
+	issues,
+	track,
+}: {
+	content: string;
+	element: CaptionElement | TextElement;
+	fontFamily: string;
+	fontProfile: JianyingTextFontProfile;
+	issues: JianyingDraftIssue[];
+	track: TimelineTrack;
+}): void {
+	if (fontProfile.kind === "legacy") {
+		if (fontFamily.trim() && fontFamily !== "Arial") {
+			addIssue({
+				code: "UNSUPPORTED_TEXT_FONT",
+				element,
+				issues,
+				message: `Font family ${fontFamily} is not embedded in the draft.`,
+				track,
+			});
+		}
+		return;
+	}
+
+	const resolution = resolveCapCut81Font({
+		appVersion: CAPCUT_8_1_APP_VERSION,
+		content,
+		requestedFamily: fontFamily,
+		targetPlatform: fontProfile.targetPlatform,
+	});
+	const resolutionIssues = resolution.ok
+		? resolution.warnings
+		: resolution.errors;
+	for (const resolutionIssue of resolutionIssues) {
+		addIssue({
+			code: resolutionIssue.code,
+			element,
+			issues,
+			message: resolutionIssue.message,
+			severity: resolutionIssue.severity,
+			track,
+		});
+	}
+}
+
+export function collectTextFontIssues({
+	element,
+	fontProfile = LEGACY_TEXT_FONT_PROFILE,
+	track,
+}: {
+	element: CaptionElement | TextElement;
+	fontProfile?: JianyingTextFontProfile;
+	track: TimelineTrack;
+}): JianyingDraftIssue[] {
+	const issues: JianyingDraftIssue[] = [];
+	const fontRequest =
+		element.type === "text"
+			? { content: element.content, fontFamily: element.fontFamily }
+			: {
+					content: element.text,
+					fontFamily: resolveSubtitleStyle(element.style).fontFamily,
+				};
+	collectFontIssues({
+		...fontRequest,
+		element,
+		fontProfile,
+		issues,
+		track,
+	});
+	return issues;
+}
+
+export function prepareCapCut81TextFontForLegacySerializer({
+	element,
+	targetPlatform,
+	track,
+}: {
+	element: CaptionElement | TextElement;
+	targetPlatform: JianyingDraftTargetPlatform;
+	track: TimelineTrack;
+}): {
+	issues: JianyingDraftIssue[];
+	projectedElement: CaptionElement | TextElement;
+} {
+	const issues = collectTextFontIssues({
+		element,
+		fontProfile: { kind: "capcut-8.1", targetPlatform },
+		track,
+	});
+	const projected = structuredClone(element);
+	if (projected.type === "text") {
+		return {
+			issues,
+			projectedElement: {
+				...projected,
+				fontFamily: CAPCUT_8_1_LEGACY_DEFAULT_FONT_ALIAS,
+			},
+		};
+	}
+	if (!projected.style) return { issues, projectedElement: projected };
+	return {
+		issues,
+		projectedElement: {
+			...projected,
+			style: {
+				...projected.style,
+				fontFamily: CAPCUT_8_1_LEGACY_DEFAULT_FONT_ALIAS,
+			},
+		},
+	};
 }
 
 function collectSharedWarnings({
@@ -216,15 +349,7 @@ function collectTextWarnings({
 			track,
 		});
 	}
-	if (element.fontFamily.trim() && element.fontFamily !== "Arial") {
-		addIssue({
-			code: "UNSUPPORTED_TEXT_FONT",
-			element,
-			issues,
-			message: `Font family ${element.fontFamily} is not embedded in the draft.`,
-			track,
-		});
-	}
+	issues.push(...collectTextFontIssues({ element, track }));
 	if (
 		element.textDecoration === "line-through" ||
 		(element.lineHeight !== undefined &&
@@ -328,15 +453,7 @@ function collectCaptionWarnings({
 			track,
 		});
 	}
-	if (style.fontFamily.trim() && style.fontFamily !== "Arial") {
-		addIssue({
-			code: "UNSUPPORTED_TEXT_FONT",
-			element,
-			issues,
-			message: `Font family ${style.fontFamily} is not embedded in the draft.`,
-			track,
-		});
-	}
+	issues.push(...collectTextFontIssues({ element, track }));
 	if (Math.abs(style.lineSpacing - 1.4) > Number.EPSILON) {
 		addIssue({
 			code: "UNSUPPORTED_TEXT_STYLE",
