@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+	DEFAULT_PRIVATE_STICKER_CATALOG_ID,
+	PRIVATE_STICKER_CATALOG_IDS,
+} from "@qcut/editor-core/sticker-lab";
+import {
 	createLocalStickerCatalog,
 	createPrivateStickerCatalog,
 	createPrivateStickerReference,
@@ -639,7 +643,36 @@ describe("private reference manifests", () => {
 
 		expect(() =>
 			parseLocalStickerManifest({ jsonText: JSON.stringify(candidate) })
-		).toThrow("jianying- prefix");
+		).toThrow("not registered");
+	});
+
+	it.each(
+		PRIVATE_STICKER_CATALOG_IDS
+	)("accepts the registered private catalog namespace %s", (catalogId) => {
+		const catalog = createPrivateStickerCatalog({ catalogId });
+
+		expect(
+			parseLocalStickerManifest({ jsonText: JSON.stringify(catalog) })
+		).toEqual(catalog);
+	});
+
+	it.each([
+		"jianying/2026-08-01-batch-0/assets/7000000000000000001.gif",
+		"jianying/2026-08-01-batch-01/assets/7000000000000000001.gif",
+		"jianying/2026-08-01-batch-two/assets/7000000000000000001.gif",
+		"jianying/2026-08-01-extra/assets/7000000000000000001.gif",
+	])("rejects malformed private batch object keys: %s", (objectKey) => {
+		const catalog = createPrivateStickerCatalog({
+			catalogId: "jianying-2026-08-01-batch-2",
+		});
+		const candidate = structuredClone(catalog);
+		const firstItem = candidate.categories[0]?.items[0];
+		if (!firstItem) throw new Error("Expected a private sticker fixture");
+		firstItem.asset.objectKey = objectKey;
+
+		expect(() =>
+			parseLocalStickerManifest({ jsonText: JSON.stringify(candidate) })
+		).toThrow("Invalid sticker lab manifest");
 	});
 
 	it("rejects object keys from another catalog's namespace", () => {
@@ -704,6 +737,7 @@ describe("private reference manifests", () => {
 
 		await expect(
 			loadPrivateStickerManifest({
+				expectedCatalogId: DEFAULT_PRIVATE_STICKER_CATALOG_ID,
 				manifestUrl: "/api/sticker-lab/private-manifest",
 				fetchImpl: fetchPrivate,
 			})
@@ -716,10 +750,31 @@ describe("private reference manifests", () => {
 			});
 		await expect(
 			loadPrivateStickerManifest({
+				expectedCatalogId: DEFAULT_PRIVATE_STICKER_CATALOG_ID,
 				manifestUrl: "/api/sticker-lab/private-manifest",
 				fetchImpl: fetchPublic,
 			})
 		).rejects.toThrow("without provenance");
+	});
+
+	it("rejects a valid private manifest returned for a different requested catalog", async () => {
+		const firstCatalog = createPrivateStickerCatalog();
+		const fetchImpl = async () =>
+			new Response(JSON.stringify(firstCatalog), {
+				status: 200,
+				headers: { "Content-Type": "application/json" },
+			});
+
+		await expect(
+			loadPrivateStickerManifest({
+				expectedCatalogId: "jianying-2026-08-01-batch-2",
+				fetchImpl,
+				manifestUrl:
+					"/api/sticker-lab/private-manifest?catalogId=jianying-2026-08-01-batch-2",
+			})
+		).rejects.toThrow(
+			"expected jianying-2026-08-01-batch-2, received jianying-2026-07-31"
+		);
 	});
 
 	it("keeps the remote loader strict about provenance", async () => {

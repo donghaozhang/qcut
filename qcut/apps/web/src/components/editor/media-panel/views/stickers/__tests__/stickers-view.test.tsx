@@ -45,6 +45,7 @@ const localCatalogMock = vi.hoisted(() => ({
 		error: null as string | null,
 		isAvailable: true,
 		isLoading: false,
+		privateCatalogs: [],
 	},
 }));
 const stickerSelectMocks = vi.hoisted(() => ({

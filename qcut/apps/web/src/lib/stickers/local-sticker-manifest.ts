@@ -1,5 +1,10 @@
 import { z } from "zod";
 import {
+	getPrivateStickerCatalogDefinition,
+	MAX_PRIVATE_STICKER_CATALOG_BYTES,
+	type PrivateStickerCatalogId,
+} from "@qcut/editor-core/sticker-lab";
+import {
 	readLocalStickerFile,
 	type LocalStickerFileReader,
 } from "./local-sticker-file-reader";
@@ -8,7 +13,6 @@ import {
 	ABSOLUTE_LOCAL_PATH_PATTERN,
 	GIT_OID_PATTERN,
 	hasDotPathSegment,
-	MAX_PRIVATE_REFERENCE_CATALOG_BYTES,
 	MAX_PRIVATE_REFERENCE_CATEGORY_BYTES,
 	MAX_REMOTE_ASSET_BYTES,
 	MAX_REMOTE_CATALOG_BYTES,
@@ -395,9 +399,13 @@ const privateStickerCatalogSchema = z
 			.string()
 			.trim()
 			.regex(STICKER_ID_PATTERN)
-			.refine((catalogId) => catalogId.startsWith("jianying-"), {
-				message: "Private reference catalogs must use the jianying- prefix",
-			}),
+			.refine(
+				(catalogId): catalogId is PrivateStickerCatalogId =>
+					getPrivateStickerCatalogDefinition({ catalogId }) !== null,
+				{
+					message: "Private reference catalog is not registered",
+				}
+			),
 		categories: z.array(privateStickerCategorySchema).min(1).max(100),
 	})
 	.strict()
@@ -406,12 +414,11 @@ const privateStickerCatalogSchema = z
 			categories: manifest.categories,
 			context,
 		});
-		// catalogId "jianying-2026-07-31" owns the "jianying/2026-07-31/assets/"
-		// namespace in the bucket.
-		const catalogObjectPrefix = `${manifest.catalogId.replace(
-			/^jianying-/,
-			"jianying/"
-		)}/assets/`;
+		const catalogDefinition = getPrivateStickerCatalogDefinition({
+			catalogId: manifest.catalogId,
+		});
+		if (!catalogDefinition) return;
+		const catalogObjectPrefix = catalogDefinition.assetObjectPrefix;
 		let catalogBytes = 0;
 		for (const [categoryIndex, category] of manifest.categories.entries()) {
 			const categoryBytes = category.items.reduce(
@@ -443,11 +450,11 @@ const privateStickerCatalogSchema = z
 				}
 			}
 		}
-		if (catalogBytes > MAX_PRIVATE_REFERENCE_CATALOG_BYTES) {
+		if (catalogBytes > MAX_PRIVATE_STICKER_CATALOG_BYTES) {
 			context.addIssue({
 				code: z.ZodIssueCode.custom,
 				path: ["categories"],
-				message: `Catalog assets exceed ${MAX_PRIVATE_REFERENCE_CATALOG_BYTES} bytes`,
+				message: `Catalog assets exceed ${MAX_PRIVATE_STICKER_CATALOG_BYTES} bytes`,
 			});
 		}
 	});
@@ -636,10 +643,12 @@ export async function loadRemoteStickerManifest({
 }
 
 export async function loadPrivateStickerManifest({
+	expectedCatalogId,
 	fetchImpl = fetch,
 	manifestUrl,
 	signal,
 }: {
+	expectedCatalogId: PrivateStickerCatalogId;
 	fetchImpl?: typeof fetch;
 	manifestUrl: string;
 	signal?: AbortSignal;
@@ -652,6 +661,11 @@ export async function loadPrivateStickerManifest({
 	if (!isPrivateStickerCatalog(catalog)) {
 		throw new Error(
 			"Private sticker reference manifests must use version 2 without provenance"
+		);
+	}
+	if (catalog.catalogId !== expectedCatalogId) {
+		throw new Error(
+			`Private sticker catalog id mismatch: expected ${expectedCatalogId}, received ${catalog.catalogId}`
 		);
 	}
 	return catalog;

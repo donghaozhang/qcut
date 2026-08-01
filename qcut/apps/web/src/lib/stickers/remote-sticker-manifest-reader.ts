@@ -1,12 +1,13 @@
-const MAX_REMOTE_MANIFEST_BYTES = 1024 * 1024;
-const REMOTE_MANIFEST_SIZE_ERROR = `Sticker lab manifest exceeds ${MAX_REMOTE_MANIFEST_BYTES} bytes`;
+import { MAX_PRIVATE_STICKER_MANIFEST_BYTES } from "@qcut/editor-core/sticker-lab";
+
+const REMOTE_MANIFEST_SIZE_ERROR = `Sticker lab manifest exceeds ${MAX_PRIVATE_STICKER_MANIFEST_BYTES} bytes`;
 
 function readChunks({
 	reader,
 }: {
 	reader: ReadableStreamDefaultReader<Uint8Array>;
 }): Promise<Uint8Array> {
-	const bytes = new Uint8Array(MAX_REMOTE_MANIFEST_BYTES);
+	const bytes = new Uint8Array(MAX_PRIVATE_STICKER_MANIFEST_BYTES);
 	let loadedBytes = 0;
 
 	return new Promise((resolve, reject) => {
@@ -20,7 +21,7 @@ function readChunks({
 					}
 
 					const nextLoadedBytes = loadedBytes + value.byteLength;
-					if (nextLoadedBytes > MAX_REMOTE_MANIFEST_BYTES) {
+					if (nextLoadedBytes > MAX_PRIVATE_STICKER_MANIFEST_BYTES) {
 						throw new Error(REMOTE_MANIFEST_SIZE_ERROR);
 					}
 					bytes.set(value, loadedBytes);
@@ -78,7 +79,7 @@ export async function readRemoteStickerManifestResponse({
 	try {
 		if (
 			Number.isFinite(contentLength) &&
-			contentLength > MAX_REMOTE_MANIFEST_BYTES
+			contentLength > MAX_PRIVATE_STICKER_MANIFEST_BYTES
 		) {
 			throw new Error(REMOTE_MANIFEST_SIZE_ERROR);
 		}
