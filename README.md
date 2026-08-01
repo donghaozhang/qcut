@@ -22,6 +22,21 @@
 
 ## Product Tour
 
+### Text animations ✨ new
+
+Typewriter entrances, wave loops, rotating exits — every word moves. The clip below is the real QCut editor driven end-to-end by our own AI agent (virtual pointer, live presets, no After Effects).
+
+<!-- showcase:text-animations:start -->
+<img src="qcut/docs/assets/readme/qcut-text-animations.gif" alt="QCut text animations: typewriter entrance, wave loop, and animated outro recorded live in the editor" width="100%" />
+
+▶ Full promo: [English · 2K60](https://github.com/Quriosity-agent/qcut/releases/download/v2026.08.01.1/QCut-Text-Motion-ShotCraft-EN-2K60.mp4) · [中文版 · 2K60](https://github.com/Quriosity-agent/qcut/releases/download/v2026.08.01.1/QCut-Text-Motion-ShotCraft-ZH-2K60.mp4)
+<!-- showcase:text-animations:end -->
+
+<!-- showcase:stickers:start -->
+<!-- Reserved for the sticker-animation showcase. Swap content between these
+     markers with the readme-showcase skill; keep everything outside intact. -->
+<!-- showcase:stickers:end -->
+
 ### Multi-track editing
 
 Build videos on a professional timeline with live preview, text, stickers, audio, and precise clip controls.
