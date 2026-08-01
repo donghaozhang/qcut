@@ -4,11 +4,15 @@ import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
 import { getTimelineElementDuration } from "@/lib/timeline";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { isVideoTransitionPair } from "@/lib/transitions/video-transition-eligibility";
-import { isClipTransitionMaskShape } from "@qcut/editor-core/timeline";
+import {
+	isClipTransitionEasing,
+	isClipTransitionMaskShape,
+} from "@qcut/editor-core/timeline";
 import {
 	findClosestMediaSeam,
 	isClipTransitionType,
 	type ClipTransitionDirection,
+	type ClipTransitionEasing,
 	type ClipTransitionMaskShape,
 	type ClipTransitionTuning,
 	type ClipTransitionType,
@@ -21,6 +25,7 @@ interface TransitionDragPayload {
 	kind: "qcut-transition-preset";
 	id: string;
 	type: ClipTransitionType;
+	easing?: ClipTransitionEasing;
 	direction?: ClipTransitionDirection;
 	tuning?: ClipTransitionTuning;
 	maskShape?: ClipTransitionMaskShape;
@@ -72,6 +77,16 @@ function parseMaskShape({
 	return isClipTransitionMaskShape(candidate) ? candidate.value : null;
 }
 
+function parseEasing({
+	value,
+}: {
+	value: unknown;
+}): ClipTransitionEasing | null | undefined {
+	if (value === undefined) return;
+	const candidate = { value };
+	return isClipTransitionEasing(candidate) ? candidate.value : null;
+}
+
 function parseTransitionPayload({
 	data,
 }: {
@@ -82,11 +97,13 @@ function parseTransitionPayload({
 		if (!parsed || typeof parsed !== "object") return null;
 		const candidate = parsed as Record<string, unknown>;
 		const typeCandidate = { value: candidate.type };
+		const easing = parseEasing({ value: candidate.easing });
 		const maskShape = parseMaskShape({ value: candidate.maskShape });
 		if (
 			candidate.kind !== "qcut-transition-preset" ||
 			typeof candidate.id !== "string" ||
 			!isClipTransitionType(typeCandidate) ||
+			easing === null ||
 			typeof candidate.defaultDuration !== "number" ||
 			!Number.isFinite(candidate.defaultDuration) ||
 			(candidate.direction !== undefined &&
@@ -100,6 +117,7 @@ function parseTransitionPayload({
 			kind: "qcut-transition-preset",
 			id: candidate.id,
 			type: typeCandidate.value,
+			easing,
 			direction: candidate.direction,
 			tuning: parseTuning({ value: candidate.tuning }),
 			maskShape,
@@ -182,7 +200,7 @@ export function useTransitionDrop({
 			tuning: payload.tuning,
 			maskShape: payload.maskShape,
 			duration: payload.defaultDuration,
-			easing: "easeInOut",
+			easing: payload.easing ?? "easeInOut",
 		});
 		if (!transitionId) {
 			toast.error("This cut does not have enough room for a transition.");
