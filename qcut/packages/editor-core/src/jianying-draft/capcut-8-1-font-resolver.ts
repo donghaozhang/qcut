@@ -47,7 +47,12 @@ export interface CapCut81SystemDefaultFontResolution {
 	appVersion: typeof CAPCUT_8_1_APP_VERSION;
 	coverage: {
 		emoji: false;
-		systemFallbackAllowlist: readonly ["latin", "han", "common", "inherited"];
+		systemFallbackAllowlist: readonly [
+			"latin",
+			"bmp-han",
+			"common",
+			"inherited",
+		];
 		verifiedScripts: readonly ["latin", "simplified-chinese"];
 	};
 	draftFields: typeof CAPCUT_8_1_SYSTEM_DEFAULT_FONT_DRAFT_FIELDS;
@@ -71,8 +76,10 @@ export type CapCut81FontResolution =
 
 const EMOJI_CONTENT_PATTERN =
 	/(?:\p{Extended_Pictographic}|\p{Regional_Indicator}|\u20e3|\ufe0f)/u;
-const SYSTEM_FALLBACK_SCRIPT_ALLOWLIST_PATTERN =
-	/^(?:\p{Script=Latin}|\p{Script=Han}|\p{Script=Common}|\p{Script=Inherited})$/u;
+const SYSTEM_FALLBACK_NON_HAN_PATTERN =
+	/^(?:\p{Script=Latin}|\p{Script=Common}|\p{Script=Inherited})$/u;
+const SYSTEM_FALLBACK_BMP_HAN_PATTERN =
+	/^[\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff]$/u;
 
 function createResolutionError({
 	code,
@@ -107,7 +114,10 @@ function findFirstUnverifiedScriptCharacter({
 	content: string;
 }): string | null {
 	for (const character of content) {
-		if (!SYSTEM_FALLBACK_SCRIPT_ALLOWLIST_PATTERN.test(character)) {
+		if (
+			!SYSTEM_FALLBACK_NON_HAN_PATTERN.test(character) &&
+			!SYSTEM_FALLBACK_BMP_HAN_PATTERN.test(character)
+		) {
 			return character;
 		}
 	}
@@ -177,7 +187,7 @@ function collectBlockingErrors({
 		errors.push(
 			createResolutionError({
 				code: "UNVERIFIED_CAPCUT_TEXT_SCRIPT",
-				message: `Character ${JSON.stringify(unverifiedScriptCharacter)} (${formatUnicodeCodePoint({ character: unverifiedScriptCharacter })}) is outside the conservative CapCut 8.1 system-fallback script allowlist (Latin, Han, Common, Inherited).`,
+				message: `Character ${JSON.stringify(unverifiedScriptCharacter)} (${formatUnicodeCodePoint({ character: unverifiedScriptCharacter })}) is outside the conservative CapCut 8.1 system-fallback allowlist (Latin, BMP Han, Common, Inherited).`,
 			})
 		);
 	}
@@ -236,7 +246,7 @@ export function resolveCapCut81Font({
 		appVersion: CAPCUT_8_1_APP_VERSION,
 		coverage: {
 			emoji: false,
-			systemFallbackAllowlist: ["latin", "han", "common", "inherited"],
+			systemFallbackAllowlist: ["latin", "bmp-han", "common", "inherited"],
 			verifiedScripts: ["latin", "simplified-chinese"],
 		},
 		draftFields: CAPCUT_8_1_SYSTEM_DEFAULT_FONT_DRAFT_FIELDS,
