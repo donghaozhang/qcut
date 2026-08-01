@@ -53,6 +53,25 @@ function dotProduct({
 	return result;
 }
 
+function totalDegreeTerms({
+	color,
+	degree,
+}: {
+	color: RgbColor;
+	degree: number;
+}) {
+	const terms: number[] = [];
+	for (let redPower = degree; redPower >= 0; redPower -= 1) {
+		for (let greenPower = degree - redPower; greenPower >= 0; greenPower -= 1) {
+			const bluePower = degree - redPower - greenPower;
+			terms.push(
+				color.r ** redPower * color.g ** greenPower * color.b ** bluePower
+			);
+		}
+	}
+	return terms;
+}
+
 function applyPolynomialCorrection({
 	color,
 	recipe,
@@ -78,6 +97,13 @@ function applyPolynomialCorrection({
 		b * b * g,
 	];
 	const cubicTripleTerm = r * g * b;
+	const higherOrder = correction.higherOrder;
+	const quarticTerms = higherOrder?.quartic
+		? totalDegreeTerms({ color, degree: 4 })
+		: [];
+	const quinticTerms = higherOrder?.quintic
+		? totalDegreeTerms({ color, degree: 5 })
+		: [];
 	const evaluateChannel = ({ channel }: { channel: 0 | 1 | 2 }) => {
 		const cubic = correction.cubic;
 		const cubicValue = cubic
@@ -91,6 +117,19 @@ function applyPolynomialCorrection({
 				}) +
 				cubic.triple[channel] * cubicTripleTerm
 			: 0;
+		const higherOrderValue =
+			(higherOrder?.quartic
+				? dotProduct({
+						coefficients: higherOrder.quartic[channel],
+						terms: quarticTerms,
+					})
+				: 0) +
+			(higherOrder?.quintic
+				? dotProduct({
+						coefficients: higherOrder.quintic[channel],
+						terms: quinticTerms,
+					})
+				: 0);
 		return (
 			dotProduct({
 				coefficients: correction.linear[channel],
@@ -105,6 +144,7 @@ function applyPolynomialCorrection({
 				terms: crossTerms,
 			}) +
 			cubicValue +
+			higherOrderValue +
 			correction.offset[channel]
 		);
 	};

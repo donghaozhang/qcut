@@ -7,6 +7,10 @@ import {
 	transformFilterColor,
 } from "../filter-lut";
 import type { FilterColorMatrix } from "../filter-types";
+import type {
+	FilterQuarticColorMatrix,
+	FilterQuinticColorMatrix,
+} from "../filter-types";
 
 const IDENTITY_COLOR_MATRIX: FilterColorMatrix = [
 	[1, 0, 0],
@@ -18,6 +22,18 @@ const ZERO_COLOR_MATRIX: FilterColorMatrix = [
 	[0, 0, 0],
 	[0, 0, 0],
 	[0, 0, 0],
+];
+
+const ZERO_QUARTIC_MATRIX: FilterQuarticColorMatrix = [
+	Array.from({ length: 15 }, () => 0) as FilterQuarticColorMatrix[0],
+	Array.from({ length: 15 }, () => 0) as FilterQuarticColorMatrix[1],
+	Array.from({ length: 15 }, () => 0) as FilterQuarticColorMatrix[2],
+];
+
+const ZERO_QUINTIC_MATRIX: FilterQuinticColorMatrix = [
+	Array.from({ length: 21 }, () => 0) as FilterQuinticColorMatrix[0],
+	Array.from({ length: 21 }, () => 0) as FilterQuinticColorMatrix[1],
+	Array.from({ length: 21 }, () => 0) as FilterQuinticColorMatrix[2],
 ];
 
 describe("filter LUT", () => {
@@ -114,6 +130,30 @@ describe("filter LUT", () => {
 		expect(result.r).toBeCloseTo(0.088, 6);
 		expect(result.g).toBeCloseTo(0.16, 6);
 		expect(result.b).toBeCloseTo(0.704, 6);
+	});
+
+	it("applies higher-order terms by descending red and green powers", () => {
+		const quartic = structuredClone(ZERO_QUARTIC_MATRIX);
+		const quintic = structuredClone(ZERO_QUINTIC_MATRIX);
+		quartic[0][4] = 1;
+		quartic[1][12] = 1;
+		quintic[2][7] = 1;
+		const result = transformFilterColor({
+			color: { r: 0.2, g: 0.4, b: 0.8 },
+			recipe: {
+				polynomialCorrection: {
+					linear: ZERO_COLOR_MATRIX,
+					squared: ZERO_COLOR_MATRIX,
+					cross: ZERO_COLOR_MATRIX,
+					higherOrder: { quartic, quintic },
+					offset: [0, 0, 0],
+				},
+			},
+		});
+
+		expect(result.r).toBeCloseTo(0.0128, 8);
+		expect(result.g).toBeCloseTo(0.1024, 8);
+		expect(result.b).toBeCloseTo(0.00512, 8);
 	});
 
 	it("clamps polynomial correction output to the LUT domain", () => {

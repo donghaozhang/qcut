@@ -35,11 +35,71 @@ export interface FilterCubicColorTerms {
 	triple: [number, number, number];
 }
 
+export type FilterQuarticTerms = [
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+];
+
+export type FilterQuinticTerms = [
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+];
+
+export type FilterQuarticColorMatrix = [
+	FilterQuarticTerms,
+	FilterQuarticTerms,
+	FilterQuarticTerms,
+];
+
+export type FilterQuinticColorMatrix = [
+	FilterQuinticTerms,
+	FilterQuinticTerms,
+	FilterQuinticTerms,
+];
+
+export interface FilterHigherOrderColorTerms {
+	quartic?: FilterQuarticColorMatrix;
+	quintic?: FilterQuinticColorMatrix;
+}
+
 export interface FilterPolynomialColorCorrection {
 	linear: FilterColorMatrix;
 	squared: FilterColorMatrix;
 	cross: FilterColorMatrix;
 	cubic?: FilterCubicColorTerms;
+	higherOrder?: FilterHigherOrderColorTerms;
 	offset: [number, number, number];
 }
 
