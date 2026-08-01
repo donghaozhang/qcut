@@ -37,6 +37,7 @@ function sourceVideoProbe(): unknown {
 				height: 720,
 				nb_frames: "180",
 				pix_fmt: "yuv420p",
+				profile: "High",
 				width: 1280,
 			},
 		],
@@ -219,7 +220,7 @@ describe("CapCut E2E fixture manifest", () => {
 		};
 		probe.streams[0].nb_frames = "179";
 		expect(() => validateManifest({ manifest: changedFrameCount })).toThrow(
-			"H.264 yuv420p geometry profile"
+			"H.264 High yuv420p geometry profile"
 		);
 	});
 

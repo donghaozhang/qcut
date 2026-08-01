@@ -182,6 +182,8 @@ export function validateSourceVideoProbe({
 	if (
 		requireString({ label: "Video codec", value: video.codec_name }) !==
 			"h264" ||
+		requireString({ label: "Video profile", value: video.profile }) !==
+			"High" ||
 		requireNumber({ label: "Video width", value: video.width }) !==
 			spec.width ||
 		requireNumber({ label: "Video height", value: video.height }) !==
@@ -192,7 +194,7 @@ export function validateSourceVideoProbe({
 			"yuv420p"
 	) {
 		throw new Error(
-			"Source video does not match the H.264 yuv420p geometry profile."
+			"Source video does not match the H.264 High yuv420p geometry profile."
 		);
 	}
 	const frameRate = requireString({

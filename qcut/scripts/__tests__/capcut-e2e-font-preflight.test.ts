@@ -106,7 +106,12 @@ describe("CapCut E2E font preflight", () => {
 		expect(source).toContain("GLOBAL FRAME %{eif\\:n+0\\:d\\:3}");
 		expect(source).toContain("GLOBAL FRAME %{eif\\:n+90\\:d\\:3}");
 		expect(source).toContain("drawbox=x=0:y=0:w=iw:h=96");
-		expect(source).toContain("-crf 0");
+		expect(source).toContain("-qp 10");
+		expect(source).toContain("-g 1");
+		expect(source).toContain("-bf 0");
+		expect(source).toContain(
+			"no-deblock=1:aq-mode=0:psy=0:mbtree=0"
+		);
 		expect(source).toContain("-an");
 		expect(proof).toContain("/fonts/cjk.ttf");
 		expect(proof).toContain("剪映真实导入测试");

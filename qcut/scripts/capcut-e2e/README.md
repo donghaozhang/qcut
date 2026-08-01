@@ -6,7 +6,9 @@ Generate a self-contained run under `.tmp/capcut-e2e/runs/<run-id>`:
 bun run capcut:e2e:fixtures
 ```
 
-The six-second H.264 source video is video-only: Clip A freezes the first
+The six-second H.264 High/yuv420p source video is video-only. It uses fixed
+QP 10, all-intra frames, and disables deblock/AQ/psy/mbtree so a frozen plate
+decodes to identical ROI pixels at every calibrated frame. Clip A freezes the first
 `testsrc2` frame and Clip B freezes the first SMPTE-bars frame. Both plates add
 different asymmetric corner marks. The top 96-pixel strip shows the zero-based
 global frame ordinal; the locked comparison ROI is `1280x624+0+96`, so visual
