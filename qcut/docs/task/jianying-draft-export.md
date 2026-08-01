@@ -104,6 +104,37 @@ shaping 或正确渲染的充分条件，更不是“所有中文字体 fidelity
 支持显式字体，必须为每个字体建立版本绑定的参考草稿、资源复制规则和真实 GUI
 回归；否则只能选择系统 fallback 或烘焙为透明媒体。
 
+## 原生字体参考采集
+
+当前唯一真实保存证据是 CapCut 8.1.1 的系统 fallback：保存后 text material 会写入
+`font_path=/Applications/CapCut.app/Contents/Resources/Font/SystemFont/en.ttf`，
+但 `font_name`、`font_id`、`font_resource_id` 仍为空，material `fonts` 是空数组，
+`styles[].font` 和顶层 `materials.fonts` 都不存在。中文仍能显示，说明这个
+`font_path` 不是“所有字符只由 en.ttf 渲染”的证明；CapCut 内部仍会做 fallback。
+
+显式字体必须在独立 macOS 用户或 VM 中逐个采集。每次只对固定文案
+`剪映字体参考ABC123` 改一个字体，保存并完全退出后分别复制修改前、修改后的同一
+草稿快照；material ID、文字、字号、样式和所有非字体字段必须保持不变。分析命令：
+
+```bash
+bun run capcut:e2e:font-reference -- \
+  --before /absolute/path/to/before-draft \
+  --after /absolute/path/to/after-draft \
+  --text '剪映字体参考ABC123' \
+  --font-label 'UI 中显示的字体名' \
+  --output /absolute/path/to/reference.json
+```
+
+分析器同时读取根目录和 timeline 的 `draft_info.json`，记录文件 hash，并只接受
+`font_*`、material `fonts`、顶层 `materials.fonts` 和 `styles[].font` 的变化。
+无字体变化、root/timeline 不一致、material ID 变化或任何非字体语义变化都会拒绝。
+至少要分别采集系统默认、一个 CapCut 内置中文字体和一个下载中文字体，再检查实际
+字体文件的 cmap 与授权/复制规则，才能把该字体加入 `CapCut81FontResolver`。字体
+不存在、文件 hash 漂移或目标文字缺字时必须阻断；不能静默换成系统字体。
+
+原始草稿和 CapCut 字体资源只留在忽略的本地证据目录，不提交或分发；仓库只记录
+人工审阅后的字段规则、测试和非专有的 hash 证据。
+
 ## GUI 安全边界
 
 Stage-0 探测已证明：启动 CapCut 8.1.1 时设置临时 `HOME`、
