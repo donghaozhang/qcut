@@ -44,6 +44,7 @@
         "@emnapi/core": "^1.4.5",
         "@emnapi/wasi-threads": "^1.1.0",
         "@playwright/test": "^1.58.2",
+        "@qcut/editor-core": "workspace:*",
         "@remotion/bundler": "4.0.497",
         "@remotion/cli": "4.0.497",
         "@types/babel__traverse": "^7.28.0",

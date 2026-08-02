@@ -1,3 +1,8 @@
+import {
+	DEFAULT_PRIVATE_STICKER_CATALOG_ID,
+	getPrivateStickerCatalogDefinition,
+	MAX_PRIVATE_STICKER_MANIFEST_BYTES,
+} from "@qcut/editor-core/sticker-lab";
 import { Hono, type Context } from "hono";
 import { getSupabase } from "../db/supabase";
 import { authMiddleware } from "../middleware/auth";
@@ -21,9 +26,7 @@ const STICKER_OBJECT_KEY_PATTERN =
  * allow list; it must never be browsable by ordinary signed-in users.
  */
 const PRIVATE_REFERENCE_OBJECT_KEY_PATTERN =
-	/^jianying\/[0-9]{4}-[0-9]{2}-[0-9]{2}\/assets\/[0-9]+\.(gif|png)$/;
-const PRIVATE_REFERENCE_MANIFEST_OBJECT_KEY =
-	"jianying/2026-07-31/manifest.json";
+	/^jianying\/([a-z0-9]+(?:-[a-z0-9]+)*)\/assets\/[0-9]+\.(gif|png)$/;
 
 function isStickerLabUserAllowed({
 	userId,
@@ -44,7 +47,16 @@ function isPrivateReferenceObjectKey({
 }: {
 	objectKey: string;
 }): boolean {
-	return PRIVATE_REFERENCE_OBJECT_KEY_PATTERN.test(objectKey);
+	const match = PRIVATE_REFERENCE_OBJECT_KEY_PATTERN.exec(objectKey);
+	const namespace = match?.[1];
+	if (!namespace) {
+		return false;
+	}
+	return (
+		getPrivateStickerCatalogDefinition({
+			catalogId: `jianying-${namespace}`,
+		}) !== null
+	);
 }
 
 stickerLabRoutes.get("/assets", async (c) => {
@@ -69,8 +81,8 @@ stickerLabRoutes.get("/thumbnail", async (c) => {
 	const objectKey = c.req.query("objectKey");
 	if (objectKey && isPrivateReferenceObjectKey({ objectKey })) {
 		// The harvested reference catalogue has no public preview tier: even
-		// thumbnails require the allow list. Skip the transform — these are
-		// animated GIFs and the viewer is entitled to the original anyway.
+		// thumbnails require the allow list. Skip the transform because the private
+		// grid intentionally reuses the cached original for both GIF and PNG assets.
 		const userId = c.get("userId") as string | undefined;
 		if (!isStickerLabUserAllowed({ userId })) {
 			return c.json({ error: "Forbidden" }, 403);
@@ -98,19 +110,37 @@ stickerLabRoutes.get("/thumbnail", async (c) => {
 });
 
 stickerLabRoutes.get("/private-manifest", async (c) => {
+	c.header("Cache-Control", "no-store");
 	const userId = c.get("userId") as string | undefined;
 	if (!isStickerLabUserAllowed({ userId })) {
 		return c.json({ error: "Forbidden" }, 403);
+	}
+	const requestedCatalogId =
+		c.req.query("catalogId") ?? DEFAULT_PRIVATE_STICKER_CATALOG_ID;
+	const catalog = getPrivateStickerCatalogDefinition({
+		catalogId: requestedCatalogId,
+	});
+	if (!catalog) {
+		return c.json({ error: "Invalid private sticker catalog" }, 400);
 	}
 
 	try {
 		const { data, error } = await getSupabase()
 			.storage.from(STICKER_BUCKET)
-			.download(PRIVATE_REFERENCE_MANIFEST_OBJECT_KEY);
+			.download(catalog.manifestObjectKey, {}, { cache: "no-store" });
 		if (error || !data) {
 			return c.json({ error: "Private manifest unavailable" }, 404);
 		}
-		return new Response(await data.arrayBuffer(), {
+		if (data.size > MAX_PRIVATE_STICKER_MANIFEST_BYTES) {
+			return c.json({ error: "Private manifest unavailable" }, 502);
+		}
+
+		const manifestBytes = await data.arrayBuffer();
+		if (manifestBytes.byteLength > MAX_PRIVATE_STICKER_MANIFEST_BYTES) {
+			return c.json({ error: "Private manifest unavailable" }, 502);
+		}
+
+		return new Response(manifestBytes, {
 			headers: {
 				"Content-Type": "application/json",
 				"Cache-Control": "no-store",
