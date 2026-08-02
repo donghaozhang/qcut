@@ -21,6 +21,11 @@ import {
 } from "@/lib/debug/error-handler";
 import { clampMarkdownDuration } from "@/lib/markdown";
 import {
+	findOccupyingElement,
+	firstFreeStartTime,
+} from "@/lib/timeline-occupancy";
+import { getTimelineElementDuration } from "@/lib/timeline";
+import {
 	COMPACT_TRACK_HEIGHTS,
 	getTrackHeight,
 	TIMELINE_CONSTANTS,
@@ -48,6 +53,61 @@ import {
 
 export interface CrudDeps {
 	updateTracksAndSave: (tracks: TimelineTrack[]) => void;
+}
+
+/**
+ * Refuses a placement that would stack two elements on one track, naming the
+ * obstruction and the first time that would work.
+ *
+ * Callers that name a track have asked for a specific spot, so silently moving
+ * the element elsewhere would misreport what happened; callers that only want
+ * "somewhere sensible" pick a free lane before they get here.
+ */
+function rejectIfOccupied({
+	operation,
+	track,
+	startTime,
+	duration,
+	excludeElementId,
+}: {
+	operation: string;
+	track: TimelineTrack;
+	startTime: number;
+	duration: number;
+	excludeElementId?: string;
+}): boolean {
+	const blocker = findOccupyingElement({
+		track,
+		startTime,
+		duration,
+		excludeElementId,
+	});
+	if (!blocker) return false;
+
+	const freeAt = firstFreeStartTime({
+		track,
+		duration,
+		notBefore: startTime,
+		excludeElementId,
+	});
+	handleError(
+		new Error(
+			`"${blocker.name}" already occupies ${startTime.toFixed(2)}s on track "${track.name}". ` +
+				`A track plays one element at a time — the next free spot is ${freeAt.toFixed(2)}s.`
+		),
+		{
+			operation,
+			category: ErrorCategory.VALIDATION,
+			severity: ErrorSeverity.MEDIUM,
+			metadata: {
+				trackId: track.id,
+				blockingElementId: blocker.id,
+				requestedStartTime: startTime,
+				firstFreeStartTime: freeAt,
+			},
+		}
+	);
+	return true;
 }
 
 /** Creates track/element CRUD operations (add, remove, move, update) for the timeline store. */
@@ -182,6 +242,20 @@ export function createCrudOperations(
 					severity: ErrorSeverity.MEDIUM,
 					metadata: { elementType: "markdown", trackId },
 				});
+				return null;
+			}
+
+			// A track is one lane: refuse to stack onto an occupied span.
+			if (
+				rejectIfOccupied({
+					operation: "Add Element to Track",
+					track,
+					startTime: elementData.startTime,
+					duration: getTimelineElementDuration({
+						element: elementData as TimelineElement,
+					}),
+				})
+			) {
 				return null;
 			}
 
@@ -369,6 +443,24 @@ export function createCrudOperations(
 				return;
 			}
 
+			// Moving an element onto its own track is a no-op, and must be handled
+			// before the remap below: that map removes the element on the `from`
+			// branch and never reaches the `to` branch when both ids are equal,
+			// which would delete the element outright.
+			if (fromTrackId === toTrackId) return;
+
+			if (
+				rejectIfOccupied({
+					operation: "Move Element to Track",
+					track: toTrack,
+					startTime: elementToMove.startTime,
+					duration: getTimelineElementDuration({ element: elementToMove }),
+					excludeElementId: elementId,
+				})
+			) {
+				return;
+			}
+
 			// Push history after validation passes
 			get().pushHistory();
 
@@ -442,6 +534,22 @@ export function createCrudOperations(
 			startTime,
 			pushHistory = true
 		) => {
+			const track = get()._tracks.find((t) => t.id === trackId);
+			const element = track?.elements.find((el) => el.id === elementId);
+			if (
+				track &&
+				element &&
+				rejectIfOccupied({
+					operation: "Move Element",
+					track,
+					startTime,
+					duration: getTimelineElementDuration({ element }),
+					excludeElementId: elementId,
+				})
+			) {
+				return;
+			}
+
 			if (pushHistory) get().pushHistory();
 			updateTracksAndSave(
 				moveTimelineElementGroup({

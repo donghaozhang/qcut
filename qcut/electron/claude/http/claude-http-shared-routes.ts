@@ -289,6 +289,13 @@ async function listMediaFilesWithRendererFallback({
 
 const PROJECT_JSON_SYNC_DEBOUNCE_MS = 1000;
 const TIMELINE_SYNC_BARRIER_TIMEOUT_MS = 5000;
+
+/**
+ * How far the read-back position may sit from the requested one before the move
+ * counts as refused. One frame at 30fps, so a snap or rounding is not reported
+ * as a rejection.
+ */
+const MOVE_START_TIME_TOLERANCE_SECONDS = 1 / 30;
 const projectJsonSyncTimers = new Map<string, ReturnType<typeof setTimeout>>();
 const projectJsonSyncInFlight = new Map<string, Promise<void>>();
 
@@ -411,13 +418,19 @@ export async function assertProjectIsOpen({
 	);
 }
 
+/**
+ * Orders a fire-and-forget mutation against the next read, and hands back the
+ * timeline it read so callers can confirm what actually happened. Returns null
+ * when the renderer could not be reached — ordering is best-effort, so a failed
+ * read must not turn a successful mutation into an error.
+ */
 async function waitForTimelineMutationBarrier({
 	accessor,
 }: {
 	accessor: WindowAccessor;
-}): Promise<void> {
+}): Promise<ClaudeTimeline | null> {
 	try {
-		await Promise.race([
+		return await Promise.race([
 			accessor.requestTimeline(),
 			new Promise<never>((_, reject) => {
 				setTimeout(() => {
@@ -427,7 +440,33 @@ async function waitForTimelineMutationBarrier({
 		]);
 	} catch {
 		// Best-effort ordering only.
+		return null;
 	}
+}
+
+/** Where an element currently sits, or null when it is not on the timeline. */
+function locateElement({
+	timeline,
+	elementId,
+}: {
+	timeline: ClaudeTimeline;
+	elementId: string;
+}): { trackId: string | undefined; startTime: number } | null {
+	for (const track of timeline.tracks ?? []) {
+		for (const element of track.elements ?? []) {
+			if (element.id === elementId) {
+				return { trackId: track.id, startTime: element.startTime };
+			}
+		}
+	}
+	return null;
+}
+
+function countElements({ timeline }: { timeline: ClaudeTimeline }): number {
+	let total = 0;
+	for (const track of timeline.tracks ?? [])
+		total += track.elements?.length ?? 0;
+	return total;
 }
 
 /**
@@ -759,13 +798,29 @@ export function registerSharedRoutes(
 		const elementId =
 			req.body.id ||
 			`element_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+		// The renderer mints its own element id, so the add can only be confirmed
+		// by the timeline growing. Without this the editor's refusal to stack two
+		// elements on one track would be reported to the caller as a success.
+		const before = await waitForTimelineMutationBarrier({ accessor });
 		win.webContents.send("claude:timeline:addElement", {
 			correlationId,
 			...req.body,
 			id: elementId,
 		});
-		await waitForTimelineMutationBarrier({ accessor });
+		const after = await waitForTimelineMutationBarrier({ accessor });
 		scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
+
+		if (
+			before &&
+			after &&
+			countElements({ timeline: after }) === countElements({ timeline: before })
+		) {
+			throw new HttpError(
+				409,
+				"The editor refused to add the element: a track plays one element at a time, and that span is already occupied. Choose a free start time, or omit trackId to let the editor pick a lane."
+			);
+		}
 		return { elementId };
 	});
 
@@ -930,9 +985,49 @@ export function registerSharedRoutes(
 				toTrackId: req.body.toTrackId,
 				newStartTime: req.body.newStartTime,
 			});
-			await waitForTimelineMutationBarrier({ accessor });
+			const timeline = await waitForTimelineMutationBarrier({ accessor });
 			scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
-			return { moved: true };
+
+			// The renderer refuses a move that would stack two elements on one
+			// track, so read back where the element actually ended up rather than
+			// reporting an unconditional success.
+			if (!timeline) return { moved: true, verified: false };
+			const placed = locateElement({
+				timeline,
+				elementId: req.params.elementId,
+			});
+			if (!placed) {
+				throw new HttpError(
+					500,
+					`Element ${req.params.elementId} is no longer on the timeline after the move.`
+				);
+			}
+			if (placed.trackId === undefined) {
+				return { moved: true, verified: false };
+			}
+			if (placed.trackId !== req.body.toTrackId) {
+				throw new HttpError(
+					409,
+					`The editor refused the move: a track plays one element at a time, and the target span on ${req.body.toTrackId} is occupied. The element is still on ${placed.trackId} at ${placed.startTime}s.`
+				);
+			}
+			// A move within one track keeps the track id, so the requested time is
+			// the only evidence that the placement was refused.
+			if (
+				typeof req.body.newStartTime === "number" &&
+				Math.abs(placed.startTime - req.body.newStartTime) >
+					MOVE_START_TIME_TOLERANCE_SECONDS
+			) {
+				throw new HttpError(
+					409,
+					`The editor refused the move: a track plays one element at a time, and ${req.body.newStartTime}s on ${placed.trackId} is occupied. The element is still at ${placed.startTime}s.`
+				);
+			}
+			return {
+				moved: true,
+				trackId: placed.trackId,
+				startTime: placed.startTime,
+			};
 		}
 	);
 

@@ -378,8 +378,12 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 	"editor:timeline:move": ed("editor:timeline:move", "Move element", [
 		PID,
 		EID,
-		f("--time", "number", "Target time in seconds", { required: true }),
-		f("--to-track", "string", "Target track"),
+		f(
+			"--time",
+			"number",
+			"Target time in seconds (omit to keep the current one)"
+		),
+		f("--to-track", "string", "Target track", { required: true }),
 		f("--ripple", "boolean", "Ripple edit", { default: false }),
 		f("--cross-track-ripple", "boolean", "Cross-track ripple", {
 			default: false,
