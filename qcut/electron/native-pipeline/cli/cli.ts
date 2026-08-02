@@ -35,6 +35,7 @@ import {
 import {
 	CLI_VERSION,
 	findHelpParam,
+	printCommandHelp,
 	printCommandHelpJson,
 	printGroupHelp,
 	printGroupHelpJson,
@@ -535,7 +536,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 				if (!flag) process.exit(1);
 			}
 		} else {
-			printHelp();
+			// The command is already resolved here, so show its own flags instead
+			// of the root overview, which is what `<group> <action> --help` hit.
+			printCommandHelp(command);
 		}
 		process.exit(0);
 	}
