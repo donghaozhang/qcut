@@ -1446,8 +1446,26 @@ function TimelineElementComponent({
 
 		// Render audio element ->
 		if (mediaItem.type === "audio") {
+			const audioHeaderHeight = getVideoClipLaneHeights({
+				trackHeight: getTrackHeight(track.type, track.height),
+			}).headerHeight;
+
 			return (
-				<div className="w-full h-full py-[3px]">
+				<div className="w-full h-full py-[3px] relative">
+					{/* Same name header as video and image clips, so an audio clip is
+					    identifiable from its waveform alone. */}
+					<div
+						className="absolute inset-x-0 top-0 z-10 flex items-center bg-black/25 px-1.5"
+						style={{ height: `${audioHeaderHeight}px` }}
+						data-testid="timeline-audio-name"
+					>
+						<span
+							className="truncate text-[10px] font-medium leading-none text-white/95"
+							title={mediaItem.name}
+						>
+							{mediaItem.name}
+						</span>
+					</div>
 					<AudioWaveform
 						audioUrl={mediaItem.url || ""}
 						sourcePath={mediaItem.localPath}
