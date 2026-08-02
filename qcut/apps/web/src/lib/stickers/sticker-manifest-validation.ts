@@ -1,9 +1,12 @@
 import type { z } from "zod";
+export {
+	ABSOLUTE_LOCAL_PATH_PATTERN,
+	hasDotPathSegment,
+} from "@/lib/files/local-file-path";
 
 export const STICKER_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const SOURCE_ASSET_ID_PATTERN =
 	/^[a-z0-9]+(?:-[a-z0-9]+)*:[a-z0-9]+(?:-[a-z0-9]+)*$/;
-export const ABSOLUTE_LOCAL_PATH_PATTERN = /^(?:\/|[a-zA-Z]:[\\/]|\\\\)/;
 export const SUPABASE_OBJECT_KEY_PATTERN =
 	/^catalogs\/[a-z0-9]+(?:-[a-z0-9]+)*\/assets\/[a-z0-9]+(?:-[a-z0-9]+)*\.(gif|png)$/;
 export const PRIVATE_REFERENCE_OBJECT_KEY_PATTERN =
@@ -17,12 +20,6 @@ export const MAX_REMOTE_CATALOG_BYTES = 25 * 1024 * 1024;
 // its budgets are far above the public catalogue's. It is never bundled and
 // only allow-listed users can even fetch its manifest.
 export const MAX_PRIVATE_REFERENCE_CATEGORY_BYTES = 128 * 1024 * 1024;
-
-export function hasDotPathSegment({ filePath }: { filePath: string }): boolean {
-	return filePath
-		.split(/[\\/]/)
-		.some((segment) => segment === "." || segment === "..");
-}
 
 export function validateUniqueManifestEntries({
 	categories,

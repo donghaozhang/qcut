@@ -193,6 +193,7 @@ export function AudioLibraryItem({
 		kind: assetKind,
 		id: sound.id,
 	});
+	const isSoundEffectsLabReference = sound.source === "sound-effects-lab";
 
 	const handleAdd = async ({
 		mode = "single",
@@ -224,8 +225,9 @@ export function AudioLibraryItem({
 				isDragging && "border-primary/70 opacity-55"
 			)}
 			data-testid={`audio-library-item-${assetKind}-${sound.id}`}
-			draggable
+			draggable={!isSoundEffectsLabReference}
 			onDragStart={(event) => {
+				if (isSoundEffectsLabReference) return;
 				cancelHoverPlay();
 				setIsDragging(true);
 				event.dataTransfer.effectAllowed = "copy";
@@ -341,34 +343,36 @@ export function AudioLibraryItem({
 							{description || sound.username}
 						</div>
 					</div>
-					<Button
-						type="button"
-						variant="text"
-						size="icon"
-						className={cn(
-							"-mr-1 -mt-1 size-7 text-muted-foreground",
-							favorite && "text-rose-400"
-						)}
-						aria-label={
-							favorite
-								? t("audioLibrary.card.unfavorite", { name })
-								: t("audioLibrary.card.favorite", { name })
-						}
-						title={
-							favorite
-								? t("audioLibrary.card.removeFavorite")
-								: t("audioLibrary.card.addFavorite")
-						}
-						onClick={onToggleSaved}
-						onKeyDown={(event) => {
-							if (event.key === "Enter" || event.key === " ") {
-								event.preventDefault();
-								onToggleSaved();
+					{isSoundEffectsLabReference ? null : (
+						<Button
+							type="button"
+							variant="text"
+							size="icon"
+							className={cn(
+								"-mr-1 -mt-1 size-7 text-muted-foreground",
+								favorite && "text-rose-400"
+							)}
+							aria-label={
+								favorite
+									? t("audioLibrary.card.unfavorite", { name })
+									: t("audioLibrary.card.favorite", { name })
 							}
-						}}
-					>
-						<Heart className={cn("size-3.5", favorite && "fill-current")} />
-					</Button>
+							title={
+								favorite
+									? t("audioLibrary.card.removeFavorite")
+									: t("audioLibrary.card.addFavorite")
+							}
+							onClick={onToggleSaved}
+							onKeyDown={(event) => {
+								if (event.key === "Enter" || event.key === " ") {
+									event.preventDefault();
+									onToggleSaved();
+								}
+							}}
+						>
+							<Heart className={cn("size-3.5", favorite && "fill-current")} />
+						</Button>
+					)}
 				</div>
 				{sound.musicalKey ||
 				localizedMoods.length > 0 ||
@@ -453,7 +457,7 @@ export function AudioLibraryItem({
 								<Download className="size-3.5" />
 							)}
 						</Button>
-						{folders.length > 0 ||
+						{(!isSoundEffectsLabReference && folders.length > 0) ||
 						needsAttribution ||
 						(assetKind === "music" && (sound.bpm || sound.loopable)) ? (
 							<DropdownMenu>

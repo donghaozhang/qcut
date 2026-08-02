@@ -6,6 +6,7 @@ import {
 import { Hono, type Context } from "hono";
 import { getSupabase } from "../db/supabase";
 import { authMiddleware } from "../middleware/auth";
+import { isUserIdAllowlisted } from "../services/user-id-allowlist";
 
 const STICKER_BUCKET = "sticker-lab";
 const SIGNED_URL_TTL_SECONDS = 600;
@@ -32,15 +33,10 @@ function isStickerLabUserAllowed({
 }: {
 	userId: string | undefined;
 }): boolean {
-	if (!userId) {
-		return false;
-	}
-
-	const allowedUserIds = (process.env.STICKER_LAB_ALLOWED_USER_IDS ?? "")
-		.split(",")
-		.map((allowedUserId) => allowedUserId.trim())
-		.filter((allowedUserId) => allowedUserId.length > 0);
-	return allowedUserIds.includes(userId);
+	return isUserIdAllowlisted({
+		allowlist: process.env.STICKER_LAB_ALLOWED_USER_IDS,
+		userId,
+	});
 }
 
 const stickerLabRoutes = new Hono();
