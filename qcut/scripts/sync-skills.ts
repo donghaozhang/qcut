@@ -86,14 +86,22 @@ const CODEX_OPENAI_METADATA: Record<
 	},
 };
 
-/** Written into the Codex mirror by writeCodexOpenAiMetadata, never authored. */
-const GENERATED_MIRROR_SUFFIX = join("agents", "openai.yaml");
+/**
+ * Written into the Codex mirror by writeCodexOpenAiMetadata, never authored.
+ * Matched exactly: only this path is generated, so a nested skill's own
+ * agents/openai.yaml still has to come from the source.
+ */
+const GENERATED_MIRROR_FILE = join("agents", "openai.yaml");
+
+function isFile({ filePath }: { filePath: string }): boolean {
+	return statSync(filePath, { throwIfNoEntry: false })?.isFile() === true;
+}
 
 function listRelativeFiles({ root }: { root: string }): string[] {
 	if (!existsSync(root)) return [];
 	return readdirSync(root, { recursive: true })
 		.map((entry) => String(entry))
-		.filter((entry) => statSync(join(root, entry)).isFile());
+		.filter((entry) => isFile({ filePath: join(root, entry) }));
 }
 
 /**
@@ -110,10 +118,12 @@ function assertNoUnsourcedFiles({
 	sourcePath: string;
 	targetPath: string;
 }) {
+	// A source directory standing where the target holds a file is not a source
+	// for it, so the counterpart has to be a file rather than merely present.
 	const unsourced = listRelativeFiles({ root: targetPath }).filter(
 		(relativePath) =>
-			!relativePath.endsWith(GENERATED_MIRROR_SUFFIX) &&
-			!existsSync(join(sourcePath, relativePath))
+			relativePath !== GENERATED_MIRROR_FILE &&
+			!isFile({ filePath: join(sourcePath, relativePath) })
 	);
 	if (unsourced.length === 0) return;
 
