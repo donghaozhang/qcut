@@ -11,6 +11,12 @@ import {
 import { readLocalPublicationAssetBytes } from "./file-validation";
 
 const LIST_PAGE_SIZE = 1000;
+/**
+ * Pagination stops when a short page arrives, which assumes the endpoint
+ * honours `offset`. One that does not would recurse forever and grow `pages`
+ * until the process dies, so the walk is bounded independently.
+ */
+const MAX_LIST_PAGES = 100;
 const MAX_LIST_RESPONSE_BYTES = 2 * 1024 * 1024;
 const MAX_STORAGE_ERROR_BYTES = 64 * 1024;
 
@@ -268,6 +274,11 @@ export async function listRemoteAssets({
 		const page = parseListPage({ assetObjectPrefix, candidate });
 		pages.push(page);
 		if (page.length < LIST_PAGE_SIZE) return;
+		if (pages.length >= MAX_LIST_PAGES) {
+			throw new Error(
+				`Sticker storage list exceeded ${MAX_LIST_PAGES} pages of ${LIST_PAGE_SIZE}; the endpoint may be ignoring the offset`
+			);
+		}
 		offset += page.length;
 		return readPage();
 	};
