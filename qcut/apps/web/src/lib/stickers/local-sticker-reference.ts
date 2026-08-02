@@ -2,6 +2,7 @@ import {
 	ASSET_MANIFEST_SCHEMA_VERSION,
 	type AssetManifestEntry,
 } from "@qcut/editor-core";
+import type { PrivateStickerCatalogId } from "@qcut/editor-core/sticker-lab";
 import {
 	ensureAssetResources,
 	type ResolvedAssetResource,
@@ -124,12 +125,16 @@ export function stickerLabThumbnailUrl({
  * gets the public catalogue alone.
  */
 export function stickerLabPrivateManifestUrl({
+	catalogId,
 	licenseServerUrl = LICENSE_SERVER_URL,
 }: {
+	catalogId: PrivateStickerCatalogId;
 	licenseServerUrl?: string;
-} = {}): string {
+}): string {
 	const serverUrl = licenseServerUrl.replace(/\/+$/, "");
-	return `${serverUrl}/api/sticker-lab/private-manifest`;
+	return `${serverUrl}/api/sticker-lab/private-manifest?catalogId=${encodeURIComponent(
+		catalogId
+	)}`;
 }
 
 export function buildStickerLabAssetEntry({
