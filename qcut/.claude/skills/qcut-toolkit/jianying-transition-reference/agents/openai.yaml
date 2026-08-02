@@ -1,0 +1,4 @@
+interface:
+  display_name: "Jianying Transition Reference"
+  short_description: "Trace Jianying transition drafts, catalogs, and effect packages"
+  default_prompt: "Inspect a Jianying transition from catalog metadata through draft ownership and its local effect package, then report implementation and parity evidence."
