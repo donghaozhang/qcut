@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-readonly PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
+readonly PROJECT_ROOT
 readonly SOURCE_APP="${JY_APP_BUNDLE:-/Applications/VideoFusion-macOS.app}"
 readonly SOURCE_APP_FRAMEWORKS="$SOURCE_APP/Contents/Frameworks"
 readonly RUNTIME_ROOT="$PROJECT_ROOT/.local/jianying-runtime"
@@ -20,6 +22,19 @@ case "$MODE" in
   *)
     printf 'Usage: %s [inspect|config|launch|gpu|textures|transition|transition-load|transition-frame|transition-video]\n' "$0" >&2
     exit 2
+    ;;
+esac
+
+# transition* modes dlopen libcccreator, which resolves siblings out of the
+# installed bundle. Check that before spending a compile on a run that would
+# only fail later inside the dynamic loader.
+case "$MODE" in
+  transition*)
+    if [[ ! -d "$SOURCE_APP_FRAMEWORKS" ]]; then
+      printf 'Jianying frameworks not found: %s\n' "$SOURCE_APP_FRAMEWORKS" >&2
+      printf 'Set JY_APP_BUNDLE to the installed VideoFusion-macOS.app.\n' >&2
+      exit 1
+    fi
     ;;
 esac
 

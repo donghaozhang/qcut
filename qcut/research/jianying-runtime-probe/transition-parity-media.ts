@@ -379,17 +379,24 @@ function createContactSheet({
 	runRequired({ cwd, label: "create five-stop contact sheet", command });
 }
 
+/** FFmpeg prints `inf` when the two frames are bit-identical. */
+function psnrValue({ text }: { text: string }): number {
+	return text === "inf" ? Number.POSITIVE_INFINITY : Number(text);
+}
+
 function parsePsnr({ output }: { output: string }) {
-	const match = /PSNR .* average:([0-9.]+) min:([0-9.]+) max:([0-9.]+)/.exec(
-		output
-	);
+	const match =
+		/PSNR .* average:(inf|[0-9.]+) min:(inf|[0-9.]+) max:(inf|[0-9.]+)/.exec(
+			output
+		);
 	if (!match) throw new Error("Could not parse FFmpeg PSNR summary");
-	const average = Number(match[1]);
+	const average = psnrValue({ text: match[1] });
 	return {
 		average,
-		minimum: Number(match[2]),
-		maximum: Number(match[3]),
-		rgbRmse: 255 / 10 ** (average / 20),
+		minimum: psnrValue({ text: match[2] }),
+		maximum: psnrValue({ text: match[3] }),
+		// A perfect match would otherwise have been reported as a failed entry.
+		rgbRmse: Number.isFinite(average) ? 255 / 10 ** (average / 20) : 0,
 	};
 }
 

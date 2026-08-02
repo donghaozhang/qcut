@@ -290,7 +290,8 @@ void configure(ObjectStorage<kConfigStorageSize>& config,
       std::size_t parsedLength = 0;
       const std::string progressText(value);
       progress = std::stod(progressText, &parsedLength);
-      if (parsedLength != progressText.size()) {
+      if (parsedLength != progressText.size() || !(progress >= 0.0) ||
+          !(progress <= 1.0)) {
         throw std::runtime_error(
             "JY_TRANSITION_PROGRESS must be a number between 0 and 1");
       }
@@ -336,6 +337,13 @@ void configure(ObjectStorage<kConfigStorageSize>& config,
 
   if (mode == "config") {
     return 0;
+  }
+
+  // Only "launch" reaches the runtime here; a typo like "transition-vidoe"
+  // would otherwise fall through and start the bridge instead of reporting it.
+  if (mode != "launch") {
+    std::cerr << "[mode] unknown mode: " << mode << '\n';
+    return 2;
   }
 
   return launchRuntime(symbols, sandboxRoot) ? 0 : 4;

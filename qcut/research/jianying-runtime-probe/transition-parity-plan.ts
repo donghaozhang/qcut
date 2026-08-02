@@ -63,6 +63,29 @@ function requireString({
 	return value;
 }
 
+const SAFE_PATH_SEGMENT_PATTERN = /^[A-Za-z0-9._-]+$/;
+
+/**
+ * Values that become a directory name under the evidence root. A separator or
+ * `..` would place evidence outside outputDirectory and slip past the
+ * ignored-output check, so the character set is constrained at parse time.
+ */
+function requirePathSegment({
+	value,
+	label,
+}: {
+	value: unknown;
+	label: string;
+}): string {
+	const text = requireString({ value, label });
+	if (!SAFE_PATH_SEGMENT_PATTERN.test(text) || text === "." || text === "..") {
+		throw new Error(
+			`${label} must be a single path segment of letters, digits, dot, dash, or underscore`
+		);
+	}
+	return text;
+}
+
 function optionalString({ value }: { value: unknown }): string {
 	return typeof value === "string" ? value : "";
 }
@@ -151,7 +174,7 @@ function parseEntry({
 	const label = `entries[${index}]`;
 	return {
 		title: requireString({ value: entry.title, label: `${label}.title` }),
-		resourceId: requireString({
+		resourceId: requirePathSegment({
 			value: entry.resourceId,
 			label: `${label}.resourceId`,
 		}),

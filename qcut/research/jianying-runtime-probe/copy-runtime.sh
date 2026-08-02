@@ -3,8 +3,10 @@ set -euo pipefail
 
 readonly DEFAULT_SOURCE_APP="/Applications/VideoFusion-macOS.app"
 readonly SOURCE_APP="${JY_APP_BUNDLE:-$DEFAULT_SOURCE_APP}"
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-readonly PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
+PROJECT_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
+readonly PROJECT_ROOT
 readonly DESTINATION="$PROJECT_ROOT/.local/jianying-runtime"
 readonly SOURCE_FRAMEWORKS="$SOURCE_APP/Contents/Frameworks"
 readonly SOURCE_RESOURCES="$SOURCE_APP/Contents/Resources"

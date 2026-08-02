@@ -5,11 +5,15 @@
 #include "graphics-probe.h"
 #include "probe-utils.h"
 
+#include <mach-o/loader.h>
+
 #include <algorithm>
 #include <array>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>
 #include <iostream>
 #include <stdexcept>
@@ -20,6 +24,17 @@
 
 namespace jianying_probe {
 namespace {
+
+/**
+ * Every size, field offset, and code offset below was read out of this exact
+ * libcccreator.dylib build. dladdr only yields an image base, so applying them
+ * to a different build writes past our storage or calls an arbitrary address —
+ * memory corruption rather than a clean failure. The identity is therefore
+ * checked before any offset is used. Override with JY_TRANSITION_CORE_UUID
+ * after re-deriving the constants against another verified build.
+ */
+constexpr std::string_view kVerifiedTransitionCoreUuid =
+    "D6342ECD-5432-33F0-A2AD-0C28F5699994";
 
 constexpr std::size_t kTransitionSegmentStorageSize = 0x368;
 constexpr std::size_t kAmazerContextScopeStorageSize = 0x8;
@@ -247,6 +262,64 @@ class SegmentHandle {
   std::string_view label_;
 };
 
+[[nodiscard]] std::string imageUuid(const void* imageBase) {
+  const auto* header = static_cast<const mach_header_64*>(imageBase);
+  const auto* command = reinterpret_cast<const load_command*>(header + 1);
+  for (std::uint32_t index = 0; index < header->ncmds; index += 1) {
+    if (command->cmd == LC_UUID) {
+      const auto* uuidCommand = reinterpret_cast<const uuid_command*>(command);
+      const std::uint8_t* bytes = uuidCommand->uuid;
+      char formatted[37];
+      std::snprintf(formatted, sizeof(formatted),
+                    "%02X%02X%02X%02X-%02X%02X-%02X%02X-%02X%02X-%02X%02X%02X%"
+                    "02X%02X%02X",
+                    bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5],
+                    bytes[6], bytes[7], bytes[8], bytes[9], bytes[10],
+                    bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]);
+      return std::string(formatted);
+    }
+    command = reinterpret_cast<const load_command*>(
+        reinterpret_cast<const std::uint8_t*>(command) + command->cmdsize);
+  }
+  return {};
+}
+
+/**
+ * Refuses to apply hardcoded layout to an unrecognised build. Runs before the
+ * first offset is used, so a Jianying update fails here with a readable message
+ * instead of corrupting memory or jumping into unrelated code.
+ */
+void assertVerifiedTransitionCore(ObjectMethod knownSymbol) {
+  Dl_info image{};
+  if (dladdr(reinterpret_cast<void*>(knownSymbol), &image) == 0 ||
+      image.dli_fbase == nullptr) {
+    throw std::runtime_error(
+        "dladdr failed while identifying libcccreator.dylib");
+  }
+
+  const std::string loaded = imageUuid(image.dli_fbase);
+  if (loaded.empty()) {
+    throw std::runtime_error("libcccreator.dylib has no LC_UUID; refusing to "
+                             "apply hardcoded offsets");
+  }
+
+  const char* override = std::getenv("JY_TRANSITION_CORE_UUID");
+  const std::string expected =
+      override != nullptr && *override != '\0'
+          ? std::string(override)
+          : std::string(kVerifiedTransitionCoreUuid);
+  if (loaded == expected) {
+    std::cout << "[identity] libcccreator.dylib " << loaded << '\n';
+    return;
+  }
+
+  throw std::runtime_error(
+      "libcccreator.dylib is " + loaded + " but the hardcoded sizes and "
+      "offsets were derived from " + expected +
+      ". Re-derive them against this build, then set JY_TRANSITION_CORE_UUID "
+      "to its UUID.");
+}
+
 template <typename Function>
 [[nodiscard]] Function resolveImageOffset(ObjectMethod knownSymbol,
                                           std::uintptr_t offset,
@@ -271,6 +344,7 @@ template <typename Function>
       openLibrary(runtimeRoot / "Frameworks" / "libcccreator.dylib");
   const ObjectMethod constructor =
       resolveSymbol<ObjectMethod>(transitionCore, kTransitionConstructor);
+  assertVerifiedTransitionCore(constructor);
 
   return {
       .constructor = constructor,

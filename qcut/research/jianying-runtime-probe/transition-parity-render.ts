@@ -3,6 +3,7 @@ import {
 	copyFileSync,
 	existsSync,
 	mkdirSync,
+	readdirSync,
 	readFileSync,
 	statSync,
 	writeFileSync,
@@ -36,6 +37,7 @@ interface RenderRequestFingerprint {
 	inputA: FileFingerprint;
 	inputB: FileFingerprint;
 	package: FileFingerprint;
+	packageDigest: string;
 	reference: FileFingerprint;
 	rendererDigest: string;
 	ffmpegPath: string;
@@ -74,6 +76,25 @@ function fileFingerprint({ filePath }: { filePath: string }): FileFingerprint {
 	};
 }
 
+/**
+ * entry.packagePath is a directory, and a directory's own size and mtime do not
+ * move when a file inside it is edited in place. Without this, --reuse could
+ * serve a render made from different package contents.
+ */
+function directoryDigest({ directoryPath }: { directoryPath: string }): string {
+	const hash = createHash("sha256");
+	const relativePaths = readdirSync(directoryPath, { recursive: true })
+		.map((entry) => String(entry))
+		.sort();
+	for (const relativePath of relativePaths) {
+		const absolutePath = path.join(directoryPath, relativePath);
+		if (!statSync(absolutePath).isFile()) continue;
+		hash.update(relativePath);
+		hash.update(readFileSync(absolutePath));
+	}
+	return hash.digest("hex");
+}
+
 function rendererDigest({ rendererPath }: { rendererPath: string }): string {
 	const rendererDirectory = path.dirname(rendererPath);
 	const hash = createHash("sha256");
@@ -107,10 +128,12 @@ function renderRequestFingerprint({
 	ffmpegPath: string;
 }): RenderRequestFingerprint {
 	return {
-		schemaVersion: 1,
+		// 2: package fingerprint covers directory contents, not just its stat.
+		schemaVersion: 2,
 		inputA: fileFingerprint({ filePath: matrix.inputA }),
 		inputB: fileFingerprint({ filePath: matrix.inputB }),
 		package: fileFingerprint({ filePath: entry.packagePath }),
+		packageDigest: directoryDigest({ directoryPath: entry.packagePath }),
 		reference: fileFingerprint({ filePath: entry.referenceVideo }),
 		rendererDigest: rendererDigest({ rendererPath }),
 		ffmpegPath,
@@ -466,6 +489,11 @@ function skippedRenderResult({
 	};
 }
 
+function renderOutcomeLabel({ result }: { result: RenderResult }): string {
+	if (result.exitCode !== 0) return "failed";
+	return result.reused ? "reused" : "ok";
+}
+
 export function renderMatrix({
 	matrix,
 	outputDirectory,
@@ -508,7 +536,7 @@ export function renderMatrix({
 					});
 		results.push(result);
 		console.log(
-			`[render] ${entry.title}: ${result.exitCode === 0 ? (result.reused ? "reused" : "ok") : "failed"} (${result.renderSize.width}x${result.renderSize.height} -> ${result.comparisonSize.width}x${result.comparisonSize.height})`
+			`[render] ${entry.title}: ${renderOutcomeLabel({ result })} (${result.renderSize.width}x${result.renderSize.height} -> ${result.comparisonSize.width}x${result.comparisonSize.height})`
 		);
 	}
 	return results;

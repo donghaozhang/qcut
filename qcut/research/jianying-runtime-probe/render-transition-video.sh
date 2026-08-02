@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIR
 
 if (( $# < 3 || $# > 4 )); then
   printf 'Usage: JY_TRANSITION_PACKAGE=/path/to/package %s <input-a> <input-b> <output.mp4> [duration-seconds]\n' "$0" >&2
@@ -76,7 +77,8 @@ if (( height % 2 != 0 )); then
   height=$((height + 1))
 fi
 
-readonly TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/qcut-jianying-transition.XXXXXX")"
+TEMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/qcut-jianying-transition.XXXXXX")"
+readonly TEMP_DIR
 cleanup() {
   rm -rf -- "$TEMP_DIR"
 }

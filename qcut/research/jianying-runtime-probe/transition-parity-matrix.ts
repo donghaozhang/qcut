@@ -7,6 +7,7 @@ import { parseArgs } from "node:util";
 import {
 	collectTransitionParityEvidence,
 	runCommand,
+	type ParitySampleEvidence,
 	type TransitionParityEvidence,
 } from "./transition-parity-media";
 import { renderMatrix, type RenderResult } from "./transition-parity-render";
@@ -149,6 +150,22 @@ function markdownPath({
 	return path.relative(reportDirectory, filePath).split(path.sep).join("/");
 }
 
+/**
+ * Derived rather than indexed at 2, so the label stays truthful if
+ * PARITY_PROGRESS_STOPS ever changes length.
+ */
+function midpointSample({
+	samples,
+}: {
+	samples: ParitySampleEvidence[];
+}): ParitySampleEvidence {
+	const sample = samples.at(Math.floor(samples.length / 2));
+	if (!sample) {
+		throw new Error("Parity evidence has no samples to report a midpoint for");
+	}
+	return sample;
+}
+
 function escapeTableCell({ value }: { value: string }): string {
 	return value.replaceAll("|", "\\|").replaceAll("\n", " ");
 }
@@ -203,7 +220,7 @@ function resultDetails({
 		"",
 		"Midpoint absolute difference amplified 8x:",
 		"",
-		`![${result.entry.title} midpoint difference](${markdownPath({ reportDirectory, filePath: result.evidence.samples[2].differenceImage })})`,
+		`![${result.entry.title} midpoint difference](${markdownPath({ reportDirectory, filePath: midpointSample({ samples: result.evidence.samples }).differenceImage })})`,
 		""
 	);
 	return lines.join("\n");
