@@ -34,6 +34,9 @@ function f(
 
 /** Flags available to every CLI command (output, model, verbosity, etc.). */
 export const GLOBAL_FLAGS: FlagDef[] = [
+	f("--focus", "boolean", "Bring the editor window to the target project", {
+		default: false,
+	}),
 	f("--output-dir", "string", "Output directory", {
 		short: "-o",
 		default: "$QCUT_OUTPUT_DIR or ~/Documents/QCut/exports",

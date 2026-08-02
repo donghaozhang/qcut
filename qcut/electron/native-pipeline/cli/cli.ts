@@ -503,6 +503,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"max-nodes": { type: "string" },
 			// performance flags
 			"skip-health": { type: "boolean", default: false },
+			focus: { type: "boolean", default: false },
 			"status-only": { type: "boolean", default: false },
 			deep: { type: "boolean", default: false },
 			"no-capability-check": { type: "boolean", default: false },
@@ -1119,6 +1120,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			: undefined,
 		// performance flags
 		skipHealth: (values["skip-health"] as boolean) ?? false,
+		focus: (values.focus as boolean) ?? false,
 		statusOnly: (values["status-only"] as boolean) ?? false,
 		deep: (values.deep as boolean) ?? false,
 		noCapabilityCheck: (values["no-capability-check"] as boolean) ?? false,
@@ -1150,6 +1152,7 @@ export async function main(
 				quiet: { type: "boolean", short: "q", default: false },
 				verbose: { type: "boolean", short: "v", default: false },
 				"skip-health": { type: "boolean", default: false },
+			focus: { type: "boolean", default: false },
 				"no-capability-check": { type: "boolean", default: false },
 				policy: { type: "string" },
 				resume: { type: "string" },

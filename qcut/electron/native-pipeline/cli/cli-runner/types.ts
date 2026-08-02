@@ -399,6 +399,7 @@ export interface CLIRunOptions {
 	/** Declarative editor timeline manifest (inline JSON, @file, or stdin). */
 	manifest?: string;
 	manifestUrl?: string;
+	focus?: boolean;
 	/** Group timeline apply mutations into a rollback-capable transaction. */
 	atomic?: boolean;
 	/** Read the result back and verify requested state. */
