@@ -1738,6 +1738,25 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut edit sticker-search --query warning --collection fluent-emoji-flat --json",
 		],
 	},
+	"sound-search": {
+		name: "sound-search",
+		description: "Search Freesound and the Sound Effects Lab catalog",
+		category: "editing",
+		flags: [
+			f("--query", "string", "Sound search query", { required: true }),
+			f("--source", "string", "Catalog to search", {
+				default: "all",
+				enum: ["freesound", "lab", "all"],
+			}),
+			f("--limit", "number", "Maximum results", { default: 24 }),
+			f("--manifest", "string", "Path to a local Sound Effects Lab manifest"),
+			f("--manifest-url", "string", "URL of the private Sound Effects Lab manifest"),
+		],
+		examples: [
+			"qcut edit sound-search --query whoosh --limit 10 --json",
+			"qcut edit sound-search --query 转场 --source lab --manifest ./sound-effects-lab.local.json --json",
+		],
+	},
 	"sticker-overlay": {
 		name: "sticker-overlay",
 		description:
