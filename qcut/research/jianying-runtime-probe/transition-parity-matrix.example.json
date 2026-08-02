@@ -1,0 +1,23 @@
+{
+	"inputA": "/path/to/calibration-a.mp4",
+	"inputB": "/path/to/calibration-b.mp4",
+	"frameRate": 30,
+	"cutFrame": 120,
+	"renderSize": {
+		"width": 3840,
+		"height": 2160
+	},
+	"entries": [
+		{
+			"title": "Dissolve",
+			"resourceId": "resource-id",
+			"metadataMd5": "package-md5",
+			"packagePath": "/path/to/Cache/effect/resource-id/package-md5",
+			"referenceVideo": "/path/to/jianying-reference.mp4",
+			"durationSeconds": 0.5,
+			"packageFamily": "simple-glsl",
+			"formula": "C(p) = (1 - p) A + p B",
+			"holdExactEndpoints": false
+		}
+	]
+}
