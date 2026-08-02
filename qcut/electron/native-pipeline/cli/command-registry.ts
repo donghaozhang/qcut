@@ -1754,6 +1754,11 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--limit", "number", "Maximum results", { default: 24 }),
 			f("--manifest", "string", "Path to a local Sound Effects Lab manifest"),
 			f("--manifest-url", "string", "URL of the private Sound Effects Lab manifest"),
+			f(
+				"--download-dir",
+				"string",
+				"Write matched Sound Effects Lab audio into this directory"
+			),
 		],
 		examples: [
 			"qcut edit sound-search --query whoosh --limit 10 --json",

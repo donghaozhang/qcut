@@ -1,9 +1,13 @@
 import { resolve } from "node:path";
+import { getKey } from "../infra/key-manager.js";
 import {
 	searchFreesound,
 	type SoundSearchResult,
 } from "../sounds/freesound-client.js";
-import { searchSoundEffectsLab } from "../sounds/sound-effects-lab-client.js";
+import {
+	downloadSoundEffectsLabAsset,
+	searchSoundEffectsLab,
+} from "../sounds/sound-effects-lab-client.js";
 import type {
 	CLIResult,
 	CLIRunOptions,
@@ -12,14 +16,36 @@ import type {
 
 export type SoundSearchSource = "freesound" | "lab" | "all";
 
+const LICENSE_SERVER_URL =
+	process.env.QCUT_LICENSE_SERVER_URL ||
+	"https://qcut-license-server.zdhpeter.workers.dev";
+
+/**
+ * Without an explicit manifest the lab catalog comes from the license server,
+ * which serves it only to a signed-in allowlisted account. The token is the
+ * one `qcut system login` stores.
+ */
+function labManifestSource({ options }: { options: CLIRunOptions }) {
+	if (options.manifest) return { manifestPath: resolve(options.manifest) };
+	const token = getKey("QCUT_AUTH_TOKEN");
+	return {
+		manifestUrl:
+			options.manifestUrl ??
+			`${LICENSE_SERVER_URL.replace(/\/+$/, "")}/api/sound-effects-lab/private-manifest`,
+		...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+	};
+}
+
 export interface SoundSearchDependencies {
 	searchFreesound: typeof searchFreesound;
 	searchSoundEffectsLab: typeof searchSoundEffectsLab;
+	downloadSoundEffectsLabAsset: typeof downloadSoundEffectsLabAsset;
 }
 
 const DEFAULT_DEPENDENCIES: SoundSearchDependencies = {
 	searchFreesound,
 	searchSoundEffectsLab,
+	downloadSoundEffectsLabAsset,
 };
 
 function errorMessage({ error }: { error: unknown }): string {
@@ -78,12 +104,7 @@ export async function handleSoundSearch(
 					query,
 					limit,
 					signal,
-					source: {
-						manifestPath: options.manifest
-							? resolve(options.manifest)
-							: undefined,
-						manifestUrl: options.manifestUrl,
-					},
+					source: labManifestSource({ options }),
 				}))
 			);
 		} catch (error) {
@@ -98,6 +119,25 @@ export async function handleSoundSearch(
 	}
 	if (results.length === 0 && warnings.length > 0) {
 		return { success: false, error: warnings[0] };
+	}
+
+	if (options.downloadDir) {
+		const assetsUrl = `${LICENSE_SERVER_URL.replace(/\/+$/, "")}/api/sound-effects-lab/assets`;
+		const token = getKey("QCUT_AUTH_TOKEN");
+		for (const entry of results) {
+			if (!(entry.objectKey && entry.fileName)) continue;
+			try {
+				entry.localPath = await dependencies.downloadSoundEffectsLabAsset({
+					objectKey: entry.objectKey,
+					assetsUrl,
+					headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+					destinationPath: resolve(options.downloadDir, entry.fileName),
+					signal,
+				});
+			} catch (error) {
+				warnings.push(`${entry.name}: ${errorMessage({ error })}`);
+			}
+		}
 	}
 
 	return {

@@ -1,4 +1,5 @@
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 import type { SoundSearchResult } from "./freesound-client.js";
 
 /**
@@ -14,6 +15,7 @@ interface ManifestItem {
 	duration?: unknown;
 	fileName?: unknown;
 	categoryIds?: unknown;
+	asset?: { objectKey?: unknown };
 }
 
 interface ManifestCategory {
@@ -84,6 +86,47 @@ async function readManifestJson({
 	return response.json();
 }
 
+/**
+ * Writes one catalog asset to disk. The manifest marks this audio
+ * `internal-reference` with `redistribution: prohibited`, so this deliberately
+ * only materialises to a caller-chosen local path and never uploads or copies
+ * anything into the repository.
+ */
+export async function downloadSoundEffectsLabAsset({
+	objectKey,
+	assetsUrl,
+	headers,
+	destinationPath,
+	signal,
+	fetchImpl = fetch,
+}: {
+	objectKey: string;
+	assetsUrl: string;
+	headers?: Record<string, string>;
+	destinationPath: string;
+	signal?: AbortSignal;
+	fetchImpl?: typeof fetch;
+}): Promise<string> {
+	const url = `${assetsUrl}?objectKey=${encodeURIComponent(objectKey)}`;
+	const response = await fetchImpl(url, { headers, signal });
+	if (response.status === 401 || response.status === 403) {
+		throw new Error(
+			"The Sound Effects Lab audio is private. Sign in with an allowlisted account: qcut system login"
+		);
+	}
+	if (!response.ok) {
+		throw new Error(
+			`Unable to fetch the Sound Effects Lab asset (status ${response.status})`
+		);
+	}
+	await mkdir(dirname(destinationPath), { recursive: true });
+	await writeFile(
+		destinationPath,
+		new Uint8Array(await response.arrayBuffer())
+	);
+	return destinationPath;
+}
+
 function matches({
 	query,
 	title,
@@ -144,6 +187,7 @@ export async function searchSoundEffectsLab({
 			tags: categoryNames,
 			categoryIds,
 			fileName: stringValue({ value: entry.fileName }),
+			objectKey: stringValue({ value: entry.asset?.objectKey }),
 		});
 		if (results.length >= limit) break;
 	}

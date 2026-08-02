@@ -127,6 +127,7 @@ import { registerCloudTaskRuntimeActions } from "@/lib/cloud-tasks/task-runtime-
 import { useVideoEditRequestStore } from "@/stores/video-edit-request-store";
 import { useTranslation } from "@/lib/i18n";
 import { localizeTimelineElementName } from "@/lib/i18n/timeline-names";
+import { getVideoClipLaneHeights } from "./video-timeline-clip-layout";
 import { VideoTimelineClip } from "./video-timeline-clip";
 
 function shellQuote({ value }: { value: string }): string {
@@ -1359,13 +1360,30 @@ function TimelineElementComponent({
 			const tileHeight = trackHeight - 8; // Account for padding
 			const tileWidth = tileHeight * TILE_ASPECT_RATIO;
 
+			const { headerHeight } = getVideoClipLaneHeights({ trackHeight });
+
 			return (
 				<div className="w-full h-full flex items-center justify-center">
 					<div className="bg-timeline-clip py-3 w-full h-full relative">
+						{/* Name header, matching the one video clips already carry so an
+						    image clip is identifiable without selecting it. */}
+						<div
+							className="absolute inset-x-0 top-0 z-10 flex items-center bg-black/25 px-1.5"
+							style={{ height: `${headerHeight}px` }}
+							data-testid="timeline-image-name"
+						>
+							<span
+								className="truncate text-[10px] font-medium leading-none text-white/95"
+								title={mediaItem.name}
+							>
+								{mediaItem.name}
+							</span>
+						</div>
 						{/* Background with tiled images */}
 						<div
-							className="absolute top-3 bottom-3 left-0 right-0"
+							className="absolute bottom-3 left-0 right-0"
 							style={{
+								top: `${headerHeight}px`,
 								backgroundImage: mediaItemUrl ? `url(${mediaItemUrl})` : "none",
 								backgroundRepeat: "repeat-x",
 								backgroundSize: `${tileWidth}px ${tileHeight}px`,
@@ -1387,8 +1405,9 @@ function TimelineElementComponent({
 						/>
 						{/* Overlay with vertical borders */}
 						<div
-							className="absolute top-3 bottom-3 left-0 right-0 pointer-events-none"
+							className="absolute bottom-3 left-0 right-0 pointer-events-none"
 							style={{
+								top: `${headerHeight}px`,
 								backgroundImage: `repeating-linear-gradient(
                   to right,
                   transparent 0px,

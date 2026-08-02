@@ -32,6 +32,10 @@ export interface SoundSearchResult {
 	author?: string;
 	categoryIds?: string[];
 	fileName?: string;
+	/** Lab only: the storage key the license server signs on request. */
+	objectKey?: string;
+	/** Lab only: set once the audio has been written to disk. */
+	localPath?: string;
 }
 
 interface FreesoundItem {

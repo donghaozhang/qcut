@@ -504,6 +504,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			// performance flags
 			"skip-health": { type: "boolean", default: false },
 			focus: { type: "boolean", default: false },
+			"download-dir": { type: "string" },
 			"status-only": { type: "boolean", default: false },
 			deep: { type: "boolean", default: false },
 			"no-capability-check": { type: "boolean", default: false },
@@ -1121,6 +1122,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		// performance flags
 		skipHealth: (values["skip-health"] as boolean) ?? false,
 		focus: (values.focus as boolean) ?? false,
+		downloadDir: values["download-dir"] as string | undefined,
 		statusOnly: (values["status-only"] as boolean) ?? false,
 		deep: (values.deep as boolean) ?? false,
 		noCapabilityCheck: (values["no-capability-check"] as boolean) ?? false,
@@ -1153,6 +1155,7 @@ export async function main(
 				verbose: { type: "boolean", short: "v", default: false },
 				"skip-health": { type: "boolean", default: false },
 			focus: { type: "boolean", default: false },
+			"download-dir": { type: "string" },
 				"no-capability-check": { type: "boolean", default: false },
 				policy: { type: "string" },
 				resume: { type: "string" },

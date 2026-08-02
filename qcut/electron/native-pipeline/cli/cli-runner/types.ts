@@ -400,6 +400,7 @@ export interface CLIRunOptions {
 	manifest?: string;
 	manifestUrl?: string;
 	focus?: boolean;
+	downloadDir?: string;
 	/** Group timeline apply mutations into a rollback-capable transaction. */
 	atomic?: boolean;
 	/** Read the result back and verify requested state. */
