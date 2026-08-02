@@ -63,6 +63,24 @@ export interface LocalAudioEvidence {
 	probeError: AudioProbeError | null;
 }
 
+/**
+ * A null metadataMd5Matches means no content hash was ever compared — the
+ * VOD/url-hash mapping case. SKILL.md treats that mapping as unproven until a
+ * cache probe confirms it, so it must not be reported as verified.
+ */
+function resolvedFileState({
+	verify,
+	metadataMd5Matches,
+}: {
+	verify: boolean;
+	metadataMd5Matches: boolean | null;
+}): LocalAudioEvidence["state"] {
+	if (!verify) return "present";
+	if (metadataMd5Matches === true) return "verified";
+	if (metadataMd5Matches === null) return "requires-cache-probe";
+	return "present";
+}
+
 function numberValue({ value }: { value: unknown }): number | null {
 	if (typeof value === "number" && Number.isFinite(value)) return value;
 	if (typeof value !== "string") return null;
@@ -272,7 +290,7 @@ export function resolveLocalAudio({
 		? probeAudio({ filePath: resolvedPath })
 		: { probe: null, error: null };
 	return {
-		state: verify && metadataMd5Matches !== false ? "verified" : "present",
+		state: resolvedFileState({ verify, metadataMd5Matches }),
 		path: resolvedPath,
 		mappingStrategy,
 		sizeBytes: statSync(resolvedPath).size,

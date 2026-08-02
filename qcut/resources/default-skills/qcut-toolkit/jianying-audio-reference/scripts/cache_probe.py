@@ -98,25 +98,33 @@ def content_md5(file_path: Path) -> str:
     return digest.hexdigest()
 
 
+FFPROBE_TIMEOUT_SECONDS = 10
+
+
 def probe_audio(file_path: Path) -> dict[str, object] | None:
     ffprobe = shutil.which("ffprobe")
     if not ffprobe:
         return None
-    result = subprocess.run(
-        [
-            ffprobe,
-            "-v",
-            "error",
-            "-show_entries",
-            "format=format_name,duration:stream=codec_type,codec_name,sample_rate,channels",
-            "-of",
-            "json",
-            str(file_path),
-        ],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        result = subprocess.run(
+            [
+                ffprobe,
+                "-v",
+                "error",
+                "-show_entries",
+                "format=format_name,duration:stream=codec_type,codec_name,sample_rate,channels",
+                "-of",
+                "json",
+                str(file_path),
+            ],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=FFPROBE_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired:
+        # A stalled or malformed cache file would otherwise hang the scan.
+        return None
     if result.returncode != 0:
         return None
     return json.loads(result.stdout)

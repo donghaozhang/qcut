@@ -348,12 +348,15 @@ async function runCli() {
 	if (command !== "inspect" && command !== "parity-report") {
 		throw new Error(`Unknown command: ${command}\n${usage()}`);
 	}
-	let capture = values.manifest
-		? await compareParityManifest({
-				manifestPath: values.manifest,
-				ffmpegPath: values["ffmpeg-path"],
-			})
-		: null;
+	// Only parity-report consumes the capture; decoding it for inspect spent
+	// FFmpeg work on a value that branch never reads.
+	let capture =
+		values.manifest && command === "parity-report"
+			? await compareParityManifest({
+					manifestPath: values.manifest,
+					ffmpegPath: values["ffmpeg-path"],
+				})
+			: null;
 	const title = values.title ?? positionals[1] ?? capture?.transitionTitle;
 	if (!title) throw new Error(`${command} requires --title or a positional title`);
 	const inspection = inspectTransition({

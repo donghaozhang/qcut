@@ -133,6 +133,46 @@ function timeRange({ value }: { value: unknown }): DraftTimeRange | null {
 	return { start, duration };
 }
 
+function ownershipState({
+	owners,
+}: {
+	owners: DraftTransitionOwner[];
+}): DraftTransitionEvidence["ownershipState"] {
+	if (owners.length === 0) return "missing";
+	if (owners.length === 1) return "owned";
+	return "ambiguous";
+}
+
+interface OrderedSegment {
+	segment: Record<string, unknown>;
+	segmentIndex: number;
+}
+
+/**
+ * Segments sorted by target_timerange.start, keeping the original index so the
+ * report still points at the draft's own numbering. Entries without a range
+ * keep their relative array order at the end.
+ */
+function timelineOrdered({
+	segments,
+}: {
+	segments: Record<string, unknown>[];
+}): OrderedSegment[] {
+	return segments
+		.map((segment, segmentIndex) => ({ segment, segmentIndex }))
+		.sort((left, right) => {
+			const leftStart = timeRange({ value: left.segment.target_timerange })?.start;
+			const rightStart = timeRange({ value: right.segment.target_timerange })?.start;
+			if (leftStart === undefined && rightStart === undefined) {
+				return left.segmentIndex - right.segmentIndex;
+			}
+			if (leftStart === undefined) return 1;
+			if (rightStart === undefined) return -1;
+			if (leftStart !== rightStart) return leftStart - rightStart;
+			return left.segmentIndex - right.segmentIndex;
+		});
+}
+
 function segmentSummary({
 	segment,
 	segmentIndex,
@@ -158,15 +198,21 @@ function transitionOwners({
 	const owners: DraftTransitionOwner[] = [];
 	for (const [trackIndex, track] of objectArray({ value: content.tracks }).entries()) {
 		const segments = objectArray({ value: track.segments });
-		for (const [segmentIndex, segment] of segments.entries()) {
+		// formats.md pairs a transition with the next segment along the timeline,
+		// which is only the next array element when the draft happens to store
+		// them in order. Ordering here keeps the seam evidence honest either way.
+		const ordered = timelineOrdered({ segments });
+		for (const [orderIndex, entry] of ordered.entries()) {
+			const { segment, segmentIndex } = entry;
 			if (!stringArray({ value: segment.extra_material_refs }).includes(transitionId)) {
 				continue;
 			}
 			const current = segmentSummary({ segment, segmentIndex });
-			const next = segments[segmentIndex + 1]
+			const following = ordered.at(orderIndex + 1);
+			const next = following
 				? segmentSummary({
-						segment: segments[segmentIndex + 1]!,
-						segmentIndex: segmentIndex + 1,
+						segment: following.segment,
+						segmentIndex: following.segmentIndex,
 					})
 				: null;
 			const seamDeltaMicroseconds =
@@ -256,8 +302,7 @@ function evidenceFromContent({
 					type: stringValue({ value: material.type }),
 				},
 				owners,
-				ownershipState:
-					owners.length === 1 ? "owned" : owners.length === 0 ? "missing" : "ambiguous",
+				ownershipState: ownershipState({ owners }),
 				frameQuantization: frameQuantization({ durationMicroseconds, fps }),
 			},
 		];

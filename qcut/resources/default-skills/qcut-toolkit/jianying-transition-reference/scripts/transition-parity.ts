@@ -359,6 +359,9 @@ export function buildTransitionParityReport({
 		hasStructuralEvidence &&
 		resolvedFormula &&
 		ambiguities.length === 0 &&
+		// worstCaptureRmse scores a missing channel as 0, so without this an
+		// incomplete capture set looked as good as a perfect one.
+		capture.complete &&
 		worstRmse <= mediumConfidenceRmse
 	) {
 		confidence = "medium";
