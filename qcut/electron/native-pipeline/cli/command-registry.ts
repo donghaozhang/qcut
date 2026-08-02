@@ -1753,7 +1753,11 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			}),
 			f("--limit", "number", "Maximum results", { default: 24 }),
 			f("--manifest", "string", "Path to a local Sound Effects Lab manifest"),
-			f("--manifest-url", "string", "URL of the private Sound Effects Lab manifest"),
+			f(
+				"--manifest-url",
+				"string",
+				"URL of the private Sound Effects Lab manifest"
+			),
 			f(
 				"--download-dir",
 				"string",
