@@ -14,6 +14,7 @@ import {
 	mkdirSync,
 	readdirSync,
 	rmSync,
+	statSync,
 	writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
@@ -85,6 +86,46 @@ const CODEX_OPENAI_METADATA: Record<
 	},
 };
 
+/** Written into the Codex mirror by writeCodexOpenAiMetadata, never authored. */
+const GENERATED_MIRROR_SUFFIX = join("agents", "openai.yaml");
+
+function listRelativeFiles({ root }: { root: string }): string[] {
+	if (!existsSync(root)) return [];
+	return readdirSync(root, { recursive: true })
+		.map((entry) => String(entry))
+		.filter((entry) => statSync(join(root, entry)).isFile());
+}
+
+/**
+ * The sync deletes each target before copying, so a skill authored directly in
+ * a mirror is destroyed on the next build with nothing failing — that is how
+ * jianying-audio-reference and jianying-transition-reference reached master
+ * present in .agents/skills but absent from both the source and the packaged
+ * resources. Refuse to run instead of silently discarding that work.
+ */
+function assertNoUnsourcedFiles({
+	sourcePath,
+	targetPath,
+}: {
+	sourcePath: string;
+	targetPath: string;
+}) {
+	const unsourced = listRelativeFiles({ root: targetPath }).filter(
+		(relativePath) =>
+			!relativePath.endsWith(GENERATED_MIRROR_SUFFIX) &&
+			!existsSync(join(sourcePath, relativePath))
+	);
+	if (unsourced.length === 0) return;
+
+	const sample = unsourced.slice(0, 5).join("\n  ");
+	const more =
+		unsourced.length > 5 ? `\n  …and ${unsourced.length - 5} more` : "";
+	throw new Error(
+		`${targetPath} has ${unsourced.length} file(s) that ${sourcePath} does not:\n  ${sample}${more}\n` +
+			`Mirrors are generated. Author the skill in ${SOURCE_DIR} and rerun; syncing now would delete this work.`
+	);
+}
+
 function syncSkillSet(targetDir: string, skillNames: string[]) {
 	if (!existsSync(targetDir)) {
 		mkdirSync(targetDir, { recursive: true });
@@ -98,6 +139,8 @@ function syncSkillSet(targetDir: string, skillNames: string[]) {
 			process.stderr.write(`⚠️  Skill not found: ${sourcePath}\n`);
 			continue;
 		}
+
+		assertNoUnsourcedFiles({ sourcePath, targetPath });
 
 		// Remove existing target if it exists
 		if (existsSync(targetPath)) {
