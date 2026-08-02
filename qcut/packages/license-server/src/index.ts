@@ -15,6 +15,7 @@ import { userLibraryRoutes } from "./routes/user-library";
 import { keysRoutes } from "./routes/keys";
 import { audioMetricsRoutes } from "./routes/audio-metrics";
 import { stickerLabRoutes } from "./routes/sticker-lab";
+import { soundEffectsLabRoutes } from "./routes/sound-effects-lab";
 import { getMockResponse, isMockMode } from "./middleware/mock";
 import { getAllowedCorsOrigins } from "./services/payment-config";
 
@@ -93,5 +94,6 @@ app.route("/api/library", userLibraryRoutes);
 app.route("/api/keys", keysRoutes);
 app.route("/api/audio-metrics", audioMetricsRoutes);
 app.route("/api/sticker-lab", stickerLabRoutes);
+app.route("/api/sound-effects-lab", soundEffectsLabRoutes);
 
 export default app;

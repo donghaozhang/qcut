@@ -6,10 +6,11 @@ import {
 	ensureAssetResources,
 	type ResolvedAssetResource,
 } from "@/lib/assets/asset-resource-cache";
+import { LICENSE_SERVER_URL } from "@/lib/ai-video/core/license-relay";
 import {
-	getSessionToken,
-	LICENSE_SERVER_URL,
-} from "@/lib/ai-video/core/license-relay";
+	createLicenseServerAuthenticatedFetch,
+	type SessionTokenReader,
+} from "@/lib/assets/license-server-authenticated-fetch";
 import {
 	readLocalStickerFile,
 	type LocalStickerFileReader,
@@ -53,8 +54,6 @@ export const PRIVATE_REFERENCE_PROVENANCE: RemoteStickerProvenance = {
 	transformation:
 		"Captured Jianying sticker previews for allow-listed internal parity reference",
 };
-
-type SessionTokenReader = () => Promise<string>;
 
 function ownedFile({
 	bytes,
@@ -182,58 +181,22 @@ export function buildStickerLabAssetEntry({
 	};
 }
 
-function requestUrl({ input }: { input: RequestInfo | URL }): URL {
-	const rawUrl = input instanceof Request ? input.url : input.toString();
-	const baseUrl =
-		typeof globalThis.location === "undefined"
-			? "http://localhost/"
-			: globalThis.location.href;
-	return new URL(rawUrl, baseUrl);
-}
-
-function mergedRequestHeaders({
-	init,
-	input,
-}: {
-	init?: RequestInit;
-	input: RequestInfo | URL;
-}): Headers {
-	const headers = new Headers(
-		input instanceof Request ? input.headers : undefined
-	);
-	const additionalHeaders = new Headers(init?.headers);
-	for (const [name, value] of additionalHeaders.entries()) {
-		headers.set(name, value);
-	}
-	return headers;
-}
-
 export function createStickerLabAssetFetch({
 	fetchImpl = fetch,
-	getToken = getSessionToken,
+	getToken,
 	licenseServerUrl = LICENSE_SERVER_URL,
 }: {
 	fetchImpl?: typeof fetch;
 	getToken?: SessionTokenReader;
 	licenseServerUrl?: string;
 } = {}): typeof fetch {
-	const licenseServerOrigin = new URL(licenseServerUrl).origin;
-
-	return (async (input: RequestInfo | URL, init?: RequestInit) => {
-		if (requestUrl({ input }).origin !== licenseServerOrigin) {
-			return fetchImpl(input, init);
-		}
-
-		const token = await getToken();
-		if (!token) {
-			throw new Error(
-				"Sign in to QCut to load authenticated sticker lab assets"
-			);
-		}
-		const headers = mergedRequestHeaders({ init, input });
-		headers.set("Authorization", `Bearer ${token}`);
-		return fetchImpl(input, { ...init, headers });
-	}) as typeof fetch;
+	return createLicenseServerAuthenticatedFetch({
+		authErrorMessage:
+			"Sign in to QCut to load authenticated sticker lab assets",
+		fetchImpl,
+		getToken,
+		licenseServerUrl,
+	});
 }
 
 function remoteResourceBlob({
@@ -260,7 +223,7 @@ function remoteResourceBlob({
 export async function loadRemoteStickerReferenceFile({
 	ensureResources = ensureAssetResources,
 	fetchImpl = fetch,
-	getToken = getSessionToken,
+	getToken,
 	licenseServerUrl = LICENSE_SERVER_URL,
 	provenance,
 	reference,

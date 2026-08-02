@@ -13,7 +13,8 @@ PAYMENTS_WEB_BASE_URL = "https://quriosity.com.au"
 PAYMENTS_CHECKOUT_ENABLED = "true"
 PAYMENTS_WEBHOOK_ENABLED = "true"
 PAYMENTS_CANARY_ONLY = "false"
-CORS_ALLOWED_ORIGINS = ""
+# Authenticated Electron E2E uses the production Worker from the Vite renderer.
+CORS_ALLOWED_ORIGINS = "http://localhost:5173,http://127.0.0.1:5173"
 AI_PROXY_RATE_LIMIT = "60"
 QCUT_AGENT_ALLOW_DEFAULT_USER = "true"
 # Pinned to immutable digest so retags can't silently change sandbox runtime.

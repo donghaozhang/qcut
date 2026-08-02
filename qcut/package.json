@@ -1,7 +1,7 @@
 {
 	"name": "qcut",
-	"version": "2026.8.107",
-	"qcutReleaseVersion": "2026.08.01.7",
+	"version": "2026.8.203",
+	"qcutReleaseVersion": "2026.08.02.3",
 	"description": "QCut - Open-source video editor",
 	"author": {
 		"name": "QCut Team",
@@ -76,6 +76,8 @@
 		"build:web": "cd apps/web && VITE_BUILD_TARGET=web bun run build:web",
 		"build": "turbo run build && bun run build:electron",
 		"build:cli-image": "bun run scripts/build-cli-image.ts",
+		"build:sound-effects-lab-manifest": "bun run scripts/build-local-sound-effects-lab-manifest.ts",
+		"upload:sound-effects-lab": "bun run scripts/upload-private-sound-effects-lab.ts",
 		"dogfood:daytona-worker": "bun run scripts/daytona-worker-dogfood.ts",
 		"check-types": "bun scripts/check-types.ts",
 		"postinstall": "bun run setup-ffmpeg && bun scripts/patch-node-pty.ts",

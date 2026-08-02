@@ -19,7 +19,7 @@ export type SoundEffect = {
 	downloads: number;
 	rating: number;
 	ratingCount: number;
-	source?: "freesound" | "qcut" | "project";
+	source?: "freesound" | "qcut" | "project" | "sound-effects-lab";
 	mediaId?: string;
 	kind?: "sound-effect" | "music";
 	localizedName?: string;
@@ -32,6 +32,7 @@ export type SoundEffect = {
 	scenes?: string[];
 	loopable?: boolean;
 	featured?: boolean;
+	checksumSha256?: string;
 };
 
 export type SavedSound = {
