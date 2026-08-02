@@ -363,6 +363,54 @@ function scheduleProjectJsonAutoSync({
 }
 
 /** Wait for a renderer roundtrip so timeline writes settle before reading project state. */
+/**
+ * The renderer holds exactly one open project, and every timeline accessor
+ * operates on it. The `:projectId` in these routes was therefore decorative:
+ * asking for another project silently returned the open project's timeline, or
+ * applied a mutation to it. Refuse instead of answering about, or editing, a
+ * project the caller did not name.
+ *
+ * Skipped when the renderer cannot report its state, since a guard that cannot
+ * read the truth must not invent one.
+ */
+const PROJECT_SCOPE_TIMEOUT_MS = 750;
+
+export async function assertProjectIsOpen({
+	accessor,
+	projectId,
+}: {
+	accessor: WindowAccessor;
+	projectId: string | undefined;
+}): Promise<void> {
+	if (!(projectId && accessor.requestStateSnapshot)) return;
+	let openProjectId: string | undefined;
+	try {
+		// Bounded: this guard runs before every timeline call, so a renderer that
+		// is slow to report state must degrade to the old behaviour rather than
+		// hang the mutation behind it.
+		const snapshot = await Promise.race([
+			accessor.requestStateSnapshot({ include: ["project"] }),
+			new Promise<never>((_, reject) =>
+				setTimeout(
+					() => reject(new Error("state snapshot timed out")),
+					PROJECT_SCOPE_TIMEOUT_MS
+				)
+			),
+		]);
+		const project = (
+			snapshot as { project?: { activeProject?: { id?: string } } }
+		).project;
+		openProjectId = project?.activeProject?.id;
+	} catch {
+		return;
+	}
+	if (!openProjectId || openProjectId === projectId) return;
+	throw new HttpError(
+		409,
+		`The editor has ${openProjectId} open, not ${projectId}. Open it first (editor:navigator:open --project-id ${projectId}) or pass --focus.`
+	);
+}
+
 async function waitForTimelineMutationBarrier({
 	accessor,
 }: {
@@ -568,6 +616,7 @@ export function registerSharedRoutes(
 	// Timeline routes
 	// ==========================================================================
 	router.get("/api/claude/timeline/:projectId", async (req) => {
+		await assertProjectIsOpen({ accessor, projectId: req.params.projectId });
 		const timeline = await Promise.race([
 			accessor.requestTimeline(),
 			new Promise<never>((_, reject) =>
