@@ -196,6 +196,19 @@ export interface CLIRunOptions {
 	noTimelineViews?: boolean;
 	/** Dissolve duration written to the generated QCut timeline manifest. */
 	transitionDuration?: number;
+	/** Local Jianying cache root used by read-only transition reference commands. */
+	cacheRoot?: string;
+	/** Local Jianying project root used to discover plaintext draft evidence. */
+	projectRoot?: string;
+	databasePaths?: string[];
+	draftPaths?: string[];
+	packagePath?: string;
+	resourceIds?: string[];
+	draftEffectIds?: string[];
+	catalogEffectIds?: string[];
+	metadataMd5?: string;
+	formula?: string;
+	ffmpegPath?: string;
 	/** EDL path used by `edit verify`. */
 	edl?: string;
 	/** Seconds rendered around each cut during verification. */
@@ -239,6 +252,8 @@ export interface CLIRunOptions {
 	elementId?: string;
 	jobId?: string;
 	trackId?: string;
+	fromElementId?: string;
+	toElementId?: string;
 	trackType?: string;
 	index?: number;
 	toTrack?: string;

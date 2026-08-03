@@ -44,6 +44,8 @@ import {
 import { resolveEditorInstance } from "./instance-selection.js";
 import { ensureEditorProjectReady } from "../editor/editor-project-readiness.js";
 import { runEditorDemo } from "./editor-demo-run.js";
+import { handleTransitionLabCommand } from "../editor/editor-handlers-transition-lab.js";
+import { handleJianyingTransitionCommand } from "../editor/editor-handlers-jianying-transition.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -205,6 +207,8 @@ export async function handleEditorCommand(
 	//                in session mode, skip after first successful check
 	const shouldSkipHealth =
 		options.command === "editor:health" ||
+		options.command === "editor:transition-lab:list" ||
+		options.command.startsWith("editor:jianying-transition:") ||
 		options.command.startsWith("editor:diff:") ||
 		options.command.startsWith("editor:session:") ||
 		(options.skipHealth && (!options.session || isSessionHealthChecked()));
@@ -302,6 +306,12 @@ export async function handleEditorCommand(
 			case "sticker":
 				return await handleStickerCommand(client, options);
 
+			case "transition-lab":
+				return await handleTransitionLabCommand({ client, options });
+
+			case "jianying-transition":
+				return await handleJianyingTransitionCommand({ options, signal });
+
 			case "search":
 				return await handleSearchCommand(client, options, onProgress);
 
@@ -361,7 +371,7 @@ export async function handleEditorCommand(
 			default:
 				return {
 					success: false,
-					error: `Unknown editor module: ${module}. Available: auth, health, media, project, timeline, editing, track, element, analyze, transcribe, search, generate, export, diagnostics, mcp, remotion, sticker, navigator, screen-recording, ui, snapshot, pointer, keyboard, demo, diff, session, console, errors, moyin, novel, screenshot, undo, redo, state`,
+					error: `Unknown editor module: ${module}. Available: auth, health, media, project, timeline, editing, track, element, analyze, transcribe, search, generate, export, diagnostics, mcp, remotion, sticker, transition-lab, jianying-transition, navigator, screen-recording, ui, snapshot, pointer, keyboard, demo, diff, session, console, errors, moyin, novel, screenshot, undo, redo, state`,
 				};
 		}
 	} catch (err) {
