@@ -145,6 +145,16 @@ const MEDIA_VERIFY_KEYS = [
 	"frameInterpolation",
 ] as const;
 
+const TRANSITION_VERIFY_KEYS = [
+	"type",
+	"presetId",
+	"duration",
+	"direction",
+	"easing",
+	"tuning",
+	"maskShape",
+] as const;
+
 function isRecord(value: unknown): value is JsonRecord {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -664,16 +674,55 @@ function verifyManifest({
 		}
 	}
 
-	const actualTransitionIds = new Set(
+	const actualTransitions = new Map(
 		timeline.tracks.flatMap((track) =>
 			(track.transitions ?? []).flatMap((transition) =>
-				transition.id ? [transition.id] : []
+				transition.id
+					? [[transition.id, { trackId: track.id, transition }]]
+					: []
 			)
 		)
 	);
-	for (const transitionId of transitionIds) {
-		if (!actualTransitionIds.has(transitionId)) {
+	const expectedTransitions = collectTransitions(manifest);
+	for (const [index, transitionId] of transitionIds.entries()) {
+		const expected = expectedTransitions[index];
+		const actual = actualTransitions.get(transitionId);
+		if (!(expected && actual)) {
 			issues.push(`transition '${transitionId}' is missing`);
+			continue;
+		}
+		const expectedTrackId = mapReference(
+			trackIds,
+			expected.track ?? expected.trackId
+		);
+		const expectedFromId = mapReference(
+			elementIds,
+			expected.from ?? expected.fromElementId
+		);
+		const expectedToId = mapReference(
+			elementIds,
+			expected.to ?? expected.toElementId
+		);
+		if (expectedTrackId && actual.trackId !== expectedTrackId) {
+			issues.push(`transition '${transitionId}' track did not match`);
+		}
+		if (expectedFromId && actual.transition.fromElementId !== expectedFromId) {
+			issues.push(`transition '${transitionId}' from element did not match`);
+		}
+		if (expectedToId && actual.transition.toElementId !== expectedToId) {
+			issues.push(`transition '${transitionId}' to element did not match`);
+		}
+		for (const key of TRANSITION_VERIFY_KEYS) {
+			const expectedValue =
+				key === "presetId"
+					? (expected.presetId ?? expected.type)
+					: expected[key];
+			if (expectedValue === undefined) continue;
+			if (!valuesMatch(expectedValue, actual.transition[key])) {
+				issues.push(
+					`transition '${transitionId}' field '${key}' did not match`
+				);
+			}
 		}
 	}
 	return issues;
