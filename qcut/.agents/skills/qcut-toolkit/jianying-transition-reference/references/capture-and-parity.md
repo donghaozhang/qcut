@@ -84,6 +84,19 @@ For exports:
 - compare the same resolution and color metadata;
 - disable unrelated filters, transforms, masks, opacity, and adjustment layers.
 
+### Color and viewport normalization traps
+
+Color tags do not transform existing pixel values. Marking BT.601 pixels as
+BT.709 without a matrix conversion can create a stable error that looks like
+bad transition math. Convert decoded pixels through the intended color space,
+then write matching primaries, transfer, matrix, and range metadata. Keep the
+original exports and the normalized comparison files as separate evidence.
+
+Likewise, do not reuse hard-coded preview crop coordinates after a window or
+panel layout changes. Calibrate the visible video rectangle from a fresh full
+window screenshot, crop both applications to known output geometry, and reject
+captures whose dimensions or corner markers do not match the manifest.
+
 ## Manifest
 
 Paths can be absolute or relative to the manifest:

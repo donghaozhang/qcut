@@ -23,6 +23,21 @@ A usable transition record is the join of five layers:
 
 No single layer is enough to prove identity or behavior.
 
+## How transitions differ from audio and filters
+
+The three reference workflows share a catalog-to-cache join, but the timeline
+and renderer contracts are different:
+
+| Material | Identity chain | Timeline ownership | Renderer inputs | Main parity question |
+| --- | --- | --- | --- | --- |
+| audio | catalog card -> download index -> cached media payload | one audio segment references one media item | one decoded audio stream | is this the same recording and timing? |
+| filter | catalog card -> effect package -> LUT/shader/segmentation assets | one clip references one filter material | one video frame plus parameters | is the per-frame color/segmentation transform equivalent? |
+| transition | catalog card -> transition material -> effect package | the outgoing segment owns the transition UUID; the incoming segment is found by track adjacency | two time-sampled video frames plus normalized progress | are source sampling, duration, easing, geometry, compositing, and endpoints equivalent? |
+
+A transition therefore cannot be modeled as another clip filter. It needs a
+seam-level object, two source samplers, frame-quantized progress, and an
+explicit preview/export execution contract.
+
 ## Resource catalog
 
 Default location:
@@ -90,13 +105,17 @@ Observed responsibilities:
 | File | Role |
 | --- | --- |
 | `draft_info.json` | current draft body; recent versions may be encrypted base64 |
-| `.backup/*.load.bak` | full plaintext snapshots on the observed macOS install |
+| `.backup/**/*.load.bak` / `*.save.bak` | per-timeline snapshots; plaintext on some versions and encrypted base64 on others |
 | `subdraft/**/draft_content.json` | plaintext nested/compound draft content |
 | `key_value.json` | usage attribution and category state, not renderer definition |
 | `Timelines/project.json` | timeline registration, not segment transition content |
 
 Do not attempt to decrypt current drafts for ordinary reference work. Prefer a
-plaintext backup created by Jianying itself.
+plaintext backup created by Jianying itself when available. On multi-timeline
+projects, use `Timelines/project.json` and `.backup/timeline_backup_manifest.json`
+to identify timeline ownership even when each timeline payload is encrypted,
+then corroborate transition identity with the catalog, effect cache, visible
+card, applied duration, and exported behavior.
 
 ### Material record
 
