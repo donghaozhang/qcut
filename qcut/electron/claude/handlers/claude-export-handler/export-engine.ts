@@ -13,8 +13,14 @@ import {
 	parseProgress,
 	probeHasAudioStream,
 } from "../../../ffmpeg/utils.js";
+import { buildFFmpegArgs } from "../../../ffmpeg-args-builder.js";
 import { buildTimelineAudioFilters } from "../../../ffmpeg/audio-filter-graph.js";
-import type { AudioFile } from "../../../ffmpeg/types.js";
+import { buildXfadeTransitionFilter } from "../../../ffmpeg/transition-filter.js";
+import type {
+	AudioFile,
+	VideoSource,
+	VideoTransition,
+} from "../../../ffmpeg/types.js";
 import { buildVideoFitFilter } from "../../../ffmpeg/video-fit-filter.js";
 import { claudeLog } from "../../utils/logger.js";
 import { logOperation } from "../../claude-operation-log.js";
@@ -376,8 +382,9 @@ export async function collectExportSegments({
 		const segments: ExportSegment[] = [];
 		const diskFallbackCache = new Map<string, MediaFile | null>();
 
-		for (const track of timeline.tracks) {
-			for (const element of track.elements) {
+		for (const [trackOrder, track] of timeline.tracks.entries()) {
+			const trackId = track.id ?? `track-${track.index}`;
+			for (const [elementOrder, element] of track.elements.entries()) {
 				if (
 					!(
 						element.type === "media" ||
@@ -428,6 +435,10 @@ export async function collectExportSegments({
 				}
 
 				segments.push({
+					elementId: element.id,
+					trackId,
+					trackOrder,
+					elementOrder,
 					sourcePath: media.path,
 					startTime: element.startTime,
 					duration: durationFromElement,
@@ -448,6 +459,123 @@ export async function collectExportSegments({
 		claudeLog.error(HANDLER_NAME, "Failed to collect export segments:", error);
 		return [];
 	}
+}
+
+function normalizeTransitionTuning({
+	tuning,
+}: {
+	tuning: Record<string, unknown> | undefined;
+}): VideoTransition["tuning"] {
+	if (!tuning) return undefined;
+	const intensity = optionalNumber(tuning.intensity);
+	const frequency = optionalNumber(tuning.frequency);
+	const tint =
+		typeof tuning.tint === "string" && /^#[\da-f]{6}$/i.test(tuning.tint)
+			? tuning.tint
+			: undefined;
+	if (
+		intensity === undefined &&
+		frequency === undefined &&
+		tint === undefined
+	) {
+		return undefined;
+	}
+	return { intensity, frequency, tint };
+}
+
+/** Convert serialized timeline transitions into the shared FFmpeg transition model. */
+export function collectVideoTransitions({
+	timeline,
+	segments,
+}: {
+	timeline: ClaudeTimeline;
+	segments: ExportSegment[];
+}): VideoTransition[] {
+	const segmentByElementId = new Map(
+		segments.map((segment) => [segment.elementId, segment])
+	);
+	const frameRate = Number.isFinite(timeline.fps)
+		? Math.max(1, timeline.fps)
+		: 30;
+	const frameDuration = 1 / frameRate;
+	const transitions: VideoTransition[] = [];
+	const transitionedFromElements = new Set<string>();
+
+	for (const track of timeline.tracks) {
+		if (track.hidden || track.type !== "media") continue;
+		const trackId = track.id ?? `track-${track.index}`;
+		const orderedElementIds = segments
+			.filter((segment) => segment.trackId === trackId)
+			.sort((left, right) => {
+				const timeDifference = left.startTime - right.startTime;
+				return timeDifference !== 0
+					? timeDifference
+					: left.elementOrder - right.elementOrder;
+			})
+			.map((segment) => segment.elementId);
+
+		for (const transition of track.transitions ?? []) {
+			const fromSegment = segmentByElementId.get(transition.fromElementId);
+			const toSegment = segmentByElementId.get(transition.toElementId);
+			if (!fromSegment || !toSegment) {
+				throw new Error(
+					`Transition ${transition.id ?? transition.fromElementId} references a non-exportable clip.`
+				);
+			}
+			if (fromSegment.isImage || toSegment.isImage) {
+				throw new Error(
+					`Transition ${transition.id ?? transition.fromElementId} requires two video clips.`
+				);
+			}
+			const fromIndex = orderedElementIds.indexOf(transition.fromElementId);
+			if (
+				fromIndex < 0 ||
+				orderedElementIds[fromIndex + 1] !== transition.toElementId
+			) {
+				throw new Error(
+					`Transition ${transition.id ?? transition.fromElementId} clips are not adjacent.`
+				);
+			}
+			const cutTime = fromSegment.startTime + fromSegment.duration;
+			if (Math.abs(cutTime - toSegment.startTime) > frameDuration + 1e-6) {
+				throw new Error(
+					`Transition ${transition.id ?? transition.fromElementId} clips do not share a seam.`
+				);
+			}
+			if (!Number.isFinite(transition.duration) || transition.duration <= 0) {
+				throw new Error(
+					`Transition ${transition.id ?? transition.fromElementId} has an invalid duration.`
+				);
+			}
+			if (transitionedFromElements.has(transition.fromElementId)) {
+				throw new Error(
+					`Clip ${transition.fromElementId} has more than one outgoing transition.`
+				);
+			}
+
+			const normalized: VideoTransition = {
+				id:
+					transition.id ??
+					`transition-${transition.fromElementId}-${transition.toElementId}`,
+				trackId,
+				fromElementId: transition.fromElementId,
+				toElementId: transition.toElementId,
+				presetId: transition.presetId,
+				type: transition.type as VideoTransition["type"],
+				direction: transition.direction,
+				easing: transition.easing ?? "easeInOut",
+				duration:
+					Math.max(1, Math.round(transition.duration * frameRate)) / frameRate,
+				tuning: normalizeTransitionTuning({ tuning: transition.tuning }),
+				maskShape: transition.maskShape as VideoTransition["maskShape"],
+			};
+			buildXfadeTransitionFilter({ transition: normalized });
+			transitions.push(normalized);
+			transitionedFromElements.add(transition.fromElementId);
+		}
+	}
+
+	return transitions;
 }
 
 /**
@@ -705,6 +833,105 @@ export function buildExportSegmentScaleFilter({
 	})},setsar=1`;
 }
 
+export function buildTransitionVideoSources({
+	segments,
+	segmentOutputs,
+}: {
+	segments: ExportSegment[];
+	segmentOutputs: string[];
+}): VideoSource[] {
+	if (segments.length !== segmentOutputs.length) {
+		throw new Error("Transition render inputs do not match export segments.");
+	}
+	return segments.map((segment, index) => ({
+		elementId: segment.elementId,
+		trackId: segment.trackId,
+		trackOrder: segment.trackOrder,
+		elementOrder: segment.elementOrder,
+		path: segmentOutputs[index],
+		startTime: segment.startTime,
+		duration: segment.duration,
+		trimStart: 0,
+		trimEnd: 0,
+	}));
+}
+
+async function renderTransitionedVideo({
+	concatAudioPath,
+	segmentOutputs,
+	segments,
+	settings,
+	tempDir,
+	videoOutputPath,
+	videoTransitions,
+	onProgress,
+}: {
+	concatAudioPath: string;
+	segmentOutputs: string[];
+	segments: ExportSegment[];
+	settings: ResolvedExportSettings;
+	tempDir: string;
+	videoOutputPath: string;
+	videoTransitions: VideoTransition[];
+	onProgress?: ({ progress }: { progress: number }) => void;
+}): Promise<void> {
+	const transitionedVideoPath = path.join(tempDir, "transitioned-video.mp4");
+	const duration = Math.max(
+		1 / Math.max(1, settings.fps),
+		...segments.map((segment) => segment.startTime + segment.duration)
+	);
+	const videoSources = buildTransitionVideoSources({
+		segments,
+		segmentOutputs,
+	});
+	const transitionArgs = buildFFmpegArgs({
+		inputDir: tempDir,
+		outputFile: transitionedVideoPath,
+		width: settings.width,
+		height: settings.height,
+		fps: settings.fps,
+		quality: "medium",
+		duration,
+		useDirectCopy: false,
+		videoSources,
+		videoTransitions,
+		includeEmbeddedAudio: false,
+	});
+
+	await runFFmpegCommand({
+		args: transitionArgs,
+		estimatedDuration: duration,
+		onProgress: ({ normalizedProgress }) => {
+			onProgress?.({ progress: normalizedProgress * 0.85 });
+		},
+	});
+
+	await runFFmpegCommand({
+		args: [
+			"-y",
+			"-i",
+			transitionedVideoPath,
+			"-i",
+			concatAudioPath,
+			"-map",
+			"0:v:0",
+			"-map",
+			"1:a?",
+			"-c:v",
+			"copy",
+			"-c:a",
+			"copy",
+			"-movflags",
+			"+faststart",
+			videoOutputPath,
+		],
+		estimatedDuration: duration,
+		onProgress: ({ normalizedProgress }) => {
+			onProgress?.({ progress: 0.85 + normalizedProgress * 0.15 });
+		},
+	});
+}
+
 /** Execute a full export job: encode segments, composite cursors, concatenate, and finalize. */
 export async function executeExportJob({
 	jobId,
@@ -715,6 +942,7 @@ export async function executeExportJob({
 	stickerOverlays = [],
 	textOverlays = [],
 	audioFiles = [],
+	videoTransitions = [],
 	projectCanvas,
 }: {
 	jobId: string;
@@ -725,6 +953,7 @@ export async function executeExportJob({
 	stickerOverlays?: StickerOverlay[];
 	textOverlays?: TextOverlay[];
 	audioFiles?: AudioFile[];
+	videoTransitions?: VideoTransition[];
 	/**
 	 * Project canvas size that text overlay x/y/fontSize values are expressed
 	 * in. When the export preset resolution differs from the project canvas,
@@ -852,7 +1081,13 @@ export async function executeExportJob({
 			.join("\n");
 		await fsPromises.writeFile(concatListPath, concatLines, "utf8");
 
-		updateJobProgress({ jobId, progress: 0.9 });
+		const hasVideoTransitions = videoTransitions.length > 0;
+		const concatOutputPath = hasVideoTransitions
+			? path.join(tempDir, "concat-audio.mp4")
+			: videoOutputPath;
+		const concatProgressStart = hasVideoTransitions ? 0.83 : 0.9;
+		const concatProgressSpan = hasVideoTransitions ? 0.04 : 0.08;
+		updateJobProgress({ jobId, progress: concatProgressStart });
 
 		await runFFmpegCommand({
 			args: [
@@ -867,7 +1102,7 @@ export async function executeExportJob({
 				"copy",
 				"-movflags",
 				"+faststart",
-				videoOutputPath,
+				concatOutputPath,
 			],
 			estimatedDuration: Math.max(
 				0,
@@ -876,10 +1111,29 @@ export async function executeExportJob({
 			onProgress: ({ normalizedProgress }) => {
 				updateJobProgress({
 					jobId,
-					progress: 0.9 + normalizedProgress * 0.08,
+					progress:
+						concatProgressStart + normalizedProgress * concatProgressSpan,
 				});
 			},
 		});
+
+		if (hasVideoTransitions) {
+			await renderTransitionedVideo({
+				concatAudioPath: concatOutputPath,
+				segmentOutputs,
+				segments,
+				settings,
+				tempDir,
+				videoOutputPath,
+				videoTransitions,
+				onProgress: ({ progress }) => {
+					updateJobProgress({
+						jobId,
+						progress: 0.87 + progress * 0.11,
+					});
+				},
+			});
+		}
 
 		// =====================================================================
 		// STICKER OVERLAY COMPOSITING

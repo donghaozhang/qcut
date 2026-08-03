@@ -75,6 +75,8 @@ export interface BuildFFmpegArgsOptions {
 	useDirectCopy?: boolean;
 	videoSources?: VideoSource[];
 	videoTransitions?: VideoTransition[];
+	/** Include the first video input's embedded audio when no audio graph exists. */
+	includeEmbeddedAudio?: boolean;
 	stickerFilterChain?: string;
 	stickerSources?: StickerSource[];
 	imageFilterChain?: string;
@@ -546,6 +548,7 @@ function buildCompositeEncodeArgs(
 		videoInputPath,
 		videoSources = [],
 		videoTransitions = [],
+		includeEmbeddedAudio = true,
 		trimStart,
 		backgroundColor = "#000000",
 	} = options;
@@ -905,7 +908,12 @@ function buildCompositeEncodeArgs(
 	args.push("-map", videoMap);
 
 	let audioMap = audioResult.mapAudio;
-	if (!audioMap && hasBaseVideoInput && audioFiles.length === 0) {
+	if (
+		!audioMap &&
+		hasBaseVideoInput &&
+		audioFiles.length === 0 &&
+		includeEmbeddedAudio
+	) {
 		audioMap = "0:a?";
 	}
 
