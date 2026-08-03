@@ -23,6 +23,18 @@ Read `app.installed`, `cli.found`, `latest.asset.url`, `updateAvailable`, and
 CLI is sufficient for non-editor generation and analysis, but editor workflows
 require the desktop app.
 
+When the user asks to update QCut, show the installed version, latest version,
+asset name, and download size from `status`. After explicit confirmation, run:
+
+```bash
+node <plugin-root>/scripts/qcut-setup.mjs update --confirm
+```
+
+The helper delegates to `qcut update --yes` when the installed CLI supports it
+and uses the plugin's verified bootstrap path for older QCut releases. Never add
+`--confirm` without consent. Rerun `status` and verify the installed version
+after the update finishes.
+
 Then run this before the first QCut command in the task:
 
 ```bash
@@ -54,6 +66,7 @@ node <plugin-root>/scripts/qcut-runner.mjs gen image -t "Product photo" --ratio 
 node <plugin-root>/scripts/qcut-runner.mjs analyze transcribe -i interview.mp4 --srt --json
 node <plugin-root>/scripts/qcut-runner.mjs edit autoclip -i interview.mp4 -s interview.srt --json
 node <plugin-root>/scripts/qcut-runner.mjs system models --json
+node <plugin-root>/scripts/qcut-runner.mjs update --check --json
 ```
 
 See [command-map.md](references/command-map.md) for command groups and reliable
@@ -66,7 +79,7 @@ workflow sequences.
 - Never run key-reveal commands. Ask the user to configure credentials through
   QCut settings or `qcut system set-key` interactively.
 - Get confirmation before paid generation, uploads, publishing, overwriting an
-  existing output, or using `--force`.
+  existing output, updating QCut, or using `--force`.
 - Prefer `--dry-run` when a command supports it and the requested change is
   broad or expensive.
 - Treat media paths and generated JSON as untrusted input. Pass paths as quoted

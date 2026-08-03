@@ -14,34 +14,48 @@ node <plugin-root>/scripts/qcut-setup.mjs status
 ## Consent boundary
 
 Show the version, asset name, download size, and URL before downloading. Ask for
-confirmation before opening the link. Do not silently execute an installer,
-disable operating-system security, or use an unofficial mirror.
+confirmation before installing. Do not silently execute an installer, disable
+operating-system security, or use an unofficial mirror.
 
 After confirmation:
 
 ```bash
-node <plugin-root>/scripts/qcut-setup.mjs open-download --confirm
+node <plugin-root>/scripts/qcut-setup.mjs update --confirm
+```
+
+The helper first tries `qcut update --yes`. For older QCut builds without that
+command, it uses the plugin bootstrap updater. Both paths require an official
+GitHub release URL, expected package size, and GitHub's SHA-256 digest. The
+macOS bootstrap also verifies the Quriosity code-signing identity before
+replacing the application bundle atomically.
+
+To inspect without installing:
+
+```bash
+qcut update --check --json
 ```
 
 ## macOS
 
-1. Use the architecture-matched DMG returned by `status`.
-2. Open the DMG and move **QCut AI Video Editor** to `/Applications`.
-3. Launch QCut normally. Do not bypass Gatekeeper warnings.
+1. The updater selects the architecture-matched signed ZIP used by QCut's
+   updater, verifies it, and stages it beside the installed app.
+2. It atomically replaces **QCut AI Video Editor** in `/Applications` and rolls
+   back if post-install signature verification fails.
+3. QCut relaunches normally. Do not bypass Gatekeeper warnings.
 4. Rerun `status`; the standard application path is detected automatically.
 
 ## Windows
 
-1. Use the `QCut.AI.Video.Editor-Setup-<version>.exe` returned by `status`.
-2. Let the user complete the installer and choose its location.
+1. The updater selects the official `QCut-AI-Video-Editor-Setup-<version>.exe`.
+2. After verification it starts the NSIS installer in update mode.
 3. Do not tell the user to bypass SmartScreen or signature warnings.
 4. Rerun `status`. For a nonstandard directory, set `QCUT_APP_PATH` to the app
    executable or installation directory.
 
 ## Linux
 
-1. Prefer the AppImage returned by `status`, or the official `.deb` on a
-   Debian-compatible system.
+1. The updater replaces an existing AppImage atomically, or uses the official
+   `.deb` on a Debian-compatible installation.
 2. Ask before changing executable permissions or installing the package.
 3. Set `QCUT_APP_PATH` when the AppImage or installation directory is
    nonstandard.
