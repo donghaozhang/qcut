@@ -125,9 +125,15 @@ stickerLabRoutes.get("/private-manifest", async (c) => {
 	}
 
 	try {
+		// The third argument is spread straight into the fetch RequestInit, and
+		// workerd rejects a `cache` field ("not implemented") at this Worker's
+		// compatibility date. The throw surfaces as a download error, which this
+		// route reports as a missing manifest, so every catalogue 404s in
+		// production while passing under Bun. Freshness is already guaranteed by
+		// the no-store response header above.
 		const { data, error } = await getSupabase()
 			.storage.from(STICKER_BUCKET)
-			.download(catalog.manifestObjectKey, {}, { cache: "no-store" });
+			.download(catalog.manifestObjectKey);
 		if (error || !data) {
 			return c.json({ error: "Private manifest unavailable" }, 404);
 		}
