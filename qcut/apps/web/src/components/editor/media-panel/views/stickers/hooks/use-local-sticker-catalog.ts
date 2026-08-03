@@ -26,6 +26,12 @@ export interface LocalStickerCatalogState {
 	 * Everyone else gets an empty list and sees only the public catalogue.
 	 */
 	privateCatalogs: PrivateStickerCatalog[];
+	/**
+	 * Reference catalogues that failed to load. Surfaced rather than swallowed:
+	 * every failure hides a slice of the catalogue, and dropping them silently
+	 * makes a partially-loaded lab indistinguishable from a small one.
+	 */
+	unavailablePrivateCatalogIds: string[];
 }
 
 function initialCatalogState({
@@ -39,6 +45,7 @@ function initialCatalogState({
 		isAvailable: hasSource,
 		isLoading: hasSource,
 		privateCatalogs: [],
+		unavailablePrivateCatalogIds: [],
 	};
 }
 
@@ -126,14 +133,18 @@ export function useLocalStickerCatalog(): LocalStickerCatalogState {
 			if (disposed) return;
 
 			const availableCatalogs: PrivateStickerCatalog[] = [];
+			const unavailableCatalogIds: string[] = [];
 			for (const [index, result] of results.entries()) {
 				const catalogId = PRIVATE_STICKER_CATALOG_IDS[index];
 				if (result.status === "fulfilled") {
 					availableCatalogs.push(result.value);
 					continue;
 				}
-				// Expected during rolling deploys, for users outside the allow list,
-				// signed-out sessions, and offline runs.
+				// Happens during rolling deploys, for users outside the allow list,
+				// signed-out sessions, and offline runs — but also when the server
+				// serves one catalogue for every id, which looks identical from here.
+				// Record it so the panel can say a slice is missing.
+				unavailableCatalogIds.push(catalogId);
 				debugError(
 					`[StickerLab] Private reference catalog unavailable: ${catalogId}`,
 					result.reason
@@ -144,13 +155,21 @@ export function useLocalStickerCatalog(): LocalStickerCatalogState {
 				const privateCatalogs = validatePrivateStickerCatalogSet({
 					catalogs: availableCatalogs,
 				});
-				setState((previous) => ({ ...previous, privateCatalogs }));
+				setState((previous) => ({
+					...previous,
+					privateCatalogs,
+					unavailablePrivateCatalogIds: unavailableCatalogIds,
+				}));
 			} catch (error) {
 				debugError(
 					"[StickerLab] Private reference catalog set rejected",
 					error
 				);
-				setState((previous) => ({ ...previous, privateCatalogs: [] }));
+				setState((previous) => ({
+					...previous,
+					privateCatalogs: [],
+					unavailablePrivateCatalogIds: [...PRIVATE_STICKER_CATALOG_IDS],
+				}));
 			}
 		};
 

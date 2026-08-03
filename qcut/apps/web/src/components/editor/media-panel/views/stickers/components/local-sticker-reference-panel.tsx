@@ -22,6 +22,7 @@ import {
 	StickerCatalogTabs,
 } from "./sticker-catalog-tabs";
 
+const EMPTY_UNAVAILABLE_CATALOG_IDS: readonly string[] = [];
 const EMPTY_PRIVATE_CATALOGS: readonly PrivateStickerCatalog[] = [];
 
 export function LocalStickerReferencePanel({
@@ -30,12 +31,14 @@ export function LocalStickerReferencePanel({
 	isLoading,
 	onSelect,
 	privateCatalogs = EMPTY_PRIVATE_CATALOGS,
+	unavailablePrivateCatalogIds = EMPTY_UNAVAILABLE_CATALOG_IDS,
 }: {
 	catalog: StickerLabCatalog | null;
 	error: string | null;
 	isLoading: boolean;
 	onSelect: ({ file }: { file: File }) => Promise<void>;
 	privateCatalogs?: readonly PrivateStickerCatalog[];
+	unavailablePrivateCatalogIds?: readonly string[];
 }) {
 	const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
 		null
@@ -49,6 +52,9 @@ export function LocalStickerReferencePanel({
 		[privateCatalogs]
 	);
 	const hasPrivateCatalog = privateCatalogs.length > 0;
+	// A reference catalogue that failed to load takes its slice of the stickers
+	// with it. Without this the panel is indistinguishable from a small one.
+	const missingCatalogCount = unavailablePrivateCatalogIds.length;
 	const isPrivateCatalogActive =
 		activeCatalogKey === "private" && hasPrivateCatalog;
 	const categories = isPrivateCatalogActive
@@ -238,6 +244,15 @@ export function LocalStickerReferencePanel({
 									{selectedCategory.items.length} 个贴纸
 								</span>
 							</div>
+							{isPrivateCatalogActive && missingCatalogCount > 0 ? (
+								<div
+									className="mx-3 mb-1 shrink-0 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] leading-snug text-amber-200/90"
+									data-testid="sticker-lab-private-catalog-warning"
+								>
+									{missingCatalogCount} 个参照素材包未能载入,当前只显示部分贴纸(
+									{unavailablePrivateCatalogIds.join("、")})
+								</div>
+							) : null}
 							<div className="min-h-0 flex-1 overflow-y-auto p-2">
 								<div
 									className="grid grid-cols-3 gap-2"
