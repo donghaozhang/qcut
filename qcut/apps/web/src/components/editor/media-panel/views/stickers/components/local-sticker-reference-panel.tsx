@@ -134,6 +134,18 @@ export function LocalStickerReferencePanel({
 				<p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">
 					实验素材按需载入，不随 QCut 安装包分发
 				</p>
+				{missingCatalogCount > 0 ? (
+					<div
+						className="mt-1 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] leading-snug text-amber-200/90"
+						data-testid="sticker-lab-private-catalog-warning"
+					>
+						{missingCatalogCount} 个参照素材包未能载入
+						{hasPrivateCatalog
+							? "，当前只显示部分贴纸（"
+							: "，剪映参照贴纸暂时无法显示（"}
+						{unavailablePrivateCatalogIds.join("、")}）
+					</div>
+				) : null}
 				{hasPrivateCatalog ? (
 					<StickerCatalogTabs
 						activeCatalogKey={activeCatalogKey}
@@ -244,15 +256,6 @@ export function LocalStickerReferencePanel({
 									{selectedCategory.items.length} 个贴纸
 								</span>
 							</div>
-							{isPrivateCatalogActive && missingCatalogCount > 0 ? (
-								<div
-									className="mx-3 mb-1 shrink-0 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] leading-snug text-amber-200/90"
-									data-testid="sticker-lab-private-catalog-warning"
-								>
-									{missingCatalogCount} 个参照素材包未能载入,当前只显示部分贴纸(
-									{unavailablePrivateCatalogIds.join("、")})
-								</div>
-							) : null}
 							<div className="min-h-0 flex-1 overflow-y-auto p-2">
 								<div
 									className="grid grid-cols-3 gap-2"
