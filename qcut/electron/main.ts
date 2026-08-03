@@ -30,6 +30,7 @@ import {
 	type AutoUpdateController,
 	type AutoUpdaterLike,
 } from "./auto-update-controller.js";
+import { resolveAutoUpdateConfig } from "./auto-update-config.js";
 import {
 	createCodexPluginUpdateController,
 	type CodexPluginUpdateController,
@@ -364,13 +365,20 @@ function setupAutoUpdater(): void {
 		const updaterModule = require("electron-updater") as {
 			autoUpdater: AutoUpdaterLike;
 		};
-		if (process.env.QCUT_UPDATE_CONFIG_PATH) {
-			const updateConfigPath = path.resolve(
-				process.env.QCUT_UPDATE_CONFIG_PATH
-			);
-			updaterModule.autoUpdater.updateConfigPath = updateConfigPath;
+		const updateConfig = resolveAutoUpdateConfig({
+			resourcesPath: process.resourcesPath,
+			userDataPath: app.getPath("userData"),
+			overridePath: process.env.QCUT_UPDATE_CONFIG_PATH,
+		});
+		updaterModule.autoUpdater.updateConfigPath = updateConfig.configPath;
+		if (updateConfig.source === "override") {
 			logger.log(
-				`[AutoUpdater] Using update config override: ${updateConfigPath}`
+				`[AutoUpdater] Using update config override: ${updateConfig.configPath}`
+			);
+		}
+		if (updateConfig.source === "fallback") {
+			logger.warn(
+				`[AutoUpdater] ${updateConfig.packagedConfigError}; using official fallback: ${updateConfig.configPath}`
 			);
 		}
 		updateController = createAutoUpdateController({
