@@ -1353,14 +1353,21 @@ function TimelineElementComponent({
 		}
 
 		const TILE_ASPECT_RATIO = 16 / 9;
+		/** The py-3 the tile container carries, top and bottom. */
+		const IMAGE_TILE_PADDING_PX = 12;
 
 		if (mediaItem.type === "image") {
 			// Calculate tile size based on 16:9 aspect ratio
 			const trackHeight = getTrackHeight(track.type, track.height);
-			const tileHeight = trackHeight - 8; // Account for padding
-			const tileWidth = tileHeight * TILE_ASPECT_RATIO;
-
 			const { headerHeight } = getVideoClipLaneHeights({ trackHeight });
+
+			// The tiles sit between the header and the container's bottom padding,
+			// so sizing them off the full track height would crop them vertically.
+			const tileHeight = Math.max(
+				1,
+				trackHeight - headerHeight - IMAGE_TILE_PADDING_PX
+			);
+			const tileWidth = tileHeight * TILE_ASPECT_RATIO;
 
 			return (
 				<div className="w-full h-full flex items-center justify-center">
@@ -1466,19 +1473,26 @@ function TimelineElementComponent({
 							{mediaItem.name}
 						</span>
 					</div>
-					<AudioWaveform
-						audioUrl={mediaItem.url || ""}
-						sourcePath={mediaItem.localPath}
-						sourceDuration={mediaItem.duration ?? element.duration}
-						cacheKey={`media:${mediaItem.id}:${mediaItem.file.size}:${mediaItem.file.lastModified}`}
-						className="w-full h-full"
-						sourceStart={element.trimStart}
-						sourceEnd={element.duration - element.trimEnd}
-						barWidth={0.5}
-						barGap={0.5}
-						color="rgba(126, 196, 255, 0.95)"
-						anchor="bottom"
-					/>
+					{/* The header is absolutely positioned, so the waveform has to be
+					    inset by its height or tall peaks draw underneath the name. */}
+					<div
+						className="absolute inset-x-0 bottom-0"
+						style={{ top: `${audioHeaderHeight}px` }}
+					>
+						<AudioWaveform
+							audioUrl={mediaItem.url || ""}
+							sourcePath={mediaItem.localPath}
+							sourceDuration={mediaItem.duration ?? element.duration}
+							cacheKey={`media:${mediaItem.id}:${mediaItem.file.size}:${mediaItem.file.lastModified}`}
+							className="w-full h-full"
+							sourceStart={element.trimStart}
+							sourceEnd={element.duration - element.trimEnd}
+							barWidth={0.5}
+							barGap={0.5}
+							color="rgba(126, 196, 255, 0.95)"
+							anchor="bottom"
+						/>
+					</div>
 				</div>
 			);
 		}

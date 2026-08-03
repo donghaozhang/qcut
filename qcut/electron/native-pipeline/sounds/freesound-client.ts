@@ -84,17 +84,18 @@ export async function searchFreesound({
 
 	const params = new URLSearchParams({
 		query,
-		token,
 		page: "1",
 		page_size: String(limit),
 		sort: "score",
 		fields: FREESOUND_FIELDS,
 	});
+	// The key goes in a header, not the query string: URLs end up in logs,
+	// proxies, and error messages.
 	const response = await fetchImpl(`${FREESOUND_SEARCH_URL}?${params}`, {
+		headers: { Authorization: `Token ${token}` },
 		signal,
 	});
 	if (!response.ok) {
-		// The token is in the query string, so never surface the URL itself.
 		throw new Error(`Freesound search failed with status ${response.status}`);
 	}
 	const payload = (await response.json()) as { results?: FreesoundItem[] };

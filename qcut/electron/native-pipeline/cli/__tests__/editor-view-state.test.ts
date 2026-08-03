@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import type { EditorApiClient } from "../../editor/editor-api-client.js";
-import { resolveEditorViewState, withViewState } from "../editor-view-state.js";
+import {
+	needsSeparateViewState,
+	resolveEditorViewState,
+	withViewState,
+} from "../editor-view-state.js";
 
 function stateFor({ projectId }: { projectId: string | null }) {
 	return {
@@ -120,11 +124,15 @@ describe("withViewState", () => {
 		});
 	});
 
-	it("nests a non-object payload rather than losing it", () => {
-		expect(withViewState({ data: [1, 2], view })).toEqual({
-			data: [1, 2],
-			view,
-		});
+	it("leaves an array payload as an array", () => {
+		// editor:media:list answers with an array; wrapping it would hand
+		// consumers an object where they expect a list.
+		expect(withViewState({ data: [1, 2], view })).toEqual([1, 2]);
+		expect(needsSeparateViewState({ data: [1, 2] })).toBe(true);
+	});
+
+	it("keeps the view inside an object payload", () => {
+		expect(needsSeparateViewState({ data: { elementId: "e1" } })).toBe(false);
 	});
 
 	it("leaves the payload untouched when there is no view", () => {

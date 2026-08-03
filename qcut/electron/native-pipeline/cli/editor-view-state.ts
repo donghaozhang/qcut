@@ -90,7 +90,13 @@ export async function resolveEditorViewState({
 	}
 }
 
-/** Attaches view state to a result payload without disturbing its shape. */
+/**
+ * Merges view state into an object payload.
+ *
+ * Arrays and primitives are returned untouched: `editor:media:list` answers with
+ * an array, and wrapping it would hand consumers an object where they expect a
+ * list. Those payloads carry the view on the result instead, as `result.view`.
+ */
 export function withViewState({
 	data,
 	view,
@@ -100,6 +106,12 @@ export function withViewState({
 }): unknown {
 	if (!view) return data;
 	if (data === null || data === undefined) return { view };
-	if (typeof data !== "object" || Array.isArray(data)) return { data, view };
+	if (typeof data !== "object" || Array.isArray(data)) return data;
 	return { ...(data as Record<string, unknown>), view };
+}
+
+/** True when the payload cannot carry the view itself. */
+export function needsSeparateViewState({ data }: { data: unknown }): boolean {
+	if (data === null || data === undefined) return false;
+	return typeof data !== "object" || Array.isArray(data);
 }

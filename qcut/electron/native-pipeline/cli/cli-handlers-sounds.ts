@@ -1,4 +1,4 @@
-import { resolve } from "node:path";
+import { resolve, sep } from "node:path";
 import { getKey } from "../infra/key-manager.js";
 import {
 	searchFreesound,
@@ -20,20 +20,59 @@ const LICENSE_SERVER_URL =
 	process.env.QCUT_LICENSE_SERVER_URL ||
 	"https://qcut-license-server.zdhpeter.workers.dev";
 
+/** True only for URLs on the license server's own origin. */
+function isLicenseServerUrl({ url }: { url: string }): boolean {
+	try {
+		return new URL(url).origin === new URL(LICENSE_SERVER_URL).origin;
+	} catch {
+		return false;
+	}
+}
+
 /**
  * Without an explicit manifest the lab catalog comes from the license server,
  * which serves it only to a signed-in allowlisted account. The token is the
  * one `qcut system login` stores.
+ *
+ * The token is attached only for the license server's own origin: --manifest-url
+ * accepts any address, and sending the session bearer to an arbitrary host would
+ * hand it to whoever runs that host.
  */
 function labManifestSource({ options }: { options: CLIRunOptions }) {
 	if (options.manifest) return { manifestPath: resolve(options.manifest) };
-	const token = getKey("QCUT_AUTH_TOKEN");
+	const manifestUrl =
+		options.manifestUrl ??
+		`${LICENSE_SERVER_URL.replace(/\/+$/, "")}/api/sound-effects-lab/private-manifest`;
+	const token = isLicenseServerUrl({ url: manifestUrl })
+		? getKey("QCUT_AUTH_TOKEN")
+		: undefined;
 	return {
-		manifestUrl:
-			options.manifestUrl ??
-			`${LICENSE_SERVER_URL.replace(/\/+$/, "")}/api/sound-effects-lab/private-manifest`,
+		manifestUrl,
 		...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
 	};
+}
+
+/**
+ * Resolves a manifest-supplied file name inside the chosen directory.
+ *
+ * `fileName` comes from the catalog, so an absolute path or a `../` segment
+ * would otherwise write downloaded bytes anywhere on disk.
+ */
+function assetDestination({
+	downloadDir,
+	fileName,
+}: {
+	downloadDir: string;
+	fileName: string;
+}): string {
+	const root = resolve(downloadDir);
+	const destination = resolve(root, fileName);
+	if (destination !== root && !destination.startsWith(root + sep)) {
+		throw new Error(
+			`Catalog file name "${fileName}" would write outside ${root}`
+		);
+	}
+	return destination;
 }
 
 export interface SoundSearchDependencies {
@@ -121,17 +160,24 @@ export async function handleSoundSearch(
 		return { success: false, error: warnings[0] };
 	}
 
+	// Trim before downloading: anything past the limit is not returned, so
+	// fetching its audio would be bytes the caller never sees.
+	const returned = results.slice(0, limit);
+
 	if (options.downloadDir) {
 		const assetsUrl = `${LICENSE_SERVER_URL.replace(/\/+$/, "")}/api/sound-effects-lab/assets`;
 		const token = getKey("QCUT_AUTH_TOKEN");
-		for (const entry of results) {
+		for (const entry of returned) {
 			if (!(entry.objectKey && entry.fileName)) continue;
 			try {
 				entry.localPath = await dependencies.downloadSoundEffectsLabAsset({
 					objectKey: entry.objectKey,
 					assetsUrl,
 					headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-					destinationPath: resolve(options.downloadDir, entry.fileName),
+					destinationPath: assetDestination({
+						downloadDir: options.downloadDir,
+						fileName: entry.fileName,
+					}),
 					signal,
 				});
 			} catch (error) {
@@ -144,8 +190,11 @@ export async function handleSoundSearch(
 		success: true,
 		data: {
 			query,
-			total: results.length,
-			results: results.slice(0, limit),
+			// Describes the payload below it, not the pre-trim tally, so a --json
+			// consumer can trust total === results.length.
+			total: returned.length,
+			...(results.length > returned.length ? { hasMore: true } : {}),
+			results: returned,
 			...(warnings.length > 0 ? { warnings } : {}),
 		},
 	};

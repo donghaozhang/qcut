@@ -222,6 +222,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 						track,
 						startTime: span.startTime,
 						duration: span.duration,
+						fps: useProjectStore.getState().activeProject?.fps ?? 30,
 					}) === null
 				);
 			});
@@ -233,7 +234,10 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 		},
 
 		// CRUD operations (add/remove/move/update tracks and elements)
-		...createCrudOperations(get, set, { updateTracksAndSave }),
+		...createCrudOperations(get, set, {
+			updateTracksAndSave,
+			getProjectFps: () => useProjectStore.getState().activeProject?.fps ?? 30,
+		}),
 
 		// Persistence operations (load/save/query/thumbnail)
 		...createPersistenceOperations(get, set, {

@@ -469,6 +469,11 @@ export interface CLIRunOptions {
 /** Standard result returned by a CLI command handler. */
 export interface CLIResult {
 	success: boolean;
+	/**
+	 * Which project the editor window is showing. Set only when the payload
+	 * cannot carry it — array results such as editor:media:list.
+	 */
+	view?: unknown;
 	endpoint?: string;
 	outputPath?: string;
 	outputPaths?: string[];

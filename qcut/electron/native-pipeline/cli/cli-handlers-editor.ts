@@ -36,7 +36,11 @@ import {
 import { handleDiffCommand } from "./cli-handlers-diff.js";
 import { handleSessionCommand } from "./cli-handlers-session.js";
 import { handleSnapshotCommand } from "./cli-handlers-snapshot.js";
-import { resolveEditorViewState, withViewState } from "./editor-view-state.js";
+import {
+	needsSeparateViewState,
+	resolveEditorViewState,
+	withViewState,
+} from "./editor-view-state.js";
 import {
 	handleKeyboardCommand,
 	handlePointerCommand,
@@ -381,7 +385,11 @@ export async function handleEditorCommand(
 			focus: options.focus,
 		});
 		return view
-			? { ...result, data: withViewState({ data: result.data, view }) }
+			? {
+					...result,
+					data: withViewState({ data: result.data, view }),
+					...(needsSeparateViewState({ data: result.data }) ? { view } : {}),
+				}
 			: result;
 	} catch (err) {
 		return {

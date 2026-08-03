@@ -54,6 +54,8 @@ import {
 
 export interface CrudDeps {
 	updateTracksAndSave: (tracks: TimelineTrack[]) => void;
+	/** Element end times depend on fps for speed-keyframed media. */
+	getProjectFps: () => number;
 }
 
 /**
@@ -70,18 +72,21 @@ function rejectIfOccupied({
 	startTime,
 	duration,
 	excludeElementId,
+	fps,
 }: {
 	operation: string;
 	track: TimelineTrack;
 	startTime: number;
 	duration: number;
 	excludeElementId?: string;
+	fps: number;
 }): boolean {
 	const blocker = findOccupyingElement({
 		track,
 		startTime,
 		duration,
 		excludeElementId,
+		fps,
 	});
 	if (!blocker) return false;
 
@@ -90,6 +95,7 @@ function rejectIfOccupied({
 		duration,
 		notBefore: startTime,
 		excludeElementId,
+		fps,
 	});
 	handleError(
 		new Error(
@@ -117,7 +123,7 @@ export function createCrudOperations(
 	set: StoreSet,
 	deps: CrudDeps
 ) {
-	const { updateTracksAndSave } = deps;
+	const { updateTracksAndSave, getProjectFps } = deps;
 
 	return {
 		addTrack: (type) => {
@@ -254,7 +260,9 @@ export function createCrudOperations(
 					startTime: elementData.startTime,
 					duration: getTimelineElementDuration({
 						element: elementData as TimelineElement,
+						fps: getProjectFps(),
 					}),
+					fps: getProjectFps(),
 				})
 			) {
 				return null;
@@ -455,8 +463,12 @@ export function createCrudOperations(
 					operation: "Move Element to Track",
 					track: toTrack,
 					startTime: elementToMove.startTime,
-					duration: getTimelineElementDuration({ element: elementToMove }),
+					duration: getTimelineElementDuration({
+						element: elementToMove,
+						fps: getProjectFps(),
+					}),
 					excludeElementId: elementId,
+					fps: getProjectFps(),
 				})
 			) {
 				return;
@@ -542,7 +554,10 @@ export function createCrudOperations(
 			// several elements at once, and an intermediate state legitimately
 			// overlaps. Checking per element would make an already-stacked track
 			// impossible to repair.
-			const clash = findOverlappingPair({ elements: repositioned });
+			const clash = findOverlappingPair({
+				elements: repositioned,
+				fps: getProjectFps(),
+			});
 			if (clash) {
 				handleError(
 					new Error(
@@ -582,8 +597,12 @@ export function createCrudOperations(
 					operation: "Move Element",
 					track,
 					startTime,
-					duration: getTimelineElementDuration({ element }),
+					duration: getTimelineElementDuration({
+						element,
+						fps: getProjectFps(),
+					}),
 					excludeElementId: elementId,
+					fps: getProjectFps(),
 				})
 			) {
 				return;

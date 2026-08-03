@@ -1180,6 +1180,8 @@ export async function main(
 			token: sessionValues.token as string | undefined,
 			outputDir: sessionValues["output-dir"] as string | undefined,
 			stateDir: sessionValues["state-dir"] as string | undefined,
+			focus: sessionValues.focus as boolean | undefined,
+			downloadDir: sessionValues["download-dir"] as string | undefined,
 			session: true,
 		};
 
