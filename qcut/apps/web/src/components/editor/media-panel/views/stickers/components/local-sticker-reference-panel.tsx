@@ -22,6 +22,7 @@ import {
 	StickerCatalogTabs,
 } from "./sticker-catalog-tabs";
 
+const EMPTY_UNAVAILABLE_CATALOG_IDS: readonly string[] = [];
 const EMPTY_PRIVATE_CATALOGS: readonly PrivateStickerCatalog[] = [];
 
 export function LocalStickerReferencePanel({
@@ -30,12 +31,14 @@ export function LocalStickerReferencePanel({
 	isLoading,
 	onSelect,
 	privateCatalogs = EMPTY_PRIVATE_CATALOGS,
+	unavailablePrivateCatalogIds = EMPTY_UNAVAILABLE_CATALOG_IDS,
 }: {
 	catalog: StickerLabCatalog | null;
 	error: string | null;
 	isLoading: boolean;
 	onSelect: ({ file }: { file: File }) => Promise<void>;
 	privateCatalogs?: readonly PrivateStickerCatalog[];
+	unavailablePrivateCatalogIds?: readonly string[];
 }) {
 	const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
 		null
@@ -49,6 +52,9 @@ export function LocalStickerReferencePanel({
 		[privateCatalogs]
 	);
 	const hasPrivateCatalog = privateCatalogs.length > 0;
+	// A reference catalogue that failed to load takes its slice of the stickers
+	// with it. Without this the panel is indistinguishable from a small one.
+	const missingCatalogCount = unavailablePrivateCatalogIds.length;
 	const isPrivateCatalogActive =
 		activeCatalogKey === "private" && hasPrivateCatalog;
 	const categories = isPrivateCatalogActive
@@ -128,6 +134,18 @@ export function LocalStickerReferencePanel({
 				<p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">
 					实验素材按需载入，不随 QCut 安装包分发
 				</p>
+				{missingCatalogCount > 0 ? (
+					<div
+						className="mt-1 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] leading-snug text-amber-200/90"
+						data-testid="sticker-lab-private-catalog-warning"
+					>
+						{missingCatalogCount} 个参照素材包未能载入
+						{hasPrivateCatalog
+							? "，当前只显示部分贴纸（"
+							: "，剪映参照贴纸暂时无法显示（"}
+						{unavailablePrivateCatalogIds.join("、")}）
+					</div>
+				) : null}
 				{hasPrivateCatalog ? (
 					<StickerCatalogTabs
 						activeCatalogKey={activeCatalogKey}
