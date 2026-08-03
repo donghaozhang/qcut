@@ -746,6 +746,17 @@ export interface TimelineStore {
 	 * lane that is free over that range — without it the first lane of the type
 	 * is returned, which may already be occupied.
 	 */
+	/**
+	 * Repositions several elements on one track in a single commit, returning
+	 * false when the result would still stack two elements. Arranging must move
+	 * the whole lane at once: element-by-element moves collide with neighbours
+	 * that have not moved yet.
+	 */
+	setTrackElementStartTimes: (
+		trackId: string,
+		startTimes: Record<string, number>,
+		pushHistory?: boolean
+	) => boolean;
 	findOrCreateTrack: (
 		trackType: TrackType,
 		span?: { startTime: number; duration: number }

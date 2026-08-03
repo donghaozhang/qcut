@@ -157,6 +157,66 @@ describe("a track holds one element at a time", () => {
 		});
 	});
 
+	describe("setTrackElementStartTimes", () => {
+		it("repairs a track that is already stacked", () => {
+			// The reason this action exists: legacy projects hold elements piled at
+			// the same time, and moving them one at a time would hit the rule on
+			// every intermediate step and silently do nothing.
+			const stacked: TimelineTrack[] = [
+				{
+					id: "main",
+					name: "Main",
+					type: "media",
+					isMain: true,
+					elements: [
+						mediaElement({ id: "a", startTime: 0, duration: 10 }),
+						mediaElement({ id: "b", startTime: 0, duration: 6 }),
+						mediaElement({ id: "c", startTime: 0, duration: 4 }),
+					],
+				},
+			];
+			useTimelineStore.setState({ _tracks: stacked, tracks: stacked });
+
+			const applied = useTimelineStore
+				.getState()
+				.setTrackElementStartTimes("main", { a: 0, b: 10, c: 16 });
+
+			expect(applied).toBe(true);
+			const starts = useTimelineStore
+				.getState()
+				.tracks.find((track) => track.id === "main")
+				?.elements.map((element) => element.startTime);
+			expect(starts).toEqual([0, 10, 16]);
+		});
+
+		it("reports false and changes nothing when the result overlaps", () => {
+			const stacked: TimelineTrack[] = [
+				{
+					id: "main",
+					name: "Main",
+					type: "media",
+					isMain: true,
+					elements: [
+						mediaElement({ id: "a", startTime: 0, duration: 10 }),
+						mediaElement({ id: "b", startTime: 10, duration: 5 }),
+					],
+				},
+			];
+			useTimelineStore.setState({ _tracks: stacked, tracks: stacked });
+
+			const applied = useTimelineStore
+				.getState()
+				.setTrackElementStartTimes("main", { b: 5 });
+
+			expect(applied).toBe(false);
+			const starts = useTimelineStore
+				.getState()
+				.tracks.find((track) => track.id === "main")
+				?.elements.map((element) => element.startTime);
+			expect(starts).toEqual([0, 10]);
+		});
+	});
+
 	describe("findOrCreateTrack", () => {
 		it("returns the first lane when no span is given", () => {
 			expect(useTimelineStore.getState().findOrCreateTrack("media")).toBe(

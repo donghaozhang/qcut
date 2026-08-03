@@ -90,6 +90,7 @@ import {
 	clearOperationLog,
 } from "../claude-operation-log.js";
 import { generatePersonaPlex } from "../handlers/claude-personaplex-handler.js";
+import { findTimelineOverlaps } from "./timeline-overlap-diagnostic.js";
 import { registerAnalysisRoutes } from "./claude-http-analysis-routes.js";
 import { registerSearchRoutes } from "./claude-http-search-routes.js";
 import { registerGenerateRoutes } from "./claude-http-generate-routes.js";
@@ -664,7 +665,13 @@ export function registerSharedRoutes(
 		]);
 		const format = req.query.format || "json";
 		if (format === "md") return timelineToMarkdown(timeline);
-		return timeline;
+
+		// Projects saved before a track became a single lane can still hold
+		// stacked elements. Report them rather than repairing them silently: the
+		// fix is editor:timeline:arrange, which the caller chooses to run.
+		const overlaps = findTimelineOverlaps({ timeline });
+		if (overlaps.length === 0) return timeline;
+		return { ...timeline, overlaps };
 	});
 
 	router.post("/api/claude/timeline/:projectId/tracks", async (req) => {

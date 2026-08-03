@@ -22,6 +22,7 @@ import {
 import { clampMarkdownDuration } from "@/lib/markdown";
 import {
 	findOccupyingElement,
+	findOverlappingPair,
 	firstFreeStartTime,
 } from "@/lib/timeline-occupancy";
 import { getTimelineElementDuration } from "@/lib/timeline";
@@ -526,6 +527,44 @@ export function createCrudOperations(
 						: t
 				)
 			);
+		},
+
+		setTrackElementStartTimes: (trackId, startTimes, pushHistory = true) => {
+			const track = get()._tracks.find((t) => t.id === trackId);
+			if (!track) return false;
+
+			const repositioned = track.elements.map((element) => {
+				const startTime = startTimes[element.id];
+				return startTime === undefined ? element : { ...element, startTime };
+			});
+
+			// Verify the finished lane rather than each step: arranging moves
+			// several elements at once, and an intermediate state legitimately
+			// overlaps. Checking per element would make an already-stacked track
+			// impossible to repair.
+			const clash = findOverlappingPair({ elements: repositioned });
+			if (clash) {
+				handleError(
+					new Error(
+						`Arranging "${track.name}" would leave "${clash[1].name}" on top of "${clash[0].name}".`
+					),
+					{
+						operation: "Arrange Track",
+						category: ErrorCategory.VALIDATION,
+						severity: ErrorSeverity.MEDIUM,
+						metadata: { trackId, elementIds: [clash[0].id, clash[1].id] },
+					}
+				);
+				return false;
+			}
+
+			if (pushHistory) get().pushHistory();
+			updateTracksAndSave(
+				get()._tracks.map((t) =>
+					t.id === trackId ? { ...t, elements: repositioned } : t
+				)
+			);
+			return true;
 		},
 
 		updateElementStartTime: (

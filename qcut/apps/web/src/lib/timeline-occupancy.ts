@@ -45,6 +45,31 @@ export function findOccupyingElement({
 }
 
 /**
+ * The first pair of elements sharing a span, or null when the lane is clean.
+ *
+ * Sorting by start time makes an adjacent check sufficient: an element nested
+ * inside another still starts after it and before it ends.
+ */
+export function findOverlappingPair({
+	elements,
+	fps = 30,
+}: {
+	elements: TimelineElement[];
+	fps?: number;
+}): [TimelineElement, TimelineElement] | null {
+	const sorted = [...elements].sort((a, b) => a.startTime - b.startTime);
+	for (let index = 1; index < sorted.length; index++) {
+		const previous = sorted[index - 1];
+		const current = sorted[index];
+		const previousEnd = getTimelineElementEndTime({ element: previous, fps });
+		if (current.startTime < previousEnd - SEAM_TOLERANCE_SECONDS) {
+			return [previous, current];
+		}
+	}
+	return null;
+}
+
+/**
  * The earliest time at or after `notBefore` where `duration` fits on this
  * track. Used to make a rejection actionable rather than a dead end.
  */
