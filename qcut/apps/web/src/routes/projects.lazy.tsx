@@ -10,6 +10,7 @@ import {
 	X,
 } from "lucide-react";
 import { motion } from "motion/react";
+import { AppUpdateButton } from "@/components/app-update-button";
 import { DeleteProjectDialog } from "@/components/delete-project-dialog";
 import { AiStatusIndicator } from "@/components/project/ai-status-indicator";
 import { CreateProjectTile } from "@/components/project/create-project-tile";
@@ -30,6 +31,7 @@ import { StartCreatingBanner } from "@/components/project/start-creating-banner"
 import { StudioBackground } from "@/components/project/studio-background";
 import { TemplateGallery } from "@/components/project/template-gallery";
 import { useProjectDurationLoader } from "@/components/project/use-project-duration-loader";
+import { useProjectThumbnailLoader } from "@/components/project/use-project-thumbnail-loader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -44,7 +46,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useAppVersion } from "@/hooks/use-app-version";
 import { useProjectStore } from "@/stores/project-store";
-import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { CanvasSize } from "@/types/editor";
 import { LanguageSelector } from "@/components/language-selector";
 import { useTranslation } from "@/lib/i18n";
@@ -62,12 +63,6 @@ function ProjectsPage() {
 		createNewProject,
 		getFilteredAndSortedProjects,
 	} = useProjectStore();
-	const [thumbnailCache, setThumbnailCache] = useState<
-		Record<string, string | null>
-	>({});
-	const [_loadingThumbnails, setLoadingThumbnails] = useState<Set<string>>(
-		new Set()
-	);
 	const [isSelectionMode, setIsSelectionMode] = useState(false);
 	const [selectedProjects, setSelectedProjects] = useState<Set<string>>(
 		new Set()
@@ -77,35 +72,11 @@ function ProjectsPage() {
 	const [sortOption, setSortOption] = useState("updatedAt-desc");
 	const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 	const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+	const getProjectThumbnail = useProjectThumbnailLoader();
 	const getProjectDuration = useProjectDurationLoader();
 	const appVersion = useAppVersion();
 	const navigate = useNavigate();
 	const { t } = useTranslation();
-
-	const getProjectThumbnail = useCallback(
-		async (projectId: string): Promise<string | null> => {
-			if (thumbnailCache[projectId] !== undefined) {
-				return thumbnailCache[projectId];
-			}
-
-			setLoadingThumbnails((prev) => new Set(prev).add(projectId));
-
-			try {
-				const thumbnail = await useTimelineStore
-					.getState()
-					.getProjectThumbnail(projectId);
-				setThumbnailCache((prev) => ({ ...prev, [projectId]: thumbnail }));
-				return thumbnail;
-			} finally {
-				setLoadingThumbnails((prev) => {
-					const newSet = new Set(prev);
-					newSet.delete(projectId);
-					return newSet;
-				});
-			}
-		},
-		[thumbnailCache]
-	);
 
 	const handleCreateProject = async () => {
 		const projectId = await createNewProject(
@@ -201,6 +172,7 @@ function ProjectsPage() {
 					<ProjectsUserChip />
 				</div>
 				<div className="flex items-center gap-3">
+					<AppUpdateButton />
 					{appVersion && (
 						<span
 							className="text-xs text-muted-foreground"
