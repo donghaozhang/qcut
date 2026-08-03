@@ -253,13 +253,18 @@ export function createAddOps(
 
 		addMediaToNewTrack: (item: MediaItem): boolean => {
 			const trackType = item.type === "audio" ? "audio" : "media";
-			const targetTrackId = get().findOrCreateTrack(trackType);
+			const duration =
+				item.duration || TIMELINE_CONSTANTS.DEFAULT_IMAGE_DURATION;
+			const targetTrackId = get().findOrCreateTrack(trackType, {
+				startTime: 0,
+				duration,
+			});
 
 			get().addElementToTrack(targetTrackId, {
 				type: "media",
 				mediaId: item.id,
 				name: item.name,
-				duration: item.duration || TIMELINE_CONSTANTS.DEFAULT_IMAGE_DURATION,
+				duration,
 				startTime: 0,
 				trimStart: 0,
 				trimEnd: 0,

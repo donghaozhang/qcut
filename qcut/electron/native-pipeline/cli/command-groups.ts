@@ -78,6 +78,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 			"upscale-video": "upscale-video",
 			motion: "transfer-motion",
 			stamp: "stamp-image",
+			"sound-search": "sound-search",
 			subtitle: "subtitle-style",
 			"subtitle-export": "subtitle-export",
 			"clean-audio": "clean-audio",

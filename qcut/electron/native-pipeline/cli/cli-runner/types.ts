@@ -398,6 +398,9 @@ export interface CLIRunOptions {
 	trackName?: string;
 	/** Declarative editor timeline manifest (inline JSON, @file, or stdin). */
 	manifest?: string;
+	manifestUrl?: string;
+	focus?: boolean;
+	downloadDir?: string;
 	/** Group timeline apply mutations into a rollback-capable transaction. */
 	atomic?: boolean;
 	/** Read the result back and verify requested state. */
@@ -466,6 +469,11 @@ export interface CLIRunOptions {
 /** Standard result returned by a CLI command handler. */
 export interface CLIResult {
 	success: boolean;
+	/**
+	 * Which project the editor window is showing. Set only when the payload
+	 * cannot carry it — array results such as editor:media:list.
+	 */
+	view?: unknown;
 	endpoint?: string;
 	outputPath?: string;
 	outputPaths?: string[];
