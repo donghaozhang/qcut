@@ -34,7 +34,10 @@ export type TransitionCategory =
 	| "favorites"
 	| "popular"
 	| "latest"
+	| "lab"
 	| TransitionContentCategory;
+
+export type TransitionPresetCategory = TransitionContentCategory | "lab";
 
 export type TransitionType =
 	| "dissolve"
@@ -55,13 +58,14 @@ export type TransitionType =
 	| "glass"
 	| "page"
 	| "texture"
-	| "flare";
+	| "flare"
+	| "cube";
 
 export interface TransitionPreset {
 	id: string;
 	name: string;
 	localizedName: string;
-	category: TransitionContentCategory;
+	category: TransitionPresetCategory;
 	type: TransitionType;
 	defaultDuration: number;
 	tags: string[];
