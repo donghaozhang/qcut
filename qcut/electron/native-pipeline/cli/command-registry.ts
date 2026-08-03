@@ -77,6 +77,11 @@ export const GLOBAL_FLAGS: FlagDef[] = [
 /** Ordered list of command categories shown in CLI help output. */
 export const CATEGORIES: CategoryDef[] = [
 	{
+		name: "application",
+		label: "QCut Application",
+		commands: ["update"],
+	},
+	{
 		name: "generation",
 		label: "Generation Commands",
 		commands: [
@@ -224,6 +229,24 @@ export const CATEGORIES: CategoryDef[] = [
 // ─── Non-Editor Commands ─────────────────────────────────────────────
 
 const CORE_COMMANDS: Record<string, CommandDef> = {
+	update: {
+		name: "update",
+		description:
+			"Check, download, verify, and install the latest official QCut app",
+		category: "application",
+		flags: [
+			f("--check", "boolean", "Check for an update without installing"),
+			f("--yes", "boolean", "Confirm download and installation", {
+				short: "-y",
+			}),
+			f("--no-launch", "boolean", "Do not relaunch QCut after installation"),
+		],
+		examples: [
+			"qcut update --check",
+			"qcut update --yes",
+			"qcut update --yes --json",
+		],
+	},
 	"instances-list": {
 		name: "instances-list",
 		description: "List running QCut editor instances",

@@ -5,14 +5,14 @@
 - **Submission type:** Skills only
 - **Plugin name:** QCut
 - **Package name:** `qcut`
-- **Version:** `1.1.0`
+- **Version:** `1.2.0`
 - **Developer identity:** Quriosity Pty Ltd
 - **Category:** Creativity
 - **Short description:** Create and edit video in QCut
 - **Website:** <https://quriosity.com.au/>
 - **Support:** <https://github.com/Quriosity-agent/qcut/issues>
-- **Privacy:** <https://github.com/Quriosity-agent/qcut/blob/qcut-plugin-v1.1.0/qcut/plugins/qcut/PRIVACY.md>
-- **Terms:** <https://github.com/Quriosity-agent/qcut/blob/qcut-plugin-v1.1.0/qcut/plugins/qcut/TERMS.md>
+- **Privacy:** <https://github.com/Quriosity-agent/qcut/blob/qcut-plugin-v1.2.0/qcut/plugins/qcut/PRIVACY.md>
+- **Terms:** <https://github.com/Quriosity-agent/qcut/blob/qcut-plugin-v1.2.0/qcut/plugins/qcut/TERMS.md>
 
 ## Long Description
 
@@ -40,6 +40,7 @@ providers configured by the user in QCut and may incur provider charges.
 - Control the background Agent pointer
 - Record verified HD demos
 - Export video
+- Update the QCut application after explicit confirmation
 
 ## Starter Prompts
 

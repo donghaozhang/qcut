@@ -62,18 +62,21 @@ export function ProjectListRow({
 	const { t } = useTranslation();
 
 	useEffect(() => {
-		const loadThumbnail = async () => {
-			setIsLoadingThumbnail(true);
-			try {
-				const thumbnail = await getProjectThumbnail(project.id);
-				setDynamicThumbnail(thumbnail);
-			} catch {
-				setDynamicThumbnail(null);
-			} finally {
-				setIsLoadingThumbnail(false);
-			}
+		let cancelled = false;
+		setIsLoadingThumbnail(true);
+		void getProjectThumbnail(project.id)
+			.then((thumbnail) => {
+				if (!cancelled) setDynamicThumbnail(thumbnail);
+			})
+			.catch(() => {
+				if (!cancelled) setDynamicThumbnail(null);
+			})
+			.finally(() => {
+				if (!cancelled) setIsLoadingThumbnail(false);
+			});
+		return () => {
+			cancelled = true;
 		};
-		loadThumbnail();
 	}, [project.id, getProjectThumbnail]);
 
 	useEffect(() => {

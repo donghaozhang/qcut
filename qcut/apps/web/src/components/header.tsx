@@ -8,6 +8,7 @@ import { ThemeToggle } from "./ui/theme-toggle";
 import { getAssetPath } from "@/lib/asset-path";
 import { useLicenseStore } from "@/stores/license-store";
 import { UserAvatar } from "./user-avatar";
+import { AppUpdateButton } from "./app-update-button";
 
 interface HeaderProps {
 	variant?: "default" | "dark" | "landing";
@@ -35,6 +36,7 @@ export function Header({ variant = "default" }: HeaderProps) {
 
 	const rightContent = (
 		<nav className="flex items-center gap-1">
+			<AppUpdateButton dark={isDark || isLanding} />
 			{!isDark && <ThemeToggle />}
 			<div className="flex items-center gap-4 ml-2">
 				<a

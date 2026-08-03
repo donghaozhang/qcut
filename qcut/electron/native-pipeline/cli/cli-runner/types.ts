@@ -352,6 +352,12 @@ export interface CLIRunOptions {
 	recordingQuality?: string;
 	discard?: boolean;
 	force?: boolean;
+	/** Confirm download and installation for `qcut update`. */
+	yes?: boolean;
+	/** Check the latest QCut version without installing it. */
+	checkOnly?: boolean;
+	/** Install without relaunching QCut. */
+	noLaunch?: boolean;
 	// key-sync options (system sync-keys)
 	push?: boolean;
 	pull?: boolean;

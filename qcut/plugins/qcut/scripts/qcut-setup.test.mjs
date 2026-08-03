@@ -23,10 +23,16 @@ const assets = [
 		size: 410_179_391,
 	},
 	{
-		name: "QCut.AI.Video.Editor-2026.7.2203.AppImage",
+		name: "QCut.AI.Video.Editor-2026.7.2203-x86_64.AppImage",
 		browser_download_url:
-			"https://github.com/Quriosity-agent/qcut/releases/download/v2026.07.22.3/QCut.AI.Video.Editor-2026.7.2203.AppImage",
+			"https://github.com/Quriosity-agent/qcut/releases/download/v2026.07.22.3/QCut.AI.Video.Editor-2026.7.2203-x86_64.AppImage",
 		size: 621_636_361,
+	},
+	{
+		name: "qcut_2026.7.2203_amd64.deb",
+		browser_download_url:
+			"https://github.com/Quriosity-agent/qcut/releases/download/v2026.07.22.3/qcut_2026.7.2203_amd64.deb",
+		size: 610_000_000,
 	},
 	{
 		name: "QCut.AI.Video.Editor-2026.7.2203-arm64.dmg.blockmap",
@@ -71,6 +77,14 @@ test("selects the official installer for each supported platform", () => {
 			platform: "linux",
 			arch: "x64",
 		})?.name.endsWith(".AppImage")
+	);
+	assert.ok(
+		selectReleaseAsset({
+			assets,
+			platform: "linux",
+			arch: "x64",
+			preferDeb: true,
+		})?.name.endsWith(".deb")
 	);
 });
 

@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ArrowLeft, ExternalLink, Loader2 } from "lucide-react";
 import { GoogleIcon } from "@/components/icons";
+import { AppUpdateButton } from "@/components/app-update-button";
 import { useSignUp } from "@/hooks/auth/useSignUp";
 
 const SignUpPageComponent = () => {
@@ -37,6 +38,7 @@ const SignUpPageComponent = () => {
 
 	return (
 		<div className="flex h-screen items-center justify-center relative px-4">
+			<AppUpdateButton className="absolute right-6 top-6" />
 			<Button
 				variant="text"
 				onClick={() => navigate({ to: "/" })}

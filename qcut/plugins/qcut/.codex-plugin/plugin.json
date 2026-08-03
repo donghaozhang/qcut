@@ -1,6 +1,6 @@
 {
 	"name": "qcut",
-	"version": "1.1.0",
+	"version": "1.2.0",
 	"description": "Create media and control the QCut desktop video editor from Codex.",
 	"author": {
 		"name": "Quriosity Pty Ltd",
@@ -25,11 +25,12 @@
 			"Adjust video speed curves",
 			"Control the background Agent pointer",
 			"Record verified HD demos",
-			"Export video"
+			"Export video",
+			"Update the QCut application"
 		],
 		"websiteURL": "https://quriosity.com.au/",
-		"privacyPolicyURL": "https://github.com/Quriosity-agent/qcut/blob/qcut-plugin-v1.1.0/qcut/plugins/qcut/PRIVACY.md",
-		"termsOfServiceURL": "https://github.com/Quriosity-agent/qcut/blob/qcut-plugin-v1.1.0/qcut/plugins/qcut/TERMS.md",
+		"privacyPolicyURL": "https://github.com/Quriosity-agent/qcut/blob/qcut-plugin-v1.2.0/qcut/plugins/qcut/PRIVACY.md",
+		"termsOfServiceURL": "https://github.com/Quriosity-agent/qcut/blob/qcut-plugin-v1.2.0/qcut/plugins/qcut/TERMS.md",
 		"brandColor": "#18B8B8",
 		"composerIcon": "./assets/icon.png",
 		"logo": "./assets/icon.png",
@@ -37,7 +38,8 @@
 			"Check whether QCut is installed, help me install the official latest release if needed, and open my project on the Media page.",
 			"Use QCut to transcribe this video and prepare an editable timeline.",
 			"Open my QCut project, inspect the timeline, and make the requested edits or generate media.",
-			"Keep my current app focused while the Agent pointer applies and adjusts a video speed curve in QCut."
+			"Keep my current app focused while the Agent pointer applies and adjusts a video speed curve in QCut.",
+			"Check for the latest QCut release and update the app after I confirm."
 		]
 	}
 }
