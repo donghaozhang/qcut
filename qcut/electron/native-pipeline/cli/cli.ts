@@ -447,6 +447,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"recording-quality": { type: "string" },
 			discard: { type: "boolean", default: false },
 			force: { type: "boolean", default: false },
+			yes: { type: "boolean", short: "y", default: false },
+			check: { type: "boolean", default: false },
+			"no-launch": { type: "boolean", default: false },
 			// `qcut record` standalone options (Phase 1 of dual-mode recording)
 			"record-duration": { type: "string" },
 			"no-auto-launch": { type: "boolean", default: false },
@@ -1025,6 +1028,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		recordingQuality: values["recording-quality"] as string | undefined,
 		discard: (values.discard as boolean) ?? false,
 		force: (values.force as boolean) ?? false,
+		yes: (values.yes as boolean) ?? false,
+		checkOnly: (values.check as boolean) ?? false,
+		noLaunch: (values["no-launch"] as boolean) ?? false,
 		// `qcut record` standalone options — typed camelCase mappings
 		recordDuration: values["record-duration"]
 			? Number.isNaN(parseFloat(values["record-duration"] as string))

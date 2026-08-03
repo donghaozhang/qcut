@@ -16,6 +16,41 @@ import type { CLIResult } from "./cli-runner/types.js";
 export function formatCommandOutput(command: string, result: CLIResult): void {
 	if (!result.data) return;
 
+	if (command === "update") {
+		const data = result.data as {
+			currentVersion?: string;
+			latestVersion: string;
+			updateAvailable: boolean;
+			requiresConfirmation?: boolean;
+			installCommand?: string;
+			updated?: boolean;
+			installation?: {
+				path: string;
+				action: string;
+				relaunchStarted: boolean;
+			};
+		};
+		if (data.updated && data.installation) {
+			console.log(`\nQCut ${data.latestVersion} update installed.`);
+			console.log(`  App: ${data.installation.path}`);
+			console.log(`  Action: ${data.installation.action}`);
+			return;
+		}
+		if (!data.updateAvailable) {
+			console.log(`\nQCut ${data.latestVersion} is already up to date.`);
+			return;
+		}
+		console.log(
+			`\nQCut ${data.latestVersion} is available${
+				data.currentVersion ? ` (installed: ${data.currentVersion})` : ""
+			}.`
+		);
+		if (data.requiresConfirmation && data.installCommand) {
+			console.log(`Run \`${data.installCommand}\` to download and install it.`);
+		}
+		return;
+	}
+
 	// Model listing commands
 	if (
 		command === "list-models" ||

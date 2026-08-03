@@ -111,6 +111,7 @@ import {
 	handleStickerSearch,
 } from "../cli-handlers-stickers.js";
 import { handleInstancesCommand } from "../instance-selection.js";
+import { handleAppUpdate } from "../cli-handlers-app-update.js";
 
 /**
  * Unified handler signature.
@@ -160,6 +161,7 @@ function wrapOPS(
  * the handleEditorCommand dispatcher via wildcard fallback.
  */
 export const HANDLER_MAP: Record<string, CommandHandler> = {
+	update: wrapOPS(handleAppUpdate),
 	"instances-list": wrap(handleInstancesCommand),
 	"instances-use": wrap(handleInstancesCommand),
 	// ── Generation ──

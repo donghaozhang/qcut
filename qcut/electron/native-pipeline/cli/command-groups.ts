@@ -117,6 +117,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 		label: "System & Configuration",
 		description: "Auth, keys, models, project setup, and diagnostics",
 		actions: {
+			update: "update",
 			login: "login",
 			signup: "signup",
 			logout: "logout",
