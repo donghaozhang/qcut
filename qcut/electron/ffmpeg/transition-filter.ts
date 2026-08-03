@@ -166,6 +166,28 @@ function transitionTuning({ transition }: { transition: VideoTransition }) {
 	};
 }
 
+function pixelSnappedSplit({
+	split,
+	extent,
+}: {
+	split: string;
+	extent: "W" | "H";
+}): string {
+	return (
+		"if(lt(" +
+		split +
+		",1),0,if(gt(" +
+		split +
+		"," +
+		extent +
+		"-1)," +
+		extent +
+		"," +
+		split +
+		"))"
+	);
+}
+
 function pushExpression({
 	direction,
 	progress,
@@ -177,7 +199,7 @@ function pushExpression({
 }): string {
 	const inverse = "(1-(" + progress + "))";
 	if (direction === "right") {
-		const split = inverse + "*W";
+		const split = pixelSnappedSplit({ split: inverse + "*W", extent: "W" });
 		return (
 			"if(gte(X," +
 			split +
@@ -197,7 +219,10 @@ function pushExpression({
 		);
 	}
 	if (direction === "up") {
-		const split = "(" + progress + ")*H";
+		const split = pixelSnappedSplit({
+			split: "(" + progress + ")*H",
+			extent: "H",
+		});
 		return (
 			"if(lt(Y," +
 			split +
@@ -217,7 +242,7 @@ function pushExpression({
 		);
 	}
 	if (direction === "down") {
-		const split = inverse + "*H";
+		const split = pixelSnappedSplit({ split: inverse + "*H", extent: "H" });
 		return (
 			"if(gte(Y," +
 			split +
@@ -237,7 +262,10 @@ function pushExpression({
 		);
 	}
 
-	const split = "(" + progress + ")*W";
+	const split = pixelSnappedSplit({
+		split: "(" + progress + ")*W",
+		extent: "W",
+	});
 	return (
 		"if(lt(X," +
 		split +
