@@ -273,6 +273,13 @@ export async function handleEditorCommand(
 	const module = parts[1];
 
 	try {
+		if (module === "transition-lab") {
+			return await handleTransitionLabCommand({ client, options });
+		}
+		if (module === "jianying-transition") {
+			return await handleJianyingTransitionCommand({ options, signal });
+		}
+
 		switch (module) {
 			case "auth":
 				return await handleAuthCommand(client, options);
@@ -305,12 +312,6 @@ export async function handleEditorCommand(
 
 			case "sticker":
 				return await handleStickerCommand(client, options);
-
-			case "transition-lab":
-				return await handleTransitionLabCommand({ client, options });
-
-			case "jianying-transition":
-				return await handleJianyingTransitionCommand({ options, signal });
 
 			case "search":
 				return await handleSearchCommand(client, options, onProgress);
