@@ -4,6 +4,7 @@ import {
 	hslToRgb,
 	luminance,
 	rgbToHsl,
+	skinToneWeight,
 	type RgbColor,
 } from "@/lib/color/color-space-math";
 import type { FilterLutRecipe, FilterPreset } from "./filter-types";
@@ -39,42 +40,120 @@ function tintColor({
 	};
 }
 
-function applyQuadraticCorrection({
+function dotProduct({
+	coefficients,
+	terms,
+}: {
+	coefficients: readonly number[];
+	terms: readonly number[];
+}) {
+	let result = 0;
+	for (let index = 0; index < coefficients.length; index += 1) {
+		result += (coefficients[index] ?? 0) * (terms[index] ?? 0);
+	}
+	return result;
+}
+
+function totalDegreeTerms({
+	color,
+	degree,
+}: {
+	color: RgbColor;
+	degree: number;
+}) {
+	const terms: number[] = [];
+	for (let redPower = degree; redPower >= 0; redPower -= 1) {
+		for (let greenPower = degree - redPower; greenPower >= 0; greenPower -= 1) {
+			const bluePower = degree - redPower - greenPower;
+			terms.push(
+				color.r ** redPower * color.g ** greenPower * color.b ** bluePower
+			);
+		}
+	}
+	return terms;
+}
+
+function applyPolynomialCorrection({
 	color,
 	recipe,
 }: {
 	color: RgbColor;
 	recipe: FilterLutRecipe;
 }): RgbColor {
-	const correction = recipe.quadraticCorrection;
+	const correction = recipe.polynomialCorrection;
 	if (!correction) return color;
 
 	const { r, g, b } = color;
 	const linearTerms = [r, g, b];
 	const squaredTerms = [r * r, g * g, b * b];
-	// Cross-term columns are rg, rb, and gb.
 	const crossTerms = [r * g, r * b, g * b];
-	const channels = correction.linear.map((linearRow, index) => {
-		const squaredRow = correction.squared[index];
-		const crossRow = correction.cross[index];
+	const cubicPureTerms = [r ** 3, g ** 3, b ** 3];
+	// Mixed columns are r2g, r2b, g2r, g2b, b2r, and b2g.
+	const cubicMixedTerms = [
+		r * r * g,
+		r * r * b,
+		g * g * r,
+		g * g * b,
+		b * b * r,
+		b * b * g,
+	];
+	const cubicTripleTerm = r * g * b;
+	const higherOrder = correction.higherOrder;
+	const quarticTerms = higherOrder?.quartic
+		? totalDegreeTerms({ color, degree: 4 })
+		: [];
+	const quinticTerms = higherOrder?.quintic
+		? totalDegreeTerms({ color, degree: 5 })
+		: [];
+	const evaluateChannel = ({ channel }: { channel: 0 | 1 | 2 }) => {
+		const cubic = correction.cubic;
+		const cubicValue = cubic
+			? dotProduct({
+					coefficients: cubic.pure[channel],
+					terms: cubicPureTerms,
+				}) +
+				dotProduct({
+					coefficients: cubic.mixed[channel],
+					terms: cubicMixedTerms,
+				}) +
+				cubic.triple[channel] * cubicTripleTerm
+			: 0;
+		const higherOrderValue =
+			(higherOrder?.quartic
+				? dotProduct({
+						coefficients: higherOrder.quartic[channel],
+						terms: quarticTerms,
+					})
+				: 0) +
+			(higherOrder?.quintic
+				? dotProduct({
+						coefficients: higherOrder.quintic[channel],
+						terms: quinticTerms,
+					})
+				: 0);
 		return (
-			linearRow[0] * linearTerms[0] +
-			linearRow[1] * linearTerms[1] +
-			linearRow[2] * linearTerms[2] +
-			squaredRow[0] * squaredTerms[0] +
-			squaredRow[1] * squaredTerms[1] +
-			squaredRow[2] * squaredTerms[2] +
-			crossRow[0] * crossTerms[0] +
-			crossRow[1] * crossTerms[1] +
-			crossRow[2] * crossTerms[2] +
-			correction.offset[index]
+			dotProduct({
+				coefficients: correction.linear[channel],
+				terms: linearTerms,
+			}) +
+			dotProduct({
+				coefficients: correction.squared[channel],
+				terms: squaredTerms,
+			}) +
+			dotProduct({
+				coefficients: correction.cross[channel],
+				terms: crossTerms,
+			}) +
+			cubicValue +
+			higherOrderValue +
+			correction.offset[channel]
 		);
-	});
+	};
 
 	return {
-		r: clamp01(channels[0]),
-		g: clamp01(channels[1]),
-		b: clamp01(channels[2]),
+		r: clamp01(evaluateChannel({ channel: 0 })),
+		g: clamp01(evaluateChannel({ channel: 1 })),
+		b: clamp01(evaluateChannel({ channel: 2 })),
 	};
 }
 
@@ -154,7 +233,7 @@ export function transformFilterColor({
 		g: clamp01(mix({ left: result.g, right: 0.5, amount: fade })),
 		b: clamp01(mix({ left: result.b, right: 0.5, amount: fade })),
 	};
-	return applyQuadraticCorrection({ color: result, recipe });
+	return applyPolynomialCorrection({ color: result, recipe });
 }
 
 export function buildFilterCube({
@@ -168,15 +247,29 @@ export function buildFilterCube({
 	for (let blue = 0; blue < size; blue += 1) {
 		for (let green = 0; green < size; green += 1) {
 			for (let red = 0; red < size; red += 1) {
+				const color = {
+					r: red / (size - 1),
+					g: green / (size - 1),
+					b: blue / (size - 1),
+				};
 				const transformed = transformFilterColor({
-					color: {
-						r: red / (size - 1),
-						g: green / (size - 1),
-						b: blue / (size - 1),
-					},
+					color,
 					recipe: preset.recipe,
 				});
-				values.push(transformed.r, transformed.g, transformed.b);
+				if (!preset.skinToneRecipe) {
+					values.push(transformed.r, transformed.g, transformed.b);
+					continue;
+				}
+				const skinToneTransformed = transformFilterColor({
+					color,
+					recipe: preset.skinToneRecipe,
+				});
+				const amount = skinToneWeight({ color });
+				values.push(
+					mix({ left: transformed.r, right: skinToneTransformed.r, amount }),
+					mix({ left: transformed.g, right: skinToneTransformed.g, amount }),
+					mix({ left: transformed.b, right: skinToneTransformed.b, amount })
+				);
 			}
 		}
 	}

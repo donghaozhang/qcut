@@ -35,6 +35,7 @@ import {
 import {
 	CLI_VERSION,
 	findHelpParam,
+	printCommandHelp,
 	printCommandHelpJson,
 	printGroupHelp,
 	printGroupHelpJson,
@@ -505,6 +506,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"max-nodes": { type: "string" },
 			// performance flags
 			"skip-health": { type: "boolean", default: false },
+			focus: { type: "boolean", default: false },
+			"download-dir": { type: "string" },
 			"status-only": { type: "boolean", default: false },
 			deep: { type: "boolean", default: false },
 			"no-capability-check": { type: "boolean", default: false },
@@ -538,7 +541,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 				if (!flag) process.exit(1);
 			}
 		} else {
-			printHelp();
+			// The command is already resolved here, so show its own flags instead
+			// of the root overview, which is what `<group> <action> --help` hit.
+			printCommandHelp(command);
 		}
 		process.exit(0);
 	}
@@ -1122,6 +1127,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			: undefined,
 		// performance flags
 		skipHealth: (values["skip-health"] as boolean) ?? false,
+		focus: (values.focus as boolean) ?? false,
+		downloadDir: values["download-dir"] as string | undefined,
 		statusOnly: (values["status-only"] as boolean) ?? false,
 		deep: (values.deep as boolean) ?? false,
 		noCapabilityCheck: (values["no-capability-check"] as boolean) ?? false,
@@ -1153,6 +1160,8 @@ export async function main(
 				quiet: { type: "boolean", short: "q", default: false },
 				verbose: { type: "boolean", short: "v", default: false },
 				"skip-health": { type: "boolean", default: false },
+				focus: { type: "boolean", default: false },
+				"download-dir": { type: "string" },
 				"no-capability-check": { type: "boolean", default: false },
 				policy: { type: "string" },
 				resume: { type: "string" },
@@ -1177,6 +1186,8 @@ export async function main(
 			token: sessionValues.token as string | undefined,
 			outputDir: sessionValues["output-dir"] as string | undefined,
 			stateDir: sessionValues["state-dir"] as string | undefined,
+			focus: sessionValues.focus as boolean | undefined,
+			downloadDir: sessionValues["download-dir"] as string | undefined,
 			session: true,
 		};
 

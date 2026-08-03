@@ -227,9 +227,11 @@ describe("setupClaudeTimelineBridge - add element", () => {
 			freezeFrameDuration: 0.5,
 		});
 
+		// The span is passed so an occupied lane is skipped rather than stacked
+		// on — a track plays one element at a time.
 		expect(
 			storeMocks.timelineStoreState.findOrCreateTrack
-		).toHaveBeenCalledWith("media");
+		).toHaveBeenCalledWith("media", { startTime: 2, duration: 4 });
 		expect(
 			storeMocks.timelineStoreState.addElementToTrack
 		).toHaveBeenCalledWith("media-track", {

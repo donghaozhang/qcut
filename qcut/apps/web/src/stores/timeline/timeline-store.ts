@@ -17,6 +17,7 @@
 
 import { create } from "zustand";
 import { sortTracksByOrder, ensureMainTrack } from "@/types/timeline";
+import { findOccupyingElement } from "@/lib/timeline-occupancy";
 
 import { type TimelineStore } from "./index";
 import { createTimelineOperations } from "./timeline-store-operations";
@@ -203,13 +204,28 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 			return overlap;
 		},
 
-		findOrCreateTrack: (trackType) => {
+		findOrCreateTrack: (trackType, span) => {
 			// Always create new text/markdown tracks to keep overlays independent.
 			if (trackType === "text" || trackType === "markdown") {
 				return get().insertTrackAt(trackType, 0);
 			}
 
-			const existingTrack = get()._tracks.find((t) => t.type === trackType);
+			// A track plays one element at a time. When the caller says where the
+			// element will sit, reuse a lane only if that span is free; otherwise
+			// stack a new track, which is what a drop from the media panel does.
+			const existingTrack = get()._tracks.find((track) => {
+				if (track.type !== trackType) return false;
+				if (!span) return true;
+				if (track.locked) return false;
+				return (
+					findOccupyingElement({
+						track,
+						startTime: span.startTime,
+						duration: span.duration,
+						fps: useProjectStore.getState().activeProject?.fps ?? 30,
+					}) === null
+				);
+			});
 			if (existingTrack) {
 				return existingTrack.id;
 			}
@@ -218,7 +234,10 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 		},
 
 		// CRUD operations (add/remove/move/update tracks and elements)
-		...createCrudOperations(get, set, { updateTracksAndSave }),
+		...createCrudOperations(get, set, {
+			updateTracksAndSave,
+			getProjectFps: () => useProjectStore.getState().activeProject?.fps ?? 30,
+		}),
 
 		// Persistence operations (load/save/query/thumbnail)
 		...createPersistenceOperations(get, set, {

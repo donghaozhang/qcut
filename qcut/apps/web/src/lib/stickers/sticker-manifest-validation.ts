@@ -1,13 +1,16 @@
 import type { z } from "zod";
+export {
+	ABSOLUTE_LOCAL_PATH_PATTERN,
+	hasDotPathSegment,
+} from "@/lib/files/local-file-path";
 
 export const STICKER_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const SOURCE_ASSET_ID_PATTERN =
 	/^[a-z0-9]+(?:-[a-z0-9]+)*:[a-z0-9]+(?:-[a-z0-9]+)*$/;
-export const ABSOLUTE_LOCAL_PATH_PATTERN = /^(?:\/|[a-zA-Z]:[\\/]|\\\\)/;
 export const SUPABASE_OBJECT_KEY_PATTERN =
 	/^catalogs\/[a-z0-9]+(?:-[a-z0-9]+)*\/assets\/[a-z0-9]+(?:-[a-z0-9]+)*\.(gif|png)$/;
 export const PRIVATE_REFERENCE_OBJECT_KEY_PATTERN =
-	/^jianying\/[0-9]{4}-[0-9]{2}-[0-9]{2}\/assets\/[0-9]+\.(gif|png)$/;
+	/^jianying\/[0-9]{4}-[0-9]{2}-[0-9]{2}(?:-batch-[1-9][0-9]*)?\/assets\/[0-9]+\.(gif|png)$/;
 export const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 export const GIT_OID_PATTERN = /^[a-f0-9]{40}$/;
 export const MAX_REMOTE_ASSET_BYTES = 25 * 1024 * 1024;
@@ -17,13 +20,6 @@ export const MAX_REMOTE_CATALOG_BYTES = 25 * 1024 * 1024;
 // its budgets are far above the public catalogue's. It is never bundled and
 // only allow-listed users can even fetch its manifest.
 export const MAX_PRIVATE_REFERENCE_CATEGORY_BYTES = 128 * 1024 * 1024;
-export const MAX_PRIVATE_REFERENCE_CATALOG_BYTES = 512 * 1024 * 1024;
-
-export function hasDotPathSegment({ filePath }: { filePath: string }): boolean {
-	return filePath
-		.split(/[\\/]/)
-		.some((segment) => segment === "." || segment === "..");
-}
 
 export function validateUniqueManifestEntries({
 	categories,

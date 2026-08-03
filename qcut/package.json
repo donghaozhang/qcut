@@ -1,7 +1,7 @@
 {
 	"name": "qcut",
-	"version": "2026.8.105",
-	"qcutReleaseVersion": "2026.08.01.5",
+	"version": "2026.8.207",
+	"qcutReleaseVersion": "2026.08.02.7",
 	"description": "QCut - Open-source video editor",
 	"author": {
 		"name": "QCut Team",
@@ -16,6 +16,7 @@
 	"packageManager": "bun@1.3.10",
 	"devDependencies": {
 		"7zip-bin": "5.2.0",
+		"@qcut/editor-core": "workspace:*",
 		"@biomejs/biome": "^2.4.2",
 		"@vitejs/plugin-react": "^4.5.2",
 		"@emnapi/core": "^1.4.5",
@@ -76,6 +77,8 @@
 		"build:web": "cd apps/web && VITE_BUILD_TARGET=web bun run build:web",
 		"build": "turbo run build && bun run build:electron",
 		"build:cli-image": "bun run scripts/build-cli-image.ts",
+		"build:sound-effects-lab-manifest": "bun run scripts/build-local-sound-effects-lab-manifest.ts",
+		"upload:sound-effects-lab": "bun run scripts/upload-private-sound-effects-lab.ts",
 		"dogfood:daytona-worker": "bun run scripts/daytona-worker-dogfood.ts",
 		"check-types": "bun scripts/check-types.ts",
 		"postinstall": "bun run setup-ffmpeg && bun scripts/patch-node-pty.ts",
@@ -130,6 +133,7 @@
 		"release:promote": "bun scripts/release.ts promote",
 		"check:circular": "madge --circular --extensions ts,tsx apps/web/src electron/",
 		"test": "bunx vitest run",
+		"sticker-lab:private-catalog": "bun run scripts/sticker-lab-private-catalog/cli.ts",
 		"capcut:e2e:fixtures": "bun scripts/capcut-e2e/generate.ts",
 		"capcut:e2e:bundles": "bun scripts/capcut-e2e/generate-bundles.ts",
 		"capcut:e2e:font-reference": "bun scripts/capcut-e2e/font-reference-cli.ts",

@@ -1,3 +1,9 @@
+import {
+	getPrivateStickerCatalogDefinition,
+	MAX_PRIVATE_STICKER_MANIFEST_BYTES,
+	PRIVATE_STICKER_CATALOG_IDS,
+	type PrivateStickerCatalogDefinition,
+} from "@qcut/editor-core/sticker-lab";
 import { Hono } from "hono";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -53,6 +59,34 @@ function buildThumbnailUrl({ objectKey }: { objectKey?: string } = {}) {
 	}
 	const suffix = query.size > 0 ? `?${query.toString()}` : "";
 	return `/api/sticker-lab/thumbnail${suffix}`;
+}
+
+const PRIVATE_CATALOG_CASES: PrivateStickerCatalogDefinition[] = [];
+for (const catalogId of PRIVATE_STICKER_CATALOG_IDS) {
+	const catalog = getPrivateStickerCatalogDefinition({ catalogId });
+	if (!catalog) {
+		throw new Error(`Missing private sticker catalog definition: ${catalogId}`);
+	}
+	PRIVATE_CATALOG_CASES.push(catalog);
+}
+
+function buildPrivateManifestUrl({ catalogId }: { catalogId?: string } = {}) {
+	const query = new URLSearchParams();
+	if (catalogId !== undefined) {
+		query.set("catalogId", catalogId);
+	}
+	const suffix = query.size > 0 ? `?${query.toString()}` : "";
+	return `/api/sticker-lab/private-manifest${suffix}`;
+}
+
+function buildPrivateObjectKey({
+	assetObjectPrefix,
+	extension = "gif",
+}: {
+	assetObjectPrefix: string;
+	extension?: "gif" | "png";
+}) {
+	return `${assetObjectPrefix}7437023238108105995.${extension}`;
 }
 
 function allowMockUser() {
@@ -295,34 +329,42 @@ describe("sticker lab preview tier", () => {
 });
 
 describe("sticker lab private reference tier", () => {
-	const privateObjectKey = "jianying/2026-07-31/assets/7437023238108105995.gif";
-	const manifestUrl = "/api/sticker-lab/private-manifest";
+	const privateObjectKey = buildPrivateObjectKey({
+		assetObjectPrefix: PRIVATE_CATALOG_CASES[0].assetObjectPrefix,
+	});
+	const manifestUrl = buildPrivateManifestUrl();
 
-	it("signs private reference originals for allow-listed users", async () => {
+	it.each(
+		PRIVATE_CATALOG_CASES
+	)("signs private originals from $catalogId for allow-listed users", async ({
+		assetObjectPrefix,
+	}) => {
 		allowMockUser();
+		const objectKey = buildPrivateObjectKey({ assetObjectPrefix });
 		const signedUrl = "https://storage.example/private.gif?token=signed";
 		storageMocks.createSignedUrl.mockResolvedValue({
 			data: { signedUrl },
 			error: null,
 		});
 
-		const response = await buildApp().request(
-			buildAssetUrl({ objectKey: privateObjectKey })
-		);
+		const response = await buildApp().request(buildAssetUrl({ objectKey }));
 
 		expect(response.status).toBe(302);
 		expect(response.headers.get("Location")).toBe(signedUrl);
-		expect(storageMocks.createSignedUrl).toHaveBeenCalledWith(
-			privateObjectKey,
-			600
-		);
+		expect(storageMocks.createSignedUrl).toHaveBeenCalledWith(objectKey, 600);
 	});
 
-	it("forbids private thumbnails outside the allowlist", async () => {
+	it.each(
+		PRIVATE_CATALOG_CASES
+	)("forbids $catalogId thumbnails outside the allowlist", async ({
+		assetObjectPrefix,
+	}) => {
 		// Unlike the public catalogue there is no browse-only tier: harvested
 		// third-party artwork must never be visible to ordinary users.
 		const response = await buildApp().request(
-			buildThumbnailUrl({ objectKey: privateObjectKey })
+			buildThumbnailUrl({
+				objectKey: buildPrivateObjectKey({ assetObjectPrefix }),
+			})
 		);
 
 		expect(response.status).toBe(403);
@@ -340,21 +382,28 @@ describe("sticker lab private reference tier", () => {
 		expect(storageMocks.from).not.toHaveBeenCalled();
 	});
 
-	it("rejects traversal attempts against private thumbnail keys", async () => {
+	it("rejects traversal attempts against private asset keys", async () => {
 		allowMockUser();
 		const traversalKeys = [
-			"jianying/2026-07-31/assets/../7437023238108105995.gif",
+			`${PRIVATE_CATALOG_CASES[0].assetObjectPrefix}../7437023238108105995.gif`,
 			"jianying/../2026-07-31/assets/7437023238108105995.gif",
 		];
-
-		const responses = await Promise.all(
-			traversalKeys.flatMap((objectKey) => [
-				buildApp().request(buildThumbnailUrl({ objectKey })),
+		const requests: Array<Promise<Response> | Response> = [];
+		for (const objectKey of traversalKeys) {
+			requests.push(buildApp().request(buildAssetUrl({ objectKey })));
+			requests.push(buildApp().request(buildThumbnailUrl({ objectKey })));
+			requests.push(
+				buildApp().request(
+					`/api/sticker-lab/assets?objectKey=${encodeURIComponent(objectKey)}`
+				)
+			);
+			requests.push(
 				buildApp().request(
 					`/api/sticker-lab/thumbnail?objectKey=${encodeURIComponent(objectKey)}`
-				),
-			])
-		);
+				)
+			);
+		}
+		const responses = await Promise.all(requests);
 
 		for (const response of responses) {
 			expect(response.status).toBe(400);
@@ -380,6 +429,63 @@ describe("sticker lab private reference tier", () => {
 		);
 	});
 
+	it.each([
+		{
+			assetObjectPrefix: PRIVATE_CATALOG_CASES[1].assetObjectPrefix,
+			catalogId: PRIVATE_CATALOG_CASES[1].catalogId,
+			extension: "png" as const,
+		},
+		{
+			assetObjectPrefix: PRIVATE_CATALOG_CASES[2].assetObjectPrefix,
+			catalogId: PRIVATE_CATALOG_CASES[2].catalogId,
+			extension: "gif" as const,
+		},
+	])("signs $catalogId private thumbnails without a transform", async ({
+		assetObjectPrefix,
+		extension,
+	}) => {
+		allowMockUser();
+		const objectKey = buildPrivateObjectKey({
+			assetObjectPrefix,
+			extension,
+		});
+		storageMocks.createSignedUrl.mockResolvedValue({
+			data: { signedUrl: "https://storage.example/private-preview" },
+			error: null,
+		});
+
+		const response = await buildApp().request(buildThumbnailUrl({ objectKey }));
+
+		expect(response.status).toBe(302);
+		expect(storageMocks.createSignedUrl).toHaveBeenCalledWith(objectKey, 600);
+	});
+
+	it("rejects well-formed private keys outside the catalog registry", async () => {
+		allowMockUser();
+		const unregisteredKeys = [
+			buildPrivateObjectKey({
+				assetObjectPrefix: "jianying/2026-08-01/assets/",
+			}),
+			buildPrivateObjectKey({
+				assetObjectPrefix: "jianying/2026-08-01-batch-4/assets/",
+			}),
+			buildPrivateObjectKey({
+				assetObjectPrefix: "jianying/2026-08-02-batch-2/assets/",
+			}),
+		];
+		const requests: Array<Promise<Response> | Response> = [];
+		for (const objectKey of unregisteredKeys) {
+			requests.push(buildApp().request(buildAssetUrl({ objectKey })));
+			requests.push(buildApp().request(buildThumbnailUrl({ objectKey })));
+		}
+		const responses = await Promise.all(requests);
+
+		for (const response of responses) {
+			expect(response.status).toBe(400);
+		}
+		expect(storageMocks.from).not.toHaveBeenCalled();
+	});
+
 	it("rejects malformed private object keys", async () => {
 		allowMockUser();
 		const invalidKeys = [
@@ -402,11 +508,12 @@ describe("sticker lab private reference tier", () => {
 		expect(storageMocks.from).not.toHaveBeenCalled();
 	});
 
-	it("serves the private manifest to allow-listed users", async () => {
+	it("defaults to the first private manifest for old clients", async () => {
 		allowMockUser();
+		const defaultCatalog = PRIVATE_CATALOG_CASES[0];
 		const manifestJson = JSON.stringify({
 			version: 2,
-			catalogId: "jianying-2026-07-31",
+			catalogId: defaultCatalog.catalogId,
 			categories: [],
 		});
 		storageMocks.download.mockResolvedValue({
@@ -420,13 +527,148 @@ describe("sticker lab private reference tier", () => {
 		expect(response.headers.get("Content-Type")).toBe("application/json");
 		expect(response.headers.get("Cache-Control")).toBe("no-store");
 		await expect(response.text()).resolves.toBe(manifestJson);
+		// Only the path: storage-js spreads any third argument into the fetch
+		// RequestInit, and workerd rejects a `cache` field outright. Asserting
+		// the extra arguments is what let the production 404 ship green.
 		expect(storageMocks.download).toHaveBeenCalledWith(
-			"jianying/2026-07-31/manifest.json"
+			defaultCatalog.manifestObjectKey
 		);
 	});
 
-	it("forbids the private manifest outside the allowlist", async () => {
+	it.each(
+		PRIVATE_CATALOG_CASES
+	)("maps $catalogId to its fixed manifest object", async ({
+		catalogId,
+		manifestObjectKey,
+	}) => {
+		allowMockUser();
+		const manifestJson = JSON.stringify({
+			version: 2,
+			catalogId,
+			categories: [],
+		});
+		storageMocks.download.mockResolvedValue({
+			data: new Blob([manifestJson], { type: "application/json" }),
+			error: null,
+		});
+
+		const response = await buildApp().request(
+			buildPrivateManifestUrl({ catalogId })
+		);
+
+		expect(response.status).toBe(200);
+		await expect(response.text()).resolves.toBe(manifestJson);
+		expect(storageMocks.download).toHaveBeenCalledWith(manifestObjectKey);
+	});
+
+	it("rejects an oversized private manifest before reading its bytes", async () => {
+		allowMockUser();
+		const arrayBuffer = vi.fn();
+		storageMocks.download.mockResolvedValue({
+			data: {
+				arrayBuffer,
+				size: MAX_PRIVATE_STICKER_MANIFEST_BYTES + 1,
+			},
+			error: null,
+		});
+
 		const response = await buildApp().request(manifestUrl);
+
+		expect(response.status).toBe(502);
+		expect(response.headers.get("Cache-Control")).toBe("no-store");
+		await expect(response.json()).resolves.toEqual({
+			error: "Private manifest unavailable",
+		});
+		expect(arrayBuffer).not.toHaveBeenCalled();
+	});
+
+	it("rejects private manifest bytes larger than their declared size", async () => {
+		allowMockUser();
+		const manifestBytes = new Uint8Array(MAX_PRIVATE_STICKER_MANIFEST_BYTES + 1)
+			.buffer;
+		const arrayBuffer = vi.fn().mockResolvedValue(manifestBytes);
+		storageMocks.download.mockResolvedValue({
+			data: {
+				arrayBuffer,
+				size: MAX_PRIVATE_STICKER_MANIFEST_BYTES,
+			},
+			error: null,
+		});
+
+		const response = await buildApp().request(manifestUrl);
+
+		expect(response.status).toBe(502);
+		expect(response.headers.get("Cache-Control")).toBe("no-store");
+		await expect(response.json()).resolves.toEqual({
+			error: "Private manifest unavailable",
+		});
+		expect(arrayBuffer).toHaveBeenCalledOnce();
+	});
+
+	it("allows a private manifest exactly at the byte limit", async () => {
+		allowMockUser();
+		const manifestBytes = new Uint8Array(MAX_PRIVATE_STICKER_MANIFEST_BYTES)
+			.buffer;
+		const arrayBuffer = vi.fn().mockResolvedValue(manifestBytes);
+		storageMocks.download.mockResolvedValue({
+			data: {
+				arrayBuffer,
+				size: MAX_PRIVATE_STICKER_MANIFEST_BYTES,
+			},
+			error: null,
+		});
+
+		const response = await buildApp().request(manifestUrl);
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get("Cache-Control")).toBe("no-store");
+		expect((await response.arrayBuffer()).byteLength).toBe(
+			MAX_PRIVATE_STICKER_MANIFEST_BYTES
+		);
+		expect(arrayBuffer).toHaveBeenCalledOnce();
+	});
+
+	it.each([
+		{ catalogId: "" },
+		{ catalogId: "jianying-2026-08-01" },
+		{ catalogId: "jianying-2026-08-01-batch-4" },
+		{ catalogId: "jianying-2026-08-01-batch-2/../batch-3" },
+		{ catalogId: "qcut-original-2026-07-31" },
+	])("rejects an unknown private catalog selector: $catalogId", async ({
+		catalogId,
+	}) => {
+		allowMockUser();
+
+		const response = await buildApp().request(
+			buildPrivateManifestUrl({ catalogId })
+		);
+
+		expect(response.status).toBe(400);
+		await expect(response.json()).resolves.toEqual({
+			error: "Invalid private sticker catalog",
+		});
+		expect(storageMocks.from).not.toHaveBeenCalled();
+		expect(storageMocks.download).not.toHaveBeenCalled();
+	});
+
+	it("checks the allowlist before revealing selector validity", async () => {
+		const response = await buildApp().request(
+			buildPrivateManifestUrl({
+				catalogId: "jianying-2026-08-01-batch-4",
+			})
+		);
+
+		expect(response.status).toBe(403);
+		expect(storageMocks.from).not.toHaveBeenCalled();
+		expect(storageMocks.download).not.toHaveBeenCalled();
+	});
+
+	it("forbids the private manifest outside the allowlist", async () => {
+		const response = await buildApp().request(
+			buildPrivateManifestUrl({
+				catalogId: PRIVATE_CATALOG_CASES[2].catalogId,
+			})
+		);
 
 		expect(response.status).toBe(403);
 		expect(storageMocks.download).not.toHaveBeenCalled();
@@ -435,7 +677,11 @@ describe("sticker lab private reference tier", () => {
 	it("requires authentication for the private manifest", async () => {
 		vi.stubEnv("MOCK_MODE", "false");
 
-		const response = await buildApp().request(manifestUrl);
+		const response = await buildApp().request(
+			buildPrivateManifestUrl({
+				catalogId: PRIVATE_CATALOG_CASES[1].catalogId,
+			})
+		);
 
 		expect(response.status).toBe(401);
 		expect(storageMocks.download).not.toHaveBeenCalled();
@@ -452,6 +698,7 @@ describe("sticker lab private reference tier", () => {
 		const responseText = await response.text();
 
 		expect(response.status).toBe(404);
+		expect(response.headers.get("Cache-Control")).toBe("no-store");
 		expect(responseText).toBe('{"error":"Private manifest unavailable"}');
 		expect(responseText).not.toContain("do-not-leak");
 	});
@@ -466,6 +713,7 @@ describe("sticker lab private reference tier", () => {
 		const responseText = await response.text();
 
 		expect(response.status).toBe(502);
+		expect(response.headers.get("Cache-Control")).toBe("no-store");
 		expect(responseText).toBe('{"error":"Private manifest unavailable"}');
 		expect(responseText).not.toContain("service-role");
 	});

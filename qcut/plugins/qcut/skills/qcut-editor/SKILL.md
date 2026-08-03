@@ -106,6 +106,31 @@ node <plugin-root>/scripts/qcut-runner.mjs editor:timeline:export --project-id <
 See [editor-workflows.md](references/editor-workflows.md) for editing and export
 sequences.
 
+## The window does not follow every change
+
+Editor mutations apply to a project by id. The window follows them live only
+when it already has that project open — a command targeting any other project
+still returns `"status": "ok"` while the user looks at an unrelated screen. A
+run of successful responses is therefore not evidence that anything is visible.
+
+Every editor command reports which project the window is on:
+
+```json
+"view": { "activeProjectId": "…", "matchesTarget": false }
+```
+
+Read it. `matchesTarget: false` means the change landed somewhere the user
+cannot see. Pass `--focus` to bring the window to the target first:
+
+```bash
+node <plugin-root>/scripts/qcut-runner.mjs editor:timeline:add-clip \
+  --project-id <id> --media-id <id> --focus --json
+```
+
+Do not add `--focus` to every call. It takes the window from whatever the user
+was doing, so use it once at the point the work becomes worth showing, and
+leave batch steps unfocused.
+
 ## Visible Agent pointer
 
 Use stable semantic targets before taking a snapshot. They avoid stale refs and

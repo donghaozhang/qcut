@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { PRIVATE_STICKER_CATALOG_IDS } from "@qcut/editor-core/sticker-lab";
 import {
 	createLocalStickerReference,
 	createRemoteStickerCatalog,
@@ -11,6 +12,7 @@ import {
 	loadRemoteStickerReferenceFile,
 	loadStickerLabReferenceFile,
 	loadStickerLabThumbnail,
+	stickerLabPrivateManifestUrl,
 	stickerLabThumbnailUrl,
 } from "../local-sticker-reference";
 
@@ -274,5 +276,20 @@ describe("sticker lab preview tier", () => {
 				reference,
 			})
 		).rejects.toThrow("403");
+	});
+});
+
+describe("private sticker catalog URLs", () => {
+	it.each(
+		PRIVATE_STICKER_CATALOG_IDS
+	)("requests %s explicitly so rolling deployments cannot substitute catalogs", (catalogId) => {
+		expect(
+			stickerLabPrivateManifestUrl({
+				catalogId,
+				licenseServerUrl: "https://license.example/",
+			})
+		).toBe(
+			`https://license.example/api/sticker-lab/private-manifest?catalogId=${catalogId}`
+		);
 	});
 });

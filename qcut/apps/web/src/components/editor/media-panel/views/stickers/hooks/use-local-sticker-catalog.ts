@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { PRIVATE_STICKER_CATALOG_IDS } from "@qcut/editor-core/sticker-lab";
 import { debugError } from "@/lib/debug/debug-config";
 import { getLocalStickerLabSource } from "@/lib/stickers/local-sticker-lab-config";
 import { buildLegacyLocalStickerCatalog } from "@/lib/stickers/local-sticker-legacy-catalog";
@@ -9,6 +10,7 @@ import {
 	type PrivateStickerCatalog,
 	type StickerLabCatalog,
 } from "@/lib/stickers/local-sticker-manifest";
+import { validatePrivateStickerCatalogSet } from "@/lib/stickers/private-sticker-catalog-set";
 import {
 	createStickerLabAssetFetch,
 	stickerLabPrivateManifestUrl,
@@ -20,11 +22,16 @@ export interface LocalStickerCatalogState {
 	isAvailable: boolean;
 	isLoading: boolean;
 	/**
-	 * The harvested reference catalogue, present only when the license server
-	 * accepts this user's entitlement. Everyone else silently gets null and
-	 * sees just the public catalogue.
+	 * Harvested reference catalogues accepted for this user's entitlement.
+	 * Everyone else gets an empty list and sees only the public catalogue.
 	 */
-	privateCatalog: PrivateStickerCatalog | null;
+	privateCatalogs: PrivateStickerCatalog[];
+	/**
+	 * Reference catalogues that failed to load. Surfaced rather than swallowed:
+	 * every failure hides a slice of the catalogue, and dropping them silently
+	 * makes a partially-loaded lab indistinguishable from a small one.
+	 */
+	unavailablePrivateCatalogIds: string[];
 }
 
 function initialCatalogState({
@@ -37,7 +44,8 @@ function initialCatalogState({
 		error: null,
 		isAvailable: hasSource,
 		isLoading: hasSource,
-		privateCatalog: null,
+		privateCatalogs: [],
+		unavailablePrivateCatalogIds: [],
 	};
 }
 
@@ -110,24 +118,62 @@ export function useLocalStickerCatalog(): LocalStickerCatalogState {
 
 		let disposed = false;
 		const abortController = new AbortController();
-		const loadPrivateCatalog = async () => {
+		const loadPrivateCatalogs = async () => {
+			const fetchImpl = createStickerLabAssetFetch();
+			const results = await Promise.allSettled(
+				PRIVATE_STICKER_CATALOG_IDS.map((catalogId) =>
+					loadPrivateStickerManifest({
+						expectedCatalogId: catalogId,
+						fetchImpl,
+						manifestUrl: stickerLabPrivateManifestUrl({ catalogId }),
+						signal: abortController.signal,
+					})
+				)
+			);
+			if (disposed) return;
+
+			const availableCatalogs: PrivateStickerCatalog[] = [];
+			const unavailableCatalogIds: string[] = [];
+			for (const [index, result] of results.entries()) {
+				const catalogId = PRIVATE_STICKER_CATALOG_IDS[index];
+				if (result.status === "fulfilled") {
+					availableCatalogs.push(result.value);
+					continue;
+				}
+				// Happens during rolling deploys, for users outside the allow list,
+				// signed-out sessions, and offline runs — but also when the server
+				// serves one catalogue for every id, which looks identical from here.
+				// Record it so the panel can say a slice is missing.
+				unavailableCatalogIds.push(catalogId);
+				debugError(
+					`[StickerLab] Private reference catalog unavailable: ${catalogId}`,
+					result.reason
+				);
+			}
+
 			try {
-				const privateCatalog = await loadPrivateStickerManifest({
-					fetchImpl: createStickerLabAssetFetch(),
-					manifestUrl: stickerLabPrivateManifestUrl(),
-					signal: abortController.signal,
+				const privateCatalogs = validatePrivateStickerCatalogSet({
+					catalogs: availableCatalogs,
 				});
-				if (disposed) return;
-				setState((previous) => ({ ...previous, privateCatalog }));
+				setState((previous) => ({
+					...previous,
+					privateCatalogs,
+					unavailablePrivateCatalogIds: unavailableCatalogIds,
+				}));
 			} catch (error) {
-				// Expected for everyone outside the allow list (403), signed-out
-				// sessions, and offline runs — the lab is fully usable without it.
-				if (disposed) return;
-				debugError("[StickerLab] Private reference catalog unavailable", error);
+				debugError(
+					"[StickerLab] Private reference catalog set rejected",
+					error
+				);
+				setState((previous) => ({
+					...previous,
+					privateCatalogs: [],
+					unavailablePrivateCatalogIds: [...PRIVATE_STICKER_CATALOG_IDS],
+				}));
 			}
 		};
 
-		loadPrivateCatalog();
+		loadPrivateCatalogs();
 		return () => {
 			disposed = true;
 			abortController.abort();

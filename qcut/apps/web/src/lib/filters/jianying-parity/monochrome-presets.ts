@@ -1,4 +1,5 @@
 import type { FilterPreset } from "../filter-types";
+import { BLUE_TONE_MONO_RECIPE } from "./blue-tone-mono-recipe";
 
 export const JIANYING_MONOCHROME_PARITY_FILTER_PRESETS: FilterPreset[] = [
 	{
@@ -104,27 +105,15 @@ export const JIANYING_MONOCHROME_PARITY_FILTER_PRESETS: FilterPreset[] = [
 	},
 	{
 		id: "jy-blue-tone-mono",
-		version: 1,
+		version: 2,
 		name: "Blue Tone Mono",
 		localizedName: "蓝调",
 		category: "monochrome",
 		tags: ["monochrome", "black and white", "黑白", "蓝调", "Blue Tone Mono"],
 		thumbnail: "/images/filter-previews/jy-blue-tone-mono.webp",
-		lutAssetId: "qcut/filter/jy-blue-tone-mono/v1",
+		lutAssetId: "qcut/filter/jy-blue-tone-mono/v2",
 		defaultIntensity: 100,
 		isNew: true,
-		recipe: {
-			exposure: -0.171,
-			gamma: 1.386,
-			blackLift: 0.202,
-			shadowTint: [0.35, 0.257, -0.35],
-			highlightTint: [-0.35, -0.35, 0.35],
-			temperature: 1.2,
-			tint: 1.2,
-			contrast: 3,
-			saturation: 0.131,
-			hueShift: -24.4,
-			monochrome: 0.819,
-		},
+		recipe: BLUE_TONE_MONO_RECIPE,
 	},
 ];

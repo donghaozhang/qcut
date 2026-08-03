@@ -7,6 +7,11 @@ import {
 	transformFilterColor,
 } from "../filter-lut";
 import type { FilterColorMatrix } from "../filter-types";
+import type {
+	FilterPreset,
+	FilterQuarticColorMatrix,
+	FilterQuinticColorMatrix,
+} from "../filter-types";
 
 const IDENTITY_COLOR_MATRIX: FilterColorMatrix = [
 	[1, 0, 0],
@@ -18,6 +23,18 @@ const ZERO_COLOR_MATRIX: FilterColorMatrix = [
 	[0, 0, 0],
 	[0, 0, 0],
 	[0, 0, 0],
+];
+
+const ZERO_QUARTIC_MATRIX: FilterQuarticColorMatrix = [
+	Array.from({ length: 15 }, () => 0) as FilterQuarticColorMatrix[0],
+	Array.from({ length: 15 }, () => 0) as FilterQuarticColorMatrix[1],
+	Array.from({ length: 15 }, () => 0) as FilterQuarticColorMatrix[2],
+];
+
+const ZERO_QUINTIC_MATRIX: FilterQuinticColorMatrix = [
+	Array.from({ length: 21 }, () => 0) as FilterQuinticColorMatrix[0],
+	Array.from({ length: 21 }, () => 0) as FilterQuinticColorMatrix[1],
+	Array.from({ length: 21 }, () => 0) as FilterQuinticColorMatrix[2],
 ];
 
 describe("filter LUT", () => {
@@ -48,12 +65,12 @@ describe("filter LUT", () => {
 		expect(result.g).toBeCloseTo(result.b, 6);
 	});
 
-	it("preserves colors with an identity quadratic correction", () => {
+	it("preserves colors with an identity polynomial correction", () => {
 		const color = { r: 0.25, g: 0.5, b: 0.75 };
 		const result = transformFilterColor({
 			color,
 			recipe: {
-				quadraticCorrection: {
+				polynomialCorrection: {
 					linear: IDENTITY_COLOR_MATRIX,
 					squared: ZERO_COLOR_MATRIX,
 					cross: ZERO_COLOR_MATRIX,
@@ -67,11 +84,11 @@ describe("filter LUT", () => {
 		expect(result.b).toBeCloseTo(color.b, 12);
 	});
 
-	it("applies quadratic cross terms in rg, rb, gb order", () => {
+	it("applies polynomial cross terms in rg, rb, gb order", () => {
 		const result = transformFilterColor({
 			color: { r: 0.2, g: 0.4, b: 0.8 },
 			recipe: {
-				quadraticCorrection: {
+				polynomialCorrection: {
 					linear: ZERO_COLOR_MATRIX,
 					squared: ZERO_COLOR_MATRIX,
 					cross: [
@@ -89,11 +106,107 @@ describe("filter LUT", () => {
 		expect(result.b).toBeCloseTo(0.32, 6);
 	});
 
-	it("clamps quadratic correction output to the LUT domain", () => {
+	it("applies cubic terms in their documented order", () => {
 		const result = transformFilterColor({
 			color: { r: 0.2, g: 0.4, b: 0.8 },
 			recipe: {
-				quadraticCorrection: {
+				polynomialCorrection: {
+					linear: ZERO_COLOR_MATRIX,
+					squared: ZERO_COLOR_MATRIX,
+					cross: ZERO_COLOR_MATRIX,
+					cubic: {
+						pure: IDENTITY_COLOR_MATRIX,
+						mixed: [
+							[1, 0, 0, 0, 0, 0],
+							[0, 0, 1, 0, 0, 0],
+							[0, 0, 0, 0, 1, 0],
+						],
+						triple: [1, 1, 1],
+					},
+					offset: [0, 0, 0],
+				},
+			},
+		});
+
+		expect(result.r).toBeCloseTo(0.088, 6);
+		expect(result.g).toBeCloseTo(0.16, 6);
+		expect(result.b).toBeCloseTo(0.704, 6);
+	});
+
+	it("applies higher-order terms by descending red and green powers", () => {
+		const quartic = structuredClone(ZERO_QUARTIC_MATRIX);
+		const quintic = structuredClone(ZERO_QUINTIC_MATRIX);
+		quartic[0][4] = 1;
+		quartic[1][12] = 1;
+		quintic[2][7] = 1;
+		const result = transformFilterColor({
+			color: { r: 0.2, g: 0.4, b: 0.8 },
+			recipe: {
+				polynomialCorrection: {
+					linear: ZERO_COLOR_MATRIX,
+					squared: ZERO_COLOR_MATRIX,
+					cross: ZERO_COLOR_MATRIX,
+					higherOrder: { quartic, quintic },
+					offset: [0, 0, 0],
+				},
+			},
+		});
+
+		expect(result.r).toBeCloseTo(0.0128, 8);
+		expect(result.g).toBeCloseTo(0.1024, 8);
+		expect(result.b).toBeCloseTo(0.00512, 8);
+	});
+
+	it("blends an alternate recipe for likely skin tones", () => {
+		const preset: FilterPreset = {
+			id: "skin-tone-test",
+			version: 1,
+			name: "Skin Tone Test",
+			localizedName: "Skin Tone Test",
+			category: "portrait",
+			tags: [],
+			thumbnail: "/skin-tone-test.webp",
+			lutAssetId: "test/skin-tone/v1",
+			defaultIntensity: 100,
+			recipe: {},
+			skinToneRecipe: {
+				polynomialCorrection: {
+					linear: ZERO_COLOR_MATRIX,
+					squared: ZERO_COLOR_MATRIX,
+					cross: ZERO_COLOR_MATRIX,
+					offset: [1, 0, 0],
+				},
+			},
+		};
+		const cube = buildFilterCube({ preset, size: 5 });
+		const colorAt = ({
+			red,
+			green,
+			blue,
+		}: {
+			red: number;
+			green: number;
+			blue: number;
+		}) => {
+			const index = ((blue * cube.size + green) * cube.size + red) * 3;
+			return cube.values.slice(index, index + 3);
+		};
+
+		const warmSkin = colorAt({ red: 3, green: 2, blue: 1 });
+		expect(warmSkin[0]).toBeGreaterThan(0.95);
+		expect(warmSkin[1]).toBeLessThan(0.1);
+		expect(warmSkin[2]).toBeLessThan(0.1);
+		const coolBlue = colorAt({ red: 1, green: 2, blue: 3 });
+		expect(coolBlue[0]).toBeCloseTo(0.25, 12);
+		expect(coolBlue[1]).toBeCloseTo(0.5, 12);
+		expect(coolBlue[2]).toBeCloseTo(0.75, 12);
+	});
+
+	it("clamps polynomial correction output to the LUT domain", () => {
+		const result = transformFilterColor({
+			color: { r: 0.2, g: 0.4, b: 0.8 },
+			recipe: {
+				polynomialCorrection: {
 					linear: [
 						[2, 0, 0],
 						[0, -2, 0],

@@ -9,6 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	createLocalStickerCatalog,
 	createPrivateStickerCatalog,
+	createPrivateStickerCatalogs,
 	createRemoteStickerCatalog,
 } from "@/lib/stickers/__tests__/fixtures/local-sticker-catalog";
 import { LocalStickerReferencePanel } from "../components/local-sticker-reference-panel";
@@ -353,6 +354,76 @@ describe("LocalStickerReferencePanel", () => {
 		);
 	});
 
+	it("wires catalogue tabs to panels and supports roving keyboard navigation", async () => {
+		render(
+			<LocalStickerReferencePanel
+				catalog={createRemoteStickerCatalog()}
+				error={null}
+				isLoading={false}
+				onSelect={async () => {}}
+				privateCatalogs={[createPrivateStickerCatalog()]}
+			/>
+		);
+
+		const catalogTablist = screen.getByRole("tablist", {
+			name: "贴纸实验室目录",
+		});
+		const publicTab = within(catalogTablist).getByRole("tab", {
+			name: "QCut 原创",
+		});
+		const privateTab = within(catalogTablist).getByRole("tab", {
+			name: "剪映参照 · 内部",
+		});
+		const publicPanelId = publicTab.getAttribute("aria-controls");
+		const privatePanelId = privateTab.getAttribute("aria-controls");
+		if (!publicPanelId || !privatePanelId) {
+			throw new Error("Expected catalogue tabs to control panels");
+		}
+
+		expect(publicTab).toHaveAttribute("type", "button");
+		expect(publicTab).toHaveAttribute("aria-selected", "true");
+		expect(publicTab).toHaveAttribute("tabindex", "0");
+		expect(privateTab).toHaveAttribute("aria-selected", "false");
+		expect(privateTab).toHaveAttribute("tabindex", "-1");
+		expect(document.getElementById(publicPanelId)).toHaveAttribute(
+			"aria-labelledby",
+			publicTab.id
+		);
+		expect(document.getElementById(publicPanelId)).not.toHaveAttribute(
+			"hidden"
+		);
+		expect(document.getElementById(privatePanelId)).toHaveAttribute("hidden");
+
+		publicTab.focus();
+		fireEvent.keyDown(publicTab, { key: "ArrowRight" });
+		await waitFor(() => {
+			expect(privateTab).toHaveFocus();
+			expect(privateTab).toHaveAttribute("aria-selected", "true");
+			expect(privateTab).toHaveAttribute("tabindex", "0");
+			expect(publicTab).toHaveAttribute("tabindex", "-1");
+			expect(document.getElementById(privatePanelId)).toHaveAttribute(
+				"aria-labelledby",
+				privateTab.id
+			);
+			expect(document.getElementById(privatePanelId)).not.toHaveAttribute(
+				"hidden"
+			);
+			expect(document.getElementById(publicPanelId)).toHaveAttribute("hidden");
+		});
+
+		fireEvent.keyDown(privateTab, { key: "Home" });
+		await waitFor(() => expect(publicTab).toHaveFocus());
+
+		fireEvent.keyDown(publicTab, { key: "End" });
+		await waitFor(() => expect(privateTab).toHaveFocus());
+
+		fireEvent.keyDown(privateTab, { key: "ArrowLeft" });
+		await waitFor(() => {
+			expect(publicTab).toHaveFocus();
+			expect(publicTab).toHaveAttribute("aria-selected", "true");
+		});
+	});
+
 	it("isolates a failed card while keeping its category usable", async () => {
 		let failedReferenceAttempts = 0;
 		referenceMocks.loadFile.mockImplementation(
@@ -507,6 +578,30 @@ describe("LocalStickerReferencePanel", () => {
 		expect(screen.queryByRole("alert")).not.toBeInTheDocument();
 	});
 
+	it("shows four references from each private batch in one 12-item category view", async () => {
+		render(
+			<LocalStickerReferencePanel
+				catalog={createRemoteStickerCatalog()}
+				error={null}
+				isLoading={false}
+				onSelect={async () => {}}
+				privateCatalogs={createPrivateStickerCatalogs({ itemCount: 4 })}
+			/>
+		);
+
+		fireEvent.click(screen.getByTestId("sticker-lab-catalog-private"));
+
+		await waitFor(() =>
+			expect(
+				screen.getAllByTestId("local-sticker-reference-item")
+			).toHaveLength(12)
+		);
+		expect(
+			screen.getByRole("tab", { name: "热门，12 个贴纸" })
+		).toHaveAttribute("aria-selected", "true");
+		expect(screen.getByText("剪映贴纸面板 · 3 批参照")).toBeInTheDocument();
+	});
+
 	it("renders the private catalogue even while the public manifest fails", async () => {
 		render(
 			<LocalStickerReferencePanel
@@ -514,7 +609,7 @@ describe("LocalStickerReferencePanel", () => {
 				error="Invalid local sticker manifest"
 				isLoading={false}
 				onSelect={async () => {}}
-				privateCatalog={createPrivateStickerCatalog()}
+				privateCatalogs={[createPrivateStickerCatalog()]}
 			/>
 		);
 
@@ -539,7 +634,7 @@ describe("LocalStickerReferencePanel", () => {
 				error={null}
 				isLoading={false}
 				onSelect={async () => {}}
-				privateCatalog={createPrivateStickerCatalog()}
+				privateCatalogs={[createPrivateStickerCatalog()]}
 			/>
 		);
 
@@ -563,5 +658,49 @@ describe("LocalStickerReferencePanel", () => {
 				}),
 			})
 		);
+	});
+	it("names the catalogues that failed while others still load", () => {
+		render(
+			<LocalStickerReferencePanel
+				catalog={createRemoteStickerCatalog()}
+				error={null}
+				isLoading={false}
+				onSelect={async () => {}}
+				privateCatalogs={[createPrivateStickerCatalog()]}
+				unavailablePrivateCatalogIds={["jianying-2026-08-01-batch-2"]}
+			/>
+		);
+
+		const warning = screen.getByTestId("sticker-lab-private-catalog-warning");
+		expect(warning).toHaveTextContent("1 个参照素材包未能载入");
+		expect(warning).toHaveTextContent("只显示部分贴纸");
+		expect(warning).toHaveTextContent("jianying-2026-08-01-batch-2");
+	});
+
+	it("still reports the failure when every catalogue is unavailable", () => {
+		// The worst case, and the one a deployment regression actually produces:
+		// no private catalogue loads, so the private tab never renders. A warning
+		// gated on that tab would leave the shortfall as silent as before.
+		render(
+			<LocalStickerReferencePanel
+				catalog={createRemoteStickerCatalog()}
+				error={null}
+				isLoading={false}
+				onSelect={async () => {}}
+				privateCatalogs={[]}
+				unavailablePrivateCatalogIds={[
+					"jianying-2026-07-31",
+					"jianying-2026-08-01-batch-2",
+					"jianying-2026-08-01-batch-3",
+				]}
+			/>
+		);
+
+		expect(
+			screen.queryByTestId("sticker-lab-catalog-private")
+		).not.toBeInTheDocument();
+		const warning = screen.getByTestId("sticker-lab-private-catalog-warning");
+		expect(warning).toHaveTextContent("3 个参照素材包未能载入");
+		expect(warning).toHaveTextContent("暂时无法显示");
 	});
 });
