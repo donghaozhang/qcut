@@ -2,6 +2,7 @@ import {
 	AlertCircleIcon,
 	CloudDownloadIcon,
 	CloudOffIcon,
+	HardDriveIcon,
 	CrownIcon,
 	HeartIcon,
 	LoaderCircleIcon,
@@ -138,6 +139,26 @@ export function TransitionCard({
 						</CloudDownloadIcon>
 					),
 				};
+			case "checking-local":
+				return {
+					label: "正在检查本机剪映资源",
+					disabled: true,
+					icon: (
+						<LoaderCircleIcon className="size-3 animate-spin">
+							<title>正在检查本机剪映资源</title>
+						</LoaderCircleIcon>
+					),
+				};
+			case "local-unavailable":
+				return {
+					label: "检查本机剪映资源",
+					disabled: false,
+					icon: (
+						<HardDriveIcon className="size-3">
+							<title>检查本机剪映资源</title>
+						</HardDriveIcon>
+					),
+				};
 		}
 	})();
 
@@ -180,6 +201,11 @@ export function TransitionCard({
 							Pro
 						</Badge>
 					)}
+					{preset.backend === "jianying-local" ? (
+						<Badge className="border-cyan-500/40 bg-cyan-500/15 px-1 py-0 text-[9px] text-cyan-200">
+							本机
+						</Badge>
+					) : null}
 				</div>
 				{resourceAction ? (
 					<button
