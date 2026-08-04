@@ -1,12 +1,12 @@
 /**
  * Bounded draft snapshot reader (JYI-006).
  *
- * Reads the discovered files into an immutable snapshot: size limits are
- * enforced before any byte is read, every open uses O_NOFOLLOW, file
- * identity (device/inode/mtime) is captured before and re-checked after
- * each read so a mid-read swap surfaces as SOURCE_FILE_CHANGED, and
- * classification decides what later stages may parse. The reader never
- * writes and never touches files outside the discovery manifest.
+ * Reads control files into an immutable snapshot: size limits are enforced
+ * before any byte is read, every open uses O_NOFOLLOW, file identity
+ * (device/inode/mtime) is captured before and re-checked after each read so
+ * a mid-read swap surfaces as SOURCE_FILE_CHANGED, and classification decides
+ * what later stages may parse. Asset bytes belong to the streaming resolver;
+ * retaining them here would make memory usage scale with project media.
  *
  * @module @qcut/jianying-draft-import/snapshot-reader
  */
@@ -42,7 +42,7 @@ export interface DraftSourceSnapshot {
 	files: DraftSourceSnapshotFile[];
 	/** Parsed JSON for plaintext content/meta files, keyed by relative path. */
 	parsedJsonByPath: Record<string, unknown>;
-	/** RESTRICTED raw bytes, held in main-process memory for envelope capture. */
+	/** RESTRICTED control-file bytes held for allowlisted envelope capture. */
 	bytesByPath: Record<string, Buffer>;
 	issues: InteropIssue[];
 }
@@ -187,8 +187,10 @@ async function readBoundedFile({
 }
 
 /**
- * Reads every discovered file into an immutable snapshot. Per-file failures
- * become issues; the snapshot always describes exactly what was read.
+ * Reads every discovered control file into an immutable snapshot. Asset
+ * entries are intentionally left to the resolver and do not consume the
+ * snapshot byte budget. Per-file failures become issues; the snapshot always
+ * describes exactly what was read.
  */
 export async function readDraftSourceSnapshot({
 	rootRealPath,
@@ -210,6 +212,7 @@ export async function readDraftSourceSnapshot({
 	};
 	let totalBytes = 0;
 	for (const file of files) {
+		if (file.role === "asset") continue;
 		if (totalBytes + file.byteLength > maxTotalBytes) {
 			snapshot.issues.push({
 				code: "SOURCE_FILE_TOO_LARGE",
@@ -232,7 +235,7 @@ export async function readDraftSourceSnapshot({
 			bytes: result.bytes,
 			role: file.role,
 		});
-		if (parsed !== undefined && file.role !== "asset") {
+		if (parsed !== undefined) {
 			snapshot.parsedJsonByPath[file.relativePath] = parsed;
 		}
 		snapshot.bytesByPath[file.relativePath] = result.bytes;
