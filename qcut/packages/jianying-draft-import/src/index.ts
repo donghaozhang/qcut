@@ -110,6 +110,7 @@ export {
 	JianyingDraftImportSession,
 	type DraftImportCommitDto,
 	type DraftImportEnvelopeCaptureDto,
+	type DraftImportGrantedCommitDto,
 	type DraftImportInspectDto,
 	type DraftImportMediaPayloadDto,
 	type DraftImportPlanDto,
