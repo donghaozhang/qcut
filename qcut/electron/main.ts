@@ -52,6 +52,7 @@ import {
 	setupJianyingDraftExportIPC,
 	type JianyingDraftExportIPCController,
 } from "./jianying-draft-export-handler.js";
+import { setupJianyingTransitionIPC } from "./jianying-transition-handler.js";
 
 // Type definitions
 interface ReleaseNote {
@@ -889,6 +890,7 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 					});
 				},
 			],
+			["JianyingTransitionIPC", setupJianyingTransitionIPC],
 		];
 
 		for (const [name, setup] of handlers) {
