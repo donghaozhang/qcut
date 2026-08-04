@@ -1,0 +1,149 @@
+/**
+ * JianYing draft import IPC contract (JYI-012).
+ *
+ * The live Electron bridge for inspect/plan/commit. The bundle crosses the
+ * boundary as `unknown` on purpose: the renderer re-validates it with the
+ * SAME shared parser (`parseQCutImportBundleV1`) the runtime used — one
+ * validator, no transport-side trust.
+ *
+ * Zero electron imports: preload, handler, renderer types, and tests all
+ * share this file.
+ */
+
+export const JIANYING_IMPORT_INSPECT_CHANNEL = "jianying-draft:import:inspect";
+export const JIANYING_IMPORT_PLAN_CHANNEL = "jianying-draft:import:plan";
+export const JIANYING_IMPORT_COMMIT_CHANNEL = "jianying-draft:import:commit";
+export const JIANYING_IMPORT_INBOX_LIST_CHANNEL =
+	"jianying-draft:import:inbox:list";
+export const JIANYING_IMPORT_INBOX_READ_CHANNEL =
+	"jianying-draft:import:inbox:read";
+export const JIANYING_IMPORT_INBOX_ACK_CHANNEL =
+	"jianying-draft:import:inbox:ack";
+
+export type JianyingDraftImportErrorCode =
+	| "invalid-request"
+	| "no-content-file"
+	| "profile-not-exact"
+	| "plan-blocked"
+	| "warning-acceptance-mismatch"
+	| "source-changed"
+	| "payload-too-large"
+	| "plan-not-found"
+	| "plan-expired"
+	| "plan-consumed"
+	| "plan-build-mismatch"
+	| "plan-store-full"
+	| "plan-store-corrupt"
+	| "plan-store-unavailable"
+	| "inbox-malformed"
+	| "inbox-unavailable"
+	| "untrusted-sender"
+	| "import-failed";
+
+export interface JianyingDraftImportErrorDto {
+	code: JianyingDraftImportErrorCode;
+	name: string;
+	message: string;
+}
+
+export type JianyingDraftImportResultDto<Value> =
+	| { ok: true; value: Value }
+	| { ok: false; error: JianyingDraftImportErrorDto };
+
+export interface DraftImportIssueDto {
+	code: string;
+	severity: "info" | "warning" | "error";
+	message: string;
+	path?: string;
+	subjectId?: string;
+}
+
+export interface DraftImportInspectRequestDto {
+	draftPath: string;
+}
+
+export interface DraftImportInspectDto {
+	outcome: "exact" | "ambiguous" | "unsupported" | "encrypted";
+	profileId?: string;
+	canWrite: boolean;
+	fileCount: number;
+	skippedEntryCount: number;
+	hasContentFile: boolean;
+	semantic?: {
+		trackCount: number;
+		segmentCount: number;
+		resourceCount: number;
+		capabilityCounts: Record<string, number>;
+	};
+	issues: DraftImportIssueDto[];
+}
+
+export interface DraftImportPlanRequestDto {
+	draftPath: string;
+}
+
+export interface DraftImportPlanDto {
+	plan: {
+		planToken: string;
+		createdAtUnixMilliseconds: number;
+		expiresAtUnixMilliseconds: number;
+		detectionOutcome: string;
+		profileId?: string;
+		canCommit: boolean;
+		warningFingerprints: string[];
+		blockerFingerprints: string[];
+	};
+	inspect: DraftImportInspectDto;
+	assetStatuses: Record<string, string>;
+}
+
+export interface DraftImportCommitRequestDto {
+	planToken: string;
+	acceptedWarningFingerprints: string[];
+}
+
+export interface DraftImportMediaPayloadDto {
+	resourceId: string;
+	fileName: string;
+	mimeType: string;
+	bytesBase64: string;
+}
+
+export interface DraftImportCommitDto {
+	/** Re-validated by the renderer with the shared bundle parser. */
+	bundle: unknown;
+	mediaPayloads: DraftImportMediaPayloadDto[];
+}
+
+export interface DraftImportInboxEntrySummaryDto {
+	entryId: string;
+	createdAtUnixMilliseconds: number;
+	projectName: string;
+	bundleDigest: string;
+	mediaCount: number;
+}
+
+export interface DraftImportInboxEntryRequestDto {
+	entryId: string;
+}
+
+export interface JianyingDraftImportAPI {
+	inspectDraft(
+		request: DraftImportInspectRequestDto
+	): Promise<JianyingDraftImportResultDto<DraftImportInspectDto>>;
+	planDraftImport(
+		request: DraftImportPlanRequestDto
+	): Promise<JianyingDraftImportResultDto<DraftImportPlanDto>>;
+	commitDraftImport(
+		request: DraftImportCommitRequestDto
+	): Promise<JianyingDraftImportResultDto<DraftImportCommitDto>>;
+	listPendingDraftImports(): Promise<
+		JianyingDraftImportResultDto<DraftImportInboxEntrySummaryDto[]>
+	>;
+	readPendingDraftImport(
+		request: DraftImportInboxEntryRequestDto
+	): Promise<JianyingDraftImportResultDto<DraftImportCommitDto>>;
+	acknowledgePendingDraftImport(
+		request: DraftImportInboxEntryRequestDto
+	): Promise<JianyingDraftImportResultDto<{ entryId: string }>>;
+}
