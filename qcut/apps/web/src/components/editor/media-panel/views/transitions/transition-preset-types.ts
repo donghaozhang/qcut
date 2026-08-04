@@ -29,12 +29,16 @@ export const TRANSITION_CONTENT_CATEGORIES = [
 export type TransitionContentCategory =
 	(typeof TRANSITION_CONTENT_CATEGORIES)[number];
 
+export type TransitionPresetCategory =
+	| TransitionContentCategory
+	| "jianying-local";
+
 export type TransitionCategory =
 	| "all"
 	| "favorites"
 	| "popular"
 	| "latest"
-	| TransitionContentCategory;
+	| TransitionPresetCategory;
 
 export type TransitionType =
 	| "dissolve"
@@ -61,13 +65,15 @@ export interface TransitionPreset {
 	id: string;
 	name: string;
 	localizedName: string;
-	category: TransitionContentCategory;
+	category: TransitionPresetCategory;
 	type: TransitionType;
 	defaultDuration: number;
 	tags: string[];
 	description: string;
 	version: number;
 	delivery: "bundled" | "remote";
+	backend?: "qcut" | "jianying-local";
+	jianyingGroup?: string;
 	preview: TransitionPreviewAsset;
 	easing?: ClipTransitionEasing;
 	direction?: ClipTransitionDirection;
@@ -90,12 +96,19 @@ export interface ClipTransitionPresetConfig {
 
 type PresetInput = Omit<
 	TransitionPreset,
-	"version" | "downloaded" | "tags" | "description" | "delivery" | "preview"
+	| "version"
+	| "downloaded"
+	| "tags"
+	| "description"
+	| "delivery"
+	| "preview"
+	| "backend"
 > & {
 	tags?: string[];
 	description?: string;
 	delivery?: TransitionPreset["delivery"];
 	preview?: TransitionPreviewAsset;
+	backend?: TransitionPreset["backend"];
 };
 
 export function defineTransitionPreset({
@@ -103,15 +116,24 @@ export function defineTransitionPreset({
 	description,
 	delivery = "bundled",
 	preview,
+	backend = "qcut",
 	...preset
 }: PresetInput): TransitionPreset {
 	return {
 		...preset,
 		version: 1,
 		delivery,
+		backend,
 		preview: preview ?? getTransitionPreviewAsset({ presetId: preset.id }),
 		downloaded: true,
-		tags: [preset.category, preset.type, preset.localizedName, ...tags],
+		tags: [
+			preset.category,
+			preset.type,
+			preset.localizedName,
+			backend,
+			...(preset.jianyingGroup ? [preset.jianyingGroup] : []),
+			...tags,
+		],
 		description:
 			description ??
 			`${preset.localizedName}，浏览器预览与 FFmpeg 导出使用同一参数。`,
