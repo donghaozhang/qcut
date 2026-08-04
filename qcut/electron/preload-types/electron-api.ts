@@ -53,6 +53,7 @@ import type {
 	ClaudeUiAPI,
 	ClaudeStateAPI,
 	ClaudeImportEvidenceAPI,
+	ClaudeSameProfileWritebackAPI,
 } from "./api-types/claude-ui-api";
 import type {
 	RemotionFolderAPI,
@@ -126,7 +127,8 @@ export interface ElectronAPI
 		ClaudePointerAPI &
 		ClaudeUiAPI &
 		ClaudeStateAPI &
-		ClaudeImportEvidenceAPI;
+		ClaudeImportEvidenceAPI &
+		ClaudeSameProfileWritebackAPI;
 }
 
 // ============================================================================
