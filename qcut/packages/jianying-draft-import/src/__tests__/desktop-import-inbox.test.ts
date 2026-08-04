@@ -1,7 +1,9 @@
+import { createHash } from "node:crypto";
 import {
 	mkdir,
 	mkdtemp,
 	readFile,
+	readdir,
 	rm,
 	stat,
 	writeFile,
@@ -128,6 +130,40 @@ afterEach(async () => {
 });
 
 describe("desktop import inbox", () => {
+	it("never persists a live envelope capture", async () => {
+		const sentinel = "PRIVATE-DRAFT-SENTINEL";
+		const entryId = "entry-no-envelope";
+		await enqueueDesktopImport({
+			inboxDirectory,
+			entryId,
+			commit: {
+				...commit,
+				envelopeCapture: {
+					envelope: {
+						schemaVersion: 1,
+						importId: commit.bundle.planToken,
+						profileId: commit.bundle.document.source.profileId,
+						entries: [],
+						bindings: [],
+						unknownSubtrees: [],
+						dirtyDomains: [],
+						acceptedDowngradeFingerprints: [],
+					},
+					payloadBase64: Buffer.from(sentinel).toString("base64"),
+					payloadSha256: createHash("sha256").update(sentinel).digest("hex"),
+				},
+			},
+		});
+
+		const restored = await readDesktopImport({ inboxDirectory, entryId });
+		expect(restored.envelopeCapture).toBeUndefined();
+		const entryFiles = await readdir(join(inboxDirectory, entryId));
+		for (const fileName of entryFiles) {
+			const bytes = await readFile(join(inboxDirectory, entryId, fileName));
+			expect(bytes.includes(sentinel)).toBe(false);
+		}
+	});
+
 	it("atomically enqueues, lists, reads, and deletes a validated commit", async () => {
 		const summary = await enqueueDesktopImport({
 			inboxDirectory,
