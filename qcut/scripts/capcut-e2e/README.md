@@ -74,18 +74,38 @@ Bundles are built in a run-local staging directory and atomically renamed to
 
 ## Round-trip parity case
 
-Run the semantic and four-output comparison after both applications have
-saved/exported the same case:
+Run the import-materialization, semantic, and four-output comparisons after
+both applications have saved/exported the same case:
 
 ```bash
 bun scripts/capcut-e2e/roundtrip-case.ts \
   --case-id <case-id> \
   --source-draft <source-draft-dir> \
   --roundtrip-draft <roundtrip-draft-dir> \
+  --qcut-import-bundle <qcut-import-bundle.json> \
+  --qcut-import-snapshot <qcut-import-snapshot.json> \
   --qcut-native-export <qcut-media> \
   --reference-native-export <jianying-or-capcut-media> \
   --qcut-preview-frames <qcut-frame-dir> \
   --reference-preview-frames <jianying-or-capcut-frame-dir> \
+  --output <empty-evidence-dir> --json
+```
+
+The QCut import snapshot is a schema-1 JSON object with `project`, raw
+persisted `tracks`, and `media`. Each media entry carries its deterministic
+QCut ID, type, and an absolute `sourcePath` to the exact bytes imported for
+the case. The verifier opens every media file without following symlinks,
+guards against changes while hashing, and compares ID, type, byte length,
+SHA-256, project geometry/FPS/name, and the complete imported timeline against
+the digest-bound bundle. Paths are used only locally and are rejected if they
+appear in a manifest.
+
+The import gate can also run independently:
+
+```bash
+bun scripts/capcut-e2e/qcut-import-verification.ts \
+  --bundle <qcut-import-bundle.json> \
+  --qcut-snapshot <qcut-import-snapshot.json> \
   --output <empty-evidence-dir> --json
 ```
 
@@ -95,10 +115,13 @@ zero-based frame. Do not provide whole-window captures: application chrome,
 sidebars, playback controls, display scaling, and monitor color management are
 outside the canvas comparison contract.
 
-The aggregate manifest fixes semantic roles as source to roundtrip and media
-roles as reference to QCut. It embeds path-free semantic, native-frame,
-preview-frame, and audio manifests. Comparison failure exits `1`; missing or
-candidate evidence exits `2`; harness errors exit `3`. Exit `0` is reserved for
-fully verified thresholds, frame coverage, and provenance. Current CapCut 8.1
-thresholds and provenance are candidate-unverified, so matching synthetic
-outputs intentionally return `unverified` rather than a verified pass.
+The aggregate manifest fixes semantic roles as source to roundtrip, import
+roles as bundle to persisted QCut state, and media roles as reference to QCut.
+Aggregate schema 2 embeds path-free import, semantic, native-frame,
+preview-frame, and audio manifests; schema 1 evidence predates the mandatory
+import gate and is not equivalent. Import or comparison failure exits `1`;
+missing or candidate evidence exits `2`; harness errors exit `3`. Exit `0` is
+reserved for fully verified import state, thresholds, frame coverage, and
+provenance. Current CapCut 8.1 thresholds and provenance are
+candidate-unverified, so matching synthetic outputs intentionally return
+`unverified` rather than a verified pass.
