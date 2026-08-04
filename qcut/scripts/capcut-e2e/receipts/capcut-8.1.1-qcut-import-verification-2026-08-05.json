@@ -1,48 +1,48 @@
 {
-  "bundle": {
-    "byteLength": 14000,
-    "sha256": "cefac69366184ed2cf17863a980106f42c65de26347067e2f081a62707e257ae",
-    "bundleDigest": "bdc7f80612b191a1af3e7b3139da0aaa9addd8d3c1773d97cf4730d6ac44d89d"
-  },
-  "capture": {
-    "appVersion": "2026.8.401",
-    "source": "qcut-renderer-persisted-storage"
-  },
-  "generatedAtIso": "2026-08-04T17:32:39.602Z",
-  "qcutSnapshot": {
-    "byteLength": 2191,
-    "sha256": "8de8c1b9e8efa7e3530a40b0a95d3977f71a95471ea2fce602a58b430bfc22a9"
-  },
-  "roles": {
-    "expected": "import-bundle",
-    "actual": "qcut-renderer-snapshot"
-  },
-  "schema": "qcut.capcut-e2e.import-verification",
-  "schemaVersion": 2,
-  "checks": {
-    "bundleDigest": true,
-    "captureTrusted": true,
-    "importId": true,
-    "profileId": true,
-    "projectFps": true,
-    "projectGeometry": true,
-    "projectName": true
-  },
-  "mediaSetSha256": "3bdf13b634ff60472df5af81dde7e509bf0e00334f963556462d2f22e6a03363",
-  "verification": {
-    "actual": {
-      "mediaCount": 2,
-      "trackCount": 2
-    },
-    "bundleDigest": "bdc7f80612b191a1af3e7b3139da0aaa9addd8d3c1773d97cf4730d6ac44d89d",
-    "expected": {
-      "mediaCount": 2,
-      "trackCount": 2
-    },
-    "issues": [],
-    "schema": "qcut.draft-interop.import-verification",
-    "schemaVersion": 1,
-    "verdict": "pass"
-  },
-  "verdict": "pass"
+	"bundle": {
+		"byteLength": 14000,
+		"sha256": "cefac69366184ed2cf17863a980106f42c65de26347067e2f081a62707e257ae",
+		"bundleDigest": "bdc7f80612b191a1af3e7b3139da0aaa9addd8d3c1773d97cf4730d6ac44d89d"
+	},
+	"capture": {
+		"appVersion": "2026.8.401",
+		"source": "qcut-renderer-persisted-storage"
+	},
+	"generatedAtIso": "2026-08-04T17:32:39.602Z",
+	"qcutSnapshot": {
+		"byteLength": 2191,
+		"sha256": "8de8c1b9e8efa7e3530a40b0a95d3977f71a95471ea2fce602a58b430bfc22a9"
+	},
+	"roles": {
+		"expected": "import-bundle",
+		"actual": "qcut-renderer-snapshot"
+	},
+	"schema": "qcut.capcut-e2e.import-verification",
+	"schemaVersion": 2,
+	"checks": {
+		"bundleDigest": true,
+		"captureTrusted": true,
+		"importId": true,
+		"profileId": true,
+		"projectFps": true,
+		"projectGeometry": true,
+		"projectName": true
+	},
+	"mediaSetSha256": "3bdf13b634ff60472df5af81dde7e509bf0e00334f963556462d2f22e6a03363",
+	"verification": {
+		"actual": {
+			"mediaCount": 2,
+			"trackCount": 2
+		},
+		"bundleDigest": "bdc7f80612b191a1af3e7b3139da0aaa9addd8d3c1773d97cf4730d6ac44d89d",
+		"expected": {
+			"mediaCount": 2,
+			"trackCount": 2
+		},
+		"issues": [],
+		"schema": "qcut.draft-interop.import-verification",
+		"schemaVersion": 1,
+		"verdict": "pass"
+	},
+	"verdict": "pass"
 }
