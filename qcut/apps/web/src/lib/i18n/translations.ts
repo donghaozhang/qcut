@@ -1346,6 +1346,11 @@ const EN_TRANSLATIONS = {
 	"draftImport.corruptRecoveryTitle": "Import recovery needs attention",
 	"draftImport.corruptRecoveryDescription":
 		"QCut found {{count}} damaged recovery records and left them untouched. No project data was deleted from those records.",
+	"draftImport.corruptRecoveryAction": "Isolate damaged records",
+	"draftImport.corruptRecoveryRunning": "Isolating…",
+	"draftImport.quarantinedRecoveryTitle": "Recovery records isolated",
+	"draftImport.quarantinedRecoveryDescription":
+		"{{count}} damaged recovery records are isolated from automatic recovery. Their original journal data remains stored, and no project data was deleted.",
 	"draftWriteback.title": "Update original CapCut draft",
 	"draftWriteback.description":
 		"Write supported timing edits back to a selected CapCut 8.1 draft while preserving unknown data.",
@@ -2987,6 +2992,11 @@ const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
 	"draftImport.corruptRecoveryTitle": "导入恢复需要处理",
 	"draftImport.corruptRecoveryDescription":
 		"发现 {{count}} 条损坏的恢复记录，QCut 已将其原样保留，且未依据这些记录删除任何项目数据。",
+	"draftImport.corruptRecoveryAction": "隔离损坏记录",
+	"draftImport.corruptRecoveryRunning": "正在隔离…",
+	"draftImport.quarantinedRecoveryTitle": "恢复记录已隔离",
+	"draftImport.quarantinedRecoveryDescription":
+		"已将 {{count}} 条损坏的恢复记录与自动恢复隔离。原始 journal 数据仍保留，且没有删除任何项目数据。",
 	"draftWriteback.title": "更新原始 CapCut 草稿",
 	"draftWriteback.description":
 		"将支持的时间编辑安全写回所选 CapCut 8.1 草稿，并保留未知数据。",
