@@ -22,13 +22,13 @@ import type {
 } from "./import-session.js";
 import { verifyQCutImportBundleDigest } from "./qcut-import-bundle-builder.js";
 
-const INBOX_ENTRY_SCHEMA_VERSION = 1 as const;
-const MANIFEST_FILE_NAME = "manifest.v1.json";
-const MAX_MANIFEST_BYTES = 64 * 1024 * 1024;
+export const INBOX_ENTRY_SCHEMA_VERSION = 1 as const;
+export const MANIFEST_FILE_NAME = "manifest.v1.json";
+export const MAX_MANIFEST_BYTES = 64 * 1024 * 1024;
 const MAX_TOTAL_MEDIA_BYTES = 512 * 1024 * 1024;
 const SAFE_ENTRY_ID = /^[A-Za-z0-9_-]{1,128}$/u;
 
-interface InboxMediaDescriptorV1 {
+export interface InboxMediaDescriptorV1 {
 	resourceId: string;
 	fileName: string;
 	mimeType: string;
@@ -37,7 +37,7 @@ interface InboxMediaDescriptorV1 {
 	sha256: string;
 }
 
-interface InboxManifestV1 {
+export interface InboxManifestV1 {
 	schemaVersion: typeof INBOX_ENTRY_SCHEMA_VERSION;
 	entryId: string;
 	createdAtUnixMilliseconds: number;
@@ -73,13 +73,13 @@ export class DesktopImportInboxUnavailableError extends Error {
 	}
 }
 
-function assertSafeEntryId({ entryId }: { entryId: string }): void {
+export function assertSafeEntryId({ entryId }: { entryId: string }): void {
 	if (!SAFE_ENTRY_ID.test(entryId)) {
 		throw new DesktopImportInboxMalformedError();
 	}
 }
 
-async function ensurePrivateDirectory({
+export async function ensurePrivateDirectory({
 	directory,
 }: {
 	directory: string;
@@ -202,7 +202,7 @@ function validateCommit({
 	});
 }
 
-async function writePrivateFile({
+export async function writePrivateFile({
 	filePath,
 	bytes,
 }: {
@@ -288,7 +288,7 @@ export async function enqueueDesktopImport({
 	};
 }
 
-async function readBoundedFile({
+export async function readBoundedFile({
 	filePath,
 	maxBytes,
 }: {
@@ -314,13 +314,13 @@ async function readBoundedFile({
 	}
 }
 
-function parseManifest({
+export function parseManifest({
 	value,
 	entryId,
 }: {
 	value: unknown;
 	entryId: string;
-}) {
+}): InboxManifestV1 {
 	if (typeof value !== "object" || value === null || Array.isArray(value)) {
 		throw new DesktopImportInboxMalformedError();
 	}
@@ -390,13 +390,13 @@ function parseManifest({
 	};
 }
 
-async function readInboxEntry({
+export async function readDesktopImportManifest({
 	inboxDirectory,
 	entryId,
 }: {
 	inboxDirectory: string;
 	entryId: string;
-}): Promise<{ manifest: InboxManifestV1; commit: DraftImportCommitDto }> {
+}): Promise<InboxManifestV1> {
 	assertSafeEntryId({ entryId });
 	const entryDirectory = join(inboxDirectory, entryId);
 	const entryMetadata = await lstat(entryDirectory);
@@ -413,7 +413,18 @@ async function readInboxEntry({
 	} catch {
 		throw new DesktopImportInboxMalformedError();
 	}
-	const manifest = parseManifest({ value: manifestValue, entryId });
+	return parseManifest({ value: manifestValue, entryId });
+}
+
+async function readInboxEntry({
+	inboxDirectory,
+	entryId,
+}: {
+	inboxDirectory: string;
+	entryId: string;
+}): Promise<{ manifest: InboxManifestV1; commit: DraftImportCommitDto }> {
+	const manifest = await readDesktopImportManifest({ inboxDirectory, entryId });
+	const entryDirectory = join(inboxDirectory, entryId);
 	const mediaPayloads = await Promise.all(
 		manifest.media.map(async (descriptor) => {
 			const bytes = await readBoundedFile({
@@ -463,16 +474,16 @@ export async function listDesktopImports({
 		visibleEntries.map(
 			async (entry): Promise<DesktopImportInboxEntrySummary> => {
 				try {
-					const { commit, manifest } = await readInboxEntry({
+					const manifest = await readDesktopImportManifest({
 						inboxDirectory,
 						entryId: entry.name,
 					});
 					return {
 						entryId: entry.name,
 						createdAtUnixMilliseconds: manifest.createdAtUnixMilliseconds,
-						projectName: commit.bundle.document.project.name,
-						bundleDigest: commit.bundle.bundleDigest,
-						mediaCount: commit.mediaPayloads.length,
+						projectName: manifest.bundle.document.project.name,
+						bundleDigest: manifest.bundle.bundleDigest,
+						mediaCount: manifest.media.length,
 					};
 				} catch {
 					// One corrupt entry must not hide its siblings — surface it
