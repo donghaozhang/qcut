@@ -4,6 +4,7 @@ import { TRANSITION_CATEGORY_EXPANSIONS } from "./transition-category-expansions
 import { buildTransitionCatalogDensity } from "./transition-catalog-density";
 import { TRANSITION_ENGINE_PRESETS } from "./transition-engine-presets/index";
 import { SELECTED_JIANYING_TRANSITION_PRESETS } from "./transition-jianying-selected-presets";
+import { JIANYING_LOCAL_TRANSITION_PRESETS } from "./transition-jianying-local-presets";
 import {
 	defineTransitionPreset as definePreset,
 	type ClipTransitionPresetConfig,
@@ -17,6 +18,7 @@ export {
 	type ClipTransitionPresetConfig,
 	type TransitionCategory,
 	type TransitionContentCategory,
+	type TransitionPresetCategory,
 	type TransitionPreset,
 	type TransitionType,
 } from "./transition-preset-types";
@@ -291,6 +293,7 @@ const BASE_TRANSITION_PRESETS: TransitionPreset[] = [
 	...mgPresets,
 	...ADDITIONAL_TRANSITION_PRESETS,
 	...SELECTED_JIANYING_TRANSITION_PRESETS,
+	...JIANYING_LOCAL_TRANSITION_PRESETS,
 	...TRANSITION_CATEGORY_EXPANSIONS,
 	...TRANSITION_ENGINE_PRESETS,
 ];
@@ -312,6 +315,9 @@ export function filterTransitionPresets({
 	const normalizedQuery = query.trim().toLocaleLowerCase();
 
 	return transitionPresets.filter((preset) => {
+		if (preset.category === "jianying-local" && category !== "jianying-local") {
+			return false;
+		}
 		const matchesCategory =
 			category === "all" ||
 			preset.category === category ||
@@ -328,6 +334,7 @@ export function filterTransitionPresets({
 			preset.category,
 			preset.type,
 			preset.description,
+			preset.jianyingGroup ?? "",
 			...preset.tags,
 		]
 			.join(" ")
