@@ -11,7 +11,10 @@
  */
 
 import { debugError, debugLog } from "@/lib/debug/debug-config";
-import type { ImportJournal } from "./import-journal";
+import type {
+	ImportJournal,
+	ImportJournalQuarantineResult,
+} from "./import-journal";
 import { importJournal } from "./import-journal";
 import type { ImportStagingStorage } from "./import-staging-adapter";
 import { storageService } from "./storage-service";
@@ -20,6 +23,15 @@ export interface ImportRecoveryResult {
 	rolledBackImportIds: string[];
 	completedImportIds: string[];
 	corruptJournalRecordCount: number;
+	quarantinedJournalRecordCount: number;
+}
+
+export async function quarantineCorruptImportJournalRecords({
+	journal = importJournal,
+}: {
+	journal?: ImportJournal;
+} = {}): Promise<ImportJournalQuarantineResult> {
+	return journal.quarantineCorruptRecords();
 }
 
 async function rollbackRecord({
@@ -54,9 +66,11 @@ export async function recoverPendingImports({
 		rolledBackImportIds: [],
 		completedImportIds: [],
 		corruptJournalRecordCount: 0,
+		quarantinedJournalRecordCount: 0,
 	};
 	const audit = await journal.audit();
 	result.corruptJournalRecordCount = audit.corruptRecordCount;
+	result.quarantinedJournalRecordCount = audit.quarantinedRecordCount;
 	if (audit.corruptRecordCount > 0) {
 		debugError(
 			"[ImportRecovery] Corrupt journal records were left untouched",
