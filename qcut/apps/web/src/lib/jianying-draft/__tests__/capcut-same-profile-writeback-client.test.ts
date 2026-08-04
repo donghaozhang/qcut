@@ -335,6 +335,32 @@ describe("CapCut same-profile writeback client", () => {
 		expect(request.selectionToken).toBe("selection-1");
 	});
 
+	it("does not commit when the QCut snapshot changes during selection", async () => {
+		const bytes = sourceBytes();
+		const api = bridge();
+		const verifySnapshotCurrent = vi.fn(async () => false);
+
+		expect(
+			await runCapCut81SameProfileWriteback({
+				project: project({ bytes }),
+				snapshot: snapshot(),
+				deps: {
+					getBridge: () => api,
+					readVerifiedEnvelope: envelopeReader({ bytes }),
+					verifySnapshotCurrent,
+				},
+			})
+		).toEqual({
+			ok: false,
+			reason: "qcut-state-changed",
+			message:
+				"The QCut project changed while the destination was selected. Review and retry the writeback.",
+		});
+		expect(verifySnapshotCurrent).toHaveBeenCalledOnce();
+		expect(api.chooseCapCut81DraftDirectory).toHaveBeenCalledOnce();
+		expect(api.commitCapCut81Writeback).not.toHaveBeenCalled();
+	});
+
 	it("returns the selection token when recovery may be required", async () => {
 		const bytes = sourceBytes();
 		const api = bridge();
