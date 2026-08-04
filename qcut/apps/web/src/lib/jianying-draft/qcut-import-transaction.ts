@@ -12,8 +12,10 @@
  */
 
 import {
+	buildQCutImportTimelineTracks,
 	canonicalizeQCutImportBundleForDigest,
 	deriveImportInternalId,
+	getQCutImportMediaType,
 	parseForeignDraftEnvelopeV1,
 	parseQCutImportBundleV1,
 	type ForeignDraftEnvelopeV1,
@@ -28,14 +30,12 @@ import { importJournal } from "@/lib/storage/import-journal";
 import type { ImportStagingStorage } from "@/lib/storage/import-staging-adapter";
 import { ImportStagingSession } from "@/lib/storage/import-staging-adapter";
 import { storageService } from "@/lib/storage/storage-service";
-import type { MediaItem, MediaType } from "@/stores/media/media-store-types";
+import type { MediaItem } from "@/stores/media/media-store-types";
 import type { TProject } from "@/types/project";
-import type { TimelineTrack } from "@/types/timeline";
 import {
 	deleteEnvelopePayload,
 	storeEnvelopePayload,
 } from "./envelope-key-adapter";
-import { buildQCutImportTimelineElement } from "./qcut-import-element-builder";
 
 /** Decrypted media bytes for one staged resource, provided by transport. */
 export interface ImportMediaPayload {
@@ -118,50 +118,6 @@ async function verifyBundleDigest({
 		.map((byte) => byte.toString(16).padStart(2, "0"))
 		.join("");
 	return hex === bundle.bundleDigest;
-}
-
-function mediaTypeForResourceKind({ kind }: { kind: string }): MediaType {
-	if (kind === "audio") return "audio";
-	if (kind === "image") return "image";
-	return "video";
-}
-
-function buildTimelineTracks({
-	bundle,
-	mediaItemIdByResourceId,
-}: {
-	bundle: QCutImportBundleV1;
-	mediaItemIdByResourceId: ReadonlyMap<string, string>;
-}): TimelineTrack[] {
-	const tracks: TimelineTrack[] = [];
-	for (const planTrack of bundle.timelinePlan.tracks) {
-		const elements = planTrack.elements.map((planElement) =>
-			buildQCutImportTimelineElement({
-				planElement,
-				internalIdBySemanticId: bundle.internalIdBySemanticId,
-				mediaItemIdByResourceId,
-			})
-		);
-		const transitions = (planTrack.transitions ?? []).map((transition) => ({
-			id: bundle.internalIdBySemanticId[transition.id],
-			fromElementId: bundle.internalIdBySemanticId[transition.fromElementId],
-			toElementId: bundle.internalIdBySemanticId[transition.toElementId],
-			presetId: transition.presetId,
-			type: transition.type,
-			duration: transition.duration,
-			easing: transition.easing,
-		}));
-		tracks.push({
-			id: bundle.internalIdBySemanticId[planTrack.id],
-			name: planTrack.name,
-			type: planTrack.type,
-			elements,
-			...(transitions.length === 0 ? {} : { transitions }),
-			order: planTrack.order,
-			...(planTrack.isMain === true ? { isMain: true } : {}),
-		});
-	}
-	return tracks;
 }
 
 /**
@@ -427,19 +383,20 @@ export async function runQCutImportTransaction({
 			const mediaItem: MediaItem = {
 				id: mediaItemId,
 				name: payload.fileName,
-				type: mediaTypeForResourceKind({ kind: staging.kind }),
+				type: getQCutImportMediaType({ resourceKind: staging.kind }),
 				file,
 			};
 			await session.stageMediaItem({ mediaItem });
 			mediaItemIdByResourceId.set(staging.resourceId, mediaItemId);
 		}
 
-		const tracks = buildTimelineTracks({ bundle, mediaItemIdByResourceId });
+		const tracks = buildQCutImportTimelineTracks({
+			bundle,
+			mediaItemIdByResourceId,
+		});
 		await session.stageTimeline({ tracks });
 
-		const verification = await session.verifyStaged({
-			expectedMediaCount: mediaItemIdByResourceId.size,
-		});
+		const verification = await session.verifyStaged({ bundle });
 		if (!verification.ok) {
 			await session.rollback();
 			return {

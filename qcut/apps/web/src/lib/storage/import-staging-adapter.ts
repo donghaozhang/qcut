@@ -10,11 +10,36 @@
  * @module lib/storage/import-staging-adapter
  */
 
+import {
+	describeQCutImportMedia,
+	type QCutImportBundleV1,
+	type QCutImportVerificationResult,
+	verifyQCutImportMaterialization,
+} from "@qcut/editor-core/draft-interop";
 import type { TProject } from "@/types/project";
 import type { TimelineTrack } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import { storageService } from "./storage-service";
 import type { ImportJournal } from "./import-journal";
+
+function projectReadbackMatches({
+	actual,
+	expected,
+}: {
+	actual: TProject;
+	expected: TProject;
+}): boolean {
+	return (
+		actual.id === expected.id &&
+		actual.name === expected.name &&
+		actual.currentSceneId === expected.currentSceneId &&
+		actual.canvasMode === expected.canvasMode &&
+		actual.fps === expected.fps &&
+		JSON.stringify(actual.canvasSize) === JSON.stringify(expected.canvasSize) &&
+		JSON.stringify(actual.draftInterop) ===
+			JSON.stringify(expected.draftInterop)
+	);
+}
 
 /** The storage surface the staging session needs; injectable for tests. */
 export interface ImportStagingStorage {
@@ -28,11 +53,9 @@ export interface ImportStagingStorage {
 		projectId: string;
 		sceneId?: string;
 	}) => Promise<TimelineTrack[] | null>;
+	loadAllMediaItems: (projectId: string) => Promise<MediaItem[]>;
 	saveProject: (options: { project: TProject }) => Promise<void>;
 	loadProject: (options: { id: string }) => Promise<TProject | null>;
-	getProjectStorageInfo: (
-		projectId: string
-	) => Promise<{ mediaItems: number; hasTimeline: boolean }>;
 	deleteProjectMedia: (projectId: string) => Promise<void>;
 	deleteProjectTimeline: (options: {
 		projectId: string;
@@ -112,26 +135,46 @@ export class ImportStagingSession {
 	}
 
 	/** Re-reads everything staged; refuses to publish on any mismatch. */
-	async verifyStaged({
-		expectedMediaCount,
-	}: {
-		expectedMediaCount: number;
-	}): Promise<{ ok: boolean; reason?: string }> {
-		const info = await this.#storage.getProjectStorageInfo(this.#projectId);
-		if (info.mediaItems !== expectedMediaCount) {
-			return {
-				ok: false,
-				reason: `staged media count ${info.mediaItems} != expected ${expectedMediaCount}`,
-			};
-		}
-		const tracks = await this.#storage.loadTimeline({
-			projectId: this.#projectId,
-			sceneId: this.#sceneId,
-		});
+	async verifyStaged({ bundle }: { bundle: QCutImportBundleV1 }): Promise<
+		| { ok: true; verification: QCutImportVerificationResult }
+		| {
+				ok: false;
+				reason: string;
+				verification?: QCutImportVerificationResult;
+		  }
+	> {
+		const [tracks, mediaItems] = await Promise.all([
+			this.#storage.loadTimeline({
+				projectId: this.#projectId,
+				sceneId: this.#sceneId,
+			}),
+			this.#storage.loadAllMediaItems(this.#projectId),
+		]);
 		if (tracks === null) {
 			return { ok: false, reason: "staged timeline is unreadable" };
 		}
-		return { ok: true };
+		const actualMedia = await describeQCutImportMedia({
+			media: mediaItems.map((mediaItem) => ({
+				bytes: mediaItem.file,
+				id: mediaItem.id,
+				type: mediaItem.type,
+			})),
+		});
+		const verification = verifyQCutImportMaterialization({
+			actualMedia,
+			actualTracks: tracks,
+			bundle,
+		});
+		if (verification.verdict === "fail") {
+			return {
+				ok: false,
+				reason: verification.issues
+					.map(({ code, path }) => `${code}:${path}`)
+					.join(", "),
+				verification,
+			};
+		}
+		return { ok: true, verification };
 	}
 
 	/** The single step that makes the project visible. */
@@ -148,6 +191,9 @@ export class ImportStagingSession {
 		const readback = await this.#storage.loadProject({ id: project.id });
 		if (readback === null) {
 			throw new Error("Published project could not be read back.");
+		}
+		if (!projectReadbackMatches({ actual: readback, expected: project })) {
+			throw new Error("Published project readback does not match the import.");
 		}
 		await this.#journal.complete({ importId: this.#importId });
 	}
