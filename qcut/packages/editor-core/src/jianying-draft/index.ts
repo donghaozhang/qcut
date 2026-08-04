@@ -203,3 +203,10 @@ export {
 	type CapCut81TimingPatchIssueCode,
 	type PlanCapCut81TimingPatchesResult,
 } from "./writeback/capcut-8-1-timing-patches.js";
+
+export {
+	prepareCapCut81SameProfileWriteback,
+	type CapCut81SameProfilePrepareIssue,
+	type CapCut81SameProfilePrepareIssueCode,
+	type PrepareCapCut81SameProfileWritebackResult,
+} from "./writeback/capcut-8-1-same-profile-prepare.js";
