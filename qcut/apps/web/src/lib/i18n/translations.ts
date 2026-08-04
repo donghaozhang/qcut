@@ -1343,6 +1343,9 @@ const EN_TRANSLATIONS = {
 	"draftImport.recoveryComplete": "Import recovery complete",
 	"draftImport.recoverySummary":
 		"{{rolledBack}} partial import removed · {{completed}} published import finalized",
+	"draftImport.corruptRecoveryTitle": "Import recovery needs attention",
+	"draftImport.corruptRecoveryDescription":
+		"QCut found {{count}} damaged recovery records and left them untouched. No project data was deleted from those records.",
 	"draftWriteback.title": "Update original CapCut draft",
 	"draftWriteback.description":
 		"Write supported timing edits back to a selected CapCut 8.1 draft while preserving unknown data.",
@@ -2981,6 +2984,9 @@ const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
 	"draftImport.recoveryComplete": "导入恢复已完成",
 	"draftImport.recoverySummary":
 		"已清理 {{rolledBack}} 个未完成导入 · 已确认 {{completed}} 个已发布导入",
+	"draftImport.corruptRecoveryTitle": "导入恢复需要处理",
+	"draftImport.corruptRecoveryDescription":
+		"发现 {{count}} 条损坏的恢复记录，QCut 已将其原样保留，且未依据这些记录删除任何项目数据。",
 	"draftWriteback.title": "更新原始 CapCut 草稿",
 	"draftWriteback.description":
 		"将支持的时间编辑安全写回所选 CapCut 8.1 草稿，并保留未知数据。",
