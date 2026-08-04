@@ -74,6 +74,14 @@ import {
 	ENVELOPE_STATUS_CHANNEL,
 	ENVELOPE_STORE_CHANNEL,
 } from "./jianying-envelope-key-contract.js";
+import {
+	JIANYING_IMPORT_COMMIT_CHANNEL,
+	JIANYING_IMPORT_INBOX_ACK_CHANNEL,
+	JIANYING_IMPORT_INBOX_LIST_CHANNEL,
+	JIANYING_IMPORT_INBOX_READ_CHANNEL,
+	JIANYING_IMPORT_INSPECT_CHANNEL,
+	JIANYING_IMPORT_PLAN_CHANNEL,
+} from "./jianying-draft-import-contract.js";
 
 // Expose the API to the renderer process
 const electronAPI: ElectronAPI & Record<string, unknown> = {
@@ -104,6 +112,20 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 		purge: () => ipcRenderer.invoke(ENVELOPE_PURGE_CHANNEL),
 		rotate: () => ipcRenderer.invoke(ENVELOPE_ROTATE_CHANNEL),
 		status: () => ipcRenderer.invoke(ENVELOPE_STATUS_CHANNEL),
+	},
+	jianyingDraftImport: {
+		inspectDraft: (request) =>
+			ipcRenderer.invoke(JIANYING_IMPORT_INSPECT_CHANNEL, request),
+		planDraftImport: (request) =>
+			ipcRenderer.invoke(JIANYING_IMPORT_PLAN_CHANNEL, request),
+		commitDraftImport: (request) =>
+			ipcRenderer.invoke(JIANYING_IMPORT_COMMIT_CHANNEL, request),
+		listPendingDraftImports: () =>
+			ipcRenderer.invoke(JIANYING_IMPORT_INBOX_LIST_CHANNEL),
+		readPendingDraftImport: (request) =>
+			ipcRenderer.invoke(JIANYING_IMPORT_INBOX_READ_CHANNEL, request),
+		acknowledgePendingDraftImport: (request) =>
+			ipcRenderer.invoke(JIANYING_IMPORT_INBOX_ACK_CHANNEL, request),
 	},
 
 	// File operations
