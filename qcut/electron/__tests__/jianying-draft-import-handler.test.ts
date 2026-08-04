@@ -97,7 +97,16 @@ function createFakeRuntime() {
 
 		async plan({ input }: { input: unknown }) {
 			calls.push({ verb: "plan", input });
-			return { plan: { planToken: "t" } };
+			return {
+				plan: { planToken: "t" },
+				cacheMetrics: {
+					assetResolution: {
+						schemaVersion: 1,
+						fileProbeHits: 2,
+						fileProbeMisses: 1,
+					},
+				},
+			};
 		}
 
 		async commit({ input }: { input: unknown }) {
@@ -161,6 +170,17 @@ describe("setupJianyingDraftImportIPC", () => {
 			{ draftPath: "/drafts/x" }
 		);
 		expect(plan.ok).toBe(true);
+		expect(plan).toMatchObject({
+			value: {
+				cacheMetrics: {
+					assetResolution: {
+						schemaVersion: 1,
+						fileProbeHits: 2,
+						fileProbeMisses: 1,
+					},
+				},
+			},
+		});
 		expect(runtime.calls.map((call) => call.verb)).toEqual(["inspect", "plan"]);
 		expect(runtime.constructedWith[0]).toMatchObject({
 			buildIdentity: {
