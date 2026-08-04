@@ -158,6 +158,17 @@ describe("plan", () => {
 		expect(plan.plan.canCommit).toBe(true);
 		expect(plan.plan.planToken).toMatch(/^[A-Za-z0-9_-]+$/);
 		expect(Object.values(plan.assetStatuses)).toEqual(["resolved"]);
+		expect(plan.cacheMetrics).toEqual({
+			assetResolution: {
+				schemaVersion: 1,
+				fileProbeHits: 0,
+				fileProbeMisses: 2,
+				nameSearchHits: 0,
+				nameSearchMisses: 1,
+				evictions: 0,
+				hashedBytes: 11,
+			},
+		});
 		const serialized = JSON.stringify(plan);
 		expect(serialized).not.toContain(draftRoot);
 		expect(serialized).not.toContain(tmpdir());
