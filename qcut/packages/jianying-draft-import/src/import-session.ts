@@ -24,6 +24,7 @@ import { basename } from "node:path";
 import {
 	type DraftInteropDocumentV1,
 	type DraftSourceDescriptor,
+	type ForeignDraftEnvelopeV1,
 	type InteropIssue,
 	type QCutImportBundleV1,
 } from "@qcut/editor-core/draft-interop";
@@ -129,9 +130,16 @@ export interface DraftImportMediaPayloadDto {
 	bytesBase64: string;
 }
 
+export interface DraftImportEnvelopeCaptureDto {
+	envelope: ForeignDraftEnvelopeV1;
+	payloadBase64: string;
+	payloadSha256: string;
+}
+
 export interface DraftImportCommitDto {
 	bundle: QCutImportBundleV1;
 	mediaPayloads: DraftImportMediaPayloadDto[];
+	envelopeCapture?: DraftImportEnvelopeCaptureDto;
 }
 
 interface PlannedSessionState {

@@ -75,6 +75,7 @@ export {
 	ImportSessionError,
 	JianyingDraftImportSession,
 	type DraftImportCommitDto,
+	type DraftImportEnvelopeCaptureDto,
 	type DraftImportInspectDto,
 	type DraftImportMediaPayloadDto,
 	type DraftImportPlanDto,

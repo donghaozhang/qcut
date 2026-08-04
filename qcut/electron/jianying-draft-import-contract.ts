@@ -111,10 +111,18 @@ export interface DraftImportMediaPayloadDto {
 	bytesBase64: string;
 }
 
+export interface DraftImportEnvelopeCaptureDto {
+	envelope: unknown;
+	payloadBase64: string;
+	payloadSha256: string;
+}
+
 export interface DraftImportCommitDto {
 	/** Re-validated by the renderer with the shared bundle parser. */
 	bundle: unknown;
 	mediaPayloads: DraftImportMediaPayloadDto[];
+	/** Live IPC only. The desktop inbox intentionally never persists this. */
+	envelopeCapture?: DraftImportEnvelopeCaptureDto;
 }
 
 export interface DraftImportInboxEntrySummaryDto {
