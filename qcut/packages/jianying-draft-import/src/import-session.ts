@@ -247,12 +247,11 @@ async function grantResolvedMedia({
 		});
 		return grantNext();
 	};
-	try {
-		await Promise.all(
-			Array.from({ length: Math.min(4, sources.length) }, () => grantNext())
-		);
-		return grants;
-	} catch (error) {
+	const outcomes = await Promise.allSettled(
+		Array.from({ length: Math.min(4, sources.length) }, () => grantNext())
+	);
+	const failure = outcomes.find((outcome) => outcome.status === "rejected");
+	if (failure?.status === "rejected") {
 		grantStore.release({
 			input: {
 				grantTokens: grants
@@ -260,8 +259,9 @@ async function grantResolvedMedia({
 					.map((grant) => grant.grantToken),
 			},
 		});
-		throw error;
+		throw failure.reason;
 	}
+	return grants;
 }
 
 interface ImportPlanStoreAdapter {
