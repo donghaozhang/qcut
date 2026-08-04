@@ -2,6 +2,7 @@ import { debugError, debugLog, debugWarn } from "@/lib/debug/debug-config";
 import { platform } from "@qcut/platform-core";
 import {
 	captureTimelineHistorySnapshot,
+	restoreTimelinePlayhead,
 	type TimelineHistorySnapshot,
 } from "@/stores/timeline/timeline-history";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
@@ -528,9 +529,15 @@ export function setupClaudeTransactionBridge(): void {
 				const current = activeTransaction;
 				const store = useTimelineStore.getState();
 				store.restoreTracks(cloneJson({ value: current.preSnapshot.tracks }));
-				store.setSelectedElements(
-					cloneJson({ value: current.preSnapshot.selectedElements })
-				);
+				useTimelineStore.setState({
+					selectedElements: cloneJson({
+						value: current.preSnapshot.selectedElements,
+					}),
+					selectedTransition: cloneJson({
+						value: current.preSnapshot.selectedTransition,
+					}),
+				});
+				restoreTimelinePlayhead({ snapshot: current.preSnapshot });
 				activeTransaction = null;
 
 				debugLog(
