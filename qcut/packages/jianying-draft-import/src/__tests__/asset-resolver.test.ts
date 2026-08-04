@@ -66,6 +66,27 @@ describe("resolveImportAssets", () => {
 		});
 	});
 
+	it("resolves a CapCut portable placeholder inside the draft root", async () => {
+		const fileName = "resource-id-qcut-proof.mp4";
+		const assetDirectory = join(draftRoot, "assets", "video");
+		await mkdir(assetDirectory, { recursive: true });
+		const assetPath = join(assetDirectory, fileName);
+		await writeFile(assetPath, "portable-video");
+		const placeholderPath =
+			`##_draftpath_placeholder_0E685133-18CE-45ED-8CB8-2904A212EC80_##/assets/video/${fileName}`;
+		const { assets } = await resolveImportAssets({
+			resources: [createResource({ name: fileName })],
+			restrictedSourcePathsByResourceId: { "res-1": placeholderPath },
+			rootRealPath: draftRoot,
+		});
+		expect(assets[0]).toMatchObject({
+			status: "resolved",
+			method: "draft-placeholder",
+			sha256: sha256Of("portable-video"),
+			restrictedAbsolutePath: assetPath,
+		});
+	});
+
 	it("lets hash evidence outrank a mismatching declared path", async () => {
 		const declaredPath = join(draftRoot, "stale", "clip.mp4");
 		await mkdir(join(draftRoot, "stale"));

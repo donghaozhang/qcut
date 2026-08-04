@@ -26,6 +26,7 @@ import type {
 	InteropIssue,
 	InteropResource,
 } from "@qcut/editor-core/draft-interop";
+import { parseCapCut81PlaceholderAssetPath } from "@qcut/editor-core/jianying-draft";
 
 const DEFAULT_MAX_CONCURRENT_PROBES = 4;
 const MAX_CONCURRENT_PROBES = 8;
@@ -42,6 +43,7 @@ export type AssetResolutionStatus =
 
 export type AssetResolutionMethod =
 	| "declared-path"
+	| "draft-placeholder"
 	| "hash-search"
 	| "name-search";
 
@@ -77,6 +79,28 @@ interface ProbeResult {
 	sha256?: string;
 	byteLength?: number;
 	tooLarge?: boolean;
+}
+
+function resolveDeclaredAssetPath({
+	declaredPath,
+	rootRealPath,
+}: {
+	declaredPath: string;
+	rootRealPath: string;
+}): { absolutePath: string; method: AssetResolutionMethod } {
+	const placeholder = parseCapCut81PlaceholderAssetPath({ path: declaredPath });
+	if (placeholder === null) {
+		return { absolutePath: declaredPath, method: "declared-path" };
+	}
+	return {
+		absolutePath: join(
+			rootRealPath,
+			"assets",
+			placeholder.mediaFolder,
+			placeholder.fileName
+		),
+		method: "draft-placeholder",
+	};
 }
 
 async function probeAndHashFile({
@@ -212,8 +236,12 @@ async function resolveOneAsset({
 	let declaredMismatch = false;
 
 	if (declaredPath !== undefined) {
+		const resolvedDeclaredPath = resolveDeclaredAssetPath({
+			declaredPath,
+			rootRealPath,
+		});
 		const probe = await probeAndHashFile({
-			absolutePath: declaredPath,
+			absolutePath: resolvedDeclaredPath.absolutePath,
 			maxHashBytes,
 		});
 		if (probe.tooLarge === true) {
@@ -232,10 +260,10 @@ async function resolveOneAsset({
 				return {
 					resourceId: resource.id,
 					status: "resolved",
-					method: "declared-path",
+					method: resolvedDeclaredPath.method,
 					sha256: probe.sha256,
 					byteLength: probe.byteLength ?? 0,
-					restrictedAbsolutePath: declaredPath,
+					restrictedAbsolutePath: resolvedDeclaredPath.absolutePath,
 					issues,
 				};
 			}
