@@ -469,7 +469,7 @@ export class JianyingDraftImportSession {
 			});
 		}
 
-		const { assets } = await resolveImportAssets({
+		const { assets, resolvedResources } = await resolveImportAssets({
 			resources: document.resources,
 			restrictedSourcePathsByResourceId,
 			rootRealPath: snapshot.rootRealPath,
@@ -484,6 +484,7 @@ export class JianyingDraftImportSession {
 			detection,
 			document: {
 				...document,
+				resources: resolvedResources,
 				issues: [...document.issues, ...assetIssues],
 			},
 			assets,

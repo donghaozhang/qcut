@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -186,6 +187,23 @@ describe("commit", () => {
 		});
 		expect(commit.bundle.planToken).toBe(plan.plan.planToken);
 		expect(commit.mediaPayloads).toHaveLength(1);
+		const mediaSha256 = createHash("sha256")
+			.update("media-bytes")
+			.digest("hex");
+		expect(commit.bundle.document.resources).toEqual([
+			expect.objectContaining({
+				status: "resolved",
+				sha256: mediaSha256,
+				byteLength: 11,
+			}),
+		]);
+		expect(commit.bundle.resourceStaging).toEqual([
+			expect.objectContaining({
+				status: "resolved",
+				sha256: mediaSha256,
+				byteLength: 11,
+			}),
+		]);
 		expect(
 			Buffer.from(commit.mediaPayloads[0].bytesBase64, "base64").toString()
 		).toBe("media-bytes");
