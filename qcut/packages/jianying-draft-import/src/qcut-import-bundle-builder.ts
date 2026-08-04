@@ -83,6 +83,12 @@ export function buildQCutImportBundle({
 				semanticId: element.id,
 			});
 		}
+		for (const transition of track.transitions ?? []) {
+			internalIdBySemanticId[transition.id] = deriveImportInternalId({
+				seed,
+				semanticId: transition.id,
+			});
+		}
 	}
 
 	const referencedResourceIds = new Set(timelinePlan.resourceIds);
