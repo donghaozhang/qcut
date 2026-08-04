@@ -25,6 +25,9 @@ import {
 	type DraftInteropDocumentV1,
 	type DraftSourceDescriptor,
 	type ForeignDraftEnvelopeV1,
+	ImportStageMetricsRecorder,
+	type ImportPlanStageId,
+	type ImportStageMetricsV1,
 	type InteropIssue,
 	type QCutImportBundleV1,
 	type RawNodeBinding,
@@ -80,6 +83,14 @@ const MIME_BY_EXTENSION: Record<string, string> = {
 	gif: "image/gif",
 };
 
+function createPlanStageMetrics({
+	now,
+}: {
+	now: () => number;
+}): ImportStageMetricsRecorder<ImportPlanStageId> {
+	return new ImportStageMetricsRecorder({ now, phase: "runtime-plan" });
+}
+
 export class ImportSessionError extends Error {
 	readonly code:
 		| "invalid-request"
@@ -127,6 +138,7 @@ export interface DraftImportPlanDto {
 	cacheMetrics: {
 		assetResolution: AssetResolutionCacheMetrics;
 	};
+	stageMetrics: ImportStageMetricsV1<ImportPlanStageId>;
 }
 
 export interface DraftImportMediaPayloadDto {
@@ -290,22 +302,26 @@ function arraysEqual({
 
 export class JianyingDraftImportSession {
 	readonly #buildIdentity: ImportPlanBuildIdentity;
+	readonly #metricsNow: () => number;
 	readonly #now: () => number;
 	readonly #planStore: ImportPlanStoreAdapter;
 	readonly #planTtlMilliseconds: number | undefined;
 
 	constructor({
 		buildIdentity,
+		metricsNow = () => performance.now(),
 		planTtlMilliseconds,
 		now = Date.now,
 		planStore,
 	}: {
 		buildIdentity: ImportPlanBuildIdentity;
+		metricsNow?: () => number;
 		planTtlMilliseconds?: number;
 		now?: () => number;
 		planStore?: ImportPlanStoreAdapter;
 	}) {
 		this.#buildIdentity = { ...buildIdentity };
+		this.#metricsNow = metricsNow;
 		this.#planTtlMilliseconds = planTtlMilliseconds;
 		this.#now = now;
 		this.#planStore = planStore ?? new ImportPlanStore({ buildIdentity, now });
@@ -313,11 +329,13 @@ export class JianyingDraftImportSession {
 
 	static async open({
 		buildIdentity,
+		metricsNow = () => performance.now(),
 		planTtlMilliseconds,
 		now = Date.now,
 		storageDirectory,
 	}: {
 		buildIdentity: ImportPlanBuildIdentity;
+		metricsNow?: () => number;
 		planTtlMilliseconds?: number;
 		now?: () => number;
 		storageDirectory: string;
@@ -329,13 +347,20 @@ export class JianyingDraftImportSession {
 		});
 		return new JianyingDraftImportSession({
 			buildIdentity,
+			metricsNow,
 			...(planTtlMilliseconds === undefined ? {} : { planTtlMilliseconds }),
 			now,
 			planStore,
 		});
 	}
 
-	async #inspectInternal({ input }: { input: unknown }): Promise<{
+	async #inspectInternal({
+		input,
+		stageMetrics,
+	}: {
+		input: unknown;
+		stageMetrics: ImportStageMetricsRecorder<ImportPlanStageId>;
+	}): Promise<{
 		inspect: DraftImportInspectDto;
 		snapshot: DraftSourceSnapshot;
 		detection: ProfileDetectionResult;
@@ -343,7 +368,10 @@ export class JianyingDraftImportSession {
 		bindings: RawNodeBinding[];
 		restrictedSourcePathsByResourceId: Record<string, string>;
 	}> {
-		const validated = validateDraftInspectRequest(input);
+		const validated = stageMetrics.measureSync({
+			run: () => validateDraftInspectRequest(input),
+			stage: "request-validation",
+		});
 		if (!validated.ok) {
 			throw new ImportSessionError({
 				code: "invalid-request",
@@ -352,23 +380,39 @@ export class JianyingDraftImportSession {
 					.join("; "),
 			});
 		}
-		const discovery = await discoverDraftDirectory({
-			draftDirectory: validated.request.draftPath,
+		const discovery = await stageMetrics.measure({
+			run: () =>
+				discoverDraftDirectory({
+					draftDirectory: validated.request.draftPath,
+				}),
+			stage: "source-discovery",
 		});
-		const snapshot = await readDraftSourceSnapshot({
-			rootRealPath: discovery.rootRealPath,
-			files: discovery.files,
-			...(validated.request.maxFileBytes === undefined
-				? {}
-				: { maxFileBytes: validated.request.maxFileBytes }),
-			...(validated.request.maxTotalBytes === undefined
-				? {}
-				: { maxTotalBytes: validated.request.maxTotalBytes }),
+		const snapshot = await stageMetrics.measure({
+			run: () =>
+				readDraftSourceSnapshot({
+					rootRealPath: discovery.rootRealPath,
+					files: discovery.files,
+					...(validated.request.maxFileBytes === undefined
+						? {}
+						: { maxFileBytes: validated.request.maxFileBytes }),
+					...(validated.request.maxTotalBytes === undefined
+						? {}
+						: { maxTotalBytes: validated.request.maxTotalBytes }),
+				}),
+			stage: "snapshot-read",
 		});
-		const contentSummary = buildContentSummary({ snapshot });
-		const detection = detectDraftProfile({
-			files: snapshot.files,
-			...(contentSummary === undefined ? {} : { contentSummary }),
+		const { contentSummary, detection } = stageMetrics.measureSync({
+			run: () => {
+				const summary = buildContentSummary({ snapshot });
+				return {
+					contentSummary: summary,
+					detection: detectDraftProfile({
+						files: snapshot.files,
+						...(summary === undefined ? {} : { contentSummary: summary }),
+					}),
+				};
+			},
+			stage: "profile-detection",
 		});
 
 		const inspect: DraftImportInspectDto = {
@@ -410,13 +454,17 @@ export class JianyingDraftImportSession {
 			platform: "macos",
 			files: snapshot.files.map(({ identity: _identity, ...file }) => file),
 		};
-		const normalized = normalizeRawDraft({
-			content: snapshot.parsedJsonByPath[contentSummary.fileName] as Record<
-				string,
-				unknown
-			>,
-			source,
-			contentFileName: contentSummary.fileName,
+		const normalized = stageMetrics.measureSync({
+			run: () =>
+				normalizeRawDraft({
+					content: snapshot.parsedJsonByPath[contentSummary.fileName] as Record<
+						string,
+						unknown
+					>,
+					source,
+					contentFileName: contentSummary.fileName,
+				}),
+			stage: "document-normalization",
 		});
 		const document = normalized.document;
 		inspect.issues = [...snapshot.issues, ...document.issues];
@@ -450,14 +498,19 @@ export class JianyingDraftImportSession {
 
 	/** Read-only report. Creates no state. */
 	async inspect({ input }: { input: unknown }): Promise<DraftImportInspectDto> {
-		const { inspect } = await this.#inspectInternal({ input });
+		const { inspect } = await this.#inspectInternal({
+			input,
+			stageMetrics: createPlanStageMetrics({ now: this.#metricsNow }),
+		});
 		return inspect;
 	}
 
 	async #prepareExactImport({
 		input,
+		stageMetrics,
 	}: {
 		input: unknown;
+		stageMetrics: ImportStageMetricsRecorder<ImportPlanStageId>;
 	}): Promise<PreparedExactImport> {
 		const {
 			inspect,
@@ -466,7 +519,7 @@ export class JianyingDraftImportSession {
 			document,
 			bindings,
 			restrictedSourcePathsByResourceId,
-		} = await this.#inspectInternal({ input });
+		} = await this.#inspectInternal({ input, stageMetrics });
 		if (detection.outcome !== "exact" || document === undefined) {
 			throw new ImportSessionError({
 				code: "profile-not-exact",
@@ -475,10 +528,14 @@ export class JianyingDraftImportSession {
 		}
 
 		const { assets, cacheMetrics, resolvedResources } =
-			await resolveImportAssets({
-				resources: document.resources,
-				restrictedSourcePathsByResourceId,
-				rootRealPath: snapshot.rootRealPath,
+			await stageMetrics.measure({
+				run: () =>
+					resolveImportAssets({
+						resources: document.resources,
+						restrictedSourcePathsByResourceId,
+						rootRealPath: snapshot.rootRealPath,
+					}),
+				stage: "asset-resolution",
 			});
 		const assetIssues = assets.flatMap((asset) => asset.issues);
 		return {
@@ -501,6 +558,7 @@ export class JianyingDraftImportSession {
 
 	/** Inspect + resolve + plan artifact + shared bundle under one token. */
 	async plan({ input }: { input: unknown }): Promise<DraftImportPlanDto> {
+		const stageMetrics = createPlanStageMetrics({ now: this.#metricsNow });
 		const {
 			inspect,
 			snapshot,
@@ -508,7 +566,7 @@ export class JianyingDraftImportSession {
 			document,
 			assets,
 			assetResolutionCacheMetrics,
-		} = await this.#prepareExactImport({ input });
+		} = await this.#prepareExactImport({ input, stageMetrics });
 
 		const artifact = createImportPlanArtifact({
 			snapshot,
@@ -523,13 +581,13 @@ export class JianyingDraftImportSession {
 				? {}
 				: { planTtlMilliseconds: this.#planTtlMilliseconds }),
 		});
-		const timelinePlan = mapInteropDocumentToQCutPlan({
-			document,
+		const timelinePlan = stageMetrics.measureSync({
+			run: () => mapInteropDocumentToQCutPlan({ document }),
+			stage: "timeline-mapping",
 		});
-		const bundleResult = buildQCutImportBundle({
-			artifact,
-			document,
-			timelinePlan,
+		const bundleResult = stageMetrics.measureSync({
+			run: () => buildQCutImportBundle({ artifact, document, timelinePlan }),
+			stage: "bundle-validation",
 		});
 		if (!bundleResult.ok) {
 			throw new ImportSessionError({
@@ -538,7 +596,10 @@ export class JianyingDraftImportSession {
 			});
 		}
 
-		await this.#planStore.put({ artifact });
+		await stageMetrics.measure({
+			run: async () => this.#planStore.put({ artifact }),
+			stage: "plan-persistence",
+		});
 
 		return {
 			plan: redactImportPlanArtifactForLog({ artifact }),
@@ -551,6 +612,7 @@ export class JianyingDraftImportSession {
 			cacheMetrics: {
 				assetResolution: assetResolutionCacheMetrics,
 			},
+			stageMetrics: stageMetrics.snapshot(),
 		};
 	}
 
@@ -561,8 +623,10 @@ export class JianyingDraftImportSession {
 	}): Promise<PlannedSessionState> {
 		let prepared: PreparedExactImport;
 		try {
+			const stageMetrics = createPlanStageMetrics({ now: this.#metricsNow });
 			prepared = await this.#prepareExactImport({
 				input: { draftPath: artifact.restricted.rootRealPath },
+				stageMetrics,
 			});
 		} catch (error) {
 			throw new ImportSessionError({
