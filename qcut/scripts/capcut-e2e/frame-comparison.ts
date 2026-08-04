@@ -3,7 +3,11 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { mapWithConcurrency } from "./bounded-concurrency.js";
 import { buildFrameExtractionArgs } from "./ffmpeg-args.js";
-import type { FrameSample, FrameSamplePlan } from "./frame-sample-plan.js";
+import {
+	type FrameSample,
+	type FrameSamplePlan,
+	validateFrameSamplePlan,
+} from "./frame-sample-plan.js";
 import {
 	getBundledTargetKey,
 	requireBundledToolVersion,
@@ -175,31 +179,6 @@ export function parseVideoProbeEvidence({
 	};
 }
 
-function validateSamplePlan({ plan }: { plan: FrameSamplePlan }): void {
-	if (
-		!Number.isFinite(plan.fps) ||
-		plan.fps <= 0 ||
-		!Number.isSafeInteger(plan.frameCount) ||
-		plan.frameCount <= 0 ||
-		plan.samples.length === 0
-	) {
-		throw new Error("Frame sample plan is invalid.");
-	}
-	let previous = -1;
-	for (const sample of plan.samples) {
-		if (
-			!Number.isSafeInteger(sample.frameIndex) ||
-			sample.frameIndex <= previous ||
-			sample.frameIndex < 0 ||
-			sample.frameIndex >= plan.frameCount ||
-			sample.reasons.length === 0
-		) {
-			throw new Error("Frame sample plan contains an invalid sample.");
-		}
-		previous = sample.frameIndex;
-	}
-}
-
 async function describeHash({ path }: { path: string }) {
 	const { bytes, sha256 } = await describeVisualFile({ path });
 	return { bytes, sha256 };
@@ -325,7 +304,7 @@ export async function compareVideoFrames({
 	rightPath: string;
 	thresholds?: FrameComparisonThresholds;
 }): Promise<FrameComparisonManifest> {
-	validateSamplePlan({ plan });
+	validateFrameSamplePlan({ plan });
 	const projectRoot = resolve(process.cwd());
 	const targetKey = getBundledTargetKey();
 	const [ffmpegPath, ffprobePath] = await Promise.all([
