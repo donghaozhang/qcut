@@ -27,6 +27,7 @@ import {
 	type ForeignDraftEnvelopeV1,
 	type InteropIssue,
 	type QCutImportBundleV1,
+	type RawNodeBinding,
 } from "@qcut/editor-core/draft-interop";
 import {
 	detectDraftProfile,
@@ -51,6 +52,7 @@ import {
 import { ImportPlanStore } from "./import-plan-store.js";
 import { PersistentImportPlanStore } from "./persistent-import-plan-store.js";
 import { buildQCutImportBundle } from "./qcut-import-bundle-builder.js";
+import { buildForeignEnvelopeCapture } from "./foreign-envelope-capture.js";
 import {
 	readDraftSourceSnapshot,
 	verifyDraftSourceUnchanged,
@@ -146,6 +148,7 @@ interface PlannedSessionState {
 	snapshot: DraftSourceSnapshot;
 	bundle: QCutImportBundleV1;
 	resolvedAssets: ResolvedImportAsset[];
+	bindings: RawNodeBinding[];
 }
 
 interface PreparedExactImport {
@@ -154,6 +157,7 @@ interface PreparedExactImport {
 	detection: ProfileDetectionResult;
 	document: DraftInteropDocumentV1;
 	assets: ResolvedImportAsset[];
+	bindings: RawNodeBinding[];
 }
 
 interface ImportPlanStoreAdapter {
@@ -331,6 +335,7 @@ export class JianyingDraftImportSession {
 		snapshot: DraftSourceSnapshot;
 		detection: ProfileDetectionResult;
 		document?: DraftInteropDocumentV1;
+		bindings: RawNodeBinding[];
 		restrictedSourcePathsByResourceId: Record<string, string>;
 	}> {
 		const validated = validateDraftInspectRequest(input);
@@ -382,6 +387,7 @@ export class JianyingDraftImportSession {
 				inspect,
 				snapshot,
 				detection,
+				bindings: [],
 				restrictedSourcePathsByResourceId: {},
 			};
 		}
@@ -431,6 +437,7 @@ export class JianyingDraftImportSession {
 			snapshot,
 			detection,
 			document,
+			bindings: normalized.bindings,
 			restrictedSourcePathsByResourceId:
 				normalized.restrictedSourcePathsByResourceId,
 		};
@@ -452,6 +459,7 @@ export class JianyingDraftImportSession {
 			snapshot,
 			detection,
 			document,
+			bindings,
 			restrictedSourcePathsByResourceId,
 		} = await this.#inspectInternal({ input });
 		if (detection.outcome !== "exact" || document === undefined) {
@@ -479,6 +487,7 @@ export class JianyingDraftImportSession {
 				issues: [...document.issues, ...assetIssues],
 			},
 			assets,
+			bindings,
 		};
 	}
 
@@ -599,6 +608,7 @@ export class JianyingDraftImportSession {
 			snapshot: prepared.snapshot,
 			bundle: bundleResult.bundle,
 			resolvedAssets: prepared.assets,
+			bindings: prepared.bindings,
 		};
 	}
 
@@ -657,6 +667,20 @@ export class JianyingDraftImportSession {
 				message: "source draft changed since the plan was created",
 			});
 		}
+		const profile = getDraftProfile({
+			profileId: session.bundle.document.source.profileId,
+		});
+		const envelopeCapture =
+			profile === null
+				? undefined
+				: buildForeignEnvelopeCapture({
+						acceptedDowngradeFingerprints: acceptedWarningFingerprints,
+						allowlist: profile.envelopeAllowlist,
+						bindings: session.bindings,
+						importId: planToken,
+						profileId: profile.profileId,
+						snapshot: session.snapshot,
+					});
 		// CAS after all retryable validation: only one concurrent caller proceeds.
 		await this.#planStore.consume({ planToken });
 
@@ -683,7 +707,11 @@ export class JianyingDraftImportSession {
 				bytesBase64: bytes.toString("base64"),
 			});
 		}
-		return { bundle: session.bundle, mediaPayloads };
+		return {
+			bundle: session.bundle,
+			mediaPayloads,
+			...(envelopeCapture === undefined ? {} : { envelopeCapture }),
+		};
 	}
 
 	dispose(): void {

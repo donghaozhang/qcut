@@ -190,6 +190,20 @@ describe("commit", () => {
 			Buffer.from(commit.mediaPayloads[0].bytesBase64, "base64").toString()
 		).toBe("media-bytes");
 		expect(commit.mediaPayloads[0].mimeType).toBe("video/mp4");
+		expect(commit.envelopeCapture?.envelope).toMatchObject({
+			importId: plan.plan.planToken,
+			profileId: "jianying-synthetic-plaintext-5.9",
+			entries: [expect.objectContaining({ relativePath: "draft_info.json" })],
+		});
+		const envelopePayload = JSON.parse(
+			Buffer.from(
+				commit.envelopeCapture?.payloadBase64 ?? "",
+				"base64"
+			).toString()
+		) as { entries: Array<{ relativePath: string }> };
+		expect(envelopePayload.entries).toEqual([
+			expect.objectContaining({ relativePath: "draft_info.json" }),
+		]);
 
 		// Replay is refused by the CAS store.
 		await expect(
