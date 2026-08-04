@@ -196,3 +196,10 @@ export {
 	type QCutImportSkippedNode,
 	type QCutImportTimelinePlanV1,
 } from "./import/qcut-mapping.js";
+
+export {
+	planCapCut81TimingPatches,
+	type CapCut81TimingPatchIssue,
+	type CapCut81TimingPatchIssueCode,
+	type PlanCapCut81TimingPatchesResult,
+} from "./writeback/capcut-8-1-timing-patches.js";
