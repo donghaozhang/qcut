@@ -73,13 +73,39 @@ export const StickerControls = memo<StickerControlsProps>(
 				);
 				if (sourceElement?.type !== "sticker") continue;
 
+				// The copy occupies the same time range as the source, so it needs
+				// a sticker lane that is free there — stack a new lane on top when
+				// none is (the no-overlap invariant rejects same-lane copies).
+				const sourceDuration =
+					sourceElement.duration -
+					sourceElement.trimStart -
+					sourceElement.trimEnd;
+				const freeTrack = timeline._tracks.find(
+					(candidate) =>
+						candidate.type === "sticker" &&
+						!candidate.locked &&
+						!timeline.checkElementOverlap(
+							candidate.id,
+							sourceElement.startTime,
+							sourceDuration
+						)
+				);
+				// insertTrackAt pushes the history entry when a lane is created, so
+				// the element add must not push a second one.
+				const targetTrackId =
+					freeTrack?.id ??
+					timeline.insertTrackAt(
+						"sticker",
+						timeline._tracks.findIndex((candidate) => candidate.id === track.id)
+					);
+
 				const sourceWithoutElementId = {
 					...sourceElement,
 				} as typeof sourceElement & Record<string, unknown>;
 				Reflect.deleteProperty(sourceWithoutElementId, "id");
 				const visual = stickerVisualUpdatesFromOverlay({ sticker });
-				timeline.addElementToTrack(
-					track.id,
+				useTimelineStore.getState().addElementToTrack(
+					targetTrackId,
 					assignNewStickerInstanceId({
 						element: {
 							...sourceWithoutElementId,
@@ -89,7 +115,8 @@ export const StickerControls = memo<StickerControlsProps>(
 							y: Math.min(90, sticker.position.y + 5),
 						} as CreateStickerElement,
 						newStickerId: createStickerInstanceId(),
-					})
+					}),
+					{ pushHistory: !!freeTrack }
 				);
 				break;
 			}

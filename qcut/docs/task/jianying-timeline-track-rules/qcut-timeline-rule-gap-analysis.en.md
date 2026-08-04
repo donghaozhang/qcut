@@ -14,7 +14,7 @@
 | QTL-001 Centralize command guards and lock enforcement | ✅ Done | 2026-08-04 | Pure preflight + every entry point wired + 26-case matrix test; also fixes the `replaceElementMedia` stale-snapshot write-back |
 | QTL-002 Shared Collision Engine | ✅ Done | 2026-08-04 | Pure interval math in `collision-policy.ts` + explicit `reject\|insert\|overwrite` parameter; deleteTimeRange and add-with-overwrite share one trim/split implementation; replace concurrency regression test |
 | QTL-003 Ripple Domains and typed Links | ✅ Done | 2026-08-04 | `ripple-plan.ts`: typed links derived from groupId (video-audio/group) + ripple-domain resolution; unrelated tracks no longer shift; a locked dependency blocks the whole command |
-| QTL-004 Transaction history | ⬜ Not started | | |
+| QTL-004 Transaction history | ✅ Done | 2026-08-04 | History snapshots carry tracks + selection + selected transition + playhead; fixes the redo round-trip bug; the CLI transaction bridge upgraded to full snapshots |
 | QTL-005 – QTL-012 | ⬜ Not started | | |
 
 ## Conclusion
@@ -23,12 +23,12 @@ This audit decomposes the JianYing research baseline into **50 independently tes
 
 | Status | Count | Share |
 | --- | ---: | ---: |
-| Complete | 36 | 72% |
-| Partial | 7 | 14% |
+| Complete | 37 | 74% |
+| Partial | 6 | 12% |
 | Missing | 7 | 14% |
-| **Requires repair or implementation** | **14** | **28%** |
+| **Requires repair or implementation** | **13** | **26%** |
 
-The audit baseline identified 19 of 50 rules needing changes; with QTL-001 through QTL-003 done, **QCut still needs code changes for 14 of the 50 timeline rules** — seven with useful foundations but incomplete contracts, seven without a first-class model or command.
+The audit baseline identified 19 of 50 rules needing changes; with QTL-001 through QTL-004 done, **QCut still needs code changes for 13 of the 50 timeline rules** — six with useful foundations but incomplete contracts, seven without a first-class model or command.
 
 QCut's foundation is stronger than the gap count may suggest. It already has typed tracks, explicit main-track identity, visibility, mute, ordering, canonical composition, grouping, compound containers, transitions, and ripple operations. The largest gap is the operation-semantics layer: locks are not enforced by every entry point, insert/overwrite/replace do not share a collision engine, main-track magnetism is not separate from snapping and ripple, relationships still rely heavily on generic `groupId`, and undo stores only track arrays.
 
@@ -54,10 +54,10 @@ QCut's foundation is stronger than the gap count may suggest. It already has typ
 | Snapping | 5 | 3 | 0 | 2 | 2 |
 | Links, groups, and compounds | 5 | 3 | 1 | 1 | 2 |
 | Transitions | 5 | 4 | 1 | 0 | 1 |
-| Undo and redo | 3 | 2 | 1 | 0 | 1 |
+| Undo and redo | 3 | 3 | 0 | 0 | 0 |
 | Navigation and cache | 3 | 1 | 2 | 0 | 2 |
 | AI semantics | 2 | 1 | 0 | 1 | 1 |
-| **Total** | **50** | **36** | **7** | **7** | **14** |
+| **Total** | **50** | **37** | **6** | **7** | **13** |
 
 ## Detailed 50-Rule Assessment
 
@@ -127,11 +127,11 @@ Compound clips can be created and decomposed, but the current representation is 
 
 **Partial: insufficient handles and replacement policy.** The current policy clamps or rejects. It has no JianYing-style edge-frame extension profile. Media replacement also does not explicitly preserve a target slot, recompute handles, and decide whether the transition survives. The existing transition invariants are a good base and should not be rewritten; they need a policy layer.
 
-### 9. Undo and redo: 2 complete, 1 partial
+### 9. Undo and redo: 3 complete, 0 partial
 
 **Complete:** Track arrays support undo/redo, and transition and precision edits restore as one history operation.
 
-**Partial: history snapshot scope.** `history` and `redoStack` store only `TimelineTrack[][]`. Selection, selected transition, playhead, scene switching, asynchronous media import, and cross-Store operations are outside one transaction. The multi-select branch of `selectElement()` also appends the same new selection twice, showing that selection invariants need dedicated tests. See [`timeline-store.ts`](../../../apps/web/src/stores/timeline/timeline-store.ts) and [`timeline-store-persistence.ts`](../../../apps/web/src/stores/timeline/timeline-store-persistence.ts).
+**Complete (QTL-004, landed 2026-08-04): history snapshot scope.** `history` and `redoStack` now store full editing-context snapshots ([`timeline-history.ts`](../../../apps/web/src/stores/timeline/timeline-history.ts): tracks + selection + selected transition + playhead), restored together by undo/redo. This also fixed a real round-trip bug: the old `redo()` popped the redo stack without re-pushing history, so undo after redo skipped a step. The CLI transaction bridge (`claude-transaction-bridge.ts`, grouped transactions as one entry) was upgraded to full snapshots. The audited "multi-select appends twice" claim does not reproduce in current code (the multi branch toggles); a selection-invariant test now pins that. See [`timeline-history-transaction.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-history-transaction.test.ts). Scene switching remains non-undoable (loading a scene clears history) — scene lifecycle is QTL-010.
 
 ### 10. Navigation and cache: 1 complete, 2 partial
 
@@ -155,9 +155,9 @@ Compound clips can be created and decomposed, but the current representation is 
 | P0 | Linked ripple can move every track | Unrelated or locked tracks can be shifted | ✅ Fixed (QTL-001 locked exclusion + QTL-003 domain semantics) |
 | P0 | `replaceElementMedia()` writes a stale async `_tracks` snapshot | User edits made during import can be overwritten | ✅ Fixed (QTL-001) |
 | P0 | Collision checks are outside the domain command layer | UI, CLI, and AI can produce different results for one operation | ✅ Fixed (QTL-002) |
-| P1 | History stores tracks only | Selection, playhead, and cross-Store state can disagree after undo | ⬜ QTL-004 |
+| P1 | History stores tracks only | Selection, playhead, and cross-Store state can disagree after undo | ✅ Fixed (QTL-004, incl. the redo round-trip bug) |
 | P1 | Frame-cache hashing ignores `track.hidden` | A hidden track may briefly remain visible through a stale cached frame | ⬜ QTL-010 |
-| P1 | Multi-select appends a selection twice | Selection counts and batch command inputs can contain duplicates | ⬜ QTL-004 (needs reproduction first) |
+| P1 | Multi-select appends a selection twice | Selection counts and batch command inputs can contain duplicates | ✅ Not reproducible (toggle semantics today); pinned by an invariant test (QTL-004) |
 | P1 | Scene deletion does not clean its timeline storage | Orphan scene data accumulates over time | ⬜ QTL-010 |
 
 ## Recommended Repair Order
@@ -208,19 +208,20 @@ What landed:
 
 Acceptance result: deleting a main clip moves only the main track and explicitly linked dependencies (the separated-audio lane follows) ✅; unrelated overlays stay fixed ✅; locked dependencies block partial commits (whole failure, no history entry) ✅; one undo restores the complete operation ✅. Remaining: the persisted link graph and unlink state (QTL-011) and group-closure deletion (QTL-008 — deleting a video does not yet delete its orphaned audio partner).
 
-#### QTL-004 Expand transaction history
+#### QTL-004 Expand transaction history ✅ Done (2026-08-04)
 
 Goal: history commands restore defined editor state rather than only tracks.
 
-Relevant files:
+What landed:
 
-- `packages/editor-core/src/commands/history.ts`
-- `apps/web/src/stores/timeline/timeline-store.ts`
-- `apps/web/src/stores/timeline/timeline-store-persistence.ts`
-- `apps/web/src/stores/editor/playback-store.ts`
-- `apps/web/src/stores/timeline/scene-store.ts`
+- `apps/web/src/stores/timeline/timeline-history.ts`: `TimelineHistorySnapshot` (tracks + selectedElements + selectedTransition + playheadTime) plus capture/playhead-restore helpers; the playback store is accessed lazily to avoid a module cycle.
+- `pushHistory`/`undo` in `timeline-store.ts` and `redo` in `timeline-store-persistence.ts` use full-snapshot semantics; **fixed the round-trip bug where `redo()` never re-pushed the departing state onto history** (undo→redo→undo used to skip a step).
+- `claude-transaction-bridge.ts`: grouped CLI transactions capture a full snapshot at Begin, commit pushes it, rollback restores from it — multi-step CLI transactions stay one history entry.
+- Decisions: the generic `packages/editor-core/src/commands/history.ts` stack was not adopted (the store's inline twin stacks fit better; the generic module stays available); scene switching remains non-undoable (loading clears history, QTL-010); playhead restoration follows "undo returns you to the edit site".
+- Collateral fix surfaced by the QTL-002 contract: sticker Duplicate now stacks onto a free/new sticker lane (a same-lane same-range copy violates the no-overlap invariant), reusing `insertTrackAt`'s history entry to stay one undo.
+- Tests: [`timeline-history-transaction.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-history-transaction.test.ts) (4 cases: undo/redo restore selection and playhead, round-trip regression, one entry per batch, multi-select invariant); two existing tests updated with the snapshot shape / sticker behavior.
 
-Acceptance: batch delete, replacement, scene switch, and AI-aligned insertion each produce one history entry; undo/redo restores tracks, selection, selected transition, and playhead according to the command contract; async failure leaves no partial state.
+Acceptance result: batch delete, replacement, CLI transactions, and AI-aligned insertion each produce one history entry ✅; undo/redo restores tracks, selection, selected transition, and playhead per the command contract ✅; async failure leaves no partial state (replace pushes history only after success; covered by the QTL-002 concurrency test) ✅; single-entry scene switching moves to QTL-010 (scene lifecycle).
 
 ### P1: Complete professional editing behavior
 

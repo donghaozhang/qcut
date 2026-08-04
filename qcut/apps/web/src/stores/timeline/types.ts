@@ -135,10 +135,10 @@ export interface OperationContext {
 export interface TimelineStore {
 	/** Private track storage - do not access directly, use tracks property instead */
 	_tracks: TimelineTrack[];
-	/** Undo history stack storing previous timeline states */
-	history: TimelineTrack[][];
-	/** Redo stack for restoring undone states */
-	redoStack: TimelineTrack[][];
+	/** Undo history stack of full editing-context snapshots (QTL-004) */
+	history: import("./timeline-history").TimelineHistorySnapshot[];
+	/** Redo stack for restoring undone snapshots */
+	redoStack: import("./timeline-history").TimelineHistorySnapshot[];
 
 	/** Auto-save status message for UI feedback */
 	autoSaveStatus: string;

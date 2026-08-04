@@ -14,7 +14,7 @@
 | QTL-001 统一命令守卫和锁定契约 | ✅ 已完成 | 2026-08-04 | 纯函数 preflight + 全入口接入 + 26 用例矩阵测试；顺带修复 `replaceElementMedia` 旧快照写回 |
 | QTL-002 共享 Collision Engine | ✅ 已完成 | 2026-08-04 | `collision-policy.ts` 纯区间数学 + `reject\|insert\|overwrite` 显式参数;deleteTimeRange 与 add-overwrite 共用一份 trim/split 实现;replace 并发回归测试 |
 | QTL-003 Ripple Domain 与类型化 Link | ✅ 已完成 | 2026-08-04 | `ripple-plan.ts`：groupId 派生类型化 link（video-audio/group）+ ripple domain 解析；无关轨道不再被波纹移动；锁定依赖阻止整个命令 |
-| QTL-004 扩展事务历史 | ⬜ 未开始 | | |
+| QTL-004 扩展事务历史 | ✅ 已完成 | 2026-08-04 | 历史快照含 tracks + 选择 + 转场选中 + 播放头；修复 redo 不回推 history 的往返 bug；CLI 事务桥升级到完整快照 |
 | QTL-005 ~ QTL-012 | ⬜ 未开始 | | |
 
 ## 结论
@@ -23,12 +23,12 @@
 
 | 状态 | 数量 | 占比 |
 | --- | ---: | ---: |
-| 完整实现 | 36 | 72% |
-| 部分实现 | 7 | 14% |
+| 完整实现 | 37 | 74% |
+| 部分实现 | 6 | 12% |
 | 尚未实现 | 7 | 14% |
-| **需要修复或补齐** | **14** | **28%** |
+| **需要修复或补齐** | **13** | **26%** |
 
-审计基线为 19/50 项需要改动；QTL-001 ~ QTL-003 完成后，**当前还有 14/50 项时间线规则需要代码改动**——7 项已有基础但契约不完整，另有 7 项缺少正式模型或命令。
+审计基线为 19/50 项需要改动；QTL-001 ~ QTL-004 完成后，**当前还有 13/50 项时间线规则需要代码改动**——6 项已有基础但契约不完整，另有 7 项缺少正式模型或命令。
 
 QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、顺序、合成层级、分组、复合片段、转场和波纹操作都已经存在。最大差距集中在操作语义：锁定没有在所有入口统一执行，插入/覆盖/替换没有一个共享冲突引擎，主轨磁吸与普通吸附/波纹没有拆开，关联仍主要依赖通用 `groupId`，撤销只保存轨道数组。
 
@@ -54,10 +54,10 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 | 吸附 | 5 | 3 | 0 | 2 | 2 |
 | 关联、组合与复合片段 | 5 | 3 | 1 | 1 | 2 |
 | 转场 | 5 | 4 | 1 | 0 | 1 |
-| 撤销与重做 | 3 | 2 | 1 | 0 | 1 |
+| 撤销与重做 | 3 | 3 | 0 | 0 | 0 |
 | 导航与缓存 | 3 | 1 | 2 | 0 | 2 |
 | AI 语义规则 | 2 | 1 | 0 | 1 | 1 |
-| **总计** | **50** | **36** | **7** | **7** | **14** |
+| **总计** | **50** | **37** | **6** | **7** | **13** |
 
 ## 50 项规则明细
 
@@ -127,11 +127,11 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 
 **部分：handle 不足与替换策略。** 当前策略是 clamp 或拒绝，没有剪映式边缘帧延展 profile。媒体替换也没有显式声明“保留目标时间槽、重算 handle、保留或移除转场”的规则。基础转场不变量已经可靠，不应重写；只需在其上增加策略层。
 
-### 9. 撤销与重做：2 完整，1 部分
+### 9. 撤销与重做：3 完整，0 部分
 
 **完整：** 轨道数组可以 undo/redo，转场和 precision edit 都能作为单次历史操作恢复。
 
-**部分：历史快照范围。** 当前 `history` 与 `redoStack` 只保存 `TimelineTrack[][]`。选择、当前转场、播放头、场景切换、异步素材导入和跨 Store 操作不在同一事务中。`selectElement()` 的 multi 分支还会把同一个新选择追加两次，说明选择状态需要独立不变量测试。实现位于 [`timeline-store.ts`](../../../apps/web/src/stores/timeline/timeline-store.ts) 和 [`timeline-store-persistence.ts`](../../../apps/web/src/stores/timeline/timeline-store-persistence.ts)。
+**完整（QTL-004，2026-08-04 落地）：历史快照范围。** `history` 与 `redoStack` 现在保存完整编辑上下文快照（[`timeline-history.ts`](../../../apps/web/src/stores/timeline/timeline-history.ts)：tracks + 选择 + 转场选中 + 播放头），undo/redo 一并恢复。顺带修复了一个真实往返 bug：旧 `redo()` 只弹 redoStack 不回推 history，undo→redo 之后再 undo 会跳级。CLI 事务桥（`claude-transaction-bridge.ts`，分组事务单条历史）同步升级到完整快照。审计所称"multi 分支追加两次"在当前代码中无法复现（multi 分支是 toggle 语义），已用选择不变量测试钉死。测试见 [`timeline-history-transaction.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-history-transaction.test.ts)。场景切换仍不可撤销（加载场景时清空历史）——场景生命周期归 QTL-010。
 
 ### 10. 导航与缓存：1 完整，2 部分
 
@@ -155,9 +155,9 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 | P0 | linked ripple 实际可移动全部轨道 | 无关轨道或锁定轨道可能被时间平移 | ✅ 已修复（QTL-001 排除锁定轨 + QTL-003 domain 语义） |
 | P0 | `replaceElementMedia()` 异步写回旧 `_tracks` | 等待导入期间的用户编辑可能被覆盖 | ✅ 已修复（QTL-001） |
 | P0 | 冲突检查不在 domain command 层 | 同一操作从 UI、CLI、AI 入口得到不同结果 | ✅ 已修复（QTL-002） |
-| P1 | 历史只保存 tracks | undo 后选择、播放头和跨 Store 状态可能不一致 | ⬜ 待 QTL-004 |
+| P1 | 历史只保存 tracks | undo 后选择、播放头和跨 Store 状态可能不一致 | ✅ 已修复（QTL-004，含 redo 往返 bug） |
 | P1 | 帧缓存忽略 `track.hidden` | 隐藏轨道后可能短暂显示旧缓存帧 | ⬜ 待 QTL-010 |
-| P1 | multi-select 重复追加选择 | 选择计数和批量命令输入可能重复 | ⬜ 待 QTL-004（需先复现） |
+| P1 | multi-select 重复追加选择 | 选择计数和批量命令输入可能重复 | ✅ 无法复现（当前为 toggle 语义），已加不变量测试（QTL-004） |
 | P1 | 场景删除不清理对应 timeline storage | 长期积累孤立场景数据 | ⬜ 待 QTL-010 |
 
 ## 建议修复顺序
@@ -208,19 +208,20 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 
 验收结果：主轨删除只移动主轨和显式 linked 依赖（分离音频轨随动）✅；无关 overlay 不动 ✅；锁定依赖阻止半套提交（整体失败、无历史条目）✅；undo 一次完整恢复 ✅。剩余：持久化 link 图与 unlink 状态（QTL-011）、组闭包删除（QTL-008，删除视频暂不删除孤儿音频伙伴）。
 
-#### QTL-004 扩展事务历史
+#### QTL-004 扩展事务历史 ✅ 已完成（2026-08-04）
 
 目标：历史命令保存可恢复的编辑状态，而不是只保存 tracks。
 
-相关文件：
+实施记录：
 
-- `packages/editor-core/src/commands/history.ts`
-- `apps/web/src/stores/timeline/timeline-store.ts`
-- `apps/web/src/stores/timeline/timeline-store-persistence.ts`
-- `apps/web/src/stores/editor/playback-store.ts`
-- `apps/web/src/stores/timeline/scene-store.ts`
+- `apps/web/src/stores/timeline/timeline-history.ts`：`TimelineHistorySnapshot`（tracks + selectedElements + selectedTransition + playheadTime）与捕获/播放头恢复函数；对 playback-store 用懒加载引用避免模块环。
+- `timeline-store.ts` 的 `pushHistory`/`undo` 与 `timeline-store-persistence.ts` 的 `redo` 改为完整快照语义；**修复 redo 不把当前状态回推 history 的往返 bug**（undo→redo→undo 此前会跳级）。
+- `claude-transaction-bridge.ts`：CLI 分组事务的 Begin 时捕获完整快照，commit 推快照、rollback 用快照恢复——CLI 多步事务保持单条历史。
+- 决策：未采用 `packages/editor-core/src/commands/history.ts` 的泛型栈（store 内联双栈更贴合现状，通用模块保留待用）；场景切换保持不可撤销（加载即清历史），归 QTL-010；播放头恢复采用"undo 回到编辑现场"语义。
+- 连带修复（QTL-002 契约暴露）：贴纸"复制"改为堆叠空闲/新建贴纸轨（同轨同时段副本违反不重叠不变量），新轨路径复用 `insertTrackAt` 的历史条目保持单次 undo。
+- 测试：[`timeline-history-transaction.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-history-transaction.test.ts)（4 用例：undo/redo 恢复选择与播放头、往返回归、批量删除单条目、multi-select 不变量）；两个既有测试随快照结构/贴纸行为更新。
 
-验收：批量删除、替换、场景切换和 AI 对齐插入都只有一个历史条目；undo/redo 后 tracks、选择、转场选择和播放头符合命令定义；异步失败不留下半成品。
+验收结果：批量删除、替换、CLI 事务和 AI 对齐插入都只有一个历史条目 ✅；undo/redo 后 tracks、选择、转场选择和播放头符合命令定义 ✅；异步失败不留半成品（replace 仅在成功后入栈，QTL-002 并发测试覆盖）✅；场景切换的单条目化留在 QTL-010（场景生命周期）。
 
 ### P1：补齐专业编辑行为
 

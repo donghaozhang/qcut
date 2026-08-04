@@ -20,6 +20,10 @@ import type { TimelineStore } from "./index";
 import type { StoreGet, StoreSet } from "./timeline-store-operations";
 import { normalizeLoadedTracks } from "./timeline-store-normalization";
 import { clearAutoSaveTimer } from "./timeline-store-autosave";
+import {
+	captureTimelineHistorySnapshot,
+	restoreTimelinePlayhead,
+} from "./timeline-history";
 import { getTimelineDuration } from "@/lib/timeline";
 
 export interface PersistenceDeps {
@@ -144,11 +148,30 @@ export function createPersistenceOperations(
 		},
 
 		redo: () => {
-			const { redoStack } = get();
-			if (redoStack.length === 0) return;
+			const {
+				redoStack,
+				history,
+				_tracks,
+				selectedElements,
+				selectedTransition,
+			} = get();
 			const next = redoStack[redoStack.length - 1];
-			updateTracksAndSave(next);
-			set({ redoStack: redoStack.slice(0, -1) });
+			if (!next) return;
+			// Symmetric with undo: the state being left is re-captured onto the
+			// history stack, so undo→redo→undo round-trips (QTL-004).
+			const current = captureTimelineHistorySnapshot({
+				tracks: _tracks,
+				selectedElements,
+				selectedTransition,
+			});
+			updateTracksAndSave(next.tracks);
+			set({
+				redoStack: redoStack.slice(0, -1),
+				history: [...history, current],
+				selectedElements: next.selectedElements,
+				selectedTransition: next.selectedTransition,
+			});
+			restoreTimelinePlayhead({ snapshot: next });
 		},
 
 		loadProjectTimeline: async ({ projectId, sceneId }) => {

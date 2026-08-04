@@ -19,6 +19,10 @@ import { create } from "zustand";
 import { sortTracksByOrder, ensureMainTrack } from "@/types/timeline";
 
 import { type TimelineStore } from "./index";
+import {
+	captureTimelineHistorySnapshot,
+	restoreTimelinePlayhead,
+} from "./timeline-history";
 import { createTimelineOperations } from "./timeline-store-operations";
 import { createAutoSaveHelpers } from "./timeline-store-autosave";
 import { createCrudOperations } from "./timeline-store-crud";
@@ -63,22 +67,43 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 		},
 
 		pushHistory: () => {
-			const { _tracks, history } = get();
+			const { _tracks, history, selectedElements, selectedTransition } = get();
 			set({
-				history: [...history, JSON.parse(JSON.stringify(_tracks))],
+				history: [
+					...history,
+					captureTimelineHistorySnapshot({
+						tracks: _tracks,
+						selectedElements,
+						selectedTransition,
+					}),
+				],
 				redoStack: [],
 			});
 		},
 
 		undo: () => {
-			const { history, redoStack, _tracks } = get();
-			if (history.length === 0) return;
-			const prev = history[history.length - 1];
-			updateTracksAndSave(prev);
+			const {
+				history,
+				redoStack,
+				_tracks,
+				selectedElements,
+				selectedTransition,
+			} = get();
+			const previous = history[history.length - 1];
+			if (!previous) return;
+			const current = captureTimelineHistorySnapshot({
+				tracks: _tracks,
+				selectedElements,
+				selectedTransition,
+			});
+			updateTracksAndSave(previous.tracks);
 			set({
 				history: history.slice(0, -1),
-				redoStack: [...redoStack, JSON.parse(JSON.stringify(_tracks))],
+				redoStack: [...redoStack, current],
+				selectedElements: previous.selectedElements,
+				selectedTransition: previous.selectedTransition,
 			});
+			restoreTimelinePlayhead({ snapshot: previous });
 		},
 
 		selectElement: (trackId, elementId, multi = false) => {

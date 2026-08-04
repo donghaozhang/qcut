@@ -7,12 +7,15 @@ import { StickerControls } from "../StickerControls";
 const mocks = vi.hoisted(() => ({
 	addElementToTrack: vi.fn(),
 	bringToFront: vi.fn(),
+	checkElementOverlap: vi.fn(() => false),
+	insertTrackAt: vi.fn(() => "new-sticker-track"),
 	removeOverlaySticker: vi.fn(),
 	saveHistorySnapshot: vi.fn(),
 	sendToBack: vi.fn(),
 	updateOverlaySticker: vi.fn(),
 	tracks: [] as Array<{
 		id: string;
+		type: string;
 		elements: Array<Record<string, unknown>>;
 	}>,
 }));
@@ -26,6 +29,8 @@ vi.mock("@/stores/timeline/timeline-store", () => ({
 		getState: () => ({
 			_tracks: mocks.tracks,
 			addElementToTrack: mocks.addElementToTrack,
+			checkElementOverlap: mocks.checkElementOverlap,
+			insertTrackAt: mocks.insertTrackAt,
 		}),
 	},
 }));
@@ -88,6 +93,7 @@ describe("StickerControls history boundaries", () => {
 		mocks.tracks = [
 			{
 				id: "sticker-track",
+				type: "sticker",
 				elements: [
 					{
 						id: "sticker-element",
