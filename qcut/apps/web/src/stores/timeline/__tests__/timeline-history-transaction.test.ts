@@ -188,12 +188,12 @@ describe("timeline transactional history", () => {
 		]);
 
 		useTimelineStore.getState().selectElement("main", "b", true);
-		useTimelineStore.getState().selectElement("main", "b", true);
 		const keys = useTimelineStore
 			.getState()
 			.selectedElements.map(
 				(selection) => `${selection.trackId}:${selection.elementId}`
 			);
+		expect(keys).toEqual(["main:a", "main:b"]);
 		expect(new Set(keys).size).toBe(keys.length);
 	});
 });
