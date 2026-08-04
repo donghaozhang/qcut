@@ -14,10 +14,13 @@
 import {
 	canonicalizeQCutImportBundleForDigest,
 	deriveImportInternalId,
+	parseForeignDraftEnvelopeV1,
 	parseQCutImportBundleV1,
+	type ForeignDraftEnvelopeV1,
 	type InteropIssue,
 	type QCutImportBundleV1,
 } from "@qcut/editor-core/draft-interop";
+import { isDraftProfileWritable } from "@qcut/editor-core/jianying-draft";
 import { debugError, debugLog } from "@/lib/debug/debug-config";
 import { generateUUID } from "@/lib/utils";
 import type { ImportJournal } from "@/lib/storage/import-journal";
@@ -28,6 +31,10 @@ import { storageService } from "@/lib/storage/storage-service";
 import type { MediaItem, MediaType } from "@/stores/media/media-store-types";
 import type { TProject } from "@/types/project";
 import type { MediaElement, TimelineTrack } from "@/types/timeline";
+import {
+	deleteEnvelopePayload,
+	storeEnvelopePayload,
+} from "./envelope-key-adapter";
 
 /** Decrypted media bytes for one staged resource, provided by transport. */
 export interface ImportMediaPayload {
@@ -37,12 +44,20 @@ export interface ImportMediaPayload {
 	bytes: Uint8Array;
 }
 
+export interface ImportEnvelopeCapture {
+	envelope: unknown;
+	payload: Uint8Array;
+	payloadSha256: string;
+}
+
 export type ImportTransactionFailureReason =
 	| "bundle-invalid"
 	| "digest-mismatch"
 	| "quota-exceeded"
 	| "project-conflict"
 	| "payload-missing"
+	| "envelope-invalid"
+	| "envelope-store-failed"
 	| "staging-failed"
 	| "verify-failed"
 	| "publish-failed";
@@ -64,7 +79,24 @@ export interface ImportTransactionDeps {
 	storage?: ImportTransactionStorage;
 	journal?: ImportJournal;
 	now?: () => Date;
+	envelopeStore?: ImportEnvelopeStore;
 }
+
+export interface ImportEnvelopeStore {
+	store: (options: { importId: string; payload: Uint8Array }) => Promise<
+		| {
+				ok: true;
+				value: { location: string; keyVersion: number; sha256: string };
+		  }
+		| { ok: false; code: string; message: string }
+	>;
+	delete: (options: { importId: string }) => Promise<unknown>;
+}
+
+const defaultEnvelopeStore: ImportEnvelopeStore = {
+	store: storeEnvelopePayload,
+	delete: deleteEnvelopePayload,
+};
 
 async function verifyBundleDigest({
 	bundle,
@@ -149,9 +181,23 @@ function deriveSourceSeed({ bundle }: { bundle: QCutImportBundleV1 }): string {
 
 function buildDraftInteropBinding({
 	bundle,
+	envelope,
 }: {
 	bundle: QCutImportBundleV1;
+	envelope?: ForeignDraftEnvelopeV1;
 }): NonNullable<TProject["draftInterop"]> {
+	const writeback =
+		envelope === undefined
+			? {
+					status: "unavailable" as const,
+					reason: "envelope-not-captured" as const,
+				}
+			: isDraftProfileWritable({ profileId: bundle.document.source.profileId })
+				? { status: "ready" as const }
+				: {
+						status: "unavailable" as const,
+						reason: "profile-not-writable" as const,
+					};
 	return {
 		schemaVersion: 1,
 		importId: bundle.planToken,
@@ -160,11 +206,52 @@ function buildDraftInteropBinding({
 		sourceFileSha256: bundle.document.source.files
 			.map((file) => file.sha256)
 			.sort(),
-		writeback: {
-			status: "unavailable",
-			reason: "envelope-not-captured",
-		},
+		writeback,
+		...(envelope === undefined ? {} : { envelope }),
 	};
+}
+
+function validateEnvelopeCapture({
+	bundle,
+	capture,
+}: {
+	bundle: QCutImportBundleV1;
+	capture: ImportEnvelopeCapture;
+}):
+	| { ok: true; envelope: ForeignDraftEnvelopeV1 }
+	| { ok: false; message: string } {
+	const parsed = parseForeignDraftEnvelopeV1(capture.envelope);
+	if (!parsed.ok) return { ok: false, message: parsed.reason };
+	const envelope = parsed.envelope;
+	if (
+		envelope.importId !== bundle.planToken ||
+		envelope.profileId !== bundle.document.source.profileId ||
+		envelope.payloadRef !== undefined ||
+		!/^[0-9a-f]{64}$/.test(capture.payloadSha256) ||
+		capture.payload.byteLength === 0
+	) {
+		return {
+			ok: false,
+			message: "envelope capture metadata does not match the import bundle",
+		};
+	}
+	const sourceFileByPath = new Map(
+		bundle.document.source.files.map((file) => [file.relativePath, file])
+	);
+	for (const entry of envelope.entries) {
+		const sourceFile = sourceFileByPath.get(entry.relativePath);
+		if (
+			sourceFile === undefined ||
+			sourceFile.sha256 !== entry.sha256 ||
+			sourceFile.byteLength !== entry.byteLength
+		) {
+			return {
+				ok: false,
+				message: `envelope entry ${entry.relativePath} is not source-bound`,
+			};
+		}
+	}
+	return { ok: true, envelope };
 }
 
 async function resolveProjectIdentity({
@@ -227,11 +314,13 @@ async function resolveProjectIdentity({
 export async function runQCutImportTransaction({
 	bundleValue,
 	mediaPayloads,
+	envelopeCapture,
 	reuseExistingProject = false,
 	deps = {},
 }: {
 	bundleValue: unknown;
 	mediaPayloads: readonly ImportMediaPayload[];
+	envelopeCapture?: ImportEnvelopeCapture;
 	/** Offline delivery retry: reuse the deterministic, already-published project. */
 	reuseExistingProject?: boolean;
 	deps?: ImportTransactionDeps;
@@ -256,6 +345,21 @@ export async function runQCutImportTransaction({
 			reason: "digest-mismatch",
 			message: "bundle digest does not match its canonical serialization",
 		};
+	}
+	let capturedEnvelope: ForeignDraftEnvelopeV1 | undefined;
+	if (envelopeCapture !== undefined) {
+		const envelopeValidation = validateEnvelopeCapture({
+			bundle,
+			capture: envelopeCapture,
+		});
+		if (!envelopeValidation.ok) {
+			return {
+				ok: false,
+				reason: "envelope-invalid",
+				message: envelopeValidation.message,
+			};
+		}
+		capturedEnvelope = envelopeValidation.envelope;
 	}
 
 	const quota = await storage.checkStorageQuota();
@@ -357,6 +461,37 @@ export async function runQCutImportTransaction({
 	}
 
 	const createdAt = now();
+	let storedEnvelope: ForeignDraftEnvelopeV1 | undefined;
+	if (envelopeCapture !== undefined && capturedEnvelope !== undefined) {
+		const envelopeStore = deps.envelopeStore ?? defaultEnvelopeStore;
+		const stored = await envelopeStore.store({
+			importId: capturedEnvelope.importId,
+			payload: envelopeCapture.payload,
+		});
+		if (!stored.ok || stored.value.sha256 !== envelopeCapture.payloadSha256) {
+			if (stored.ok) {
+				await envelopeStore.delete({
+					importId: capturedEnvelope.importId,
+				});
+			}
+			await session.rollback();
+			return {
+				ok: false,
+				reason: "envelope-store-failed",
+				message: stored.ok
+					? "encrypted envelope payload digest mismatch"
+					: stored.message,
+			};
+		}
+		storedEnvelope = {
+			...capturedEnvelope,
+			payloadRef: {
+				cipher: "os-keychain-wrapped",
+				location: stored.value.location,
+				keyVersion: stored.value.keyVersion,
+			},
+		};
+	}
 	const project: TProject = {
 		id: identity.projectId,
 		name: identity.projectName,
@@ -379,12 +514,19 @@ export async function runQCutImportTransaction({
 		},
 		canvasMode: "custom",
 		fps: bundle.timelinePlan.project.fps,
-		draftInterop: buildDraftInteropBinding({ bundle }),
+		draftInterop: buildDraftInteropBinding({
+			bundle,
+			...(storedEnvelope === undefined ? {} : { envelope: storedEnvelope }),
+		}),
 	};
 	try {
 		await session.publishProject({ project });
 	} catch (error) {
 		debugError("[QCutImport] Publish failed, rolling back", error);
+		if (storedEnvelope !== undefined) {
+			const envelopeStore = deps.envelopeStore ?? defaultEnvelopeStore;
+			await envelopeStore.delete({ importId: storedEnvelope.importId });
+		}
 		await session.rollback();
 		return {
 			ok: false,

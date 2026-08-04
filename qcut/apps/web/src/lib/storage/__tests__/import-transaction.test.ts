@@ -7,6 +7,7 @@ import {
 } from "@qcut/editor-core/draft-interop";
 import {
 	runQCutImportTransaction,
+	type ImportEnvelopeStore,
 	type ImportTransactionStorage,
 } from "@/lib/jianying-draft/qcut-import-transaction";
 import { ImportJournal, type ImportJournalRecordV1 } from "../import-journal";
@@ -239,6 +240,64 @@ function createPayload() {
 	};
 }
 
+function createEnvelopeCapture() {
+	const payload = new TextEncoder().encode("private foreign draft payload");
+	return {
+		envelope: {
+			schemaVersion: 1 as const,
+			importId: "import-token-1",
+			profileId: "jianying-synthetic-plaintext-5.9",
+			entries: [
+				{
+					relativePath: "draft_info.json",
+					sha256: "a".repeat(64),
+					byteLength: 4096,
+					allowlistEntryId: "fixture-content",
+					storage: "raw" as const,
+				},
+			],
+			bindings: [],
+			unknownSubtrees: [],
+			dirtyDomains: [],
+			acceptedDowngradeFingerprints: [],
+		},
+		payload,
+		payloadSha256: createHash("sha256").update(payload).digest("hex"),
+	};
+}
+
+function createEnvelopeStore({
+	failStore = false,
+}: {
+	failStore?: boolean;
+} = {}): ImportEnvelopeStore & { calls: string[] } {
+	const calls: string[] = [];
+	return {
+		calls,
+		store: async ({ importId, payload }) => {
+			calls.push(`store:${importId}`);
+			if (failStore) {
+				return {
+					ok: false,
+					code: "keychain-unavailable",
+					message: "keychain unavailable",
+				};
+			}
+			return {
+				ok: true,
+				value: {
+					location: `envelopes/${importId}.bin`,
+					keyVersion: 1,
+					sha256: createHash("sha256").update(payload).digest("hex"),
+				},
+			};
+		},
+		delete: async ({ importId }) => {
+			calls.push(`delete:${importId}`);
+		},
+	};
+}
+
 let journalAdapter: ReturnType<typeof createMapAdapter<ImportJournalRecordV1>>;
 let journal: ImportJournal;
 let storage: FakeStorage;
@@ -340,6 +399,65 @@ describe("runQCutImportTransaction", () => {
 		expect(storage.calls).toEqual([]);
 	});
 
+	it("stores the envelope before publish and persists only its encrypted reference", async () => {
+		const envelopeStore = createEnvelopeStore();
+		const result = await runQCutImportTransaction({
+			bundleValue: JSON.parse(JSON.stringify(createBundle())),
+			mediaPayloads: [createPayload()],
+			envelopeCapture: createEnvelopeCapture(),
+			deps: { storage, journal, envelopeStore },
+		});
+
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		expect(envelopeStore.calls).toEqual(["store:import-token-1"]);
+		expect(storage.projects.get(result.projectId)?.draftInterop).toMatchObject({
+			writeback: {
+				status: "unavailable",
+				reason: "profile-not-writable",
+			},
+			envelope: {
+				payloadRef: {
+					cipher: "os-keychain-wrapped",
+					location: "envelopes/import-token-1.bin",
+					keyVersion: 1,
+				},
+			},
+		});
+	});
+
+	it("rejects a mismatched envelope before any write", async () => {
+		const envelopeCapture = createEnvelopeCapture();
+		envelopeCapture.envelope.profileId = "wrong-profile";
+		const result = await runQCutImportTransaction({
+			bundleValue: JSON.parse(JSON.stringify(createBundle())),
+			mediaPayloads: [createPayload()],
+			envelopeCapture,
+			deps: { storage, journal },
+		});
+
+		expect(result).toMatchObject({ ok: false, reason: "envelope-invalid" });
+		expect(storage.calls).toEqual([]);
+	});
+
+	it("rolls back staged data when envelope encryption fails", async () => {
+		const envelopeStore = createEnvelopeStore({ failStore: true });
+		const result = await runQCutImportTransaction({
+			bundleValue: JSON.parse(JSON.stringify(createBundle())),
+			mediaPayloads: [createPayload()],
+			envelopeCapture: createEnvelopeCapture(),
+			deps: { storage, journal, envelopeStore },
+		});
+
+		expect(result).toMatchObject({
+			ok: false,
+			reason: "envelope-store-failed",
+		});
+		expect(storage.projects.size).toBe(0);
+		expect(storage.media.size).toBe(0);
+		expect(journalAdapter.map.size).toBe(0);
+	});
+
 	it("rolls back everything when staging fails midway", async () => {
 		storage.failOn = "saveMediaItem";
 		const result = await runQCutImportTransaction({
@@ -365,6 +483,24 @@ describe("runQCutImportTransaction", () => {
 		expect(storage.projects.size).toBe(0);
 		expect(storage.media.size).toBe(0);
 		expect(journalAdapter.map.size).toBe(0);
+	});
+
+	it("deletes an encrypted envelope when project publish fails", async () => {
+		storage.failOn = "saveProject";
+		const envelopeStore = createEnvelopeStore();
+		const result = await runQCutImportTransaction({
+			bundleValue: JSON.parse(JSON.stringify(createBundle())),
+			mediaPayloads: [createPayload()],
+			envelopeCapture: createEnvelopeCapture(),
+			deps: { storage, journal, envelopeStore },
+		});
+
+		expect(result).toMatchObject({ ok: false, reason: "publish-failed" });
+		expect(envelopeStore.calls).toEqual([
+			"store:import-token-1",
+			"delete:import-token-1",
+		]);
+		expect(storage.projects.size).toBe(0);
 	});
 
 	it("applies the conflict policy on re-import", async () => {
