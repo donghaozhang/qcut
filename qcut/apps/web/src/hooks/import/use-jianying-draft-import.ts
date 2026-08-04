@@ -12,9 +12,11 @@ import type {
 	JianyingDraftImportAPI,
 } from "@/types/electron/api-jianying-draft-import";
 import {
+	quarantineCorruptImportJournalRecords,
 	recoverPendingImports,
 	type ImportRecoveryResult,
 } from "@/lib/storage/import-recovery";
+import type { ImportJournalQuarantineResult } from "@/lib/storage/import-journal";
 
 export type JianyingDraftImportPhase =
 	| "idle"
@@ -39,6 +41,7 @@ export interface JianyingDraftImportController {
 	inboxEntries: DraftImportInboxEntrySummaryDto[];
 	isInboxLoading: boolean;
 	isRecoveryRunning: boolean;
+	isJournalQuarantineRunning: boolean;
 	recoveryResult: ImportRecoveryResult | null;
 	activeInboxEntryId: string | null;
 	acceptedWarningFingerprints: ReadonlySet<string>;
@@ -51,6 +54,7 @@ export interface JianyingDraftImportController {
 	commitInboxEntry: (entryId: string) => Promise<void>;
 	retryAcknowledgement: () => Promise<void>;
 	refreshInbox: () => Promise<void>;
+	quarantineCorruptJournalRecords: () => Promise<void>;
 	setWarningsAccepted: (accepted: boolean) => void;
 	resetLiveImport: () => void;
 }
@@ -66,9 +70,11 @@ function messageForError({ error }: { error: unknown }): string {
 export function useJianyingDraftImport({
 	onProjectImported,
 	recoverImports = recoverPendingImports,
+	quarantineCorruptRecords = quarantineCorruptImportJournalRecords,
 }: {
 	onProjectImported?: (projectId: string) => Promise<void> | void;
 	recoverImports?: () => Promise<ImportRecoveryResult>;
+	quarantineCorruptRecords?: () => Promise<ImportJournalQuarantineResult>;
 } = {}): JianyingDraftImportController {
 	const isAvailable = getBridge() !== null;
 	const [phase, setPhase] = useState<JianyingDraftImportPhase>("idle");
@@ -80,6 +86,8 @@ export function useJianyingDraftImport({
 	>([]);
 	const [isInboxLoading, setIsInboxLoading] = useState(false);
 	const [isRecoveryRunning, setIsRecoveryRunning] = useState(true);
+	const [isJournalQuarantineRunning, setIsJournalQuarantineRunning] =
+		useState(false);
 	const [recoveryResult, setRecoveryResult] =
 		useState<ImportRecoveryResult | null>(null);
 	const [activeInboxEntryId, setActiveInboxEntryId] = useState<string | null>(
@@ -255,6 +263,24 @@ export function useJianyingDraftImport({
 		}
 	}, [pendingAcknowledgement, refreshInbox]);
 
+	const quarantineCorruptJournalRecords = useCallback(async () => {
+		setIsJournalQuarantineRunning(true);
+		setErrorMessage(null);
+		try {
+			const result = await quarantineCorruptRecords();
+			setRecoveryResult((current) => ({
+				rolledBackImportIds: current?.rolledBackImportIds ?? [],
+				completedImportIds: current?.completedImportIds ?? [],
+				corruptJournalRecordCount: result.corruptRecordCount,
+				quarantinedJournalRecordCount: result.quarantinedRecordCount,
+			}));
+		} catch (error) {
+			setErrorMessage(messageForError({ error }));
+		} finally {
+			setIsJournalQuarantineRunning(false);
+		}
+	}, [quarantineCorruptRecords]);
+
 	const setWarningsAccepted = useCallback(
 		(accepted: boolean) => {
 			setAcceptedWarningFingerprints(
@@ -293,6 +319,7 @@ export function useJianyingDraftImport({
 		inboxEntries,
 		isInboxLoading,
 		isRecoveryRunning,
+		isJournalQuarantineRunning,
 		recoveryResult,
 		activeInboxEntryId,
 		acceptedWarningFingerprints,
@@ -305,6 +332,7 @@ export function useJianyingDraftImport({
 		commitInboxEntry,
 		retryAcknowledgement,
 		refreshInbox,
+		quarantineCorruptJournalRecords,
 		setWarningsAccepted,
 		resetLiveImport,
 	};
