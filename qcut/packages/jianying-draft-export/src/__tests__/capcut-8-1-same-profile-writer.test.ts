@@ -1,19 +1,8 @@
-import { createHash, randomUUID } from "node:crypto";
-import {
-	mkdir,
-	mkdtemp,
-	readdir,
-	readFile,
-	rm,
-	writeFile,
-} from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
-import {
-	buildCapCut81ActiveContentMirrorPaths,
-	CAPCUT_8_1_PROFILE_ID,
-	CAPCUT_8_1_SAVED_NEW_VERSION,
-} from "@qcut/editor-core/jianying-draft";
+import { join } from "node:path";
+import { CAPCUT_8_1_PROFILE_ID } from "@qcut/editor-core/jianying-draft";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { CapCut81SameProfileWritebackError } from "../capcut-8-1-same-profile-contract.js";
 import {
@@ -21,97 +10,18 @@ import {
 	recoverCapCut81SameProfileWriteback,
 } from "../capcut-8-1-same-profile-transaction.js";
 import { writeCapCut81SameProfileContent } from "../capcut-8-1-same-profile-writer.js";
+import {
+	contentBytes,
+	createCapCut81SameProfileTestFixture,
+	listQCutArtifacts,
+	readMirrors,
+	sha256,
+} from "./support/capcut-8-1-same-profile-fixture.js";
 
 let rootDirectory = "";
 
-function sha256({ bytes }: { bytes: Uint8Array }): string {
-	return createHash("sha256").update(bytes).digest("hex");
-}
-
-function contentBytes({
-	timelineId,
-	timing = 3_000_000,
-}: {
-	timelineId: string;
-	timing?: number;
-}): Uint8Array {
-	return new TextEncoder().encode(
-		JSON.stringify({
-			id: timelineId,
-			new_version: CAPCUT_8_1_SAVED_NEW_VERSION,
-			unknownTopLevel: { sentinel: ["keep", { nested: true }] },
-			tracks: [
-				{
-					segments: [
-						{
-							target_timerange: { start: 0, duration: timing },
-							unknownSegment: { preserve: true },
-						},
-					],
-				},
-			],
-		})
-	);
-}
-
-async function createDraftFixture() {
-	const timelineId = randomUUID();
-	const draftDirectory = join(rootDirectory, "draft");
-	const originalBytes = contentBytes({ timelineId });
-	const mirrorRelativePaths = buildCapCut81ActiveContentMirrorPaths({
-		timelineId,
-	});
-	for (const relativePath of mirrorRelativePaths) {
-		const absolutePath = join(draftDirectory, ...relativePath.split("/"));
-		await mkdir(dirname(absolutePath), { recursive: true });
-		await writeFile(absolutePath, originalBytes);
-	}
-	const backupPaths = [
-		join(draftDirectory, "draft_info.json.bak"),
-		join(draftDirectory, "Timelines", timelineId, "draft_info.json.bak"),
-	];
-	for (const backupPath of backupPaths) {
-		await writeFile(backupPath, originalBytes);
-	}
-	return {
-		backupPaths,
-		draftDirectory,
-		mirrorRelativePaths,
-		originalBytes,
-		timelineId,
-	};
-}
-
-async function readMirrors({
-	draftDirectory,
-	mirrorRelativePaths,
-}: {
-	draftDirectory: string;
-	mirrorRelativePaths: readonly string[];
-}): Promise<Uint8Array[]> {
-	return Promise.all(
-		mirrorRelativePaths.map((relativePath) =>
-			readFile(join(draftDirectory, ...relativePath.split("/")))
-		)
-	);
-}
-
-async function listQCutArtifacts({
-	directory,
-}: {
-	directory: string;
-}): Promise<string[]> {
-	const entries = await readdir(directory, { withFileTypes: true });
-	const nested = await Promise.all(
-		entries.map(async (entry) => {
-			const path = join(directory, entry.name);
-			if (entry.isDirectory()) return listQCutArtifacts({ directory: path });
-			return entry.name.includes("qcut-") || entry.name.startsWith(".qcut")
-				? [path]
-				: [];
-		})
-	);
-	return nested.flat();
+function createDraftFixture() {
+	return createCapCut81SameProfileTestFixture({ rootDirectory });
 }
 
 beforeEach(async () => {
