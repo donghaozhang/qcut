@@ -34,11 +34,13 @@ import {
 } from "../../draft-interop/document.js";
 import type { InteropIssue } from "../../draft-interop/issues.js";
 import type { RawNodeBinding } from "../../draft-interop/provenance.js";
+import { CAPCUT_8_1_PROFILE_ID } from "../capcut-8-1-profile.js";
 import type {
 	RawDraftGraph,
 	RawGraphMaterialNode,
 	RawGraphSegmentNode,
 } from "./graph-reader.js";
+import { mapCapCut81StaticText } from "./capcut-8-1-text-mapper.js";
 import { mapCapCut81SeamTransition } from "./capcut-8-1-transition-mapper.js";
 import { readRawDraftGraph } from "./graph-reader.js";
 import { isRawRecord, type RawDraftContent } from "./raw-types.js";
@@ -256,12 +258,18 @@ function classifySegment({
 function normalizeSegment({
 	segment,
 	graph,
+	profileId,
+	canvasWidth,
+	canvasHeight,
 	contentFileName,
 	issues,
 	bindings,
 }: {
 	segment: RawGraphSegmentNode;
 	graph: RawDraftGraph;
+	profileId: string;
+	canvasWidth: number;
+	canvasHeight: number;
 	contentFileName: string;
 	issues: InteropIssue[];
 	bindings: RawNodeBinding[];
@@ -272,6 +280,37 @@ function normalizeSegment({
 			: graph.materialsById.get(segment.materialId);
 	const classified = classifySegment({ segment, material });
 	let capability = classified.capability;
+	let textMappingIssueAdded = false;
+	let text: InteropSegment["text"];
+	if (
+		classified.kind === "text" &&
+		material !== undefined &&
+		profileId === CAPCUT_8_1_PROFILE_ID
+	) {
+		const mapped = mapCapCut81StaticText({
+			profileId,
+			canvasWidth,
+			canvasHeight,
+			material,
+			segment,
+		});
+		capability = combineInteropCapabilities([capability, mapped.capability]);
+		text = mapped.text;
+		issues.push({
+			code: mapped.issueCode,
+			severity: mapped.capability === "blocked" ? "error" : "warning",
+			message: mapped.reason,
+			path: material.jsonPointer,
+			subjectId: segment.id,
+		});
+		textMappingIssueAdded = true;
+		bindings.push({
+			foreignRef: material.id,
+			file: contentFileName,
+			jsonPointer: material.jsonPointer,
+			semanticId: segment.id,
+		});
+	}
 
 	for (const ref of segment.extraMaterialRefs) {
 		const extra = graph.materialsById.get(ref);
@@ -305,7 +344,7 @@ function normalizeSegment({
 		targetRange = { start: 0, duration: 0 };
 	}
 
-	if (capability === "downgrade") {
+	if (capability === "downgrade" && !textMappingIssueAdded) {
 		issues.push({
 			code: "FEATURE_DOWNGRADED",
 			severity: "warning",
@@ -313,7 +352,7 @@ function normalizeSegment({
 			path: segment.jsonPointer,
 			subjectId: segment.id,
 		});
-	} else if (capability === "opaque") {
+	} else if (capability === "opaque" && !textMappingIssueAdded) {
 		issues.push({
 			code: "FEATURE_OPAQUE",
 			severity: "warning",
@@ -352,6 +391,7 @@ function normalizeSegment({
 			durationUs: targetRange.duration,
 		},
 		...(speed === undefined ? {} : { speed }),
+		...(text === undefined ? {} : { text }),
 		capability,
 		foreignRef: segment.id,
 	};
@@ -439,12 +479,16 @@ function normalizeTransitions({
 
 function normalizeTracks({
 	profileId,
+	canvasWidth,
+	canvasHeight,
 	graph,
 	contentFileName,
 	issues,
 	bindings,
 }: {
 	profileId: string;
+	canvasWidth: number;
+	canvasHeight: number;
 	graph: RawDraftGraph;
 	contentFileName: string;
 	issues: InteropIssue[];
@@ -470,7 +514,16 @@ function normalizeTracks({
 				(segment): segment is RawGraphSegmentNode => segment !== undefined
 			);
 		const segments = rawSegments.map((segment) =>
-			normalizeSegment({ segment, graph, contentFileName, issues, bindings })
+			normalizeSegment({
+				segment,
+				graph,
+				profileId,
+				canvasWidth,
+				canvasHeight,
+				contentFileName,
+				issues,
+				bindings,
+			})
 		);
 		const transitions = normalizeTransitions({
 			profileId,
@@ -538,6 +591,8 @@ export function normalizeRawDraft(
 	});
 	const tracks = normalizeTracks({
 		profileId: input.source.profileId,
+		canvasWidth: project.width,
+		canvasHeight: project.height,
 		graph,
 		contentFileName: input.contentFileName,
 		issues,
