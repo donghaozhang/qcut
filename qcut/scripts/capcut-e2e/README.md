@@ -82,6 +82,7 @@ bun scripts/capcut-e2e/capcut-8-1-writeback-verification.ts \
   --case-id <case-id> \
   --source-draft <capcut-8.1-draft-dir> \
   --source-receipt <capcut-envelope-capture-receipt.json> \
+  --app-receipt <capcut-8.1-app-roundtrip-receipt.json> \
   --output <new-evidence-dir> --json
 ```
 
@@ -94,10 +95,14 @@ match, both `.bak` mirrors and the original source to remain unchanged, the
 unknown sentinel to survive, the raw JSON diff to equal the planned pointers,
 and recovery state to be clean.
 
-An isolated-copy success remains `unverified` with exit code `2` until the
-exact CapCut 8.1 application opens, saves, and reopens the written copy. Exit
-code `0` is reserved for that additional real-app gate; invariant failures use
-`1`, and harness errors use `3`.
+`--app-receipt` is optional. Without it, an isolated-copy success remains
+`unverified` with exit code `2`. When supplied, the receipt must bind the exact
+8.1.1 app metadata and Developer ID signature, distinct open/reopen process
+generations, the pre-open writeback SHA-256, four matching active mirrors, the
+unknown sentinel, and an unchanged saved/reopened state. A 9.1 receipt or a
+receipt for another output fails closed. Exit code `0` is reserved for that
+additional real-app gate; invariant failures use `1`, and harness errors use
+`3`.
 
 ## Round-trip parity case
 
