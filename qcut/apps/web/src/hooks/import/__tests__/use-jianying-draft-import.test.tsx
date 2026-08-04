@@ -62,6 +62,7 @@ describe("useJianyingDraftImport", () => {
 		const recoverImports = async () => ({
 			rolledBackImportIds: [],
 			completedImportIds: [],
+			corruptJournalRecordCount: 0,
 		});
 		const { result } = renderHook(() =>
 			useJianyingDraftImport({ recoverImports })
@@ -80,6 +81,7 @@ describe("useJianyingDraftImport", () => {
 		const recoverImports = async () => ({
 			rolledBackImportIds: [],
 			completedImportIds: [],
+			corruptJournalRecordCount: 0,
 		});
 		const { result } = renderHook(() =>
 			useJianyingDraftImport({ recoverImports })
