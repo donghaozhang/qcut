@@ -30,6 +30,7 @@ import { handleRemotionCommand } from "../editor/editor-handlers-remotion.js";
 import { handleStickerCommand } from "../editor/editor-handlers-sticker.js";
 import { handleTransitionLabCommand } from "../editor/editor-handlers-transition-lab.js";
 import { handleJianyingTransitionCommand } from "../editor/editor-handlers-jianying-transition.js";
+import { handleJianyingImportCommand } from "../editor/editor-handlers-jianying-import.js";
 import { handleSearchCommand } from "../editor/editor-handlers-search.js";
 import {
 	handleConsoleCommand,
@@ -214,6 +215,7 @@ export async function handleEditorCommand(
 		options.command === "editor:health" ||
 		options.command === "editor:transition-lab:list" ||
 		options.command.startsWith("editor:jianying-transition:") ||
+		options.command.startsWith("editor:jianying-import:") ||
 		options.command.startsWith("editor:diff:") ||
 		options.command.startsWith("editor:session:") ||
 		(options.skipHealth && (!options.session || isSessionHealthChecked()));
@@ -280,6 +282,9 @@ export async function handleEditorCommand(
 	try {
 		if (module === "jianying-transition") {
 			return await handleJianyingTransitionCommand({ options, signal });
+		}
+		if (module === "jianying-import") {
+			return await handleJianyingImportCommand({ options, signal });
 		}
 		const result = await (async (): Promise<CLIResult> => {
 			switch (module) {
