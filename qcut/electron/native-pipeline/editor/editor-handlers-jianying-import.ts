@@ -13,7 +13,12 @@ import type { CLIResult, CLIRunOptions } from "../cli/cli-runner/types.js";
 interface ImportSessionLike {
 	inspect(options: { input: unknown }): Promise<unknown>;
 	plan(options: { input: unknown }): Promise<unknown>;
-	commit(options: { input: unknown }): Promise<unknown>;
+	commitWithMediaGrants(options: { input: unknown }): Promise<{
+		mediaGrants: Array<{ grantToken: string }>;
+		[key: string]: unknown;
+	}>;
+	readMediaPayloadChunk(options: { input: unknown }): Promise<unknown>;
+	releaseMediaPayloadGrants(options: { input: unknown }): unknown;
 	dispose(): void;
 }
 
@@ -30,9 +35,10 @@ interface ImportSessionConstructor {
 
 interface ImportRuntimeModule {
 	JianyingDraftImportSession: ImportSessionConstructor;
-	enqueueDesktopImport(options: {
+	enqueueDesktopImportFromGrants(options: {
 		inboxDirectory: string;
 		commit: unknown;
+		readChunk: (options: { input: unknown }) => Promise<unknown>;
 	}): Promise<unknown>;
 }
 
@@ -77,21 +83,21 @@ function getRuntime({
 }): ImportRuntimeModule {
 	const moduleRecord = runtimeModule as {
 		JianyingDraftImportSession?: unknown;
-		enqueueDesktopImport?: unknown;
+		enqueueDesktopImportFromGrants?: unknown;
 		default?: {
 			JianyingDraftImportSession?: unknown;
-			enqueueDesktopImport?: unknown;
+			enqueueDesktopImportFromGrants?: unknown;
 		};
 	};
 	const sessionConstructor =
 		moduleRecord.JianyingDraftImportSession ??
 		moduleRecord.default?.JianyingDraftImportSession;
-	const enqueueDesktopImport =
-		moduleRecord.enqueueDesktopImport ??
-		moduleRecord.default?.enqueueDesktopImport;
+	const enqueueDesktopImportFromGrants =
+		moduleRecord.enqueueDesktopImportFromGrants ??
+		moduleRecord.default?.enqueueDesktopImportFromGrants;
 	if (
 		typeof sessionConstructor !== "function" ||
-		typeof enqueueDesktopImport !== "function"
+		typeof enqueueDesktopImportFromGrants !== "function"
 	) {
 		throw new Error(
 			"Import runtime does not export the complete Jianying import transport."
@@ -100,8 +106,8 @@ function getRuntime({
 	return {
 		JianyingDraftImportSession:
 			sessionConstructor as ImportRuntimeModule["JianyingDraftImportSession"],
-		enqueueDesktopImport:
-			enqueueDesktopImport as ImportRuntimeModule["enqueueDesktopImport"],
+		enqueueDesktopImportFromGrants:
+			enqueueDesktopImportFromGrants as ImportRuntimeModule["enqueueDesktopImportFromGrants"],
 	};
 }
 
@@ -208,32 +214,42 @@ export async function executeJianyingImportCommand({
 		const runtime = getRuntime({ runtimeModule: await loadRuntime() });
 		const userDataDirectory = getUserDataDirectory();
 		session = await createSession({ action, runtime, userDataDirectory });
+		const activeSession = session;
 		if (action === "commit") {
-			const commit = await session.commit({
+			const commit = await activeSession.commitWithMediaGrants({
 				input: {
 					planToken: options.planToken,
 					acceptedWarningFingerprints:
 						options.acceptedWarningFingerprints ?? [],
 				},
 			});
-			const inboxEntry = await runtime.enqueueDesktopImport({
-				inboxDirectory: join(userDataDirectory, "jianying-import", "inbox"),
-				commit,
-			});
-			return {
-				success: true,
-				data: {
-					action,
-					queuedForDesktop: true,
-					localOnly: true,
-					inboxEntry,
-				},
-			};
+			const grantTokens = commit.mediaGrants.map(
+				({ grantToken }) => grantToken
+			);
+			try {
+				const inboxEntry = await runtime.enqueueDesktopImportFromGrants({
+					inboxDirectory: join(userDataDirectory, "jianying-import", "inbox"),
+					commit,
+					readChunk: (chunkOptions) =>
+						activeSession.readMediaPayloadChunk(chunkOptions),
+				});
+				return {
+					success: true,
+					data: {
+						action,
+						queuedForDesktop: true,
+						localOnly: true,
+						inboxEntry,
+					},
+				};
+			} finally {
+				activeSession.releaseMediaPayloadGrants({ input: { grantTokens } });
+			}
 		}
 		const result =
 			action === "inspect"
-				? await session.inspect({ input: { draftPath } })
-				: await session.plan({ input: { draftPath } });
+				? await activeSession.inspect({ input: { draftPath } })
+				: await activeSession.plan({ input: { draftPath } });
 		return {
 			success: true,
 			data: {
