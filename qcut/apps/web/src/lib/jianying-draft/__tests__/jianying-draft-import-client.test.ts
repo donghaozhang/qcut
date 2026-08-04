@@ -28,6 +28,15 @@ const commitDto: DraftImportCommitDto = {
 	},
 };
 
+function createRendererStageMetrics() {
+	return {
+		schemaVersion: 1 as const,
+		phase: "renderer-commit" as const,
+		measuredDurationMilliseconds: 0,
+		stages: {},
+	};
+}
+
 function createBridge({
 	acknowledgeOk = true,
 }: {
@@ -75,7 +84,11 @@ describe("Jianying draft import client", () => {
 		const { bridge, calls } = createBridge();
 		const runTransaction = vi.fn(async () => {
 			calls.push("transaction");
-			return { ok: true as const, projectId: "project-1" };
+			return {
+				ok: true as const,
+				projectId: "project-1",
+				stageMetrics: createRendererStageMetrics(),
+			};
 		});
 		await expect(
 			commitLiveDraftImport({
@@ -101,7 +114,11 @@ describe("Jianying draft import client", () => {
 		const { bridge, calls } = createBridge();
 		const runTransaction = vi.fn(async () => {
 			calls.push("transaction");
-			return { ok: true as const, projectId: "project-1" };
+			return {
+				ok: true as const,
+				projectId: "project-1",
+				stageMetrics: createRendererStageMetrics(),
+			};
 		});
 		await commitPendingDraftImport({
 			bridge,
@@ -123,6 +140,7 @@ describe("Jianying draft import client", () => {
 						ok: false,
 						reason: "verify-failed",
 						message: "readback mismatch",
+						stageMetrics: createRendererStageMetrics(),
 					};
 				},
 			})
@@ -140,6 +158,7 @@ describe("Jianying draft import client", () => {
 				runTransaction: async () => ({
 					ok: true,
 					projectId: "project-1",
+					stageMetrics: createRendererStageMetrics(),
 				}),
 			});
 		} catch (error) {
