@@ -131,3 +131,27 @@ export type {
 	QCutDraftExportSnapshotV1,
 	QCutDraftExportVideoMedia,
 } from "./types.js";
+
+export {
+	CAPCUT_8_1_DRAFT_PROFILE,
+	getDraftProfile,
+	isDraftProfileWritable,
+	listDraftProfiles,
+	PLAINTEXT_5_9_PROFILE,
+	PLAINTEXT_5_9_PROFILE_ID,
+	PLAINTEXT_5_9_TOP_LEVEL_KEYS,
+	registerDraftProfile,
+	type DraftProfileCapabilities,
+	type DraftProfileContract,
+	type ProfileOperationLevel,
+} from "./profiles/index.js";
+
+export {
+	detectDraftProfile,
+	toProfileDetectionEvidence,
+	type DraftContentSummary,
+	type ProfileDetectionCandidate,
+	type ProfileDetectionInput,
+	type ProfileDetectionOutcomeKind,
+	type ProfileDetectionResult,
+} from "./import/profile-detection.js";
