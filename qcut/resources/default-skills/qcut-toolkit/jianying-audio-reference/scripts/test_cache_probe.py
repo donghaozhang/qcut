@@ -2,8 +2,20 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 import cache_probe
+
+
+class ProbeMediaTest(unittest.TestCase):
+    def test_non_json_ffprobe_output_is_ignored(self) -> None:
+        result = SimpleNamespace(returncode=0, stdout="not-json")
+        with (
+            patch.object(cache_probe.shutil, "which", return_value="ffprobe"),
+            patch.object(cache_probe.subprocess, "run", return_value=result),
+        ):
+            self.assertIsNone(cache_probe.probe_audio(Path("broken.mp3")))
 
 
 class DownloadEntriesTest(unittest.TestCase):
@@ -80,6 +92,14 @@ class ReadSnapshotTest(unittest.TestCase):
                     snapshot_path = self.write_snapshot(directory, music_root)
                     with self.assertRaisesRegex(ValueError, "missing music_root"):
                         cache_probe.read_snapshot(snapshot_path)
+
+    def test_rejects_non_object_snapshot_root(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            snapshot_path = Path(temporary_directory) / "snapshot.json"
+            snapshot_path.write_text("[]\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "root must be an object"):
+                cache_probe.read_snapshot(snapshot_path)
 
     def test_accepts_non_empty_music_root(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
