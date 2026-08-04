@@ -1,5 +1,7 @@
 import type { SelectedElement } from "./types";
-import type { TimelineTrack } from "@/types/timeline";
+import type { TimelineElement, TimelineTrack } from "@/types/timeline";
+import { getTimelineElementEndTime } from "@/lib/timeline";
+import { findRangeCollisions } from "@qcut/editor-core/timeline";
 
 export function groupTimelineElements({
 	tracks,
@@ -49,6 +51,39 @@ export function ungroupTimelineElements({
 	return { tracks: nextTracks, ungroupedCount };
 }
 
+function collidesOnTrack({
+	track,
+	movedElements,
+	excludeIds,
+}: {
+	track: TimelineTrack;
+	movedElements: readonly TimelineElement[];
+	excludeIds: ReadonlySet<string>;
+}): boolean {
+	const occupancy = track.elements
+		.filter((element) => !excludeIds.has(element.id))
+		.map((element) => ({
+			id: element.id,
+			startTime: element.startTime,
+			endTime: getTimelineElementEndTime({ element }),
+		}));
+	return movedElements.some(
+		(element) =>
+			findRangeCollisions({
+				items: occupancy,
+				range: {
+					startTime: element.startTime,
+					endTime: getTimelineElementEndTime({ element }),
+				},
+			}).length > 0
+	);
+}
+
+/**
+ * Move an element (and its whole group) to a new start time. Returns the
+ * unchanged input array when the move would create a same-track overlap
+ * (QTL-002) — callers detect the rejection by reference equality.
+ */
 export function moveTimelineElementGroup({
 	tracks,
 	trackId,
@@ -65,7 +100,7 @@ export function moveTimelineElementGroup({
 		?.elements.find((element) => element.id === elementId);
 	if (!target) return tracks;
 	if (!target.groupId) {
-		return tracks.map((track) =>
+		const nextTracks = tracks.map((track) =>
 			track.id === trackId
 				? {
 						...track,
@@ -77,6 +112,22 @@ export function moveTimelineElementGroup({
 					}
 				: track
 		);
+		const movedTrack = nextTracks.find((track) => track.id === trackId);
+		const movedElement = movedTrack?.elements.find(
+			(element) => element.id === elementId
+		);
+		if (
+			movedTrack &&
+			movedElement &&
+			collidesOnTrack({
+				track: movedTrack,
+				movedElements: [movedElement],
+				excludeIds: new Set([elementId]),
+			})
+		) {
+			return tracks;
+		}
+		return nextTracks;
 	}
 
 	const groupElements = tracks.flatMap((track) =>
@@ -88,7 +139,8 @@ export function moveTimelineElementGroup({
 	);
 	const delta = Math.max(requestedDelta, -earliestStart);
 
-	return tracks.map((track) => {
+	const groupElementIds = new Set(groupElements.map((element) => element.id));
+	const nextTracks = tracks.map((track) => {
 		let changed = false;
 		const elements = track.elements.map((element) => {
 			if (element.groupId !== target.groupId) return element;
@@ -97,4 +149,15 @@ export function moveTimelineElementGroup({
 		});
 		return changed ? { ...track, elements } : track;
 	});
+
+	const wouldCollide = nextTracks.some((track) =>
+		collidesOnTrack({
+			track,
+			movedElements: track.elements.filter((element) =>
+				groupElementIds.has(element.id)
+			),
+			excludeIds: groupElementIds,
+		})
+	);
+	return wouldCollide ? tracks : nextTracks;
 }

@@ -12,7 +12,7 @@
 | 任务 | 状态 | 完成日期 | 说明 |
 | --- | --- | --- | --- |
 | QTL-001 统一命令守卫和锁定契约 | ✅ 已完成 | 2026-08-04 | 纯函数 preflight + 全入口接入 + 26 用例矩阵测试；顺带修复 `replaceElementMedia` 旧快照写回 |
-| QTL-002 共享 Collision Engine | ⬜ 未开始 | | |
+| QTL-002 共享 Collision Engine | ✅ 已完成 | 2026-08-04 | `collision-policy.ts` 纯区间数学 + `reject\|insert\|overwrite` 显式参数;deleteTimeRange 与 add-overwrite 共用一份 trim/split 实现;replace 并发回归测试 |
 | QTL-003 Ripple Domain 与类型化 Link | ⬜ 未开始 | | 锁定轨排除域已随 QTL-001 落地 |
 | QTL-004 扩展事务历史 | ⬜ 未开始 | | |
 | QTL-005 ~ QTL-012 | ⬜ 未开始 | | |
@@ -23,12 +23,12 @@
 
 | 状态 | 数量 | 占比 |
 | --- | ---: | ---: |
-| 完整实现 | 32 | 64% |
-| 部分实现 | 9 | 18% |
-| 尚未实现 | 9 | 18% |
-| **需要修复或补齐** | **18** | **36%** |
+| 完整实现 | 35 | 70% |
+| 部分实现 | 8 | 16% |
+| 尚未实现 | 7 | 14% |
+| **需要修复或补齐** | **15** | **30%** |
 
-审计基线为 19/50 项需要改动；QTL-001 完成后，**当前还有 18/50 项时间线规则需要代码改动**——9 项已有基础但契约不完整，另有 9 项缺少正式模型或命令。
+审计基线为 19/50 项需要改动；QTL-001、QTL-002 完成后，**当前还有 15/50 项时间线规则需要代码改动**——8 项已有基础但契约不完整，另有 7 项缺少正式模型或命令。
 
 QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、顺序、合成层级、分组、复合片段、转场和波纹操作都已经存在。最大差距集中在操作语义：锁定没有在所有入口统一执行，插入/覆盖/替换没有一个共享冲突引擎，主轨磁吸与普通吸附/波纹没有拆开，关联仍主要依赖通用 `groupId`，撤销只保存轨道数组。
 
@@ -48,7 +48,7 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 | --- | ---: | ---: | ---: | ---: | ---: |
 | 轨道类型与操作 | 7 | 6 | 0 | 1 | 1 |
 | 层级与渲染 | 5 | 4 | 1 | 0 | 1 |
-| 插入、覆盖与替换 | 5 | 1 | 2 | 2 | 4 |
+| 插入、覆盖与替换 | 5 | 4 | 1 | 0 | 1 |
 | 波纹与主轨磁吸 | 5 | 3 | 1 | 1 | 2 |
 | 修剪模式 | 5 | 4 | 0 | 1 | 1 |
 | 吸附 | 5 | 3 | 0 | 2 | 2 |
@@ -57,7 +57,7 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 | 撤销与重做 | 3 | 2 | 1 | 0 | 1 |
 | 导航与缓存 | 3 | 1 | 2 | 0 | 2 |
 | AI 语义规则 | 2 | 1 | 0 | 1 | 1 |
-| **总计** | **50** | **32** | **9** | **9** | **18** |
+| **总计** | **50** | **35** | **8** | **7** | **15** |
 
 ## 50 项规则明细
 
@@ -77,17 +77,17 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 
 **部分：混合模式。** `MediaBlendMode` 当前只有 `normal`、`multiply`、`screen`、`overlay`、`darken`、`lighten` 六种，而且还需要用同一组 golden frames 证明预览、原生导出和草稿导出一致。这里不建议先堆更多枚举，应该先建立跨渲染器契约测试。
 
-### 3. 插入、覆盖与替换：1 完整，2 部分，2 缺失
+### 3. 插入、覆盖与替换：4 完整，1 部分，0 缺失
 
-**完整：自动堆叠到新轨。** `addMediaAtTime()` 会寻找同类型空闲轨道，全部占用时新建轨道，见 [`timeline-add-ops.ts`](../../../apps/web/src/stores/timeline/timeline-add-ops.ts)。
+**完整：自动堆叠到新轨。** `addMediaAtTime()` 会寻找同类型空闲轨道，全部占用时新建轨道，见 [`timeline-add-ops.ts`](../../../apps/web/src/stores/timeline/timeline-add-ops.ts)。`separateAudio` 也改为堆叠语义：分离音频落到第一条未锁定且该时间段空闲的音轨，否则新建。
 
-**部分：同轨不重叠不变量。** 拖拽 UI 会拒绝重叠，但底层 `addElementToTrack()` 和多个 Store 调用没有统一冲突检查。当前行为取决于入口，不能作为 CLI 或自动化的稳定契约。
+**完整（QTL-002，2026-08-04 落地）：同轨不重叠不变量。** `addElementToTrack()` / `moveElementToTrack()` / `updateElementStartTime()`（含整组移动）在 Store 层默认拒绝制造重叠，无状态变化、无历史污染。UI 拖拽的预检查保留为交互反馈，但契约由 Store 命令层执行——CLI（claude-bridge → 同一 store 命令）与 AI 入口自动继承。区间数学位于 [`collision-policy.ts`](../../../packages/editor-core/src/timeline/collision-policy.ts)，测试见 [`timeline-collision-contract.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-collision-contract.test.ts)。
 
-**部分：替换。** `replaceElementMedia()` 已能导入新文件并更新素材引用，但它会用新素材时长直接改写片段时长，可能破坏接缝和转场。~~它也没有锁定检查；该异步函数在导入前捕获 `_tracks`，完成后仍用旧快照写回~~——锁定检查（入口 + 导入完成后复检）和旧快照写回已随 QTL-001 修复：导入完成后重读当前 timeline 并重验元素仍存在。剩余缺口是时长/转场保留策略（归 QTL-002/012）。实现位于 [`timeline-element-ops.ts`](../../../apps/web/src/stores/timeline/timeline-element-ops.ts)。
+**部分：替换。** `replaceElementMedia()` 已能导入新文件并更新素材引用，但它会用新素材时长直接改写片段时长，可能破坏接缝和转场。~~它也没有锁定检查；该异步函数在导入前捕获 `_tracks`，完成后仍用旧快照写回~~——锁定检查（入口 + 导入完成后复检）和旧快照写回已随 QTL-001 修复，并发编辑回归测试已随 QTL-002 落地。剩余缺口是时长/转场保留策略（归 QTL-012）。实现位于 [`timeline-element-ops.ts`](../../../apps/web/src/stores/timeline/timeline-element-ops.ts)。
 
-**缺失：显式 Insert 命令。** 当前没有“切开落点并向后移动波纹域”的原子命令。
+**完整（QTL-002 落地）：显式 Insert 命令。** `addElementToTrack(trackId, data, { collision: "insert" })`：落点处片段按手动分割语义切开，落点之后的同轨元素整体右移插入时长。
 
-**缺失：显式 Overwrite 命令。** 当前没有“只移除目标区间、保留后续时间位置”的区间命令。
+**完整（QTL-002 落地）：显式 Overwrite 命令。** `addElementToTrack(trackId, data, { collision: "overwrite" })`：清空目标区间（删除/修剪/两侧切分），保留后续时间位置。区间清除的 trim/split 数学与 `deleteTimeRange` / 波纹区间删除共用同一份实现（[`timeline-collision-utils.ts`](../../../apps/web/src/stores/timeline/timeline-collision-utils.ts)）。CLI 批量添加接口透传 `collision` 字段。
 
 ### 4. 波纹与主轨磁吸：3 完整，1 部分，1 缺失
 
@@ -154,7 +154,7 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 | P0 | 锁定只在部分 UI/命令生效 | CLI、自动化和其他 Store 入口可修改锁定轨道 | ✅ 已修复（QTL-001） |
 | P0 | linked ripple 实际可移动全部轨道 | 无关轨道或锁定轨道可能被时间平移 | 🔶 锁定轨已排除（QTL-001）；无关轨道待 QTL-003 |
 | P0 | `replaceElementMedia()` 异步写回旧 `_tracks` | 等待导入期间的用户编辑可能被覆盖 | ✅ 已修复（QTL-001） |
-| P0 | 冲突检查不在 domain command 层 | 同一操作从 UI、CLI、AI 入口得到不同结果 | ⬜ 待 QTL-002 |
+| P0 | 冲突检查不在 domain command 层 | 同一操作从 UI、CLI、AI 入口得到不同结果 | ✅ 已修复（QTL-002） |
 | P1 | 历史只保存 tracks | undo 后选择、播放头和跨 Store 状态可能不一致 | ⬜ 待 QTL-004 |
 | P1 | 帧缓存忽略 `track.hidden` | 隐藏轨道后可能短暂显示旧缓存帧 | ⬜ 待 QTL-010 |
 | P1 | multi-select 重复追加选择 | 选择计数和批量命令输入可能重复 | ⬜ 待 QTL-004（需先复现） |
@@ -178,20 +178,20 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 
 验收结果：add/move/delete/trim/split/replace/group/compound/ripple 对锁定目标全部无状态变化、无历史污染 ✅；跨轨命令策略明确——显式目标整体失败，派生域（ripple 位移、默认全轨道、广域样式）跳过锁定轨 ✅；轨道元数据（静音/隐藏/高度/重命名/排序/解锁）明确不属于内容编辑，保持可用。
 
-#### QTL-002 建立共享 Collision Engine
+#### QTL-002 建立共享 Collision Engine ✅ 已完成（2026-08-04）
 
 目标：把 `append | insert | overwrite | replace | stack` 做成显式 command 参数，UI、CLI 和 AI 共用一套区间算法。
 
-相关文件：
+实施记录：
 
-- `packages/editor-core/src/timeline/collision-policy.ts`：建议新增纯函数模块。
-- `apps/web/src/stores/timeline/timeline-add-ops.ts`
-- `apps/web/src/stores/timeline/timeline-store-crud.ts`
-- `apps/web/src/stores/timeline/timeline-element-ops.ts`
-- `apps/web/src/components/editor/timeline/use-track-drop.ts`
-- `electron/native-pipeline/`：CLI 只调用共享命令，不复制区间逻辑。
+- `packages/editor-core/src/timeline/collision-policy.ts`：纯区间数学——`rangesOverlap`（半开区间）、`findRangeCollisions`、`classifyRangeCollision`（inside / ends-inside / starts-inside / spans）、`planOverwrite`、`planInsertShift`。
+- `apps/web/src/stores/timeline/timeline-collision-utils.ts`：把纯计划落到真实元素的唯一实现（`overwriteRangeInElements`、`insertGapInElements`），`deleteTimeRange` / `deleteSelectedElementsWithRipple` 的区间删除段重构为同一函数，删除了第二份 trim/split 数学。
+- `addElementToTrack` 新增 `collision: "reject" | "insert" | "overwrite"` 参数（默认 reject）；`moveElementToTrack`、`updateElementStartTime`（单元素与整组，碰撞时整体拒绝且不污染历史）接入 reject 契约；`separateAudio` 改为堆叠语义（跳过锁定/占用音轨，必要时新建）。
+- CLI 链路核实：CLI → HTTP → 主进程 → IPC → `claude-bridge` → **同一批 store 命令**，主进程只做形状校验，无区间逻辑复制；批量添加请求新增 `collision` 字段透传（`electron/types/claude-api.ts`、`claude-timeline-operations.ts`、`claude-timeline-bridge-batch.ts`）。
+- `use-track-drop.ts` 未再添加条件：UI 预检查保留为拖拽反馈，契约由 store 层执行。
+- 测试：[`collision-policy.test.ts`](../../../packages/editor-core/src/__tests__/collision-policy.test.ts)（6 用例）+ [`timeline-collision-contract.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-collision-contract.test.ts)（10 用例，含 mock 媒体导入门闩的 replace 并发编辑回归）。
 
-验收：同一 fixture 经 UI/CLI 调用得到字节等价 timeline；普通 add API 不能制造非法同轨重叠；replace 在异步完成时重新读取当前 timeline，并有并发编辑测试。
+验收结果：UI/CLI 调用同一 store 命令，语义字节等价 ✅；普通 add/move API 不能制造非法同轨重叠（默认 reject，无历史污染）✅；replace 异步完成时重读当前 timeline，并发编辑测试通过 ✅。stack 语义保留在 `addMediaAtTime`/`separateAudio` 的轨道选择层（跨轨命令），与单轨 collision 参数正交。
 
 #### QTL-003 建立 Ripple Domain 与类型化 Link
 

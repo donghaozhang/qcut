@@ -30,6 +30,7 @@ import {
 	createStickerInstanceId,
 } from "@/lib/stickers/sticker-instance";
 import { blockedByTrackLock } from "./timeline-lock-guard";
+import { findRangeCollisions } from "@qcut/editor-core/timeline";
 
 export function createElementOps(
 	get: StoreGet,
@@ -367,20 +368,35 @@ export function createElementOps(
 				return null;
 			}
 
-			// The detached audio lands on the first audio track, so that track is
-			// as much a target as the source track.
-			const existingAudioTrack = _tracks.find((t) => t.type === "audio");
 			if (
 				blockedByTrackLock({
 					tracks: _tracks,
 					operation: "Separate Audio",
-					trackIds: existingAudioTrack
-						? [trackId, existingAudioTrack.id]
-						: [trackId],
+					trackIds: [trackId],
 				})
 			) {
 				return null;
 			}
+
+			// The detached audio must land on an audio lane that is editable and
+			// free at the clip's range; otherwise stack a new lane (QTL-002).
+			const audioRange = {
+				startTime: element.startTime,
+				endTime: element.startTime + getTimelineElementDuration({ element }),
+			};
+			const existingAudioTrack = _tracks.find(
+				(t) =>
+					t.type === "audio" &&
+					!t.locked &&
+					findRangeCollisions({
+						items: t.elements.map((el) => ({
+							id: el.id,
+							startTime: el.startTime,
+							endTime: getTimelineElementEndTime({ element: el }),
+						})),
+						range: audioRange,
+					}).length === 0
+			);
 
 			get().pushHistory();
 			const audioElementId = generateUUID();

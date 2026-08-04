@@ -108,3 +108,17 @@ export {
 	type LockAwareTrack,
 	type LockViolation,
 } from "./lock-contract.js";
+
+export {
+	classifyRangeCollision,
+	findRangeCollisions,
+	planInsertShift,
+	planOverwrite,
+	rangesOverlap,
+	type CollisionMode,
+	type InsertPlan,
+	type OverwritePlan,
+	type RangeCollisionKind,
+	type TimeRange,
+	type TimelineRangeItem,
+} from "./collision-policy.js";

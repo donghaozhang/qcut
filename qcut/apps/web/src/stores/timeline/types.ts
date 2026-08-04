@@ -215,11 +215,18 @@ export interface TimelineStore {
 	removeTrack: (trackId: string) => void;
 	/** Remove a track with ripple editing (affects subsequent elements) */
 	removeTrackWithRipple: (trackId: string) => void;
-	/** Add an element to the specified track */
+	/** Add an element to the specified track. `collision` picks how an
+	 * occupied target range is handled: `reject` (default) fails, `insert`
+	 * splits at the point and shifts downstream, `overwrite` clears the range
+	 * while keeping downstream positions. */
 	addElementToTrack: (
 		trackId: string,
 		element: CreateTimelineElement,
-		options?: { pushHistory?: boolean; selectElement?: boolean }
+		options?: {
+			pushHistory?: boolean;
+			selectElement?: boolean;
+			collision?: "reject" | "insert" | "overwrite";
+		}
 	) => string | null;
 	addTextGroupAtTime: (input: {
 		elements: CreateTextElement[];

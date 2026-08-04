@@ -45,11 +45,23 @@ import {
 	createMediaContainer,
 	selectMulticamClip,
 } from "./timeline-compound-operations";
-import { findTrackIdsForGroup } from "@qcut/editor-core/timeline";
+import {
+	findRangeCollisions,
+	findTrackIdsForGroup,
+} from "@qcut/editor-core/timeline";
+import {
+	getTimelineElementDuration,
+	getTimelineElementEndTime,
+} from "@/lib/timeline";
 import { blockedByTrackLock } from "./timeline-lock-guard";
+import {
+	insertGapInElements,
+	overwriteRangeInElements,
+} from "./timeline-collision-utils";
 
 export interface CrudDeps {
 	updateTracksAndSave: (tracks: TimelineTrack[]) => void;
+	getProjectFps: () => number;
 }
 
 /** Creates track/element CRUD operations (add, remove, move, update) for the timeline store. */
@@ -58,7 +70,7 @@ export function createCrudOperations(
 	set: StoreSet,
 	deps: CrudDeps
 ) {
-	const { updateTracksAndSave } = deps;
+	const { updateTracksAndSave, getProjectFps } = deps;
 
 	return {
 		addTrack: (type) => {
@@ -197,11 +209,6 @@ export function createCrudOperations(
 				return null;
 			}
 
-			// Push history after all validations pass
-			if (shouldPushHistory) {
-				get().pushHistory();
-			}
-
 			// Check if this is the first element being added to the timeline
 			const currentState = get();
 			const totalElementsInTimeline = currentState._tracks.reduce(
@@ -236,6 +243,67 @@ export function createCrudOperations(
 				trimStart: normalizedElementData.trimStart ?? 0,
 				trimEnd: normalizedElementData.trimEnd ?? 0,
 			} as TimelineElement; // Type assertion since we trust the caller passes valid data
+
+			// Collision engine (QTL-002): the same-track no-overlap invariant is
+			// enforced here so UI, CLI, and AI all get identical semantics. The
+			// caller picks the policy; the default refuses to create an overlap.
+			const collisionMode = options.collision ?? "reject";
+			const newElementDuration = getTimelineElementDuration({
+				element: newElement,
+			});
+			const targetRange = {
+				startTime: newElement.startTime,
+				endTime: newElement.startTime + newElementDuration,
+			};
+			let targetElements: TimelineElement[] = [...track.elements];
+			if (newElementDuration > 0) {
+				if (collisionMode === "reject") {
+					const collisions = findRangeCollisions({
+						items: track.elements.map((el) => ({
+							id: el.id,
+							startTime: el.startTime,
+							endTime: getTimelineElementEndTime({ element: el }),
+						})),
+						range: targetRange,
+					});
+					if (collisions.length > 0) {
+						handleError(
+							new Error(
+								"Cannot place element here - it would overlap with existing elements"
+							),
+							{
+								operation: "Add Element to Track",
+								category: ErrorCategory.VALIDATION,
+								severity: ErrorSeverity.MEDIUM,
+								metadata: {
+									trackId,
+									startTime: targetRange.startTime,
+									collidingElementIds: collisions.map((item) => item.id),
+								},
+							}
+						);
+						return null;
+					}
+				} else if (collisionMode === "insert") {
+					targetElements = insertGapInElements({
+						elements: track.elements,
+						insertTime: targetRange.startTime,
+						insertDuration: newElementDuration,
+						fps: getProjectFps(),
+					});
+				} else if (collisionMode === "overwrite") {
+					targetElements = overwriteRangeInElements({
+						elements: track.elements,
+						range: targetRange,
+						fps: getProjectFps(),
+					}).elements;
+				}
+			}
+
+			// Push history after all validations and collision planning pass
+			if (shouldPushHistory) {
+				get().pushHistory();
+			}
 
 			// If this is the first element and it's a media element, automatically set the project canvas size
 			// to match the media's aspect ratio and FPS (for videos). Users can turn
@@ -316,7 +384,9 @@ export function createCrudOperations(
 
 			updateTracksAndSave(
 				get()._tracks.map((t) =>
-					t.id === trackId ? { ...t, elements: [...t.elements, newElement] } : t
+					t.id === trackId
+						? { ...t, elements: [...targetElements, newElement] }
+						: t
 				)
 			);
 
@@ -394,6 +464,42 @@ export function createCrudOperations(
 						category: ErrorCategory.VALIDATION,
 						severity: ErrorSeverity.MEDIUM,
 						metadata: { targetTrackId: toTrackId, elementId },
+					}
+				);
+				return;
+			}
+
+			// The element keeps its start time, so the target lane must be free
+			// there (QTL-002) — same contract as adding it fresh.
+			const movedDuration = getTimelineElementDuration({
+				element: elementToMove,
+			});
+			const moveCollisions = findRangeCollisions({
+				items: toTrack.elements.map((el) => ({
+					id: el.id,
+					startTime: el.startTime,
+					endTime: getTimelineElementEndTime({ element: el }),
+				})),
+				range: {
+					startTime: elementToMove.startTime,
+					endTime: elementToMove.startTime + movedDuration,
+				},
+				excludeIds: [elementId],
+			});
+			if (moveCollisions.length > 0) {
+				handleError(
+					new Error(
+						"Cannot move element here - it would overlap with existing elements"
+					),
+					{
+						operation: "Move Element to Track",
+						category: ErrorCategory.VALIDATION,
+						severity: ErrorSeverity.MEDIUM,
+						metadata: {
+							targetTrackId: toTrackId,
+							elementId,
+							collidingElementIds: moveCollisions.map((item) => item.id),
+						},
 					}
 				);
 				return;
@@ -507,15 +613,17 @@ export function createCrudOperations(
 			) {
 				return;
 			}
+			// Reference equality signals a rejected move (missing element or a
+			// same-track collision) — bail before touching history.
+			const movedTracks = moveTimelineElementGroup({
+				tracks: get()._tracks,
+				trackId,
+				elementId,
+				startTime,
+			});
+			if (movedTracks === get()._tracks) return;
 			if (pushHistory) get().pushHistory();
-			updateTracksAndSave(
-				moveTimelineElementGroup({
-					tracks: get()._tracks,
-					trackId,
-					elementId,
-					startTime,
-				})
-			);
+			updateTracksAndSave(movedTracks);
 		},
 
 		toggleTrackMute: (trackId) => {

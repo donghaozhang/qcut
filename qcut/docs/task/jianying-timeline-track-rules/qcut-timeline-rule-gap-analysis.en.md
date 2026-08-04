@@ -12,7 +12,7 @@
 | Task | Status | Completed | Notes |
 | --- | --- | --- | --- |
 | QTL-001 Centralize command guards and lock enforcement | ✅ Done | 2026-08-04 | Pure preflight + every entry point wired + 26-case matrix test; also fixes the `replaceElementMedia` stale-snapshot write-back |
-| QTL-002 Shared Collision Engine | ⬜ Not started | | |
+| QTL-002 Shared Collision Engine | ✅ Done | 2026-08-04 | Pure interval math in `collision-policy.ts` + explicit `reject\|insert\|overwrite` parameter; deleteTimeRange and add-with-overwrite share one trim/split implementation; replace concurrency regression test |
 | QTL-003 Ripple Domains and typed Links | ⬜ Not started | | The locked-exclusion domain landed with QTL-001 |
 | QTL-004 Transaction history | ⬜ Not started | | |
 | QTL-005 – QTL-012 | ⬜ Not started | | |
@@ -23,12 +23,12 @@ This audit decomposes the JianYing research baseline into **50 independently tes
 
 | Status | Count | Share |
 | --- | ---: | ---: |
-| Complete | 32 | 64% |
-| Partial | 9 | 18% |
-| Missing | 9 | 18% |
-| **Requires repair or implementation** | **18** | **36%** |
+| Complete | 35 | 70% |
+| Partial | 8 | 16% |
+| Missing | 7 | 14% |
+| **Requires repair or implementation** | **15** | **30%** |
 
-The audit baseline identified 19 of 50 rules needing changes; with QTL-001 done, **QCut still needs code changes for 18 of the 50 timeline rules** — nine with useful foundations but incomplete contracts, nine without a first-class model or command.
+The audit baseline identified 19 of 50 rules needing changes; with QTL-001 and QTL-002 done, **QCut still needs code changes for 15 of the 50 timeline rules** — eight with useful foundations but incomplete contracts, seven without a first-class model or command.
 
 QCut's foundation is stronger than the gap count may suggest. It already has typed tracks, explicit main-track identity, visibility, mute, ordering, canonical composition, grouping, compound containers, transitions, and ripple operations. The largest gap is the operation-semantics layer: locks are not enforced by every entry point, insert/overwrite/replace do not share a collision engine, main-track magnetism is not separate from snapping and ripple, relationships still rely heavily on generic `groupId`, and undo stores only track arrays.
 
@@ -48,7 +48,7 @@ QCut's foundation is stronger than the gap count may suggest. It already has typ
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Track types and operations | 7 | 6 | 0 | 1 | 1 |
 | Layering and rendering | 5 | 4 | 1 | 0 | 1 |
-| Insert, overwrite, and replace | 5 | 1 | 2 | 2 | 4 |
+| Insert, overwrite, and replace | 5 | 4 | 1 | 0 | 1 |
 | Ripple and main-track magnetism | 5 | 3 | 1 | 1 | 2 |
 | Trim modes | 5 | 4 | 0 | 1 | 1 |
 | Snapping | 5 | 3 | 0 | 2 | 2 |
@@ -57,7 +57,7 @@ QCut's foundation is stronger than the gap count may suggest. It already has typ
 | Undo and redo | 3 | 2 | 1 | 0 | 1 |
 | Navigation and cache | 3 | 1 | 2 | 0 | 2 |
 | AI semantics | 2 | 1 | 0 | 1 | 1 |
-| **Total** | **50** | **32** | **9** | **9** | **18** |
+| **Total** | **50** | **35** | **8** | **7** | **15** |
 
 ## Detailed 50-Rule Assessment
 
@@ -77,17 +77,17 @@ Additional migration risk: if every existing track has `order` and a main track 
 
 **Partial: blend modes.** `MediaBlendMode` currently exposes six modes: `normal`, `multiply`, `screen`, `overlay`, `darken`, and `lighten`. More importantly, preview, native export, and draft export still need a shared golden-frame contract before more mode names are added.
 
-### 3. Insert, overwrite, and replace: 1 complete, 2 partial, 2 missing
+### 3. Insert, overwrite, and replace: 4 complete, 1 partial, 0 missing
 
-**Complete: automatic stacking.** `addMediaAtTime()` finds a free track of the same type and creates another track when every lane is occupied. See [`timeline-add-ops.ts`](../../../apps/web/src/stores/timeline/timeline-add-ops.ts).
+**Complete: automatic stacking.** `addMediaAtTime()` finds a free track of the same type and creates another track when every lane is occupied. See [`timeline-add-ops.ts`](../../../apps/web/src/stores/timeline/timeline-add-ops.ts). `separateAudio` now stacks too: detached audio lands on the first unlocked audio lane that is free at the clip's range, otherwise a fresh lane.
 
-**Partial: the no-overlap invariant.** Drag UI rejects collisions, but the lower-level `addElementToTrack()` and several Store callers do not enforce the same rule. Behavior depends on the entry point and is not a stable CLI or automation contract.
+**Complete (QTL-002, landed 2026-08-04): the no-overlap invariant.** `addElementToTrack()`, `moveElementToTrack()`, and `updateElementStartTime()` (including whole-group moves) reject overlap-creating calls at the store layer with no state or history change. UI drag pre-checks remain as interaction feedback, but the contract lives in the store commands — the CLI (claude-bridge → the same store commands) and AI entry points inherit it automatically. Interval math lives in [`collision-policy.ts`](../../../packages/editor-core/src/timeline/collision-policy.ts); see [`timeline-collision-contract.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-collision-contract.test.ts).
 
-**Partial: replacement.** `replaceElementMedia()` imports a new file and updates the media reference, but it replaces the clip duration with the new asset duration, potentially breaking seams and transitions. ~~It also ignores track locking and writes a stale pre-import `_tracks` snapshot afterward~~ — both fixed with QTL-001: the command now checks the lock on entry and re-checks after import, re-reads the live timeline, and verifies the element still exists before writing. The remaining gap is the duration/transition-preservation policy (QTL-002/012). See [`timeline-element-ops.ts`](../../../apps/web/src/stores/timeline/timeline-element-ops.ts).
+**Partial: replacement.** `replaceElementMedia()` imports a new file and updates the media reference, but it replaces the clip duration with the new asset duration, potentially breaking seams and transitions. ~~It also ignores track locking and writes a stale pre-import `_tracks` snapshot afterward~~ — both fixed with QTL-001, and the concurrent-edit regression test landed with QTL-002. The remaining gap is the duration/transition-preservation policy (QTL-012). See [`timeline-element-ops.ts`](../../../apps/web/src/stores/timeline/timeline-element-ops.ts).
 
-**Missing: an explicit Insert command.** There is no atomic operation that splits at the insertion point and moves the selected ripple domain.
+**Complete (QTL-002): an explicit Insert command.** `addElementToTrack(trackId, data, { collision: "insert" })` splits the occupant at the drop point with manual-split semantics and shifts everything at or after the point right by the inserted duration.
 
-**Missing: an explicit Overwrite command.** There is no range command that removes only the occupied target interval while preserving downstream time positions.
+**Complete (QTL-002): an explicit Overwrite command.** `addElementToTrack(trackId, data, { collision: "overwrite" })` clears the target range (remove / trim / split at both edges) while keeping downstream positions. The range-clearing trim/split math is one shared implementation with `deleteTimeRange` and ripple range deletion ([`timeline-collision-utils.ts`](../../../apps/web/src/stores/timeline/timeline-collision-utils.ts)). The CLI batch-add API passes `collision` through verbatim.
 
 ### 4. Ripple and main-track magnetism: 3 complete, 1 partial, 1 missing
 
@@ -154,7 +154,7 @@ Compound clips can be created and decomposed, but the current representation is 
 | P0 | Locks are enforced only by some UI/commands | CLI, automation, and other Store callers can mutate locked tracks | ✅ Fixed (QTL-001) |
 | P0 | Linked ripple can move every track | Unrelated or locked tracks can be shifted | 🔶 Locked tracks excluded (QTL-001); unrelated tracks await QTL-003 |
 | P0 | `replaceElementMedia()` writes a stale async `_tracks` snapshot | User edits made during import can be overwritten | ✅ Fixed (QTL-001) |
-| P0 | Collision checks are outside the domain command layer | UI, CLI, and AI can produce different results for one operation | ⬜ QTL-002 |
+| P0 | Collision checks are outside the domain command layer | UI, CLI, and AI can produce different results for one operation | ✅ Fixed (QTL-002) |
 | P1 | History stores tracks only | Selection, playhead, and cross-Store state can disagree after undo | ⬜ QTL-004 |
 | P1 | Frame-cache hashing ignores `track.hidden` | A hidden track may briefly remain visible through a stale cached frame | ⬜ QTL-010 |
 | P1 | Multi-select appends a selection twice | Selection counts and batch command inputs can contain duplicates | ⬜ QTL-004 (needs reproduction first) |
@@ -178,20 +178,20 @@ What landed:
 
 Acceptance result: add/move/delete/trim/split/replace/group/compound/ripple make no state or history change when blocked ✅; the cross-track policy is explicit — explicit targets fail atomically, derived sets (ripple shifts, "all tracks" defaults, broad style scopes) skip locked tracks ✅; track metadata (mute, hidden, height, rename, reorder, unlock) is explicitly not content and stays editable.
 
-#### QTL-002 Build a shared Collision Engine
+#### QTL-002 Build a shared Collision Engine ✅ Done (2026-08-04)
 
 Goal: make `append | insert | overwrite | replace | stack` explicit command parameters shared by UI, CLI, and AI.
 
-Relevant files:
+What landed:
 
-- `packages/editor-core/src/timeline/collision-policy.ts`: proposed pure-function module.
-- `apps/web/src/stores/timeline/timeline-add-ops.ts`
-- `apps/web/src/stores/timeline/timeline-store-crud.ts`
-- `apps/web/src/stores/timeline/timeline-element-ops.ts`
-- `apps/web/src/components/editor/timeline/use-track-drop.ts`
-- `electron/native-pipeline/`: CLI must call the shared command rather than duplicate interval logic.
+- `packages/editor-core/src/timeline/collision-policy.ts`: pure interval math — `rangesOverlap` (half-open), `findRangeCollisions`, `classifyRangeCollision` (inside / ends-inside / starts-inside / spans), `planOverwrite`, `planInsertShift`.
+- `apps/web/src/stores/timeline/timeline-collision-utils.ts`: the single place plans become element edits (`overwriteRangeInElements`, `insertGapInElements`); the range-deletion section of `deleteTimeRange` / `deleteSelectedElementsWithRipple` was refactored onto it, deleting the second copy of the trim/split math.
+- `addElementToTrack` gained `collision: "reject" | "insert" | "overwrite"` (default reject); `moveElementToTrack` and `updateElementStartTime` (single and whole-group, rejected atomically without history pollution) joined the reject contract; `separateAudio` now stacks (skips locked/occupied audio lanes, creates one when needed).
+- CLI chain verified: CLI → HTTP → main process → IPC → `claude-bridge` → **the same store commands**; the main process only validates shapes and duplicates no interval logic. The batch-add request gained a pass-through `collision` field (`electron/types/claude-api.ts`, `claude-timeline-operations.ts`, `claude-timeline-bridge-batch.ts`).
+- `use-track-drop.ts` gained no new conditions: UI pre-checks stay as drag feedback; the store layer owns the contract.
+- Tests: [`collision-policy.test.ts`](../../../packages/editor-core/src/__tests__/collision-policy.test.ts) (6 cases) + [`timeline-collision-contract.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-collision-contract.test.ts) (10 cases, including a replace concurrency regression built on a gated mock media import).
 
-Acceptance: the same fixture produces byte-equivalent timelines through UI and CLI; ordinary add APIs cannot create illegal same-track overlap; async replacement rereads current timeline state and has a concurrent-edit test.
+Acceptance result: UI and CLI invoke the same store command, so semantics are byte-equivalent ✅; ordinary add/move APIs cannot create illegal same-track overlap (default reject, no history pollution) ✅; async replacement rereads current timeline state and the concurrent-edit test passes ✅. The `stack` semantics stay in the lane-selection layer (`addMediaAtTime`, `separateAudio`) — a cross-track concern orthogonal to the single-track collision parameter.
 
 #### QTL-003 Introduce Ripple Domains and typed Links
 

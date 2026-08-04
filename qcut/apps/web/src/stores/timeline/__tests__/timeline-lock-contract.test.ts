@@ -347,7 +347,7 @@ describe("timeline lock contract", () => {
 			expectNothingHappened(before);
 		});
 
-		it("separateAudio blocks when the audio track is locked", () => {
+		it("separateAudio never lands on a locked audio track", () => {
 			const tracks: TimelineTrack[] = [
 				{
 					id: "main",
@@ -365,9 +365,21 @@ describe("timeline lock contract", () => {
 				},
 			];
 			setTracks(tracks);
-			const before = tracksSnapshot();
-			expect(useTimelineStore.getState().separateAudio("main", "v")).toBeNull();
-			expectNothingHappened(before);
+			// Lane choice is a derived decision, so the locked lane is skipped
+			// and a fresh audio lane is stacked instead (QTL-002).
+			expect(
+				useTimelineStore.getState().separateAudio("main", "v")
+			).not.toBeNull();
+
+			const state = useTimelineStore.getState();
+			expect(
+				state.tracks.find((track) => track.id === "audio")?.elements
+			).toHaveLength(0);
+			const newAudioTracks = state.tracks.filter(
+				(track) => track.type === "audio" && track.id !== "audio"
+			);
+			expect(newAudioTracks).toHaveLength(1);
+			expect(newAudioTracks[0].elements).toHaveLength(1);
 		});
 
 		it("deleteSelectedElementsWithRipple blocks a batch touching a locked track", () => {

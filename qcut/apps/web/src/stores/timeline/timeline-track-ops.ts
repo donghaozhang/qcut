@@ -9,19 +9,14 @@ import {
 	getTimelineElementEndTime,
 	resolveElementOverlaps,
 } from "@/lib/timeline";
-import { generateUUID } from "@/lib/utils";
-import type { TimelineElement, TimelineTrack } from "@/types/timeline";
+import type { TimelineTrack } from "@/types/timeline";
 import type {
 	OperationDeps,
 	StoreGet,
 	StoreSet,
 } from "./timeline-store-operations";
-import { getTimelineSplitUpdates } from "./timeline-split-utils";
-import {
-	assignNewStickerInstanceId,
-	createStickerInstanceId,
-} from "@/lib/stickers/sticker-instance";
 import { blockedByTrackLock } from "./timeline-lock-guard";
+import { overwriteRangeInElements } from "./timeline-collision-utils";
 
 interface TimelineRange {
 	startTime: number;
@@ -69,102 +64,20 @@ function applyDeleteTimeRangeToTracks({
 	let deletedElements = 0;
 	let splitElements = 0;
 	const rangeDuration = endTime - startTime;
+	// One shared overwrite implementation (QTL-002): the same trim/split math
+	// backs add-with-overwrite and every range-deletion path.
 	const rangeAdjustedTracks = tracks.map((track) => {
 		if (!targetTrackIds.has(track.id)) {
 			return track;
 		}
-
-		const nextElements: TimelineElement[] = [];
-		for (const element of track.elements) {
-			const elementStart = element.startTime;
-			const elementEnd = getTimelineElementEndTime({ element });
-			const overlapsRange = elementStart < endTime && elementEnd > startTime;
-
-			if (!overlapsRange) {
-				nextElements.push(element);
-				continue;
-			}
-
-			const isFullyContained =
-				elementStart >= startTime && elementEnd <= endTime;
-			if (isFullyContained) {
-				deletedElements++;
-				continue;
-			}
-
-			const overlapsAtEnd =
-				elementStart < startTime &&
-				elementEnd > startTime &&
-				elementEnd <= endTime;
-			if (overlapsAtEnd) {
-				splitElements++;
-				const splitUpdates = getTimelineSplitUpdates({
-					element,
-					splitTime: startTime,
-					fps,
-				});
-				nextElements.push({
-					...element,
-					...splitUpdates.left,
-				});
-				continue;
-			}
-
-			const overlapsAtStart =
-				elementStart >= startTime &&
-				elementStart < endTime &&
-				elementEnd > endTime;
-			if (overlapsAtStart) {
-				splitElements++;
-				const splitUpdates = getTimelineSplitUpdates({
-					element,
-					splitTime: endTime,
-					fps,
-				});
-				nextElements.push({
-					...element,
-					startTime: endTime,
-					...splitUpdates.right,
-				});
-				continue;
-			}
-
-			const spansEntireRange = elementStart < startTime && elementEnd > endTime;
-			if (spansEntireRange) {
-				splitElements++;
-				const leftSplitUpdates = getTimelineSplitUpdates({
-					element,
-					splitTime: startTime,
-					fps,
-				});
-				const rightSplitUpdates = getTimelineSplitUpdates({
-					element,
-					splitTime: endTime,
-					fps,
-				});
-
-				nextElements.push({
-					...element,
-					...leftSplitUpdates.left,
-				});
-				nextElements.push(
-					assignNewStickerInstanceId({
-						element: {
-							...element,
-							id: generateUUID(),
-							startTime: endTime,
-							...rightSplitUpdates.right,
-						},
-						newStickerId: createStickerInstanceId(),
-					})
-				);
-				continue;
-			}
-
-			deletedElements++;
-		}
-
-		return { ...track, elements: nextElements };
+		const result = overwriteRangeInElements({
+			elements: track.elements,
+			range: { startTime, endTime },
+			fps,
+		});
+		deletedElements += result.deletedElements;
+		splitElements += result.splitElements;
+		return { ...track, elements: result.elements };
 	});
 
 	const tracksAfterRipple = rangeAdjustedTracks
