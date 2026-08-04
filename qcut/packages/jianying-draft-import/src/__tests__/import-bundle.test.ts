@@ -9,6 +9,7 @@ import {
 	mapInteropDocumentToQCutPlan,
 	normalizeRawDraft,
 	PLAINTEXT_5_9_PROFILE_ID,
+	type QCutImportPlanTextElement,
 	type QCutImportTimelinePlanV1,
 } from "@qcut/editor-core/jianying-draft";
 import type { QCutDraftExportSnapshotV1 } from "@qcut/editor-core/jianying-draft";
@@ -96,6 +97,32 @@ interface Fixture {
 	document: DraftInteropDocumentV1;
 	timelinePlan: QCutImportTimelinePlanV1;
 	snapshot: DraftSourceSnapshot;
+}
+
+function createPlanTextElement(): QCutImportPlanTextElement {
+	return {
+		id: "text-segment-1",
+		type: "text",
+		name: "Imported text",
+		startTime: 1,
+		duration: 3,
+		trimStart: 0,
+		trimEnd: 0,
+		content: "Imported text",
+		fontSize: 64,
+		fontFamily: "Arial",
+		color: "#ffffff",
+		backgroundColor: "transparent",
+		textAlign: "center",
+		fontWeight: "normal",
+		fontStyle: "normal",
+		textDecoration: "none",
+		x: 0,
+		y: 0,
+		rotation: 0,
+		opacity: 1,
+		sourceSegmentId: "text-segment-1",
+	};
 }
 
 function createFixture(): Fixture {
@@ -194,6 +221,23 @@ describe("buildQCutImportBundle", () => {
 	it("assigns and validates deterministic transition ids", () => {
 		const fixture = createFixture();
 		const firstElementId = fixture.timelinePlan.tracks[0].elements[0].id;
+		const documentTrack = fixture.document.timelines[0].tracks[0];
+		const firstDocumentSegment = documentTrack.segments[0];
+		documentTrack.segments.push({
+			...firstDocumentSegment,
+			id: "clip-2",
+			targetRange: { startUs: 5_000_000, durationUs: 5_000_000 },
+		});
+		documentTrack.transitions = [
+			{
+				id: "transition-1",
+				type: "dissolve",
+				fromSegmentId: firstElementId,
+				toSegmentId: "clip-2",
+				durationUs: 500_000,
+				capability: "exact",
+			},
+		];
 		fixture.timelinePlan.tracks[0].elements.push({
 			...fixture.timelinePlan.tracks[0].elements[0],
 			id: "clip-2",
@@ -218,6 +262,60 @@ describe("buildQCutImportBundle", () => {
 		expect(parseQCutImportBundleV1(bundle).ok).toBe(true);
 	});
 
+	it("builds text tracks without inventing staged media", () => {
+		const fixture = createFixture();
+		fixture.document.timelines[0].tracks.push({
+			id: "text-track-1",
+			kind: "text",
+			order: 1,
+			segments: [
+				{
+					id: "text-segment-1",
+					kind: "text",
+					targetRange: { startUs: 1_000_000, durationUs: 3_000_000 },
+					capability: "downgrade",
+					text: {
+						content: "Imported text",
+						fontSizePx: 64,
+						fontFamily: "Arial",
+						color: "#ffffff",
+						textAlign: "center",
+						fontWeight: "normal",
+						fontStyle: "normal",
+						textDecoration: "none",
+						xPx: 0,
+						yPx: 0,
+						rotationDegrees: 0,
+						opacity: 1,
+					},
+				},
+			],
+			capability: "downgrade",
+		});
+		fixture.timelinePlan.tracks.push({
+			id: "text-track-1",
+			type: "text",
+			name: "Text",
+			order: 1,
+			elements: [createPlanTextElement()],
+			sourceTrackId: "text-track-1",
+		});
+		const { bundle } = createBundle({ fixture });
+		expect(bundle.internalIdBySemanticId["text-segment-1"]).toMatch(
+			/^[0-9a-f]{8}-[0-9a-f]{4}-/
+		);
+		expect(bundle.resourceStaging).toHaveLength(1);
+		expect(parseQCutImportBundleV1(bundle).ok).toBe(true);
+
+		const mismatched = JSON.parse(JSON.stringify(bundle));
+		mismatched.timelinePlan.tracks[1].type = "media";
+		const parsed = parseQCutImportBundleV1(mismatched);
+		expect(parsed.ok).toBe(false);
+		if (!parsed.ok) {
+			expect(parsed.issues[0].message).toContain("does not match its track");
+		}
+	});
+
 	it("stages only resources the plan references, with safe keys", () => {
 		const { bundle, fixture } = createBundle();
 		expect(bundle.resourceStaging.map((entry) => entry.resourceId)).toEqual(
@@ -234,7 +332,7 @@ describe("parseQCutImportBundleV1", () => {
 	it("rejects tampered digests at the byte level", () => {
 		const { bundle } = createBundle();
 		const tampered = JSON.parse(JSON.stringify(bundle));
-		tampered.timelinePlan.project.name = "evil";
+		tampered.createdAtUnixMilliseconds += 1;
 		// Structure is still valid...
 		const parsed = parseQCutImportBundleV1(tampered);
 		expect(parsed.ok).toBe(true);
