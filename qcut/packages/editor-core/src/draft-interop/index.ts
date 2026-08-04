@@ -65,6 +65,16 @@ export {
 } from "./foreign-envelope.js";
 
 export {
+	FOREIGN_ENVELOPE_PAYLOAD_MAX_BYTES,
+	FOREIGN_ENVELOPE_PAYLOAD_SCHEMA_VERSION,
+	verifyForeignEnvelopePayload,
+	type ForeignEnvelopePayloadEntryV1,
+	type ForeignEnvelopePayloadV1,
+	type ForeignEnvelopePayloadVerificationCode,
+	type VerifyForeignEnvelopePayloadResult,
+} from "./foreign-envelope-payload.js";
+
+export {
 	DRAFT_INTEROP_SCHEMA_VERSION,
 	DRAFT_INTEROP_TIME_UNIT,
 	parseDraftInteropDocumentV1,
