@@ -12,6 +12,8 @@ export type {
 
 export type {
 	BlurIntensity,
+	DraftInteropProjectBindingV1,
+	DraftInteropWritebackStatus,
 	ProjectFolder,
 	ProjectGuides,
 	ProjectTimelineSettings,

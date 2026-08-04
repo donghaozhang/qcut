@@ -45,6 +45,8 @@ export type {
 	ColorWheelsSettings,
 	MediaColorSettings,
 	BlurIntensity,
+	DraftInteropProjectBindingV1,
+	DraftInteropWritebackStatus,
 	ProjectFolder,
 	ProjectGuides,
 	ProjectTimelineSettings,
