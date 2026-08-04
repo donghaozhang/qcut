@@ -99,16 +99,23 @@ export function setupBatchHandlers({
 							throw new Error(`Track not found: ${element.trackId}`);
 						}
 
+						if (
+							element.collision !== undefined &&
+							element.collision !== "insert" &&
+							element.collision !== "overwrite" &&
+							element.collision !== "reject"
+						) {
+							throw new Error(
+								`Unsupported collision policy: ${element.collision}`
+							);
+						}
+
 						// Collision policy rides along verbatim; the store command is
 						// the single authority on what each mode does (QTL-002).
 						const addOptions = {
 							pushHistory: false,
 							selectElement: false,
-							...(element.collision === "insert" ||
-							element.collision === "overwrite" ||
-							element.collision === "reject"
-								? { collision: element.collision }
-								: {}),
+							...(element.collision ? { collision: element.collision } : {}),
 						};
 
 						if (
