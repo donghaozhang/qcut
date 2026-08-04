@@ -155,3 +155,28 @@ export {
 	type ProfileDetectionOutcomeKind,
 	type ProfileDetectionResult,
 } from "./import/profile-detection.js";
+
+export {
+	asRawDraftContent,
+	isRawRecord,
+	type RawDraftContent,
+	type RawDraftSegment,
+	type RawDraftTimeRange,
+	type RawDraftTrack,
+} from "./import/raw-types.js";
+
+export {
+	readRawDraftGraph,
+	type DuplicateIdRecord,
+	type RawDraftGraph,
+	type RawGraphMaterialNode,
+	type RawGraphSegmentNode,
+	type RawGraphTimeRange,
+	type RawGraphTrackNode,
+} from "./import/graph-reader.js";
+
+export {
+	detectDraftReferenceCycles,
+	validateRawDraftGraph,
+	type DraftReferenceEdge,
+} from "./import/validation.js";
