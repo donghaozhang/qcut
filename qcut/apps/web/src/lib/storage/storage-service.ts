@@ -238,6 +238,7 @@ class StorageService {
 			audioMix: project.audioMix,
 			guides: project.guides,
 			timeline: project.timeline,
+			draftInterop: project.draftInterop,
 		};
 
 		await this.projectsAdapter.set(project.id, serializedProject);
@@ -278,6 +279,7 @@ class StorageService {
 			audioMix: serializedProject.audioMix,
 			guides: serializedProject.guides,
 			timeline: serializedProject.timeline,
+			draftInterop: serializedProject.draftInterop,
 		};
 	}
 
