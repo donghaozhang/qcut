@@ -86,6 +86,25 @@ export {
 } from "./foreign-envelope-capture.js";
 
 export {
+	DEFAULT_MAX_MEDIA_PAYLOAD_GRANTS,
+	DEFAULT_MEDIA_PAYLOAD_GRANT_TTL_MILLISECONDS,
+	MAX_IMPORT_MEDIA_BYTES,
+	MEDIA_PAYLOAD_GRANT_SCHEMA_VERSION,
+	MediaPayloadGrantError,
+	MediaPayloadGrantStore,
+	type MediaPayloadChunkDto,
+	type MediaPayloadGrantDto,
+	type MediaPayloadGrantErrorCode,
+	type RestrictedMediaPayloadSource,
+	type VerifiedRestrictedMediaPayloadSource,
+} from "./media-payload-grant-store.js";
+
+export {
+	MAX_MEDIA_PAYLOAD_CHUNK_BYTES,
+	type MediaPayloadFileIdentity,
+} from "./media-payload-reader.js";
+
+export {
 	buildContentSummary,
 	ImportSessionError,
 	JianyingDraftImportSession,
