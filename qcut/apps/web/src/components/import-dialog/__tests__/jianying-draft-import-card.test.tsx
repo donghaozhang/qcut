@@ -230,4 +230,30 @@ describe("JianyingDraftImportCard", () => {
 		).toBeInTheDocument();
 		expect(status).not.toHaveTextContent("fingerprint");
 	});
+
+	it("runs journal quarantine once for keyboard activation", () => {
+		const controller = createController();
+		controller.recoveryResult = {
+			rolledBackImportIds: [],
+			completedImportIds: [],
+			corruptJournalRecordCount: 1,
+			quarantinedJournalRecordCount: 0,
+		};
+		render(
+			<JianyingDraftImportCard
+				controller={controller}
+				onOpenProject={vi.fn()}
+			/>
+		);
+
+		const action = screen.getByRole("button", {
+			name: "Isolate damaged records",
+		});
+		action.focus();
+		expect(fireEvent.keyDown(action, { code: "Enter", key: "Enter" })).toBe(
+			false
+		);
+
+		expect(controller.quarantineCorruptJournalRecords).toHaveBeenCalledTimes(1);
+	});
 });
