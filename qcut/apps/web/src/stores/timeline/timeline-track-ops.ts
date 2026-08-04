@@ -294,11 +294,14 @@ export function createTrackOps(
 
 			// Ripple domain (QTL-003): the edited track plus tracks linked to its
 			// elements. A locked linked dependency blocks the whole command —
-			// shifting one side of a link would desynchronize the pair.
+			// shifting one side of a link would desynchronize the pair. With
+			// linked ripple off (QTL-005) the domain stays on the edited track.
 			const rippleDomain = resolveRippleDomain({
 				tracks: _tracks,
 				seedTrackIds: [trackId],
-				links: deriveTimelineLinks({ tracks: _tracks }),
+				links: get().linkedRippleEnabled
+					? deriveTimelineLinks({ tracks: _tracks })
+					: [],
 			});
 			if (rippleDomain.lockedDependencyTrackIds.length > 0) {
 				handleError(
@@ -473,11 +476,14 @@ export function createTrackOps(
 
 				// Ripple domain (QTL-003): only the edited tracks and tracks linked
 				// to their elements shift; unrelated tracks hold their positions. A
-				// locked linked dependency blocks the whole batch.
+				// locked linked dependency blocks the whole batch. With linked
+				// ripple off (QTL-005) the domain stays on the edited tracks.
 				const rippleDomain = resolveRippleDomain({
 					tracks: _tracks,
 					seedTrackIds: selectedTrackIds,
-					links: deriveTimelineLinks({ tracks: _tracks }),
+					links: get().linkedRippleEnabled
+						? deriveTimelineLinks({ tracks: _tracks })
+						: [],
 				});
 				if (rippleDomain.lockedDependencyTrackIds.length > 0) {
 					handleError(

@@ -47,6 +47,7 @@ export type {
 	BlurIntensity,
 	ProjectFolder,
 	ProjectGuides,
+	ProjectTimelineSettings,
 	Scene,
 	TProject,
 	MediaType,
@@ -198,6 +199,11 @@ export type {
 	EffectRenderStage,
 	EffectRenderStageKind,
 } from "./types/index.js";
+
+export {
+	DEFAULT_PROJECT_TIMELINE_SETTINGS,
+	resolveProjectTimelineSettings,
+} from "./types/project.js";
 
 export {
 	compileTextAnimation,

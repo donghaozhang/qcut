@@ -14,6 +14,7 @@ export type {
 	BlurIntensity,
 	ProjectFolder,
 	ProjectGuides,
+	ProjectTimelineSettings,
 	Scene,
 	TProject,
 } from "./project.js";

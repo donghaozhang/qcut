@@ -15,7 +15,8 @@
 | QTL-002 Shared Collision Engine | ✅ Done | 2026-08-04 | Pure interval math in `collision-policy.ts` + explicit `reject\|insert\|overwrite` parameter; deleteTimeRange and add-with-overwrite share one trim/split implementation; replace concurrency regression test |
 | QTL-003 Ripple Domains and typed Links | ✅ Done | 2026-08-04 | `ripple-plan.ts`: typed links derived from groupId (video-audio/group) + ripple-domain resolution; unrelated tracks no longer shift; a locked dependency blocks the whole command |
 | QTL-004 Transaction history | ✅ Done | 2026-08-04 | History snapshots carry tracks + selection + selected transition + playhead; fixes the redo round-trip bug; the CLI transaction bridge upgraded to full snapshots |
-| QTL-005 – QTL-012 | ⬜ Not started | | |
+| QTL-005 Separate magnet / snapping / linkage | ✅ Done | 2026-08-04 | Three independent per-project toggles (`TProject.timeline`); magnet = main-track deletions close their gap; linkage = whether ripple pulls linked tracks |
+| QTL-006 – QTL-012 | ⬜ Not started | | |
 
 ## Conclusion
 
@@ -23,12 +24,12 @@ This audit decomposes the JianYing research baseline into **50 independently tes
 
 | Status | Count | Share |
 | --- | ---: | ---: |
-| Complete | 37 | 74% |
+| Complete | 38 | 76% |
 | Partial | 6 | 12% |
-| Missing | 7 | 14% |
-| **Requires repair or implementation** | **13** | **26%** |
+| Missing | 6 | 12% |
+| **Requires repair or implementation** | **12** | **24%** |
 
-The audit baseline identified 19 of 50 rules needing changes; with QTL-001 through QTL-004 done, **QCut still needs code changes for 13 of the 50 timeline rules** — six with useful foundations but incomplete contracts, seven without a first-class model or command.
+The audit baseline identified 19 of 50 rules needing changes; with QTL-001 through QTL-005 done, **QCut still needs code changes for 12 of the 50 timeline rules** — six with useful foundations but incomplete contracts, six without a first-class model or command.
 
 QCut's foundation is stronger than the gap count may suggest. It already has typed tracks, explicit main-track identity, visibility, mute, ordering, canonical composition, grouping, compound containers, transitions, and ripple operations. The largest gap is the operation-semantics layer: locks are not enforced by every entry point, insert/overwrite/replace do not share a collision engine, main-track magnetism is not separate from snapping and ripple, relationships still rely heavily on generic `groupId`, and undo stores only track arrays.
 
@@ -49,7 +50,7 @@ QCut's foundation is stronger than the gap count may suggest. It already has typ
 | Track types and operations | 7 | 6 | 0 | 1 | 1 |
 | Layering and rendering | 5 | 4 | 1 | 0 | 1 |
 | Insert, overwrite, and replace | 5 | 4 | 1 | 0 | 1 |
-| Ripple and main-track magnetism | 5 | 4 | 0 | 1 | 1 |
+| Ripple and main-track magnetism | 5 | 5 | 0 | 0 | 0 |
 | Trim modes | 5 | 4 | 0 | 1 | 1 |
 | Snapping | 5 | 3 | 0 | 2 | 2 |
 | Links, groups, and compounds | 5 | 3 | 1 | 1 | 2 |
@@ -57,7 +58,7 @@ QCut's foundation is stronger than the gap count may suggest. It already has typ
 | Undo and redo | 3 | 3 | 0 | 0 | 0 |
 | Navigation and cache | 3 | 1 | 2 | 0 | 2 |
 | AI semantics | 2 | 1 | 0 | 1 | 1 |
-| **Total** | **50** | **37** | **6** | **7** | **13** |
+| **Total** | **50** | **38** | **6** | **6** | **12** |
 
 ## Detailed 50-Rule Assessment
 
@@ -95,7 +96,7 @@ Additional migration risk: if every existing track has `order` and a main track 
 
 **Complete (QTL-003, landed 2026-08-04): linked cross-track ripple.** `removeElementFromTrackWithRipple()` and `deleteSelectedElementsWithRipple()` now shift a ripple domain: the edited track plus tracks holding elements explicitly linked to it ([`ripple-plan.ts`](../../../packages/editor-core/src/timeline/ripple-plan.ts) derives typed `video-audio` / `group` links from groupIds). Unrelated tracks hold their positions; a locked linked dependency blocks the whole command (no half-applied commit), while a locked unrelated track is simply outside the domain. `removeTrackWithRipple()` and `rippleDeleteAcrossTracks()` remain explicit cross-track commands (all tracks minus locked) by design. See [`timeline-ripple-domain.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-ripple-domain.test.ts).
 
-**Missing: independent main-track magnetism.** QCut currently has `snappingEnabled` and `rippleEditingEnabled`. JianYing treats Main Track Magnet, Auto Snapping, and Main Track Linkage as separate concepts; QCut currently compresses the latter behaviors into one “Linked editing” toggle.
+**Complete (QTL-005, landed 2026-08-04): independent main-track magnetism.** Three independent toggles: `snappingEnabled` (ordinary snapping), `mainTrackMagnetEnabled` (the magnet — main-track deletions close their gap even outside ripple mode), and `linkedRippleEnabled` (whether ripple follows typed links to other tracks). Persisted per project on `TProject.timeline` ([`types/project.ts`](../../../packages/editor-core/src/types/project.ts)); legacy projects get deterministic defaults from `resolveProjectTimelineSettings` (snapping on / magnet off / linkage on); a locked main track wins over the magnet (the whole delete is rejected). The toolbar exposes all three independently. See [`timeline-behavior-toggles.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-behavior-toggles.test.ts).
 
 ### 5. Trim modes: 4 complete, 1 missing
 
@@ -225,11 +226,18 @@ Acceptance result: batch delete, replacement, CLI transactions, and AI-aligned i
 
 ### P1: Complete professional editing behavior
 
-#### QTL-005 Separate main-track magnet, ordinary snapping, and linkage
+#### QTL-005 Separate main-track magnet, ordinary snapping, and linkage ✅ Done (2026-08-04)
 
-Relevant files: `packages/editor-core/src/types/project.ts`, `apps/web/src/stores/timeline/types.ts`, `apps/web/src/stores/timeline/timeline-store.ts`, and `apps/web/src/components/editor/timeline/timeline-toolbar.tsx`.
+What landed:
 
-Acceptance: all three switches persist independently; locked-main-track behavior is explicit; legacy projects receive deterministic migration defaults.
+- `packages/editor-core/src/types/project.ts`: `ProjectTimelineSettings` (three switches) + `DEFAULT_PROJECT_TIMELINE_SETTINGS` + `resolveProjectTimelineSettings` (deterministic legacy defaults: snapping on, magnet off, linkage on); persisted as `TProject.timeline?`.
+- `timeline-store`: `mainTrackMagnetEnabled` / `linkedRippleEnabled` state and toggles; all three toggles (including the existing `toggleSnapping`) persist through `updateProjectTimelineSettings`; `applyProjectTimelineSettings` runs on `loadProject`.
+- Semantics: magnet forces `removeElementFromTrack` on the main track through the ripple path (gap closes, QTL-003 domain semantics apply); linkage gates the ripple domain's link expansion (off = edited track only); `rippleEditingEnabled` remains its own "ripple mode" concept, never conflated with the magnet.
+- Locked main track + magnet: the QTL-001 lock guard runs first and rejects the whole delete — the lock wins, explicitly tested.
+- Toolbar: magnet (FoldHorizontal) and linked-ripple (Link2) buttons beside snapping/ripple, each with a data-testid.
+- Tests: [`timeline-behavior-toggles.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-behavior-toggles.test.ts) (6 cases: default resolution, magnet on main/non-main/locked, linkage-off audio independence, persistence onto the project).
+
+Acceptance result: all three switches persist independently (per project, via `saveProject`) ✅; locked-main-track behavior is explicit (lock wins, whole command rejected) ✅; legacy projects receive deterministic migration defaults that preserve existing behavior ✅.
 
 #### QTL-006 Extend snap candidates and priorities
 

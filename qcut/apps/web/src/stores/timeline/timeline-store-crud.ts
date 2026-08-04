@@ -411,10 +411,18 @@ export function createCrudOperations(
 				return;
 			}
 
-			const { rippleEditingEnabled } = get();
+			const { rippleEditingEnabled, mainTrackMagnetEnabled } = get();
 
-			if (rippleEditingEnabled) {
-				get().removeElementFromTrackWithRipple(trackId, elementId, pushHistory);
+			// Main-track magnet (QTL-005): the main track never keeps a hole, so
+			// its deletions close their gap even outside ripple mode.
+			const magnetApplies = mainTrackMagnetEnabled && Boolean(track.isMain);
+			if (rippleEditingEnabled || magnetApplies) {
+				get().removeElementFromTrackWithRipple(
+					trackId,
+					elementId,
+					pushHistory,
+					magnetApplies
+				);
 			} else {
 				if (pushHistory) get().pushHistory();
 				get().deselectElement(trackId, elementId);

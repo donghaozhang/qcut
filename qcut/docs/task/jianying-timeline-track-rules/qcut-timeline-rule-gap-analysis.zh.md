@@ -15,7 +15,8 @@
 | QTL-002 共享 Collision Engine | ✅ 已完成 | 2026-08-04 | `collision-policy.ts` 纯区间数学 + `reject\|insert\|overwrite` 显式参数;deleteTimeRange 与 add-overwrite 共用一份 trim/split 实现;replace 并发回归测试 |
 | QTL-003 Ripple Domain 与类型化 Link | ✅ 已完成 | 2026-08-04 | `ripple-plan.ts`：groupId 派生类型化 link（video-audio/group）+ ripple domain 解析；无关轨道不再被波纹移动；锁定依赖阻止整个命令 |
 | QTL-004 扩展事务历史 | ✅ 已完成 | 2026-08-04 | 历史快照含 tracks + 选择 + 转场选中 + 播放头；修复 redo 不回推 history 的往返 bug；CLI 事务桥升级到完整快照 |
-| QTL-005 ~ QTL-012 | ⬜ 未开始 | | |
+| QTL-005 拆分主轨磁吸/吸附/联动 | ✅ 已完成 | 2026-08-04 | 三个开关独立、按项目持久化（`TProject.timeline`）；磁吸=主轨删除闭合缺口；联动=波纹是否带动 linked 轨道 |
+| QTL-006 ~ QTL-012 | ⬜ 未开始 | | |
 
 ## 结论
 
@@ -23,12 +24,12 @@
 
 | 状态 | 数量 | 占比 |
 | --- | ---: | ---: |
-| 完整实现 | 37 | 74% |
+| 完整实现 | 38 | 76% |
 | 部分实现 | 6 | 12% |
-| 尚未实现 | 7 | 14% |
-| **需要修复或补齐** | **13** | **26%** |
+| 尚未实现 | 6 | 12% |
+| **需要修复或补齐** | **12** | **24%** |
 
-审计基线为 19/50 项需要改动；QTL-001 ~ QTL-004 完成后，**当前还有 13/50 项时间线规则需要代码改动**——6 项已有基础但契约不完整，另有 7 项缺少正式模型或命令。
+审计基线为 19/50 项需要改动；QTL-001 ~ QTL-005 完成后，**当前还有 12/50 项时间线规则需要代码改动**——6 项已有基础但契约不完整，另有 6 项缺少正式模型或命令。
 
 QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、顺序、合成层级、分组、复合片段、转场和波纹操作都已经存在。最大差距集中在操作语义：锁定没有在所有入口统一执行，插入/覆盖/替换没有一个共享冲突引擎，主轨磁吸与普通吸附/波纹没有拆开，关联仍主要依赖通用 `groupId`，撤销只保存轨道数组。
 
@@ -49,7 +50,7 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 | 轨道类型与操作 | 7 | 6 | 0 | 1 | 1 |
 | 层级与渲染 | 5 | 4 | 1 | 0 | 1 |
 | 插入、覆盖与替换 | 5 | 4 | 1 | 0 | 1 |
-| 波纹与主轨磁吸 | 5 | 4 | 0 | 1 | 1 |
+| 波纹与主轨磁吸 | 5 | 5 | 0 | 0 | 0 |
 | 修剪模式 | 5 | 4 | 0 | 1 | 1 |
 | 吸附 | 5 | 3 | 0 | 2 | 2 |
 | 关联、组合与复合片段 | 5 | 3 | 1 | 1 | 2 |
@@ -57,7 +58,7 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 | 撤销与重做 | 3 | 3 | 0 | 0 | 0 |
 | 导航与缓存 | 3 | 1 | 2 | 0 | 2 |
 | AI 语义规则 | 2 | 1 | 0 | 1 | 1 |
-| **总计** | **50** | **37** | **6** | **7** | **13** |
+| **总计** | **50** | **38** | **6** | **6** | **12** |
 
 ## 50 项规则明细
 
@@ -95,7 +96,7 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 
 **完整（QTL-003，2026-08-04 落地）：跨轨联动波纹。** `removeElementFromTrackWithRipple()` 和 `deleteSelectedElementsWithRipple()` 现在按 ripple domain 移动：被编辑轨道 + 其元素显式关联的轨道（[`ripple-plan.ts`](../../../packages/editor-core/src/timeline/ripple-plan.ts) 从 groupId 派生 `video-audio` / `group` 类型化 link），无关轨道保持原位；锁定的关联依赖阻止整个命令（防半套提交），锁定的无关轨道只是不在域内。`removeTrackWithRipple()` 与 `rippleDeleteAcrossTracks()` 保留为显式跨轨命令（全轨道减锁定），语义由调用方声明。测试见 [`timeline-ripple-domain.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-ripple-domain.test.ts)。
 
-**缺失：独立主轨磁吸。** 当前只有 `snappingEnabled` 和 `rippleEditingEnabled`。剪映的主轨磁吸、普通吸附和主轨联动是三个独立概念，QCut 目前把后两类行为压进一个“Linked editing”开关。
+**完整（QTL-005，2026-08-04 落地）：独立主轨磁吸。** 三个独立开关：`snappingEnabled`（普通吸附）、`mainTrackMagnetEnabled`（主轨磁吸——主轨删除即使不在 ripple 模式也闭合缺口）、`linkedRippleEnabled`（联动——波纹是否沿类型化 link 带动其他轨道）。按项目持久化于 `TProject.timeline`（[`types/project.ts`](../../../packages/editor-core/src/types/project.ts)），旧项目由 `resolveProjectTimelineSettings` 给定确定性默认值（吸附开/磁吸关/联动开）；锁定主轨时锁优先于磁吸（整个删除被拒绝）。工具栏三键独立。测试见 [`timeline-behavior-toggles.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-behavior-toggles.test.ts)。
 
 ### 5. 修剪模式：4 完整，1 缺失
 
@@ -225,11 +226,18 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 
 ### P1：补齐专业编辑行为
 
-#### QTL-005 拆分主轨磁吸、普通吸附与联动
+#### QTL-005 拆分主轨磁吸、普通吸附与联动 ✅ 已完成（2026-08-04）
 
-相关文件：`packages/editor-core/src/types/project.ts`、`apps/web/src/stores/timeline/types.ts`、`apps/web/src/stores/timeline/timeline-store.ts`、`apps/web/src/components/editor/timeline/timeline-toolbar.tsx`。
+实施记录：
 
-验收：三个开关可独立持久化；锁住主轨时主轨磁吸行为明确；旧项目有稳定迁移默认值。
+- `packages/editor-core/src/types/project.ts`：`ProjectTimelineSettings`（三开关）+ `DEFAULT_PROJECT_TIMELINE_SETTINGS` + `resolveProjectTimelineSettings`（旧项目缺字段时的确定性默认：吸附开、磁吸关、联动开）；`TProject.timeline?` 持久化字段。
+- `timeline-store`：新增 `mainTrackMagnetEnabled` / `linkedRippleEnabled` 状态与 toggle；三个 toggle（含既有 `toggleSnapping`）统一经 `updateProjectTimelineSettings` 写回项目；`applyProjectTimelineSettings` 在 `loadProject` 时应用。
+- 语义：磁吸 = `removeElementFromTrack` 对主轨删除强制走 ripple 闭合缺口（复用 forceRipple 路径，QTL-003 domain 语义生效）；联动 = ripple domain 是否做 link 扩展（关闭时只动被编辑轨道）；`rippleEditingEnabled` 保持为独立的"波纹模式"概念，未与磁吸混同。
+- 锁定主轨 + 磁吸：QTL-001 锁定守卫先行，删除整体被拒绝——锁优先于磁吸，行为明确且有测试。
+- 工具栏：磁吸（FoldHorizontal）与联动（Link2）两个新键，与吸附/波纹并列，均带 data-testid。
+- 测试：[`timeline-behavior-toggles.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-behavior-toggles.test.ts)（6 用例：默认值解析、磁吸主轨/非主轨/锁定矩阵、联动关闭时音频轨不随动、持久化写回项目）。
+
+验收结果：三个开关独立持久化（项目级，随 `saveProject` 落盘）✅；锁住主轨时磁吸行为明确（锁优先，整体拒绝）✅；旧项目迁移默认值确定（吸附开/磁吸关/联动开，不改变既有行为）✅。
 
 #### QTL-006 扩展吸附候选与优先级
 

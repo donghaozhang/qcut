@@ -164,6 +164,20 @@ export interface TimelineStore {
 	/** Toggle ripple editing mode on/off */
 	toggleRippleEditing: () => void;
 
+	/** Main-track magnet (QTL-005): main-track deletions close their gap
+	 * even outside ripple mode. */
+	mainTrackMagnetEnabled: boolean;
+	/** Toggle the main-track magnet on/off (persisted per project) */
+	toggleMainTrackMagnet: () => void;
+	/** Whether ripple edits pull explicitly linked tracks along (QTL-005) */
+	linkedRippleEnabled: boolean;
+	/** Toggle linked ripple on/off (persisted per project) */
+	toggleLinkedRipple: () => void;
+	/** Apply persisted project timeline settings (called on project load) */
+	applyProjectTimelineSettings: (input: {
+		settings: import("@/types/project").ProjectTimelineSettings;
+	}) => void;
+
 	/** Whether the effects track is visible in the timeline */
 	showEffectsTrack: boolean;
 	/** Toggle effects track visibility */
