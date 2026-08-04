@@ -22,7 +22,7 @@ import { pathToFileURL } from "node:url";
 export const SEMANTIC_DIFF_MANIFEST_SCHEMA = "qcut.capcut-e2e.semantic-diff";
 export const SEMANTIC_DIFF_MANIFEST_FILE_NAME = "semantic-diff-manifest.json";
 
-interface SemanticDiffSideEvidence {
+export interface SemanticDiffSideEvidence {
 	outcome: string;
 	profileId?: string;
 	files: Array<{ relativePath: string; byteLength: number; sha256: string }>;
@@ -40,7 +40,7 @@ export interface SemanticDiffCaseManifest {
 	notComparableReason?: string;
 }
 
-interface ImportPipelineApi {
+export interface ImportPipelineApi {
 	discoverDraftDirectory: (options: {
 		draftDirectory: string;
 	}) => Promise<{ rootRealPath: string; files: unknown[] }>;
@@ -65,7 +65,7 @@ interface ImportPipelineApi {
 	}) => { fileName: string; [key: string]: unknown } | undefined;
 }
 
-interface EditorCoreApi {
+export interface EditorCoreApi {
 	detectDraftProfile: (options: {
 		files: unknown[];
 		contentSummary?: unknown;
@@ -92,8 +92,24 @@ interface EditorCoreApi {
 	halfFrameToleranceUs: (options: { fps: number }) => number;
 }
 
-interface DiffableDocument {
-	project: { fps: number };
+export interface DiffableDocument {
+	project: { durationUs?: number; fps: number };
+	timelines: Array<{
+		isRoot: boolean;
+		tracks: Array<{
+			segments: Array<{
+				id: string;
+				kind: string;
+				targetRange: { durationUs: number; startUs: number };
+			}>;
+			transitions?: Array<{
+				durationUs: number;
+				fromSegmentId: string;
+				id: string;
+				toSegmentId: string;
+			}>;
+		}>;
+	}>;
 	[key: string]: unknown;
 }
 
@@ -152,7 +168,7 @@ export async function loadSemanticDiffApi(): Promise<
 	return { ...importIndex, ...editorIndexJianying, ...editorIndexInterop };
 }
 
-interface NormalizedSide {
+export interface NormalizedSemanticDiffSide {
 	evidence: SemanticDiffSideEvidence;
 	document?: DiffableDocument;
 }
@@ -163,7 +179,7 @@ async function normalizeSide({
 }: {
 	api: ImportPipelineApi & EditorCoreApi;
 	draftDirectory: string;
-}): Promise<NormalizedSide> {
+}): Promise<NormalizedSemanticDiffSide> {
 	const discovery = await api.discoverDraftDirectory({ draftDirectory });
 	const snapshot = await api.readDraftSourceSnapshot({
 		rootRealPath: discovery.rootRealPath,
@@ -213,6 +229,68 @@ async function normalizeSide({
 	return { evidence, document: normalized.document };
 }
 
+export async function normalizeDraftForSemanticDiff({
+	api,
+	draftDirectory,
+}: {
+	api?: ImportPipelineApi & EditorCoreApi;
+	draftDirectory: string;
+}): Promise<NormalizedSemanticDiffSide> {
+	const loadedApi = api ?? (await loadSemanticDiffApi());
+	return normalizeSide({ api: loadedApi, draftDirectory });
+}
+
+export function buildSemanticDiffCaseManifest({
+	api,
+	left,
+	nowIso,
+	right,
+}: {
+	api: ImportPipelineApi & EditorCoreApi;
+	left: NormalizedSemanticDiffSide;
+	nowIso: string;
+	right: NormalizedSemanticDiffSide;
+}): SemanticDiffCaseManifest {
+	if (left.document === undefined || right.document === undefined) {
+		return {
+			schema: SEMANTIC_DIFF_MANIFEST_SCHEMA,
+			schemaVersion: 1,
+			generatedAtIso: nowIso,
+			options: { timeToleranceUs: 0, speedTolerance: 0 },
+			left: left.evidence,
+			right: right.evidence,
+			verdict: "not-comparable",
+			notComparableReason:
+				left.document === undefined
+					? `left side is ${left.evidence.outcome}`
+					: `right side is ${right.evidence.outcome}`,
+		};
+	}
+	const timeToleranceUs = api.halfFrameToleranceUs({
+		fps: left.document.project.fps,
+	});
+	const options = { timeToleranceUs, speedTolerance: 0 };
+	const diff = api.diffDraftInteropDocuments({
+		left: left.document,
+		right: right.document,
+		options,
+	});
+	return {
+		schema: SEMANTIC_DIFF_MANIFEST_SCHEMA,
+		schemaVersion: 1,
+		generatedAtIso: nowIso,
+		options,
+		left: left.evidence,
+		right: right.evidence,
+		verdict: diff.identical
+			? "identical"
+			: diff.breakingCount > 0
+				? "breaking"
+				: "tolerable",
+		diff,
+	};
+}
+
 export async function runSemanticDiffCase({
 	leftDraftDirectory,
 	rightDraftDirectory,
@@ -232,46 +310,12 @@ export async function runSemanticDiffCase({
 		normalizeSide({ api: loadedApi, draftDirectory: rightDraftDirectory }),
 	]);
 
-	let manifest: SemanticDiffCaseManifest;
-	if (left.document === undefined || right.document === undefined) {
-		manifest = {
-			schema: SEMANTIC_DIFF_MANIFEST_SCHEMA,
-			schemaVersion: 1,
-			generatedAtIso: nowIso,
-			options: { timeToleranceUs: 0, speedTolerance: 0 },
-			left: left.evidence,
-			right: right.evidence,
-			verdict: "not-comparable",
-			notComparableReason:
-				left.document === undefined
-					? `left side is ${left.evidence.outcome}`
-					: `right side is ${right.evidence.outcome}`,
-		};
-	} else {
-		const timeToleranceUs = loadedApi.halfFrameToleranceUs({
-			fps: left.document.project.fps,
-		});
-		const options = { timeToleranceUs, speedTolerance: 0 };
-		const diff = loadedApi.diffDraftInteropDocuments({
-			left: left.document,
-			right: right.document,
-			options,
-		});
-		manifest = {
-			schema: SEMANTIC_DIFF_MANIFEST_SCHEMA,
-			schemaVersion: 1,
-			generatedAtIso: nowIso,
-			options,
-			left: left.evidence,
-			right: right.evidence,
-			verdict: diff.identical
-				? "identical"
-				: diff.breakingCount > 0
-					? "breaking"
-					: "tolerable",
-			diff,
-		};
-	}
+	const manifest = buildSemanticDiffCaseManifest({
+		api: loadedApi,
+		left,
+		nowIso,
+		right,
+	});
 
 	if (outputDirectory !== undefined) {
 		await writeFile(
