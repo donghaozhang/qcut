@@ -75,6 +75,14 @@ export {
 } from "./foreign-envelope-payload.js";
 
 export {
+	applySameProfileScalarPatches,
+	type ApplySameProfileScalarPatchesResult,
+	type SameProfileJsonPatchErrorCode,
+	type SameProfileJsonScalar,
+	type SameProfileScalarPatch,
+} from "./same-profile-json-patch.js";
+
+export {
 	DRAFT_INTEROP_SCHEMA_VERSION,
 	DRAFT_INTEROP_TIME_UNIT,
 	parseDraftInteropDocumentV1,
