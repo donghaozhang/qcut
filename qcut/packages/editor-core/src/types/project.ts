@@ -7,6 +7,7 @@
 
 import type { CanvasSize } from "./editor.js";
 import type { ProjectAudioMixSettings } from "./timeline.js";
+import type { DraftInteropDocumentV1 } from "../draft-interop/document.js";
 import type { ForeignDraftEnvelopeV1 } from "../draft-interop/foreign-envelope.js";
 
 export type BlurIntensity = 4 | 8 | 18;
@@ -47,7 +48,8 @@ export type DraftInteropWritebackStatus =
 			reason:
 				| "envelope-not-captured"
 				| "profile-not-writable"
-				| "envelope-unavailable";
+				| "envelope-unavailable"
+				| "baseline-document-missing";
 	  }
 	| { status: "ready" };
 
@@ -60,6 +62,8 @@ export interface DraftInteropProjectBindingV1 {
 	sourceFileSha256: string[];
 	/** Stable foreign semantic id to QCut entity id mapping from import. */
 	internalIdBySemanticId: Record<string, string>;
+	/** Normalized import baseline. Raw source bytes remain encrypted separately. */
+	baselineDocument?: DraftInteropDocumentV1;
 	writeback: DraftInteropWritebackStatus;
 	/** Metadata only. Raw source bytes remain behind the encrypted payload ref. */
 	envelope?: ForeignDraftEnvelopeV1;
