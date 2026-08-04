@@ -76,7 +76,7 @@ describe("LocalStickerReferencePanel", () => {
 				catalog={createLocalStickerCatalog()}
 				error={null}
 				isLoading={false}
-				onSelect={async () => {}}
+				onSelect={() => Promise.resolve()}
 			/>
 		);
 
