@@ -1343,6 +1343,33 @@ const EN_TRANSLATIONS = {
 	"draftImport.recoveryComplete": "Import recovery complete",
 	"draftImport.recoverySummary":
 		"{{rolledBack}} partial import removed · {{completed}} published import finalized",
+	"draftWriteback.title": "Update original CapCut draft",
+	"draftWriteback.description":
+		"Write supported timing edits back to a selected CapCut 8.1 draft while preserving unknown data.",
+	"draftWriteback.action": "Choose draft and update",
+	"draftWriteback.baselineMissing":
+		"This imported project does not contain the normalized baseline required for safe writeback.",
+	"draftWriteback.desktopOnly":
+		"Writeback is available in the QCut desktop app.",
+	"draftWriteback.envelopeMissing":
+		"The original draft was imported without a source envelope.",
+	"draftWriteback.envelopeUnavailable":
+		"The encrypted original draft envelope is unavailable.",
+	"draftWriteback.verificationRequired":
+		"Writeback remains disabled until the exact CapCut 8.1 open, save, and reopen verification passes.",
+	"draftWriteback.finishOperation":
+		"Finish the current export operation first.",
+	"draftWriteback.writing": "Verifying and updating the selected draft…",
+	"draftWriteback.recovering": "Recovering the interrupted writeback…",
+	"draftWriteback.complete": "Writeback complete",
+	"draftWriteback.written": "Four active CapCut content mirrors were updated.",
+	"draftWriteback.unchanged":
+		"The supported CapCut fields are already up to date.",
+	"draftWriteback.cancelled": "No draft was changed.",
+	"draftWriteback.failed": "Writeback failed",
+	"draftWriteback.recovered": "Writeback recovery complete",
+	"draftWriteback.recover": "Recover transaction",
+	"draftWriteback.reset": "Done",
 	"mediaProperties.resetAll": "Reset all",
 	"mediaProperties.tab.visual": "Video",
 	"mediaProperties.tab.audio": "Audio",
@@ -2954,6 +2981,27 @@ const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
 	"draftImport.recoveryComplete": "导入恢复已完成",
 	"draftImport.recoverySummary":
 		"已清理 {{rolledBack}} 个未完成导入 · 已确认 {{completed}} 个已发布导入",
+	"draftWriteback.title": "更新原始 CapCut 草稿",
+	"draftWriteback.description":
+		"将支持的时间编辑安全写回所选 CapCut 8.1 草稿，并保留未知数据。",
+	"draftWriteback.action": "选择草稿并更新",
+	"draftWriteback.baselineMissing": "此导入项目缺少安全写回所需的规范化基线。",
+	"draftWriteback.desktopOnly": "草稿写回仅可在 QCut 桌面版中使用。",
+	"draftWriteback.envelopeMissing": "导入原始草稿时没有捕获来源 envelope。",
+	"draftWriteback.envelopeUnavailable": "原始草稿的加密 envelope 当前不可用。",
+	"draftWriteback.verificationRequired":
+		"精确 CapCut 8.1 的打开、保存和重新打开验证通过前，写回功能保持禁用。",
+	"draftWriteback.finishOperation": "请先完成当前导出操作。",
+	"draftWriteback.writing": "正在验证并更新所选草稿…",
+	"draftWriteback.recovering": "正在恢复中断的写回事务…",
+	"draftWriteback.complete": "草稿写回完成",
+	"draftWriteback.written": "已更新四个 CapCut 活动内容镜像。",
+	"draftWriteback.unchanged": "支持写回的 CapCut 字段已经是最新状态。",
+	"draftWriteback.cancelled": "没有修改任何草稿。",
+	"draftWriteback.failed": "草稿写回失败",
+	"draftWriteback.recovered": "写回事务恢复完成",
+	"draftWriteback.recover": "恢复事务",
+	"draftWriteback.reset": "完成",
 	"mediaProperties.resetAll": "全部重置",
 	"mediaProperties.tab.visual": "画面",
 	"mediaProperties.tab.audio": "音频",
