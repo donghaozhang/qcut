@@ -16,7 +16,7 @@ import { lstat, readdir, realpath } from "node:fs/promises";
 import { join } from "node:path";
 import type { DraftSourceFileRole } from "@qcut/editor-core/draft-interop";
 
-export const MAX_DISCOVERY_ENTRIES = 4096;
+export const MAX_DISCOVERY_ENTRIES = 8192;
 export const MAX_DISCOVERY_DEPTH = 2;
 
 const CONTENT_FILE_NAMES = new Set(["draft_info.json", "draft_content.json"]);
