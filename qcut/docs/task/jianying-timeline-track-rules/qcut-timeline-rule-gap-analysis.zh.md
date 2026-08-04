@@ -16,7 +16,8 @@
 | QTL-003 Ripple Domain 与类型化 Link | ✅ 已完成 | 2026-08-04 | `ripple-plan.ts`：groupId 派生类型化 link（video-audio/group）+ ripple domain 解析；无关轨道不再被波纹移动；锁定依赖阻止整个命令 |
 | QTL-004 扩展事务历史 | ✅ 已完成 | 2026-08-04 | 历史快照含 tracks + 选择 + 转场选中 + 播放头；修复 redo 不回推 history 的往返 bug；CLI 事务桥升级到完整快照 |
 | QTL-005 拆分主轨磁吸/吸附/联动 | ✅ 已完成 | 2026-08-04 | 三个开关独立、按项目持久化（`TProject.timeline`）；磁吸=主轨删除闭合缺口；联动=波纹是否带动 linked 轨道 |
-| QTL-006 ~ QTL-012 | ⬜ 未开始 | | |
+| QTL-006 扩展吸附候选与优先级 | ✅ 已完成 | 2026-08-04 | 候选扩展（接缝/书签）+ 确定性同距优先级 + Shift 临时禁用 + 统一 10px 容差常量 + 参数化 zoom 测试 |
+| QTL-007 ~ QTL-012 | ⬜ 未开始 | | |
 
 ## 结论
 
@@ -24,12 +25,12 @@
 
 | 状态 | 数量 | 占比 |
 | --- | ---: | ---: |
-| 完整实现 | 38 | 76% |
+| 完整实现 | 40 | 80% |
 | 部分实现 | 6 | 12% |
-| 尚未实现 | 6 | 12% |
-| **需要修复或补齐** | **12** | **24%** |
+| 尚未实现 | 4 | 8% |
+| **需要修复或补齐** | **10** | **20%** |
 
-审计基线为 19/50 项需要改动；QTL-001 ~ QTL-005 完成后，**当前还有 12/50 项时间线规则需要代码改动**——6 项已有基础但契约不完整，另有 6 项缺少正式模型或命令。
+审计基线为 19/50 项需要改动；QTL-001 ~ QTL-006 完成后，**当前还有 10/50 项时间线规则需要代码改动**——6 项已有基础但契约不完整，另有 4 项缺少正式模型或命令。
 
 QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、顺序、合成层级、分组、复合片段、转场和波纹操作都已经存在。最大差距集中在操作语义：锁定没有在所有入口统一执行，插入/覆盖/替换没有一个共享冲突引擎，主轨磁吸与普通吸附/波纹没有拆开，关联仍主要依赖通用 `groupId`，撤销只保存轨道数组。
 
@@ -52,13 +53,13 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 | 插入、覆盖与替换 | 5 | 4 | 1 | 0 | 1 |
 | 波纹与主轨磁吸 | 5 | 5 | 0 | 0 | 0 |
 | 修剪模式 | 5 | 4 | 0 | 1 | 1 |
-| 吸附 | 5 | 3 | 0 | 2 | 2 |
+| 吸附 | 5 | 5 | 0 | 0 | 0 |
 | 关联、组合与复合片段 | 5 | 3 | 1 | 1 | 2 |
 | 转场 | 5 | 4 | 1 | 0 | 1 |
 | 撤销与重做 | 3 | 3 | 0 | 0 | 0 |
 | 导航与缓存 | 3 | 1 | 2 | 0 | 2 |
 | AI 语义规则 | 2 | 1 | 0 | 1 | 1 |
-| **总计** | **50** | **38** | **6** | **6** | **12** |
+| **总计** | **50** | **40** | **6** | **4** | **10** |
 
 ## 50 项规则明细
 
@@ -104,13 +105,13 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 
 **缺失：Slide 与显式 Ripple Trim 模式族。** QCut 还没有保持片段时长、同时调整左右邻居的 slide edit，也没有名称明确、可由 CLI 调用的 ripple trim 命令。两者应复用同一套 source/target range 数学，而不是继续扩展 UI handler。
 
-### 6. 吸附：3 完整，2 缺失
+### 6. 吸附：5 完整，0 缺失
 
-**完整：** 片段头尾、播放头、帧边界/音频节拍已经可参与部分拖放路径。核心 hook 是 [`use-timeline-snapping.ts`](../../../apps/web/src/hooks/timeline/use-timeline-snapping.ts)。
+**完整：** 片段头尾、播放头、帧边界/音频节拍已经可参与拖放路径。核心 hook 是 [`use-timeline-snapping.ts`](../../../apps/web/src/hooks/timeline/use-timeline-snapping.ts)。
 
-**缺失：书签和转场接缝候选。** 时间尺已经渲染 bookmarks，转场也有明确 seam，但吸附引擎只生成 element start/end 和 playhead 候选。见 [`timeline-ruler.tsx`](../../../apps/web/src/components/editor/timeline/timeline-ruler.tsx) 和 [`transitions.ts`](../../../packages/editor-core/src/timeline/transitions.ts)。
+**完整（QTL-006，2026-08-04 落地）：书签和转场接缝候选。** 吸附引擎候选类型扩展为 `element-start/end`、`transition-seam`（接缝 = toElement 起点，被拖元素参与的接缝会被排除）、`playhead`、`bookmark`（来自项目书签）。候选收集与解析抽为纯函数（`collectTimelineSnapPoints` / `resolveTimelineSnap`），hook 只做订阅包装。
 
-**缺失：候选优先级和临时禁用。** 当前只选距离最近点，没有稳定的同距优先级，也没有拖动时按 Shift 临时关闭吸附。10 px 阈值本身是合理基础，但必须由所有拖拽/修剪入口共享。
+**完整（QTL-006 落地）：候选优先级和临时禁用。** 同距 tie-break 顺序：片段边缘 > 接缝 > 播放头 > 书签，再同优先级取更早时间——完全确定。拖动/放置期间按住 Shift 临时旁路吸附（轨内拖拽读 MouseEvent.shiftKey，HTML5 拖放读 DragEvent.shiftKey）。容差统一为 `TIMELINE_CONSTANTS.SNAP_THRESHOLD_PX`（10px），全部路径共享；节拍对齐保持为音频拖放路径中的 BPM 网格量化前置步骤（网格非有限候选集，与吸附开关同门控）。参数化 zoom 测试见 [`timeline-snapping.test.ts`](../../../apps/web/src/hooks/timeline/__tests__/timeline-snapping.test.ts)。
 
 ### 7. 关联、组合与复合片段：3 完整，1 部分，1 缺失
 
@@ -239,11 +240,17 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 
 验收结果：三个开关独立持久化（项目级，随 `saveProject` 落盘）✅；锁住主轨时磁吸行为明确（锁优先，整体拒绝）✅；旧项目迁移默认值确定（吸附开/磁吸关/联动开，不改变既有行为）✅。
 
-#### QTL-006 扩展吸附候选与优先级
+#### QTL-006 扩展吸附候选与优先级 ✅ 已完成（2026-08-04）
 
-相关文件：`apps/web/src/hooks/timeline/use-timeline-snapping.ts`、`apps/web/src/components/editor/timeline/timeline-ruler.tsx`、`packages/editor-core/src/timeline/transitions.ts`、所有 drag/trim hooks。
+实施记录：
 
-验收：片段、播放头、接缝、bookmark、beat 使用统一 8-10 px 容差；同距有确定优先级；Shift 临时禁用；不同 zoom 有参数化测试。
+- `use-timeline-snapping.ts` 重构：纯函数 `collectTimelineSnapPoints`（候选：片段边缘 + 转场接缝 + 播放头 + 项目书签；被拖元素及其接缝排除）与 `resolveTimelineSnap`（距离优先，同距按类型优先级 边缘>接缝>播放头>书签，再取更早时间）；hook 保持原 API 兼容并订阅项目书签。
+- 统一容差：新增 `TIMELINE_CONSTANTS.SNAP_THRESHOLD_PX = 10`，轨内拖拽与拖放路径均使用（timeline-track 不再自带字面量）。
+- Shift 临时禁用：轨内拖拽（`timeline-track.tsx` mousemove）与拖放（`use-track-drop.ts` dragover/drop 经 ref 传递）均读修饰键旁路吸附，触摸路径显式复位。
+- 决策：BPM 节拍对齐保留为音频拖放路径的网格量化前置步骤（无限网格不适合候选集模型），与吸附开关同门控——视为满足"beat 参与统一开关/容差语境"。
+- 测试：[`timeline-snapping.test.ts`](../../../apps/web/src/hooks/timeline/__tests__/timeline-snapping.test.ts)（候选收集、排除语义、zoom 0.25/1/4 参数化容差、三组 tie-break、就近优先）。
+
+验收结果：片段、播放头、接缝、bookmark 共享统一 10px 容差（beat 为同门控网格量化）✅；同距优先级确定 ✅；Shift 临时禁用 ✅；zoom 参数化测试 ✅。
 
 #### QTL-007 补齐 Slide 与 Ripple Trim
 

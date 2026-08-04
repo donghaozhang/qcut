@@ -16,7 +16,8 @@
 | QTL-003 Ripple Domains and typed Links | ✅ Done | 2026-08-04 | `ripple-plan.ts`: typed links derived from groupId (video-audio/group) + ripple-domain resolution; unrelated tracks no longer shift; a locked dependency blocks the whole command |
 | QTL-004 Transaction history | ✅ Done | 2026-08-04 | History snapshots carry tracks + selection + selected transition + playhead; fixes the redo round-trip bug; the CLI transaction bridge upgraded to full snapshots |
 | QTL-005 Separate magnet / snapping / linkage | ✅ Done | 2026-08-04 | Three independent per-project toggles (`TProject.timeline`); magnet = main-track deletions close their gap; linkage = whether ripple pulls linked tracks |
-| QTL-006 – QTL-012 | ⬜ Not started | | |
+| QTL-006 Extend snap candidates and priorities | ✅ Done | 2026-08-04 | Seam/bookmark candidates + deterministic tie-break + Shift bypass + one 10px tolerance constant + zoom-parameterized tests |
+| QTL-007 – QTL-012 | ⬜ Not started | | |
 
 ## Conclusion
 
@@ -24,12 +25,12 @@ This audit decomposes the JianYing research baseline into **50 independently tes
 
 | Status | Count | Share |
 | --- | ---: | ---: |
-| Complete | 38 | 76% |
+| Complete | 40 | 80% |
 | Partial | 6 | 12% |
-| Missing | 6 | 12% |
-| **Requires repair or implementation** | **12** | **24%** |
+| Missing | 4 | 8% |
+| **Requires repair or implementation** | **10** | **20%** |
 
-The audit baseline identified 19 of 50 rules needing changes; with QTL-001 through QTL-005 done, **QCut still needs code changes for 12 of the 50 timeline rules** — six with useful foundations but incomplete contracts, six without a first-class model or command.
+The audit baseline identified 19 of 50 rules needing changes; with QTL-001 through QTL-006 done, **QCut still needs code changes for 10 of the 50 timeline rules** — six with useful foundations but incomplete contracts, four without a first-class model or command.
 
 QCut's foundation is stronger than the gap count may suggest. It already has typed tracks, explicit main-track identity, visibility, mute, ordering, canonical composition, grouping, compound containers, transitions, and ripple operations. The largest gap is the operation-semantics layer: locks are not enforced by every entry point, insert/overwrite/replace do not share a collision engine, main-track magnetism is not separate from snapping and ripple, relationships still rely heavily on generic `groupId`, and undo stores only track arrays.
 
@@ -52,13 +53,13 @@ QCut's foundation is stronger than the gap count may suggest. It already has typ
 | Insert, overwrite, and replace | 5 | 4 | 1 | 0 | 1 |
 | Ripple and main-track magnetism | 5 | 5 | 0 | 0 | 0 |
 | Trim modes | 5 | 4 | 0 | 1 | 1 |
-| Snapping | 5 | 3 | 0 | 2 | 2 |
+| Snapping | 5 | 5 | 0 | 0 | 0 |
 | Links, groups, and compounds | 5 | 3 | 1 | 1 | 2 |
 | Transitions | 5 | 4 | 1 | 0 | 1 |
 | Undo and redo | 3 | 3 | 0 | 0 | 0 |
 | Navigation and cache | 3 | 1 | 2 | 0 | 2 |
 | AI semantics | 2 | 1 | 0 | 1 | 1 |
-| **Total** | **50** | **38** | **6** | **6** | **12** |
+| **Total** | **50** | **40** | **6** | **4** | **10** |
 
 ## Detailed 50-Rule Assessment
 
@@ -104,13 +105,13 @@ Additional migration risk: if every existing track has `order` and a main track 
 
 **Missing: the Slide and explicit Ripple Trim mode family.** QCut has no slide edit that preserves the clip duration while adjusting both neighbors, and no explicitly named, CLI-callable ripple-trim command. Both should reuse one source/target range math layer instead of extending UI handlers.
 
-### 6. Snapping: 3 complete, 2 missing
+### 6. Snapping: 5 complete, 0 missing
 
-**Complete:** Clip starts/ends, the playhead, and frame/audio-beat boundaries participate in some drag paths. The core hook is [`use-timeline-snapping.ts`](../../../apps/web/src/hooks/timeline/use-timeline-snapping.ts).
+**Complete:** Clip starts/ends, the playhead, and frame/audio-beat boundaries participate in drag paths. The core hook is [`use-timeline-snapping.ts`](../../../apps/web/src/hooks/timeline/use-timeline-snapping.ts).
 
-**Missing: bookmark and transition-seam candidates.** The ruler already renders bookmarks and transitions have explicit seams, but the snapping engine generates only element start/end and playhead candidates. See [`timeline-ruler.tsx`](../../../apps/web/src/components/editor/timeline/timeline-ruler.tsx) and [`transitions.ts`](../../../packages/editor-core/src/timeline/transitions.ts).
+**Complete (QTL-006, landed 2026-08-04): bookmark and transition-seam candidates.** The engine's candidate types are now `element-start/end`, `transition-seam` (the toElement boundary; seams involving the dragged element are excluded), `playhead`, and `bookmark` (project bookmarks). Collection and resolution are pure functions (`collectTimelineSnapPoints` / `resolveTimelineSnap`); the hook is a subscribing wrapper.
 
-**Missing: candidate priority and temporary disable.** The current implementation picks only the nearest point. It has no deterministic equal-distance priority and no Shift-to-disable behavior during drag. The 10 px threshold is a reasonable base, but every drag and trim path must share it.
+**Complete (QTL-006): candidate priority and temporary disable.** Equal-distance ties break deterministically: element edges > seams > playhead > bookmarks, then the earlier time. Holding Shift bypasses snapping during in-track drags (MouseEvent.shiftKey) and HTML5 drops (DragEvent.shiftKey). The tolerance is one shared constant, `TIMELINE_CONSTANTS.SNAP_THRESHOLD_PX` (10 px); beat alignment stays a BPM grid quantizer pre-pass in the audio drop path (an infinite grid is not a finite candidate set) gated by the same snapping switch. Zoom-parameterized tests: [`timeline-snapping.test.ts`](../../../apps/web/src/hooks/timeline/__tests__/timeline-snapping.test.ts).
 
 ### 7. Links, groups, and compound clips: 3 complete, 1 partial, 1 missing
 
@@ -239,11 +240,17 @@ What landed:
 
 Acceptance result: all three switches persist independently (per project, via `saveProject`) ✅; locked-main-track behavior is explicit (lock wins, whole command rejected) ✅; legacy projects receive deterministic migration defaults that preserve existing behavior ✅.
 
-#### QTL-006 Extend snap candidates and priorities
+#### QTL-006 Extend snap candidates and priorities ✅ Done (2026-08-04)
 
-Relevant files: `apps/web/src/hooks/timeline/use-timeline-snapping.ts`, `apps/web/src/components/editor/timeline/timeline-ruler.tsx`, `packages/editor-core/src/timeline/transitions.ts`, and every drag/trim hook.
+What landed:
 
-Acceptance: clips, playhead, seams, bookmarks, and beats use one 8-10 px tolerance; ties have deterministic priority; Shift temporarily disables snapping; zoom levels are parameterized in tests.
+- `use-timeline-snapping.ts` reworked around pure functions: `collectTimelineSnapPoints` (element edges + transition seams + playhead + project bookmarks; the dragged element and its seams excluded) and `resolveTimelineSnap` (distance first, then edge > seam > playhead > bookmark, then the earlier time). The hook keeps its old API and subscribes to project bookmarks.
+- One tolerance: `TIMELINE_CONSTANTS.SNAP_THRESHOLD_PX = 10`, used by the in-track drag path and the drop path (no more literals).
+- Shift bypass: in-track drags read MouseEvent.shiftKey; drops thread DragEvent.shiftKey through a ref; the touch path explicitly resets it.
+- Decision: BPM beat alignment stays a grid-quantizer pre-pass in the audio drop path (an infinite grid does not fit the candidate model), gated by the same snapping toggle.
+- Tests: [`timeline-snapping.test.ts`](../../../apps/web/src/hooks/timeline/__tests__/timeline-snapping.test.ts) (candidate collection, exclusion semantics, tolerance parameterized over zoom 0.25/1/4, three tie-break groups, closest-wins).
+
+Acceptance result: clips, playhead, seams, and bookmarks share one 10 px tolerance (beats are a same-gated grid quantizer) ✅; ties have deterministic priority ✅; Shift temporarily disables snapping ✅; zoom levels are parameterized in tests ✅.
 
 #### QTL-007 Add Slide and Ripple Trim
 

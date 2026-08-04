@@ -69,13 +69,18 @@ export function useTrackDrop({
 	const [wouldOverlap, setWouldOverlap] = useState(false);
 	const dragCounterRef = useRef(0);
 
+	// Holding Shift during a drag bypasses snapping (QTL-006). The flag is
+	// refreshed from every drag event so the helper below stays call-site
+	// agnostic.
+	const bypassSnappingRef = useRef(false);
+
 	// Helper function for drop snapping that tries both edges
 	const getDropSnappedTime = (
 		dropTime: number,
 		elementDuration: number,
 		excludeElementId?: string
 	) => {
-		if (!snappingEnabled) {
+		if (!snappingEnabled || bypassSnappingRef.current) {
 			// Use frame snapping if project has FPS, otherwise use decimal snapping
 			const projectStore = useProjectStore.getState();
 			const projectFps = projectStore.activeProject?.fps || 30;
@@ -118,6 +123,7 @@ export function useTrackDrop({
 
 	const handleTrackDragOver = (e: React.DragEvent) => {
 		e.preventDefault();
+		bypassSnappingRef.current = e.shiftKey;
 
 		// Handle both timeline elements and media items
 		const hasTimelineElement = e.dataTransfer.types.includes(
@@ -860,6 +866,7 @@ export function useTrackDrop({
 	const handleTrackDrop = (e: React.DragEvent) => {
 		e.preventDefault();
 		e.stopPropagation();
+		bypassSnappingRef.current = e.shiftKey;
 
 		const trackContainer = e.currentTarget.querySelector(
 			".track-elements-container"
@@ -897,6 +904,7 @@ export function useTrackDrop({
 		clientX: number,
 		clientY: number
 	) => {
+		bypassSnappingRef.current = false;
 		// Touch drops from media panel always carry media item data
 		processDropAtPosition(trackContainer, clientX, clientY, data, null, null);
 	};
