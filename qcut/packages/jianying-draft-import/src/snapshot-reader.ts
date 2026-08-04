@@ -42,6 +42,8 @@ export interface DraftSourceSnapshot {
 	files: DraftSourceSnapshotFile[];
 	/** Parsed JSON for plaintext content/meta files, keyed by relative path. */
 	parsedJsonByPath: Record<string, unknown>;
+	/** RESTRICTED raw bytes, held in main-process memory for envelope capture. */
+	bytesByPath: Record<string, Buffer>;
 	issues: InteropIssue[];
 }
 
@@ -203,6 +205,7 @@ export async function readDraftSourceSnapshot({
 		rootRealPath,
 		files: [],
 		parsedJsonByPath: {},
+		bytesByPath: {},
 		issues: [],
 	};
 	let totalBytes = 0;
@@ -232,6 +235,7 @@ export async function readDraftSourceSnapshot({
 		if (parsed !== undefined && file.role !== "asset") {
 			snapshot.parsedJsonByPath[file.relativePath] = parsed;
 		}
+		snapshot.bytesByPath[file.relativePath] = result.bytes;
 		snapshot.files.push({
 			relativePath: file.relativePath,
 			byteLength: result.bytes.length,
