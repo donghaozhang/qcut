@@ -59,6 +59,12 @@ export interface RoundtripCaseManifest {
 	generatedAtIso: string;
 	gates: RoundtripCaseGate[];
 	provenance: RoundtripCaseProvenance;
+	roles: {
+		audio: { left: "reference"; right: "qcut" };
+		nativeFrames: { left: "reference"; right: "qcut" };
+		previewFrames: { left: "reference"; right: "qcut" };
+		semantic: { left: "source-draft"; right: "roundtrip-draft" };
+	};
 	samplePlan?: FrameSamplePlan;
 	schema: typeof ROUNDTRIP_CASE_MANIFEST_SCHEMA;
 	schemaVersion: 1;
