@@ -189,10 +189,17 @@ export {
 } from "./import/normalize.js";
 
 export {
+	mapCapCut81SeamTransition,
+	type MapCapCut81SeamTransitionInput,
+	type MappedCapCut81SeamTransition,
+} from "./import/capcut-8-1-transition-mapper.js";
+
+export {
 	mapInteropDocumentToQCutPlan,
 	type QCutImportPlanElement,
 	type QCutImportPlanTrack,
 	type QCutImportPlanTrackType,
+	type QCutImportPlanTransition,
 	type QCutImportSkippedNode,
 	type QCutImportTimelinePlanV1,
 } from "./import/qcut-mapping.js";
