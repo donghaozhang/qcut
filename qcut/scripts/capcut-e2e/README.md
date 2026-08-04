@@ -72,6 +72,33 @@ Bundles are built in a run-local staging directory and atomically renamed to
 `bundles` only after all three cases and the summary manifest pass. Existing
 `bundles` output is never overwritten; generate a new fixture run ID instead.
 
+## Same-profile writeback transaction
+
+Exercise guarded CapCut 8.1 timing writeback against an isolated copy of a
+real-app, receipt-bound draft:
+
+```bash
+bun scripts/capcut-e2e/capcut-8-1-writeback-verification.ts \
+  --case-id <case-id> \
+  --source-draft <capcut-8.1-draft-dir> \
+  --source-receipt <capcut-envelope-capture-receipt.json> \
+  --output <new-evidence-dir> --json
+```
+
+The runner verifies the source against the envelope receipt before creating
+`<output>/draft-copy`. It injects a controlled unknown segment field only into
+that copy, imports the copy through the production `inspect → plan → commit`
+pipeline, applies one four-leaf timing change, and invokes the transactional
+four-mirror writer. The path-free manifest requires all active mirrors to
+match, both `.bak` mirrors and the original source to remain unchanged, the
+unknown sentinel to survive, the raw JSON diff to equal the planned pointers,
+and recovery state to be clean.
+
+An isolated-copy success remains `unverified` with exit code `2` until the
+exact CapCut 8.1 application opens, saves, and reopens the written copy. Exit
+code `0` is reserved for that additional real-app gate; invariant failures use
+`1`, and harness errors use `3`.
+
 ## Round-trip parity case
 
 Run the import-materialization, semantic, and four-output comparisons after
