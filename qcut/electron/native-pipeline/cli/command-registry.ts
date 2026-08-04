@@ -119,6 +119,11 @@ export const CATEGORIES: CategoryDef[] = [
 		commands: ["edit-plan", "edit-verify", "sticker-search", "sticker-overlay"],
 	},
 	{
+		name: "transition",
+		label: "Local Transition Commands",
+		commands: ["transition-list", "transition-doctor", "transition-render"],
+	},
+	{
 		name: "models",
 		label: "Model Listing",
 		commands: [
@@ -221,6 +226,43 @@ export const CATEGORIES: CategoryDef[] = [
 // ─── Non-Editor Commands ─────────────────────────────────────────────
 
 const CORE_COMMANDS: Record<string, CommandDef> = {
+	"transition-list": {
+		name: "transition-list",
+		description:
+			"List QCut Transition Lab presets backed by the local Jianying runtime",
+		category: "transition",
+		flags: [],
+		examples: ["qcut transition list --json"],
+	},
+	"transition-doctor": {
+		name: "transition-doctor",
+		description:
+			"Check the local Jianying app, QCut bridge, and transition packages",
+		category: "transition",
+		flags: [],
+		examples: ["qcut transition doctor --json"],
+	},
+	"transition-render": {
+		name: "transition-render",
+		description:
+			"Join two videos with a Transition Lab preset using the local Jianying runtime",
+		category: "transition",
+		flags: [
+			f("--preset", "string", "Transition Lab preset ID or localized name", {
+				required: true,
+			}),
+			f("--input-a", "string", "Video before the cut", { required: true }),
+			f("--input-b", "string", "Video after the cut", { required: true }),
+			f("--output", "string", "Output MP4 path"),
+			f("--duration", "number", "Transition duration in seconds"),
+			f("--fps", "number", "Output frame rate"),
+			f("--width", "number", "Output width"),
+			f("--height", "number", "Output height"),
+		],
+		examples: [
+			"qcut transition render --preset jianying-local-traverse-3 --input-a a.mp4 --input-b b.mp4 --output joined.mp4",
+		],
+	},
 	"instances-list": {
 		name: "instances-list",
 		description: "List running QCut editor instances",
