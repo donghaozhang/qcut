@@ -27,4 +27,14 @@ describe("Transition Lab catalog", () => {
 			);
 		}
 	});
+
+	it("keeps page curl endpoints pixel-exact", () => {
+		const pageCurl = TRANSITION_LAB_RECIPES.find(
+			(recipe) => recipe.id === "lab-page-curl"
+		);
+		expect(pageCurl?.shader.fragmentSource).toContain("uProgress <= 0.0");
+		expect(pageCurl?.shader.fragmentSource).toContain("texture2D(uFrom, vUv)");
+		expect(pageCurl?.shader.fragmentSource).toContain("uProgress >= 1.0");
+		expect(pageCurl?.shader.fragmentSource).toContain("texture2D(uTo, vUv)");
+	});
 });

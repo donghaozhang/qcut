@@ -101,6 +101,14 @@ function slideFragment({ direction }: { direction: "left" | "right" }): string {
 
 const PAGE_CURL_FRAGMENT = fragmentShader({
 	body: `
+	if (uProgress <= 0.0) {
+		gl_FragColor = texture2D(uFrom, vUv);
+		return;
+	}
+	if (uProgress >= 1.0) {
+		gl_FragColor = texture2D(uTo, vUv);
+		return;
+	}
 	float edge = 1.0 - uProgress;
 	float curlWidth = 0.12 + 0.12 * uIntensity;
 	float distanceToEdge = vUv.x - edge;
