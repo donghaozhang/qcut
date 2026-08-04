@@ -147,6 +147,26 @@ function deriveSourceSeed({ bundle }: { bundle: QCutImportBundleV1 }): string {
 	return fileHashes.length > 0 ? fileHashes.join(",") : bundle.bundleDigest;
 }
 
+function buildDraftInteropBinding({
+	bundle,
+}: {
+	bundle: QCutImportBundleV1;
+}): NonNullable<TProject["draftInterop"]> {
+	return {
+		schemaVersion: 1,
+		importId: bundle.planToken,
+		profileId: bundle.document.source.profileId,
+		bundleDigest: bundle.bundleDigest,
+		sourceFileSha256: bundle.document.source.files
+			.map((file) => file.sha256)
+			.sort(),
+		writeback: {
+			status: "unavailable",
+			reason: "envelope-not-captured",
+		},
+	};
+}
+
 async function resolveProjectIdentity({
 	bundle,
 	storage,
@@ -359,6 +379,7 @@ export async function runQCutImportTransaction({
 		},
 		canvasMode: "custom",
 		fps: bundle.timelinePlan.project.fps,
+		draftInterop: buildDraftInteropBinding({ bundle }),
 	};
 	try {
 		await session.publishProject({ project });

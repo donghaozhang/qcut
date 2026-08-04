@@ -269,6 +269,17 @@ describe("runQCutImportTransaction", () => {
 		expect(project?.name).toBe("Imported Draft");
 		expect(project?.canvasSize).toEqual({ width: 1920, height: 1080 });
 		expect(project?.scenes[0]?.isMain).toBe(true);
+		expect(project?.draftInterop).toEqual({
+			schemaVersion: 1,
+			importId: "import-token-1",
+			profileId: "jianying-synthetic-plaintext-5.9",
+			bundleDigest: createBundle().bundleDigest,
+			sourceFileSha256: ["a".repeat(64)],
+			writeback: {
+				status: "unavailable",
+				reason: "envelope-not-captured",
+			},
+		});
 
 		const tracks = storage.timelines.get(
 			`${result.projectId}:${project?.currentSceneId}`
