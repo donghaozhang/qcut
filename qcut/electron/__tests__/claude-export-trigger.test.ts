@@ -54,6 +54,7 @@ vi.mock("../ffmpeg/utils.js", async (importOriginal) => {
 		...actual,
 		getFFmpegPath: () => mockGetFFmpegPath(),
 		parseProgress: (...args: unknown[]) => mockParseProgress(...args),
+		probeHasAudioStream: vi.fn(async () => false),
 	};
 });
 
@@ -84,6 +85,7 @@ import {
 } from "../claude/handlers/claude-export-handler";
 import {
 	buildExportSegmentScaleFilter,
+	buildTransitionAudioAlignmentFilter,
 	buildTransitionVideoSources,
 	collectExportSegments,
 	collectTimelineAudioFiles,
@@ -203,6 +205,55 @@ describe("Claude export trigger", () => {
 		);
 	});
 
+	it("omits media clips from hidden tracks", async () => {
+		const segments = await collectExportSegments({
+			timeline: {
+				...testTimeline,
+				tracks: testTimeline.tracks.map((track) => ({
+					...track,
+					hidden: true,
+				})),
+			},
+			mediaFiles: testMediaFiles,
+		});
+
+		expect(segments).toEqual([]);
+	});
+
+	it("inserts silence for transition timeline gaps", () => {
+		const filter = buildTransitionAudioAlignmentFilter({
+			segments: [
+				{
+					elementId: "clip-a",
+					trackId: "main",
+					trackOrder: 0,
+					elementOrder: 0,
+					sourcePath: "/tmp/a.mp4",
+					startTime: 0,
+					duration: 2,
+					trimStart: 0,
+					sourceId: "media-a",
+					fitMode: "cover",
+				},
+				{
+					elementId: "clip-b",
+					trackId: "main",
+					trackOrder: 0,
+					elementOrder: 1,
+					sourcePath: "/tmp/b.mp4",
+					startTime: 3,
+					duration: 2,
+					trimStart: 0,
+					sourceId: "media-b",
+					fitMode: "cover",
+				},
+			],
+		});
+
+		expect(filter).toContain("anullsrc=r=48000:cl=stereo,atrim=duration=1");
+		expect(filter).toContain("concat=n=3:v=0:a=1[aligned_audio]");
+	});
+
 	it("renders serialized timeline transitions through the shared xfade graph", async () => {
 		const transitionTimeline = {
 			...testTimeline,
@@ -264,6 +315,22 @@ describe("Claude export trigger", () => {
 			timeline: transitionTimeline,
 			segments,
 		});
+		const invalidMaskTimeline = {
+			...transitionTimeline,
+			tracks: transitionTimeline.tracks.map((track) => ({
+				...track,
+				transitions: track.transitions.map((transition) => ({
+					...transition,
+					maskShape: "hexagon",
+				})),
+			})),
+		};
+		expect(() =>
+			collectVideoTransitions({
+				timeline: invalidMaskTimeline,
+				segments,
+			})
+		).toThrow("Unsupported transition mask shape: hexagon");
 
 		expect(transitions).toEqual([
 			expect.objectContaining({

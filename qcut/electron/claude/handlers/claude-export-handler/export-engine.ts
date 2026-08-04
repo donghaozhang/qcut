@@ -383,6 +383,7 @@ export async function collectExportSegments({
 		const diskFallbackCache = new Map<string, MediaFile | null>();
 
 		for (const [trackOrder, track] of timeline.tracks.entries()) {
+			if (track.hidden) continue;
 			const trackId = track.id ?? `track-${track.index}`;
 			for (const [elementOrder, element] of track.elements.entries()) {
 				if (
@@ -483,6 +484,41 @@ function normalizeTransitionTuning({
 	return { intensity, frequency, tint };
 }
 
+const SUPPORTED_TRANSITION_MASK_SHAPES = new Set<
+	NonNullable<VideoTransition["maskShape"]>
+>([
+	"circle",
+	"clock",
+	"blinds",
+	"cross",
+	"triptych",
+	"arrow",
+	"heart",
+	"star",
+	"ink",
+	"cloud",
+	"fog",
+	"drip",
+	"curtain",
+	"diagonal",
+]);
+
+function normalizeTransitionMaskShape({
+	maskShape,
+}: {
+	maskShape: string | undefined;
+}): VideoTransition["maskShape"] {
+	if (maskShape === undefined) return undefined;
+	if (
+		SUPPORTED_TRANSITION_MASK_SHAPES.has(
+			maskShape as NonNullable<VideoTransition["maskShape"]>
+		)
+	) {
+		return maskShape as NonNullable<VideoTransition["maskShape"]>;
+	}
+	throw new Error(`Unsupported transition mask shape: ${maskShape}`);
+}
+
 /** Convert serialized timeline transitions into the shared FFmpeg transition model. */
 export function collectVideoTransitions({
 	timeline,
@@ -567,7 +603,9 @@ export function collectVideoTransitions({
 				duration:
 					Math.max(1, Math.round(transition.duration * frameRate)) / frameRate,
 				tuning: normalizeTransitionTuning({ tuning: transition.tuning }),
-				maskShape: transition.maskShape as VideoTransition["maskShape"],
+				maskShape: normalizeTransitionMaskShape({
+					maskShape: transition.maskShape,
+				}),
 			};
 			buildXfadeTransitionFilter({ transition: normalized });
 			transitions.push(normalized);
@@ -856,6 +894,50 @@ export function buildTransitionVideoSources({
 	}));
 }
 
+export function buildTransitionAudioAlignmentFilter({
+	segments,
+}: {
+	segments: ExportSegment[];
+}): string | null {
+	const orderedSegments = [...segments].sort(
+		(left, right) => left.startTime - right.startTime
+	);
+	const filters: string[] = [];
+	const labels: string[] = [];
+	let sourceOffset = 0;
+	let timelineCursor = 0;
+	let gapCount = 0;
+
+	for (const [index, segment] of orderedSegments.entries()) {
+		const gapDuration = Math.max(0, segment.startTime - timelineCursor);
+		if (gapDuration > 1e-6) {
+			const gapLabel = `transition_gap_${gapCount}`;
+			filters.push(
+				`anullsrc=r=48000:cl=stereo,atrim=duration=${gapDuration},asetpts=PTS-STARTPTS[${gapLabel}]`
+			);
+			labels.push(`[${gapLabel}]`);
+			gapCount += 1;
+		}
+
+		const audioLabel = `transition_audio_${index}`;
+		filters.push(
+			`[1:a]atrim=start=${sourceOffset}:end=${sourceOffset + segment.duration},asetpts=PTS-STARTPTS,aformat=sample_rates=48000:channel_layouts=stereo[${audioLabel}]`
+		);
+		labels.push(`[${audioLabel}]`);
+		sourceOffset += segment.duration;
+		timelineCursor = Math.max(
+			timelineCursor,
+			segment.startTime + segment.duration
+		);
+	}
+
+	if (gapCount === 0 || labels.length === 0) return null;
+	filters.push(
+		`${labels.join("")}concat=n=${labels.length}:v=0:a=1[aligned_audio]`
+	);
+	return filters.join(";");
+}
+
 async function renderTransitionedVideo({
 	concatAudioPath,
 	segmentOutputs,
@@ -884,6 +966,10 @@ async function renderTransitionedVideo({
 		segments,
 		segmentOutputs,
 	});
+	const hasAudio = await probeHasAudioStream({ mediaPath: concatAudioPath });
+	const audioAlignmentFilter = hasAudio
+		? buildTransitionAudioAlignmentFilter({ segments })
+		: null;
 	const transitionArgs = buildFFmpegArgs({
 		inputDir: tempDir,
 		outputFile: transitionedVideoPath,
@@ -913,14 +999,18 @@ async function renderTransitionedVideo({
 			transitionedVideoPath,
 			"-i",
 			concatAudioPath,
+			...(audioAlignmentFilter
+				? ["-filter_complex", audioAlignmentFilter]
+				: []),
 			"-map",
 			"0:v:0",
 			"-map",
-			"1:a?",
+			audioAlignmentFilter ? "[aligned_audio]" : "1:a?",
 			"-c:v",
 			"copy",
 			"-c:a",
-			"copy",
+			audioAlignmentFilter ? "aac" : "copy",
+			...(audioAlignmentFilter ? ["-b:a", "192k", "-t", String(duration)] : []),
 			"-movflags",
 			"+faststart",
 			videoOutputPath,
