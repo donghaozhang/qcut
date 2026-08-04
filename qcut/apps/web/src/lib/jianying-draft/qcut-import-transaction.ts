@@ -207,6 +207,7 @@ function buildDraftInteropBinding({
 			.map((file) => file.sha256)
 			.sort(),
 		internalIdBySemanticId: { ...bundle.internalIdBySemanticId },
+		baselineDocument: bundle.document,
 		writeback,
 		...(envelope === undefined ? {} : { envelope }),
 	};
