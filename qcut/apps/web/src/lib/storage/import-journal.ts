@@ -17,6 +17,12 @@ import {
 	parseImportJournalRecordV1,
 	type ImportJournalRecordV1,
 } from "./import-journal-validation";
+import {
+	fingerprintCorruptImportJournalRecord,
+	hasImportJournalQuarantineMarker,
+	persistImportJournalQuarantineMarker,
+	type ImportJournalQuarantineMarkerV1,
+} from "./import-journal-quarantine";
 import { LocalStorageAdapter } from "./localstorage-adapter";
 import type { StorageAdapter } from "./types";
 
@@ -28,22 +34,32 @@ export type {
 export interface ImportJournalAuditResult {
 	records: ImportJournalRecordV1[];
 	corruptRecordCount: number;
+	quarantinedRecordCount: number;
+}
+
+export interface ImportJournalQuarantineResult {
+	newlyQuarantinedRecordCount: number;
+	corruptRecordCount: number;
+	quarantinedRecordCount: number;
 }
 
 const JOURNAL_DB_NAME = "qcut-import-journal";
+const JOURNAL_QUARANTINE_DB_NAME = "qcut-import-journal-quarantine";
 const JOURNAL_STORE_NAME = "records";
 
-async function createDefaultJournalAdapter(): Promise<
-	StorageAdapter<ImportJournalRecordV1>
-> {
+async function createDefaultJournalAdapter<T>({
+	databaseName,
+}: {
+	databaseName: string;
+}): Promise<StorageAdapter<T>> {
 	if (
 		typeof window !== "undefined" &&
 		(window as unknown as { electronAPI?: { storage?: unknown } }).electronAPI
 			?.storage
 	) {
 		try {
-			const adapter = new ElectronStorageAdapter<ImportJournalRecordV1>(
-				JOURNAL_DB_NAME,
+			const adapter = new ElectronStorageAdapter<T>(
+				databaseName,
 				JOURNAL_STORE_NAME
 			);
 			await adapter.list();
@@ -53,41 +69,93 @@ async function createDefaultJournalAdapter(): Promise<
 		}
 	}
 	try {
-		const adapter = new IndexedDBAdapter<ImportJournalRecordV1>(
-			JOURNAL_DB_NAME,
+		const adapter = new IndexedDBAdapter<T>(
+			databaseName,
 			JOURNAL_STORE_NAME,
 			1
 		);
 		await adapter.list();
 		return adapter;
 	} catch {
-		return new LocalStorageAdapter<ImportJournalRecordV1>(
-			JOURNAL_DB_NAME,
-			JOURNAL_STORE_NAME
+		return new LocalStorageAdapter<T>(databaseName, JOURNAL_STORE_NAME);
+	}
+}
+
+type ImportJournalCandidate =
+	| { kind: "valid"; record: ImportJournalRecordV1 }
+	| { kind: "corrupt"; fingerprint: string | null };
+
+async function inspectImportJournalCandidate({
+	adapter,
+	storageKey,
+}: {
+	adapter: StorageAdapter<ImportJournalRecordV1>;
+	storageKey: string;
+}): Promise<ImportJournalCandidate> {
+	let value: unknown = null;
+	try {
+		value = await adapter.get(storageKey);
+		assertImportJournalStorageKey({ storageKey });
+		if (value === null) {
+			throw new Error("Import journal record is unreadable.");
+		}
+		return {
+			kind: "valid",
+			record: parseImportJournalRecordV1({ storageKey, value }),
+		};
+	} catch (error) {
+		debugError(
+			"[ImportJournal] Leaving unreadable or corrupt record untouched",
+			error
 		);
+		return {
+			kind: "corrupt",
+			fingerprint: await fingerprintCorruptImportJournalRecord({
+				storageKey,
+				value,
+			}),
+		};
 	}
 }
 
 export class ImportJournal {
 	#adapter: StorageAdapter<ImportJournalRecordV1> | null;
+	#quarantineAdapter: StorageAdapter<ImportJournalQuarantineMarkerV1> | null;
 	readonly #now: () => Date;
 
 	constructor({
 		adapter,
+		quarantineAdapter,
 		now = () => new Date(),
 	}: {
 		adapter?: StorageAdapter<ImportJournalRecordV1>;
+		quarantineAdapter?: StorageAdapter<ImportJournalQuarantineMarkerV1>;
 		now?: () => Date;
 	} = {}) {
 		this.#adapter = adapter ?? null;
+		this.#quarantineAdapter = quarantineAdapter ?? null;
 		this.#now = now;
 	}
 
 	async #getAdapter(): Promise<StorageAdapter<ImportJournalRecordV1>> {
 		if (this.#adapter === null) {
-			this.#adapter = await createDefaultJournalAdapter();
+			this.#adapter = await createDefaultJournalAdapter<ImportJournalRecordV1>({
+				databaseName: JOURNAL_DB_NAME,
+			});
 		}
 		return this.#adapter;
+	}
+
+	async #getQuarantineAdapter(): Promise<
+		StorageAdapter<ImportJournalQuarantineMarkerV1>
+	> {
+		if (this.#quarantineAdapter === null) {
+			this.#quarantineAdapter =
+				await createDefaultJournalAdapter<ImportJournalQuarantineMarkerV1>({
+					databaseName: JOURNAL_QUARANTINE_DB_NAME,
+				});
+		}
+		return this.#quarantineAdapter;
 	}
 
 	async #writeRecord({
@@ -201,33 +269,81 @@ export class ImportJournal {
 	/** Audits every key without allowing corrupt records to authorize cleanup. */
 	async audit(): Promise<ImportJournalAuditResult> {
 		const adapter = await this.#getAdapter();
+		const quarantineAdapter = await this.#getQuarantineAdapter();
 		const keys = [...new Set(await adapter.list())];
 		const outcomes = await Promise.all(
 			keys.map(async (storageKey) => {
-				try {
-					assertImportJournalStorageKey({ storageKey });
-					const value = await adapter.get(storageKey);
-					if (value === null) {
-						throw new Error("Import journal record is unreadable.");
-					}
-					return {
-						corrupt: false as const,
-						record: parseImportJournalRecordV1({ storageKey, value }),
-					};
-				} catch (error) {
-					debugError(
-						"[ImportJournal] Leaving unreadable or corrupt record untouched",
-						error
-					);
-					return { corrupt: true as const };
-				}
+				const candidate = await inspectImportJournalCandidate({
+					adapter,
+					storageKey,
+				});
+				if (candidate.kind === "valid") return candidate;
+				const quarantined =
+					candidate.fingerprint !== null &&
+					(await hasImportJournalQuarantineMarker({
+						adapter: quarantineAdapter,
+						fingerprint: candidate.fingerprint,
+					}));
+				return { kind: quarantined ? "quarantined" : "corrupt" } as const;
 			})
 		);
 		return {
 			records: outcomes.flatMap((outcome) =>
-				outcome.corrupt ? [] : [outcome.record]
+				outcome.kind === "valid" ? [outcome.record] : []
 			),
-			corruptRecordCount: outcomes.filter((outcome) => outcome.corrupt).length,
+			corruptRecordCount: outcomes.filter(
+				(outcome) => outcome.kind === "corrupt"
+			).length,
+			quarantinedRecordCount: outcomes.filter(
+				(outcome) => outcome.kind === "quarantined"
+			).length,
+		};
+	}
+
+	/** Isolates corrupt records without removing them or trusting their contents. */
+	async quarantineCorruptRecords(): Promise<ImportJournalQuarantineResult> {
+		const adapter = await this.#getAdapter();
+		const quarantineAdapter = await this.#getQuarantineAdapter();
+		const keys = [...new Set(await adapter.list())];
+		const quarantinedAtIso = this.#now().toISOString();
+		const outcomes = await Promise.all(
+			keys.map(async (storageKey) => {
+				const candidate = await inspectImportJournalCandidate({
+					adapter,
+					storageKey,
+				});
+				if (candidate.kind === "valid" || candidate.fingerprint === null) {
+					return false;
+				}
+				if (
+					await hasImportJournalQuarantineMarker({
+						adapter: quarantineAdapter,
+						fingerprint: candidate.fingerprint,
+					})
+				) {
+					return false;
+				}
+				try {
+					await persistImportJournalQuarantineMarker({
+						adapter: quarantineAdapter,
+						fingerprint: candidate.fingerprint,
+						quarantinedAtIso,
+					});
+					return true;
+				} catch (error) {
+					debugError(
+						"[ImportJournal] Failed to persist quarantine marker",
+						error
+					);
+					return false;
+				}
+			})
+		);
+		const audit = await this.audit();
+		return {
+			newlyQuarantinedRecordCount: outcomes.filter(Boolean).length,
+			corruptRecordCount: audit.corruptRecordCount,
+			quarantinedRecordCount: audit.quarantinedRecordCount,
 		};
 	}
 
