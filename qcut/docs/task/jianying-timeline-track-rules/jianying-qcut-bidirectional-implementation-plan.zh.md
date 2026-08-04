@@ -173,7 +173,8 @@ interface DraftInteropDocumentV1 {
 discover
   -> snapshot immutable files
   -> detect profile
-  -> parse bounded JSON/binary envelope
+  -> classify bounded payload as plaintext/opaque/encrypted
+  -> parse only verified plaintext or explicitly supported envelopes
   -> validate graph references
   -> normalize semantic document
   -> build asset resolution plan
@@ -261,11 +262,12 @@ source raw
 
 | Profile | 导入 | 导出 | Round-trip |
 | --- | --- | --- | --- |
-| synthetic plaintext 5.9 | 首个正式 importer | 已有基础 | 支持 exact 子集 |
+| synthetic plaintext 5.9 | 首个 parser/plan fixture | 已有基础 | 仅 fixture-verified；取得真实 5.9 App 收据前不得标 stable |
 | CapCut desktop 8.1 plaintext | 第二阶段 | 已有 migration 基础 | 支持已验证子集 |
 | JianYing 11.x 新格式 | inspect/read-only 起步 | 禁止猜写 | 无证据时 blocked |
 
 每增加一个 profile，必须带 sanitized golden fixture、runtime validator、迁移测试、真实 App reopen/save/export 收据。
+Synthetic fixture 只能证明 QCut 内部 parser/writer 自洽，不能替代对应产品和版本的真实 App 收据。无法取得目标版本 App 时，该 profile 必须保持 `fixture-verified` 或 `read-only`。
 
 ## 3. 素材、字体与资源包重定位
 
@@ -403,12 +405,14 @@ scripts/__tests__/capcut-e2e-roundtrip-*.test.ts
 
 Envelope 本机保存：
 
-- 原始文件字节或安全压缩副本及 SHA-256；
+- allowlist 中确认为 round-trip 所需的原始文件字节或安全压缩副本及 SHA-256；
 - profile 和 detection evidence；
 - raw node ID/JSON pointer 到 QCut semantic ID 的 binding；
 - 每个 unknown subtree 的父节点、引用和 ownership domain；
 - import 后发生的 dirty domains；
 - 用户接受的 downgrade fingerprints。
+
+Envelope 不得默认复制整个来源目录。`crypto_key_store.dat`、`.locked`、运行日志、无关 backup、私有缓存包和未证明必要的 sidecar 默认 deny；原始用户路径只保存在受限本机 provenance 中，对日志、issue 和测试证据做脱敏。任何新 allowlist 项都必须有真实 App 文件访问或 same-profile round-trip 证据。
 
 ### 脏域
 
@@ -505,6 +509,44 @@ PUBLISHED
 - 重试不会复制同一素材或产生不同 ID；
 - 日志不包含原始敏感路径之外不必要的信息。
 
+## 8. 研究门禁与未决证据
+
+这份方案中的模块边界和事务设计可以直接作为 QCut 架构决策；剪映 profile、文件所有权、跨文件引用和渲染语义则不能仅凭字段名或静态字符串实现。相关研究统一遵循 [`jianying-draft-binary-reference`](../../../.agents/skills/qcut-toolkit/jianying-draft-binary-reference/SKILL.md) 的证据分级和安全边界。
+
+### 未决问题
+
+| ID | 不确定项 | 当前风险 | 首选证据 | 实现门禁 |
+| --- | --- | --- | --- | --- |
+| JYR-001 | 保存事务的文件集合、写入顺序、临时文件和 rename 边界 | snapshot 可能组合出从未真实存在过的跨文件状态 | disposable project 上执行单次 open/edit/save/close，并用文件系统 trace 记录 PID、路径类别和操作顺序 | 未确认前，import plan 不得把活动工程目录视为一致快照 |
+| JYR-002 | JianYing 11.x opaque/encrypted `draft_info.json` envelope | 将不透明载荷误判成 JSON、损坏或可写格式 | payload 分类、已存在明文 backup/subdraft、静态 owner 证据；不绕过加密 | 未有合法稳定协议前只允许 inspect，parse/write 均 blocked |
+| JYR-003 | profile detection 中哪些版本字段和 sidecar 是权威证据 | 误选 writer 会生成可打开但不可继续编辑的草稿 | 多版本真实样本 corpus + App metadata + schema/key-set 对照；静态版本 gate 仅作佐证 | detection ambiguous 时禁止 `auto` commit |
+| JYR-004 | synthetic plaintext 5.9 与真实剪映 5.9 的等价范围 | synthetic round-trip 被误报为产品兼容 | 对应版本真实 App first-open/save/reopen/export 收据 | 无真实 App 收据时不得标 stable |
+| JYR-005 | unknown subtree 与其他文件、索引、checksum、material registry 的所有权关系 | patch 单个 JSON 节点后跨文件引用失配 | 明文 unknown sentinel 单变量实验 + 真实 App save 后语义 diff；必要时追踪 validator/deserializer owner | 未确认 ownership 的 dirty domain 必须 blocked |
+| JYR-006 | ForeignDraftEnvelope 真正需要保留的 sidecar allowlist | 复制 key store、隐私路径、无关 backup 或专有缓存 | 文件访问 trace + same-profile round-trip 删除实验 + 敏感性审计 | deny-by-default；无证据文件不得进入 envelope |
+| JYR-007 | parent draft、subdraft、compound timeline 的 ID binding、版本和保存职责 | 复合片段可读但子时间线修改后无法可靠写回 | 创建/进入/修改/退出一个复合片段，比较明文 parent/subdraft/backup；必要时追踪 `sub_draft_async_load` 路径 | 未确认前 compound 只允许 opaque 保留或 blocked |
+| JYR-008 | resource ID、package metadata、MD5/hash 和缓存数据库的 resolver 优先级 | 自动重定位到同名或同 ID 的错误资源 | 本地 catalog/cache 只读关联 + 缺资源/relink 黑盒实验 + 包 hash | 无精确证据的私有资源保持 `opaque`，不得 basename 猜测 |
+
+### 证据选择
+
+- **优先明文数据 diff：** 时间单位、ID/ref 图、轨道顺序、字段 ownership 候选、backup/subdraft 结构。
+- **优先真实 App 黑盒：** 插入/删除/波纹/替换/转场行为，缺素材 relink，字体 fallback，save/reopen/export 和逐帧/音频 oracle。
+- **使用二进制静态研究：** 确认哪个 dylib 暴露明确的 draft、subdraft、profile、validator 或 key-store ownership 字符串和符号。静态命中只能达到 `static-strong`，不能证明运行时调用。
+- **使用运行时文件追踪：** 只有在精确文件所有权或保存事务顺序会改变 importer 安全性时使用；必须是 disposable project、单变量 UI 操作，并记录 App 版本、PID、时间和路径类别。
+
+### 二进制调用边界
+
+正常启动真实剪映并把它作为行为和导出 oracle；不要把 QCut importer 建在私有 dylib ABI 上，也不要直接调用 `libvideoeditor.dylib`、`libVECreator.dylib` 或 crypto 私有函数。禁止 patch、inject、绕过加密、读取或复制 key store。库被链接或加载只证明它可用，只有受控 file-access/call trace 才能证明它参与了某次操作。
+
+### 首轮研究顺序
+
+1. **JYR-001 保存事务：** 空工程与单片段工程各做一次 open/edit/save/close，确定一致 snapshot 的文件边界。
+2. **JYR-007 subdraft：** 单一复合片段前后对比 parent、subdraft 和 backup，确认 binding 与版本传播。
+3. **JYR-005 unknown sentinel：** 在受控明文 fixture 中保留未知节点，经真实 App save 后检查字段、引用和 cross-file 派生数据。
+4. **JYR-003 profile corpus：** 对每个候选版本生成最小工程，冻结 App/schema/file-layout/key-set 指纹和真实收据。
+5. **JYR-008 resource relink：** 对字体、LUT、原生转场和一个私有资源分别执行存在、移动、缺失和用户 relink 矩阵。
+
+每次研究输出必须标记 `runtime-observed | static-strong | architecture-only | unresolved`，记录替代解释和下一步检查。只有 `runtime-observed` 或由明文结构与真实 App round-trip 双重支持的结论，才能进入 stable profile 的可写契约。
+
 ## 分阶段实施
 
 | 阶段 | 交付 | 主要依赖 | 粗略工期 |
@@ -568,10 +610,12 @@ PUBLISHED
 6. 非当前用户草稿 hash 保持不变；
 7. fault injection 后无半成品项目；
 8. 专有资源扫描确认没有进入 Git、安装包或测试 artifact。
+9. JYR-001、JYR-003、JYR-005 和该 profile 涉及的其他研究门禁已有可复现证据，不依赖未验证的私有 ABI 或加密假设。
 
 ## 明确不做
 
 - 不破解或绕过加密、DRM、签名和付费资源授权。
+- 不直接调用、patch 或注入剪映私有 dylib API，也不把私有 ABI 作为产品运行时依赖。
 - 不把剪映二进制、缓存资源、字体或反编译产物提交到仓库。
 - 不对未知版本做“看起来差不多”的写出。
 - 不保证 raw JSON 字节完全相同；保证的是已声明域的语义等价和未消费未知域的完整保留。
