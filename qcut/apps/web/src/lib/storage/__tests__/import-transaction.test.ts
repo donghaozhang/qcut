@@ -396,6 +396,28 @@ describe("runQCutImportTransaction", () => {
 		});
 		expect(refused).toMatchObject({ ok: false, reason: "project-conflict" });
 	});
+
+	it("reuses a published deterministic project for offline delivery retries", async () => {
+		const first = await runQCutImportTransaction({
+			bundleValue: JSON.parse(JSON.stringify(createBundle())),
+			mediaPayloads: [createPayload()],
+			deps: { storage, journal },
+		});
+		expect(first.ok).toBe(true);
+		if (!first.ok) return;
+
+		storage.calls.length = 0;
+		const retry = await runQCutImportTransaction({
+			bundleValue: JSON.parse(JSON.stringify(createBundle())),
+			mediaPayloads: [createPayload()],
+			reuseExistingProject: true,
+			deps: { storage, journal },
+		});
+		expect(retry).toEqual({ ok: true, projectId: first.projectId });
+		expect(storage.calls).toEqual([]);
+		expect(storage.projects.size).toBe(1);
+		expect(journalAdapter.map.size).toBe(0);
+	});
 });
 
 describe("ImportStagingSession", () => {

@@ -150,11 +150,18 @@ function deriveSourceSeed({ bundle }: { bundle: QCutImportBundleV1 }): string {
 async function resolveProjectIdentity({
 	bundle,
 	storage,
+	reuseExistingProject,
 }: {
 	bundle: QCutImportBundleV1;
 	storage: ImportTransactionStorage;
+	reuseExistingProject: boolean;
 }): Promise<
-	| { ok: true; projectId: string; projectName: string }
+	| {
+			ok: true;
+			projectId: string;
+			projectName: string;
+			reused: boolean;
+	  }
 	| { ok: false; message: string }
 > {
 	const deterministicId = deriveImportInternalId({
@@ -167,6 +174,15 @@ async function resolveProjectIdentity({
 			ok: true,
 			projectId: deterministicId,
 			projectName: bundle.timelinePlan.project.name,
+			reused: false,
+		};
+	}
+	if (reuseExistingProject) {
+		return {
+			ok: true,
+			projectId: deterministicId,
+			projectName: existing.name,
+			reused: true,
 		};
 	}
 	if (bundle.conflictPolicy.projectName === "fail") {
@@ -180,6 +196,7 @@ async function resolveProjectIdentity({
 		ok: true,
 		projectId: generateUUID(),
 		projectName: `${bundle.timelinePlan.project.name} (imported)`,
+		reused: false,
 	};
 }
 
@@ -190,10 +207,13 @@ async function resolveProjectIdentity({
 export async function runQCutImportTransaction({
 	bundleValue,
 	mediaPayloads,
+	reuseExistingProject = false,
 	deps = {},
 }: {
 	bundleValue: unknown;
 	mediaPayloads: readonly ImportMediaPayload[];
+	/** Offline delivery retry: reuse the deterministic, already-published project. */
+	reuseExistingProject?: boolean;
 	deps?: ImportTransactionDeps;
 }): Promise<ImportTransactionResult> {
 	const storage = deps.storage ?? storageService;
@@ -227,10 +247,15 @@ export async function runQCutImportTransaction({
 		};
 	}
 
-	const identity = await resolveProjectIdentity({ bundle, storage });
+	const identity = await resolveProjectIdentity({
+		bundle,
+		storage,
+		reuseExistingProject,
+	});
 	if (!identity.ok) {
 		return { ok: false, reason: "project-conflict", message: identity.message };
 	}
+	if (identity.reused) return { ok: true, projectId: identity.projectId };
 
 	const payloadByResourceId = new Map(
 		mediaPayloads.map((payload) => [payload.resourceId, payload])
