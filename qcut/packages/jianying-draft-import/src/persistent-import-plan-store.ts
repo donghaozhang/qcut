@@ -18,6 +18,11 @@ import {
 
 const STORE_FILE_NAME = "import-plans.v1.json";
 const MAX_STORE_FILE_BYTES = 4 * 1024 * 1024;
+const CORRUPT_STORE_FILE_PREFIX = `${STORE_FILE_NAME}.corrupt.`;
+
+export type PersistentImportPlanStoreStartupRecovery =
+	| "none"
+	| "quarantined-corrupt-store";
 
 export class PersistentImportPlanStoreCorruptError extends Error {
 	constructor({ cause }: { cause?: unknown } = {}) {
@@ -131,23 +136,45 @@ async function readStoreState({
 	}
 	try {
 		const metadata = await handle.stat();
-		if (
-			!metadata.isFile() ||
-			metadata.nlink !== 1 ||
-			metadata.size > MAX_STORE_FILE_BYTES
-		) {
+		if (!metadata.isFile() || metadata.nlink !== 1) {
+			throw new PersistentImportPlanStoreUnavailableError();
+		}
+		if (metadata.size > MAX_STORE_FILE_BYTES) {
 			throw new PersistentImportPlanStoreCorruptError();
 		}
 		await handle.chmod(0o600);
 		const serialized = await handle.readFile("utf8");
 		return parseStoreState({ value: JSON.parse(serialized) });
 	} catch (error) {
-		if (error instanceof PersistentImportPlanStoreCorruptError) {
+		if (
+			error instanceof PersistentImportPlanStoreCorruptError ||
+			error instanceof PersistentImportPlanStoreUnavailableError
+		) {
 			throw error;
 		}
 		throw new PersistentImportPlanStoreCorruptError();
 	} finally {
 		await handle.close().catch(() => undefined);
+	}
+}
+
+async function quarantineCorruptStore({
+	storageDirectory,
+	storePath,
+}: {
+	storageDirectory: string;
+	storePath: string;
+}): Promise<void> {
+	const quarantinePath = join(
+		storageDirectory,
+		`${CORRUPT_STORE_FILE_PREFIX}${randomUUID()}.json`
+	);
+	try {
+		await rename(storePath, quarantinePath);
+		await chmod(quarantinePath, 0o600);
+		await syncDirectoryBestEffort({ storageDirectory });
+	} catch {
+		throw new PersistentImportPlanStoreUnavailableError();
 	}
 }
 
@@ -204,6 +231,7 @@ async function writeStoreState({
 }
 
 export class PersistentImportPlanStore {
+	readonly startupRecoveryAction: PersistentImportPlanStoreStartupRecovery;
 	readonly #buildIdentity: ImportPlanBuildIdentity;
 	readonly #maxStoredPlans: number | undefined;
 	readonly #now: () => number;
@@ -217,15 +245,18 @@ export class PersistentImportPlanStore {
 		buildIdentity,
 		maxStoredPlans,
 		now,
+		startupRecoveryAction,
 		storageDirectory,
 		store,
 	}: {
 		buildIdentity: ImportPlanBuildIdentity;
 		maxStoredPlans?: number;
 		now: () => number;
+		startupRecoveryAction: PersistentImportPlanStoreStartupRecovery;
 		storageDirectory: string;
 		store: ImportPlanStore;
 	}) {
+		this.startupRecoveryAction = startupRecoveryAction;
 		this.#buildIdentity = { ...buildIdentity };
 		this.#maxStoredPlans = maxStoredPlans;
 		this.#now = now;
@@ -247,7 +278,18 @@ export class PersistentImportPlanStore {
 	}): Promise<PersistentImportPlanStore> {
 		await ensurePrivateDirectory({ storageDirectory });
 		const storePath = join(storageDirectory, STORE_FILE_NAME);
-		const state = await readStoreState({ storePath });
+		let startupRecoveryAction: PersistentImportPlanStoreStartupRecovery =
+			"none";
+		let state: ImportPlanStoreStateV1 | undefined;
+		try {
+			state = await readStoreState({ storePath });
+		} catch (error) {
+			if (!(error instanceof PersistentImportPlanStoreCorruptError)) {
+				throw error;
+			}
+			await quarantineCorruptStore({ storageDirectory, storePath });
+			startupRecoveryAction = "quarantined-corrupt-store";
+		}
 		const store = new ImportPlanStore({
 			buildIdentity,
 			now,
@@ -258,6 +300,7 @@ export class PersistentImportPlanStore {
 			buildIdentity,
 			...(maxStoredPlans === undefined ? {} : { maxStoredPlans }),
 			now,
+			startupRecoveryAction,
 			storageDirectory,
 			store,
 		});
