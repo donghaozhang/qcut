@@ -178,9 +178,13 @@ describe("desktop import inbox", () => {
 			mediaCount: 1,
 		});
 		expect(await listDesktopImports({ inboxDirectory })).toEqual([summary]);
+		// The inbox strips envelopeCapture by design (raw draft bytes must
+		// never land plaintext in the inbox), so the round-trip compares the
+		// portable projection of the commit.
+		const { envelopeCapture: _envelopeCapture, ...portableCommit } = commit;
 		expect(
 			await readDesktopImport({ inboxDirectory, entryId: "entry-1" })
-		).toEqual(commit);
+		).toEqual(portableCommit);
 		if (process.platform !== "win32") {
 			expect((await stat(join(inboxDirectory, "entry-1"))).mode & 0o777).toBe(
 				0o700
