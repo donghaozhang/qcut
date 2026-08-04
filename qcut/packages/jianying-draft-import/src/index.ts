@@ -72,6 +72,11 @@ export {
 } from "./asset-resolver.js";
 
 export {
+	buildForeignEnvelopeCapture,
+	type BuiltForeignEnvelopeCapture,
+} from "./foreign-envelope-capture.js";
+
+export {
 	ImportSessionError,
 	JianyingDraftImportSession,
 	type DraftImportCommitDto,
