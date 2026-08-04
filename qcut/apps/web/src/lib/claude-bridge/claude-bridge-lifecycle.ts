@@ -37,6 +37,10 @@ import {
 	cleanupClaudeEventsBridge,
 	setupClaudeEventsBridge,
 } from "@/lib/claude-bridge/claude-events-bridge";
+import {
+	cleanupQCutImportEvidenceBridge,
+	setupQCutImportEvidenceBridge,
+} from "@/lib/claude-bridge/qcut-import-evidence-bridge";
 
 type ClaudeBridgeErrorHandler = (message: string, error: unknown) => void;
 
@@ -109,6 +113,11 @@ export function setupClaudeBridgeLifecycle({
 		onError,
 	});
 	runBridgeStep({
+		message: "[ClaudeBridge] Failed to setup import evidence bridge",
+		step: setupQCutImportEvidenceBridge,
+		onError,
+	});
+	runBridgeStep({
 		message: "[ClaudeBridge] Failed to setup events bridge",
 		step: setupClaudeEventsBridge,
 		onError,
@@ -158,6 +167,11 @@ export function setupClaudeBridgeLifecycle({
 		runBridgeStep({
 			message: "[ClaudeBridge] Failed to cleanup state bridge",
 			step: cleanupClaudeStateBridge,
+			onError,
+		});
+		runBridgeStep({
+			message: "[ClaudeBridge] Failed to cleanup import evidence bridge",
+			step: cleanupQCutImportEvidenceBridge,
 			onError,
 		});
 		runBridgeStep({
