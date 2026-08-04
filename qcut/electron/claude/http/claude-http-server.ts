@@ -60,6 +60,8 @@ import { registerStateRoutes } from "./claude-http-state-routes.js";
 import { requestEditorStateSnapshotFromRenderer } from "../handlers/claude-state-handler.js";
 import { registerQCutImportEvidenceRoutes } from "./claude-http-import-evidence-routes.js";
 import { requestQCutImportEvidenceFromRenderer } from "../handlers/qcut-import-evidence-handler.js";
+import { registerQCutSameProfileWritebackRoutes } from "./claude-http-same-profile-writeback-routes.js";
+import { requestQCutSameProfileWritebackFromRenderer } from "../handlers/qcut-same-profile-writeback-handler.js";
 import { registerSnapshotRoutes } from "./claude-http-snapshot-routes.js";
 import { registerAgentPointerRoutes } from "./claude-http-pointer-routes.js";
 import {
@@ -238,6 +240,13 @@ export function startClaudeHTTPServer(
 		requestSnapshot: (request) =>
 			requestQCutImportEvidenceFromRenderer({
 				appVersion: app.getVersion(),
+				request,
+				win: getWindow(),
+			}),
+	});
+	registerQCutSameProfileWritebackRoutes(router, {
+		requestOperation: (request) =>
+			requestQCutSameProfileWritebackFromRenderer({
 				request,
 				win: getWindow(),
 			}),
