@@ -1,3 +1,4 @@
+import { sha256 } from "@noble/hashes/sha2";
 import type { TimelineTrack } from "../types/timeline.js";
 import type { QCutImportBundleV1 } from "./import-bundle.js";
 import {
@@ -52,10 +53,35 @@ interface ExpectedQCutImportMedia {
 	type: "audio" | "image" | "video";
 }
 
-function bytesToHex({ bytes }: { bytes: ArrayBuffer }): string {
-	return [...new Uint8Array(bytes)]
-		.map((byte) => byte.toString(16).padStart(2, "0"))
-		.join("");
+function bytesToHex({ bytes }: { bytes: Uint8Array }): string {
+	return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function hashBlob({ bytes }: { bytes: Blob }): Promise<string> {
+	const hasher = sha256.create();
+	if (typeof bytes.stream !== "function") {
+		const updateNextSlice = async ({
+			offset,
+		}: {
+			offset: number;
+		}): Promise<void> => {
+			if (offset >= bytes.size) return;
+			const end = Math.min(offset + 8 * 1024 * 1024, bytes.size);
+			const chunk = await bytes.slice(offset, end).arrayBuffer();
+			hasher.update(new Uint8Array(chunk));
+			await updateNextSlice({ offset: end });
+		};
+		await updateNextSlice({ offset: 0 });
+		return bytesToHex({ bytes: hasher.digest() });
+	}
+	await bytes.stream().pipeTo(
+		new WritableStream<Uint8Array>({
+			write(chunk) {
+				hasher.update(chunk);
+			},
+		})
+	);
+	return bytesToHex({ bytes: hasher.digest() });
 }
 
 export async function describeQCutImportMedia({
@@ -70,10 +96,6 @@ export async function describeQCutImportMedia({
 			"Import media hash concurrency must be a positive integer."
 		);
 	}
-	const subtle = globalThis.crypto?.subtle;
-	if (subtle === undefined) {
-		throw new Error("WebCrypto is required to verify imported media.");
-	}
 	const results = new Array<QCutImportVerificationMedia>(media.length);
 	let nextIndex = 0;
 	const runNext = async (): Promise<void> => {
@@ -82,12 +104,10 @@ export async function describeQCutImportMedia({
 		if (index >= media.length) return;
 		const item = media[index];
 		if (item === undefined) return;
-		const bytes = await item.bytes.arrayBuffer();
-		const digest = await subtle.digest("SHA-256", bytes);
 		results[index] = {
 			byteLength: item.bytes.size,
 			id: item.id,
-			sha256: bytesToHex({ bytes: digest }),
+			sha256: await hashBlob({ bytes: item.bytes }),
 			type: item.type,
 		};
 		await runNext();
