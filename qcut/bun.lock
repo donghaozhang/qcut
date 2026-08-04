@@ -235,6 +235,9 @@
     "packages/editor-core": {
       "name": "@qcut/editor-core",
       "version": "0.0.1",
+      "dependencies": {
+        "@noble/hashes": "^1.8.0",
+      },
       "devDependencies": {
         "@types/node": "^24.10.13",
       },

@@ -20,6 +20,9 @@
 		"./jianying-draft": "./src/jianying-draft/index.ts",
 		"./draft-interop": "./src/draft-interop/index.ts"
 	},
+	"dependencies": {
+		"@noble/hashes": "^1.8.0"
+	},
 	"devDependencies": {
 		"@types/node": "^24.10.13"
 	}
