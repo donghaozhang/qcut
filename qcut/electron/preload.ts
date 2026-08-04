@@ -83,6 +83,11 @@ import {
 	JIANYING_IMPORT_INSPECT_CHANNEL,
 	JIANYING_IMPORT_PLAN_CHANNEL,
 } from "./jianying-draft-import-contract.js";
+import {
+	CAPCUT_8_1_WRITEBACK_CHOOSE_DIRECTORY_CHANNEL,
+	CAPCUT_8_1_WRITEBACK_COMMIT_CHANNEL,
+	CAPCUT_8_1_WRITEBACK_RECOVER_CHANNEL,
+} from "./jianying-same-profile-writeback-contract.js";
 
 // Expose the API to the renderer process
 const electronAPI: ElectronAPI & Record<string, unknown> = {
@@ -129,6 +134,14 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke(JIANYING_IMPORT_INBOX_READ_CHANNEL, request),
 		acknowledgePendingDraftImport: (request) =>
 			ipcRenderer.invoke(JIANYING_IMPORT_INBOX_ACK_CHANNEL, request),
+	},
+	jianyingSameProfileWriteback: {
+		chooseCapCut81DraftDirectory: () =>
+			ipcRenderer.invoke(CAPCUT_8_1_WRITEBACK_CHOOSE_DIRECTORY_CHANNEL),
+		commitCapCut81Writeback: (request) =>
+			ipcRenderer.invoke(CAPCUT_8_1_WRITEBACK_COMMIT_CHANNEL, request),
+		recoverCapCut81Writeback: (request) =>
+			ipcRenderer.invoke(CAPCUT_8_1_WRITEBACK_RECOVER_CHANNEL, request),
 	},
 
 	// File operations
