@@ -21,6 +21,11 @@ const commitDto: DraftImportCommitDto = {
 			bytesBase64: "AQID",
 		},
 	],
+	envelopeCapture: {
+		envelope: { schemaVersion: 1, importId: "plan-1" },
+		payloadBase64: "BAUG",
+		payloadSha256: "a".repeat(64),
+	},
 };
 
 function createBridge({
@@ -81,6 +86,15 @@ describe("Jianying draft import client", () => {
 			})
 		).resolves.toBe("project-1");
 		expect(calls).toEqual(["live-commit", "transaction"]);
+		expect(runTransaction).toHaveBeenCalledWith(
+			expect.objectContaining({
+				envelopeCapture: {
+					envelope: { schemaVersion: 1, importId: "plan-1" },
+					payload: new Uint8Array([4, 5, 6]),
+					payloadSha256: "a".repeat(64),
+				},
+			})
+		);
 	});
 
 	it("acknowledges an inbox entry only after publish succeeds", async () => {

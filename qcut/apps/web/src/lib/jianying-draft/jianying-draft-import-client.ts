@@ -5,6 +5,7 @@ import type {
 } from "@/types/electron/api-jianying-draft-import";
 import {
 	runQCutImportTransaction,
+	type ImportEnvelopeCapture,
 	type ImportMediaPayload,
 	type ImportTransactionResult,
 } from "./qcut-import-transaction";
@@ -12,6 +13,7 @@ import {
 type ImportTransactionRunner = (options: {
 	bundleValue: unknown;
 	mediaPayloads: readonly ImportMediaPayload[];
+	envelopeCapture?: ImportEnvelopeCapture;
 }) => Promise<ImportTransactionResult>;
 
 const runPendingImportTransaction: ImportTransactionRunner = (options) =>
@@ -68,6 +70,19 @@ function decodeBase64({ value }: { value: string }): Uint8Array {
 	return bytes;
 }
 
+function decodeEnvelopeCapture({
+	commit,
+}: {
+	commit: DraftImportCommitDto;
+}): ImportEnvelopeCapture | undefined {
+	if (commit.envelopeCapture === undefined) return undefined;
+	return {
+		envelope: commit.envelopeCapture.envelope,
+		payload: decodeBase64({ value: commit.envelopeCapture.payloadBase64 }),
+		payloadSha256: commit.envelopeCapture.payloadSha256,
+	};
+}
+
 export function decodeDraftImportPayloads({
 	commit,
 }: {
@@ -91,6 +106,9 @@ async function publishCommit({
 	const result = await runTransaction({
 		bundleValue: commit.bundle,
 		mediaPayloads: decodeDraftImportPayloads({ commit }),
+		...(commit.envelopeCapture === undefined
+			? {}
+			: { envelopeCapture: decodeEnvelopeCapture({ commit }) }),
 	});
 	if (!result.ok) {
 		throw new JianyingDraftImportClientError({
