@@ -69,6 +69,49 @@ export interface InteropTimeRange {
 	durationUs: number;
 }
 
+export interface InteropTextStroke {
+	color: string;
+	widthPx: number;
+	opacity: number;
+}
+
+export interface InteropTextBackground {
+	color: string;
+	opacity: number;
+	radiusPx: number;
+	paddingPx: number;
+}
+
+export interface InteropTextShadow {
+	color: string;
+	opacity: number;
+	offsetXPx: number;
+	offsetYPx: number;
+	blurPx: number;
+}
+
+/** Static text subset shared by foreign drafts and QCut. */
+export interface InteropText {
+	content: string;
+	fontSizePx: number;
+	fontFamily: string;
+	color: string;
+	textAlign: "left" | "center" | "right";
+	fontWeight: "normal" | "bold";
+	fontStyle: "normal" | "italic";
+	textDecoration: "none" | "underline";
+	xPx: number;
+	yPx: number;
+	rotationDegrees: number;
+	opacity: number;
+	letterSpacingPx?: number;
+	widthPx?: number;
+	stroke?: InteropTextStroke;
+	background?: InteropTextBackground;
+	shadow?: InteropTextShadow;
+	foreignRef?: string;
+}
+
 export type InteropSegmentKind =
 	| "video"
 	| "image"
@@ -91,6 +134,7 @@ export interface InteropSegment {
 	/** Range occupied on the timeline. */
 	targetRange: InteropTimeRange;
 	speed?: number;
+	text?: InteropText;
 	capability: InteropCapability;
 	/** Binding key into the foreign envelope's raw-node map (JYI-002). */
 	foreignRef?: string;
@@ -325,6 +369,55 @@ function asPositiveFinite({
 	return value;
 }
 
+function asFiniteNumber({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): number {
+	if (typeof value !== "number" || !Number.isFinite(value)) {
+		fail({ message: "expected a finite number", path });
+	}
+	return value;
+}
+
+function asUnitInterval({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): number {
+	const parsed = asFiniteNumber({ value, path });
+	if (parsed < 0 || parsed > 1) {
+		fail({ message: "expected a number from 0 through 1", path });
+	}
+	return parsed;
+}
+
+function asNonNegativeFinite({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): number {
+	const parsed = asFiniteNumber({ value, path });
+	if (parsed < 0) {
+		fail({ message: "expected a non-negative finite number", path });
+	}
+	return parsed;
+}
+
+function asColor({ value, path }: { value: unknown; path: string }): string {
+	const color = asString({ value, path });
+	if (!/^#[\da-f]{6}$/i.test(color)) {
+		fail({ message: "expected a six-digit hexadecimal color", path });
+	}
+	return color.toLowerCase();
+}
+
 function asOptionalBoolean({
 	value,
 	path,
@@ -491,6 +584,10 @@ function parseSegment({
 		record.speed === undefined
 			? undefined
 			: asPositiveFinite({ value: record.speed, path: `${path}/speed` });
+	const text =
+		record.text === undefined
+			? undefined
+			: parseText({ value: record.text, path: `${path}/text` });
 	return {
 		id: asString({ value: record.id, path: `${path}/id` }),
 		kind: asEnum({
@@ -516,10 +613,181 @@ function parseSegment({
 			path: `${path}/targetRange`,
 		}),
 		...(speed === undefined ? {} : { speed }),
+		...(text === undefined ? {} : { text }),
 		capability: asCapability({
 			value: record.capability,
 			path: `${path}/capability`,
 		}),
+		...(foreignRef === undefined ? {} : { foreignRef }),
+	};
+}
+
+function parseTextStroke({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropTextStroke {
+	const record = asRecord({ value, path });
+	return {
+		color: asColor({ value: record.color, path: `${path}/color` }),
+		widthPx: asNonNegativeFinite({
+			value: record.widthPx,
+			path: `${path}/widthPx`,
+		}),
+		opacity: asUnitInterval({
+			value: record.opacity,
+			path: `${path}/opacity`,
+		}),
+	};
+}
+
+function parseTextBackground({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropTextBackground {
+	const record = asRecord({ value, path });
+	return {
+		color: asColor({ value: record.color, path: `${path}/color` }),
+		opacity: asUnitInterval({
+			value: record.opacity,
+			path: `${path}/opacity`,
+		}),
+		radiusPx: asNonNegativeFinite({
+			value: record.radiusPx,
+			path: `${path}/radiusPx`,
+		}),
+		paddingPx: asNonNegativeFinite({
+			value: record.paddingPx,
+			path: `${path}/paddingPx`,
+		}),
+	};
+}
+
+function parseTextShadow({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropTextShadow {
+	const record = asRecord({ value, path });
+	return {
+		color: asColor({ value: record.color, path: `${path}/color` }),
+		opacity: asUnitInterval({
+			value: record.opacity,
+			path: `${path}/opacity`,
+		}),
+		offsetXPx: asFiniteNumber({
+			value: record.offsetXPx,
+			path: `${path}/offsetXPx`,
+		}),
+		offsetYPx: asFiniteNumber({
+			value: record.offsetYPx,
+			path: `${path}/offsetYPx`,
+		}),
+		blurPx: asNonNegativeFinite({
+			value: record.blurPx,
+			path: `${path}/blurPx`,
+		}),
+	};
+}
+
+function parseText({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropText {
+	const record = asRecord({ value, path });
+	const letterSpacingPx =
+		record.letterSpacingPx === undefined
+			? undefined
+			: asFiniteNumber({
+					value: record.letterSpacingPx,
+					path: `${path}/letterSpacingPx`,
+				});
+	const widthPx =
+		record.widthPx === undefined
+			? undefined
+			: asNonNegativeFinite({
+					value: record.widthPx,
+					path: `${path}/widthPx`,
+				});
+	const stroke =
+		record.stroke === undefined
+			? undefined
+			: parseTextStroke({ value: record.stroke, path: `${path}/stroke` });
+	const background =
+		record.background === undefined
+			? undefined
+			: parseTextBackground({
+					value: record.background,
+					path: `${path}/background`,
+				});
+	const shadow =
+		record.shadow === undefined
+			? undefined
+			: parseTextShadow({ value: record.shadow, path: `${path}/shadow` });
+	const foreignRef = asOptionalString({
+		value: record.foreignRef,
+		path: `${path}/foreignRef`,
+	});
+	return {
+		content: asString({
+			value: record.content,
+			path: `${path}/content`,
+			allowEmpty: true,
+		}),
+		fontSizePx: asPositiveFinite({
+			value: record.fontSizePx,
+			path: `${path}/fontSizePx`,
+		}),
+		fontFamily: asString({
+			value: record.fontFamily,
+			path: `${path}/fontFamily`,
+		}),
+		color: asColor({ value: record.color, path: `${path}/color` }),
+		textAlign: asEnum({
+			value: record.textAlign,
+			path: `${path}/textAlign`,
+			allowed: ["left", "center", "right"],
+		}),
+		fontWeight: asEnum({
+			value: record.fontWeight,
+			path: `${path}/fontWeight`,
+			allowed: ["normal", "bold"],
+		}),
+		fontStyle: asEnum({
+			value: record.fontStyle,
+			path: `${path}/fontStyle`,
+			allowed: ["normal", "italic"],
+		}),
+		textDecoration: asEnum({
+			value: record.textDecoration,
+			path: `${path}/textDecoration`,
+			allowed: ["none", "underline"],
+		}),
+		xPx: asFiniteNumber({ value: record.xPx, path: `${path}/xPx` }),
+		yPx: asFiniteNumber({ value: record.yPx, path: `${path}/yPx` }),
+		rotationDegrees: asFiniteNumber({
+			value: record.rotationDegrees,
+			path: `${path}/rotationDegrees`,
+		}),
+		opacity: asUnitInterval({
+			value: record.opacity,
+			path: `${path}/opacity`,
+		}),
+		...(letterSpacingPx === undefined ? {} : { letterSpacingPx }),
+		...(widthPx === undefined ? {} : { widthPx }),
+		...(stroke === undefined ? {} : { stroke }),
+		...(background === undefined ? {} : { background }),
+		...(shadow === undefined ? {} : { shadow }),
 		...(foreignRef === undefined ? {} : { foreignRef }),
 	};
 }
