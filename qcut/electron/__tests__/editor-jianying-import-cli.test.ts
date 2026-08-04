@@ -1,3 +1,4 @@
+import { join, posix, win32 } from "node:path";
 import { describe, expect, it } from "vitest";
 import { getCommand } from "../native-pipeline/cli/command-registry.js";
 import { resolveCommandGroup } from "../native-pipeline/cli/command-groups.js";
@@ -205,7 +206,7 @@ describe("executeJianyingImportCommand", () => {
 			},
 		});
 		expect(runtime.constructedWith[0]).toMatchObject({
-			storageDirectory: "/qcut-user-data/jianying-import/plans-cli",
+			storageDirectory: join("/qcut-user-data", "jianying-import", "plans-cli"),
 		});
 		expect(runtime.calls.slice(0, 4)).toEqual([
 			{
@@ -218,7 +219,7 @@ describe("executeJianyingImportCommand", () => {
 			{
 				verb: "enqueue-grants",
 				input: {
-					inboxDirectory: "/qcut-user-data/jianying-import/inbox",
+					inboxDirectory: join("/qcut-user-data", "jianying-import", "inbox"),
 					commit: {
 						bundle: { planToken: "token" },
 						mediaGrants: [{ grantToken: "grant-token" }],
@@ -285,22 +286,35 @@ describe("executeJianyingImportCommand", () => {
 
 describe("resolveBundledImportRuntimePath", () => {
 	it("uses the adjacent runtime from a compiled Electron layout", () => {
+		const runtimePath = join(
+			"/repo",
+			"dist",
+			"electron",
+			"jianying-draft-import-runtime.js"
+		);
 		expect(
 			resolveBundledImportRuntimePath({
-				moduleDirectory: "/repo/dist/electron/native-pipeline/editor",
-				fileExists: (path) =>
-					path === "/repo/dist/electron/jianying-draft-import-runtime.js",
+				moduleDirectory: join(
+					"/repo",
+					"dist",
+					"electron",
+					"native-pipeline",
+					"editor"
+				),
+				fileExists: (path) => path === runtimePath,
 			})
-		).toBe("/repo/dist/electron/jianying-draft-import-runtime.js");
+		).toBe(runtimePath);
 	});
 
 	it("uses the built runtime when the CLI runs from TypeScript source", () => {
 		expect(
 			resolveBundledImportRuntimePath({
-				moduleDirectory: "/repo/electron/native-pipeline/editor",
+				moduleDirectory: join("/repo", "electron", "native-pipeline", "editor"),
 				fileExists: () => false,
 			})
-		).toBe("/repo/dist/electron/jianying-draft-import-runtime.js");
+		).toBe(
+			join("/repo", "dist", "electron", "jianying-draft-import-runtime.js")
+		);
 	});
 });
 
@@ -330,7 +344,9 @@ describe("resolveQCutCliUserDataDirectory", () => {
 				moduleDirectory: "/repo/electron/native-pipeline/editor",
 				platform: "darwin",
 			})
-		).toBe("/Users/peter/Library/Application Support/qcut");
+		).toBe(
+			posix.join("/Users/peter", "Library", "Application Support", "qcut")
+		);
 		expect(
 			resolveQCutCliUserDataDirectory({
 				environment: { APPDATA: "C:\\Users\\peter\\AppData\\Roaming" },
@@ -338,7 +354,7 @@ describe("resolveQCutCliUserDataDirectory", () => {
 				moduleDirectory: "C:\\repo\\electron\\native-pipeline\\editor",
 				platform: "win32",
 			})
-		).toBe("C:\\Users\\peter\\AppData\\Roaming/qcut");
+		).toBe(win32.join("C:\\Users\\peter\\AppData\\Roaming", "qcut"));
 		expect(
 			resolveQCutCliUserDataDirectory({
 				environment: { XDG_CONFIG_HOME: "/config" },
@@ -346,7 +362,7 @@ describe("resolveQCutCliUserDataDirectory", () => {
 				moduleDirectory: "/repo/electron/native-pipeline/editor",
 				platform: "linux",
 			})
-		).toBe("/config/qcut");
+		).toBe(posix.join("/config", "qcut"));
 	});
 
 	it("targets the packaged desktop product from a compiled CLI", () => {
@@ -357,6 +373,13 @@ describe("resolveQCutCliUserDataDirectory", () => {
 				moduleDirectory: "/repo/dist/electron/native-pipeline/editor",
 				platform: "darwin",
 			})
-		).toBe("/Users/peter/Library/Application Support/QCut AI Video Editor");
+		).toBe(
+			posix.join(
+				"/Users/peter",
+				"Library",
+				"Application Support",
+				"QCut AI Video Editor"
+			)
+		);
 	});
 });
