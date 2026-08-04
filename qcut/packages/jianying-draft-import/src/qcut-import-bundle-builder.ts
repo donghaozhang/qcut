@@ -91,6 +91,10 @@ export function buildQCutImportBundle({
 		if (!referencedResourceIds.has(resource.id)) {
 			continue;
 		}
+		internalIdBySemanticId[resource.id] = deriveImportInternalId({
+			seed,
+			semanticId: resource.id,
+		});
 		resourceStaging.push({
 			resourceId: resource.id,
 			// Storage-internal key, deterministic per plan; never a path.

@@ -553,6 +553,12 @@ export function parseQCutImportBundleV1(
 					path: `/resourceStaging/${index}/resourceId`,
 				});
 			}
+			if (internalIdBySemanticId[entry.resourceId] === undefined) {
+				fail({
+					message: "staged resource has no deterministic internal id",
+					path: `/resourceStaging/${index}/resourceId`,
+				});
+			}
 		}
 		for (const [trackIndex, track] of bundle.timelinePlan.tracks.entries()) {
 			if (internalIdBySemanticId[track.id] === undefined) {
