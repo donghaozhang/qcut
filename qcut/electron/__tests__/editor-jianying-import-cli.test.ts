@@ -3,6 +3,7 @@ import { getCommand } from "../native-pipeline/cli/command-registry.js";
 import { resolveCommandGroup } from "../native-pipeline/cli/command-groups.js";
 import {
 	executeJianyingImportCommand,
+	resolveBundledImportRuntimePath,
 	resolveQCutCliUserDataDirectory,
 } from "../native-pipeline/editor/editor-handlers-jianying-import.js";
 import { makeOpts } from "./editor-cli-test-setup.js";
@@ -175,6 +176,27 @@ describe("executeJianyingImportCommand", () => {
 	});
 });
 
+describe("resolveBundledImportRuntimePath", () => {
+	it("uses the adjacent runtime from a compiled Electron layout", () => {
+		expect(
+			resolveBundledImportRuntimePath({
+				moduleDirectory: "/repo/dist/electron/native-pipeline/editor",
+				fileExists: (path) =>
+					path === "/repo/dist/electron/jianying-draft-import-runtime.js",
+			})
+		).toBe("/repo/dist/electron/jianying-draft-import-runtime.js");
+	});
+
+	it("uses the built runtime when the CLI runs from TypeScript source", () => {
+		expect(
+			resolveBundledImportRuntimePath({
+				moduleDirectory: "/repo/electron/native-pipeline/editor",
+				fileExists: () => false,
+			})
+		).toBe("/repo/dist/electron/jianying-draft-import-runtime.js");
+	});
+});
+
 describe("resolveQCutCliUserDataDirectory", () => {
 	it("uses an absolute override before platform defaults", () => {
 		expect(
@@ -193,20 +215,43 @@ describe("resolveQCutCliUserDataDirectory", () => {
 		).toThrow(/absolute path/u);
 	});
 
-	it("matches the desktop product directory on supported platforms", () => {
+	it("matches the development desktop directory from source", () => {
 		expect(
 			resolveQCutCliUserDataDirectory({
 				environment: {},
 				homeDirectory: "/Users/peter",
+				moduleDirectory: "/repo/electron/native-pipeline/editor",
 				platform: "darwin",
 			})
-		).toBe("/Users/peter/Library/Application Support/QCut AI Video Editor");
+		).toBe("/Users/peter/Library/Application Support/qcut");
+		expect(
+			resolveQCutCliUserDataDirectory({
+				environment: { APPDATA: "C:\\Users\\peter\\AppData\\Roaming" },
+				homeDirectory: "C:\\Users\\peter",
+				moduleDirectory: "C:\\repo\\electron\\native-pipeline\\editor",
+				platform: "win32",
+			})
+		).toBe("C:\\Users\\peter\\AppData\\Roaming/qcut");
 		expect(
 			resolveQCutCliUserDataDirectory({
 				environment: { XDG_CONFIG_HOME: "/config" },
 				homeDirectory: "/home/peter",
+				moduleDirectory: "/repo/electron/native-pipeline/editor",
 				platform: "linux",
 			})
-		).toBe("/config/QCut AI Video Editor");
+		).toBe("/config/qcut");
+	});
+
+	it("targets the packaged desktop product from a compiled CLI", () => {
+		expect(
+			resolveQCutCliUserDataDirectory({
+				environment: {},
+				homeDirectory: "/Users/peter",
+				moduleDirectory: "/repo/dist/electron/native-pipeline/editor",
+				platform: "darwin",
+			})
+		).toBe(
+			"/Users/peter/Library/Application Support/QCut AI Video Editor"
+		);
 	});
 });

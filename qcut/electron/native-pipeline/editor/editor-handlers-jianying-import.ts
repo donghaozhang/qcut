@@ -5,6 +5,7 @@
  * inbox persistence. This handler only maps CLI options onto that lifecycle.
  */
 
+import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { isAbsolute, join } from "node:path";
 import type { CLIResult, CLIRunOptions } from "../cli/cli-runner/types.js";
@@ -37,13 +38,35 @@ interface ImportRuntimeModule {
 
 export type LoadImportRuntime = () => Promise<unknown>;
 
-async function loadBundledImportRuntime(): Promise<unknown> {
-	const runtimePath = join(
-		__dirname,
+export function resolveBundledImportRuntimePath({
+	moduleDirectory = __dirname,
+	fileExists = existsSync,
+}: {
+	moduleDirectory?: string;
+	fileExists?: (path: string) => boolean;
+} = {}): string {
+	const compiledRuntimePath = join(
+		moduleDirectory,
 		"..",
 		"..",
 		"jianying-draft-import-runtime.js"
 	);
+	if (fileExists(compiledRuntimePath)) {
+		return compiledRuntimePath;
+	}
+	return join(
+		moduleDirectory,
+		"..",
+		"..",
+		"..",
+		"dist",
+		"electron",
+		"jianying-draft-import-runtime.js"
+	);
+}
+
+async function loadBundledImportRuntime(): Promise<unknown> {
+	const runtimePath = resolveBundledImportRuntimePath();
 	return import(runtimePath);
 }
 
@@ -85,10 +108,12 @@ function getRuntime({
 export function resolveQCutCliUserDataDirectory({
 	environment = process.env,
 	homeDirectory = homedir(),
+	moduleDirectory = __dirname,
 	platform = process.platform,
 }: {
 	environment?: NodeJS.ProcessEnv;
 	homeDirectory?: string;
+	moduleDirectory?: string;
 	platform?: NodeJS.Platform;
 } = {}): string {
 	const override = environment.QCUT_USER_DATA_PATH;
@@ -98,7 +123,14 @@ export function resolveQCutCliUserDataDirectory({
 		}
 		return override;
 	}
-	const productDirectory = "QCut AI Video Editor";
+	const modulePathSegments = moduleDirectory.split(/[\\/]/u);
+	const isCompiledElectronRuntime = modulePathSegments.some(
+		(segment, index) =>
+			segment === "dist" && modulePathSegments[index + 1] === "electron"
+	);
+	const productDirectory = isCompiledElectronRuntime
+		? "QCut AI Video Editor"
+		: "qcut";
 	if (platform === "darwin") {
 		return join(
 			homeDirectory,
