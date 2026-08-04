@@ -414,6 +414,8 @@ Envelope 本机保存：
 
 Envelope 不得默认复制整个来源目录。`crypto_key_store.dat`、`.locked`、运行日志、无关 backup、私有缓存包和未证明必要的 sidecar 默认 deny；原始用户路径只保存在受限本机 provenance 中，对日志、issue 和测试证据做脱敏。任何新 allowlist 项都必须有真实 App 文件访问或 same-profile round-trip 证据。
 
+Envelope 属于私有本机项目数据：使用操作系统保护的项目密钥加密静态 payload，只允许在所属项目打开时访问。删除项目或导入源时必须同步删除 Envelope，并提供显式清除操作。默认不将 Envelope 字节和 provenance 放入媒体导出、云同步、备份、诊断、遥测或支持包；只有用户单独知情确认时，才能导出脱敏的兼容性证据包。
+
 ### 脏域
 
 建议至少区分：

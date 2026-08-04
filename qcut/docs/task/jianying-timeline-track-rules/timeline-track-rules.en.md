@@ -98,7 +98,7 @@ The isolated draft verified application version, project creation, media import,
 
 The pinned public implementation additionally enumerates `video`, `audio`, `effect`, `filter`, `sticker`, and `text`, with `adjust` as an import-compatible type. QCut must not drop types merely because a local sample did not happen to contain them.
 
-Track capabilities are project-profile dependent. Bundled resources state that Free Layer cannot be disabled after it is enabled and saved. Mixed Materials permits different material types on one track, requires Free Layer, and also cannot be disabled after activation. Import therefore needs at least these profiles:
+Track capabilities are project-profile dependent. Bundled resources state that Free Layer cannot be disabled after it is enabled and saved. Whether it removes track lock/hide restrictions remains unverified. Mixed Materials permits different material types on one track, requires Free Layer, and also cannot be disabled after activation. Import therefore needs at least these profiles:
 
 ```text
 classic typed tracks
@@ -161,7 +161,7 @@ QCut's concrete contract should be:
 - `ripple=true`: compute the edit delta and shift only later clips in the same ripple domain.
 - Main Track Magnet defines the main-track ripple domain; it does not move every secondary track.
 - Main Track Linkage, not magnetism, decides which dependent tracks follow.
-- A locked track cannot be changed indirectly. Fail the transaction or explicitly skip it; never commit a partial state.
+- A locked explicit target fails the command atomically. A locked track reached only through derived ripple or another broad scope is skipped. Neither case may commit a partial state.
 
 ### Trim modes
 
@@ -488,7 +488,7 @@ Relevant files:
 - `scripts/capcut-e2e/`
 - `docs/task/jianying-draft-export.md`
 
-Require generation, post-write reread, real open, save, reopen, and export. Visual stacking, audio mixing, transition seams, and source sampling all need an oracle. No write test may run against Peter's real draft account.
+Require generation, post-write reread, real open, save, reopen, and export. Visual stacking, audio mixing, transition seams, and source sampling all need an oracle. No write test may run against a real user account; use an isolated test account or VM.
 
 ## Definition of done
 

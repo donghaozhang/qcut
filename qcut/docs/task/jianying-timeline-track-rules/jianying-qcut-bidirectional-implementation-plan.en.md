@@ -357,6 +357,14 @@ scripts/__tests__/capcut-e2e-roundtrip-*.test.ts
 
 Store raw bytes or a safe compressed copy and SHA-256, profile evidence, raw-node/JSON-pointer bindings to semantic IDs, unknown-subtree parent/ownership/reference data, dirty domains, and accepted downgrade fingerprints.
 
+The envelope is private local project data. Encrypt retained payloads at rest
+with an OS-backed project key and allow access only while the owning project is
+open. Delete the envelope when the project or imported source is deleted, and
+provide an explicit purge action. Exclude envelope bytes and provenance from
+ordinary media export, cloud synchronization, backups, diagnostics, telemetry,
+and support bundles; only a separate informed user action may export a redacted
+compatibility bundle.
+
 ### Dirty domains
 
 At minimum:
