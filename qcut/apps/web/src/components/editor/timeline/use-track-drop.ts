@@ -161,7 +161,7 @@ export function useTrackDrop({
 			});
 			if (payload) {
 				const beatAlignedTime =
-					snappingEnabled && payload.sound.bpm
+					snappingEnabled && !bypassSnappingRef.current && payload.sound.bpm
 						? snapTimeToAudioBeatGrid({
 								time: dropTime,
 								bpm: payload.sound.bpm,
@@ -386,7 +386,7 @@ export function useTrackDrop({
 				return;
 			}
 			const beatAlignedTime =
-				snappingEnabled && payload.sound.bpm
+				snappingEnabled && !bypassSnappingRef.current && payload.sound.bpm
 					? snapTimeToAudioBeatGrid({
 							time: newStartTime,
 							bpm: payload.sound.bpm,
