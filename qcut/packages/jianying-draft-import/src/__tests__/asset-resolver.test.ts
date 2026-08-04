@@ -62,6 +62,12 @@ describe("resolveImportAssets", () => {
 			status: "resolved",
 			method: "declared-path",
 			sha256: sha256Of("video-bytes"),
+			identity: {
+				device: expect.any(String),
+				inode: expect.any(String),
+				mtimeNanoseconds: expect.any(String),
+				size: "11",
+			},
 			restrictedAbsolutePath: declaredPath,
 		});
 		expect(resolvedResources[0]).toMatchObject({
@@ -69,6 +75,7 @@ describe("resolveImportAssets", () => {
 			sha256: sha256Of("video-bytes"),
 			byteLength: 11,
 		});
+		expect(resolvedResources[0]).not.toHaveProperty("identity");
 	});
 
 	it("resolves a CapCut portable placeholder inside the draft root", async () => {
