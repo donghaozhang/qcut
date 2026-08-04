@@ -70,6 +70,9 @@ describe("Transition Lab CLI", () => {
 			expect(log).toHaveBeenCalledWith(
 				expect.stringContaining("editor:transition-lab:*")
 			);
+			expect(log).toHaveBeenCalledWith(
+				expect.stringContaining("editor:navigator:*")
+			);
 		} finally {
 			log.mockRestore();
 		}
