@@ -20,12 +20,13 @@ import type {
 	DraftImportCommitDto,
 	DraftImportMediaPayloadDto,
 } from "./import-session.js";
+import { MAX_IMPORT_MEDIA_BYTES } from "./media-payload-grant-store.js";
 import { verifyQCutImportBundleDigest } from "./qcut-import-bundle-builder.js";
 
 export const INBOX_ENTRY_SCHEMA_VERSION = 1 as const;
 export const MANIFEST_FILE_NAME = "manifest.v1.json";
 export const MAX_MANIFEST_BYTES = 64 * 1024 * 1024;
-const MAX_TOTAL_MEDIA_BYTES = 512 * 1024 * 1024;
+const MAX_LEGACY_BASE64_MEDIA_BYTES = 512 * 1024 * 1024;
 const SAFE_ENTRY_ID = /^[A-Za-z0-9_-]{1,128}$/u;
 
 export interface InboxMediaDescriptorV1 {
@@ -123,7 +124,7 @@ function hasCanonicalBase64Shape({ value }: { value: string }): boolean {
 
 function decodeBase64({ value }: { value: string }): Buffer {
 	if (
-		value.length > Math.ceil((MAX_TOTAL_MEDIA_BYTES * 4) / 3) + 4 ||
+		value.length > Math.ceil((MAX_LEGACY_BASE64_MEDIA_BYTES * 4) / 3) + 4 ||
 		!hasCanonicalBase64Shape({ value })
 	) {
 		throw new DesktopImportInboxMalformedError();
@@ -195,7 +196,7 @@ function validateCommit({
 			knownResourceIds,
 		});
 		totalBytes += validated.bytes.length;
-		if (totalBytes > MAX_TOTAL_MEDIA_BYTES) {
+		if (totalBytes > MAX_LEGACY_BASE64_MEDIA_BYTES) {
 			throw new DesktopImportInboxMalformedError();
 		}
 		return validated;
@@ -355,7 +356,7 @@ export function parseManifest({
 			!/^media-[0-9]+\.bin$/u.test(descriptor.storageName) ||
 			!Number.isSafeInteger(descriptor.byteLength) ||
 			(descriptor.byteLength as number) < 0 ||
-			(descriptor.byteLength as number) > MAX_TOTAL_MEDIA_BYTES ||
+			(descriptor.byteLength as number) > MAX_IMPORT_MEDIA_BYTES ||
 			typeof descriptor.sha256 !== "string" ||
 			!/^[a-f0-9]{64}$/u.test(descriptor.sha256) ||
 			basename(descriptor.fileName) !== descriptor.fileName ||
@@ -377,7 +378,7 @@ export function parseManifest({
 	if (
 		storageNames.size !== media.length ||
 		resourceIds.size !== media.length ||
-		totalBytes > MAX_TOTAL_MEDIA_BYTES
+		totalBytes > MAX_IMPORT_MEDIA_BYTES
 	) {
 		throw new DesktopImportInboxMalformedError();
 	}
@@ -424,6 +425,14 @@ async function readInboxEntry({
 	entryId: string;
 }): Promise<{ manifest: InboxManifestV1; commit: DraftImportCommitDto }> {
 	const manifest = await readDesktopImportManifest({ inboxDirectory, entryId });
+	if (
+		manifest.media.reduce(
+			(total, descriptor) => total + descriptor.byteLength,
+			0
+		) > MAX_LEGACY_BASE64_MEDIA_BYTES
+	) {
+		throw new DesktopImportInboxMalformedError();
+	}
 	const entryDirectory = join(inboxDirectory, entryId);
 	const mediaPayloads = await Promise.all(
 		manifest.media.map(async (descriptor) => {
