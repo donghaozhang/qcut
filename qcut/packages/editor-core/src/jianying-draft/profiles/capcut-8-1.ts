@@ -1,9 +1,9 @@
 /**
  * CapCut desktop 8.1 plaintext profile (JYI-003).
  *
- * First production candidate for import. Levels stay at `candidate` until
- * each supported subset earns a real-app receipt; writeback opens per
- * verified feature subset, never wholesale.
+ * Core video/audio import is production-backed by a CapCut 8.1.1
+ * open/save/reopen and QCut import/reload receipt. Writeback and richer
+ * feature subsets remain closed until they earn independent receipts.
  *
  * @module @qcut/editor-core/jianying-draft/profiles/capcut-8-1
  */
@@ -34,11 +34,11 @@ export const CAPCUT_8_1_DRAFT_PROFILE: DraftProfileContract = {
 	unknownFieldPolicy: "preserve-owned",
 	capabilities: {
 		inspect: "candidate",
-		import: "candidate",
+		import: "stable",
 		sameProfileWriteback: "none",
 		crossProfileExport: "candidate",
 		realAppVerified: false,
 	},
-	verificationEvidence: "capcut-8-1-migration-bundle-fixtures",
-	production: false,
+	verificationEvidence: "capcut-8.1.1-core-media-import-2026-08-04",
+	production: true,
 };
