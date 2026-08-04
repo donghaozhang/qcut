@@ -30,11 +30,12 @@ import { ImportStagingSession } from "@/lib/storage/import-staging-adapter";
 import { storageService } from "@/lib/storage/storage-service";
 import type { MediaItem, MediaType } from "@/stores/media/media-store-types";
 import type { TProject } from "@/types/project";
-import type { MediaElement, TimelineTrack } from "@/types/timeline";
+import type { TimelineTrack } from "@/types/timeline";
 import {
 	deleteEnvelopePayload,
 	storeEnvelopePayload,
 } from "./envelope-key-adapter";
+import { buildQCutImportTimelineElement } from "./qcut-import-element-builder";
 
 /** Decrypted media bytes for one staged resource, provided by transport. */
 export interface ImportMediaPayload {
@@ -134,28 +135,13 @@ function buildTimelineTracks({
 }): TimelineTrack[] {
 	const tracks: TimelineTrack[] = [];
 	for (const planTrack of bundle.timelinePlan.tracks) {
-		const elements: MediaElement[] = [];
-		for (const planElement of planTrack.elements) {
-			const mediaId = mediaItemIdByResourceId.get(planElement.resourceId);
-			if (mediaId === undefined) {
-				throw new Error(
-					`plan element ${planElement.id} has no staged media item`
-				);
-			}
-			elements.push({
-				id: bundle.internalIdBySemanticId[planElement.id],
-				type: "media",
-				mediaId,
-				name: planElement.name,
-				duration: planElement.duration,
-				startTime: planElement.startTime,
-				trimStart: planElement.trimStart,
-				trimEnd: planElement.trimEnd,
-				...(planElement.speed === undefined
-					? {}
-					: { playbackRate: planElement.speed }),
-			});
-		}
+		const elements = planTrack.elements.map((planElement) =>
+			buildQCutImportTimelineElement({
+				planElement,
+				internalIdBySemanticId: bundle.internalIdBySemanticId,
+				mediaItemIdByResourceId,
+			})
+		);
 		const transitions = (planTrack.transitions ?? []).map((transition) => ({
 			id: bundle.internalIdBySemanticId[transition.id],
 			fromElementId: bundle.internalIdBySemanticId[transition.fromElementId],
