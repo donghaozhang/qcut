@@ -89,13 +89,36 @@ async function ensurePrivateDirectory({
 	await chmod(directory, 0o700);
 }
 
+function hasCanonicalBase64Shape({ value }: { value: string }): boolean {
+	if (value.length === 0 || value.length % 4 !== 0) {
+		return false;
+	}
+	let contentLength = value.length;
+	while (contentLength > 0 && value.charCodeAt(contentLength - 1) === 61) {
+		contentLength -= 1;
+	}
+	if (value.length - contentLength > 2) {
+		return false;
+	}
+	for (let index = 0; index < contentLength; index += 1) {
+		const code = value.charCodeAt(index);
+		const isBase64Character =
+			(code >= 48 && code <= 57) ||
+			(code >= 65 && code <= 90) ||
+			(code >= 97 && code <= 122) ||
+			code === 43 ||
+			code === 47;
+		if (!isBase64Character) {
+			return false;
+		}
+	}
+	return true;
+}
+
 function decodeBase64({ value }: { value: string }): Buffer {
 	if (
-		value.length === 0 ||
 		value.length > Math.ceil((MAX_TOTAL_MEDIA_BYTES * 4) / 3) + 4 ||
-		!/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/u.test(
-			value
-		)
+		!hasCanonicalBase64Shape({ value })
 	) {
 		throw new DesktopImportInboxMalformedError();
 	}

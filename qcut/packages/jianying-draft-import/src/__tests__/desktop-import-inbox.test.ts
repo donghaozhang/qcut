@@ -181,6 +181,24 @@ describe("desktop import inbox", () => {
 		).rejects.toBeInstanceOf(DesktopImportInboxMalformedError);
 	});
 
+	it("validates multi-megabyte media without overflowing the call stack", async () => {
+		const bytesBase64 = Buffer.alloc(5 * 1024 * 1024, 0x5a).toString("base64");
+		const largeCommit: DraftImportCommitDto = {
+			...commit,
+			mediaPayloads: [{ ...commit.mediaPayloads[0], bytesBase64 }],
+		};
+		await enqueueDesktopImport({
+			inboxDirectory,
+			commit: largeCommit,
+			entryId: "large-media",
+		});
+		const restored = await readDesktopImport({
+			inboxDirectory,
+			entryId: "large-media",
+		});
+		expect(restored.mediaPayloads[0].bytesBase64).toBe(bytesBase64);
+	});
+
 	it("fails closed when persisted media or bundle bytes are tampered", async () => {
 		await enqueueDesktopImport({
 			inboxDirectory,
