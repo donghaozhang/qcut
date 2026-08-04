@@ -1,6 +1,7 @@
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+	JIANYING_IMPORT_CHOOSE_DIRECTORY_CHANNEL,
 	JIANYING_IMPORT_COMMIT_CHANNEL,
 	JIANYING_IMPORT_INBOX_ACK_CHANNEL,
 	JIANYING_IMPORT_INBOX_LIST_CHANNEL,
@@ -10,13 +11,17 @@ import {
 	type JianyingDraftImportResultDto,
 } from "../jianying-draft-import-contract.js";
 
-const { mockHandle, mockRemoveHandler } = vi.hoisted(() => ({
-	mockHandle: vi.fn(),
-	mockRemoveHandler: vi.fn(),
-}));
+const { mockHandle, mockRemoveHandler, mockShowOpenDialog } = vi.hoisted(
+	() => ({
+		mockHandle: vi.fn(),
+		mockRemoveHandler: vi.fn(),
+		mockShowOpenDialog: vi.fn(),
+	})
+);
 
 vi.mock("electron", () => ({
 	app: { getPath: vi.fn(), getVersion: vi.fn(() => "2026.08.04.1") },
+	dialog: { showOpenDialog: mockShowOpenDialog },
 	ipcMain: { handle: mockHandle, removeHandler: mockRemoveHandler },
 	safeStorage: {},
 }));
@@ -166,6 +171,27 @@ describe("setupJianyingDraftImportIPC", () => {
 		});
 	});
 
+	it("chooses a draft directory only for the trusted main frame", async () => {
+		mockShowOpenDialog.mockResolvedValue({
+			canceled: false,
+			filePaths: ["/drafts/x"],
+		});
+		const choose = getHandler({
+			channel: JIANYING_IMPORT_CHOOSE_DIRECTORY_CHANNEL,
+		});
+		await expect(choose(context.event, undefined)).resolves.toEqual({
+			ok: true,
+			value: "/drafts/x",
+		});
+		await expect(choose(context.iframeEvent, undefined)).resolves.toMatchObject(
+			{
+				ok: false,
+				error: { code: "untrusted-sender" },
+			}
+		);
+		expect(mockShowOpenDialog).toHaveBeenCalledTimes(1);
+	});
+
 	it("maps typed runtime errors to stable codes, never throwing", async () => {
 		const commit = await getHandler({
 			channel: JIANYING_IMPORT_COMMIT_CHANNEL,
@@ -246,6 +272,7 @@ describe("setupJianyingDraftImportIPC", () => {
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		expect(mockRemoveHandler.mock.calls.map((call) => call[0]).sort()).toEqual(
 			[
+				JIANYING_IMPORT_CHOOSE_DIRECTORY_CHANNEL,
 				JIANYING_IMPORT_COMMIT_CHANNEL,
 				JIANYING_IMPORT_INBOX_ACK_CHANNEL,
 				JIANYING_IMPORT_INBOX_LIST_CHANNEL,

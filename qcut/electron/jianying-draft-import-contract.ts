@@ -11,6 +11,8 @@
  */
 
 export const JIANYING_IMPORT_INSPECT_CHANNEL = "jianying-draft:import:inspect";
+export const JIANYING_IMPORT_CHOOSE_DIRECTORY_CHANNEL =
+	"jianying-draft:import:choose-directory";
 export const JIANYING_IMPORT_PLAN_CHANNEL = "jianying-draft:import:plan";
 export const JIANYING_IMPORT_COMMIT_CHANNEL = "jianying-draft:import:commit";
 export const JIANYING_IMPORT_INBOX_LIST_CHANNEL =
@@ -128,6 +130,7 @@ export interface DraftImportInboxEntryRequestDto {
 }
 
 export interface JianyingDraftImportAPI {
+	chooseDraftDirectory(): Promise<JianyingDraftImportResultDto<string | null>>;
 	inspectDraft(
 		request: DraftImportInspectRequestDto
 	): Promise<JianyingDraftImportResultDto<DraftImportInspectDto>>;

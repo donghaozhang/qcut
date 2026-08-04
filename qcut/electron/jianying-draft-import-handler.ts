@@ -11,10 +11,12 @@ import { join } from "node:path";
 import {
 	app,
 	type BrowserWindow,
+	dialog,
 	type IpcMainInvokeEvent,
 	ipcMain,
 } from "electron";
 import {
+	JIANYING_IMPORT_CHOOSE_DIRECTORY_CHANNEL,
 	JIANYING_IMPORT_COMMIT_CHANNEL,
 	JIANYING_IMPORT_INBOX_ACK_CHANNEL,
 	JIANYING_IMPORT_INBOX_LIST_CHANNEL,
@@ -69,6 +71,9 @@ export interface SetupJianyingDraftImportIPCOptions {
 	loadRuntime?: () => Promise<unknown>;
 	getAppVersion?: () => string;
 	getUserDataDirectory?: () => string;
+	chooseDraftDirectory?: (options: {
+		mainWindow: BrowserWindow;
+	}) => Promise<string | null>;
 }
 
 class UntrustedJianyingImportSenderError extends Error {
@@ -200,6 +205,13 @@ export function setupJianyingDraftImportIPC({
 	loadRuntime = loadBundledImportRuntime,
 	getAppVersion = () => app.getVersion(),
 	getUserDataDirectory = () => app.getPath("userData"),
+	chooseDraftDirectory = async ({ mainWindow }) => {
+		const result = await dialog.showOpenDialog(mainWindow, {
+			title: "Choose a JianYing or CapCut draft folder",
+			properties: ["openDirectory"],
+		});
+		return result.canceled ? null : (result.filePaths[0] ?? null);
+	},
 }: SetupJianyingDraftImportIPCOptions): JianyingDraftImportIPCController {
 	let runtimePromise: Promise<ImportRuntimeModule> | null = null;
 	let sessionPromise: Promise<ImportSessionLike> | null = null;
@@ -310,6 +322,25 @@ export function setupJianyingDraftImportIPC({
 		);
 	}
 
+	ipcMain.handle(
+		JIANYING_IMPORT_CHOOSE_DIRECTORY_CHANNEL,
+		async (
+			event: IpcMainInvokeEvent
+		): Promise<JianyingDraftImportResultDto<string | null>> => {
+			try {
+				const mainWindow = getMainWindow();
+				assertTrustedMainFrame({ event, mainWindow });
+				if (mainWindow === null) throw new UntrustedJianyingImportSenderError();
+				return {
+					ok: true,
+					value: await chooseDraftDirectory({ mainWindow }),
+				};
+			} catch (error) {
+				return { ok: false, error: toErrorDto({ error }) };
+			}
+		}
+	);
+
 	register({
 		channel: JIANYING_IMPORT_INSPECT_CHANNEL,
 		invoke: ({ session, input }) => session.inspect({ input }),
@@ -346,6 +377,7 @@ export function setupJianyingDraftImportIPC({
 	return {
 		dispose: () => {
 			for (const channel of [
+				JIANYING_IMPORT_CHOOSE_DIRECTORY_CHANNEL,
 				JIANYING_IMPORT_INSPECT_CHANNEL,
 				JIANYING_IMPORT_PLAN_CHANNEL,
 				JIANYING_IMPORT_INBOX_LIST_CHANNEL,

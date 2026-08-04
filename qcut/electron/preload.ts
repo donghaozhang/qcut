@@ -75,6 +75,7 @@ import {
 	ENVELOPE_STORE_CHANNEL,
 } from "./jianying-envelope-key-contract.js";
 import {
+	JIANYING_IMPORT_CHOOSE_DIRECTORY_CHANNEL,
 	JIANYING_IMPORT_COMMIT_CHANNEL,
 	JIANYING_IMPORT_INBOX_ACK_CHANNEL,
 	JIANYING_IMPORT_INBOX_LIST_CHANNEL,
@@ -114,6 +115,8 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 		status: () => ipcRenderer.invoke(ENVELOPE_STATUS_CHANNEL),
 	},
 	jianyingDraftImport: {
+		chooseDraftDirectory: () =>
+			ipcRenderer.invoke(JIANYING_IMPORT_CHOOSE_DIRECTORY_CHANNEL),
 		inspectDraft: (request) =>
 			ipcRenderer.invoke(JIANYING_IMPORT_INSPECT_CHANNEL, request),
 		planDraftImport: (request) =>
