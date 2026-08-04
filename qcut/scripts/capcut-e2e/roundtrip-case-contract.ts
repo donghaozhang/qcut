@@ -2,6 +2,7 @@ import type { AudioComparisonManifest } from "./audio-comparison.js";
 import type { FrameComparisonManifest } from "./frame-comparison.js";
 import type { FrameSamplePlan } from "./frame-sample-plan.js";
 import type { PreviewFrameComparisonManifest } from "./preview-frame-comparison.js";
+import type { QCutImportVerificationManifest } from "./qcut-import-verification-contract.js";
 import type { SemanticDiffCaseManifest } from "./semantic-diff.js";
 
 export const ROUNDTRIP_CASE_MANIFEST_SCHEMA = "qcut.capcut-e2e.roundtrip-case";
@@ -22,6 +23,7 @@ export type RoundtripCaseGateStatus =
 export interface RoundtripCaseGate {
 	id:
 		| "semantic"
+		| "qcut-import"
 		| "native-frames"
 		| "preview-frames"
 		| "audio"
@@ -50,6 +52,7 @@ export interface RoundtripCaseEvidence {
 	audio: AudioComparisonManifest;
 	nativeFrames?: FrameComparisonManifest;
 	previewFrames?: PreviewFrameComparisonManifest;
+	qcutImport: QCutImportVerificationManifest;
 	semantic: SemanticDiffCaseManifest;
 }
 
@@ -63,11 +66,12 @@ export interface RoundtripCaseManifest {
 		audio: { left: "reference"; right: "qcut" };
 		nativeFrames: { left: "reference"; right: "qcut" };
 		previewFrames: { left: "reference"; right: "qcut" };
+		qcutImport: { expected: "import-bundle"; actual: "qcut-renderer-snapshot" };
 		semantic: { left: "source-draft"; right: "roundtrip-draft" };
 	};
 	samplePlan?: FrameSamplePlan;
 	schema: typeof ROUNDTRIP_CASE_MANIFEST_SCHEMA;
-	schemaVersion: 1;
+	schemaVersion: 2;
 	verdict: RoundtripCaseVerdict;
 }
 
@@ -144,6 +148,32 @@ function semanticGate({
 				? "Semantic comparison contains breaking differences."
 				: "Semantic comparison is not comparable.",
 		status: verdict === "breaking" ? "fail" : "not-comparable",
+	};
+}
+
+function qcutImportGate({
+	verdict,
+}: {
+	verdict: QCutImportVerificationManifest["verdict"];
+}): RoundtripCaseGate {
+	if (verdict === "pass") {
+		return {
+			id: "qcut-import",
+			reason: "QCut import materialization passed.",
+			status: "pass",
+		};
+	}
+	if (verdict === "fail") {
+		return {
+			id: "qcut-import",
+			reason: "QCut import materialization failed.",
+			status: "fail",
+		};
+	}
+	return {
+		id: "qcut-import",
+		reason: "QCut import materialization is not comparable.",
+		status: "not-comparable",
 	};
 }
 
@@ -243,6 +273,7 @@ export function assessRoundtripCase({
 	validateRoundtripCaseProvenance({ provenance });
 	const gates = [
 		semanticGate({ verdict: evidence.semantic.verdict }),
+		qcutImportGate({ verdict: evidence.qcutImport.verdict }),
 		comparisonGate({
 			id: "native-frames",
 			label: "Native frame comparison",

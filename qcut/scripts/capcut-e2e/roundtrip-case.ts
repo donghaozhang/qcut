@@ -1,10 +1,11 @@
 /**
- * Run one path-free semantic, native-frame, preview-frame, and audio case.
+ * Run one path-free import, semantic, native-frame, preview-frame, and audio case.
  *
  * Usage:
  *   bun scripts/capcut-e2e/roundtrip-case.ts \
  *     --case-id <id> \
  *     --source-draft <dir> --roundtrip-draft <dir> \
+ *     --qcut-import-bundle <json> --qcut-import-snapshot <json> \
  *     --qcut-native-export <media> --reference-native-export <media> \
  *     --qcut-preview-frames <dir> --reference-preview-frames <dir> \
  *     [--output <dir>] [--json]
@@ -19,6 +20,7 @@ import { compareAudioOutputs } from "./audio-comparison.js";
 import { compareVideoFrames } from "./frame-comparison.js";
 import { buildFrameSamplePlan } from "./frame-sample-plan.js";
 import { comparePreviewFrameDirectories } from "./preview-frame-comparison.js";
+import { runQCutImportVerification } from "./qcut-import-verification.js";
 import {
 	assessRoundtripCase,
 	ROUNDTRIP_CASE_MANIFEST_FILE_NAME,
@@ -40,6 +42,10 @@ const ROUNDTRIP_CASE_ROLES = Object.freeze({
 	audio: { left: "reference" as const, right: "qcut" as const },
 	nativeFrames: { left: "reference" as const, right: "qcut" as const },
 	previewFrames: { left: "reference" as const, right: "qcut" as const },
+	qcutImport: {
+		expected: "import-bundle" as const,
+		actual: "qcut-renderer-snapshot" as const,
+	},
 	semantic: {
 		left: "source-draft" as const,
 		right: "roundtrip-draft" as const,
@@ -54,6 +60,7 @@ export interface RoundtripCaseDependencies {
 	compareVideoFrames: typeof compareVideoFrames;
 	loadSemanticDiffApi: typeof loadSemanticDiffApi;
 	normalizeDraftForSemanticDiff: typeof normalizeDraftForSemanticDiff;
+	runQCutImportVerification: typeof runQCutImportVerification;
 }
 
 const DEFAULT_DEPENDENCIES: RoundtripCaseDependencies = {
@@ -64,6 +71,7 @@ const DEFAULT_DEPENDENCIES: RoundtripCaseDependencies = {
 	compareVideoFrames,
 	loadSemanticDiffApi,
 	normalizeDraftForSemanticDiff,
+	runQCutImportVerification,
 };
 
 export interface RunRoundtripCaseOptions {
@@ -72,6 +80,8 @@ export interface RunRoundtripCaseOptions {
 	nowIso?: string;
 	outputDirectory?: string;
 	provenance?: RoundtripCaseProvenance;
+	qcutImportBundlePath: string;
+	qcutImportSnapshotPath: string;
 	qcutNativeExportPath: string;
 	qcutPreviewDirectory: string;
 	referenceNativeExportPath: string;
@@ -131,6 +141,8 @@ export async function runRoundtripCase({
 	nowIso = new Date().toISOString(),
 	outputDirectory,
 	provenance = UNBOUND_ROUNDTRIP_CASE_PROVENANCE,
+	qcutImportBundlePath,
+	qcutImportSnapshotPath,
 	qcutNativeExportPath,
 	qcutPreviewDirectory,
 	referenceNativeExportPath,
@@ -140,7 +152,14 @@ export async function runRoundtripCase({
 }: RunRoundtripCaseOptions): Promise<RoundtripCaseManifest> {
 	validateCaseId({ caseId });
 	validateRoundtripCaseProvenance({ provenance });
-	const api = await dependencies.loadSemanticDiffApi();
+	const [api, qcutImport] = await Promise.all([
+		dependencies.loadSemanticDiffApi(),
+		dependencies.runQCutImportVerification({
+			bundlePath: qcutImportBundlePath,
+			nowIso,
+			qcutSnapshotPath: qcutImportSnapshotPath,
+		}),
+	]);
 	const [source, roundtrip] = await Promise.all([
 		dependencies.normalizeDraftForSemanticDiff({
 			api,
@@ -186,6 +205,7 @@ export async function runRoundtripCase({
 		audio,
 		...(nativeFrames ? { nativeFrames } : {}),
 		...(previewFrames ? { previewFrames } : {}),
+		qcutImport,
 		semantic,
 	};
 	const assessment = assessRoundtripCase({
@@ -202,13 +222,15 @@ export async function runRoundtripCase({
 		roles: ROUNDTRIP_CASE_ROLES,
 		...(samplePlan ? { samplePlan } : {}),
 		schema: ROUNDTRIP_CASE_MANIFEST_SCHEMA,
-		schemaVersion: 1,
+		schemaVersion: 2,
 		verdict: assessment.verdict,
 	};
 	assertManifestIsPathFree({
 		inputPaths: [
 			sourceDraftDirectory,
 			roundtripDraftDirectory,
+			qcutImportBundlePath,
+			qcutImportSnapshotPath,
 			qcutNativeExportPath,
 			referenceNativeExportPath,
 			qcutPreviewDirectory,
@@ -224,6 +246,8 @@ const CLI_VALUE_FLAGS = [
 	"--case-id",
 	"--source-draft",
 	"--roundtrip-draft",
+	"--qcut-import-bundle",
+	"--qcut-import-snapshot",
 	"--qcut-native-export",
 	"--reference-native-export",
 	"--qcut-preview-frames",
@@ -286,6 +310,14 @@ export function parseRoundtripCaseCliOptions({
 		flag: "--roundtrip-draft",
 		values,
 	});
+	const qcutImportBundlePath = requireCliValue({
+		flag: "--qcut-import-bundle",
+		values,
+	});
+	const qcutImportSnapshotPath = requireCliValue({
+		flag: "--qcut-import-snapshot",
+		values,
+	});
 	const qcutNativeExportPath = requireCliValue({
 		flag: "--qcut-native-export",
 		values,
@@ -308,6 +340,8 @@ export function parseRoundtripCaseCliOptions({
 		...(values.has("--output")
 			? { outputDirectory: requireCliValue({ flag: "--output", values }) }
 			: {}),
+		qcutImportBundlePath,
+		qcutImportSnapshotPath,
 		qcutNativeExportPath,
 		qcutPreviewDirectory,
 		referenceNativeExportPath,
