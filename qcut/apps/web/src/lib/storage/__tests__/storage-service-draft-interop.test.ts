@@ -52,6 +52,27 @@ function createProject(): TProject {
 			internalIdBySemanticId: {
 				"segment-1": "qcut-segment-1",
 			},
+			baselineDocument: {
+				schemaVersion: 1,
+				timeUnit: "microseconds",
+				source: {
+					product: "capcut",
+					profileId: "capcut-desktop-8.1-plaintext",
+					platform: "macos",
+					files: [],
+				},
+				project: {
+					id: "foreign-project-1",
+					name: "Imported CapCut Draft",
+					width: 1920,
+					height: 1080,
+					fps: 30,
+				},
+				timelines: [],
+				resources: [],
+				links: [],
+				issues: [],
+			},
 			writeback: {
 				status: "unavailable",
 				reason: "envelope-not-captured",
