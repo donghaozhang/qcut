@@ -275,6 +275,29 @@ describe("desktop import inbox", () => {
 });
 
 describe("inbox fault tolerance (JYI-018)", () => {
+	it("lists from manifests without loading complete media payloads", async () => {
+		await enqueueDesktopImport({
+			inboxDirectory,
+			commit,
+			entryId: "manifest-only",
+			nowUnixMilliseconds: NOW,
+		});
+		await writeFile(
+			join(inboxDirectory, "manifest-only", "media-0.bin"),
+			"tampered"
+		);
+
+		await expect(listDesktopImports({ inboxDirectory })).resolves.toEqual([
+			expect.objectContaining({
+				entryId: "manifest-only",
+				mediaCount: 1,
+			}),
+		]);
+		await expect(
+			readDesktopImport({ inboxDirectory, entryId: "manifest-only" })
+		).rejects.toBeInstanceOf(DesktopImportInboxMalformedError);
+	});
+
 	it("lists readable siblings when one entry is corrupt", async () => {
 		await enqueueDesktopImport({
 			inboxDirectory,
