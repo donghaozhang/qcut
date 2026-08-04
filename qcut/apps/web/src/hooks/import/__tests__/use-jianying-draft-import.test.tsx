@@ -63,6 +63,7 @@ describe("useJianyingDraftImport", () => {
 			rolledBackImportIds: [],
 			completedImportIds: [],
 			corruptJournalRecordCount: 0,
+			quarantinedJournalRecordCount: 0,
 		});
 		const { result } = renderHook(() =>
 			useJianyingDraftImport({ recoverImports })
@@ -82,6 +83,7 @@ describe("useJianyingDraftImport", () => {
 			rolledBackImportIds: [],
 			completedImportIds: [],
 			corruptJournalRecordCount: 0,
+			quarantinedJournalRecordCount: 0,
 		});
 		const { result } = renderHook(() =>
 			useJianyingDraftImport({ recoverImports })
@@ -94,5 +96,40 @@ describe("useJianyingDraftImport", () => {
 		await waitFor(() =>
 			expect(bridge.listPendingDraftImports).toHaveBeenCalledTimes(1)
 		);
+	});
+
+	it("quarantines corrupt journals and refreshes recovery counts", async () => {
+		installBridge({});
+		const recoverImports = vi.fn(async () => ({
+			rolledBackImportIds: [],
+			completedImportIds: [],
+			corruptJournalRecordCount: 2,
+			quarantinedJournalRecordCount: 0,
+		}));
+		const quarantineCorruptRecords = vi.fn(async () => ({
+			newlyQuarantinedRecordCount: 2,
+			corruptRecordCount: 0,
+			quarantinedRecordCount: 2,
+		}));
+		const { result } = renderHook(() =>
+			useJianyingDraftImport({
+				recoverImports,
+				quarantineCorruptRecords,
+			})
+		);
+		await waitFor(() =>
+			expect(result.current.recoveryResult?.corruptJournalRecordCount).toBe(2)
+		);
+
+		await act(async () => result.current.quarantineCorruptJournalRecords());
+
+		expect(quarantineCorruptRecords).toHaveBeenCalledTimes(1);
+		expect(result.current.recoveryResult).toEqual({
+			rolledBackImportIds: [],
+			completedImportIds: [],
+			corruptJournalRecordCount: 0,
+			quarantinedJournalRecordCount: 2,
+		});
+		expect(result.current.isJournalQuarantineRunning).toBe(false);
 	});
 });
