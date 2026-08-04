@@ -18,8 +18,6 @@
  * @module @qcut/jianying-draft-import/import-session
  */
 
-import { constants } from "node:fs";
-import { open } from "node:fs/promises";
 import { basename } from "node:path";
 import {
 	type DraftInteropDocumentV1,
@@ -57,6 +55,10 @@ import { ImportPlanStore } from "./import-plan-store.js";
 import { PersistentImportPlanStore } from "./persistent-import-plan-store.js";
 import { buildQCutImportBundle } from "./qcut-import-bundle-builder.js";
 import { buildForeignEnvelopeCapture } from "./foreign-envelope-capture.js";
+import {
+	MediaPayloadReadError,
+	readVerifiedMediaPayload,
+} from "./media-payload-reader.js";
 import {
 	readDraftSourceSnapshot,
 	verifyDraftSourceUnchanged,
@@ -253,39 +255,39 @@ function countCapabilities({
 	return counts;
 }
 
-async function readBoundedBytes({
-	absolutePath,
+async function readResolvedAssetPayload({
+	asset,
 	remainingBudget,
 }: {
-	absolutePath: string;
+	asset: ResolvedImportAsset;
 	remainingBudget: number;
 }): Promise<Buffer> {
-	const noFollowFlag = constants.O_NOFOLLOW ?? 0;
-	const handle = await open(absolutePath, constants.O_RDONLY | noFollowFlag);
+	if (
+		asset.status !== "resolved" ||
+		asset.restrictedAbsolutePath === undefined ||
+		asset.byteLength === undefined ||
+		asset.sha256 === undefined
+	) {
+		throw new ImportSessionError({
+			code: "source-changed",
+			message: "resolved media evidence is incomplete",
+		});
+	}
 	try {
-		const metadata = await handle.stat({ bigint: true });
-		if (metadata.size > BigInt(remainingBudget)) {
+		return await readVerifiedMediaPayload({
+			absolutePath: asset.restrictedAbsolutePath,
+			expectedByteLength: asset.byteLength,
+			expectedSha256: asset.sha256,
+			remainingBudget,
+		});
+	} catch (error) {
+		if (error instanceof MediaPayloadReadError) {
 			throw new ImportSessionError({
-				code: "payload-too-large",
-				message: "media payloads exceed the transport budget",
+				code: error.code,
+				message: error.message,
 			});
 		}
-		const size = Number(metadata.size);
-		const bytes = Buffer.alloc(size);
-		let offset = 0;
-		while (offset < size) {
-			const { bytesRead } = await handle.read(
-				bytes,
-				offset,
-				size - offset,
-				offset
-			);
-			if (bytesRead === 0) break;
-			offset += bytesRead;
-		}
-		return bytes;
-	} finally {
-		await handle.close().catch(() => undefined);
+		throw error;
 	}
 }
 
@@ -421,7 +423,7 @@ export class JianyingDraftImportSession {
 				? {}
 				: { profileId: detection.profileId }),
 			canWrite: detection.canWrite,
-			fileCount: snapshot.files.length,
+			fileCount: discovery.files.length,
 			skippedEntryCount: discovery.skipped.length,
 			hasContentFile: discovery.hasContentFile,
 			issues: [...snapshot.issues],
@@ -774,10 +776,7 @@ export class JianyingDraftImportSession {
 			) {
 				continue;
 			}
-			const bytes = await readBoundedBytes({
-				absolutePath: asset.restrictedAbsolutePath,
-				remainingBudget,
-			});
+			const bytes = await readResolvedAssetPayload({ asset, remainingBudget });
 			remainingBudget -= bytes.length;
 			const fileName = basename(asset.restrictedAbsolutePath);
 			const extension = fileName.split(".").pop()?.toLowerCase() ?? "";
