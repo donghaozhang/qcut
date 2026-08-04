@@ -5,7 +5,7 @@ import {
 } from "@qcut/editor-core";
 import { useMemo, useState } from "react";
 import type { DragEvent } from "react";
-import { SearchIcon, SparklesIcon } from "lucide-react";
+import { RefreshCwIcon, SearchIcon, SparklesIcon } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -38,15 +38,24 @@ import {
 } from "@/lib/transitions/transition-resource";
 import { resolveTransitionAssetEntry } from "@/lib/assets/qcut-asset-manifest";
 import { useOnlineStatus } from "@/hooks/use-online-status";
+import {
+	JIANYING_TRANSITION_GROUPS,
+	type JianyingTransitionGroup,
+} from "../../../../../../../../electron/jianying-transition-catalog";
+import { useJianyingTransitionRuntime } from "./use-jianying-transition-runtime";
 
 function resolvePresetResource({
 	preset,
 	runtimeByAssetKey,
 	online,
+	localRuntimeChecking,
+	localAvailableIds,
 }: {
 	preset: TransitionPreset;
 	runtimeByAssetKey: Readonly<Record<string, AssetRuntimeState>>;
 	online: boolean;
+	localRuntimeChecking: boolean;
+	localAvailableIds: ReadonlySet<string>;
 }) {
 	const asset = resolveTransitionAssetEntry({ preset });
 	const assetKey = assetManifestVersionKey({
@@ -56,6 +65,22 @@ function resolvePresetResource({
 	});
 	const runtime =
 		runtimeByAssetKey[assetKey] ?? createInitialAssetRuntimeState({ asset });
+	if (preset.backend === "jianying-local") {
+		const available = localAvailableIds.has(preset.id);
+		return {
+			asset,
+			runtime,
+			state: {
+				available,
+				progress: available ? 1 : 0,
+				status: localRuntimeChecking
+					? ("checking-local" as const)
+					: available
+						? ("ready" as const)
+						: ("local-unavailable" as const),
+			},
+		};
+	}
 	return {
 		asset,
 		runtime,
@@ -84,6 +109,9 @@ function encodeDragPayload({
 
 export function TransitionsView() {
 	const [category, setCategory] = useState<TransitionCategory>("all");
+	const [jianyingGroup, setJianyingGroup] = useState<
+		"all" | JianyingTransitionGroup
+	>("all");
 	const [query, setQuery] = useState("");
 	const [selectedPresetId, setSelectedPresetId] = useState("dissolve");
 	const selectedElements = useTimelineStore((state) => state.selectedElements);
@@ -105,6 +133,7 @@ export function TransitionsView() {
 	);
 	const toggleFavorite = useAssetLibraryStore((state) => state.toggleFavorite);
 	const online = useOnlineStatus();
+	const jianyingRuntime = useJianyingTransitionRuntime();
 	const favoriteIds = useMemo(
 		() =>
 			new Set(
@@ -115,10 +144,13 @@ export function TransitionsView() {
 		[favorites]
 	);
 
-	const visiblePresets = useMemo(
-		() => filterTransitionPresets({ category, query, favoriteIds }),
-		[category, favoriteIds, query]
-	);
+	const visiblePresets = useMemo(() => {
+		const filtered = filterTransitionPresets({ category, query, favoriteIds });
+		if (category !== "jianying-local" || jianyingGroup === "all") {
+			return filtered;
+		}
+		return filtered.filter((preset) => preset.jianyingGroup === jianyingGroup);
+	}, [category, favoriteIds, jianyingGroup, query]);
 	const selectedPreset =
 		visiblePresets.find((preset) => preset.id === selectedPresetId) ??
 		visiblePresets[0];
@@ -136,6 +168,8 @@ export function TransitionsView() {
 				preset: selectedPreset,
 				runtimeByAssetKey,
 				online,
+				localRuntimeChecking: jianyingRuntime.checking,
+				localAvailableIds: jianyingRuntime.availableIds,
 			})
 		: null;
 	const previewSources = useMemo(() => {
@@ -194,6 +228,8 @@ export function TransitionsView() {
 					preset,
 					runtimeByAssetKey,
 					online,
+					localRuntimeChecking: jianyingRuntime.checking,
+					localAvailableIds: jianyingRuntime.availableIds,
 				}).state.available;
 			}),
 			toDuration: getTimelineElementDuration({ element: toElement, fps }),
@@ -210,6 +246,8 @@ export function TransitionsView() {
 		mediaItems,
 		online,
 		runtimeByAssetKey,
+		jianyingRuntime.availableIds,
+		jianyingRuntime.checking,
 		tracks,
 		visualSignals,
 	]);
@@ -234,9 +272,17 @@ export function TransitionsView() {
 			preset,
 			runtimeByAssetKey: useAssetLibraryStore.getState().runtimeByAssetKey,
 			online,
+			localRuntimeChecking: jianyingRuntime.checking,
+			localAvailableIds: jianyingRuntime.availableIds,
 		});
 		if (!resource.state.available) {
-			toast.info("请先下载这个转场素材。");
+			toast.info(
+				preset.backend === "jianying-local"
+					? (jianyingRuntime.status?.message ??
+							jianyingRuntime.error ??
+							"本机剪映转场资源不可用。")
+					: "请先下载这个转场素材。"
+			);
 			return;
 		}
 
@@ -265,10 +311,25 @@ export function TransitionsView() {
 	};
 
 	const handleDownload = async ({ preset }: { preset: TransitionPreset }) => {
+		if (preset.backend === "jianying-local") {
+			const status = await jianyingRuntime.refresh();
+			if (
+				status?.transitions.some(
+					(item) => item.id === preset.id && item.available
+				)
+			) {
+				toast.success(`${preset.localizedName} 已可通过本机剪映引擎使用。`);
+				return;
+			}
+			toast.info(status?.message ?? "未找到可用的本机剪映转场资源。");
+			return;
+		}
 		const resource = resolvePresetResource({
 			preset,
 			runtimeByAssetKey: useAssetLibraryStore.getState().runtimeByAssetKey,
 			online,
+			localRuntimeChecking: jianyingRuntime.checking,
+			localAvailableIds: jianyingRuntime.availableIds,
 		});
 		if (resource.asset.delivery !== "remote") return;
 		if (!online) {
@@ -365,7 +426,10 @@ export function TransitionsView() {
 										: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
 								)}
 								aria-pressed={category === item.id}
-								onClick={() => setCategory(item.id)}
+								onClick={() => {
+									setCategory(item.id);
+									if (item.id !== "jianying-local") setJianyingGroup("all");
+								}}
 								onKeyDown={(event) => {
 									if (event.key === "Escape") event.currentTarget.blur();
 								}}
@@ -395,6 +459,69 @@ export function TransitionsView() {
 							{applyState.message}
 						</span>
 					</div>
+					{category === "jianying-local" ? (
+						<div className="mt-2 border-t border-border/50 pt-2">
+							<div
+								className="grid grid-cols-2 gap-1"
+								role="tablist"
+								aria-label="转场实验室分类"
+							>
+								{JIANYING_TRANSITION_GROUPS.map((group) => (
+									<button
+										key={group.id}
+										type="button"
+										role="tab"
+										aria-selected={jianyingGroup === group.id}
+										className={cn(
+											"h-6 rounded border px-1 text-[10px] transition-colors",
+											jianyingGroup === group.id
+												? "border-primary/50 bg-primary/15 text-primary"
+												: "border-border/60 text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+										)}
+										onClick={() => setJianyingGroup(group.id)}
+										onKeyDown={(event) => {
+											if (event.key === "Escape") event.currentTarget.blur();
+										}}
+									>
+										{group.label}
+									</button>
+								))}
+							</div>
+							<div className="mt-1.5 flex min-w-0 items-center gap-1.5 text-[10px] text-muted-foreground">
+								<span
+									className="min-w-0 flex-1 truncate"
+									title={
+										jianyingRuntime.status?.message ?? jianyingRuntime.error
+									}
+								>
+									{jianyingRuntime.checking
+										? "正在检查本机剪映资源"
+										: (jianyingRuntime.status?.message ??
+											jianyingRuntime.error)}
+								</span>
+								<Button
+									type="button"
+									variant="text"
+									size="icon"
+									className="size-6 shrink-0"
+									disabled={jianyingRuntime.checking}
+									title="重新检查本机剪映资源"
+									aria-label="重新检查本机剪映资源"
+									onClick={() => void jianyingRuntime.refresh()}
+									onKeyDown={(event) => {
+										if (event.key === "Escape") event.currentTarget.blur();
+									}}
+								>
+									<RefreshCwIcon
+										className={cn(
+											"size-3",
+											jianyingRuntime.checking && "animate-spin"
+										)}
+									/>
+								</Button>
+							</div>
+						</div>
+					) : null}
 					{recommendations.length > 0 ? (
 						<div
 							className="mt-2 border-t border-border/50 pt-2"
@@ -460,6 +587,8 @@ export function TransitionsView() {
 									preset,
 									runtimeByAssetKey,
 									online,
+									localRuntimeChecking: jianyingRuntime.checking,
+									localAvailableIds: jianyingRuntime.availableIds,
 								});
 								return (
 									<TransitionCard
