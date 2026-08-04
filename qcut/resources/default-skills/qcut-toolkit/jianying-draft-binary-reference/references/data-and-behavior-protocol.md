@@ -57,8 +57,12 @@ bun "$SKILL_DIR/scripts/inspect-draft.ts" diff \
 ```
 
 The diff is identity-aware for tracks, segments, and material collections. It
-reports ordering and nested field changes while hashing project names, text,
-media paths, and other free-form strings. It ignores only top-level
+reports ordering and nested field changes while applying keyed HMAC-SHA-256 to
+project names, text, media paths, and other free-form strings. Set
+`QCUT_JIANYING_EVIDENCE_KEY` to a private stable key when reports from separate
+processes must be compared; otherwise a random process key protects one local
+before/after run. Never store the key beside the evidence bundle. The diff
+ignores only top-level
 `update_time` when calculating the semantic hash. A changed nested timestamp
 remains visible.
 
@@ -123,9 +127,12 @@ Each experiment directory outside the repository should contain:
 ```
 
 The manifest records app short version, bundle version, project/timeline IDs as
-hashes, source media hashes, FPS, canvas, operation, toggle states, timestamps,
-and hashes of every evidence file. Screenshots must avoid unrelated projects or
-personal media.
+keyed digests, source media content hashes, FPS, canvas, operation, toggle
+states, timestamps, and hashes of every evidence file. Key project/timeline IDs
+with the same private evidence key. Content and evidence-file hashes remain
+unkeyed integrity digests so another authorized investigator can verify the
+bytes; treat them as sensitive correlation identifiers and never publish them.
+Screenshots must avoid unrelated projects or personal media.
 
 ## Confidence and stop rules
 

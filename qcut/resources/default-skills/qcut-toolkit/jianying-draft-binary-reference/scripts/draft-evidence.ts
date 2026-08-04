@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, createHmac, randomBytes } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -93,6 +93,8 @@ export interface DraftSemanticDiff {
 const MAX_FIELD_CHANGES = 2_000;
 const ROOT_SECTIONS = new Set(["config", "materials", "tracks", "update_time"]);
 const SAFE_STRING_KEY = /(^id$|_id$|^type$|^mode$|^platform$|version$)/u;
+const PRIVATE_DIGEST_KEY =
+	process.env.QCUT_JIANYING_EVIDENCE_KEY?.trim() || randomBytes(32);
 
 function objectValue({ value }: { value: unknown }): JsonRecord | null {
 	return value !== null && typeof value === "object" && !Array.isArray(value)
@@ -114,6 +116,10 @@ function stringValue({ value }: { value: unknown }): string {
 
 function sha256({ value }: { value: string | Uint8Array }): string {
 	return createHash("sha256").update(value).digest("hex");
+}
+
+function privateDigest({ value }: { value: string }): string {
+	return createHmac("sha256", PRIVATE_DIGEST_KEY).update(value).digest("hex");
 }
 
 function canonicalize({ value }: { value: unknown }): unknown {
@@ -298,7 +304,7 @@ export function inspectDraftFile({
 		...(includePath ? { path: path.resolve(filePath) } : {}),
 		rawSha256: sha256({ value: bytes }),
 		semanticSha256: content
-			? sha256({
+			? privateDigest({
 					value: JSON.stringify(canonicalSemanticValue({ value: content })),
 				})
 			: null,
@@ -395,7 +401,11 @@ function safeSnapshot({
 				.filter(Boolean)
 				.at(-1) ?? "";
 		if (SAFE_STRING_KEY.test(key)) return value;
-		return { kind: "string", length: value.length, sha256: sha256({ value }) };
+		return {
+			kind: "string",
+			length: value.length,
+			hmacSha256: privateDigest({ value }),
+		};
 	}
 	if (Array.isArray(value)) return { kind: "array", length: value.length };
 	const object = objectValue({ value });

@@ -24,8 +24,11 @@ bun "$SKILL_DIR/scripts/inspect-draft.ts" diff \
   --after "/absolute/path/to/after.json"
 ```
 
-The CLI is read-only, omits paths by default, hashes free-form strings in diff
-output, and rejects opaque payloads for semantic comparison. Treat its output
+The CLI is read-only, omits paths by default, applies keyed HMAC-SHA-256 to
+free-form strings in diff output, and rejects opaque payloads for semantic
+comparison. Set `QCUT_JIANYING_EVIDENCE_KEY` only when separate CLI processes
+must produce comparable private digests, and never store that key with the
+evidence. Treat its output
 as structural evidence, then corroborate interaction semantics with a
 single-variable UI experiment.
 
