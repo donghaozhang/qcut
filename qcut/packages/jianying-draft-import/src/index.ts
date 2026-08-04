@@ -69,7 +69,10 @@ export {
 	type AssetResolverInstrumentation,
 	type ResolvedImportAsset,
 	type ResolveImportAssetsInput,
+	type ResolveImportAssetsResult,
 } from "./asset-resolver.js";
+
+export type { AssetResolutionCacheMetrics } from "./asset-resolution-work-cache.js";
 
 export {
 	buildForeignEnvelopeCapture,
