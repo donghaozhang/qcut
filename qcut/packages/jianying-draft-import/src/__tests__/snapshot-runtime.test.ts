@@ -2,7 +2,11 @@ import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { discoverDraftDirectory } from "../discovery.js";
+import {
+	discoverDraftDirectory,
+	type DiscoveredDraftFile,
+	MAX_DISCOVERY_ENTRIES,
+} from "../discovery.js";
 import {
 	readDraftSourceSnapshot,
 	verifyDraftSourceUnchanged,
@@ -41,6 +45,10 @@ async function writeDraftFixture(): Promise<void> {
 }
 
 describe("discoverDraftDirectory", () => {
+	it("budgets enough entries for the 5000-media acceptance target", () => {
+		expect(MAX_DISCOVERY_ENTRIES).toBeGreaterThanOrEqual(5000);
+	});
+
 	it("finds content, meta, and asset files with roles", async () => {
 		await writeDraftFixture();
 		const result = await discoverDraftDirectory({ draftDirectory: draftRoot });
@@ -103,7 +111,7 @@ describe("discoverDraftDirectory", () => {
 });
 
 describe("readDraftSourceSnapshot", () => {
-	it("hashes, classifies, and parses within bounds", async () => {
+	it("hashes, classifies, and parses control files within bounds", async () => {
 		await writeDraftFixture();
 		await writeFile(join(draftRoot, "draft_settings"), "not json at all");
 		const discovery = await discoverDraftDirectory({
@@ -119,13 +127,55 @@ describe("readDraftSourceSnapshot", () => {
 		);
 		expect(byPath["draft_info.json"].classification).toBe("plaintext-json");
 		expect(byPath["draft_info.json"].sha256).toMatch(/^[0-9a-f]{64}$/);
-		expect(byPath["draft_settings"].classification).toBe("opaque-text");
-		expect(byPath["assets/clip.bin"].classification).toBe("binary");
+		expect(byPath.draft_settings.classification).toBe("opaque-text");
+		expect(byPath["assets/clip.bin"]).toBeUndefined();
 		expect(snapshot.parsedJsonByPath["draft_info.json"]).toMatchObject({
 			id: "draft-1",
 		});
-		// Asset bytes are never parsed.
+		expect(snapshot.bytesByPath["draft_info.json"]).toBeInstanceOf(Buffer);
+		// Asset bytes belong to the streaming resolver, not the snapshot.
+		expect(snapshot.bytesByPath["assets/clip.bin"]).toBeUndefined();
 		expect(snapshot.parsedJsonByPath["assets/clip.bin"]).toBeUndefined();
+	});
+
+	it("does not spend the control snapshot budget on a 100 GB asset inventory", async () => {
+		const content = JSON.stringify({
+			id: "draft-1",
+			tracks: [],
+			materials: {},
+		});
+		await writeFile(join(draftRoot, "draft_info.json"), content);
+		const logicalAssetBytes = 20_000_000;
+		const assetFiles: DiscoveredDraftFile[] = Array.from(
+			{ length: 5000 },
+			(_, index) => ({
+				byteLength: logicalAssetBytes,
+				relativePath: `assets/clip-${index}.mp4`,
+				role: "asset",
+			})
+		);
+		expect(assetFiles.reduce((total, file) => total + file.byteLength, 0)).toBe(
+			100_000_000_000
+		);
+
+		const snapshot = await readDraftSourceSnapshot({
+			rootRealPath: draftRoot,
+			files: [
+				{
+					byteLength: Buffer.byteLength(content),
+					relativePath: "draft_info.json",
+					role: "content",
+				},
+				...assetFiles,
+			],
+			maxTotalBytes: 1024,
+		});
+
+		expect(snapshot.issues).toEqual([]);
+		expect(snapshot.files.map((file) => file.relativePath)).toEqual([
+			"draft_info.json",
+		]);
+		expect(Object.keys(snapshot.bytesByPath)).toEqual(["draft_info.json"]);
 	});
 
 	it("classifies a binary content file as encrypted", async () => {
