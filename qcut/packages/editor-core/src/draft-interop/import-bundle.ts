@@ -13,12 +13,15 @@
  */
 
 import { createDeterministicJianyingId } from "../jianying-draft/deterministic-id.js";
-import type {
-	QCutImportPlanElement,
-	QCutImportPlanTrack,
-	QCutImportPlanTransition,
-	QCutImportSkippedNode,
-	QCutImportTimelinePlanV1,
+import {
+	mapInteropDocumentToQCutPlan,
+	type QCutImportPlanElement,
+	type QCutImportPlanMediaElement,
+	type QCutImportPlanTextElement,
+	type QCutImportPlanTrack,
+	type QCutImportPlanTransition,
+	type QCutImportSkippedNode,
+	type QCutImportTimelinePlanV1,
 } from "../jianying-draft/import/qcut-mapping.js";
 import { isInteropCapability } from "./capability.js";
 import {
@@ -227,14 +230,14 @@ function asEnum<T extends string>({
 	return value as T;
 }
 
-function parsePlanElement({
+function parsePlanMediaElement({
 	value,
 	path,
 }: {
-	value: unknown;
+	value: Record<string, unknown>;
 	path: string;
-}): QCutImportPlanElement {
-	const record = asRecord({ value, path });
+}): QCutImportPlanMediaElement {
+	const record = value;
 	const speed =
 		record.speed === undefined
 			? undefined
@@ -274,6 +277,283 @@ function parsePlanElement({
 			path: `${path}/sourceSegmentId`,
 		}),
 	};
+}
+
+function asOptionalFiniteNumber({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): number | undefined {
+	return value === undefined ? undefined : asFiniteNumber({ value, path });
+}
+
+function asOptionalNonNegativeFiniteNumber({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): number | undefined {
+	const parsed = asOptionalFiniteNumber({ value, path });
+	if (parsed !== undefined && parsed < 0) {
+		fail({ message: "expected a non-negative finite number", path });
+	}
+	return parsed;
+}
+
+function requireCompleteOptionalGroup({
+	label,
+	path,
+	values,
+}: {
+	label: string;
+	path: string;
+	values: readonly unknown[];
+}): void {
+	const presentCount = values.filter((value) => value !== undefined).length;
+	if (presentCount !== 0 && presentCount !== values.length) {
+		fail({ message: `${label} fields must be present together`, path });
+	}
+}
+
+function asTextColor({
+	value,
+	path,
+	allowTransparent = false,
+}: {
+	value: unknown;
+	path: string;
+	allowTransparent?: boolean;
+}): string {
+	const color = asString({ value, path });
+	if (allowTransparent && color === "transparent") return color;
+	if (!/^#[\da-f]{6}$/i.test(color)) {
+		fail({ message: "expected a six-digit hexadecimal color", path });
+	}
+	return color.toLowerCase();
+}
+
+function asUnitInterval({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): number {
+	const parsed = asFiniteNumber({ value, path });
+	if (parsed < 0 || parsed > 1) {
+		fail({ message: "expected a number from 0 through 1", path });
+	}
+	return parsed;
+}
+
+function parsePlanTextElement({
+	value,
+	path,
+}: {
+	value: Record<string, unknown>;
+	path: string;
+}): QCutImportPlanTextElement {
+	const optionalNumber = (key: string) =>
+		asOptionalFiniteNumber({ value: value[key], path: `${path}/${key}` });
+	const letterSpacing = optionalNumber("letterSpacing");
+	const width = asOptionalNonNegativeFiniteNumber({
+		value: value.width,
+		path: `${path}/width`,
+	});
+	const strokeWidth = asOptionalNonNegativeFiniteNumber({
+		value: value.strokeWidth,
+		path: `${path}/strokeWidth`,
+	});
+	const strokeOpacity =
+		value.strokeOpacity === undefined
+			? undefined
+			: asUnitInterval({
+					value: value.strokeOpacity,
+					path: `${path}/strokeOpacity`,
+				});
+	const backgroundOpacity =
+		value.backgroundOpacity === undefined
+			? undefined
+			: asUnitInterval({
+					value: value.backgroundOpacity,
+					path: `${path}/backgroundOpacity`,
+				});
+	const backgroundRadius = asOptionalNonNegativeFiniteNumber({
+		value: value.backgroundRadius,
+		path: `${path}/backgroundRadius`,
+	});
+	const backgroundPadding = asOptionalNonNegativeFiniteNumber({
+		value: value.backgroundPadding,
+		path: `${path}/backgroundPadding`,
+	});
+	const shadowOpacity =
+		value.shadowOpacity === undefined
+			? undefined
+			: asUnitInterval({
+					value: value.shadowOpacity,
+					path: `${path}/shadowOpacity`,
+				});
+	const shadowOffsetX = optionalNumber("shadowOffsetX");
+	const shadowOffsetY = optionalNumber("shadowOffsetY");
+	const shadowBlur = asOptionalNonNegativeFiniteNumber({
+		value: value.shadowBlur,
+		path: `${path}/shadowBlur`,
+	});
+	const strokeColor =
+		value.strokeColor === undefined
+			? undefined
+			: asTextColor({
+					value: value.strokeColor,
+					path: `${path}/strokeColor`,
+				});
+	const shadowColor =
+		value.shadowColor === undefined
+			? undefined
+			: asTextColor({
+					value: value.shadowColor,
+					path: `${path}/shadowColor`,
+				});
+	requireCompleteOptionalGroup({
+		label: "stroke",
+		path: `${path}/strokeColor`,
+		values: [strokeColor, strokeWidth, strokeOpacity],
+	});
+	requireCompleteOptionalGroup({
+		label: "background",
+		path: `${path}/backgroundOpacity`,
+		values: [backgroundOpacity, backgroundRadius, backgroundPadding],
+	});
+	requireCompleteOptionalGroup({
+		label: "shadow",
+		path: `${path}/shadowColor`,
+		values: [
+			shadowColor,
+			shadowOpacity,
+			shadowOffsetX,
+			shadowOffsetY,
+			shadowBlur,
+		],
+	});
+	return {
+		id: asString({ value: value.id, path: `${path}/id` }),
+		type: "text",
+		name: asString({
+			value: value.name,
+			path: `${path}/name`,
+			allowEmpty: true,
+		}),
+		startTime: asFiniteNumber({
+			value: value.startTime,
+			path: `${path}/startTime`,
+		}),
+		duration: asPositiveFiniteNumber({
+			value: value.duration,
+			path: `${path}/duration`,
+		}),
+		trimStart:
+			value.trimStart === 0
+				? 0
+				: fail({
+						message: "text trimStart must be zero",
+						path: `${path}/trimStart`,
+					}),
+		trimEnd:
+			value.trimEnd === 0
+				? 0
+				: fail({
+						message: "text trimEnd must be zero",
+						path: `${path}/trimEnd`,
+					}),
+		content: asString({
+			value: value.content,
+			path: `${path}/content`,
+			allowEmpty: true,
+		}),
+		fontSize: asPositiveFiniteNumber({
+			value: value.fontSize,
+			path: `${path}/fontSize`,
+		}),
+		fontFamily: asString({
+			value: value.fontFamily,
+			path: `${path}/fontFamily`,
+		}),
+		color: asTextColor({ value: value.color, path: `${path}/color` }),
+		backgroundColor: asTextColor({
+			value: value.backgroundColor,
+			path: `${path}/backgroundColor`,
+			allowTransparent: true,
+		}),
+		textAlign: asEnum({
+			value: value.textAlign,
+			path: `${path}/textAlign`,
+			allowed: ["left", "center", "right"],
+		}),
+		fontWeight: asEnum({
+			value: value.fontWeight,
+			path: `${path}/fontWeight`,
+			allowed: ["normal", "bold"],
+		}),
+		fontStyle: asEnum({
+			value: value.fontStyle,
+			path: `${path}/fontStyle`,
+			allowed: ["normal", "italic"],
+		}),
+		textDecoration: asEnum({
+			value: value.textDecoration,
+			path: `${path}/textDecoration`,
+			allowed: ["none", "underline"],
+		}),
+		x: asFiniteNumber({ value: value.x, path: `${path}/x` }),
+		y: asFiniteNumber({ value: value.y, path: `${path}/y` }),
+		rotation: asFiniteNumber({
+			value: value.rotation,
+			path: `${path}/rotation`,
+		}),
+		opacity: asUnitInterval({
+			value: value.opacity,
+			path: `${path}/opacity`,
+		}),
+		...(letterSpacing === undefined ? {} : { letterSpacing }),
+		...(width === undefined ? {} : { width }),
+		...(strokeColor === undefined ? {} : { strokeColor }),
+		...(strokeWidth === undefined ? {} : { strokeWidth }),
+		...(strokeOpacity === undefined ? {} : { strokeOpacity }),
+		...(backgroundOpacity === undefined ? {} : { backgroundOpacity }),
+		...(backgroundRadius === undefined ? {} : { backgroundRadius }),
+		...(backgroundPadding === undefined ? {} : { backgroundPadding }),
+		...(shadowColor === undefined ? {} : { shadowColor }),
+		...(shadowOpacity === undefined ? {} : { shadowOpacity }),
+		...(shadowOffsetX === undefined ? {} : { shadowOffsetX }),
+		...(shadowOffsetY === undefined ? {} : { shadowOffsetY }),
+		...(shadowBlur === undefined ? {} : { shadowBlur }),
+		sourceSegmentId: asString({
+			value: value.sourceSegmentId,
+			path: `${path}/sourceSegmentId`,
+		}),
+	};
+}
+
+function parsePlanElement({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): QCutImportPlanElement {
+	const record = asRecord({ value, path });
+	if (record.type === "media") {
+		return parsePlanMediaElement({ value: record, path });
+	}
+	if (record.type === "text") {
+		return parsePlanTextElement({ value: record, path });
+	}
+	return fail({
+		message: "expected media or text plan element",
+		path: `${path}/type`,
+	});
 }
 
 function parsePlanTransition({
@@ -347,7 +627,7 @@ function parsePlanTrack({
 		type: asEnum({
 			value: record.type,
 			path: `${path}/type`,
-			allowed: ["media", "audio"],
+			allowed: ["media", "audio", "text"],
 		}),
 		name: asString({ value: record.name, path: `${path}/name` }),
 		order: asNonNegativeSafeInteger({
@@ -637,13 +917,25 @@ export function parseQCutImportBundleV1(
 			}
 			for (const [elementIndex, element] of track.elements.entries()) {
 				const elementPath = `/timelinePlan/tracks/${trackIndex}/elements/${elementIndex}`;
+				if (
+					(track.type === "text" && element.type !== "text") ||
+					(track.type !== "text" && element.type !== "media")
+				) {
+					fail({
+						message: "plan element type does not match its track",
+						path: `${elementPath}/type`,
+					});
+				}
 				if (internalIdBySemanticId[element.id] === undefined) {
 					fail({
 						message: "plan element has no deterministic internal id",
 						path: `${elementPath}/id`,
 					});
 				}
-				if (!stagingByResourceId.has(element.resourceId)) {
+				if (
+					element.type === "media" &&
+					!stagingByResourceId.has(element.resourceId)
+				) {
 					fail({
 						message: "plan element references an unstaged resource",
 						path: `${elementPath}/resourceId`,
@@ -678,6 +970,18 @@ export function parseQCutImportBundleV1(
 					});
 				}
 			}
+		}
+		const projectedTimelinePlan = mapInteropDocumentToQCutPlan({
+			document: bundle.document,
+		});
+		if (
+			JSON.stringify(sortValueDeep(projectedTimelinePlan)) !==
+			JSON.stringify(sortValueDeep(bundle.timelinePlan))
+		) {
+			fail({
+				message: "timeline plan is not the deterministic document projection",
+				path: "/timelinePlan",
+			});
 		}
 		return { ok: true, bundle };
 	} catch (error) {
