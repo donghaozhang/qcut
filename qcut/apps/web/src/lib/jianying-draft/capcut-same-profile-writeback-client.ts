@@ -30,6 +30,7 @@ export type CapCut81WritebackClientResult =
 				| "baseline-document-missing"
 				| "envelope-unavailable"
 				| "prepare-blocked"
+				| "qcut-state-changed"
 				| "bridge-unavailable"
 				| "directory-selection-failed"
 				| "writeback-failed";
@@ -39,9 +40,13 @@ export type CapCut81WritebackClientResult =
 			selectionToken?: string;
 	  };
 
-interface CapCut81WritebackClientDeps {
+export interface CapCut81WritebackClientDeps {
 	getBridge?: () => JianyingSameProfileWritebackAPI | null;
 	readVerifiedEnvelope?: typeof readVerifiedEnvelopePayload;
+	verifySnapshotCurrent?: (options: {
+		project: TProject;
+		snapshot: CapCut81WritebackTimingSnapshot;
+	}) => Promise<boolean>;
 }
 
 function getBridgeDefault(): JianyingSameProfileWritebackAPI | null {
@@ -152,6 +157,17 @@ export async function runCapCut81SameProfileWriteback({
 		};
 	}
 	if (selected.value === null) return { ok: true, outcome: "cancelled" };
+	if (
+		deps.verifySnapshotCurrent !== undefined &&
+		!(await deps.verifySnapshotCurrent({ project, snapshot }))
+	) {
+		return {
+			ok: false,
+			reason: "qcut-state-changed",
+			message:
+				"The QCut project changed while the destination was selected. Review and retry the writeback.",
+		};
+	}
 
 	const committed = await bridge.commitCapCut81Writeback({
 		contentBase64: bytesToBase64({ bytes: prepared.contentBytes }),
