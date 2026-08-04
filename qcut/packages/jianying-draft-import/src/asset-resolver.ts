@@ -34,6 +34,11 @@ import {
 	type AssetResolutionCacheMetrics,
 } from "./asset-resolution-work-cache.js";
 import { MAX_DISCOVERY_ENTRIES } from "./discovery.js";
+import {
+	mediaPayloadFileIdentitiesEqual,
+	toMediaPayloadFileIdentity,
+	type MediaPayloadFileIdentity,
+} from "./media-payload-reader.js";
 
 const DEFAULT_MAX_CONCURRENT_PROBES = 4;
 const MAX_CONCURRENT_PROBES = 8;
@@ -59,6 +64,7 @@ export interface ResolvedImportAsset {
 	method?: AssetResolutionMethod;
 	sha256?: string;
 	byteLength?: number;
+	identity?: MediaPayloadFileIdentity;
 	/** RESTRICTED: absolute path of the resolved file; provenance only. */
 	restrictedAbsolutePath?: string;
 	issues: InteropIssue[];
@@ -136,14 +142,15 @@ async function probeAndHashFile({
 		if (before.size > BigInt(maxHashBytes)) {
 			return { ok: false, tooLarge: true };
 		}
+		const identity = toMediaPayloadFileIdentity({ metadata: before });
 		const hash = createHash("sha256");
 		await pipeline(handle.createReadStream({ autoClose: false }), hash);
 		const after = await handle.stat({ bigint: true });
 		if (
-			before.dev !== after.dev ||
-			before.ino !== after.ino ||
-			before.size !== after.size ||
-			before.mtimeNs !== after.mtimeNs
+			!mediaPayloadFileIdentitiesEqual({
+				after: toMediaPayloadFileIdentity({ metadata: after }),
+				before: identity,
+			})
 		) {
 			return { ok: false };
 		}
@@ -151,12 +158,29 @@ async function probeAndHashFile({
 			ok: true,
 			sha256: hash.digest("hex"),
 			byteLength: Number(before.size),
+			identity,
 		};
 	} catch {
 		return { ok: false };
 	} finally {
 		await handle?.close().catch(() => undefined);
 	}
+}
+
+function isVerifiedFileProbe(
+	probe: AssetFileProbeResult
+): probe is AssetFileProbeResult & {
+	ok: true;
+	sha256: string;
+	byteLength: number;
+	identity: MediaPayloadFileIdentity;
+} {
+	return (
+		probe.ok &&
+		probe.sha256 !== undefined &&
+		probe.byteLength !== undefined &&
+		probe.identity !== undefined
+	);
 }
 
 interface CandidateDirectory {
@@ -310,14 +334,15 @@ async function resolveOneAsset({
 			);
 			return { resourceId: resource.id, status: "relink-required", issues };
 		}
-		if (probe.ok && probe.sha256 !== undefined) {
+		if (isVerifiedFileProbe(probe)) {
 			if (expectedSha256 === undefined || probe.sha256 === expectedSha256) {
 				return {
 					resourceId: resource.id,
 					status: "resolved",
 					method: resolvedDeclaredPath.method,
 					sha256: probe.sha256,
-					byteLength: probe.byteLength ?? 0,
+					byteLength: probe.byteLength,
+					identity: probe.identity,
 					restrictedAbsolutePath: resolvedDeclaredPath.absolutePath,
 					issues,
 				};
@@ -354,13 +379,14 @@ async function resolveOneAsset({
 				load: () => probeAndHashFile({ absolutePath: candidate, maxHashBytes }),
 				maxHashBytes,
 			});
-			if (probe.ok && probe.sha256 === expectedSha256) {
+			if (isVerifiedFileProbe(probe) && probe.sha256 === expectedSha256) {
 				return {
 					resourceId: resource.id,
 					status: "resolved",
 					method: "hash-search",
 					sha256: probe.sha256,
-					byteLength: probe.byteLength ?? 0,
+					byteLength: probe.byteLength,
+					identity: probe.identity,
 					restrictedAbsolutePath: candidate,
 					issues,
 				};
@@ -373,13 +399,14 @@ async function resolveOneAsset({
 			load: () => probeAndHashFile({ absolutePath: candidate, maxHashBytes }),
 			maxHashBytes,
 		});
-		if (probe.ok && probe.sha256 !== undefined) {
+		if (isVerifiedFileProbe(probe)) {
 			return {
 				resourceId: resource.id,
 				status: "resolved",
 				method: "name-search",
 				sha256: probe.sha256,
-				byteLength: probe.byteLength ?? 0,
+				byteLength: probe.byteLength,
+				identity: probe.identity,
 				restrictedAbsolutePath: candidate,
 				issues,
 			};
