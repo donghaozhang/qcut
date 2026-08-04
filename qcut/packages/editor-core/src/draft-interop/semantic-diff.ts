@@ -22,7 +22,9 @@ import type {
 	InteropSegment,
 	InteropTimeline,
 	InteropTrack,
+	InteropTransition,
 } from "./document.js";
+import { diffInteropTextSemantics } from "./semantic-text-diff.js";
 
 export type SemanticDiffSeverity = "breaking" | "tolerable" | "info";
 
@@ -123,6 +125,32 @@ function diffScalar({
 			...(subjectId === undefined ? {} : { subjectId }),
 			left,
 			right,
+		});
+	}
+}
+
+function diffScalarFields<Node extends object>({
+	context,
+	path,
+	subjectId,
+	fields,
+	left,
+	right,
+}: {
+	context: DiffContext;
+	path: string;
+	subjectId: string;
+	fields: readonly (keyof Node)[];
+	left: Node;
+	right: Node;
+}): void {
+	for (const field of fields) {
+		diffScalar({
+			context,
+			path: `${path}/${String(field)}`,
+			subjectId,
+			left: left[field],
+			right: right[field],
 		});
 	}
 }
@@ -242,6 +270,14 @@ function diffSegment({
 			right: rightSpeed,
 		});
 	}
+	for (const entry of diffInteropTextSemantics({
+		path: `${path}/text`,
+		subjectId,
+		left: left.text,
+		right: right.text,
+	})) {
+		report({ context, severity: "breaking", ...entry });
+	}
 }
 
 function diffById<Node extends { id: string }>({
@@ -341,6 +377,52 @@ function diffTrack({
 				left: leftSegment,
 				right: rightSegment,
 			}),
+	});
+	diffById({
+		context,
+		path: `${path}/transitions`,
+		leftNodes: left.transitions ?? [],
+		rightNodes: right.transitions ?? [],
+		diffNode: ({
+			path: transitionPath,
+			left: leftTransition,
+			right: rightTransition,
+		}) =>
+			diffTransition({
+				context,
+				path: transitionPath,
+				left: leftTransition,
+				right: rightTransition,
+			}),
+	});
+}
+
+function diffTransition({
+	context,
+	path,
+	left,
+	right,
+}: {
+	context: DiffContext;
+	path: string;
+	left: InteropTransition;
+	right: InteropTransition;
+}): void {
+	const subjectId = left.id;
+	diffScalarFields({
+		context,
+		path,
+		subjectId,
+		fields: ["type", "fromSegmentId", "toSegmentId"],
+		left,
+		right,
+	});
+	diffTimeValue({
+		context,
+		path: `${path}/durationUs`,
+		subjectId,
+		left: left.durationUs,
+		right: right.durationUs,
 	});
 }
 
