@@ -48,14 +48,17 @@ function createSnapshotFixture(): DraftSourceSnapshot {
 			},
 		],
 		parsedJsonByPath: {},
+		bytesByPath: {},
 		issues: [],
 	};
 }
 
 function createDocumentFixture({
 	issues = [],
+	resources = [],
 }: {
 	issues?: DraftInteropDocumentV1["issues"];
+	resources?: DraftInteropDocumentV1["resources"];
 } = {}): DraftInteropDocumentV1 {
 	return {
 		schemaVersion: 1,
@@ -68,7 +71,7 @@ function createDocumentFixture({
 		},
 		project: { id: "p", name: "P", width: 1920, height: 1080, fps: 30 },
 		timelines: [],
-		resources: [],
+		resources,
 		links: [],
 		issues,
 	};
@@ -79,15 +82,20 @@ function createArtifact({
 	ttl = 60_000,
 	issues,
 	planToken,
+	resources,
 }: {
 	now?: number;
 	ttl?: number;
 	issues?: DraftInteropDocumentV1["issues"];
 	planToken?: string;
+	resources?: DraftInteropDocumentV1["resources"];
 } = {}): ImportPlanArtifactV1 {
 	return createImportPlanArtifact({
 		snapshot: createSnapshotFixture(),
-		document: createDocumentFixture(issues === undefined ? {} : { issues }),
+		document: createDocumentFixture({
+			...(issues === undefined ? {} : { issues }),
+			...(resources === undefined ? {} : { resources }),
+		}),
 		detectionOutcome: "exact",
 		profileId: "jianying-synthetic-plaintext-5.9",
 		buildIdentity: BUILD,
@@ -128,6 +136,36 @@ describe("createImportPlanArtifact", () => {
 		const first = createArtifact({ planToken: "token-1" });
 		const second = createArtifact({ planToken: "token-1" });
 		expect(second).toEqual(first);
+	});
+
+	it("binds resolved resource evidence independent of resource order", () => {
+		const firstResource: DraftInteropDocumentV1["resources"][number] = {
+			id: "resource-b",
+			kind: "video",
+			name: "clip.mp4",
+			originHint: "local-media",
+			sha256: "b".repeat(64),
+			byteLength: 128,
+			status: "resolved",
+			capability: "exact",
+		};
+		const secondResource: DraftInteropDocumentV1["resources"][number] = {
+			...firstResource,
+			id: "resource-a",
+			sha256: "a".repeat(64),
+		};
+		const first = createArtifact({
+			resources: [firstResource, secondResource],
+		});
+		const reordered = createArtifact({
+			resources: [secondResource, firstResource],
+		});
+		expect(reordered.requestFingerprint).toBe(first.requestFingerprint);
+
+		const changed = createArtifact({
+			resources: [secondResource, { ...firstResource, sha256: "c".repeat(64) }],
+		});
+		expect(changed.requestFingerprint).not.toBe(first.requestFingerprint);
 	});
 
 	it("rejects an out-of-range TTL", () => {
