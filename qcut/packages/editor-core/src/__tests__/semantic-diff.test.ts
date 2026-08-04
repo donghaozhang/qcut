@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { DraftInteropDocumentV1 } from "../draft-interop/document.js";
+import type {
+	DraftInteropDocumentV1,
+	InteropText,
+} from "../draft-interop/document.js";
 import {
 	diffDraftInteropDocuments,
 	halfFrameToleranceUs,
@@ -49,7 +52,67 @@ function createDocument(): DraftInteropDocumentV1 {
 								capability: "exact",
 							},
 						],
+						transitions: [
+							{
+								id: "transition-1",
+								type: "dissolve",
+								fromSegmentId: "seg-1",
+								toSegmentId: "seg-2",
+								durationUs: 500_000,
+								capability: "exact",
+								foreignRef: "raw-transition-1",
+							},
+						],
 						capability: "exact",
+					},
+					{
+						id: "track-text",
+						kind: "text",
+						order: 1,
+						segments: [
+							{
+								id: "text-1",
+								kind: "text",
+								targetRange: { startUs: 0, durationUs: 2_000_000 },
+								text: {
+									content: "Hello",
+									fontSizePx: 48,
+									fontFamily: "Arial",
+									color: "#ffffff",
+									textAlign: "center",
+									fontWeight: "bold",
+									fontStyle: "italic",
+									textDecoration: "underline",
+									xPx: 100,
+									yPx: 200,
+									rotationDegrees: 5,
+									opacity: 0.9,
+									letterSpacingPx: 2,
+									widthPx: 600,
+									stroke: {
+										color: "#000000",
+										widthPx: 3,
+										opacity: 0.8,
+									},
+									background: {
+										color: "#112233",
+										opacity: 0.5,
+										radiusPx: 8,
+										paddingPx: 12,
+									},
+									shadow: {
+										color: "#334455",
+										opacity: 0.6,
+										offsetXPx: 4,
+										offsetYPx: 5,
+										blurPx: 9,
+									},
+									foreignRef: "raw-text-1",
+								},
+								capability: "downgrade",
+							},
+						],
+						capability: "downgrade",
 					},
 				],
 			},
@@ -81,6 +144,13 @@ function clone(document: DraftInteropDocumentV1): DraftInteropDocumentV1 {
 	return JSON.parse(JSON.stringify(document));
 }
 
+function textFrom(document: DraftInteropDocumentV1): InteropText {
+	const text = document.timelines[0].tracks[1].segments[0].text;
+	if (text === undefined)
+		throw new Error("text fixture is missing text semantics");
+	return text;
+}
+
 describe("halfFrameToleranceUs", () => {
 	it("computes half a frame in integer microseconds", () => {
 		expect(halfFrameToleranceUs({ fps: 30 })).toBe(16_666);
@@ -106,11 +176,214 @@ describe("diffDraftInteropDocuments", () => {
 		const left = createDocument();
 		const right = clone(left);
 		right.timelines[0].tracks[0].segments[0].capability = "downgrade";
+		right.timelines[0].tracks[0].transitions![0].capability = "downgrade";
+		right.timelines[0].tracks[0].transitions![0].foreignRef =
+			"different-transition-binding";
+		textFrom(right).foreignRef = "different-text-binding";
 		right.resources[0].status = "resolved";
 		right.issues = [
 			{ code: "FEATURE_DOWNGRADED", severity: "warning", message: "x" },
 		];
 		expect(diffDraftInteropDocuments({ left, right }).identical).toBe(true);
+	});
+
+	it("reports every static text field change as breaking", () => {
+		const left = createDocument();
+		const cases: Array<{
+			path: string;
+			mutate: (text: InteropText) => void;
+		}> = [
+			{ path: "content", mutate: (text) => (text.content = "Changed") },
+			{ path: "fontSizePx", mutate: (text) => (text.fontSizePx = 49) },
+			{ path: "fontFamily", mutate: (text) => (text.fontFamily = "Inter") },
+			{ path: "color", mutate: (text) => (text.color = "#eeeeee") },
+			{ path: "textAlign", mutate: (text) => (text.textAlign = "left") },
+			{ path: "fontWeight", mutate: (text) => (text.fontWeight = "normal") },
+			{ path: "fontStyle", mutate: (text) => (text.fontStyle = "normal") },
+			{
+				path: "textDecoration",
+				mutate: (text) => (text.textDecoration = "none"),
+			},
+			{ path: "xPx", mutate: (text) => (text.xPx = 101) },
+			{ path: "yPx", mutate: (text) => (text.yPx = 201) },
+			{
+				path: "rotationDegrees",
+				mutate: (text) => (text.rotationDegrees = 6),
+			},
+			{ path: "opacity", mutate: (text) => (text.opacity = 0.8) },
+			{
+				path: "letterSpacingPx",
+				mutate: (text) => (text.letterSpacingPx = 3),
+			},
+			{ path: "widthPx", mutate: (text) => (text.widthPx = 601) },
+			{
+				path: "stroke/color",
+				mutate: (text) => (text.stroke!.color = "#111111"),
+			},
+			{
+				path: "stroke/widthPx",
+				mutate: (text) => (text.stroke!.widthPx = 4),
+			},
+			{
+				path: "stroke/opacity",
+				mutate: (text) => (text.stroke!.opacity = 0.7),
+			},
+			{
+				path: "background/color",
+				mutate: (text) => (text.background!.color = "#223344"),
+			},
+			{
+				path: "background/opacity",
+				mutate: (text) => (text.background!.opacity = 0.4),
+			},
+			{
+				path: "background/radiusPx",
+				mutate: (text) => (text.background!.radiusPx = 9),
+			},
+			{
+				path: "background/paddingPx",
+				mutate: (text) => (text.background!.paddingPx = 13),
+			},
+			{
+				path: "shadow/color",
+				mutate: (text) => (text.shadow!.color = "#445566"),
+			},
+			{
+				path: "shadow/opacity",
+				mutate: (text) => (text.shadow!.opacity = 0.5),
+			},
+			{
+				path: "shadow/offsetXPx",
+				mutate: (text) => (text.shadow!.offsetXPx = 5),
+			},
+			{
+				path: "shadow/offsetYPx",
+				mutate: (text) => (text.shadow!.offsetYPx = 6),
+			},
+			{
+				path: "shadow/blurPx",
+				mutate: (text) => (text.shadow!.blurPx = 10),
+			},
+		];
+		for (const testCase of cases) {
+			const right = clone(left);
+			testCase.mutate(textFrom(right));
+			const result = diffDraftInteropDocuments({ left, right });
+			expect(result.breakingCount, testCase.path).toBe(1);
+			expect(result.entries[0], testCase.path).toMatchObject({
+				path: `/timelines/0/tracks/1/segments/0/text/${testCase.path}`,
+				kind: "changed",
+				severity: "breaking",
+				subjectId: "text-1",
+			});
+		}
+	});
+
+	it("reports missing text and nested styles without exposing bindings", () => {
+		const left = createDocument();
+		const noText = clone(left);
+		noText.timelines[0].tracks[1].segments[0].text = undefined;
+		const textResult = diffDraftInteropDocuments({ left, right: noText });
+		expect(textResult.entries).toEqual([
+			{
+				path: "/timelines/0/tracks/1/segments/0/text",
+				kind: "missing",
+				severity: "breaking",
+				subjectId: "text-1",
+			},
+		]);
+		expect(JSON.stringify(textResult)).not.toContain("raw-text-1");
+
+		const noStroke = clone(left);
+		textFrom(noStroke).stroke = undefined;
+		expect(
+			diffDraftInteropDocuments({ left, right: noStroke }).entries[0]
+		).toMatchObject({
+			path: "/timelines/0/tracks/1/segments/0/text/stroke",
+			kind: "missing",
+			severity: "breaking",
+		});
+	});
+
+	it("compares transition identity fields and applies timing tolerance", () => {
+		const left = createDocument();
+		const changedType = clone(left);
+		changedType.timelines[0].tracks[0].transitions![0].type = "unknown";
+		expect(
+			diffDraftInteropDocuments({ left, right: changedType }).entries[0]
+		).toMatchObject({
+			path: "/timelines/0/tracks/0/transitions/0/type",
+			severity: "breaking",
+			subjectId: "transition-1",
+		});
+
+		const changedEndpoint = clone(left);
+		changedEndpoint.timelines[0].tracks[0].transitions![0].toSegmentId =
+			"seg-1";
+		expect(
+			diffDraftInteropDocuments({ left, right: changedEndpoint }).entries[0]
+		).toMatchObject({
+			path: "/timelines/0/tracks/0/transitions/0/toSegmentId",
+			severity: "breaking",
+		});
+
+		const drifted = clone(left);
+		drifted.timelines[0].tracks[0].transitions![0].durationUs += 10_000;
+		const tolerance = halfFrameToleranceUs({ fps: left.project.fps });
+		const driftResult = diffDraftInteropDocuments({
+			left,
+			right: drifted,
+			options: { timeToleranceUs: tolerance },
+		});
+		expect(driftResult.breakingCount).toBe(0);
+		expect(driftResult.entries[0]).toMatchObject({
+			path: "/timelines/0/tracks/0/transitions/0/durationUs",
+			severity: "tolerable",
+		});
+	});
+
+	it("reports missing and extra transitions but ignores array order", () => {
+		const left = createDocument();
+		left.timelines[0].tracks[0].transitions!.push({
+			id: "transition-2",
+			type: "dissolve",
+			fromSegmentId: "seg-2",
+			toSegmentId: "seg-1",
+			durationUs: 250_000,
+			capability: "downgrade",
+		});
+		const reordered = clone(left);
+		reordered.timelines[0].tracks[0].transitions!.reverse();
+		expect(
+			diffDraftInteropDocuments({ left, right: reordered }).identical
+		).toBe(true);
+
+		const missing = clone(left);
+		missing.timelines[0].tracks[0].transitions!.pop();
+		expect(
+			diffDraftInteropDocuments({ left, right: missing }).entries[0]
+		).toMatchObject({
+			path: "/timelines/0/tracks/0/transitions/1",
+			kind: "missing",
+			subjectId: "transition-2",
+		});
+
+		const extra = clone(left);
+		extra.timelines[0].tracks[0].transitions!.push({
+			id: "transition-extra",
+			type: "dissolve",
+			fromSegmentId: "seg-1",
+			toSegmentId: "seg-2",
+			durationUs: 100_000,
+			capability: "exact",
+		});
+		expect(
+			diffDraftInteropDocuments({ left, right: extra }).entries[0]
+		).toMatchObject({
+			path: "/timelines/0/tracks/0/transitions",
+			kind: "extra",
+			subjectId: "transition-extra",
+		});
 	});
 
 	it("classifies sub-half-frame timing drift as tolerable", () => {
