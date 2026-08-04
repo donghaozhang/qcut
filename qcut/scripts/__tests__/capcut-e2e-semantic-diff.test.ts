@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+	parseSemanticDiffCliOptions,
 	runSemanticDiffCase,
 	SEMANTIC_DIFF_MANIFEST_FILE_NAME,
 } from "../capcut-e2e/semantic-diff.js";
@@ -179,5 +180,61 @@ describe("runSemanticDiffCase", () => {
 		});
 		expect(manifest.verdict).toBe("not-comparable");
 		expect(manifest.notComparableReason).toContain("right side");
+	});
+});
+
+describe("parseSemanticDiffCliOptions", () => {
+	it("parses directories and the JSON output option", () => {
+		expect(
+			parseSemanticDiffCliOptions({
+				argv: [
+					"--json",
+					"--right",
+					"/drafts/right",
+					"--output",
+					"/evidence",
+					"--left",
+					"/drafts/left",
+				],
+			})
+		).toEqual({
+			leftDraftDirectory: "/drafts/left",
+			rightDraftDirectory: "/drafts/right",
+			outputDirectory: "/evidence",
+			json: true,
+		});
+	});
+
+	it("rejects missing flag values and unknown flags", () => {
+		const missingValueCases = [
+			{
+				argv: ["--left", "--right", "/drafts/right"],
+				flag: "--left",
+			},
+			{
+				argv: ["--left", "/drafts/left", "--right"],
+				flag: "--right",
+			},
+			{
+				argv: [
+					"--left",
+					"/drafts/left",
+					"--right",
+					"/drafts/right",
+					"--output",
+				],
+				flag: "--output",
+			},
+		];
+		for (const { argv, flag } of missingValueCases) {
+			expect(() => parseSemanticDiffCliOptions({ argv })).toThrow(
+				`Missing value for ${flag}`
+			);
+		}
+		expect(() =>
+			parseSemanticDiffCliOptions({
+				argv: ["--left", "/drafts/left", "--right", "/drafts/right", "--wat"],
+			})
+		).toThrow("Unknown flag: --wat");
 	});
 });
