@@ -58,6 +58,8 @@ import {
 } from "../handlers/claude-navigator-handler.js";
 import { registerStateRoutes } from "./claude-http-state-routes.js";
 import { requestEditorStateSnapshotFromRenderer } from "../handlers/claude-state-handler.js";
+import { registerQCutImportEvidenceRoutes } from "./claude-http-import-evidence-routes.js";
+import { requestQCutImportEvidenceFromRenderer } from "../handlers/qcut-import-evidence-handler.js";
 import { registerSnapshotRoutes } from "./claude-http-snapshot-routes.js";
 import { registerAgentPointerRoutes } from "./claude-http-pointer-routes.js";
 import {
@@ -231,6 +233,14 @@ export function startClaudeHTTPServer(
 		/** Returns the current editor snapshot for state routes. */
 		requestSnapshot: (request) =>
 			requestEditorStateSnapshotFromRenderer(getWindow(), request),
+	});
+	registerQCutImportEvidenceRoutes(router, {
+		requestSnapshot: (request) =>
+			requestQCutImportEvidenceFromRenderer({
+				appVersion: app.getVersion(),
+				request,
+				win: getWindow(),
+			}),
 	});
 	registerSnapshotRoutes(router, {
 		requestSnapshot: (request) =>
