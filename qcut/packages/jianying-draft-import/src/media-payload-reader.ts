@@ -170,6 +170,27 @@ async function assertHandleIdentity({
 	}
 }
 
+export async function verifyMediaPayloadIdentity({
+	absolutePath,
+	expectedByteLength,
+	expectedIdentity,
+}: {
+	absolutePath: string;
+	expectedByteLength: number;
+	expectedIdentity: MediaPayloadFileIdentity;
+}): Promise<MediaPayloadFileIdentity> {
+	if (!Number.isSafeInteger(expectedByteLength) || expectedByteLength < 0) {
+		throw sourceChanged({ message: "resolved media evidence is invalid" });
+	}
+	const opened = await openVerifiedSource({
+		absolutePath,
+		expectedByteLength,
+		expectedIdentity,
+	});
+	await opened.handle.close().catch(() => undefined);
+	return opened.identity;
+}
+
 export async function verifyMediaPayloadSource({
 	absolutePath,
 	expectedByteLength,
