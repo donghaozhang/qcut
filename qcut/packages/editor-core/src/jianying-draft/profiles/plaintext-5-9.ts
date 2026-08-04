@@ -64,6 +64,18 @@ export const PLAINTEXT_5_9_PROFILE: DraftProfileContract = {
 	topLevelKeys: PLAINTEXT_5_9_TOP_LEVEL_KEYS,
 	timeUnit: "microseconds",
 	unknownFieldPolicy: "preserve-owned",
+	envelopeAllowlist: [
+		{
+			id: "synthetic-content-primary",
+			relativePath: "draft_info.json",
+			evidence: "same-profile-round-trip",
+		},
+		{
+			id: "synthetic-content-legacy",
+			relativePath: "draft_content.json",
+			evidence: "same-profile-round-trip",
+		},
+	],
 	capabilities: {
 		inspect: "fixture",
 		import: "fixture",

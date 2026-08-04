@@ -32,6 +32,13 @@ export const CAPCUT_8_1_DRAFT_PROFILE: DraftProfileContract = {
 	topLevelKeys: CAPCUT_8_1_TOP_LEVEL_KEYS,
 	timeUnit: "microseconds",
 	unknownFieldPolicy: "preserve-owned",
+	envelopeAllowlist: [
+		{
+			id: "capcut-8.1-root-content",
+			relativePath: "draft_info.json",
+			evidence: "real-app-file-access",
+		},
+	],
 	capabilities: {
 		inspect: "candidate",
 		import: "stable",

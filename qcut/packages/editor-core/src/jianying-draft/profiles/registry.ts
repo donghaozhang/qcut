@@ -48,6 +48,8 @@ export interface DraftProfileContract {
 	topLevelKeys: readonly string[];
 	timeUnit: "microseconds";
 	unknownFieldPolicy: "preserve-owned" | "blocked";
+	/** Evidence-backed files eligible for encrypted local preservation. */
+	envelopeAllowlist: readonly import("../../draft-interop/foreign-envelope.js").ForeignEnvelopeAllowlistEntry[];
 	capabilities: DraftProfileCapabilities;
 	/** Fixture or receipt id backing the declared levels. */
 	verificationEvidence: string;
