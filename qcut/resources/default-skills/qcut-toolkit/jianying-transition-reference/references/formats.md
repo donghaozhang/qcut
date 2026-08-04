@@ -105,7 +105,7 @@ Observed responsibilities:
 | File | Role |
 | --- | --- |
 | `draft_info.json` | current draft body; recent versions may be encrypted base64 |
-| `.backup/**/*.load.bak` / `*.save.bak` | per-timeline snapshots; plaintext on some versions and encrypted base64 on others |
+| `.backup/**/*.load.bak` / `.backup/**/*.save.bak` | per-timeline snapshots relative to each project root; plaintext on some versions and encrypted base64 on others, without changing the filenames |
 | `subdraft/**/draft_content.json` | plaintext nested/compound draft content |
 | `key_value.json` | usage attribution and category state, not renderer definition |
 | `Timelines/project.json` | timeline registration, not segment transition content |

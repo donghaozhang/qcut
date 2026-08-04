@@ -34,15 +34,15 @@ The next work is renderer fidelity, not another transition browser.
 
 The calibration run used original asymmetric BT.709 clips and sampled five
 fixed progress stops. Values below are RGB RMSE in the 0-255 domain. Cross
-export is the strongest renderer-parity signal. QCut preview/export exposes
-drift between QCut's two execution paths; screen-preview values also include
-display scaling and color transforms.
+export is the strongest renderer-parity signal. The QCut preview/export column
+combines renderer differences with display capture, scaling, and color
+transforms; it does not isolate preview-renderer drift.
 
 | Transition | Jianying vs QCut export mean / worst | QCut preview vs export mean / worst | Finding |
 | --- | ---: | ---: | --- |
 | `叠化` | 6.462 / 7.810 | not recaptured after BT.709 normalization | export formula meets the <= 8 gate |
-| `左移` | 4.052 / 5.846 | 16.457 / 19.795 | export is close after endpoint pixel snapping; preview still drifts |
-| `右移` | 4.606 / 8.366 | 18.107 / 23.443 | near the export gate; preview still drifts |
+| `左移` | 4.052 / 5.846 | 16.457 / 19.795 | export is close after endpoint pixel snapping; the combined preview/capture path differs |
+| `右移` | 4.606 / 8.366 | 18.107 / 23.443 | near the export gate; the combined preview/capture path differs |
 | `翻页` | 73.708 / 129.647 | 134.504 / 156.304 | flat CSS/soft-wipe approximations do not reproduce the curl |
 | `横移模糊` | 52.319 / 139.278 | 18.251 / 21.435 | missing delayed source switch and multi-pass graph |
 | `立方旋转` | 81.099 / 117.917 | 95.301 / 145.425 | independent planes and 2D squeeze do not reproduce shared 3D geometry |
