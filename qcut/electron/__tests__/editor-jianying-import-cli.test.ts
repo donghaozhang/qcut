@@ -62,6 +62,17 @@ describe("executeJianyingImportCommand", () => {
 							fileProbeMisses: 1,
 						},
 					},
+					stageMetrics: {
+						schemaVersion: 1,
+						phase: "runtime-plan",
+						measuredDurationMilliseconds: 7,
+						stages: {
+							"asset-resolution": {
+								durationMilliseconds: 7,
+								invocationCount: 1,
+							},
+						},
+					},
 				};
 			}
 
@@ -139,6 +150,17 @@ describe("executeJianyingImportCommand", () => {
 						schemaVersion: 1,
 						fileProbeHits: 3,
 						fileProbeMisses: 1,
+					},
+				},
+				stageMetrics: {
+					schemaVersion: 1,
+					phase: "runtime-plan",
+					measuredDurationMilliseconds: 7,
+					stages: {
+						"asset-resolution": {
+							durationMilliseconds: 7,
+							invocationCount: 1,
+						},
 					},
 				},
 			},
