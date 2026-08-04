@@ -4,7 +4,7 @@
 
 **状态：** 实施设计，尚未全部实现  
 **日期：** 2026-08-04  
-**最后核验代码：** `ab384a5bc`
+**最后核验代码：** `effe707d9`
 
 **依赖文档：** [剪映时间线轨道规则核验](./timeline-track-rules.zh.md)、[QCut 时间线规则差距与修复计划](./qcut-timeline-rule-gap-analysis.zh.md)
 
@@ -25,8 +25,10 @@
 | JYI-011 Envelope key service | ✅ 已完成 | 2026-08-04 | `electron/jianying-envelope-key-{contract,handler}.ts` + preload/main.ts/双侧类型接线 + renderer adapter [`envelope-key-adapter.ts`](../../../apps/web/src/lib/jianying-draft/envelope-key-adapter.ts)。密钥架构：每个 envelope 随机 32B data key → AES-256-GCM 加密 payload（iv‖authTag‖ciphertext 落 `userData/jianying-import/envelopes/<importId>.bin`，目录 0o700/文件 0o600）→ data key 经 safeStorage（OS keychain）包裹后 base64 存 key store（0o600）。**明文绝不落盘**：keychain 不可用即 `keychain-unavailable` fail-closed（不同于 api-keys 的明文降级），零字节写入。六通道（store/read/delete/purge/rotate/status）全部 `assertTrustedMainFrame`（iframe/非主窗口拒绝）、importId 白名单 `[A-Za-z0-9_-]{1,128}`（路径穿越不可能）、payload 上限 256MiB、IPC 永不 throw（有界 ErrorDto）。GCM 认证失败 = `envelope-corrupt`；rotation 全量重包裹并 bump keyVersion，解不开的条目连文件一起丢弃（fail-closed 不盲带）。renderer adapter 桥缺失时返回类型化 `bridge-unavailable`，renderer 永远接触不到密钥材料。测试 [`jianying-envelope-key-handler.test.ts`](../../../electron/__tests__/jianying-envelope-key-handler.test.ts)（11 用例:round-trip+磁盘无明文/keychain 不可用零写入/not-found+非法 id/GCM 篡改检测/六通道信任边界/单删/purge/rotation 成功/rotation 丢弃损坏项/status/dispose） |
 | JYI-012 Electron/CLI transport | ✅ 已完成 | 2026-08-04 | `jianying-draft-import/src/{import-session,persistent-import-plan-store,desktop-import-inbox}.ts` + `electron/jianying-draft-import-{contract,handler}.ts` + preload/双侧类型/CLI 接线。Plan store 使用私有目录 0700、文件 0600、O_NOFOLLOW 读取和 fsync+rename 原子发布；持久 JSON 先经严格 artifact parser，损坏/build mismatch/过期均 fail-closed。Session 重启后不持久化第二份大 session：从 RESTRICTED root 重读来源、重跑 profile/normalize/asset resolution，以 request/issue/warning/blocker fingerprints 验证一致后重建同一 bundle，再 CAS consume；错误 warning 不提前消费 token。Live IPC 六通道覆盖 inspect/plan/commit 与 inbox list/read/ack，全部只接受 trusted main frame；CLI inspect/plan/commit 共用 bundled runtime，plan 跨进程持久化，commit 将共享 parser+digest 验证后的 bundle 和独立媒体文件原子排入 desktop inbox。Inbox 只在 renderer transaction 成功后显式 ack 删除，篡改 bundle/media、symlink、路径穿越和重复 entry 均拒绝。定向测试 81 个通过；全仓 `check-types` 与 Electron/import-runtime bundle build 通过。 |
 | JYI-013 Import UI | ✅ 已完成 | 2026-08-04 | Projects 页新增桌面端草稿导入入口，由 `use-jianying-draft-import.ts` 与 `jianying-draft-import-card.tsx` 驱动。可信目录选择器执行 inspect → plan → 显式接受 warning → renderer transaction；弹窗展示 profile 识别、语义计数、issues、资源状态、rename 冲突策略、进度与错误。桌面队列严格按 read → renderer publish → ack 执行：事务失败保留 inbox；ack 失败仅提供 ack-only 恢复；重启后重试会复用按源 hash 派生的已发布项目，不会再造 rename 副本。hook 挂载时执行 JYI-010 journal recovery，并显示 rollback/finalize 数量。Projects 页已接中英文文案。30 个定向测试覆盖 bridge 信任边界、payload 解码、事务/ack 顺序、重试幂等、hook 门禁、UI 状态和恢复；Playwright 已检查桌面与 390px 宽度，无重叠或横向溢出。 |
-| JYI-014 ~ JYI-018 | ⬜ 未开始 | | 下一项为 JYI-014 CapCut 8.1 production import，仍受真实 App profile 证据门禁。 |
-| JYR-001 ~ JYR-008 研究门禁 | ⬜ 未执行 | | 需真实剪映实验；只挡可写路径，不挡纯数据层 |
+| JYI-014 CapCut 8.1 production import | ✅ 已完成 | 2026-08-04 | 核心 video/audio 子集已完成真实链路：CapCut 8.1.1 打开、自动保存、退出、重开；保存后的 23 文件 snapshot 被 CLI 精确识别，2 轨/2 片段/2 资源全部 exact/resolved，零 warning/blocker；offline commit 由 QCut desktop inbox 消费，项目数 87→88，打开及刷新后仍为 8 秒、Video/Audio 双轨和两个片段；导入后逐文件对比 source snapshot 为 0 改动。脱敏证据 [`capcut-8.1.1-core-media-import-2026-08-04.json`](../../../scripts/capcut-e2e/receipts/capcut-8.1.1-core-media-import-2026-08-04.json)。Profile 仅将 `import` 升为 stable/production；native export、逐帧/音频和 same-profile writeback 未验证，`realAppVerified` 仍为 false。 |
+| JYI-015 ~ JYI-018 | ⬜ 未开始 | | 下一项为 JYI-015：导入事务关联并持久化加密 `ForeignDraftEnvelope`，再在 JYR-005~007 门禁下实现同版本写回。 |
+| JYR-001 保存事务 | 🟨 部分完成 | 2026-08-04 | 真实 CapCut 8.1.1 观测：打开时创建 `.locked`，退出后删除；首次保存改写 9 个 snapshot 文件并更新 root metadata，active content 四镜像同步变化。这足以否定“只 patch 根 `draft_info.json`”方案，但尚缺隔离账号下的系统调用级写入顺序、临时文件和 rename 边界。 |
+| JYR-002 ~ JYR-008 研究门禁 | ⬜ 未执行 | | 仍需真实剪映/CapCut 可控实验；只挡可写路径，不挡已验证的核心媒体导入。 |
 
 ## 目标
 
