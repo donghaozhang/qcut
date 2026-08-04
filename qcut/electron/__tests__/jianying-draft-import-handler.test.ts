@@ -106,6 +106,17 @@ function createFakeRuntime() {
 						fileProbeMisses: 1,
 					},
 				},
+				stageMetrics: {
+					schemaVersion: 1,
+					phase: "runtime-plan",
+					measuredDurationMilliseconds: 5,
+					stages: {
+						"plan-persistence": {
+							durationMilliseconds: 5,
+							invocationCount: 1,
+						},
+					},
+				},
 			};
 		}
 
@@ -177,6 +188,17 @@ describe("setupJianyingDraftImportIPC", () => {
 						schemaVersion: 1,
 						fileProbeHits: 2,
 						fileProbeMisses: 1,
+					},
+				},
+				stageMetrics: {
+					schemaVersion: 1,
+					phase: "runtime-plan",
+					measuredDurationMilliseconds: 5,
+					stages: {
+						"plan-persistence": {
+							durationMilliseconds: 5,
+							invocationCount: 1,
+						},
 					},
 				},
 			},
