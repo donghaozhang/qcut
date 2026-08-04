@@ -87,3 +87,16 @@ export {
 	type InteropTrackKind,
 	type ParseDraftInteropDocumentResult,
 } from "./document.js";
+
+export {
+	canonicalizeQCutImportBundleForDigest,
+	deriveImportInternalId,
+	parseQCutImportBundleV1,
+	QCUT_IMPORT_BUNDLE_DIGEST_PLACEHOLDER,
+	QCUT_IMPORT_BUNDLE_SCHEMA_VERSION,
+	type ParseQCutImportBundleResult,
+	type QCutImportBundleBuildIdentity,
+	type QCutImportBundleResourceStaging,
+	type QCutImportBundleV1,
+	type QCutImportProjectNameConflictPolicy,
+} from "./import-bundle.js";
