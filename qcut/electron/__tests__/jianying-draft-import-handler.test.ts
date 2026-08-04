@@ -7,6 +7,8 @@ import {
 	JIANYING_IMPORT_INBOX_LIST_CHANNEL,
 	JIANYING_IMPORT_INBOX_READ_CHANNEL,
 	JIANYING_IMPORT_INSPECT_CHANNEL,
+	JIANYING_IMPORT_MEDIA_CHUNK_CHANNEL,
+	JIANYING_IMPORT_MEDIA_RELEASE_CHANNEL,
 	JIANYING_IMPORT_PLAN_CHANNEL,
 	type JianyingDraftImportResultDto,
 } from "../jianying-draft-import-contract.js";
@@ -120,12 +122,43 @@ function createFakeRuntime() {
 			};
 		}
 
-		async commit({ input }: { input: unknown }) {
+		async commitWithMediaGrants({ input }: { input: unknown }) {
 			calls.push({ verb: "commit", input });
 			throw new SessionError({
 				name: "ImportPlanConsumedError",
 				code: "ignored",
 			});
+		}
+
+		async readMediaPayloadChunk({ input }: { input: unknown }) {
+			calls.push({ verb: "media-chunk", input });
+			if (
+				typeof input === "object" &&
+				input !== null &&
+				(input as { grantToken?: unknown }).grantToken === "expired"
+			) {
+				throw new SessionError({
+					name: "MediaPayloadGrantError",
+					code: "grant-expired",
+				});
+			}
+			return {
+				schemaVersion: 1,
+				grantToken: "grant-token",
+				offset: 0,
+				bytes: new Uint8Array([1, 2]),
+				eof: true,
+			};
+		}
+
+		releaseMediaPayloadGrants({ input }: { input: unknown }) {
+			calls.push({ verb: "media-release", input });
+			return { releasedCount: 1 };
+		}
+
+		async readPendingDesktopImport(input: unknown) {
+			calls.push({ verb: "inbox-read", input });
+			return { bundle: {}, mediaGrants: [] };
 		}
 
 		dispose() {
@@ -138,10 +171,6 @@ function createFakeRuntime() {
 			listDesktopImports: async (input: unknown) => {
 				calls.push({ verb: "inbox-list", input });
 				return [{ entryId: "entry-1" }];
-			},
-			readDesktopImport: async (input: unknown) => {
-				calls.push({ verb: "inbox-read", input });
-				return { bundle: {}, mediaPayloads: [] };
 			},
 			deleteDesktopImport: async (input: unknown) => {
 				calls.push({ verb: "inbox-delete", input });
@@ -257,7 +286,7 @@ describe("setupJianyingDraftImportIPC", () => {
 		expect(list).toMatchObject({ ok: true, value: [{ entryId: "entry-1" }] });
 		expect(read).toMatchObject({
 			ok: true,
-			value: { bundle: {}, mediaPayloads: [] },
+			value: { bundle: {}, mediaGrants: [] },
 		});
 		expect(acknowledge).toEqual({ ok: true, value: { entryId: "entry-1" } });
 		expect(runtime.calls).toEqual([
@@ -280,6 +309,55 @@ describe("setupJianyingDraftImportIPC", () => {
 				},
 			},
 		]);
+	});
+
+	it("serves and releases media grants only through the runtime session", async () => {
+		const chunk = await getHandler({
+			channel: JIANYING_IMPORT_MEDIA_CHUNK_CHANNEL,
+		})(context.event, {
+			grantToken: "grant-token",
+			offset: 0,
+			maxBytes: 1024,
+		});
+		const release = await getHandler({
+			channel: JIANYING_IMPORT_MEDIA_RELEASE_CHANNEL,
+		})(context.event, { grantTokens: ["grant-token"] });
+
+		expect(chunk).toEqual({
+			ok: true,
+			value: {
+				schemaVersion: 1,
+				grantToken: "grant-token",
+				offset: 0,
+				bytes: new Uint8Array([1, 2]),
+				eof: true,
+			},
+		});
+		expect(release).toEqual({ ok: true, value: { releasedCount: 1 } });
+		expect(runtime.calls).toEqual([
+			{
+				verb: "media-chunk",
+				input: { grantToken: "grant-token", offset: 0, maxBytes: 1024 },
+			},
+			{
+				verb: "media-release",
+				input: { grantTokens: ["grant-token"] },
+			},
+		]);
+	});
+
+	it("maps media grant errors to their stable runtime code", async () => {
+		const result = await getHandler({
+			channel: JIANYING_IMPORT_MEDIA_CHUNK_CHANNEL,
+		})(context.event, {
+			grantToken: "expired",
+			offset: 0,
+			maxBytes: 1024,
+		});
+		expect(result).toMatchObject({
+			ok: false,
+			error: { code: "grant-expired" },
+		});
 	});
 
 	it("rejects malformed inbox requests before filesystem access", async () => {
@@ -320,6 +398,8 @@ describe("setupJianyingDraftImportIPC", () => {
 				JIANYING_IMPORT_INBOX_LIST_CHANNEL,
 				JIANYING_IMPORT_INBOX_READ_CHANNEL,
 				JIANYING_IMPORT_INSPECT_CHANNEL,
+				JIANYING_IMPORT_MEDIA_CHUNK_CHANNEL,
+				JIANYING_IMPORT_MEDIA_RELEASE_CHANNEL,
 				JIANYING_IMPORT_PLAN_CHANNEL,
 			].sort()
 		);

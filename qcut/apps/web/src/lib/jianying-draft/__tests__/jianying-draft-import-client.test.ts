@@ -7,18 +7,24 @@ import {
 	acknowledgePublishedDraftImport,
 	commitLiveDraftImport,
 	commitPendingDraftImport,
-	decodeDraftImportPayloads,
+	createDraftImportMediaSources,
 	JianyingDraftImportClientError,
 } from "../jianying-draft-import-client";
 
+const GRANT_TOKEN = "g".repeat(43);
+
 const commitDto: DraftImportCommitDto = {
 	bundle: { schemaVersion: 1 },
-	mediaPayloads: [
+	mediaGrants: [
 		{
+			schemaVersion: 1,
+			grantToken: GRANT_TOKEN,
 			resourceId: "resource-1",
 			fileName: "clip.mp4",
 			mimeType: "video/mp4",
-			bytesBase64: "AQID",
+			byteLength: 3,
+			sha256: "b".repeat(64),
+			expiresAtUnixMilliseconds: 2_000_000,
 		},
 	],
 	envelopeCapture: {
@@ -39,8 +45,12 @@ function createRendererStageMetrics() {
 
 function createBridge({
 	acknowledgeOk = true,
+	malformedChunk = false,
+	releaseOk = true,
 }: {
 	acknowledgeOk?: boolean;
+	malformedChunk?: boolean;
+	releaseOk?: boolean;
 } = {}) {
 	const calls: string[] = [];
 	const bridge = {
@@ -51,6 +61,44 @@ function createBridge({
 		readPendingDraftImport: vi.fn(async () => {
 			calls.push("inbox-read");
 			return { ok: true as const, value: commitDto };
+		}),
+		readDraftImportMediaChunk: vi.fn(
+			async ({
+				grantToken,
+				maxBytes,
+				offset,
+			}: {
+				grantToken: string;
+				maxBytes: number;
+				offset: number;
+			}) => {
+				calls.push("chunk-read");
+				const source = new Uint8Array([1, 2, 3]);
+				const bytes = source.slice(offset, offset + maxBytes);
+				return {
+					ok: true as const,
+					value: {
+						schemaVersion: 1 as const,
+						grantToken,
+						offset,
+						bytes,
+						eof: malformedChunk ? false : offset + bytes.byteLength === 3,
+					},
+				};
+			}
+		),
+		releaseDraftImportMedia: vi.fn(async () => {
+			calls.push("media-release");
+			return releaseOk
+				? { ok: true as const, value: { releasedCount: 1 } }
+				: {
+						ok: false as const,
+						error: {
+							code: "grant-not-found" as const,
+							name: "MediaPayloadGrantError",
+							message: "release failed",
+						},
+					};
 		}),
 		acknowledgePendingDraftImport: vi.fn(async ({ entryId }) => {
 			calls.push("inbox-ack");
@@ -70,14 +118,56 @@ function createBridge({
 }
 
 describe("Jianying draft import client", () => {
-	it("decodes transported media without changing its bytes", () => {
-		const [payload] = decodeDraftImportPayloads({ commit: commitDto });
+	it("reads transported media in validated chunks", async () => {
+		const { bridge, calls } = createBridge();
+		const [payload] = createDraftImportMediaSources({
+			bridge,
+			commit: commitDto,
+		});
 		expect(payload).toMatchObject({
+			transport: "chunked",
 			resourceId: "resource-1",
 			fileName: "clip.mp4",
 			mimeType: "video/mp4",
+			byteLength: 3,
 		});
-		expect([...payload.bytes]).toEqual([1, 2, 3]);
+		if (payload?.transport !== "chunked") return;
+		await expect(
+			payload.readChunk({ offset: 0, maxBytes: 2 })
+		).resolves.toEqual({
+			bytes: new Uint8Array([1, 2]),
+			eof: false,
+		});
+		await expect(
+			payload.readChunk({ offset: 2, maxBytes: 2 })
+		).resolves.toEqual({
+			bytes: new Uint8Array([3]),
+			eof: true,
+		});
+		expect(calls).toEqual(["chunk-read", "chunk-read"]);
+	});
+
+	it("rejects malformed grants before starting a transaction", () => {
+		const { bridge } = createBridge();
+		const malformed = {
+			...commitDto,
+			mediaGrants: [{ ...commitDto.mediaGrants[0], byteLength: -1 }],
+		};
+		expect(() =>
+			createDraftImportMediaSources({ bridge, commit: malformed })
+		).toThrowError(JianyingDraftImportClientError);
+	});
+
+	it("rejects a malformed chunk response", async () => {
+		const { bridge } = createBridge({ malformedChunk: true });
+		const [payload] = createDraftImportMediaSources({
+			bridge,
+			commit: commitDto,
+		});
+		if (payload?.transport !== "chunked") return;
+		await expect(
+			payload.readChunk({ offset: 2, maxBytes: 2 })
+		).rejects.toMatchObject({ code: "payload-malformed" });
 	});
 
 	it("publishes a live commit through the renderer transaction", async () => {
@@ -98,7 +188,7 @@ describe("Jianying draft import client", () => {
 				runTransaction,
 			})
 		).resolves.toBe("project-1");
-		expect(calls).toEqual(["live-commit", "transaction"]);
+		expect(calls).toEqual(["live-commit", "transaction", "media-release"]);
 		expect(runTransaction).toHaveBeenCalledWith(
 			expect.objectContaining({
 				envelopeCapture: {
@@ -125,7 +215,12 @@ describe("Jianying draft import client", () => {
 			entryId: "entry-1",
 			runTransaction,
 		});
-		expect(calls).toEqual(["inbox-read", "transaction", "inbox-ack"]);
+		expect(calls).toEqual([
+			"inbox-read",
+			"transaction",
+			"media-release",
+			"inbox-ack",
+		]);
 	});
 
 	it("keeps an inbox entry when the renderer transaction fails", async () => {
@@ -145,7 +240,24 @@ describe("Jianying draft import client", () => {
 				},
 			})
 		).rejects.toMatchObject({ code: "verify-failed" });
-		expect(calls).toEqual(["inbox-read", "transaction"]);
+		expect(calls).toEqual(["inbox-read", "transaction", "media-release"]);
+	});
+
+	it("does not turn a published project into a failure when release fails", async () => {
+		const { bridge, calls } = createBridge({ releaseOk: false });
+		await expect(
+			commitLiveDraftImport({
+				bridge,
+				planToken: "plan-1",
+				acceptedWarningFingerprints: [],
+				runTransaction: async () => ({
+					ok: true,
+					projectId: "project-1",
+					stageMetrics: createRendererStageMetrics(),
+				}),
+			})
+		).resolves.toBe("project-1");
+		expect(calls).toEqual(["live-commit", "media-release"]);
 	});
 
 	it("returns an ack-only recovery after publish when cleanup fails", async () => {

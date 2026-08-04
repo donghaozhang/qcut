@@ -81,6 +81,8 @@ import {
 	JIANYING_IMPORT_INBOX_LIST_CHANNEL,
 	JIANYING_IMPORT_INBOX_READ_CHANNEL,
 	JIANYING_IMPORT_INSPECT_CHANNEL,
+	JIANYING_IMPORT_MEDIA_CHUNK_CHANNEL,
+	JIANYING_IMPORT_MEDIA_RELEASE_CHANNEL,
 	JIANYING_IMPORT_PLAN_CHANNEL,
 } from "./jianying-draft-import-contract.js";
 import {
@@ -128,6 +130,10 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke(JIANYING_IMPORT_PLAN_CHANNEL, request),
 		commitDraftImport: (request) =>
 			ipcRenderer.invoke(JIANYING_IMPORT_COMMIT_CHANNEL, request),
+		readDraftImportMediaChunk: (request) =>
+			ipcRenderer.invoke(JIANYING_IMPORT_MEDIA_CHUNK_CHANNEL, request),
+		releaseDraftImportMedia: (request) =>
+			ipcRenderer.invoke(JIANYING_IMPORT_MEDIA_RELEASE_CHANNEL, request),
 		listPendingDraftImports: () =>
 			ipcRenderer.invoke(JIANYING_IMPORT_INBOX_LIST_CHANNEL),
 		readPendingDraftImport: (request) =>

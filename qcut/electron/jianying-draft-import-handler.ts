@@ -22,6 +22,8 @@ import {
 	JIANYING_IMPORT_INBOX_LIST_CHANNEL,
 	JIANYING_IMPORT_INBOX_READ_CHANNEL,
 	JIANYING_IMPORT_INSPECT_CHANNEL,
+	JIANYING_IMPORT_MEDIA_CHUNK_CHANNEL,
+	JIANYING_IMPORT_MEDIA_RELEASE_CHANNEL,
 	JIANYING_IMPORT_PLAN_CHANNEL,
 	type JianyingDraftImportErrorCode,
 	type JianyingDraftImportResultDto,
@@ -30,7 +32,13 @@ import {
 interface ImportSessionLike {
 	inspect(options: { input: unknown }): Promise<unknown>;
 	plan(options: { input: unknown }): Promise<unknown>;
-	commit(options: { input: unknown }): Promise<unknown>;
+	commitWithMediaGrants(options: { input: unknown }): Promise<unknown>;
+	readMediaPayloadChunk(options: { input: unknown }): Promise<unknown>;
+	releaseMediaPayloadGrants(options: { input: unknown }): unknown;
+	readPendingDesktopImport(options: {
+		entryId: string;
+		inboxDirectory: string;
+	}): Promise<unknown>;
 	dispose(): void;
 }
 
@@ -52,10 +60,6 @@ interface ImportSessionConstructor {
 interface ImportRuntimeModule {
 	JianyingDraftImportSession: ImportSessionConstructor;
 	listDesktopImports(options: { inboxDirectory: string }): Promise<unknown>;
-	readDesktopImport(options: {
-		inboxDirectory: string;
-		entryId: string;
-	}): Promise<unknown>;
 	deleteDesktopImport(options: {
 		inboxDirectory: string;
 		entryId: string;
@@ -134,9 +138,10 @@ function toErrorDto({ error }: { error: unknown }): {
 		error instanceof Error
 			? (error as Error & { code?: unknown }).code
 			: undefined;
-	// ImportSessionError carries its own stable code.
+	// Runtime transport errors carry their own stable codes.
 	const sessionCode =
-		name === "ImportSessionError" && typeof runtimeErrorCode === "string"
+		(name === "ImportSessionError" || name === "MediaPayloadGrantError") &&
+		typeof runtimeErrorCode === "string"
 			? (runtimeErrorCode as JianyingDraftImportErrorCode)
 			: undefined;
 	return {
@@ -159,12 +164,10 @@ function getRuntime({
 	const moduleRecord = runtimeModule as {
 		JianyingDraftImportSession?: unknown;
 		listDesktopImports?: unknown;
-		readDesktopImport?: unknown;
 		deleteDesktopImport?: unknown;
 		default?: {
 			JianyingDraftImportSession?: unknown;
 			listDesktopImports?: unknown;
-			readDesktopImport?: unknown;
 			deleteDesktopImport?: unknown;
 		};
 	};
@@ -173,15 +176,12 @@ function getRuntime({
 		moduleRecord.default?.JianyingDraftImportSession;
 	const listDesktopImports =
 		moduleRecord.listDesktopImports ?? moduleRecord.default?.listDesktopImports;
-	const readDesktopImport =
-		moduleRecord.readDesktopImport ?? moduleRecord.default?.readDesktopImport;
 	const deleteDesktopImport =
 		moduleRecord.deleteDesktopImport ??
 		moduleRecord.default?.deleteDesktopImport;
 	if (
 		typeof sessionConstructor !== "function" ||
 		typeof listDesktopImports !== "function" ||
-		typeof readDesktopImport !== "function" ||
 		typeof deleteDesktopImport !== "function"
 	) {
 		throw new Error(
@@ -193,8 +193,6 @@ function getRuntime({
 			sessionConstructor as ImportRuntimeModule["JianyingDraftImportSession"],
 		listDesktopImports:
 			listDesktopImports as ImportRuntimeModule["listDesktopImports"],
-		readDesktopImport:
-			readDesktopImport as ImportRuntimeModule["readDesktopImport"],
 		deleteDesktopImport:
 			deleteDesktopImport as ImportRuntimeModule["deleteDesktopImport"],
 	};
@@ -303,7 +301,7 @@ export function setupJianyingDraftImportIPC({
 		invoke: (options: {
 			session: ImportSessionLike;
 			input: unknown;
-		}) => Promise<unknown>;
+		}) => Promise<unknown> | unknown;
 	}): void {
 		ipcMain.handle(
 			channel,
@@ -349,10 +347,10 @@ export function setupJianyingDraftImportIPC({
 		channel: JIANYING_IMPORT_INBOX_LIST_CHANNEL,
 		invoke: ({ runtime }) => runtime.listDesktopImports({ inboxDirectory }),
 	});
-	registerInbox({
+	register({
 		channel: JIANYING_IMPORT_INBOX_READ_CHANNEL,
-		invoke: ({ runtime, input }) =>
-			runtime.readDesktopImport({
+		invoke: ({ session, input }) =>
+			session.readPendingDesktopImport({
 				inboxDirectory,
 				entryId: getEntryId({ input }),
 			}),
@@ -371,7 +369,16 @@ export function setupJianyingDraftImportIPC({
 	});
 	register({
 		channel: JIANYING_IMPORT_COMMIT_CHANNEL,
-		invoke: ({ session, input }) => session.commit({ input }),
+		invoke: ({ session, input }) => session.commitWithMediaGrants({ input }),
+	});
+	register({
+		channel: JIANYING_IMPORT_MEDIA_CHUNK_CHANNEL,
+		invoke: ({ session, input }) => session.readMediaPayloadChunk({ input }),
+	});
+	register({
+		channel: JIANYING_IMPORT_MEDIA_RELEASE_CHANNEL,
+		invoke: ({ session, input }) =>
+			session.releaseMediaPayloadGrants({ input }),
 	});
 
 	return {
@@ -384,6 +391,8 @@ export function setupJianyingDraftImportIPC({
 				JIANYING_IMPORT_INBOX_READ_CHANNEL,
 				JIANYING_IMPORT_INBOX_ACK_CHANNEL,
 				JIANYING_IMPORT_COMMIT_CHANNEL,
+				JIANYING_IMPORT_MEDIA_CHUNK_CHANNEL,
+				JIANYING_IMPORT_MEDIA_RELEASE_CHANNEL,
 			]) {
 				ipcMain.removeHandler(channel);
 			}

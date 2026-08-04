@@ -15,6 +15,10 @@ export const JIANYING_IMPORT_CHOOSE_DIRECTORY_CHANNEL =
 	"jianying-draft:import:choose-directory";
 export const JIANYING_IMPORT_PLAN_CHANNEL = "jianying-draft:import:plan";
 export const JIANYING_IMPORT_COMMIT_CHANNEL = "jianying-draft:import:commit";
+export const JIANYING_IMPORT_MEDIA_CHUNK_CHANNEL =
+	"jianying-draft:import:media:chunk";
+export const JIANYING_IMPORT_MEDIA_RELEASE_CHANNEL =
+	"jianying-draft:import:media:release";
 export const JIANYING_IMPORT_INBOX_LIST_CHANNEL =
 	"jianying-draft:import:inbox:list";
 export const JIANYING_IMPORT_INBOX_READ_CHANNEL =
@@ -30,6 +34,9 @@ export type JianyingDraftImportErrorCode =
 	| "warning-acceptance-mismatch"
 	| "source-changed"
 	| "payload-too-large"
+	| "grant-store-full"
+	| "grant-not-found"
+	| "grant-expired"
 	| "plan-not-found"
 	| "plan-expired"
 	| "plan-consumed"
@@ -144,6 +151,39 @@ export interface DraftImportMediaPayloadDto {
 	bytesBase64: string;
 }
 
+export interface DraftImportMediaGrantDto {
+	schemaVersion: 1;
+	grantToken: string;
+	resourceId: string;
+	fileName: string;
+	mimeType: string;
+	byteLength: number;
+	sha256: string;
+	expiresAtUnixMilliseconds: number;
+}
+
+export interface DraftImportMediaChunkRequestDto {
+	grantToken: string;
+	offset: number;
+	maxBytes: number;
+}
+
+export interface DraftImportMediaChunkDto {
+	schemaVersion: 1;
+	grantToken: string;
+	offset: number;
+	bytes: Uint8Array;
+	eof: boolean;
+}
+
+export interface DraftImportMediaReleaseRequestDto {
+	grantTokens: string[];
+}
+
+export interface DraftImportMediaReleaseDto {
+	releasedCount: number;
+}
+
 export interface DraftImportEnvelopeCaptureDto {
 	envelope: unknown;
 	payloadBase64: string;
@@ -153,7 +193,7 @@ export interface DraftImportEnvelopeCaptureDto {
 export interface DraftImportCommitDto {
 	/** Re-validated by the renderer with the shared bundle parser. */
 	bundle: unknown;
-	mediaPayloads: DraftImportMediaPayloadDto[];
+	mediaGrants: DraftImportMediaGrantDto[];
 	/** Live IPC only. The desktop inbox intentionally never persists this. */
 	envelopeCapture?: DraftImportEnvelopeCaptureDto;
 }
@@ -181,6 +221,12 @@ export interface JianyingDraftImportAPI {
 	commitDraftImport(
 		request: DraftImportCommitRequestDto
 	): Promise<JianyingDraftImportResultDto<DraftImportCommitDto>>;
+	readDraftImportMediaChunk(
+		request: DraftImportMediaChunkRequestDto
+	): Promise<JianyingDraftImportResultDto<DraftImportMediaChunkDto>>;
+	releaseDraftImportMedia(
+		request: DraftImportMediaReleaseRequestDto
+	): Promise<JianyingDraftImportResultDto<DraftImportMediaReleaseDto>>;
 	listPendingDraftImports(): Promise<
 		JianyingDraftImportResultDto<DraftImportInboxEntrySummaryDto[]>
 	>;
