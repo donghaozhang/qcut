@@ -31,6 +31,10 @@ import type {
 	EditorStateRequest,
 	EditorStateSnapshot,
 } from "./types/claude-api.js";
+import type {
+	QCutPersistedImportEvidenceRendererRequest,
+	QCutPersistedImportEvidenceSnapshot,
+} from "./types/qcut-import-evidence-api.js";
 
 // ============================================================================
 // PTY Terminal
@@ -763,6 +767,32 @@ export function createClaudeAPI(): NonNullable<ElectronAPI["claude"]> {
 			},
 			removeListeners: () => {
 				ipcRenderer.removeAllListeners("claude:state:snapshot");
+			},
+		},
+		importEvidence: {
+			onSnapshotRequest: (
+				callback: (data: QCutPersistedImportEvidenceRendererRequest) => void
+			) => {
+				ipcRenderer.removeAllListeners("qcut:interop:import-evidence:request");
+				ipcRenderer.on(
+					"qcut:interop:import-evidence:request",
+					(_: unknown, data: QCutPersistedImportEvidenceRendererRequest) =>
+						callback(data)
+				);
+			},
+			sendSnapshotResponse: (
+				requestId: string,
+				result?: QCutPersistedImportEvidenceSnapshot,
+				error?: string
+			) => {
+				ipcRenderer.send("qcut:interop:import-evidence:response", {
+					requestId,
+					result,
+					error,
+				});
+			},
+			removeListeners: () => {
+				ipcRenderer.removeAllListeners("qcut:interop:import-evidence:request");
 			},
 		},
 		projectCrud: {
