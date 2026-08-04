@@ -1,3 +1,5 @@
+import type { MediaPayloadFileIdentity } from "./media-payload-reader.js";
+
 export const DEFAULT_MAX_ASSET_RESOLUTION_CACHE_ENTRIES = 8192;
 const MAX_ASSET_RESOLUTION_CACHE_ENTRIES = 100_000;
 
@@ -5,6 +7,7 @@ export interface AssetFileProbeResult {
 	ok: boolean;
 	sha256?: string;
 	byteLength?: number;
+	identity?: MediaPayloadFileIdentity;
 	tooLarge?: boolean;
 }
 
