@@ -228,6 +228,28 @@ export function useTimelinePrecisionEdit({
 		});
 	};
 
+	const handlePrecisionKeyDown = (event: ReactKeyboardEvent<HTMLElement>) => {
+		if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+		if (!element) return;
+		const canApply = editMode === "slip" ? canSlip : canSlide;
+		if (!canApply || (editMode !== "slip" && editMode !== "slide")) return;
+		event.preventDefault();
+		event.stopPropagation();
+		const frameStep = event.shiftKey ? 10 : 1;
+		const direction = event.key === "ArrowRight" ? 1 : -1;
+		const options = {
+			elementId: element.id,
+			pushHistory: true,
+			timelineDelta: (direction * frameStep) / Math.max(1, projectFps),
+			trackId: track.id,
+		};
+		if (editMode === "slip") {
+			slipElement(options);
+			return;
+		}
+		slideElement(options);
+	};
+
 	const handleRollPointerDown = ({
 		event,
 		side,
@@ -280,6 +302,7 @@ export function useTimelinePrecisionEdit({
 		editMode,
 		handleRollKeyDown,
 		handleRollPointerDown,
+		handlePrecisionKeyDown,
 		handleSlidePointerDown,
 		handleSlipPointerDown,
 		isPrecisionEditing,

@@ -266,6 +266,7 @@ function TimelineElementComponent({
 		editMode,
 		handleRollKeyDown,
 		handleRollPointerDown,
+		handlePrecisionKeyDown,
 		handleSlidePointerDown,
 		handleSlipPointerDown,
 		isPrecisionEditing,
@@ -1567,14 +1568,23 @@ function TimelineElementComponent({
 								? "z-50"
 								: "z-10"
 						} ${element.hidden ? "opacity-50" : ""}`}
-						onClick={(e) => onElementClick && onElementClick(e, element)}
-						onMouseDown={handleElementMouseDown}
-						onPointerDown={
-							editMode === "slide"
-								? handleSlidePointerDown
-								: handleSlipPointerDown
-						}
 					>
+						<button
+							type="button"
+							className="absolute inset-0 z-20 bg-transparent"
+							onClick={(event) =>
+								onElementClick && onElementClick(event, element)
+							}
+							onMouseDown={handleElementMouseDown}
+							onPointerDown={
+								editMode === "slide"
+									? handleSlidePointerDown
+									: handleSlipPointerDown
+							}
+							onKeyDown={handlePrecisionKeyDown}
+							aria-label={`${displayName} timeline clip`}
+							data-testid="timeline-element-interaction"
+						/>
 						<div className="absolute inset-0 flex items-center h-full">
 							{renderElementContent()}
 						</div>
