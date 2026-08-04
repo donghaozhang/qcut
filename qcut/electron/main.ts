@@ -61,6 +61,10 @@ import {
 	setupJianyingDraftExportIPC,
 	type JianyingDraftExportIPCController,
 } from "./jianying-draft-export-handler.js";
+import {
+	setupJianyingSameProfileWritebackIPC,
+	type JianyingSameProfileWritebackIPCController,
+} from "./jianying-same-profile-writeback-handler.js";
 
 // Type definitions
 interface ReleaseNote {
@@ -103,6 +107,8 @@ let jianyingEnvelopeKeyController: JianyingEnvelopeKeyIPCController | null =
 let jianyingDraftImportController: JianyingDraftImportIPCController | null =
 	null;
 let jianyingDraftExportController: JianyingDraftExportIPCController | null =
+	null;
+let jianyingSameProfileWritebackController: JianyingSameProfileWritebackIPCController | null =
 	null;
 
 // Import handlers (compiled TypeScript - relative to dist/electron output)
@@ -918,6 +924,15 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 				},
 			],
 			[
+				"JianyingSameProfileWritebackIPC",
+				() => {
+					jianyingSameProfileWritebackController =
+						setupJianyingSameProfileWritebackIPC({
+							getMainWindow: () => mainWindow,
+						});
+				},
+			],
+			[
 				"JianyingDraftImportIPC",
 				() => {
 					jianyingDraftImportController = setupJianyingDraftImportIPC({
@@ -1012,6 +1027,8 @@ app.on("before-quit", () => {
 	if (isHeadlessRecorder) return;
 	jianyingDraftExportController?.dispose();
 	jianyingDraftExportController = null;
+	jianyingSameProfileWritebackController?.dispose();
+	jianyingSameProfileWritebackController = null;
 	jianyingEnvelopeKeyController?.dispose();
 	jianyingEnvelopeKeyController = null;
 	jianyingDraftImportController?.dispose();
