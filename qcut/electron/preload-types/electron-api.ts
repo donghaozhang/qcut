@@ -59,6 +59,7 @@ import type {
 } from "./api-types/remotion-moyin-api";
 import type { HyperframesAPI } from "./api-types/hyperframes-api";
 import type { JianyingDraftExportPreloadAPI } from "./api-types/jianying-draft-export-api";
+import type { JianyingTransitionPreloadAPI } from "./api-types/jianying-transition-api";
 import type {
 	AppShellAPI,
 	UpdatesAPI,
@@ -100,7 +101,8 @@ export interface ElectronAPI
 		UpdatesAPI,
 		LicenseAPI,
 		YouTubeApi,
-		JianyingDraftExportPreloadAPI {
+		JianyingDraftExportPreloadAPI,
+		JianyingTransitionPreloadAPI {
 	platform: NodeJS.Platform;
 	isElectron: boolean;
 
