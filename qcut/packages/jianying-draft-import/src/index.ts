@@ -70,3 +70,22 @@ export {
 	type ResolvedImportAsset,
 	type ResolveImportAssetsInput,
 } from "./asset-resolver.js";
+
+export {
+	ImportSessionError,
+	JianyingDraftImportSession,
+	type DraftImportCommitDto,
+	type DraftImportInspectDto,
+	type DraftImportMediaPayloadDto,
+	type DraftImportPlanDto,
+} from "./import-session.js";
+
+export {
+	deleteDesktopImport,
+	DesktopImportInboxMalformedError,
+	DesktopImportInboxUnavailableError,
+	enqueueDesktopImport,
+	listDesktopImports,
+	readDesktopImport,
+	type DesktopImportInboxEntrySummary,
+} from "./desktop-import-inbox.js";
