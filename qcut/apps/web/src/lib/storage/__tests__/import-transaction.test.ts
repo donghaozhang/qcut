@@ -334,6 +334,7 @@ describe("runQCutImportTransaction", () => {
 			profileId: "jianying-synthetic-plaintext-5.9",
 			bundleDigest: createBundle().bundleDigest,
 			sourceFileSha256: ["a".repeat(64)],
+			internalIdBySemanticId: createBundle().internalIdBySemanticId,
 			writeback: {
 				status: "unavailable",
 				reason: "envelope-not-captured",

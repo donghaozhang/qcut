@@ -58,6 +58,8 @@ export interface DraftInteropProjectBindingV1 {
 	profileId: string;
 	bundleDigest: string;
 	sourceFileSha256: string[];
+	/** Stable foreign semantic id to QCut entity id mapping from import. */
+	internalIdBySemanticId: Record<string, string>;
 	writeback: DraftInteropWritebackStatus;
 	/** Metadata only. Raw source bytes remain behind the encrypted payload ref. */
 	envelope?: ForeignDraftEnvelopeV1;

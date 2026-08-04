@@ -49,6 +49,9 @@ function createProject(): TProject {
 			profileId: "capcut-desktop-8.1-plaintext",
 			bundleDigest: "b".repeat(64),
 			sourceFileSha256: ["a".repeat(64)],
+			internalIdBySemanticId: {
+				"segment-1": "qcut-segment-1",
+			},
 			writeback: {
 				status: "unavailable",
 				reason: "envelope-not-captured",
