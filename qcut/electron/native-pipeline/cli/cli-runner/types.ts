@@ -204,6 +204,7 @@ export interface CLIRunOptions {
 	draftPaths?: string[];
 	/** editor:jianying-import:commit plan token. */
 	planToken?: string;
+	bundleDigest?: string;
 	/** editor:jianying-import:commit accepted warning fingerprints. */
 	acceptedWarningFingerprints?: string[];
 	packagePath?: string;
