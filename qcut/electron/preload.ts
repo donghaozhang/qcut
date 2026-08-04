@@ -66,6 +66,14 @@ import {
 	CAPCUT_8_1_MIGRATION_INSTALL_CHANNEL,
 	CAPCUT_8_1_MIGRATION_PLAN_CHANNEL,
 } from "./jianying-draft-export-contract.js";
+import {
+	ENVELOPE_DELETE_CHANNEL,
+	ENVELOPE_PURGE_CHANNEL,
+	ENVELOPE_READ_CHANNEL,
+	ENVELOPE_ROTATE_CHANNEL,
+	ENVELOPE_STATUS_CHANNEL,
+	ENVELOPE_STORE_CHANNEL,
+} from "./jianying-envelope-key-contract.js";
 
 // Expose the API to the renderer process
 const electronAPI: ElectronAPI & Record<string, unknown> = {
@@ -88,6 +96,14 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke(CAPCUT_8_1_MIGRATION_INSTALL_CHANNEL, request),
 		planCapCut81Migration: (request) =>
 			ipcRenderer.invoke(CAPCUT_8_1_MIGRATION_PLAN_CHANNEL, request),
+	},
+	jianyingEnvelope: {
+		store: (request) => ipcRenderer.invoke(ENVELOPE_STORE_CHANNEL, request),
+		read: (request) => ipcRenderer.invoke(ENVELOPE_READ_CHANNEL, request),
+		delete: (request) => ipcRenderer.invoke(ENVELOPE_DELETE_CHANNEL, request),
+		purge: () => ipcRenderer.invoke(ENVELOPE_PURGE_CHANNEL),
+		rotate: () => ipcRenderer.invoke(ENVELOPE_ROTATE_CHANNEL),
+		status: () => ipcRenderer.invoke(ENVELOPE_STATUS_CHANNEL),
 	},
 
 	// File operations

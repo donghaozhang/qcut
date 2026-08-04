@@ -50,6 +50,10 @@ import {
 } from "./license-server-build-config.js";
 import { resolveLicenseServerCspOrigins } from "./license-server-csp.js";
 import {
+	setupJianyingEnvelopeKeyIPC,
+	type JianyingEnvelopeKeyIPCController,
+} from "./jianying-envelope-key-handler.js";
+import {
 	setupJianyingDraftExportIPC,
 	type JianyingDraftExportIPCController,
 } from "./jianying-draft-export-handler.js";
@@ -90,6 +94,8 @@ installEpipeGuard();
 
 let updateController: AutoUpdateController | null = null;
 let codexPluginUpdateController: CodexPluginUpdateController | null = null;
+let jianyingEnvelopeKeyController: JianyingEnvelopeKeyIPCController | null =
+	null;
 let jianyingDraftExportController: JianyingDraftExportIPCController | null =
 	null;
 
@@ -897,6 +903,14 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 					});
 				},
 			],
+			[
+				"JianyingEnvelopeKeyIPC",
+				() => {
+					jianyingEnvelopeKeyController = setupJianyingEnvelopeKeyIPC({
+						getMainWindow: () => mainWindow,
+					});
+				},
+			],
 		];
 
 		for (const [name, setup] of handlers) {
@@ -984,6 +998,8 @@ app.on("before-quit", () => {
 	if (isHeadlessRecorder) return;
 	jianyingDraftExportController?.dispose();
 	jianyingDraftExportController = null;
+	jianyingEnvelopeKeyController?.dispose();
+	jianyingEnvelopeKeyController = null;
 	try {
 		const { cleanupAllAudioFiles } = require("./audio-temp-handler.js");
 		cleanupAllAudioFiles();
