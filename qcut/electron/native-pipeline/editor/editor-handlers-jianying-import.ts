@@ -7,7 +7,7 @@
 
 import { existsSync } from "node:fs";
 import { homedir } from "node:os";
-import { isAbsolute, join } from "node:path";
+import { join, posix, win32 } from "node:path";
 import type { CLIResult, CLIRunOptions } from "../cli/cli-runner/types.js";
 
 interface ImportSessionLike {
@@ -122,9 +122,10 @@ export function resolveQCutCliUserDataDirectory({
 	moduleDirectory?: string;
 	platform?: NodeJS.Platform;
 } = {}): string {
+	const pathApi = platform === "win32" ? win32 : posix;
 	const override = environment.QCUT_USER_DATA_PATH;
 	if (override !== undefined) {
-		if (!isAbsolute(override) || override.includes("\0")) {
+		if (!pathApi.isAbsolute(override) || override.includes("\0")) {
 			throw new Error("QCUT_USER_DATA_PATH must be an absolute path.");
 		}
 		return override;
@@ -138,7 +139,7 @@ export function resolveQCutCliUserDataDirectory({
 		? "QCut AI Video Editor"
 		: "qcut";
 	if (platform === "darwin") {
-		return join(
+		return pathApi.join(
 			homeDirectory,
 			"Library",
 			"Application Support",
@@ -146,13 +147,13 @@ export function resolveQCutCliUserDataDirectory({
 		);
 	}
 	if (platform === "win32") {
-		return join(
-			environment.APPDATA ?? join(homeDirectory, "AppData", "Roaming"),
+		return pathApi.join(
+			environment.APPDATA ?? pathApi.join(homeDirectory, "AppData", "Roaming"),
 			productDirectory
 		);
 	}
-	return join(
-		environment.XDG_CONFIG_HOME ?? join(homeDirectory, ".config"),
+	return pathApi.join(
+		environment.XDG_CONFIG_HOME ?? pathApi.join(homeDirectory, ".config"),
 		productDirectory
 	);
 }
