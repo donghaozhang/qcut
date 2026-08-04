@@ -56,6 +56,12 @@ import { PersistentImportPlanStore } from "./persistent-import-plan-store.js";
 import { buildQCutImportBundle } from "./qcut-import-bundle-builder.js";
 import { buildForeignEnvelopeCapture } from "./foreign-envelope-capture.js";
 import {
+	MediaPayloadGrantStore,
+	type MediaPayloadChunkDto,
+	type MediaPayloadGrantDto,
+	type VerifiedRestrictedMediaPayloadSource,
+} from "./media-payload-grant-store.js";
+import {
 	MediaPayloadReadError,
 	readVerifiedMediaPayload,
 } from "./media-payload-reader.js";
@@ -162,6 +168,12 @@ export interface DraftImportCommitDto {
 	envelopeCapture?: DraftImportEnvelopeCaptureDto;
 }
 
+export interface DraftImportGrantedCommitDto {
+	bundle: QCutImportBundleV1;
+	mediaGrants: MediaPayloadGrantDto[];
+	envelopeCapture?: DraftImportEnvelopeCaptureDto;
+}
+
 interface PlannedSessionState {
 	snapshot: DraftSourceSnapshot;
 	bundle: QCutImportBundleV1;
@@ -177,6 +189,79 @@ interface PreparedExactImport {
 	assets: ResolvedImportAsset[];
 	assetResolutionCacheMetrics: AssetResolutionCacheMetrics;
 	bindings: RawNodeBinding[];
+}
+
+interface PreparedCommit {
+	session: PlannedSessionState;
+	envelopeCapture?: DraftImportEnvelopeCaptureDto;
+}
+
+function toVerifiedMediaSource({
+	asset,
+}: {
+	asset: ResolvedImportAsset;
+}): VerifiedRestrictedMediaPayloadSource {
+	if (
+		asset.status !== "resolved" ||
+		asset.restrictedAbsolutePath === undefined ||
+		asset.byteLength === undefined ||
+		asset.sha256 === undefined ||
+		asset.identity === undefined
+	) {
+		throw new ImportSessionError({
+			code: "source-changed",
+			message: "resolved media evidence is incomplete",
+		});
+	}
+	const fileName = basename(asset.restrictedAbsolutePath);
+	const extension = fileName.split(".").pop()?.toLowerCase() ?? "";
+	return {
+		resourceId: asset.resourceId,
+		fileName,
+		mimeType: MIME_BY_EXTENSION[extension] ?? "application/octet-stream",
+		byteLength: asset.byteLength,
+		sha256: asset.sha256,
+		restrictedAbsolutePath: asset.restrictedAbsolutePath,
+		identity: asset.identity,
+	};
+}
+
+async function grantResolvedMedia({
+	assets,
+	grantStore,
+}: {
+	assets: readonly ResolvedImportAsset[];
+	grantStore: MediaPayloadGrantStore;
+}): Promise<MediaPayloadGrantDto[]> {
+	const sources = assets
+		.filter((asset) => asset.status === "resolved")
+		.map((asset) => toVerifiedMediaSource({ asset }));
+	const grants = new Array<MediaPayloadGrantDto>(sources.length);
+	let nextIndex = 0;
+	const grantNext = async (): Promise<void> => {
+		const index = nextIndex;
+		nextIndex += 1;
+		if (index >= sources.length) return;
+		grants[index] = await grantStore.grantVerifiedSource({
+			source: sources[index],
+		});
+		return grantNext();
+	};
+	try {
+		await Promise.all(
+			Array.from({ length: Math.min(4, sources.length) }, () => grantNext())
+		);
+		return grants;
+	} catch (error) {
+		grantStore.release({
+			input: {
+				grantTokens: grants
+					.filter((grant) => grant !== undefined)
+					.map((grant) => grant.grantToken),
+			},
+		});
+		throw error;
+	}
 }
 
 interface ImportPlanStoreAdapter {
@@ -305,6 +390,7 @@ function arraysEqual({
 export class JianyingDraftImportSession {
 	readonly #buildIdentity: ImportPlanBuildIdentity;
 	readonly #metricsNow: () => number;
+	readonly #mediaGrantStore: MediaPayloadGrantStore;
 	readonly #now: () => number;
 	readonly #planStore: ImportPlanStoreAdapter;
 	readonly #planTtlMilliseconds: number | undefined;
@@ -312,18 +398,21 @@ export class JianyingDraftImportSession {
 	constructor({
 		buildIdentity,
 		metricsNow = () => performance.now(),
+		mediaGrantStore = new MediaPayloadGrantStore(),
 		planTtlMilliseconds,
 		now = Date.now,
 		planStore,
 	}: {
 		buildIdentity: ImportPlanBuildIdentity;
 		metricsNow?: () => number;
+		mediaGrantStore?: MediaPayloadGrantStore;
 		planTtlMilliseconds?: number;
 		now?: () => number;
 		planStore?: ImportPlanStoreAdapter;
 	}) {
 		this.#buildIdentity = { ...buildIdentity };
 		this.#metricsNow = metricsNow;
+		this.#mediaGrantStore = mediaGrantStore;
 		this.#planTtlMilliseconds = planTtlMilliseconds;
 		this.#now = now;
 		this.#planStore = planStore ?? new ImportPlanStore({ buildIdentity, now });
@@ -332,12 +421,14 @@ export class JianyingDraftImportSession {
 	static async open({
 		buildIdentity,
 		metricsNow = () => performance.now(),
+		mediaGrantStore = new MediaPayloadGrantStore(),
 		planTtlMilliseconds,
 		now = Date.now,
 		storageDirectory,
 	}: {
 		buildIdentity: ImportPlanBuildIdentity;
 		metricsNow?: () => number;
+		mediaGrantStore?: MediaPayloadGrantStore;
 		planTtlMilliseconds?: number;
 		now?: () => number;
 		storageDirectory: string;
@@ -350,6 +441,7 @@ export class JianyingDraftImportSession {
 		return new JianyingDraftImportSession({
 			buildIdentity,
 			metricsNow,
+			mediaGrantStore,
 			...(planTtlMilliseconds === undefined ? {} : { planTtlMilliseconds }),
 			now,
 			planStore,
@@ -695,8 +787,7 @@ export class JianyingDraftImportSession {
 		};
 	}
 
-	/** CAS commit: single-use token, live-source re-check, exact warnings. */
-	async commit({ input }: { input: unknown }): Promise<DraftImportCommitDto> {
+	async #prepareCommit({ input }: { input: unknown }): Promise<PreparedCommit> {
 		if (
 			typeof input !== "object" ||
 			input === null ||
@@ -766,6 +857,15 @@ export class JianyingDraftImportSession {
 					});
 		// CAS after all retryable validation: only one concurrent caller proceeds.
 		await this.#planStore.consume({ planToken });
+		return {
+			session,
+			...(envelopeCapture === undefined ? {} : { envelopeCapture }),
+		};
+	}
+
+	/** Legacy bounded Base64 commit retained for existing offline callers. */
+	async commit({ input }: { input: unknown }): Promise<DraftImportCommitDto> {
+		const { envelopeCapture, session } = await this.#prepareCommit({ input });
 
 		let remainingBudget = MAX_TOTAL_MEDIA_PAYLOAD_BYTES;
 		const mediaPayloads: DraftImportMediaPayloadDto[] = [];
@@ -794,7 +894,40 @@ export class JianyingDraftImportSession {
 		};
 	}
 
+	/** Path-free live commit whose media stays behind short-lived grants. */
+	async commitWithMediaGrants({
+		input,
+	}: {
+		input: unknown;
+	}): Promise<DraftImportGrantedCommitDto> {
+		const { envelopeCapture, session } = await this.#prepareCommit({ input });
+		const mediaGrants = await grantResolvedMedia({
+			assets: session.resolvedAssets,
+			grantStore: this.#mediaGrantStore,
+		});
+		return {
+			bundle: session.bundle,
+			mediaGrants,
+			...(envelopeCapture === undefined ? {} : { envelopeCapture }),
+		};
+	}
+
+	readMediaPayloadChunk({
+		input,
+	}: {
+		input: unknown;
+	}): Promise<MediaPayloadChunkDto> {
+		return this.#mediaGrantStore.readChunk({ input });
+	}
+
+	releaseMediaPayloadGrants({ input }: { input: unknown }): {
+		releasedCount: number;
+	} {
+		return this.#mediaGrantStore.release({ input });
+	}
+
 	dispose(): void {
 		this.#planStore.dispose?.();
+		this.#mediaGrantStore.dispose();
 	}
 }
