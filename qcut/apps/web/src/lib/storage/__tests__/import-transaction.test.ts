@@ -18,6 +18,7 @@ import type { TProject } from "@/types/project";
 import type { TimelineTrack } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import { createMapStorageAdapter } from "./support/map-storage-adapter";
+import { pipeChunkedFileSource } from "../chunked-file-source";
 
 /**
  * JYI-010 acceptance: staging, re-read verification, single publish,
@@ -35,6 +36,7 @@ interface FakeStorage extends ImportTransactionStorage {
 	media: Map<string, Map<string, MediaItem>>;
 	timelines: Map<string, TimelineTrack[]>;
 	calls: string[];
+	quotaRequests: number[];
 	corruptMediaReadback?: boolean;
 	corruptProjectReadback?: boolean;
 	corruptTimelineReadback?: boolean;
@@ -47,7 +49,11 @@ function createFakeStorage(): FakeStorage {
 		media: new Map(),
 		timelines: new Map(),
 		calls: [],
-		checkStorageQuota: async () => ({ available: true }),
+		quotaRequests: [],
+		checkStorageQuota: async ({ requiredBytes = 0 } = {}) => {
+			storage.quotaRequests.push(requiredBytes);
+			return { available: true };
+		},
 		saveMediaItem: async (projectId, item) => {
 			storage.calls.push(`saveMediaItem:${item.id}`);
 			if (storage.failOn === "saveMediaItem") {
@@ -55,6 +61,32 @@ function createFakeStorage(): FakeStorage {
 			}
 			const bucket = storage.media.get(projectId) ?? new Map();
 			bucket.set(item.id, item);
+			storage.media.set(projectId, bucket);
+		},
+		saveMediaItemFromChunks: async ({
+			mediaItem,
+			mimeType,
+			projectId,
+			source,
+		}) => {
+			storage.calls.push(`saveMediaItemFromChunks:${mediaItem.id}`);
+			if (storage.failOn === "saveMediaItemFromChunks") {
+				throw new Error("disk full");
+			}
+			const chunks: ArrayBuffer[] = [];
+			await pipeChunkedFileSource({
+				source,
+				writable: new WritableStream<Uint8Array>({
+					write(bytes) {
+						chunks.push(Uint8Array.from(bytes).buffer as ArrayBuffer);
+					},
+				}),
+			});
+			const bucket = storage.media.get(projectId) ?? new Map();
+			bucket.set(mediaItem.id, {
+				...mediaItem,
+				file: new File(chunks, mediaItem.name, { type: mimeType }),
+			});
 			storage.media.set(projectId, bucket);
 		},
 		saveTimeline: async ({ projectId, tracks, sceneId }) => {
@@ -414,6 +446,39 @@ function createPayload() {
 	};
 }
 
+function createChunkedPayload({
+	failAtOffset,
+	requests = [],
+}: {
+	failAtOffset?: number;
+	requests?: Array<{ offset: number; maxBytes: number }>;
+} = {}) {
+	const source = new Uint8Array([1, 2, 3]);
+	return {
+		transport: "chunked" as const,
+		resourceId: RESOURCE_ID,
+		fileName: "clip.mp4",
+		mimeType: "video/mp4",
+		byteLength: source.byteLength,
+		sha256: createHash("sha256").update(source).digest("hex"),
+		readChunk: async ({
+			maxBytes,
+			offset,
+		}: {
+			maxBytes: number;
+			offset: number;
+		}) => {
+			requests.push({ offset, maxBytes });
+			if (offset === failAtOffset) throw new Error("chunk transport failed");
+			const end = Math.min(offset + maxBytes, offset + 2, source.byteLength);
+			return {
+				bytes: source.slice(offset, end),
+				eof: end === source.byteLength,
+			};
+		},
+	};
+}
+
 function createSecondPayload() {
 	return {
 		resourceId: SECOND_RESOURCE_ID,
@@ -551,6 +616,38 @@ describe("runQCutImportTransaction", () => {
 			element && "mediaId" in element && mediaBucket?.has(element.mediaId)
 		).toBe(true);
 		// Journal is empty after a verified publish.
+		expect(journalAdapter.map.size).toBe(0);
+	});
+
+	it("streams chunked media through staging and reserves its full quota", async () => {
+		const requests: Array<{ offset: number; maxBytes: number }> = [];
+		const result = await runQCutImportTransaction({
+			bundleValue: JSON.parse(JSON.stringify(createBundle())),
+			mediaPayloads: [createChunkedPayload({ requests })],
+			deps: { storage, journal },
+		});
+
+		expect(result.ok).toBe(true);
+		expect(storage.quotaRequests).toEqual([3]);
+		expect(storage.calls).toContain(
+			`saveMediaItemFromChunks:${createBundle().internalIdBySemanticId[RESOURCE_ID]}`
+		);
+		expect(requests).toEqual([
+			{ offset: 0, maxBytes: 3 },
+			{ offset: 2, maxBytes: 1 },
+		]);
+	});
+
+	it("rolls back when a chunk transport fails after staging begins", async () => {
+		const result = await runQCutImportTransaction({
+			bundleValue: JSON.parse(JSON.stringify(createBundle())),
+			mediaPayloads: [createChunkedPayload({ failAtOffset: 2 })],
+			deps: { storage, journal },
+		});
+
+		expect(result).toMatchObject({ ok: false, reason: "staging-failed" });
+		expect(storage.calls).toContain("deleteProjectMedia");
+		expect(storage.media.size).toBe(0);
 		expect(journalAdapter.map.size).toBe(0);
 	});
 
@@ -781,6 +878,17 @@ describe("runQCutImportTransaction", () => {
 			deps: { storage, journal },
 		});
 		expect(result).toMatchObject({ ok: false, reason: "payload-missing" });
+		expect(storage.calls).toEqual([]);
+	});
+
+	it("rejects an invalid chunked payload length before quota or writes", async () => {
+		const result = await runQCutImportTransaction({
+			bundleValue: JSON.parse(JSON.stringify(createBundle())),
+			mediaPayloads: [{ ...createChunkedPayload(), byteLength: -1 }],
+			deps: { storage, journal },
+		});
+		expect(result).toMatchObject({ ok: false, reason: "payload-invalid" });
+		expect(storage.quotaRequests).toEqual([]);
 		expect(storage.calls).toEqual([]);
 	});
 

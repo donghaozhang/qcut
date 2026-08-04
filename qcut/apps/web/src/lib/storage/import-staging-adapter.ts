@@ -21,6 +21,7 @@ import type { TimelineTrack } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import { storageService } from "./storage-service";
 import type { ImportJournal } from "./import-journal";
+import type { ChunkedFileSource } from "./chunked-file-source";
 
 function projectReadbackMatches({
 	actual,
@@ -44,6 +45,12 @@ function projectReadbackMatches({
 /** The storage surface the staging session needs; injectable for tests. */
 export interface ImportStagingStorage {
 	saveMediaItem: (projectId: string, mediaItem: MediaItem) => Promise<void>;
+	saveMediaItemFromChunks: (options: {
+		mediaItem: Omit<MediaItem, "file">;
+		mimeType: string;
+		projectId: string;
+		source: ChunkedFileSource;
+	}) => Promise<void>;
 	saveTimeline: (options: {
 		projectId: string;
 		tracks: TimelineTrack[];
@@ -117,6 +124,27 @@ export class ImportStagingSession {
 
 	async stageMediaItem({ mediaItem }: { mediaItem: MediaItem }): Promise<void> {
 		await this.#storage.saveMediaItem(this.#projectId, mediaItem);
+		await this.#journal.recordMediaItem({
+			importId: this.#importId,
+			mediaItemId: mediaItem.id,
+		});
+	}
+
+	async stageMediaItemFromChunks({
+		mediaItem,
+		mimeType,
+		source,
+	}: {
+		mediaItem: Omit<MediaItem, "file">;
+		mimeType: string;
+		source: ChunkedFileSource;
+	}): Promise<void> {
+		await this.#storage.saveMediaItemFromChunks({
+			mediaItem,
+			mimeType,
+			projectId: this.#projectId,
+			source,
+		});
 		await this.#journal.recordMediaItem({
 			importId: this.#importId,
 			mediaItemId: mediaItem.id,

@@ -39,14 +39,12 @@ import {
 	deleteEnvelopePayload,
 	storeEnvelopePayload,
 } from "./envelope-key-adapter";
+import {
+	getImportMediaPayloadByteLength,
+	type ImportMediaPayload,
+} from "./qcut-import-media-payload";
 
-/** Decrypted media bytes for one staged resource, provided by transport. */
-export interface ImportMediaPayload {
-	resourceId: string;
-	fileName: string;
-	mimeType: string;
-	bytes: Uint8Array;
-}
+export type { ImportMediaPayload } from "./qcut-import-media-payload";
 
 export interface ImportEnvelopeCapture {
 	envelope: unknown;
@@ -60,6 +58,7 @@ export type ImportTransactionFailureReason =
 	| "quota-exceeded"
 	| "project-conflict"
 	| "payload-missing"
+	| "payload-invalid"
 	| "envelope-invalid"
 	| "envelope-store-failed"
 	| "staging-failed"
@@ -80,7 +79,9 @@ export type ImportTransactionResult = ImportTransactionOutcome & {
 };
 
 export type ImportTransactionStorage = ImportStagingStorage & {
-	checkStorageQuota: () => Promise<{ available: boolean }>;
+	checkStorageQuota: (options?: {
+		requiredBytes?: number;
+	}) => Promise<{ available: boolean }>;
 };
 
 export interface ImportTransactionDeps {
@@ -353,8 +354,33 @@ async function runQCutImportTransactionInternal({
 		capturedEnvelope = envelopeValidation.envelope;
 	}
 
+	const payloadByteLengths = mediaPayloads.map((payload) =>
+		getImportMediaPayloadByteLength({ payload })
+	);
+	if (
+		payloadByteLengths.some(
+			(byteLength) => !Number.isSafeInteger(byteLength) || byteLength < 0
+		)
+	) {
+		return {
+			ok: false,
+			reason: "payload-invalid",
+			message: "media payload byte length is invalid",
+		};
+	}
+	const requiredBytes = payloadByteLengths.reduce(
+		(total, byteLength) => total + byteLength,
+		0
+	);
+	if (!Number.isSafeInteger(requiredBytes)) {
+		return {
+			ok: false,
+			reason: "payload-invalid",
+			message: "media payload total byte length is invalid",
+		};
+	}
 	const quota = await stageMetrics.measure({
-		run: () => storage.checkStorageQuota(),
+		run: () => storage.checkStorageQuota({ requiredBytes }),
 		stage: "quota-check",
 	});
 	if (!quota.available) {
@@ -378,6 +404,13 @@ async function runQCutImportTransactionInternal({
 	const payloadByResourceId = new Map(
 		mediaPayloads.map((payload) => [payload.resourceId, payload])
 	);
+	if (payloadByResourceId.size !== mediaPayloads.length) {
+		return {
+			ok: false,
+			reason: "payload-invalid",
+			message: "media payload resource ids must be unique",
+		};
+	}
 	for (const staging of bundle.resourceStaging) {
 		if (
 			staging.status === "resolved" &&
@@ -412,28 +445,42 @@ async function runQCutImportTransactionInternal({
 	try {
 		await stageMetrics.measure({
 			run: async () => {
-				for (const staging of bundle.resourceStaging) {
+				const stageNextResource = async ({
+					index,
+				}: {
+					index: number;
+				}): Promise<void> => {
+					if (index >= bundle.resourceStaging.length) return;
+					const staging = bundle.resourceStaging[index];
 					const payload = payloadByResourceId.get(staging.resourceId);
 					if (payload === undefined) {
-						continue; // missing/opaque resources stage nothing
+						await stageNextResource({ index: index + 1 });
+						return;
 					}
 					const mediaItemId = bundle.internalIdBySemanticId[staging.resourceId];
-					// Copy into a fresh, exactly-sized buffer — the payload view may
-					// share a larger transport buffer.
-					const file = new File(
-						[new Uint8Array(payload.bytes).buffer as ArrayBuffer],
-						payload.fileName,
-						{ type: payload.mimeType }
-					);
-					const mediaItem: MediaItem = {
+					const mediaItem: Omit<MediaItem, "file"> = {
 						id: mediaItemId,
 						name: payload.fileName,
 						type: getQCutImportMediaType({ resourceKind: staging.kind }),
-						file,
 					};
-					await session.stageMediaItem({ mediaItem });
+					if (payload.transport === "chunked") {
+						await session.stageMediaItemFromChunks({
+							mediaItem,
+							mimeType: payload.mimeType,
+							source: payload,
+						});
+					} else {
+						const file = new File(
+							[new Uint8Array(payload.bytes).buffer as ArrayBuffer],
+							payload.fileName,
+							{ type: payload.mimeType }
+						);
+						await session.stageMediaItem({ mediaItem: { ...mediaItem, file } });
+					}
 					mediaItemIdByResourceId.set(staging.resourceId, mediaItemId);
-				}
+					await stageNextResource({ index: index + 1 });
+				};
+				await stageNextResource({ index: 0 });
 			},
 			stage: "media-staging",
 		});
