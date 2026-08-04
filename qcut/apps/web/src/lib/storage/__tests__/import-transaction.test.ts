@@ -113,6 +113,8 @@ const RESOURCE_ID = "mat-1";
 const SECOND_ELEMENT_ID = "seg-2";
 const SECOND_RESOURCE_ID = "mat-2";
 const TRANSITION_ID = "transition-1";
+const TEXT_TRACK_ID = "text-track-1";
+const TEXT_ELEMENT_ID = "text-segment-1";
 
 function createBundle(): QCutImportBundleV1 {
 	const internalIdBySemanticId: Record<string, string> = {};
@@ -168,6 +170,10 @@ function createBundle(): QCutImportBundleV1 {
 									id: ELEMENT_ID,
 									kind: "video",
 									resourceId: RESOURCE_ID,
+									sourceRange: {
+										startUs: 500_000,
+										durationUs: 4_000_000,
+									},
 									targetRange: { startUs: 0, durationUs: 4_000_000 },
 									capability: "exact",
 								},
@@ -182,6 +188,7 @@ function createBundle(): QCutImportBundleV1 {
 					id: RESOURCE_ID,
 					kind: "video",
 					name: "clip.mp4",
+					durationUs: 5_000_000,
 					status: "resolved",
 					capability: "exact",
 				},
@@ -300,6 +307,86 @@ function createBundleWithTransition(): QCutImportBundleV1 {
 		stagingKey: "import-token-1-media-2",
 		kind: "video",
 		status: "resolved",
+	});
+	bundle.bundleDigest = createHash("sha256")
+		.update(canonicalizeQCutImportBundleForDigest({ bundle }))
+		.digest("hex");
+	return bundle;
+}
+
+function createBundleWithText(): QCutImportBundleV1 {
+	const bundle = createBundle();
+	for (const semanticId of [TEXT_TRACK_ID, TEXT_ELEMENT_ID]) {
+		bundle.internalIdBySemanticId[semanticId] = deriveImportInternalId({
+			seed: SEED,
+			semanticId,
+		});
+	}
+	bundle.document.timelines[0].tracks.push({
+		id: TEXT_TRACK_ID,
+		kind: "text",
+		order: 1,
+		segments: [
+			{
+				id: TEXT_ELEMENT_ID,
+				kind: "text",
+				targetRange: { startUs: 1_000_000, durationUs: 3_000_000 },
+				capability: "downgrade",
+				text: {
+					content: "Imported text",
+					fontSizePx: 64,
+					fontFamily: "Arial",
+					color: "#ffffff",
+					textAlign: "center",
+					fontWeight: "normal",
+					fontStyle: "normal",
+					textDecoration: "none",
+					xPx: 20,
+					yPx: -10,
+					rotationDegrees: 5,
+					opacity: 0.9,
+				},
+			},
+		],
+		capability: "downgrade",
+	});
+	bundle.document.issues.push({
+		code: "FEATURE_DOWNGRADED",
+		severity: "warning",
+		message: "text import requires acceptance",
+		subjectId: TEXT_ELEMENT_ID,
+	});
+	bundle.timelinePlan.tracks.push({
+		id: TEXT_TRACK_ID,
+		type: "text",
+		name: "Text",
+		order: 1,
+		elements: [
+			{
+				id: TEXT_ELEMENT_ID,
+				type: "text",
+				name: "Imported text",
+				startTime: 1,
+				duration: 3,
+				trimStart: 0,
+				trimEnd: 0,
+				content: "Imported text",
+				fontSize: 64,
+				fontFamily: "Arial",
+				color: "#ffffff",
+				backgroundColor: "transparent",
+				textAlign: "center",
+				fontWeight: "normal",
+				fontStyle: "normal",
+				textDecoration: "none",
+				x: 20,
+				y: -10,
+				rotation: 5,
+				opacity: 0.9,
+				sourceSegmentId: TEXT_ELEMENT_ID,
+			},
+		],
+		sourceTrackId: TEXT_TRACK_ID,
 	});
 	bundle.bundleDigest = createHash("sha256")
 		.update(canonicalizeQCutImportBundleForDigest({ bundle }))
@@ -472,6 +559,36 @@ describe("runQCutImportTransaction", () => {
 		]);
 	});
 
+	it("persists accepted downgraded text without a media payload", async () => {
+		const bundle = createBundleWithText();
+		const result = await runQCutImportTransaction({
+			bundleValue: JSON.parse(JSON.stringify(bundle)),
+			mediaPayloads: [createPayload()],
+			deps: { storage, journal },
+		});
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		const project = storage.projects.get(result.projectId);
+		const tracks = storage.timelines.get(
+			`${result.projectId}:${project?.currentSceneId}`
+		);
+		expect(tracks?.[1]).toMatchObject({
+			id: bundle.internalIdBySemanticId[TEXT_TRACK_ID],
+			type: "text",
+			name: "Text",
+		});
+		expect(tracks?.[1].elements[0]).toMatchObject({
+			id: bundle.internalIdBySemanticId[TEXT_ELEMENT_ID],
+			type: "text",
+			content: "Imported text",
+			fontSize: 64,
+			x: 20,
+			y: -10,
+			opacity: 0.9,
+		});
+		expect(storage.media.get(result.projectId)?.size).toBe(1);
+	});
+
 	it("is deterministic: same bundle → same project id", async () => {
 		const first = await runQCutImportTransaction({
 			bundleValue: JSON.parse(JSON.stringify(createBundle())),
@@ -491,7 +608,7 @@ describe("runQCutImportTransaction", () => {
 
 	it("rejects a tampered bundle by digest, before any write", async () => {
 		const tampered = JSON.parse(JSON.stringify(createBundle()));
-		tampered.timelinePlan.project.name = "evil";
+		tampered.createdAtUnixMilliseconds += 1;
 		const result = await runQCutImportTransaction({
 			bundleValue: tampered,
 			mediaPayloads: [createPayload()],
