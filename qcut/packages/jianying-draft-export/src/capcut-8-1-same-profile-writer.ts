@@ -159,7 +159,8 @@ async function verifySourceIdentities({
 			const current = await readRegularFile({ path: mirror.absolutePath });
 			if (
 				!identitiesEqual({ left: current.identity, right: mirror.identity }) ||
-				sha256({ bytes: current.bytes }) !== sha256({ bytes: mirror.sourceBytes })
+				sha256({ bytes: current.bytes }) !==
+					sha256({ bytes: mirror.sourceBytes })
 			) {
 				failCapCut81SameProfileWriteback({
 					code: "SOURCE_STATE_CHANGED",
