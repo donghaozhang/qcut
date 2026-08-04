@@ -76,6 +76,23 @@ describe("profile detection", () => {
 		expect(evidence.signals.every((signal) => signal.matched)).toBe(true);
 	});
 
+	it("detects the new_version written by a CapCut 8.1.1 save", () => {
+		const result = detectDraftProfile({
+			files: plaintextFiles(),
+			contentSummary: {
+				fileName: "draft_info.json",
+				topLevelKeys: [...CAPCUT_8_1_TOP_LEVEL_KEYS],
+				appId: 359_289,
+				appSource: "cc",
+				appVersion: "8.1.1",
+				schemaVersion: 360_000,
+				newVersion: "179.0.0",
+			},
+		});
+		expect(result.outcome).toBe("exact");
+		expect(result.profileId).toBe("capcut-desktop-8.1-plaintext");
+	});
+
 	it("detects synthetic 5.9 exactly and distinguishes it from 8.1", () => {
 		const result = detectDraftProfile({
 			files: plaintextFiles(),

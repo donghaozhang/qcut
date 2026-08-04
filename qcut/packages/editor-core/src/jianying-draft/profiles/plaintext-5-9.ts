@@ -59,7 +59,7 @@ export const PLAINTEXT_5_9_PROFILE: DraftProfileContract = {
 	appSource: PLAINTEXT_5_9_APP_SOURCE,
 	appVersions: [JIANYING_PLAINTEXT_APP_VERSION],
 	schemaVersion: JIANYING_PLAINTEXT_SCHEMA_VERSION,
-	newVersion: PLAINTEXT_5_9_NEW_VERSION,
+	newVersions: [PLAINTEXT_5_9_NEW_VERSION],
 	contentFileNames: ["draft_info.json", "draft_content.json"],
 	topLevelKeys: PLAINTEXT_5_9_TOP_LEVEL_KEYS,
 	timeUnit: "microseconds",

@@ -96,7 +96,8 @@ function evaluateCandidate({
 
 	const schemaMatched =
 		summary?.schemaVersion === contract.schemaVersion &&
-		summary.newVersion === contract.newVersion;
+		summary.newVersion !== undefined &&
+		contract.newVersions.includes(summary.newVersion);
 	signals.push({
 		kind: "schema-version",
 		value: summary

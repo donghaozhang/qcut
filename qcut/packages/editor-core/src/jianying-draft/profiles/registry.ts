@@ -40,8 +40,8 @@ export interface DraftProfileContract {
 	appVersions: readonly string[];
 	/** The `version` field of the draft content. */
 	schemaVersion: number;
-	/** The `new_version` field of the draft content. */
-	newVersion: string;
+	/** Exact `new_version` values verified for this profile. */
+	newVersions: readonly string[];
 	/** Acceptable content file names inside a draft directory. */
 	contentFileNames: readonly string[];
 	/** Canonical top-level key set of the content file. */

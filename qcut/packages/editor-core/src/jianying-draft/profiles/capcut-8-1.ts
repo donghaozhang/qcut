@@ -14,6 +14,7 @@ import {
 	CAPCUT_8_1_APP_VERSION,
 	CAPCUT_8_1_NEW_VERSION,
 	CAPCUT_8_1_PROFILE_ID,
+	CAPCUT_8_1_SAVED_NEW_VERSION,
 	CAPCUT_8_1_SCHEMA_VERSION,
 	CAPCUT_8_1_TOP_LEVEL_KEYS,
 } from "../capcut-8-1-profile.js";
@@ -27,7 +28,7 @@ export const CAPCUT_8_1_DRAFT_PROFILE: DraftProfileContract = {
 	appSource: CAPCUT_8_1_APP_SOURCE,
 	appVersions: [CAPCUT_8_1_APP_VERSION],
 	schemaVersion: CAPCUT_8_1_SCHEMA_VERSION,
-	newVersion: CAPCUT_8_1_NEW_VERSION,
+	newVersions: [CAPCUT_8_1_NEW_VERSION, CAPCUT_8_1_SAVED_NEW_VERSION],
 	contentFileNames: ["draft_info.json"],
 	topLevelKeys: CAPCUT_8_1_TOP_LEVEL_KEYS,
 	timeUnit: "microseconds",
