@@ -71,3 +71,34 @@ and the complete generated 2x2 invert `.cube` body.
 Bundles are built in a run-local staging directory and atomically renamed to
 `bundles` only after all three cases and the summary manifest pass. Existing
 `bundles` output is never overwritten; generate a new fixture run ID instead.
+
+## Round-trip parity case
+
+Run the semantic and four-output comparison after both applications have
+saved/exported the same case:
+
+```bash
+bun scripts/capcut-e2e/roundtrip-case.ts \
+  --case-id <case-id> \
+  --source-draft <source-draft-dir> \
+  --roundtrip-draft <roundtrip-draft-dir> \
+  --qcut-native-export <qcut-media> \
+  --reference-native-export <jianying-or-capcut-media> \
+  --qcut-preview-frames <qcut-frame-dir> \
+  --reference-preview-frames <jianying-or-capcut-frame-dir> \
+  --output <empty-evidence-dir> --json
+```
+
+The source draft determines a fixed-seed sample plan. Each preview directory
+must contain a cropped canvas PNG named `frame-XXXXXXXX.png` for every planned
+zero-based frame. Do not provide whole-window captures: application chrome,
+sidebars, playback controls, display scaling, and monitor color management are
+outside the canvas comparison contract.
+
+The aggregate manifest fixes semantic roles as source to roundtrip and media
+roles as reference to QCut. It embeds path-free semantic, native-frame,
+preview-frame, and audio manifests. Comparison failure exits `1`; missing or
+candidate evidence exits `2`; harness errors exit `3`. Exit `0` is reserved for
+fully verified thresholds, frame coverage, and provenance. Current CapCut 8.1
+thresholds and provenance are candidate-unverified, so matching synthetic
+outputs intentionally return `unverified` rather than a verified pass.
