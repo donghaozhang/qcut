@@ -72,8 +72,7 @@ describe("resolveImportAssets", () => {
 		await mkdir(assetDirectory, { recursive: true });
 		const assetPath = join(assetDirectory, fileName);
 		await writeFile(assetPath, "portable-video");
-		const placeholderPath =
-			`##_draftpath_placeholder_0E685133-18CE-45ED-8CB8-2904A212EC80_##/assets/video/${fileName}`;
+		const placeholderPath = `##_draftpath_placeholder_0E685133-18CE-45ED-8CB8-2904A212EC80_##/assets/video/${fileName}`;
 		const { assets } = await resolveImportAssets({
 			resources: [createResource({ name: fileName })],
 			restrictedSourcePathsByResourceId: { "res-1": placeholderPath },
