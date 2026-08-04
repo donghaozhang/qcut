@@ -19,6 +19,7 @@ import { storageService } from "./storage-service";
 export interface ImportRecoveryResult {
 	rolledBackImportIds: string[];
 	completedImportIds: string[];
+	corruptJournalRecordCount: number;
 }
 
 async function rollbackRecord({
@@ -52,9 +53,17 @@ export async function recoverPendingImports({
 	const result: ImportRecoveryResult = {
 		rolledBackImportIds: [],
 		completedImportIds: [],
+		corruptJournalRecordCount: 0,
 	};
-	const records = await journal.list();
-	for (const record of records) {
+	const audit = await journal.audit();
+	result.corruptJournalRecordCount = audit.corruptRecordCount;
+	if (audit.corruptRecordCount > 0) {
+		debugError(
+			"[ImportRecovery] Corrupt journal records were left untouched",
+			audit.corruptRecordCount
+		);
+	}
+	for (const record of audit.records) {
 		try {
 			if (record.phase === "staging") {
 				await rollbackRecord({
