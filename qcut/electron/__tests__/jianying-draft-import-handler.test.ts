@@ -1,4 +1,5 @@
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
+import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	JIANYING_IMPORT_CHOOSE_DIRECTORY_CHANNEL,
@@ -238,7 +239,7 @@ describe("setupJianyingDraftImportIPC", () => {
 				appVersion: "2026.08.04.1",
 				interopSchemaVersion: 1,
 			},
-			storageDirectory: "/qcut-user-data/jianying-import/plans",
+			storageDirectory: join("/qcut-user-data", "jianying-import", "plans"),
 		});
 	});
 
@@ -292,19 +293,21 @@ describe("setupJianyingDraftImportIPC", () => {
 		expect(runtime.calls).toEqual([
 			{
 				verb: "inbox-list",
-				input: { inboxDirectory: "/qcut-user-data/jianying-import/inbox" },
+				input: {
+					inboxDirectory: join("/qcut-user-data", "jianying-import", "inbox"),
+				},
 			},
 			{
 				verb: "inbox-read",
 				input: {
-					inboxDirectory: "/qcut-user-data/jianying-import/inbox",
+					inboxDirectory: join("/qcut-user-data", "jianying-import", "inbox"),
 					entryId: "entry-1",
 				},
 			},
 			{
 				verb: "inbox-delete",
 				input: {
-					inboxDirectory: "/qcut-user-data/jianying-import/inbox",
+					inboxDirectory: join("/qcut-user-data", "jianying-import", "inbox"),
 					entryId: "entry-1",
 				},
 			},
