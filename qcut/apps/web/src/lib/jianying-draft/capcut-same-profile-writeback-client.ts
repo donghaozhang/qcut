@@ -5,7 +5,7 @@ import {
 	CAPCUT_8_1_PROFILE_ID,
 	prepareCapCut81SameProfileWriteback,
 	type CapCut81SameProfilePrepareIssue,
-	type QCutDraftExportSnapshotV1,
+	type CapCut81WritebackTimingSnapshot,
 } from "@qcut/editor-core/jianying-draft";
 
 const BASE64_CHUNK_BYTES = 32 * 1024;
@@ -73,7 +73,7 @@ export async function runCapCut81SameProfileWriteback({
 }: {
 	deps?: CapCut81WritebackClientDeps;
 	project: TProject;
-	snapshot: QCutDraftExportSnapshotV1;
+	snapshot: CapCut81WritebackTimingSnapshot;
 }): Promise<CapCut81WritebackClientResult> {
 	const binding = project.draftInterop;
 	if (binding === undefined || binding.profileId !== CAPCUT_8_1_PROFILE_ID) {
