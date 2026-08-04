@@ -10,6 +10,10 @@
  */
 
 import type { JianyingEnvelopeAPI } from "@/types/electron/api-jianying-envelope";
+import {
+	verifyForeignEnvelopePayload,
+	type ForeignDraftEnvelopeV1,
+} from "@qcut/editor-core/draft-interop";
 
 export type EnvelopeAdapterResult<Value> =
 	| { ok: true; value: Value }
@@ -106,6 +110,52 @@ export async function readEnvelopePayload({
 		value: {
 			payload: base64ToBytes(dto.value.payloadBase64),
 			keyVersion: dto.value.keyVersion,
+		},
+	};
+}
+
+export async function readVerifiedEnvelopePayload({
+	envelope,
+}: {
+	envelope: ForeignDraftEnvelopeV1;
+}): Promise<
+	EnvelopeAdapterResult<{
+		bytesByPath: ReadonlyMap<string, Uint8Array>;
+		keyVersion: number;
+	}>
+> {
+	if (envelope.payloadRef === undefined) {
+		return {
+			ok: false,
+			code: "envelope-payload-ref-missing",
+			message: "envelope metadata has no encrypted payload reference",
+		};
+	}
+	const readResult = await readEnvelopePayload({ importId: envelope.importId });
+	if (!readResult.ok) return readResult;
+	if (readResult.value.keyVersion !== envelope.payloadRef.keyVersion) {
+		return {
+			ok: false,
+			code: "envelope-key-version-mismatch",
+			message: "envelope key version does not match project metadata",
+		};
+	}
+	const verification = await verifyForeignEnvelopePayload({
+		envelope,
+		payloadBytes: readResult.value.payload,
+	});
+	if (!verification.ok) {
+		return {
+			ok: false,
+			code: verification.code.toLowerCase().replaceAll("_", "-"),
+			message: verification.message,
+		};
+	}
+	return {
+		ok: true,
+		value: {
+			bytesByPath: verification.bytesByPath,
+			keyVersion: readResult.value.keyVersion,
 		},
 	};
 }
