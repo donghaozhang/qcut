@@ -451,7 +451,7 @@ describe("mapInteropDocumentToQCutPlan", () => {
 		expect(audio.type).toBe("audio");
 		expect(audio.elements[0].startTime).toBe(1);
 
-		// The text segment and its track are reported, not silently dropped.
+		// Synthetic 5.9 has no production text mapper, so it remains reported.
 		// (Builder-generated segment ids are UUIDs, so match by capability.)
 		const skippedSegments = first.skipped.filter(
 			(node) => node.nodeType === "segment"
@@ -462,7 +462,8 @@ describe("mapInteropDocumentToQCutPlan", () => {
 		expect(
 			first.skipped.some(
 				(node) =>
-					node.nodeType === "track" && node.reason.includes(`track kind "text"`)
+					node.nodeType === "track" &&
+					node.reason === "no importable segments on this track"
 			)
 		).toBe(true);
 
