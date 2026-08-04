@@ -28,6 +28,11 @@ import type {
 	InteropResourceStatus,
 } from "@qcut/editor-core/draft-interop";
 import { parseCapCut81PlaceholderAssetPath } from "@qcut/editor-core/jianying-draft";
+import {
+	AssetResolutionWorkCache,
+	type AssetFileProbeResult,
+	type AssetResolutionCacheMetrics,
+} from "./asset-resolution-work-cache.js";
 
 const DEFAULT_MAX_CONCURRENT_PROBES = 4;
 const MAX_CONCURRENT_PROBES = 8;
@@ -72,12 +77,14 @@ export interface ResolveImportAssetsInput {
 	rootRealPath: string;
 	maxConcurrentProbes?: number;
 	maxHashBytes?: number;
+	maxCacheEntries?: number;
 	instrumentation?: AssetResolverInstrumentation;
 }
 
 export interface ResolveImportAssetsResult {
 	assets: ResolvedImportAsset[];
 	resolvedResources: InteropResource[];
+	cacheMetrics: AssetResolutionCacheMetrics;
 }
 
 const RESOURCE_STATUS_BY_ASSET_STATUS = {
@@ -87,13 +94,6 @@ const RESOURCE_STATUS_BY_ASSET_STATUS = {
 	ambiguous: "pending",
 	"license-restricted": "opaque",
 } as const satisfies Record<AssetResolutionStatus, InteropResourceStatus>;
-
-interface ProbeResult {
-	ok: boolean;
-	sha256?: string;
-	byteLength?: number;
-	tooLarge?: boolean;
-}
 
 function resolveDeclaredAssetPath({
 	declaredPath,
@@ -123,24 +123,33 @@ async function probeAndHashFile({
 }: {
 	absolutePath: string;
 	maxHashBytes: number;
-}): Promise<ProbeResult> {
+}): Promise<AssetFileProbeResult> {
 	const noFollowFlag = constants.O_NOFOLLOW ?? 0;
 	let handle: Awaited<ReturnType<typeof open>> | undefined;
 	try {
 		handle = await open(absolutePath, constants.O_RDONLY | noFollowFlag);
-		const metadata = await handle.stat({ bigint: true });
-		if (!metadata.isFile()) {
+		const before = await handle.stat({ bigint: true });
+		if (!before.isFile()) {
 			return { ok: false };
 		}
-		if (metadata.size > BigInt(maxHashBytes)) {
+		if (before.size > BigInt(maxHashBytes)) {
 			return { ok: false, tooLarge: true };
 		}
 		const hash = createHash("sha256");
-		await pipeline(handle.createReadStream(), hash);
+		await pipeline(handle.createReadStream({ autoClose: false }), hash);
+		const after = await handle.stat({ bigint: true });
+		if (
+			before.dev !== after.dev ||
+			before.ino !== after.ino ||
+			before.size !== after.size ||
+			before.mtimeNs !== after.mtimeNs
+		) {
+			return { ok: false };
+		}
 		return {
 			ok: true,
 			sha256: hash.digest("hex"),
-			byteLength: Number(metadata.size),
+			byteLength: Number(before.size),
 		};
 	} catch {
 		return { ok: false };
@@ -220,11 +229,13 @@ async function resolveOneAsset({
 	declaredPath,
 	rootRealPath,
 	maxHashBytes,
+	workCache,
 }: {
 	resource: InteropResource;
 	declaredPath: string | undefined;
 	rootRealPath: string;
 	maxHashBytes: number;
+	workCache: AssetResolutionWorkCache;
 }): Promise<ResolvedImportAsset> {
 	const issues: InteropIssue[] = [];
 
@@ -254,8 +265,13 @@ async function resolveOneAsset({
 			declaredPath,
 			rootRealPath,
 		});
-		const probe = await probeAndHashFile({
+		const probe = await workCache.probeFile({
 			absolutePath: resolvedDeclaredPath.absolutePath,
+			load: () =>
+				probeAndHashFile({
+					absolutePath: resolvedDeclaredPath.absolutePath,
+					maxHashBytes,
+				}),
 			maxHashBytes,
 		});
 		if (probe.tooLarge === true) {
@@ -299,12 +315,17 @@ async function resolveOneAsset({
 	const candidates =
 		fileName === undefined || fileName.length === 0
 			? []
-			: await findCandidatesByName({ rootRealPath, fileName });
+			: await workCache.findByName({
+					fileName,
+					load: () => findCandidatesByName({ rootRealPath, fileName }),
+					rootRealPath,
+				});
 
 	if (expectedSha256 !== undefined) {
 		for (const candidate of candidates) {
-			const probe = await probeAndHashFile({
+			const probe = await workCache.probeFile({
 				absolutePath: candidate,
+				load: () => probeAndHashFile({ absolutePath: candidate, maxHashBytes }),
 				maxHashBytes,
 			});
 			if (probe.ok && probe.sha256 === expectedSha256) {
@@ -320,8 +341,10 @@ async function resolveOneAsset({
 			}
 		}
 	} else if (candidates.length === 1) {
-		const probe = await probeAndHashFile({
-			absolutePath: candidates[0],
+		const candidate = candidates[0];
+		const probe = await workCache.probeFile({
+			absolutePath: candidate,
+			load: () => probeAndHashFile({ absolutePath: candidate, maxHashBytes }),
 			maxHashBytes,
 		});
 		if (probe.ok && probe.sha256 !== undefined) {
@@ -331,7 +354,7 @@ async function resolveOneAsset({
 				method: "name-search",
 				sha256: probe.sha256,
 				byteLength: probe.byteLength ?? 0,
-				restrictedAbsolutePath: candidates[0],
+				restrictedAbsolutePath: candidate,
 				issues,
 			};
 		}
@@ -371,6 +394,7 @@ export async function resolveImportAssets({
 	rootRealPath,
 	maxConcurrentProbes = DEFAULT_MAX_CONCURRENT_PROBES,
 	maxHashBytes = DEFAULT_MAX_HASH_BYTES,
+	maxCacheEntries,
 	instrumentation,
 }: ResolveImportAssetsInput): Promise<ResolveImportAssetsResult> {
 	if (
@@ -382,6 +406,9 @@ export async function resolveImportAssets({
 			`Import maxConcurrentProbes must be an integer between 1 and ${MAX_CONCURRENT_PROBES}.`
 		);
 	}
+	const workCache = new AssetResolutionWorkCache({
+		maxEntries: maxCacheEntries,
+	});
 	const assets: ResolvedImportAsset[] = new Array(resources.length);
 	let nextIndex = 0;
 
@@ -397,6 +424,7 @@ export async function resolveImportAssets({
 					declaredPath: restrictedSourcePathsByResourceId[resource.id],
 					rootRealPath,
 					maxHashBytes,
+					workCache,
 				});
 			} finally {
 				instrumentation?.onProbeEnd?.();
@@ -433,5 +461,9 @@ export async function resolveImportAssets({
 			status: RESOURCE_STATUS_BY_ASSET_STATUS[asset.status],
 		};
 	});
-	return { assets, resolvedResources };
+	return {
+		assets,
+		resolvedResources,
+		cacheMetrics: workCache.metrics(),
+	};
 }
