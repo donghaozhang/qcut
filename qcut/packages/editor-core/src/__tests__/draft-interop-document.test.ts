@@ -86,6 +86,17 @@ function sampleDocument(): DraftInteropDocumentV1 {
 								foreignRef: "raw:materials/transitions/0",
 							},
 						],
+						transitions: [
+							{
+								id: "import-1:transition-0",
+								type: "dissolve",
+								fromSegmentId: "import-1:segment-0",
+								toSegmentId: "import-1:segment-1",
+								durationUs: 500_000,
+								capability: "exact",
+								foreignRef: "raw:materials/transitions/0",
+							},
+						],
 					},
 				],
 			},
@@ -169,6 +180,17 @@ describe("draft interop document", () => {
 		if (parsed.ok) return;
 		expect(parsed.issues[0].path).toBe(
 			"/timelines/0/tracks/0/segments/0/targetRange/durationUs"
+		);
+	});
+
+	it("rejects zero-duration seam transitions", () => {
+		const value = JSON.parse(JSON.stringify(sampleDocument()));
+		value.timelines[0].tracks[0].transitions[0].durationUs = 0;
+		const parsed = parseDraftInteropDocumentV1(value);
+		expect(parsed.ok).toBe(false);
+		if (parsed.ok) return;
+		expect(parsed.issues[0].path).toBe(
+			"/timelines/0/tracks/0/transitions/0/durationUs"
 		);
 	});
 
