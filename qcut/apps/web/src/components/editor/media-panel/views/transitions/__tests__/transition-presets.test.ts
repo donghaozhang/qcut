@@ -104,6 +104,22 @@ describe("transition presets", () => {
 		).toBe(true);
 	});
 
+	it("keeps all local presets inside Transition Lab", () => {
+		const labPresets = filterTransitionPresets({
+			category: "jianying-local",
+			query: "",
+		});
+		expect(labPresets).toHaveLength(20);
+		expect(
+			labPresets.every((preset) => preset.backend === "jianying-local")
+		).toBe(true);
+		expect(
+			filterTransitionPresets({ category: "all", query: "" }).some(
+				(preset) => preset.backend === "jianying-local"
+			)
+		).toBe(false);
+	});
+
 	it("searches English and Chinese names, descriptions, and tags", () => {
 		expect(
 			filterTransitionPresets({ category: "all", query: "bright" }).map(
