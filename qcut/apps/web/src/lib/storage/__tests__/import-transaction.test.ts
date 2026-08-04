@@ -554,6 +554,72 @@ describe("runQCutImportTransaction", () => {
 		expect(journalAdapter.map.size).toBe(0);
 	});
 
+	it("reports path-free renderer persistence stage metrics", async () => {
+		let metricsNow = 0;
+		const result = await runQCutImportTransaction({
+			bundleValue: JSON.parse(JSON.stringify(createBundle())),
+			mediaPayloads: [createPayload()],
+			envelopeCapture: createEnvelopeCapture(),
+			deps: {
+				storage,
+				journal,
+				envelopeStore: createEnvelopeStore(),
+				metricsNow: () => {
+					const value = metricsNow;
+					metricsNow += 1;
+					return value;
+				},
+			},
+		});
+
+		expect(result.ok).toBe(true);
+		expect(result.stageMetrics).toEqual({
+			schemaVersion: 1,
+			phase: "renderer-commit",
+			measuredDurationMilliseconds: 11,
+			stages: {
+				"bundle-validation": {
+					durationMilliseconds: 1,
+					invocationCount: 1,
+				},
+				"digest-verification": {
+					durationMilliseconds: 1,
+					invocationCount: 1,
+				},
+				"envelope-validation": {
+					durationMilliseconds: 1,
+					invocationCount: 1,
+				},
+				"quota-check": { durationMilliseconds: 1, invocationCount: 1 },
+				"project-identity": {
+					durationMilliseconds: 1,
+					invocationCount: 1,
+				},
+				"journal-begin": { durationMilliseconds: 1, invocationCount: 1 },
+				"media-staging": { durationMilliseconds: 1, invocationCount: 1 },
+				"timeline-staging": {
+					durationMilliseconds: 1,
+					invocationCount: 1,
+				},
+				"staged-verification": {
+					durationMilliseconds: 1,
+					invocationCount: 1,
+				},
+				"envelope-persistence": {
+					durationMilliseconds: 1,
+					invocationCount: 1,
+				},
+				"project-publish": {
+					durationMilliseconds: 1,
+					invocationCount: 1,
+				},
+			},
+		});
+		const serializedMetrics = JSON.stringify(result.stageMetrics);
+		expect(serializedMetrics).not.toContain("import-token-1");
+		expect(serializedMetrics).not.toContain("clip.mp4");
+	});
+
 	it("rolls back when persisted timeline fields differ from the bundle", async () => {
 		storage.corruptTimelineReadback = true;
 		const bundle = createBundle();
@@ -785,6 +851,7 @@ describe("runQCutImportTransaction", () => {
 			deps: { storage, journal },
 		});
 		expect(result).toMatchObject({ ok: false, reason: "staging-failed" });
+		expect(result.stageMetrics.stages.rollback?.invocationCount).toBe(1);
 		expect(storage.calls).toContain("deleteProjectMedia");
 		expect(storage.calls).toContain("deleteProject");
 		expect(storage.projects.size).toBe(0);
@@ -879,7 +946,8 @@ describe("runQCutImportTransaction", () => {
 			reuseExistingProject: true,
 			deps: { storage, journal },
 		});
-		expect(retry).toEqual({ ok: true, projectId: first.projectId });
+		expect(retry).toMatchObject({ ok: true, projectId: first.projectId });
+		expect(retry.stageMetrics.phase).toBe("renderer-commit");
 		expect(storage.calls).toEqual([]);
 		expect(storage.projects.size).toBe(1);
 		expect(journalAdapter.map.size).toBe(0);

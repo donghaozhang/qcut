@@ -16,9 +16,12 @@ import {
 	canonicalizeQCutImportBundleForDigest,
 	deriveImportInternalId,
 	getQCutImportMediaType,
+	ImportStageMetricsRecorder,
 	parseForeignDraftEnvelopeV1,
 	parseQCutImportBundleV1,
 	type ForeignDraftEnvelopeV1,
+	type ImportRendererStageId,
+	type ImportStageMetricsV1,
 	type InteropIssue,
 	type QCutImportBundleV1,
 } from "@qcut/editor-core/draft-interop";
@@ -63,7 +66,7 @@ export type ImportTransactionFailureReason =
 	| "verify-failed"
 	| "publish-failed";
 
-export type ImportTransactionResult =
+type ImportTransactionOutcome =
 	| { ok: true; projectId: string }
 	| {
 			ok: false;
@@ -72,6 +75,10 @@ export type ImportTransactionResult =
 			issues?: InteropIssue[];
 	  };
 
+export type ImportTransactionResult = ImportTransactionOutcome & {
+	stageMetrics: ImportStageMetricsV1<ImportRendererStageId>;
+};
+
 export type ImportTransactionStorage = ImportStagingStorage & {
 	checkStorageQuota: () => Promise<{ available: boolean }>;
 };
@@ -79,6 +86,7 @@ export type ImportTransactionStorage = ImportStagingStorage & {
 export interface ImportTransactionDeps {
 	storage?: ImportTransactionStorage;
 	journal?: ImportJournal;
+	metricsNow?: () => number;
 	now?: () => Date;
 	envelopeStore?: ImportEnvelopeStore;
 }
@@ -98,6 +106,22 @@ const defaultEnvelopeStore: ImportEnvelopeStore = {
 	store: storeEnvelopePayload,
 	delete: deleteEnvelopePayload,
 };
+
+type RendererStageMetricsRecorder =
+	ImportStageMetricsRecorder<ImportRendererStageId>;
+
+async function rollbackWithMetrics({
+	session,
+	stageMetrics,
+}: {
+	session: ImportStagingSession;
+	stageMetrics: RendererStageMetricsRecorder;
+}): Promise<void> {
+	await stageMetrics.measure({
+		run: () => session.rollback(),
+		stage: "rollback",
+	});
+}
 
 async function verifyBundleDigest({
 	bundle,
@@ -265,12 +289,13 @@ async function resolveProjectIdentity({
  * Runs the full staged import. `bundleValue` is untrusted input — the
  * transport hands over exactly what it received.
  */
-export async function runQCutImportTransaction({
+async function runQCutImportTransactionInternal({
 	bundleValue,
 	mediaPayloads,
 	envelopeCapture,
 	reuseExistingProject = false,
 	deps = {},
+	stageMetrics,
 }: {
 	bundleValue: unknown;
 	mediaPayloads: readonly ImportMediaPayload[];
@@ -278,12 +303,16 @@ export async function runQCutImportTransaction({
 	/** Offline delivery retry: reuse the deterministic, already-published project. */
 	reuseExistingProject?: boolean;
 	deps?: ImportTransactionDeps;
-}): Promise<ImportTransactionResult> {
+	stageMetrics: RendererStageMetricsRecorder;
+}): Promise<ImportTransactionOutcome> {
 	const storage = deps.storage ?? storageService;
 	const journal = deps.journal ?? importJournal;
 	const now = deps.now ?? (() => new Date());
 
-	const parsed = parseQCutImportBundleV1(bundleValue);
+	const parsed = stageMetrics.measureSync({
+		run: () => parseQCutImportBundleV1(bundleValue),
+		stage: "bundle-validation",
+	});
 	if (!parsed.ok) {
 		return {
 			ok: false,
@@ -293,7 +322,11 @@ export async function runQCutImportTransaction({
 		};
 	}
 	const bundle = parsed.bundle;
-	if (!(await verifyBundleDigest({ bundle }))) {
+	const digestMatches = await stageMetrics.measure({
+		run: () => verifyBundleDigest({ bundle }),
+		stage: "digest-verification",
+	});
+	if (!digestMatches) {
 		return {
 			ok: false,
 			reason: "digest-mismatch",
@@ -302,9 +335,13 @@ export async function runQCutImportTransaction({
 	}
 	let capturedEnvelope: ForeignDraftEnvelopeV1 | undefined;
 	if (envelopeCapture !== undefined) {
-		const envelopeValidation = validateEnvelopeCapture({
-			bundle,
-			capture: envelopeCapture,
+		const envelopeValidation = stageMetrics.measureSync({
+			run: () =>
+				validateEnvelopeCapture({
+					bundle,
+					capture: envelopeCapture,
+				}),
+			stage: "envelope-validation",
 		});
 		if (!envelopeValidation.ok) {
 			return {
@@ -316,7 +353,10 @@ export async function runQCutImportTransaction({
 		capturedEnvelope = envelopeValidation.envelope;
 	}
 
-	const quota = await storage.checkStorageQuota();
+	const quota = await stageMetrics.measure({
+		run: () => storage.checkStorageQuota(),
+		stage: "quota-check",
+	});
 	if (!quota.available) {
 		return {
 			ok: false,
@@ -325,10 +365,10 @@ export async function runQCutImportTransaction({
 		};
 	}
 
-	const identity = await resolveProjectIdentity({
-		bundle,
-		storage,
-		reuseExistingProject,
+	const identity = await stageMetrics.measure({
+		run: () =>
+			resolveProjectIdentity({ bundle, storage, reuseExistingProject }),
+		stage: "project-identity",
 	});
 	if (!identity.ok) {
 		return { ok: false, reason: "project-conflict", message: identity.message };
@@ -363,42 +403,58 @@ export async function runQCutImportTransaction({
 		journal,
 		storage,
 	});
-	await session.begin();
+	await stageMetrics.measure({
+		run: () => session.begin(),
+		stage: "journal-begin",
+	});
 
 	const mediaItemIdByResourceId = new Map<string, string>();
 	try {
-		for (const staging of bundle.resourceStaging) {
-			const payload = payloadByResourceId.get(staging.resourceId);
-			if (payload === undefined) {
-				continue; // missing/opaque resources stage nothing
-			}
-			const mediaItemId = bundle.internalIdBySemanticId[staging.resourceId];
-			// Copy into a fresh, exactly-sized buffer — the payload view may
-			// share a larger transport buffer.
-			const file = new File(
-				[new Uint8Array(payload.bytes).buffer as ArrayBuffer],
-				payload.fileName,
-				{ type: payload.mimeType }
-			);
-			const mediaItem: MediaItem = {
-				id: mediaItemId,
-				name: payload.fileName,
-				type: getQCutImportMediaType({ resourceKind: staging.kind }),
-				file,
-			};
-			await session.stageMediaItem({ mediaItem });
-			mediaItemIdByResourceId.set(staging.resourceId, mediaItemId);
-		}
-
-		const tracks = buildQCutImportTimelineTracks({
-			bundle,
-			mediaItemIdByResourceId,
+		await stageMetrics.measure({
+			run: async () => {
+				for (const staging of bundle.resourceStaging) {
+					const payload = payloadByResourceId.get(staging.resourceId);
+					if (payload === undefined) {
+						continue; // missing/opaque resources stage nothing
+					}
+					const mediaItemId = bundle.internalIdBySemanticId[staging.resourceId];
+					// Copy into a fresh, exactly-sized buffer — the payload view may
+					// share a larger transport buffer.
+					const file = new File(
+						[new Uint8Array(payload.bytes).buffer as ArrayBuffer],
+						payload.fileName,
+						{ type: payload.mimeType }
+					);
+					const mediaItem: MediaItem = {
+						id: mediaItemId,
+						name: payload.fileName,
+						type: getQCutImportMediaType({ resourceKind: staging.kind }),
+						file,
+					};
+					await session.stageMediaItem({ mediaItem });
+					mediaItemIdByResourceId.set(staging.resourceId, mediaItemId);
+				}
+			},
+			stage: "media-staging",
 		});
-		await session.stageTimeline({ tracks });
 
-		const verification = await session.verifyStaged({ bundle });
+		await stageMetrics.measure({
+			run: () => {
+				const tracks = buildQCutImportTimelineTracks({
+					bundle,
+					mediaItemIdByResourceId,
+				});
+				return session.stageTimeline({ tracks });
+			},
+			stage: "timeline-staging",
+		});
+
+		const verification = await stageMetrics.measure({
+			run: () => session.verifyStaged({ bundle }),
+			stage: "staged-verification",
+		});
 		if (!verification.ok) {
-			await session.rollback();
+			await rollbackWithMetrics({ session, stageMetrics });
 			return {
 				ok: false,
 				reason: "verify-failed",
@@ -407,7 +463,7 @@ export async function runQCutImportTransaction({
 		}
 	} catch (error) {
 		debugError("[QCutImport] Staging failed, rolling back", error);
-		await session.rollback();
+		await rollbackWithMetrics({ session, stageMetrics });
 		return {
 			ok: false,
 			reason: "staging-failed",
@@ -419,9 +475,13 @@ export async function runQCutImportTransaction({
 	let storedEnvelope: ForeignDraftEnvelopeV1 | undefined;
 	if (envelopeCapture !== undefined && capturedEnvelope !== undefined) {
 		const envelopeStore = deps.envelopeStore ?? defaultEnvelopeStore;
-		const stored = await envelopeStore.store({
-			importId: capturedEnvelope.importId,
-			payload: envelopeCapture.payload,
+		const stored = await stageMetrics.measure({
+			run: () =>
+				envelopeStore.store({
+					importId: capturedEnvelope.importId,
+					payload: envelopeCapture.payload,
+				}),
+			stage: "envelope-persistence",
 		});
 		if (!stored.ok || stored.value.sha256 !== envelopeCapture.payloadSha256) {
 			if (stored.ok) {
@@ -429,7 +489,7 @@ export async function runQCutImportTransaction({
 					importId: capturedEnvelope.importId,
 				});
 			}
-			await session.rollback();
+			await rollbackWithMetrics({ session, stageMetrics });
 			return {
 				ok: false,
 				reason: "envelope-store-failed",
@@ -475,14 +535,17 @@ export async function runQCutImportTransaction({
 		}),
 	};
 	try {
-		await session.publishProject({ project });
+		await stageMetrics.measure({
+			run: () => session.publishProject({ project }),
+			stage: "project-publish",
+		});
 	} catch (error) {
 		debugError("[QCutImport] Publish failed, rolling back", error);
 		if (storedEnvelope !== undefined) {
 			const envelopeStore = deps.envelopeStore ?? defaultEnvelopeStore;
 			await envelopeStore.delete({ importId: storedEnvelope.importId });
 		}
-		await session.rollback();
+		await rollbackWithMetrics({ session, stageMetrics });
 		return {
 			ok: false,
 			reason: "publish-failed",
@@ -491,4 +554,33 @@ export async function runQCutImportTransaction({
 	}
 	debugLog("[QCutImport] Imported project", identity.projectId);
 	return { ok: true, projectId: identity.projectId };
+}
+
+export async function runQCutImportTransaction({
+	bundleValue,
+	mediaPayloads,
+	envelopeCapture,
+	reuseExistingProject = false,
+	deps = {},
+}: {
+	bundleValue: unknown;
+	mediaPayloads: readonly ImportMediaPayload[];
+	envelopeCapture?: ImportEnvelopeCapture;
+	/** Offline delivery retry: reuse the deterministic, already-published project. */
+	reuseExistingProject?: boolean;
+	deps?: ImportTransactionDeps;
+}): Promise<ImportTransactionResult> {
+	const stageMetrics = new ImportStageMetricsRecorder<ImportRendererStageId>({
+		now: deps.metricsNow ?? (() => performance.now()),
+		phase: "renderer-commit",
+	});
+	const outcome = await runQCutImportTransactionInternal({
+		bundleValue,
+		mediaPayloads,
+		...(envelopeCapture === undefined ? {} : { envelopeCapture }),
+		reuseExistingProject,
+		deps,
+		stageMetrics,
+	});
+	return { ...outcome, stageMetrics: stageMetrics.snapshot() };
 }
