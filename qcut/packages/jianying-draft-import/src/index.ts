@@ -61,3 +61,12 @@ export {
 	verifyQCutImportBundleDigest,
 	type BuildQCutImportBundleResult,
 } from "./qcut-import-bundle-builder.js";
+
+export {
+	resolveImportAssets,
+	type AssetResolutionMethod,
+	type AssetResolutionStatus,
+	type AssetResolverInstrumentation,
+	type ResolvedImportAsset,
+	type ResolveImportAssetsInput,
+} from "./asset-resolver.js";
