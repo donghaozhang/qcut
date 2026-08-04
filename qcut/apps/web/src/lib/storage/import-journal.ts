@@ -12,22 +12,22 @@
 import { debugError } from "@/lib/debug/debug-config";
 import { ElectronStorageAdapter } from "./electron-adapter";
 import { IndexedDBAdapter } from "./indexeddb-adapter";
+import {
+	assertImportJournalStorageKey,
+	parseImportJournalRecordV1,
+	type ImportJournalRecordV1,
+} from "./import-journal-validation";
 import { LocalStorageAdapter } from "./localstorage-adapter";
 import type { StorageAdapter } from "./types";
 
-export type ImportJournalPhase = "staging" | "published";
+export type {
+	ImportJournalPhase,
+	ImportJournalRecordV1,
+} from "./import-journal-validation";
 
-export interface ImportJournalRecordV1 {
-	schemaVersion: 1;
-	/** Plan token of the bundle that started this import. */
-	importId: string;
-	bundleDigest: string;
-	phase: ImportJournalPhase;
-	projectId: string;
-	sceneId: string;
-	mediaItemIds: string[];
-	startedAtIso: string;
-	updatedAtIso: string;
+export interface ImportJournalAuditResult {
+	records: ImportJournalRecordV1[];
+	corruptRecordCount: number;
 }
 
 const JOURNAL_DB_NAME = "qcut-import-journal";
@@ -90,6 +90,26 @@ export class ImportJournal {
 		return this.#adapter;
 	}
 
+	async #writeRecord({
+		storageKey,
+		value,
+	}: {
+		storageKey: string;
+		value: ImportJournalRecordV1;
+	}): Promise<void> {
+		const record = parseImportJournalRecordV1({ storageKey, value });
+		const adapter = await this.#getAdapter();
+		await adapter.set(storageKey, record);
+	}
+
+	#nextUpdatedAtIso({ startedAtIso }: { startedAtIso: string }): string {
+		const nowMilliseconds = this.#now().getTime();
+		const startedAtMilliseconds = Date.parse(startedAtIso);
+		return new Date(
+			Math.max(nowMilliseconds, startedAtMilliseconds)
+		).toISOString();
+	}
+
 	/** Records the intent to import BEFORE any project data is written. */
 	async begin({
 		importId,
@@ -102,18 +122,20 @@ export class ImportJournal {
 		projectId: string;
 		sceneId: string;
 	}): Promise<void> {
-		const adapter = await this.#getAdapter();
 		const nowIso = this.#now().toISOString();
-		await adapter.set(importId, {
-			schemaVersion: 1,
-			importId,
-			bundleDigest,
-			phase: "staging",
-			projectId,
-			sceneId,
-			mediaItemIds: [],
-			startedAtIso: nowIso,
-			updatedAtIso: nowIso,
+		await this.#writeRecord({
+			storageKey: importId,
+			value: {
+				schemaVersion: 1,
+				importId,
+				bundleDigest,
+				phase: "staging",
+				projectId,
+				sceneId,
+				mediaItemIds: [],
+				startedAtIso: nowIso,
+				updatedAtIso: nowIso,
+			},
 		});
 	}
 
@@ -124,32 +146,41 @@ export class ImportJournal {
 		importId: string;
 		mediaItemId: string;
 	}): Promise<void> {
-		const adapter = await this.#getAdapter();
-		const record = await adapter.get(importId);
+		const record = await this.get({ importId });
 		if (record === null) {
 			throw new Error("Import journal record is missing.");
 		}
-		await adapter.set(importId, {
-			...record,
-			mediaItemIds: [...record.mediaItemIds, mediaItemId],
-			updatedAtIso: this.#now().toISOString(),
+		await this.#writeRecord({
+			storageKey: importId,
+			value: {
+				...record,
+				mediaItemIds: [...record.mediaItemIds, mediaItemId],
+				updatedAtIso: this.#nextUpdatedAtIso({
+					startedAtIso: record.startedAtIso,
+				}),
+			},
 		});
 	}
 
 	async markPublished({ importId }: { importId: string }): Promise<void> {
-		const adapter = await this.#getAdapter();
-		const record = await adapter.get(importId);
+		const record = await this.get({ importId });
 		if (record === null) {
 			throw new Error("Import journal record is missing.");
 		}
-		await adapter.set(importId, {
-			...record,
-			phase: "published",
-			updatedAtIso: this.#now().toISOString(),
+		await this.#writeRecord({
+			storageKey: importId,
+			value: {
+				...record,
+				phase: "published",
+				updatedAtIso: this.#nextUpdatedAtIso({
+					startedAtIso: record.startedAtIso,
+				}),
+			},
 		});
 	}
 
 	async complete({ importId }: { importId: string }): Promise<void> {
+		assertImportJournalStorageKey({ storageKey: importId });
 		const adapter = await this.#getAdapter();
 		await adapter.remove(importId);
 	}
@@ -159,26 +190,50 @@ export class ImportJournal {
 	}: {
 		importId: string;
 	}): Promise<ImportJournalRecordV1 | null> {
+		assertImportJournalStorageKey({ storageKey: importId });
 		const adapter = await this.#getAdapter();
-		return adapter.get(importId);
+		const value = await adapter.get(importId);
+		return value === null
+			? null
+			: parseImportJournalRecordV1({ storageKey: importId, value });
 	}
 
-	/** Every outstanding record, tolerating individually corrupt entries. */
-	async list(): Promise<ImportJournalRecordV1[]> {
+	/** Audits every key without allowing corrupt records to authorize cleanup. */
+	async audit(): Promise<ImportJournalAuditResult> {
 		const adapter = await this.#getAdapter();
-		const keys = await adapter.list();
-		const records: ImportJournalRecordV1[] = [];
-		for (const key of keys) {
-			try {
-				const record = await adapter.get(key);
-				if (record !== null && record.schemaVersion === 1) {
-					records.push(record);
+		const keys = [...new Set(await adapter.list())];
+		const outcomes = await Promise.all(
+			keys.map(async (storageKey) => {
+				try {
+					assertImportJournalStorageKey({ storageKey });
+					const value = await adapter.get(storageKey);
+					if (value === null) {
+						throw new Error("Import journal record is unreadable.");
+					}
+					return {
+						corrupt: false as const,
+						record: parseImportJournalRecordV1({ storageKey, value }),
+					};
+				} catch (error) {
+					debugError(
+						"[ImportJournal] Leaving unreadable or corrupt record untouched",
+						error
+					);
+					return { corrupt: true as const };
 				}
-			} catch (error) {
-				debugError("[ImportJournal] Skipping unreadable record", key, error);
-			}
-		}
-		return records;
+			})
+		);
+		return {
+			records: outcomes.flatMap((outcome) =>
+				outcome.corrupt ? [] : [outcome.record]
+			),
+			corruptRecordCount: outcomes.filter((outcome) => outcome.corrupt).length,
+		};
+	}
+
+	/** Every valid outstanding record; use audit() when corruption must surface. */
+	async list(): Promise<ImportJournalRecordV1[]> {
+		return (await this.audit()).records;
 	}
 }
 
