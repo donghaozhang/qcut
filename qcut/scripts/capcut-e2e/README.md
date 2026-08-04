@@ -91,14 +91,29 @@ bun scripts/capcut-e2e/roundtrip-case.ts \
   --output <empty-evidence-dir> --json
 ```
 
-The QCut import snapshot is a schema-1 JSON object with `project`, raw
-persisted `tracks`, and `media`. Each media entry carries its deterministic
-QCut ID, type, and an absolute `sourcePath` to the exact bytes imported for
-the case. The verifier opens every media file without following symlinks,
-guards against changes while hashing, and compares ID, type, byte length,
-SHA-256, project geometry/FPS/name, and the complete imported timeline against
-the digest-bound bundle. Paths are used only locally and are rejected if they
-appear in a manifest.
+With the imported project open in QCut, capture the trusted persisted snapshot
+before running the round-trip case:
+
+```bash
+qcut editor interop import-snapshot \
+  --project-id <qcut-project-id> \
+  --bundle-digest <bundle-sha256> \
+  --output <qcut-import-snapshot.json> --json
+```
+
+The renderer reads the project, raw timeline, and media blobs twice from QCut
+storage, rejects state that changes between reads, and streams each persisted
+blob through SHA-256. Electron accepts the response only from the active main
+frame. The path-free snapshot binds the bundle digest, import ID, and source
+profile ID to project geometry/FPS/name, complete tracks, and media
+ID/type/byte length/SHA-256. The verifier emits manifest schema 2 and returns
+`pass` only when the trusted capture and every binding and materialization
+check match.
+
+Legacy schema-1 snapshots whose media entries contain absolute `sourcePath`
+values remain readable for local diagnostics. Even an exact legacy match is
+`not-comparable`; it cannot prove that the running QCut renderer persisted the
+state. Absolute paths are never retained in evidence manifests.
 
 The import gate can also run independently:
 
