@@ -1,23 +1,15 @@
 import { createHash } from "node:crypto";
 import {
 	evaluateEnvelopeFileCandidate,
+	FOREIGN_ENVELOPE_PAYLOAD_MAX_BYTES,
+	FOREIGN_ENVELOPE_PAYLOAD_SCHEMA_VERSION,
 	type ForeignDraftEnvelopeV1,
 	type ForeignEnvelopeAllowlistEntry,
+	type ForeignEnvelopePayloadEntryV1,
+	type ForeignEnvelopePayloadV1,
 	type RawNodeBinding,
 } from "@qcut/editor-core/draft-interop";
 import type { DraftSourceSnapshot } from "./snapshot-reader.js";
-
-const MAX_ENVELOPE_PAYLOAD_BYTES = 64 * 1024 * 1024;
-
-interface EnvelopePayloadEntryV1 {
-	relativePath: string;
-	bytesBase64: string;
-}
-
-interface EnvelopePayloadV1 {
-	schemaVersion: 1;
-	entries: EnvelopePayloadEntryV1[];
-}
 
 export interface BuiltForeignEnvelopeCapture {
 	envelope: ForeignDraftEnvelopeV1;
@@ -41,7 +33,7 @@ export function buildForeignEnvelopeCapture({
 	snapshot: DraftSourceSnapshot;
 }): BuiltForeignEnvelopeCapture | undefined {
 	const entries: ForeignDraftEnvelopeV1["entries"] = [];
-	const payloadEntries: EnvelopePayloadEntryV1[] = [];
+	const payloadEntries: ForeignEnvelopePayloadEntryV1[] = [];
 	const admittedPaths = new Set<string>();
 	for (const file of snapshot.files) {
 		const decision = evaluateEnvelopeFileCandidate({
@@ -66,12 +58,12 @@ export function buildForeignEnvelopeCapture({
 	}
 	if (entries.length === 0) return undefined;
 
-	const payload: EnvelopePayloadV1 = {
-		schemaVersion: 1,
+	const payload: ForeignEnvelopePayloadV1 = {
+		schemaVersion: FOREIGN_ENVELOPE_PAYLOAD_SCHEMA_VERSION,
 		entries: payloadEntries,
 	};
 	const payloadBytes = Buffer.from(JSON.stringify(payload));
-	if (payloadBytes.length > MAX_ENVELOPE_PAYLOAD_BYTES) {
+	if (payloadBytes.length > FOREIGN_ENVELOPE_PAYLOAD_MAX_BYTES) {
 		throw new Error("Foreign envelope payload exceeds the 64 MiB limit.");
 	}
 	return {
