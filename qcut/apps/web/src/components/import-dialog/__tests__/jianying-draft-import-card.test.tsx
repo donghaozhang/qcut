@@ -71,6 +71,7 @@ function createController(): JianyingDraftImportController {
 		recoveryResult: {
 			rolledBackImportIds: ["interrupted-1"],
 			completedImportIds: ["published-1"],
+			corruptJournalRecordCount: 0,
 		},
 		activeInboxEntryId: null,
 		acceptedWarningFingerprints: new Set(),
@@ -165,5 +166,31 @@ describe("JianyingDraftImportCard", () => {
 			within(recovery).getByRole("button", { name: "Retry cleanup" })
 		);
 		expect(controller.retryAcknowledgement).toHaveBeenCalledTimes(1);
+	});
+
+	it("shows corrupt recovery records without exposing journal identifiers", () => {
+		const controller = createController();
+		controller.recoveryResult = {
+			rolledBackImportIds: [],
+			completedImportIds: [],
+			corruptJournalRecordCount: 2,
+		};
+		render(
+			<JianyingDraftImportCard
+				controller={controller}
+				onOpenProject={vi.fn()}
+			/>
+		);
+
+		const warning = screen.getByTestId("draft-import-corrupt-journal");
+		expect(
+			within(warning).getByText("Import recovery needs attention")
+		).toBeInTheDocument();
+		expect(
+			within(warning).getByText(
+				"QCut found 2 damaged recovery records and left them untouched. No project data was deleted from those records."
+			)
+		).toBeInTheDocument();
+		expect(warning).not.toHaveTextContent("import-token");
 	});
 });
