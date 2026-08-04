@@ -120,7 +120,10 @@ export interface InsertPlan {
 	splitIds: string[];
 }
 
-/** Plan opening a gap at insertTime for an element of the given duration. */
+/**
+ * Plan opening a gap at insertTime. The caller applies the inserted duration
+ * to shifted elements and to the right half of split elements.
+ */
 export function planInsertShift({
 	items,
 	insertTime,
