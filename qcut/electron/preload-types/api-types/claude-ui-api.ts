@@ -10,6 +10,10 @@ import type {
 	QCutPersistedImportEvidenceRendererRequest,
 	QCutPersistedImportEvidenceSnapshot,
 } from "../../types/qcut-import-evidence-api";
+import type {
+	QCutSameProfileWritebackRendererRequest,
+	QCutSameProfileWritebackResult,
+} from "../../types/qcut-same-profile-writeback-api";
 
 /** Claude video analysis operations. */
 export interface ClaudeAnalyzeAPI {
@@ -275,6 +279,21 @@ export interface ClaudeImportEvidenceAPI {
 		sendSnapshotResponse: (
 			requestId: string,
 			result?: QCutPersistedImportEvidenceSnapshot,
+			error?: string
+		) => void;
+		removeListeners: () => void;
+	};
+}
+
+/** Trusted persisted same-profile writeback bridge. */
+export interface ClaudeSameProfileWritebackAPI {
+	sameProfileWriteback: {
+		onRequest: (
+			callback: (data: QCutSameProfileWritebackRendererRequest) => void
+		) => void;
+		sendResponse: (
+			requestId: string,
+			result?: QCutSameProfileWritebackResult,
 			error?: string
 		) => void;
 		removeListeners: () => void;
