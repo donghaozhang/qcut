@@ -156,11 +156,21 @@ function buildTimelineTracks({
 					: { playbackRate: planElement.speed }),
 			});
 		}
+		const transitions = (planTrack.transitions ?? []).map((transition) => ({
+			id: bundle.internalIdBySemanticId[transition.id],
+			fromElementId: bundle.internalIdBySemanticId[transition.fromElementId],
+			toElementId: bundle.internalIdBySemanticId[transition.toElementId],
+			presetId: transition.presetId,
+			type: transition.type,
+			duration: transition.duration,
+			easing: transition.easing,
+		}));
 		tracks.push({
 			id: bundle.internalIdBySemanticId[planTrack.id],
 			name: planTrack.name,
 			type: planTrack.type,
 			elements,
+			...(transitions.length === 0 ? {} : { transitions }),
 			order: planTrack.order,
 			...(planTrack.isMain === true ? { isMain: true } : {}),
 		});
