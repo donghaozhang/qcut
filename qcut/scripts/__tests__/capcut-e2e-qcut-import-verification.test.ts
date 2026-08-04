@@ -11,6 +11,8 @@ import {
 
 const NOW = "2026-08-05T00:00:00.000Z";
 const DIGEST_PLACEHOLDER = "0".repeat(64);
+const PERSISTED_IMPORT_EVIDENCE_SCHEMA =
+	"qcut.draft-interop.persisted-import-evidence" as const;
 const VIDEO_RESOURCE_ID = "video-resource";
 const VIDEO_ELEMENT_ID = "video-element";
 const VIDEO_TRACK_ID = "video-track";
@@ -253,7 +255,7 @@ function createBundle() {
 	return bundle;
 }
 
-function createSnapshot({ mediaPath }: { mediaPath: string }) {
+function createManualSnapshot({ mediaPath }: { mediaPath: string }) {
 	return {
 		schemaVersion: 1,
 		project: {
@@ -328,13 +330,50 @@ function createSnapshot({ mediaPath }: { mediaPath: string }) {
 	};
 }
 
+function createTrustedSnapshot({
+	bundle,
+}: {
+	bundle: ReturnType<typeof createBundle>;
+}) {
+	const manual = createManualSnapshot({ mediaPath: "/unused" });
+	return {
+		binding: {
+			bundleDigest: bundle.bundleDigest,
+			importId: bundle.planToken,
+			profileId: bundle.document.source.profileId,
+		},
+		capture: {
+			appVersion: "2026.08.05.1",
+			capturedAtIso: NOW,
+			readPasses: 2 as const,
+			source: "qcut-renderer-persisted-storage" as const,
+		},
+		media: [
+			{
+				byteLength: SOURCE_MEDIA_BYTES.length,
+				id: INTERNAL_VIDEO_RESOURCE_ID,
+				sha256: createHash("sha256").update(SOURCE_MEDIA_BYTES).digest("hex"),
+				type: "video" as const,
+			},
+		],
+		project: {
+			...manual.project,
+			id: "qcut-project",
+			sceneId: "qcut-main-scene",
+		},
+		schema: PERSISTED_IMPORT_EVIDENCE_SCHEMA,
+		schemaVersion: 1 as const,
+		tracks: manual.tracks,
+	};
+}
+
 async function writeVerificationCase() {
 	const bundlePath = join(rootDirectory, "import-bundle.json");
 	const mediaPath = join(rootDirectory, "clip.mp4");
 	const snapshotPath = join(rootDirectory, "qcut-snapshot.json");
 	const outputDirectory = join(rootDirectory, "evidence");
 	const bundle = createBundle();
-	const snapshot = createSnapshot({ mediaPath });
+	const snapshot = createTrustedSnapshot({ bundle });
 	await Promise.all([
 		writeFile(bundlePath, JSON.stringify(bundle)),
 		writeFile(mediaPath, SOURCE_MEDIA_BYTES),
@@ -362,8 +401,15 @@ describe("QCut import verification E2E evidence", () => {
 		});
 
 		expect(manifest).toMatchObject({
+			capture: {
+				appVersion: "2026.08.05.1",
+				source: "qcut-renderer-persisted-storage",
+			},
 			checks: {
 				bundleDigest: true,
+				captureTrusted: true,
+				importId: true,
+				profileId: true,
 				projectFps: true,
 				projectGeometry: true,
 				projectName: true,
@@ -402,7 +448,8 @@ describe("QCut import verification E2E evidence", () => {
 
 	it("fails when persisted media bytes differ", async () => {
 		const testCase = await writeVerificationCase();
-		await writeFile(testCase.mediaPath, Buffer.from("qcut-import-mediA"));
+		testCase.snapshot.media[0].sha256 = "c".repeat(64);
+		await writeFile(testCase.snapshotPath, JSON.stringify(testCase.snapshot));
 
 		const manifest = await runQCutImportVerification({
 			bundlePath: testCase.bundlePath,
@@ -415,6 +462,60 @@ describe("QCut import verification E2E evidence", () => {
 			code: "MEDIA_MISMATCH",
 			path: `/media/${INTERNAL_VIDEO_RESOURCE_ID}`,
 		});
+	});
+
+	it.each([
+		{
+			check: "bundleDigest",
+			field: "bundleDigest",
+			value: "b".repeat(64),
+		},
+		{ check: "importId", field: "importId", value: "wrong-import-id" },
+		{ check: "profileId", field: "profileId", value: "wrong-profile" },
+	] as const)("fails when trusted $field binding differs", async ({
+		check,
+		field,
+		value,
+	}) => {
+		const testCase = await writeVerificationCase();
+		const snapshot = {
+			...testCase.snapshot,
+			binding: { ...testCase.snapshot.binding, [field]: value },
+		};
+		await writeFile(testCase.snapshotPath, JSON.stringify(snapshot));
+
+		const manifest = await runQCutImportVerification({
+			bundlePath: testCase.bundlePath,
+			nowIso: NOW,
+			qcutSnapshotPath: testCase.snapshotPath,
+		});
+
+		expect(manifest.checks[check]).toBe(false);
+		expect(manifest.verdict).toBe("fail");
+	});
+
+	it("keeps a matching manual path snapshot diagnostic-only", async () => {
+		const testCase = await writeVerificationCase();
+		await writeFile(
+			testCase.snapshotPath,
+			JSON.stringify(createManualSnapshot({ mediaPath: testCase.mediaPath }))
+		);
+
+		const manifest = await runQCutImportVerification({
+			bundlePath: testCase.bundlePath,
+			nowIso: NOW,
+			qcutSnapshotPath: testCase.snapshotPath,
+		});
+
+		expect(manifest).toMatchObject({
+			capture: { source: "manual-path-snapshot" },
+			checks: { captureTrusted: false },
+			notComparableReason:
+				"Snapshot was not captured from trusted QCut persisted storage.",
+			verification: { issues: [], verdict: "pass" },
+			verdict: "not-comparable",
+		});
+		expect(JSON.stringify(manifest)).not.toContain(rootDirectory);
 	});
 
 	it("writes path-free not-comparable evidence for digest and snapshot failures", async () => {
@@ -455,7 +556,7 @@ describe("QCut import verification E2E evidence", () => {
 			qcutSnapshotPath: digestCase.snapshotPath,
 		});
 		expect(invalidManifest).toMatchObject({
-			checks: { bundleDigest: true },
+			checks: { bundleDigest: false },
 			notComparableReason: "QCut renderer snapshot failed validation.",
 			verdict: "not-comparable",
 		});

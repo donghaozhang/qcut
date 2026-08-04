@@ -190,10 +190,14 @@ function qcutImportManifest(): QCutImportVerificationManifest {
 		bundle: { byteLength: 100, bundleDigest: SHA_A, sha256: SHA_A },
 		checks: {
 			bundleDigest: true,
+			captureTrusted: true,
+			importId: true,
+			profileId: true,
 			projectFps: true,
 			projectGeometry: true,
 			projectName: true,
 		},
+		capture: { source: "qcut-renderer-persisted-storage" },
 		generatedAtIso: NOW,
 		qcutSnapshot: { byteLength: 100, sha256: SHA_B },
 		roles: {
@@ -201,7 +205,7 @@ function qcutImportManifest(): QCutImportVerificationManifest {
 			expected: "import-bundle",
 		},
 		schema: QCUT_IMPORT_VERIFICATION_MANIFEST_SCHEMA,
-		schemaVersion: 1,
+		schemaVersion: 2,
 		verdict: "pass",
 	};
 }

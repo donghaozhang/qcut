@@ -46,10 +46,40 @@ const PROJECT_ROOT = resolve(process.cwd());
 
 interface ParsedImportBundle {
 	bundleDigest: string;
+	document: { source: { profileId: string } };
+	planToken: string;
 	timelinePlan: {
 		project: { fps: number; height: number; name: string; width: number };
 	};
 	[key: string]: unknown;
+}
+
+interface PersistedImportEvidenceBinding {
+	bundleDigest: string;
+	importId: string;
+	profileId: string;
+}
+
+interface ParsedPersistedImportEvidenceSnapshot {
+	binding: PersistedImportEvidenceBinding;
+	capture: {
+		appVersion: string;
+		capturedAtIso: string;
+		readPasses: 2;
+		source: "qcut-renderer-persisted-storage";
+	};
+	media: QCutImportSnapshotMediaEvidence[];
+	project: {
+		fps: number;
+		height: number;
+		id: string;
+		name: string;
+		sceneId: string;
+		width: number;
+	};
+	schema: string;
+	schemaVersion: 1;
+	tracks: QCutImportSnapshotTrack[];
 }
 
 interface ImportBundleApi {
@@ -69,6 +99,13 @@ interface ImportVerificationApi {
 		actualTracks: QCutImportSnapshotTrack[];
 		bundle: ParsedImportBundle;
 	}) => QCutImportMaterializationEvidence;
+}
+
+interface PersistedImportEvidenceApi {
+	parseSnapshot: (options: {
+		value: unknown;
+	}) => ParsedPersistedImportEvidenceSnapshot;
+	schema: string;
 }
 
 type QCutImportVerificationApi = ImportBundleApi & ImportVerificationApi;
@@ -109,6 +146,40 @@ async function loadQCutImportVerificationApi(): Promise<QCutImportVerificationAp
 	return { ...bundleApi, ...verificationApi };
 }
 
+async function loadPersistedImportEvidenceApi(): Promise<PersistedImportEvidenceApi> {
+	const [contractModule, validationModule] = (await Promise.all([
+		import(
+			pathToFileURL(
+				join(PROJECT_ROOT, "electron/types/qcut-import-evidence-api.ts")
+			).href
+		),
+		import(
+			pathToFileURL(
+				join(PROJECT_ROOT, "electron/types/qcut-import-evidence-validation.ts")
+			).href
+		),
+	])) as [Record<string, unknown>, Record<string, unknown>];
+	const schema = contractModule.QCUT_PERSISTED_IMPORT_EVIDENCE_SCHEMA;
+	const parseSnapshot =
+		validationModule.parseQCutPersistedImportEvidenceSnapshot;
+	if (typeof schema !== "string" || typeof parseSnapshot !== "function") {
+		throw new Error("Persisted import evidence API is incomplete.");
+	}
+	return {
+		parseSnapshot: parseSnapshot as PersistedImportEvidenceApi["parseSnapshot"],
+		schema,
+	};
+}
+
+type QCutImportVerificationManifestBase = Omit<
+	QCutImportVerificationManifest,
+	| "checks"
+	| "mediaSetSha256"
+	| "notComparableReason"
+	| "verification"
+	| "verdict"
+>;
+
 function buildManifestBase({
 	bundleEvidence,
 	nowIso,
@@ -117,9 +188,10 @@ function buildManifestBase({
 	bundleEvidence: QCutImportVerificationFileEvidence;
 	nowIso: string;
 	snapshotEvidence: QCutImportVerificationFileEvidence;
-}) {
+}): QCutImportVerificationManifestBase {
 	return {
 		bundle: bundleEvidence,
+		capture: { source: "unknown" as const },
 		generatedAtIso: nowIso,
 		qcutSnapshot: snapshotEvidence,
 		roles: {
@@ -127,7 +199,7 @@ function buildManifestBase({
 			actual: "qcut-renderer-snapshot" as const,
 		},
 		schema: QCUT_IMPORT_VERIFICATION_MANIFEST_SCHEMA,
-		schemaVersion: 1 as const,
+		schemaVersion: 2 as const,
 	};
 }
 
@@ -136,6 +208,9 @@ function buildNotComparableManifest({
 	bundleDigest,
 	checks = {
 		bundleDigest: false,
+		captureTrusted: false,
+		importId: false,
+		profileId: false,
 		projectFps: false,
 		projectGeometry: false,
 		projectName: false,
@@ -210,19 +285,81 @@ function calculateBundleDigest({
 }
 
 function buildProjectChecks({
+	binding,
 	bundle,
-	snapshot,
+	project,
+	trusted,
 }: {
+	binding?: PersistedImportEvidenceBinding;
 	bundle: ParsedImportBundle;
-	snapshot: ReturnType<typeof parseQCutImportSnapshot>;
+	project: { fps: number; height: number; name: string; width: number };
+	trusted: boolean;
 }): QCutImportVerificationManifest["checks"] {
 	return {
-		bundleDigest: true,
-		projectFps: snapshot.project.fps === bundle.timelinePlan.project.fps,
+		bundleDigest: binding?.bundleDigest === bundle.bundleDigest,
+		captureTrusted: trusted,
+		importId: binding?.importId === bundle.planToken,
+		profileId: binding?.profileId === bundle.document.source.profileId,
+		projectFps: project.fps === bundle.timelinePlan.project.fps,
 		projectGeometry:
-			snapshot.project.width === bundle.timelinePlan.project.width &&
-			snapshot.project.height === bundle.timelinePlan.project.height,
-		projectName: snapshot.project.name === bundle.timelinePlan.project.name,
+			project.width === bundle.timelinePlan.project.width &&
+			project.height === bundle.timelinePlan.project.height,
+		projectName: project.name === bundle.timelinePlan.project.name,
+	};
+}
+
+function buildComparedManifest({
+	actualMedia,
+	actualTracks,
+	api,
+	base,
+	bundle,
+	capture,
+	checks,
+}: {
+	actualMedia: QCutImportSnapshotMediaEvidence[];
+	actualTracks: QCutImportSnapshotTrack[];
+	api: ImportVerificationApi;
+	base: ReturnType<typeof buildManifestBase>;
+	bundle: ParsedImportBundle;
+	capture: QCutImportVerificationManifest["capture"];
+	checks: QCutImportVerificationManifest["checks"];
+}): QCutImportVerificationManifest {
+	const verification = api.verifyQCutImportMaterialization({
+		actualMedia,
+		actualTracks,
+		bundle,
+	});
+	const projectChecksPassed =
+		checks.projectFps && checks.projectGeometry && checks.projectName;
+	const trustedChecksPassed =
+		checks.captureTrusted &&
+		checks.bundleDigest &&
+		checks.importId &&
+		checks.profileId;
+	const materializationFailed =
+		verification.verdict === "fail" || !projectChecksPassed;
+	const trustedBindingFailed = checks.captureTrusted && !trustedChecksPassed;
+	const verdict: QCutImportVerificationManifest["verdict"] =
+		materializationFailed || trustedBindingFailed
+			? "fail"
+			: trustedChecksPassed
+				? "pass"
+				: "not-comparable";
+	return {
+		...base,
+		bundle: { ...base.bundle, bundleDigest: bundle.bundleDigest },
+		capture,
+		checks,
+		mediaSetSha256: hashQCutImportMediaSet({ media: actualMedia }),
+		...(verdict === "not-comparable"
+			? {
+					notComparableReason:
+						"Snapshot was not captured from trusted QCut persisted storage.",
+				}
+			: {}),
+		verification,
+		verdict,
 	};
 }
 
@@ -237,19 +374,21 @@ export async function runQCutImportVerification({
 	outputDirectory?: string;
 	qcutSnapshotPath: string;
 }): Promise<QCutImportVerificationManifest> {
-	const [api, bundleFile, snapshotFile] = await Promise.all([
-		loadQCutImportVerificationApi(),
-		readRegularFileSnapshot({
-			label: "QCut import bundle",
-			maximumBytes: MAXIMUM_INPUT_BYTES,
-			path: bundlePath,
-		}),
-		readRegularFileSnapshot({
-			label: "QCut renderer snapshot",
-			maximumBytes: MAXIMUM_INPUT_BYTES,
-			path: qcutSnapshotPath,
-		}),
-	]);
+	const [api, persistedEvidenceApi, bundleFile, snapshotFile] =
+		await Promise.all([
+			loadQCutImportVerificationApi(),
+			loadPersistedImportEvidenceApi(),
+			readRegularFileSnapshot({
+				label: "QCut import bundle",
+				maximumBytes: MAXIMUM_INPUT_BYTES,
+				path: bundlePath,
+			}),
+			readRegularFileSnapshot({
+				label: "QCut renderer snapshot",
+				maximumBytes: MAXIMUM_INPUT_BYTES,
+				path: qcutSnapshotPath,
+			}),
+		]);
 	const bundleEvidence = describeQCutImportVerificationBytes({
 		bytes: bundleFile.bytes,
 	});
@@ -303,13 +442,11 @@ export async function runQCutImportVerification({
 		});
 	}
 
-	let snapshot: ReturnType<typeof parseQCutImportSnapshot>;
+	let snapshotValue: Record<string, unknown>;
 	try {
-		snapshot = parseQCutImportSnapshot({
-			value: parseJsonRecord({
-				bytes: snapshotFile.bytes,
-				label: "QCut renderer snapshot",
-			}),
+		snapshotValue = parseJsonRecord({
+			bytes: snapshotFile.bytes,
+			label: "QCut renderer snapshot",
 		});
 	} catch {
 		return finalizeManifest({
@@ -317,20 +454,70 @@ export async function runQCutImportVerification({
 			manifest: buildNotComparableManifest({
 				base,
 				bundleDigest: bundle.bundleDigest,
-				checks: {
-					bundleDigest: true,
-					projectFps: false,
-					projectGeometry: false,
-					projectName: false,
-				},
+				reason: "QCut renderer snapshot failed validation.",
+			}),
+			outputDirectory,
+		});
+	}
+
+	if (snapshotValue.schema === persistedEvidenceApi.schema) {
+		let snapshot: ParsedPersistedImportEvidenceSnapshot;
+		try {
+			snapshot = persistedEvidenceApi.parseSnapshot({
+				value: snapshotValue,
+			});
+		} catch {
+			return finalizeManifest({
+				inputPaths,
+				manifest: buildNotComparableManifest({
+					base,
+					bundleDigest: bundle.bundleDigest,
+					reason: "Trusted QCut persisted snapshot failed validation.",
+				}),
+				outputDirectory,
+			});
+		}
+		const checks = buildProjectChecks({
+			binding: snapshot.binding,
+			bundle,
+			project: snapshot.project,
+			trusted: true,
+		});
+		const manifest = buildComparedManifest({
+			actualMedia: snapshot.media,
+			actualTracks: snapshot.tracks,
+			api,
+			base,
+			bundle,
+			capture: {
+				appVersion: snapshot.capture.appVersion,
+				source: snapshot.capture.source,
+			},
+			checks,
+		});
+		return finalizeManifest({ inputPaths, manifest, outputDirectory });
+	}
+
+	let snapshot: ReturnType<typeof parseQCutImportSnapshot>;
+	try {
+		snapshot = parseQCutImportSnapshot({ value: snapshotValue });
+	} catch {
+		return finalizeManifest({
+			inputPaths,
+			manifest: buildNotComparableManifest({
+				base,
+				bundleDigest: bundle.bundleDigest,
 				reason: "QCut renderer snapshot failed validation.",
 			}),
 			outputDirectory,
 		});
 	}
 	inputPaths.push(...snapshot.media.map(({ sourcePath }) => sourcePath));
-	const checks = buildProjectChecks({ bundle, snapshot });
-
+	const checks = buildProjectChecks({
+		bundle,
+		project: snapshot.project,
+		trusted: false,
+	});
 	let actualMedia: QCutImportSnapshotMediaEvidence[];
 	try {
 		actualMedia = await describeQCutImportSnapshotMedia({
@@ -340,7 +527,7 @@ export async function runQCutImportVerification({
 		return finalizeManifest({
 			inputPaths,
 			manifest: buildNotComparableManifest({
-				base,
+				base: { ...base, capture: { source: "manual-path-snapshot" } },
 				bundleDigest: bundle.bundleDigest,
 				checks,
 				reason: "QCut snapshot media could not be verified.",
@@ -348,22 +535,15 @@ export async function runQCutImportVerification({
 			outputDirectory,
 		});
 	}
-	const verification = api.verifyQCutImportMaterialization({
+	const manifest = buildComparedManifest({
 		actualMedia,
 		actualTracks: snapshot.tracks,
+		api,
+		base,
 		bundle,
-	});
-	const manifest: QCutImportVerificationManifest = {
-		...base,
-		bundle: { ...bundleEvidence, bundleDigest: bundle.bundleDigest },
+		capture: { source: "manual-path-snapshot" },
 		checks,
-		mediaSetSha256: hashQCutImportMediaSet({ media: actualMedia }),
-		verification,
-		verdict:
-			verification.verdict === "pass" && Object.values(checks).every(Boolean)
-				? "pass"
-				: "fail",
-	};
+	});
 	return finalizeManifest({ inputPaths, manifest, outputDirectory });
 }
 

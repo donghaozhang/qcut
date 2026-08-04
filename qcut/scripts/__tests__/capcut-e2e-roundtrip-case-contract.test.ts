@@ -177,9 +177,16 @@ function qcutImport({
 		bundle: { byteLength: 100, bundleDigest: SHA_A, sha256: SHA_A },
 		checks: {
 			bundleDigest: verdict === "pass",
+			captureTrusted: verdict === "pass",
+			importId: verdict === "pass",
+			profileId: verdict === "pass",
 			projectFps: verdict === "pass",
 			projectGeometry: verdict === "pass",
 			projectName: verdict === "pass",
+		},
+		capture: {
+			source:
+				verdict === "pass" ? "qcut-renderer-persisted-storage" : "unknown",
 		},
 		generatedAtIso: GENERATED_AT,
 		qcutSnapshot: { byteLength: 100, sha256: SHA_B },
@@ -188,7 +195,7 @@ function qcutImport({
 			expected: "import-bundle",
 		},
 		schema: QCUT_IMPORT_VERIFICATION_MANIFEST_SCHEMA,
-		schemaVersion: 1,
+		schemaVersion: 2,
 		verdict,
 	};
 }

@@ -37,9 +37,19 @@ export interface QCutImportVerificationManifest {
 	bundle: QCutImportVerificationFileEvidence & { bundleDigest?: string };
 	checks: {
 		bundleDigest: boolean;
+		captureTrusted: boolean;
+		importId: boolean;
+		profileId: boolean;
 		projectFps: boolean;
 		projectGeometry: boolean;
 		projectName: boolean;
+	};
+	capture: {
+		appVersion?: string;
+		source:
+			| "manual-path-snapshot"
+			| "qcut-renderer-persisted-storage"
+			| "unknown";
 	};
 	generatedAtIso: string;
 	mediaSetSha256?: string;
@@ -47,7 +57,7 @@ export interface QCutImportVerificationManifest {
 	qcutSnapshot: QCutImportVerificationFileEvidence;
 	roles: { expected: "import-bundle"; actual: "qcut-renderer-snapshot" };
 	schema: typeof QCUT_IMPORT_VERIFICATION_MANIFEST_SCHEMA;
-	schemaVersion: 1;
+	schemaVersion: 2;
 	verification?: QCutImportMaterializationEvidence;
 	verdict: "pass" | "fail" | "not-comparable";
 }
