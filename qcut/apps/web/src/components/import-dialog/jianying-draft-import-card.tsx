@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ImportJournalRecoveryStatus } from "./import-journal-recovery-status";
 
 function countValues({
 	values,
@@ -445,24 +446,6 @@ function PendingImports({
 	);
 }
 
-function CorruptJournalWarning({ count }: { count: number }) {
-	const { t } = useTranslation();
-	if (count === 0) return null;
-	return (
-		<Alert
-			variant="destructive"
-			className="mb-4"
-			data-testid="draft-import-corrupt-journal"
-		>
-			<ShieldAlert className="size-4" />
-			<AlertTitle>{t("draftImport.corruptRecoveryTitle")}</AlertTitle>
-			<AlertDescription>
-				{t("draftImport.corruptRecoveryDescription", { count })}
-			</AlertDescription>
-		</Alert>
-	);
-}
-
 export function JianyingDraftImportCard({
 	controller,
 	onOpenProject,
@@ -475,8 +458,13 @@ export function JianyingDraftImportCard({
 	const { t } = useTranslation();
 	return (
 		<>
-			<CorruptJournalWarning
-				count={controller.recoveryResult?.corruptJournalRecordCount ?? 0}
+			<ImportJournalRecoveryStatus
+				corruptCount={controller.recoveryResult?.corruptJournalRecordCount ?? 0}
+				quarantinedCount={
+					controller.recoveryResult?.quarantinedJournalRecordCount ?? 0
+				}
+				isRunning={controller.isJournalQuarantineRunning}
+				onQuarantine={controller.quarantineCorruptJournalRecords}
 			/>
 			<Tabs defaultValue={defaultTab}>
 				<TabsList className="grid w-full grid-cols-2">
