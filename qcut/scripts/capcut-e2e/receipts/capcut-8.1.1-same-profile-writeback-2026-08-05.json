@@ -1,0 +1,56 @@
+{
+	"schema": "qcut.capcut-8.1-same-profile-writeback-verification",
+	"schemaVersion": 1,
+	"caseId": "capcut-8.1.1-controlled-timing-writeback-2026-08-05",
+	"generatedAtIso": "2026-08-04T18:04:23.099Z",
+	"profile": {
+		"profileId": "capcut-desktop-8.1-plaintext",
+		"appVersion": "8.1.1",
+		"detectionOutcome": "exact"
+	},
+	"provenance": {
+		"source": "real-capcut-saved-draft",
+		"sourceReceiptId": "capcut-8.1.1-envelope-capture-2026-08-04",
+		"isolation": "copy-before-mutation",
+		"controlledUnknownSentinel": true,
+		"realAppOpenSaveReopenVerified": false
+	},
+	"importEvidence": {
+		"fileCount": 25,
+		"trackCount": 2,
+		"segmentCount": 2,
+		"resourceCount": 2,
+		"warningCount": 0
+	},
+	"transactionEvidence": {
+		"activeMirrorCount": 4,
+		"activeMirrorTemplates": [
+			"draft_info.json",
+			"template-2.tmp",
+			"Timelines/{timelineId}/draft_info.json",
+			"Timelines/{timelineId}/template-2.tmp"
+		],
+		"backupMirrorCount": 2,
+		"changedJsonPointers": [
+			"/tracks/0/segments/0/source_timerange/duration",
+			"/tracks/0/segments/0/source_timerange/start",
+			"/tracks/0/segments/0/target_timerange/duration",
+			"/tracks/0/segments/0/target_timerange/start"
+		],
+		"plannedPatchCount": 4,
+		"originalSourceContentSha256": "06059804ed3813781233ede103922ce4afac305d5b255be247a56b406da73cc0",
+		"isolatedSourceContentSha256": "55ffc7aa84e8499af3e4bef15d7001c9f17e61f2061ed1005b47cba922baa097",
+		"outputContentSha256": "7fd76a5b2c5a78f93b313c45fd5684b5a6207e8daca26fdd09bb522ebbbb4e52",
+		"recoveryAction": "none"
+	},
+	"checks": {
+		"activeMirrorsMatchOutput": true,
+		"backupMirrorsUnchanged": true,
+		"onlyPlannedPointersChanged": true,
+		"originalSourceUnchanged": true,
+		"recoveryStateClean": true,
+		"unknownSentinelPreserved": true
+	},
+	"verdict": "unverified",
+	"notVerifiedReason": "The isolated-copy transaction passed, but CapCut 8.1 has not opened, saved, and reopened the written draft."
+}
