@@ -180,12 +180,25 @@ describe("TransitionCard", () => {
 				status,
 			},
 		});
+
 		const action = screen.getByRole("button", { name: label });
 		if (disabled) {
 			expect(action).toBeDisabled();
 			return;
 		}
 		expect(action).toBeEnabled();
+	});
+
+	it.each([
+		["checking-local", "正在检查本机剪映资源: 未来素材", true],
+		["local-unavailable", "检查本机剪映资源: 未来素材", false],
+	] as const)("renders the %s local resource state", (status, label, disabled) => {
+		renderCard({
+			preset: { ...futureAsset, backend: "jianying-local" },
+			resourceState: { available: false, progress: 0, status },
+		});
+		const action = screen.getByRole("button", { name: label });
+		expect(action).toHaveProperty("disabled", disabled);
 	});
 
 	it("applies a ready preset on double-click", () => {
