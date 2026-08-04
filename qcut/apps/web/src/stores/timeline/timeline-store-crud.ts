@@ -45,6 +45,8 @@ import {
 	createMediaContainer,
 	selectMulticamClip,
 } from "./timeline-compound-operations";
+import { findTrackIdsForGroup } from "@qcut/editor-core/timeline";
+import { blockedByTrackLock } from "./timeline-lock-guard";
 
 export interface CrudDeps {
 	updateTracksAndSave: (tracks: TimelineTrack[]) => void;
@@ -126,6 +128,16 @@ export function createCrudOperations(
 					severity: ErrorSeverity.MEDIUM,
 					metadata: { trackId },
 				});
+				return null;
+			}
+
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Add Element to Track",
+					trackIds: [trackId],
+				})
+			) {
 				return null;
 			}
 
@@ -319,6 +331,15 @@ export function createCrudOperations(
 			const track = get()._tracks.find((t) => t.id === trackId);
 			const element = track?.elements.find((el) => el.id === elementId);
 			if (!track || !element) return;
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Remove Element from Track",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 
 			const { rippleEditingEnabled } = get();
 
@@ -350,6 +371,15 @@ export function createCrudOperations(
 			);
 
 			if (!elementToMove || !toTrack) return;
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Move Element to Track",
+					trackIds: [fromTrackId, toTrackId],
+				})
+			) {
+				return;
+			}
 
 			// Validate element type compatibility with target track
 			const validation = validateElementTrackCompatibility(
@@ -400,6 +430,15 @@ export function createCrudOperations(
 			trimEnd,
 			pushHistory = true
 		) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Trim Element",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			if (pushHistory) get().pushHistory();
 			updateTracksAndSave(
 				get()._tracks.map((t) =>
@@ -421,6 +460,15 @@ export function createCrudOperations(
 			duration,
 			pushHistory = true
 		) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Element Duration",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			if (pushHistory) get().pushHistory();
 			updateTracksAndSave(
 				get()._tracks.map((t) =>
@@ -442,6 +490,23 @@ export function createCrudOperations(
 			startTime,
 			pushHistory = true
 		) => {
+			// A grouped element drags its whole group, so the lock preflight must
+			// cover every track the group touches, not just the dragged one.
+			const groupId = get()
+				._tracks.find((t) => t.id === trackId)
+				?.elements.find((el) => el.id === elementId)?.groupId;
+			const targetTrackIds = groupId
+				? findTrackIdsForGroup({ tracks: get()._tracks, groupId }).add(trackId)
+				: [trackId];
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Element Start Time",
+					trackIds: targetTrackIds,
+				})
+			) {
+				return;
+			}
 			if (pushHistory) get().pushHistory();
 			updateTracksAndSave(
 				moveTimelineElementGroup({
@@ -507,6 +572,15 @@ export function createCrudOperations(
 		groupSelectedElements: () => {
 			const selectedElements = get().selectedElements;
 			if (selectedElements.length < 2) return null;
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Group Elements",
+					trackIds: selectedElements.map((selection) => selection.trackId),
+				})
+			) {
+				return null;
+			}
 			const groupId = `group-${generateUUID()}`;
 			const result = groupTimelineElements({
 				tracks: get()._tracks,
@@ -520,6 +594,15 @@ export function createCrudOperations(
 		},
 
 		ungroupElements: (groupId) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Ungroup Elements",
+					trackIds: findTrackIdsForGroup({ tracks: get()._tracks, groupId }),
+				})
+			) {
+				return 0;
+			}
 			const result = ungroupTimelineElements({
 				tracks: get()._tracks,
 				groupId,
@@ -531,6 +614,17 @@ export function createCrudOperations(
 		},
 
 		createMediaContainerFromSelection: (kind) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Create Media Container",
+					trackIds: get().selectedElements.map(
+						(selection) => selection.trackId
+					),
+				})
+			) {
+				return null;
+			}
 			const containerId = `${kind}-${generateUUID()}`;
 			const result = createMediaContainer({
 				tracks: get()._tracks,
@@ -551,6 +645,24 @@ export function createCrudOperations(
 		},
 
 		breakApartMediaContainer: (trackId, elementId) => {
+			// Restored clips land back on their source tracks, so those must be
+			// editable too, not just the container's track.
+			const container = get()
+				._tracks.find((t) => t.id === trackId)
+				?.elements.find((el) => el.id === elementId);
+			const restoreTrackIds =
+				container?.type === "media" && container.compound
+					? container.compound.clips.map((clip) => clip.sourceTrackId)
+					: [];
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Break Apart Media Container",
+					trackIds: [trackId, ...restoreTrackIds],
+				})
+			) {
+				return 0;
+			}
 			const result = breakApartMediaContainer({
 				tracks: get()._tracks,
 				trackId,
@@ -564,6 +676,15 @@ export function createCrudOperations(
 		},
 
 		selectMulticamClip: (trackId, elementId, clipId) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Select Multicam Clip",
+					trackIds: [trackId],
+				})
+			) {
+				return false;
+			}
 			const result = selectMulticamClip({
 				tracks: get()._tracks,
 				trackId,
@@ -614,6 +735,15 @@ export function createCrudOperations(
 		},
 
 		toggleElementHidden: (trackId, elementId) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Toggle Element Hidden",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			get().pushHistory();
 			updateTracksAndSave(
 				get()._tracks.map((t) =>
@@ -630,6 +760,15 @@ export function createCrudOperations(
 		},
 
 		updateTextElement: (trackId, elementId, updates, pushHistory = true) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Text Element",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			if (pushHistory) {
 				get().pushHistory();
 			}
@@ -650,6 +789,15 @@ export function createCrudOperations(
 		},
 
 		updateTextGroupContents: ({ groupId, contents, pushHistory = true }) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Text Group Contents",
+					trackIds: findTrackIdsForGroup({ tracks: get()._tracks, groupId }),
+				})
+			) {
+				return 0;
+			}
 			const normalizedContents = contents.map((content) => content.trim());
 			let slotIndex = 0;
 			let updatedCount = 0;
@@ -675,6 +823,15 @@ export function createCrudOperations(
 		},
 
 		updateCaptionElement: (trackId, elementId, updates, pushHistory = true) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Caption Element",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			if (pushHistory) {
 				get().pushHistory();
 			}
@@ -714,6 +871,17 @@ export function createCrudOperations(
 			scope,
 			pushHistory = true,
 		}) => {
+			// The anchor element is an explicit target and fails closed; broad
+			// scopes (project/selection) skip locked tracks inside the pure op.
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Apply Caption Style",
+					trackIds: [trackId],
+				})
+			) {
+				return 0;
+			}
 			const result = applyCaptionStyleToTracks({
 				tracks: get()._tracks,
 				selectedElements: get().selectedElements,
@@ -730,6 +898,15 @@ export function createCrudOperations(
 		},
 
 		updateStickerElement: (trackId, elementId, updates, pushHistory = true) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Sticker Element",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			if (pushHistory) get().pushHistory();
 			updateTracksAndSave(
 				get()._tracks.map((track) =>
@@ -753,6 +930,15 @@ export function createCrudOperations(
 			updates,
 			pushHistory = true
 		) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Markdown Element",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			if (pushHistory) {
 				get().pushHistory();
 			}
@@ -786,6 +972,15 @@ export function createCrudOperations(
 			updates,
 			pushHistory = true
 		) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Adjustment Element",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			if (pushHistory) {
 				get().pushHistory();
 			}
@@ -806,6 +1001,15 @@ export function createCrudOperations(
 		},
 
 		updateElementTransform: (elementId, updates, options) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Element Transform",
+					elementIds: [elementId],
+				})
+			) {
+				return;
+			}
 			const push = options?.pushHistory !== false;
 			if (push) get().pushHistory();
 			const newTracks = get()._tracks.map((t) => ({
@@ -851,6 +1055,15 @@ export function createCrudOperations(
 			),
 
 		updateMediaElement: (trackId, elementId, updates, pushHistory = true) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Media Element",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			if (pushHistory) {
 				get().pushHistory();
 			}
@@ -898,6 +1111,15 @@ export function createCrudOperations(
 			updates,
 			pushHistory = true
 		) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Remotion Element",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			if (pushHistory) {
 				get().pushHistory();
 			}
@@ -923,6 +1145,15 @@ export function createCrudOperations(
 			updates,
 			pushHistory = true
 		) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Hyperframes Element",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			let matched = false;
 			const nextTracks = get()._tracks.map((track) =>
 				track.id === trackId

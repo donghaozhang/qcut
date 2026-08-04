@@ -209,7 +209,10 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 				return get().insertTrackAt(trackType, 0);
 			}
 
-			const existingTrack = get()._tracks.find((t) => t.type === trackType);
+			// A locked track cannot receive elements, so it never satisfies "find".
+			const existingTrack = get()._tracks.find(
+				(t) => t.type === trackType && !t.locked
+			);
 			if (existingTrack) {
 				return existingTrack.id;
 			}

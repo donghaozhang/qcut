@@ -98,3 +98,13 @@ export {
 	canElementGoOnTrack,
 	validateElementTrackCompatibility,
 } from "./validation.js";
+
+export {
+	excludeLockedTrackIds,
+	findTrackIdsForElements,
+	findTrackIdsForGroup,
+	getLockedTrackIds,
+	preflightLockedTracks,
+	type LockAwareTrack,
+	type LockViolation,
+} from "./lock-contract.js";

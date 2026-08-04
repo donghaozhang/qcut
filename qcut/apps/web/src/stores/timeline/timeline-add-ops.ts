@@ -19,6 +19,7 @@ import type {
 	StoreGet,
 	StoreSet,
 } from "./timeline-store-operations";
+import { blockedByTrackLock } from "./timeline-lock-guard";
 
 export function createAddOps(
 	get: StoreGet,
@@ -524,6 +525,15 @@ export function createAddOps(
 			pushHistory?: boolean;
 		}) => {
 			const { _tracks } = get();
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Set Element Effect State",
+					elementIds: [elementId],
+				})
+			) {
+				return;
+			}
 			let updated = false;
 			const nextTracks = _tracks.map((track) => ({
 				...track,
@@ -546,6 +556,15 @@ export function createAddOps(
 
 		addEffectToElement: (elementId: string, effectId: string) => {
 			const { _tracks, pushHistory } = get();
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Add Effect to Element",
+					elementIds: [elementId],
+				})
+			) {
+				return;
+			}
 			let updated = false;
 
 			// Create immutable update
@@ -584,6 +603,15 @@ export function createAddOps(
 
 		removeEffectFromElement: (elementId: string, effectId: string) => {
 			const { _tracks, pushHistory } = get();
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Remove Effect from Element",
+					elementIds: [elementId],
+				})
+			) {
+				return;
+			}
 			let updated = false;
 
 			// Create immutable update
@@ -640,6 +668,15 @@ export function createAddOps(
 
 		clearElementEffects: (elementId: string) => {
 			const { _tracks, pushHistory } = get();
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Clear Element Effects",
+					elementIds: [elementId],
+				})
+			) {
+				return;
+			}
 			let updated = false;
 
 			// Create immutable update

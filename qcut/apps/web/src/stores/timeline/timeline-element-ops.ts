@@ -29,6 +29,7 @@ import {
 	assignNewStickerInstanceId,
 	createStickerInstanceId,
 } from "@/lib/stickers/sticker-instance";
+import { blockedByTrackLock } from "./timeline-lock-guard";
 
 export function createElementOps(
 	get: StoreGet,
@@ -44,6 +45,15 @@ export function createElementOps(
 			newStartTime: number
 		) => {
 			const { _tracks, rippleEditingEnabled } = get();
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Update Element Start Time With Ripple",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			const clampedNewStartTime = Math.max(0, newStartTime);
 			const groupedElement = _tracks
 				.find((track) => track.id === trackId)
@@ -146,6 +156,15 @@ export function createElementOps(
 			const element = track?.elements.find((c) => c.id === elementId);
 
 			if (!element) return null;
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Split Element",
+					trackIds: [trackId],
+				})
+			) {
+				return null;
+			}
 
 			const effectiveStart = element.startTime;
 			const effectiveEnd = getTimelineElementEndTime({ element });
@@ -206,6 +225,15 @@ export function createElementOps(
 			const element = track?.elements.find((c) => c.id === elementId);
 
 			if (!element) return;
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Split And Keep Left",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 
 			const effectiveStart = element.startTime;
 			const effectiveEnd = getTimelineElementEndTime({ element });
@@ -252,6 +280,15 @@ export function createElementOps(
 			const element = track?.elements.find((c) => c.id === elementId);
 
 			if (!element) return;
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Split And Keep Right",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 
 			const effectiveStart = element.startTime;
 			const effectiveEnd = getTimelineElementEndTime({ element });
@@ -330,10 +367,22 @@ export function createElementOps(
 				return null;
 			}
 
-			get().pushHistory();
-
-			// Find existing audio track or prepare to create one
+			// The detached audio lands on the first audio track, so that track is
+			// as much a target as the source track.
 			const existingAudioTrack = _tracks.find((t) => t.type === "audio");
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Separate Audio",
+					trackIds: existingAudioTrack
+						? [trackId, existingAudioTrack.id]
+						: [trackId],
+				})
+			) {
+				return null;
+			}
+
+			get().pushHistory();
 			const audioElementId = generateUUID();
 			const audioLinkGroupId = element.groupId ?? `group-${generateUUID()}`;
 			const detachedAudioElement: MediaElement = {
@@ -417,6 +466,16 @@ export function createElementOps(
 					success: false,
 					error: "Replace is only available for media clips",
 				};
+			}
+
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Replace Element Media",
+					trackIds: [trackId],
+				})
+			) {
+				return { success: false, error: "Cannot modify a locked track" };
 			}
 
 			try {
@@ -517,11 +576,34 @@ export function createElementOps(
 					};
 				}
 
+				// The awaits above can span user edits: re-read the live timeline
+				// instead of writing back the entry snapshot, and re-run the
+				// preconditions against it.
+				const currentTracks = get()._tracks;
+				const currentElement = currentTracks
+					.find((t) => t.id === trackId)
+					?.elements.find((c) => c.id === elementId);
+				if (!currentElement) {
+					return {
+						success: false,
+						error: "Timeline element changed while importing the new media",
+					};
+				}
+				if (
+					blockedByTrackLock({
+						tracks: currentTracks,
+						operation: "Replace Element Media",
+						trackIds: [trackId],
+					})
+				) {
+					return { success: false, error: "Cannot modify a locked track" };
+				}
+
 				get().pushHistory();
 
 				// Update the timeline element to reference the new media
 				updateTracksAndSave(
-					_tracks.map((track) =>
+					currentTracks.map((track) =>
 						track.id === trackId
 							? {
 									...track,

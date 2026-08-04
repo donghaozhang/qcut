@@ -21,6 +21,7 @@ import {
 	assignNewStickerInstanceId,
 	createStickerInstanceId,
 } from "@/lib/stickers/sticker-instance";
+import { blockedByTrackLock } from "./timeline-lock-guard";
 
 interface TimelineRange {
 	startTime: number;
@@ -207,6 +208,15 @@ export function createTrackOps(
 	return {
 		removeTrack: (trackId: string) => {
 			const { rippleEditingEnabled, selectedElements } = get();
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Remove Track",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 
 			if (rippleEditingEnabled) {
 				get().removeTrackWithRipple(trackId);
@@ -231,6 +241,15 @@ export function createTrackOps(
 			const trackToRemove = _tracks.find((t) => t.id === trackId);
 
 			if (!trackToRemove) return;
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Remove Track With Ripple",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 
 			get().pushHistory();
 
@@ -287,10 +306,12 @@ export function createTrackOps(
 				}
 			}
 
-			// Remove the track and apply ripple effects to remaining tracks
+			// Remove the track and apply ripple effects to remaining tracks.
+			// Locked tracks hold their position: the ripple domain skips them.
 			const updatedTracks = _tracks
 				.filter((track) => track.id !== trackId)
 				.map((track) => {
+					if (track.locked) return track;
 					const updatedElements = track.elements.map((element) => {
 						let newStartTime = element.startTime;
 
@@ -333,6 +354,15 @@ export function createTrackOps(
 			forceRipple = false
 		) => {
 			const { _tracks, rippleEditingEnabled } = get();
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Remove Element With Ripple",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 
 			if (!rippleEditingEnabled && !forceRipple) {
 				// If ripple editing is disabled, use regular removal
@@ -418,7 +448,8 @@ export function createTrackOps(
 
 				const excludedTrackIds = new Set(excludeTrackIds);
 				const updatedTracks = get()._tracks.map((track) => {
-					if (excludedTrackIds.has(track.id)) {
+					// Locked tracks hold their position during cross-track ripple.
+					if (excludedTrackIds.has(track.id) || track.locked) {
 						return track;
 					}
 
@@ -456,6 +487,21 @@ export function createTrackOps(
 		) => {
 			try {
 				const { _tracks } = get();
+				// Deleting is an explicit content edit: any locked selection fails
+				// the whole batch instead of leaving a half-applied delete.
+				if (
+					blockedByTrackLock({
+						tracks: _tracks,
+						operation: "Delete Selected Elements With Ripple",
+						trackIds: selections.map((selection) => selection.trackId),
+					})
+				) {
+					return {
+						deletedElements: 0,
+						splitElements: 0,
+						totalRemovedDuration: 0,
+					};
+				}
 				const selectionKeys = new Set(
 					selections.map(
 						(selection) => `${selection.trackId}:${selection.elementId}`
@@ -491,7 +537,12 @@ export function createTrackOps(
 				let splitElements = 0;
 				let totalRemovedDuration = 0;
 				for (const range of [...mergedRanges].reverse()) {
-					const trackIds = new Set(workingTracks.map((track) => track.id));
+					// The ripple shift domain is derived, so it skips locked tracks.
+					const trackIds = new Set(
+						workingTracks
+							.filter((track) => !track.locked)
+							.map((track) => track.id)
+					);
 					const result = applyDeleteTimeRangeToTracks({
 						tracks: workingTracks,
 						startTime: range.startTime,
@@ -553,10 +604,28 @@ export function createTrackOps(
 				}
 
 				const { _tracks } = get();
-				const targetTrackIds =
-					trackIds && trackIds.length > 0
-						? new Set(trackIds)
-						: new Set(_tracks.map((track) => track.id));
+				// Explicitly named tracks fail closed on a lock; the "all tracks"
+				// default is a derived set and skips locked tracks instead.
+				const hasExplicitTargets = Boolean(trackIds && trackIds.length > 0);
+				if (
+					hasExplicitTargets &&
+					blockedByTrackLock({
+						tracks: _tracks,
+						operation: "Delete Timeline Time Range",
+						trackIds,
+					})
+				) {
+					return {
+						deletedElements: 0,
+						splitElements: 0,
+						totalRemovedDuration: 0,
+					};
+				}
+				const targetTrackIds = hasExplicitTargets
+					? new Set(trackIds)
+					: new Set(
+							_tracks.filter((track) => !track.locked).map((track) => track.id)
+						);
 
 				get().pushHistory();
 
@@ -564,7 +633,7 @@ export function createTrackOps(
 				if (ripple) {
 					if (crossTrackRipple) {
 						for (const track of _tracks) {
-							rippleTrackIds.add(track.id);
+							if (!track.locked) rippleTrackIds.add(track.id);
 						}
 					} else {
 						for (const trackId of targetTrackIds) {
