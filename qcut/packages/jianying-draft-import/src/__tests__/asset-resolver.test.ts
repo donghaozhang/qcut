@@ -162,6 +162,34 @@ describe("resolveImportAssets", () => {
 		});
 	});
 
+	it("builds one filename index for distinct name searches", async () => {
+		await mkdir(join(draftRoot, "assets"));
+		await Promise.all([
+			writeFile(join(draftRoot, "assets", "first.mp4"), "first"),
+			writeFile(join(draftRoot, "assets", "second.mp4"), "second"),
+		]);
+		let indexBuilds = 0;
+		const result = await resolveImportAssets({
+			resources: [
+				createResource({ id: "first", name: "first.mp4" }),
+				createResource({ id: "second", name: "second.mp4" }),
+			],
+			restrictedSourcePathsByResourceId: {},
+			rootRealPath: draftRoot,
+			instrumentation: {
+				onNameIndexBuild: () => {
+					indexBuilds += 1;
+				},
+			},
+		});
+
+		expect(result.assets.every((asset) => asset.status === "resolved")).toBe(
+			true
+		);
+		expect(indexBuilds).toBe(1);
+		expect(result.cacheMetrics.nameSearchMisses).toBe(2);
+	});
+
 	it("reports missing when nothing is found", async () => {
 		const { assets, resolvedResources } = await resolveImportAssets({
 			resources: [createResource({ name: "ghost.mp4" })],
@@ -278,6 +306,34 @@ describe("resolveImportAssets", () => {
 			nameSearchHits: 0,
 			nameSearchMisses: 0,
 			evictions: 0,
+			hashedBytes: 12,
+		});
+	});
+
+	it("deduplicates file hashing across 5000 resource references", async () => {
+		const sharedPath = join(draftRoot, "shared.mp4");
+		await writeFile(sharedPath, "shared-bytes");
+		const resources = Array.from({ length: 5000 }, (_, index) =>
+			createResource({ id: `res-${index}`, name: "shared.mp4" })
+		);
+		const paths = Object.fromEntries(
+			resources.map((resource) => [resource.id, sharedPath])
+		);
+
+		const result = await resolveImportAssets({
+			resources,
+			restrictedSourcePathsByResourceId: paths,
+			rootRealPath: draftRoot,
+			maxConcurrentProbes: 8,
+		});
+
+		expect(result.assets).toHaveLength(5000);
+		expect(result.assets.every((asset) => asset.status === "resolved")).toBe(
+			true
+		);
+		expect(result.cacheMetrics).toMatchObject({
+			fileProbeHits: 4999,
+			fileProbeMisses: 1,
 			hashedBytes: 12,
 		});
 	});
