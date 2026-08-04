@@ -1,0 +1,76 @@
+{
+	"binding": {
+		"bundleDigest": "bdc7f80612b191a1af3e7b3139da0aaa9addd8d3c1773d97cf4730d6ac44d89d",
+		"importId": "DhCA64wlr-EyAOX6X0JM0axVXLYn646ppNpvkJ8bAgc",
+		"profileId": "capcut-desktop-8.1-plaintext"
+	},
+	"capture": {
+		"appVersion": "2026.8.401",
+		"capturedAtIso": "2026-08-04T17:29:34.369Z",
+		"readPasses": 2,
+		"source": "qcut-renderer-persisted-storage"
+	},
+	"media": [
+		{
+			"byteLength": 5321517,
+			"id": "39a5fe9d-0c12-6429-25b1-2a5775c906ad",
+			"sha256": "8d9363ab5ce73007e3879e39ee3310a19b0894f7c94a2ec07dbad4dd857e7e12",
+			"type": "audio"
+		},
+		{
+			"byteLength": 4329240,
+			"id": "814d39b1-8027-0bdd-4510-ec5390a9fe81",
+			"sha256": "54e5158012e35fb11eeebfd54277e6dcd83ca986f5c9e2c0166941498a391873",
+			"type": "video"
+		}
+	],
+	"project": {
+		"fps": 30,
+		"height": 1080,
+		"id": "967a2e56-43e4-9462-08a9-9c84d7667466",
+		"name": "TRIM-C-trimmed",
+		"sceneId": "e530c57e-b9de-2422-11e3-d9d40ccd86ae",
+		"width": 1920
+	},
+	"schema": "qcut.draft-interop.persisted-import-evidence",
+	"schemaVersion": 1,
+	"tracks": [
+		{
+			"id": "182ebd56-6619-45aa-9a53-51ace06dca26",
+			"name": "Video",
+			"type": "media",
+			"elements": [
+				{
+					"id": "8ff19d00-b35e-fccc-03f6-021ee6bddff0",
+					"type": "media",
+					"mediaId": "814d39b1-8027-0bdd-4510-ec5390a9fe81",
+					"name": "DhHny37_oAo - beautiful melbourne drone shot at sunrise sweepin.mp4",
+					"duration": 13.133333,
+					"startTime": 0,
+					"trimStart": 0,
+					"trimEnd": 5.133333
+				}
+			],
+			"order": 0,
+			"isMain": true
+		},
+		{
+			"id": "eb9eb079-2145-5fb5-da65-fdcbe79af2c9",
+			"name": "Audio",
+			"type": "audio",
+			"elements": [
+				{
+					"id": "9cbccd62-8b8f-fc3e-36be-0b78b78c15f2",
+					"type": "media",
+					"mediaId": "39a5fe9d-0c12-6429-25b1-2a5775c906ad",
+					"name": "pPvd8UxmSbQ - Inspiring Cinematic Uplifting (Creative Commons).mp3",
+					"duration": 163.066666,
+					"startTime": 0,
+					"trimStart": 0,
+					"trimEnd": 155.066666
+				}
+			],
+			"order": 1
+		}
+	]
+}

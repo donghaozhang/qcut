@@ -66,6 +66,30 @@ import {
 	CAPCUT_8_1_MIGRATION_INSTALL_CHANNEL,
 	CAPCUT_8_1_MIGRATION_PLAN_CHANNEL,
 } from "./jianying-draft-export-contract.js";
+import {
+	ENVELOPE_DELETE_CHANNEL,
+	ENVELOPE_PURGE_CHANNEL,
+	ENVELOPE_READ_CHANNEL,
+	ENVELOPE_ROTATE_CHANNEL,
+	ENVELOPE_STATUS_CHANNEL,
+	ENVELOPE_STORE_CHANNEL,
+} from "./jianying-envelope-key-contract.js";
+import {
+	JIANYING_IMPORT_CHOOSE_DIRECTORY_CHANNEL,
+	JIANYING_IMPORT_COMMIT_CHANNEL,
+	JIANYING_IMPORT_INBOX_ACK_CHANNEL,
+	JIANYING_IMPORT_INBOX_LIST_CHANNEL,
+	JIANYING_IMPORT_INBOX_READ_CHANNEL,
+	JIANYING_IMPORT_INSPECT_CHANNEL,
+	JIANYING_IMPORT_MEDIA_CHUNK_CHANNEL,
+	JIANYING_IMPORT_MEDIA_RELEASE_CHANNEL,
+	JIANYING_IMPORT_PLAN_CHANNEL,
+} from "./jianying-draft-import-contract.js";
+import {
+	CAPCUT_8_1_WRITEBACK_CHOOSE_DIRECTORY_CHANNEL,
+	CAPCUT_8_1_WRITEBACK_COMMIT_CHANNEL,
+	CAPCUT_8_1_WRITEBACK_RECOVER_CHANNEL,
+} from "./jianying-same-profile-writeback-contract.js";
 
 // Expose the API to the renderer process
 const electronAPI: ElectronAPI & Record<string, unknown> = {
@@ -88,6 +112,42 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke(CAPCUT_8_1_MIGRATION_INSTALL_CHANNEL, request),
 		planCapCut81Migration: (request) =>
 			ipcRenderer.invoke(CAPCUT_8_1_MIGRATION_PLAN_CHANNEL, request),
+	},
+	jianyingEnvelope: {
+		store: (request) => ipcRenderer.invoke(ENVELOPE_STORE_CHANNEL, request),
+		read: (request) => ipcRenderer.invoke(ENVELOPE_READ_CHANNEL, request),
+		delete: (request) => ipcRenderer.invoke(ENVELOPE_DELETE_CHANNEL, request),
+		purge: () => ipcRenderer.invoke(ENVELOPE_PURGE_CHANNEL),
+		rotate: () => ipcRenderer.invoke(ENVELOPE_ROTATE_CHANNEL),
+		status: () => ipcRenderer.invoke(ENVELOPE_STATUS_CHANNEL),
+	},
+	jianyingDraftImport: {
+		chooseDraftDirectory: () =>
+			ipcRenderer.invoke(JIANYING_IMPORT_CHOOSE_DIRECTORY_CHANNEL),
+		inspectDraft: (request) =>
+			ipcRenderer.invoke(JIANYING_IMPORT_INSPECT_CHANNEL, request),
+		planDraftImport: (request) =>
+			ipcRenderer.invoke(JIANYING_IMPORT_PLAN_CHANNEL, request),
+		commitDraftImport: (request) =>
+			ipcRenderer.invoke(JIANYING_IMPORT_COMMIT_CHANNEL, request),
+		readDraftImportMediaChunk: (request) =>
+			ipcRenderer.invoke(JIANYING_IMPORT_MEDIA_CHUNK_CHANNEL, request),
+		releaseDraftImportMedia: (request) =>
+			ipcRenderer.invoke(JIANYING_IMPORT_MEDIA_RELEASE_CHANNEL, request),
+		listPendingDraftImports: () =>
+			ipcRenderer.invoke(JIANYING_IMPORT_INBOX_LIST_CHANNEL),
+		readPendingDraftImport: (request) =>
+			ipcRenderer.invoke(JIANYING_IMPORT_INBOX_READ_CHANNEL, request),
+		acknowledgePendingDraftImport: (request) =>
+			ipcRenderer.invoke(JIANYING_IMPORT_INBOX_ACK_CHANNEL, request),
+	},
+	jianyingSameProfileWriteback: {
+		chooseCapCut81DraftDirectory: () =>
+			ipcRenderer.invoke(CAPCUT_8_1_WRITEBACK_CHOOSE_DIRECTORY_CHANNEL),
+		commitCapCut81Writeback: (request) =>
+			ipcRenderer.invoke(CAPCUT_8_1_WRITEBACK_COMMIT_CHANNEL, request),
+		recoverCapCut81Writeback: (request) =>
+			ipcRenderer.invoke(CAPCUT_8_1_WRITEBACK_RECOVER_CHANNEL, request),
 	},
 
 	// File operations

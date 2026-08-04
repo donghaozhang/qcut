@@ -327,6 +327,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			// vimax options
 			"no-references": { type: "boolean", default: false },
 			"project-id": { type: "string" },
+			"bundle-digest": { type: "string" },
 			project: { type: "string" },
 			"chunk-size": { type: "string" },
 			overlap: { type: "string" },
@@ -526,6 +527,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"project-root": { type: "string" },
 			database: { type: "string", multiple: true },
 			draft: { type: "string", multiple: true },
+			"plan-token": { type: "string" },
+			"recovery-token": { type: "string" },
+			"accept-warning": { type: "string", multiple: true },
 			path: { type: "string" },
 			"resource-id": { type: "string", multiple: true },
 			"draft-effect-id": { type: "string", multiple: true },
@@ -850,6 +854,12 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		projectRoot: values["project-root"] as string | undefined,
 		databasePaths: values.database as string[] | undefined,
 		draftPaths: values.draft as string[] | undefined,
+		planToken: values["plan-token"] as string | undefined,
+		bundleDigest: values["bundle-digest"] as string | undefined,
+		recoveryToken: values["recovery-token"] as string | undefined,
+		acceptedWarningFingerprints: values["accept-warning"] as
+			| string[]
+			| undefined,
 		packagePath: values.path as string | undefined,
 		resourceIds: values["resource-id"] as string[] | undefined,
 		draftEffectIds: values["draft-effect-id"] as string[] | undefined,

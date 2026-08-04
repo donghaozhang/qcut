@@ -5,10 +5,10 @@ import type {
 } from "@qcut/editor-core/jianying-draft";
 import { normalizeMediaColorSettings } from "@/lib/color/color-properties";
 import { resolveColorFilterSettings } from "@/lib/filters/filter-resolver";
-import { getTimelineElementDuration } from "@/lib/timeline";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { TProject } from "@/types/project";
 import type { MediaElement, TimelineTrack } from "@/types/timeline";
+import { buildTimelineDurationByElementId } from "./capcut-same-profile-writeback-snapshot";
 
 const DEFAULT_PROJECT_FPS = 30;
 const DEFAULT_PROJECT_BACKGROUND_COLOR = "#000000";
@@ -262,22 +262,6 @@ function cloneTracksForSnapshot({
 		),
 	}));
 	return cloneWithoutUndefined({ value: resolvedTracks });
-}
-
-function buildTimelineDurationByElementId({
-	fps,
-	tracks,
-}: {
-	fps: number;
-	tracks: readonly TimelineTrack[];
-}): Record<string, number> {
-	const durations: Record<string, number> = {};
-	for (const track of tracks) {
-		for (const element of track.elements) {
-			durations[element.id] = getTimelineElementDuration({ element, fps });
-		}
-	}
-	return durations;
 }
 
 function createMissingMediaIssue({

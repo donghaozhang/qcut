@@ -52,6 +52,8 @@ import type {
 	ClaudePointerAPI,
 	ClaudeUiAPI,
 	ClaudeStateAPI,
+	ClaudeImportEvidenceAPI,
+	ClaudeSameProfileWritebackAPI,
 } from "./api-types/claude-ui-api";
 import type {
 	RemotionFolderAPI,
@@ -59,6 +61,9 @@ import type {
 } from "./api-types/remotion-moyin-api";
 import type { HyperframesAPI } from "./api-types/hyperframes-api";
 import type { JianyingDraftExportPreloadAPI } from "./api-types/jianying-draft-export-api";
+import type { JianyingEnvelopePreloadAPI } from "./api-types/jianying-envelope-api";
+import type { JianyingDraftImportPreloadAPI } from "./api-types/jianying-draft-import-api";
+import type { JianyingSameProfileWritebackPreloadAPI } from "./api-types/jianying-same-profile-writeback-api";
 import type {
 	AppShellAPI,
 	UpdatesAPI,
@@ -100,7 +105,10 @@ export interface ElectronAPI
 		UpdatesAPI,
 		LicenseAPI,
 		YouTubeApi,
-		JianyingDraftExportPreloadAPI {
+		JianyingDraftExportPreloadAPI,
+		JianyingEnvelopePreloadAPI,
+		JianyingDraftImportPreloadAPI,
+		JianyingSameProfileWritebackPreloadAPI {
 	platform: NodeJS.Platform;
 	isElectron: boolean;
 
@@ -118,7 +126,9 @@ export interface ElectronAPI
 		ClaudeProjectCrudAPI &
 		ClaudePointerAPI &
 		ClaudeUiAPI &
-		ClaudeStateAPI;
+		ClaudeStateAPI &
+		ClaudeImportEvidenceAPI &
+		ClaudeSameProfileWritebackAPI;
 }
 
 // ============================================================================

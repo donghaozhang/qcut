@@ -53,6 +53,7 @@ export {
 	CAPCUT_8_1_PROFILE_ID,
 	CAPCUT_8_1_SCAFFOLD_PROFILE,
 	CAPCUT_8_1_SCHEMA_VERSION,
+	CAPCUT_8_1_SAVED_NEW_VERSION,
 	CAPCUT_8_1_TIMELINE_ID_TOKEN,
 	CAPCUT_8_1_TOP_LEVEL_KEYS,
 	createEmptyCapCut81Materials,
@@ -131,3 +132,97 @@ export type {
 	QCutDraftExportSnapshotV1,
 	QCutDraftExportVideoMedia,
 } from "./types.js";
+
+export {
+	CAPCUT_8_1_DRAFT_PROFILE,
+	getDraftProfile,
+	isDraftProfileWritable,
+	listDraftProfiles,
+	PLAINTEXT_5_9_PROFILE,
+	PLAINTEXT_5_9_PROFILE_ID,
+	PLAINTEXT_5_9_TOP_LEVEL_KEYS,
+	registerDraftProfile,
+	type DraftProfileCapabilities,
+	type DraftProfileContract,
+	type ProfileOperationLevel,
+} from "./profiles/index.js";
+
+export {
+	detectDraftProfile,
+	toProfileDetectionEvidence,
+	type DraftContentSummary,
+	type ProfileDetectionCandidate,
+	type ProfileDetectionInput,
+	type ProfileDetectionOutcomeKind,
+	type ProfileDetectionResult,
+} from "./import/profile-detection.js";
+
+export {
+	asRawDraftContent,
+	isRawRecord,
+	type RawDraftContent,
+	type RawDraftSegment,
+	type RawDraftTimeRange,
+	type RawDraftTrack,
+} from "./import/raw-types.js";
+
+export {
+	readRawDraftGraph,
+	type DuplicateIdRecord,
+	type RawDraftGraph,
+	type RawGraphMaterialNode,
+	type RawGraphSegmentNode,
+	type RawGraphTimeRange,
+	type RawGraphTrackNode,
+} from "./import/graph-reader.js";
+
+export {
+	detectDraftReferenceCycles,
+	validateRawDraftGraph,
+	type DraftReferenceEdge,
+} from "./import/validation.js";
+
+export {
+	normalizeRawDraft,
+	type NormalizeRawDraftInput,
+	type NormalizeRawDraftResult,
+} from "./import/normalize.js";
+
+export {
+	mapCapCut81StaticText,
+	type MapCapCut81StaticTextInput,
+	type MappedCapCut81StaticText,
+} from "./import/capcut-8-1-text-mapper.js";
+
+export {
+	mapCapCut81SeamTransition,
+	type MapCapCut81SeamTransitionInput,
+	type MappedCapCut81SeamTransition,
+} from "./import/capcut-8-1-transition-mapper.js";
+
+export {
+	mapInteropDocumentToQCutPlan,
+	type QCutImportPlanElement,
+	type QCutImportPlanMediaElement,
+	type QCutImportPlanTextElement,
+	type QCutImportPlanTrack,
+	type QCutImportPlanTrackType,
+	type QCutImportPlanTransition,
+	type QCutImportSkippedNode,
+	type QCutImportTimelinePlanV1,
+} from "./import/qcut-mapping.js";
+
+export {
+	planCapCut81TimingPatches,
+	type CapCut81TimingPatchIssue,
+	type CapCut81TimingPatchIssueCode,
+	type CapCut81WritebackTimingSnapshot,
+	type PlanCapCut81TimingPatchesResult,
+} from "./writeback/capcut-8-1-timing-patches.js";
+
+export {
+	prepareCapCut81SameProfileWriteback,
+	type CapCut81SameProfilePrepareIssue,
+	type CapCut81SameProfilePrepareIssueCode,
+	type PrepareCapCut81SameProfileWritebackResult,
+} from "./writeback/capcut-8-1-same-profile-prepare.js";

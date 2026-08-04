@@ -4,8 +4,34 @@
 
 **状态：** 实施设计，尚未全部实现  
 **日期：** 2026-08-04  
-**目标分支基线：** `codex/transition-v2`  
+**最后核验代码：** `0f81e11ff`
+
 **依赖文档：** [剪映时间线轨道规则核验](./timeline-track-rules.zh.md)、[QCut 时间线规则差距与修复计划](./qcut-timeline-rule-gap-analysis.zh.md)
+
+## 实施进度
+
+| Subtask | 状态 | 完成日期 | 说明 |
+| --- | --- | --- | --- |
+| JYI-001 Interop/capability/issues | ✅ 已完成 | 2026-08-04 | `packages/editor-core/src/draft-interop/{document,capability,issues}.ts` + `index.ts` 子路径导出；`DraftInteropDocumentV1`（整数微秒时基、fail-closed 验证 parser、精确 JSON-pointer 错误路径）、四态 capability（最严者胜的 combine/aggregate + 提交门控表逐行实现）、24 个稳定 issue code + 与 exporter 同构的 fingerprint（`\u001f` 分隔、message 不参与）。测试 [`draft-interop-document.test.ts`](../../../packages/editor-core/src/__tests__/draft-interop-document.test.ts)（11 用例：round-trip、嵌套路径、未知 code 拒绝、聚合、门控矩阵、fingerprint 稳定性） |
+| JYI-002 Provenance/dirty-domains/envelope | ✅ 已完成 | 2026-08-04 | `draft-interop/{provenance,dirty-domains,foreign-envelope}.ts`。七类脏域 + `evaluateUnknownSubtree`（preserve/drop/conflict：owner 删除→drop、structure 或 owned 域被改→conflict，绝不静默保留或丢弃）；provenance 带 RESTRICTED `restrictedSourcePaths`，`redactProvenanceForEvidence` 为唯一出口序列化（结构性剔除 + bindings 折叠为计数），`assertNoRestrictedProvenanceFields` 深度遍历 fail-closed；envelope schema 仅存元数据（字节走 `payloadRef` 加密引用，JYI-011），sidecar 准入 deny-by-default：硬拒绝（key store/.locked/logs/caches）压过 allowlist,路径穿越直接拒。设计决策：envelope 与 document 经 importId 关联而非内嵌（inspect-only 文档无 envelope；加密 payload 契约禁止内联字节）。测试 [`draft-interop-envelope.test.ts`](../../../packages/editor-core/src/__tests__/draft-interop-envelope.test.ts)（26 用例：所有权矩阵 10 例、准入 11 例、持久化拒绝、脱敏序列化） |
+| JYI-003 Profile registry/detection | ✅ 已完成 | 2026-08-04 | `jianying-draft/profiles/{registry,plaintext-5-9,capcut-8-1,index}.ts` + `import/profile-detection.ts`。Profile 契约五能力分级（none/fixture/candidate/stable + realAppVerified），`isDraftProfileWritable` 仅认 stable——两个已注册 profile（synthetic 5.9 = fixture 级非生产、CapCut 8.1 = 首个生产候选）当前均不可写；detection 用四路独立信号（app metadata、schema/new_version、top-level key 包含、文件布局+明文分类），5.9 键集是 8.1 子集使"仅键集"天然歧义——缺 app metadata 即 ambiguous 且禁止写；加密 content 为终态（JYR-002）；纯文件名不作判据。jianying-11 按计划未注册（无证据不入册）。测试 [`profile-detection.test.ts`](../../../packages/editor-core/src/__tests__/profile-detection.test.ts)（8 用例:exact×2/ambiguous/unsupported/encrypted/仅文件名/注册表约束×2） |
+| JYI-004 Raw graph parser | ✅ 已完成 | 2026-08-04 | `jianying-draft/import/{raw-types,graph-reader,validation}.ts`。raw-types 只声明 reader 需要的最小字段（不宣称全覆盖，未知字段保持 unknown 流向 envelope）；graph-reader 单遍索引 tracks/segments/材料桶 + 每节点 JSON pointer，畸形子树跳过并记 `DOCUMENT_MALFORMED`（绝不 throw）；validation 产出稳定 issue 码——`REF_DUPLICATE_ID`（跨 track/segment/material 全局）、`REF_BROKEN`（悬空 material_id/extra_material_refs）、`TIME_RANGE_INVALID`（负值/零时长/非整数微秒）、`TRACK_OVERLAP`（同轨 target 半开区间重叠，复用 QTL-002 `rangesOverlap`）、`REF_CYCLE`（`detectDraftReferenceCycles` 对调用方提供的 draft 引用边做 DFS，每环仅报一次——真实 compound 子草稿绑定 gated on JYR-007，故边提取暂由调用方负责）。JYI-000 fixture 以自产替代：`buildJianyingDraft` 产物 JSON round-trip 后直接喂 parser，零 read issue、零 validation issue（writer↔reader 自洽）。测试 [`raw-draft-graph.test.ts`](../../../packages/editor-core/src/__tests__/raw-draft-graph.test.ts)（12 用例:builder 自洽/索引/malformed 指针/重复 ID/悬空 ref/时间边界×3/重叠+邻接/环×3） |
+| JYI-005 Normalizer | ✅ 已完成 | 2026-08-04 | `jianying-draft/import/{normalize,qcut-mapping}.ts`。normalize：raw graph → `DraftInteropDocumentV1`，确定性（无时钟/随机，语义 ID 复用 raw ID），逐节点诚实 capability——核心媒体子集 exact；证据支持的 CapCut 8.1 静态单样式文字由 JYI-016 mapper 标为 downgrade；sticker、动态/多样式文字及未映射转场明确 downgrade/blocked；未知桶/未知轨道类型 opaque（`FEATURE_OPAQUE`）；悬空引用与缺失 target_timerange blocked。extra_material_refs 三分类：机械伴随桶（speeds/canvases 等）不降级、可映射桶（transitions/animations/fades）降为 downgrade、未知桶 opaque。原始媒体路径 RESTRICTED——绝不进 document，经 `restrictedSourcePathsByResourceId` 侧通道返回仅供 provenance；每个语义节点产出 RawNodeBinding。资源自 videos/audios 桶提取（含 durationUs，status=pending 待 JYI-008 解析）。qcut-mapping：document → `QCutImportTimelinePlanV1`（纯数据、秒单位），映射 exact 的 video/image/audio 与显式接受 warning 后可提交的静态文字 downgrade 子集，其余全部进 `skipped`（附 capability 与原因）不静默丢弃。验收达成：5.9 与 CapCut 8.1 fixture 双 deterministic semantic snapshot（`__snapshots__/raw-draft-normalize.test.ts.snap`，无路径泄漏），normalize 输出可无损过 `parseDraftInteropDocumentV1`。测试 [`raw-draft-normalize.test.ts`](../../../packages/editor-core/src/__tests__/raw-draft-normalize.test.ts)（11 用例） |
+| JYI-006 Snapshot runtime | ✅ 已完成 | 2026-08-04 | 新包 `packages/jianying-draft-import`（仅 main process/CLI 可用，零写入），已接入 workspaces/vitest/check-types。`discovery.ts`：realpath 根 + 逐条目 lstat，符号链接一律跳过（symlink 内容文件不成为候选）、denied 目录（logs/caches/回收站）不扫、深度≤2、条目≤4096，绝对路径不进 manifest；`snapshot-reader.ts`：O_NOFOLLOW 打开、读前按 BigIntStats 尺寸拒超限（单文件 64MiB/总预算 256MiB 默认）、边读边哈希、读后重新 fstat 对比 dev/ino/size/mtimeNs——中途被换即 `SOURCE_FILE_CHANGED`；分类含 NUL 启发式（content 二进制→encrypted 终态）；`verifyDraftSourceUnchanged` 为 plan/commit 前的活动来源门禁（改动→CHANGED、消失→MISSING）；`runtime-validation.ts`：IPC/CLI 白名单 fail-closed（未知键/相对路径/`..`/NUL/超限数值全拒）。验收测试全过：symlink（目录环+内容文件+绕过 discovery 直读）、TOCTOU/活动来源变化、单文件+总量大小限制、bounded read、输入白名单。测试 [`snapshot-runtime.test.ts`](../../../packages/jianying-draft-import/src/__tests__/snapshot-runtime.test.ts)（15 用例）。注：真实 JianYing 目录布局假设仍属 JYR-001 证据范围 |
+| JYI-007 Plan artifact + store | ✅ 已完成 | 2026-08-04 | `jianying-draft-import/src/{import-plan-artifact,import-plan-store}.ts`，镜像 exporter `TrustedJianyingDraftExportSessionCore` 契约。Artifact（V1，可持久化）：随机 32B token、TTL（默认 5min/上限 24h）、buildIdentity（appVersion+interop schemaVersion）绑定、requestFingerprint（源身份 dev/ino/size/mtimeNs + sha256 + profile + build 的哈希）、issueSetFingerprint（severity+`\u001e` 分隔、`\u001d` join，与 exporter 同构）、warning/blocker 指纹分离、`canCommit = exact 且零 blocker`；RESTRICTED 拆分——绝对根路径独立于 loggable 字段，`redactImportPlanArtifactForLog` 结构性删除（非置空），是日志/CLI/evidence 唯一合法形态；时钟为参数注入，artifact 完全确定性。Store（私有、仅 main process）：CAS consume 单次成功、重放与并发一律 `ImportPlanConsumedError`、过期即删不可复活、build/schema mismatch fail-closed 拒绝并清除、容量有界（先逐出 consumed，满员活 plan 拒绝新入而非静默逐出）、token 重复拒绝。测试 [`import-plan.test.ts`](../../../packages/jianying-draft-import/src/__tests__/import-plan.test.ts)（11 用例:指纹分离/确定性/TTL 越界/日志脱敏/expiry+build+schema mismatch/CAS/并发三连争抢/TTL 过期删除/跨 build 拒绝/容量策略/重复 token） |
+| JYI-009 Import bundle | ✅ 已完成 | 2026-08-04 | `editor-core/draft-interop/import-bundle.ts`（共享 schema，纯数据无 node 依赖）+ `jianying-draft-import/qcut-import-bundle-builder.ts`。单一共享 schema：`QCutImportBundleV1` 打包 document + timelinePlan + resourceStaging + `internalIdBySemanticId`，live bridge 与 offline inbox 都必须过同一个 `parseQCutImportBundleV1`（fail-closed 结构校验 + 交叉引用校验：staging 只许引用 document 声明的资源、plan 节点必须有确定性内部 ID、媒体元素必须引用已 staging 资源、文字元素不得伪装成媒体、轨道与元素类型必须一致、timelinePlan 必须等于 document 的确定性投影、stagingKey 不得形似路径/含穿越/NUL）。Digest：editor-core 定义规范序列化（递归键排序 + digest 字段占位归零），runtime 用 node:crypto 计算/验证——结构合法但内容被篡改的 bundle 能过 parse 但 digest 必然失配（有测试）。确定性内部 ID：`deriveImportInternalId` 以 requestFingerprint 为种子（纯 TS，复用 `createDeterministicJianyingId`），同源重 plan 不同 token 下 ID 完全一致。Conflict policy：`projectName: rename|fail`（默认 rename），未知策略拒绝。builder 自检：产出前跑与 renderer 相同的 parser。测试 [`import-bundle.test.ts`](../../../packages/jianying-draft-import/src/__tests__/import-bundle.test.ts)（13 用例，fixture 走 builder→normalize→plan→artifact→bundle 全链路） |
+| JYI-008 Asset resolver | ✅ 已完成 | 2026-08-04 | `jianying-draft-import/src/asset-resolver.ts`。五态输出：resolved / relink-required / missing / ambiguous / license-restricted。哈希证据永远压过声明路径：声明路径哈希失配绝不静默采用——先记 warning 再落入 name search，同名候选中恰有一个哈希匹配才 resolved（method=hash-search）；无期望哈希时唯一同名候选可 resolved（name-search），多候选= ambiguous（`RESOURCE_AMBIGUOUS` error）；失配且无替代 = relink-required（需用户决策）。许可动作：originHint 为 app-resource/package 的资源零探测零拷贝，直接 license-restricted（`RESOURCE_LICENSE_RESTRICTED`，JYR-008 gate fail-closed）。所有探测有界：O_NOFOLLOW、单文件哈希上限 4GiB、name search 深度≤2/条目≤4096/拒 symlink、固定 worker pool（默认 4/上限 8，injectable instrumentation 验证峰值）。解析出的绝对路径为 RESTRICTED 输出（仅 provenance）。测试 [`asset-resolver.test.ts`](../../../packages/jianying-draft-import/src/__tests__/asset-resolver.test.ts)（10 用例:声明路径哈希匹配/哈希压过失配路径/relink/同名歧义/唯一名候选/missing/许可零探测/拒 symlink 候选/并发峰值+顺序保持/池上限校验） |
+| JYI-010 Renderer storage transaction | ✅ 已完成 | 2026-08-05 | `apps/web/src/lib/storage/{import-journal,import-staging-adapter,import-recovery}.ts`、`lib/jianying-draft/qcut-import-transaction.ts` 与共享 `editor-core/draft-interop/{qcut-import-state,qcut-import-verification}.ts`。Journal：任何项目数据写入前先落 intent 记录（Electron→IndexedDB→localStorage 探测链，可注入 adapter 测试），phase staging→published，publish 验证后才删除。Staging session：媒体字节与 timeline 写在"无 project 记录指向"的新 id 下，`publishProject` 是唯一可见化步骤；落盘后重新读取全部媒体 `File` 和 scene timeline，按 bundle 重新计算确定性期望状态，对媒体 ID/type/byteLength/SHA-256 及完整 track/element/transition 做精确比较，任何 duplicate/missing/unexpected/mismatch 都 fail-closed 并回滚。项目 publish 后还会重读并核对 id/name/scene/canvas/FPS/draftInterop，再清 journal。共享 state builder 替代原 Web 专用 `qcut-import-element-builder.ts`，确保 renderer 与 E2E 使用同一投影。Recovery 仍按 staging/published 状态清理或补完。测试 [`qcut-import-verification.test.ts`](../../../packages/editor-core/src/__tests__/qcut-import-verification.test.ts) 6 用例及 [`import-transaction.test.ts`](../../../apps/web/src/lib/storage/__tests__/import-transaction.test.ts) 22 用例，覆盖媒体、timeline、project readback 损坏和全量 rollback。 |
+| JYI-011 Envelope key service | ✅ 已完成 | 2026-08-04 | `electron/jianying-envelope-key-{contract,handler}.ts` + preload/main.ts/双侧类型接线 + renderer adapter [`envelope-key-adapter.ts`](../../../apps/web/src/lib/jianying-draft/envelope-key-adapter.ts)。密钥架构：每个 envelope 随机 32B data key → AES-256-GCM 加密 payload（iv‖authTag‖ciphertext 落 `userData/jianying-import/envelopes/<importId>.bin`，目录 0o700/文件 0o600）→ data key 经 safeStorage（OS keychain）包裹后 base64 存 key store（0o600）。**明文绝不落盘**：keychain 不可用即 `keychain-unavailable` fail-closed（不同于 api-keys 的明文降级），零字节写入。六通道（store/read/delete/purge/rotate/status）全部 `assertTrustedMainFrame`（iframe/非主窗口拒绝）、importId 白名单 `[A-Za-z0-9_-]{1,128}`（路径穿越不可能）、payload 上限 256MiB、IPC 永不 throw（有界 ErrorDto）。GCM 认证失败 = `envelope-corrupt`；rotation 全量重包裹并 bump keyVersion，解不开的条目连文件一起丢弃（fail-closed 不盲带）。renderer adapter 桥缺失时返回类型化 `bridge-unavailable`，renderer 永远接触不到密钥材料。测试 [`jianying-envelope-key-handler.test.ts`](../../../electron/__tests__/jianying-envelope-key-handler.test.ts)（11 用例:round-trip+磁盘无明文/keychain 不可用零写入/not-found+非法 id/GCM 篡改检测/六通道信任边界/单删/purge/rotation 成功/rotation 丢弃损坏项/status/dispose） |
+| JYI-012 Electron/CLI transport | ✅ 已完成 | 2026-08-04 | `jianying-draft-import/src/{import-session,persistent-import-plan-store,desktop-import-inbox}.ts` + `electron/jianying-draft-import-{contract,handler}.ts` + preload/双侧类型/CLI 接线。Plan store 使用私有目录 0700、文件 0600、O_NOFOLLOW 读取和 fsync+rename 原子发布；持久 JSON 先经严格 artifact parser，损坏/build mismatch/过期均 fail-closed。Session 重启后不持久化第二份大 session：从 RESTRICTED root 重读来源、重跑 profile/normalize/asset resolution，以 request/issue/warning/blocker fingerprints 验证一致后重建同一 bundle，再 CAS consume；错误 warning 不提前消费 token。Live IPC 六通道覆盖 inspect/plan/commit 与 inbox list/read/ack，全部只接受 trusted main frame；CLI inspect/plan/commit 共用 bundled runtime，plan 跨进程持久化，commit 将共享 parser+digest 验证后的 bundle 和独立媒体文件原子排入 desktop inbox。Inbox 只在 renderer transaction 成功后显式 ack 删除，篡改 bundle/media、symlink、路径穿越和重复 entry 均拒绝。定向测试 81 个通过；全仓 `check-types` 与 Electron/import-runtime bundle build 通过。 |
+| JYI-013 Import UI | ✅ 已完成 | 2026-08-04 | Projects 页新增桌面端草稿导入入口，由 `use-jianying-draft-import.ts` 与 `jianying-draft-import-card.tsx` 驱动。可信目录选择器执行 inspect → plan → 显式接受 warning → renderer transaction；弹窗展示 profile 识别、语义计数、issues、资源状态、rename 冲突策略、进度与错误。桌面队列严格按 read → renderer publish → ack 执行：事务失败保留 inbox；ack 失败仅提供 ack-only 恢复；重启后重试会复用按源 hash 派生的已发布项目，不会再造 rename 副本。hook 挂载时执行 JYI-010 journal recovery，并显示 rollback/finalize 数量。Projects 页已接中英文文案。30 个定向测试覆盖 bridge 信任边界、payload 解码、事务/ack 顺序、重试幂等、hook 门禁、UI 状态和恢复；Playwright 已检查桌面与 390px 宽度，无重叠或横向溢出。 |
+| JYI-014 CapCut 8.1 production import | ✅ 已完成 | 2026-08-05 | 核心 video/audio 子集现在同时具备原始真实 App 收据和可信持久化状态复验。复验首先发现一个跨层缺陷：资源探测已返回 `resolved`，但语义文档与 bundle 仍携带 normalizer 初始的 `pending`，因此 renderer 正确地把已暂存媒体/轨道判成 unexpected 并回滚。现在 `resolveImportAssets` 会把每项解析结果写回语义资源，并把 resolved SHA-256/byteLength 绑定到 plan 与 bundle；session 回归测试覆盖这条 pending→resolved 路径。随后对真实 CapCut 8.1.1 来源重新执行：25 个文件精确识别，2 轨/2 片段/2 资源全部 resolved，零 issue；两份媒体 payload 经 desktop inbox 导入运行中的 QCut，项目数 88→89，时间线为 8 秒 Video/Audio 双轨。可信 renderer capture 对持久化 project/timeline/media 双读、流式哈希，并通过 schema-2 import gate：所有 binding、名称/FPS/画布、媒体和轨道检查均为 true，零 issue。证据：[`capcut-8.1.1-core-media-import-2026-08-04.json`](../../../scripts/capcut-e2e/receipts/capcut-8.1.1-core-media-import-2026-08-04.json)、[`capcut-8.1.1-qcut-import-snapshot-2026-08-05.json`](../../../scripts/capcut-e2e/receipts/capcut-8.1.1-qcut-import-snapshot-2026-08-05.json) 和 [`capcut-8.1.1-qcut-import-verification-2026-08-05.json`](../../../scripts/capcut-e2e/receipts/capcut-8.1.1-qcut-import-verification-2026-08-05.json)。Profile 仍只将 `import` 升为 stable/production；native export、逐帧/音频和 same-profile writeback 尚未验证，`realAppVerified` 仍为 false。 |
+| JYI-015 同版本 envelope/写回 | 🟨 部分完成 | 2026-08-05 | 导入项目会持久化版本化来源绑定、规范化 `DraftInteropDocumentV1` 基线与可选 `ForeignDraftEnvelope` 元数据；原始字节仍只存在 OS keychain 包装的加密 payload 中。由真实 CapCut 8.1.1 保存并受收据约束的草稿（实测 `new_version: 179.0.0`）从 25 个发现文件中只捕获 `draft_info.json`：源 14,273B、6 个 bindings、payload 19,115B、零 warning。证据：[`capcut-8.1.1-envelope-capture-2026-08-04.json`](../../../scripts/capcut-e2e/receipts/capcut-8.1.1-envelope-capture-2026-08-04.json)。现有写回链路包含严格 payload/key-version/SHA-256 校验、带旧值前置条件与 unknown ownership 冲突门禁的标量 JSON Pointer patch、核心 video/audio 时间域 planner、保留未知字段的 preparation、renderer orchestration，以及受短期目录选择 token 约束的可信 Electron IPC。planner 只接受专用的无路径时间快照（tracks + playback-aware durations），因此从 IndexedDB 导入的媒体不需要取得仅导出流程才有的文件系统路径。主进程 writer 事务化替换固定 4 个活动 mirror，不触碰 `.bak`，并提供 fsync、独立 rollback 副本、journal 恢复、`.locked`、symlink、TOCTOU 和源 hash 门禁；新增/删除/跨轨移动、换素材和变速均 fail-closed。真实收据绑定的隔离副本验证器注入受控 unknown segment sentinel，走生产 `inspect → plan → commit`，应用 4 个时间叶子，并证明 4 个活动 mirror 哈希一致、2 个 `.bak` 与原始来源未变、raw JSON diff 仅含计划指针、sentinel 保留、recovery 为 `none`。无路径证据：[`capcut-8.1.1-same-profile-writeback-2026-08-05.json`](../../../scripts/capcut-e2e/receipts/capcut-8.1.1-same-profile-writeback-2026-08-05.json)。用户交付链路现已接通：导出弹窗对 CapCut 8.1 导入项目展示写回/恢复状态；严格 wire API 只接受 `projectId` 或不透明 `recoveryToken`，拒绝草稿路径和未知键；utility HTTP → main → 可信 main-frame renderer IPC 会重读持久化 project/timeline，校验 operation/project 关联，并在用户选择目录后再次校验时间线，并发修改会以 `qcut-state-changed` 拒绝。CLI 命令为 `qcut editor interop writeback --project-id <id> --json` 和 `qcut editor interop writeback-recover --recovery-token <token> --json`。聚焦验证已通过 13 个文件的 74 个测试、Web/Electron TypeScript 检查、两个生产构建，以及真实 CLI→utility→main→renderer 阻断路径 smoke test。写回验证现在接受可选 `--app-receipt`，并以 schema v2 输出派生的路径脱敏证据：receipt 必须锁定精确 8.1.1 App metadata、Developer ID 签名、不同的打开/重开进程代际、写回前输出 SHA-256、四个一致的活动 mirror、unknown sentinel，以及保存后与重开后完全一致的 mirror 状态；9.1、错误 case/profile/hash、缺阶段或重开漂移均 fail-closed。现已增加专用 receipt 生产器，通过严格 CLI 记录 `pre-open → opened → saved/quit → reopened → final quit`；每个边界都会重新校验专用账号、一次性 store 注册、不可替换的草稿目录身份、精确 App/签名和预期进程状态，最终无路径 plan/result/receipt 以 SHA-256 相互绑定，本地含路径 state 明确排除。裸 receipt、被改写的 companion、mirror 路径逃逸、进程代际复用或草稿目录替换都会 fail-closed，生产/消费链聚焦覆盖为 16 个测试。历史收据不回填，本机当前安装的是 9.1.0，且仍没有真实 8.1 app receipt，所以 verdict 刻意保持 `unverified`，profile 仍为 `sameProfileWriteback: none`。 |
+| JYI-016 特性 mapper | 🟨 部分完成 | 2026-08-04 | 已完成两条 fail-closed 导入子链。其一是证据门禁下的 CapCut 8.1 原生 `Dissolve`：仅在精确身份、相邻 seam、正整数时长及两侧片段承载能力均成立时映射为 QCut `dissolve/easeInOut`。其二是静态单样式普通文字候选：仅接受完整 UTF-16 单 style range、有限画布/变换、单位缩放、无翻转、无 keyframe/animation/额外引用，映射文字内容、字体、字号、填充、对齐、粗斜体/下划线、字距/宽度、位置/旋转/透明度、单描边、单阴影和背景；多样式、字幕语义、动态文字及畸形值一律 blocked，不静默压平。由于本机没有真实 CapCut 8.1 文字 render receipt，静态文字始终标为 downgrade，并提示系统字体替换风险，不能宣称逐帧 exact。bundle parser 强制轨道/元素类型一致并校验 timelinePlan 是 document 的确定性投影，renderer 可在零媒体 payload 时持久化 QCut TextElement。当前聚焦回归 5 个测试文件 48 用例及全仓 `check-types` 均通过。调色、蒙版、关键帧、富文本/动态文字和专有转场 mapper 仍未完成。 |
+| JYI-017 语义/逐帧/音频 E2E | 🟨 部分完成 | 2026-08-05 | 语义、采样帧、native/preview、音频链保持不变。可信导入取证链已接通：renderer 从 IndexedDB 持久化 project/timeline/media 双读，状态变化即拒绝，并流式计算媒体 SHA-256；Electron 只接受当前主窗口 main frame 的响应，HTTP/preload/utility bridge 共用严格 schema；CLI `qcut editor interop import-snapshot` 以 project ID + bundle digest 生成 0600、拒绝覆盖、零路径快照。E2E import manifest schema 2 强制核对完整媒体、tracks、project name/FPS/geometry、bundle digest、import ID、profile ID 和可信 capture 来源；旧的绝对 `sourcePath` schema-1 快照即使内容一致也只能得到 not-comparable。真实运行 QCut 的 capture 现已证明这道 import gate：bundle digest `bdc7f806…44d89d`、两份持久化媒体哈希、两条完整轨道及全部身份/画布检查通过，零 issue；零路径收据见 JYI-014。总编排 [`roundtrip-case.ts`](../../../scripts/capcut-e2e/roundtrip-case.ts) 保持必经 `qcut-import` gate，再合并 source→roundtrip 语义、reference→QCut 两份 native export、两套 preview PNG 与音频证据。相关 verifier/roundtrip 测试 19 用例通过，renderer、IPC、HTTP、CLI 各有独立信任边界测试，全仓 `check-types` 通过。**仍缺**：keyframe 三点采样、Alpha/Geometry/Temporal 与测试 tone 频谱、可信 App/资源/导出设置 provenance，以及真实 CapCut 8.1 四路输出和逐 feature/profile 阈值校准（本机为 9.1，不能替代 8.1 证据）。 |
+| JYI-018 规模/恢复加固 | 🟨 部分完成 | 2026-08-05 | 规模：[`draft-interop-scale.test.ts`](../../../packages/editor-core/src/__tests__/draft-interop-scale.test.ts) 让 10k 片段（10 轨×1000 段 + 2 万材料）走完 read→validate→normalize→map→diff→bundle-parse 全纯管线,零 issue、RESTRICTED 路径零泄漏,每阶段计数断言 + 宽松 10s 预算背书（实测全程 ~300ms,防的是意外平方爆炸不是机器速度）。恢复加固修复了六个真实缺陷：**(1) 写回孤儿锁死锁**——writer 在建锁后、journal 前崩溃曾留下永久 `WRITEBACK_ALREADY_RUNNING`;现在 `recoverCapCut81SameProfileWriteback` 在无 journal 时清理孤儿锁并返回新 action `cleared-stale-lock`（安全性依据:镜像变更只发生在 journal 存在之后;仅当 rollback 和已恢复的活动 mirror 都无法通过原始哈希验证时才硬 `RECOVERY_REQUIRED`）；**(2) inbox 列表单点炸表**——`listDesktopImports` 曾因单个损坏 entry 使整个列表 Promise.all 失败;现在损坏 entry 以 `unreadable: true` 占位返回（可见、可删、不可读/不可发布,绝不静默隐藏),in-flight 临时目录不进列表；**(3) 持久化 plan 损坏导致启动锁死**——损坏的普通文件状态现在会在私有 plan 目录内改名隔离为 `0600` 副本，作废所有不可信旧 token，并以无路径 `startupRecoveryAction` 显式记录后从空 store 继续；symlink 和非普通文件路径仍硬拒绝，绝不隔离；**(4) renderer journal 归属误判**——恢复流程过去会信任任何带 `schemaVersion: 1` 的持久化对象，因此损坏的 storage key/`importId` 组合可能携带无关 `projectId` 进入清理。新增独立严格 parser，校验 storage key 身份（包括 IndexedDB `id`）、小写 bundle digest、phase、有界安全 ID、无重复 media ID 以及规范且单调的时间戳。`ImportJournal.audit()` 只放行解析后的副本；无法读取或损坏的记录保持原样，只贡献计数，绝不调用存储删除。导入 UI 展示数量但不暴露 token/key，并明确这些记录没有触发项目数据删除。**(5) 写回 rollback 非幂等**——恢复会把 rollback 文件 rename 覆盖四个活动 mirror，因此恢复在消费 1–3 个 rollback 后再次崩溃时，下次启动会因 rollback 不齐永久拒绝 journal。现在恢复会在任何变更前预检四个 mirror：仅接受 SHA-256 与 `expectedSourceSha256` 一致的 rollback，或哈希同样一致、说明已被前次恢复完成的活动 mirror；任一 mirror 两者皆无时，在触碰其他 mirror 前失败。故障矩阵覆盖 writer 替换 0–4 个活动 mirror 后崩溃、恢复 rename 1–4 个 rollback 后再次崩溃、最终 digest/`.bak`/临时 artifact 不变量、第二次恢复 no-op，以及不可恢复状态下先验证后零修改。**(6) 损坏 journal 无人工出口**——现在可由用户显式将无法证明归属的损坏记录与自动恢复隔离，且不删除、不信任源数据。独立 quarantine namespace 只保存“源 storage key + 原始 JSON 值”的有界 SHA-256 指纹和规范时间戳，不保存 key 或原值；`ImportJournal.audit()` 仅在当前指纹与严格回读验证的 marker 一致时才抑制该损坏记录。源记录变化、marker 损坏、Web Crypto 不可用、输入超限或 marker 写入失败时都会 fail-closed 回到活动警告。UI 只展示数量和显式隔离操作，不暴露 identifier/fingerprint；该操作完全不包含 project、timeline、media 或源 journal 删除。新增有界的单轮 asset resolution 工作缓存：重复 resource 引用会复用并发文件 hash 和有界同名搜索，LRU 容量硬限制可计量淘汰，hash 前后文件身份变化会拒绝成功结果，并通过 plan JSON、CLI 与 IPC 输出带 schema 版本且无路径的 hit/miss/eviction/hashed-bytes 指标。这只是临时工作缓存，不能宣称跨会话内容寻址派生缓存已完成。新增共享且带 schema 版本的阶段计量器，只输出阶段 ID、实测耗时与调用次数。runtime plan 覆盖请求校验、发现、快照读取、profile 检测、规范化、素材解析、时间线映射、bundle 校验和 plan 持久化，并经 plan JSON、CLI 与 IPC 无路径透传；renderer 事务另行覆盖 bundle/digest/envelope 校验、配额与项目身份、journal、媒体/时间线暂存、回读验证、envelope 持久化、项目发布及每次 rollback 尝试。素材规模基础现将发现与同名索引统一限制为 8192 项；控制快照不再读取或保留 asset bytes，100GB/5000 项逻辑清单不会消耗 256MiB 控制预算；已解析资源的 hash/byteLength/status 纳入 plan fingerprint，多个不同文件名共用单次目录索引，5000 个共享引用只执行一次文件 hash；commit 读取 payload 时再次核对 O_NOFOLLOW、文件身份、长度和 SHA-256，关闭 resolver→payload TOCTOU。完整导入 runtime 回归通过 9 个文件 95 个测试；共享 recorder 有 3 个聚焦测试；renderer storage 回归通过 8 个文件 44 个测试；同版本写回 export 套件 14 个文件 133 个测试通过；定向 UI/hook 套件 8 个用例通过；全仓 `check-types` 与 Electron 生产构建通过。大媒体传输现已替换 live/CLI 的整文件 Base64 热路径：主进程签发有容量上限、两小时不活动超时且成功读取会续期的路径脱敏 grant，每次读取按 offset/长度受限并重新核对文件身份；renderer 严格验证 token、长度与 EOF，以 4MiB 默认块直接写入 OPFS，落盘后复验长度/SHA-256，失败回滚且 `finally` 显式释放 grant。desktop inbox 同样以有界并发流式复制、边写边 hash，并通过临时目录 rename 原子发布。聚焦链路 68 个测试和全仓类型检查通过。**仍未做**：跨会话持久内容寻址缓存、分阶段预算校准及生产聚合/告警，以及真实 100GB 素材的端到端导入收据；因此 100GB 仍只有逻辑清单级回归。 |
+| JYR-001 保存事务 | 🟨 部分完成 | 2026-08-04 | 真实 CapCut 8.1.1 观测：打开时创建 `.locked`，退出后删除；首次保存改写 9 个 snapshot 文件并更新 root metadata，active content 四镜像同步变化。这足以否定“只 patch 根 `draft_info.json`”方案，但尚缺隔离账号下的系统调用级写入顺序、临时文件和 rename 边界。 |
+| JYR-002 ~ JYR-008 研究门禁 | 🟨 部分完成 | 2026-08-04 | JYR-003 已记录 CapCut 8.1.1 精确保存迁移 `new_version: 159.0.0 → 179.0.0`；JYR-001 的现有真实保存后证据显示根与 timeline 下的 `draft_info.json`/`template-2.tmp` 四个活动 mirror 内容 hash 一致，两个 `.bak` 仅视为恢复副本，writer 因而只更新四个活动 mirror。该证据不能证明真实 syscall 调用顺序。JYR-006 仍只凭真实 App 文件访问证据准入根 `draft_info.json`；伴随引用闭包、完整 sidecar 需求、许可、compound ownership 和真实 8.1 写回顺序仍未知，继续阻止 profile 升为 writable。 |
 
 ## 目标
 
@@ -73,6 +99,7 @@ packages/editor-core/src/draft-interop/
   provenance.ts            # 来源 profile、文件哈希、原始节点绑定
   dirty-domains.ts          # geometry/timing/style/resource/structure 脏域
   issues.ts                 # 稳定 issue code 和严重级别
+  import-bundle.ts          # runtime 与 renderer 共享的纯数据 bundle schema
 
 packages/editor-core/src/jianying-draft/import/
   raw-types.ts              # 最小原始结构，不宣称覆盖所有字段
@@ -91,7 +118,7 @@ packages/editor-core/src/jianying-draft/profiles/
 
 Core 不读取用户目录、不调用 Electron、不创建 Blob，也不访问剪映缓存。
 
-### Runtime：受限文件系统和事务
+### Runtime：受限文件系统与导入 bundle
 
 新增与现有 exporter 对称的 package：
 
@@ -101,13 +128,26 @@ packages/jianying-draft-import/
   src/snapshot-reader.ts    # 限大小读取、哈希、文件身份验证
   src/asset-resolver.ts     # 路径/ID/哈希候选解析
   src/import-session.ts     # inspect/plan/commit 生命周期
-  src/import-journal.ts     # checkpoint、恢复和 rollback
-  src/project-writer.ts     # QCut staging project 原子提交
+  src/import-plan-artifact.ts # 可持久化、可过期、绑定来源的 plan
+  src/qcut-import-bundle-builder.ts # 生成 bundle 和 staging manifest
   src/runtime-validation.ts # IPC/CLI 输入白名单
   src/__tests__/
 ```
 
-该 package 只能通过 main process 或 CLI 调用。安全要求复用 exporter 的绝对路径、realpath、symlink、TOCTOU、大小限制和 bounded concurrency 模式。
+该 package 只能通过 main process 或 CLI 调用。安全要求复用 exporter 的绝对路径、realpath、symlink、TOCTOU、大小限制和 bounded concurrency 模式。它负责来源 snapshot、解析、资源计划和 `QCutImportBundle`，但**不得直接写入 QCut 的 IndexedDB 或 OPFS**。
+
+### Renderer：QCut 存储事务
+
+QCut 的 project registry 可以走 Electron storage adapter，但 timeline、media metadata 和 media bytes 仍由 renderer 中的 IndexedDB/OPFS adapter 管理。因此，Node runtime 的 filesystem rename 不能代表整个 QCut 项目的原子提交。新增 renderer 事务边界：
+
+```text
+apps/web/src/lib/jianying-draft/qcut-import-transaction.ts
+apps/web/src/lib/storage/import-staging-adapter.ts
+apps/web/src/lib/storage/import-journal.ts
+apps/web/src/lib/storage/import-recovery.ts
+```
+
+事务层接收已经验证的 `QCutImportBundle`，将 project、scene、timeline、media metadata、OPFS bytes 和 foreign envelope 写入隔离 namespace，重新读取验证后，再用单一 registry publish 使项目可见。最小 journal、rollback 和启动恢复必须与首个可写 commit 同时交付，不能推迟到性能阶段。
 
 ### Web/Electron 集成
 
@@ -118,13 +158,13 @@ electron/preload-types/api-types/jianying-draft-import-api.ts
 
 apps/web/src/hooks/import/use-jianying-draft-import.ts
 apps/web/src/components/import-dialog/jianying-draft-import-card.tsx
-apps/web/src/lib/jianying-draft/qcut-import-commit.ts
 
-electron/native-pipeline/cli/command-registry-editor-draft.ts
-electron/native-pipeline/cli/cli-handlers-editor-draft.ts
+electron/native-pipeline/cli/command-registry-editor-jianying.ts
+electron/native-pipeline/cli/cli-handlers-editor.ts
+electron/jianying-draft-import-inbox.ts
 ```
 
-UI 不直接解析草稿。它只显示 profile、问题、素材决策、预计磁盘占用和 commit 结果。
+UI 不直接解析草稿。它只显示 profile、问题、素材决策、预计磁盘占用和 commit 结果。CLI 不另写一套存储实现：QCut 正在运行时通过 Electron bridge 发送 bundle；未运行时只允许写入受验证的 desktop import inbox，由 QCut 下次启动后调用同一个 renderer 事务层消费。
 
 ## 双向语义中间层
 
@@ -164,6 +204,20 @@ interface DraftInteropDocumentV1 {
 | `blocked` | 无法安全表达或验证 | 否 |
 
 每个轨道、片段、附属素材和资源都要单独有 capability，不能只给整个工程一个模糊分数。
+
+### 五种 profile 操作能力
+
+“双向支持”不能作为一个布尔值。每个 profile 必须分别声明：
+
+| 能力 | 含义 |
+| --- | --- |
+| `inspect` | 可安全识别和报告，不创建 QCut 项目 |
+| `import` | 可把声明的支持子集提交为可编辑 QCut 项目 |
+| `sameProfileWriteback` | QCut 修改后可写回同一产品和 profile |
+| `crossProfileExport` | 可迁移到另一个明确目标 profile |
+| `realAppVerified` | 已由目标版本 App 完成 open/save/reopen/native-export 收据 |
+
+前三种数据方向分别是“来源导入”“同 profile 往返”和“跨 profile 迁移”，必须单独测试和发布。Synthetic fixture 只证明 parser/writer 内部自洽，不构成生产 profile，也不能满足 `realAppVerified`。
 
 ## 1. 正式导入器
 
@@ -210,16 +264,20 @@ Plan 必须绑定 inspect 的全部输入哈希。来源任何文件变化都使
 - blocked 原因；
 - commit checkpoint 列表和预计空间。
 
+Plan 以版本化 `ImportPlanArtifactV1` 保存，并至少绑定：`planId`、`importId`、创建者、创建/过期时间、QCut build/schema、source snapshot manifest hash、profile evidence hash、mapper versions、warning fingerprints 和 bundle digest。默认只保存在 QCut 私有 app data；日志和 CLI 输出不得包含未脱敏的来源路径。commit 必须以 compare-and-swap 标记 plan 状态，拒绝过期、已消费、来源变化、build 不兼容或并发执行的 plan。
+
+确定性 ID 的作用域是 `importId + source semantic ID`。重复执行同一 plan 必须幂等；重新导入同一来源则要求显式 `new-project | replace-existing | update-linked` 冲突策略，不能仅靠确定性 project ID 覆盖已有项目。
+
 ### Commit
 
-Commit 先写 `staging/<importId>/`，完成媒体、元数据、timeline、project 和 foreign envelope 后重新读取验证。只有验证通过才把项目注册为可见。失败时清理 staging；进程崩溃时由 journal 在下次启动继续或回滚。
+Runtime commit 只冻结 plan、解析资源并生成带 digest 的 `QCutImportBundle`。Renderer commit 再写入 IndexedDB/OPFS 的隔离 staging namespace，完成媒体、元数据、timeline、project 和 foreign envelope 后重新读取验证。只有验证通过才把项目注册为可见。失败时回滚 staging；进程崩溃时由 renderer journal 在下次启动继续或回滚。
 
 ### CLI
 
 ```bash
 qcut editor draft inspect --source "/path/to/draft" --json
 qcut editor draft import-plan --source "/path/to/draft" --profile auto --json
-qcut editor draft import-commit --plan-id <id> --accept-warning <fingerprint>
+qcut editor draft import-commit --plan-id <id> --on-conflict new-project --accept-warning <fingerprint>
 qcut editor draft roundtrip-verify --project <qcut-project-id> --target capcut-8.1
 ```
 
@@ -260,11 +318,11 @@ source raw
 
 ### 初始支持矩阵
 
-| Profile | 导入 | 导出 | Round-trip |
-| --- | --- | --- | --- |
-| synthetic plaintext 5.9 | 首个 parser/plan fixture | 已有基础 | 仅 fixture-verified；取得真实 5.9 App 收据前不得标 stable |
-| CapCut desktop 8.1 plaintext | 第二阶段 | 已有 migration 基础 | 支持已验证子集 |
-| JianYing 11.x 新格式 | inspect/read-only 起步 | 禁止猜写 | 无证据时 blocked |
+| Profile | Inspect | Import | Same-profile writeback | Cross-profile export | 真实 App 状态 |
+| --- | --- | --- | --- | --- | --- |
+| synthetic plaintext 5.9 | fixture | parser/plan fixture | 仅内部自洽测试 | 已有 writer 基础 | 非生产 profile |
+| CapCut desktop 8.1 plaintext | 首个生产候选 | 首个生产候选 | 支持已验证子集后逐项开放 | 已有 migration 基础 | 每个支持子集需要真实收据 |
+| JianYing 11.x 新格式 | read-only 起步 | 无证据时 blocked | blocked | blocked | unresolved/encrypted |
 
 每增加一个 profile，必须带 sanitized golden fixture、runtime validator、迁移测试、真实 App reopen/save/export 收据。
 Synthetic fixture 只能证明 QCut 内部 parser/writer 自洽，不能替代对应产品和版本的真实 App 收据。无法取得目标版本 App 时，该 profile 必须保持 `fixture-verified` 或 `read-only`。
@@ -394,10 +452,42 @@ Native export 是主要 oracle；GUI preview 受色彩管理、缩放和显示�
 ```text
 scripts/capcut-e2e/roundtrip-case.ts
 scripts/capcut-e2e/qcut-import-verification.ts
+scripts/capcut-e2e/qcut-import-verification-contract.ts
+scripts/capcut-e2e/qcut-import-snapshot.ts
 scripts/capcut-e2e/semantic-diff.ts
 scripts/capcut-e2e/audio-comparison.ts
+scripts/__tests__/capcut-e2e-qcut-import-verification.test.ts
 scripts/__tests__/capcut-e2e-roundtrip-*.test.ts
 ```
+
+当前“导入落盘门禁 + 四路输出”编排命令：
+
+```bash
+bun scripts/capcut-e2e/roundtrip-case.ts \
+  --case-id <case-id> \
+  --source-draft <source-draft-dir> \
+  --roundtrip-draft <roundtrip-draft-dir> \
+  --qcut-import-bundle <qcut-import-bundle.json> \
+  --qcut-import-snapshot <qcut-import-snapshot.json> \
+  --qcut-native-export <qcut-media> \
+  --reference-native-export <jianying-or-capcut-media> \
+  --qcut-preview-frames <qcut-frame-dir> \
+  --reference-preview-frames <jianying-or-capcut-frame-dir> \
+  --output <evidence-dir> --json
+```
+
+聚合 roundtrip manifest 已升为 schema 2；schema 1 不包含必经的导入落盘门禁，不能作为等价证据继续使用。
+
+先在已打开目标项目的 QCut 中生成可信持久化快照：
+
+```bash
+qcut editor interop import-snapshot \
+  --project-id <qcut-project-id> \
+  --bundle-digest <bundle-sha256> \
+  --output <qcut-import-snapshot.json> --json
+```
+
+该命令要求 renderer 对持久化 project、原始 tracks 和媒体 Blob 连续读取两次，流式哈希，并输出绑定 bundle digest、import ID、profile ID 的无路径快照。E2E verifier 只有在可信来源、全部绑定和 materialization 都匹配时才允许 schema-2 import manifest 为 pass。旧 schema-1 绝对 `sourcePath` 快照仍可用于本地诊断，但完全一致也只能是 not-comparable，不能证明 QCut 真正落盘。两套预览目录必须按 `frame-XXXXXXXX.png` 提供计划中的精确画布帧；不能用带侧栏、窗口边框或播放控件的整屏截图代替。退出码 `0/1/2/3` 分别表示 verified pass、comparison fail、unverified/not-comparable、harness error。当前默认 provenance 与全部阈值仍是 candidate，因此合成数据即使数值完全一致也只会得到 `unverified`，不会冒充真实 CapCut 8.1 验证。
 
 ## 6. 未知字段保留与无损往返
 
@@ -415,6 +505,8 @@ Envelope 本机保存：
 Envelope 不得默认复制整个来源目录。`crypto_key_store.dat`、`.locked`、运行日志、无关 backup、私有缓存包和未证明必要的 sidecar 默认 deny；原始用户路径只保存在受限本机 provenance 中，对日志、issue 和测试证据做脱敏。任何新 allowlist 项都必须有真实 App 文件访问或 same-profile round-trip 证据。
 
 Envelope 属于私有本机项目数据：使用操作系统保护的项目密钥加密静态 payload，只允许在所属项目打开时访问。删除项目或导入源时必须同步删除 Envelope，并提供显式清除操作。默认不将 Envelope 字节和 provenance 放入媒体导出、云同步、备份、诊断、遥测或支持包；只有用户单独知情确认时，才能导出脱敏的兼容性证据包。
+
+密钥契约必须在首个保存 Envelope 的实现前确定：main process 负责调用系统 keychain/credential vault 包装 project data key；renderer 只能通过窄 IPC 请求加解密，不得持久化明文 key。契约需覆盖 key version、轮换、项目删除、系统凭据不可用、跨机器迁移和用户显式导出。无法取得系统保护密钥时，允许无 Envelope 的明确降级导入或阻止 round-trip，禁止静默明文落盘。
 
 ### 脏域
 
@@ -499,7 +591,7 @@ PUBLISHED
 
 ### 原子性
 
-现有 `storageService` 分散保存 project、timeline、media 和 OPFS。正式 importer 不应边解析边调用这些公开方法。需要新增批量 staging writer，先写隔离 namespace，再通过一个 registry commit 暴露项目。
+现有 `storageService` 分散保存 project、timeline、media 和 OPFS。正式 importer 不应边解析边调用这些公开方法，也不能由 Node package 直接操作浏览器存储。需要在 renderer 新增批量 staging transaction，先写隔离 namespace，再通过一个 registry commit 暴露项目。Node runtime 只生成和验证 bundle；Electron bridge 负责传输和背压，不拥有持久化语义。
 
 ### 崩溃测试
 
@@ -551,39 +643,43 @@ PUBLISHED
 
 ## 分阶段实施
 
-| 阶段 | 交付 | 主要依赖 | 粗略工期 |
+| 阶段 | 可独立验收的交付 | 主要依赖 | 粗略工期 |
 | --- | --- | --- | ---: |
-| 0 | Interop model、issue/capability、profile registry | 时间线 19 项中的命令语义基础 | 1–2 周 |
-| 1 | 5.9 inspect + parse + semantic plan，暂不 commit | Phase 0 | 2 周 |
-| 2 | 素材 resolver、QCut staging commit、CLI/UI import | Phase 1 | 2–3 周 |
-| 3 | CapCut 8.1 import/profile migration 和基础 round-trip | Phase 2 | 3–4 周 |
-| 4 | 文字、调色、蒙版、keyframe、transition 扩展 | Phase 3 | 4–8 周 |
-| 5 | unknown preservation、真实 App save/reopen、视觉/音频门禁 | Phase 3–4 | 3–5 周 |
-| 6 | 10k segment 性能、journal、崩溃恢复 | Phase 2–5 | 2–4 周 |
+| 0 | JYR-001/JYR-003 首轮证据、Interop model、capability/issues、provenance、dirty domains、ForeignEnvelope schema、profile registry | 时间线命令语义基础 | 1–2 周 |
+| 1 | Synthetic fixture 与 CapCut 8.1 候选的只读 inspect/parse/semantic plan；plan artifact 可持久化但不能 commit | Phase 0 | 2–3 周 |
+| 2 | Resource resolver、QCutImportBundle、renderer staging transaction、最小 journal/rollback/recovery、Electron/CLI transport | Phase 1 | 3–4 周 |
+| 3 | CapCut 8.1 声明子集的生产 import，QCut reload 和真实 App/source 不变证据 | Phase 2、对应 profile research gates | 2–3 周 |
+| 4 | CapCut 8.1 same-profile writeback、unknown preservation、真实 App save/reopen/native-export 和 semantic/frame/audio 门禁 | Phase 3、JYR-005/JYR-006 | 3–5 周 |
+| 5 | 文字、调色、蒙版、keyframe、transition mapper；每类功能独立 capability 和收据 | Phase 4 | 4–8 周 |
+| 6 | 10k segment、100 GB 素材、缓存指标、完整 fault injection、恢复和跨版本迁移加固 | Phase 2–5 | 2–4 周 |
 
-单人串行大约 4–6 个月；两名熟悉 QCut 和媒体格式的工程师可并行到约 2.5–4 个月。估算不包含破解新版本加密格式；没有合法、稳定证据时该 profile 应保持 read-only 或 blocked。
+单人串行大约 4–6 个月；两名熟悉 QCut 和媒体格式的工程师可并行到约 2.5–4 个月。Phase 2 之后的每个阶段都必须保持前一阶段可发布，不允许以“后续再加 journal/unknown preservation”为理由交付不安全的可写路径。估算不包含破解新版本加密格式；没有合法、稳定证据时该 profile 应保持 read-only 或 blocked。
 
 ## Subtask 与文件路径
 
-| ID | Subtask | 最小文件组 |
-| --- | --- | --- |
-| JYI-001 | Interop model 与 capability | `packages/editor-core/src/draft-interop/*` + unit tests |
-| JYI-002 | Profile registry/detection | `packages/editor-core/src/jianying-draft/profiles/*`、`import/profile-detection.ts` |
-| JYI-003 | Raw graph parser/validator | `import/raw-types.ts`、`graph-reader.ts`、`validation.ts` |
-| JYI-004 | 5.9 normalizer | `import/normalize.ts` + sanitized golden fixtures |
-| JYI-005 | Import runtime/session | `packages/jianying-draft-import/src/import-session.ts`、runtime validation |
-| JYI-006 | Asset resolver | `asset-resolver.ts`、probe/hash/copy tests |
-| JYI-007 | QCut staging writer | `project-writer.ts`、`storage-service.ts` 新批量事务接口 |
-| JYI-008 | Electron/CLI contract | import IPC、preload types、`command-registry-editor-draft.ts` |
-| JYI-009 | Import UI | `use-jianying-draft-import.ts`、import dialog card |
-| JYI-010 | Foreign envelope/dirty domains | `draft-interop/provenance.ts`、project serialization/migration |
-| JYI-011 | Complex feature registry | text/color/mask/keyframe/transition mappers + profile tests |
-| JYI-012 | Round-trip semantic diff | `scripts/capcut-e2e/semantic-diff.ts` + fixtures |
-| JYI-013 | Visual/audio parity | existing visual oracle extensions + audio comparator |
-| JYI-014 | Journal/recovery | `import-journal.ts`、startup recovery、fault injection tests |
-| JYI-015 | Scale/performance | 10k segment fixture、benchmarks、cache metrics |
+| ID | Subtask 与主要文件 | 依赖/研究门禁 | 完成条件与验证 |
+| --- | --- | --- | --- |
+| JYI-000 | Evidence corpus：`scripts/capcut-e2e/fixtures/`、私有本机 evidence manifest | JYR-001、JYR-003 | sanitized fixture 可提交；真实 App 证据只记录版本、哈希和脱敏收据 |
+| JYI-001 | Interop/capability：`packages/editor-core/src/draft-interop/{document,capability,issues}.ts` | 时间线命令语义 | schema round-trip、四态聚合和 unknown issue code 单测 |
+| JYI-002 | Provenance/envelope：`draft-interop/{provenance,dirty-domains,foreign-envelope}.ts` | JYR-005、JYR-006 的 deny-by-default 契约 | ownership/dirty-domain 矩阵、敏感字段序列化拒绝测试 |
+| JYI-003 | Profile registry/detection：`jianying-draft/profiles/*`、`import/profile-detection.ts` | JYI-000、JYI-001 | exact/ambiguous/unsupported/encrypted fixtures；ambiguous 禁止写 |
+| JYI-004 | Raw graph parser：`import/{raw-types,graph-reader,validation}.ts` | JYI-001、JYI-003 | malformed、重复 ID、悬空 ref、循环和时间边界测试 |
+| JYI-005 | Normalizer：`import/{normalize,qcut-mapping}.ts` | JYI-002–004 | synthetic 5.9 与 CapCut 8.1 sanitized fixture 的 deterministic semantic snapshots |
+| JYI-006 | Snapshot runtime：`packages/jianying-draft-import/src/{discovery,snapshot-reader,runtime-validation}.ts` | JYR-001 | symlink、TOCTOU、大小限制、活动来源变化和 bounded read 测试 |
+| JYI-007 | Plan artifact：`import-plan-artifact.ts`、私有 plan store | JYI-003–006 | TTL、build/schema mismatch、CAS consume、重放/并发和日志脱敏测试 |
+| JYI-008 | Asset resolver：`asset-resolver.ts` | JYI-006、JYR-008 | hash 优先级、同名冲突、missing/relink、许可动作和 bounded concurrency 测试 |
+| JYI-009 | Import bundle：`draft-interop/import-bundle.ts`、`qcut-import-bundle-builder.ts`、package exports、workspace manifest/lockfile | JYI-005、JYI-007–008 | 单一共享 schema、bundle runtime validation、digest、确定性内部 ID 和 conflict policy 测试 |
+| JYI-010 | Renderer storage transaction：`apps/web/src/lib/storage/{import-staging-adapter,import-journal,import-recovery}.ts`、`apps/web/src/lib/jianying-draft/qcut-import-transaction.ts` | JYI-009 | IndexedDB/OPFS staging、重新读取验证、单一 publish、rollback 和 reload 测试 |
+| JYI-011 | Envelope key service：Electron keychain IPC、renderer envelope adapter | JYI-002、JYI-010 | key unavailable/rotation/delete/purge 测试；明文 Envelope 不落盘 |
+| JYI-012 | Electron/CLI transport：import contract/handler/inbox、现有 `command-registry-editor-jianying.ts` 和 `cli-handlers-editor.ts` | JYI-007、JYI-009–011 | live bridge 与 offline inbox 使用同一 bundle validator；无第二套 persistence |
+| JYI-013 | Import UI：`use-jianying-draft-import.ts`、import dialog card | JYI-012 | profile/issues/resource/conflict/warning/recovery 状态组件测试 |
+| JYI-014 | CapCut 8.1 production import | JYI-000–013、该 profile 的 JYR gates | 声明 exact 子集可导入、reload；来源草稿 hash 不变；真实 App/source 收据 |
+| JYI-015 | Same-profile writer/unknown patch | JYI-014、JYR-005–007 | unknown sentinel、dirty-domain isolation、open/save/reopen semantic diff |
+| JYI-016 | Feature mapper registry | JYI-015 | text/color/mask/keyframe/transition 每类独立 mapper、capability 和 profile tests |
+| JYI-017 | Import/semantic/frame/audio E2E：`scripts/capcut-e2e/{qcut-import-verification,qcut-import-snapshot,semantic-diff,audio-comparison,roundtrip-case}.ts` | JYI-014–016 | 导入落盘门禁、四路输出、profile 阈值和 hash-bound evidence manifest |
+| JYI-018 | Scale/recovery hardening：benchmarks、fault injection、cache metrics | JYI-010、JYI-017 | parser/mapping/persistence/renderer 分项预算，全部 checkpoint 崩溃恢复 |
 
-默认一个 subtask 一个原子 commit。共享类型与首个使用者、package manifest 与 lockfile、实现与不可分测试可以组成最小多文件 commit。
+每个 subtask 默认独立 PR 或独立原子 commit 组，不要求把一个完整 subtask 压成单文件 commit。共享 schema 与首个使用者、package manifest 与 lockfile、实现与不可分测试可以组成最小多文件提交；不得把尚未通过门禁的 profile writer 与基础模型混在同一提交。
 
 ## 测试矩阵
 
@@ -618,11 +714,13 @@ PUBLISHED
 
 - 不破解或绕过加密、DRM、签名和付费资源授权。
 - 不直接调用、patch 或注入剪映私有 dylib API，也不把私有 ABI 作为产品运行时依赖。
-- 不把剪映二进制、缓存资源、字体或反编译产物提交到仓库。
-- 不对未知版本做“看起来差不多”的写出。
-- 不保证 raw JSON 字节完全相同；保证的是已声明域的语义等价和未消费未知域的完整保留。
-- 不在 importer 中复制 QCut timeline 操作规则；所有编辑仍通过 QCut 共享命令层。
+- 不提交剪映二进制、缓存资源、字体或反编译产物。
+- 不为未知版本猜测可写输出。
+- 不承诺 JSON 字节级相同；承诺声明范围内的语义等价和未消费 unknown domain 保留。
+- 不在 importer 中复制 QCut 时间线编辑规则；导入后继续使用共享 command 层。
 
 ## 完成定义
 
-基础双向兼容完成时，至少应有两个 stable profile、一个正式 importer、一个可恢复的原子 commit 流程、内容寻址素材重定位、unknown envelope、CLI/UI 共用 plan/commit、真实 App save/reopen 证据，以及结构、逐帧和音频三类自动验证。任何不能无损处理的功能都必须以 downgrade、opaque 或 blocked 明确呈现，不能静默丢失。
+基础双向支持完成需要：至少一个经过真实 App 验证的生产 profile 可导入并 same-profile writeback；另一个 profile 至少达到稳定 inspect/import 或明确保持 read-only；生产 importer 使用可恢复的 renderer 原子事务、内容寻址资源重定位、加密 ForeignDraftEnvelope 和共享 CLI/UI plan/commit；真实 App save/reopen/native-export、结构 diff、逐帧和音频验证均有 hash-bound 收据。任何非无损功能都必须显式显示为 `downgrade`、`opaque` 或 `blocked`，不得静默丢弃。
+
+“两个 stable profile”是后续跨 profile 兼容里程碑，不阻止一个真实 profile 的安全导入能力先独立发布。

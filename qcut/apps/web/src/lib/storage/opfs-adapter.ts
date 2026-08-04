@@ -1,4 +1,18 @@
 import { StorageAdapter } from "./types";
+import {
+	pipeChunkedFileSource,
+	type ChunkedFileSource,
+} from "./chunked-file-source";
+
+function toFileSystemWriteBytes({
+	bytes,
+}: {
+	bytes: Uint8Array;
+}): Uint8Array<ArrayBuffer> {
+	return bytes.buffer instanceof ArrayBuffer
+		? new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+		: Uint8Array.from(bytes);
+}
 
 export class OPFSAdapter implements StorageAdapter<File> {
 	private directoryName: string;
@@ -34,6 +48,33 @@ export class OPFSAdapter implements StorageAdapter<File> {
 
 		await writable.write(file);
 		await writable.close();
+	}
+
+	async setFromChunks({
+		key,
+		source,
+	}: {
+		key: string;
+		source: ChunkedFileSource;
+	}): Promise<void> {
+		const existingFile = await this.get(key);
+		const directory = await this.getDirectory();
+		const fileHandle = await directory.getFileHandle(key, { create: true });
+		const fileWritable = await fileHandle.createWritable();
+		const writable = new WritableStream<Uint8Array>({
+			write: (bytes) => fileWritable.write(toFileSystemWriteBytes({ bytes })),
+			close: () => fileWritable.close(),
+			abort: (reason) => fileWritable.abort(reason),
+		});
+
+		try {
+			await pipeChunkedFileSource({ source, writable });
+		} catch (error) {
+			if (existingFile === null) {
+				await directory.removeEntry(key).catch(() => undefined);
+			}
+			throw error;
+		}
 	}
 
 	async remove(key: string): Promise<void> {

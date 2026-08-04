@@ -50,9 +50,21 @@ import {
 } from "./license-server-build-config.js";
 import { resolveLicenseServerCspOrigins } from "./license-server-csp.js";
 import {
+	setupJianyingEnvelopeKeyIPC,
+	type JianyingEnvelopeKeyIPCController,
+} from "./jianying-envelope-key-handler.js";
+import {
+	setupJianyingDraftImportIPC,
+	type JianyingDraftImportIPCController,
+} from "./jianying-draft-import-handler.js";
+import {
 	setupJianyingDraftExportIPC,
 	type JianyingDraftExportIPCController,
 } from "./jianying-draft-export-handler.js";
+import {
+	setupJianyingSameProfileWritebackIPC,
+	type JianyingSameProfileWritebackIPCController,
+} from "./jianying-same-profile-writeback-handler.js";
 
 // Type definitions
 interface ReleaseNote {
@@ -90,7 +102,13 @@ installEpipeGuard();
 
 let updateController: AutoUpdateController | null = null;
 let codexPluginUpdateController: CodexPluginUpdateController | null = null;
+let jianyingEnvelopeKeyController: JianyingEnvelopeKeyIPCController | null =
+	null;
+let jianyingDraftImportController: JianyingDraftImportIPCController | null =
+	null;
 let jianyingDraftExportController: JianyingDraftExportIPCController | null =
+	null;
+let jianyingSameProfileWritebackController: JianyingSameProfileWritebackIPCController | null =
 	null;
 
 // Import handlers (compiled TypeScript - relative to dist/electron output)
@@ -897,6 +915,31 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 					});
 				},
 			],
+			[
+				"JianyingEnvelopeKeyIPC",
+				() => {
+					jianyingEnvelopeKeyController = setupJianyingEnvelopeKeyIPC({
+						getMainWindow: () => mainWindow,
+					});
+				},
+			],
+			[
+				"JianyingSameProfileWritebackIPC",
+				() => {
+					jianyingSameProfileWritebackController =
+						setupJianyingSameProfileWritebackIPC({
+							getMainWindow: () => mainWindow,
+						});
+				},
+			],
+			[
+				"JianyingDraftImportIPC",
+				() => {
+					jianyingDraftImportController = setupJianyingDraftImportIPC({
+						getMainWindow: () => mainWindow,
+					});
+				},
+			],
 		];
 
 		for (const [name, setup] of handlers) {
@@ -984,6 +1027,12 @@ app.on("before-quit", () => {
 	if (isHeadlessRecorder) return;
 	jianyingDraftExportController?.dispose();
 	jianyingDraftExportController = null;
+	jianyingSameProfileWritebackController?.dispose();
+	jianyingSameProfileWritebackController = null;
+	jianyingEnvelopeKeyController?.dispose();
+	jianyingEnvelopeKeyController = null;
+	jianyingDraftImportController?.dispose();
+	jianyingDraftImportController = null;
 	try {
 		const { cleanupAllAudioFiles } = require("./audio-temp-handler.js");
 		cleanupAllAudioFiles();

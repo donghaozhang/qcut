@@ -71,3 +71,145 @@ and the complete generated 2x2 invert `.cube` body.
 Bundles are built in a run-local staging directory and atomically renamed to
 `bundles` only after all three cases and the summary manifest pass. Existing
 `bundles` output is never overwritten; generate a new fixture run ID instead.
+
+## Same-profile writeback transaction
+
+Exercise guarded CapCut 8.1 timing writeback against an isolated copy of a
+real-app, receipt-bound draft:
+
+```bash
+bun scripts/capcut-e2e/capcut-8-1-writeback-verification.ts \
+  --case-id <case-id> \
+  --source-draft <capcut-8.1-draft-dir> \
+  --source-receipt <capcut-envelope-capture-receipt.json> \
+  --app-receipt <capcut-8.1-app-roundtrip-receipt.json> \
+  --output <new-evidence-dir> --json
+```
+
+The runner verifies the source against the envelope receipt before creating
+`<output>/draft-copy`. It injects a controlled unknown segment field only into
+that copy, imports the copy through the production `inspect → plan → commit`
+pipeline, applies one four-leaf timing change, and invokes the transactional
+four-mirror writer. The path-free manifest requires all active mirrors to
+match, both `.bak` mirrors and the original source to remain unchanged, the
+unknown sentinel to survive, the raw JSON diff to equal the planned pointers,
+and recovery state to be clean.
+
+`--app-receipt` is optional. Without it, an isolated-copy success remains
+`unverified` with exit code `2`. When supplied, the receipt must bind the exact
+8.1.1 app metadata and Developer ID signature, distinct open/reopen process
+generations, the pre-open writeback SHA-256, four matching active mirrors, the
+unknown sentinel, and an unchanged saved/reopened state. A 9.1 receipt or a
+receipt for another output fails closed. Exit code `0` is reserved for that
+additional real-app gate; invariant failures use `1`, and harness errors use
+`3`.
+
+Create the real-app receipt from an independent macOS test account whose home
+owns the disposable CapCut store. CapCut must be fully closed at `pre-open`;
+use the prior writeback manifest's
+`transactionEvidence.outputContentSha256` as the output binding:
+
+```bash
+bun scripts/capcut-e2e/capcut-8-1-writeback-app-session-cli.ts pre-open \
+  --app <canonical-capcut-8.1.1.app> \
+  --case-id <case-id> \
+  --home <dedicated-test-home> \
+  --draft <dedicated-store-draft> \
+  --output-sha256 <writeback-output-sha256> \
+  --profile-id capcut-desktop-8.1-plaintext \
+  --session <new-session-directory> --json
+
+# After opening the bound draft in CapCut 8.1.1:
+bun scripts/capcut-e2e/capcut-8-1-writeback-app-session-cli.ts opened \
+  --session <session-directory> --json
+
+# After saving and fully quitting CapCut:
+bun scripts/capcut-e2e/capcut-8-1-writeback-app-session-cli.ts saved \
+  --session <session-directory> --json
+
+# After reopening the same draft in a new CapCut process:
+bun scripts/capcut-e2e/capcut-8-1-writeback-app-session-cli.ts reopened \
+  --session <session-directory> --json
+
+# After the final full quit:
+bun scripts/capcut-e2e/capcut-8-1-writeback-app-session-cli.ts final \
+  --session <session-directory> --json
+```
+
+Every boundary revalidates the exact 8.1.1 app/signature, dedicated account,
+store registration, draft directory identity, and required process state. The
+final command writes the path-free, mutually bound
+`writeback-app-session-plan.json`, `writeback-app-session-result.json`, and
+`writeback-app-receipt.json`. The hidden `.writeback-app-session-state.json`
+contains local paths and is not portable evidence. A receipt without its plan
+and result companions, a changed companion, a reused process generation, or
+mirror drift is rejected.
+
+## Round-trip parity case
+
+Run the import-materialization, semantic, and four-output comparisons after
+both applications have saved/exported the same case:
+
+```bash
+bun scripts/capcut-e2e/roundtrip-case.ts \
+  --case-id <case-id> \
+  --source-draft <source-draft-dir> \
+  --roundtrip-draft <roundtrip-draft-dir> \
+  --qcut-import-bundle <qcut-import-bundle.json> \
+  --qcut-import-snapshot <qcut-import-snapshot.json> \
+  --qcut-native-export <qcut-media> \
+  --reference-native-export <jianying-or-capcut-media> \
+  --qcut-preview-frames <qcut-frame-dir> \
+  --reference-preview-frames <jianying-or-capcut-frame-dir> \
+  --output <empty-evidence-dir> --json
+```
+
+With the imported project open in QCut, capture the trusted persisted snapshot
+before running the round-trip case:
+
+```bash
+qcut editor interop import-snapshot \
+  --project-id <qcut-project-id> \
+  --bundle-digest <bundle-sha256> \
+  --output <qcut-import-snapshot.json> --json
+```
+
+The renderer reads the project, raw timeline, and media blobs twice from QCut
+storage, rejects state that changes between reads, and streams each persisted
+blob through SHA-256. Electron accepts the response only from the active main
+frame. The path-free snapshot binds the bundle digest, import ID, and source
+profile ID to project geometry/FPS/name, complete tracks, and media
+ID/type/byte length/SHA-256. The verifier emits manifest schema 2 and returns
+`pass` only when the trusted capture and every binding and materialization
+check match.
+
+Legacy schema-1 snapshots whose media entries contain absolute `sourcePath`
+values remain readable for local diagnostics. Even an exact legacy match is
+`not-comparable`; it cannot prove that the running QCut renderer persisted the
+state. Absolute paths are never retained in evidence manifests.
+
+The import gate can also run independently:
+
+```bash
+bun scripts/capcut-e2e/qcut-import-verification.ts \
+  --bundle <qcut-import-bundle.json> \
+  --qcut-snapshot <qcut-import-snapshot.json> \
+  --output <empty-evidence-dir> --json
+```
+
+The source draft determines a fixed-seed sample plan. Each preview directory
+must contain a cropped canvas PNG named `frame-XXXXXXXX.png` for every planned
+zero-based frame. Do not provide whole-window captures: application chrome,
+sidebars, playback controls, display scaling, and monitor color management are
+outside the canvas comparison contract.
+
+The aggregate manifest fixes semantic roles as source to roundtrip, import
+roles as bundle to persisted QCut state, and media roles as reference to QCut.
+Aggregate schema 2 embeds path-free import, semantic, native-frame,
+preview-frame, and audio manifests; schema 1 evidence predates the mandatory
+import gate and is not equivalent. Import or comparison failure exits `1`;
+missing or candidate evidence exits `2`; harness errors exit `3`. Exit `0` is
+reserved for fully verified import state, thresholds, frame coverage, and
+provenance. Current CapCut 8.1 thresholds and provenance are
+candidate-unverified, so matching synthetic outputs intentionally return
+`unverified` rather than a verified pass.

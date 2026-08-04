@@ -1,0 +1,47 @@
+{
+	"schema": "qcut.capcut-envelope-capture-receipt",
+	"schemaVersion": 1,
+	"receiptId": "capcut-8.1.1-envelope-capture-2026-08-04",
+	"capturedAt": "2026-08-04T12:50:00Z",
+	"profileId": "capcut-desktop-8.1-plaintext",
+	"targetApp": {
+		"bundleIdentifier": "com.lemon.lvoverseas",
+		"version": "8.1.1"
+	},
+	"profileMigration": {
+		"canonicalNewVersion": "159.0.0",
+		"savedNewVersion": "179.0.0",
+		"savedProfileDetection": "exact"
+	},
+	"source": {
+		"fileCount": 25,
+		"warningCount": 0,
+		"blockerCount": 0
+	},
+	"envelopeCapture": {
+		"entryCount": 1,
+		"entries": [
+			{
+				"relativePath": "draft_info.json",
+				"byteLength": 14273,
+				"sha256": "06059804ed3813781233ede103922ce4afac305d5b255be247a56b406da73cc0",
+				"evidence": "real-app-file-access"
+			}
+		],
+		"bindingCount": 6,
+		"payloadByteLength": 19115,
+		"payloadSha256": "86501750d2b2204f70023f60970b4aa959131ba718a2f9fd73d0103584660eaa"
+	},
+	"privacy": {
+		"absolutePathsIncluded": false,
+		"sourcePayloadIncluded": false,
+		"nonAllowlistedSidecarsCaptured": 0,
+		"desktopInboxPersistsEnvelope": false
+	},
+	"limitations": {
+		"realKeychainStorageVerified": false,
+		"sameProfileWritebackVerified": false,
+		"unknownSentinelRoundTripVerified": false,
+		"realAppOpenSaveReopenAfterWritebackVerified": false
+	}
+}
