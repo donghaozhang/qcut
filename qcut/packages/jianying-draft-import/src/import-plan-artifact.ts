@@ -15,6 +15,7 @@
  */
 
 import { createHash, randomBytes } from "node:crypto";
+import { isAbsolute } from "node:path";
 import {
 	collectInteropIssueFingerprints,
 	createInteropIssueFingerprint,
@@ -179,6 +180,338 @@ export type ImportPlanInvalidReason =
 	| "schema-mismatch"
 	| "build-mismatch"
 	| "expired";
+
+export class ImportPlanArtifactMalformedError extends Error {
+	readonly path: string;
+
+	constructor({ message, path }: { message: string; path: string }) {
+		super(`${path}: ${message}`);
+		this.name = "ImportPlanArtifactMalformedError";
+		this.path = path;
+	}
+}
+
+function malformed({
+	message,
+	path,
+}: {
+	message: string;
+	path: string;
+}): never {
+	throw new ImportPlanArtifactMalformedError({ message, path });
+}
+
+function asRecord({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): Record<string, unknown> {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) {
+		malformed({ message: "expected an object", path });
+	}
+	return value as Record<string, unknown>;
+}
+
+function assertExactKeys({
+	record,
+	required,
+	optional = [],
+	path,
+}: {
+	record: Record<string, unknown>;
+	required: readonly string[];
+	optional?: readonly string[];
+	path: string;
+}): void {
+	const allowed = new Set([...required, ...optional]);
+	for (const key of Object.keys(record)) {
+		if (!allowed.has(key)) {
+			malformed({ message: `unexpected field ${key}`, path: `${path}/${key}` });
+		}
+	}
+	for (const key of required) {
+		if (!(key in record)) {
+			malformed({ message: "missing required field", path: `${path}/${key}` });
+		}
+	}
+}
+
+function asString({
+	value,
+	path,
+	maxLength = 16_384,
+}: {
+	value: unknown;
+	path: string;
+	maxLength?: number;
+}): string {
+	if (
+		typeof value !== "string" ||
+		value.length === 0 ||
+		value.length > maxLength ||
+		value.includes("\0")
+	) {
+		malformed({ message: "expected a bounded non-empty string", path });
+	}
+	return value;
+}
+
+function asNonNegativeSafeInteger({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): number {
+	if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+		malformed({ message: "expected a non-negative safe integer", path });
+	}
+	return value;
+}
+
+function asSha256({ value, path }: { value: unknown; path: string }): string {
+	const digest = asString({ value, path, maxLength: 64 });
+	if (!/^[a-f0-9]{64}$/u.test(digest)) {
+		malformed({ message: "expected a lowercase SHA-256 digest", path });
+	}
+	return digest;
+}
+
+function asFingerprintArray({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): readonly string[] {
+	if (!Array.isArray(value)) {
+		malformed({ message: "expected an array", path });
+	}
+	const fingerprints = value.map((entry, index) =>
+		asSha256({ value: entry, path: `${path}/${index}` })
+	);
+	if (new Set(fingerprints).size !== fingerprints.length) {
+		malformed({ message: "duplicate fingerprints are not allowed", path });
+	}
+	return Object.freeze(fingerprints);
+}
+
+function isSafeRelativePath({
+	relativePath,
+}: {
+	relativePath: string;
+}): boolean {
+	if (isAbsolute(relativePath) || relativePath.includes("\\")) {
+		return false;
+	}
+	const parts = relativePath.split("/");
+	return parts.every(
+		(part) => part.length > 0 && part !== "." && part !== ".."
+	);
+}
+
+/** Parses persisted JSON without trusting its TypeScript shape. */
+export function parseImportPlanArtifactV1(
+	value: unknown
+): ImportPlanArtifactV1 {
+	const path = "$";
+	const record = asRecord({ value, path });
+	assertExactKeys({
+		record,
+		required: [
+			"schemaVersion",
+			"planToken",
+			"createdAtUnixMilliseconds",
+			"expiresAtUnixMilliseconds",
+			"buildIdentity",
+			"detectionOutcome",
+			"canCommit",
+			"requestFingerprint",
+			"issueSetFingerprint",
+			"warningFingerprints",
+			"blockerFingerprints",
+			"restricted",
+			"sourceFiles",
+		],
+		optional: ["profileId"],
+		path,
+	});
+	if (record.schemaVersion !== IMPORT_PLAN_ARTIFACT_SCHEMA_VERSION) {
+		malformed({
+			message: "unsupported schema version",
+			path: "$/schemaVersion",
+		});
+	}
+
+	const buildRecord = asRecord({
+		value: record.buildIdentity,
+		path: "$/buildIdentity",
+	});
+	assertExactKeys({
+		record: buildRecord,
+		required: ["appVersion", "interopSchemaVersion"],
+		path: "$/buildIdentity",
+	});
+	const buildIdentity: ImportPlanBuildIdentity = {
+		appVersion: asString({
+			value: buildRecord.appVersion,
+			path: "$/buildIdentity/appVersion",
+			maxLength: 256,
+		}),
+		interopSchemaVersion: asNonNegativeSafeInteger({
+			value: buildRecord.interopSchemaVersion,
+			path: "$/buildIdentity/interopSchemaVersion",
+		}),
+	};
+
+	const detectionOutcomes: readonly ImportPlanDetectionOutcome[] = [
+		"exact",
+		"ambiguous",
+		"unsupported",
+		"encrypted",
+	];
+	if (
+		!detectionOutcomes.includes(
+			record.detectionOutcome as ImportPlanDetectionOutcome
+		)
+	) {
+		malformed({
+			message: "unknown detection outcome",
+			path: "$/detectionOutcome",
+		});
+	}
+	const detectionOutcome =
+		record.detectionOutcome as ImportPlanDetectionOutcome;
+	if (typeof record.canCommit !== "boolean") {
+		malformed({ message: "expected a boolean", path: "$/canCommit" });
+	}
+	const warningFingerprints = asFingerprintArray({
+		value: record.warningFingerprints,
+		path: "$/warningFingerprints",
+	});
+	const blockerFingerprints = asFingerprintArray({
+		value: record.blockerFingerprints,
+		path: "$/blockerFingerprints",
+	});
+	const canCommit = record.canCommit;
+	if (
+		canCommit !==
+		(detectionOutcome === "exact" && blockerFingerprints.length === 0)
+	) {
+		malformed({
+			message: "value disagrees with detection outcome or blockers",
+			path: "$/canCommit",
+		});
+	}
+
+	const restrictedRecord = asRecord({
+		value: record.restricted,
+		path: "$/restricted",
+	});
+	assertExactKeys({
+		record: restrictedRecord,
+		required: ["rootRealPath"],
+		path: "$/restricted",
+	});
+	const rootRealPath = asString({
+		value: restrictedRecord.rootRealPath,
+		path: "$/restricted/rootRealPath",
+	});
+	if (!isAbsolute(rootRealPath)) {
+		malformed({
+			message: "expected an absolute path",
+			path: "$/restricted/rootRealPath",
+		});
+	}
+
+	if (!Array.isArray(record.sourceFiles)) {
+		malformed({ message: "expected an array", path: "$/sourceFiles" });
+	}
+	const seenPaths = new Set<string>();
+	const sourceFiles = record.sourceFiles.map((entry, index) => {
+		const entryPath = `$/sourceFiles/${index}`;
+		const sourceRecord = asRecord({ value: entry, path: entryPath });
+		assertExactKeys({
+			record: sourceRecord,
+			required: ["relativePath", "sha256", "byteLength"],
+			path: entryPath,
+		});
+		const relativePath = asString({
+			value: sourceRecord.relativePath,
+			path: `${entryPath}/relativePath`,
+		});
+		if (!isSafeRelativePath({ relativePath }) || seenPaths.has(relativePath)) {
+			malformed({
+				message: "expected a unique safe relative path",
+				path: `${entryPath}/relativePath`,
+			});
+		}
+		seenPaths.add(relativePath);
+		return {
+			relativePath,
+			sha256: asSha256({
+				value: sourceRecord.sha256,
+				path: `${entryPath}/sha256`,
+			}),
+			byteLength: asNonNegativeSafeInteger({
+				value: sourceRecord.byteLength,
+				path: `${entryPath}/byteLength`,
+			}),
+		};
+	});
+
+	const createdAtUnixMilliseconds = asNonNegativeSafeInteger({
+		value: record.createdAtUnixMilliseconds,
+		path: "$/createdAtUnixMilliseconds",
+	});
+	const expiresAtUnixMilliseconds = asNonNegativeSafeInteger({
+		value: record.expiresAtUnixMilliseconds,
+		path: "$/expiresAtUnixMilliseconds",
+	});
+	if (expiresAtUnixMilliseconds <= createdAtUnixMilliseconds) {
+		malformed({
+			message: "must be later than creation time",
+			path: "$/expiresAtUnixMilliseconds",
+		});
+	}
+
+	return {
+		schemaVersion: IMPORT_PLAN_ARTIFACT_SCHEMA_VERSION,
+		planToken: asString({
+			value: record.planToken,
+			path: "$/planToken",
+			maxLength: 256,
+		}),
+		createdAtUnixMilliseconds,
+		expiresAtUnixMilliseconds,
+		buildIdentity,
+		...(record.profileId === undefined
+			? {}
+			: {
+					profileId: asString({
+						value: record.profileId,
+						path: "$/profileId",
+						maxLength: 256,
+					}),
+				}),
+		detectionOutcome,
+		canCommit,
+		requestFingerprint: asSha256({
+			value: record.requestFingerprint,
+			path: "$/requestFingerprint",
+		}),
+		issueSetFingerprint: asSha256({
+			value: record.issueSetFingerprint,
+			path: "$/issueSetFingerprint",
+		}),
+		warningFingerprints,
+		blockerFingerprints,
+		restricted: { rootRealPath },
+		sourceFiles: Object.freeze(sourceFiles),
+	};
+}
 
 /**
  * Revalidates a (possibly persisted) artifact against the current build
