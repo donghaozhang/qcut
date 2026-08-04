@@ -125,3 +125,9 @@ export {
 	readDesktopImport,
 	type DesktopImportInboxEntrySummary,
 } from "./desktop-import-inbox.js";
+
+export {
+	enqueueDesktopImportFromGrants,
+	readDesktopImportWithGrants,
+	type MediaPayloadChunkReader,
+} from "./desktop-import-inbox-grants.js";
