@@ -53,7 +53,16 @@ describe("executeJianyingImportCommand", () => {
 
 			async plan({ input }: { input: unknown }) {
 				calls.push({ verb: "plan", input });
-				return { plan: { planToken: "token" } };
+				return {
+					plan: { planToken: "token" },
+					cacheMetrics: {
+						assetResolution: {
+							schemaVersion: 1,
+							fileProbeHits: 3,
+							fileProbeMisses: 1,
+						},
+					},
+				};
 			}
 
 			async commit({ input }: { input: unknown }) {
@@ -110,6 +119,30 @@ describe("executeJianyingImportCommand", () => {
 		expect(result.success).toBe(false);
 		expect(result.error).toContain("--draft");
 		expect(runtime.calls).toEqual([]);
+	});
+
+	it("returns asset cache metrics from offline planning", async () => {
+		const runtime = createRuntime();
+		const result = await executeJianyingImportCommand({
+			options: makeOpts({
+				command: "editor:jianying-import:plan",
+				draftPaths: ["/drafts/my-draft"],
+			}),
+			loadRuntime: async () => runtime.module,
+			getUserDataDirectory: () => "/qcut-user-data",
+		});
+
+		expect(result.data).toMatchObject({
+			result: {
+				cacheMetrics: {
+					assetResolution: {
+						schemaVersion: 1,
+						fileProbeHits: 3,
+						fileProbeMisses: 1,
+					},
+				},
+			},
+		});
 	});
 
 	it("commits a durable plan into the desktop inbox", async () => {
