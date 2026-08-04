@@ -96,6 +96,19 @@ export interface InteropSegment {
 	foreignRef?: string;
 }
 
+export type InteropTransitionType = "dissolve" | "unknown";
+
+/** A transition owned by the outgoing segment at one same-track seam. */
+export interface InteropTransition {
+	id: string;
+	type: InteropTransitionType;
+	fromSegmentId: string;
+	toSegmentId: string;
+	durationUs: number;
+	capability: InteropCapability;
+	foreignRef?: string;
+}
+
 export type InteropTrackKind =
 	| "video"
 	| "audio"
@@ -112,6 +125,7 @@ export interface InteropTrack {
 	order: number;
 	isMain?: boolean;
 	segments: InteropSegment[];
+	transitions?: InteropTransition[];
 	capability: InteropCapability;
 	foreignRef?: string;
 }
@@ -282,6 +296,20 @@ function asNonNegativeSafeInteger({
 		fail({ message: "expected a non-negative safe integer", path });
 	}
 	return value;
+}
+
+function asPositiveSafeInteger({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): number {
+	const parsed = asNonNegativeSafeInteger({ value, path });
+	if (parsed === 0) {
+		fail({ message: "expected a positive safe integer", path });
+	}
+	return parsed;
 }
 
 function asPositiveFinite({
@@ -496,6 +524,45 @@ function parseSegment({
 	};
 }
 
+function parseTransition({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropTransition {
+	const record = asRecord({ value, path });
+	const foreignRef = asOptionalString({
+		value: record.foreignRef,
+		path: `${path}/foreignRef`,
+	});
+	return {
+		id: asString({ value: record.id, path: `${path}/id` }),
+		type: asEnum({
+			value: record.type,
+			path: `${path}/type`,
+			allowed: ["dissolve", "unknown"],
+		}),
+		fromSegmentId: asString({
+			value: record.fromSegmentId,
+			path: `${path}/fromSegmentId`,
+		}),
+		toSegmentId: asString({
+			value: record.toSegmentId,
+			path: `${path}/toSegmentId`,
+		}),
+		durationUs: asPositiveSafeInteger({
+			value: record.durationUs,
+			path: `${path}/durationUs`,
+		}),
+		capability: asCapability({
+			value: record.capability,
+			path: `${path}/capability`,
+		}),
+		...(foreignRef === undefined ? {} : { foreignRef }),
+	};
+}
+
 function parseTrack({
 	value,
 	path,
@@ -512,6 +579,18 @@ function parseTrack({
 		value: record.foreignRef,
 		path: `${path}/foreignRef`,
 	});
+	const transitions =
+		record.transitions === undefined
+			? undefined
+			: asArray({
+					value: record.transitions,
+					path: `${path}/transitions`,
+				}).map((transition, index) =>
+					parseTransition({
+						value: transition,
+						path: `${path}/transitions/${index}`,
+					})
+				);
 	return {
 		id: asString({ value: record.id, path: `${path}/id` }),
 		kind: asEnum({
@@ -538,6 +617,7 @@ function parseTrack({
 		}).map((segment, index) =>
 			parseSegment({ value: segment, path: `${path}/segments/${index}` })
 		),
+		...(transitions === undefined ? {} : { transitions }),
 		capability: asCapability({
 			value: record.capability,
 			path: `${path}/capability`,
