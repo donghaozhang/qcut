@@ -480,7 +480,7 @@ describe("timeline lock contract", () => {
 			]);
 		});
 
-		it("deleteSelectedElementsWithRipple never shifts locked tracks", () => {
+		it("deleteSelectedElementsWithRipple never shifts locked or unrelated tracks", () => {
 			useTimelineStore.setState({
 				selectedElements: [{ trackId: "main", elementId: "b" }],
 			});
@@ -492,11 +492,17 @@ describe("timeline lock contract", () => {
 					.find((track) => track.id === "locked")
 					?.elements.map((element) => element.startTime)
 			).toEqual([0, 4]);
+			// Unrelated tracks are outside the ripple domain too (QTL-003).
 			expect(
 				state.tracks
 					.find((track) => track.id === "overlay")
 					?.elements.map((element) => element.startTime)
-			).toEqual([2]);
+			).toEqual([4]);
+			expect(
+				state.tracks
+					.find((track) => track.id === "main")
+					?.elements.map((element) => element.startTime)
+			).toEqual([0, 2]);
 		});
 
 		it("removeTrackWithRipple holds locked tracks in place", () => {

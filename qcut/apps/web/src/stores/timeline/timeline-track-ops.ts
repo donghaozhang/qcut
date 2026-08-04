@@ -17,6 +17,10 @@ import type {
 } from "./timeline-store-operations";
 import { blockedByTrackLock } from "./timeline-lock-guard";
 import { overwriteRangeInElements } from "./timeline-collision-utils";
+import {
+	deriveTimelineLinks,
+	resolveRippleDomain,
+} from "@qcut/editor-core/timeline";
 
 interface TimelineRange {
 	startTime: number;
@@ -288,6 +292,29 @@ export function createTrackOps(
 
 			if (!element || !track) return;
 
+			// Ripple domain (QTL-003): the edited track plus tracks linked to its
+			// elements. A locked linked dependency blocks the whole command —
+			// shifting one side of a link would desynchronize the pair.
+			const rippleDomain = resolveRippleDomain({
+				tracks: _tracks,
+				seedTrackIds: [trackId],
+				links: deriveTimelineLinks({ tracks: _tracks }),
+			});
+			if (rippleDomain.lockedDependencyTrackIds.length > 0) {
+				handleError(
+					new Error("Cannot ripple: a linked dependency track is locked"),
+					{
+						operation: "Remove Element With Ripple",
+						category: ErrorCategory.VALIDATION,
+						severity: ErrorSeverity.MEDIUM,
+						metadata: {
+							lockedTrackIds: rippleDomain.lockedDependencyTrackIds,
+						},
+					}
+				);
+				return;
+			}
+
 			if (pushHistory) get().pushHistory();
 			get().deselectElement(trackId, elementId);
 
@@ -295,11 +322,12 @@ export function createTrackOps(
 			const elementDuration = getTimelineElementDuration({ element });
 			const elementEndTime = elementStartTime + elementDuration;
 
-			// Remove the element and shift all elements that come after it
+			// Remove the element and shift the ripple domain after it
 			const updatedTracks = _tracks
 				.map((currentTrack) => {
-					// Only apply ripple effects to the same track unless multi-track ripple is enabled
-					const shouldApplyRipple = currentTrack.id === trackId;
+					const shouldApplyRipple = rippleDomain.domainTrackIds.has(
+						currentTrack.id
+					);
 
 					const updatedElements = currentTrack.elements
 						.filter((currentElement) => {
@@ -443,6 +471,33 @@ export function createTrackOps(
 					};
 				}
 
+				// Ripple domain (QTL-003): only the edited tracks and tracks linked
+				// to their elements shift; unrelated tracks hold their positions. A
+				// locked linked dependency blocks the whole batch.
+				const rippleDomain = resolveRippleDomain({
+					tracks: _tracks,
+					seedTrackIds: selectedTrackIds,
+					links: deriveTimelineLinks({ tracks: _tracks }),
+				});
+				if (rippleDomain.lockedDependencyTrackIds.length > 0) {
+					handleError(
+						new Error("Cannot ripple: a linked dependency track is locked"),
+						{
+							operation: "Delete Selected Elements With Ripple",
+							category: ErrorCategory.VALIDATION,
+							severity: ErrorSeverity.MEDIUM,
+							metadata: {
+								lockedTrackIds: rippleDomain.lockedDependencyTrackIds,
+							},
+						}
+					);
+					return {
+						deletedElements: 0,
+						splitElements: 0,
+						totalRemovedDuration: 0,
+					};
+				}
+
 				if (pushHistory) get().pushHistory();
 
 				let workingTracks = _tracks;
@@ -450,18 +505,12 @@ export function createTrackOps(
 				let splitElements = 0;
 				let totalRemovedDuration = 0;
 				for (const range of [...mergedRanges].reverse()) {
-					// The ripple shift domain is derived, so it skips locked tracks.
-					const trackIds = new Set(
-						workingTracks
-							.filter((track) => !track.locked)
-							.map((track) => track.id)
-					);
 					const result = applyDeleteTimeRangeToTracks({
 						tracks: workingTracks,
 						startTime: range.startTime,
 						endTime: range.endTime,
 						targetTrackIds: selectedTrackIds,
-						rippleTrackIds: trackIds,
+						rippleTrackIds: rippleDomain.domainTrackIds,
 						fps: getProjectFps(),
 					});
 					workingTracks = result.tracks;

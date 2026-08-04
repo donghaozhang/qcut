@@ -122,3 +122,13 @@ export {
 	type TimeRange,
 	type TimelineRangeItem,
 } from "./collision-policy.js";
+
+export {
+	deriveTimelineLinks,
+	resolveRippleDomain,
+	type LinkAwareElement,
+	type LinkAwareTrack,
+	type RippleDomainResolution,
+	type TimelineElementLink,
+	type TimelineLinkType,
+} from "./ripple-plan.js";

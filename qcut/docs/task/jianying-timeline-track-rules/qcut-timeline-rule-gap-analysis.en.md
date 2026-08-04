@@ -13,7 +13,7 @@
 | --- | --- | --- | --- |
 | QTL-001 Centralize command guards and lock enforcement | ✅ Done | 2026-08-04 | Pure preflight + every entry point wired + 26-case matrix test; also fixes the `replaceElementMedia` stale-snapshot write-back |
 | QTL-002 Shared Collision Engine | ✅ Done | 2026-08-04 | Pure interval math in `collision-policy.ts` + explicit `reject\|insert\|overwrite` parameter; deleteTimeRange and add-with-overwrite share one trim/split implementation; replace concurrency regression test |
-| QTL-003 Ripple Domains and typed Links | ⬜ Not started | | The locked-exclusion domain landed with QTL-001 |
+| QTL-003 Ripple Domains and typed Links | ✅ Done | 2026-08-04 | `ripple-plan.ts`: typed links derived from groupId (video-audio/group) + ripple-domain resolution; unrelated tracks no longer shift; a locked dependency blocks the whole command |
 | QTL-004 Transaction history | ⬜ Not started | | |
 | QTL-005 – QTL-012 | ⬜ Not started | | |
 
@@ -23,12 +23,12 @@ This audit decomposes the JianYing research baseline into **50 independently tes
 
 | Status | Count | Share |
 | --- | ---: | ---: |
-| Complete | 35 | 70% |
-| Partial | 8 | 16% |
+| Complete | 36 | 72% |
+| Partial | 7 | 14% |
 | Missing | 7 | 14% |
-| **Requires repair or implementation** | **15** | **30%** |
+| **Requires repair or implementation** | **14** | **28%** |
 
-The audit baseline identified 19 of 50 rules needing changes; with QTL-001 and QTL-002 done, **QCut still needs code changes for 15 of the 50 timeline rules** — eight with useful foundations but incomplete contracts, seven without a first-class model or command.
+The audit baseline identified 19 of 50 rules needing changes; with QTL-001 through QTL-003 done, **QCut still needs code changes for 14 of the 50 timeline rules** — seven with useful foundations but incomplete contracts, seven without a first-class model or command.
 
 QCut's foundation is stronger than the gap count may suggest. It already has typed tracks, explicit main-track identity, visibility, mute, ordering, canonical composition, grouping, compound containers, transitions, and ripple operations. The largest gap is the operation-semantics layer: locks are not enforced by every entry point, insert/overwrite/replace do not share a collision engine, main-track magnetism is not separate from snapping and ripple, relationships still rely heavily on generic `groupId`, and undo stores only track arrays.
 
@@ -49,7 +49,7 @@ QCut's foundation is stronger than the gap count may suggest. It already has typ
 | Track types and operations | 7 | 6 | 0 | 1 | 1 |
 | Layering and rendering | 5 | 4 | 1 | 0 | 1 |
 | Insert, overwrite, and replace | 5 | 4 | 1 | 0 | 1 |
-| Ripple and main-track magnetism | 5 | 3 | 1 | 1 | 2 |
+| Ripple and main-track magnetism | 5 | 4 | 0 | 1 | 1 |
 | Trim modes | 5 | 4 | 0 | 1 | 1 |
 | Snapping | 5 | 3 | 0 | 2 | 2 |
 | Links, groups, and compounds | 5 | 3 | 1 | 1 | 2 |
@@ -57,7 +57,7 @@ QCut's foundation is stronger than the gap count may suggest. It already has typ
 | Undo and redo | 3 | 2 | 1 | 0 | 1 |
 | Navigation and cache | 3 | 1 | 2 | 0 | 2 |
 | AI semantics | 2 | 1 | 0 | 1 | 1 |
-| **Total** | **50** | **35** | **8** | **7** | **15** |
+| **Total** | **50** | **36** | **7** | **7** | **14** |
 
 ## Detailed 50-Rule Assessment
 
@@ -89,11 +89,11 @@ Additional migration risk: if every existing track has `order` and a main track 
 
 **Complete (QTL-002): an explicit Overwrite command.** `addElementToTrack(trackId, data, { collision: "overwrite" })` clears the target range (remove / trim / split at both edges) while keeping downstream positions. The range-clearing trim/split math is one shared implementation with `deleteTimeRange` and ripple range deletion ([`timeline-collision-utils.ts`](../../../apps/web/src/stores/timeline/timeline-collision-utils.ts)). The CLI batch-add API passes `collision` through verbatim.
 
-### 4. Ripple and main-track magnetism: 3 complete, 1 partial, 1 missing
+### 4. Ripple and main-track magnetism: 4 complete, 0 partial, 1 missing
 
 **Complete:** Same-track ripple move, same-track ripple delete, and explicit range delete have Store operations and tests. See [`timeline-element-ops.ts`](../../../apps/web/src/stores/timeline/timeline-element-ops.ts), [`timeline-track-ops.ts`](../../../apps/web/src/stores/timeline/timeline-track-ops.ts), and [`timeline-ripple-ops.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-ripple-ops.test.ts).
 
-**Partial: linked cross-track ripple.** `deleteSelectedElementsWithRipple()` places every track in the ripple set. `removeTrackWithRipple()` also shifts every remaining track according to ranges occupied by the removed track. The locked-exclusion domain landed with QTL-001 (locked tracks hold their position in every ripple path), but there is still no main-track or explicit-dependency domain, so unrelated tracks may move. Group movement takes another path and bypasses ordinary ripple behavior.
+**Complete (QTL-003, landed 2026-08-04): linked cross-track ripple.** `removeElementFromTrackWithRipple()` and `deleteSelectedElementsWithRipple()` now shift a ripple domain: the edited track plus tracks holding elements explicitly linked to it ([`ripple-plan.ts`](../../../packages/editor-core/src/timeline/ripple-plan.ts) derives typed `video-audio` / `group` links from groupIds). Unrelated tracks hold their positions; a locked linked dependency blocks the whole command (no half-applied commit), while a locked unrelated track is simply outside the domain. `removeTrackWithRipple()` and `rippleDeleteAcrossTracks()` remain explicit cross-track commands (all tracks minus locked) by design. See [`timeline-ripple-domain.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-ripple-domain.test.ts).
 
 **Missing: independent main-track magnetism.** QCut currently has `snappingEnabled` and `rippleEditingEnabled`. JianYing treats Main Track Magnet, Auto Snapping, and Main Track Linkage as separate concepts; QCut currently compresses the latter behaviors into one “Linked editing” toggle.
 
@@ -117,7 +117,7 @@ Additional migration risk: if every existing track has `order` and a main track 
 
 **Partial: atomic group behavior.** Normal selection expands a group, but direct deletion, trim, cross-track movement, and lock conflicts do not share a group closure. `groupId` currently carries UI grouping, detached audio, and AI-aligned media semantics, so its responsibility will continue to grow unless those relationships are separated.
 
-**Missing: a typed dependency graph.** There are no first-class `video-audio`, `caption-owner`, `effect-target`, or `semantic-scene` link types, no dependency closure before delete/move, and no persisted one-sided unlink state.
+**Missing: a typed dependency graph (partially advanced).** QTL-003 introduced typed links derived from groupIds (`video-audio`, `group`; see `ripple-plan.ts`) that already power ripple domains, but persisted `caption-owner` / `effect-target` / `semantic-scene` links, pre-delete/move dependency closures, and persisted one-sided unlink state remain missing (QTL-008 / QTL-011).
 
 Compound clips can be created and decomposed, but the current representation is a `MediaElement.compound.clips[]` container, not a navigable child timeline with its own fps, markers, and cache version. This should evolve after typed links exist rather than adding more meaning to `groupId`.
 
@@ -152,7 +152,7 @@ Compound clips can be created and decomposed, but the current representation is 
 | Priority | Defect | Impact | Status |
 | --- | --- | --- | --- |
 | P0 | Locks are enforced only by some UI/commands | CLI, automation, and other Store callers can mutate locked tracks | ✅ Fixed (QTL-001) |
-| P0 | Linked ripple can move every track | Unrelated or locked tracks can be shifted | 🔶 Locked tracks excluded (QTL-001); unrelated tracks await QTL-003 |
+| P0 | Linked ripple can move every track | Unrelated or locked tracks can be shifted | ✅ Fixed (QTL-001 locked exclusion + QTL-003 domain semantics) |
 | P0 | `replaceElementMedia()` writes a stale async `_tracks` snapshot | User edits made during import can be overwritten | ✅ Fixed (QTL-001) |
 | P0 | Collision checks are outside the domain command layer | UI, CLI, and AI can produce different results for one operation | ✅ Fixed (QTL-002) |
 | P1 | History stores tracks only | Selection, playhead, and cross-Store state can disagree after undo | ⬜ QTL-004 |
@@ -193,20 +193,20 @@ What landed:
 
 Acceptance result: UI and CLI invoke the same store command, so semantics are byte-equivalent ✅; ordinary add/move APIs cannot create illegal same-track overlap (default reject, no history pollution) ✅; async replacement rereads current timeline state and the concurrent-edit test passes ✅. The `stack` semantics stay in the lane-selection layer (`addMediaAtTime`, `separateAudio`) — a cross-track concern orthogonal to the single-track collision parameter.
 
-#### QTL-003 Introduce Ripple Domains and typed Links
+#### QTL-003 Introduce Ripple Domains and typed Links ✅ Done (2026-08-04)
 
 Goal: define main-track, current-track, selection, and dependency domains instead of inferring “all tracks” or overloading `groupId`.
 
-Relevant files:
+What landed:
 
-- `packages/editor-core/src/types/timeline.ts`: add versioned link-graph and ripple-domain types.
-- `packages/editor-core/src/timeline/ripple-plan.ts`: proposed dry-run planner.
-- `apps/web/src/stores/timeline/timeline-track-ops.ts`
-- `apps/web/src/stores/timeline/timeline-element-ops.ts`
-- `apps/web/src/stores/timeline/timeline-media-timing-ops.ts`
-- `apps/web/src/lib/timeline/aligned-generated-media.ts`
+- `packages/editor-core/src/timeline/ripple-plan.ts` (types live next to the implementation rather than in types/timeline.ts): `TimelineLinkType` (`video-audio` / `group` derivable today; `caption-owner` / `effect-target` / `semantic-scene` reserved for QTL-011), `TimelineElementLink` (with a `detached` flag), `deriveTimelineLinks` (groupId + mediaId + audio-track type → separated-audio pair; other in-group relations → group), and `resolveRippleDomain` (seed tracks + one-hop link expansion; locked dependencies reported separately).
+- `timeline-track-ops.ts`: the shift set of `removeElementFromTrackWithRipple` and `deleteSelectedElementsWithRipple` changed from "all tracks" to the ripple domain; a locked linked dependency → `handleError` + whole-command failure with zero history pollution.
+- `updateMediaTiming` already honored the linked-audio closure; `aligned-generated-media`'s groupId relations enter the derived link graph automatically.
+- Decision: `removeTrackWithRipple` / `rippleDeleteAcrossTracks` keep "all tracks minus locked" — they are caller-declared cross-track commands, not implicit linkage.
+- Contract change: ripple deletion no longer shifts unrelated overlay tracks (the old behavior was the audited defect); two existing test expectations were updated with the contract.
+- Tests: [`ripple-plan.test.ts`](../../../packages/editor-core/src/__tests__/ripple-plan.test.ts) (5 cases: link typing, one-hop expansion, locked-dependency reporting, detached links, seed-element scoping) + [`timeline-ripple-domain.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-ripple-domain.test.ts) (4 cases).
 
-Acceptance: deleting a main clip moves only the main track and explicitly linked dependencies; unrelated overlays stay fixed; locked dependencies block partial commits; one undo restores the complete operation.
+Acceptance result: deleting a main clip moves only the main track and explicitly linked dependencies (the separated-audio lane follows) ✅; unrelated overlays stay fixed ✅; locked dependencies block partial commits (whole failure, no history entry) ✅; one undo restores the complete operation ✅. Remaining: the persisted link graph and unlink state (QTL-011) and group-closure deletion (QTL-008 — deleting a video does not yet delete its orphaned audio partner).
 
 #### QTL-004 Expand transaction history
 

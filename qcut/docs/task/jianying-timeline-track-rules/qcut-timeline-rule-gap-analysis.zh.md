@@ -13,7 +13,7 @@
 | --- | --- | --- | --- |
 | QTL-001 统一命令守卫和锁定契约 | ✅ 已完成 | 2026-08-04 | 纯函数 preflight + 全入口接入 + 26 用例矩阵测试；顺带修复 `replaceElementMedia` 旧快照写回 |
 | QTL-002 共享 Collision Engine | ✅ 已完成 | 2026-08-04 | `collision-policy.ts` 纯区间数学 + `reject\|insert\|overwrite` 显式参数;deleteTimeRange 与 add-overwrite 共用一份 trim/split 实现;replace 并发回归测试 |
-| QTL-003 Ripple Domain 与类型化 Link | ⬜ 未开始 | | 锁定轨排除域已随 QTL-001 落地 |
+| QTL-003 Ripple Domain 与类型化 Link | ✅ 已完成 | 2026-08-04 | `ripple-plan.ts`：groupId 派生类型化 link（video-audio/group）+ ripple domain 解析；无关轨道不再被波纹移动；锁定依赖阻止整个命令 |
 | QTL-004 扩展事务历史 | ⬜ 未开始 | | |
 | QTL-005 ~ QTL-012 | ⬜ 未开始 | | |
 
@@ -23,12 +23,12 @@
 
 | 状态 | 数量 | 占比 |
 | --- | ---: | ---: |
-| 完整实现 | 35 | 70% |
-| 部分实现 | 8 | 16% |
+| 完整实现 | 36 | 72% |
+| 部分实现 | 7 | 14% |
 | 尚未实现 | 7 | 14% |
-| **需要修复或补齐** | **15** | **30%** |
+| **需要修复或补齐** | **14** | **28%** |
 
-审计基线为 19/50 项需要改动；QTL-001、QTL-002 完成后，**当前还有 15/50 项时间线规则需要代码改动**——8 项已有基础但契约不完整，另有 7 项缺少正式模型或命令。
+审计基线为 19/50 项需要改动；QTL-001 ~ QTL-003 完成后，**当前还有 14/50 项时间线规则需要代码改动**——7 项已有基础但契约不完整，另有 7 项缺少正式模型或命令。
 
 QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、顺序、合成层级、分组、复合片段、转场和波纹操作都已经存在。最大差距集中在操作语义：锁定没有在所有入口统一执行，插入/覆盖/替换没有一个共享冲突引擎，主轨磁吸与普通吸附/波纹没有拆开，关联仍主要依赖通用 `groupId`，撤销只保存轨道数组。
 
@@ -49,7 +49,7 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 | 轨道类型与操作 | 7 | 6 | 0 | 1 | 1 |
 | 层级与渲染 | 5 | 4 | 1 | 0 | 1 |
 | 插入、覆盖与替换 | 5 | 4 | 1 | 0 | 1 |
-| 波纹与主轨磁吸 | 5 | 3 | 1 | 1 | 2 |
+| 波纹与主轨磁吸 | 5 | 4 | 0 | 1 | 1 |
 | 修剪模式 | 5 | 4 | 0 | 1 | 1 |
 | 吸附 | 5 | 3 | 0 | 2 | 2 |
 | 关联、组合与复合片段 | 5 | 3 | 1 | 1 | 2 |
@@ -57,7 +57,7 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 | 撤销与重做 | 3 | 2 | 1 | 0 | 1 |
 | 导航与缓存 | 3 | 1 | 2 | 0 | 2 |
 | AI 语义规则 | 2 | 1 | 0 | 1 | 1 |
-| **总计** | **50** | **35** | **8** | **7** | **15** |
+| **总计** | **50** | **36** | **7** | **7** | **14** |
 
 ## 50 项规则明细
 
@@ -89,11 +89,11 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 
 **完整（QTL-002 落地）：显式 Overwrite 命令。** `addElementToTrack(trackId, data, { collision: "overwrite" })`：清空目标区间（删除/修剪/两侧切分），保留后续时间位置。区间清除的 trim/split 数学与 `deleteTimeRange` / 波纹区间删除共用同一份实现（[`timeline-collision-utils.ts`](../../../apps/web/src/stores/timeline/timeline-collision-utils.ts)）。CLI 批量添加接口透传 `collision` 字段。
 
-### 4. 波纹与主轨磁吸：3 完整，1 部分，1 缺失
+### 4. 波纹与主轨磁吸：4 完整，0 部分，1 缺失
 
 **完整：** 同轨移动波纹、同轨删除波纹和显式区间删除已经有 Store 操作与测试，见 [`timeline-element-ops.ts`](../../../apps/web/src/stores/timeline/timeline-element-ops.ts)、[`timeline-track-ops.ts`](../../../apps/web/src/stores/timeline/timeline-track-ops.ts) 和 [`timeline-ripple-ops.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-ripple-ops.test.ts)。
 
-**部分：跨轨联动波纹。** `deleteSelectedElementsWithRipple()` 把所有轨道放入 ripple 集合；`removeTrackWithRipple()` 也会根据被删轨道的占用区间移动所有剩余轨道。锁定排除域已随 QTL-001 落地（锁定轨在所有 ripple 路径中保持原位），但仍没有"主轨域、显式关联域"模型，可能移动无关轨道。分组片段移动时又会跳过普通 ripple 逻辑，行为并不统一。
+**完整（QTL-003，2026-08-04 落地）：跨轨联动波纹。** `removeElementFromTrackWithRipple()` 和 `deleteSelectedElementsWithRipple()` 现在按 ripple domain 移动：被编辑轨道 + 其元素显式关联的轨道（[`ripple-plan.ts`](../../../packages/editor-core/src/timeline/ripple-plan.ts) 从 groupId 派生 `video-audio` / `group` 类型化 link），无关轨道保持原位；锁定的关联依赖阻止整个命令（防半套提交），锁定的无关轨道只是不在域内。`removeTrackWithRipple()` 与 `rippleDeleteAcrossTracks()` 保留为显式跨轨命令（全轨道减锁定），语义由调用方声明。测试见 [`timeline-ripple-domain.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-ripple-domain.test.ts)。
 
 **缺失：独立主轨磁吸。** 当前只有 `snappingEnabled` 和 `rippleEditingEnabled`。剪映的主轨磁吸、普通吸附和主轨联动是三个独立概念，QCut 目前把后两类行为压进一个“Linked editing”开关。
 
@@ -117,7 +117,7 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 
 **部分：组合操作原子性。** 普通选中可以展开整个 group，但底层直接删除、修剪、跨轨移动和锁定冲突没有统一 group closure。当前 `groupId` 同时承担 UI 组合、分离音频和 AI 对齐媒体的职责，语义会继续膨胀。
 
-**缺失：类型化依赖图。** 目前没有 `video-audio`、`caption-owner`、`effect-target`、`semantic-scene` 等 link 类型，也没有删除/移动前计算依赖闭包和单边 unlink 的持久化模型。
+**缺失：类型化依赖图（部分推进）。** QTL-003 引入了从 groupId 派生的类型化 link（`video-audio`、`group`，见 `ripple-plan.ts`），并已驱动 ripple domain；但 `caption-owner`、`effect-target`、`semantic-scene` 等持久化 link、删除/移动前的依赖闭包和单边 unlink 的持久化模型仍未建立（归 QTL-008 / QTL-011）。
 
 复合片段本身可创建和解除，但当前是一个 `MediaElement.compound.clips[]` 容器，不是可进入编辑、拥有独立 fps/标记/缓存版本的真正子时间线。因此这部分应在“类型化依赖图”之后继续演进，而不是把更多职责塞入 `groupId`。
 
@@ -152,7 +152,7 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 | 优先级 | 缺陷 | 影响 | 状态 |
 | --- | --- | --- | --- |
 | P0 | 锁定只在部分 UI/命令生效 | CLI、自动化和其他 Store 入口可修改锁定轨道 | ✅ 已修复（QTL-001） |
-| P0 | linked ripple 实际可移动全部轨道 | 无关轨道或锁定轨道可能被时间平移 | 🔶 锁定轨已排除（QTL-001）；无关轨道待 QTL-003 |
+| P0 | linked ripple 实际可移动全部轨道 | 无关轨道或锁定轨道可能被时间平移 | ✅ 已修复（QTL-001 排除锁定轨 + QTL-003 domain 语义） |
 | P0 | `replaceElementMedia()` 异步写回旧 `_tracks` | 等待导入期间的用户编辑可能被覆盖 | ✅ 已修复（QTL-001） |
 | P0 | 冲突检查不在 domain command 层 | 同一操作从 UI、CLI、AI 入口得到不同结果 | ✅ 已修复（QTL-002） |
 | P1 | 历史只保存 tracks | undo 后选择、播放头和跨 Store 状态可能不一致 | ⬜ 待 QTL-004 |
@@ -193,20 +193,20 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 
 验收结果：UI/CLI 调用同一 store 命令，语义字节等价 ✅；普通 add/move API 不能制造非法同轨重叠（默认 reject，无历史污染）✅；replace 异步完成时重读当前 timeline，并发编辑测试通过 ✅。stack 语义保留在 `addMediaAtTime`/`separateAudio` 的轨道选择层（跨轨命令），与单轨 collision 参数正交。
 
-#### QTL-003 建立 Ripple Domain 与类型化 Link
+#### QTL-003 建立 Ripple Domain 与类型化 Link ✅ 已完成（2026-08-04）
 
 目标：明确主轨域、当前轨域、选择域和依赖域，替代“全部轨道”与通用 `groupId` 推断。
 
-相关文件：
+实施记录：
 
-- `packages/editor-core/src/types/timeline.ts`：新增 versioned link graph 和 ripple domain 类型。
-- `packages/editor-core/src/timeline/ripple-plan.ts`：建议新增 dry-run 计划器。
-- `apps/web/src/stores/timeline/timeline-track-ops.ts`
-- `apps/web/src/stores/timeline/timeline-element-ops.ts`
-- `apps/web/src/stores/timeline/timeline-media-timing-ops.ts`
-- `apps/web/src/lib/timeline/aligned-generated-media.ts`
+- `packages/editor-core/src/timeline/ripple-plan.ts`（类型与实现放在一起，未拆到 types/timeline.ts）：`TimelineLinkType`（`video-audio` / `group` 已可派生；`caption-owner` / `effect-target` / `semantic-scene` 预留给 QTL-011）、`TimelineElementLink`（含 `detached` 字段）、`deriveTimelineLinks`（groupId + mediaId + 音轨类型 → 分离音频对；其余组内关系 → group）、`resolveRippleDomain`（seed 轨道 + link 单跳扩展；锁定依赖单独上报）。
+- `timeline-track-ops.ts`：`removeElementFromTrackWithRipple` 与 `deleteSelectedElementsWithRipple` 的位移集合从"全部轨道"改为 ripple domain；锁定关联依赖 → `handleError` + 整体失败、零历史污染。
+- `updateMediaTiming`（media-timing-ops）此前已按 linked audio 闭包处理，无需改动；`aligned-generated-media` 的 groupId 关联自动进入派生 link 图。
+- 决策：`removeTrackWithRipple` / `rippleDeleteAcrossTracks` 保留"全轨道减锁定"语义——它们是调用方显式声明的跨轨命令，不属于隐式联动。
+- 现状契约变化：波纹删除不再平移无关 overlay 轨道（原行为是审计确认的缺陷）；两个既有测试的期望已随契约更新。
+- 测试：[`ripple-plan.test.ts`](../../../packages/editor-core/src/__tests__/ripple-plan.test.ts)（5 用例：link 派生分型、单跳扩展、锁定依赖上报、detached 忽略、seedElement 收窄）+ [`timeline-ripple-domain.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-ripple-domain.test.ts)（4 用例）。
 
-验收：主轨删除只移动主轨和显式 linked 依赖；无关 overlay 不动；锁定依赖阻止半套提交；undo 一次完整恢复。
+验收结果：主轨删除只移动主轨和显式 linked 依赖（分离音频轨随动）✅；无关 overlay 不动 ✅；锁定依赖阻止半套提交（整体失败、无历史条目）✅；undo 一次完整恢复 ✅。剩余：持久化 link 图与 unlink 状态（QTL-011）、组闭包删除（QTL-008，删除视频暂不删除孤儿音频伙伴）。
 
 #### QTL-004 扩展事务历史
 
