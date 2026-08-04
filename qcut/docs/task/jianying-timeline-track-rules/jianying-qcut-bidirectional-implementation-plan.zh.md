@@ -8,6 +8,14 @@
 
 **依赖文档：** [剪映时间线轨道规则核验](./timeline-track-rules.zh.md)、[QCut 时间线规则差距与修复计划](./qcut-timeline-rule-gap-analysis.zh.md)
 
+## 实施进度
+
+| Subtask | 状态 | 完成日期 | 说明 |
+| --- | --- | --- | --- |
+| JYI-001 Interop/capability/issues | ✅ 已完成 | 2026-08-04 | `packages/editor-core/src/draft-interop/{document,capability,issues}.ts` + `index.ts` 子路径导出；`DraftInteropDocumentV1`（整数微秒时基、fail-closed 验证 parser、精确 JSON-pointer 错误路径）、四态 capability（最严者胜的 combine/aggregate + 提交门控表逐行实现）、24 个稳定 issue code + 与 exporter 同构的 fingerprint（`\u001f` 分隔、message 不参与）。测试 [`draft-interop-document.test.ts`](../../../packages/editor-core/src/__tests__/draft-interop-document.test.ts)（11 用例：round-trip、嵌套路径、未知 code 拒绝、聚合、门控矩阵、fingerprint 稳定性） |
+| JYI-002 ~ JYI-018 | ⬜ 未开始 | | JYI-002（provenance/dirty-domains/envelope schema）为下一项 |
+| JYR-001 ~ JYR-008 研究门禁 | ⬜ 未执行 | | 需真实剪映实验；只挡可写路径，不挡纯数据层 |
+
 ## 目标
 
 建立可长期维护的双向链路：

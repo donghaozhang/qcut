@@ -17,7 +17,8 @@
 		"./templates": "./src/templates/index.ts",
 		"./sticker-lab": "./src/sticker-lab/index.ts",
 		"./text-animation": "./src/text-animation/index.ts",
-		"./jianying-draft": "./src/jianying-draft/index.ts"
+		"./jianying-draft": "./src/jianying-draft/index.ts",
+		"./draft-interop": "./src/draft-interop/index.ts"
 	},
 	"devDependencies": {
 		"@types/node": "^24.10.13"
