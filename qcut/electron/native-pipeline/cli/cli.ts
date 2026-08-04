@@ -528,6 +528,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			database: { type: "string", multiple: true },
 			draft: { type: "string", multiple: true },
 			"plan-token": { type: "string" },
+			"recovery-token": { type: "string" },
 			"accept-warning": { type: "string", multiple: true },
 			path: { type: "string" },
 			"resource-id": { type: "string", multiple: true },
@@ -855,6 +856,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		draftPaths: values.draft as string[] | undefined,
 		planToken: values["plan-token"] as string | undefined,
 		bundleDigest: values["bundle-digest"] as string | undefined,
+		recoveryToken: values["recovery-token"] as string | undefined,
 		acceptedWarningFingerprints: values["accept-warning"] as
 			| string[]
 			| undefined,
