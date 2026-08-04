@@ -60,6 +60,7 @@ import type {
 import type { HyperframesAPI } from "./api-types/hyperframes-api";
 import type { JianyingDraftExportPreloadAPI } from "./api-types/jianying-draft-export-api";
 import type { JianyingEnvelopePreloadAPI } from "./api-types/jianying-envelope-api";
+import type { JianyingDraftImportPreloadAPI } from "./api-types/jianying-draft-import-api";
 import type {
 	AppShellAPI,
 	UpdatesAPI,
@@ -102,7 +103,8 @@ export interface ElectronAPI
 		LicenseAPI,
 		YouTubeApi,
 		JianyingDraftExportPreloadAPI,
-		JianyingEnvelopePreloadAPI {
+		JianyingEnvelopePreloadAPI,
+		JianyingDraftImportPreloadAPI {
 	platform: NodeJS.Platform;
 	isElectron: boolean;
 
