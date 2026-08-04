@@ -110,6 +110,9 @@ const SEED = "f".repeat(64);
 const TRACK_ID = "track-a";
 const ELEMENT_ID = "seg-1";
 const RESOURCE_ID = "mat-1";
+const SECOND_ELEMENT_ID = "seg-2";
+const SECOND_RESOURCE_ID = "mat-2";
+const TRANSITION_ID = "transition-1";
 
 function createBundle(): QCutImportBundleV1 {
 	const internalIdBySemanticId: Record<string, string> = {};
@@ -231,12 +234,94 @@ function createBundle(): QCutImportBundleV1 {
 	return { ...unsigned, bundleDigest: digest };
 }
 
+function createBundleWithTransition(): QCutImportBundleV1 {
+	const bundle = createBundle();
+	for (const semanticId of [
+		SECOND_ELEMENT_ID,
+		SECOND_RESOURCE_ID,
+		TRANSITION_ID,
+	]) {
+		bundle.internalIdBySemanticId[semanticId] = deriveImportInternalId({
+			seed: SEED,
+			semanticId,
+		});
+	}
+	const documentTrack = bundle.document.timelines[0].tracks[0];
+	documentTrack.segments.push({
+		id: SECOND_ELEMENT_ID,
+		kind: "video",
+		resourceId: SECOND_RESOURCE_ID,
+		targetRange: { startUs: 4_000_000, durationUs: 4_000_000 },
+		capability: "exact",
+	});
+	documentTrack.transitions = [
+		{
+			id: TRANSITION_ID,
+			type: "dissolve",
+			fromSegmentId: ELEMENT_ID,
+			toSegmentId: SECOND_ELEMENT_ID,
+			durationUs: 500_000,
+			capability: "exact",
+		},
+	];
+	bundle.document.resources.push({
+		id: SECOND_RESOURCE_ID,
+		kind: "video",
+		name: "second.mp4",
+		status: "resolved",
+		capability: "exact",
+	});
+	const planTrack = bundle.timelinePlan.tracks[0];
+	planTrack.elements.push({
+		id: SECOND_ELEMENT_ID,
+		type: "media",
+		name: "second.mp4",
+		startTime: 4,
+		duration: 4,
+		trimStart: 0,
+		trimEnd: 0,
+		resourceId: SECOND_RESOURCE_ID,
+		sourceSegmentId: SECOND_ELEMENT_ID,
+	});
+	planTrack.transitions = [
+		{
+			id: TRANSITION_ID,
+			fromElementId: ELEMENT_ID,
+			toElementId: SECOND_ELEMENT_ID,
+			presetId: "dissolve",
+			type: "dissolve",
+			duration: 0.5,
+			easing: "easeInOut",
+		},
+	];
+	bundle.timelinePlan.resourceIds.push(SECOND_RESOURCE_ID);
+	bundle.resourceStaging.push({
+		resourceId: SECOND_RESOURCE_ID,
+		stagingKey: "import-token-1-media-2",
+		kind: "video",
+		status: "resolved",
+	});
+	bundle.bundleDigest = createHash("sha256")
+		.update(canonicalizeQCutImportBundleForDigest({ bundle }))
+		.digest("hex");
+	return bundle;
+}
+
 function createPayload() {
 	return {
 		resourceId: RESOURCE_ID,
 		fileName: "clip.mp4",
 		mimeType: "video/mp4",
 		bytes: new Uint8Array([1, 2, 3]),
+	};
+}
+
+function createSecondPayload() {
+	return {
+		resourceId: SECOND_RESOURCE_ID,
+		fileName: "second.mp4",
+		mimeType: "video/mp4",
+		bytes: new Uint8Array([4, 5, 6]),
 	};
 }
 
@@ -359,6 +444,32 @@ describe("runQCutImportTransaction", () => {
 		).toBe(true);
 		// Journal is empty after a verified publish.
 		expect(journalAdapter.map.size).toBe(0);
+	});
+
+	it("persists imported transitions with deterministic endpoint ids", async () => {
+		const bundle = createBundleWithTransition();
+		const result = await runQCutImportTransaction({
+			bundleValue: JSON.parse(JSON.stringify(bundle)),
+			mediaPayloads: [createPayload(), createSecondPayload()],
+			deps: { storage, journal },
+		});
+		expect(result.ok).toBe(true);
+		if (!result.ok) return;
+		const project = storage.projects.get(result.projectId);
+		const tracks = storage.timelines.get(
+			`${result.projectId}:${project?.currentSceneId}`
+		);
+		expect(tracks?.[0].transitions).toEqual([
+			{
+				id: bundle.internalIdBySemanticId[TRANSITION_ID],
+				fromElementId: bundle.internalIdBySemanticId[ELEMENT_ID],
+				toElementId: bundle.internalIdBySemanticId[SECOND_ELEMENT_ID],
+				presetId: "dissolve",
+				type: "dissolve",
+				duration: 0.5,
+				easing: "easeInOut",
+			},
+		]);
 	});
 
 	it("is deterministic: same bundle → same project id", async () => {
