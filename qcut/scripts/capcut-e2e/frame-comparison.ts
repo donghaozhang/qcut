@@ -1,6 +1,7 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { mapWithConcurrency } from "./bounded-concurrency.js";
 import { buildFrameExtractionArgs } from "./ffmpeg-args.js";
 import type { FrameSample, FrameSamplePlan } from "./frame-sample-plan.js";
 import {
@@ -216,33 +217,6 @@ async function probeVideo({
 		command: ffprobePath,
 	});
 	return parseVideoProbeEvidence({ value: JSON.parse(stdout) as unknown });
-}
-
-async function mapWithConcurrency<Item, Result>({
-	concurrency,
-	items,
-	mapper,
-}: {
-	concurrency: number;
-	items: readonly Item[];
-	mapper: (options: { index: number; item: Item }) => Promise<Result>;
-}): Promise<Result[]> {
-	const results = new Array<Result>(items.length);
-	let nextIndex = 0;
-	const runWorker = async (): Promise<void> => {
-		const index = nextIndex;
-		nextIndex += 1;
-		const item = items[index];
-		if (item === undefined) return;
-		results[index] = await mapper({ index, item });
-		await runWorker();
-	};
-	await Promise.all(
-		Array.from({ length: Math.min(concurrency, items.length) }, () =>
-			runWorker()
-		)
-	);
-	return results;
 }
 
 async function compareSample({
