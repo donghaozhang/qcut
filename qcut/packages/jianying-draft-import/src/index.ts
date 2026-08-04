@@ -74,6 +74,12 @@ export {
 
 export type { AssetResolutionCacheMetrics } from "./asset-resolution-work-cache.js";
 
+export type {
+	ImportPlanStageId,
+	ImportStageMeasurementV1,
+	ImportStageMetricsV1,
+} from "@qcut/editor-core/draft-interop";
+
 export {
 	buildForeignEnvelopeCapture,
 	type BuiltForeignEnvelopeCapture,
