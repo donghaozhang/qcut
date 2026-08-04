@@ -11,12 +11,13 @@ import {
 	type ImportTransactionStorage,
 } from "@/lib/jianying-draft/qcut-import-transaction";
 import { ImportJournal, type ImportJournalRecordV1 } from "../import-journal";
+import type { ImportJournalQuarantineMarkerV1 } from "../import-journal-quarantine";
 import { recoverPendingImports } from "../import-recovery";
 import { ImportStagingSession } from "../import-staging-adapter";
-import type { StorageAdapter } from "../types";
 import type { TProject } from "@/types/project";
 import type { TimelineTrack } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store-types";
+import { createMapStorageAdapter } from "./support/map-storage-adapter";
 
 /**
  * JYI-010 acceptance: staging, re-read verification, single publish,
@@ -28,24 +29,6 @@ beforeAll(() => {
 		Object.defineProperty(globalThis, "crypto", { value: webcrypto });
 	}
 });
-
-function createMapAdapter<T>(): StorageAdapter<T> & { map: Map<string, T> } {
-	const map = new Map<string, T>();
-	return {
-		map,
-		get: async (key) => map.get(key) ?? null,
-		set: async (key, value) => {
-			map.set(key, value);
-		},
-		remove: async (key) => {
-			map.delete(key);
-		},
-		list: async () => [...map.keys()],
-		clear: async () => {
-			map.clear();
-		},
-	};
-}
 
 interface FakeStorage extends ImportTransactionStorage {
 	projects: Map<string, TProject>;
@@ -498,13 +481,23 @@ function createEnvelopeStore({
 	};
 }
 
-let journalAdapter: ReturnType<typeof createMapAdapter<ImportJournalRecordV1>>;
+let journalAdapter: ReturnType<
+	typeof createMapStorageAdapter<ImportJournalRecordV1>
+>;
+let quarantineAdapter: ReturnType<
+	typeof createMapStorageAdapter<ImportJournalQuarantineMarkerV1>
+>;
 let journal: ImportJournal;
 let storage: FakeStorage;
 
 beforeEach(() => {
-	journalAdapter = createMapAdapter<ImportJournalRecordV1>();
-	journal = new ImportJournal({ adapter: journalAdapter });
+	journalAdapter = createMapStorageAdapter<ImportJournalRecordV1>();
+	quarantineAdapter =
+		createMapStorageAdapter<ImportJournalQuarantineMarkerV1>();
+	journal = new ImportJournal({
+		adapter: journalAdapter,
+		quarantineAdapter,
+	});
 	storage = createFakeStorage();
 });
 
@@ -987,6 +980,7 @@ describe("recoverPendingImports", () => {
 		expect(result.rolledBackImportIds).toEqual(["crashed"]);
 		expect(result.completedImportIds).toEqual(["finished"]);
 		expect(result.corruptJournalRecordCount).toBe(0);
+		expect(result.quarantinedJournalRecordCount).toBe(0);
 		expect(storage.media.has("p-crashed")).toBe(false);
 		expect(storage.projects.has("p-finished")).toBe(true);
 		expect(journalAdapter.map.size).toBe(0);
@@ -1003,6 +997,7 @@ describe("recoverPendingImports", () => {
 		const result = await recoverPendingImports({ journal, storage });
 		expect(result.rolledBackImportIds).toEqual(["ghost"]);
 		expect(result.corruptJournalRecordCount).toBe(0);
+		expect(result.quarantinedJournalRecordCount).toBe(0);
 		expect(journalAdapter.map.size).toBe(0);
 	});
 
@@ -1027,10 +1022,27 @@ describe("recoverPendingImports", () => {
 			rolledBackImportIds: [],
 			completedImportIds: [],
 			corruptJournalRecordCount: 1,
+			quarantinedJournalRecordCount: 0,
 		});
 		expect(storage.projects.get(victimProject.id)).toBe(victimProject);
 		expect(storage.calls).toEqual([]);
 		expect(journalAdapter.map.has("corrupt-key")).toBe(true);
+
+		await expect(journal.quarantineCorruptRecords()).resolves.toMatchObject({
+			newlyQuarantinedRecordCount: 1,
+			corruptRecordCount: 0,
+			quarantinedRecordCount: 1,
+		});
+		await expect(recoverPendingImports({ journal, storage })).resolves.toEqual({
+			rolledBackImportIds: [],
+			completedImportIds: [],
+			corruptJournalRecordCount: 0,
+			quarantinedJournalRecordCount: 1,
+		});
+		expect(storage.projects.get(victimProject.id)).toBe(victimProject);
+		expect(storage.calls).toEqual([]);
+		expect(journalAdapter.map.has("corrupt-key")).toBe(true);
+		expect(quarantineAdapter.map.size).toBe(1);
 	});
 
 	it("keeps records it cannot recover for the next startup", async () => {
@@ -1050,6 +1062,7 @@ describe("recoverPendingImports", () => {
 		});
 		expect(result.rolledBackImportIds).toEqual([]);
 		expect(result.corruptJournalRecordCount).toBe(0);
+		expect(result.quarantinedJournalRecordCount).toBe(0);
 		expect(journalAdapter.map.size).toBe(1);
 	});
 });
