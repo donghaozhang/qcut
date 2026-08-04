@@ -250,8 +250,10 @@ export function createCrudOperations(
 			// enforced here so UI, CLI, and AI all get identical semantics. The
 			// caller picks the policy; the default refuses to create an overlap.
 			const collisionMode = options.collision ?? "reject";
+			const fps = getProjectFps();
 			const newElementDuration = getTimelineElementDuration({
 				element: newElement,
+				fps,
 			});
 			const targetRange = {
 				startTime: newElement.startTime,
@@ -264,7 +266,7 @@ export function createCrudOperations(
 						items: track.elements.map((el) => ({
 							id: el.id,
 							startTime: el.startTime,
-							endTime: getTimelineElementEndTime({ element: el }),
+							endTime: getTimelineElementEndTime({ element: el, fps }),
 						})),
 						range: targetRange,
 					});
@@ -525,14 +527,16 @@ export function createCrudOperations(
 
 			// The element keeps its start time, so the target lane must be free
 			// there (QTL-002) — same contract as adding it fresh.
+			const fps = getProjectFps();
 			const movedDuration = getTimelineElementDuration({
 				element: elementToMove,
+				fps,
 			});
 			const moveCollisions = findRangeCollisions({
 				items: toTrack.elements.map((el) => ({
 					id: el.id,
 					startTime: el.startTime,
-					endTime: getTimelineElementEndTime({ element: el }),
+					endTime: getTimelineElementEndTime({ element: el, fps }),
 				})),
 				range: {
 					startTime: elementToMove.startTime,
