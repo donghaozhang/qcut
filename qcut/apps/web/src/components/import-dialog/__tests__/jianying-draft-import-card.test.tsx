@@ -68,10 +68,12 @@ function createController(): JianyingDraftImportController {
 		],
 		isInboxLoading: false,
 		isRecoveryRunning: false,
+		isJournalQuarantineRunning: false,
 		recoveryResult: {
 			rolledBackImportIds: ["interrupted-1"],
 			completedImportIds: ["published-1"],
 			corruptJournalRecordCount: 0,
+			quarantinedJournalRecordCount: 0,
 		},
 		activeInboxEntryId: null,
 		acceptedWarningFingerprints: new Set(),
@@ -87,6 +89,7 @@ function createController(): JianyingDraftImportController {
 		commitInboxEntry: vi.fn(),
 		retryAcknowledgement: vi.fn(),
 		refreshInbox: vi.fn(),
+		quarantineCorruptJournalRecords: vi.fn(),
 		setWarningsAccepted: vi.fn(),
 		resetLiveImport: vi.fn(),
 	};
@@ -174,6 +177,7 @@ describe("JianyingDraftImportCard", () => {
 			rolledBackImportIds: [],
 			completedImportIds: [],
 			corruptJournalRecordCount: 2,
+			quarantinedJournalRecordCount: 0,
 		};
 		render(
 			<JianyingDraftImportCard
@@ -192,5 +196,38 @@ describe("JianyingDraftImportCard", () => {
 			)
 		).toBeInTheDocument();
 		expect(warning).not.toHaveTextContent("import-token");
+		fireEvent.click(
+			within(warning).getByRole("button", {
+				name: "Isolate damaged records",
+			})
+		);
+		expect(controller.quarantineCorruptJournalRecords).toHaveBeenCalledTimes(1);
+	});
+
+	it("shows quarantined recovery records without exposing fingerprints", () => {
+		const controller = createController();
+		controller.recoveryResult = {
+			rolledBackImportIds: [],
+			completedImportIds: [],
+			corruptJournalRecordCount: 0,
+			quarantinedJournalRecordCount: 2,
+		};
+		render(
+			<JianyingDraftImportCard
+				controller={controller}
+				onOpenProject={vi.fn()}
+			/>
+		);
+
+		const status = screen.getByTestId("draft-import-quarantined-journal");
+		expect(
+			within(status).getByText("Recovery records isolated")
+		).toBeInTheDocument();
+		expect(
+			within(status).getByText(
+				"2 damaged recovery records are isolated from automatic recovery. Their original journal data remains stored, and no project data was deleted."
+			)
+		).toBeInTheDocument();
+		expect(status).not.toHaveTextContent("fingerprint");
 	});
 });
