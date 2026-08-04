@@ -42,6 +42,7 @@ import type { ElectronPiAgentOps } from "./api-pi-agent";
 import type { ElectronYouTubeOps } from "./api-youtube";
 import type { ElectronWallpaperOps } from "./api-wallpapers";
 import type { ElectronJianyingDraftExportOps } from "./api-jianying-draft-export";
+import type { ElectronJianyingTransitionOps } from "./api-jianying-transitions";
 import type {
 	AIPipelineProgress,
 	AIPipelineGenerateOptions,
@@ -84,7 +85,8 @@ export interface ElectronAPI
 		ElectronPiAgentOps,
 		ElectronYouTubeOps,
 		ElectronWallpaperOps,
-		ElectronJianyingDraftExportOps {
+		ElectronJianyingDraftExportOps,
+		ElectronJianyingTransitionOps {
 	// System info
 	platform: string;
 	isElectron: boolean;
