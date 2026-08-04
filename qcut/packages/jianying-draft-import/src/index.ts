@@ -77,6 +77,7 @@ export {
 } from "./foreign-envelope-capture.js";
 
 export {
+	buildContentSummary,
 	ImportSessionError,
 	JianyingDraftImportSession,
 	type DraftImportCommitDto,

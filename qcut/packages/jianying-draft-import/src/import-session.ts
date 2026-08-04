@@ -175,7 +175,7 @@ interface ImportPlanStoreAdapter {
 	dispose?(): void;
 }
 
-function buildContentSummary({
+export function buildContentSummary({
 	snapshot,
 }: {
 	snapshot: DraftSourceSnapshot;
