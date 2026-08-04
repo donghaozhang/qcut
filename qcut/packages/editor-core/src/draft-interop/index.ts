@@ -120,3 +120,13 @@ export {
 	type QCutImportBundleV1,
 	type QCutImportProjectNameConflictPolicy,
 } from "./import-bundle.js";
+
+export {
+	diffDraftInteropDocuments,
+	halfFrameToleranceUs,
+	type SemanticDiffEntry,
+	type SemanticDiffKind,
+	type SemanticDiffOptions,
+	type SemanticDiffResultV1,
+	type SemanticDiffSeverity,
+} from "./semantic-diff.js";
