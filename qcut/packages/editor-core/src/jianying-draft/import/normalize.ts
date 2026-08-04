@@ -30,6 +30,7 @@ import {
 	type InteropSegmentKind,
 	type InteropTrack,
 	type InteropTrackKind,
+	type InteropTransition,
 } from "../../draft-interop/document.js";
 import type { InteropIssue } from "../../draft-interop/issues.js";
 import type { RawNodeBinding } from "../../draft-interop/provenance.js";
@@ -38,6 +39,7 @@ import type {
 	RawGraphMaterialNode,
 	RawGraphSegmentNode,
 } from "./graph-reader.js";
+import { mapCapCut81SeamTransition } from "./capcut-8-1-transition-mapper.js";
 import { readRawDraftGraph } from "./graph-reader.js";
 import { isRawRecord, type RawDraftContent } from "./raw-types.js";
 import { validateRawDraftGraph } from "./validation.js";
@@ -281,6 +283,9 @@ function normalizeSegment({
 		if (NEUTRAL_EXTRA_BUCKETS.has(extra.bucket)) {
 			continue;
 		}
+		if (extra.bucket === "transitions") {
+			continue;
+		}
 		capability = combineInteropCapabilities([
 			capability,
 			DOWNGRADE_EXTRA_BUCKETS.has(extra.bucket) ? "downgrade" : "opaque",
@@ -352,18 +357,101 @@ function normalizeSegment({
 	};
 }
 
+function normalizeTransitions({
+	profileId,
+	segments,
+	graph,
+	contentFileName,
+	issues,
+	bindings,
+	claimedTransitionRefs,
+}: {
+	profileId: string;
+	segments: RawGraphSegmentNode[];
+	graph: RawDraftGraph;
+	contentFileName: string;
+	issues: InteropIssue[];
+	bindings: RawNodeBinding[];
+	claimedTransitionRefs: Set<string>;
+}): InteropTransition[] {
+	const transitions: InteropTransition[] = [];
+	for (const [segmentIndex, segment] of segments.entries()) {
+		const transitionMaterials = segment.extraMaterialRefs
+			.map((ref) => graph.materialsById.get(ref))
+			.filter(
+				(material): material is RawGraphMaterialNode =>
+					material?.bucket === "transitions"
+			);
+		const hasAmbiguousSeamOwner = transitionMaterials.length > 1;
+		for (const material of transitionMaterials) {
+			const ref = material.id;
+			if (claimedTransitionRefs.has(ref)) {
+				issues.push({
+					code: "REF_BROKEN",
+					severity: "error",
+					message: "transition material is owned by more than one seam",
+					path: material.jsonPointer,
+					subjectId: material.id,
+				});
+				continue;
+			}
+			claimedTransitionRefs.add(ref);
+			const mapped = mapCapCut81SeamTransition({
+				profileId,
+				material,
+				fromSegment: segment,
+				toSegment: segments[segmentIndex + 1],
+			});
+			const transition: InteropTransition = hasAmbiguousSeamOwner
+				? { ...mapped.transition, type: "unknown", capability: "blocked" }
+				: mapped.transition;
+			transitions.push(transition);
+			bindings.push({
+				foreignRef: material.id,
+				file: contentFileName,
+				jsonPointer: material.jsonPointer,
+				semanticId: material.id,
+			});
+			if (hasAmbiguousSeamOwner) {
+				issues.push({
+					code: "REF_BROKEN",
+					severity: "error",
+					message: "more than one transition material owns the same seam",
+					path: material.jsonPointer,
+					subjectId: material.id,
+				});
+			} else if (
+				mapped.issueCode !== undefined &&
+				mapped.reason !== undefined
+			) {
+				issues.push({
+					code: mapped.issueCode,
+					severity: transition.capability === "blocked" ? "error" : "warning",
+					message: mapped.reason,
+					path: material.jsonPointer,
+					subjectId: material.id,
+				});
+			}
+		}
+	}
+	return transitions;
+}
+
 function normalizeTracks({
+	profileId,
 	graph,
 	contentFileName,
 	issues,
 	bindings,
 }: {
+	profileId: string;
 	graph: RawDraftGraph;
 	contentFileName: string;
 	issues: InteropIssue[];
 	bindings: RawNodeBinding[];
 }): InteropTrack[] {
 	const tracks: InteropTrack[] = [];
+	const claimedTransitionRefs = new Set<string>();
 	let mainAssigned = false;
 	for (const track of graph.tracks) {
 		const kind = TRACK_KIND_BY_RAW_TYPE[track.type ?? ""] ?? "unknown";
@@ -376,17 +464,27 @@ function normalizeTracks({
 				subjectId: track.id,
 			});
 		}
-		const segments = track.segmentIds
+		const rawSegments = track.segmentIds
 			.map((segmentId) => graph.segmentsById.get(segmentId))
 			.filter(
 				(segment): segment is RawGraphSegmentNode => segment !== undefined
-			)
-			.map((segment) =>
-				normalizeSegment({ segment, graph, contentFileName, issues, bindings })
 			);
+		const segments = rawSegments.map((segment) =>
+			normalizeSegment({ segment, graph, contentFileName, issues, bindings })
+		);
+		const transitions = normalizeTransitions({
+			profileId,
+			segments: rawSegments,
+			graph,
+			contentFileName,
+			issues,
+			bindings,
+			claimedTransitionRefs,
+		});
 		const capability = combineInteropCapabilities([
 			kind === "unknown" ? "opaque" : "exact",
 			...segments.map((segment) => segment.capability),
+			...transitions.map((transition) => transition.capability),
 		]);
 		const isMain = !mainAssigned && kind === "video";
 		if (isMain) {
@@ -404,6 +502,7 @@ function normalizeTracks({
 			order: track.trackIndex,
 			...(isMain ? { isMain } : {}),
 			segments,
+			...(transitions.length === 0 ? {} : { transitions }),
 			capability,
 			foreignRef: track.id,
 		});
@@ -438,6 +537,7 @@ export function normalizeRawDraft(
 		restrictedSourcePathsByResourceId,
 	});
 	const tracks = normalizeTracks({
+		profileId: input.source.profileId,
 		graph,
 		contentFileName: input.contentFileName,
 		issues,
