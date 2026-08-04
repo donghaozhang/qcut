@@ -46,6 +46,22 @@ export type {
 	CapCut81MigrationBundleWriteResult,
 } from "./capcut-8-1-migration-writer.js";
 export {
+	CapCut81SameProfileWritebackError,
+	failCapCut81SameProfileWriteback,
+} from "./capcut-8-1-same-profile-contract.js";
+export type {
+	CapCut81SameProfileRecoveryResult,
+	CapCut81SameProfileWritebackErrorCode,
+	CapCut81SameProfileWritebackInstrumentation,
+	CapCut81SameProfileWritebackResult,
+	WriteCapCut81SameProfileContentOptions,
+} from "./capcut-8-1-same-profile-contract.js";
+export {
+	capCut81SameProfileWriterTesting,
+	recoverCapCut81SameProfileWriteback,
+} from "./capcut-8-1-same-profile-transaction.js";
+export { writeCapCut81SameProfileContent } from "./capcut-8-1-same-profile-writer.js";
+export {
 	StandaloneJianyingDraftExportSession,
 	StandaloneJianyingDraftPlanBlockedError,
 	StandaloneJianyingDraftPlanConsumedError,
