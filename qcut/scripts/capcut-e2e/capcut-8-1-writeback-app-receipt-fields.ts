@@ -12,8 +12,8 @@ import {
 } from "./gui-regression-app-signature.js";
 import { CAPCUT_GUI_APP_VERSION } from "./gui-regression-app-profile.js";
 import {
-	CAPCUT_GUI_RESULT_SCHEMA,
-	CAPCUT_GUI_RESULT_SCHEMA_VERSION,
+	CAPCUT_8_1_WRITEBACK_APP_SESSION_RESULT_SCHEMA,
+	CAPCUT_8_1_WRITEBACK_APP_SESSION_RESULT_SCHEMA_VERSION,
 	type CapCut81WritebackAppReceipt,
 } from "./capcut-8-1-writeback-app-receipt-contract.js";
 
@@ -219,8 +219,9 @@ export function parseAppReceiptHarness({
 	});
 	if (
 		harness.applicationState !== "quiescent" ||
-		harness.runnerSchema !== CAPCUT_GUI_RESULT_SCHEMA ||
-		harness.runnerSchemaVersion !== CAPCUT_GUI_RESULT_SCHEMA_VERSION
+		harness.runnerSchema !== CAPCUT_8_1_WRITEBACK_APP_SESSION_RESULT_SCHEMA ||
+		harness.runnerSchemaVersion !==
+			CAPCUT_8_1_WRITEBACK_APP_SESSION_RESULT_SCHEMA_VERSION
 	) {
 		throw new Error(
 			"CapCut app receipt is not bound to the approved GUI harness."
@@ -243,7 +244,7 @@ export function parseAppReceiptHarness({
 			label: "CapCut app receipt runId",
 			value: harness.runId,
 		}),
-		runnerSchema: CAPCUT_GUI_RESULT_SCHEMA,
-		runnerSchemaVersion: CAPCUT_GUI_RESULT_SCHEMA_VERSION,
+		runnerSchema: CAPCUT_8_1_WRITEBACK_APP_SESSION_RESULT_SCHEMA,
+		runnerSchemaVersion: CAPCUT_8_1_WRITEBACK_APP_SESSION_RESULT_SCHEMA_VERSION,
 	};
 }

@@ -22,10 +22,11 @@ import {
 	requireCanonicalAppReceiptTimestamp,
 	requireSafeAppReceiptId,
 } from "./capcut-8-1-writeback-app-receipt-fields.js";
+import { verifyCapCut81WritebackAppSessionEvidence } from "./capcut-8-1-writeback-app-session-evidence.js";
 
 const MAXIMUM_APP_RECEIPT_BYTES = 1024 * 1024;
 
-function parsePhase({
+export function parseCapCut81WritebackAppReceiptPhase({
 	expectedPhase,
 	expectedTemplates,
 	value,
@@ -196,17 +197,17 @@ export function parseCapCut81WritebackAppReceipt({
 		);
 	}
 	const phases = [
-		parsePhase({
+		parseCapCut81WritebackAppReceiptPhase({
 			expectedPhase: "pre-open",
 			expectedTemplates: expected.activeMirrorTemplates,
 			value: phaseValues[0],
 		}),
-		parsePhase({
+		parseCapCut81WritebackAppReceiptPhase({
 			expectedPhase: "saved",
 			expectedTemplates: expected.activeMirrorTemplates,
 			value: phaseValues[1],
 		}),
-		parsePhase({
+		parseCapCut81WritebackAppReceiptPhase({
 			expectedPhase: "reopened",
 			expectedTemplates: expected.activeMirrorTemplates,
 			value: phaseValues[2],
@@ -261,6 +262,10 @@ export async function loadCapCut81WritebackAppReceipt({
 			bytes: snapshot.bytes,
 			label: "CapCut writeback app receipt",
 		}),
+	});
+	await verifyCapCut81WritebackAppSessionEvidence({
+		receipt,
+		receiptPath: path,
 	});
 	const [preOpen, saved, reopened] = receipt.phases;
 	return {

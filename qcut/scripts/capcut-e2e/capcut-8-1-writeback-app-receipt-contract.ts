@@ -5,9 +5,19 @@ import { CAPCUT_GUI_APP_VERSION } from "./gui-regression-app-profile.js";
 export const CAPCUT_8_1_WRITEBACK_APP_RECEIPT_SCHEMA =
 	"qcut.capcut-8.1-same-profile-writeback-app-receipt" as const;
 export const CAPCUT_8_1_WRITEBACK_APP_RECEIPT_SCHEMA_VERSION = 1 as const;
-export const CAPCUT_GUI_RESULT_SCHEMA =
-	"qcut.capcut-e2e.gui-regression-result" as const;
-export const CAPCUT_GUI_RESULT_SCHEMA_VERSION = 3 as const;
+export const CAPCUT_8_1_WRITEBACK_APP_SESSION_PLAN_SCHEMA =
+	"qcut.capcut-8.1-same-profile-writeback-app-session-plan" as const;
+export const CAPCUT_8_1_WRITEBACK_APP_SESSION_PLAN_SCHEMA_VERSION = 1 as const;
+export const CAPCUT_8_1_WRITEBACK_APP_SESSION_RESULT_SCHEMA =
+	"qcut.capcut-8.1-same-profile-writeback-app-session-result" as const;
+export const CAPCUT_8_1_WRITEBACK_APP_SESSION_RESULT_SCHEMA_VERSION =
+	1 as const;
+export const CAPCUT_8_1_WRITEBACK_APP_SESSION_PLAN_FILE_NAME =
+	"writeback-app-session-plan.json" as const;
+export const CAPCUT_8_1_WRITEBACK_APP_SESSION_RESULT_FILE_NAME =
+	"writeback-app-session-result.json" as const;
+export const CAPCUT_8_1_WRITEBACK_APP_RECEIPT_FILE_NAME =
+	"writeback-app-receipt.json" as const;
 
 export type CapCut81WritebackAppReceiptPhaseId =
 	| "pre-open"
@@ -55,8 +65,8 @@ export interface CapCut81WritebackAppReceipt {
 		};
 		resultSha256: string;
 		runId: string;
-		runnerSchema: typeof CAPCUT_GUI_RESULT_SCHEMA;
-		runnerSchemaVersion: typeof CAPCUT_GUI_RESULT_SCHEMA_VERSION;
+		runnerSchema: typeof CAPCUT_8_1_WRITEBACK_APP_SESSION_RESULT_SCHEMA;
+		runnerSchemaVersion: typeof CAPCUT_8_1_WRITEBACK_APP_SESSION_RESULT_SCHEMA_VERSION;
 	};
 	phases: readonly [
 		CapCut81WritebackAppReceiptPhase,
@@ -70,6 +80,38 @@ export interface CapCut81WritebackAppReceipt {
 	};
 	schema: typeof CAPCUT_8_1_WRITEBACK_APP_RECEIPT_SCHEMA;
 	schemaVersion: typeof CAPCUT_8_1_WRITEBACK_APP_RECEIPT_SCHEMA_VERSION;
+}
+
+export type CapCut81WritebackAppIdentity = CapCut81WritebackAppReceipt["app"];
+export type CapCut81WritebackAppProcessBoundaries =
+	CapCut81WritebackAppReceipt["harness"]["processBoundaries"];
+
+export interface CapCut81WritebackAppSessionPlan {
+	app: CapCut81WritebackAppIdentity;
+	caseId: string;
+	createdAtIso: string;
+	draft: {
+		activeMirrorTemplates: readonly [string, string, string, string];
+		preOpen: CapCut81WritebackAppReceiptPhase;
+	};
+	profile: CapCut81WritebackAppReceipt["profile"];
+	runId: string;
+	schema: typeof CAPCUT_8_1_WRITEBACK_APP_SESSION_PLAN_SCHEMA;
+	schemaVersion: typeof CAPCUT_8_1_WRITEBACK_APP_SESSION_PLAN_SCHEMA_VERSION;
+}
+
+export interface CapCut81WritebackAppSessionResult {
+	app: CapCut81WritebackAppIdentity;
+	applicationState: "quiescent";
+	caseId: string;
+	completedAtIso: string;
+	phases: CapCut81WritebackAppReceipt["phases"];
+	planSha256: string;
+	processBoundaries: CapCut81WritebackAppProcessBoundaries;
+	profile: CapCut81WritebackAppReceipt["profile"];
+	runId: string;
+	schema: typeof CAPCUT_8_1_WRITEBACK_APP_SESSION_RESULT_SCHEMA;
+	schemaVersion: typeof CAPCUT_8_1_WRITEBACK_APP_SESSION_RESULT_SCHEMA_VERSION;
 }
 
 export interface CapCut81WritebackAppReceiptExpectedBinding {
