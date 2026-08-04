@@ -10,6 +10,7 @@
 import type { FlagDef, CommandDef } from "./command-registry-types.js";
 import { createExtraEditorCommands } from "./command-registry-editor-extra.js";
 import { JIANYING_TRANSITION_COMMANDS } from "./command-registry-editor-jianying.js";
+import { JIANYING_IMPORT_COMMANDS } from "./command-registry-editor-jianying-import.js";
 
 /** Shorthand flag builder. */
 function f(
@@ -62,6 +63,7 @@ function ed(
 
 export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 	...JIANYING_TRANSITION_COMMANDS,
+	...JIANYING_IMPORT_COMMANDS,
 	"editor:console": ed(
 		"editor:console",
 		"List captured renderer console messages",
