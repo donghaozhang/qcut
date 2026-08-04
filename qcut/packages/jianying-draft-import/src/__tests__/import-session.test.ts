@@ -292,6 +292,71 @@ describe("commit", () => {
 		).rejects.toThrow(ImportPlanConsumedError);
 	});
 
+	it("returns path-free media grants and serves bounded chunks", async () => {
+		const plan = await session.plan({ input: { draftPath: draftRoot } });
+		const commit = await session.commitWithMediaGrants({
+			input: {
+				planToken: plan.plan.planToken,
+				acceptedWarningFingerprints: [...plan.plan.warningFingerprints],
+			},
+		});
+		expect(commit.mediaGrants).toHaveLength(1);
+		const [grant] = commit.mediaGrants;
+		expect(grant).toMatchObject({
+			schemaVersion: 1,
+			resourceId: commit.bundle.resourceStaging[0].resourceId,
+			fileName: "clip.mp4",
+			mimeType: "video/mp4",
+			byteLength: 11,
+		});
+		const serialized = JSON.stringify(commit);
+		expect(serialized).not.toContain(draftRoot);
+		expect(serialized).not.toContain("bytesBase64");
+
+		const first = await session.readMediaPayloadChunk({
+			input: { grantToken: grant.grantToken, offset: 0, maxBytes: 5 },
+		});
+		const second = await session.readMediaPayloadChunk({
+			input: { grantToken: grant.grantToken, offset: 5, maxBytes: 20 },
+		});
+		expect(
+			Buffer.concat([
+				Buffer.from(first.bytes),
+				Buffer.from(second.bytes),
+			]).toString()
+		).toBe("media-bytes");
+		expect(first.eof).toBe(false);
+		expect(second.eof).toBe(true);
+		expect(
+			session.releaseMediaPayloadGrants({
+				input: { grantTokens: [grant.grantToken] },
+			})
+		).toEqual({ releasedCount: 1 });
+		await expect(
+			session.readMediaPayloadChunk({
+				input: { grantToken: grant.grantToken, offset: 0, maxBytes: 1 },
+			})
+		).rejects.toMatchObject({ code: "grant-not-found" });
+	});
+
+	it("invalidates granted media if the source changes before chunking", async () => {
+		const plan = await session.plan({ input: { draftPath: draftRoot } });
+		const commit = await session.commitWithMediaGrants({
+			input: {
+				planToken: plan.plan.planToken,
+				acceptedWarningFingerprints: [...plan.plan.warningFingerprints],
+			},
+		});
+		const [grant] = commit.mediaGrants;
+		await writeFile(join(draftRoot, "assets", "clip.mp4"), "other-bytes");
+
+		await expect(
+			session.readMediaPayloadChunk({
+				input: { grantToken: grant.grantToken, offset: 0, maxBytes: 4 },
+			})
+		).rejects.toMatchObject({ code: "source-changed" });
+	});
+
 	it("demands exact warning acceptance", async () => {
 		const plan = await session.plan({ input: { draftPath: draftRoot } });
 		await expect(
