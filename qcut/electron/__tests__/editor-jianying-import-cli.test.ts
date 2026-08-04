@@ -76,9 +76,22 @@ describe("executeJianyingImportCommand", () => {
 				};
 			}
 
-			async commit({ input }: { input: unknown }) {
-				calls.push({ verb: "commit", input });
-				return { bundle: { planToken: "token" }, mediaPayloads: [] };
+			async commitWithMediaGrants({ input }: { input: unknown }) {
+				calls.push({ verb: "commit-grants", input });
+				return {
+					bundle: { planToken: "token" },
+					mediaGrants: [{ grantToken: "grant-token" }],
+				};
+			}
+
+			async readMediaPayloadChunk({ input }: { input: unknown }) {
+				calls.push({ verb: "read-chunk", input });
+				return { bytes: new Uint8Array(), eof: true };
+			}
+
+			releaseMediaPayloadGrants({ input }: { input: unknown }) {
+				calls.push({ verb: "release-grants", input });
+				return { releasedCount: 1 };
 			}
 
 			dispose() {
@@ -88,8 +101,13 @@ describe("executeJianyingImportCommand", () => {
 		return {
 			module: {
 				JianyingDraftImportSession: FakeSession,
-				enqueueDesktopImport: async (input: unknown) => {
-					calls.push({ verb: "enqueue", input });
+				enqueueDesktopImportFromGrants: async (input: {
+					readChunk: (options: { input: unknown }) => Promise<unknown>;
+					[key: string]: unknown;
+				}) => {
+					const { readChunk, ...recordedInput } = input;
+					calls.push({ verb: "enqueue-grants", input: recordedInput });
+					await readChunk({ input: { grantToken: "grant-token" } });
 					return { entryId: "entry-1" };
 				},
 			},
@@ -189,22 +207,56 @@ describe("executeJianyingImportCommand", () => {
 		expect(runtime.constructedWith[0]).toMatchObject({
 			storageDirectory: "/qcut-user-data/jianying-import/plans-cli",
 		});
-		expect(runtime.calls.slice(0, 2)).toEqual([
+		expect(runtime.calls.slice(0, 4)).toEqual([
 			{
-				verb: "commit",
+				verb: "commit-grants",
 				input: {
 					planToken: "t",
 					acceptedWarningFingerprints: ["warning"],
 				},
 			},
 			{
-				verb: "enqueue",
+				verb: "enqueue-grants",
 				input: {
 					inboxDirectory: "/qcut-user-data/jianying-import/inbox",
-					commit: { bundle: { planToken: "token" }, mediaPayloads: [] },
+					commit: {
+						bundle: { planToken: "token" },
+						mediaGrants: [{ grantToken: "grant-token" }],
+					},
 				},
 			},
+			{ verb: "read-chunk", input: { grantToken: "grant-token" } },
+			{
+				verb: "release-grants",
+				input: { grantTokens: ["grant-token"] },
+			},
 		]);
+	});
+
+	it("releases media grants when inbox streaming fails", async () => {
+		const runtime = createRuntime();
+		runtime.module.enqueueDesktopImportFromGrants = async () => {
+			runtime.calls.push({ verb: "enqueue-failed", input: null });
+			throw new Error("inbox write failed");
+		};
+		const result = await executeJianyingImportCommand({
+			options: makeOpts({
+				command: "editor:jianying-import:commit",
+				planToken: "t",
+				acceptedWarningFingerprints: [],
+			}),
+			loadRuntime: async () => runtime.module,
+			getUserDataDirectory: () => "/qcut-user-data",
+		});
+
+		expect(result).toMatchObject({
+			success: false,
+			error: "inbox write failed",
+		});
+		expect(runtime.calls).toContainEqual({
+			verb: "release-grants",
+			input: { grantTokens: ["grant-token"] },
+		});
 	});
 
 	it("returns session errors as CLIResult errors, never throws", async () => {
@@ -222,7 +274,7 @@ describe("executeJianyingImportCommand", () => {
 			}),
 			loadRuntime: async () => ({
 				JianyingDraftImportSession: ThrowingSession,
-				enqueueDesktopImport: async () => ({ entryId: "unused" }),
+				enqueueDesktopImportFromGrants: async () => ({ entryId: "unused" }),
 			}),
 			getUserDataDirectory: () => "/qcut-user-data",
 		});
