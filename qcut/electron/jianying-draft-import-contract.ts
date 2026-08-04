@@ -97,6 +97,17 @@ export interface DraftImportPlanDto {
 	};
 	inspect: DraftImportInspectDto;
 	assetStatuses: Record<string, string>;
+	cacheMetrics?: {
+		assetResolution: {
+			schemaVersion: 1;
+			fileProbeHits: number;
+			fileProbeMisses: number;
+			nameSearchHits: number;
+			nameSearchMisses: number;
+			evictions: number;
+			hashedBytes: number;
+		};
+	};
 }
 
 export interface DraftImportCommitRequestDto {
