@@ -7,7 +7,7 @@
  *     --case-id <id> \
  *     --source-draft <draft-dir> \
  *     --source-receipt <envelope-receipt.json> \
- *     --output <new-output-dir> [--json]
+ *     --output <new-output-dir> [--app-receipt <receipt.json>] [--json]
  *
  * Exit codes: 0 fully verified, 1 invariant failure, 2 missing real-app gate,
  * 3 harness error.
@@ -15,6 +15,7 @@
 
 import { cp, mkdir, readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
+import { loadCapCut81WritebackAppReceipt } from "./capcut-8-1-writeback-app-receipt.js";
 import {
 	assessCapCut81WritebackVerification,
 	assertWritebackManifestIsPathFree,
@@ -48,6 +49,7 @@ export {
 export type { CapCut81WritebackVerificationManifest };
 
 export interface CapCut81WritebackVerificationOptions {
+	appReceiptPath?: string;
 	caseId: string;
 	json?: boolean;
 	now?: () => Date;
@@ -62,6 +64,7 @@ export interface CapCut81WritebackVerificationCliOptions
 }
 
 export async function runCapCut81WritebackVerification({
+	appReceiptPath: appReceiptPathInput,
 	caseId,
 	now = () => new Date(),
 	outputDirectory: outputDirectoryInput,
@@ -72,6 +75,10 @@ export async function runCapCut81WritebackVerification({
 	const outputDirectory = resolve(outputDirectoryInput);
 	const sourceDraftDirectory = resolve(sourceDraftDirectoryInput);
 	const sourceReceiptPath = resolve(sourceReceiptPathInput);
+	const appReceiptPath =
+		appReceiptPathInput === undefined
+			? undefined
+			: resolve(appReceiptPathInput);
 	const runtime = await loadCapCut81WritebackRuntime();
 	if (
 		isPathWithin({
@@ -276,13 +283,25 @@ export async function runCapCut81WritebackVerification({
 			content: writtenContent,
 		}),
 	};
+	const appVerification =
+		appReceiptPath === undefined
+			? undefined
+			: await loadCapCut81WritebackAppReceipt({
+					expected: {
+						activeMirrorTemplates: runtime.activeContentMirrorTemplates,
+						caseId,
+						outputContentSha256: writeResult.contentSha256,
+						profileId: runtime.profileId,
+					},
+					path: appReceiptPath,
+				});
 	const assessment = assessCapCut81WritebackVerification({
+		appVerification,
 		checks,
-		realAppOpenSaveReopenVerified: false,
 	});
 	const manifest: CapCut81WritebackVerificationManifest = {
 		schema: CAPCUT_8_1_WRITEBACK_VERIFICATION_SCHEMA,
-		schemaVersion: 1,
+		schemaVersion: 2,
 		caseId,
 		generatedAtIso: now().toISOString(),
 		profile: {
@@ -297,7 +316,7 @@ export async function runCapCut81WritebackVerification({
 			sourceReceiptId: sourceReceipt.receiptId,
 			isolation: "copy-before-mutation",
 			controlledUnknownSentinel: true,
-			realAppOpenSaveReopenVerified: false,
+			appVerification: appVerification ?? null,
 		},
 		importEvidence: {
 			fileCount: inspect.fileCount,
@@ -331,6 +350,7 @@ export async function runCapCut81WritebackVerification({
 			sourceReceiptPath,
 			outputDirectory,
 			draftDirectory,
+			...(appReceiptPath === undefined ? [] : [appReceiptPath]),
 		],
 		manifest,
 	});
@@ -339,6 +359,7 @@ export async function runCapCut81WritebackVerification({
 }
 
 const CLI_VALUE_FLAGS = [
+	"--app-receipt",
 	"--case-id",
 	"--source-draft",
 	"--source-receipt",
@@ -388,6 +409,9 @@ export function parseCapCut81WritebackVerificationCliOptions({
 		index += 1;
 	}
 	return {
+		...(values.has("--app-receipt")
+			? { appReceiptPath: values.get("--app-receipt") }
+			: {}),
 		caseId: requireCliValue({ flag: "--case-id", values }),
 		json,
 		outputDirectory: requireCliValue({ flag: "--output", values }),

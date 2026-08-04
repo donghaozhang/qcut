@@ -1,3 +1,5 @@
+import type { CapCut81WritebackAppVerification } from "./capcut-8-1-writeback-app-receipt-contract.js";
+
 export const CAPCUT_8_1_WRITEBACK_VERIFICATION_SCHEMA =
 	"qcut.capcut-8.1-same-profile-writeback-verification" as const;
 export const CAPCUT_8_1_WRITEBACK_VERIFICATION_FILE_NAME =
@@ -17,22 +19,14 @@ export interface CapCut81WritebackVerificationChecks {
 	unknownSentinelPreserved: boolean;
 }
 
-export interface CapCut81WritebackVerificationManifest {
+interface CapCut81WritebackVerificationManifestBase {
 	schema: typeof CAPCUT_8_1_WRITEBACK_VERIFICATION_SCHEMA;
-	schemaVersion: 1;
 	caseId: string;
 	generatedAtIso: string;
 	profile: {
 		profileId: string;
 		appVersion?: string;
 		detectionOutcome: "exact";
-	};
-	provenance: {
-		source: "real-capcut-saved-draft";
-		sourceReceiptId: string;
-		isolation: "copy-before-mutation";
-		controlledUnknownSentinel: true;
-		realAppOpenSaveReopenVerified: boolean;
 	};
 	importEvidence: {
 		fileCount: number;
@@ -60,6 +54,33 @@ export interface CapCut81WritebackVerificationManifest {
 	verdict: CapCut81WritebackVerificationVerdict;
 	notVerifiedReason?: string;
 }
+
+interface CapCut81WritebackVerificationProvenanceBase {
+	controlledUnknownSentinel: true;
+	isolation: "copy-before-mutation";
+	source: "real-capcut-saved-draft";
+	sourceReceiptId: string;
+}
+
+export interface CapCut81WritebackVerificationManifestV1
+	extends CapCut81WritebackVerificationManifestBase {
+	provenance: CapCut81WritebackVerificationProvenanceBase & {
+		realAppOpenSaveReopenVerified: boolean;
+	};
+	schemaVersion: 1;
+}
+
+export interface CapCut81WritebackVerificationManifestV2
+	extends CapCut81WritebackVerificationManifestBase {
+	provenance: CapCut81WritebackVerificationProvenanceBase & {
+		appVerification: CapCut81WritebackAppVerification | null;
+	};
+	schemaVersion: 2;
+}
+
+export type CapCut81WritebackVerificationManifest =
+	| CapCut81WritebackVerificationManifestV1
+	| CapCut81WritebackVerificationManifestV2;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -105,11 +126,11 @@ export function collectChangedJsonPointers({
 }
 
 export function assessCapCut81WritebackVerification({
+	appVerification,
 	checks,
-	realAppOpenSaveReopenVerified,
 }: {
+	appVerification: CapCut81WritebackAppVerification | undefined;
 	checks: CapCut81WritebackVerificationChecks;
-	realAppOpenSaveReopenVerified: boolean;
 }): {
 	verdict: CapCut81WritebackVerificationVerdict;
 	notVerifiedReason?: string;
@@ -117,7 +138,7 @@ export function assessCapCut81WritebackVerification({
 	if (Object.values(checks).some((check) => !check)) {
 		return { verdict: "fail" };
 	}
-	if (!realAppOpenSaveReopenVerified) {
+	if (appVerification === undefined) {
 		return {
 			verdict: "unverified",
 			notVerifiedReason:

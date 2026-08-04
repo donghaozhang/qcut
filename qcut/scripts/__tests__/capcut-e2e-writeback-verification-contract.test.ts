@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import type { CapCut81WritebackAppVerification } from "../capcut-e2e/capcut-8-1-writeback-app-receipt-contract";
 import {
 	assessCapCut81WritebackVerification,
 	assertWritebackManifestIsPathFree,
@@ -18,6 +19,26 @@ const PASSING_CHECKS: CapCut81WritebackVerificationChecks = {
 	originalSourceUnchanged: true,
 	recoveryStateClean: true,
 	unknownSentinelPreserved: true,
+};
+
+const APP_VERIFICATION: CapCut81WritebackAppVerification = {
+	app: {
+		bundleIdentifier: "com.lemon.lvoverseas",
+		bundleVersion: "8.1.1",
+		cdHash: "a".repeat(40),
+		executableSha256: "a".repeat(64),
+		infoPlistSha256: "b".repeat(64),
+		shortVersion: "8.1.1",
+	},
+	harness: {
+		planSha256: "c".repeat(64),
+		resultSha256: "d".repeat(64),
+		runId: "run-1",
+	},
+	preOpenContentSha256: "e".repeat(64),
+	receiptSha256: "f".repeat(64),
+	reopenedContentSha256: "1".repeat(64),
+	savedContentSha256: "1".repeat(64),
 };
 
 function readRealCopyReceipt(): CapCut81WritebackVerificationManifest {
@@ -90,8 +111,8 @@ describe("CapCut 8.1 writeback verification contract", () => {
 	it("keeps a successful isolated transaction unverified without an app receipt", () => {
 		expect(
 			assessCapCut81WritebackVerification({
+				appVerification: undefined,
 				checks: PASSING_CHECKS,
-				realAppOpenSaveReopenVerified: false,
 			})
 		).toEqual({
 			verdict: "unverified",
@@ -102,8 +123,8 @@ describe("CapCut 8.1 writeback verification contract", () => {
 	it("passes only after the transaction and real-app gates both pass", () => {
 		expect(
 			assessCapCut81WritebackVerification({
+				appVerification: APP_VERIFICATION,
 				checks: PASSING_CHECKS,
-				realAppOpenSaveReopenVerified: true,
 			})
 		).toEqual({ verdict: "pass" });
 	});
@@ -111,8 +132,8 @@ describe("CapCut 8.1 writeback verification contract", () => {
 	it("fails when any transaction invariant is false", () => {
 		expect(
 			assessCapCut81WritebackVerification({
+				appVerification: APP_VERIFICATION,
 				checks: { ...PASSING_CHECKS, backupMirrorsUnchanged: false },
-				realAppOpenSaveReopenVerified: true,
 			})
 		).toEqual({ verdict: "fail" });
 	});
@@ -138,12 +159,15 @@ describe("CapCut 8.1 writeback verification contract", () => {
 					"/draft",
 					"--source-receipt",
 					"/receipt.json",
+					"--app-receipt",
+					"/app-receipt.json",
 					"--output",
 					"/evidence",
 					"--json",
 				],
 			})
 		).toEqual({
+			appReceiptPath: "/app-receipt.json",
 			caseId: "real-8.1-writeback",
 			json: true,
 			outputDirectory: "/evidence",
