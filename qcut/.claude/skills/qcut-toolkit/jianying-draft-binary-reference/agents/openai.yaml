@@ -1,0 +1,5 @@
+interface:
+  display_name: "Jianying Draft Binary Reference"
+  short_description: "Trace Jianying draft ownership across local binaries"
+  default_prompt: "Use $jianying-draft-binary-reference to identify which Jianying processes and libraries own local draft loading, saving, encryption, and timeline parsing without modifying project files."
+

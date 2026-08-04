@@ -35,6 +35,7 @@ import {
 import {
 	resolveExportSettings,
 	collectExportSegments,
+	collectVideoTransitions,
 	collectStickerOverlays,
 	collectTimelineAudioFiles,
 	executeExportJob,
@@ -166,6 +167,13 @@ export async function startExportJob({
 				"No exportable segments found (no video or image media on timeline)"
 			);
 		}
+		const videoTransitions = collectVideoTransitions({ timeline, segments });
+		if (videoTransitions.length > 0) {
+			claudeLog.info(
+				HANDLER_NAME,
+				`Found ${videoTransitions.length} video transition(s) to render`
+			);
+		}
 
 		// Collect sticker overlays for compositing
 		const stickerOverlays = await collectStickerOverlays({
@@ -261,6 +269,7 @@ export async function startExportJob({
 			stickerOverlays,
 			textOverlays,
 			audioFiles,
+			videoTransitions,
 			projectCanvas:
 				timeline.width > 0 && timeline.height > 0
 					? { width: timeline.width, height: timeline.height }

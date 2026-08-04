@@ -1,7 +1,11 @@
 import { debugError, debugLog, debugWarn } from "@/lib/debug/debug-config";
 import { platform } from "@qcut/platform-core";
+import {
+	captureTimelineHistorySnapshot,
+	restoreTimelinePlayhead,
+	type TimelineHistorySnapshot,
+} from "@/stores/timeline/timeline-history";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import type { TimelineTrack } from "@/types/timeline";
 import type { TimelineStore } from "@/stores/timeline/types";
 
 type ClaudeTransactionAPI = NonNullable<
@@ -19,8 +23,8 @@ type ActiveTransactionContext = {
 	label?: string;
 	createdAt: number;
 	expiresAt: number;
-	preTracks: TimelineTrack[];
-	preSelection: TimelineStore["selectedElements"];
+	/** Full editing context at Begin — becomes the one history entry. */
+	preSnapshot: TimelineHistorySnapshot;
 };
 
 type TimelineHistoryPatches = Pick<
@@ -340,23 +344,23 @@ function sendRollbackResponse({
 function commitSingleHistoryEntry({
 	label,
 	transactionId,
-	preTracks,
+	preSnapshot,
 }: {
 	label?: string;
 	transactionId: string;
-	preTracks: TimelineTrack[];
+	preSnapshot: TimelineHistorySnapshot;
 }): boolean {
 	try {
 		const storeBefore = useTimelineStore.getState();
 		const finalTracks = cloneJson({ value: storeBefore._tracks });
-		const beforeSerialized = JSON.stringify(preTracks);
+		const beforeSerialized = JSON.stringify(preSnapshot.tracks);
 		const afterSerialized = JSON.stringify(finalTracks);
 		if (beforeSerialized === afterSerialized) {
 			return false;
 		}
 
 		useTimelineStore.setState((state) => ({
-			history: [...state.history, cloneJson({ value: preTracks })],
+			history: [...state.history, cloneJson({ value: preSnapshot })],
 			redoStack: [],
 		}));
 		syncHistoryMetadataWithStore();
@@ -415,8 +419,11 @@ export function setupClaudeTransactionBridge(): void {
 						typeof data.createdAt === "number" ? data.createdAt : Date.now(),
 					expiresAt:
 						typeof data.expiresAt === "number" ? data.expiresAt : Date.now(),
-					preTracks: cloneJson({ value: store._tracks }),
-					preSelection: cloneJson({ value: store.selectedElements }),
+					preSnapshot: captureTimelineHistorySnapshot({
+						tracks: store._tracks,
+						selectedElements: store.selectedElements,
+						selectedTransition: store.selectedTransition,
+					}),
 				};
 
 				debugLog(
@@ -470,7 +477,7 @@ export function setupClaudeTransactionBridge(): void {
 				const historyEntryAdded = commitSingleHistoryEntry({
 					label: current.label,
 					transactionId: current.transactionId,
-					preTracks: current.preTracks,
+					preSnapshot: current.preSnapshot,
 				});
 				activeTransaction = null;
 
@@ -521,8 +528,16 @@ export function setupClaudeTransactionBridge(): void {
 
 				const current = activeTransaction;
 				const store = useTimelineStore.getState();
-				store.restoreTracks(cloneJson({ value: current.preTracks }));
-				store.setSelectedElements(cloneJson({ value: current.preSelection }));
+				store.restoreTracks(cloneJson({ value: current.preSnapshot.tracks }));
+				useTimelineStore.setState({
+					selectedElements: cloneJson({
+						value: current.preSnapshot.selectedElements,
+					}),
+					selectedTransition: cloneJson({
+						value: current.preSnapshot.selectedTransition,
+					}),
+				});
+				restoreTimelinePlayhead({ snapshot: current.preSnapshot });
 				activeTransaction = null;
 
 				debugLog(

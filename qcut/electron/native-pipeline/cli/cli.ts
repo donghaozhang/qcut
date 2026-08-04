@@ -338,6 +338,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"element-id": { type: "string" },
 			"job-id": { type: "string" },
 			"track-id": { type: "string" },
+			"from-element-id": { type: "string" },
+			"to-element-id": { type: "string" },
 			type: { type: "string" },
 			index: { type: "string" },
 			"to-track": { type: "string" },
@@ -519,6 +521,18 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			opacity: { type: "string" },
 			rotation: { type: "string" },
 			"sticker-id": { type: "string" },
+			// local Jianying transition reference options
+			"cache-root": { type: "string" },
+			"project-root": { type: "string" },
+			database: { type: "string", multiple: true },
+			draft: { type: "string", multiple: true },
+			path: { type: "string" },
+			"resource-id": { type: "string", multiple: true },
+			"draft-effect-id": { type: "string", multiple: true },
+			"catalog-effect-id": { type: "string", multiple: true },
+			"metadata-md5": { type: "string" },
+			formula: { type: "string" },
+			"ffmpeg-path": { type: "string" },
 		},
 		strict: false,
 	});
@@ -832,6 +846,17 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		projectId:
 			(values["project-id"] as string | undefined) ??
 			(values.project as string | undefined),
+		cacheRoot: values["cache-root"] as string | undefined,
+		projectRoot: values["project-root"] as string | undefined,
+		databasePaths: values.database as string[] | undefined,
+		draftPaths: values.draft as string[] | undefined,
+		packagePath: values.path as string | undefined,
+		resourceIds: values["resource-id"] as string[] | undefined,
+		draftEffectIds: values["draft-effect-id"] as string[] | undefined,
+		catalogEffectIds: values["catalog-effect-id"] as string[] | undefined,
+		metadataMd5: values["metadata-md5"] as string | undefined,
+		formula: values.formula as string | undefined,
+		ffmpegPath: values["ffmpeg-path"] as string | undefined,
 		chunkSize: values["chunk-size"]
 			? Number.isNaN(parseInt(values["chunk-size"] as string, 10))
 				? undefined
@@ -854,6 +879,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		elementId: values["element-id"] as string | undefined,
 		jobId: values["job-id"] as string | undefined,
 		trackId: values["track-id"] as string | undefined,
+		fromElementId: values["from-element-id"] as string | undefined,
+		toElementId: values["to-element-id"] as string | undefined,
 		trackType: values.type as string | undefined,
 		index:
 			command !== "analyze-inspect" && command !== "edit-plan" && values.index

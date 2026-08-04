@@ -17,9 +17,14 @@
 
 import { create } from "zustand";
 import { sortTracksByOrder, ensureMainTrack } from "@/types/timeline";
+import { DEFAULT_PROJECT_TIMELINE_SETTINGS } from "@/types/project";
 import { findOccupyingElement } from "@/lib/timeline-occupancy";
 
 import { type TimelineStore } from "./index";
+import {
+	captureTimelineHistorySnapshot,
+	restoreTimelinePlayhead,
+} from "./timeline-history";
 import { createTimelineOperations } from "./timeline-store-operations";
 import { createAutoSaveHelpers } from "./timeline-store-autosave";
 import { createCrudOperations } from "./timeline-store-crud";
@@ -36,6 +41,22 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 	const initialTracks = ensureMainTrack([]);
 	const sortedInitialTracks = sortTracksByOrder(initialTracks);
 
+	// Persist the three behavior toggles onto the active project (QTL-005).
+	const persistTimelineSettings = () => {
+		const { snappingEnabled, mainTrackMagnetEnabled, linkedRippleEnabled } =
+			get();
+		useProjectStore
+			.getState()
+			.updateProjectTimelineSettings({
+				snappingEnabled,
+				mainTrackMagnetEnabled,
+				linkedRippleEnabled,
+			})
+			.catch(() => {
+				// No active project (or storage failure already reported).
+			});
+	};
+
 	return {
 		_tracks: sortedInitialTracks,
 		tracks: sortedInitialTracks,
@@ -48,8 +69,12 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 		selectedTransition: null,
 		rippleEditingEnabled: false,
 
-		// Snapping settings defaults
-		snappingEnabled: true,
+		// Timeline behavior toggles (QTL-005) — persisted per project; these
+		// are the deterministic defaults for legacy projects.
+		snappingEnabled: DEFAULT_PROJECT_TIMELINE_SETTINGS.snappingEnabled,
+		mainTrackMagnetEnabled:
+			DEFAULT_PROJECT_TIMELINE_SETTINGS.mainTrackMagnetEnabled,
+		linkedRippleEnabled: DEFAULT_PROJECT_TIMELINE_SETTINGS.linkedRippleEnabled,
 
 		// Effects track visibility - load from localStorage, default to false
 		showEffectsTrack:
@@ -64,22 +89,43 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 		},
 
 		pushHistory: () => {
-			const { _tracks, history } = get();
+			const { _tracks, history, selectedElements, selectedTransition } = get();
 			set({
-				history: [...history, JSON.parse(JSON.stringify(_tracks))],
+				history: [
+					...history,
+					captureTimelineHistorySnapshot({
+						tracks: _tracks,
+						selectedElements,
+						selectedTransition,
+					}),
+				],
 				redoStack: [],
 			});
 		},
 
 		undo: () => {
-			const { history, redoStack, _tracks } = get();
-			if (history.length === 0) return;
-			const prev = history[history.length - 1];
-			updateTracksAndSave(prev);
+			const {
+				history,
+				redoStack,
+				_tracks,
+				selectedElements,
+				selectedTransition,
+			} = get();
+			const previous = history[history.length - 1];
+			if (!previous) return;
+			const current = captureTimelineHistorySnapshot({
+				tracks: _tracks,
+				selectedElements,
+				selectedTransition,
+			});
+			updateTracksAndSave(previous.tracks);
 			set({
 				history: history.slice(0, -1),
-				redoStack: [...redoStack, JSON.parse(JSON.stringify(_tracks))],
+				redoStack: [...redoStack, current],
+				selectedElements: previous.selectedElements,
+				selectedTransition: previous.selectedTransition,
 			});
+			restoreTimelinePlayhead({ snapshot: previous });
 		},
 
 		selectElement: (trackId, elementId, multi = false) => {
@@ -146,6 +192,27 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 		// Snapping actions
 		toggleSnapping: () => {
 			set((state) => ({ snappingEnabled: !state.snappingEnabled }));
+			persistTimelineSettings();
+		},
+
+		toggleMainTrackMagnet: () => {
+			set((state) => ({
+				mainTrackMagnetEnabled: !state.mainTrackMagnetEnabled,
+			}));
+			persistTimelineSettings();
+		},
+
+		toggleLinkedRipple: () => {
+			set((state) => ({ linkedRippleEnabled: !state.linkedRippleEnabled }));
+			persistTimelineSettings();
+		},
+
+		applyProjectTimelineSettings: ({ settings }) => {
+			set({
+				snappingEnabled: settings.snappingEnabled,
+				mainTrackMagnetEnabled: settings.mainTrackMagnetEnabled,
+				linkedRippleEnabled: settings.linkedRippleEnabled,
+			});
 		},
 
 		// Ripple editing functions
@@ -210,13 +277,9 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 				return get().insertTrackAt(trackType, 0);
 			}
 
-			// A track plays one element at a time. When the caller says where the
-			// element will sit, reuse a lane only if that span is free; otherwise
-			// stack a new track, which is what a drop from the media panel does.
 			const existingTrack = get()._tracks.find((track) => {
-				if (track.type !== trackType) return false;
+				if (track.type !== trackType || track.locked) return false;
 				if (!span) return true;
-				if (track.locked) return false;
 				return (
 					findOccupyingElement({
 						track,

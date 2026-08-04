@@ -135,10 +135,10 @@ export interface OperationContext {
 export interface TimelineStore {
 	/** Private track storage - do not access directly, use tracks property instead */
 	_tracks: TimelineTrack[];
-	/** Undo history stack storing previous timeline states */
-	history: TimelineTrack[][];
-	/** Redo stack for restoring undone states */
-	redoStack: TimelineTrack[][];
+	/** Undo history stack of full editing-context snapshots (QTL-004) */
+	history: import("./timeline-history").TimelineHistorySnapshot[];
+	/** Redo stack for restoring undone snapshots */
+	redoStack: import("./timeline-history").TimelineHistorySnapshot[];
 
 	/** Auto-save status message for UI feedback */
 	autoSaveStatus: string;
@@ -163,6 +163,20 @@ export interface TimelineStore {
 	rippleEditingEnabled: boolean;
 	/** Toggle ripple editing mode on/off */
 	toggleRippleEditing: () => void;
+
+	/** Main-track magnet (QTL-005): main-track deletions close their gap
+	 * even outside ripple mode. */
+	mainTrackMagnetEnabled: boolean;
+	/** Toggle the main-track magnet on/off (persisted per project) */
+	toggleMainTrackMagnet: () => void;
+	/** Whether ripple edits pull explicitly linked tracks along (QTL-005) */
+	linkedRippleEnabled: boolean;
+	/** Toggle linked ripple on/off (persisted per project) */
+	toggleLinkedRipple: () => void;
+	/** Apply persisted project timeline settings (called on project load) */
+	applyProjectTimelineSettings: (input: {
+		settings: import("@/types/project").ProjectTimelineSettings;
+	}) => void;
 
 	/** Whether the effects track is visible in the timeline */
 	showEffectsTrack: boolean;
@@ -215,11 +229,18 @@ export interface TimelineStore {
 	removeTrack: (trackId: string) => void;
 	/** Remove a track with ripple editing (affects subsequent elements) */
 	removeTrackWithRipple: (trackId: string) => void;
-	/** Add an element to the specified track */
+	/** Add an element to the specified track. `collision` picks how an
+	 * occupied target range is handled: `reject` (default) fails, `insert`
+	 * splits at the point and shifts downstream, `overwrite` clears the range
+	 * while keeping downstream positions. */
 	addElementToTrack: (
 		trackId: string,
 		element: CreateTimelineElement,
-		options?: { pushHistory?: boolean; selectElement?: boolean }
+		options?: {
+			pushHistory?: boolean;
+			selectElement?: boolean;
+			collision?: "reject" | "insert" | "overwrite";
+		}
 	) => string | null;
 	addTextGroupAtTime: (input: {
 		elements: CreateTextElement[];
@@ -264,6 +285,22 @@ export interface TimelineStore {
 		trackId: string;
 		elementId: string;
 		timelineDelta: number;
+		pushHistory?: boolean;
+	}) => number;
+	/** Slide edit (QTL-007): move a clip while neighbors absorb the change. */
+	slideElement: (input: {
+		trackId: string;
+		elementId: string;
+		timelineDelta: number;
+		pushHistory?: boolean;
+	}) => number;
+	/** Ripple trim (QTL-007): resize one edge and shift downstream elements
+	 * across the ripple domain by the applied delta. */
+	rippleTrimElement: (input: {
+		trackId: string;
+		elementId: string;
+		edge: "left" | "right";
+		durationDelta: number;
 		pushHistory?: boolean;
 	}) => number;
 	rollEdit: (input: {

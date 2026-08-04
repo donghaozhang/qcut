@@ -100,6 +100,25 @@ export function setupBatchHandlers({
 						}
 
 						if (
+							element.collision !== undefined &&
+							element.collision !== "insert" &&
+							element.collision !== "overwrite" &&
+							element.collision !== "reject"
+						) {
+							throw new Error(
+								`Unsupported collision policy: ${element.collision}`
+							);
+						}
+
+						// Collision policy rides along verbatim; the store command is
+						// the single authority on what each mode does (QTL-002).
+						const addOptions = {
+							pushHistory: false,
+							selectElement: false,
+							...(element.collision ? { collision: element.collision } : {}),
+						};
+
+						if (
 							typeof element.startTime !== "number" ||
 							Number.isNaN(element.startTime) ||
 							element.startTime < 0
@@ -152,10 +171,7 @@ export function setupBatchHandlers({
 										typeof element.trimEnd === "number" ? element.trimEnd : 0,
 									...getClaudeMediaTimingProperties({ element }),
 								},
-								{
-									pushHistory: false,
-									selectElement: false,
-								}
+								addOptions
 							);
 						} else if (normalizedType === "adjustment") {
 							createdElementId = addClaudeAdjustmentElement({
@@ -212,10 +228,7 @@ export function setupBatchHandlers({
 									opacity: 1,
 									...textProperties,
 								},
-								{
-									pushHistory: false,
-									selectElement: false,
-								}
+								addOptions
 							);
 						} else if (normalizedType === "markdown") {
 							const markdownContent =
@@ -267,10 +280,7 @@ export function setupBatchHandlers({
 									rotation: 0,
 									opacity: 1,
 								},
-								{
-									pushHistory: false,
-									selectElement: false,
-								}
+								addOptions
 							);
 						} else if (normalizedType === "captions") {
 							const captionText =
@@ -298,10 +308,7 @@ export function setupBatchHandlers({
 									trimEnd: 0,
 									style: element.style || undefined,
 								},
-								{
-									pushHistory: false,
-									selectElement: false,
-								}
+								addOptions
 							);
 						} else {
 							throw new Error(`Unsupported batch add type: ${normalizedType}`);

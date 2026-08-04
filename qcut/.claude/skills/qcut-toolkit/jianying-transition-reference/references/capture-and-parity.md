@@ -84,6 +84,20 @@ For exports:
 - compare the same resolution and color metadata;
 - disable unrelated filters, transforms, masks, opacity, and adjustment layers.
 
+### Color and viewport normalization traps
+
+Color tags do not transform existing pixel values. Marking BT.601 pixels as
+BT.709 without a matrix conversion can create a stable error that looks like
+bad transition math. Convert decoded pixels through the intended color space,
+then write matching primaries, transfer, matrix, and range metadata. Keep the
+original exports and the normalized comparison files as separate evidence.
+
+Likewise, do not reuse hard-coded preview crop coordinates after a window or
+panel layout changes. Calibrate the visible video rectangle from a fresh full
+window screenshot, crop both applications to known output geometry, and reject
+a capture set when its calibration image does not match the manifest geometry
+or corner markers.
+
 ## Manifest
 
 Paths can be absolute or relative to the manifest:
@@ -92,6 +106,21 @@ Paths can be absolute or relative to the manifest:
 {
   "transitionTitle": "叠化",
   "formula": "C(p) = (1 - p) A + p B",
+  "captureGeometry": {
+    "width": 1920,
+    "height": 1080,
+    "channelTolerance": 2,
+    "cornerMarkers": [
+      { "corner": "top-left", "sampleX": 4, "sampleY": 4, "rgb": [255, 0, 0] },
+      { "corner": "top-right", "sampleX": 1915, "sampleY": 4, "rgb": [0, 255, 255] },
+      { "corner": "bottom-left", "sampleX": 4, "sampleY": 1075, "rgb": [0, 255, 0] },
+      { "corner": "bottom-right", "sampleX": 1915, "sampleY": 1075, "rgb": [255, 0, 255] }
+    ]
+  },
+  "calibrationCaptures": {
+    "jianyingPreview": "jy-preview-calibration.png",
+    "qcutPreview": "qcut-preview-calibration.png"
+  },
   "samples": [
     {
       "progress": 0,
@@ -110,6 +139,13 @@ Paths can be absolute or relative to the manifest:
   ]
 }
 ```
+
+Before accepting the sample set, decode both calibration captures without
+resizing. Their pixel dimensions must equal `captureGeometry.width` and
+`captureGeometry.height`. Each marker sample must match its declared RGB value
+within `channelTolerance` in every channel. This check runs on the untransformed
+calibration frame captured immediately before the five-stop run; intermediate
+transition frames are not expected to preserve source-corner markers.
 
 Add entries for `0.5`, `0.75`, and `1`. For controlled synthetic tests where
 one reference truly serves both channels, use `jianying` as a fallback instead

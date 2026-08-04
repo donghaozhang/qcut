@@ -70,6 +70,21 @@ describe("LocalStickerReferencePanel", () => {
 		URL.revokeObjectURL = originalRevokeObjectUrl;
 	});
 
+	it("renders four sticker references per row", () => {
+		render(
+			<LocalStickerReferencePanel
+				catalog={createLocalStickerCatalog()}
+				error={null}
+				isLoading={false}
+				onSelect={() => Promise.resolve()}
+			/>
+		);
+
+		expect(screen.getByTestId("local-sticker-category-grid")).toHaveClass(
+			"grid-cols-4"
+		);
+	});
+
 	it("loads only the active category and releases its previews on switch", async () => {
 		const catalog = createLocalStickerCatalog();
 		const firstItem = catalog.categories[0]?.items[0];

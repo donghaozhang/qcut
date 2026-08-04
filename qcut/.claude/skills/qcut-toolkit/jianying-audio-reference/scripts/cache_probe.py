@@ -127,7 +127,11 @@ def probe_audio(file_path: Path) -> dict[str, object] | None:
         return None
     if result.returncode != 0:
         return None
-    return json.loads(result.stdout)
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError:
+        return None
+    return payload if isinstance(payload, dict) else None
 
 
 def write_snapshot(output_path: Path, music_root: Path) -> None:
@@ -147,6 +151,8 @@ def write_snapshot(output_path: Path, music_root: Path) -> None:
 
 def read_snapshot(snapshot_path: Path) -> dict[str, object]:
     snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+    if not isinstance(snapshot, dict):
+        raise ValueError("Snapshot root must be an object")
     if snapshot.get("schema_version") != SCHEMA_VERSION:
         raise ValueError(f"Unsupported snapshot schema: {snapshot.get('schema_version')}")
     if not isinstance(snapshot.get("files"), dict):

@@ -66,4 +66,38 @@ export interface TProject {
 	audioMix?: ProjectAudioMixSettings;
 	/** Alignment guides drawn over the preview (editing aid only, never exported). */
 	guides?: ProjectGuides;
+	/** Timeline behavior toggles (QTL-005); absent on legacy projects. */
+	timeline?: ProjectTimelineSettings;
+}
+
+/**
+ * Timeline behavior toggles (QTL-005). Three independent concepts that must
+ * never be conflated: ordinary snapping (drag alignment), the main-track
+ * magnet (deleting a main-track clip closes its gap even outside ripple
+ * mode), and linked ripple (ripple edits pull explicitly linked tracks).
+ */
+export interface ProjectTimelineSettings {
+	snappingEnabled: boolean;
+	mainTrackMagnetEnabled: boolean;
+	linkedRippleEnabled: boolean;
+}
+
+/**
+ * Deterministic defaults for legacy projects: snapping stays on (the
+ * historical default), the magnet is off (it did not exist), and linked
+ * ripple is on (ripple edits have followed typed links since QTL-003).
+ */
+export const DEFAULT_PROJECT_TIMELINE_SETTINGS: ProjectTimelineSettings = {
+	snappingEnabled: true,
+	mainTrackMagnetEnabled: false,
+	linkedRippleEnabled: true,
+};
+
+/** Fill missing fields of a persisted settings object with the defaults. */
+export function resolveProjectTimelineSettings({
+	settings,
+}: {
+	settings?: Partial<ProjectTimelineSettings> | null;
+}): ProjectTimelineSettings {
+	return { ...DEFAULT_PROJECT_TIMELINE_SETTINGS, ...(settings ?? {}) };
 }

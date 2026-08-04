@@ -237,6 +237,7 @@ class StorageService {
 			folderId: project.folderId ?? null,
 			audioMix: project.audioMix,
 			guides: project.guides,
+			timeline: project.timeline,
 		};
 
 		await this.projectsAdapter.set(project.id, serializedProject);
@@ -276,6 +277,7 @@ class StorageService {
 			folderId: serializedProject.folderId ?? null,
 			audioMix: serializedProject.audioMix,
 			guides: serializedProject.guides,
+			timeline: serializedProject.timeline,
 		};
 	}
 
@@ -762,10 +764,15 @@ class StorageService {
 
 	async deleteProjectTimeline({
 		projectId,
+		sceneId,
 	}: {
 		projectId: string;
+		sceneId?: string;
 	}): Promise<void> {
-		const timelineAdapter = this.getProjectTimelineAdapter({ projectId });
+		const timelineAdapter = this.getProjectTimelineAdapter({
+			projectId,
+			sceneId,
+		});
 		await timelineAdapter.remove("timeline");
 	}
 

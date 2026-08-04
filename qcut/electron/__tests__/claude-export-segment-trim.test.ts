@@ -73,6 +73,10 @@ describe("native export segment trims", () => {
 
 	it("seeks to the trim in-point when building ffmpeg input args", () => {
 		const segment: ExportSegment = {
+			elementId: "clip-1",
+			trackId: "track-1",
+			trackOrder: 0,
+			elementOrder: 0,
 			sourcePath: "/tmp/clip.mp4",
 			startTime: 26.6,
 			duration: 1.5,
@@ -93,6 +97,10 @@ describe("native export segment trims", () => {
 
 	it("omits the seek for untrimmed segments and images", () => {
 		const untrimmed: ExportSegment = {
+			elementId: "clip-1",
+			trackId: "track-1",
+			trackOrder: 0,
+			elementOrder: 0,
 			sourcePath: "/tmp/clip.mp4",
 			startTime: 0,
 			duration: 2,
@@ -108,6 +116,10 @@ describe("native export segment trims", () => {
 		]);
 
 		const image: ExportSegment = {
+			elementId: "image-1",
+			trackId: "track-1",
+			trackOrder: 0,
+			elementOrder: 1,
 			sourcePath: "/tmp/still.png",
 			startTime: 0,
 			duration: 3,

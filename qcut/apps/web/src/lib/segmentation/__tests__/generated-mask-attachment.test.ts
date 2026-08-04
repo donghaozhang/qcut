@@ -185,7 +185,7 @@ describe("generated mask attachment", () => {
 			"other-generated",
 		]);
 		expect(state.history).toHaveLength(1);
-		expect(state.history[0][0].elements[0]).toMatchObject({
+		expect(state.history[0].tracks[0].elements[0]).toMatchObject({
 			id: "clip-1",
 			masks: [{ id: "generated" }, { id: "retained" }],
 		});

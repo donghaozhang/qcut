@@ -258,7 +258,7 @@ export function LocalStickerReferencePanel({
 							</div>
 							<div className="min-h-0 flex-1 overflow-y-auto p-2">
 								<div
-									className="grid grid-cols-3 gap-2"
+									className="grid grid-cols-4 gap-2"
 									data-testid="local-sticker-category-grid"
 								>
 									{selectedCategory.items.map((reference) => (

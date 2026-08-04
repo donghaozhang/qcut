@@ -165,6 +165,39 @@ describe("TransitionsView", () => {
 		).not.toBeInTheDocument();
 	});
 
+	it("exposes clean-room shader recipes in Transition Lab", () => {
+		render(<TransitionsView />);
+
+		fireEvent.click(screen.getByRole("button", { name: "转场实验室" }));
+
+		expect(screen.getByText("6 个转场")).toBeVisible();
+		expect(screen.getByTestId("transition-card-lab-page-curl")).toBeVisible();
+		expect(
+			screen.getByTestId("transition-lab-canvas-lab-page-curl")
+		).toBeInTheDocument();
+	});
+
+	it("applies a Transition Lab recipe through the normal timeline contract", () => {
+		selectAdjacentClips();
+		render(<TransitionsView />);
+		fireEvent.click(screen.getByRole("button", { name: "转场实验室" }));
+		fireEvent.doubleClick(
+			screen.getByTestId("transition-card-lab-cube-rotate")
+		);
+
+		const track = useTimelineStore
+			.getState()
+			.tracks.find((item) => item.id === "track-1");
+		expect(track?.transitions).toEqual([
+			expect.objectContaining({
+				presetId: "lab-cube-rotate",
+				type: "cube",
+				direction: "left",
+				duration: 1,
+			}),
+		]);
+	});
+
 	it("exposes at least twenty working cards in every content category", () => {
 		render(<TransitionsView />);
 

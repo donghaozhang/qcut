@@ -9,6 +9,7 @@
 
 import type { FlagDef, CommandDef } from "./command-registry-types.js";
 import { createExtraEditorCommands } from "./command-registry-editor-extra.js";
+import { JIANYING_TRANSITION_COMMANDS } from "./command-registry-editor-jianying.js";
 
 /** Shorthand flag builder. */
 function f(
@@ -60,6 +61,7 @@ function ed(
 // ─── Editor Commands ─────────────────────────────────────────────────
 
 export const EDITOR_COMMANDS: Record<string, CommandDef> = {
+	...JIANYING_TRANSITION_COMMANDS,
 	"editor:console": ed(
 		"editor:console",
 		"List captured renderer console messages",
@@ -242,6 +244,39 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		"editor:project:reveal",
 		"Reveal project folder in the OS file manager (defaults to the active project)",
 		[f("--project-id", "string", "Project ID (defaults to the active project)")]
+	),
+
+	// ── Transition Lab ──
+	"editor:transition-lab:list": ed(
+		"editor:transition-lab:list",
+		"List distributable QCut shader transition recipes",
+		[],
+		[
+			"qcut editor transition-lab list --json",
+			"qcut-pipeline editor:transition-lab:list --json",
+		]
+	),
+	"editor:transition-lab:apply": ed(
+		"editor:transition-lab:apply",
+		"Apply a Transition Lab recipe between adjacent clips",
+		[
+			PID_ACTIVE,
+			f("--preset", "string", "Transition Lab recipe ID", { required: true }),
+			f("--track-id", "string", "Track containing both clips", {
+				required: true,
+			}),
+			f("--from-element-id", "string", "Outgoing clip element ID", {
+				required: true,
+			}),
+			f("--to-element-id", "string", "Incoming clip element ID", {
+				required: true,
+			}),
+			f("--duration", "number", "Transition duration in seconds"),
+		],
+		[
+			"qcut editor transition-lab apply --preset lab-page-curl --track-id track-1 --from-element-id clip-a --to-element-id clip-b --json",
+			"qcut-pipeline editor:transition-lab:apply --preset lab-cube-rotate --track-id track-1 --from-element-id clip-a --to-element-id clip-b --duration 0.8 --json",
+		]
 	),
 
 	// ── Timeline ──

@@ -250,30 +250,8 @@ export function findAudioCategories({
 							CASE WHEN json_valid(cache.response_body) THEN cache.response_body ELSE '{}' END,
 							'$.data.categories'
 						) AS category
-					WHERE EXISTS (
-						SELECT 1
-						FROM json_each(
-							CASE WHEN json_valid(cache.response_body) THEN cache.response_body ELSE '{}' END,
-							'$.data.categories'
-						) AS marker
-						WHERE CAST(json_extract(marker.value, '$.category_id') AS TEXT) = '5914402'
-					)
-					AND EXISTS (
-						SELECT 1
-						FROM json_each(
-							CASE WHEN json_valid(cache.response_body) THEN cache.response_body ELSE '{}' END,
-							'$.data.categories'
-						) AS marker
-						WHERE CAST(json_extract(marker.value, '$.category_id') AS TEXT) = '5914764'
-					)
-					AND EXISTS (
-						SELECT 1
-						FROM json_each(
-							CASE WHEN json_valid(cache.response_body) THEN cache.response_body ELSE '{}' END,
-							'$.data.categories'
-						) AS marker
-						WHERE CAST(json_extract(marker.value, '$.category_id') AS TEXT) = '5914405'
-					)
+					WHERE instr(cache.url, '_audio_') > 0
+						OR instr(cache.url, '/audio') > 0
 				`)
 				.all();
 			for (const row of rows) {

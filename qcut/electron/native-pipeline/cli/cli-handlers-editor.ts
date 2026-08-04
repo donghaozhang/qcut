@@ -28,6 +28,8 @@ import { handleAnalysisCommand } from "../editor/editor-handlers-analysis.js";
 import { handleGenerateExportCommand } from "../editor/editor-handlers-generate.js";
 import { handleRemotionCommand } from "../editor/editor-handlers-remotion.js";
 import { handleStickerCommand } from "../editor/editor-handlers-sticker.js";
+import { handleTransitionLabCommand } from "../editor/editor-handlers-transition-lab.js";
+import { handleJianyingTransitionCommand } from "../editor/editor-handlers-jianying-transition.js";
 import { handleSearchCommand } from "../editor/editor-handlers-search.js";
 import {
 	handleConsoleCommand,
@@ -210,6 +212,8 @@ export async function handleEditorCommand(
 	//                in session mode, skip after first successful check
 	const shouldSkipHealth =
 		options.command === "editor:health" ||
+		options.command === "editor:transition-lab:list" ||
+		options.command.startsWith("editor:jianying-transition:") ||
 		options.command.startsWith("editor:diff:") ||
 		options.command.startsWith("editor:session:") ||
 		(options.skipHealth && (!options.session || isSessionHealthChecked()));
@@ -274,6 +278,9 @@ export async function handleEditorCommand(
 	const module = parts[1];
 
 	try {
+		if (module === "jianying-transition") {
+			return await handleJianyingTransitionCommand({ options, signal });
+		}
 		const result = await (async (): Promise<CLIResult> => {
 			switch (module) {
 				case "auth":
@@ -311,6 +318,9 @@ export async function handleEditorCommand(
 
 				case "sticker":
 					return await handleStickerCommand(client, options);
+
+				case "transition-lab":
+					return await handleTransitionLabCommand({ client, options });
 
 				case "search":
 					return await handleSearchCommand(client, options, onProgress);
@@ -371,12 +381,13 @@ export async function handleEditorCommand(
 				default:
 					return {
 						success: false,
-						error: `Unknown editor module: ${module}. Available: auth, health, media, project, timeline, editing, track, element, analyze, transcribe, search, generate, export, diagnostics, mcp, remotion, sticker, navigator, screen-recording, ui, snapshot, pointer, keyboard, demo, diff, session, console, errors, moyin, novel, screenshot, undo, redo, state`,
+						error: `Unknown editor module: ${module}. Available: auth, health, media, project, timeline, editing, track, element, analyze, transcribe, search, generate, export, diagnostics, mcp, remotion, sticker, transition-lab, jianying-transition, navigator, screen-recording, ui, snapshot, pointer, keyboard, demo, diff, session, console, errors, moyin, novel, screenshot, undo, redo, state`,
 					};
 			}
 		})();
 
 		if (!result.success) return result;
+		if (module === "transition-lab" && parts[2] === "list") return result;
 		// Reported once here rather than per module, so every editor command
 		// says whether the window is actually showing what it just changed.
 		const view = await resolveEditorViewState({

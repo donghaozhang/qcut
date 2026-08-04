@@ -439,6 +439,14 @@ export async function batchAddElements(
 			) {
 				throw new Error("Each element must include a duration > 0");
 			}
+			if (
+				element.collision !== undefined &&
+				element.collision !== "reject" &&
+				element.collision !== "insert" &&
+				element.collision !== "overwrite"
+			) {
+				throw new Error("collision must be one of: reject, insert, overwrite");
+			}
 		}
 
 		const timeline = await requestTimelineFromRenderer(win);

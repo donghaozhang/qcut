@@ -31,7 +31,10 @@ export function applyCaptionStyleToTracks({
 	const nextTracks = tracks.map((track) => {
 		const shouldInspectTrack =
 			scope === "project" || scope === "selection" || track.id === trackId;
-		if (!shouldInspectTrack || track.type !== "captions") return track;
+		// Broad scopes are derived sets: locked caption tracks keep their style.
+		if (!shouldInspectTrack || track.type !== "captions" || track.locked) {
+			return track;
+		}
 
 		let trackChanged = false;
 		const elements = track.elements.map((element) => {

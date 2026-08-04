@@ -4,6 +4,7 @@ import { TRANSITION_CATEGORY_EXPANSIONS } from "./transition-category-expansions
 import { buildTransitionCatalogDensity } from "./transition-catalog-density";
 import { TRANSITION_ENGINE_PRESETS } from "./transition-engine-presets/index";
 import { SELECTED_JIANYING_TRANSITION_PRESETS } from "./transition-jianying-selected-presets";
+import { TRANSITION_LAB_PRESETS } from "./transition-lab-presets";
 import {
 	defineTransitionPreset as definePreset,
 	type ClipTransitionPresetConfig,
@@ -291,6 +292,7 @@ const BASE_TRANSITION_PRESETS: TransitionPreset[] = [
 	...mgPresets,
 	...ADDITIONAL_TRANSITION_PRESETS,
 	...SELECTED_JIANYING_TRANSITION_PRESETS,
+	...TRANSITION_LAB_PRESETS,
 	...TRANSITION_CATEGORY_EXPANSIONS,
 	...TRANSITION_ENGINE_PRESETS,
 ];
@@ -313,7 +315,7 @@ export function filterTransitionPresets({
 
 	return transitionPresets.filter((preset) => {
 		const matchesCategory =
-			category === "all" ||
+			(category === "all" && preset.category !== "lab") ||
 			preset.category === category ||
 			(category === "favorites" && favoriteIds.has(preset.id)) ||
 			(category === "popular" && preset.popular) ||

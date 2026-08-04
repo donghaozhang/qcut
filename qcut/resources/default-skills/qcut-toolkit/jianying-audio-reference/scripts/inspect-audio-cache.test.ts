@@ -85,14 +85,12 @@ describe("Jianying audio cache inspector", () => {
 		database
 			.query("INSERT INTO http_cache (url, response_body, timestamp) VALUES (?, ?, ?)")
 			.run(
-				"/artist/v1/panel/audio",
+				"/artist/v1/panel/category_audio_reference",
 				JSON.stringify({
 					data: {
 						categories: [
 							{ category_id: 10892, category_name: "热门", category_key: "10892" },
-							{ category_id: 5914402, category_name: "网感口播🔥", category_key: "wanggan" },
-							{ category_id: 5914764, category_name: "热梗语录", category_key: "regeng" },
-							{ category_id: 5914405, category_name: "提示音", category_key: "tishi" },
+							{ category_id: 70001, category_name: "自定义分类", category_key: "custom" },
 						],
 					},
 				}),
@@ -125,7 +123,7 @@ describe("Jianying audio cache inspector", () => {
 		expect(findAudioCategories({ databasePaths: [databasePath] })).toEqual(
 			expect.arrayContaining([
 				expect.objectContaining({ id: "10892", name: "热门" }),
-				expect.objectContaining({ id: "5914402", name: "网感口播🔥" }),
+				expect.objectContaining({ id: "70001", name: "自定义分类" }),
 			])
 		);
 	});
