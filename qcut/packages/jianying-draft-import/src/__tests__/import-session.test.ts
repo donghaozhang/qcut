@@ -20,6 +20,7 @@ import {
 let draftRoot: string;
 let planStoreRoot: string;
 let session: JianyingDraftImportSession;
+let metricsNowMs: number;
 let nowMs: number;
 
 const BUILD = { appVersion: "2026.08.04.1", interopSchemaVersion: 1 };
@@ -94,9 +95,14 @@ async function writeSyntheticDraft(): Promise<void> {
 beforeEach(async () => {
 	draftRoot = await mkdtemp(join(tmpdir(), "qcut-session-test-"));
 	planStoreRoot = await mkdtemp(join(tmpdir(), "qcut-session-store-test-"));
+	metricsNowMs = 0;
 	nowMs = 1_000_000;
 	session = new JianyingDraftImportSession({
 		buildIdentity: BUILD,
+		metricsNow: () => {
+			metricsNowMs += 1;
+			return metricsNowMs;
+		},
 		now: () => nowMs,
 	});
 	await writeSyntheticDraft();
@@ -167,6 +173,46 @@ describe("plan", () => {
 				nameSearchMisses: 1,
 				evictions: 0,
 				hashedBytes: 11,
+			},
+		});
+		expect(plan.stageMetrics).toEqual({
+			schemaVersion: 1,
+			phase: "runtime-plan",
+			measuredDurationMilliseconds: 9,
+			stages: {
+				"request-validation": {
+					durationMilliseconds: 1,
+					invocationCount: 1,
+				},
+				"source-discovery": {
+					durationMilliseconds: 1,
+					invocationCount: 1,
+				},
+				"snapshot-read": { durationMilliseconds: 1, invocationCount: 1 },
+				"profile-detection": {
+					durationMilliseconds: 1,
+					invocationCount: 1,
+				},
+				"document-normalization": {
+					durationMilliseconds: 1,
+					invocationCount: 1,
+				},
+				"asset-resolution": {
+					durationMilliseconds: 1,
+					invocationCount: 1,
+				},
+				"timeline-mapping": {
+					durationMilliseconds: 1,
+					invocationCount: 1,
+				},
+				"bundle-validation": {
+					durationMilliseconds: 1,
+					invocationCount: 1,
+				},
+				"plan-persistence": {
+					durationMilliseconds: 1,
+					invocationCount: 1,
+				},
 			},
 		});
 		const serialized = JSON.stringify(plan);
