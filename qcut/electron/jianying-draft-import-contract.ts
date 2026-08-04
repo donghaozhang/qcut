@@ -108,6 +108,28 @@ export interface DraftImportPlanDto {
 			hashedBytes: number;
 		};
 	};
+	stageMetrics?: {
+		schemaVersion: 1;
+		phase: "runtime-plan";
+		measuredDurationMilliseconds: number;
+		stages: Partial<
+			Record<
+				| "request-validation"
+				| "source-discovery"
+				| "snapshot-read"
+				| "profile-detection"
+				| "document-normalization"
+				| "asset-resolution"
+				| "timeline-mapping"
+				| "bundle-validation"
+				| "plan-persistence",
+				{
+					durationMilliseconds: number;
+					invocationCount: number;
+				}
+			>
+		>;
+	};
 }
 
 export interface DraftImportCommitRequestDto {
