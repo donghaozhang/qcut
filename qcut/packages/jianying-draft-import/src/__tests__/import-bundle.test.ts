@@ -157,10 +157,10 @@ function createBundle({
 		document: fixture.document,
 		timelinePlan: fixture.timelinePlan,
 	});
-	expect(result.ok).toBe(true);
 	if (!result.ok) {
-		throw new Error("bundle build failed");
+		throw new Error(`bundle build failed: ${JSON.stringify(result.issues)}`);
 	}
+	expect(result.ok).toBe(true);
 	return { artifact, bundle: result.bundle, fixture };
 }
 
@@ -189,6 +189,33 @@ describe("buildQCutImportBundle", () => {
 		for (const id of ids) {
 			expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-/);
 		}
+	});
+
+	it("assigns and validates deterministic transition ids", () => {
+		const fixture = createFixture();
+		const firstElementId = fixture.timelinePlan.tracks[0].elements[0].id;
+		fixture.timelinePlan.tracks[0].elements.push({
+			...fixture.timelinePlan.tracks[0].elements[0],
+			id: "clip-2",
+			startTime: 5,
+			sourceSegmentId: "clip-2",
+		});
+		fixture.timelinePlan.tracks[0].transitions = [
+			{
+				id: "transition-1",
+				fromElementId: firstElementId,
+				toElementId: "clip-2",
+				presetId: "dissolve",
+				type: "dissolve",
+				duration: 0.5,
+				easing: "easeInOut",
+			},
+		];
+		const { bundle } = createBundle({ fixture });
+		expect(bundle.internalIdBySemanticId["transition-1"]).toMatch(
+			/^[0-9a-f]{8}-[0-9a-f]{4}-/
+		);
+		expect(parseQCutImportBundleV1(bundle).ok).toBe(true);
 	});
 
 	it("stages only resources the plan references, with safe keys", () => {
@@ -255,6 +282,28 @@ describe("parseQCutImportBundleV1", () => {
 		expect(parsed.ok).toBe(false);
 		if (!parsed.ok) {
 			expect(parsed.issues[0].message).toContain("internal id");
+		}
+	});
+
+	it("rejects a transition endpoint outside its track", () => {
+		const { bundle } = createBundle();
+		const tampered = JSON.parse(JSON.stringify(bundle));
+		tampered.timelinePlan.tracks[0].transitions = [
+			{
+				id: "transition-1",
+				fromElementId: "clip-1",
+				toElementId: "missing",
+				presetId: "dissolve",
+				type: "dissolve",
+				duration: 0.5,
+				easing: "easeInOut",
+			},
+		];
+		tampered.internalIdBySemanticId["transition-1"] = "internal-transition";
+		const parsed = parseQCutImportBundleV1(tampered);
+		expect(parsed.ok).toBe(false);
+		if (!parsed.ok) {
+			expect(parsed.issues[0].message).toContain("same track");
 		}
 	});
 
