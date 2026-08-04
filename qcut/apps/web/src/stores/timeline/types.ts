@@ -778,7 +778,26 @@ export interface TimelineStore {
 		duration: number,
 		excludeElementId?: string
 	) => boolean;
-	findOrCreateTrack: (trackType: TrackType) => string;
+	/**
+	 * Returns a track of `trackType` the caller can add to. Pass `span` to get a
+	 * lane that is free over that range — without it the first lane of the type
+	 * is returned, which may already be occupied.
+	 */
+	/**
+	 * Repositions several elements on one track in a single commit, returning
+	 * false when the result would still stack two elements. Arranging must move
+	 * the whole lane at once: element-by-element moves collide with neighbours
+	 * that have not moved yet.
+	 */
+	setTrackElementStartTimes: (
+		trackId: string,
+		startTimes: Record<string, number>,
+		pushHistory?: boolean
+	) => boolean;
+	findOrCreateTrack: (
+		trackType: TrackType,
+		span?: { startTime: number; duration: number }
+	) => string;
 	addMediaAtTime: (item: MediaItem, currentTime?: number) => boolean;
 	addTextAtTime: (item: Partial<TextElement>, currentTime?: number) => boolean;
 	addMarkdownAtTime: (item: MarkdownElement, currentTime?: number) => boolean;

@@ -306,6 +306,10 @@ export function formatCommandOutput(command: string, result: CLIResult): void {
 			console.log((result.data as { markdown: string }).markdown);
 		} else {
 			console.log(JSON.stringify(result.data, null, 2));
+			// Array payloads keep their shape, so the view rides alongside them.
+			if (result.view) {
+				console.log(JSON.stringify({ view: result.view }, null, 2));
+			}
 		}
 		return;
 	}

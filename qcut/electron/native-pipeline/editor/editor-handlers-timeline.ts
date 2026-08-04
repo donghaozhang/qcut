@@ -532,8 +532,22 @@ async function timelineMove(
 	if (!opts.elementId) return { success: false, error: "Missing --element-id" };
 	if (!opts.toTrack) return { success: false, error: "Missing --to-track" };
 
+	// The command's flag is --time, which parses into seekTime as a string;
+	// reading startTime here silently dropped the requested position, so the
+	// move only ever changed tracks.
+	const rawTargetTime = (opts as CLIRunOptions & { seekTime?: number | string })
+		.seekTime;
+	const targetTimeInput = rawTargetTime ?? opts.startTime;
+	const targetTime =
+		typeof targetTimeInput === "string"
+			? Number.parseFloat(targetTimeInput)
+			: targetTimeInput;
+
 	const body: Record<string, unknown> = { toTrackId: opts.toTrack };
-	if (opts.startTime !== undefined) body.newStartTime = opts.startTime;
+	// Omitting the time is a track-only move, which keeps the element where it is.
+	if (targetTime !== undefined && !Number.isNaN(targetTime)) {
+		body.newStartTime = targetTime;
+	}
 
 	const data = await client.post(
 		`/api/claude/timeline/${opts.projectId}/elements/${opts.elementId}/move`,

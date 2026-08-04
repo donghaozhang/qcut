@@ -205,3 +205,7 @@ apps/web/public/sticker-lab/*
 
 # Local Cloudflare Worker secrets (never commit)
 **/.dev.vars
+
+# Local Jianying runtime payloads used by research probes; proprietary, never commit.
+/.local/jianying-runtime/
+/research/jianying-runtime-probe/build/

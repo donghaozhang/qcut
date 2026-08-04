@@ -231,7 +231,10 @@ describe("Jianying audio cache inspector", () => {
 		const [record] = findAudioRecords({ databasePaths: [databasePath], title: "新音效" });
 		expect(record).toBeDefined();
 		const evidence = resolveLocalAudio({ record: record!, cacheRoot, verify: true });
-		expect(evidence.state).toBe("verified");
+		// SKILL.md: an empty-MD5 VOD record has no stable identifier, so the
+		// url-hash mapping stays unproven until a one-card cache probe confirms
+		// it. Nothing was hash-compared here, so this must not read "verified".
+		expect(evidence.state).toBe("requires-cache-probe");
 		expect(evidence.mappingStrategy).toBe("download-config-url-hash");
 		expect(evidence.contentMd5).toBe(contentMd5);
 	});

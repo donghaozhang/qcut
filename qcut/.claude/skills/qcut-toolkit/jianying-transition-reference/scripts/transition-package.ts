@@ -175,8 +175,11 @@ function protocolText({ packagePath, files }: { packagePath: string; files: stri
 			continue;
 		}
 		const absolutePath = path.join(packagePath, relativeFile);
-		if (statSync(absolutePath).size > 2_000_000) continue;
 		try {
+			// Inside the try: a broken symlink or a file removed between the
+			// listing and this read makes statSync throw and would otherwise
+			// abort the whole classification.
+			if (statSync(absolutePath).size > 2_000_000) continue;
 			chunks.push(readFileSync(absolutePath, "utf8"));
 		} catch {
 			continue;

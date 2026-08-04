@@ -18,6 +18,7 @@
 import { create } from "zustand";
 import { sortTracksByOrder, ensureMainTrack } from "@/types/timeline";
 import { DEFAULT_PROJECT_TIMELINE_SETTINGS } from "@/types/project";
+import { findOccupyingElement } from "@/lib/timeline-occupancy";
 
 import { type TimelineStore } from "./index";
 import {
@@ -270,16 +271,24 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 			return overlap;
 		},
 
-		findOrCreateTrack: (trackType) => {
+		findOrCreateTrack: (trackType, span) => {
 			// Always create new text/markdown tracks to keep overlays independent.
 			if (trackType === "text" || trackType === "markdown") {
 				return get().insertTrackAt(trackType, 0);
 			}
 
-			// A locked track cannot receive elements, so it never satisfies "find".
-			const existingTrack = get()._tracks.find(
-				(t) => t.type === trackType && !t.locked
-			);
+			const existingTrack = get()._tracks.find((track) => {
+				if (track.type !== trackType || track.locked) return false;
+				if (!span) return true;
+				return (
+					findOccupyingElement({
+						track,
+						startTime: span.startTime,
+						duration: span.duration,
+						fps: useProjectStore.getState().activeProject?.fps ?? 30,
+					}) === null
+				);
+			});
 			if (existingTrack) {
 				return existingTrack.id;
 			}

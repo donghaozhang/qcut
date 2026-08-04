@@ -413,17 +413,36 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 	"editor:timeline:move": ed("editor:timeline:move", "Move element", [
 		PID,
 		EID,
-		f("--time", "number", "Target time in seconds", { required: true }),
-		f("--to-track", "string", "Target track"),
+		f(
+			"--time",
+			"number",
+			"Target time in seconds (omit to keep the current one)"
+		),
+		f("--to-track", "string", "Target track", { required: true }),
 		f("--ripple", "boolean", "Ripple edit", { default: false }),
 		f("--cross-track-ripple", "boolean", "Cross-track ripple", {
 			default: false,
 		}),
 	]),
-	"editor:timeline:arrange": ed("editor:timeline:arrange", "Arrange elements", [
-		PID,
-		f("--mode", "string", "Arrange mode", { required: true }),
-	]),
+	"editor:timeline:arrange": ed(
+		"editor:timeline:arrange",
+		"Lay a track's elements out end to end, closing gaps and overlaps",
+		[
+			PID,
+			// The handler has always required these; leaving them undeclared made
+			// the command unusable, since --track-id could not be passed at all.
+			f("--track-id", "string", "Track to arrange", { required: true }),
+			f("--mode", "string", "sequential, spaced, or manual", {
+				required: true,
+			}),
+			f("--gap", "number", "Seconds to leave between elements"),
+			f("--start-time", "number", "Where the first element starts"),
+			f("--data", "string", "Element id order for --mode manual"),
+		],
+		[
+			"qcut-pipeline editor:timeline:arrange --project-id <id> --track-id <id> --mode sequential --json",
+		]
+	),
 	"editor:timeline:select": ed("editor:timeline:select", "Select element", [
 		PID,
 		EID,

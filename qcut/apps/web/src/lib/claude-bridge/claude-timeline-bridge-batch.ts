@@ -9,6 +9,7 @@ import type {
 	ClaudeArrangeResponse,
 } from "../../../../../electron/types/claude-api";
 import { debugError } from "@/lib/debug/debug-config";
+import { getTimelineElementDuration } from "@/lib/timeline";
 import {
 	addClaudeAdjustmentElement,
 	getClaudeTextProperties,
@@ -600,30 +601,30 @@ export function setupBatchHandlers({
 					orderedElements = [...manualOrder, ...elementsById.values()];
 				}
 
-				timelineStore.pushHistory();
-
 				const arranged: ClaudeArrangeResponse["arranged"] = [];
+				const startTimes: Record<string, number> = {};
 				let currentStartTime = startOffset;
 				for (const element of orderedElements) {
-					const effectiveDuration = Math.max(
-						0,
-						element.duration - element.trimStart - element.trimEnd
-					);
-
-					timelineStore.updateElementStartTime(
-						track.id,
-						element.id,
-						currentStartTime,
-						false
-					);
+					startTimes[element.id] = currentStartTime;
 					arranged.push({
 						elementId: element.id,
 						newStartTime: currentStartTime,
 					});
-					currentStartTime += effectiveDuration + gap;
+					currentStartTime += getTimelineElementDuration({ element }) + gap;
 				}
 
-				claudeAPI.sendArrangeResponse(data.requestId, { arranged });
+				// One commit for the whole lane. Moving elements one at a time would
+				// trip the one-element-per-position rule on intermediate states, so
+				// arranging an already-stacked track — the reason to run this — would
+				// silently do nothing.
+				const applied = timelineStore.setTrackElementStartTimes(
+					track.id,
+					startTimes
+				);
+
+				claudeAPI.sendArrangeResponse(data.requestId, {
+					arranged: applied ? arranged : [],
+				});
 			} catch (error) {
 				debugError("[ClaudeTimelineBridge] Failed to arrange track:", error);
 				claudeAPI.sendArrangeResponse(data.requestId, { arranged: [] });

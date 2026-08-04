@@ -1,4 +1,8 @@
 import type { FilterPreset } from "../filter-types";
+import {
+	SILVER_BLUE_BACKGROUND_RECIPE,
+	SILVER_BLUE_SKIN_TONE_RECIPE,
+} from "./silver-blue-recipes";
 
 export const JIANYING_STYLIZED_PARITY_FILTER_PRESETS: FilterPreset[] = [
 	{
@@ -25,7 +29,7 @@ export const JIANYING_STYLIZED_PARITY_FILTER_PRESETS: FilterPreset[] = [
 			hueShift: 2.0995,
 			monochrome: 0.66,
 			fade: 0.012,
-			quadraticCorrection: {
+			polynomialCorrection: {
 				linear: [
 					[0.8486, -0.0135, -0.3431],
 					[-0.2542, 1.1268, -0.2033],
@@ -47,90 +51,117 @@ export const JIANYING_STYLIZED_PARITY_FILTER_PRESETS: FilterPreset[] = [
 	},
 	{
 		id: "jy-ink-film",
-		version: 1,
+		version: 2,
 		name: "Ink Film",
 		localizedName: "墨色胶卷",
 		category: "stylized",
 		tags: ["stylized", "creative", "风格化", "创意", "墨色胶卷", "Ink Film"],
 		thumbnail: "/images/filter-previews/jy-ink-film.webp",
-		lutAssetId: "qcut/filter/jy-ink-film/v1",
+		lutAssetId: "qcut/filter/jy-ink-film/v2",
 		defaultIntensity: 100,
 		isNew: true,
 		recipe: {
-			exposure: 0.012,
-			gamma: 0.647,
-			blackLift: -0.157,
-			shadowTint: [-0.198, 0.35, 0.229],
-			highlightTint: [-0.172, 0.008, 0.35],
-			temperature: 0.237,
-			tint: 0.884,
-			contrast: -0.088,
-			saturation: 0.643,
-			hueShift: -3,
-			monochrome: 0.16,
-			fade: 0.073,
+			polynomialCorrection: {
+				linear: [
+					[-0.003, -0.068, 0.104],
+					[0.099, 0.327, 0.143],
+					[0.092, 0.238, 0.183],
+				],
+				squared: [
+					[1.089, 0.057, -0.586],
+					[-0.002, 0.733, 0.113],
+					[0.085, 0.354, 0.679],
+				],
+				cross: [
+					[0.385, -0.009, 0.179],
+					[-0.189, 0.012, -0.218],
+					[-0.304, 0.114, -0.058],
+				],
+				cubic: {
+					pure: [
+						[-0.4, 0.319, 0.403],
+						[0.063, -0.319, 0.21],
+						[0.085, 0.076, -0.056],
+					],
+					mixed: [
+						[0.03, -0.17, -0.729, 0.423, 0.257, -0.247],
+						[-0.019, -0.015, 0.08, 0.066, -0.159, -0.219],
+						[-0.047, -0.144, 0.096, -0.378, -0.229, -0.229],
+					],
+					triple: [-0.144, 0.145, 0.303],
+				},
+				offset: [0.022, 0.028, 0.003],
+			},
 		},
 	},
 	{
 		id: "jy-silver-blue",
-		version: 1,
+		version: 2,
 		name: "Silver Blue",
 		localizedName: "银蓝",
 		category: "stylized",
 		tags: ["stylized", "creative", "风格化", "创意", "银蓝", "Silver Blue"],
 		thumbnail: "/images/filter-previews/jy-silver-blue.webp",
-		lutAssetId: "qcut/filter/jy-silver-blue/v1",
+		lutAssetId: "qcut/filter/jy-silver-blue/v2",
 		defaultIntensity: 100,
 		isNew: true,
-		recipe: {
-			exposure: -0.964,
-			gamma: 1.587,
-			blackLift: 0.214,
-			shadowTint: [-0.175, 0.35, 0.338],
-			highlightTint: [-0.35, -0.212, 0.35],
-			temperature: 0.356,
-			tint: 1.2,
-			contrast: 2.994,
-			saturation: 1.088,
-			hueShift: 2.1,
-			monochrome: 0.772,
-			fade: 0.303,
-		},
+		recipe: SILVER_BLUE_BACKGROUND_RECIPE,
+		skinToneRecipe: SILVER_BLUE_SKIN_TONE_RECIPE,
 	},
 	{
 		id: "jy-black-gold",
-		version: 1,
+		version: 2,
 		name: "Black Gold",
 		localizedName: "黑金",
 		category: "stylized",
 		tags: ["stylized", "creative", "风格化", "创意", "黑金", "Black Gold"],
 		thumbnail: "/images/filter-previews/jy-black-gold.webp",
-		lutAssetId: "qcut/filter/jy-black-gold/v1",
+		lutAssetId: "qcut/filter/jy-black-gold/v2",
 		defaultIntensity: 100,
 		isNew: true,
 		recipe: {
-			exposure: 0.228,
-			gamma: 0.667,
-			blackLift: -0.045,
-			shadowTint: [0.35, -0.207, -0.35],
-			highlightTint: [0.308, -0.35, 0.35],
-			temperature: 1.2,
-			tint: -1.139,
-			contrast: 0.016,
-			saturation: 0.388,
-			hueShift: 15.3,
-			fade: 0.103,
+			polynomialCorrection: {
+				linear: [
+					[-0.2861, -0.0706, 0.0377],
+					[0.0306, -0.5702, -0.0008],
+					[0.0956, -0.6101, -0.2399],
+				],
+				squared: [
+					[2.4949, 1.0095, 0.1098],
+					[0.2474, 3.1084, 0.1054],
+					[-0.0829, 2.5401, 0.4523],
+				],
+				cross: [
+					[0.313, -0.0301, -0.1487],
+					[0.4945, -0.1077, -0.0187],
+					[0.0789, -0.0072, 0.9617],
+				],
+				cubic: {
+					pure: [
+						[-1.2999, -0.1244, 0.0154],
+						[-0.1862, -1.7491, -0.0262],
+						[-0.0853, -1.31, -0.2019],
+					],
+					mixed: [
+						[-0.4211, 0.0441, -0.6888, -0.1225, -0.1694, 0.078],
+						[-0.0213, 0.0619, -0.4285, -0.0453, -0.0379, -0.0162],
+						[0.0777, 0.0228, 0.1648, -0.8481, -0.1027, -0.0139],
+					],
+					triple: [0.1671, 0.0857, 0.0299],
+				},
+				offset: [0.0304, 0.0416, 0.0588],
+			},
 		},
 	},
 	{
 		id: "jy-ink-wash",
-		version: 1,
+		version: 2,
 		name: "Ink Wash",
 		localizedName: "水墨意境",
 		category: "stylized",
 		tags: ["stylized", "creative", "风格化", "创意", "水墨意境", "Ink Wash"],
 		thumbnail: "/images/filter-previews/jy-ink-wash.webp",
-		lutAssetId: "qcut/filter/jy-ink-wash/v1",
+		lutAssetId: "qcut/filter/jy-ink-wash/v2",
 		defaultIntensity: 100,
 		isNew: true,
 		recipe: {
@@ -145,6 +176,38 @@ export const JIANYING_STYLIZED_PARITY_FILTER_PRESETS: FilterPreset[] = [
 			saturation: 0.534,
 			hueShift: -7.8,
 			monochrome: 0.276,
+			polynomialCorrection: {
+				linear: [
+					// biome-ignore lint/suspicious/noApproximativeNumericConstant: fitted coefficient, not Math.LN2
+					[0.8396, -0.6931, 0.0195],
+					[-0.0944, 1.3644, -0.2425],
+					[-0.1465, 0.0706, 1.0927],
+				],
+				squared: [
+					[-1.4839, 1.0662, -1.2797],
+					[0.2127, -2.0461, 0.4701],
+					[0.0118, -0.5091, 1.3662],
+				],
+				cross: [
+					[-0.2262, 5.0942, -1.3868],
+					[1.1859, -0.7757, 1.5197],
+					[1.1648, -0.4097, -1.3129],
+				],
+				cubic: {
+					pure: [
+						[0.6441, 1.134, 2.3007],
+						[0.4337, 1.3671, 0.8366],
+						[0.1856, 1.4698, -1.3033],
+					],
+					mixed: [
+						[0.1635, -1.1538, -2.7597, -1.2091, -5.0058, -0.4189],
+						[0.2992, -1.5266, -2.8182, 1.0204, 0.3393, -3.5314],
+						[1.09, -1.1871, -2.385, -0.6952, 0.5208, 0.911],
+					],
+					triple: [5.1409, 2.9641, 1.0169],
+				},
+				offset: [0.1158, -0.0562, -0.0374],
+			},
 		},
 	},
 ];

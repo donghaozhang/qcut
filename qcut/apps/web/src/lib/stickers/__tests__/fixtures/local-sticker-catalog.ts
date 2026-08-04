@@ -1,3 +1,9 @@
+import {
+	DEFAULT_PRIVATE_STICKER_CATALOG_ID,
+	getPrivateStickerCatalogDefinition,
+	PRIVATE_STICKER_CATALOG_IDS,
+	type PrivateStickerCatalogId,
+} from "@qcut/editor-core/sticker-lab";
 import type {
 	LocalStickerCatalog,
 	LocalStickerCategory,
@@ -108,12 +114,16 @@ export function createRemoteStickerReference({
 }
 
 export function createPrivateStickerReference({
-	checksumSha256 = "b964a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a",
+	catalogId = DEFAULT_PRIVATE_STICKER_CATALOG_ID,
+	checksumSha256,
 	numericId,
 }: {
+	catalogId?: PrivateStickerCatalogId;
 	checksumSha256?: string;
 	numericId: string;
 }): PrivateStickerReference {
+	const catalogDefinition = getPrivateStickerCatalogDefinition({ catalogId });
+	if (!catalogDefinition) throw new Error(`Unknown test catalog: ${catalogId}`);
 	return {
 		id: numericId,
 		displayName: `参照贴纸 ${numericId}`,
@@ -129,33 +139,76 @@ export function createPrivateStickerReference({
 		},
 		asset: {
 			kind: "supabase-storage",
-			objectKey: `jianying/2026-07-31/assets/${numericId}.gif`,
+			objectKey: `${catalogDefinition.assetObjectPrefix}${numericId}.gif`,
 			byteSize: 4,
-			checksumSha256,
+			checksumSha256: checksumSha256 ?? numericId.padStart(64, "0"),
 		},
 	};
 }
 
-export function createPrivateStickerCatalog(): PrivateStickerCatalog {
+const PRIVATE_CATALOG_NUMERIC_IDS: Record<
+	PrivateStickerCatalogId,
+	readonly string[]
+> = {
+	"jianying-2026-07-31": [
+		"7437023238108105995",
+		"6911930254453984525",
+		"7437023238108105996",
+		"6911930254453984526",
+	],
+	"jianying-2026-08-01-batch-2": [
+		"7576165100781079870",
+		"7576165100781079871",
+		"7576165100781079872",
+		"7576165100781079873",
+	],
+	"jianying-2026-08-01-batch-3": [
+		"7613240652788239678",
+		"7613240652788239679",
+		"7613240652788239680",
+		"7613240652788239681",
+	],
+};
+
+export function createPrivateStickerCatalog({
+	catalogId = DEFAULT_PRIVATE_STICKER_CATALOG_ID,
+	itemCount = 2,
+}: {
+	catalogId?: PrivateStickerCatalogId;
+	itemCount?: number;
+} = {}): PrivateStickerCatalog {
+	const numericIds = PRIVATE_CATALOG_NUMERIC_IDS[catalogId];
+	if (itemCount > numericIds.length) {
+		throw new Error(
+			`Private sticker fixture supports at most ${numericIds.length}`
+		);
+	}
 	return {
 		version: 2,
-		catalogId: "jianying-2026-07-31",
+		catalogId,
 		categories: [
 			{
 				id: "hot",
 				label: "热门",
 				sourcePanel: "剪映贴纸面板 / 热门",
-				items: [
-					createPrivateStickerReference({ numericId: "7437023238108105995" }),
-					createPrivateStickerReference({
-						checksumSha256:
-							"c964a747e1b97f131fabb6b447296c9b6f0201e79fb3c5356e6c77e89b6a806a",
-						numericId: "6911930254453984525",
-					}),
-				],
+				items: numericIds
+					.slice(0, itemCount)
+					.map((numericId) =>
+						createPrivateStickerReference({ catalogId, numericId })
+					),
 			},
 		],
 	};
+}
+
+export function createPrivateStickerCatalogs({
+	itemCount = 2,
+}: {
+	itemCount?: number;
+} = {}): PrivateStickerCatalog[] {
+	return PRIVATE_STICKER_CATALOG_IDS.map((catalogId) =>
+		createPrivateStickerCatalog({ catalogId, itemCount })
+	);
 }
 
 export function createRemoteStickerCatalog(): RemoteStickerCatalog {

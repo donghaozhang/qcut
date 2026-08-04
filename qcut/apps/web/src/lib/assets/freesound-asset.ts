@@ -134,12 +134,17 @@ export function createAudioLibraryAssetEntry({
 	kind: Extract<AssetKind, "sound-effect" | "music">;
 	category?: string;
 }): AssetManifestEntry {
+	const isSoundEffectsLabReference = sound.source === "sound-effects-lab";
 	const files: AssetManifestFile[] = [];
 	if (sound.previewUrl) {
 		files.push({
 			role: "preview",
 			url: sound.previewUrl,
 			mimeType: sound.previewUrl.endsWith(".ogg") ? "audio/ogg" : "audio/mpeg",
+			byteSize: isSoundEffectsLabReference ? sound.filesize : undefined,
+			checksumSha256: isSoundEffectsLabReference
+				? sound.checksumSha256
+				: undefined,
 		});
 	}
 	if (sound.downloadUrl) {
@@ -169,14 +174,20 @@ export function createAudioLibraryAssetEntry({
 		tags: uniqueSoundTags({ tags: sound.tags }),
 		delivery: isBundled ? "bundled" : "remote",
 		files,
-		license:
-			isBuiltIn && !carriesOwnLicense
+		license: isSoundEffectsLabReference
+			? {
+					name: "Third-party reference - internal use only",
+					commercialUse: "restricted",
+					attributionRequired: false,
+				}
+			: isBuiltIn && !carriesOwnLicense
 				? QCUT_BUILT_IN_LICENSE
 				: resolveFreesoundLicense({
 						licenseUrl: sound.license,
 						creator: sound.username,
 					}),
 		metadata: {
+			source: sound.source,
 			creator: sound.username,
 			duration: sound.duration,
 			rating: sound.rating,

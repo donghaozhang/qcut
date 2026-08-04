@@ -51,6 +51,17 @@ function transitionItem({
 	};
 }
 
+/** Re-emits the resource id as a JSON number so json_extract coerces it. */
+function unquoteResourceId({
+	json,
+	resourceId,
+}: {
+	json: string;
+	resourceId: string;
+}): string {
+	return json.replaceAll(`"id":"${resourceId}"`, `"id":${resourceId}`);
+}
+
 function createCatalogFixture() {
 	const tempRoot = createTempRoot({ prefix: "jy-transition-catalog-" });
 	tempRoots.push(tempRoot);
@@ -60,13 +71,18 @@ function createCatalogFixture() {
 	database.run(
 		"CREATE TABLE http_cache (url TEXT, response_body TEXT, timestamp TEXT)"
 	);
-	const resourceId = "90071992547409931234";
+	// Within the unsigned 64-bit range and past 2^53, so a numeric round trip
+	// would lose the low digits. Emitted unquoted below to make json_extract
+	// return it as a number, which is the coercion this test exists to catch.
+	const resourceId = "9007199254740993123";
 	const insert = database.query(
 		"INSERT INTO http_cache (url, response_body, timestamp) VALUES (?, ?, ?)"
 	);
 	insert.run(
 		"https://example.test/v1/transitions_panel",
-		JSON.stringify({
+		unquoteResourceId({
+			resourceId,
+			json: JSON.stringify({
 			data: {
 				categories: [
 					{
@@ -80,12 +96,15 @@ function createCatalogFixture() {
 					transitionItem({ resourceId, metadataMd5: "version-a" }),
 				],
 			},
+			}),
 		}),
 		"2026-08-01 01:00:00"
 	);
 	insert.run(
 		"https://example.test/v1/transitions_category",
-		JSON.stringify({
+		unquoteResourceId({
+			resourceId,
+			json: JSON.stringify({
 			data: {
 				category_resources: {
 					"39862": {
@@ -95,6 +114,7 @@ function createCatalogFixture() {
 					},
 				},
 			},
+			}),
 		}),
 		"2026-08-01 02:00:00"
 	);

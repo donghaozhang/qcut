@@ -258,7 +258,12 @@ function mergeRecords({
 	}
 	return [...byVersion.values()].sort((left, right) => {
 		const titleOrder = left.title.localeCompare(right.title, "zh-CN");
-		return titleOrder || left.resourceId.localeCompare(right.resourceId);
+		if (titleOrder) return titleOrder;
+		const resourceOrder = left.resourceId.localeCompare(right.resourceId);
+		// The map is keyed by resourceId:metadataMd5, so one resource can appear
+		// several times. Without this the tie fell back to SQLite row order, and
+		// CATALOG_ROWS_SQL has no ORDER BY.
+		return resourceOrder || left.metadataMd5.localeCompare(right.metadataMd5);
 	});
 }
 

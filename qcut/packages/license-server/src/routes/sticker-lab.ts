@@ -1,6 +1,12 @@
+import {
+	DEFAULT_PRIVATE_STICKER_CATALOG_ID,
+	getPrivateStickerCatalogDefinition,
+	MAX_PRIVATE_STICKER_MANIFEST_BYTES,
+} from "@qcut/editor-core/sticker-lab";
 import { Hono, type Context } from "hono";
 import { getSupabase } from "../db/supabase";
 import { authMiddleware } from "../middleware/auth";
+import { isUserIdAllowlisted } from "../services/user-id-allowlist";
 
 const STICKER_BUCKET = "sticker-lab";
 const SIGNED_URL_TTL_SECONDS = 600;
@@ -20,24 +26,17 @@ const STICKER_OBJECT_KEY_PATTERN =
  * allow list; it must never be browsable by ordinary signed-in users.
  */
 const PRIVATE_REFERENCE_OBJECT_KEY_PATTERN =
-	/^jianying\/[0-9]{4}-[0-9]{2}-[0-9]{2}\/assets\/[0-9]+\.(gif|png)$/;
-const PRIVATE_REFERENCE_MANIFEST_OBJECT_KEY =
-	"jianying/2026-07-31/manifest.json";
+	/^jianying\/([a-z0-9]+(?:-[a-z0-9]+)*)\/assets\/[0-9]+\.(gif|png)$/;
 
 function isStickerLabUserAllowed({
 	userId,
 }: {
 	userId: string | undefined;
 }): boolean {
-	if (!userId) {
-		return false;
-	}
-
-	const allowedUserIds = (process.env.STICKER_LAB_ALLOWED_USER_IDS ?? "")
-		.split(",")
-		.map((allowedUserId) => allowedUserId.trim())
-		.filter((allowedUserId) => allowedUserId.length > 0);
-	return allowedUserIds.includes(userId);
+	return isUserIdAllowlisted({
+		allowlist: process.env.STICKER_LAB_ALLOWED_USER_IDS,
+		userId,
+	});
 }
 
 const stickerLabRoutes = new Hono();
@@ -48,7 +47,16 @@ function isPrivateReferenceObjectKey({
 }: {
 	objectKey: string;
 }): boolean {
-	return PRIVATE_REFERENCE_OBJECT_KEY_PATTERN.test(objectKey);
+	const match = PRIVATE_REFERENCE_OBJECT_KEY_PATTERN.exec(objectKey);
+	const namespace = match?.[1];
+	if (!namespace) {
+		return false;
+	}
+	return (
+		getPrivateStickerCatalogDefinition({
+			catalogId: `jianying-${namespace}`,
+		}) !== null
+	);
 }
 
 stickerLabRoutes.get("/assets", async (c) => {
@@ -73,8 +81,8 @@ stickerLabRoutes.get("/thumbnail", async (c) => {
 	const objectKey = c.req.query("objectKey");
 	if (objectKey && isPrivateReferenceObjectKey({ objectKey })) {
 		// The harvested reference catalogue has no public preview tier: even
-		// thumbnails require the allow list. Skip the transform — these are
-		// animated GIFs and the viewer is entitled to the original anyway.
+		// thumbnails require the allow list. Skip the transform because the private
+		// grid intentionally reuses the cached original for both GIF and PNG assets.
 		const userId = c.get("userId") as string | undefined;
 		if (!isStickerLabUserAllowed({ userId })) {
 			return c.json({ error: "Forbidden" }, 403);
@@ -102,19 +110,43 @@ stickerLabRoutes.get("/thumbnail", async (c) => {
 });
 
 stickerLabRoutes.get("/private-manifest", async (c) => {
+	c.header("Cache-Control", "no-store");
 	const userId = c.get("userId") as string | undefined;
 	if (!isStickerLabUserAllowed({ userId })) {
 		return c.json({ error: "Forbidden" }, 403);
 	}
+	const requestedCatalogId =
+		c.req.query("catalogId") ?? DEFAULT_PRIVATE_STICKER_CATALOG_ID;
+	const catalog = getPrivateStickerCatalogDefinition({
+		catalogId: requestedCatalogId,
+	});
+	if (!catalog) {
+		return c.json({ error: "Invalid private sticker catalog" }, 400);
+	}
 
 	try {
+		// The third argument is spread straight into the fetch RequestInit, and
+		// workerd rejects a `cache` field ("not implemented") at this Worker's
+		// compatibility date. The throw surfaces as a download error, which this
+		// route reports as a missing manifest, so every catalogue 404s in
+		// production while passing under Bun. Freshness is already guaranteed by
+		// the no-store response header above.
 		const { data, error } = await getSupabase()
 			.storage.from(STICKER_BUCKET)
-			.download(PRIVATE_REFERENCE_MANIFEST_OBJECT_KEY);
+			.download(catalog.manifestObjectKey);
 		if (error || !data) {
 			return c.json({ error: "Private manifest unavailable" }, 404);
 		}
-		return new Response(await data.arrayBuffer(), {
+		if (data.size > MAX_PRIVATE_STICKER_MANIFEST_BYTES) {
+			return c.json({ error: "Private manifest unavailable" }, 502);
+		}
+
+		const manifestBytes = await data.arrayBuffer();
+		if (manifestBytes.byteLength > MAX_PRIVATE_STICKER_MANIFEST_BYTES) {
+			return c.json({ error: "Private manifest unavailable" }, 502);
+		}
+
+		return new Response(manifestBytes, {
 			headers: {
 				"Content-Type": "application/json",
 				"Cache-Control": "no-store",

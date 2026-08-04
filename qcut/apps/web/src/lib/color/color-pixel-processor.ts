@@ -7,6 +7,7 @@ import {
 	rgbToHsl,
 	sampleCubeLut,
 	sampleCurve,
+	skinToneWeight,
 	wheelRgbOffset,
 	type RgbColor,
 } from "./color-space-math";
@@ -134,19 +135,9 @@ function applySmart(color: RgbColor, settings: MediaColorSettings): RgbColor {
 function applyLut(color: RgbColor, settings: MediaColorSettings): RgbColor {
 	if (!settings.lut.enabled || !settings.lut.cube) return color;
 	const transformed = sampleCubeLut({ cube: settings.lut.cube, color });
-	const hsl = rgbToHsl(color);
-	const skinHueWeight = Math.max(
-		0,
-		1 - circularHueDistance(hsl.h, 28 / 360) / 0.09
-	);
-	const skinWeight =
-		skinHueWeight *
-		Math.min(1, hsl.s * 2) *
-		Math.min(1, hsl.l * 4) *
-		Math.min(1, (1 - hsl.l) * 4);
 	const amount =
 		(settings.lut.intensity / 100) *
-		(1 - skinWeight * (settings.lut.skinProtection / 100));
+		(1 - skinToneWeight({ color }) * (settings.lut.skinProtection / 100));
 	return {
 		r: mix(color.r, transformed.r, amount),
 		g: mix(color.g, transformed.g, amount),

@@ -5,6 +5,7 @@ import {
 	Clock3,
 	Download,
 	FileMusic,
+	FlaskConical,
 	Heart,
 	ListFilter,
 	Mic2,
@@ -34,6 +35,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAudioLibrarySearch } from "@/hooks/media/use-audio-library-search";
 import { useExtendedAudioCatalog } from "@/hooks/media/use-extended-audio-catalog";
 import { useAudioPreview } from "@/hooks/media/use-audio-preview";
+import { useLocalSoundEffectsLab } from "@/hooks/media/use-local-sound-effects-lab";
 import {
 	AUDIO_LIBRARY_CATEGORIES,
 	BUILT_IN_AUDIO,
@@ -75,6 +77,7 @@ import { AudioPreviewPlayer } from "./audio-preview-player";
 import { AudioLibraryItem, type AudioAssetKind } from "./sounds-audio-item";
 import { AudioFoldersSidebar } from "./sounds-folders-sidebar";
 import { ProjectAudioRecommendationSummary } from "./sounds-project-recommendations";
+import { SoundEffectsLabPanel } from "./sound-effects-lab";
 
 interface SidebarItem {
 	id: AudioLibrarySectionId;
@@ -279,6 +282,7 @@ export function SoundsView() {
 	const preview = useAudioPreview({
 		onEnded: ({ sound }) => playNextRef.current?.({ sound }),
 	});
+	const soundEffectsLab = useLocalSoundEffectsLab();
 	const category = findAudioLibraryCategory({ categoryId: activeSection });
 	const catalogActive = isKnownCategory({ section: activeSection });
 	// Personal sections (favorites, recents, folders) have no catalog category;
@@ -641,11 +645,36 @@ export function SoundsView() {
 							activeSection={activeSection}
 							onSelect={selectSection}
 						/>
+						{soundEffectsLab.isAvailable ? (
+							<div className="mt-3">
+								<div className="mb-1 flex items-center gap-1.5 px-2 text-[10px] font-medium text-foreground">
+									<FlaskConical className="size-3" />
+									<span>{t("audioLibrary.section.soundEffectsLab")}</span>
+								</div>
+								<SidebarButton
+									active={activeSection === "sound-effects-lab"}
+									icon={<FlaskConical className="size-3" />}
+									label={t("audioLibrary.soundEffectsLab.referenceCatalog")}
+									onSelect={() =>
+										selectSection({ section: "sound-effects-lab" })
+									}
+								/>
+							</div>
+						) : null}
 					</div>
 				</ScrollArea>
 			</aside>
 
-			{activeSection === "ai-music" ? (
+			{activeSection === "sound-effects-lab" ? (
+				<SoundEffectsLabPanel
+					catalog={soundEffectsLab.catalog}
+					error={soundEffectsLab.error}
+					isLoading={soundEffectsLab.isLoading}
+					onPlay={({ sound }) => void preview.togglePreview({ sound })}
+					onStop={preview.stop}
+					playingId={preview.playingId}
+				/>
+			) : activeSection === "ai-music" ? (
 				<div className="min-w-0 flex-1 overflow-y-auto p-4 pb-20">
 					<AiMusicView />
 				</div>

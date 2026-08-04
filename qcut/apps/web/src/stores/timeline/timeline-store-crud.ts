@@ -54,6 +54,7 @@ import {
 	getTimelineElementDuration,
 	getTimelineElementEndTime,
 } from "@/lib/timeline";
+import { findOverlappingPair } from "@/lib/timeline-occupancy";
 import { blockedByTrackLock } from "./timeline-lock-guard";
 import {
 	insertGapInElements,
@@ -493,6 +494,7 @@ export function createCrudOperations(
 			);
 
 			if (!elementToMove || !toTrack) return;
+			if (fromTrackId === toTrackId) return;
 			if (
 				blockedByTrackLock({
 					tracks: get()._tracks,
@@ -640,6 +642,53 @@ export function createCrudOperations(
 						: t
 				)
 			);
+		},
+
+		setTrackElementStartTimes: (trackId, startTimes, pushHistory = true) => {
+			const track = get()._tracks.find((candidate) => candidate.id === trackId);
+			if (!track) return false;
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Arrange Track",
+					trackIds: [trackId],
+				})
+			) {
+				return false;
+			}
+
+			const repositioned = track.elements.map((element) => {
+				const startTime = startTimes[element.id];
+				return startTime === undefined ? element : { ...element, startTime };
+			});
+			const clash = findOverlappingPair({
+				elements: repositioned,
+				fps: getProjectFps(),
+			});
+			if (clash) {
+				handleError(
+					new Error(
+						`Arranging "${track.name}" would leave "${clash[1].name}" on top of "${clash[0].name}".`
+					),
+					{
+						operation: "Arrange Track",
+						category: ErrorCategory.VALIDATION,
+						severity: ErrorSeverity.MEDIUM,
+						metadata: { trackId, elementIds: [clash[0].id, clash[1].id] },
+					}
+				);
+				return false;
+			}
+
+			if (pushHistory) get().pushHistory();
+			updateTracksAndSave(
+				get()._tracks.map((candidate) =>
+					candidate.id === trackId
+						? { ...candidate, elements: repositioned }
+						: candidate
+				)
+			);
+			return true;
 		},
 
 		updateElementStartTime: (

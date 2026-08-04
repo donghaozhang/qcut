@@ -1,8 +1,13 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+	PRIVATE_STICKER_CATALOG_IDS,
+	type PrivateStickerCatalogId,
+} from "@qcut/editor-core/sticker-lab";
 import {
 	createLocalStickerCatalog,
 	createPrivateStickerCatalog,
+	createPrivateStickerCatalogs,
 	createRemoteStickerCatalog,
 } from "@/lib/stickers/__tests__/fixtures/local-sticker-catalog";
 import type { LocalStickerLabSource } from "@/lib/stickers/local-sticker-lab-config";
@@ -61,7 +66,8 @@ describe("useLocalStickerCatalog", () => {
 			error: null,
 			isAvailable: false,
 			isLoading: false,
-			privateCatalog: null,
+			privateCatalogs: [],
+			unavailablePrivateCatalogIds: [],
 		});
 		expect(catalogMocks.loadPrivateManifest).not.toHaveBeenCalled();
 		expect(catalogMocks.loadManifest).not.toHaveBeenCalled();
@@ -140,37 +146,49 @@ describe("useLocalStickerCatalog", () => {
 			error: "Invalid local sticker manifest",
 			isAvailable: true,
 			isLoading: false,
-			privateCatalog: null,
+			privateCatalogs: [],
+			// Nothing mocks the private manifests here, so all three legitimately
+			// fail — and the panel now says so instead of showing a short list.
+			unavailablePrivateCatalogIds: [...PRIVATE_STICKER_CATALOG_IDS],
 		});
 	});
 
 	it("loads the private reference catalog for entitled users", async () => {
 		const catalog = createLocalStickerCatalog();
-		const privateCatalog = createPrivateStickerCatalog();
+		const privateCatalogs = createPrivateStickerCatalogs();
 		catalogMocks.getSource.mockReturnValue({
 			kind: "manifest",
 			manifestPath: "/tmp/sticker-manifest.json",
 		});
 		catalogMocks.loadManifest.mockResolvedValue(catalog);
-		catalogMocks.loadPrivateManifest.mockResolvedValue(privateCatalog);
+		catalogMocks.loadPrivateManifest.mockImplementation(
+			({ expectedCatalogId }: { expectedCatalogId: PrivateStickerCatalogId }) =>
+				Promise.resolve(
+					createPrivateStickerCatalog({ catalogId: expectedCatalogId })
+				)
+		);
 
 		const { result } = renderHook(() => useLocalStickerCatalog());
 
 		await waitFor(() =>
-			expect(result.current.privateCatalog).toEqual(privateCatalog)
+			expect(result.current.privateCatalogs).toEqual(privateCatalogs)
 		);
 		expect(result.current.catalog).toEqual(catalog);
-		expect(catalogMocks.loadPrivateManifest).toHaveBeenCalledWith(
-			expect.objectContaining({
-				manifestUrl: expect.stringContaining(
-					"/api/sticker-lab/private-manifest"
-				),
-				signal: expect.any(AbortSignal),
-			})
-		);
+		expect(catalogMocks.loadPrivateManifest).toHaveBeenCalledTimes(3);
+		for (const catalogId of PRIVATE_STICKER_CATALOG_IDS) {
+			expect(catalogMocks.loadPrivateManifest).toHaveBeenCalledWith(
+				expect.objectContaining({
+					expectedCatalogId: catalogId,
+					manifestUrl: expect.stringContaining(
+						`/api/sticker-lab/private-manifest?catalogId=${catalogId}`
+					),
+					signal: expect.any(AbortSignal),
+				})
+			);
+		}
 	});
 
-	it("keeps the private catalog null when the server denies access", async () => {
+	it("keeps private catalogs empty when the server denies access", async () => {
 		const catalog = createLocalStickerCatalog();
 		catalogMocks.getSource.mockReturnValue({
 			kind: "manifest",
@@ -181,9 +199,94 @@ describe("useLocalStickerCatalog", () => {
 		const { result } = renderHook(() => useLocalStickerCatalog());
 
 		await waitFor(() => expect(result.current.isLoading).toBe(false));
-		expect(result.current.privateCatalog).toBeNull();
+		expect(result.current.privateCatalogs).toEqual([]);
 		// A 403 on the private tier is not an error state for the lab.
 		expect(result.current.error).toBeNull();
+	});
+
+	it("keeps successful private catalogs when another batch is unavailable", async () => {
+		const catalog = createLocalStickerCatalog();
+		catalogMocks.getSource.mockReturnValue({
+			kind: "manifest",
+			manifestPath: "/tmp/sticker-manifest.json",
+		});
+		catalogMocks.loadManifest.mockResolvedValue(catalog);
+		catalogMocks.loadPrivateManifest.mockImplementation(
+			({
+				expectedCatalogId,
+			}: {
+				expectedCatalogId: PrivateStickerCatalogId;
+			}) => {
+				if (expectedCatalogId === "jianying-2026-08-01-batch-2") {
+					return Promise.reject(new Error("Private manifest unavailable"));
+				}
+				return Promise.resolve(
+					createPrivateStickerCatalog({ catalogId: expectedCatalogId })
+				);
+			}
+		);
+
+		const { result } = renderHook(() => useLocalStickerCatalog());
+
+		await waitFor(() => expect(result.current.privateCatalogs).toHaveLength(2));
+		expect(
+			result.current.privateCatalogs.map(({ catalogId }) => catalogId)
+		).toEqual(["jianying-2026-07-31", "jianying-2026-08-01-batch-3"]);
+	});
+
+	it("starts all private catalog requests in parallel and publishes after all settle", async () => {
+		const catalog = createLocalStickerCatalog();
+		const resolvers = new Map<
+			PrivateStickerCatalogId,
+			(value: ReturnType<typeof createPrivateStickerCatalog>) => void
+		>();
+		catalogMocks.getSource.mockReturnValue({
+			kind: "manifest",
+			manifestPath: "/tmp/sticker-manifest.json",
+		});
+		catalogMocks.loadManifest.mockResolvedValue(catalog);
+		catalogMocks.loadPrivateManifest.mockImplementation(
+			({ expectedCatalogId }: { expectedCatalogId: PrivateStickerCatalogId }) =>
+				new Promise((resolve) => {
+					resolvers.set(expectedCatalogId, resolve);
+				})
+		);
+
+		const { result } = renderHook(() => useLocalStickerCatalog());
+
+		expect(catalogMocks.loadPrivateManifest).toHaveBeenCalledTimes(3);
+		expect(resolvers.size).toBe(3);
+		await act(async () => {
+			const catalogId = PRIVATE_STICKER_CATALOG_IDS[0];
+			resolvers.get(catalogId)?.(createPrivateStickerCatalog({ catalogId }));
+			await Promise.resolve();
+		});
+		expect(result.current.privateCatalogs).toEqual([]);
+
+		await act(async () => {
+			for (const catalogId of PRIVATE_STICKER_CATALOG_IDS.slice(1)) {
+				resolvers.get(catalogId)?.(createPrivateStickerCatalog({ catalogId }));
+			}
+		});
+		await waitFor(() => expect(result.current.privateCatalogs).toHaveLength(3));
+	});
+
+	it("aborts all private catalog requests when the panel unmounts", () => {
+		catalogMocks.getSource.mockReturnValue({
+			kind: "manifest",
+			manifestPath: "/tmp/sticker-manifest.json",
+		});
+		catalogMocks.loadManifest.mockResolvedValue(createLocalStickerCatalog());
+		catalogMocks.loadPrivateManifest.mockReturnValue(new Promise(() => {}));
+
+		const { unmount } = renderHook(() => useLocalStickerCatalog());
+		const signals = catalogMocks.loadPrivateManifest.mock.calls.map(
+			([options]) => options.signal as AbortSignal
+		);
+		expect(signals).toHaveLength(3);
+
+		unmount();
+		expect(signals.every((signal) => signal.aborted)).toBe(true);
 	});
 
 	it("hydrates the legacy single-file source without reading a manifest", async () => {

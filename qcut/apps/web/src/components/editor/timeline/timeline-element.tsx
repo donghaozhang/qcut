@@ -127,6 +127,7 @@ import { registerCloudTaskRuntimeActions } from "@/lib/cloud-tasks/task-runtime-
 import { useVideoEditRequestStore } from "@/stores/video-edit-request-store";
 import { useTranslation } from "@/lib/i18n";
 import { localizeTimelineElementName } from "@/lib/i18n/timeline-names";
+import { getVideoClipLaneHeights } from "./video-timeline-clip-layout";
 import { VideoTimelineClip } from "./video-timeline-clip";
 
 function shellQuote({ value }: { value: string }): string {
@@ -1354,20 +1355,44 @@ function TimelineElementComponent({
 		}
 
 		const TILE_ASPECT_RATIO = 16 / 9;
+		/** The py-3 the tile container carries, top and bottom. */
+		const IMAGE_TILE_PADDING_PX = 12;
 
 		if (mediaItem.type === "image") {
 			// Calculate tile size based on 16:9 aspect ratio
 			const trackHeight = getTrackHeight(track.type, track.height);
-			const tileHeight = trackHeight - 8; // Account for padding
+			const { headerHeight } = getVideoClipLaneHeights({ trackHeight });
+
+			// The tiles sit between the header and the container's bottom padding,
+			// so sizing them off the full track height would crop them vertically.
+			const tileHeight = Math.max(
+				1,
+				trackHeight - headerHeight - IMAGE_TILE_PADDING_PX
+			);
 			const tileWidth = tileHeight * TILE_ASPECT_RATIO;
 
 			return (
 				<div className="w-full h-full flex items-center justify-center">
 					<div className="bg-timeline-clip py-3 w-full h-full relative">
+						{/* Name header, matching the one video clips already carry so an
+						    image clip is identifiable without selecting it. */}
+						<div
+							className="absolute inset-x-0 top-0 z-10 flex items-center bg-black/25 px-1.5"
+							style={{ height: `${headerHeight}px` }}
+							data-testid="timeline-image-name"
+						>
+							<span
+								className="truncate text-[10px] font-medium leading-none text-white/95"
+								title={mediaItem.name}
+							>
+								{mediaItem.name}
+							</span>
+						</div>
 						{/* Background with tiled images */}
 						<div
-							className="absolute top-3 bottom-3 left-0 right-0"
+							className="absolute bottom-3 left-0 right-0"
 							style={{
+								top: `${headerHeight}px`,
 								backgroundImage: mediaItemUrl ? `url(${mediaItemUrl})` : "none",
 								backgroundRepeat: "repeat-x",
 								backgroundSize: `${tileWidth}px ${tileHeight}px`,
@@ -1389,8 +1414,9 @@ function TimelineElementComponent({
 						/>
 						{/* Overlay with vertical borders */}
 						<div
-							className="absolute top-3 bottom-3 left-0 right-0 pointer-events-none"
+							className="absolute bottom-3 left-0 right-0 pointer-events-none"
 							style={{
+								top: `${headerHeight}px`,
 								backgroundImage: `repeating-linear-gradient(
                   to right,
                   transparent 0px,
@@ -1429,21 +1455,46 @@ function TimelineElementComponent({
 
 		// Render audio element ->
 		if (mediaItem.type === "audio") {
+			const audioHeaderHeight = getVideoClipLaneHeights({
+				trackHeight: getTrackHeight(track.type, track.height),
+			}).headerHeight;
+
 			return (
-				<div className="w-full h-full py-[3px]">
-					<AudioWaveform
-						audioUrl={mediaItem.url || ""}
-						sourcePath={mediaItem.localPath}
-						sourceDuration={mediaItem.duration ?? element.duration}
-						cacheKey={`media:${mediaItem.id}:${mediaItem.file.size}:${mediaItem.file.lastModified}`}
-						className="w-full h-full"
-						sourceStart={element.trimStart}
-						sourceEnd={element.duration - element.trimEnd}
-						barWidth={0.5}
-						barGap={0.5}
-						color="rgba(126, 196, 255, 0.95)"
-						anchor="bottom"
-					/>
+				<div className="w-full h-full py-[3px] relative">
+					{/* Same name header as video and image clips, so an audio clip is
+					    identifiable from its waveform alone. */}
+					<div
+						className="absolute inset-x-0 top-0 z-10 flex items-center bg-black/25 px-1.5"
+						style={{ height: `${audioHeaderHeight}px` }}
+						data-testid="timeline-audio-name"
+					>
+						<span
+							className="truncate text-[10px] font-medium leading-none text-white/95"
+							title={mediaItem.name}
+						>
+							{mediaItem.name}
+						</span>
+					</div>
+					{/* The header is absolutely positioned, so the waveform has to be
+					    inset by its height or tall peaks draw underneath the name. */}
+					<div
+						className="absolute inset-x-0 bottom-0"
+						style={{ top: `${audioHeaderHeight}px` }}
+					>
+						<AudioWaveform
+							audioUrl={mediaItem.url || ""}
+							sourcePath={mediaItem.localPath}
+							sourceDuration={mediaItem.duration ?? element.duration}
+							cacheKey={`media:${mediaItem.id}:${mediaItem.file.size}:${mediaItem.file.lastModified}`}
+							className="w-full h-full"
+							sourceStart={element.trimStart}
+							sourceEnd={element.duration - element.trimEnd}
+							barWidth={0.5}
+							barGap={0.5}
+							color="rgba(126, 196, 255, 0.95)"
+							anchor="bottom"
+						/>
+					</div>
 				</div>
 			);
 		}

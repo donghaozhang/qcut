@@ -15,6 +15,7 @@
 		"./assets": "./src/assets/index.ts",
 		"./collaboration": "./src/collaboration/index.ts",
 		"./templates": "./src/templates/index.ts",
+		"./sticker-lab": "./src/sticker-lab/index.ts",
 		"./text-animation": "./src/text-animation/index.ts",
 		"./jianying-draft": "./src/jianying-draft/index.ts"
 	},
