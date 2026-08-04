@@ -599,7 +599,7 @@ export function createElementOps(
 				const currentElement = currentTracks
 					.find((t) => t.id === trackId)
 					?.elements.find((c) => c.id === elementId);
-				if (!currentElement) {
+				if (currentElement?.type !== "media") {
 					return {
 						success: false,
 						error: "Timeline element changed while importing the new media",
@@ -615,6 +615,34 @@ export function createElementOps(
 					return { success: false, error: "Cannot modify a locked track" };
 				}
 
+				// Replacement preserves the target time slot (QTL-012): seams and
+				// transitions must not move. Timed media fills the slot by trimming
+				// its tail; media shorter than the slot is rejected instead of
+				// silently reshaping the timeline. Untimed media (images) keeps
+				// the element's timing untouched.
+				const slotTimelineDuration = getTimelineElementDuration({
+					element: currentElement,
+				});
+				const sourceRate = Math.max(
+					Number.EPSILON,
+					currentElement.playbackRate ?? 1
+				);
+				const requiredSourceDuration = slotTimelineDuration * sourceRate;
+				let slotTiming: Partial<MediaElement> = {};
+				if (typeof newMediaItem.duration === "number") {
+					if (newMediaItem.duration + 1e-6 < requiredSourceDuration) {
+						return {
+							success: false,
+							error: "Replacement media is shorter than the clip",
+						};
+					}
+					slotTiming = {
+						duration: newMediaItem.duration,
+						trimStart: 0,
+						trimEnd: newMediaItem.duration - requiredSourceDuration,
+					};
+				}
+
 				get().pushHistory();
 
 				// Update the timeline element to reference the new media
@@ -625,13 +653,12 @@ export function createElementOps(
 									...track,
 									elements: track.elements.map((c) =>
 										c.id === elementId
-											? {
+											? ({
 													...c,
 													mediaId: newMediaItem.id,
 													name: newMediaItem.name,
-													// Update duration if the new media has a different duration
-													duration: newMediaItem.duration || c.duration,
-												}
+													...slotTiming,
+												} as TimelineElement)
 											: c
 									),
 								}

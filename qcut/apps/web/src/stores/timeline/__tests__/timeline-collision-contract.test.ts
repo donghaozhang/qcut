@@ -322,7 +322,7 @@ describe("timeline collision contract", () => {
 	});
 
 	describe("replaceElementMedia concurrency", () => {
-		it("preserves edits made while the import was pending", async () => {
+		beforeEach(async () => {
 			const { useProjectStore } = await import("@/stores/project-store");
 			useProjectStore.setState({
 				activeProject: {
@@ -333,7 +333,14 @@ describe("timeline collision contract", () => {
 					updatedAt: new Date(),
 				} as never,
 			});
+		});
 
+		afterEach(async () => {
+			const { useProjectStore } = await import("@/stores/project-store");
+			useProjectStore.setState({ activeProject: null });
+		});
+
+		it("preserves edits made while the import was pending", async () => {
 			const replacePromise = useTimelineStore
 				.getState()
 				.replaceElementMedia(
@@ -358,13 +365,98 @@ describe("timeline collision contract", () => {
 					?.elements ?? [];
 			// The concurrent move survived the async write-back...
 			expect(elements.find((element) => element.id === "c")?.startTime).toBe(6);
-			// ...and the replacement itself landed.
+			// ...and the replacement itself landed, preserving the 2s slot by
+			// trimming the 3s source (QTL-012: seams must not move).
 			const replaced = elements.find((element) => element.id === "b");
 			expect(replaced).toMatchObject({
 				mediaId: "replacement-media-item",
 				name: "replacement.png",
 				duration: 3,
+				trimStart: 0,
+				trimEnd: 1,
 			});
+		});
+
+		it("keeps the transition on a replaced clip's seam", async () => {
+			const tracks = baseTracks();
+			tracks[0].transitions = [
+				{
+					id: "t1",
+					fromElementId: "a",
+					toElementId: "b",
+					presetId: "dissolve",
+					type: "dissolve",
+					duration: 0.5,
+					easing: "easeInOut",
+				},
+			];
+			setTracks(tracks);
+
+			const replacePromise = useTimelineStore
+				.getState()
+				.replaceElementMedia(
+					"main",
+					"b",
+					new File(["x"], "replacement.png", { type: "image/png" })
+				);
+			await vi.waitFor(() => {
+				expect(importGate.resolvers.length).toBeGreaterThan(0);
+			});
+			for (const resolve of importGate.resolvers.splice(0)) resolve();
+			const result = await replacePromise;
+
+			expect(result).toEqual({ success: true });
+			const main = useTimelineStore
+				.getState()
+				.tracks.find((track) => track.id === "main");
+			expect(main?.transitions).toHaveLength(1);
+			expect(
+				main?.elements.map((element) => [
+					element.id,
+					element.startTime,
+					element.duration - element.trimStart - element.trimEnd,
+				])
+			).toEqual([
+				["a", 0, 2],
+				["b", 2, 2],
+				["c", 4, 2],
+			]);
+		});
+
+		it("rejects replacement media shorter than the clip", async () => {
+			const tracks = baseTracks();
+			// Stretch b's slot beyond the 3s the mocked import will provide.
+			tracks[0].elements = tracks[0].elements.map((element) =>
+				element.id === "b"
+					? { ...element, duration: 4 }
+					: element.id === "c"
+						? { ...element, startTime: 6 }
+						: element
+			);
+			setTracks(tracks);
+			const before = JSON.parse(
+				JSON.stringify(useTimelineStore.getState().tracks)
+			);
+
+			const replacePromise = useTimelineStore
+				.getState()
+				.replaceElementMedia(
+					"main",
+					"b",
+					new File(["x"], "too-short.png", { type: "image/png" })
+				);
+			await vi.waitFor(() => {
+				expect(importGate.resolvers.length).toBeGreaterThan(0);
+			});
+			for (const resolve of importGate.resolvers.splice(0)) resolve();
+			const result = await replacePromise;
+
+			expect(result).toEqual({
+				success: false,
+				error: "Replacement media is shorter than the clip",
+			});
+			expect(useTimelineStore.getState().tracks).toEqual(before);
+			expect(useTimelineStore.getState().history).toHaveLength(0);
 		});
 	});
 });

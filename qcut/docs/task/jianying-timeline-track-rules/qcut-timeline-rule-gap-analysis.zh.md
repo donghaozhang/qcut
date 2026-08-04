@@ -20,7 +20,8 @@
 | QTL-007 补齐 Slide 与 Ripple Trim | ✅ 已完成 | 2026-08-04 | `calculateSlideEdit` / `calculateRippleTrim` 纯函数 + `slideElement` / `rippleTrimElement` 命令 + slide 编辑模式手势 |
 | QTL-008 强化组合与复合片段边界 | 🔶 部分完成 | 2026-08-04 | 组闭包删除已落地（用户组整体删除、分离音频对保留单删、锁定成员整体拒绝）；复合片段升级为子时间线仍待 QTL-011 类型化图之后 |
 | QTL-010 场景导航与缓存修复 | ✅ 已完成 | 2026-08-04 | 场景可真实创建/切换/删除（删除清理对应 timeline 存储）；帧缓存改按 `hidden` 过滤、忽略 `muted` |
-| QTL-009 / QTL-011 / QTL-012 | ⬜ 未开始 | | 轨道 profile、持久化语义图、转场 handle 策略 |
+| QTL-012 转场 handle 与替换 profile | 🔶 部分完成 | 2026-08-04 | 替换 profile 落地：保留目标时间槽（修剪新素材尾部填槽）、过短拒绝、接缝/转场不动；`reject\|clamp` 已显式，`extend-edge` 边缘帧延展待渲染/导出侧支持 |
+| QTL-009 / QTL-011 | ⬜ 未开始 | | 轨道 profile 无损迁移、持久化语义图（复合片段子时间线与 unlink 持久化依赖它） |
 
 ## 结论
 
@@ -28,12 +29,12 @@
 
 | 状态 | 数量 | 占比 |
 | --- | ---: | ---: |
-| 完整实现 | 44 | 88% |
-| 部分实现 | 3 | 6% |
+| 完整实现 | 45 | 90% |
+| 部分实现 | 2 | 4% |
 | 尚未实现 | 3 | 6% |
-| **需要修复或补齐** | **6** | **12%** |
+| **需要修复或补齐** | **5** | **10%** |
 
-审计基线为 19/50 项需要改动；QTL-001 ~ QTL-008（部分）与 QTL-010 完成后，**当前还有 6/50 项时间线规则需要代码改动**——3 项部分（混合模式 golden-frame 契约、替换的时长/转场策略、转场 handle 策略）+ 3 项缺失（轨道 profile、持久化类型化依赖图、语义图）。
+审计基线为 19/50 项需要改动；QTL-001 ~ QTL-008（部分）、QTL-010 与 QTL-012（部分）完成后，**当前还有 5/50 项时间线规则需要代码改动**——2 项部分（混合模式 golden-frame 契约、转场 handle 的 extend-edge 策略）+ 3 项缺失（轨道 profile、持久化类型化依赖图、语义图）。
 
 QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、顺序、合成层级、分组、复合片段、转场和波纹操作都已经存在。最大差距集中在操作语义：锁定没有在所有入口统一执行，插入/覆盖/替换没有一个共享冲突引擎，主轨磁吸与普通吸附/波纹没有拆开，关联仍主要依赖通用 `groupId`，撤销只保存轨道数组。
 
@@ -53,7 +54,7 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 | --- | ---: | ---: | ---: | ---: | ---: |
 | 轨道类型与操作 | 7 | 6 | 0 | 1 | 1 |
 | 层级与渲染 | 5 | 4 | 1 | 0 | 1 |
-| 插入、覆盖与替换 | 5 | 4 | 1 | 0 | 1 |
+| 插入、覆盖与替换 | 5 | 5 | 0 | 0 | 0 |
 | 波纹与主轨磁吸 | 5 | 5 | 0 | 0 | 0 |
 | 修剪模式 | 5 | 5 | 0 | 0 | 0 |
 | 吸附 | 5 | 5 | 0 | 0 | 0 |
@@ -62,7 +63,7 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 | 撤销与重做 | 3 | 3 | 0 | 0 | 0 |
 | 导航与缓存 | 3 | 3 | 0 | 0 | 0 |
 | AI 语义规则 | 2 | 1 | 0 | 1 | 1 |
-| **总计** | **50** | **44** | **3** | **3** | **6** |
+| **总计** | **50** | **45** | **2** | **3** | **5** |
 
 ## 50 项规则明细
 
@@ -82,13 +83,13 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 
 **部分：混合模式。** `MediaBlendMode` 当前只有 `normal`、`multiply`、`screen`、`overlay`、`darken`、`lighten` 六种，而且还需要用同一组 golden frames 证明预览、原生导出和草稿导出一致。这里不建议先堆更多枚举，应该先建立跨渲染器契约测试。
 
-### 3. 插入、覆盖与替换：4 完整，1 部分，0 缺失
+### 3. 插入、覆盖与替换：5 完整，0 部分，0 缺失
 
 **完整：自动堆叠到新轨。** `addMediaAtTime()` 会寻找同类型空闲轨道，全部占用时新建轨道，见 [`timeline-add-ops.ts`](../../../apps/web/src/stores/timeline/timeline-add-ops.ts)。`separateAudio` 也改为堆叠语义：分离音频落到第一条未锁定且该时间段空闲的音轨，否则新建。
 
 **完整（QTL-002，2026-08-04 落地）：同轨不重叠不变量。** `addElementToTrack()` / `moveElementToTrack()` / `updateElementStartTime()`（含整组移动）在 Store 层默认拒绝制造重叠，无状态变化、无历史污染。UI 拖拽的预检查保留为交互反馈，但契约由 Store 命令层执行——CLI（claude-bridge → 同一 store 命令）与 AI 入口自动继承。区间数学位于 [`collision-policy.ts`](../../../packages/editor-core/src/timeline/collision-policy.ts)，测试见 [`timeline-collision-contract.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-collision-contract.test.ts)。
 
-**部分：替换。** `replaceElementMedia()` 已能导入新文件并更新素材引用，但它会用新素材时长直接改写片段时长，可能破坏接缝和转场。~~它也没有锁定检查；该异步函数在导入前捕获 `_tracks`，完成后仍用旧快照写回~~——锁定检查（入口 + 导入完成后复检）和旧快照写回已随 QTL-001 修复，并发编辑回归测试已随 QTL-002 落地。剩余缺口是时长/转场保留策略（归 QTL-012）。实现位于 [`timeline-element-ops.ts`](../../../apps/web/src/stores/timeline/timeline-element-ops.ts)。
+**完整（QTL-001/002/012 合力，2026-08-04 落地）：替换。** `replaceElementMedia()` 现在满足完整契约：锁定检查（入口 + 导入完成后复检）与旧快照写回随 QTL-001 修复；并发编辑回归测试随 QTL-002 落地；QTL-012 补上替换 profile——**保留目标时间槽**（新素材按现有变速换算修剪尾部填满槽位，接缝与转场不动）、素材短于槽位显式拒绝、图片等无时长素材保持原 timing。测试覆盖转场存活与过短拒绝。实现位于 [`timeline-element-ops.ts`](../../../apps/web/src/stores/timeline/timeline-element-ops.ts)。
 
 **完整（QTL-002 落地）：显式 Insert 命令。** `addElementToTrack(trackId, data, { collision: "insert" })`：落点处片段按手动分割语义切开，落点之后的同轨元素整体右移插入时长。
 
@@ -130,7 +131,7 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 
 **完整：** 同轨相邻视频接缝资格、增删改、时长 clamp、相邻转场共享 handle 限制和失效转场清理已经有统一 core 函数。每次 `updateTracksAndSave()` 都会调用 reconcile，见 [`transitions.ts`](../../../packages/editor-core/src/timeline/transitions.ts)、[`timeline-transition-ops.ts`](../../../apps/web/src/stores/timeline/timeline-transition-ops.ts) 和 [`timeline-store-autosave.ts`](../../../apps/web/src/stores/timeline/timeline-store-autosave.ts)。
 
-**部分：handle 不足与替换策略。** 当前策略是 clamp 或拒绝，没有剪映式边缘帧延展 profile。媒体替换也没有显式声明“保留目标时间槽、重算 handle、保留或移除转场”的规则。基础转场不变量已经可靠，不应重写；只需在其上增加策略层。
+**部分：handle 不足与替换策略。** 替换半已随 QTL-012 落地：媒体替换显式保留目标时间槽、重算 trim、转场存活（见第 3 节）。handle 半仍是 clamp 或拒绝（策略显式但只有两档），剪映式 `extend-edge` 边缘帧延展 profile 需要预览与原生导出同步支持后再加。基础转场不变量已经可靠，不应重写；只需在其上增加策略层。
 
 ### 9. 撤销与重做：3 完整，0 部分
 
@@ -303,11 +304,14 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 
 验收：移动/删除语义场景能预览 dependency closure；用户 unlink 后不会被下一次 AI 操作重新绑定；导出不支持的 link 必须报告而不是静默丢弃。
 
-#### QTL-012 转场 handle 与替换 profile
+#### QTL-012 转场 handle 与替换 profile 🔶 部分完成（2026-08-04）
 
-相关文件：`packages/editor-core/src/timeline/transitions.ts`、`apps/web/src/stores/timeline/timeline-transition-ops.ts`、`apps/web/src/stores/timeline/timeline-element-ops.ts`、预览和原生导出测试。
+已落地（替换 profile 半）：
 
-验收：`reject | clamp | extend-edge` 策略显式；替换后是否保留转场由同一个 preflight 决定；预览与导出使用相同 resolved window。
+- `replaceElementMedia` 保留目标时间槽：按现有 playbackRate 换算所需源时长，新素材 `trimEnd` 吸收多余部分；素材短于槽位返回显式错误（剪映同款拒绝语义）；无时长素材（图片)保持原 timing。接缝不动 ⇒ reconcile 自然保留转场——"替换后是否保留转场"由同一个槽位 preflight 决定 ✅。
+- 测试：转场跨替换存活、槽位修剪值、过短拒绝（[`timeline-collision-contract.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-collision-contract.test.ts)）。
+
+未落地（handle 半）：`extend-edge` 边缘帧延展 profile——需要预览与原生导出使用同一 resolved window 的边缘帧 hold 支持,当前策略停留在显式的 `reject | clamp` 两档。
 
 ## 测试基线
 

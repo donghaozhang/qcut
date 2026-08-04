@@ -20,7 +20,8 @@
 | QTL-007 Add Slide and Ripple Trim | ✅ Done | 2026-08-04 | `calculateSlideEdit` / `calculateRippleTrim` pure math + `slideElement` / `rippleTrimElement` commands + a slide edit-mode gesture |
 | QTL-008 Strengthen group and compound boundaries | 🔶 Partial | 2026-08-04 | Group-closure deletion landed (whole user group, separated-audio pairs keep single deletion, locked members reject); compound-as-child-timeline still follows QTL-011 |
 | QTL-010 Scene navigation and cache correctness | ✅ Done | 2026-08-04 | Scenes create/switch/delete for real (deletion cleans its timeline storage); the frame cache filters on `hidden` and ignores `muted` |
-| QTL-009 / QTL-011 / QTL-012 | ⬜ Not started | | Track profiles, persisted semantic graph, transition-handle profiles |
+| QTL-012 Transition-handle and replacement profiles | 🔶 Partial | 2026-08-04 | Replacement profile landed: the target slot is preserved (new media trimmed to fill it), too-short media rejected, seams/transitions untouched; `reject\|clamp` explicit, `extend-edge` awaits renderer/export support |
+| QTL-009 / QTL-011 | ⬜ Not started | | Track-profile lossless migration and the persisted semantic graph (compound child timelines and unlink persistence depend on it) |
 
 ## Conclusion
 
@@ -28,12 +29,12 @@ This audit decomposes the JianYing research baseline into **50 independently tes
 
 | Status | Count | Share |
 | --- | ---: | ---: |
-| Complete | 44 | 88% |
-| Partial | 3 | 6% |
+| Complete | 45 | 90% |
+| Partial | 2 | 4% |
 | Missing | 3 | 6% |
-| **Requires repair or implementation** | **6** | **12%** |
+| **Requires repair or implementation** | **5** | **10%** |
 
-The audit baseline identified 19 of 50 rules needing changes; with QTL-001 through QTL-008 (partial) and QTL-010 done, **QCut still needs code changes for 6 of the 50 timeline rules** — three partial (the blend-mode golden-frame contract, replacement's duration/transition policy, the transition-handle policy) plus three missing (track profiles, the persisted typed dependency graph, the semantic graph).
+The audit baseline identified 19 of 50 rules needing changes; with QTL-001 through QTL-008 (partial), QTL-010, and QTL-012 (partial) done, **QCut still needs code changes for 5 of the 50 timeline rules** — two partial (the blend-mode golden-frame contract and the transition-handle extend-edge policy) plus three missing (track profiles, the persisted typed dependency graph, the semantic graph).
 
 QCut's foundation is stronger than the gap count may suggest. It already has typed tracks, explicit main-track identity, visibility, mute, ordering, canonical composition, grouping, compound containers, transitions, and ripple operations. The largest gap is the operation-semantics layer: locks are not enforced by every entry point, insert/overwrite/replace do not share a collision engine, main-track magnetism is not separate from snapping and ripple, relationships still rely heavily on generic `groupId`, and undo stores only track arrays.
 
@@ -53,7 +54,7 @@ QCut's foundation is stronger than the gap count may suggest. It already has typ
 | --- | ---: | ---: | ---: | ---: | ---: |
 | Track types and operations | 7 | 6 | 0 | 1 | 1 |
 | Layering and rendering | 5 | 4 | 1 | 0 | 1 |
-| Insert, overwrite, and replace | 5 | 4 | 1 | 0 | 1 |
+| Insert, overwrite, and replace | 5 | 5 | 0 | 0 | 0 |
 | Ripple and main-track magnetism | 5 | 5 | 0 | 0 | 0 |
 | Trim modes | 5 | 5 | 0 | 0 | 0 |
 | Snapping | 5 | 5 | 0 | 0 | 0 |
@@ -62,7 +63,7 @@ QCut's foundation is stronger than the gap count may suggest. It already has typ
 | Undo and redo | 3 | 3 | 0 | 0 | 0 |
 | Navigation and cache | 3 | 3 | 0 | 0 | 0 |
 | AI semantics | 2 | 1 | 0 | 1 | 1 |
-| **Total** | **50** | **44** | **3** | **3** | **6** |
+| **Total** | **50** | **45** | **2** | **3** | **5** |
 
 ## Detailed 50-Rule Assessment
 
@@ -82,13 +83,13 @@ Additional migration risk: if every existing track has `order` and a main track 
 
 **Partial: blend modes.** `MediaBlendMode` currently exposes six modes: `normal`, `multiply`, `screen`, `overlay`, `darken`, and `lighten`. More importantly, preview, native export, and draft export still need a shared golden-frame contract before more mode names are added.
 
-### 3. Insert, overwrite, and replace: 4 complete, 1 partial, 0 missing
+### 3. Insert, overwrite, and replace: 5 complete, 0 partial, 0 missing
 
 **Complete: automatic stacking.** `addMediaAtTime()` finds a free track of the same type and creates another track when every lane is occupied. See [`timeline-add-ops.ts`](../../../apps/web/src/stores/timeline/timeline-add-ops.ts). `separateAudio` now stacks too: detached audio lands on the first unlocked audio lane that is free at the clip's range, otherwise a fresh lane.
 
 **Complete (QTL-002, landed 2026-08-04): the no-overlap invariant.** `addElementToTrack()`, `moveElementToTrack()`, and `updateElementStartTime()` (including whole-group moves) reject overlap-creating calls at the store layer with no state or history change. UI drag pre-checks remain as interaction feedback, but the contract lives in the store commands — the CLI (claude-bridge → the same store commands) and AI entry points inherit it automatically. Interval math lives in [`collision-policy.ts`](../../../packages/editor-core/src/timeline/collision-policy.ts); see [`timeline-collision-contract.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-collision-contract.test.ts).
 
-**Partial: replacement.** `replaceElementMedia()` imports a new file and updates the media reference, but it replaces the clip duration with the new asset duration, potentially breaking seams and transitions. ~~It also ignores track locking and writes a stale pre-import `_tracks` snapshot afterward~~ — both fixed with QTL-001, and the concurrent-edit regression test landed with QTL-002. The remaining gap is the duration/transition-preservation policy (QTL-012). See [`timeline-element-ops.ts`](../../../apps/web/src/stores/timeline/timeline-element-ops.ts).
+**Complete (QTL-001/002/012 together, landed 2026-08-04): replacement.** `replaceElementMedia()` now meets the full contract: lock checks (entry + post-import recheck) and the stale-snapshot write-back were fixed in QTL-001; the concurrent-edit regression test landed with QTL-002; QTL-012 added the replacement profile — **the target time slot is preserved** (the new media is trimmed at its tail, rate-aware, to fill the slot; seams and transitions do not move), media shorter than the slot is explicitly rejected, and untimed media (images) keeps its timing. Tests cover transition survival and the too-short rejection. See [`timeline-element-ops.ts`](../../../apps/web/src/stores/timeline/timeline-element-ops.ts).
 
 **Complete (QTL-002): an explicit Insert command.** `addElementToTrack(trackId, data, { collision: "insert" })` splits the occupant at the drop point with manual-split semantics and shifts everything at or after the point right by the inserted duration.
 
@@ -130,7 +131,7 @@ Compound clips can be created and decomposed, but the current representation is 
 
 **Complete:** Same-track adjacent video eligibility, add/update/remove, duration clamps, neighboring-transition handle limits, and stale-transition cleanup share a core implementation. Every `updateTracksAndSave()` reconciles transitions. See [`transitions.ts`](../../../packages/editor-core/src/timeline/transitions.ts), [`timeline-transition-ops.ts`](../../../apps/web/src/stores/timeline/timeline-transition-ops.ts), and [`timeline-store-autosave.ts`](../../../apps/web/src/stores/timeline/timeline-store-autosave.ts).
 
-**Partial: insufficient handles and replacement policy.** The current policy clamps or rejects. It has no JianYing-style edge-frame extension profile. Media replacement also does not explicitly preserve a target slot, recompute handles, and decide whether the transition survives. The existing transition invariants are a good base and should not be rewritten; they need a policy layer.
+**Partial: insufficient handles and replacement policy.** The replacement half landed with QTL-012: media replacement explicitly preserves the target slot, recomputes trims, and transitions survive (see section 3). The handle half remains clamp-or-reject (explicit, but only two tiers); the JianYing-style `extend-edge` frame-hold profile needs synchronized preview and native-export support first. The existing transition invariants are a good base and should not be rewritten; they need a policy layer.
 
 ### 9. Undo and redo: 3 complete, 0 partial
 
@@ -303,11 +304,14 @@ Relevant files: `packages/editor-core/src/types/timeline.ts`, `apps/web/src/lib/
 
 Acceptance: moving/deleting a semantic scene can preview its dependency closure; an unlinked edge stays unlinked after later AI operations; unsupported export links are reported rather than silently discarded.
 
-#### QTL-012 Add transition-handle and replacement profiles
+#### QTL-012 Add transition-handle and replacement profiles 🔶 Partial (2026-08-04)
 
-Relevant files: `packages/editor-core/src/timeline/transitions.ts`, `apps/web/src/stores/timeline/timeline-transition-ops.ts`, `apps/web/src/stores/timeline/timeline-element-ops.ts`, and preview/native-export tests.
+Landed (the replacement half):
 
-Acceptance: `reject | clamp | extend-edge` is explicit; one preflight decides whether a transition survives replacement; preview and export use the same resolved window.
+- `replaceElementMedia` preserves the target time slot: the required source duration is computed from the existing playbackRate and the new media's `trimEnd` absorbs the excess; media shorter than the slot returns an explicit error (JianYing's rejection semantics); untimed media (images) keeps its timing. Seams do not move, so reconcile naturally keeps transitions — "does the transition survive replacement" is decided by the same slot preflight ✅.
+- Tests: transition survival across replacement, slot trim values, and the too-short rejection ([`timeline-collision-contract.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-collision-contract.test.ts)).
+
+Not landed (the handle half): the `extend-edge` frame-hold profile — it needs preview and native export to share one resolved window with edge-frame holds; the policy today stays at the explicit `reject | clamp` tiers.
 
 ## Test Baseline
 
