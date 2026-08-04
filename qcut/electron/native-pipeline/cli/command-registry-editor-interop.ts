@@ -31,4 +31,32 @@ export const INTEROP_COMMANDS: Record<string, CommandDef> = {
 			"qcut editor interop import-snapshot --project-id <id> --bundle-digest <sha256> --output qcut-import-snapshot.json --json",
 		],
 	},
+	"editor:interop:writeback": {
+		name: "editor:interop:writeback",
+		description:
+			"Write supported QCut timing edits back to an exact imported draft",
+		category: "editor",
+		flags: [
+			flag("--project-id", "string", "Persisted QCut project ID", {
+				required: true,
+			}),
+		],
+		examples: ["qcut editor interop writeback --project-id <id> --json"],
+	},
+	"editor:interop:writeback-recover": {
+		name: "editor:interop:writeback-recover",
+		description: "Recover an interrupted same-profile draft writeback",
+		category: "editor",
+		flags: [
+			flag(
+				"--recovery-token",
+				"string",
+				"Opaque recovery token returned by a failed writeback",
+				{ required: true }
+			),
+		],
+		examples: [
+			"qcut editor interop writeback-recover --recovery-token <token> --json",
+		],
+	},
 };
