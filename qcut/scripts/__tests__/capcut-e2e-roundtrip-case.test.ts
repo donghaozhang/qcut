@@ -19,6 +19,10 @@ import {
 	type PreviewFrameComparisonManifest,
 } from "../capcut-e2e/preview-frame-comparison.js";
 import {
+	QCUT_IMPORT_VERIFICATION_MANIFEST_SCHEMA,
+	type QCutImportVerificationManifest,
+} from "../capcut-e2e/qcut-import-verification-contract.js";
+import {
 	parseRoundtripCaseCliOptions,
 	ROUNDTRIP_CASE_MANIFEST_FILE_NAME,
 	runRoundtripCase,
@@ -181,10 +185,32 @@ function previewManifest(): PreviewFrameComparisonManifest {
 	};
 }
 
+function qcutImportManifest(): QCutImportVerificationManifest {
+	return {
+		bundle: { byteLength: 100, bundleDigest: SHA_A, sha256: SHA_A },
+		checks: {
+			bundleDigest: true,
+			projectFps: true,
+			projectGeometry: true,
+			projectName: true,
+		},
+		generatedAtIso: NOW,
+		qcutSnapshot: { byteLength: 100, sha256: SHA_B },
+		roles: {
+			actual: "qcut-renderer-snapshot",
+			expected: "import-bundle",
+		},
+		schema: QCUT_IMPORT_VERIFICATION_MANIFEST_SCHEMA,
+		schemaVersion: 1,
+		verdict: "pass",
+	};
+}
+
 interface ComparisonCalls {
 	audio?: { leftPath: string; rightPath: string };
 	native?: { leftPath: string; rightPath: string };
 	preview?: { leftDirectory: string; rightDirectory: string };
+	qcutImport?: { bundlePath: string; qcutSnapshotPath: string };
 }
 
 function dependencies({
@@ -228,6 +254,10 @@ function dependencies({
 				evidence: { files: [], outcome: "exact" },
 			};
 		},
+		runQCutImportVerification: async ({ bundlePath, qcutSnapshotPath }) => {
+			calls.qcutImport = { bundlePath, qcutSnapshotPath };
+			return qcutImportManifest();
+		},
 	};
 }
 
@@ -245,6 +275,8 @@ function runOptions({
 		dependencies: dependencies({ calls, sourceDocument }),
 		nowIso: NOW,
 		...(outputDirectory ? { outputDirectory } : {}),
+		qcutImportBundlePath: join(rootDirectory, "qcut-import-bundle.json"),
+		qcutImportSnapshotPath: join(rootDirectory, "qcut-import-snapshot.json"),
 		qcutNativeExportPath: join(rootDirectory, "qcut.mov"),
 		qcutPreviewDirectory: join(rootDirectory, "qcut-preview"),
 		referenceNativeExportPath: join(rootDirectory, "reference.mov"),
@@ -255,7 +287,7 @@ function runOptions({
 }
 
 describe("runRoundtripCase", () => {
-	it("orchestrates all four outputs with fixed roles and path-free evidence", async () => {
+	it("orchestrates import and all four outputs with path-free evidence", async () => {
 		const calls: ComparisonCalls = {};
 		const outputDirectory = join(rootDirectory, "evidence");
 		await mkdir(outputDirectory);
@@ -263,10 +295,15 @@ describe("runRoundtripCase", () => {
 		const manifest = await runRoundtripCase(options);
 
 		expect(manifest.verdict).toBe("unverified");
+		expect(manifest.schemaVersion).toBe(2);
 		expect(manifest.roles).toEqual({
 			audio: { left: "reference", right: "qcut" },
 			nativeFrames: { left: "reference", right: "qcut" },
 			previewFrames: { left: "reference", right: "qcut" },
+			qcutImport: {
+				actual: "qcut-renderer-snapshot",
+				expected: "import-bundle",
+			},
 			semantic: { left: "source-draft", right: "roundtrip-draft" },
 		});
 		expect(calls).toEqual({
@@ -281,6 +318,10 @@ describe("runRoundtripCase", () => {
 			preview: {
 				leftDirectory: options.referencePreviewDirectory,
 				rightDirectory: options.qcutPreviewDirectory,
+			},
+			qcutImport: {
+				bundlePath: options.qcutImportBundlePath,
+				qcutSnapshotPath: options.qcutImportSnapshotPath,
 			},
 		});
 		const written = await readFile(
@@ -304,12 +345,16 @@ describe("runRoundtripCase", () => {
 				leftPath: join(rootDirectory, "reference.mov"),
 				rightPath: join(rootDirectory, "qcut.mov"),
 			},
+			qcutImport: {
+				bundlePath: join(rootDirectory, "qcut-import-bundle.json"),
+				qcutSnapshotPath: join(rootDirectory, "qcut-import-snapshot.json"),
+			},
 		});
 	});
 });
 
 describe("parseRoundtripCaseCliOptions", () => {
-	it("parses the complete four-output command", () => {
+	it("parses the complete import and four-output command", () => {
 		expect(
 			parseRoundtripCaseCliOptions({
 				argv: [
@@ -320,6 +365,10 @@ describe("parseRoundtripCaseCliOptions", () => {
 					"/draft/source",
 					"--roundtrip-draft",
 					"/draft/roundtrip",
+					"--qcut-import-bundle",
+					"/import/bundle.json",
+					"--qcut-import-snapshot",
+					"/import/qcut-snapshot.json",
 					"--qcut-native-export",
 					"/export/qcut.mov",
 					"--reference-native-export",
@@ -336,6 +385,8 @@ describe("parseRoundtripCaseCliOptions", () => {
 			caseId: "case-1",
 			json: true,
 			outputDirectory: "/evidence",
+			qcutImportBundlePath: "/import/bundle.json",
+			qcutImportSnapshotPath: "/import/qcut-snapshot.json",
 			qcutNativeExportPath: "/export/qcut.mov",
 			qcutPreviewDirectory: "/preview/qcut",
 			referenceNativeExportPath: "/export/reference.mov",
