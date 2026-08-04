@@ -16,6 +16,7 @@ import { createDeterministicJianyingId } from "../jianying-draft/deterministic-i
 import type {
 	QCutImportPlanElement,
 	QCutImportPlanTrack,
+	QCutImportPlanTransition,
 	QCutImportSkippedNode,
 	QCutImportTimelinePlanV1,
 } from "../jianying-draft/import/qcut-mapping.js";
@@ -184,6 +185,20 @@ function asFiniteNumber({
 	return value;
 }
 
+function asPositiveFiniteNumber({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): number {
+	const parsed = asFiniteNumber({ value, path });
+	if (parsed <= 0) {
+		fail({ message: "expected a positive finite number", path });
+	}
+	return parsed;
+}
+
 function asNonNegativeSafeInteger({
 	value,
 	path,
@@ -261,6 +276,46 @@ function parsePlanElement({
 	};
 }
 
+function parsePlanTransition({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): QCutImportPlanTransition {
+	const record = asRecord({ value, path });
+	return {
+		id: asString({ value: record.id, path: `${path}/id` }),
+		fromElementId: asString({
+			value: record.fromElementId,
+			path: `${path}/fromElementId`,
+		}),
+		toElementId: asString({
+			value: record.toElementId,
+			path: `${path}/toElementId`,
+		}),
+		presetId: asEnum({
+			value: record.presetId,
+			path: `${path}/presetId`,
+			allowed: ["dissolve"],
+		}),
+		type: asEnum({
+			value: record.type,
+			path: `${path}/type`,
+			allowed: ["dissolve"],
+		}),
+		duration: asPositiveFiniteNumber({
+			value: record.duration,
+			path: `${path}/duration`,
+		}),
+		easing: asEnum({
+			value: record.easing,
+			path: `${path}/easing`,
+			allowed: ["easeInOut"],
+		}),
+	};
+}
+
 function parsePlanTrack({
 	value,
 	path,
@@ -275,6 +330,18 @@ function parsePlanTrack({
 			: record.isMain === true
 				? true
 				: fail({ message: "expected true or absent", path: `${path}/isMain` });
+	const transitions =
+		record.transitions === undefined
+			? undefined
+			: asArray({
+					value: record.transitions,
+					path: `${path}/transitions`,
+				}).map((transition, index) =>
+					parsePlanTransition({
+						value: transition,
+						path: `${path}/transitions/${index}`,
+					})
+				);
 	return {
 		id: asString({ value: record.id, path: `${path}/id` }),
 		type: asEnum({
@@ -292,6 +359,7 @@ function parsePlanTrack({
 			(element, index) =>
 				parsePlanElement({ value: element, path: `${path}/elements/${index}` })
 		),
+		...(transitions === undefined ? {} : { transitions }),
 		sourceTrackId: asString({
 			value: record.sourceTrackId,
 			path: `${path}/sourceTrackId`,
@@ -579,6 +647,34 @@ export function parseQCutImportBundleV1(
 					fail({
 						message: "plan element references an unstaged resource",
 						path: `${elementPath}/resourceId`,
+					});
+				}
+			}
+			const elementIds = new Set(track.elements.map((element) => element.id));
+			for (const [transitionIndex, transition] of (
+				track.transitions ?? []
+			).entries()) {
+				const transitionPath = `/timelinePlan/tracks/${trackIndex}/transitions/${transitionIndex}`;
+				if (track.type !== "media") {
+					fail({
+						message: "plan transitions require a media track",
+						path: transitionPath,
+					});
+				}
+				if (internalIdBySemanticId[transition.id] === undefined) {
+					fail({
+						message: "plan transition has no deterministic internal id",
+						path: `${transitionPath}/id`,
+					});
+				}
+				if (
+					transition.fromElementId === transition.toElementId ||
+					!elementIds.has(transition.fromElementId) ||
+					!elementIds.has(transition.toElementId)
+				) {
+					fail({
+						message: "plan transition endpoints must exist on the same track",
+						path: transitionPath,
 					});
 				}
 			}
