@@ -122,6 +122,21 @@ export {
 } from "./import-bundle.js";
 
 export {
+	buildQCutImportTimelineTracks,
+	getQCutImportMediaType,
+} from "./qcut-import-state.js";
+
+export {
+	describeQCutImportMedia,
+	QCUT_IMPORT_VERIFICATION_SCHEMA,
+	verifyQCutImportMaterialization,
+	type QCutImportVerificationIssue,
+	type QCutImportVerificationMedia,
+	type QCutImportVerificationMediaSource,
+	type QCutImportVerificationResult,
+} from "./qcut-import-verification.js";
+
+export {
 	diffDraftInteropDocuments,
 	halfFrameToleranceUs,
 	type SemanticDiffEntry,
