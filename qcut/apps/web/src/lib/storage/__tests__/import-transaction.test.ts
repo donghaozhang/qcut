@@ -16,6 +16,7 @@ import { ImportStagingSession } from "../import-staging-adapter";
 import type { StorageAdapter } from "../types";
 import type { TProject } from "@/types/project";
 import type { TimelineTrack } from "@/types/timeline";
+import type { MediaItem } from "@/stores/media/media-store-types";
 
 /**
  * JYI-010 acceptance: staging, re-read verification, single publish,
@@ -48,9 +49,12 @@ function createMapAdapter<T>(): StorageAdapter<T> & { map: Map<string, T> } {
 
 interface FakeStorage extends ImportTransactionStorage {
 	projects: Map<string, TProject>;
-	media: Map<string, Map<string, unknown>>;
+	media: Map<string, Map<string, MediaItem>>;
 	timelines: Map<string, TimelineTrack[]>;
 	calls: string[];
+	corruptMediaReadback?: boolean;
+	corruptProjectReadback?: boolean;
+	corruptTimelineReadback?: boolean;
 	failOn?: string;
 }
 
@@ -74,8 +78,24 @@ function createFakeStorage(): FakeStorage {
 			storage.calls.push(`saveTimeline:${sceneId ?? "main"}`);
 			storage.timelines.set(`${projectId}:${sceneId ?? "main"}`, tracks);
 		},
-		loadTimeline: async ({ projectId, sceneId }) =>
-			storage.timelines.get(`${projectId}:${sceneId ?? "main"}`) ?? null,
+		loadTimeline: async ({ projectId, sceneId }) => {
+			const tracks = storage.timelines.get(`${projectId}:${sceneId ?? "main"}`);
+			if (tracks === undefined || !storage.corruptTimelineReadback) {
+				return tracks ?? null;
+			}
+			const corrupted = structuredClone(tracks);
+			const firstElement = corrupted[0]?.elements[0];
+			if (firstElement !== undefined) firstElement.startTime += 1;
+			return corrupted;
+		},
+		loadAllMediaItems: async (projectId) => {
+			const items = [...(storage.media.get(projectId)?.values() ?? [])];
+			if (!storage.corruptMediaReadback) return items;
+			return items.map((item) => ({
+				...item,
+				file: new File(["corrupt"], item.file.name, { type: item.file.type }),
+			}));
+		},
 		saveProject: async ({ project }) => {
 			storage.calls.push(`saveProject:${project.id}`);
 			if (storage.failOn === "saveProject") {
@@ -83,13 +103,13 @@ function createFakeStorage(): FakeStorage {
 			}
 			storage.projects.set(project.id, project);
 		},
-		loadProject: async ({ id }) => storage.projects.get(id) ?? null,
-		getProjectStorageInfo: async (projectId) => ({
-			mediaItems: storage.media.get(projectId)?.size ?? 0,
-			hasTimeline: [...storage.timelines.keys()].some((key) =>
-				key.startsWith(`${projectId}:`)
-			),
-		}),
+		loadProject: async ({ id }) => {
+			const project = storage.projects.get(id);
+			if (project === undefined || !storage.corruptProjectReadback) {
+				return project ?? null;
+			}
+			return { ...structuredClone(project), name: "corrupted readback" };
+		},
 		deleteProjectMedia: async (projectId) => {
 			storage.calls.push("deleteProjectMedia");
 			storage.media.delete(projectId);
@@ -231,6 +251,10 @@ function createBundle(): QCutImportBundleV1 {
 				stagingKey: "import-token-1-media",
 				kind: "video",
 				status: "resolved",
+				byteLength: 3,
+				sha256: createHash("sha256")
+					.update(new Uint8Array([1, 2, 3]))
+					.digest("hex"),
 			},
 		],
 		internalIdBySemanticId,
@@ -307,6 +331,10 @@ function createBundleWithTransition(): QCutImportBundleV1 {
 		stagingKey: "import-token-1-media-2",
 		kind: "video",
 		status: "resolved",
+		byteLength: 3,
+		sha256: createHash("sha256")
+			.update(new Uint8Array([4, 5, 6]))
+			.digest("hex"),
 	});
 	bundle.bundleDigest = createHash("sha256")
 		.update(canonicalizeQCutImportBundleForDigest({ bundle }))
@@ -530,6 +558,74 @@ describe("runQCutImportTransaction", () => {
 			element && "mediaId" in element && mediaBucket?.has(element.mediaId)
 		).toBe(true);
 		// Journal is empty after a verified publish.
+		expect(journalAdapter.map.size).toBe(0);
+	});
+
+	it("rolls back when persisted timeline fields differ from the bundle", async () => {
+		storage.corruptTimelineReadback = true;
+		const bundle = createBundle();
+
+		const result = await runQCutImportTransaction({
+			bundleValue: JSON.parse(JSON.stringify(bundle)),
+			mediaPayloads: [createPayload()],
+			deps: { storage, journal },
+		});
+
+		expect(result).toMatchObject({
+			ok: false,
+			reason: "verify-failed",
+		});
+		if (result.ok) return;
+		expect(result.message).toContain(
+			`TRACK_MISMATCH:/tracks/${bundle.internalIdBySemanticId[TRACK_ID]}`
+		);
+		expect(storage.projects.size).toBe(0);
+		expect(storage.media.size).toBe(0);
+		expect(storage.timelines.size).toBe(0);
+		expect(journalAdapter.map.size).toBe(0);
+	});
+
+	it("rolls back when persisted media bytes differ from the bundle", async () => {
+		storage.corruptMediaReadback = true;
+		const bundle = createBundle();
+
+		const result = await runQCutImportTransaction({
+			bundleValue: JSON.parse(JSON.stringify(bundle)),
+			mediaPayloads: [createPayload()],
+			deps: { storage, journal },
+		});
+
+		expect(result).toMatchObject({
+			ok: false,
+			reason: "verify-failed",
+		});
+		if (result.ok) return;
+		expect(result.message).toBe(
+			`MEDIA_MISMATCH:/media/${bundle.internalIdBySemanticId[RESOURCE_ID]}`
+		);
+		expect(storage.projects.size).toBe(0);
+		expect(storage.media.size).toBe(0);
+		expect(storage.timelines.size).toBe(0);
+		expect(journalAdapter.map.size).toBe(0);
+	});
+
+	it("rolls back when the published project binding differs on readback", async () => {
+		storage.corruptProjectReadback = true;
+
+		const result = await runQCutImportTransaction({
+			bundleValue: JSON.parse(JSON.stringify(createBundle())),
+			mediaPayloads: [createPayload()],
+			deps: { storage, journal },
+		});
+
+		expect(result).toMatchObject({
+			ok: false,
+			reason: "publish-failed",
+			message: "Published project readback does not match the import.",
+		});
+		expect(storage.projects.size).toBe(0);
+		expect(storage.media.size).toBe(0);
+		expect(storage.timelines.size).toBe(0);
 		expect(journalAdapter.map.size).toBe(0);
 	});
 
@@ -861,7 +957,20 @@ describe("recoverPendingImports", () => {
 			projectId: "p-crashed",
 			sceneId: "s-crashed",
 		});
-		storage.media.set("p-crashed", new Map([["m1", {}]]));
+		storage.media.set(
+			"p-crashed",
+			new Map([
+				[
+					"m1",
+					{
+						id: "m1",
+						name: "partial.mp4",
+						type: "video",
+						file: new File(["partial"], "partial.mp4"),
+					},
+				],
+			])
+		);
 		storage.timelines.set("p-crashed:s-crashed", []);
 
 		// Finished import whose journal cleanup never ran.
