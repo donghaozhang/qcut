@@ -1,0 +1,287 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`normalizeRawDraft on the CapCut 8.1 fixture > is deterministic, parses clean, and matches the snapshot 1`] = `
+{
+  "issues": [
+    {
+      "code": "FEATURE_DOWNGRADED",
+      "message": "segment maps with declared loss (text)",
+      "path": "/tracks/2/segments/0",
+      "severity": "warning",
+      "subjectId": "d6a29481-c146-a0f5-bee4-3ebfb9f08b91",
+    },
+  ],
+  "links": [],
+  "project": {
+    "durationUs": 4000000,
+    "fps": 30,
+    "height": 1080,
+    "id": "00000000-0000-0000-0000-00000000bbbb",
+    "name": "Normalize Fixture",
+    "width": 1920,
+  },
+  "resources": [
+    {
+      "capability": "exact",
+      "durationUs": 5000000,
+      "foreignRef": "aa69d703-57f6-8bcf-08d6-d57952fa9d53",
+      "id": "aa69d703-57f6-8bcf-08d6-d57952fa9d53",
+      "kind": "video",
+      "name": "clip.mp4",
+      "originHint": "local-media",
+      "status": "pending",
+    },
+    {
+      "capability": "exact",
+      "durationUs": 3000000,
+      "foreignRef": "5db6001f-60b2-5643-9443-573911eff9af",
+      "id": "5db6001f-60b2-5643-9443-573911eff9af",
+      "kind": "audio",
+      "name": "song.mp3",
+      "originHint": "local-media",
+      "status": "pending",
+    },
+  ],
+  "schemaVersion": 1,
+  "source": {
+    "files": [
+      {
+        "byteLength": 4096,
+        "classification": "plaintext-json",
+        "relativePath": "draft_info.json",
+        "role": "content",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+    ],
+    "platform": "macos",
+    "product": "capcut",
+    "profileId": "capcut-desktop-8.1-plaintext",
+  },
+  "timeUnit": "microseconds",
+  "timelines": [
+    {
+      "fps": 30,
+      "id": "00000000-0000-0000-0000-00000000bbbb",
+      "isRoot": true,
+      "tracks": [
+        {
+          "capability": "exact",
+          "foreignRef": "e3322aaf-7e40-0983-5b62-11cd55889b3f",
+          "id": "e3322aaf-7e40-0983-5b62-11cd55889b3f",
+          "isMain": true,
+          "kind": "video",
+          "order": 0,
+          "segments": [
+            {
+              "capability": "exact",
+              "foreignRef": "03287c54-8dbf-6a58-6b19-51268e3a0f24",
+              "id": "03287c54-8dbf-6a58-6b19-51268e3a0f24",
+              "kind": "video",
+              "resourceId": "aa69d703-57f6-8bcf-08d6-d57952fa9d53",
+              "sourceRange": {
+                "durationUs": 4000000,
+                "startUs": 500000,
+              },
+              "speed": 1,
+              "targetRange": {
+                "durationUs": 4000000,
+                "startUs": 0,
+              },
+            },
+          ],
+        },
+        {
+          "capability": "exact",
+          "foreignRef": "e4322c42-7f40-0b16-5862-0d1456889cd2",
+          "id": "e4322c42-7f40-0b16-5862-0d1456889cd2",
+          "kind": "audio",
+          "order": 1,
+          "segments": [
+            {
+              "capability": "exact",
+              "foreignRef": "50033258-3c3f-5474-0a50-3a1e69783f88",
+              "id": "50033258-3c3f-5474-0a50-3a1e69783f88",
+              "kind": "audio",
+              "resourceId": "5db6001f-60b2-5643-9443-573911eff9af",
+              "sourceRange": {
+                "durationUs": 3000000,
+                "startUs": 0,
+              },
+              "speed": 1,
+              "targetRange": {
+                "durationUs": 3000000,
+                "startUs": 1000000,
+              },
+            },
+          ],
+        },
+        {
+          "capability": "downgrade",
+          "foreignRef": "e5322dd5-8040-0ca9-5962-0ea757889e65",
+          "id": "e5322dd5-8040-0ca9-5962-0ea757889e65",
+          "kind": "text",
+          "order": 2,
+          "segments": [
+            {
+              "capability": "downgrade",
+              "foreignRef": "d6a29481-c146-a0f5-bee4-3ebfb9f08b91",
+              "id": "d6a29481-c146-a0f5-bee4-3ebfb9f08b91",
+              "kind": "text",
+              "speed": 1,
+              "targetRange": {
+                "durationUs": 3000000,
+                "startUs": 0,
+              },
+            },
+          ],
+        },
+      ],
+    },
+  ],
+}
+`;
+
+exports[`normalizeRawDraft on the synthetic 5.9 fixture > is deterministic and matches the semantic snapshot 1`] = `
+{
+  "issues": [
+    {
+      "code": "FEATURE_DOWNGRADED",
+      "message": "segment maps with declared loss (text)",
+      "path": "/tracks/2/segments/0",
+      "severity": "warning",
+      "subjectId": "d6a29481-c146-a0f5-bee4-3ebfb9f08b91",
+    },
+  ],
+  "links": [],
+  "project": {
+    "durationUs": 4000000,
+    "fps": 30,
+    "height": 1080,
+    "id": "629e7155-edc8-a5e9-7ca3-14db8e0fd665",
+    "name": "Normalize Fixture",
+    "width": 1920,
+  },
+  "resources": [
+    {
+      "capability": "exact",
+      "durationUs": 3000000,
+      "foreignRef": "5db6001f-60b2-5643-9443-573911eff9af",
+      "id": "5db6001f-60b2-5643-9443-573911eff9af",
+      "kind": "audio",
+      "name": "song.mp3",
+      "originHint": "local-media",
+      "status": "pending",
+    },
+    {
+      "capability": "exact",
+      "durationUs": 5000000,
+      "foreignRef": "aa69d703-57f6-8bcf-08d6-d57952fa9d53",
+      "id": "aa69d703-57f6-8bcf-08d6-d57952fa9d53",
+      "kind": "video",
+      "name": "clip.mp4",
+      "originHint": "local-media",
+      "status": "pending",
+    },
+  ],
+  "schemaVersion": 1,
+  "source": {
+    "files": [
+      {
+        "byteLength": 4096,
+        "classification": "plaintext-json",
+        "relativePath": "draft_info.json",
+        "role": "content",
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      },
+    ],
+    "platform": "macos",
+    "product": "jianying",
+    "profileId": "jianying-synthetic-plaintext-5.9",
+  },
+  "timeUnit": "microseconds",
+  "timelines": [
+    {
+      "fps": 30,
+      "id": "629e7155-edc8-a5e9-7ca3-14db8e0fd665",
+      "isRoot": true,
+      "tracks": [
+        {
+          "capability": "exact",
+          "foreignRef": "e3322aaf-7e40-0983-5b62-11cd55889b3f",
+          "id": "e3322aaf-7e40-0983-5b62-11cd55889b3f",
+          "isMain": true,
+          "kind": "video",
+          "order": 0,
+          "segments": [
+            {
+              "capability": "exact",
+              "foreignRef": "03287c54-8dbf-6a58-6b19-51268e3a0f24",
+              "id": "03287c54-8dbf-6a58-6b19-51268e3a0f24",
+              "kind": "video",
+              "resourceId": "aa69d703-57f6-8bcf-08d6-d57952fa9d53",
+              "sourceRange": {
+                "durationUs": 4000000,
+                "startUs": 500000,
+              },
+              "speed": 1,
+              "targetRange": {
+                "durationUs": 4000000,
+                "startUs": 0,
+              },
+            },
+          ],
+        },
+        {
+          "capability": "exact",
+          "foreignRef": "e4322c42-7f40-0b16-5862-0d1456889cd2",
+          "id": "e4322c42-7f40-0b16-5862-0d1456889cd2",
+          "kind": "audio",
+          "order": 1,
+          "segments": [
+            {
+              "capability": "exact",
+              "foreignRef": "50033258-3c3f-5474-0a50-3a1e69783f88",
+              "id": "50033258-3c3f-5474-0a50-3a1e69783f88",
+              "kind": "audio",
+              "resourceId": "5db6001f-60b2-5643-9443-573911eff9af",
+              "sourceRange": {
+                "durationUs": 3000000,
+                "startUs": 0,
+              },
+              "speed": 1,
+              "targetRange": {
+                "durationUs": 3000000,
+                "startUs": 1000000,
+              },
+            },
+          ],
+        },
+        {
+          "capability": "downgrade",
+          "foreignRef": "e5322dd5-8040-0ca9-5962-0ea757889e65",
+          "id": "e5322dd5-8040-0ca9-5962-0ea757889e65",
+          "kind": "text",
+          "order": 2,
+          "segments": [
+            {
+              "capability": "downgrade",
+              "foreignRef": "d6a29481-c146-a0f5-bee4-3ebfb9f08b91",
+              "id": "d6a29481-c146-a0f5-bee4-3ebfb9f08b91",
+              "kind": "text",
+              "sourceRange": {
+                "durationUs": 3000000,
+                "startUs": 0,
+              },
+              "speed": 1,
+              "targetRange": {
+                "durationUs": 3000000,
+                "startUs": 0,
+              },
+            },
+          ],
+        },
+      ],
+    },
+  ],
+}
+`;

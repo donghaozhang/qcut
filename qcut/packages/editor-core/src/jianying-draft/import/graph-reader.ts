@@ -33,6 +33,8 @@ export interface RawGraphSegmentNode {
 	sourceRange?: RawGraphTimeRange;
 	targetRange?: RawGraphTimeRange;
 	jsonPointer: string;
+	/** Reference to the raw segment record; never mutated. */
+	raw: Record<string, unknown>;
 }
 
 export interface RawGraphTrackNode {
@@ -48,6 +50,8 @@ export interface RawGraphMaterialNode {
 	/** Bucket name under `materials`, e.g. "videos", "audios", "texts". */
 	bucket: string;
 	jsonPointer: string;
+	/** Reference to the raw material record; never mutated. */
+	raw: Record<string, unknown>;
 }
 
 export interface RawDraftGraph {
@@ -211,6 +215,7 @@ export function readRawDraftGraph({
 				sourceRange: readTimeRange(rawSegment.source_timerange),
 				targetRange: readTimeRange(rawSegment.target_timerange),
 				jsonPointer: segmentPointer,
+				raw: rawSegment,
 			});
 			track.segmentIds.push(segmentId);
 		}
@@ -262,6 +267,7 @@ export function readRawDraftGraph({
 				id: materialId,
 				bucket,
 				jsonPointer: entryPointer,
+				raw: entry,
 			});
 		}
 	}

@@ -154,6 +154,8 @@ export interface InteropResource {
 	originHint?: "local-media" | "app-resource" | "package" | "unknown";
 	sha256?: string;
 	byteLength?: number;
+	/** Intrinsic media duration in microseconds, when the source declares it. */
+	durationUs?: number;
 	status: InteropResourceStatus;
 	capability: InteropCapability;
 	foreignRef?: string;
@@ -609,6 +611,13 @@ function parseResource({
 					value: record.byteLength,
 					path: `${path}/byteLength`,
 				});
+	const durationUs =
+		record.durationUs === undefined
+			? undefined
+			: asNonNegativeSafeInteger({
+					value: record.durationUs,
+					path: `${path}/durationUs`,
+				});
 	return {
 		id: asString({ value: record.id, path: `${path}/id` }),
 		kind: asEnum({
@@ -630,6 +639,7 @@ function parseResource({
 		...(originHint === undefined ? {} : { originHint }),
 		...(sha256 === undefined ? {} : { sha256 }),
 		...(byteLength === undefined ? {} : { byteLength }),
+		...(durationUs === undefined ? {} : { durationUs }),
 		status: asEnum({
 			value: record.status,
 			path: `${path}/status`,
