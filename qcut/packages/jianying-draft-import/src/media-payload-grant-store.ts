@@ -361,6 +361,7 @@ export class MediaPayloadGrantStore {
 				maxBytes: request.maxBytes,
 				offset: request.offset,
 			});
+			grant.expiresAtUnixMilliseconds = this.#now() + this.#ttlMilliseconds;
 			return {
 				schemaVersion: MEDIA_PAYLOAD_GRANT_SCHEMA_VERSION,
 				grantToken: grant.grantToken,

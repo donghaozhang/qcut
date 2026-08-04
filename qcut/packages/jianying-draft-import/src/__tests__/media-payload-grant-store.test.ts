@@ -133,6 +133,37 @@ describe("MediaPayloadGrantStore", () => {
 		).rejects.toMatchObject<MediaPayloadGrantError>({ code: "grant-expired" });
 	});
 
+	it("keeps an actively-read grant alive until its inactivity timeout", async () => {
+		const absolutePath = join(root, "clip.mp4");
+		await writeFile(absolutePath, "0123456789");
+		let now = 1000;
+		const store = new MediaPayloadGrantStore({
+			createToken: () => TOKEN_A,
+			now: () => now,
+			ttlMilliseconds: 10,
+		});
+		await store.grantSource({ source: createSource({ absolutePath }) });
+
+		now = 1009;
+		await expect(
+			store.readChunk({
+				input: { grantToken: TOKEN_A, offset: 0, maxBytes: 1 },
+			})
+		).resolves.toMatchObject({ eof: false });
+		now = 1018;
+		await expect(
+			store.readChunk({
+				input: { grantToken: TOKEN_A, offset: 1, maxBytes: 1 },
+			})
+		).resolves.toMatchObject({ eof: false });
+		now = 1028;
+		await expect(
+			store.readChunk({
+				input: { grantToken: TOKEN_A, offset: 2, maxBytes: 1 },
+			})
+		).rejects.toMatchObject<MediaPayloadGrantError>({ code: "grant-expired" });
+	});
+
 	it("invalidates a grant when the file identity changes", async () => {
 		const absolutePath = join(root, "clip.mp4");
 		await writeFile(absolutePath, "0123456789");
