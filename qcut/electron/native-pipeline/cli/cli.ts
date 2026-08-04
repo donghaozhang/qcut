@@ -327,6 +327,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			// vimax options
 			"no-references": { type: "boolean", default: false },
 			"project-id": { type: "string" },
+			"bundle-digest": { type: "string" },
 			project: { type: "string" },
 			"chunk-size": { type: "string" },
 			overlap: { type: "string" },
@@ -853,6 +854,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		databasePaths: values.database as string[] | undefined,
 		draftPaths: values.draft as string[] | undefined,
 		planToken: values["plan-token"] as string | undefined,
+		bundleDigest: values["bundle-digest"] as string | undefined,
 		acceptedWarningFingerprints: values["accept-warning"] as
 			| string[]
 			| undefined,
