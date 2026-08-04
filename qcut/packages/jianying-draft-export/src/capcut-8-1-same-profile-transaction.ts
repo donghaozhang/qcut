@@ -350,6 +350,17 @@ function parseJournal({ value }: { value: unknown }): CapCutWritebackJournalV1 {
 	return value as CapCutWritebackJournalV1;
 }
 
+async function fileMatchesDigest({
+	digest,
+	path,
+}: {
+	digest: string;
+	path: string;
+}): Promise<boolean> {
+	const { bytes } = await readRegularFile({ path });
+	return createHash("sha256").update(bytes).digest("hex") === digest;
+}
+
 async function verifyMirrorDigest({
 	digest,
 	mirrors,
@@ -358,15 +369,41 @@ async function verifyMirrorDigest({
 	mirrors: readonly CapCutWritebackMirrorDescriptor[];
 }): Promise<void> {
 	const matches = await Promise.all(
-		mirrors.map(async ({ absolutePath }) => {
-			const { bytes } = await readRegularFile({ path: absolutePath });
-			return createHash("sha256").update(bytes).digest("hex") === digest;
-		})
+		mirrors.map(({ absolutePath }) =>
+			fileMatchesDigest({ digest, path: absolutePath })
+		)
 	);
 	if (matches.some((matchesDigest) => !matchesDigest)) {
 		failCapCut81SameProfileWriteback({
 			code: "RECOVERY_REQUIRED",
 			message: "Recovered CapCut mirrors failed digest verification.",
+		});
+	}
+}
+
+async function verifyRollbackSources({
+	expectedSourceSha256,
+	mirrors,
+}: {
+	expectedSourceSha256: string;
+	mirrors: readonly CapCutWritebackMirrorDescriptor[];
+}): Promise<void> {
+	const matches = await Promise.all(
+		mirrors.map(async ({ absolutePath, rollbackPath }) => {
+			const sourcePath = (await pathExists({ path: rollbackPath }))
+				? rollbackPath
+				: absolutePath;
+			return fileMatchesDigest({
+				digest: expectedSourceSha256,
+				path: sourcePath,
+			});
+		})
+	);
+	if (matches.some((matchesDigest) => !matchesDigest)) {
+		failCapCut81SameProfileWriteback({
+			code: "RECOVERY_REQUIRED",
+			message:
+				"An uncommitted writeback has no verified source for every mirror.",
 		});
 	}
 }
@@ -425,15 +462,10 @@ export async function recoverCapCut81SameProfileWriteback({
 		await verifyMirrorDigest({ digest: journal.contentSha256, mirrors });
 		await removeArtifacts({ mirrors });
 	} else {
-		const rollbackAvailability = await Promise.all(
-			mirrors.map(({ rollbackPath }) => pathExists({ path: rollbackPath }))
-		);
-		if (rollbackAvailability.some((available) => !available)) {
-			failCapCut81SameProfileWriteback({
-				code: "RECOVERY_REQUIRED",
-				message: "An uncommitted writeback is missing a rollback mirror.",
-			});
-		}
+		await verifyRollbackSources({
+			expectedSourceSha256: journal.expectedSourceSha256,
+			mirrors,
+		});
 		await restoreRollbacks({ mirrors });
 		await verifyMirrorDigest({ digest: journal.expectedSourceSha256, mirrors });
 	}
