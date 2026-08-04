@@ -28,6 +28,41 @@ export {
 } from "./issues.js";
 
 export {
+	evaluateUnknownSubtree,
+	evaluateUnknownSubtrees,
+	INTEROP_DIRTY_DOMAINS,
+	isInteropDirtyDomain,
+	type InteropDirtyDomain,
+	type UnknownSubtreeDecision,
+	type UnknownSubtreeOwnership,
+} from "./dirty-domains.js";
+
+export {
+	assertNoRestrictedProvenanceFields,
+	PROVENANCE_RESTRICTED_KEYS,
+	redactProvenanceForEvidence,
+	type DraftImportProvenanceV1,
+	type ProfileDetectionEvidence,
+	type ProfileDetectionOutcome,
+	type ProfileDetectionSignal,
+	type ProfileDetectionSignalKind,
+	type RawNodeBinding,
+	type RedactedProvenanceEvidence,
+} from "./provenance.js";
+
+export {
+	evaluateEnvelopeFileCandidate,
+	FOREIGN_ENVELOPE_SCHEMA_VERSION,
+	validateForeignEnvelopeEntries,
+	type EnvelopeAllowlistEvidenceKind,
+	type EnvelopeFileDecision,
+	type ForeignDraftEnvelopeV1,
+	type ForeignEnvelopeAllowlistEntry,
+	type ForeignEnvelopeEntry,
+	type ForeignEnvelopePayloadRef,
+} from "./foreign-envelope.js";
+
+export {
 	DRAFT_INTEROP_SCHEMA_VERSION,
 	DRAFT_INTEROP_TIME_UNIT,
 	parseDraftInteropDocumentV1,

@@ -13,7 +13,8 @@
 | Subtask | 状态 | 完成日期 | 说明 |
 | --- | --- | --- | --- |
 | JYI-001 Interop/capability/issues | ✅ 已完成 | 2026-08-04 | `packages/editor-core/src/draft-interop/{document,capability,issues}.ts` + `index.ts` 子路径导出；`DraftInteropDocumentV1`（整数微秒时基、fail-closed 验证 parser、精确 JSON-pointer 错误路径）、四态 capability（最严者胜的 combine/aggregate + 提交门控表逐行实现）、24 个稳定 issue code + 与 exporter 同构的 fingerprint（`\u001f` 分隔、message 不参与）。测试 [`draft-interop-document.test.ts`](../../../packages/editor-core/src/__tests__/draft-interop-document.test.ts)（11 用例：round-trip、嵌套路径、未知 code 拒绝、聚合、门控矩阵、fingerprint 稳定性） |
-| JYI-002 ~ JYI-018 | ⬜ 未开始 | | JYI-002（provenance/dirty-domains/envelope schema）为下一项 |
+| JYI-002 Provenance/dirty-domains/envelope | ✅ 已完成 | 2026-08-04 | `draft-interop/{provenance,dirty-domains,foreign-envelope}.ts`。七类脏域 + `evaluateUnknownSubtree`（preserve/drop/conflict：owner 删除→drop、structure 或 owned 域被改→conflict，绝不静默保留或丢弃）；provenance 带 RESTRICTED `restrictedSourcePaths`，`redactProvenanceForEvidence` 为唯一出口序列化（结构性剔除 + bindings 折叠为计数），`assertNoRestrictedProvenanceFields` 深度遍历 fail-closed；envelope schema 仅存元数据（字节走 `payloadRef` 加密引用，JYI-011），sidecar 准入 deny-by-default：硬拒绝（key store/.locked/logs/caches）压过 allowlist,路径穿越直接拒。设计决策：envelope 与 document 经 importId 关联而非内嵌（inspect-only 文档无 envelope；加密 payload 契约禁止内联字节）。测试 [`draft-interop-envelope.test.ts`](../../../packages/editor-core/src/__tests__/draft-interop-envelope.test.ts)（26 用例：所有权矩阵 10 例、准入 11 例、持久化拒绝、脱敏序列化） |
+| JYI-003 ~ JYI-018 | ⬜ 未开始 | | JYI-003（profile registry/detection）为下一项 |
 | JYR-001 ~ JYR-008 研究门禁 | ⬜ 未执行 | | 需真实剪映实验；只挡可写路径，不挡纯数据层 |
 
 ## 目标
