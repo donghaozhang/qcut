@@ -1,7 +1,4 @@
-import {
-	getTransitionLabRecipe,
-	TRANSITION_LAB_RECIPES,
-} from "../../../../../../../../electron/native-pipeline/transitions/transition-lab-catalog";
+import { TRANSITION_LAB_RECIPES } from "../../../../../../../../electron/native-pipeline/transitions/transition-lab-catalog";
 import {
 	defineTransitionPreset,
 	type TransitionPreset,
@@ -44,4 +41,4 @@ export const TRANSITION_LAB_PRESETS: TransitionPreset[] =
 		})
 	);
 
-export { getTransitionLabRecipe };
+export { getTransitionLabRecipe } from "../../../../../../../../electron/native-pipeline/transitions/transition-lab-catalog";
