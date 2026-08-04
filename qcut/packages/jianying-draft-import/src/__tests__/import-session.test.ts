@@ -125,6 +125,7 @@ describe("inspect", () => {
 		expect(inspect.profileId).toBe("jianying-synthetic-plaintext-5.9");
 		expect(inspect.canWrite).toBe(false);
 		expect(inspect.hasContentFile).toBe(true);
+		expect(inspect.fileCount).toBe(3);
 		expect(inspect.semantic?.trackCount).toBe(1);
 		expect(inspect.semantic?.segmentCount).toBe(1);
 		expect(inspect.semantic?.resourceCount).toBe(1);
@@ -344,6 +345,22 @@ describe("commit", () => {
 	it("refuses to commit after the source changed", async () => {
 		const plan = await session.plan({ input: { draftPath: draftRoot } });
 		await writeFile(join(draftRoot, "draft_info.json"), "{}");
+		await expect(
+			session.commit({
+				input: {
+					planToken: plan.plan.planToken,
+					acceptedWarningFingerprints: [...plan.plan.warningFingerprints],
+				},
+			})
+		).rejects.toMatchObject({ code: "source-changed" });
+	});
+
+	it("refuses to commit after resolved media bytes changed", async () => {
+		const plan = await session.plan({ input: { draftPath: draftRoot } });
+		await writeFile(
+			join(draftRoot, "assets", "clip.mp4"),
+			"changed-media-bytes"
+		);
 		await expect(
 			session.commit({
 				input: {
