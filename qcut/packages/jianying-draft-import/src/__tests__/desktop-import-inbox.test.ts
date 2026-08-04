@@ -273,3 +273,52 @@ describe("desktop import inbox", () => {
 		).rejects.toBeInstanceOf(DesktopImportInboxMalformedError);
 	});
 });
+
+describe("inbox fault tolerance (JYI-018)", () => {
+	it("lists readable siblings when one entry is corrupt", async () => {
+		await enqueueDesktopImport({
+			inboxDirectory,
+			commit,
+			entryId: "healthy",
+			nowUnixMilliseconds: NOW,
+		});
+		// Simulate a crash-truncated sibling: a visible entry directory whose
+		// manifest is garbage.
+		await mkdir(join(inboxDirectory, "corrupt"), { recursive: true });
+		await writeFile(
+			join(inboxDirectory, "corrupt", "manifest.v1.json"),
+			"{ truncated"
+		);
+
+		const summaries = await listDesktopImports({ inboxDirectory });
+		expect(summaries).toHaveLength(2);
+		const healthy = summaries.find((entry) => entry.entryId === "healthy");
+		expect(healthy?.unreadable).toBeUndefined();
+		expect(healthy?.projectName).toBe("Inbox Fixture");
+		const corrupt = summaries.find((entry) => entry.entryId === "corrupt");
+		expect(corrupt).toMatchObject({ unreadable: true, mediaCount: 0 });
+
+		// The corrupt entry stays unreadable and deletable.
+		await expect(
+			readDesktopImport({ inboxDirectory, entryId: "corrupt" })
+		).rejects.toThrow();
+		await deleteDesktopImport({ inboxDirectory, entryId: "corrupt" });
+		expect(await listDesktopImports({ inboxDirectory })).toHaveLength(1);
+	});
+
+	it("never lists in-flight temp directories", async () => {
+		await enqueueDesktopImport({
+			inboxDirectory,
+			commit,
+			entryId: "healthy",
+			nowUnixMilliseconds: NOW,
+		});
+		// Simulate a crash mid-enqueue: an orphaned staging dir with the
+		// hidden temp naming.
+		await mkdir(join(inboxDirectory, ".orphan.tmp"), { recursive: true });
+		await writeFile(join(inboxDirectory, ".orphan.tmp", "media-0.bin"), "x");
+
+		const summaries = await listDesktopImports({ inboxDirectory });
+		expect(summaries.map((entry) => entry.entryId)).toEqual(["healthy"]);
+	});
+});

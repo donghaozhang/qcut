@@ -389,3 +389,96 @@ describe("CapCut 8.1 same-profile writer", () => {
 		]);
 	});
 });
+
+describe("stale lock recovery (JYI-018)", () => {
+	it("clears a lock with no journal and unblocks the next writeback", async () => {
+		const fixture = await createDraftFixture();
+		// Simulate a crash between lock creation and journal creation: the
+		// lock exists, no journal exists, no mirror was touched.
+		const lockPath = join(
+			fixture.draftDirectory,
+			capCut81SameProfileWriterTesting.QCUT_LOCK_FILE_NAME
+		);
+		await writeFile(lockPath, `${randomUUID()}\n`);
+
+		// Without recovery, every writeback is locked out.
+		await expect(
+			writeCapCut81SameProfileContent({
+				contentBytes: contentBytes({
+					timelineId: fixture.timelineId,
+					timing: 2_000_000,
+				}),
+				draftDirectory: fixture.draftDirectory,
+				expectedSourceSha256: sha256({ bytes: fixture.originalBytes }),
+				profileId: CAPCUT_8_1_PROFILE_ID,
+			})
+		).rejects.toMatchObject({ code: "WRITEBACK_ALREADY_RUNNING" });
+
+		const recovery = await recoverCapCut81SameProfileWriteback({
+			draftDirectory: fixture.draftDirectory,
+		});
+		expect(recovery.action).toBe("cleared-stale-lock");
+		// Mirrors were never touched by the crashed transaction.
+		for (const bytes of await readMirrors(fixture)) {
+			expect([...bytes]).toEqual([...fixture.originalBytes]);
+		}
+
+		// A second recovery is a no-op, and writeback works again.
+		expect(
+			(
+				await recoverCapCut81SameProfileWriteback({
+					draftDirectory: fixture.draftDirectory,
+				})
+			).action
+		).toBe("none");
+		const written = await writeCapCut81SameProfileContent({
+			contentBytes: contentBytes({
+				timelineId: fixture.timelineId,
+				timing: 2_000_000,
+			}),
+			draftDirectory: fixture.draftDirectory,
+			expectedSourceSha256: sha256({ bytes: fixture.originalBytes }),
+			profileId: CAPCUT_8_1_PROFILE_ID,
+		});
+		expect(written.replacedMirrorCount).toBe(4);
+	});
+
+	it("still refuses recovery while a journal exists without rollbacks", async () => {
+		const fixture = await createDraftFixture();
+		// Lock plus a journal whose rollback mirrors are missing: this is NOT
+		// the stale-lock shape and must stay a hard RECOVERY_REQUIRED.
+		const transactionId = randomUUID();
+		await writeFile(
+			join(
+				fixture.draftDirectory,
+				capCut81SameProfileWriterTesting.JOURNAL_FILE_NAME
+			),
+			JSON.stringify({
+				schema: "qcut.capcut81.writeback-journal",
+				schemaVersion: 1,
+				transactionId,
+				timelineId: fixture.timelineId,
+				expectedSourceSha256: sha256({ bytes: fixture.originalBytes }),
+				contentSha256: sha256({
+					bytes: contentBytes({
+						timelineId: fixture.timelineId,
+						timing: 2_000_000,
+					}),
+				}),
+				committed: false,
+			})
+		);
+		await writeFile(
+			join(
+				fixture.draftDirectory,
+				capCut81SameProfileWriterTesting.QCUT_LOCK_FILE_NAME
+			),
+			`${transactionId}\n`
+		);
+		await expect(
+			recoverCapCut81SameProfileWriteback({
+				draftDirectory: fixture.draftDirectory,
+			})
+		).rejects.toMatchObject({ code: "RECOVERY_REQUIRED" });
+	});
+});

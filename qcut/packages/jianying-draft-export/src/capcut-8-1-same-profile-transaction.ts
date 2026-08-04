@@ -401,6 +401,18 @@ export async function recoverCapCut81SameProfileWriteback({
 	await assertCapCutClosed({ draftDirectory: canonical });
 	const journalPath = join(canonical, CAPCUT_WRITEBACK_JOURNAL_FILE_NAME);
 	if (!(await pathExists({ path: journalPath }))) {
+		// A lock with no journal means the writer crashed before any mirror
+		// was touched (mirror mutation starts only after the journal exists).
+		// Clearing it is safe and prevents a permanent
+		// WRITEBACK_ALREADY_RUNNING lockout.
+		const lockPath = join(canonical, CAPCUT_WRITEBACK_LOCK_FILE_NAME);
+		if (await pathExists({ path: lockPath })) {
+			await rm(lockPath, { force: true });
+			const warnings = await syncWritebackDirectories({
+				directories: [canonical],
+			});
+			return { action: "cleared-stale-lock", warnings };
+		}
 		return { action: "none", warnings: [] };
 	}
 	const journal = await readJournal({ journalPath });

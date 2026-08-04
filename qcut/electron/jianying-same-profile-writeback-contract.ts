@@ -32,7 +32,7 @@ export interface CapCut81WritebackCommitDto {
 }
 
 export interface CapCut81WritebackRecoveryDto {
-	action: "none" | "rolled-back" | "committed-cleanup";
+	action: "none" | "rolled-back" | "committed-cleanup" | "cleared-stale-lock";
 	transactionId?: string;
 	warnings: string[];
 }

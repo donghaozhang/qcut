@@ -54,7 +54,7 @@ export interface CapCut81SameProfileWritebackResult {
 }
 
 export interface CapCut81SameProfileRecoveryResult {
-	action: "none" | "rolled-back" | "committed-cleanup";
+	action: "none" | "rolled-back" | "committed-cleanup" | "cleared-stale-lock";
 	transactionId?: string;
 	warnings: string[];
 }

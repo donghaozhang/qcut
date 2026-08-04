@@ -51,6 +51,12 @@ export interface DesktopImportInboxEntrySummary {
 	projectName: string;
 	bundleDigest: string;
 	mediaCount: number;
+	/**
+	 * Set when the entry exists but cannot be validated (partial write,
+	 * corruption). It is listed — never silently hidden — so the user can
+	 * delete it; reading or publishing it stays impossible.
+	 */
+	unreadable?: true;
 }
 
 export class DesktopImportInboxMalformedError extends Error {
@@ -454,19 +460,34 @@ export async function listDesktopImports({
 		(entry) => entry.isDirectory() && SAFE_ENTRY_ID.test(entry.name)
 	);
 	const summaries = await Promise.all(
-		visibleEntries.map(async (entry) => {
-			const { commit, manifest } = await readInboxEntry({
-				inboxDirectory,
-				entryId: entry.name,
-			});
-			return {
-				entryId: entry.name,
-				createdAtUnixMilliseconds: manifest.createdAtUnixMilliseconds,
-				projectName: commit.bundle.document.project.name,
-				bundleDigest: commit.bundle.bundleDigest,
-				mediaCount: commit.mediaPayloads.length,
-			};
-		})
+		visibleEntries.map(
+			async (entry): Promise<DesktopImportInboxEntrySummary> => {
+				try {
+					const { commit, manifest } = await readInboxEntry({
+						inboxDirectory,
+						entryId: entry.name,
+					});
+					return {
+						entryId: entry.name,
+						createdAtUnixMilliseconds: manifest.createdAtUnixMilliseconds,
+						projectName: commit.bundle.document.project.name,
+						bundleDigest: commit.bundle.bundleDigest,
+						mediaCount: commit.mediaPayloads.length,
+					};
+				} catch {
+					// One corrupt entry must not hide its siblings — surface it
+					// as unreadable instead of failing the whole listing.
+					return {
+						entryId: entry.name,
+						createdAtUnixMilliseconds: 0,
+						projectName: "",
+						bundleDigest: "",
+						mediaCount: 0,
+						unreadable: true,
+					};
+				}
+			}
+		)
 	);
 	return summaries.sort(
 		(left, right) =>
