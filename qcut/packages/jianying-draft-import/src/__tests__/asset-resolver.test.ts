@@ -252,6 +252,90 @@ describe("resolveImportAssets", () => {
 		}
 	});
 
+	it("deduplicates shared file probes and reports hashed bytes", async () => {
+		const sharedPath = join(draftRoot, "shared.mp4");
+		await writeFile(sharedPath, "shared-bytes");
+		const resources = Array.from({ length: 4 }, (_, index) =>
+			createResource({ id: `res-${index}`, name: "shared.mp4" })
+		);
+		const paths = Object.fromEntries(
+			resources.map((resource) => [resource.id, sharedPath])
+		);
+
+		const result = await resolveImportAssets({
+			resources,
+			restrictedSourcePathsByResourceId: paths,
+			rootRealPath: draftRoot,
+		});
+
+		expect(result.assets.every((asset) => asset.status === "resolved")).toBe(
+			true
+		);
+		expect(result.cacheMetrics).toEqual({
+			schemaVersion: 1,
+			fileProbeHits: 3,
+			fileProbeMisses: 1,
+			nameSearchHits: 0,
+			nameSearchMisses: 0,
+			evictions: 0,
+			hashedBytes: 12,
+		});
+	});
+
+	it("deduplicates shared name searches and candidate probes", async () => {
+		await mkdir(join(draftRoot, "assets"));
+		await writeFile(join(draftRoot, "assets", "shared.wav"), "audio");
+		const resources = Array.from({ length: 4 }, (_, index) =>
+			createResource({ id: `res-${index}`, name: "shared.wav" })
+		);
+
+		const result = await resolveImportAssets({
+			resources,
+			restrictedSourcePathsByResourceId: {},
+			rootRealPath: draftRoot,
+		});
+
+		expect(result.assets.every((asset) => asset.status === "resolved")).toBe(
+			true
+		);
+		expect(result.cacheMetrics).toEqual({
+			schemaVersion: 1,
+			fileProbeHits: 3,
+			fileProbeMisses: 1,
+			nameSearchHits: 3,
+			nameSearchMisses: 1,
+			evictions: 0,
+			hashedBytes: 5,
+		});
+	});
+
+	it("bounds cache entries and reports deterministic evictions", async () => {
+		const resources: InteropResource[] = [];
+		const paths: Record<string, string> = {};
+		for (let index = 0; index < 3; index += 1) {
+			const id = `res-${index}`;
+			const filePath = join(draftRoot, `${id}.mp4`);
+			await writeFile(filePath, `bytes-${index}`);
+			resources.push(createResource({ id, name: `${id}.mp4` }));
+			paths[id] = filePath;
+		}
+
+		const result = await resolveImportAssets({
+			resources,
+			restrictedSourcePathsByResourceId: paths,
+			rootRealPath: draftRoot,
+			maxCacheEntries: 1,
+			maxConcurrentProbes: 1,
+		});
+
+		expect(result.cacheMetrics).toMatchObject({
+			fileProbeHits: 0,
+			fileProbeMisses: 3,
+			evictions: 2,
+			hashedBytes: 21,
+		});
+	});
+
 	it("rejects an out-of-range pool size", async () => {
 		await expect(
 			resolveImportAssets({
@@ -261,5 +345,16 @@ describe("resolveImportAssets", () => {
 				maxConcurrentProbes: 99,
 			})
 		).rejects.toThrow(/maxConcurrentProbes/);
+	});
+
+	it("rejects an out-of-range cache size", async () => {
+		await expect(
+			resolveImportAssets({
+				resources: [],
+				restrictedSourcePathsByResourceId: {},
+				rootRealPath: draftRoot,
+				maxCacheEntries: 0,
+			})
+		).rejects.toThrow(/cache entries/iu);
 	});
 });
