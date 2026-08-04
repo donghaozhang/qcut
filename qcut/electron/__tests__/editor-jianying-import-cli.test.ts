@@ -250,8 +250,6 @@ describe("resolveQCutCliUserDataDirectory", () => {
 				moduleDirectory: "/repo/dist/electron/native-pipeline/editor",
 				platform: "darwin",
 			})
-		).toBe(
-			"/Users/peter/Library/Application Support/QCut AI Video Editor"
-		);
+		).toBe("/Users/peter/Library/Application Support/QCut AI Video Editor");
 	});
 });
