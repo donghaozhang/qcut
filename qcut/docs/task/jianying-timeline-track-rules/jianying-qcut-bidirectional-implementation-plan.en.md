@@ -12,7 +12,7 @@
 
 | Subtask | Status | Completed | Notes |
 | --- | --- | --- | --- |
-| JYI-001 Interop/capability/issues | ✅ Done | 2026-08-04 | `packages/editor-core/src/draft-interop/{document,capability,issues}.ts` + `index.ts` subpath export; `DraftInteropDocumentV1` (integer-microsecond time base, fail-closed validating parser with precise JSON-pointer error paths), four-state capability (strictest-wins combine/aggregate plus the commit-gate table implemented row by row), 24 stable issue codes with exporter-style fingerprints (``-separated, message excluded). Tests: [`draft-interop-document.test.ts`](../../../packages/editor-core/src/__tests__/draft-interop-document.test.ts) (11 cases: round-trip, nested paths, unknown-code rejection, aggregation, gate matrix, fingerprint stability) |
+| JYI-001 Interop/capability/issues | ✅ Done | 2026-08-04 | `packages/editor-core/src/draft-interop/{document,capability,issues}.ts` + `index.ts` subpath export; `DraftInteropDocumentV1` (integer-microsecond time base, fail-closed validating parser with precise JSON-pointer error paths), four-state capability (strictest-wins combine/aggregate plus the commit-gate table implemented row by row), 24 stable issue codes with exporter-style fingerprints (`\u001f`-separated, message excluded). Tests: [`draft-interop-document.test.ts`](../../../packages/editor-core/src/__tests__/draft-interop-document.test.ts) (11 cases: round-trip, nested paths, unknown-code rejection, aggregation, gate matrix, fingerprint stability) |
 | JYI-002 – JYI-018 | ⬜ Not started | | JYI-002 (provenance / dirty domains / envelope schema) is next |
 | JYR-001 – JYR-008 research gates | ⬜ Not run | | Need real-app experiments; they gate writable paths only, not the pure data layer |
 
