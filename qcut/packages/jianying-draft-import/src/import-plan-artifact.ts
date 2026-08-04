@@ -94,6 +94,29 @@ function createIssueSetFingerprint({
 	return createSha256({ value: identities.join("\u001d") });
 }
 
+function createResourceEvidence({
+	document,
+}: {
+	document: DraftInteropDocumentV1;
+}): readonly Record<string, unknown>[] {
+	return [...document.resources]
+		.sort((left, right) =>
+			left.id < right.id ? -1 : left.id > right.id ? 1 : 0
+		)
+		.map((resource) => ({
+			byteLength: resource.byteLength ?? null,
+			capability: resource.capability,
+			durationUs: resource.durationUs ?? null,
+			foreignRef: resource.foreignRef ?? null,
+			id: resource.id,
+			kind: resource.kind,
+			name: resource.name ?? null,
+			originHint: resource.originHint ?? null,
+			sha256: resource.sha256 ?? null,
+			status: resource.status,
+		}));
+}
+
 export function createImportPlanToken(): string {
 	return randomBytes(32).toString("base64url");
 }
@@ -153,6 +176,7 @@ export function createImportPlanArtifact({
 				sha256: file.sha256,
 			})),
 			profileId: profileId ?? null,
+			resources: createResourceEvidence({ document }),
 			rootRealPath: snapshot.rootRealPath,
 		}),
 	});
