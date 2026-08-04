@@ -96,6 +96,41 @@ function unexpectedFailure({ error }: { error: unknown }) {
 	};
 }
 
+export function isCapCutWritebackSnapshotCurrent({
+	capturedProject,
+	capturedSnapshot,
+	currentProject,
+	currentTracks,
+}: {
+	capturedProject: TProject;
+	capturedSnapshot: ReturnType<typeof createCapCut81WritebackTimingSnapshot>;
+	currentProject: TProject | null;
+	currentTracks: readonly TimelineTrack[];
+}): boolean {
+	const capturedBinding = capturedProject.draftInterop;
+	const currentBinding = currentProject?.draftInterop;
+	if (
+		currentProject === null ||
+		capturedBinding === undefined ||
+		currentBinding === undefined ||
+		currentBinding.writeback.status !== "ready" ||
+		currentProject.id !== capturedProject.id ||
+		currentProject.currentSceneId !== capturedProject.currentSceneId ||
+		(currentProject.fps ?? 30) !== (capturedProject.fps ?? 30) ||
+		currentBinding.profileId !== capturedBinding.profileId ||
+		currentBinding.importId !== capturedBinding.importId ||
+		currentBinding.bundleDigest !== capturedBinding.bundleDigest
+	) {
+		return false;
+	}
+
+	const currentSnapshot = createCapCut81WritebackTimingSnapshot({
+		fps: currentProject.fps ?? 30,
+		tracks: currentTracks,
+	});
+	return JSON.stringify(currentSnapshot) === JSON.stringify(capturedSnapshot);
+}
+
 export function useCapCutSameProfileWriteback({
 	bridgeAvailable = hasDefaultBridge(),
 	project,
@@ -107,6 +142,8 @@ export function useCapCutSameProfileWriteback({
 		phase: "idle",
 	});
 	const operationIdRef = useRef(0);
+	const latestInputRef = useRef({ project, tracks });
+	latestInputRef.current = { project, tracks };
 	const isVisible = project?.draftInterop?.profileId === CAPCUT_8_1_PROFILE_ID;
 	const availabilityReason = useMemo(
 		() => getCapCutWritebackAvailability({ bridgeAvailable, project }),
@@ -124,12 +161,26 @@ export function useCapCutSameProfileWriteback({
 		operationIdRef.current = operationId;
 		setState({ phase: "writing" });
 		try {
+			const capturedSnapshot = createCapCut81WritebackTimingSnapshot({
+				fps: project.fps ?? 30,
+				tracks,
+			});
 			const result = await runWriteback({
+				deps: {
+					verifySnapshotCurrent: ({ project: capturedProject, snapshot }) => {
+						const current = latestInputRef.current;
+						return Promise.resolve(
+							isCapCutWritebackSnapshotCurrent({
+								capturedProject,
+								capturedSnapshot: snapshot,
+								currentProject: current.project,
+								currentTracks: current.tracks,
+							})
+						);
+					},
+				},
 				project,
-				snapshot: createCapCut81WritebackTimingSnapshot({
-					fps: project.fps ?? 30,
-					tracks,
-				}),
+				snapshot: capturedSnapshot,
 			});
 			if (operationIdRef.current !== operationId) return;
 			setState(
