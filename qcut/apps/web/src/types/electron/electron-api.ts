@@ -44,6 +44,7 @@ import type { ElectronWallpaperOps } from "./api-wallpapers";
 import type { ElectronJianyingDraftExportOps } from "./api-jianying-draft-export";
 import type { ElectronJianyingEnvelopeOps } from "./api-jianying-envelope";
 import type { ElectronJianyingDraftImportOps } from "./api-jianying-draft-import";
+import type { ElectronJianyingSameProfileWritebackOps } from "./api-jianying-same-profile-writeback";
 import type {
 	AIPipelineProgress,
 	AIPipelineGenerateOptions,
@@ -88,7 +89,8 @@ export interface ElectronAPI
 		ElectronWallpaperOps,
 		ElectronJianyingDraftExportOps,
 		ElectronJianyingEnvelopeOps,
-		ElectronJianyingDraftImportOps {
+		ElectronJianyingDraftImportOps,
+		ElectronJianyingSameProfileWritebackOps {
 	// System info
 	platform: string;
 	isElectron: boolean;
