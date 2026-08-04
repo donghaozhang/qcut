@@ -21,9 +21,9 @@ import type {
 
 const MICROSECONDS_PER_SECOND = 1_000_000;
 
-export type QCutImportPlanTrackType = "media" | "audio";
+export type QCutImportPlanTrackType = "media" | "audio" | "text";
 
-export interface QCutImportPlanElement {
+export interface QCutImportPlanMediaElement {
 	/** Deterministic: reuses the semantic segment id. */
 	id: string;
 	type: "media";
@@ -39,6 +39,47 @@ export interface QCutImportPlanElement {
 	speed?: number;
 	sourceSegmentId: string;
 }
+
+export interface QCutImportPlanTextElement {
+	id: string;
+	type: "text";
+	name: string;
+	startTime: number;
+	duration: number;
+	trimStart: 0;
+	trimEnd: 0;
+	content: string;
+	fontSize: number;
+	fontFamily: string;
+	color: string;
+	backgroundColor: string;
+	textAlign: "left" | "center" | "right";
+	fontWeight: "normal" | "bold";
+	fontStyle: "normal" | "italic";
+	textDecoration: "none" | "underline";
+	x: number;
+	y: number;
+	rotation: number;
+	opacity: number;
+	letterSpacing?: number;
+	width?: number;
+	strokeColor?: string;
+	strokeWidth?: number;
+	strokeOpacity?: number;
+	backgroundOpacity?: number;
+	backgroundRadius?: number;
+	backgroundPadding?: number;
+	shadowColor?: string;
+	shadowOpacity?: number;
+	shadowOffsetX?: number;
+	shadowOffsetY?: number;
+	shadowBlur?: number;
+	sourceSegmentId: string;
+}
+
+export type QCutImportPlanElement =
+	| QCutImportPlanMediaElement
+	| QCutImportPlanTextElement;
 
 export interface QCutImportPlanTransition {
 	id: string;
@@ -89,7 +130,7 @@ function usToSeconds(us: number): number {
 	return us / MICROSECONDS_PER_SECOND;
 }
 
-function mapSegment({
+function mapMediaSegment({
 	segment,
 	resourcesById,
 	skipped,
@@ -97,7 +138,7 @@ function mapSegment({
 	segment: InteropSegment;
 	resourcesById: Map<string, InteropResource>;
 	skipped: QCutImportSkippedNode[];
-}): QCutImportPlanElement | null {
+}): QCutImportPlanMediaElement | null {
 	if (!IMPORTABLE_SEGMENT_KINDS.has(segment.kind)) {
 		skipped.push({
 			nodeId: segment.id,
@@ -157,6 +198,79 @@ function mapSegment({
 	};
 }
 
+function mapTextSegment({
+	segment,
+	skipped,
+}: {
+	segment: InteropSegment;
+	skipped: QCutImportSkippedNode[];
+}): QCutImportPlanTextElement | null {
+	if (
+		segment.kind !== "text" ||
+		segment.text === undefined ||
+		(segment.capability !== "exact" && segment.capability !== "downgrade")
+	) {
+		skipped.push({
+			nodeId: segment.id,
+			nodeType: "segment",
+			capability: segment.capability,
+			reason: "text segment is outside the accepted static import subset",
+		});
+		return null;
+	}
+	const { text } = segment;
+	return {
+		id: segment.id,
+		type: "text",
+		name: text.content || segment.id,
+		startTime: usToSeconds(segment.targetRange.startUs),
+		duration: usToSeconds(segment.targetRange.durationUs),
+		trimStart: 0,
+		trimEnd: 0,
+		content: text.content,
+		fontSize: text.fontSizePx,
+		fontFamily: text.fontFamily,
+		color: text.color,
+		backgroundColor: text.background?.color ?? "transparent",
+		textAlign: text.textAlign,
+		fontWeight: text.fontWeight,
+		fontStyle: text.fontStyle,
+		textDecoration: text.textDecoration,
+		x: text.xPx,
+		y: text.yPx,
+		rotation: text.rotationDegrees,
+		opacity: text.opacity,
+		...(text.letterSpacingPx === undefined
+			? {}
+			: { letterSpacing: text.letterSpacingPx }),
+		...(text.widthPx === undefined ? {} : { width: text.widthPx }),
+		...(text.stroke === undefined
+			? {}
+			: {
+					strokeColor: text.stroke.color,
+					strokeWidth: text.stroke.widthPx,
+					strokeOpacity: text.stroke.opacity,
+				}),
+		...(text.background === undefined
+			? {}
+			: {
+					backgroundOpacity: text.background.opacity,
+					backgroundRadius: text.background.radiusPx,
+					backgroundPadding: text.background.paddingPx,
+				}),
+		...(text.shadow === undefined
+			? {}
+			: {
+					shadowColor: text.shadow.color,
+					shadowOpacity: text.shadow.opacity,
+					shadowOffsetX: text.shadow.offsetXPx,
+					shadowOffsetY: text.shadow.offsetYPx,
+					shadowBlur: text.shadow.blurPx,
+				}),
+		sourceSegmentId: segment.id,
+	};
+}
+
 function mapTransition({
 	transition,
 	importedElementIds,
@@ -208,7 +322,13 @@ function mapTrack({
 	skipped: QCutImportSkippedNode[];
 }): QCutImportPlanTrack | null {
 	const type: QCutImportPlanTrackType | null =
-		track.kind === "video" ? "media" : track.kind === "audio" ? "audio" : null;
+		track.kind === "video"
+			? "media"
+			: track.kind === "audio"
+				? "audio"
+				: track.kind === "text"
+					? "text"
+					: null;
 	if (type === null) {
 		skipped.push({
 			nodeId: track.id,
@@ -229,7 +349,10 @@ function mapTrack({
 	}
 	const elements: QCutImportPlanElement[] = [];
 	for (const segment of track.segments) {
-		const element = mapSegment({ segment, resourcesById, skipped });
+		const element =
+			type === "text"
+				? mapTextSegment({ segment, skipped })
+				: mapMediaSegment({ segment, resourcesById, skipped });
 		if (element !== null) {
 			elements.push(element);
 		}
@@ -268,7 +391,7 @@ function mapTrack({
 	return {
 		id: track.id,
 		type,
-		name: type === "media" ? "Video" : "Audio",
+		name: type === "media" ? "Video" : type === "audio" ? "Audio" : "Text",
 		order: track.order,
 		...(track.isMain === true ? { isMain: true } : {}),
 		elements,
@@ -302,7 +425,9 @@ export function mapInteropDocumentToQCutPlan({
 	const resourceIds = [
 		...new Set(
 			tracks.flatMap((track) =>
-				track.elements.map((element) => element.resourceId)
+				track.elements.flatMap((element) =>
+					element.type === "media" ? [element.resourceId] : []
+				)
 			)
 		),
 	];
