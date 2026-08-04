@@ -986,6 +986,7 @@ describe("recoverPendingImports", () => {
 		const result = await recoverPendingImports({ journal, storage });
 		expect(result.rolledBackImportIds).toEqual(["crashed"]);
 		expect(result.completedImportIds).toEqual(["finished"]);
+		expect(result.corruptJournalRecordCount).toBe(0);
 		expect(storage.media.has("p-crashed")).toBe(false);
 		expect(storage.projects.has("p-finished")).toBe(true);
 		expect(journalAdapter.map.size).toBe(0);
@@ -1001,7 +1002,35 @@ describe("recoverPendingImports", () => {
 		await journal.markPublished({ importId: "ghost" });
 		const result = await recoverPendingImports({ journal, storage });
 		expect(result.rolledBackImportIds).toEqual(["ghost"]);
+		expect(result.corruptJournalRecordCount).toBe(0);
 		expect(journalAdapter.map.size).toBe(0);
+	});
+
+	it("leaves corrupt records and their claimed project data untouched", async () => {
+		const victimProject = { id: "victim-project" } as TProject;
+		storage.projects.set(victimProject.id, victimProject);
+		journalAdapter.map.set("corrupt-key", {
+			schemaVersion: 1,
+			importId: "different-import",
+			bundleDigest: "d".repeat(64),
+			phase: "staging",
+			projectId: victimProject.id,
+			sceneId: "victim-scene",
+			mediaItemIds: [],
+			startedAtIso: "2026-08-05T00:00:00.000Z",
+			updatedAtIso: "2026-08-05T00:00:00.000Z",
+		});
+
+		const result = await recoverPendingImports({ journal, storage });
+
+		expect(result).toEqual({
+			rolledBackImportIds: [],
+			completedImportIds: [],
+			corruptJournalRecordCount: 1,
+		});
+		expect(storage.projects.get(victimProject.id)).toBe(victimProject);
+		expect(storage.calls).toEqual([]);
+		expect(journalAdapter.map.has("corrupt-key")).toBe(true);
 	});
 
 	it("keeps records it cannot recover for the next startup", async () => {
@@ -1020,6 +1049,7 @@ describe("recoverPendingImports", () => {
 			storage: failingStorage,
 		});
 		expect(result.rolledBackImportIds).toEqual([]);
+		expect(result.corruptJournalRecordCount).toBe(0);
 		expect(journalAdapter.map.size).toBe(1);
 	});
 });
