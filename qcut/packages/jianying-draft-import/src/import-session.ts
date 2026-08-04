@@ -41,6 +41,7 @@ import {
 	resolveImportAssets,
 	type ResolvedImportAsset,
 } from "./asset-resolver.js";
+import type { AssetResolutionCacheMetrics } from "./asset-resolution-work-cache.js";
 import { discoverDraftDirectory } from "./discovery.js";
 import {
 	createImportPlanArtifact,
@@ -123,6 +124,9 @@ export interface DraftImportPlanDto {
 	plan: RedactedImportPlanArtifact;
 	inspect: DraftImportInspectDto;
 	assetStatuses: Record<string, ResolvedImportAsset["status"]>;
+	cacheMetrics: {
+		assetResolution: AssetResolutionCacheMetrics;
+	};
 }
 
 export interface DraftImportMediaPayloadDto {
@@ -157,6 +161,7 @@ interface PreparedExactImport {
 	detection: ProfileDetectionResult;
 	document: DraftInteropDocumentV1;
 	assets: ResolvedImportAsset[];
+	assetResolutionCacheMetrics: AssetResolutionCacheMetrics;
 	bindings: RawNodeBinding[];
 }
 
@@ -469,11 +474,12 @@ export class JianyingDraftImportSession {
 			});
 		}
 
-		const { assets, resolvedResources } = await resolveImportAssets({
-			resources: document.resources,
-			restrictedSourcePathsByResourceId,
-			rootRealPath: snapshot.rootRealPath,
-		});
+		const { assets, cacheMetrics, resolvedResources } =
+			await resolveImportAssets({
+				resources: document.resources,
+				restrictedSourcePathsByResourceId,
+				rootRealPath: snapshot.rootRealPath,
+			});
 		const assetIssues = assets.flatMap((asset) => asset.issues);
 		return {
 			inspect: {
@@ -488,14 +494,21 @@ export class JianyingDraftImportSession {
 				issues: [...document.issues, ...assetIssues],
 			},
 			assets,
+			assetResolutionCacheMetrics: cacheMetrics,
 			bindings,
 		};
 	}
 
 	/** Inspect + resolve + plan artifact + shared bundle under one token. */
 	async plan({ input }: { input: unknown }): Promise<DraftImportPlanDto> {
-		const { inspect, snapshot, detection, document, assets } =
-			await this.#prepareExactImport({ input });
+		const {
+			inspect,
+			snapshot,
+			detection,
+			document,
+			assets,
+			assetResolutionCacheMetrics,
+		} = await this.#prepareExactImport({ input });
 
 		const artifact = createImportPlanArtifact({
 			snapshot,
@@ -535,6 +548,9 @@ export class JianyingDraftImportSession {
 			assetStatuses: Object.fromEntries(
 				assets.map((asset) => [asset.resourceId, asset.status])
 			),
+			cacheMetrics: {
+				assetResolution: assetResolutionCacheMetrics,
+			},
 		};
 	}
 
