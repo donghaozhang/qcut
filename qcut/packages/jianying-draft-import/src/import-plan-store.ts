@@ -62,6 +62,18 @@ interface StoredImportPlan {
 	status: "ready" | "consumed";
 }
 
+export const IMPORT_PLAN_STORE_STATE_SCHEMA_VERSION = 1 as const;
+
+export interface ImportPlanStoreStateEntry {
+	artifact: ImportPlanArtifactV1;
+	status: StoredImportPlan["status"];
+}
+
+export interface ImportPlanStoreStateV1 {
+	schemaVersion: typeof IMPORT_PLAN_STORE_STATE_SCHEMA_VERSION;
+	entries: readonly ImportPlanStoreStateEntry[];
+}
+
 export class ImportPlanStore {
 	readonly #buildIdentity: ImportPlanBuildIdentity;
 	readonly #maxStoredPlans: number;
@@ -72,11 +84,13 @@ export class ImportPlanStore {
 		buildIdentity,
 		maxStoredPlans = DEFAULT_MAX_STORED_PLANS,
 		now = Date.now,
+		initialState,
 	}: {
 		buildIdentity: ImportPlanBuildIdentity;
 		maxStoredPlans?: number;
 		/** Injectable clock for TTL tests. */
 		now?: () => number;
+		initialState?: ImportPlanStoreStateV1;
 	}) {
 		if (
 			!Number.isSafeInteger(maxStoredPlans) ||
@@ -90,6 +104,30 @@ export class ImportPlanStore {
 		this.#buildIdentity = { ...buildIdentity };
 		this.#maxStoredPlans = maxStoredPlans;
 		this.#now = now;
+		if (initialState !== undefined) {
+			this.#restore({ state: initialState });
+		}
+	}
+
+	#restore({ state }: { state: ImportPlanStoreStateV1 }): void {
+		if (state.schemaVersion !== IMPORT_PLAN_STORE_STATE_SCHEMA_VERSION) {
+			throw new Error("Import plan store state schema is unsupported.");
+		}
+		if (state.entries.length > this.#maxStoredPlans) {
+			throw new ImportPlanStoreFullError();
+		}
+		for (const entry of state.entries) {
+			if (
+				(entry.status !== "ready" && entry.status !== "consumed") ||
+				this.#plans.has(entry.artifact.planToken)
+			) {
+				throw new Error("Import plan store state is invalid.");
+			}
+			this.#plans.set(entry.artifact.planToken, {
+				artifact: entry.artifact,
+				status: entry.status,
+			});
+		}
 	}
 
 	#purgeExpired({
@@ -167,6 +205,18 @@ export class ImportPlanStore {
 	get size(): number {
 		this.#purgeExpired({ nowUnixMilliseconds: this.#now() });
 		return this.#plans.size;
+	}
+
+	/** Restricted state for the private persistence adapter only. */
+	exportState(): ImportPlanStoreStateV1 {
+		this.#purgeExpired({ nowUnixMilliseconds: this.#now() });
+		return {
+			schemaVersion: IMPORT_PLAN_STORE_STATE_SCHEMA_VERSION,
+			entries: [...this.#plans.values()].map(({ artifact, status }) => ({
+				artifact,
+				status,
+			})),
+		};
 	}
 
 	dispose(): void {
