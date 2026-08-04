@@ -16,6 +16,7 @@ import type {
 	InteropResource,
 	InteropSegment,
 	InteropTrack,
+	InteropTransition,
 } from "../../draft-interop/document.js";
 
 const MICROSECONDS_PER_SECOND = 1_000_000;
@@ -39,6 +40,16 @@ export interface QCutImportPlanElement {
 	sourceSegmentId: string;
 }
 
+export interface QCutImportPlanTransition {
+	id: string;
+	fromElementId: string;
+	toElementId: string;
+	presetId: "dissolve";
+	type: "dissolve";
+	duration: number;
+	easing: "easeInOut";
+}
+
 export interface QCutImportPlanTrack {
 	id: string;
 	type: QCutImportPlanTrackType;
@@ -46,12 +57,13 @@ export interface QCutImportPlanTrack {
 	order: number;
 	isMain?: boolean;
 	elements: QCutImportPlanElement[];
+	transitions?: QCutImportPlanTransition[];
 	sourceTrackId: string;
 }
 
 export interface QCutImportSkippedNode {
 	nodeId: string;
-	nodeType: "track" | "segment";
+	nodeType: "track" | "segment" | "transition";
 	capability: InteropCapability;
 	reason: string;
 }
@@ -145,6 +157,47 @@ function mapSegment({
 	};
 }
 
+function mapTransition({
+	transition,
+	importedElementIds,
+	skipped,
+}: {
+	transition: InteropTransition;
+	importedElementIds: ReadonlySet<string>;
+	skipped: QCutImportSkippedNode[];
+}): QCutImportPlanTransition | null {
+	if (transition.capability !== "exact" || transition.type !== "dissolve") {
+		skipped.push({
+			nodeId: transition.id,
+			nodeType: "transition",
+			capability: transition.capability,
+			reason: "transition is not an exact native dissolve",
+		});
+		return null;
+	}
+	if (
+		!importedElementIds.has(transition.fromSegmentId) ||
+		!importedElementIds.has(transition.toSegmentId)
+	) {
+		skipped.push({
+			nodeId: transition.id,
+			nodeType: "transition",
+			capability: "blocked",
+			reason: "transition endpoint is not imported on this track",
+		});
+		return null;
+	}
+	return {
+		id: transition.id,
+		fromElementId: transition.fromSegmentId,
+		toElementId: transition.toSegmentId,
+		presetId: "dissolve",
+		type: "dissolve",
+		duration: usToSeconds(transition.durationUs),
+		easing: "easeInOut",
+	};
+}
+
 function mapTrack({
 	track,
 	resourcesById,
@@ -190,6 +243,28 @@ function mapTrack({
 		});
 		return null;
 	}
+	const importedElementIds = new Set(elements.map((element) => element.id));
+	const transitions =
+		type === "media"
+			? (track.transitions ?? [])
+					.map((transition) =>
+						mapTransition({ transition, importedElementIds, skipped })
+					)
+					.filter(
+						(transition): transition is QCutImportPlanTransition =>
+							transition !== null
+					)
+			: [];
+	if (type !== "media") {
+		for (const transition of track.transitions ?? []) {
+			skipped.push({
+				nodeId: transition.id,
+				nodeType: "transition",
+				capability: "blocked",
+				reason: "visual transitions require a media track",
+			});
+		}
+	}
 	return {
 		id: track.id,
 		type,
@@ -197,6 +272,7 @@ function mapTrack({
 		order: track.order,
 		...(track.isMain === true ? { isMain: true } : {}),
 		elements,
+		...(transitions.length === 0 ? {} : { transitions }),
 		sourceTrackId: track.id,
 	};
 }
