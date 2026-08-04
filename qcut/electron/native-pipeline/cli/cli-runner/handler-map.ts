@@ -111,6 +111,11 @@ import {
 	handleStickerSearch,
 } from "../cli-handlers-stickers.js";
 import { handleInstancesCommand } from "../instance-selection.js";
+import {
+	handleTransitionDoctor,
+	handleTransitionList,
+	handleTransitionRender,
+} from "../cli-handlers-jianying-transitions.js";
 
 /**
  * Unified handler signature.
@@ -162,6 +167,9 @@ function wrapOPS(
 export const HANDLER_MAP: Record<string, CommandHandler> = {
 	"instances-list": wrap(handleInstancesCommand),
 	"instances-use": wrap(handleInstancesCommand),
+	"transition-list": wrap0(handleTransitionList),
+	"transition-doctor": wrap0(handleTransitionDoctor),
+	"transition-render": wrapOP(handleTransitionRender),
 	// ── Generation ──
 	"generate-image": async (options, onProgress, executor, signal) =>
 		options.grid
