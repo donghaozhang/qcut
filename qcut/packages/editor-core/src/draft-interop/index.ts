@@ -53,6 +53,7 @@ export {
 export {
 	evaluateEnvelopeFileCandidate,
 	FOREIGN_ENVELOPE_SCHEMA_VERSION,
+	parseForeignDraftEnvelopeV1,
 	validateForeignEnvelopeEntries,
 	type EnvelopeAllowlistEvidenceKind,
 	type EnvelopeFileDecision,
@@ -60,6 +61,7 @@ export {
 	type ForeignEnvelopeAllowlistEntry,
 	type ForeignEnvelopeEntry,
 	type ForeignEnvelopePayloadRef,
+	type ParseForeignDraftEnvelopeResult,
 } from "./foreign-envelope.js";
 
 export {

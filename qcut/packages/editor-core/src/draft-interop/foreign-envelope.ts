@@ -16,6 +16,7 @@ import type {
 	InteropDirtyDomain,
 	UnknownSubtreeOwnership,
 } from "./dirty-domains.js";
+import { isInteropDirtyDomain } from "./dirty-domains.js";
 import type { RawNodeBinding } from "./provenance.js";
 
 export const FOREIGN_ENVELOPE_SCHEMA_VERSION = 1 as const;
@@ -133,6 +134,156 @@ export interface ForeignDraftEnvelopeV1 {
 	dirtyDomains: InteropDirtyDomain[];
 	acceptedDowngradeFingerprints: string[];
 	payloadRef?: ForeignEnvelopePayloadRef;
+}
+
+export type ParseForeignDraftEnvelopeResult =
+	| { ok: true; envelope: ForeignDraftEnvelopeV1 }
+	| { ok: false; reason: string };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isSha256(value: unknown): value is string {
+	return typeof value === "string" && /^[0-9a-f]{64}$/.test(value);
+}
+
+function parsePayloadRef(
+	value: unknown
+): ForeignEnvelopePayloadRef | undefined {
+	if (!isRecord(value)) return undefined;
+	if (
+		!Number.isSafeInteger(value.keyVersion) ||
+		(value.keyVersion as number) < 1 ||
+		value.cipher !== "os-keychain-wrapped" ||
+		typeof value.location !== "string" ||
+		value.location.length === 0
+	) {
+		return undefined;
+	}
+	return {
+		keyVersion: value.keyVersion as number,
+		cipher: value.cipher,
+		location: value.location,
+	};
+}
+
+/** Parses untrusted IPC/storage metadata without admitting partial shapes. */
+export function parseForeignDraftEnvelopeV1(
+	value: unknown
+): ParseForeignDraftEnvelopeResult {
+	if (!isRecord(value)) return { ok: false, reason: "expected an object" };
+	if (
+		value.schemaVersion !== FOREIGN_ENVELOPE_SCHEMA_VERSION ||
+		typeof value.importId !== "string" ||
+		value.importId.length === 0 ||
+		typeof value.profileId !== "string" ||
+		value.profileId.length === 0 ||
+		!Array.isArray(value.entries) ||
+		!Array.isArray(value.bindings) ||
+		!Array.isArray(value.unknownSubtrees) ||
+		!Array.isArray(value.dirtyDomains) ||
+		!Array.isArray(value.acceptedDowngradeFingerprints)
+	) {
+		return { ok: false, reason: "missing required envelope fields" };
+	}
+
+	const entries: ForeignEnvelopeEntry[] = [];
+	for (const candidate of value.entries) {
+		if (
+			!isRecord(candidate) ||
+			typeof candidate.relativePath !== "string" ||
+			!isSha256(candidate.sha256) ||
+			!Number.isSafeInteger(candidate.byteLength) ||
+			(candidate.byteLength as number) < 0 ||
+			typeof candidate.allowlistEntryId !== "string" ||
+			candidate.allowlistEntryId.length === 0 ||
+			(candidate.storage !== "raw" && candidate.storage !== "compressed")
+		) {
+			return { ok: false, reason: "malformed envelope entry" };
+		}
+		entries.push({
+			relativePath: candidate.relativePath,
+			sha256: candidate.sha256,
+			byteLength: candidate.byteLength as number,
+			allowlistEntryId: candidate.allowlistEntryId,
+			storage: candidate.storage,
+		});
+	}
+
+	const bindings: RawNodeBinding[] = [];
+	for (const candidate of value.bindings) {
+		if (
+			!isRecord(candidate) ||
+			typeof candidate.foreignRef !== "string" ||
+			typeof candidate.file !== "string" ||
+			typeof candidate.jsonPointer !== "string" ||
+			(candidate.semanticId !== undefined &&
+				typeof candidate.semanticId !== "string")
+		) {
+			return { ok: false, reason: "malformed envelope binding" };
+		}
+		bindings.push({
+			foreignRef: candidate.foreignRef,
+			file: candidate.file,
+			jsonPointer: candidate.jsonPointer,
+			...(candidate.semanticId === undefined
+				? {}
+				: { semanticId: candidate.semanticId as string }),
+		});
+	}
+
+	const unknownSubtrees: UnknownSubtreeOwnership[] = [];
+	for (const candidate of value.unknownSubtrees) {
+		if (
+			!isRecord(candidate) ||
+			typeof candidate.foreignRef !== "string" ||
+			typeof candidate.ownerSemanticId !== "string" ||
+			!Array.isArray(candidate.ownedDomains) ||
+			!candidate.ownedDomains.every(isInteropDirtyDomain)
+		) {
+			return { ok: false, reason: "malformed unknown-subtree ownership" };
+		}
+		unknownSubtrees.push({
+			foreignRef: candidate.foreignRef,
+			ownerSemanticId: candidate.ownerSemanticId,
+			ownedDomains: [...candidate.ownedDomains],
+		});
+	}
+
+	if (
+		!value.dirtyDomains.every(isInteropDirtyDomain) ||
+		!value.acceptedDowngradeFingerprints.every(
+			(fingerprint) => typeof fingerprint === "string"
+		)
+	) {
+		return { ok: false, reason: "malformed envelope policy fields" };
+	}
+	const payloadRef =
+		value.payloadRef === undefined
+			? undefined
+			: parsePayloadRef(value.payloadRef);
+	if (value.payloadRef !== undefined && payloadRef === undefined) {
+		return { ok: false, reason: "malformed envelope payload reference" };
+	}
+
+	const envelope: ForeignDraftEnvelopeV1 = {
+		schemaVersion: FOREIGN_ENVELOPE_SCHEMA_VERSION,
+		importId: value.importId,
+		profileId: value.profileId,
+		entries,
+		bindings,
+		unknownSubtrees,
+		dirtyDomains: [...value.dirtyDomains],
+		acceptedDowngradeFingerprints: [
+			...value.acceptedDowngradeFingerprints,
+		] as string[],
+		...(payloadRef === undefined ? {} : { payloadRef }),
+	};
+	const validation = validateForeignEnvelopeEntries({ envelope });
+	return validation.ok
+		? { ok: true, envelope }
+		: { ok: false, reason: validation.violations.join("; ") };
 }
 
 /**

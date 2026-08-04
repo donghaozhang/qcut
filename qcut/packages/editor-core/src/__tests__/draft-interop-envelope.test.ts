@@ -6,6 +6,7 @@ import {
 } from "../draft-interop/dirty-domains.js";
 import {
 	evaluateEnvelopeFileCandidate,
+	parseForeignDraftEnvelopeV1,
 	validateForeignEnvelopeEntries,
 	type ForeignDraftEnvelopeV1,
 	type ForeignEnvelopeAllowlistEntry,
@@ -159,6 +160,80 @@ describe("foreign envelope deny-by-default", () => {
 			"unsafe path: ../escape.json",
 			"hard-denied path: crypto_key_store.dat",
 		]);
+	});
+
+	it("parses a complete persisted envelope", () => {
+		const result = parseForeignDraftEnvelopeV1({
+			schemaVersion: 1,
+			importId: "import-1",
+			profileId: "capcut-desktop-8.1-plaintext",
+			entries: [
+				{
+					relativePath: "draft_info.json",
+					sha256: "a".repeat(64),
+					byteLength: 10,
+					allowlistEntryId: "content-file",
+					storage: "raw",
+				},
+			],
+			bindings: [
+				{
+					foreignRef: "raw:0",
+					file: "draft_info.json",
+					jsonPointer: "/tracks/0",
+					semanticId: "track-0",
+				},
+			],
+			unknownSubtrees: [
+				{
+					foreignRef: "raw:1",
+					ownerSemanticId: "track-0",
+					ownedDomains: ["style"],
+				},
+			],
+			dirtyDomains: ["metadata"],
+			acceptedDowngradeFingerprints: ["warning-1"],
+			payloadRef: {
+				keyVersion: 1,
+				cipher: "os-keychain-wrapped",
+				location: "envelopes/import-1.bin",
+			},
+		});
+
+		expect(result).toMatchObject({
+			ok: true,
+			envelope: {
+				importId: "import-1",
+				dirtyDomains: ["metadata"],
+			},
+		});
+	});
+
+	it.each([
+		null,
+		{},
+		{
+			schemaVersion: 1,
+			importId: "import-1",
+			profileId: "profile-1",
+			entries: null,
+			bindings: [],
+			unknownSubtrees: [],
+			dirtyDomains: [],
+			acceptedDowngradeFingerprints: [],
+		},
+		{
+			schemaVersion: 1,
+			importId: "import-1",
+			profileId: "profile-1",
+			entries: [],
+			bindings: [],
+			unknownSubtrees: [],
+			dirtyDomains: ["not-a-domain"],
+			acceptedDowngradeFingerprints: [],
+		},
+	])("rejects malformed envelope metadata %#", (value) => {
+		expect(parseForeignDraftEnvelopeV1(value).ok).toBe(false);
 	});
 });
 
