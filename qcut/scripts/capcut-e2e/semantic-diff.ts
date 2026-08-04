@@ -283,7 +283,23 @@ export async function runSemanticDiffCase({
 	return manifest;
 }
 
-function parseCliOptions({ argv }: { argv: string[] }): {
+function readCliFlagValue({
+	argv,
+	flag,
+	index,
+}: {
+	argv: string[];
+	flag: string;
+	index: number;
+}): string {
+	const value = argv[index + 1];
+	if (value === undefined || value.startsWith("--")) {
+		throw new Error(`Missing value for ${flag}`);
+	}
+	return value;
+}
+
+export function parseSemanticDiffCliOptions({ argv }: { argv: string[] }): {
 	leftDraftDirectory: string;
 	rightDraftDirectory: string;
 	outputDirectory?: string;
@@ -295,11 +311,19 @@ function parseCliOptions({ argv }: { argv: string[] }): {
 	let json = false;
 	for (let index = 0; index < argv.length; index += 1) {
 		const flag = argv[index];
-		if (flag === "--left") left = argv[(index += 1)];
-		else if (flag === "--right") right = argv[(index += 1)];
-		else if (flag === "--output") output = argv[(index += 1)];
-		else if (flag === "--json") json = true;
-		else throw new Error(`Unknown flag: ${flag}`);
+		if (flag === "--json") {
+			json = true;
+			continue;
+		}
+		if (flag === "--left" || flag === "--right" || flag === "--output") {
+			const value = readCliFlagValue({ argv, flag, index });
+			index += 1;
+			if (flag === "--left") left = value;
+			if (flag === "--right") right = value;
+			if (flag === "--output") output = value;
+			continue;
+		}
+		throw new Error(`Unknown flag: ${flag}`);
 	}
 	if (left === undefined || right === undefined) {
 		throw new Error(
@@ -315,7 +339,7 @@ function parseCliOptions({ argv }: { argv: string[] }): {
 }
 
 async function main(): Promise<void> {
-	const options = parseCliOptions({ argv: process.argv.slice(2) });
+	const options = parseSemanticDiffCliOptions({ argv: process.argv.slice(2) });
 	const manifest = await runSemanticDiffCase(options);
 	if (options.json) {
 		console.log(JSON.stringify(manifest, null, 2));
