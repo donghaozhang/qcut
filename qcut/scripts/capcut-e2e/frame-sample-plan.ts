@@ -38,6 +38,35 @@ export interface FrameSamplePlan {
 	seed: number;
 }
 
+export function validateFrameSamplePlan({
+	plan,
+}: {
+	plan: FrameSamplePlan;
+}): void {
+	if (
+		!Number.isFinite(plan.fps) ||
+		plan.fps <= 0 ||
+		!Number.isSafeInteger(plan.frameCount) ||
+		plan.frameCount <= 0 ||
+		plan.samples.length === 0
+	) {
+		throw new Error("Frame sample plan is invalid.");
+	}
+	let previous = -1;
+	for (const sample of plan.samples) {
+		if (
+			!Number.isSafeInteger(sample.frameIndex) ||
+			sample.frameIndex <= previous ||
+			sample.frameIndex < 0 ||
+			sample.frameIndex >= plan.frameCount ||
+			sample.reasons.length === 0
+		) {
+			throw new Error("Frame sample plan contains an invalid sample.");
+		}
+		previous = sample.frameIndex;
+	}
+}
+
 interface SamplePlanSegment {
 	id: string;
 	kind: string;
