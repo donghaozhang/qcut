@@ -145,3 +145,14 @@ export {
 	type SemanticDiffResultV1,
 	type SemanticDiffSeverity,
 } from "./semantic-diff.js";
+
+export {
+	IMPORT_PLAN_STAGE_IDS,
+	IMPORT_RENDERER_STAGE_IDS,
+	ImportStageMetricsRecorder,
+	type ImportPlanStageId,
+	type ImportRendererStageId,
+	type ImportStageMeasurementV1,
+	type ImportStageMetricsPhase,
+	type ImportStageMetricsV1,
+} from "./import-stage-metrics.js";
