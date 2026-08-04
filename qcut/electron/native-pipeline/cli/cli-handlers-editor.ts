@@ -31,6 +31,7 @@ import { handleStickerCommand } from "../editor/editor-handlers-sticker.js";
 import { handleTransitionLabCommand } from "../editor/editor-handlers-transition-lab.js";
 import { handleJianyingTransitionCommand } from "../editor/editor-handlers-jianying-transition.js";
 import { handleJianyingImportCommand } from "../editor/editor-handlers-jianying-import.js";
+import { handleInteropCommand } from "../editor/editor-handlers-interop.js";
 import { handleSearchCommand } from "../editor/editor-handlers-search.js";
 import {
 	handleConsoleCommand,
@@ -327,6 +328,9 @@ export async function handleEditorCommand(
 				case "transition-lab":
 					return await handleTransitionLabCommand({ client, options });
 
+				case "interop":
+					return await handleInteropCommand({ client, options });
+
 				case "search":
 					return await handleSearchCommand(client, options, onProgress);
 
@@ -392,7 +396,12 @@ export async function handleEditorCommand(
 		})();
 
 		if (!result.success) return result;
-		if (module === "transition-lab" && parts[2] === "list") return result;
+		if (
+			(module === "transition-lab" && parts[2] === "list") ||
+			module === "interop"
+		) {
+			return result;
+		}
 		// Reported once here rather than per module, so every editor command
 		// says whether the window is actually showing what it just changed.
 		const view = await resolveEditorViewState({
