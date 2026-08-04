@@ -51,7 +51,7 @@ describe("resolveImportAssets", () => {
 	it("resolves a declared path whose bytes match the expected hash", async () => {
 		const declaredPath = join(draftRoot, "clip.mp4");
 		await writeFile(declaredPath, "video-bytes");
-		const { assets } = await resolveImportAssets({
+		const { assets, resolvedResources } = await resolveImportAssets({
 			resources: [
 				createResource({ name: "clip.mp4", sha256: sha256Of("video-bytes") }),
 			],
@@ -63,6 +63,11 @@ describe("resolveImportAssets", () => {
 			method: "declared-path",
 			sha256: sha256Of("video-bytes"),
 			restrictedAbsolutePath: declaredPath,
+		});
+		expect(resolvedResources[0]).toMatchObject({
+			status: "resolved",
+			sha256: sha256Of("video-bytes"),
+			byteLength: 11,
 		});
 	});
 
@@ -114,7 +119,7 @@ describe("resolveImportAssets", () => {
 	it("marks a mismatching declared path with no alternative as relink-required", async () => {
 		const declaredPath = join(draftRoot, "clip.mp4");
 		await writeFile(declaredPath, "WRONG bytes");
-		const { assets } = await resolveImportAssets({
+		const { assets, resolvedResources } = await resolveImportAssets({
 			resources: [
 				createResource({ name: "clip.mp4", sha256: sha256Of("right bytes") }),
 			],
@@ -124,6 +129,7 @@ describe("resolveImportAssets", () => {
 		// The declared file itself is the only name candidate and its hash
 		// does not match, so this needs a user relink, not a silent pick.
 		expect(assets[0].status).toBe("relink-required");
+		expect(resolvedResources[0].status).toBe("pending");
 	});
 
 	it("reports same-name conflicts without a hash as ambiguous", async () => {
@@ -131,13 +137,14 @@ describe("resolveImportAssets", () => {
 		await mkdir(join(draftRoot, "b"));
 		await writeFile(join(draftRoot, "a", "clip.mp4"), "one");
 		await writeFile(join(draftRoot, "b", "clip.mp4"), "two");
-		const { assets } = await resolveImportAssets({
+		const { assets, resolvedResources } = await resolveImportAssets({
 			resources: [createResource({ name: "clip.mp4" })],
 			restrictedSourcePathsByResourceId: {},
 			rootRealPath: draftRoot,
 		});
 		expect(assets[0].status).toBe("ambiguous");
 		expect(assets[0].issues[0].code).toBe("RESOURCE_AMBIGUOUS");
+		expect(resolvedResources[0].status).toBe("pending");
 	});
 
 	it("resolves a unique name candidate when no hash is known", async () => {
@@ -156,7 +163,7 @@ describe("resolveImportAssets", () => {
 	});
 
 	it("reports missing when nothing is found", async () => {
-		const { assets } = await resolveImportAssets({
+		const { assets, resolvedResources } = await resolveImportAssets({
 			resources: [createResource({ name: "ghost.mp4" })],
 			restrictedSourcePathsByResourceId: {},
 			rootRealPath: draftRoot,
@@ -166,11 +173,12 @@ describe("resolveImportAssets", () => {
 			code: "RESOURCE_MISSING",
 			severity: "error",
 		});
+		expect(resolvedResources[0].status).toBe("missing");
 	});
 
 	it("never probes app-owned resources (JYR-008 gate)", async () => {
 		let probes = 0;
-		const { assets } = await resolveImportAssets({
+		const { assets, resolvedResources } = await resolveImportAssets({
 			resources: [
 				createResource({
 					id: "fx-1",
@@ -188,6 +196,7 @@ describe("resolveImportAssets", () => {
 		});
 		expect(assets[0].status).toBe("license-restricted");
 		expect(assets[0].issues[0].code).toBe("RESOURCE_LICENSE_RESTRICTED");
+		expect(resolvedResources[0].status).toBe("opaque");
 		expect(assets[0].restrictedAbsolutePath).toBeUndefined();
 		// One pool slot ran, but license-restricted returns before any fs probe:
 		// there must be no resolved bytes and no hash.

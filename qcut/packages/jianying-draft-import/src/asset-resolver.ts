@@ -25,6 +25,7 @@ import { pipeline } from "node:stream/promises";
 import type {
 	InteropIssue,
 	InteropResource,
+	InteropResourceStatus,
 } from "@qcut/editor-core/draft-interop";
 import { parseCapCut81PlaceholderAssetPath } from "@qcut/editor-core/jianying-draft";
 
@@ -73,6 +74,19 @@ export interface ResolveImportAssetsInput {
 	maxHashBytes?: number;
 	instrumentation?: AssetResolverInstrumentation;
 }
+
+export interface ResolveImportAssetsResult {
+	assets: ResolvedImportAsset[];
+	resolvedResources: InteropResource[];
+}
+
+const RESOURCE_STATUS_BY_ASSET_STATUS = {
+	resolved: "resolved",
+	"relink-required": "pending",
+	missing: "missing",
+	ambiguous: "pending",
+	"license-restricted": "opaque",
+} as const satisfies Record<AssetResolutionStatus, InteropResourceStatus>;
 
 interface ProbeResult {
 	ok: boolean;
@@ -358,7 +372,7 @@ export async function resolveImportAssets({
 	maxConcurrentProbes = DEFAULT_MAX_CONCURRENT_PROBES,
 	maxHashBytes = DEFAULT_MAX_HASH_BYTES,
 	instrumentation,
-}: ResolveImportAssetsInput): Promise<{ assets: ResolvedImportAsset[] }> {
+}: ResolveImportAssetsInput): Promise<ResolveImportAssetsResult> {
 	if (
 		!Number.isSafeInteger(maxConcurrentProbes) ||
 		maxConcurrentProbes < 1 ||
@@ -396,5 +410,28 @@ export async function resolveImportAssets({
 			() => worker()
 		)
 	);
-	return { assets };
+	const resolvedResources = resources.map((resource, index) => {
+		const asset = assets[index];
+		if (asset.resourceId !== resource.id) {
+			throw new Error(
+				"Import asset resolution order does not match resources."
+			);
+		}
+		if (asset.status === "resolved") {
+			if (asset.sha256 === undefined || asset.byteLength === undefined) {
+				throw new Error("Resolved import asset is missing byte evidence.");
+			}
+			return {
+				...resource,
+				status: "resolved" as const,
+				sha256: asset.sha256,
+				byteLength: asset.byteLength,
+			};
+		}
+		return {
+			...resource,
+			status: RESOURCE_STATUS_BY_ASSET_STATUS[asset.status],
+		};
+	});
+	return { assets, resolvedResources };
 }
