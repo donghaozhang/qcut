@@ -5,8 +5,8 @@ exports[`normalizeRawDraft on the CapCut 8.1 fixture > is deterministic, parses 
   "issues": [
     {
       "code": "FEATURE_DOWNGRADED",
-      "message": "segment maps with declared loss (text)",
-      "path": "/tracks/2/segments/0",
+      "message": "static text imported without a real CapCut 8.1 render receipt; system font substitution may differ",
+      "path": "/materials/texts/0",
       "severity": "warning",
       "subjectId": "d6a29481-c146-a0f5-bee4-3ebfb9f08b91",
     },
@@ -131,6 +131,22 @@ exports[`normalizeRawDraft on the CapCut 8.1 fixture > is deterministic, parses 
               "targetRange": {
                 "durationUs": 3000000,
                 "startUs": 0,
+              },
+              "text": {
+                "color": "#ffffff",
+                "content": "A剪测试",
+                "fontFamily": "Arial",
+                "fontSizePx": 64,
+                "fontStyle": "normal",
+                "fontWeight": "normal",
+                "foreignRef": "4f49967f-3c91-b313-7f64-c70d23d87b2f",
+                "opacity": 1,
+                "rotationDegrees": 0,
+                "textAlign": "center",
+                "textDecoration": "none",
+                "widthPx": 1574.4,
+                "xPx": 0,
+                "yPx": 0,
               },
             },
           ],
