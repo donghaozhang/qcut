@@ -8,6 +8,7 @@ import {
 	MediaPayloadReadError,
 	readVerifiedMediaPayload,
 	readVerifiedMediaPayloadChunk,
+	verifyMediaPayloadIdentity,
 	verifyMediaPayloadSource,
 } from "../media-payload-reader.js";
 
@@ -110,6 +111,13 @@ describe("readVerifiedMediaPayload", () => {
 			expectedByteLength: value.length,
 			expectedSha256,
 		});
+		await expect(
+			verifyMediaPayloadIdentity({
+				absolutePath,
+				expectedByteLength: value.length,
+				expectedIdentity,
+			})
+		).resolves.toEqual(expectedIdentity);
 
 		const middle = await readVerifiedMediaPayloadChunk({
 			absolutePath,
@@ -148,6 +156,13 @@ describe("readVerifiedMediaPayload", () => {
 		});
 		await writeFile(absolutePath, "other-bytes");
 
+		await expect(
+			verifyMediaPayloadIdentity({
+				absolutePath,
+				expectedByteLength: 11,
+				expectedIdentity,
+			})
+		).rejects.toMatchObject<MediaPayloadReadError>({ code: "source-changed" });
 		await expect(
 			readVerifiedMediaPayloadChunk({
 				absolutePath,
