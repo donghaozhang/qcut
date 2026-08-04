@@ -4,7 +4,7 @@
 
 **状态：** 实施设计，尚未全部实现  
 **日期：** 2026-08-04  
-**最后核验代码：** `effe707d9`
+**最后核验代码：** `a5b6acc49`
 
 **依赖文档：** [剪映时间线轨道规则核验](./timeline-track-rules.zh.md)、[QCut 时间线规则差距与修复计划](./qcut-timeline-rule-gap-analysis.zh.md)
 
@@ -28,7 +28,7 @@
 | JYI-014 CapCut 8.1 production import | ✅ 已完成 | 2026-08-04 | 核心 video/audio 子集已完成真实链路：CapCut 8.1.1 打开、自动保存、退出、重开；保存后的 23 文件 snapshot 被 CLI 精确识别，2 轨/2 片段/2 资源全部 exact/resolved，零 warning/blocker；offline commit 由 QCut desktop inbox 消费，项目数 87→88，打开及刷新后仍为 8 秒、Video/Audio 双轨和两个片段；导入后逐文件对比 source snapshot 为 0 改动。脱敏证据 [`capcut-8.1.1-core-media-import-2026-08-04.json`](../../../scripts/capcut-e2e/receipts/capcut-8.1.1-core-media-import-2026-08-04.json)。Profile 仅将 `import` 升为 stable/production；native export、逐帧/音频和 same-profile writeback 未验证，`realAppVerified` 仍为 false。 |
 | JYI-015 同版本 envelope/写回 | 🟨 部分完成 | 2026-08-04 | 导入项目现已持久化版本化来源绑定、规范化 `DraftInteropDocumentV1` 基线与可选 `ForeignDraftEnvelope` 元数据；原始字节仍只存在 OS keychain 包装的加密 payload 中。真实 CapCut 8.1.1 保存草稿（`new_version` 从 canonical `159.0.0` 迁移到实测 `179.0.0`）已精确识别，并从 25 个发现文件中只捕获 `draft_info.json`：源 14,273B、6 个 bindings、payload 19,115B、零 warning。证据：[`capcut-8.1.1-envelope-capture-2026-08-04.json`](../../../scripts/capcut-e2e/receipts/capcut-8.1.1-envelope-capture-2026-08-04.json)。现有写回链路包含严格 payload/key-version/SHA-256 校验、带旧值前置条件和 unknown ownership 冲突检查的标量 JSON Pointer patch、核心 video/audio 时间域 planner、保留未知字段的 preparation coordinator、renderer orchestration，以及受短期用户目录选择 token 约束的可信 Electron IPC。主进程 writer 固定事务化替换 4 个活动 content mirror，不触碰 `.bak`，并提供 fsync、独立 rollback 副本、journal 恢复、CapCut 进程/`.locked`、symlink、TOCTOU 和源 hash 门禁；新增/删除/跨轨移动、换素材和变速均 fail-closed。相关 11 个测试文件共 82 个聚焦用例通过，仓库完整 `check-types` 通过。尚缺真实 unknown sentinel 的 CapCut 8.1 open/write/reopen/save 收据、面向用户的 UI/CLI 命令和 profile 可写开关；本机当前为 CapCut 9.1，不能替代 8.1 证据，因此状态仍为 partial。 |
 | JYI-016 特性 mapper | 🟨 部分完成 | 2026-08-04 | 已完成两条 fail-closed 导入子链。其一是证据门禁下的 CapCut 8.1 原生 `Dissolve`：仅在精确身份、相邻 seam、正整数时长及两侧片段承载能力均成立时映射为 QCut `dissolve/easeInOut`。其二是静态单样式普通文字候选：仅接受完整 UTF-16 单 style range、有限画布/变换、单位缩放、无翻转、无 keyframe/animation/额外引用，映射文字内容、字体、字号、填充、对齐、粗斜体/下划线、字距/宽度、位置/旋转/透明度、单描边、单阴影和背景；多样式、字幕语义、动态文字及畸形值一律 blocked，不静默压平。由于本机没有真实 CapCut 8.1 文字 render receipt，静态文字始终标为 downgrade，并提示系统字体替换风险，不能宣称逐帧 exact。bundle parser 强制轨道/元素类型一致并校验 timelinePlan 是 document 的确定性投影，renderer 可在零媒体 payload 时持久化 QCut TextElement。当前聚焦回归 5 个测试文件 48 用例及全仓 `check-types` 均通过。调色、蒙版、关键帧、富文本/动态文字和专有转场 mapper 仍未完成。 |
-| JYI-017 语义/逐帧/音频 E2E | 🟨 部分完成 | 2026-08-05 | 纯核心已落地：`editor-core/draft-interop/semantic-diff.ts` 的 `diffDraftInteropDocuments` 对比两个 `DraftInteropDocumentV1`（source vs 重导入、写回前 vs 写回后），逐差异三级分类——breaking（丢失/改变用户可见语义：缺失/多余节点、几何、link 集合、双侧已知的 sha256 失配）、tolerable（在调用方声明阈值内的时间/速度漂移，`halfFrameToleranceUs` 提供半帧自然阈值）、info（relink 引起的资源改名等环境性差异）。语义覆盖现包含静态文字的全部可见字段与描边/背景/阴影，以及 transition 的存在性、类型、两端片段和时长；按语义 ID 比较，数组重排不制造假差异。评估侧字段（capability/issues/resource status/foreignRef）默认不参与对比，缺失的文字/嵌套样式/转场会 fail-closed 报 breaking 且不泄漏 binding。纯函数、确定性、JSON 可序列化。测试 [`semantic-diff.test.ts`](../../../packages/editor-core/src/__tests__/semantic-diff.test.ts)（14 用例）。草稿脚本 [`scripts/capcut-e2e/semantic-diff.ts`](../../../scripts/capcut-e2e/semantic-diff.ts) 对两个本地草稿目录跑与导入功能完全相同的 discover→snapshot→detect→normalize 管线后做半帧阈值 diff，输出 hash-bound、零绝对路径的 evidence manifest（identical/tolerable/breaking/not-comparable 四态判决 + 退出码）。音频脚本 [`scripts/capcut-e2e/audio-comparison.ts`](../../../scripts/capcut-e2e/audio-comparison.ts) 使用固定的 bundled FFmpeg/FFprobe 8.1.2，对比单音轨的声道布局、采样率、时长、EBU R128 integrated loudness/LRA/true peak、静音区边界及逐声道差分 peak/RMS；manifest 只保留输入 bytes/SHA-256 和无路径工具链标识，pass/fail/not-comparable 分别返回 0/1/2。候选阈值明确标记 `candidate-unverified`，真实同源 6 秒/48kHz fixture 得到 exact pass，音量减半得到约 -24/-27 dBFS 差分并 fail，无音轨得到 not-comparable；6 个新单测覆盖 probe、指标 parser、阈值和 CLI。**缺**：`roundtrip-case`/`qcut-import-verification` 编排、通用逐帧 oracle、测试 tone 频谱进入对比 manifest，以及真实 CapCut 8.1 四路输出和阈值校准（本机为 9.1，被证据门禁挡住） |
+| JYI-017 语义/逐帧/音频 E2E | 🟨 部分完成 | 2026-08-05 | 语义核心与脚本保持不变：`diffDraftInteropDocuments` 对 source/roundtrip 的可见语义做 breaking/tolerable/info 分类，脚本复用正式 discover→snapshot→detect→normalize 管线并输出 hash-bound、零绝对路径 manifest。新增确定性 [`frame-sample-plan.ts`](../../../scripts/capcut-e2e/frame-sample-plan.ts)：覆盖项目首末帧、片段和静态文字边界、转场 seam 前中后、最长稳定区间与固定 seed 随机帧，去重后上限 256；当前诚实标注 keyframe 不支持、转场窗口仅为 semantic-seam candidate。[`frame-comparison.ts`](../../../scripts/capcut-e2e/frame-comparison.ts) 以 bundled FFmpeg/FFprobe 8.1.2 严格门控 FPS/解码帧数/尺寸/计划覆盖，再逐采样帧做 RGB RMSE/MAE/p95/max 与双侧 SHA-256；[`preview-frame-comparison.ts`](../../../scripts/capcut-e2e/preview-frame-comparison.ts) 使用固定 `frame-XXXXXXXX.png` 契约，先做不可变字节快照再比较，缺帧为 not-comparable。音频比较覆盖单音轨布局、采样率、时长、EBU R128、静音边界及逐声道差分 peak/RMS。总编排 [`roundtrip-case.ts`](../../../scripts/capcut-e2e/roundtrip-case.ts) 固定 source→roundtrip 和 reference→QCut 方向，合并语义、两份 native export、两套 preview PNG 与音频证据；fail 优先，其次 not-comparable，再是 unverified，只有全部 gate verified 才 pass。真实代码路径的 4 秒合成冒烟在 11 个计划帧上得到语义 identical、native/preview RMSE 0、音频 exact，但因候选阈值、keyframe/转场覆盖及 App/资源/导出设置 provenance 未绑定，正确返回 unverified/退出码 2。**缺**：`qcut-import-verification`、keyframe 三点采样、Alpha/Geometry/Temporal 与测试 tone 频谱、可信 provenance receipt，以及真实 CapCut 8.1 四路输出和逐 feature/profile 阈值校准（本机为 9.1，不能替代 8.1 证据） |
 | JYI-018 规模/恢复加固 | 🟨 部分完成 | 2026-08-05 | 规模：[`draft-interop-scale.test.ts`](../../../packages/editor-core/src/__tests__/draft-interop-scale.test.ts) 让 10k 片段（10 轨×1000 段 + 2 万材料）走完 read→validate→normalize→map→diff→bundle-parse 全纯管线,零 issue、RESTRICTED 路径零泄漏,每阶段计数断言 + 宽松 10s 预算背书（实测全程 ~300ms,防的是意外平方爆炸不是机器速度）。恢复加固修了两个真实缺陷:**(1) 写回孤儿锁死锁**——writer 在建锁后、journal 前崩溃曾留下永久 `WRITEBACK_ALREADY_RUNNING`;现在 `recoverCapCut81SameProfileWriteback` 在无 journal 时清理孤儿锁并返回新 action `cleared-stale-lock`（安全性依据:镜像变更只发生在 journal 存在之后;有 journal 缺 rollback 的形态仍是硬 `RECOVERY_REQUIRED`,有测试双向覆盖）;**(2) inbox 列表单点炸表**——`listDesktopImports` 曾因单个损坏 entry 使整个列表 Promise.all 失败;现在损坏 entry 以 `unreadable: true` 占位返回（可见、可删、不可读/不可发布,绝不静默隐藏),in-flight 临时目录不进列表。测试:writer +2、inbox +2。**未做**:mid-rename 崩溃矩阵（afterMirrorReplaced 1..3 已有部分覆盖）、损坏 renderer ImportJournal 记录的滞留数据审计、PersistentImportPlanStore 损坏文件的隔离策略、cache metrics、100GB 素材级别验证 |
 | JYR-001 保存事务 | 🟨 部分完成 | 2026-08-04 | 真实 CapCut 8.1.1 观测：打开时创建 `.locked`，退出后删除；首次保存改写 9 个 snapshot 文件并更新 root metadata，active content 四镜像同步变化。这足以否定“只 patch 根 `draft_info.json`”方案，但尚缺隔离账号下的系统调用级写入顺序、临时文件和 rename 边界。 |
 | JYR-002 ~ JYR-008 研究门禁 | 🟨 部分完成 | 2026-08-04 | JYR-003 已记录 CapCut 8.1.1 精确保存迁移 `new_version: 159.0.0 → 179.0.0`；JYR-001 的现有真实保存后证据显示根与 timeline 下的 `draft_info.json`/`template-2.tmp` 四个活动 mirror 内容 hash 一致，两个 `.bak` 仅视为恢复副本，writer 因而只更新四个活动 mirror。该证据不能证明真实 syscall 调用顺序。JYR-006 仍只凭真实 App 文件访问证据准入根 `draft_info.json`；伴随引用闭包、完整 sidecar 需求、许可、compound ownership 和真实 8.1 写回顺序仍未知，继续阻止 profile 升为 writable。 |
@@ -456,6 +456,22 @@ scripts/capcut-e2e/semantic-diff.ts
 scripts/capcut-e2e/audio-comparison.ts
 scripts/__tests__/capcut-e2e-roundtrip-*.test.ts
 ```
+
+当前四路编排命令：
+
+```bash
+bun scripts/capcut-e2e/roundtrip-case.ts \
+  --case-id <case-id> \
+  --source-draft <source-draft-dir> \
+  --roundtrip-draft <roundtrip-draft-dir> \
+  --qcut-native-export <qcut-media> \
+  --reference-native-export <jianying-or-capcut-media> \
+  --qcut-preview-frames <qcut-frame-dir> \
+  --reference-preview-frames <jianying-or-capcut-frame-dir> \
+  --output <evidence-dir> --json
+```
+
+两套预览目录必须按 `frame-XXXXXXXX.png` 提供计划中的精确画布帧；不能用带侧栏、窗口边框或播放控件的整屏截图代替。退出码 `0/1/2/3` 分别表示 verified pass、comparison fail、unverified/not-comparable、harness error。当前默认 provenance 与全部阈值仍是 candidate，因此合成数据即使数值完全一致也只会得到 `unverified`，不会冒充真实 CapCut 8.1 验证。
 
 ## 6. 未知字段保留与无损往返
 
