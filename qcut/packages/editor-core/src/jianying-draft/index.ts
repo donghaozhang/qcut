@@ -189,6 +189,12 @@ export {
 } from "./import/normalize.js";
 
 export {
+	mapCapCut81StaticText,
+	type MapCapCut81StaticTextInput,
+	type MappedCapCut81StaticText,
+} from "./import/capcut-8-1-text-mapper.js";
+
+export {
 	mapCapCut81SeamTransition,
 	type MapCapCut81SeamTransitionInput,
 	type MappedCapCut81SeamTransition,
@@ -197,6 +203,8 @@ export {
 export {
 	mapInteropDocumentToQCutPlan,
 	type QCutImportPlanElement,
+	type QCutImportPlanMediaElement,
+	type QCutImportPlanTextElement,
 	type QCutImportPlanTrack,
 	type QCutImportPlanTrackType,
 	type QCutImportPlanTransition,
