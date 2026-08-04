@@ -287,6 +287,22 @@ export interface TimelineStore {
 		timelineDelta: number;
 		pushHistory?: boolean;
 	}) => number;
+	/** Slide edit (QTL-007): move a clip while neighbors absorb the change. */
+	slideElement: (input: {
+		trackId: string;
+		elementId: string;
+		timelineDelta: number;
+		pushHistory?: boolean;
+	}) => number;
+	/** Ripple trim (QTL-007): resize one edge and shift downstream elements
+	 * across the ripple domain by the applied delta. */
+	rippleTrimElement: (input: {
+		trackId: string;
+		elementId: string;
+		edge: "left" | "right";
+		durationDelta: number;
+		pushHistory?: boolean;
+	}) => number;
 	rollEdit: (input: {
 		trackId: string;
 		fromElementId: string;

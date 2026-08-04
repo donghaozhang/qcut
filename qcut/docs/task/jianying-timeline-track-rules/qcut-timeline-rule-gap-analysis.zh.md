@@ -17,7 +17,8 @@
 | QTL-004 扩展事务历史 | ✅ 已完成 | 2026-08-04 | 历史快照含 tracks + 选择 + 转场选中 + 播放头；修复 redo 不回推 history 的往返 bug；CLI 事务桥升级到完整快照 |
 | QTL-005 拆分主轨磁吸/吸附/联动 | ✅ 已完成 | 2026-08-04 | 三个开关独立、按项目持久化（`TProject.timeline`）；磁吸=主轨删除闭合缺口；联动=波纹是否带动 linked 轨道 |
 | QTL-006 扩展吸附候选与优先级 | ✅ 已完成 | 2026-08-04 | 候选扩展（接缝/书签）+ 确定性同距优先级 + Shift 临时禁用 + 统一 10px 容差常量 + 参数化 zoom 测试 |
-| QTL-007 ~ QTL-012 | ⬜ 未开始 | | |
+| QTL-007 补齐 Slide 与 Ripple Trim | ✅ 已完成 | 2026-08-04 | `calculateSlideEdit` / `calculateRippleTrim` 纯函数 + `slideElement` / `rippleTrimElement` 命令 + slide 编辑模式手势 |
+| QTL-008 ~ QTL-012 | ⬜ 未开始 | | |
 
 ## 结论
 
@@ -25,12 +26,12 @@
 
 | 状态 | 数量 | 占比 |
 | --- | ---: | ---: |
-| 完整实现 | 40 | 80% |
+| 完整实现 | 41 | 82% |
 | 部分实现 | 6 | 12% |
-| 尚未实现 | 4 | 8% |
-| **需要修复或补齐** | **10** | **20%** |
+| 尚未实现 | 3 | 6% |
+| **需要修复或补齐** | **9** | **18%** |
 
-审计基线为 19/50 项需要改动；QTL-001 ~ QTL-006 完成后，**当前还有 10/50 项时间线规则需要代码改动**——6 项已有基础但契约不完整，另有 4 项缺少正式模型或命令。
+审计基线为 19/50 项需要改动；QTL-001 ~ QTL-007 完成后，**当前还有 9/50 项时间线规则需要代码改动**——6 项已有基础但契约不完整，另有 3 项缺少正式模型或命令。
 
 QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、顺序、合成层级、分组、复合片段、转场和波纹操作都已经存在。最大差距集中在操作语义：锁定没有在所有入口统一执行，插入/覆盖/替换没有一个共享冲突引擎，主轨磁吸与普通吸附/波纹没有拆开，关联仍主要依赖通用 `groupId`，撤销只保存轨道数组。
 
@@ -52,14 +53,14 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 | 层级与渲染 | 5 | 4 | 1 | 0 | 1 |
 | 插入、覆盖与替换 | 5 | 4 | 1 | 0 | 1 |
 | 波纹与主轨磁吸 | 5 | 5 | 0 | 0 | 0 |
-| 修剪模式 | 5 | 4 | 0 | 1 | 1 |
+| 修剪模式 | 5 | 5 | 0 | 0 | 0 |
 | 吸附 | 5 | 5 | 0 | 0 | 0 |
 | 关联、组合与复合片段 | 5 | 3 | 1 | 1 | 2 |
 | 转场 | 5 | 4 | 1 | 0 | 1 |
 | 撤销与重做 | 3 | 3 | 0 | 0 | 0 |
 | 导航与缓存 | 3 | 1 | 2 | 0 | 2 |
 | AI 语义规则 | 2 | 1 | 0 | 1 | 1 |
-| **总计** | **50** | **40** | **6** | **4** | **10** |
+| **总计** | **50** | **41** | **6** | **3** | **9** |
 
 ## 50 项规则明细
 
@@ -99,11 +100,11 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 
 **完整（QTL-005，2026-08-04 落地）：独立主轨磁吸。** 三个独立开关：`snappingEnabled`（普通吸附）、`mainTrackMagnetEnabled`（主轨磁吸——主轨删除即使不在 ripple 模式也闭合缺口）、`linkedRippleEnabled`（联动——波纹是否沿类型化 link 带动其他轨道）。按项目持久化于 `TProject.timeline`（[`types/project.ts`](../../../packages/editor-core/src/types/project.ts)），旧项目由 `resolveProjectTimelineSettings` 给定确定性默认值（吸附开/磁吸关/联动开）；锁定主轨时锁优先于磁吸（整个删除被拒绝）。工具栏三键独立。测试见 [`timeline-behavior-toggles.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-behavior-toggles.test.ts)。
 
-### 5. 修剪模式：4 完整，1 缺失
+### 5. 修剪模式：5 完整，0 缺失
 
 **完整：** 普通边缘修剪、分割、Slip 和 Roll 已存在。Slip/Roll 对反向播放、素材 handle、最小时长和锁定轨道做了检查，并有原子撤销测试，见 [`precision-edit.ts`](../../../apps/web/src/lib/timeline/precision-edit.ts) 和 [`timeline-precision-edit-ops.ts`](../../../apps/web/src/stores/timeline/timeline-precision-edit-ops.ts)。
 
-**缺失：Slide 与显式 Ripple Trim 模式族。** QCut 还没有保持片段时长、同时调整左右邻居的 slide edit，也没有名称明确、可由 CLI 调用的 ripple trim 命令。两者应复用同一套 source/target range 数学，而不是继续扩展 UI handler。
+**完整（QTL-007，2026-08-04 落地）：Slide 与显式 Ripple Trim。** `calculateSlideEdit`（保持片段时长，左邻居出点与右邻居入点吸收位移，接缝相邻校验 + handle/最小时长夹取，reverse/变速感知）与 `calculateRippleTrim`（起点锚定的单边时长变化，下游由调用方按 ripple domain 平移）与 slip/roll 共用同一套 edge-trim 数学。Store 命令 `slideElement` / `rippleTrimElement` 名称明确、CLI 可调用，后者遵循 QTL-003 domain 与 QTL-005 联动开关。UI 新增 slide 编辑模式（工具条第四键），手势复用 slip 的指针交互（每次手势一个历史条目、Escape 取消回滚）。ripple trim 保持命令级入口（普通修剪手柄行为不变）。测试见 [`timeline-slide-ripple-trim.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-slide-ripple-trim.test.ts)。
 
 ### 6. 吸附：5 完整，0 缺失
 
@@ -252,11 +253,16 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 
 验收结果：片段、播放头、接缝、bookmark 共享统一 10px 容差（beat 为同门控网格量化）✅；同距优先级确定 ✅；Shift 临时禁用 ✅；zoom 参数化测试 ✅。
 
-#### QTL-007 补齐 Slide 与 Ripple Trim
+#### QTL-007 补齐 Slide 与 Ripple Trim ✅ 已完成（2026-08-04）
 
-相关文件：`apps/web/src/lib/timeline/precision-edit.ts`、`apps/web/src/stores/timeline/timeline-precision-edit-ops.ts`、`apps/web/src/hooks/timeline/use-timeline-precision-edit.ts`。
+实施记录：
 
-验收：普通、反向、变速和 handle 不足 fixture 都有纯函数测试；每次手势只产生一个历史命令。
+- `precision-edit.ts`：`calculateSlideEdit`（三片段：中间保时长移动，左右邻居 trim 吸收；正负方向分别按 左 handle/右最小时长、左最小时长/右 handle 夹取；复用 `timelineEdgeTrim`/`setTimelineEdgeTrim` 的 reverse/rate 映射）与 `calculateRippleTrim`（`durationDelta` 语义：正=消耗该边 handle 延长，负=缩短至最小 0.1s；startTime 锚定）。
+- `timeline-precision-edit-ops.ts`：`slideElement`（自动找同轨相邻媒体邻居）与 `rippleTrimElement`（下游按 QTL-003 ripple domain 平移，锁定关联依赖整体拒绝，遵循 QTL-005 联动开关）。
+- UI：编辑模式新增 `slide`（ArrowRightLeft 第四键）；`use-timeline-precision-edit` 增加 slide 手势（与 slip 相同的指针捕获/单历史/Escape 回滚模式）；`timeline-element` 在 slide 模式下切换指针处理与光标。ripple trim 为命令级入口（CLI/AI 可调用），普通修剪手柄不变。
+- 测试：[`timeline-slide-ripple-trim.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-slide-ripple-trim.test.ts)（9 用例：slide 常规/夹取/反向+变速/非相邻拒绝；ripple trim 双边夹取/反向变速映射；store 命令单历史、domain 平移、联动关闭与锁定依赖）。
+
+验收结果：普通、反向、变速和 handle 不足 fixture 均有纯函数测试 ✅；每次手势只产生一个历史命令（延续 slip/roll 的 pushHistory 一次性模式）✅。
 
 #### QTL-008 强化组合与复合片段边界
 

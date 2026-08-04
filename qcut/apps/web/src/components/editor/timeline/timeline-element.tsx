@@ -260,10 +260,12 @@ function TimelineElementComponent({
 	const {
 		canRollLeft,
 		canRollRight,
+		canSlide,
 		canSlip,
 		editMode,
 		handleRollKeyDown,
 		handleRollPointerDown,
+		handleSlidePointerDown,
 		handleSlipPointerDown,
 		isPrecisionEditing,
 	} = useTimelinePrecisionEdit({
@@ -1502,7 +1504,11 @@ function TimelineElementComponent({
 								? canSlip
 									? "cursor-ew-resize"
 									: "cursor-not-allowed"
-								: "cursor-pointer"
+								: editMode === "slide"
+									? canSlide
+										? "cursor-ew-resize"
+										: "cursor-not-allowed"
+									: "cursor-pointer"
 						} ${isSelected ? "border-b-[0.5px] border-t-[0.5px] border-foreground" : ""} ${
 							isBeingDragged ||
 							isPrecisionEditing ||
@@ -1512,7 +1518,11 @@ function TimelineElementComponent({
 						} ${element.hidden ? "opacity-50" : ""}`}
 						onClick={(e) => onElementClick && onElementClick(e, element)}
 						onMouseDown={handleElementMouseDown}
-						onPointerDown={handleSlipPointerDown}
+						onPointerDown={
+							editMode === "slide"
+								? handleSlidePointerDown
+								: handleSlipPointerDown
+						}
 					>
 						<div className="absolute inset-0 flex items-center h-full">
 							{renderElementContent()}

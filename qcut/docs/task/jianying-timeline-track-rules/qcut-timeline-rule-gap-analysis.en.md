@@ -17,7 +17,8 @@
 | QTL-004 Transaction history | ✅ Done | 2026-08-04 | History snapshots carry tracks + selection + selected transition + playhead; fixes the redo round-trip bug; the CLI transaction bridge upgraded to full snapshots |
 | QTL-005 Separate magnet / snapping / linkage | ✅ Done | 2026-08-04 | Three independent per-project toggles (`TProject.timeline`); magnet = main-track deletions close their gap; linkage = whether ripple pulls linked tracks |
 | QTL-006 Extend snap candidates and priorities | ✅ Done | 2026-08-04 | Seam/bookmark candidates + deterministic tie-break + Shift bypass + one 10px tolerance constant + zoom-parameterized tests |
-| QTL-007 – QTL-012 | ⬜ Not started | | |
+| QTL-007 Add Slide and Ripple Trim | ✅ Done | 2026-08-04 | `calculateSlideEdit` / `calculateRippleTrim` pure math + `slideElement` / `rippleTrimElement` commands + a slide edit-mode gesture |
+| QTL-008 – QTL-012 | ⬜ Not started | | |
 
 ## Conclusion
 
@@ -25,12 +26,12 @@ This audit decomposes the JianYing research baseline into **50 independently tes
 
 | Status | Count | Share |
 | --- | ---: | ---: |
-| Complete | 40 | 80% |
+| Complete | 41 | 82% |
 | Partial | 6 | 12% |
-| Missing | 4 | 8% |
-| **Requires repair or implementation** | **10** | **20%** |
+| Missing | 3 | 6% |
+| **Requires repair or implementation** | **9** | **18%** |
 
-The audit baseline identified 19 of 50 rules needing changes; with QTL-001 through QTL-006 done, **QCut still needs code changes for 10 of the 50 timeline rules** — six with useful foundations but incomplete contracts, four without a first-class model or command.
+The audit baseline identified 19 of 50 rules needing changes; with QTL-001 through QTL-007 done, **QCut still needs code changes for 9 of the 50 timeline rules** — six with useful foundations but incomplete contracts, three without a first-class model or command.
 
 QCut's foundation is stronger than the gap count may suggest. It already has typed tracks, explicit main-track identity, visibility, mute, ordering, canonical composition, grouping, compound containers, transitions, and ripple operations. The largest gap is the operation-semantics layer: locks are not enforced by every entry point, insert/overwrite/replace do not share a collision engine, main-track magnetism is not separate from snapping and ripple, relationships still rely heavily on generic `groupId`, and undo stores only track arrays.
 
@@ -52,14 +53,14 @@ QCut's foundation is stronger than the gap count may suggest. It already has typ
 | Layering and rendering | 5 | 4 | 1 | 0 | 1 |
 | Insert, overwrite, and replace | 5 | 4 | 1 | 0 | 1 |
 | Ripple and main-track magnetism | 5 | 5 | 0 | 0 | 0 |
-| Trim modes | 5 | 4 | 0 | 1 | 1 |
+| Trim modes | 5 | 5 | 0 | 0 | 0 |
 | Snapping | 5 | 5 | 0 | 0 | 0 |
 | Links, groups, and compounds | 5 | 3 | 1 | 1 | 2 |
 | Transitions | 5 | 4 | 1 | 0 | 1 |
 | Undo and redo | 3 | 3 | 0 | 0 | 0 |
 | Navigation and cache | 3 | 1 | 2 | 0 | 2 |
 | AI semantics | 2 | 1 | 0 | 1 | 1 |
-| **Total** | **50** | **40** | **6** | **4** | **10** |
+| **Total** | **50** | **41** | **6** | **3** | **9** |
 
 ## Detailed 50-Rule Assessment
 
@@ -99,11 +100,11 @@ Additional migration risk: if every existing track has `order` and a main track 
 
 **Complete (QTL-005, landed 2026-08-04): independent main-track magnetism.** Three independent toggles: `snappingEnabled` (ordinary snapping), `mainTrackMagnetEnabled` (the magnet — main-track deletions close their gap even outside ripple mode), and `linkedRippleEnabled` (whether ripple follows typed links to other tracks). Persisted per project on `TProject.timeline` ([`types/project.ts`](../../../packages/editor-core/src/types/project.ts)); legacy projects get deterministic defaults from `resolveProjectTimelineSettings` (snapping on / magnet off / linkage on); a locked main track wins over the magnet (the whole delete is rejected). The toolbar exposes all three independently. See [`timeline-behavior-toggles.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-behavior-toggles.test.ts).
 
-### 5. Trim modes: 4 complete, 1 missing
+### 5. Trim modes: 5 complete, 0 missing
 
 **Complete:** Ordinary edge trim, split, Slip, and Roll exist. Slip/Roll check reverse playback, source handles, minimum duration, and locked tracks, and they have atomic undo tests. See [`precision-edit.ts`](../../../apps/web/src/lib/timeline/precision-edit.ts) and [`timeline-precision-edit-ops.ts`](../../../apps/web/src/stores/timeline/timeline-precision-edit-ops.ts).
 
-**Missing: the Slide and explicit Ripple Trim mode family.** QCut has no slide edit that preserves the clip duration while adjusting both neighbors, and no explicitly named, CLI-callable ripple-trim command. Both should reuse one source/target range math layer instead of extending UI handlers.
+**Complete (QTL-007, landed 2026-08-04): Slide and explicit Ripple Trim.** `calculateSlideEdit` (duration-preserving move; the left neighbor's out-point and right neighbor's in-point absorb it, with seam-adjacency checks and handle/minimum-duration clamps, reverse- and rate-aware) and `calculateRippleTrim` (start-anchored one-edge duration change; the caller shifts downstream by the applied delta) share the slip/roll edge-trim math. The store commands `slideElement` / `rippleTrimElement` are explicitly named and CLI-callable; the latter follows the QTL-003 ripple domain and the QTL-005 linked-ripple toggle. The UI gains a slide edit mode (fourth toolbar mode) reusing the slip pointer-gesture machinery (one history entry per gesture, Escape cancels). Ripple trim stays a command-level entry (ordinary trim handles unchanged). See [`timeline-slide-ripple-trim.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-slide-ripple-trim.test.ts).
 
 ### 6. Snapping: 5 complete, 0 missing
 
@@ -252,11 +253,16 @@ What landed:
 
 Acceptance result: clips, playhead, seams, and bookmarks share one 10 px tolerance (beats are a same-gated grid quantizer) ✅; ties have deterministic priority ✅; Shift temporarily disables snapping ✅; zoom levels are parameterized in tests ✅.
 
-#### QTL-007 Add Slide and Ripple Trim
+#### QTL-007 Add Slide and Ripple Trim ✅ Done (2026-08-04)
 
-Relevant files: `apps/web/src/lib/timeline/precision-edit.ts`, `apps/web/src/stores/timeline/timeline-precision-edit-ops.ts`, and `apps/web/src/hooks/timeline/use-timeline-precision-edit.ts`.
+What landed:
 
-Acceptance: ordinary, reverse, retimed, and insufficient-handle fixtures have pure-function tests; every gesture creates exactly one history command.
+- `precision-edit.ts`: `calculateSlideEdit` (three clips: the middle moves with duration preserved while neighbor trims absorb it; positive/negative directions clamp on left-handle/right-minimum and left-minimum/right-handle respectively; reverse/rate mapping reuses `timelineEdgeTrim`/`setTimelineEdgeTrim`) and `calculateRippleTrim` (`durationDelta` semantics: positive consumes the edge handle to lengthen, negative shortens down to 0.1s; startTime anchored).
+- `timeline-precision-edit-ops.ts`: `slideElement` (finds the adjacent same-track media neighbors) and `rippleTrimElement` (downstream shifts follow the QTL-003 ripple domain; a locked linked dependency rejects the whole command; honors the QTL-005 linked-ripple toggle).
+- UI: a fourth edit mode `slide` (ArrowRightLeft); `use-timeline-precision-edit` gains the slide gesture (same pointer-capture / single-history / Escape-rollback pattern as slip); `timeline-element` switches pointer handling and cursor in slide mode. Ripple trim remains a command-level entry point (ordinary trim handles unchanged).
+- Tests: [`timeline-slide-ripple-trim.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-slide-ripple-trim.test.ts) (9 cases: slide normal/clamped/reversed+retimed/non-adjacent; ripple trim both-edge clamps and reverse-rate mapping; store commands single-history, domain shifting, linkage-off and locked-dependency behavior).
+
+Acceptance result: ordinary, reverse, retimed, and insufficient-handle fixtures have pure-function tests ✅; every gesture creates exactly one history command (the slip/roll one-shot pushHistory pattern) ✅.
 
 #### QTL-008 Strengthen group and compound boundaries
 

@@ -1,6 +1,6 @@
 import { create } from "zustand";
 
-export type TimelineEditMode = "select" | "roll" | "slip";
+export type TimelineEditMode = "select" | "roll" | "slip" | "slide";
 
 interface TimelineEditModeState {
 	editMode: TimelineEditMode;

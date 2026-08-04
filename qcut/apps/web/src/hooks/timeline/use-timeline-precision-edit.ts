@@ -25,6 +25,13 @@ type PrecisionInteraction =
 			lastClientX: number;
 			trackId: string;
 	  }
+	| {
+			kind: "slide";
+			elementId: string;
+			historyPushed: boolean;
+			lastClientX: number;
+			trackId: string;
+	  }
 	| ({
 			kind: "roll";
 			historyPushed: boolean;
@@ -82,6 +89,7 @@ export function useTimelinePrecisionEdit({
 	const rollEdit = useTimelineStore((state) => state.rollEdit);
 	const selectElement = useTimelineStore((state) => state.selectElement);
 	const slipElement = useTimelineStore((state) => state.slipElement);
+	const slideElement = useTimelineStore((state) => state.slideElement);
 	const undo = useTimelineStore((state) => state.undo);
 	const interactionRef = useRef<PrecisionInteraction | null>(null);
 	const [isPrecisionEditing, setIsPrecisionEditing] = useState(false);
@@ -99,6 +107,14 @@ export function useTimelinePrecisionEdit({
 			!track.locked &&
 			isPrecisionMediaTimingSupported({ element }) &&
 			(element.trimStart > 0 || element.trimEnd > 0)
+	);
+	// A slide needs seam-adjacent neighbors on both sides (QTL-007).
+	const canSlide = Boolean(
+		element &&
+			!track.locked &&
+			isPrecisionMediaTimingSupported({ element }) &&
+			rollPairs.left &&
+			rollPairs.right
 	);
 
 	useEffect(() => {
@@ -126,13 +142,20 @@ export function useTimelinePrecisionEdit({
 							timelineDelta,
 							trackId: interaction.trackId,
 						})
-					: rollEdit({
-							fromElementId: interaction.fromElementId,
-							pushHistory,
-							timelineDelta,
-							toElementId: interaction.toElementId,
-							trackId: interaction.trackId,
-						});
+					: interaction.kind === "slide"
+						? slideElement({
+								elementId: interaction.elementId,
+								pushHistory,
+								timelineDelta,
+								trackId: interaction.trackId,
+							})
+						: rollEdit({
+								fromElementId: interaction.fromElementId,
+								pushHistory,
+								timelineDelta,
+								toElementId: interaction.toElementId,
+								trackId: interaction.trackId,
+							});
 			if (Math.abs(appliedTimelineDelta) < Number.EPSILON) return;
 			interaction.historyPushed = true;
 			interaction.lastClientX += appliedTimelineDelta * pixelsPerSecond;
@@ -152,7 +175,14 @@ export function useTimelinePrecisionEdit({
 			document.removeEventListener("pointercancel", cancel);
 			document.removeEventListener("keydown", handleKeyDown);
 		};
-	}, [isPrecisionEditing, pixelsPerSecond, rollEdit, slipElement, undo]);
+	}, [
+		isPrecisionEditing,
+		pixelsPerSecond,
+		rollEdit,
+		slideElement,
+		slipElement,
+		undo,
+	]);
 
 	const startInteraction = ({
 		event,
@@ -177,6 +207,21 @@ export function useTimelinePrecisionEdit({
 				elementId: element.id,
 				historyPushed: false,
 				kind: "slip",
+				lastClientX: event.clientX,
+				trackId: track.id,
+			},
+		});
+	};
+
+	const handleSlidePointerDown = (event: ReactPointerEvent<HTMLElement>) => {
+		if (editMode !== "slide" || !element || !canSlide) return;
+		selectElement(track.id, element.id, false);
+		startInteraction({
+			event,
+			interaction: {
+				elementId: element.id,
+				historyPushed: false,
+				kind: "slide",
 				lastClientX: event.clientX,
 				trackId: track.id,
 			},
@@ -230,10 +275,12 @@ export function useTimelinePrecisionEdit({
 	return {
 		canRollLeft: Boolean(rollPairs.left && !track.locked),
 		canRollRight: Boolean(rollPairs.right && !track.locked),
+		canSlide,
 		canSlip,
 		editMode,
 		handleRollKeyDown,
 		handleRollPointerDown,
+		handleSlidePointerDown,
 		handleSlipPointerDown,
 		isPrecisionEditing,
 	};
