@@ -33,12 +33,12 @@ import {
 	type AssetFileProbeResult,
 	type AssetResolutionCacheMetrics,
 } from "./asset-resolution-work-cache.js";
+import { MAX_DISCOVERY_ENTRIES } from "./discovery.js";
 
 const DEFAULT_MAX_CONCURRENT_PROBES = 4;
 const MAX_CONCURRENT_PROBES = 8;
 const DEFAULT_MAX_HASH_BYTES = 4 * 1024 * 1024 * 1024;
 const NAME_SEARCH_MAX_DEPTH = 2;
-const NAME_SEARCH_MAX_ENTRIES = 4096;
 
 export type AssetResolutionStatus =
 	| "resolved"
@@ -67,6 +67,7 @@ export interface ResolvedImportAsset {
 export interface AssetResolverInstrumentation {
 	onProbeStart?: () => void;
 	onProbeEnd?: () => void;
+	onNameIndexBuild?: () => void;
 }
 
 export interface ResolveImportAssetsInput {
@@ -158,56 +159,78 @@ async function probeAndHashFile({
 	}
 }
 
-/** Bounded, symlink-refusing search for files with an exact base name. */
-async function findCandidatesByName({
+interface CandidateDirectory {
+	absolutePath: string;
+	depth: number;
+}
+
+interface CandidateDirectoryListing extends CandidateDirectory {
+	entries: Dirent[];
+}
+
+async function readCandidateDirectory({
+	directory,
+}: {
+	directory: CandidateDirectory;
+}): Promise<CandidateDirectoryListing> {
+	let entries: Dirent[] = [];
+	try {
+		entries = await readdir(directory.absolutePath, { withFileTypes: true });
+	} catch {
+		return { ...directory, entries };
+	}
+	entries.sort((left, right) =>
+		left.name < right.name ? -1 : left.name > right.name ? 1 : 0
+	);
+	return { ...directory, entries };
+}
+
+/** Builds one bounded, symlink-refusing filename index for the import pass. */
+async function buildCandidateNameIndex({
 	rootRealPath,
-	fileName,
 }: {
 	rootRealPath: string;
-	fileName: string;
-}): Promise<string[]> {
-	const candidates: string[] = [];
+}): Promise<ReadonlyMap<string, readonly string[]>> {
+	const candidatesByName = new Map<string, string[]>();
 	let entryCount = 0;
 
-	const walk = async ({
-		absoluteDirectory,
-		depth,
+	const scanLevel = async ({
+		directories,
 	}: {
-		absoluteDirectory: string;
-		depth: number;
+		directories: readonly CandidateDirectory[];
 	}): Promise<void> => {
-		let entries: Dirent[];
-		try {
-			entries = await readdir(absoluteDirectory, { withFileTypes: true });
-		} catch {
-			return;
-		}
-		entries.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-		for (const entry of entries) {
-			if (entryCount >= NAME_SEARCH_MAX_ENTRIES) {
-				return;
-			}
-			entryCount += 1;
-			if (entry.isSymbolicLink()) {
-				continue;
-			}
-			if (entry.isDirectory()) {
-				if (depth + 1 <= NAME_SEARCH_MAX_DEPTH) {
-					await walk({
-						absoluteDirectory: join(absoluteDirectory, entry.name),
-						depth: depth + 1,
-					});
+		const listings = await Promise.all(
+			directories.map((directory) => readCandidateDirectory({ directory }))
+		);
+		const nextDirectories: CandidateDirectory[] = [];
+		for (const listing of listings) {
+			for (const entry of listing.entries) {
+				if (entryCount >= MAX_DISCOVERY_ENTRIES) return;
+				entryCount += 1;
+				if (entry.isSymbolicLink()) continue;
+				const absolutePath = join(listing.absolutePath, entry.name);
+				if (entry.isDirectory()) {
+					if (listing.depth + 1 <= NAME_SEARCH_MAX_DEPTH) {
+						nextDirectories.push({
+							absolutePath,
+							depth: listing.depth + 1,
+						});
+					}
+					continue;
 				}
-				continue;
+				if (!entry.isFile()) continue;
+				const candidates = candidatesByName.get(entry.name) ?? [];
+				candidates.push(absolutePath);
+				candidatesByName.set(entry.name, candidates);
 			}
-			if (entry.isFile() && entry.name === fileName) {
-				candidates.push(join(absoluteDirectory, entry.name));
-			}
+		}
+		if (nextDirectories.length > 0) {
+			await scanLevel({ directories: nextDirectories });
 		}
 	};
 
-	await walk({ absoluteDirectory: rootRealPath, depth: 0 });
-	return candidates;
+	await scanLevel({ directories: [{ absolutePath: rootRealPath, depth: 0 }] });
+	return candidatesByName;
 }
 
 function issueFor({
@@ -230,12 +253,14 @@ async function resolveOneAsset({
 	rootRealPath,
 	maxHashBytes,
 	workCache,
+	loadCandidateNameIndex,
 }: {
 	resource: InteropResource;
 	declaredPath: string | undefined;
 	rootRealPath: string;
 	maxHashBytes: number;
 	workCache: AssetResolutionWorkCache;
+	loadCandidateNameIndex: () => Promise<ReadonlyMap<string, readonly string[]>>;
 }): Promise<ResolvedImportAsset> {
 	const issues: InteropIssue[] = [];
 
@@ -317,7 +342,8 @@ async function resolveOneAsset({
 			? []
 			: await workCache.findByName({
 					fileName,
-					load: () => findCandidatesByName({ rootRealPath, fileName }),
+					load: async () =>
+						(await loadCandidateNameIndex()).get(fileName) ?? [],
 					rootRealPath,
 				});
 
@@ -409,6 +435,18 @@ export async function resolveImportAssets({
 	const workCache = new AssetResolutionWorkCache({
 		maxEntries: maxCacheEntries,
 	});
+	let candidateNameIndexPromise:
+		| Promise<ReadonlyMap<string, readonly string[]>>
+		| undefined;
+	const loadCandidateNameIndex = (): Promise<
+		ReadonlyMap<string, readonly string[]>
+	> => {
+		if (candidateNameIndexPromise === undefined) {
+			instrumentation?.onNameIndexBuild?.();
+			candidateNameIndexPromise = buildCandidateNameIndex({ rootRealPath });
+		}
+		return candidateNameIndexPromise;
+	};
 	const assets: ResolvedImportAsset[] = new Array(resources.length);
 	let nextIndex = 0;
 
@@ -425,6 +463,7 @@ export async function resolveImportAssets({
 					rootRealPath,
 					maxHashBytes,
 					workCache,
+					loadCandidateNameIndex,
 				});
 			} finally {
 				instrumentation?.onProbeEnd?.();
