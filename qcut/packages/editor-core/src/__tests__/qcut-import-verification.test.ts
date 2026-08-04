@@ -178,6 +178,28 @@ describe("QCut import materialization verification", () => {
 		).rejects.toThrow("positive integer");
 	});
 
+	it("streams persisted media without buffering the complete Blob", async () => {
+		const bytes = new Blob(["stream-only-media"]);
+		Object.defineProperty(bytes, "arrayBuffer", {
+			value: async () => {
+				throw new Error("whole-blob buffering is forbidden");
+			},
+		});
+
+		const result = await describeQCutImportMedia({
+			media: [{ bytes, id: "streamed", type: "video" }],
+		});
+
+		expect(result).toEqual([
+			{
+				byteLength: 17,
+				id: "streamed",
+				sha256: createHash("sha256").update("stream-only-media").digest("hex"),
+				type: "video",
+			},
+		]);
+	});
+
 	it("passes only when persisted media and tracks match the import bundle", () => {
 		const bundle = createBundle();
 		const result = verifyQCutImportMaterialization({
