@@ -11,7 +11,12 @@ import type {
 } from "../../types/timeline.js";
 import { CAPCUT_8_1_PROFILE_ID } from "../capcut-8-1-profile.js";
 import { secondsToMicroseconds } from "../time.js";
-import type { QCutDraftExportSnapshotV1 } from "../types.js";
+
+/** Renderer-owned timing state required by guarded same-profile writeback. */
+export interface CapCut81WritebackTimingSnapshot {
+	tracks: readonly TimelineTrack[];
+	timelineDurationByElementId: Readonly<Record<string, number>>;
+}
 
 export type CapCut81TimingPatchIssueCode =
 	| "WRITEBACK_PROFILE_MISMATCH"
@@ -271,7 +276,7 @@ export function planCapCut81TimingPatches({
 	document: DraftInteropDocumentV1;
 	envelope: ForeignDraftEnvelopeV1;
 	internalIdBySemanticId: Readonly<Record<string, string>>;
-	snapshot: QCutDraftExportSnapshotV1;
+	snapshot: CapCut81WritebackTimingSnapshot;
 }): PlanCapCut81TimingPatchesResult {
 	if (
 		document.source.profileId !== CAPCUT_8_1_PROFILE_ID ||

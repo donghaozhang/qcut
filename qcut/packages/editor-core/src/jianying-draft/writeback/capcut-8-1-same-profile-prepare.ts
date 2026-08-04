@@ -6,11 +6,11 @@ import {
 	type SameProfileScalarPatch,
 } from "../../draft-interop/index.js";
 import { CAPCUT_8_1_PROFILE_ID } from "../capcut-8-1-profile.js";
-import type { QCutDraftExportSnapshotV1 } from "../types.js";
 import {
 	planCapCut81TimingPatches,
 	type CapCut81TimingPatchIssue,
 	type CapCut81TimingPatchIssueCode,
+	type CapCut81WritebackTimingSnapshot,
 } from "./capcut-8-1-timing-patches.js";
 
 const CAPCUT_8_1_ROOT_CONTENT_PATH = "draft_info.json";
@@ -119,7 +119,7 @@ export function prepareCapCut81SameProfileWriteback({
 	bytesByPath: ReadonlyMap<string, Uint8Array>;
 	envelope: ForeignDraftEnvelopeV1;
 	internalIdBySemanticId: Readonly<Record<string, string>>;
-	snapshot: QCutDraftExportSnapshotV1;
+	snapshot: CapCut81WritebackTimingSnapshot;
 }): PrepareCapCut81SameProfileWritebackResult {
 	if (
 		baselineDocument.source.profileId !== CAPCUT_8_1_PROFILE_ID ||

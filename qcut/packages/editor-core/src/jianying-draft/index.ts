@@ -216,6 +216,7 @@ export {
 	planCapCut81TimingPatches,
 	type CapCut81TimingPatchIssue,
 	type CapCut81TimingPatchIssueCode,
+	type CapCut81WritebackTimingSnapshot,
 	type PlanCapCut81TimingPatchesResult,
 } from "./writeback/capcut-8-1-timing-patches.js";
 

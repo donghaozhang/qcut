@@ -7,7 +7,7 @@ import {
 import {
 	CAPCUT_8_1_PROFILE_ID,
 	planCapCut81TimingPatches,
-	type QCutDraftExportSnapshotV1,
+	type CapCut81WritebackTimingSnapshot,
 } from "../jianying-draft/index.js";
 
 const INTERNAL_TRACK_ID = "qcut-track-1";
@@ -99,19 +99,8 @@ function envelope(): ForeignDraftEnvelopeV1 {
 	};
 }
 
-function snapshot(): QCutDraftExportSnapshotV1 {
+function snapshot(): CapCut81WritebackTimingSnapshot {
 	return {
-		schemaVersion: 1,
-		project: {
-			id: "project-1",
-			name: "Round trip",
-			sceneId: "scene-1",
-			width: 1920,
-			height: 1080,
-			fps: 30,
-			backgroundColor: "transparent",
-			backgroundType: "color",
-		},
 		tracks: [
 			{
 				id: INTERNAL_TRACK_ID,
@@ -132,17 +121,6 @@ function snapshot(): QCutDraftExportSnapshotV1 {
 						playbackRate: 1,
 					},
 				],
-			},
-		],
-		media: [
-			{
-				id: INTERNAL_RESOURCE_ID,
-				name: "clip.mp4",
-				sourcePath: "/private/clip.mp4",
-				type: "video",
-				duration: 3,
-				width: 1920,
-				height: 1080,
 			},
 		],
 		timelineDurationByElementId: { [INTERNAL_SEGMENT_ID]: 3 },
