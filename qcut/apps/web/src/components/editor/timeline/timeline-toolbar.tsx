@@ -376,21 +376,6 @@ export function TimelineToolbar({
 		}
 	};
 
-	const handleSceneManagement = () => {
-		toast.info(
-			"Scene management coming soon! This will allow you to create and switch between different timeline scenes.",
-			{
-				duration: 4000,
-				action: {
-					label: "Learn More",
-					onClick: () => {
-						debugLog("Scene management documentation");
-					},
-				},
-			}
-		);
-	};
-
 	const currentBookmarked = isBookmarked(currentTime);
 	const addTrackFromMenu = ({ type }: { type: TrackType }) => {
 		if (type !== "adjustment") {
@@ -774,13 +759,14 @@ export function TimelineToolbar({
 							<SplitButton>
 								<SplitButtonLeft disabled>{currentSceneName}</SplitButtonLeft>
 								<SplitButtonSeparator />
-								<SplitButtonRight
-									type="button"
-									aria-label={t("timeline.scene.open")}
-									onClick={handleSceneManagement}
-								>
-									<LayersIcon className="h-4 w-4" aria-hidden="true" />
-								</SplitButtonRight>
+								<ScenesView>
+									<SplitButtonRight
+										type="button"
+										aria-label={t("timeline.scene.open")}
+									>
+										<LayersIcon className="h-4 w-4" aria-hidden="true" />
+									</SplitButtonRight>
+								</ScenesView>
 							</SplitButton>
 						</TooltipTrigger>
 						<TooltipContent>

@@ -18,7 +18,9 @@
 | QTL-005 拆分主轨磁吸/吸附/联动 | ✅ 已完成 | 2026-08-04 | 三个开关独立、按项目持久化（`TProject.timeline`）；磁吸=主轨删除闭合缺口；联动=波纹是否带动 linked 轨道 |
 | QTL-006 扩展吸附候选与优先级 | ✅ 已完成 | 2026-08-04 | 候选扩展（接缝/书签）+ 确定性同距优先级 + Shift 临时禁用 + 统一 10px 容差常量 + 参数化 zoom 测试 |
 | QTL-007 补齐 Slide 与 Ripple Trim | ✅ 已完成 | 2026-08-04 | `calculateSlideEdit` / `calculateRippleTrim` 纯函数 + `slideElement` / `rippleTrimElement` 命令 + slide 编辑模式手势 |
-| QTL-008 ~ QTL-012 | ⬜ 未开始 | | |
+| QTL-008 强化组合与复合片段边界 | 🔶 部分完成 | 2026-08-04 | 组闭包删除已落地（用户组整体删除、分离音频对保留单删、锁定成员整体拒绝）；复合片段升级为子时间线仍待 QTL-011 类型化图之后 |
+| QTL-010 场景导航与缓存修复 | ✅ 已完成 | 2026-08-04 | 场景可真实创建/切换/删除（删除清理对应 timeline 存储）；帧缓存改按 `hidden` 过滤、忽略 `muted` |
+| QTL-009 / QTL-011 / QTL-012 | ⬜ 未开始 | | 轨道 profile、持久化语义图、转场 handle 策略 |
 
 ## 结论
 
@@ -26,12 +28,12 @@
 
 | 状态 | 数量 | 占比 |
 | --- | ---: | ---: |
-| 完整实现 | 41 | 82% |
-| 部分实现 | 6 | 12% |
+| 完整实现 | 44 | 88% |
+| 部分实现 | 3 | 6% |
 | 尚未实现 | 3 | 6% |
-| **需要修复或补齐** | **9** | **18%** |
+| **需要修复或补齐** | **6** | **12%** |
 
-审计基线为 19/50 项需要改动；QTL-001 ~ QTL-007 完成后，**当前还有 9/50 项时间线规则需要代码改动**——6 项已有基础但契约不完整，另有 3 项缺少正式模型或命令。
+审计基线为 19/50 项需要改动；QTL-001 ~ QTL-008（部分）与 QTL-010 完成后，**当前还有 6/50 项时间线规则需要代码改动**——3 项部分（混合模式 golden-frame 契约、替换的时长/转场策略、转场 handle 策略）+ 3 项缺失（轨道 profile、持久化类型化依赖图、语义图）。
 
 QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、顺序、合成层级、分组、复合片段、转场和波纹操作都已经存在。最大差距集中在操作语义：锁定没有在所有入口统一执行，插入/覆盖/替换没有一个共享冲突引擎，主轨磁吸与普通吸附/波纹没有拆开，关联仍主要依赖通用 `groupId`，撤销只保存轨道数组。
 
@@ -55,12 +57,12 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 | 波纹与主轨磁吸 | 5 | 5 | 0 | 0 | 0 |
 | 修剪模式 | 5 | 5 | 0 | 0 | 0 |
 | 吸附 | 5 | 5 | 0 | 0 | 0 |
-| 关联、组合与复合片段 | 5 | 3 | 1 | 1 | 2 |
+| 关联、组合与复合片段 | 5 | 4 | 0 | 1 | 1 |
 | 转场 | 5 | 4 | 1 | 0 | 1 |
 | 撤销与重做 | 3 | 3 | 0 | 0 | 0 |
-| 导航与缓存 | 3 | 1 | 2 | 0 | 2 |
+| 导航与缓存 | 3 | 3 | 0 | 0 | 0 |
 | AI 语义规则 | 2 | 1 | 0 | 1 | 1 |
-| **总计** | **50** | **41** | **6** | **3** | **9** |
+| **总计** | **50** | **44** | **3** | **3** | **6** |
 
 ## 50 项规则明细
 
@@ -114,11 +116,11 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 
 **完整（QTL-006 落地）：候选优先级和临时禁用。** 同距 tie-break 顺序：片段边缘 > 接缝 > 播放头 > 书签，再同优先级取更早时间——完全确定。拖动/放置期间按住 Shift 临时旁路吸附（轨内拖拽读 MouseEvent.shiftKey，HTML5 拖放读 DragEvent.shiftKey）。容差统一为 `TIMELINE_CONSTANTS.SNAP_THRESHOLD_PX`（10px），全部路径共享；节拍对齐保持为音频拖放路径中的 BPM 网格量化前置步骤（网格非有限候选集，与吸附开关同门控）。参数化 zoom 测试见 [`timeline-snapping.test.ts`](../../../apps/web/src/hooks/timeline/__tests__/timeline-snapping.test.ts)。
 
-### 7. 关联、组合与复合片段：3 完整，1 部分，1 缺失
+### 7. 关联、组合与复合片段：4 完整，0 部分，1 缺失
 
 **完整：** 组合/解除组合、组合选择/整体移动，以及分离音频后同步变速已经存在。相关实现位于 [`timeline-group-operations.ts`](../../../apps/web/src/stores/timeline/timeline-group-operations.ts)、[`timeline-media-timing-ops.ts`](../../../apps/web/src/stores/timeline/timeline-media-timing-ops.ts) 和 [`aligned-generated-media.ts`](../../../apps/web/src/lib/timeline/aligned-generated-media.ts)。
 
-**部分：组合操作原子性。** 普通选中可以展开整个 group，但底层直接删除、修剪、跨轨移动和锁定冲突没有统一 group closure。当前 `groupId` 同时承担 UI 组合、分离音频和 AI 对齐媒体的职责，语义会继续膨胀。
+**完整（QTL-008，2026-08-04 落地）：组合操作原子性。** 删除现在有统一 group closure：删除任一组员即整组单命令删除（含跨轨成员、选择清理、空轨修剪、一次 undo）；任一组员轨道锁定则整体拒绝（QTL-001 闭包守卫）；整体移动闭包此前已存在（`moveTimelineElementGroup`，QTL-002 加碰撞拒绝）。明确策略：纯"分离音频对"（同 mediaId、一端在音轨）是计时 link 而非用户组合——删视频保留分离音频（`isSeparatedAudioPairGroup`），与剪映一致；修剪保持单片段语义（同剪映）。测试见 [`timeline-group-closure.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-group-closure.test.ts)。
 
 **缺失：类型化依赖图（部分推进）。** QTL-003 引入了从 groupId 派生的类型化 link（`video-audio`、`group`，见 `ripple-plan.ts`），并已驱动 ripple domain；但 `caption-owner`、`effect-target`、`semantic-scene` 等持久化 link、删除/移动前的依赖闭包和单边 unlink 的持久化模型仍未建立（归 QTL-008 / QTL-011）。
 
@@ -136,13 +138,13 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 
 **完整（QTL-004，2026-08-04 落地）：历史快照范围。** `history` 与 `redoStack` 现在保存完整编辑上下文快照（[`timeline-history.ts`](../../../apps/web/src/stores/timeline/timeline-history.ts)：tracks + 选择 + 转场选中 + 播放头），undo/redo 一并恢复。顺带修复了一个真实往返 bug：旧 `redo()` 只弹 redoStack 不回推 history，undo→redo 之后再 undo 会跳级。CLI 事务桥（`claude-transaction-bridge.ts`，分组事务单条历史）同步升级到完整快照。审计所称"multi 分支追加两次"在当前代码中无法复现（multi 分支是 toggle 语义），已用选择不变量测试钉死。测试见 [`timeline-history-transaction.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-history-transaction.test.ts)。场景切换仍不可撤销（加载场景时清空历史）——场景生命周期归 QTL-010。
 
-### 10. 导航与缓存：1 完整，2 部分
+### 10. 导航与缓存：3 完整，0 部分
 
-**完整：书签。** 项目 bookmarks 可显示并点击跳转播放头。
+**完整：书签。** 项目 bookmarks 可显示并点击跳转播放头（并已成为吸附候选，QTL-006）。
 
-**部分：场景导航。** `scene-store.ts` 已支持创建、切换、重命名和按 scene 保存时间线，但工具栏的场景管理仍显示 coming soon；删除场景还有清理存储的 TODO。相关代码位于 [`scene-store.ts`](../../../apps/web/src/stores/timeline/scene-store.ts) 和 [`timeline-toolbar.tsx`](../../../apps/web/src/components/editor/timeline/timeline-toolbar.tsx)。
+**完整（QTL-010，2026-08-04 落地）：场景导航。** 工具栏场景按钮不再是 coming soon——两个入口都打开真实的 `ScenesView` 面板；面板新增"New scene"（创建即切换）；删除场景现在清理对应 timeline 存储（`storageService.deleteProjectTimeline` 接受 `sceneId`，清理失败不阻断删除）。
 
-**部分：帧缓存身份。** 缓存已经包含 scene、活动元素、媒体签名和项目画布信息，但 hash 过滤使用 `track.muted`，没有使用 `track.hidden`。隐藏视觉轨后可能仍命中旧的可见帧；静音媒体轨又可能不必要地改变视觉缓存。见 [`use-frame-cache.ts`](../../../apps/web/src/hooks/timeline/use-frame-cache.ts)。
+**完整（QTL-010 落地）：帧缓存身份。** 视觉帧 hash 改为按 `track.hidden` 过滤（隐藏轨离开渲染必须失效缓存），并忽略 `track.muted`（静音是纯音频属性，既不能命中过期帧也不应让有效帧失效——原实现两个方向都错）。回归测试见 [`use-frame-cache.test.tsx`](../../../apps/web/src/hooks/timeline/__tests__/use-frame-cache.test.tsx)。
 
 ### 11. AI 语义规则：1 完整，1 缺失
 
@@ -159,9 +161,9 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 | P0 | `replaceElementMedia()` 异步写回旧 `_tracks` | 等待导入期间的用户编辑可能被覆盖 | ✅ 已修复（QTL-001） |
 | P0 | 冲突检查不在 domain command 层 | 同一操作从 UI、CLI、AI 入口得到不同结果 | ✅ 已修复（QTL-002） |
 | P1 | 历史只保存 tracks | undo 后选择、播放头和跨 Store 状态可能不一致 | ✅ 已修复（QTL-004，含 redo 往返 bug） |
-| P1 | 帧缓存忽略 `track.hidden` | 隐藏轨道后可能短暂显示旧缓存帧 | ⬜ 待 QTL-010 |
+| P1 | 帧缓存忽略 `track.hidden` | 隐藏轨道后可能短暂显示旧缓存帧 | ✅ 已修复（QTL-010，双向：hidden 参与、muted 退出） |
 | P1 | multi-select 重复追加选择 | 选择计数和批量命令输入可能重复 | ✅ 无法复现（当前为 toggle 语义），已加不变量测试（QTL-004） |
-| P1 | 场景删除不清理对应 timeline storage | 长期积累孤立场景数据 | ⬜ 待 QTL-010 |
+| P1 | 场景删除不清理对应 timeline storage | 长期积累孤立场景数据 | ✅ 已修复（QTL-010） |
 
 ## 建议修复顺序
 
@@ -264,11 +266,16 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 
 验收结果：普通、反向、变速和 handle 不足 fixture 均有纯函数测试 ✅；每次手势只产生一个历史命令（延续 slip/roll 的 pushHistory 一次性模式）✅。
 
-#### QTL-008 强化组合与复合片段边界
+#### QTL-008 强化组合与复合片段边界 🔶 部分完成（2026-08-04）
 
-相关文件：`apps/web/src/stores/timeline/timeline-group-operations.ts`、`apps/web/src/stores/timeline/timeline-compound-operations.ts`、`packages/editor-core/src/types/timeline.ts`、storage scene/timeline API。
+已落地（组闭包半）：
 
-验收：group 的 delete/trim/move 有统一 closure；复合片段升级为有稳定 ID 和版本的子时间线；局部 fps、markers 和 cache namespace 有明确继承规则。
+- 删除闭包：`removeElementFromTrack` 对分组元素整组单命令删除（跨轨成员、选择清理、空轨修剪、一次 undo）；ripple 入口对分组元素路由到同一闭包；任一成员轨道锁定整体拒绝。
+- 语义判别：`isSeparatedAudioPairGroup` 把"同 mediaId、一端在音轨"的双元素组识别为分离音频计时 link——删视频保留音频（剪映行为），把 `groupId` 的双重身份显式化。
+- 策略：move 闭包已有（QTL-002 加碰撞整体拒绝）；trim 保持单片段（剪映一致）。
+- 测试：[`timeline-group-closure.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-group-closure.test.ts)（4 用例）。
+
+未落地（复合片段半）：复合片段仍是 `MediaElement.compound.clips[]` 容器，未升级为可进入编辑、拥有稳定版本/局部 fps/markers/cache namespace 的子时间线——按本文档原有判断，应在 QTL-011 类型化图之后演进。
 
 #### QTL-009 增加轨道 profile 与无损迁移
 
@@ -276,11 +283,15 @@ QCut 的基础模型并不差。轨道类型、主轨标识、显隐、静音、
 
 验收：classic typed、free-layer typed、free-layer mixed 三种 profile 均能 round-trip；未知 profile fail closed，不静默丢素材。
 
-#### QTL-010 完成场景导航与缓存修复
+#### QTL-010 完成场景导航与缓存修复 ✅ 已完成（2026-08-04）
 
-相关文件：`apps/web/src/stores/timeline/scene-store.ts`、`apps/web/src/components/editor/timeline/timeline-toolbar.tsx`、`apps/web/src/hooks/timeline/use-frame-cache.ts`。
+实施记录：
 
-验收：场景可真实创建/切换/删除；删除清理对应 timeline DB；hidden/muted/scene/transition 变化都能正确命中或失效缓存。
+- 工具栏场景 SplitButton 从 coming-soon toast 改接真实 `ScenesView` 面板（与既有 Layers 入口同一面板）；`ScenesView` 新增 "New scene" 按钮（创建即切换）。
+- `storageService.deleteProjectTimeline` 接受可选 `sceneId`（适配器本就 scene-aware）；`deleteScene` 落库后清理被删场景的 timeline 存储，清理失败仅告警不阻断。
+- 帧缓存 hash 改按 `track.hidden` 过滤且忽略 `track.muted`（原实现双向皆错：静音使视觉缓存无谓失效、隐藏却可能命中旧帧），回归测试钉死两个方向。
+
+验收结果：场景可真实创建/切换/删除 ✅；删除清理对应 timeline 存储 ✅；hidden/muted 变化正确命中或失效缓存（scene/transition 已在既有 hash 维度中）✅。
 
 ### P2：建立 AI 与兼容层
 

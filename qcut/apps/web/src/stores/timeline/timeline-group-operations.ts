@@ -51,6 +51,36 @@ export function ungroupTimelineElements({
 	return { tracks: nextTracks, ungroupedCount };
 }
 
+/**
+ * A groupId shared by exactly one media clip and its detached audio twin is
+ * a timing link, not a user group: deleting the video must not take the
+ * separated audio with it (QTL-008). Everything else deletes as a group.
+ */
+export function isSeparatedAudioPairGroup({
+	tracks,
+	groupId,
+}: {
+	tracks: TimelineTrack[];
+	groupId: string;
+}): boolean {
+	const members: Array<{ element: TimelineElement; trackType: string }> = [];
+	for (const track of tracks) {
+		for (const element of track.elements) {
+			if (element.groupId === groupId) {
+				members.push({ element, trackType: track.type });
+			}
+		}
+	}
+	if (members.length !== 2) return false;
+	const [first, second] = members;
+	return (
+		first.element.type === "media" &&
+		second.element.type === "media" &&
+		first.element.mediaId === second.element.mediaId &&
+		(first.trackType === "audio") !== (second.trackType === "audio")
+	);
+}
+
 function collidesOnTrack({
 	track,
 	movedElements,

@@ -37,6 +37,7 @@ import { normalizeTrackAudioSettings } from "@/lib/audio/audio-mix-settings";
 import { applyCaptionStyleToTracks } from "./caption-style-operations";
 import {
 	groupTimelineElements,
+	isSeparatedAudioPairGroup,
 	moveTimelineElementGroup,
 	ungroupTimelineElements,
 } from "./timeline-group-operations";
@@ -408,6 +409,49 @@ export function createCrudOperations(
 					trackIds: [trackId],
 				})
 			) {
+				return;
+			}
+
+			// Group closure (QTL-008): deleting one grouped element deletes the
+			// whole group as a single command. Any locked member track blocks
+			// the entire deletion. A pure separated-audio pair is a timing
+			// link, not a user group — it keeps single-element deletion.
+			if (
+				element.groupId &&
+				!isSeparatedAudioPairGroup({
+					tracks: get()._tracks,
+					groupId: element.groupId,
+				})
+			) {
+				const groupId = element.groupId;
+				if (
+					blockedByTrackLock({
+						tracks: get()._tracks,
+						operation: "Remove Element Group",
+						trackIds: findTrackIdsForGroup({
+							tracks: get()._tracks,
+							groupId,
+						}),
+					})
+				) {
+					return;
+				}
+				if (pushHistory) get().pushHistory();
+				for (const currentTrack of get()._tracks) {
+					for (const member of currentTrack.elements) {
+						if (member.groupId === groupId) {
+							get().deselectElement(currentTrack.id, member.id);
+						}
+					}
+				}
+				updateTracksAndSave(
+					get()
+						._tracks.map((t) => ({
+							...t,
+							elements: t.elements.filter((el) => el.groupId !== groupId),
+						}))
+						.filter((t) => t.elements.length > 0 || t.isMain)
+				);
 				return;
 			}
 

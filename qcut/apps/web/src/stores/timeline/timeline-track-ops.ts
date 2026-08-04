@@ -17,6 +17,7 @@ import type {
 } from "./timeline-store-operations";
 import { blockedByTrackLock } from "./timeline-lock-guard";
 import { overwriteRangeInElements } from "./timeline-collision-utils";
+import { isSeparatedAudioPairGroup } from "./timeline-group-operations";
 import {
 	deriveTimelineLinks,
 	resolveRippleDomain,
@@ -291,6 +292,20 @@ export function createTrackOps(
 			const element = track?.elements.find((e) => e.id === elementId);
 
 			if (!element || !track) return;
+
+			// User groups delete as a whole (QTL-008); the closure lives in
+			// removeElementFromTrack. Separated-audio pairs are timing links and
+			// stay on the single-element ripple path here.
+			if (
+				element.groupId &&
+				!isSeparatedAudioPairGroup({
+					tracks: _tracks,
+					groupId: element.groupId,
+				})
+			) {
+				get().removeElementFromTrack(trackId, elementId, pushHistory);
+				return;
+			}
 
 			// Ripple domain (QTL-003): the edited track plus tracks linked to its
 			// elements. A locked linked dependency blocks the whole command —

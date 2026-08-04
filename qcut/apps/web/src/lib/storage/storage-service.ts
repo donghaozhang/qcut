@@ -762,10 +762,15 @@ class StorageService {
 
 	async deleteProjectTimeline({
 		projectId,
+		sceneId,
 	}: {
 		projectId: string;
+		sceneId?: string;
 	}): Promise<void> {
-		const timelineAdapter = this.getProjectTimelineAdapter({ projectId });
+		const timelineAdapter = this.getProjectTimelineAdapter({
+			projectId,
+			sceneId,
+		});
 		await timelineAdapter.remove("timeline");
 	}
 

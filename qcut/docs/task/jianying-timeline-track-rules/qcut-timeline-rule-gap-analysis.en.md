@@ -18,7 +18,9 @@
 | QTL-005 Separate magnet / snapping / linkage | ✅ Done | 2026-08-04 | Three independent per-project toggles (`TProject.timeline`); magnet = main-track deletions close their gap; linkage = whether ripple pulls linked tracks |
 | QTL-006 Extend snap candidates and priorities | ✅ Done | 2026-08-04 | Seam/bookmark candidates + deterministic tie-break + Shift bypass + one 10px tolerance constant + zoom-parameterized tests |
 | QTL-007 Add Slide and Ripple Trim | ✅ Done | 2026-08-04 | `calculateSlideEdit` / `calculateRippleTrim` pure math + `slideElement` / `rippleTrimElement` commands + a slide edit-mode gesture |
-| QTL-008 – QTL-012 | ⬜ Not started | | |
+| QTL-008 Strengthen group and compound boundaries | 🔶 Partial | 2026-08-04 | Group-closure deletion landed (whole user group, separated-audio pairs keep single deletion, locked members reject); compound-as-child-timeline still follows QTL-011 |
+| QTL-010 Scene navigation and cache correctness | ✅ Done | 2026-08-04 | Scenes create/switch/delete for real (deletion cleans its timeline storage); the frame cache filters on `hidden` and ignores `muted` |
+| QTL-009 / QTL-011 / QTL-012 | ⬜ Not started | | Track profiles, persisted semantic graph, transition-handle profiles |
 
 ## Conclusion
 
@@ -26,12 +28,12 @@ This audit decomposes the JianYing research baseline into **50 independently tes
 
 | Status | Count | Share |
 | --- | ---: | ---: |
-| Complete | 41 | 82% |
-| Partial | 6 | 12% |
+| Complete | 44 | 88% |
+| Partial | 3 | 6% |
 | Missing | 3 | 6% |
-| **Requires repair or implementation** | **9** | **18%** |
+| **Requires repair or implementation** | **6** | **12%** |
 
-The audit baseline identified 19 of 50 rules needing changes; with QTL-001 through QTL-007 done, **QCut still needs code changes for 9 of the 50 timeline rules** — six with useful foundations but incomplete contracts, three without a first-class model or command.
+The audit baseline identified 19 of 50 rules needing changes; with QTL-001 through QTL-008 (partial) and QTL-010 done, **QCut still needs code changes for 6 of the 50 timeline rules** — three partial (the blend-mode golden-frame contract, replacement's duration/transition policy, the transition-handle policy) plus three missing (track profiles, the persisted typed dependency graph, the semantic graph).
 
 QCut's foundation is stronger than the gap count may suggest. It already has typed tracks, explicit main-track identity, visibility, mute, ordering, canonical composition, grouping, compound containers, transitions, and ripple operations. The largest gap is the operation-semantics layer: locks are not enforced by every entry point, insert/overwrite/replace do not share a collision engine, main-track magnetism is not separate from snapping and ripple, relationships still rely heavily on generic `groupId`, and undo stores only track arrays.
 
@@ -55,12 +57,12 @@ QCut's foundation is stronger than the gap count may suggest. It already has typ
 | Ripple and main-track magnetism | 5 | 5 | 0 | 0 | 0 |
 | Trim modes | 5 | 5 | 0 | 0 | 0 |
 | Snapping | 5 | 5 | 0 | 0 | 0 |
-| Links, groups, and compounds | 5 | 3 | 1 | 1 | 2 |
+| Links, groups, and compounds | 5 | 4 | 0 | 1 | 1 |
 | Transitions | 5 | 4 | 1 | 0 | 1 |
 | Undo and redo | 3 | 3 | 0 | 0 | 0 |
-| Navigation and cache | 3 | 1 | 2 | 0 | 2 |
+| Navigation and cache | 3 | 3 | 0 | 0 | 0 |
 | AI semantics | 2 | 1 | 0 | 1 | 1 |
-| **Total** | **50** | **41** | **6** | **3** | **9** |
+| **Total** | **50** | **44** | **3** | **3** | **6** |
 
 ## Detailed 50-Rule Assessment
 
@@ -114,11 +116,11 @@ Additional migration risk: if every existing track has `order` and a main track 
 
 **Complete (QTL-006): candidate priority and temporary disable.** Equal-distance ties break deterministically: element edges > seams > playhead > bookmarks, then the earlier time. Holding Shift bypasses snapping during in-track drags (MouseEvent.shiftKey) and HTML5 drops (DragEvent.shiftKey). The tolerance is one shared constant, `TIMELINE_CONSTANTS.SNAP_THRESHOLD_PX` (10 px); beat alignment stays a BPM grid quantizer pre-pass in the audio drop path (an infinite grid is not a finite candidate set) gated by the same snapping switch. Zoom-parameterized tests: [`timeline-snapping.test.ts`](../../../apps/web/src/hooks/timeline/__tests__/timeline-snapping.test.ts).
 
-### 7. Links, groups, and compound clips: 3 complete, 1 partial, 1 missing
+### 7. Links, groups, and compound clips: 4 complete, 0 partial, 1 missing
 
 **Complete:** Group/ungroup, group selection/movement, and detached-audio timing synchronization exist. See [`timeline-group-operations.ts`](../../../apps/web/src/stores/timeline/timeline-group-operations.ts), [`timeline-media-timing-ops.ts`](../../../apps/web/src/stores/timeline/timeline-media-timing-ops.ts), and [`aligned-generated-media.ts`](../../../apps/web/src/lib/timeline/aligned-generated-media.ts).
 
-**Partial: atomic group behavior.** Normal selection expands a group, but direct deletion, trim, cross-track movement, and lock conflicts do not share a group closure. `groupId` currently carries UI grouping, detached audio, and AI-aligned media semantics, so its responsibility will continue to grow unless those relationships are separated.
+**Complete (QTL-008, landed 2026-08-04): atomic group behavior.** Deletion now has a group closure: deleting any member deletes the whole group as one command (cross-track members, selection cleanup, empty-track pruning, one undo); any locked member track rejects the whole deletion (the QTL-001 closure guard). Whole-group movement already had its closure (`moveTimelineElementGroup`, with QTL-002 collision rejection). Explicit policy: a pure separated-audio pair (same mediaId, one side on an audio track) is a timing link, not a user group — deleting the video keeps the detached audio (`isSeparatedAudioPairGroup`), matching JianYing; trim stays single-clip (also JianYing behavior). See [`timeline-group-closure.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-group-closure.test.ts).
 
 **Missing: a typed dependency graph (partially advanced).** QTL-003 introduced typed links derived from groupIds (`video-audio`, `group`; see `ripple-plan.ts`) that already power ripple domains, but persisted `caption-owner` / `effect-target` / `semantic-scene` links, pre-delete/move dependency closures, and persisted one-sided unlink state remain missing (QTL-008 / QTL-011).
 
@@ -136,13 +138,13 @@ Compound clips can be created and decomposed, but the current representation is 
 
 **Complete (QTL-004, landed 2026-08-04): history snapshot scope.** `history` and `redoStack` now store full editing-context snapshots ([`timeline-history.ts`](../../../apps/web/src/stores/timeline/timeline-history.ts): tracks + selection + selected transition + playhead), restored together by undo/redo. This also fixed a real round-trip bug: the old `redo()` popped the redo stack without re-pushing history, so undo after redo skipped a step. The CLI transaction bridge (`claude-transaction-bridge.ts`, grouped transactions as one entry) was upgraded to full snapshots. The audited "multi-select appends twice" claim does not reproduce in current code (the multi branch toggles); a selection-invariant test now pins that. See [`timeline-history-transaction.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-history-transaction.test.ts). Scene switching remains non-undoable (loading a scene clears history) — scene lifecycle is QTL-010.
 
-### 10. Navigation and cache: 1 complete, 2 partial
+### 10. Navigation and cache: 3 complete, 0 partial
 
-**Complete: bookmarks.** Project bookmarks render and seek the playhead when clicked.
+**Complete: bookmarks.** Project bookmarks render and seek the playhead when clicked (and are snap candidates since QTL-006).
 
-**Partial: scene navigation.** `scene-store.ts` supports create, switch, rename, and per-scene timeline persistence, but the toolbar's scene manager still reports “coming soon,” and scene deletion has a TODO for timeline-storage cleanup. See [`scene-store.ts`](../../../apps/web/src/stores/timeline/scene-store.ts) and [`timeline-toolbar.tsx`](../../../apps/web/src/components/editor/timeline/timeline-toolbar.tsx).
+**Complete (QTL-010, landed 2026-08-04): scene navigation.** The toolbar's scene button no longer says “coming soon” — both entries open the real `ScenesView` panel; the panel gains a "New scene" button (create then switch); scene deletion now cleans the deleted scene's timeline storage (`storageService.deleteProjectTimeline` accepts a `sceneId`; a cleanup failure warns without aborting).
 
-**Partial: frame-cache identity.** The cache includes scene, active elements, media signatures, and project canvas state, but its hash filters on `track.muted` and never checks `track.hidden`. Hiding a visual track can therefore reuse a formerly visible frame, while muting a media track can unnecessarily alter the visual cache. See [`use-frame-cache.ts`](../../../apps/web/src/hooks/timeline/use-frame-cache.ts).
+**Complete (QTL-010): frame-cache identity.** The visual frame hash now filters on `track.hidden` (a hidden track leaves the render, so the cache must miss) and ignores `track.muted` (an audio-only property — the old code was wrong in both directions). Regression test: [`use-frame-cache.test.tsx`](../../../apps/web/src/hooks/timeline/__tests__/use-frame-cache.test.tsx).
 
 ### 11. AI semantic rules: 1 complete, 1 missing
 
@@ -159,9 +161,9 @@ Compound clips can be created and decomposed, but the current representation is 
 | P0 | `replaceElementMedia()` writes a stale async `_tracks` snapshot | User edits made during import can be overwritten | ✅ Fixed (QTL-001) |
 | P0 | Collision checks are outside the domain command layer | UI, CLI, and AI can produce different results for one operation | ✅ Fixed (QTL-002) |
 | P1 | History stores tracks only | Selection, playhead, and cross-Store state can disagree after undo | ✅ Fixed (QTL-004, incl. the redo round-trip bug) |
-| P1 | Frame-cache hashing ignores `track.hidden` | A hidden track may briefly remain visible through a stale cached frame | ⬜ QTL-010 |
+| P1 | Frame-cache hashing ignores `track.hidden` | A hidden track may briefly remain visible through a stale cached frame | ✅ Fixed (QTL-010; both directions: hidden joins, muted leaves) |
 | P1 | Multi-select appends a selection twice | Selection counts and batch command inputs can contain duplicates | ✅ Not reproducible (toggle semantics today); pinned by an invariant test (QTL-004) |
-| P1 | Scene deletion does not clean its timeline storage | Orphan scene data accumulates over time | ⬜ QTL-010 |
+| P1 | Scene deletion does not clean its timeline storage | Orphan scene data accumulates over time | ✅ Fixed (QTL-010) |
 
 ## Recommended Repair Order
 
@@ -264,11 +266,16 @@ What landed:
 
 Acceptance result: ordinary, reverse, retimed, and insufficient-handle fixtures have pure-function tests ✅; every gesture creates exactly one history command (the slip/roll one-shot pushHistory pattern) ✅.
 
-#### QTL-008 Strengthen group and compound boundaries
+#### QTL-008 Strengthen group and compound boundaries 🔶 Partial (2026-08-04)
 
-Relevant files: `apps/web/src/stores/timeline/timeline-group-operations.ts`, `apps/web/src/stores/timeline/timeline-compound-operations.ts`, `packages/editor-core/src/types/timeline.ts`, and scene/timeline storage APIs.
+Landed (the group-closure half):
 
-Acceptance: group delete/trim/move share one closure; compound clips become child timelines with stable IDs and versions; local fps, markers, and cache namespace have explicit inheritance rules.
+- Deletion closure: `removeElementFromTrack` deletes a grouped element's whole group as one command (cross-track members, selection cleanup, empty-track pruning, one undo); the ripple entry routes grouped elements to the same closure; any locked member track rejects the whole deletion.
+- Semantic split: `isSeparatedAudioPairGroup` identifies a two-member same-mediaId group with one side on an audio track as a detached-audio timing link — deleting the video keeps the audio (JianYing behavior), making `groupId`'s double duty explicit.
+- Policy: move closure existed (QTL-002 added whole-group collision rejection); trim stays single-clip (JianYing-consistent).
+- Tests: [`timeline-group-closure.test.ts`](../../../apps/web/src/stores/timeline/__tests__/timeline-group-closure.test.ts) (4 cases).
+
+Not landed (the compound half): compound clips remain a `MediaElement.compound.clips[]` container, not a navigable child timeline with stable versions / local fps / markers / cache namespace — per this document's own judgment, that evolves after the QTL-011 typed graph.
 
 #### QTL-009 Add track profiles and lossless migration
 
@@ -276,11 +283,15 @@ Relevant files: `packages/editor-core/src/timeline/validation.ts`, `packages/edi
 
 Acceptance: classic typed, free-layer typed, and free-layer mixed profiles round-trip; unknown profiles fail closed instead of silently dropping media.
 
-#### QTL-010 Complete scene navigation and cache correctness
+#### QTL-010 Complete scene navigation and cache correctness ✅ Done (2026-08-04)
 
-Relevant files: `apps/web/src/stores/timeline/scene-store.ts`, `apps/web/src/components/editor/timeline/timeline-toolbar.tsx`, and `apps/web/src/hooks/timeline/use-frame-cache.ts`.
+What landed:
 
-Acceptance: scenes can be created, switched, and deleted through real UI; deletion removes the corresponding timeline DB; hidden/muted/scene/transition changes correctly hit or invalidate cache.
+- The toolbar scene SplitButton opens the real `ScenesView` panel instead of a coming-soon toast (same panel as the existing Layers entry); `ScenesView` gains a "New scene" button (create, then switch).
+- `storageService.deleteProjectTimeline` accepts an optional `sceneId` (the adapter was already scene-aware); `deleteScene` cleans the deleted scene's timeline storage after saving the project, warning without aborting on cleanup failure.
+- The frame-cache hash filters on `track.hidden` and ignores `track.muted` (the old code was wrong both ways: muting invalidated valid visual frames while hiding could hit stale ones); a regression test pins both directions.
+
+Acceptance result: scenes create/switch/delete through real UI ✅; deletion removes the corresponding timeline storage ✅; hidden/muted changes hit or invalidate cache correctly (scene/transition were already hash dimensions) ✅.
 
 ### P2: Establish AI and compatibility layers
 
