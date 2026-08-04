@@ -133,11 +133,11 @@ export function createImportPlanArtifact({
 	const warningFingerprints = collectInteropIssueFingerprints({
 		issues: document.issues,
 		severity: "warning",
-	});
+	}).map((fingerprint) => createSha256({ value: fingerprint }));
 	const blockerFingerprints = collectInteropIssueFingerprints({
 		issues: document.issues,
 		severity: "error",
-	});
+	}).map((fingerprint) => createSha256({ value: fingerprint }));
 	const sourceFiles = snapshot.files.map((file) => ({
 		relativePath: file.relativePath,
 		sha256: file.sha256,

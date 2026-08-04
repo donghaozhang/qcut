@@ -8,7 +8,10 @@ import {
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { DraftInteropDocumentV1 } from "@qcut/editor-core/draft-interop";
+import type {
+	DraftInteropDocumentV1,
+	InteropIssue,
+} from "@qcut/editor-core/draft-interop";
 import { afterEach, describe, expect, it } from "vitest";
 import {
 	createImportPlanArtifact,
@@ -45,10 +48,12 @@ function createArtifact({
 	planToken = "persistent-token",
 	now = NOW,
 	ttl = 60_000,
+	issues = [],
 }: {
 	planToken?: string;
 	now?: number;
 	ttl?: number;
+	issues?: InteropIssue[];
 } = {}): ImportPlanArtifactV1 {
 	const snapshot: DraftSourceSnapshot = {
 		rootRealPath: "/private/qcut/source-draft",
@@ -89,7 +94,7 @@ function createArtifact({
 		timelines: [],
 		resources: [],
 		links: [],
-		issues: [],
+		issues,
 	};
 	return createImportPlanArtifact({
 		snapshot,
@@ -114,6 +119,30 @@ afterEach(async () => {
 describe("parseImportPlanArtifactV1", () => {
 	it("accepts the canonical persisted artifact", () => {
 		const artifact = createArtifact();
+		expect(
+			parseImportPlanArtifactV1(JSON.parse(JSON.stringify(artifact)))
+		).toEqual(artifact);
+	});
+
+	it("persists hashed warning and blocker fingerprints", () => {
+		const artifact = createArtifact({
+			issues: [
+				{
+					code: "FEATURE_DOWNGRADED",
+					severity: "warning",
+					message: "text downgraded",
+					subjectId: "segment-1",
+				},
+				{
+					code: "RESOURCE_MISSING",
+					severity: "error",
+					message: "media missing",
+					subjectId: "resource-1",
+				},
+			],
+		});
+		expect(artifact.warningFingerprints[0]).toMatch(/^[a-f0-9]{64}$/u);
+		expect(artifact.blockerFingerprints[0]).toMatch(/^[a-f0-9]{64}$/u);
 		expect(
 			parseImportPlanArtifactV1(JSON.parse(JSON.stringify(artifact)))
 		).toEqual(artifact);
