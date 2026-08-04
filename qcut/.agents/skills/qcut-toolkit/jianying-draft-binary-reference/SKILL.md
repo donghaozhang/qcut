@@ -7,8 +7,27 @@ description: Trace which Jianying (剪映专业版) processes, app binaries, and
 
 Use this skill to map draft-file ownership, not to bypass encryption. Read
 [binary-map.md](references/binary-map.md) before making ownership claims.
+Read [data-and-behavior-protocol.md](references/data-and-behavior-protocol.md)
+before collecting plaintext draft diffs or running Jianying UI experiments.
 The reference records the known files, binaries, evidence, commands, and
 confidence boundaries for the locally observed Jianying build.
+
+## Data-first inspection
+
+Inventory existing plaintext evidence before opening Jianying:
+
+```bash
+SKILL_DIR="/absolute/path/to/jianying-draft-binary-reference"
+bun "$SKILL_DIR/scripts/inspect-draft.ts" inventory
+bun "$SKILL_DIR/scripts/inspect-draft.ts" diff \
+  --before "/absolute/path/to/before.json" \
+  --after "/absolute/path/to/after.json"
+```
+
+The CLI is read-only, omits paths by default, hashes free-form strings in diff
+output, and rejects opaque payloads for semantic comparison. Treat its output
+as structural evidence, then corroborate interaction semantics with a
+single-variable UI experiment.
 
 ## Workflow
 
@@ -47,4 +66,3 @@ Report each claim with:
 - Reimplement observed behavior in original QCut code; do not copy proprietary
   implementation material.
 - A library being loaded does not prove it handled a particular draft operation.
-
