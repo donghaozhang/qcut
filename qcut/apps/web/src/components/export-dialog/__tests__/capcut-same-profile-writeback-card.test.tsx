@@ -135,6 +135,57 @@ describe("CapCut same-profile writeback card", () => {
 		expect(onBusyChange).toHaveBeenLastCalledWith(false);
 	});
 
+	it("detects timeline changes made after writeback starts", async () => {
+		const runWriteback = vi.fn(async (_request: WritebackRequest) => ({
+			ok: true as const,
+			outcome: "cancelled" as const,
+		}));
+		const importedProject = createProject();
+		const view = render(
+			<CapCutSameProfileWritebackCard
+				bridgeAvailable
+				project={importedProject}
+				runWriteback={runWriteback}
+				tracks={tracks}
+			/>
+		);
+
+		fireEvent.click(
+			screen.getByRole("button", { name: "Choose draft and update" })
+		);
+		await waitFor(() => expect(runWriteback).toHaveBeenCalledOnce());
+		const request = runWriteback.mock.calls[0]?.[0];
+		expect(request).toBeDefined();
+		await expect(
+			request?.deps?.verifySnapshotCurrent?.({
+				project: importedProject,
+				snapshot: request.snapshot,
+			})
+		).resolves.toBe(true);
+
+		view.rerender(
+			<CapCutSameProfileWritebackCard
+				bridgeAvailable
+				project={importedProject}
+				runWriteback={runWriteback}
+				tracks={[
+					{
+						id: "new-track",
+						name: "Video",
+						type: "media",
+						elements: [],
+					},
+				]}
+			/>
+		);
+		await expect(
+			request?.deps?.verifySnapshotCurrent?.({
+				project: importedProject,
+				snapshot: request.snapshot,
+			})
+		).resolves.toBe(false);
+	});
+
 	it("surfaces fail-closed preparation issues", async () => {
 		const runWriteback = vi.fn(async () => ({
 			ok: false as const,
