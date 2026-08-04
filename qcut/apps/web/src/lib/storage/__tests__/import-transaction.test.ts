@@ -335,6 +335,7 @@ describe("runQCutImportTransaction", () => {
 			bundleDigest: createBundle().bundleDigest,
 			sourceFileSha256: ["a".repeat(64)],
 			internalIdBySemanticId: createBundle().internalIdBySemanticId,
+			baselineDocument: createBundle().document,
 			writeback: {
 				status: "unavailable",
 				reason: "envelope-not-captured",
