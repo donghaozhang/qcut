@@ -79,6 +79,10 @@ import {
 	logMode2Detection,
 } from "./export-engine-cli-debug";
 import { buildTimelineAssLayers } from "./export-engine-cli-text";
+import {
+	applyJianyingTimelineTransitions,
+	partitionJianyingTransitions,
+} from "./export-engine-cli-jianying";
 
 // Re-export types for backward compatibility (using export from)
 export type {
@@ -887,6 +891,8 @@ export class CLIExportEngine extends ExportEngine {
 					fps: this.fps,
 				})
 			: [];
+		const { qcutTransitions, jianyingTransitions } =
+			partitionJianyingTransitions({ transitions: videoTransitions });
 		const audioCrossfades: AudioCrossfadeInput[] = extractAudioCrossfadeInputs({
 			tracks: this.tracks,
 		});
@@ -933,7 +939,7 @@ export class CLIExportEngine extends ExportEngine {
 			hasStickerFilters,
 			wordFilterSegments,
 			videoSources,
-			videoTransitions,
+			videoTransitions: qcutTransitions,
 			videoInput,
 			backgroundColor:
 				useProjectStore.getState().activeProject?.backgroundColor ?? "#000000",
@@ -948,7 +954,16 @@ export class CLIExportEngine extends ExportEngine {
 			textFilterChainLength: textFilterChain.length,
 		});
 
-		return invokeFFmpegExport(exportOptions);
+		const qcutOutputPath = await invokeFFmpegExport(exportOptions);
+		return applyJianyingTimelineTransitions({
+			inputPath: qcutOutputPath,
+			transitions: jianyingTransitions,
+			tracks: this.tracks,
+			fps: this.fps,
+			width: this.canvas.width,
+			height: this.canvas.height,
+			onProgress: progressCallback,
+		});
 	}
 
 	private async readOutputFile(outputPath: string): Promise<Blob> {
