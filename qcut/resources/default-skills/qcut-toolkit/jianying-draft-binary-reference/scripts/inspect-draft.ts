@@ -30,11 +30,23 @@ function usage(): string {
 	].join("\n");
 }
 
-function optionValues({ args }: { args: string[] }): Map<string, string> {
+function optionValues({
+	allowedOptions,
+	args,
+}: {
+	allowedOptions: ReadonlySet<string>;
+	args: string[];
+}): Map<string, string> {
 	const values = new Map<string, string>();
 	for (let index = 0; index < args.length; index += 1) {
 		const argument = args[index];
-		if (!argument?.startsWith("--") || argument === "--include-paths") continue;
+		if (argument === "--include-paths") continue;
+		if (!argument?.startsWith("--")) {
+			throw new Error(`Unexpected argument ${argument}.`);
+		}
+		if (!allowedOptions.has(argument)) {
+			throw new Error(`Unknown option ${argument}.`);
+		}
 		const value = args[index + 1];
 		if (!value || value.startsWith("--")) {
 			throw new Error(`Missing value for ${argument}.`);
@@ -70,7 +82,14 @@ export function parseDraftInspectionOptions({
 	) {
 		throw new Error(usage());
 	}
-	const values = optionValues({ args: args.slice(1) });
+	const allowedOptions = new Set(
+		command === "inventory"
+			? ["--root"]
+			: command === "inspect"
+				? ["--file"]
+				: ["--before", "--after"]
+	);
+	const values = optionValues({ allowedOptions, args: args.slice(1) });
 	const includePaths = args.includes("--include-paths");
 	const options: CliOptions = {
 		command: command as CliOptions["command"],

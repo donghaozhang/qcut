@@ -227,5 +227,8 @@ describe("Jianying draft evidence", () => {
 			candidateCount: 1,
 			jsonCount: 1,
 		});
+		expect(() =>
+			parseDraftInspectionOptions({ args: ["inventory", "--roots", root] })
+		).toThrow("Unknown option --roots");
 	});
 });
