@@ -1,6 +1,8 @@
 import {
+	mkdir,
 	mkdtemp,
 	readFile,
+	readdir,
 	rm,
 	stat,
 	symlink,
@@ -26,7 +28,6 @@ import {
 } from "../import-plan-store.js";
 import {
 	PersistentImportPlanStore,
-	PersistentImportPlanStoreCorruptError,
 	PersistentImportPlanStoreUnavailableError,
 } from "../persistent-import-plan-store.js";
 import type { DraftSourceSnapshot } from "../snapshot-reader.js";
@@ -258,20 +259,50 @@ describe("PersistentImportPlanStore", () => {
 		expect(await reopened.getSize()).toBe(0);
 	});
 
-	it("fails closed for corrupt state and a symlinked store file", async () => {
+	it("quarantines corrupt state and resumes with an empty store", async () => {
 		const corruptDirectory = await createTemporaryDirectory();
+		const corruptBytes = JSON.stringify({
+			schemaVersion: 1,
+			entries: [{ status: "ready" }],
+		});
 		await writeFile(
 			join(corruptDirectory, "import-plans.v1.json"),
-			JSON.stringify({ schemaVersion: 1, entries: [{ status: "ready" }] })
+			corruptBytes
 		);
+		const recovered = await PersistentImportPlanStore.open({
+			buildIdentity: BUILD,
+			storageDirectory: corruptDirectory,
+			now: () => NOW,
+		});
+		expect(recovered.startupRecoveryAction).toBe("quarantined-corrupt-store");
 		await expect(
-			PersistentImportPlanStore.open({
-				buildIdentity: BUILD,
-				storageDirectory: corruptDirectory,
-				now: () => NOW,
-			})
-		).rejects.toBeInstanceOf(PersistentImportPlanStoreCorruptError);
+			recovered.get({ planToken: "persistent-token" })
+		).rejects.toBeInstanceOf(ImportPlanNotFoundError);
 
+		const quarantineFileNames = (await readdir(corruptDirectory)).filter(
+			(fileName) => fileName.startsWith("import-plans.v1.json.corrupt.")
+		);
+		expect(quarantineFileNames).toHaveLength(1);
+		const quarantinePath = join(corruptDirectory, quarantineFileNames[0]);
+		expect(await readFile(quarantinePath, "utf8")).toBe(corruptBytes);
+		if (process.platform !== "win32") {
+			const metadata = await stat(quarantinePath);
+			expect(metadata.mode & 0o777).toBe(0o600);
+		}
+
+		await recovered.put({ artifact: createArtifact() });
+		const reopened = await PersistentImportPlanStore.open({
+			buildIdentity: BUILD,
+			storageDirectory: corruptDirectory,
+			now: () => NOW,
+		});
+		expect(reopened.startupRecoveryAction).toBe("none");
+		expect(
+			(await reopened.get({ planToken: "persistent-token" })).planToken
+		).toBe("persistent-token");
+	});
+
+	it("fails closed for a symlinked store file", async () => {
 		const symlinkDirectory = await createTemporaryDirectory();
 		const targetPath = join(symlinkDirectory, "outside.json");
 		await writeFile(
@@ -286,6 +317,24 @@ describe("PersistentImportPlanStore", () => {
 				now: () => NOW,
 			})
 		).rejects.toBeInstanceOf(PersistentImportPlanStoreUnavailableError);
+	});
+
+	it("does not quarantine a non-file store path", async () => {
+		const storageDirectory = await createTemporaryDirectory();
+		await mkdir(join(storageDirectory, "import-plans.v1.json"));
+
+		await expect(
+			PersistentImportPlanStore.open({
+				buildIdentity: BUILD,
+				storageDirectory,
+				now: () => NOW,
+			})
+		).rejects.toBeInstanceOf(PersistentImportPlanStoreUnavailableError);
+		expect(
+			(await readdir(storageDirectory)).filter((fileName) =>
+				fileName.startsWith("import-plans.v1.json.corrupt.")
+			)
+		).toHaveLength(0);
 	});
 
 	it("persists restricted paths only in the private store", async () => {
