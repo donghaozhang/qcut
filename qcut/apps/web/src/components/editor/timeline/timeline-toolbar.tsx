@@ -716,9 +716,7 @@ export function TimelineToolbar({
 						</TooltipTrigger>
 						<TooltipContent>
 							{withShortcut(
-								rippleEditingEnabled
-									? "Delete with linked ripple"
-									: "Delete element",
+								rippleEditingEnabled ? "Delete with ripple" : "Delete element",
 								"delete-selected"
 							)}
 						</TooltipContent>
