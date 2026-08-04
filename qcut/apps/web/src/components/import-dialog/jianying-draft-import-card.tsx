@@ -445,6 +445,24 @@ function PendingImports({
 	);
 }
 
+function CorruptJournalWarning({ count }: { count: number }) {
+	const { t } = useTranslation();
+	if (count === 0) return null;
+	return (
+		<Alert
+			variant="destructive"
+			className="mb-4"
+			data-testid="draft-import-corrupt-journal"
+		>
+			<ShieldAlert className="size-4" />
+			<AlertTitle>{t("draftImport.corruptRecoveryTitle")}</AlertTitle>
+			<AlertDescription>
+				{t("draftImport.corruptRecoveryDescription", { count })}
+			</AlertDescription>
+		</Alert>
+	);
+}
+
 export function JianyingDraftImportCard({
 	controller,
 	onOpenProject,
@@ -456,24 +474,34 @@ export function JianyingDraftImportCard({
 }) {
 	const { t } = useTranslation();
 	return (
-		<Tabs defaultValue={defaultTab}>
-			<TabsList className="grid w-full grid-cols-2">
-				<TabsTrigger value="draft">{t("draftImport.draftFolder")}</TabsTrigger>
-				<TabsTrigger value="inbox">
-					{t("draftImport.desktopQueue")}
-					{controller.inboxEntries.length > 0 && (
-						<Badge variant="secondary" className="ml-2 px-1.5 py-0">
-							{controller.inboxEntries.length}
-						</Badge>
-					)}
-				</TabsTrigger>
-			</TabsList>
-			<TabsContent value="draft" className="mt-5">
-				<LiveImport controller={controller} onOpenProject={onOpenProject} />
-			</TabsContent>
-			<TabsContent value="inbox" className="mt-5">
-				<PendingImports controller={controller} onOpenProject={onOpenProject} />
-			</TabsContent>
-		</Tabs>
+		<>
+			<CorruptJournalWarning
+				count={controller.recoveryResult?.corruptJournalRecordCount ?? 0}
+			/>
+			<Tabs defaultValue={defaultTab}>
+				<TabsList className="grid w-full grid-cols-2">
+					<TabsTrigger value="draft">
+						{t("draftImport.draftFolder")}
+					</TabsTrigger>
+					<TabsTrigger value="inbox">
+						{t("draftImport.desktopQueue")}
+						{controller.inboxEntries.length > 0 && (
+							<Badge variant="secondary" className="ml-2 px-1.5 py-0">
+								{controller.inboxEntries.length}
+							</Badge>
+						)}
+					</TabsTrigger>
+				</TabsList>
+				<TabsContent value="draft" className="mt-5">
+					<LiveImport controller={controller} onOpenProject={onOpenProject} />
+				</TabsContent>
+				<TabsContent value="inbox" className="mt-5">
+					<PendingImports
+						controller={controller}
+						onOpenProject={onOpenProject}
+					/>
+				</TabsContent>
+			</Tabs>
+		</>
 	);
 }
