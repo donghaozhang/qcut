@@ -13,6 +13,7 @@ import { useMediaStore } from "@/stores/media/media-store";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { MediaElement, TimelineTrack } from "@/types/timeline";
+import { JIANYING_TRANSITIONS } from "../../../../../../../../../electron/jianying-transition-catalog";
 import { TransitionsView } from "../index";
 import { getTransitionPresetById } from "../transition-presets";
 
@@ -107,6 +108,51 @@ function selectAdjacentClips() {
 	});
 }
 
+function installReadyJianyingRuntime() {
+	const originalDescriptor = Object.getOwnPropertyDescriptor(
+		window,
+		"electronAPI"
+	);
+	const jianyingTransitions: NonNullable<
+		NonNullable<typeof window.electronAPI>["jianyingTransitions"]
+	> = {
+		inspect: vi.fn(async () => ({
+			state: "ready" as const,
+			platform: "darwin",
+			appInstalled: true,
+			bridgeReady: true,
+			availableCount: JIANYING_TRANSITIONS.length,
+			totalCount: JIANYING_TRANSITIONS.length,
+			transitions: JIANYING_TRANSITIONS.map((transition) => ({
+				id: transition.id,
+				available: true,
+			})),
+			message: "20 个剪映本机转场均可用。",
+		})),
+		render: vi.fn(async () => {
+			throw new Error("Unexpected direct render in component test");
+		}),
+		renderTimeline: vi.fn(async () => {
+			throw new Error("Unexpected timeline render in component test");
+		}),
+	};
+	Object.defineProperty(window, "electronAPI", {
+		configurable: true,
+		writable: true,
+		value: {
+			...window.electronAPI,
+			jianyingTransitions,
+		} as NonNullable<typeof window.electronAPI>,
+	});
+	return () => {
+		if (originalDescriptor) {
+			Object.defineProperty(window, "electronAPI", originalDescriptor);
+			return;
+		}
+		Reflect.deleteProperty(window, "electronAPI");
+	};
+}
+
 describe("TransitionsView", () => {
 	beforeEach(() => {
 		useTimelineStore.setState({
@@ -186,6 +232,51 @@ describe("TransitionsView", () => {
 			fireEvent.click(screen.getByRole("button", { name: category }));
 			expect(screen.getByTestId(`transition-card-${presetId}`)).toBeVisible();
 			expect(screen.getByText(`${expectedCount} 个转场`)).toBeVisible();
+		}
+	});
+
+	it("keeps local Jianying transitions in the lab and applies them like native presets", async () => {
+		const restoreRuntime = installReadyJianyingRuntime();
+		selectAdjacentClips();
+
+		try {
+			render(<TransitionsView />);
+			expect(
+				screen.queryByTestId("transition-card-jianying-local-3d-space")
+			).not.toBeInTheDocument();
+
+			fireEvent.click(screen.getByRole("button", { name: "转场实验室" }));
+
+			await waitFor(() =>
+				expect(
+					screen.getByTestId("transition-card-jianying-local-3d-space")
+				).toBeVisible()
+			);
+			expect(screen.getByText("20 个转场")).toBeVisible();
+			expect(screen.getByText("20 个剪映本机转场均可用。")).toBeVisible();
+			expect(screen.getByRole("tab", { name: "空间运镜" })).toBeVisible();
+
+			fireEvent.click(screen.getByRole("tab", { name: "图形遮罩" }));
+			expect(
+				screen.getByTestId("transition-card-jianying-local-heart")
+			).toBeVisible();
+			expect(
+				screen.queryByTestId("transition-card-jianying-local-3d-space")
+			).not.toBeInTheDocument();
+
+			fireEvent.click(screen.getByRole("button", { name: "应用爱心" }));
+			const transition = useTimelineStore
+				.getState()
+				.tracks.find((track) => track.id === "track-1")
+				?.transitions?.at(0);
+			expect(transition).toMatchObject({
+				presetId: "jianying-local-heart",
+				type: "texture-mask",
+				maskShape: "heart",
+				duration: 0.5,
+			});
+		} finally {
+			restoreRuntime();
 		}
 	});
 
