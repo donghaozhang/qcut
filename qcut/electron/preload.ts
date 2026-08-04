@@ -66,6 +66,11 @@ import {
 	CAPCUT_8_1_MIGRATION_INSTALL_CHANNEL,
 	CAPCUT_8_1_MIGRATION_PLAN_CHANNEL,
 } from "./jianying-draft-export-contract.js";
+import {
+	JIANYING_TRANSITION_INSPECT_CHANNEL,
+	JIANYING_TRANSITION_RENDER_CHANNEL,
+	JIANYING_TRANSITION_RENDER_TIMELINE_CHANNEL,
+} from "./jianying-transition-contract.js";
 
 // Expose the API to the renderer process
 const electronAPI: ElectronAPI & Record<string, unknown> = {
@@ -88,6 +93,13 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke(CAPCUT_8_1_MIGRATION_INSTALL_CHANNEL, request),
 		planCapCut81Migration: (request) =>
 			ipcRenderer.invoke(CAPCUT_8_1_MIGRATION_PLAN_CHANNEL, request),
+	},
+	jianyingTransitions: {
+		inspect: () => ipcRenderer.invoke(JIANYING_TRANSITION_INSPECT_CHANNEL),
+		render: (request) =>
+			ipcRenderer.invoke(JIANYING_TRANSITION_RENDER_CHANNEL, request),
+		renderTimeline: (request) =>
+			ipcRenderer.invoke(JIANYING_TRANSITION_RENDER_TIMELINE_CHANNEL, request),
 	},
 
 	// File operations
