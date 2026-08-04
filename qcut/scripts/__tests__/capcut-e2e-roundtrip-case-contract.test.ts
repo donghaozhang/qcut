@@ -14,6 +14,10 @@ import {
 	type PreviewFrameComparisonManifest,
 } from "../capcut-e2e/preview-frame-comparison.js";
 import {
+	QCUT_IMPORT_VERIFICATION_MANIFEST_SCHEMA,
+	type QCutImportVerificationManifest,
+} from "../capcut-e2e/qcut-import-verification-contract.js";
+import {
 	assessRoundtripCase,
 	type RoundtripCaseEvidence,
 } from "../capcut-e2e/roundtrip-case-contract.js";
@@ -164,21 +168,49 @@ function audio({
 	};
 }
 
+function qcutImport({
+	verdict = "pass",
+}: {
+	verdict?: QCutImportVerificationManifest["verdict"];
+} = {}): QCutImportVerificationManifest {
+	return {
+		bundle: { byteLength: 100, bundleDigest: SHA_A, sha256: SHA_A },
+		checks: {
+			bundleDigest: verdict === "pass",
+			projectFps: verdict === "pass",
+			projectGeometry: verdict === "pass",
+			projectName: verdict === "pass",
+		},
+		generatedAtIso: GENERATED_AT,
+		qcutSnapshot: { byteLength: 100, sha256: SHA_B },
+		roles: {
+			actual: "qcut-renderer-snapshot",
+			expected: "import-bundle",
+		},
+		schema: QCUT_IMPORT_VERIFICATION_MANIFEST_SCHEMA,
+		schemaVersion: 1,
+		verdict,
+	};
+}
+
 function evidence({
 	audioManifest = audio(),
 	nativeManifest = nativeFrames(),
 	previewManifest = previewFrames(),
+	qcutImportManifest = qcutImport(),
 	semanticManifest = semantic(),
 }: {
 	audioManifest?: AudioComparisonManifest;
 	nativeManifest?: FrameComparisonManifest;
 	previewManifest?: PreviewFrameComparisonManifest;
+	qcutImportManifest?: QCutImportVerificationManifest;
 	semanticManifest?: SemanticDiffCaseManifest;
 } = {}): RoundtripCaseEvidence {
 	return {
 		audio: audioManifest,
 		nativeFrames: nativeManifest,
 		previewFrames: previewManifest,
+		qcutImport: qcutImportManifest,
 		semantic: semanticManifest,
 	};
 }
@@ -247,6 +279,26 @@ describe("CapCut E2E round-trip evidence gates", () => {
 		expect(assessment.gates).toContainEqual({
 			id: "native-frames",
 			reason: "Native frame comparison failed.",
+			status: "fail",
+		});
+	});
+
+	it("fails the case when QCut materialized different import state", () => {
+		const assessment = assessRoundtripCase({
+			evidence: evidence({
+				qcutImportManifest: qcutImport({ verdict: "fail" }),
+			}),
+			provenance: {
+				evidenceStatus: "candidate-unverified",
+				id: "local-candidate",
+			},
+			samplePlan: samplePlan(),
+		});
+
+		expect(assessment.verdict).toBe("fail");
+		expect(assessment.gates).toContainEqual({
+			id: "qcut-import",
+			reason: "QCut import materialization failed.",
 			status: "fail",
 		});
 	});
