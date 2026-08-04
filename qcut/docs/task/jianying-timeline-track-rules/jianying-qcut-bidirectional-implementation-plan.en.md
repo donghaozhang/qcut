@@ -4,7 +4,8 @@
 
 **Status:** Implementation design; not all work below exists yet  
 **Date:** 2026-08-04  
-**Baseline branch:** `codex/transition-v2`  
+**Last verified revision:** `ab384a5bc`
+
 **Dependencies:** [Verified JianYing Timeline Track Rules](./timeline-track-rules.en.md), [QCut Timeline Rule Gap Analysis](./qcut-timeline-rule-gap-analysis.en.md)
 
 ## Objective
@@ -73,6 +74,7 @@ packages/editor-core/src/draft-interop/
   provenance.ts
   dirty-domains.ts
   issues.ts
+  import-bundle.ts
 
 packages/editor-core/src/jianying-draft/import/
   raw-types.ts
@@ -91,7 +93,7 @@ packages/editor-core/src/jianying-draft/profiles/
 
 Core never reads user directories, calls Electron, creates Blobs, or scans JianYing caches.
 
-### Runtime: constrained filesystem and transactions
+### Runtime: constrained filesystem and import bundle
 
 Add a package symmetric with the exporter:
 
@@ -101,13 +103,26 @@ packages/jianying-draft-import/
   src/snapshot-reader.ts
   src/asset-resolver.ts
   src/import-session.ts
-  src/import-journal.ts
-  src/project-writer.ts
+  src/import-plan-artifact.ts
+  src/qcut-import-bundle-builder.ts
   src/runtime-validation.ts
   src/__tests__/
 ```
 
-Only main process or CLI code may call this package. Reuse the exporter's absolute-path, realpath, symlink, TOCTOU, size-limit, and bounded-concurrency patterns.
+Only main process or CLI code may call this package. Reuse the exporter's absolute-path, realpath, symlink, TOCTOU, size-limit, and bounded-concurrency patterns. The package owns source snapshots, parsing, resource plans, and `QCutImportBundle`, but it **must not write QCut IndexedDB or OPFS directly**.
+
+### Renderer: QCut storage transaction
+
+The project registry may use the Electron storage adapter, but timelines, media metadata, and media bytes still use renderer-owned IndexedDB/OPFS adapters. A Node filesystem rename therefore cannot make the entire QCut project atomic. Add a renderer transaction boundary:
+
+```text
+apps/web/src/lib/jianying-draft/qcut-import-transaction.ts
+apps/web/src/lib/storage/import-staging-adapter.ts
+apps/web/src/lib/storage/import-journal.ts
+apps/web/src/lib/storage/import-recovery.ts
+```
+
+The transaction accepts a validated `QCutImportBundle`, writes project, scene, timeline, media metadata, OPFS bytes, and the foreign envelope into an isolated namespace, rereads and verifies the result, then makes it visible through one registry publish. Minimal journal, rollback, and startup recovery ship with the first writable commit path, not in a later performance phase.
 
 ### Web and Electron integration
 
@@ -118,13 +133,13 @@ electron/preload-types/api-types/jianying-draft-import-api.ts
 
 apps/web/src/hooks/import/use-jianying-draft-import.ts
 apps/web/src/components/import-dialog/jianying-draft-import-card.tsx
-apps/web/src/lib/jianying-draft/qcut-import-commit.ts
 
-electron/native-pipeline/cli/command-registry-editor-draft.ts
-electron/native-pipeline/cli/cli-handlers-editor-draft.ts
+electron/native-pipeline/cli/command-registry-editor-jianying.ts
+electron/native-pipeline/cli/cli-handlers-editor.ts
+electron/jianying-draft-import-inbox.ts
 ```
 
-The UI does not parse drafts. It displays profile, issues, resource decisions, estimated disk use, and commit results.
+The UI does not parse drafts. It displays profile, issues, resource decisions, estimated disk use, and commit results. The CLI does not implement a second storage path: while QCut is running, it sends the bundle over the Electron bridge; while QCut is closed, it may only write a validated desktop import inbox entry that QCut consumes through the same renderer transaction on next launch.
 
 ## Bidirectional Semantic Interchange
 
@@ -165,6 +180,20 @@ Important fields:
 
 Assign capability per track, clip, companion material, and resource rather than giving the whole project one vague score.
 
+### Five profile operation capabilities
+
+“Bidirectional support” is not a Boolean. Every profile declares these operations independently:
+
+| Capability | Meaning |
+| --- | --- |
+| `inspect` | Safely identify and report without creating a QCut project |
+| `import` | Commit the declared supported subset as an editable QCut project |
+| `sameProfileWriteback` | Write QCut edits back to the same product and profile |
+| `crossProfileExport` | Migrate to one explicit different target profile |
+| `realAppVerified` | Hold target-version open/save/reopen/native-export receipts |
+
+Source import, same-profile round trips, and cross-profile migrations have separate tests and release status. A synthetic fixture proves only internal parser/writer consistency; it is not a production profile and cannot satisfy `realAppVerified`.
+
 ## 1. Production Importer
 
 ### Pipeline
@@ -192,16 +221,20 @@ Inspect returns profile candidates, file size/mtime/identity/hash, timeline and 
 
 A plan is bound to every inspected input hash. Any source change invalidates it. It contains deterministic QCut project/scene/timeline/element IDs, source-to-QCut ID mappings, resource actions, downgrade warning fingerprints, blocked reasons, checkpoints, and disk estimates.
 
+Persist a versioned `ImportPlanArtifactV1` bound at minimum to `planId`, `importId`, creator, creation/expiry time, QCut build/schema, source snapshot manifest hash, profile evidence hash, mapper versions, warning fingerprints, and bundle digest. Store it only in private QCut app data by default; logs and CLI output redact source paths. Commit uses compare-and-swap plan state and rejects expired, consumed, changed-source, incompatible-build, or concurrently executing plans.
+
+Deterministic IDs are scoped by `importId + source semantic ID`. Replaying the same plan is idempotent. Reimporting the same source requires an explicit `new-project | replace-existing | update-linked` policy instead of overwriting a project through a deterministic project-ID collision.
+
 ### Commit
 
-Commit writes `staging/<importId>/`, then rereads and validates media, metadata, timeline, project, and the foreign envelope. The project becomes visible only after verification. Ordinary failures remove staging; crashes are resumed or rolled back from the journal on the next launch.
+Runtime commit freezes the plan, resolves resources, and produces a digest-bound `QCutImportBundle`. Renderer commit writes the bundle into an isolated IndexedDB/OPFS staging namespace, rereads and verifies media, metadata, timeline, project, and foreign envelope, and only then publishes the project registry entry. Failures roll staging back; renderer journal recovery resumes or rolls back after a crash.
 
 ### CLI
 
 ```bash
 qcut editor draft inspect --source "/path/to/draft" --json
 qcut editor draft import-plan --source "/path/to/draft" --profile auto --json
-qcut editor draft import-commit --plan-id <id> --accept-warning <fingerprint>
+qcut editor draft import-commit --plan-id <id> --on-conflict new-project --accept-warning <fingerprint>
 qcut editor draft roundtrip-verify --project <qcut-project-id> --target capcut-8.1
 ```
 
@@ -231,11 +264,11 @@ Do not build a web of direct `5.9 JSON -> 8.1 JSON` converters. Versions meet in
 
 ### Initial matrix
 
-| Profile | Import | Export | Round trip |
-| --- | --- | --- | --- |
-| Synthetic plaintext 5.9 | First production importer | Existing base | Exact subset |
-| CapCut desktop 8.1 plaintext | Second phase | Existing migration base | Verified subset |
-| JianYing 11.x newer format | Inspect/read-only first | No guessed writes | Blocked without evidence |
+| Profile | Inspect | Import | Same-profile writeback | Cross-profile export | Real-app state |
+| --- | --- | --- | --- | --- | --- |
+| Synthetic plaintext 5.9 | Fixture | Parser/plan fixture | Internal consistency only | Existing writer base | Not a production profile |
+| CapCut desktop 8.1 plaintext | First production candidate | First production candidate | Enable one verified subset at a time | Existing migration base | Each subset needs real receipts |
+| JianYing 11.x newer format | Read-only first | Blocked without evidence | Blocked | Blocked | Unresolved/encrypted |
 
 Every new profile requires sanitized golden fixtures, runtime validation, migration tests, and real-app open/save/reopen/export receipts.
 
@@ -365,6 +398,8 @@ ordinary media export, cloud synchronization, backups, diagnostics, telemetry,
 and support bundles; only a separate informed user action may export a redacted
 compatibility bundle.
 
+Define the key contract before the first implementation persists an envelope. The main process wraps a project data key through the platform keychain/credential vault; the renderer requests encryption or decryption over narrow IPC and never persists the plaintext key. The contract covers key version, rotation, project deletion, unavailable system credentials, cross-machine migration, and explicit user export. If a protected key is unavailable, explicitly downgrade to an import without an envelope or block round-trip support; never write the envelope as silent plaintext.
+
 ### Dirty domains
 
 At minimum:
@@ -441,47 +476,89 @@ Each checkpoint records input hashes, output inventory, and reversible actions. 
 
 ### Atomicity
 
-`storageService` currently writes project, timeline, media, and OPFS data separately. A production importer must not call these ordinary methods while parsing. Add a bulk staging writer that writes an isolated namespace and exposes it with one project-registry commit.
+`storageService` currently writes project, timeline, media, and OPFS data separately. A production importer must not call these ordinary methods while parsing, and a Node package cannot manipulate browser storage directly. Add a renderer bulk staging transaction that writes an isolated namespace and exposes it with one project-registry commit. Node runtime only creates and validates bundles; the Electron bridge transports them with backpressure and owns no persistence semantics.
 
 ### Crash tests
 
 Inject process exit after every checkpoint and verify existing projects remain unchanged, no partial project is visible, staging is recoverable or removable, retries preserve IDs and deduplicate assets, and logs avoid unnecessary sensitive source paths.
 
+## 8. Research Gates and Open Evidence
+
+The module boundaries and transaction model in this plan are QCut architecture decisions. JianYing profiles, file ownership, cross-file references, and render semantics cannot be implemented from field names or static strings alone. Research follows [`jianying-draft-binary-reference`](../../../.agents/skills/qcut-toolkit/jianying-draft-binary-reference/SKILL.md), including its evidence levels and safety boundary.
+
+### Open questions
+
+| ID | Uncertainty | Risk | Preferred evidence | Implementation gate |
+| --- | --- | --- | --- | --- |
+| JYR-001 | Save transaction file set, write order, temporary files, and rename boundary | A snapshot may combine files that never formed one real state | One open/edit/save/close in a disposable project with PID/path-class filesystem trace | Until verified, an active project directory is not a consistent import snapshot |
+| JYR-002 | JianYing 11.x opaque/encrypted `draft_info.json` envelope | Misclassifying opaque bytes as writable JSON | Payload classification, existing plaintext backup/subdraft, and static owner evidence without defeating encryption | Inspect only; parse/write remain blocked without a lawful stable protocol |
+| JYR-003 | Authoritative profile detection fields and sidecars | The wrong writer may open once but fail continued editing | Multi-version real corpus, app metadata, schema/key-set comparison, and static version gates as supporting evidence | Ambiguous detection disables automatic commit |
+| JYR-004 | Equivalence between synthetic plaintext 5.9 and the real 5.9 app | Internal round trips may be mislabeled as product compatibility | Matching-version first-open/save/reopen/export receipt | Never mark stable without a real-app receipt |
+| JYR-005 | Ownership between unknown subtrees, indexes, checksums, and material registries | A JSON patch may break cross-file references | Single-variable plaintext unknown sentinel plus semantic diff after real-app save | Unverified ownership domains block writes |
+| JYR-006 | Sidecar allowlist required by `ForeignDraftEnvelope` | Copying key stores, private paths, unrelated backups, or proprietary caches | File-access trace, same-profile deletion experiments, and sensitivity review | Deny by default; unproven files do not enter the envelope |
+| JYR-007 | Parent/subdraft/compound timeline ID binding, versions, and save ownership | A compound may parse but fail writeback after child edits | Create/open/edit/close one compound and compare parent/subdraft/backup | Compound remains opaque or blocked until verified |
+| JYR-008 | Resolver priority among resource ID, metadata, hashes, and cache databases | Binding a same-name or same-ID wrong resource | Read-only catalog/cache joins, missing/relink behavior tests, and package hashes | Private resources without exact evidence remain opaque; never guess by basename |
+
+### Evidence selection
+
+- Prefer plaintext data diffs for time units, ID/reference graphs, track order, ownership candidates, and backup/subdraft structure.
+- Prefer real-app black-box tests for insert/delete/ripple/replace/transition behavior, relinking, font fallback, save/reopen/export, and frame/audio oracles.
+- Use static binary research to identify likely draft, subdraft, profile, validator, or key-store owners. Static hits reach only `static-strong`; they do not prove runtime calls.
+- Use runtime file tracing only when file ownership or save ordering changes importer safety. Use a disposable project, one UI variable, and recorded app version, PID, time, and path classes.
+
+### Private binary boundary
+
+Launch the real JianYing app as a behavior and export oracle. Do not build the importer on a private dylib ABI or call `libvideoeditor.dylib`, `libVECreator.dylib`, or private crypto functions. Do not patch, inject, defeat encryption, or read/copy key stores. A linked or loaded library proves availability only; controlled file-access or call traces are needed to attribute one operation.
+
+### First research sequence
+
+1. JYR-001 save transaction: trace one empty and one single-clip open/edit/save/close.
+2. JYR-007 subdraft: compare parent, subdraft, and backup around one compound edit.
+3. JYR-005 unknown sentinel: preserve one unknown node and inspect fields, references, and cross-file derived data after real-app save.
+4. JYR-003 profile corpus: freeze app/schema/layout/key-set fingerprints and real receipts for each candidate version.
+5. JYR-008 resource relink: test present, moved, missing, and manually relinked cases for a font, LUT, native transition, and one private resource.
+
+Every result is labeled `runtime-observed | static-strong | architecture-only | unresolved`, records alternative explanations, and names the next check. Only `runtime-observed` evidence, or plaintext structure plus a real-app round trip, may enter a stable writable profile contract.
+
 ## Delivery Phases
 
-| Phase | Deliverable | Dependency | Rough duration |
+| Phase | Independently acceptable deliverable | Dependency | Rough duration |
 | --- | --- | --- | ---: |
-| 0 | Interop model, capability/issues, profile registry | Timeline command semantics | 1–2 weeks |
-| 1 | 5.9 inspect, parse, and semantic plan without commit | Phase 0 | 2 weeks |
-| 2 | Asset resolver, staging commit, CLI/UI import | Phase 1 | 2–3 weeks |
-| 3 | CapCut 8.1 import/migration and base round trip | Phase 2 | 3–4 weeks |
-| 4 | Text, color, mask, keyframe, and transition expansion | Phase 3 | 4–8 weeks |
-| 5 | Unknown preservation, real-app save/reopen, visual/audio gates | Phases 3–4 | 3–5 weeks |
-| 6 | 10k-segment performance, journal, crash recovery | Phases 2–5 | 2–4 weeks |
+| 0 | Initial JYR-001/JYR-003 evidence; interop, capability/issues, provenance, dirty domains, envelope schema, and profile registry | Timeline command semantics | 1–2 weeks |
+| 1 | Read-only inspect/parse/semantic plan for synthetic fixtures and a CapCut 8.1 candidate; persistent plan artifact with no commit | Phase 0 | 2–3 weeks |
+| 2 | Resource resolver, QCutImportBundle, renderer staging transaction, minimal journal/rollback/recovery, and Electron/CLI transport | Phase 1 | 3–4 weeks |
+| 3 | Production import for a declared CapCut 8.1 subset, QCut reload, and real-app/source-unchanged evidence | Phase 2 and profile research gates | 2–3 weeks |
+| 4 | CapCut 8.1 same-profile writeback, unknown preservation, real-app save/reopen/native-export, and semantic/frame/audio gates | Phase 3 and JYR-005/JYR-006 | 3–5 weeks |
+| 5 | Text, color, mask, keyframe, and transition mappers with independent capabilities and receipts | Phase 4 | 4–8 weeks |
+| 6 | 10k segments, 100 GB assets, cache metrics, complete fault injection, recovery, and cross-version hardening | Phases 2–5 | 2–4 weeks |
 
-One engineer working serially is roughly 4–6 months. Two engineers familiar with QCut and media formats may parallelize to roughly 2.5–4 months. This excludes defeating newer encrypted formats; without lawful, stable evidence, those profiles remain read-only or blocked.
+One engineer working serially is roughly 4–6 months. Two engineers familiar with QCut and media formats may parallelize to roughly 2.5–4 months. Every phase after Phase 2 remains releasable from its predecessor; an unsafe writable path cannot defer journals or unknown preservation to later work. This excludes defeating newer encrypted formats; without lawful, stable evidence, those profiles remain read-only or blocked.
 
 ## Subtasks and File Paths
 
-| ID | Subtask | Minimum file group |
-| --- | --- | --- |
-| JYI-001 | Interop model and capability | `packages/editor-core/src/draft-interop/*` plus unit tests |
-| JYI-002 | Profile registry/detection | `jianying-draft/profiles/*`, `import/profile-detection.ts` |
-| JYI-003 | Raw graph parser/validator | `raw-types.ts`, `graph-reader.ts`, `validation.ts` |
-| JYI-004 | 5.9 normalizer | `import/normalize.ts` plus sanitized golden fixtures |
-| JYI-005 | Import runtime/session | `packages/jianying-draft-import/src/import-session.ts` and runtime validation |
-| JYI-006 | Asset resolver | `asset-resolver.ts`, probe/hash/copy tests |
-| JYI-007 | QCut staging writer | `project-writer.ts`, new bulk transaction API in `storage-service.ts` |
-| JYI-008 | Electron/CLI contract | import IPC, preload types, `command-registry-editor-draft.ts` |
-| JYI-009 | Import UI | `use-jianying-draft-import.ts`, import dialog card |
-| JYI-010 | Foreign envelope/dirty domains | interop provenance plus project serialization/migration |
-| JYI-011 | Complex feature registry | text/color/mask/keyframe/transition mappers and profile tests |
-| JYI-012 | Round-trip semantic diff | `scripts/capcut-e2e/semantic-diff.ts` and fixtures |
-| JYI-013 | Visual/audio parity | existing visual-oracle extensions and audio comparator |
-| JYI-014 | Journal/recovery | `import-journal.ts`, startup recovery, fault-injection tests |
-| JYI-015 | Scale/performance | 10k-segment fixture, benchmarks, and cache metrics |
+| ID | Subtask and primary files | Dependencies/research gates | Completion and verification |
+| --- | --- | --- | --- |
+| JYI-000 | Evidence corpus: `scripts/capcut-e2e/fixtures/` and private local evidence manifest | JYR-001, JYR-003 | Sanitized fixtures may enter Git; real-app evidence stores only versions, hashes, and redacted receipts |
+| JYI-001 | Interop/capability: `draft-interop/{document,capability,issues}.ts` | Timeline command semantics | Schema round trip, four-state aggregation, and unknown issue-code tests |
+| JYI-002 | Provenance/envelope: `draft-interop/{provenance,dirty-domains,foreign-envelope}.ts` | Deny-by-default contracts from JYR-005/JYR-006 | Ownership/dirty-domain matrix and sensitive serialization rejection tests |
+| JYI-003 | Profile registry/detection: `jianying-draft/profiles/*`, `import/profile-detection.ts` | JYI-000, JYI-001 | Exact/ambiguous/unsupported/encrypted fixtures; ambiguous inputs disable writes |
+| JYI-004 | Raw graph parser: `import/{raw-types,graph-reader,validation}.ts` | JYI-001, JYI-003 | Malformed, duplicate ID, dangling ref, cycle, and time-bound tests |
+| JYI-005 | Normalizer: `import/{normalize,qcut-mapping}.ts` | JYI-002–004 | Deterministic semantic snapshots for synthetic 5.9 and sanitized CapCut 8.1 fixtures |
+| JYI-006 | Snapshot runtime: `packages/jianying-draft-import/src/{discovery,snapshot-reader,runtime-validation}.ts` | JYR-001 | Symlink, TOCTOU, size-limit, active-source mutation, and bounded-read tests |
+| JYI-007 | Plan artifact: `import-plan-artifact.ts` and private plan store | JYI-003–006 | TTL, build/schema mismatch, CAS consumption, replay/concurrency, and log-redaction tests |
+| JYI-008 | Asset resolver: `asset-resolver.ts` | JYI-006, JYR-008 | Hash priority, same-name conflict, missing/relink, license action, and bounded-concurrency tests |
+| JYI-009 | Import bundle: `draft-interop/import-bundle.ts`, `qcut-import-bundle-builder.ts`, package exports, workspace manifest/lockfile | JYI-005, JYI-007–008 | One shared schema, runtime validation, digest, deterministic internal IDs, and conflict-policy tests |
+| JYI-010 | Renderer storage transaction: storage staging/journal/recovery and `qcut-import-transaction.ts` | JYI-009 | IndexedDB/OPFS staging, reread verification, one publish, rollback, and reload tests |
+| JYI-011 | Envelope key service: Electron keychain IPC and renderer envelope adapter | JYI-002, JYI-010 | Unavailable key, rotation, delete, and purge tests; no plaintext envelope at rest |
+| JYI-012 | Electron/CLI transport: import contract/handler/inbox and existing JianYing registry/editor handlers | JYI-007, JYI-009–011 | Live bridge and offline inbox share one bundle validator and no second persistence path |
+| JYI-013 | Import UI: `use-jianying-draft-import.ts` and import dialog card | JYI-012 | Component tests for profile, issues, resources, conflicts, warnings, and recovery |
+| JYI-014 | CapCut 8.1 production import | JYI-000–013 and profile JYR gates | Declared exact subset imports and reloads; source hashes remain unchanged; real receipts exist |
+| JYI-015 | Same-profile writer/unknown patch | JYI-014, JYR-005–007 | Unknown sentinel, dirty-domain isolation, and open/save/reopen semantic diff |
+| JYI-016 | Feature mapper registry | JYI-015 | Independent mapper, capability, and profile tests for text/color/mask/keyframe/transition |
+| JYI-017 | Semantic/frame/audio E2E: `scripts/capcut-e2e/{semantic-diff,audio-comparison,roundtrip-case}.ts` | JYI-014–016 | Four outputs, profile thresholds, and hash-bound evidence manifest |
+| JYI-018 | Scale/recovery hardening: benchmarks, fault injection, cache metrics | JYI-010, JYI-017 | Separate parser/mapping/persistence/renderer budgets and recovery at every checkpoint |
 
-Default to one atomic commit per subtask. Shared types with their first consumer, package manifest with lockfile, or inseparable implementation/tests may form one minimal multi-file commit.
+Each subtask defaults to its own PR or atomic commit group; it need not be compressed into one file. Shared schemas with their first consumer, package manifests with lockfiles, and inseparable implementations with tests may form the smallest multi-file commit. Never mix an unverified profile writer with the foundational model in one commit.
 
 ## Test Matrix
 
@@ -499,6 +576,7 @@ A profile is stable only when:
 6. Hashes of non-current user drafts remain unchanged.
 7. Fault injection leaves no partial projects.
 8. Proprietary-resource scanning confirms nothing entered Git, release bundles, or test artifacts.
+9. JYR-001, JYR-003, JYR-005, and every other gate used by the profile have reproducible evidence and do not rely on an unverified private ABI or encryption assumption.
 
 ## Explicit Non-Goals
 
@@ -510,4 +588,6 @@ A profile is stable only when:
 
 ## Definition of Done
 
-Base bidirectional support requires two stable profiles, one production importer, recoverable atomic commit, content-addressed resource rebinding, a foreign envelope, shared CLI/UI plan and commit, real-app save/reopen evidence, and structural, frame, and audio verification. Every non-lossless feature must be explicitly surfaced as downgrade, opaque, or blocked rather than silently discarded.
+Base bidirectional support requires at least one real-app-verified production profile with import and same-profile writeback. A second profile must reach stable inspect/import or remain explicitly read-only. The production importer uses a recoverable renderer transaction, content-addressed resource rebinding, encrypted `ForeignDraftEnvelope`, and shared CLI/UI plan and commit. Real-app save/reopen/native-export plus structural, frame, and audio verification have hash-bound receipts. Every non-lossless feature is explicitly surfaced as `downgrade`, `opaque`, or `blocked` rather than silently discarded.
+
+Two stable writable profiles are a later cross-profile compatibility milestone; they do not block safe import support for one verified profile from shipping independently.
