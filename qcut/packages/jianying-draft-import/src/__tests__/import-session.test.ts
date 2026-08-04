@@ -6,6 +6,7 @@ import { buildJianyingDraft } from "@qcut/editor-core/jianying-draft";
 import type { QCutDraftExportSnapshotV1 } from "@qcut/editor-core/jianying-draft";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ImportPlanConsumedError } from "../import-plan-store.js";
+import { enqueueDesktopImportFromGrants } from "../desktop-import-inbox-grants.js";
 import {
 	ImportSessionError,
 	JianyingDraftImportSession,
@@ -355,6 +356,49 @@ describe("commit", () => {
 				input: { grantToken: grant.grantToken, offset: 0, maxBytes: 4 },
 			})
 		).rejects.toMatchObject({ code: "source-changed" });
+	});
+
+	it("reopens a private inbox entry as session-owned media grants", async () => {
+		const plan = await session.plan({ input: { draftPath: draftRoot } });
+		const commit = await session.commitWithMediaGrants({
+			input: {
+				planToken: plan.plan.planToken,
+				acceptedWarningFingerprints: [...plan.plan.warningFingerprints],
+			},
+		});
+		const originalTokens = commit.mediaGrants.map(
+			({ grantToken }) => grantToken
+		);
+		const entry = await enqueueDesktopImportFromGrants({
+			inboxDirectory: planStoreRoot,
+			commit,
+			entryId: "session-inbox-entry",
+			readChunk: (options) => session.readMediaPayloadChunk(options),
+		});
+		session.releaseMediaPayloadGrants({
+			input: { grantTokens: originalTokens },
+		});
+
+		const reopened = await session.readPendingDesktopImport({
+			entryId: entry.entryId,
+			inboxDirectory: planStoreRoot,
+		});
+		const [grant] = reopened.mediaGrants;
+		expect(grant.grantToken).not.toBe(originalTokens[0]);
+		const chunk = await session.readMediaPayloadChunk({
+			input: {
+				grantToken: grant.grantToken,
+				offset: 0,
+				maxBytes: 1024,
+			},
+		});
+		expect(Buffer.from(chunk.bytes).toString()).toBe("media-bytes");
+		expect(chunk.eof).toBe(true);
+		expect(
+			session.releaseMediaPayloadGrants({
+				input: { grantTokens: [grant.grantToken] },
+			})
+		).toEqual({ releasedCount: 1 });
 	});
 
 	it("demands exact warning acceptance", async () => {

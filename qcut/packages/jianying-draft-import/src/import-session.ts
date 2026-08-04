@@ -44,6 +44,7 @@ import {
 } from "./asset-resolver.js";
 import type { AssetResolutionCacheMetrics } from "./asset-resolution-work-cache.js";
 import { discoverDraftDirectory } from "./discovery.js";
+import { readDesktopImportWithGrants } from "./desktop-import-inbox-grants.js";
 import {
 	createImportPlanArtifact,
 	redactImportPlanArtifactForLog,
@@ -924,6 +925,20 @@ export class JianyingDraftImportSession {
 		releasedCount: number;
 	} {
 		return this.#mediaGrantStore.release({ input });
+	}
+
+	readPendingDesktopImport({
+		entryId,
+		inboxDirectory,
+	}: {
+		entryId: string;
+		inboxDirectory: string;
+	}): Promise<DraftImportGrantedCommitDto> {
+		return readDesktopImportWithGrants({
+			entryId,
+			inboxDirectory,
+			grantStore: this.#mediaGrantStore,
+		});
 	}
 
 	dispose(): void {
