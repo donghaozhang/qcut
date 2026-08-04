@@ -54,6 +54,10 @@ import {
 	type JianyingEnvelopeKeyIPCController,
 } from "./jianying-envelope-key-handler.js";
 import {
+	setupJianyingDraftImportIPC,
+	type JianyingDraftImportIPCController,
+} from "./jianying-draft-import-handler.js";
+import {
 	setupJianyingDraftExportIPC,
 	type JianyingDraftExportIPCController,
 } from "./jianying-draft-export-handler.js";
@@ -95,6 +99,8 @@ installEpipeGuard();
 let updateController: AutoUpdateController | null = null;
 let codexPluginUpdateController: CodexPluginUpdateController | null = null;
 let jianyingEnvelopeKeyController: JianyingEnvelopeKeyIPCController | null =
+	null;
+let jianyingDraftImportController: JianyingDraftImportIPCController | null =
 	null;
 let jianyingDraftExportController: JianyingDraftExportIPCController | null =
 	null;
@@ -911,6 +917,14 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 					});
 				},
 			],
+			[
+				"JianyingDraftImportIPC",
+				() => {
+					jianyingDraftImportController = setupJianyingDraftImportIPC({
+						getMainWindow: () => mainWindow,
+					});
+				},
+			],
 		];
 
 		for (const [name, setup] of handlers) {
@@ -1000,6 +1014,8 @@ app.on("before-quit", () => {
 	jianyingDraftExportController = null;
 	jianyingEnvelopeKeyController?.dispose();
 	jianyingEnvelopeKeyController = null;
+	jianyingDraftImportController?.dispose();
+	jianyingDraftImportController = null;
 	try {
 		const { cleanupAllAudioFiles } = require("./audio-temp-handler.js");
 		cleanupAllAudioFiles();
