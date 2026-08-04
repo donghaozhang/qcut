@@ -403,7 +403,7 @@ function referenceData({
 export async function executeJianyingTransitionReference({
 	options,
 	signal,
-	scriptPath = resolveJianyingTransitionScript(),
+	scriptPath,
 	runProcess = runReferenceProcess,
 }: {
 	options: CLIRunOptions;
@@ -436,10 +436,17 @@ export async function executeJianyingTransitionReference({
 	}
 
 	try {
-		const sourceFileCount = assertReferenceSkillIsSourceOnly({ scriptPath });
+		const resolvedScriptPath = scriptPath ?? resolveJianyingTransitionScript();
+		const sourceFileCount = assertReferenceSkillIsSourceOnly({
+			scriptPath: resolvedScriptPath,
+		});
 		const result = await runProcess({
 			executable: bunExecutable(),
-			args: buildJianyingTransitionArgs({ action, options, scriptPath }),
+			args: buildJianyingTransitionArgs({
+				action,
+				options,
+				scriptPath: resolvedScriptPath,
+			}),
 			signal,
 		});
 		let report: unknown = null;
