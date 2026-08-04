@@ -202,6 +202,10 @@ export interface CLIRunOptions {
 	projectRoot?: string;
 	databasePaths?: string[];
 	draftPaths?: string[];
+	/** editor:jianying-import:commit plan token. */
+	planToken?: string;
+	/** editor:jianying-import:commit accepted warning fingerprints. */
+	acceptedWarningFingerprints?: string[];
 	packagePath?: string;
 	resourceIds?: string[];
 	draftEffectIds?: string[];
