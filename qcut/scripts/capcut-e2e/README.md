@@ -104,6 +104,47 @@ receipt for another output fails closed. Exit code `0` is reserved for that
 additional real-app gate; invariant failures use `1`, and harness errors use
 `3`.
 
+Create the real-app receipt from an independent macOS test account whose home
+owns the disposable CapCut store. CapCut must be fully closed at `pre-open`;
+use the prior writeback manifest's
+`transactionEvidence.outputContentSha256` as the output binding:
+
+```bash
+bun scripts/capcut-e2e/capcut-8-1-writeback-app-session-cli.ts pre-open \
+  --app <canonical-capcut-8.1.1.app> \
+  --case-id <case-id> \
+  --home <dedicated-test-home> \
+  --draft <dedicated-store-draft> \
+  --output-sha256 <writeback-output-sha256> \
+  --profile-id capcut-desktop-8.1-plaintext \
+  --session <new-session-directory> --json
+
+# After opening the bound draft in CapCut 8.1.1:
+bun scripts/capcut-e2e/capcut-8-1-writeback-app-session-cli.ts opened \
+  --session <session-directory> --json
+
+# After saving and fully quitting CapCut:
+bun scripts/capcut-e2e/capcut-8-1-writeback-app-session-cli.ts saved \
+  --session <session-directory> --json
+
+# After reopening the same draft in a new CapCut process:
+bun scripts/capcut-e2e/capcut-8-1-writeback-app-session-cli.ts reopened \
+  --session <session-directory> --json
+
+# After the final full quit:
+bun scripts/capcut-e2e/capcut-8-1-writeback-app-session-cli.ts final \
+  --session <session-directory> --json
+```
+
+Every boundary revalidates the exact 8.1.1 app/signature, dedicated account,
+store registration, draft directory identity, and required process state. The
+final command writes the path-free, mutually bound
+`writeback-app-session-plan.json`, `writeback-app-session-result.json`, and
+`writeback-app-receipt.json`. The hidden `.writeback-app-session-state.json`
+contains local paths and is not portable evidence. A receipt without its plan
+and result companions, a changed companion, a reused process generation, or
+mirror drift is rejected.
+
 ## Round-trip parity case
 
 Run the import-materialization, semantic, and four-output comparisons after
