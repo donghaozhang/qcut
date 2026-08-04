@@ -26,8 +26,8 @@ export interface FrameSample {
 
 export interface FrameSamplePlan {
 	coverage: {
-		keyframes: "unsupported-by-interop-v1";
-		transitionInterval: "semantic-seam-candidate";
+		keyframes: "unsupported-by-interop-v1" | "verified";
+		transitionInterval: "semantic-seam-candidate" | "verified";
 	};
 	durationUs: number;
 	fps: number;
