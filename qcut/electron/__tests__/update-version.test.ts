@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	compareReleaseVersions,
 	detectUpdateChannel,
 	normalizeReleaseNotesVersion,
 	parseReleaseVersion,
@@ -58,5 +59,44 @@ describe("update version mapping", () => {
 	it("detects stable and prerelease channels", () => {
 		expect(detectUpdateChannel({ version: "2026.7.1101" })).toBe("latest");
 		expect(detectUpdateChannel({ version: "2026.7.1101-beta.2" })).toBe("beta");
+	});
+
+	it("orders versions across package and release forms", () => {
+		expect(
+			compareReleaseVersions({ left: "2026.7.1201", right: "2026.07.12.1" })
+		).toBe(0);
+		expect(
+			compareReleaseVersions({ left: "2026.7.1201", right: "2026.7.1301" })
+		).toBeLessThan(0);
+		expect(
+			compareReleaseVersions({ left: "2026.08.05.2", right: "2026.08.05.1" })
+		).toBeGreaterThan(0);
+		expect(
+			compareReleaseVersions({ left: "2027.01.02.1", right: "2026.12.31.99" })
+		).toBeGreaterThan(0);
+	});
+
+	it("ranks stable above prereleases and orders channels", () => {
+		expect(
+			compareReleaseVersions({
+				left: "2026.7.1201",
+				right: "2026.7.1201-rc.1",
+			})
+		).toBeGreaterThan(0);
+		expect(
+			compareReleaseVersions({
+				left: "2026.7.1201-alpha.2",
+				right: "2026.7.1201-beta.1",
+			})
+		).toBeLessThan(0);
+		expect(
+			compareReleaseVersions({
+				left: "2026.7.1201-rc.1",
+				right: "2026.7.1201-rc.2",
+			})
+		).toBeLessThan(0);
+		expect(() =>
+			compareReleaseVersions({ left: "not-a-version", right: "2026.7.1201" })
+		).toThrow("Invalid QCut release version");
 	});
 });

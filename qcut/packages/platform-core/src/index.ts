@@ -74,6 +74,7 @@ export type {
 	PlatformUpdatesAPI,
 	PlatformUpdatePhase,
 	PlatformAutomaticUpdateDecision,
+	PlatformStagedUpdateInfo,
 	PlatformUpdatePreferences,
 	PlatformUpdateState,
 	PlatformCodexPluginUpdatePhase,
