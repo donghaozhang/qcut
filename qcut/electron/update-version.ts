@@ -108,6 +108,47 @@ export function normalizeReleaseNotesVersion({
 	}
 }
 
+const PRERELEASE_CHANNEL_ORDER: Record<string, number> = {
+	alpha: 0,
+	beta: 1,
+	rc: 2,
+};
+
+/**
+ * Compares two QCut versions (package or release form). Returns a negative
+ * number when `left` is older, positive when newer, and 0 when equal.
+ * Throws when either version cannot be parsed as a QCut release version.
+ */
+export function compareReleaseVersions({
+	left,
+	right,
+}: {
+	left: string;
+	right: string;
+}): number {
+	const a = parseReleaseVersion({
+		version: toReleaseVersion({ packageVersion: left }),
+	});
+	const b = parseReleaseVersion({
+		version: toReleaseVersion({ packageVersion: right }),
+	});
+
+	const calendar =
+		a.year - b.year || a.month - b.month || a.day - b.day || a.build - b.build;
+	if (calendar !== 0) return calendar;
+
+	// A stable build is newer than any prerelease of the same build.
+	if (a.prerelease === null && b.prerelease === null) return 0;
+	if (a.prerelease === null) return 1;
+	if (b.prerelease === null) return -1;
+
+	const channelDelta =
+		(PRERELEASE_CHANNEL_ORDER[a.prerelease.channel] ?? -1) -
+		(PRERELEASE_CHANNEL_ORDER[b.prerelease.channel] ?? -1);
+	if (channelDelta !== 0) return channelDelta;
+	return a.prerelease.number - b.prerelease.number;
+}
+
 export function detectUpdateChannel({
 	version,
 }: {
