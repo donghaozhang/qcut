@@ -1,11 +1,11 @@
-# QCut Plugin for ChatGPT and Codex
+# QCut Plugin for Codex and Claude Code
 
-This plugin lets Codex use QCut's structured CLI for AI media workflows and
-control a running QCut desktop editor.
+This plugin lets Codex and Claude Code use QCut's structured CLI for AI media
+workflows and control a running QCut desktop editor.
 
 ## Requirements
 
-- Codex CLI or the Codex app with plugin support.
+- Codex CLI, the Codex app with plugin support, or Claude Code.
 - QCut AI Video Editor 2026.07.26.2 or newer, or a standalone QCut CLI
   version 1.0.0 or newer.
 - QCut must be running for `editor:*` commands.
@@ -13,17 +13,35 @@ control a running QCut desktop editor.
 The plugin never bundles API credentials. Configure provider keys through
 QCut's interactive setup or desktop settings.
 
-## Install from the public repository
+## Install for Codex
 
-The versioned public release can be installed directly from GitHub:
+Install the public marketplace directly from GitHub:
 
 ```bash
-codex plugin marketplace add Quriosity-agent/qcut --ref qcut-plugin-v1.2.0
+codex plugin marketplace add Quriosity-agent/qcut
 codex plugin add qcut@qcut
 ```
 
-Start a new ChatGPT or Codex task after installation so the two bundled skills
-are loaded. The source, manifest, privacy notice, terms, and release tag are all
+Start a new Codex task after installation so the two bundled skills are loaded.
+
+## Install for Claude Code
+
+Run these commands inside Claude Code:
+
+```text
+/plugin marketplace add Quriosity-agent/qcut
+/plugin install qcut@qcut
+/reload-plugins
+```
+
+The same setup can be scripted from a terminal:
+
+```bash
+claude plugin marketplace add Quriosity-agent/qcut
+claude plugin install qcut@qcut
+```
+
+The source, Codex and Claude Code manifests, privacy notice, and terms are all
 public in the [QCut repository](https://github.com/Quriosity-agent/qcut).
 
 ## First run
@@ -84,6 +102,7 @@ desktop builds, the runner automatically uses the CLI embedded in `app.asar`.
 
 ```text
 qcut/
+|-- .claude-plugin/plugin.json
 |-- .codex-plugin/plugin.json
 |-- assets/
 |-- scripts/qcut-app.mjs
