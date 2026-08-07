@@ -139,8 +139,8 @@ create
 - 不包含绝对用户路径的脱敏 receipt。
 
 **本地证据目录：** 放在仓库外，例如 `~/Documents/QCut-Evidence/CapCut-9.1/`。  
-**允许提交：** 脱敏 manifest、无个人路径的最小 sanitized fixture、测试代码。  
-**禁止提交：** CapCut 二进制、完整用户草稿、缓存资源、字体、媒体 payload、账号数据和 key store。
+**允许提交：** 脱敏 manifest、测试代码，以及满足来源规则的最小 fixture——仅限合成数据或 QCut 自有素材构造，不得包含或派生自 CapCut 附带素材、模板等第三方内容，且每个入库 fixture 附来源说明（provenance）。  
+**禁止提交：** CapCut 二进制、完整用户草稿、缓存资源、字体、媒体 payload、账号数据和 key store，以及任何第三方素材的清理副本、提取帧或其他 media-derived artifact。
 
 **完成条件：** 至少获得 empty、video、audio、static-text 四个 case 的可复现 inventory 和 open/save/reopen 结果，并明确 content 是 plaintext、opaque 还是 encrypted。
 
@@ -268,7 +268,7 @@ packages/editor-core/src/__tests__/capcut-9-1-text-import.test.ts
 
 以下情况继续 blocked：material animation、common keyframes、keyframe refs、多 style run、模板资源、逐字动画和无法解析的字体资源。
 
-**完成条件：** sanitized fixture 单测、真实 9.1 QCut preview 截图、QCut 导出帧与 CapCut reference 的阈值比较均通过后，才从 blocked 升到 downgrade 或 exact。
+**完成条件：** sanitized fixture 单测、真实 9.1 QCut preview 截图、QCut 导出帧与 CapCut reference 的阈值比较均通过后，才从 blocked 升到 downgrade 或 exact。preview 截图、reference 帧和导出帧均存放于仓库外证据目录，仓库只记录阈值比较的数值结果。
 
 ### C91-007：增加已验证的原生 dissolve
 
@@ -348,7 +348,7 @@ capabilities: {
 
 ## 5. MVP 之后的功能扩展
 
-每个功能严格执行同一流程：**单变量真实草稿 → raw diff → mapper → capability → unit test → QCut preview/export → CapCut reference 对比 → receipt → profile 晋级**。
+每个功能严格执行同一流程：**单变量真实草稿 → raw diff → mapper → capability → unit test → QCut preview/export → CapCut reference 对比 → receipt → profile 晋级**。CapCut reference 帧及其任何衍生 artifact 均留在仓库外证据目录；仓库只提交数值化对比结果与脱敏 manifest。
 
 | 顺序 | 功能 | 首个支持范围 | 主要新增文件 | 未满足时行为 |
 | ---: | --- | --- | --- | --- |
@@ -461,7 +461,7 @@ Commit 默认一个关注点，文件可以独立成立时优先一个文件一�
 - 至少一个当前真实 App profile 的 same-profile writeback 为 stable；
 - unknown subtree、sidecar、mirror 和 subdraft ownership 有真实证据；
 - 支持的文字、调色、蒙版、关键帧和转场均有独立 mapper/capability/receipt；
-- real app open/save/reopen/native export、语义 diff、逐帧、预览帧和音频比较全部通过；
+- real app open/save/reopen/native export、语义 diff、逐帧、预览帧和音频比较全部通过（帧与音频等媒体衍生证据一律存放于仓库外证据目录，仓库只收数值化结果与脱敏 manifest）；
 - 10,000 片段和真实大素材工程达到明确阶段预算；
 - 崩溃恢复、跨会话缓存、版本迁移和诊断信息可用于生产支持。
 

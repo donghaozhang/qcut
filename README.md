@@ -60,6 +60,8 @@ codex plugin marketplace add Quriosity-agent/qcut
 codex plugin add qcut@qcut
 ```
 
+`codex plugin add` requires a recent Codex CLI (verified with 0.144.5). If the subcommand is missing, update the Codex CLI first.
+
 Start a new Codex task after installation. Example requests:
 
 ```text
@@ -156,8 +158,9 @@ Generate video from text, images, or avatars, compare supported AI models, and a
 QCut is local-first, not “every feature is offline.”
 
 - Manual editing, project storage, timeline operations, and FFmpeg export run locally.
-- Optional AI generation may upload the inputs you select to the configured provider.
-- Provider credentials are not bundled with QCut or its agent plugins.
+- Optional AI generation may upload the inputs you select to the configured provider. If you are signed in without your own provider key, those requests — including the media you select — are relayed through the QCut license server, which holds provider keys on behalf of authenticated users.
+- AI provider keys are not bundled; bring your own or sign in. One exception: QCut ships a shared Freesound API key so sound-effect search works out of the box until you configure your own.
+- Packaged builds check GitHub for updates at startup and then hourly.
 - The agent plugins use QCut's structured CLI and visible editor state rather than a hidden cloud copy of your project.
 
 ## Build From Source
