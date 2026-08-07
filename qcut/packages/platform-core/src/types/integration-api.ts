@@ -612,6 +612,14 @@ export interface PlatformUpdatePreferences {
 	maxAutomaticDownloadBytes: number;
 }
 
+export interface PlatformStagedUpdateInfo {
+	version: string;
+	internalVersion: string;
+	releaseNotes?: string;
+	releaseDate?: string;
+	downloadSize?: number;
+}
+
 export interface PlatformUpdateState {
 	phase: PlatformUpdatePhase;
 	currentVersion: string;
@@ -627,6 +635,10 @@ export interface PlatformUpdateState {
 	decision?: PlatformAutomaticUpdateDecision;
 	message?: string;
 	error?: string;
+	/** Downloaded update waiting for a restart; survives failed later checks. */
+	staged?: PlatformStagedUpdateInfo;
+	/** Most recent background check failure while an update is staged. */
+	lastCheckError?: string;
 }
 
 export type PlatformCodexPluginUpdatePhase =

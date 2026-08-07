@@ -9,8 +9,11 @@
 
 import {
 	app,
+	autoUpdater as nativeAutoUpdater,
 	BrowserWindow,
+	dialog,
 	ipcMain,
+	Notification,
 	protocol,
 	session,
 	screen,
@@ -31,6 +34,10 @@ import {
 	type AutoUpdaterLike,
 } from "./auto-update-controller.js";
 import { resolveAutoUpdateConfig } from "./auto-update-config.js";
+import {
+	createStagedUpdateVisibility,
+	type StagedUpdateVisibility,
+} from "./update-staged-visibility.js";
 import {
 	createCodexPluginUpdateController,
 	type CodexPluginUpdateController,
@@ -101,6 +108,7 @@ import { installEpipeGuard } from "./safe-console.js";
 installEpipeGuard();
 
 let updateController: AutoUpdateController | null = null;
+let stagedUpdateVisibility: StagedUpdateVisibility | null = null;
 let codexPluginUpdateController: CodexPluginUpdateController | null = null;
 let jianyingEnvelopeKeyController: JianyingEnvelopeKeyIPCController | null =
 	null;
@@ -399,6 +407,40 @@ function setupAutoUpdater(): void {
 				`[AutoUpdater] ${updateConfig.packagedConfigError}; using official fallback: ${updateConfig.configPath}`
 			);
 		}
+		stagedUpdateVisibility = createStagedUpdateVisibility({
+			platform: process.platform,
+			setDockBadge: ({ text }) => {
+				app.dock?.setBadge(text);
+			},
+			showNotification: ({ title, body }) => {
+				if (!Notification.isSupported()) return;
+				const notification = new Notification({ title, body });
+				notification.on("click", () => {
+					if (mainWindow && !mainWindow.isDestroyed()) {
+						mainWindow.show();
+					}
+				});
+				notification.show();
+			},
+			promptQuitAndInstall: async ({ version }) => {
+				const target =
+					mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined;
+				const options = {
+					type: "info" as const,
+					buttons: ["Quit and Install", "Keep Running"],
+					defaultId: 0,
+					cancelId: 1,
+					message: `QCut ${version} is ready to install.`,
+					detail:
+						"Install the update now, or keep QCut running in the background and install it the next time you quit.",
+				};
+				const { response } = target
+					? await dialog.showMessageBox(target, options)
+					: await dialog.showMessageBox(options);
+				return response === 0 ? "install" : "close";
+			},
+			logger,
+		});
 		updateController = createAutoUpdateController({
 			updater: updaterModule.autoUpdater,
 			currentVersion: app.getVersion(),
@@ -408,6 +450,14 @@ function setupAutoUpdater(): void {
 				if (mainWindow && !mainWindow.isDestroyed()) {
 					mainWindow.webContents.send(channel, data);
 				}
+			},
+			onUpdateStaged: ({ staged }) => {
+				stagedUpdateVisibility?.onUpdateStaged({ staged });
+			},
+			onBeforeQuitAndInstall: () => {
+				// macOS quitAndInstall closes windows BEFORE before-quit fires, so
+				// the close-prompt must be disarmed here or it hijacks the install.
+				stagedUpdateVisibility?.setQuitting();
 			},
 		});
 		updateController.start();
@@ -686,6 +736,24 @@ function createWindow(): void {
 	});
 
 	// Window event handlers
+	mainWindow.on("close", (event) => {
+		// macOS keeps QCut alive after the last window closes, so a staged
+		// update would otherwise wait forever for ShipIt. Offer to install now.
+		if (!stagedUpdateVisibility?.shouldInterceptClose()) return;
+		event.preventDefault();
+		void stagedUpdateVisibility.resolveClose().then((choice) => {
+			if (choice === "install") {
+				stagedUpdateVisibility?.setQuitting();
+				updateController?.installUpdate();
+				return;
+			}
+			if (mainWindow && !mainWindow.isDestroyed()) {
+				// The staged version is now marked as prompted, so this close
+				// passes straight through.
+				mainWindow.close();
+			}
+		});
+	});
 	mainWindow.on("closed", () => {
 		mainWindow = null;
 	});
@@ -1023,7 +1091,19 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 // window-all-closed never quits the app on macOS, so the temp cleanup in
 // that handler historically never ran there and $TMPDIR/qcut-* grew without
 // bound. before-quit fires on every platform.
+// Emitted by the native macOS updater before it closes windows for an
+// install; before-quit fires only AFTER those closes, which is too late to
+// disarm the staged-update close prompt.
+if (process.platform === "darwin") {
+	nativeAutoUpdater.on("before-quit-for-update", () => {
+		stagedUpdateVisibility?.setQuitting();
+	});
+}
+
 app.on("before-quit", () => {
+	// A real quit is underway; the staged-update close prompt must not
+	// preventDefault the window teardown.
+	stagedUpdateVisibility?.setQuitting();
 	if (isHeadlessRecorder) return;
 	jianyingDraftExportController?.dispose();
 	jianyingDraftExportController = null;
