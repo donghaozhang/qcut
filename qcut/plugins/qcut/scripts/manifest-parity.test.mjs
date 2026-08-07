@@ -52,7 +52,7 @@ test("the Claude Code manifest omits the Codex-only interface block", () => {
 	assert.equal(claude.interface, undefined);
 });
 
-test("the marketplace entry points at this plugin", () => {
+test("the app-directory marketplace entry points at this plugin", () => {
 	const marketplace = JSON.parse(
 		readFileSync(
 			path.join(pluginRoot, "..", "..", ".claude-plugin", "marketplace.json"),
@@ -60,6 +60,25 @@ test("the marketplace entry points at this plugin", () => {
 		)
 	);
 	const entry = marketplace.plugins.find((plugin) => plugin.name === "qcut");
-	assert.ok(entry, "marketplace.json has no qcut entry");
+	assert.ok(entry, "app-directory marketplace.json has no qcut entry");
 	assert.equal(entry.source, "./plugins/qcut");
+});
+
+test("the repository marketplace supports owner/repo installation", () => {
+	const marketplace = JSON.parse(
+		readFileSync(
+			path.join(
+				pluginRoot,
+				"..",
+				"..",
+				"..",
+				".claude-plugin",
+				"marketplace.json"
+			),
+			"utf8"
+		)
+	);
+	const entry = marketplace.plugins.find((plugin) => plugin.name === "qcut");
+	assert.ok(entry, "repository marketplace.json has no qcut entry");
+	assert.equal(entry.source, "./qcut/plugins/qcut");
 });
