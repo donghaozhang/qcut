@@ -743,13 +743,20 @@ function createWindow(): void {
 		event.preventDefault();
 		void stagedUpdateVisibility.resolveClose().then((choice) => {
 			if (choice === "install") {
-				stagedUpdateVisibility?.setQuitting();
-				updateController?.installUpdate();
-				return;
+				// The controller's onBeforeQuitAndInstall hook disarms the prompt
+				// only when the install actually starts, so a failed start leaves
+				// future staged versions able to prompt again.
+				const result = updateController?.installUpdate();
+				if (result?.success) return;
+				logger.warn(
+					"[AutoUpdater] Quit-and-install did not start:",
+					result?.message ?? "update controller unavailable"
+				);
 			}
 			if (mainWindow && !mainWindow.isDestroyed()) {
 				// The staged version is now marked as prompted, so this close
-				// passes straight through.
+				// passes straight through — including when the install failed to
+				// start, so the window never silently stays open.
 				mainWindow.close();
 			}
 		});

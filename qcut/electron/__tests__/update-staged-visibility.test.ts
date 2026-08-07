@@ -42,6 +42,17 @@ describe("staged update visibility", () => {
 		expect(showNotification).toHaveBeenCalledTimes(2);
 	});
 
+	it("still notifies when the dock badge throws", () => {
+		const { visibility, setDockBadge, showNotification } = createHarness();
+		setDockBadge.mockImplementation(() => {
+			throw new Error("no dock");
+		});
+
+		visibility.onUpdateStaged({ staged: STAGED });
+
+		expect(showNotification).toHaveBeenCalledTimes(1);
+	});
+
 	it("skips the dock badge off macOS and never intercepts close there", () => {
 		const { visibility, setDockBadge } = createHarness({ platform: "win32" });
 

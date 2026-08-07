@@ -54,8 +54,21 @@ export function createStagedUpdateVisibility({
 			staged = nextStaged;
 			if (notifiedVersions.has(nextStaged.internalVersion)) return;
 			notifiedVersions.add(nextStaged.internalVersion);
+			// Each side effect fails independently: a dock-badge failure must not
+			// suppress the notification (the version is already marked notified).
+			if (platform === "darwin") {
+				try {
+					setDockBadge({ text: "1" });
+				} catch (error: unknown) {
+					const message =
+						error instanceof Error ? error.message : String(error);
+					logger.warn(
+						"[AutoUpdater] Staged-update dock badge failed:",
+						message
+					);
+				}
+			}
 			try {
-				if (platform === "darwin") setDockBadge({ text: "1" });
 				showNotification({
 					title: "QCut update ready",
 					body: `QCut ${nextStaged.version} will install the next time you quit the app.`,
