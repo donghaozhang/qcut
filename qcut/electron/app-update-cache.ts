@@ -9,7 +9,7 @@ import {
 	statSync,
 } from "node:fs";
 import { homedir } from "node:os";
-import { basename, join } from "node:path";
+import { basename, join, resolve } from "node:path";
 import type { QCutReleaseAsset } from "./app-update-release.js";
 
 /**
@@ -68,6 +68,22 @@ export function defaultUpdateCacheDirectories({
 	];
 }
 
+/**
+ * Release asset names are validated upstream, but this module joins them
+ * into privileged install paths, so it re-rejects anything that is not a
+ * plain direct filename.
+ */
+function isDirectFileName({ name }: { name: string }): boolean {
+	return (
+		name.length > 0 &&
+		name !== "." &&
+		name !== ".." &&
+		!name.includes("/") &&
+		!name.includes("\\") &&
+		!name.includes("\0")
+	);
+}
+
 function fileSha256({ filePath }: { filePath: string }): Promise<string> {
 	return new Promise((resolvePromise, rejectPromise) => {
 		const hash = createHash("sha256");
@@ -119,6 +135,7 @@ export async function findReusableInstaller({
 	copyToDirectory: string;
 	directories?: string[];
 }): Promise<ReusableInstaller | undefined> {
+	if (!isDirectFileName({ name: asset.name })) return undefined;
 	const expectedDigest = asset.digest.slice("sha256:".length);
 	const privatePath = join(copyToDirectory, asset.name);
 	for (const directory of directories) {
@@ -181,12 +198,10 @@ export function discardPreservedInstaller({
 	preservedPath: string;
 	directory?: string;
 }): void {
-	// Only ever delete files inside the CLI's own cache; reused packages from
-	// the app's electron-updater staging area belong to the app.
-	if (
-		!preservedPath.startsWith(`${directory}/`) &&
-		!preservedPath.startsWith(`${directory}\\`)
-	) {
+	// Only ever delete direct children of the CLI's own cache; reused
+	// packages from the app's electron-updater staging area belong to the
+	// app, and a `directory/../outside` path must never reach rmSync.
+	if (resolve(preservedPath) !== resolve(directory, basename(preservedPath))) {
 		return;
 	}
 	rmSync(preservedPath, { force: true });

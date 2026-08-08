@@ -103,6 +103,39 @@ describe("app update cache", () => {
 		expect(fs.existsSync(installerPath)).toBe(false);
 	});
 
+	it("rejects asset names that are not direct filenames", async () => {
+		const content = Buffer.from("verified update payload");
+		const workingDirectory = createDirectory();
+		const cache = createDirectory();
+		for (const name of ["../escape.zip", "a/b.zip", "..", ".", ""]) {
+			const found = await findReusableInstaller({
+				asset: { ...assetFor({ content }), name },
+				copyToDirectory: workingDirectory,
+				directories: [cache],
+			});
+			expect(found).toBeUndefined();
+		}
+	});
+
+	it("never deletes through a traversal in the preserved path", () => {
+		const cache = createDirectory();
+		const outside = createDirectory();
+		const victim = path.join(outside, "victim.zip");
+		fs.writeFileSync(victim, "keep me");
+
+		discardPreservedInstaller({
+			preservedPath: path.join(
+				cache,
+				"..",
+				path.basename(outside),
+				"victim.zip"
+			),
+			directory: cache,
+		});
+
+		expect(fs.existsSync(victim)).toBe(true);
+	});
+
 	it("only discards files inside the CLI cache directory", () => {
 		const cache = createDirectory();
 		const foreign = createDirectory();
