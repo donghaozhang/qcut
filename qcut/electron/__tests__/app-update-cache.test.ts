@@ -160,8 +160,14 @@ describe("app update cache", () => {
 				env: {},
 			})
 		).toEqual([
-			"/Users/example/Library/Caches/qcut-updater/pending",
-			"/Users/example/Library/Caches/qcut-cli-updates",
+			path.join(
+				"/Users/example",
+				"Library",
+				"Caches",
+				"qcut-updater",
+				"pending"
+			),
+			path.join("/Users/example", "Library", "Caches", "qcut-cli-updates"),
 		]);
 		expect(
 			resolveCliUpdateCacheDirectory({
