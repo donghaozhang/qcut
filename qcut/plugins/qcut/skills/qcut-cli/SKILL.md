@@ -30,10 +30,19 @@ asset name, and download size from `status`. After explicit confirmation, run:
 node <plugin-root>/scripts/qcut-setup.mjs update --confirm
 ```
 
+If `status` reports `cli.editorRunning: true` (or the update returns
+`qcut:editor_running`), warn the user that updating quits the running QCut
+editor — interrupting exports and unsaved work — and only after they agree add
+`--allow-editor-quit`:
+
+```bash
+node <plugin-root>/scripts/qcut-setup.mjs update --confirm --allow-editor-quit
+```
+
 The helper delegates to `qcut update --yes` when the installed CLI supports it
 and uses the plugin's verified bootstrap path for older QCut releases. Never add
-`--confirm` without consent. Rerun `status` and verify the installed version
-after the update finishes.
+`--confirm` or `--allow-editor-quit` without consent. Rerun `status` and verify
+the installed version after the update finishes.
 
 Then run this before the first QCut command in the task:
 

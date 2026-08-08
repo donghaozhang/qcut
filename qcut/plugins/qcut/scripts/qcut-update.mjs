@@ -26,7 +26,7 @@ import {
 	fetchLatestQCutRelease,
 	trustedReleaseUrl,
 } from "./qcut-release.mjs";
-import { resolveQCutCli, runQCutCommand } from "./qcut-runner.mjs";
+import { inspectQCut, resolveQCutCli, runQCutCommand } from "./qcut-runner.mjs";
 
 const QCUT_MAC_TEAM_ID = "JQ3Q27U24X";
 
@@ -36,6 +36,15 @@ function parseJsonOutput({ output }) {
 	} catch {
 		return null;
 	}
+}
+
+function isMacAppRunning({ spawnSyncImpl }) {
+	const result = spawnSyncImpl(
+		"/usr/bin/osascript",
+		["-e", `application id "${QCUT_BUNDLE_ID}" is running`],
+		{ encoding: "utf8", stdio: ["ignore", "pipe", "pipe"], timeout: 5000 }
+	);
+	return result.status === 0 && String(result.stdout ?? "").trim() === "true";
 }
 
 function tryInstalledCliUpdater({ resolved, env, run }) {
@@ -322,12 +331,14 @@ function installBootstrapPackage({
 
 export async function updateQCutApp({
 	confirmed = false,
+	allowEditorQuit = false,
 	platform = process.platform,
 	arch = process.arch,
 	env = process.env,
 	app,
 	resolved,
 	run = runQCutCommand,
+	inspect = inspectQCut,
 	fetchRelease = fetchLatestQCutRelease,
 	download = downloadVerifiedInstaller,
 	install = installBootstrapPackage,
@@ -344,6 +355,29 @@ export async function updateQCutApp({
 	const currentApp = app ?? discoverQCutApp({ platform, arch, env });
 	const currentResolved =
 		resolved === undefined ? resolveQCutCli({ env }) : resolved;
+
+	// Updating quits a running editor, so a live session needs its own
+	// explicit consent on top of the update confirmation. Without a CLI the
+	// bootstrap path still force-quits the app on macOS, so fall back to
+	// asking the OS whether the app process is alive.
+	if (!allowEditorQuit) {
+		let editorRunning = false;
+		if (currentResolved) {
+			const editor = inspect({ resolved: currentResolved, env });
+			editorRunning = editor?.data?.editor?.running ?? false;
+		} else if (platform === "darwin" && currentApp.installed) {
+			editorRunning = isMacAppRunning({ spawnSyncImpl });
+		}
+		if (editorRunning) {
+			return {
+				status: "error",
+				code: "qcut:editor_running",
+				error:
+					"QCut is currently running. Warn the user that updating quits the editor (interrupting exports and unsaved work), then rerun with --allow-editor-quit after they agree.",
+				data: { requiredFlag: "--allow-editor-quit" },
+			};
+		}
+	}
 
 	const cliResult = tryInstalledCliUpdater({
 		resolved: currentResolved,
