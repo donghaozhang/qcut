@@ -77,6 +77,8 @@ test("does not download when the installed app is current", async () => {
 		confirmed: true,
 		app: { ...oldApp, version: latest.version },
 		resolved: null,
+		// Keep the editor-running probe off the real OS in unit tests.
+		spawnSyncImpl: () => ({ status: 0, stdout: "false\n" }),
 		fetchRelease: async () => latest,
 		download: async () => {
 			downloaded = true;
@@ -138,4 +140,89 @@ test("requests a Debian package when bootstrapping a Debian install", async () =
 
 	assert.equal(result.status, "ok");
 	assert.equal(releaseOptions.preferDeb, true);
+});
+
+test("blocks the update while the editor is running", async () => {
+	const result = await updateQCutApp({
+		confirmed: true,
+		app: oldApp,
+		resolved: { command: "qcut", prefixArgs: [] },
+		inspect: () => ({ status: "ok", data: { editor: { running: true } } }),
+		run: () => {
+			throw new Error("must not delegate to the CLI before consent");
+		},
+	});
+
+	assert.equal(result.status, "error");
+	assert.equal(result.code, "qcut:editor_running");
+	assert.equal(result.data.requiredFlag, "--allow-editor-quit");
+});
+
+test("proceeds past a running editor with explicit consent", async () => {
+	const result = await updateQCutApp({
+		confirmed: true,
+		allowEditorQuit: true,
+		app: oldApp,
+		resolved: { command: "qcut", prefixArgs: [] },
+		inspect: () => {
+			throw new Error("a consented update must not re-inspect the editor");
+		},
+		run: () => ({
+			status: 0,
+			stdout: JSON.stringify({ status: "ok", data: { updated: true } }),
+		}),
+	});
+
+	assert.equal(result.status, "ok");
+	assert.equal(result.data.source, "qcut-cli");
+});
+
+test("updates normally when the editor is not running", async () => {
+	const result = await updateQCutApp({
+		confirmed: true,
+		app: oldApp,
+		resolved: { command: "qcut", prefixArgs: [] },
+		inspect: () => ({ status: "ok", data: { editor: { running: false } } }),
+		run: () => ({
+			status: 0,
+			stdout: JSON.stringify({ status: "ok", data: { updated: true } }),
+		}),
+	});
+
+	assert.equal(result.status, "ok");
+	assert.equal(result.data.source, "qcut-cli");
+});
+
+test("blocks the bootstrap path while the app runs and no CLI resolves", async () => {
+	const result = await updateQCutApp({
+		confirmed: true,
+		platform: "darwin",
+		app: oldApp,
+		resolved: null,
+		spawnSyncImpl: () => ({ status: 0, stdout: "true\n" }),
+		fetchRelease: () => {
+			throw new Error("must not reach the bootstrap before consent");
+		},
+	});
+
+	assert.equal(result.status, "error");
+	assert.equal(result.code, "qcut:editor_running");
+});
+
+test("bootstrap proceeds when the app is not running", async () => {
+	const result = await updateQCutApp({
+		confirmed: true,
+		platform: "darwin",
+		app: oldApp,
+		resolved: null,
+		spawnSyncImpl: () => ({ status: 0, stdout: "false\n" }),
+		fetchRelease: async () => ({
+			checked: true,
+			version: oldApp.version,
+			asset: latest.asset,
+		}),
+	});
+
+	assert.equal(result.status, "ok");
+	assert.equal(result.data.updated, false);
 });

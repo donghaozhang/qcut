@@ -44,8 +44,19 @@ export async function getQCutSetupStatus({
 	fetchImpl = globalThis.fetch,
 } = {}) {
 	const editor = resolved ? inspectQCut({ resolved, env }) : null;
+	// Mirror updateQCutApp's asset preferences so the asset shown to the user
+	// is the one an update would actually install.
 	const latest = online
-		? await fetchLatestQCutRelease({ fetchImpl, platform, arch })
+		? await fetchLatestQCutRelease({
+				fetchImpl,
+				platform,
+				arch,
+				preferArchive: true,
+				preferDeb:
+					app.installed &&
+					app.platform === "linux" &&
+					!app.path.endsWith(".AppImage"),
+			})
 		: null;
 	const comparison = compareQCutVersions({
 		current: app.version,
@@ -390,17 +401,16 @@ async function main() {
 	if (command === "update") {
 		const result = await updateQCutApp({
 			confirmed: args.includes("--confirm"),
+			allowEditorQuit: args.includes("--allow-editor-quit"),
 		});
 		printJson({
 			payload: result,
 			stream: result.status === "ok" ? process.stdout : process.stderr,
 		});
-		process.exitCode =
-			result.status === "ok"
-				? 0
-				: result.code === "qcut:confirmation_required"
-					? 2
-					: 1;
+		const consentRequired =
+			result.code === "qcut:confirmation_required" ||
+			result.code === "qcut:editor_running";
+		process.exitCode = result.status === "ok" ? 0 : consentRequired ? 2 : 1;
 		return;
 	}
 	if (command === "open-media") {

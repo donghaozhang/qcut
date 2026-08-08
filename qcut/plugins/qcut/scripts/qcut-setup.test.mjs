@@ -228,3 +228,39 @@ test("launches QCut and verifies the requested media page", async () => {
 		["editor:state:snapshot", "--include", "editor,project"],
 	]);
 });
+
+test("status shows the same asset the update path installs", async () => {
+	const { getQCutSetupStatus } = await import("./qcut-setup.mjs");
+	const release = {
+		tag_name: "v2026.07.22.3",
+		html_url:
+			"https://github.com/Quriosity-agent/qcut/releases/tag/v2026.07.22.3",
+		assets: [
+			...assets,
+			{
+				name: "QCut.AI.Video.Editor-2026.7.2203-arm64-mac.zip",
+				browser_download_url:
+					"https://github.com/Quriosity-agent/qcut/releases/download/v2026.07.22.3/QCut.AI.Video.Editor-2026.7.2203-arm64-mac.zip",
+				size: 460_000_000,
+			},
+		],
+	};
+	const status = await getQCutSetupStatus({
+		platform: "darwin",
+		arch: "arm64",
+		app: {
+			installed: true,
+			platform: "darwin",
+			arch: "arm64",
+			path: "/Applications/QCut AI Video Editor.app",
+			version: "2026.7.2103",
+		},
+		resolved: null,
+		fetchImpl: async () => ({ ok: true, json: async () => release }),
+	});
+
+	// The installer uses the signed -mac.zip package, so the asset shown for
+	// confirmation must be the zip, not the dmg.
+	assert.ok(status.data.latest.asset.name.endsWith("-mac.zip"));
+	assert.equal(status.data.updateAvailable, true);
+});
