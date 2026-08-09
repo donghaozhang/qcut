@@ -2,6 +2,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, rmSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { verifyPackagedUpdateConfig } from "../electron/auto-update-config.js";
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(scriptDir, "..");
@@ -23,6 +24,13 @@ if (apps.length !== 1) {
 }
 const appPath = join(macDir, apps[0]);
 const appName = apps[0].replace(/\.app$/, "");
+const updateConfigPath = join(
+	appPath,
+	"Contents",
+	"Resources",
+	"app-update.yml"
+);
+verifyPackagedUpdateConfig({ configPath: updateConfigPath });
 const artifactName = appName.replaceAll(" ", "-");
 
 // Derive version from electron-builder's .zip artifact so DMG and .zip filenames
@@ -67,6 +75,7 @@ function getNewestMatchingFile({
 const stagingDir = join(distDir, ".dmg-staging-arm64");
 
 console.log(`[build-mac-dmg] source app: ${appPath}`);
+console.log(`[build-mac-dmg] update config: ${updateConfigPath}`);
 console.log(`[build-mac-dmg] output dmg: ${dmgFile}`);
 
 if (existsSync(stagingDir))

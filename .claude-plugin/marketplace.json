@@ -1,0 +1,17 @@
+{
+	"name": "qcut",
+	"description": "Plugins for QCut, the desktop video editor: media generation, editor control, and export from Claude Code.",
+	"owner": {
+		"name": "Quriosity Pty Ltd",
+		"email": "info@quriosity.com.au",
+		"url": "https://quriosity.com.au/"
+	},
+	"plugins": [
+		{
+			"name": "qcut",
+			"source": "./qcut/plugins/qcut",
+			"description": "Create media and control the QCut desktop video editor from Claude Code.",
+			"category": "Creativity"
+		}
+	]
+}

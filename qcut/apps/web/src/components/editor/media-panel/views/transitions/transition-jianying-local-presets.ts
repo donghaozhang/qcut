@@ -14,7 +14,7 @@ export const JIANYING_LOCAL_TRANSITION_PRESETS: TransitionPreset[] =
 			id: transition.id,
 			name: transition.name,
 			localizedName: transition.localizedName,
-			category: "jianying-local",
+			category: "lab",
 			type: transition.preview.type,
 			clipType: transition.preview.clipType,
 			direction: transition.preview.direction,

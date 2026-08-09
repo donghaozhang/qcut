@@ -31,6 +31,14 @@ import type {
 	EditorStateRequest,
 	EditorStateSnapshot,
 } from "./types/claude-api.js";
+import type {
+	QCutPersistedImportEvidenceRendererRequest,
+	QCutPersistedImportEvidenceSnapshot,
+} from "./types/qcut-import-evidence-api.js";
+import type {
+	QCutSameProfileWritebackRendererRequest,
+	QCutSameProfileWritebackResult,
+} from "./types/qcut-same-profile-writeback-api.js";
 
 // ============================================================================
 // PTY Terminal
@@ -763,6 +771,62 @@ export function createClaudeAPI(): NonNullable<ElectronAPI["claude"]> {
 			},
 			removeListeners: () => {
 				ipcRenderer.removeAllListeners("claude:state:snapshot");
+			},
+		},
+		importEvidence: {
+			onSnapshotRequest: (
+				callback: (data: QCutPersistedImportEvidenceRendererRequest) => void
+			) => {
+				ipcRenderer.removeAllListeners("qcut:interop:import-evidence:request");
+				ipcRenderer.on(
+					"qcut:interop:import-evidence:request",
+					(_: unknown, data: QCutPersistedImportEvidenceRendererRequest) =>
+						callback(data)
+				);
+			},
+			sendSnapshotResponse: (
+				requestId: string,
+				result?: QCutPersistedImportEvidenceSnapshot,
+				error?: string
+			) => {
+				ipcRenderer.send("qcut:interop:import-evidence:response", {
+					requestId,
+					result,
+					error,
+				});
+			},
+			removeListeners: () => {
+				ipcRenderer.removeAllListeners("qcut:interop:import-evidence:request");
+			},
+		},
+		sameProfileWriteback: {
+			onRequest: (
+				callback: (data: QCutSameProfileWritebackRendererRequest) => void
+			) => {
+				ipcRenderer.removeAllListeners(
+					"qcut:interop:same-profile-writeback:request"
+				);
+				ipcRenderer.on(
+					"qcut:interop:same-profile-writeback:request",
+					(_: unknown, data: QCutSameProfileWritebackRendererRequest) =>
+						callback(data)
+				);
+			},
+			sendResponse: (
+				requestId: string,
+				result?: QCutSameProfileWritebackResult,
+				error?: string
+			) => {
+				ipcRenderer.send("qcut:interop:same-profile-writeback:response", {
+					error,
+					requestId,
+					result,
+				});
+			},
+			removeListeners: () => {
+				ipcRenderer.removeAllListeners(
+					"qcut:interop:same-profile-writeback:request"
+				);
 			},
 		},
 		projectCrud: {

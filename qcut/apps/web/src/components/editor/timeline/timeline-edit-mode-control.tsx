@@ -1,4 +1,5 @@
 import {
+	ArrowRightLeft,
 	BetweenHorizontalStart,
 	MousePointer2,
 	MoveHorizontal,
@@ -24,6 +25,7 @@ const EDIT_MODES: Array<{
 	{ icon: MousePointer2, label: "Select and trim", mode: "select" },
 	{ icon: BetweenHorizontalStart, label: "Roll edit", mode: "roll" },
 	{ icon: MoveHorizontal, label: "Slip edit", mode: "slip" },
+	{ icon: ArrowRightLeft, label: "Slide edit", mode: "slide" },
 ];
 
 export function TimelineEditModeControl() {

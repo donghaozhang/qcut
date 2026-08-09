@@ -23,10 +23,16 @@ const assets = [
 		size: 410_179_391,
 	},
 	{
-		name: "QCut.AI.Video.Editor-2026.7.2203.AppImage",
+		name: "QCut.AI.Video.Editor-2026.7.2203-x86_64.AppImage",
 		browser_download_url:
-			"https://github.com/Quriosity-agent/qcut/releases/download/v2026.07.22.3/QCut.AI.Video.Editor-2026.7.2203.AppImage",
+			"https://github.com/Quriosity-agent/qcut/releases/download/v2026.07.22.3/QCut.AI.Video.Editor-2026.7.2203-x86_64.AppImage",
 		size: 621_636_361,
+	},
+	{
+		name: "qcut_2026.7.2203_amd64.deb",
+		browser_download_url:
+			"https://github.com/Quriosity-agent/qcut/releases/download/v2026.07.22.3/qcut_2026.7.2203_amd64.deb",
+		size: 610_000_000,
 	},
 	{
 		name: "QCut.AI.Video.Editor-2026.7.2203-arm64.dmg.blockmap",
@@ -71,6 +77,14 @@ test("selects the official installer for each supported platform", () => {
 			platform: "linux",
 			arch: "x64",
 		})?.name.endsWith(".AppImage")
+	);
+	assert.ok(
+		selectReleaseAsset({
+			assets,
+			platform: "linux",
+			arch: "x64",
+			preferDeb: true,
+		})?.name.endsWith(".deb")
 	);
 });
 
@@ -213,4 +227,40 @@ test("launches QCut and verifies the requested media page", async () => {
 		["editor:ui:switch-panel", "--panel", "media"],
 		["editor:state:snapshot", "--include", "editor,project"],
 	]);
+});
+
+test("status shows the same asset the update path installs", async () => {
+	const { getQCutSetupStatus } = await import("./qcut-setup.mjs");
+	const release = {
+		tag_name: "v2026.07.22.3",
+		html_url:
+			"https://github.com/Quriosity-agent/qcut/releases/tag/v2026.07.22.3",
+		assets: [
+			...assets,
+			{
+				name: "QCut.AI.Video.Editor-2026.7.2203-arm64-mac.zip",
+				browser_download_url:
+					"https://github.com/Quriosity-agent/qcut/releases/download/v2026.07.22.3/QCut.AI.Video.Editor-2026.7.2203-arm64-mac.zip",
+				size: 460_000_000,
+			},
+		],
+	};
+	const status = await getQCutSetupStatus({
+		platform: "darwin",
+		arch: "arm64",
+		app: {
+			installed: true,
+			platform: "darwin",
+			arch: "arm64",
+			path: "/Applications/QCut AI Video Editor.app",
+			version: "2026.7.2103",
+		},
+		resolved: null,
+		fetchImpl: async () => ({ ok: true, json: async () => release }),
+	});
+
+	// The installer uses the signed -mac.zip package, so the asset shown for
+	// confirmation must be the zip, not the dmg.
+	assert.ok(status.data.latest.asset.name.endsWith("-mac.zip"));
+	assert.equal(status.data.updateAvailable, true);
 });

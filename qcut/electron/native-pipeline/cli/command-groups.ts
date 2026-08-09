@@ -78,6 +78,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 			"upscale-video": "upscale-video",
 			motion: "transfer-motion",
 			stamp: "stamp-image",
+			"sound-search": "sound-search",
 			subtitle: "subtitle-style",
 			"subtitle-export": "subtitle-export",
 			"clean-audio": "clean-audio",
@@ -127,6 +128,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 		label: "System & Configuration",
 		description: "Auth, keys, models, project setup, and diagnostics",
 		actions: {
+			update: "update",
 			login: "login",
 			signup: "signup",
 			logout: "logout",

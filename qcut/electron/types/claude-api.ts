@@ -472,6 +472,8 @@ export interface ClaudeBatchAddElementRequest
 	opacity?: number;
 	adjustments?: Record<string, unknown>;
 	masks?: Record<string, unknown>[];
+	/** Same-track occupancy policy: reject (default), insert, or overwrite. */
+	collision?: "reject" | "insert" | "overwrite";
 }
 
 export interface ClaudeBatchAddItemResult {

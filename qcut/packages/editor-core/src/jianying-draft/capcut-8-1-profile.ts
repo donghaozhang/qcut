@@ -3,6 +3,8 @@ export const CAPCUT_8_1_APP_ID = 359_289 as const;
 export const CAPCUT_8_1_APP_SOURCE = "cc" as const;
 export const CAPCUT_8_1_APP_VERSION = "8.1.1" as const;
 export const CAPCUT_8_1_NEW_VERSION = "159.0.0" as const;
+/** Value written by CapCut 8.1.1 after opening and saving a 159.0.0 draft. */
+export const CAPCUT_8_1_SAVED_NEW_VERSION = "179.0.0" as const;
 export const CAPCUT_8_1_SCHEMA_VERSION = 360_000 as const;
 
 export const CAPCUT_8_1_TOP_LEVEL_KEYS = [

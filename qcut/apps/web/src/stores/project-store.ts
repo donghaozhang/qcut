@@ -5,6 +5,8 @@ import {
 	BlurIntensity,
 	ProjectFolder,
 	ProjectGuides,
+	ProjectTimelineSettings,
+	resolveProjectTimelineSettings,
 } from "@/types/project";
 import { CanvasSize, CanvasMode } from "@/types/editor";
 import {
@@ -91,6 +93,9 @@ interface ProjectStore {
 	) => Promise<void>;
 	updateProjectFps: (fps: number) => Promise<void>;
 	updateProjectAudioMix: (audioMix: ProjectAudioMixSettings) => Promise<void>;
+	updateProjectTimelineSettings: (
+		settings: ProjectTimelineSettings
+	) => Promise<void>;
 
 	// Studio-page folder methods
 	createProjectFolder: (name: string) => Promise<string>;
@@ -317,6 +322,14 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 				}),
 			};
 			set({ activeProject: normalizedProject });
+
+			// Apply per-project timeline behavior toggles with deterministic
+			// defaults for legacy projects (QTL-005).
+			timelineStore.applyProjectTimelineSettings({
+				settings: resolveProjectTimelineSettings({
+					settings: normalizedProject.timeline,
+				}),
+			});
 
 			// 4. Load remaining data with error handling
 			debugLog(`[ProjectStore] Loading media for project: ${id}`);
@@ -739,6 +752,28 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 				projectName: activeProject.name,
 				backgroundType: type,
 				operation: "updateBackgroundType",
+			});
+		}
+	},
+
+	updateProjectTimelineSettings: async (settings: ProjectTimelineSettings) => {
+		const { activeProject } = get();
+		if (!activeProject) return;
+
+		const updatedProject = {
+			...activeProject,
+			timeline: settings,
+			updatedAt: new Date(),
+		};
+
+		try {
+			await storageService.saveProject({ project: updatedProject });
+			set({ activeProject: updatedProject });
+		} catch (error) {
+			handleStorageError(error, "Update project timeline settings", {
+				projectId: activeProject.id,
+				projectName: activeProject.name,
+				operation: "updateProjectTimelineSettings",
 			});
 		}
 	},

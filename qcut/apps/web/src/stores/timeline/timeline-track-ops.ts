@@ -9,18 +9,19 @@ import {
 	getTimelineElementEndTime,
 	resolveElementOverlaps,
 } from "@/lib/timeline";
-import { generateUUID } from "@/lib/utils";
-import type { TimelineElement, TimelineTrack } from "@/types/timeline";
+import type { TimelineTrack } from "@/types/timeline";
 import type {
 	OperationDeps,
 	StoreGet,
 	StoreSet,
 } from "./timeline-store-operations";
-import { getTimelineSplitUpdates } from "./timeline-split-utils";
+import { blockedByTrackLock } from "./timeline-lock-guard";
+import { overwriteRangeInElements } from "./timeline-collision-utils";
+import { isSeparatedAudioPairGroup } from "./timeline-group-operations";
 import {
-	assignNewStickerInstanceId,
-	createStickerInstanceId,
-} from "@/lib/stickers/sticker-instance";
+	deriveTimelineLinks,
+	resolveRippleDomain,
+} from "@qcut/editor-core/timeline";
 
 interface TimelineRange {
 	startTime: number;
@@ -68,102 +69,20 @@ function applyDeleteTimeRangeToTracks({
 	let deletedElements = 0;
 	let splitElements = 0;
 	const rangeDuration = endTime - startTime;
+	// One shared overwrite implementation (QTL-002): the same trim/split math
+	// backs add-with-overwrite and every range-deletion path.
 	const rangeAdjustedTracks = tracks.map((track) => {
 		if (!targetTrackIds.has(track.id)) {
 			return track;
 		}
-
-		const nextElements: TimelineElement[] = [];
-		for (const element of track.elements) {
-			const elementStart = element.startTime;
-			const elementEnd = getTimelineElementEndTime({ element });
-			const overlapsRange = elementStart < endTime && elementEnd > startTime;
-
-			if (!overlapsRange) {
-				nextElements.push(element);
-				continue;
-			}
-
-			const isFullyContained =
-				elementStart >= startTime && elementEnd <= endTime;
-			if (isFullyContained) {
-				deletedElements++;
-				continue;
-			}
-
-			const overlapsAtEnd =
-				elementStart < startTime &&
-				elementEnd > startTime &&
-				elementEnd <= endTime;
-			if (overlapsAtEnd) {
-				splitElements++;
-				const splitUpdates = getTimelineSplitUpdates({
-					element,
-					splitTime: startTime,
-					fps,
-				});
-				nextElements.push({
-					...element,
-					...splitUpdates.left,
-				});
-				continue;
-			}
-
-			const overlapsAtStart =
-				elementStart >= startTime &&
-				elementStart < endTime &&
-				elementEnd > endTime;
-			if (overlapsAtStart) {
-				splitElements++;
-				const splitUpdates = getTimelineSplitUpdates({
-					element,
-					splitTime: endTime,
-					fps,
-				});
-				nextElements.push({
-					...element,
-					startTime: endTime,
-					...splitUpdates.right,
-				});
-				continue;
-			}
-
-			const spansEntireRange = elementStart < startTime && elementEnd > endTime;
-			if (spansEntireRange) {
-				splitElements++;
-				const leftSplitUpdates = getTimelineSplitUpdates({
-					element,
-					splitTime: startTime,
-					fps,
-				});
-				const rightSplitUpdates = getTimelineSplitUpdates({
-					element,
-					splitTime: endTime,
-					fps,
-				});
-
-				nextElements.push({
-					...element,
-					...leftSplitUpdates.left,
-				});
-				nextElements.push(
-					assignNewStickerInstanceId({
-						element: {
-							...element,
-							id: generateUUID(),
-							startTime: endTime,
-							...rightSplitUpdates.right,
-						},
-						newStickerId: createStickerInstanceId(),
-					})
-				);
-				continue;
-			}
-
-			deletedElements++;
-		}
-
-		return { ...track, elements: nextElements };
+		const result = overwriteRangeInElements({
+			elements: track.elements,
+			range: { startTime, endTime },
+			fps,
+		});
+		deletedElements += result.deletedElements;
+		splitElements += result.splitElements;
+		return { ...track, elements: result.elements };
 	});
 
 	const tracksAfterRipple = rangeAdjustedTracks
@@ -207,6 +126,15 @@ export function createTrackOps(
 	return {
 		removeTrack: (trackId: string) => {
 			const { rippleEditingEnabled, selectedElements } = get();
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Remove Track",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 
 			if (rippleEditingEnabled) {
 				get().removeTrackWithRipple(trackId);
@@ -231,6 +159,15 @@ export function createTrackOps(
 			const trackToRemove = _tracks.find((t) => t.id === trackId);
 
 			if (!trackToRemove) return;
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Remove Track With Ripple",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 
 			get().pushHistory();
 
@@ -287,10 +224,12 @@ export function createTrackOps(
 				}
 			}
 
-			// Remove the track and apply ripple effects to remaining tracks
+			// Remove the track and apply ripple effects to remaining tracks.
+			// Locked tracks hold their position: the ripple domain skips them.
 			const updatedTracks = _tracks
 				.filter((track) => track.id !== trackId)
 				.map((track) => {
+					if (track.locked) return track;
 					const updatedElements = track.elements.map((element) => {
 						let newStartTime = element.startTime;
 
@@ -333,6 +272,15 @@ export function createTrackOps(
 			forceRipple = false
 		) => {
 			const { _tracks, rippleEditingEnabled } = get();
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Remove Element With Ripple",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 
 			if (!rippleEditingEnabled && !forceRipple) {
 				// If ripple editing is disabled, use regular removal
@@ -345,6 +293,46 @@ export function createTrackOps(
 
 			if (!element || !track) return;
 
+			// User groups delete as a whole (QTL-008); the closure lives in
+			// removeElementFromTrack. Separated-audio pairs are timing links and
+			// stay on the single-element ripple path here.
+			if (
+				element.groupId &&
+				!isSeparatedAudioPairGroup({
+					tracks: _tracks,
+					groupId: element.groupId,
+				})
+			) {
+				get().removeElementFromTrack(trackId, elementId, pushHistory);
+				return;
+			}
+
+			// Ripple domain (QTL-003): the edited track plus tracks linked to its
+			// elements. A locked linked dependency blocks the whole command —
+			// shifting one side of a link would desynchronize the pair. With
+			// linked ripple off (QTL-005) the domain stays on the edited track.
+			const rippleDomain = resolveRippleDomain({
+				tracks: _tracks,
+				seedTrackIds: [trackId],
+				links: get().linkedRippleEnabled
+					? deriveTimelineLinks({ tracks: _tracks })
+					: [],
+			});
+			if (rippleDomain.lockedDependencyTrackIds.length > 0) {
+				handleError(
+					new Error("Cannot ripple: a linked dependency track is locked"),
+					{
+						operation: "Remove Element With Ripple",
+						category: ErrorCategory.VALIDATION,
+						severity: ErrorSeverity.MEDIUM,
+						metadata: {
+							lockedTrackIds: rippleDomain.lockedDependencyTrackIds,
+						},
+					}
+				);
+				return;
+			}
+
 			if (pushHistory) get().pushHistory();
 			get().deselectElement(trackId, elementId);
 
@@ -352,11 +340,12 @@ export function createTrackOps(
 			const elementDuration = getTimelineElementDuration({ element });
 			const elementEndTime = elementStartTime + elementDuration;
 
-			// Remove the element and shift all elements that come after it
+			// Remove the element and shift the ripple domain after it
 			const updatedTracks = _tracks
 				.map((currentTrack) => {
-					// Only apply ripple effects to the same track unless multi-track ripple is enabled
-					const shouldApplyRipple = currentTrack.id === trackId;
+					const shouldApplyRipple = rippleDomain.domainTrackIds.has(
+						currentTrack.id
+					);
 
 					const updatedElements = currentTrack.elements
 						.filter((currentElement) => {
@@ -418,7 +407,8 @@ export function createTrackOps(
 
 				const excludedTrackIds = new Set(excludeTrackIds);
 				const updatedTracks = get()._tracks.map((track) => {
-					if (excludedTrackIds.has(track.id)) {
+					// Locked tracks hold their position during cross-track ripple.
+					if (excludedTrackIds.has(track.id) || track.locked) {
 						return track;
 					}
 
@@ -456,6 +446,21 @@ export function createTrackOps(
 		) => {
 			try {
 				const { _tracks } = get();
+				// Deleting is an explicit content edit: any locked selection fails
+				// the whole batch instead of leaving a half-applied delete.
+				if (
+					blockedByTrackLock({
+						tracks: _tracks,
+						operation: "Delete Selected Elements With Ripple",
+						trackIds: selections.map((selection) => selection.trackId),
+					})
+				) {
+					return {
+						deletedElements: 0,
+						splitElements: 0,
+						totalRemovedDuration: 0,
+					};
+				}
 				const selectionKeys = new Set(
 					selections.map(
 						(selection) => `${selection.trackId}:${selection.elementId}`
@@ -484,6 +489,36 @@ export function createTrackOps(
 					};
 				}
 
+				// Ripple domain (QTL-003): only the edited tracks and tracks linked
+				// to their elements shift; unrelated tracks hold their positions. A
+				// locked linked dependency blocks the whole batch. With linked
+				// ripple off (QTL-005) the domain stays on the edited tracks.
+				const rippleDomain = resolveRippleDomain({
+					tracks: _tracks,
+					seedTrackIds: selectedTrackIds,
+					links: get().linkedRippleEnabled
+						? deriveTimelineLinks({ tracks: _tracks })
+						: [],
+				});
+				if (rippleDomain.lockedDependencyTrackIds.length > 0) {
+					handleError(
+						new Error("Cannot ripple: a linked dependency track is locked"),
+						{
+							operation: "Delete Selected Elements With Ripple",
+							category: ErrorCategory.VALIDATION,
+							severity: ErrorSeverity.MEDIUM,
+							metadata: {
+								lockedTrackIds: rippleDomain.lockedDependencyTrackIds,
+							},
+						}
+					);
+					return {
+						deletedElements: 0,
+						splitElements: 0,
+						totalRemovedDuration: 0,
+					};
+				}
+
 				if (pushHistory) get().pushHistory();
 
 				let workingTracks = _tracks;
@@ -491,13 +526,12 @@ export function createTrackOps(
 				let splitElements = 0;
 				let totalRemovedDuration = 0;
 				for (const range of [...mergedRanges].reverse()) {
-					const trackIds = new Set(workingTracks.map((track) => track.id));
 					const result = applyDeleteTimeRangeToTracks({
 						tracks: workingTracks,
 						startTime: range.startTime,
 						endTime: range.endTime,
 						targetTrackIds: selectedTrackIds,
-						rippleTrackIds: trackIds,
+						rippleTrackIds: rippleDomain.domainTrackIds,
 						fps: getProjectFps(),
 					});
 					workingTracks = result.tracks;
@@ -553,10 +587,28 @@ export function createTrackOps(
 				}
 
 				const { _tracks } = get();
-				const targetTrackIds =
-					trackIds && trackIds.length > 0
-						? new Set(trackIds)
-						: new Set(_tracks.map((track) => track.id));
+				// Explicitly named tracks fail closed on a lock; the "all tracks"
+				// default is a derived set and skips locked tracks instead.
+				const hasExplicitTargets = Boolean(trackIds && trackIds.length > 0);
+				if (
+					hasExplicitTargets &&
+					blockedByTrackLock({
+						tracks: _tracks,
+						operation: "Delete Timeline Time Range",
+						trackIds,
+					})
+				) {
+					return {
+						deletedElements: 0,
+						splitElements: 0,
+						totalRemovedDuration: 0,
+					};
+				}
+				const targetTrackIds = hasExplicitTargets
+					? new Set(trackIds)
+					: new Set(
+							_tracks.filter((track) => !track.locked).map((track) => track.id)
+						);
 
 				get().pushHistory();
 
@@ -564,7 +616,7 @@ export function createTrackOps(
 				if (ripple) {
 					if (crossTrackRipple) {
 						for (const track of _tracks) {
-							rippleTrackIds.add(track.id);
+							if (!track.locked) rippleTrackIds.add(track.id);
 						}
 					} else {
 						for (const trackId of targetTrackIds) {

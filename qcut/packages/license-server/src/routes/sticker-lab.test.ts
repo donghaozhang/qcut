@@ -527,10 +527,11 @@ describe("sticker lab private reference tier", () => {
 		expect(response.headers.get("Content-Type")).toBe("application/json");
 		expect(response.headers.get("Cache-Control")).toBe("no-store");
 		await expect(response.text()).resolves.toBe(manifestJson);
+		// Only the path: storage-js spreads any third argument into the fetch
+		// RequestInit, and workerd rejects a `cache` field outright. Asserting
+		// the extra arguments is what let the production 404 ship green.
 		expect(storageMocks.download).toHaveBeenCalledWith(
-			defaultCatalog.manifestObjectKey,
-			{},
-			{ cache: "no-store" }
+			defaultCatalog.manifestObjectKey
 		);
 	});
 
@@ -557,11 +558,7 @@ describe("sticker lab private reference tier", () => {
 
 		expect(response.status).toBe(200);
 		await expect(response.text()).resolves.toBe(manifestJson);
-		expect(storageMocks.download).toHaveBeenCalledWith(
-			manifestObjectKey,
-			{},
-			{ cache: "no-store" }
-		);
+		expect(storageMocks.download).toHaveBeenCalledWith(manifestObjectKey);
 	});
 
 	it("rejects an oversized private manifest before reading its bytes", async () => {

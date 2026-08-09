@@ -54,6 +54,8 @@ import {
 	getHistorySummary,
 } from "../claude/handlers/claude-transaction-handler.js";
 import { requestEditorStateSnapshotFromRenderer } from "../claude/handlers/claude-state-handler.js";
+import { requestQCutImportEvidenceFromRenderer } from "../claude/handlers/qcut-import-evidence-handler.js";
+import { requestQCutSameProfileWritebackFromRenderer } from "../claude/handlers/qcut-same-profile-writeback-handler.js";
 import {
 	checkEditorSnapshotRef,
 	clickEditorSnapshotRef,
@@ -465,6 +467,27 @@ async function handleMainRequest(
 		case "get-editor-state-snapshot": {
 			const req = data as { request?: EditorStateRequest };
 			return requestEditorStateSnapshotFromRenderer(win, req.request);
+		}
+
+		case "get-qcut-import-evidence": {
+			const req = data as {
+				request: import("../types/qcut-import-evidence-api.js").QCutPersistedImportEvidenceRequest;
+			};
+			return requestQCutImportEvidenceFromRenderer({
+				appVersion: app.getVersion(),
+				request: req.request,
+				win,
+			});
+		}
+
+		case "get-qcut-same-profile-writeback": {
+			const req = data as {
+				request: import("../types/qcut-same-profile-writeback-api.js").QCutSameProfileWritebackRequest;
+			};
+			return requestQCutSameProfileWritebackFromRenderer({
+				request: req.request,
+				win,
+			});
 		}
 
 		case "get-editor-accessibility-snapshot": {

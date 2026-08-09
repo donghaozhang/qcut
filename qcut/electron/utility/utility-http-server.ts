@@ -18,6 +18,8 @@ import {
 	type WindowAccessor,
 } from "../claude/http/claude-http-shared-routes.js";
 import { registerStateRoutes } from "../claude/http/claude-http-state-routes.js";
+import { registerQCutImportEvidenceRoutes } from "../claude/http/claude-http-import-evidence-routes.js";
+import { registerQCutSameProfileWritebackRoutes } from "../claude/http/claude-http-same-profile-writeback-routes.js";
 import { registerSnapshotRoutes } from "../claude/http/claude-http-snapshot-routes.js";
 import { registerAgentPointerRoutes } from "../claude/http/claude-http-pointer-routes.js";
 import {
@@ -72,6 +74,8 @@ import type {
 	EditorSnapshotResponse,
 } from "../types/claude-api.js";
 import { authorizeClaudeHttpRequest } from "../claude/http/claude-http-auth.js";
+import type { QCutPersistedImportEvidenceSnapshot } from "../types/qcut-import-evidence-api.js";
+import type { QCutSameProfileWritebackResult } from "../types/qcut-same-profile-writeback-api.js";
 
 let server: Server | null = null;
 
@@ -415,6 +419,18 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 				request,
 			})) as EditorStateSnapshot,
 		timeoutMs: 10_000,
+	});
+	registerQCutImportEvidenceRoutes(router, {
+		requestSnapshot: async (request) =>
+			(await requestFromMain("get-qcut-import-evidence", {
+				request,
+			})) as QCutPersistedImportEvidenceSnapshot,
+	});
+	registerQCutSameProfileWritebackRoutes(router, {
+		requestOperation: async (request) =>
+			(await requestFromMain("get-qcut-same-profile-writeback", {
+				request,
+			})) as QCutSameProfileWritebackResult,
 	});
 	registerSnapshotRoutes(router, {
 		requestSnapshot: async (request) =>

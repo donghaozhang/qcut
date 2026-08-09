@@ -175,7 +175,7 @@ describe("timeline ripple operations", () => {
 		expect(useTimelineStore.getState().history).toHaveLength(1);
 	});
 
-	it("preserves unselected overlaps and unrelated empty tracks", () => {
+	it("keeps unrelated tracks fixed and preserves empty tracks", () => {
 		const tracks: TimelineTrack[] = [
 			{
 				id: "main",
@@ -221,6 +221,8 @@ describe("timeline ripple operations", () => {
 			splitElements: 0,
 			totalRemovedDuration: 2,
 		});
+		// The overlay track holds no linked dependency of the edited track, so
+		// it is outside the ripple domain and must not move (QTL-003).
 		expect(
 			useTimelineStore
 				.getState()
@@ -228,7 +230,7 @@ describe("timeline ripple operations", () => {
 				?.elements.map((element) => [element.id, element.startTime])
 		).toEqual([
 			["overlap", 2],
-			["following", 4],
+			["following", 6],
 		]);
 		expect(
 			useTimelineStore.getState().tracks.some((track) => track.id === "empty")

@@ -28,6 +28,10 @@ import { handleAnalysisCommand } from "../editor/editor-handlers-analysis.js";
 import { handleGenerateExportCommand } from "../editor/editor-handlers-generate.js";
 import { handleRemotionCommand } from "../editor/editor-handlers-remotion.js";
 import { handleStickerCommand } from "../editor/editor-handlers-sticker.js";
+import { handleTransitionLabCommand } from "../editor/editor-handlers-transition-lab.js";
+import { handleJianyingTransitionCommand } from "../editor/editor-handlers-jianying-transition.js";
+import { handleJianyingImportCommand } from "../editor/editor-handlers-jianying-import.js";
+import { handleInteropCommand } from "../editor/editor-handlers-interop.js";
 import { handleSearchCommand } from "../editor/editor-handlers-search.js";
 import {
 	handleConsoleCommand,
@@ -36,6 +40,11 @@ import {
 import { handleDiffCommand } from "./cli-handlers-diff.js";
 import { handleSessionCommand } from "./cli-handlers-session.js";
 import { handleSnapshotCommand } from "./cli-handlers-snapshot.js";
+import {
+	needsSeparateViewState,
+	resolveEditorViewState,
+	withViewState,
+} from "./editor-view-state.js";
 import {
 	handleKeyboardCommand,
 	handlePointerCommand,
@@ -205,6 +214,9 @@ export async function handleEditorCommand(
 	//                in session mode, skip after first successful check
 	const shouldSkipHealth =
 		options.command === "editor:health" ||
+		options.command === "editor:transition-lab:list" ||
+		options.command.startsWith("editor:jianying-transition:") ||
+		options.command.startsWith("editor:jianying-import:") ||
 		options.command.startsWith("editor:diff:") ||
 		options.command.startsWith("editor:session:") ||
 		(options.skipHealth && (!options.session || isSessionHealthChecked()));
@@ -269,101 +281,141 @@ export async function handleEditorCommand(
 	const module = parts[1];
 
 	try {
-		switch (module) {
-			case "auth":
-				return await handleAuthCommand(client, options);
+		if (module === "jianying-transition") {
+			return await handleJianyingTransitionCommand({ options, signal });
+		}
+		if (module === "jianying-import") {
+			return await handleJianyingImportCommand({ options, signal });
+		}
+		const result = await (async (): Promise<CLIResult> => {
+			switch (module) {
+				case "auth":
+					return await handleAuthCommand(client, options);
 
-			case "health":
-				return await handleEditorHealth(client, options);
+				case "health":
+					return await handleEditorHealth(client, options);
 
-			case "media":
-			case "project":
-				return await handleMediaProjectCommand(client, options, onProgress);
+				case "media":
+				case "project":
+					return await handleMediaProjectCommand(client, options, onProgress);
 
-			case "timeline":
-			case "editing":
-			case "track":
-			case "element":
-				return await handleTimelineEditingCommand(client, options, onProgress);
+				case "timeline":
+				case "editing":
+				case "track":
+				case "element":
+					return await handleTimelineEditingCommand(
+						client,
+						options,
+						onProgress
+					);
 
-			case "analyze":
-			case "transcribe":
-				return await handleAnalysisCommand(client, options, onProgress);
+				case "analyze":
+				case "transcribe":
+					return await handleAnalysisCommand(client, options, onProgress);
 
-			case "generate":
-			case "export":
-			case "diagnostics":
-			case "mcp":
-				return await handleGenerateExportCommand(client, options, onProgress);
+				case "generate":
+				case "export":
+				case "diagnostics":
+				case "mcp":
+					return await handleGenerateExportCommand(client, options, onProgress);
 
-			case "remotion":
-				return await handleRemotionCommand(client, options);
+				case "remotion":
+					return await handleRemotionCommand(client, options);
 
-			case "sticker":
-				return await handleStickerCommand(client, options);
+				case "sticker":
+					return await handleStickerCommand(client, options);
 
-			case "search":
-				return await handleSearchCommand(client, options, onProgress);
+				case "transition-lab":
+					return await handleTransitionLabCommand({ client, options });
 
-			case "undo":
-			case "redo":
-			case "state":
-				return await handleStateCommand(client, options);
+				case "interop":
+					return await handleInteropCommand({ client, options });
 
-			case "navigator":
-				return await handleNavigatorCommand(client, options);
+				case "search":
+					return await handleSearchCommand(client, options, onProgress);
 
-			case "screen-recording":
-				return await handleScreenRecordingCommand(client, options);
+				case "undo":
+				case "redo":
+				case "state":
+					return await handleStateCommand(client, options);
 
-			case "ui":
-				return await handleUiCommand(client, options);
+				case "navigator":
+					return await handleNavigatorCommand(client, options);
 
-			case "snapshot":
-				return await handleSnapshotCommand({ client, options });
+				case "screen-recording":
+					return await handleScreenRecordingCommand(client, options);
 
-			case "pointer":
-				return await handlePointerCommand({ client, options });
+				case "ui":
+					return await handleUiCommand(client, options);
 
-			case "demo":
-				if (parts[2] !== "run") {
+				case "snapshot":
+					return await handleSnapshotCommand({ client, options });
+
+				case "pointer":
+					return await handlePointerCommand({ client, options });
+
+				case "demo":
+					if (parts[2] !== "run") {
+						return {
+							success: false,
+							error: `Unknown demo action: ${parts[2] ?? ""}. Available: run`,
+						};
+					}
+					return await runEditorDemo({ client, options, onProgress });
+
+				case "keyboard":
+					return await handleKeyboardCommand({ client, options });
+
+				case "diff":
+					return await handleDiffCommand({ options });
+
+				case "session":
+					return await handleSessionCommand({ options });
+
+				case "console":
+					return await handleConsoleCommand({ client, options, signal });
+
+				case "errors":
+					return await handleErrorsCommand({ client, options, signal });
+
+				case "moyin":
+					return await handleMoyinCommand(client, options);
+
+				case "novel":
+					return await handleNovelCommand(client, options, onProgress);
+
+				case "screenshot":
+					return await handleScreenshotCommand(client, options);
+
+				default:
 					return {
 						success: false,
-						error: `Unknown demo action: ${parts[2] ?? ""}. Available: run`,
+						error: `Unknown editor module: ${module}. Available: auth, health, media, project, timeline, editing, track, element, analyze, transcribe, search, generate, export, diagnostics, mcp, remotion, sticker, transition-lab, jianying-transition, navigator, screen-recording, ui, snapshot, pointer, keyboard, demo, diff, session, console, errors, moyin, novel, screenshot, undo, redo, state`,
 					};
-				}
-				return await runEditorDemo({ client, options, onProgress });
+			}
+		})();
 
-			case "keyboard":
-				return await handleKeyboardCommand({ client, options });
-
-			case "diff":
-				return await handleDiffCommand({ options });
-
-			case "session":
-				return await handleSessionCommand({ options });
-
-			case "console":
-				return await handleConsoleCommand({ client, options, signal });
-
-			case "errors":
-				return await handleErrorsCommand({ client, options, signal });
-
-			case "moyin":
-				return await handleMoyinCommand(client, options);
-
-			case "novel":
-				return await handleNovelCommand(client, options, onProgress);
-
-			case "screenshot":
-				return await handleScreenshotCommand(client, options);
-
-			default:
-				return {
-					success: false,
-					error: `Unknown editor module: ${module}. Available: auth, health, media, project, timeline, editing, track, element, analyze, transcribe, search, generate, export, diagnostics, mcp, remotion, sticker, navigator, screen-recording, ui, snapshot, pointer, keyboard, demo, diff, session, console, errors, moyin, novel, screenshot, undo, redo, state`,
-				};
+		if (!result.success) return result;
+		if (
+			(module === "transition-lab" && parts[2] === "list") ||
+			module === "interop"
+		) {
+			return result;
 		}
+		// Reported once here rather than per module, so every editor command
+		// says whether the window is actually showing what it just changed.
+		const view = await resolveEditorViewState({
+			client,
+			projectId: options.projectId,
+			focus: options.focus,
+		});
+		return view
+			? {
+					...result,
+					data: withViewState({ data: result.data, view }),
+					...(needsSeparateViewState({ data: result.data }) ? { view } : {}),
+				}
+			: result;
 	} catch (err) {
 		return {
 			success: false,

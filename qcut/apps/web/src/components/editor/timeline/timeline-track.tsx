@@ -88,9 +88,8 @@ function TimelineTrackContentComponent({
 	const rippleEditingEnabled = useTimelineStore((s) => s.rippleEditingEnabled);
 	const splitElement = useTimelineStore((s) => s.splitElement);
 
-	// Initialize snapping hook
+	// Initialize snapping hook (shared tolerance from TIMELINE_CONSTANTS)
 	const { snapElementPosition, snapElementEdge } = useTimelineSnapping({
-		snapThreshold: 10,
 		enableElementSnapping: snappingEnabled,
 		enablePlayheadSnapping: snappingEnabled,
 	});
@@ -171,10 +170,10 @@ function TimelineTrackContentComponent({
 			);
 			const adjustedTime = Math.max(0, mouseTime - dragState.clickOffsetTime);
 
-			// Apply snapping if enabled
+			// Apply snapping if enabled; holding Shift bypasses it (QTL-006).
 			let finalTime = adjustedTime;
 			let snapPoint = null;
-			if (snappingEnabled) {
+			if (snappingEnabled && !e.shiftKey) {
 				const currentTime = usePlaybackStore.getState().currentTime;
 				// Find the element being dragged to get its duration
 				let elementDuration = 5; // fallback duration

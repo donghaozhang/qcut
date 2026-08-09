@@ -33,12 +33,14 @@ function makeClient({
 	},
 	mediaFiles = [],
 	textAboveMedia = false,
+	mediaTransitions = [],
 }: {
 	finalName?: string;
 	videoElement?: Record<string, unknown>;
 	textElement?: Record<string, unknown>;
 	mediaFiles?: Array<{ id: string; name: string; size: number }>;
 	textAboveMedia?: boolean;
+	mediaTransitions?: Array<Record<string, unknown> & { id: string }>;
 } = {}) {
 	let timelineReads = 0;
 	const get = vi.fn(async (url: string) => {
@@ -74,7 +76,7 @@ function makeClient({
 						...videoElement,
 					},
 				],
-				transitions: [],
+				transitions: mediaTransitions,
 			};
 			const textTrack = {
 				id: "track-1",
@@ -128,6 +130,11 @@ function makeClient({
 						],
 				failedCount: 0,
 			};
+		}
+		if (
+			url === "/api/claude/timeline/project-1/tracks/main-track/transitions"
+		) {
+			return { transitionId: "transition-1" };
 		}
 		if (url.endsWith("/commit")) return { committed: true };
 		if (url.endsWith("/rollback")) return { rolledBack: true };
@@ -315,6 +322,50 @@ describe("editor timeline apply", () => {
 		expect(post).toHaveBeenCalledWith(
 			"/api/claude/transaction/transaction-1/commit",
 			{}
+		);
+	});
+
+	it("rejects a transition whose easing changed during read-back", async () => {
+		const transitionManifest = {
+			...manifest,
+			transitions: [
+				{
+					track: "main",
+					from: "video",
+					to: "headline",
+					type: "push",
+					presetId: "move-left",
+					direction: "right",
+					duration: 1,
+					easing: "easeInOutQuint",
+				},
+			],
+		};
+		const { client, post } = makeClient({
+			mediaTransitions: [
+				{
+					id: "transition-1",
+					fromElementId: "video-1",
+					toElementId: "element-1",
+					type: "push",
+					presetId: "move-left",
+					direction: "right",
+					duration: 1,
+					easing: "easeInOut",
+				},
+			],
+		});
+
+		const result = await timelineApplyManifest(
+			client,
+			makeOptions(transitionManifest)
+		);
+
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("field 'easing' did not match");
+		expect(post).toHaveBeenCalledWith(
+			"/api/claude/transaction/transaction-1/rollback",
+			expect.objectContaining({ reason: expect.stringContaining("easing") })
 		);
 	});
 

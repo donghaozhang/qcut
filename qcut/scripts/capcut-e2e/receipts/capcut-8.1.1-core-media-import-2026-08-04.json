@@ -1,0 +1,62 @@
+{
+	"schema": "qcut.capcut-import-receipt",
+	"schemaVersion": 1,
+	"receiptId": "capcut-8.1.1-core-media-import-2026-08-04",
+	"capturedAt": "2026-08-04T12:28:27Z",
+	"profileId": "capcut-desktop-8.1-plaintext",
+	"targetApp": {
+		"bundleIdentifier": "com.lemon.lvoverseas",
+		"version": "8.1.1",
+		"executableSha256": "8a937d08791e8395c970feb5a62ff28209a87fc2a16364cbc91f51945aac5d73",
+		"infoPlistSha256": "cd707b3bd9536c4b3a221f8708c00cde05c5f40e4d8faf0f58330854be963725"
+	},
+	"source": {
+		"provenance": "qcut-generated-capcut-bundle-opened-and-auto-saved-by-capcut-8.1.1",
+		"requestFingerprint": "0468bc2eb0945cc3f684353fb49240cc361003b89afb1a93bb8e31d1bc02b48d",
+		"fileCount": 23,
+		"totalBytes": 10327398,
+		"detectionOutcome": "exact",
+		"warningCount": 0,
+		"blockerCount": 0
+	},
+	"capcutRoundTrip": {
+		"opened": true,
+		"autoSaved": true,
+		"reopened": true,
+		"lockObservedWhileOpen": true,
+		"lockAbsentAfterExit": true,
+		"snapshotFilesRewrittenOnFirstSave": 9,
+		"rootMetadataRewritten": true
+	},
+	"supportedSubset": {
+		"durationMicroseconds": 8000000,
+		"timelineCount": 1,
+		"trackCount": 2,
+		"segmentCount": 2,
+		"resourceCount": 2,
+		"trackTypes": ["video", "audio"],
+		"exactSegmentCount": 2,
+		"downgradedSegmentCount": 0,
+		"opaqueSegmentCount": 0,
+		"blockedSegmentCount": 0,
+		"resolvedResourceCount": 2
+	},
+	"qcutImport": {
+		"bundleDigest": "5c82893222f3bba62bfc3a739f245bfc4852613ec5789a087a72edd44d80901a",
+		"queuedMediaCount": 2,
+		"projectCountBefore": 87,
+		"projectCountAfter": 88,
+		"loadedTrackCount": 2,
+		"loadedSegmentCount": 2,
+		"loadedDurationMicroseconds": 8000000,
+		"reloadVerified": true,
+		"sourceFilesChangedByImport": 0
+	},
+	"limitations": {
+		"nativeExportVerified": false,
+		"frameComparisonVerified": false,
+		"audioComparisonVerified": false,
+		"sameProfileWritebackVerified": false,
+		"complexFeatureMappersVerified": false
+	}
+}

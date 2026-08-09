@@ -14,6 +14,7 @@ import type {
 	StoreGet,
 	StoreSet,
 } from "./timeline-store-operations";
+import { blockedByTrackLock } from "./timeline-lock-guard";
 
 function transitionDuration({
 	track,
@@ -61,6 +62,15 @@ export function createTransitionOps(
 		}) => {
 			const track = get()._tracks.find((candidate) => candidate.id === trackId);
 			if (!track || track.type !== "media") return null;
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Add Transition",
+					trackIds: [trackId],
+				})
+			) {
+				return null;
+			}
 			if (
 				!resolveVideoTransitionPair({
 					track,
@@ -140,6 +150,15 @@ export function createTransitionOps(
 			);
 			if (!track || !existing) return;
 			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Transition",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
+			if (
 				!resolveVideoTransitionPair({
 					track,
 					fromElementId: existing.fromElementId,
@@ -200,6 +219,15 @@ export function createTransitionOps(
 		}) => {
 			const track = get()._tracks.find((candidate) => candidate.id === trackId);
 			if (!track || (track.type !== "media" && track.type !== "audio")) return;
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Set Transition Audio Crossfade",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			const existing = track.audioCrossfades?.find(
 				(crossfade) =>
 					crossfade.fromElementId === fromElementId &&
@@ -264,6 +292,15 @@ export function createTransitionOps(
 				(item) => item.id === transitionId
 			);
 			if (!track || !transition) {
+				return;
+			}
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Remove Transition",
+					trackIds: [trackId],
+				})
+			) {
 				return;
 			}
 			get().pushHistory();

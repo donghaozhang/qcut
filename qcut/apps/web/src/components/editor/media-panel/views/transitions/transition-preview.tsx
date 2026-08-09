@@ -9,10 +9,10 @@ import {
 	type ClipTransitionRole,
 } from "@/lib/transitions/clip-transition-presentation";
 import type { ClipTransition } from "@/types/timeline";
-import {
-	getClipTransitionPresetConfig,
-	type TransitionPreset,
-} from "./transition-presets";
+import { getClipTransitionPresetConfig } from "./transition-presets";
+import type { TransitionPreset } from "./transition-preset-types";
+import { getTransitionLabRecipe } from "./transition-lab-presets";
+import { ShaderTransitionPreview } from "./shader-transition-preview";
 
 export interface TransitionPreviewSources {
 	from?: string;
@@ -84,7 +84,7 @@ function PreviewLayer({
 	);
 }
 
-export function TransitionPreview({
+function CssTransitionPreview({
 	preset,
 	isPlaying,
 	sources,
@@ -138,5 +138,45 @@ export function TransitionPreview({
 				/>
 			</div>
 		</div>
+	);
+}
+
+export function TransitionPreview({
+	preset,
+	isPlaying,
+	sources,
+}: {
+	preset: TransitionPreset;
+	isPlaying: boolean;
+	sources?: TransitionPreviewSources;
+}) {
+	const recipe = getTransitionLabRecipe({ presetId: preset.id });
+	if (!recipe) {
+		return (
+			<CssTransitionPreview
+				preset={preset}
+				isPlaying={isPlaying}
+				sources={sources}
+			/>
+		);
+	}
+
+	const fromSource = sources?.from || preset.preview.from;
+	const toSource = sources?.to || preset.preview.to;
+	return (
+		<ShaderTransitionPreview
+			duration={preset.defaultDuration}
+			fallback={
+				<CssTransitionPreview
+					preset={preset}
+					isPlaying={isPlaying}
+					sources={sources}
+				/>
+			}
+			fromSource={fromSource}
+			isPlaying={isPlaying}
+			recipe={recipe}
+			toSource={toSource}
+		/>
 	);
 }

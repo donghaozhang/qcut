@@ -98,3 +98,37 @@ export {
 	canElementGoOnTrack,
 	validateElementTrackCompatibility,
 } from "./validation.js";
+
+export {
+	excludeLockedTrackIds,
+	findTrackIdsForElements,
+	findTrackIdsForGroup,
+	getLockedTrackIds,
+	preflightLockedTracks,
+	type LockAwareTrack,
+	type LockViolation,
+} from "./lock-contract.js";
+
+export {
+	classifyRangeCollision,
+	findRangeCollisions,
+	planInsertShift,
+	planOverwrite,
+	rangesOverlap,
+	type CollisionMode,
+	type InsertPlan,
+	type OverwritePlan,
+	type RangeCollisionKind,
+	type TimeRange,
+	type TimelineRangeItem,
+} from "./collision-policy.js";
+
+export {
+	deriveTimelineLinks,
+	resolveRippleDomain,
+	type LinkAwareElement,
+	type LinkAwareTrack,
+	type RippleDomainResolution,
+	type TimelineElementLink,
+	type TimelineLinkType,
+} from "./ripple-plan.js";

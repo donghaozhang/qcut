@@ -12,8 +12,10 @@ import {
 	SplitSquareHorizontal,
 	Pause,
 	Play,
+	FoldHorizontal,
 	Magnet,
 	Link,
+	Link2,
 	ZoomIn,
 	ZoomOut,
 	Bookmark,
@@ -120,6 +122,14 @@ export function TimelineToolbar({
 	const toggleSnapping = useTimelineStore((s) => s.toggleSnapping);
 	const rippleEditingEnabled = useTimelineStore((s) => s.rippleEditingEnabled);
 	const toggleRippleEditing = useTimelineStore((s) => s.toggleRippleEditing);
+	const mainTrackMagnetEnabled = useTimelineStore(
+		(s) => s.mainTrackMagnetEnabled
+	);
+	const toggleMainTrackMagnet = useTimelineStore(
+		(s) => s.toggleMainTrackMagnet
+	);
+	const linkedRippleEnabled = useTimelineStore((s) => s.linkedRippleEnabled);
+	const toggleLinkedRipple = useTimelineStore((s) => s.toggleLinkedRipple);
 	const showEffectsTrack = useTimelineStore((s) => s.showEffectsTrack);
 	const toggleEffectsTrack = useTimelineStore((s) => s.toggleEffectsTrack);
 	const currentTime = usePlaybackStore((s) => s.currentTime);
@@ -364,21 +374,6 @@ export function TimelineToolbar({
 			debugError("Failed to toggle bookmark:", error);
 			toast.error("Failed to update bookmark");
 		}
-	};
-
-	const handleSceneManagement = () => {
-		toast.info(
-			"Scene management coming soon! This will allow you to create and switch between different timeline scenes.",
-			{
-				duration: 4000,
-				action: {
-					label: "Learn More",
-					onClick: () => {
-						debugLog("Scene management documentation");
-					},
-				},
-			}
-		);
 	};
 
 	const currentBookmarked = isBookmarked(currentTime);
@@ -721,9 +716,7 @@ export function TimelineToolbar({
 						</TooltipTrigger>
 						<TooltipContent>
 							{withShortcut(
-								rippleEditingEnabled
-									? "Delete with linked ripple"
-									: "Delete element",
+								rippleEditingEnabled ? "Delete with ripple" : "Delete element",
 								"delete-selected"
 							)}
 						</TooltipContent>
@@ -764,13 +757,14 @@ export function TimelineToolbar({
 							<SplitButton>
 								<SplitButtonLeft disabled>{currentSceneName}</SplitButtonLeft>
 								<SplitButtonSeparator />
-								<SplitButtonRight
-									type="button"
-									aria-label={t("timeline.scene.open")}
-									onClick={handleSceneManagement}
-								>
-									<LayersIcon className="h-4 w-4" aria-hidden="true" />
-								</SplitButtonRight>
+								<ScenesView>
+									<SplitButtonRight
+										type="button"
+										aria-label={t("timeline.scene.open")}
+									>
+										<LayersIcon className="h-4 w-4" aria-hidden="true" />
+									</SplitButtonRight>
+								</ScenesView>
 							</SplitButton>
 						</TooltipTrigger>
 						<TooltipContent>
@@ -809,12 +803,37 @@ export function TimelineToolbar({
 						<TooltipTrigger asChild>
 							<Button
 								type="button"
+								variant={mainTrackMagnetEnabled ? "default" : "text"}
+								size="icon"
+								onClick={toggleMainTrackMagnet}
+								aria-label="Toggle main-track magnet"
+								aria-pressed={mainTrackMagnetEnabled}
+								title="Main-track magnet"
+								data-testid="timeline-main-magnet-button"
+								data-enabled={mainTrackMagnetEnabled}
+							>
+								<FoldHorizontal
+									className={`h-4 w-4 ${
+										mainTrackMagnetEnabled ? "text-primary" : ""
+									}`}
+								/>
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>
+							Main-track magnet — deleting a main-track clip closes its gap
+						</TooltipContent>
+					</Tooltip>
+
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
 								variant={rippleEditingEnabled ? "default" : "text"}
 								size="icon"
 								onClick={toggleRippleEditing}
-								aria-label="Toggle linked ripple editing"
+								aria-label="Toggle ripple editing"
 								aria-pressed={rippleEditingEnabled}
-								title="Linked editing"
+								title="Ripple editing"
 								data-testid="timeline-ripple-button"
 								data-enabled={rippleEditingEnabled}
 							>
@@ -829,6 +848,31 @@ export function TimelineToolbar({
 							{rippleEditingEnabled
 								? "Disable Ripple Editing"
 								: "Enable Ripple Editing"}
+						</TooltipContent>
+					</Tooltip>
+
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								variant={linkedRippleEnabled ? "default" : "text"}
+								size="icon"
+								onClick={toggleLinkedRipple}
+								aria-label="Toggle linked ripple"
+								aria-pressed={linkedRippleEnabled}
+								title="Linked ripple"
+								data-testid="timeline-linked-ripple-button"
+								data-enabled={linkedRippleEnabled}
+							>
+								<Link2
+									className={`h-4 w-4 ${
+										linkedRippleEnabled ? "text-primary" : ""
+									}`}
+								/>
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>
+							Linked ripple — ripple edits pull linked tracks along
 						</TooltipContent>
 					</Tooltip>
 

@@ -1,0 +1,1160 @@
+/**
+ * DraftInteropDocumentV1 — the bidirectional semantic layer between
+ * JianYing/CapCut raw drafts and QCut (JYI-001).
+ *
+ * The document is pure, versioned, JSON-serializable data. It never embeds
+ * editor-core timeline types (the editor must not carry raw-draft baggage)
+ * and never embeds raw draft JSON (that lives in the ForeignDraftEnvelope,
+ * JYI-002). All times are integer microseconds — JianYing's native unit —
+ * so no float drift enters the contract.
+ *
+ * @module @qcut/editor-core/draft-interop/document
+ */
+
+import { type InteropCapability, isInteropCapability } from "./capability.js";
+import {
+	type InteropIssue,
+	isInteropIssueCode,
+	isInteropIssueSeverity,
+} from "./issues.js";
+
+export const DRAFT_INTEROP_SCHEMA_VERSION = 1 as const;
+export const DRAFT_INTEROP_TIME_UNIT = "microseconds" as const;
+
+// ---------------------------------------------------------------------------
+// Source
+// ---------------------------------------------------------------------------
+
+export type DraftSourceProduct = "jianying" | "capcut";
+export type DraftSourcePlatform = "macos" | "windows" | "unknown";
+export type DraftSourceFileRole =
+	| "content"
+	| "meta"
+	| "asset"
+	| "sidecar"
+	| "unknown";
+export type DraftSourceFileClassification =
+	| "plaintext-json"
+	| "opaque-text"
+	| "binary"
+	| "encrypted"
+	| "unknown";
+
+export interface DraftSourceFile {
+	relativePath: string;
+	byteLength: number;
+	sha256: string;
+	role: DraftSourceFileRole;
+	classification: DraftSourceFileClassification;
+}
+
+export interface DraftSourceDescriptor {
+	product: DraftSourceProduct;
+	/** Registered profile id, e.g. "capcut-desktop-8.1-plaintext". */
+	profileId: string;
+	appVersion?: string;
+	/** Source schema marker, e.g. "360000" / new_version. */
+	schemaVersion?: string;
+	platform: DraftSourcePlatform;
+	/** Immutable snapshot manifest the whole document is bound to. */
+	files: DraftSourceFile[];
+}
+
+// ---------------------------------------------------------------------------
+// Timeline
+// ---------------------------------------------------------------------------
+
+export interface InteropTimeRange {
+	startUs: number;
+	durationUs: number;
+}
+
+export interface InteropTextStroke {
+	color: string;
+	widthPx: number;
+	opacity: number;
+}
+
+export interface InteropTextBackground {
+	color: string;
+	opacity: number;
+	radiusPx: number;
+	paddingPx: number;
+}
+
+export interface InteropTextShadow {
+	color: string;
+	opacity: number;
+	offsetXPx: number;
+	offsetYPx: number;
+	blurPx: number;
+}
+
+/** Static text subset shared by foreign drafts and QCut. */
+export interface InteropText {
+	content: string;
+	fontSizePx: number;
+	fontFamily: string;
+	color: string;
+	textAlign: "left" | "center" | "right";
+	fontWeight: "normal" | "bold";
+	fontStyle: "normal" | "italic";
+	textDecoration: "none" | "underline";
+	xPx: number;
+	yPx: number;
+	rotationDegrees: number;
+	opacity: number;
+	letterSpacingPx?: number;
+	widthPx?: number;
+	stroke?: InteropTextStroke;
+	background?: InteropTextBackground;
+	shadow?: InteropTextShadow;
+	foreignRef?: string;
+}
+
+export type InteropSegmentKind =
+	| "video"
+	| "image"
+	| "audio"
+	| "text"
+	| "sticker"
+	| "effect"
+	| "filter"
+	| "adjustment"
+	| "transition"
+	| "unknown";
+
+export interface InteropSegment {
+	id: string;
+	kind: InteropSegmentKind;
+	/** Resource this segment plays, when it references one. */
+	resourceId?: string;
+	/** Range inside the source media, in source time. */
+	sourceRange?: InteropTimeRange;
+	/** Range occupied on the timeline. */
+	targetRange: InteropTimeRange;
+	speed?: number;
+	text?: InteropText;
+	capability: InteropCapability;
+	/** Binding key into the foreign envelope's raw-node map (JYI-002). */
+	foreignRef?: string;
+}
+
+export type InteropTransitionType = "dissolve" | "unknown";
+
+/** A transition owned by the outgoing segment at one same-track seam. */
+export interface InteropTransition {
+	id: string;
+	type: InteropTransitionType;
+	fromSegmentId: string;
+	toSegmentId: string;
+	durationUs: number;
+	capability: InteropCapability;
+	foreignRef?: string;
+}
+
+export type InteropTrackKind =
+	| "video"
+	| "audio"
+	| "text"
+	| "sticker"
+	| "effect"
+	| "adjustment"
+	| "unknown";
+
+export interface InteropTrack {
+	id: string;
+	kind: InteropTrackKind;
+	/** Compositing order inside the timeline, 0-based, bottom first. */
+	order: number;
+	isMain?: boolean;
+	segments: InteropSegment[];
+	transitions?: InteropTransition[];
+	capability: InteropCapability;
+	foreignRef?: string;
+}
+
+export interface InteropTimeline {
+	id: string;
+	name?: string;
+	/** The root timeline; child timelines back compound clips. */
+	isRoot: boolean;
+	fps?: number;
+	tracks: InteropTrack[];
+	foreignRef?: string;
+}
+
+// ---------------------------------------------------------------------------
+// Resources and links
+// ---------------------------------------------------------------------------
+
+export type InteropResourceKind =
+	| "video"
+	| "image"
+	| "audio"
+	| "font"
+	| "lut"
+	| "filter"
+	| "effect"
+	| "transition-package"
+	| "unknown";
+
+export type InteropResourceStatus =
+	| "resolved"
+	| "pending"
+	| "missing"
+	| "opaque";
+
+export interface InteropResource {
+	id: string;
+	kind: InteropResourceKind;
+	name?: string;
+	originHint?: "local-media" | "app-resource" | "package" | "unknown";
+	sha256?: string;
+	byteLength?: number;
+	/** Intrinsic media duration in microseconds, when the source declares it. */
+	durationUs?: number;
+	status: InteropResourceStatus;
+	capability: InteropCapability;
+	foreignRef?: string;
+}
+
+/** Aligned with the timeline link vocabulary introduced by QTL-003. */
+export type InteropLinkType =
+	| "video-audio"
+	| "group"
+	| "caption-owner"
+	| "effect-target"
+	| "compound-child"
+	| "semantic-scene";
+
+export interface InteropLink {
+	id: string;
+	type: InteropLinkType;
+	fromId: string;
+	toId: string;
+	/** User explicitly detached the link; automation must not re-follow. */
+	detached?: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Document
+// ---------------------------------------------------------------------------
+
+export interface InteropProject {
+	id: string;
+	name: string;
+	width: number;
+	height: number;
+	fps: number;
+	durationUs?: number;
+}
+
+export interface DraftInteropDocumentV1 {
+	schemaVersion: typeof DRAFT_INTEROP_SCHEMA_VERSION;
+	timeUnit: typeof DRAFT_INTEROP_TIME_UNIT;
+	source: DraftSourceDescriptor;
+	project: InteropProject;
+	timelines: InteropTimeline[];
+	resources: InteropResource[];
+	links: InteropLink[];
+	issues: InteropIssue[];
+}
+
+// ---------------------------------------------------------------------------
+// Validating parser
+// ---------------------------------------------------------------------------
+
+export type ParseDraftInteropDocumentResult =
+	| { ok: true; document: DraftInteropDocumentV1 }
+	| { ok: false; issues: InteropIssue[] };
+
+class MalformedDocumentError extends Error {
+	readonly path: string;
+
+	constructor({ message, path }: { message: string; path: string }) {
+		super(message);
+		this.name = "MalformedDocumentError";
+		this.path = path;
+	}
+}
+
+function fail({ message, path }: { message: string; path: string }): never {
+	throw new MalformedDocumentError({ message, path });
+}
+
+function asRecord({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): Record<string, unknown> {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) {
+		fail({ message: "expected an object", path });
+	}
+	return value as Record<string, unknown>;
+}
+
+function asArray({ value, path }: { value: unknown; path: string }): unknown[] {
+	if (!Array.isArray(value)) {
+		fail({ message: "expected an array", path });
+	}
+	return value;
+}
+
+function asString({
+	value,
+	path,
+	allowEmpty = false,
+}: {
+	value: unknown;
+	path: string;
+	allowEmpty?: boolean;
+}): string {
+	if (typeof value !== "string" || (!allowEmpty && value.length === 0)) {
+		fail({ message: "expected a non-empty string", path });
+	}
+	return value;
+}
+
+function asOptionalString({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): string | undefined {
+	if (value === undefined) return undefined;
+	return asString({ value, path });
+}
+
+function asNonNegativeSafeInteger({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): number {
+	if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+		fail({ message: "expected a non-negative safe integer", path });
+	}
+	return value;
+}
+
+function asPositiveSafeInteger({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): number {
+	const parsed = asNonNegativeSafeInteger({ value, path });
+	if (parsed === 0) {
+		fail({ message: "expected a positive safe integer", path });
+	}
+	return parsed;
+}
+
+function asPositiveFinite({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): number {
+	if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+		fail({ message: "expected a positive finite number", path });
+	}
+	return value;
+}
+
+function asFiniteNumber({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): number {
+	if (typeof value !== "number" || !Number.isFinite(value)) {
+		fail({ message: "expected a finite number", path });
+	}
+	return value;
+}
+
+function asUnitInterval({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): number {
+	const parsed = asFiniteNumber({ value, path });
+	if (parsed < 0 || parsed > 1) {
+		fail({ message: "expected a number from 0 through 1", path });
+	}
+	return parsed;
+}
+
+function asNonNegativeFinite({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): number {
+	const parsed = asFiniteNumber({ value, path });
+	if (parsed < 0) {
+		fail({ message: "expected a non-negative finite number", path });
+	}
+	return parsed;
+}
+
+function asColor({ value, path }: { value: unknown; path: string }): string {
+	const color = asString({ value, path });
+	if (!/^#[\da-f]{6}$/i.test(color)) {
+		fail({ message: "expected a six-digit hexadecimal color", path });
+	}
+	return color.toLowerCase();
+}
+
+function asOptionalBoolean({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): boolean | undefined {
+	if (value === undefined) return undefined;
+	if (typeof value !== "boolean") {
+		fail({ message: "expected a boolean", path });
+	}
+	return value;
+}
+
+function asEnum<T extends string>({
+	value,
+	path,
+	allowed,
+}: {
+	value: unknown;
+	path: string;
+	allowed: readonly T[];
+}): T {
+	if (typeof value !== "string" || !allowed.includes(value as T)) {
+		fail({ message: `expected one of: ${allowed.join(", ")}`, path });
+	}
+	return value as T;
+}
+
+function asCapability({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropCapability {
+	if (!isInteropCapability(value)) {
+		fail({ message: "expected an interop capability", path });
+	}
+	return value;
+}
+
+function parseTimeRange({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropTimeRange {
+	const record = asRecord({ value, path });
+	return {
+		startUs: asNonNegativeSafeInteger({
+			value: record.startUs,
+			path: `${path}/startUs`,
+		}),
+		durationUs: asNonNegativeSafeInteger({
+			value: record.durationUs,
+			path: `${path}/durationUs`,
+		}),
+	};
+}
+
+function parseSourceFile({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): DraftSourceFile {
+	const record = asRecord({ value, path });
+	return {
+		relativePath: asString({
+			value: record.relativePath,
+			path: `${path}/relativePath`,
+		}),
+		byteLength: asNonNegativeSafeInteger({
+			value: record.byteLength,
+			path: `${path}/byteLength`,
+		}),
+		sha256: asString({ value: record.sha256, path: `${path}/sha256` }),
+		role: asEnum({
+			value: record.role,
+			path: `${path}/role`,
+			allowed: ["content", "meta", "asset", "sidecar", "unknown"],
+		}),
+		classification: asEnum({
+			value: record.classification,
+			path: `${path}/classification`,
+			allowed: [
+				"plaintext-json",
+				"opaque-text",
+				"binary",
+				"encrypted",
+				"unknown",
+			],
+		}),
+	};
+}
+
+function parseSource({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): DraftSourceDescriptor {
+	const record = asRecord({ value, path });
+	const appVersion = asOptionalString({
+		value: record.appVersion,
+		path: `${path}/appVersion`,
+	});
+	const schemaVersion = asOptionalString({
+		value: record.schemaVersion,
+		path: `${path}/schemaVersion`,
+	});
+	return {
+		product: asEnum({
+			value: record.product,
+			path: `${path}/product`,
+			allowed: ["jianying", "capcut"],
+		}),
+		profileId: asString({
+			value: record.profileId,
+			path: `${path}/profileId`,
+		}),
+		...(appVersion === undefined ? {} : { appVersion }),
+		...(schemaVersion === undefined ? {} : { schemaVersion }),
+		platform: asEnum({
+			value: record.platform,
+			path: `${path}/platform`,
+			allowed: ["macos", "windows", "unknown"],
+		}),
+		files: asArray({ value: record.files, path: `${path}/files` }).map(
+			(file, index) =>
+				parseSourceFile({ value: file, path: `${path}/files/${index}` })
+		),
+	};
+}
+
+function parseSegment({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropSegment {
+	const record = asRecord({ value, path });
+	const resourceId = asOptionalString({
+		value: record.resourceId,
+		path: `${path}/resourceId`,
+	});
+	const foreignRef = asOptionalString({
+		value: record.foreignRef,
+		path: `${path}/foreignRef`,
+	});
+	const sourceRange =
+		record.sourceRange === undefined
+			? undefined
+			: parseTimeRange({
+					value: record.sourceRange,
+					path: `${path}/sourceRange`,
+				});
+	const speed =
+		record.speed === undefined
+			? undefined
+			: asPositiveFinite({ value: record.speed, path: `${path}/speed` });
+	const text =
+		record.text === undefined
+			? undefined
+			: parseText({ value: record.text, path: `${path}/text` });
+	return {
+		id: asString({ value: record.id, path: `${path}/id` }),
+		kind: asEnum({
+			value: record.kind,
+			path: `${path}/kind`,
+			allowed: [
+				"video",
+				"image",
+				"audio",
+				"text",
+				"sticker",
+				"effect",
+				"filter",
+				"adjustment",
+				"transition",
+				"unknown",
+			],
+		}),
+		...(resourceId === undefined ? {} : { resourceId }),
+		...(sourceRange === undefined ? {} : { sourceRange }),
+		targetRange: parseTimeRange({
+			value: record.targetRange,
+			path: `${path}/targetRange`,
+		}),
+		...(speed === undefined ? {} : { speed }),
+		...(text === undefined ? {} : { text }),
+		capability: asCapability({
+			value: record.capability,
+			path: `${path}/capability`,
+		}),
+		...(foreignRef === undefined ? {} : { foreignRef }),
+	};
+}
+
+function parseTextStroke({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropTextStroke {
+	const record = asRecord({ value, path });
+	return {
+		color: asColor({ value: record.color, path: `${path}/color` }),
+		widthPx: asNonNegativeFinite({
+			value: record.widthPx,
+			path: `${path}/widthPx`,
+		}),
+		opacity: asUnitInterval({
+			value: record.opacity,
+			path: `${path}/opacity`,
+		}),
+	};
+}
+
+function parseTextBackground({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropTextBackground {
+	const record = asRecord({ value, path });
+	return {
+		color: asColor({ value: record.color, path: `${path}/color` }),
+		opacity: asUnitInterval({
+			value: record.opacity,
+			path: `${path}/opacity`,
+		}),
+		radiusPx: asNonNegativeFinite({
+			value: record.radiusPx,
+			path: `${path}/radiusPx`,
+		}),
+		paddingPx: asNonNegativeFinite({
+			value: record.paddingPx,
+			path: `${path}/paddingPx`,
+		}),
+	};
+}
+
+function parseTextShadow({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropTextShadow {
+	const record = asRecord({ value, path });
+	return {
+		color: asColor({ value: record.color, path: `${path}/color` }),
+		opacity: asUnitInterval({
+			value: record.opacity,
+			path: `${path}/opacity`,
+		}),
+		offsetXPx: asFiniteNumber({
+			value: record.offsetXPx,
+			path: `${path}/offsetXPx`,
+		}),
+		offsetYPx: asFiniteNumber({
+			value: record.offsetYPx,
+			path: `${path}/offsetYPx`,
+		}),
+		blurPx: asNonNegativeFinite({
+			value: record.blurPx,
+			path: `${path}/blurPx`,
+		}),
+	};
+}
+
+function parseText({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropText {
+	const record = asRecord({ value, path });
+	const letterSpacingPx =
+		record.letterSpacingPx === undefined
+			? undefined
+			: asFiniteNumber({
+					value: record.letterSpacingPx,
+					path: `${path}/letterSpacingPx`,
+				});
+	const widthPx =
+		record.widthPx === undefined
+			? undefined
+			: asNonNegativeFinite({
+					value: record.widthPx,
+					path: `${path}/widthPx`,
+				});
+	const stroke =
+		record.stroke === undefined
+			? undefined
+			: parseTextStroke({ value: record.stroke, path: `${path}/stroke` });
+	const background =
+		record.background === undefined
+			? undefined
+			: parseTextBackground({
+					value: record.background,
+					path: `${path}/background`,
+				});
+	const shadow =
+		record.shadow === undefined
+			? undefined
+			: parseTextShadow({ value: record.shadow, path: `${path}/shadow` });
+	const foreignRef = asOptionalString({
+		value: record.foreignRef,
+		path: `${path}/foreignRef`,
+	});
+	return {
+		content: asString({
+			value: record.content,
+			path: `${path}/content`,
+			allowEmpty: true,
+		}),
+		fontSizePx: asPositiveFinite({
+			value: record.fontSizePx,
+			path: `${path}/fontSizePx`,
+		}),
+		fontFamily: asString({
+			value: record.fontFamily,
+			path: `${path}/fontFamily`,
+		}),
+		color: asColor({ value: record.color, path: `${path}/color` }),
+		textAlign: asEnum({
+			value: record.textAlign,
+			path: `${path}/textAlign`,
+			allowed: ["left", "center", "right"],
+		}),
+		fontWeight: asEnum({
+			value: record.fontWeight,
+			path: `${path}/fontWeight`,
+			allowed: ["normal", "bold"],
+		}),
+		fontStyle: asEnum({
+			value: record.fontStyle,
+			path: `${path}/fontStyle`,
+			allowed: ["normal", "italic"],
+		}),
+		textDecoration: asEnum({
+			value: record.textDecoration,
+			path: `${path}/textDecoration`,
+			allowed: ["none", "underline"],
+		}),
+		xPx: asFiniteNumber({ value: record.xPx, path: `${path}/xPx` }),
+		yPx: asFiniteNumber({ value: record.yPx, path: `${path}/yPx` }),
+		rotationDegrees: asFiniteNumber({
+			value: record.rotationDegrees,
+			path: `${path}/rotationDegrees`,
+		}),
+		opacity: asUnitInterval({
+			value: record.opacity,
+			path: `${path}/opacity`,
+		}),
+		...(letterSpacingPx === undefined ? {} : { letterSpacingPx }),
+		...(widthPx === undefined ? {} : { widthPx }),
+		...(stroke === undefined ? {} : { stroke }),
+		...(background === undefined ? {} : { background }),
+		...(shadow === undefined ? {} : { shadow }),
+		...(foreignRef === undefined ? {} : { foreignRef }),
+	};
+}
+
+function parseTransition({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropTransition {
+	const record = asRecord({ value, path });
+	const foreignRef = asOptionalString({
+		value: record.foreignRef,
+		path: `${path}/foreignRef`,
+	});
+	return {
+		id: asString({ value: record.id, path: `${path}/id` }),
+		type: asEnum({
+			value: record.type,
+			path: `${path}/type`,
+			allowed: ["dissolve", "unknown"],
+		}),
+		fromSegmentId: asString({
+			value: record.fromSegmentId,
+			path: `${path}/fromSegmentId`,
+		}),
+		toSegmentId: asString({
+			value: record.toSegmentId,
+			path: `${path}/toSegmentId`,
+		}),
+		durationUs: asPositiveSafeInteger({
+			value: record.durationUs,
+			path: `${path}/durationUs`,
+		}),
+		capability: asCapability({
+			value: record.capability,
+			path: `${path}/capability`,
+		}),
+		...(foreignRef === undefined ? {} : { foreignRef }),
+	};
+}
+
+function parseTrack({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropTrack {
+	const record = asRecord({ value, path });
+	const isMain = asOptionalBoolean({
+		value: record.isMain,
+		path: `${path}/isMain`,
+	});
+	const foreignRef = asOptionalString({
+		value: record.foreignRef,
+		path: `${path}/foreignRef`,
+	});
+	const transitions =
+		record.transitions === undefined
+			? undefined
+			: asArray({
+					value: record.transitions,
+					path: `${path}/transitions`,
+				}).map((transition, index) =>
+					parseTransition({
+						value: transition,
+						path: `${path}/transitions/${index}`,
+					})
+				);
+	return {
+		id: asString({ value: record.id, path: `${path}/id` }),
+		kind: asEnum({
+			value: record.kind,
+			path: `${path}/kind`,
+			allowed: [
+				"video",
+				"audio",
+				"text",
+				"sticker",
+				"effect",
+				"adjustment",
+				"unknown",
+			],
+		}),
+		order: asNonNegativeSafeInteger({
+			value: record.order,
+			path: `${path}/order`,
+		}),
+		...(isMain === undefined ? {} : { isMain }),
+		segments: asArray({
+			value: record.segments,
+			path: `${path}/segments`,
+		}).map((segment, index) =>
+			parseSegment({ value: segment, path: `${path}/segments/${index}` })
+		),
+		...(transitions === undefined ? {} : { transitions }),
+		capability: asCapability({
+			value: record.capability,
+			path: `${path}/capability`,
+		}),
+		...(foreignRef === undefined ? {} : { foreignRef }),
+	};
+}
+
+function parseTimeline({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropTimeline {
+	const record = asRecord({ value, path });
+	const name = asOptionalString({ value: record.name, path: `${path}/name` });
+	const foreignRef = asOptionalString({
+		value: record.foreignRef,
+		path: `${path}/foreignRef`,
+	});
+	const fps =
+		record.fps === undefined
+			? undefined
+			: asPositiveFinite({ value: record.fps, path: `${path}/fps` });
+	if (typeof record.isRoot !== "boolean") {
+		fail({ message: "expected a boolean", path: `${path}/isRoot` });
+	}
+	return {
+		id: asString({ value: record.id, path: `${path}/id` }),
+		...(name === undefined ? {} : { name }),
+		isRoot: record.isRoot,
+		...(fps === undefined ? {} : { fps }),
+		tracks: asArray({ value: record.tracks, path: `${path}/tracks` }).map(
+			(track, index) =>
+				parseTrack({ value: track, path: `${path}/tracks/${index}` })
+		),
+		...(foreignRef === undefined ? {} : { foreignRef }),
+	};
+}
+
+function parseResource({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropResource {
+	const record = asRecord({ value, path });
+	const name = asOptionalString({ value: record.name, path: `${path}/name` });
+	const sha256 = asOptionalString({
+		value: record.sha256,
+		path: `${path}/sha256`,
+	});
+	const foreignRef = asOptionalString({
+		value: record.foreignRef,
+		path: `${path}/foreignRef`,
+	});
+	const originHint =
+		record.originHint === undefined
+			? undefined
+			: asEnum({
+					value: record.originHint,
+					path: `${path}/originHint`,
+					allowed: ["local-media", "app-resource", "package", "unknown"],
+				});
+	const byteLength =
+		record.byteLength === undefined
+			? undefined
+			: asNonNegativeSafeInteger({
+					value: record.byteLength,
+					path: `${path}/byteLength`,
+				});
+	const durationUs =
+		record.durationUs === undefined
+			? undefined
+			: asNonNegativeSafeInteger({
+					value: record.durationUs,
+					path: `${path}/durationUs`,
+				});
+	return {
+		id: asString({ value: record.id, path: `${path}/id` }),
+		kind: asEnum({
+			value: record.kind,
+			path: `${path}/kind`,
+			allowed: [
+				"video",
+				"image",
+				"audio",
+				"font",
+				"lut",
+				"filter",
+				"effect",
+				"transition-package",
+				"unknown",
+			],
+		}),
+		...(name === undefined ? {} : { name }),
+		...(originHint === undefined ? {} : { originHint }),
+		...(sha256 === undefined ? {} : { sha256 }),
+		...(byteLength === undefined ? {} : { byteLength }),
+		...(durationUs === undefined ? {} : { durationUs }),
+		status: asEnum({
+			value: record.status,
+			path: `${path}/status`,
+			allowed: ["resolved", "pending", "missing", "opaque"],
+		}),
+		capability: asCapability({
+			value: record.capability,
+			path: `${path}/capability`,
+		}),
+		...(foreignRef === undefined ? {} : { foreignRef }),
+	};
+}
+
+function parseLink({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropLink {
+	const record = asRecord({ value, path });
+	const detached = asOptionalBoolean({
+		value: record.detached,
+		path: `${path}/detached`,
+	});
+	return {
+		id: asString({ value: record.id, path: `${path}/id` }),
+		type: asEnum({
+			value: record.type,
+			path: `${path}/type`,
+			allowed: [
+				"video-audio",
+				"group",
+				"caption-owner",
+				"effect-target",
+				"compound-child",
+				"semantic-scene",
+			],
+		}),
+		fromId: asString({ value: record.fromId, path: `${path}/fromId` }),
+		toId: asString({ value: record.toId, path: `${path}/toId` }),
+		...(detached === undefined ? {} : { detached }),
+	};
+}
+
+function parseIssue({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropIssue {
+	const record = asRecord({ value, path });
+	if (!isInteropIssueCode(record.code)) {
+		fail({ message: "unknown interop issue code", path: `${path}/code` });
+	}
+	if (!isInteropIssueSeverity(record.severity)) {
+		fail({ message: "unknown issue severity", path: `${path}/severity` });
+	}
+	const issuePath = asOptionalString({
+		value: record.path,
+		path: `${path}/path`,
+	});
+	const subjectId = asOptionalString({
+		value: record.subjectId,
+		path: `${path}/subjectId`,
+	});
+	return {
+		code: record.code,
+		severity: record.severity,
+		message: asString({
+			value: record.message,
+			path: `${path}/message`,
+			allowEmpty: true,
+		}),
+		...(issuePath === undefined ? {} : { path: issuePath }),
+		...(subjectId === undefined ? {} : { subjectId }),
+	};
+}
+
+function parseProject({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropProject {
+	const record = asRecord({ value, path });
+	const durationUs =
+		record.durationUs === undefined
+			? undefined
+			: asNonNegativeSafeInteger({
+					value: record.durationUs,
+					path: `${path}/durationUs`,
+				});
+	return {
+		id: asString({ value: record.id, path: `${path}/id` }),
+		name: asString({
+			value: record.name,
+			path: `${path}/name`,
+			allowEmpty: true,
+		}),
+		width: asPositiveFinite({ value: record.width, path: `${path}/width` }),
+		height: asPositiveFinite({ value: record.height, path: `${path}/height` }),
+		fps: asPositiveFinite({ value: record.fps, path: `${path}/fps` }),
+		...(durationUs === undefined ? {} : { durationUs }),
+	};
+}
+
+/**
+ * Structural, fail-closed validation of an untrusted document value.
+ * Graph-level checks (broken refs, cycles, overlaps) belong to the import
+ * validation stage — this parser guarantees shape, not semantics.
+ */
+export function parseDraftInteropDocumentV1(
+	value: unknown
+): ParseDraftInteropDocumentResult {
+	try {
+		const record = asRecord({ value, path: "" });
+		if (record.schemaVersion !== DRAFT_INTEROP_SCHEMA_VERSION) {
+			fail({
+				message: "unsupported interop schema version",
+				path: "/schemaVersion",
+			});
+		}
+		if (record.timeUnit !== DRAFT_INTEROP_TIME_UNIT) {
+			fail({ message: "unsupported time unit", path: "/timeUnit" });
+		}
+		const document: DraftInteropDocumentV1 = {
+			schemaVersion: DRAFT_INTEROP_SCHEMA_VERSION,
+			timeUnit: DRAFT_INTEROP_TIME_UNIT,
+			source: parseSource({ value: record.source, path: "/source" }),
+			project: parseProject({ value: record.project, path: "/project" }),
+			timelines: asArray({
+				value: record.timelines,
+				path: "/timelines",
+			}).map((timeline, index) =>
+				parseTimeline({ value: timeline, path: `/timelines/${index}` })
+			),
+			resources: asArray({
+				value: record.resources,
+				path: "/resources",
+			}).map((resource, index) =>
+				parseResource({ value: resource, path: `/resources/${index}` })
+			),
+			links: asArray({ value: record.links, path: "/links" }).map(
+				(link, index) => parseLink({ value: link, path: `/links/${index}` })
+			),
+			issues: asArray({ value: record.issues, path: "/issues" }).map(
+				(issue, index) => parseIssue({ value: issue, path: `/issues/${index}` })
+			),
+		};
+		return { ok: true, document };
+	} catch (error) {
+		if (error instanceof MalformedDocumentError) {
+			return {
+				ok: false,
+				issues: [
+					{
+						code: "DOCUMENT_MALFORMED",
+						severity: "error",
+						message: error.message,
+						path: error.path,
+					},
+				],
+			};
+		}
+		throw error;
+	}
+}

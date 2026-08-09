@@ -1,28 +1,35 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { EventEmitter } from "node:events";
 
-const { mockSpawn, mockGetFFmpegPath, mockParseProgress, mockFsPromises } =
-	vi.hoisted(() => {
-		const mockGetFFmpegPath = vi.fn(() => "/mock/ffmpeg");
-		const mockParseProgress = vi.fn(() => null);
+const {
+	mockSpawn,
+	mockGetFFmpegPath,
+	mockParseProgress,
+	mockFsPromises,
+	mockExistsSync,
+} = vi.hoisted(() => {
+	const mockGetFFmpegPath = vi.fn(() => "/mock/ffmpeg");
+	const mockParseProgress = vi.fn(() => null);
 
-		const mockFsPromises = {
-			mkdir: vi.fn(async () => {}),
-			mkdtemp: vi.fn(async () => "/tmp/qcut-claude-export-test"),
-			writeFile: vi.fn(async () => {}),
-			stat: vi.fn(async () => ({ size: 4096 })),
-			rm: vi.fn(async () => {}),
-		};
+	const mockFsPromises = {
+		mkdir: vi.fn(async () => {}),
+		mkdtemp: vi.fn(async () => "/tmp/qcut-claude-export-test"),
+		writeFile: vi.fn(async () => {}),
+		stat: vi.fn(async () => ({ size: 4096 })),
+		rm: vi.fn(async () => {}),
+	};
 
-		const mockSpawn = vi.fn();
+	const mockSpawn = vi.fn();
+	const mockExistsSync = vi.fn(() => true);
 
-		return {
-			mockSpawn,
-			mockGetFFmpegPath,
-			mockParseProgress,
-			mockFsPromises,
-		};
-	});
+	return {
+		mockSpawn,
+		mockGetFFmpegPath,
+		mockParseProgress,
+		mockFsPromises,
+		mockExistsSync,
+	};
+});
 
 let spawnMode: "success" | "hang" = "success";
 
@@ -36,10 +43,20 @@ vi.mock("node:fs/promises", () => ({
 	...mockFsPromises,
 }));
 
-vi.mock("../ffmpeg/utils.js", () => ({
-	getFFmpegPath: () => mockGetFFmpegPath(),
-	parseProgress: (...args: unknown[]) => mockParseProgress(...args),
+vi.mock("fs", () => ({
+	default: { existsSync: (...args: unknown[]) => mockExistsSync(...args) },
+	existsSync: (...args: unknown[]) => mockExistsSync(...args),
 }));
+
+vi.mock("../ffmpeg/utils.js", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("../ffmpeg/utils.js")>();
+	return {
+		...actual,
+		getFFmpegPath: () => mockGetFFmpegPath(),
+		parseProgress: (...args: unknown[]) => mockParseProgress(...args),
+		probeHasAudioStream: vi.fn(async () => false),
+	};
+});
 
 vi.mock("electron", () => ({
 	app: {
@@ -68,8 +85,11 @@ import {
 } from "../claude/handlers/claude-export-handler";
 import {
 	buildExportSegmentScaleFilter,
+	buildTransitionAudioAlignmentFilter,
+	buildTransitionVideoSources,
 	collectExportSegments,
 	collectTimelineAudioFiles,
+	collectVideoTransitions,
 } from "../claude/handlers/claude-export-handler/export-engine";
 
 const testTimeline = {
@@ -183,6 +203,179 @@ describe("Claude export trigger", () => {
 		).toBe(
 			"scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1"
 		);
+	});
+
+	it("omits media clips from hidden tracks", async () => {
+		const segments = await collectExportSegments({
+			timeline: {
+				...testTimeline,
+				tracks: testTimeline.tracks.map((track) => ({
+					...track,
+					hidden: true,
+				})),
+			},
+			mediaFiles: testMediaFiles,
+		});
+
+		expect(segments).toEqual([]);
+	});
+
+	it("inserts silence for transition timeline gaps", () => {
+		const filter = buildTransitionAudioAlignmentFilter({
+			segments: [
+				{
+					elementId: "clip-a",
+					trackId: "main",
+					trackOrder: 0,
+					elementOrder: 0,
+					sourcePath: "/tmp/a.mp4",
+					startTime: 0,
+					duration: 2,
+					trimStart: 0,
+					sourceId: "media-a",
+					fitMode: "cover",
+				},
+				{
+					elementId: "clip-b",
+					trackId: "main",
+					trackOrder: 0,
+					elementOrder: 1,
+					sourcePath: "/tmp/b.mp4",
+					startTime: 3,
+					duration: 2,
+					trimStart: 0,
+					sourceId: "media-b",
+					fitMode: "cover",
+				},
+			],
+		});
+
+		expect(filter).toContain("anullsrc=r=48000:cl=stereo,atrim=duration=1");
+		expect(filter).toContain("concat=n=3:v=0:a=1[aligned_audio]");
+	});
+
+	it("renders serialized timeline transitions through the shared xfade graph", async () => {
+		const transitionTimeline = {
+			...testTimeline,
+			duration: 10,
+			tracks: [
+				{
+					id: "main-track",
+					index: 0,
+					name: "Main",
+					type: "media",
+					elements: [
+						{
+							...testTimeline.tracks[0].elements[0],
+							id: "clip-a",
+							sourceId: "media-a",
+						},
+						{
+							...testTimeline.tracks[0].elements[0],
+							id: "clip-b",
+							sourceId: "media-b",
+							startTime: 5,
+							endTime: 10,
+						},
+					],
+					transitions: [
+						{
+							id: "transition-a-b",
+							fromElementId: "clip-a",
+							toElementId: "clip-b",
+							presetId: "lab-clean-dissolve",
+							type: "dissolve",
+							duration: 0.5,
+							easing: "linear" as const,
+						},
+					],
+				},
+			],
+		};
+		const transitionMediaFiles = [
+			{
+				...testMediaFiles[0],
+				id: "media-a",
+				name: "a.mp4",
+				path: "/tmp/a.mp4",
+			},
+			{
+				...testMediaFiles[0],
+				id: "media-b",
+				name: "b.mp4",
+				path: "/tmp/b.mp4",
+			},
+		];
+		const segments = await collectExportSegments({
+			timeline: transitionTimeline,
+			mediaFiles: transitionMediaFiles,
+			projectId: "project_transition",
+		});
+		const transitions = collectVideoTransitions({
+			timeline: transitionTimeline,
+			segments,
+		});
+		const invalidMaskTimeline = {
+			...transitionTimeline,
+			tracks: transitionTimeline.tracks.map((track) => ({
+				...track,
+				transitions: track.transitions.map((transition) => ({
+					...transition,
+					maskShape: "hexagon",
+				})),
+			})),
+		};
+		expect(() =>
+			collectVideoTransitions({
+				timeline: invalidMaskTimeline,
+				segments,
+			})
+		).toThrow("Unsupported transition mask shape: hexagon");
+
+		expect(transitions).toEqual([
+			expect.objectContaining({
+				id: "transition-a-b",
+				trackId: "main-track",
+				type: "dissolve",
+				duration: 0.5,
+			}),
+		]);
+		expect(
+			buildTransitionVideoSources({
+				segments,
+				segmentOutputs: ["/tmp/segment-a.mp4", "/tmp/segment-b.mp4"],
+			})
+		).toEqual([
+			expect.objectContaining({
+				elementId: "clip-a",
+				trackId: "main-track",
+				path: "/tmp/segment-a.mp4",
+			}),
+			expect.objectContaining({
+				elementId: "clip-b",
+				trackId: "main-track",
+				path: "/tmp/segment-b.mp4",
+			}),
+		]);
+
+		const result = await startExportJob({
+			projectId: "project_transition",
+			request: {
+				preset: "youtube-1080p",
+				outputPath: "/tmp/export-transition.mp4",
+			},
+			timeline: transitionTimeline,
+			mediaFiles: transitionMediaFiles,
+		});
+		await vi.waitFor(() => {
+			expect(getExportJobStatus(result.jobId)?.status).toBe("completed");
+		});
+		const ffmpegArgs = mockSpawn.mock.calls.map((call) =>
+			(call[1] as string[]).join(" ")
+		);
+		expect(
+			ffmpegArgs.some((args) => args.includes("xfade=transition=custom"))
+		).toBe(true);
 	});
 
 	it("collects independent audio-track clips with timeline mix settings", async () => {

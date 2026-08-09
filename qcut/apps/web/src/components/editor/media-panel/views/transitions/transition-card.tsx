@@ -4,6 +4,7 @@ import {
 	CloudOffIcon,
 	HardDriveIcon,
 	CrownIcon,
+	FlaskConicalIcon,
 	HeartIcon,
 	LoaderCircleIcon,
 	MousePointerClickIcon,
@@ -195,6 +196,14 @@ export function TransitionCard({
 					sources={previewSources}
 				/>
 				<div className="absolute left-1.5 top-1.5 flex gap-1">
+					{preset.category === "lab" ? (
+						<Badge className="gap-0.5 border-cyan-400/40 bg-cyan-400/15 px-1 py-0 text-[9px] text-cyan-100">
+							<FlaskConicalIcon className="size-2.5">
+								<title>QCut Shader 实验转场</title>
+							</FlaskConicalIcon>
+							Shader
+						</Badge>
+					) : null}
 					{preset.premium && (
 						<Badge className="gap-0.5 border-amber-500/40 bg-amber-500/20 px-1 py-0 text-[9px] text-amber-100">
 							<CrownIcon className="h-2.5 w-2.5" />

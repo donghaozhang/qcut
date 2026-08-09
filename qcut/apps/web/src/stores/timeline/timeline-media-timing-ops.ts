@@ -5,6 +5,7 @@ import type {
 	StoreGet,
 	StoreSet,
 } from "./timeline-store-operations";
+import { blockedByTrackLock } from "./timeline-lock-guard";
 
 const DURATION_EPSILON = 1e-7;
 
@@ -41,6 +42,32 @@ export function createMediaTimingOps(
 				(candidate) => candidate.id === elementId
 			);
 			if (!track || element?.type !== "media") return;
+
+			// Timing changes propagate to linked audio tracks (same groupId), so
+			// a locked linked track must fail the whole command to avoid desync.
+			const linkedTrackIds = element.groupId
+				? tracks
+						.filter(
+							(candidateTrack) =>
+								candidateTrack.type === "audio" &&
+								candidateTrack.elements.some(
+									(candidate) =>
+										candidate.type === "media" &&
+										candidate.groupId === element.groupId &&
+										candidate.mediaId === element.mediaId
+								)
+						)
+						.map((candidateTrack) => candidateTrack.id)
+				: [];
+			if (
+				blockedByTrackLock({
+					tracks,
+					operation: "Update Media Timing",
+					trackIds: [trackId, ...linkedTrackIds],
+				})
+			) {
+				return;
+			}
 
 			const updatedElement: MediaElement = { ...element, ...updates };
 

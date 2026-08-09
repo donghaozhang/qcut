@@ -137,6 +137,33 @@ describe("Claude timeline batch bridge", () => {
 			added: [{ index: 0, success: true, elementId: "element-1" }],
 			failedCount: 0,
 		});
+
+		storeMocks.state.addElementToTrack.mockClear();
+		await batchHandler?.({
+			requestId: "request-invalid-collision",
+			elements: [
+				{
+					type: "media",
+					trackId: "track-1",
+					sourceId: "media-1",
+					startTime: 0,
+					duration: 2,
+					collision: "merge",
+				},
+			],
+		});
+
+		expect(storeMocks.state.addElementToTrack).not.toHaveBeenCalled();
+		expect(sendResponse).toHaveBeenCalledWith("request-invalid-collision", {
+			added: [
+				{
+					index: 0,
+					success: false,
+					error: "Unsupported collision policy: merge",
+				},
+			],
+			failedCount: 1,
+		});
 	});
 
 	it("applies batch updates in both nested-changes and flat shapes", () => {

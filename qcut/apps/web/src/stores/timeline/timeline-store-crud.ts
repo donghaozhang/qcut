@@ -37,6 +37,7 @@ import { normalizeTrackAudioSettings } from "@/lib/audio/audio-mix-settings";
 import { applyCaptionStyleToTracks } from "./caption-style-operations";
 import {
 	groupTimelineElements,
+	isSeparatedAudioPairGroup,
 	moveTimelineElementGroup,
 	ungroupTimelineElements,
 } from "./timeline-group-operations";
@@ -45,9 +46,24 @@ import {
 	createMediaContainer,
 	selectMulticamClip,
 } from "./timeline-compound-operations";
+import {
+	findRangeCollisions,
+	findTrackIdsForGroup,
+} from "@qcut/editor-core/timeline";
+import {
+	getTimelineElementDuration,
+	getTimelineElementEndTime,
+} from "@/lib/timeline";
+import { findOverlappingPair } from "@/lib/timeline-occupancy";
+import { blockedByTrackLock } from "./timeline-lock-guard";
+import {
+	insertGapInElements,
+	overwriteRangeInElements,
+} from "./timeline-collision-utils";
 
 export interface CrudDeps {
 	updateTracksAndSave: (tracks: TimelineTrack[]) => void;
+	getProjectFps: () => number;
 }
 
 /** Creates track/element CRUD operations (add, remove, move, update) for the timeline store. */
@@ -56,7 +72,7 @@ export function createCrudOperations(
 	set: StoreSet,
 	deps: CrudDeps
 ) {
-	const { updateTracksAndSave } = deps;
+	const { updateTracksAndSave, getProjectFps } = deps;
 
 	return {
 		addTrack: (type) => {
@@ -129,6 +145,16 @@ export function createCrudOperations(
 				return null;
 			}
 
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Add Element to Track",
+					trackIds: [trackId],
+				})
+			) {
+				return null;
+			}
+
 			// Use utility function for validation
 			const validation = validateElementTrackCompatibility(elementData, track);
 			if (!validation.isValid) {
@@ -185,11 +211,6 @@ export function createCrudOperations(
 				return null;
 			}
 
-			// Push history after all validations pass
-			if (shouldPushHistory) {
-				get().pushHistory();
-			}
-
 			// Check if this is the first element being added to the timeline
 			const currentState = get();
 			const totalElementsInTimeline = currentState._tracks.reduce(
@@ -224,6 +245,69 @@ export function createCrudOperations(
 				trimStart: normalizedElementData.trimStart ?? 0,
 				trimEnd: normalizedElementData.trimEnd ?? 0,
 			} as TimelineElement; // Type assertion since we trust the caller passes valid data
+
+			// Collision engine (QTL-002): the same-track no-overlap invariant is
+			// enforced here so UI, CLI, and AI all get identical semantics. The
+			// caller picks the policy; the default refuses to create an overlap.
+			const collisionMode = options.collision ?? "reject";
+			const fps = getProjectFps();
+			const newElementDuration = getTimelineElementDuration({
+				element: newElement,
+				fps,
+			});
+			const targetRange = {
+				startTime: newElement.startTime,
+				endTime: newElement.startTime + newElementDuration,
+			};
+			let targetElements: TimelineElement[] = [...track.elements];
+			if (newElementDuration > 0) {
+				if (collisionMode === "reject") {
+					const collisions = findRangeCollisions({
+						items: track.elements.map((el) => ({
+							id: el.id,
+							startTime: el.startTime,
+							endTime: getTimelineElementEndTime({ element: el, fps }),
+						})),
+						range: targetRange,
+					});
+					if (collisions.length > 0) {
+						handleError(
+							new Error(
+								"Cannot place element here - it would overlap with existing elements"
+							),
+							{
+								operation: "Add Element to Track",
+								category: ErrorCategory.VALIDATION,
+								severity: ErrorSeverity.MEDIUM,
+								metadata: {
+									trackId,
+									startTime: targetRange.startTime,
+									collidingElementIds: collisions.map((item) => item.id),
+								},
+							}
+						);
+						return null;
+					}
+				} else if (collisionMode === "insert") {
+					targetElements = insertGapInElements({
+						elements: track.elements,
+						insertTime: targetRange.startTime,
+						insertDuration: newElementDuration,
+						fps: getProjectFps(),
+					});
+				} else if (collisionMode === "overwrite") {
+					targetElements = overwriteRangeInElements({
+						elements: track.elements,
+						range: targetRange,
+						fps: getProjectFps(),
+					}).elements;
+				}
+			}
+
+			// Push history after all validations and collision planning pass
+			if (shouldPushHistory) {
+				get().pushHistory();
+			}
 
 			// If this is the first element and it's a media element, automatically set the project canvas size
 			// to match the media's aspect ratio and FPS (for videos). Users can turn
@@ -304,7 +388,9 @@ export function createCrudOperations(
 
 			updateTracksAndSave(
 				get()._tracks.map((t) =>
-					t.id === trackId ? { ...t, elements: [...t.elements, newElement] } : t
+					t.id === trackId
+						? { ...t, elements: [...targetElements, newElement] }
+						: t
 				)
 			);
 
@@ -319,11 +405,71 @@ export function createCrudOperations(
 			const track = get()._tracks.find((t) => t.id === trackId);
 			const element = track?.elements.find((el) => el.id === elementId);
 			if (!track || !element) return;
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Remove Element from Track",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 
-			const { rippleEditingEnabled } = get();
+			// Group closure (QTL-008): deleting one grouped element deletes the
+			// whole group as a single command. Any locked member track blocks
+			// the entire deletion. A pure separated-audio pair is a timing
+			// link, not a user group — it keeps single-element deletion.
+			if (
+				element.groupId &&
+				!isSeparatedAudioPairGroup({
+					tracks: get()._tracks,
+					groupId: element.groupId,
+				})
+			) {
+				const groupId = element.groupId;
+				if (
+					blockedByTrackLock({
+						tracks: get()._tracks,
+						operation: "Remove Element Group",
+						trackIds: findTrackIdsForGroup({
+							tracks: get()._tracks,
+							groupId,
+						}),
+					})
+				) {
+					return;
+				}
+				if (pushHistory) get().pushHistory();
+				for (const currentTrack of get()._tracks) {
+					for (const member of currentTrack.elements) {
+						if (member.groupId === groupId) {
+							get().deselectElement(currentTrack.id, member.id);
+						}
+					}
+				}
+				updateTracksAndSave(
+					get()
+						._tracks.map((t) => ({
+							...t,
+							elements: t.elements.filter((el) => el.groupId !== groupId),
+						}))
+						.filter((t) => t.elements.length > 0 || t.isMain)
+				);
+				return;
+			}
 
-			if (rippleEditingEnabled) {
-				get().removeElementFromTrackWithRipple(trackId, elementId, pushHistory);
+			const { rippleEditingEnabled, mainTrackMagnetEnabled } = get();
+
+			// Main-track magnet (QTL-005): the main track never keeps a hole, so
+			// its deletions close their gap even outside ripple mode.
+			const magnetApplies = mainTrackMagnetEnabled && Boolean(track.isMain);
+			if (rippleEditingEnabled || magnetApplies) {
+				get().removeElementFromTrackWithRipple(
+					trackId,
+					elementId,
+					pushHistory,
+					magnetApplies
+				);
 			} else {
 				if (pushHistory) get().pushHistory();
 				get().deselectElement(trackId, elementId);
@@ -350,6 +496,16 @@ export function createCrudOperations(
 			);
 
 			if (!elementToMove || !toTrack) return;
+			if (fromTrackId === toTrackId) return;
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Move Element to Track",
+					trackIds: [fromTrackId, toTrackId],
+				})
+			) {
+				return;
+			}
 
 			// Validate element type compatibility with target track
 			const validation = validateElementTrackCompatibility(
@@ -364,6 +520,44 @@ export function createCrudOperations(
 						category: ErrorCategory.VALIDATION,
 						severity: ErrorSeverity.MEDIUM,
 						metadata: { targetTrackId: toTrackId, elementId },
+					}
+				);
+				return;
+			}
+
+			// The element keeps its start time, so the target lane must be free
+			// there (QTL-002) — same contract as adding it fresh.
+			const fps = getProjectFps();
+			const movedDuration = getTimelineElementDuration({
+				element: elementToMove,
+				fps,
+			});
+			const moveCollisions = findRangeCollisions({
+				items: toTrack.elements.map((el) => ({
+					id: el.id,
+					startTime: el.startTime,
+					endTime: getTimelineElementEndTime({ element: el, fps }),
+				})),
+				range: {
+					startTime: elementToMove.startTime,
+					endTime: elementToMove.startTime + movedDuration,
+				},
+				excludeIds: [elementId],
+			});
+			if (moveCollisions.length > 0) {
+				handleError(
+					new Error(
+						"Cannot move element here - it would overlap with existing elements"
+					),
+					{
+						operation: "Move Element to Track",
+						category: ErrorCategory.VALIDATION,
+						severity: ErrorSeverity.MEDIUM,
+						metadata: {
+							targetTrackId: toTrackId,
+							elementId,
+							collidingElementIds: moveCollisions.map((item) => item.id),
+						},
 					}
 				);
 				return;
@@ -400,6 +594,15 @@ export function createCrudOperations(
 			trimEnd,
 			pushHistory = true
 		) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Trim Element",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			if (pushHistory) get().pushHistory();
 			updateTracksAndSave(
 				get()._tracks.map((t) =>
@@ -421,6 +624,15 @@ export function createCrudOperations(
 			duration,
 			pushHistory = true
 		) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Element Duration",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			if (pushHistory) get().pushHistory();
 			updateTracksAndSave(
 				get()._tracks.map((t) =>
@@ -436,21 +648,87 @@ export function createCrudOperations(
 			);
 		},
 
+		setTrackElementStartTimes: (trackId, startTimes, pushHistory = true) => {
+			const track = get()._tracks.find((candidate) => candidate.id === trackId);
+			if (!track) return false;
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Arrange Track",
+					trackIds: [trackId],
+				})
+			) {
+				return false;
+			}
+
+			const repositioned = track.elements.map((element) => {
+				const startTime = startTimes[element.id];
+				return startTime === undefined ? element : { ...element, startTime };
+			});
+			const clash = findOverlappingPair({
+				elements: repositioned,
+				fps: getProjectFps(),
+			});
+			if (clash) {
+				handleError(
+					new Error(
+						`Arranging "${track.name}" would leave "${clash[1].name}" on top of "${clash[0].name}".`
+					),
+					{
+						operation: "Arrange Track",
+						category: ErrorCategory.VALIDATION,
+						severity: ErrorSeverity.MEDIUM,
+						metadata: { trackId, elementIds: [clash[0].id, clash[1].id] },
+					}
+				);
+				return false;
+			}
+
+			if (pushHistory) get().pushHistory();
+			updateTracksAndSave(
+				get()._tracks.map((candidate) =>
+					candidate.id === trackId
+						? { ...candidate, elements: repositioned }
+						: candidate
+				)
+			);
+			return true;
+		},
+
 		updateElementStartTime: (
 			trackId,
 			elementId,
 			startTime,
 			pushHistory = true
 		) => {
-			if (pushHistory) get().pushHistory();
-			updateTracksAndSave(
-				moveTimelineElementGroup({
+			// A grouped element drags its whole group, so the lock preflight must
+			// cover every track the group touches, not just the dragged one.
+			const groupId = get()
+				._tracks.find((t) => t.id === trackId)
+				?.elements.find((el) => el.id === elementId)?.groupId;
+			const targetTrackIds = groupId
+				? findTrackIdsForGroup({ tracks: get()._tracks, groupId }).add(trackId)
+				: [trackId];
+			if (
+				blockedByTrackLock({
 					tracks: get()._tracks,
-					trackId,
-					elementId,
-					startTime,
+					operation: "Update Element Start Time",
+					trackIds: targetTrackIds,
 				})
-			);
+			) {
+				return;
+			}
+			// Reference equality signals a rejected move (missing element or a
+			// same-track collision) — bail before touching history.
+			const movedTracks = moveTimelineElementGroup({
+				tracks: get()._tracks,
+				trackId,
+				elementId,
+				startTime,
+			});
+			if (movedTracks === get()._tracks) return;
+			if (pushHistory) get().pushHistory();
+			updateTracksAndSave(movedTracks);
 		},
 
 		toggleTrackMute: (trackId) => {
@@ -507,6 +785,15 @@ export function createCrudOperations(
 		groupSelectedElements: () => {
 			const selectedElements = get().selectedElements;
 			if (selectedElements.length < 2) return null;
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Group Elements",
+					trackIds: selectedElements.map((selection) => selection.trackId),
+				})
+			) {
+				return null;
+			}
 			const groupId = `group-${generateUUID()}`;
 			const result = groupTimelineElements({
 				tracks: get()._tracks,
@@ -520,6 +807,15 @@ export function createCrudOperations(
 		},
 
 		ungroupElements: (groupId) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Ungroup Elements",
+					trackIds: findTrackIdsForGroup({ tracks: get()._tracks, groupId }),
+				})
+			) {
+				return 0;
+			}
 			const result = ungroupTimelineElements({
 				tracks: get()._tracks,
 				groupId,
@@ -531,6 +827,17 @@ export function createCrudOperations(
 		},
 
 		createMediaContainerFromSelection: (kind) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Create Media Container",
+					trackIds: get().selectedElements.map(
+						(selection) => selection.trackId
+					),
+				})
+			) {
+				return null;
+			}
 			const containerId = `${kind}-${generateUUID()}`;
 			const result = createMediaContainer({
 				tracks: get()._tracks,
@@ -551,6 +858,24 @@ export function createCrudOperations(
 		},
 
 		breakApartMediaContainer: (trackId, elementId) => {
+			// Restored clips land back on their source tracks, so those must be
+			// editable too, not just the container's track.
+			const container = get()
+				._tracks.find((t) => t.id === trackId)
+				?.elements.find((el) => el.id === elementId);
+			const restoreTrackIds =
+				container?.type === "media" && container.compound
+					? container.compound.clips.map((clip) => clip.sourceTrackId)
+					: [];
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Break Apart Media Container",
+					trackIds: [trackId, ...restoreTrackIds],
+				})
+			) {
+				return 0;
+			}
 			const result = breakApartMediaContainer({
 				tracks: get()._tracks,
 				trackId,
@@ -564,6 +889,15 @@ export function createCrudOperations(
 		},
 
 		selectMulticamClip: (trackId, elementId, clipId) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Select Multicam Clip",
+					trackIds: [trackId],
+				})
+			) {
+				return false;
+			}
 			const result = selectMulticamClip({
 				tracks: get()._tracks,
 				trackId,
@@ -614,6 +948,15 @@ export function createCrudOperations(
 		},
 
 		toggleElementHidden: (trackId, elementId) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Toggle Element Hidden",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			get().pushHistory();
 			updateTracksAndSave(
 				get()._tracks.map((t) =>
@@ -630,6 +973,15 @@ export function createCrudOperations(
 		},
 
 		updateTextElement: (trackId, elementId, updates, pushHistory = true) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Text Element",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			if (pushHistory) {
 				get().pushHistory();
 			}
@@ -650,6 +1002,15 @@ export function createCrudOperations(
 		},
 
 		updateTextGroupContents: ({ groupId, contents, pushHistory = true }) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Text Group Contents",
+					trackIds: findTrackIdsForGroup({ tracks: get()._tracks, groupId }),
+				})
+			) {
+				return 0;
+			}
 			const normalizedContents = contents.map((content) => content.trim());
 			let slotIndex = 0;
 			let updatedCount = 0;
@@ -675,6 +1036,15 @@ export function createCrudOperations(
 		},
 
 		updateCaptionElement: (trackId, elementId, updates, pushHistory = true) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Caption Element",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			if (pushHistory) {
 				get().pushHistory();
 			}
@@ -714,6 +1084,17 @@ export function createCrudOperations(
 			scope,
 			pushHistory = true,
 		}) => {
+			// The anchor element is an explicit target and fails closed; broad
+			// scopes (project/selection) skip locked tracks inside the pure op.
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Apply Caption Style",
+					trackIds: [trackId],
+				})
+			) {
+				return 0;
+			}
 			const result = applyCaptionStyleToTracks({
 				tracks: get()._tracks,
 				selectedElements: get().selectedElements,
@@ -730,6 +1111,15 @@ export function createCrudOperations(
 		},
 
 		updateStickerElement: (trackId, elementId, updates, pushHistory = true) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Sticker Element",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			if (pushHistory) get().pushHistory();
 			updateTracksAndSave(
 				get()._tracks.map((track) =>
@@ -753,6 +1143,15 @@ export function createCrudOperations(
 			updates,
 			pushHistory = true
 		) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Markdown Element",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			if (pushHistory) {
 				get().pushHistory();
 			}
@@ -786,6 +1185,15 @@ export function createCrudOperations(
 			updates,
 			pushHistory = true
 		) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Adjustment Element",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			if (pushHistory) {
 				get().pushHistory();
 			}
@@ -806,6 +1214,15 @@ export function createCrudOperations(
 		},
 
 		updateElementTransform: (elementId, updates, options) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Element Transform",
+					elementIds: [elementId],
+				})
+			) {
+				return;
+			}
 			const push = options?.pushHistory !== false;
 			if (push) get().pushHistory();
 			const newTracks = get()._tracks.map((t) => ({
@@ -851,6 +1268,15 @@ export function createCrudOperations(
 			),
 
 		updateMediaElement: (trackId, elementId, updates, pushHistory = true) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Media Element",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			if (pushHistory) {
 				get().pushHistory();
 			}
@@ -898,6 +1324,15 @@ export function createCrudOperations(
 			updates,
 			pushHistory = true
 		) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Remotion Element",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			if (pushHistory) {
 				get().pushHistory();
 			}
@@ -923,6 +1358,15 @@ export function createCrudOperations(
 			updates,
 			pushHistory = true
 		) => {
+			if (
+				blockedByTrackLock({
+					tracks: get()._tracks,
+					operation: "Update Hyperframes Element",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			let matched = false;
 			const nextTracks = get()._tracks.map((track) =>
 				track.id === trackId

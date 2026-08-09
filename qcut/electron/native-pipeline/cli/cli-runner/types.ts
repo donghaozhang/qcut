@@ -200,6 +200,26 @@ export interface CLIRunOptions {
 	noTimelineViews?: boolean;
 	/** Dissolve duration written to the generated QCut timeline manifest. */
 	transitionDuration?: number;
+	/** Local Jianying cache root used by read-only transition reference commands. */
+	cacheRoot?: string;
+	/** Local Jianying project root used to discover plaintext draft evidence. */
+	projectRoot?: string;
+	databasePaths?: string[];
+	draftPaths?: string[];
+	/** editor:jianying-import:commit plan token. */
+	planToken?: string;
+	bundleDigest?: string;
+	/** Opaque token returned when an interop writeback requires recovery. */
+	recoveryToken?: string;
+	/** editor:jianying-import:commit accepted warning fingerprints. */
+	acceptedWarningFingerprints?: string[];
+	packagePath?: string;
+	resourceIds?: string[];
+	draftEffectIds?: string[];
+	catalogEffectIds?: string[];
+	metadataMd5?: string;
+	formula?: string;
+	ffmpegPath?: string;
 	/** EDL path used by `edit verify`. */
 	edl?: string;
 	/** Seconds rendered around each cut during verification. */
@@ -243,6 +263,8 @@ export interface CLIRunOptions {
 	elementId?: string;
 	jobId?: string;
 	trackId?: string;
+	fromElementId?: string;
+	toElementId?: string;
 	trackType?: string;
 	index?: number;
 	toTrack?: string;
@@ -356,6 +378,12 @@ export interface CLIRunOptions {
 	recordingQuality?: string;
 	discard?: boolean;
 	force?: boolean;
+	/** Confirm download and installation for `qcut update`. */
+	yes?: boolean;
+	/** Check the latest QCut version without installing it. */
+	checkOnly?: boolean;
+	/** Install without relaunching QCut. */
+	noLaunch?: boolean;
 	// key-sync options (system sync-keys)
 	push?: boolean;
 	pull?: boolean;
@@ -402,6 +430,9 @@ export interface CLIRunOptions {
 	trackName?: string;
 	/** Declarative editor timeline manifest (inline JSON, @file, or stdin). */
 	manifest?: string;
+	manifestUrl?: string;
+	focus?: boolean;
+	downloadDir?: string;
 	/** Group timeline apply mutations into a rollback-capable transaction. */
 	atomic?: boolean;
 	/** Read the result back and verify requested state. */
@@ -470,6 +501,11 @@ export interface CLIRunOptions {
 /** Standard result returned by a CLI command handler. */
 export interface CLIResult {
 	success: boolean;
+	/**
+	 * Which project the editor window is showing. Set only when the payload
+	 * cannot carry it — array results such as editor:media:list.
+	 */
+	view?: unknown;
 	endpoint?: string;
 	outputPath?: string;
 	outputPaths?: string[];

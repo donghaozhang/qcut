@@ -1,0 +1,15 @@
+{
+	"name": "qcut",
+	"displayName": "QCut",
+	"version": "1.3.0",
+	"description": "Create media and control the QCut desktop video editor from Claude Code.",
+	"author": {
+		"name": "Quriosity Pty Ltd",
+		"email": "info@quriosity.com.au",
+		"url": "https://quriosity.com.au/"
+	},
+	"homepage": "https://github.com/Quriosity-agent/qcut",
+	"repository": "https://github.com/Quriosity-agent/qcut",
+	"license": "MIT",
+	"keywords": ["video", "editing", "media", "generation", "qcut"]
+}

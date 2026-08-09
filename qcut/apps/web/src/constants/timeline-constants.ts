@@ -168,6 +168,8 @@ export const TEST_MEDIA_ID = "test";
 export const TIMELINE_CONSTANTS = {
 	ELEMENT_MIN_WIDTH: 2,
 	PIXELS_PER_SECOND: 50,
+	/** One shared snap tolerance for every drag/trim path (QTL-006). */
+	SNAP_THRESHOLD_PX: 10,
 	TRACK_HEIGHT: 60, // Default fallback
 	DEFAULT_TEXT_DURATION: 5,
 	MARKDOWN_MIN_DURATION: 0.5,

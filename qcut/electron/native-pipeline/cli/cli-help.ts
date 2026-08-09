@@ -6,6 +6,7 @@ import {
 	getCommandFlag,
 } from "./command-registry.js";
 import { COMMAND_GROUPS } from "./command-groups.js";
+import type { FlagDef } from "./command-registry-types.js";
 import { jsonError, jsonOk } from "./json-output.js";
 
 export const CLI_VERSION = "1.0.0";
@@ -51,12 +52,17 @@ Editor Commands (requires running QCut — use --project-id for most):
   editor:analyze:*, editor:transcribe:*, editor:search:*, editor:generate:*,
   editor:export:*, editor:remotion:*, editor:snapshot:*, editor:screenshot:*,
   editor:diff:*, editor:session:*, editor:screen-recording:*, editor:state:*,
-  editor:sticker:*, editor:moyin:*, editor:novel:*, editor:navigator:*,
+  editor:sticker:*, editor:transition-lab:*, editor:moyin:*, editor:novel:*,
   editor:auth:*, editor:diagnostics:*, editor:mcp:forward-html,
-  editor:ui:switch-panel, editor:ui:context-menu
+  editor:ui:switch-panel, editor:ui:context-menu,
+  editor:navigator:*,
   editor:pointer:move, editor:pointer:hover, editor:pointer:click,
   editor:pointer:double-click, editor:pointer:right-click,
   editor:pointer:drag, editor:pointer:scroll, editor:pointer:hide
+
+Local Jianying Reference (read-only; does not require running QCut):
+  editor:jianying-transition:*
+  editor:jianying-import:inspect, editor:jianying-import:plan, editor:jianying-import:commit
 
   Use <command> --help --json for detailed flag info per command.
 
@@ -154,6 +160,61 @@ export function printHelpJson(): void {
 }
 
 /** Level 2: Command detail — flags, examples, usage. */
+function flagLine({ flag }: { flag: FlagDef }): string {
+	// Registry entries already carry their own dashes ("--index", short "-o").
+	const names = flag.short ? `${flag.short}, ${flag.name}` : flag.name;
+	const detail: string[] = [];
+	if (flag.type && flag.type !== "boolean") detail.push(`<${flag.type}>`);
+	if (flag.enum) detail.push(`(${flag.enum.join(" | ")})`);
+	if (flag.default !== undefined) detail.push(`[default: ${flag.default}]`);
+	const suffix = detail.length > 0 ? ` ${detail.join(" ")}` : "";
+	return `  ${names.padEnd(24)} ${flag.description}${suffix}`.trimEnd();
+}
+
+/**
+ * Level 2 in plain text. Without this, `<group> <action> --help` fell through to
+ * the root overview, so the only way to discover a command's flags was to run it
+ * and read the error, or to ask again with --json.
+ */
+export function printCommandHelp(command: string): void {
+	const bin = getCliName();
+	const def = getCommand(command);
+	if (!def) {
+		console.error(`Unknown command: ${command}`);
+		process.exit(2);
+	}
+
+	const required = def.flags.filter((fl) => fl.required);
+	const optional = def.flags.filter((fl) => !fl.required);
+	const sections = [
+		`${bin} ${def.name} — ${def.description}`,
+		"",
+		`Usage: ${def.usage ?? `${bin} ${def.name} [options]`}`,
+	];
+	if (required.length > 0) {
+		sections.push(
+			"",
+			"Required:",
+			required.map((flag) => flagLine({ flag })).join("\n")
+		);
+	}
+	if (optional.length > 0) {
+		sections.push(
+			"",
+			"Options:",
+			optional.map((flag) => flagLine({ flag })).join("\n")
+		);
+	}
+	if (def.examples && def.examples.length > 0) {
+		sections.push(
+			"",
+			"Examples:",
+			def.examples.map((e) => `  ${e}`).join("\n")
+		);
+	}
+	console.log(sections.join("\n"));
+}
+
 export function printCommandHelpJson(command: string): void {
 	const def = getCommand(command);
 	if (!def) {

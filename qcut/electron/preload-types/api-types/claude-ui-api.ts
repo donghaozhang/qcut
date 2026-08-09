@@ -6,6 +6,14 @@ import type {
 	SceneDetectionRequest,
 	SceneDetectionResult,
 } from "../../types/claude-api";
+import type {
+	QCutPersistedImportEvidenceRendererRequest,
+	QCutPersistedImportEvidenceSnapshot,
+} from "../../types/qcut-import-evidence-api";
+import type {
+	QCutSameProfileWritebackRendererRequest,
+	QCutSameProfileWritebackResult,
+} from "../../types/qcut-same-profile-writeback-api";
 
 /** Claude video analysis operations. */
 export interface ClaudeAnalyzeAPI {
@@ -256,6 +264,36 @@ export interface ClaudeStateAPI {
 		sendSnapshotResponse: (
 			requestId: string,
 			result?: EditorStateSnapshot,
+			error?: string
+		) => void;
+		removeListeners: () => void;
+	};
+}
+
+/** Trusted persisted import evidence bridge. */
+export interface ClaudeImportEvidenceAPI {
+	importEvidence: {
+		onSnapshotRequest: (
+			callback: (data: QCutPersistedImportEvidenceRendererRequest) => void
+		) => void;
+		sendSnapshotResponse: (
+			requestId: string,
+			result?: QCutPersistedImportEvidenceSnapshot,
+			error?: string
+		) => void;
+		removeListeners: () => void;
+	};
+}
+
+/** Trusted persisted same-profile writeback bridge. */
+export interface ClaudeSameProfileWritebackAPI {
+	sameProfileWriteback: {
+		onRequest: (
+			callback: (data: QCutSameProfileWritebackRendererRequest) => void
+		) => void;
+		sendResponse: (
+			requestId: string,
+			result?: QCutSameProfileWritebackResult,
 			error?: string
 		) => void;
 		removeListeners: () => void;

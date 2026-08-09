@@ -1,6 +1,13 @@
-# QCut Plugin 1.1.0 Release Notes
+# QCut Plugin 1.2.0 Release Notes
 
 This update expands the public QCut skills-only plugin for ChatGPT and Codex.
+
+- Adds a confirmed CLI workflow that checks, downloads, verifies, and installs
+  the complete QCut desktop application.
+- Delegates to `qcut update --yes` on current releases and bootstraps older QCut
+  builds that do not yet provide the update command.
+- Requires official GitHub release URLs, exact package sizes, and SHA-256
+  digests; macOS additionally verifies the QCut bundle and Quriosity Team ID.
 
 - Detects QCut and its structured CLI across macOS, Windows, and Linux.
 - Links only to verified official QCut release assets and asks before opening an installer.

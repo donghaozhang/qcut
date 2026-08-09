@@ -29,16 +29,14 @@ export const TRANSITION_CONTENT_CATEGORIES = [
 export type TransitionContentCategory =
 	(typeof TRANSITION_CONTENT_CATEGORIES)[number];
 
-export type TransitionPresetCategory =
-	| TransitionContentCategory
-	| "jianying-local";
-
 export type TransitionCategory =
 	| "all"
 	| "favorites"
 	| "popular"
 	| "latest"
 	| TransitionPresetCategory;
+
+export type TransitionPresetCategory = TransitionContentCategory | "lab";
 
 export type TransitionType =
 	| "dissolve"
@@ -59,7 +57,8 @@ export type TransitionType =
 	| "glass"
 	| "page"
 	| "texture"
-	| "flare";
+	| "flare"
+	| "cube";
 
 export interface TransitionPreset {
 	id: string;

@@ -106,13 +106,14 @@ describe("transition presets", () => {
 
 	it("keeps all local presets inside Transition Lab", () => {
 		const labPresets = filterTransitionPresets({
-			category: "jianying-local",
+			category: "lab",
 			query: "",
 		});
-		expect(labPresets).toHaveLength(20);
-		expect(
-			labPresets.every((preset) => preset.backend === "jianying-local")
-		).toBe(true);
+		const localPresets = labPresets.filter(
+			(preset) => preset.backend === "jianying-local"
+		);
+		expect(labPresets).toHaveLength(26);
+		expect(localPresets).toHaveLength(20);
 		expect(
 			filterTransitionPresets({ category: "all", query: "" }).some(
 				(preset) => preset.backend === "jianying-local"

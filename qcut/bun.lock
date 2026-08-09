@@ -235,6 +235,9 @@
     "packages/editor-core": {
       "name": "@qcut/editor-core",
       "version": "0.0.1",
+      "dependencies": {
+        "@noble/hashes": "^1.8.0",
+      },
       "devDependencies": {
         "@types/node": "^24.10.13",
       },
@@ -248,6 +251,16 @@
       },
       "devDependencies": {
         "@types/fontkit": "2.0.9",
+        "@types/node": "^24.10.13",
+      },
+    },
+    "packages/jianying-draft-import": {
+      "name": "@qcut/jianying-draft-import",
+      "version": "0.0.1",
+      "dependencies": {
+        "@qcut/editor-core": "workspace:*",
+      },
+      "devDependencies": {
         "@types/node": "^24.10.13",
       },
     },
@@ -1074,6 +1087,8 @@
     "@qcut/editor-core": ["@qcut/editor-core@workspace:packages/editor-core"],
 
     "@qcut/jianying-draft-export": ["@qcut/jianying-draft-export@workspace:packages/jianying-draft-export"],
+
+    "@qcut/jianying-draft-import": ["@qcut/jianying-draft-import@workspace:packages/jianying-draft-import"],
 
     "@qcut/license-server": ["@qcut/license-server@workspace:packages/license-server"],
 

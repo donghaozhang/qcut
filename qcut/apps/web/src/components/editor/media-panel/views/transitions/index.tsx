@@ -146,7 +146,7 @@ export function TransitionsView() {
 
 	const visiblePresets = useMemo(() => {
 		const filtered = filterTransitionPresets({ category, query, favoriteIds });
-		if (category !== "jianying-local" || jianyingGroup === "all") {
+		if (category !== "lab" || jianyingGroup === "all") {
 			return filtered;
 		}
 		return filtered.filter((preset) => preset.jianyingGroup === jianyingGroup);
@@ -428,7 +428,7 @@ export function TransitionsView() {
 								aria-pressed={category === item.id}
 								onClick={() => {
 									setCategory(item.id);
-									if (item.id !== "jianying-local") setJianyingGroup("all");
+									if (item.id !== "lab") setJianyingGroup("all");
 								}}
 								onKeyDown={(event) => {
 									if (event.key === "Escape") event.currentTarget.blur();
@@ -459,7 +459,7 @@ export function TransitionsView() {
 							{applyState.message}
 						</span>
 					</div>
-					{category === "jianying-local" ? (
+					{category === "lab" ? (
 						<div className="mt-2 border-t border-border/50 pt-2">
 							<div
 								className="grid grid-cols-2 gap-1"

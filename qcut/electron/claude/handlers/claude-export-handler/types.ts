@@ -15,6 +15,10 @@ export const MAX_JOBS = 50;
 export const HANDLER_NAME = "Export";
 
 export interface ExportSegment {
+	elementId: string;
+	trackId: string;
+	trackOrder: number;
+	elementOrder: number;
 	sourcePath: string;
 	startTime: number;
 	duration: number;
