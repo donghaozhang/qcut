@@ -6,6 +6,7 @@ import { access, mkdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { Database } from "bun:sqlite";
+import { JIANYING_TRANSITIONS } from "../../electron/jianying-transition-catalog";
 import {
 	findTransitionCategories,
 	findTransitionRecords,
@@ -13,13 +14,13 @@ import {
 	type TransitionCatalogRecord,
 } from "../../.agents/skills/qcut-toolkit/jianying-transition-reference/scripts/transition-catalog";
 
-const MINIMUM_PER_CATEGORY = 5;
+const MINIMUM_PER_CATEGORY = 20;
 const DOWNLOAD_CONCURRENCY = 4;
 const projectRoot = path.resolve(import.meta.dir, "../..");
 const cacheRoot = path.join(os.homedir(), "Movies/JianyingPro/User Data/Cache");
 const outputRoot = path.join(
 	projectRoot,
-	".local/jianying-runtime/category-five"
+	".local/jianying-runtime/category-twenty"
 );
 const packageOutputRoot = path.join(outputRoot, "packages");
 const archiveOutputRoot = path.join(outputRoot, "archives");
@@ -47,28 +48,52 @@ const categoryDefinitions = [
 
 type CategoryId = (typeof categoryDefinitions)[number]["id"];
 
-const preservedCategoryByResourceId = new Map<string, CategoryId>([
-	["7049979667406656014", "camera"],
-	["6748289440130535947", "slideshow"],
-	["7343136487182963211", "light"],
-	["6858191556055142919", "mg"],
-	["6789847331060584974", "slideshow"],
-	["6858191541706428941", "mg"],
-	["6747989545448378888", "slideshow"],
-	["6747865141120864779", "slideshow"],
-	["6748313807031898627", "slideshow"],
-	["7046293801123451405", "glitch"],
-	["6914112332205396488", "dissolve"],
-	["6858191448827761160", "mg"],
-	["7252544245444121148", "camera"],
-	["7034446419641504264", "slideshow"],
-	["6949828109663212045", "light"],
-	["6724239584663704071", "camera"],
-	["6748286529921094157", "slideshow"],
-	["7341295618863665690", "camera"],
-	["7246288124110705209", "camera"],
-	["7450031574923350555", "blur"],
-]);
+interface SupplementalTransition {
+	resourceId: string;
+	sourceGroup: CategoryId;
+}
+
+const supplementalTransitionsByCategory: Readonly<
+	Partial<Record<CategoryId, readonly SupplementalTransition[]>>
+> = {
+	emoji: [
+		{ resourceId: "7187674415268631101", sourceGroup: "variety" },
+		{ resourceId: "7648959698594467097", sourceGroup: "variety" },
+		{ resourceId: "7650489474434256153", sourceGroup: "variety" },
+		{ resourceId: "7239925851335168569", sourceGroup: "variety" },
+		{ resourceId: "7652777267902434584", sourceGroup: "variety" },
+	],
+	distortion: [
+		{ resourceId: "7628433776200142105", sourceGroup: "blur" },
+		{ resourceId: "7576498828640111910", sourceGroup: "blur" },
+		{ resourceId: "7615507011370781977", sourceGroup: "blur" },
+		{ resourceId: "7654539468082384152", sourceGroup: "blur" },
+		{ resourceId: "7596980552712932671", sourceGroup: "blur" },
+		{ resourceId: "7596983162010373417", sourceGroup: "blur" },
+		{ resourceId: "7576498591842176266", sourceGroup: "blur" },
+		{ resourceId: "7596978394676464959", sourceGroup: "blur" },
+		{ resourceId: "7594393498925763859", sourceGroup: "blur" },
+		{ resourceId: "7651587498962947353", sourceGroup: "blur" },
+		{ resourceId: "7586891322309512498", sourceGroup: "blur" },
+		{ resourceId: "7538635503805959486", sourceGroup: "blur" },
+	],
+};
+
+const preservedCategoryByResourceId = new Map<string, CategoryId>(
+	JIANYING_TRANSITIONS.map(
+		(transition) => [transition.resourceId, transition.group] as const
+	)
+);
+
+const supplementalTargetByResourceId = new Map<string, CategoryId>(
+	Object.entries(supplementalTransitionsByCategory).flatMap(
+		([targetGroup, transitions]) =>
+			(transitions ?? []).map(
+				(transition) =>
+					[transition.resourceId, targetGroup as CategoryId] as const
+			)
+	)
+);
 
 interface CatalogDownload {
 	resourceId: string;
@@ -79,6 +104,7 @@ interface CatalogDownload {
 interface SelectedTransition {
 	categoryId: CategoryId;
 	categoryLabel: string;
+	sourceGroup: CategoryId;
 	title: string;
 	resourceId: string;
 	metadataMd5: string;
@@ -90,7 +116,7 @@ interface SelectedTransition {
 }
 
 interface SelectionManifest {
-	schemaVersion: 1;
+	schemaVersion: 2;
 	minimumPerCategory: number;
 	selectedCount: number;
 	categories: Array<{
@@ -99,6 +125,16 @@ interface SelectionManifest {
 		count: number;
 		transitions: SelectedTransition[];
 	}>;
+}
+
+function downloadKey({
+	resourceId,
+	metadataMd5,
+}: {
+	resourceId: string;
+	metadataMd5: string;
+}): string {
+	return `${resourceId}:${metadataMd5}`;
 }
 
 function objectValue({
@@ -133,7 +169,11 @@ function collectDownloads({
 	const itemUrls = Array.isArray(common?.item_urls) ? common.item_urls : [];
 	const itemUrl = stringValue({ value: itemUrls[0] });
 	if (resourceId && metadataMd5 && itemUrl) {
-		downloads.set(resourceId, { resourceId, metadataMd5, itemUrl });
+		downloads.set(downloadKey({ resourceId, metadataMd5 }), {
+			resourceId,
+			metadataMd5,
+			itemUrl,
+		});
 	}
 	for (const child of Object.values(record)) {
 		collectDownloads({ value: child, downloads });
@@ -181,10 +221,12 @@ function candidateOrder({
 function selectedTransition({
 	categoryId,
 	categoryLabel,
+	sourceGroup,
 	record,
 }: {
 	categoryId: CategoryId;
 	categoryLabel: string;
+	sourceGroup: CategoryId;
 	record: TransitionCatalogRecord;
 }): SelectedTransition {
 	const runtimeKind =
@@ -192,6 +234,7 @@ function selectedTransition({
 	return {
 		categoryId,
 		categoryLabel,
+		sourceGroup,
 		title: record.title,
 		resourceId: record.resourceId,
 		metadataMd5: record.metadataMd5,
@@ -201,6 +244,71 @@ function selectedTransition({
 		publishSource: record.publishSource,
 		runtimeKind,
 	};
+}
+
+function recordHasPackage({
+	record,
+	downloads,
+}: {
+	record: TransitionCatalogRecord;
+	downloads: ReadonlyMap<string, CatalogDownload>;
+}): boolean {
+	return downloads.has(
+		downloadKey({
+			resourceId: record.resourceId,
+			metadataMd5: record.metadataMd5,
+		})
+	);
+}
+
+function recordHasRuntimeMetadata({
+	record,
+	targetGroup,
+}: {
+	record: TransitionCatalogRecord;
+	targetGroup: CategoryId;
+}): boolean {
+	if (targetGroup === "ai-one-take") return true;
+	return record.defaultDurationSeconds !== null && record.isOverlap !== null;
+}
+
+function latestRecordsByResourceId({
+	records,
+}: {
+	records: TransitionCatalogRecord[];
+}): TransitionCatalogRecord[] {
+	const latestByResourceId = new Map<string, TransitionCatalogRecord>();
+	for (const record of records) {
+		const current = latestByResourceId.get(record.resourceId);
+		if (!current || record.observedAt > current.observedAt) {
+			latestByResourceId.set(record.resourceId, record);
+		}
+	}
+	return [...latestByResourceId.values()];
+}
+
+function findSelectedRecord({
+	records,
+	resourceId,
+	metadataMd5,
+	downloads,
+	targetGroup,
+}: {
+	records: TransitionCatalogRecord[];
+	resourceId: string;
+	metadataMd5?: string;
+	downloads: ReadonlyMap<string, CatalogDownload>;
+	targetGroup: CategoryId;
+}): TransitionCatalogRecord | undefined {
+	return records
+		.filter(
+			(record) =>
+				record.resourceId === resourceId &&
+				(!metadataMd5 || record.metadataMd5 === metadataMd5) &&
+				recordHasPackage({ record, downloads }) &&
+				recordHasRuntimeMetadata({ record, targetGroup })
+		)
+		.sort((left, right) => right.observedAt.localeCompare(left.observedAt))[0];
 }
 
 function buildSelection({
@@ -220,39 +328,111 @@ function buildSelection({
 		);
 		if (!category)
 			throw new Error(`Missing Jianying category ${definition.label}.`);
-		const categoryRecords = records.filter(
-			(record) =>
-				record.categoryIds.includes(category.id) &&
-				downloads.has(record.resourceId) &&
-				Boolean(record.metadataMd5)
+		const preserved = JIANYING_TRANSITIONS.filter(
+			(transition) => transition.group === definition.id
+		)
+			.slice(0, MINIMUM_PER_CATEGORY)
+			.map((transition) => {
+				const record = findSelectedRecord({
+					records,
+					resourceId: transition.resourceId,
+					metadataMd5: transition.metadataMd5,
+					downloads,
+					targetGroup: definition.id,
+				});
+				if (!record) {
+					throw new Error(
+						`Could not preserve ${transition.localizedName} (${transition.resourceId}).`
+					);
+				}
+				return selectedTransition({
+					categoryId: definition.id,
+					categoryLabel: definition.label,
+					sourceGroup: transition.sourceGroup,
+					record,
+				});
+			});
+		for (const transition of preserved) {
+			if (usedResourceIds.has(transition.resourceId)) {
+				throw new Error(
+					`Duplicate preserved resource ${transition.resourceId}.`
+				);
+			}
+			usedResourceIds.add(transition.resourceId);
+		}
+
+		const categoryRecords = latestRecordsByResourceId({
+			records: records.filter(
+				(record) =>
+					record.categoryIds.includes(category.id) &&
+					Boolean(record.metadataMd5) &&
+					recordHasPackage({ record, downloads }) &&
+					recordHasRuntimeMetadata({
+						record,
+						targetGroup: definition.id,
+					})
+			),
+		});
+		const neededFromCategory = Math.max(
+			0,
+			MINIMUM_PER_CATEGORY - preserved.length
 		);
-		const preserved = categoryRecords.filter(
-			(record) =>
-				preservedCategoryByResourceId.get(record.resourceId) === definition.id
-		);
-		for (const record of preserved) usedResourceIds.add(record.resourceId);
-		const needed = Math.max(0, MINIMUM_PER_CATEGORY - preserved.length);
 		const additions = categoryRecords
 			.filter((record) => {
 				if (usedResourceIds.has(record.resourceId)) return false;
-				if (definition.id === "ai-one-take") return true;
-				return (
-					record.defaultDurationSeconds !== null && record.isOverlap !== null
+				const supplementalTarget = supplementalTargetByResourceId.get(
+					record.resourceId
 				);
+				return !supplementalTarget || supplementalTarget === definition.id;
 			})
 			.sort((left, right) => candidateOrder({ left, right }))
-			.slice(0, needed);
-		if (preserved.length + additions.length < MINIMUM_PER_CATEGORY) {
-			throw new Error(`Not enough candidates for ${definition.label}.`);
-		}
+			.slice(0, neededFromCategory)
+			.map((record) =>
+				selectedTransition({
+					categoryId: definition.id,
+					categoryLabel: definition.label,
+					sourceGroup: definition.id,
+					record,
+				})
+			);
 		for (const record of additions) usedResourceIds.add(record.resourceId);
-		const selected = [...preserved, ...additions].map((record) =>
-			selectedTransition({
-				categoryId: definition.id,
-				categoryLabel: definition.label,
-				record,
-			})
+
+		const supplementalNeeded = Math.max(
+			0,
+			MINIMUM_PER_CATEGORY - preserved.length - additions.length
 		);
+		const supplements = (supplementalTransitionsByCategory[definition.id] ?? [])
+			.filter((supplement) => !usedResourceIds.has(supplement.resourceId))
+			.map((supplement) => {
+				const record = findSelectedRecord({
+					records,
+					resourceId: supplement.resourceId,
+					downloads,
+					targetGroup: definition.id,
+				});
+				if (!record) {
+					throw new Error(
+						`Missing supplemental resource ${supplement.resourceId}.`
+					);
+				}
+				return selectedTransition({
+					categoryId: definition.id,
+					categoryLabel: definition.label,
+					sourceGroup: supplement.sourceGroup,
+					record,
+				});
+			})
+			.slice(0, supplementalNeeded);
+		for (const transition of supplements) {
+			usedResourceIds.add(transition.resourceId);
+		}
+
+		const selected = [...preserved, ...additions, ...supplements];
+		if (selected.length < MINIMUM_PER_CATEGORY) {
+			throw new Error(
+				`Not enough candidates for ${definition.label}: ${selected.length}/${MINIMUM_PER_CATEGORY}.`
+			);
+		}
 		selectedCategories.push({
 			id: definition.id,
 			label: definition.label,
@@ -261,7 +441,7 @@ function buildSelection({
 		});
 	}
 	return {
-		schemaVersion: 1,
+		schemaVersion: 2,
 		minimumPerCategory: MINIMUM_PER_CATEGORY,
 		selectedCount: selectedCategories.reduce(
 			(total, category) => total + category.count,
@@ -287,6 +467,7 @@ async function pathExists({
 function packageRoots(): string[] {
 	return [
 		packageOutputRoot,
+		path.join(projectRoot, ".local/jianying-runtime/category-five/packages"),
 		path.join(projectRoot, ".local/jianying-runtime/new-twenty/packages"),
 		path.join(cacheRoot, "effect"),
 		path.join(
@@ -417,7 +598,12 @@ async function downloadBatches({
 	const rest = remaining.slice(DOWNLOAD_CONCURRENCY);
 	const completed = await Promise.all(
 		batch.map((transition) => {
-			const download = downloads.get(transition.resourceId);
+			const download = downloads.get(
+				downloadKey({
+					resourceId: transition.resourceId,
+					metadataMd5: transition.metadataMd5,
+				})
+			);
 			if (!download)
 				throw new Error(`Missing package URL for ${transition.title}.`);
 			return downloadPackage({ transition, download });
@@ -441,9 +627,9 @@ async function run() {
 	const manifestPath = path.join(outputRoot, "selection.json");
 	await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 	const shouldDownload = Bun.argv.includes("--download");
-	const selected = manifest.categories.flatMap(
-		(category) => category.transitions
-	);
+	const selected = manifest.categories
+		.flatMap((category) => category.transitions)
+		.filter((transition) => transition.runtimeKind === "transition-segment");
 	const packageResults = shouldDownload
 		? await downloadBatches({ remaining: selected, downloads })
 		: [];
