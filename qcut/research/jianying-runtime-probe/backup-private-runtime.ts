@@ -23,6 +23,7 @@ import { parseArgs } from "node:util";
 import { JIANYING_TRANSITIONS } from "../../electron/jianying-transition-catalog";
 import { resolveJianyingTransitionBridge } from "../../electron/jianying-transition/bridge-resolver";
 import { inspectJianyingTransitionRuntime } from "../../electron/jianying-transition/runtime-discovery";
+import { mapWithConcurrency } from "../../electron/lib/map-with-concurrency";
 
 const CORE_FRAMEWORKS = [
 	"libAGFX.dylib",
@@ -270,59 +271,114 @@ async function resolveRuntimeFile({
 	throw new Error(`Missing runtime dependency: ${relativePath}`);
 }
 
-async function resolveRuntimeClosure({
-	queue,
-	index,
-	resolved,
+async function resolveRuntimeDependencies({
+	current,
+	knownPaths,
 	sourceRuntimeFrameworks,
 	appFrameworks,
 }: {
-	queue: RuntimeFile[];
-	index: number;
-	resolved: ReadonlyMap<string, RuntimeFile>;
+	current: RuntimeFile;
+	knownPaths: Set<string>;
 	sourceRuntimeFrameworks: string;
 	appFrameworks: string;
-}): Promise<Map<string, RuntimeFile>> {
-	const current = queue[index];
-	if (!current) return new Map(resolved);
-	if (resolved.has(current.relativePath)) {
-		return resolveRuntimeClosure({
-			queue,
-			index: index + 1,
-			resolved,
-			sourceRuntimeFrameworks,
-			appFrameworks,
-		});
-	}
-	const nextResolved = new Map(resolved);
-	nextResolved.set(current.relativePath, current);
+}): Promise<RuntimeFile[]> {
 	const dependencies = await readDependencies({
 		binaryPath: current.sourcePath,
 	});
-	const relativeDependencies = dependencies.flatMap((dependency) => {
-		const relativePath = dependencyRelativePath({
-			dependency,
-			ownerRelativePath: current.relativePath,
-			appFrameworks,
-		});
-		if (!relativePath || relativePath === current.relativePath) return [];
-		return [relativePath];
-	});
-	const additions = await Promise.all(
-		relativeDependencies.map((relativePath) =>
-			resolveRuntimeFile({
-				relativePath,
-				sourceRuntimeFrameworks,
-				appFrameworks,
+	const relativeDependencies = Array.from(
+		new Set(
+			dependencies.flatMap((dependency) => {
+				const relativePath = dependencyRelativePath({
+					dependency,
+					ownerRelativePath: current.relativePath,
+					appFrameworks,
+				});
+				if (!relativePath || relativePath === current.relativePath) return [];
+				return [relativePath];
 			})
 		)
 	);
-	return resolveRuntimeClosure({
-		queue: [...queue, ...additions],
-		index: index + 1,
-		resolved: nextResolved,
-		sourceRuntimeFrameworks,
-		appFrameworks,
+	const additions = await mapWithConcurrency({
+		items: relativeDependencies,
+		limit: COPY_CONCURRENCY,
+		task: async ({ item: relativePath }) => {
+			if (knownPaths.has(relativePath)) return null;
+			knownPaths.add(relativePath);
+			try {
+				return await resolveRuntimeFile({
+					relativePath,
+					sourceRuntimeFrameworks,
+					appFrameworks,
+				});
+			} catch (cause) {
+				knownPaths.delete(relativePath);
+				throw cause;
+			}
+		},
+	});
+	return additions.filter((addition): addition is RuntimeFile =>
+		Boolean(addition)
+	);
+}
+
+function resolveRuntimeClosure({
+	seeds,
+	sourceRuntimeFrameworks,
+	appFrameworks,
+}: {
+	seeds: RuntimeFile[];
+	sourceRuntimeFrameworks: string;
+	appFrameworks: string;
+}): Promise<Map<string, RuntimeFile>> {
+	const queue: RuntimeFile[] = [];
+	const knownPaths = new Set<string>();
+	for (const seed of seeds) {
+		if (knownPaths.has(seed.relativePath)) continue;
+		knownPaths.add(seed.relativePath);
+		queue.push(seed);
+	}
+	if (queue.length === 0) return Promise.resolve(new Map());
+
+	return new Promise<Map<string, RuntimeFile>>((resolve, reject) => {
+		const resolved = new Map<string, RuntimeFile>();
+		let activeCount = 0;
+		let nextIndex = 0;
+		let settled = false;
+
+		const schedule = (): void => {
+			if (settled) return;
+			while (activeCount < COPY_CONCURRENCY && nextIndex < queue.length) {
+				const current = queue[nextIndex];
+				nextIndex += 1;
+				activeCount += 1;
+				resolved.set(current.relativePath, current);
+				void resolveRuntimeDependencies({
+					current,
+					knownPaths,
+					sourceRuntimeFrameworks,
+					appFrameworks,
+				}).then(
+					(additions) => {
+						if (settled) return;
+						for (const addition of additions) queue.push(addition);
+						activeCount -= 1;
+						if (activeCount === 0 && nextIndex === queue.length) {
+							settled = true;
+							resolve(resolved);
+							return;
+						}
+						schedule();
+					},
+					(cause) => {
+						if (settled) return;
+						settled = true;
+						reject(cause);
+					}
+				);
+			}
+		};
+
+		schedule();
 	});
 }
 
@@ -333,13 +389,15 @@ async function copyRuntimeFiles({
 	files: RuntimeFile[];
 	destinationFrameworks: string;
 }) {
-	await Promise.all(
-		files.map(async ({ relativePath, sourcePath }) => {
+	await mapWithConcurrency({
+		items: files,
+		limit: COPY_CONCURRENCY,
+		task: async ({ item: { relativePath, sourcePath } }) => {
 			const destinationPath = path.join(destinationFrameworks, relativePath);
 			await mkdir(path.dirname(destinationPath), { recursive: true });
 			await copyFile(sourcePath, destinationPath);
-		})
-	);
+		},
+	});
 }
 
 async function copyRuntimeResources({
@@ -376,10 +434,10 @@ async function copyPackageBatch({
 	destinationPackages: string;
 	packagePaths: ReadonlyMap<string, string>;
 }): Promise<void> {
-	if (remaining.length === 0) return;
-	const batch = remaining.slice(0, COPY_CONCURRENCY);
-	await Promise.all(
-		batch.map(async (transition) => {
+	await mapWithConcurrency({
+		items: remaining,
+		limit: COPY_CONCURRENCY,
+		task: async ({ item: transition }) => {
 			const sourcePath = packagePaths.get(transition.id);
 			if (!sourcePath) {
 				throw new Error(
@@ -392,12 +450,7 @@ async function copyPackageBatch({
 				transition.metadataMd5
 			);
 			await cp(sourcePath, destinationPath, { force: true, recursive: true });
-		})
-	);
-	return copyPackageBatch({
-		remaining: remaining.slice(COPY_CONCURRENCY),
-		destinationPackages,
-		packagePaths,
+		},
 	});
 }
 
@@ -435,28 +488,21 @@ function sha256File({ filePath }: { filePath: string }): Promise<string> {
 async function manifestFileBatch({
 	remaining,
 	runtimeRoot,
-	files,
 }: {
 	remaining: string[];
 	runtimeRoot: string;
-	files: ManifestFile[];
 }): Promise<ManifestFile[]> {
-	if (remaining.length === 0) return files;
-	const batch = remaining.slice(0, COPY_CONCURRENCY);
-	const completed = await Promise.all(
-		batch.map(async (relativePath) => {
+	return mapWithConcurrency({
+		items: remaining,
+		limit: COPY_CONCURRENCY,
+		task: async ({ item: relativePath }) => {
 			const filePath = path.join(runtimeRoot, relativePath);
 			const [metadata, sha256] = await Promise.all([
 				stat(filePath),
 				sha256File({ filePath }),
 			]);
 			return { path: relativePath, bytes: metadata.size, sha256 };
-		})
-	);
-	return manifestFileBatch({
-		remaining: remaining.slice(COPY_CONCURRENCY),
-		runtimeRoot,
-		files: [...files, ...completed],
+		},
 	});
 }
 
@@ -467,10 +513,10 @@ async function verifyManifestFileBatch({
 	remaining: ManifestFile[];
 	runtimeRoot: string;
 }): Promise<void> {
-	if (remaining.length === 0) return;
-	const batch = remaining.slice(0, COPY_CONCURRENCY);
-	await Promise.all(
-		batch.map(async (expected) => {
+	await mapWithConcurrency({
+		items: remaining,
+		limit: COPY_CONCURRENCY,
+		task: async ({ item: expected }) => {
 			const filePath = path.join(runtimeRoot, expected.path);
 			const [metadata, sha256] = await Promise.all([
 				stat(filePath),
@@ -479,11 +525,7 @@ async function verifyManifestFileBatch({
 			if (metadata.size !== expected.bytes || sha256 !== expected.sha256) {
 				throw new Error(`Private runtime checksum mismatch: ${expected.path}`);
 			}
-		})
-	);
-	return verifyManifestFileBatch({
-		remaining: remaining.slice(COPY_CONCURRENCY),
-		runtimeRoot,
+		},
 	});
 }
 
@@ -625,9 +667,7 @@ async function run() {
 		)
 	);
 	const closure = await resolveRuntimeClosure({
-		queue: seeds,
-		index: 0,
-		resolved: new Map(),
+		seeds,
 		sourceRuntimeFrameworks,
 		appFrameworks,
 	});
@@ -664,7 +704,6 @@ async function run() {
 	const files = await manifestFileBatch({
 		remaining: relativeFiles,
 		runtimeRoot: stagingPath,
-		files: [],
 	});
 	const totalBytes = files.reduce((sum, file) => sum + file.bytes, 0);
 	await writeFile(
