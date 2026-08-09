@@ -21,10 +21,10 @@ describe("Jianying transition runtime status", () => {
 		});
 
 		expect(status.state).toBe("ready");
-		expect(status.availableCount).toBe(260);
+		expect(status.availableCount).toBe(520);
 		expect(
 			status.transitions.filter((transition) => transition.available)
-		).toHaveLength(260);
+		).toHaveLength(520);
 		const aiGenerationEntries = status.transitions.filter(
 			(transition) => transition.runtimeKind === "ai-generation"
 		);
@@ -63,7 +63,7 @@ describe("Jianying transition runtime status", () => {
 
 		expect(status.state).toBe("ready");
 		expect(status.appInstalled).toBe(false);
-		expect(status.availableCount).toBe(260);
+		expect(status.availableCount).toBe(520);
 	});
 
 	it("reports the runtime as unsupported outside macOS", () => {
