@@ -12,7 +12,9 @@ export type TransitionResourceStatus =
 	| "downloading"
 	| "update"
 	| "offline"
-	| "failed";
+	| "failed"
+	| "checking-local"
+	| "local-unavailable";
 
 export interface TransitionResourceState {
 	available: boolean;

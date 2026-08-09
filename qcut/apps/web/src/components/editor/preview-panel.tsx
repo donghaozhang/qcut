@@ -83,6 +83,8 @@ import { usePreviewViewStore } from "@/stores/editor/preview-view-store";
 import { useColorPickerStore } from "@/stores/editor/color-picker-store";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { LoaderCircle, TriangleAlert } from "lucide-react";
+import { useJianyingTimelineTransitionPreview } from "./preview-panel/use-jianying-timeline-transition-preview";
+import { JianyingTimelineTransitionOverlay } from "./preview-panel/jianying-timeline-transition-overlay";
 
 function getPreviewElementDuration(element: TimelineElement): number {
 	return element.type === "media"
@@ -414,6 +416,24 @@ export function PreviewPanel() {
 	const renderTracks = useMemo(
 		() => expandCompoundMediaTracks({ tracks }),
 		[tracks]
+	);
+	const jianyingTimelinePreview = useJianyingTimelineTransitionPreview({
+		tracks,
+		mediaItems,
+		currentTime: transitionPreviewTime,
+		fps: activeProject?.fps ?? 30,
+		canvasSize,
+		enabled: previewMode === "video" && !mediaItemsLoading && !mediaItemsError,
+	});
+	const renderJianyingTimelineOverlay = useCallback(
+		() => (
+			<JianyingTimelineTransitionOverlay
+				preview={jianyingTimelinePreview}
+				currentTime={transitionPreviewTime}
+				isPlaying={isPlaying}
+			/>
+		),
+		[jianyingTimelinePreview, transitionPreviewTime, isPlaying]
 	);
 	const getActiveElements = useCallback((): ActiveElement[] => {
 		try {
@@ -922,6 +942,7 @@ export function PreviewPanel() {
 													data-native-composition-preview="ready"
 												/>
 											) : null}
+											{renderJianyingTimelineOverlay()}
 											{cursorOverlay}
 										</div>
 									);
@@ -1072,6 +1093,7 @@ export function PreviewPanel() {
 					setCurrentTime={setCurrentTime}
 					toggle={toggle}
 					getTotalDuration={getTotalDuration}
+					renderTransitionOverlay={renderJianyingTimelineOverlay}
 				/>
 			)}
 		</>

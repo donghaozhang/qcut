@@ -49,6 +49,8 @@ const TRACK_TYPES = new Set([
 	"hyperframes",
 	"markdown",
 ]);
+const TRANSITION_ENGINES = new Set(["qcut", "jianying-local"]);
+const LOCAL_PACKAGE_HASH_PATTERN = /^[a-f0-9]{32,64}$/;
 const MAX_SNAPSHOT_ELEMENTS = 20_000;
 const MAX_SNAPSHOT_MEDIA_ITEMS = 10_000;
 const MAX_SNAPSHOT_TRACKS = 1_000;
@@ -178,9 +180,11 @@ const TRANSITION_KEYS = createAllowedKeySet<ClipTransition>({
 		direction: true,
 		duration: true,
 		easing: true,
+		engine: true,
 		fromElementId: true,
 		id: true,
 		maskShape: true,
+		packageHash: true,
 		presetId: true,
 		toElementId: true,
 		tuning: true,
@@ -454,6 +458,26 @@ function validateTransitions({
 			path: transitionPath,
 			record: transition,
 		});
+		if (transition.engine !== undefined) {
+			assertStringLiteral({
+				allowed: TRANSITION_ENGINES,
+				path: `${transitionPath}.engine`,
+				value: transition.engine,
+			});
+		}
+		if (transition.packageHash !== undefined) {
+			const packageHashPath = `${transitionPath}.packageHash`;
+			const packageHash = getString({
+				path: packageHashPath,
+				value: transition.packageHash,
+			});
+			if (!LOCAL_PACKAGE_HASH_PATTERN.test(packageHash)) {
+				throw validationIssue({
+					message: "Expected a 32 to 64 character lowercase hexadecimal hash.",
+					path: packageHashPath,
+				});
+			}
+		}
 		if (transition.tuning !== undefined) {
 			const tuningPath = `${transitionPath}.tuning`;
 			const tuning = getRecord({

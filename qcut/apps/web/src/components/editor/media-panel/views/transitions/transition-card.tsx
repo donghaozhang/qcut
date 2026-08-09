@@ -2,6 +2,7 @@ import {
 	AlertCircleIcon,
 	CloudDownloadIcon,
 	CloudOffIcon,
+	HardDriveIcon,
 	CrownIcon,
 	FlaskConicalIcon,
 	HeartIcon,
@@ -139,13 +140,33 @@ export function TransitionCard({
 						</CloudDownloadIcon>
 					),
 				};
+			case "checking-local":
+				return {
+					label: "正在检查本机剪映资源",
+					disabled: true,
+					icon: (
+						<LoaderCircleIcon className="size-3 animate-spin">
+							<title>正在检查本机剪映资源</title>
+						</LoaderCircleIcon>
+					),
+				};
+			case "local-unavailable":
+				return {
+					label: "检查本机剪映资源",
+					disabled: false,
+					icon: (
+						<HardDriveIcon className="size-3">
+							<title>检查本机剪映资源</title>
+						</HardDriveIcon>
+					),
+				};
 		}
 	})();
 
 	return (
 		<div
 			className={cn(
-				"group flex h-[112px] min-w-0 flex-col overflow-hidden rounded border bg-card text-left transition-colors hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+				"group flex h-[128px] min-w-0 flex-col overflow-hidden rounded border bg-card text-left transition-colors hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
 				available ? "cursor-grab" : "cursor-pointer",
 				selected && "border-primary"
 			)}
@@ -173,9 +194,10 @@ export function TransitionCard({
 					preset={preset}
 					isPlaying={isPreviewing}
 					sources={previewSources}
+					available={available}
 				/>
 				<div className="absolute left-1.5 top-1.5 flex gap-1">
-					{preset.category === "lab" ? (
+					{preset.category === "lab" && preset.backend !== "jianying-local" ? (
 						<Badge className="gap-0.5 border-cyan-400/40 bg-cyan-400/15 px-1 py-0 text-[9px] text-cyan-100">
 							<FlaskConicalIcon className="size-2.5">
 								<title>QCut Shader 实验转场</title>
@@ -189,6 +211,11 @@ export function TransitionCard({
 							Pro
 						</Badge>
 					)}
+					{preset.backend === "jianying-local" ? (
+						<Badge className="border-cyan-500/40 bg-cyan-500/15 px-1 py-0 text-[9px] text-cyan-200">
+							本机
+						</Badge>
+					) : null}
 				</div>
 				{resourceAction ? (
 					<button
@@ -258,8 +285,21 @@ export function TransitionCard({
 					<div className="truncate text-[11px] font-medium text-foreground">
 						{preset.localizedName}
 					</div>
-					<div className="truncate text-[9px] text-muted-foreground">
-						{preset.defaultDuration.toFixed(2)}s
+					{preset.backend === "jianying-local" ? (
+						<div className="truncate text-[9px] text-muted-foreground">
+							{preset.name}
+						</div>
+					) : null}
+					<div className="flex min-w-0 items-center gap-1 text-[9px] text-muted-foreground">
+						{preset.jianyingGroupLabel ? (
+							<>
+								<span className="truncate">{preset.jianyingGroupLabel}</span>
+								<span aria-hidden="true">·</span>
+							</>
+						) : null}
+						<span className="shrink-0 tabular-nums">
+							{preset.defaultDuration.toFixed(2)}s
+						</span>
 					</div>
 				</div>
 			</div>

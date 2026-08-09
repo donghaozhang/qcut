@@ -155,6 +155,55 @@ describe("useTransitionDrop", () => {
 		expect(addTransition).not.toHaveBeenCalled();
 	});
 
+	it("preserves a validated local engine identity", () => {
+		const { result } = renderTransitionDrop();
+		const packageHash = "b".repeat(32);
+
+		act(() => {
+			result.current.handleTransitionDrop(
+				dropEvent({
+					payload: {
+						kind: "qcut-transition-preset",
+						id: "jianying-local-3d-space",
+						engine: "jianying-local",
+						packageHash,
+						type: "glass-refraction",
+						defaultDuration: 1.5,
+					},
+				})
+			);
+		});
+
+		expect(addTransition).toHaveBeenCalledWith(
+			expect.objectContaining({
+				presetId: "jianying-local-3d-space",
+				engine: "jianying-local",
+				packageHash,
+			})
+		);
+	});
+
+	it("rejects local path data in place of a package hash", () => {
+		const { result } = renderTransitionDrop();
+
+		act(() => {
+			result.current.handleTransitionDrop(
+				dropEvent({
+					payload: {
+						kind: "qcut-transition-preset",
+						id: "jianying-local-3d-space",
+						engine: "jianying-local",
+						packageHash: "/Users/example/private-package",
+						type: "glass-refraction",
+						defaultDuration: 1.5,
+					},
+				})
+			);
+		});
+
+		expect(addTransition).not.toHaveBeenCalled();
+	});
+
 	it("preserves a preset's quint progress policy", () => {
 		const { result } = renderTransitionDrop();
 

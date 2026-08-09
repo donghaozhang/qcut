@@ -34,8 +34,7 @@ export type TransitionCategory =
 	| "favorites"
 	| "popular"
 	| "latest"
-	| "lab"
-	| TransitionContentCategory;
+	| TransitionPresetCategory;
 
 export type TransitionPresetCategory = TransitionContentCategory | "lab";
 
@@ -72,6 +71,10 @@ export interface TransitionPreset {
 	description: string;
 	version: number;
 	delivery: "bundled" | "remote";
+	backend?: "qcut" | "jianying-local";
+	jianyingGroup?: string;
+	jianyingGroupLabel?: string;
+	packageHash?: string;
 	preview: TransitionPreviewAsset;
 	easing?: ClipTransitionEasing;
 	direction?: ClipTransitionDirection;
@@ -94,12 +97,19 @@ export interface ClipTransitionPresetConfig {
 
 type PresetInput = Omit<
 	TransitionPreset,
-	"version" | "downloaded" | "tags" | "description" | "delivery" | "preview"
+	| "version"
+	| "downloaded"
+	| "tags"
+	| "description"
+	| "delivery"
+	| "preview"
+	| "backend"
 > & {
 	tags?: string[];
 	description?: string;
 	delivery?: TransitionPreset["delivery"];
 	preview?: TransitionPreviewAsset;
+	backend?: TransitionPreset["backend"];
 };
 
 export function defineTransitionPreset({
@@ -107,15 +117,24 @@ export function defineTransitionPreset({
 	description,
 	delivery = "bundled",
 	preview,
+	backend = "qcut",
 	...preset
 }: PresetInput): TransitionPreset {
 	return {
 		...preset,
 		version: 1,
 		delivery,
+		backend,
 		preview: preview ?? getTransitionPreviewAsset({ presetId: preset.id }),
 		downloaded: true,
-		tags: [preset.category, preset.type, preset.localizedName, ...tags],
+		tags: [
+			preset.category,
+			preset.type,
+			preset.localizedName,
+			backend,
+			...(preset.jianyingGroup ? [preset.jianyingGroup] : []),
+			...tags,
+		],
 		description:
 			description ??
 			`${preset.localizedName}，浏览器预览与 FFmpeg 导出使用同一参数。`,

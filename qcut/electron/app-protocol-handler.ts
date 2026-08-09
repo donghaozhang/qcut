@@ -21,6 +21,10 @@ import {
 	VIDEO_PREVIEW_PROXY_PROTOCOL_PATH,
 } from "./ffmpeg/video-preview-proxy-cache.js";
 import { createVideoPreviewProxyResponse } from "./ffmpeg/video-preview-proxy-response.js";
+import {
+	JIANYING_TRANSITION_PREVIEW_PROTOCOL_PATH,
+	resolveJianyingTransitionPreviewFilename,
+} from "./jianying-transition/preview-cache-path.js";
 
 export interface RegisterAppProtocolOptions {
 	/** Override the logger — defaults to console. */
@@ -87,6 +91,23 @@ export function registerAppProtocol(
 		const pathSegments = normalizedPath.split(/[\\/]+/);
 
 		try {
+			if (pathSegments[0] === JIANYING_TRANSITION_PREVIEW_PROTOCOL_PATH) {
+				const filename = pathSegments[1];
+				if (pathSegments.length !== 2 || !filename) {
+					return new Response("Not Found", { status: 404 });
+				}
+				const previewPath = resolveJianyingTransitionPreviewFilename({
+					filename,
+				});
+				if (!previewPath || !fs.existsSync(previewPath)) {
+					return new Response("Not Found", { status: 404 });
+				}
+				return createVideoPreviewProxyResponse({
+					request,
+					filePath: previewPath,
+				});
+			}
+
 			if (pathSegments[0] === VIDEO_PREVIEW_PROXY_PROTOCOL_PATH) {
 				const filename = pathSegments[1];
 				if (pathSegments.length !== 2 || !filename) {

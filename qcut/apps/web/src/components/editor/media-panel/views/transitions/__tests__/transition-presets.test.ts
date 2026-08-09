@@ -9,6 +9,8 @@ import {
 	transitionPresets,
 } from "../transition-presets";
 import { TRANSITION_CATEGORY_EXPANSIONS } from "../transition-category-expansions";
+import { JIANYING_LOCAL_TRANSITION_PRESETS } from "../transition-jianying-local-presets";
+import { TRANSITION_LAB_PRESETS } from "../transition-lab-presets";
 import { TRANSITION_PARITY_CASES } from "../transition-parity-ten";
 
 function requirePreset({ presetId }: { presetId: string }): TransitionPreset {
@@ -19,7 +21,7 @@ function requirePreset({ presetId }: { presetId: string }): TransitionPreset {
 
 describe("transition presets", () => {
 	it("keeps every content category dense and every advanced engine distinct", () => {
-		expect(transitionPresets.length).toBeGreaterThanOrEqual(260);
+		expect(transitionPresets.length).toBeGreaterThanOrEqual(520);
 		expect(new Set(transitionPresets.map((preset) => preset.id)).size).toBe(
 			transitionPresets.length
 		);
@@ -104,6 +106,35 @@ describe("transition presets", () => {
 		).toBe(true);
 	});
 
+	it("keeps all local presets inside Transition Lab", () => {
+		const labPresets = filterTransitionPresets({
+			category: "lab",
+			query: "",
+		});
+		const localPresets = labPresets.filter(
+			(preset) => preset.backend === "jianying-local"
+		);
+		expect(labPresets).toHaveLength(
+			JIANYING_LOCAL_TRANSITION_PRESETS.length + TRANSITION_LAB_PRESETS.length
+		);
+		expect(localPresets).toHaveLength(JIANYING_LOCAL_TRANSITION_PRESETS.length);
+		expect(localPresets).toHaveLength(520);
+		expect(
+			localPresets.every(
+				(preset) =>
+					preset.tags.includes("transition-segment") &&
+					!preset.tags.includes("ai-generation") &&
+					Boolean(preset.packageHash) &&
+					Boolean(preset.jianyingGroupLabel)
+			)
+		).toBe(true);
+		expect(
+			filterTransitionPresets({ category: "all", query: "" }).some(
+				(preset) => preset.backend === "jianying-local"
+			)
+		).toBe(false);
+	});
+
 	it("searches English and Chinese names, descriptions, and tags", () => {
 		expect(
 			filterTransitionPresets({ category: "all", query: "bright" }).map(
@@ -115,6 +146,29 @@ describe("transition presets", () => {
 				(preset) => preset.id
 			)
 		).toContain("film-burn");
+	});
+
+	it("searches every published field on local Jianying presets", () => {
+		const preset = JIANYING_LOCAL_TRANSITION_PRESETS.find(
+			(candidate) => candidate.id === "jianying-local-3d-space"
+		);
+		expect(preset).toBeDefined();
+		if (!preset) return;
+
+		for (const query of [
+			preset.name,
+			preset.localizedName,
+			preset.jianyingGroupLabel,
+			preset.tags[0],
+			preset.tags[2],
+			preset.packageHash,
+		]) {
+			expect(
+				filterTransitionPresets({ category: "lab", query: query ?? "" }).map(
+					(candidate) => candidate.id
+				)
+			).toContain(preset.id);
+		}
 	});
 
 	it.each(

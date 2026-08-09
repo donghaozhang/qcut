@@ -112,6 +112,11 @@ import {
 	handleStickerSearch,
 } from "../cli-handlers-stickers.js";
 import { handleInstancesCommand } from "../instance-selection.js";
+import {
+	handleTransitionDoctor,
+	handleTransitionList,
+	handleTransitionRender,
+} from "../cli-handlers-jianying-transitions.js";
 import { handleAppUpdate } from "../cli-handlers-app-update.js";
 
 /**
@@ -165,6 +170,9 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	update: wrapOPS(handleAppUpdate),
 	"instances-list": wrap(handleInstancesCommand),
 	"instances-use": wrap(handleInstancesCommand),
+	"transition-list": wrap0(handleTransitionList),
+	"transition-doctor": wrap0(handleTransitionDoctor),
+	"transition-render": wrapOP(handleTransitionRender),
 	// ── Generation ──
 	"generate-image": async (options, onProgress, executor, signal) =>
 		options.grid

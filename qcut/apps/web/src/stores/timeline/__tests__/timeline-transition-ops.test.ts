@@ -88,6 +88,46 @@ describe("timeline transition operations", () => {
 		});
 	});
 
+	it("persists the local engine and public package identity", () => {
+		const packageHash = "a".repeat(32);
+		const transitionId = useTimelineStore.getState().addTransition({
+			trackId: "track-1",
+			fromElementId: "a",
+			toElementId: "b",
+			videoMediaIds: VIDEO_MEDIA_IDS,
+			presetId: "jianying-local-3d-space",
+			engine: "jianying-local",
+			packageHash,
+			type: "glass-refraction",
+			duration: 1.5,
+		});
+
+		expect(transitionId).toBeTruthy();
+		expect(
+			useTimelineStore.getState().tracks[0].transitions?.[0]
+		).toMatchObject({
+			engine: "jianying-local",
+			packageHash,
+			presetId: "jianying-local-3d-space",
+		});
+	});
+
+	it("rejects local transitions without a package identity", () => {
+		const transitionId = useTimelineStore.getState().addTransition({
+			trackId: "track-1",
+			fromElementId: "a",
+			toElementId: "b",
+			videoMediaIds: VIDEO_MEDIA_IDS,
+			presetId: "jianying-local-3d-space",
+			engine: "jianying-local",
+			type: "glass-refraction",
+			duration: 1.5,
+		});
+
+		expect(transitionId).toBeNull();
+		expect(useTimelineStore.getState().tracks[0].transitions).toBeUndefined();
+	});
+
 	it("replaces the preset without duplicating the seam", () => {
 		const store = useTimelineStore.getState();
 		const firstId = store.addTransition({

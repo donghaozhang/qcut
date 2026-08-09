@@ -24,6 +24,10 @@ export interface CLIRunOptions {
 	outputDirExplicit?: boolean;
 	config?: string;
 	input?: string;
+	/** Video before a local transition cut. */
+	inputA?: string;
+	/** Video after a local transition cut. */
+	inputB?: string;
 	/** Still image used behind a transparent person cutout. */
 	background?: string;
 	/** Transparent VP9 WebM output path for person-cutout. */

@@ -71,6 +71,7 @@ export type {
 	StickerTrackingAnchor,
 	ClipTransition,
 	ClipTransitionDirection,
+	ClipTransitionEngine,
 	ClipTransitionEasing,
 	ClipTransitionMaskShape,
 	ClipTransitionKeyframeEasing,

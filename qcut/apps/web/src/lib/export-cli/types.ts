@@ -13,6 +13,7 @@ import type {
 	AudioCrossfade,
 	AudioMixBusSettings,
 	ClipTransitionDirection,
+	ClipTransitionEngine,
 	ClipTransitionEasing,
 	ClipTransitionType,
 	ClipTransitionMaskShape,
@@ -46,6 +47,8 @@ export interface VideoTransitionInput {
 	fromElementId: string;
 	toElementId: string;
 	presetId: string;
+	engine?: ClipTransitionEngine;
+	packageHash?: string;
 	type: ClipTransitionType;
 	direction?: ClipTransitionDirection;
 	easing: ClipTransitionEasing;

@@ -68,6 +68,7 @@ import {
 	setupJianyingDraftExportIPC,
 	type JianyingDraftExportIPCController,
 } from "./jianying-draft-export-handler.js";
+import { setupJianyingTransitionIPC } from "./jianying-transition-handler.js";
 import {
 	setupJianyingSameProfileWritebackIPC,
 	type JianyingSameProfileWritebackIPCController,
@@ -990,6 +991,7 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 					});
 				},
 			],
+			["JianyingTransitionIPC", setupJianyingTransitionIPC],
 			[
 				"JianyingEnvelopeKeyIPC",
 				() => {

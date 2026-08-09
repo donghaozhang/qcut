@@ -1,14 +1,35 @@
 # Jianying Runtime Probe
 
 This directory contains a local interoperability probe for Jianying's transition
-runtime. It does not contain Jianying binaries, assets, source code, or recovered
-implementations.
+runtime. It contains independently written parsers and behavioral models, but no
+Jianying binaries, assets, source code, or copied proprietary implementation.
+
+The static format and algorithm recovery notes live in
+[`DECOMPILATION.md`](./DECOMPILATION.md). The accompanying tools parse recovered
+metadata without bundling proprietary fixtures:
+
+The next twenty recovered transition packages, their timing, algorithm families,
+and real-runtime validation contract are documented in
+[`TWENTY-TRANSITIONS.md`](./TWENTY-TRANSITIONS.md), with machine-readable identities
+in [`twenty-transition-manifest.json`](./twenty-transition-manifest.json).
+
+```bash
+bun inspect-serialized.ts \
+  --dictionary-binary ../../.local/jianying-runtime/Frameworks/libcccreator.dylib \
+  --summary /path/to/file.seq /path/to/file.xshader
+bun inspect-ausl.ts /path/to/file.ausl
+```
 
 ## Safety boundary
 
-- Proprietary payloads are copied only to `.local/jianying-runtime/`.
-- That directory and the compiled probe are ignored by Git.
-- The copy script refuses to run unless the destination is ignored.
+- The repository never contains proprietary binaries or transition packages.
+- Disposable probe payloads live under Git-ignored `.local/jianying-runtime/`.
+- The durable private backup lives outside the repository under
+  `~/Library/Application Support/QCut/PrivateRuntimes/JianyingTransition/`.
+- The backup script resolves symlinks, permits only that local Application
+  Support tree, and rejects iCloud Drive and `~/Library/CloudStorage`.
+- Backup files are private to the current user and carry a SHA-256 manifest with
+  `localOnly: true` and `cloudUpload: false`. The script has no upload path.
 - Do not redistribute the copied payloads or build a product dependency on them.
 - A shippable QCut transition engine still requires our own implementation or a
   separately licensed runtime.
@@ -31,6 +52,124 @@ Override the source app only when needed:
 ```bash
 JY_APP_BUNDLE=/path/to/VideoFusion-macOS.app ./copy-runtime.sh
 ```
+
+## Offline private backup
+
+Create or verify the durable local-only backup:
+
+```bash
+bun research/jianying-runtime-probe/backup-private-runtime.ts
+```
+
+The first backup starts with the version-pinned five core libraries in
+`.local/jianying-runtime`, resolves their complete non-system dependency closure,
+copies the two runtime resource directories and all 520 binary transition
+packages, then probes the result without the Jianying app bundle. The verified
+2026-08-09 backup contains 23 dylibs and 520 packages (about 1.08 GiB):
+
+```text
+~/Library/Application Support/QCut/PrivateRuntimes/JianyingTransition/
+  D6342ECD-5432-33F0-A2AD-0C28F5699994-catalog-520/
+  current -> D6342ECD-5432-33F0-A2AD-0C28F5699994-catalog-520
+```
+
+Re-running the command verifies the exact file set, byte sizes, SHA-256 hashes,
+catalog count, core UUID, and an app-less bridge launch before retaining the
+`current` link. QCut discovers this private backup before the disposable
+`.local` copy or an installed app bundle.
+
+Once this backup exists, the 520 ordinary binary transitions do not require
+Jianying to be installed or running. The app is needed only as an initial local
+source when a missing dependency closure or package set must be collected. A
+strict app-less health check is:
+
+```bash
+QCUT_JIANYING_DISABLE_APP_BUNDLE=1 \
+QCUT_JIANYING_RUNTIME_ROOT="$HOME/Library/Application Support/QCut/PrivateRuntimes/JianyingTransition/current" \
+QCUT_JIANYING_TRANSITION_PACKAGE_ROOT="$HOME/Library/Application Support/QCut/PrivateRuntimes/JianyingTransition/current/Packages" \
+bun run qcut transition doctor --json
+```
+
+## Catalog coverage and CLI
+
+The research catalog contains 540 unique entries across the 14 Jianying groups.
+AI one-take keeps 20 generation recipes, and every binary-backed group has 40
+entries:
+
+| Group | Catalog entries | Local binary render |
+| --- | ---: | ---: |
+| AI one-take | 20 | 0 |
+| Dissolve | 40 | 40 |
+| Split | 40 | 40 |
+| Glitch | 40 | 40 |
+| Light | 40 | 40 |
+| Interactive emoji | 40 | 40 |
+| Slideshow | 40 | 40 |
+| Blur | 40 | 40 |
+| Distortion | 40 | 40 |
+| Shooting | 40 | 40 |
+| Camera | 40 | 40 |
+| Natural | 40 | 40 |
+| Variety | 40 | 40 |
+| MG animation | 40 | 40 |
+
+The 20 AI one-take records are generation configurations, not two-input
+`TransitionSegment` packages. The other 520 entries use the local binary bridge.
+QCut exposes the distinction as `runtimeKind` instead of claiming that AI
+generation is a local transition binary.
+
+The observed Jianying database contains only 15 interactive-emoji entries,
+eight distortion entries, and 34 eligible MG entries. The catalog therefore
+fills those sparse UI groups with 25, 32, and six related transitions,
+respectively. Every supplement is a real Jianying transition, remains globally
+unique, and records its original group in `sourceGroup`; no placeholder
+transition is used.
+
+Generate the ignored local selection and download missing package payloads:
+
+```bash
+bun research/jianying-runtime-probe/prepare-category-catalog.ts \
+  --binary-per-category 40 --download
+bun research/jianying-runtime-probe/generate-category-catalog.ts \
+  --manifest .local/jianying-runtime/category-forty/selection.json
+```
+
+Inspect availability and render any binary-backed catalog entry through the
+public CLI:
+
+```bash
+qcut transition list --json
+qcut transition doctor --json
+qcut transition render \
+  --preset jianying-local-6724845717472416269 \
+  --input-a a.mp4 \
+  --input-b b.mp4 \
+  --output joined.mp4 \
+  --force --json
+```
+
+`transition doctor` constructs a real `TransitionSegment` in a child process
+before reporting entries as available. It therefore rejects an updated
+`libcccreator.dylib` whose private ABI does not match the bridge. Development
+builds prefer the private Application Support backup, then the version-pinned,
+Git-ignored `.local/jianying-runtime` copy. Set
+`QCUT_JIANYING_RUNTIME_ROOT` to test one explicit runtime root without falling
+back to another candidate.
+
+Run the reproducible CLI smoke matrix with any two local videos:
+
+```bash
+bun research/jianying-runtime-probe/verify-cli-catalog.ts \
+  --input-a .local/jianying-runtime/cli-e2e/a.mp4 \
+  --input-b .local/jianying-runtime/cli-e2e/b.mp4
+```
+
+The verifier calls `qcut transition render` separately for every one of the 520
+binary-backed entries, then requires a non-empty, non-black H.264 video with the
+requested dimensions. It refuses to write outside a Git-ignored directory. The
+previous 67-entry baseline passed 67/67 app-less at 64x64, 6 fps, and a
+0.5-second transition window. The expanded 520-entry catalog has been prepared
+and backed up but has intentionally not yet received a full render-matrix run.
 
 ## Probe modes
 
@@ -136,10 +275,11 @@ repository directory. `--reuse` accepts an existing render only when its saved
 request fingerprint still matches the inputs, package identity, dimensions,
 timing, endpoint policy, and renderer sources.
 
-`libcccreator` has a large dependency graph. The copied binary is loaded from
-the ignored local directory while unresolved sibling libraries are read from
-the installed app bundle through `DYLD_LIBRARY_PATH`; it is not a standalone
-redistributable runtime closure.
+`libcccreator` has a large dependency graph. The minimal `.local` copy still
+needs unresolved sibling libraries from the installed app bundle. The private
+Application Support backup instead contains the verified 23-library closure and
+loads with only its own `Frameworks` directory in `DYLD_LIBRARY_PATH`. Neither
+copy is a standalone redistributable runtime.
 
 `launch` is intentionally explicit because this is a private, version-specific
 C++ ABI with no vendor headers. A failed call or process crash is evidence about
@@ -158,9 +298,9 @@ Observed in Jianying `11.1.12975` (`CFBundleVersion 11.2.0-beta5`):
 - The config and bridge object sizes and field offsets are inferred from the
   arm64 machine code. They are not a stable public contract.
 
-This answers a narrow question: whether the installed engine can be loaded and
-called locally. It does not recover the transition algorithms or make the engine
-redistributable.
+The probe answers whether the installed engine can be loaded and called locally.
+The companion decompilation reports recover selected package algorithms, but do
+not make the engine or proprietary package assets redistributable.
 
 ## Verified result
 
@@ -218,6 +358,15 @@ established all of the following without launching the Jianying app process:
     full-interval RMSE of `11.120`; matching Jianying's 4K render path reduced it
     to `2.490`, demonstrating why engine resolution is part of the parity
     contract for blur and glow graphs.
+17. The original private 23-library dependency closure plus 67 ordinary
+    transition packages passed manifest verification, an app-less
+    `transition doctor` (`appInstalled: false`, `availableCount: 67`), and a
+    complete 67/67 CLI MP4 render matrix using only the Application Support
+    backup. No Jianying process or app bundle path participated in that run.
+18. The expanded local-only backup contains the same 23-library closure and 520
+    transition packages. Its 50,705-file SHA-256 manifest, package count, core
+    UUID, and app-less bridge launch passed. Full per-transition video rendering
+    is intentionally deferred to a later staged test batch.
 
 The dependencies now divide into three groups:
 

@@ -87,7 +87,7 @@ trap cleanup EXIT
 readonly RAW_INPUT_A="$TEMP_DIR/input-a.rgba"
 readonly RAW_INPUT_B="$TEMP_DIR/input-b.rgba"
 readonly RAW_OUTPUT="$TEMP_DIR/output.rgba"
-readonly NORMALIZE_FILTER="fps=${FRAME_RATE},scale=${width}:${height}:force_original_aspect_ratio=decrease:flags=lanczos,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1,format=rgba"
+readonly NORMALIZE_FILTER="fps=${FRAME_RATE},format=rgba,scale=${width}:${height}:force_original_aspect_ratio=decrease:flags=lanczos,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1"
 readonly ENCODE_FILTER='scale=in_range=full:out_range=limited:out_color_matrix=bt709,'\
 'format=yuv420p,'\
 'setparams=range=limited:color_primaries=bt709:color_trc=bt709:colorspace=bt709'

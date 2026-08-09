@@ -67,6 +67,14 @@ import {
 	CAPCUT_8_1_MIGRATION_PLAN_CHANNEL,
 } from "./jianying-draft-export-contract.js";
 import {
+	JIANYING_TRANSITION_INSPECT_CHANNEL,
+	JIANYING_TRANSITION_PREVIEW_CHANNEL,
+	JIANYING_TRANSITION_REGISTER_PREVIEW_SOURCE_CHANNEL,
+	JIANYING_TRANSITION_RENDER_CHANNEL,
+	JIANYING_TRANSITION_RENDER_TIMELINE_CHANNEL,
+	JIANYING_TRANSITION_TIMELINE_PREVIEW_CHANNEL,
+} from "./jianying-transition-contract.js";
+import {
 	ENVELOPE_DELETE_CHANNEL,
 	ENVELOPE_PURGE_CHANNEL,
 	ENVELOPE_READ_CHANNEL,
@@ -91,6 +99,17 @@ import {
 	CAPCUT_8_1_WRITEBACK_RECOVER_CHANNEL,
 } from "./jianying-same-profile-writeback-contract.js";
 
+function resolveNativeFilePath({ file }: { file: File }): string {
+	const filePath = webUtils.getPathForFile(file);
+	if (filePath) {
+		ipcRenderer.send(
+			JIANYING_TRANSITION_REGISTER_PREVIEW_SOURCE_CHANNEL,
+			filePath
+		);
+	}
+	return filePath;
+}
+
 // Expose the API to the renderer process
 const electronAPI: ElectronAPI & Record<string, unknown> = {
 	// System info
@@ -112,6 +131,17 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke(CAPCUT_8_1_MIGRATION_INSTALL_CHANNEL, request),
 		planCapCut81Migration: (request) =>
 			ipcRenderer.invoke(CAPCUT_8_1_MIGRATION_PLAN_CHANNEL, request),
+	},
+	jianyingTransitions: {
+		inspect: () => ipcRenderer.invoke(JIANYING_TRANSITION_INSPECT_CHANNEL),
+		preview: (request) =>
+			ipcRenderer.invoke(JIANYING_TRANSITION_PREVIEW_CHANNEL, request),
+		timelinePreview: (request) =>
+			ipcRenderer.invoke(JIANYING_TRANSITION_TIMELINE_PREVIEW_CHANNEL, request),
+		render: (request) =>
+			ipcRenderer.invoke(JIANYING_TRANSITION_RENDER_CHANNEL, request),
+		renderTimeline: (request) =>
+			ipcRenderer.invoke(JIANYING_TRANSITION_RENDER_TIMELINE_CHANNEL, request),
 	},
 	jianyingEnvelope: {
 		store: (request) => ipcRenderer.invoke(ENVELOPE_STORE_CHANNEL, request),
@@ -755,7 +785,7 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 	},
 
 	// File path utility (Electron 37+ removed File.path)
-	getPathForFile: (file: File): string => webUtils.getPathForFile(file),
+	getPathForFile: (file: File): string => resolveNativeFilePath({ file }),
 
 	// Video semantic search
 	videoSearch: {

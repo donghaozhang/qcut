@@ -118,6 +118,72 @@ afterEach(async () => {
 	);
 });
 
+describe("snapshot transition identity", () => {
+	it("accepts persisted local transition identity", () => {
+		const snapshot = createEmptySnapshot();
+		snapshot.tracks = [
+			{
+				elements: [],
+				id: "main",
+				name: "Main",
+				transitions: [
+					{
+						duration: 1,
+						easing: "linear",
+						engine: "jianying-local",
+						fromElementId: "clip-a",
+						id: "local-transition",
+						packageHash: "a".repeat(64),
+						presetId: "jianying-local-3d-space",
+						toElementId: "clip-b",
+						type: "dissolve",
+					},
+				],
+				type: "media",
+			},
+		];
+
+		expect(
+			validateSnapshot({
+				path: "$.snapshot",
+				value: snapshot as unknown as JsonValue,
+			})
+		).toEqual(snapshot);
+	});
+
+	it("rejects malformed local transition package hashes", () => {
+		const snapshot = createEmptySnapshot();
+		snapshot.tracks = [
+			{
+				elements: [],
+				id: "main",
+				name: "Main",
+				transitions: [
+					{
+						duration: 1,
+						easing: "linear",
+						engine: "jianying-local",
+						fromElementId: "clip-a",
+						id: "local-transition",
+						packageHash: "not-a-hash",
+						presetId: "jianying-local-3d-space",
+						toElementId: "clip-b",
+						type: "dissolve",
+					},
+				],
+				type: "media",
+			},
+		];
+
+		expect(() =>
+			validateSnapshot({
+				path: "$.snapshot",
+				value: snapshot as unknown as JsonValue,
+			})
+		).toThrow("lowercase hexadecimal hash");
+	});
+});
+
 describe("runtime request budgets", () => {
 	it("rejects aggregate string data below the per-string limit", () => {
 		const chunk = "x".repeat(4 * 1024 * 1024);

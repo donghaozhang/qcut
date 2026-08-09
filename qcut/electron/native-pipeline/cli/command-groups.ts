@@ -91,6 +91,16 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 		},
 	},
 	{
+		name: "transition",
+		label: "Local Transitions",
+		description: "Inspect and render local Jianying transitions",
+		actions: {
+			list: "transition-list",
+			doctor: "transition-doctor",
+			render: "transition-render",
+		},
+	},
+	{
 		name: "flow",
 		label: "Workflows & Orchestration",
 		description: "ViMax pipelines, YAML workflows, script/character generation",
