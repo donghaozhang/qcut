@@ -35,15 +35,27 @@ interface SelectedTransition {
 
 interface SelectedCategory {
 	id: CategoryId;
+	target: number;
 	count: number;
 	transitions: SelectedTransition[];
 }
 
 interface SelectionManifest {
-	schemaVersion: 2;
-	minimumPerCategory: number;
+	schemaVersion: 2 | 3;
 	selectedCount: number;
 	categories: SelectedCategory[];
+}
+
+interface CategoryTargets {
+	aiGenerationPerCategory: number;
+	binaryPerCategory: number;
+}
+
+interface ParsedCategory {
+	id: CategoryId;
+	target?: number;
+	count: number;
+	transitions: SelectedTransition[];
 }
 
 const EXPORT_NAMES: Readonly<Record<CategoryId, string>> = {
@@ -72,7 +84,7 @@ function manifestPath(): string {
 		? path.resolve(value)
 		: path.join(
 				projectRoot,
-				".local/jianying-runtime/category-twenty/selection.json"
+				".local/jianying-runtime/category-forty/selection.json"
 			);
 }
 
@@ -120,6 +132,20 @@ function requireNumber({
 	return value;
 }
 
+function requirePositiveInteger({
+	name,
+	value,
+}: {
+	name: string;
+	value: unknown;
+}): number {
+	const parsed = requireNumber({ name, value });
+	if (!Number.isSafeInteger(parsed) || parsed <= 0) {
+		throw new Error(`Invalid ${name}.`);
+	}
+	return parsed;
+}
+
 function requireBoolean({
 	name,
 	value,
@@ -155,7 +181,7 @@ function parseTransition({ value }: { value: unknown }): SelectedTransition {
 	};
 }
 
-function parseCategory({ value }: { value: unknown }): SelectedCategory {
+function parseCategory({ value }: { value: unknown }): ParsedCategory {
 	if (!isRecord({ value }) || !Array.isArray(value.transitions)) {
 		throw new Error("Invalid category entry.");
 	}
@@ -168,25 +194,94 @@ function parseCategory({ value }: { value: unknown }): SelectedCategory {
 	}
 	return {
 		id,
-		count: requireNumber({ name: "category count", value: value.count }),
+		...(value.target === undefined
+			? {}
+			: {
+					target: requirePositiveInteger({
+						name: `${id} target`,
+						value: value.target,
+					}),
+				}),
+		count: requirePositiveInteger({
+			name: "category count",
+			value: value.count,
+		}),
 		transitions,
 	};
+}
+
+function parseVersionThreeTargets({
+	value,
+}: {
+	value: Record<string, unknown>;
+}): CategoryTargets {
+	if (!isRecord({ value: value.targets })) {
+		throw new Error("Invalid category targets.");
+	}
+	return {
+		aiGenerationPerCategory: requirePositiveInteger({
+			name: "AI generation target",
+			value: value.targets.aiGenerationPerCategory,
+		}),
+		binaryPerCategory: requirePositiveInteger({
+			name: "binary transition target",
+			value: value.targets.binaryPerCategory,
+		}),
+	};
+}
+
+function categoryTarget({
+	categoryId,
+	schemaVersion,
+	minimumPerCategory,
+	targets,
+}: {
+	categoryId: CategoryId;
+	schemaVersion: 2 | 3;
+	minimumPerCategory?: number;
+	targets?: CategoryTargets;
+}): number {
+	if (schemaVersion === 2 && minimumPerCategory !== undefined) {
+		return minimumPerCategory;
+	}
+	if (!targets) throw new Error("Missing category targets.");
+	return categoryId === "ai-one-take"
+		? targets.aiGenerationPerCategory
+		: targets.binaryPerCategory;
 }
 
 function parseManifest({ value }: { value: unknown }): SelectionManifest {
 	if (!isRecord({ value }) || !Array.isArray(value.categories)) {
 		throw new Error("Invalid selection manifest.");
 	}
-	if (value.schemaVersion !== 2)
+	if (value.schemaVersion !== 2 && value.schemaVersion !== 3)
 		throw new Error("Unsupported manifest schema.");
-	const categories = value.categories.map((category) =>
+	const schemaVersion = value.schemaVersion;
+	const parsedCategories = value.categories.map((category) =>
 		parseCategory({ value: category })
 	);
-	const minimumPerCategory = requireNumber({
-		name: "minimum per category",
-		value: value.minimumPerCategory,
+	const minimumPerCategory =
+		schemaVersion === 2
+			? requirePositiveInteger({
+					name: "minimum per category",
+					value: value.minimumPerCategory,
+				})
+			: undefined;
+	const targets =
+		schemaVersion === 3 ? parseVersionThreeTargets({ value }) : undefined;
+	const categories = parsedCategories.map((category) => {
+		const target = categoryTarget({
+			categoryId: category.id,
+			schemaVersion,
+			minimumPerCategory,
+			targets,
+		});
+		if (schemaVersion === 3 && category.target !== target) {
+			throw new Error(`Category target mismatch in ${category.id}.`);
+		}
+		return { ...category, target };
 	});
-	const selectedCount = requireNumber({
+	const selectedCount = requirePositiveInteger({
 		name: "selected count",
 		value: value.selectedCount,
 	});
@@ -197,8 +292,13 @@ function parseManifest({ value }: { value: unknown }): SelectionManifest {
 		const category = categories.find(
 			(candidate) => candidate.id === categoryId
 		);
-		if (!category || category.transitions.length < minimumPerCategory) {
-			throw new Error(`Category ${categoryId} is below the required minimum.`);
+		if (!category) throw new Error(`Missing category ${categoryId}.`);
+		const countMatchesTarget =
+			schemaVersion === 2
+				? category.transitions.length >= category.target
+				: category.transitions.length === category.target;
+		if (!countMatchesTarget) {
+			throw new Error(`Category ${categoryId} does not meet its target.`);
 		}
 		if (category.count !== category.transitions.length) {
 			throw new Error(`Category count mismatch in ${categoryId}.`);
@@ -215,8 +315,7 @@ function parseManifest({ value }: { value: unknown }): SelectionManifest {
 		throw new Error("Transition resource IDs must be unique.");
 	}
 	return {
-		schemaVersion: 2,
-		minimumPerCategory,
+		schemaVersion,
 		selectedCount,
 		categories,
 	};
