@@ -63,14 +63,14 @@ bun research/jianying-runtime-probe/backup-private-runtime.ts
 
 The first backup starts with the version-pinned five core libraries in
 `.local/jianying-runtime`, resolves their complete non-system dependency closure,
-copies the two runtime resource directories and all 67 binary transition
+copies the two runtime resource directories and all 260 binary transition
 packages, then probes the result without the Jianying app bundle. The verified
-2026-08-09 backup contains 23 dylibs and 67 packages (about 401 MB):
+2026-08-09 backup contains 23 dylibs and 260 packages (about 743 MB):
 
 ```text
 ~/Library/Application Support/QCut/PrivateRuntimes/JianyingTransition/
-  D6342ECD-5432-33F0-A2AD-0C28F5699994-catalog-67/
-  current -> D6342ECD-5432-33F0-A2AD-0C28F5699994-catalog-67
+  D6342ECD-5432-33F0-A2AD-0C28F5699994-catalog-260/
+  current -> D6342ECD-5432-33F0-A2AD-0C28F5699994-catalog-260
 ```
 
 Re-running the command verifies the exact file set, byte sizes, SHA-256 hashes,
@@ -78,7 +78,7 @@ catalog count, core UUID, and an app-less bridge launch before retaining the
 `current` link. QCut discovers this private backup before the disposable
 `.local` copy or an installed app bundle.
 
-Once this backup exists, the 67 ordinary binary transitions do not require
+Once this backup exists, the 260 ordinary binary transitions do not require
 Jianying to be installed or running. The app is needed only as an initial local
 source when a missing dependency closure or package set must be collected. A
 strict app-less health check is:
@@ -92,35 +92,42 @@ bun run qcut transition doctor --json
 
 ## Catalog coverage and CLI
 
-The research catalog contains 72 unique entries across the 14 Jianying groups.
-Every group has at least five entries:
+The research catalog contains 280 unique entries across the 14 Jianying groups.
+Every group has 20 entries:
 
 | Group | Catalog entries | Local binary render |
 | --- | ---: | ---: |
-| AI one-take | 5 | 0 |
-| Dissolve | 5 | 5 |
-| Split | 5 | 5 |
-| Glitch | 5 | 5 |
-| Light | 5 | 5 |
-| Interactive emoji | 5 | 5 |
-| Slideshow | 7 | 7 |
-| Blur | 5 | 5 |
-| Distortion | 5 | 5 |
-| Shooting | 5 | 5 |
-| Camera | 5 | 5 |
-| Natural | 5 | 5 |
-| Variety | 5 | 5 |
-| MG animation | 5 | 5 |
+| AI one-take | 20 | 0 |
+| Dissolve | 20 | 20 |
+| Split | 20 | 20 |
+| Glitch | 20 | 20 |
+| Light | 20 | 20 |
+| Interactive emoji | 20 | 20 |
+| Slideshow | 20 | 20 |
+| Blur | 20 | 20 |
+| Distortion | 20 | 20 |
+| Shooting | 20 | 20 |
+| Camera | 20 | 20 |
+| Natural | 20 | 20 |
+| Variety | 20 | 20 |
+| MG animation | 20 | 20 |
 
-The five AI one-take records are generation configurations, not two-input
-`TransitionSegment` packages. The other 67 entries use the local binary bridge.
+The 20 AI one-take records are generation configurations, not two-input
+`TransitionSegment` packages. The other 260 entries use the local binary bridge.
 QCut exposes the distinction as `runtimeKind` instead of claiming that AI
 generation is a local transition binary.
+
+The observed Jianying database contains only 15 interactive-emoji entries and
+eight distortion entries. The catalog therefore fills those two UI groups with
+five related Variety entries and 12 related Blur entries. Every supplement is a
+real Jianying transition, remains globally unique, and records its original
+group in `sourceGroup`; no placeholder transition is used.
 
 Generate the ignored local selection and download missing package payloads:
 
 ```bash
-bun research/jianying-runtime-probe/prepare-category-five.ts --download
+bun research/jianying-runtime-probe/prepare-category-catalog.ts --download
+bun research/jianying-runtime-probe/generate-category-catalog.ts
 ```
 
 Inspect availability and render any binary-backed catalog entry through the
@@ -153,11 +160,12 @@ bun research/jianying-runtime-probe/verify-cli-catalog.ts \
   --input-b .local/jianying-runtime/cli-e2e/b.mp4
 ```
 
-The verifier calls `qcut transition render` separately for every one of the 67
+The verifier calls `qcut transition render` separately for every one of the 260
 binary-backed entries, then requires a non-empty, non-black H.264 video with the
-requested dimensions. It refuses to write outside a Git-ignored directory. An
-app-less 2026-08-09 run using only the private Application Support backup passed
-67/67 at 64x64, 6 fps, and a 0.5-second transition window.
+requested dimensions. It refuses to write outside a Git-ignored directory. The
+previous 67-entry baseline passed 67/67 app-less at 64x64, 6 fps, and a
+0.5-second transition window. The expanded 260-entry catalog has been prepared
+and backed up but has intentionally not yet received a full render-matrix run.
 
 ## Probe modes
 
@@ -346,11 +354,15 @@ established all of the following without launching the Jianying app process:
     full-interval RMSE of `11.120`; matching Jianying's 4K render path reduced it
     to `2.490`, demonstrating why engine resolution is part of the parity
     contract for blur and glow graphs.
-17. A private 23-library dependency closure plus all 67 ordinary transition
-    packages passed manifest verification, an app-less `transition doctor`
-    (`appInstalled: false`, `availableCount: 67`), and a complete 67/67 CLI MP4
-    render matrix using only the Application Support backup. No Jianying process
-    or app bundle path participated in that run.
+17. The original private 23-library dependency closure plus 67 ordinary
+    transition packages passed manifest verification, an app-less
+    `transition doctor` (`appInstalled: false`, `availableCount: 67`), and a
+    complete 67/67 CLI MP4 render matrix using only the Application Support
+    backup. No Jianying process or app bundle path participated in that run.
+18. The expanded local-only backup contains the same 23-library closure and 260
+    transition packages. Its 25,921-file SHA-256 manifest, package count, core
+    UUID, and app-less bridge launch passed. Full per-transition video rendering
+    is intentionally deferred to a later staged test batch.
 
 The dependencies now divide into three groups:
 
