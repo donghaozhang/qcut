@@ -1,7 +1,9 @@
+import { execFile } from "node:child_process";
 import { constants } from "node:fs";
 import { access, readdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { promisify } from "node:util";
 import {
 	JIANYING_TRANSITIONS,
 	type JianyingTransitionDefinition,
@@ -20,11 +22,27 @@ const REQUIRED_FRAMEWORKS = [
 	"libcccreator.dylib",
 ] as const;
 
+const execFileAsync = promisify(execFile);
+
+const LOCAL_RENDER_TRANSITIONS = JIANYING_TRANSITIONS.filter(
+	(transition) => transition.runtimeKind === "transition-segment"
+);
+
+const AI_GENERATION_TRANSITIONS = JIANYING_TRANSITIONS.filter(
+	(transition) => transition.runtimeKind === "ai-generation"
+);
+
 export interface JianyingRuntimeInspection {
 	status: JianyingTransitionRuntimeStatus;
 	appBundlePath: string | null;
+	runtimeRootPath: string | null;
 	bridgePath: string | null;
 	packagePaths: ReadonlyMap<string, string>;
+}
+
+interface RuntimeSelection {
+	runtimeRootPath: string | null;
+	error?: string;
 }
 
 async function pathExists({
@@ -55,14 +73,29 @@ function uniquePaths({
 }
 
 function appBundleCandidates(): string[] {
+	if (process.env.QCUT_JIANYING_DISABLE_APP_BUNDLE === "1") return [];
+	const overrides = uniquePaths({
+		paths: [process.env.QCUT_JIANYING_APP_BUNDLE, process.env.JY_APP_BUNDLE],
+	});
+	if (overrides.length > 0) return overrides;
 	return uniquePaths({
 		paths: [
-			process.env.QCUT_JIANYING_APP_BUNDLE,
-			process.env.JY_APP_BUNDLE,
 			"/Applications/VideoFusion-macOS.app",
 			path.join(os.homedir(), "Applications", "VideoFusion-macOS.app"),
 		],
 	});
+}
+
+function privateRuntimeRoot(): string {
+	return path.join(
+		os.homedir(),
+		"Library",
+		"Application Support",
+		"QCut",
+		"PrivateRuntimes",
+		"JianyingTransition",
+		"current"
+	);
 }
 
 async function isUsableAppBundle({ appBundlePath }: { appBundlePath: string }) {
@@ -96,6 +129,129 @@ async function findAppBundle(): Promise<string | null> {
 	return results.find((result) => result.usable)?.candidate ?? null;
 }
 
+function runtimeRootCandidates({
+	appBundlePath,
+}: {
+	appBundlePath: string | null;
+}): string[] {
+	const overrides = uniquePaths({
+		paths: [
+			process.env.QCUT_JIANYING_RUNTIME_ROOT,
+			process.env.JY_RUNTIME_ROOT,
+		],
+	});
+	if (overrides.length > 0) return overrides;
+	const projectRoot = findQCutProjectRoot();
+	return uniquePaths({
+		paths: [
+			privateRuntimeRoot(),
+			projectRoot
+				? path.join(projectRoot, ".local", "jianying-runtime")
+				: undefined,
+			appBundlePath ? path.join(appBundlePath, "Contents") : undefined,
+		],
+	});
+}
+
+async function isUsableRuntimeRoot({
+	runtimeRootPath,
+}: {
+	runtimeRootPath: string;
+}): Promise<boolean> {
+	const frameworkChecks = REQUIRED_FRAMEWORKS.map((framework) =>
+		pathExists({
+			filePath: path.join(runtimeRootPath, "Frameworks", framework),
+		})
+	);
+	const [resourcesReady, ...frameworksReady] = await Promise.all([
+		pathExists({
+			filePath: path.join(runtimeRootPath, "Resources", "lumi_js_resources"),
+		}),
+		...frameworkChecks,
+	]);
+	return resourcesReady && frameworksReady.every(Boolean);
+}
+
+function runtimeProbeError({ cause }: { cause: unknown }): string {
+	if (!(cause instanceof Error)) return String(cause);
+	const processError = cause as Error & { stderr?: string; stdout?: string };
+	const output = [processError.stderr, processError.stdout]
+		.filter((value): value is string => Boolean(value))
+		.join("\n");
+	const bridgeError = output
+		.split("\n")
+		.map((line) => line.trim())
+		.find((line) => line.startsWith("[error]"));
+	return bridgeError?.slice("[error]".length).trim() || cause.message;
+}
+
+async function probeRuntimeRoot({
+	runtimeRootPath,
+	bridgePath,
+}: {
+	runtimeRootPath: string;
+	bridgePath: string;
+}): Promise<{ runtimeRootPath: string; compatible: boolean; error?: string }> {
+	try {
+		await execFileAsync(bridgePath, [runtimeRootPath, "transition"], {
+			env: {
+				...process.env,
+				DYLD_LIBRARY_PATH: path.join(runtimeRootPath, "Frameworks"),
+			},
+			maxBuffer: 16 * 1024 * 1024,
+			timeout: 15_000,
+		});
+		return { runtimeRootPath, compatible: true };
+	} catch (cause) {
+		return {
+			runtimeRootPath,
+			compatible: false,
+			error: runtimeProbeError({ cause }),
+		};
+	}
+}
+
+async function selectRuntimeRoot({
+	appBundlePath,
+	bridgePath,
+}: {
+	appBundlePath: string | null;
+	bridgePath: string | null;
+}): Promise<RuntimeSelection> {
+	const candidates = runtimeRootCandidates({ appBundlePath });
+	const checks = await Promise.all(
+		candidates.map(async (runtimeRootPath) => ({
+			runtimeRootPath,
+			usable: await isUsableRuntimeRoot({ runtimeRootPath }),
+		}))
+	);
+	const usableRoots = checks
+		.filter((check) => check.usable)
+		.map((check) => check.runtimeRootPath);
+	if (usableRoots.length === 0) {
+		return {
+			runtimeRootPath: null,
+			error: "未找到包含完整 Frameworks 和 Lumi 资源的剪映本机运行时。",
+		};
+	}
+	if (!bridgePath) return { runtimeRootPath: usableRoots[0] ?? null };
+
+	const probes = await Promise.all(
+		usableRoots.map((runtimeRootPath) =>
+			probeRuntimeRoot({ runtimeRootPath, bridgePath })
+		)
+	);
+	const compatible = probes.find((probe) => probe.compatible);
+	if (compatible) return { runtimeRootPath: compatible.runtimeRootPath };
+	const details = probes
+		.flatMap((probe) => (probe.error ? [probe.error] : []))
+		.join("；");
+	return {
+		runtimeRootPath: null,
+		error: details || "本机剪映运行时与当前 QCut bridge ABI 不兼容。",
+	};
+}
+
 function packageRootCandidates(): string[] {
 	const home = os.homedir();
 	const projectRoot = findQCutProjectRoot();
@@ -105,9 +261,10 @@ function packageRootCandidates(): string[] {
 	]
 		.filter((value): value is string => Boolean(value))
 		.flatMap((value) => value.split(path.delimiter));
+	if (overrides.length > 0) return uniquePaths({ paths: overrides });
 	return uniquePaths({
 		paths: [
-			...overrides,
+			path.join(privateRuntimeRoot(), "Packages"),
 			path.join(
 				home,
 				"Library",
@@ -121,6 +278,15 @@ function packageRootCandidates(): string[] {
 				"effect"
 			),
 			path.join(home, "Movies", "JianyingPro", "User Data", "Cache", "effect"),
+			projectRoot
+				? path.join(
+						projectRoot,
+						".local",
+						"jianying-runtime",
+						"category-five",
+						"packages"
+					)
+				: undefined,
 			projectRoot
 				? path.join(
 						projectRoot,
@@ -213,7 +379,7 @@ async function findTransitionPackages(): Promise<Map<string, string>> {
 	const packagePaths = new Map<string, string>();
 
 	const directChecks = await Promise.all(
-		JIANYING_TRANSITIONS.flatMap((transition) =>
+		LOCAL_RENDER_TRANSITIONS.flatMap((transition) =>
 			existingRoots.map(async (root) => ({
 				transition,
 				packagePath: await findDirectPackage({ root, transition }),
@@ -226,7 +392,7 @@ async function findTransitionPackages(): Promise<Map<string, string>> {
 		}
 	}
 
-	const missing = JIANYING_TRANSITIONS.filter(
+	const missing = LOCAL_RENDER_TRANSITIONS.filter(
 		(transition) => !packagePaths.has(transition.id)
 	);
 	if (missing.length === 0) return packagePaths;
@@ -258,21 +424,34 @@ async function findTransitionPackages(): Promise<Map<string, string>> {
 	return packagePaths;
 }
 
-function buildStatus({
+export function buildJianyingRuntimeStatus({
 	appBundlePath,
+	runtimeRootPath,
 	bridgePath,
 	packagePaths,
+	runtimeError,
 	error,
 }: {
 	appBundlePath: string | null;
+	runtimeRootPath: string | null;
 	bridgePath: string | null;
 	packagePaths: ReadonlyMap<string, string>;
+	runtimeError?: string;
 	error?: string;
 }): JianyingTransitionRuntimeStatus {
-	const transitions = JIANYING_TRANSITIONS.map((transition) => ({
-		id: transition.id,
-		available: packagePaths.has(transition.id),
-	}));
+	const runtimeReady = Boolean(runtimeRootPath && bridgePath);
+	const transitions = JIANYING_TRANSITIONS.map((transition) => {
+		const isAiGeneration = transition.runtimeKind === "ai-generation";
+		return {
+			id: transition.id,
+			available:
+				!isAiGeneration && runtimeReady && packagePaths.has(transition.id),
+			runtimeKind: transition.runtimeKind,
+			...(isAiGeneration
+				? { reason: "此效果需要 QCut AI 首尾帧生成，不使用本机双输入转场桥。" }
+				: {}),
+		};
+	});
 	const availableCount = transitions.filter(
 		(transition) => transition.available
 	).length;
@@ -292,7 +471,7 @@ function buildStatus({
 			message: "剪映本机转场运行时目前仅支持 macOS。",
 		};
 	}
-	if (!appBundlePath) {
+	if (!appBundlePath && !runtimeRootPath) {
 		return {
 			...base,
 			state: "app-missing",
@@ -306,17 +485,24 @@ function buildStatus({
 			message: "QCut 本机转场桥未构建。",
 		};
 	}
-	if (availableCount < JIANYING_TRANSITIONS.length) {
+	if (!runtimeRootPath) {
+		return {
+			...base,
+			state: "runtime-incompatible",
+			message: runtimeError || "本机剪映运行时与当前 QCut bridge ABI 不兼容。",
+		};
+	}
+	if (availableCount < LOCAL_RENDER_TRANSITIONS.length) {
 		return {
 			...base,
 			state: "packages-missing",
-			message: `本机已找到 ${availableCount}/${JIANYING_TRANSITIONS.length} 个剪映转场包。`,
+			message: `本机已找到 ${availableCount}/${LOCAL_RENDER_TRANSITIONS.length} 个可直接渲染的剪映转场包；另有 ${AI_GENERATION_TRANSITIONS.length} 个 AI 一镜到底效果。`,
 		};
 	}
 	return {
 		...base,
 		state: "ready",
-		message: `${availableCount} 个剪映本机转场均可用。`,
+		message: `${availableCount} 个剪映本机转场可用；${AI_GENERATION_TRANSITIONS.length} 个 AI 一镜到底效果需使用首尾帧生成。`,
 	};
 }
 
@@ -324,12 +510,14 @@ export async function inspectJianyingTransitionRuntime(): Promise<JianyingRuntim
 	if (process.platform !== "darwin") {
 		const packagePaths = new Map<string, string>();
 		return {
-			status: buildStatus({
+			status: buildJianyingRuntimeStatus({
 				appBundlePath: null,
+				runtimeRootPath: null,
 				bridgePath: null,
 				packagePaths,
 			}),
 			appBundlePath: null,
+			runtimeRootPath: null,
 			bridgePath: null,
 			packagePaths,
 		};
@@ -341,9 +529,17 @@ export async function inspectJianyingTransitionRuntime(): Promise<JianyingRuntim
 			resolveJianyingTransitionBridge(),
 			findTransitionPackages(),
 		]);
+		const runtime = await selectRuntimeRoot({ appBundlePath, bridgePath });
 		return {
-			status: buildStatus({ appBundlePath, bridgePath, packagePaths }),
+			status: buildJianyingRuntimeStatus({
+				appBundlePath,
+				runtimeRootPath: runtime.runtimeRootPath,
+				bridgePath,
+				packagePaths,
+				runtimeError: runtime.error,
+			}),
 			appBundlePath,
+			runtimeRootPath: runtime.runtimeRootPath,
 			bridgePath,
 			packagePaths,
 		};
@@ -351,13 +547,15 @@ export async function inspectJianyingTransitionRuntime(): Promise<JianyingRuntim
 		const message = cause instanceof Error ? cause.message : String(cause);
 		const packagePaths = new Map<string, string>();
 		return {
-			status: buildStatus({
+			status: buildJianyingRuntimeStatus({
 				appBundlePath: null,
+				runtimeRootPath: null,
 				bridgePath: null,
 				packagePaths,
 				error: message,
 			}),
 			appBundlePath: null,
+			runtimeRootPath: null,
 			bridgePath: null,
 			packagePaths,
 		};
