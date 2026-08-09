@@ -4,7 +4,9 @@ import { constants } from "node:fs";
 import { access, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { parseArgs } from "node:util";
+import { getFFmpegPath, getFFprobePath } from "../../electron/ffmpeg/paths";
 import { JIANYING_TRANSITIONS } from "../../electron/jianying-transition-catalog";
+import { mapWithConcurrency } from "../../electron/lib/map-with-concurrency";
 
 const projectRoot = path.resolve(import.meta.dir, "../..");
 const cliEntry = path.join(projectRoot, "electron/native-pipeline/cli/cli.ts");
@@ -157,13 +159,17 @@ async function validateVideo({
 	outputPath,
 	width,
 	height,
+	ffmpegPath,
+	ffprobePath,
 }: {
 	outputPath: string;
 	width: number;
 	height: number;
+	ffmpegPath: string;
+	ffprobePath: string;
 }) {
 	const metadataResult = await runProcess({
-		command: "ffprobe",
+		command: ffprobePath,
 		args: [
 			"-v",
 			"error",
@@ -200,7 +206,7 @@ async function validateVideo({
 	}
 
 	const signalResult = await runProcess({
-		command: "ffmpeg",
+		command: ffmpegPath,
 		args: [
 			"-hide_banner",
 			"-loglevel",
@@ -230,9 +236,13 @@ async function validateVideo({
 async function verifyTransition({
 	transition,
 	options,
+	ffmpegPath,
+	ffprobePath,
 }: {
 	transition: (typeof JIANYING_TRANSITIONS)[number];
 	options: VerificationOptions;
+	ffmpegPath: string;
+	ffprobePath: string;
 }): Promise<TransitionVerification> {
 	const outputPath = path.join(options.outputDirectory, `${transition.id}.mp4`);
 	const result = await runProcess({
@@ -277,6 +287,8 @@ async function verifyTransition({
 			outputPath,
 			width: options.width,
 			height: options.height,
+			ffmpegPath,
+			ffprobePath,
 		});
 		return {
 			id: transition.id,
@@ -297,49 +309,36 @@ async function verifyTransition({
 	}
 }
 
-async function verifyCatalog({
-	transitions,
-	index,
-	options,
-	results,
-}: {
-	transitions: typeof JIANYING_TRANSITIONS;
-	index: number;
-	options: VerificationOptions;
-	results: TransitionVerification[];
-}): Promise<TransitionVerification[]> {
-	const transition = transitions[index];
-	if (!transition) return results;
-	const result = await verifyTransition({ transition, options });
-	console.log(
-		`${result.passed ? "PASS" : "FAIL"} ${index + 1}/${transitions.length} ${transition.localizedName}`
-	);
-	return verifyCatalog({
-		transitions,
-		index: index + 1,
-		options,
-		results: [...results, result],
-	});
-}
-
 async function run() {
 	const options = parseOptions();
-	await Promise.all([
+	const [, , ffprobePath] = await Promise.all([
 		requireReadableFile({ filePath: options.inputA }),
 		requireReadableFile({ filePath: options.inputB }),
+		getFFprobePath(),
 		requireIgnoredOutput({ outputDirectory: options.outputDirectory }),
 	]);
+	const ffmpegPath = getFFmpegPath();
 	const transitions = JIANYING_TRANSITIONS.filter(
 		(transition) => transition.runtimeKind === "transition-segment"
 	);
 	const skipped = JIANYING_TRANSITIONS.filter(
 		(transition) => transition.runtimeKind === "ai-generation"
 	).map((transition) => transition.id);
-	const results = await verifyCatalog({
-		transitions,
-		index: 0,
-		options,
-		results: [],
+	const results = await mapWithConcurrency({
+		items: transitions,
+		limit: 1,
+		task: async ({ item: transition, index }) => {
+			const result = await verifyTransition({
+				transition,
+				options,
+				ffmpegPath,
+				ffprobePath,
+			});
+			console.log(
+				`${result.passed ? "PASS" : "FAIL"} ${index + 1}/${transitions.length} ${transition.localizedName}`
+			);
+			return result;
+		},
 	});
 	const failures = results.filter((result) => !result.passed);
 	const report = {
