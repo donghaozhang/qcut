@@ -39,10 +39,23 @@ import {
 import { resolveTransitionAssetEntry } from "@/lib/assets/qcut-asset-manifest";
 import { useOnlineStatus } from "@/hooks/use-online-status";
 import {
+	getJianyingTransitionCount,
 	JIANYING_TRANSITION_GROUPS,
+	JIANYING_TRANSITIONS,
+	resolveJianyingTransition,
 	type JianyingTransitionGroup,
 } from "../../../../../../../../electron/jianying-transition-catalog";
 import { useJianyingTransitionRuntime } from "./use-jianying-transition-runtime";
+
+function getJianyingGroupCount({
+	group,
+}: {
+	group: "all" | JianyingTransitionGroup;
+}): number {
+	return group === "all"
+		? JIANYING_TRANSITIONS.length
+		: getJianyingTransitionCount({ group });
+}
 
 function resolvePresetResource({
 	preset,
@@ -312,6 +325,13 @@ export function TransitionsView() {
 
 	const handleDownload = async ({ preset }: { preset: TransitionPreset }) => {
 		if (preset.backend === "jianying-local") {
+			const definition = resolveJianyingTransition({ value: preset.id });
+			if (definition?.runtimeKind === "ai-generation") {
+				toast.info(
+					`${definition.localizedName}需要提取前后片段的首尾帧，再通过 QCut AI 生成过渡视频。`
+				);
+				return;
+			}
 			const status = await jianyingRuntime.refresh();
 			if (
 				status?.transitions.some(
@@ -462,30 +482,36 @@ export function TransitionsView() {
 					{category === "jianying-local" ? (
 						<div className="mt-2 border-t border-border/50 pt-2">
 							<div
-								className="grid grid-cols-2 gap-1"
+								className="grid grid-cols-3 gap-1"
 								role="tablist"
 								aria-label="转场实验室分类"
 							>
-								{JIANYING_TRANSITION_GROUPS.map((group) => (
-									<button
-										key={group.id}
-										type="button"
-										role="tab"
-										aria-selected={jianyingGroup === group.id}
-										className={cn(
-											"h-6 rounded border px-1 text-[10px] transition-colors",
-											jianyingGroup === group.id
-												? "border-primary/50 bg-primary/15 text-primary"
-												: "border-border/60 text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-										)}
-										onClick={() => setJianyingGroup(group.id)}
-										onKeyDown={(event) => {
-											if (event.key === "Escape") event.currentTarget.blur();
-										}}
-									>
-										{group.label}
-									</button>
-								))}
+								{JIANYING_TRANSITION_GROUPS.map((group) => {
+									const count = getJianyingGroupCount({ group: group.id });
+									return (
+										<button
+											key={group.id}
+											type="button"
+											role="tab"
+											aria-selected={jianyingGroup === group.id}
+											className={cn(
+												"flex h-7 min-w-0 items-center justify-between gap-1 rounded border px-1.5 text-[10px] transition-colors",
+												jianyingGroup === group.id
+													? "border-primary/50 bg-primary/15 text-primary"
+													: "border-border/60 text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+											)}
+											onClick={() => setJianyingGroup(group.id)}
+											onKeyDown={(event) => {
+												if (event.key === "Escape") event.currentTarget.blur();
+											}}
+										>
+											<span className="min-w-0 truncate">{group.label}</span>
+											<span className="shrink-0 tabular-nums opacity-70">
+												{count}
+											</span>
+										</button>
+									);
+								})}
 							</div>
 							<div className="mt-1.5 flex min-w-0 items-center gap-1.5 text-[10px] text-muted-foreground">
 								<span
