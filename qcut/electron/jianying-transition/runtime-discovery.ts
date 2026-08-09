@@ -1,5 +1,5 @@
 import { execFile } from "node:child_process";
-import { constants } from "node:fs";
+import { constants, readdirSync } from "node:fs";
 import { access, readdir } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -252,9 +252,28 @@ async function selectRuntimeRoot({
 	};
 }
 
+function generatedPackageRootCandidates({
+	projectRoot,
+}: {
+	projectRoot: string | null;
+}): string[] {
+	if (!projectRoot) return [];
+	const generatedRoot = path.join(projectRoot, ".local", "jianying-runtime");
+	try {
+		return readdirSync(generatedRoot, { withFileTypes: true })
+			.filter(
+				(entry) => entry.isDirectory() && entry.name.startsWith("category-")
+			)
+			.map((entry) => path.join(generatedRoot, entry.name, "packages"));
+	} catch {
+		return [];
+	}
+}
+
 function packageRootCandidates(): string[] {
 	const home = os.homedir();
 	const projectRoot = findQCutProjectRoot();
+	const generatedPackageRoots = generatedPackageRootCandidates({ projectRoot });
 	const overrides = [
 		process.env.QCUT_JIANYING_TRANSITION_PACKAGE_ROOT,
 		process.env.QCUT_JIANYING_TRANSITION_CACHE,
@@ -278,24 +297,7 @@ function packageRootCandidates(): string[] {
 				"effect"
 			),
 			path.join(home, "Movies", "JianyingPro", "User Data", "Cache", "effect"),
-			projectRoot
-				? path.join(
-						projectRoot,
-						".local",
-						"jianying-runtime",
-						"category-twenty",
-						"packages"
-					)
-				: undefined,
-			projectRoot
-				? path.join(
-						projectRoot,
-						".local",
-						"jianying-runtime",
-						"category-five",
-						"packages"
-					)
-				: undefined,
+			...generatedPackageRoots,
 			projectRoot
 				? path.join(
 						projectRoot,
