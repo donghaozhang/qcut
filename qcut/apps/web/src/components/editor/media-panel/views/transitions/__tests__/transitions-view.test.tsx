@@ -121,13 +121,19 @@ function installReadyJianyingRuntime() {
 			platform: "darwin",
 			appInstalled: true,
 			bridgeReady: true,
-			availableCount: JIANYING_TRANSITIONS.length,
+			availableCount: JIANYING_TRANSITIONS.filter(
+				(transition) => transition.runtimeKind === "transition-segment"
+			).length,
 			totalCount: JIANYING_TRANSITIONS.length,
 			transitions: JIANYING_TRANSITIONS.map((transition) => ({
 				id: transition.id,
-				available: true,
+				available: transition.runtimeKind === "transition-segment",
+				runtimeKind: transition.runtimeKind,
+				...(transition.runtimeKind === "ai-generation"
+					? { reason: "需要 QCut AI 首尾帧生成。" }
+					: {}),
 			})),
-			message: "20 个剪映本机转场均可用。",
+			message: "67 个剪映本机转场可用；5 个 AI 一镜到底效果需使用首尾帧生成。",
 		})),
 		render: vi.fn(async () => {
 			throw new Error("Unexpected direct render in component test");
@@ -252,11 +258,18 @@ describe("TransitionsView", () => {
 					screen.getByTestId("transition-card-jianying-local-3d-space")
 				).toBeVisible()
 			);
-			expect(screen.getByText("20 个转场")).toBeVisible();
-			expect(screen.getByText("20 个剪映本机转场均可用。")).toBeVisible();
-			expect(screen.getByRole("tab", { name: "空间运镜" })).toBeVisible();
+			expect(screen.getByText("72 个转场")).toBeVisible();
+			expect(
+				screen.getByText(
+					"67 个剪映本机转场可用；5 个 AI 一镜到底效果需使用首尾帧生成。"
+				)
+			).toBeVisible();
+			expect(
+				screen.getByRole("tab", { name: /AI 一镜到底\s+5/ })
+			).toBeVisible();
 
-			fireEvent.click(screen.getByRole("tab", { name: "图形遮罩" }));
+			fireEvent.click(screen.getByRole("tab", { name: /幻灯片\s+7/ }));
+			expect(screen.getByText("7 个转场")).toBeVisible();
 			expect(
 				screen.getByTestId("transition-card-jianying-local-heart")
 			).toBeVisible();
