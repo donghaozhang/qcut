@@ -17,6 +17,7 @@ describe("Jianying transition runtime status", () => {
 			runtimeRootPath: "/ignored/runtime",
 			bridgePath: "/ignored/bridge",
 			packagePaths: allLocalPackagePaths(),
+			platform: "darwin",
 		});
 
 		expect(status.state).toBe("ready");
@@ -39,6 +40,7 @@ describe("Jianying transition runtime status", () => {
 			runtimeRootPath: null,
 			bridgePath: "/ignored/bridge",
 			packagePaths: allLocalPackagePaths(),
+			platform: "darwin",
 			runtimeError: "UUID mismatch",
 		});
 
@@ -56,10 +58,25 @@ describe("Jianying transition runtime status", () => {
 			runtimeRootPath: "/ignored/runtime",
 			bridgePath: "/ignored/bridge",
 			packagePaths: allLocalPackagePaths(),
+			platform: "darwin",
 		});
 
 		expect(status.state).toBe("ready");
 		expect(status.appInstalled).toBe(false);
 		expect(status.availableCount).toBe(260);
+	});
+
+	it("reports the runtime as unsupported outside macOS", () => {
+		const status = buildJianyingRuntimeStatus({
+			appBundlePath: null,
+			runtimeRootPath: null,
+			bridgePath: null,
+			packagePaths: new Map(),
+			platform: "linux",
+		});
+
+		expect(status.state).toBe("unsupported-platform");
+		expect(status.platform).toBe("linux");
+		expect(status.availableCount).toBe(0);
 	});
 });
