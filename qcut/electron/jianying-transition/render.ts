@@ -9,6 +9,7 @@ import {
 	type JianyingTimelineRenderRequest,
 	type JianyingTimelineRenderResult,
 	type JianyingTimelineTransitionSpec,
+	type JianyingTransitionDefinition,
 	type JianyingTransitionRenderRequest,
 	type JianyingTransitionRenderResult,
 } from "../jianying-transition-contract.js";
@@ -17,8 +18,28 @@ import {
 	inspectJianyingTransitionRuntime,
 	type JianyingRuntimeInspection,
 } from "./runtime-discovery.js";
+import {
+	findFirstInvalidRawFrame,
+	rawFrameHasVisibleColor,
+	repairIsolatedRawOutputFrame,
+	repairIsolatedRawTransitionBoundary,
+	type RawTransitionFrameIssue,
+} from "./raw-video-validation.js";
+import { buildJianyingRawDecodeFilter } from "./video-filters.js";
 
 const MAX_CAPTURED_PROCESS_OUTPUT = 64 * 1024;
+const MAX_RAW_TRANSITION_RENDER_ATTEMPTS = 3;
+
+function requireLocalTransitionSegment({
+	transition,
+}: {
+	transition: JianyingTransitionDefinition;
+}): void {
+	if (transition.runtimeKind === "transition-segment") return;
+	throw new Error(
+		`“${transition.localizedName}”是 AI 首尾帧生成效果，不能通过本机双输入转场桥渲染。`
+	);
+}
 
 export type JianyingTransitionProgress = (input: {
 	stage: string;
@@ -176,13 +197,7 @@ async function decodeInput({
 	height: number;
 	fps: number;
 }) {
-	const normalizeFilter = [
-		`fps=${fps}`,
-		`scale=${width}:${height}:force_original_aspect_ratio=decrease:flags=lanczos`,
-		`pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:color=black`,
-		"setsar=1",
-		"format=rgba",
-	].join(",");
+	const normalizeFilter = buildJianyingRawDecodeFilter({ fps, width, height });
 	await runProcess({
 		command: ffmpegPath,
 		args: [
@@ -309,17 +324,23 @@ async function renderRawTransition({
 	fps: number;
 	duration: number;
 }): Promise<void> {
-	if (!inspection.appBundlePath || !inspection.bridgePath) {
+	if (!inspection.runtimeRootPath || !inspection.bridgePath) {
 		throw new Error(inspection.status.message);
 	}
-	const appContents = path.join(inspection.appBundlePath, "Contents");
-	const frameworks = path.join(appContents, "Frameworks");
+	const runtimeFrameworks = path.join(inspection.runtimeRootPath, "Frameworks");
+	const appFrameworks = inspection.appBundlePath
+		? path.join(inspection.appBundlePath, "Contents", "Frameworks")
+		: undefined;
 	await runProcess({
 		command: inspection.bridgePath,
-		args: [appContents, "transition-video"],
+		args: [inspection.runtimeRootPath, "transition-video"],
 		env: {
 			...process.env,
-			DYLD_LIBRARY_PATH: [frameworks, process.env.DYLD_LIBRARY_PATH]
+			DYLD_LIBRARY_PATH: [
+				runtimeFrameworks,
+				appFrameworks,
+				process.env.DYLD_LIBRARY_PATH,
+			]
 				.filter(Boolean)
 				.join(":"),
 			JY_TRANSITION_PACKAGE: packagePath,
@@ -333,6 +354,143 @@ async function renderRawTransition({
 			JY_TRANSITION_HOLD_EXACT_ENDPOINTS: "1",
 		},
 	});
+}
+
+async function renderValidatedRawTransition({
+	inspection,
+	packagePath,
+	rawInputA,
+	rawInputB,
+	rawOutput,
+	width,
+	height,
+	fps,
+	duration,
+	inputAFrameCount,
+	expectedFrameCount,
+	onRetry = () => undefined,
+}: {
+	inspection: JianyingRuntimeInspection;
+	packagePath: string;
+	rawInputA: string;
+	rawInputB: string;
+	rawOutput: string;
+	width: number;
+	height: number;
+	fps: number;
+	duration: number;
+	inputAFrameCount: number;
+	expectedFrameCount: number;
+	onRetry?: (input: { attempt: number; frame: number }) => void;
+}): Promise<number> {
+	const transitionFrameCount = Math.round(duration * fps);
+	const transitionStartFrame =
+		inputAFrameCount - Math.floor(transitionFrameCount / 2);
+	const frameBytes = width * height * 4;
+	const framesBeforeCut = Math.floor(transitionFrameCount / 2);
+	const inputBFrameCount = expectedFrameCount - inputAFrameCount;
+	await repairIsolatedRawTransitionBoundary({
+		rawInputA,
+		rawInputB,
+		frameBytes,
+		inputAFrameCount,
+		inputBFrameCount,
+	});
+
+	const isUnexpectedEmptyFrame = async ({
+		frame,
+	}: {
+		frame: number;
+	}): Promise<boolean> => {
+		const transitionFrame = frame - transitionStartFrame;
+		const inputAFrame =
+			transitionFrame < framesBeforeCut
+				? transitionStartFrame + transitionFrame
+				: inputAFrameCount - 1;
+		const inputBFrame =
+			transitionFrame > framesBeforeCut ? transitionFrame - framesBeforeCut : 0;
+		const [inputAHasColor, inputBHasColor] = await Promise.all([
+			rawFrameHasVisibleColor({
+				rawPath: rawInputA,
+				frameBytes,
+				frame: inputAFrame,
+			}),
+			rawFrameHasVisibleColor({
+				rawPath: rawInputB,
+				frameBytes,
+				frame: inputBFrame,
+			}),
+		]);
+		return inputAHasColor && inputBHasColor;
+	};
+	const findFirstUnexpectedFrame = async ({
+		startFrame,
+		endFrame,
+	}: {
+		startFrame: number;
+		endFrame: number;
+	}): Promise<RawTransitionFrameIssue | null> => {
+		if (startFrame >= endFrame) return null;
+		const issue = await findFirstInvalidRawFrame({
+			rawPath: rawOutput,
+			frameBytes,
+			startFrame,
+			frameCount: endFrame - startFrame,
+		});
+		if (issue === null) return null;
+		if (await isUnexpectedEmptyFrame({ frame: issue.frame })) return issue;
+		return findFirstUnexpectedFrame({
+			startFrame: issue.frame + 1,
+			endFrame,
+		});
+	};
+
+	const renderAttempt = async ({
+		attempt,
+	}: {
+		attempt: number;
+	}): Promise<number> => {
+		await renderRawTransition({
+			inspection,
+			packagePath,
+			rawInputA,
+			rawInputB,
+			rawOutput,
+			width,
+			height,
+			fps,
+			duration,
+		});
+		const renderedFrameCount = await countRawFrames({
+			rawPath: rawOutput,
+			width,
+			height,
+		});
+		if (renderedFrameCount !== expectedFrameCount) {
+			throw new Error("Jianying transition changed the video length.");
+		}
+		const issue = await findFirstUnexpectedFrame({
+			startFrame: transitionStartFrame,
+			endFrame: transitionStartFrame + transitionFrameCount,
+		});
+		if (issue === null) return renderedFrameCount;
+		if (attempt >= MAX_RAW_TRANSITION_RENDER_ATTEMPTS) {
+			const repaired = await repairIsolatedRawOutputFrame({
+				rawPath: rawOutput,
+				frameBytes,
+				frame: issue.frame,
+				frameCount: renderedFrameCount,
+			});
+			if (repaired) return renderedFrameCount;
+			throw new Error(
+				`Jianying runtime returned an ${issue.reason} RGBA frame at ${issue.frame} after ${attempt} attempts.`
+			);
+		}
+		onRetry({ attempt: attempt + 1, frame: issue.frame });
+		return renderAttempt({ attempt: attempt + 1 });
+	};
+
+	return renderAttempt({ attempt: 1 });
 }
 
 async function splitRawVideo({
@@ -399,6 +557,7 @@ async function applyTimelineTransition({
 	if (!transition) {
 		throw new Error(`Unknown Jianying transition: ${spec.presetId}`);
 	}
+	requireLocalTransitionSegment({ transition });
 	const packagePath = inspection.packagePaths.get(transition.id);
 	if (!packagePath) {
 		throw new Error(`本机尚未缓存剪映转场“${transition.localizedName}”。`);
@@ -431,7 +590,7 @@ async function applyTimelineTransition({
 		percent,
 		message: `调用剪映本机引擎渲染${transition.localizedName}`,
 	});
-	await renderRawTransition({
+	const renderedFrameCount = await renderValidatedRawTransition({
 		inspection,
 		packagePath,
 		rawInputA,
@@ -441,15 +600,16 @@ async function applyTimelineTransition({
 		height,
 		fps,
 		duration,
+		inputAFrameCount: cutFrame,
+		expectedFrameCount: frameCount,
+		onRetry: ({ attempt }) => {
+			onProgress({
+				stage: "render",
+				percent,
+				message: `检测到未完成帧，正在第 ${attempt} 次渲染${transition.localizedName}`,
+			});
+		},
 	});
-	const renderedFrameCount = await countRawFrames({
-		rawPath: rawOutput,
-		width,
-		height,
-	});
-	if (renderedFrameCount !== frameCount) {
-		throw new Error("Jianying timeline transition changed the video length.");
-	}
 	return applyTimelineTransition({
 		transitions,
 		index: index + 1,
@@ -475,6 +635,7 @@ export async function renderJianyingTransition({
 	const transition = resolveJianyingTransition({ value: request.presetId });
 	if (!transition)
 		throw new Error(`Unknown Jianying transition: ${request.presetId}`);
+	requireLocalTransitionSegment({ transition });
 	if (!(await isReadableFile({ filePath: request.inputA }))) {
 		throw new Error(`Input A is not readable: ${request.inputA}`);
 	}
@@ -496,7 +657,7 @@ export async function renderJianyingTransition({
 
 	onProgress({ stage: "inspect", percent: 5, message: "检查本机剪映运行时" });
 	const inspection = await inspectJianyingTransitionRuntime();
-	if (!inspection.appBundlePath) throw new Error(inspection.status.message);
+	if (!inspection.runtimeRootPath) throw new Error(inspection.status.message);
 	if (!inspection.bridgePath) throw new Error(inspection.status.message);
 	const packagePath = inspection.packagePaths.get(transition.id);
 	if (!packagePath) {
@@ -563,7 +724,11 @@ export async function renderJianyingTransition({
 			percent: 55,
 			message: `调用剪映本机引擎渲染${transition.localizedName}`,
 		});
-		await renderRawTransition({
+		const [inputAFrameCount, inputBFrameCount] = await Promise.all([
+			countRawFrames({ rawPath: rawInputA, width, height }),
+			countRawFrames({ rawPath: rawInputB, width, height }),
+		]);
+		const frameCount = await renderValidatedRawTransition({
 			inspection,
 			packagePath,
 			rawInputA,
@@ -573,11 +738,15 @@ export async function renderJianyingTransition({
 			height,
 			fps,
 			duration,
-		});
-		const frameCount = await countRawFrames({
-			rawPath: rawOutput,
-			width,
-			height,
+			inputAFrameCount,
+			expectedFrameCount: inputAFrameCount + inputBFrameCount,
+			onRetry: ({ attempt }) => {
+				onProgress({
+					stage: "render",
+					percent: 60,
+					message: `检测到未完成帧，正在第 ${attempt} 次渲染${transition.localizedName}`,
+				});
+			},
 		});
 		onProgress({ stage: "encode", percent: 85, message: "编码转场视频" });
 		await encodeOutput({
@@ -635,7 +804,7 @@ export async function renderJianyingTimelineTransitions({
 
 	onProgress({ stage: "inspect", percent: 5, message: "检查本机剪映运行时" });
 	const inspection = await inspectJianyingTransitionRuntime();
-	if (!inspection.appBundlePath || !inspection.bridgePath) {
+	if (!inspection.runtimeRootPath || !inspection.bridgePath) {
 		throw new Error(inspection.status.message);
 	}
 	const unknown = request.transitions.find(
@@ -643,6 +812,15 @@ export async function renderJianyingTimelineTransitions({
 	);
 	if (unknown) {
 		throw new Error(`Unknown Jianying transition: ${unknown.presetId}`);
+	}
+	const aiGenerationTransition = request.transitions
+		.flatMap((spec) => {
+			const transition = resolveJianyingTransition({ value: spec.presetId });
+			return transition ? [transition] : [];
+		})
+		.find((transition) => transition.runtimeKind === "ai-generation");
+	if (aiGenerationTransition) {
+		requireLocalTransitionSegment({ transition: aiGenerationTransition });
 	}
 	const unavailable = request.transitions
 		.flatMap((spec) => {
