@@ -8,32 +8,32 @@ import {
 
 describe("Jianying transition catalog", () => {
 	it("keeps the public Transition Lab catalog complete and unique", () => {
-		expect(JIANYING_TRANSITIONS).toHaveLength(72);
-		expect(new Set(JIANYING_TRANSITIONS.map(({ id }) => id)).size).toBe(72);
+		expect(JIANYING_TRANSITIONS).toHaveLength(280);
+		expect(new Set(JIANYING_TRANSITIONS.map(({ id }) => id)).size).toBe(280);
 		expect(
 			new Set(JIANYING_TRANSITIONS.map(({ resourceId }) => resourceId)).size
-		).toBe(72);
+		).toBe(280);
 		expect(
 			new Set(JIANYING_TRANSITIONS.map(({ metadataMd5 }) => metadataMd5)).size
-		).toBe(72);
+		).toBe(280);
 	});
 
-	it("matches the fourteen Jianying categories with at least five entries each", () => {
+	it("matches the fourteen Jianying categories with twenty entries each", () => {
 		const expectedCounts = new Map([
-			["ai-one-take", 5],
-			["dissolve", 5],
-			["split", 5],
-			["glitch", 5],
-			["light", 5],
-			["emoji", 5],
-			["slideshow", 7],
-			["blur", 5],
-			["distortion", 5],
-			["shooting", 5],
-			["camera", 5],
-			["natural", 5],
-			["variety", 5],
-			["mg", 5],
+			["ai-one-take", 20],
+			["dissolve", 20],
+			["split", 20],
+			["glitch", 20],
+			["light", 20],
+			["emoji", 20],
+			["slideshow", 20],
+			["blur", 20],
+			["distortion", 20],
+			["shooting", 20],
+			["camera", 20],
+			["natural", 20],
+			["variety", 20],
+			["mg", 20],
 		] as const);
 		expect(JIANYING_TRANSITION_GROUPS).toHaveLength(15);
 		for (const [group, count] of expectedCounts) {
@@ -41,17 +41,36 @@ describe("Jianying transition catalog", () => {
 		}
 	});
 
+	it("records the original Jianying group for curated supplements", () => {
+		const curatedSupplements = JIANYING_TRANSITIONS.filter(
+			(transition) => transition.group !== transition.sourceGroup
+		);
+		expect(curatedSupplements).toHaveLength(17);
+		expect(
+			curatedSupplements.filter(
+				(transition) =>
+					transition.group === "emoji" && transition.sourceGroup === "variety"
+			)
+		).toHaveLength(5);
+		expect(
+			curatedSupplements.filter(
+				(transition) =>
+					transition.group === "distortion" && transition.sourceGroup === "blur"
+			)
+		).toHaveLength(12);
+	});
+
 	it("keeps AI generation configs out of the local transition segment set", () => {
 		expect(
 			JIANYING_TRANSITIONS.filter(
 				(transition) => transition.runtimeKind === "ai-generation"
 			)
-		).toHaveLength(5);
+		).toHaveLength(20);
 		expect(
 			JIANYING_TRANSITIONS.filter(
 				(transition) => transition.runtimeKind === "transition-segment"
 			)
-		).toHaveLength(67);
+		).toHaveLength(260);
 	});
 
 	it("resolves stable IDs, resource IDs, and localized names", () => {
