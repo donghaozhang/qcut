@@ -21,7 +21,7 @@ function requirePreset({ presetId }: { presetId: string }): TransitionPreset {
 
 describe("transition presets", () => {
 	it("keeps every content category dense and every advanced engine distinct", () => {
-		expect(transitionPresets.length).toBeGreaterThanOrEqual(260);
+		expect(transitionPresets.length).toBeGreaterThanOrEqual(520);
 		expect(new Set(transitionPresets.map((preset) => preset.id)).size).toBe(
 			transitionPresets.length
 		);
