@@ -2,6 +2,7 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { parseArgs } from "node:util";
 
 const CATEGORY_IDS = [
 	"ai-one-take",
@@ -78,10 +79,13 @@ const EXPORT_NAMES: Readonly<Record<CategoryId, string>> = {
 const projectRoot = path.resolve(import.meta.dir, "../..");
 
 function manifestPath(): string {
-	const optionIndex = Bun.argv.indexOf("--manifest");
-	const value = optionIndex >= 0 ? Bun.argv[optionIndex + 1] : undefined;
-	return value
-		? path.resolve(value)
+	const { values } = parseArgs({
+		args: Bun.argv.slice(2),
+		options: { manifest: { type: "string" } },
+		strict: true,
+	});
+	return values.manifest
+		? path.resolve(values.manifest)
 		: path.join(
 				projectRoot,
 				".local/jianying-runtime/category-forty/selection.json"
