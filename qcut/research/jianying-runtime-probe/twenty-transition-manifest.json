@@ -1,0 +1,347 @@
+{
+	"schemaVersion": 1,
+	"catalog": {
+		"uniqueTransitionCount": 929,
+		"categoryCount": 16,
+		"selectedCount": 20,
+		"catalogObservedAt": "2026-07-12 11:07:28"
+	},
+	"runtimeValidation": {
+		"jianyingVersion": "11.1.12975",
+		"validatedAt": "2026-08-04",
+		"frameRate": 30,
+		"renderWidth": 640,
+		"renderHeight": 360,
+		"outputFrameCount": 240,
+		"progressStops": [0, 0.25, 0.5, 0.75, 1],
+		"localEvidence": ".local/jianying-runtime/new-twenty/render-validation.json"
+	},
+	"transitions": [
+		{
+			"title": "3D空间",
+			"resourceId": "7049979667406656014",
+			"metadataMd5": "aaecc038f6543411f601608fc5539f0b",
+			"durationSeconds": 1.5,
+			"overlap": true,
+			"family": "multi-pass-glsl",
+			"implementationKind": "procedural",
+			"algorithmStatus": "recovered",
+			"runtimeStatus": "rendered-five-stop",
+			"algorithm": "Blur A and B horizontally and vertically, split each image into six eased moving circular regions, mirror-repeat displaced UVs, then alpha-compose the two layered results.",
+			"evidenceFiles": [
+				"AmazingAuto/lua/SadGE.lua",
+				"AmazingAuto/lua/data_val.json",
+				"AmazingAuto/xshader/resource1/shader/normal.frag"
+			]
+		},
+		{
+			"title": "爱心",
+			"resourceId": "6748289440130535947",
+			"metadataMd5": "dc112fea855be02c22c4e7f542fd8985",
+			"durationSeconds": 0.5,
+			"overlap": true,
+			"family": "simple-glsl",
+			"implementationKind": "procedural",
+			"algorithmStatus": "recovered",
+			"runtimeStatus": "rendered-five-stop",
+			"algorithm": "Reveal B through an expanding implicit heart where (x^2+y^2-0.3)^3 <= x^2*y^3 after centering and scaling by 1.6p.",
+			"evidenceFiles": ["AmazingFeature/xshader/pass_0/shader/pass_0.fs"]
+		},
+		{
+			"title": "白光快闪",
+			"resourceId": "7343136487182963211",
+			"metadataMd5": "313a6e1f1ddce5b54d27af4b740466db",
+			"durationSeconds": 0.4,
+			"overlap": true,
+			"family": "sequence-composite",
+			"implementationKind": "hybrid",
+			"algorithmStatus": "recovered",
+			"runtimeStatus": "rendered-five-stop",
+			"algorithm": "Switch A to B at p=0.6 while a 31-frame mask gates Gaussian blur, additive glow, screen noise, sharpening, offsets, and grain with 10-frame AE ramps.",
+			"evidenceFiles": [
+				"AmazingFeature/lua/SeekModeScript.lua",
+				"AmazingFeature/seq/mask_2/mask_2.seq",
+				"AmazingFeature/xshader/passMask.xshader",
+				"AmazingFeature/xshader/passBlend.xshader",
+				"AmazingFeature/xshader/passBlend2.xshader",
+				"AmazingFeature/xshader/passBlend3.xshader"
+			]
+		},
+		{
+			"title": "白色墨花",
+			"resourceId": "6858191556055142919",
+			"metadataMd5": "f646dad0fdf213568600b875c7149f90",
+			"durationSeconds": 0.5,
+			"overlap": false,
+			"family": "sequence-composite",
+			"implementationKind": "sequence",
+			"algorithmStatus": "recovered",
+			"runtimeStatus": "rendered-five-stop",
+			"algorithm": "Hard-switch source ownership at p=0.5 and cover the seam with a center-cropped 47-frame 500x500 ink sequence using start frame 1.",
+			"evidenceFiles": [
+				"AmazingAuto_out/lua/SadGE.lua",
+				"AmazingAuto_out/lua/Vars.lua",
+				"AmazingAuto_out/seq/blendTexture.seq",
+				"AmazingAuto_out/xshader/resource1/shader/CenterCrop.frag"
+			]
+		},
+		{
+			"title": "百叶窗",
+			"resourceId": "6789847331060584974",
+			"metadataMd5": "ec2ef435d94438cbcea7eb3c1e324fed",
+			"durationSeconds": 0.5,
+			"overlap": true,
+			"family": "sequence-composite",
+			"implementationKind": "sequence",
+			"algorithmStatus": "recovered",
+			"runtimeStatus": "rendered-five-stop",
+			"algorithm": "Use the alpha channel of a 31-frame 450x800 sequence as the direct mix weight between A and B; frame=floor(31p), clamped.",
+			"evidenceFiles": [
+				"AmazingFeature/lua/SadGE.lua",
+				"AmazingFeature/lua/Vars.lua",
+				"AmazingFeature/seq/blendTexture.seq",
+				"AmazingFeature/xshader/resource/shader/CenterCrop.frag"
+			]
+		},
+		{
+			"title": "波点向右",
+			"resourceId": "6858191541706428941",
+			"metadataMd5": "035a364b803f4e0ee60508b9094e79ad",
+			"durationSeconds": 0.5,
+			"overlap": false,
+			"family": "sequence-composite",
+			"implementationKind": "sequence",
+			"algorithmStatus": "recovered",
+			"runtimeStatus": "rendered-five-stop",
+			"algorithm": "Hard-switch A to B at p=0.5 and cover the seam with a center-cropped 48-frame 500x500 right-moving dot sequence.",
+			"evidenceFiles": [
+				"AmazingAuto_out/lua/SadGE.lua",
+				"AmazingAuto_out/lua/Vars.lua",
+				"AmazingAuto_out/seq/blendTexture.seq",
+				"AmazingAuto_out/xshader/resource1/shader/CenterCrop.frag"
+			]
+		},
+		{
+			"title": "窗格",
+			"resourceId": "6747989545448378888",
+			"metadataMd5": "4c9bedfe2f757bac18893935806c4d0e",
+			"durationSeconds": 0.5,
+			"overlap": true,
+			"family": "simple-glsl",
+			"implementationKind": "procedural",
+			"algorithmStatus": "recovered",
+			"runtimeStatus": "rendered-five-stop",
+			"algorithm": "Reveal B in ten vertical strips with pr=smoothstep(-0.5,0,x-1.5p) and mask=step(pr,fract(10x)).",
+			"evidenceFiles": ["AmazingAuto_out/xshader/pass_0/shader/pass_0.fs"]
+		},
+		{
+			"title": "弹跳",
+			"resourceId": "6747865141120864779",
+			"metadataMd5": "cc56bf3edc364c10f78b89ea0a45ce3f",
+			"durationSeconds": 0.5,
+			"overlap": true,
+			"family": "simple-glsl",
+			"implementationKind": "procedural",
+			"algorithmStatus": "recovered",
+			"runtimeStatus": "rendered-five-stop",
+			"algorithm": "Bounce A over B three times with y=abs(cos(3pi*p))*(1-sin(pi*p/2)) and render a 0.0375-high, 0.6-alpha contact shadow.",
+			"evidenceFiles": ["AmazingAuto_out/xshader/pass_0/shader/pass_0.fs"]
+		},
+		{
+			"title": "倒影",
+			"resourceId": "6748313807031898627",
+			"metadataMd5": "117d1db8f04a9e0e5fc3cc78c7dbd729",
+			"durationSeconds": 0.5,
+			"overlap": true,
+			"family": "simple-glsl",
+			"implementationKind": "procedural",
+			"algorithmStatus": "recovered",
+			"runtimeStatus": "rendered-five-stop",
+			"algorithm": "Move A and B through perspective-scaled panels over black, project both panels below the horizon for reflections, and change draw order at p=0.5.",
+			"evidenceFiles": ["AmazingAuto_out/xshader/pass_0/shader/pass_0.fs"]
+		},
+		{
+			"title": "电视故障 I",
+			"resourceId": "7046293801123451405",
+			"metadataMd5": "c9c98b374154a9b620eb320299f2c7d1",
+			"durationSeconds": 1.6,
+			"overlap": true,
+			"family": "sequence-composite",
+			"implementationKind": "hybrid",
+			"algorithmStatus": "recovered",
+			"runtimeStatus": "rendered-five-stop",
+			"algorithm": "Glitch A for p<0.3, play a 15-frame 480x270 fault sequence for 0.3<=p<0.7, then glitch B with quadratic decay through p=1.",
+			"evidenceFiles": [
+				"AmazingFeature/lua/SadGE.lua",
+				"AmazingFeature/lua/Vars.lua",
+				"AmazingFeature/seq/blendTexture.seq",
+				"AmazingFeature/xshader/resource1/shader/normal.frag"
+			]
+		},
+		{
+			"title": "叠加",
+			"resourceId": "6914112332205396488",
+			"metadataMd5": "e663d3eadda5e233b48be9e128d1738a",
+			"durationSeconds": 1,
+			"overlap": true,
+			"family": "simple-glsl",
+			"implementationKind": "procedural",
+			"algorithmStatus": "recovered",
+			"runtimeStatus": "rendered-five-stop",
+			"algorithm": "Ramp from A into an additive A+B bridge during the first half, then move through overlay blending to B during the second half.",
+			"evidenceFiles": [
+				"AmazingAuto_out/xshader/resource1/shader/VerticalGlitch0.frag"
+			]
+		},
+		{
+			"title": "动漫漩涡",
+			"resourceId": "6858191448827761160",
+			"metadataMd5": "3154a45bf721c590246d3d8b512c4865",
+			"durationSeconds": 0.5,
+			"overlap": false,
+			"family": "sequence-composite",
+			"implementationKind": "sequence",
+			"algorithmStatus": "recovered",
+			"runtimeStatus": "rendered-five-stop",
+			"algorithm": "Hard-switch A to B at p=0.5 and cover the seam with a center-cropped 48-frame 500x500 vortex sequence using start frame 1.",
+			"evidenceFiles": [
+				"AmazingAuto_out/lua/SadGE.lua",
+				"AmazingAuto_out/lua/Vars.lua",
+				"AmazingAuto_out/seq/blendTexture.seq",
+				"AmazingAuto_out/xshader/resource1/shader/CenterCrop.frag"
+			]
+		},
+		{
+			"title": "抖动",
+			"resourceId": "7252544245444121148",
+			"metadataMd5": "1cc13be9019f8321a25836fcd1c17c04",
+			"durationSeconds": 0.8,
+			"overlap": true,
+			"family": "lua-pipeline",
+			"implementationKind": "procedural",
+			"algorithmStatus": "recovered",
+			"runtimeStatus": "rendered-five-stop",
+			"algorithm": "Evaluate AE position, scale, rotation, opacity, and radial-blur tracks for A and B over frames 10..29, mirror-expand UVs, rotationally blur, transform, then alpha-compose A over B.",
+			"evidenceFiles": [
+				"AmazingFeature/lua/src/AE.lua",
+				"AmazingFeature/lua/src/common/AEAdapter.lua",
+				"AmazingFeature/lua/src/TRMain.lua",
+				"AmazingFeature/lua/src/TREntry.lua"
+			]
+		},
+		{
+			"title": "翻篇",
+			"resourceId": "7034446419641504264",
+			"metadataMd5": "e0a1857d0e3757209caa3a75141df8d2",
+			"durationSeconds": 1.3,
+			"overlap": true,
+			"family": "simple-glsl",
+			"implementationKind": "procedural",
+			"algorithmStatus": "recovered",
+			"runtimeStatus": "rendered-five-stop",
+			"algorithm": "Scale 1->0.6->1, rotate a page 0->180 degrees, switch to a horizontal mirror of B after 90 degrees, and apply a nine-sample radial blur envelope.",
+			"evidenceFiles": [
+				"AmazingAuto_out/lua/SadGE.lua",
+				"AmazingAuto_out/xshader/resource/shader/pass0.frag"
+			]
+		},
+		{
+			"title": "泛白",
+			"resourceId": "6949828109663212045",
+			"metadataMd5": "f75ae1b9b8a905737a9124e1c2373798",
+			"durationSeconds": 1,
+			"overlap": false,
+			"family": "single-input-glsl",
+			"implementationKind": "procedural",
+			"algorithmStatus": "recovered",
+			"runtimeStatus": "rendered-five-stop",
+			"algorithm": "Apply exposure=16*bezier(min(p,1-p)) to the current non-overlap source; the host changes A to B at the cut, producing a white bridge.",
+			"evidenceFiles": [
+				"AmazingFeature/lua/ScriptCompTmp.lua",
+				"AmazingFeature/xshader/seqBlend.xshader"
+			]
+		},
+		{
+			"title": "放射",
+			"resourceId": "6724239584663704071",
+			"metadataMd5": "06cc8d49c558d57e21207f68a6a7dbc0",
+			"durationSeconds": 1,
+			"overlap": true,
+			"family": "simple-glsl",
+			"implementationKind": "procedural",
+			"algorithmStatus": "recovered",
+			"runtimeStatus": "rendered-five-stop",
+			"algorithm": "Cross-zoom with 41 randomized weighted samples toward a center moving from x=0.25 to x=0.75, sinusoidal blur strength peaking at 0.4, and exponential dissolve easing.",
+			"evidenceFiles": [
+				"AmazingAuto_out/xshader/resource1/shader/CrossZoom.frag"
+			]
+		},
+		{
+			"title": "风车",
+			"resourceId": "6748286529921094157",
+			"metadataMd5": "f17a5fe38057e4238deac4c59e91f109",
+			"durationSeconds": 0.5,
+			"overlap": true,
+			"family": "simple-glsl",
+			"implementationKind": "procedural",
+			"algorithmStatus": "recovered",
+			"runtimeStatus": "rendered-five-stop",
+			"algorithm": "Partition the image into eight radial sectors using atan around the center and rotate the alternating A/B ownership by angle=2p.",
+			"evidenceFiles": ["AmazingAuto_out/xshader/pass_0/shader/pass_0.fs"]
+		},
+		{
+			"title": "穿越 III",
+			"resourceId": "7341295618863665690",
+			"metadataMd5": "6d6fa95fe1414d4b4a45db9ddec0ee9b",
+			"durationSeconds": 0.8,
+			"overlap": true,
+			"family": "sequence-composite",
+			"implementationKind": "hybrid",
+			"algorithmStatus": "recovered",
+			"runtimeStatus": "rendered-five-stop",
+			"algorithm": "Shrink and FOV-warp A, bring B from 5x scale with optics/turbulence, peak directional and Gaussian blur around frame 19, and blend through a 32-frame mask.",
+			"evidenceFiles": [
+				"AmazingFeature/lua/SeekModeScript.lua",
+				"AmazingFeature/seq/1/1.seq",
+				"AmazingFeature/xshader/blendMode.frag",
+				"AmazingFeature/effects/MotionBlur2D/motion_blur_2d.frag"
+			]
+		},
+		{
+			"title": "吸入",
+			"resourceId": "7246288124110705209",
+			"metadataMd5": "fb75bf696e19a04795ae9a06b43a09f2",
+			"durationSeconds": 1,
+			"overlap": true,
+			"family": "multi-feature-lua",
+			"implementationKind": "procedural",
+			"algorithmStatus": "recovered",
+			"runtimeStatus": "rendered-five-stop",
+			"algorithm": "FOV-distort A to 110 then switch to B at frame 9.5/30 and unwind its FOV, while radial blur peaks at 50, Gaussian samples peak at 5, and AE position/scale/rotation tracks settle.",
+			"evidenceFiles": [
+				"AmazingFeature/lua/SeekModeScript.lua",
+				"AmazingFeature/xshader/passFOV.frag",
+				"AmazingFeatureRadialBlur/effects/radial_blur/lua/RadialBlurLayerScript.lua",
+				"AmazingFeatureBlur/effects/GaussianBlur/lua/GaussianBlurLayerScript.lua"
+			]
+		},
+		{
+			"title": "烟雾转场",
+			"resourceId": "7450031574923350555",
+			"metadataMd5": "67dc647cf7b1c45ada91d32bebc2bde7",
+			"durationSeconds": 1.5,
+			"overlap": true,
+			"family": "lumi-ae",
+			"implementationKind": "procedural",
+			"algorithmStatus": "recovered",
+			"runtimeStatus": "rendered-five-stop",
+			"algorithm": "Over 1.5 seconds, ramp radial blur 0->90 and wave amplitude 0->20 while moving A upward, scaling 100->200, fading 100->0, and flashing exposure 0->3->0 near the start.",
+			"evidenceFiles": [
+				"AmazingFeature/lua/LumiFamily/LumiExportData.lua",
+				"AmazingFeature/effects/LumiLayer/lua/LumiLayer.lua",
+				"AmazingFeature/effects/LumiRadialBlur/lua/ScriptCompRadialBlur.lua",
+				"AmazingFeature/effects/LumiWaveWarp/lua/LumiWaveWarp.lua"
+			]
+		}
+	]
+}
