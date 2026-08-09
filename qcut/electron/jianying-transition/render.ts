@@ -595,26 +595,34 @@ async function applyTimelineTransition({
 		percent,
 		message: `调用剪映本机引擎渲染${transition.localizedName}`,
 	});
-	const renderedFrameCount = await renderValidatedRawTransition({
-		inspection,
-		packagePath,
-		rawInputA,
-		rawInputB,
-		rawOutput,
-		width,
-		height,
-		fps,
-		duration,
-		inputAFrameCount: cutFrame,
-		expectedFrameCount: frameCount,
-		onRetry: ({ attempt }) => {
-			onProgress({
-				stage: "render",
-				percent,
-				message: `检测到未完成帧，正在第 ${attempt} 次渲染${transition.localizedName}`,
-			});
-		},
-	});
+	try {
+		await renderValidatedRawTransition({
+			inspection,
+			packagePath,
+			rawInputA,
+			rawInputB,
+			rawOutput,
+			width,
+			height,
+			fps,
+			duration,
+			inputAFrameCount: cutFrame,
+			expectedFrameCount: frameCount,
+			onRetry: ({ attempt }) => {
+				onProgress({
+					stage: "render",
+					percent,
+					message: `检测到未完成帧，正在第 ${attempt} 次渲染${transition.localizedName}`,
+				});
+			},
+		});
+	} finally {
+		await Promise.all([
+			rm(rawInputA, { force: true }),
+			rm(rawInputB, { force: true }),
+		]);
+	}
+	await rm(currentRawPath, { force: true });
 	return applyTimelineTransition({
 		transitions,
 		index: index + 1,
