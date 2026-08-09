@@ -8,6 +8,7 @@ import {
 	LoaderCircleIcon,
 	MousePointerClickIcon,
 	RefreshCwIcon,
+	SparklesIcon,
 } from "lucide-react";
 import type { DragEvent, KeyboardEvent, PointerEvent } from "react";
 import { useRef, useState } from "react";
@@ -57,6 +58,7 @@ export function TransitionCard({
 	const [isPreviewing, setIsPreviewing] = useState(false);
 	const selectedOnPointerDown = useRef(false);
 	const available = resourceState.available;
+	const isAiGeneration = preset.tags.includes("ai-generation");
 	const handlePointerDown = ({
 		event,
 	}: {
@@ -151,9 +153,13 @@ export function TransitionCard({
 				};
 			case "local-unavailable":
 				return {
-					label: "检查本机剪映资源",
+					label: isAiGeneration ? "AI 首尾帧生成说明" : "检查本机剪映资源",
 					disabled: false,
-					icon: (
+					icon: isAiGeneration ? (
+						<SparklesIcon className="size-3">
+							<title>AI 首尾帧生成说明</title>
+						</SparklesIcon>
+					) : (
 						<HardDriveIcon className="size-3">
 							<title>检查本机剪映资源</title>
 						</HardDriveIcon>
@@ -203,7 +209,7 @@ export function TransitionCard({
 					)}
 					{preset.backend === "jianying-local" ? (
 						<Badge className="border-cyan-500/40 bg-cyan-500/15 px-1 py-0 text-[9px] text-cyan-200">
-							本机
+							{isAiGeneration ? "AI" : "本机"}
 						</Badge>
 					) : null}
 				</div>
