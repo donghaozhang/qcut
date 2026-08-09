@@ -73,6 +73,11 @@ export async function handleTransitionRender(
 	if (!transition) {
 		throw new Error(`Unknown Transition Lab preset: ${presetValue}`);
 	}
+	if (transition.runtimeKind === "ai-generation") {
+		throw new Error(
+			`Transition Lab preset “${transition.localizedName}” requires QCut AI first/last-frame generation and cannot use transition render --input-a/--input-b.`
+		);
+	}
 	const inputA = path.resolve(
 		requireOption({ value: options.inputA, flag: "--input-a" })
 	);
