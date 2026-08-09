@@ -28,12 +28,13 @@ function resolveMediaPath({
 }: {
 	mediaItem: MediaItem;
 }): string | null {
-	if (mediaItem.localPath) return mediaItem.localPath;
 	try {
-		return window.electronAPI?.getPathForFile?.(mediaItem.file) ?? null;
+		const nativePath = window.electronAPI?.getPathForFile?.(mediaItem.file);
+		if (nativePath) return nativePath;
 	} catch {
-		return null;
+		return mediaItem.localPath ?? null;
 	}
+	return mediaItem.localPath ?? null;
 }
 
 function requestTimelinePreview({

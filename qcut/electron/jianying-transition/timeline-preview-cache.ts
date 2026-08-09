@@ -31,6 +31,7 @@ const MIN_TIMELINE_PREVIEW_DURATION = 0.1;
 const MAX_TIMELINE_PREVIEW_DURATION = 5;
 
 interface SourceIdentity {
+	inputPath: string;
 	pathHash: string;
 	size: number;
 	modifiedAt: number;
@@ -82,6 +83,7 @@ async function resolveSourceIdentity({
 	if (!sourceStat.isFile())
 		throw new Error("Timeline preview input is not a file.");
 	return {
+		inputPath,
 		pathHash: createHash("sha256").update(inputPath).digest("hex"),
 		size: sourceStat.size,
 		modifiedAt: sourceStat.mtimeMs,
@@ -326,11 +328,28 @@ export async function getJianyingTimelineTransitionPreview({
 		value: request.height,
 		label: "Height",
 	});
-	const normalizedRequest = { ...request, duration, fps, width, height };
+	const dimensionNormalizedRequest = {
+		...request,
+		duration,
+		fps,
+		width,
+		height,
+	};
 	const [inputAIdentity, inputBIdentity] = await Promise.all([
-		resolveSourceIdentity({ source: normalizedRequest.inputA }),
-		resolveSourceIdentity({ source: normalizedRequest.inputB }),
+		resolveSourceIdentity({ source: dimensionNormalizedRequest.inputA }),
+		resolveSourceIdentity({ source: dimensionNormalizedRequest.inputB }),
 	]);
+	const normalizedRequest = {
+		...dimensionNormalizedRequest,
+		inputA: {
+			...dimensionNormalizedRequest.inputA,
+			inputPath: inputAIdentity.inputPath,
+		},
+		inputB: {
+			...dimensionNormalizedRequest.inputB,
+			inputPath: inputBIdentity.inputPath,
+		},
+	};
 	const cacheKey = await buildCacheKey({
 		request: normalizedRequest,
 		inputAIdentity,

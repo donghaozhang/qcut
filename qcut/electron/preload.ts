@@ -69,6 +69,7 @@ import {
 import {
 	JIANYING_TRANSITION_INSPECT_CHANNEL,
 	JIANYING_TRANSITION_PREVIEW_CHANNEL,
+	JIANYING_TRANSITION_REGISTER_PREVIEW_SOURCE_CHANNEL,
 	JIANYING_TRANSITION_RENDER_CHANNEL,
 	JIANYING_TRANSITION_RENDER_TIMELINE_CHANNEL,
 	JIANYING_TRANSITION_TIMELINE_PREVIEW_CHANNEL,
@@ -97,6 +98,17 @@ import {
 	CAPCUT_8_1_WRITEBACK_COMMIT_CHANNEL,
 	CAPCUT_8_1_WRITEBACK_RECOVER_CHANNEL,
 } from "./jianying-same-profile-writeback-contract.js";
+
+function resolveNativeFilePath({ file }: { file: File }): string {
+	const filePath = webUtils.getPathForFile(file);
+	if (filePath) {
+		ipcRenderer.send(
+			JIANYING_TRANSITION_REGISTER_PREVIEW_SOURCE_CHANNEL,
+			filePath
+		);
+	}
+	return filePath;
+}
 
 // Expose the API to the renderer process
 const electronAPI: ElectronAPI & Record<string, unknown> = {
@@ -773,7 +785,7 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 	},
 
 	// File path utility (Electron 37+ removed File.path)
-	getPathForFile: (file: File): string => webUtils.getPathForFile(file),
+	getPathForFile: (file: File): string => resolveNativeFilePath({ file }),
 
 	// Video semantic search
 	videoSearch: {

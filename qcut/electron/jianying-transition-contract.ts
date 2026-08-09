@@ -20,6 +20,8 @@ export const JIANYING_TRANSITION_PREVIEW_CHANNEL =
 	"jianying-transition:preview";
 export const JIANYING_TRANSITION_TIMELINE_PREVIEW_CHANNEL =
 	"jianying-transition:timeline-preview";
+export const JIANYING_TRANSITION_REGISTER_PREVIEW_SOURCE_CHANNEL =
+	"jianying-transition:register-preview-source";
 export const JIANYING_TRANSITION_RENDER_TIMELINE_CHANNEL =
 	"jianying-transition:render-timeline";
 
