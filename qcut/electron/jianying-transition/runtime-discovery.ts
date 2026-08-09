@@ -283,6 +283,15 @@ function packageRootCandidates(): string[] {
 						projectRoot,
 						".local",
 						"jianying-runtime",
+						"category-twenty",
+						"packages"
+					)
+				: undefined,
+			projectRoot
+				? path.join(
+						projectRoot,
+						".local",
+						"jianying-runtime",
 						"category-five",
 						"packages"
 					)
