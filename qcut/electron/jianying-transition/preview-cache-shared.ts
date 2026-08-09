@@ -8,6 +8,7 @@ const MAX_CACHE_ENTRIES = 600;
 const MAX_CACHE_BYTES = 1024 * 1024 * 1024;
 const MIN_VALID_PREVIEW_BYTES = 1024;
 const MAX_CAPTURED_PROCESS_OUTPUT = 16 * 1024;
+const DEFAULT_PREVIEW_PROCESS_TIMEOUT_MS = 60_000;
 
 export interface PreviewCacheArtifact {
 	cacheKey: string;
@@ -34,30 +35,57 @@ function appendBounded({ current, chunk }: { current: string; chunk: Buffer }) {
 export function runPreviewProcess({
 	command,
 	args,
+	timeoutMs = DEFAULT_PREVIEW_PROCESS_TIMEOUT_MS,
 }: {
 	command: string;
 	args: string[];
-}) {
+	timeoutMs?: number;
+}): Promise<void> {
+	if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
+		return Promise.reject(
+			new Error("Transition preview timeout must be a positive integer.")
+		);
+	}
 	return new Promise<void>((resolve, reject) => {
 		const child = spawn(command, args, {
 			stdio: ["ignore", "ignore", "pipe"],
 			windowsHide: true,
 		});
 		let stderr = "";
+		let settled = false;
+		const timer = setTimeout(() => {
+			if (settled) return;
+			settled = true;
+			child.kill("SIGKILL");
+			reject(
+				new Error(`Transition preview encoding timed out after ${timeoutMs}ms.`)
+			);
+		}, timeoutMs);
+		timer.unref();
+		const settle = ({ error }: { error?: Error }): void => {
+			if (settled) return;
+			settled = true;
+			clearTimeout(timer);
+			if (error) {
+				reject(error);
+				return;
+			}
+			resolve();
+		};
 		child.stderr.on("data", (chunk: Buffer) => {
 			stderr = appendBounded({ current: stderr, chunk });
 		});
-		child.on("error", reject);
+		child.on("error", (error) => settle({ error }));
 		child.on("close", (code) => {
 			if (code === 0) {
-				resolve();
+				settle({});
 				return;
 			}
-			reject(
-				new Error(
+			settle({
+				error: new Error(
 					`Transition preview encoding failed (${code ?? "unknown"}): ${stderr.trim()}`
-				)
-			);
+				),
+			});
 		});
 	});
 }
