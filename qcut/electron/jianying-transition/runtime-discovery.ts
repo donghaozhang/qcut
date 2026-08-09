@@ -438,6 +438,7 @@ export function buildJianyingRuntimeStatus({
 	runtimeRootPath,
 	bridgePath,
 	packagePaths,
+	platform = process.platform,
 	runtimeError,
 	error,
 }: {
@@ -445,6 +446,7 @@ export function buildJianyingRuntimeStatus({
 	runtimeRootPath: string | null;
 	bridgePath: string | null;
 	packagePaths: ReadonlyMap<string, string>;
+	platform?: NodeJS.Platform;
 	runtimeError?: string;
 	error?: string;
 }): JianyingTransitionRuntimeStatus {
@@ -465,7 +467,7 @@ export function buildJianyingRuntimeStatus({
 		(transition) => transition.available
 	).length;
 	const base = {
-		platform: process.platform,
+		platform,
 		appInstalled: Boolean(appBundlePath),
 		bridgeReady: Boolean(bridgePath),
 		availableCount,
@@ -473,7 +475,7 @@ export function buildJianyingRuntimeStatus({
 		transitions,
 	};
 	if (error) return { ...base, state: "error", message: error };
-	if (process.platform !== "darwin") {
+	if (platform !== "darwin") {
 		return {
 			...base,
 			state: "unsupported-platform",
