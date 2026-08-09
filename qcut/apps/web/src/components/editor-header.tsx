@@ -44,11 +44,11 @@ import { useTranslation } from "@/lib/i18n";
 import { ReviewPanelControl } from "./editor/review/review-panel-control";
 import { UserLibrarySyncControl } from "./user-library-sync-control";
 import { AboutUpdatesDialog } from "./about-updates-dialog";
+import { AppUpdateButton } from "./app-update-button";
 import {
 	GlobalSettingsDialog,
 	GlobalSettingsMenuItem,
 } from "./global-settings-dialog";
-import { Tooltip, TooltipContent, TooltipTrigger } from "./ui/tooltip";
 import { useAppVersion } from "@/hooks/use-app-version";
 
 /** Editor header bar with project name, export, screenshot, and recording controls. */
@@ -72,15 +72,6 @@ export function EditorHeader() {
 		if (key === "Enter" || key === " ") {
 			return;
 		}
-	};
-
-	const handleAboutKeyDown = ({
-		key,
-		preventDefault,
-	}: KeyboardEvent<HTMLButtonElement>) => {
-		if (key !== "Enter" && key !== " ") return;
-		preventDefault();
-		setIsAboutDialogOpen(true);
 	};
 
 	const handleNameSave = async (newName: string) => {
@@ -248,25 +239,7 @@ export function EditorHeader() {
 			<ScreenRecordingControl />
 			<UserLibrarySyncControl />
 			<ReviewPanelControl />
-			<Tooltip>
-				<TooltipTrigger asChild>
-					<Button
-						type="button"
-						variant="text"
-						size="icon"
-						className="rounded-sm"
-						aria-label={t("updates.about")}
-						onClick={() => setIsAboutDialogOpen(true)}
-						onKeyDown={handleAboutKeyDown}
-						data-testid="about-updates-button"
-					>
-						<CircleHelp className="size-4">
-							<title>{t("updates.about")}</title>
-						</CircleHelp>
-					</Button>
-				</TooltipTrigger>
-				<TooltipContent>{t("updates.about")}</TooltipContent>
-			</Tooltip>
+			<AppUpdateButton className="h-7" />
 			<Button
 				type="button"
 				size="sm"

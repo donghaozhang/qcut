@@ -730,11 +730,6 @@ export async function addClaudeMediaElement({
 		return;
 	}
 
-	// Route audio files to an audio track, matching the app's own drag-drop
-	// behavior (timeline-add-ops), instead of stacking them on the media track.
-	const trackId = timelineStore.findOrCreateTrack(
-		mediaItem?.type === "audio" ? "audio" : "media"
-	);
 	const resolvedId = mediaItem?.id ?? element.mediaId ?? element.sourceId!;
 	const resolvedName = mediaItem?.name ?? element.sourceName ?? "Media";
 	const fallbackDuration =
@@ -746,6 +741,21 @@ export async function addClaudeMediaElement({
 		element,
 		fallbackDuration,
 	});
+
+	// Route audio files to an audio track, matching the app's own drag-drop
+	// behavior (timeline-add-ops), instead of stacking them on the media track.
+	const trackType = mediaItem?.type === "audio" ? "audio" : "media";
+
+	// A caller that names a track has asked for that specific lane, so honor it
+	// and let the store refuse an occupied span. Only an unnamed request gets a
+	// lane picked for it, in which case the span keeps it off an occupied one.
+	const namedTrack = element.trackId
+		? timelineStore.tracks.find((track) => track.id === element.trackId)
+		: undefined;
+	const trackId =
+		namedTrack?.type === trackType
+			? namedTrack.id
+			: timelineStore.findOrCreateTrack(trackType, { startTime, duration });
 	const mediaTiming = getClaudeMediaTimingProperties({ element });
 
 	timelineStore.addElementToTrack(trackId, {
@@ -828,15 +838,16 @@ export function addClaudeAdjustmentElement({
 	const existingTrack = element.trackId
 		? timelineStore.tracks.find((track) => track.id === element.trackId)
 		: null;
-	const trackId =
-		existingTrack?.type === "adjustment"
-			? existingTrack.id
-			: timelineStore.findOrCreateTrack("adjustment");
 	const startTime = getElementStartTime({ element });
 	const duration = getElementDuration({
 		element,
 		fallbackDuration: DEFAULT_ADJUSTMENT_DURATION_SECONDS,
 	});
+	// A named track is honored as asked; an unnamed one must have room.
+	const trackId =
+		existingTrack?.type === "adjustment"
+			? existingTrack.id
+			: timelineStore.findOrCreateTrack("adjustment", { startTime, duration });
 	const adjustmentFields = getClaudeAdjustmentFields({
 		element: element as Partial<ClaudeElement> & Record<string, unknown>,
 	});
@@ -882,11 +893,16 @@ export async function addClaudeStickerElement({
 	};
 	timelineStore: TimelineStoreState;
 }): Promise<void> {
-	const trackId = timelineStore.findOrCreateTrack("sticker");
 	const startTime = getElementStartTime({ element });
 	const duration = getElementDuration({
 		element,
 		fallbackDuration: DEFAULT_STICKER_DURATION_SECONDS,
+	});
+	// One sticker track holds many stickers, one at a time; a sticker that
+	// overlaps an existing one gets its own lane instead of stacking.
+	const trackId = timelineStore.findOrCreateTrack("sticker", {
+		startTime,
+		duration,
 	});
 
 	const stickerId = element.stickerId ?? `sticker_${Date.now()}`;
@@ -1058,15 +1074,18 @@ export function addClaudeCaptionElement({
 		JSON.stringify(element, null, 2)
 	);
 
-	// Use findOrCreateTrack for robust live-state track creation (consistent with media/text helpers)
-	const trackId = timelineStore.findOrCreateTrack("captions");
-	console.log("[CaptionDebug] Using captions track:", trackId);
-
 	const startTime = getElementStartTime({ element });
 	const duration = getElementDuration({
 		element,
 		fallbackDuration: DEFAULT_CAPTION_DURATION_SECONDS,
 	});
+
+	// Use findOrCreateTrack for robust live-state track creation (consistent with media/text helpers)
+	const trackId = timelineStore.findOrCreateTrack("captions", {
+		startTime,
+		duration,
+	});
+	console.log("[CaptionDebug] Using captions track:", trackId);
 
 	// Check both element.content and element.text (CLI may send either field)
 	const captionText =
@@ -1303,11 +1322,14 @@ export async function addClaudeRemotionElement({
 			return;
 		}
 
-		const trackId = timelineStore.findOrCreateTrack("remotion");
 		const startTime = getElementStartTime({ element });
 		const duration = getElementDuration({
 			element,
 			fallbackDuration: DEFAULT_REMOTION_DURATION_SECONDS,
+		});
+		const trackId = timelineStore.findOrCreateTrack("remotion", {
+			startTime,
+			duration,
 		});
 
 		// Add a timeline element for each imported composition
@@ -1357,11 +1379,14 @@ export async function addClaudeRemotionElement({
 		}
 	}
 
-	const trackId = timelineStore.findOrCreateTrack("remotion");
 	const startTime = getElementStartTime({ element });
 	const duration = getElementDuration({
 		element,
 		fallbackDuration: DEFAULT_REMOTION_DURATION_SECONDS,
+	});
+	const trackId = timelineStore.findOrCreateTrack("remotion", {
+		startTime,
+		duration,
 	});
 
 	timelineStore.addElementToTrack(trackId, {

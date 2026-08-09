@@ -70,6 +70,21 @@ describe("LocalStickerReferencePanel", () => {
 		URL.revokeObjectURL = originalRevokeObjectUrl;
 	});
 
+	it("renders four sticker references per row", () => {
+		render(
+			<LocalStickerReferencePanel
+				catalog={createLocalStickerCatalog()}
+				error={null}
+				isLoading={false}
+				onSelect={() => Promise.resolve()}
+			/>
+		);
+
+		expect(screen.getByTestId("local-sticker-category-grid")).toHaveClass(
+			"grid-cols-4"
+		);
+	});
+
 	it("loads only the active category and releases its previews on switch", async () => {
 		const catalog = createLocalStickerCatalog();
 		const firstItem = catalog.categories[0]?.items[0];
@@ -658,5 +673,49 @@ describe("LocalStickerReferencePanel", () => {
 				}),
 			})
 		);
+	});
+	it("names the catalogues that failed while others still load", () => {
+		render(
+			<LocalStickerReferencePanel
+				catalog={createRemoteStickerCatalog()}
+				error={null}
+				isLoading={false}
+				onSelect={async () => {}}
+				privateCatalogs={[createPrivateStickerCatalog()]}
+				unavailablePrivateCatalogIds={["jianying-2026-08-01-batch-2"]}
+			/>
+		);
+
+		const warning = screen.getByTestId("sticker-lab-private-catalog-warning");
+		expect(warning).toHaveTextContent("1 个参照素材包未能载入");
+		expect(warning).toHaveTextContent("只显示部分贴纸");
+		expect(warning).toHaveTextContent("jianying-2026-08-01-batch-2");
+	});
+
+	it("still reports the failure when every catalogue is unavailable", () => {
+		// The worst case, and the one a deployment regression actually produces:
+		// no private catalogue loads, so the private tab never renders. A warning
+		// gated on that tab would leave the shortfall as silent as before.
+		render(
+			<LocalStickerReferencePanel
+				catalog={createRemoteStickerCatalog()}
+				error={null}
+				isLoading={false}
+				onSelect={async () => {}}
+				privateCatalogs={[]}
+				unavailablePrivateCatalogIds={[
+					"jianying-2026-07-31",
+					"jianying-2026-08-01-batch-2",
+					"jianying-2026-08-01-batch-3",
+				]}
+			/>
+		);
+
+		expect(
+			screen.queryByTestId("sticker-lab-catalog-private")
+		).not.toBeInTheDocument();
+		const warning = screen.getByTestId("sticker-lab-private-catalog-warning");
+		expect(warning).toHaveTextContent("3 个参照素材包未能载入");
+		expect(warning).toHaveTextContent("暂时无法显示");
 	});
 });

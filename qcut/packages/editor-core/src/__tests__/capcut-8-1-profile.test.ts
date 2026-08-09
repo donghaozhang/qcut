@@ -10,6 +10,7 @@ import {
 	createEmptyCapCut81Materials,
 	parseCapCut81PlaceholderAssetPath,
 } from "../jianying-draft/capcut-8-1-profile.js";
+import { CAPCUT_8_1_DRAFT_PROFILE } from "../jianying-draft/profiles/capcut-8-1.js";
 
 const TIMELINE_ID = "11111111-2222-4333-8444-555555555555";
 const PLACEHOLDER_ID = "AAAAAAAA-BBBB-4CCC-8DDD-EEEEEEEEEEEE";
@@ -20,6 +21,17 @@ function readProfileFixture(): unknown {
 		"packages/editor-core/src/__tests__/fixtures/jianying/capcut-8.1-scaffold-profile.json"
 	);
 	return JSON.parse(readFileSync(fixturePath, "utf8"));
+}
+
+function readImportReceipt(): Record<string, unknown> {
+	const receiptPath = join(
+		process.cwd(),
+		"scripts/capcut-e2e/receipts/capcut-8.1.1-core-media-import-2026-08-04.json"
+	);
+	return JSON.parse(readFileSync(receiptPath, "utf8")) as Record<
+		string,
+		unknown
+	>;
 }
 
 describe("CapCut 8.1 scaffold profile", () => {
@@ -35,6 +47,38 @@ describe("CapCut 8.1 scaffold profile", () => {
 		expect(serializedFixture).not.toContain("\\Users\\");
 		expect(serializedFixture).not.toContain("@");
 		expect(CAPCUT_8_1_SCAFFOLD_PROFILE.evidence.payloadIncluded).toBe(false);
+	});
+
+	it("ships only the real-app-verified core media import subset", () => {
+		const receipt = readImportReceipt();
+		expect(CAPCUT_8_1_DRAFT_PROFILE).toMatchObject({
+			capabilities: {
+				import: "stable",
+				sameProfileWriteback: "none",
+				realAppVerified: false,
+			},
+			production: true,
+			verificationEvidence: receipt.receiptId,
+		});
+		expect(receipt).toMatchObject({
+			profileId: CAPCUT_8_1_DRAFT_PROFILE.profileId,
+			capcutRoundTrip: {
+				opened: true,
+				autoSaved: true,
+				reopened: true,
+			},
+			qcutImport: {
+				reloadVerified: true,
+				sourceFilesChangedByImport: 0,
+			},
+			limitations: {
+				nativeExportVerified: false,
+				sameProfileWritebackVerified: false,
+			},
+		});
+		const serializedReceipt = JSON.stringify(receipt);
+		expect(serializedReceipt).not.toContain("/Users/");
+		expect(serializedReceipt).not.toContain("\\Users\\");
 	});
 
 	it("builds the four active content mirror paths from one timeline id", () => {

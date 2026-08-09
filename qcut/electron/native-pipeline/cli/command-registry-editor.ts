@@ -9,6 +9,9 @@
 
 import type { FlagDef, CommandDef } from "./command-registry-types.js";
 import { createExtraEditorCommands } from "./command-registry-editor-extra.js";
+import { JIANYING_TRANSITION_COMMANDS } from "./command-registry-editor-jianying.js";
+import { JIANYING_IMPORT_COMMANDS } from "./command-registry-editor-jianying-import.js";
+import { INTEROP_COMMANDS } from "./command-registry-editor-interop.js";
 
 /** Shorthand flag builder. */
 function f(
@@ -60,6 +63,9 @@ function ed(
 // ─── Editor Commands ─────────────────────────────────────────────────
 
 export const EDITOR_COMMANDS: Record<string, CommandDef> = {
+	...INTEROP_COMMANDS,
+	...JIANYING_TRANSITION_COMMANDS,
+	...JIANYING_IMPORT_COMMANDS,
 	"editor:console": ed(
 		"editor:console",
 		"List captured renderer console messages",
@@ -244,6 +250,39 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		[f("--project-id", "string", "Project ID (defaults to the active project)")]
 	),
 
+	// ── Transition Lab ──
+	"editor:transition-lab:list": ed(
+		"editor:transition-lab:list",
+		"List distributable QCut shader transition recipes",
+		[],
+		[
+			"qcut editor transition-lab list --json",
+			"qcut-pipeline editor:transition-lab:list --json",
+		]
+	),
+	"editor:transition-lab:apply": ed(
+		"editor:transition-lab:apply",
+		"Apply a Transition Lab recipe between adjacent clips",
+		[
+			PID_ACTIVE,
+			f("--preset", "string", "Transition Lab recipe ID", { required: true }),
+			f("--track-id", "string", "Track containing both clips", {
+				required: true,
+			}),
+			f("--from-element-id", "string", "Outgoing clip element ID", {
+				required: true,
+			}),
+			f("--to-element-id", "string", "Incoming clip element ID", {
+				required: true,
+			}),
+			f("--duration", "number", "Transition duration in seconds"),
+		],
+		[
+			"qcut editor transition-lab apply --preset lab-page-curl --track-id track-1 --from-element-id clip-a --to-element-id clip-b --json",
+			"qcut-pipeline editor:transition-lab:apply --preset lab-cube-rotate --track-id track-1 --from-element-id clip-a --to-element-id clip-b --duration 0.8 --json",
+		]
+	),
+
 	// ── Timeline ──
 	"editor:track:list": ed(
 		"editor:track:list",
@@ -378,17 +417,36 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 	"editor:timeline:move": ed("editor:timeline:move", "Move element", [
 		PID,
 		EID,
-		f("--time", "number", "Target time in seconds", { required: true }),
-		f("--to-track", "string", "Target track"),
+		f(
+			"--time",
+			"number",
+			"Target time in seconds (omit to keep the current one)"
+		),
+		f("--to-track", "string", "Target track", { required: true }),
 		f("--ripple", "boolean", "Ripple edit", { default: false }),
 		f("--cross-track-ripple", "boolean", "Cross-track ripple", {
 			default: false,
 		}),
 	]),
-	"editor:timeline:arrange": ed("editor:timeline:arrange", "Arrange elements", [
-		PID,
-		f("--mode", "string", "Arrange mode", { required: true }),
-	]),
+	"editor:timeline:arrange": ed(
+		"editor:timeline:arrange",
+		"Lay a track's elements out end to end, closing gaps and overlaps",
+		[
+			PID,
+			// The handler has always required these; leaving them undeclared made
+			// the command unusable, since --track-id could not be passed at all.
+			f("--track-id", "string", "Track to arrange", { required: true }),
+			f("--mode", "string", "sequential, spaced, or manual", {
+				required: true,
+			}),
+			f("--gap", "number", "Seconds to leave between elements"),
+			f("--start-time", "number", "Where the first element starts"),
+			f("--data", "string", "Element id order for --mode manual"),
+		],
+		[
+			"qcut-pipeline editor:timeline:arrange --project-id <id> --track-id <id> --mode sequential --json",
+		]
+	),
 	"editor:timeline:select": ed("editor:timeline:select", "Select element", [
 		PID,
 		EID,

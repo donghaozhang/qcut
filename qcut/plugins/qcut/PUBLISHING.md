@@ -13,7 +13,7 @@ repository root.
 Install the versioned release:
 
 ```bash
-codex plugin marketplace add Quriosity-agent/qcut --ref qcut-plugin-v1.1.0
+codex plugin marketplace add Quriosity-agent/qcut --ref qcut-plugin-v1.2.0
 codex plugin add qcut@qcut
 ```
 

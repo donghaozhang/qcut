@@ -4,7 +4,11 @@ import {
 	type UpdatePreferences,
 	writeUpdatePreferences,
 } from "./update-preferences.js";
-import { detectUpdateChannel, toReleaseVersion } from "./update-version.js";
+import {
+	compareReleaseVersions,
+	detectUpdateChannel,
+	toReleaseVersion,
+} from "./update-version.js";
 
 export type UpdatePhase =
 	| "idle"
@@ -16,6 +20,15 @@ export type UpdatePhase =
 	| "error";
 
 export type AutomaticUpdateDecision = "automatic" | "disabled" | "too-large";
+
+/** A downloaded update sitting on disk, waiting for the app to restart. */
+export interface StagedUpdateInfo {
+	version: string;
+	internalVersion: string;
+	releaseNotes?: string;
+	releaseDate?: string;
+	downloadSize?: number;
+}
 
 export interface UpdateState {
 	phase: UpdatePhase;
@@ -32,6 +45,13 @@ export interface UpdateState {
 	decision?: AutomaticUpdateDecision;
 	message?: string;
 	error?: string;
+	/**
+	 * Survives later checks: a failed hourly check must never hide an update
+	 * that is already downloaded and installable.
+	 */
+	staged?: StagedUpdateInfo;
+	/** Most recent background check/download failure while an update is staged. */
+	lastCheckError?: string;
 }
 
 export interface UpdateInfoLike {
@@ -142,6 +162,8 @@ export function createAutoUpdateController({
 	userDataPath,
 	logger,
 	sendToRenderer,
+	onUpdateStaged,
+	onBeforeQuitAndInstall,
 	checkIntervalMs = CHECK_INTERVAL_MS,
 }: {
 	updater: AutoUpdaterLike;
@@ -155,6 +177,14 @@ export function createAutoUpdateController({
 		channel: string;
 		data: unknown;
 	}) => void;
+	/** Fired once each time a downloaded update becomes installable. */
+	onUpdateStaged?: ({ staged }: { staged: StagedUpdateInfo }) => void;
+	/**
+	 * Fired synchronously before quitAndInstall. On macOS the native updater
+	 * closes windows BEFORE emitting before-quit, so any close-interception
+	 * must be disarmed here, not in a before-quit handler.
+	 */
+	onBeforeQuitAndInstall?: () => void;
 	checkIntervalMs?: number;
 }): AutoUpdateController {
 	let preferences = readUpdatePreferences({ userDataPath });
@@ -163,6 +193,7 @@ export function createAutoUpdateController({
 	let listenersRegistered = false;
 	let checkPromise: Promise<UpdateState> | undefined;
 	let downloadPromise: Promise<UpdateState> | undefined;
+	let staged: StagedUpdateInfo | undefined;
 	let state: UpdateState = {
 		phase: "idle",
 		currentVersion: toReleaseVersion({ packageVersion: currentVersion }),
@@ -173,13 +204,80 @@ export function createAutoUpdateController({
 	};
 
 	const publishState = ({ nextState }: { nextState: UpdateState }): void => {
-		state = { ...nextState };
+		state = { ...nextState, staged };
 		sendToRenderer({ channel: "update-state-changed", data: state });
 	};
 
-	const publishError = ({ error }: { error: unknown }): UpdateState => {
+	/** True when the already-staged update makes downloading `candidate` useless. */
+	const stagedCovers = ({ candidate }: { candidate: string }): boolean => {
+		if (!staged) return false;
+		try {
+			return (
+				compareReleaseVersions({
+					left: staged.internalVersion,
+					right: candidate,
+				}) >= 0
+			);
+		} catch {
+			// Unparsable versions: only an exact match is provably redundant.
+			return (
+				staged.internalVersion === candidate || staged.version === candidate
+			);
+		}
+	};
+
+	/** Rebuilds the installable state from the staged update. */
+	const stagedReadyState = ({
+		stagedUpdate,
+	}: {
+		stagedUpdate: StagedUpdateInfo;
+	}): UpdateState => ({
+		...state,
+		phase: "ready",
+		version: stagedUpdate.version,
+		internalVersion: stagedUpdate.internalVersion,
+		releaseNotes: stagedUpdate.releaseNotes,
+		releaseDate: stagedUpdate.releaseDate,
+		downloadSize: stagedUpdate.downloadSize,
+		percent: 100,
+		automaticDownload: false,
+		message: "Update ready to install",
+		error: undefined,
+		lastCheckError: undefined,
+	});
+
+	const publishError = ({
+		error,
+		source,
+	}: {
+		error: unknown;
+		source?: "check" | "download";
+	}): UpdateState => {
 		const message = error instanceof Error ? error.message : String(error);
 		logger.error("[AutoUpdater] Error:", message);
+		if (staged) {
+			// The state machine may have progressed past the staged version to a
+			// newer offer or an in-flight download; a failed background check must
+			// not rewind that progress (it would also make downloadUpdate a no-op
+			// until the next successful hourly check).
+			const progressedPastStaged =
+				(state.phase === "available" || state.phase === "downloading") &&
+				state.internalVersion !== undefined &&
+				!stagedCovers({ candidate: state.internalVersion });
+			if (progressedPastStaged && source !== "download") {
+				publishState({ nextState: { ...state, lastCheckError: message } });
+				return state;
+			}
+			// The staged update on disk is still installable; surface the
+			// background failure without demoting the ready state.
+			publishState({
+				nextState: {
+					...stagedReadyState({ stagedUpdate: staged }),
+					lastCheckError: message,
+				},
+			});
+			return state;
+		}
 		publishState({
 			nextState: {
 				...state,
@@ -195,6 +293,16 @@ export function createAutoUpdateController({
 	const downloadUpdate = async (): Promise<UpdateState> => {
 		if (state.phase === "ready") return state;
 		if (downloadPromise) return downloadPromise;
+		const requested = state.internalVersion ?? state.version;
+		if (requested !== undefined && stagedCovers({ candidate: requested })) {
+			logger.log(
+				`[AutoUpdater] Skipping download; ${requested} is already staged`
+			);
+			if (staged) {
+				publishState({ nextState: stagedReadyState({ stagedUpdate: staged }) });
+			}
+			return state;
+		}
 
 		publishState({
 			nextState: {
@@ -208,7 +316,7 @@ export function createAutoUpdateController({
 		downloadPromise = updater
 			.downloadUpdate()
 			.then(() => state)
-			.catch((error: unknown) => publishError({ error }))
+			.catch((error: unknown) => publishError({ error, source: "download" }))
 			.finally(() => {
 				downloadPromise = undefined;
 			});
@@ -216,6 +324,17 @@ export function createAutoUpdateController({
 	};
 
 	const onUpdateAvailable = ({ info }: { info: UpdateInfoLike }): void => {
+		if (stagedCovers({ candidate: info.version })) {
+			// The hourly re-check reports the same (or an older) version that is
+			// already downloaded; re-downloading it would be pure waste.
+			logger.log(
+				`[AutoUpdater] Update ${info.version} is already staged; keeping ready state`
+			);
+			if (staged) {
+				publishState({ nextState: stagedReadyState({ stagedUpdate: staged }) });
+			}
+			return;
+		}
 		const downloadSize = resolveUpdateDownloadSize({ info });
 		const decision = resolveAutomaticUpdateDecision({
 			preferences,
@@ -248,6 +367,7 @@ export function createAutoUpdateController({
 						? "A large update is available"
 						: "An update is available",
 				error: undefined,
+				lastCheckError: undefined,
 			},
 		});
 		sendToRenderer({
@@ -275,6 +395,12 @@ export function createAutoUpdateController({
 		});
 		updater.on("update-not-available", () => {
 			logger.log("[AutoUpdater] QCut is up to date");
+			if (staged) {
+				// The staged download is still newer than the running app; keep it
+				// installable instead of reporting up-to-date.
+				publishState({ nextState: stagedReadyState({ stagedUpdate: staged }) });
+				return;
+			}
 			publishState({
 				nextState: {
 					...state,
@@ -303,21 +429,26 @@ export function createAutoUpdateController({
 		updater.on("update-downloaded", (...args: unknown[]) => {
 			const info = args[0] as UpdateInfoLike;
 			const version = toReleaseVersion({ packageVersion: info.version });
+			const alreadyStaged = staged?.internalVersion === info.version;
 			logger.log(`[AutoUpdater] Update ${version} is ready to install`);
+			staged = {
+				version,
+				internalVersion: info.version,
+				releaseNotes:
+					normalizeUpdateReleaseNotes({ releaseNotes: info.releaseNotes }) ||
+					state.releaseNotes,
+				releaseDate: info.releaseDate ?? state.releaseDate,
+				downloadSize: resolveUpdateDownloadSize({ info }) ?? state.downloadSize,
+			};
 			publishState({
 				nextState: {
-					...state,
-					phase: "ready",
-					version,
-					internalVersion: info.version,
-					percent: 100,
+					...stagedReadyState({ stagedUpdate: staged }),
 					transferred: state.total,
-					automaticDownload: false,
-					message: "Update ready to install",
-					error: undefined,
+					lastCheckError: undefined,
 				},
 			});
 			sendToRenderer({ channel: "update-downloaded", data: { version } });
+			if (!alreadyStaged) onUpdateStaged?.({ staged });
 		});
 		updater.on("error", (...args: unknown[]) => {
 			publishError({ error: args[0] });
@@ -326,18 +457,22 @@ export function createAutoUpdateController({
 
 	const checkForUpdates = async (): Promise<UpdateState> => {
 		if (checkPromise) return checkPromise;
-		publishState({
-			nextState: {
-				...state,
-				phase: "checking",
-				message: "Checking for updates",
-				error: undefined,
-			},
-		});
+		// With an update staged, checks run silently in the background: the
+		// ready state must stay visible (and installable) the whole time.
+		if (!staged) {
+			publishState({
+				nextState: {
+					...state,
+					phase: "checking",
+					message: "Checking for updates",
+					error: undefined,
+				},
+			});
+		}
 		checkPromise = updater
 			.checkForUpdates()
 			.then(() => state)
-			.catch((error: unknown) => publishError({ error }))
+			.catch((error: unknown) => publishError({ error, source: "check" }))
 			.finally(() => {
 				checkPromise = undefined;
 			});
@@ -372,9 +507,10 @@ export function createAutoUpdateController({
 		checkForUpdates,
 		downloadUpdate,
 		installUpdate: () => {
-			if (state.phase !== "ready") {
+			if (state.phase !== "ready" && !staged) {
 				return { success: false, message: "Update is not downloaded yet" };
 			}
+			onBeforeQuitAndInstall?.();
 			updater.quitAndInstall();
 			return { success: true, message: "Installing update" };
 		},

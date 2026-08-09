@@ -18,6 +18,7 @@ import type { MediaFolder } from "@/stores/media/media-store-types";
 import { TimelineTrack } from "@/types/timeline";
 import { generateImageThumbnailDataUrl } from "@/lib/media/image-utils";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
+import type { ChunkedFileSource } from "./chunked-file-source";
 
 class StorageService {
 	private projectsAdapter!: StorageAdapter<SerializedProject>;
@@ -237,6 +238,8 @@ class StorageService {
 			folderId: project.folderId ?? null,
 			audioMix: project.audioMix,
 			guides: project.guides,
+			timeline: project.timeline,
+			draftInterop: project.draftInterop,
 		};
 
 		await this.projectsAdapter.set(project.id, serializedProject);
@@ -276,6 +279,8 @@ class StorageService {
 			folderId: serializedProject.folderId ?? null,
 			audioMix: serializedProject.audioMix,
 			guides: serializedProject.guides,
+			timeline: serializedProject.timeline,
+			draftInterop: serializedProject.draftInterop,
 		};
 	}
 
@@ -362,21 +367,13 @@ class StorageService {
 	}
 
 	// Media operations - now project-specific
-	async saveMediaItem(projectId: string, mediaItem: MediaItem): Promise<void> {
-		// DEBUG: Log projectId at entry point
-		debugLog(
-			`[StorageService.saveMediaItem] Called with projectId: ${projectId}, mediaItem.id: ${mediaItem.id}, mediaItem.name: ${mediaItem.name}`
-		);
-
-		const { mediaMetadataAdapter, mediaFilesAdapter } =
-			this.getProjectMediaAdapters(projectId);
-
-		// Only save file if it has actual content
-		if (mediaItem.file.size > 0) {
-			// Save file to project-specific OPFS
-			await mediaFilesAdapter.set(mediaItem.id, mediaItem.file);
-		}
-
+	private async saveMediaItemMetadata({
+		mediaItem,
+		mediaMetadataAdapter,
+	}: {
+		mediaItem: MediaItem;
+		mediaMetadataAdapter: IndexedDBAdapter<MediaFileData>;
+	}): Promise<void> {
 		// Only store non-blob URLs (e.g., data URLs, http URLs)
 		// Blob URLs are temporary and don't persist across sessions
 		const persistedUrl = mediaItem.url?.startsWith("blob:")
@@ -420,6 +417,47 @@ class StorageService {
 		};
 
 		await mediaMetadataAdapter.set(mediaItem.id, metadata);
+	}
+
+	async saveMediaItem(projectId: string, mediaItem: MediaItem): Promise<void> {
+		debugLog(
+			`[StorageService.saveMediaItem] Called with projectId: ${projectId}, mediaItem.id: ${mediaItem.id}, mediaItem.name: ${mediaItem.name}`
+		);
+
+		const { mediaMetadataAdapter, mediaFilesAdapter } =
+			this.getProjectMediaAdapters(projectId);
+		if (mediaItem.file.size > 0) {
+			await mediaFilesAdapter.set(mediaItem.id, mediaItem.file);
+		}
+		await this.saveMediaItemMetadata({ mediaItem, mediaMetadataAdapter });
+	}
+
+	async saveMediaItemFromChunks({
+		mediaItem,
+		mimeType,
+		projectId,
+		source,
+	}: {
+		mediaItem: Omit<MediaItem, "file">;
+		mimeType: string;
+		projectId: string;
+		source: ChunkedFileSource;
+	}): Promise<void> {
+		const { mediaMetadataAdapter, mediaFilesAdapter } =
+			this.getProjectMediaAdapters(projectId);
+		await mediaFilesAdapter.setFromChunks({ key: mediaItem.id, source });
+		const persistedFile = await mediaFilesAdapter.get(mediaItem.id);
+		if (persistedFile === null || persistedFile.size !== source.byteLength) {
+			throw new Error("Chunked media write could not be read back.");
+		}
+		const file = new File([persistedFile], mediaItem.name, {
+			lastModified: persistedFile.lastModified,
+			type: mimeType,
+		});
+		await this.saveMediaItemMetadata({
+			mediaItem: { ...mediaItem, file },
+			mediaMetadataAdapter,
+		});
 	}
 
 	async loadMediaItem(
@@ -762,10 +800,15 @@ class StorageService {
 
 	async deleteProjectTimeline({
 		projectId,
+		sceneId,
 	}: {
 		projectId: string;
+		sceneId?: string;
 	}): Promise<void> {
-		const timelineAdapter = this.getProjectTimelineAdapter({ projectId });
+		const timelineAdapter = this.getProjectTimelineAdapter({
+			projectId,
+			sceneId,
+		});
 		await timelineAdapter.remove("timeline");
 	}
 
@@ -861,12 +904,19 @@ class StorageService {
 	/**
 	 * Check storage quota to prevent running out of space
 	 */
-	async checkStorageQuota(): Promise<{
+	async checkStorageQuota({
+		requiredBytes = 0,
+	}: {
+		requiredBytes?: number;
+	} = {}): Promise<{
 		available: boolean;
 		usage: number;
 		quota: number;
 		usagePercent: number;
 	}> {
+		if (!Number.isSafeInteger(requiredBytes) || requiredBytes < 0) {
+			throw new Error("Required storage byte length is invalid.");
+		}
 		if (typeof navigator === "undefined" || !("storage" in navigator)) {
 			// Storage API not supported - assume available but with unknown limits
 			debugLog(
@@ -880,13 +930,14 @@ class StorageService {
 			const usage = estimate.usage || 0;
 			const quota = estimate.quota || Infinity;
 			const usagePercent = quota === Infinity ? 0 : (usage / quota) * 100;
+			const safeQuota = quota === Infinity ? Infinity : quota * 0.8;
 
 			debugLog(
 				`[StorageService] Storage usage: ${(usage / 1024 / 1024).toFixed(2)}MB / ${quota === Infinity ? "∞" : (quota / 1024 / 1024).toFixed(2)}MB (${usagePercent.toFixed(1)}%`
 			);
 
 			return {
-				available: usagePercent < 80, // Warn at 80% usage
+				available: usage + requiredBytes <= safeQuota,
 				usage,
 				quota,
 				usagePercent,

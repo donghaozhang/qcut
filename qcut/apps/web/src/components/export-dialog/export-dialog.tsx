@@ -64,6 +64,7 @@ import {
 import { CaptionExportCard, AudioExportCard } from "./export-media-cards";
 import { ExportWarnings } from "./export-warnings";
 import { CapCutDraftExportCard } from "./capcut-draft-export-card";
+import { CapCutSameProfileWritebackCard } from "./capcut-same-profile-writeback-card";
 
 /** Modal dialog for configuring and triggering project export. */
 export function ExportDialog() {
@@ -71,7 +72,9 @@ export function ExportDialog() {
 	const { getTotalDuration, tracks } = useTimelineStore();
 	const activeProject = useProjectStore((state) => state.activeProject);
 	const { mediaItems, loading: mediaItemsLoading } = useAsyncMediaItems();
-	const [capCutExportBusy, setCapCutExportBusy] = useState(false);
+	const [capCutDraftExportBusy, setCapCutDraftExportBusy] = useState(false);
+	const [capCutWritebackBusy, setCapCutWritebackBusy] = useState(false);
+	const capCutOperationBusy = capCutDraftExportBusy || capCutWritebackBusy;
 
 	// Caption export state
 	const [exportCaptionsEnabled, setExportCaptionsEnabled] = useState(false);
@@ -189,7 +192,7 @@ export function ExportDialog() {
 	]);
 
 	const handleClose = () => {
-		if (!exportProgress.progress.isExporting && !capCutExportBusy) {
+		if (!exportProgress.progress.isExporting && !capCutOperationBusy) {
 			// Switch back to properties view when closing export
 			const { setPanelView } = useExportStore.getState();
 			setPanelView(PanelView.PROPERTIES);
@@ -206,7 +209,7 @@ export function ExportDialog() {
 			exportCaptionsEnabled,
 		});
 
-		if (!exportValidation.canExport || capCutExportBusy) {
+		if (!exportValidation.canExport || capCutOperationBusy) {
 			debugWarn("[ExportPanel] cannot export: validation failed", {
 				hasTimelineContent: exportValidation.hasTimelineContent,
 				timelineDuration: exportSettings.timelineDuration,
@@ -374,7 +377,7 @@ export function ExportDialog() {
 					variant="text"
 					size="icon"
 					onClick={handleClose}
-					disabled={isExporting || capCutExportBusy}
+					disabled={isExporting || capCutOperationBusy}
 					className="h-8 w-8"
 					aria-label="Close export dialog"
 				>
@@ -403,7 +406,7 @@ export function ExportDialog() {
 					<Button
 						type="button"
 						onClick={handleExport}
-						disabled={!exportValidation.canExport || capCutExportBusy}
+						disabled={!exportValidation.canExport || capCutOperationBusy}
 						className="w-full"
 						size="lg"
 						data-testid="export-start-button"
@@ -468,10 +471,17 @@ export function ExportDialog() {
 
 			{/* Settings Section - Scrollable Content */}
 			<div className="flex-1 overflow-auto p-4 space-y-2">
+				<CapCutSameProfileWritebackCard
+					disabled={isExporting || capCutDraftExportBusy}
+					onBusyChange={setCapCutWritebackBusy}
+					project={activeProject}
+					tracks={tracks}
+				/>
+
 				<CapCutDraftExportCard
-					disabled={isExporting}
+					disabled={isExporting || capCutWritebackBusy}
 					mediaItems={mediaItems}
-					onBusyChange={setCapCutExportBusy}
+					onBusyChange={setCapCutDraftExportBusy}
 					project={activeProject}
 					tracks={tracks}
 				/>

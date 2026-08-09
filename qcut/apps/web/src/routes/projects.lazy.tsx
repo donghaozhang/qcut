@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { createLazyFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import {
 	ChevronLeft,
+	FileInput,
 	LayoutGrid,
 	List,
 	Plus,
@@ -10,7 +11,9 @@ import {
 	X,
 } from "lucide-react";
 import { motion } from "motion/react";
+import { AppUpdateButton } from "@/components/app-update-button";
 import { DeleteProjectDialog } from "@/components/delete-project-dialog";
+import { JianyingDraftImportCard } from "@/components/import-dialog/jianying-draft-import-card";
 import { AiStatusIndicator } from "@/components/project/ai-status-indicator";
 import { CreateProjectTile } from "@/components/project/create-project-tile";
 import { NoProjects, NoResults } from "@/components/project/empty-state";
@@ -30,8 +33,16 @@ import { StartCreatingBanner } from "@/components/project/start-creating-banner"
 import { StudioBackground } from "@/components/project/studio-background";
 import { TemplateGallery } from "@/components/project/template-gallery";
 import { useProjectDurationLoader } from "@/components/project/use-project-duration-loader";
+import { useProjectThumbnailLoader } from "@/components/project/use-project-thumbnail-loader";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import {
 	Select,
@@ -43,8 +54,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { useAppVersion } from "@/hooks/use-app-version";
+import { useJianyingDraftImport } from "@/hooks/import/use-jianying-draft-import";
 import { useProjectStore } from "@/stores/project-store";
-import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { CanvasSize } from "@/types/editor";
 import { LanguageSelector } from "@/components/language-selector";
 import { useTranslation } from "@/lib/i18n";
@@ -61,13 +72,8 @@ function ProjectsPage() {
 		deleteProject,
 		createNewProject,
 		getFilteredAndSortedProjects,
+		loadAllProjects,
 	} = useProjectStore();
-	const [thumbnailCache, setThumbnailCache] = useState<
-		Record<string, string | null>
-	>({});
-	const [_loadingThumbnails, setLoadingThumbnails] = useState<Set<string>>(
-		new Set()
-	);
 	const [isSelectionMode, setIsSelectionMode] = useState(false);
 	const [selectedProjects, setSelectedProjects] = useState<Set<string>>(
 		new Set()
@@ -77,34 +83,36 @@ function ProjectsPage() {
 	const [sortOption, setSortOption] = useState("updatedAt-desc");
 	const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 	const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
+	const [isDraftImportOpen, setIsDraftImportOpen] = useState(false);
+	const getProjectThumbnail = useProjectThumbnailLoader();
 	const getProjectDuration = useProjectDurationLoader();
 	const appVersion = useAppVersion();
 	const navigate = useNavigate();
 	const { t } = useTranslation();
+	const handleImportedProject = useCallback(async () => {
+		await loadAllProjects();
+	}, [loadAllProjects]);
+	const draftImport = useJianyingDraftImport({
+		onProjectImported: handleImportedProject,
+	});
 
-	const getProjectThumbnail = useCallback(
-		async (projectId: string): Promise<string | null> => {
-			if (thumbnailCache[projectId] !== undefined) {
-				return thumbnailCache[projectId];
-			}
-
-			setLoadingThumbnails((prev) => new Set(prev).add(projectId));
-
-			try {
-				const thumbnail = await useTimelineStore
-					.getState()
-					.getProjectThumbnail(projectId);
-				setThumbnailCache((prev) => ({ ...prev, [projectId]: thumbnail }));
-				return thumbnail;
-			} finally {
-				setLoadingThumbnails((prev) => {
-					const newSet = new Set(prev);
-					newSet.delete(projectId);
-					return newSet;
-				});
-			}
+	const handleDraftImportOpenChange = useCallback(
+		(open: boolean) => {
+			setIsDraftImportOpen(open);
+			if (open) void draftImport.refreshInbox();
 		},
-		[thumbnailCache]
+		[draftImport.refreshInbox]
+	);
+
+	const handleOpenImportedProject = useCallback(
+		(projectId: string) => {
+			setIsDraftImportOpen(false);
+			navigate({
+				to: "/editor/$project_id",
+				params: { project_id: projectId },
+			});
+		},
+		[navigate]
 	);
 
 	const handleCreateProject = async () => {
@@ -201,6 +209,7 @@ function ProjectsPage() {
 					<ProjectsUserChip />
 				</div>
 				<div className="flex items-center gap-3">
+					<AppUpdateButton />
 					{appVersion && (
 						<span
 							className="text-xs text-muted-foreground"
@@ -236,14 +245,28 @@ function ProjectsPage() {
 								)}
 							</div>
 						) : (
-							<Button
-								variant="primary"
-								onClick={handleCreateProject}
-								data-testid="new-project-button-mobile"
-							>
-								<Plus className="size-4!" />
-								<span className="text-sm font-medium">{t("projects.new")}</span>
-							</Button>
+							<div className="flex items-center gap-2">
+								{draftImport.isAvailable && (
+									<Button
+										variant="outline"
+										size="icon"
+										onClick={() => handleDraftImportOpenChange(true)}
+										aria-label={t("draftImport.button")}
+									>
+										<FileInput className="size-4" />
+									</Button>
+								)}
+								<Button
+									variant="primary"
+									onClick={handleCreateProject}
+									data-testid="new-project-button-mobile"
+								>
+									<Plus className="size-4!" />
+									<span className="text-sm font-medium">
+										{t("projects.new")}
+									</span>
+								</Button>
+							</div>
 						)}
 					</div>
 				</div>
@@ -308,6 +331,21 @@ function ProjectsPage() {
 								>
 									{t("projects.select")}
 								</Button>
+								{draftImport.isAvailable && (
+									<Button
+										variant="outline"
+										onClick={() => handleDraftImportOpenChange(true)}
+										data-testid="import-draft-button"
+									>
+										<FileInput className="size-4" />
+										{t("draftImport.button")}
+										{draftImport.inboxEntries.length > 0 && (
+											<span className="tabular-nums text-xs text-muted-foreground">
+												{draftImport.inboxEntries.length}
+											</span>
+										)}
+									</Button>
+								)}
 								<Button
 									variant="primary"
 									onClick={handleCreateProject}
@@ -545,6 +583,23 @@ function ProjectsPage() {
 				onOpenChange={setIsBulkDeleteDialogOpen}
 				onConfirm={handleBulkDelete}
 			/>
+			<Dialog
+				open={isDraftImportOpen}
+				onOpenChange={handleDraftImportOpenChange}
+			>
+				<DialogContent className="max-w-2xl">
+					<DialogHeader>
+						<DialogTitle>{t("draftImport.title")}</DialogTitle>
+						<DialogDescription className="sr-only">
+							{t("draftImport.description")}
+						</DialogDescription>
+					</DialogHeader>
+					<JianyingDraftImportCard
+						controller={draftImport}
+						onOpenProject={handleOpenImportedProject}
+					/>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

@@ -10,6 +10,7 @@ import {
 } from "../transition-presets";
 import { TRANSITION_CATEGORY_EXPANSIONS } from "../transition-category-expansions";
 import { JIANYING_LOCAL_TRANSITION_PRESETS } from "../transition-jianying-local-presets";
+import { TRANSITION_LAB_PRESETS } from "../transition-lab-presets";
 import { TRANSITION_PARITY_CASES } from "../transition-parity-ten";
 
 function requirePreset({ presetId }: { presetId: string }): TransitionPreset {
@@ -107,13 +108,16 @@ describe("transition presets", () => {
 
 	it("keeps all local presets inside Transition Lab", () => {
 		const labPresets = filterTransitionPresets({
-			category: "jianying-local",
+			category: "lab",
 			query: "",
 		});
-		expect(labPresets).toHaveLength(JIANYING_LOCAL_TRANSITION_PRESETS.length);
-		expect(
-			labPresets.every((preset) => preset.backend === "jianying-local")
-		).toBe(true);
+		const localPresets = labPresets.filter(
+			(preset) => preset.backend === "jianying-local"
+		);
+		expect(labPresets).toHaveLength(
+			JIANYING_LOCAL_TRANSITION_PRESETS.length + TRANSITION_LAB_PRESETS.length
+		);
+		expect(localPresets).toHaveLength(JIANYING_LOCAL_TRANSITION_PRESETS.length);
 		expect(
 			filterTransitionPresets({ category: "all", query: "" }).some(
 				(preset) => preset.backend === "jianying-local"

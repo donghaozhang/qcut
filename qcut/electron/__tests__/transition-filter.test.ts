@@ -254,6 +254,24 @@ describe("FFmpeg transition filters", () => {
 		expect(filter.expression).not.toContain("4*pow((1-P),3)");
 	});
 
+	it.each([
+		{ direction: "left" as const, extent: "W" },
+		{ direction: "right" as const, extent: "W" },
+		{ direction: "up" as const, extent: "H" },
+		{ direction: "down" as const, extent: "H" },
+	])("snaps $direction push edges to whole pixels", ({ direction, extent }) => {
+		const filter = buildXfadeTransitionFilter({
+			transition: transition({
+				type: "push",
+				direction,
+				easing: "easeInOutQuint",
+			}),
+		});
+
+		expect(filter.expression).toContain(",1),0,if(gt(");
+		expect(filter.expression).toContain(`,${extent}-1),${extent},`);
+	});
+
 	it("preserves motion-blur travel direction in the export expression", () => {
 		const left = buildXfadeTransitionFilter({
 			transition: transition({ type: "motion-blur", direction: "left" }),

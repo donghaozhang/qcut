@@ -22,8 +22,10 @@ const REQUIRED_FILES = [
 	"TERMS.md",
 	"assets/icon.png",
 	"scripts/qcut-app.mjs",
+	"scripts/qcut-release.mjs",
 	"scripts/qcut-runner.mjs",
 	"scripts/qcut-setup.mjs",
+	"scripts/qcut-update.mjs",
 ];
 
 function collectRegularFiles({ directory }) {

@@ -67,6 +67,7 @@ describe("useLocalStickerCatalog", () => {
 			isAvailable: false,
 			isLoading: false,
 			privateCatalogs: [],
+			unavailablePrivateCatalogIds: [],
 		});
 		expect(catalogMocks.loadPrivateManifest).not.toHaveBeenCalled();
 		expect(catalogMocks.loadManifest).not.toHaveBeenCalled();
@@ -146,6 +147,9 @@ describe("useLocalStickerCatalog", () => {
 			isAvailable: true,
 			isLoading: false,
 			privateCatalogs: [],
+			// Nothing mocks the private manifests here, so all three legitimately
+			// fail — and the panel now says so instead of showing a short list.
+			unavailablePrivateCatalogIds: [...PRIVATE_STICKER_CATALOG_IDS],
 		});
 	});
 

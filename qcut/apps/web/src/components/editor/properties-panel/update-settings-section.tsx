@@ -8,23 +8,13 @@ import {
 import { Download, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import {
-	PlatformCapability,
-	platform,
 	type PlatformUpdatePreferences,
 	type PlatformUpdateState,
 } from "@qcut/platform-core";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { useAppUpdate } from "@/hooks/use-app-update";
 import { useTranslation } from "@/lib/i18n";
-
-const EMPTY_STATE: PlatformUpdateState = {
-	phase: "idle",
-	currentVersion: "",
-	percent: 0,
-	transferred: 0,
-	total: 0,
-	automaticDownload: false,
-};
 
 const EMPTY_PREFERENCES: PlatformUpdatePreferences = {
 	automaticUpdates: false,
@@ -64,35 +54,29 @@ function statusLabel({
 export function UpdateSettingsSection() {
 	const { t } = useTranslation();
 	const automaticUpdatesId = useId();
-	const [state, setState] = useState<PlatformUpdateState>(EMPTY_STATE);
+	const {
+		state,
+		available: hasUpdates,
+		checkForUpdates,
+		downloadUpdate,
+		installUpdate,
+		getPreferences,
+		setPreferences: savePreferences,
+	} = useAppUpdate();
 	const [preferences, setPreferences] =
 		useState<PlatformUpdatePreferences>(EMPTY_PREFERENCES);
-	const hasUpdates = (() => {
-		try {
-			return platform().hasCapability(PlatformCapability.Updates);
-		} catch {
-			return false;
-		}
-	})();
 
 	useEffect(() => {
 		if (!hasUpdates) return;
-		const updates = platform().updates;
-		const unsubscribe = updates.onStateChanged(setState);
 		let active = true;
-		void Promise.all([updates.getState(), updates.getPreferences()]).then(
-			([nextState, nextPreferences]) => {
-				if (!active) return;
-				setState(nextState);
-				setPreferences(nextPreferences);
-			}
-		);
+		void getPreferences().then((nextPreferences) => {
+			if (active) setPreferences(nextPreferences);
+		});
 
 		return () => {
 			active = false;
-			unsubscribe();
 		};
-	}, [hasUpdates]);
+	}, [getPreferences, hasUpdates]);
 
 	const setAutomaticUpdates = useCallback(
 		async ({ enabled }: { enabled: boolean }) => {
@@ -101,33 +85,28 @@ export function UpdateSettingsSection() {
 				...current,
 				automaticUpdates: enabled,
 			}));
-			const saved = await platform().updates.setPreferences({
-				automaticUpdates: enabled,
+			const saved = await savePreferences({
+				preferences: { automaticUpdates: enabled },
 			});
 			setPreferences(saved);
 		},
-		[hasUpdates]
+		[hasUpdates, savePreferences]
 	);
 
 	const checkNow = useCallback(() => {
 		if (!hasUpdates) return;
-		void platform().updates.checkForUpdates().then(setState);
-	}, [hasUpdates]);
+		void checkForUpdates();
+	}, [checkForUpdates, hasUpdates]);
 
 	const downloadNow = useCallback(() => {
 		if (!hasUpdates) return;
-		void platform()
-			.updates.downloadUpdate()
-			.then(setState)
-			.catch(() => toast.error(t("updates.downloadFailed")));
-	}, [hasUpdates, t]);
+		void downloadUpdate().catch(() => toast.error(t("updates.downloadFailed")));
+	}, [downloadUpdate, hasUpdates, t]);
 
 	const installNow = useCallback(() => {
 		if (!hasUpdates) return;
-		void platform()
-			.updates.installUpdate()
-			.catch(() => toast.error(t("updates.installFailed")));
-	}, [hasUpdates, t]);
+		void installUpdate().catch(() => toast.error(t("updates.installFailed")));
+	}, [hasUpdates, installUpdate, t]);
 
 	const handleButtonKeyDown = useCallback(
 		({ event, action }: { event: KeyboardEvent; action: () => void }) => {

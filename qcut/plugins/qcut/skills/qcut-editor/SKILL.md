@@ -20,20 +20,21 @@ If `app.installed` is false:
 
 1. Show the user `latest.version`, `latest.asset.name`, size, and the clickable
    `latest.asset.url`. Use `latest.pageUrl` only when no compatible asset exists.
-2. Confirm before opening or downloading the installer.
-3. After confirmation, open only the verified official URL:
+2. Confirm before downloading or installing QCut.
+3. After confirmation, use the verified CLI installer:
 
 ```bash
-node <plugin-root>/scripts/qcut-setup.mjs open-download --confirm
+node <plugin-root>/scripts/qcut-setup.mjs update --confirm
 ```
 
-4. Let the user complete the operating-system installer. Never use a third-party
-   mirror, bypass Gatekeeper or SmartScreen, or silently execute a downloaded
-   installer.
+4. The helper verifies the official asset size and SHA-256 before installation;
+   macOS also requires QCut's bundle ID and Quriosity signing team. Never use a
+   third-party mirror or bypass Gatekeeper or SmartScreen.
 5. Rerun `status` and require `app.installed: true` before editor automation.
 
 An available update does not block editing. Report it and install it only when
-the user asks or the installed build lacks a required command. See
+the user asks or the installed build lacks a required command. Use the same
+`update --confirm` flow and verify the resulting version. See
 [installing-qcut.md](references/installing-qcut.md) for platform steps.
 
 If `nextAction` is `configure-cli`, QCut is present but its packaged CLI cannot
@@ -104,6 +105,31 @@ node <plugin-root>/scripts/qcut-runner.mjs editor:timeline:export --project-id <
 
 See [editor-workflows.md](references/editor-workflows.md) for editing and export
 sequences.
+
+## The window does not follow every change
+
+Editor mutations apply to a project by id. The window follows them live only
+when it already has that project open — a command targeting any other project
+still returns `"status": "ok"` while the user looks at an unrelated screen. A
+run of successful responses is therefore not evidence that anything is visible.
+
+Every editor command reports which project the window is on:
+
+```json
+"view": { "activeProjectId": "…", "matchesTarget": false }
+```
+
+Read it. `matchesTarget: false` means the change landed somewhere the user
+cannot see. Pass `--focus` to bring the window to the target first:
+
+```bash
+node <plugin-root>/scripts/qcut-runner.mjs editor:timeline:add-clip \
+  --project-id <id> --media-id <id> --focus --json
+```
+
+Do not add `--focus` to every call. It takes the window from whatever the user
+was doing, so use it once at the point the work becomes worth showing, and
+leave batch steps unfocused.
 
 ## Visible Agent pointer
 

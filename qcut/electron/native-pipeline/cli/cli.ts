@@ -35,6 +35,7 @@ import {
 import {
 	CLI_VERSION,
 	findHelpParam,
+	printCommandHelp,
 	printCommandHelpJson,
 	printGroupHelp,
 	printGroupHelpJson,
@@ -328,6 +329,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			// vimax options
 			"no-references": { type: "boolean", default: false },
 			"project-id": { type: "string" },
+			"bundle-digest": { type: "string" },
 			project: { type: "string" },
 			"chunk-size": { type: "string" },
 			overlap: { type: "string" },
@@ -339,6 +341,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"element-id": { type: "string" },
 			"job-id": { type: "string" },
 			"track-id": { type: "string" },
+			"from-element-id": { type: "string" },
+			"to-element-id": { type: "string" },
 			type: { type: "string" },
 			index: { type: "string" },
 			"to-track": { type: "string" },
@@ -449,6 +453,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"recording-quality": { type: "string" },
 			discard: { type: "boolean", default: false },
 			force: { type: "boolean", default: false },
+			yes: { type: "boolean", short: "y", default: false },
+			check: { type: "boolean", default: false },
+			"no-launch": { type: "boolean", default: false },
 			// `qcut record` standalone options (Phase 1 of dual-mode recording)
 			"record-duration": { type: "string" },
 			"no-auto-launch": { type: "boolean", default: false },
@@ -504,6 +511,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"max-nodes": { type: "string" },
 			// performance flags
 			"skip-health": { type: "boolean", default: false },
+			focus: { type: "boolean", default: false },
+			"download-dir": { type: "string" },
 			"status-only": { type: "boolean", default: false },
 			deep: { type: "boolean", default: false },
 			"no-capability-check": { type: "boolean", default: false },
@@ -515,6 +524,21 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			opacity: { type: "string" },
 			rotation: { type: "string" },
 			"sticker-id": { type: "string" },
+			// local Jianying transition reference options
+			"cache-root": { type: "string" },
+			"project-root": { type: "string" },
+			database: { type: "string", multiple: true },
+			draft: { type: "string", multiple: true },
+			"plan-token": { type: "string" },
+			"recovery-token": { type: "string" },
+			"accept-warning": { type: "string", multiple: true },
+			path: { type: "string" },
+			"resource-id": { type: "string", multiple: true },
+			"draft-effect-id": { type: "string", multiple: true },
+			"catalog-effect-id": { type: "string", multiple: true },
+			"metadata-md5": { type: "string" },
+			formula: { type: "string" },
+			"ffmpeg-path": { type: "string" },
 		},
 		strict: false,
 	});
@@ -537,7 +561,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 				if (!flag) process.exit(1);
 			}
 		} else {
-			printHelp();
+			// The command is already resolved here, so show its own flags instead
+			// of the root overview, which is what `<group> <action> --help` hit.
+			printCommandHelp(command);
 		}
 		process.exit(0);
 	}
@@ -828,6 +854,23 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		projectId:
 			(values["project-id"] as string | undefined) ??
 			(values.project as string | undefined),
+		cacheRoot: values["cache-root"] as string | undefined,
+		projectRoot: values["project-root"] as string | undefined,
+		databasePaths: values.database as string[] | undefined,
+		draftPaths: values.draft as string[] | undefined,
+		planToken: values["plan-token"] as string | undefined,
+		bundleDigest: values["bundle-digest"] as string | undefined,
+		recoveryToken: values["recovery-token"] as string | undefined,
+		acceptedWarningFingerprints: values["accept-warning"] as
+			| string[]
+			| undefined,
+		packagePath: values.path as string | undefined,
+		resourceIds: values["resource-id"] as string[] | undefined,
+		draftEffectIds: values["draft-effect-id"] as string[] | undefined,
+		catalogEffectIds: values["catalog-effect-id"] as string[] | undefined,
+		metadataMd5: values["metadata-md5"] as string | undefined,
+		formula: values.formula as string | undefined,
+		ffmpegPath: values["ffmpeg-path"] as string | undefined,
 		chunkSize: values["chunk-size"]
 			? Number.isNaN(parseInt(values["chunk-size"] as string, 10))
 				? undefined
@@ -850,6 +893,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		elementId: values["element-id"] as string | undefined,
 		jobId: values["job-id"] as string | undefined,
 		trackId: values["track-id"] as string | undefined,
+		fromElementId: values["from-element-id"] as string | undefined,
+		toElementId: values["to-element-id"] as string | undefined,
 		trackType: values.type as string | undefined,
 		index:
 			command !== "analyze-inspect" && command !== "edit-plan" && values.index
@@ -1029,6 +1074,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		recordingQuality: values["recording-quality"] as string | undefined,
 		discard: (values.discard as boolean) ?? false,
 		force: (values.force as boolean) ?? false,
+		yes: (values.yes as boolean) ?? false,
+		checkOnly: (values.check as boolean) ?? false,
+		noLaunch: (values["no-launch"] as boolean) ?? false,
 		// `qcut record` standalone options — typed camelCase mappings
 		recordDuration: values["record-duration"]
 			? Number.isNaN(parseFloat(values["record-duration"] as string))
@@ -1120,6 +1168,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			: undefined,
 		// performance flags
 		skipHealth: (values["skip-health"] as boolean) ?? false,
+		focus: (values.focus as boolean) ?? false,
+		downloadDir: values["download-dir"] as string | undefined,
 		statusOnly: (values["status-only"] as boolean) ?? false,
 		deep: (values.deep as boolean) ?? false,
 		noCapabilityCheck: (values["no-capability-check"] as boolean) ?? false,
@@ -1151,6 +1201,8 @@ export async function main(
 				quiet: { type: "boolean", short: "q", default: false },
 				verbose: { type: "boolean", short: "v", default: false },
 				"skip-health": { type: "boolean", default: false },
+				focus: { type: "boolean", default: false },
+				"download-dir": { type: "string" },
 				"no-capability-check": { type: "boolean", default: false },
 				policy: { type: "string" },
 				resume: { type: "string" },
@@ -1175,6 +1227,8 @@ export async function main(
 			token: sessionValues.token as string | undefined,
 			outputDir: sessionValues["output-dir"] as string | undefined,
 			stateDir: sessionValues["state-dir"] as string | undefined,
+			focus: sessionValues.focus as boolean | undefined,
+			downloadDir: sessionValues["download-dir"] as string | undefined,
 			session: true,
 		};
 

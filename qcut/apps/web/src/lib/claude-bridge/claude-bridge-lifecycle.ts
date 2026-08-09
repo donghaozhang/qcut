@@ -37,6 +37,14 @@ import {
 	cleanupClaudeEventsBridge,
 	setupClaudeEventsBridge,
 } from "@/lib/claude-bridge/claude-events-bridge";
+import {
+	cleanupQCutImportEvidenceBridge,
+	setupQCutImportEvidenceBridge,
+} from "@/lib/claude-bridge/qcut-import-evidence-bridge";
+import {
+	cleanupQCutSameProfileWritebackBridge,
+	setupQCutSameProfileWritebackBridge,
+} from "@/lib/claude-bridge/qcut-same-profile-writeback-bridge";
 
 type ClaudeBridgeErrorHandler = (message: string, error: unknown) => void;
 
@@ -109,6 +117,16 @@ export function setupClaudeBridgeLifecycle({
 		onError,
 	});
 	runBridgeStep({
+		message: "[ClaudeBridge] Failed to setup import evidence bridge",
+		step: setupQCutImportEvidenceBridge,
+		onError,
+	});
+	runBridgeStep({
+		message: "[ClaudeBridge] Failed to setup same-profile writeback bridge",
+		step: setupQCutSameProfileWritebackBridge,
+		onError,
+	});
+	runBridgeStep({
 		message: "[ClaudeBridge] Failed to setup events bridge",
 		step: setupClaudeEventsBridge,
 		onError,
@@ -158,6 +176,16 @@ export function setupClaudeBridgeLifecycle({
 		runBridgeStep({
 			message: "[ClaudeBridge] Failed to cleanup state bridge",
 			step: cleanupClaudeStateBridge,
+			onError,
+		});
+		runBridgeStep({
+			message: "[ClaudeBridge] Failed to cleanup same-profile writeback bridge",
+			step: cleanupQCutSameProfileWritebackBridge,
+			onError,
+		});
+		runBridgeStep({
+			message: "[ClaudeBridge] Failed to cleanup import evidence bridge",
+			step: cleanupQCutImportEvidenceBridge,
 			onError,
 		});
 		runBridgeStep({

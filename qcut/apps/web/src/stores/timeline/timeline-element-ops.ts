@@ -29,6 +29,8 @@ import {
 	assignNewStickerInstanceId,
 	createStickerInstanceId,
 } from "@/lib/stickers/sticker-instance";
+import { blockedByTrackLock } from "./timeline-lock-guard";
+import { findRangeCollisions } from "@qcut/editor-core/timeline";
 
 export function createElementOps(
 	get: StoreGet,
@@ -44,6 +46,15 @@ export function createElementOps(
 			newStartTime: number
 		) => {
 			const { _tracks, rippleEditingEnabled } = get();
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Update Element Start Time With Ripple",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 			const clampedNewStartTime = Math.max(0, newStartTime);
 			const groupedElement = _tracks
 				.find((track) => track.id === trackId)
@@ -146,6 +157,15 @@ export function createElementOps(
 			const element = track?.elements.find((c) => c.id === elementId);
 
 			if (!element) return null;
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Split Element",
+					trackIds: [trackId],
+				})
+			) {
+				return null;
+			}
 
 			const effectiveStart = element.startTime;
 			const effectiveEnd = getTimelineElementEndTime({ element });
@@ -206,6 +226,15 @@ export function createElementOps(
 			const element = track?.elements.find((c) => c.id === elementId);
 
 			if (!element) return;
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Split And Keep Left",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 
 			const effectiveStart = element.startTime;
 			const effectiveEnd = getTimelineElementEndTime({ element });
@@ -252,6 +281,15 @@ export function createElementOps(
 			const element = track?.elements.find((c) => c.id === elementId);
 
 			if (!element) return;
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Split And Keep Right",
+					trackIds: [trackId],
+				})
+			) {
+				return;
+			}
 
 			const effectiveStart = element.startTime;
 			const effectiveEnd = getTimelineElementEndTime({ element });
@@ -330,10 +368,37 @@ export function createElementOps(
 				return null;
 			}
 
-			get().pushHistory();
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Separate Audio",
+					trackIds: [trackId],
+				})
+			) {
+				return null;
+			}
 
-			// Find existing audio track or prepare to create one
-			const existingAudioTrack = _tracks.find((t) => t.type === "audio");
+			// The detached audio must land on an audio lane that is editable and
+			// free at the clip's range; otherwise stack a new lane (QTL-002).
+			const audioRange = {
+				startTime: element.startTime,
+				endTime: element.startTime + getTimelineElementDuration({ element }),
+			};
+			const existingAudioTrack = _tracks.find(
+				(t) =>
+					t.type === "audio" &&
+					!t.locked &&
+					findRangeCollisions({
+						items: t.elements.map((el) => ({
+							id: el.id,
+							startTime: el.startTime,
+							endTime: getTimelineElementEndTime({ element: el }),
+						})),
+						range: audioRange,
+					}).length === 0
+			);
+
+			get().pushHistory();
 			const audioElementId = generateUUID();
 			const audioLinkGroupId = element.groupId ?? `group-${generateUUID()}`;
 			const detachedAudioElement: MediaElement = {
@@ -417,6 +482,16 @@ export function createElementOps(
 					success: false,
 					error: "Replace is only available for media clips",
 				};
+			}
+
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Replace Element Media",
+					trackIds: [trackId],
+				})
+			) {
+				return { success: false, error: "Cannot modify a locked track" };
 			}
 
 			try {
@@ -517,23 +592,73 @@ export function createElementOps(
 					};
 				}
 
+				// The awaits above can span user edits: re-read the live timeline
+				// instead of writing back the entry snapshot, and re-run the
+				// preconditions against it.
+				const currentTracks = get()._tracks;
+				const currentElement = currentTracks
+					.find((t) => t.id === trackId)
+					?.elements.find((c) => c.id === elementId);
+				if (currentElement?.type !== "media") {
+					return {
+						success: false,
+						error: "Timeline element changed while importing the new media",
+					};
+				}
+				if (
+					blockedByTrackLock({
+						tracks: currentTracks,
+						operation: "Replace Element Media",
+						trackIds: [trackId],
+					})
+				) {
+					return { success: false, error: "Cannot modify a locked track" };
+				}
+
+				// Replacement preserves the target time slot (QTL-012): seams and
+				// transitions must not move. Timed media fills the slot by trimming
+				// its tail; media shorter than the slot is rejected instead of
+				// silently reshaping the timeline. Untimed media (images) keeps
+				// the element's timing untouched.
+				const slotTimelineDuration = getTimelineElementDuration({
+					element: currentElement,
+				});
+				const sourceRate = Math.max(
+					Number.EPSILON,
+					currentElement.playbackRate ?? 1
+				);
+				const requiredSourceDuration = slotTimelineDuration * sourceRate;
+				let slotTiming: Partial<MediaElement> = {};
+				if (typeof newMediaItem.duration === "number") {
+					if (newMediaItem.duration + 1e-6 < requiredSourceDuration) {
+						return {
+							success: false,
+							error: "Replacement media is shorter than the clip",
+						};
+					}
+					slotTiming = {
+						duration: newMediaItem.duration,
+						trimStart: 0,
+						trimEnd: newMediaItem.duration - requiredSourceDuration,
+					};
+				}
+
 				get().pushHistory();
 
 				// Update the timeline element to reference the new media
 				updateTracksAndSave(
-					_tracks.map((track) =>
+					currentTracks.map((track) =>
 						track.id === trackId
 							? {
 									...track,
 									elements: track.elements.map((c) =>
 										c.id === elementId
-											? {
+											? ({
 													...c,
 													mediaId: newMediaItem.id,
 													name: newMediaItem.name,
-													// Update duration if the new media has a different duration
-													duration: newMediaItem.duration || c.duration,
-												}
+													...slotTiming,
+												} as TimelineElement)
 											: c
 									),
 								}

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Jianying Audio Reference"
+  short_description: "Inspect Jianying sound-effect metadata and cache evidence"
+  default_prompt: "Use $jianying-audio-reference to trace a Jianying sound-effect card to its metadata and cached audio."

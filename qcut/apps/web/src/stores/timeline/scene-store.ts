@@ -72,7 +72,7 @@ interface SceneStore {
 		isMain,
 	}: {
 		name: string;
-		isMain: boolean;
+		isMain?: boolean;
 	}) => Promise<string>;
 	deleteScene: ({ sceneId }: { sceneId: string }) => Promise<void>;
 	renameScene: ({
@@ -183,8 +183,20 @@ export const useSceneStore = create<SceneStore>((set, get) => ({
 
 		try {
 			await storageService.saveProject({ project: updatedProject });
-			// TODO: Add scene-specific timeline cleanup when storageService supports it
-			// Note: Scene timeline data will remain in storage but won't affect functionality
+			// Remove the deleted scene's timeline from storage (QTL-010) so
+			// orphaned scene data stops accumulating. Cleanup failure must not
+			// abort the deletion — the project no longer references the scene.
+			try {
+				await storageService.deleteProjectTimeline({
+					projectId: activeProject.id,
+					sceneId,
+				});
+			} catch (cleanupError) {
+				console.warn(
+					"Failed to clean up deleted scene timeline:",
+					cleanupError
+				);
+			}
 
 			useProjectStore.setState({ activeProject: updatedProject });
 			set({

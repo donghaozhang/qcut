@@ -19,6 +19,7 @@ import type {
 	StoreGet,
 	StoreSet,
 } from "./timeline-store-operations";
+import { blockedByTrackLock } from "./timeline-lock-guard";
 
 export function createAddOps(
 	get: StoreGet,
@@ -253,13 +254,18 @@ export function createAddOps(
 
 		addMediaToNewTrack: (item: MediaItem): boolean => {
 			const trackType = item.type === "audio" ? "audio" : "media";
-			const targetTrackId = get().findOrCreateTrack(trackType);
+			const duration =
+				item.duration || TIMELINE_CONSTANTS.DEFAULT_IMAGE_DURATION;
+			const targetTrackId = get().findOrCreateTrack(trackType, {
+				startTime: 0,
+				duration,
+			});
 
 			get().addElementToTrack(targetTrackId, {
 				type: "media",
 				mediaId: item.id,
 				name: item.name,
-				duration: item.duration || TIMELINE_CONSTANTS.DEFAULT_IMAGE_DURATION,
+				duration,
 				startTime: 0,
 				trimStart: 0,
 				trimEnd: 0,
@@ -524,6 +530,15 @@ export function createAddOps(
 			pushHistory?: boolean;
 		}) => {
 			const { _tracks } = get();
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Set Element Effect State",
+					elementIds: [elementId],
+				})
+			) {
+				return;
+			}
 			let updated = false;
 			const nextTracks = _tracks.map((track) => ({
 				...track,
@@ -546,6 +561,15 @@ export function createAddOps(
 
 		addEffectToElement: (elementId: string, effectId: string) => {
 			const { _tracks, pushHistory } = get();
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Add Effect to Element",
+					elementIds: [elementId],
+				})
+			) {
+				return;
+			}
 			let updated = false;
 
 			// Create immutable update
@@ -584,6 +608,15 @@ export function createAddOps(
 
 		removeEffectFromElement: (elementId: string, effectId: string) => {
 			const { _tracks, pushHistory } = get();
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Remove Effect from Element",
+					elementIds: [elementId],
+				})
+			) {
+				return;
+			}
 			let updated = false;
 
 			// Create immutable update
@@ -640,6 +673,15 @@ export function createAddOps(
 
 		clearElementEffects: (elementId: string) => {
 			const { _tracks, pushHistory } = get();
+			if (
+				blockedByTrackLock({
+					tracks: _tracks,
+					operation: "Clear Element Effects",
+					elementIds: [elementId],
+				})
+			) {
+				return;
+			}
 			let updated = false;
 
 			// Create immutable update

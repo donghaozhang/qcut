@@ -1,0 +1,133 @@
+/**
+ * @qcut/jianying-draft-import — read-only draft snapshot runtime (JYI-006).
+ *
+ * Main-process / CLI only: this package touches the filesystem and must
+ * never be imported by renderer code. It produces immutable snapshots for
+ * the editor-core interop layer and writes nothing.
+ */
+
+export {
+	discoverDraftDirectory,
+	MAX_DISCOVERY_DEPTH,
+	MAX_DISCOVERY_ENTRIES,
+	type DiscoveredDraftFile,
+	type DraftDiscoveryResult,
+	type SkippedDraftEntry,
+} from "./discovery.js";
+
+export {
+	DEFAULT_MAX_FILE_BYTES,
+	DEFAULT_MAX_TOTAL_BYTES,
+	readDraftSourceSnapshot,
+	verifyDraftSourceUnchanged,
+	type DraftSourceFileIdentity,
+	type DraftSourceSnapshot,
+	type DraftSourceSnapshotFile,
+} from "./snapshot-reader.js";
+
+export {
+	validateDraftInspectRequest,
+	type DraftInspectRequest,
+	type DraftRequestValidationIssue,
+	type ValidateDraftInspectRequestResult,
+} from "./runtime-validation.js";
+
+export {
+	createImportPlanArtifact,
+	createImportPlanToken,
+	IMPORT_PLAN_ARTIFACT_SCHEMA_VERSION,
+	MAX_PLAN_TTL_MILLISECONDS,
+	redactImportPlanArtifactForLog,
+	validateImportPlanArtifact,
+	type ImportPlanArtifactV1,
+	type ImportPlanBuildIdentity,
+	type ImportPlanDetectionOutcome,
+	type ImportPlanInvalidReason,
+	type RedactedImportPlanArtifact,
+} from "./import-plan-artifact.js";
+
+export {
+	ImportPlanBuildMismatchError,
+	ImportPlanConsumedError,
+	ImportPlanExpiredError,
+	ImportPlanNotFoundError,
+	ImportPlanStore,
+	ImportPlanStoreFullError,
+} from "./import-plan-store.js";
+
+export {
+	buildQCutImportBundle,
+	computeQCutImportBundleDigest,
+	verifyQCutImportBundleDigest,
+	type BuildQCutImportBundleResult,
+} from "./qcut-import-bundle-builder.js";
+
+export {
+	resolveImportAssets,
+	type AssetResolutionMethod,
+	type AssetResolutionStatus,
+	type AssetResolverInstrumentation,
+	type ResolvedImportAsset,
+	type ResolveImportAssetsInput,
+	type ResolveImportAssetsResult,
+} from "./asset-resolver.js";
+
+export type { AssetResolutionCacheMetrics } from "./asset-resolution-work-cache.js";
+
+export type {
+	ImportPlanStageId,
+	ImportStageMeasurementV1,
+	ImportStageMetricsV1,
+} from "@qcut/editor-core/draft-interop";
+
+export {
+	buildForeignEnvelopeCapture,
+	type BuiltForeignEnvelopeCapture,
+} from "./foreign-envelope-capture.js";
+
+export {
+	DEFAULT_MAX_MEDIA_PAYLOAD_GRANTS,
+	DEFAULT_MEDIA_PAYLOAD_GRANT_TTL_MILLISECONDS,
+	MAX_IMPORT_MEDIA_BYTES,
+	MEDIA_PAYLOAD_GRANT_SCHEMA_VERSION,
+	MediaPayloadGrantError,
+	MediaPayloadGrantStore,
+	type MediaPayloadChunkDto,
+	type MediaPayloadGrantDto,
+	type MediaPayloadGrantErrorCode,
+	type RestrictedMediaPayloadSource,
+	type VerifiedRestrictedMediaPayloadSource,
+} from "./media-payload-grant-store.js";
+
+export {
+	MAX_MEDIA_PAYLOAD_CHUNK_BYTES,
+	type MediaPayloadFileIdentity,
+} from "./media-payload-reader.js";
+
+export {
+	buildContentSummary,
+	ImportSessionError,
+	JianyingDraftImportSession,
+	type DraftImportCommitDto,
+	type DraftImportEnvelopeCaptureDto,
+	type DraftImportGrantedCommitDto,
+	type DraftImportInspectDto,
+	type DraftImportMediaPayloadDto,
+	type DraftImportPlanDto,
+} from "./import-session.js";
+
+export {
+	deleteDesktopImport,
+	DesktopImportInboxMalformedError,
+	DesktopImportInboxUnavailableError,
+	enqueueDesktopImport,
+	listDesktopImports,
+	readDesktopImport,
+	type DesktopImportInboxEntrySummary,
+} from "./desktop-import-inbox.js";
+
+export {
+	enqueueDesktopImportFromGrants,
+	readDesktopImportWithGrants,
+	type MediaPayloadChunkReader,
+} from "./desktop-import-inbox-grants.js";

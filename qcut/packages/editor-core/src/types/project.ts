@@ -7,6 +7,8 @@
 
 import type { CanvasSize } from "./editor.js";
 import type { ProjectAudioMixSettings } from "./timeline.js";
+import type { DraftInteropDocumentV1 } from "../draft-interop/document.js";
+import type { ForeignDraftEnvelopeV1 } from "../draft-interop/foreign-envelope.js";
 
 export type BlurIntensity = 4 | 8 | 18;
 
@@ -40,6 +42,33 @@ export interface ProjectGuides {
 	hidden: boolean;
 }
 
+export type DraftInteropWritebackStatus =
+	| {
+			status: "unavailable";
+			reason:
+				| "envelope-not-captured"
+				| "profile-not-writable"
+				| "envelope-unavailable"
+				| "baseline-document-missing";
+	  }
+	| { status: "ready" };
+
+/** Private local association between a QCut project and its foreign source. */
+export interface DraftInteropProjectBindingV1 {
+	schemaVersion: 1;
+	importId: string;
+	profileId: string;
+	bundleDigest: string;
+	sourceFileSha256: string[];
+	/** Stable foreign semantic id to QCut entity id mapping from import. */
+	internalIdBySemanticId: Record<string, string>;
+	/** Normalized import baseline. Raw source bytes remain encrypted separately. */
+	baselineDocument?: DraftInteropDocumentV1;
+	writeback: DraftInteropWritebackStatus;
+	/** Metadata only. Raw source bytes remain behind the encrypted payload ref. */
+	envelope?: ForeignDraftEnvelopeV1;
+}
+
 export interface TProject {
 	id: string;
 	name: string;
@@ -66,4 +95,40 @@ export interface TProject {
 	audioMix?: ProjectAudioMixSettings;
 	/** Alignment guides drawn over the preview (editing aid only, never exported). */
 	guides?: ProjectGuides;
+	/** Timeline behavior toggles (QTL-005); absent on legacy projects. */
+	timeline?: ProjectTimelineSettings;
+	/** Foreign-draft provenance and encrypted-envelope association. */
+	draftInterop?: DraftInteropProjectBindingV1;
+}
+
+/**
+ * Timeline behavior toggles (QTL-005). Three independent concepts that must
+ * never be conflated: ordinary snapping (drag alignment), the main-track
+ * magnet (deleting a main-track clip closes its gap even outside ripple
+ * mode), and linked ripple (ripple edits pull explicitly linked tracks).
+ */
+export interface ProjectTimelineSettings {
+	snappingEnabled: boolean;
+	mainTrackMagnetEnabled: boolean;
+	linkedRippleEnabled: boolean;
+}
+
+/**
+ * Deterministic defaults for legacy projects: snapping stays on (the
+ * historical default), the magnet is off (it did not exist), and linked
+ * ripple is on (ripple edits have followed typed links since QTL-003).
+ */
+export const DEFAULT_PROJECT_TIMELINE_SETTINGS: ProjectTimelineSettings = {
+	snappingEnabled: true,
+	mainTrackMagnetEnabled: false,
+	linkedRippleEnabled: true,
+};
+
+/** Fill missing fields of a persisted settings object with the defaults. */
+export function resolveProjectTimelineSettings({
+	settings,
+}: {
+	settings?: Partial<ProjectTimelineSettings> | null;
+}): ProjectTimelineSettings {
+	return { ...DEFAULT_PROJECT_TIMELINE_SETTINGS, ...(settings ?? {}) };
 }

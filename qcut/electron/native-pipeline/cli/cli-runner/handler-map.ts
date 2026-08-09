@@ -106,6 +106,7 @@ import { handleRecordDaemon } from "../cli-handlers-record-daemon.js";
 import { handleSystemDoctor } from "../cli-handlers-system-doctor.js";
 import { handlePersonCutout } from "../cli-handlers-person-cutout.js";
 import { handlePortraitFilter } from "../cli-handlers-portrait-filter.js";
+import { handleSoundSearch } from "../cli-handlers-sounds.js";
 import {
 	handleStickerOverlay,
 	handleStickerSearch,
@@ -116,6 +117,7 @@ import {
 	handleTransitionList,
 	handleTransitionRender,
 } from "../cli-handlers-jianying-transitions.js";
+import { handleAppUpdate } from "../cli-handlers-app-update.js";
 
 /**
  * Unified handler signature.
@@ -165,6 +167,7 @@ function wrapOPS(
  * the handleEditorCommand dispatcher via wildcard fallback.
  */
 export const HANDLER_MAP: Record<string, CommandHandler> = {
+	update: wrapOPS(handleAppUpdate),
 	"instances-list": wrap(handleInstancesCommand),
 	"instances-use": wrap(handleInstancesCommand),
 	"transition-list": wrap0(handleTransitionList),
@@ -287,6 +290,7 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	"subtitle-export": wrapOPS(handleSubtitleExport),
 	"person-cutout": wrapOPS(handlePersonCutout),
 	"portrait-filter": wrapOPS(handlePortraitFilter),
+	"sound-search": wrapOPS(handleSoundSearch),
 	"sticker-search": wrapOPS(handleStickerSearch),
 	"sticker-overlay": wrapOPS(handleStickerOverlay),
 

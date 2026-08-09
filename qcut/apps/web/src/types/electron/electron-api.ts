@@ -43,6 +43,9 @@ import type { ElectronYouTubeOps } from "./api-youtube";
 import type { ElectronWallpaperOps } from "./api-wallpapers";
 import type { ElectronJianyingDraftExportOps } from "./api-jianying-draft-export";
 import type { ElectronJianyingTransitionOps } from "./api-jianying-transitions";
+import type { ElectronJianyingEnvelopeOps } from "./api-jianying-envelope";
+import type { ElectronJianyingDraftImportOps } from "./api-jianying-draft-import";
+import type { ElectronJianyingSameProfileWritebackOps } from "./api-jianying-same-profile-writeback";
 import type {
 	AIPipelineProgress,
 	AIPipelineGenerateOptions,
@@ -86,7 +89,10 @@ export interface ElectronAPI
 		ElectronYouTubeOps,
 		ElectronWallpaperOps,
 		ElectronJianyingDraftExportOps,
-		ElectronJianyingTransitionOps {
+		ElectronJianyingTransitionOps,
+		ElectronJianyingEnvelopeOps,
+		ElectronJianyingDraftImportOps,
+		ElectronJianyingSameProfileWritebackOps {
 	// System info
 	platform: string;
 	isElectron: boolean;

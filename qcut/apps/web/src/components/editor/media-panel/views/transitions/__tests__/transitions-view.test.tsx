@@ -217,6 +217,39 @@ describe("TransitionsView", () => {
 		).not.toBeInTheDocument();
 	});
 
+	it("exposes clean-room shader recipes in Transition Lab", () => {
+		render(<TransitionsView />);
+
+		fireEvent.click(screen.getByRole("button", { name: "转场实验室" }));
+
+		expect(screen.getByText("78 个转场")).toBeVisible();
+		expect(screen.getByTestId("transition-card-lab-page-curl")).toBeVisible();
+		expect(
+			screen.getByTestId("transition-lab-canvas-lab-page-curl")
+		).toBeInTheDocument();
+	});
+
+	it("applies a Transition Lab recipe through the normal timeline contract", () => {
+		selectAdjacentClips();
+		render(<TransitionsView />);
+		fireEvent.click(screen.getByRole("button", { name: "转场实验室" }));
+		fireEvent.doubleClick(
+			screen.getByTestId("transition-card-lab-cube-rotate")
+		);
+
+		const track = useTimelineStore
+			.getState()
+			.tracks.find((item) => item.id === "track-1");
+		expect(track?.transitions).toEqual([
+			expect.objectContaining({
+				presetId: "lab-cube-rotate",
+				type: "cube",
+				direction: "left",
+				duration: 1,
+			}),
+		]);
+	});
+
 	it("exposes at least twenty working cards in every content category", () => {
 		render(<TransitionsView />);
 
@@ -258,14 +291,18 @@ describe("TransitionsView", () => {
 					screen.getByTestId("transition-card-jianying-local-3d-space")
 				).toBeVisible()
 			);
-			expect(screen.getByText("72 个转场")).toBeVisible();
+			expect(screen.getByText("78 个转场")).toBeVisible();
 			expect(
 				screen.getByText(
 					"67 个剪映本机转场可用；5 个 AI 一镜到底效果需使用首尾帧生成。"
 				)
 			).toBeVisible();
+			expect(screen.getByRole("tab", { name: /全部\s+78/ })).toBeVisible();
 			expect(
 				screen.getByRole("tab", { name: /AI 一镜到底\s+5/ })
+			).toBeVisible();
+			expect(
+				screen.getByTestId("transition-card-lab-clean-dissolve")
 			).toBeVisible();
 
 			fireEvent.click(screen.getByRole("tab", { name: /幻灯片\s+7/ }));

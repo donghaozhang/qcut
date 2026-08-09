@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { useSceneStore } from "@/stores/timeline/scene-store";
-import { Check, ListCheck, Trash2 } from "lucide-react";
+import { Check, ListCheck, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState, cloneElement, isValidElement } from "react";
 import {
@@ -24,9 +24,21 @@ import {
 } from "@/components/ui/dialog";
 
 export function ScenesView({ children }: { children: React.ReactNode }) {
-	const { scenes, currentScene, switchToScene, deleteScene } = useSceneStore();
+	const { scenes, currentScene, switchToScene, deleteScene, createScene } =
+		useSceneStore();
 	const [isSelectMode, setIsSelectMode] = useState(false);
 	const [selectedScenes, setSelectedScenes] = useState<Set<string>>(new Set());
+
+	const handleCreateScene = async () => {
+		try {
+			const sceneId = await createScene({
+				name: `Scene ${scenes.length + 1}`,
+			});
+			await switchToScene({ sceneId });
+		} catch (error) {
+			console.error("Failed to create scene:", error);
+		}
+	};
 
 	const handleSceneSwitch = async (sceneId: string) => {
 		if (isSelectMode) {
@@ -89,6 +101,16 @@ export function ScenesView({ children }: { children: React.ReactNode }) {
 				</SheetHeader>
 				<div className="py-4 flex flex-col gap-4">
 					<div className="flex items-center gap-2">
+						<Button
+							className="rounded-md"
+							variant="outline"
+							size="sm"
+							onClick={handleCreateScene}
+							data-testid="scenes-view-create"
+						>
+							<Plus />
+							New scene
+						</Button>
 						<Button
 							className="rounded-md"
 							variant={isSelectMode ? "default" : "outline"}

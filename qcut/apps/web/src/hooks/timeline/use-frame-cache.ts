@@ -97,7 +97,10 @@ export function useFrameCache({
 			const activeElements: Array<Record<string, unknown>> = [];
 
 			for (const track of tracks) {
-				if (track.muted) continue;
+				// Visual frame identity (QTL-010): hidden tracks leave the render,
+				// muted tracks do not — muting is an audio-only property, so it
+				// must neither hit stale frames nor invalidate valid ones.
+				if (track.hidden) continue;
 				for (const element of track.elements) {
 					const isHidden = "hidden" in element ? element.hidden : false;
 					if (isHidden) continue;
