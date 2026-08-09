@@ -84,7 +84,7 @@ function parseOptions(): VerificationOptions {
 			values["output-dir"] ??
 				path.join(
 					projectRoot,
-					".local/jianying-runtime/category-five/cli-verification"
+					".local/jianying-runtime/category-twenty/cli-verification"
 				)
 		),
 		duration: positiveNumber({
