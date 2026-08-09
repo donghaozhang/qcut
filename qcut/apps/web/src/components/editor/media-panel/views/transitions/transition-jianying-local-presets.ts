@@ -23,12 +23,17 @@ export const JIANYING_LOCAL_TRANSITION_PRESETS: TransitionPreset[] =
 			defaultDuration: transition.defaultDuration,
 			backend: "jianying-local",
 			jianyingGroup: transition.group,
-			description: `${transition.localizedName}由本机剪映运行时渲染，QCut 不内置或上传剪映效果文件。`,
+			description:
+				transition.runtimeKind === "ai-generation"
+					? `${transition.localizedName}使用 QCut AI 首尾帧生成，不会把剪映生成配置当成本机转场包。`
+					: `${transition.localizedName}由本机剪映运行时渲染，QCut 不内置或上传剪映效果文件。`,
 			tags: [
 				transition.resourceId,
 				transition.family,
+				transition.runtimeKind,
 				transition.overlap ? "overlap" : "non-overlap",
 			],
+			premium: transition.access === "vip",
 			popular: index < 6,
 			latest: true,
 		});
