@@ -1,4 +1,7 @@
-import type { JianyingTransitionId } from "./jianying-transition-catalog.js";
+import type {
+	JianyingTransitionId,
+	JianyingTransitionRuntimeKind,
+} from "./jianying-transition-catalog.js";
 
 export {
 	JIANYING_TRANSITION_GROUPS,
@@ -19,6 +22,8 @@ export const JIANYING_TRANSITION_RENDER_TIMELINE_CHANNEL =
 export interface JianyingTransitionAvailabilityEntry {
 	id: JianyingTransitionId;
 	available: boolean;
+	runtimeKind: JianyingTransitionRuntimeKind;
+	reason?: string;
 }
 
 export type JianyingTransitionRuntimeState =
@@ -26,6 +31,7 @@ export type JianyingTransitionRuntimeState =
 	| "unsupported-platform"
 	| "app-missing"
 	| "bridge-missing"
+	| "runtime-incompatible"
 	| "packages-missing"
 	| "error";
 
