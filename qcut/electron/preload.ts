@@ -68,8 +68,10 @@ import {
 } from "./jianying-draft-export-contract.js";
 import {
 	JIANYING_TRANSITION_INSPECT_CHANNEL,
+	JIANYING_TRANSITION_PREVIEW_CHANNEL,
 	JIANYING_TRANSITION_RENDER_CHANNEL,
 	JIANYING_TRANSITION_RENDER_TIMELINE_CHANNEL,
+	JIANYING_TRANSITION_TIMELINE_PREVIEW_CHANNEL,
 } from "./jianying-transition-contract.js";
 import {
 	ENVELOPE_DELETE_CHANNEL,
@@ -120,6 +122,10 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 	},
 	jianyingTransitions: {
 		inspect: () => ipcRenderer.invoke(JIANYING_TRANSITION_INSPECT_CHANNEL),
+		preview: (request) =>
+			ipcRenderer.invoke(JIANYING_TRANSITION_PREVIEW_CHANNEL, request),
+		timelinePreview: (request) =>
+			ipcRenderer.invoke(JIANYING_TRANSITION_TIMELINE_PREVIEW_CHANNEL, request),
 		render: (request) =>
 			ipcRenderer.invoke(JIANYING_TRANSITION_RENDER_CHANNEL, request),
 		renderTimeline: (request) =>

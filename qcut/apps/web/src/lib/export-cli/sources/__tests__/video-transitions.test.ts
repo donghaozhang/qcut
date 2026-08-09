@@ -54,6 +54,7 @@ function transitionTrack(): TimelineTrack {
 				fromElementId: "video-a",
 				toElementId: "video-b",
 				presetId: "dissolve",
+				engine: "qcut",
 				type: "dissolve",
 				easing: "linear",
 				duration: 1,
@@ -81,6 +82,30 @@ describe("extractVideoTransitions", () => {
 				duration: 1,
 			}),
 		]);
+	});
+
+	it("preserves local engine identity for the final export partition", () => {
+		const sourceTrack = transitionTrack();
+		const transition = sourceTrack.transitions?.[0];
+		if (!transition) throw new Error("Missing transition fixture");
+		transition.engine = "jianying-local";
+		transition.packageHash = "c".repeat(32);
+		transition.presetId = "jianying-local-3d-space";
+
+		const result = extractVideoTransitions({
+			tracks: [sourceTrack],
+			mediaItems: [
+				mediaItem({ id: "video-a-asset", type: "video" }),
+				mediaItem({ id: "video-b-asset", type: "video" }),
+			],
+			fps: 30,
+		});
+
+		expect(result[0]).toMatchObject({
+			engine: "jianying-local",
+			packageHash: "c".repeat(32),
+			presetId: "jianying-local-3d-space",
+		});
 	});
 
 	it.each([

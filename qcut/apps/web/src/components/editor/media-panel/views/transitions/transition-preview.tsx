@@ -13,6 +13,7 @@ import { getClipTransitionPresetConfig } from "./transition-presets";
 import type { TransitionPreset } from "./transition-preset-types";
 import { getTransitionLabRecipe } from "./transition-lab-presets";
 import { ShaderTransitionPreview } from "./shader-transition-preview";
+import { JianyingLocalTransitionPreview } from "./transition-jianying-local-preview";
 
 export interface TransitionPreviewSources {
 	from?: string;
@@ -145,20 +146,35 @@ export function TransitionPreview({
 	preset,
 	isPlaying,
 	sources,
+	available = true,
 }: {
 	preset: TransitionPreset;
 	isPlaying: boolean;
 	sources?: TransitionPreviewSources;
+	available?: boolean;
 }) {
-	const recipe = getTransitionLabRecipe({ presetId: preset.id });
-	if (!recipe) {
+	const fallback = (
+		<CssTransitionPreview
+			preset={preset}
+			isPlaying={isPlaying}
+			sources={sources}
+		/>
+	);
+	if (preset.backend === "jianying-local" && preset.packageHash) {
 		return (
-			<CssTransitionPreview
-				preset={preset}
+			<JianyingLocalTransitionPreview
+				presetId={preset.id}
+				packageHash={preset.packageHash}
+				localizedName={preset.localizedName}
+				available={available}
 				isPlaying={isPlaying}
-				sources={sources}
+				fallback={fallback}
 			/>
 		);
+	}
+	const recipe = getTransitionLabRecipe({ presetId: preset.id });
+	if (!recipe) {
+		return fallback;
 	}
 
 	const fromSource = sources?.from || preset.preview.from;
@@ -166,13 +182,7 @@ export function TransitionPreview({
 	return (
 		<ShaderTransitionPreview
 			duration={preset.defaultDuration}
-			fallback={
-				<CssTransitionPreview
-					preset={preset}
-					isPlaying={isPlaying}
-					sources={sources}
-				/>
-			}
+			fallback={fallback}
 			fromSource={fromSource}
 			isPlaying={isPlaying}
 			recipe={recipe}

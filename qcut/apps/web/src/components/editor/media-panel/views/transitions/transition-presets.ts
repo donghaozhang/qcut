@@ -334,6 +334,8 @@ export function filterTransitionPresets({
 			preset.type,
 			preset.description,
 			preset.jianyingGroup ?? "",
+			preset.jianyingGroupLabel ?? "",
+			preset.packageHash ?? "",
 			...preset.tags,
 		]
 			.join(" ")

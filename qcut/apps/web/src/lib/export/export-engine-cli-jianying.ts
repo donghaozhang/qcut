@@ -15,7 +15,26 @@ export function partitionJianyingTransitions({
 	const qcutTransitions: VideoTransitionInput[] = [];
 	const jianyingTransitions: VideoTransitionInput[] = [];
 	for (const transition of transitions) {
-		if (resolveJianyingTransition({ value: transition.presetId })) {
+		const definition = resolveJianyingTransition({
+			value: transition.presetId,
+		});
+		if (
+			transition.engine === "jianying-local" ||
+			(!transition.engine && definition)
+		) {
+			if (!definition) {
+				throw new Error(
+					`Unknown local Jianying transition: ${transition.presetId}`
+				);
+			}
+			if (
+				transition.packageHash &&
+				transition.packageHash !== definition.metadataMd5
+			) {
+				throw new Error(
+					`Local Jianying transition package changed: ${transition.presetId}`
+				);
+			}
 			jianyingTransitions.push(transition);
 			continue;
 		}
@@ -91,6 +110,7 @@ export async function applyJianyingTimelineTransitions({
 			}
 			return {
 				presetId: definition.id,
+				packageHash: transition.packageHash ?? definition.metadataMd5,
 				cutTime: findTransitionCutTime({ transition, tracks }),
 				duration: transition.duration,
 			};

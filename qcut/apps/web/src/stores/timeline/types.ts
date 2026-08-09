@@ -316,6 +316,8 @@ export interface TimelineStore {
 		toElementId: string;
 		videoMediaIds: ReadonlySet<string>;
 		presetId: string;
+		engine?: ClipTransition["engine"];
+		packageHash?: ClipTransition["packageHash"];
 		type: ClipTransition["type"];
 		duration: number;
 		direction?: ClipTransition["direction"];
@@ -331,6 +333,8 @@ export interface TimelineStore {
 			Pick<
 				ClipTransition,
 				| "presetId"
+				| "engine"
+				| "packageHash"
 				| "type"
 				| "duration"
 				| "direction"

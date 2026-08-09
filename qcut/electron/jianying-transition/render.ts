@@ -558,6 +558,11 @@ async function applyTimelineTransition({
 		throw new Error(`Unknown Jianying transition: ${spec.presetId}`);
 	}
 	requireLocalTransitionSegment({ transition });
+	if (spec.packageHash && spec.packageHash !== transition.metadataMd5) {
+		throw new Error(
+			`本机剪映转场“${transition.localizedName}”的资源版本与项目不一致。`
+		);
+	}
 	const packagePath = inspection.packagePaths.get(transition.id);
 	if (!packagePath) {
 		throw new Error(`本机尚未缓存剪映转场“${transition.localizedName}”。`);
@@ -812,6 +817,19 @@ export async function renderJianyingTimelineTransitions({
 	);
 	if (unknown) {
 		throw new Error(`Unknown Jianying transition: ${unknown.presetId}`);
+	}
+	const packageMismatch = request.transitions.find((spec) => {
+		const transition = resolveJianyingTransition({ value: spec.presetId });
+		return Boolean(
+			transition &&
+				spec.packageHash &&
+				spec.packageHash !== transition.metadataMd5
+		);
+	});
+	if (packageMismatch) {
+		throw new Error(
+			`Jianying transition package identity changed: ${packageMismatch.presetId}`
+		);
 	}
 	const aiGenerationTransition = request.transitions
 		.flatMap((spec) => {

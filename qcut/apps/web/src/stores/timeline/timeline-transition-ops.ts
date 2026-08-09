@@ -40,6 +40,19 @@ function transitionDuration({
 	});
 }
 
+function isValidLocalPackageHash({
+	engine,
+	packageHash,
+}: {
+	engine: ClipTransition["engine"];
+	packageHash: ClipTransition["packageHash"];
+}): boolean {
+	if (engine !== "jianying-local") return true;
+	return (
+		typeof packageHash === "string" && /^[a-f0-9]{32,64}$/.test(packageHash)
+	);
+}
+
 /** Creates clip-transition mutations and selection actions for the timeline store. */
 export function createTransitionOps(
 	get: StoreGet,
@@ -53,6 +66,8 @@ export function createTransitionOps(
 			toElementId,
 			videoMediaIds,
 			presetId,
+			engine = "qcut",
+			packageHash,
 			type,
 			duration,
 			direction,
@@ -60,6 +75,7 @@ export function createTransitionOps(
 			tuning,
 			maskShape,
 		}) => {
+			if (!isValidLocalPackageHash({ engine, packageHash })) return null;
 			const track = get()._tracks.find((candidate) => candidate.id === trackId);
 			if (!track || track.type !== "media") return null;
 			if (
@@ -106,6 +122,8 @@ export function createTransitionOps(
 				fromElementId,
 				toElementId,
 				presetId,
+				engine,
+				packageHash: engine === "jianying-local" ? packageHash : undefined,
 				type,
 				duration: nextDuration,
 				direction,
@@ -149,6 +167,12 @@ export function createTransitionOps(
 				(transition) => transition.id === transitionId
 			);
 			if (!track || !existing) return;
+			const engine = updates.engine ?? existing.engine ?? "qcut";
+			const packageHash =
+				engine === "jianying-local"
+					? (updates.packageHash ?? existing.packageHash)
+					: undefined;
+			if (!isValidLocalPackageHash({ engine, packageHash })) return;
 			if (
 				blockedByTrackLock({
 					tracks: get()._tracks,
@@ -193,6 +217,8 @@ export function createTransitionOps(
 										? {
 												...transition,
 												...updates,
+												engine,
+												packageHash,
 												duration: nextDuration,
 											}
 										: transition

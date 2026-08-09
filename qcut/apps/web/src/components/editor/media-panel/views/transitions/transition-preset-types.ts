@@ -73,6 +73,8 @@ export interface TransitionPreset {
 	delivery: "bundled" | "remote";
 	backend?: "qcut" | "jianying-local";
 	jianyingGroup?: string;
+	jianyingGroupLabel?: string;
+	packageHash?: string;
 	preview: TransitionPreviewAsset;
 	easing?: ClipTransitionEasing;
 	direction?: ClipTransitionDirection;

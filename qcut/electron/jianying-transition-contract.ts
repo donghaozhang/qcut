@@ -16,6 +16,10 @@ export {
 export const JIANYING_TRANSITION_INSPECT_CHANNEL =
 	"jianying-transition:inspect";
 export const JIANYING_TRANSITION_RENDER_CHANNEL = "jianying-transition:render";
+export const JIANYING_TRANSITION_PREVIEW_CHANNEL =
+	"jianying-transition:preview";
+export const JIANYING_TRANSITION_TIMELINE_PREVIEW_CHANNEL =
+	"jianying-transition:timeline-preview";
 export const JIANYING_TRANSITION_RENDER_TIMELINE_CHANNEL =
 	"jianying-transition:render-timeline";
 
@@ -68,8 +72,44 @@ export interface JianyingTransitionRenderResult {
 	frameCount: number;
 }
 
+export interface JianyingTransitionPreviewRequest {
+	presetId: string;
+}
+
+export interface JianyingTransitionPreviewResult {
+	presetId: JianyingTransitionId;
+	packageHash: string;
+	previewUrl: string;
+	duration: number;
+	posterTime: number;
+	cached: boolean;
+}
+
+export type JianyingTimelinePreviewSourceKind = "image" | "video";
+
+export interface JianyingTimelinePreviewSource {
+	inputPath: string;
+	kind: JianyingTimelinePreviewSourceKind;
+	sourceStart: number;
+	sourceDuration: number;
+	playbackRate: number;
+	reverse: boolean;
+}
+
+export interface JianyingTimelinePreviewRequest {
+	presetId: string;
+	packageHash: string;
+	inputA: JianyingTimelinePreviewSource;
+	inputB: JianyingTimelinePreviewSource;
+	duration: number;
+	fps: number;
+	width: number;
+	height: number;
+}
+
 export interface JianyingTimelineTransitionSpec {
 	presetId: string;
+	packageHash?: string;
 	cutTime: number;
 	duration?: number;
 }
@@ -95,6 +135,12 @@ export interface JianyingTimelineRenderResult {
 
 export interface JianyingTransitionAPI {
 	inspect: () => Promise<JianyingTransitionRuntimeStatus>;
+	preview: (
+		request: JianyingTransitionPreviewRequest
+	) => Promise<JianyingTransitionPreviewResult>;
+	timelinePreview: (
+		request: JianyingTimelinePreviewRequest
+	) => Promise<JianyingTransitionPreviewResult>;
 	render: (
 		request: JianyingTransitionRenderRequest
 	) => Promise<JianyingTransitionRenderResult>;

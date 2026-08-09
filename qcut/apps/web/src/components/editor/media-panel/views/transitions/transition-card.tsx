@@ -9,7 +9,6 @@ import {
 	LoaderCircleIcon,
 	MousePointerClickIcon,
 	RefreshCwIcon,
-	SparklesIcon,
 } from "lucide-react";
 import type { DragEvent, KeyboardEvent, PointerEvent } from "react";
 import { useRef, useState } from "react";
@@ -59,7 +58,6 @@ export function TransitionCard({
 	const [isPreviewing, setIsPreviewing] = useState(false);
 	const selectedOnPointerDown = useRef(false);
 	const available = resourceState.available;
-	const isAiGeneration = preset.tags.includes("ai-generation");
 	const handlePointerDown = ({
 		event,
 	}: {
@@ -154,13 +152,9 @@ export function TransitionCard({
 				};
 			case "local-unavailable":
 				return {
-					label: isAiGeneration ? "AI 首尾帧生成说明" : "检查本机剪映资源",
+					label: "检查本机剪映资源",
 					disabled: false,
-					icon: isAiGeneration ? (
-						<SparklesIcon className="size-3">
-							<title>AI 首尾帧生成说明</title>
-						</SparklesIcon>
-					) : (
+					icon: (
 						<HardDriveIcon className="size-3">
 							<title>检查本机剪映资源</title>
 						</HardDriveIcon>
@@ -172,7 +166,7 @@ export function TransitionCard({
 	return (
 		<div
 			className={cn(
-				"group flex h-[112px] min-w-0 flex-col overflow-hidden rounded border bg-card text-left transition-colors hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+				"group flex h-[128px] min-w-0 flex-col overflow-hidden rounded border bg-card text-left transition-colors hover:border-primary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
 				available ? "cursor-grab" : "cursor-pointer",
 				selected && "border-primary"
 			)}
@@ -200,9 +194,10 @@ export function TransitionCard({
 					preset={preset}
 					isPlaying={isPreviewing}
 					sources={previewSources}
+					available={available}
 				/>
 				<div className="absolute left-1.5 top-1.5 flex gap-1">
-					{preset.category === "lab" ? (
+					{preset.category === "lab" && preset.backend !== "jianying-local" ? (
 						<Badge className="gap-0.5 border-cyan-400/40 bg-cyan-400/15 px-1 py-0 text-[9px] text-cyan-100">
 							<FlaskConicalIcon className="size-2.5">
 								<title>QCut Shader 实验转场</title>
@@ -218,7 +213,7 @@ export function TransitionCard({
 					)}
 					{preset.backend === "jianying-local" ? (
 						<Badge className="border-cyan-500/40 bg-cyan-500/15 px-1 py-0 text-[9px] text-cyan-200">
-							{isAiGeneration ? "AI" : "本机"}
+							本机
 						</Badge>
 					) : null}
 				</div>
@@ -290,8 +285,21 @@ export function TransitionCard({
 					<div className="truncate text-[11px] font-medium text-foreground">
 						{preset.localizedName}
 					</div>
-					<div className="truncate text-[9px] text-muted-foreground">
-						{preset.defaultDuration.toFixed(2)}s
+					{preset.backend === "jianying-local" ? (
+						<div className="truncate text-[9px] text-muted-foreground">
+							{preset.name}
+						</div>
+					) : null}
+					<div className="flex min-w-0 items-center gap-1 text-[9px] text-muted-foreground">
+						{preset.jianyingGroupLabel ? (
+							<>
+								<span className="truncate">{preset.jianyingGroupLabel}</span>
+								<span aria-hidden="true">·</span>
+							</>
+						) : null}
+						<span className="shrink-0 tabular-nums">
+							{preset.defaultDuration.toFixed(2)}s
+						</span>
 					</div>
 				</div>
 			</div>

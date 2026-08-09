@@ -12,6 +12,7 @@ import {
 	findClosestMediaSeam,
 	isClipTransitionType,
 	type ClipTransitionDirection,
+	type ClipTransitionEngine,
 	type ClipTransitionEasing,
 	type ClipTransitionMaskShape,
 	type ClipTransitionTuning,
@@ -24,12 +25,31 @@ export const TRANSITION_DRAG_MIME = "application/qcut-transition";
 interface TransitionDragPayload {
 	kind: "qcut-transition-preset";
 	id: string;
+	engine?: ClipTransitionEngine;
+	packageHash?: string;
 	type: ClipTransitionType;
 	easing?: ClipTransitionEasing;
 	direction?: ClipTransitionDirection;
 	tuning?: ClipTransitionTuning;
 	maskShape?: ClipTransitionMaskShape;
 	defaultDuration: number;
+}
+
+function isTransitionEngine(value: unknown): value is ClipTransitionEngine {
+	return value === "qcut" || value === "jianying-local";
+}
+
+function isLocalPackageHash({
+	engine,
+	packageHash,
+}: {
+	engine: ClipTransitionEngine | undefined;
+	packageHash: unknown;
+}): boolean {
+	if (engine !== "jianying-local") return packageHash === undefined;
+	return (
+		typeof packageHash === "string" && /^[a-f0-9]{32,64}$/.test(packageHash)
+	);
 }
 
 function parseTuning({
@@ -99,6 +119,13 @@ function parseTransitionPayload({
 		const typeCandidate = { value: candidate.type };
 		const easing = parseEasing({ value: candidate.easing });
 		const maskShape = parseMaskShape({ value: candidate.maskShape });
+		const engine = isTransitionEngine(candidate.engine)
+			? candidate.engine
+			: undefined;
+		const packageHash =
+			typeof candidate.packageHash === "string"
+				? candidate.packageHash
+				: undefined;
 		if (
 			candidate.kind !== "qcut-transition-preset" ||
 			typeof candidate.id !== "string" ||
@@ -108,7 +135,12 @@ function parseTransitionPayload({
 			!Number.isFinite(candidate.defaultDuration) ||
 			(candidate.direction !== undefined &&
 				!isDirection(candidate.direction)) ||
-			maskShape === null
+			maskShape === null ||
+			(candidate.engine !== undefined && !engine) ||
+			!isLocalPackageHash({
+				engine,
+				packageHash: candidate.packageHash,
+			})
 		) {
 			return null;
 		}
@@ -116,6 +148,8 @@ function parseTransitionPayload({
 		return {
 			kind: "qcut-transition-preset",
 			id: candidate.id,
+			engine,
+			packageHash,
 			type: typeCandidate.value,
 			easing,
 			direction: candidate.direction,
@@ -195,6 +229,8 @@ export function useTransitionDrop({
 			toElementId: seam.toElement.id,
 			videoMediaIds,
 			presetId: payload.id,
+			engine: payload.engine,
+			packageHash: payload.packageHash,
 			type: payload.type,
 			direction: payload.direction,
 			tuning: payload.tuning,

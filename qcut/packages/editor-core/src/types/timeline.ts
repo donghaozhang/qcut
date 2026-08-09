@@ -206,6 +206,8 @@ export type ClipTransitionDirection = "left" | "right" | "up" | "down";
 
 export type ClipTransitionEasing = "linear" | "easeInOut" | "easeInOutQuint";
 
+export type ClipTransitionEngine = "qcut" | "jianying-local";
+
 export interface ClipTransitionTuning {
 	tint?: string;
 	intensity?: number;
@@ -259,6 +261,10 @@ export interface ClipTransition {
 	fromElementId: string;
 	toElementId: string;
 	presetId: string;
+	/** Missing only on projects created before transition engines were persisted. */
+	engine?: ClipTransitionEngine;
+	/** Public package identity only; local package paths never enter project data. */
+	packageHash?: string;
 	type: ClipTransitionType;
 	duration: number;
 	direction?: ClipTransitionDirection;

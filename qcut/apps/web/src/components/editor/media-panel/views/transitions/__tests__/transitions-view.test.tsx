@@ -136,6 +136,12 @@ function installReadyJianyingRuntime() {
 			message:
 				"520 个剪映本机转场可用；20 个 AI 一镜到底效果需使用首尾帧生成。",
 		})),
+		preview: vi.fn(async () => {
+			throw new Error("Unexpected preview render in component test");
+		}),
+		timelinePreview: vi.fn(async () => {
+			throw new Error("Unexpected timeline preview render in component test");
+		}),
 		render: vi.fn(async () => {
 			throw new Error("Unexpected direct render in component test");
 		}),
@@ -223,7 +229,7 @@ describe("TransitionsView", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: "转场实验室" }));
 
-		expect(screen.getByText("546 个转场")).toBeVisible();
+		expect(screen.getByText("526 个转场")).toBeVisible();
 		expect(screen.getByTestId("transition-card-lab-page-curl")).toBeVisible();
 		expect(
 			screen.getByTestId("transition-lab-canvas-lab-page-curl")
@@ -292,20 +298,22 @@ describe("TransitionsView", () => {
 					screen.getByTestId("transition-card-jianying-local-3d-space")
 				).toBeVisible()
 			);
-			expect(screen.getByText("546 个转场")).toBeVisible();
+			expect(screen.getByText("526 个转场")).toBeVisible();
 			expect(
 				screen.getByText(
 					"520 个剪映本机转场可用；20 个 AI 一镜到底效果需使用首尾帧生成。"
 				)
 			).toBeVisible();
-			expect(screen.getByRole("tab", { name: /全部\s+546/ })).toBeVisible();
+			expect(screen.getByRole("tab", { name: /全部\s+526/ })).toBeVisible();
 			expect(
-				screen.getByRole("tab", { name: /AI 一镜到底\s+20/ })
+				screen.getByRole("tab", { name: /QCut Shader\s+6/ })
 			).toBeVisible();
+			expect(screen.getByRole("tab", { name: /本机剪映\s+520/ })).toBeVisible();
 			expect(
 				screen.getByTestId("transition-card-lab-clean-dissolve")
 			).toBeVisible();
 
+			fireEvent.click(screen.getByRole("tab", { name: /本机剪映\s+520/ }));
 			fireEvent.click(screen.getByRole("tab", { name: /幻灯片\s+40/ }));
 			expect(screen.getByText("40 个转场")).toBeVisible();
 			expect(
@@ -322,6 +330,10 @@ describe("TransitionsView", () => {
 				?.transitions?.at(0);
 			expect(transition).toMatchObject({
 				presetId: "jianying-local-heart",
+				engine: "jianying-local",
+				packageHash: getTransitionPresetById({
+					presetId: "jianying-local-heart",
+				})?.packageHash,
 				type: "texture-mask",
 				maskShape: "heart",
 				duration: 0.5,
@@ -517,9 +529,12 @@ describe("TransitionsView", () => {
 				toElementId: "clip-b",
 				videoMediaIds: new Set(["media-a", "media-b"]),
 				presetId: "dissolve",
+				engine: "qcut",
+				packageHash: undefined,
 				type: "dissolve",
 				direction: undefined,
 				tuning: undefined,
+				maskShape: undefined,
 				duration: 0.5,
 				easing: "linear",
 			});
@@ -588,6 +603,7 @@ describe("TransitionsView", () => {
 		expect(JSON.parse(payloadCall?.at(1) as string)).toEqual({
 			kind: "qcut-transition-preset",
 			id: "slide-left",
+			engine: "qcut",
 			type: "slide",
 			direction: "left",
 			defaultDuration: 0.45,
@@ -611,6 +627,7 @@ describe("TransitionsView", () => {
 		expect(JSON.parse(payloadCall?.at(1) as string)).toEqual({
 			kind: "qcut-transition-preset",
 			id: "ink-bleed",
+			engine: "qcut",
 			type: "texture-mask",
 			maskShape: "ink",
 			defaultDuration: 0.8,

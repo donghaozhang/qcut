@@ -178,6 +178,35 @@ describe("registerAppProtocol", () => {
 		expect(response.headers.get("accept-ranges")).toBe("bytes");
 		expect(rejected.status).toBe(404);
 	});
+
+	it("serves only opaque local Jianying transition previews", async () => {
+		registerAppProtocol({ logger: quietLogger });
+		const handler = getHandler();
+		const cacheKey = "b".repeat(64);
+		const previewPath = path.join(
+			"/fake/user-data",
+			"Cache",
+			"jianying-transition-previews",
+			"v1",
+			`${cacheKey}.mp4`
+		);
+		mocks.existingFiles.add(previewPath);
+
+		const response = await handler({
+			url: `app://jianying-transition-preview/${cacheKey}.mp4`,
+			method: "HEAD",
+			headers: new Headers(),
+			signal: new AbortController().signal,
+		});
+		const rejected = await handler({
+			url: "app://jianying-transition-preview/local-package-name.mp4",
+		});
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get("content-type")).toBe("video/mp4");
+		expect(response.headers.get("cache-control")).toContain("immutable");
+		expect(rejected.status).toBe(404);
+	});
 });
 
 /** Expected fs path for index.html given the mocked app state. */

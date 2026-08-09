@@ -118,6 +118,16 @@ describe("transition presets", () => {
 			JIANYING_LOCAL_TRANSITION_PRESETS.length + TRANSITION_LAB_PRESETS.length
 		);
 		expect(localPresets).toHaveLength(JIANYING_LOCAL_TRANSITION_PRESETS.length);
+		expect(localPresets).toHaveLength(520);
+		expect(
+			localPresets.every(
+				(preset) =>
+					preset.tags.includes("transition-segment") &&
+					!preset.tags.includes("ai-generation") &&
+					Boolean(preset.packageHash) &&
+					Boolean(preset.jianyingGroupLabel)
+			)
+		).toBe(true);
 		expect(
 			filterTransitionPresets({ category: "all", query: "" }).some(
 				(preset) => preset.backend === "jianying-local"
@@ -136,6 +146,29 @@ describe("transition presets", () => {
 				(preset) => preset.id
 			)
 		).toContain("film-burn");
+	});
+
+	it("searches every published field on local Jianying presets", () => {
+		const preset = JIANYING_LOCAL_TRANSITION_PRESETS.find(
+			(candidate) => candidate.id === "jianying-local-3d-space"
+		);
+		expect(preset).toBeDefined();
+		if (!preset) return;
+
+		for (const query of [
+			preset.name,
+			preset.localizedName,
+			preset.jianyingGroupLabel,
+			preset.tags[0],
+			preset.tags[2],
+			preset.packageHash,
+		]) {
+			expect(
+				filterTransitionPresets({ category: "lab", query: query ?? "" }).map(
+					(candidate) => candidate.id
+				)
+			).toContain(preset.id);
+		}
 	});
 
 	it.each(

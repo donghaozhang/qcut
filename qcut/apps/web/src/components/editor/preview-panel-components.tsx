@@ -267,6 +267,7 @@ export function FullscreenPreview({
 	setCurrentTime,
 	toggle,
 	getTotalDuration,
+	renderTransitionOverlay,
 }: {
 	previewDimensions: { width: number; height: number };
 	activeProject: TProject | null;
@@ -280,6 +281,7 @@ export function FullscreenPreview({
 	setCurrentTime: (time: number) => void;
 	toggle: () => void;
 	getTotalDuration: () => number;
+	renderTransitionOverlay: () => React.ReactNode;
 }) {
 	return (
 		<div
@@ -311,6 +313,7 @@ export function FullscreenPreview({
 							renderElement={renderElement}
 						/>
 					)}
+					{renderTransitionOverlay()}
 
 					{activeProject?.backgroundType === "blur" &&
 						blurBackgroundElements.length === 0 &&

@@ -50,6 +50,8 @@ export function extractVideoTransitions({
 				fromElementId: transition.fromElementId,
 				toElementId: transition.toElementId,
 				presetId: transition.presetId,
+				engine: transition.engine,
+				packageHash: transition.packageHash,
 				type: transition.type,
 				direction: transition.direction,
 				easing: transition.easing,
