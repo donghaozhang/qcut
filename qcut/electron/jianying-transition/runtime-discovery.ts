@@ -6,9 +6,9 @@ import path from "node:path";
 import { promisify } from "node:util";
 import {
 	JIANYING_TRANSITIONS,
-	type JianyingTransitionDefinition,
 	type JianyingTransitionRuntimeStatus,
 } from "../jianying-transition-contract.js";
+import { mapWithConcurrency } from "../lib/map-with-concurrency.js";
 import {
 	findQCutProjectRoot,
 	resolveJianyingTransitionBridge,
@@ -23,6 +23,8 @@ const REQUIRED_FRAMEWORKS = [
 ] as const;
 
 const execFileAsync = promisify(execFile);
+const PACKAGE_INDEX_CONCURRENCY = 8;
+const PACKAGE_ROOT_CONCURRENCY = 2;
 
 const LOCAL_RENDER_TRANSITIONS = JIANYING_TRANSITIONS.filter(
 	(transition) => transition.runtimeKind === "transition-segment"
@@ -315,27 +317,55 @@ async function isTransitionPackage({ directory }: { directory: string }) {
 	return pathExists({ filePath: path.join(directory, "config.json") });
 }
 
-async function findDirectPackage({
-	root,
-	transition,
+async function indexPackageLevel({
+	level,
+	targetHashes,
+	depth,
+	maxDepth,
+	found,
 }: {
-	root: string;
-	transition: JianyingTransitionDefinition;
-}): Promise<string | null> {
-	const candidates = [
-		path.join(root, transition.resourceId, transition.metadataMd5),
-		path.join(root, transition.metadataMd5),
-	];
-	const checks = await Promise.all(
-		candidates.map(async (candidate) => ({
-			candidate,
-			valid: await isTransitionPackage({ directory: candidate }),
-		}))
-	);
-	return checks.find((check) => check.valid)?.candidate ?? null;
+	level: string[];
+	targetHashes: ReadonlySet<string>;
+	depth: number;
+	maxDepth: number;
+	found: Map<string, string>;
+}): Promise<Map<string, string>> {
+	if (depth > maxDepth || level.length === 0) return found;
+	const listings = await mapWithConcurrency({
+		items: level,
+		limit: PACKAGE_INDEX_CONCURRENCY,
+		task: async ({ item: directory }) => {
+			try {
+				const entries = await readdir(directory, { withFileTypes: true });
+				return { directory, entries };
+			} catch {
+				return { directory, entries: [] };
+			}
+		},
+	});
+	const nextLevel: string[] = [];
+	for (const listing of listings) {
+		for (const entry of listing.entries) {
+			if (!entry.isDirectory()) continue;
+			const directory = path.join(listing.directory, entry.name);
+			if (targetHashes.has(entry.name)) {
+				if (!found.has(entry.name)) found.set(entry.name, directory);
+				continue;
+			}
+			nextLevel.push(directory);
+		}
+	}
+	if (found.size === targetHashes.size) return found;
+	return indexPackageLevel({
+		level: nextLevel,
+		targetHashes,
+		depth: depth + 1,
+		maxDepth,
+		found,
+	});
 }
 
-async function indexPackageRoot({
+function indexPackageRoot({
 	root,
 	targetHashes,
 	maxDepth = 3,
@@ -344,35 +374,13 @@ async function indexPackageRoot({
 	targetHashes: ReadonlySet<string>;
 	maxDepth?: number;
 }): Promise<Map<string, string>> {
-	const found = new Map<string, string>();
-	let level = [root];
-	for (let depth = 0; depth <= maxDepth && level.length > 0; depth += 1) {
-		const listings = await Promise.all(
-			level.map(async (directory) => {
-				try {
-					const entries = await readdir(directory, { withFileTypes: true });
-					return { directory, entries };
-				} catch {
-					return { directory, entries: [] };
-				}
-			})
-		);
-		const nextLevel: string[] = [];
-		for (const listing of listings) {
-			for (const entry of listing.entries) {
-				if (!entry.isDirectory()) continue;
-				const directory = path.join(listing.directory, entry.name);
-				if (targetHashes.has(entry.name)) {
-					found.set(entry.name, directory);
-					continue;
-				}
-				nextLevel.push(directory);
-			}
-		}
-		if (found.size === targetHashes.size) break;
-		level = nextLevel;
-	}
-	return found;
+	return indexPackageLevel({
+		level: [root],
+		targetHashes,
+		depth: 0,
+		maxDepth,
+		found: new Map(),
+	});
 }
 
 async function findTransitionPackages(): Promise<Map<string, string>> {
@@ -387,34 +395,18 @@ async function findTransitionPackages(): Promise<Map<string, string>> {
 	)
 		.filter((candidate) => candidate.exists)
 		.map((candidate) => candidate.root);
-	const packagePaths = new Map<string, string>();
-
-	const directChecks = await Promise.all(
-		LOCAL_RENDER_TRANSITIONS.flatMap((transition) =>
-			existingRoots.map(async (root) => ({
-				transition,
-				packagePath: await findDirectPackage({ root, transition }),
-			}))
-		)
-	);
-	for (const check of directChecks) {
-		if (check.packagePath && !packagePaths.has(check.transition.id)) {
-			packagePaths.set(check.transition.id, check.packagePath);
-		}
-	}
-
-	const missing = LOCAL_RENDER_TRANSITIONS.filter(
-		(transition) => !packagePaths.has(transition.id)
-	);
-	if (missing.length === 0) return packagePaths;
 	const targetHashes = new Set(
-		missing.map((transition) => transition.metadataMd5)
+		LOCAL_RENDER_TRANSITIONS.map((transition) => transition.metadataMd5)
 	);
-	const indexes = await Promise.all(
-		existingRoots.map((root) => indexPackageRoot({ root, targetHashes }))
-	);
-	const indexedChecks = await Promise.all(
-		missing.map(async (transition) => {
+	const indexes = await mapWithConcurrency({
+		items: existingRoots,
+		limit: PACKAGE_ROOT_CONCURRENCY,
+		task: ({ item: root }) => indexPackageRoot({ root, targetHashes }),
+	});
+	const indexedChecks = await mapWithConcurrency({
+		items: LOCAL_RENDER_TRANSITIONS,
+		limit: PACKAGE_INDEX_CONCURRENCY,
+		task: async ({ item: transition }) => {
 			const packagePath = indexes
 				.map((index) => index.get(transition.metadataMd5))
 				.find((candidate): candidate is string => Boolean(candidate));
@@ -425,8 +417,9 @@ async function findTransitionPackages(): Promise<Map<string, string>> {
 					? await isTransitionPackage({ directory: packagePath })
 					: false,
 			};
-		})
-	);
+		},
+	});
+	const packagePaths = new Map<string, string>();
 	for (const check of indexedChecks) {
 		if (check.packagePath && check.valid) {
 			packagePaths.set(check.transition.id, check.packagePath);
@@ -574,3 +567,7 @@ export async function inspectJianyingTransitionRuntime(): Promise<JianyingRuntim
 		};
 	}
 }
+
+export const jianyingRuntimeDiscoveryTestUtils = {
+	indexPackageRoot,
+};
