@@ -49,6 +49,7 @@ const TRACK_TYPES = new Set([
 	"hyperframes",
 	"markdown",
 ]);
+const TRANSITION_ENGINES = new Set(["qcut", "jianying-local"]);
 const MAX_SNAPSHOT_ELEMENTS = 20_000;
 const MAX_SNAPSHOT_MEDIA_ITEMS = 10_000;
 const MAX_SNAPSHOT_TRACKS = 1_000;
@@ -178,9 +179,11 @@ const TRANSITION_KEYS = createAllowedKeySet<ClipTransition>({
 		direction: true,
 		duration: true,
 		easing: true,
+		engine: true,
 		fromElementId: true,
 		id: true,
 		maskShape: true,
+		packageHash: true,
 		presetId: true,
 		toElementId: true,
 		tuning: true,
@@ -454,6 +457,19 @@ function validateTransitions({
 			path: transitionPath,
 			record: transition,
 		});
+		if (transition.engine !== undefined) {
+			assertStringLiteral({
+				allowed: TRANSITION_ENGINES,
+				path: `${transitionPath}.engine`,
+				value: transition.engine,
+			});
+		}
+		if (transition.packageHash !== undefined) {
+			getString({
+				path: `${transitionPath}.packageHash`,
+				value: transition.packageHash,
+			});
+		}
 		if (transition.tuning !== undefined) {
 			const tuningPath = `${transitionPath}.tuning`;
 			const tuning = getRecord({
