@@ -150,6 +150,38 @@ describe("snapshot transition identity", () => {
 			})
 		).toEqual(snapshot);
 	});
+
+	it("rejects malformed local transition package hashes", () => {
+		const snapshot = createEmptySnapshot();
+		snapshot.tracks = [
+			{
+				elements: [],
+				id: "main",
+				name: "Main",
+				transitions: [
+					{
+						duration: 1,
+						easing: "linear",
+						engine: "jianying-local",
+						fromElementId: "clip-a",
+						id: "local-transition",
+						packageHash: "not-a-hash",
+						presetId: "jianying-local-3d-space",
+						toElementId: "clip-b",
+						type: "dissolve",
+					},
+				],
+				type: "media",
+			},
+		];
+
+		expect(() =>
+			validateSnapshot({
+				path: "$.snapshot",
+				value: snapshot as unknown as JsonValue,
+			})
+		).toThrow("lowercase hexadecimal hash");
+	});
 });
 
 describe("runtime request budgets", () => {

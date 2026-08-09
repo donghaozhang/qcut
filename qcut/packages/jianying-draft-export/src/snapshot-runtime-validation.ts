@@ -50,6 +50,7 @@ const TRACK_TYPES = new Set([
 	"markdown",
 ]);
 const TRANSITION_ENGINES = new Set(["qcut", "jianying-local"]);
+const LOCAL_PACKAGE_HASH_PATTERN = /^[a-f0-9]{32,64}$/;
 const MAX_SNAPSHOT_ELEMENTS = 20_000;
 const MAX_SNAPSHOT_MEDIA_ITEMS = 10_000;
 const MAX_SNAPSHOT_TRACKS = 1_000;
@@ -465,10 +466,17 @@ function validateTransitions({
 			});
 		}
 		if (transition.packageHash !== undefined) {
-			getString({
-				path: `${transitionPath}.packageHash`,
+			const packageHashPath = `${transitionPath}.packageHash`;
+			const packageHash = getString({
+				path: packageHashPath,
 				value: transition.packageHash,
 			});
+			if (!LOCAL_PACKAGE_HASH_PATTERN.test(packageHash)) {
+				throw validationIssue({
+					message: "Expected a 32 to 64 character lowercase hexadecimal hash.",
+					path: packageHashPath,
+				});
+			}
 		}
 		if (transition.tuning !== undefined) {
 			const tuningPath = `${transitionPath}.tuning`;
