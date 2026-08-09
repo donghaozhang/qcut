@@ -20,14 +20,14 @@ describe("Jianying transition runtime status", () => {
 		});
 
 		expect(status.state).toBe("ready");
-		expect(status.availableCount).toBe(67);
+		expect(status.availableCount).toBe(260);
 		expect(
 			status.transitions.filter((transition) => transition.available)
-		).toHaveLength(67);
+		).toHaveLength(260);
 		const aiGenerationEntries = status.transitions.filter(
 			(transition) => transition.runtimeKind === "ai-generation"
 		);
-		expect(aiGenerationEntries).toHaveLength(5);
+		expect(aiGenerationEntries).toHaveLength(20);
 		expect(
 			aiGenerationEntries.every((transition) => !transition.available)
 		).toBe(true);
@@ -60,6 +60,6 @@ describe("Jianying transition runtime status", () => {
 
 		expect(status.state).toBe("ready");
 		expect(status.appInstalled).toBe(false);
-		expect(status.availableCount).toBe(67);
+		expect(status.availableCount).toBe(260);
 	});
 });
