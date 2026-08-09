@@ -24,6 +24,10 @@ import { JIANYING_TRANSITIONS } from "../../electron/jianying-transition-catalog
 import { resolveJianyingTransitionBridge } from "../../electron/jianying-transition/bridge-resolver";
 import { inspectJianyingTransitionRuntime } from "../../electron/jianying-transition/runtime-discovery";
 import { mapWithConcurrency } from "../../electron/lib/map-with-concurrency";
+import {
+	runBoundedProcess,
+	type BoundedProcessResult,
+} from "./bounded-process";
 
 const CORE_FRAMEWORKS = [
 	"libAGFX.dylib",
@@ -45,12 +49,6 @@ interface BackupOptions {
 	sourceRuntimeRoot: string;
 	appBundlePath: string;
 	destinationRoot: string;
-}
-
-interface ProcessResult {
-	exitCode: number;
-	stdout: string;
-	stderr: string;
 }
 
 interface RuntimeFile {
@@ -108,29 +106,6 @@ function parseOptions(): BackupOptions {
 	};
 }
 
-async function runProcess({
-	command,
-	args,
-	env = process.env,
-}: {
-	command: string;
-	args: string[];
-	env?: NodeJS.ProcessEnv;
-}): Promise<ProcessResult> {
-	const child = Bun.spawn([command, ...args], {
-		cwd: projectRoot,
-		env,
-		stdout: "pipe",
-		stderr: "pipe",
-	});
-	const [exitCode, stdout, stderr] = await Promise.all([
-		child.exited,
-		new Response(child.stdout).text(),
-		new Response(child.stderr).text(),
-	]);
-	return { exitCode, stdout, stderr };
-}
-
 async function pathExists({
 	filePath,
 }: {
@@ -183,7 +158,7 @@ function requireSuccessfulProcess({
 	result,
 	label,
 }: {
-	result: ProcessResult;
+	result: BoundedProcessResult;
 	label: string;
 }): string {
 	if (result.exitCode === 0) return result.stdout;
@@ -191,9 +166,10 @@ function requireSuccessfulProcess({
 }
 
 async function readArm64Uuid({ binaryPath }: { binaryPath: string }) {
-	const result = await runProcess({
+	const result = await runBoundedProcess({
 		command: "xcrun",
 		args: ["dwarfdump", "--uuid", binaryPath],
+		cwd: projectRoot,
 	});
 	const output = requireSuccessfulProcess({
 		result,
@@ -205,9 +181,10 @@ async function readArm64Uuid({ binaryPath }: { binaryPath: string }) {
 }
 
 async function readDependencies({ binaryPath }: { binaryPath: string }) {
-	const result = await runProcess({
+	const result = await runBoundedProcess({
 		command: "otool",
 		args: ["-arch", "arm64", "-L", binaryPath],
+		cwd: projectRoot,
 	});
 	const output = requireSuccessfulProcess({ result, label: "otool failed" });
 	return output
@@ -533,9 +510,10 @@ async function probeOfflineRuntime({ runtimeRoot }: { runtimeRoot: string }) {
 	const bridgePath = await resolveJianyingTransitionBridge();
 	if (!bridgePath)
 		throw new Error("QCut Jianying transition bridge is missing.");
-	const result = await runProcess({
+	const result = await runBoundedProcess({
 		command: bridgePath,
 		args: [runtimeRoot, "transition"],
+		cwd: projectRoot,
 		env: {
 			HOME: os.homedir(),
 			PATH: "/usr/bin:/bin:/usr/sbin:/sbin",
@@ -724,9 +702,11 @@ async function run() {
 			2
 		)}\n`
 	);
-	const permissions = await runProcess({
+	const permissions = await runBoundedProcess({
 		command: "chmod",
 		args: ["-R", "go-rwx", stagingPath],
+		cwd: projectRoot,
+		timeoutMs: 5 * 60_000,
 	});
 	requireSuccessfulProcess({ result: permissions, label: "chmod failed" });
 	await rename(stagingPath, destinationPath);
