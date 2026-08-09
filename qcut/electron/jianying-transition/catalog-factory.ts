@@ -122,6 +122,7 @@ function createDefinition({
 		defaultDuration: source.defaultDuration,
 		overlap: source.overlap,
 		group,
+		sourceGroup: source.sourceGroup ?? group,
 		family: override?.family ?? defaults.family,
 		runtimeKind: defaults.runtimeKind,
 		access: source.access,

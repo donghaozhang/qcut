@@ -73,6 +73,7 @@ export interface JianyingTransitionDefinition {
 	defaultDuration: number;
 	overlap: boolean;
 	group: JianyingTransitionGroup;
+	sourceGroup: JianyingTransitionGroup;
 	family: string;
 	runtimeKind: JianyingTransitionRuntimeKind;
 	access: JianyingTransitionAccess;
@@ -86,6 +87,7 @@ export interface JianyingTransitionSource {
 	defaultDuration: number;
 	overlap: boolean;
 	access: JianyingTransitionAccess;
+	sourceGroup?: JianyingTransitionGroup;
 }
 
 export type JianyingTransitionOverride = Partial<
