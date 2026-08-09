@@ -8,12 +8,14 @@ import path from "node:path";
 import { parseArgs } from "node:util";
 import { Database } from "bun:sqlite";
 import { JIANYING_TRANSITIONS } from "../../electron/jianying-transition-catalog";
+import { mapWithConcurrency } from "../../electron/lib/map-with-concurrency";
 import {
 	findTransitionCategories,
 	findTransitionRecords,
 	resolveTransitionDatabasePaths,
 	type TransitionCatalogRecord,
 } from "../../.agents/skills/qcut-toolkit/jianying-transition-reference/scripts/transition-catalog";
+import { validateZipListings } from "./safe-zip";
 
 const AI_TRANSITIONS_PER_CATEGORY = 20;
 const DEFAULT_BINARY_TRANSITIONS_PER_CATEGORY = 40;
@@ -607,22 +609,26 @@ async function findExistingPackage({
 }
 
 async function requireSafeZip({ archivePath }: { archivePath: string }) {
-	const child = Bun.spawn(["unzip", "-Z1", archivePath], {
-		stdout: "pipe",
-		stderr: "pipe",
-	});
-	const [code, stdout, stderr] = await Promise.all([
-		child.exited,
-		new Response(child.stdout).text(),
-		new Response(child.stderr).text(),
+	const inspect = async ({ args }: { args: string[] }) => {
+		const child = Bun.spawn(["unzip", ...args, archivePath], {
+			stdout: "pipe",
+			stderr: "pipe",
+		});
+		const [code, stdout, stderr] = await Promise.all([
+			child.exited,
+			new Response(child.stdout).text(),
+			new Response(child.stderr).text(),
+		]);
+		if (code !== 0) {
+			throw new Error(`Could not inspect archive: ${stderr.trim()}`);
+		}
+		return stdout;
+	};
+	const [entryNames, entryDetails] = await Promise.all([
+		inspect({ args: ["-Z1"] }),
+		inspect({ args: ["-Z", "-l"] }),
 	]);
-	if (code !== 0)
-		throw new Error(`Could not inspect archive: ${stderr.trim()}`);
-	const unsafe = stdout
-		.split("\n")
-		.filter(Boolean)
-		.find((entry) => path.isAbsolute(entry) || entry.split("/").includes(".."));
-	if (unsafe) throw new Error(`Unsafe package archive entry: ${unsafe}`);
+	validateZipListings({ entryNames, entryDetails });
 }
 
 async function extractPackage({
@@ -702,11 +708,10 @@ async function downloadBatches({
 }): Promise<
 	Array<{ resourceId: string; packagePath: string; downloaded: boolean }>
 > {
-	if (remaining.length === 0) return [];
-	const batch = remaining.slice(0, DOWNLOAD_CONCURRENCY);
-	const rest = remaining.slice(DOWNLOAD_CONCURRENCY);
-	const completed = await Promise.all(
-		batch.map((transition) => {
+	return mapWithConcurrency({
+		items: remaining,
+		limit: DOWNLOAD_CONCURRENCY,
+		task: ({ item: transition }) => {
 			const download = downloads.get(
 				downloadKey({
 					resourceId: transition.resourceId,
@@ -716,12 +721,8 @@ async function downloadBatches({
 			if (!download)
 				throw new Error(`Missing package URL for ${transition.title}.`);
 			return downloadPackage({ transition, download });
-		})
-	);
-	return [
-		...completed,
-		...(await downloadBatches({ remaining: rest, downloads })),
-	];
+		},
+	});
 }
 
 async function run() {
