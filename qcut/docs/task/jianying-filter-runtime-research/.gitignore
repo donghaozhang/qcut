@@ -1,0 +1,16 @@
+*.dylib
+*.framework
+*.model
+*.vf
+*.xshader
+*.material
+*.scene
+*.texture
+*.ppm
+*.png
+*.log
+effect-*-probe
+packages/
+runtime/
+models/
+lib/
