@@ -9,6 +9,7 @@ import {
 	transitionPresets,
 } from "../transition-presets";
 import { TRANSITION_CATEGORY_EXPANSIONS } from "../transition-category-expansions";
+import { JIANYING_LOCAL_TRANSITION_PRESETS } from "../transition-jianying-local-presets";
 import { TRANSITION_PARITY_CASES } from "../transition-parity-ten";
 
 function requirePreset({ presetId }: { presetId: string }): TransitionPreset {
@@ -109,7 +110,7 @@ describe("transition presets", () => {
 			category: "jianying-local",
 			query: "",
 		});
-		expect(labPresets).toHaveLength(20);
+		expect(labPresets).toHaveLength(JIANYING_LOCAL_TRANSITION_PRESETS.length);
 		expect(
 			labPresets.every((preset) => preset.backend === "jianying-local")
 		).toBe(true);
