@@ -83,7 +83,7 @@ export function findFirstInvalidRawFrame({
 		stream.on("data", (chunk) => {
 			if (settled) return;
 			const buffer = typeof chunk === "string" ? Buffer.from(chunk) : chunk;
-			for (let index = 0; index < buffer.length; index += 1) {
+			for (let index = 0; index < buffer.length; ) {
 				const absoluteByte = startByte + bytesRead + index;
 				const frame = Math.floor(absoluteByte / validatedFrameBytes);
 				if (frame !== currentFrame) {
@@ -96,10 +96,19 @@ export function findFirstInvalidRawFrame({
 					currentFrame = frame;
 					currentFrameHasColor = false;
 				}
+				if (currentFrameHasColor) {
+					const nextFrameByte = (frame + 1) * validatedFrameBytes;
+					index += Math.min(
+						buffer.length - index,
+						nextFrameByte - absoluteByte
+					);
+					continue;
+				}
 				const channel = absoluteByte % RGBA_BYTES_PER_PIXEL;
 				if (channel !== RGBA_ALPHA_OFFSET && buffer[index] !== 0) {
 					currentFrameHasColor = true;
 				}
+				index += 1;
 			}
 			bytesRead += buffer.length;
 		});

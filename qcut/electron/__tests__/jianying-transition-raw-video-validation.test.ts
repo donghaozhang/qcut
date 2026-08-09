@@ -85,6 +85,24 @@ describe("findFirstInvalidRawFrame", () => {
 		).resolves.toBeNull();
 	});
 
+	it("skips the remaining bytes after finding visible frame color", async () => {
+		const largeFrameBytes = 2 * 1024 * 1024;
+		const visibleFrame = Buffer.alloc(largeFrameBytes);
+		visibleFrame[0] = 32;
+		const rawPath = await writeRawFrames({
+			frames: [visibleFrame, Buffer.alloc(largeFrameBytes)],
+		});
+
+		await expect(
+			findFirstInvalidRawFrame({
+				rawPath,
+				frameBytes: largeFrameBytes,
+				startFrame: 0,
+				frameCount: 2,
+			})
+		).resolves.toEqual({ frame: 1, reason: "empty" });
+	});
+
 	it("finds an opaque frame whose RGB channels are all empty", async () => {
 		const rawPath = await writeRawFrames({
 			frames: [makeFrame(), makeFrame({ color: 0 }), makeFrame()],
