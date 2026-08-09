@@ -92,6 +92,19 @@ describe("Jianying timeline export", () => {
 		).toThrow("package changed");
 	});
 
+	it("rejects an explicit local transition without package identity", () => {
+		expect(() =>
+			partitionJianyingTransitions({
+				transitions: [
+					transition({
+						presetId: "jianying-local-traverse-3",
+						engine: "jianying-local",
+					}),
+				],
+			})
+		).toThrow("package identity is missing");
+	});
+
 	it("builds a separate postprocessed output path", () => {
 		expect(buildJianyingOutputPath({ inputPath: "/tmp/output.mp4" })).toBe(
 			"/tmp/output-jianying.mp4"
@@ -143,5 +156,30 @@ describe("Jianying timeline export", () => {
 				],
 			})
 		);
+	});
+
+	it("rejects missing package identity before invoking Electron", async () => {
+		const renderTimeline = vi.fn();
+		Object.defineProperty(window, "electronAPI", {
+			configurable: true,
+			value: { jianyingTransitions: { renderTimeline } },
+		});
+
+		await expect(
+			applyJianyingTimelineTransitions({
+				inputPath: "/tmp/output.mp4",
+				transitions: [
+					transition({
+						presetId: "jianying-local-traverse-3",
+						engine: "jianying-local",
+					}),
+				],
+				tracks,
+				fps: 30,
+				width: 1920,
+				height: 1080,
+			})
+		).rejects.toThrow("package identity is missing");
+		expect(renderTimeline).not.toHaveBeenCalled();
 	});
 });

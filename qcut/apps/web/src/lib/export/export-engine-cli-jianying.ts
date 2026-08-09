@@ -7,6 +7,29 @@ export interface PartitionedVideoTransitions {
 	jianyingTransitions: VideoTransitionInput[];
 }
 
+function requireJianyingPackageHash({
+	transition,
+	expectedPackageHash,
+}: {
+	transition: VideoTransitionInput;
+	expectedPackageHash: string;
+}): string {
+	if (transition.engine === "jianying-local" && !transition.packageHash) {
+		throw new Error(
+			`Local Jianying transition package identity is missing: ${transition.presetId}`
+		);
+	}
+	if (
+		transition.packageHash &&
+		transition.packageHash !== expectedPackageHash
+	) {
+		throw new Error(
+			`Local Jianying transition package changed: ${transition.presetId}`
+		);
+	}
+	return transition.packageHash ?? expectedPackageHash;
+}
+
 export function partitionJianyingTransitions({
 	transitions,
 }: {
@@ -27,14 +50,10 @@ export function partitionJianyingTransitions({
 					`Unknown local Jianying transition: ${transition.presetId}`
 				);
 			}
-			if (
-				transition.packageHash &&
-				transition.packageHash !== definition.metadataMd5
-			) {
-				throw new Error(
-					`Local Jianying transition package changed: ${transition.presetId}`
-				);
-			}
+			requireJianyingPackageHash({
+				transition,
+				expectedPackageHash: definition.metadataMd5,
+			});
 			jianyingTransitions.push(transition);
 			continue;
 		}
@@ -110,7 +129,10 @@ export async function applyJianyingTimelineTransitions({
 			}
 			return {
 				presetId: definition.id,
-				packageHash: transition.packageHash ?? definition.metadataMd5,
+				packageHash: requireJianyingPackageHash({
+					transition,
+					expectedPackageHash: definition.metadataMd5,
+				}),
 				cutTime: findTransitionCutTime({ transition, tracks }),
 				duration: transition.duration,
 			};
