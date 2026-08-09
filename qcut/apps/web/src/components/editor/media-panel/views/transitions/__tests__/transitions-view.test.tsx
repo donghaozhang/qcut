@@ -134,7 +134,7 @@ function installReadyJianyingRuntime() {
 					: {}),
 			})),
 			message:
-				"260 个剪映本机转场可用；20 个 AI 一镜到底效果需使用首尾帧生成。",
+				"520 个剪映本机转场可用；20 个 AI 一镜到底效果需使用首尾帧生成。",
 		})),
 		render: vi.fn(async () => {
 			throw new Error("Unexpected direct render in component test");
@@ -223,7 +223,7 @@ describe("TransitionsView", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: "转场实验室" }));
 
-		expect(screen.getByText("286 个转场")).toBeVisible();
+		expect(screen.getByText("546 个转场")).toBeVisible();
 		expect(screen.getByTestId("transition-card-lab-page-curl")).toBeVisible();
 		expect(
 			screen.getByTestId("transition-lab-canvas-lab-page-curl")
@@ -292,13 +292,13 @@ describe("TransitionsView", () => {
 					screen.getByTestId("transition-card-jianying-local-3d-space")
 				).toBeVisible()
 			);
-			expect(screen.getByText("286 个转场")).toBeVisible();
+			expect(screen.getByText("546 个转场")).toBeVisible();
 			expect(
 				screen.getByText(
-					"260 个剪映本机转场可用；20 个 AI 一镜到底效果需使用首尾帧生成。"
+					"520 个剪映本机转场可用；20 个 AI 一镜到底效果需使用首尾帧生成。"
 				)
 			).toBeVisible();
-			expect(screen.getByRole("tab", { name: /全部\s+286/ })).toBeVisible();
+			expect(screen.getByRole("tab", { name: /全部\s+546/ })).toBeVisible();
 			expect(
 				screen.getByRole("tab", { name: /AI 一镜到底\s+20/ })
 			).toBeVisible();
@@ -306,8 +306,8 @@ describe("TransitionsView", () => {
 				screen.getByTestId("transition-card-lab-clean-dissolve")
 			).toBeVisible();
 
-			fireEvent.click(screen.getByRole("tab", { name: /幻灯片\s+20/ }));
-			expect(screen.getByText("20 个转场")).toBeVisible();
+			fireEvent.click(screen.getByRole("tab", { name: /幻灯片\s+40/ }));
+			expect(screen.getByText("40 个转场")).toBeVisible();
 			expect(
 				screen.getByTestId("transition-card-jianying-local-heart")
 			).toBeVisible();
