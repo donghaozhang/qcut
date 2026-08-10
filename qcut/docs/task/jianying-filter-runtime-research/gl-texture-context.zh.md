@@ -279,6 +279,8 @@ m_fit = clamp(1.182840 * Gaussian(erode5(mask), sigma=4)^0.65
 
 横屏、竖屏和 4:3 结果与模型枚举尺寸吻合，说明宿主先把短边约束到 128，再选择接近画面比例的模型形状。方形结果为 `128x128`，不在模型公开的枚举输入中，因此只能确认实际输出工作尺寸，不能据此断言方形网络 tensor 也直接使用 `128x128`；中间仍可能有裁剪或重映射。
 
+后续 ByteNN 输入脉冲实验进一步区分了宿主路径：上述 `227x128` 是 Low-level 的第一级 bilinear 输出，随后还会缩到模型的 `224x128`；Swing 对同一 854x480 输入则先缩到 `398x224`，再缩到 `224x128`。两级尺寸的脉冲与二维纹理拟合结果见 [model-input-boundary.zh.md](model-input-boundary.zh.md)。
+
 ### 原始置信度与纹理格式
 
 `SkinSegBuffer` 对应的同 context GL 纹理是单通道 `GL_R8`，放大与缩小采样均为 `GL_LINEAR`。它不是二值 mask：

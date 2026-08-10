@@ -171,13 +171,15 @@ Readback from the native Metal path is BGRA. Normalize it to RGBA before writing
 `.rgba`; mode `3` passthrough must then match the input byte for byte.
 
 At the `tt_skin_seg` ByteNN boundary, both known host paths use BGR values with
-`channel - 128` normalization and half-pixel-center resize coordinates. On
-low-frequency ramps, the low-level path behaves predominantly like
-round-to-nearest while Swing behaves predominantly like floor: 94.94% of
-positions across three ramps have the expected `0/+1` cross-path difference.
-This is not the whole mismatch; the remaining 5.06% and increasing high-slope
-residuals still implicate subpixel precision, interpolation kernel, or edge
-handling. Do not change the low-level path merely to match Swing: its final
+`channel - 128` normalization and two half-pixel-center bilinear stages. Their
+intermediate sizes differ for an 854x480 source: Low-level uses
+`854x480 -> 227x128 -> 224x128`, while Swing uses
+`854x480 -> 398x224 -> 224x128`. Sparse impulses match both paths at 99.55%
+with a maximum error of one; a deterministic 2D texture reaches RMSE 0.279 and
+0.502 respectively. Direct one-stage resize or swapping the intermediate sizes
+produces RMSE around 40-49. An earlier floor-versus-round inference assumed a
+single resize and is withdrawn. Swing fixed-point sampling/quantization remains
+unresolved. Do not change the low-level path merely to match Swing: its final
 frame remains closer to the Jianying UI baseline.
 
 ### Required validation checklist
