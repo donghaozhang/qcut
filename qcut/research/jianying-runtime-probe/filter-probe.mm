@@ -602,7 +602,11 @@ FilterSequenceResult renderFilterSequence(
       std::cout << "[filter] frame " << index << " failed\n";
       continue;
     }
-    convertBgraToRgba(renderedPixels);
+    // Textures created with the third createTextureFromNativeBuffer flag read
+    // back in RGBA order already; converting again would swap R and B.
+    if (!request.nativeTextureFlags[2]) {
+      convertBgraToRgba(renderedPixels);
+    }
     char filename[32];
     std::snprintf(filename, sizeof(filename), "frame-%04zu.rgba", index);
     writeRgbaFrame(request.outputDirectory / filename, renderedPixels);

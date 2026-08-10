@@ -153,7 +153,11 @@ using jianying_probe::resolveSymbol;
 [[nodiscard]] std::array<bool, 3> optionalNativeTextureFlags() {
   const char* value = std::getenv("JY_NATIVE_TEXTURE_FLAGS");
   if (value == nullptr) {
-    return {};
+    // The third flag makes the effect sample the native buffer with the same
+    // vertical convention the algorithm uses. Without it the delivered skin
+    // mask is bound upside down, so the skin LUT lands on the mirrored region
+    // and the render collapses to the background LUT.
+    return {false, false, true};
   }
   const std::string_view flags(value);
   if (flags.size() != 3 ||

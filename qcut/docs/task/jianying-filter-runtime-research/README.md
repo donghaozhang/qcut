@@ -135,6 +135,10 @@ manager 的输入和输出参数。因此宿主可见结果是同一 frame、第
 第 1 至 9 帧逐字节一致。此前的黑帧来自读取了 V2 不使用的旧式 output texture。该测试证明输出约定，
 但使用的是本机标记为“银蓝”的资源，只能作为 handoff 证据。
 
+> 本节以下的 V2 数字已作废。它们是在 native texture 第三标志为假的条件下测得的，交付的 skin mask
+> 被上下颠倒地绑定，实际没有进入混合。修复与修复后的基线见
+> [mask-binding-fix.zh.md](mask-binding-fix.zh.md)。
+
 随后改用剪映草稿实际记录的“奥林巴斯”资源 ID `7361792068475325735`，将同一无缩放 854x480 UI
 baseline 首帧作为 `3;1;2` 预热帧丢弃，再以 mode `1` 连续渲染并对齐全部 180 帧。V2 原地输出为
 全片 `31.720 dB`、静态人像 `31.412 dB`、动态段 `31.882 dB`，均没有超过 Low-level 的
@@ -238,5 +242,8 @@ Effect 探针见 [effect-cgl-render-probe.cpp](probes/effect-cgl-render-probe.cp
 ```
 
 序列模式只创建一次 context、纹理和 Effect handle；后续帧通过 `glTexSubImage2D` 更新同一输入纹理。输入帧必须同尺寸，输出文件沿用输入清单中的文件名。
+
+Swing V2 路径的 skin mask 绑定修复、修复后的四配置基线，以及因此作废的旧 V2 结论，见
+[mask-binding-fix.zh.md](mask-binding-fix.zh.md)。
 
 产品实现应优先采用 QCut 自有 LUT 解析、渲染和获得授权的人像分割能力，而不是打包或调用剪映私有二进制。
