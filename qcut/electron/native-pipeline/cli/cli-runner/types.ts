@@ -215,6 +215,12 @@ export interface CLIRunOptions {
 	acceptedWarningFingerprints?: string[];
 	packagePath?: string;
 	resourceIds?: string[];
+	/** filter-lab: Jianying resource ID to score QCut presets against. */
+	resourceId?: string;
+	/** filter-lab: how many worst matches to report. */
+	worst?: number;
+	/** filter-lab: image or video to take scoring colours from. */
+	sample?: string;
 	draftEffectIds?: string[];
 	catalogEffectIds?: string[];
 	metadataMd5?: string;
