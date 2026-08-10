@@ -109,6 +109,10 @@ Swing 垂直翻转；校正方向后仍有 `0.830` 的逐元素 MAE。完整证�
 `channel - 128` 映射。因此颜色范围、通道顺序、归一化和纯色量化已经排除；剩余差异必须
 依赖空间变化，当前卡点收窄到缩放采样网格、插值或纹理边界处理。
 
+水平和垂直坐标坡度的下一轮隔离实验显示，两条路径都明显采用 half-pixel center；
+align-corners、asymmetric 和中心裁切均与观察值不符。对齐后的两路坡度张量只出现 `-1/0/+1`
+差值，当前剩余候选进一步收窄到亚像素采样精度、插值 kernel 和输出取整规则。
+
 完整 GL 与滤镜技术记录见 [gl-texture-context.zh.md](gl-texture-context.zh.md)。可复现的低层
 Effect 探针见 [effect-cgl-render-probe.cpp](probes/effect-cgl-render-probe.cpp)，模型边界观察器见
 [bytenn-input-capture.cpp](probes/bytenn-input-capture.cpp)。
