@@ -133,7 +133,14 @@ texture code；剪映 `TESwingProcessUnit::renderEffect` 则把同一个 `shared
 manager 的输入和输出参数。因此宿主可见结果是同一 frame、第一张 texture 的原地写回，不是 callback
 或独立 frame。探针读回该 texture 后连续渲染 `10/10` 帧成功，输出可见且不再是黑帧；预热后的
 第 1 至 9 帧逐字节一致。此前的黑帧来自读取了 V2 不使用的旧式 output texture。该测试证明输出约定，
-但尚未用同一 UI 对照帧重测最终 PSNR，所以不能据此声称视觉差值已经下降。
+但使用的是本机标记为“银蓝”的资源，只能作为 handoff 证据。
+
+随后改用剪映草稿实际记录的“奥林巴斯”资源 ID `7361792068475325735`，将同一无缩放 854x480 UI
+baseline 首帧作为 `3;1;2` 预热帧丢弃，再以 mode `1` 连续渲染并对齐全部 180 帧。V2 原地输出为
+全片 `31.720 dB`、静态人像 `31.412 dB`、动态段 `31.882 dB`，均没有超过 Low-level 的
+`40.741 / 37.331 / 44.681 dB`。按 Low-level mask 划分后，V2 的人像内部、软边缘和背景分别为
+`22.552 / 27.610 / 39.038 dB`；人像内部蓝通道只有 `18.436 dB`。因此输出交付已解决，但视觉差值
+没有缩小；当前卡点已收窄到 UI 的 V2 update-mode/预热序列及其 segmentation 状态或 mask 绑定。
 
 完整 GL 与滤镜技术记录见 [gl-texture-context.zh.md](gl-texture-context.zh.md)。可复现的低层
 Effect 探针见 [effect-cgl-render-probe.cpp](probes/effect-cgl-render-probe.cpp)，模型边界观察器见

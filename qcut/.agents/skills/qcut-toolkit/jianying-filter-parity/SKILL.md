@@ -207,6 +207,17 @@ frames 1-9 byte-identical after warm-up. The old black result came from reading
 the unused legacy output texture. This proves the handoff contract, not final UI
 parity; compare the exact UI fixture and package before reporting a new PSNR.
 
+Keep the handoff proof separate from filter parity. The initial 10-frame proof
+used local resource `7145394266209127694`, cataloged as Silver Blue. The exact
+Olympus comparison uses resource `7361792068475325735`. With one duplicated
+`3;1;2` preparation frame discarded and 180 aligned mode-1 frames, V2 reaches
+only `31.720 dB` overall (`31.412` static, `31.882` dynamic), versus Low-level
+at `40.741 dB` (`37.331`, `44.681`). Using the Low-level mask, V2 reaches
+`22.552 dB` in the mask interior, `27.610 dB` on its soft boundary, and
+`39.038 dB` in the background; interior blue is only `18.436 dB`. Entering
+`seekFrameV2` and reading the correct texture therefore does not reproduce UI
+segmentation state. Do not replace the Low-level baseline with this V2 sequence.
+
 ### Required validation checklist
 
 - [ ] Capture the actual Jianying UI mode order for preview, play, seek, and
