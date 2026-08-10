@@ -281,6 +281,10 @@ GraphicsFrameProbeResult GraphicsProbeSession::renderFrame(
   };
   result.rendered = request.renderer(resources);
   if (result.rendered) {
+    if (request.captureRenderedInputA) {
+      readTexture(impl_->symbols, impl_->renderer, textures.inputA,
+                  impl_->dimensions, result.renderedInputAPixels);
+    }
     readTexture(impl_->symbols, impl_->renderer, textures.output,
                 impl_->dimensions, result.outputPixels);
   }
@@ -361,6 +365,7 @@ GraphicsFrameProbeResult renderGraphicsProbeFrame(
       .inputAPixels = request.inputAPixels,
       .inputBPixels = request.inputBPixels,
       .verifyInputReadback = request.verifyInputReadback,
+      .captureRenderedInputA = request.captureRenderedInputA,
       .useNativeInputTextures = request.useNativeInputTextures,
       .nativeTextureFlags = request.nativeTextureFlags,
   });

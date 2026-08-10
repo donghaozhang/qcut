@@ -551,17 +551,22 @@ FilterSequenceResult renderFilterSequence(
         .inputAPixels = pixels,
         .inputBPixels = pixels,
         .verifyInputReadback = false,
+        .captureRenderedInputA = request.enableParallelAsyncSwing,
         .useNativeInputTextures = true,
         .nativeTextureFlags = request.nativeTextureFlags,
     });
-    if (!frame.rendered || frame.outputPixels.size() != frameBytes) {
+    // V2 mutates its first texture; the legacy output texture is code-only.
+    std::vector<std::uint8_t>& renderedPixels =
+        request.enableParallelAsyncSwing ? frame.renderedInputAPixels
+                                         : frame.outputPixels;
+    if (!frame.rendered || renderedPixels.size() != frameBytes) {
       std::cout << "[filter] frame " << index << " failed\n";
       continue;
     }
-    convertBgraToRgba(frame.outputPixels);
+    convertBgraToRgba(renderedPixels);
     char filename[32];
     std::snprintf(filename, sizeof(filename), "frame-%04zu.rgba", index);
-    writeRgbaFrame(request.outputDirectory / filename, frame.outputPixels);
+    writeRgbaFrame(request.outputDirectory / filename, renderedPixels);
     result.renderedFrames += 1;
   }
   return result;

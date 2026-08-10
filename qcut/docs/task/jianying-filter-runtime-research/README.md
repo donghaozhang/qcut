@@ -126,8 +126,14 @@ align-corners、asymmetric 和中心裁切均与观察值不符。对齐后的�
 `854x480 -> 227x128 -> 224x128` 的拟合为 `MAE 0.087 / RMSE 0.295`，而 `398x224` 候选为
 `MAE 0.819 / RMSE 1.812`。结合 UI 已确认调用同一 V2 入口，当前最强证据支持 UI 与 Low-level
 选择相同的 `227x128` 中间尺寸；由于无法向 hardened UI 进程注入 observer，这仍是同入口复现推断。
-它也解释了 Low-level 的 `37.331 dB` 为什么高于旧 Swing 的 `32.669 dB`。V2 旧式 output texture
-读回仍是黑帧，说明异步输出交付链尚未复现；本轮没有新的最终帧 PSNR，不能声称视觉差值已下降。
+它也解释了 Low-level 的 `37.331 dB` 为什么高于旧 Swing 的 `32.669 dB`。
+
+V2 输出交付链现已定位。wrapper 只解引用第一份 `SwingDeviceTextureData` 的 texture，第二份结构只提供
+texture code；剪映 `TESwingProcessUnit::renderEffect` 则把同一个 `shared_ptr<ITEVideoFrame>` 同时传给
+manager 的输入和输出参数。因此宿主可见结果是同一 frame、第一张 texture 的原地写回，不是 callback
+或独立 frame。探针读回该 texture 后连续渲染 `10/10` 帧成功，输出可见且不再是黑帧；预热后的
+第 1 至 9 帧逐字节一致。此前的黑帧来自读取了 V2 不使用的旧式 output texture。该测试证明输出约定，
+但尚未用同一 UI 对照帧重测最终 PSNR，所以不能据此声称视觉差值已经下降。
 
 完整 GL 与滤镜技术记录见 [gl-texture-context.zh.md](gl-texture-context.zh.md)。可复现的低层
 Effect 探针见 [effect-cgl-render-probe.cpp](probes/effect-cgl-render-probe.cpp)，模型边界观察器见

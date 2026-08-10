@@ -194,9 +194,18 @@ For the 854x480 portrait fixture, the captured V2 tensor fits
 `854x480 -> 227x128 -> 224x128` at `MAE 0.087 / RMSE 0.295`; the `398x224`
 candidate is `MAE 0.819 / RMSE 1.812`. Together with the live UI V2 stack, this
 strongly supports UI V2 and Low-level using the same intermediate size. Treat
-that as a same-entry inference, not a direct UI tensor dump. The legacy output texture remains black under V2
-because output delivery is asynchronous and internal. Do not report improved
-final-frame parity until the V2 output handoff is reproduced and PSNR is measured.
+that as a same-entry inference, not a direct UI tensor dump.
+
+V2 output is in-place at the host boundary. Static tracing shows the wrapper
+dereferences only the first `SwingDeviceTextureData` texture; the second struct
+contributes its texture code but its texture is not read. Jianying's
+`TESwingProcessUnit::renderEffect` passes the same `shared_ptr<ITEVideoFrame>`
+address as both frame arguments. Read back the first DeviceTexture after
+`seekFrameV2`; do not wait for a separate callback or read the legacy output
+texture. A 10-frame 854x480 portrait run rendered 10/10 visible frames, with
+frames 1-9 byte-identical after warm-up. The old black result came from reading
+the unused legacy output texture. This proves the handoff contract, not final UI
+parity; compare the exact UI fixture and package before reporting a new PSNR.
 
 ### Required validation checklist
 

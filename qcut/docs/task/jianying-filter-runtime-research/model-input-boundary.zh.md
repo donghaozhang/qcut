@@ -156,13 +156,15 @@ V2 抓到的 `tt_skin_seg` 输入为 `1x128x224x3`、172032 bytes，SHA-256 为 
 
 因此 `398x224` 只属于旧 C API Swing。结合 UI 已确认调用同一个 `seekFrameV2`，当前最强证据支持 UI V2 与 Low-level 一样选择 `227x128` 中间尺寸；但 hardened runtime 阻止了向 UI 进程注入 tensor observer，所以这仍是由同入口独立复现得出的推断，不是 UI tensor 的直接 dump。此前 Low-level 最终帧比旧 Swing 更接近 UI 的现象也与该推断一致。
 
-V2 C API 分支不会把结果写入旧接口提供的 output texture，本轮直接读回为黑帧；它使用异步内部输出语义，仍需复现 `TESwingEffectManagerV2` 的输出交付链。故本轮缩小的是路径不确定性，没有产生新的最终帧 PSNR，不能声称视觉差值已实际下降。
+进一步静态追踪确认了 V2 的输出约定。`TESwingEffectManagerV2::seekFrame` 只是基类入口的薄封装；`TESwingManagerInterfaceWrapper::seekFrameNoLock` 在 V2 分支只解引用第一份 `SwingDeviceTextureData` 的 `DeviceTexture`，第二份结构只提供 texture code，随后调用 `SwingManager::seekFrameV2(firstTexture, firstCode, secondCode, timestamp)`。剪映宿主 `TESwingProcessUnit::renderEffect` 调用 manager 虚函数时，又把同一个 `shared_ptr<ITEVideoFrame>` 地址同时作为输入和输出参数传入。宿主边界因此是同一 frame、第一张 texture 的原地写回，不是完成回调，也不是另一份 frame 的返回；引擎内部是否使用临时纹理不影响这个宿主约定。
+
+探针按该约定在 `seekFrameV2` 返回后读回第一张 texture。854x480 真人输入连续渲染 `10/10` 帧成功，输出不再是黑帧，并呈现明确的暖色滤镜效果。第 0 帧 SHA-256 为 `9f6c79b8db03a10f798e2e48a1abb34fa3f210f1e1792f20a860fe8ff803911c`；预热后的第 1 至 9 帧逐字节一致，SHA-256 均为 `cabb62486b6e27e4e87aee1c9ba52f8dd27b3bfe0fe5d73c6a8e5eb1ee2b580a`。稳定输出相对原输入 PSNR 为 `15.376 dB`，这里只用于证明 texture 已被显著修改，不能作为与剪映 UI 的 parity 指标。
 
 ## 结论
 
 Low-level 与旧 C API Swing 没有把真实图像的逐值相同张量送入 `tt_skin_seg`；旧路径的主差异除了垂直方向，还包括 `227x128` 与 `398x224` 两种中间尺寸。真实剪映 UI 明确运行 Swing V2，独立 V2 tensor 强匹配 `227x128` 路径，使“UI 使用 398x224”的假设变得不成立。
 
-两级尺寸和 linear kernel 已经确定；旧 Swing 的固定点采样细节不再是 UI parity 的主线。下一项真正的 UI 差距是 V2 异步输出交付、segmentation 状态及 mask 后处理，而不是继续调整中间 resize 尺寸。
+两级尺寸和 linear kernel 已经确定；旧 Swing 的固定点采样细节不再是 UI parity 的主线。V2 输出交付也已确定为第一张 texture 的原地写回。下一项真正的 UI 差距是用既有 854x480 对照素材和同一个包重新测量 V2 对剪映 UI 的最终帧 PSNR，并继续隔离 segmentation 状态及 mask 后处理，而不是继续调整中间 resize 尺寸或寻找不存在的独立输出回调。
 
 ## 仓库边界
 
