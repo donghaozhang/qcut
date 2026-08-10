@@ -55,6 +55,8 @@ struct GraphicsFrameProbeRequest {
   std::span<const std::uint8_t> inputAPixels;
   std::span<const std::uint8_t> inputBPixels;
   bool verifyInputReadback = true;
+  bool useNativeInputTextures = false;
+  std::array<bool, 3> nativeTextureFlags{};
 };
 
 struct GraphicsFrameProbeResult {
@@ -71,6 +73,8 @@ struct GraphicsSessionFrameRequest {
   std::span<const std::uint8_t> inputAPixels;
   std::span<const std::uint8_t> inputBPixels;
   bool verifyInputReadback = true;
+  bool useNativeInputTextures = false;
+  std::array<bool, 3> nativeTextureFlags{};
 };
 
 class GraphicsProbeSession {

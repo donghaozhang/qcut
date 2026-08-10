@@ -18,9 +18,9 @@ if [[ ! -f "$RUNTIME_ROOT/Frameworks/libLumiGeneRuntime.dylib" ]]; then
 fi
 
 case "$MODE" in
-  inspect | config | launch | gpu | textures | transition | transition-load | transition-frame | transition-video) ;;
+  inspect | config | launch | gpu | textures | transition | transition-load | transition-frame | transition-video | filter-sequence) ;;
   *)
-    printf 'Usage: %s [inspect|config|launch|gpu|textures|transition|transition-load|transition-frame|transition-video]\n' "$0" >&2
+    printf 'Usage: %s [inspect|config|launch|gpu|textures|transition|transition-load|transition-frame|transition-video|filter-sequence]\n' "$0" >&2
     exit 2
     ;;
 esac
@@ -46,12 +46,20 @@ xcrun clang++ \
   -Wall \
   -Wextra \
   -Werror \
+  -Wno-deprecated-declarations \
   "$SCRIPT_DIR/probe.mm" \
+  "$SCRIPT_DIR/amazer-context-scope.mm" \
+  "$SCRIPT_DIR/filter-host-support.mm" \
+  "$SCRIPT_DIR/filter-sequence-io.cpp" \
+  "$SCRIPT_DIR/graphics-runtime.mm" \
   "$SCRIPT_DIR/graphics-probe.mm" \
+  "$SCRIPT_DIR/filter-probe.mm" \
   "$SCRIPT_DIR/transition-probe.mm" \
   "$SCRIPT_DIR/video-transition-probe.mm" \
   -framework AppKit \
+  -framework CoreVideo \
   -framework IOSurface \
+  -framework OpenGL \
   -o "$PROBE"
 
 DYLD_LIBRARY_PATH="$RUNTIME_ROOT/Frameworks:$SOURCE_APP_FRAMEWORKS${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}" \

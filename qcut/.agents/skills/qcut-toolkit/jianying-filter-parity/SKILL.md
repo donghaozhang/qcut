@@ -132,6 +132,69 @@ For skin-segmented dual-LUT packages, a calibration chart validates only the
 background path. Capture a common face clip to measure the skin path. Do not
 claim full parity from a chart-only fit.
 
+## Swing segmented-host parity (required)
+
+Use this gate when a package consumes `share://skinsegmask.texture`. The
+low-level Effect handle does not reproduce Jianying's host-side segmentation
+state machine. Exercise the local interoperability probe instead:
+
+```bash
+research/jianying-runtime-probe/run-probe.sh filter-sequence
+```
+
+The manifest is `input<TAB>update-mode<TAB>reset-action`:
+
+- `3,1,2` applies all mode changes before one seek/render;
+- `3;1;2` performs one seek/render after each mode stage;
+- `keep` performs one seek/render without changing the current mode;
+- reset is `none`, `feature`, `video`, or `manager`.
+
+Rebind the input texture before **every** staged seek. Omitting that call makes
+the segmentation result weak or unstable. In the current 854x480 portrait
+fixture, `3;1`, `3;1;2`, and direct mode `1` converge to the same byte-identical
+mask. Mode `3` is `PREPARE_SEEK`; it is not a normal rendered-frame result.
+This convergence does **not** establish UI parity. On the same lossless frame,
+the established low-level Effect replay reaches `37.331 dB` against Jianying,
+while the Swing `3;1;2` candidate reaches only `32.669 dB`; the two host paths
+are only `33.413 dB` apart. Preserve the low-level replay as the reference and
+do not replace it with `3;1;2` until another sequence beats that baseline.
+
+At a source/content discontinuity, recreate the Swing manager and its
+`AlgorithmService`. `feature` and `video` resets do not clear the observed skin
+segmentation history. The verified sequence
+`portrait -> gray frames -> same portrait` restores the initial mask exactly
+only with `manager` reset. Keep one manager for continuous frames; recreate it
+at a clip/source boundary until a real Jianying UI trace proves a narrower
+reset is sufficient.
+
+Readback from the native Metal path is BGRA. Normalize it to RGBA before writing
+`.rgba`; mode `3` passthrough must then match the input byte for byte.
+
+### Required validation checklist
+
+- [ ] Capture the actual Jianying UI mode order for preview, play, seek, and
+  export. macOS hardened runtime currently blocks LLDB attach, so `3;1;2` must
+  be described as a **rejected UI-like candidate**, not the captured UI
+  sequence.
+- [ ] Compare one calibration chart, one still portrait, and one short moving
+  portrait at identical dimensions. Report whole-frame PSNR plus mask interior,
+  boundary-band, and background errors separately.
+- [ ] Verify manager reset on two different people and on a return-to-source
+  seek. Initial and returned mask outputs must be byte-identical.
+- [ ] Verify repeated frames within a continuous clip remain deterministic and
+  do not require manager recreation.
+- [ ] Read face boxes/landmarks through an independent result API before making
+  any claim about face-keypoint parity; a working skin mask is not proof of
+  working landmarks.
+- [ ] Repeat short one-frame teardown runs before productizing. The proprietary
+  runtime has shown one intermittent async teardown mutex failure.
+
+To conserve investigation budget, do not repeat full-binary disassembly or long
+180-frame runs when a targeted symbol lookup and the three fixtures above can
+answer the question. Keep runtime libraries, models, packages, raw frames, and
+logs outside git. Record only commands, hashes, metrics, and conclusions in
+`docs/task/jianying-filter-runtime-research/`.
+
 ## Step 4 — Register the preset
 
 Follow the PR #373 layout in `apps/web/src/lib/filters/jianying-parity/`:
