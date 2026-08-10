@@ -113,6 +113,11 @@ Swing 垂直翻转；校正方向后仍有 `0.830` 的逐元素 MAE。完整证�
 align-corners、asymmetric 和中心裁切均与观察值不符。对齐后的两路坡度张量只出现 `-1/0/+1`
 差值，当前剩余候选进一步收窄到亚像素采样精度、插值 kernel 和输出取整规则。
 
+五组多斜率坡度进一步确认取整是低频差异的主要来源：Low-level 稳定更接近四舍五入，
+Swing 稳定更接近向下取整；前三组中 `94.94%` 的位置符合两种规则应产生的 `0/+1` 差值形态。
+剩余 `5.06%` 以及随斜率增大的残差仍排除了“只有取整不同”的解释，后续候选只保留亚像素
+采样精度、插值 kernel 和边界行为。该结论只比较两条独立宿主，不能覆盖最终 UI 基准。
+
 完整 GL 与滤镜技术记录见 [gl-texture-context.zh.md](gl-texture-context.zh.md)。可复现的低层
 Effect 探针见 [effect-cgl-render-probe.cpp](probes/effect-cgl-render-probe.cpp)，模型边界观察器见
 [bytenn-input-capture.cpp](probes/bytenn-input-capture.cpp)。
