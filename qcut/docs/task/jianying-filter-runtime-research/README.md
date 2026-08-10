@@ -105,6 +105,10 @@ OpenGL legacy profile 只有 2.1，无法编译运行时生成的 GLSL 330，因
 Swing 垂直翻转；校正方向后仍有 `0.830` 的逐元素 MAE。完整证据和复现方式见
 [model-input-boundary.zh.md](model-input-boundary.zh.md)。
 
+七种独立纯色平场的后续 A/B 中，两条路径的模型输入逐字节一致，并共同使用 BGR 顺序和
+`channel - 128` 映射。因此颜色范围、通道顺序、归一化和纯色量化已经排除；剩余差异必须
+依赖空间变化，当前卡点收窄到缩放采样网格、插值或纹理边界处理。
+
 完整 GL 与滤镜技术记录见 [gl-texture-context.zh.md](gl-texture-context.zh.md)。可复现的低层
 Effect 探针见 [effect-cgl-render-probe.cpp](probes/effect-cgl-render-probe.cpp)，模型边界观察器见
 [bytenn-input-capture.cpp](probes/bytenn-input-capture.cpp)。
