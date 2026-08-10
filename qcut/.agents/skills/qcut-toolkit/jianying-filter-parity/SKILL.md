@@ -234,10 +234,29 @@ it is not the missing parity variable. Do not spend another run permuting mode
 values. Isolate manager/AlgorithmService/segment/feature initialization, AB state,
 or segmentation-result binding next.
 
+The segmentation-result binding is now isolated for the independent V2 host.
+On one 854x480 portrait frame with the captured load warm-up, the same
+`Bach::SkinSegInfo` is queried in all five render passes. `textureId()` returns
+zero five times, `nativeBuffer()` returns null five times, and
+`SkinSegInfo::updateTexture()` is never called. The binary takes its no-texture
+fallback even though the frame still renders. This is a binding failure, not a
+soft-mask tuning error. Restore a same-device Metal/native mask on that
+`SkinSegInfo` before testing initialization flags, AB variants, feathering, or
+more update-mode orders.
+
+Do not claim a direct UI object comparison from this result. Jianying rendering
+runs in a hardened `--lvve-service` child that did not load the observer. A
+forced OpenGL R8 texture ID reaches the result-packaging branch but cannot be
+used by the Metal V2 renderer, so it is control-flow evidence only.
+
 ### Required validation checklist
 
 - [x] Capture the actual Jianying UI mode order for preview load, play, and seek.
   The verified raw values are load `0,1,1,2`, paused seek `0`, and playback `1`.
+- [x] Inspect the independent V2 skin-result binding. Its consumed
+  `SkinSegInfo` has neither a texture ID nor a native buffer.
+- [ ] Bind the AlgorithmService mask to that `SkinSegInfo` with a same-device
+  Metal/native texture, then rerun the exact still fixture.
 - [ ] Capture the actual Jianying export mode order. Do not infer it from preview.
 - [ ] Compare one calibration chart, one still portrait, and one short moving
   portrait at identical dimensions. Report whole-frame PSNR plus mask interior,

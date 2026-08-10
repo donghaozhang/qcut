@@ -151,6 +151,15 @@ baseline 首帧作为 `3;1;2` 预热帧丢弃，再以 mode `1` 连续渲染并�
 主差距来源；当前卡点进一步收窄到 UI 与探针在 manager、AlgorithmService、segment/feature 创建时
 的初始化参数、AB 状态或 segmentation 结果绑定，而不是 resize、LUT、色彩矩阵或输出纹理读回。
 
+最高优先级的 segmentation 结果绑定随后被单独验证。独立 V2 宿主按真实加载顺序预热并渲染同一
+854x480 真人帧时，效果更新链五次读取同一个 `Bach::SkinSegInfo`：五次 `textureId()` 均为 `0`，
+五次 `nativeBuffer()` 均为 `nullptr`，并且 `SkinSegInfo::updateTexture()` 一次也没有发生；最终仍可
+渲染 `1/1` 帧。二进制控制流在 texture ID 和 native buffer 都为空时进入无 texture fallback。
+因此当前已确认的首要缺口不是 mask 羽化或数值误差，而是 AlgorithmService 的 mask 没有绑定到
+滤镜消费的 `SkinSegInfo`。真实 UI 的渲染位于 hardened `--lvve-service` 子进程，本轮观察库未进入
+该进程，所以没有伪称直接读到了 UI mask。下一步只能先恢复同设备 Metal/native mask 绑定，再谈
+初始化参数、AB 或后处理。
+
 完整 GL 与滤镜技术记录见 [gl-texture-context.zh.md](gl-texture-context.zh.md)。可复现的低层
 Effect 探针见 [effect-cgl-render-probe.cpp](probes/effect-cgl-render-probe.cpp)，模型边界观察器见
 [bytenn-input-capture.cpp](probes/bytenn-input-capture.cpp)。

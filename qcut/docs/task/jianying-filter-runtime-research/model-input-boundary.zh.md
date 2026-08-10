@@ -201,11 +201,35 @@ V2 在 mask 内部分通道只有红 `28.161`、绿 `30.936`、蓝 `18.436 dB`�
 
 两种真实序列解释均为 `61/61` 帧成功，比较严格排除了预热帧；连续 60 帧结果稳定。真实序列不但没有超过 Low-level，也没有超过原来的错误猜测，因此 update-mode/预热顺序不是当前最终帧差距的主因。这个实验完成的是排除：继续排列 mode 值不会缩小误差。
 
+## V2 skin mask 绑定边界
+
+下一轮只验证最高优先级问题：独立 V2 宿主渲染滤镜时读取的 `SkinSegInfo` 是否已经持有 AlgorithmService 生成的 mask。不改 manager/segment/feature 创建参数、AB、update-mode、色彩或滤镜包。临时进程内观察器拦截以下三个对象边界，代码、日志和原始帧均保留在 `/tmp`：
+
+- `Bach::SkinSegInfo::updateTexture`；
+- `Bach::SkinSegInfo::textureId`；
+- `Bach::SkinSegInfo::nativeBuffer`。
+
+同一 854x480 真人首帧按已捕获的加载顺序 `0;1;1;2` 预热，再用 mode `1` 渲染一次，结果为 `1/1` 帧成功。五个 render pass 都查询了同一个 `SkinSegInfo` 对象：
+
+| 观察项 | 次数 | 结果 |
+| --- | ---: | --- |
+| `textureId()` | 5 | texture 指针均为 `nullptr`，ID 均为 `0` |
+| `nativeBuffer()` | 5 | 返回值均为 `nullptr` |
+| `updateTexture(...)` | 0 | 从未把 texture 写入该对象 |
+
+调用点均位于 `libcccreator.dylib + 0x99bb60` 附近。静态控制流与动态结果一致：先读取 `textureId()`；若为 0，再读取 `nativeBuffer()`；两者均为空时进入无 texture 的 fallback 分支。为验证分支判断本身，临时令 `textureId()` 返回当前 OpenGL context 中的全白 R8 texture ID `2`，调用方随即进入第二次 texture 查询和结果包装分支。该 OpenGL texture 不是 V2 Metal 可共享资源，后续渲染中止，因此它只证明控制流，不作为视觉或 parity 结果。
+
+这项单变量验证给出直接结论：**当前独立 V2 宿主交给效果更新链的 skin result 是空对象，AlgorithmService 的 mask 没有绑定到滤镜读取的 `SkinSegInfo`。** 这比初始化参数或 mask 羽化更靠前；在绑定修复前，继续比较 mode、AB 或后处理没有意义。
+
+真实剪映渲染运行在单独的 hardened `--lvve-service` 子进程。主应用观察库不会被该子进程载入，所以本轮没有取得 UI 内部 `SkinSegInfo` 的 texture/native 指针，不能声称已直接比较 UI 两端对象。UI 日志只用于确认 AlgorithmService 正在执行，不用于补造 binding 证据。低层 Effect 的 `--skip-algorithm` 运行走不同 OpenGL 宿主，与 V2 空绑定帧只有 `13.952 dB`，也被排除为无 mask 像素对照。
+
 ## 结论
 
 Low-level 与旧 C API Swing 没有把真实图像的逐值相同张量送入 `tt_skin_seg`；旧路径的主差异除了垂直方向，还包括 `227x128` 与 `398x224` 两种中间尺寸。真实剪映 UI 明确运行 Swing V2，独立 V2 tensor 强匹配 `227x128` 路径，使“UI 使用 398x224”的假设变得不成立。
 
-两级尺寸和 linear kernel 已经确定；旧 Swing 的固定点采样细节不再是 UI parity 的主线。V2 输出交付也已确定为第一张 texture 的原地写回，但同素材最终帧只有 `31.720 dB`，没有超过 `40.741 dB` 的 Low-level 基线。剪映 UI 的真实加载序列已捕获为同一 manager 上的 `0 -> 1 -> 1 -> 2`，暂停 seek 为 `0`，播放帧为 `1`；按两种 render 时序重放后静态结果只有 `30.876` 和 `30.374 dB`。update-mode/预热顺序因此已被排除为主差距来源。下一项应只比较 UI 与探针创建 manager、AlgorithmService、segment 和 feature 时的初始化参数、AB 状态及 segmentation 结果绑定；在找到新的单变量证据前，不应继续排列 mode 值或调整 resize、LUT、色彩矩阵和输出读回。
+两级尺寸和 linear kernel 已经确定；旧 Swing 的固定点采样细节不再是 UI parity 的主线。V2 输出交付也已确定为第一张 texture 的原地写回，但同素材最终帧只有 `31.720 dB`，没有超过 `40.741 dB` 的 Low-level 基线。剪映 UI 的真实加载序列已捕获为同一 manager 上的 `0 -> 1 -> 1 -> 2`，暂停 seek 为 `0`，播放帧为 `1`；按两种 render 时序重放后静态结果只有 `30.876` 和 `30.374 dB`。update-mode/预热顺序因此已被排除为主差距来源。
+
+最高优先级的绑定检查现已确认独立 V2 宿主读取的是空 `SkinSegInfo`：五次 `textureId()` 均为 0、五次 `nativeBuffer()` 均为空，且没有一次 `updateTexture()`。当前明确卡点不是“mask 数值略有不同”，而是 AlgorithmService 的 mask 尚未交付给滤镜消费对象。下一步若继续实现，应只恢复同设备的 Metal/native mask 到该 `SkinSegInfo` 的绑定，再用同一帧复测；绑定成功前不应继续调整初始化、AB、resize、LUT、色彩矩阵或输出读回。
 
 ## 仓库边界
 
