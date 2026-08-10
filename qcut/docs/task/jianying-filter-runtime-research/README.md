@@ -114,10 +114,20 @@ align-corners、asymmetric 和中心裁切均与观察值不符。对齐后的�
 差值，当前剩余候选进一步收窄到亚像素采样精度、插值 kernel 和输出取整规则。
 
 后续脉冲与二维纹理实验推翻了单级 resize 前提，并确定两条路径都执行两级 bilinear：Low-level
-为 `854x480 -> 227x128 -> 224x128`，Swing 为 `854x480 -> 398x224 -> 224x128`。二维纹理对
+为 `854x480 -> 227x128 -> 224x128`，旧 C API Swing 为 `854x480 -> 398x224 -> 224x128`。二维纹理对
 正确路径的 RMSE 分别只有 `0.279` 和 `0.502`；单级或交换中间尺寸后的 RMSE 约为 `40-49`。
 因此此前 `94.94%` 的取整解释已经撤回，主要差异是中间工作分辨率，不是不同的标准 kernel。
-剩余边界只包括 Swing 的固定点采样/量化细节；该结论仍不代表 Swing 比 Low-level 更接近 UI。
+这条 `398x224` 结论只适用于旧 Swing，不代表剪映 UI。
+
+随后对剪映 UI 连续 seek 的实时采样直接捕获到
+`TESwingProcessUnit -> TESwingEffectManagerV2 -> TESwingManagerInterfaceWrapper -> SwingManager::seekFrameV2`。
+旧 C create API 会硬编码 `XT_Init=true` 并清除 V2 标志；研究探针通过 UUID 限定的直接构造路径
+进入同一个 `seekFrameV2`，60/60 帧成功并抓到新的模型输入。该 tensor 对
+`854x480 -> 227x128 -> 224x128` 的拟合为 `MAE 0.087 / RMSE 0.295`，而 `398x224` 候选为
+`MAE 0.819 / RMSE 1.812`。结合 UI 已确认调用同一 V2 入口，当前最强证据支持 UI 与 Low-level
+选择相同的 `227x128` 中间尺寸；由于无法向 hardened UI 进程注入 observer，这仍是同入口复现推断。
+它也解释了 Low-level 的 `37.331 dB` 为什么高于旧 Swing 的 `32.669 dB`。V2 旧式 output texture
+读回仍是黑帧，说明异步输出交付链尚未复现；本轮没有新的最终帧 PSNR，不能声称视觉差值已下降。
 
 完整 GL 与滤镜技术记录见 [gl-texture-context.zh.md](gl-texture-context.zh.md)。可复现的低层
 Effect 探针见 [effect-cgl-render-probe.cpp](probes/effect-cgl-render-probe.cpp)，模型边界观察器见

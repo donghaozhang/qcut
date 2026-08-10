@@ -155,7 +155,7 @@ fixture, `3;1`, `3;1;2`, and direct mode `1` converge to the same byte-identical
 mask. Mode `3` is `PREPARE_SEEK`; it is not a normal rendered-frame result.
 This convergence does **not** establish UI parity. On the same lossless frame,
 the established low-level Effect replay reaches `37.331 dB` against Jianying,
-while the Swing `3;1;2` candidate reaches only `32.669 dB`; the two host paths
+while the legacy C API Swing `3;1;2` candidate reaches only `32.669 dB`; the two host paths
 are only `33.413 dB` apart. Preserve the low-level replay as the reference and
 do not replace it with `3;1;2` until another sequence beats that baseline.
 
@@ -170,24 +170,39 @@ reset is sufficient.
 Readback from the native Metal path is BGRA. Normalize it to RGBA before writing
 `.rgba`; mode `3` passthrough must then match the input byte for byte.
 
-At the `tt_skin_seg` ByteNN boundary, both known host paths use BGR values with
+At the `tt_skin_seg` ByteNN boundary, both initial host probes use BGR values with
 `channel - 128` normalization and two half-pixel-center bilinear stages. Their
 intermediate sizes differ for an 854x480 source: Low-level uses
-`854x480 -> 227x128 -> 224x128`, while Swing uses
+`854x480 -> 227x128 -> 224x128`, while legacy C API Swing uses
 `854x480 -> 398x224 -> 224x128`. Sparse impulses match both paths at 99.55%
 with a maximum error of one; a deterministic 2D texture reaches RMSE 0.279 and
 0.502 respectively. Direct one-stage resize or swapping the intermediate sizes
 produces RMSE around 40-49. An earlier floor-versus-round inference assumed a
-single resize and is withdrawn. Swing fixed-point sampling/quantization remains
-unresolved. Do not change the low-level path merely to match Swing: its final
-frame remains closer to the Jianying UI baseline.
+single resize and is withdrawn.
+
+Do not treat that legacy Swing result as the UI path. Live sampling of Jianying
+preview established the call chain `TESwingProcessUnit ->
+TESwingEffectManagerV2 -> TESwingManagerInterfaceWrapper ->
+SwingManager::seekFrameV2`. The public C create API hard-codes `XT_Init=true`,
+which clears `enable_parallel_and_async_swing` during manager initialization
+and silently selects legacy `seekFrame`. The UUID-gated research path can set
+`JY_ENABLE_PARALLEL_ASYNC_SWING=1` and construct the manager without `XT_Init`.
+Verify the sampled stack contains `seekFrameV2`; an accepted exit code alone is
+not evidence.
+
+For the 854x480 portrait fixture, the captured V2 tensor fits
+`854x480 -> 227x128 -> 224x128` at `MAE 0.087 / RMSE 0.295`; the `398x224`
+candidate is `MAE 0.819 / RMSE 1.812`. Together with the live UI V2 stack, this
+strongly supports UI V2 and Low-level using the same intermediate size. Treat
+that as a same-entry inference, not a direct UI tensor dump. The legacy output texture remains black under V2
+because output delivery is asynchronous and internal. Do not report improved
+final-frame parity until the V2 output handoff is reproduced and PSNR is measured.
 
 ### Required validation checklist
 
 - [ ] Capture the actual Jianying UI mode order for preview, play, seek, and
-  export. macOS hardened runtime currently blocks LLDB attach, so `3;1;2` must
-  be described as a **rejected UI-like candidate**, not the captured UI
-  sequence.
+  export. Live sampling proves the V2 entry but not the mode values, so `3;1;2`
+  remains a **rejected UI-like candidate**, not the captured UI sequence.
 - [ ] Compare one calibration chart, one still portrait, and one short moving
   portrait at identical dimensions. Report whole-frame PSNR plus mask interior,
   boundary-band, and background errors separately.

@@ -20,6 +20,7 @@ struct FilterSequenceRequest {
   int outputTextureDataCode = 0;
   bool enableSwingSimplify = true;
   bool managerCreateOption = false;
+  bool enableParallelAsyncSwing = false;
 };
 
 struct FilterSequenceResult {

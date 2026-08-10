@@ -4,9 +4,9 @@
 
 ## 单一问题
 
-本轮只验证一个问题：低层 Effect 和 Swing 宿主是否把同一个张量送入 `tt_skin_seg`。
+本轮只验证一个问题：低层 Effect、旧 C API Swing 和剪映 UI 使用的 Swing V2 是否把同一个张量送入 `tt_skin_seg`。
 
-实验使用同一份 854x480 RGBA 真人帧、同一个滤镜包和同一组本机模型。低层路径通过 `bef_effect_algorithm_texture` 与 `bef_effect_process_texture` 连续预热；Swing 路径使用 manifest `3;1;2`。两条路径都保持一个 context、一个线程和递增时间戳。
+实验使用同一份 854x480 RGBA 真人帧、同一个滤镜包和同一组本机模型。低层路径通过 `bef_effect_algorithm_texture` 与 `bef_effect_process_texture` 连续预热；旧 C API Swing 路径使用 manifest `3;1;2`。两条路径都保持一个 context、一个线程和递增时间戳。本文前半部分历史表格中的“Swing”均指这个旧 C API 路径，不代表剪映 UI 的 Swing V2。
 
 ## 抓取位置
 
@@ -116,7 +116,7 @@ payload 按有符号 16-bit 元素解析，数值范围均为 `-125` 到 `124`�
 
 ```text
 Low-level: 854x480 -> 227x128 -> 224x128
-Swing:     854x480 -> 398x224 -> 224x128
+Legacy Swing C API: 854x480 -> 398x224 -> 224x128
 ```
 
 `398x224` 是 Swing 先把短边缩到 224 后保持 16:9 得到的尺寸；Low-level 则先把短边缩到 128，得到已经由运行时读回确认的 `227x128`。脉冲和二维纹理的拟合结果如下：
@@ -130,13 +130,39 @@ Swing:     854x480 -> 398x224 -> 224x128
 
 正确的两级路径也修正了上一轮的取整判断。五组坡度重新计算后，Low-level 在两级都取最近整数时平均 MAE 为 `0.035`，每组最大差均为 1；此前基于错误单级模型得到的 `0.210-0.616` 已被解释。Swing 的简单取整候选仍不能同时完全解释坡度与二维纹理：坡度最接近浮点中间值加最终向下取整，平均 MAE `0.255`；二维纹理则最接近两级取最近整数，MAE `0.250`。这部分应描述为固定点采样/量化细节尚未定位，不能再声称 Swing 已确定使用向下取整。
 
-因此撤回“`94.94%` 证明取整是主要差异来源”的旧结论。该比例只是在错误单级理想值下观察到的次级现象；主要差异已经由 `227x128` 与 `398x224` 两种中间分辨率解释。当前 Low-level 最终输出对 UI 的 `37.331 dB` 仍高于 Swing 的 `32.669 dB`，所以也不能因为 Swing 路径已拟合就用它替换 Low-level。
+因此撤回“`94.94%` 证明取整是主要差异来源”的旧结论。该比例只是在错误单级理想值下观察到的次级现象；Low-level 与旧 C API Swing 的主要差异已经由 `227x128` 与 `398x224` 两种中间分辨率解释。当前 Low-level 最终输出对 UI 的 `37.331 dB` 仍高于旧 Swing 的 `32.669 dB`。
+
+## 剪映 UI 的 Swing V2 复核
+
+对正在预览同一 854x480 工程的剪映进程连续 seek，并使用 macOS `sample` 做非侵入采样。活跃调用链稳定出现：
+
+```text
+TESwingProcessUnit::doProcessWithSwing
+-> TESwingEffectManagerV2::seekFrame
+-> TESwingManagerInterfaceWrapper::seekFrameNoLock
+-> AmazingEngine::SwingManager::seekFrameV2
+```
+
+采样中约有 503 次 `TESwingProcessUnit::doProcess`、502 次 `doProcessWithSwing`、469 次 render/seek 和 449 次 `SwingManager::seekFrameV2`。这直接证明当前 UI 使用 V2，而不是前文测试的旧 `SwingManager::seekFrame`。
+
+静态追踪进一步解释了为什么原探针没有进入 V2：`SwingManager::init` 从 AB 键 `enable_parallel_and_async_swing` 读取 V2 标志，但公开 C create API 会在 init 前硬编码 `XT_Init=true`，随后把该标志清零。研究探针新增 `JY_ENABLE_PARALLEL_ASYNC_SWING=1` 后，使用 UUID 限定的直接构造路径避开这次强制降级；60/60 帧调用成功，进程采样明确进入 `seekFrameV2`。
+
+V2 抓到的 `tt_skin_seg` 输入为 `1x128x224x3`、172032 bytes，SHA-256 为 `48239cef472220312fd25d4571cf8d34429ee39fd4bc444f44005cdc6043f6c0`。同一输入对两条候选两级 half-pixel bilinear 路径拟合如下：
+
+| V2 候选路径 | MAE | RMSE | 最大差 | 完全相同 |
+| --- | ---: | ---: | ---: | ---: |
+| `854x480 -> 227x128 -> 224x128` | **0.087** | **0.295** | 2 | 91.30% |
+| `854x480 -> 398x224 -> 224x128` | 0.819 | 1.812 | 46 | 50.21% |
+
+因此 `398x224` 只属于旧 C API Swing。结合 UI 已确认调用同一个 `seekFrameV2`，当前最强证据支持 UI V2 与 Low-level 一样选择 `227x128` 中间尺寸；但 hardened runtime 阻止了向 UI 进程注入 tensor observer，所以这仍是由同入口独立复现得出的推断，不是 UI tensor 的直接 dump。此前 Low-level 最终帧比旧 Swing 更接近 UI 的现象也与该推断一致。
+
+V2 C API 分支不会把结果写入旧接口提供的 output texture，本轮直接读回为黑帧；它使用异步内部输出语义，仍需复现 `TESwingEffectManagerV2` 的输出交付链。故本轮缩小的是路径不确定性，没有产生新的最终帧 PSNR，不能声称视觉差值已实际下降。
 
 ## 结论
 
-两条宿主路径没有把真实图像的逐值相同张量送入 `tt_skin_seg`。主差异除了垂直方向，还包括两级 bilinear 使用不同中间分辨率：Low-level 是 `227x128`，Swing 是 `398x224`，最终才共同进入 `224x128`。纯色平场排除了颜色路径；坐标坡度确认宏观 half-pixel 映射；脉冲与二维纹理则把高频差异定位到两级缩放结构，而不是不同的 bilinear/area/cubic kernel 家族。
+Low-level 与旧 C API Swing 没有把真实图像的逐值相同张量送入 `tt_skin_seg`；旧路径的主差异除了垂直方向，还包括 `227x128` 与 `398x224` 两种中间尺寸。真实剪映 UI 明确运行 Swing V2，独立 V2 tensor 强匹配 `227x128` 路径，使“UI 使用 398x224”的假设变得不成立。
 
-这次结果把差异定位到模型之前，不能再把全部误差归因于 segmentation 状态、mask 后处理或 LUT 混合。两级尺寸和 linear kernel 已经确定；剩余模型输入误差只保留 Swing 固定点采样/量化细节，不再重复颜色、坐标体系、标准 kernel 或单级取整枚举。
+两级尺寸和 linear kernel 已经确定；旧 Swing 的固定点采样细节不再是 UI parity 的主线。下一项真正的 UI 差距是 V2 异步输出交付、segmentation 状态及 mask 后处理，而不是继续调整中间 resize 尺寸。
 
 ## 仓库边界
 

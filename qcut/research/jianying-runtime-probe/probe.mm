@@ -390,6 +390,8 @@ void configure(ObjectStorage<kConfigStorageSize>& config,
             optionalBooleanEnvironment("JY_ENABLE_SWING_SIMPLIFY"),
         .managerCreateOption =
             optionalBooleanEnvironment("JY_SWING_MANAGER_CREATE_OPTION"),
+        .enableParallelAsyncSwing =
+            optionalBooleanEnvironment("JY_ENABLE_PARALLEL_ASYNC_SWING"),
     });
     std::cout << "[filter] rendered " << result.renderedFrames << '/'
               << result.requestedFrames << " frames\n";

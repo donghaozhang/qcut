@@ -7,6 +7,9 @@
 
 namespace jianying_probe {
 
+void verifyRuntimeImage(const void* knownImageSymbol,
+                        std::string_view expectedImageUuid);
+
 struct AmazerContextScopeRequest {
   const void* knownImageSymbol;
   std::string_view expectedImageUuid;

@@ -6,7 +6,9 @@
 #include "graphics-probe.h"
 #include "probe-utils.h"
 
+#include <array>
 #include <cstdint>
+#include <cstring>
 #include <cstdio>
 #include <iostream>
 #include <limits>
@@ -28,6 +30,7 @@ constexpr std::string_view kVerifiedFilterCoreUuid =
     "9A8A8F6B-31C0-3DDC-85AC-5F11087D7965";
 constexpr std::uintptr_t kAmazerContextScopeConstructorOffset = 0x3fb3cc;
 constexpr std::uintptr_t kAmazerContextScopeDestructorOffset = 0x3fb3f8;
+constexpr std::size_t kVerifiedSwingManagerSize = 0x370;
 
 constexpr std::string_view kCreateSwingManager =
     "bef_swing_manager_create_with_gpdevice";
@@ -61,6 +64,17 @@ constexpr std::string_view kConvertMetalTextureInPlace =
     "_ZN13AmazingEngine12SwingTexture26convertMetalTextureInPlaceER13DeviceText"
     "urePNS_12SwingManagerERKNS_12RendererTypeEx";
 constexpr std::string_view kConfigureAbValue = "bef_effect_config_ab_value";
+constexpr std::string_view kConstructSwingManager =
+    "_ZN13AmazingEngine12SwingManagerC2Ev";
+constexpr std::string_view kInitializeSwingManager =
+    "_ZN13AmazingEngine12SwingManager4initERKNS_8Vector2iEiPFPcPvPKcS7_"
+    "EyPNS_8GPDeviceE";
+constexpr std::string_view kConstructBefContextScope =
+    "_ZN3BEF16BEFContextSetterC2EPNS_10BEFContextE";
+constexpr std::string_view kDestroyBefContextScope =
+    "_ZN3BEF16BEFContextSetterD2Ev";
+constexpr std::string_view kIsParallelAsyncSwingEnabled =
+    "_ZNK13AmazingEngine12SwingManager30isParallelAndAsyncSwingEnabledEv";
 
 using ResourceFinderMethod = char* (*)(void*, const char*, const char*);
 using GetObjectMethod = void* (*)(const void*);
@@ -89,6 +103,11 @@ using GetAlgorithmSizeMethod = int (*)(void*, int*, int*);
 using ConvertTextureMethod = void (*)(DeviceTextureProbe*, void*, const int*,
                                       std::int64_t);
 using ConfigureAbValueMethod = int (*)(const char*, const void*, int);
+using ObjectMethod = void (*)(void*);
+using ContextConstructorMethod = void (*)(void*, void*);
+using InitializeSwingManagerMethod = void (*)(
+    void*, const int*, int, ResourceFinderMethod, std::uint64_t, void*);
+using BoolObjectMethod = bool (*)(const void*);
 
 struct FilterSymbols {
   CreateSwingManagerMethod createManager;
@@ -109,6 +128,11 @@ struct FilterSymbols {
   GetAlgorithmSizeMethod getVideoAlgorithmSize;
   ConvertTextureMethod convertMetalTextureInPlace;
   ConfigureAbValueMethod configureAbValue;
+  ObjectMethod constructManager;
+  InitializeSwingManagerMethod initializeManager;
+  ContextConstructorMethod constructBefContextScope;
+  ObjectMethod destroyBefContextScope;
+  BoolObjectMethod isParallelAsyncSwingEnabled;
 };
 
 [[nodiscard]] FilterSymbols loadFilterSymbols(const fs::path& runtimeRoot) {
@@ -145,7 +169,49 @@ struct FilterSymbols {
           resolveSymbol<ConvertTextureMethod>(core, kConvertMetalTextureInPlace),
       .configureAbValue =
           resolveSymbol<ConfigureAbValueMethod>(core, kConfigureAbValue),
+      .constructManager =
+          resolveSymbol<ObjectMethod>(core, kConstructSwingManager),
+      .initializeManager = resolveSymbol<InitializeSwingManagerMethod>(
+          core, kInitializeSwingManager),
+      .constructBefContextScope = resolveSymbol<ContextConstructorMethod>(
+          core, kConstructBefContextScope),
+      .destroyBefContextScope =
+          resolveSymbol<ObjectMethod>(core, kDestroyBefContextScope),
+      .isParallelAsyncSwingEnabled = resolveSymbol<BoolObjectMethod>(
+          core, kIsParallelAsyncSwingEnabled),
   };
+}
+
+[[nodiscard]] int createParallelAsyncManager(
+    const FilterSymbols& symbols, void** manager, int width, int height,
+    ResourceFinderMethod resourceFinder, bool algorithmAsync,
+    void* graphicsDevice) {
+  verifyRuntimeImage(reinterpret_cast<const void*>(symbols.constructManager),
+                     kVerifiedFilterCoreUuid);
+  void* instance = ::operator new(kVerifiedSwingManagerSize);
+  symbols.constructManager(instance);
+
+  void* befContext = nullptr;
+  std::memcpy(&befContext, static_cast<std::byte*>(instance) + 8,
+              sizeof(befContext));
+  if (befContext == nullptr) {
+    symbols.destroyManager(instance);
+    throw std::runtime_error("SwingManager has no BEF context after construction");
+  }
+
+  alignas(8) std::array<std::byte, 8> contextScope{};
+  symbols.constructBefContextScope(contextScope.data(), befContext);
+  const std::array<int, 2> dimensions = {width, height};
+  symbols.initializeManager(instance, dimensions.data(), algorithmAsync,
+                            resourceFinder, 8, graphicsDevice);
+  symbols.destroyBefContextScope(contextScope.data());
+
+  if (!symbols.isParallelAsyncSwingEnabled(instance)) {
+    symbols.destroyManager(instance);
+    throw std::runtime_error("parallel/async Swing was disabled during init");
+  }
+  *manager = instance;
+  return 0;
 }
 
 [[nodiscard]] DeviceTextureProbe bridgeTexture(
@@ -163,7 +229,8 @@ class FilterHostSession {
                     OpenGlContext& openGlContext, const fs::path& packagePath,
                     const GraphicsFrameResources& resources,
                     int inputTextureDataCode, int outputTextureDataCode,
-                    bool enableSwingSimplify, bool managerCreateOption)
+                    bool enableSwingSimplify, bool managerCreateOption,
+                    bool enableParallelAsyncSwing)
       : symbols_(symbols), models_(models), openGlContext_(openGlContext),
         packagePath_(packagePath),
         width_(resources.width), height_(resources.height),
@@ -171,7 +238,8 @@ class FilterHostSession {
         inputTextureDataCode_(inputTextureDataCode),
         outputTextureDataCode_(outputTextureDataCode),
         enableSwingSimplify_(enableSwingSimplify),
-        managerCreateOption_(managerCreateOption) {
+        managerCreateOption_(managerCreateOption),
+        enableParallelAsyncSwing_(enableParallelAsyncSwing) {
     jianying_probe::activateModelCatalog(models_);
     createHost();
   }
@@ -261,11 +329,17 @@ class FilterHostSession {
   void createHost() {
     openGlContext_.makeCurrent();
     openGlContext_.printCurrent("before manager create");
-    const int managerResult = symbols_.createManager(
-        &manager_, static_cast<unsigned int>(width_),
-        static_cast<unsigned int>(height_), findModelResource,
-        managerCreateOption_,
-        graphicsDevice_);
+    const int managerResult = enableParallelAsyncSwing_
+                                  ? createParallelAsyncManager(
+                                        symbols_, &manager_, width_, height_,
+                                        findModelResource,
+                                        managerCreateOption_, graphicsDevice_)
+                                  : symbols_.createManager(
+                                        &manager_,
+                                        static_cast<unsigned int>(width_),
+                                        static_cast<unsigned int>(height_),
+                                        findModelResource,
+                                        managerCreateOption_, graphicsDevice_);
     if (managerResult != 0 || manager_ == nullptr) {
       std::cout << "[filter] manager create result = " << managerResult << '\n';
       return;
@@ -367,6 +441,7 @@ class FilterHostSession {
   int outputTextureDataCode_;
   bool enableSwingSimplify_;
   bool managerCreateOption_;
+  bool enableParallelAsyncSwing_;
   bool ready_ = false;
 };
 
@@ -382,6 +457,7 @@ struct RenderContext {
   int outputTextureDataCode;
   bool enableSwingSimplify;
   bool managerCreateOption;
+  bool enableParallelAsyncSwing;
   std::unique_ptr<FilterHostSession> session;
 };
 
@@ -395,7 +471,7 @@ bool renderFilterFrame(const GraphicsFrameResources& resources) {
         context->symbols, context->models, context->openGlContext,
         context->packagePath, resources, context->inputTextureDataCode,
         context->outputTextureDataCode, context->enableSwingSimplify,
-        context->managerCreateOption);
+        context->managerCreateOption, context->enableParallelAsyncSwing);
   }
   return context->session->render(resources, context->renderPasses,
                                   context->resetAction, context->timestamp);
@@ -430,6 +506,12 @@ FilterSequenceResult renderFilterSequence(
       &enableMetalAlgorithmInput, 0);
   std::cout << "[filter] enable Metal algorithm input result = "
             << metalAlgorithmInputResult << '\n';
+  const bool enableParallelAsyncSwing = request.enableParallelAsyncSwing;
+  const int parallelAsyncSwingResult = symbols.configureAbValue(
+      "enable_parallel_and_async_swing", &enableParallelAsyncSwing, 0);
+  std::cout << "[filter] parallel/async Swing="
+            << enableParallelAsyncSwing
+            << " result = " << parallelAsyncSwingResult << '\n';
   const ModelCatalog models(request.modelDirectory);
   GraphicsProbeSession graphics(request.runtimeRoot, request.width,
                                 request.height);
@@ -450,6 +532,7 @@ FilterSequenceResult renderFilterSequence(
       .outputTextureDataCode = request.outputTextureDataCode,
       .enableSwingSimplify = request.enableSwingSimplify,
       .managerCreateOption = request.managerCreateOption,
+      .enableParallelAsyncSwing = request.enableParallelAsyncSwing,
       .session = nullptr,
   };
   FilterSequenceResult result = {.requestedFrames = steps.size()};

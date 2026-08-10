@@ -53,6 +53,14 @@ namespace {
 
 }  // namespace
 
+void verifyRuntimeImage(const void* knownImageSymbol,
+                        std::string_view expectedImageUuid) {
+  static_cast<void>(checkedImageBase({
+      .knownImageSymbol = knownImageSymbol,
+      .expectedImageUuid = expectedImageUuid,
+  }));
+}
+
 AmazerContextScope::AmazerContextScope(
     const AmazerContextScopeRequest& request) {
   if (request.context == nullptr) {
