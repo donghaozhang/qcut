@@ -149,16 +149,22 @@ baseline 首帧作为 `3;1;2` 预热帧丢弃，再以 mode `1` 连续渲染并�
 输出后与 UI 静态 60 帧比较，PSNR 分别只有 `30.876` 和 `30.374 dB`，均低于旧 `3;1;2`
 候选的 `31.412 dB`，更低于 Low-level 的 `37.331 dB`。因此 update-mode/预热顺序已被排除为
 主差距来源；当前卡点进一步收窄到 UI 与探针在 manager、AlgorithmService、segment/feature 创建时
-的初始化参数、AB 状态或 segmentation 结果绑定，而不是 resize、LUT、色彩矩阵或输出纹理读回。
+的初始化参数、AB 状态、segmentation 模型选择或结果交付，而不是 resize、LUT、色彩矩阵或输出纹理读回。
 
-最高优先级的 segmentation 结果绑定随后被单独验证。独立 V2 宿主按真实加载顺序预热并渲染同一
-854x480 真人帧时，效果更新链五次读取同一个 `Bach::SkinSegInfo`：五次 `textureId()` 均为 `0`，
-五次 `nativeBuffer()` 均为 `nullptr`，并且 `SkinSegInfo::updateTexture()` 一次也没有发生；最终仍可
-渲染 `1/1` 帧。二进制控制流在 texture ID 和 native buffer 都为空时进入无 texture fallback。
-因此当前已确认的首要缺口不是 mask 羽化或数值误差，而是 AlgorithmService 的 mask 没有绑定到
-滤镜消费的 `SkinSegInfo`。真实 UI 的渲染位于 hardened `--lvve-service` 子进程，本轮观察库未进入
-该进程，所以没有伪称直接读到了 UI mask。下一步只能先恢复同设备 Metal/native mask 绑定，再谈
-初始化参数、AB 或后处理。
+最高优先级的 segmentation 结果交付随后被单独验证并纠正。独立 V2 宿主按真实加载顺序预热并渲染
+同一 854x480 真人帧时，效果更新链五次读取同一个 `Bach::SkinSegInfo`：五次 `textureId()` 均为 `0`，
+五次 `nativeBuffer()` 均为 `nullptr`，也没有调用 `updateTexture()`。但 working Low-level 对照具有完全相同
+的 GPU 观察结果，并能稳定渲染正确效果。反汇编确认两条路径实际都从 native result `+0x18` 指向的
+CPU 容器读取 begin/end；实测均得到完整 `224x128 / 28672-byte` mask。Low-level 连续 20 次 mask 哈希
+完全一致；V2 的五个 staged pass 也均有有效数据。因此“mask 未绑定”结论撤回，texture/native 为空
+只是 CPU fallback，不是故障。
+
+真正的新控制变量是模型不同：Low-level 使用 MD5 `2b5a...d6e` 的静态 `tt_skin_seg_v5.0.model`，V2
+资源回调使用 MD5 `cd547...c1e` 的 `tt_skin_seg_video_seg_fp16_v1.0.model`。两张最终 mask 校正垂直方向后
+仍为 `MAE 15.442 / RMSE 40.492`，但不能作为同模型 parity。把 video model 强塞给 Low-level 后虽然
+加载成功，mask 却退化为 `reflector=0`、值域 `0-15`，证明它还依赖 V2 宿主配置。真实 UI 位于 hardened
+`--lvve-service` 子进程，本轮仍没有直接读取其 mask。下一步应定位 V2 的模型选择和 AlgorithmService
+初始化参数，而不是补造 Metal texture 绑定。
 
 完整 GL 与滤镜技术记录见 [gl-texture-context.zh.md](gl-texture-context.zh.md)。可复现的低层
 Effect 探针见 [effect-cgl-render-probe.cpp](probes/effect-cgl-render-probe.cpp)，模型边界观察器见

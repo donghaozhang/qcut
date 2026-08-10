@@ -232,17 +232,27 @@ worse than the rejected `3;1;2` candidate at `31.412 dB` and the Low-level basel
 at `37.331 dB`. The UI mode order is therefore evidence about orchestration, but
 it is not the missing parity variable. Do not spend another run permuting mode
 values. Isolate manager/AlgorithmService/segment/feature initialization, AB state,
-or segmentation-result binding next.
+or segmentation model selection next.
 
-The segmentation-result binding is now isolated for the independent V2 host.
-On one 854x480 portrait frame with the captured load warm-up, the same
-`Bach::SkinSegInfo` is queried in all five render passes. `textureId()` returns
-zero five times, `nativeBuffer()` returns null five times, and
-`SkinSegInfo::updateTexture()` is never called. The binary takes its no-texture
-fallback even though the frame still renders. This is a binding failure, not a
-soft-mask tuning error. Restore a same-device Metal/native mask on that
-`SkinSegInfo` before testing initialization flags, AB variants, feathering, or
-more update-mode orders.
+The segmentation-result handoff is now isolated for the independent V2 host.
+Do not interpret a zero `SkinSegInfo::textureId()`, null `nativeBuffer()`, or no
+`updateTexture()` call as a missing mask. Working Low-level Effect and V2 show
+all three conditions. Both instead use the CPU fallback: the native result's
+`+0x18` field points to a container whose `+0x10/+0x18` fields are the mask
+begin/end pointers. Both paths expose a complete `224x128`, 28672-byte mask.
+Low-level repeats one byte-identical mask for 20 reads; V2 exposes valid masks
+through all five `0;1;1;2;1` stages.
+
+Compare model identity before comparing those bytes. The established Low-level
+fixture loads the 260961-byte static `tt_skin_seg_v5.0.model` (MD5
+`2b5a3aed4a9a45a67b7febabe9247d6e`), while the V2 resource callback loads the
+407541-byte `tt_skin_seg_video_seg_fp16_v1.0.model` (MD5
+`cd5474732a4b56b7fffceba8a83d7c1e`). After vertical orientation correction,
+their final masks still differ by `MAE 15.442 / RMSE 40.492`, but that is not a
+same-model parity result. Forcing the video model into Low-level loads the same
+MD5 but yields an invalid weak result (`reflector=0`, range `0-15`), proving the
+model also depends on V2 host configuration. Trace model selection and
+AlgorithmService initialization before testing feathering or more mode orders.
 
 Do not claim a direct UI object comparison from this result. Jianying rendering
 runs in a hardened `--lvve-service` child that did not load the observer. A
@@ -253,10 +263,11 @@ used by the Metal V2 renderer, so it is control-flow evidence only.
 
 - [x] Capture the actual Jianying UI mode order for preview load, play, and seek.
   The verified raw values are load `0,1,1,2`, paused seek `0`, and playback `1`.
-- [x] Inspect the independent V2 skin-result binding. Its consumed
-  `SkinSegInfo` has neither a texture ID nor a native buffer.
-- [ ] Bind the AlgorithmService mask to that `SkinSegInfo` with a same-device
-  Metal/native texture, then rerun the exact still fixture.
+- [x] Inspect the independent V2 skin-result handoff. Its consumed
+  `SkinSegInfo` uses a complete CPU fallback mask despite having neither a
+  texture ID nor a native buffer.
+- [ ] Reproduce V2 model selection and AlgorithmService initialization in a
+  controlled same-model comparison, then rerun the exact still fixture.
 - [ ] Capture the actual Jianying export mode order. Do not infer it from preview.
 - [ ] Compare one calibration chart, one still portrait, and one short moving
   portrait at identical dimensions. Report whole-frame PSNR plus mask interior,

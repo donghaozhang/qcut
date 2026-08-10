@@ -201,7 +201,7 @@ V2 在 mask 内部分通道只有红 `28.161`、绿 `30.936`、蓝 `18.436 dB`�
 
 两种真实序列解释均为 `61/61` 帧成功，比较严格排除了预热帧；连续 60 帧结果稳定。真实序列不但没有超过 Low-level，也没有超过原来的错误猜测，因此 update-mode/预热顺序不是当前最终帧差距的主因。这个实验完成的是排除：继续排列 mode 值不会缩小误差。
 
-## V2 skin mask 绑定边界
+## V2 skin mask 交付边界
 
 下一轮只验证最高优先级问题：独立 V2 宿主渲染滤镜时读取的 `SkinSegInfo` 是否已经持有 AlgorithmService 生成的 mask。不改 manager/segment/feature 创建参数、AB、update-mode、色彩或滤镜包。临时进程内观察器拦截以下三个对象边界，代码、日志和原始帧均保留在 `/tmp`：
 
@@ -217,11 +217,20 @@ V2 在 mask 内部分通道只有红 `28.161`、绿 `30.936`、蓝 `18.436 dB`�
 | `nativeBuffer()` | 5 | 返回值均为 `nullptr` |
 | `updateTexture(...)` | 0 | 从未把 texture 写入该对象 |
 
-调用点均位于 `libcccreator.dylib + 0x99bb60` 附近。静态控制流与动态结果一致：先读取 `textureId()`；若为 0，再读取 `nativeBuffer()`；两者均为空时进入无 texture 的 fallback 分支。为验证分支判断本身，临时令 `textureId()` 返回当前 OpenGL context 中的全白 R8 texture ID `2`，调用方随即进入第二次 texture 查询和结果包装分支。该 OpenGL texture 不是 V2 Metal 可共享资源，后续渲染中止，因此它只证明控制流，不作为视觉或 parity 结果。
+调用点均位于 `libcccreator.dylib + 0x99bb60` 附近。最初把 texture ID 和 native buffer 同时为空解释成“mask 未绑定”，但 working Low-level 对照推翻了该结论：Low-level 同样返回 `textureId=0`、`nativeBuffer=nullptr`，也从不调用 `updateTexture()`，却能稳定渲染正确的分割效果。静态反汇编随后定位到真正的 CPU fallback：native result 对象的 `+0x18` 指向一个容器，容器的 `+0x10/+0x18` 分别保存 mask 数据的 begin/end 指针。
 
-这项单变量验证给出直接结论：**当前独立 V2 宿主交给效果更新链的 skin result 是空对象，AlgorithmService 的 mask 没有绑定到滤镜读取的 `SkinSegInfo`。** 这比初始化参数或 mask 羽化更靠前；在绑定修复前，继续比较 mode、AB 或后处理没有意义。
+按该结构读取后，两条路径都交付了完整 CPU mask，而不是空对象：
 
-真实剪映渲染运行在单独的 hardened `--lvve-service` 子进程。主应用观察库不会被该子进程载入，所以本轮没有取得 UI 内部 `SkinSegInfo` 的 texture/native 指针，不能声称已直接比较 UI 两端对象。UI 日志只用于确认 AlgorithmService 正在执行，不用于补造 binding 证据。低层 Effect 的 `--skip-algorithm` 运行走不同 OpenGL 宿主，与 V2 空绑定帧只有 `13.952 dB`，也被排除为无 mask 像素对照。
+| 路径 | 尺寸 / bytes | 值域 | 总和 | 稳定性 |
+| --- | --- | --- | ---: | --- |
+| Low-level Effect | `224x128 / 28672` | `0-252` | `905367` | 20 次读取哈希均为 `800709a8bda33c72` |
+| V2 `0;1;1;2;1` 最终 pass | `224x128 / 28672` | `0-254` | `927044` | 五个 staged pass 随状态更新，最终哈希 `9213b7fc91cd7cf9` |
+
+两张最终 raw mask 直接比较为 `MAE 23.224 / RMSE 57.409`；校正已知的垂直方向差异后为 `MAE 15.442 / RMSE 40.492`。该数字不能解释为同模型 parity，因为运行日志同时暴露了更靠前的控制变量：Low-level 加载的是 260961-byte、MD5 `2b5a3aed4a9a45a67b7febabe9247d6e` 的 `tt_skin_seg_v5.0.model`，V2 资源回调则加载 407541-byte、MD5 `cd5474732a4b56b7fffceba8a83d7c1e` 的 `tt_skin_seg_video_seg_fp16_v1.0.model`。
+
+把 V2 的 video model 强制放入 Low-level 路径后，文件确实按同一 MD5 加载成功，但 mask 退化为 `reflector=0`、值域 `0-15`、总和 `10390`。这说明 video model 依赖 V2 宿主配置，不能通过替换模型文件建立有效对照。当前单变量结论因此是：**mask 交付链已经工作，剩余差异位于 segmentation 模型选择及其宿主初始化/运行配置，不是 `SkinSegInfo` 缺少 texture/native 绑定。**
+
+真实剪映渲染运行在单独的 hardened `--lvve-service` 子进程。主应用观察库不会被该子进程载入，所以本轮没有取得 UI 内部 `SkinSegInfo` 的 CPU mask，不能声称已直接比较 UI 与探针 mask。临时强制 OpenGL R8 texture 只验证了 GPU 分支控制流；它不是 V2 Metal 可共享资源，不作为视觉或 parity 证据。
 
 ## 结论
 
@@ -229,7 +238,7 @@ Low-level 与旧 C API Swing 没有把真实图像的逐值相同张量送入 `t
 
 两级尺寸和 linear kernel 已经确定；旧 Swing 的固定点采样细节不再是 UI parity 的主线。V2 输出交付也已确定为第一张 texture 的原地写回，但同素材最终帧只有 `31.720 dB`，没有超过 `40.741 dB` 的 Low-level 基线。剪映 UI 的真实加载序列已捕获为同一 manager 上的 `0 -> 1 -> 1 -> 2`，暂停 seek 为 `0`，播放帧为 `1`；按两种 render 时序重放后静态结果只有 `30.876` 和 `30.374 dB`。update-mode/预热顺序因此已被排除为主差距来源。
 
-最高优先级的绑定检查现已确认独立 V2 宿主读取的是空 `SkinSegInfo`：五次 `textureId()` 均为 0、五次 `nativeBuffer()` 均为空，且没有一次 `updateTexture()`。当前明确卡点不是“mask 数值略有不同”，而是 AlgorithmService 的 mask 尚未交付给滤镜消费对象。下一步若继续实现，应只恢复同设备的 Metal/native mask 到该 `SkinSegInfo` 的绑定，再用同一帧复测；绑定成功前不应继续调整初始化、AB、resize、LUT、色彩矩阵或输出读回。
+最高优先级的交付检查已经纠正了“空 `SkinSegInfo`”假设。V2 与 working Low-level 都通过 `+0x18` 容器的 CPU fallback 交付完整 `224x128` mask；texture ID、native buffer 和 `updateTexture()` 不是判断绑定成功与否的必要条件。当前明确卡点是两条宿主选择了不同 skin-seg 模型，而且 video model 不能在 Low-level 初始化配置下产生有效 mask。下一步若继续，只应定位 V2 资源回调、AlgorithmService 创建参数和 video-model 配置如何共同选择并初始化 segmentation；在建立同模型、同配置对照前，不应继续调整 mode、resize、LUT、色彩矩阵或输出读回。
 
 ## 仓库边界
 
