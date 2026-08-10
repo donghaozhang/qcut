@@ -181,11 +181,31 @@ V2 全片分通道 PSNR 为红 `34.602`、绿 `39.786`、蓝 `28.048 dB`。使�
 
 V2 在 mask 内部分通道只有红 `28.161`、绿 `30.936`、蓝 `18.436 dB`，而背景三个通道仍有红 `38.409`、绿 `44.968`、蓝 `37.028 dB`。这次单变量实验没有缩小最终差距：V2 输出交付虽然已经正确，但当前宿主复现的 segmentation 状态或 mask 绑定仍与剪映 UI 不同，且蓝通道人像内部是最大误差源。不能把“进入 `seekFrameV2`”等同于“复现剪映 UI 的 V2 状态机”。
 
+## 剪映 UI 的真实 update-mode 与预热序列
+
+下一轮只观察 update-mode，不改 resize、LUT、色彩矩阵、纹理读回或滤镜参数。由于两个 setter 都是 `libcccreator.dylib` 内部的非虚函数，普通 DYLD interpose 无法截获，hardened runtime 也拒绝 LLDB attach/launch。临时观察器因此只在当前剪映进程中对代码页做 copy-on-write 映射并记录 setter 参数；磁盘上的应用和 Framework 均未修改。观察位置为：
+
+- `TESwingProcessUnit::setUpdateMode`，`libcccreator.dylib + 0x1f810a0`；
+- `AmazingEngine::SwingManager::setUpdateMode`，`libcccreator.dylib + 0x17e2e04`。
+
+在草稿“8月10日 (1)”加载同一 854x480 奥林巴斯素材后，所有实际调用都落在同一个 `SwingManager` 对象。加载阶段在约 1.2 ms 内依次收到原始值 `0 -> 1 -> 1 -> 2`，随后静置 5 秒没有新调用。暂停状态把时间线从 `00:00:00:00` 跳到 `00:00:01:17` 时只收到一次 `0`；开始播放后，同一 manager 每个渲染帧反复收到 `1`。测试期间没有观察到 `3`。所有调用都来自 `TESwingManagerInterfaceWrapper::setUpdateMode + 0xd0`（`libcccreator.dylib + 0x2249b98`），而 `TESwingProcessUnit::setUpdateMode` 没有收到业务调用。这说明 UI 绕过顶层 setter，通过 wrapper 直接设置底层 manager。导出流程本轮没有捕获，不能外推其序列。
+
+日志必须按 manager 指针分组。此前未记录对象地址时，把不同操作产生的额外 `0` 误并入预热，形成了 11 帧序列；该结果作废。按同一对象确认后，只对精确加载序列做两种时序解释，并丢弃首张预热输出，再比较后续 60 张静态人像帧：
+
+| V2 预热解释 | 静态 60 帧 PSNR | 相对原 `3;1;2` 候选 |
+| --- | ---: | ---: |
+| `0,1,1,2`，四次 setter 后只 render 一次 | **30.876 dB** | -0.537 dB |
+| `0;1;1;2`，每次 setter 后各 render 一次 | **30.374 dB** | -1.039 dB |
+| 原 `3;1;2` 候选 | 31.412 dB | 基线 |
+| Low-level Effect | 37.331 dB | +5.919 dB |
+
+两种真实序列解释均为 `61/61` 帧成功，比较严格排除了预热帧；连续 60 帧结果稳定。真实序列不但没有超过 Low-level，也没有超过原来的错误猜测，因此 update-mode/预热顺序不是当前最终帧差距的主因。这个实验完成的是排除：继续排列 mode 值不会缩小误差。
+
 ## 结论
 
 Low-level 与旧 C API Swing 没有把真实图像的逐值相同张量送入 `tt_skin_seg`；旧路径的主差异除了垂直方向，还包括 `227x128` 与 `398x224` 两种中间尺寸。真实剪映 UI 明确运行 Swing V2，独立 V2 tensor 强匹配 `227x128` 路径，使“UI 使用 398x224”的假设变得不成立。
 
-两级尺寸和 linear kernel 已经确定；旧 Swing 的固定点采样细节不再是 UI parity 的主线。V2 输出交付也已确定为第一张 texture 的原地写回，但同素材最终帧只有 `31.720 dB`，没有超过 `40.741 dB` 的 Low-level 基线。下一项应只验证剪映 UI 实际的 update-mode/预热序列是否改变 V2 skin mask；在捕获该序列前，不应继续调整 resize、LUT、色彩矩阵或输出回调。
+两级尺寸和 linear kernel 已经确定；旧 Swing 的固定点采样细节不再是 UI parity 的主线。V2 输出交付也已确定为第一张 texture 的原地写回，但同素材最终帧只有 `31.720 dB`，没有超过 `40.741 dB` 的 Low-level 基线。剪映 UI 的真实加载序列已捕获为同一 manager 上的 `0 -> 1 -> 1 -> 2`，暂停 seek 为 `0`，播放帧为 `1`；按两种 render 时序重放后静态结果只有 `30.876` 和 `30.374 dB`。update-mode/预热顺序因此已被排除为主差距来源。下一项应只比较 UI 与探针创建 manager、AlgorithmService、segment 和 feature 时的初始化参数、AB 状态及 segmentation 结果绑定；在找到新的单变量证据前，不应继续排列 mode 值或调整 resize、LUT、色彩矩阵和输出读回。
 
 ## 仓库边界
 

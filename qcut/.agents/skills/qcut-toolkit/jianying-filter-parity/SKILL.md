@@ -218,11 +218,27 @@ at `40.741 dB` (`37.331`, `44.681`). Using the Low-level mask, V2 reaches
 `seekFrameV2` and reading the correct texture therefore does not reproduce UI
 segmentation state. Do not replace the Low-level baseline with this V2 sequence.
 
+The real UI update-mode trace is now known for preview load, paused seek, and
+playback. Group calls by the underlying `SwingManager` pointer; grouping only by
+time can mix unrelated interactions. One manager receives `0,1,1,2` during load,
+`0` for a paused timeline seek, and repeated `1` calls while playing. All observed
+calls enter through `TESwingManagerInterfaceWrapper::setUpdateMode`; the top-level
+`TESwingProcessUnit::setUpdateMode` setter receives no application calls. Mode `3`
+was not observed. Export remains untraced.
+
+Replaying load as `0,1,1,2` before one render reaches `30.876 dB` on the 60-frame
+static fixture; replaying it as staged `0;1;1;2` reaches `30.374 dB`. Both are
+worse than the rejected `3;1;2` candidate at `31.412 dB` and the Low-level baseline
+at `37.331 dB`. The UI mode order is therefore evidence about orchestration, but
+it is not the missing parity variable. Do not spend another run permuting mode
+values. Isolate manager/AlgorithmService/segment/feature initialization, AB state,
+or segmentation-result binding next.
+
 ### Required validation checklist
 
-- [ ] Capture the actual Jianying UI mode order for preview, play, seek, and
-  export. Live sampling proves the V2 entry but not the mode values, so `3;1;2`
-  remains a **rejected UI-like candidate**, not the captured UI sequence.
+- [x] Capture the actual Jianying UI mode order for preview load, play, and seek.
+  The verified raw values are load `0,1,1,2`, paused seek `0`, and playback `1`.
+- [ ] Capture the actual Jianying export mode order. Do not infer it from preview.
 - [ ] Compare one calibration chart, one still portrait, and one short moving
   portrait at identical dimensions. Report whole-frame PSNR plus mask interior,
   boundary-band, and background errors separately.

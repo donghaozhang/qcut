@@ -140,7 +140,16 @@ baseline 首帧作为 `3;1;2` 预热帧丢弃，再以 mode `1` 连续渲染并�
 全片 `31.720 dB`、静态人像 `31.412 dB`、动态段 `31.882 dB`，均没有超过 Low-level 的
 `40.741 / 37.331 / 44.681 dB`。按 Low-level mask 划分后，V2 的人像内部、软边缘和背景分别为
 `22.552 / 27.610 / 39.038 dB`；人像内部蓝通道只有 `18.436 dB`。因此输出交付已解决，但视觉差值
-没有缩小；当前卡点已收窄到 UI 的 V2 update-mode/预热序列及其 segmentation 状态或 mask 绑定。
+没有缩小。随后对剪映 UI 底层 `SwingManager::setUpdateMode` 做进程内只读日志捕获，并按 manager
+对象分组，确认同一实例加载时依次收到 `0 -> 1 -> 1 -> 2`，暂停 seek 收到 `0`，播放时逐帧收到
+`1`；所有调用均来自 `TESwingManagerInterfaceWrapper::setUpdateMode`，顶层
+`TESwingProcessUnit::setUpdateMode` 没有业务调用，测试中也没有出现 mode `3`。导出序列尚未捕获。
+
+将真实加载序列分别按“一次 render 前连续 setter”和“每个 setter 各 render 一次”重放，丢弃预热
+输出后与 UI 静态 60 帧比较，PSNR 分别只有 `30.876` 和 `30.374 dB`，均低于旧 `3;1;2`
+候选的 `31.412 dB`，更低于 Low-level 的 `37.331 dB`。因此 update-mode/预热顺序已被排除为
+主差距来源；当前卡点进一步收窄到 UI 与探针在 manager、AlgorithmService、segment/feature 创建时
+的初始化参数、AB 状态或 segmentation 结果绑定，而不是 resize、LUT、色彩矩阵或输出纹理读回。
 
 完整 GL 与滤镜技术记录见 [gl-texture-context.zh.md](gl-texture-context.zh.md)。可复现的低层
 Effect 探针见 [effect-cgl-render-probe.cpp](probes/effect-cgl-render-probe.cpp)，模型边界观察器见
