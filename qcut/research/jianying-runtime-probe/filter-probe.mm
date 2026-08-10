@@ -202,7 +202,8 @@ struct FilterSymbols {
   alignas(8) std::array<std::byte, 8> contextScope{};
   symbols.constructBefContextScope(contextScope.data(), befContext);
   const std::array<int, 2> dimensions = {width, height};
-  symbols.initializeManager(instance, dimensions.data(), algorithmAsync,
+  const int algorithmMode = algorithmAsync ? 2 : 0;
+  symbols.initializeManager(instance, dimensions.data(), algorithmMode,
                             resourceFinder, 8, graphicsDevice);
   symbols.destroyBefContextScope(contextScope.data());
 

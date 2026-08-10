@@ -254,6 +254,24 @@ MD5 but yields an invalid weak result (`reflector=0`, range `0-15`), proving the
 model also depends on V2 host configuration. Trace model selection and
 AlgorithmService initialization before testing feathering or more mode orders.
 
+The wrapper's manager-create boolean is not the missing configuration. Static
+tracing shows that it maps `false` to Swing init mode `0` and `true` to mode
+`2`, with UUID `8`. The independent host now performs the same mapping. Under
+one fixed 854x480 input, package, `3;1;2` sequence, and model resolution, modes
+`0` and `2` render byte-identical 10-frame outputs. Their discarded warm-up
+frames are both `22.227 dB`; their first measured mode-1 frames are both
+`32.899 dB`. Do not spend another run varying this mode.
+
+An exact-first resource-finder experiment loaded the requested static model and
+improved its orientation-corrected mask comparison with Low-level to
+`MAE 12.245 / RMSE 29.630`. A cold one-frame run was green and posterized, but
+after discarding the established `3;1;2` warm-up output, the first measured
+frame reached `32.899 dB` versus `32.106 dB` with the video model. Exact model
+identity closes `0.794 dB`, but remains about `4.432 dB` below the Low-level
+still baseline. It is evidence, not a standalone fix. Do not make exact-first
+resolution the probe default until its cold-start behavior and the matching
+AlgorithmService/segment/feature configuration are known.
+
 Do not claim a direct UI object comparison from this result. Jianying rendering
 runs in a hardened `--lvve-service` child that did not load the observer. A
 forced OpenGL R8 texture ID reaches the result-packaging branch but cannot be
@@ -266,6 +284,8 @@ used by the Metal V2 renderer, so it is control-flow evidence only.
 - [x] Inspect the independent V2 skin-result handoff. Its consumed
   `SkinSegInfo` uses a complete CPU fallback mask despite having neither a
   texture ID nor a native buffer.
+- [x] Match the wrapper's manager init mode mapping (`false -> 0`, `true -> 2`).
+  The two modes produce byte-identical output in the controlled still fixture.
 - [ ] Reproduce V2 model selection and AlgorithmService initialization in a
   controlled same-model comparison, then rerun the exact still fixture.
 - [ ] Capture the actual Jianying export mode order. Do not infer it from preview.

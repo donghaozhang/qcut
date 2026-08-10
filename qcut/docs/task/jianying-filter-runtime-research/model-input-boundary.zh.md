@@ -230,6 +230,14 @@ V2 在 mask 内部分通道只有红 `28.161`、绿 `30.936`、蓝 `18.436 dB`�
 
 把 V2 的 video model 强制放入 Low-level 路径后，文件确实按同一 MD5 加载成功，但 mask 退化为 `reflector=0`、值域 `0-15`、总和 `10390`。这说明 video model 依赖 V2 宿主配置，不能通过替换模型文件建立有效对照。当前单变量结论因此是：**mask 交付链已经工作，剩余差异位于 segmentation 模型选择及其宿主初始化/运行配置，不是 `SkinSegInfo` 缺少 texture/native 绑定。**
 
+## Manager 初始化 mode 对照
+
+`TESwingManagerInterfaceWrapper::managerCreateWithGpdeviceNoLock` 的真实调用把第三个布尔参数转换为 SDK init mode：`false -> 0`、`true -> 2`，同时传入尺寸、空 finder、UUID `8` 和 GPDevice。独立探针原来把 `true` 当作整数 `1` 传入，现已改成同样的 `2`。
+
+固定 854x480 输入、奥林巴斯包、`3;1;2` 更新序列、static-model 解析和其余 AB 后，分别运行 mode `0` 与 mode `2`。两组均完成 `10/10` 帧，十份 raw RGBA 逐字节相同。被丢弃的预热帧均为 `22.226933 dB`，首个有效 mode-1 测量帧均为 `32.899460 dB`。这个 mode 在当前用例中没有改变 segmentation 或渲染输出，可以从主差距候选中排除。
+
+同一轮还临时让 finder 精确返回请求的 `tt_skin_seg_v5.0.model`。V2 最终 mask 对 Low-level 的方向校正差值改善为 `MAE 12.245 / RMSE 29.630`。没有边界预热的单帧输出严重偏绿并出现 posterization；按既有规则丢弃 `3;1;2` 预热输出后，首个有效帧为 `32.899460 dB`，比 video model 的 `32.105926 dB` 提高 `0.793534 dB`，但仍比 Low-level 的 `37.331 dB` 低约 `4.432 dB`。exact static model 确实缩小了一部分差距，却不等于 UI 的完整 AlgorithmService 配置。冷启动行为尚未解释，因此 exact-first finder 实验未作为默认行为保留。
+
 真实剪映渲染运行在单独的 hardened `--lvve-service` 子进程。主应用观察库不会被该子进程载入，所以本轮没有取得 UI 内部 `SkinSegInfo` 的 CPU mask，不能声称已直接比较 UI 与探针 mask。临时强制 OpenGL R8 texture 只验证了 GPU 分支控制流；它不是 V2 Metal 可共享资源，不作为视觉或 parity 证据。
 
 ## 结论
@@ -238,7 +246,7 @@ Low-level 与旧 C API Swing 没有把真实图像的逐值相同张量送入 `t
 
 两级尺寸和 linear kernel 已经确定；旧 Swing 的固定点采样细节不再是 UI parity 的主线。V2 输出交付也已确定为第一张 texture 的原地写回，但同素材最终帧只有 `31.720 dB`，没有超过 `40.741 dB` 的 Low-level 基线。剪映 UI 的真实加载序列已捕获为同一 manager 上的 `0 -> 1 -> 1 -> 2`，暂停 seek 为 `0`，播放帧为 `1`；按两种 render 时序重放后静态结果只有 `30.876` 和 `30.374 dB`。update-mode/预热顺序因此已被排除为主差距来源。
 
-最高优先级的交付检查已经纠正了“空 `SkinSegInfo`”假设。V2 与 working Low-level 都通过 `+0x18` 容器的 CPU fallback 交付完整 `224x128` mask；texture ID、native buffer 和 `updateTexture()` 不是判断绑定成功与否的必要条件。当前明确卡点是两条宿主选择了不同 skin-seg 模型，而且 video model 不能在 Low-level 初始化配置下产生有效 mask。下一步若继续，只应定位 V2 资源回调、AlgorithmService 创建参数和 video-model 配置如何共同选择并初始化 segmentation；在建立同模型、同配置对照前，不应继续调整 mode、resize、LUT、色彩矩阵或输出读回。
+最高优先级的交付检查已经纠正了“空 `SkinSegInfo`”假设。V2 与 working Low-level 都通过 `+0x18` 容器的 CPU fallback 交付完整 `224x128` mask；texture ID、native buffer 和 `updateTexture()` 不是判断绑定成功与否的必要条件。manager init mode `0/2` 也已通过逐字节 A/B 排除。static model 在正确预热后把首个有效帧提高约 `0.794 dB`，证明模型选择解释了一部分差距，但仍离 Low-level 约 `4.432 dB`。当前明确卡点是模型与 AlgorithmService、segment/feature 创建配置的组合。下一步若继续，只应隔离其中一个创建配置，不应继续调整 mode、resize、LUT、色彩矩阵或输出读回。
 
 ## 仓库边界
 

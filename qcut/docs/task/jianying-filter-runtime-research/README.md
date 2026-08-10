@@ -166,6 +166,21 @@ CPU 容器读取 begin/end；实测均得到完整 `224x128 / 28672-byte` mask�
 `--lvve-service` 子进程，本轮仍没有直接读取其 mask。下一步应定位 V2 的模型选择和 AlgorithmService
 初始化参数，而不是补造 Metal texture 绑定。
 
+随后只验证 manager 初始化的第三个参数。反汇编确认
+`TESwingManagerInterfaceWrapper::managerCreateWithGpdeviceNoLock` 会把调用方布尔值映射为
+`false -> 0`、`true -> 2`，尺寸、UUID `8` 和 GPDevice 的位置与独立探针一致。探针已按相同规则
+传递 mode `2`。在同一 854x480 输入、奥林巴斯包、`3;1;2` 序列和模型解析条件下，mode `0`
+与 mode `2` 的十张输出逐字节完全一致。被丢弃的预热帧均为 `22.227 dB`，首个有效 mode-1
+测量帧均为 `32.899 dB`。这个参数在当前 V2 场景没有改变 mask 或最终像素，不是视觉差值来源。
+
+另一次隔离实验让 finder 精确返回包请求的静态 `tt_skin_seg_v5.0.model`。最终 mask 对 Low-level
+的方向校正误差从 `MAE 15.442 / RMSE 40.492` 改善到 `MAE 12.245 / RMSE 29.630`，但最终
+单帧冷启动画面出现明显色阶断裂和偏绿。按既有规则丢弃 `3;1;2` 预热输出后，首个有效帧为
+`32.899 dB`，高于同序列 video model 的 `32.106 dB`，差距实际缩小 `0.794 dB`，但仍明显低于
+Low-level 的 `37.331 dB`。模型选择确实有贡献，却不是充分条件；静态模型仍缺少与 UI 一致的
+AlgorithmService/segment/feature 配置。由于冷启动行为尚未解释，exact-first finder 没有作为默认
+改动保留。下一轮若继续，应只比较一个创建配置变量。
+
 完整 GL 与滤镜技术记录见 [gl-texture-context.zh.md](gl-texture-context.zh.md)。可复现的低层
 Effect 探针见 [effect-cgl-render-probe.cpp](probes/effect-cgl-render-probe.cpp)，模型边界观察器见
 [bytenn-input-capture.cpp](probes/bytenn-input-capture.cpp)。
