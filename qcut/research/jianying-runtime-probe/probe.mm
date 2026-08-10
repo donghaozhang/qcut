@@ -385,6 +385,8 @@ void configure(ObjectStorage<kConfigStorageSize>& config,
             optionalByteEnvironment("JY_SWING_INPUT_TEXTURE_DATA_CODE"),
         .outputTextureDataCode =
             optionalByteEnvironment("JY_SWING_OUTPUT_TEXTURE_DATA_CODE"),
+        .algorithmCacheFlag =
+            optionalByteEnvironment("JY_ALGORITHM_CACHE_FLAG"),
         .enableSwingSimplify =
             std::getenv("JY_ENABLE_SWING_SIMPLIFY") == nullptr ||
             optionalBooleanEnvironment("JY_ENABLE_SWING_SIMPLIFY"),

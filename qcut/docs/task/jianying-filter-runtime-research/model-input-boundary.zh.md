@@ -265,8 +265,15 @@ UI 对 manager 调用 `setIsImageQuality(true)`，底层等价于设置 `EnableI
 静态调用链还表明，`bef_swing_segment_video_create_feature` 从 video segment 取回 manager，随后以
 feature segment type `0` 和效果包路径调用 AmazingEngine 的通用 segment factory。UI 的 clip-based
 路径最终使用同一组 `VideoSegment`/`FeatureSegment` 类，但在外围追加 model-clip 参数、cache 状态和
-tracking 元数据。基础 feature graph 并非明显分叉点；下一项应从 UI 日志中已确认不同的
-algorithm-cache/init 状态里选一个做 A/B，而不是同时改写整条创建链。
+tracking 元数据。基础 feature graph 并非明显分叉点。
+
+UI 的 `enableAlgorithmCache:9` 已通过真实 wrapper 入口单独复现：
+`setAlgorithmCacheFlag(9)` 最终调用 `setParameterInt("AlgorithmCacheFlag", 9)`。它与
+`setRunAlgorithmCacheMode` 写入的 `RunAlgorithmMode` bool 是两个参数；本轮只改变前者。
+`0/9` 两组日志分别确认对应值进入 `SwingAlgorithmV2::initAlgorithm`，但模型 MD5、渲染后的
+`398x224` 算法尺寸和十张 raw RGBA 均相同，逐字节差异帧数为 `0`。所以 cache flag 不是差值来源。
+下一项应从 UI 与探针已经确认不同、且直接影响算法输入的 AB 配置中只选一个验证，而不是同时改写
+整条创建链。
 
 ## 仓库边界
 

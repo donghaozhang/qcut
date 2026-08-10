@@ -282,9 +282,17 @@ The raw feature-construction path is substantially shared. The public
 `bef_swing_segment_video_create_feature` API obtains the video segment's manager
 and creates feature segment type `0` with the package path. The UI's clip-based
 path ultimately creates the same AmazingEngine segment classes, then adds
-model-clip parameters, cache state, and tracking metadata around them. Focus the
-next comparison on one pixel-relevant post-create parameter or algorithm-cache
-mode; do not rebuild the basic video/feature graph without evidence.
+model-clip parameters, cache state, and tracking metadata around them.
+
+The UI's `enableAlgorithmCache:9` log is not itself the missing state. The real
+wrapper entry is `setAlgorithmCacheFlag(9)`, which maps directly to
+`SwingManager::setParameterInt("AlgorithmCacheFlag", 9)`. The separate
+`RunAlgorithmMode` boolean was held unchanged. A controlled `0/9` comparison
+changed the V2 initialization log as expected, but all ten output frames were
+byte-identical, with the same model and `398x224` algorithm size. Do not test
+this cache flag again. Focus the next comparison on one pixel-relevant AB value
+or post-create model-clip parameter; do not rebuild the basic video/feature
+graph without evidence.
 
 An exact-first resource-finder experiment loaded the requested static model and
 improved its orientation-corrected mask comparison with Low-level to
@@ -313,6 +321,9 @@ used by the Metal V2 renderer, so it is control-flow evidence only.
 - [x] Compare the UI-visible image-quality flag. `false/true` produces
   byte-identical ten-frame output and does not change model identity or the
   post-render `398x224` algorithm size.
+- [x] Match the UI's `AlgorithmCacheFlag=9`. The init log changes from `0` to
+  `9`, but all ten frames remain byte-identical; `RunAlgorithmMode` was not
+  changed.
 - [ ] Reproduce V2 model selection and AlgorithmService initialization in a
   controlled same-model comparison, then rerun the exact still fixture.
 - [ ] Capture the actual Jianying export mode order. Do not infer it from preview.

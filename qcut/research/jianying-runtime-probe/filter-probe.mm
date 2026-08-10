@@ -39,6 +39,8 @@ constexpr std::string_view kGetSwingManagerAmazer =
     "_ZNK13AmazingEngine12SwingManager9getAmazerEv";
 constexpr std::string_view kSetManagerParameterBool =
     "bef_swing_manager_set_parameter_bool";
+constexpr std::string_view kSetManagerParameterInt =
+    "bef_swing_manager_set_parameter_int";
 constexpr std::string_view kSetManagerUpdateMode =
     "bef_swing_manager_set_update_mode";
 constexpr std::string_view kAddManagerSegment =
@@ -82,6 +84,7 @@ using CreateSwingManagerMethod = int (*)(void**, unsigned int, unsigned int,
                                          ResourceFinderMethod, bool, void*);
 using HandleMethod = int (*)(void*);
 using SetBoolMethod = int (*)(void*, const char*, bool);
+using SetNamedIntMethod = int (*)(void*, const char*, int);
 using SetIntMethod = int (*)(void*, int);
 using CreateSegmentMethod = int (*)(void*, void**, int, const char*);
 using CreateFeatureMethod = int (*)(void*, void**, const char*);
@@ -114,6 +117,7 @@ struct FilterSymbols {
   HandleMethod destroyManager;
   GetObjectMethod getManagerAmazer;
   SetBoolMethod setManagerParameterBool;
+  SetNamedIntMethod setManagerParameterInt;
   SetIntMethod setManagerUpdateMode;
   AddChildMethod addManagerSegment;
   SeekDeviceTextureWithDataMethod seekManagerDeviceTextureWithData;
@@ -145,6 +149,8 @@ struct FilterSymbols {
           resolveSymbol<GetObjectMethod>(core, kGetSwingManagerAmazer),
       .setManagerParameterBool =
           resolveSymbol<SetBoolMethod>(core, kSetManagerParameterBool),
+      .setManagerParameterInt =
+          resolveSymbol<SetNamedIntMethod>(core, kSetManagerParameterInt),
       .setManagerUpdateMode =
           resolveSymbol<SetIntMethod>(core, kSetManagerUpdateMode),
       .addManagerSegment = resolveSymbol<AddChildMethod>(core, kAddManagerSegment),
@@ -230,6 +236,7 @@ class FilterHostSession {
                     OpenGlContext& openGlContext, const fs::path& packagePath,
                     const GraphicsFrameResources& resources,
                     int inputTextureDataCode, int outputTextureDataCode,
+                    int algorithmCacheFlag,
                     bool enableSwingSimplify,
                     bool enableAdjustColorWithFloat,
                     bool enableImageQuality, bool managerCreateOption,
@@ -240,6 +247,7 @@ class FilterHostSession {
         graphicsDevice_(resources.graphicsDevice),
         inputTextureDataCode_(inputTextureDataCode),
         outputTextureDataCode_(outputTextureDataCode),
+        algorithmCacheFlag_(algorithmCacheFlag),
         enableSwingSimplify_(enableSwingSimplify),
         enableAdjustColorWithFloat_(enableAdjustColorWithFloat),
         enableImageQuality_(enableImageQuality),
@@ -373,6 +381,8 @@ class FilterHostSession {
             .context = amazer,
         });
 
+    const int algorithmCacheResult = symbols_.setManagerParameterInt(
+        manager_, "AlgorithmCacheFlag", algorithmCacheFlag_);
     const int adjustColorResult = symbols_.setManagerParameterBool(
         manager_, "EnableAdjustColorWithFloat",
         enableAdjustColorWithFloat_);
@@ -409,13 +419,15 @@ class FilterHostSession {
                                    ? -1
                                    : symbols_.addManagerSegment(manager_, video_);
     std::cout << "[filter] create results=" << managerResult << ','
-              << adjustColorResult << ',' << imageQualityResult << ','
+              << algorithmCacheResult << ',' << adjustColorResult << ','
+              << imageQualityResult << ','
               << simplifyResult << ',' << videoResult << ',' << featureResult
               << ',' << addFeatureResult << ',' << featureTimeRangeResult << ','
               << featureRenderIndexResult << ',' << timeRangeResult << ','
               << renderIndexResult << ',' << addVideoResult;
     printAlgorithmSize("after-create");
-    ready_ = adjustColorResult == 0 && imageQualityResult == 0 &&
+    ready_ = algorithmCacheResult == 0 && adjustColorResult == 0 &&
+             imageQualityResult == 0 &&
              simplifyResult == 0 && videoResult == 0 && featureResult == 0 &&
              addFeatureResult == 0 && featureTimeRangeResult == 0 &&
              featureRenderIndexResult == 0 && timeRangeResult == 0 &&
@@ -455,6 +467,7 @@ class FilterHostSession {
   std::unique_ptr<AmazerContextScope> contextScope_;
   int inputTextureDataCode_;
   int outputTextureDataCode_;
+  int algorithmCacheFlag_;
   bool enableSwingSimplify_;
   bool enableAdjustColorWithFloat_;
   bool enableImageQuality_;
@@ -473,6 +486,7 @@ struct RenderContext {
   std::int64_t timestamp;
   int inputTextureDataCode;
   int outputTextureDataCode;
+  int algorithmCacheFlag;
   bool enableSwingSimplify;
   bool enableAdjustColorWithFloat;
   bool enableImageQuality;
@@ -490,7 +504,8 @@ bool renderFilterFrame(const GraphicsFrameResources& resources) {
     context->session = std::make_unique<FilterHostSession>(
         context->symbols, context->models, context->openGlContext,
         context->packagePath, resources, context->inputTextureDataCode,
-        context->outputTextureDataCode, context->enableSwingSimplify,
+        context->outputTextureDataCode, context->algorithmCacheFlag,
+        context->enableSwingSimplify,
         context->enableAdjustColorWithFloat, context->enableImageQuality,
         context->managerCreateOption, context->enableParallelAsyncSwing);
   }
@@ -551,6 +566,7 @@ FilterSequenceResult renderFilterSequence(
       .timestamp = 0,
       .inputTextureDataCode = request.inputTextureDataCode,
       .outputTextureDataCode = request.outputTextureDataCode,
+      .algorithmCacheFlag = request.algorithmCacheFlag,
       .enableSwingSimplify = request.enableSwingSimplify,
       .enableAdjustColorWithFloat = request.enableAdjustColorWithFloat,
       .enableImageQuality = request.enableImageQuality,

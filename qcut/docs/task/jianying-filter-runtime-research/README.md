@@ -194,8 +194,15 @@ AlgorithmService/segment/feature 配置。由于冷启动行为尚未解释，ex
 `edit_alg_system`、graph parse、skin-seg model load 和 execute。C API 的 feature 创建路径会从
 video segment 取得 manager，并以类型 `0` 和效果包路径创建 `FeatureSegment`；UI clip 路径最终
 使用相同 AmazingEngine segment 类，但外围还会写入 model-clip 参数、cache 状态和 tracking 元数据。
-下一轮只应隔离一个可能影响像素的 post-create 参数或 algorithm-cache mode，不应再测试
-`EnableImageQuality`、`EnableAdjustColorWithFloat` 或“手动补建 AlgorithmService”。
+
+UI 日志中的 `enableAlgorithmCache:9` 随后也被精确复现。真实入口不是 AB 猜测，而是
+`TESwingManagerInterfaceWrapper::setAlgorithmCacheFlag(9)`，它直接调用
+`SwingManager::setParameterInt("AlgorithmCacheFlag", 9)`；独立的 `RunAlgorithmMode` bool 保持不变。
+探针日志按预期从 `enableAlgorithmCache:0` 变为 `9`，但两组都加载 MD5
+`cd5474732a4b56b7fffceba8a83d7c1e` 的模型，算法尺寸都为 `398x224`，十张 RGBA 输出逐字节
+完全相同。该 cache flag 也可排除。下一轮只应隔离一个真正影响算法输入的 AB 值或 post-create
+model-clip 参数，不应再测试 `AlgorithmCacheFlag`、`EnableImageQuality`、
+`EnableAdjustColorWithFloat` 或“手动补建 AlgorithmService”。
 
 完整 GL 与滤镜技术记录见 [gl-texture-context.zh.md](gl-texture-context.zh.md)。可复现的低层
 Effect 探针见 [effect-cgl-render-probe.cpp](probes/effect-cgl-render-probe.cpp)，模型边界观察器见

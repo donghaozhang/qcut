@@ -18,6 +18,7 @@ struct FilterSequenceRequest {
   std::array<bool, 3> nativeTextureFlags{};
   int inputTextureDataCode = 0;
   int outputTextureDataCode = 0;
+  int algorithmCacheFlag = 0;
   bool enableSwingSimplify = true;
   bool enableAdjustColorWithFloat = false;
   bool enableImageQuality = false;
