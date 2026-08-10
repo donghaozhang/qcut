@@ -248,6 +248,26 @@ Low-level 与旧 C API Swing 没有把真实图像的逐值相同张量送入 `t
 
 最高优先级的交付检查已经纠正了“空 `SkinSegInfo`”假设。V2 与 working Low-level 都通过 `+0x18` 容器的 CPU fallback 交付完整 `224x128` mask；texture ID、native buffer 和 `updateTexture()` 不是判断绑定成功与否的必要条件。manager init mode `0/2` 也已通过逐字节 A/B 排除。static model 在正确预热后把首个有效帧提高约 `0.794 dB`，证明模型选择解释了一部分差距，但仍离 Low-level 约 `4.432 dB`。当前明确卡点是模型与 AlgorithmService、segment/feature 创建配置的组合。下一步若继续，只应隔离其中一个创建配置，不应继续调整 mode、resize、LUT、色彩矩阵或输出读回。
 
+## AlgorithmService 与 feature 创建边界
+
+`bef_swing_segment_video_get_algorithm_width_height` 直接读取 `VideoSegment + 0x4ac` 的宽高字段。
+创建 video/feature 后立即读取为 `0x0`，但这只是惰性初始化：首个 seek/render 后变为
+`398x224`，后续十帧保持不变。日志同时出现 `edit_alg_system` 的 `AlgorithmService` 创建、
+`setDisplaySize(854x480)`、graph parse、skin-seg 模型加载和执行。因此当前宿主没有漏掉整个
+AlgorithmService；差异位于已经运行的服务配置中。
+
+UI 对 manager 调用 `setIsImageQuality(true)`，底层等价于设置 `EnableImageQuality=true`。
+固定输入、奥林巴斯包、video model、manager mode 和 update-mode 后，对 `false/true` 各跑十帧：
+两组模型 MD5 都是 `cd5474732a4b56b7fffceba8a83d7c1e`，渲染后算法尺寸都是 `398x224`，
+十张 raw RGBA 逐字节相同。`EnableAdjustColorWithFloat=false/true` 也得到十张逐字节相同输出，
+首个有效 mode-1 帧均为 `32.105926 dB`。这两个 UI/manager 参数可以排除。
+
+静态调用链还表明，`bef_swing_segment_video_create_feature` 从 video segment 取回 manager，随后以
+feature segment type `0` 和效果包路径调用 AmazingEngine 的通用 segment factory。UI 的 clip-based
+路径最终使用同一组 `VideoSegment`/`FeatureSegment` 类，但在外围追加 model-clip 参数、cache 状态和
+tracking 元数据。基础 feature graph 并非明显分叉点；下一项应从 UI 日志中已确认不同的
+algorithm-cache/init 状态里选一个做 A/B，而不是同时改写整条创建链。
+
 ## 仓库边界
 
 仓库只保存观察 probe 和文字结果。ByteNN、剪映 Framework、模型、滤镜包、输入素材、张量 payload、生成帧和完整运行日志均保留在仓库之外。

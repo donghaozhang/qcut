@@ -230,7 +230,9 @@ class FilterHostSession {
                     OpenGlContext& openGlContext, const fs::path& packagePath,
                     const GraphicsFrameResources& resources,
                     int inputTextureDataCode, int outputTextureDataCode,
-                    bool enableSwingSimplify, bool managerCreateOption,
+                    bool enableSwingSimplify,
+                    bool enableAdjustColorWithFloat,
+                    bool enableImageQuality, bool managerCreateOption,
                     bool enableParallelAsyncSwing)
       : symbols_(symbols), models_(models), openGlContext_(openGlContext),
         packagePath_(packagePath),
@@ -239,6 +241,8 @@ class FilterHostSession {
         inputTextureDataCode_(inputTextureDataCode),
         outputTextureDataCode_(outputTextureDataCode),
         enableSwingSimplify_(enableSwingSimplify),
+        enableAdjustColorWithFloat_(enableAdjustColorWithFloat),
+        enableImageQuality_(enableImageQuality),
         managerCreateOption_(managerCreateOption),
         enableParallelAsyncSwing_(enableParallelAsyncSwing) {
     jianying_probe::activateModelCatalog(models_);
@@ -322,11 +326,23 @@ class FilterHostSession {
     }
     std::cout << " reset=" << resetAction << " results=" << modeResult << ','
               << textureResult << ',' << seekResult << " texture_data="
-              << inputTextureDataCode_ << ',' << outputTextureDataCode_ << '\n';
+              << inputTextureDataCode_ << ',' << outputTextureDataCode_;
+    printAlgorithmSize("after-render");
     return modeResult == 0 && textureResult == 0 && seekResult == 0;
   }
 
  private:
+  void printAlgorithmSize(std::string_view stage) const {
+    int algorithmWidth = 0;
+    int algorithmHeight = 0;
+    const int result = video_ == nullptr
+                           ? -1
+                           : symbols_.getVideoAlgorithmSize(
+                                 video_, &algorithmWidth, &algorithmHeight);
+    std::cout << " algorithm_size[" << stage << "]=" << algorithmWidth << 'x'
+              << algorithmHeight << " result=" << result << '\n';
+  }
+
   void createHost() {
     openGlContext_.makeCurrent();
     openGlContext_.printCurrent("before manager create");
@@ -357,6 +373,11 @@ class FilterHostSession {
             .context = amazer,
         });
 
+    const int adjustColorResult = symbols_.setManagerParameterBool(
+        manager_, "EnableAdjustColorWithFloat",
+        enableAdjustColorWithFloat_);
+    const int imageQualityResult = symbols_.setManagerParameterBool(
+        manager_, "EnableImageQuality", enableImageQuality_);
     const int simplifyResult = symbols_.setManagerParameterBool(
         manager_, "EnableSwingSimplify", enableSwingSimplify_);
     const int videoResult = symbols_.createSegment(
@@ -387,21 +408,15 @@ class FilterHostSession {
     const int addVideoResult = video_ == nullptr
                                    ? -1
                                    : symbols_.addManagerSegment(manager_, video_);
-    int algorithmWidth = 0;
-    int algorithmHeight = 0;
-    const int algorithmSizeResult =
-        video_ == nullptr
-            ? -1
-            : symbols_.getVideoAlgorithmSize(video_, &algorithmWidth,
-                                             &algorithmHeight);
     std::cout << "[filter] create results=" << managerResult << ','
+              << adjustColorResult << ',' << imageQualityResult << ','
               << simplifyResult << ',' << videoResult << ',' << featureResult
               << ',' << addFeatureResult << ',' << featureTimeRangeResult << ','
               << featureRenderIndexResult << ',' << timeRangeResult << ','
-              << renderIndexResult << ',' << addVideoResult
-              << " algorithm_size=" << algorithmWidth << 'x'
-              << algorithmHeight << " result=" << algorithmSizeResult << '\n';
-    ready_ = simplifyResult == 0 && videoResult == 0 && featureResult == 0 &&
+              << renderIndexResult << ',' << addVideoResult;
+    printAlgorithmSize("after-create");
+    ready_ = adjustColorResult == 0 && imageQualityResult == 0 &&
+             simplifyResult == 0 && videoResult == 0 && featureResult == 0 &&
              addFeatureResult == 0 && featureTimeRangeResult == 0 &&
              featureRenderIndexResult == 0 && timeRangeResult == 0 &&
              renderIndexResult == 0 && addVideoResult == 0;
@@ -441,6 +456,8 @@ class FilterHostSession {
   int inputTextureDataCode_;
   int outputTextureDataCode_;
   bool enableSwingSimplify_;
+  bool enableAdjustColorWithFloat_;
+  bool enableImageQuality_;
   bool managerCreateOption_;
   bool enableParallelAsyncSwing_;
   bool ready_ = false;
@@ -457,6 +474,8 @@ struct RenderContext {
   int inputTextureDataCode;
   int outputTextureDataCode;
   bool enableSwingSimplify;
+  bool enableAdjustColorWithFloat;
+  bool enableImageQuality;
   bool managerCreateOption;
   bool enableParallelAsyncSwing;
   std::unique_ptr<FilterHostSession> session;
@@ -472,6 +491,7 @@ bool renderFilterFrame(const GraphicsFrameResources& resources) {
         context->symbols, context->models, context->openGlContext,
         context->packagePath, resources, context->inputTextureDataCode,
         context->outputTextureDataCode, context->enableSwingSimplify,
+        context->enableAdjustColorWithFloat, context->enableImageQuality,
         context->managerCreateOption, context->enableParallelAsyncSwing);
   }
   return context->session->render(resources, context->renderPasses,
@@ -532,6 +552,8 @@ FilterSequenceResult renderFilterSequence(
       .inputTextureDataCode = request.inputTextureDataCode,
       .outputTextureDataCode = request.outputTextureDataCode,
       .enableSwingSimplify = request.enableSwingSimplify,
+      .enableAdjustColorWithFloat = request.enableAdjustColorWithFloat,
+      .enableImageQuality = request.enableImageQuality,
       .managerCreateOption = request.managerCreateOption,
       .enableParallelAsyncSwing = request.enableParallelAsyncSwing,
       .session = nullptr,

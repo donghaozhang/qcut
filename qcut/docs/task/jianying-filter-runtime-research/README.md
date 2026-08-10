@@ -181,6 +181,22 @@ Low-level 的 `37.331 dB`。模型选择确实有贡献，却不是充分条件�
 AlgorithmService/segment/feature 配置。由于冷启动行为尚未解释，exact-first finder 没有作为默认
 改动保留。下一轮若继续，应只比较一个创建配置变量。
 
+继续对 manager/AlgorithmService 创建边界做单变量检查后，两个 UI 可见参数也已排除。
+`TESwingManagerInterfaceWrapper::setIsImageQuality(true)` 实际映射为
+`SwingManager::setParameterBool("EnableImageQuality", true)`；真实 UI 日志确实出现
+`image quality is: 1`。但独立 V2 宿主在 `false/true` 两组中选择同一 video skin-seg model，
+首帧后都得到 `398x224` 算法尺寸，十张 RGBA 输出逐字节完全相同。
+`EnableAdjustColorWithFloat=false/true` 的十张输出也逐字节相同，首个有效帧均为
+`32.105926 dB`。这两个参数都不是当前视觉差值来源。
+
+此前创建后读取到的 `algorithm_size=0x0` 也不代表 `AlgorithmService` 缺失。新增的渲染后诊断
+显示首个 seek/render 后尺寸变为 `398x224`，后续十帧保持不变；同一日志完整出现
+`edit_alg_system`、graph parse、skin-seg model load 和 execute。C API 的 feature 创建路径会从
+video segment 取得 manager，并以类型 `0` 和效果包路径创建 `FeatureSegment`；UI clip 路径最终
+使用相同 AmazingEngine segment 类，但外围还会写入 model-clip 参数、cache 状态和 tracking 元数据。
+下一轮只应隔离一个可能影响像素的 post-create 参数或 algorithm-cache mode，不应再测试
+`EnableImageQuality`、`EnableAdjustColorWithFloat` 或“手动补建 AlgorithmService”。
+
 完整 GL 与滤镜技术记录见 [gl-texture-context.zh.md](gl-texture-context.zh.md)。可复现的低层
 Effect 探针见 [effect-cgl-render-probe.cpp](probes/effect-cgl-render-probe.cpp)，模型边界观察器见
 [bytenn-input-capture.cpp](probes/bytenn-input-capture.cpp)。

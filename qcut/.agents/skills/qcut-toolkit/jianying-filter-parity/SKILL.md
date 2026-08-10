@@ -262,6 +262,30 @@ one fixed 854x480 input, package, `3;1;2` sequence, and model resolution, modes
 frames are both `22.227 dB`; their first measured mode-1 frames are both
 `32.899 dB`. Do not spend another run varying this mode.
 
+Two additional manager flags are also ruled out for the Olympus segmented
+fixture. `TESwingManagerInterfaceWrapper` maps `setIsImageQuality(true)` to
+`SwingManager::setParameterBool("EnableImageQuality", true)`, and the live UI
+does log `image quality is: 1`. In the independent V2 host, however,
+`EnableImageQuality=false/true` produces byte-identical output across all ten
+frames, selects the same video skin-seg model, and reports the same algorithm
+size. `EnableAdjustColorWithFloat=false/true` is likewise byte-identical. Do not
+repeat either flag as a parity experiment.
+
+Do not interpret `bef_swing_segment_video_get_algorithm_width_height()` returning
+`0x0` immediately after segment creation as a missing `AlgorithmService`. That
+field is lazy: after the first seek/render it becomes `398x224` and remains
+stable for the ten-frame run. The logs also show a real `edit_alg_system`
+`AlgorithmService`, graph parsing, and skin-seg execution. The remaining problem
+is configuration parity inside a running service, not service absence.
+
+The raw feature-construction path is substantially shared. The public
+`bef_swing_segment_video_create_feature` API obtains the video segment's manager
+and creates feature segment type `0` with the package path. The UI's clip-based
+path ultimately creates the same AmazingEngine segment classes, then adds
+model-clip parameters, cache state, and tracking metadata around them. Focus the
+next comparison on one pixel-relevant post-create parameter or algorithm-cache
+mode; do not rebuild the basic video/feature graph without evidence.
+
 An exact-first resource-finder experiment loaded the requested static model and
 improved its orientation-corrected mask comparison with Low-level to
 `MAE 12.245 / RMSE 29.630`. A cold one-frame run was green and posterized, but
@@ -286,6 +310,9 @@ used by the Metal V2 renderer, so it is control-flow evidence only.
   texture ID nor a native buffer.
 - [x] Match the wrapper's manager init mode mapping (`false -> 0`, `true -> 2`).
   The two modes produce byte-identical output in the controlled still fixture.
+- [x] Compare the UI-visible image-quality flag. `false/true` produces
+  byte-identical ten-frame output and does not change model identity or the
+  post-render `398x224` algorithm size.
 - [ ] Reproduce V2 model selection and AlgorithmService initialization in a
   controlled same-model comparison, then rerun the exact still fixture.
 - [ ] Capture the actual Jianying export mode order. Do not infer it from preview.

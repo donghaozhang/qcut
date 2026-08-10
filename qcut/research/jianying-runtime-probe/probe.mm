@@ -388,6 +388,10 @@ void configure(ObjectStorage<kConfigStorageSize>& config,
         .enableSwingSimplify =
             std::getenv("JY_ENABLE_SWING_SIMPLIFY") == nullptr ||
             optionalBooleanEnvironment("JY_ENABLE_SWING_SIMPLIFY"),
+        .enableAdjustColorWithFloat =
+            optionalBooleanEnvironment("JY_ENABLE_ADJUST_COLOR_WITH_FLOAT"),
+        .enableImageQuality =
+            optionalBooleanEnvironment("JY_ENABLE_IMAGE_QUALITY"),
         .managerCreateOption =
             optionalBooleanEnvironment("JY_SWING_MANAGER_CREATE_OPTION"),
         .enableParallelAsyncSwing =

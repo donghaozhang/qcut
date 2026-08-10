@@ -19,6 +19,8 @@ struct FilterSequenceRequest {
   int inputTextureDataCode = 0;
   int outputTextureDataCode = 0;
   bool enableSwingSimplify = true;
+  bool enableAdjustColorWithFloat = false;
+  bool enableImageQuality = false;
   bool managerCreateOption = false;
   bool enableParallelAsyncSwing = false;
 };
