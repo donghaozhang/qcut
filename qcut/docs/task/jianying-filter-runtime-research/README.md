@@ -100,7 +100,14 @@ OpenGL legacy profile 只有 2.1，无法编译运行时生成的 GLSL 330，因
 
 另外，完全退出中文剪映主程序和托盘辅助进程后，独立探针仍能在约 2.1 秒内完成一张真人帧的加载、20 帧预热、滤镜处理和读回，进程退出码为 `0`。输出与剪映仍运行时连续测试中的对应帧逐字节一致，证明执行滤镜时不需要启动剪映应用进程。
 
-完整技术记录见 [gl-texture-context.zh.md](gl-texture-context.zh.md)。可复现探针源码见 [effect-cgl-render-probe.cpp](probes/effect-cgl-render-probe.cpp)。
+模型输入边界的独立对照进一步确认：低层 Effect 与 Swing 虽然都生成
+`1x128x224x3`、172032 bytes 的 type 2 张量，但 payload 不同。主要差异是低层路径相对
+Swing 垂直翻转；校正方向后仍有 `0.830` 的逐元素 MAE。完整证据和复现方式见
+[model-input-boundary.zh.md](model-input-boundary.zh.md)。
+
+完整 GL 与滤镜技术记录见 [gl-texture-context.zh.md](gl-texture-context.zh.md)。可复现的低层
+Effect 探针见 [effect-cgl-render-probe.cpp](probes/effect-cgl-render-probe.cpp)，模型边界观察器见
+[bytenn-input-capture.cpp](probes/bytenn-input-capture.cpp)。
 
 ## 探针用途
 
