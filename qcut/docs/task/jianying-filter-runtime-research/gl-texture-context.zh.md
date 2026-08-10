@@ -347,6 +347,10 @@ TESwingProcessUnit::setUpdateMode(int)
 
 同时，通用 `FaceMakeupV2System` 在预热阶段仍报告 `facecount = 0`。当前探针没有通过独立算法结果 API 读回人脸框或关键点，因此不能把 skin mask 成功等同于人脸关键点链路已经证明。该缺口不阻塞此滤镜的双 LUT 重放结论，但会阻塞依赖关键点的美妆、五官变形和贴脸特效复刻。
 
+> 更正：该缺口已由运行时观测补上。拦截 `liblens.dylib` 导出的人脸 SDK 入口后，读到有效的人脸矩形、
+> 成对关键点和数量字段，人脸检测与跟踪均正常；`facecount = 0` 日志与检测结果无关。
+> 另外实测人脸结果不参与 skin mask 计算。见 [mask-binding-fix.zh.md](mask-binding-fix.zh.md)。
+
 ### 结论与剩余误差
 
 当前结果已从“能写入目标纹理”推进到“与中文剪映同素材、同帧、完整视频高相似重放”，并已经排除 HEVC 是唯一误差来源、空间缩放是主要误差源以及全局 RGB/YUV 矩阵错误。但它仍不是逐像素完美复刻，主要限制是：
