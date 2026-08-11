@@ -85,7 +85,12 @@ import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { LoaderCircle, TriangleAlert } from "lucide-react";
 import { useJianyingTimelineTransitionPreview } from "./preview-panel/use-jianying-timeline-transition-preview";
 import { JianyingTimelineTransitionOverlay } from "./preview-panel/jianying-timeline-transition-overlay";
+import {
+	JianyingTextPlaybackOverlay,
+	type JianyingTextPlaybackStatus,
+} from "./preview-panel/jianying-text-playback-overlay";
 import type { BrowserColorGradeLayer } from "@/lib/color/browser-color-rendering";
+import { ensureTimelineLocalFontsLoaded } from "@/lib/fonts/local-font-runtime";
 
 function getPreviewElementDuration(element: TimelineElement): number {
 	return element.type === "media"
@@ -142,6 +147,12 @@ export function PreviewPanel() {
 	// the set of active elements changes (not every frame).
 	const [playbackTime, setPlaybackTime] = useState(currentTime);
 	const lastActiveIdsRef = useRef<string>("");
+
+	useEffect(() => {
+		void ensureTimelineLocalFontsLoaded({ tracks }).catch((cause) => {
+			debugLog("[LocalFont] Unable to load timeline font", cause);
+		});
+	}, [tracks]);
 
 	useEffect(() => {
 		if (!isPlaying) {
@@ -472,7 +483,51 @@ export function PreviewPanel() {
 		() => getActiveElements(),
 		[getActiveElements]
 	);
+	const [jianyingPlaybackStatuses, setJianyingPlaybackStatuses] = useState<
+		ReadonlyMap<string, JianyingTextPlaybackStatus>
+	>(() => new Map());
+	const handleJianyingPlaybackStatusChange = useCallback(
+		({
+			elementId,
+			status,
+		}: {
+			elementId: string;
+			status: JianyingTextPlaybackStatus;
+		}) => {
+			setJianyingPlaybackStatuses((previous) => {
+				if (previous.get(elementId) === status) return previous;
+				const next = new Map(previous);
+				if (status === "idle") next.delete(elementId);
+				else next.set(elementId, status);
+				return next;
+			});
+		},
+		[]
+	);
+	const jianyingTextOverlayEnabled =
+		previewMode === "video" &&
+		platform().isElectron &&
+		canvasSize.width >= 2 &&
+		canvasSize.height >= 2;
+	useEffect(() => {
+		if (jianyingTextOverlayEnabled) return;
+		setJianyingPlaybackStatuses((previous) =>
+			previous.size === 0 ? previous : new Map()
+		);
+	}, [jianyingTextOverlayEnabled]);
 	const totalDuration = getTotalDuration();
+	const onlyJianyingTextIsSelected =
+		selectedElements.length > 0 &&
+		selectedElements.every(({ trackId, elementId }) => {
+			const selected = activeElements.find(
+				(candidate) =>
+					candidate.track.id === trackId && candidate.element.id === elementId
+			);
+			return (
+				selected?.element.type === "text" &&
+				Boolean(selected.element.jianyingTextStyle)
+			);
+		});
 	const compositionPreviewEnabled =
 		!isPlaying &&
 		previewMode === "video" &&
@@ -485,7 +540,9 @@ export function PreviewPanel() {
 			activeElements,
 			hasActiveTransition:
 				activeTransitionPreview.forceActiveElementIds.size > 0,
-			hasSelection: selectedElements.length > 0 || stickerInteractionActive,
+			hasSelection:
+				(selectedElements.length > 0 && !onlyJianyingTextIsSelected) ||
+				stickerInteractionActive,
 		});
 	const nativeCompositionPreview = useNativeCompositionFramePreview({
 		enabled: compositionPreviewEnabled,
@@ -735,6 +792,11 @@ export function PreviewPanel() {
 							elementData.element.id
 						)}
 						compositionPreviewEnabled={compositionPreviewEnabled}
+						hideJianyingTextFallback={
+							jianyingPlaybackStatuses.get(elementData.element.id) ===
+								"ready" ||
+							jianyingPlaybackStatuses.get(elementData.element.id) === "error"
+						}
 						additionalColorLayers={lutLayers}
 						onTextPointerDown={handleTextPointerDown}
 						onElementSelect={({ elementId, multi }) =>
@@ -759,6 +821,7 @@ export function PreviewPanel() {
 			handleTextPointerDown,
 			isPlaying,
 			previewDimensions,
+			jianyingPlaybackStatuses,
 			selectElement,
 			smoothTime,
 			videoSourcesById,
@@ -939,6 +1002,16 @@ export function PreviewPanel() {
 													renderElement={renderElement}
 												/>
 											)}
+											<JianyingTextPlaybackOverlay
+												enabled={jianyingTextOverlayEnabled}
+												activeElements={activeElements}
+												canvasWidth={canvasSize.width}
+												canvasHeight={canvasSize.height}
+												fps={activeProject?.fps ?? 30}
+												currentTime={smoothTime}
+												isPlaying={isPlaying}
+												onStatusChange={handleJianyingPlaybackStatusChange}
+											/>
 											{nativeCompositionPreview.status === "ready" &&
 											nativeCompositionPreview.url ? (
 												<img
