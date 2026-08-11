@@ -75,8 +75,11 @@ import {
 	JIANYING_TRANSITION_TIMELINE_PREVIEW_CHANNEL,
 } from "./jianying-transition-contract.js";
 import {
+	JIANYING_FILTER_LAB_CHANGED_CHANNEL,
 	JIANYING_FILTER_LAB_LIST_CHANNEL,
 	JIANYING_FILTER_LAB_LOAD_CHANNEL,
+	JIANYING_FILTER_LAB_LOAD_RENDERER_CHANNEL,
+	JIANYING_FILTER_LAB_THUMBNAIL_CHANNEL,
 } from "./jianying-filter-lab-contract.js";
 import {
 	ENVELOPE_DELETE_CHANNEL,
@@ -148,9 +151,24 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke(JIANYING_TRANSITION_RENDER_TIMELINE_CHANNEL, request),
 	},
 	jianyingFilterLab: {
-		list: () => ipcRenderer.invoke(JIANYING_FILTER_LAB_LIST_CHANNEL),
+		list: (request) =>
+			ipcRenderer.invoke(JIANYING_FILTER_LAB_LIST_CHANNEL, request),
 		load: (request) =>
 			ipcRenderer.invoke(JIANYING_FILTER_LAB_LOAD_CHANNEL, request),
+		loadRenderer: (request) =>
+			ipcRenderer.invoke(JIANYING_FILTER_LAB_LOAD_RENDERER_CHANNEL, request),
+		thumbnail: (request) =>
+			ipcRenderer.invoke(JIANYING_FILTER_LAB_THUMBNAIL_CHANNEL, request),
+		onCatalogChanged: (callback) => {
+			const listener = () => callback();
+			ipcRenderer.on(JIANYING_FILTER_LAB_CHANGED_CHANNEL, listener);
+			return () => {
+				ipcRenderer.removeListener(
+					JIANYING_FILTER_LAB_CHANGED_CHANNEL,
+					listener
+				);
+			};
+		},
 	},
 	jianyingEnvelope: {
 		store: (request) => ipcRenderer.invoke(ENVELOPE_STORE_CHANNEL, request),
