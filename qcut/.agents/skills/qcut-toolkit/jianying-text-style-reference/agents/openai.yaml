@@ -1,0 +1,4 @@
+interface:
+  display_name: "Jianying Text Style Reference"
+  short_description: "Trace and verify Jianying word-art packages with the local runtime"
+  default_prompt: "Use $jianying-text-style-reference to trace a Jianying word-art card, verify its local package with the private runtime oracle, and plan a clean-room QCut equivalent."

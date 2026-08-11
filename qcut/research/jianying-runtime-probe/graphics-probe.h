@@ -58,6 +58,7 @@ struct GraphicsFrameProbeRequest {
   bool captureRenderedInputA = false;
   bool useNativeInputTextures = false;
   std::array<bool, 3> nativeTextureFlags{};
+  int postRenderReadbackDelayMilliseconds = 0;
 };
 
 struct GraphicsFrameProbeResult {
@@ -65,6 +66,8 @@ struct GraphicsFrameProbeResult {
   bool inputsReadable = false;
   std::vector<std::uint8_t> inputAPixels;
   std::vector<std::uint8_t> inputBPixels;
+  std::vector<std::uint8_t> preWaitRenderedInputAPixels;
+  std::vector<std::uint8_t> preWaitOutputPixels;
   std::vector<std::uint8_t> renderedInputAPixels;
   std::vector<std::uint8_t> outputPixels;
 };
@@ -78,6 +81,7 @@ struct GraphicsSessionFrameRequest {
   bool captureRenderedInputA = false;
   bool useNativeInputTextures = false;
   std::array<bool, 3> nativeTextureFlags{};
+  int postRenderReadbackDelayMilliseconds = 0;
 };
 
 class GraphicsProbeSession {

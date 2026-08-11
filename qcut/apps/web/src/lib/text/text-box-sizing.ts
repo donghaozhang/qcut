@@ -43,6 +43,7 @@ export function fitTextElementBoxToContent({
 	measureTextWidth?: TextWidthMeasurer;
 	mode?: "grow" | "shrink";
 }): CreateTextElement {
+	if (element.jianyingTextStyle) return element;
 	if (!element.content.trim()) return element;
 
 	const fontSize = clamp({ value: element.fontSize, min: 8, max: 300 });

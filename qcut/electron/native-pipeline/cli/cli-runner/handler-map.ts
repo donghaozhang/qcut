@@ -122,6 +122,7 @@ import {
 	handleFilterLabCompare,
 	handleFilterLabList,
 	handleFilterLabMatch,
+	handleFilterLabVerify,
 } from "../cli-handlers-filter-lab.js";
 
 /**
@@ -175,7 +176,9 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	update: wrapOPS(handleAppUpdate),
 	"instances-list": wrap(handleInstancesCommand),
 	"instances-use": wrap(handleInstancesCommand),
-	"filter-lab-list": wrap0(handleFilterLabList),
+	"filter-lab-list": wrap((options) =>
+		handleFilterLabList({ json: options.json })
+	),
 	"filter-lab-compare": wrap((options) =>
 		handleFilterLabCompare({
 			resourceId: options.resourceId ? String(options.resourceId) : undefined,
@@ -188,6 +191,18 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 		handleFilterLabMatch({
 			worst: options.worst ? Number(options.worst) : undefined,
 			sample: options.sample ? String(options.sample) : undefined,
+		})
+	),
+	"filter-lab-verify": wrap((options) =>
+		handleFilterLabVerify({
+			resourceId: options.resourceId,
+			filterVersion: options.filterVersion,
+			referenceFrame: options.referenceFrame,
+			candidateFrame: options.candidateFrame,
+			referenceMask: options.referenceMask,
+			candidateMask: options.candidateMask,
+			referenceVideo: options.referenceVideo,
+			candidateVideo: options.candidateVideo,
 		})
 	),
 	"transition-list": wrap0(handleTransitionList),

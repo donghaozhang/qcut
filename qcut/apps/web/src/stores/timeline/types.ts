@@ -497,6 +497,8 @@ export interface TimelineStore {
 				| "content"
 				| "fontSize"
 				| "fontFamily"
+				| "fontAsset"
+				| "jianyingTextStyle"
 				| "color"
 				| "backgroundColor"
 				| "textAlign"

@@ -73,6 +73,19 @@ import {
 	setupJianyingFilterLabIPC,
 	type JianyingFilterLabIPCController,
 } from "./jianying-filter-lab-handler.js";
+import { watchJianyingFilterCaches } from "./jianying-filter-cache-watcher.js";
+import {
+	setupJianyingFontLabIPC,
+	type JianyingFontLabIPCController,
+} from "./jianying-font-lab-handler.js";
+import {
+	setupJianyingTextStyleLabIPC,
+	type JianyingTextStyleLabIPCController,
+} from "./jianying-text-style-lab-handler.js";
+import {
+	setupJianyingTextRuntimeIPC,
+	type JianyingTextRuntimeIPCController,
+} from "./jianying-text-runtime-handler.js";
 import {
 	setupJianyingSameProfileWritebackIPC,
 	type JianyingSameProfileWritebackIPCController,
@@ -124,6 +137,11 @@ let jianyingDraftExportController: JianyingDraftExportIPCController | null =
 let jianyingSameProfileWritebackController: JianyingSameProfileWritebackIPCController | null =
 	null;
 let jianyingFilterLabController: JianyingFilterLabIPCController | null = null;
+let jianyingFontLabController: JianyingFontLabIPCController | null = null;
+let jianyingTextStyleLabController: JianyingTextStyleLabIPCController | null =
+	null;
+let jianyingTextRuntimeController: JianyingTextRuntimeIPCController | null =
+	null;
 
 // Import handlers (compiled TypeScript - relative to dist/electron output)
 const {
@@ -1002,7 +1020,30 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 				() => {
 					jianyingFilterLabController = setupJianyingFilterLabIPC({
 						getMainWindow: () => mainWindow,
+						watchCache: watchJianyingFilterCaches,
 					});
+				},
+			],
+			[
+				"JianyingFontLabIPC",
+				() => {
+					jianyingFontLabController = setupJianyingFontLabIPC({
+						getMainWindow: () => mainWindow,
+					});
+				},
+			],
+			[
+				"JianyingTextStyleLabIPC",
+				() => {
+					jianyingTextStyleLabController = setupJianyingTextStyleLabIPC({
+						getMainWindow: () => mainWindow,
+					});
+				},
+			],
+			[
+				"JianyingTextRuntimeIPC",
+				() => {
+					jianyingTextRuntimeController = setupJianyingTextRuntimeIPC();
 				},
 			],
 			[
@@ -1137,6 +1178,12 @@ app.on("before-quit", () => {
 	jianyingDraftImportController = null;
 	jianyingFilterLabController?.dispose();
 	jianyingFilterLabController = null;
+	jianyingFontLabController?.dispose();
+	jianyingFontLabController = null;
+	jianyingTextStyleLabController?.dispose();
+	jianyingTextStyleLabController = null;
+	jianyingTextRuntimeController?.dispose();
+	jianyingTextRuntimeController = null;
 	try {
 		const { cleanupAllAudioFiles } = require("./audio-temp-handler.js");
 		cleanupAllAudioFiles();

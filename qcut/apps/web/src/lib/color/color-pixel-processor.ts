@@ -16,6 +16,7 @@ import {
 	applyColorManagementOutput,
 } from "./color-management";
 import { applySecondaryCurves } from "./color-secondary-curves";
+import { applyColorMultiPass } from "./multi-pass-pixel-processor";
 
 const HSL_CENTERS: Record<ColorHslRangeName, number> = {
 	red: 0,
@@ -134,10 +135,26 @@ function applySmart(color: RgbColor, settings: MediaColorSettings): RgbColor {
 
 function applyLut(color: RgbColor, settings: MediaColorSettings): RgbColor {
 	if (!settings.lut.enabled || !settings.lut.cube) return color;
-	const transformed = sampleCubeLut({ cube: settings.lut.cube, color });
+	const background = sampleCubeLut({ cube: settings.lut.cube, color });
+	const transformed = settings.lut.dual
+		? (() => {
+				const skin = sampleCubeLut({
+					cube: settings.lut.dual.skinCube,
+					color,
+				});
+				const skinMask = skinToneWeight({ color });
+				return {
+					r: mix(background.r, skin.r, skinMask),
+					g: mix(background.g, skin.g, skinMask),
+					b: mix(background.b, skin.b, skinMask),
+				};
+			})()
+		: background;
 	const amount =
 		(settings.lut.intensity / 100) *
-		(1 - skinToneWeight({ color }) * (settings.lut.skinProtection / 100));
+		(settings.lut.dual
+			? 1
+			: 1 - skinToneWeight({ color }) * (settings.lut.skinProtection / 100));
 	return {
 		r: mix(color.r, transformed.r, amount),
 		g: mix(color.g, transformed.g, amount),
@@ -436,6 +453,12 @@ export function processColorImageData({
 		height: imageData.height,
 		amount: settings.basic.enabled ? settings.basic.sharpness : 0,
 	});
+	const effected = applyColorMultiPass({
+		data: sharpened,
+		width: imageData.width,
+		height: imageData.height,
+		settings: settings.multiPass,
+	});
 	const output = new ImageData(
 		new Uint8ClampedArray(source),
 		imageData.width,
@@ -443,9 +466,9 @@ export function processColorImageData({
 	);
 	for (let index = 0; index < source.length; index += 4) {
 		const mask = maskData ? maskData[index + 3] / 255 : 1;
-		output.data[index] = mix(source[index], sharpened[index], mask);
-		output.data[index + 1] = mix(source[index + 1], sharpened[index + 1], mask);
-		output.data[index + 2] = mix(source[index + 2], sharpened[index + 2], mask);
+		output.data[index] = mix(source[index], effected[index], mask);
+		output.data[index + 1] = mix(source[index + 1], effected[index + 1], mask);
+		output.data[index + 2] = mix(source[index + 2], effected[index + 2], mask);
 	}
 	return output;
 }

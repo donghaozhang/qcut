@@ -41,6 +41,7 @@ import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useSearchStore } from "@/stores/search-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import type { JianyingTextStyleLabStyleSummary } from "@/types/electron";
 import {
 	assetManifestVersionKey,
 	type AssetManifestEntry,
@@ -120,6 +121,11 @@ import type {
 	TextItemDragData,
 } from "@/types/timeline";
 import { toast } from "sonner";
+import { JianyingTextStyleLabDialog } from "./text-style-lab/jianying-text-style-lab";
+import {
+	buildTextStyleLabElement,
+	buildTextStyleLabUpdates,
+} from "./text-style-lab/text-style-lab-mapping";
 import { TextTemplateThumbnail } from "./text-template-thumbnail";
 
 type TextLibraryStatusFilter =
@@ -2326,6 +2332,45 @@ export function TextView() {
 		const time = currentTime ?? usePlaybackStore.getState().currentTime;
 		useTimelineStore.getState().addMarkdownAtTime(markdownData, time);
 	};
+	const applyTextStyleLabStyle = ({
+		style,
+	}: {
+		style: JianyingTextStyleLabStyleSummary;
+	}) => {
+		const updates = buildTextStyleLabUpdates({ style });
+		if (!updates) {
+			toast.error("该花字依赖 QCut 尚未支持的纹理或运行时效果");
+			return;
+		}
+		const timeline = useTimelineStore.getState();
+		const selectedTextElements = timeline.selectedElements.flatMap(
+			({ trackId, elementId }) => {
+				const element = timeline.tracks
+					.find((track) => track.id === trackId)
+					?.elements.find((candidate) => candidate.id === elementId);
+				return element?.type === "text" ? [{ trackId, element }] : [];
+			}
+		);
+		if (selectedTextElements.length > 0) {
+			for (const [index, selection] of selectedTextElements.entries()) {
+				timeline.updateTextElement(
+					selection.trackId,
+					selection.element.id,
+					updates,
+					index === 0
+				);
+			}
+			toast.success(`已应用 ${style.title ?? "本机花字"}`);
+			return;
+		}
+		const element = buildTextStyleLabElement({ style });
+		if (!element) return;
+		const added = timeline.addTextAtTime(
+			element,
+			usePlaybackStore.getState().currentTime
+		);
+		if (added) toast.success(`已添加 ${style.title ?? "本机花字"}`);
+	};
 	const handleSelectCategory = ({
 		categoryId,
 	}: {
@@ -2617,6 +2662,11 @@ export function TextView() {
 									{activeHeading}
 								</h2>
 								<div className="flex shrink-0 items-center gap-1.5">
+									{activeCategory.groupId === "fancy" ? (
+										<JianyingTextStyleLabDialog
+											onApply={applyTextStyleLabStyle}
+										/>
+									) : null}
 									<span className="text-[0.68rem] text-muted-foreground">
 										{smartTextStatus}
 									</span>

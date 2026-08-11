@@ -127,6 +127,69 @@ describe("timeline media mask normalization", () => {
 });
 
 describe("timeline text animation normalization", () => {
+	it("preserves a canonical Jianying runtime reference through project load", () => {
+		const jianyingTextStyle = {
+			schemaVersion: 1 as const,
+			source: "jianying-cache" as const,
+			packageKind: "ScriptInfoSticker" as const,
+			resourceId: "7410240535752903990",
+			packageHash: "39b4b7c4e070ede70ae25ab264c842d4",
+			editMode: "runtime-with-preload-fallback" as const,
+			slotMapping: "line-to-widget" as const,
+			timeMapping: "stretch" as const,
+			templateDuration: 3,
+		};
+		const normalized = normalizeTextElement({
+			element: textElement({ jianyingTextStyle }),
+		}) as TextElement;
+
+		expect(normalized.jianyingTextStyle).toEqual(jianyingTextStyle);
+	});
+
+	it("removes malformed Jianying runtime references during project load", () => {
+		const normalized = normalizeTextElement({
+			element: textElement({
+				jianyingTextStyle: {
+					packagePath: "/private/cache/package",
+				} as unknown as TextElement["jianyingTextStyle"],
+			}),
+		}) as TextElement;
+
+		expect(normalized.jianyingTextStyle).toBeUndefined();
+	});
+
+	it("preserves an exact local font reference through project load", () => {
+		const fontAsset = {
+			kind: "local-font" as const,
+			source: "jianying-cache" as const,
+			assetId: `sha256:${"a".repeat(64)}`,
+			cssFamily: "QCutLocal_aaaaaaaaaaaaaaaaaaaa",
+			familyName: "文悦新青年体",
+			fullName: "文悦新青年体 W8",
+			postscriptName: "WenYue-XinQingNianTi-W8",
+		};
+		const tracks = normalizeLoadedTracks({
+			tracks: [
+				{
+					id: "text-track",
+					name: "Text",
+					type: "text",
+					elements: [
+						textElement({
+							fontFamily: fontAsset.cssFamily,
+							fontAsset,
+						}),
+					],
+				},
+			],
+		});
+
+		expect(tracks[0].elements[0]).toMatchObject({
+			fontFamily: fontAsset.cssFamily,
+			fontAsset,
+		});
+	});
+
 	it("normalizes canonical animation data while loading a project", () => {
 		const element = textElement({
 			textAnimations: {

@@ -13,6 +13,7 @@ import {
 	sampleCube,
 	type FilterLabCube,
 } from "../native-pipeline/filters/filter-lab-lut";
+import { decodeTextCube } from "../native-pipeline/filters/filter-lab-text-cube";
 
 /** Builds a `.vf` buffer the way Jianying writes one. */
 function encodeVf({
@@ -50,6 +51,21 @@ function identityCube({ size }: { size: number }): FilterLabCube {
 	return { size, values };
 }
 
+function serializeTextCube({ cube }: { cube: FilterLabCube }): string {
+	const rows = [
+		'TITLE "Identity"',
+		`LUT_3D_SIZE ${cube.size}`,
+		"DOMAIN_MIN 0 0 0",
+		"DOMAIN_MAX 1 1 1",
+	];
+	for (let index = 0; index < cube.values.length; index += 3) {
+		rows.push(
+			`${cube.values[index]} ${cube.values[index + 1]} ${cube.values[index + 2]}`
+		);
+	}
+	return rows.join("\n");
+}
+
 describe("filter lab LUT decoding", () => {
 	it("decodes a VF cube and preserves the red-fastest ordering", () => {
 		const size = 2;
@@ -69,6 +85,24 @@ describe("filter lab LUT decoding", () => {
 		const truncated = encodeVf({ size: 2, values: new Array(12).fill(0) });
 		expect(decodeVfCube({ data: truncated })).toBeNull();
 		expect(decodeVfCube({ data: Buffer.from("nope") })).toBeNull();
+	});
+
+	it("decodes a standard text cube with its declared domain", () => {
+		const decoded = decodeTextCube({
+			text: serializeTextCube({ cube: identityCube({ size: 2 }) }),
+		});
+		expect(decoded?.domainMin).toEqual([0, 0, 0]);
+		expect(decoded?.domainMax).toEqual([1, 1, 1]);
+		expect(sampleCube({ cube: decoded!, red: 1, green: 0, blue: 0 })).toEqual([
+			1, 0, 0,
+		]);
+	});
+
+	it("rejects malformed and one-dimensional text cubes", () => {
+		expect(decodeTextCube({ text: "LUT_3D_SIZE 2\n0 0 0\n" })).toBeNull();
+		expect(
+			decodeTextCube({ text: "LUT_1D_SIZE 2\nLUT_3D_SIZE 2\n" })
+		).toBeNull();
 	});
 
 	it("scores an identity cube against itself as zero", () => {
@@ -151,6 +185,40 @@ describe("filter lab LUT decoding", () => {
 			);
 			const loaded = await loadJianyingLut({ reference: references[0]! });
 			expect(loaded?.cube.size).toBe(2);
+			expect(loaded?.cube.values).toHaveLength(24);
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
+	});
+
+	it("discovers standard cubes in versioned AmazingFeature directories", async () => {
+		const root = await mkdtemp(join(tmpdir(), "qcut-filter-lab-text-"));
+		const resourceId = "7159161900389977382";
+		const version = "version-cube";
+		try {
+			const directory = join(
+				root,
+				resourceId,
+				version,
+				"AmazingFeature_2998",
+				"texture"
+			);
+			await mkdir(directory, { recursive: true });
+			await writeFile(
+				join(directory, "filter.cube"),
+				serializeTextCube({ cube: identityCube({ size: 2 }) })
+			);
+
+			const references = await listJianyingLutReferences({ root });
+			expect(references).toHaveLength(1);
+			expect(references[0]).toMatchObject({
+				fileName: "filter.cube",
+				resourceId,
+				role: "single",
+				size: 2,
+				version,
+			});
+			const loaded = await loadJianyingLut({ reference: references[0]! });
 			expect(loaded?.cube.values).toHaveLength(24);
 		} finally {
 			await rm(root, { recursive: true, force: true });

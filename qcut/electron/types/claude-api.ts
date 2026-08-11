@@ -1,4 +1,6 @@
 /** Shared type definitions for Claude Code Integration API. */
+import type { JianyingTextRuntimeReference } from "../jianying-text-runtime-contract.js";
+
 // Response Types
 
 export interface ClaudeAPIResponse<T> {
@@ -142,6 +144,7 @@ export interface ClaudeTrackOperationResponse {
 }
 
 export interface ClaudeTextProperties {
+	jianyingTextStyle?: JianyingTextRuntimeReference;
 	fontSize?: number;
 	fontFamily?: string;
 	color?: string;

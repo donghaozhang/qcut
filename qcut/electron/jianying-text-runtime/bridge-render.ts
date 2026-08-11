@@ -1,0 +1,410 @@
+import { createHash, randomUUID } from "node:crypto";
+import {
+	mkdir,
+	mkdtemp,
+	readFile,
+	rename,
+	rm,
+	stat,
+	writeFile,
+} from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import type { JianyingTextRuntimeRenderStrategy } from "../jianying-text-runtime-contract.js";
+import { readBoundedJianyingTextJson } from "../jianying-text-package-metadata.js";
+import type { ResolvedJianyingTextPackage } from "./package-resolver.js";
+import {
+	getEditedJianyingScriptPackage,
+	getHydratedJianyingScriptPackage,
+	prepareJianyingScriptContent,
+} from "./script-package-editor.js";
+import {
+	runJianyingTextProcess,
+	throwIfJianyingTextRenderCancelled,
+} from "./render-process.js";
+
+export interface JianyingTextBridgeRuntime {
+	bridgePath: string;
+	runtimeRoot: string;
+	runtimeFingerprint: string;
+}
+
+export interface JianyingTextRawSequenceRequest {
+	requestId: string;
+	packagePath: string;
+	packageKind: ResolvedJianyingTextPackage["packageKind"];
+	outputPath: string;
+	width: number;
+	height: number;
+	frameCount: number;
+	startTimestamp: number;
+	timestampStep: number;
+	content?: string;
+	fontPath?: string;
+	fontSize?: number;
+	scriptParameters?: string;
+}
+
+function bridgeTimeout({ frameCount }: { frameCount: number }) {
+	return Math.min(300_000, Math.max(20_000, 15_000 + frameCount * 350));
+}
+
+export function resolveJianyingTextBridgeLaunch({
+	runtime,
+}: {
+	runtime: JianyingTextBridgeRuntime;
+}): {
+	command: string;
+	args: string[];
+	environment: NodeJS.ProcessEnv;
+} {
+	const { DYLD_LIBRARY_PATH: _ignored, ...environment } = process.env;
+	return {
+		command: runtime.bridgePath,
+		args: [runtime.runtimeRoot],
+		environment,
+	};
+}
+
+async function requireRawSequenceSize({
+	outputPath,
+	width,
+	height,
+	frameCount,
+}: Pick<
+	JianyingTextRawSequenceRequest,
+	"outputPath" | "width" | "height" | "frameCount"
+>) {
+	const expected = width * height * 4 * frameCount;
+	const actual = (await stat(outputPath)).size;
+	if (actual !== expected) {
+		throw new Error(
+			`Jianying text runtime returned ${actual} RGBA bytes; expected ${expected}.`
+		);
+	}
+}
+
+export async function renderJianyingTextRawSequence({
+	runtime,
+	request,
+}: {
+	runtime: JianyingTextBridgeRuntime;
+	request: JianyingTextRawSequenceRequest;
+}) {
+	const segmentPayload =
+		request.packageKind === "ScriptInfoSticker"
+			? JSON.stringify({ path: request.packagePath })
+			: "";
+	const launch = resolveJianyingTextBridgeLaunch({ runtime });
+	await runJianyingTextProcess({
+		requestId: request.requestId,
+		command: launch.command,
+		args: launch.args,
+		timeoutMs: bridgeTimeout({ frameCount: request.frameCount }),
+		env: {
+			...launch.environment,
+			JY_TEXT_PACKAGE: request.packagePath,
+			JY_TEXT_OUTPUT: request.outputPath,
+			JY_TEXT_SEGMENT_TYPE:
+				request.packageKind === "ScriptInfoSticker" ? "10" : "3",
+			JY_TEXT_SEGMENT_PAYLOAD: segmentPayload,
+			JY_TEXT_SCRIPT_PARAMETERS: request.scriptParameters ?? "",
+			JY_TEXT_CONTENT: request.content ?? "",
+			JY_TEXT_FONT_PATH: request.fontPath ?? "",
+			JY_TEXT_FONT_SIZE: String(request.fontSize ?? 12),
+			JY_TEXT_TIMESTAMP: String(Math.round(request.startTimestamp)),
+			JY_TEXT_TIMESTAMP_STEP: String(request.timestampStep),
+			JY_TEXT_FRAME_COUNT: String(request.frameCount),
+			JY_VIDEO_WIDTH: String(request.width),
+			JY_VIDEO_HEIGHT: String(request.height),
+		},
+	});
+	await requireRawSequenceSize(request);
+}
+
+function scriptResources({
+	packageInfo,
+}: {
+	packageInfo: ResolvedJianyingTextPackage;
+}) {
+	if (!packageInfo.scriptResources) {
+		throw new Error("ScriptInfoSticker resources were not resolved.");
+	}
+	return packageInfo.scriptResources;
+}
+
+function strategyKey({
+	runtime,
+	packageInfo,
+	fontPath,
+}: {
+	runtime: JianyingTextBridgeRuntime;
+	packageInfo: ResolvedJianyingTextPackage;
+	fontPath: string;
+}) {
+	return createHash("sha256")
+		.update(runtime.runtimeFingerprint)
+		.update(packageInfo.packageHash)
+		.update(scriptResources({ packageInfo }).fingerprint)
+		.update(fontPath)
+		.digest("hex");
+}
+
+function strategyCachePath({ cacheKey }: { cacheKey: string }) {
+	return path.join(
+		os.homedir(),
+		"Library",
+		"Caches",
+		"QCut",
+		"jianying-text-runtime",
+		"strategies",
+		`${cacheKey}.json`
+	);
+}
+
+async function readCachedStrategy({ cacheKey }: { cacheKey: string }) {
+	try {
+		const value = JSON.parse(
+			await readFile(strategyCachePath({ cacheKey }), "utf8")
+		) as Record<string, unknown>;
+		return value.schemaVersion === 2 &&
+			value.cacheKey === cacheKey &&
+			(value.strategy === "runtime-parameters" ||
+				value.strategy === "preload-copy")
+			? value.strategy
+			: null;
+	} catch {
+		return null;
+	}
+}
+
+async function writeCachedStrategy({
+	cacheKey,
+	strategy,
+}: {
+	cacheKey: string;
+	strategy: "runtime-parameters" | "preload-copy";
+}) {
+	const destination = strategyCachePath({ cacheKey });
+	await mkdir(path.dirname(destination), { recursive: true });
+	const temporary = `${destination}.tmp-${randomUUID()}`;
+	await writeFile(
+		temporary,
+		`${JSON.stringify({
+			schemaVersion: 2,
+			cacheKey,
+			strategy,
+		})}\n`,
+		"utf8"
+	);
+	await rm(destination, { force: true });
+	await rename(temporary, destination);
+}
+
+function isVisibleTransparentFrame({ bytes }: { bytes: Buffer }) {
+	let visible = false;
+	let transparent = false;
+	for (let offset = 3; offset < bytes.length; offset += 4) {
+		const alpha = bytes[offset];
+		visible ||= alpha > 0;
+		transparent ||= alpha === 0;
+		if (visible && transparent) return true;
+	}
+	return false;
+}
+
+async function inspectRuntimeParameterEditing({
+	runtime,
+	requestId,
+	packageInfo,
+	fontPath,
+}: {
+	runtime: JianyingTextBridgeRuntime;
+	requestId: string;
+	packageInfo: ResolvedJianyingTextPackage;
+	fontPath: string;
+}) {
+	const temporary = await mkdtemp(
+		path.join(os.tmpdir(), "qcut-jianying-text-strategy-")
+	);
+	try {
+		const source = await readBoundedJianyingTextJson({
+			filePath: path.join(packageInfo.packagePath, "content.json"),
+		});
+		const resources = scriptResources({ packageInfo });
+		const edited = prepareJianyingScriptContent({
+			value: source,
+			content: "QCut 9Z 验证",
+			resourcePaths: resources.resourcePaths,
+			fontPath,
+		});
+		const hydratedPackagePath = await getHydratedJianyingScriptPackage({
+			packagePath: packageInfo.packagePath,
+			packageHash: packageInfo.packageHash,
+			resourcePaths: resources.resourcePaths,
+			resourceFingerprint: resources.fingerprint,
+			fontPath,
+		});
+		const defaultPath = path.join(temporary, "default.rgba");
+		const editedPath = path.join(temporary, "edited.rgba");
+		const timestamp =
+			Math.min(60, packageInfo.templateDuration * (2 / 3)) * 1_000_000;
+		const baseRequest = {
+			requestId,
+			packagePath: hydratedPackagePath,
+			packageKind: packageInfo.packageKind,
+			width: 256,
+			height: 256,
+			frameCount: 1,
+			startTimestamp: timestamp,
+			timestampStep: 0,
+		} as const;
+		await renderJianyingTextRawSequence({
+			runtime,
+			request: { ...baseRequest, outputPath: defaultPath },
+		});
+		await renderJianyingTextRawSequence({
+			runtime,
+			request: {
+				...baseRequest,
+				outputPath: editedPath,
+				scriptParameters: JSON.stringify(edited),
+			},
+		});
+		const [defaultBytes, editedBytes] = await Promise.all([
+			readFile(defaultPath),
+			readFile(editedPath),
+		]);
+		return isVisibleTransparentFrame({ bytes: editedBytes }) &&
+			!defaultBytes.equals(editedBytes)
+			? "runtime-parameters"
+			: "preload-copy";
+	} finally {
+		await rm(temporary, { recursive: true, force: true });
+	}
+}
+
+async function chooseScriptStrategy({
+	runtime,
+	requestId,
+	packageInfo,
+	fontPath,
+}: {
+	runtime: JianyingTextBridgeRuntime;
+	requestId: string;
+	packageInfo: ResolvedJianyingTextPackage;
+	fontPath: string;
+}): Promise<"runtime-parameters" | "preload-copy"> {
+	const cacheKey = strategyKey({ runtime, packageInfo, fontPath });
+	const cached = await readCachedStrategy({ cacheKey });
+	if (cached) return cached;
+	let strategy: "runtime-parameters" | "preload-copy" = "preload-copy";
+	try {
+		strategy = await inspectRuntimeParameterEditing({
+			runtime,
+			requestId,
+			packageInfo,
+			fontPath,
+		});
+	} catch {
+		throwIfJianyingTextRenderCancelled({ requestId });
+	}
+	await writeCachedStrategy({
+		cacheKey,
+		strategy,
+	});
+	return strategy;
+}
+
+export function resolveJianyingScriptEditStrategy({
+	runtime,
+	requestId,
+	packageInfo,
+	fontPath,
+}: {
+	runtime: JianyingTextBridgeRuntime;
+	requestId: string;
+	packageInfo: ResolvedJianyingTextPackage;
+	fontPath: string;
+}) {
+	return chooseScriptStrategy({
+		runtime,
+		requestId,
+		packageInfo,
+		fontPath,
+	});
+}
+
+export async function renderEditableJianyingScriptSequence({
+	runtime,
+	request,
+	packageInfo,
+	content,
+	fontPath,
+}: {
+	runtime: JianyingTextBridgeRuntime;
+	request: Omit<
+		JianyingTextRawSequenceRequest,
+		"packagePath" | "packageKind" | "scriptParameters"
+	>;
+	packageInfo: ResolvedJianyingTextPackage;
+	content: string;
+	fontPath: string;
+}): Promise<JianyingTextRuntimeRenderStrategy> {
+	const source = await readBoundedJianyingTextJson({
+		filePath: path.join(packageInfo.packagePath, "content.json"),
+	});
+	const resources = scriptResources({ packageInfo });
+	const edited = prepareJianyingScriptContent({
+		value: source,
+		content,
+		resourcePaths: resources.resourcePaths,
+		fontPath,
+	});
+	const hydratedPackagePath = await getHydratedJianyingScriptPackage({
+		packagePath: packageInfo.packagePath,
+		packageHash: packageInfo.packageHash,
+		resourcePaths: resources.resourcePaths,
+		resourceFingerprint: resources.fingerprint,
+		fontPath,
+	});
+	const strategy = await resolveJianyingScriptEditStrategy({
+		runtime,
+		requestId: request.requestId,
+		packageInfo,
+		fontPath,
+	});
+	if (strategy === "runtime-parameters") {
+		try {
+			await renderJianyingTextRawSequence({
+				runtime,
+				request: {
+					...request,
+					packagePath: hydratedPackagePath,
+					packageKind: "ScriptInfoSticker",
+					scriptParameters: JSON.stringify(edited),
+				},
+			});
+			return strategy;
+		} catch {
+			throwIfJianyingTextRenderCancelled({ requestId: request.requestId });
+		}
+	}
+	const packagePath = await getEditedJianyingScriptPackage({
+		packagePath: packageInfo.packagePath,
+		packageHash: packageInfo.packageHash,
+		content,
+		resourcePaths: resources.resourcePaths,
+		resourceFingerprint: resources.fingerprint,
+		fontPath,
+	});
+	await renderJianyingTextRawSequence({
+		runtime,
+		request: {
+			...request,
+			packagePath,
+			packageKind: "ScriptInfoSticker",
+		},
+	});
+	return "preload-copy";
+}

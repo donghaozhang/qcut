@@ -103,6 +103,24 @@ describe("native color filter", () => {
 		expect(readFileSync(lutFsPath, "utf8")).toContain("LUT_3D_SIZE 2");
 	});
 
+	it("materializes dual LUTs as one skin-mask blended export cube", () => {
+		const input = visual();
+		const skinValues = Array.from({ length: 3 ** 3 }, () => [1, 0, 0]).flat();
+		input.color!.lut.dual = {
+			maskKind: "skin-tone-v1",
+			skinCube: {
+				size: 3,
+				domainMin: [0, 0, 0],
+				domainMax: [1, 1, 1],
+				values: skinValues,
+			},
+		};
+		const filter = buildAdjustmentFilter(input);
+		const escapedPath = /lut3d=file='([^']+)'/.exec(filter)?.[1] ?? "";
+		const lutPath = escapedPath.replace(/\\([:'])/g, "$1");
+		expect(readFileSync(lutPath, "utf8")).toContain("LUT_3D_SIZE 33");
+	});
+
 	it("emits per-frame expressions for basic and smart keyframes", () => {
 		const input = visual();
 		input.color!.smart = {

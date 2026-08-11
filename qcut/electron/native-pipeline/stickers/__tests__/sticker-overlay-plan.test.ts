@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { parseStickerOverlayPlan } from "../sticker-overlay-plan";
 
 describe("sticker overlay plan", () => {

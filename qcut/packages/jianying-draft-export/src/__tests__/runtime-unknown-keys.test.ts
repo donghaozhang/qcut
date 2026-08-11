@@ -444,7 +444,16 @@ function createNormalizedSnapshot({
 						color: "#ffffff",
 						content: "QCut",
 						duration: 2,
-						fontFamily: "Arial",
+						fontAsset: {
+							assetId: `sha256:${"a".repeat(64)}`,
+							cssFamily: "QCutLocal_aaaaaaaaaaaaaaaaaaaa",
+							familyName: "测试字体",
+							fullName: "测试字体 Regular",
+							kind: "local-font",
+							postscriptName: "Test-Font-Regular",
+							source: "jianying-cache",
+						},
+						fontFamily: "QCutLocal_aaaaaaaaaaaaaaaaaaaa",
 						fontSize: 64,
 						fontStyle: "normal",
 						fontWeight: "normal",
@@ -620,6 +629,16 @@ describe("snapshot runtime property allowlists", () => {
 				},
 			},
 			{
+				expectedPath: "$.snapshot.tracks[1].elements[0].fontAsset",
+				mutate: (value) => {
+					const element = value.tracks[1]?.elements[0];
+					if (!element || element.type !== "text" || !element.fontAsset) {
+						throw new Error("Expected local text font asset.");
+					}
+					Object.assign(element.fontAsset, { postcriptName: "typo" });
+				},
+			},
+			{
 				expectedPath: "$.snapshot.tracks[2].elements[0].style.position",
 				mutate: (value) => {
 					const element = value.tracks[2]?.elements[0];
@@ -708,7 +727,8 @@ describe("snapshot runtime property allowlists", () => {
 			name: "StandaloneJianyingDraftRequestValidationError",
 		});
 
-		element.color.lut.cube.size = 33;
+		// One past MAX_COLOR_CUBE_SIZE (65) so the size check itself trips.
+		element.color.lut.cube.size = 66;
 		await expect(
 			session.plan({
 				input: {

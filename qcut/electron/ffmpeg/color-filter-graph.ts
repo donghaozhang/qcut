@@ -24,6 +24,7 @@ import {
 } from "./color-curve-shape";
 import { buildColorShapeFilterGraph } from "./color-shape-keyframe-graph";
 import { buildSmartFilters } from "./color-smart-filter";
+import { buildVideoColorMultiPassGraph } from "./color-multi-pass-filter";
 
 export interface VideoColorFilterGraph {
 	filterSteps: string[];
@@ -124,12 +125,14 @@ export function buildVideoColorFilterGraph({
 			const rawPath = materializeVideoCubeLut({
 				name: color.lut.name,
 				cube: color.lut.cube,
+				dual: color.lut.dual,
 				intensity: 100,
 				skinProtection: 0,
 			});
 			const protectedPath = materializeVideoCubeLut({
 				name: color.lut.name,
 				cube: color.lut.cube,
+				dual: color.lut.dual,
 				intensity: 100,
 				skinProtection: skinAnimated ? 100 : color.lut.skinProtection,
 			});
@@ -165,6 +168,14 @@ export function buildVideoColorFilterGraph({
 			current = output;
 		}
 	}
+
+	const multiPass = buildVideoColorMultiPassGraph({
+		settings: color.multiPass,
+		inputLabel: current,
+		labelPrefix: prefix,
+	});
+	filterSteps.push(...multiPass.filterSteps);
+	current = multiPass.outputLabel;
 
 	append({
 		filters: buildHslFilters({

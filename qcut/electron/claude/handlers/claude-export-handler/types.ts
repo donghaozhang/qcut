@@ -3,6 +3,8 @@
  * @module electron/claude/handlers/claude-export-handler/types
  */
 
+import type { JianyingTextRuntimeReference } from "../../../jianying-text-runtime-contract.js";
+
 export const EXPORT_JOB_STATUS = {
 	queued: "queued",
 	exporting: "exporting",
@@ -132,6 +134,32 @@ export interface TextOverlay {
 	animationType: "none" | "fade" | "slide-up" | "slide-left";
 	animationDuration: number;
 	animationDelay: number;
+}
+
+export interface JianyingTextOverlay {
+	id: string;
+	content: string;
+	reference: JianyingTextRuntimeReference;
+	startTime: number;
+	endTime: number;
+	sourceStart: number;
+	elementDuration: number;
+	fontSize: number;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	rotation: number;
+	opacity: number;
+	blendMode:
+		| "normal"
+		| "multiply"
+		| "screen"
+		| "overlay"
+		| "darken"
+		| "lighten";
+	trackOrder: number;
+	elementOrder: number;
 }
 
 export interface ProgressEventPayload {

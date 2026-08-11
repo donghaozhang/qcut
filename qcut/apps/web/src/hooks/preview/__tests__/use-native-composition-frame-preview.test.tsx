@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { platform } from "@qcut/platform-core";
 import type { ActiveElement } from "@/components/editor/preview-panel/types";
 import type { MediaElement, TimelineTrack } from "@/types/timeline";
+import type { JianyingTextRuntimeRenderRequest } from "@/types/electron";
 import { extractStickerSources } from "@/lib/export-cli/sources";
 import { buildTimelineAssLayers } from "@/lib/export/export-engine-cli-text";
 import {
@@ -142,6 +143,60 @@ function tracksWithSticker(): TimelineTrack[] {
 	];
 }
 
+function tracksWithJianyingText(): TimelineTrack[] {
+	return [
+		{
+			id: "track-1",
+			name: "Main",
+			type: "media",
+			elements: [mediaElement()],
+		},
+		{
+			id: "text-track",
+			name: "Text",
+			type: "text",
+			elements: [
+				{
+					id: "jianying-text",
+					type: "text",
+					name: "Jianying text",
+					content: "动态花字",
+					startTime: 0,
+					duration: 3,
+					trimStart: 0,
+					trimEnd: 0,
+					fontSize: 72,
+					fontFamily: "PingFang SC",
+					color: "#ffffff",
+					backgroundColor: "transparent",
+					textAlign: "center",
+					fontWeight: "bold",
+					fontStyle: "normal",
+					textDecoration: "none",
+					x: 10,
+					y: -5,
+					width: 512,
+					height: 512,
+					rotation: 0,
+					opacity: 1,
+					blendMode: "normal",
+					jianyingTextStyle: {
+						schemaVersion: 1,
+						source: "jianying-cache",
+						packageKind: "ScriptInfoSticker",
+						resourceId: "7280819425605930279",
+						packageHash: "f46ef1dfceca013a755b566632c150bf",
+						editMode: "runtime-with-preload-fallback",
+						slotMapping: "line-to-widget",
+						timeMapping: "stretch",
+						templateDuration: 3,
+					},
+				},
+			],
+		},
+	] as TimelineTrack[];
+}
+
 describe("native composition frame preview", () => {
 	beforeEach(() => {
 		vi.useRealTimers();
@@ -182,6 +237,7 @@ describe("native composition frame preview", () => {
 		cancelVideoFramePreview.mockResolvedValue(false);
 		URL.createObjectURL = createObjectURL;
 		URL.revokeObjectURL = revokeObjectURL;
+		window.electronAPI = undefined;
 	});
 
 	it("enables exact preview for edited media or an active transition", () => {
@@ -328,6 +384,44 @@ describe("native composition frame preview", () => {
 		).toBe(false);
 	});
 
+	it("keeps exact local-font text on the browser renderer", () => {
+		expect(
+			canUseNativeCompositionPreview({
+				activeElements: [
+					activeVideo(),
+					{
+						element: {
+							id: "text-local-font",
+							type: "text",
+							name: "Local font title",
+							startTime: 0,
+							duration: 5,
+							trimStart: 0,
+							trimEnd: 0,
+							fontAsset: {
+								kind: "local-font",
+								source: "jianying-cache",
+								assetId: `sha256:${"a".repeat(64)}`,
+								cssFamily: "QCutLocal_aaaaaaaaaaaaaaaaaaaa",
+								familyName: "文悦新青年体",
+								fullName: "文悦新青年体 W8",
+								postscriptName: "WenYue-XinQingNianTi-W8",
+							},
+						} as ActiveElement["element"],
+						track: {
+							id: "text-track",
+							name: "Text",
+							type: "text",
+							elements: [],
+						},
+						mediaItem: null,
+					},
+				],
+				hasActiveTransition: true,
+			})
+		).toBe(false);
+	});
+
 	it("renders the exact timeline frame and exposes its object URL", async () => {
 		const { result } = renderHook(() =>
 			useNativeCompositionFramePreview(hookProps())
@@ -343,6 +437,71 @@ describe("native composition frame preview", () => {
 			})
 		);
 		expect(result.current.url).toBe("blob:composition-preview");
+	});
+
+	it("renders only the active Jianying frame for paused composition", async () => {
+		const renderJianyingText = vi.fn(
+			async (request: JianyingTextRuntimeRenderRequest) => ({
+				requestId: request.requestId,
+				resourceId: request.reference.resourceId,
+				packageHash: request.reference.packageHash,
+				templateDuration: 3,
+				frameCount: request.frameCount,
+				strategy: "preload-copy" as const,
+				cacheHit: false,
+				x: 714,
+				y: 279,
+				width: 512,
+				height: 512,
+				source: {
+					kind: "image-sequence" as const,
+					path: "/tmp/jianying/frame-%06d.png",
+					frameRate: 30,
+				},
+			})
+		);
+		const cancelJianyingText = vi.fn(async () => true);
+		window.electronAPI = {
+			platform: "darwin",
+			jianyingTextRuntime: {
+				inspect: vi.fn(),
+				render: renderJianyingText,
+				cancel: cancelJianyingText,
+			},
+		} as never;
+		const { result, unmount } = renderHook(() =>
+			useNativeCompositionFramePreview(
+				hookProps({ tracks: tracksWithJianyingText() })
+			)
+		);
+		await waitFor(() => expect(result.current.status).toBe("ready"));
+		expect(renderJianyingText).toHaveBeenCalledWith(
+			expect.objectContaining({
+				content: "动态花字",
+				sourceStart: 0.4,
+				elementDuration: 3,
+				frameCount: 1,
+				fps: 30,
+			})
+		);
+		expect(buildTimelineAssLayers).toHaveBeenCalledWith(
+			expect.objectContaining({
+				excludedTextElementIds: new Set(["jianying-text"]),
+			})
+		);
+		expect(renderVideoCompositionFramePreview).toHaveBeenCalledWith(
+			expect.objectContaining({
+				textRasterLayers: [
+					expect.objectContaining({
+						elementId: "jianying-text",
+						x: 714,
+						y: 279,
+					}),
+				],
+			})
+		);
+		unmount();
+		await waitFor(() => expect(cancelJianyingText).toHaveBeenCalled());
 	});
 
 	it("reuses export text and sticker sources and cleans its temp session", async () => {

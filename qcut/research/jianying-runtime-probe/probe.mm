@@ -4,6 +4,7 @@
 #include "graphics-probe.h"
 #include "filter-probe.h"
 #include "probe-utils.h"
+#include "text-probe.h"
 #include "transition-probe.h"
 #include "video-transition-probe.h"
 
@@ -19,6 +20,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace {
 
@@ -124,15 +126,53 @@ using jianying_probe::resolveSymbol;
   return value;
 }
 
-[[nodiscard]] bool optionalBooleanEnvironment(const char* name) {
+[[nodiscard]] int optionalNonNegativeIntegerEnvironment(const char* name) {
+  const char* rawValue = std::getenv(name);
+  if (rawValue == nullptr) {
+    return 0;
+  }
+  const std::string value(rawValue);
+  std::size_t parsedLength = 0;
+  long long parsed = 0;
+  try {
+    if (value.empty()) {
+      throw std::invalid_argument("empty");
+    }
+    parsed = std::stoll(value, &parsedLength);
+  } catch (const std::exception&) {
+    throw std::runtime_error(std::string(name) +
+                             " must be a non-negative integer");
+  }
+  if (parsedLength != value.size() || parsed < 0 ||
+      parsed > std::numeric_limits<int>::max()) {
+    throw std::runtime_error(std::string(name) +
+                             " must be a non-negative integer");
+  }
+  return static_cast<int>(parsed);
+}
+
+[[nodiscard]] std::optional<bool> optionalBooleanOverrideEnvironment(
+    const char* name) {
   const char* value = std::getenv(name);
-  if (value == nullptr || std::string_view(value) == "0") {
+  if (value == nullptr) {
+    return std::nullopt;
+  }
+  if (std::string_view(value) == "0") {
     return false;
   }
   if (std::string_view(value) == "1") {
     return true;
   }
   throw std::runtime_error(std::string(name) + " must be 0 or 1");
+}
+
+[[nodiscard]] bool optionalBooleanEnvironment(const char* name) {
+  return optionalBooleanOverrideEnvironment(name).value_or(false);
+}
+
+[[nodiscard]] std::string optionalStringEnvironment(const char* name) {
+  const char* value = std::getenv(name);
+  return value == nullptr ? std::string{} : std::string(value);
 }
 
 [[nodiscard]] int optionalByteEnvironment(const char* name) {
@@ -402,6 +442,11 @@ void configure(ObjectStorage<kConfigStorageSize>& config,
             optionalByteEnvironment("JY_SWING_OUTPUT_TEXTURE_DATA_CODE"),
         .algorithmCacheFlag =
             optionalByteEnvironment("JY_ALGORITHM_CACHE_FLAG"),
+        .featureParameters =
+            optionalStringEnvironment("JY_FILTER_FEATURE_PARAMS"),
+        .preferExactModelFilename =
+            optionalBooleanEnvironment("JY_PREFER_EXACT_MODEL_FILENAME"),
+        .exportMode = optionalBooleanEnvironment("JY_EXPORT_MODE"),
         .enableSwingSimplify =
             std::getenv("JY_ENABLE_SWING_SIMPLIFY") == nullptr ||
             optionalBooleanEnvironment("JY_ENABLE_SWING_SIMPLIFY"),
@@ -413,10 +458,107 @@ void configure(ObjectStorage<kConfigStorageSize>& config,
             optionalBooleanEnvironment("JY_SWING_MANAGER_CREATE_OPTION"),
         .enableParallelAsyncSwing =
             optionalBooleanEnvironment("JY_ENABLE_PARALLEL_ASYNC_SWING"),
+        .skinSegUseSimdOptim = optionalBooleanOverrideEnvironment(
+            "JY_ENABLE_SKIN_SEG_USE_SIMD_OPTIM"),
+        .stageDelayMilliseconds = optionalNonNegativeIntegerEnvironment(
+            "JY_FILTER_STAGE_DELAY_MS"),
+        .postSeekDelayMilliseconds = optionalNonNegativeIntegerEnvironment(
+            "JY_FILTER_POST_SEEK_DELAY_MS"),
     });
     std::cout << "[filter] rendered " << result.renderedFrames << '/'
               << result.requestedFrames << " frames\n";
     return result.renderedFrames == result.requestedFrames ? 0 : 9;
+  }
+
+  if (mode == "text-frame") {
+    const fs::path packagePath = requireEnvironment("JY_TEXT_PACKAGE");
+    if (!fs::is_directory(packagePath)) {
+      throw std::runtime_error(
+          "JY_TEXT_PACKAGE must name a package directory");
+    }
+    int segmentType = 3;
+    if (const char* value = std::getenv("JY_TEXT_SEGMENT_TYPE")) {
+      std::size_t parsedLength = 0;
+      const std::string text(value);
+      const long parsed = std::stol(text, &parsedLength);
+      if (parsedLength != text.size() || parsed < 0 || parsed > 10) {
+        throw std::runtime_error(
+            "JY_TEXT_SEGMENT_TYPE must be an integer from 0 to 10");
+      }
+      segmentType = static_cast<int>(parsed);
+    }
+    std::int64_t timestamp = 500'000;
+    if (const char* value = std::getenv("JY_TEXT_TIMESTAMP")) {
+      std::size_t parsedLength = 0;
+      const std::string text(value);
+      const long long parsed = std::stoll(text, &parsedLength);
+      if (parsedLength != text.size() || parsed < 0 || parsed > 60'000'000) {
+        throw std::runtime_error(
+            "JY_TEXT_TIMESTAMP must be an integer from 0 to 60000000");
+      }
+      timestamp = parsed;
+    }
+    int resolutionType = -1;
+    if (const char* value = std::getenv("JY_TEXT_RESOLUTION_TYPE")) {
+      std::size_t parsedLength = 0;
+      const std::string text(value);
+      const long parsed = std::stol(text, &parsedLength);
+      if (parsedLength != text.size() || parsed < -1 || parsed > 8) {
+        throw std::runtime_error(
+            "JY_TEXT_RESOLUTION_TYPE must be an integer from -1 to 8");
+      }
+      resolutionType = static_cast<int>(parsed);
+    }
+    double fontSize = 12.0;
+    if (const char* value = std::getenv("JY_TEXT_FONT_SIZE")) {
+      std::size_t parsedLength = 0;
+      const std::string text(value);
+      const double parsed = std::stod(text, &parsedLength);
+      if (parsedLength != text.size() || parsed <= 0.0 || parsed > 1000.0) {
+        throw std::runtime_error(
+            "JY_TEXT_FONT_SIZE must be a number from 0 to 1000");
+      }
+      fontSize = parsed;
+    }
+    std::vector<std::string> stickerParams;
+    for (int index = 0; index < 9; ++index) {
+      const std::string variableName =
+          "JY_TEXT_PARAM_" + std::to_string(index);
+      const char* value = std::getenv(variableName.c_str());
+      if (value == nullptr) break;
+      stickerParams.emplace_back(value);
+    }
+    const auto result = jianying_probe::renderTextFrame({
+        .runtimeRoot = runtimeRoot,
+        .packagePath = packagePath,
+        .outputPath = requireEnvironment("JY_TEXT_OUTPUT"),
+        .payloadOutputPath =
+            std::getenv("JY_TEXT_PAYLOAD_OUTPUT") == nullptr
+                ? fs::path()
+                : fs::path(std::getenv("JY_TEXT_PAYLOAD_OUTPUT")),
+        .fontPath = std::getenv("JY_TEXT_FONT_PATH") == nullptr
+                        ? fs::path()
+                        : fs::path(std::getenv("JY_TEXT_FONT_PATH")),
+        .segmentPayload = std::getenv("JY_TEXT_SEGMENT_PAYLOAD") == nullptr
+                              ? std::string()
+                              : std::string(
+                                    std::getenv("JY_TEXT_SEGMENT_PAYLOAD")),
+        .scriptParameters =
+            std::getenv("JY_TEXT_SCRIPT_PARAMETERS") == nullptr
+                ? std::string()
+                : std::string(std::getenv("JY_TEXT_SCRIPT_PARAMETERS")),
+        .text = std::getenv("JY_TEXT_CONTENT") == nullptr
+                    ? std::string()
+                    : std::string(std::getenv("JY_TEXT_CONTENT")),
+        .stickerParams = std::move(stickerParams),
+        .fontSize = fontSize,
+        .width = requirePositiveIntegerEnvironment("JY_VIDEO_WIDTH"),
+        .height = requirePositiveIntegerEnvironment("JY_VIDEO_HEIGHT"),
+        .segmentType = segmentType,
+        .resolutionType = resolutionType,
+        .timestamp = timestamp,
+    });
+    return result.visibleAndTransparent ? 0 : 10;
   }
 
   if (!inspectConfig(symbols, sandboxRoot)) {
@@ -446,7 +588,8 @@ int main(int argc, char* argv[]) {
       std::cerr << "Usage: " << argv[0]
                 << " <runtime-root> "
                    "<inspect|config|launch|gpu|textures|transition|transition-"
-                   "load|transition-frame|transition-video|filter-sequence>\n";
+                   "load|transition-frame|transition-video|filter-sequence|"
+                   "text-frame>\n";
       return 2;
     }
 

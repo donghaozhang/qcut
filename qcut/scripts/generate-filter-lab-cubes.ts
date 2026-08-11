@@ -7,7 +7,7 @@
  *   bun run scripts/generate-filter-lab-cubes.ts
  */
 
-import { writeFileSync } from "node:fs";
+import { existsSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { buildFilterCube } from "../apps/web/src/lib/filters/filter-lut";
 import { FILTER_PRESETS } from "../apps/web/src/lib/filters/filter-registry";
@@ -29,13 +29,31 @@ const entries = FILTER_PRESETS.map((preset) => {
 	};
 });
 
+const json = `${JSON.stringify(entries)}\n`;
+const repoRoot = join(import.meta.dir, "..");
+const fileName = "filter-lab-cubes.generated.json";
+
 const outputPath = join(
-	import.meta.dir,
-	"..",
+	repoRoot,
 	"electron",
 	"native-pipeline",
 	"filters",
-	"filter-lab-cubes.generated.json"
+	fileName
 );
-writeFileSync(outputPath, `${JSON.stringify(entries)}\n`, "utf8");
+writeFileSync(outputPath, json, "utf8");
 console.log(`Generated ${entries.length} filter lab cubes at ${outputPath}`);
+
+// The compiled CLI reads the bake next to its own __dirname, so mirror it into
+// dist/electron when a build exists (tsc only emits .ts files, never this JSON).
+const distDir = join(
+	repoRoot,
+	"dist",
+	"electron",
+	"native-pipeline",
+	"filters"
+);
+if (existsSync(distDir)) {
+	const distPath = join(distDir, fileName);
+	writeFileSync(distPath, json, "utf8");
+	console.log(`Copied filter lab cubes to ${distPath}`);
+}

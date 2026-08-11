@@ -4,9 +4,11 @@ import { mediaMaskSvgUrl } from "@/lib/video/media-mask-svg";
 import { hasMediaColorEdits } from "./color-properties";
 import { buildColorCssFilter } from "./color-rendering";
 import { processColorImageData } from "./color-pixel-processor";
+import { reportColorDegradation } from "./color-degradation";
 import { gradeFrameOnGpu } from "./gpu-color-path";
 
 const GRADE_MASK_CACHE_LIMIT = 8;
+let cssFallbackWarned = false;
 const gradeMaskImageCache = new Map<string, Promise<HTMLImageElement>>();
 const gradeMaskCache = new Map<
 	string,
@@ -216,7 +218,18 @@ export async function drawColorGradedSourceWithMasks({
 			0,
 			0
 		);
-	} catch {
+	} catch (error) {
+		if (!cssFallbackWarned) {
+			cssFallbackWarned = true;
+			console.warn(
+				"[color] Pixel-accurate grading unavailable (likely tainted canvas); falling back to CSS filter approximation.",
+				error
+			);
+		}
+		reportColorDegradation({
+			reason: "css-fallback",
+			detail: error instanceof Error ? error.message : String(error),
+		});
 		frameContext.clearRect(0, 0, pixelWidth, pixelHeight);
 		drawCssFallback({
 			context: frameContext,

@@ -126,4 +126,28 @@ describe("fitTextElementBoxToContent", () => {
 		const element = createTextElement({ overrides: { content: "   " } });
 		expect(fitTextElementBoxToContent({ element })).toBe(element);
 	});
+
+	it("preserves the native Jianying runtime canvas", () => {
+		const element = createTextElement({
+			overrides: {
+				content: "花字",
+				width: 1024,
+				height: 512,
+				jianyingTextStyle: {
+					schemaVersion: 1,
+					source: "jianying-cache",
+					packageKind: "ScriptInfoSticker",
+					resourceId: "7328639616670649634",
+					packageHash: "a".repeat(32),
+					editMode: "runtime-with-preload-fallback",
+					slotMapping: "line-to-widget",
+					timeMapping: "stretch",
+					templateDuration: 3,
+				},
+			},
+		});
+
+		expect(fitTextElementBoxToContent({ element })).toBe(element);
+		expect(element).toMatchObject({ width: 1024, height: 512 });
+	});
 });

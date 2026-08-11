@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { buildFilterCube } from "../../../../apps/web/src/lib/filters/filter-lut";
 import { getFilterPresetsByCategory } from "../../../../apps/web/src/lib/filters/filter-registry";
 import {
@@ -27,7 +27,24 @@ describe("CLI portrait filter catalog", () => {
 				skinProtection: source.skinProtection ?? 0,
 				extras: source.extras ?? {},
 			});
-			expect(generated?.cube).toEqual(buildFilterCube({ preset: source }));
+			// The baked values were generated under bun (JavaScriptCore); node's
+			// V8 rounds transcendentals differently at the last bit, so compare
+			// values with a ULP-scale tolerance and everything else exactly.
+			const expectedCube = buildFilterCube({ preset: source });
+			const { values: actualValues, ...actualRest } = generated?.cube ?? {
+				values: [],
+			};
+			const { values: expectedValues, ...expectedRest } = expectedCube;
+			expect(actualRest).toEqual(expectedRest);
+			expect(actualValues).toHaveLength(expectedValues.length);
+			let maxDelta = 0;
+			for (let index = 0; index < expectedValues.length; index += 1) {
+				maxDelta = Math.max(
+					maxDelta,
+					Math.abs((actualValues[index] ?? Number.NaN) - expectedValues[index])
+				);
+			}
+			expect(maxDelta).toBeLessThan(1e-12);
 		}
 	});
 

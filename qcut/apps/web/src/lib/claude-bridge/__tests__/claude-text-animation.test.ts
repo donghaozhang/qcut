@@ -261,4 +261,52 @@ describe("Claude text animation bridge", () => {
 			textAnimations()
 		);
 	});
+
+	it("round-trips only stable Jianying text references", () => {
+		const reference = {
+			schemaVersion: 1 as const,
+			source: "jianying-cache" as const,
+			packageKind: "ScriptInfoSticker" as const,
+			resourceId: "7328639616670649634",
+			packageHash: "A".repeat(32),
+			editMode: "runtime-with-preload-fallback" as const,
+			slotMapping: "line-to-widget" as const,
+			timeMapping: "stretch" as const,
+			templateDuration: 3,
+			packagePath: "/private/jianying/cache",
+		};
+		const element: TextElement = {
+			...storeMocks.state.tracks[0].elements[0],
+			jianyingTextStyle: reference,
+		};
+
+		const exported = formatTracksForExport({
+			tracks: [
+				{
+					id: "text-track",
+					name: "Text",
+					type: "text",
+					elements: [element],
+				},
+			],
+			fps: 30,
+		});
+		const exportedReference = exported[0].elements[0].jianyingTextStyle;
+
+		expect(exportedReference).toEqual({
+			schemaVersion: 1,
+			source: "jianying-cache",
+			packageKind: "ScriptInfoSticker",
+			resourceId: "7328639616670649634",
+			packageHash: "a".repeat(32),
+			editMode: "runtime-with-preload-fallback",
+			slotMapping: "line-to-widget",
+			timeMapping: "stretch",
+			templateDuration: 3,
+		});
+		expect(JSON.stringify(exportedReference)).not.toContain("/private");
+		expect(exported[0].elements[0].style?.jianyingTextStyle).toEqual(
+			exportedReference
+		);
+	});
 });

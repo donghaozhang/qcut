@@ -1,4 +1,5 @@
 import type { ClaudeTimeline } from "../../../types/claude-api.js";
+import { hasJianyingTextStyleCandidate } from "./jianying-text-overlay.js";
 import type { TextOverlay } from "./types.js";
 
 function numberValue(
@@ -29,7 +30,8 @@ export function collectTextOverlays(timeline: ClaudeTimeline): TextOverlay[] {
 		for (const source of track.elements) {
 			if (
 				source.hidden ||
-				!["text", "captions", "markdown"].includes(source.type)
+				!["text", "captions", "markdown"].includes(source.type) ||
+				hasJianyingTextStyleCandidate({ source })
 			) {
 				continue;
 			}

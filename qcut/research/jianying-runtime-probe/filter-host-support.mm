@@ -65,7 +65,8 @@ void OpenGlContext::printCurrent(std::string_view stage) const {
             << " CGL context=" << CGLGetCurrentContext() << '\n';
 }
 
-ModelCatalog::ModelCatalog(const fs::path& directory) {
+ModelCatalog::ModelCatalog(const fs::path& directory, bool preferExactFilename)
+    : preferExactFilename_(preferExactFilename) {
   if (!fs::is_directory(directory)) {
     throw std::runtime_error("model directory does not exist: " +
                              directory.string());
@@ -93,15 +94,30 @@ char* ModelCatalog::resolve(const char* directory, const char* name) const {
     return nullptr;
   }
 
-  const auto match = std::find_if(
-      paths_.begin(), paths_.end(), [family](const std::string& path) {
-        const std::string filename = fs::path(path).filename().string();
-        if (!filename.starts_with(family)) {
-          return false;
-        }
-        return family != "tt_face_" ||
-               !filename.starts_with("tt_face_extra_");
-      });
+  auto match = paths_.end();
+  std::string_view resolution = "family fallback";
+  if (preferExactFilename_ && name != nullptr) {
+    const fs::path requestedFilename = fs::path(name).filename();
+    match = std::find_if(
+        paths_.begin(), paths_.end(),
+        [&requestedFilename](const std::string& path) {
+          return fs::path(path).filename() == requestedFilename;
+        });
+    if (match != paths_.end()) {
+      resolution = "exact filename";
+    }
+  }
+  if (match == paths_.end()) {
+    match = std::find_if(
+        paths_.begin(), paths_.end(), [family](const std::string& path) {
+          const std::string filename = fs::path(path).filename().string();
+          if (!filename.starts_with(family)) {
+            return false;
+          }
+          return family != "tt_face_" ||
+                 !filename.starts_with("tt_face_extra_");
+        });
+  }
   if (match == paths_.end()) {
     std::cerr << "[resource] missing family " << family
               << " for request = " << request << '\n';
@@ -109,7 +125,8 @@ char* ModelCatalog::resolve(const char* directory, const char* name) const {
   }
 
   const std::string resourceUrl = "file://" + *match;
-  std::cerr << "[resource] " << request << " -> " << resourceUrl << '\n';
+  std::cerr << "[resource] " << request << " -> " << resourceUrl << " ("
+            << resolution << ")\n";
   char* result = static_cast<char*>(std::malloc(resourceUrl.size() + 1));
   if (result == nullptr) {
     return nullptr;

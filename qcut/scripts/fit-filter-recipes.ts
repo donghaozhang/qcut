@@ -223,7 +223,7 @@ function gridSamples({ weight }: { weight: number }): Sample[] {
 	return out;
 }
 
-function fit({
+function fitLeastSquares({
 	samples,
 	cube,
 }: {
@@ -431,7 +431,9 @@ async function fitMappedPresets({
 		const preset = presetsById.get(entry.presetId);
 		if (!reference || !preset) continue;
 		const cube = reference.cube as Cube;
-		const fitted = toRecipe({ coefficients: fit({ samples: training, cube }) });
+		const fitted = toRecipe({
+			coefficients: fitLeastSquares({ samples: training, cube }),
+		});
 		emitted[entry.presetId] = fitted;
 		rows.push({
 			presetId: entry.presetId,
@@ -520,7 +522,9 @@ async function main() {
 
 	for (const reference of references) {
 		const cube = reference.cube as Cube;
-		const recipe = toRecipe({ coefficients: fit({ samples: training, cube }) });
+		const recipe = toRecipe({
+			coefficients: fitLeastSquares({ samples: training, cube }),
+		});
 		priorScores.push(scoreRecipe({ recipe, cube, samples: prior }).rmse);
 		gridScores.push(scoreRecipe({ recipe, cube, samples: gridProbe }).rmse);
 		emitted.push({ resourceId: reference.resourceId, recipe });

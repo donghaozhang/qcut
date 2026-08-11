@@ -8,7 +8,10 @@
  */
 
 import type { TimelineElement, TimelineTrack } from "@/types/timeline";
-import { normalizeTextAnimations } from "@qcut/editor-core";
+import {
+	normalizeJianyingTextStyleReference,
+	normalizeTextAnimations,
+} from "@qcut/editor-core";
 import { clampMarkdownDuration } from "@/lib/markdown";
 import {
 	DEFAULT_MEDIA_MASK,
@@ -133,28 +136,42 @@ export function normalizeTextElement({
 	fps?: number;
 }): TimelineElement {
 	if (element.type !== "text") return element;
+	const normalizedJianyingTextStyle = normalizeJianyingTextStyleReference({
+		value: element.jianyingTextStyle,
+	});
+	const normalizedElement =
+		element.jianyingTextStyle === undefined &&
+		normalizedJianyingTextStyle === undefined
+			? element
+			: {
+					...element,
+					jianyingTextStyle: normalizedJianyingTextStyle,
+				};
 
-	const normalization = normalizeTextAnimations({ element, fps });
+	const normalization = normalizeTextAnimations({
+		element: normalizedElement,
+		fps,
+	});
 	if (normalization.source === "unsupported") {
-		return element;
+		return normalizedElement;
 	}
 	if (
 		normalization.source === "legacy" &&
-		element.textAnimations === undefined
+		normalizedElement.textAnimations === undefined
 	) {
-		return element;
+		return normalizedElement;
 	}
 	if (normalization.animation) {
 		return {
-			...element,
+			...normalizedElement,
 			textAnimations: normalization.animation,
 		};
 	}
-	if (element.textAnimations === undefined) {
-		return element;
+	if (normalizedElement.textAnimations === undefined) {
+		return normalizedElement;
 	}
 	return {
-		...element,
+		...normalizedElement,
 		textAnimations: undefined,
 	};
 }

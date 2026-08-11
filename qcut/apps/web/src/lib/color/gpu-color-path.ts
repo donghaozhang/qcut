@@ -27,6 +27,11 @@ export function isGpuEligible({
 }: {
 	settings: MediaColorSettings;
 }): boolean {
+	// An enabled grade mask weights the transform per pixel by position — the
+	// CPU path applies that weighting even when the mask selects nothing (the
+	// grade then lands nowhere), so a colour cube cannot stand in for it.
+	if (settings.mask?.enabled) return false;
+	if (settings.multiPass?.enabled) return false;
 	const basic = settings.basic;
 	if (!basic?.enabled) return true;
 	// These three read neighbouring pixels or the pixel's position, so a colour
@@ -38,18 +43,65 @@ export function isGpuEligible({
 	);
 }
 
+/**
+ * A Filter-Lab LUT stores its cube inline in settings (65^3 x 3 values), so the
+ * fingerprint swaps the cube for an identity token instead of serialising it.
+ * Cube objects live in the zustand store and are referentially stable, which
+ * makes identity a correct — and O(1) — proxy for their contents.
+ */
+const cubeTokens = new WeakMap<object, number>();
+let nextCubeToken = 1;
+
+function cubeToken({ cube }: { cube: object }): number {
+	let token = cubeTokens.get(cube);
+	if (token === undefined) {
+		token = nextCubeToken;
+		nextCubeToken += 1;
+		cubeTokens.set(cube, token);
+	}
+	return token;
+}
+
 function settingsFingerprint({
 	settings,
 }: {
 	settings: MediaColorSettings;
 }): string {
-	return JSON.stringify(settings);
+	const cube = settings.lut?.cube;
+	const normalizedSettings = settings.multiPass
+		? { ...settings, multiPass: undefined }
+		: settings;
+	if (!cube) return JSON.stringify(normalizedSettings);
+	const skinCube = settings.lut.dual?.skinCube;
+	return JSON.stringify({
+		...normalizedSettings,
+		lut: {
+			...settings.lut,
+			cube: cubeToken({ cube }),
+			...(settings.lut.dual
+				? {
+						dual: {
+							...settings.lut.dual,
+							skinCube: skinCube ? cubeToken({ cube: skinCube }) : undefined,
+						},
+					}
+				: {}),
+		},
+	});
 }
 
-let cachedCube: { key: string; cube: ColorCubeLut } | null = null;
+/** Two visible elements alternating per frame must each keep a warm entry. */
+const BAKE_CACHE_LIMIT = 8;
+const bakedCubes = new Map<string, ColorCubeLut>();
+let bakeCount = 0;
+
+/** Test seam: full bakes performed since the last {@link resetGpuColorPath}. */
+export function __bakeCountForTests(): number {
+	return bakeCount;
+}
 
 /**
- * Bakes the per-pixel transform into a cube, reusing the last one when the
+ * Bakes the per-pixel transform into a cube, reusing a cached one when the
  * settings have not changed — rebaking every frame would cost more than the
  * CPU path it replaces.
  */
@@ -59,8 +111,15 @@ export function bakeColorCube({
 	settings: MediaColorSettings;
 }): ColorCubeLut {
 	const key = settingsFingerprint({ settings });
-	if (cachedCube?.key === key) return cachedCube.cube;
+	const cached = bakedCubes.get(key);
+	if (cached) {
+		// Re-insert so the Map's insertion order tracks recency of use.
+		bakedCubes.delete(key);
+		bakedCubes.set(key, cached);
+		return cached;
+	}
 
+	bakeCount += 1;
 	const values: number[] = [];
 	for (let blue = 0; blue < BAKE_SIZE; blue += 1) {
 		for (let green = 0; green < BAKE_SIZE; green += 1) {
@@ -83,7 +142,11 @@ export function bakeColorCube({
 		domainMax: [1, 1, 1],
 		values,
 	};
-	cachedCube = { key, cube };
+	if (bakedCubes.size >= BAKE_CACHE_LIMIT) {
+		const oldest = bakedCubes.keys().next().value;
+		if (oldest !== undefined) bakedCubes.delete(oldest);
+	}
+	bakedCubes.set(key, cube);
 	return cube;
 }
 
@@ -135,10 +198,11 @@ export function gradeFrameOnGpu({
 	}
 }
 
-/** Test seam: drops the cached renderer and cube. */
+/** Test seam: drops the cached renderer, baked cubes and bake counter. */
 export function resetGpuColorPath(): void {
 	renderer?.dispose();
 	renderer = null;
 	rendererTried = false;
-	cachedCube = null;
+	bakedCubes.clear();
+	bakeCount = 0;
 }

@@ -5,6 +5,7 @@ import {
 	AlignLeft,
 	AlignRight,
 	Bold,
+	CircleCheck,
 	Grid3X3,
 	Italic,
 	Loader2,
@@ -14,6 +15,7 @@ import {
 	Sparkles,
 	Strikethrough,
 	Trash2,
+	TriangleAlert,
 	Unlink,
 	Underline,
 } from "lucide-react";
@@ -22,7 +24,6 @@ import { toast } from "sonner";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FontPicker } from "@/components/ui/font-picker";
-import type { FontFamily } from "@/constants/font-constants";
 import type {
 	TextElement,
 	TextKeyframeProperty,
@@ -81,6 +82,8 @@ import {
 	TEXT_VERTICAL_ALIGN_LABEL_KEYS,
 } from "./text-properties-i18n";
 import { TextAnimationProperties } from "./text-animation-properties";
+import { JianyingFontLabDialog } from "./jianying-font-lab-dialog";
+import type { JianyingTextRuntimeStatus } from "@/types/electron";
 
 type TextUpdates = Parameters<
 	ReturnType<typeof useTimelineStore.getState>["updateTextElement"]
@@ -580,6 +583,50 @@ export function TextProperties({
 	const [keyframeProperty, setKeyframeProperty] =
 		useState<TextKeyframeProperty>("x");
 	const [isRewriting, setIsRewriting] = useState(false);
+	const [jianyingRuntimeStatus, setJianyingRuntimeStatus] = useState<
+		JianyingTextRuntimeStatus | "checking" | undefined
+	>();
+
+	useEffect(() => {
+		const reference = element.jianyingTextStyle;
+		if (!reference) {
+			setJianyingRuntimeStatus(undefined);
+			return;
+		}
+		const api = window.electronAPI?.jianyingTextRuntime;
+		if (!api) {
+			setJianyingRuntimeStatus({
+				state: "runtime-missing",
+				message: "剪映原版动态花字渲染服务不可用。",
+				platform: window.electronAPI?.platform ?? "web",
+				bridgeReady: false,
+				runtimeReady: false,
+				packageReady: false,
+			});
+			return;
+		}
+		let cancelled = false;
+		setJianyingRuntimeStatus("checking");
+		void api.inspect({ reference }).then(
+			(status) => {
+				if (!cancelled) setJianyingRuntimeStatus(status);
+			},
+			(cause) => {
+				if (cancelled) return;
+				setJianyingRuntimeStatus({
+					state: "error",
+					message: cause instanceof Error ? cause.message : String(cause),
+					platform: window.electronAPI?.platform ?? "unknown",
+					bridgeReady: false,
+					runtimeReady: false,
+					packageReady: false,
+				});
+			}
+		);
+		return () => {
+			cancelled = true;
+		};
+	}, [element.jianyingTextStyle]);
 	const {
 		avatarImageId,
 		avatarImages,
@@ -820,6 +867,54 @@ export function TextProperties({
 					</TabsTrigger>
 				</TabsList>
 				<TabsContent value="text" className="mt-0 space-y-5">
+					{element.jianyingTextStyle ? (
+						<div
+							className="flex items-start gap-2 border-y border-border/60 py-2 text-xs"
+							data-testid="jianying-text-runtime-status"
+						>
+							{jianyingRuntimeStatus === "checking" ? (
+								<Loader2
+									aria-hidden="true"
+									className="mt-0.5 size-3.5 shrink-0 animate-spin text-muted-foreground"
+								/>
+							) : jianyingRuntimeStatus?.state === "ready" ? (
+								<CircleCheck
+									aria-hidden="true"
+									className="mt-0.5 size-3.5 shrink-0 text-emerald-400"
+								/>
+							) : (
+								<TriangleAlert
+									aria-hidden="true"
+									className="mt-0.5 size-3.5 shrink-0 text-amber-400"
+								/>
+							)}
+							<div className="min-w-0 flex-1">
+								<div className="font-medium text-foreground">
+									{element.jianyingTextStyle.packageKind === "ScriptInfoSticker"
+										? "剪映原版脚本花字"
+										: "剪映原版动态花字"}
+								</div>
+								<div className="mt-0.5 text-muted-foreground">
+									{jianyingRuntimeStatus === "checking"
+										? "正在检查本机资源"
+										: jianyingRuntimeStatus?.message}
+								</div>
+							</div>
+							<button
+								type="button"
+								aria-label="移除剪映原版花字"
+								className="flex size-6 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-accent hover:text-foreground"
+								onClick={() => update({ jianyingTextStyle: undefined })}
+								onKeyDown={(event) => {
+									if (event.key === "Escape") event.currentTarget.blur();
+								}}
+							>
+								<Unlink aria-hidden="true" className="size-3.5">
+									<title>移除剪映原版花字</title>
+								</Unlink>
+							</button>
+						</div>
+					) : null}
 					<Textarea
 						aria-label={t("textProperties.aria.textContent")}
 						data-testid="text-content-input"
@@ -827,6 +922,10 @@ export function TextProperties({
 						value={element.content}
 						className="min-h-24 resize-y bg-background/50"
 						onChange={(event) => {
+							if (element.jianyingTextStyle) {
+								update({ content: event.target.value });
+								return;
+							}
 							const fitted = fitTextElementBoxToContent({
 								element: { ...element, content: event.target.value },
 								mode: "grow",
@@ -849,10 +948,32 @@ export function TextProperties({
 									{t("textProperties.label.font")}
 								</PropertyItemLabel>
 								<PropertyItemValue>
-									<FontPicker
-										value={element.fontFamily as FontFamily}
-										onValueChange={(fontFamily) => update({ fontFamily })}
-									/>
+									<div className="flex min-w-0 items-center gap-2">
+										<FontPicker
+											value={element.fontFamily}
+											customOption={
+												element.fontAsset
+													? {
+															value: element.fontAsset.cssFamily,
+															label: element.fontAsset.familyName,
+														}
+													: undefined
+											}
+											onValueChange={(fontFamily) =>
+												update({ fontFamily, fontAsset: undefined })
+											}
+										/>
+										<JianyingFontLabDialog
+											initialSample={element.content}
+											currentAssetId={element.fontAsset?.assetId}
+											onApply={({ asset }) =>
+												update({
+													fontFamily: asset.cssFamily,
+													fontAsset: asset,
+												})
+											}
+										/>
+									</div>
 								</PropertyItemValue>
 							</PropertyItem>
 

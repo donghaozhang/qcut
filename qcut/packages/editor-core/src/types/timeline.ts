@@ -806,11 +806,43 @@ export interface MediaElement extends BaseTimelineElement {
 	compound?: MediaCompound;
 }
 
+export interface TextFontAssetReference {
+	kind: "local-font";
+	source: "jianying-cache";
+	assetId: string;
+	cssFamily: string;
+	familyName: string;
+	fullName: string;
+	postscriptName: string;
+}
+
+export type JianyingTextPackageKind = "InfoSticker" | "ScriptInfoSticker";
+
+export type JianyingTextEditMode = "runtime-with-preload-fallback";
+
+export type JianyingTextSlotMapping = "line-to-widget";
+
+export type JianyingTextTimeMapping = "stretch";
+
+export interface JianyingTextStyleReference {
+	schemaVersion: 1;
+	source: "jianying-cache";
+	packageKind: JianyingTextPackageKind;
+	resourceId: string;
+	packageHash: string;
+	editMode: JianyingTextEditMode;
+	slotMapping: JianyingTextSlotMapping;
+	timeMapping: JianyingTextTimeMapping;
+	templateDuration: number;
+}
+
 export interface TextElement extends BaseTimelineElement {
 	type: "text";
 	content: string;
 	fontSize: number;
 	fontFamily: string;
+	fontAsset?: TextFontAssetReference;
+	jianyingTextStyle?: JianyingTextStyleReference;
 	color: string;
 	backgroundColor: string;
 	textAlign: "left" | "center" | "right";

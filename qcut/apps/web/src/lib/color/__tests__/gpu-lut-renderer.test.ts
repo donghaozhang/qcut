@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import type { ColorCubeLut } from "@/types/timeline";
 import { sampleCubeLut } from "../color-space-math";
+import { createGpuLutRenderer } from "../gpu-lut-renderer";
 
 /**
  * The GPU path must agree with the CPU path it replaces, otherwise it trades
@@ -115,5 +116,197 @@ describe("GPU LUT lookup maths", () => {
 		}
 		// Well under a single 8-bit level (1/255 = 0.0039).
 		expect(worst).toBeLessThan(0.001);
+	});
+});
+
+/**
+ * jsdom has no WebGL2, so the texture-cache behaviour is exercised against a
+ * recording stub: only creations, uploads (texImage3D), 3D binds and deletions
+ * matter to the cache contract, everything else is a no-op.
+ */
+interface FakeGlState {
+	createdTextures: object[];
+	deletedTextures: object[];
+	lutUploads: number;
+}
+
+const TEXTURE_3D_TARGET = 11;
+
+function createFakeGl(): {
+	context: WebGL2RenderingContext;
+	state: FakeGlState;
+} {
+	const state: FakeGlState = {
+		createdTextures: [],
+		deletedTextures: [],
+		lutUploads: 0,
+	};
+	const noop = () => {};
+	const fake = {
+		VERTEX_SHADER: 1,
+		FRAGMENT_SHADER: 2,
+		COMPILE_STATUS: 3,
+		LINK_STATUS: 4,
+		ARRAY_BUFFER: 5,
+		STATIC_DRAW: 6,
+		FLOAT: 7,
+		TEXTURE0: 8,
+		TEXTURE1: 9,
+		TEXTURE_2D: 10,
+		TEXTURE_3D: TEXTURE_3D_TARGET,
+		RGB8: 12,
+		RGB: 13,
+		RGBA: 14,
+		UNSIGNED_BYTE: 15,
+		TEXTURE_MIN_FILTER: 16,
+		TEXTURE_MAG_FILTER: 17,
+		TEXTURE_WRAP_S: 18,
+		TEXTURE_WRAP_T: 19,
+		TEXTURE_WRAP_R: 20,
+		LINEAR: 21,
+		CLAMP_TO_EDGE: 22,
+		UNPACK_ALIGNMENT: 23,
+		UNPACK_FLIP_Y_WEBGL: 24,
+		TRIANGLES: 25,
+		createShader: () => ({}),
+		shaderSource: noop,
+		compileShader: noop,
+		getShaderParameter: () => true,
+		deleteShader: noop,
+		createProgram: () => ({}),
+		attachShader: noop,
+		linkProgram: noop,
+		getProgramParameter: () => true,
+		deleteProgram: noop,
+		createBuffer: () => ({}),
+		bindBuffer: noop,
+		bufferData: noop,
+		deleteBuffer: noop,
+		getAttribLocation: () => 0,
+		enableVertexAttribArray: noop,
+		vertexAttribPointer: noop,
+		createTexture: () => {
+			const texture = {};
+			state.createdTextures.push(texture);
+			return texture;
+		},
+		deleteTexture: (texture: object) => {
+			state.deletedTextures.push(texture);
+		},
+		getUniformLocation: () => ({}),
+		viewport: noop,
+		useProgram: noop,
+		activeTexture: noop,
+		bindTexture: noop,
+		pixelStorei: noop,
+		texImage2D: noop,
+		texImage3D: () => {
+			state.lutUploads += 1;
+		},
+		texParameteri: noop,
+		uniform1i: noop,
+		uniform1f: noop,
+		drawArrays: noop,
+	};
+	return { context: fake as unknown as WebGL2RenderingContext, state };
+}
+
+function smallCube(): ColorCubeLut {
+	return {
+		size: 2,
+		domainMin: [0, 0, 0],
+		domainMax: [1, 1, 1],
+		values: Array.from({ length: 24 }, () => 0.5),
+	};
+}
+
+describe("GPU LUT texture cache", () => {
+	const originalGetContext = HTMLCanvasElement.prototype.getContext;
+
+	afterEach(() => {
+		HTMLCanvasElement.prototype.getContext = originalGetContext;
+	});
+
+	function rendererWithFakeGl() {
+		const fake = createFakeGl();
+		HTMLCanvasElement.prototype.getContext = ((kind: string) =>
+			kind === "webgl2"
+				? fake.context
+				: null) as unknown as (typeof HTMLCanvasElement.prototype)["getContext"];
+		const renderer = createGpuLutRenderer();
+		if (!renderer) throw new Error("Fake WebGL2 context was not picked up");
+		return { renderer, state: fake.state };
+	}
+
+	function renderCube(
+		renderer: NonNullable<ReturnType<typeof createGpuLutRenderer>>,
+		cube: ColorCubeLut
+	) {
+		renderer.render({
+			source: {} as unknown as CanvasImageSource,
+			width: 4,
+			height: 4,
+			cube,
+			intensity: 1,
+		});
+	}
+
+	it("uploads a cube once and reuses its texture across frames", () => {
+		const { renderer, state } = rendererWithFakeGl();
+		const cube = smallCube();
+		renderCube(renderer, cube);
+		renderCube(renderer, cube);
+		renderCube(renderer, cube);
+		expect(state.lutUploads).toBe(1);
+	});
+
+	it("keeps textures warm while two cubes alternate", () => {
+		// Two visible elements with different grades alternate every frame; a
+		// single uploaded-cube slot would re-upload on each call.
+		const { renderer, state } = rendererWithFakeGl();
+		const first = smallCube();
+		const second = smallCube();
+		renderCube(renderer, first);
+		renderCube(renderer, second);
+		renderCube(renderer, first);
+		renderCube(renderer, second);
+		expect(state.lutUploads).toBe(2);
+		expect(state.deletedTextures).toHaveLength(0);
+	});
+
+	it("evicts the least recently used texture at capacity", () => {
+		const { renderer, state } = rendererWithFakeGl();
+		const cubes = Array.from({ length: 5 }, () => smallCube());
+		for (const cube of cubes.slice(0, 4)) {
+			renderCube(renderer, cube);
+		}
+		expect(state.lutUploads).toBe(4);
+		expect(state.deletedTextures).toHaveLength(0);
+
+		// Touch the oldest so recency — not insertion — decides the eviction.
+		renderCube(renderer, cubes[0]);
+		expect(state.lutUploads).toBe(4);
+
+		renderCube(renderer, cubes[4]);
+		expect(state.lutUploads).toBe(5);
+		expect(state.deletedTextures).toHaveLength(1);
+
+		// The refreshed cube survived; the second-oldest was re-uploaded.
+		renderCube(renderer, cubes[0]);
+		expect(state.lutUploads).toBe(5);
+		renderCube(renderer, cubes[1]);
+		expect(state.lutUploads).toBe(6);
+	});
+
+	it("deletes every texture on dispose", () => {
+		const { renderer, state } = rendererWithFakeGl();
+		renderCube(renderer, smallCube());
+		renderCube(renderer, smallCube());
+		renderer.dispose();
+		// Frame texture plus both cached LUT textures.
+		expect(state.deletedTextures).toHaveLength(state.createdTextures.length);
+		for (const texture of state.createdTextures) {
+			expect(state.deletedTextures).toContain(texture);
+		}
 	});
 });

@@ -23,6 +23,37 @@ constexpr int kRgba8PixelFormat = 0x2b;
 constexpr int kLinearFilter = 1;
 constexpr int kClampWrap = 1;
 
+void waitBeforeReadback(int milliseconds) {
+  if (milliseconds < 0) {
+    throw std::runtime_error(
+        "post-render readback delay must be non-negative");
+  }
+  if (milliseconds == 0) {
+    return;
+  }
+
+  std::cout << "[readback] post-render wait begin ms=" << milliseconds
+            << std::endl;
+  @autoreleasepool {
+    NSDate* deadline =
+        [NSDate dateWithTimeIntervalSinceNow:milliseconds / 1000.0];
+    while ([deadline timeIntervalSinceNow] > 0.0) {
+      const NSTimeInterval remaining = [deadline timeIntervalSinceNow];
+      NSDate* sliceEnd = [NSDate
+          dateWithTimeIntervalSinceNow:std::min<NSTimeInterval>(remaining,
+                                                                 0.01)];
+      const BOOL handled = [[NSRunLoop currentRunLoop]
+          runMode:NSDefaultRunLoopMode
+       beforeDate:sliceEnd];
+      if (!handled) {
+        [NSThread sleepForTimeInterval:std::min<NSTimeInterval>(remaining,
+                                                                  0.001)];
+      }
+    }
+  }
+  std::cout << "[readback] post-render wait end" << std::endl;
+}
+
 struct ProbeTextures {
   DeviceTextureProbe inputA;
   DeviceTextureProbe inputB;
@@ -286,6 +317,17 @@ GraphicsFrameProbeResult GraphicsProbeSession::renderFrame(
   };
   result.rendered = request.renderer(resources);
   if (result.rendered) {
+    if (request.postRenderReadbackDelayMilliseconds > 0) {
+      if (request.captureRenderedInputA) {
+        readTexture(impl_->symbols, impl_->renderer, textures.inputA,
+                    impl_->dimensions,
+                    result.preWaitRenderedInputAPixels);
+      } else {
+        readTexture(impl_->symbols, impl_->renderer, textures.output,
+                    impl_->dimensions, result.preWaitOutputPixels);
+      }
+    }
+    waitBeforeReadback(request.postRenderReadbackDelayMilliseconds);
     if (request.captureRenderedInputA) {
       readTexture(impl_->symbols, impl_->renderer, textures.inputA,
                   impl_->dimensions, result.renderedInputAPixels);
@@ -373,6 +415,8 @@ GraphicsFrameProbeResult renderGraphicsProbeFrame(
       .captureRenderedInputA = request.captureRenderedInputA,
       .useNativeInputTextures = request.useNativeInputTextures,
       .nativeTextureFlags = request.nativeTextureFlags,
+      .postRenderReadbackDelayMilliseconds =
+          request.postRenderReadbackDelayMilliseconds,
   });
 }
 

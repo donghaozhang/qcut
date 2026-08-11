@@ -64,7 +64,10 @@ describe("Claude media element track routing", () => {
 			projectId: undefined,
 		});
 
-		expect(timelineStore.findOrCreateTrack).toHaveBeenCalledWith("audio");
+		expect(timelineStore.findOrCreateTrack).toHaveBeenCalledWith("audio", {
+			startTime: 5,
+			duration: 164.2,
+		});
 		expect(timelineStore.addElementToTrack).toHaveBeenCalledWith(
 			"track-x",
 			expect.objectContaining({
@@ -87,7 +90,10 @@ describe("Claude media element track routing", () => {
 			projectId: undefined,
 		});
 
-		expect(timelineStore.findOrCreateTrack).toHaveBeenCalledWith("media");
+		expect(timelineStore.findOrCreateTrack).toHaveBeenCalledWith("media", {
+			startTime: 0,
+			duration: 30,
+		});
 		expect(timelineStore.addElementToTrack).toHaveBeenCalledWith(
 			"track-x",
 			expect.objectContaining({ mediaId: "m-video", duration: 30 })

@@ -140,7 +140,6 @@ export function createGpuLutRenderer(): GpuLutRenderer | null {
 	gl.vertexAttribPointer(positionLocation, 2, gl.FLOAT, false, 0, 0);
 
 	const frameTexture = gl.createTexture();
-	const lutTexture = gl.createTexture();
 	const uniforms = {
 		frame: gl.getUniformLocation(program, "u_frame"),
 		lut: gl.getUniformLocation(program, "u_lut"),
@@ -148,12 +147,14 @@ export function createGpuLutRenderer(): GpuLutRenderer | null {
 		intensity: gl.getUniformLocation(program, "u_intensity"),
 	};
 
-	// Re-uploading the cube every frame would waste most of the win, so only
-	// upload when the caller switches to a different cube.
-	let uploadedCube: ColorCubeLut | null = null;
+	// Re-uploading a cube every frame would waste most of the win, and two
+	// visible elements alternate cubes within a frame — so keep a small LRU of
+	// uploaded textures keyed by cube object identity.
+	const LUT_TEXTURE_CACHE_LIMIT = 4;
+	const lutTextures = new Map<ColorCubeLut, WebGLTexture>();
 
-	function uploadCube(cube: ColorCubeLut) {
-		if (uploadedCube === cube) return;
+	function uploadLutTexture(cube: ColorCubeLut): WebGLTexture {
+		const texture = gl.createTexture();
 		const size = cube.size;
 		const data = new Uint8Array(size * size * size * 3);
 		for (let index = 0; index < data.length; index += 1) {
@@ -162,7 +163,7 @@ export function createGpuLutRenderer(): GpuLutRenderer | null {
 			);
 		}
 		gl.activeTexture(gl.TEXTURE1);
-		gl.bindTexture(gl.TEXTURE_3D, lutTexture);
+		gl.bindTexture(gl.TEXTURE_3D, texture);
 		gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
 		gl.texImage3D(
 			gl.TEXTURE_3D,
@@ -183,7 +184,27 @@ export function createGpuLutRenderer(): GpuLutRenderer | null {
 		gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 		gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 		gl.texParameteri(gl.TEXTURE_3D, gl.TEXTURE_WRAP_R, gl.CLAMP_TO_EDGE);
-		uploadedCube = cube;
+		return texture;
+	}
+
+	function lutTextureFor(cube: ColorCubeLut): WebGLTexture {
+		const cached = lutTextures.get(cube);
+		if (cached) {
+			// Re-insert so the Map's insertion order tracks recency of use.
+			lutTextures.delete(cube);
+			lutTextures.set(cube, cached);
+			return cached;
+		}
+		if (lutTextures.size >= LUT_TEXTURE_CACHE_LIMIT) {
+			const oldest = lutTextures.entries().next().value;
+			if (oldest) {
+				gl.deleteTexture(oldest[1]);
+				lutTextures.delete(oldest[0]);
+			}
+		}
+		const texture = uploadLutTexture(cube);
+		lutTextures.set(cube, texture);
+		return texture;
 	}
 
 	return {
@@ -210,7 +231,8 @@ export function createGpuLutRenderer(): GpuLutRenderer | null {
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
 			gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
-			uploadCube(cube);
+			gl.activeTexture(gl.TEXTURE1);
+			gl.bindTexture(gl.TEXTURE_3D, lutTextureFor(cube));
 
 			gl.uniform1i(uniforms.frame, 0);
 			gl.uniform1i(uniforms.lut, 1);
@@ -221,10 +243,12 @@ export function createGpuLutRenderer(): GpuLutRenderer | null {
 		},
 		dispose() {
 			gl.deleteTexture(frameTexture);
-			gl.deleteTexture(lutTexture);
+			for (const texture of lutTextures.values()) {
+				gl.deleteTexture(texture);
+			}
+			lutTextures.clear();
 			gl.deleteBuffer(buffer);
 			gl.deleteProgram(program);
-			uploadedCube = null;
 		},
 	};
 }

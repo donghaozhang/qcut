@@ -130,6 +130,8 @@ export function createAddOps(
 				trimEnd: 0,
 				fontSize: item.fontSize || 48,
 				fontFamily: item.fontFamily || "Arial",
+				fontAsset: item.fontAsset,
+				jianyingTextStyle: item.jianyingTextStyle,
 				color: item.color || "#ffffff",
 				backgroundColor: item.backgroundColor || "transparent",
 				textAlign: item.textAlign || "center",

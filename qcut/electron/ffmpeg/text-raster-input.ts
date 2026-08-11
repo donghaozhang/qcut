@@ -1,6 +1,6 @@
 import fs from "fs";
 
-import type { TextRasterLayer } from "./types";
+import type { TextRasterLayer, TextRasterSource } from "./types";
 import type { PreparedVisualLayer } from "./visual-layer-compositor";
 
 export interface ResolvedTextRasterLayer extends TextRasterLayer {
@@ -22,6 +22,16 @@ function imageSequenceFirstFramePath({ pattern }: { pattern: string }): string {
 	}
 	const width = match[1] ? Number.parseInt(match[1], 10) : 1;
 	return pattern.replace(match[0], "0".padStart(width, "0"));
+}
+
+export function getTextRasterSourceProbePath({
+	source,
+}: {
+	source: TextRasterSource;
+}) {
+	return source.kind === "image-sequence"
+		? imageSequenceFirstFramePath({ pattern: source.path })
+		: source.path;
 }
 
 export function appendTextRasterInputs({
@@ -59,8 +69,8 @@ export function appendTextRasterInputs({
 					`Invalid text raster frame rate for ${layer.elementId}: ${layer.source.frameRate}`
 				);
 			}
-			const firstFramePath = imageSequenceFirstFramePath({
-				pattern: layer.source.path,
+			const firstFramePath = getTextRasterSourceProbePath({
+				source: layer.source,
 			});
 			if (!fs.existsSync(firstFramePath)) {
 				throw new Error(
@@ -75,6 +85,11 @@ export function appendTextRasterInputs({
 				"-i",
 				layer.source.path
 			);
+		} else if (layer.source.kind === "image") {
+			if (!fs.existsSync(layer.source.path)) {
+				throw new Error(`Text raster image not found: ${layer.source.path}`);
+			}
+			args.push("-loop", "1", "-framerate", "1", "-i", layer.source.path);
 		} else {
 			if (!fs.existsSync(layer.source.path)) {
 				throw new Error(`Text raster video not found: ${layer.source.path}`);

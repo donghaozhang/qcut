@@ -1,8 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import { DEFAULT_MEDIA_COLOR_SETTINGS } from "../color-properties";
 import { transformColorPixel } from "../color-pixel-processor";
 import { sampleCubeLut } from "../color-space-math";
-import { bakeColorCube, isGpuEligible } from "../gpu-color-path";
+import {
+	__bakeCountForTests,
+	bakeColorCube,
+	isGpuEligible,
+	resetGpuColorPath,
+} from "../gpu-color-path";
 
 function settingsWith(
 	patch: Partial<(typeof DEFAULT_MEDIA_COLOR_SETTINGS)["basic"]>
@@ -10,6 +15,17 @@ function settingsWith(
 	const base = structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS);
 	return { ...base, basic: { ...base.basic, enabled: true, ...patch } };
 }
+
+function settingsWithBrightness(brightness: number) {
+	const settings = structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS);
+	settings.basic.enabled = true;
+	settings.basic.brightness = brightness;
+	return settings;
+}
+
+beforeEach(() => {
+	resetGpuColorPath();
+});
 
 describe("GPU colour path eligibility", () => {
 	it("accepts settings whose effects are all per-pixel", () => {
@@ -32,6 +48,30 @@ describe("GPU colour path eligibility", () => {
 		const settings = structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS);
 		settings.basic.enabled = false;
 		settings.basic.vignette = 80;
+		expect(isGpuEligible({ settings })).toBe(true);
+	});
+
+	it("rejects an enabled grade mask even when it selects no masks", () => {
+		// The CPU path weights the grade by the mask's alpha whenever the mask
+		// feature is on; an empty selection renders an all-zero mask, so the CPU
+		// grades nowhere while an unmasked GPU grade would land everywhere.
+		const settings = structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS);
+		settings.mask.enabled = true;
+		settings.mask.maskIds = [];
+		expect(isGpuEligible({ settings })).toBe(false);
+	});
+
+	it("rejects an enabled grade mask with a selection", () => {
+		const settings = structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS);
+		settings.mask.enabled = true;
+		settings.mask.maskIds = ["mask-1"];
+		expect(isGpuEligible({ settings })).toBe(false);
+	});
+
+	it("ignores stale mask selections while the feature is off", () => {
+		const settings = structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS);
+		settings.mask.enabled = false;
+		settings.mask.maskIds = ["mask-1"];
 		expect(isGpuEligible({ settings })).toBe(true);
 	});
 });
@@ -80,5 +120,77 @@ describe("colour cube bake", () => {
 		const second = structuredClone(first);
 		second.basic.brightness = 25;
 		expect(bakeColorCube({ settings: second })).not.toBe(before);
+	});
+});
+
+describe("colour cube bake cache", () => {
+	it("keeps entries for alternating settings without rebaking", () => {
+		// Two visible elements with different grades alternate every frame; a
+		// single-entry cache would rebake the full cube on each call.
+		const first = settingsWithBrightness(5);
+		const second = settingsWithBrightness(25);
+		const firstCube = bakeColorCube({ settings: first });
+		const secondCube = bakeColorCube({ settings: second });
+		expect(__bakeCountForTests()).toBe(2);
+
+		expect(bakeColorCube({ settings: first })).toBe(firstCube);
+		expect(bakeColorCube({ settings: second })).toBe(secondCube);
+		expect(bakeColorCube({ settings: first })).toBe(firstCube);
+		expect(__bakeCountForTests()).toBe(2);
+	});
+
+	it("fingerprints an inline LUT cube by identity, not by value", () => {
+		const cube = {
+			size: 2,
+			domainMin: [0, 0, 0] as [number, number, number],
+			domainMax: [1, 1, 1] as [number, number, number],
+			values: [
+				0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1,
+			],
+		};
+		const first = structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS);
+		first.lut.enabled = true;
+		first.lut.cube = cube;
+		// A second settings object sharing the same cube reference — the store
+		// hands out referentially-stable cubes, so this must hit the cache
+		// without serialising ~824k inline values.
+		const second = structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS);
+		second.lut.enabled = true;
+		second.lut.cube = cube;
+
+		const baked = bakeColorCube({ settings: first });
+		expect(bakeColorCube({ settings: second })).toBe(baked);
+		expect(__bakeCountForTests()).toBe(1);
+
+		// A value-equal but distinct cube object is a different identity.
+		const third = structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS);
+		third.lut.enabled = true;
+		third.lut.cube = structuredClone(cube);
+		bakeColorCube({ settings: third });
+		expect(__bakeCountForTests()).toBe(2);
+	});
+
+	it("evicts the least recently used entry at capacity", () => {
+		const all = Array.from({ length: 8 }, (_, step) =>
+			settingsWithBrightness(step + 1)
+		);
+		for (const settings of all) {
+			bakeColorCube({ settings });
+		}
+		expect(__bakeCountForTests()).toBe(8);
+
+		// Touch the oldest so recency — not insertion — decides the eviction.
+		bakeColorCube({ settings: all[0] });
+		expect(__bakeCountForTests()).toBe(8);
+
+		const ninth = settingsWithBrightness(90);
+		bakeColorCube({ settings: ninth });
+		expect(__bakeCountForTests()).toBe(9);
+
+		// The refreshed entry survived; the second-oldest was evicted.
+		bakeColorCube({ settings: all[0] });
+		expect(__bakeCountForTests()).toBe(9);
+		bakeColorCube({ settings: all[1] });
+		expect(__bakeCountForTests()).toBe(10);
 	});
 });

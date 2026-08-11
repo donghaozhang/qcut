@@ -24,6 +24,7 @@ import type {
 	StickerTrackingAnchor,
 	SubtitleStyle,
 	TextElement,
+	TextFontAssetReference,
 	TextKeyframeProperty,
 	TextPropertyKeyframe,
 	TimelineElement,
@@ -106,6 +107,7 @@ const TEXT_ELEMENT_KEYS = createElementAllowedKeySet<TextElement>({
 		color: true,
 		content: true,
 		curve: true,
+		fontAsset: true,
 		fontFamily: true,
 		fontSize: true,
 		fontStyle: true,
@@ -113,6 +115,7 @@ const TEXT_ELEMENT_KEYS = createElementAllowedKeySet<TextElement>({
 		glowBlur: true,
 		glowColor: true,
 		glowOpacity: true,
+		jianyingTextStyle: true,
 		keyframes: true,
 		letterSpacing: true,
 		lineHeight: true,
@@ -133,6 +136,17 @@ const TEXT_ELEMENT_KEYS = createElementAllowedKeySet<TextElement>({
 		trackingRotation: true,
 		trackingTargetId: true,
 		verticalAlign: true,
+	},
+});
+const TEXT_FONT_ASSET_KEYS = createAllowedKeySet<TextFontAssetReference>({
+	keys: {
+		assetId: true,
+		cssFamily: true,
+		familyName: true,
+		fullName: true,
+		kind: true,
+		postscriptName: true,
+		source: true,
 	},
 });
 const STICKER_ELEMENT_KEYS = createElementAllowedKeySet<StickerElement>({
@@ -841,6 +855,37 @@ function validatePropertyKeyframes({
 	}
 }
 
+function validateTextFontAsset({
+	path,
+	value,
+}: {
+	path: string;
+	value: JsonValue | undefined;
+}): void {
+	if (value === undefined) return;
+	const fontAsset = getRecord({ path, value });
+	assertKeys({ allowed: TEXT_FONT_ASSET_KEYS, path, record: fontAsset });
+	assertStringLiteral({
+		allowed: new Set(["local-font"]),
+		path: `${path}.kind`,
+		value: fontAsset.kind,
+	});
+	assertStringLiteral({
+		allowed: new Set(["jianying-cache"]),
+		path: `${path}.source`,
+		value: fontAsset.source,
+	});
+	for (const key of [
+		"assetId",
+		"cssFamily",
+		"familyName",
+		"fullName",
+		"postscriptName",
+	]) {
+		getString({ path: `${path}.${key}`, value: fontAsset[key] });
+	}
+}
+
 function validateTextElement({
 	element,
 	path,
@@ -871,6 +916,10 @@ function validateTextElement({
 	for (const key of ["fontSize", "x", "y", "rotation", "opacity"]) {
 		getFiniteNumber({ path: `${path}.${key}`, value: element[key] });
 	}
+	validateTextFontAsset({
+		path: `${path}.fontAsset`,
+		value: element.fontAsset,
+	});
 	validatePropertyKeyframes({
 		allowed: TEXT_PROPERTY_KEYFRAME_KEYS,
 		path: `${path}.keyframes`,

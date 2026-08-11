@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { afterEach, describe, expect, test } from "bun:test";
+import { afterEach, describe, expect, test } from "vitest";
 import type { CLIRunOptions } from "../../cli/cli-runner/types";
 import type { EditorApiClient } from "../editor-api-client";
 import { handleStickerCommand } from "../editor-handlers-sticker";

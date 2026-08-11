@@ -109,6 +109,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 			list: "filter-lab-list",
 			compare: "filter-lab-compare",
 			match: "filter-lab-match",
+			verify: "filter-lab-verify",
 		},
 	},
 	{

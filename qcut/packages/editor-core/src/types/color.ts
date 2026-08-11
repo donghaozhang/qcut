@@ -34,6 +34,12 @@ export interface ColorCubeLut {
 	values: number[];
 }
 
+export interface ColorDualLutSettings {
+	skinCube: ColorCubeLut;
+	/** Deterministic chroma mask; person/face AI remains a separate renderer. */
+	maskKind: "skin-tone-v1";
+}
+
 export interface ColorLutSettings {
 	enabled: boolean;
 	presetId: string;
@@ -41,6 +47,43 @@ export interface ColorLutSettings {
 	intensity: number;
 	skinProtection: number;
 	cube?: ColorCubeLut;
+	dual?: ColorDualLutSettings;
+}
+
+export type ColorMultiPassOperation =
+	| {
+			kind: "sharpen";
+			amount: number;
+	  }
+	| {
+			kind: "bilateral-blur";
+			radius: number;
+			threshold: number;
+	  }
+	| {
+			kind: "fog-blend";
+			radius: number;
+			amount: number;
+	  }
+	| {
+			kind: "vignette";
+			amount: number;
+			softness: number;
+	  }
+	| {
+			kind: "lut";
+			cube: ColorCubeLut;
+			intensity: number;
+	  };
+
+/** Ordered spatial and colour passes reconstructed from a cached effect package. */
+export interface ColorMultiPassSettings {
+	enabled: boolean;
+	presetId: string;
+	name: string;
+	intensity: number;
+	fidelity: "structural";
+	passes: ColorMultiPassOperation[];
 }
 
 export interface ColorFilterApplication {
@@ -202,6 +245,7 @@ export interface MediaColorSettings {
 	filter: ColorFilterApplication;
 	basic: ColorBasicSettings;
 	lut: ColorLutSettings;
+	multiPass?: ColorMultiPassSettings;
 	hsl: ColorHslSettings;
 	curves: ColorCurvesSettings;
 	secondaryCurves: ColorSecondaryCurvesSettings;

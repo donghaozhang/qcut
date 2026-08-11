@@ -188,6 +188,7 @@ export function buildLutFilter({
 	const filePath = materializeVideoCubeLut({
 		name: color.lut.name,
 		cube: color.lut.cube,
+		dual: color.lut.dual,
 		intensity: color.lut.intensity,
 		skinProtection: color.lut.skinProtection,
 	});

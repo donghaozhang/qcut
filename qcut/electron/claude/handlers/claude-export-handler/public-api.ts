@@ -40,6 +40,7 @@ import {
 	collectTimelineAudioFiles,
 	executeExportJob,
 } from "./export-engine.js";
+import { collectJianyingTextOverlays } from "./jianying-text-overlay.js";
 import { collectTextOverlays } from "./text-overlay.js";
 
 function isTimelineEmpty({ timeline }: { timeline: ClaudeTimeline }): boolean {
@@ -187,6 +188,13 @@ export async function startExportJob({
 				`Found ${stickerOverlays.length} sticker(s) to overlay during export`
 			);
 		}
+		const jianyingTextOverlays = collectJianyingTextOverlays({ timeline });
+		if (jianyingTextOverlays.length > 0) {
+			claudeLog.info(
+				HANDLER_NAME,
+				`Found ${jianyingTextOverlays.length} original Jianying text overlay(s) to render`
+			);
+		}
 		const textOverlays = collectTextOverlays(timeline);
 		if (textOverlays.length > 0) {
 			claudeLog.info(
@@ -268,8 +276,10 @@ export async function startExportJob({
 			segments,
 			stickerOverlays,
 			textOverlays,
+			jianyingTextOverlays,
 			audioFiles,
 			videoTransitions,
+			projectFps: timeline.fps,
 			projectCanvas:
 				timeline.width > 0 && timeline.height > 0
 					? { width: timeline.width, height: timeline.height }

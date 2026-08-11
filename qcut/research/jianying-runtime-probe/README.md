@@ -1,8 +1,9 @@
 # Jianying Runtime Probe
 
 This directory contains a local interoperability probe for Jianying's transition
-runtime. It contains independently written parsers and behavioral models, but no
-Jianying binaries, assets, source code, or copied proprietary implementation.
+and text-effect runtime. It contains independently written parsers and behavioral
+models, but no Jianying binaries, assets, source code, or copied proprietary
+implementation.
 
 The static format and algorithm recovery notes live in
 [`DECOMPILATION.md`](./DECOMPILATION.md). The accompanying tools parse recovered
@@ -31,8 +32,8 @@ bun inspect-ausl.ts /path/to/file.ausl
 - Backup files are private to the current user and carry a SHA-256 manifest with
   `localOnly: true` and `cloudUpload: false`. The script has no upload path.
 - Do not redistribute the copied payloads or build a product dependency on them.
-- A shippable QCut transition engine still requires our own implementation or a
-  separately licensed runtime.
+- A shippable QCut transition or text-effect engine still requires our own
+  implementation or a separately licensed runtime.
 
 ## Local payload
 
@@ -41,7 +42,8 @@ bun inspect-ausl.ts /path/to/file.ausl
 
 - `libLumiGeneRuntime.dylib`: bridge around the scripted transition runtime.
 - `libAGFX.dylib`: AmazingEngine graphics and shader runtime.
-- `libcccreator.dylib`: high-level `AmazingEngine::TransitionSegment` runtime.
+- `libcccreator.dylib`: high-level `AmazingEngine` transition and text-segment
+  runtime.
 - `libEGL.dylib` and `libGLESv2.dylib`: Metal-backed rendering dependencies.
 - `lumi_js_resources`: the feature plugin and built-in Lumi resources. It does
   not contain the default `lumigene-core.js` entry script.
@@ -191,6 +193,24 @@ JY_TRANSITION_PROGRESS=0.5 \
   ./run-probe.sh transition-frame
 JY_TRANSITION_PACKAGE=/path/to/Cache/effect/id/md5 \
   ./render-transition-video.sh input-a.mp4 input-b.mp4 output.mp4 0.5
+JY_RUNTIME_ROOT="$HOME/Library/Application Support/QCut/PrivateRuntimes/JianyingTransition/current" \
+  JY_TEXT_PACKAGE=/path/to/Cache/artistEffect/id/md5 \
+  JY_TEXT_OUTPUT=/path/to/local-evidence/frame.rgba \
+  JY_TEXT_PAYLOAD_OUTPUT=/path/to/local-evidence/payload.json \
+  JY_TEXT_FONT_PATH=/path/to/local-font.ttf \
+  JY_TEXT_CONTENT=花字测试 \
+  JY_TEXT_FONT_SIZE=18 \
+  JY_TEXT_SEGMENT_TYPE=3 \
+  JY_VIDEO_WIDTH=512 \
+  JY_VIDEO_HEIGHT=512 \
+  ./run-probe.sh text-frame
+JY_EXPORT_MODE=1 \
+  JY_FILTER_PACKAGE=/path/to/Cache/artistEffect/id/md5 \
+  JY_MODEL_DIRECTORY=/path/to/local-model-directory \
+  JY_FILTER_MANIFEST=/path/to/manifest.tsv \
+  JY_FILTER_OUTPUT=/path/to/local-evidence/frames \
+  JY_VIDEO_WIDTH=854 JY_VIDEO_HEIGHT=480 JY_VIDEO_FPS=30 \
+  ./run-probe.sh filter-sequence
 bun transition-parity-matrix.ts \
   --matrix /path/to/local-matrix.json \
   --output /path/to/ignored-evidence-directory
@@ -219,6 +239,27 @@ bun transition-parity-matrix.ts \
   the output texture, and validates a linear dissolve.
   `JY_TRANSITION_PROGRESS` defaults to `0.5` and accepts values from `0` through
   `1`.
+- `text-frame` generates Jianying's host text payload, creates a real
+  `TextSegment`, applies the payload through the sticker-parameter ABI, seeks one
+  GPU frame, and requires both visible glyph pixels and transparent pixels.
+- `filter-sequence` replays a filter package over raw RGBA manifest frames.
+  `JY_EXPORT_MODE=1` mirrors
+  `TESwingManagerInterfaceWrapper::setExportMode(true)` before segment
+  creation. It isolates that manager flag; it does not reproduce an editor
+  exporter's frame scheduling or flush lifecycle.
+  `JY_ENABLE_SKIN_SEG_USE_SIMD_OPTIM=0/1` explicitly injects the matching
+  EffectSDK AB value before manager creation. When unset, the probe does not
+  override the runtime default. Use it only for controlled same-model portrait
+  comparisons.
+  `JY_FILTER_STAGE_DELAY_MS=N` waits between semicolon-separated staged seeks,
+  but never delays an ordinary one-pass frame. It is a diagnostic control for
+  asynchronous model readiness; the default is `0`.
+  `JY_FILTER_POST_SEEK_DELAY_MS=N` returns from the filter renderer after the
+  final seek and existing parameter submission, reads the current rendered
+  texture, services the current run loop, then reads the same texture again.
+  It makes no EffectSDK call during the wait and reports the changed-byte count
+  to test whether asynchronous completion mutates the current in-place texture
+  without another seek. The default is `0` and performs no extra readback.
 - `render-transition-video.sh` uses FFmpeg to normalize two real videos to RGBA,
   preserves their adjacent timeline duration, centers the transition across the
   cut, renders it through `TransitionSegment`, and encodes the combined frames
@@ -231,9 +272,110 @@ bun transition-parity-matrix.ts \
   package render at the first and last available transition endpoints for
   packages where Jianying holds the source frame exactly.
 
-This command does not need a Jianying draft or project file. It needs the local
-runtime and the downloaded transition package; a project file would only supply
-timeline placement, source trims, duration, and the selected resource ID.
+## Text and word-art runtime oracle
+
+The text probe is a local compatibility oracle, not a QCut product dependency.
+It uses the private Application Support runtime and package directories already
+downloaded by Jianying. It does not copy either into the repository.
+
+The verified `TextStyle` and `InfoSticker` host contract has two stages:
+
+1. `createTextStickerFilter`, `setTextEffect`, and `textStickerToJson` generate
+   the engine's own payload for the requested text, font, size, and effect path.
+2. A type-3 `TextSegment` is initialized with the package directory, registered
+   with `SwingManager`, and receives that payload through
+   `bef_swing_segment_sticker_set_params` before the frame seek.
+
+Creating the segment directly from the generated JSON produced no glyph layout.
+Calling the default-parameter API with content JSON is also not this contract.
+
+`ScriptInfoSticker` uses a different contract. Create a type-10 `ScriptSegment`
+with `{"path":"/absolute/package/path"}` as its segment payload, add it to the
+manager, and seek without injecting the type-3 text-sticker payload. The engine
+then validates `config.json`, loads `js/template/template.js`, and initializes
+the package's `ScriptTemplate` content.
+
+Run a baseline-aware matrix for the exact packages referenced by the local
+flower catalog:
+
+```bash
+JY_TEXT_PACKAGE_TYPE=TextStyle \
+  JY_TEXT_FONT_PATH=/System/Library/Fonts/Hiragino\ Sans\ GB.ttc \
+  ./run-text-package-batch.sh
+
+JY_TEXT_PACKAGE_TYPE=InfoSticker \
+  JY_TEXT_FONT_PATH=/System/Library/Fonts/Hiragino\ Sans\ GB.ttc \
+  ./run-text-package-batch.sh
+
+JY_TEXT_PACKAGE_TYPE=ScriptInfoSticker \
+  JY_TEXT_FLOWER_ONLY=0 \
+  JY_TEXT_TIMESTAMP=700000 \
+  JY_TEXT_FONT_PATH=/System/Library/Fonts/Hiragino\ Sans\ GB.ttc \
+  ./run-text-package-batch.sh
+```
+
+By default, the batch reads `%flower%` catalog identities from every local
+`ressdk_db/*/rp.db/http_cache` and matches `resource id + md5` to
+`artistEffect`. Set `JY_TEXT_FLOWER_ONLY=0` for a separately identified local
+package sample. Every package renders in a fresh child process. An empty effect
+is rendered first; matching its RGBA SHA-256 is reported as `fallback`, not
+success. Evidence remains outside the repository under
+`~/Library/Application Support/QCut/Research/JianyingText/`.
+
+The 2026-08-11 cache snapshot from Jianying 11.2.0 contained 276 downloaded
+flower packages. All 197 `TextStyle` and all 79 `InfoSticker` packages produced
+visible, transparent, non-baseline frames; each group also produced one unique
+RGBA hash per package. A separate 25-package `ScriptInfoSticker` sample first
+produced one repeated ordinary-text baseline when it was incorrectly sent
+through type 3. The corrected type-10 path rendered all `25/25`, with transparent
+pixels and 25 unique RGBA hashes.
+
+The complete `InfoSticker` and `ScriptInfoSticker` matrices were also rendered
+with `JY_APP_BUNDLE` pointed at a nonexistent application. The script matrix
+again passed `25/25`, and every package reproduced the same hash as the run with
+the app fallback available. Together with app-less `TextStyle` evidence, this
+shows that core UUID `D6342ECD-5432-33F0-A2AD-0C28F5699994` and the 23-library
+private backup are sufficient for all three verified package classes in this
+local snapshot.
+
+Script-template text can be tested in two edit modes:
+
+```bash
+JY_APP_BUNDLE=/tmp/qcut-no-jianying-app \
+  JY_TEXT_PACKAGE_TYPE=ScriptInfoSticker \
+  JY_TEXT_FLOWER_ONLY=0 \
+  JY_TEXT_SCRIPT_TEXT='QCUT EDIT' \
+  JY_TEXT_SCRIPT_EDIT_MODE=preload-copy \
+  JY_TEXT_TIMESTAMP=2000000 \
+  JY_TEXT_FONT_PATH=/System/Library/Fonts/Hiragino\ Sans\ GB.ttc \
+  ./run-text-package-batch.sh
+```
+
+`runtime`, the default, sends the edited `ScriptTemplate` JSON through
+`bef_swing_segment_set_params` after the first seek. It changed the rendered
+hash for 22 of 25 packages. Three packages rendered their default content but
+did not accept the post-load update; at least one had already thrown while
+constructing a shape widget, leaving the script's editable widget references
+uninitialized even though the segment seek succeeded.
+
+`preload-copy` copies each package under the external evidence directory,
+distributes the requested text across its existing rich-text slots, and edits
+only the copy's `content.json` before type-10 segment creation. The original
+Jianying cache remains untouched. The app-less 2026-08-11 matrix produced 25 of
+25 visible transparent frames, and all 25 hashes differed from their default
+frames. This is the compatibility fallback for a private local adapter; it does
+not make the private runtime or cached packages redistributable QCut assets.
+
+These matrices fix one known-good local font while varying the package. They
+prove coverage of the 276 catalog-mapped flower packages plus the separate
+25-package script sample, not glyph coverage of every font file in Jianying's
+font caches. Keep font discovery and browser or export compatibility in a
+dedicated font-lab audit.
+
+The transition video wrapper does not need a Jianying draft or project file. It
+needs the local runtime and the downloaded transition package; a project file
+would only supply timeline placement, source trims, duration, and the selected
+resource ID.
 
 The video wrapper is deliberately an interoperability prototype:
 

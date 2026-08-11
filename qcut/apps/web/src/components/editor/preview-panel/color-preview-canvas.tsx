@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
+import { toast } from "sonner";
 import type { MediaColorSettings, MediaMask } from "@/types/timeline";
 import {
 	drawColorGradedSourceStack,
 	type BrowserColorGradeLayer,
 } from "@/lib/color/browser-color-rendering";
+import { subscribeColorDegradation } from "@/lib/color/color-degradation";
 import { cn } from "@/lib/utils";
 import { useColorPickerStore } from "@/stores/editor/color-picker-store";
 import { useColorPreviewStore } from "@/stores/editor/color-preview-store";
@@ -142,6 +144,13 @@ export function ColorPreviewCanvas({
 			document.removeEventListener("pointerdown", capturePick, true);
 		};
 	}, [colorPickerActive, samplePreviewColor]);
+	useEffect(() => {
+		return subscribeColorDegradation(() => {
+			toast.warning("调色预览已降级为近似效果（画面源受跨域限制）", {
+				id: "color-degradation-css-fallback",
+			});
+		});
+	}, []);
 	useEffect(() => {
 		const canvas = canvasRef.current;
 		const parent = canvas?.parentElement;

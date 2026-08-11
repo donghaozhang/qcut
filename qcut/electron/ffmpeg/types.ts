@@ -597,6 +597,10 @@ export interface TextAssLayer {
 
 export type TextRasterSource =
 	| {
+			kind: "image";
+			path: string;
+	  }
+	| {
 			kind: "image-sequence";
 			path: string;
 			frameRate: number;
@@ -733,6 +737,7 @@ export interface VideoCompositionFramePreviewOptions {
 	imageSources?: ImageSource[];
 	stickerSources?: StickerSource[];
 	textAssLayers?: TextAssLayer[];
+	textRasterLayers?: TextRasterLayer[];
 }
 
 export interface VideoCompositionFramePreviewResult {
