@@ -25,6 +25,9 @@ const ROLE_OPTIONS: Array<{ id: RoleFilter; label: string }> = [
 	{ id: "skin", label: "肤色" },
 ];
 
+const ALL_CATEGORIES = "all";
+const UNCATEGORIZED = "__uncategorized";
+
 const ROLE_LABELS: Record<JianyingLutRole, string> = {
 	single: "单 LUT",
 	background: "背景",
@@ -57,20 +60,53 @@ export function JianyingFilterLab({
 		entry: JianyingFilterLabLutSummary;
 	}) => void;
 }) {
-	const { checking, luts, error, refresh } = useJianyingFilterLab();
+	const { checking, luts, categoryOrder, error, refresh } =
+		useJianyingFilterLab();
 	const [query, setQuery] = useState("");
 	const [role, setRole] = useState<RoleFilter>("all");
+	const [category, setCategory] = useState(ALL_CATEGORIES);
 	const [loadingLutId, setLoadingLutId] = useState("");
+	// Jianying's own panel order, kept to categories that actually contain
+	// local LUTs; "未分类" only appears when metadata is missing for some.
+	const categoryOptions = useMemo(() => {
+		const present = new Set(luts.flatMap((entry) => entry.categories ?? []));
+		const options: Array<{ id: string; label: string }> = [
+			{ id: ALL_CATEGORIES, label: "全部" },
+		];
+		for (const name of categoryOrder) {
+			if (present.has(name)) options.push({ id: name, label: name });
+		}
+		if (luts.some((entry) => !entry.categories?.length)) {
+			options.push({ id: UNCATEGORIZED, label: "未分类" });
+		}
+		return options;
+	}, [luts, categoryOrder]);
+	// A refresh can drop the selected category (cache changed) — fall back
+	// to 全部 instead of silently filtering everything out.
+	const activeCategory = categoryOptions.some(({ id }) => id === category)
+		? category
+		: ALL_CATEGORIES;
 	const visibleLuts = useMemo(() => {
 		const normalizedQuery = query.trim().toLocaleLowerCase();
 		return luts.filter((entry) => {
 			if (role !== "all" && entry.role !== role) return false;
+			if (activeCategory === UNCATEGORIZED) {
+				if (entry.categories?.length) return false;
+			} else if (activeCategory !== ALL_CATEGORIES) {
+				if (!entry.categories?.includes(activeCategory)) return false;
+			}
 			if (!normalizedQuery) return true;
-			return [entry.title, entry.resourceId, entry.fileName, entry.version]
+			return [
+				entry.title,
+				entry.resourceId,
+				entry.fileName,
+				entry.version,
+				...(entry.categories ?? []),
+			]
 				.filter((value): value is string => Boolean(value))
 				.some((value) => value.toLocaleLowerCase().includes(normalizedQuery));
 		});
-	}, [luts, query, role]);
+	}, [luts, query, role, activeCategory]);
 
 	const applyEntry = async ({
 		entry,
@@ -130,6 +166,36 @@ export function JianyingFilterLab({
 					<RefreshCw className={cn("size-3.5", checking && "animate-spin")} />
 				</Button>
 			</div>
+
+			{categoryOptions.length > 1 ? (
+				<div
+					className="flex gap-1 overflow-x-auto pb-0.5"
+					role="tablist"
+					aria-label="剪映滤镜分类"
+					data-testid="jianying-filter-lab-categories"
+				>
+					{categoryOptions.map((option) => (
+						<button
+							key={option.id}
+							type="button"
+							role="tab"
+							aria-selected={activeCategory === option.id}
+							className={cn(
+								"h-7 shrink-0 whitespace-nowrap rounded-sm border px-2 text-[10px] transition-colors",
+								activeCategory === option.id
+									? "border-primary/50 bg-primary/15 text-primary"
+									: "border-border/60 text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+							)}
+							onClick={() => setCategory(option.id)}
+							onKeyDown={(event) => {
+								if (event.key === "Escape") event.currentTarget.blur();
+							}}
+						>
+							{option.label}
+						</button>
+					))}
+				</div>
+			) : null}
 
 			<div
 				className="grid grid-cols-4 gap-1"
