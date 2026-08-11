@@ -212,9 +212,80 @@ UI 日志中的 `enableAlgorithmCache:9` 随后也被精确复现。真实入口
 model-clip 参数，不应再测试 `AlgorithmCacheFlag`、`EnableImageQuality`、
 `EnableAdjustColorWithFloat` 或“手动补建 AlgorithmService”。
 
+该历史候选随后已逐项检查：model-clip 参数不含分割配置，physical resolver 会改变输出，SIMD 0/1 在
+ready 受控后逐字节一致。当前优先级已转为模型 ready 与首次结果/cache 提交生命周期，以下“当前收敛结果”
+为准。
+
+## 2026-08-11 当前收敛结果
+
+普通多 Pass 路径现有三组逐像素基线。清透美食的完整二进制 graph 在显式注入
+`intensity=1` 后与剪映 UI RGB 完全一致，`intensity=0` 则逐字节 passthrough；此前误差来自宿主
+漏发强度事件，而不是 shader 算法。暗角旧影继续覆盖了包内 `src1.png`、sampler、Y 翻转、Alpha、
+blur 和 pass 顺序，完整二进制重放同样与 UI RGB 完全一致。迷雾进一步验证四段 graph：水平/垂直
+模糊、亮度 mask、双输入 Screen 混合、三张全分辨率中间纹理和最终 64 级 LUT；显式
+`intensity=1` 后也达到 `RMSE 0 / PSNR 100 / SSIM 1`，独立复跑逐字节一致。见
+[multipass-intensity-mapping.zh.md](multipass-intensity-mapping.zh.md) 与
+[multipass-src1-binary-replay.zh.md](multipass-src1-binary-replay.zh.md)、
+[multipass-fog-binary-replay.zh.md](multipass-fog-binary-replay.zh.md)。
+
+人像模型解析也完成了一个受控修正：可选 exact-first finder 会先返回效果包实际请求的
+`tt_skin_seg_v5.0.model`，再按 family fallback。与误选 video model 相比，它把静态 UI 对照从
+`RMSE 1.813743 / 42.959291 dB` 改善为 `RMSE 1.796547 / 43.042030 dB`。幅度很小；
+真实 UI 对照随后发现，UI 会把同一逻辑请求映射到实际 `v5.1` 文件，exact-first 使用的是旧 `v5.0`。
+因此上述数字只能评价 `v5.0` 与错误 video fallback。后续对照把独立宿主的实际文件换成 UI 使用的 v5.1：
+完整 UI mask 从 `MAE 9.797590 / IoU 0.853549` 变为
+`MAE 3.243866 / IoU 0.962409`，最终 RGB 从 `RMSE 1.796547 / 43.042030 dB` 变为
+`RMSE 0.916513 / 48.888033 dB`，证明 physical resolver 是像素变量。随后的 SIMD 实验发现，v5.1 候选在
+首帧后才报告 CoreML ready；同一 v5.1 在 ready 受控后为 `RMSE 1.168216 / 46.780337 dB`。因此旧
+`5.846004 dB` 不能再全部解释为纯模型文件收益，v5.0/v5.1 仍需同 readiness 协议重测。见
+[portrait-model-resolution.zh.md](portrait-model-resolution.zh.md) 与
+[ui-physical-skin-model.zh.md](ui-physical-skin-model.zh.md)。
+
+`ExportMode` 的真实入口已定位为 `SwingManager::setParameterBool("ExportMode", value)`。固定其余条件后，
+`0/1` 两组十帧逐字节一致，模型选择、算法尺寸和销毁日志也一致，所以该 bool 不是预览/导出差异来源。
+见 [export-mode-lifecycle.zh.md](export-mode-lifecycle.zh.md)。
+
+素材切换使用不同人物再次验证了状态边界：`A x3 -> gray x5 -> B x10` 若不 reset，十张 B 都不同于
+fresh-B；在第一张 B 前重建 manager 后，十张 B 从第一帧起全部逐字节等于 fresh-B。因此独立宿主应
+在 clip/source 边界重建 manager 和 `AlgorithmService`，同一连续 clip 内保持复用。见
+[source-switch-manager-reset.zh.md](source-switch-manager-reset.zh.md)。
+
+model-clip 参数通道也已真实捕获。`TESwingSegmentUtils::_generateFeatureParams` 只写入 feature 顺序和
+起止 offset；剪映 UI 为奥林巴斯下发的完整 `amazing param` 只有 `blendMode`、`hasPostEffect`、
+`intensity=1.0`、`previewColor`、空 `preview_effect_id` 和空 `time`。调用只发生在草稿加载时，返回地址位于
+`TESwingEffectManager::updateSegmentParam` 内；再次选择滤镜轨道不会重复调用。其中没有模型、分割、mask、
+关键点或 AB 配置，所以该通道已经排除。随后对 `updateBachAlgorithmParam` 的真实值做了单独捕获：当前 UI
+走 legacy model-clip 分支，algorithm type 为 `0`、result directory 为空；`clip_res_path` 正确指向奥林巴斯
+资源包。该函数只在 type 为 `1` 时继续，因此预计算算法结果目录路径同样可以排除。见
+[model-clip-feature-params.zh.md](model-clip-feature-params.zh.md) 与
+[bach-algorithm-model-clip-params.zh.md](bach-algorithm-model-clip-params.zh.md)。
+
+模型名称 AB 也已完成单变量对照。真实 UI 与独立 V2 在 Swing 初始化处都读取
+`support_external_model_name=3`，并请求相同的 face、face-extra 和 skin-seg 逻辑名字；差异发生在资源
+resolver，UI 将请求映射到更新的缓存文件。同一 physical v5.1 文件上的 SIMD 单变量测试也已完成。在两组
+CoreML 都于最终 preparation 输出前
+ready 后，SIMD 0/1 的 71 张 RGBA 和 72 张完整 mask
+逐字节一致，独立复跑亦一致；早先的小差异来自异步 ready 时序。首次结果与模型 ready/cache 生命周期由
+后续单变量实验继续隔离。见
+[support-external-model-name.zh.md](support-external-model-name.zh.md) 与
+[ui-physical-skin-model.zh.md](ui-physical-skin-model.zh.md)、
+[skin-seg-simd-ab.zh.md](skin-seg-simd-ab.zh.md)。
+
+首次结果生命周期随后完成同帧双 readback。renderer callback 返回后，探针先读取 V2 原地输入纹理，在不调用
+EffectSDK 的条件下运行当前 run loop 并等待两秒，再读取同一纹理。五帧连续测试每次均为
+`0/1639680` 字节变化，最终单帧复跑仍为零；等待期间也没有额外 CPU mask 交付。ready 只有在后续 seek
+进入算法链时才被观察，且 ready 日志在 seek 内出现不代表该帧已经消费新结果。下一轮只应测试 ready 已被
+观察后的同 timestamp re-seek，不要同时加入 manager reset。见
+[skin-seg-first-result-lifecycle.zh.md](skin-seg-first-result-lifecycle.zh.md)。
+
+各能力的“已证明 / 未证明”边界汇总在
+[current-coverage.zh.md](current-coverage.zh.md)。
+
 完整 GL 与滤镜技术记录见 [gl-texture-context.zh.md](gl-texture-context.zh.md)。可复现的低层
 Effect 探针见 [effect-cgl-render-probe.cpp](probes/effect-cgl-render-probe.cpp)，模型边界观察器见
-[bytenn-input-capture.cpp](probes/bytenn-input-capture.cpp)。
+[bytenn-input-capture.cpp](probes/bytenn-input-capture.cpp)，完整 CPU mask 观察器和模型对比工具见
+[skin-seg-result-capture.cpp](probes/skin-seg-result-capture.cpp) 与
+[compare-skin-model-runs.py](probes/compare-skin-model-runs.py)。
 
 ## 探针用途
 
