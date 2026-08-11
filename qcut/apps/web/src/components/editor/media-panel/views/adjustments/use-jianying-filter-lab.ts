@@ -4,6 +4,7 @@ import type { JianyingFilterLabLutSummary } from "@/types/electron";
 interface JianyingFilterLabState {
 	checking: boolean;
 	luts: JianyingFilterLabLutSummary[];
+	categoryOrder: string[];
 	error: string;
 }
 
@@ -11,6 +12,7 @@ export function useJianyingFilterLab() {
 	const [state, setState] = useState<JianyingFilterLabState>({
 		checking: true,
 		luts: [],
+		categoryOrder: [],
 		error: "",
 	});
 	const refresh = useCallback(async () => {
@@ -19,6 +21,7 @@ export function useJianyingFilterLab() {
 			setState({
 				checking: false,
 				luts: [],
+				categoryOrder: [],
 				error: "滤镜实验室仅在 QCut 桌面版中可用",
 			});
 			return null;
@@ -26,12 +29,18 @@ export function useJianyingFilterLab() {
 		setState((current) => ({ ...current, checking: true, error: "" }));
 		try {
 			const result = await api.list();
-			setState({ checking: false, luts: result.luts, error: "" });
+			setState({
+				checking: false,
+				luts: result.luts,
+				categoryOrder: result.categoryOrder ?? [],
+				error: "",
+			});
 			return result;
 		} catch (cause) {
 			setState({
 				checking: false,
 				luts: [],
+				categoryOrder: [],
 				error: cause instanceof Error ? cause.message : String(cause),
 			});
 			return null;
