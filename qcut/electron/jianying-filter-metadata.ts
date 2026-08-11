@@ -12,6 +12,21 @@ interface FilterMetadataRow {
 	version: string | null;
 }
 
+interface JianyingPanelCategory {
+	id: number;
+	name: string;
+}
+
+/**
+ * Jianying filter-panel categories resolved from the local cache DBs.
+ * `order` follows Jianying's own panel ordering (e.g. 夏日/人像/风景/…);
+ * `byResourceId` maps a filter resource id to its category names.
+ */
+export interface JianyingFilterCategoryCatalog {
+	order: string[];
+	byResourceId: Map<string, string[]>;
+}
+
 function titleKey({
 	resourceId,
 	version,
@@ -100,6 +115,201 @@ function collectRows({
 	} finally {
 		database.close();
 	}
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+	return value && typeof value === "object" && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: null;
+}
+
+function readCategorySourceBodies({
+	database,
+}: {
+	database: DatabaseSync;
+}): string[] {
+	if (!tableExists({ database, table: "http_cache" })) return [];
+	// Categories live in panel responses (ordered `categories[]` + embedded
+	// first-category resources) and in paginated per-category filter listings
+	// (items carrying `common_attr.category_ids`).
+	const rows = database
+		.prepare(`
+			SELECT response_body AS body
+			FROM http_cache
+			WHERE url LIKE '%get_panel_info%'
+				OR url LIKE '%get_resources_by_category_id%filter%'
+		`)
+		.all() as unknown as { body: unknown }[];
+	const bodies: string[] = [];
+	for (const row of rows) {
+		if (typeof row.body === "string") bodies.push(row.body);
+	}
+	return bodies;
+}
+
+function collectCategorySignals({
+	body,
+	resourceIds,
+	panels,
+	memberships,
+}: {
+	body: string;
+	resourceIds: ReadonlySet<string>;
+	panels: JianyingPanelCategory[][];
+	memberships: Map<string, Set<number>>;
+}) {
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(body);
+	} catch {
+		return;
+	}
+	const data = asRecord(asRecord(parsed)?.data);
+	if (!data) return;
+
+	const orderedCategories: JianyingPanelCategory[] = [];
+	if (Array.isArray(data.categories)) {
+		for (const entry of data.categories) {
+			const record = asRecord(entry);
+			const id = record?.category_id;
+			const name = record?.category_name;
+			if (typeof id === "number" && typeof name === "string" && name.trim()) {
+				orderedCategories.push({ id, name: name.trim() });
+			}
+		}
+	}
+	if (orderedCategories.length > 0) panels.push(orderedCategories);
+
+	const itemLists: unknown[][] = [];
+	if (Array.isArray(data.effect_item_list)) {
+		itemLists.push(data.effect_item_list);
+	}
+	const categoryResources = asRecord(data.category_resources);
+	if (categoryResources) {
+		for (const block of Object.values(categoryResources)) {
+			const list = asRecord(block)?.effect_item_list;
+			if (Array.isArray(list)) itemLists.push(list);
+		}
+	}
+	for (const list of itemLists) {
+		for (const item of list) {
+			const attributes = asRecord(asRecord(item)?.common_attr);
+			const id = attributes?.id;
+			if (typeof id !== "string" || !resourceIds.has(id)) continue;
+			const categoryIds = Array.isArray(attributes?.category_ids)
+				? attributes.category_ids.filter(
+						(value): value is number => typeof value === "number"
+					)
+				: [];
+			if (categoryIds.length === 0) continue;
+			const existing = memberships.get(id) ?? new Set<number>();
+			for (const categoryId of categoryIds) existing.add(categoryId);
+			memberships.set(id, existing);
+		}
+	}
+}
+
+function buildCategoryCatalog({
+	panels,
+	memberships,
+}: {
+	panels: JianyingPanelCategory[][];
+	memberships: Map<string, Set<number>>;
+}): JianyingFilterCategoryCatalog {
+	const usedCategoryIds = new Set<number>();
+	for (const categoryIds of memberships.values()) {
+		for (const categoryId of categoryIds) usedCategoryIds.add(categoryId);
+	}
+	// The DBs cache every panel (filters, text animations, sounds …). The
+	// filter panel is the one whose category ids the filter resources
+	// actually reference.
+	let filterPanel: JianyingPanelCategory[] = [];
+	let bestOverlap = 0;
+	for (const panel of panels) {
+		const overlap = panel.filter(({ id }) => usedCategoryIds.has(id)).length;
+		if (overlap > bestOverlap) {
+			bestOverlap = overlap;
+			filterPanel = panel;
+		}
+	}
+	const names = new Map<number, string>();
+	for (const panel of panels) {
+		for (const { id, name } of panel) {
+			if (!names.has(id)) names.set(id, name);
+		}
+	}
+	for (const { id, name } of filterPanel) names.set(id, name);
+
+	const order: string[] = [];
+	for (const { id, name } of filterPanel) {
+		if (usedCategoryIds.has(id) && !order.includes(name)) order.push(name);
+	}
+	const orderIndex = new Map(order.map((name, index) => [name, index]));
+	const byResourceId = new Map<string, string[]>();
+	for (const [resourceId, categoryIds] of memberships) {
+		const resolved = [...categoryIds]
+			.map((categoryId) => names.get(categoryId))
+			.filter((name): name is string => Boolean(name));
+		const unique = [...new Set(resolved)].sort(
+			(left, right) =>
+				(orderIndex.get(left) ?? Number.MAX_SAFE_INTEGER) -
+				(orderIndex.get(right) ?? Number.MAX_SAFE_INTEGER)
+		);
+		if (unique.length > 0) byResourceId.set(resourceId, unique);
+	}
+	return { order, byResourceId };
+}
+
+export async function resolveJianyingFilterCategories({
+	references,
+	databaseRoot = join(dirname(jianyingEffectCacheRoot()), "ressdk_db"),
+}: {
+	references: JianyingLutReference[];
+	databaseRoot?: string;
+}): Promise<JianyingFilterCategoryCatalog> {
+	const resourceIds = new Set(references.map(({ resourceId }) => resourceId));
+	const empty: JianyingFilterCategoryCatalog = {
+		order: [],
+		byResourceId: new Map(),
+	};
+	if (resourceIds.size === 0) return empty;
+
+	let databaseDirectories: string[];
+	try {
+		databaseDirectories = await readdir(databaseRoot);
+	} catch {
+		return empty;
+	}
+	const panels: JianyingPanelCategory[][] = [];
+	const memberships = new Map<string, Set<number>>();
+	for (const directory of databaseDirectories) {
+		try {
+			const database = new DatabaseSync(
+				join(databaseRoot, directory, "rp.db"),
+				{ readOnly: true }
+			);
+			try {
+				for (const body of readCategorySourceBodies({ database })) {
+					collectCategorySignals({ body, resourceIds, panels, memberships });
+				}
+			} finally {
+				database.close();
+			}
+		} catch {
+			// Missing or foreign DBs degrade to fewer signals, never an error.
+		}
+	}
+	return buildCategoryCatalog({ panels, memberships });
+}
+
+export function findJianyingFilterCategories({
+	reference,
+	catalog,
+}: {
+	reference: JianyingLutReference;
+	catalog: JianyingFilterCategoryCatalog;
+}) {
+	return catalog.byResourceId.get(reference.resourceId);
 }
 
 export async function resolveJianyingFilterTitles({
