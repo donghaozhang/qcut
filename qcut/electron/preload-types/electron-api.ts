@@ -63,6 +63,9 @@ import type { HyperframesAPI } from "./api-types/hyperframes-api";
 import type { JianyingDraftExportPreloadAPI } from "./api-types/jianying-draft-export-api";
 import type { JianyingTransitionPreloadAPI } from "./api-types/jianying-transition-api";
 import type { JianyingFilterLabPreloadAPI } from "./api-types/jianying-filter-lab-api";
+import type { JianyingFontLabPreloadAPI } from "./api-types/jianying-font-lab-api";
+import type { JianyingTextStyleLabPreloadAPI } from "./api-types/jianying-text-style-lab-api";
+import type { JianyingTextRuntimePreloadAPI } from "./api-types/jianying-text-runtime-api";
 import type { JianyingEnvelopePreloadAPI } from "./api-types/jianying-envelope-api";
 import type { JianyingDraftImportPreloadAPI } from "./api-types/jianying-draft-import-api";
 import type { JianyingSameProfileWritebackPreloadAPI } from "./api-types/jianying-same-profile-writeback-api";
@@ -110,6 +113,9 @@ export interface ElectronAPI
 		JianyingDraftExportPreloadAPI,
 		JianyingTransitionPreloadAPI,
 		JianyingFilterLabPreloadAPI,
+		JianyingFontLabPreloadAPI,
+		JianyingTextStyleLabPreloadAPI,
+		JianyingTextRuntimePreloadAPI,
 		JianyingEnvelopePreloadAPI,
 		JianyingDraftImportPreloadAPI,
 		JianyingSameProfileWritebackPreloadAPI {
