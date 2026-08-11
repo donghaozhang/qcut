@@ -97,6 +97,8 @@ async function main() {
 	}
 	bins.sort((left, right) => right[3] - left[3]);
 
+	// Tab-indented so a regenerated file matches the repository formatter and
+	// does not fail `lint:clean`.
 	await writeFile(
 		OUTPUT,
 		`${JSON.stringify(
@@ -108,7 +110,7 @@ async function main() {
 				histogram: bins,
 			},
 			null,
-			0
+			"\t"
 		)}\n`
 	);
 	console.error(

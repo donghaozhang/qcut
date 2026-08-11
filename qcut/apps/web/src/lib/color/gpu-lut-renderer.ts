@@ -191,6 +191,7 @@ export function createGpuLutRenderer(): GpuLutRenderer | null {
 			canvas.width = width;
 			canvas.height = height;
 			gl.viewport(0, 0, width, height);
+			// biome-ignore lint/correctness/useHookAtTopLevel: WebGL call, not a React hook
 			gl.useProgram(program);
 
 			gl.activeTexture(gl.TEXTURE0);
