@@ -15,11 +15,26 @@ export interface JianyingFilterLabLutSummary {
 	categories?: string[];
 }
 
+/**
+ * A filter known from the local Jianying catalog metadata but without a
+ * locally cached LUT. Metadata only — nothing can be loaded for it.
+ */
+export interface JianyingFilterLabKnownFilter {
+	resourceId: string;
+	title: string;
+	categories: string[];
+}
+
 export interface JianyingFilterLabListResult {
 	count: number;
 	luts: JianyingFilterLabLutSummary[];
-	/** All resolved categories in Jianying's own panel order. */
+	/**
+	 * All resolved categories in Jianying's own panel order — the union of
+	 * categories used by cached LUTs and known-but-uncached filters.
+	 */
 	categoryOrder: string[];
+	/** Catalog filters whose LUTs are not cached on this machine. */
+	uncached: JianyingFilterLabKnownFilter[];
 }
 
 export interface JianyingFilterLabLoadRequest {
