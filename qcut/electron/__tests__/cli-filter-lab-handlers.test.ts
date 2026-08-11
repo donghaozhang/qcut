@@ -8,6 +8,7 @@ import type {
 import {
 	handleFilterLabCompare,
 	handleFilterLabList,
+	handleFilterLabVerify,
 } from "../native-pipeline/cli/cli-handlers-filter-lab";
 import type { JianyingLutEntry } from "../native-pipeline/filters/filter-lab-lut";
 
@@ -128,5 +129,65 @@ describe("handleFilterLabCompare", () => {
 		const result = await handleFilterLabCompare({});
 		expect(result.success).toBe(false);
 		expect(result.error).toContain("--lut-id or --resource-id");
+	});
+});
+
+describe("handleFilterLabVerify", () => {
+	it("requires exact versioned frame evidence", async () => {
+		const result = await handleFilterLabVerify({ resourceId: "filter-1" });
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("--filter-version");
+	});
+
+	it("measures and persists one resource version", async () => {
+		const saved: unknown[] = [];
+		const result = await handleFilterLabVerify(
+			{
+				resourceId: "filter-1",
+				filterVersion: "v2",
+				referenceFrame: "jianying.png",
+				candidateFrame: "qcut.png",
+				referenceMask: "jianying-mask.png",
+				candidateMask: "qcut-mask.png",
+			},
+			{
+				verify: async ({ input }) => {
+					expect(input).toEqual({
+						referenceFrame: "jianying.png",
+						candidateFrame: "qcut.png",
+						referenceMask: "jianying-mask.png",
+						candidateMask: "qcut-mask.png",
+					});
+					return {
+						status: "verified",
+						width: 1920,
+						height: 1080,
+						rgbRmse: 0.5,
+						psnr: 54.15,
+						ssim: 0.999,
+						deltaE: 0.4,
+						maskEdgeMae: 0.01,
+						referenceSha256: "a".repeat(64),
+						candidateSha256: "b".repeat(64),
+						verifiedAt: "2026-08-11T00:00:00.000Z",
+					};
+				},
+				save: async ({ record }) => {
+					saved.push(record);
+					return "/tmp/verifications.json";
+				},
+			}
+		);
+		expect(result.success).toBe(true);
+		expect(saved).toMatchObject([
+			{
+				resourceId: "filter-1",
+				version: "v2",
+				status: "verified",
+			},
+		]);
+		expect(result.data).toMatchObject({
+			storePath: "/tmp/verifications.json",
+		});
 	});
 });
