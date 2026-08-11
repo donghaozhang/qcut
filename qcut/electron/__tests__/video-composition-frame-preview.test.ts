@@ -4,6 +4,7 @@ import path from "path";
 import { buildFFmpegArgs } from "../ffmpeg-args-builder";
 import { buildVideoCompositionFramePreviewCommand } from "../ffmpeg/video-frame-preview";
 import type {
+	TextRasterLayer,
 	VideoCompositionFramePreviewOptions,
 	VideoVisual,
 } from "../ffmpeg/types";
@@ -16,6 +17,8 @@ const sourceAPath = path.join(tempDir, "source-a.mp4");
 const sourceBPath = path.join(tempDir, "source-b.mp4");
 const stickerPath = path.join(tempDir, "sticker.png");
 const textAssPath = path.join(tempDir, "text-layer.ass");
+const textRasterPattern = path.join(tempDir, "text-raster-%06d.png");
+const textRasterFramePath = path.join(tempDir, "text-raster-000000.png");
 
 function visual(): VideoVisual {
 	return {
@@ -140,6 +143,7 @@ describe("video composition frame preview command", () => {
 		fs.writeFileSync(sourceBPath, "fixture-b");
 		fs.writeFileSync(stickerPath, "fixture-sticker");
 		fs.writeFileSync(textAssPath, "fixture-ass");
+		fs.writeFileSync(textRasterFramePath, "fixture-raster");
 	});
 
 	afterAll(() => fs.rmSync(tempDir, { recursive: true, force: true }));
@@ -164,6 +168,23 @@ describe("video composition frame preview command", () => {
 		const previewOptions = options({
 			overrides: {
 				stickerSources,
+				textRasterLayers: [
+					{
+						elementId: "native-text",
+						source: {
+							kind: "image-sequence",
+							path: textRasterPattern,
+							frameRate: 30,
+						},
+						startTime: 0,
+						endTime: 4,
+						blendMode: "normal",
+						x: 80,
+						y: 30,
+						trackOrder: 0,
+						elementOrder: 2,
+					},
+				] satisfies TextRasterLayer[],
 				textAssLayers: [
 					{
 						content: "[Script Info]",
@@ -194,6 +215,7 @@ describe("video composition frame preview command", () => {
 			videoTransitions: previewOptions.videoTransitions,
 			stickerSources,
 			textAssLayers: preparedTextLayers,
+			textRasterLayers: previewOptions.textRasterLayers,
 		});
 		const command = buildVideoCompositionFramePreviewCommand({
 			options: previewOptions,
@@ -207,7 +229,9 @@ describe("video composition frame preview command", () => {
 		expect(previewGraph).toContain("xfade=transition=custom");
 		expect(previewGraph).toContain("visual_sticker_0_scaled");
 		expect(previewGraph).toContain("ass=filename=");
+		expect(previewGraph).toContain("visual_text_raster_0");
 		expect(previewGraph).toContain("trim=start=1:duration=");
+		expect(command.args).toContain(textRasterPattern);
 		expect(command.args).toContain("[composition_preview_frame]");
 		expect(command.args).not.toContain("libx264");
 	});
