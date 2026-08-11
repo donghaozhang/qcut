@@ -18,6 +18,7 @@ import { buildTimelineAudioFilters } from "../../../ffmpeg/audio-filter-graph.js
 import { buildXfadeTransitionFilter } from "../../../ffmpeg/transition-filter.js";
 import type {
 	AudioFile,
+	TextRasterLayer,
 	VideoSource,
 	VideoTransition,
 } from "../../../ffmpeg/types.js";
@@ -40,6 +41,7 @@ import {
 	HANDLER_NAME,
 	EXPORT_JOB_STATUS,
 	type ExportSegment,
+	type JianyingTextOverlay,
 	type StickerOverlay,
 	type TextOverlay,
 	type ResolvedExportSettings,
@@ -59,6 +61,8 @@ import {
 	compositeCursorOnSegments,
 } from "./cursor-composite.js";
 import { buildTextAss } from "./text-overlay.js";
+import { renderJianyingTextRasterLayers } from "./jianying-text-raster.js";
+import { buildTextRasterOverlayPassArgs } from "./text-raster-overlay-pass.js";
 
 export function resolveExportSettings({
 	request,
@@ -1031,9 +1035,11 @@ export async function executeExportJob({
 	segments,
 	stickerOverlays = [],
 	textOverlays = [],
+	jianyingTextOverlays = [],
 	audioFiles = [],
 	videoTransitions = [],
 	projectCanvas,
+	projectFps,
 }: {
 	jobId: string;
 	projectId: string;
@@ -1042,8 +1048,10 @@ export async function executeExportJob({
 	segments: ExportSegment[];
 	stickerOverlays?: StickerOverlay[];
 	textOverlays?: TextOverlay[];
+	jianyingTextOverlays?: JianyingTextOverlay[];
 	audioFiles?: AudioFile[];
 	videoTransitions?: VideoTransition[];
+	projectFps?: number;
 	/**
 	 * Project canvas size that text overlay x/y/fontSize values are expressed
 	 * in. When the export preset resolution differs from the project canvas,
@@ -1362,6 +1370,74 @@ export async function executeExportJob({
 				// Restore the pre-sticker output so the export isn't lost
 				await fsPromises.rename(concatOutputPath, videoOutputPath);
 			}
+		}
+
+		if (jianyingTextOverlays.length > 0 && settings.format !== "mp3") {
+			claudeLog.info(
+				HANDLER_NAME,
+				`Rendering ${jianyingTextOverlays.length} original Jianying text overlay(s)`
+			);
+			updateJobProgress({ jobId, progress: 0.93 });
+			const canvas = projectCanvas ?? {
+				width: settings.width,
+				height: settings.height,
+			};
+			const resolvedProjectFps =
+				typeof projectFps === "number" &&
+				Number.isFinite(projectFps) &&
+				projectFps > 0
+					? projectFps
+					: settings.fps;
+			const textRasterLayers: TextRasterLayer[] =
+				await renderJianyingTextRasterLayers({
+					jobId,
+					overlays: jianyingTextOverlays,
+					projectCanvas: canvas,
+					outputCanvas: {
+						width: settings.width,
+						height: settings.height,
+					},
+					projectFps: resolvedProjectFps,
+				});
+			if (textRasterLayers.length !== jianyingTextOverlays.length) {
+				throw new Error(
+					"Jianying text renderer did not return every requested overlay."
+				);
+			}
+			const sourcePath = path.join(tempDir, "video-before-jianying-text.mp4");
+			await fsPromises.rename(videoOutputPath, sourcePath);
+			try {
+				await runFFmpegCommand({
+					args: buildTextRasterOverlayPassArgs({
+						sourcePath,
+						outputPath: videoOutputPath,
+						layers: textRasterLayers,
+						settings,
+					}),
+					estimatedDuration: Math.max(
+						0,
+						segments.reduce((sum, segment) => sum + segment.duration, 0)
+					),
+					onProgress: ({ normalizedProgress }) => {
+						updateJobProgress({
+							jobId,
+							progress: 0.93 + normalizedProgress * 0.01,
+						});
+					},
+				});
+			} catch (error) {
+				try {
+					await fsPromises.unlink(videoOutputPath);
+				} catch {}
+				await fsPromises.rename(sourcePath, videoOutputPath);
+				throw new Error(
+					`Jianying text raster export failed: ${error instanceof Error ? error.message : String(error)}`
+				);
+			}
+			claudeLog.info(
+				HANDLER_NAME,
+				"Original Jianying text compositing complete"
+			);
 		}
 
 		// Text/caption overlays are a required parity pass. Failure is fatal so a
