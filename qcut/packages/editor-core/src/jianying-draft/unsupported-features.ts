@@ -33,7 +33,8 @@ function hasConfiguredLut({
 		lut.presetId !== "none" ||
 		lut.intensity !== 100 ||
 		lut.skinProtection !== 0 ||
-		lut.cube !== undefined
+		lut.cube !== undefined ||
+		lut.dual !== undefined
 	);
 }
 
