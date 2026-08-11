@@ -535,6 +535,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			path: { type: "string" },
 			"resource-id": { type: "string", multiple: true },
 			// filter-lab
+			"lut-id": { type: "string" },
 			worst: { type: "string" },
 			sample: { type: "string" },
 			"draft-effect-id": { type: "string", multiple: true },
@@ -870,6 +871,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		packagePath: values.path as string | undefined,
 		resourceIds: values["resource-id"] as string[] | undefined,
 		resourceId: (values["resource-id"] as string[] | undefined)?.[0],
+		lutId: values["lut-id"] as string | undefined,
 		worst: values.worst ? Number(values.worst) : undefined,
 		sample: values.sample as string | undefined,
 		draftEffectIds: values["draft-effect-id"] as string[] | undefined,
