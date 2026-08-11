@@ -7,6 +7,7 @@ import {
 	extractVideoTransitions,
 } from "@/lib/export-cli/sources";
 import type { StickerSourceForFilter } from "@/lib/export-cli/types";
+import type { TextRasterLayerInput } from "@/lib/export-cli/types";
 import { buildTimelineAssLayers } from "@/lib/export/export-engine-cli-text";
 import { hasMediaVisualEdits } from "@/lib/video/video-properties";
 import type { ActiveElement } from "@/components/editor/preview-panel/types";
@@ -16,6 +17,11 @@ import {
 	createPngObjectUrl,
 	revokeObjectUrlAfterCommit,
 } from "./preview-frame-url";
+import { isLocalFontAssetReference } from "@/lib/fonts/local-font-runtime";
+import {
+	collectJianyingTextFrameEntries,
+	validateJianyingTextRenderResult,
+} from "@/lib/preview/jianying-text-render-entry";
 
 type NativeCompositionPreviewStatus = "idle" | "rendering" | "ready" | "error";
 
@@ -59,9 +65,40 @@ function hasRasterTextAnimation({
 	active: ActiveElement;
 }): boolean {
 	if (active.element.type !== "text") return false;
+	if (active.element.jianyingTextStyle) return false;
 	const animations = active.element.textAnimations;
 	return Boolean(
 		animations && (animations.entrance || animations.exit || animations.loop)
+	);
+}
+
+async function renderJianyingTextPreviewLayers({
+	requests,
+}: {
+	requests: ReturnType<typeof collectJianyingTextFrameEntries>;
+}): Promise<TextRasterLayerInput[]> {
+	if (requests.length === 0) return [];
+	const api = window.electronAPI?.jianyingTextRuntime;
+	if (!api) throw new Error("剪映原版动态花字渲染服务不可用");
+	return Promise.all(
+		requests.map(async (entry) => {
+			const result = validateJianyingTextRenderResult({
+				entry,
+				result: await api.render(entry.renderRequest),
+			});
+			return {
+				elementId: entry.elementId,
+				source: result.source,
+				startTime: entry.startTime,
+				endTime: entry.endTime,
+				blendMode: entry.element.blendMode ?? "normal",
+				x: result.x,
+				y: result.y,
+				trackOrder: entry.trackOrder,
+				elementOrder: entry.elementOrder,
+				cacheKey: entry.element.jianyingTextStyle?.packageHash,
+			} satisfies TextRasterLayerInput;
+		})
 	);
 }
 
@@ -219,6 +256,13 @@ export function canUseNativeCompositionPreview({
 	for (const active of activeElements) {
 		if (active.element.type !== "media") {
 			if (!isSupportedOverlayType({ type: active.element.type })) return false;
+			if (
+				active.element.type === "text" &&
+				!active.element.jianyingTextStyle &&
+				isLocalFontAssetReference({ value: active.element.fontAsset })
+			) {
+				return false;
+			}
 			if (hasRasterTextAnimation({ active })) return false;
 			hasCompositedOverlay = true;
 			continue;
@@ -303,6 +347,14 @@ export function useNativeCompositionFramePreview({
 			previewUrlRef.current = undefined;
 			setState({ status: "rendering", timelineTime });
 			try {
+				const jianyingTextRequests = collectJianyingTextFrameEntries({
+					tracks,
+					timelineTime,
+					requestId,
+					canvasWidth: Math.round(width),
+					canvasHeight: Math.round(height),
+					fps,
+				});
 				const stickerSourcesPromise = hasActiveTimelineSticker({
 					tracks,
 					timelineTime,
@@ -319,26 +371,33 @@ export function useNativeCompositionFramePreview({
 							totalDuration: duration,
 						})
 					: Promise.resolve([] as StickerSourceForFilter[]);
-				const [videoSources, imageSources, allStickerSources] =
-					await Promise.all([
-						extractVideoSources(
-							tracks,
-							mediaItems,
-							null,
-							undefined,
-							undefined,
-							fps
-						),
-						extractImageSources(
-							tracks,
-							mediaItems,
-							null,
-							undefined,
-							undefined,
-							fps
-						),
-						stickerSourcesPromise,
-					]);
+				const [
+					videoSources,
+					imageSources,
+					allStickerSources,
+					textRasterLayers,
+				] = await Promise.all([
+					extractVideoSources(
+						tracks,
+						mediaItems,
+						null,
+						undefined,
+						undefined,
+						fps
+					),
+					extractImageSources(
+						tracks,
+						mediaItems,
+						null,
+						undefined,
+						undefined,
+						fps
+					),
+					stickerSourcesPromise,
+					renderJianyingTextPreviewLayers({
+						requests: jianyingTextRequests,
+					}),
+				]);
 				if (videoSources.length === 0 && imageSources.length === 0) {
 					throw new Error("No local visual sources are available for preview");
 				}
@@ -359,6 +418,9 @@ export function useNativeCompositionFramePreview({
 					canvasHeight: Math.round(height),
 					fps,
 					platform: captionPlatform,
+					excludedTextElementIds: new Set(
+						jianyingTextRequests.map(({ elementId }) => elementId)
+					),
 				}).layers;
 				const result =
 					await platform().ffmpeg.renderVideoCompositionFramePreview({
@@ -378,6 +440,7 @@ export function useNativeCompositionFramePreview({
 						imageSources,
 						stickerSources,
 						textAssLayers,
+						textRasterLayers,
 					});
 				if (cancelled || result.requestId !== requestId) return;
 				const data =
@@ -406,6 +469,20 @@ export function useNativeCompositionFramePreview({
 			cancelled = true;
 			window.clearTimeout(timer);
 			void platform().ffmpeg.cancelVideoFramePreview(requestId);
+			const api = window.electronAPI?.jianyingTextRuntime;
+			if (api) {
+				const requests = collectJianyingTextFrameEntries({
+					tracks,
+					timelineTime,
+					requestId,
+					canvasWidth: Math.round(width),
+					canvasHeight: Math.round(height),
+					fps,
+				});
+				for (const request of requests) {
+					void api.cancel({ requestId: request.requestId });
+				}
+			}
 		};
 	}, [
 		backgroundColor,
