@@ -223,6 +223,14 @@ export interface CLIRunOptions {
 	worst?: number;
 	/** filter-lab: image or video to take scoring colours from. */
 	sample?: string;
+	/** filter-lab: exact resource version tied to rendered parity evidence. */
+	filterVersion?: string;
+	referenceFrame?: string;
+	candidateFrame?: string;
+	referenceMask?: string;
+	candidateMask?: string;
+	referenceVideo?: string;
+	candidateVideo?: string;
 	draftEffectIds?: string[];
 	catalogEffectIds?: string[];
 	metadataMd5?: string;
