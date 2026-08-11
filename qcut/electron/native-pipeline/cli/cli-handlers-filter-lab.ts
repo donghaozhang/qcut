@@ -23,8 +23,11 @@ import type { CLIResult } from "./cli-runner/types.js";
 
 function summariseLut(entry: JianyingLutEntry) {
 	return {
+		lutId: entry.lutId,
 		resourceId: entry.resourceId,
+		version: entry.version,
 		file: entry.fileName,
+		role: entry.role,
 		size: entry.cube.size,
 		kind: entry.chroma < 0.01 ? "monochrome" : "colour",
 	};
@@ -100,25 +103,39 @@ async function resolveColours({
 /** Scores one cached Jianying LUT against every QCut preset. */
 export async function handleFilterLabCompare({
 	resourceId,
+	lutId,
 	limit = 5,
 	sample,
 }: {
-	resourceId: string;
+	resourceId?: string;
+	lutId?: string;
 	limit?: number;
 	sample?: string;
 }): Promise<CLIResult> {
-	if (!resourceId) {
+	if (!(resourceId || lutId)) {
 		return {
 			success: false,
-			error: "filter-lab compare requires --resource-id",
+			error: "filter-lab compare requires --lut-id or --resource-id",
 		};
 	}
 	const luts = await listJianyingLuts();
-	const entry = luts.find((lut) => lut.resourceId === resourceId);
+	const resourceMatches = resourceId
+		? luts.filter((lut) => lut.resourceId === resourceId)
+		: [];
+	if (!lutId && resourceMatches.length > 1) {
+		return {
+			success: false,
+			error: `Resource ${resourceId} has multiple cached LUTs. Choose one exact --lut-id from 'filter-lab list'.`,
+			data: { lutIds: resourceMatches.map((entry) => entry.lutId) },
+		};
+	}
+	const entry = lutId
+		? luts.find((lut) => lut.lutId === lutId)
+		: resourceMatches[0];
 	if (!entry) {
 		return {
 			success: false,
-			error: `No cached Jianying LUT for resource ${resourceId}. Run 'filter-lab list' to see what is available.`,
+			error: `No cached Jianying LUT for ${lutId ?? resourceId}. Run 'filter-lab list' to see what is available.`,
 		};
 	}
 	const presets = await loadQcutFilterCubes();
