@@ -1,3 +1,4 @@
+// @vitest-environment node
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
