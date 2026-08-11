@@ -3,6 +3,8 @@
 #include <array>
 #include <cstddef>
 #include <filesystem>
+#include <optional>
+#include <string>
 
 namespace jianying_probe {
 
@@ -19,11 +21,17 @@ struct FilterSequenceRequest {
   int inputTextureDataCode = 0;
   int outputTextureDataCode = 0;
   int algorithmCacheFlag = 0;
+  std::string featureParameters;
+  bool preferExactModelFilename = false;
+  bool exportMode = false;
   bool enableSwingSimplify = true;
   bool enableAdjustColorWithFloat = false;
   bool enableImageQuality = false;
   bool managerCreateOption = false;
   bool enableParallelAsyncSwing = false;
+  std::optional<bool> skinSegUseSimdOptim;
+  int stageDelayMilliseconds = 0;
+  int postSeekDelayMilliseconds = 0;
 };
 
 struct FilterSequenceResult {
