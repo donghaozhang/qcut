@@ -115,6 +115,7 @@ const TEXT_ELEMENT_KEYS = createElementAllowedKeySet<TextElement>({
 		glowBlur: true,
 		glowColor: true,
 		glowOpacity: true,
+		jianyingTextStyle: true,
 		keyframes: true,
 		letterSpacing: true,
 		lineHeight: true,
