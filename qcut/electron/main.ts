@@ -73,6 +73,7 @@ import {
 	setupJianyingFilterLabIPC,
 	type JianyingFilterLabIPCController,
 } from "./jianying-filter-lab-handler.js";
+import { watchJianyingFilterCaches } from "./jianying-filter-cache-watcher.js";
 import {
 	setupJianyingSameProfileWritebackIPC,
 	type JianyingSameProfileWritebackIPCController,
@@ -1002,6 +1003,7 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 				() => {
 					jianyingFilterLabController = setupJianyingFilterLabIPC({
 						getMainWindow: () => mainWindow,
+						watchCache: watchJianyingFilterCaches,
 					});
 				},
 			],
