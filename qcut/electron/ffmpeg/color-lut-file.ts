@@ -5,6 +5,13 @@ import { join } from "node:path";
 import type { VideoColorSettings } from "./color-settings";
 
 type VideoCubeLut = NonNullable<VideoColorSettings["lut"]["cube"]>;
+type VideoDualLut = NonNullable<VideoColorSettings["lut"]["dual"]>;
+
+interface LutRgb {
+	r: number;
+	g: number;
+	b: number;
+}
 
 function clamp01(value: number): number {
 	return Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
@@ -82,33 +89,124 @@ function skinToneWeight({
 	);
 }
 
+function cubeColor({
+	cube,
+	red,
+	green,
+	blue,
+}: {
+	cube: VideoCubeLut;
+	red: number;
+	green: number;
+	blue: number;
+}): LutRgb {
+	const index = ((blue * cube.size + green) * cube.size + red) * 3;
+	return {
+		r: cube.values[index] ?? 0,
+		g: cube.values[index + 1] ?? 0,
+		b: cube.values[index + 2] ?? 0,
+	};
+}
+
+function mixRgb({
+	left,
+	right,
+	amount,
+}: {
+	left: LutRgb;
+	right: LutRgb;
+	amount: number;
+}): LutRgb {
+	return {
+		r: left.r + (right.r - left.r) * amount,
+		g: left.g + (right.g - left.g) * amount,
+		b: left.b + (right.b - left.b) * amount,
+	};
+}
+
+function sampleCube({ cube, color }: { cube: VideoCubeLut; color: LutRgb }) {
+	const coordinate = ({ value, axis }: { value: number; axis: 0 | 1 | 2 }) =>
+		clamp01(
+			(value - cube.domainMin[axis]) /
+				Math.max(0.000001, cube.domainMax[axis] - cube.domainMin[axis])
+		) *
+		(cube.size - 1);
+	const red = coordinate({ value: color.r, axis: 0 });
+	const green = coordinate({ value: color.g, axis: 1 });
+	const blue = coordinate({ value: color.b, axis: 2 });
+	const r0 = Math.floor(red);
+	const g0 = Math.floor(green);
+	const b0 = Math.floor(blue);
+	const r1 = Math.min(cube.size - 1, r0 + 1);
+	const g1 = Math.min(cube.size - 1, g0 + 1);
+	const b1 = Math.min(cube.size - 1, b0 + 1);
+	const c00 = mixRgb({
+		left: cubeColor({ cube, red: r0, green: g0, blue: b0 }),
+		right: cubeColor({ cube, red: r1, green: g0, blue: b0 }),
+		amount: red - r0,
+	});
+	const c10 = mixRgb({
+		left: cubeColor({ cube, red: r0, green: g1, blue: b0 }),
+		right: cubeColor({ cube, red: r1, green: g1, blue: b0 }),
+		amount: red - r0,
+	});
+	const c01 = mixRgb({
+		left: cubeColor({ cube, red: r0, green: g0, blue: b1 }),
+		right: cubeColor({ cube, red: r1, green: g0, blue: b1 }),
+		amount: red - r0,
+	});
+	const c11 = mixRgb({
+		left: cubeColor({ cube, red: r0, green: g1, blue: b1 }),
+		right: cubeColor({ cube, red: r1, green: g1, blue: b1 }),
+		amount: red - r0,
+	});
+	return mixRgb({
+		left: mixRgb({ left: c00, right: c10, amount: green - g0 }),
+		right: mixRgb({ left: c01, right: c11, amount: green - g0 }),
+		amount: blue - b0,
+	});
+}
+
 function adjustedCube({
 	cube,
+	dual,
 	intensity,
 	skinProtection,
 }: {
 	cube: VideoCubeLut;
+	dual?: VideoDualLut;
 	intensity: number;
 	skinProtection: number;
 }): VideoCubeLut {
 	const values: number[] = [];
 	let valueIndex = 0;
-	for (let blue = 0; blue < cube.size; blue += 1) {
-		for (let green = 0; green < cube.size; green += 1) {
-			for (let red = 0; red < cube.size; red += 1) {
+	const size = dual ? Math.max(33, cube.size, dual.skinCube.size) : cube.size;
+	for (let blue = 0; blue < size; blue += 1) {
+		for (let green = 0; green < size; green += 1) {
+			for (let red = 0; red < size; red += 1) {
 				const input = {
-					r: red / (cube.size - 1),
-					g: green / (cube.size - 1),
-					b: blue / (cube.size - 1),
+					r: red / (size - 1),
+					g: green / (size - 1),
+					b: blue / (size - 1),
 				};
-				const output = {
-					r: cube.values[valueIndex] ?? input.r,
-					g: cube.values[valueIndex + 1] ?? input.g,
-					b: cube.values[valueIndex + 2] ?? input.b,
-				};
+				const background = dual
+					? sampleCube({ cube, color: input })
+					: {
+							r: cube.values[valueIndex] ?? input.r,
+							g: cube.values[valueIndex + 1] ?? input.g,
+							b: cube.values[valueIndex + 2] ?? input.b,
+						};
 				const skinWeight = skinToneWeight(input);
+				const output = dual
+					? mixRgb({
+							left: background,
+							right: sampleCube({ cube: dual.skinCube, color: input }),
+							amount: skinWeight,
+						})
+					: background;
 				const amount =
-					(intensity / 100) * (1 - skinWeight * (skinProtection / 100));
+					(intensity / 100) *
+					(dual ? 1 : 1 - skinWeight * (skinProtection / 100));
 				values.push(
 					clamp01(input.r + (output.r - input.r) * amount),
 					clamp01(input.g + (output.g - input.g) * amount),
@@ -118,7 +216,14 @@ function adjustedCube({
 			}
 		}
 	}
-	return { ...cube, values };
+	return dual
+		? {
+				size,
+				domainMin: [0, 0, 0],
+				domainMax: [1, 1, 1],
+				values,
+			}
+		: { ...cube, values };
 }
 
 function serializeCube({
@@ -145,23 +250,46 @@ function serializeCube({
 /** Exported only so the parity test can compare this copy with the web one. */
 export const __skinToneWeightForParity = skinToneWeight;
 
+export function __buildAdjustedCubeForParity({
+	cube,
+	dual,
+	intensity,
+	skinProtection,
+}: {
+	cube: VideoCubeLut;
+	dual?: VideoDualLut;
+	intensity: number;
+	skinProtection: number;
+}) {
+	return adjustedCube({ cube, dual, intensity, skinProtection });
+}
+
 export function materializeVideoCubeLut({
 	name,
 	cube,
+	dual,
 	intensity,
 	skinProtection,
 }: {
 	name: string;
 	cube: VideoCubeLut;
+	dual?: VideoDualLut;
 	intensity: number;
 	skinProtection: number;
 }): string {
 	if (cube.values.length !== cube.size ** 3 * 3) {
 		throw new Error("Invalid 3D LUT payload");
 	}
+	if (
+		dual &&
+		(dual.maskKind !== "skin-tone-v1" ||
+			dual.skinCube.values.length !== dual.skinCube.size ** 3 * 3)
+	) {
+		throw new Error("Invalid dual 3D LUT payload");
+	}
 	const content = serializeCube({
 		name,
-		cube: adjustedCube({ cube, intensity, skinProtection }),
+		cube: adjustedCube({ cube, dual, intensity, skinProtection }),
 	});
 	const directory = join(tmpdir(), "qcut-color-luts");
 	mkdirSync(directory, { recursive: true });
