@@ -31,6 +31,7 @@ export function isGpuEligible({
 	// CPU path applies that weighting even when the mask selects nothing (the
 	// grade then lands nowhere), so a colour cube cannot stand in for it.
 	if (settings.mask?.enabled) return false;
+	if (settings.multiPass?.enabled) return false;
 	const basic = settings.basic;
 	if (!basic?.enabled) return true;
 	// These three read neighbouring pixels or the pixel's position, so a colour
@@ -67,10 +68,25 @@ function settingsFingerprint({
 	settings: MediaColorSettings;
 }): string {
 	const cube = settings.lut?.cube;
-	if (!cube) return JSON.stringify(settings);
+	const normalizedSettings = settings.multiPass
+		? { ...settings, multiPass: undefined }
+		: settings;
+	if (!cube) return JSON.stringify(normalizedSettings);
+	const skinCube = settings.lut.dual?.skinCube;
 	return JSON.stringify({
-		...settings,
-		lut: { ...settings.lut, cube: cubeToken({ cube }) },
+		...normalizedSettings,
+		lut: {
+			...settings.lut,
+			cube: cubeToken({ cube }),
+			...(settings.lut.dual
+				? {
+						dual: {
+							...settings.lut.dual,
+							skinCube: skinCube ? cubeToken({ cube: skinCube }) : undefined,
+						},
+					}
+				: {}),
+		},
 	});
 }
 
