@@ -30,6 +30,7 @@ export * from "./api-license";
 export * from "./api-pi-agent";
 export * from "./api-jianying-draft-export";
 export * from "./api-jianying-transitions";
+export * from "./api-jianying-filter-lab";
 
 // Global augmentation - must be in a file with imports/exports to be a module
 import type { ElectronAPI } from "./electron-api";
