@@ -122,6 +122,7 @@ interface PreviewElementRendererProps {
 	transitionState?: ClipTransitionPreviewState;
 	audioCrossfadeState?: AudioCrossfadePreviewState;
 	compositionPreviewEnabled: boolean;
+	hideJianyingTextFallback: boolean;
 	additionalColorLayers: BrowserColorGradeLayer[];
 	onTextPointerDown: (
 		event: React.PointerEvent<HTMLDivElement>,
@@ -264,6 +265,7 @@ export function PreviewElementRenderer({
 	transitionState,
 	audioCrossfadeState,
 	compositionPreviewEnabled,
+	hideJianyingTextFallback,
 	additionalColorLayers,
 	onTextPointerDown,
 	onElementSelect,
@@ -384,6 +386,7 @@ export function PreviewElementRenderer({
 			colorPickerActive && element.id === currentMediaElement?.element.id;
 
 		if (element.type === "text") {
+			if (element.jianyingTextStyle && hideJianyingTextFallback) return null;
 			const displayElement = resolveAnimatedTextElement({
 				element,
 				tracks,
