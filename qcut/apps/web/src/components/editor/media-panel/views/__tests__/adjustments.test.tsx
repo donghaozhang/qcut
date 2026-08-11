@@ -1,9 +1,11 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_MEDIA_COLOR_SETTINGS } from "@/lib/color/color-properties";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type {
+	JianyingFilterLabFilterSummary,
 	JianyingFilterLabLoadResult,
 	JianyingFilterLabLutSummary,
 } from "@/types/electron";
@@ -21,9 +23,19 @@ vi.mock("sonner", () => ({
 
 function installTimelineState({
 	selectedAdjustment = true,
+	withLut = false,
 }: {
 	selectedAdjustment?: boolean;
+	withLut?: boolean;
 } = {}) {
+	const color = structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS);
+	color.lut = {
+		...color.lut,
+		enabled: true,
+		presetId: "custom",
+		name: "高清黑白",
+		cube: loadedLocalLut.cube,
+	};
 	const tracks: TimelineTrack[] = [
 		{
 			id: "adjustment-track",
@@ -39,6 +51,7 @@ function installTimelineState({
 					trimStart: 0,
 					trimEnd: 0,
 					opacity: 1,
+					...(withLut ? { color } : {}),
 				},
 			],
 		},
@@ -125,6 +138,19 @@ const loadedLocalLut: JianyingFilterLabLoadResult = {
 	},
 };
 
+const localFilterSummary: JianyingFilterLabFilterSummary = {
+	resourceId: localLutSummary.resourceId,
+	title: "高清黑白",
+	version: localLutSummary.version,
+	categories: ["黑白"],
+	cacheStatus: "cached",
+	implementation: "single-lut",
+	available: true,
+	hasThumbnail: false,
+	verification: { status: "unverified" },
+	luts: [localLutSummary],
+};
+
 function installFilterLabApi({
 	available = true,
 }: {
@@ -132,19 +158,24 @@ function installFilterLabApi({
 } = {}) {
 	const list = vi.fn(async () => ({
 		count: 1,
-		luts: [localLutSummary],
-		categoryOrder: [],
-		uncached: [],
+		cachedCount: 1,
+		availableCount: 1,
+		filters: [localFilterSummary],
+		categories: [{ name: "黑白", total: 1, cached: 1, available: 1 }],
 	}));
 	const load = vi.fn(async () => loadedLocalLut);
+	const thumbnail = vi.fn();
+	const onCatalogChanged = vi.fn(() => vi.fn());
 	Object.defineProperty(window, "electronAPI", {
 		configurable: true,
 		value: {
 			...(window.electronAPI ?? {}),
-			jianyingFilterLab: available ? { list, load } : undefined,
+			jianyingFilterLab: available
+				? { list, load, thumbnail, onCatalogChanged }
+				: undefined,
 		},
 	});
-	return { list, load };
+	return { list, load, thumbnail, onCatalogChanged };
 }
 
 describe("AdjustmentsView", () => {
@@ -279,6 +310,51 @@ describe("AdjustmentsView", () => {
 			);
 		});
 		expect(toast.success).toHaveBeenCalledWith("已应用 高清黑白 到调节层");
+	});
+
+	it("previews the active LUT against the original and updates its intensity", async () => {
+		const timeline = installTimelineState({ withLut: true });
+		render(<AdjustmentsView />);
+
+		fireEvent.click(screen.getByText("滤镜实验室"));
+		await screen.findByTestId("jianying-filter-lab-controls");
+		expect(screen.getByRole("button", { name: "B 滤镜" })).toHaveAttribute(
+			"aria-pressed",
+			"true"
+		);
+		expect(
+			screen.getByRole("slider", { name: "剪映滤镜强度" })
+		).toHaveAttribute("aria-valuenow", "100");
+
+		fireEvent.click(screen.getByRole("button", { name: "A 原图" }));
+		expect(timeline.updateAdjustmentElement).toHaveBeenLastCalledWith(
+			"adjustment-track",
+			"adjustment-1",
+			expect.objectContaining({
+				color: expect.objectContaining({
+					lut: expect.objectContaining({
+						enabled: false,
+						cube: loadedLocalLut.cube,
+					}),
+				}),
+			}),
+			true
+		);
+
+		timeline.updateAdjustmentElement.mockClear();
+		fireEvent.keyDown(screen.getByRole("slider", { name: "剪映滤镜强度" }), {
+			key: "ArrowLeft",
+		});
+		expect(timeline.updateAdjustmentElement).toHaveBeenCalledWith(
+			"adjustment-track",
+			"adjustment-1",
+			expect.objectContaining({
+				color: expect.objectContaining({
+					lut: expect.objectContaining({ intensity: 99 }),
+				}),
+			}),
+			true
+		);
 	});
 
 	it("shows a desktop-only state when the local cache bridge is unavailable", async () => {
