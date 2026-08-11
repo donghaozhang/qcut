@@ -32,6 +32,12 @@ export interface JianyingKnownFilter {
 	resourceId: string;
 	title: string;
 	categories: string[];
+	version?: string;
+	effectId?: string;
+	thirdResourceId?: string;
+	requirements?: string[];
+	sdkModel?: string;
+	thumbnailUrl?: string;
 }
 
 /**
@@ -140,9 +146,47 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 		: null;
 }
 
+function nonEmptyString({ value }: { value: unknown }): string | undefined {
+	if (typeof value !== "string") return;
+	const normalized = value.trim();
+	return normalized || undefined;
+}
+
+function identifierString({ value }: { value: unknown }): string | undefined {
+	if (typeof value === "string") return nonEmptyString({ value });
+	if (typeof value === "number" && Number.isSafeInteger(value)) {
+		return String(value);
+	}
+}
+
+function stringSet({ value }: { value: unknown }): Set<string> {
+	if (!Array.isArray(value)) return new Set();
+	return new Set(
+		value
+			.map((entry) => nonEmptyString({ value: entry }))
+			.filter((entry): entry is string => Boolean(entry))
+	);
+}
+
 interface CatalogItemSignal {
 	title: string;
 	categoryIds: Set<number>;
+	version?: string;
+	effectId?: string;
+	thirdResourceId?: string;
+	requirements: Set<string>;
+	sdkModel?: string;
+	thumbnailUrl?: string;
+}
+
+function thumbnailUrl({
+	attributes,
+}: {
+	attributes: Record<string, unknown> | null;
+}) {
+	if (!attributes) return;
+	const cover = asRecord(attributes.cover_url);
+	return nonEmptyString({ value: cover?.static_img ?? cover?.small });
 }
 
 interface FilterSignals {
@@ -206,13 +250,40 @@ function collectItemSignal({
 	if (!isFilterListing && attributes?.effect_type !== 12) return;
 	const title =
 		typeof attributes?.title === "string" ? attributes.title.trim() : "";
+	const version = nonEmptyString({ value: attributes?.md5 });
+	const effectId = identifierString({ value: attributes?.effect_id });
+	const thirdResourceId = identifierString({
+		value: attributes?.third_resource_id_str ?? attributes?.third_resource_id,
+	});
+	const requirements = stringSet({ value: attributes?.requirements });
+	const sdkModel = nonEmptyString({ value: attributes?.sdk_model });
+	const thumbnail = thumbnailUrl({ attributes });
 	const existing = signals.items.get(id);
 	if (existing) {
 		if (!existing.title && title) existing.title = title;
 		for (const categoryId of categoryIds) existing.categoryIds.add(categoryId);
+		if (!existing.version && version) existing.version = version;
+		if (!existing.effectId && effectId) existing.effectId = effectId;
+		if (!existing.thirdResourceId && thirdResourceId) {
+			existing.thirdResourceId = thirdResourceId;
+		}
+		for (const requirement of requirements) {
+			existing.requirements.add(requirement);
+		}
+		if (!existing.sdkModel && sdkModel) existing.sdkModel = sdkModel;
+		if (!existing.thumbnailUrl && thumbnail) existing.thumbnailUrl = thumbnail;
 		return;
 	}
-	signals.items.set(id, { title, categoryIds: new Set(categoryIds) });
+	signals.items.set(id, {
+		title,
+		categoryIds: new Set(categoryIds),
+		...(version ? { version } : {}),
+		...(effectId ? { effectId } : {}),
+		...(thirdResourceId ? { thirdResourceId } : {}),
+		requirements,
+		...(sdkModel ? { sdkModel } : {}),
+		...(thumbnail ? { thumbnailUrl: thumbnail } : {}),
+	});
 }
 
 function collectCategorySignals({
@@ -438,7 +509,21 @@ export async function listJianyingFilterCatalog({
 			if (!categories.includes(name)) categories.push(name);
 		}
 		if (categories.length === 0) continue;
-		filters.push({ resourceId, title: item.title, categories });
+		filters.push({
+			resourceId,
+			title: item.title,
+			categories,
+			...(item.version ? { version: item.version } : {}),
+			...(item.effectId ? { effectId: item.effectId } : {}),
+			...(item.thirdResourceId
+				? { thirdResourceId: item.thirdResourceId }
+				: {}),
+			...(item.requirements.size > 0
+				? { requirements: [...item.requirements].sort() }
+				: {}),
+			...(item.sdkModel ? { sdkModel: item.sdkModel } : {}),
+			...(item.thumbnailUrl ? { thumbnailUrl: item.thumbnailUrl } : {}),
+		});
 	}
 	const order: string[] = [];
 	for (const { id, name } of filterPanel) {
