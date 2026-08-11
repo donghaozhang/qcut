@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { parseLutFile } from "@/lib/color/color-lut";
 import { cn } from "@/lib/utils";
-import type { ColorCubeLut } from "@/types/timeline";
+import type { ColorCubeLut, ColorMultiPassSettings } from "@/types/timeline";
 import type { JianyingFilterLabLutSummary } from "@/types/electron";
 import { JianyingFilterLab } from "./adjustments/jianying-filter-lab";
 import { useAdjustmentLut } from "./adjustments/use-adjustment-lut";
@@ -22,7 +22,19 @@ type AdjustmentShelf = "mine" | "lut" | "lab";
 export function AdjustmentsView() {
 	const fileInput = useRef<HTMLInputElement>(null);
 	const [activeShelf, setActiveShelf] = useState<AdjustmentShelf>("mine");
-	const { applyLut, createAdjustment, target } = useAdjustmentLut();
+	const {
+		activeLut,
+		activeMultiPass,
+		applyLut,
+		applyMultiPass,
+		completeLutIntensityInteraction,
+		createAdjustment,
+		setLutEnabled,
+		setMultiPassEnabled,
+		target,
+		updateLutIntensity,
+		updateMultiPassIntensity,
+	} = useAdjustmentLut();
 
 	const importLut = async ({ file }: { file: File }) => {
 		try {
@@ -41,22 +53,47 @@ export function AdjustmentsView() {
 		}
 	};
 
+	const applyJianyingMultiPass = ({
+		settings,
+	}: {
+		settings: ColorMultiPassSettings;
+	}) => {
+		applyMultiPass({ settings });
+	};
+
+	const setActiveEffectEnabled = ({ enabled }: { enabled: boolean }) => {
+		if (activeMultiPass) {
+			setMultiPassEnabled({ enabled });
+			return;
+		}
+		setLutEnabled({ enabled });
+	};
+
+	const updateActiveEffectIntensity = ({ value }: { value: number }) => {
+		if (activeMultiPass) {
+			updateMultiPassIntensity({ value });
+			return;
+		}
+		updateLutIntensity({ value });
+	};
+
 	const applyJianyingLut = ({
 		name,
 		cube,
-		entry,
+		skinCube,
 	}: {
 		name: string;
 		cube: ColorCubeLut;
+		skinCube?: ColorCubeLut;
 		entry: JianyingFilterLabLutSummary;
 	}) => {
-		const successMessage =
-			entry.role === "single"
-				? `已应用 ${name} 到调节层`
-				: `已将 ${name} 分支作为全局 LUT 应用`;
+		const successMessage = skinCube
+			? `已应用 ${name} 双 LUT 与肤色蒙版到调节层`
+			: `已应用 ${name} 到调节层`;
 		applyLut({
 			name,
 			cube,
+			skinCube,
 			layerName: `剪映 - ${name}`,
 			successMessage,
 		});
@@ -187,7 +224,12 @@ export function AdjustmentsView() {
 				) : (
 					<JianyingFilterLab
 						targetName={target?.element.name}
+						activeEffect={activeMultiPass ?? activeLut}
 						onApply={applyJianyingLut}
+						onApplyMultiPass={applyJianyingMultiPass}
+						onEffectEnabledChange={setActiveEffectEnabled}
+						onEffectIntensityChange={updateActiveEffectIntensity}
+						onEffectIntensityCommit={completeLutIntensityInteraction}
 					/>
 				)}
 			</section>
