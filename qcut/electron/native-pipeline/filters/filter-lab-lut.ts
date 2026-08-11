@@ -14,12 +14,18 @@
 import { open, readFile, readdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import {
+	inspectTextCubeFile,
+	loadTextCubeFile,
+} from "./filter-lab-text-cube.js";
 
 /** A cube sampled on a uniform grid, values normalised to 0..1. */
 export interface FilterLabCube {
 	size: number;
 	/** Interleaved RGB, red fastest then green then blue. */
 	values: Float64Array;
+	domainMin?: [number, number, number];
+	domainMax?: [number, number, number];
 }
 
 export type JianyingLutRole = "single" | "background" | "skin";
@@ -114,7 +120,7 @@ export function decodeVfCube({ data }: { data: Buffer }): FilterLabCube | null {
 	return { size: width, values };
 }
 
-function cubeChroma({ cube }: { cube: FilterLabCube }): number {
+export function measureCubeChroma({ cube }: { cube: FilterLabCube }): number {
 	let total = 0;
 	const entries = cube.values.length / 3;
 	for (let index = 0; index < cube.values.length; index += 3) {
@@ -152,6 +158,39 @@ async function inspectVfFile({ filePath }: { filePath: string }) {
 	}
 }
 
+async function listTextCubeReferences({
+	directory,
+	resourceId,
+	version,
+}: {
+	directory: string;
+	resourceId: string;
+	version: string;
+}) {
+	const fileNames = (await readDirectory({ directory })).filter((fileName) =>
+		fileName.toLowerCase().endsWith(".cube")
+	);
+	const references = await Promise.all(
+		fileNames.map(async (fileName) => {
+			const filePath = join(directory, fileName);
+			const size = await inspectTextCubeFile({ filePath });
+			if (!size) return null;
+			return {
+				lutId: createJianyingLutId({ resourceId, version, fileName }),
+				resourceId,
+				version,
+				fileName,
+				filePath,
+				role: classifyJianyingLutRole({ fileName }),
+				size,
+			} satisfies JianyingLutReference;
+		})
+	);
+	return references.filter(
+		(reference): reference is JianyingLutReference => reference !== null
+	);
+}
+
 async function listVersionLuts({
 	root,
 	resourceId,
@@ -161,13 +200,8 @@ async function listVersionLuts({
 	resourceId: string;
 	version: string;
 }): Promise<JianyingLutReference[]> {
-	const textureDirectory = join(
-		root,
-		resourceId,
-		version,
-		"AmazingFeature",
-		"texture"
-	);
+	const versionRoot = join(root, resourceId, version);
+	const textureDirectory = join(versionRoot, "AmazingFeature", "texture");
 	const files = await readDirectory({ directory: textureDirectory });
 	const candidates = files
 		.filter((fileName) => fileName.toLowerCase().endsWith(".vf"))
@@ -186,9 +220,22 @@ async function listVersionLuts({
 			} satisfies JianyingLutReference;
 		});
 	const inspected = await Promise.all(candidates);
-	return inspected.filter(
+	const vfReferences = inspected.filter(
 		(reference): reference is JianyingLutReference => reference !== null
 	);
+	const featureDirectories = (
+		await readDirectory({ directory: versionRoot })
+	).filter((name) => name.startsWith("AmazingFeature"));
+	const textCubeGroups = await Promise.all(
+		featureDirectories.map((featureDirectory) =>
+			listTextCubeReferences({
+				directory: join(versionRoot, featureDirectory, "texture"),
+				resourceId,
+				version,
+			})
+		)
+	);
+	return [...vfReferences, ...textCubeGroups.flat()];
 }
 
 async function listResourceLuts({
@@ -202,7 +249,7 @@ async function listResourceLuts({
 	const references = await Promise.all(
 		versions.map((version) => listVersionLuts({ root, resourceId, version }))
 	);
-	return references.flatMap((entries) => entries);
+	return references.flat();
 }
 
 function compareLutReferences(
@@ -226,7 +273,7 @@ export async function listJianyingLutReferences({
 	const references = await Promise.all(
 		resourceIds.map((resourceId) => listResourceLuts({ root, resourceId }))
 	);
-	return references.flatMap((entries) => entries).sort(compareLutReferences);
+	return references.flat().sort(compareLutReferences);
 }
 
 export async function loadJianyingLut({
@@ -235,9 +282,11 @@ export async function loadJianyingLut({
 	reference: JianyingLutReference;
 }): Promise<JianyingLutEntry | null> {
 	try {
-		const cube = decodeVfCube({ data: await readFile(reference.filePath) });
+		const cube = reference.fileName.toLowerCase().endsWith(".cube")
+			? await loadTextCubeFile({ filePath: reference.filePath })
+			: decodeVfCube({ data: await readFile(reference.filePath) });
 		if (!cube || cube.size !== reference.size) return null;
-		return { ...reference, cube, chroma: cubeChroma({ cube }) };
+		return { ...reference, cube, chroma: measureCubeChroma({ cube }) };
 	} catch {
 		return null;
 	}
@@ -269,10 +318,16 @@ export function sampleCube({
 	blue: number;
 }): [number, number, number] {
 	const last = cube.size - 1;
-	const scale = (value: number) => Math.min(1, Math.max(0, value)) * last;
-	const rf = scale(red);
-	const gf = scale(green);
-	const bf = scale(blue);
+	const scale = ({ value, axis }: { value: number; axis: 0 | 1 | 2 }) => {
+		const minimum = cube.domainMin?.[axis] ?? 0;
+		const maximum = cube.domainMax?.[axis] ?? 1;
+		const normalized =
+			(value - minimum) / Math.max(0.000001, maximum - minimum);
+		return Math.min(1, Math.max(0, normalized)) * last;
+	};
+	const rf = scale({ value: red, axis: 0 });
+	const gf = scale({ value: green, axis: 1 });
+	const bf = scale({ value: blue, axis: 2 });
 	const r0 = Math.floor(rf);
 	const g0 = Math.floor(gf);
 	const b0 = Math.floor(bf);
