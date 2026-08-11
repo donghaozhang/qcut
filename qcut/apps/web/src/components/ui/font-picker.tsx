@@ -5,13 +5,14 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-import { FONT_OPTIONS, FontFamily } from "@/constants/font-constants";
+import { FONT_OPTIONS } from "@/constants/font-constants";
 
 interface FontPickerProps {
-	value?: FontFamily;
-	defaultValue?: FontFamily;
-	onValueChange?: (value: FontFamily) => void;
+	value?: string;
+	defaultValue?: string;
+	onValueChange?: (value: string) => void;
 	className?: string;
+	customOption?: { value: string; label: string };
 }
 
 export function FontPicker({
@@ -19,7 +20,9 @@ export function FontPicker({
 	defaultValue,
 	onValueChange,
 	className,
+	customOption,
 }: FontPickerProps) {
+	const hasBuiltInValue = FONT_OPTIONS.some((font) => font.value === value);
 	return (
 		<Select
 			value={value}
@@ -30,6 +33,15 @@ export function FontPicker({
 				<SelectValue placeholder="Select a font" />
 			</SelectTrigger>
 			<SelectContent>
+				{customOption && !hasBuiltInValue ? (
+					<SelectItem
+						value={customOption.value}
+						className="text-xs"
+						style={{ fontFamily: customOption.value }}
+					>
+						{customOption.label}
+					</SelectItem>
+				) : null}
 				{FONT_OPTIONS.map((font) => (
 					<SelectItem
 						key={font.value}
