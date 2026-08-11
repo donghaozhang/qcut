@@ -1,7 +1,7 @@
 import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import {
 	handlePortraitFilter,
 	resolvePortraitFilterPaths,
@@ -112,7 +112,7 @@ describe("portrait-filter CLI", () => {
 			new AbortController().signal
 		);
 		expect(listed.success).toBe(true);
-		expect(listed.data?.presets).toBeArray();
+		expect(Array.isArray(listed.data?.presets)).toBe(true);
 
 		expect(() =>
 			resolvePortraitFilterPaths({

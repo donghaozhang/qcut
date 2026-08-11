@@ -727,7 +727,8 @@ describe("snapshot runtime property allowlists", () => {
 			name: "StandaloneJianyingDraftRequestValidationError",
 		});
 
-		element.color.lut.cube.size = 33;
+		// One past MAX_COLOR_CUBE_SIZE (65) so the size check itself trips.
+		element.color.lut.cube.size = 66;
 		await expect(
 			session.plan({
 				input: {

@@ -26,6 +26,7 @@ import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useEditorStore } from "@/stores/editor/editor-store";
+import type { TimelineStore } from "@/stores/timeline/types";
 import type { StickerElement } from "@/types/timeline";
 
 const DEFAULTS = STICKER_DEFAULTS;
@@ -785,7 +786,10 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 	)
 );
 
-useTimelineStore.subscribe((state, previousState) => {
+function syncOverlayFromTimelineChange(
+	state: TimelineStore,
+	previousState: TimelineStore
+) {
 	if (
 		state.selectedElements === previousState.selectedElements &&
 		state._tracks === previousState._tracks
@@ -812,4 +816,24 @@ useTimelineStore.subscribe((state, previousState) => {
 		overlayStickers,
 		selectedStickerId,
 	});
-});
+}
+
+// This module sits in an import cycle with the timeline store, so the
+// `useTimelineStore` binding may still be uninitialized while this module's
+// top level runs (which module wins depends on the entry point, and module
+// loading itself interleaves with the microtask queue). Retry on macrotasks
+// until the store exists, then subscribe once.
+function startTimelineOverlaySync(attempt = 0) {
+	if (typeof useTimelineStore?.subscribe === "function") {
+		useTimelineStore.subscribe(syncOverlayFromTimelineChange);
+		return;
+	}
+	if (attempt >= 50) {
+		console.warn(
+			"[StickersOverlay] Timeline store never became available; sticker overlays will not mirror timeline changes."
+		);
+		return;
+	}
+	setTimeout(() => startTimelineOverlaySync(attempt + 1), 0);
+}
+startTimelineOverlaySync();
