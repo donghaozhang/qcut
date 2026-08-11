@@ -32,6 +32,31 @@ export interface VideoColorBasicSettings {
 	grain: number;
 }
 
+export type VideoColorMultiPassOperation =
+	| { kind: "sharpen"; amount: number }
+	| { kind: "bilateral-blur"; radius: number; threshold: number }
+	| { kind: "fog-blend"; radius: number; amount: number }
+	| { kind: "vignette"; amount: number; softness: number }
+	| {
+			kind: "lut";
+			cube: {
+				size: number;
+				domainMin: [number, number, number];
+				domainMax: [number, number, number];
+				values: number[];
+			};
+			intensity: number;
+	  };
+
+export interface VideoColorMultiPassSettings {
+	enabled: boolean;
+	presetId: string;
+	name: string;
+	intensity: number;
+	fidelity: "structural";
+	passes: VideoColorMultiPassOperation[];
+}
+
 export type VideoSecondaryCurveName =
 	| "hueVsSaturation"
 	| "hueVsHue"
@@ -64,7 +89,17 @@ export interface VideoColorSettings {
 			domainMax: [number, number, number];
 			values: number[];
 		};
+		dual?: {
+			skinCube: {
+				size: number;
+				domainMin: [number, number, number];
+				domainMax: [number, number, number];
+				values: number[];
+			};
+			maskKind: "skin-tone-v1";
+		};
 	};
+	multiPass?: VideoColorMultiPassSettings;
 	hsl: {
 		enabled: boolean;
 		ranges: Record<
@@ -268,6 +303,22 @@ export function normalizeVideoColorSettings({
 			...color?.basic,
 		},
 		lut: { ...DEFAULT_VIDEO_COLOR_SETTINGS.lut, ...color?.lut },
+		multiPass: color?.multiPass
+			? {
+					...color.multiPass,
+					passes: color.multiPass.passes.map((pass) =>
+						pass.kind === "lut"
+							? {
+									...pass,
+									cube: {
+										...pass.cube,
+										values: [...pass.cube.values],
+									},
+								}
+							: { ...pass }
+					),
+				}
+			: undefined,
 		hsl: {
 			...DEFAULT_VIDEO_COLOR_SETTINGS.hsl,
 			...color?.hsl,
