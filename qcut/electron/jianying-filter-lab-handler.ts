@@ -9,8 +9,11 @@ import {
 	type JianyingFilterLabLutSummary,
 } from "./jianying-filter-lab-contract.js";
 import {
+	findJianyingFilterCategories,
 	findJianyingFilterTitle,
+	resolveJianyingFilterCategories,
 	resolveJianyingFilterTitles,
+	type JianyingFilterCategoryCatalog,
 } from "./jianying-filter-metadata.js";
 import {
 	listJianyingLutReferences,
@@ -25,6 +28,7 @@ const MAX_EDITOR_LUT_SIZE = 65;
 interface FilterLabCatalog {
 	references: JianyingLutReference[];
 	titles: Map<string, string>;
+	categories: JianyingFilterCategoryCatalog;
 }
 
 export interface JianyingFilterLabIPCController {
@@ -44,6 +48,11 @@ export interface SetupJianyingFilterLabIPCOptions {
 	}: {
 		references: JianyingLutReference[];
 	}) => Promise<Map<string, string>>;
+	resolveCategories?: ({
+		references,
+	}: {
+		references: JianyingLutReference[];
+	}) => Promise<JianyingFilterCategoryCatalog>;
 }
 
 function assertTrustedMainFrame({
@@ -85,9 +94,11 @@ function parseLoadRequest({ request }: { request: unknown }) {
 function summarizeReference({
 	reference,
 	titles,
+	categories,
 }: {
 	reference: JianyingLutReference;
 	titles: ReadonlyMap<string, string>;
+	categories: JianyingFilterCategoryCatalog;
 }): JianyingFilterLabLutSummary {
 	return {
 		lutId: reference.lutId,
@@ -97,18 +108,24 @@ function summarizeReference({
 		role: reference.role,
 		size: reference.size,
 		title: findJianyingFilterTitle({ reference, titles }),
+		categories: findJianyingFilterCategories({
+			reference,
+			catalog: categories,
+		}),
 	};
 }
 
 function serializeLoadedLut({
 	entry,
 	titles,
+	categories,
 }: {
 	entry: JianyingLutEntry;
 	titles: ReadonlyMap<string, string>;
+	categories: JianyingFilterCategoryCatalog;
 }): JianyingFilterLabLoadResult {
 	return {
-		...summarizeReference({ reference: entry, titles }),
+		...summarizeReference({ reference: entry, titles, categories }),
 		kind: entry.chroma < 0.01 ? "monochrome" : "colour",
 		cube: {
 			size: entry.cube.size,
@@ -124,6 +141,7 @@ export function setupJianyingFilterLabIPC({
 	listReferences = () => listJianyingLutReferences(),
 	loadReference = loadJianyingLut,
 	resolveTitles = resolveJianyingFilterTitles,
+	resolveCategories = resolveJianyingFilterCategories,
 }: SetupJianyingFilterLabIPCOptions): JianyingFilterLabIPCController {
 	let catalogPromise: Promise<FilterLabCatalog> | null = null;
 	const readCatalog = ({ refresh }: { refresh: boolean }) => {
@@ -132,10 +150,11 @@ export function setupJianyingFilterLabIPC({
 				const supported = references.filter(
 					({ size }) => size <= MAX_EDITOR_LUT_SIZE
 				);
-				return {
-					references: supported,
-					titles: await resolveTitles({ references: supported }),
-				};
+				const [titles, categories] = await Promise.all([
+					resolveTitles({ references: supported }),
+					resolveCategories({ references: supported }),
+				]);
+				return { references: supported, titles, categories };
 			});
 		}
 		return catalogPromise;
@@ -151,8 +170,13 @@ export function setupJianyingFilterLabIPC({
 			return {
 				count: catalog.references.length,
 				luts: catalog.references.map((reference) =>
-					summarizeReference({ reference, titles: catalog.titles })
+					summarizeReference({
+						reference,
+						titles: catalog.titles,
+						categories: catalog.categories,
+					})
 				),
+				categoryOrder: catalog.categories.order,
 			};
 		}
 	);
@@ -170,7 +194,11 @@ export function setupJianyingFilterLabIPC({
 			}
 			const entry = await loadReference({ reference });
 			if (!entry) throw new Error("本机剪映 LUT 无法读取或已经变化");
-			return serializeLoadedLut({ entry, titles: catalog.titles });
+			return serializeLoadedLut({
+				entry,
+				titles: catalog.titles,
+				categories: catalog.categories,
+			});
 		}
 	);
 
