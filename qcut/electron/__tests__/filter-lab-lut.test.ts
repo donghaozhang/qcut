@@ -1,8 +1,15 @@
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+	classifyJianyingLutRole,
 	compareCubes,
+	createJianyingLutId,
 	decodeVfCube,
 	gridColours,
+	listJianyingLutReferences,
+	loadJianyingLut,
 	sampleCube,
 	type FilterLabCube,
 } from "../native-pipeline/filters/filter-lab-lut";
@@ -21,7 +28,9 @@ function encodeVf({
 	header.writeUInt16LE(size, 6);
 	header.writeUInt16LE(size, 8);
 	const body = Buffer.alloc(values.length * 4);
-	values.forEach((value, index) => body.writeFloatLE(value, index * 4));
+	for (const [index, value] of values.entries()) {
+		body.writeFloatLE(value, index * 4);
+	}
 	return Buffer.concat([header, body]);
 }
 
@@ -73,6 +82,13 @@ describe("filter lab LUT decoding", () => {
 		expect(distance.maxDelta).toBeCloseTo(0, 10);
 	});
 
+	it("clamps samples to the cube domain", () => {
+		const cube = identityCube({ size: 4 });
+		expect(sampleCube({ cube, red: -2, green: 0.5, blue: 3 })).toEqual([
+			0, 0.5, 1,
+		]);
+	});
+
 	it("reports a known offset in 0-255 channel levels", () => {
 		const base = identityCube({ size: 5 });
 		const lifted: FilterLabCube = {
@@ -89,5 +105,67 @@ describe("filter lab LUT decoding", () => {
 		expect(distance.maxDelta).toBeCloseTo(25.5, 4);
 		expect(distance.rmse).toBeGreaterThan(0);
 		expect(distance.rmse).toBeLessThanOrEqual(25.5);
+	});
+
+	it("gives every cached version and LUT role an exact identity", async () => {
+		const root = await mkdtemp(join(tmpdir(), "qcut-filter-lab-"));
+		const resourceId = "7127561047048850718";
+		const versions = ["version-a", "version-b"];
+		try {
+			const writes = versions.flatMap((version) =>
+				["filter_bg.3dl.vf", "filter_skin.3dl.vf"].map(async (fileName) => {
+					const directory = join(
+						root,
+						resourceId,
+						version,
+						"AmazingFeature",
+						"texture"
+					);
+					await mkdir(directory, { recursive: true });
+					await writeFile(
+						join(directory, fileName),
+						encodeVf({
+							size: 2,
+							values: Array.from(identityCube({ size: 2 }).values),
+						})
+					);
+				})
+			);
+			await Promise.all(writes);
+
+			const references = await listJianyingLutReferences({ root });
+			expect(references).toHaveLength(4);
+			expect(new Set(references.map(({ lutId }) => lutId)).size).toBe(4);
+			expect(references.map(({ role }) => role)).toEqual([
+				"background",
+				"skin",
+				"background",
+				"skin",
+			]);
+			expect(references[0]?.lutId).toBe(
+				createJianyingLutId({
+					resourceId,
+					version: "version-a",
+					fileName: "filter_bg.3dl.vf",
+				})
+			);
+			const loaded = await loadJianyingLut({ reference: references[0]! });
+			expect(loaded?.cube.size).toBe(2);
+			expect(loaded?.cube.values).toHaveLength(24);
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
+	});
+
+	it("classifies generic, background, and skin files without guessing", () => {
+		expect(classifyJianyingLutRole({ fileName: "filter.cube.vf" })).toBe(
+			"single"
+		);
+		expect(classifyJianyingLutRole({ fileName: "filter_BG.3dl.vf" })).toBe(
+			"background"
+		);
+		expect(classifyJianyingLutRole({ fileName: "filter_skin.3dl.vf" })).toBe(
+			"skin"
+		);
 	});
 });
