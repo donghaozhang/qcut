@@ -5,13 +5,13 @@
  *
  * Only reads what Jianying itself downloaded during normal use — nothing is
  * fetched from their servers, and no LUT is copied into QCut. The decoded
- * values exist to score our recipes, not to ship.
+ * values are decoded on demand for local scoring or an editor session; cached
+ * files are never bundled with QCut.
  *
  * @module electron/native-pipeline/filters/filter-lab-lut
  */
 
-import { readFileSync } from "node:fs";
-import { readdir } from "node:fs/promises";
+import { open, readFile, readdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -22,10 +22,19 @@ export interface FilterLabCube {
 	values: Float64Array;
 }
 
-export interface JianyingLutEntry {
+export type JianyingLutRole = "single" | "background" | "skin";
+
+export interface JianyingLutReference {
+	lutId: string;
 	resourceId: string;
+	version: string;
 	fileName: string;
 	filePath: string;
+	role: JianyingLutRole;
+	size: number;
+}
+
+export interface JianyingLutEntry extends JianyingLutReference {
 	cube: FilterLabCube;
 	/** Mean |r-g| + |g-b| across the cube; near zero means a monochrome look. */
 	chroma: number;
@@ -45,23 +54,60 @@ export function jianyingEffectCacheRoot(): string {
 	);
 }
 
+export function createJianyingLutId({
+	resourceId,
+	version,
+	fileName,
+}: {
+	resourceId: string;
+	version: string;
+	fileName: string;
+}): string {
+	return `${resourceId}/${version}/${fileName}`;
+}
+
+export function classifyJianyingLutRole({
+	fileName,
+}: {
+	fileName: string;
+}): JianyingLutRole {
+	const normalized = fileName.toLowerCase();
+	if (normalized.includes("skin")) return "skin";
+	if (normalized.includes("bg")) return "background";
+	return "single";
+}
+
+function decodeVfSize({
+	header,
+	byteLength,
+}: {
+	header: Buffer;
+	byteLength: number;
+}): number | null {
+	if (header.length < VF_HEADER_BYTES) return null;
+	if (header.toString("ascii", 0, 4) !== VF_MAGIC) return null;
+	const width = header.readUInt16LE(4);
+	const height = header.readUInt16LE(6);
+	const depth = header.readUInt16LE(8);
+	if (width !== height || height !== depth || width < 2 || width > 256) {
+		return null;
+	}
+	const expected = VF_HEADER_BYTES + width * height * depth * 3 * 4;
+	return byteLength === expected ? width : null;
+}
+
 /**
  * Decodes Jianying's `.vf` cube: the ASCII magic `VF_V`, three uint16
  * dimensions, then float32 RGB triples ordered red fastest.
  */
 export function decodeVfCube({ data }: { data: Buffer }): FilterLabCube | null {
-	if (data.length < VF_HEADER_BYTES) return null;
-	if (data.toString("ascii", 0, 4) !== VF_MAGIC) return null;
-	const width = data.readUInt16LE(4);
-	const height = data.readUInt16LE(6);
-	const depth = data.readUInt16LE(8);
-	if (width !== height || height !== depth || width < 2 || width > 256) {
-		return null;
-	}
-	const expected = width * height * depth * 3 * 4;
-	if (data.length - VF_HEADER_BYTES !== expected) return null;
+	const width = decodeVfSize({
+		header: data.subarray(0, VF_HEADER_BYTES),
+		byteLength: data.length,
+	});
+	if (!width) return null;
 
-	const values = new Float64Array(width * height * depth * 3);
+	const values = new Float64Array(width ** 3 * 3);
 	for (let index = 0; index < values.length; index += 1) {
 		values[index] = data.readFloatLE(VF_HEADER_BYTES + index * 4);
 	}
@@ -79,56 +125,135 @@ function cubeChroma({ cube }: { cube: FilterLabCube }): number {
 	return total / entries;
 }
 
-/** Lists every Jianying LUT currently sitting in the local effect cache. */
-export async function listJianyingLuts(): Promise<JianyingLutEntry[]> {
-	const root = jianyingEffectCacheRoot();
-	let resourceDirs: string[];
+async function readDirectory({ directory }: { directory: string }) {
 	try {
-		resourceDirs = await readdir(root);
+		return await readdir(directory);
 	} catch {
-		return [];
+		return [] as string[];
 	}
+}
 
-	const entries: JianyingLutEntry[] = [];
-	for (const resourceId of resourceDirs) {
-		let versionDirs: string[];
+async function inspectVfFile({ filePath }: { filePath: string }) {
+	try {
+		const handle = await open(filePath, "r");
 		try {
-			versionDirs = await readdir(join(root, resourceId));
-		} catch {
-			continue;
+			const header = Buffer.alloc(VF_HEADER_BYTES);
+			const [{ bytesRead }, stats] = await Promise.all([
+				handle.read(header, 0, VF_HEADER_BYTES, 0),
+				handle.stat(),
+			]);
+			if (bytesRead !== VF_HEADER_BYTES) return null;
+			return decodeVfSize({ header, byteLength: stats.size });
+		} finally {
+			await handle.close();
 		}
-		for (const version of versionDirs) {
-			const textureDir = join(
-				root,
+	} catch {
+		return null;
+	}
+}
+
+async function listVersionLuts({
+	root,
+	resourceId,
+	version,
+}: {
+	root: string;
+	resourceId: string;
+	version: string;
+}): Promise<JianyingLutReference[]> {
+	const textureDirectory = join(
+		root,
+		resourceId,
+		version,
+		"AmazingFeature",
+		"texture"
+	);
+	const files = await readDirectory({ directory: textureDirectory });
+	const candidates = files
+		.filter((fileName) => fileName.toLowerCase().endsWith(".vf"))
+		.map(async (fileName) => {
+			const filePath = join(textureDirectory, fileName);
+			const size = await inspectVfFile({ filePath });
+			if (!size) return null;
+			return {
+				lutId: createJianyingLutId({ resourceId, version, fileName }),
 				resourceId,
 				version,
-				"AmazingFeature",
-				"texture"
-			);
-			let files: string[];
-			try {
-				files = await readdir(textureDir);
-			} catch {
-				continue;
-			}
-			for (const fileName of files) {
-				if (!fileName.endsWith(".vf")) continue;
-				const filePath = join(textureDir, fileName);
-				const cube = decodeVfCube({ data: readFileSync(filePath) });
-				if (!cube) continue;
-				entries.push({
-					resourceId,
-					fileName,
-					filePath,
-					cube,
-					chroma: cubeChroma({ cube }),
-				});
-			}
-		}
-	}
-	return entries.sort((left, right) =>
-		left.resourceId.localeCompare(right.resourceId)
+				fileName,
+				filePath,
+				role: classifyJianyingLutRole({ fileName }),
+				size,
+			} satisfies JianyingLutReference;
+		});
+	const inspected = await Promise.all(candidates);
+	return inspected.filter(
+		(reference): reference is JianyingLutReference => reference !== null
 	);
+}
+
+async function listResourceLuts({
+	root,
+	resourceId,
+}: {
+	root: string;
+	resourceId: string;
+}): Promise<JianyingLutReference[]> {
+	const versions = await readDirectory({ directory: join(root, resourceId) });
+	const references = await Promise.all(
+		versions.map((version) => listVersionLuts({ root, resourceId, version }))
+	);
+	return references.flatMap((entries) => entries);
+}
+
+function compareLutReferences(
+	left: JianyingLutReference,
+	right: JianyingLutReference
+) {
+	return (
+		left.resourceId.localeCompare(right.resourceId) ||
+		left.version.localeCompare(right.version) ||
+		left.fileName.localeCompare(right.fileName)
+	);
+}
+
+/** Lists valid local LUT files without decoding their full cube payloads. */
+export async function listJianyingLutReferences({
+	root = jianyingEffectCacheRoot(),
+}: {
+	root?: string;
+} = {}): Promise<JianyingLutReference[]> {
+	const resourceIds = await readDirectory({ directory: root });
+	const references = await Promise.all(
+		resourceIds.map((resourceId) => listResourceLuts({ root, resourceId }))
+	);
+	return references.flatMap((entries) => entries).sort(compareLutReferences);
+}
+
+export async function loadJianyingLut({
+	reference,
+}: {
+	reference: JianyingLutReference;
+}): Promise<JianyingLutEntry | null> {
+	try {
+		const cube = decodeVfCube({ data: await readFile(reference.filePath) });
+		if (!cube || cube.size !== reference.size) return null;
+		return { ...reference, cube, chroma: cubeChroma({ cube }) };
+	} catch {
+		return null;
+	}
+}
+
+/** Lists and decodes every Jianying LUT currently in the local effect cache. */
+export async function listJianyingLuts({
+	root = jianyingEffectCacheRoot(),
+}: {
+	root?: string;
+} = {}): Promise<JianyingLutEntry[]> {
+	const references = await listJianyingLutReferences({ root });
+	const loaded = await Promise.all(
+		references.map((reference) => loadJianyingLut({ reference }))
+	);
+	return loaded.filter((entry): entry is JianyingLutEntry => entry !== null);
 }
 
 /** Trilinear sample, matching the tetrahedral-free path used for scoring. */
@@ -144,7 +269,7 @@ export function sampleCube({
 	blue: number;
 }): [number, number, number] {
 	const last = cube.size - 1;
-	const scale = (value: number) => Math.min(last, Math.max(0, value)) * last;
+	const scale = (value: number) => Math.min(1, Math.max(0, value)) * last;
 	const rf = scale(red);
 	const gf = scale(green);
 	const bf = scale(blue);
