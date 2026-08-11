@@ -178,7 +178,8 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	"filter-lab-list": wrap0(handleFilterLabList),
 	"filter-lab-compare": wrap((options) =>
 		handleFilterLabCompare({
-			resourceId: String(options.resourceId ?? ""),
+			resourceId: options.resourceId ? String(options.resourceId) : undefined,
+			lutId: options.lutId ? String(options.lutId) : undefined,
 			limit: options.limit ? Number(options.limit) : undefined,
 			sample: options.sample ? String(options.sample) : undefined,
 		})
