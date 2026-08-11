@@ -40,6 +40,7 @@ import type { ActiveElement } from "./preview-panel/types";
 import { AdjustmentLayerStack } from "./preview-panel/adjustment-layer-stack";
 import { useTranslation } from "@/lib/i18n";
 import { PREVIEW_QUALITY_OPTIONS } from "@/lib/preview/preview-quality";
+import type { BrowserColorGradeLayer } from "@/lib/color/browser-color-rendering";
 
 interface PreviewProxyCacheStats {
 	cacheDir: string;
@@ -273,7 +274,11 @@ export function FullscreenPreview({
 	activeProject: TProject | null;
 	renderBlurBackground: () => React.ReactNode;
 	activeElements: ActiveElement[];
-	renderElement: (elementData: ActiveElement, index: number) => React.ReactNode;
+	renderElement: (
+		elementData: ActiveElement,
+		index: number,
+		lutLayers: BrowserColorGradeLayer[]
+	) => React.ReactNode;
 	blurBackgroundElements: ActiveElement[];
 	hasAnyElements: boolean;
 	toggleExpanded: () => void;
