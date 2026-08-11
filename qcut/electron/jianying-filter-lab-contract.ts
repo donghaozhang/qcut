@@ -11,17 +11,28 @@ export interface JianyingFilterLabLutSummary {
 	role: JianyingLutRole;
 	size: number;
 	title?: string;
+	/** Jianying filter-panel category names (panel order), when resolvable. */
+	categories?: string[];
 }
 
 export interface JianyingFilterLabListResult {
 	count: number;
 	luts: JianyingFilterLabLutSummary[];
+	/** All resolved categories in Jianying's own panel order. */
+	categoryOrder: string[];
 }
 
 export interface JianyingFilterLabLoadRequest {
 	lutId: string;
 }
 
+/**
+ * Must stay structurally identical to `ColorCubeLut`
+ * (packages/editor-core/src/types/color.ts). A compile-time
+ * mutual-assignability assertion in
+ * apps/web/src/types/electron/api-jianying-filter-lab.ts enforces this —
+ * update both declarations together.
+ */
 export interface JianyingFilterLabCube {
 	size: number;
 	domainMin: [number, number, number];
