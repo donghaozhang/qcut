@@ -27,6 +27,23 @@ export interface JianyingFilterCategoryCatalog {
 	byResourceId: Map<string, string[]>;
 }
 
+/** One filter known to the local Jianying catalog metadata. */
+export interface JianyingKnownFilter {
+	resourceId: string;
+	title: string;
+	categories: string[];
+}
+
+/**
+ * Every filter the local metadata caches know about, cached locally or not.
+ * `order` follows Jianying's panel ordering restricted to categories the
+ * enumerated filters actually use.
+ */
+export interface JianyingFilterKnownCatalog {
+	order: string[];
+	filters: JianyingKnownFilter[];
+}
+
 function titleKey({
 	resourceId,
 	version,
@@ -123,40 +140,91 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 		: null;
 }
 
-function readCategorySourceBodies({
+interface CatalogItemSignal {
+	title: string;
+	categoryIds: Set<number>;
+}
+
+interface FilterSignals {
+	panels: JianyingPanelCategory[][];
+	memberships: Map<string, Set<number>>;
+	items: Map<string, CatalogItemSignal>;
+}
+
+function readCategorySourceRows({
 	database,
 }: {
 	database: DatabaseSync;
-}): string[] {
+}): { url: string; body: string }[] {
 	if (!tableExists({ database, table: "http_cache" })) return [];
 	// Categories live in panel responses (ordered `categories[]` + embedded
 	// first-category resources) and in paginated per-category filter listings
 	// (items carrying `common_attr.category_ids`).
 	const rows = database
 		.prepare(`
-			SELECT response_body AS body
+			SELECT url, response_body AS body
 			FROM http_cache
 			WHERE url LIKE '%get_panel_info%'
 				OR url LIKE '%get_resources_by_category_id%filter%'
 		`)
-		.all() as unknown as { body: unknown }[];
-	const bodies: string[] = [];
+		.all() as unknown as { url: unknown; body: unknown }[];
+	const sources: { url: string; body: string }[] = [];
 	for (const row of rows) {
-		if (typeof row.body === "string") bodies.push(row.body);
+		if (typeof row.url === "string" && typeof row.body === "string") {
+			sources.push({ url: row.url, body: row.body });
+		}
 	}
-	return bodies;
+	return sources;
+}
+
+function collectItemSignal({
+	item,
+	isFilterListing,
+	resourceIds,
+	signals,
+}: {
+	item: unknown;
+	isFilterListing: boolean;
+	resourceIds: ReadonlySet<string>;
+	signals: FilterSignals;
+}) {
+	const attributes = asRecord(asRecord(item)?.common_attr);
+	const id = attributes?.id;
+	if (typeof id !== "string" || id.length === 0) return;
+	const categoryIds = Array.isArray(attributes?.category_ids)
+		? attributes.category_ids.filter(
+				(value): value is number => typeof value === "number"
+			)
+		: [];
+	if (resourceIds.has(id) && categoryIds.length > 0) {
+		const membership = signals.memberships.get(id) ?? new Set<number>();
+		for (const categoryId of categoryIds) membership.add(categoryId);
+		signals.memberships.set(id, membership);
+	}
+	// Paginated filter listings contain filters by construction; resources
+	// embedded in panel responses must declare effect_type 12 (filter).
+	if (!isFilterListing && attributes?.effect_type !== 12) return;
+	const title =
+		typeof attributes?.title === "string" ? attributes.title.trim() : "";
+	const existing = signals.items.get(id);
+	if (existing) {
+		if (!existing.title && title) existing.title = title;
+		for (const categoryId of categoryIds) existing.categoryIds.add(categoryId);
+		return;
+	}
+	signals.items.set(id, { title, categoryIds: new Set(categoryIds) });
 }
 
 function collectCategorySignals({
+	url,
 	body,
 	resourceIds,
-	panels,
-	memberships,
+	signals,
 }: {
+	url: string;
 	body: string;
 	resourceIds: ReadonlySet<string>;
-	panels: JianyingPanelCategory[][];
-	memberships: Map<string, Set<number>>;
+	signals: FilterSignals;
 }) {
 	let parsed: unknown;
 	try {
@@ -178,48 +246,99 @@ function collectCategorySignals({
 			}
 		}
 	}
-	if (orderedCategories.length > 0) panels.push(orderedCategories);
+	if (orderedCategories.length > 0) signals.panels.push(orderedCategories);
 
-	const itemLists: unknown[][] = [];
+	const isFilterListing = url.includes("get_resources_by_category_id");
+	const itemLists: { list: unknown[]; isFilterListing: boolean }[] = [];
 	if (Array.isArray(data.effect_item_list)) {
-		itemLists.push(data.effect_item_list);
+		itemLists.push({ list: data.effect_item_list, isFilterListing });
 	}
 	const categoryResources = asRecord(data.category_resources);
 	if (categoryResources) {
 		for (const block of Object.values(categoryResources)) {
 			const list = asRecord(block)?.effect_item_list;
-			if (Array.isArray(list)) itemLists.push(list);
+			if (Array.isArray(list)) {
+				itemLists.push({ list, isFilterListing: false });
+			}
 		}
 	}
-	for (const list of itemLists) {
-		for (const item of list) {
-			const attributes = asRecord(asRecord(item)?.common_attr);
-			const id = attributes?.id;
-			if (typeof id !== "string" || !resourceIds.has(id)) continue;
-			const categoryIds = Array.isArray(attributes?.category_ids)
-				? attributes.category_ids.filter(
-						(value): value is number => typeof value === "number"
-					)
-				: [];
-			if (categoryIds.length === 0) continue;
-			const existing = memberships.get(id) ?? new Set<number>();
-			for (const categoryId of categoryIds) existing.add(categoryId);
-			memberships.set(id, existing);
+	for (const entry of itemLists) {
+		for (const item of entry.list) {
+			collectItemSignal({
+				item,
+				isFilterListing: entry.isFilterListing,
+				resourceIds,
+				signals,
+			});
 		}
 	}
 }
 
-function buildCategoryCatalog({
-	panels,
+async function scanFilterSignals({
+	references,
+	databaseRoot,
+}: {
+	references: JianyingLutReference[];
+	databaseRoot: string;
+}): Promise<FilterSignals> {
+	const signals: FilterSignals = {
+		panels: [],
+		memberships: new Map(),
+		items: new Map(),
+	};
+	const resourceIds = new Set(references.map(({ resourceId }) => resourceId));
+	if (resourceIds.size === 0) return signals;
+
+	let databaseDirectories: string[];
+	try {
+		databaseDirectories = await readdir(databaseRoot);
+	} catch {
+		return signals;
+	}
+	for (const directory of databaseDirectories) {
+		try {
+			const database = new DatabaseSync(
+				join(databaseRoot, directory, "rp.db"),
+				{ readOnly: true }
+			);
+			try {
+				for (const row of readCategorySourceRows({ database })) {
+					collectCategorySignals({
+						url: row.url,
+						body: row.body,
+						resourceIds,
+						signals,
+					});
+				}
+			} finally {
+				database.close();
+			}
+		} catch {
+			// Missing or foreign DBs degrade to fewer signals, never an error.
+		}
+	}
+	return signals;
+}
+
+function collectUsedCategoryIds({
 	memberships,
 }: {
-	panels: JianyingPanelCategory[][];
 	memberships: Map<string, Set<number>>;
-}): JianyingFilterCategoryCatalog {
+}): Set<number> {
 	const usedCategoryIds = new Set<number>();
 	for (const categoryIds of memberships.values()) {
 		for (const categoryId of categoryIds) usedCategoryIds.add(categoryId);
 	}
+	return usedCategoryIds;
+}
+
+function chooseFilterPanel({
+	panels,
+	usedCategoryIds,
+}: {
+	panels: JianyingPanelCategory[][];
+	usedCategoryIds: ReadonlySet<number>;
+}): JianyingPanelCategory[] {
 	// The DBs cache every panel (filters, text animations, sounds …). The
 	// filter panel is the one whose category ids the filter resources
 	// actually reference.
@@ -232,6 +351,18 @@ function buildCategoryCatalog({
 			filterPanel = panel;
 		}
 	}
+	return filterPanel;
+}
+
+function buildCategoryCatalog({
+	panels,
+	memberships,
+}: {
+	panels: JianyingPanelCategory[][];
+	memberships: Map<string, Set<number>>;
+}): JianyingFilterCategoryCatalog {
+	const usedCategoryIds = collectUsedCategoryIds({ memberships });
+	const filterPanel = chooseFilterPanel({ panels, usedCategoryIds });
 	const names = new Map<number, string>();
 	for (const panel of panels) {
 		for (const { id, name } of panel) {
@@ -267,39 +398,53 @@ export async function resolveJianyingFilterCategories({
 	references: JianyingLutReference[];
 	databaseRoot?: string;
 }): Promise<JianyingFilterCategoryCatalog> {
-	const resourceIds = new Set(references.map(({ resourceId }) => resourceId));
-	const empty: JianyingFilterCategoryCatalog = {
-		order: [],
-		byResourceId: new Map(),
-	};
-	if (resourceIds.size === 0) return empty;
+	const signals = await scanFilterSignals({ references, databaseRoot });
+	return buildCategoryCatalog({
+		panels: signals.panels,
+		memberships: signals.memberships,
+	});
+}
 
-	let databaseDirectories: string[];
-	try {
-		databaseDirectories = await readdir(databaseRoot);
-	} catch {
-		return empty;
-	}
-	const panels: JianyingPanelCategory[][] = [];
-	const memberships = new Map<string, Set<number>>();
-	for (const directory of databaseDirectories) {
-		try {
-			const database = new DatabaseSync(
-				join(databaseRoot, directory, "rp.db"),
-				{ readOnly: true }
-			);
-			try {
-				for (const body of readCategorySourceBodies({ database })) {
-					collectCategorySignals({ body, resourceIds, panels, memberships });
-				}
-			} finally {
-				database.close();
-			}
-		} catch {
-			// Missing or foreign DBs degrade to fewer signals, never an error.
+/**
+ * Enumerate every filter the local Jianying metadata caches know about,
+ * whether or not its LUT is cached locally. `references` (the locally cached
+ * LUT resources) seed the filter-panel discrimination exactly like
+ * `resolveJianyingFilterCategories`; kept filters need a non-empty title and
+ * at least one category on the discriminated filter panel.
+ */
+export async function listJianyingFilterCatalog({
+	references,
+	databaseRoot = join(dirname(jianyingEffectCacheRoot()), "ressdk_db"),
+}: {
+	references: JianyingLutReference[];
+	databaseRoot?: string;
+}): Promise<JianyingFilterKnownCatalog> {
+	const signals = await scanFilterSignals({ references, databaseRoot });
+	const usedCategoryIds = collectUsedCategoryIds({
+		memberships: signals.memberships,
+	});
+	const filterPanel = chooseFilterPanel({
+		panels: signals.panels,
+		usedCategoryIds,
+	});
+	const usedByFilters = new Set<number>();
+	const filters: JianyingKnownFilter[] = [];
+	for (const [resourceId, item] of signals.items) {
+		if (!item.title) continue;
+		const categories: string[] = [];
+		for (const { id, name } of filterPanel) {
+			if (!item.categoryIds.has(id)) continue;
+			usedByFilters.add(id);
+			if (!categories.includes(name)) categories.push(name);
 		}
+		if (categories.length === 0) continue;
+		filters.push({ resourceId, title: item.title, categories });
 	}
-	return buildCategoryCatalog({ panels, memberships });
+	const order: string[] = [];
+	for (const { id, name } of filterPanel) {
+		if (usedByFilters.has(id) && !order.includes(name)) order.push(name);
+	}
+	return { order, filters };
 }
 
 export function findJianyingFilterCategories({
