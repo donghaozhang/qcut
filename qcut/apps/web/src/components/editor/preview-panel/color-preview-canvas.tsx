@@ -1,6 +1,9 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { MediaColorSettings, MediaMask } from "@/types/timeline";
-import { drawColorGradedSourceWithMasks } from "@/lib/color/browser-color-rendering";
+import {
+	drawColorGradedSourceStack,
+	type BrowserColorGradeLayer,
+} from "@/lib/color/browser-color-rendering";
 import { cn } from "@/lib/utils";
 import { useColorPickerStore } from "@/stores/editor/color-picker-store";
 import { useColorPreviewStore } from "@/stores/editor/color-preview-store";
@@ -54,6 +57,7 @@ export function ColorPreviewCanvas({
 	fitMode,
 	frameSeed,
 	filter,
+	additionalLayers = [],
 }: {
 	sourceSelector: string;
 	settings: MediaColorSettings;
@@ -61,14 +65,19 @@ export function ColorPreviewCanvas({
 	fitMode: "cover" | "contain" | "fill";
 	frameSeed: number;
 	filter?: string;
+	additionalLayers?: BrowserColorGradeLayer[];
 }) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const colorPickerActive = useColorPickerStore((state) => state.active);
 	const completeColorPick = useColorPickerStore((state) => state.complete);
 	const previewBypassed = useColorPreviewStore((state) => state.bypassed);
-	const renderedSettings = previewBypassed
-		? { ...settings, enabled: false }
-		: settings;
+	const renderedLayers = useMemo<BrowserColorGradeLayer[]>(
+		() =>
+			previewBypassed
+				? [{ settings: { ...settings, enabled: false }, masks }]
+				: [{ settings, masks }, ...additionalLayers],
+		[additionalLayers, masks, previewBypassed, settings]
+	);
 	const samplePreviewColor = useCallback(
 		({ clientX, clientY }: { clientX: number; clientY: number }) => {
 			const canvas = canvasRef.current;
@@ -180,15 +189,14 @@ export function ColorPreviewCanvas({
 				)
 					return;
 				outputContext.clearRect(0, 0, canvas.width, canvas.height);
-				await drawColorGradedSourceWithMasks({
+				await drawColorGradedSourceStack({
 					context: outputContext,
 					source: fitted,
 					x: 0,
 					y: 0,
 					width: canvas.width,
 					height: canvas.height,
-					masks,
-					settings: renderedSettings,
+					layers: renderedLayers,
 					frameSeed,
 				});
 			} finally {
@@ -224,7 +232,7 @@ export function ColorPreviewCanvas({
 			source.removeEventListener("seeked", redraw);
 			cancelAnimationFrame(animationFrame);
 		};
-	}, [fitMode, frameSeed, masks, renderedSettings, sourceSelector]);
+	}, [fitMode, frameSeed, renderedLayers, sourceSelector]);
 	return (
 		<canvas
 			ref={canvasRef}

@@ -55,6 +55,9 @@ struct GraphicsFrameProbeRequest {
   std::span<const std::uint8_t> inputAPixels;
   std::span<const std::uint8_t> inputBPixels;
   bool verifyInputReadback = true;
+  bool captureRenderedInputA = false;
+  bool useNativeInputTextures = false;
+  std::array<bool, 3> nativeTextureFlags{};
 };
 
 struct GraphicsFrameProbeResult {
@@ -62,6 +65,7 @@ struct GraphicsFrameProbeResult {
   bool inputsReadable = false;
   std::vector<std::uint8_t> inputAPixels;
   std::vector<std::uint8_t> inputBPixels;
+  std::vector<std::uint8_t> renderedInputAPixels;
   std::vector<std::uint8_t> outputPixels;
 };
 
@@ -71,6 +75,9 @@ struct GraphicsSessionFrameRequest {
   std::span<const std::uint8_t> inputAPixels;
   std::span<const std::uint8_t> inputBPixels;
   bool verifyInputReadback = true;
+  bool captureRenderedInputA = false;
+  bool useNativeInputTextures = false;
+  std::array<bool, 3> nativeTextureFlags{};
 };
 
 class GraphicsProbeSession {

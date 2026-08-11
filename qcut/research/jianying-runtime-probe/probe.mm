@@ -2,10 +2,12 @@
 #import <IOSurface/IOSurface.h>
 
 #include "graphics-probe.h"
+#include "filter-probe.h"
 #include "probe-utils.h"
 #include "transition-probe.h"
 #include "video-transition-probe.h"
 
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -131,6 +133,51 @@ using jianying_probe::resolveSymbol;
     return true;
   }
   throw std::runtime_error(std::string(name) + " must be 0 or 1");
+}
+
+[[nodiscard]] int optionalByteEnvironment(const char* name) {
+  const char* rawValue = std::getenv(name);
+  if (rawValue == nullptr) {
+    return 0;
+  }
+  const std::string value(rawValue);
+  // std::stol throws on empty or non-numeric input before the range check,
+  // which would replace this named message with a generic one.
+  long code = 0;
+  std::size_t parsedLength = 0;
+  try {
+    if (value.empty()) {
+      throw std::invalid_argument("empty");
+    }
+    code = std::stol(value, &parsedLength);
+  } catch (const std::exception&) {
+    throw std::runtime_error(std::string(name) +
+                             " must be an integer from 0 to 255");
+  }
+  if (parsedLength != value.size() || code < 0 || code > 255) {
+    throw std::runtime_error(std::string(name) +
+                             " must be an integer from 0 to 255");
+  }
+  return static_cast<int>(code);
+}
+
+[[nodiscard]] std::array<bool, 3> optionalNativeTextureFlags() {
+  const char* value = std::getenv("JY_NATIVE_TEXTURE_FLAGS");
+  if (value == nullptr) {
+    // The third flag makes the effect sample the native buffer with the same
+    // vertical convention the algorithm uses. Without it the delivered skin
+    // mask is bound upside down, so the skin LUT lands on the mirrored region
+    // and the render collapses to the background LUT.
+    return {false, false, true};
+  }
+  const std::string_view flags(value);
+  if (flags.size() != 3 ||
+      !std::all_of(flags.begin(), flags.end(),
+                   [](char flag) { return flag == '0' || flag == '1'; })) {
+    throw std::runtime_error(
+        "JY_NATIVE_TEXTURE_FLAGS must contain exactly three 0/1 values");
+  }
+  return {flags[0] == '1', flags[1] == '1', flags[2] == '1'};
 }
 
 [[nodiscard]] RuntimeSymbols loadRuntime(const fs::path& runtimeRoot) {
@@ -330,6 +377,48 @@ void configure(ObjectStorage<kConfigStorageSize>& config,
     return result.outputFrames > 0 ? 0 : 8;
   }
 
+  if (mode == "filter-sequence") {
+    const fs::path packagePath = requireEnvironment("JY_FILTER_PACKAGE");
+    const fs::path modelDirectory = requireEnvironment("JY_MODEL_DIRECTORY");
+    const fs::path manifestPath = requireEnvironment("JY_FILTER_MANIFEST");
+    if (!fs::is_directory(packagePath) || !fs::is_directory(modelDirectory) ||
+        !fs::is_regular_file(manifestPath)) {
+      throw std::runtime_error(
+          "filter package, model directory, and manifest must exist");
+    }
+    const auto result = jianying_probe::renderFilterSequence({
+        .runtimeRoot = runtimeRoot,
+        .packagePath = packagePath,
+        .modelDirectory = modelDirectory,
+        .manifestPath = manifestPath,
+        .outputDirectory = requireEnvironment("JY_FILTER_OUTPUT"),
+        .width = requirePositiveIntegerEnvironment("JY_VIDEO_WIDTH"),
+        .height = requirePositiveIntegerEnvironment("JY_VIDEO_HEIGHT"),
+        .frameRate = requirePositiveNumberEnvironment("JY_VIDEO_FPS"),
+        .nativeTextureFlags = optionalNativeTextureFlags(),
+        .inputTextureDataCode =
+            optionalByteEnvironment("JY_SWING_INPUT_TEXTURE_DATA_CODE"),
+        .outputTextureDataCode =
+            optionalByteEnvironment("JY_SWING_OUTPUT_TEXTURE_DATA_CODE"),
+        .algorithmCacheFlag =
+            optionalByteEnvironment("JY_ALGORITHM_CACHE_FLAG"),
+        .enableSwingSimplify =
+            std::getenv("JY_ENABLE_SWING_SIMPLIFY") == nullptr ||
+            optionalBooleanEnvironment("JY_ENABLE_SWING_SIMPLIFY"),
+        .enableAdjustColorWithFloat =
+            optionalBooleanEnvironment("JY_ENABLE_ADJUST_COLOR_WITH_FLOAT"),
+        .enableImageQuality =
+            optionalBooleanEnvironment("JY_ENABLE_IMAGE_QUALITY"),
+        .managerCreateOption =
+            optionalBooleanEnvironment("JY_SWING_MANAGER_CREATE_OPTION"),
+        .enableParallelAsyncSwing =
+            optionalBooleanEnvironment("JY_ENABLE_PARALLEL_ASYNC_SWING"),
+    });
+    std::cout << "[filter] rendered " << result.renderedFrames << '/'
+              << result.requestedFrames << " frames\n";
+    return result.renderedFrames == result.requestedFrames ? 0 : 9;
+  }
+
   if (!inspectConfig(symbols, sandboxRoot)) {
     std::cerr << "[config] inferred layout did not pass validation\n";
     return 3;
@@ -357,7 +446,7 @@ int main(int argc, char* argv[]) {
       std::cerr << "Usage: " << argv[0]
                 << " <runtime-root> "
                    "<inspect|config|launch|gpu|textures|transition|transition-"
-                   "load|transition-frame|transition-video>\n";
+                   "load|transition-frame|transition-video|filter-sequence>\n";
       return 2;
     }
 

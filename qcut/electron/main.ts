@@ -70,6 +70,10 @@ import {
 } from "./jianying-draft-export-handler.js";
 import { setupJianyingTransitionIPC } from "./jianying-transition-handler.js";
 import {
+	setupJianyingFilterLabIPC,
+	type JianyingFilterLabIPCController,
+} from "./jianying-filter-lab-handler.js";
+import {
 	setupJianyingSameProfileWritebackIPC,
 	type JianyingSameProfileWritebackIPCController,
 } from "./jianying-same-profile-writeback-handler.js";
@@ -119,6 +123,7 @@ let jianyingDraftExportController: JianyingDraftExportIPCController | null =
 	null;
 let jianyingSameProfileWritebackController: JianyingSameProfileWritebackIPCController | null =
 	null;
+let jianyingFilterLabController: JianyingFilterLabIPCController | null = null;
 
 // Import handlers (compiled TypeScript - relative to dist/electron output)
 const {
@@ -993,6 +998,14 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 			],
 			["JianyingTransitionIPC", setupJianyingTransitionIPC],
 			[
+				"JianyingFilterLabIPC",
+				() => {
+					jianyingFilterLabController = setupJianyingFilterLabIPC({
+						getMainWindow: () => mainWindow,
+					});
+				},
+			],
+			[
 				"JianyingEnvelopeKeyIPC",
 				() => {
 					jianyingEnvelopeKeyController = setupJianyingEnvelopeKeyIPC({
@@ -1122,6 +1135,8 @@ app.on("before-quit", () => {
 	jianyingEnvelopeKeyController = null;
 	jianyingDraftImportController?.dispose();
 	jianyingDraftImportController = null;
+	jianyingFilterLabController?.dispose();
+	jianyingFilterLabController = null;
 	try {
 		const { cleanupAllAudioFiles } = require("./audio-temp-handler.js");
 		cleanupAllAudioFiles();

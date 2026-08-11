@@ -118,6 +118,11 @@ import {
 	handleTransitionRender,
 } from "../cli-handlers-jianying-transitions.js";
 import { handleAppUpdate } from "../cli-handlers-app-update.js";
+import {
+	handleFilterLabCompare,
+	handleFilterLabList,
+	handleFilterLabMatch,
+} from "../cli-handlers-filter-lab.js";
 
 /**
  * Unified handler signature.
@@ -170,6 +175,21 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	update: wrapOPS(handleAppUpdate),
 	"instances-list": wrap(handleInstancesCommand),
 	"instances-use": wrap(handleInstancesCommand),
+	"filter-lab-list": wrap0(handleFilterLabList),
+	"filter-lab-compare": wrap((options) =>
+		handleFilterLabCompare({
+			resourceId: options.resourceId ? String(options.resourceId) : undefined,
+			lutId: options.lutId ? String(options.lutId) : undefined,
+			limit: options.limit ? Number(options.limit) : undefined,
+			sample: options.sample ? String(options.sample) : undefined,
+		})
+	),
+	"filter-lab-match": wrap((options) =>
+		handleFilterLabMatch({
+			worst: options.worst ? Number(options.worst) : undefined,
+			sample: options.sample ? String(options.sample) : undefined,
+		})
+	),
 	"transition-list": wrap0(handleTransitionList),
 	"transition-doctor": wrap0(handleTransitionDoctor),
 	"transition-render": wrapOP(handleTransitionRender),

@@ -85,6 +85,7 @@ import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { LoaderCircle, TriangleAlert } from "lucide-react";
 import { useJianyingTimelineTransitionPreview } from "./preview-panel/use-jianying-timeline-transition-preview";
 import { JianyingTimelineTransitionOverlay } from "./preview-panel/jianying-timeline-transition-overlay";
+import type { BrowserColorGradeLayer } from "@/lib/color/browser-color-rendering";
 
 function getPreviewElementDuration(element: TimelineElement): number {
 	return element.type === "media"
@@ -695,7 +696,11 @@ export function PreviewPanel() {
 	);
 
 	const renderElement = useCallback(
-		(elementData: ActiveElement, index: number) => {
+		(
+			elementData: ActiveElement,
+			index: number,
+			lutLayers: BrowserColorGradeLayer[]
+		) => {
 			const effectRendering = effectsRenderingByElementId.get(
 				elementData.element.id
 			);
@@ -730,6 +735,7 @@ export function PreviewPanel() {
 							elementData.element.id
 						)}
 						compositionPreviewEnabled={compositionPreviewEnabled}
+						additionalColorLayers={lutLayers}
 						onTextPointerDown={handleTextPointerDown}
 						onElementSelect={({ elementId, multi }) =>
 							selectElement(elementData.track.id, elementId, multi)

@@ -192,10 +192,17 @@ describe("filter LUT", () => {
 			return cube.values.slice(index, index + 3);
 		};
 
-		const warmSkin = colorAt({ red: 3, green: 2, blue: 1 });
-		expect(warmSkin[0]).toBeGreaterThan(0.95);
-		expect(warmSkin[1]).toBeLessThan(0.1);
-		expect(warmSkin[2]).toBeLessThan(0.1);
+		// #bf7f7f sits inside the Cb/Cr skin cluster, so it leans hard on the
+		// skin recipe (offset [1, 0, 0]) and away from the identity base.
+		const skin = colorAt({ red: 3, green: 2, blue: 2 });
+		expect(skin[0]).toBeGreaterThan(0.93);
+		expect(skin[1]).toBeLessThan(0.15);
+		expect(skin[2]).toBeLessThan(0.15);
+		// #bf7f3f shares skin's hue but is far more saturated, which reads as a
+		// warm surface rather than skin, so it stays closer to the base recipe.
+		const warmSurface = colorAt({ red: 3, green: 2, blue: 1 });
+		expect(warmSurface[0]).toBeLessThan(0.9);
+		expect(warmSurface[1]).toBeGreaterThan(skin[1]);
 		const coolBlue = colorAt({ red: 1, green: 2, blue: 3 });
 		expect(coolBlue[0]).toBeCloseTo(0.25, 12);
 		expect(coolBlue[1]).toBeCloseTo(0.5, 12);

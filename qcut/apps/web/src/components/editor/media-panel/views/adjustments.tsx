@@ -1,100 +1,28 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import {
 	ChevronDown,
 	CirclePlus,
 	FileUp,
+	FlaskConical,
 	Layers,
 	Plus,
 	Upload,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-	buildLegacyColorAdjustments,
-	normalizeMediaColorSettings,
-} from "@/lib/color/color-properties";
 import { parseLutFile } from "@/lib/color/color-lut";
 import { cn } from "@/lib/utils";
-import { addAdjustmentLayer } from "@/lib/timeline/adjustment-layer";
-import { usePlaybackStore } from "@/stores/editor/playback-store";
-import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import type { AdjustmentElement } from "@/types/timeline";
+import type { ColorCubeLut } from "@/types/timeline";
+import type { JianyingFilterLabLutSummary } from "@/types/electron";
+import { JianyingFilterLab } from "./adjustments/jianying-filter-lab";
+import { useAdjustmentLut } from "./adjustments/use-adjustment-lut";
 
-type AdjustmentShelf = "mine" | "lut";
-
-interface SelectedAdjustmentTarget {
-	element: AdjustmentElement;
-	trackId: string;
-}
-
-interface AdjustmentDestination {
-	element?: AdjustmentElement;
-	elementId: string;
-	trackId: string;
-}
-
-function selectedAdjustmentTarget({
-	selectedElements,
-	tracks,
-}: {
-	selectedElements: ReturnType<
-		typeof useTimelineStore.getState
-	>["selectedElements"];
-	tracks: ReturnType<typeof useTimelineStore.getState>["tracks"];
-}): SelectedAdjustmentTarget | null {
-	for (const selection of selectedElements) {
-		const track = tracks.find(
-			(candidate) => candidate.id === selection.trackId
-		);
-		const element = track?.elements.find(
-			(candidate) => candidate.id === selection.elementId
-		);
-		if (element?.type === "adjustment") {
-			return {
-				element: element as AdjustmentElement,
-				trackId: selection.trackId,
-			};
-		}
-	}
-	return null;
-}
+type AdjustmentShelf = "mine" | "lut" | "lab";
 
 export function AdjustmentsView() {
 	const fileInput = useRef<HTMLInputElement>(null);
 	const [activeShelf, setActiveShelf] = useState<AdjustmentShelf>("mine");
-	const selectedElements = useTimelineStore((state) => state.selectedElements);
-	const tracks = useTimelineStore((state) => state.tracks);
-	const insertTrackAt = useTimelineStore((state) => state.insertTrackAt);
-	const addElementToTrack = useTimelineStore(
-		(state) => state.addElementToTrack
-	);
-	const getTotalDuration = useTimelineStore((state) => state.getTotalDuration);
-	const updateAdjustmentElement = useTimelineStore(
-		(state) => state.updateAdjustmentElement
-	);
-	const currentTime = usePlaybackStore((state) => state.currentTime);
-	const target = useMemo(
-		() => selectedAdjustmentTarget({ selectedElements, tracks }),
-		[selectedElements, tracks]
-	);
-
-	const createAdjustment = ({
-		name = "自定义调节",
-	}: {
-		name?: string;
-	} = {}) => {
-		const created = addAdjustmentLayer({
-			timeline: { tracks, insertTrackAt, addElementToTrack, getTotalDuration },
-			currentTime,
-			name,
-		});
-		if (!created.elementId) {
-			toast.error("无法创建调节层");
-			return null;
-		}
-		toast.success("已新建调节层");
-		return created;
-	};
+	const { applyLut, createAdjustment, target } = useAdjustmentLut();
 
 	const importLut = async ({ file }: { file: File }) => {
 		try {
@@ -102,48 +30,36 @@ export function AdjustmentsView() {
 				text: await file.text(),
 				fallbackName: file.name,
 			});
-			const created = target
-				? null
-				: createAdjustment({ name: `LUT - ${parsed.name}` });
-			const destination: AdjustmentDestination | null = target
-				? {
-						element: target.element,
-						elementId: target.element.id,
-						trackId: target.trackId,
-					}
-				: created?.elementId
-					? {
-							elementId: created.elementId,
-							trackId: created.trackId,
-						}
-					: null;
-			if (!destination) return;
-			const settings = normalizeMediaColorSettings({
-				element: destination.element ?? {},
+			applyLut({
+				name: parsed.name,
+				cube: parsed.cube,
+				layerName: `LUT - ${parsed.name}`,
+				successMessage: `已导入 ${parsed.name} 到调节层`,
 			});
-			const next = {
-				...settings,
-				lut: {
-					...settings.lut,
-					enabled: true,
-					presetId: "custom" as const,
-					name: parsed.name,
-					cube: parsed.cube,
-				},
-			};
-			updateAdjustmentElement(
-				destination.trackId,
-				destination.elementId,
-				{
-					color: next,
-					adjustments: buildLegacyColorAdjustments({ settings: next }),
-				},
-				Boolean(destination.element)
-			);
-			toast.success(`已导入 ${parsed.name} 到调节层`);
 		} catch (error) {
 			toast.error(error instanceof Error ? error.message : "无法导入 LUT");
 		}
+	};
+
+	const applyJianyingLut = ({
+		name,
+		cube,
+		entry,
+	}: {
+		name: string;
+		cube: ColorCubeLut;
+		entry: JianyingFilterLabLutSummary;
+	}) => {
+		const successMessage =
+			entry.role === "single"
+				? `已应用 ${name} 到调节层`
+				: `已将 ${name} 分支作为全局 LUT 应用`;
+		applyLut({
+			name,
+			cube,
+			layerName: `剪映 - ${name}`,
+			successMessage,
+		});
 	};
 
 	return (
@@ -184,6 +100,22 @@ export function AdjustmentsView() {
 				>
 					LUT
 				</button>
+				<button
+					type="button"
+					className={cn(
+						"mt-1 flex h-7 w-full items-center gap-0.5 rounded-sm px-1 text-left text-[10px] font-medium transition-colors",
+						activeShelf === "lab"
+							? "bg-foreground/10 text-primary"
+							: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+					)}
+					onClick={() => setActiveShelf("lab")}
+					onKeyDown={(event) => {
+						if (event.key === "Escape") event.currentTarget.blur();
+					}}
+				>
+					<FlaskConical className="size-3" />
+					<span className="truncate">滤镜实验室</span>
+				</button>
 			</aside>
 
 			<section className="min-w-0 flex-1 overflow-y-auto p-3">
@@ -205,7 +137,7 @@ export function AdjustmentsView() {
 							点击卡片创建调节轨，参数会显示在右侧属性面板。
 						</div>
 					</div>
-				) : (
+				) : activeShelf === "lut" ? (
 					<div className="space-y-3">
 						<input
 							ref={fileInput}
@@ -252,6 +184,11 @@ export function AdjustmentsView() {
 							选择 LUT 文件
 						</Button>
 					</div>
+				) : (
+					<JianyingFilterLab
+						targetName={target?.element.name}
+						onApply={applyJianyingLut}
+					/>
 				)}
 			</section>
 		</div>

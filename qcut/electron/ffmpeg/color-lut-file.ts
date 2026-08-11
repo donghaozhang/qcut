@@ -28,9 +28,58 @@ function rgbToHsl({ r, g, b }: { r: number; g: number; b: number }): {
 	return { h: ((hue * 60 + 360) % 360) / 360, s: saturation, l: lightness };
 }
 
-function hueDistance(left: number, right: number): number {
-	const distance = Math.abs(left - right);
-	return Math.min(distance, 1 - distance);
+function softWindow({
+	value,
+	low,
+	high,
+	feather,
+}: {
+	value: number;
+	low: number;
+	high: number;
+	feather: number;
+}): number {
+	return Math.min(
+		1,
+		Math.max(0, Math.min((value - low) / feather, (high - value) / feather))
+	);
+}
+
+/**
+ * Must stay identical to skinToneWeight in
+ * apps/web/src/lib/color/color-space-math.ts — the browser preview and this
+ * native bake are compared within six channel levels by
+ * electron/__tests__/filter-library-parity-real.test.ts, and
+ * electron/__tests__/skin-tone-weight-parity.test.ts locks the two copies
+ * together directly. Electron cannot import the web module because that file
+ * resolves types through the `@/` alias.
+ */
+function skinToneWeight({
+	r,
+	g,
+	b,
+}: {
+	r: number;
+	g: number;
+	b: number;
+}): number {
+	const red = r * 255;
+	const green = g * 255;
+	const blue = b * 255;
+	const chromaBlue = 128 - 0.168736 * red - 0.331264 * green + 0.5 * blue;
+	const chromaRed = 128 + 0.5 * red - 0.418688 * green - 0.081312 * blue;
+	const chromaWeight =
+		softWindow({ value: chromaBlue, low: 77, high: 127, feather: 12 }) *
+		softWindow({ value: chromaRed, low: 133, high: 173, feather: 12 });
+	if (chromaWeight <= 0) return 0;
+
+	const hsl = rgbToHsl({ r, g, b });
+	return (
+		chromaWeight *
+		Math.min(1, hsl.s * 3) *
+		Math.min(1, hsl.l * 4) *
+		Math.min(1, (1 - hsl.l) * 3)
+	);
 }
 
 function adjustedCube({
@@ -57,13 +106,7 @@ function adjustedCube({
 					g: cube.values[valueIndex + 1] ?? input.g,
 					b: cube.values[valueIndex + 2] ?? input.b,
 				};
-				const hsl = rgbToHsl(input);
-				const hueWeight = Math.max(0, 1 - hueDistance(hsl.h, 28 / 360) / 0.09);
-				const skinWeight =
-					hueWeight *
-					Math.min(1, hsl.s * 2) *
-					Math.min(1, hsl.l * 4) *
-					Math.min(1, (1 - hsl.l) * 4);
+				const skinWeight = skinToneWeight(input);
 				const amount =
 					(intensity / 100) * (1 - skinWeight * (skinProtection / 100));
 				values.push(
@@ -98,6 +141,9 @@ function serializeCube({
 	}
 	return `${rows.join("\n")}\n`;
 }
+
+/** Exported only so the parity test can compare this copy with the web one. */
+export const __skinToneWeightForParity = skinToneWeight;
 
 export function materializeVideoCubeLut({
 	name,

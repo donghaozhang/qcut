@@ -75,6 +75,10 @@ import {
 	JIANYING_TRANSITION_TIMELINE_PREVIEW_CHANNEL,
 } from "./jianying-transition-contract.js";
 import {
+	JIANYING_FILTER_LAB_LIST_CHANNEL,
+	JIANYING_FILTER_LAB_LOAD_CHANNEL,
+} from "./jianying-filter-lab-contract.js";
+import {
 	ENVELOPE_DELETE_CHANNEL,
 	ENVELOPE_PURGE_CHANNEL,
 	ENVELOPE_READ_CHANNEL,
@@ -142,6 +146,11 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke(JIANYING_TRANSITION_RENDER_CHANNEL, request),
 		renderTimeline: (request) =>
 			ipcRenderer.invoke(JIANYING_TRANSITION_RENDER_TIMELINE_CHANNEL, request),
+	},
+	jianyingFilterLab: {
+		list: () => ipcRenderer.invoke(JIANYING_FILTER_LAB_LIST_CHANNEL),
+		load: (request) =>
+			ipcRenderer.invoke(JIANYING_FILTER_LAB_LOAD_CHANNEL, request),
 	},
 	jianyingEnvelope: {
 		store: (request) => ipcRenderer.invoke(ENVELOPE_STORE_CHANNEL, request),

@@ -98,6 +98,7 @@ import {
 	appendAudioReactiveBrightnessFilter,
 	mergeEffectMotionWithAudioReactive,
 } from "@/lib/effects/effect-audio-reactive-state";
+import type { BrowserColorGradeLayer } from "@/lib/color/browser-color-rendering";
 
 interface ElementResizeParams {
 	elementId: string;
@@ -121,6 +122,7 @@ interface PreviewElementRendererProps {
 	transitionState?: ClipTransitionPreviewState;
 	audioCrossfadeState?: AudioCrossfadePreviewState;
 	compositionPreviewEnabled: boolean;
+	additionalColorLayers: BrowserColorGradeLayer[];
 	onTextPointerDown: (
 		event: React.PointerEvent<HTMLDivElement>,
 		element: Pick<TimelineElement, "id" | "x" | "y">,
@@ -262,6 +264,7 @@ export function PreviewElementRenderer({
 	transitionState,
 	audioCrossfadeState,
 	compositionPreviewEnabled,
+	additionalColorLayers,
 	onTextPointerDown,
 	onElementSelect,
 	onElementResize,
@@ -840,7 +843,9 @@ export function PreviewElementRenderer({
 					height: previewHeight,
 					perspective: visual.perspective,
 				});
-				const usesPixelColor = hasMediaColorEdits({ settings: visual.color });
+				const usesPixelColor =
+					hasMediaColorEdits({ settings: visual.color }) ||
+					additionalColorLayers.length > 0;
 				const enhancementFilter = buildMediaEnhancementCssFilter(
 					visual.enhancements
 				);
@@ -1033,6 +1038,7 @@ export function PreviewElementRenderer({
 										currentTime * (activeProject?.fps ?? 30)
 									)}
 									filter={combinedFilter || undefined}
+									additionalLayers={additionalColorLayers}
 								/>
 							) : null}
 							{renderCompositePreviewEffects ? (
@@ -1195,7 +1201,9 @@ export function PreviewElementRenderer({
 					}),
 					audioReactive,
 				});
-				const usesPixelColor = hasMediaColorEdits({ settings: visual.color });
+				const usesPixelColor =
+					hasMediaColorEdits({ settings: visual.color }) ||
+					additionalColorLayers.length > 0;
 				const gradeMaskIds = visual.color.mask.enabled
 					? new Set(visual.color.mask.maskIds)
 					: new Set<string>();
@@ -1328,6 +1336,7 @@ export function PreviewElementRenderer({
 										frameSeed={Math.round(
 											currentTime * (activeProject?.fps ?? 30)
 										)}
+										additionalLayers={additionalColorLayers}
 									/>
 								) : null}
 								{renderCompositePreviewEffects ? (
@@ -1434,6 +1443,7 @@ export function PreviewElementRenderer({
 									frameSeed={Math.round(
 										currentTime * (activeProject?.fps ?? 30)
 									)}
+									additionalLayers={additionalColorLayers}
 								/>
 							) : null}
 							{renderCompositePreviewEffects ? (

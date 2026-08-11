@@ -132,6 +132,11 @@ export const CATEGORIES: CategoryDef[] = [
 		commands: ["transition-list", "transition-doctor", "transition-render"],
 	},
 	{
+		name: "filter-lab",
+		label: "Filter Lab",
+		commands: ["filter-lab-list", "filter-lab-compare", "filter-lab-match"],
+	},
+	{
 		name: "models",
 		label: "Model Listing",
 		commands: [
@@ -270,6 +275,52 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		examples: [
 			"qcut transition render --preset jianying-local-traverse-3 --input-a a.mp4 --input-b b.mp4 --output joined.mp4",
 		],
+	},
+	"filter-lab-list": {
+		name: "filter-lab-list",
+		description:
+			"List the Jianying LUTs cached locally that the filter lab can score against",
+		category: "filter-lab",
+		flags: [],
+		examples: ["qcut filter-lab list --json"],
+	},
+	"filter-lab-compare": {
+		name: "filter-lab-compare",
+		description:
+			"Rank QCut filter presets by how closely they match one cached Jianying LUT",
+		category: "filter-lab",
+		flags: [
+			f("--lut-id", "string", "Exact LUT ID from filter-lab list"),
+			f(
+				"--resource-id",
+				"string",
+				"Jianying resource ID when it has exactly one cached LUT"
+			),
+			f("--limit", "number", "How many closest presets to report"),
+			f(
+				"--sample",
+				"string",
+				"Score over the colours in this image/video instead of a uniform grid"
+			),
+		],
+		examples: [
+			"qcut filter-lab compare --lut-id 7429744855724641545/f4d46cb5bca43ef171199ea673d53b00/filter.cube.vf --json",
+		],
+	},
+	"filter-lab-match": {
+		name: "filter-lab-match",
+		description:
+			"Score every cached Jianying LUT against the QCut library and report the widest gaps",
+		category: "filter-lab",
+		flags: [
+			f("--worst", "number", "How many worst matches to report"),
+			f(
+				"--sample",
+				"string",
+				"Score over the colours in this image/video instead of a uniform grid"
+			),
+		],
+		examples: ["qcut filter-lab match --worst 10 --json"],
 	},
 	update: {
 		name: "update",

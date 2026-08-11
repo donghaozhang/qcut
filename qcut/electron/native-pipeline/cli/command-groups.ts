@@ -101,6 +101,17 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 		},
 	},
 	{
+		name: "filter-lab",
+		label: "Filter Lab",
+		description:
+			"Score QCut filter recipes against locally cached Jianying LUTs",
+		actions: {
+			list: "filter-lab-list",
+			compare: "filter-lab-compare",
+			match: "filter-lab-match",
+		},
+	},
+	{
 		name: "flow",
 		label: "Workflows & Orchestration",
 		description: "ViMax pipelines, YAML workflows, script/character generation",

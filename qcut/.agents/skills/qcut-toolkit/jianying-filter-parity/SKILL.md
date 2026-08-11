@@ -132,6 +132,220 @@ For skin-segmented dual-LUT packages, a calibration chart validates only the
 background path. Capture a common face clip to measure the skin path. Do not
 claim full parity from a chart-only fit.
 
+## Swing segmented-host parity (required)
+
+Use this gate when a package consumes `share://skinsegmask.texture`. The
+low-level Effect handle does not reproduce Jianying's host-side segmentation
+state machine. Exercise the local interoperability probe instead:
+
+```bash
+research/jianying-runtime-probe/run-probe.sh filter-sequence
+```
+
+The manifest is `input<TAB>update-mode<TAB>reset-action`:
+
+- `3,1,2` applies all mode changes before one seek/render;
+- `3;1;2` performs one seek/render after each mode stage;
+- `keep` performs one seek/render without changing the current mode;
+- reset is `none`, `feature`, `video`, or `manager`.
+
+Rebind the input texture before **every** staged seek. Omitting that call makes
+the segmentation result weak or unstable. In the current 854x480 portrait
+fixture, `3;1`, `3;1;2`, and direct mode `1` converge to the same byte-identical
+mask. Mode `3` is `PREPARE_SEEK`; it is not a normal rendered-frame result.
+This convergence does **not** establish UI parity. On the same lossless frame,
+the established low-level Effect replay reaches `37.331 dB` against Jianying,
+while the legacy C API Swing `3;1;2` candidate reaches only `32.669 dB`; the two host paths
+are only `33.413 dB` apart. Preserve the low-level replay as the reference and
+do not replace it with `3;1;2` until another sequence beats that baseline.
+
+At a source/content discontinuity, recreate the Swing manager and its
+`AlgorithmService`. `feature` and `video` resets do not clear the observed skin
+segmentation history. The verified sequence
+`portrait -> gray frames -> same portrait` restores the initial mask exactly
+only with `manager` reset. Keep one manager for continuous frames; recreate it
+at a clip/source boundary until a real Jianying UI trace proves a narrower
+reset is sufficient.
+
+Readback from the native Metal path is BGRA. Normalize it to RGBA before writing
+`.rgba`; mode `3` passthrough must then match the input byte for byte.
+
+At the `tt_skin_seg` ByteNN boundary, both initial host probes use BGR values with
+`channel - 128` normalization and two half-pixel-center bilinear stages. Their
+intermediate sizes differ for an 854x480 source: Low-level uses
+`854x480 -> 227x128 -> 224x128`, while legacy C API Swing uses
+`854x480 -> 398x224 -> 224x128`. Sparse impulses match both paths at 99.55%
+with a maximum error of one; a deterministic 2D texture reaches RMSE 0.279 and
+0.502 respectively. Direct one-stage resize or swapping the intermediate sizes
+produces RMSE around 40-49. An earlier floor-versus-round inference assumed a
+single resize and is withdrawn.
+
+Do not treat that legacy Swing result as the UI path. Live sampling of Jianying
+preview established the call chain `TESwingProcessUnit ->
+TESwingEffectManagerV2 -> TESwingManagerInterfaceWrapper ->
+SwingManager::seekFrameV2`. The public C create API hard-codes `XT_Init=true`,
+which clears `enable_parallel_and_async_swing` during manager initialization
+and silently selects legacy `seekFrame`. The UUID-gated research path can set
+`JY_ENABLE_PARALLEL_ASYNC_SWING=1` and construct the manager without `XT_Init`.
+Verify the sampled stack contains `seekFrameV2`; an accepted exit code alone is
+not evidence.
+
+For the 854x480 portrait fixture, the captured V2 tensor fits
+`854x480 -> 227x128 -> 224x128` at `MAE 0.087 / RMSE 0.295`; the `398x224`
+candidate is `MAE 0.819 / RMSE 1.812`. Together with the live UI V2 stack, this
+strongly supports UI V2 and Low-level using the same intermediate size. Treat
+that as a same-entry inference, not a direct UI tensor dump.
+
+V2 output is in-place at the host boundary. Static tracing shows the wrapper
+dereferences only the first `SwingDeviceTextureData` texture; the second struct
+contributes its texture code but its texture is not read. Jianying's
+`TESwingProcessUnit::renderEffect` passes the same `shared_ptr<ITEVideoFrame>`
+address as both frame arguments. Read back the first DeviceTexture after
+`seekFrameV2`; do not wait for a separate callback or read the legacy output
+texture. A 10-frame 854x480 portrait run rendered 10/10 visible frames, with
+frames 1-9 byte-identical after warm-up. The old black result came from reading
+the unused legacy output texture. This proves the handoff contract, not final UI
+parity; compare the exact UI fixture and package before reporting a new PSNR.
+
+Keep the handoff proof separate from filter parity. The initial 10-frame proof
+used local resource `7145394266209127694`, cataloged as Silver Blue. The exact
+Olympus comparison uses resource `7361792068475325735`. With one duplicated
+`3;1;2` preparation frame discarded and 180 aligned mode-1 frames, V2 reaches
+only `31.720 dB` overall (`31.412` static, `31.882` dynamic), versus Low-level
+at `40.741 dB` (`37.331`, `44.681`). Using the Low-level mask, V2 reaches
+`22.552 dB` in the mask interior, `27.610 dB` on its soft boundary, and
+`39.038 dB` in the background; interior blue is only `18.436 dB`. Entering
+`seekFrameV2` and reading the correct texture therefore does not reproduce UI
+segmentation state. Do not replace the Low-level baseline with this V2 sequence.
+
+The real UI update-mode trace is now known for preview load, paused seek, and
+playback. Group calls by the underlying `SwingManager` pointer; grouping only by
+time can mix unrelated interactions. One manager receives `0,1,1,2` during load,
+`0` for a paused timeline seek, and repeated `1` calls while playing. All observed
+calls enter through `TESwingManagerInterfaceWrapper::setUpdateMode`; the top-level
+`TESwingProcessUnit::setUpdateMode` setter receives no application calls. Mode `3`
+was not observed. Export remains untraced.
+
+Replaying load as `0,1,1,2` before one render reaches `30.876 dB` on the 60-frame
+static fixture; replaying it as staged `0;1;1;2` reaches `30.374 dB`. Both are
+worse than the rejected `3;1;2` candidate at `31.412 dB` and the Low-level baseline
+at `37.331 dB`. The UI mode order is therefore evidence about orchestration, but
+it is not the missing parity variable. Do not spend another run permuting mode
+values. Isolate manager/AlgorithmService/segment/feature initialization, AB state,
+or segmentation model selection next.
+
+The segmentation-result handoff is now isolated for the independent V2 host.
+Do not interpret a zero `SkinSegInfo::textureId()`, null `nativeBuffer()`, or no
+`updateTexture()` call as a missing mask. Working Low-level Effect and V2 show
+all three conditions. Both instead use the CPU fallback: the native result's
+`+0x18` field points to a container whose `+0x10/+0x18` fields are the mask
+begin/end pointers. Both paths expose a complete `224x128`, 28672-byte mask.
+Low-level repeats one byte-identical mask for 20 reads; V2 exposes valid masks
+through all five `0;1;1;2;1` stages.
+
+Compare model identity before comparing those bytes. The established Low-level
+fixture loads the 260961-byte static `tt_skin_seg_v5.0.model` (MD5
+`2b5a3aed4a9a45a67b7febabe9247d6e`), while the V2 resource callback loads the
+407541-byte `tt_skin_seg_video_seg_fp16_v1.0.model` (MD5
+`cd5474732a4b56b7fffceba8a83d7c1e`). After vertical orientation correction,
+their final masks still differ by `MAE 15.442 / RMSE 40.492`, but that is not a
+same-model parity result. Forcing the video model into Low-level loads the same
+MD5 but yields an invalid weak result (`reflector=0`, range `0-15`), proving the
+model also depends on V2 host configuration. Trace model selection and
+AlgorithmService initialization before testing feathering or more mode orders.
+
+The wrapper's manager-create boolean is not the missing configuration. Static
+tracing shows that it maps `false` to Swing init mode `0` and `true` to mode
+`2`, with UUID `8`. The independent host now performs the same mapping. Under
+one fixed 854x480 input, package, `3;1;2` sequence, and model resolution, modes
+`0` and `2` render byte-identical 10-frame outputs. Their discarded warm-up
+frames are both `22.227 dB`; their first measured mode-1 frames are both
+`32.899 dB`. Do not spend another run varying this mode.
+
+Two additional manager flags are also ruled out for the Olympus segmented
+fixture. `TESwingManagerInterfaceWrapper` maps `setIsImageQuality(true)` to
+`SwingManager::setParameterBool("EnableImageQuality", true)`, and the live UI
+does log `image quality is: 1`. In the independent V2 host, however,
+`EnableImageQuality=false/true` produces byte-identical output across all ten
+frames, selects the same video skin-seg model, and reports the same algorithm
+size. `EnableAdjustColorWithFloat=false/true` is likewise byte-identical. Do not
+repeat either flag as a parity experiment.
+
+Do not interpret `bef_swing_segment_video_get_algorithm_width_height()` returning
+`0x0` immediately after segment creation as a missing `AlgorithmService`. That
+field is lazy: after the first seek/render it becomes `398x224` and remains
+stable for the ten-frame run. The logs also show a real `edit_alg_system`
+`AlgorithmService`, graph parsing, and skin-seg execution. The remaining problem
+is configuration parity inside a running service, not service absence.
+
+The raw feature-construction path is substantially shared. The public
+`bef_swing_segment_video_create_feature` API obtains the video segment's manager
+and creates feature segment type `0` with the package path. The UI's clip-based
+path ultimately creates the same AmazingEngine segment classes, then adds
+model-clip parameters, cache state, and tracking metadata around them.
+
+The UI's `enableAlgorithmCache:9` log is not itself the missing state. The real
+wrapper entry is `setAlgorithmCacheFlag(9)`, which maps directly to
+`SwingManager::setParameterInt("AlgorithmCacheFlag", 9)`. The separate
+`RunAlgorithmMode` boolean was held unchanged. A controlled `0/9` comparison
+changed the V2 initialization log as expected, but all ten output frames were
+byte-identical, with the same model and `398x224` algorithm size. Do not test
+this cache flag again. Focus the next comparison on one pixel-relevant AB value
+or post-create model-clip parameter; do not rebuild the basic video/feature
+graph without evidence.
+
+An exact-first resource-finder experiment loaded the requested static model and
+improved its orientation-corrected mask comparison with Low-level to
+`MAE 12.245 / RMSE 29.630`. A cold one-frame run was green and posterized, but
+after discarding the established `3;1;2` warm-up output, the first measured
+frame reached `32.899 dB` versus `32.106 dB` with the video model. Exact model
+identity closes `0.794 dB`, but remains about `4.432 dB` below the Low-level
+still baseline. It is evidence, not a standalone fix. Do not make exact-first
+resolution the probe default until its cold-start behavior and the matching
+AlgorithmService/segment/feature configuration are known.
+
+Do not claim a direct UI object comparison from this result. Jianying rendering
+runs in a hardened `--lvve-service` child that did not load the observer. A
+forced OpenGL R8 texture ID reaches the result-packaging branch but cannot be
+used by the Metal V2 renderer, so it is control-flow evidence only.
+
+### Required validation checklist
+
+- [x] Capture the actual Jianying UI mode order for preview load, play, and seek.
+  The verified raw values are load `0,1,1,2`, paused seek `0`, and playback `1`.
+- [x] Inspect the independent V2 skin-result handoff. Its consumed
+  `SkinSegInfo` uses a complete CPU fallback mask despite having neither a
+  texture ID nor a native buffer.
+- [x] Match the wrapper's manager init mode mapping (`false -> 0`, `true -> 2`).
+  The two modes produce byte-identical output in the controlled still fixture.
+- [x] Compare the UI-visible image-quality flag. `false/true` produces
+  byte-identical ten-frame output and does not change model identity or the
+  post-render `398x224` algorithm size.
+- [x] Match the UI's `AlgorithmCacheFlag=9`. The init log changes from `0` to
+  `9`, but all ten frames remain byte-identical; `RunAlgorithmMode` was not
+  changed.
+- [ ] Reproduce V2 model selection and AlgorithmService initialization in a
+  controlled same-model comparison, then rerun the exact still fixture.
+- [ ] Capture the actual Jianying export mode order. Do not infer it from preview.
+- [ ] Compare one calibration chart, one still portrait, and one short moving
+  portrait at identical dimensions. Report whole-frame PSNR plus mask interior,
+  boundary-band, and background errors separately.
+- [ ] Verify manager reset on two different people and on a return-to-source
+  seek. Initial and returned mask outputs must be byte-identical.
+- [ ] Verify repeated frames within a continuous clip remain deterministic and
+  do not require manager recreation.
+- [ ] Read face boxes/landmarks through an independent result API before making
+  any claim about face-keypoint parity; a working skin mask is not proof of
+  working landmarks.
+- [ ] Repeat short one-frame teardown runs before productizing. The proprietary
+  runtime has shown one intermittent async teardown mutex failure.
+
+To conserve investigation budget, do not repeat full-binary disassembly or long
+180-frame runs when a targeted symbol lookup and the three fixtures above can
+answer the question. Keep runtime libraries, models, packages, raw frames, and
+logs outside git. Record only commands, hashes, metrics, and conclusions in
+`docs/task/jianying-filter-runtime-research/`.
+
 ## Step 4 — Register the preset
 
 Follow the PR #373 layout in `apps/web/src/lib/filters/jianying-parity/`:
