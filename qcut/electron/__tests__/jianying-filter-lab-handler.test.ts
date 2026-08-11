@@ -103,6 +103,7 @@ describe("Jianying filter lab IPC", () => {
 				order: ["黑白", "高清"],
 				byResourceId: new Map([[reference.resourceId, ["黑白", "高清"]]]),
 			}),
+			resolveKnownFilters: async () => ({ order: [], filters: [] }),
 		});
 
 		const listed = (await getHandler({
@@ -111,6 +112,7 @@ describe("Jianying filter lab IPC", () => {
 		expect(listed).toMatchObject({
 			count: 1,
 			categoryOrder: ["黑白", "高清"],
+			uncached: [],
 			luts: [
 				{
 					lutId: reference.lutId,
@@ -146,6 +148,85 @@ describe("Jianying filter lab IPC", () => {
 		);
 	});
 
+	it("lists known-but-uncached filters with a panel-ordered category union", async () => {
+		const context = createWindowContext();
+		const reference = createReference();
+		const uncachedFilter = {
+			resourceId: "7100000000000000010",
+			title: "白日梦",
+			categories: ["🍉夏日"],
+			filePath: "/private/should-never-leak",
+		};
+		const resolveKnownFilters = vi.fn(async () => ({
+			order: ["🍉夏日", "黑白", "高清"],
+			filters: [
+				{
+					resourceId: reference.resourceId,
+					title: "高清黑白",
+					categories: ["黑白", "高清"],
+				},
+				uncachedFilter,
+			],
+		}));
+		setupJianyingFilterLabIPC({
+			getMainWindow: () => context.mainWindow,
+			listReferences: async () => [reference],
+			resolveTitles: async () =>
+				new Map([[`${reference.resourceId}/${reference.version}`, "高清黑白"]]),
+			resolveCategories: async () => ({
+				order: ["黑白", "室内"],
+				byResourceId: new Map([[reference.resourceId, ["黑白", "室内"]]]),
+			}),
+			resolveKnownFilters,
+		});
+
+		const listed = (await getHandler({
+			channel: JIANYING_FILTER_LAB_LIST_CHANNEL,
+		})(context.event)) as JianyingFilterLabListResult;
+		expect(resolveKnownFilters).toHaveBeenCalledWith({
+			references: [reference],
+		});
+		// The cached resource never appears in `uncached`, and unknown extra
+		// fields (e.g. a filePath) are stripped.
+		expect(listed.uncached).toEqual([
+			{
+				resourceId: "7100000000000000010",
+				title: "白日梦",
+				categories: ["🍉夏日"],
+			},
+		]);
+		expect(listed.uncached[0]).not.toHaveProperty("filePath");
+		// Panel-ordered union of cached-LUT and catalog categories.
+		expect(listed.categoryOrder).toEqual(["🍉夏日", "黑白", "高清", "室内"]);
+	});
+
+	it("caps the uncached catalog list defensively", async () => {
+		const context = createWindowContext();
+		setupJianyingFilterLabIPC({
+			getMainWindow: () => context.mainWindow,
+			listReferences: async () => [],
+			resolveTitles: async () => new Map(),
+			resolveCategories: async () => ({
+				order: [],
+				byResourceId: new Map(),
+			}),
+			resolveKnownFilters: async () => ({
+				order: ["🍉夏日"],
+				filters: Array.from({ length: 2100 }, (_, index) => ({
+					resourceId: `82${index.toString().padStart(17, "0")}`,
+					title: `滤镜${index}`,
+					categories: ["🍉夏日"],
+				})),
+			}),
+		});
+
+		const listed = (await getHandler({
+			channel: JIANYING_FILTER_LAB_LIST_CHANNEL,
+		})(context.event)) as JianyingFilterLabListResult;
+		expect(listed.uncached).toHaveLength(2000);
+		expect(listed.count).toBe(0);
+	});
+
 	it("rejects iframe callers and LUT IDs outside the scanned catalog", async () => {
 		const context = createWindowContext();
 		const reference = createReference();
@@ -157,6 +238,7 @@ describe("Jianying filter lab IPC", () => {
 				order: [],
 				byResourceId: new Map(),
 			}),
+			resolveKnownFilters: async () => ({ order: [], filters: [] }),
 		});
 		const list = getHandler({ channel: JIANYING_FILTER_LAB_LIST_CHANNEL });
 		await expect(list(context.iframeEvent)).rejects.toThrow("非主窗口");
