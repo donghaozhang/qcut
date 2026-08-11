@@ -175,7 +175,9 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	update: wrapOPS(handleAppUpdate),
 	"instances-list": wrap(handleInstancesCommand),
 	"instances-use": wrap(handleInstancesCommand),
-	"filter-lab-list": wrap0(handleFilterLabList),
+	"filter-lab-list": wrap((options) =>
+		handleFilterLabList({ json: options.json })
+	),
 	"filter-lab-compare": wrap((options) =>
 		handleFilterLabCompare({
 			resourceId: options.resourceId ? String(options.resourceId) : undefined,
