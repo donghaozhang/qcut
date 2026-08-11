@@ -345,26 +345,40 @@ function collectCategorySignals({
 	}
 }
 
-async function scanFilterSignals({
+interface FilterDatabaseSweep {
+	signals: FilterSignals;
+	titleRows: FilterMetadataRow[];
+}
+
+/**
+ * One pass over every cache database. Title rows ride along only when asked
+ * for — their http_cache query is the expensive part of the sweep, and the
+ * category/known-catalog callers don't need them.
+ */
+async function sweepFilterDatabases({
 	references,
 	databaseRoot,
+	collectTitles = false,
 }: {
 	references: JianyingLutReference[];
 	databaseRoot: string;
-}): Promise<FilterSignals> {
+	collectTitles?: boolean;
+}): Promise<FilterDatabaseSweep> {
 	const signals: FilterSignals = {
 		panels: [],
 		memberships: new Map(),
 		items: new Map(),
 	};
+	const titleRows: FilterMetadataRow[] = [];
 	const resourceIds = new Set(references.map(({ resourceId }) => resourceId));
-	if (resourceIds.size === 0) return signals;
+	if (resourceIds.size === 0) return { signals, titleRows };
+	const resourceIdList = [...resourceIds];
 
 	let databaseDirectories: string[];
 	try {
 		databaseDirectories = await readdir(databaseRoot);
 	} catch {
-		return signals;
+		return { signals, titleRows };
 	}
 	for (const directory of databaseDirectories) {
 		try {
@@ -381,6 +395,12 @@ async function scanFilterSignals({
 						signals,
 					});
 				}
+				if (collectTitles) {
+					titleRows.push(
+						...readHttpCacheRows({ database, resourceIds: resourceIdList }),
+						...readEffectRows({ database, resourceIds: resourceIdList })
+					);
+				}
 			} finally {
 				database.close();
 			}
@@ -388,7 +408,17 @@ async function scanFilterSignals({
 			// Missing or foreign DBs degrade to fewer signals, never an error.
 		}
 	}
-	return signals;
+	return { signals, titleRows };
+}
+
+async function scanFilterSignals({
+	references,
+	databaseRoot,
+}: {
+	references: JianyingLutReference[];
+	databaseRoot: string;
+}): Promise<FilterSignals> {
+	return (await sweepFilterDatabases({ references, databaseRoot })).signals;
 }
 
 function collectUsedCategoryIds({
@@ -476,21 +506,11 @@ export async function resolveJianyingFilterCategories({
 	});
 }
 
-/**
- * Enumerate every filter the local Jianying metadata caches know about,
- * whether or not its LUT is cached locally. `references` (the locally cached
- * LUT resources) seed the filter-panel discrimination exactly like
- * `resolveJianyingFilterCategories`; kept filters need a non-empty title and
- * at least one category on the discriminated filter panel.
- */
-export async function listJianyingFilterCatalog({
-	references,
-	databaseRoot = join(dirname(jianyingEffectCacheRoot()), "ressdk_db"),
+function buildKnownCatalog({
+	signals,
 }: {
-	references: JianyingLutReference[];
-	databaseRoot?: string;
-}): Promise<JianyingFilterKnownCatalog> {
-	const signals = await scanFilterSignals({ references, databaseRoot });
+	signals: FilterSignals;
+}): JianyingFilterKnownCatalog {
 	const usedCategoryIds = collectUsedCategoryIds({
 		memberships: signals.memberships,
 	});
@@ -532,6 +552,61 @@ export async function listJianyingFilterCatalog({
 	return { order, filters };
 }
 
+/**
+ * Enumerate every filter the local Jianying metadata caches know about,
+ * whether or not its LUT is cached locally. `references` (the locally cached
+ * LUT resources) seed the filter-panel discrimination exactly like
+ * `resolveJianyingFilterCategories`; kept filters need a non-empty title and
+ * at least one category on the discriminated filter panel.
+ */
+export async function listJianyingFilterCatalog({
+	references,
+	databaseRoot = join(dirname(jianyingEffectCacheRoot()), "ressdk_db"),
+}: {
+	references: JianyingLutReference[];
+	databaseRoot?: string;
+}): Promise<JianyingFilterKnownCatalog> {
+	const signals = await scanFilterSignals({ references, databaseRoot });
+	return buildKnownCatalog({ signals });
+}
+
+/** Everything Filter Lab needs from the metadata caches, from one sweep. */
+export interface JianyingFilterMetadataScan {
+	titles: Map<string, string>;
+	categories: JianyingFilterCategoryCatalog;
+	knownCatalog: JianyingFilterKnownCatalog;
+}
+
+/**
+ * Resolves titles, categories, and the known-filter catalog together from a
+ * single sweep, so each cache database is opened once instead of once per
+ * view. The SQLite work is synchronous and can take seconds on a large
+ * Jianying cache — Electron callers must run it through
+ * jianying-filter-metadata-host.ts (a utility process), never directly on
+ * the main thread.
+ */
+export async function scanJianyingFilterMetadata({
+	references,
+	databaseRoot = join(dirname(jianyingEffectCacheRoot()), "ressdk_db"),
+}: {
+	references: JianyingLutReference[];
+	databaseRoot?: string;
+}): Promise<JianyingFilterMetadataScan> {
+	const { signals, titleRows } = await sweepFilterDatabases({
+		references,
+		databaseRoot,
+		collectTitles: true,
+	});
+	return {
+		titles: buildTitleMap({ rows: titleRows }),
+		categories: buildCategoryCatalog({
+			panels: signals.panels,
+			memberships: signals.memberships,
+		}),
+		knownCatalog: buildKnownCatalog({ signals }),
+	};
+}
+
 export function findJianyingFilterCategories({
 	reference,
 	catalog,
@@ -570,6 +645,14 @@ export async function resolveJianyingFilterTitles({
 			return [];
 		}
 	});
+	return buildTitleMap({ rows });
+}
+
+function buildTitleMap({
+	rows,
+}: {
+	rows: FilterMetadataRow[];
+}): Map<string, string> {
 	const titles = new Map<string, string>();
 	for (const row of rows) {
 		if (!(row.resourceId && row.version && row.title?.trim())) continue;

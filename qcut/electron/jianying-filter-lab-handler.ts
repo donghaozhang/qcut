@@ -20,12 +20,10 @@ import {
 	type JianyingFilterVerification,
 } from "./jianying-filter-lab-contract.js";
 import { readJianyingFilterVerifications } from "./jianying-filter-verification-store.js";
+import { createJianyingFilterMetadataResolvers } from "./jianying-filter-metadata-host.js";
 import {
 	findJianyingFilterCategories,
 	findJianyingFilterTitle,
-	listJianyingFilterCatalog,
-	resolveJianyingFilterCategories,
-	resolveJianyingFilterTitles,
 	type JianyingFilterCategoryCatalog,
 	type JianyingFilterKnownCatalog,
 } from "./jianying-filter-metadata.js";
@@ -250,27 +248,34 @@ function serializeLoadedLut({
 	};
 }
 
-export function setupJianyingFilterLabIPC({
-	getMainWindow,
-	listReferences = () => listJianyingLutReferences(),
-	loadReference = loadJianyingLut,
-	loadTiledCube = ({ filePath }) => loadTiledLutCube({ filePath }),
-	loadMultiPassRecipe = ({ renderer, cacheRoot }) =>
-		loadJianyingMultiPassRecipe({ renderer, cacheRoot }),
-	resolveTitles = resolveJianyingFilterTitles,
-	resolveCategories = resolveJianyingFilterCategories,
-	resolveKnownFilters = listJianyingFilterCatalog,
-	inspectPackages = inspectJianyingFilterPackages,
-	readVerifications = () => readJianyingFilterVerifications(),
-	readThumbnail = readJianyingFilterThumbnail,
-	filterCacheRoot = dirname(jianyingEffectCacheRoot()),
-	thumbnailCacheRoot = join(
-		app.getPath("userData"),
-		"Cache",
-		"jianying-filter-thumbnails"
-	),
-	watchCache,
-}: SetupJianyingFilterLabIPCOptions): JianyingFilterLabIPCController {
+export function setupJianyingFilterLabIPC(
+	options: SetupJianyingFilterLabIPCOptions
+): JianyingFilterLabIPCController {
+	// The cache-database sweep is synchronous SQLite work that can take
+	// seconds, so the default resolvers run it in a utility process and share
+	// one scan across all three catalog views.
+	const sharedMetadataResolvers = createJianyingFilterMetadataResolvers();
+	const {
+		getMainWindow,
+		listReferences = () => listJianyingLutReferences(),
+		loadReference = loadJianyingLut,
+		loadTiledCube = ({ filePath }) => loadTiledLutCube({ filePath }),
+		loadMultiPassRecipe = ({ renderer, cacheRoot }) =>
+			loadJianyingMultiPassRecipe({ renderer, cacheRoot }),
+		resolveTitles = sharedMetadataResolvers.resolveTitles,
+		resolveCategories = sharedMetadataResolvers.resolveCategories,
+		resolveKnownFilters = sharedMetadataResolvers.resolveKnownFilters,
+		inspectPackages = inspectJianyingFilterPackages,
+		readVerifications = () => readJianyingFilterVerifications(),
+		readThumbnail = readJianyingFilterThumbnail,
+		filterCacheRoot = dirname(jianyingEffectCacheRoot()),
+		thumbnailCacheRoot = join(
+			app.getPath("userData"),
+			"Cache",
+			"jianying-filter-thumbnails"
+		),
+		watchCache,
+	} = options;
 	let catalogPromise: Promise<FilterLabCatalog> | null = null;
 	const thumbnailPromises = new Map<string, Promise<JianyingFilterThumbnail>>();
 	const readCatalog = ({ refresh }: { refresh: boolean }) => {

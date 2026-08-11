@@ -10,6 +10,7 @@ import {
 	listJianyingFilterCatalog,
 	resolveJianyingFilterCategories,
 	resolveJianyingFilterTitles,
+	scanJianyingFilterMetadata,
 } from "../jianying-filter-metadata";
 import type { JianyingLutReference } from "../native-pipeline/filters/filter-lab-lut";
 
@@ -373,5 +374,93 @@ describe("Jianying filter metadata", () => {
 			databaseRoot: "/nonexistent/qcut-filter-metadata",
 		});
 		expect(knownCatalog).toEqual({ order: [], filters: [] });
+	});
+
+	it("combined scan matches the three individual resolvers", async () => {
+		const root = await mkdtemp(join(tmpdir(), "qcut-filter-metadata-"));
+		const databaseDirectory = join(root, "catalog-a");
+		const databasePath = join(databaseDirectory, "rp.db");
+		const resourceId = "7100000000000000001";
+		const version = "aa000000000000000000000000000000";
+		await mkdir(databaseDirectory, { recursive: true });
+		const database = new DatabaseSync(databasePath);
+		try {
+			database.exec(
+				"CREATE TABLE http_cache (url TEXT UNIQUE NOT NULL, response_body TEXT NOT NULL);"
+			);
+			const insert = database.prepare(
+				"INSERT INTO http_cache (url, response_body) VALUES (?, ?)"
+			);
+			insert.run(
+				"/artist/v1/panel/get_panel_info_AAA__jianyingpro_0_filter_paid_type",
+				JSON.stringify({
+					data: {
+						categories: [
+							{ category_id: 5914475, category_name: "🍉夏日" },
+							{ category_id: 10502, category_name: "影视级" },
+						],
+						category_resources: {
+							"5914475": {
+								effect_item_list: [
+									{
+										common_attr: {
+											id: resourceId,
+											title: "晴空",
+											effect_type: 12,
+											category_ids: [5914475],
+											md5: version,
+										},
+									},
+								],
+							},
+						},
+					},
+				})
+			);
+			// Titles resolve from top-level effect_item_list responses only.
+			insert.run(
+				"/artist/v1/effect/other_source_DDD",
+				JSON.stringify({
+					data: {
+						effect_item_list: [
+							{
+								common_attr: {
+									id: resourceId,
+									title: "晴空",
+									md5: version,
+								},
+							},
+						],
+					},
+				})
+			);
+		} finally {
+			database.close();
+		}
+
+		try {
+			const references = [createReference({ resourceId, version })];
+			const scan = await scanJianyingFilterMetadata({
+				references,
+				databaseRoot: root,
+			});
+			expect(scan.titles).toEqual(
+				await resolveJianyingFilterTitles({ references, databaseRoot: root })
+			);
+			expect(scan.categories).toEqual(
+				await resolveJianyingFilterCategories({
+					references,
+					databaseRoot: root,
+				})
+			);
+			expect(scan.knownCatalog).toEqual(
+				await listJianyingFilterCatalog({ references, databaseRoot: root })
+			);
+			expect(scan.titles.size).toBe(1);
+			expect(scan.categories.order).toEqual(["🍉夏日"]);
+			expect(scan.knownCatalog.filters).toHaveLength(1);
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
 	});
 });
