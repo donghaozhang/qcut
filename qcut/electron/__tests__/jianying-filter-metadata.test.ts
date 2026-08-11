@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import {
 	findJianyingFilterCategories,
 	findJianyingFilterTitle,
+	listJianyingFilterCatalog,
 	resolveJianyingFilterCategories,
 	resolveJianyingFilterTitles,
 } from "../jianying-filter-metadata";
@@ -180,17 +181,182 @@ describe("Jianying filter metadata", () => {
 		}
 	});
 
-	it("returns an empty catalog when the database root is missing", async () => {
-		const catalog = await resolveJianyingFilterCategories({
-			references: [
-				createReference({
+	it("enumerates known filters from panel and per-category listings", async () => {
+		const root = await mkdtemp(join(tmpdir(), "qcut-filter-metadata-"));
+		const databaseDirectory = join(root, "catalog-a");
+		const databasePath = join(databaseDirectory, "rp.db");
+		await mkdir(databaseDirectory, { recursive: true });
+		const database = new DatabaseSync(databasePath);
+		try {
+			database.exec(
+				"CREATE TABLE http_cache (url TEXT UNIQUE NOT NULL, response_body TEXT NOT NULL);"
+			);
+			const insert = database.prepare(
+				"INSERT INTO http_cache (url, response_body) VALUES (?, ?)"
+			);
+			// The filter panel: embedded resources count only with effect_type 12.
+			insert.run(
+				"/artist/v1/panel/get_panel_info_AAA__jianyingpro_0_filter_paid_type",
+				JSON.stringify({
+					data: {
+						categories: [
+							{ category_id: 5914475, category_name: "🍉夏日" },
+							{ category_id: 10494, category_name: "人像" },
+							{ category_id: 10502, category_name: "影视级" },
+						],
+						category_resources: {
+							"5914475": {
+								effect_item_list: [
+									{
+										common_attr: {
+											id: "7100000000000000001",
+											title: "晴空",
+											effect_type: 12,
+											category_ids: [5914475],
+										},
+									},
+									{
+										common_attr: {
+											id: "7100000000000000010",
+											title: "白日梦",
+											effect_type: 12,
+											category_ids: [5914475, 10502],
+										},
+									},
+									{
+										common_attr: {
+											id: "7100000000000000011",
+											title: "非滤镜资源",
+											effect_type: 5,
+											category_ids: [5914475],
+										},
+									},
+								],
+							},
+						},
+					},
+				})
+			);
+			// A text panel whose items must be excluded by panel discrimination
+			// even when they carry effect_type 12.
+			insert.run(
+				"/artist/v1/panel/get_panel_info_BBB__jianyingpro_0_filter_paid_type",
+				JSON.stringify({
+					data: {
+						categories: [{ category_id: 10577, category_name: "热门" }],
+						category_resources: {
+							"10577": {
+								effect_item_list: [
+									{
+										common_attr: {
+											id: "7200000000000000001",
+											title: "打字机",
+											effect_type: 12,
+											category_ids: [10577],
+										},
+									},
+								],
+							},
+						},
+					},
+				})
+			);
+			// A paginated filter listing: filters by construction (no effect_type),
+			// with a duplicate (first title wins), an untitled item, and an item
+			// outside the filter panel.
+			insert.run(
+				"/artist/v1/effect/get_resources_by_category_id_CCC_filter_jianyingpro_0",
+				JSON.stringify({
+					data: {
+						effect_item_list: [
+							{
+								common_attr: {
+									id: "7100000000000000002",
+									title: "胶片",
+									category_ids: [10502],
+								},
+							},
+							{
+								common_attr: {
+									id: "7100000000000000001",
+									title: "晴空复制",
+									category_ids: [5914475],
+								},
+							},
+							{
+								common_attr: {
+									id: "7100000000000000003",
+									title: "  ",
+									category_ids: [10502],
+								},
+							},
+							{
+								common_attr: {
+									id: "7100000000000000004",
+									title: "别的面板",
+									category_ids: [999999],
+								},
+							},
+						],
+					},
+				})
+			);
+		} finally {
+			database.close();
+		}
+
+		try {
+			const catalog = await listJianyingFilterCatalog({
+				references: [
+					createReference({
+						resourceId: "7100000000000000001",
+						version: "aa000000000000000000000000000000",
+					}),
+				],
+				databaseRoot: root,
+			});
+			expect(catalog.filters).toEqual([
+				{
 					resourceId: "7100000000000000001",
-					version: "aa000000000000000000000000000000",
-				}),
-			],
+					title: "晴空",
+					categories: ["🍉夏日"],
+				},
+				{
+					resourceId: "7100000000000000010",
+					title: "白日梦",
+					categories: ["🍉夏日", "影视级"],
+				},
+				{
+					resourceId: "7100000000000000002",
+					title: "胶片",
+					categories: ["影视级"],
+				},
+			]);
+			// Panel order restricted to categories the kept filters use (人像 is
+			// unused, the text panel never contributes).
+			expect(catalog.order).toEqual(["🍉夏日", "影视级"]);
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
+	});
+
+	it("returns an empty catalog when the database root is missing", async () => {
+		const references = [
+			createReference({
+				resourceId: "7100000000000000001",
+				version: "aa000000000000000000000000000000",
+			}),
+		];
+		const catalog = await resolveJianyingFilterCategories({
+			references,
 			databaseRoot: "/nonexistent/qcut-filter-metadata",
 		});
 		expect(catalog.order).toEqual([]);
 		expect(catalog.byResourceId.size).toBe(0);
+		const knownCatalog = await listJianyingFilterCatalog({
+			references,
+			databaseRoot: "/nonexistent/qcut-filter-metadata",
+		});
+		expect(knownCatalog).toEqual({ order: [], filters: [] });
 	});
 });
