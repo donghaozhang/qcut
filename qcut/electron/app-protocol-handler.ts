@@ -25,6 +25,10 @@ import {
 	JIANYING_TRANSITION_PREVIEW_PROTOCOL_PATH,
 	resolveJianyingTransitionPreviewFilename,
 } from "./jianying-transition/preview-cache-path.js";
+import {
+	JIANYING_TEXT_PREVIEW_PROTOCOL_PATH,
+	resolveJianyingTextPreviewFilename,
+} from "./jianying-text-runtime/cache-path.js";
 
 export interface RegisterAppProtocolOptions {
 	/** Override the logger — defaults to console. */
@@ -91,6 +95,22 @@ export function registerAppProtocol(
 		const pathSegments = normalizedPath.split(/[\\/]+/);
 
 		try {
+			if (pathSegments[0] === JIANYING_TEXT_PREVIEW_PROTOCOL_PATH) {
+				const filename = pathSegments[1];
+				if (pathSegments.length !== 2 || !filename) {
+					return new Response("Not Found", { status: 404 });
+				}
+				const previewPath = resolveJianyingTextPreviewFilename({ filename });
+				if (!previewPath || !fs.existsSync(previewPath)) {
+					return new Response("Not Found", { status: 404 });
+				}
+				return createVideoPreviewProxyResponse({
+					request,
+					filePath: previewPath,
+					contentType: "video/webm",
+				});
+			}
+
 			if (pathSegments[0] === JIANYING_TRANSITION_PREVIEW_PROTOCOL_PATH) {
 				const filename = pathSegments[1];
 				if (pathSegments.length !== 2 || !filename) {
