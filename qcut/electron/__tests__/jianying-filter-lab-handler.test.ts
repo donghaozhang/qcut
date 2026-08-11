@@ -2,15 +2,20 @@
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+	JIANYING_FILTER_LAB_CHANGED_CHANNEL,
 	JIANYING_FILTER_LAB_LIST_CHANNEL,
 	JIANYING_FILTER_LAB_LOAD_CHANNEL,
+	JIANYING_FILTER_LAB_LOAD_RENDERER_CHANNEL,
+	JIANYING_FILTER_LAB_THUMBNAIL_CHANNEL,
 	type JianyingFilterLabListResult,
 	type JianyingFilterLabLoadResult,
+	type JianyingFilterLabLoadRendererResult,
 } from "../jianying-filter-lab-contract.js";
 import type {
 	JianyingLutEntry,
 	JianyingLutReference,
 } from "../native-pipeline/filters/filter-lab-lut.js";
+import type { JianyingFilterPackageSummary } from "../jianying-filter-package-inspector.js";
 
 const { mockHandle, mockRemoveHandler } = vi.hoisted(() => ({
 	mockHandle: vi.fn(),
@@ -18,6 +23,7 @@ const { mockHandle, mockRemoveHandler } = vi.hoisted(() => ({
 }));
 
 vi.mock("electron", () => ({
+	app: { getPath: vi.fn(() => "/tmp/qcut-test-user-data") },
 	ipcMain: { handle: mockHandle, removeHandler: mockRemoveHandler },
 }));
 
@@ -25,7 +31,11 @@ import { setupJianyingFilterLabIPC } from "../jianying-filter-lab-handler.js";
 
 function createWindowContext() {
 	const mainFrame = {};
-	const webContents = { isDestroyed: vi.fn(() => false), mainFrame };
+	const webContents = {
+		isDestroyed: vi.fn(() => false),
+		mainFrame,
+		send: vi.fn(),
+	};
 	const mainWindow = {
 		isDestroyed: vi.fn(() => false),
 		webContents,
@@ -84,6 +94,20 @@ function createEntry({
 	};
 }
 
+function cachedPackage({
+	implementation = "single-lut",
+}: {
+	implementation?: JianyingFilterPackageSummary["implementation"];
+} = {}): JianyingFilterPackageSummary {
+	return {
+		cacheStatus: "cached",
+		implementation,
+		versions: [],
+		hasThumbnail: false,
+		issues: [],
+	};
+}
+
 describe("Jianying filter lab IPC", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -93,8 +117,14 @@ describe("Jianying filter lab IPC", () => {
 		const context = createWindowContext();
 		const reference = createReference();
 		const loadReference = vi.fn(async () => createEntry({ reference }));
+		const readThumbnail = vi.fn(async () => ({
+			mimeType: "image/png" as const,
+			bytes: Buffer.from([0x89, 0x50, 0x4e, 0x47]),
+			fromCache: true,
+		}));
 		const controller = setupJianyingFilterLabIPC({
 			getMainWindow: () => context.mainWindow,
+			readVerifications: async () => new Map(),
 			listReferences: async () => [reference],
 			loadReference,
 			resolveTitles: async () =>
@@ -104,6 +134,19 @@ describe("Jianying filter lab IPC", () => {
 				byResourceId: new Map([[reference.resourceId, ["黑白", "高清"]]]),
 			}),
 			resolveKnownFilters: async () => ({ order: [], filters: [] }),
+			inspectPackages: async () =>
+				new Map([
+					[
+						reference.resourceId,
+						{
+							...cachedPackage(),
+							hasThumbnail: true,
+							thumbnailPath: "/private/jianying/cover.png",
+						},
+					],
+				]),
+			readThumbnail,
+			thumbnailCacheRoot: "/tmp/qcut-thumbnail-cache",
 		});
 
 		const listed = (await getHandler({
@@ -111,19 +154,31 @@ describe("Jianying filter lab IPC", () => {
 		})(context.event)) as JianyingFilterLabListResult;
 		expect(listed).toMatchObject({
 			count: 1,
-			categoryOrder: ["黑白", "高清"],
-			uncached: [],
-			luts: [
+			cachedCount: 1,
+			availableCount: 1,
+			categories: [
+				{ name: "黑白", total: 1, cached: 1, available: 1 },
+				{ name: "高清", total: 1, cached: 1, available: 1 },
+			],
+			filters: [
 				{
-					lutId: reference.lutId,
 					title: "高清黑白",
-					role: "single",
-					size: 2,
 					categories: ["黑白", "高清"],
+					implementation: "single-lut",
+					cacheStatus: "cached",
+					available: true,
+					hasThumbnail: true,
+					luts: [
+						{
+							lutId: reference.lutId,
+							role: "single",
+							size: 2,
+						},
+					],
 				},
 			],
 		});
-		expect(listed.luts[0]).not.toHaveProperty("filePath");
+		expect(listed.filters[0]?.luts[0]).not.toHaveProperty("filePath");
 
 		const loaded = (await getHandler({
 			channel: JIANYING_FILTER_LAB_LOAD_CHANNEL,
@@ -139,12 +194,34 @@ describe("Jianying filter lab IPC", () => {
 		});
 		expect(loaded.cube.values).toHaveLength(24);
 
+		const thumbnail = await getHandler({
+			channel: JIANYING_FILTER_LAB_THUMBNAIL_CHANNEL,
+		})(context.event, { resourceId: reference.resourceId });
+		expect(thumbnail).toMatchObject({
+			resourceId: reference.resourceId,
+			mimeType: "image/png",
+		});
+		expect(readThumbnail).toHaveBeenCalledWith({
+			source: {
+				resourceId: reference.resourceId,
+				version: reference.version,
+				sourcePath: "/private/jianying/cover.png",
+			},
+			cacheRoot: "/tmp/qcut-thumbnail-cache",
+		});
+
 		controller.dispose();
 		expect(mockRemoveHandler).toHaveBeenCalledWith(
 			JIANYING_FILTER_LAB_LIST_CHANNEL
 		);
 		expect(mockRemoveHandler).toHaveBeenCalledWith(
 			JIANYING_FILTER_LAB_LOAD_CHANNEL
+		);
+		expect(mockRemoveHandler).toHaveBeenCalledWith(
+			JIANYING_FILTER_LAB_LOAD_RENDERER_CHANNEL
+		);
+		expect(mockRemoveHandler).toHaveBeenCalledWith(
+			JIANYING_FILTER_LAB_THUMBNAIL_CHANNEL
 		);
 	});
 
@@ -170,6 +247,7 @@ describe("Jianying filter lab IPC", () => {
 		}));
 		setupJianyingFilterLabIPC({
 			getMainWindow: () => context.mainWindow,
+			readVerifications: async () => new Map(),
 			listReferences: async () => [reference],
 			resolveTitles: async () =>
 				new Map([[`${reference.resourceId}/${reference.version}`, "高清黑白"]]),
@@ -178,6 +256,8 @@ describe("Jianying filter lab IPC", () => {
 				byResourceId: new Map([[reference.resourceId, ["黑白", "室内"]]]),
 			}),
 			resolveKnownFilters,
+			inspectPackages: async () =>
+				new Map([[reference.resourceId, cachedPackage()]]),
 		});
 
 		const listed = (await getHandler({
@@ -186,24 +266,36 @@ describe("Jianying filter lab IPC", () => {
 		expect(resolveKnownFilters).toHaveBeenCalledWith({
 			references: [reference],
 		});
-		// The cached resource never appears in `uncached`, and unknown extra
-		// fields (e.g. a filePath) are stripped.
-		expect(listed.uncached).toEqual([
-			{
-				resourceId: "7100000000000000010",
-				title: "白日梦",
-				categories: ["🍉夏日"],
-			},
-		]);
-		expect(listed.uncached[0]).not.toHaveProperty("filePath");
-		// Panel-ordered union of cached-LUT and catalog categories.
-		expect(listed.categoryOrder).toEqual(["🍉夏日", "黑白", "高清", "室内"]);
+		expect(listed).toMatchObject({
+			count: 2,
+			cachedCount: 1,
+			availableCount: 1,
+			categories: [
+				{ name: "🍉夏日", total: 1, cached: 0, available: 0 },
+				{ name: "黑白", total: 1, cached: 1, available: 1 },
+				{ name: "高清", total: 1, cached: 1, available: 1 },
+				{ name: "室内", total: 0, cached: 0, available: 0 },
+			],
+		});
+		const missing = listed.filters.find(
+			({ resourceId }) => resourceId === uncachedFilter.resourceId
+		);
+		expect(missing).toMatchObject({
+			resourceId: "7100000000000000010",
+			title: "白日梦",
+			categories: ["🍉夏日"],
+			cacheStatus: "uncached",
+			implementation: "unknown",
+			available: false,
+		});
+		expect(missing).not.toHaveProperty("filePath");
 	});
 
-	it("caps the uncached catalog list defensively", async () => {
+	it("keeps the full unique catalog and reports category totals", async () => {
 		const context = createWindowContext();
 		setupJianyingFilterLabIPC({
 			getMainWindow: () => context.mainWindow,
+			readVerifications: async () => new Map(),
 			listReferences: async () => [],
 			resolveTitles: async () => new Map(),
 			resolveCategories: async () => ({
@@ -218,13 +310,19 @@ describe("Jianying filter lab IPC", () => {
 					categories: ["🍉夏日"],
 				})),
 			}),
+			inspectPackages: async () => new Map(),
 		});
 
 		const listed = (await getHandler({
 			channel: JIANYING_FILTER_LAB_LIST_CHANNEL,
 		})(context.event)) as JianyingFilterLabListResult;
-		expect(listed.uncached).toHaveLength(2000);
-		expect(listed.count).toBe(0);
+		expect(listed.filters).toHaveLength(2100);
+		expect(listed).toMatchObject({
+			count: 2100,
+			cachedCount: 0,
+			availableCount: 0,
+			categories: [{ name: "🍉夏日", total: 2100, cached: 0, available: 0 }],
+		});
 	});
 
 	it("rejects iframe callers and LUT IDs outside the scanned catalog", async () => {
@@ -232,6 +330,7 @@ describe("Jianying filter lab IPC", () => {
 		const reference = createReference();
 		setupJianyingFilterLabIPC({
 			getMainWindow: () => context.mainWindow,
+			readVerifications: async () => new Map(),
 			listReferences: async () => [reference],
 			resolveTitles: async () => new Map(),
 			resolveCategories: async () => ({
@@ -239,6 +338,8 @@ describe("Jianying filter lab IPC", () => {
 				byResourceId: new Map(),
 			}),
 			resolveKnownFilters: async () => ({ order: [], filters: [] }),
+			inspectPackages: async () =>
+				new Map([[reference.resourceId, cachedPackage()]]),
 		});
 		const list = getHandler({ channel: JIANYING_FILTER_LAB_LIST_CHANNEL });
 		await expect(list(context.iframeEvent)).rejects.toThrow("非主窗口");
@@ -250,5 +351,211 @@ describe("Jianying filter lab IPC", () => {
 		await expect(
 			load(context.event, { lutId: "../../private" })
 		).rejects.toThrow("LUT ID 无效");
+		const thumbnail = getHandler({
+			channel: JIANYING_FILTER_LAB_THUMBNAIL_CHANNEL,
+		});
+		await expect(
+			thumbnail(context.iframeEvent, { resourceId: reference.resourceId })
+		).rejects.toThrow("非主窗口");
+		await expect(
+			thumbnail(context.event, { resourceId: "../../private" })
+		).rejects.toThrow("资源 ID 无效");
+	});
+
+	it("invalidates the catalog and notifies the renderer when Jianying cache changes", async () => {
+		const context = createWindowContext();
+		const listReferences = vi.fn(async () => []);
+		let notifyCacheChanged: (() => void) | undefined;
+		const disposeWatcher = vi.fn();
+		const controller = setupJianyingFilterLabIPC({
+			getMainWindow: () => context.mainWindow,
+			readVerifications: async () => new Map(),
+			listReferences,
+			resolveTitles: async () => new Map(),
+			resolveCategories: async () => ({ order: [], byResourceId: new Map() }),
+			resolveKnownFilters: async () => ({ order: [], filters: [] }),
+			inspectPackages: async () => new Map(),
+			watchCache: ({ onChange }) => {
+				notifyCacheChanged = onChange;
+				return { dispose: disposeWatcher };
+			},
+		});
+		const list = getHandler({ channel: JIANYING_FILTER_LAB_LIST_CHANNEL });
+		await list(context.event);
+		await list(context.event);
+		expect(listReferences).toHaveBeenCalledOnce();
+
+		notifyCacheChanged?.();
+		expect(context.mainWindow.webContents.send).toHaveBeenCalledWith(
+			JIANYING_FILTER_LAB_CHANGED_CHANNEL
+		);
+		await list(context.event);
+		expect(listReferences).toHaveBeenCalledTimes(2);
+
+		await list(context.event, { refresh: true });
+		expect(listReferences).toHaveBeenCalledTimes(3);
+		controller.dispose();
+		expect(disposeWatcher).toHaveBeenCalledOnce();
+	});
+
+	it("loads a recognized tiled LUT shader through its private cached image", async () => {
+		const context = createWindowContext();
+		const resourceId = "shader-filter";
+		const version = "v1";
+		const loadTiledCube = vi.fn(
+			async () =>
+				createEntry({
+					reference: createReference(),
+				}).cube
+		);
+		setupJianyingFilterLabIPC({
+			getMainWindow: () => context.mainWindow,
+			readVerifications: async () => new Map(),
+			listReferences: async () => [],
+			loadTiledCube,
+			filterCacheRoot: "/cache",
+			resolveTitles: async () => new Map(),
+			resolveCategories: async () => ({
+				order: ["黑白"],
+				byResourceId: new Map(),
+			}),
+			resolveKnownFilters: async () => ({
+				order: ["黑白"],
+				filters: [
+					{
+						resourceId,
+						title: "黑金",
+						categories: ["黑白"],
+						version,
+					},
+				],
+			}),
+			inspectPackages: async () =>
+				new Map([
+					[
+						resourceId,
+						{
+							...cachedPackage({ implementation: "shader" }),
+							renderer: {
+								kind: "tiled-lut-8x8" as const,
+								container: "artistEffect" as const,
+								packageIdentifier: resourceId,
+								version,
+								relativePath: "AmazingFeature/image/filter.png",
+								cubeSize: 64 as const,
+							},
+						},
+					],
+				]),
+		});
+
+		const listed = (await getHandler({
+			channel: JIANYING_FILTER_LAB_LIST_CHANNEL,
+		})(context.event)) as JianyingFilterLabListResult;
+		const [filter] = listed.filters;
+		expect(filter).toMatchObject({
+			resourceId,
+			implementation: "shader",
+			available: true,
+		});
+		const lutId = filter?.luts[0]?.lutId;
+		expect(lutId).toBe("shader-filter/v1/AmazingFeature/image/filter.png");
+
+		const loaded = (await getHandler({
+			channel: JIANYING_FILTER_LAB_LOAD_CHANNEL,
+		})(context.event, { lutId })) as JianyingFilterLabLoadResult;
+		expect(loadTiledCube).toHaveBeenCalledWith({
+			filePath:
+				"/cache/artistEffect/shader-filter/v1/AmazingFeature/image/filter.png",
+		});
+		expect(loaded).toMatchObject({
+			resourceId,
+			version,
+			cube: { size: 2 },
+		});
+	});
+
+	it("loads a recognized multi-pass shader without exposing cache paths", async () => {
+		const context = createWindowContext();
+		const resourceId = "food-shader";
+		const version = "v2";
+		const cube = createEntry({ reference: createReference() }).cube;
+		const loadMultiPassRecipe = vi.fn(async () => ({
+			kind: "sharpen-lut" as const,
+			passes: [
+				{ kind: "sharpen" as const, amount: 1 },
+				{ kind: "lut" as const, cube, intensity: 100 },
+			],
+		}));
+		setupJianyingFilterLabIPC({
+			getMainWindow: () => context.mainWindow,
+			readVerifications: async () => new Map(),
+			listReferences: async () => [],
+			loadMultiPassRecipe,
+			filterCacheRoot: "/cache",
+			resolveTitles: async () => new Map(),
+			resolveCategories: async () => ({
+				order: ["美食"],
+				byResourceId: new Map(),
+			}),
+			resolveKnownFilters: async () => ({
+				order: ["美食"],
+				filters: [
+					{
+						resourceId,
+						title: "清透美食",
+						categories: ["美食"],
+						version,
+					},
+				],
+			}),
+			inspectPackages: async () =>
+				new Map([
+					[
+						resourceId,
+						{
+							...cachedPackage({ implementation: "shader" }),
+							multiPassRenderer: {
+								kind: "sharpen-lut" as const,
+								container: "artistEffect" as const,
+								packageIdentifier: resourceId,
+								version,
+								lutRelativePath: "AmazingFeature/image/filter.png",
+								passCount: 2,
+								fidelity: "structural" as const,
+							},
+						},
+					],
+				]),
+		});
+
+		const listed = (await getHandler({
+			channel: JIANYING_FILTER_LAB_LIST_CHANNEL,
+		})(context.event)) as JianyingFilterLabListResult;
+		expect(listed.filters[0]).toMatchObject({
+			resourceId,
+			implementation: "shader",
+			available: true,
+			renderer: { kind: "sharpen-lut", passCount: 2 },
+			luts: [],
+		});
+
+		const loaded = (await getHandler({
+			channel: JIANYING_FILTER_LAB_LOAD_RENDERER_CHANNEL,
+		})(context.event, { resourceId })) as JianyingFilterLabLoadRendererResult;
+		expect(loadMultiPassRecipe).toHaveBeenCalledWith({
+			cacheRoot: "/cache",
+			renderer: expect.objectContaining({ kind: "sharpen-lut", version }),
+		});
+		expect(loaded).toMatchObject({
+			resourceId,
+			version,
+			name: "清透美食",
+			passes: [
+				{ kind: "sharpen", amount: 1 },
+				{ kind: "lut", intensity: 100, cube: { size: 2 } },
+			],
+		});
+		expect(loaded).not.toHaveProperty("filePath");
 	});
 });
