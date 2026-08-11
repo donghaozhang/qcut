@@ -9,6 +9,7 @@
  */
 
 import * as path from "node:path";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -205,6 +206,38 @@ describe("registerAppProtocol", () => {
 		expect(response.status).toBe(200);
 		expect(response.headers.get("content-type")).toBe("video/mp4");
 		expect(response.headers.get("cache-control")).toContain("immutable");
+		expect(rejected.status).toBe(404);
+	});
+
+	it("serves only content-addressed Jianying text alpha previews", async () => {
+		registerAppProtocol({ logger: quietLogger });
+		const handler = getHandler();
+		const cacheKey = "c".repeat(64);
+		const previewPath = path.join(
+			os.homedir(),
+			"Library",
+			"Caches",
+			"QCut",
+			"jianying-text-runtime",
+			"renders",
+			cacheKey,
+			"preview.webm"
+		);
+		mocks.existingFiles.add(previewPath);
+
+		const response = await handler({
+			url: `app://jianying-text-preview/${cacheKey}.webm`,
+			method: "HEAD",
+			headers: new Headers(),
+			signal: new AbortController().signal,
+		});
+		const rejected = await handler({
+			url: "app://jianying-text-preview/../../private.webm",
+		});
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get("content-type")).toBe("video/webm");
+		expect(response.headers.get("accept-ranges")).toBe("bytes");
 		expect(rejected.status).toBe(404);
 	});
 });
