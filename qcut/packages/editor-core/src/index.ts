@@ -132,6 +132,12 @@ export type {
 	AudioLyricsSettings,
 	MediaAudioSettings,
 	TextElement,
+	TextFontAssetReference,
+	JianyingTextEditMode,
+	JianyingTextPackageKind,
+	JianyingTextSlotMapping,
+	JianyingTextStyleReference,
+	JianyingTextTimeMapping,
 	TextKeyframeProperty,
 	TextPropertyKeyframe,
 	StickerElement,
@@ -210,6 +216,8 @@ export {
 	DEFAULT_PROJECT_TIMELINE_SETTINGS,
 	resolveProjectTimelineSettings,
 } from "./types/project.js";
+
+export { normalizeJianyingTextStyleReference } from "./jianying-text-reference.js";
 
 export {
 	compileTextAnimation,
