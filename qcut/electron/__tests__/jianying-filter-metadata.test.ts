@@ -213,6 +213,15 @@ describe("Jianying filter metadata", () => {
 											title: "晴空",
 											effect_type: 12,
 											category_ids: [5914475],
+											md5: "catalog-version",
+											effect_id: 12001,
+											third_resource_id_str: "third-1",
+											requirements: ["skin_seg", "face_detect"],
+											sdk_model: "portrait-filter",
+											cover_url: {
+												static_img:
+													"https://p3-heycan-jy-sign.byteimg.com/filter.jpeg",
+											},
 										},
 									},
 									{
@@ -320,6 +329,12 @@ describe("Jianying filter metadata", () => {
 					resourceId: "7100000000000000001",
 					title: "晴空",
 					categories: ["🍉夏日"],
+					version: "catalog-version",
+					effectId: "12001",
+					thirdResourceId: "third-1",
+					requirements: ["face_detect", "skin_seg"],
+					sdkModel: "portrait-filter",
+					thumbnailUrl: "https://p3-heycan-jy-sign.byteimg.com/filter.jpeg",
 				},
 				{
 					resourceId: "7100000000000000010",
