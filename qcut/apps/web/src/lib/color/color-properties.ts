@@ -316,6 +316,19 @@ export function normalizeMediaColorSettings({
 		filter: normalizeColorFilterApplication({ filter: stored?.filter }),
 		basic,
 		lut: { ...DEFAULT_MEDIA_COLOR_SETTINGS.lut, ...stored?.lut },
+		multiPass: stored?.multiPass
+			? {
+					...stored.multiPass,
+					passes: stored.multiPass.passes.map((pass) =>
+						pass.kind === "lut"
+							? {
+									...pass,
+									cube: pass.cube,
+								}
+							: { ...pass }
+					),
+				}
+			: undefined,
 		hsl: { ...DEFAULT_MEDIA_COLOR_SETTINGS.hsl, ...stored?.hsl, ranges },
 		curves: {
 			...DEFAULT_MEDIA_COLOR_SETTINGS.curves,
@@ -601,6 +614,7 @@ export function hasMediaColorEdits({
 		(settings.filter.presetId !== "none" && settings.filter.intensity > 0) ||
 		(settings.basic.enabled && basicChanged) ||
 		settings.lut.enabled ||
+		Boolean(settings.multiPass?.enabled) ||
 		settings.hsl.enabled ||
 		settings.curves.enabled ||
 		settings.secondaryCurves.enabled ||
