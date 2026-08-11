@@ -3,9 +3,105 @@ import {
 	buildTextAss,
 	collectTextOverlays,
 } from "../claude/handlers/claude-export-handler/text-overlay.js";
+import { collectJianyingTextOverlays } from "../claude/handlers/claude-export-handler/jianying-text-overlay.js";
 import type { ClaudeTimeline } from "../types/claude-api.js";
 
 describe("native export text overlays", () => {
+	it("routes stable Jianying references away from ordinary ASS text", () => {
+		const timeline: ClaudeTimeline = {
+			name: "Original Jianying text",
+			duration: 5,
+			width: 1920,
+			height: 1080,
+			fps: 30,
+			tracks: [
+				{
+					id: "jianying-titles",
+					index: 3,
+					name: "Jianying titles",
+					type: "text",
+					elements: [
+						{
+							id: "jianying-title",
+							trackIndex: 3,
+							startTime: 0,
+							endTime: 5,
+							duration: 5,
+							type: "text",
+							content: "花字",
+							trimStart: 0.2,
+							trimEnd: 0.3,
+							width: 1024,
+							height: 512,
+							jianyingTextStyle: {
+								schemaVersion: 1,
+								source: "jianying-cache",
+								packageKind: "ScriptInfoSticker",
+								resourceId: "7328639616670649634",
+								packageHash: "22192237621BA88A20B84176DDB9D22A",
+								editMode: "runtime-with-preload-fallback",
+								slotMapping: "line-to-widget",
+								timeMapping: "stretch",
+								templateDuration: 3,
+							},
+						},
+					],
+				},
+			],
+		};
+
+		expect(collectTextOverlays(timeline)).toEqual([]);
+		expect(collectJianyingTextOverlays({ timeline })).toEqual([
+			expect.objectContaining({
+				id: "jianying-title",
+				startTime: 0.2,
+				endTime: 4.7,
+				sourceStart: 0.2,
+				elementDuration: 5,
+				width: 1024,
+				height: 512,
+				trackOrder: 3,
+				reference: expect.objectContaining({
+					packageHash: "22192237621ba88a20b84176ddb9d22a",
+				}),
+			}),
+		]);
+	});
+
+	it("rejects an invalid Jianying reference instead of silently exporting plain text", () => {
+		const timeline: ClaudeTimeline = {
+			name: "Broken Jianying text",
+			duration: 2,
+			width: 1920,
+			height: 1080,
+			fps: 30,
+			tracks: [
+				{
+					index: 0,
+					name: "Titles",
+					type: "text",
+					elements: [
+						{
+							id: "broken",
+							trackIndex: 0,
+							startTime: 0,
+							endTime: 2,
+							duration: 2,
+							type: "text",
+							content: "花字",
+							style: { jianyingTextStyle: { resourceId: "missing" } },
+						},
+					],
+				},
+			],
+		};
+
+		expect(collectTextOverlays(timeline)).toEqual([]);
+		expect(() => collectJianyingTextOverlays({ timeline })).toThrow(
+			"invalid stable resource reference"
+		);
+	});
+
 	it("collects full text styling and ignores hidden text", () => {
 		const timeline: ClaudeTimeline = {
 			name: "Text audit",
