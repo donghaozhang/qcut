@@ -8,6 +8,23 @@ function settings() {
 	return structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS);
 }
 
+function constantCube({
+	red,
+	green,
+	blue,
+}: {
+	red: number;
+	green: number;
+	blue: number;
+}) {
+	return {
+		size: 2,
+		domainMin: [0, 0, 0] as [number, number, number],
+		domainMax: [1, 1, 1] as [number, number, number],
+		values: Array.from({ length: 8 }, () => [red, green, blue]).flat(),
+	};
+}
+
 describe("color pixel processor", () => {
 	it("treats vibrance differently from ordinary saturation", () => {
 		const muted = { r: 0.45, g: 0.42, b: 0.4 };
@@ -44,6 +61,34 @@ describe("color pixel processor", () => {
 			Math.abs(protectedColor.g - skin.g) +
 			Math.abs(protectedColor.b - skin.b);
 		expect(protectedDistance).toBeLessThan(unprotectedDistance);
+	});
+
+	it("blends background and skin LUTs through the explicit skin mask", () => {
+		const grade = settings();
+		grade.basic.enabled = false;
+		grade.lut = {
+			enabled: true,
+			presetId: "custom",
+			name: "Dual LUT",
+			intensity: 100,
+			skinProtection: 0,
+			cube: constantCube({ red: 0, green: 0, blue: 1 }),
+			dual: {
+				skinCube: constantCube({ red: 1, green: 0, blue: 0 }),
+				maskKind: "skin-tone-v1",
+			},
+		};
+		const skin = transformColorPixel({
+			color: { r: 0.72, g: 0.48, b: 0.36 },
+			settings: grade,
+		});
+		const blue = transformColorPixel({
+			color: { r: 0.1, g: 0.2, b: 0.9 },
+			settings: grade,
+		});
+		expect(skin.r).toBeGreaterThan(0);
+		expect(skin.b).toBeLessThan(1);
+		expect(blue).toEqual({ r: 0, g: 0, b: 1 });
 	});
 
 	it("combines HSL, primary and secondary curves, wheels, smart correction, and color management", () => {
