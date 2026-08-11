@@ -134,7 +134,12 @@ export const CATEGORIES: CategoryDef[] = [
 	{
 		name: "filter-lab",
 		label: "Filter Lab",
-		commands: ["filter-lab-list", "filter-lab-compare", "filter-lab-match"],
+		commands: [
+			"filter-lab-list",
+			"filter-lab-compare",
+			"filter-lab-match",
+			"filter-lab-verify",
+		],
 	},
 	{
 		name: "models",
@@ -321,6 +326,29 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			),
 		],
 		examples: ["qcut filter-lab match --worst 10 --json"],
+	},
+	"filter-lab-verify": {
+		name: "filter-lab-verify",
+		description:
+			"Measure rendered parity from lossless PNGs, with optional mask-edge and video temporal checks",
+		category: "filter-lab",
+		flags: [
+			f("--resource-id", "string", "Exact Jianying filter resource ID"),
+			f("--filter-version", "string", "Exact cached filter version"),
+			f("--reference-frame", "string", "Lossless PNG exported by Jianying"),
+			f(
+				"--candidate-frame",
+				"string",
+				"Same-size lossless PNG exported by QCut"
+			),
+			f("--reference-mask", "string", "Optional Jianying grayscale mask PNG"),
+			f("--candidate-mask", "string", "Optional QCut grayscale mask PNG"),
+			f("--reference-video", "string", "Optional Jianying comparison video"),
+			f("--candidate-video", "string", "Optional QCut comparison video"),
+		],
+		examples: [
+			"qcut filter-lab verify --resource-id 7429744855724641545 --filter-version f4d46cb5bca43ef171199ea673d53b00 --reference-frame jianying.png --candidate-frame qcut.png --json",
+		],
 	},
 	update: {
 		name: "update",
