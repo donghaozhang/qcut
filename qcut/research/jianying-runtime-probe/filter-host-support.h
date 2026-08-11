@@ -39,6 +39,23 @@ class ModelCatalog {
 
 void activateModelCatalog(const ModelCatalog& catalog);
 void deactivateModelCatalog(const ModelCatalog& catalog);
-char* findModelResource(void*, const char* directory, const char* name);
+
+// RAII registration: deactivates on destruction, so the catalog cannot stay
+// active when construction of whatever owns it throws part-way.
+class CatalogRegistration {
+ public:
+  explicit CatalogRegistration(const ModelCatalog& catalog);
+  ~CatalogRegistration();
+
+  CatalogRegistration(const CatalogRegistration&) = delete;
+  CatalogRegistration& operator=(const CatalogRegistration&) = delete;
+
+ private:
+  const ModelCatalog& catalog_;
+};
+
+// Called by the Jianying runtime through a C function pointer; an exception
+// escaping here would unwind through frames that are not exception-aware.
+char* findModelResource(void*, const char* directory, const char* name) noexcept;
 
 }  // namespace jianying_probe

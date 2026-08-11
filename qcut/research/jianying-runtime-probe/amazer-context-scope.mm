@@ -13,8 +13,17 @@ namespace {
 
 [[nodiscard]] std::string imageUuid(const void* imageBase) {
   const auto* header = static_cast<const mach_header_64*>(imageBase);
+  // dli_fbase is only assumed to be a 64-bit Mach-O header; validate the magic
+  // before trusting ncmds, or the walk reads arbitrary memory.
+  if (header->magic != MH_MAGIC_64 && header->magic != MH_CIGAM_64) {
+    return {};
+  }
   const auto* command = reinterpret_cast<const load_command*>(header + 1);
   for (std::uint32_t index = 0; index < header->ncmds; index += 1) {
+    // A zero cmdsize would spin forever on the same command.
+    if (command->cmdsize < sizeof(load_command)) {
+      break;
+    }
     if (command->cmd == LC_UUID) {
       const auto* uuidCommand = reinterpret_cast<const uuid_command*>(command);
       const std::uint8_t* bytes = uuidCommand->uuid;

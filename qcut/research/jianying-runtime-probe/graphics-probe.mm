@@ -81,10 +81,15 @@ struct FrameDimensions {
                                          inputAPixels.end());
     std::vector<std::uint8_t> inputBBgra(inputBPixels.begin(),
                                          inputBPixels.end());
-    for (std::size_t offset = 0; offset < inputABgra.size(); offset += 4) {
-      std::swap(inputABgra[offset], inputABgra[offset + 2]);
-      std::swap(inputBBgra[offset], inputBBgra[offset + 2]);
-    }
+    // Bound each buffer by its own size: a shared helper must not assume the
+    // two inputs have equal length just because the current callers check it.
+    const auto swapRedBlue = [](std::vector<std::uint8_t>& bgra) {
+      for (std::size_t offset = 0; offset + 3 < bgra.size(); offset += 4) {
+        std::swap(bgra[offset], bgra[offset + 2]);
+      }
+    };
+    swapRedBlue(inputABgra);
+    swapRedBlue(inputBBgra);
     const int bytesPerRow = dimensions.width * 4;
     textures.inputANativeBuffer = symbols.createCvPixelBuffer(
         dimensions.width, dimensions.height, bytesPerRow,

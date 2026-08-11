@@ -9,6 +9,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <mutex>
 #include <string>
 #include <string_view>
@@ -54,10 +55,17 @@ void appendLog(const std::string& line) {
     const std::filesystem::path directory = captureDirectory();
     std::filesystem::create_directories(directory, error);
     if (error) {
+        std::cerr << "bytenn-capture: cannot create " << directory << ": " << error.message()
+                  << '\n';
         return;
     }
     std::ofstream output(directory / "capture.log", std::ios::app);
     output << line << '\n';
+    // The log is the only record the capture happened; report on stderr when it
+    // cannot be written, since appendLog cannot report through itself.
+    if (!output.good()) {
+        std::cerr << "bytenn-capture: failed to append to capture.log: " << line << '\n';
+    }
 }
 
 void captureTensor(const std::uint8_t* tensor, std::size_t tensorIndex, void* engine) {
@@ -96,6 +104,15 @@ void captureTensor(const std::uint8_t* tensor, std::size_t tensorIndex, void* en
         captureDirectory() / ("bytenn-" + std::to_string(index) + ".bin");
     std::ofstream output(outputPath, std::ios::binary);
     output.write(static_cast<const char*>(data), static_cast<std::streamsize>(byteCount));
+    output.close();
+    // A truncated payload would later be compared as if it were a real tensor;
+    // log the failure and remove the partial file instead.
+    if (!output.good()) {
+        appendLog("bytenn[" + std::to_string(index) + "] payload write FAILED: " +
+                  outputPath.string());
+        std::error_code removeError;
+        std::filesystem::remove(outputPath, removeError);
+    }
 }
 
 extern "C" int captureSetInput(void* engine, const RawVector* tensors) {

@@ -9,6 +9,7 @@
 #include <chrono>
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <filesystem>
@@ -134,9 +135,11 @@ ImageData readPpm(const ReadPpmOptions& options) {
     for (int y = 0; y < height; ++y) {
         const int sourceY = height - y - 1;
         for (int x = 0; x < width; ++x) {
+            // Index maths must widen before multiplying: int overflows at
+            // ~27 megapixels, well inside the dimensions the guard accepts.
             const std::size_t sourceOffset =
-                static_cast<std::size_t>((sourceY * width + x) * 3);
-            const std::size_t targetOffset = static_cast<std::size_t>((y * width + x) * 4);
+                (static_cast<std::size_t>(sourceY) * width + x) * 3;
+            const std::size_t targetOffset = (static_cast<std::size_t>(y) * width + x) * 4;
             rgba[targetOffset] = rgb[sourceOffset];
             rgba[targetOffset + 1] = rgb[sourceOffset + 1];
             rgba[targetOffset + 2] = rgb[sourceOffset + 2];
@@ -147,10 +150,10 @@ ImageData readPpm(const ReadPpmOptions& options) {
 }
 
 std::vector<std::uint8_t> makeCalibrationImage(const ImageSize& size) {
-    std::vector<std::uint8_t> pixels(static_cast<std::size_t>(size.width * size.height * 4));
+    std::vector<std::uint8_t> pixels(static_cast<std::size_t>(size.width) * size.height * 4);
     for (int y = 0; y < size.height; ++y) {
         for (int x = 0; x < size.width; ++x) {
-            const std::size_t offset = static_cast<std::size_t>((y * size.width + x) * 4);
+            const std::size_t offset = (static_cast<std::size_t>(y) * size.width + x) * 4;
             pixels[offset] = static_cast<std::uint8_t>((x * 255) / (size.width - 1));
             pixels[offset + 1] = static_cast<std::uint8_t>((y * 255) / (size.height - 1));
             pixels[offset + 2] = static_cast<std::uint8_t>(((x / 8 + y / 8) % 2) * 220 + 20);
@@ -161,7 +164,7 @@ std::vector<std::uint8_t> makeCalibrationImage(const ImageSize& size) {
 }
 
 std::vector<std::uint8_t> makeOutputSeed(const ImageSize& size) {
-    std::vector<std::uint8_t> pixels(static_cast<std::size_t>(size.width * size.height * 4));
+    std::vector<std::uint8_t> pixels(static_cast<std::size_t>(size.width) * size.height * 4);
     for (std::size_t offset = 0; offset < pixels.size(); offset += 4) {
         pixels[offset] = 255;
         pixels[offset + 1] = 0;
@@ -240,7 +243,7 @@ std::vector<std::uint8_t> readTexture(const ReadTextureOptions& options) {
 
     glPixelStorei(GL_PACK_ALIGNMENT, 1);
     std::vector<std::uint8_t> pixels(
-        static_cast<std::size_t>(options.size.width * options.size.height * 4));
+        static_cast<std::size_t>(options.size.width) * options.size.height * 4);
     glReadPixels(
         0,
         0,
@@ -285,15 +288,22 @@ struct PpmOptions {
     ImageSize size;
 };
 
-void writePpm(const PpmOptions& options) {
+// Returns false when the artifact could not be fully written; a silently
+// missing or truncated PPM would otherwise read as a real parity result.
+[[nodiscard]] bool writePpm(const PpmOptions& options) {
     std::ofstream output(options.outputPath, std::ios::binary);
+    if (!output) {
+        return false;
+    }
     output << "P6\n" << options.size.width << ' ' << options.size.height << "\n255\n";
     for (int y = options.size.height - 1; y >= 0; --y) {
         for (int x = 0; x < options.size.width; ++x) {
-            const std::size_t offset = static_cast<std::size_t>((y * options.size.width + x) * 4);
+            const std::size_t offset =
+                (static_cast<std::size_t>(y) * options.size.width + x) * 4;
             output.write(reinterpret_cast<const char*>(options.pixels.data() + offset), 3);
         }
     }
+    return output.good();
 }
 
 struct ContextResult {
@@ -390,7 +400,7 @@ void inspectMatchingTextures(const InspectTextureOptions& options) {
         glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, &minFilter);
         glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, &magFilter);
 
-        const std::size_t pixelCount = static_cast<std::size_t>(width * height);
+        const std::size_t pixelCount = static_cast<std::size_t>(width) * height;
         std::vector<float> rgba(pixelCount * 4);
         glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_FLOAT, rgba.data());
         const GLenum readError = glGetError();
@@ -506,8 +516,13 @@ bool inspectSkinResult(const InspectSkinResultOptions& options) {
         std::memcpy(&reflector, nativeBytes + 0x14, sizeof(reflector));
         std::cout << "skin_buffer_size=" << width << 'x' << height
                   << " reflector=" << reflector << '\n';
+        // Non-positive native dimensions would make the scan divide by zero in
+        // its per-pixel statistics, so bail out before touching any texture.
+        if (width <= 0 || height <= 0) {
+            return false;
+        }
         inspectMatchingTextures({.expectedWidth = width, .expectedHeight = height});
-        return width > 0 && height > 0;
+        return true;
     }
 
     if (symbolName.find("SkinSegInfo") == std::string_view::npos) {
@@ -676,7 +691,10 @@ int main(int argc, char** argv) {
     const std::vector<std::uint8_t> outputSeed = makeOutputSeed(size);
     if (inputPaths.empty()) {
         const std::string sourceOutputPath = std::string(argv[4]) + ".source.ppm";
-        writePpm({.outputPath = sourceOutputPath.c_str(), .pixels = inputPixels, .size = size});
+        if (!writePpm({.outputPath = sourceOutputPath.c_str(), .pixels = inputPixels, .size = size})) {
+            std::cerr << "failed to write source copy: " << sourceOutputPath << '\n';
+            return 2;
+        }
     }
     const GLuint inputTexture = createTexture({.pixels = inputPixels, .size = size});
     const GLuint outputTexture = createTexture({.pixels = outputSeed, .size = size});
@@ -852,14 +870,23 @@ int main(int argc, char** argv) {
                 .input = inputPixels,
                 .seed = outputSeed,
             });
+            // Prefix with the frame index: inputs from different directories can
+            // share a filename, and bare filenames would silently overwrite.
+            char framePrefix[16];
+            std::snprintf(framePrefix, sizeof(framePrefix), "%04zu_", frameIndex);
             const std::filesystem::path outputPath =
-                outputDirectory / std::filesystem::path(inputPaths[frameIndex]).filename();
+                outputDirectory /
+                (framePrefix + std::filesystem::path(inputPaths[frameIndex]).filename().string());
             const std::string outputPathString = outputPath.string();
-            writePpm({
-                .outputPath = outputPathString.c_str(),
-                .pixels = outputPixels,
-                .size = size,
-            });
+            if (!writePpm({
+                    .outputPath = outputPathString.c_str(),
+                    .pixels = outputPixels,
+                    .size = size,
+                })) {
+                std::cerr << "failed to write frame output: " << outputPathString << '\n';
+                processingSucceeded = false;
+                break;
+            }
 
             std::cout << "sequence_frame[" << frameIndex << "] algorithm=";
             if (probeOptions.skipAlgorithm) {
@@ -924,7 +951,10 @@ int main(int argc, char** argv) {
             std::cout << "difference_from_input=" << finalDifference.fromInput << '\n';
             std::cout << "difference_from_seed=" << finalDifference.fromSeed << '\n';
             std::cout << "output_sum=" << finalDifference.outputSum << '\n';
-            writePpm({.outputPath = argv[4], .pixels = outputPixels, .size = size});
+            if (!writePpm({.outputPath = argv[4], .pixels = outputPixels, .size = size})) {
+                std::cerr << "failed to write output: " << argv[4] << '\n';
+                processingSucceeded = false;
+            }
             const bool algorithmSucceeded =
                 probeOptions.skipAlgorithm || finalAlgorithmResult == 0;
             processingSucceeded = processingSucceeded && algorithmSucceeded && processResult == 0 &&

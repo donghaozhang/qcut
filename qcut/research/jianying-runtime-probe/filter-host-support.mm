@@ -78,6 +78,9 @@ ModelCatalog::ModelCatalog(const fs::path& directory) {
   if (paths_.empty()) {
     throw std::runtime_error("model directory contains no files");
   }
+  // Directory iteration order is unspecified; sort so the family prefix match
+  // in resolve() picks the same model on every machine and run.
+  std::sort(paths_.begin(), paths_.end());
 }
 
 char* ModelCatalog::resolve(const char* directory, const char* name) const {
@@ -143,9 +146,31 @@ void deactivateModelCatalog(const ModelCatalog& catalog) {
       activeModelCatalog.compare_exchange_strong(expected, nullptr));
 }
 
-char* findModelResource(void*, const char* directory, const char* name) {
+CatalogRegistration::CatalogRegistration(const ModelCatalog& catalog)
+    : catalog_(catalog) {
+  activateModelCatalog(catalog_);
+}
+
+CatalogRegistration::~CatalogRegistration() {
+  deactivateModelCatalog(catalog_);
+}
+
+char* findModelResource(void*, const char* directory,
+                        const char* name) noexcept {
   const ModelCatalog* catalog = activeModelCatalog.load();
-  return catalog == nullptr ? nullptr : catalog->resolve(directory, name);
+  if (catalog == nullptr) {
+    return nullptr;
+  }
+  // resolve() allocates; an exception must not unwind into the foreign caller.
+  try {
+    return catalog->resolve(directory, name);
+  } catch (const std::exception& error) {
+    std::cerr << "[resource] resolve failed: " << error.what() << '\n';
+    return nullptr;
+  } catch (...) {
+    std::cerr << "[resource] resolve failed with a non-standard exception\n";
+    return nullptr;
+  }
 }
 
 }  // namespace jianying_probe

@@ -141,8 +141,19 @@ using jianying_probe::resolveSymbol;
     return 0;
   }
   const std::string value(rawValue);
+  // std::stol throws on empty or non-numeric input before the range check,
+  // which would replace this named message with a generic one.
+  long code = 0;
   std::size_t parsedLength = 0;
-  const long code = std::stol(value, &parsedLength);
+  try {
+    if (value.empty()) {
+      throw std::invalid_argument("empty");
+    }
+    code = std::stol(value, &parsedLength);
+  } catch (const std::exception&) {
+    throw std::runtime_error(std::string(name) +
+                             " must be an integer from 0 to 255");
+  }
   if (parsedLength != value.size() || code < 0 || code > 255) {
     throw std::runtime_error(std::string(name) +
                              " must be an integer from 0 to 255");

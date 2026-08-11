@@ -241,7 +241,8 @@ class FilterHostSession {
                     bool enableAdjustColorWithFloat,
                     bool enableImageQuality, bool managerCreateOption,
                     bool enableParallelAsyncSwing)
-      : symbols_(symbols), models_(models), openGlContext_(openGlContext),
+      : symbols_(symbols), registration_(models),
+        openGlContext_(openGlContext),
         packagePath_(packagePath),
         width_(resources.width), height_(resources.height),
         graphicsDevice_(resources.graphicsDevice),
@@ -253,13 +254,13 @@ class FilterHostSession {
         enableImageQuality_(enableImageQuality),
         managerCreateOption_(managerCreateOption),
         enableParallelAsyncSwing_(enableParallelAsyncSwing) {
-    jianying_probe::activateModelCatalog(models_);
+    // registration_ owns catalog activation: if createHost() throws, this
+    // destructor never runs, but the member's does.
     createHost();
   }
 
   ~FilterHostSession() {
     destroyHost();
-    deactivateModelCatalog(models_);
   }
 
   FilterHostSession(const FilterHostSession&) = delete;
@@ -455,7 +456,9 @@ class FilterHostSession {
   }
 
   const FilterSymbols& symbols_;
-  const ModelCatalog& models_;
+  // Owns catalog activation for the session lifetime; releases it even when
+  // createHost() throws mid-construction.
+  jianying_probe::CatalogRegistration registration_;
   OpenGlContext& openGlContext_;
   fs::path packagePath_;
   int width_;

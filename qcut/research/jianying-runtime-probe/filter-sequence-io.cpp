@@ -32,8 +32,18 @@ namespace {
         modeStart, separator == std::string_view::npos
                        ? std::string_view::npos
                        : separator - modeStart));
+    // std::stol throws before the range check on empty or non-numeric input,
+    // which would surface a generic message instead of this one.
+    long mode = 0;
     std::size_t parsedLength = 0;
-    const long mode = std::stol(modeField, &parsedLength);
+    try {
+      if (modeField.empty()) {
+        throw std::invalid_argument("empty");
+      }
+      mode = std::stol(modeField, &parsedLength);
+    } catch (const std::exception&) {
+      throw std::runtime_error("update modes must be integers from 0 to 255");
+    }
     if (parsedLength != modeField.size() || mode < 0 || mode > 255) {
       throw std::runtime_error(
           "update modes must be integers from 0 to 255");
@@ -127,7 +137,12 @@ std::vector<std::uint8_t> readRgbaFrame(
 }
 
 void convertBgraToRgba(std::span<std::uint8_t> pixels) {
-  for (std::size_t offset = 0; offset < pixels.size(); offset += 4) {
+  // Stop a full pixel short of the end so `offset + 2` never reads past the
+  // span when the length is not a multiple of 4 (this is a public helper).
+  if (pixels.size() < 4) {
+    return;
+  }
+  for (std::size_t offset = 0; offset + 3 < pixels.size(); offset += 4) {
     std::swap(pixels[offset], pixels[offset + 2]);
   }
 }
