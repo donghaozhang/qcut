@@ -13,6 +13,12 @@ const gradeMaskCache = new Map<
 	Promise<Uint8ClampedArray | undefined>
 >();
 
+export interface BrowserColorGradeLayer {
+	settings: MediaColorSettings;
+	masks: MediaMask[];
+	opacity?: number;
+}
+
 function loadGradeMaskImage({
 	url,
 }: {
@@ -229,6 +235,117 @@ export async function drawColorGradedSourceWithMasks({
 		height,
 		masks: outputMasks,
 	});
+}
+
+function createGradeCanvas({
+	width,
+	height,
+}: {
+	width: number;
+	height: number;
+}): HTMLCanvasElement {
+	const canvas = document.createElement("canvas");
+	canvas.width = width;
+	canvas.height = height;
+	return canvas;
+}
+
+async function renderColorGradeLayers({
+	source,
+	layers,
+	index,
+	width,
+	height,
+	frameSeed,
+}: {
+	source: CanvasImageSource;
+	layers: BrowserColorGradeLayer[];
+	index: number;
+	width: number;
+	height: number;
+	frameSeed: number;
+}): Promise<CanvasImageSource> {
+	const layer = layers[index];
+	if (!layer) return source;
+	const opacity = Math.min(1, Math.max(0, layer.opacity ?? 1));
+	if (opacity === 0) {
+		return renderColorGradeLayers({
+			source,
+			layers,
+			index: index + 1,
+			width,
+			height,
+			frameSeed,
+		});
+	}
+
+	const graded = createGradeCanvas({ width, height });
+	const gradedContext = graded.getContext("2d", { willReadFrequently: true });
+	if (!gradedContext) throw new Error("Unable to create color layer canvas");
+	await drawColorGradedSourceWithMasks({
+		context: gradedContext,
+		source,
+		x: 0,
+		y: 0,
+		width,
+		height,
+		masks: layer.masks,
+		settings: layer.settings,
+		frameSeed,
+	});
+
+	let output: CanvasImageSource = graded;
+	if (opacity < 1) {
+		const blended = createGradeCanvas({ width, height });
+		const blendedContext = blended.getContext("2d");
+		if (!blendedContext) throw new Error("Unable to blend color layer canvas");
+		blendedContext.drawImage(source, 0, 0, width, height);
+		blendedContext.globalAlpha = opacity;
+		blendedContext.drawImage(graded, 0, 0, width, height);
+		blendedContext.globalAlpha = 1;
+		output = blended;
+	}
+
+	return renderColorGradeLayers({
+		source: output,
+		layers,
+		index: index + 1,
+		width,
+		height,
+		frameSeed,
+	});
+}
+
+export async function drawColorGradedSourceStack({
+	context,
+	source,
+	x,
+	y,
+	width,
+	height,
+	layers,
+	frameSeed = 0,
+}: {
+	context: CanvasRenderingContext2D;
+	source: CanvasImageSource;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	layers: BrowserColorGradeLayer[];
+	frameSeed?: number;
+}): Promise<void> {
+	const pixelWidth = Math.max(1, Math.round(Math.abs(width)));
+	const pixelHeight = Math.max(1, Math.round(Math.abs(height)));
+	const output = await renderColorGradeLayers({
+		source,
+		layers,
+		index: 0,
+		width: pixelWidth,
+		height: pixelHeight,
+		frameSeed,
+	});
+	context.drawImage(output, x, y, width, height);
 }
 
 export function clearBrowserColorRenderingCache() {
