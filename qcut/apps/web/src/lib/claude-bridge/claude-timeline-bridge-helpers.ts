@@ -8,7 +8,10 @@ import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useMediaStore, type MediaItem } from "@/stores/media/media-store";
 import { platform } from "@qcut/platform-core";
-import { normalizeTextAnimations } from "@qcut/editor-core";
+import {
+	normalizeJianyingTextStyleReference,
+	normalizeTextAnimations,
+} from "@qcut/editor-core";
 import type {
 	AdjustmentElement,
 	MediaAdjustments,
@@ -57,6 +60,7 @@ const DEFAULT_TEXT_CONTENT = "Text";
 const CLAUDE_DETERMINISTIC_MEDIA_ID_PREFIX = "media_";
 
 export const CLAUDE_TEXT_PROPERTY_KEYS = [
+	"jianyingTextStyle",
 	"fontSize",
 	"fontFamily",
 	"color",
@@ -130,6 +134,7 @@ const CLAUDE_TEXT_PROPERTY_VALIDATORS: Record<
 	ClaudeTextPropertyKey,
 	(value: unknown) => boolean
 > = {
+	jianyingTextStyle: isPlainObject,
 	fontSize: isFiniteNumber,
 	fontFamily: isString,
 	color: isString,
@@ -229,6 +234,11 @@ export function getClaudeTextProperties({
 	for (const key of CLAUDE_TEXT_PROPERTY_KEYS) {
 		const value = element[key] !== undefined ? element[key] : style[key];
 		if (value === undefined) continue;
+		if (key === "jianyingTextStyle") {
+			const normalized = normalizeJianyingTextStyleReference({ value });
+			if (normalized) properties[key] = normalized;
+			continue;
+		}
 		if (key === "textAnimations") {
 			properties[key] = normalizeClaudeTextAnimations({
 				elementId: typeof element.id === "string" ? element.id : "claude-text",
