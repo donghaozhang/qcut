@@ -23,7 +23,7 @@ SkinSegInfo + 0x18  PrimitiveVector<unsigned char>   -> impl + 0x10 begin / impl
 该消费点 `libcccreator + 0x99bb60` 在低层 Effect 路径和 Swing V2 路径是同一个函数，所以一个观察器可以同时覆盖两条路径。
 观察器只写文件，并要求 `end - begin == width * height` 才落盘。
 
-对照实验强制两条路径加载同一个 skin_seg 模型（`tt_skin_seg_v5.1_size1`，MD5 `2b5a3aed4a9a45a67b7febabe9247d6e`），
+对照实验强制两条路径加载同一个旧 skin_seg 模型（`tt_skin_seg_v5.0.model`，MD5 `2b5a3aed4a9a45a67b7febabe9247d6e`），
 输入为同一批 854x480 帧。
 
 ## 结果：mask 交付正常，渲染只用上 7%
