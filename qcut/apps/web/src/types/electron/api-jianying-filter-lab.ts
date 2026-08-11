@@ -1,7 +1,12 @@
-import type { ColorCubeLut } from "@/types/timeline";
+import type {
+	ColorCubeLut,
+	ColorMultiPassOperation,
+	ColorMultiPassSettings,
+} from "@/types/timeline";
 import type {
 	JianyingFilterLabAPI,
 	JianyingFilterLabCube,
+	JianyingFilterLabLoadRendererResult,
 } from "../../../../../electron/jianying-filter-lab-contract";
 
 export interface ElectronJianyingFilterLabOps {
@@ -20,13 +25,35 @@ export interface ElectronJianyingFilterLabOps {
 type AssertAssignable<A extends B, B> = A;
 type _CubeToLut = AssertAssignable<JianyingFilterLabCube, ColorCubeLut>;
 type _LutToCube = AssertAssignable<ColorCubeLut, JianyingFilterLabCube>;
+type _RendererToSettings = AssertAssignable<
+	JianyingFilterLabLoadRendererResult,
+	ColorMultiPassSettings
+>;
+type _PassToOperation = AssertAssignable<
+	JianyingFilterLabLoadRendererResult["passes"][number],
+	ColorMultiPassOperation
+>;
 
 export type {
 	JianyingFilterLabAPI,
+	JianyingFilterLabCategorySummary,
 	JianyingFilterLabCube,
+	JianyingFilterLabFilterSummary,
+	JianyingFilterLabListRequest,
 	JianyingFilterLabListResult,
 	JianyingFilterLabLoadRequest,
 	JianyingFilterLabLoadResult,
+	JianyingFilterLabLoadRendererRequest,
+	JianyingFilterLabLoadRendererResult,
 	JianyingFilterLabLutSummary,
+	JianyingFilterLabMultiPassOperation,
+	JianyingFilterLabRendererSummary,
+	JianyingFilterLabThumbnailRequest,
+	JianyingFilterLabThumbnailResult,
+	JianyingFilterCacheStatus,
+	JianyingFilterImplementation,
+	JianyingFilterMultiPassKind,
+	JianyingFilterVerification,
+	JianyingFilterVerificationStatus,
 	JianyingLutRole,
 } from "../../../../../electron/jianying-filter-lab-contract";
