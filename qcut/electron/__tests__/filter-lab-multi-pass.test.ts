@@ -1,3 +1,4 @@
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
 	detectJianyingMultiPassTopology,
@@ -103,8 +104,16 @@ describe("Jianying multi-pass recipe loading", () => {
 		});
 
 		expect(loadCube).toHaveBeenCalledWith({
-			filePath:
-				"/cache/artistEffect/resource/version/AmazingFeature/image/filter.png",
+			// join keeps the expectation correct under Windows separators.
+			filePath: join(
+				"/cache",
+				"artistEffect",
+				"resource",
+				"version",
+				"AmazingFeature",
+				"image",
+				"filter.png"
+			),
 		});
 		expect(recipe?.passes.map(({ kind }) => kind)).toEqual([
 			"fog-blend",

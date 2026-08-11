@@ -93,7 +93,16 @@ describe("Jianying tiled LUT renderer", () => {
 					},
 				})
 			).toBe(
-				"/cache/artistEffect/filter-id/v1/AmazingFeature/image/filter.png"
+				// join keeps the expectation correct under Windows separators.
+				join(
+					"/cache",
+					"artistEffect",
+					"filter-id",
+					"v1",
+					"AmazingFeature",
+					"image",
+					"filter.png"
+				)
 			);
 		} finally {
 			await rm(directory, { recursive: true, force: true });

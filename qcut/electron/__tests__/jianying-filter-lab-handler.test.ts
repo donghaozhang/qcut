@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { join } from "node:path";
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -465,8 +466,16 @@ describe("Jianying filter lab IPC", () => {
 			channel: JIANYING_FILTER_LAB_LOAD_CHANNEL,
 		})(context.event, { lutId })) as JianyingFilterLabLoadResult;
 		expect(loadTiledCube).toHaveBeenCalledWith({
-			filePath:
-				"/cache/artistEffect/shader-filter/v1/AmazingFeature/image/filter.png",
+			// join keeps the expectation correct under Windows separators.
+			filePath: join(
+				"/cache",
+				"artistEffect",
+				"shader-filter",
+				"v1",
+				"AmazingFeature",
+				"image",
+				"filter.png"
+			),
 		});
 		expect(loaded).toMatchObject({
 			resourceId,

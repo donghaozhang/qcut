@@ -161,10 +161,14 @@ export async function compileJianyingTextRuntimeBridge({
 }
 
 function isExistingDirectoryError({ cause }: { cause: unknown }) {
+	// Windows reports a rename onto an existing directory as EPERM; tolerating
+	// it is safe because the caller re-verifies the launch path afterwards.
 	return (
 		cause instanceof Error &&
 		"code" in cause &&
-		(cause.code === "EEXIST" || cause.code === "ENOTEMPTY")
+		(cause.code === "EEXIST" ||
+			cause.code === "ENOTEMPTY" ||
+			cause.code === "EPERM")
 	);
 }
 
