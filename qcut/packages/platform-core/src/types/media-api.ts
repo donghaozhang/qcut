@@ -240,6 +240,7 @@ export interface PlatformVideoCompositionFramePreviewOptions {
 	imageSources?: unknown[];
 	stickerSources?: unknown[];
 	textAssLayers?: unknown[];
+	textRasterLayers?: unknown[];
 }
 
 export interface PlatformVideoCompositionFramePreviewResult {
