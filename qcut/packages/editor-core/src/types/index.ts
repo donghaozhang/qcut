@@ -24,6 +24,7 @@ export type {
 export type {
 	ColorBasicSettings,
 	ColorCubeLut,
+	ColorDualLutSettings,
 	ColorCurvePoint,
 	ColorCurveShapeKeyframe,
 	ColorCurveShapeProperty,
@@ -39,6 +40,8 @@ export type {
 	ColorHslSettings,
 	ColorKeyframeProperty,
 	ColorLutSettings,
+	ColorMultiPassOperation,
+	ColorMultiPassSettings,
 	ColorManagementSettings,
 	ColorPropertyKeyframe,
 	ColorSmartSettings,
