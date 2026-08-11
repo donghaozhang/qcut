@@ -13,6 +13,7 @@ import type {
 	resolveJianyingFilterCategories,
 	resolveJianyingFilterTitles,
 } from "../../jianying-filter-metadata.js";
+import { saveJianyingFilterVerification } from "../../jianying-filter-verification-store.js";
 import {
 	compareCubes,
 	frameColours,
@@ -23,6 +24,11 @@ import {
 	type ScoreColours,
 } from "../filters/filter-lab-lut.js";
 import { loadQcutFilterCubes } from "../filters/filter-lab-qcut.js";
+import {
+	verifyFilterLabParity,
+	type FilterLabVerificationInput,
+	type FilterLabVerificationReport,
+} from "../filters/filter-lab-verification.js";
 import type { CLIResult } from "./cli-runner/types.js";
 
 function summariseLut(entry: JianyingLutEntry) {
@@ -398,5 +404,69 @@ export async function handleFilterLabMatch({
 			within10Levels: scores.filter((value) => value < 10).length,
 			worstMatches: rows.slice(0, worst),
 		},
+	};
+}
+
+export interface FilterLabVerifyDeps {
+	verify: ({
+		input,
+	}: {
+		input: FilterLabVerificationInput;
+	}) => Promise<FilterLabVerificationReport>;
+	save: typeof saveJianyingFilterVerification;
+}
+
+/** Measures and records rendered parity for one exact Jianying filter version. */
+export async function handleFilterLabVerify(
+	{
+		resourceId,
+		filterVersion,
+		referenceFrame,
+		candidateFrame,
+		referenceMask,
+		candidateMask,
+		referenceVideo,
+		candidateVideo,
+	}: {
+		resourceId?: string;
+		filterVersion?: string;
+		referenceFrame?: string;
+		candidateFrame?: string;
+		referenceMask?: string;
+		candidateMask?: string;
+		referenceVideo?: string;
+		candidateVideo?: string;
+	},
+	deps: FilterLabVerifyDeps = {
+		verify: verifyFilterLabParity,
+		save: saveJianyingFilterVerification,
+	}
+): Promise<CLIResult> {
+	if (!(resourceId && filterVersion && referenceFrame && candidateFrame)) {
+		return {
+			success: false,
+			error:
+				"filter-lab verify requires --resource-id, --filter-version, --reference-frame, and --candidate-frame",
+		};
+	}
+	const report = await deps.verify({
+		input: {
+			referenceFrame,
+			candidateFrame,
+			...(referenceMask ? { referenceMask } : {}),
+			...(candidateMask ? { candidateMask } : {}),
+			...(referenceVideo ? { referenceVideo } : {}),
+			...(candidateVideo ? { candidateVideo } : {}),
+		},
+	});
+	const verification = {
+		resourceId,
+		version: filterVersion,
+		...report,
+	};
+	const storePath = await deps.save({ record: verification });
+	return {
+		success: true,
+		data: { verification, storePath },
 	};
 }
