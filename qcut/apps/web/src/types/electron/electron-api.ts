@@ -44,6 +44,9 @@ import type { ElectronWallpaperOps } from "./api-wallpapers";
 import type { ElectronJianyingDraftExportOps } from "./api-jianying-draft-export";
 import type { ElectronJianyingTransitionOps } from "./api-jianying-transitions";
 import type { ElectronJianyingFilterLabOps } from "./api-jianying-filter-lab";
+import type { ElectronJianyingFontLabOps } from "./api-jianying-font-lab";
+import type { ElectronJianyingTextStyleLabOps } from "./api-jianying-text-style-lab";
+import type { ElectronJianyingTextRuntimeOps } from "./api-jianying-text-runtime";
 import type { ElectronJianyingEnvelopeOps } from "./api-jianying-envelope";
 import type { ElectronJianyingDraftImportOps } from "./api-jianying-draft-import";
 import type { ElectronJianyingSameProfileWritebackOps } from "./api-jianying-same-profile-writeback";
@@ -92,6 +95,9 @@ export interface ElectronAPI
 		ElectronJianyingDraftExportOps,
 		ElectronJianyingTransitionOps,
 		ElectronJianyingFilterLabOps,
+		ElectronJianyingFontLabOps,
+		ElectronJianyingTextStyleLabOps,
+		ElectronJianyingTextRuntimeOps,
 		ElectronJianyingEnvelopeOps,
 		ElectronJianyingDraftImportOps,
 		ElectronJianyingSameProfileWritebackOps {
