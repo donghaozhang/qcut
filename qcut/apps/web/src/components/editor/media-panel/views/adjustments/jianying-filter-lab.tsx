@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+	CloudOff,
 	FlaskConical,
 	LoaderCircle,
 	Palette,
@@ -14,7 +15,10 @@ import type {
 	JianyingFilterLabLutSummary,
 	JianyingLutRole,
 } from "@/types/electron";
-import { useJianyingFilterLab } from "./use-jianying-filter-lab";
+import {
+	type JianyingFilterLabKnownFilter,
+	useJianyingFilterLab,
+} from "./use-jianying-filter-lab";
 
 type RoleFilter = "all" | JianyingLutRole;
 
@@ -27,6 +31,8 @@ const ROLE_OPTIONS: Array<{ id: RoleFilter; label: string }> = [
 
 const ALL_CATEGORIES = "all";
 const UNCATEGORIZED = "__uncategorized";
+// Search can surface known-but-uncached filters, but never floods the list.
+const MAX_PLACEHOLDER_SEARCH_MATCHES = 20;
 
 const ROLE_LABELS: Record<JianyingLutRole, string> = {
 	single: "单 LUT",
@@ -60,16 +66,20 @@ export function JianyingFilterLab({
 		entry: JianyingFilterLabLutSummary;
 	}) => void;
 }) {
-	const { checking, luts, categoryOrder, error, refresh } =
+	const { checking, luts, categoryOrder, uncached, error, refresh } =
 		useJianyingFilterLab();
 	const [query, setQuery] = useState("");
 	const [role, setRole] = useState<RoleFilter>("all");
 	const [category, setCategory] = useState(ALL_CATEGORIES);
 	const [loadingLutId, setLoadingLutId] = useState("");
 	// Jianying's own panel order, kept to categories that actually contain
-	// local LUTs; "未分类" only appears when metadata is missing for some.
+	// local LUTs or known-but-uncached filters; "未分类" only appears when
+	// metadata is missing for some cached LUT.
 	const categoryOptions = useMemo(() => {
-		const present = new Set(luts.flatMap((entry) => entry.categories ?? []));
+		const present = new Set([
+			...luts.flatMap((entry) => entry.categories ?? []),
+			...uncached.flatMap((entry) => entry.categories),
+		]);
 		const options: Array<{ id: string; label: string }> = [
 			{ id: ALL_CATEGORIES, label: "全部" },
 		];
@@ -80,7 +90,7 @@ export function JianyingFilterLab({
 			options.push({ id: UNCATEGORIZED, label: "未分类" });
 		}
 		return options;
-	}, [luts, categoryOrder]);
+	}, [luts, uncached, categoryOrder]);
 	// A refresh can drop the selected category (cache changed) — fall back
 	// to 全部 instead of silently filtering everything out.
 	const activeCategory = categoryOptions.some(({ id }) => id === category)
@@ -107,6 +117,39 @@ export function JianyingFilterLab({
 				.some((value) => value.toLocaleLowerCase().includes(normalizedQuery));
 		});
 	}, [luts, query, role, activeCategory]);
+	// Known-but-uncached catalog filters render as placeholder rows after the
+	// cached ones: the full list inside a specific category, capped search
+	// matches otherwise. 未分类 and the non-search 全部 view stay cached-only —
+	// hundreds of placeholders would drown the list, so 全部 gets a footer
+	// count instead. Uncached filters carry no role, so any role filter
+	// hides them.
+	const visiblePlaceholders = useMemo(() => {
+		if (role !== "all" || activeCategory === UNCATEGORIZED) return [];
+		const normalizedQuery = query.trim().toLocaleLowerCase();
+		const matchesQuery = (entry: JianyingFilterLabKnownFilter) =>
+			[entry.title, ...entry.categories].some((value) =>
+				value.toLocaleLowerCase().includes(normalizedQuery)
+			);
+		if (activeCategory === ALL_CATEGORIES) {
+			if (!normalizedQuery) return [];
+			return uncached
+				.filter(matchesQuery)
+				.slice(0, MAX_PLACEHOLDER_SEARCH_MATCHES);
+		}
+		const inCategory = uncached.filter((entry) =>
+			entry.categories.includes(activeCategory)
+		);
+		if (!normalizedQuery) return inCategory;
+		return inCategory
+			.filter(matchesQuery)
+			.slice(0, MAX_PLACEHOLDER_SEARCH_MATCHES);
+	}, [uncached, query, role, activeCategory]);
+	const showUncachedFooter =
+		!checking &&
+		!error &&
+		activeCategory === ALL_CATEGORIES &&
+		!query.trim() &&
+		uncached.length > 0;
 
 	const applyEntry = async ({
 		entry,
@@ -131,6 +174,16 @@ export function JianyingFilterLab({
 		} finally {
 			setLoadingLutId("");
 		}
+	};
+
+	// Placeholder rows have nothing to load — clicking explains how the LUT
+	// can appear here (Jianying only caches a filter after it has been used).
+	const explainPlaceholder = ({
+		entry,
+	}: {
+		entry: JianyingFilterLabKnownFilter;
+	}) => {
+		toast.info(`在剪映中使用一次「${entry.title}」后,这里即可加载`);
 	};
 
 	return (
@@ -238,7 +291,10 @@ export function JianyingFilterLab({
 				) : null}
 			</div>
 
-			{!checking && !error && visibleLuts.length === 0 ? (
+			{!checking &&
+			!error &&
+			visibleLuts.length === 0 &&
+			visiblePlaceholders.length === 0 ? (
 				<div className="grid h-28 place-items-center border-y border-border/50 px-4 text-center text-xs text-muted-foreground">
 					{luts.length === 0 ? "没有找到本机剪映 LUT" : "没有匹配的 LUT"}
 				</div>
@@ -283,7 +339,44 @@ export function JianyingFilterLab({
 						</button>
 					);
 				})}
+				{visiblePlaceholders.map((entry) => (
+					<button
+						key={entry.resourceId}
+						type="button"
+						data-testid="jianying-filter-lab-placeholder"
+						className="flex h-14 w-full items-center gap-2 rounded-md border border-dashed border-border/60 bg-card px-2 text-left opacity-60 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
+						aria-label={`未缓存滤镜 ${entry.title}`}
+						onClick={() => explainPlaceholder({ entry })}
+						onKeyDown={(event) => {
+							if (event.key === "Escape") event.currentTarget.blur();
+						}}
+					>
+						<span className="grid size-9 shrink-0 place-items-center rounded-sm bg-foreground/7 text-muted-foreground">
+							<CloudOff className="size-4" aria-hidden="true" />
+						</span>
+						<span className="min-w-0 flex-1">
+							<span className="block truncate text-xs font-medium">
+								{entry.title}
+							</span>
+							<span className="mt-0.5 flex items-center gap-1.5 text-[10px] text-muted-foreground">
+								<span className="rounded-sm bg-foreground/8 px-1 py-0.5">
+									未缓存
+								</span>
+								<span className="truncate">{entry.categories.join(" · ")}</span>
+							</span>
+						</span>
+					</button>
+				))}
 			</div>
+
+			{showUncachedFooter ? (
+				<p
+					className="px-1 pb-0.5 text-center text-[10px] text-muted-foreground/80"
+					data-testid="jianying-filter-lab-uncached-footer"
+				>
+					{`另有 ${uncached.length} 个剪映滤镜未缓存,按分类查看`}
+				</p>
+			) : null}
 		</div>
 	);
 }
