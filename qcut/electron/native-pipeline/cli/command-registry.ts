@@ -279,7 +279,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 	"filter-lab-list": {
 		name: "filter-lab-list",
 		description:
-			"List the Jianying LUTs cached locally that the filter lab can score against",
+			"List the locally cached Jianying LUTs the filter lab can score against, with their Jianying titles and panel categories when the local metadata DB has them",
 		category: "filter-lab",
 		flags: [],
 		examples: ["qcut filter-lab list --json"],
