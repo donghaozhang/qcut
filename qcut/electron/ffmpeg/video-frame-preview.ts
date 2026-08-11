@@ -20,6 +20,7 @@ import { prepareFFmpegFilterComplexScripts } from "./filter-complex-script.js";
 import { removeTemporaryDirectory } from "./temporary-files.js";
 import { buildVideoFitFilter } from "./video-fit-filter.js";
 import { getFFmpegPath } from "./utils.js";
+import { getTextRasterSourceProbePath } from "./text-raster-input.js";
 
 const MAX_CACHE_ENTRIES = 32;
 const MAX_CACHE_BYTES = 64 * 1024 * 1024;
@@ -261,6 +262,7 @@ export function buildVideoCompositionFramePreviewCommand({
 		imageSources: options.imageSources,
 		stickerSources: options.stickerSources,
 		textAssLayers: textAssLayerPaths,
+		textRasterLayers: options.textRasterLayers,
 	});
 	const { filterIndex, mapIndex, videoMap } = getMappedVideoLabel({
 		args: exportArgs,
@@ -340,6 +342,17 @@ function buildCompositionCacheKey({
 			modified: stats.mtimeMs,
 		};
 	});
+	const textRasterSourceFiles = (options.textRasterLayers ?? []).map(
+		(layer) => {
+			const sourcePath = getTextRasterSourceProbePath({ source: layer.source });
+			const stats = fs.statSync(sourcePath);
+			return {
+				path: sourcePath,
+				size: stats.size,
+				modified: stats.mtimeMs,
+			};
+		}
+	);
 	return createHash("sha256")
 		.update(
 			JSON.stringify({
@@ -349,12 +362,13 @@ function buildCompositionCacheKey({
 				height: options.height,
 				fps: options.fps,
 				backgroundColor: options.backgroundColor ?? "#000000",
-				sourceFiles,
+				sourceFiles: [...sourceFiles, ...textRasterSourceFiles],
 				videoSources: options.videoSources,
 				videoTransitions: options.videoTransitions ?? [],
 				imageSources: options.imageSources ?? [],
 				stickerSources: options.stickerSources ?? [],
 				textAssLayers: options.textAssLayers ?? [],
+				textRasterLayers: options.textRasterLayers ?? [],
 			})
 		)
 		.digest("hex");
