@@ -335,11 +335,16 @@ TESwingProcessUnit::setUpdateMode(int)
   -> AmazingEngine::SwingManager::setUpdateMode(int)
 ```
 
-同时存在公开 C 入口 `bef_swing_manager_set_update_mode`。wrapper 与 C 入口都会把 mode 截为低 8 bit 后原样传给 `SwingManager`；`mode == 1` 会切换算法更新布尔状态，`mode == 3` 对应日志中的 `PREPARE_SEEK`。这证明当前低层 Effect handle 的 A/B 绕过了剪映真正的 Swing 宿主状态机，因此结果不变并不能证明 UI 的 picture/video mode 无效。尚未捕获的是剪映 UI 在具体预览、暂停、拖动和导出场景中实际传入的 mode 序列。
+同时存在公开 C 入口 `bef_swing_manager_set_update_mode`。wrapper 与 C 入口都会把 mode 截为低 8 bit 后原样传给 `SwingManager`；`mode == 1` 会切换算法更新布尔状态，`mode == 3` 对应日志中的 `PREPARE_SEEK`。这证明当前低层 Effect handle 的 A/B 绕过了剪映真正的 Swing 宿主状态机，因此结果不变并不能证明 UI 的 picture/video mode 无效。
+
+> 更新：Swing/Metal 宿主已补齐，该 A/B 已完成。`3;1`、`3;1;2` 和直接 mode `1` 收敛到同一张强 mask，
+> 但在同一 854x480 无损输入上，低层 Effect 重放对剪映 UI 为 `37.331 dB`，而 Swing `3;1;2` 只有
+> `32.669 dB`，两条宿主路径之间为 `33.413 dB`。因此 `3;1;2` 已从“候选 UI 序列”降级为反例,
+> 后续基线固定为 `37.331 dB` 的低层路径。见 [README.md](README.md)。
 
 另一次 pipeline 实验因为算法结果未同步就绪，并在销毁 SDK 时退出 `139`，其低强度 mask 不具备可比性，已从有效证据中排除。
 
-因此当前边界已经更精确：模型工作分辨率、原始软权重、R8 格式和包内线性采样已经定位；尚未定位的是剪映 UI 宿主进入算法前选择的 Swing update mode、预处理状态与状态重置时机，而不是效果包 shader 中的固定 mask 后处理。
+因此当前边界已经更精确：模型工作分辨率、原始软权重、R8 格式和包内线性采样已经定位；剪映 UI 宿主进入算法前选择的 Swing update mode 已通过上述 A/B 排除为主因（`3;1;2` 反而是反例），剩余差异位于宿主解码/色彩管理路径，而不是效果包 shader 中的固定 mask 后处理。
 
 ### 人脸与皮肤链路边界
 
@@ -356,9 +361,9 @@ TESwingProcessUnit::setUpdateMode(int)
 当前结果已从“能写入目标纹理”推进到“与中文剪映同素材、同帧、完整视频高相似重放”，并已经排除 HEVC 是唯一误差来源、空间缩放是主要误差源以及全局 RGB/YUV 矩阵错误。但它仍不是逐像素完美复刻，主要限制是：
 
 1. 文件级同源视频输入仍会经过不同的宿主解码和 ProRes 往返，尽管 BT.709 limited 已由 RGB 色卡锁定；
-2. skin mask 的模型形状、运行时工作尺寸、软权重和包内采样已直接读出，但剪映 UI 的 Swing update mode、预处理状态和状态重置时机尚未复现；
+2. skin mask 的模型形状、运行时工作尺寸、软权重和包内采样已直接读出；剪映 UI 的 Swing update mode 已通过 `3;1;2` A/B 排除为主因（见上文更新），剩余差异位于宿主解码与状态重置时机；
 3. 真人素材的蓝通道残差仍最高，但无人物色卡证明它是 mask 混合放大，而不是全局蓝通道转换错误；
-4. 人脸框和关键点尚未通过独立结果接口验证；
+4. 人脸框和关键点已通过运行时拦截 `liblens.dylib` 人脸 SDK 入口验证有效，且实测不参与 skin mask 计算（见上文更正）；
 5. 诊断性基线校准不能替代产品路径中的确定性色彩管理。
 
 下一轮应复用现有 `research/jianying-runtime-probe` Swing/Metal 宿主，通过 `bef_swing_segment_video_create_feature` 和 `bef_swing_segment_video_add_feature` 挂载滤镜，补齐模型 resource finder，并对 `bef_swing_manager_set_update_mode` 的 mode 序列做 A/B。若独立宿主仍不能复现，再对剪映 UI 调用点做运行时抓取。BT.709 limited、模型工作尺寸和包内 `GL_LINEAR` 路径已固定，不再需要继续盲枚举全局矩阵或给 mask 叠加经验模糊。

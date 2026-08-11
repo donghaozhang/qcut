@@ -4,7 +4,7 @@
 
 ## 单一问题
 
-本轮只验证一个问题：低层 Effect、旧 C API Swing 和剪映 UI 使用的 Swing V2 是否把同一个张量送入 `tt_skin_seg`。
+本轮只验证一个问题：低层 Effect、旧 C API Swing 和剪映 UI 使用的 Swing V2 是否把同一张量送入 `tt_skin_seg`。
 
 实验使用同一份 854x480 RGBA 真人帧、同一个滤镜包和同一组本机模型。低层路径通过 `bef_effect_algorithm_texture` 与 `bef_effect_process_texture` 连续预热；旧 C API Swing 路径使用 manifest `3;1;2`。两条路径都保持一个 context、一个线程和递增时间戳。本文前半部分历史表格中的“Swing”均指这个旧 C API 路径，不代表剪映 UI 的 Swing V2。
 
@@ -213,7 +213,7 @@ V2 在 mask 内部分通道只有红 `28.161`、绿 `30.936`、蓝 `18.436 dB`�
 
 | 观察项 | 次数 | 结果 |
 | --- | ---: | --- |
-| `textureId()` | 5 | texture 指针均为 `nullptr`，ID 均为 `0` |
+| `textureId()` | 5 | 返回的纹理 ID 均为 `0` |
 | `nativeBuffer()` | 5 | 返回值均为 `nullptr` |
 | `updateTexture(...)` | 0 | 从未把 texture 写入该对象 |
 
