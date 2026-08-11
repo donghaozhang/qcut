@@ -7,6 +7,7 @@
 #include "probe-utils.h"
 
 #include <array>
+#include <chrono>
 #include <cstdint>
 #include <cstring>
 #include <cstdio>
@@ -17,6 +18,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -50,6 +52,8 @@ constexpr std::string_view kSeekManagerDeviceTextureWithData =
 constexpr std::string_view kCreateSegment = "bef_swing_segment_create";
 constexpr std::string_view kDestroySegment = "bef_swing_segment_destroy";
 constexpr std::string_view kResetSegment = "bef_swing_segment_reset";
+constexpr std::string_view kSetSegmentParams =
+    "bef_swing_segment_set_params";
 constexpr std::string_view kSetSegmentTimeRange =
     "bef_swing_segment_set_time_range";
 constexpr std::string_view kSetSegmentRenderIndex =
@@ -85,6 +89,7 @@ using CreateSwingManagerMethod = int (*)(void**, unsigned int, unsigned int,
 using HandleMethod = int (*)(void*);
 using SetBoolMethod = int (*)(void*, const char*, bool);
 using SetNamedIntMethod = int (*)(void*, const char*, int);
+using SetSegmentParamsMethod = int (*)(void*, const char*);
 using SetIntMethod = int (*)(void*, int);
 using CreateSegmentMethod = int (*)(void*, void**, int, const char*);
 using CreateFeatureMethod = int (*)(void*, void**, const char*);
@@ -124,6 +129,7 @@ struct FilterSymbols {
   CreateSegmentMethod createSegment;
   HandleMethod destroySegment;
   HandleMethod resetSegment;
+  SetSegmentParamsMethod setSegmentParams;
   SetTimeRangeMethod setSegmentTimeRange;
   SetIntMethod setSegmentRenderIndex;
   CreateFeatureMethod createVideoFeature;
@@ -160,6 +166,8 @@ struct FilterSymbols {
       .createSegment = resolveSymbol<CreateSegmentMethod>(core, kCreateSegment),
       .destroySegment = resolveSymbol<HandleMethod>(core, kDestroySegment),
       .resetSegment = resolveSymbol<HandleMethod>(core, kResetSegment),
+      .setSegmentParams =
+          resolveSymbol<SetSegmentParamsMethod>(core, kSetSegmentParams),
       .setSegmentTimeRange =
           resolveSymbol<SetTimeRangeMethod>(core, kSetSegmentTimeRange),
       .setSegmentRenderIndex =
@@ -236,8 +244,8 @@ class FilterHostSession {
                     OpenGlContext& openGlContext, const fs::path& packagePath,
                     const GraphicsFrameResources& resources,
                     int inputTextureDataCode, int outputTextureDataCode,
-                    int algorithmCacheFlag,
-                    bool enableSwingSimplify,
+                    int algorithmCacheFlag, std::string featureParameters,
+                    bool exportMode, bool enableSwingSimplify,
                     bool enableAdjustColorWithFloat,
                     bool enableImageQuality, bool managerCreateOption,
                     bool enableParallelAsyncSwing)
@@ -249,6 +257,8 @@ class FilterHostSession {
         inputTextureDataCode_(inputTextureDataCode),
         outputTextureDataCode_(outputTextureDataCode),
         algorithmCacheFlag_(algorithmCacheFlag),
+        featureParameters_(std::move(featureParameters)),
+        exportMode_(exportMode),
         enableSwingSimplify_(enableSwingSimplify),
         enableAdjustColorWithFloat_(enableAdjustColorWithFloat),
         enableImageQuality_(enableImageQuality),
@@ -269,7 +279,8 @@ class FilterHostSession {
   [[nodiscard]] bool render(const GraphicsFrameResources& resources,
                             std::span<const UpdateModePass> renderPasses,
                             std::string_view resetAction,
-                            std::int64_t timestamp) {
+                            std::int64_t timestamp,
+                            int stageDelayMilliseconds) {
     if (resetAction == "manager") {
       destroyHost();
       createHost();
@@ -299,7 +310,9 @@ class FilterHostSession {
         .code = outputTextureDataCode_,
         .texture = &output,
     };
-    for (const UpdateModePass& renderPass : renderPasses) {
+    for (std::size_t passIndex = 0; passIndex < renderPasses.size();
+         passIndex += 1) {
+      const UpdateModePass& renderPass = renderPasses[passIndex];
       for (const int updateMode : renderPass.modes) {
         const int currentModeResult =
             symbols_.setManagerUpdateMode(manager_, updateMode);
@@ -316,6 +329,10 @@ class FilterHostSession {
       }
       if (currentSeekResult != 0) {
         seekResult = currentSeekResult;
+      }
+      if (stageDelayMilliseconds > 0 && passIndex + 1 < renderPasses.size()) {
+        std::this_thread::sleep_for(
+            std::chrono::milliseconds(stageDelayMilliseconds));
       }
     }
     std::cout << "[filter] timestamp=" << timestamp << " passes=";
@@ -337,7 +354,17 @@ class FilterHostSession {
               << textureResult << ',' << seekResult << " texture_data="
               << inputTextureDataCode_ << ',' << outputTextureDataCode_;
     printAlgorithmSize("after-render");
-    return modeResult == 0 && textureResult == 0 && seekResult == 0;
+    int parameterResult = 0;
+    if (seekResult == 0 && !featureParameters_.empty() &&
+        !featureParametersApplied_) {
+      parameterResult =
+          symbols_.setSegmentParams(feature_, featureParameters_.c_str());
+      featureParametersApplied_ = parameterResult == 0;
+      std::cout << "[filter] post-frame feature params result = "
+                << parameterResult << '\n';
+    }
+    return modeResult == 0 && textureResult == 0 && seekResult == 0 &&
+           parameterResult == 0;
   }
 
  private:
@@ -353,6 +380,7 @@ class FilterHostSession {
   }
 
   void createHost() {
+    featureParametersApplied_ = false;
     openGlContext_.makeCurrent();
     openGlContext_.printCurrent("before manager create");
     const int managerResult = enableParallelAsyncSwing_
@@ -384,6 +412,8 @@ class FilterHostSession {
 
     const int algorithmCacheResult = symbols_.setManagerParameterInt(
         manager_, "AlgorithmCacheFlag", algorithmCacheFlag_);
+    const int exportModeResult = symbols_.setManagerParameterBool(
+        manager_, "ExportMode", exportMode_);
     const int adjustColorResult = symbols_.setManagerParameterBool(
         manager_, "EnableAdjustColorWithFloat",
         enableAdjustColorWithFloat_);
@@ -420,14 +450,16 @@ class FilterHostSession {
                                    ? -1
                                    : symbols_.addManagerSegment(manager_, video_);
     std::cout << "[filter] create results=" << managerResult << ','
-              << algorithmCacheResult << ',' << adjustColorResult << ','
+              << algorithmCacheResult << ',' << exportModeResult << ','
+              << adjustColorResult << ','
               << imageQualityResult << ','
               << simplifyResult << ',' << videoResult << ',' << featureResult
               << ',' << addFeatureResult << ',' << featureTimeRangeResult << ','
               << featureRenderIndexResult << ',' << timeRangeResult << ','
               << renderIndexResult << ',' << addVideoResult;
     printAlgorithmSize("after-create");
-    ready_ = algorithmCacheResult == 0 && adjustColorResult == 0 &&
+    ready_ = algorithmCacheResult == 0 && exportModeResult == 0 &&
+             adjustColorResult == 0 &&
              imageQualityResult == 0 &&
              simplifyResult == 0 && videoResult == 0 && featureResult == 0 &&
              addFeatureResult == 0 && featureTimeRangeResult == 0 &&
@@ -471,11 +503,14 @@ class FilterHostSession {
   int inputTextureDataCode_;
   int outputTextureDataCode_;
   int algorithmCacheFlag_;
+  std::string featureParameters_;
+  bool exportMode_;
   bool enableSwingSimplify_;
   bool enableAdjustColorWithFloat_;
   bool enableImageQuality_;
   bool managerCreateOption_;
   bool enableParallelAsyncSwing_;
+  bool featureParametersApplied_ = false;
   bool ready_ = false;
 };
 
@@ -490,11 +525,14 @@ struct RenderContext {
   int inputTextureDataCode;
   int outputTextureDataCode;
   int algorithmCacheFlag;
+  std::string featureParameters;
+  bool exportMode;
   bool enableSwingSimplify;
   bool enableAdjustColorWithFloat;
   bool enableImageQuality;
   bool managerCreateOption;
   bool enableParallelAsyncSwing;
+  int stageDelayMilliseconds;
   std::unique_ptr<FilterHostSession> session;
 };
 
@@ -508,12 +546,14 @@ bool renderFilterFrame(const GraphicsFrameResources& resources) {
         context->symbols, context->models, context->openGlContext,
         context->packagePath, resources, context->inputTextureDataCode,
         context->outputTextureDataCode, context->algorithmCacheFlag,
+        context->featureParameters, context->exportMode,
         context->enableSwingSimplify,
         context->enableAdjustColorWithFloat, context->enableImageQuality,
         context->managerCreateOption, context->enableParallelAsyncSwing);
   }
-  return context->session->render(resources, context->renderPasses,
-                                  context->resetAction, context->timestamp);
+  return context->session->render(
+      resources, context->renderPasses, context->resetAction,
+      context->timestamp, context->stageDelayMilliseconds);
 }
 
 }  // namespace
@@ -551,7 +591,18 @@ FilterSequenceResult renderFilterSequence(
   std::cout << "[filter] parallel/async Swing="
             << enableParallelAsyncSwing
             << " result = " << parallelAsyncSwingResult << '\n';
-  const ModelCatalog models(request.modelDirectory);
+  if (request.skinSegUseSimdOptim.has_value()) {
+    bool skinSegUseSimdOptim = *request.skinSegUseSimdOptim;
+    const int skinSegSimdResult = symbols.configureAbValue(
+        "enable_skin_seg_use_simd_optim", &skinSegUseSimdOptim, 0);
+    std::cout << "[filter] skin-seg SIMD AB=" << skinSegUseSimdOptim
+              << " result = " << skinSegSimdResult << '\n';
+    if (skinSegSimdResult != 0) {
+      throw std::runtime_error("failed to configure skin-seg SIMD AB");
+    }
+  }
+  const ModelCatalog models(request.modelDirectory,
+                            request.preferExactModelFilename);
   GraphicsProbeSession graphics(request.runtimeRoot, request.width,
                                 request.height);
   if (!graphics.ready()) {
@@ -570,11 +621,14 @@ FilterSequenceResult renderFilterSequence(
       .inputTextureDataCode = request.inputTextureDataCode,
       .outputTextureDataCode = request.outputTextureDataCode,
       .algorithmCacheFlag = request.algorithmCacheFlag,
+      .featureParameters = request.featureParameters,
+      .exportMode = request.exportMode,
       .enableSwingSimplify = request.enableSwingSimplify,
       .enableAdjustColorWithFloat = request.enableAdjustColorWithFloat,
       .enableImageQuality = request.enableImageQuality,
       .managerCreateOption = request.managerCreateOption,
       .enableParallelAsyncSwing = request.enableParallelAsyncSwing,
+      .stageDelayMilliseconds = request.stageDelayMilliseconds,
       .session = nullptr,
   };
   FilterSequenceResult result = {.requestedFrames = steps.size()};
@@ -596,14 +650,35 @@ FilterSequenceResult renderFilterSequence(
         .captureRenderedInputA = request.enableParallelAsyncSwing,
         .useNativeInputTextures = true,
         .nativeTextureFlags = request.nativeTextureFlags,
+        .postRenderReadbackDelayMilliseconds =
+            request.postSeekDelayMilliseconds,
     });
     // V2 mutates its first texture; the legacy output texture is code-only.
     std::vector<std::uint8_t>& renderedPixels =
         request.enableParallelAsyncSwing ? frame.renderedInputAPixels
                                          : frame.outputPixels;
-    if (!frame.rendered || renderedPixels.size() != frameBytes) {
+    const std::vector<std::uint8_t>& preWaitRenderedPixels =
+        request.enableParallelAsyncSwing
+            ? frame.preWaitRenderedInputAPixels
+            : frame.preWaitOutputPixels;
+    const bool missingPreWaitReadback =
+        request.postSeekDelayMilliseconds > 0 &&
+        preWaitRenderedPixels.size() != frameBytes;
+    if (!frame.rendered || renderedPixels.size() != frameBytes ||
+        missingPreWaitReadback) {
       std::cout << "[filter] frame " << index << " failed\n";
       continue;
+    }
+    if (request.postSeekDelayMilliseconds > 0) {
+      std::size_t changedBytes = 0;
+      for (std::size_t byteIndex = 0; byteIndex < renderedPixels.size();
+           byteIndex += 1) {
+        if (renderedPixels[byteIndex] != preWaitRenderedPixels[byteIndex]) {
+          changedBytes += 1;
+        }
+      }
+      std::cout << "[filter] post-seek texture changed-bytes=" << changedBytes
+                << '/' << renderedPixels.size() << '\n';
     }
     // Textures created with the third createTextureFromNativeBuffer flag read
     // back in RGBA order already; converting again would swap R and B.
