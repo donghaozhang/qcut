@@ -290,9 +290,12 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"Rank QCut filter presets by how closely they match one cached Jianying LUT",
 		category: "filter-lab",
 		flags: [
-			f("--resource-id", "string", "Jianying resource ID from filter-lab list", {
-				required: true,
-			}),
+			f("--lut-id", "string", "Exact LUT ID from filter-lab list"),
+			f(
+				"--resource-id",
+				"string",
+				"Jianying resource ID when it has exactly one cached LUT"
+			),
 			f("--limit", "number", "How many closest presets to report"),
 			f(
 				"--sample",
@@ -301,7 +304,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			),
 		],
 		examples: [
-			"qcut filter-lab compare --resource-id 7429744855724641545 --json",
+			"qcut filter-lab compare --lut-id 7429744855724641545/f4d46cb5bca43ef171199ea673d53b00/filter.cube.vf --json",
 		],
 	},
 	"filter-lab-match": {
