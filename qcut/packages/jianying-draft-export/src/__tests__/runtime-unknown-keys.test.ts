@@ -444,7 +444,16 @@ function createNormalizedSnapshot({
 						color: "#ffffff",
 						content: "QCut",
 						duration: 2,
-						fontFamily: "Arial",
+						fontAsset: {
+							assetId: `sha256:${"a".repeat(64)}`,
+							cssFamily: "QCutLocal_aaaaaaaaaaaaaaaaaaaa",
+							familyName: "测试字体",
+							fullName: "测试字体 Regular",
+							kind: "local-font",
+							postscriptName: "Test-Font-Regular",
+							source: "jianying-cache",
+						},
+						fontFamily: "QCutLocal_aaaaaaaaaaaaaaaaaaaa",
 						fontSize: 64,
 						fontStyle: "normal",
 						fontWeight: "normal",
@@ -617,6 +626,16 @@ describe("snapshot runtime property allowlists", () => {
 						throw new Error("Expected normalized media element.");
 					}
 					element.keyframes = { opactiy: [] } as never;
+				},
+			},
+			{
+				expectedPath: "$.snapshot.tracks[1].elements[0].fontAsset",
+				mutate: (value) => {
+					const element = value.tracks[1]?.elements[0];
+					if (!element || element.type !== "text" || !element.fontAsset) {
+						throw new Error("Expected local text font asset.");
+					}
+					Object.assign(element.fontAsset, { postcriptName: "typo" });
 				},
 			},
 			{
