@@ -99,6 +99,10 @@ describe("Jianying filter lab IPC", () => {
 			loadReference,
 			resolveTitles: async () =>
 				new Map([[`${reference.resourceId}/${reference.version}`, "高清黑白"]]),
+			resolveCategories: async () => ({
+				order: ["黑白", "高清"],
+				byResourceId: new Map([[reference.resourceId, ["黑白", "高清"]]]),
+			}),
 		});
 
 		const listed = (await getHandler({
@@ -106,12 +110,14 @@ describe("Jianying filter lab IPC", () => {
 		})(context.event)) as JianyingFilterLabListResult;
 		expect(listed).toMatchObject({
 			count: 1,
+			categoryOrder: ["黑白", "高清"],
 			luts: [
 				{
 					lutId: reference.lutId,
 					title: "高清黑白",
 					role: "single",
 					size: 2,
+					categories: ["黑白", "高清"],
 				},
 			],
 		});
@@ -147,6 +153,10 @@ describe("Jianying filter lab IPC", () => {
 			getMainWindow: () => context.mainWindow,
 			listReferences: async () => [reference],
 			resolveTitles: async () => new Map(),
+			resolveCategories: async () => ({
+				order: [],
+				byResourceId: new Map(),
+			}),
 		});
 		const list = getHandler({ channel: JIANYING_FILTER_LAB_LIST_CHANNEL });
 		await expect(list(context.iframeEvent)).rejects.toThrow("非主窗口");
