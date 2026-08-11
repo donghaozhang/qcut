@@ -287,6 +287,11 @@ function resolveLutSource({ element }: { element: MediaElement }) {
 			"CapCut custom LUT export cannot preserve QCut LUT skin protection."
 		);
 	}
+	if (color.lut.dual) {
+		throw new Error(
+			"CapCut custom LUT export cannot preserve QCut dual-LUT skin-mask blending."
+		);
+	}
 	const lutKeyframes = [
 		...(color.keyframes?.["lut.intensity"] ?? []),
 		...(color.keyframes?.["lut.skinProtection"] ?? []),
