@@ -1,3 +1,4 @@
+// biome-ignore-all lint/suspicious/noApproximativeNumericConstant: fitted polynomial coefficients occasionally land near math constants
 import type { FilterPreset } from "../filter-types";
 
 export const JIANYING_FILM_PARITY_FILTER_PRESETS: FilterPreset[] = [

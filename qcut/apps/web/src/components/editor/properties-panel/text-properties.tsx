@@ -890,8 +890,7 @@ export function TextProperties({
 							)}
 							<div className="min-w-0 flex-1">
 								<div className="font-medium text-foreground">
-									{element.jianyingTextStyle.packageKind ===
-									"ScriptInfoSticker"
+									{element.jianyingTextStyle.packageKind === "ScriptInfoSticker"
 										? "剪映原版脚本花字"
 										: "剪映原版动态花字"}
 								</div>

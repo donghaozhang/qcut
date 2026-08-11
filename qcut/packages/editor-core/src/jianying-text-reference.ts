@@ -4,7 +4,11 @@ const RESOURCE_ID_PATTERN = /^\d{1,32}$/;
 const PACKAGE_HASH_PATTERN = /^[a-f0-9]{32}$/i;
 const MAX_TEMPLATE_DURATION_SECONDS = 60;
 
-function asRecord({ value }: { value: unknown }): Record<string, unknown> | null {
+function asRecord({
+	value,
+}: {
+	value: unknown;
+}): Record<string, unknown> | null {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return null;
 	return value as Record<string, unknown>;
 }

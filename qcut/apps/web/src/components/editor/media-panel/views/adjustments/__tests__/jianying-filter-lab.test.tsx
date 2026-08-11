@@ -135,28 +135,30 @@ function installFilterLabApi({
 		};
 	});
 	const thumbnail = vi.fn();
-	const loadRenderer = vi.fn(async ({ resourceId }: { resourceId: string }) => ({
-		resourceId,
-		version: "shader-version",
-		name: "清透美食",
-		enabled: true as const,
-		presetId: `jianying:${resourceId}:shader-version`,
-		intensity: 100,
-		fidelity: "structural" as const,
-		passes: [
-			{ kind: "sharpen" as const, amount: 1 },
-			{
-				kind: "lut" as const,
-				intensity: 100,
-				cube: {
-					size: 2,
-					domainMin: [0, 0, 0] as [number, number, number],
-					domainMax: [1, 1, 1] as [number, number, number],
-					values: Array.from({ length: 24 }, () => 0),
+	const loadRenderer = vi.fn(
+		async ({ resourceId }: { resourceId: string }) => ({
+			resourceId,
+			version: "shader-version",
+			name: "清透美食",
+			enabled: true as const,
+			presetId: `jianying:${resourceId}:shader-version`,
+			intensity: 100,
+			fidelity: "structural" as const,
+			passes: [
+				{ kind: "sharpen" as const, amount: 1 },
+				{
+					kind: "lut" as const,
+					intensity: 100,
+					cube: {
+						size: 2,
+						domainMin: [0, 0, 0] as [number, number, number],
+						domainMax: [1, 1, 1] as [number, number, number],
+						values: Array.from({ length: 24 }, () => 0),
+					},
 				},
-			},
-		],
-	}));
+			],
+		})
+	);
 	const onCatalogChanged = vi.fn(() => vi.fn());
 	Object.defineProperty(window, "electronAPI", {
 		configurable: true,
@@ -300,9 +302,7 @@ describe("JianyingFilterLab catalog", () => {
 				cachedCount: 1,
 				availableCount: 1,
 				filters: [shaderFood],
-				categories: [
-					{ name: "美食", total: 1, cached: 1, available: 1 },
-				],
+				categories: [{ name: "美食", total: 1, cached: 1, available: 1 }],
 			},
 		});
 		const onApplyMultiPass = vi.fn();
