@@ -130,7 +130,12 @@ function installFilterLabApi({
 }: {
 	available?: boolean;
 } = {}) {
-	const list = vi.fn(async () => ({ count: 1, luts: [localLutSummary] }));
+	const list = vi.fn(async () => ({
+		count: 1,
+		luts: [localLutSummary],
+		categoryOrder: [],
+		uncached: [],
+	}));
 	const load = vi.fn(async () => loadedLocalLut);
 	Object.defineProperty(window, "electronAPI", {
 		configurable: true,
