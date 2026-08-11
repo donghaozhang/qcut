@@ -26,7 +26,8 @@ class OpenGlContext {
 
 class ModelCatalog {
  public:
-  explicit ModelCatalog(const std::filesystem::path& directory);
+  explicit ModelCatalog(const std::filesystem::path& directory,
+                        bool preferExactFilename = false);
 
   [[nodiscard]] char* resolve(const char* directory, const char* name) const;
 
@@ -35,6 +36,7 @@ class ModelCatalog {
       const std::string& request);
 
   std::vector<std::string> paths_;
+  bool preferExactFilename_;
 };
 
 void activateModelCatalog(const ModelCatalog& catalog);
