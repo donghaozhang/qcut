@@ -9,6 +9,10 @@ import {
 } from "@/types/timeline";
 import type { TextRasterLayerInput } from "../types";
 import {
+	ensureTextElementLocalFontLoaded,
+	isLocalFontAssetReference,
+} from "@/lib/fonts/local-font-runtime";
+import {
 	defaultEffectSequenceExportAPI,
 	sanitizeSequenceElementId,
 	type EffectSequenceExportAPI,
@@ -89,7 +93,27 @@ export function usesTextRasterExport({
 	element: TextElement;
 	fps?: number;
 }): boolean {
-	return hasAnimationPhases({ element, fps });
+	return (
+		Boolean(element.jianyingTextStyle) ||
+		isLocalFontAssetReference({ value: element.fontAsset }) ||
+		hasAnimationPhases({ element, fps })
+	);
+}
+
+function hasDynamicRasterFrames({
+	element,
+	fps,
+}: {
+	element: TextElement;
+	fps: number;
+}) {
+	if (element.jianyingTextStyle) return true;
+	if (hasAnimationPhases({ element, fps })) return true;
+	if (element.animationType && element.animationType !== "none") return true;
+	if (element.trackingTargetId?.trim()) return true;
+	return Object.values(element.keyframes ?? {}).some(
+		(keyframes) => keyframes && keyframes.length > 0
+	);
 }
 
 function collectTextRasterJobs({
@@ -123,13 +147,16 @@ function collectTextRasterJobs({
 			const visibleStartFrame = Math.ceil(visibleStart * fps - FRAME_EPSILON);
 			const visibleEndFrame = Math.ceil(visibleEnd * fps - FRAME_EPSILON);
 			if (visibleEndFrame <= visibleStartFrame) continue;
+			const visibleFrameCount = visibleEndFrame - visibleStartFrame;
 			jobs.push({
 				element,
 				trackOrder,
 				elementOrder,
 				startTime: visibleStartFrame / fps,
 				endTime: visibleEndFrame / fps,
-				frameCount: visibleEndFrame - visibleStartFrame,
+				frameCount: hasDynamicRasterFrames({ element, fps })
+					? visibleFrameCount
+					: 1,
 			});
 		}
 	}
@@ -141,10 +168,16 @@ async function loadTextFonts({
 }: {
 	jobs: readonly TextRasterJob[];
 }): Promise<void> {
+	await Promise.all(
+		jobs
+			.filter(({ element }) => !element.jianyingTextStyle)
+			.map(({ element }) => ensureTextElementLocalFontLoaded({ element }))
+	);
 	if (typeof document === "undefined" || !document.fonts) return;
 	await document.fonts.ready;
 	const requests = new Map<string, { font: string; content: string }>();
 	for (const { element } of jobs) {
+		if (element.jianyingTextStyle) continue;
 		const font =
 			`${element.fontStyle} ${element.fontWeight} ` +
 			`${element.fontSize}px "${element.fontFamily}"`;
@@ -159,6 +192,17 @@ async function loadTextFonts({
 
 function textSequenceId({ elementId }: { elementId: string }): string {
 	return `text-${sanitizeSequenceElementId({ elementId })}`;
+}
+
+function requireRasterPath({
+	path,
+	message,
+}: {
+	path?: string;
+	message: string;
+}) {
+	if (!path) throw new Error(message);
+	return path;
 }
 
 async function bakeTextRasterJob({
@@ -202,6 +246,7 @@ async function bakeTextRasterJob({
 			? job.element
 			: { ...job.element, blendMode: "normal" };
 	let patternPath: string | undefined;
+	let firstFramePath: string | undefined;
 	const projectCanvas = { width: canvasWidth, height: canvasHeight };
 
 	const bakeFrame = async ({ frameIndex }: { frameIndex: number }) => {
@@ -242,6 +287,7 @@ async function bakeTextRasterJob({
 			);
 		}
 		patternPath ??= result.patternPath;
+		firstFramePath ??= result.path;
 		onFrameBaked?.();
 	};
 
@@ -250,18 +296,25 @@ async function bakeTextRasterJob({
 		frameChain = frameChain.then(() => bakeFrame({ frameIndex }));
 	}
 	await frameChain;
-	if (!patternPath) {
-		throw new Error(
-			`Text raster sequence has no pattern path for ${job.element.id}`
-		);
-	}
 	return {
 		elementId: job.element.id,
-		source: {
-			kind: "image-sequence",
-			path: patternPath,
-			frameRate: fps,
-		},
+		source:
+			job.frameCount === 1
+				? {
+						kind: "image",
+						path: requireRasterPath({
+							path: firstFramePath,
+							message: `Text raster image has no path for ${job.element.id}`,
+						}),
+					}
+				: {
+						kind: "image-sequence",
+						path: requireRasterPath({
+							path: patternPath,
+							message: `Text raster sequence has no pattern path for ${job.element.id}`,
+						}),
+						frameRate: fps,
+					},
 		startTime: job.startTime,
 		endTime: job.endTime,
 		blendMode,
@@ -293,14 +346,21 @@ function planTextRasterJobs({
 	let pixelFrames = 0;
 	for (const job of jobs) {
 		if (shouldCancel?.()) throw new Error("Export cancelled by user");
-		const crop = resolveTextRasterCrop({
-			job,
-			tracks,
-			canvasWidth,
-			canvasHeight,
-			fps,
-			shouldCancel,
-		});
+		const crop = job.element.jianyingTextStyle
+			? {
+					x: 0,
+					y: 0,
+					width: Math.max(1, Math.round(job.element.width ?? 512)),
+					height: Math.max(1, Math.round(job.element.height ?? 512)),
+				}
+			: resolveTextRasterCrop({
+					job,
+					tracks,
+					canvasWidth,
+					canvasHeight,
+					fps,
+					shouldCancel,
+				});
 		pixelFrames = assertTextRasterCropBudget({
 			elementId: job.element.id,
 			frameCount: job.frameCount,
@@ -311,6 +371,80 @@ function planTextRasterJobs({
 		plans.push({ job, crop });
 	}
 	return plans;
+}
+
+async function renderJianyingTextRasterJob({
+	canvasHeight,
+	canvasWidth,
+	fps,
+	job,
+	sessionId,
+	shouldCancel,
+}: {
+	canvasHeight: number;
+	canvasWidth: number;
+	fps: number;
+	job: TextRasterJob;
+	sessionId: string;
+	shouldCancel?: () => boolean;
+}): Promise<TextRasterLayerInput> {
+	const reference = job.element.jianyingTextStyle;
+	const api = window.electronAPI?.jianyingTextRuntime;
+	if (!reference || !api) {
+		throw new Error("剪映原版动态花字渲染仅在 QCut 桌面版中可用");
+	}
+	const requestId = `export:${sanitizeSequenceElementId({ elementId: sessionId })}:${sanitizeSequenceElementId({ elementId: job.element.id })}`;
+	let cancellationSent = false;
+	const cancellationTimer = window.setInterval(() => {
+		if (!shouldCancel?.() || cancellationSent) return;
+		cancellationSent = true;
+		void api.cancel({ requestId });
+	}, 100);
+	try {
+		const result = await api.render({
+			requestId,
+			reference,
+			content: job.element.content,
+			fontAssetId: job.element.fontAsset?.assetId,
+			fontSize: job.element.fontSize,
+			canvasWidth,
+			canvasHeight,
+			transform: {
+				x: job.element.x,
+				y: job.element.y,
+				width: job.element.width ?? 512,
+				height: job.element.height ?? 512,
+				rotation: job.element.rotation,
+				opacity: job.element.opacity,
+			},
+			sourceStart: Math.max(0, job.startTime - job.element.startTime),
+			elementDuration: job.element.duration,
+			frameCount: job.frameCount,
+			fps,
+		});
+		if (
+			result.requestId !== requestId ||
+			result.packageHash !== reference.packageHash ||
+			result.frameCount !== job.frameCount
+		) {
+			throw new Error("剪映花字渲染结果与时间线请求不匹配");
+		}
+		if (shouldCancel?.()) throw new Error("Export cancelled by user");
+		return {
+			elementId: job.element.id,
+			source: result.source,
+			startTime: job.startTime,
+			endTime: job.endTime,
+			blendMode: resolveTextStyle(job.element).blendMode,
+			x: result.x,
+			y: result.y,
+			trackOrder: job.trackOrder,
+			elementOrder: job.elementOrder,
+			cacheKey: reference.packageHash,
+		};
+	} finally {
+		window.clearInterval(cancellationTimer);
+	}
 }
 
 export async function extractTextRasterSources({
@@ -356,7 +490,10 @@ export async function extractTextRasterSources({
 	}
 	const jobs = collectTextRasterJobs({ fps, tracks });
 	if (jobs.length === 0) return [];
-	if (!api?.saveEffectSequenceFrame) {
+	if (
+		jobs.some(({ element }) => !element.jianyingTextStyle) &&
+		!api?.saveEffectSequenceFrame
+	) {
 		throw new Error("Text raster export API is unavailable");
 	}
 	if (shouldCancel?.()) throw new Error("Export cancelled by user");
@@ -364,6 +501,8 @@ export async function extractTextRasterSources({
 	const totalFrames = jobs.reduce((sum, job) => sum + job.frameCount, 0);
 	assertTextRasterFrameBudget({ totalFrames, limits });
 	const mutableTracks = [...tracks];
+	await loadTextFonts({ jobs });
+	if (shouldCancel?.()) throw new Error("Export cancelled by user");
 	const plans = planTextRasterJobs({
 		jobs,
 		tracks: mutableTracks,
@@ -373,31 +512,42 @@ export async function extractTextRasterSources({
 		limits,
 		shouldCancel,
 	});
-	await loadTextFonts({ jobs });
-	if (shouldCancel?.()) throw new Error("Export cancelled by user");
 
 	const layers: TextRasterLayerInput[] = [];
 	let bakedFrames = 0;
 	const bakePlan = async ({ plan }: { plan: TextRasterPlan }) => {
 		if (shouldCancel?.()) throw new Error("Export cancelled by user");
 		const { job, crop } = plan;
-		const layer = await bakeTextRasterJob({
-			api,
-			canvasHeight,
-			canvasWidth,
-			createCanvas,
-			crop,
-			fps,
-			job,
-			onFrameBaked: () => {
-				bakedFrames += 1;
-				onProgress?.({ bakedFrames, totalFrames });
-			},
-			renderFrame,
-			sessionId,
-			shouldCancel,
-			tracks: mutableTracks,
-		});
+		const layer = job.element.jianyingTextStyle
+			? await renderJianyingTextRasterJob({
+					canvasHeight,
+					canvasWidth,
+					fps,
+					job,
+					sessionId,
+					shouldCancel,
+				})
+			: await bakeTextRasterJob({
+					api,
+					canvasHeight,
+					canvasWidth,
+					createCanvas,
+					crop,
+					fps,
+					job,
+					onFrameBaked: () => {
+						bakedFrames += 1;
+						onProgress?.({ bakedFrames, totalFrames });
+					},
+					renderFrame,
+					sessionId,
+					shouldCancel,
+					tracks: mutableTracks,
+				});
+		if (job.element.jianyingTextStyle) {
+			bakedFrames += job.frameCount;
+			onProgress?.({ bakedFrames, totalFrames });
+		}
 		layers.push(layer);
 		logger(
 			`[TextRasterSources] Baked ${job.frameCount} cropped ${crop.width}x${crop.height} frames for ${job.element.id}: ${layer.source.path}`
