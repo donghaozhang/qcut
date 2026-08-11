@@ -11,9 +11,11 @@ import {
 import {
 	findJianyingFilterCategories,
 	findJianyingFilterTitle,
+	listJianyingFilterCatalog,
 	resolveJianyingFilterCategories,
 	resolveJianyingFilterTitles,
 	type JianyingFilterCategoryCatalog,
+	type JianyingFilterKnownCatalog,
 } from "./jianying-filter-metadata.js";
 import {
 	listJianyingLutReferences,
@@ -24,11 +26,13 @@ import {
 
 const LUT_ID_PATTERN = /^[A-Za-z0-9._/-]{1,256}$/;
 const MAX_EDITOR_LUT_SIZE = 65;
+const MAX_UNCACHED_FILTERS = 2000;
 
 interface FilterLabCatalog {
 	references: JianyingLutReference[];
 	titles: Map<string, string>;
 	categories: JianyingFilterCategoryCatalog;
+	knownFilters: JianyingFilterKnownCatalog;
 }
 
 export interface JianyingFilterLabIPCController {
@@ -53,6 +57,11 @@ export interface SetupJianyingFilterLabIPCOptions {
 	}: {
 		references: JianyingLutReference[];
 	}) => Promise<JianyingFilterCategoryCatalog>;
+	resolveKnownFilters?: ({
+		references,
+	}: {
+		references: JianyingLutReference[];
+	}) => Promise<JianyingFilterKnownCatalog>;
 }
 
 function assertTrustedMainFrame({
@@ -89,6 +98,42 @@ function parseLoadRequest({ request }: { request: unknown }) {
 		throw new Error("滤镜实验室 LUT ID 无效");
 	}
 	return { lutId } satisfies JianyingFilterLabLoadRequest;
+}
+
+/**
+ * Merge two category-name lists that are each already in Jianying's panel
+ * order into one panel-ordered union.
+ */
+function mergePanelOrderedNames({
+	primary,
+	secondary,
+}: {
+	primary: string[];
+	secondary: string[];
+}): string[] {
+	const merged: string[] = [];
+	const push = (name: string) => {
+		if (!merged.includes(name)) merged.push(name);
+	};
+	let primaryIndex = 0;
+	let secondaryIndex = 0;
+	while (primaryIndex < primary.length && secondaryIndex < secondary.length) {
+		const primaryName = primary[primaryIndex];
+		if (primaryName === secondary[secondaryIndex]) {
+			push(primaryName);
+			primaryIndex += 1;
+			secondaryIndex += 1;
+		} else if (secondary.includes(primaryName, secondaryIndex)) {
+			push(secondary[secondaryIndex]);
+			secondaryIndex += 1;
+		} else {
+			push(primaryName);
+			primaryIndex += 1;
+		}
+	}
+	for (const name of primary.slice(primaryIndex)) push(name);
+	for (const name of secondary.slice(secondaryIndex)) push(name);
+	return merged;
 }
 
 function summarizeReference({
@@ -142,6 +187,7 @@ export function setupJianyingFilterLabIPC({
 	loadReference = loadJianyingLut,
 	resolveTitles = resolveJianyingFilterTitles,
 	resolveCategories = resolveJianyingFilterCategories,
+	resolveKnownFilters = listJianyingFilterCatalog,
 }: SetupJianyingFilterLabIPCOptions): JianyingFilterLabIPCController {
 	let catalogPromise: Promise<FilterLabCatalog> | null = null;
 	const readCatalog = ({ refresh }: { refresh: boolean }) => {
@@ -150,11 +196,12 @@ export function setupJianyingFilterLabIPC({
 				const supported = references.filter(
 					({ size }) => size <= MAX_EDITOR_LUT_SIZE
 				);
-				const [titles, categories] = await Promise.all([
+				const [titles, categories, knownFilters] = await Promise.all([
 					resolveTitles({ references: supported }),
 					resolveCategories({ references: supported }),
+					resolveKnownFilters({ references: supported }),
 				]);
-				return { references: supported, titles, categories };
+				return { references: supported, titles, categories, knownFilters };
 			});
 		}
 		return catalogPromise;
@@ -167,6 +214,9 @@ export function setupJianyingFilterLabIPC({
 		async (event): Promise<JianyingFilterLabListResult> => {
 			assertTrustedMainFrame({ event, mainWindow: getMainWindow() });
 			const catalog = await readCatalog({ refresh: true });
+			const cachedResourceIds = new Set(
+				catalog.references.map(({ resourceId }) => resourceId)
+			);
 			return {
 				count: catalog.references.length,
 				luts: catalog.references.map((reference) =>
@@ -176,7 +226,18 @@ export function setupJianyingFilterLabIPC({
 						categories: catalog.categories,
 					})
 				),
-				categoryOrder: catalog.categories.order,
+				categoryOrder: mergePanelOrderedNames({
+					primary: catalog.knownFilters.order,
+					secondary: catalog.categories.order,
+				}),
+				uncached: catalog.knownFilters.filters
+					.filter(({ resourceId }) => !cachedResourceIds.has(resourceId))
+					.slice(0, MAX_UNCACHED_FILTERS)
+					.map(({ resourceId, title, categories }) => ({
+						resourceId,
+						title,
+						categories,
+					})),
 			};
 		}
 	);
