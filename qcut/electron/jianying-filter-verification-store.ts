@@ -33,11 +33,7 @@ export function getJianyingFilterVerificationStorePath() {
 	return join(homedir(), ".qcut", "filter-lab", "verifications.json");
 }
 
-function isRecord({
-	value,
-}: {
-	value: unknown;
-}): boolean {
+function isRecord({ value }: { value: unknown }): boolean {
 	if (!value || typeof value !== "object") return false;
 	const record = value as Record<string, unknown>;
 	if (

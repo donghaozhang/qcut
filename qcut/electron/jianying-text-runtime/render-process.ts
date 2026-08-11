@@ -13,7 +13,13 @@ function appendBounded({ current, chunk }: { current: string; chunk: Buffer }) {
 		: combined.slice(-MAX_CAPTURED_OUTPUT);
 }
 
-function addProcess({ requestId, child }: { requestId: string; child: ChildProcess }) {
+function addProcess({
+	requestId,
+	child,
+}: {
+	requestId: string;
+	child: ChildProcess;
+}) {
 	const processes = activeProcesses.get(requestId) ?? new Set<ChildProcess>();
 	processes.add(child);
 	activeProcesses.set(requestId, processes);
@@ -112,9 +118,9 @@ export function cancelJianyingTextRender({ requestId }: { requestId: string }) {
 	const existingTimer = cancellationExpiryTimers.get(requestId);
 	if (existingTimer) clearTimeout(existingTimer);
 	const expiryTimer = setTimeout(() => {
-			cancelledRequests.delete(requestId);
-			cancellationExpiryTimers.delete(requestId);
-		}, 60_000);
+		cancelledRequests.delete(requestId);
+		cancellationExpiryTimers.delete(requestId);
+	}, 60_000);
 	expiryTimer.unref();
 	cancellationExpiryTimers.set(requestId, expiryTimer);
 	const processes = activeProcesses.get(requestId);

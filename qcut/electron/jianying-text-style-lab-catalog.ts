@@ -341,10 +341,7 @@ async function scanPackage({
 	const packageKind = detectJianyingTextPackageKind({ config });
 	const coverPath = join(packagePath, "cover_icon.png");
 	const hasCover = await hasValidCover({ coverPath });
-	if (
-		packageKind === "InfoSticker" ||
-		packageKind === "ScriptInfoSticker"
-	) {
+	if (packageKind === "InfoSticker" || packageKind === "ScriptInfoSticker") {
 		try {
 			const templateDuration = await readJianyingTextTemplateDuration({
 				packagePath,

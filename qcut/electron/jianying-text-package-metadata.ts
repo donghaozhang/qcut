@@ -94,6 +94,8 @@ export async function readJianyingTextTemplateDuration({
 		const duration = positiveDuration({ value: record?.duration }) ?? 0;
 		return Math.max(maximum, start + duration);
 	}, 0);
-	return positiveDuration({ value: childDuration }) ??
-		DEFAULT_JIANYING_TEXT_TEMPLATE_DURATION;
+	return (
+		positiveDuration({ value: childDuration }) ??
+		DEFAULT_JIANYING_TEXT_TEMPLATE_DURATION
+	);
 }
