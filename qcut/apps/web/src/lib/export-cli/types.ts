@@ -347,6 +347,10 @@ export interface StickerSourceForFilter {
 
 export type TextRasterSourceInput =
 	| {
+			kind: "image";
+			path: string;
+	  }
+	| {
 			kind: "image-sequence";
 			path: string;
 			frameRate: number;
