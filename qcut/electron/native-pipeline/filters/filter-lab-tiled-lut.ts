@@ -20,6 +20,12 @@ export interface JianyingTiledLutRenderer {
 	cubeSize: 64;
 }
 
+export interface JianyingDualTiledLutRenderer {
+	kind: "dual-tiled-lut-8x8";
+	background: JianyingTiledLutRenderer;
+	skin: JianyingTiledLutRenderer;
+}
+
 export function createTiledLutId({
 	resourceId,
 	renderer,
@@ -71,6 +77,21 @@ export function isSupportedTiledLutShader({
 		/mix\s*\(\s*newColor1\s*,\s*newColor2\s*,\s*fract\s*\(\s*blueColor\s*\)\s*\)/.test(
 			source
 		)
+	);
+}
+
+export function isSupportedDualTiledLutShader({
+	source,
+}: {
+	source: string;
+}): boolean {
+	return (
+		/uniform\s+sampler2D\s+u_mask\s*;/.test(source) &&
+		/uniform\s+sampler2D\s+u_lut0\s*;/.test(source) &&
+		/uniform\s+sampler2D\s+u_lut1\s*;/.test(source) &&
+		/src\s*\*=\s*63\.?0*\s*;/.test(source) &&
+		/texture2D\s*\(\s*lut\s*,/.test(source) &&
+		/mix\s*\(\s*res0\s*,\s*res1\s*,\s*mask\.a\s*\)/.test(source)
 	);
 }
 
@@ -131,6 +152,69 @@ export async function inspectTiledLutRenderer({
 		version,
 		relativePath: images[0],
 		cubeSize: CUBE_SIZE,
+	};
+}
+
+export async function inspectDualTiledLutRenderer({
+	container,
+	identifier,
+	version,
+	root,
+	paths,
+}: {
+	container: JianyingTiledLutRenderer["container"];
+	identifier: string;
+	version: string;
+	root: string;
+	paths: string[];
+}): Promise<JianyingDualTiledLutRenderer | null> {
+	const backgroundImages = paths.filter((path) =>
+		path.toLowerCase().endsWith("/image/filter_bg.png")
+	);
+	const skinImages = paths.filter((path) =>
+		path.toLowerCase().endsWith("/image/filter_skin.png")
+	);
+	if (backgroundImages.length !== 1 || skinImages.length !== 1) return null;
+
+	const shaderPaths = paths.filter((path) => {
+		const normalized = path.toLowerCase();
+		return normalized.endsWith(".frag") && !normalized.includes("/metal/");
+	});
+	const backgroundPath = backgroundImages[0];
+	const skinPath = skinImages[0];
+	const [validBackground, validSkin, shaderSources] = await Promise.all([
+		isSupportedTiledLutImage({ filePath: join(root, backgroundPath) }),
+		isSupportedTiledLutImage({ filePath: join(root, skinPath) }),
+		Promise.all(
+			shaderPaths.map((path) =>
+				readFile(join(root, path), "utf8").catch(() => "")
+			)
+		),
+	]);
+	if (
+		!validBackground ||
+		!validSkin ||
+		!shaderSources.some((source) => isSupportedDualTiledLutShader({ source }))
+	) {
+		return null;
+	}
+
+	const renderer = ({
+		relativePath,
+	}: {
+		relativePath: string;
+	}): JianyingTiledLutRenderer => ({
+		kind: "tiled-lut-8x8" as const,
+		container,
+		packageIdentifier: identifier,
+		version,
+		relativePath,
+		cubeSize: CUBE_SIZE,
+	});
+	return {
+		kind: "dual-tiled-lut-8x8",
+		background: renderer({ relativePath: backgroundPath }),
+		skin: renderer({ relativePath: skinPath }),
 	};
 }
 
