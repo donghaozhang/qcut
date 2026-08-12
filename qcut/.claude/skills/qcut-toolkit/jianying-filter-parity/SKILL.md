@@ -51,6 +51,25 @@ card `unverified` until a real portrait comparison includes mask IoU; the
 product's `skin-tone-v1` heuristic is not equivalent to spatial skin
 segmentation.
 
+QCut also has an **optional local-only product adapter** in
+`electron/jianying-filter-local-runtime/`. It compiles and ships only a
+QCut-owned CGL bridge, then discovers the user's installed Jianying runtime,
+skin-seg model, and selected cached package at runtime. Accept only known
+`libcccreator` UUIDs, require a real `tt_skin_seg*.model`, keep IPC restricted
+to the trusted main frame, and never return local paths to the renderer. A
+timeline dual LUT uses `maskKind=skin-segmentation-v1` plus `resourceId`; the
+browser may then consume the provider's full RGBA and 224x128 CPU mask. Keep
+the provider boundary replaceable so an owned model can implement the same
+contract later.
+
+This adapter proves real local execution, not complete parity. On the fixed
+Olympus portrait it matches the low-level probe byte-for-byte and reaches
+`37.331351 dB` against UI, below the lifecycle-aware V2 oracle's
+`48.888033 dB`. Current FFmpeg video export still falls back to
+`skin-tone-v1`, and a process-per-frame bridge is not full-frame-rate video.
+Do not mark the card verified or claim native video export until the continuous
+host, discontinuity reset, and export path use the same spatial provider.
+
 An exact title can return multiple resources. Disambiguate with the UI card
 order, cover image, or the `jianying-reference` one-card mtime probe. Never pick
 the first title match silently. If the package is absent, apply that one card in
