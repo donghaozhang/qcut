@@ -49,7 +49,7 @@ afterEach(async () => {
 });
 
 describe("Jianying Filter Lab verification store", () => {
-	it("atomically upserts one record per resource", async () => {
+	it("atomically upserts one record per composite identity", async () => {
 		const storePath = await createStorePath();
 		await saveJianyingFilterVerification({
 			storePath,
@@ -65,7 +65,9 @@ describe("Jianying Filter Lab verification store", () => {
 		});
 		const records = await readJianyingFilterVerifications({ storePath });
 		expect(records).toHaveLength(2);
-		expect(records.get("one")).toMatchObject({ rgbRmse: 1, version: "v1" });
+		expect(records.get("one")).toEqual([
+			expect.objectContaining({ rgbRmse: 1, version: "v1" }),
+		]);
 		const persisted = JSON.parse(await readFile(storePath, "utf8")) as {
 			schemaVersion: number;
 			records: unknown[];
@@ -91,10 +93,36 @@ describe("Jianying Filter Lab verification store", () => {
 		});
 		const all = await readJianyingFilterVerificationRecords({ storePath });
 		expect(all).toHaveLength(2);
-		// The catalog join still sees exactly one — the latest.
+		// The catalog sees one candidate per version, choosing the latest input.
 		const latest = await readJianyingFilterVerifications({ storePath });
 		expect(latest.size).toBe(1);
-		expect(latest.get("one")).toMatchObject({ rgbRmse: 5 });
+		expect(latest.get("one")).toEqual([
+			expect.objectContaining({ rgbRmse: 5, version: "v1" }),
+		]);
+	});
+
+	it("keeps concurrent saves instead of losing read-modify-write updates", async () => {
+		const storePath = await createStorePath();
+		const records = Array.from({ length: 20 }, (_, index) => ({
+			...record({ resourceId: `resource-${index}`, rgbRmse: index + 1 }),
+			verifiedAt: `2026-08-12T00:00:${String(index).padStart(2, "0")}.000Z`,
+		}));
+		await Promise.all(
+			records.map((candidate) =>
+				saveJianyingFilterVerification({ record: candidate, storePath })
+			)
+		);
+
+		const saved = await readJianyingFilterVerificationRecords({ storePath });
+		expect(saved).toHaveLength(records.length);
+		expect(new Set(saved.map(({ resourceId }) => resourceId)).size).toBe(
+			records.length
+		);
+		expect(
+			await readFile(`${storePath}.lock`, "utf8").catch(
+				(error: NodeJS.ErrnoException) => error.code
+			)
+		).toBe("ENOENT");
 	});
 
 	it("migrates a v1 store without losing records", async () => {
