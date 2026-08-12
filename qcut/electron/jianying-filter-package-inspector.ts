@@ -10,7 +10,9 @@ import {
 	type JianyingLutReference,
 } from "./native-pipeline/filters/filter-lab-lut.js";
 import {
+	inspectDualTiledLutRenderer,
 	inspectTiledLutRenderer,
+	type JianyingDualTiledLutRenderer,
 	type JianyingTiledLutRenderer,
 } from "./native-pipeline/filters/filter-lab-tiled-lut.js";
 import {
@@ -42,6 +44,7 @@ export interface JianyingFilterPackageSummary {
 	thumbnailPath?: string;
 	issues: string[];
 	renderer?: JianyingTiledLutRenderer;
+	dualRenderer?: JianyingDualTiledLutRenderer;
 	multiPassRenderer?: JianyingFilterMultiPassRenderer;
 }
 
@@ -289,24 +292,39 @@ export async function inspectJianyingFilterPackages({
 			const paths = packageScans.flatMap(({ files }) => files.paths);
 			const issues = packageScans.flatMap(({ files }) => files.issues);
 			const thumbnail = thumbnailPath({ locations, pathsByRoot });
-			const rendererCandidates = await Promise.all(
-				locations.map((location) =>
-					inspectTiledLutRenderer({
-						...location,
-						paths: pathsByRoot.get(location.root) ?? [],
-					})
-				)
-			);
+			const [rendererCandidates, dualRendererCandidates, multiPassCandidates] =
+				await Promise.all([
+					Promise.all(
+						locations.map((location) =>
+							inspectTiledLutRenderer({
+								...location,
+								paths: pathsByRoot.get(location.root) ?? [],
+							})
+						)
+					),
+					Promise.all(
+						locations.map((location) =>
+							inspectDualTiledLutRenderer({
+								...location,
+								paths: pathsByRoot.get(location.root) ?? [],
+							})
+						)
+					),
+					Promise.all(
+						locations.map((location) =>
+							inspectJianyingMultiPassRenderer({
+								...location,
+								paths: pathsByRoot.get(location.root) ?? [],
+							})
+						)
+					),
+				]);
 			const renderer = rendererCandidates.find(
 				(candidate): candidate is JianyingTiledLutRenderer => candidate !== null
 			);
-			const multiPassCandidates = await Promise.all(
-				locations.map((location) =>
-					inspectJianyingMultiPassRenderer({
-						...location,
-						paths: pathsByRoot.get(location.root) ?? [],
-					})
-				)
+			const dualRenderer = dualRendererCandidates.find(
+				(candidate): candidate is JianyingDualTiledLutRenderer =>
+					candidate !== null
 			);
 			const multiPassRenderer = multiPassCandidates.find(
 				(candidate): candidate is JianyingFilterMultiPassRenderer =>
@@ -334,6 +352,7 @@ export async function inspectJianyingFilterPackages({
 					hasThumbnail: Boolean(thumbnail),
 					...(thumbnail ? { thumbnailPath: thumbnail } : {}),
 					...(renderer ? { renderer } : {}),
+					...(dualRenderer ? { dualRenderer } : {}),
 					...(multiPassRenderer ? { multiPassRenderer } : {}),
 					issues,
 				} satisfies JianyingFilterPackageSummary,
