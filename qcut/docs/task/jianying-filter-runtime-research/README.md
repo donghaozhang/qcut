@@ -271,12 +271,13 @@ ready 后，SIMD 0/1 的 71 张 RGBA 和 72 张完整 mask
 [ui-physical-skin-model.zh.md](ui-physical-skin-model.zh.md)、
 [skin-seg-simd-ab.zh.md](skin-seg-simd-ab.zh.md)。
 
-首次结果生命周期随后完成同帧双 readback。renderer callback 返回后，探针先读取 V2 原地输入纹理，在不调用
-EffectSDK 的条件下运行当前 run loop 并等待两秒，再读取同一纹理。五帧连续测试每次均为
-`0/1639680` 字节变化，最终单帧复跑仍为零；等待期间也没有额外 CPU mask 交付。ready 只有在后续 seek
-进入算法链时才被观察，且 ready 日志在 seek 内出现不代表该帧已经消费新结果。下一轮只应测试 ready 已被
-观察后的同 timestamp re-seek，不要同时加入 manager reset。见
-[skin-seg-first-result-lifecycle.zh.md](skin-seg-first-result-lifecycle.zh.md)。
+首次结果生命周期随后完成同帧双 readback与 ready 后 re-seek。被动等待两秒时，五帧连续测试每次均为
+`0/1639680` 字节变化，且没有额外 CPU mask 交付。显式同 timestamp re-seek 在静态历史下达到
+`48.888033 dB / mask IoU 0.962641`；同一 manager 经过运动历史后回跳只剩
+`40.140233 dB / 0.265185`，两次独立复跑逐字节一致。结合 source-switch manager-reset 结果，独立宿主应在
+clip/source 变化或向后时间跳转时重建 manager 与 AlgorithmService，连续 clip 内保持复用。见
+[skin-seg-first-result-lifecycle.zh.md](skin-seg-first-result-lifecycle.zh.md) 与
+[olympus-portrait-filter-e2e.zh.md](olympus-portrait-filter-e2e.zh.md)。
 
 各能力的“已证明 / 未证明”边界汇总在
 [current-coverage.zh.md](current-coverage.zh.md)。
