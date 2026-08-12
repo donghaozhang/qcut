@@ -201,6 +201,35 @@ describe("ExportEngineMuxer", () => {
 		expect(lastUpdate.progress).toBe(100);
 	});
 
+	it("keeps frame timestamps deterministic when rendering is slower than playback", async () => {
+		const { canvas } = createMockCanvas();
+		const engine = new ExportEngineMuxer(
+			canvas,
+			{
+				format: "mp4",
+				quality: "720p",
+				filename: "slow-render.mp4",
+				width: 1280,
+				height: 720,
+				frameRate: 30,
+			},
+			[],
+			[],
+			0.1
+		);
+		engine.renderFrame = vi.fn(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 5));
+		});
+
+		await engine.export();
+
+		expect(mockAdd.mock.calls).toEqual([
+			[0, 1 / 30],
+			[1 / 30, 1 / 30],
+			[2 / 30, 1 / 30],
+		]);
+	});
+
 	it("throws when export is already in progress", async () => {
 		const { canvas } = createMockCanvas();
 		const engine = new ExportEngineMuxer(
