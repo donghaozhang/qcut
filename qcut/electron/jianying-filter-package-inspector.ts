@@ -19,6 +19,10 @@ import {
 	inspectJianyingMultiPassRenderer,
 	type JianyingFilterMultiPassRenderer,
 } from "./native-pipeline/filters/filter-lab-multi-pass.js";
+import {
+	inspectJianyingNativePortraitRenderer,
+	type JianyingNativePortraitRenderer,
+} from "./native-pipeline/filters/filter-lab-native-portrait.js";
 
 const PACKAGE_CONTAINERS = ["artistEffect", "effect"] as const;
 const MAX_PACKAGE_FILES = 5000;
@@ -45,6 +49,7 @@ export interface JianyingFilterPackageSummary {
 	issues: string[];
 	renderer?: JianyingTiledLutRenderer;
 	dualRenderer?: JianyingDualTiledLutRenderer;
+	nativePortraitRenderer?: JianyingNativePortraitRenderer;
 	multiPassRenderer?: JianyingFilterMultiPassRenderer;
 }
 
@@ -292,38 +297,57 @@ export async function inspectJianyingFilterPackages({
 			const paths = packageScans.flatMap(({ files }) => files.paths);
 			const issues = packageScans.flatMap(({ files }) => files.issues);
 			const thumbnail = thumbnailPath({ locations, pathsByRoot });
-			const [rendererCandidates, dualRendererCandidates, multiPassCandidates] =
-				await Promise.all([
-					Promise.all(
-						locations.map((location) =>
-							inspectTiledLutRenderer({
-								...location,
-								paths: pathsByRoot.get(location.root) ?? [],
-							})
-						)
-					),
-					Promise.all(
-						locations.map((location) =>
-							inspectDualTiledLutRenderer({
-								...location,
-								paths: pathsByRoot.get(location.root) ?? [],
-							})
-						)
-					),
-					Promise.all(
-						locations.map((location) =>
-							inspectJianyingMultiPassRenderer({
-								...location,
-								paths: pathsByRoot.get(location.root) ?? [],
-							})
-						)
-					),
-				]);
+			const [
+				rendererCandidates,
+				dualRendererCandidates,
+				nativePortraitRendererCandidates,
+				multiPassCandidates,
+			] = await Promise.all([
+				Promise.all(
+					locations.map((location) =>
+						inspectTiledLutRenderer({
+							...location,
+							paths: pathsByRoot.get(location.root) ?? [],
+						})
+					)
+				),
+				Promise.all(
+					locations.map((location) =>
+						inspectDualTiledLutRenderer({
+							...location,
+							paths: pathsByRoot.get(location.root) ?? [],
+						})
+					)
+				),
+				Promise.all(
+					locations.map((location) =>
+						inspectJianyingNativePortraitRenderer({
+							container: location.container,
+							packageIdentifier: location.identifier,
+							paths: pathsByRoot.get(location.root) ?? [],
+							root: location.root,
+							version: location.version,
+						})
+					)
+				),
+				Promise.all(
+					locations.map((location) =>
+						inspectJianyingMultiPassRenderer({
+							...location,
+							paths: pathsByRoot.get(location.root) ?? [],
+						})
+					)
+				),
+			]);
 			const renderer = rendererCandidates.find(
 				(candidate): candidate is JianyingTiledLutRenderer => candidate !== null
 			);
 			const dualRenderer = dualRendererCandidates.find(
 				(candidate): candidate is JianyingDualTiledLutRenderer =>
+					candidate !== null
+			);
+			const nativePortraitRenderer = nativePortraitRendererCandidates.find(
+				(candidate): candidate is JianyingNativePortraitRenderer =>
 					candidate !== null
 			);
 			const multiPassRenderer = multiPassCandidates.find(
@@ -353,6 +377,7 @@ export async function inspectJianyingFilterPackages({
 					...(thumbnail ? { thumbnailPath: thumbnail } : {}),
 					...(renderer ? { renderer } : {}),
 					...(dualRenderer ? { dualRenderer } : {}),
+					...(nativePortraitRenderer ? { nativePortraitRenderer } : {}),
 					...(multiPassRenderer ? { multiPassRenderer } : {}),
 					issues,
 				} satisfies JianyingFilterPackageSummary,
