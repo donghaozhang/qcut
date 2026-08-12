@@ -403,11 +403,13 @@ export function processColorImageData({
 	settings,
 	maskData,
 	frameSeed = 0,
+	timestampSeconds = frameSeed / 30,
 }: {
 	imageData: ImageData;
 	settings: MediaColorSettings;
 	maskData?: Uint8ClampedArray;
 	frameSeed?: number;
+	timestampSeconds?: number;
 }): ImageData {
 	const source = new Uint8ClampedArray(imageData.data);
 	const graded = new Uint8ClampedArray(source);
@@ -458,6 +460,8 @@ export function processColorImageData({
 		width: imageData.width,
 		height: imageData.height,
 		settings: settings.multiPass,
+		frameSeed,
+		timestampSeconds,
 	});
 	const output = new ImageData(
 		new Uint8ClampedArray(source),
