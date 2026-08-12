@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
 	decodeTiledLutPixels,
+	isSupportedDualTiledLutShader,
 	isSupportedTiledLutImage,
 	isSupportedTiledLutShader,
 	resolveTiledLutPath,
@@ -51,6 +52,28 @@ describe("Jianying tiled LUT renderer", () => {
 		expect(isSupportedTiledLutShader({ source })).toBe(true);
 		expect(
 			isSupportedTiledLutShader({ source: "blur(inputImageTexture)" })
+		).toBe(false);
+	});
+
+	it("recognizes a dual tiled LUT mixed by a skin mask", () => {
+		const source = `
+			uniform sampler2D u_mask;
+			uniform sampler2D u_lut0;
+			uniform sampler2D u_lut1;
+			vec3 lut8x8(sampler2D lut, vec3 src) {
+				src *= 63.0;
+				return texture2D(lut, src.xy).rgb;
+			}
+			vec4 res0;
+			vec4 res1;
+			vec4 mask;
+			vec4 result = mix(res0, res1, mask.a);
+		`;
+		expect(isSupportedDualTiledLutShader({ source })).toBe(true);
+		expect(
+			isSupportedDualTiledLutShader({
+				source: source.replace("mask.a", "0.5"),
+			})
 		).toBe(false);
 	});
 
