@@ -34,11 +34,16 @@ export interface ColorCubeLut {
 	values: number[];
 }
 
-export interface ColorDualLutSettings {
-	skinCube: ColorCubeLut;
-	/** Deterministic chroma mask; person/face AI remains a separate renderer. */
-	maskKind: "skin-tone-v1";
-}
+export type ColorDualLutSettings =
+	| {
+			skinCube: ColorCubeLut;
+			maskKind: "skin-tone-v1";
+	  }
+	| {
+			skinCube: ColorCubeLut;
+			maskKind: "skin-segmentation-v1";
+			resourceId: string;
+	  };
 
 export interface ColorLutSettings {
 	enabled: boolean;
@@ -89,6 +94,38 @@ export type ColorMultiPassOperation =
 			softness: number;
 	  } & ColorMultiPassTraits)
 	| ({
+			kind: "grain-noise";
+			amount: number;
+			size: number;
+			seed: number;
+	  } & ColorMultiPassTraits)
+	| ({
+			kind: "light-leak";
+			amount: number;
+			color: [number, number, number];
+			centerX: number;
+			centerY: number;
+			radius: number;
+			speed: number;
+	  } & ColorMultiPassTraits)
+	| ({
+			kind: "bloom";
+			threshold: number;
+			radius: number;
+			amount: number;
+	  } & ColorMultiPassTraits)
+	| ({
+			kind: "chromatic-aberration";
+			offset: number;
+			angle: number;
+	  } & ColorMultiPassTraits)
+	| ({
+			kind: "lens-distortion";
+			distortion: number;
+			centerX: number;
+			centerY: number;
+	  } & ColorMultiPassTraits)
+	| ({
 			kind: "lut";
 			cube: ColorCubeLut;
 			intensity: number;
@@ -100,7 +137,12 @@ export interface ColorMultiPassSettings {
 	presetId: string;
 	name: string;
 	intensity: number;
-	fidelity: "structural";
+	fidelity: "structural" | "native-local";
+	nativeEffect?: {
+		provider: "jianying-local-effect-v1";
+		resourceId: string;
+		version: string;
+	};
 	passes: ColorMultiPassOperation[];
 }
 
