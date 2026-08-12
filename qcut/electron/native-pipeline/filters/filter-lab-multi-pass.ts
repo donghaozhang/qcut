@@ -45,6 +45,38 @@ export type FilterLabMultiPassOperation =
 			softness: number;
 	  } & FilterLabPassTraits)
 	| ({
+			kind: "grain-noise";
+			amount: number;
+			size: number;
+			seed: number;
+	  } & FilterLabPassTraits)
+	| ({
+			kind: "light-leak";
+			amount: number;
+			color: [number, number, number];
+			centerX: number;
+			centerY: number;
+			radius: number;
+			speed: number;
+	  } & FilterLabPassTraits)
+	| ({
+			kind: "bloom";
+			threshold: number;
+			radius: number;
+			amount: number;
+	  } & FilterLabPassTraits)
+	| ({
+			kind: "chromatic-aberration";
+			offset: number;
+			angle: number;
+	  } & FilterLabPassTraits)
+	| ({
+			kind: "lens-distortion";
+			distortion: number;
+			centerX: number;
+			centerY: number;
+	  } & FilterLabPassTraits)
+	| ({
 			kind: "lut";
 			cube: FilterLabCube;
 			intensity: number;
@@ -240,6 +272,19 @@ export function resolveMultiPassLutPath({
 	cacheRoot: string;
 	renderer: JianyingFilterMultiPassRenderer;
 }): string {
+	return join(
+		resolveMultiPassPackagePath({ cacheRoot, renderer }),
+		...renderer.lutRelativePath.split("/")
+	);
+}
+
+export function resolveMultiPassPackagePath({
+	cacheRoot,
+	renderer,
+}: {
+	cacheRoot: string;
+	renderer: JianyingFilterMultiPassRenderer;
+}): string {
 	if (
 		!SAFE_SEGMENT.test(renderer.packageIdentifier) ||
 		!SAFE_SEGMENT.test(renderer.version) ||
@@ -251,8 +296,7 @@ export function resolveMultiPassLutPath({
 		cacheRoot,
 		renderer.container,
 		renderer.packageIdentifier,
-		renderer.version,
-		...renderer.lutRelativePath.split("/")
+		renderer.version
 	);
 }
 
