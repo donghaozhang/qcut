@@ -73,4 +73,74 @@ describe("multi-pass FFmpeg graph", () => {
 			})
 		).toEqual({ filterSteps: [], outputLabel: "source", applied: false });
 	});
+
+	it("builds long-tail grain, animated leak, aberration, and lens passes", () => {
+		const graph = buildVideoColorMultiPassGraph({
+			settings: settings({
+				passes: [
+					{
+						kind: "grain-noise",
+						amount: 20,
+						size: 2,
+						seed: 9,
+						timeVarying: true,
+					},
+					{
+						kind: "light-leak",
+						amount: 40,
+						color: [1, 0.3, 0.1],
+						centerX: 0.2,
+						centerY: 0.5,
+						radius: 0.25,
+						speed: 0.3,
+						timeVarying: true,
+					},
+					{ kind: "chromatic-aberration", offset: 2, angle: 15 },
+					{
+						kind: "lens-distortion",
+						distortion: -0.2,
+						centerX: 0.5,
+						centerY: 0.5,
+					},
+				],
+			}),
+			inputLabel: "source",
+			labelPrefix: "clip_1",
+		});
+
+		expect(graph.filterSteps).toHaveLength(4);
+		expect(graph.filterSteps[0]).toContain("floor(X/2)");
+		expect(graph.filterSteps[0]).toContain("N*9973");
+		expect(graph.filterSteps[1]).toContain("sin(T*0.3");
+		expect(graph.filterSteps[2]).toContain("clip(X+");
+		expect(graph.filterSteps[3]).toContain("lenscorrection=");
+	});
+
+	it("builds half-resolution float bloom with three mip levels", () => {
+		const graph = buildVideoColorMultiPassGraph({
+			settings: settings({
+				passes: [
+					{
+						kind: "bloom",
+						threshold: 0.72,
+						radius: 2,
+						amount: 65,
+						scale: 0.5,
+						pixelFormat: "float16",
+						mipLevels: 3,
+					},
+				],
+			}),
+			inputLabel: "source",
+			labelPrefix: "clip_1",
+		});
+
+		expect(graph.filterSteps.join("\n")).toContain("scale=iw*0.5:ih*0.5");
+		expect(graph.filterSteps.join("\n")).toContain("format=gbrpf32le");
+		expect(graph.filterSteps.join("\n")).toContain("split=3");
+		expect(graph.filterSteps.join("\n")).toContain("gblur=sigma=2.0000");
+		expect(graph.filterSteps.join("\n")).toContain("gblur=sigma=4.0000");
+		expect(graph.filterSteps.join("\n")).toContain("gblur=sigma=8.0000");
+		expect(graph.filterSteps.at(-1)).toContain("blend=all_mode=screen");
+	});
 });
