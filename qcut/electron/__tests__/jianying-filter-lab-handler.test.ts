@@ -484,6 +484,114 @@ describe("Jianying filter lab IPC", () => {
 		});
 	});
 
+	it("loads both tiled cubes for a package-backed portrait filter", async () => {
+		const context = createWindowContext();
+		const resourceId = "portrait-filter";
+		const version = "v1";
+		const loadTiledCube = vi.fn(
+			async () =>
+				createEntry({
+					reference: createReference(),
+				}).cube
+		);
+		const renderer = ({ relativePath }: { relativePath: string }) => ({
+			kind: "tiled-lut-8x8" as const,
+			container: "artistEffect" as const,
+			packageIdentifier: resourceId,
+			version,
+			relativePath,
+			cubeSize: 64 as const,
+		});
+		setupJianyingFilterLabIPC({
+			getMainWindow: () => context.mainWindow,
+			readVerifications: async () => new Map(),
+			listReferences: async () => [],
+			loadTiledCube,
+			filterCacheRoot: "/cache",
+			resolveTitles: async () => new Map(),
+			resolveCategories: async () => ({
+				order: ["人像"],
+				byResourceId: new Map(),
+			}),
+			resolveKnownFilters: async () => ({
+				order: ["人像"],
+				filters: [
+					{
+						resourceId,
+						title: "奥林巴斯",
+						categories: ["人像"],
+						version,
+					},
+				],
+			}),
+			inspectPackages: async () =>
+				new Map([
+					[
+						resourceId,
+						{
+							...cachedPackage({ implementation: "dual-lut" }),
+							dualRenderer: {
+								kind: "dual-tiled-lut-8x8" as const,
+								background: renderer({
+									relativePath: "AmazingFeature/image/filter_bg.png",
+								}),
+								skin: renderer({
+									relativePath: "AmazingFeature/image/filter_skin.png",
+								}),
+							},
+						},
+					],
+				]),
+		});
+
+		const listed = (await getHandler({
+			channel: JIANYING_FILTER_LAB_LIST_CHANNEL,
+		})(context.event)) as JianyingFilterLabListResult;
+		const [filter] = listed.filters;
+		expect(filter).toMatchObject({
+			resourceId,
+			implementation: "dual-lut",
+			available: true,
+			verification: { status: "unverified" },
+		});
+		const luts = filter?.luts ?? [];
+		expect(luts.map(({ role }) => role).sort()).toEqual(["background", "skin"]);
+
+		await Promise.all(
+			luts.map(({ lutId }) =>
+				getHandler({ channel: JIANYING_FILTER_LAB_LOAD_CHANNEL })(
+					context.event,
+					{ lutId }
+				)
+			)
+		);
+		expect(loadTiledCube).toHaveBeenCalledTimes(2);
+		expect(
+			loadTiledCube.mock.calls.map(([{ filePath }]) => filePath).sort()
+		).toEqual(
+			[
+				join(
+					"/cache",
+					"artistEffect",
+					resourceId,
+					version,
+					"AmazingFeature",
+					"image",
+					"filter_bg.png"
+				),
+				join(
+					"/cache",
+					"artistEffect",
+					resourceId,
+					version,
+					"AmazingFeature",
+					"image",
+					"filter_skin.png"
+				),
+			].sort()
+		);
+	});
+
 	it("loads a recognized multi-pass shader without exposing cache paths", async () => {
 		const context = createWindowContext();
 		const resourceId = "food-shader";
