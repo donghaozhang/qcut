@@ -88,7 +88,7 @@ describe("buildFilterLabCoverageReport", () => {
 		expect(report.totals.recordedRuns).toBe(1);
 	});
 
-	it("counts versionless records against any card version", () => {
+	it("does not count versionless records against a versioned card", () => {
 		const report = buildFilterLabCoverageReport({
 			cards,
 			records: [
@@ -100,7 +100,30 @@ describe("buildFilterLabCoverageReport", () => {
 			],
 			strataOf,
 		});
-		expect(report.totals.verified).toBe(1);
+		expect(report.totals.verified).toBe(0);
+		expect(report.totals.unverified).toBe(3);
+	});
+
+	it("requires mask-edge evidence before a dual LUT counts as verified", () => {
+		const report = buildFilterLabCoverageReport({
+			cards: [
+				{ resourceId: "portrait", version: "v1", implementation: "dual-lut" },
+			],
+			records: [
+				{
+					resourceId: "portrait",
+					version: "v1",
+					status: "verified",
+					rgbRmse: 0.5,
+					verifiedAt: "2026-08-12T00:00:00Z",
+				},
+			],
+			strataOf,
+		});
+		expect(report.totals).toMatchObject({
+			verified: 0,
+			unverified: 1,
+		});
 	});
 
 	it("handles an empty catalog", () => {
