@@ -135,6 +135,8 @@ export async function exportJianyingFilterCatalog({
 	const cards = summary.filters.map((filter): JianyingFilterCatalogCard => {
 		const known = knownById.get(filter.resourceId);
 		const packageSummary = packages.get(filter.resourceId);
+		const tiledRendererKind =
+			packageSummary?.dualRenderer?.kind ?? packageSummary?.renderer?.kind;
 		return {
 			resourceId: filter.resourceId,
 			title: filter.title,
@@ -153,9 +155,7 @@ export async function exportJianyingFilterCatalog({
 			available: filter.available,
 			verification: filter.verification.status,
 			lutCount: filter.luts.length,
-			...(packageSummary?.renderer
-				? { tiledRendererKind: packageSummary.renderer.kind }
-				: {}),
+			...(tiledRendererKind ? { tiledRendererKind } : {}),
 			...(packageSummary?.multiPassRenderer
 				? {
 						multiPassKind: packageSummary.multiPassRenderer.kind,
