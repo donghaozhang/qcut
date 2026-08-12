@@ -464,6 +464,8 @@ void configure(ObjectStorage<kConfigStorageSize>& config,
             "JY_FILTER_STAGE_DELAY_MS"),
         .postSeekDelayMilliseconds = optionalNonNegativeIntegerEnvironment(
             "JY_FILTER_POST_SEEK_DELAY_MS"),
+        .reseekAfterReady =
+            optionalBooleanEnvironment("JY_RESEEK_AFTER_READY"),
     });
     std::cout << "[filter] rendered " << result.renderedFrames << '/'
               << result.requestedFrames << " frames\n";
