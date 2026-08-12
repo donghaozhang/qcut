@@ -145,10 +145,24 @@ export function ColorPreviewCanvas({
 		};
 	}, [colorPickerActive, samplePreviewColor]);
 	useEffect(() => {
-		return subscribeColorDegradation(() => {
-			toast.warning("调色预览已降级为近似效果（画面源受跨域限制）", {
-				id: "color-degradation-css-fallback",
-			});
+		return subscribeColorDegradation(({ reason }) => {
+			const localPortraitFallback =
+				reason === "jianying-local-portrait-fallback";
+			const localEffectFallback = reason === "jianying-local-effect-fallback";
+			toast.warning(
+				localPortraitFallback
+					? "本机剪映人像运行时不可用，已使用近似肤色蒙版"
+					: localEffectFallback
+						? "本机剪映滤镜运行时不可用，已使用结构近似效果"
+						: "调色预览已降级为近似效果（画面源受跨域限制）",
+				{
+					id: localPortraitFallback
+						? "jianying-local-portrait-fallback"
+						: localEffectFallback
+							? "jianying-local-effect-fallback"
+							: "color-degradation-css-fallback",
+				}
+			);
 		});
 	}, []);
 	useEffect(() => {
@@ -159,6 +173,11 @@ export function ColorPreviewCanvas({
 			sourceSelector
 		);
 		if (!source) return;
+		const sourceLocation = source.currentSrc || source.src || sourceSelector;
+		const sourceKey = `preview:${sourceSelector}:${sourceLocation}`.slice(
+			0,
+			512
+		);
 		let cancelled = false;
 		let animationFrame = 0;
 		let lastVideoTime = -1;
@@ -207,6 +226,9 @@ export function ColorPreviewCanvas({
 					height: canvas.height,
 					layers: renderedLayers,
 					frameSeed,
+					sourceKey,
+					timestampSeconds:
+						source instanceof HTMLVideoElement ? source.currentTime : 0,
 				});
 			} finally {
 				drawing = false;
