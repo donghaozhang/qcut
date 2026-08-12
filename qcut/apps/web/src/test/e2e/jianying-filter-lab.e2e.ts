@@ -245,14 +245,14 @@ test.describe("Local Jianying filter lab", () => {
 			await expect(controls.getByText("1%", { exact: true })).toBeVisible();
 			await intensity.press("End");
 
-			const dualLutButton = await findFilter({ lab, title: "亮肤" });
+			const dualLutButton = await findFilter({ lab, title: "奥林巴斯" });
 			await expect(dualLutButton.getByText("双 LUT")).toBeVisible();
 			await expect(dualLutButton.getByText("未验证")).toBeVisible();
 			await dualLutButton.click();
 			await expect
 				.poll(() => adjustmentLutState({ page }))
 				.toMatchObject({
-					name: "亮肤",
+					name: "奥林巴斯",
 					size: 64,
 					values: 786_432,
 					skinSize: 64,
@@ -262,7 +262,7 @@ test.describe("Local Jianying filter lab", () => {
 				});
 			const dualFilteredStats = await filteredPreviewStats({ page });
 			await page.screenshot({
-				path: join(evidenceDirectory, "04-dual-lut-applied.png"),
+				path: join(evidenceDirectory, "04-olympus-dual-lut-applied.png"),
 				animations: "disabled",
 			});
 
