@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	buildJianyingFilterLabCatalog,
 	mergeKnownFiltersWithReferences,
+	tiledReferencesFromPackages,
 } from "../jianying-filter-lab-catalog.js";
 import type { JianyingFilterKnownCatalog } from "../jianying-filter-metadata.js";
 import type { JianyingFilterPackageSummary } from "../jianying-filter-package-inspector.js";
@@ -309,6 +310,74 @@ describe("Jianying filter lab catalog", () => {
 				},
 			],
 		});
+	});
+
+	it("exposes package-backed background and skin tiled LUTs as one dual filter", () => {
+		const resourceId = "portrait";
+		const version = "v1";
+		const renderer = ({ relativePath }: { relativePath: string }) => ({
+			kind: "tiled-lut-8x8" as const,
+			container: "artistEffect" as const,
+			packageIdentifier: resourceId,
+			version,
+			relativePath,
+			cubeSize: 64 as const,
+		});
+		const packages = new Map<string, JianyingFilterPackageSummary>([
+			[
+				resourceId,
+				{
+					...packageSummary({ implementation: "dual-lut" }),
+					dualRenderer: {
+						kind: "dual-tiled-lut-8x8",
+						background: renderer({
+							relativePath: "AmazingFeature/image/filter_bg.png",
+						}),
+						skin: renderer({
+							relativePath: "AmazingFeature/image/filter_skin.png",
+						}),
+					},
+				},
+			],
+		]);
+		const tiledReferences = tiledReferencesFromPackages({
+			packages,
+			cacheRoot: "/cache",
+		});
+		expect(
+			[...tiledReferences.values()].map(({ role }) => role).sort()
+		).toEqual(["background", "skin"]);
+
+		const result = buildJianyingFilterLabCatalog({
+			catalog: {
+				order: ["人像"],
+				filters: [
+					{
+						resourceId,
+						title: "奥林巴斯",
+						categories: ["人像"],
+						version,
+					},
+				],
+			},
+			references: [],
+			packages,
+		});
+		expect(result).toMatchObject({
+			availableCount: 1,
+			filters: [
+				{
+					implementation: "dual-lut",
+					available: true,
+					verification: { status: "unverified" },
+				},
+			],
+		});
+		expect(result.filters[0]?.luts.map(({ role }) => role).sort()).toEqual([
+			"background",
+			"skin",
+		]);
+		expect(JSON.stringify(result)).not.toContain("/cache");
 	});
 
 	it("exposes a recognized multi-pass shader without pretending it is a LUT", () => {
