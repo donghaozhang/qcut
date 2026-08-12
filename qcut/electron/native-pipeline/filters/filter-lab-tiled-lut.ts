@@ -42,13 +42,11 @@ function safeRelativePath({ relativePath }: { relativePath: string }): boolean {
 		.every((segment) => SAFE_SEGMENT.test(segment) && segment !== "..");
 }
 
-export function resolveTiledLutPath({
-	cacheRoot,
+function assertSafeRendererIdentity({
 	renderer,
 }: {
-	cacheRoot: string;
 	renderer: JianyingTiledLutRenderer;
-}): string {
+}) {
 	if (
 		!SAFE_SEGMENT.test(renderer.packageIdentifier) ||
 		!SAFE_SEGMENT.test(renderer.version) ||
@@ -56,6 +54,32 @@ export function resolveTiledLutPath({
 	) {
 		throw new Error("Invalid local tiled LUT renderer identity");
 	}
+}
+
+export function resolveTiledLutPackagePath({
+	cacheRoot,
+	renderer,
+}: {
+	cacheRoot: string;
+	renderer: JianyingTiledLutRenderer;
+}): string {
+	assertSafeRendererIdentity({ renderer });
+	return join(
+		cacheRoot,
+		renderer.container,
+		renderer.packageIdentifier,
+		renderer.version
+	);
+}
+
+export function resolveTiledLutPath({
+	cacheRoot,
+	renderer,
+}: {
+	cacheRoot: string;
+	renderer: JianyingTiledLutRenderer;
+}): string {
+	assertSafeRendererIdentity({ renderer });
 	return join(
 		cacheRoot,
 		renderer.container,
