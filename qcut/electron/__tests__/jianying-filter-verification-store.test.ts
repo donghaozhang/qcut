@@ -4,6 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+	LEGACY_INPUT_DIGEST,
+	readJianyingFilterVerificationRecords,
 	readJianyingFilterVerifications,
 	saveJianyingFilterVerification,
 } from "../jianying-filter-verification-store.js";
@@ -68,8 +70,67 @@ describe("Jianying Filter Lab verification store", () => {
 			schemaVersion: number;
 			records: unknown[];
 		};
-		expect(persisted).toMatchObject({ schemaVersion: 1 });
+		expect(persisted).toMatchObject({ schemaVersion: 2 });
 		expect(persisted.records).toHaveLength(2);
+	});
+
+	it("keeps history for distinct inputs of the same resource (v2)", async () => {
+		const storePath = await createStorePath();
+		await saveJianyingFilterVerification({
+			storePath,
+			record: record({ resourceId: "one", rgbRmse: 2 }),
+		});
+		// Same card, different comparison material → a new history entry.
+		await saveJianyingFilterVerification({
+			storePath,
+			record: {
+				...record({ resourceId: "one", rgbRmse: 5 }),
+				candidateSha256: "c".repeat(64),
+				verifiedAt: "2026-08-12T00:00:00.000Z",
+			},
+		});
+		const all = await readJianyingFilterVerificationRecords({ storePath });
+		expect(all).toHaveLength(2);
+		// The catalog join still sees exactly one — the latest.
+		const latest = await readJianyingFilterVerifications({ storePath });
+		expect(latest.size).toBe(1);
+		expect(latest.get("one")).toMatchObject({ rgbRmse: 5 });
+	});
+
+	it("migrates a v1 store without losing records", async () => {
+		const storePath = await createStorePath();
+		await writeFile(
+			storePath,
+			JSON.stringify({
+				schemaVersion: 1,
+				records: [record({ resourceId: "old", rgbRmse: 3 })],
+			})
+		);
+		const all = await readJianyingFilterVerificationRecords({ storePath });
+		expect(all).toHaveLength(1);
+		expect(all[0]).toMatchObject({
+			resourceId: "old",
+			inputDigest: LEGACY_INPUT_DIGEST,
+		});
+		// A save on top of the migrated store keeps the legacy record.
+		await saveJianyingFilterVerification({
+			storePath,
+			record: {
+				...record({ resourceId: "old", rgbRmse: 1 }),
+				verifiedAt: "2026-08-12T00:00:00.000Z",
+			},
+		});
+		const persisted = JSON.parse(await readFile(storePath, "utf8")) as {
+			schemaVersion: number;
+			records: { inputDigest?: string }[];
+		};
+		expect(persisted.schemaVersion).toBe(2);
+		expect(persisted.records).toHaveLength(2);
+		expect(
+			persisted.records.some(
+				(entry) => entry.inputDigest === LEGACY_INPUT_DIGEST
+			)
+		).toBe(true);
 	});
 
 	it("does not expose malformed state to the catalog", async () => {

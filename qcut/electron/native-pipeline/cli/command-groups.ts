@@ -111,6 +111,8 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 			compare: "filter-lab-compare",
 			match: "filter-lab-match",
 			verify: "filter-lab-verify",
+			"verify-batch": "filter-lab-verify-batch",
+			coverage: "filter-lab-coverage",
 		},
 	},
 	{

@@ -103,7 +103,7 @@ async function exportCatalogViaBunChild(): Promise<JianyingFilterCatalogExport> 
  * literal dynamic imports while parsing the CLI entry graph) with the bun
  * child-process shim as fallback.
  */
-async function exportCatalogDefault(): Promise<JianyingFilterCatalogExport> {
+export async function exportCatalogDefault(): Promise<JianyingFilterCatalogExport> {
 	try {
 		const specifier = "../../jianying-filter-catalog-export.js";
 		const exporter = (await import(
