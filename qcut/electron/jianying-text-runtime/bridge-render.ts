@@ -45,6 +45,9 @@ export interface JianyingTextRawSequenceRequest {
 	scriptParameters?: string;
 }
 
+const SCRIPT_STRATEGY_CACHE_SCHEMA_VERSION = 4;
+const SCRIPT_STRATEGY_PROBE_FRACTIONS = [0.25, 2 / 3] as const;
+
 function bridgeTimeout({ frameCount }: { frameCount: number }) {
 	return Math.min(300_000, Math.max(20_000, 15_000 + frameCount * 350));
 }
@@ -167,7 +170,7 @@ async function readCachedStrategy({ cacheKey }: { cacheKey: string }) {
 		const value = JSON.parse(
 			await readFile(strategyCachePath({ cacheKey }), "utf8")
 		) as Record<string, unknown>;
-		return value.schemaVersion === 2 &&
+		return value.schemaVersion === SCRIPT_STRATEGY_CACHE_SCHEMA_VERSION &&
 			value.cacheKey === cacheKey &&
 			(value.strategy === "runtime-parameters" ||
 				value.strategy === "preload-copy")
@@ -191,7 +194,7 @@ async function writeCachedStrategy({
 	await writeFile(
 		temporary,
 		`${JSON.stringify({
-			schemaVersion: 2,
+			schemaVersion: SCRIPT_STRATEGY_CACHE_SCHEMA_VERSION,
 			cacheKey,
 			strategy,
 		})}\n`,
@@ -213,6 +216,42 @@ function isVisibleTransparentFrame({ bytes }: { bytes: Buffer }) {
 	return false;
 }
 
+export function verifyJianyingRuntimeParameterFrames({
+	referenceBytes,
+	candidateBytes,
+	width,
+	height,
+	frameCount,
+}: {
+	referenceBytes: Buffer;
+	candidateBytes: Buffer;
+	width: number;
+	height: number;
+	frameCount: number;
+}) {
+	const bytesPerFrame = width * height * 4;
+	const expectedBytes = bytesPerFrame * frameCount;
+	if (
+		referenceBytes.length !== expectedBytes ||
+		candidateBytes.length !== expectedBytes
+	) {
+		return false;
+	}
+	for (let index = 0; index < frameCount; index += 1) {
+		const start = index * bytesPerFrame;
+		const end = start + bytesPerFrame;
+		const referenceFrame = referenceBytes.subarray(start, end);
+		const candidateFrame = candidateBytes.subarray(start, end);
+		if (
+			!isVisibleTransparentFrame({ bytes: candidateFrame }) ||
+			!referenceFrame.equals(candidateFrame)
+		) {
+			return false;
+		}
+	}
+	return true;
+}
+
 async function inspectRuntimeParameterEditing({
 	runtime,
 	requestId,
@@ -232,9 +271,10 @@ async function inspectRuntimeParameterEditing({
 			filePath: path.join(packageInfo.packagePath, "content.json"),
 		});
 		const resources = scriptResources({ packageInfo });
+		const probeContent = "QCut 9Z 验证";
 		const edited = prepareJianyingScriptContent({
 			value: source,
-			content: "QCut 9Z 验证",
+			content: probeContent,
 			resourcePaths: resources.resourcePaths,
 			fontPath,
 		});
@@ -245,38 +285,60 @@ async function inspectRuntimeParameterEditing({
 			resourceFingerprint: resources.fingerprint,
 			fontPath,
 		});
-		const defaultPath = path.join(temporary, "default.rgba");
-		const editedPath = path.join(temporary, "edited.rgba");
-		const timestamp =
-			Math.min(60, packageInfo.templateDuration * (2 / 3)) * 1_000_000;
+		const preloadedPackagePath = await getEditedJianyingScriptPackage({
+			packagePath: packageInfo.packagePath,
+			packageHash: packageInfo.packageHash,
+			content: probeContent,
+			resourcePaths: resources.resourcePaths,
+			resourceFingerprint: resources.fingerprint,
+			fontPath,
+		});
+		const referencePath = path.join(temporary, "reference.rgba");
+		const candidatePath = path.join(temporary, "candidate.rgba");
+		const maximumTimestamp =
+			Math.min(60, packageInfo.templateDuration) * 1_000_000;
+		const startTimestamp =
+			maximumTimestamp * SCRIPT_STRATEGY_PROBE_FRACTIONS[0];
+		const timestampStep =
+			maximumTimestamp *
+			(SCRIPT_STRATEGY_PROBE_FRACTIONS[1] - SCRIPT_STRATEGY_PROBE_FRACTIONS[0]);
 		const baseRequest = {
 			requestId,
-			packagePath: hydratedPackagePath,
 			packageKind: packageInfo.packageKind,
 			width: 256,
 			height: 256,
-			frameCount: 1,
-			startTimestamp: timestamp,
-			timestampStep: 0,
+			frameCount: SCRIPT_STRATEGY_PROBE_FRACTIONS.length,
+			startTimestamp,
+			timestampStep,
 		} as const;
 		await renderJianyingTextRawSequence({
 			runtime,
-			request: { ...baseRequest, outputPath: defaultPath },
+			request: {
+				...baseRequest,
+				packagePath: preloadedPackagePath,
+				outputPath: referencePath,
+			},
 		});
 		await renderJianyingTextRawSequence({
 			runtime,
 			request: {
 				...baseRequest,
-				outputPath: editedPath,
+				packagePath: hydratedPackagePath,
+				outputPath: candidatePath,
 				scriptParameters: JSON.stringify(edited),
 			},
 		});
-		const [defaultBytes, editedBytes] = await Promise.all([
-			readFile(defaultPath),
-			readFile(editedPath),
+		const [referenceBytes, candidateBytes] = await Promise.all([
+			readFile(referencePath),
+			readFile(candidatePath),
 		]);
-		return isVisibleTransparentFrame({ bytes: editedBytes }) &&
-			!defaultBytes.equals(editedBytes)
+		return verifyJianyingRuntimeParameterFrames({
+			referenceBytes,
+			candidateBytes,
+			width: baseRequest.width,
+			height: baseRequest.height,
+			frameCount: baseRequest.frameCount,
+		})
 			? "runtime-parameters"
 			: "preload-copy";
 	} finally {
