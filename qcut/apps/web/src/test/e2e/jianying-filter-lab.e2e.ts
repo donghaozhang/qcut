@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, rm, stat, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -62,6 +62,163 @@ async function filteredPreviewStats({ page }: { page: Page }) {
 	});
 }
 
+async function nativePortraitPreviewStats({
+	page,
+	resourceId,
+}: {
+	page: Page;
+	resourceId: string;
+}) {
+	return page.evaluate(
+		async ({ resourceId: selectedResourceId }) => {
+			type NativePortraitEvidenceWindow = Window & {
+				__qcutJianyingNativePortraitEvidence?: {
+					width: number;
+					height: number;
+					rgba: Uint8Array;
+				};
+			};
+			const preview = document.querySelector<HTMLElement>(
+				'[data-testid="preview-capture-surface"]'
+			);
+			const source = preview?.querySelector<HTMLVideoElement>(
+				"video[data-video-id]"
+			);
+			if (
+				!source?.parentElement ||
+				source.videoWidth <= 0 ||
+				source.videoHeight <= 0
+			) {
+				throw new Error("Preview source unavailable");
+			}
+			const scale = Math.min(1, 480 / source.parentElement.clientWidth);
+			const canvas = document.createElement("canvas");
+			canvas.width = Math.max(
+				1,
+				Math.round(source.parentElement.clientWidth * scale)
+			);
+			canvas.height = Math.max(
+				1,
+				Math.round(source.parentElement.clientHeight * scale)
+			);
+			const context = canvas.getContext("2d", { willReadFrequently: true });
+			const api = window.electronAPI?.jianyingFilterLab;
+			if (!context || !api) throw new Error("Preview API unavailable");
+			const fitMode = source.style.objectFit || "contain";
+			if (fitMode === "fill") {
+				context.drawImage(source, 0, 0, canvas.width, canvas.height);
+			} else {
+				const objectScale =
+					fitMode === "cover"
+						? Math.max(
+								canvas.width / source.videoWidth,
+								canvas.height / source.videoHeight
+							)
+						: Math.min(
+								canvas.width / source.videoWidth,
+								canvas.height / source.videoHeight
+							);
+				const drawWidth = source.videoWidth * objectScale;
+				const drawHeight = source.videoHeight * objectScale;
+				context.drawImage(
+					source,
+					(canvas.width - drawWidth) / 2,
+					(canvas.height - drawHeight) / 2,
+					drawWidth,
+					drawHeight
+				);
+			}
+			const frame = context.getImageData(0, 0, canvas.width, canvas.height);
+			const rendered = await api.renderLocalPortrait({
+				resourceId: selectedResourceId,
+				width: canvas.width,
+				height: canvas.height,
+				sourceKey: `e2e:${source.dataset.videoId ?? selectedResourceId}`,
+				timestampSeconds: source.currentTime,
+				rgba: new Uint8Array(
+					frame.data.buffer,
+					frame.data.byteOffset,
+					frame.data.byteLength
+				),
+			});
+			(
+				window as NativePortraitEvidenceWindow
+			).__qcutJianyingNativePortraitEvidence = {
+				width: rendered.width,
+				height: rendered.height,
+				rgba: new Uint8Array(rendered.rgba),
+			};
+			let signature = 0;
+			let samples = 0;
+			for (let index = 0; index < rendered.rgba.length; index += 388) {
+				signature =
+					(signature +
+						rendered.rgba[index] * 3 +
+						rendered.rgba[index + 1] * 5 +
+						rendered.rgba[index + 2] * 7) %
+					1_000_000_007;
+				samples += 1;
+			}
+			return {
+				provider: rendered.provider,
+				resourceId: rendered.resourceId,
+				maskWidth: rendered.mask.width,
+				maskHeight: rendered.mask.height,
+				samples,
+				signature,
+			};
+		},
+		{ resourceId }
+	);
+}
+
+async function nativePortraitPreviewDifference({ page }: { page: Page }) {
+	return page.evaluate(() => {
+		type NativePortraitEvidenceWindow = Window & {
+			__qcutJianyingNativePortraitEvidence?: {
+				width: number;
+				height: number;
+				rgba: Uint8Array;
+			};
+		};
+		const evidence = (window as NativePortraitEvidenceWindow)
+			.__qcutJianyingNativePortraitEvidence;
+		const canvas = document.querySelector<HTMLCanvasElement>(
+			'[data-testid="color-preview-canvas"]'
+		);
+		const context = canvas?.getContext("2d");
+		if (!evidence || !canvas || !context) return null;
+		if (canvas.width !== evidence.width || canvas.height !== evidence.height) {
+			return {
+				width: canvas.width,
+				height: canvas.height,
+				meanAbsoluteError: Number.POSITIVE_INFINITY,
+				maximumError: 255,
+			};
+		}
+		const actual = context.getImageData(0, 0, canvas.width, canvas.height).data;
+		let absoluteError = 0;
+		let maximumError = 0;
+		let channels = 0;
+		for (let index = 0; index < actual.length; index += 4) {
+			for (let channel = 0; channel < 3; channel += 1) {
+				const error = Math.abs(
+					actual[index + channel] - evidence.rgba[index + channel]
+				);
+				absoluteError += error;
+				maximumError = Math.max(maximumError, error);
+				channels += 1;
+			}
+		}
+		return {
+			width: canvas.width,
+			height: canvas.height,
+			meanAbsoluteError: absoluteError / channels,
+			maximumError,
+		};
+	});
+}
+
 type TestLut = {
 	name?: string;
 	enabled?: boolean;
@@ -69,6 +226,7 @@ type TestLut = {
 	cube?: { size: number; values: number[] };
 	dual?: {
 		maskKind?: string;
+		resourceId?: string;
 		skinCube?: { size: number; values: number[] };
 	};
 };
@@ -102,6 +260,7 @@ async function adjustmentLutState({ page }: { page: Page }) {
 			skinSize: lut?.dual?.skinCube?.size,
 			skinValues: lut?.dual?.skinCube?.values.length,
 			maskKind: lut?.dual?.maskKind,
+			resourceId: lut?.dual?.resourceId,
 		};
 	});
 }
@@ -124,7 +283,7 @@ test.describe("Local Jianying filter lab", () => {
 
 	// biome-ignore lint/correctness/noEmptyPattern: the test launches its own isolated Electron process.
 	test("applies real single, dual, and shader filters", async ({}, testInfo) => {
-		test.setTimeout(120_000);
+		test.setTimeout(180_000);
 		const profileDirectory = join(
 			tmpdir(),
 			`qcut-filter-lab-${process.pid}-${Date.now()}`
@@ -160,6 +319,18 @@ test.describe("Local Jianying filter lab", () => {
 			await page.getByRole("button", { name: "滤镜实验室" }).click();
 			const lab = page.getByTestId("jianying-filter-lab");
 			await expect(lab.getByText("高清黑白")).toBeVisible({ timeout: 30_000 });
+			const localRuntime = await page.evaluate(() =>
+				window.electronAPI?.jianyingFilterLab?.inspectLocalRuntime({
+					refresh: true,
+				})
+			);
+			expect(localRuntime).toMatchObject({
+				state: "ready",
+				provider: "jianying-local-effect-v1",
+				bridgeReady: true,
+				runtimeReady: true,
+				modelReady: true,
+			});
 			await expect(
 				lab.getByText(/显示 \d+ · 可用 \d+\/883 · 缓存 \d+/)
 			).toBeVisible();
@@ -244,6 +415,20 @@ test.describe("Local Jianying filter lab", () => {
 				.toBe(1);
 			await expect(controls.getByText("1%", { exact: true })).toBeVisible();
 			await intensity.press("End");
+			await controls.getByRole("button", { name: "A 原图" }).click();
+			await expect
+				.poll(async () => (await adjustmentLutState({ page })).enabled)
+				.toBe(false);
+			const nativePortraitStats = await nativePortraitPreviewStats({
+				page,
+				resourceId: "7361792068475325735",
+			});
+			expect(nativePortraitStats).toMatchObject({
+				provider: "jianying-local-effect-v1",
+				resourceId: "7361792068475325735",
+				maskWidth: 224,
+				maskHeight: 128,
+			});
 
 			const dualLutButton = await findFilter({ lab, title: "奥林巴斯" });
 			await expect(dualLutButton.getByText("双 LUT")).toBeVisible();
@@ -257,14 +442,209 @@ test.describe("Local Jianying filter lab", () => {
 					values: 786_432,
 					skinSize: 64,
 					skinValues: 786_432,
-					maskKind: "skin-tone-v1",
+					maskKind: "skin-segmentation-v1",
+					resourceId: "7361792068475325735",
 					enabled: true,
 				});
+			await expect
+				.poll(
+					async () =>
+						(await nativePortraitPreviewDifference({ page }))
+							?.meanAbsoluteError ?? Number.POSITIVE_INFINITY,
+					{ timeout: 30_000 }
+				)
+				.toBeLessThan(2);
+			const nativeDifference = await nativePortraitPreviewDifference({ page });
+			expect(nativeDifference).toMatchObject({
+				width: expect.any(Number),
+				height: expect.any(Number),
+				maximumError: expect.any(Number),
+			});
 			const dualFilteredStats = await filteredPreviewStats({ page });
+			await expect(
+				page.getByText("本机剪映人像运行时不可用，已使用近似肤色蒙版")
+			).toHaveCount(0);
 			await page.screenshot({
 				path: join(evidenceDirectory, "04-olympus-dual-lut-applied.png"),
 				animations: "disabled",
 			});
+			await writeFile(
+				join(evidenceDirectory, "native-portrait-evidence.json"),
+				`${JSON.stringify(
+					{
+						localRuntime,
+						nativePortraitStats,
+						nativeDifference,
+					},
+					null,
+					2
+				)}\n`,
+				"utf8"
+			);
+
+			const qinghuiPortraitStats = await nativePortraitPreviewStats({
+				page,
+				resourceId: "7127671508264078599",
+			});
+			expect(qinghuiPortraitStats).toMatchObject({
+				provider: "jianying-local-effect-v1",
+				resourceId: "7127671508264078599",
+				maskWidth: 224,
+				maskHeight: 128,
+			});
+			const qinghuiButton = await findFilter({ lab, title: "青灰" });
+			await expect(qinghuiButton.getByText("双 LUT")).toBeVisible();
+			await qinghuiButton.click();
+			await expect
+				.poll(() => adjustmentLutState({ page }))
+				.toMatchObject({
+					name: "青灰",
+					size: 64,
+					skinSize: 64,
+					maskKind: "skin-segmentation-v1",
+					resourceId: "7127671508264078599",
+					enabled: true,
+				});
+			await expect
+				.poll(
+					async () =>
+						(await nativePortraitPreviewDifference({ page }))
+							?.meanAbsoluteError ?? Number.POSITIVE_INFINITY,
+					{ timeout: 30_000 }
+				)
+				.toBeLessThan(2);
+			const qinghuiDifference = await nativePortraitPreviewDifference({ page });
+			await page.screenshot({
+				path: join(evidenceDirectory, "05-qinghui-native-portrait.png"),
+				animations: "disabled",
+			});
+
+			await page.evaluate(() => {
+				const state = (
+					window as unknown as {
+						__timelineStore: {
+							getState: () => {
+								tracks: Array<{
+									id: string;
+									elements: Array<{ id: string; type: string }>;
+								}>;
+								updateElementDuration: (
+									trackId: string,
+									elementId: string,
+									duration: number,
+									recordHistory: boolean
+								) => void;
+								updateMediaElement: (
+									trackId: string,
+									elementId: string,
+									updates: { duration: number },
+									recordHistory: boolean
+								) => void;
+								updateAdjustmentElement: (
+									trackId: string,
+									elementId: string,
+									updates: { duration: number },
+									recordHistory: boolean
+								) => void;
+							};
+						};
+					}
+				).__timelineStore.getState();
+				for (const track of state.tracks) {
+					for (const element of track.elements) {
+						if (element.type === "media") {
+							state.updateMediaElement(
+								track.id,
+								element.id,
+								{ duration: 1 },
+								false
+							);
+							continue;
+						}
+						if (element.type === "adjustment") {
+							state.updateAdjustmentElement(
+								track.id,
+								element.id,
+								{ duration: 1 },
+								false
+							);
+							continue;
+						}
+						state.updateElementDuration(track.id, element.id, 1, false);
+					}
+				}
+			});
+			await expect
+				.poll(() =>
+					page.evaluate(() => {
+						const tracks = (
+							window as unknown as {
+								__timelineStore: TestTimelineStore;
+							}
+						).__timelineStore.getState().tracks;
+						return Math.max(
+							0,
+							...tracks.flatMap(({ elements }) =>
+								elements.map(
+									(element) =>
+										((element as { startTime?: number }).startTime ?? 0) +
+										((element as { duration?: number }).duration ?? 0)
+								)
+							)
+						);
+					})
+				)
+				.toBe(1);
+			const exportPath = join(evidenceDirectory, "qinghui-native-export.mp4");
+			await rm(exportPath, { force: true });
+			await electronApp.evaluate(async ({ dialog }, selectedPath) => {
+				dialog.showSaveDialog = async () => ({
+					canceled: false,
+					filePath: selectedPath,
+				});
+			}, exportPath);
+			await page.getByTestId("export-button").click();
+			await expect(page.getByTestId("export-dialog")).toBeVisible();
+			const includeAudio = page.getByRole("checkbox", {
+				name: "Include audio in export",
+			});
+			if (
+				(await includeAudio.count()) > 0 &&
+				(await includeAudio.isChecked())
+			) {
+				await includeAudio.click();
+			}
+			await page.getByTestId("export-start-button").click();
+			await expect
+				.poll(
+					async () => {
+						try {
+							return (await stat(exportPath)).size;
+						} catch {
+							return 0;
+						}
+					},
+					{ timeout: 120_000, intervals: [500, 1_000, 2_000] }
+				)
+				.toBeGreaterThan(1_000);
+			const exportSize = (await stat(exportPath)).size;
+			await writeFile(
+				join(evidenceDirectory, "native-portrait-evidence.json"),
+				`${JSON.stringify(
+					{
+						localRuntime,
+						nativePortraitStats,
+						nativeDifference,
+						qinghuiPortraitStats,
+						qinghuiDifference,
+						exportSize,
+					},
+					null,
+					2
+				)}\n`,
+				"utf8"
+			);
+			await page.getByRole("button", { name: "Close export dialog" }).click();
 
 			await lab
 				.getByRole("searchbox", { name: "搜索剪映滤镜目录" })
@@ -306,7 +686,7 @@ test.describe("Local Jianying filter lab", () => {
 				lab.getByRole("button", { name: "应用 黑金", exact: true })
 			).toBeVisible();
 			await page.screenshot({
-				path: join(evidenceDirectory, "05-shader-favorites-recent.png"),
+				path: join(evidenceDirectory, "06-shader-favorites-recent.png"),
 				animations: "disabled",
 			});
 		} finally {
