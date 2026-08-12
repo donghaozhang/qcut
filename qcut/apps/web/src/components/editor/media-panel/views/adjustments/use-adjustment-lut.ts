@@ -162,12 +162,14 @@ export function useAdjustmentLut() {
 			name,
 			cube,
 			skinCube,
+			localPortraitResourceId,
 			layerName = `LUT - ${name}`,
 			successMessage = `已应用 ${name}`,
 		}: {
 			name: string;
 			cube: ColorCubeLut;
 			skinCube?: ColorCubeLut;
+			localPortraitResourceId?: string;
 			layerName?: string;
 			successMessage?: string;
 		}) => {
@@ -189,7 +191,13 @@ export function useAdjustmentLut() {
 					name,
 					cube,
 					dual: skinCube
-						? { skinCube, maskKind: "skin-tone-v1" as const }
+						? localPortraitResourceId
+							? {
+									skinCube,
+									maskKind: "skin-segmentation-v1" as const,
+									resourceId: localPortraitResourceId,
+								}
+							: { skinCube, maskKind: "skin-tone-v1" as const }
 						: undefined,
 				},
 			};
