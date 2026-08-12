@@ -88,6 +88,16 @@
 | FLP-007 导出链路捕获 | ⬜ | 依赖 FLP-005/006 |
 | FLP-008 授权边界代码化 | ✅ | pre-commit + CI 生效；红线修正为「再分发」并记录 |
 
+### 产品侧补充进展
+
+QCut 自有结构化渲染已新增 `grain-noise`、`light-leak`、`bloom`、`chromatic-aberration` 与
+`lens-distortion`，并让浏览器预览和 FFmpeg 导出都能执行。Bloom 的代表配方覆盖 `scale=0.5`、
+`pixelFormat=float16` 与三层 blur；真实 FFmpeg 串联烟测输出 1 秒 H.264，六帧哈希各不相同。
+
+这不改变 FLP-003 的状态：FLP-003 要求的是剪映真实代表卡的中间纹理与 UI 无损对照；当前完成的是 QCut
+表达与执行能力。详细结果见
+[product-batches-and-long-tail-e2e.zh.md](product-batches-and-long-tail-e2e.zh.md)。
+
 ### FLP-001 卡片目录导出与分层抽样底座
 
 **目标：** 让长尾覆盖率可以被**测量**而不是被估计。新增 CLI 导出完整卡片目录（含 `requirements` /
