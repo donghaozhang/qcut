@@ -107,6 +107,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 			"Score QCut filter recipes against locally cached Jianying LUTs",
 		actions: {
 			list: "filter-lab-list",
+			catalog: "filter-lab-catalog",
 			compare: "filter-lab-compare",
 			match: "filter-lab-match",
 			verify: "filter-lab-verify",

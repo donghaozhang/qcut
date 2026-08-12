@@ -136,6 +136,7 @@ export const CATEGORIES: CategoryDef[] = [
 		label: "Filter Lab",
 		commands: [
 			"filter-lab-list",
+			"filter-lab-catalog",
 			"filter-lab-compare",
 			"filter-lab-match",
 			"filter-lab-verify",
@@ -288,6 +289,25 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		category: "filter-lab",
 		flags: [],
 		examples: ["qcut filter-lab list --json"],
+	},
+	"filter-lab-catalog": {
+		name: "filter-lab-catalog",
+		description:
+			"Dump every filter card the local Jianying metadata caches know about (capability tags, implementation kind, cache and verification status), with deterministic stratified sampling for batch parity runs",
+		category: "filter-lab",
+		flags: [
+			f("--sample", "number", "Deterministic stratified sample of N cards"),
+			f("--seed", "number", "Sample seed; same seed reproduces the sample"),
+			f(
+				"--stratify",
+				"string",
+				"Comma-separated fields to stratify by (default: implementation)"
+			),
+		],
+		examples: [
+			"qcut filter-lab catalog --json",
+			"qcut filter-lab catalog --sample 30 --seed 7 --stratify implementation,requirements --json",
+		],
 	},
 	"filter-lab-compare": {
 		name: "filter-lab-compare",

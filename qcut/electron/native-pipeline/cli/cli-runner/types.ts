@@ -221,8 +221,10 @@ export interface CLIRunOptions {
 	lutId?: string;
 	/** filter-lab: how many worst matches to report. */
 	worst?: number;
-	/** filter-lab: image or video to take scoring colours from. */
+	/** filter-lab: image or video to take scoring colours from; catalog: sample size. */
 	sample?: string;
+	/** filter-lab catalog: comma-separated stratification fields. */
+	stratify?: string;
 	/** filter-lab: exact resource version tied to rendered parity evidence. */
 	filterVersion?: string;
 	referenceFrame?: string;

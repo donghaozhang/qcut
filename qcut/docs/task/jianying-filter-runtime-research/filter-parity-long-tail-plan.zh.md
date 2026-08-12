@@ -47,6 +47,30 @@
   (`JianyingFilterLabFilterSummary`) 丢掉了 `requirements` / `sdkModel` / `effectId`——恰好是分层抽样最需要的轴。
 - **验证存储会互相覆盖**：一卡一条、按 resourceId 覆盖写，批量跑几百张卡时无法保留同卡多版本 / 多输入的历史。
 
+## 2.1 首次实测基线（FLP-001 落地后）
+
+`qcut filter-lab catalog --json` 在本机跑出的第一份真实分布（2026-08-12，仅数值结果）：
+
+| 实现类型 | cached | uncached | partial |
+| --- | ---: | ---: | ---: |
+| `single-lut` | 59 | 0 | 1 |
+| `dual-lut` | 21 | 0 | 0 |
+| `shader` | 13 | 0 | 0 |
+| `face-ai` | 2 | 140 | 0 |
+| `unknown` | 0 | 647 | 0 |
+| **合计** | **95** | **787** | **1** |
+
+这条数据直接修正了计划的前提：**883 是目录规模，不是可操作规模**。本机只有 96 张卡的包真正缓存下来
+（`unknown` 全部来自未缓存包，无法判定实现类型），其中 76 张 `available`。当前验证记录 15 条
+（1 verified / 14 close），`multiPassKind` 只有 3 张（`sharpen-lut` / `vignette-lut` / `fog-lut` 各 1）。
+
+因此后续任务的抽样口径统一收敛为：
+
+- **可立即批量对照的总体 = 96 张已缓存卡**，FLP-004 的「30 张抽样」应在此总体内分层；
+- `face-ai` 是最大的长尾风险面（142 张卡，仅 2 张已缓存），且 `requirements` 里普遍带
+  `skin_seg` / `matting` / `face` / `face_fitting` / `sky_seg` / `scene_normal` —— 直接印证 FLP-005 / FLP-006 的优先级；
+- 未缓存卡不作为失败项，而是记为「本机无样本」，需要在剪映里实际使用后才进入可验证总体。
+
 ## 3. 任务分解
 
 每项按 **目标 / 主要文件 / 完成条件 / 停止条件** 组织。`停止条件` 是硬边界：触发即停下来记录，不要绕过。

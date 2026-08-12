@@ -124,6 +124,7 @@ import {
 	handleFilterLabMatch,
 	handleFilterLabVerify,
 } from "../cli-handlers-filter-lab.js";
+import { handleFilterLabCatalog } from "../cli-handlers-filter-lab-catalog.js";
 
 /**
  * Unified handler signature.
@@ -178,6 +179,14 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	"instances-use": wrap(handleInstancesCommand),
 	"filter-lab-list": wrap((options) =>
 		handleFilterLabList({ json: options.json })
+	),
+	"filter-lab-catalog": wrap((options) =>
+		handleFilterLabCatalog({
+			json: options.json,
+			sample: options.sample ? Number(options.sample) : undefined,
+			seed: options.seed ? Number(options.seed) : undefined,
+			stratify: options.stratify ? String(options.stratify) : undefined,
+		})
 	),
 	"filter-lab-compare": wrap((options) =>
 		handleFilterLabCompare({
