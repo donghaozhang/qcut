@@ -281,6 +281,8 @@ async function applyCanvasAdjustment({
 			masks,
 			settings: color,
 			frameSeed: Math.round(currentTime * context.fps),
+			sourceKey: `adjustment:${element.id}`,
+			timestampSeconds: currentTime,
 		});
 	} else {
 		await drawMediaSourceWithMasks({
@@ -408,6 +410,8 @@ export async function renderImage(
 						masks: visual.masks,
 						settings: visual.color,
 						frameSeed: Math.round(currentTime * context.fps),
+						sourceKey: `image:${element.id}:${mediaItem.id}`,
+						timestampSeconds: 0,
 					});
 
 				if (EFFECTS_ENABLED) {
@@ -595,6 +599,8 @@ async function renderVideoAttempt(
 				masks: visual.masks,
 				settings: visual.color,
 				frameSeed: Math.round((element.startTime + timeOffset) * context.fps),
+				sourceKey: `video:${element.id}:${mediaItem.id}`,
+				timestampSeconds: video.currentTime,
 			});
 
 		if (EFFECTS_ENABLED) {
