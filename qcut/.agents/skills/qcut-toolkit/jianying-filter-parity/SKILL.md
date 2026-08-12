@@ -43,6 +43,14 @@ and classifies common implementations:
 - `shader-or-effect-package`: inspect readable shaders, Lua, config, and graph;
 - `unknown`: gather more UI/cache evidence before fitting.
 
+For a `skin-segmented-dual-lut` package with 512x512 `filter_bg.png` and
+`filter_skin.png`, QCut can expose both 64-level tiled cubes only when a
+package shader also proves the two-LUT-plus-mask mix. `available` then means
+the cubes are loadable, not that segmentation parity is established. Keep the
+card `unverified` until a real portrait comparison includes mask IoU; the
+product's `skin-tone-v1` heuristic is not equivalent to spatial skin
+segmentation.
+
 An exact title can return multiple resources. Disambiguate with the UI card
 order, cover image, or the `jianying-reference` one-card mtime probe. Never pick
 the first title match silently. If the package is absent, apply that one card in
@@ -372,8 +380,14 @@ independent one-frame repeat also changed zero bytes and produced no extra CPU
 mask. CoreML readiness is observed only when a later seek re-enters the
 algorithm graph, and a ready log emitted inside a seek does not prove that seek
 consumed the new result. Do not add passive waits to recover a pre-ready frame.
-Test one explicit same-timestamp re-seek after readiness has been observed next,
-without also resetting the manager.
+The explicit same-timestamp re-seek is now measured. With static history it
+replaces the pre-ready mask and reaches `RMSE 0.916513 / 48.888033 dB` plus
+mask `MAE 3.276394 / IoU 0.962641`; independent repeats are byte-identical.
+After 60 static and 10 moving frames, the same re-seek falls to
+`40.140233 dB / IoU 0.265185`, again deterministically. Re-seek consumes a
+ready result but does not clear temporal segmentation history. Keep one manager
+for a continuous clip; recreate the manager and AlgorithmService at a
+clip/source boundary or backward timestamp discontinuity.
 
 The UI's `enableAlgorithmCache:9` log is not itself the missing state. The real
 wrapper entry is `setAlgorithmCacheFlag(9)`, which maps directly to
@@ -446,9 +460,10 @@ used by the Metal V2 renderer, so it is control-flow evidence only.
   and after a two-second post-seek run-loop wait. Five frames and an independent
   repeat have zero changed bytes and no extra mask; passive time does not rerun
   the current frame.
-- [ ] After a later seek has observed CoreML readiness, re-seek the original
-  input at the same timestamp and determine whether that explicit action
-  replaces the pre-ready result. Do not combine it with manager reset.
+- [x] After a later seek observes CoreML readiness, re-seek the original input
+  at the same timestamp. Static history reaches `48.888033 dB / IoU 0.962641`;
+  moving history reaches only `40.140233 dB / 0.265185`, establishing the
+  backward-discontinuity manager-reset rule.
 - [ ] Capture the actual Jianying export mode order. Do not infer it from preview.
 - [ ] Compare one calibration chart, one still portrait, and one short moving
   portrait at identical dimensions. Report whole-frame PSNR plus mask interior,
