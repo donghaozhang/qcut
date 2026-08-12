@@ -319,6 +319,9 @@ export function normalizeMediaColorSettings({
 		multiPass: stored?.multiPass
 			? {
 					...stored.multiPass,
+					nativeEffect: stored.multiPass.nativeEffect
+						? { ...stored.multiPass.nativeEffect }
+						: undefined,
 					passes: stored.multiPass.passes.map((pass) =>
 						pass.kind === "lut"
 							? {
