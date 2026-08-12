@@ -1,6 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { JianyingFilterMultiPassKind } from "../../jianying-filter-lab-contract.js";
+import type {
+	JianyingFilterLabIntensityCurve,
+	JianyingFilterLabPassTraits,
+	JianyingFilterMultiPassKind,
+} from "../../jianying-filter-lab-contract.js";
 import type { FilterLabCube } from "./filter-lab-lut.js";
 import {
 	isSupportedTiledLutImage,
@@ -20,16 +24,65 @@ export interface JianyingFilterMultiPassRenderer {
 	fidelity: "structural";
 }
 
+/** Long-tail per-pass semantics; see the contract for field docs. */
+export type FilterLabPassTraits = JianyingFilterLabPassTraits;
+
 export type FilterLabMultiPassOperation =
-	| { kind: "sharpen"; amount: number }
-	| { kind: "bilateral-blur"; radius: number; threshold: number }
-	| { kind: "fog-blend"; radius: number; amount: number }
-	| { kind: "vignette"; amount: number; softness: number }
-	| { kind: "lut"; cube: FilterLabCube; intensity: number };
+	| ({ kind: "sharpen"; amount: number } & FilterLabPassTraits)
+	| ({
+			kind: "bilateral-blur";
+			radius: number;
+			threshold: number;
+	  } & FilterLabPassTraits)
+	| ({
+			kind: "fog-blend";
+			radius: number;
+			amount: number;
+	  } & FilterLabPassTraits)
+	| ({
+			kind: "vignette";
+			amount: number;
+			softness: number;
+	  } & FilterLabPassTraits)
+	| ({
+			kind: "lut";
+			cube: FilterLabCube;
+			intensity: number;
+	  } & FilterLabPassTraits);
 
 export interface FilterLabMultiPassRecipe {
 	kind: JianyingFilterMultiPassKind;
 	passes: FilterLabMultiPassOperation[];
+}
+
+/**
+ * The defaults every currently verified recipe runs with: full-resolution
+ * RGBA8 intermediates, single mip level, clamp-to-edge sampling, linear
+ * intensity, static in time. `resolveFilterLabPassTraits` is the one
+ * authoritative place renderers read trait values from, so an absent field
+ * and an explicit default stay indistinguishable.
+ */
+export const FILTER_LAB_PASS_TRAIT_DEFAULTS: Required<FilterLabPassTraits> = {
+	scale: 1,
+	pixelFormat: "rgba8",
+	mipLevels: 1,
+	edgeMode: "clamp",
+	intensityCurve: { kind: "linear" } as JianyingFilterLabIntensityCurve,
+	timeVarying: false,
+};
+
+export function resolveFilterLabPassTraits(
+	pass: FilterLabPassTraits
+): Required<FilterLabPassTraits> {
+	return {
+		scale: pass.scale ?? FILTER_LAB_PASS_TRAIT_DEFAULTS.scale,
+		pixelFormat: pass.pixelFormat ?? FILTER_LAB_PASS_TRAIT_DEFAULTS.pixelFormat,
+		mipLevels: pass.mipLevels ?? FILTER_LAB_PASS_TRAIT_DEFAULTS.mipLevels,
+		edgeMode: pass.edgeMode ?? FILTER_LAB_PASS_TRAIT_DEFAULTS.edgeMode,
+		intensityCurve:
+			pass.intensityCurve ?? FILTER_LAB_PASS_TRAIT_DEFAULTS.intensityCurve,
+		timeVarying: pass.timeVarying ?? FILTER_LAB_PASS_TRAIT_DEFAULTS.timeVarying,
+	};
 }
 
 function hasPaths({

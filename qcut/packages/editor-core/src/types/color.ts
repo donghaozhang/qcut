@@ -50,31 +50,49 @@ export interface ColorLutSettings {
 	dual?: ColorDualLutSettings;
 }
 
+/**
+ * Long-tail per-pass texture semantics. Structurally mirrors
+ * `JianyingFilterLabPassTraits` in electron/jianying-filter-lab-contract.ts
+ * (the contract's compile-time parity guard asserts assignability); keep
+ * the two in sync. Absent fields mean the full-resolution RGBA8 defaults
+ * every currently verified recipe uses.
+ */
+export interface ColorMultiPassTraits {
+	scale?: 1 | 0.5 | 0.25;
+	pixelFormat?: "rgba8" | "float16" | "float32";
+	mipLevels?: number;
+	edgeMode?: "clamp" | "repeat" | "mirror";
+	intensityCurve?:
+		| { kind: "linear" }
+		| { kind: "piecewise"; points: [number, number][] };
+	timeVarying?: boolean;
+}
+
 export type ColorMultiPassOperation =
-	| {
+	| ({
 			kind: "sharpen";
 			amount: number;
-	  }
-	| {
+	  } & ColorMultiPassTraits)
+	| ({
 			kind: "bilateral-blur";
 			radius: number;
 			threshold: number;
-	  }
-	| {
+	  } & ColorMultiPassTraits)
+	| ({
 			kind: "fog-blend";
 			radius: number;
 			amount: number;
-	  }
-	| {
+	  } & ColorMultiPassTraits)
+	| ({
 			kind: "vignette";
 			amount: number;
 			softness: number;
-	  }
-	| {
+	  } & ColorMultiPassTraits)
+	| ({
 			kind: "lut";
 			cube: ColorCubeLut;
 			intensity: number;
-	  };
+	  } & ColorMultiPassTraits);
 
 /** Ordered spatial and colour passes reconstructed from a cached effect package. */
 export interface ColorMultiPassSettings {

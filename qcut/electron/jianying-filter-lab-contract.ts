@@ -133,16 +133,59 @@ export interface JianyingFilterLabLoadResult
 	cube: JianyingFilterLabCube;
 }
 
-export type JianyingFilterLabMultiPassOperation =
-	| { kind: "sharpen"; amount: number }
-	| { kind: "bilateral-blur"; radius: number; threshold: number }
-	| { kind: "fog-blend"; radius: number; amount: number }
-	| { kind: "vignette"; amount: number; softness: number }
+/** How the UI intensity slider maps onto a pass's uniforms. */
+export type JianyingFilterLabIntensityCurve =
+	| { kind: "linear" }
 	| {
+			/** Piecewise-linear over observed (intensity, uniform) points. */
+			kind: "piecewise";
+			points: [number, number][];
+	  };
+
+/**
+ * Long-tail texture semantics a pass was OBSERVED to use at runtime
+ * (FLP-002; captured by the FLP-003 experiments). Every field is optional:
+ * absent means the full-resolution RGBA8 defaults that all currently
+ * verified recipes use. These fields describe observations — they are
+ * never fitted parameters.
+ */
+export interface JianyingFilterLabPassTraits {
+	/** Intermediate render scale relative to the frame (1, 0.5, or 0.25). */
+	scale?: 1 | 0.5 | 0.25;
+	/** Intermediate texture format. */
+	pixelFormat?: "rgba8" | "float16" | "float32";
+	/** Mip pyramid depth when the pass samples multiple blur levels. */
+	mipLevels?: number;
+	/** Sampler addressing at texture edges. */
+	edgeMode?: "clamp" | "repeat" | "mirror";
+	/** Intensity-to-uniform mapping; defaults to linear. */
+	intensityCurve?: JianyingFilterLabIntensityCurve;
+	/** True when the pass samples time (animated noise/grain/light leak). */
+	timeVarying?: boolean;
+}
+
+export type JianyingFilterLabMultiPassOperation =
+	| ({ kind: "sharpen"; amount: number } & JianyingFilterLabPassTraits)
+	| ({
+			kind: "bilateral-blur";
+			radius: number;
+			threshold: number;
+	  } & JianyingFilterLabPassTraits)
+	| ({
+			kind: "fog-blend";
+			radius: number;
+			amount: number;
+	  } & JianyingFilterLabPassTraits)
+	| ({
+			kind: "vignette";
+			amount: number;
+			softness: number;
+	  } & JianyingFilterLabPassTraits)
+	| ({
 			kind: "lut";
 			cube: JianyingFilterLabCube;
 			intensity: number;
-	  };
+	  } & JianyingFilterLabPassTraits);
 
 export interface JianyingFilterLabLoadRendererResult {
 	resourceId: string;

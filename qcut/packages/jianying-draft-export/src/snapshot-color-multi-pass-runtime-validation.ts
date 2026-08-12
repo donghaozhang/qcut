@@ -25,21 +25,30 @@ const SETTINGS_KEYS = createAllowedKeySet<ColorMultiPassSettings>({
 		presetId: true,
 	},
 });
+/** Optional long-tail traits every pass kind may carry (FLP-002). */
+const PASS_TRAIT_KEYS = {
+	edgeMode: true,
+	intensityCurve: true,
+	mipLevels: true,
+	pixelFormat: true,
+	scale: true,
+	timeVarying: true,
+} as const;
 const SHARPEN_KEYS = createAllowedKeySet<
 	Extract<ColorMultiPassOperation, { kind: "sharpen" }>
->({ keys: { amount: true, kind: true } });
+>({ keys: { amount: true, kind: true, ...PASS_TRAIT_KEYS } });
 const BILATERAL_KEYS = createAllowedKeySet<
 	Extract<ColorMultiPassOperation, { kind: "bilateral-blur" }>
->({ keys: { kind: true, radius: true, threshold: true } });
+>({ keys: { kind: true, radius: true, threshold: true, ...PASS_TRAIT_KEYS } });
 const FOG_KEYS = createAllowedKeySet<
 	Extract<ColorMultiPassOperation, { kind: "fog-blend" }>
->({ keys: { amount: true, kind: true, radius: true } });
+>({ keys: { amount: true, kind: true, radius: true, ...PASS_TRAIT_KEYS } });
 const VIGNETTE_KEYS = createAllowedKeySet<
 	Extract<ColorMultiPassOperation, { kind: "vignette" }>
->({ keys: { amount: true, kind: true, softness: true } });
+>({ keys: { amount: true, kind: true, softness: true, ...PASS_TRAIT_KEYS } });
 const LUT_KEYS = createAllowedKeySet<
 	Extract<ColorMultiPassOperation, { kind: "lut" }>
->({ keys: { cube: true, intensity: true, kind: true } });
+>({ keys: { cube: true, intensity: true, kind: true, ...PASS_TRAIT_KEYS } });
 
 function validateOperation({
 	path,
