@@ -115,12 +115,30 @@ describe("Jianying filter package inspector", () => {
 				resourceId: "dual",
 				version: "v1",
 				relativePath: "AmazingFeature/image/filter_bg.png",
+				content: createPngHeader(),
 			}),
 			packageFile({
 				cacheRoot,
 				resourceId: "dual",
 				version: "v1",
 				relativePath: "AmazingFeature/image/filter_skin.png",
+				content: createPngHeader(),
+			}),
+			packageFile({
+				cacheRoot,
+				resourceId: "dual",
+				version: "v1",
+				relativePath: "AmazingFeature/shaders/filter/gles2/filter.frag",
+				content: `
+					uniform sampler2D u_mask;
+					uniform sampler2D u_lut0;
+					uniform sampler2D u_lut1;
+					vec3 lut8x8(sampler2D lut, vec3 src) {
+						src *= 63.0;
+						return texture2D(lut, src.xy).rgb;
+					}
+					vec4 result = mix(res0, res1, mask.a);
+				`,
 			}),
 			packageFile({
 				cacheRoot,
@@ -153,6 +171,15 @@ describe("Jianying filter package inspector", () => {
 		expect(result.get("dual")).toMatchObject({
 			cacheStatus: "cached",
 			implementation: "dual-lut",
+			dualRenderer: {
+				kind: "dual-tiled-lut-8x8",
+				background: {
+					relativePath: "AmazingFeature/image/filter_bg.png",
+				},
+				skin: {
+					relativePath: "AmazingFeature/image/filter_skin.png",
+				},
+			},
 		});
 		expect(result.get("shader")).toMatchObject({
 			cacheStatus: "cached",
