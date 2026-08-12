@@ -6,6 +6,12 @@ export const JIANYING_FILTER_LAB_LOAD_RENDERER_CHANNEL =
 	"jianying-filter-lab:load-renderer";
 export const JIANYING_FILTER_LAB_THUMBNAIL_CHANNEL =
 	"jianying-filter-lab:thumbnail";
+export const JIANYING_FILTER_LAB_LOCAL_RUNTIME_CHANNEL =
+	"jianying-filter-lab:local-runtime";
+export const JIANYING_FILTER_LAB_RENDER_LOCAL_PORTRAIT_CHANNEL =
+	"jianying-filter-lab:render-local-portrait";
+export const JIANYING_FILTER_LAB_RENDER_LOCAL_EFFECT_CHANNEL =
+	"jianying-filter-lab:render-local-effect";
 export const JIANYING_FILTER_LAB_CHANGED_CHANNEL =
 	"jianying-filter-lab:changed";
 
@@ -182,6 +188,38 @@ export type JianyingFilterLabMultiPassOperation =
 			softness: number;
 	  } & JianyingFilterLabPassTraits)
 	| ({
+			kind: "grain-noise";
+			amount: number;
+			size: number;
+			seed: number;
+	  } & JianyingFilterLabPassTraits)
+	| ({
+			kind: "light-leak";
+			amount: number;
+			color: [number, number, number];
+			centerX: number;
+			centerY: number;
+			radius: number;
+			speed: number;
+	  } & JianyingFilterLabPassTraits)
+	| ({
+			kind: "bloom";
+			threshold: number;
+			radius: number;
+			amount: number;
+	  } & JianyingFilterLabPassTraits)
+	| ({
+			kind: "chromatic-aberration";
+			offset: number;
+			angle: number;
+	  } & JianyingFilterLabPassTraits)
+	| ({
+			kind: "lens-distortion";
+			distortion: number;
+			centerX: number;
+			centerY: number;
+	  } & JianyingFilterLabPassTraits)
+	| ({
 			kind: "lut";
 			cube: JianyingFilterLabCube;
 			intensity: number;
@@ -194,7 +232,12 @@ export interface JianyingFilterLabLoadRendererResult {
 	enabled: true;
 	presetId: string;
 	intensity: number;
-	fidelity: "structural";
+	fidelity: "structural" | "native-local";
+	nativeEffect?: {
+		provider: "jianying-local-effect-v1";
+		resourceId: string;
+		version: string;
+	};
 	passes: JianyingFilterLabMultiPassOperation[];
 }
 
@@ -206,6 +249,65 @@ export interface JianyingFilterLabThumbnailResult {
 	resourceId: string;
 	mimeType: "image/jpeg" | "image/png" | "image/webp";
 	bytes: Uint8Array;
+}
+
+export type JianyingFilterLocalRuntimeState =
+	| "ready"
+	| "unsupported-platform"
+	| "bridge-missing"
+	| "runtime-incompatible"
+	| "model-missing"
+	| "error";
+
+export interface JianyingFilterLocalRuntimeStatus {
+	state: JianyingFilterLocalRuntimeState;
+	message: string;
+	provider: "jianying-local-effect-v1";
+	platform: string;
+	bridgeReady: boolean;
+	runtimeReady: boolean;
+	modelReady: boolean;
+}
+
+export interface JianyingFilterLabLocalRuntimeRequest {
+	refresh?: boolean;
+}
+
+export interface JianyingFilterLabRenderLocalPortraitRequest {
+	resourceId: string;
+	width: number;
+	height: number;
+	sourceKey?: string;
+	timestampSeconds?: number;
+	rgba: Uint8Array;
+}
+
+export interface JianyingFilterLabRenderLocalEffectRequest {
+	resourceId: string;
+	width: number;
+	height: number;
+	intensity: number;
+	sourceKey?: string;
+	timestampSeconds?: number;
+	rgba: Uint8Array;
+}
+
+export interface JianyingFilterLabRenderLocalEffectResult {
+	provider: "jianying-local-effect-v1";
+	resourceId: string;
+	width: number;
+	height: number;
+	rgba: Uint8Array;
+}
+
+export interface JianyingFilterLabRenderLocalPortraitResult
+	extends JianyingFilterLabRenderLocalEffectResult {
+	mask: {
+		width: number;
+		height: number;
+		bytes: Uint8Array;
+		orientation: "bottom-left";
+	};
 }
 
 export interface JianyingFilterLabAPI {
@@ -221,6 +323,15 @@ export interface JianyingFilterLabAPI {
 	thumbnail: (
 		request: JianyingFilterLabThumbnailRequest
 	) => Promise<JianyingFilterLabThumbnailResult>;
+	inspectLocalRuntime: (
+		request?: JianyingFilterLabLocalRuntimeRequest
+	) => Promise<JianyingFilterLocalRuntimeStatus>;
+	renderLocalPortrait: (
+		request: JianyingFilterLabRenderLocalPortraitRequest
+	) => Promise<JianyingFilterLabRenderLocalPortraitResult>;
+	renderLocalEffect: (
+		request: JianyingFilterLabRenderLocalEffectRequest
+	) => Promise<JianyingFilterLabRenderLocalEffectResult>;
 	onCatalogChanged: (callback: () => void) => () => void;
 }
 
