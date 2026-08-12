@@ -4,11 +4,17 @@
  * catalog is actually verified" is a number instead of a feeling.
  *
  * Pure functions only — callers supply catalog cards and store records.
+ * Which record counts for a card is decided by the shared gate in
+ * electron/jianying-filter-verification-gate.ts, the same one the catalog
+ * badge uses.
  */
+import { selectVerificationForCard } from "../../jianying-filter-verification-gate.js";
 
 export interface FilterLabCoverageCard {
 	resourceId: string;
 	version?: string;
+	/** Drives the dual-lut mask downgrade, matching the catalog gate. */
+	implementation?: string;
 }
 
 export interface FilterLabCoverageRecord {
@@ -16,6 +22,8 @@ export interface FilterLabCoverageRecord {
 	version?: string;
 	status: "unverified" | "close" | "verified";
 	rgbRmse?: number;
+	/** Present only when a mask was compared; gates dual-lut verification. */
+	maskEdgeMae?: number;
 	verifiedAt: string;
 }
 
@@ -43,9 +51,8 @@ export interface FilterLabCoverageReport {
 }
 
 /**
- * The latest record that counts for a card. Mirrors the catalog join's
- * version gate: a record only counts when its version matches the card's
- * (or either side has no version to compare).
+ * The status that counts for a card. Delegates to the shared gate so this
+ * report and the `filter-lab catalog` badge can never disagree.
  */
 function effectiveRecordFor<Card extends FilterLabCoverageCard>({
 	card,
@@ -53,16 +60,19 @@ function effectiveRecordFor<Card extends FilterLabCoverageCard>({
 }: {
 	card: Card;
 	records: FilterLabCoverageRecord[];
-}): FilterLabCoverageRecord | undefined {
-	let latest: FilterLabCoverageRecord | undefined;
-	for (const record of records) {
-		if (record.resourceId !== card.resourceId) continue;
-		if (record.version && card.version && record.version !== card.version) {
-			continue;
-		}
-		if (!latest || latest.verifiedAt <= record.verifiedAt) latest = record;
-	}
-	return latest;
+}): { status: FilterLabCoverageRecord["status"]; rgbRmse?: number } {
+	const candidates = records.filter(
+		(record) => record.resourceId === card.resourceId
+	);
+	const selected = selectVerificationForCard({
+		candidates,
+		...(card.version ? { version: card.version } : {}),
+		...(card.implementation ? { implementation: card.implementation } : {}),
+	});
+	return {
+		status: selected.status,
+		...(selected.rgbRmse !== undefined ? { rgbRmse: selected.rgbRmse } : {}),
+	};
 }
 
 export function buildFilterLabCoverageReport<
@@ -95,10 +105,10 @@ export function buildFilterLabCoverageReport<
 		};
 		stratum.total += 1;
 		const record = effectiveRecordFor({ card, records });
-		const status = record?.status ?? "unverified";
+		const status = record.status;
 		stratum[status] += 1;
 		totals[status] += 1;
-		if (record?.rgbRmse !== undefined && status !== "unverified") {
+		if (record.rgbRmse !== undefined && status !== "unverified") {
 			stratum.bestRmse =
 				stratum.bestRmse === undefined
 					? record.rgbRmse
