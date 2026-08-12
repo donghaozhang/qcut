@@ -90,7 +90,12 @@ export function useScopeDockFrame({ enabled }: { enabled: boolean }): {
 				Math.round((time - element.startTime) * fps)
 			);
 			setImageData(
-				processColorImageData({ imageData: frame, settings, frameSeed })
+				processColorImageData({
+					imageData: frame,
+					settings,
+					frameSeed,
+					timestampSeconds: time,
+				})
 			);
 			lastRefreshRef.current = performance.now();
 		} catch {
@@ -102,6 +107,7 @@ export function useScopeDockFrame({ enabled }: { enabled: boolean }): {
 	}, []);
 
 	// Paused: refresh whenever the playhead or timeline content changes.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: store subscriptions deliberately trigger a fresh state pull.
 	useEffect(() => {
 		if (!enabled) {
 			setImageData(null);
