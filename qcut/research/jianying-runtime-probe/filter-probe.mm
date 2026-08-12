@@ -248,7 +248,7 @@ class FilterHostSession {
                     bool exportMode, bool enableSwingSimplify,
                     bool enableAdjustColorWithFloat,
                     bool enableImageQuality, bool managerCreateOption,
-                    bool enableParallelAsyncSwing)
+                    bool enableParallelAsyncSwing, bool useBefContextScope)
       : symbols_(symbols), registration_(models),
         openGlContext_(openGlContext),
         packagePath_(packagePath),
@@ -263,7 +263,8 @@ class FilterHostSession {
         enableAdjustColorWithFloat_(enableAdjustColorWithFloat),
         enableImageQuality_(enableImageQuality),
         managerCreateOption_(managerCreateOption),
-        enableParallelAsyncSwing_(enableParallelAsyncSwing) {
+        enableParallelAsyncSwing_(enableParallelAsyncSwing),
+        useBefContextScope_(useBefContextScope) {
     // registration_ owns catalog activation: if createHost() throws, this
     // destructor never runs, but the member's does.
     createHost();
@@ -400,15 +401,17 @@ class FilterHostSession {
     }
     openGlContext_.makeCurrent();
     void* amazer = symbols_.getManagerAmazer(manager_);
-    contextScope_ = std::make_unique<AmazerContextScope>(
-        AmazerContextScopeRequest{
-            .knownImageSymbol =
-                reinterpret_cast<const void*>(symbols_.getManagerAmazer),
-            .expectedImageUuid = kVerifiedFilterCoreUuid,
-            .constructorOffset = kAmazerContextScopeConstructorOffset,
-            .destructorOffset = kAmazerContextScopeDestructorOffset,
-            .context = amazer,
-        });
+    if (useBefContextScope_) {
+      contextScope_ = std::make_unique<AmazerContextScope>(
+          AmazerContextScopeRequest{
+              .knownImageSymbol =
+                  reinterpret_cast<const void*>(symbols_.getManagerAmazer),
+              .expectedImageUuid = kVerifiedFilterCoreUuid,
+              .constructorOffset = kAmazerContextScopeConstructorOffset,
+              .destructorOffset = kAmazerContextScopeDestructorOffset,
+              .context = amazer,
+          });
+    }
 
     const int algorithmCacheResult = symbols_.setManagerParameterInt(
         manager_, "AlgorithmCacheFlag", algorithmCacheFlag_);
@@ -510,6 +513,7 @@ class FilterHostSession {
   bool enableImageQuality_;
   bool managerCreateOption_;
   bool enableParallelAsyncSwing_;
+  bool useBefContextScope_;
   bool featureParametersApplied_ = false;
   bool ready_ = false;
 };
@@ -532,6 +536,7 @@ struct RenderContext {
   bool enableImageQuality;
   bool managerCreateOption;
   bool enableParallelAsyncSwing;
+  bool useBefContextScope;
   int stageDelayMilliseconds;
   std::unique_ptr<FilterHostSession> session;
 };
@@ -549,7 +554,8 @@ bool renderFilterFrame(const GraphicsFrameResources& resources) {
         context->featureParameters, context->exportMode,
         context->enableSwingSimplify,
         context->enableAdjustColorWithFloat, context->enableImageQuality,
-        context->managerCreateOption, context->enableParallelAsyncSwing);
+        context->managerCreateOption, context->enableParallelAsyncSwing,
+        context->useBefContextScope);
   }
   return context->session->render(
       resources, context->renderPasses, context->resetAction,
@@ -689,6 +695,7 @@ FilterSequenceResult renderFilterSequence(
       .enableImageQuality = request.enableImageQuality,
       .managerCreateOption = request.managerCreateOption,
       .enableParallelAsyncSwing = request.enableParallelAsyncSwing,
+      .useBefContextScope = request.useBefContextScope,
       .stageDelayMilliseconds = request.stageDelayMilliseconds,
       .session = nullptr,
   };
