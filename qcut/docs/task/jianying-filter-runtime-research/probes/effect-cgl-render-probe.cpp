@@ -35,6 +35,11 @@ using EffectInit = Result (*)(EffectHandle, std::int32_t, std::int32_t, const ch
 using EffectSetWidthHeight = Result (*)(EffectHandle, std::int32_t, std::int32_t);
 using EffectSetOrientation = Result (*)(EffectHandle, std::int32_t);
 using EffectSet = Result (*)(EffectHandle, const char*);
+using EffectGetFeature = Result (*)(EffectHandle, const char*, void**);
+using EffectSetIntensity = Result (*)(EffectHandle, std::int32_t, float);
+using EffectSendMessage =
+    Result (*)(EffectHandle, std::int32_t, std::int32_t, std::int32_t, const char*);
+using EffectSetParamWithKey = void (*)(const char*, const char*);
 using EffectSetAlgorithmParam =
     Result (*)(EffectHandle, const char*, const char*, const void*, std::int32_t);
 using EffectAlgorithmTexture = Result (*)(EffectHandle, GLuint, double);
@@ -363,6 +368,7 @@ struct InspectSkinResultOptions {
     EffectGetBachResultByNodeName getResult;
     EffectGetBachResultByGraphAndNodeName getResultByGraphAndNode;
     SkinSegTextureId getTextureId;
+    const char* maskOutputPath;
 };
 
 struct InspectTextureOptions {
@@ -465,6 +471,69 @@ void inspectMatchingTextures(const InspectTextureOptions& options) {
     glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(previousTexture));
 }
 
+bool writePgmMask(
+    const char* outputPath,
+    const std::uint8_t* pixels,
+    std::int32_t width,
+    std::int32_t height) {
+    if (outputPath == nullptr) {
+        return true;
+    }
+    std::ofstream output(outputPath, std::ios::binary);
+    output << "P5\n" << width << ' ' << height << "\n255\n";
+    output.write(
+        reinterpret_cast<const char*>(pixels),
+        static_cast<std::streamsize>(width) * height);
+    if (!output) {
+        std::cerr << "failed to write skin mask: " << outputPath << '\n';
+        return false;
+    }
+    std::cout << "skin_mask_output=" << outputPath << " size=" << width << 'x'
+              << height << '\n';
+    return true;
+}
+
+struct WriteSkinSegInfoCpuMaskOptions {
+    const void* nativeResult;
+    const char* outputPath;
+};
+
+bool writeSkinSegInfoCpuMask(const WriteSkinSegInfoCpuMaskOptions& options) {
+    const auto* nativeBytes =
+        static_cast<const std::uint8_t*>(options.nativeResult);
+    std::int32_t width = 0;
+    std::int32_t height = 0;
+    float reflector = 0.0F;
+    std::memcpy(&width, nativeBytes + 0x0c, sizeof(width));
+    std::memcpy(&height, nativeBytes + 0x10, sizeof(height));
+    std::memcpy(&reflector, nativeBytes + 0x14, sizeof(reflector));
+    std::cout << "skin_cpu_mask_size=" << width << 'x' << height
+              << " reflector=" << reflector << '\n';
+    if (width <= 0 || height <= 0 || width > 4096 || height > 4096) {
+        return false;
+    }
+
+    // Verified libcccreator layout: +0x18 owns a PrimitiveVector whose
+    // implementation stores begin/end at +0x10/+0x18.
+    const void* container = nullptr;
+    std::memcpy(&container, nativeBytes + 0x18, sizeof(container));
+    if (container == nullptr) {
+        return false;
+    }
+    const auto* containerBytes = static_cast<const std::uint8_t*>(container);
+    const std::uint8_t* begin = nullptr;
+    const std::uint8_t* end = nullptr;
+    std::memcpy(&begin, containerBytes + 0x10, sizeof(begin));
+    std::memcpy(&end, containerBytes + 0x18, sizeof(end));
+    const std::size_t expected =
+        static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+    if (begin == nullptr || end == nullptr || end < begin ||
+        static_cast<std::size_t>(end - begin) != expected) {
+        return false;
+    }
+    return writePgmMask(options.outputPath, begin, width, height);
+}
+
 bool inspectSkinResult(const InspectSkinResultOptions& options) {
     void* resultObject = nullptr;
     Result result = options.getResult(options.handle, "skin_seg_0", &resultObject);
@@ -521,12 +590,25 @@ bool inspectSkinResult(const InspectSkinResultOptions& options) {
         if (width <= 0 || height <= 0) {
             return false;
         }
+        if (!writeSkinSegInfoCpuMask({
+                .nativeResult = nativeResult,
+                .outputPath = options.maskOutputPath,
+            })) {
+            return false;
+        }
         inspectMatchingTextures({.expectedWidth = width, .expectedHeight = height});
         return true;
     }
 
     if (symbolName.find("SkinSegInfo") == std::string_view::npos) {
-        return true;
+        return options.maskOutputPath == nullptr;
+    }
+
+    if (!writeSkinSegInfoCpuMask({
+            .nativeResult = resultObject,
+            .outputPath = options.maskOutputPath,
+        })) {
+        return false;
     }
 
     const GLuint texture = options.getTextureId(resultObject);
@@ -561,12 +643,23 @@ bool inspectSkinResult(const InspectSkinResultOptions& options) {
 struct ProbeOptions {
     bool useCoreProfile = false;
     bool usePipeline = false;
+    bool server = false;
     bool skipAlgorithm = false;
     bool inspectSkinResult = false;
     bool forceSkinSegPictureMode = false;
     std::int32_t skinSegVideoMode = -1;
+    const char* maskOutputPath = nullptr;
     const char* inputPath = nullptr;
     const char* inputListPath = nullptr;
+    const char* parameterKey = nullptr;
+    const char* parameterValue = nullptr;
+    const char* featureType = nullptr;
+    const char* messageText = nullptr;
+    std::int32_t intensityType = -1;
+    std::int32_t messageType = -1;
+    std::int32_t messageArgument1 = 0;
+    std::int32_t messageArgument2 = 0;
+    float intensity = 1.0F;
     double framesPerSecond = 30.0;
 };
 
@@ -584,6 +677,10 @@ ProbeOptions parseProbeOptions(int argc, char** argv) {
         }
         if (argument == "pipeline") {
             options.usePipeline = true;
+            continue;
+        }
+        if (argument == "--server") {
+            options.server = true;
             continue;
         }
         if (argument == "--skip-algorithm") {
@@ -610,6 +707,11 @@ ProbeOptions parseProbeOptions(int argc, char** argv) {
             }
             throw std::runtime_error("--skin-seg-mode must be picture or video");
         }
+        if (argument == "--mask-output" && index + 1 < argc) {
+            options.maskOutputPath = argv[++index];
+            options.inspectSkinResult = true;
+            continue;
+        }
         if (argument == "--input" && index + 1 < argc) {
             options.inputPath = argv[++index];
             continue;
@@ -630,12 +732,130 @@ ProbeOptions parseProbeOptions(int argc, char** argv) {
             }
             continue;
         }
+        if (argument == "--set-param-with-key" && index + 2 < argc) {
+            options.parameterKey = argv[++index];
+            options.parameterValue = argv[++index];
+            continue;
+        }
+        if (argument == "--inspect-feature" && index + 1 < argc) {
+            options.featureType = argv[++index];
+            continue;
+        }
+        if (argument == "--send-message" && index + 4 < argc) {
+            const auto parseMessageInteger = [&](const char* label) {
+                const std::string value = argv[++index];
+                std::size_t parsedCharacters = 0;
+                const long parsed = std::stol(value, &parsedCharacters, 0);
+                if (parsedCharacters != value.size() ||
+                    parsed < std::numeric_limits<std::int32_t>::min() ||
+                    parsed > std::numeric_limits<std::int32_t>::max()) {
+                    throw std::runtime_error(std::string(label) + " must be an int32");
+                }
+                return static_cast<std::int32_t>(parsed);
+            };
+            options.messageType = parseMessageInteger("message type");
+            options.messageArgument1 = parseMessageInteger("message argument 1");
+            options.messageArgument2 = parseMessageInteger("message argument 2");
+            options.messageText = argv[++index];
+            continue;
+        }
+        if (argument == "--intensity-type" && index + 1 < argc) {
+            const std::string value = argv[++index];
+            std::size_t parsedCharacters = 0;
+            const long parsed = std::stol(value, &parsedCharacters);
+            if (parsedCharacters != value.size() || parsed < 0 ||
+                parsed > std::numeric_limits<std::int32_t>::max()) {
+                throw std::runtime_error("--intensity-type must be a non-negative int32");
+            }
+            options.intensityType = static_cast<std::int32_t>(parsed);
+            continue;
+        }
+        if (argument == "--intensity" && index + 1 < argc) {
+            const std::string value = argv[++index];
+            std::size_t parsedCharacters = 0;
+            options.intensity = std::stof(value, &parsedCharacters);
+            if (parsedCharacters != value.size() || !std::isfinite(options.intensity)) {
+                throw std::runtime_error("--intensity must be finite");
+            }
+            continue;
+        }
         throw std::runtime_error(std::string("unknown or incomplete argument: ") + argv[index]);
     }
     if (options.inputPath != nullptr && options.inputListPath != nullptr) {
         throw std::runtime_error("--input and --input-list are mutually exclusive");
     }
+    if (options.server && options.inputPath == nullptr) {
+        throw std::runtime_error("--server requires --input for session dimensions and warm-up");
+    }
     return options;
+}
+
+enum class HostCommandKind {
+    render,
+    shutdown,
+};
+
+struct HostCommand {
+    HostCommandKind kind;
+    std::string requestId;
+    double timestamp = 0.0;
+    std::string inputPath;
+    std::string outputPath;
+    std::string maskPath;
+};
+
+std::vector<std::string> splitHostFields(const std::string& line) {
+    std::vector<std::string> fields;
+    std::size_t fieldStart = 0;
+    while (true) {
+        const std::size_t separator = line.find('\t', fieldStart);
+        fields.push_back(line.substr(fieldStart, separator - fieldStart));
+        if (separator == std::string::npos) {
+            break;
+        }
+        fieldStart = separator + 1;
+    }
+    return fields;
+}
+
+HostCommand parseHostCommand(const std::string& line) {
+    if (line == "shutdown") {
+        return {.kind = HostCommandKind::shutdown};
+    }
+    const std::vector<std::string> fields = splitHostFields(line);
+    if (fields.size() != 6 || fields[0] != "render") {
+        throw std::runtime_error(
+            "host command must be render<TAB>id<TAB>timestamp<TAB>input<TAB>output<TAB>mask");
+    }
+    if (fields[1].empty() || fields[3].empty() || fields[4].empty() || fields[5].empty()) {
+        throw std::runtime_error("host command fields cannot be empty");
+    }
+    std::size_t parsedCharacters = 0;
+    const double timestamp = std::stod(fields[2], &parsedCharacters);
+    if (parsedCharacters != fields[2].size() || !std::isfinite(timestamp) || timestamp < 0.0) {
+        throw std::runtime_error("host timestamp must be a non-negative finite number");
+    }
+    return {
+        .kind = HostCommandKind::render,
+        .requestId = fields[1],
+        .timestamp = timestamp,
+        .inputPath = fields[3],
+        .outputPath = fields[4],
+        .maskPath = fields[5],
+    };
+}
+
+std::string sanitizeHostMessage(std::string message) {
+    for (char& character : message) {
+        if (character == '\t' || character == '\n' || character == '\r') {
+            character = ' ';
+        }
+    }
+    return message;
+}
+
+void writeHostMessage(const std::string& message) {
+    std::cout << "QCUT\t" << message << '\n' << std::flush;
 }
 
 }  // namespace
@@ -646,7 +866,13 @@ int main(int argc, char** argv) {
             << "usage: effect-cgl-render-probe <effect-lib> <models> <effect> "
                "<output.ppm|output-directory> [legacy|core32] [pipeline] "
                "[--input input.ppm|--input-list frames.txt] [--fps 30] "
+               "[--server] "
+               "[--set-param-with-key key value] "
+               "[--inspect-feature type] "
+               "[--send-message type arg1 arg2 text] "
+               "[--intensity-type type --intensity value] "
                "[--skip-algorithm] [--inspect-skin-result] "
+               "[--mask-output output.pgm] "
                "[--force-skin-seg-picture-mode] "
                "[--skin-seg-mode picture|video]\n";
         return 2;
@@ -722,6 +948,17 @@ int main(int argc, char** argv) {
     const auto effectSetOrientation =
         loadSymbol<EffectSetOrientation>({effectLibrary, "bef_effect_set_orientation"});
     const auto effectSet = loadSymbol<EffectSet>({effectLibrary, "bef_effect_set_effect"});
+    const auto effectGetFeature =
+        loadSymbol<EffectGetFeature>({effectLibrary, "bef_effect_get_feature"});
+    const auto effectSetIntensity =
+        loadSymbol<EffectSetIntensity>({effectLibrary, "bef_effect_set_intensity"});
+    EffectSendMessage effectSendMessage = nullptr;
+    if (probeOptions.messageType >= 0) {
+        effectSendMessage =
+            loadSymbol<EffectSendMessage>({effectLibrary, "bef_effect_send_msg"});
+    }
+    const auto effectSetParamWithKey = loadSymbol<EffectSetParamWithKey>(
+        {effectLibrary, "bef_effect_set_param_with_key"});
     const auto effectAlgorithmTexture =
         loadSymbol<EffectAlgorithmTexture>({effectLibrary, "bef_effect_algorithm_texture"});
     const auto effectProcessTexture =
@@ -786,6 +1023,24 @@ int main(int argc, char** argv) {
         effectDestroy(handle);
         return 12;
     }
+    const auto inspectFeature = [&](const char* featureType) {
+        void* feature = nullptr;
+        const Result featureResult =
+            effectGetFeature(handle, featureType, &feature);
+        Dl_info featureVtableInfo{};
+        const void* featureVtable = feature == nullptr ? nullptr : *static_cast<void**>(feature);
+        const bool hasFeatureVtableSymbol =
+            featureVtable != nullptr && dladdr(featureVtable, &featureVtableInfo) != 0 &&
+            featureVtableInfo.dli_sname != nullptr;
+        std::cout << "get_feature type=" << featureType
+                  << " result=" << featureResult << " feature=" << feature
+                  << " vtable=" << featureVtable << " symbol="
+                  << (hasFeatureVtableSymbol ? featureVtableInfo.dli_sname : "<unknown>")
+                  << std::endl;
+    };
+    if (probeOptions.featureType != nullptr) {
+        inspectFeature(probeOptions.featureType);
+    }
     if (probeOptions.skinSegVideoMode >= 0) {
         constexpr std::int32_t integerAlgorithmParamType = 1;
         const Result setModeResult = effectSetAlgorithmParam(
@@ -803,13 +1058,153 @@ int main(int argc, char** argv) {
     DifferenceResult finalDifference{};
     bool processingSucceeded = true;
 
-    if (!inputPaths.empty()) {
+    const auto applyProbeParameters = [&]() {
+        if (probeOptions.parameterKey != nullptr) {
+            effectSetParamWithKey(probeOptions.parameterKey, probeOptions.parameterValue);
+            std::cout << "set_param_with_key=" << probeOptions.parameterKey << '\n';
+        }
+        if (probeOptions.intensityType >= 0) {
+            const Result intensityResult = effectSetIntensity(
+                handle, probeOptions.intensityType, probeOptions.intensity);
+            std::cout << "set_intensity type=" << probeOptions.intensityType
+                      << " value=" << probeOptions.intensity
+                      << " result=" << intensityResult << '\n';
+        }
+        if (effectSendMessage != nullptr) {
+            const Result messageResult = effectSendMessage(
+                handle,
+                probeOptions.messageType,
+                probeOptions.messageArgument1,
+                probeOptions.messageArgument2,
+                probeOptions.messageText);
+            std::cout << "send_message type=" << probeOptions.messageType
+                      << " arg1=" << probeOptions.messageArgument1
+                      << " arg2=" << probeOptions.messageArgument2
+                      << " text=" << probeOptions.messageText
+                      << " result=" << messageResult << '\n';
+        }
+    };
+
+    if (probeOptions.server) {
         for (int attempt = 0; attempt < 20; ++attempt) {
             Result algorithmResult = -1;
             if (!probeOptions.skipAlgorithm) {
                 algorithmResult = effectAlgorithmTexture(handle, inputTexture, 0.0);
             }
             processResult = effectProcessTexture(handle, inputTexture, outputTexture, 0.0);
+            if (attempt == 0) {
+                applyProbeParameters();
+            }
+            std::cout << "warmup[" << attempt << "] algorithm=";
+            if (probeOptions.skipAlgorithm) {
+                std::cout << "skipped";
+            } else {
+                std::cout << algorithmResult;
+            }
+            std::cout << " process=" << processResult << " gl_error=0x" << std::hex
+                      << glGetError() << std::dec << '\n';
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
+
+        writeHostMessage("READY\t1");
+        std::string commandLine;
+        while (std::getline(std::cin, commandLine)) {
+            HostCommand command;
+            try {
+                command = parseHostCommand(commandLine);
+            } catch (const std::exception& error) {
+                writeHostMessage("ERROR\t2\t" + sanitizeHostMessage(error.what()));
+                continue;
+            }
+            if (command.kind == HostCommandKind::shutdown) {
+                writeHostMessage("STOPPED\t0");
+                break;
+            }
+
+            try {
+                ImageData frame = readPpm({.path = command.inputPath.c_str()});
+                if (frame.size.width != size.width || frame.size.height != size.height) {
+                    throw std::runtime_error("host frame dimensions changed; start a new session");
+                }
+                inputPixels = std::move(frame.rgba);
+                updateTexture({.texture = inputTexture, .pixels = inputPixels, .size = size});
+
+                Result algorithmResult = -1;
+                if (!probeOptions.skipAlgorithm) {
+                    algorithmResult =
+                        effectAlgorithmTexture(handle, inputTexture, command.timestamp);
+                }
+                updateTexture({.texture = outputTexture, .pixels = outputSeed, .size = size});
+                processResult = effectProcessTexture(
+                    handle, inputTexture, outputTexture, command.timestamp);
+                glFinish();
+
+                const bool algorithmSucceeded =
+                    probeOptions.skipAlgorithm || algorithmResult == 0;
+                if (!algorithmSucceeded || processResult != 0) {
+                    throw std::runtime_error(
+                        "native effect processing failed: algorithm=" +
+                        std::to_string(algorithmResult) + " process=" +
+                        std::to_string(processResult));
+                }
+                if (command.maskPath != "-") {
+                    const bool wroteMask = inspectSkinResult({
+                        .handle = handle,
+                        .getResultByType = effectGetBachResult,
+                        .getResult = effectGetBachResultByNodeName,
+                        .getResultByGraphAndNode = effectGetBachResultByGraphAndNodeName,
+                        .getTextureId = skinSegTextureId,
+                        .maskOutputPath = command.maskPath.c_str(),
+                    });
+                    if (!wroteMask) {
+                        throw std::runtime_error("native effect did not expose a skin mask");
+                    }
+                }
+
+                const std::vector<std::uint8_t> outputPixels =
+                    readTexture({.texture = outputTexture, .size = size});
+                if (outputPixels.empty()) {
+                    throw std::runtime_error("native effect returned an empty texture");
+                }
+                if (!writePpm({
+                        .outputPath = command.outputPath.c_str(),
+                        .pixels = outputPixels,
+                        .size = size,
+                    })) {
+                    throw std::runtime_error("failed to write native effect output");
+                }
+                finalAlgorithmResult = algorithmResult;
+                finalDifference = calculateDifference({
+                    .output = outputPixels,
+                    .input = inputPixels,
+                    .seed = outputSeed,
+                });
+                std::cout << "host_frame[" << command.requestId << "] algorithm=";
+                if (probeOptions.skipAlgorithm) {
+                    std::cout << "skipped";
+                } else {
+                    std::cout << algorithmResult;
+                }
+                std::cout << " process=" << processResult
+                          << " difference_from_input=" << finalDifference.fromInput
+                          << " output_sum=" << finalDifference.outputSum << '\n';
+                writeHostMessage("RESULT\t" + command.requestId + "\t0");
+            } catch (const std::exception& error) {
+                writeHostMessage(
+                    "RESULT\t" + command.requestId + "\t14\t" +
+                    sanitizeHostMessage(error.what()));
+            }
+        }
+    } else if (!inputPaths.empty()) {
+        for (int attempt = 0; attempt < 20; ++attempt) {
+            Result algorithmResult = -1;
+            if (!probeOptions.skipAlgorithm) {
+                algorithmResult = effectAlgorithmTexture(handle, inputTexture, 0.0);
+            }
+            processResult = effectProcessTexture(handle, inputTexture, outputTexture, 0.0);
+            if (attempt == 0) {
+                applyProbeParameters();
+            }
             std::cout << "warmup[" << attempt << "] algorithm=";
             if (probeOptions.skipAlgorithm) {
                 std::cout << "skipped";
@@ -828,6 +1223,7 @@ int main(int argc, char** argv) {
                 .getResult = effectGetBachResultByNodeName,
                 .getResultByGraphAndNode = effectGetBachResultByGraphAndNodeName,
                 .getTextureId = skinSegTextureId,
+                .maskOutputPath = probeOptions.maskOutputPath,
             });
         }
 
@@ -912,6 +1308,9 @@ int main(int argc, char** argv) {
             }
             updateTexture({.texture = outputTexture, .pixels = outputSeed, .size = size});
             processResult = effectProcessTexture(handle, inputTexture, outputTexture, timestamp);
+            if (attempt == 0) {
+                applyProbeParameters();
+            }
             finalAlgorithmResult = algorithmResult;
             std::cout << "frame[" << attempt << "] algorithm=";
             if (probeOptions.skipAlgorithm) {
@@ -933,6 +1332,7 @@ int main(int argc, char** argv) {
                 .getResult = effectGetBachResultByNodeName,
                 .getResultByGraphAndNode = effectGetBachResultByGraphAndNodeName,
                 .getTextureId = skinSegTextureId,
+                .maskOutputPath = probeOptions.maskOutputPath,
             });
         }
         glFinish();
