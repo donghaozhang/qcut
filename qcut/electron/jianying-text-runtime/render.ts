@@ -18,6 +18,7 @@ import {
 } from "./cache-path.js";
 import { resolveJianyingTextRuntimeFont } from "./font-resolver.js";
 import { resolveJianyingTextPackage } from "./package-resolver.js";
+import { repairTransientTransparentRgbaFrames } from "./raw-sequence-integrity.js";
 import { normalizeJianyingTextRuntimeReference } from "./reference.js";
 import { ensureJianyingTextPreviewVideo } from "./preview-video.js";
 import {
@@ -27,7 +28,7 @@ import {
 } from "./render-process.js";
 import { inspectJianyingTextRuntime } from "./runtime-discovery.js";
 
-const RENDER_CACHE_SCHEMA_VERSION = 2;
+const RENDER_CACHE_SCHEMA_VERSION = 7;
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
 const MAXIMUM_CONTENT_CODE_POINTS = 4096;
 const MAXIMUM_DIMENSION = 4096;
@@ -41,7 +42,7 @@ interface ValidatedRenderRequest
 }
 
 interface CachedRenderManifest {
-	schemaVersion: 2;
+	schemaVersion: 7;
 	cacheKey: string;
 	frameCount: number;
 	fps: number;
@@ -469,16 +470,36 @@ async function renderUncached({
 			fontPath,
 		});
 	} else {
+		const infoStickerRequest = {
+			...rawRequest,
+			packagePath: packageInfo.packagePath,
+			packageKind: "InfoSticker" as const,
+			content: request.content,
+			fontPath,
+			fontSize: request.fontSize,
+		};
 		await renderJianyingTextRawSequence({
 			runtime,
-			request: {
-				...rawRequest,
-				packagePath: packageInfo.packagePath,
-				packageKind: "InfoSticker",
-				content: request.content,
-				fontPath,
-				fontSize: request.fontSize,
-			},
+			request: infoStickerRequest,
+		});
+		await repairTransientTransparentRgbaFrames({
+			rawPath,
+			width,
+			height,
+			frameCount: request.frameCount,
+			renderFrame: async ({ frameIndex, outputPath }) =>
+				renderJianyingTextRawSequence({
+					runtime,
+					request: {
+						...infoStickerRequest,
+						outputPath,
+						frameCount: 1,
+						startTimestamp:
+							infoStickerRequest.startTimestamp +
+							infoStickerRequest.timestampStep * frameIndex,
+						timestampStep: 0,
+					},
+				}),
 		});
 		strategy = "host-text";
 	}
