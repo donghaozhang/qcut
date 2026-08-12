@@ -32,6 +32,7 @@ struct FilterSequenceRequest {
   std::optional<bool> skinSegUseSimdOptim;
   int stageDelayMilliseconds = 0;
   int postSeekDelayMilliseconds = 0;
+  bool reseekAfterReady = false;
 };
 
 struct FilterSequenceResult {
