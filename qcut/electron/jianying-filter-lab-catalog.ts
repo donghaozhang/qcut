@@ -5,6 +5,10 @@ import type {
 	JianyingFilterLabLutSummary,
 	JianyingFilterVerification,
 } from "./jianying-filter-lab-contract.js";
+import {
+	selectVerificationForCard,
+	type JianyingFilterVerificationCandidates,
+} from "./jianying-filter-verification-gate.js";
 import type {
 	JianyingFilterKnownCatalog,
 	JianyingKnownFilter,
@@ -15,8 +19,6 @@ import {
 	createTiledLutId,
 	resolveTiledLutPath,
 } from "./native-pipeline/filters/filter-lab-tiled-lut.js";
-
-const UNVERIFIED: JianyingFilterVerification = { status: "unverified" };
 
 export function tiledReferencesFromPackages({
 	packages,
@@ -217,19 +219,13 @@ function verificationForFilter({
 	resourceId: string;
 	version?: string;
 	implementation: JianyingFilterLabFilterSummary["implementation"];
-	verifications: ReadonlyMap<string, JianyingFilterVerification>;
+	verifications: ReadonlyMap<string, JianyingFilterVerificationCandidates>;
 }): JianyingFilterVerification {
-	const verification = verifications.get(resourceId);
-	if (!verification) return UNVERIFIED;
-	if (version && verification.version !== version) return UNVERIFIED;
-	if (
-		implementation === "dual-lut" &&
-		verification.status !== "unverified" &&
-		verification.maskEdgeMae === undefined
-	) {
-		return { ...verification, status: "unverified" };
-	}
-	return verification;
+	return selectVerificationForCard({
+		candidates: verifications.get(resourceId),
+		version,
+		implementation,
+	});
 }
 
 function categorySummaries({
@@ -292,7 +288,7 @@ export function buildJianyingFilterLabCatalog({
 	catalog: JianyingFilterKnownCatalog;
 	references: JianyingLutReference[];
 	packages: ReadonlyMap<string, JianyingFilterPackageSummary>;
-	verifications?: ReadonlyMap<string, JianyingFilterVerification>;
+	verifications?: ReadonlyMap<string, JianyingFilterVerificationCandidates>;
 }): JianyingFilterLabListResult {
 	const referencesByResource = new Map<string, JianyingLutReference[]>();
 	for (const reference of references) {
