@@ -83,7 +83,7 @@
 | FLP-002 schema 扩展 | ✅ | traits 贯通 contract / electron / editor-core / 快照校验；既有配方逐字节不变 |
 | FLP-003 长尾采集 ×7 | ⬜ | 依赖真实运行时探针 |
 | FLP-004 批量对照 | 🔶 | v2 存储（复合主键 + v1 迁移）、`verify-batch`、`coverage` 已上线并实测；「30 卡实跑」等 FLP-003 产出参照帧 |
-| FLP-005 ready 后 re-seek | ⬜ | 下一个单变量实验 |
+| FLP-005 ready 后 re-seek | ✅ | 静态恢复至 48.888 dB / IoU 0.9626；动态历史证明 discontinuity 必须重建 manager |
 | FLP-006 人脸关键点绑定 | ⬜ | 依赖 FLP-005 |
 | FLP-007 导出链路捕获 | ⬜ | 依赖 FLP-005/006 |
 | FLP-008 授权边界代码化 | ✅ | pre-commit + CI 生效；红线修正为「再分发」并记录 |
@@ -189,9 +189,13 @@ schemaVersion 1 → 2 迁移有测试。
 
 ### FLP-005 人像首次结果生命周期：ready 后同 timestamp re-seek
 
-**目标：** 本阶段**最关键的单变量实验**。固定 UI physical `tt_skin_seg v5.1`、SIMD、效果包、manager 与输入，
-等待后续 seek 已观察到 CoreML ready，然后对**原输入、原时间戳**做一次 re-seek，判定：
-（a）旧 mask 是否被替换；（b）替换后 RGBA 是否更接近 UI 最终结果（当前 46.780337 dB 是否显著上移）。
+**结果：** 本阶段最关键的单变量实验已完成。固定 UI physical `tt_skin_seg v5.1`、SIMD、效果包、manager
+与输入，等待后续 seek 已观察到 CoreML ready，再对原输入、原时间戳 re-seek。静态历史下结果达到
+`48.888033 dB / mask IoU 0.962641`，两次复跑逐字节一致；经过 60 张静态帧与 10 张运动帧后再回跳则降为
+`40.140233 dB / 0.265185`，两次复跑仍逐字节一致。
+
+这证明显式 re-seek 会重新交付结果，但不会清除 segmentation 时序历史。结合已完成的 source-switch reset
+实验，连续 clip 复用 manager，clip/source 变化或向后时间跳转时重建 manager 与 AlgorithmService。
 
 **主要文件：**
 
@@ -199,10 +203,11 @@ schemaVersion 1 → 2 迁移有测试。
   （新增默认关闭的 re-seek 诊断参数，形如 `JY_RESEEK_AFTER_READY=1`）
 - mask 观测：`docs/task/jianying-filter-runtime-research/probes/skin-seg-result-capture.cpp`
 - 结论文档：更新 [skin-seg-first-result-lifecycle.zh.md](./skin-seg-first-result-lifecycle.zh.md)
-  并在 [current-coverage.zh.md](./current-coverage.zh.md) 能力矩阵回填
+  与 [olympus-portrait-filter-e2e.zh.md](./olympus-portrait-filter-e2e.zh.md)，并在
+  [current-coverage.zh.md](./current-coverage.zh.md) 能力矩阵回填
 
-**完成条件：** 给出「同 timestamp re-seek 是否替换首次 mask」的**是/否**结论，附字节差异与 dB 数值；
-无论结论如何，都更新能力矩阵的「视频时序 / skin mask 交付」两行。
+**完成条件：已满足。** 同 timestamp re-seek 会替换首次 mask；静态与动态恢复的字节哈希、RGB、mask 指标
+均已记录，能力矩阵的「视频时序 / skin mask 交付」两行已回填。
 
 **停止条件：** 严格单变量。本轮**不得**同时引入 manager reset、source switch、face-extra、mode 切换或导出参数；
 也不得重复已有结论（`amazing param`、Bach result directory、`AlgorithmCacheFlag`、`EnableImageQuality`、
