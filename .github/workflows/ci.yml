@@ -56,6 +56,9 @@ jobs:
       - name: Lint
         run: bun run lint:clean
 
+      - name: Filter provenance check
+        run: bun scripts/check-filter-provenance.ts
+
       - name: Type check
         run: bun run check-types
 

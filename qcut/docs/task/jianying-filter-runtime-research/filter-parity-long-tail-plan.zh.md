@@ -260,6 +260,14 @@ source switch / seek 回跳后的缓存重置。
 **完成条件：** 检查脚本在 CI 与 pre-commit 生效；故意构造的违规引用会被拦下；
 现有代码库零违规通过。
 
+**实现修正（2026-08-12）：** 首版按「产品代码不得出现私有运行时路径字符串」实现，跑出 52 处命中后发现
+前提错了——草稿互操作、字体预检、安装守卫**合法地**引用用户本机 `CapCut.app` / 剪映路径，
+filter-lab 与 text-runtime 也合法地读取本机缓存做 oracle。真正可执行的红线是**再分发**，
+最终落地为两条纯静态检查：①`git ls-files` 里不得出现私有产物文件
+（`libcccreator*` / `tt_skin_seg*` / `*.mlmodelc` / `*.bytenn` / `artistEffect/` / `rp.db` /
+`.local/jianying-runtime/`）；②electron-builder 的 `files` / `extraResources` 不得打包
+`research/` 或 `.local/`。字符串引用一律合法。
+
 **停止条件：** 检查只做**静态路径与依赖**判定，不做内容启发式扫描（避免误报拖垮 CI）。
 
 **测试：** `scripts/__tests__/check-filter-provenance.test.ts`（白名单、违规样例、路径规范化）

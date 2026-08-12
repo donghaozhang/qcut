@@ -159,7 +159,8 @@
 		"test:e2e:visual": "playwright test visual-regression",
 		"test:e2e:visual:update": "playwright test visual-regression --update-snapshots",
 		"smoke:hyperframes": "bun run build:electron && bun x esbuild scripts/hyperframes-render-smoke.ts --bundle --platform=node --format=cjs --outfile=dist/scripts/hyperframes-render-smoke.cjs --external:electron && electron dist/scripts/hyperframes-render-smoke.cjs",
-		"check-boundaries": "bun scripts/check-boundaries.ts"
+		"check-boundaries": "bun scripts/check-boundaries.ts",
+		"check-provenance": "bun scripts/check-filter-provenance.ts"
 	},
 	"build": {
 		"appId": "com.qcut.videoeditor",
