@@ -10,6 +10,7 @@ import type {
 	JianyingTextAnimationReferences,
 	JianyingTextAnimationSlot,
 	JianyingTextEffectCapabilities,
+	JianyingTextResourceRecoveryFailureReason,
 	JianyingTextRuntimeDependencyRole,
 } from "../jianying-text-runtime-contract.js";
 import {
@@ -55,20 +56,24 @@ export class JianyingTextAnimationPackageError extends Error {
 		resourceId: string;
 		role: JianyingTextRuntimeDependencyRole;
 	};
+	readonly recoveryReason?: JianyingTextResourceRecoveryFailureReason;
 
 	constructor({
 		code,
 		message,
+		recoveryReason,
 		resourceId,
 	}: {
 		code: "dependency-missing" | "package-invalid";
 		message: string;
+		recoveryReason?: JianyingTextResourceRecoveryFailureReason;
 		resourceId: string;
 	}) {
 		super(message);
 		this.name = "JianyingTextAnimationPackageError";
 		this.code = code;
 		this.dependency = { resourceId, role: "animation" };
+		this.recoveryReason = recoveryReason;
 	}
 }
 
