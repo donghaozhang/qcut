@@ -45,39 +45,40 @@ async function listPackageCandidates({ packageRoot }: { packageRoot: string }) {
 	const resourceDirectories = await readdir(packageRoot, {
 		withFileTypes: true,
 	}).catch(() => []);
-	const candidatesByResource = await Promise.all(
-		resourceDirectories.flatMap((resourceDirectory) => {
-			if (
-				!resourceDirectory.isDirectory() ||
-				!JIANYING_TEXT_RESOURCE_ID_PATTERN.test(resourceDirectory.name)
-			) {
-				return [];
-			}
+	const eligibleResourceDirectories = resourceDirectories
+		.filter(
+			(resourceDirectory) =>
+				resourceDirectory.isDirectory() &&
+				JIANYING_TEXT_RESOURCE_ID_PATTERN.test(resourceDirectory.name)
+		)
+		.sort((left, right) => left.name.localeCompare(right.name))
+		.slice(0, MAXIMUM_PACKAGE_COUNT);
+	const candidatesByResource = await mapWithConcurrency({
+		items: eligibleResourceDirectories,
+		limit: SCAN_CONCURRENCY,
+		task: async ({ item: resourceDirectory }) => {
 			const resourceId = resourceDirectory.name;
 			const resourcePath = path.join(packageRoot, resourceId);
-			return [
-				readdir(resourcePath, { withFileTypes: true })
-					.then((versionDirectories) =>
-						versionDirectories.flatMap((versionDirectory) => {
-							if (
-								!versionDirectory.isDirectory() ||
-								!JIANYING_TEXT_PACKAGE_HASH_PATTERN.test(versionDirectory.name)
-							) {
-								return [];
-							}
-							return [
-								{
-									packagePath: path.join(resourcePath, versionDirectory.name),
-									resourceId,
-									version: versionDirectory.name.toLowerCase(),
-								},
-							];
-						})
-					)
-					.catch(() => []),
-			];
-		})
-	);
+			const versionDirectories = await readdir(resourcePath, {
+				withFileTypes: true,
+			}).catch(() => []);
+			return versionDirectories.flatMap((versionDirectory) => {
+				if (
+					!versionDirectory.isDirectory() ||
+					!JIANYING_TEXT_PACKAGE_HASH_PATTERN.test(versionDirectory.name)
+				) {
+					return [];
+				}
+				return [
+					{
+						packagePath: path.join(resourcePath, versionDirectory.name),
+						resourceId,
+						version: versionDirectory.name.toLowerCase(),
+					},
+				];
+			});
+		},
+	});
 	return candidatesByResource
 		.flat()
 		.sort((left, right) =>
