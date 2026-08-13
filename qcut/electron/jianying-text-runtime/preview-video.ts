@@ -23,6 +23,8 @@ interface PreviewMetadata {
 	format?: { duration?: string };
 }
 
+const UNAVAILABLE_EXECUTABLE_CODES = new Set(["EACCES", "ENOENT"]);
+
 async function isNonemptyFile({ filePath }: { filePath: string }) {
 	try {
 		const metadata = await stat(filePath);
@@ -36,6 +38,15 @@ function parseFrameRate({ value }: { value: string | undefined }) {
 	if (!value) return Number.NaN;
 	const [numerator, denominator = "1"] = value.split("/");
 	return Number(numerator) / Number(denominator);
+}
+
+function isExecutableUnavailableError({ cause }: { cause: unknown }) {
+	return (
+		cause !== null &&
+		typeof cause === "object" &&
+		"code" in cause &&
+		UNAVAILABLE_EXECUTABLE_CODES.has(String(cause.code))
+	);
 }
 
 function previewMetadataMatches({
@@ -83,10 +94,16 @@ async function isValidPreviewVideo({
 	height: number;
 }) {
 	if (!(await isNonemptyFile({ filePath }))) return false;
+	let ffprobePath: string;
+	try {
+		ffprobePath = await getFFprobePath();
+	} catch {
+		return true;
+	}
 	try {
 		const { stdout } = await captureJianyingTextProcess({
 			requestId,
-			command: await getFFprobePath(),
+			command: ffprobePath,
 			timeoutMs: 15_000,
 			args: [
 				"-v",
@@ -107,9 +124,9 @@ async function isValidPreviewVideo({
 			width,
 			height,
 		});
-	} catch {
+	} catch (cause) {
 		throwIfJianyingTextRenderCancelled({ requestId });
-		return false;
+		return isExecutableUnavailableError({ cause });
 	}
 }
 
@@ -246,5 +263,6 @@ export function ensureJianyingTextPreviewVideo({
 }
 
 export const jianyingTextPreviewVideoTestUtils = {
+	isExecutableUnavailableError,
 	previewMetadataMatches,
 };
