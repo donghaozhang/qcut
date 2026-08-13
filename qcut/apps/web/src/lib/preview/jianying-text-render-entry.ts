@@ -49,7 +49,7 @@ export function createJianyingTextRenderEntry({
 		mode === "frame" &&
 		(timelineTime === undefined ||
 			timelineTime < startTime ||
-			timelineTime > endTime)
+			timelineTime >= endTime)
 	) {
 		return null;
 	}
