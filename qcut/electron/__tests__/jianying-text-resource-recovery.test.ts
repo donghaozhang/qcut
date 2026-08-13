@@ -370,6 +370,203 @@ describe("Jianying text resource recovery", () => {
 		});
 	});
 
+	it("relocates an aliased local package so reopened projects survive cache cleanup", async () => {
+		const archive = Buffer.from("locally-cached-aliased-package");
+		const legacyResourceId = "7021831463867781662";
+		const catalogResourceId = "7426685437122497827";
+		const fixture = await createRecoveryFixture({
+			archive,
+			catalogResourceId,
+			resourceId: legacyResourceId,
+		});
+		const sourceCacheRoot = path.join(
+			path.dirname(fixture.databaseRoot),
+			"Cache"
+		);
+		const sourcePackagePath = path.join(
+			sourceCacheRoot,
+			"effect",
+			catalogResourceId,
+			fixture.packageHash
+		);
+		await mkdir(sourcePackagePath, { recursive: true });
+		await writeFile(
+			path.join(sourcePackagePath, "config.json"),
+			JSON.stringify({ effect: { Link: [{ type: "InfoSticker" }] } }),
+			"utf8"
+		);
+		const fetchResource = vi.fn(async () => {
+			throw new Error("network recovery must not run");
+		});
+
+		const recovered = await recoverJianyingTextResource({
+			resourceId: legacyResourceId,
+			role: "animation",
+			databaseRoot: fixture.databaseRoot,
+			recoveryRoot: fixture.recoveryRoot,
+			sourceCacheRoots: [sourceCacheRoot],
+			fetchResource,
+		});
+
+		expect(recovered).toMatchObject({
+			resourceId: legacyResourceId,
+			state: "recovered",
+			packageHash: fixture.packageHash,
+		});
+		expect(fetchResource).not.toHaveBeenCalled();
+		await rm(sourceCacheRoot, { recursive: true, force: true });
+
+		const reopened = await recoverJianyingTextResource({
+			resourceId: legacyResourceId,
+			role: "animation",
+			databaseRoot: fixture.databaseRoot,
+			recoveryRoot: fixture.recoveryRoot,
+			sourceCacheRoots: [sourceCacheRoot],
+			fetchResource,
+		});
+
+		expect(reopened.state).toBe("already-ready");
+		expect(reopened.packagePath).toBe(recovered.packagePath);
+		expect(fetchResource).not.toHaveBeenCalled();
+	});
+
+	it("relocates a cached font stored under a legacy ID by matching its package hash", async () => {
+		const archive = Buffer.from("catalog-font-package");
+		const currentResourceId = "7030677248797577765";
+		const fixture = await createRecoveryFixture({
+			archive,
+			resourceId: currentResourceId,
+		});
+		const sourceCacheRoot = path.join(
+			path.dirname(fixture.databaseRoot),
+			"Cache"
+		);
+		const sourcePackagePath = path.join(
+			sourceCacheRoot,
+			"effect",
+			"1441466",
+			fixture.packageHash
+		);
+		await mkdir(sourcePackagePath, { recursive: true });
+		await Promise.all([
+			writeFile(
+				path.join(sourcePackagePath, "config.json"),
+				JSON.stringify({ effect: { Link: [{ type: "InfoSticker" }] } }),
+				"utf8"
+			),
+			writeFile(
+				path.join(sourcePackagePath, "GalleryModern.otf"),
+				Buffer.from("OTTOsynthetic-font")
+			),
+		]);
+		const fetchResource = vi.fn(async () => {
+			throw new Error("network recovery must not run");
+		});
+
+		const recovered = await recoverJianyingTextResource({
+			resourceId: currentResourceId,
+			role: "font",
+			databaseRoot: fixture.databaseRoot,
+			recoveryRoot: fixture.recoveryRoot,
+			sourceCacheRoots: [sourceCacheRoot],
+			fetchResource,
+		});
+
+		expect(recovered).toMatchObject({
+			resourceId: currentResourceId,
+			state: "recovered",
+			packageHash: fixture.packageHash,
+		});
+		expect(fetchResource).not.toHaveBeenCalled();
+		if (!recovered.packagePath) {
+			throw new Error("Recovered font package path is missing");
+		}
+		expect(
+			await readFile(
+				path.join(recovered.packagePath, "GalleryModern.otf"),
+				"utf8"
+			)
+		).toBe("OTTOsynthetic-font");
+	});
+
+	it("recovers a legacy font from local draft metadata when the catalog card is gone", async () => {
+		const fixture = await createRecoveryFixture({
+			archive: Buffer.from("unrelated-catalog-package"),
+			resourceId: "7999999999999999999",
+		});
+		const sourceCacheRoot = path.join(
+			path.dirname(fixture.databaseRoot),
+			"Cache"
+		);
+		const currentFontId = "7209944750529450553";
+		const fontPackageHash = "b9b8c6fb5242b7d8920ad8795d926d5b";
+		const fontPackagePath = path.join(
+			sourceCacheRoot,
+			"effect",
+			"10608864",
+			fontPackageHash
+		);
+		const metadataPackagePath = path.join(
+			sourceCacheRoot,
+			"artistEffect",
+			"7212166583127379258",
+			"176afb95160716dbb2b6497fa2afd5dd"
+		);
+		await Promise.all([
+			mkdir(fontPackagePath, { recursive: true }),
+			mkdir(metadataPackagePath, { recursive: true }),
+		]);
+		await Promise.all([
+			writeFile(
+				path.join(fontPackagePath, "config.json"),
+				JSON.stringify({ effect: { Link: [{ type: "InfoSticker" }] } }),
+				"utf8"
+			),
+			writeFile(
+				path.join(fontPackagePath, "NewYork.otf"),
+				Buffer.from("OTTOsynthetic-new-york")
+			),
+			writeFile(
+				path.join(metadataPackagePath, "content.json"),
+				JSON.stringify({
+					materials: {
+						text_templates: [
+							{
+								resources: [
+									{
+										panel: "fonts",
+										path: `text/${fontPackageHash}/NewYork.otf`,
+										resource_id: currentFontId,
+									},
+								],
+							},
+						],
+					},
+				}),
+				"utf8"
+			),
+		]);
+		const fetchResource = vi.fn(async () => {
+			throw new Error("network recovery must not run");
+		});
+
+		const recovered = await recoverJianyingTextResource({
+			resourceId: currentFontId,
+			role: "font",
+			databaseRoot: fixture.databaseRoot,
+			recoveryRoot: fixture.recoveryRoot,
+			sourceCacheRoots: [sourceCacheRoot],
+			fetchResource,
+		});
+
+		expect(recovered).toMatchObject({
+			resourceId: currentFontId,
+			state: "recovered",
+			packageHash: fontPackageHash,
+		});
+		expect(fetchResource).not.toHaveBeenCalled();
+	});
+
 	it("recovers a dependency batch and deduplicates repeated requests", async () => {
 		const firstArchive = Buffer.from("first-jianying-package");
 		const fixture = await createRecoveryFixture({ archive: firstArchive });
