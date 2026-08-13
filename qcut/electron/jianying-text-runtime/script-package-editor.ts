@@ -10,9 +10,15 @@ import {
 } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { asJianyingRecord } from "../jianying-text-package-metadata.js";
+import {
+	asJianyingRecord,
+	DEFAULT_JIANYING_TEXT_TEMPLATE_DURATION,
+} from "../jianying-text-package-metadata.js";
+import { injectJianyingCaptionTiming } from "./script-caption-timing.js";
 import { hydrateJianyingScriptContent } from "./script-content-hydrator.js";
+import { fitJianyingScriptTextWidget } from "./script-text-fit.js";
 
+const SCRIPT_PACKAGE_COPY_SCHEMA_VERSION = 8;
 const packageCopies = new Map<string, Promise<string>>();
 
 function sanitizeSlotText({ text }: { text: string }) {
@@ -54,6 +60,7 @@ function textForWidget({
 	index: number;
 	widgetCount: number;
 }) {
+	if (lines.length === 1) return lines[0] || " ";
 	if (index === widgetCount - 1 && lines.length > widgetCount) {
 		return lines.slice(index).join("\n") || " ";
 	}
@@ -75,20 +82,42 @@ export function editJianyingScriptContent({
 		const record = asJianyingRecord(child);
 		const textParams = asJianyingRecord(record?.text_params);
 		return record?.type === "text" && typeof textParams?.richText === "string"
-			? [{ textParams }]
+			? [{ textParams, widget: record }]
 			: [];
 	});
 	if (widgets.length === 0) {
 		throw new Error("ScriptInfoSticker has no editable rich-text widgets");
 	}
 	const lines = content.replace(/\r\n/g, "\n").split("\n");
+	const templateDuration =
+		asJianyingRecord(root.root)?.duration ??
+		DEFAULT_JIANYING_TEXT_TEMPLATE_DURATION;
 	let slotCount = 0;
 	for (let index = 0; index < widgets.length; index += 1) {
 		const richText = widgets[index].textParams.richText as string;
-		slotCount += Array.from(richText.matchAll(/\[[^\]]*\]/g)).length;
-		widgets[index].textParams.richText = replaceJianyingRichTextSlots({
-			richText,
+		const widgetText = sanitizeSlotText({
 			text: textForWidget({ lines, index, widgetCount: widgets.length }),
+		});
+		slotCount += Array.from(richText.matchAll(/\[[^\]]*\]/g)).length;
+		const editedRichText = replaceJianyingRichTextSlots({
+			richText,
+			text: widgetText,
+		});
+		fitJianyingScriptTextWidget({
+			widget: widgets[index].widget,
+			originalRichText: richText,
+			editedRichText,
+		});
+		widgets[index].textParams.richText = editedRichText;
+		injectJianyingCaptionTiming({
+			widget: widgets[index].widget,
+			text: widgetText,
+			templateDuration:
+				typeof templateDuration === "number" &&
+				Number.isFinite(templateDuration) &&
+				templateDuration > 0
+					? templateDuration
+					: DEFAULT_JIANYING_TEXT_TEMPLATE_DURATION,
 		});
 	}
 	if (slotCount === 0) {
@@ -106,11 +135,13 @@ export function prepareJianyingScriptContent({
 	content,
 	resourcePaths,
 	fontPath,
+	degradedResourceIds,
 }: {
 	value: unknown;
 	content?: string;
 	resourcePaths: Readonly<Record<string, string>>;
 	fontPath: string;
+	degradedResourceIds?: ReadonlySet<string>;
 }) {
 	const editable =
 		content === undefined
@@ -120,6 +151,7 @@ export function prepareJianyingScriptContent({
 		value: editable,
 		resourcePaths,
 		fontPath,
+		degradedResourceIds,
 	});
 }
 
@@ -149,6 +181,7 @@ async function createScriptPackageCopy({
 	resourcePaths,
 	resourceFingerprint,
 	fontPath,
+	degradedResourceIds,
 }: {
 	packagePath: string;
 	packageHash: string;
@@ -156,13 +189,16 @@ async function createScriptPackageCopy({
 	resourcePaths: Readonly<Record<string, string>>;
 	resourceFingerprint: string;
 	fontPath: string;
+	degradedResourceIds: ReadonlySet<string>;
 }) {
 	const copyHash = createHash("sha256")
 		.update(
 			JSON.stringify({
+				schemaVersion: SCRIPT_PACKAGE_COPY_SCHEMA_VERSION,
 				content: content ?? null,
 				resourceFingerprint,
 				fontPath,
+				degradedResourceIds: [...degradedResourceIds].sort(),
 			})
 		)
 		.digest("hex");
@@ -183,6 +219,7 @@ async function createScriptPackageCopy({
 			content,
 			resourcePaths,
 			fontPath,
+			degradedResourceIds,
 		});
 		const temporaryContentPath = `${contentPath}.tmp`;
 		await writeFile(
@@ -208,6 +245,7 @@ export function getEditedJianyingScriptPackage({
 	resourcePaths,
 	resourceFingerprint,
 	fontPath,
+	degradedResourceIds = new Set<string>(),
 }: {
 	packagePath: string;
 	packageHash: string;
@@ -215,12 +253,15 @@ export function getEditedJianyingScriptPackage({
 	resourcePaths: Readonly<Record<string, string>>;
 	resourceFingerprint: string;
 	fontPath: string;
+	degradedResourceIds?: ReadonlySet<string>;
 }) {
 	const key = createHash("sha256")
+		.update(String(SCRIPT_PACKAGE_COPY_SCHEMA_VERSION))
 		.update(packageHash)
 		.update(content)
 		.update(resourceFingerprint)
 		.update(fontPath)
+		.update([...degradedResourceIds].sort().join("\0"))
 		.digest("hex");
 	const pending = packageCopies.get(key);
 	if (pending) return pending;
@@ -231,6 +272,7 @@ export function getEditedJianyingScriptPackage({
 		resourcePaths,
 		resourceFingerprint,
 		fontPath,
+		degradedResourceIds,
 	}).finally(() => packageCopies.delete(key));
 	packageCopies.set(key, created);
 	return created;
@@ -242,17 +284,21 @@ export function getHydratedJianyingScriptPackage({
 	resourcePaths,
 	resourceFingerprint,
 	fontPath,
+	degradedResourceIds = new Set<string>(),
 }: {
 	packagePath: string;
 	packageHash: string;
 	resourcePaths: Readonly<Record<string, string>>;
 	resourceFingerprint: string;
 	fontPath: string;
+	degradedResourceIds?: ReadonlySet<string>;
 }) {
 	const key = createHash("sha256")
+		.update(String(SCRIPT_PACKAGE_COPY_SCHEMA_VERSION))
 		.update(packageHash)
 		.update(resourceFingerprint)
 		.update(fontPath)
+		.update([...degradedResourceIds].sort().join("\0"))
 		.update("hydrated")
 		.digest("hex");
 	const pending = packageCopies.get(key);
@@ -263,6 +309,7 @@ export function getHydratedJianyingScriptPackage({
 		resourcePaths,
 		resourceFingerprint,
 		fontPath,
+		degradedResourceIds,
 	}).finally(() => packageCopies.delete(key));
 	packageCopies.set(key, created);
 	return created;
