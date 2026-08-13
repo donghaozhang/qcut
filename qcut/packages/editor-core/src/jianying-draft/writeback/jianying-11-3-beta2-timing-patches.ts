@@ -2,7 +2,7 @@ import type {
 	DraftInteropDocumentV1,
 	ForeignDraftEnvelopeV1,
 } from "../../draft-interop/index.js";
-import { CAPCUT_8_1_PROFILE_ID } from "../capcut-8-1-profile.js";
+import { JIANYING_11_3_BETA2_PROFILE_ID } from "../profiles/jianying-11-3-beta2.js";
 import {
 	planSameProfileTimingPatches,
 	type PlanSameProfileTimingPatchesResult,
@@ -11,14 +11,15 @@ import {
 	type SameProfileWritebackTimingSnapshot,
 } from "./same-profile-timing-patches.js";
 
-export type CapCut81WritebackTimingSnapshot =
+export type Jianying113Beta2WritebackTimingSnapshot =
 	SameProfileWritebackTimingSnapshot;
-export type CapCut81TimingPatchIssueCode = SameProfileTimingPatchIssueCode;
-export type CapCut81TimingPatchIssue = SameProfileTimingPatchIssue;
-export type PlanCapCut81TimingPatchesResult =
+export type Jianying113Beta2TimingPatchIssueCode =
+	SameProfileTimingPatchIssueCode;
+export type Jianying113Beta2TimingPatchIssue = SameProfileTimingPatchIssue;
+export type PlanJianying113Beta2TimingPatchesResult =
 	PlanSameProfileTimingPatchesResult;
 
-export function planCapCut81TimingPatches({
+export function planJianying113Beta2TimingPatches({
 	document,
 	envelope,
 	internalIdBySemanticId,
@@ -27,12 +28,12 @@ export function planCapCut81TimingPatches({
 	document: DraftInteropDocumentV1;
 	envelope: ForeignDraftEnvelopeV1;
 	internalIdBySemanticId: Readonly<Record<string, string>>;
-	snapshot: CapCut81WritebackTimingSnapshot;
-}): PlanCapCut81TimingPatchesResult {
+	snapshot: Jianying113Beta2WritebackTimingSnapshot;
+}): PlanJianying113Beta2TimingPatchesResult {
 	return planSameProfileTimingPatches({
 		context: {
-			productLabel: "CapCut 8.1",
-			profileId: CAPCUT_8_1_PROFILE_ID,
+			productLabel: "Jianying Professional 11.3 beta 2",
+			profileId: JIANYING_11_3_BETA2_PROFILE_ID,
 		},
 		document,
 		envelope,

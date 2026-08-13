@@ -234,3 +234,19 @@ export {
 	type CapCut81SameProfilePrepareIssueCode,
 	type PrepareCapCut81SameProfileWritebackResult,
 } from "./writeback/capcut-8-1-same-profile-prepare.js";
+
+export {
+	JIANYING_11_3_BETA2_CONTENT_PATH,
+	prepareJianying113Beta2SameProfileWriteback,
+	type Jianying113Beta2SameProfilePrepareIssue,
+	type Jianying113Beta2SameProfilePrepareIssueCode,
+	type PrepareJianying113Beta2SameProfileWritebackResult,
+} from "./writeback/jianying-11-3-beta2-same-profile-prepare.js";
+
+export {
+	planJianying113Beta2TimingPatches,
+	type Jianying113Beta2TimingPatchIssue,
+	type Jianying113Beta2TimingPatchIssueCode,
+	type Jianying113Beta2WritebackTimingSnapshot,
+	type PlanJianying113Beta2TimingPatchesResult,
+} from "./writeback/jianying-11-3-beta2-timing-patches.js";
