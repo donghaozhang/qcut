@@ -22,7 +22,8 @@
 
 7 张双 LUT 人像卡的 70 帧连续视频、人物移动、mask 边缘、素材切换和逐卡导出结果见
 [dual-lut-seven-real-video-e2e.zh.md](dual-lut-seven-real-video-e2e.zh.md)。奥林巴斯达到 verified；共享算法图
-的青灰、冷月夜、橙蓝、亮肤、森山、雾野达到 close，文档没有把 close 写成完美复刻。
+中的青灰、冷月夜、亮肤达到 close，橙蓝、森山、雾野仍为 unverified。七张均使用自己的 UI reference，
+旧的“共享青灰 mask 即六张逐卡结论”已经撤回。
 
 真实多 Pass 卡“电影柔光”的剪映 UI、独立二进制 oracle、QCut 产品预览和 QCut 产品导出四方对照见
 [cinematic-soft-glow-four-way-e2e.zh.md](cinematic-soft-glow-four-way-e2e.zh.md)。本轮确认本机 provider 达到
