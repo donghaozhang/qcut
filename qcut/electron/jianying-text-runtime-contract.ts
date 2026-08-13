@@ -7,7 +7,21 @@ export const JIANYING_TEXT_RUNTIME_CANCEL_CHANNEL =
 
 export type JianyingTextRuntimePackageKind =
 	| "InfoSticker"
-	| "ScriptInfoSticker";
+	| "ScriptInfoSticker"
+	| "TextStyle";
+
+export type JianyingTextAnimationSlot = "entrance" | "exit" | "loop";
+
+export interface JianyingTextAnimationReference {
+	source: "jianying-cache";
+	resourceId: string;
+	packageHash: string;
+	duration: number;
+}
+
+export type JianyingTextAnimationReferences = Partial<
+	Record<JianyingTextAnimationSlot, JianyingTextAnimationReference>
+>;
 
 export interface JianyingTextRuntimeReference {
 	schemaVersion: 1;
@@ -19,10 +33,12 @@ export interface JianyingTextRuntimeReference {
 	slotMapping: "line-to-widget";
 	timeMapping: "stretch";
 	templateDuration: number;
+	animations?: JianyingTextAnimationReferences;
 }
 
 export type JianyingTextRuntimeState =
 	| "ready"
+	| "ready-degraded"
 	| "unsupported-platform"
 	| "bridge-missing"
 	| "runtime-missing"
@@ -30,6 +46,46 @@ export type JianyingTextRuntimeState =
 	| "package-invalid"
 	| "dependency-missing"
 	| "error";
+
+export type JianyingTextRuntimeDependencyRole =
+	| "animation"
+	| "effect-style"
+	| "sticker";
+
+export interface JianyingTextEffectCapabilities {
+	staticTexture: boolean;
+	multipleStrokes: boolean;
+	animationComponents: boolean;
+	scriptInfoSticker: boolean;
+	shaderComponents: boolean;
+	threeDimensional: boolean;
+	feedbackComponents: boolean;
+}
+
+export type JianyingTextRuntimeDiagnosticCode =
+	| "effect-style-config-invalid"
+	| "effect-style-gradient-invalid"
+	| "effect-style-layer-missing"
+	| "effect-style-manifest-invalid"
+	| "effect-style-manifest-missing"
+	| "effect-style-package-missing"
+	| "effect-style-render-type-unknown"
+	| "effect-style-runtime-component"
+	| "effect-style-texture-missing"
+	| "effect-style-texture-outside-package"
+	| "effect-style-texture-path-missing"
+	| "font-asset-missing"
+	| "font-file-missing"
+	| "runtime-dependency-unresolved";
+
+export interface JianyingTextRuntimeDiagnostic {
+	code: JianyingTextRuntimeDiagnosticCode;
+	severity: "error" | "warning";
+	message: string;
+	resourceId?: string;
+	relativePath?: string;
+	fontAssetId?: string;
+}
 
 export interface JianyingTextRuntimeStatus {
 	state: JianyingTextRuntimeState;
@@ -41,9 +97,15 @@ export interface JianyingTextRuntimeStatus {
 	resourceId?: string;
 	packageHash?: string;
 	templateDuration?: number;
+	capabilities?: JianyingTextEffectCapabilities;
+	diagnostics?: JianyingTextRuntimeDiagnostic[];
 	missingDependencies?: Array<{
 		resourceId: string;
-		role: "animation" | "sticker";
+		role: JianyingTextRuntimeDependencyRole;
+	}>;
+	degradedDependencies?: Array<{
+		resourceId: string;
+		role: JianyingTextRuntimeDependencyRole;
 	}>;
 }
 
@@ -97,6 +159,7 @@ export interface JianyingTextRuntimeRenderResult {
 	y: number;
 	width: number;
 	height: number;
+	diagnostics?: JianyingTextRuntimeDiagnostic[];
 	previewUrl?: string;
 	source: JianyingTextRuntimeRenderSource;
 }
