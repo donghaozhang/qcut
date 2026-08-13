@@ -50,6 +50,7 @@ import type { ElectronJianyingTextRuntimeOps } from "./api-jianying-text-runtime
 import type { ElectronJianyingEnvelopeOps } from "./api-jianying-envelope";
 import type { ElectronJianyingDraftImportOps } from "./api-jianying-draft-import";
 import type { ElectronJianyingSameProfileWritebackOps } from "./api-jianying-same-profile-writeback";
+import type { ElectronJianyingProjectExportOps } from "./api-jianying-project-export";
 import type {
 	AIPipelineProgress,
 	AIPipelineGenerateOptions,
@@ -100,7 +101,8 @@ export interface ElectronAPI
 		ElectronJianyingTextRuntimeOps,
 		ElectronJianyingEnvelopeOps,
 		ElectronJianyingDraftImportOps,
-		ElectronJianyingSameProfileWritebackOps {
+		ElectronJianyingSameProfileWritebackOps,
+		ElectronJianyingProjectExportOps {
 	// System info
 	platform: string;
 	isElectron: boolean;

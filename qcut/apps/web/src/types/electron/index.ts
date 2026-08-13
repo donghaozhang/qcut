@@ -34,6 +34,7 @@ export * from "./api-jianying-filter-lab";
 export * from "./api-jianying-font-lab";
 export * from "./api-jianying-text-style-lab";
 export * from "./api-jianying-text-runtime";
+export * from "./api-jianying-project-export";
 
 // Global augmentation - must be in a file with imports/exports to be a module
 import type { ElectronAPI } from "./electron-api";
