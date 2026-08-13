@@ -17,16 +17,54 @@ async function writeJson({
 	await writeFile(filePath, JSON.stringify(value), "utf8");
 }
 
+function sanitizePathText({
+	text,
+	roots,
+}: {
+	text: string;
+	roots: string[];
+}) {
+	let sanitized = text;
+	for (const root of roots) {
+		sanitized = sanitized.split(root).join("<cache>");
+	}
+	// Windows path separators inside sanitized cache paths must not leak
+	// into the platform-stable snapshot.
+	return sanitized.includes("<cache>")
+		? sanitized.replaceAll("\\", "/")
+		: sanitized;
+}
+
+/**
+ * Walks the value structurally instead of string-replacing over
+ * JSON.stringify output: there, Windows backslashes are escaped, so a raw
+ * root path would never match and absolute temp paths would leak into the
+ * snapshot.
+ */
 function normalizeTemporaryPaths({
 	value,
-	root,
+	roots,
 }: {
 	value: unknown;
-	root: string;
-}) {
-	return JSON.parse(
-		JSON.stringify(value).replaceAll(root, "<cache>")
-	) as unknown;
+	roots: string[];
+}): unknown {
+	if (typeof value === "string") {
+		return sanitizePathText({ text: value, roots });
+	}
+	if (Array.isArray(value)) {
+		return value.map((entry) =>
+			normalizeTemporaryPaths({ value: entry, roots })
+		);
+	}
+	if (value && typeof value === "object") {
+		return Object.fromEntries(
+			Object.entries(value as Record<string, unknown>).map(([key, entry]) => [
+				key,
+				normalizeTemporaryPaths({ value: entry, roots }),
+			])
+		);
+	}
+	return value;
 }
 
 describe("Jianying effectStyle runtime snapshot", () => {
@@ -134,7 +172,9 @@ describe("Jianying effectStyle runtime snapshot", () => {
 				fontPath: "/fonts/QCut-CJK.ttf",
 			});
 			const snapshot = normalizeTemporaryPaths({
-				root: resolvedTemporary,
+				// Both forms can appear in resolved paths (macOS /var vs
+				// /private/var symlinks; Windows raw temp paths).
+				roots: [resolvedTemporary, temporary],
 				value: {
 					capabilities: resources.capabilities,
 					diagnostics: resources.diagnostics,
