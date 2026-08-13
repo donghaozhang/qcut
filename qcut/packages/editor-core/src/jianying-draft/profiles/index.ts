@@ -7,6 +7,7 @@
 import { CAPCUT_8_1_DRAFT_PROFILE } from "./capcut-8-1.js";
 import { JIANYING_11_3_BETA2_PROFILE } from "./jianying-11-3-beta2.js";
 import { JIANYING_11_3_BETA3_PROFILE } from "./jianying-11-3-beta3.js";
+import { JIANYING_11_3_BETA4_PROFILE } from "./jianying-11-3-beta4.js";
 import { PLAINTEXT_5_9_PROFILE } from "./plaintext-5-9.js";
 import { getDraftProfile, registerDraftProfile } from "./registry.js";
 
@@ -14,6 +15,7 @@ for (const contract of [
 	PLAINTEXT_5_9_PROFILE,
 	JIANYING_11_3_BETA2_PROFILE,
 	JIANYING_11_3_BETA3_PROFILE,
+	JIANYING_11_3_BETA4_PROFILE,
 	CAPCUT_8_1_DRAFT_PROFILE,
 ]) {
 	if (!getDraftProfile({ profileId: contract.profileId })) {
@@ -63,6 +65,17 @@ export {
 	JIANYING_11_3_BETA3_SCHEMA_VERSION,
 	JIANYING_11_3_BETA3_TOP_LEVEL_KEYS,
 } from "./jianying-11-3-beta3.js";
+
+export {
+	JIANYING_11_3_BETA4_APP_ID,
+	JIANYING_11_3_BETA4_APP_SOURCE,
+	JIANYING_11_3_BETA4_APP_VERSION,
+	JIANYING_11_3_BETA4_NEW_VERSION,
+	JIANYING_11_3_BETA4_PROFILE,
+	JIANYING_11_3_BETA4_PROFILE_ID,
+	JIANYING_11_3_BETA4_SCHEMA_VERSION,
+	JIANYING_11_3_BETA4_TOP_LEVEL_KEYS,
+} from "./jianying-11-3-beta4.js";
 
 export {
 	isJianying113ProfileId,

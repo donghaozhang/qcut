@@ -9,6 +9,8 @@ import {
 	JIANYING_11_3_BETA2_TOP_LEVEL_KEYS,
 	JIANYING_11_3_BETA3_APP_VERSION,
 	JIANYING_11_3_BETA3_PROFILE_ID,
+	JIANYING_11_3_BETA4_APP_VERSION,
+	JIANYING_11_3_BETA4_PROFILE_ID,
 } from "@qcut/editor-core/jianying-draft";
 import type { QCutDraftExportSnapshotV1 } from "@qcut/editor-core/jianying-draft";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -282,6 +284,7 @@ describe("verifyRoundTrip", () => {
 	it.each([
 		[JIANYING_11_3_BETA2_APP_VERSION, JIANYING_11_3_BETA2_PROFILE_ID],
 		[JIANYING_11_3_BETA3_APP_VERSION, JIANYING_11_3_BETA3_PROFILE_ID],
+		[JIANYING_11_3_BETA4_APP_VERSION, JIANYING_11_3_BETA4_PROFILE_ID],
 	])("proves a Jianying %s compound import is byte-identical without writing state", async (appVersion, profileId) => {
 		const root = await mkdtemp(join(tmpdir(), "qcut-jianying-roundtrip-"));
 		try {

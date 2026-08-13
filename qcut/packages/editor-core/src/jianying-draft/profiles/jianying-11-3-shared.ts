@@ -47,6 +47,7 @@ export const JIANYING_11_3_TOP_LEVEL_KEYS = [
 export const JIANYING_11_3_PROFILE_IDS = [
 	"jianying-macos-11.3.0-beta2-plaintext-subdraft",
 	"jianying-macos-11.3.0-beta3-plaintext-subdraft",
+	"jianying-macos-11.3.0-beta4-plaintext-subdraft",
 ] as const;
 
 export type Jianying113ProfileId = (typeof JIANYING_11_3_PROFILE_IDS)[number];

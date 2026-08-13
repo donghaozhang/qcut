@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	JIANYING_11_3_BETA2_PROFILE_ID,
 	JIANYING_11_3_BETA3_PROFILE_ID,
+	JIANYING_11_3_BETA4_PROFILE_ID,
 } from "@qcut/editor-core/jianying-draft";
 import {
 	JIANYING_11_3_PROJECT_EXPORT_CHOOSE_CHANNEL,
@@ -154,6 +155,7 @@ describe("Jianying project export IPC", () => {
 		expect(JIANYING_11_3_PROJECT_EXPORT_PROFILE_IDS).toEqual([
 			JIANYING_11_3_BETA2_PROFILE_ID,
 			JIANYING_11_3_BETA3_PROFILE_ID,
+			JIANYING_11_3_BETA4_PROFILE_ID,
 		]);
 	});
 

@@ -5,6 +5,7 @@ export const JIANYING_11_3_PROJECT_EXPORT_COMMIT_CHANNEL =
 export const JIANYING_11_3_PROJECT_EXPORT_PROFILE_IDS = [
 	"jianying-macos-11.3.0-beta2-plaintext-subdraft",
 	"jianying-macos-11.3.0-beta3-plaintext-subdraft",
+	"jianying-macos-11.3.0-beta4-plaintext-subdraft",
 ] as const;
 
 export interface Jianying113ProjectExportSelectionDto {

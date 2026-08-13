@@ -17,6 +17,8 @@ import {
 	JIANYING_11_3_BETA2_TOP_LEVEL_KEYS,
 	JIANYING_11_3_BETA3_APP_VERSION,
 	JIANYING_11_3_BETA3_PROFILE_ID,
+	JIANYING_11_3_BETA4_APP_VERSION,
+	JIANYING_11_3_BETA4_PROFILE_ID,
 	listDraftProfiles,
 	PLAINTEXT_5_9_PROFILE,
 	PLAINTEXT_5_9_PROFILE_ID,
@@ -47,6 +49,7 @@ describe("profile registry", () => {
 		expect(ids).toContain(PLAINTEXT_5_9_PROFILE_ID);
 		expect(ids).toContain(JIANYING_11_3_BETA2_PROFILE_ID);
 		expect(ids).toContain(JIANYING_11_3_BETA3_PROFILE_ID);
+		expect(ids).toContain(JIANYING_11_3_BETA4_PROFILE_ID);
 		expect(ids).toContain("capcut-desktop-8.1-plaintext");
 		expect(() =>
 			registerDraftProfile({ contract: PLAINTEXT_5_9_PROFILE })
@@ -113,6 +116,32 @@ describe("profile detection", () => {
 		});
 		expect(result.outcome).toBe("exact");
 		expect(result.profileId).toBe(JIANYING_11_3_BETA3_PROFILE_ID);
+		expect(result.canWrite).toBe(false);
+	});
+
+	it("detects the Jianying 11.3 beta 4 active subdraft exactly", () => {
+		const result = detectDraftProfile({
+			files: [
+				{
+					relativePath: "draft_content.json",
+					byteLength: 4096,
+					sha256: "4".repeat(64),
+					role: "content",
+					classification: "plaintext-json",
+				},
+			],
+			contentSummary: {
+				fileName: "draft_content.json",
+				topLevelKeys: [...JIANYING_11_3_BETA2_TOP_LEVEL_KEYS],
+				appId: JIANYING_11_3_BETA2_APP_ID,
+				appSource: JIANYING_11_3_BETA2_APP_SOURCE,
+				appVersion: JIANYING_11_3_BETA4_APP_VERSION,
+				schemaVersion: JIANYING_11_3_BETA2_SCHEMA_VERSION,
+				newVersion: JIANYING_11_3_BETA2_NEW_VERSION,
+			},
+		});
+		expect(result.outcome).toBe("exact");
+		expect(result.profileId).toBe(JIANYING_11_3_BETA4_PROFILE_ID);
 		expect(result.canWrite).toBe(false);
 	});
 
