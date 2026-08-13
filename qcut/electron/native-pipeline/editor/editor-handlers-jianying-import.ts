@@ -299,8 +299,10 @@ async function queueImportCommit({
 			success: true,
 			data: {
 				action,
+				envelopeStatus: "not-captured",
 				queuedForDesktop: true,
 				localOnly: true,
+				reversible: false,
 				...(sourceSelection ?? {}),
 				inboxEntry,
 			},

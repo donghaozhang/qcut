@@ -298,7 +298,9 @@ describe("executeJianyingImportCommand", () => {
 			success: true,
 			data: {
 				action: "commit",
+				envelopeStatus: "not-captured",
 				queuedForDesktop: true,
+				reversible: false,
 				inboxEntry: { entryId: "entry-1" },
 			},
 		});
@@ -351,7 +353,9 @@ describe("executeJianyingImportCommand", () => {
 			success: true,
 			data: {
 				action: "import",
+				envelopeStatus: "not-captured",
 				queuedForDesktop: true,
+				reversible: false,
 				sourceScope: "compound-subdraft",
 				subdraftCandidateCount: 1,
 				selectedSubdraftId: "compound-1",
