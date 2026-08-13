@@ -42,9 +42,10 @@ import type {
 } from "./graph-reader.js";
 import { mapCapCut81StaticText } from "./capcut-8-1-text-mapper.js";
 import { mapCapCut81SeamTransition } from "./capcut-8-1-transition-mapper.js";
+import { resolveEditableDraftContent } from "./compound-draft.js";
 import { readRawDraftGraph } from "./graph-reader.js";
 import { readDraftProjectSettings } from "./project-settings.js";
-import { isRawRecord, type RawDraftContent } from "./raw-types.js";
+import type { RawDraftContent } from "./raw-types.js";
 import { validateRawDraftGraph } from "./validation.js";
 
 const MEDIA_BUCKETS = new Set(["videos", "audios"]);
@@ -152,10 +153,12 @@ function normalizeProject({
 	content,
 	fallbackProjectName,
 	issues,
+	jsonPointerPrefix,
 }: {
 	content: RawDraftContent;
 	fallbackProjectName?: string;
 	issues: InteropIssue[];
+	jsonPointerPrefix: string;
 }): InteropProject {
 	const { width, height, fps, durationUs } = readDraftProjectSettings({
 		content,
@@ -165,7 +168,7 @@ function normalizeProject({
 			code: "DOCUMENT_MALFORMED",
 			severity: "error",
 			message: "canvas_config/fps missing or invalid; using placeholders",
-			path: "/canvas_config",
+			path: `${jsonPointerPrefix}/canvas_config`,
 		});
 	}
 	return {
@@ -250,6 +253,40 @@ function classifySegment({
 			? "image"
 			: mappedKind;
 	return { kind, capability: SEGMENT_CAPABILITY_BY_KIND[kind] };
+}
+
+function inferMixedTrackKind({
+	segments,
+	graph,
+}: {
+	segments: RawGraphSegmentNode[];
+	graph: RawDraftGraph;
+}): InteropTrackKind {
+	if (segments.length === 0) return "unknown";
+	const kinds = segments.map((segment) => {
+		const material =
+			segment.materialId === undefined
+				? undefined
+				: graph.materialsById.get(segment.materialId);
+		return classifySegment({ segment, material }).kind;
+	});
+	if (kinds.every((kind) => kind === "video" || kind === "image")) {
+		return "video";
+	}
+	return kinds.every((kind) => kind === "audio") ? "audio" : "unknown";
+}
+
+function resolveTrackKind({
+	rawType,
+	segments,
+	graph,
+}: {
+	rawType: string | undefined;
+	segments: RawGraphSegmentNode[];
+	graph: RawDraftGraph;
+}): InteropTrackKind {
+	if (rawType === "mixed") return inferMixedTrackKind({ segments, graph });
+	return TRACK_KIND_BY_RAW_TYPE[rawType ?? ""] ?? "unknown";
 }
 
 function normalizeSegment({
@@ -495,7 +532,16 @@ function normalizeTracks({
 	const claimedTransitionRefs = new Set<string>();
 	let mainAssigned = false;
 	for (const track of graph.tracks) {
-		const kind = TRACK_KIND_BY_RAW_TYPE[track.type ?? ""] ?? "unknown";
+		const rawSegments = track.segmentIds
+			.map((segmentId) => graph.segmentsById.get(segmentId))
+			.filter(
+				(segment): segment is RawGraphSegmentNode => segment !== undefined
+			);
+		const kind = resolveTrackKind({
+			rawType: track.type,
+			segments: rawSegments,
+			graph,
+		});
 		if (kind === "unknown") {
 			issues.push({
 				code: "FEATURE_OPAQUE",
@@ -505,11 +551,6 @@ function normalizeTracks({
 				subjectId: track.id,
 			});
 		}
-		const rawSegments = track.segmentIds
-			.map((segmentId) => graph.segmentsById.get(segmentId))
-			.filter(
-				(segment): segment is RawGraphSegmentNode => segment !== undefined
-			);
 		const segments = rawSegments.map((segment) =>
 			normalizeSegment({
 				segment,
@@ -568,17 +609,22 @@ function normalizeTracks({
 export function normalizeRawDraft(
 	input: NormalizeRawDraftInput
 ): NormalizeRawDraftResult {
-	const graph = readRawDraftGraph({ content: input.content });
+	const editable = resolveEditableDraftContent({ content: input.content });
+	const graph = readRawDraftGraph({
+		content: editable.content,
+		jsonPointerPrefix: editable.jsonPointerPrefix,
+	});
 	const issues: InteropIssue[] = validateRawDraftGraph({ graph });
 	const bindings: RawNodeBinding[] = [];
 	const restrictedSourcePathsByResourceId: Record<string, string> = {};
 
 	const project = normalizeProject({
-		content: input.content,
+		content: editable.content,
 		...(input.fallbackProjectName === undefined
 			? {}
 			: { fallbackProjectName: input.fallbackProjectName }),
 		issues,
+		jsonPointerPrefix: editable.jsonPointerPrefix,
 	});
 	const resources = normalizeResources({
 		graph,
