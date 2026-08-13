@@ -29,6 +29,16 @@ function createStyle({
 		innerShadowCount: 0,
 		shadowCount: 1,
 		textureLayerCount: previewOnly ? 1 : 0,
+		capabilities: {
+			staticTexture: previewOnly,
+			multipleStrokes: false,
+			animationComponents: previewOnly,
+			scriptInfoSticker: false,
+			shaderComponents: false,
+			threeDimensional: false,
+			feedbackComponents: false,
+		},
+		diagnostics: [],
 		hasCover: true,
 		compatibility: previewOnly ? "preview-only" : "approximated",
 		...(previewOnly
@@ -91,6 +101,16 @@ function createRuntimeStyle(): JianyingTextStyleLabStyleSummary {
 		innerShadowCount: 0,
 		shadowCount: 0,
 		textureLayerCount: 0,
+		capabilities: {
+			staticTexture: true,
+			multipleStrokes: true,
+			animationComponents: true,
+			scriptInfoSticker: true,
+			shaderComponents: true,
+			threeDimensional: true,
+			feedbackComponents: true,
+		},
+		diagnostics: [],
 		hasCover: true,
 		compatibility: "native-runtime",
 		runtimeReference: {
