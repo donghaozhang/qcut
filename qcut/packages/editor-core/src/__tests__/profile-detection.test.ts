@@ -64,6 +64,21 @@ describe("profile registry", () => {
 		}
 		expect(getDraftProfile({ profileId: "unknown" })).toBeNull();
 	});
+
+	it("ships beta 4 import without enabling unverified writeback", () => {
+		expect(
+			getDraftProfile({ profileId: JIANYING_11_3_BETA4_PROFILE_ID })
+		).toMatchObject({
+			capabilities: {
+				crossProfileExport: "none",
+				import: "stable",
+				inspect: "stable",
+				realAppVerified: false,
+				sameProfileWriteback: "none",
+			},
+			production: true,
+		});
+	});
 });
 
 describe("profile detection", () => {

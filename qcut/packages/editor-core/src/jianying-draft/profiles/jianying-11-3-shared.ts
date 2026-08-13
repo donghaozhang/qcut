@@ -1,4 +1,7 @@
-import type { DraftProfileContract } from "./registry.js";
+import type {
+	DraftProfileContract,
+	ProfileOperationLevel,
+} from "./registry.js";
 
 export const JIANYING_11_3_APP_ID = 3704 as const;
 export const JIANYING_11_3_APP_SOURCE = "lv" as const;
@@ -62,11 +65,15 @@ export function isJianying113ProfileId({
 
 export function createJianying113PlaintextSubdraftProfile({
 	appVersion,
+	operationLevel,
 	profileId,
+	production,
 	verificationEvidence,
 }: {
 	appVersion: string;
+	operationLevel: ProfileOperationLevel;
 	profileId: Jianying113ProfileId;
+	production: boolean;
 	verificationEvidence: string;
 }): DraftProfileContract {
 	return {
@@ -90,13 +97,13 @@ export function createJianying113PlaintextSubdraftProfile({
 			},
 		],
 		capabilities: {
-			inspect: "candidate",
-			import: "candidate",
+			inspect: operationLevel,
+			import: operationLevel,
 			sameProfileWriteback: "none",
 			crossProfileExport: "none",
 			realAppVerified: false,
 		},
 		verificationEvidence,
-		production: false,
+		production,
 	};
 }

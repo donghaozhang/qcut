@@ -29,7 +29,9 @@ export const JIANYING_11_3_BETA2_TOP_LEVEL_KEYS = JIANYING_11_3_TOP_LEVEL_KEYS;
 export const JIANYING_11_3_BETA2_PROFILE =
 	createJianying113PlaintextSubdraftProfile({
 		appVersion: JIANYING_11_3_BETA2_APP_VERSION,
+		operationLevel: "candidate",
 		profileId: JIANYING_11_3_BETA2_PROFILE_ID,
+		production: false,
 		verificationEvidence:
 			"jianying-macos-11.3.0-beta2-plaintext-subdraft-2026-08-13",
 	});
