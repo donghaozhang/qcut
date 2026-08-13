@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -213,6 +213,89 @@ async function writeJianyingCompoundRoot({
 	);
 }
 
+async function writeJianyingStaticTextCompoundRoot({
+	root,
+}: {
+	root: string;
+}): Promise<void> {
+	await writeJianyingCompoundRoot({
+		appVersion: JIANYING_11_3_BETA4_APP_VERSION,
+		root,
+	});
+	const contentPath = join(
+		root,
+		"subdraft",
+		"compound-1",
+		"draft_content.json"
+	);
+	const content = JSON.parse(await readFile(contentPath, "utf8")) as {
+		materials: {
+			drafts: Array<{
+				draft: {
+					materials: Record<string, unknown>;
+					tracks: Array<{ segments: Array<Record<string, unknown>> }>;
+				};
+			}>;
+		};
+	};
+	const inner = content.materials.drafts[0]?.draft;
+	if (inner === undefined)
+		throw new Error("compound fixture has no inner draft");
+	const text = "QCut Plain 123 ";
+	inner.materials = {
+		material_animations: [
+			{
+				animations: [],
+				id: "text-animation",
+				type: "sticker_animation",
+			},
+		],
+		texts: [
+			{
+				alignment: 1,
+				background_style: 0,
+				content: JSON.stringify({
+					styles: [
+						{
+							fill: {
+								content: { solid: { color: [1, 1, 1] } },
+							},
+							font: { path: "built-in-system-font" },
+							range: [0, text.length],
+							size: 15,
+						},
+					],
+					text,
+				}),
+				font_size: 15,
+				font_title: "none",
+				global_alpha: 1,
+				id: "inner-text",
+				letter_spacing: 0,
+				line_max_width: 0.82,
+				text_color: "#FFFFFF",
+				type: "text",
+			},
+		],
+	};
+	const segment = inner.tracks[0]?.segments[0];
+	if (segment === undefined) throw new Error("compound fixture has no segment");
+	Object.assign(segment, {
+		clip: {
+			alpha: 1,
+			flip: { horizontal: false, vertical: false },
+			rotation: 0,
+			scale: { x: 1, y: 1 },
+			transform: { x: 0, y: 0 },
+		},
+		common_keyframes: [],
+		extra_material_refs: ["text-animation"],
+		keyframe_refs: [],
+		material_id: "inner-text",
+	});
+	await writeFile(contentPath, JSON.stringify(content));
+}
+
 beforeEach(async () => {
 	draftRoot = await mkdtemp(join(tmpdir(), "qcut-session-test-"));
 	planStoreRoot = await mkdtemp(join(tmpdir(), "qcut-session-store-test-"));
@@ -314,6 +397,32 @@ describe("verifyRoundTrip", () => {
 				},
 			});
 			expect(JSON.stringify(verification)).not.toContain(root);
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
+	});
+
+	it("accepts a beta4 static-text projection without claiming text writeback", async () => {
+		const root = await mkdtemp(join(tmpdir(), "qcut-jianying-text-roundtrip-"));
+		try {
+			await writeJianyingStaticTextCompoundRoot({ root });
+
+			const verification = await session.verifyRoundTrip({
+				input: { draftPath: root },
+			});
+
+			expect(verification.result).toMatchObject({
+				ok: true,
+				verification: {
+					byteIdentical: true,
+					importedSegmentCount: 1,
+					preservedBindingCount: 3,
+					profileId: JIANYING_11_3_BETA4_PROFILE_ID,
+					scope: "active-subdraft-noop",
+					targetAppPersistenceVerified: false,
+					writebackPerformed: false,
+				},
+			});
 		} finally {
 			await rm(root, { recursive: true, force: true });
 		}

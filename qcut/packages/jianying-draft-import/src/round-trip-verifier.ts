@@ -80,6 +80,17 @@ function buildTimelineDurations({
 	return durations;
 }
 
+function countImportedSegments({
+	bundle,
+}: {
+	bundle: QCutImportBundleV1;
+}): number {
+	return bundle.timelinePlan.tracks.reduce(
+		(count, track) => count + track.elements.length,
+		0
+	);
+}
+
 function bytesEqual({
 	left,
 	right,
@@ -134,7 +145,9 @@ export function verifyJianying113RoundTrip({
 	const tracks = buildQCutImportTimelineTracks({
 		bundle,
 		mediaItemIdByResourceId: buildMediaItemIds({ bundle }),
-	});
+	}).filter(({ type }) => type === "media" || type === "audio");
+	// The timing writer deliberately owns only media/audio. Text still counts as
+	// imported, but feeding it to that writer would falsely classify it as new.
 	const prepared = prepareJianying113SameProfileWriteback({
 		baselineDocument: bundle.document,
 		bytesByPath,
@@ -179,7 +192,7 @@ export function verifyJianying113RoundTrip({
 			contentByteLength: sourceBytes.byteLength,
 			contentRelativePath: JIANYING_11_3_CONTENT_PATH,
 			contentSha256: createHash("sha256").update(sourceBytes).digest("hex"),
-			importedSegmentCount: prepared.importedSegmentCount,
+			importedSegmentCount: countImportedSegments({ bundle }),
 			preservedBindingCount: envelope.bindings.length,
 			profileId,
 			scope: "active-subdraft-noop",
