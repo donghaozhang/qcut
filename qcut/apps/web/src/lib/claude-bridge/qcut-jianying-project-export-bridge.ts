@@ -122,6 +122,7 @@ function mapProjectExportResult({
 		case "project-not-imported":
 		case "baseline-document-missing":
 		case "envelope-unavailable":
+		case "profile-not-writable":
 		case "prepare-blocked":
 		case "qcut-state-changed":
 			return blockedResult({

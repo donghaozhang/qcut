@@ -75,6 +75,7 @@ function requireBlockedReason({
 		case "prepare-blocked":
 		case "project-not-found":
 		case "project-not-imported":
+		case "profile-not-writable":
 		case "qcut-state-changed":
 		case "timeline-not-found":
 			return value;

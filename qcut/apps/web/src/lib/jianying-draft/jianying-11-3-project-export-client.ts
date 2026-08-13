@@ -3,6 +3,7 @@ import { readVerifiedEnvelopePayload } from "@/lib/jianying-draft/envelope-key-a
 import type { TProject } from "@/types/project";
 import {
 	JIANYING_11_3_PROFILE_IDS,
+	isDraftProfileWritable,
 	prepareJianying113SameProfileWriteback,
 	type Jianying113SameProfilePrepareIssue,
 	type Jianying113WritebackTimingSnapshot,
@@ -29,6 +30,7 @@ export type Jianying113ProjectExportClientResult =
 				| "project-not-imported"
 				| "baseline-document-missing"
 				| "envelope-unavailable"
+				| "profile-not-writable"
 				| "prepare-blocked"
 				| "qcut-state-changed"
 				| "bridge-unavailable"
@@ -41,6 +43,7 @@ export type Jianying113ProjectExportClientResult =
 
 export interface Jianying113ProjectExportClientDeps {
 	getBridge?: () => JianyingProjectExportAPI | null;
+	isProfileWritable?: typeof isDraftProfileWritable;
 	readVerifiedEnvelope?: typeof readVerifiedEnvelopePayload;
 	verifySnapshotCurrent?: (options: {
 		project: TProject;
@@ -86,6 +89,18 @@ export async function runJianying113ProjectExport({
 			ok: false,
 			reason: "envelope-unavailable",
 			message: "The encrypted Jianying source envelope is unavailable.",
+		};
+	}
+	const isProfileWritable = deps.isProfileWritable ?? isDraftProfileWritable;
+	if (
+		binding.writeback.status !== "ready" ||
+		!isProfileWritable({ profileId })
+	) {
+		return {
+			ok: false,
+			reason: "profile-not-writable",
+			message:
+				"This exact Jianying profile has no stable real-app save/reopen receipt. Re-import after the profile is promoted to writable.",
 		};
 	}
 

@@ -60,6 +60,14 @@ describe("Jianying project export wire validation", () => {
 		);
 		expect(
 			parseQCutJianyingProjectExportResult({
+				value: { ...blocked, issues: [], reason: "profile-not-writable" },
+			})
+		).toMatchObject({
+			outcome: "blocked",
+			reason: "profile-not-writable",
+		});
+		expect(
+			parseQCutJianyingProjectExportResult({
 				value: {
 					outcome: "cancelled",
 					projectId: "project-1",

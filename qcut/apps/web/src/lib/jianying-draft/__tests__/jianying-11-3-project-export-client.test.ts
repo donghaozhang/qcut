@@ -134,8 +134,10 @@ function sha256({ bytes }: { bytes: Uint8Array }): string {
 
 function fixture({
 	profileId = JIANYING_11_3_BETA2_PROFILE_ID,
+	writebackReady = true,
 }: {
 	profileId?: string;
+	writebackReady?: boolean;
 } = {}): {
 	bytes: Uint8Array;
 	envelope: ForeignDraftEnvelopeV1;
@@ -220,10 +222,12 @@ function fixture({
 				"inner-video": RESOURCE_ID,
 			},
 			baselineDocument: normalized.document,
-			writeback: {
-				status: "unavailable",
-				reason: "profile-not-writable",
-			},
+			writeback: writebackReady
+				? { status: "ready" }
+				: {
+						status: "unavailable",
+						reason: "profile-not-writable",
+					},
 			envelope,
 		},
 	};
@@ -301,6 +305,28 @@ function envelopeReader({ bytes }: { bytes: Uint8Array }) {
 }
 
 describe("Jianying 11.3 project export client", () => {
+	it("blocks profiles without stable real-app save and reopen evidence", async () => {
+		const { bytes, project } = fixture();
+		const api = bridge();
+		const readVerifiedEnvelope = envelopeReader({ bytes });
+
+		await expect(
+			runJianying113ProjectExport({
+				deps: {
+					getBridge: () => api,
+					readVerifiedEnvelope,
+				},
+				project,
+				snapshot: snapshot(),
+			})
+		).resolves.toMatchObject({
+			ok: false,
+			reason: "profile-not-writable",
+		});
+		expect(readVerifiedEnvelope).not.toHaveBeenCalled();
+		expect(api.chooseJianying113ProjectExportDirectory).not.toHaveBeenCalled();
+	});
+
 	it("writes unchanged beta 2 content into a selected registered project", async () => {
 		const { bytes, project } = fixture();
 		const api = bridge();
@@ -311,6 +337,7 @@ describe("Jianying 11.3 project export client", () => {
 				snapshot: snapshot(),
 				deps: {
 					getBridge: () => api,
+					isProfileWritable: () => true,
 					readVerifiedEnvelope: envelopeReader({ bytes }),
 				},
 			})
@@ -339,6 +366,7 @@ describe("Jianying 11.3 project export client", () => {
 			runJianying113ProjectExport({
 				deps: {
 					getBridge: () => api,
+					isProfileWritable: () => true,
 					readVerifiedEnvelope: envelopeReader({ bytes }),
 				},
 				project,
@@ -364,6 +392,7 @@ describe("Jianying 11.3 project export client", () => {
 			snapshot: snapshot({ changed: true }),
 			deps: {
 				getBridge: () => api,
+				isProfileWritable: () => true,
 				readVerifiedEnvelope: envelopeReader({ bytes }),
 			},
 		});
@@ -439,6 +468,7 @@ describe("Jianying 11.3 project export client", () => {
 				snapshot: current,
 				deps: {
 					getBridge: () => api,
+					isProfileWritable: () => true,
 					readVerifiedEnvelope: envelopeReader({ bytes }),
 				},
 			})
@@ -461,6 +491,7 @@ describe("Jianying 11.3 project export client", () => {
 				snapshot: snapshot(),
 				deps: {
 					getBridge: () => api,
+					isProfileWritable: () => true,
 					readVerifiedEnvelope: envelopeReader({ bytes }),
 					verifySnapshotCurrent,
 				},
@@ -482,6 +513,7 @@ describe("Jianying 11.3 project export client", () => {
 				snapshot: snapshot(),
 				deps: {
 					getBridge: () => api,
+					isProfileWritable: () => true,
 					readVerifiedEnvelope: envelopeReader({ bytes }),
 				},
 			})
@@ -507,6 +539,7 @@ describe("Jianying 11.3 project export client", () => {
 				snapshot: snapshot(),
 				deps: {
 					getBridge: () => api,
+					isProfileWritable: () => true,
 					readVerifiedEnvelope: envelopeReader({ bytes }),
 				},
 			})

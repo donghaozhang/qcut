@@ -12,6 +12,7 @@ export type QCutJianyingProjectExportBlockedReason =
 	| "prepare-blocked"
 	| "project-not-found"
 	| "project-not-imported"
+	| "profile-not-writable"
 	| "qcut-state-changed"
 	| "timeline-not-found";
 
