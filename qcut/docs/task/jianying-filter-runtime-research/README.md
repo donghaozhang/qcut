@@ -20,6 +20,11 @@
 [product-batches-and-long-tail-e2e.zh.md](product-batches-and-long-tail-e2e.zh.md)。这些结果把“产品能力可运行”
 与“剪映卡片像素平价”分开计分；后者仍必须有同素材 UI 无损帧门禁。
 
+真实多 Pass 卡“电影柔光”的剪映 UI、独立二进制 oracle、QCut 产品预览和 QCut 产品导出四方对照见
+[cinematic-soft-glow-four-way-e2e.zh.md](cinematic-soft-glow-four-way-e2e.zh.md)。本轮确认本机 provider 达到
+verified，并修复了调整层未把 native-local multi-pass 传入像素预览链路的问题；H.264 4:2:0
+导出帧单独按 close 记录，未把编码损失伪装成滤镜误差。
+
 ## 已确认结果
 
 旧探针使用缓存中的 EGL/GLES 创建纹理，但目标 Effect 库的 GL 符号绑定到 macOS `OpenGL.framework`。两套 context 不共享 GLuint 命名空间，导致输入纹理被视为不可加载。
