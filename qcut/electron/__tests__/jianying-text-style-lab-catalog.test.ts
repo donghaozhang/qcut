@@ -144,7 +144,7 @@ describe("Jianying text style lab catalog", () => {
 		expect(solid).toMatchObject({
 			packageKind: "TextStyle",
 			fillKind: "solid",
-			compatibility: "flat-compatible",
+			compatibility: "native-runtime",
 			strokeCount: 1,
 			shadowCount: 1,
 			hasCover: true,
@@ -155,13 +155,29 @@ describe("Jianying text style lab catalog", () => {
 				shadowOffsetX: expect.closeTo(0, 5),
 				shadowOffsetY: 6,
 			},
+			runtimeReference: {
+				packageKind: "TextStyle",
+				resourceId: "7405879107424111910",
+				packageHash: "1".repeat(32),
+			},
 		});
 		const texture = catalog.entries.find(
 			({ resourceId }) => resourceId === "7630700699546029374"
 		);
 		expect(texture).toMatchObject({
 			fillKind: "texture",
-			compatibility: "preview-only",
+			compatibility: "native-runtime",
+			diagnostics: [
+				{
+					code: "effect-style-texture-path-missing",
+					severity: "warning",
+				},
+			],
+			runtimeReference: {
+				packageKind: "TextStyle",
+				resourceId: "7630700699546029374",
+				packageHash: "2".repeat(32),
+			},
 		});
 		expect(texture).not.toHaveProperty("approximation");
 		expect(
@@ -172,6 +188,15 @@ describe("Jianying text style lab catalog", () => {
 			packageKind: "InfoSticker",
 			fillKind: "unknown",
 			compatibility: "native-runtime",
+			capabilities: {
+				staticTexture: false,
+				multipleStrokes: false,
+				animationComponents: true,
+				scriptInfoSticker: false,
+				shaderComponents: false,
+				threeDimensional: false,
+				feedbackComponents: false,
+			},
 			hasCover: true,
 			runtimeReference: {
 				schemaVersion: 1,
