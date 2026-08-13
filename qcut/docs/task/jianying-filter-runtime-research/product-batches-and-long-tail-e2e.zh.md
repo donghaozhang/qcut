@@ -1,6 +1,6 @@
 # 滤镜产品批处理、固定时间基与长尾 Pass E2E
 
-记录时间：2026-08-12
+记录时间：2026-08-12，2026-08-13 追加双 LUT 真实视频门禁
 
 ## 结论
 
@@ -36,20 +36,23 @@
 
 ### 7 张双 LUT 人像
 
-奥林巴斯、青灰、冷月夜、橙蓝、亮肤、森山、雾野各连续处理三张轻微位移的真人帧：
+奥林巴斯、青灰、冷月夜、橙蓝、亮肤、森山、雾野已从三张平移静帧升级为 `854x480 / 30 fps`
+真实视频的 70 帧连续处理：
 
 | 指标 | 结果 |
 | --- | ---: |
 | 成功 | 7 / 7 |
-| 平均初始化 | 1647.39 ms |
-| 平均连续帧 | 94.60 ms |
-| 连续帧 P95 | 101.69 ms |
-| 奥林巴斯 A -> B 切源后与 fresh-B RGBA | 逐字节一致，MAE 0 |
-| 奥林巴斯 A -> B 切源后与 fresh-B mask | 逐字节一致，MAE 0 |
+| 每张处理帧数 | 70 |
+| 人物运动窗口 | 最后 10 帧；每张 7 对 source 和 7 对 mask 发生变化 |
+| 7 张 A -> B 与 fresh-B RGBA | 全部逐字节一致，MAE 0 |
+| 7 张 A -> B 与 fresh-B mask | 全部逐字节一致，MAE 0 |
+| 7 张导出 | 全部 854x480、30 fps、70 帧、2.333333 秒 |
+| UI mask 门禁 | 奥林巴斯 verified；共享算法图六张 close |
 
-七张输出 SHA-256 均不相同。六张使用同一分割 graph 的卡在相同输入上共享同一 raw mask，这是预期行为；
-奥林巴斯包的 graph 不同，mask 哈希也不同。该批次证明执行、连续帧和 reset 语义，不等于七张都通过剪映
-UI 像素平价门禁，verification 状态仍独立管理。
+七张输出 SHA-256 均不相同。奥林巴斯相对直接剪映 UI mask 的 `maskEdgeMae=0.013262`，达到 verified；
+其余六张使用同一分割 graph，在相同输入上共享逐字节一致的 raw mask，相对经过校准的青灰 UI 反推 mask 为
+`maskEdgeMae=0.075152`，只达到 close。完整素材绑定、校准方法和逐卡结果见
+[dual-lut-seven-real-video-e2e.zh.md](dual-lut-seven-real-video-e2e.zh.md)。
 
 ## 导出时间基修复
 
@@ -102,6 +105,8 @@ MD5 全部不同，证明时变分支不是静态占位；输出保持 320x180�
 | 单 LUT 批处理报告 | `71f96a387ba32efb3aa148e1d4caea711f8e1a23edd05f18c20cdb15297577a0` |
 | 双 LUT 批处理报告 | `da525cd52793867b746111edae694632ffd1962c8a87368031b8e1047725c54c` |
 | 双 LUT contact sheet | `aa9ba28382b111affa5b21fa7dfa73cfaf3e06c305ad0825e18c99c67c35bf44` |
+| 奥林巴斯 70 帧 UI mask E2E 报告 | `7277bfbd98a0fd3ff65a7fe588dec1af3e335d5223f927327c6912453c4621b8` |
+| 共享六卡 70 帧 UI mask E2E 报告 | `2aa6e6dc1223085edca13fe934681c16535d6a10f26ac0a3e9835d45fca01632` |
 | Electron 原生预览证据 | `eba6b1b2e9c214dc0339621a6ac849f9cfacf55c59dfae3674ac868ff1ed8a40` |
 | 1 秒青灰导出 | `8b90fe6c904a8ec8aa0347f25578d7743ae4d610f973a3b8d3c744992f789ca9` |
 | 五类长尾 Pass 烟测视频 | `dbaa85416d7c9311fce15638d78a9d59f146f3fae4ae3ce718806f29e1cbb7c8` |
