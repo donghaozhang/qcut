@@ -16,6 +16,7 @@ import {
 	readBoundedJianyingTextJson,
 } from "./jianying-text-package-metadata.js";
 import type { JianyingTextStylePackageKind } from "./jianying-text-style-lab-contract.js";
+import { mapWithConcurrency } from "./lib/map-with-concurrency.js";
 import { jianyingEffectCacheRoot } from "./native-pipeline/filters/filter-lab-lut.js";
 
 export type JianyingTextPackageOwnershipKind =
@@ -75,6 +76,7 @@ interface CatalogResponseRow {
 const MAXIMUM_CATALOG_RESPONSE_CHARACTERS = 32 * 1024 * 1024;
 const MAXIMUM_CATALOG_RESPONSE_NODES = 250_000;
 const MAXIMUM_NESTED_JSON_CHARACTERS = 2 * 1024 * 1024;
+const PACKAGE_CLASSIFICATION_CONCURRENCY = 8;
 const CATALOG_FAMILY_ORDER = [
 	"flower",
 	"filter",
@@ -677,8 +679,10 @@ export async function resolveJianyingTextPackageOwnership({
 		rowsByResourceId.set(row.resourceId, current);
 	}
 	const [projectEvidence, componentRoles] = await localEvidencePromise;
-	const classifications = await Promise.all(
-		normalizedReferences.map(async (reference) => {
+	const classifications = await mapWithConcurrency({
+		items: normalizedReferences,
+		limit: PACKAGE_CLASSIFICATION_CONCURRENCY,
+		task: async ({ item: reference }) => {
 			const catalogClassification = classifyReference({
 				reference,
 				rows: rowsByResourceId.get(reference.resourceId) ?? [],
@@ -712,7 +716,7 @@ export async function resolveJianyingTextPackageOwnership({
 						}
 					: (dependencyClassification ?? evidenceClassification),
 			] as const;
-		})
-	);
+		},
+	});
 	return new Map(classifications);
 }
