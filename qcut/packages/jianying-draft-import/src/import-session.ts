@@ -33,7 +33,7 @@ import {
 import {
 	detectDraftProfile,
 	getDraftProfile,
-	JIANYING_11_3_BETA2_PROFILE_ID,
+	isJianying113ProfileId,
 	mapInteropDocumentToQCutPlan,
 	normalizeRawDraft,
 	type DraftContentSummary,
@@ -653,14 +653,15 @@ export class JianyingDraftImportSession {
 			});
 		if (
 			detection.outcome !== "exact" ||
-			detection.profileId !== JIANYING_11_3_BETA2_PROFILE_ID ||
+			detection.profileId === undefined ||
+			!isJianying113ProfileId({ profileId: detection.profileId }) ||
 			document === undefined ||
 			document.source.product !== "jianying"
 		) {
 			throw new ImportSessionError({
 				code: "profile-not-exact",
 				message:
-					"Round-trip verification requires the exact Jianying Professional 11.3 beta 2 profile.",
+					"Round-trip verification requires an exact Jianying Professional 11.3 profile.",
 			});
 		}
 		const profile = getDraftProfile({ profileId: detection.profileId });

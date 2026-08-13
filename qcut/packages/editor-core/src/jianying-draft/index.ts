@@ -145,6 +145,16 @@ export {
 	JIANYING_11_3_BETA2_PROFILE_ID,
 	JIANYING_11_3_BETA2_SCHEMA_VERSION,
 	JIANYING_11_3_BETA2_TOP_LEVEL_KEYS,
+	isJianying113ProfileId,
+	JIANYING_11_3_BETA3_APP_ID,
+	JIANYING_11_3_BETA3_APP_SOURCE,
+	JIANYING_11_3_BETA3_APP_VERSION,
+	JIANYING_11_3_BETA3_NEW_VERSION,
+	JIANYING_11_3_BETA3_PROFILE,
+	JIANYING_11_3_BETA3_PROFILE_ID,
+	JIANYING_11_3_BETA3_SCHEMA_VERSION,
+	JIANYING_11_3_BETA3_TOP_LEVEL_KEYS,
+	JIANYING_11_3_PROFILE_IDS,
 	listDraftProfiles,
 	PLAINTEXT_5_9_PROFILE,
 	PLAINTEXT_5_9_PROFILE_ID,
@@ -152,6 +162,7 @@ export {
 	registerDraftProfile,
 	type DraftProfileCapabilities,
 	type DraftProfileContract,
+	type Jianying113ProfileId,
 	type ProfileOperationLevel,
 } from "./profiles/index.js";
 
@@ -250,5 +261,21 @@ export {
 	type Jianying113Beta2WritebackTimingSnapshot,
 	type PlanJianying113Beta2TimingPatchesResult,
 } from "./writeback/jianying-11-3-beta2-timing-patches.js";
+
+export {
+	JIANYING_11_3_CONTENT_PATH,
+	prepareJianying113SameProfileWriteback,
+	type Jianying113SameProfilePrepareIssue,
+	type Jianying113SameProfilePrepareIssueCode,
+	type PrepareJianying113SameProfileWritebackResult,
+} from "./writeback/jianying-11-3-same-profile-prepare.js";
+
+export {
+	planJianying113TimingPatches,
+	type Jianying113TimingPatchIssue,
+	type Jianying113TimingPatchIssueCode,
+	type Jianying113WritebackTimingSnapshot,
+	type PlanJianying113TimingPatchesResult,
+} from "./writeback/jianying-11-3-timing-patches.js";
 
 export type { SameProfileWritebackTimingSnapshot } from "./writeback/same-profile-timing-patches.js";

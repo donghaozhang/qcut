@@ -1,23 +1,23 @@
+import { JIANYING_11_3_BETA2_PROFILE_ID } from "../profiles/jianying-11-3-beta2.js";
+import {
+	planJianying113TimingPatches,
+	type Jianying113TimingPatchIssue,
+	type Jianying113TimingPatchIssueCode,
+	type Jianying113WritebackTimingSnapshot,
+	type PlanJianying113TimingPatchesResult,
+} from "./jianying-11-3-timing-patches.js";
 import type {
 	DraftInteropDocumentV1,
 	ForeignDraftEnvelopeV1,
 } from "../../draft-interop/index.js";
-import { JIANYING_11_3_BETA2_PROFILE_ID } from "../profiles/jianying-11-3-beta2.js";
-import {
-	planSameProfileTimingPatches,
-	type PlanSameProfileTimingPatchesResult,
-	type SameProfileTimingPatchIssue,
-	type SameProfileTimingPatchIssueCode,
-	type SameProfileWritebackTimingSnapshot,
-} from "./same-profile-timing-patches.js";
 
 export type Jianying113Beta2WritebackTimingSnapshot =
-	SameProfileWritebackTimingSnapshot;
+	Jianying113WritebackTimingSnapshot;
 export type Jianying113Beta2TimingPatchIssueCode =
-	SameProfileTimingPatchIssueCode;
-export type Jianying113Beta2TimingPatchIssue = SameProfileTimingPatchIssue;
+	Jianying113TimingPatchIssueCode;
+export type Jianying113Beta2TimingPatchIssue = Jianying113TimingPatchIssue;
 export type PlanJianying113Beta2TimingPatchesResult =
-	PlanSameProfileTimingPatchesResult;
+	PlanJianying113TimingPatchesResult;
 
 export function planJianying113Beta2TimingPatches({
 	document,
@@ -30,14 +30,11 @@ export function planJianying113Beta2TimingPatches({
 	internalIdBySemanticId: Readonly<Record<string, string>>;
 	snapshot: Jianying113Beta2WritebackTimingSnapshot;
 }): PlanJianying113Beta2TimingPatchesResult {
-	return planSameProfileTimingPatches({
-		context: {
-			productLabel: "Jianying Professional 11.3 beta 2",
-			profileId: JIANYING_11_3_BETA2_PROFILE_ID,
-		},
+	return planJianying113TimingPatches({
 		document,
 		envelope,
 		internalIdBySemanticId,
+		profileId: JIANYING_11_3_BETA2_PROFILE_ID,
 		snapshot,
 	});
 }

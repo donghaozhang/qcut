@@ -5,24 +5,25 @@ import {
 	type QCutImportBundleV1,
 } from "@qcut/editor-core/draft-interop";
 import {
-	JIANYING_11_3_BETA2_CONTENT_PATH,
-	JIANYING_11_3_BETA2_PROFILE_ID,
-	prepareJianying113Beta2SameProfileWriteback,
-	type Jianying113Beta2SameProfilePrepareIssue,
+	isJianying113ProfileId,
+	JIANYING_11_3_CONTENT_PATH,
+	prepareJianying113SameProfileWriteback,
+	type Jianying113ProfileId,
+	type Jianying113SameProfilePrepareIssue,
 } from "@qcut/editor-core/jianying-draft";
 
 export interface JianyingRoundTripVerification {
 	byteIdentical: true;
 	contentByteLength: number;
-	contentRelativePath: typeof JIANYING_11_3_BETA2_CONTENT_PATH;
+	contentRelativePath: typeof JIANYING_11_3_CONTENT_PATH;
 	contentSha256: string;
 	importedSegmentCount: number;
 	preservedBindingCount: number;
-	profileId: typeof JIANYING_11_3_BETA2_PROFILE_ID;
+	profileId: Jianying113ProfileId;
 }
 
 export type JianyingRoundTripVerificationIssue =
-	| Jianying113Beta2SameProfilePrepareIssue
+	| Jianying113SameProfilePrepareIssue
 	| {
 			code:
 				| "ROUNDTRIP_PROFILE_MISMATCH"
@@ -97,8 +98,10 @@ export function verifyJianying113RoundTrip({
 }): VerifyJianyingRoundTripResult {
 	if (
 		bundle.document.source.product !== "jianying" ||
-		bundle.document.source.profileId !== JIANYING_11_3_BETA2_PROFILE_ID ||
-		envelope.profileId !== JIANYING_11_3_BETA2_PROFILE_ID
+		bundle.document.source.profileId !== envelope.profileId ||
+		!isJianying113ProfileId({
+			profileId: bundle.document.source.profileId,
+		})
 	) {
 		return {
 			ok: false,
@@ -106,12 +109,13 @@ export function verifyJianying113RoundTrip({
 				{
 					code: "ROUNDTRIP_PROFILE_MISMATCH",
 					message:
-						"Round-trip verification requires the exact Jianying Professional 11.3 beta 2 profile.",
+						"Round-trip verification requires one exact Jianying Professional 11.3 profile.",
 				},
 			],
 		};
 	}
-	const sourceBytes = bytesByPath.get(JIANYING_11_3_BETA2_CONTENT_PATH);
+	const profileId = bundle.document.source.profileId as Jianying113ProfileId;
+	const sourceBytes = bytesByPath.get(JIANYING_11_3_CONTENT_PATH);
 	if (sourceBytes === undefined) {
 		return {
 			ok: false,
@@ -128,11 +132,12 @@ export function verifyJianying113RoundTrip({
 		bundle,
 		mediaItemIdByResourceId: buildMediaItemIds({ bundle }),
 	});
-	const prepared = prepareJianying113Beta2SameProfileWriteback({
+	const prepared = prepareJianying113SameProfileWriteback({
 		baselineDocument: bundle.document,
 		bytesByPath,
 		envelope,
 		internalIdBySemanticId: bundle.internalIdBySemanticId,
+		profileId,
 		snapshot: {
 			tracks,
 			timelineDurationByElementId: buildTimelineDurations({ bundle }),
@@ -169,11 +174,11 @@ export function verifyJianying113RoundTrip({
 		verification: {
 			byteIdentical: true,
 			contentByteLength: sourceBytes.byteLength,
-			contentRelativePath: JIANYING_11_3_BETA2_CONTENT_PATH,
+			contentRelativePath: JIANYING_11_3_CONTENT_PATH,
 			contentSha256: createHash("sha256").update(sourceBytes).digest("hex"),
 			importedSegmentCount: prepared.importedSegmentCount,
 			preservedBindingCount: envelope.bindings.length,
-			profileId: JIANYING_11_3_BETA2_PROFILE_ID,
+			profileId,
 		},
 	};
 }

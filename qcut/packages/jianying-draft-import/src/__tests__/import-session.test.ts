@@ -4,7 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
 	buildJianyingDraft,
+	JIANYING_11_3_BETA2_APP_VERSION,
+	JIANYING_11_3_BETA2_PROFILE_ID,
 	JIANYING_11_3_BETA2_TOP_LEVEL_KEYS,
+	JIANYING_11_3_BETA3_APP_VERSION,
+	JIANYING_11_3_BETA3_PROFILE_ID,
 } from "@qcut/editor-core/jianying-draft";
 import type { QCutDraftExportSnapshotV1 } from "@qcut/editor-core/jianying-draft";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -97,8 +101,10 @@ async function writeSyntheticDraft(): Promise<void> {
 }
 
 async function writeJianyingCompoundRoot({
+	appVersion = JIANYING_11_3_BETA2_APP_VERSION,
 	root,
 }: {
+	appVersion?: string;
 	root: string;
 }): Promise<void> {
 	const durationUs = 3_000_000;
@@ -163,7 +169,7 @@ async function writeJianyingCompoundRoot({
 		last_modified_platform: {
 			app_id: 3704,
 			app_source: "lv",
-			app_version: "11.3.0-beta2",
+			app_version: appVersion,
 		},
 		tracks: [
 			{
@@ -273,10 +279,13 @@ describe("inspect", () => {
 });
 
 describe("verifyRoundTrip", () => {
-	it("proves a Jianying compound import is byte-identical without writing state", async () => {
+	it.each([
+		[JIANYING_11_3_BETA2_APP_VERSION, JIANYING_11_3_BETA2_PROFILE_ID],
+		[JIANYING_11_3_BETA3_APP_VERSION, JIANYING_11_3_BETA3_PROFILE_ID],
+	])("proves a Jianying %s compound import is byte-identical without writing state", async (appVersion, profileId) => {
 		const root = await mkdtemp(join(tmpdir(), "qcut-jianying-roundtrip-"));
 		try {
-			await writeJianyingCompoundRoot({ root });
+			await writeJianyingCompoundRoot({ appVersion, root });
 
 			const verification = await session.verifyRoundTrip({
 				input: { draftPath: root },
@@ -295,6 +304,7 @@ describe("verifyRoundTrip", () => {
 					contentRelativePath: "draft_content.json",
 					importedSegmentCount: 1,
 					preservedBindingCount: 3,
+					profileId,
 				},
 			});
 			expect(JSON.stringify(verification)).not.toContain(root);

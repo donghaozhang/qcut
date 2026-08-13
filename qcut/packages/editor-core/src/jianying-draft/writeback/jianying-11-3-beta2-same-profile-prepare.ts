@@ -4,25 +4,22 @@ import type {
 } from "../../draft-interop/index.js";
 import { JIANYING_11_3_BETA2_PROFILE_ID } from "../profiles/jianying-11-3-beta2.js";
 import {
-	planJianying113Beta2TimingPatches,
-	type Jianying113Beta2TimingPatchIssueCode,
-	type Jianying113Beta2WritebackTimingSnapshot,
-} from "./jianying-11-3-beta2-timing-patches.js";
-import {
-	prepareSameProfileWriteback,
-	type PrepareSameProfileWritebackResult,
-	type SameProfilePrepareIssue,
-	type SameProfilePrepareIssueCode,
-} from "./same-profile-prepare.js";
+	JIANYING_11_3_CONTENT_PATH,
+	prepareJianying113SameProfileWriteback,
+	type Jianying113SameProfilePrepareIssue,
+	type Jianying113SameProfilePrepareIssueCode,
+	type PrepareJianying113SameProfileWritebackResult,
+} from "./jianying-11-3-same-profile-prepare.js";
+import type { Jianying113WritebackTimingSnapshot } from "./jianying-11-3-timing-patches.js";
 
-export const JIANYING_11_3_BETA2_CONTENT_PATH = "draft_content.json";
+export const JIANYING_11_3_BETA2_CONTENT_PATH = JIANYING_11_3_CONTENT_PATH;
 
 export type Jianying113Beta2SameProfilePrepareIssueCode =
-	| Jianying113Beta2TimingPatchIssueCode
-	| SameProfilePrepareIssueCode;
-export type Jianying113Beta2SameProfilePrepareIssue = SameProfilePrepareIssue;
+	Jianying113SameProfilePrepareIssueCode;
+export type Jianying113Beta2SameProfilePrepareIssue =
+	Jianying113SameProfilePrepareIssue;
 export type PrepareJianying113Beta2SameProfileWritebackResult =
-	PrepareSameProfileWritebackResult<typeof JIANYING_11_3_BETA2_CONTENT_PATH>;
+	PrepareJianying113SameProfileWritebackResult;
 
 export function prepareJianying113Beta2SameProfileWriteback({
 	baselineDocument,
@@ -35,19 +32,14 @@ export function prepareJianying113Beta2SameProfileWriteback({
 	bytesByPath: ReadonlyMap<string, Uint8Array>;
 	envelope: ForeignDraftEnvelopeV1;
 	internalIdBySemanticId: Readonly<Record<string, string>>;
-	snapshot: Jianying113Beta2WritebackTimingSnapshot;
+	snapshot: Jianying113WritebackTimingSnapshot;
 }): PrepareJianying113Beta2SameProfileWritebackResult {
-	return prepareSameProfileWriteback({
+	return prepareJianying113SameProfileWriteback({
 		baselineDocument,
 		bytesByPath,
-		context: {
-			contentRelativePath: JIANYING_11_3_BETA2_CONTENT_PATH,
-			productLabel: "Jianying Professional 11.3 beta 2",
-			profileId: JIANYING_11_3_BETA2_PROFILE_ID,
-		},
 		envelope,
 		internalIdBySemanticId,
-		planTimingPatches: planJianying113Beta2TimingPatches,
+		profileId: JIANYING_11_3_BETA2_PROFILE_ID,
 		snapshot,
 	});
 }
