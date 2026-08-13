@@ -173,12 +173,12 @@ async function isReadyPackage({
 	try {
 		const metadata = await lstat(packagePath);
 		if (!metadata.isDirectory()) return false;
-		const config = await readBoundedJianyingTextJson({
-			filePath: path.join(packagePath, "config.json"),
-		});
 		if (role === "font") {
 			return Boolean(await findJianyingPackageFontFile({ packagePath }));
 		}
+		const config = await readBoundedJianyingTextJson({
+			filePath: path.join(packagePath, "config.json"),
+		});
 		return packageSupportsRole({ config, role });
 	} catch {
 		return false;
