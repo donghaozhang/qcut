@@ -205,6 +205,31 @@ export function detectJianyingMultiPassTopology({
 		};
 	}
 
+	if (
+		hasPaths({
+			paths,
+			required: [
+				"AmazingFeature/effects/LumiGaussianBlur/xshader/gaussianBlurX.xshader",
+				"AmazingFeature/effects/LumiGaussianBlur/xshader/gaussianBlurY.xshader",
+				"AmazingFeature/effects/LumiSGlow/xshader/mask.xshader",
+				"AmazingFeature/effects/LumiSGlow/xshader/BlurHorz.xshader",
+				"AmazingFeature/effects/LumiSGlow/xshader/BlurVert.xshader",
+				"AmazingFeature/effects/LumiSGlow/xshader/blend.xshader",
+				"AmazingFeature/effects/LumiLvFilter/xshader/pass6.xshader",
+				"AmazingFeature/effects/LumiLvFilter/image/filter.png",
+			],
+		}) &&
+		/glowWidth/.test(signals) &&
+		/threshold/.test(signals) &&
+		/SoftLight/.test(signals)
+	) {
+		return {
+			kind: "bloom-lut",
+			lutRelativePath: "AmazingFeature/effects/LumiLvFilter/image/filter.png",
+			passCount: 10,
+		};
+	}
+
 	return null;
 }
 
@@ -318,6 +343,21 @@ function operationsForRenderer({
 			{ kind: "lut", cube, intensity: 100 },
 			{ kind: "bilateral-blur", radius: 1.52, threshold: 7.75 },
 			{ kind: "vignette", amount: 100, softness: 65 },
+		];
+	}
+	if (renderer.kind === "bloom-lut") {
+		return [
+			{
+				kind: "bloom",
+				threshold: 0.86,
+				radius: 13,
+				amount: 70,
+				scale: 0.25,
+				pixelFormat: "rgba8",
+				mipLevels: 2,
+				edgeMode: "mirror",
+			},
+			{ kind: "lut", cube, intensity: 80 },
 		];
 	}
 	return [
