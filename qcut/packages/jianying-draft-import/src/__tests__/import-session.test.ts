@@ -2,7 +2,10 @@ import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildJianyingDraft } from "@qcut/editor-core/jianying-draft";
+import {
+	buildJianyingDraft,
+	JIANYING_11_3_BETA2_TOP_LEVEL_KEYS,
+} from "@qcut/editor-core/jianying-draft";
 import type { QCutDraftExportSnapshotV1 } from "@qcut/editor-core/jianying-draft";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ImportPlanConsumedError } from "../import-plan-store.js";
@@ -91,6 +94,115 @@ async function writeSyntheticDraft(): Promise<void> {
 	// The media file the resolver should find by name search.
 	await mkdir(join(draftRoot, "assets"), { recursive: true });
 	await writeFile(join(draftRoot, "assets", "clip.mp4"), "media-bytes");
+}
+
+async function writeJianyingCompoundRoot({
+	root,
+}: {
+	root: string;
+}): Promise<void> {
+	const durationUs = 3_000_000;
+	const subdraftId = "compound-1";
+	const mediaPath = join(root, "clip.mp4");
+	await writeFile(mediaPath, "compound-media");
+	await mkdir(join(root, "Timelines"));
+	await writeFile(
+		join(root, "Timelines", "project.json"),
+		JSON.stringify({ main_timeline_id: "timeline-1", timelines: [] })
+	);
+	await writeFile(join(root, "draft_info.json"), Buffer.from([0xff, 0x00]));
+	const subdraftRoot = join(root, "subdraft", subdraftId);
+	await mkdir(subdraftRoot, { recursive: true });
+
+	const innerDraft = {
+		id: subdraftId,
+		name: "Compound Clip 1",
+		canvas_config: { width: 1280, height: 720 },
+		duration: durationUs,
+		fps: 30,
+		tracks: [
+			{
+				id: "inner-track",
+				type: "mixed",
+				segments: [
+					{
+						id: "inner-segment",
+						material_id: "inner-video",
+						extra_material_refs: [],
+						source_timerange: { start: 0, duration: durationUs },
+						target_timerange: { start: 0, duration: durationUs },
+						speed: 1,
+					},
+				],
+			},
+		],
+		materials: {
+			videos: [
+				{
+					id: "inner-video",
+					type: "video",
+					duration: durationUs,
+					material_name: "clip.mp4",
+					path: mediaPath,
+				},
+			],
+		},
+	};
+	const content: Record<string, unknown> = Object.fromEntries(
+		JIANYING_11_3_BETA2_TOP_LEVEL_KEYS.map((key) => [key, null])
+	);
+	Object.assign(content, {
+		id: "outer-wrapper",
+		name: "",
+		canvas_config: { width: 0, height: 0 },
+		duration: 0,
+		fps: 30,
+		version: 360_000,
+		new_version: "183.0.0",
+		platform: { app_id: 0, app_source: "", app_version: "" },
+		last_modified_platform: {
+			app_id: 3704,
+			app_source: "lv",
+			app_version: "11.3.0-beta2",
+		},
+		tracks: [
+			{
+				id: "outer-track",
+				type: "mixed",
+				segments: [
+					{
+						id: "outer-segment",
+						material_id: "outer-video",
+						extra_material_refs: ["compound-material"],
+						source_timerange: { start: 0, duration: durationUs },
+						target_timerange: { start: 0, duration: durationUs },
+						speed: 1,
+					},
+				],
+			},
+		],
+		materials: {
+			drafts: [
+				{
+					id: "compound-material",
+					draft: innerDraft,
+					type: "combination",
+				},
+			],
+			videos: [
+				{
+					id: "outer-video",
+					type: "video",
+					duration: durationUs,
+					path: "",
+				},
+			],
+		},
+	});
+	await writeFile(
+		join(subdraftRoot, "draft_content.json"),
+		JSON.stringify(content)
+	);
 }
 
 beforeEach(async () => {
@@ -236,6 +348,31 @@ describe("plan", () => {
 });
 
 describe("commit", () => {
+	it("rebuilds an auto-selected compound plan from the requested root", async () => {
+		const root = await mkdtemp(join(tmpdir(), "qcut-jianying-session-root-"));
+		try {
+			await writeJianyingCompoundRoot({ root });
+			const plan = await session.plan({ input: { draftPath: root } });
+			expect(plan.inspect).toMatchObject({
+				outcome: "exact",
+				sourceScope: "compound-subdraft",
+				selectedSubdraftId: "compound-1",
+			});
+			expect(plan.plan.warningFingerprints).toHaveLength(1);
+
+			const commit = await session.commit({
+				input: {
+					planToken: plan.plan.planToken,
+					acceptedWarningFingerprints: [...plan.plan.warningFingerprints],
+				},
+			});
+			expect(commit.bundle.document.source.product).toBe("jianying");
+			expect(commit.mediaPayloads).toHaveLength(1);
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
+	});
+
 	it("returns the bundle and media payloads exactly once", async () => {
 		const plan = await session.plan({ input: { draftPath: draftRoot } });
 		const commit = await session.commit({

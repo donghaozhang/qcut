@@ -44,6 +44,7 @@ import {
 } from "./asset-resolver.js";
 import type { AssetResolutionCacheMetrics } from "./asset-resolution-work-cache.js";
 import { discoverDraftDirectory } from "./discovery.js";
+import type { DraftSourceScope } from "./source-root-resolver.js";
 import { readDesktopImportWithGrants } from "./desktop-import-inbox-grants.js";
 import {
 	createImportPlanArtifact,
@@ -127,6 +128,9 @@ export interface DraftImportInspectDto {
 	outcome: ProfileDetectionResult["outcome"];
 	profileId?: string;
 	product?: "jianying" | "capcut";
+	sourceScope: DraftSourceScope;
+	subdraftCandidateCount: number;
+	selectedSubdraftId?: string;
 	canWrite: boolean;
 	fileCount: number;
 	skippedEntryCount: number;
@@ -498,6 +502,7 @@ export class JianyingDraftImportSession {
 			run: () =>
 				readDraftSourceSnapshot({
 					rootRealPath: discovery.rootRealPath,
+					requestedRootRealPath: discovery.requestedRootRealPath,
 					files: discovery.files,
 					...(validated.request.maxFileBytes === undefined
 						? {}
@@ -532,11 +537,16 @@ export class JianyingDraftImportSession {
 				? {}
 				: { profileId: detection.profileId }),
 			...(detectedProfile === null ? {} : { product: detectedProfile.product }),
+			sourceScope: discovery.sourceScope,
+			subdraftCandidateCount: discovery.subdraftCandidateCount,
+			...(discovery.selectedSubdraftId === undefined
+				? {}
+				: { selectedSubdraftId: discovery.selectedSubdraftId }),
 			canWrite: detection.canWrite,
 			fileCount: discovery.files.length,
 			skippedEntryCount: discovery.skipped.length,
 			hasContentFile: discovery.hasContentFile,
-			issues: [...snapshot.issues],
+			issues: [...discovery.issues, ...snapshot.issues],
 		};
 
 		if (
@@ -578,7 +588,10 @@ export class JianyingDraftImportSession {
 				}),
 			stage: "document-normalization",
 		});
-		const document = normalized.document;
+		const document: DraftInteropDocumentV1 = {
+			...normalized.document,
+			issues: [...discovery.issues, ...normalized.document.issues],
+		};
 		inspect.issues = [...snapshot.issues, ...document.issues];
 		inspect.semantic = {
 			trackCount: document.timelines.reduce(
