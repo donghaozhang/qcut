@@ -3,29 +3,54 @@ import { constants } from "node:fs";
 import { access, readdir, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import {
-	asJianyingRecord,
-	JIANYING_TEXT_RESOURCE_ID_PATTERN,
+	createJianyingRuntimePackageCapabilities,
+	mergeJianyingTextEffectCapabilities,
+} from "../jianying-text-effect-capabilities.js";
+import type {
+	JianyingEffectStyleInspection,
+	JianyingEffectStyleManifest,
+} from "../jianying-text-effect-style-contract.js";
+import { parseJianyingEffectStylePackage } from "../jianying-text-effect-style-parser.js";
+import type {
+	JianyingTextEffectCapabilities,
+	JianyingTextRuntimeDiagnostic,
+} from "../jianying-text-runtime-contract.js";
+import {
+	detectJianyingTextPackageKind,
 	readBoundedJianyingTextJson,
 } from "../jianying-text-package-metadata.js";
+import {
+	inspectJianyingTextComponentPackage,
+	type JianyingTextComponentManifest,
+} from "./component-package-inspector.js";
+import {
+	canDegradeJianyingScriptResource,
+	collectJianyingAnimationOwnerTypes,
+	collectJianyingScriptResourceReferences,
+	jianyingResourceContainers,
+	readJianyingScriptDependencyDescriptors,
+	type JianyingScriptDependencyDescriptor,
+	type JianyingScriptResourceReference,
+} from "./script-resource-policy.js";
 
-export type JianyingScriptResourceRole = "animation" | "sticker";
-
-export interface JianyingScriptResourceReference {
-	resourceId: string;
-	role: JianyingScriptResourceRole;
-}
+export { collectJianyingScriptResourceReferences };
+export type { JianyingScriptResourceReference };
 
 export interface ResolvedJianyingScriptResources {
 	resourcePaths: Readonly<Record<string, string>>;
 	references: JianyingScriptResourceReference[];
 	missing: JianyingScriptResourceReference[];
+	degraded: JianyingScriptResourceReference[];
+	effectStyles: JianyingEffectStyleManifest[];
+	components: JianyingScriptComponentResource[];
+	capabilities: JianyingTextEffectCapabilities;
+	diagnostics: JianyingTextRuntimeDiagnostic[];
 	fingerprint: string;
 }
 
-interface DependencyDescriptor {
-	resourceId: string;
-	source: number | null;
-	type: string | null;
+export interface JianyingScriptComponentResource
+	extends JianyingScriptResourceReference {
+	manifest: JianyingTextComponentManifest;
 }
 
 interface ResourcePackageCandidate {
@@ -33,87 +58,13 @@ interface ResourcePackageCandidate {
 	modifiedAt: number;
 }
 
-function resourceReferenceKey({
-	resourceId,
-	role,
-}: JianyingScriptResourceReference) {
-	return `${role}:${resourceId}`;
-}
-
-export function collectJianyingScriptResourceReferences({
-	value,
-}: {
-	value: unknown;
-}) {
-	const references = new Map<string, JianyingScriptResourceReference>();
-	const pending: unknown[] = [value];
-	while (pending.length > 0) {
-		const current = pending.pop();
-		if (Array.isArray(current)) {
-			pending.push(...current);
-			continue;
-		}
-		const record = asJianyingRecord(current);
-		if (!record) continue;
-		for (const [field, role] of [
-			["anim_resource_id", "animation"],
-			["sticker_resource_id", "sticker"],
-		] as const) {
-			const resourceId = record[field];
-			if (resourceId === "" || resourceId === undefined) continue;
-			if (
-				typeof resourceId !== "string" ||
-				!JIANYING_TEXT_RESOURCE_ID_PATTERN.test(resourceId)
-			) {
-				throw new Error(`ScriptInfoSticker ${field} is invalid`);
-			}
-			const reference = { resourceId, role };
-			references.set(resourceReferenceKey(reference), reference);
-		}
-		pending.push(...Object.values(record));
-	}
-	return [...references.values()].sort((left, right) =>
-		resourceReferenceKey(left).localeCompare(resourceReferenceKey(right))
-	);
-}
-
-function readDependencyDescriptors({ value }: { value: unknown }) {
-	const root = asJianyingRecord(value);
-	const dependencies = Array.isArray(root?.depend_resource_list)
-		? root.depend_resource_list
-		: [];
-	return new Map(
-		dependencies.flatMap((dependency) => {
-			const record = asJianyingRecord(dependency);
-			const resourceId = record?.resource_id;
-			if (
-				typeof resourceId !== "string" ||
-				!JIANYING_TEXT_RESOURCE_ID_PATTERN.test(resourceId)
-			) {
-				return [];
-			}
-			const descriptor: DependencyDescriptor = {
-				resourceId,
-				source: typeof record?.source === "number" ? record.source : null,
-				type: typeof record?.type === "string" ? record.type : null,
-			};
-			return [[resourceId, descriptor] as const];
-		})
-	);
-}
-
-function containersForReference({
-	reference,
-	descriptor,
-}: {
+interface ResourceResolution {
 	reference: JianyingScriptResourceReference;
-	descriptor?: DependencyDescriptor;
-}) {
-	if (reference.role === "animation") return ["effect"] as const;
-	if (descriptor?.source === 1 || descriptor?.type === "default") {
-		return ["artistEffect", "effect"] as const;
-	}
-	return ["effect", "artistEffect"] as const;
+	packagePath?: string;
+	effectStyle?: JianyingEffectStyleManifest;
+	effectStyleInspection?: JianyingEffectStyleInspection;
+	componentManifest?: JianyingTextComponentManifest;
+	diagnostics?: JianyingTextRuntimeDiagnostic[];
 }
 
 async function isReadableFile({ filePath }: { filePath: string }) {
@@ -181,36 +132,177 @@ async function listResourcePackageCandidates({
 	);
 }
 
-async function resolveResourcePackage({
+async function resolveResourcePackageCandidates({
+	additionalCacheRoots,
 	cacheRoot,
 	reference,
 	descriptor,
 }: {
+	additionalCacheRoots: string[];
 	cacheRoot: string;
 	reference: JianyingScriptResourceReference;
-	descriptor?: DependencyDescriptor;
+	descriptor?: JianyingScriptDependencyDescriptor;
 }) {
-	const candidatesByContainer = await Promise.all(
-		containersForReference({ reference, descriptor }).map((container) =>
-			listResourcePackageCandidates({
-				containerRoot: path.join(cacheRoot, container),
-				resourceId: reference.resourceId,
-			})
-		)
+	const cacheRoots = Array.from(new Set([cacheRoot, ...additionalCacheRoots]));
+	const candidatesByRoot = await Promise.all(
+		cacheRoots.map(async (root) => {
+			const candidatesByContainer = await Promise.all(
+				jianyingResourceContainers({ reference, descriptor }).map((container) =>
+					listResourcePackageCandidates({
+						containerRoot: path.join(root, container),
+						resourceId: reference.resourceId,
+					})
+				)
+			);
+			return candidatesByContainer
+				.flat()
+				.sort(
+					(left, right) =>
+						right.modifiedAt - left.modifiedAt ||
+						left.path.localeCompare(right.path)
+				);
+		})
 	);
-	return candidatesByContainer
-		.flat()
-		.sort(
-			(left, right) =>
-				right.modifiedAt - left.modifiedAt ||
-				left.path.localeCompare(right.path)
-		)[0]?.path;
+	return candidatesByRoot.flat();
+}
+
+function missingEffectStyleDiagnostic({
+	resourceId,
+}: {
+	resourceId: string;
+}): JianyingTextRuntimeDiagnostic {
+	return {
+		code: "effect-style-package-missing",
+		severity: "error",
+		message: `花字外观资源 ${resourceId} 未下载，将使用普通文字外观继续渲染。`,
+		resourceId,
+	};
+}
+
+function unresolvedRuntimeDependencyDiagnostic({
+	resourceId,
+}: {
+	resourceId: string;
+}): JianyingTextRuntimeDiagnostic {
+	return {
+		code: "runtime-dependency-unresolved",
+		severity: "warning",
+		message: `形状动画资源 ${resourceId} 无法恢复，将移除受影响的形状层并继续渲染其余内容。`,
+		resourceId,
+	};
+}
+
+function runtimeComponentEffectStyleDiagnostic({
+	resourceId,
+}: {
+	resourceId: string;
+}): JianyingTextRuntimeDiagnostic {
+	return {
+		code: "effect-style-runtime-component",
+		severity: "warning",
+		message: `花字外观资源 ${resourceId} 使用剪映运行时组件，将由本机私有运行时渲染。`,
+		resourceId,
+	};
+}
+
+async function inspectRuntimeComponentEffectStyle({
+	packagePath,
+}: {
+	packagePath: string;
+}) {
+	const config = await readBoundedJianyingTextJson({
+		filePath: path.join(packagePath, "config.json"),
+	}).catch(() => null);
+	const packageKind = detectJianyingTextPackageKind({ config });
+	if (packageKind !== "InfoSticker" && packageKind !== "AmazingFeature") {
+		return null;
+	}
+	return inspectJianyingTextComponentPackage({ config, packagePath }).catch(
+		() => null
+	);
+}
+
+async function resolveResourceReference({
+	additionalCacheRoots,
+	cacheRoot,
+	descriptor,
+	reference,
+}: {
+	additionalCacheRoots: string[];
+	cacheRoot: string;
+	descriptor?: JianyingScriptDependencyDescriptor;
+	reference: JianyingScriptResourceReference;
+}): Promise<ResourceResolution> {
+	const candidates = await resolveResourcePackageCandidates({
+		additionalCacheRoots,
+		cacheRoot,
+		reference,
+		descriptor,
+	});
+	if (reference.role !== "effect-style") {
+		const packagePath = candidates[0]?.path;
+		if (!packagePath) return { reference };
+		return {
+			reference,
+			packagePath,
+			componentManifest: await inspectJianyingTextComponentPackage({
+				packagePath,
+			}),
+		};
+	}
+	if (candidates.length === 0) {
+		return { reference };
+	}
+	const inspections = await Promise.all(
+		candidates.map(async ({ path: candidatePath }) => ({
+			candidatePath,
+			inspection: await parseJianyingEffectStylePackage({
+				packagePath: candidatePath,
+				resourceId: reference.resourceId,
+			}),
+			componentManifest: await inspectRuntimeComponentEffectStyle({
+				packagePath: candidatePath,
+			}),
+		}))
+	);
+	const selected = inspections.find(
+		({ componentManifest, inspection }) =>
+			(inspection.canHydrate && Boolean(inspection.manifest)) ||
+			Boolean(componentManifest)
+	);
+	if (!selected) {
+		return {
+			reference,
+			effectStyle: inspections[0].inspection.manifest,
+			effectStyleInspection: inspections[0].inspection,
+		};
+	}
+	if (selected.componentManifest) {
+		return {
+			reference,
+			packagePath: selected.candidatePath,
+			componentManifest: selected.componentManifest,
+			diagnostics: [
+				runtimeComponentEffectStyleDiagnostic({
+					resourceId: reference.resourceId,
+				}),
+			],
+		};
+	}
+	return {
+		reference,
+		packagePath: selected.candidatePath,
+		effectStyle: selected.inspection.manifest,
+		effectStyleInspection: selected.inspection,
+	};
 }
 
 export async function resolveJianyingScriptResources({
+	additionalCacheRoots = [],
 	packagePath,
 	cacheRoot,
 }: {
+	additionalCacheRoots?: string[];
 	packagePath: string;
 	cacheRoot: string;
 }): Promise<ResolvedJianyingScriptResources> {
@@ -225,35 +317,109 @@ export async function resolveJianyingScriptResources({
 	const references = collectJianyingScriptResourceReferences({
 		value: content,
 	});
-	const descriptors = readDependencyDescriptors({ value: extra });
+	const descriptors = readJianyingScriptDependencyDescriptors({ value: extra });
+	const animationOwnerTypes = collectJianyingAnimationOwnerTypes({
+		value: content,
+	});
 	const resolutions = await Promise.all(
-		references.map(async (reference) => ({
-			reference,
-			packagePath: await resolveResourcePackage({
+		references.map((reference) =>
+			resolveResourceReference({
+				additionalCacheRoots,
 				cacheRoot,
 				reference,
 				descriptor: descriptors.get(reference.resourceId),
-			}),
-		}))
+			})
+		)
 	);
 	const resourcePaths: Record<string, string> = {};
 	const missing: JianyingScriptResourceReference[] = [];
+	const degraded: JianyingScriptResourceReference[] = [];
+	const effectStyles: JianyingEffectStyleManifest[] = [];
+	const components: JianyingScriptComponentResource[] = [];
+	const diagnostics: JianyingTextRuntimeDiagnostic[] = [];
 	for (const resolution of resolutions) {
+		diagnostics.push(...(resolution.diagnostics ?? []));
+		if (resolution.effectStyle) effectStyles.push(resolution.effectStyle);
+		if (resolution.componentManifest) {
+			components.push({
+				...resolution.reference,
+				manifest: resolution.componentManifest,
+			});
+		}
 		if (resolution.packagePath) {
 			resourcePaths[resolution.reference.resourceId] = resolution.packagePath;
-			continue;
+			if (resolution.effectStyleInspection) {
+				diagnostics.push(...resolution.effectStyleInspection.diagnostics);
+			}
+		} else {
+			const descriptor = descriptors.get(resolution.reference.resourceId);
+			if (
+				canDegradeJianyingScriptResource({
+					descriptor,
+					ownerTypes: animationOwnerTypes,
+					reference: resolution.reference,
+				})
+			) {
+				degraded.push(resolution.reference);
+				diagnostics.push(
+					unresolvedRuntimeDependencyDiagnostic({
+						resourceId: resolution.reference.resourceId,
+					})
+				);
+			} else {
+				missing.push(resolution.reference);
+			}
+			if (resolution.reference.role === "effect-style") {
+				diagnostics.push(
+					...(resolution.effectStyleInspection?.diagnostics ?? [
+						missingEffectStyleDiagnostic({
+							resourceId: resolution.reference.resourceId,
+						}),
+					])
+				);
+			}
 		}
-		missing.push(resolution.reference);
 	}
+	const capabilities = mergeJianyingTextEffectCapabilities({
+		values: [
+			createJianyingRuntimePackageCapabilities({
+				animationComponents: references.some(
+					({ role }) => role === "animation" || role === "sticker"
+				),
+				effectStyles,
+				scriptInfoSticker: true,
+			}),
+			...components.map(({ manifest }) => manifest.capabilities),
+		],
+	});
 	const fingerprint = createHash("sha256")
 		.update(
 			JSON.stringify(
-				resolutions.map(({ reference, packagePath: resolvedPath }) => ({
-					...reference,
-					path: resolvedPath ?? null,
-				}))
+				resolutions.map(
+					({
+						reference,
+						packagePath: resolvedPath,
+						effectStyle,
+						componentManifest,
+					}) => ({
+						...reference,
+						path: resolvedPath ?? null,
+						effectStyleFingerprint: effectStyle?.fingerprint ?? null,
+						componentFingerprint: componentManifest?.fingerprint ?? null,
+					})
+				)
 			)
 		)
 		.digest("hex");
-	return { resourcePaths, references, missing, fingerprint };
+	return {
+		resourcePaths,
+		references,
+		missing,
+		degraded,
+		effectStyles,
+		components,
+		capabilities,
+		diagnostics,
+		fingerprint,
+	};
 }
