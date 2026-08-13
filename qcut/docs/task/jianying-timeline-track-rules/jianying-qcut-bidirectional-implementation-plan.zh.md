@@ -12,6 +12,7 @@
 
 | Subtask | 状态 | 完成日期 | 说明 |
 | --- | --- | --- | --- |
+| JYI-014N JianYing 11.3 beta4 视频 X 位置线性关键帧导入 | ✅ 最小节点完成 | 2026-08-13 | 真实 App 单变量实验在 640×360/30fps 的 3 秒视频上，于 0 秒保存 X=0、于 2 秒保存 UI X=50。活动明文 subdraft 证明剪映同时写入 `KFTypePositionX` 与 `KFTypePositionY` 两组 `Line` 关键帧，X 终值 `0.078125` 等于 `50/640`，Y 全程为 0。beta4 mapper 只接受恰好这两组、相同且按序的时间点、首点为 0、零控制点、空 graph/string、有限单值、落在片段内并精确对齐 QCut 帧网格的形状；同时要求最终 `clip.transform` 与关键帧终值一致，并继续通过既有视频与伴随对象默认值门禁。该子集映射为 QCut 画布像素 X=0→50 和帧 0→60；未知曲线、非零 Y、错位时间、未知字段或非帧对齐时间一律保留原数据并降为 opaque。重建 import runtime 后，生产 CLI 对真实草稿得到 1 条 exact 片段、1 个 resolved 资源、零 issue、`canCommit=true`；17 个定向测试和全仓类型检查通过。该节点不声明 Y 位移、缩放、旋转、透明度、贝塞尔曲线、关键帧写回、剪映保存/重开或逐帧渲染一致性；路径化证据留在 Git 外。 |
 | JYI-014L JianYing 11.3 beta4 静态音频导入 | ✅ 最小节点完成 | 2026-08-13 | 真实 App 创建的 3 秒独立 WAV compound subdraft 已接入生产导入链。只有根层为单 `audio` wrapper、内嵌草稿确有可解析 audio segment 时才解包；内层空 `mixed` 主轨保留为 QCut 空主视频轨。音频仅在 `extract_music` 本地素材、source/target 全长一致、单位 speed/volume、无 loop/reverse/tone modify/intensify/keyframe，且 `beats`、`placeholder_infos`、`sound_channel_mappings`、`speeds`、`vocal_separations` 五类伴随对象均为实测默认值时标为 exact；音量、播放或伴随处理发生变化即保持 opaque，不静默近似。真实 CLI `inspect/plan` 得到 2 轨、1 片段、1 个 resolved 音频资源、零 issue、`canCommit=true`；`verify-roundtrip` 对 16,802B 活动 subdraft 证明 no-op 字节完全一致。隔离运行的 QCut live import 成功后，可信 renderer 双读确认 1920×1080/30fps、空主轨、1 条音频轨、1 个 3 秒媒体元素及 288,078B 持久化音频。该节点只宣称这一窄子集的导入与 no-op 保留；不宣称音量/变速/音频处理映射、音频写回、opaque parent 所有权或剪映 save/reopen，`writebackPerformed=false`、`targetAppPersistenceVerified=false`。路径化原始草稿、媒体与 live receipt 全部留在 Git 外。 |
 | JYI-014M JianYing 11.3 beta4 相邻视频导入 | ✅ 最小节点完成 | 2026-08-13 | 在干净的真实 App 工程中，将两段由 QCut 生成的 3 秒 H.264 视频首尾相接放到主时间线，再创建为一个复合片段。其明文嵌套草稿证明：一条 `mixed` 轨包含两个按序片段，时间分别为 `0–3s` 与 `3–6s`；包含两个本地视频材料，每个片段有六个默认伴随引用。beta4 mapper 仅在本地视频为全长、source/target 时长一致、track/render 索引与来源轨道顺序一致、裁剪/变换/播放/可见性/调色/算法/蒙版均为默认值，并且 `speeds`、`placeholder_infos`、`canvases`、`sound_channel_mappings`、`material_colors`、`vocal_separations` 六类伴随对象符合真实默认值时标记 exact；trim、裁剪、变换、播放、关键帧、算法、蒙版、调色或伴随处理一旦变化，就 fail closed 为 opaque。真实 CLI `inspect/plan` 得到 1 轨、2 段、2 个 resolved 资源、零 issue、`canCommit=true`，no-op 验证逐字节一致。隔离运行 QCut 的 live import 随后持久化为 640×360/30fps、1 条 media 轨、相同的蓝→红顺序和时间，以及两份长度与 SHA-256 均匹配来源的视频 payload；可信 renderer 双读生成的快照不含绝对路径。本节点不声明变换/裁剪视频映射、剪映导出逐帧一致、写回、opaque parent ownership 或剪映保存/重开；私有草稿、媒体和收据均留在仓库外。 |
 | JYI-001 Interop/capability/issues | ✅ 已完成 | 2026-08-04 | `packages/editor-core/src/draft-interop/{document,capability,issues}.ts` + `index.ts` 子路径导出；`DraftInteropDocumentV1`（整数微秒时基、fail-closed 验证 parser、精确 JSON-pointer 错误路径）、四态 capability（最严者胜的 combine/aggregate + 提交门控表逐行实现）、24 个稳定 issue code + 与 exporter 同构的 fingerprint（`\u001f` 分隔、message 不参与）。测试 [`draft-interop-document.test.ts`](../../../packages/editor-core/src/__tests__/draft-interop-document.test.ts)（11 用例：round-trip、嵌套路径、未知 code 拒绝、聚合、门控矩阵、fingerprint 稳定性） |
@@ -37,6 +38,8 @@
 | JYR-001 保存事务 | 🟨 部分完成 | 2026-08-04 | 真实 CapCut 8.1.1 观测：打开时创建 `.locked`，退出后删除；首次保存改写 9 个 snapshot 文件并更新 root metadata，active content 四镜像同步变化。这足以否定“只 patch 根 `draft_info.json`”方案，但尚缺隔离账号下的系统调用级写入顺序、临时文件和 rename 边界。 |
 | JYR-007 复合草稿 ownership | 🟥 写回阻塞 | 2026-08-13 | JianYing macOS 11.3.0-beta4 的单变量视频实验只把活动 `subdraft/draft_content.json` 中嵌套视频的 `target_timerange.start` 从 `400000` 改为 `1000000` 微秒。首次进入复合片段时 UI 显示 1 秒空隙；切离工程并触发保存后，剪映重写 opaque parent 与活动 subdraft，并把该值恢复为 `400000`，静态创建时 subdraft 未变。文字实验进一步证明 subdraft 是创建时快照：进入 compound 后修改普通文字并保存/重开，UI 和 opaque parent 保留新文字，但旧明文 subdraft 的内容与 mtime 都不变；拆分后重新创建 compound 会新增另一份 snapshot，旧 snapshot 仍共存。结论：活动明文 subdraft 不是可独立提交的最终 owner，也不能仅凭根目录候选自动判断当前 owner；“写明文后让剪映接管”的方案失败，11.3 profile 必须保持 `sameProfileWriteback: none`，多候选导入必须显式选择。 |
 | JYR-002–006/JYR-008 研究门禁 | 🟨 部分完成 | 2026-08-04 | JYR-003 已记录 CapCut 8.1.1 精确保存迁移 `new_version: 159.0.0 → 179.0.0`；JYR-001 的现有真实保存后证据显示根与 timeline 下的 `draft_info.json`/`template-2.tmp` 四个活动 mirror 内容 hash 一致，两个 `.bak` 仅视为恢复副本，writer 因而只更新四个活动 mirror。该证据不能证明真实 syscall 调用顺序。JYR-006 仍只凭真实 App 文件访问证据准入根 `draft_info.json`；伴随引用闭包、完整 sidecar 需求、许可和真实 8.1 写回顺序仍未知，继续阻止相关 profile 升为 writable。 |
+
+> JYI-016 中“关键帧仍未完成”现在指 JYI-014N 之外的关键帧形状与写回能力；已验证的 X 位置线性子集不再属于该缺口。
 
 ## 目标
 
@@ -76,7 +79,7 @@
 - 导出模型是单向 snapshot，不是可保存原始来源和未知字段的双向中间层。
 - profile 目前以 5.9 和 CapCut 8.1 写出为主，没有统一 detection/migration registry。
 - 素材 staging 面向导出，没有导入侧的重定位、去重、许可和缺失资源决策。
-- 复杂文字、调色、蒙版、关键帧、转场仍有大量 blocked 或 warning 映射。
+- 复杂文字、调色、蒙版、JYI-014N 之外的关键帧和转场仍有大量 blocked 或 warning 映射。
 - 视觉 E2E 已有框架，但许多 GUI preview/reopen/export 检查仍是 `unverified`。
 - QCut 项目存储没有完整的导入 journal、checkpoint 和启动恢复协议。
 
