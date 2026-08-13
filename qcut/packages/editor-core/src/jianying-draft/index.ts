@@ -250,3 +250,5 @@ export {
 	type Jianying113Beta2WritebackTimingSnapshot,
 	type PlanJianying113Beta2TimingPatchesResult,
 } from "./writeback/jianying-11-3-beta2-timing-patches.js";
+
+export type { SameProfileWritebackTimingSnapshot } from "./writeback/same-profile-timing-patches.js";
