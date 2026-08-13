@@ -25,17 +25,24 @@ async function createCacheRoot() {
 
 function runLocked<T>({
 	cacheRoot,
+	options,
 	task,
 	throwIfCancelled = () => undefined,
 }: {
 	cacheRoot: string;
+	options?: { retryMs?: number; staleMs?: number; timeoutMs?: number };
 	task: () => Promise<T>;
 	throwIfCancelled?: () => void;
 }) {
 	return withJianyingTextRenderCacheLock({
 		cacheKey,
 		cacheRoot,
-		options: { retryMs: 5, staleMs: 1_000, timeoutMs: 1_000 },
+		options: {
+			retryMs: 5,
+			staleMs: 1_000,
+			timeoutMs: 1_000,
+			...options,
+		},
 		task,
 		throwIfCancelled,
 	});
@@ -118,6 +125,38 @@ describe("Jianying text render cache lock", () => {
 		await expect(readFile(lockPath, "utf8")).rejects.toMatchObject({
 			code: "ENOENT",
 		});
+	});
+
+	it("renews a live lock while rendering exceeds the stale threshold", async () => {
+		const cacheRoot = await createCacheRoot();
+		const events: string[] = [];
+		let releaseFirst: (() => void) | undefined;
+		const firstMayFinish = new Promise<void>((resolve) => {
+			releaseFirst = resolve;
+		});
+		const options = { retryMs: 5, staleMs: 80, timeoutMs: 1_000 };
+		const first = runLocked({
+			cacheRoot,
+			options,
+			task: async () => {
+				events.push("first:start");
+				await firstMayFinish;
+				events.push("first:end");
+			},
+		});
+		await delay(240);
+		const second = runLocked({
+			cacheRoot,
+			options,
+			task: async () => {
+				events.push("second:start");
+			},
+		});
+		await delay(40);
+		expect(events).toEqual(["first:start"]);
+		releaseFirst?.();
+		await Promise.all([first, second]);
+		expect(events).toEqual(["first:start", "first:end", "second:start"]);
 	});
 
 	it("releases the lock when rendering fails", async () => {
