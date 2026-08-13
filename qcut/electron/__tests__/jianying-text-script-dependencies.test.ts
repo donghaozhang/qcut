@@ -42,7 +42,7 @@ async function createResourcePackage({
 	modifiedAt: Date;
 	effectStyle?: Record<string, unknown>;
 	packageKind?: "AmazingFeature" | "InfoSticker";
-	files?: Readonly<Record<string, string>>;
+	files?: Readonly<Record<string, string | Uint8Array>>;
 }) {
 	const packagePath = path.join(cacheRoot, container, resourceId, version);
 	await writeJson({
@@ -69,7 +69,7 @@ async function createResourcePackage({
 }
 
 describe("Jianying script resource dependencies", () => {
-	it("collects unique animation, sticker, and effectStyle references", () => {
+	it("collects unique animation, sticker, effectStyle, and font references", () => {
 		expect(
 			collectJianyingScriptResourceReferences({
 				value: {
@@ -80,7 +80,8 @@ describe("Jianying script resource dependencies", () => {
 								{ anim_resource_id: "1001" },
 								{
 									sticker_resource_id: "2002",
-									richText: '<effectStyle id="3003" path="">[字]</effectStyle>',
+									richText:
+										'<effectStyle id="3003" path=""><font id="4004" path="">[字]</font></effectStyle>',
 								},
 							],
 						},
@@ -90,8 +91,56 @@ describe("Jianying script resource dependencies", () => {
 		).toEqual([
 			{ resourceId: "1001", role: "animation" },
 			{ resourceId: "3003", role: "effect-style" },
+			{ resourceId: "4004", role: "font" },
 			{ resourceId: "2002", role: "sticker" },
 		]);
+	});
+
+	it("resolves each cached template font and degrades only missing font slots", async () => {
+		const temporary = await mkdtemp(
+			path.join(os.tmpdir(), "qcut-jianying-script-fonts-")
+		);
+		try {
+			const packagePath = path.join(temporary, "script-package");
+			const cacheRoot = path.join(temporary, "Cache");
+			await writeJson({
+				filePath: path.join(packagePath, "content.json"),
+				value: {
+					richText:
+						'<font id="4004" path="">[标题]</font><font id="5005" path="">[说明]</font>',
+				},
+			});
+			const fontPackage = await createResourcePackage({
+				cacheRoot,
+				container: "effect",
+				resourceId: "4004",
+				version: "font-v1",
+				modifiedAt: new Date("2026-01-01T00:00:00Z"),
+				files: {
+					"title.ttf": new Uint8Array([0x00, 0x01, 0x00, 0x00, 0x01]),
+				},
+			});
+
+			const result = await resolveJianyingScriptResources({
+				packagePath,
+				cacheRoot,
+			});
+
+			expect(result.fontPaths).toEqual({
+				"4004": path.join(fontPackage, "title.ttf"),
+			});
+			expect(result.missing).toEqual([]);
+			expect(result.degraded).toEqual([{ resourceId: "5005", role: "font" }]);
+			expect(result.diagnostics).toMatchObject([
+				{
+					code: "template-font-missing",
+					severity: "warning",
+					resourceId: "5005",
+				},
+			]);
+		} finally {
+			await rm(temporary, { recursive: true, force: true });
+		}
 	});
 
 	it("rejects malformed resource IDs instead of resolving arbitrary paths", () => {
