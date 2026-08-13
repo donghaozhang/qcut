@@ -15,9 +15,7 @@ describe("Jianying filter local host protocol", () => {
 				outputPath: "/tmp/output.ppm",
 				maskPath: "/tmp/mask.pgm",
 			})
-		).toBe(
-			"render\t42\t1.25\t/tmp/input.ppm\t/tmp/output.ppm\t/tmp/mask.pgm"
-		);
+		).toBe("render\t42\t1.25\t/tmp/input.ppm\t/tmp/output.ppm\t/tmp/mask.pgm");
 	});
 
 	it("uses a sentinel when a render does not need a mask", () => {
