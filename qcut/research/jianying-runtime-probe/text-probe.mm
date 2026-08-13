@@ -28,7 +28,7 @@ constexpr std::string_view kVerifiedTextCoreUuid =
 constexpr std::uintptr_t kAmazerContextScopeConstructorOffset = 0x3fb3bc;
 constexpr std::uintptr_t kAmazerContextScopeDestructorOffset = 0x3fb3e8;
 constexpr int kAutomaticRendererType = 14;
-constexpr std::int64_t kTimelineDuration = 60'000'000;
+constexpr std::int64_t kMaximumTimelineDuration = 60'000'000;
 
 constexpr std::string_view kCreateManager =
     "bef_swing_manager_create_with_gpdevice";
@@ -51,6 +51,8 @@ constexpr std::string_view kSetStickerResolutionType =
     "bef_swing_segment_sticker_set_resolution_type";
 constexpr std::string_view kSetStickerParams =
     "bef_swing_segment_sticker_set_params";
+constexpr std::string_view kSetStickerAnimation =
+    "bef_swing_segment_sticker_set_animation";
 constexpr std::string_view kCreateTextStickerFilter =
     "_ZN5vesdk3pub23createTextStickerFilterERKNSt3__112basic_stringIcNS1_11"
     "char_traitsIcEENS1_9allocatorIcEEEES9_S9_S9_x";
@@ -93,6 +95,8 @@ struct StickerParamsProbe {
 static_assert(offsetof(StickerParamsProbe, count) == 0x50);
 
 using SetStickerParamsMethod = int (*)(void*, const StickerParamsProbe*);
+using SetStickerAnimationMethod = int (*)(void*, int, const char*,
+                                          std::int64_t);
 
 namespace vesdk::pub {
 class TextStickerFilter;
@@ -128,6 +132,7 @@ struct TextSymbols {
   SetSegmentParamsMethod setSegmentParams;
   SetIntegerMethod setStickerResolutionType;
   SetStickerParamsMethod setStickerParams;
+  SetStickerAnimationMethod setStickerAnimation;
   CreateTextStickerFilterMethod createTextStickerFilter;
   SetTextEffectMethod setTextEffect;
   SetDoubleReferenceMethod setTextFontSize;
@@ -165,6 +170,8 @@ struct TextSymbols {
           core, kSetStickerResolutionType),
       .setStickerParams =
           resolveSymbol<SetStickerParamsMethod>(core, kSetStickerParams),
+      .setStickerAnimation = resolveSymbol<SetStickerAnimationMethod>(
+          core, kSetStickerAnimation),
       .createTextStickerFilter = resolveSymbol<CreateTextStickerFilterMethod>(
           core, kCreateTextStickerFilter),
       .setTextEffect =
@@ -344,7 +351,7 @@ class TextSwingSession {
     if (segment_->get() == nullptr) return;
 
     const int timeRangeResult = symbols_.setSegmentTimeRange(
-        segment_->get(), 0, kTimelineDuration);
+        segment_->get(), 0, request.timelineDuration);
     const int renderIndexResult =
         symbols_.setSegmentRenderIndex(segment_->get(), 0);
     const int addResult =
@@ -369,13 +376,27 @@ class TextSwingSession {
         effectiveStickerParams.empty()
             ? 0
             : symbols_.setStickerParams(segment_->get(), &stickerParams);
+    std::vector<int> animationResults;
+    animationResults.reserve(request.animations.size());
+    for (const TextAnimationProbeRequest& animation : request.animations) {
+      const std::string animationPath = animation.packagePath.string();
+      animationResults.push_back(symbols_.setStickerAnimation(
+          segment_->get(), animation.type, animationPath.c_str(),
+          animation.duration));
+    }
+    const bool animationsReady =
+        std::all_of(animationResults.begin(), animationResults.end(),
+                    [](int result) { return result == 0; });
     std::cout << "[text] configure results = " << simplifyResult << ','
-              << resolutionResult << ',' << stickerParamsResult << ','
-              << timeRangeResult << ',' << renderIndexResult << ',' << addResult
-              << '\n';
+              << resolutionResult << ',' << stickerParamsResult;
+    for (const int animationResult : animationResults) {
+      std::cout << ',' << animationResult;
+    }
+    std::cout << ',' << timeRangeResult << ',' << renderIndexResult << ','
+              << addResult << '\n';
     ready_ = simplifyResult == 0 && resolutionResult == 0 &&
-             stickerParamsResult == 0 && timeRangeResult == 0 &&
-             renderIndexResult == 0 && addResult == 0;
+             stickerParamsResult == 0 && animationsReady &&
+             timeRangeResult == 0 && renderIndexResult == 0 && addResult == 0;
   }
 
   ~TextSwingSession() {
@@ -512,12 +533,34 @@ void validateTextFrameRequest(const TextFrameProbeRequest& request) {
   if (request.resolutionType < -1 || request.resolutionType > 8) {
     throw std::runtime_error("text resolution type must be between -1 and 8");
   }
+  if (request.timelineDuration <= 0 ||
+      request.timelineDuration > kMaximumTimelineDuration) {
+    throw std::runtime_error("text timeline duration must be from 1 to 60000000");
+  }
+  std::array<bool, 4> animationTypes{};
+  for (const TextAnimationProbeRequest& animation : request.animations) {
+    if (!fs::is_directory(animation.packagePath)) {
+      throw std::runtime_error("text animation package does not exist: " +
+                               animation.packagePath.string());
+    }
+    if (animation.type < 1 || animation.type > 3 ||
+        animationTypes[animation.type]) {
+      throw std::runtime_error(
+          "text animation types must be unique values from 1 to 3");
+    }
+    if (animation.duration <= 0 ||
+        animation.duration > request.timelineDuration) {
+      throw std::runtime_error(
+          "text animation duration must fit the text timeline");
+    }
+    animationTypes[animation.type] = true;
+  }
   const std::size_t generatedParamCount = request.text.empty() ? 0 : 1;
   if (request.stickerParams.size() + generatedParamCount > 9) {
     throw std::runtime_error("text sticker params must contain at most 9 items");
   }
-  if (request.timestamp < 0 || request.timestamp > kTimelineDuration) {
-    throw std::runtime_error("text timestamp must be between 0 and 60000000");
+  if (request.timestamp < 0 || request.timestamp > request.timelineDuration) {
+    throw std::runtime_error("text timestamp must fit the text timeline");
   }
 }
 
@@ -570,8 +613,8 @@ TextSequenceProbeResult renderTextSequence(
   const double finalTimestamp =
       static_cast<double>(request.frame.timestamp) +
       static_cast<double>(request.frameCount - 1) * request.timestampStep;
-  if (finalTimestamp > static_cast<double>(kTimelineDuration)) {
-    throw std::runtime_error("text sequence exceeds the 60000000 timestamp limit");
+  if (finalTimestamp > static_cast<double>(request.frame.timelineDuration)) {
+    throw std::runtime_error("text sequence exceeds the text timeline");
   }
 
   if (!request.frame.outputPath.parent_path().empty()) {
