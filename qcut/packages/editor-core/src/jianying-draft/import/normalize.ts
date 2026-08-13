@@ -43,6 +43,7 @@ import type {
 import { mapCapCut81StaticText } from "./capcut-8-1-text-mapper.js";
 import { mapCapCut81SeamTransition } from "./capcut-8-1-transition-mapper.js";
 import { readRawDraftGraph } from "./graph-reader.js";
+import { readDraftProjectSettings } from "./project-settings.js";
 import { isRawRecord, type RawDraftContent } from "./raw-types.js";
 import { validateRawDraftGraph } from "./validation.js";
 
@@ -156,12 +157,9 @@ function normalizeProject({
 	fallbackProjectName?: string;
 	issues: InteropIssue[];
 }): InteropProject {
-	const canvas = isRawRecord(content.canvas_config)
-		? content.canvas_config
-		: undefined;
-	const width = readPositiveNumber(canvas?.width);
-	const height = readPositiveNumber(canvas?.height);
-	const fps = readPositiveNumber(content.fps);
+	const { width, height, fps, durationUs } = readDraftProjectSettings({
+		content,
+	});
 	if (width === undefined || height === undefined || fps === undefined) {
 		issues.push({
 			code: "DOCUMENT_MALFORMED",
@@ -170,7 +168,6 @@ function normalizeProject({
 			path: "/canvas_config",
 		});
 	}
-	const durationUs = readNonNegativeInteger(content.duration);
 	return {
 		id: readString(content.id) ?? "draft",
 		name: readString(content.name) ?? fallbackProjectName ?? "",
