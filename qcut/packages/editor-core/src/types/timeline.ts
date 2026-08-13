@@ -816,13 +816,29 @@ export interface TextFontAssetReference {
 	postscriptName: string;
 }
 
-export type JianyingTextPackageKind = "InfoSticker" | "ScriptInfoSticker";
+export type JianyingTextPackageKind =
+	| "InfoSticker"
+	| "ScriptInfoSticker"
+	| "TextStyle";
 
 export type JianyingTextEditMode = "runtime-with-preload-fallback";
 
 export type JianyingTextSlotMapping = "line-to-widget";
 
 export type JianyingTextTimeMapping = "stretch";
+
+export type JianyingTextAnimationSlot = "entrance" | "exit" | "loop";
+
+export interface JianyingTextAnimationReference {
+	source: "jianying-cache";
+	resourceId: string;
+	packageHash: string;
+	duration: number;
+}
+
+export type JianyingTextAnimationReferences = Partial<
+	Record<JianyingTextAnimationSlot, JianyingTextAnimationReference>
+>;
 
 export interface JianyingTextStyleReference {
 	schemaVersion: 1;
@@ -834,6 +850,7 @@ export interface JianyingTextStyleReference {
 	slotMapping: JianyingTextSlotMapping;
 	timeMapping: JianyingTextTimeMapping;
 	templateDuration: number;
+	animations?: JianyingTextAnimationReferences;
 }
 
 export interface TextElement extends BaseTimelineElement {
