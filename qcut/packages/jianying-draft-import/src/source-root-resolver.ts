@@ -87,6 +87,16 @@ interface SubdraftCandidate {
 	rootRealPath: string;
 }
 
+async function hasActiveSubdraftContent({
+	projectRoot,
+}: {
+	projectRoot: string;
+}): Promise<boolean> {
+	return isRegularFile({
+		absolutePath: join(projectRoot, "subdraft", "draft_content.json"),
+	});
+}
+
 async function findSubdraftCandidates({
 	projectRoot,
 	maxEntries,
@@ -194,8 +204,16 @@ export async function resolveDraftSourceRoot({
 	}
 
 	const [selected] = candidates;
+	const activeSubdraftRoot = join(rootRealPath, "subdraft");
+	// Jianying saves current compound edits here; the id-named child is a
+	// creation-time copy and can remain stale after later timeline edits.
+	const selectedRoot = (await hasActiveSubdraftContent({
+		projectRoot: rootRealPath,
+	}))
+		? activeSubdraftRoot
+		: selected.rootRealPath;
 	return {
-		rootRealPath: selected.rootRealPath,
+		rootRealPath: selectedRoot,
 		sourceScope: "compound-subdraft",
 		subdraftCandidateCount: 1,
 		selectedSubdraftId: selected.id,

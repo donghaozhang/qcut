@@ -17,8 +17,10 @@ afterEach(async () => {
 });
 
 async function createMultiTimelineProject({
+	activeContent,
 	subdraftIds,
 }: {
+	activeContent?: Record<string, unknown>;
 	subdraftIds: string[];
 }): Promise<void> {
 	await mkdir(join(projectRoot, "Timelines"));
@@ -31,6 +33,12 @@ async function createMultiTimelineProject({
 		Buffer.from([0xff, 0x00, 0x11])
 	);
 	await mkdir(join(projectRoot, "subdraft"));
+	if (activeContent !== undefined) {
+		await writeFile(
+			join(projectRoot, "subdraft", "draft_content.json"),
+			JSON.stringify(activeContent)
+		);
+	}
 	await Promise.all(
 		subdraftIds.map(async (subdraftId) => {
 			const subdraftRoot = join(projectRoot, "subdraft", subdraftId);
@@ -89,6 +97,30 @@ describe("Jianying source root resolution", () => {
 			selectedSubdraftId: "compound-1",
 		});
 		expect(result.issues).toEqual([]);
+	});
+
+	it("prefers the active compound content over its stale id-named copy", async () => {
+		await createMultiTimelineProject({
+			activeContent: { id: "active-wrapper", tracks: [], materials: {} },
+			subdraftIds: ["compound-1"],
+		});
+
+		const result = await discoverDraftDirectory({
+			draftDirectory: projectRoot,
+		});
+
+		expect(result).toMatchObject({
+			rootRealPath: join(projectRoot, "subdraft"),
+			sourceScope: "compound-subdraft",
+			subdraftCandidateCount: 1,
+			selectedSubdraftId: "compound-1",
+			hasContentFile: true,
+		});
+		expect(result.files).toContainEqual({
+			relativePath: "draft_content.json",
+			role: "content",
+			byteLength: expect.any(Number),
+		});
 	});
 
 	it("does not guess when more than one compound subdraft exists", async () => {
