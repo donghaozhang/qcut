@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -173,6 +174,24 @@ using jianying_probe::resolveSymbol;
 [[nodiscard]] std::string optionalStringEnvironment(const char* name) {
   const char* value = std::getenv(name);
   return value == nullptr ? std::string{} : std::string(value);
+}
+
+[[nodiscard]] std::optional<double> optionalNumberEnvironment(
+    const char* name) {
+  const char* rawValue = std::getenv(name);
+  if (rawValue == nullptr) return std::nullopt;
+  const std::string value(rawValue);
+  std::size_t parsedLength = 0;
+  double parsed = 0.0;
+  try {
+    parsed = std::stod(value, &parsedLength);
+  } catch (const std::exception&) {
+    throw std::runtime_error(std::string(name) + " must be a finite number");
+  }
+  if (parsedLength != value.size() || !std::isfinite(parsed)) {
+    throw std::runtime_error(std::string(name) + " must be a finite number");
+  }
+  return parsed;
 }
 
 [[nodiscard]] int optionalByteEnvironment(const char* name) {
@@ -492,14 +511,15 @@ void configure(ObjectStorage<kConfigStorageSize>& config,
       }
       segmentType = static_cast<int>(parsed);
     }
-    std::int64_t timestamp = 500'000;
+    double timestamp = 500'000.0;
     if (const char* value = std::getenv("JY_TEXT_TIMESTAMP")) {
       std::size_t parsedLength = 0;
       const std::string text(value);
-      const long long parsed = std::stoll(text, &parsedLength);
-      if (parsedLength != text.size() || parsed < 0 || parsed > 60'000'000) {
+      const double parsed = std::stod(text, &parsedLength);
+      if (parsedLength != text.size() || !std::isfinite(parsed) ||
+          parsed < 0.0 || parsed > 60'000'000.0) {
         throw std::runtime_error(
-            "JY_TEXT_TIMESTAMP must be an integer from 0 to 60000000");
+            "JY_TEXT_TIMESTAMP must be a number from 0 to 60000000");
       }
       timestamp = parsed;
     }
@@ -513,6 +533,18 @@ void configure(ObjectStorage<kConfigStorageSize>& config,
             "JY_TEXT_RESOLUTION_TYPE must be an integer from -1 to 8");
       }
       resolutionType = static_cast<int>(parsed);
+    }
+    int renderIndex = 0;
+    if (const char* value = std::getenv("JY_TEXT_RENDER_INDEX")) {
+      std::size_t parsedLength = 0;
+      const std::string text(value);
+      const long parsed = std::stol(text, &parsedLength);
+      if (parsedLength != text.size() || parsed < 0 ||
+          parsed > std::numeric_limits<int>::max()) {
+        throw std::runtime_error(
+            "JY_TEXT_RENDER_INDEX must be a non-negative integer");
+      }
+      renderIndex = static_cast<int>(parsed);
     }
     double fontSize = 12.0;
     if (const char* value = std::getenv("JY_TEXT_FONT_SIZE")) {
@@ -557,10 +589,21 @@ void configure(ObjectStorage<kConfigStorageSize>& config,
                     : std::string(std::getenv("JY_TEXT_CONTENT")),
         .stickerParams = std::move(stickerParams),
         .fontSize = fontSize,
+        .innerPadding = optionalNumberEnvironment("JY_TEXT_INNER_PADDING"),
+        .lineGap = optionalNumberEnvironment("JY_TEXT_LINE_GAP"),
+        .lineMaxWidth =
+            optionalNumberEnvironment("JY_TEXT_LINE_MAX_WIDTH"),
+        .shadowSmoothing =
+            optionalNumberEnvironment("JY_TEXT_SHADOW_SMOOTHING"),
+        .enableSwingSimplify =
+            optionalBooleanOverrideEnvironment(
+                "JY_TEXT_ENABLE_SWING_SIMPLIFY")
+                .value_or(true),
         .width = requirePositiveIntegerEnvironment("JY_VIDEO_WIDTH"),
         .height = requirePositiveIntegerEnvironment("JY_VIDEO_HEIGHT"),
         .segmentType = segmentType,
         .resolutionType = resolutionType,
+        .renderIndex = renderIndex,
         .timestamp = timestamp,
     });
     return result.visibleAndTransparent ? 0 : 10;
