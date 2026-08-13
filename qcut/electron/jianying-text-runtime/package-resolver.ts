@@ -4,6 +4,7 @@ import { access, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import type {
 	JianyingTextEffectCapabilities,
+	JianyingTextRuntimeDependencyStatus,
 	JianyingTextRuntimeDiagnostic,
 	JianyingTextRuntimePackageKind,
 	JianyingTextRuntimeReference,
@@ -30,13 +31,14 @@ import {
 	type JianyingTextComponentManifest,
 } from "./component-package-inspector.js";
 import {
-	recoverJianyingTextRootPackage,
+	recoverJianyingTextRootPackageResult,
 	resolveJianyingEffectStyleWithRecovery,
 	resolveJianyingScriptResourcesWithRecovery,
 	resolveJianyingTextAnimationsWithRecovery,
 } from "./package-recovery.js";
+import { jianyingTextRecoveryFailureMessage } from "./recovery-diagnostics.js";
 import { getJianyingTextRecoveryCacheRoot } from "./resource-recovery.js";
-import { type ResolvedJianyingScriptResources } from "./script-dependencies.js";
+import type { ResolvedJianyingScriptResources } from "./script-dependencies.js";
 
 export type JianyingTextPackageErrorCode =
 	| "package-missing"
@@ -45,20 +47,24 @@ export type JianyingTextPackageErrorCode =
 
 export class JianyingTextPackageError extends Error {
 	readonly code: JianyingTextPackageErrorCode;
-	readonly missingDependencies?: ResolvedJianyingScriptResources["missing"];
+	readonly diagnostics?: JianyingTextRuntimeDiagnostic[];
+	readonly missingDependencies?: JianyingTextRuntimeDependencyStatus[];
 
 	constructor({
 		code,
+		diagnostics,
 		message,
 		missingDependencies,
 	}: {
 		code: JianyingTextPackageErrorCode;
+		diagnostics?: JianyingTextRuntimeDiagnostic[];
 		message: string;
-		missingDependencies?: ResolvedJianyingScriptResources["missing"];
+		missingDependencies?: JianyingTextRuntimeDependencyStatus[];
 	}) {
 		super(message);
 		this.name = "JianyingTextPackageError";
 		this.code = code;
+		this.diagnostics = diagnostics;
 		this.missingDependencies = missingDependencies;
 	}
 }
@@ -138,15 +144,22 @@ async function resolveRootPackage({
 	);
 	const localPackage = await resolvePackageWithinRoot({ candidate, root });
 	if (localPackage) return localPackage;
-	const recovered = await recoverJianyingTextRootPackage({
+	const recovered = await recoverJianyingTextRootPackageResult({
 		cacheRoot,
 		recoveryRoot,
 		reference,
 	});
-	if (recovered) return recovered;
+	if (recovered.packagePath) return recovered.packagePath;
+	const role =
+		reference.packageKind === "TextStyle" ? "effect-style" : "sticker";
+	const recoveryMessage = jianyingTextRecoveryFailureMessage({
+		reason: recovered.recoveryReason ?? "download-failed",
+		resourceId: reference.resourceId,
+		role,
+	});
 	throw new JianyingTextPackageError({
 		code: "package-missing",
-		message: "本机剪映花字缓存缺失，自动恢复不可用，请在剪映中重新下载该花字。",
+		message: `${recoveryMessage} 请在剪映中重新下载或重新预览该花字后重试。`,
 	});
 }
 
@@ -257,15 +270,38 @@ export async function resolveJianyingTextPackage({
 			code: cause.code,
 			message: cause.message,
 			...(cause.code === "dependency-missing"
-				? { missingDependencies: [cause.dependency] }
+				? {
+						missingDependencies: [
+							{
+								...cause.dependency,
+								...(cause.recoveryReason
+									? { recoveryReason: cause.recoveryReason }
+									: {}),
+							},
+						],
+					}
 				: {}),
 		});
 	}
 	const blockingDependencies = scriptResources?.missing.filter(
-		({ role }) => role !== "effect-style"
+		({ role }) => role === "animation" || role === "sticker"
 	);
 	if (blockingDependencies && blockingDependencies.length > 0) {
-		const dependencySummary = blockingDependencies
+		const recoveryFailures = new Map(
+			(scriptResources?.recoveryFailures ?? []).map((failure) => [
+				`${failure.role}:${failure.resourceId}`,
+				failure,
+			])
+		);
+		const missingDependencies = blockingDependencies.map((dependency) => {
+			const failure = recoveryFailures.get(
+				`${dependency.role}:${dependency.resourceId}`
+			);
+			return failure
+				? { ...dependency, recoveryReason: failure.recoveryReason }
+				: dependency;
+		});
+		const dependencySummary = missingDependencies
 			.slice(0, 3)
 			.map(({ resourceId, role }) => `${role}:${resourceId}`)
 			.join("、");
@@ -273,7 +309,8 @@ export async function resolveJianyingTextPackage({
 		throw new JianyingTextPackageError({
 			code: "dependency-missing",
 			message: `本机剪映花字缺少动态依赖 ${dependencySummary}${remaining > 0 ? ` 等 ${blockingDependencies.length} 项` : ""}，请在剪映中重新预览或下载该花字。`,
-			missingDependencies: blockingDependencies,
+			diagnostics: scriptResources?.diagnostics,
+			missingDependencies,
 		});
 	}
 	const packageCapabilities =
