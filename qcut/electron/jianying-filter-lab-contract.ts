@@ -67,7 +67,8 @@ export interface JianyingFilterLabLutSummary {
 export type JianyingFilterMultiPassKind =
 	| "sharpen-lut"
 	| "vignette-lut"
-	| "fog-lut";
+	| "fog-lut"
+	| "bloom-lut";
 
 export interface JianyingFilterLabRendererSummary {
 	kind: JianyingFilterMultiPassKind;
