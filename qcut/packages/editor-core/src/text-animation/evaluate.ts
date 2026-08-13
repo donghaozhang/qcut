@@ -54,16 +54,23 @@ function composeVisual({
 			base.mask.progress <= overlay.mask.progress ? base.mask : overlay.mask;
 	}
 	const transformOrigin = overlay.transformOrigin ?? base.transformOrigin;
+	const projection = overlay.projection ?? base.projection;
+	const postProcess = overlay.postProcess ?? base.postProcess;
 	return {
 		opacity: base.opacity * overlay.opacity,
 		translateX: base.translateX + overlay.translateX,
 		translateY: base.translateY + overlay.translateY,
+		translateZ: (base.translateZ ?? 0) + (overlay.translateZ ?? 0),
 		scaleX: base.scaleX * overlay.scaleX,
 		scaleY: base.scaleY * overlay.scaleY,
 		rotationDeg: base.rotationDeg + overlay.rotationDeg,
+		rotationXDeg: (base.rotationXDeg ?? 0) + (overlay.rotationXDeg ?? 0),
+		rotationYDeg: (base.rotationYDeg ?? 0) + (overlay.rotationYDeg ?? 0),
 		blurPx: Math.max(base.blurPx, overlay.blurPx),
 		...(mask ? { mask } : {}),
 		...(transformOrigin ? { transformOrigin } : {}),
+		...(projection ? { projection } : {}),
+		...(postProcess ? { postProcess } : {}),
 		...((overlay.shatter ?? base.shatter)
 			? { shatter: overlay.shatter ?? base.shatter }
 			: {}),
