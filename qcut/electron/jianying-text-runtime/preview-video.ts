@@ -1,15 +1,27 @@
 import { randomUUID } from "node:crypto";
 import { rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
-import { getFFmpegPath } from "../ffmpeg/paths.js";
+import { getFFmpegPath, getFFprobePath } from "../ffmpeg/paths.js";
 import {
 	getJianyingTextPreviewVideoPath,
 	getJianyingTextPreviewVideoUrl,
 } from "./cache-path.js";
 import {
+	captureJianyingTextProcess,
 	runJianyingTextProcess,
 	throwIfJianyingTextRenderCancelled,
 } from "./render-process.js";
+
+interface PreviewMetadata {
+	streams?: Array<{
+		codec_name?: string;
+		width?: number;
+		height?: number;
+		avg_frame_rate?: string;
+		tags?: { alpha_mode?: string };
+	}>;
+	format?: { duration?: string };
+}
 
 async function isNonemptyFile({ filePath }: { filePath: string }) {
 	try {
@@ -20,23 +32,118 @@ async function isNonemptyFile({ filePath }: { filePath: string }) {
 	}
 }
 
+function parseFrameRate({ value }: { value: string | undefined }) {
+	if (!value) return Number.NaN;
+	const [numerator, denominator = "1"] = value.split("/");
+	return Number(numerator) / Number(denominator);
+}
+
+function previewMetadataMatches({
+	metadata,
+	frameCount,
+	fps,
+	width,
+	height,
+}: {
+	metadata: PreviewMetadata;
+	frameCount: number;
+	fps: number;
+	width: number;
+	height: number;
+}) {
+	const stream = metadata.streams?.[0];
+	const duration = Number(metadata.format?.duration);
+	const frameRate = parseFrameRate({ value: stream?.avg_frame_rate });
+	const expectedDuration = frameCount / fps;
+	return (
+		stream?.codec_name === "vp9" &&
+		stream.width === width &&
+		stream.height === height &&
+		stream.tags?.alpha_mode === "1" &&
+		Number.isFinite(frameRate) &&
+		Math.abs(frameRate - fps) <= 1e-6 &&
+		Number.isFinite(duration) &&
+		Math.abs(duration - expectedDuration) <= Math.max(0.05, 1 / fps)
+	);
+}
+
+async function isValidPreviewVideo({
+	requestId,
+	filePath,
+	frameCount,
+	fps,
+	width,
+	height,
+}: {
+	requestId: string;
+	filePath: string;
+	frameCount: number;
+	fps: number;
+	width: number;
+	height: number;
+}) {
+	if (!(await isNonemptyFile({ filePath }))) return false;
+	try {
+		const { stdout } = await captureJianyingTextProcess({
+			requestId,
+			command: await getFFprobePath(),
+			timeoutMs: 15_000,
+			args: [
+				"-v",
+				"error",
+				"-select_streams",
+				"v:0",
+				"-show_entries",
+				"stream=codec_name,width,height,avg_frame_rate:stream_tags=alpha_mode:format=duration",
+				"-of",
+				"json",
+				filePath,
+			],
+		});
+		return previewMetadataMatches({
+			metadata: JSON.parse(stdout) as PreviewMetadata,
+			frameCount,
+			fps,
+			width,
+			height,
+		});
+	} catch {
+		throwIfJianyingTextRenderCancelled({ requestId });
+		return false;
+	}
+}
+
 async function createPreviewVideo({
 	requestId,
 	cacheKey,
 	directory,
 	frameCount,
 	fps,
+	width,
+	height,
 }: {
 	requestId: string;
 	cacheKey: string;
 	directory: string;
 	frameCount: number;
 	fps: number;
+	width: number;
+	height: number;
 }) {
 	const destination = getJianyingTextPreviewVideoPath({ cacheKey });
-	if (await isNonemptyFile({ filePath: destination })) {
+	if (
+		await isValidPreviewVideo({
+			requestId,
+			filePath: destination,
+			frameCount,
+			fps,
+			width,
+			height,
+		})
+	) {
 		return getJianyingTextPreviewVideoUrl({ cacheKey });
 	}
+	await rm(destination, { force: true });
 	const temporary = path.join(directory, `.preview-${randomUUID()}.webm`);
 	try {
 		await runJianyingTextProcess({
@@ -78,10 +185,30 @@ async function createPreviewVideo({
 		});
 		throwIfJianyingTextRenderCancelled({ requestId });
 		await rename(temporary, destination).catch(async (cause) => {
-			if (await isNonemptyFile({ filePath: destination })) return;
+			if (
+				await isValidPreviewVideo({
+					requestId,
+					filePath: destination,
+					frameCount,
+					fps,
+					width,
+					height,
+				})
+			) {
+				return;
+			}
 			throw cause;
 		});
-		if (!(await isNonemptyFile({ filePath: destination }))) {
+		if (
+			!(await isValidPreviewVideo({
+				requestId,
+				filePath: destination,
+				frameCount,
+				fps,
+				width,
+				height,
+			}))
+		) {
 			throw new Error("Jianying text preview video validation failed.");
 		}
 		return getJianyingTextPreviewVideoUrl({ cacheKey });
@@ -96,12 +223,16 @@ export function ensureJianyingTextPreviewVideo({
 	directory,
 	frameCount,
 	fps,
+	width,
+	height,
 }: {
 	requestId: string;
 	cacheKey: string;
 	directory: string;
 	frameCount: number;
 	fps: number;
+	width: number;
+	height: number;
 }) {
 	return createPreviewVideo({
 		requestId,
@@ -109,5 +240,11 @@ export function ensureJianyingTextPreviewVideo({
 		directory,
 		frameCount,
 		fps,
+		width,
+		height,
 	});
 }
+
+export const jianyingTextPreviewVideoTestUtils = {
+	previewMetadataMatches,
+};
