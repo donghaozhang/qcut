@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -184,7 +184,10 @@ describe("Jianying text package resolver", () => {
 			const first = await resolveJianyingTextPackage({
 				reference: createReference(),
 			});
-			expect(first.packagePath).toContain(recoveryRoot);
+			const canonicalRecoveryRoot = await realpath(recoveryRoot);
+			expect(path.relative(canonicalRecoveryRoot, first.packagePath)).toBe(
+				path.join("artistEffect", RESOURCE_ID, PACKAGE_HASH)
+			);
 			await rm(path.join(artistEffectRoot, catalogResourceId), {
 				recursive: true,
 				force: true,
