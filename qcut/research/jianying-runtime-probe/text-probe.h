@@ -8,6 +8,12 @@
 
 namespace jianying_probe {
 
+struct TextAnimationProbeRequest {
+  std::filesystem::path packagePath;
+  int type = 0;
+  std::int64_t duration = 1'000'000;
+};
+
 struct TextFrameProbeRequest {
   std::filesystem::path runtimeRoot;
   std::filesystem::path packagePath;
@@ -15,6 +21,7 @@ struct TextFrameProbeRequest {
   std::filesystem::path payloadOutputPath;
   std::filesystem::path fontPath;
   std::filesystem::path resourceManifestPath;
+  std::vector<TextAnimationProbeRequest> animations;
   std::string segmentPayload;
   std::string scriptParameters;
   std::string text;
@@ -24,6 +31,7 @@ struct TextFrameProbeRequest {
   int height = 512;
   int segmentType = 3;
   int resolutionType = -1;
+  std::int64_t timelineDuration = 60'000'000;
   std::int64_t timestamp = 500'000;
 };
 
