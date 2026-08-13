@@ -82,13 +82,13 @@ function runtimeCandidates({
 	if (overrides.length > 0) return overrides;
 	return [
 		"/Applications/VideoFusion-macOS.app/Contents",
-		path.join(
+		path.posix.join(
 			homeDirectory,
 			"Applications",
 			"VideoFusion-macOS.app",
 			"Contents"
 		),
-		path.join(
+		path.posix.join(
 			homeDirectory,
 			"Library",
 			"Application Support",
