@@ -17,13 +17,7 @@ async function writeJson({
 	await writeFile(filePath, JSON.stringify(value), "utf8");
 }
 
-function sanitizePathText({
-	text,
-	roots,
-}: {
-	text: string;
-	roots: string[];
-}) {
+function sanitizePathText({ text, roots }: { text: string; roots: string[] }) {
 	let sanitized = text;
 	for (const root of roots) {
 		sanitized = sanitized.split(root).join("<cache>");
