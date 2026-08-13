@@ -29,7 +29,7 @@ describe("Jianying script content hydration", () => {
 				"2002": "/private/cache/artistEffect/2002/version",
 				"3003": "/private/cache/artistEffect/3003/version",
 			},
-			fontPath: '/private/fonts/QCut & "CJK".ttf',
+			fontOverridePath: '/private/fonts/QCut & "CJK".ttf',
 		});
 		expect(result).toMatchObject({
 			children: [
@@ -49,6 +49,51 @@ describe("Jianying script content hydration", () => {
 		});
 		expect(source.children[0].anim_resource_path).toBe("");
 		expect(source.children[1].sticker_path).toBe("");
+	});
+
+	it("preserves mixed template fonts and falls back only missing slots", () => {
+		const result = hydrateJianyingScriptContent({
+			value: {
+				text_params: {
+					richText:
+						'<font id="7001" path="">[主标题]</font><font id="7002" path="">[副标题]</font><font id="7003" path="">[缺失]</font>',
+				},
+			},
+			resourcePaths: {},
+			fontPaths: {
+				"7001": "/private/fonts/title.ttf",
+				"7002": "/private/fonts/caption.otf",
+			},
+			fallbackFontPath: "/System/Library/Fonts/STHeiti Medium.ttc",
+		});
+
+		expect(result).toMatchObject({
+			text_params: {
+				richText:
+					'<font id="7001" path="/private/fonts/title.ttf">[主标题]</font><font id="7002" path="/private/fonts/caption.otf">[副标题]</font><font id="7003" path="/System/Library/Fonts/STHeiti Medium.ttc">[缺失]</font>',
+			},
+		});
+	});
+
+	it("overrides every template font only when a timeline font is explicit", () => {
+		const result = hydrateJianyingScriptContent({
+			value: {
+				richText:
+					'<font id="7001" path="">[甲]</font><font id="7002" path="">[乙]</font>',
+			},
+			resourcePaths: {},
+			fontPaths: {
+				"7001": "/private/fonts/title.ttf",
+				"7002": "/private/fonts/caption.otf",
+			},
+			fallbackFontPath: "/private/fonts/fallback.ttf",
+			fontOverridePath: "/private/fonts/selected.ttf",
+		});
+
+		expect(result).toMatchObject({
+			richText:
+				'<font id="7001" path="/private/fonts/selected.ttf">[甲]</font><font id="7002" path="/private/fonts/selected.ttf">[乙]</font>',
+		});
 	});
 
 	it("fails explicitly when a referenced package is unavailable", () => {
