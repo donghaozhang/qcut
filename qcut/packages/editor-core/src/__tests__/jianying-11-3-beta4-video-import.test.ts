@@ -4,6 +4,7 @@ import {
 	normalizeRawDraft,
 } from "../jianying-draft/index.js";
 import {
+	addBeta4LinearPositionXKeyframes,
 	BETA4_ADJACENT_DURATION_US,
 	BETA4_VIDEO_DURATION_US,
 	createJianying113Beta4AdjacentVideoFixture,
@@ -140,6 +141,47 @@ describe("Jianying 11.3 beta4 adjacent video import", () => {
 		]);
 	});
 
+	it("maps the verified linear X-position keyframe shape into QCut frames", () => {
+		const content = createJianying113Beta4AdjacentVideoFixture();
+		addBeta4LinearPositionXKeyframes({ content });
+
+		const result = normalizeFixture({ content });
+		expect(result.document.timelines[0]?.tracks[0]?.segments[0]).toMatchObject({
+			capability: "exact",
+			visual: {
+				xPx: 50,
+				yPx: 0,
+				keyframes: {
+					x: [
+						{ id: "position-x-start", timeOffsetUs: 0, value: 0 },
+						{ id: "position-x-end", timeOffsetUs: 2_000_000, value: 50 },
+					],
+					y: [
+						{ id: "position-y-start", timeOffsetUs: 0, value: 0 },
+						{ id: "position-y-end", timeOffsetUs: 2_000_000, value: 0 },
+					],
+				},
+			},
+		});
+		expect(result.document.issues).toEqual([]);
+
+		const plan = mapInteropDocumentToQCutPlan({ document: result.document });
+		expect(plan.tracks[0]?.elements[0]).toMatchObject({
+			x: 50,
+			y: 0,
+			keyframes: {
+				x: [
+					{ frame: 0, value: 0, easing: "linear" },
+					{ frame: 60, value: 50, easing: "linear" },
+				],
+				y: [
+					{ frame: 0, value: 0, easing: "linear" },
+					{ frame: 60, value: 0, easing: "linear" },
+				],
+			},
+		});
+	});
+
 	it("accepts the same verified defaults when the media has embedded audio", () => {
 		const content = createJianying113Beta4AdjacentVideoFixture();
 		const videos = readInnerMaterials({ content }).videos;
@@ -203,6 +245,34 @@ describe("Jianying 11.3 beta4 adjacent video import", () => {
 		expect(
 			mapInteropDocumentToQCutPlan({ document: result.document }).resourceIds
 		).toEqual(["first-video"]);
+	});
+
+	it("keeps unverified position curves opaque", () => {
+		const content = createJianying113Beta4AdjacentVideoFixture();
+		addBeta4LinearPositionXKeyframes({ content });
+		const first = readInnerSegments({ content })[0];
+		if (first === undefined) throw new Error("fixture has no first segment");
+		const groups = first.common_keyframes as Array<{
+			keyframe_list: Array<Record<string, unknown>>;
+		}>;
+		const secondXKeyframe = groups[0]?.keyframe_list[1];
+		if (secondXKeyframe === undefined)
+			throw new Error("fixture has no X keyframe");
+		secondXKeyframe.curveType = "Cubic";
+
+		const result = normalizeFixture({ content });
+		expect(result.document.timelines[0]?.tracks[0]?.segments).toMatchObject([
+			{ id: "first-segment", capability: "opaque" },
+			{ id: "second-segment", capability: "exact" },
+		]);
+		expect(
+			result.document.issues.some(({ message }) =>
+				message.includes("position keyframes")
+			)
+		).toBe(true);
+		expect(
+			mapInteropDocumentToQCutPlan({ document: result.document }).resourceIds
+		).toEqual(["second-video"]);
 	});
 
 	it("keeps cropped media and active companion processing opaque", () => {

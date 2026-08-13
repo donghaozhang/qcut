@@ -496,3 +496,75 @@ export function readInnerBeta4AdjacentDraft({
 	if (inner === undefined) throw new Error("fixture has no inner draft");
 	return inner;
 }
+
+function createLinearPositionChannel({
+	endValue,
+	propertyType,
+	prefix,
+}: {
+	endValue: number;
+	propertyType: "KFTypePositionX" | "KFTypePositionY";
+	prefix: string;
+}): Record<string, unknown> {
+	const createKeyframe = ({
+		id,
+		timeOffsetUs,
+		value,
+	}: {
+		id: string;
+		timeOffsetUs: number;
+		value: number;
+	}) => ({
+		curveType: "Line",
+		graphID: "",
+		id,
+		left_control: { x: 0, y: 0 },
+		right_control: { x: 0, y: 0 },
+		string_value: "",
+		time_offset: timeOffsetUs,
+		values: [value],
+	});
+	return {
+		id: `${prefix}-group`,
+		keyframe_list: [
+			createKeyframe({ id: `${prefix}-start`, timeOffsetUs: 0, value: 0 }),
+			createKeyframe({
+				id: `${prefix}-end`,
+				timeOffsetUs: 2_000_000,
+				value: endValue,
+			}),
+		],
+		material_id: "",
+		property_type: propertyType,
+	};
+}
+
+/** Reproduces the two-channel shape persisted by JianYing for UI X=50. */
+export function addBeta4LinearPositionXKeyframes({
+	content,
+}: {
+	content: Record<string, unknown>;
+}): void {
+	const inner = readInnerBeta4AdjacentDraft({ content });
+	const canvas = inner.canvas_config as { width: number };
+	const tracks = inner.tracks as Array<{
+		segments: Array<Record<string, unknown>>;
+	}>;
+	const segment = tracks[0]?.segments[0];
+	if (segment === undefined) throw new Error("fixture has no first segment");
+	const normalizedX = 50 / canvas.width;
+	const clip = segment.clip as { transform: { x: number; y: number } };
+	clip.transform = { x: normalizedX, y: 0 };
+	segment.common_keyframes = [
+		createLinearPositionChannel({
+			endValue: normalizedX,
+			prefix: "position-x",
+			propertyType: "KFTypePositionX",
+		}),
+		createLinearPositionChannel({
+			endValue: 0,
+			prefix: "position-y",
+			propertyType: "KFTypePositionY",
+		}),
+	];
+}

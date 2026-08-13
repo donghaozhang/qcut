@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { JIANYING_11_3_BETA4_PROFILE_ID } from "@qcut/editor-core/jianying-draft";
 import { describe, expect, it } from "vitest";
 import {
+	addBeta4LinearPositionXKeyframes,
 	BETA4_ADJACENT_DURATION_US,
 	createJianying113Beta4AdjacentVideoFixture,
 } from "../../../editor-core/src/__tests__/support/jianying-11-3-beta4-video-fixture.js";
@@ -28,6 +29,7 @@ describe("Jianying 11.3 beta4 adjacent video import session", () => {
 				firstPath,
 				secondPath,
 			});
+			addBeta4LinearPositionXKeyframes({ content });
 			await Promise.all([
 				writeFile(join(root, "draft_content.json"), JSON.stringify(content)),
 				writeFile(
@@ -84,11 +86,23 @@ describe("Jianying 11.3 beta4 adjacent video import session", () => {
 						elements: [
 							{
 								duration: 3,
+								keyframes: {
+									x: [
+										{ frame: 0, value: 0 },
+										{ frame: 60, value: 50 },
+									],
+									y: [
+										{ frame: 0, value: 0 },
+										{ frame: 60, value: 0 },
+									],
+								},
 								resourceId: "first-video",
 								startTime: 0,
 								trimEnd: 0,
 								trimStart: 0,
 								type: "media",
+								x: 50,
+								y: 0,
 							},
 							{
 								duration: 3,
