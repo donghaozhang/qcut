@@ -41,11 +41,11 @@ export type QCutJianyingProjectExportResult =
 			changed: boolean;
 			contentRelativePath: string;
 			contentSha256: string;
-			copiedFileCount: number;
-			outputDirectory: string;
 			patchCount: number;
-			sourceProjectDirectory: string;
+			projectDirectory: string;
 			subdraftId: string;
+			transactionId: string;
+			warnings: string[];
 	  })
 	| (QCutJianyingProjectExportResultBase & {
 			outcome: "cancelled";
@@ -59,9 +59,8 @@ export type QCutJianyingProjectExportResult =
 	| (QCutJianyingProjectExportResultBase & {
 			outcome: "failed";
 			message: string;
-			outputParentDirectory: string | null;
+			projectDirectory: string | null;
 			reason: QCutJianyingProjectExportFailureReason;
-			sourceProjectDirectory: string | null;
 	  });
 
 export interface QCutJianyingProjectExportRendererRequest {

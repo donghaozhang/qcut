@@ -10,7 +10,7 @@ import {
 import {
 	JIANYING_11_3_PROJECT_EXPORT_CHOOSE_CHANNEL,
 	JIANYING_11_3_PROJECT_EXPORT_COMMIT_CHANNEL,
-	JIANYING_11_3_PROJECT_EXPORT_PROFILE_ID,
+	JIANYING_11_3_PROJECT_EXPORT_PROFILE_IDS,
 	type Jianying113ProjectExportCommitDto,
 	type Jianying113ProjectExportSelectionDto,
 	type JianyingProjectExportErrorCode,
@@ -24,24 +24,23 @@ import {
 
 const DEFAULT_JIANYING_APP_PATH = "/Applications/VideoFusion-macOS.app";
 const MAX_CONTENT_BYTES = 64 * 1024 * 1024;
-const MAX_DRAFT_NAME_LENGTH = 256;
 const SELECTION_TTL_MILLISECONDS = 15 * 60 * 1000;
 const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
 
 interface ProjectExportSelection {
 	expiresAtUnixMilliseconds: number;
-	outputParentDirectory: string;
-	sourceProjectDirectory: string;
+	projectDirectory: string;
 }
 
 interface ProjectExportRuntime {
 	write(options: {
-		assertTargetAppClosed: JianyingTargetAppGuard;
+		assertTargetAppClosed: (context: {
+			projectDirectory: string;
+		}) => Promise<void>;
 		contentBytes: Uint8Array;
-		draftName: string;
 		expectedSourceSha256: string;
-		outputParentDirectory: string;
-		sourceProjectDirectory: string;
+		profileId: string;
+		projectDirectory: string;
 	}): Promise<Jianying113ProjectExportCommitDto>;
 }
 
@@ -52,9 +51,6 @@ export interface JianyingProjectExportIPCController {
 export interface SetupJianyingProjectExportIPCOptions {
 	assertTargetAppClosed?: JianyingTargetAppGuard;
 	canonicalizeDirectory?: (directory: string) => Promise<string>;
-	chooseOutputParentDirectory?: (options: {
-		mainWindow: BrowserWindow;
-	}) => Promise<string | null>;
 	chooseSourceProjectDirectory?: (options: {
 		mainWindow: BrowserWindow;
 	}) => Promise<string | null>;
@@ -158,8 +154,8 @@ function decodeCanonicalBase64({ value }: { value: string }): Uint8Array {
 
 function parseCommitRequest({ input }: { input: unknown }): {
 	contentBytes: Uint8Array;
-	draftName: string;
 	expectedSourceSha256: string;
+	profileId: string;
 	selectionToken: string;
 } {
 	const record = readRecord({ value: input });
@@ -169,19 +165,18 @@ function parseCommitRequest({ input }: { input: unknown }): {
 			record,
 			keys: [
 				"contentBase64",
-				"draftName",
 				"expectedSourceSha256",
 				"profileId",
 				"selectionToken",
 			],
 		}) ||
 		typeof record.contentBase64 !== "string" ||
-		typeof record.draftName !== "string" ||
-		record.draftName.length === 0 ||
-		record.draftName.length > MAX_DRAFT_NAME_LENGTH ||
 		typeof record.expectedSourceSha256 !== "string" ||
 		!SHA256_PATTERN.test(record.expectedSourceSha256) ||
-		record.profileId !== JIANYING_11_3_PROJECT_EXPORT_PROFILE_ID ||
+		typeof record.profileId !== "string" ||
+		!JIANYING_11_3_PROJECT_EXPORT_PROFILE_IDS.some(
+			(profileId) => profileId === record.profileId
+		) ||
 		typeof record.selectionToken !== "string" ||
 		record.selectionToken.length === 0 ||
 		record.selectionToken.length > 128
@@ -193,11 +188,23 @@ function parseCommitRequest({ input }: { input: unknown }): {
 	}
 	return {
 		contentBytes: decodeCanonicalBase64({ value: record.contentBase64 }),
-		draftName: record.draftName,
 		expectedSourceSha256: record.expectedSourceSha256,
+		profileId: record.profileId,
 		selectionToken: record.selectionToken,
 	};
 }
+
+const RUNTIME_ERROR_CODES: Record<string, JianyingProjectExportErrorCode> = {
+	CONTENT_INVALID: "invalid-request",
+	JIANYING_PROJECT_LOCKED: "jianying-project-locked",
+	PROFILE_MISMATCH: "invalid-request",
+	PROJECT_DIRECTORY_INVALID: "invalid-request",
+	RECOVERY_REQUIRED: "recovery-required",
+	SOURCE_FILE_UNSAFE: "source-file-unsafe",
+	SOURCE_STATE_CHANGED: "source-state-changed",
+	TRANSACTION_FAILED: "writeback-failed",
+	WRITEBACK_ALREADY_RUNNING: "writeback-already-running",
+};
 
 function toErrorDto({ error }: { error: unknown }): {
 	code: JianyingProjectExportErrorCode;
@@ -208,12 +215,18 @@ function toErrorDto({ error }: { error: unknown }): {
 		return { code: error.code, message: error.message, name: error.name };
 	}
 	const message = error instanceof Error ? error.message : String(error);
-	const code: JianyingProjectExportErrorCode =
-		error instanceof JianyingAppRunningError
+	const runtimeCode = readRecord({ value: error })?.code;
+	const mappedRuntimeCode =
+		typeof runtimeCode === "string"
+			? RUNTIME_ERROR_CODES[runtimeCode]
+			: undefined;
+	const code =
+		mappedRuntimeCode ??
+		(error instanceof JianyingAppRunningError
 			? "app-running"
 			: /locked/iu.test(message)
 				? "jianying-project-locked"
-				: "writeback-failed";
+				: "writeback-failed");
 	return {
 		code,
 		message: message.slice(0, 16_384),
@@ -233,12 +246,13 @@ function parseRuntime({
 	const record = readRecord({ value: runtimeModule });
 	const defaultExport = readRecord({ value: record?.default });
 	const write =
-		record?.writeJianying113ProjectExport ??
-		defaultExport?.writeJianying113ProjectExport;
+		record?.writeJianying113RegisteredProjectContent ??
+		defaultExport?.writeJianying113RegisteredProjectContent;
 	if (typeof write !== "function") {
 		throw new ProjectExportHandlerError({
 			code: "runtime-unavailable",
-			message: "Bundled runtime is missing Jianying project export support.",
+			message:
+				"Bundled runtime is missing Jianying registered-project writeback support.",
 		});
 	}
 	return { write: write as ProjectExportRuntime["write"] };
@@ -249,16 +263,9 @@ export function setupJianyingProjectExportIPC({
 		appPath: DEFAULT_JIANYING_APP_PATH,
 	}),
 	canonicalizeDirectory = realpath,
-	chooseOutputParentDirectory = async ({ mainWindow }) => {
-		const result = await dialog.showOpenDialog(mainWindow, {
-			title: "Choose where to create the exported Jianying project",
-			properties: ["openDirectory", "createDirectory"],
-		});
-		return result.canceled ? null : (result.filePaths[0] ?? null);
-	},
 	chooseSourceProjectDirectory = async ({ mainWindow }) => {
 		const result = await dialog.showOpenDialog(mainWindow, {
-			title: "Choose the original Jianying Professional project folder",
+			title: "Choose the registered Jianying Professional project to update",
 			properties: ["openDirectory"],
 		});
 		return result.canceled ? null : (result.filePaths[0] ?? null);
@@ -295,27 +302,19 @@ export function setupJianyingProjectExportIPC({
 				});
 				const source = await chooseSourceProjectDirectory({ mainWindow });
 				if (source === null) return { ok: true, value: null };
-				const output = await chooseOutputParentDirectory({ mainWindow });
-				if (output === null) return { ok: true, value: null };
-				const [sourceProjectDirectory, outputParentDirectory] =
-					await Promise.all([
-						canonicalizeDirectory(source),
-						canonicalizeDirectory(output),
-					]);
+				const projectDirectory = await canonicalizeDirectory(source);
 				const selectionToken = randomUUID();
 				const expiresAtUnixMilliseconds = now() + SELECTION_TTL_MILLISECONDS;
 				selections.set(selectionToken, {
 					expiresAtUnixMilliseconds,
-					outputParentDirectory,
-					sourceProjectDirectory,
+					projectDirectory,
 				});
 				return {
 					ok: true,
 					value: {
 						expiresAtUnixMilliseconds,
-						outputParentDirectory,
+						projectDirectory,
 						selectionToken,
-						sourceProjectDirectory,
 					},
 				};
 			} catch (error) {
@@ -351,12 +350,15 @@ export function setupJianyingProjectExportIPC({
 				}
 				selections.delete(request.selectionToken);
 				const result = await (await getRuntime()).write({
-					assertTargetAppClosed,
+					assertTargetAppClosed: ({ projectDirectory }) =>
+						assertTargetAppClosed({
+							outputParentDirectory: projectDirectory,
+							sourceProjectDirectory: projectDirectory,
+						}),
 					contentBytes: request.contentBytes,
-					draftName: request.draftName,
 					expectedSourceSha256: request.expectedSourceSha256,
-					outputParentDirectory: selection.outputParentDirectory,
-					sourceProjectDirectory: selection.sourceProjectDirectory,
+					profileId: request.profileId,
+					projectDirectory: selection.projectDirectory,
 				});
 				return { ok: true, value: result };
 			} catch (error) {

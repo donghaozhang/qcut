@@ -13,7 +13,7 @@ export const INTEROP_COMMANDS: Record<string, CommandDef> = {
 	"editor:interop:jianying-export": {
 		name: "editor:interop:jianying-export",
 		description:
-			"Export a persisted QCut project as a new Jianying Professional project copy",
+			"Write supported edits from a persisted QCut project into a registered Jianying Professional project",
 		category: "editor",
 		flags: [
 			flag("--project-id", "string", "Persisted QCut project ID", {

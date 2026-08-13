@@ -4,7 +4,7 @@ export interface ElectronJianyingProjectExportOps {
 	jianyingProjectExport?: JianyingProjectExportAPI;
 }
 
-export { JIANYING_11_3_PROJECT_EXPORT_PROFILE_ID } from "../../../../../electron/jianying-project-export-contract";
+export { JIANYING_11_3_PROJECT_EXPORT_PROFILE_IDS } from "../../../../../electron/jianying-project-export-contract";
 
 export type {
 	Jianying113ProjectExportCommitDto,

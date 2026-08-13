@@ -79,7 +79,7 @@ describe("persisted QCut Jianying project export", () => {
 		expect(runExport).not.toHaveBeenCalled();
 	});
 
-	it("maps a new project copy and rechecks the persisted snapshot", async () => {
+	it("maps a registered-project writeback and rechecks the snapshot", async () => {
 		const storage = createStorage();
 		const runExport = vi.fn(async (request: RunExportRequest) => {
 			expect(
@@ -92,13 +92,13 @@ describe("persisted QCut Jianying project export", () => {
 				changed: true,
 				contentRelativePath: "subdraft/subdraft-1/draft_content.json",
 				contentSha256: "c".repeat(64),
-				copiedFileCount: 12,
 				ok: true as const,
 				outcome: "exported" as const,
-				outputDirectory: "/exports/QCut-copy",
 				patchCount: 4,
-				sourceProjectDirectory: "/jianying/source",
+				projectDirectory: "/jianying/registered-project",
 				subdraftId: "subdraft-1",
+				transactionId: "transaction-1",
+				warnings: [],
 			};
 		});
 
@@ -112,9 +112,10 @@ describe("persisted QCut Jianying project export", () => {
 			changed: true,
 			contentSha256: "c".repeat(64),
 			outcome: "exported",
-			outputDirectory: "/exports/QCut-copy",
 			patchCount: 4,
+			projectDirectory: "/jianying/registered-project",
 			projectId: "project-1",
+			transactionId: "transaction-1",
 		});
 		expect(storage.loadProject).toHaveBeenCalledTimes(2);
 		expect(storage.loadTimeline).toHaveBeenCalledTimes(2);
@@ -157,25 +158,23 @@ describe("persisted QCut Jianying project export", () => {
 		});
 	});
 
-	it("maps writer failures with their selected directories", async () => {
+	it("maps writer failures with the selected registered project", async () => {
 		const result = await executePersistedQCutJianyingProjectExport({
 			request: { projectId: "project-1" },
 			runExport: vi.fn(async () => ({
 				message: "Jianying is running.",
 				ok: false as const,
-				outputParentDirectory: "/exports",
+				projectDirectory: "/jianying/registered-project",
 				reason: "export-failed" as const,
-				sourceProjectDirectory: "/jianying/source",
 			})),
 			storage: createStorage(),
 		});
 
 		expect(result).toMatchObject({
 			outcome: "failed",
-			outputParentDirectory: "/exports",
+			projectDirectory: "/jianying/registered-project",
 			projectId: "project-1",
 			reason: "export-failed",
-			sourceProjectDirectory: "/jianying/source",
 		});
 	});
 });

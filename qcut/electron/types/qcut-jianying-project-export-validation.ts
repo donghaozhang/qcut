@@ -15,6 +15,7 @@ import {
 } from "./strict-json-validation.js";
 
 const MAX_ISSUES = 256;
+const MAX_WARNINGS = 256;
 
 function requireProjectId({ value }: { value: unknown }): string {
 	return requireString({
@@ -158,6 +159,21 @@ function parseIssues({
 	return value.map((issue, index) => parseIssue({ index, value: issue }));
 }
 
+function parseWarnings({ value }: { value: unknown }): string[] {
+	if (!Array.isArray(value) || value.length > MAX_WARNINGS) {
+		throw new Error(
+			"Jianying project export warnings must be a bounded array."
+		);
+	}
+	return value.map((warning, index) =>
+		requireString({
+			label: `Jianying project export warning ${index}`,
+			maximumLength: 4096,
+			value: warning,
+		})
+	);
+}
+
 function requireResultBase({ root }: { root: Record<string, unknown> }): {
 	projectId: string;
 	schema: typeof QCUT_JIANYING_PROJECT_EXPORT_RESULT_SCHEMA;
@@ -209,15 +225,15 @@ export function parseQCutJianyingProjectExportResult({
 				"changed",
 				"contentRelativePath",
 				"contentSha256",
-				"copiedFileCount",
 				"outcome",
-				"outputDirectory",
 				"patchCount",
+				"projectDirectory",
 				"projectId",
 				"schema",
 				"schemaVersion",
-				"sourceProjectDirectory",
 				"subdraftId",
+				"transactionId",
+				"warnings",
 			],
 			label: "Jianying project export result",
 			record: root,
@@ -237,27 +253,25 @@ export function parseQCutJianyingProjectExportResult({
 				label: "Jianying project export content digest",
 				value: root.contentSha256,
 			}),
-			copiedFileCount: requireBoundedInteger({
-				label: "Jianying project export copied file count",
-				value: root.copiedFileCount,
-			}),
-			outputDirectory: requirePath({
-				label: "Jianying project export output directory",
-				value: root.outputDirectory,
-			}),
 			patchCount: requireBoundedInteger({
 				label: "Jianying project export patch count",
 				value: root.patchCount,
 			}),
-			sourceProjectDirectory: requirePath({
-				label: "Jianying project export source directory",
-				value: root.sourceProjectDirectory,
+			projectDirectory: requirePath({
+				label: "Jianying project export registered project directory",
+				value: root.projectDirectory,
 			}),
 			subdraftId: requireString({
 				label: "Jianying project export subdraft id",
 				maximumLength: 256,
 				value: root.subdraftId,
 			}),
+			transactionId: requireString({
+				label: "Jianying project export transaction id",
+				maximumLength: 256,
+				value: root.transactionId,
+			}),
+			warnings: parseWarnings({ value: root.warnings }),
 		};
 	}
 	if (root.outcome === "cancelled") {
@@ -299,12 +313,11 @@ export function parseQCutJianyingProjectExportResult({
 			keys: [
 				"message",
 				"outcome",
-				"outputParentDirectory",
+				"projectDirectory",
 				"projectId",
 				"reason",
 				"schema",
 				"schemaVersion",
-				"sourceProjectDirectory",
 			],
 			label: "Jianying project export result",
 			record: root,
@@ -317,15 +330,11 @@ export function parseQCutJianyingProjectExportResult({
 				maximumLength: 16_384,
 				value: root.message,
 			}),
-			outputParentDirectory: requireNullablePath({
-				label: "Jianying project export parent directory",
-				value: root.outputParentDirectory,
+			projectDirectory: requireNullablePath({
+				label: "Jianying project export registered project directory",
+				value: root.projectDirectory,
 			}),
 			reason: requireFailureReason({ value: root.reason }),
-			sourceProjectDirectory: requireNullablePath({
-				label: "Jianying project export source directory",
-				value: root.sourceProjectDirectory,
-			}),
 		};
 	}
 	throw new Error("Jianying project export result outcome is unsupported.");

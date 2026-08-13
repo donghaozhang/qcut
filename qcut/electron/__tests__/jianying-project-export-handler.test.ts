@@ -1,10 +1,13 @@
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { JIANYING_11_3_BETA2_PROFILE_ID } from "@qcut/editor-core/jianying-draft";
+import {
+	JIANYING_11_3_BETA2_PROFILE_ID,
+	JIANYING_11_3_BETA3_PROFILE_ID,
+} from "@qcut/editor-core/jianying-draft";
 import {
 	JIANYING_11_3_PROJECT_EXPORT_CHOOSE_CHANNEL,
 	JIANYING_11_3_PROJECT_EXPORT_COMMIT_CHANNEL,
-	JIANYING_11_3_PROJECT_EXPORT_PROFILE_ID,
+	JIANYING_11_3_PROJECT_EXPORT_PROFILE_IDS,
 } from "../jianying-project-export-contract.js";
 import { JianyingAppRunningError } from "../jianying-target-app-guard.js";
 
@@ -73,14 +76,14 @@ function createRuntime() {
 	const write = vi.fn(async () => ({
 		contentRelativePath: "subdraft/subdraft-1/draft_content.json",
 		contentSha256: "b".repeat(64),
-		copiedFileCount: 12,
-		outputDirectory: "/canonical/exports/QCut-copy",
-		profileId: JIANYING_11_3_PROJECT_EXPORT_PROFILE_ID,
+		profileId: JIANYING_11_3_BETA3_PROFILE_ID,
 		subdraftId: "subdraft-1",
+		transactionId: "transaction-1",
+		warnings: [],
 	}));
 	return {
 		loadRuntime: vi.fn(async () => ({
-			writeJianying113ProjectExport: write,
+			writeJianying113RegisteredProjectContent: write,
 		})),
 		write,
 	};
@@ -106,9 +109,8 @@ async function chooseAndGetToken({
 function commitRequest({ selectionToken }: { selectionToken: string }) {
 	return {
 		contentBase64: Buffer.from('{"id":"draft"}').toString("base64"),
-		draftName: "QCut Jianying Export",
 		expectedSourceSha256: "a".repeat(64),
-		profileId: JIANYING_11_3_PROJECT_EXPORT_PROFILE_ID,
+		profileId: JIANYING_11_3_BETA3_PROFILE_ID,
 		selectionToken,
 	};
 }
@@ -123,15 +125,11 @@ function setup({
 	runtime?: ReturnType<typeof createRuntime>;
 } = {}) {
 	const context = createMockWindowContext();
-	const canonicalizeDirectory = vi.fn(async (path: string) =>
-		path.includes("source") ? "/canonical/source" : "/canonical/exports"
-	);
-	const chooseOutputParentDirectory = vi.fn(async () => "/selected/exports");
+	const canonicalizeDirectory = vi.fn(async () => "/canonical/source");
 	const chooseSourceProjectDirectory = vi.fn(async () => "/selected/source");
 	const controller = setupJianyingProjectExportIPC({
 		assertTargetAppClosed,
 		canonicalizeDirectory,
-		chooseOutputParentDirectory,
 		chooseSourceProjectDirectory,
 		getMainWindow: () => context.mainWindow,
 		loadRuntime: runtime.loadRuntime,
@@ -140,7 +138,6 @@ function setup({
 	return {
 		assertTargetAppClosed,
 		canonicalizeDirectory,
-		chooseOutputParentDirectory,
 		chooseSourceProjectDirectory,
 		context,
 		controller,
@@ -153,10 +150,11 @@ describe("Jianying project export IPC", () => {
 		vi.clearAllMocks();
 	});
 
-	it("keeps the IPC profile identifier aligned with editor-core", () => {
-		expect(JIANYING_11_3_PROJECT_EXPORT_PROFILE_ID).toBe(
-			JIANYING_11_3_BETA2_PROFILE_ID
-		);
+	it("keeps the IPC profile identifiers aligned with editor-core", () => {
+		expect(JIANYING_11_3_PROJECT_EXPORT_PROFILE_IDS).toEqual([
+			JIANYING_11_3_BETA2_PROFILE_ID,
+			JIANYING_11_3_BETA3_PROFILE_ID,
+		]);
 	});
 
 	it("registers and disposes both handlers", () => {
@@ -191,7 +189,7 @@ describe("Jianying project export IPC", () => {
 		expect(runtime.loadRuntime).not.toHaveBeenCalled();
 	});
 
-	it("binds a canonical source and destination to a one-shot token", async () => {
+	it("binds one canonical registered project to a one-shot token", async () => {
 		const { context, runtime } = setup();
 		const selectionToken = await chooseAndGetToken({ event: context.event });
 
@@ -203,16 +201,15 @@ describe("Jianying project export IPC", () => {
 		).resolves.toMatchObject({
 			ok: true,
 			value: {
-				outputDirectory: "/canonical/exports/QCut-copy",
 				subdraftId: "subdraft-1",
+				transactionId: "transaction-1",
 			},
 		});
 		expect(runtime.write).toHaveBeenCalledWith(
 			expect.objectContaining({
-				draftName: "QCut Jianying Export",
 				expectedSourceSha256: "a".repeat(64),
-				outputParentDirectory: "/canonical/exports",
-				sourceProjectDirectory: "/canonical/source",
+				profileId: JIANYING_11_3_BETA3_PROFILE_ID,
+				projectDirectory: "/canonical/source",
 			})
 		);
 		expect(
@@ -268,17 +265,14 @@ describe("Jianying project export IPC", () => {
 		expect(runtime.loadRuntime).not.toHaveBeenCalled();
 	});
 
-	it("reports a running Jianying application without publishing a project", async () => {
+	it("reports a running Jianying application without writing the project", async () => {
 		const assertTargetAppClosed = vi.fn(async () => {
 			throw new JianyingAppRunningError();
 		});
 		const runtime = createRuntime();
 		runtime.write.mockImplementationOnce(
 			async ({ assertTargetAppClosed: guard }) => {
-				await guard({
-					outputParentDirectory: "/canonical/exports",
-					sourceProjectDirectory: "/canonical/source",
-				});
+				await guard({ projectDirectory: "/canonical/source" });
 				throw new Error("unreachable");
 			}
 		);

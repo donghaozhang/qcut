@@ -9,8 +9,10 @@ import {
 	JIANYING_11_3_BETA2_PROFILE_ID,
 	JIANYING_11_3_BETA2_SCHEMA_VERSION,
 	JIANYING_11_3_BETA2_TOP_LEVEL_KEYS,
+	JIANYING_11_3_BETA3_APP_VERSION,
+	JIANYING_11_3_BETA3_PROFILE_ID,
 	normalizeRawDraft,
-	type Jianying113Beta2WritebackTimingSnapshot,
+	type Jianying113WritebackTimingSnapshot,
 } from "@qcut/editor-core/jianying-draft";
 import type { ForeignDraftEnvelopeV1 } from "@qcut/editor-core/draft-interop";
 import { describe, expect, it, vi } from "vitest";
@@ -60,7 +62,11 @@ function innerDraft(): Record<string, unknown> {
 	};
 }
 
-function sourceContent(): Record<string, unknown> {
+function sourceContent({
+	appVersion = JIANYING_11_3_BETA2_APP_VERSION,
+}: {
+	appVersion?: string;
+} = {}): Record<string, unknown> {
 	const content = Object.fromEntries(
 		JIANYING_11_3_BETA2_TOP_LEVEL_KEYS.map((key) => [key, null])
 	);
@@ -75,7 +81,7 @@ function sourceContent(): Record<string, unknown> {
 		last_modified_platform: {
 			app_id: JIANYING_11_3_BETA2_APP_ID,
 			app_source: JIANYING_11_3_BETA2_APP_SOURCE,
-			app_version: JIANYING_11_3_BETA2_APP_VERSION,
+			app_version: appVersion,
 		},
 		tracks: [
 			{
@@ -116,8 +122,10 @@ function sourceContent(): Record<string, unknown> {
 	});
 }
 
-function sourceBytes(): Uint8Array {
-	return new TextEncoder().encode(JSON.stringify(sourceContent()));
+function sourceBytes({ appVersion }: { appVersion?: string } = {}): Uint8Array {
+	return new TextEncoder().encode(
+		JSON.stringify(sourceContent({ appVersion }))
+	);
 }
 
 function sha256({ bytes }: { bytes: Uint8Array }): string {
@@ -133,10 +141,14 @@ function fixture({
 	envelope: ForeignDraftEnvelopeV1;
 	project: TProject;
 } {
-	const bytes = sourceBytes();
+	const appVersion =
+		profileId === JIANYING_11_3_BETA3_PROFILE_ID
+			? JIANYING_11_3_BETA3_APP_VERSION
+			: JIANYING_11_3_BETA2_APP_VERSION;
+	const bytes = sourceBytes({ appVersion });
 	const source = {
 		product: "jianying" as const,
-		profileId: JIANYING_11_3_BETA2_PROFILE_ID,
+		profileId,
 		platform: "macos" as const,
 		files: [
 			{
@@ -149,20 +161,20 @@ function fixture({
 		],
 	};
 	const normalized = normalizeRawDraft({
-		content: sourceContent(),
+		content: sourceContent({ appVersion }),
 		contentFileName: "draft_content.json",
 		source,
 	});
 	const envelope: ForeignDraftEnvelopeV1 = {
 		schemaVersion: 1,
 		importId: "import-jianying-compound",
-		profileId: JIANYING_11_3_BETA2_PROFILE_ID,
+		profileId,
 		entries: [
 			{
 				relativePath: "draft_content.json",
 				sha256: sha256({ bytes }),
 				byteLength: bytes.byteLength,
-				allowlistEntryId: "jianying-11.3-beta2-subdraft-content",
+				allowlistEntryId: "jianying-11.3-subdraft-content",
 				storage: "raw",
 			},
 		],
@@ -222,7 +234,7 @@ function snapshot({
 	changed = false,
 }: {
 	changed?: boolean;
-} = {}): Jianying113Beta2WritebackTimingSnapshot {
+} = {}): Jianying113WritebackTimingSnapshot {
 	return {
 		tracks: [
 			{
@@ -250,15 +262,18 @@ function snapshot({
 	};
 }
 
-function bridge(): JianyingProjectExportAPI {
+function bridge({
+	profileId = JIANYING_11_3_BETA2_PROFILE_ID,
+}: {
+	profileId?: string;
+} = {}): JianyingProjectExportAPI {
 	return {
-		chooseJianying113ProjectExportDirectories: vi.fn(async () => ({
+		chooseJianying113ProjectExportDirectory: vi.fn(async () => ({
 			ok: true as const,
 			value: {
 				expiresAtUnixMilliseconds: Date.now() + 60_000,
-				outputParentDirectory: "/selected/exports",
+				projectDirectory: "/selected/registered-project",
 				selectionToken: "selection-1",
-				sourceProjectDirectory: "/selected/source-project",
 			},
 		})),
 		commitJianying113ProjectExport: vi.fn(async () => ({
@@ -266,10 +281,10 @@ function bridge(): JianyingProjectExportAPI {
 			value: {
 				contentRelativePath: "subdraft/subdraft-1/draft_content.json",
 				contentSha256: "c".repeat(64),
-				copiedFileCount: 12,
-				outputDirectory: "/selected/exports/Imported-qcut-abcd1234",
-				profileId: JIANYING_11_3_BETA2_PROFILE_ID,
+				profileId,
 				subdraftId: "subdraft-1",
+				transactionId: "transaction-1",
+				warnings: [],
 			},
 		})),
 	};
@@ -286,7 +301,7 @@ function envelopeReader({ bytes }: { bytes: Uint8Array }) {
 }
 
 describe("Jianying 11.3 project export client", () => {
-	it("exports an unchanged byte-identical copy without a writable profile gate", async () => {
+	it("writes unchanged beta 2 content into a selected registered project", async () => {
 		const { bytes, project } = fixture();
 		const api = bridge();
 
@@ -311,6 +326,33 @@ describe("Jianying 11.3 project export client", () => {
 			Buffer.from(bytes)
 		);
 		expect(request.profileId).toBe(JIANYING_11_3_BETA2_PROFILE_ID);
+		expect(request).not.toHaveProperty("draftName");
+	});
+
+	it("writes an exact beta 3 import without migrating its profile", async () => {
+		const { bytes, project } = fixture({
+			profileId: JIANYING_11_3_BETA3_PROFILE_ID,
+		});
+		const api = bridge({ profileId: JIANYING_11_3_BETA3_PROFILE_ID });
+
+		await expect(
+			runJianying113ProjectExport({
+				deps: {
+					getBridge: () => api,
+					readVerifiedEnvelope: envelopeReader({ bytes }),
+				},
+				project,
+				snapshot: snapshot(),
+			})
+		).resolves.toMatchObject({
+			ok: true,
+			outcome: "exported",
+			projectDirectory: "/selected/registered-project",
+			transactionId: "transaction-1",
+		});
+		const request = vi.mocked(api.commitJianying113ProjectExport).mock
+			.calls[0]![0];
+		expect(request.profileId).toBe(JIANYING_11_3_BETA3_PROFILE_ID);
 	});
 
 	it("patches only nested timing while preserving Jianying-owned fields", async () => {
@@ -367,7 +409,7 @@ describe("Jianying 11.3 project export client", () => {
 		const { bytes, project } = fixture();
 		const api = bridge();
 		const baseline = snapshot();
-		const current: Jianying113Beta2WritebackTimingSnapshot = {
+		const current: Jianying113WritebackTimingSnapshot = {
 			...baseline,
 			tracks: [
 				...baseline.tracks,
@@ -405,9 +447,7 @@ describe("Jianying 11.3 project export client", () => {
 			reason: "prepare-blocked",
 			issues: [{ code: "WRITEBACK_TRACK_ADDED" }],
 		});
-		expect(
-			api.chooseJianying113ProjectExportDirectories
-		).not.toHaveBeenCalled();
+		expect(api.chooseJianying113ProjectExportDirectory).not.toHaveBeenCalled();
 	});
 
 	it("does not commit if QCut changes while directories are selected", async () => {
@@ -433,7 +473,7 @@ describe("Jianying 11.3 project export client", () => {
 		const { bytes, project } = fixture();
 		const api = bridge();
 		vi.mocked(
-			api.chooseJianying113ProjectExportDirectories
+			api.chooseJianying113ProjectExportDirectory
 		).mockResolvedValueOnce({ ok: true, value: null });
 
 		expect(

@@ -73,25 +73,22 @@ function blockedResult({
 
 function failureResult({
 	message,
-	outputParentDirectory = null,
+	projectDirectory = null,
 	projectId,
 	reason,
-	sourceProjectDirectory = null,
 }: {
 	message: string;
-	outputParentDirectory?: string | null;
+	projectDirectory?: string | null;
 	projectId: string;
 	reason: QCutJianyingProjectExportFailureReason;
-	sourceProjectDirectory?: string | null;
 }): QCutJianyingProjectExportResult {
 	return {
 		...RESULT_BASE,
 		message,
 		outcome: "failed",
-		outputParentDirectory,
+		projectDirectory,
 		projectId,
 		reason,
-		sourceProjectDirectory,
 	};
 }
 
@@ -111,13 +108,13 @@ function mapProjectExportResult({
 			changed: result.changed,
 			contentRelativePath: result.contentRelativePath,
 			contentSha256: result.contentSha256,
-			copiedFileCount: result.copiedFileCount,
 			outcome: "exported",
-			outputDirectory: result.outputDirectory,
 			patchCount: result.patchCount,
+			projectDirectory: result.projectDirectory,
 			projectId,
-			sourceProjectDirectory: result.sourceProjectDirectory,
 			subdraftId: result.subdraftId,
+			transactionId: result.transactionId,
+			warnings: [...result.warnings],
 		};
 	}
 
@@ -138,10 +135,9 @@ function mapProjectExportResult({
 		case "export-failed":
 			return failureResult({
 				message: result.message,
-				outputParentDirectory: result.outputParentDirectory,
+				projectDirectory: result.projectDirectory,
 				projectId,
 				reason: result.reason,
-				sourceProjectDirectory: result.sourceProjectDirectory,
 			});
 	}
 }

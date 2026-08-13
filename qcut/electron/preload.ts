@@ -262,7 +262,7 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke(CAPCUT_8_1_WRITEBACK_RECOVER_CHANNEL, request),
 	},
 	jianyingProjectExport: {
-		chooseJianying113ProjectExportDirectories: () =>
+		chooseJianying113ProjectExportDirectory: () =>
 			ipcRenderer.invoke(JIANYING_11_3_PROJECT_EXPORT_CHOOSE_CHANNEL),
 		commitJianying113ProjectExport: (request) =>
 			ipcRenderer.invoke(JIANYING_11_3_PROJECT_EXPORT_COMMIT_CHANNEL, request),

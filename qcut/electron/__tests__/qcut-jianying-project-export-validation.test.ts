@@ -13,15 +13,15 @@ function exportedResult(): QCutJianyingProjectExportResult {
 		changed: true,
 		contentRelativePath: "subdraft/subdraft-1/draft_content.json",
 		contentSha256: "c".repeat(64),
-		copiedFileCount: 12,
 		outcome: "exported",
-		outputDirectory: "/exports/QCut-copy",
 		patchCount: 4,
+		projectDirectory: "/jianying/registered-project",
 		projectId: "project-1",
 		schema: QCUT_JIANYING_PROJECT_EXPORT_RESULT_SCHEMA,
 		schemaVersion: 1,
-		sourceProjectDirectory: "/jianying/source",
 		subdraftId: "subdraft-1",
+		transactionId: "transaction-1",
+		warnings: [],
 	};
 }
 
@@ -73,12 +73,11 @@ describe("Jianying project export wire validation", () => {
 				value: {
 					message: "Jianying is running.",
 					outcome: "failed",
-					outputParentDirectory: null,
+					projectDirectory: "/jianying/registered-project",
 					projectId: "project-1",
 					reason: "export-failed",
 					schema: QCUT_JIANYING_PROJECT_EXPORT_RESULT_SCHEMA,
 					schemaVersion: 1,
-					sourceProjectDirectory: "/jianying/source",
 				},
 			})
 		).toMatchObject({ outcome: "failed" });
@@ -97,7 +96,7 @@ describe("Jianying project export wire validation", () => {
 		).toThrow("SHA-256");
 		expect(() =>
 			parseQCutJianyingProjectExportResult({
-				value: { ...exportedResult(), copiedFileCount: -1 },
+				value: { ...exportedResult(), patchCount: -1 },
 			})
 		).toThrow("non-negative integer");
 	});

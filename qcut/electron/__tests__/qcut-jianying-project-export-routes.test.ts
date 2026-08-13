@@ -89,7 +89,7 @@ describe("Jianying project export HTTP route", () => {
 			{
 				body: JSON.stringify({
 					projectId: "project-1",
-					outputDirectory: "/private/output",
+					projectDirectory: "/private/registered-project",
 				}),
 				headers: { "Content-Type": "application/json" },
 				method: "POST",

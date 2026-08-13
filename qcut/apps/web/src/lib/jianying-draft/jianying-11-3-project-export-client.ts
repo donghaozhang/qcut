@@ -2,10 +2,10 @@ import type { JianyingProjectExportAPI } from "@/types/electron/api-jianying-pro
 import { readVerifiedEnvelopePayload } from "@/lib/jianying-draft/envelope-key-adapter";
 import type { TProject } from "@/types/project";
 import {
-	JIANYING_11_3_BETA2_PROFILE_ID,
-	prepareJianying113Beta2SameProfileWriteback,
-	type Jianying113Beta2SameProfilePrepareIssue,
-	type Jianying113Beta2WritebackTimingSnapshot,
+	JIANYING_11_3_PROFILE_IDS,
+	prepareJianying113SameProfileWriteback,
+	type Jianying113SameProfilePrepareIssue,
+	type Jianying113WritebackTimingSnapshot,
 } from "@qcut/editor-core/jianying-draft";
 import { encodeBytesAsBase64 } from "./bytes-base64";
 
@@ -17,11 +17,11 @@ export type Jianying113ProjectExportClientResult =
 			changed: boolean;
 			contentRelativePath: string;
 			contentSha256: string;
-			copiedFileCount: number;
-			outputDirectory: string;
 			patchCount: number;
-			sourceProjectDirectory: string;
+			projectDirectory: string;
 			subdraftId: string;
+			transactionId: string;
+			warnings: string[];
 	  }
 	| {
 			ok: false;
@@ -35,9 +35,8 @@ export type Jianying113ProjectExportClientResult =
 				| "directory-selection-failed"
 				| "export-failed";
 			message: string;
-			issues?: Jianying113Beta2SameProfilePrepareIssue[];
-			outputParentDirectory?: string;
-			sourceProjectDirectory?: string;
+			issues?: Jianying113SameProfilePrepareIssue[];
+			projectDirectory?: string;
 	  };
 
 export interface Jianying113ProjectExportClientDeps {
@@ -45,7 +44,7 @@ export interface Jianying113ProjectExportClientDeps {
 	readVerifiedEnvelope?: typeof readVerifiedEnvelopePayload;
 	verifySnapshotCurrent?: (options: {
 		project: TProject;
-		snapshot: Jianying113Beta2WritebackTimingSnapshot;
+		snapshot: Jianying113WritebackTimingSnapshot;
 	}) => Promise<boolean>;
 }
 
@@ -61,18 +60,18 @@ export async function runJianying113ProjectExport({
 }: {
 	deps?: Jianying113ProjectExportClientDeps;
 	project: TProject;
-	snapshot: Jianying113Beta2WritebackTimingSnapshot;
+	snapshot: Jianying113WritebackTimingSnapshot;
 }): Promise<Jianying113ProjectExportClientResult> {
 	const binding = project.draftInterop;
-	if (
-		binding === undefined ||
-		binding.profileId !== JIANYING_11_3_BETA2_PROFILE_ID
-	) {
+	const profileId = JIANYING_11_3_PROFILE_IDS.find(
+		(candidate) => candidate === binding?.profileId
+	);
+	if (binding === undefined || profileId === undefined) {
 		return {
 			ok: false,
 			reason: "project-not-imported",
 			message:
-				"This project is not bound to an exact Jianying Professional 11.3 beta 2 import.",
+				"This project is not bound to an exact supported Jianying Professional 11.3 import.",
 		};
 	}
 	if (binding.baselineDocument === undefined) {
@@ -102,12 +101,12 @@ export async function runJianying113ProjectExport({
 		};
 	}
 
-	// This publishes a new project copy, so it does not require in-place writeback capability.
-	const prepared = prepareJianying113Beta2SameProfileWriteback({
+	const prepared = prepareJianying113SameProfileWriteback({
 		baselineDocument: binding.baselineDocument,
 		bytesByPath: verified.value.bytesByPath,
 		envelope: binding.envelope,
 		internalIdBySemanticId: binding.internalIdBySemanticId,
+		profileId,
 		snapshot,
 	});
 	if (!prepared.ok) {
@@ -128,7 +127,7 @@ export async function runJianying113ProjectExport({
 			message: "Jianying project export requires the QCut desktop app.",
 		};
 	}
-	const selected = await bridge.chooseJianying113ProjectExportDirectories();
+	const selected = await bridge.chooseJianying113ProjectExportDirectory();
 	if (!selected.ok) {
 		return {
 			ok: false,
@@ -151,9 +150,8 @@ export async function runJianying113ProjectExport({
 
 	const committed = await bridge.commitJianying113ProjectExport({
 		contentBase64: encodeBytesAsBase64({ bytes: prepared.contentBytes }),
-		draftName: project.name,
 		expectedSourceSha256: prepared.expectedSourceSha256,
-		profileId: JIANYING_11_3_BETA2_PROFILE_ID,
+		profileId,
 		selectionToken: selected.value.selectionToken,
 	});
 	if (!committed.ok) {
@@ -161,8 +159,7 @@ export async function runJianying113ProjectExport({
 			ok: false,
 			reason: "export-failed",
 			message: committed.error.message,
-			outputParentDirectory: selected.value.outputParentDirectory,
-			sourceProjectDirectory: selected.value.sourceProjectDirectory,
+			projectDirectory: selected.value.projectDirectory,
 		};
 	}
 	return {
@@ -171,10 +168,10 @@ export async function runJianying113ProjectExport({
 		changed: prepared.changed,
 		contentRelativePath: committed.value.contentRelativePath,
 		contentSha256: committed.value.contentSha256,
-		copiedFileCount: committed.value.copiedFileCount,
-		outputDirectory: committed.value.outputDirectory,
 		patchCount: prepared.patches.length,
-		sourceProjectDirectory: selected.value.sourceProjectDirectory,
+		projectDirectory: selected.value.projectDirectory,
 		subdraftId: committed.value.subdraftId,
+		transactionId: committed.value.transactionId,
+		warnings: [...committed.value.warnings],
 	};
 }
