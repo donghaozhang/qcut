@@ -11,7 +11,7 @@ import type { AdjustmentElement, MediaColorSettings } from "@/types/timeline";
 import { MediaMaskOverlay } from "./media-mask-overlay";
 import type { ActiveElement } from "./types";
 
-function lutOnlySettings({
+function pixelColorSettings({
 	settings,
 }: {
 	settings: MediaColorSettings;
@@ -19,10 +19,11 @@ function lutOnlySettings({
 	return {
 		...DEFAULT_MEDIA_COLOR_SETTINGS,
 		lut: settings.lut,
+		multiPass: settings.multiPass,
 	};
 }
 
-export function resolveAdjustmentLutPreviewLayer({
+export function resolveAdjustmentPixelPreviewLayer({
 	element,
 	currentTime,
 	fps,
@@ -32,17 +33,19 @@ export function resolveAdjustmentLutPreviewLayer({
 	fps: number;
 }): BrowserColorGradeLayer | undefined {
 	const settings = resolveMediaColorAtTime({ element, currentTime, fps });
-	if (!settings.enabled || !settings.lut.enabled || !settings.lut.cube) {
+	const hasLut = settings.lut.enabled && Boolean(settings.lut.cube);
+	const hasMultiPass = Boolean(settings.multiPass?.enabled);
+	if (!settings.enabled || (!hasLut && !hasMultiPass)) {
 		return;
 	}
 	return {
-		settings: lutOnlySettings({ settings }),
+		settings: pixelColorSettings({ settings }),
 		masks: element.masks ?? [],
 		opacity: element.opacity ?? 1,
 	};
 }
 
-function resolveLutLayersByElementIndex({
+function resolvePixelLayersByElementIndex({
 	activeElements,
 	currentTime,
 	fps,
@@ -56,7 +59,7 @@ function resolveLutLayersByElementIndex({
 	for (let index = activeElements.length - 1; index >= 0; index--) {
 		const element = activeElements[index].element;
 		if (element.type === "adjustment") {
-			const layer = resolveAdjustmentLutPreviewLayer({
+			const layer = resolveAdjustmentPixelPreviewLayer({
 				element,
 				currentTime,
 				fps,
@@ -89,7 +92,7 @@ export function AdjustmentLayerStack({
 	);
 	const selectedMaskId = useMaskEditorStore((state) => state.selectedMaskId);
 	const isEditingMask = useMaskEditorStore((state) => state.isEditing);
-	const lutLayersByIndex = resolveLutLayersByElementIndex({
+	const pixelLayersByIndex = resolvePixelLayersByElementIndex({
 		activeElements,
 		currentTime,
 		fps,
@@ -99,7 +102,7 @@ export function AdjustmentLayerStack({
 		const elementData = activeElements[index];
 		if (elementData.element.type !== "adjustment") {
 			renderedLayers.push(
-				renderElement(elementData, index, lutLayersByIndex.get(index) ?? [])
+				renderElement(elementData, index, pixelLayersByIndex.get(index) ?? [])
 			);
 			continue;
 		}
