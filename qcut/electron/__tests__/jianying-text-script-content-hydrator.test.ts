@@ -96,6 +96,15 @@ describe("Jianying script content hydration", () => {
 		});
 	});
 
+	it("preserves self-closing font tags when adding a font path", () => {
+		expect(
+			replaceJianyingRichTextFontPaths({
+				richText: '<font id="7001"/>',
+				fontPath: "/private/fonts/title.ttf",
+			})
+		).toBe('<font id="7001" path="/private/fonts/title.ttf"/>');
+	});
+
 	it("fails explicitly when a referenced package is unavailable", () => {
 		expect(() =>
 			hydrateJianyingScriptContent({
