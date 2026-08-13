@@ -11,6 +11,11 @@
 namespace jianying_probe {
 namespace {
 
+struct RuntimeImageIdentity {
+  std::uintptr_t base;
+  std::string uuid;
+};
+
 [[nodiscard]] std::string imageUuid(const void* imageBase) {
   const auto* header = static_cast<const mach_header_64*>(imageBase);
   // dli_fbase is only assumed to be a 64-bit Mach-O header; validate the magic
@@ -42,25 +47,39 @@ namespace {
   return {};
 }
 
-[[nodiscard]] std::uintptr_t checkedImageBase(
-    const AmazerContextScopeRequest& request) {
+[[nodiscard]] RuntimeImageIdentity runtimeImageIdentity(
+    const void* knownImageSymbol) {
   Dl_info image{};
-  if (dladdr(request.knownImageSymbol, &image) == 0 ||
-      image.dli_fbase == nullptr) {
+  if (dladdr(knownImageSymbol, &image) == 0 || image.dli_fbase == nullptr) {
     throw std::runtime_error("cannot identify libcccreator image");
   }
 
-  const std::string loadedUuid = imageUuid(image.dli_fbase);
-  if (loadedUuid != request.expectedImageUuid) {
+  return {
+      .base = reinterpret_cast<std::uintptr_t>(image.dli_fbase),
+      .uuid = imageUuid(image.dli_fbase),
+  };
+}
+
+[[nodiscard]] std::uintptr_t checkedImageBase(
+    const AmazerContextScopeRequest& request) {
+  const RuntimeImageIdentity identity =
+      runtimeImageIdentity(request.knownImageSymbol);
+
+  if (identity.uuid != request.expectedImageUuid) {
     throw std::runtime_error(
-        "libcccreator UUID " + loadedUuid + " does not match verified UUID " +
+        "libcccreator UUID " + identity.uuid +
+        " does not match verified UUID " +
         std::string(request.expectedImageUuid));
   }
-  std::cout << "[identity] libcccreator.dylib " << loadedUuid << '\n';
-  return reinterpret_cast<std::uintptr_t>(image.dli_fbase);
+  std::cout << "[identity] libcccreator.dylib " << identity.uuid << '\n';
+  return identity.base;
 }
 
 }  // namespace
+
+std::string runtimeImageUuid(const void* knownImageSymbol) {
+  return runtimeImageIdentity(knownImageSymbol).uuid;
+}
 
 void verifyRuntimeImage(const void* knownImageSymbol,
                         std::string_view expectedImageUuid) {
