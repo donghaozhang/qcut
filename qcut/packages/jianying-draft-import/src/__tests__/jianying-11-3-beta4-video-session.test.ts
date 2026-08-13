@@ -89,7 +89,7 @@ describe("Jianying 11.3 beta4 adjacent video import session", () => {
 								keyframes: {
 									x: [
 										{ frame: 0, value: 0 },
-										{ frame: 60, value: 50 },
+										{ frame: 60, value: 25 },
 									],
 									y: [
 										{ frame: 0, value: 0 },
@@ -101,7 +101,7 @@ describe("Jianying 11.3 beta4 adjacent video import session", () => {
 								trimEnd: 0,
 								trimStart: 0,
 								type: "media",
-								x: 50,
+								x: 25,
 								y: 0,
 							},
 							{

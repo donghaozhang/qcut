@@ -9,6 +9,7 @@ import {
 	JIANYING_11_3_PROJECT_EXPORT_CHOOSE_CHANNEL,
 	JIANYING_11_3_PROJECT_EXPORT_COMMIT_CHANNEL,
 	JIANYING_11_3_PROJECT_EXPORT_PROFILE_IDS,
+	type Jianying113ProjectExportCommitDto,
 } from "../jianying-project-export-contract.js";
 import { JianyingAppRunningError } from "../jianying-target-app-guard.js";
 
@@ -73,8 +74,18 @@ function getHandler({
 	) => Promise<unknown>;
 }
 
+type ProjectExportRuntimeWrite = (options: {
+	assertTargetAppClosed: (context: {
+		projectDirectory: string;
+	}) => Promise<void>;
+	contentBytes: Uint8Array;
+	expectedSourceSha256: string;
+	profileId: string;
+	projectDirectory: string;
+}) => Promise<Jianying113ProjectExportCommitDto>;
+
 function createRuntime() {
-	const write = vi.fn(async () => ({
+	const write = vi.fn<ProjectExportRuntimeWrite>(async () => ({
 		contentRelativePath: "subdraft/subdraft-1/draft_content.json",
 		contentSha256: "b".repeat(64),
 		profileId: JIANYING_11_3_BETA3_PROFILE_ID,

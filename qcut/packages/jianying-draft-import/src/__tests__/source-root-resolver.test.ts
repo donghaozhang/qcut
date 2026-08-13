@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { discoverDraftDirectory } from "../discovery.js";
+import { resolveDraftSourceRoot } from "../source-root-resolver.js";
 
 let projectRoot: string;
 
@@ -121,6 +122,29 @@ describe("Jianying source root resolution", () => {
 			role: "content",
 			byteLength: expect.any(Number),
 		});
+	});
+
+	it("flags a truncated subdraft scan instead of silently falling back", async () => {
+		await createMultiTimelineProject({
+			subdraftIds: ["compound-1", "compound-2"],
+		});
+
+		const result = await resolveDraftSourceRoot({
+			rootRealPath: projectRoot,
+			maxEntries: 1,
+		});
+
+		expect(result).toMatchObject({
+			rootRealPath: projectRoot,
+			sourceScope: "selected-directory",
+			subdraftCandidateCount: 0,
+		});
+		expect(result.issues).toEqual([
+			expect.objectContaining({
+				code: "SOURCE_FILE_TOO_LARGE",
+				severity: "warning",
+			}),
+		]);
 	});
 
 	it("does not guess when more than one compound subdraft exists", async () => {

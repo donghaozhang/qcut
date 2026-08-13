@@ -311,10 +311,9 @@ function parseFontFamily({
 	material: Record<string, unknown>;
 	style: Record<string, unknown>;
 }): string {
-	const direct = readString(style.font);
-	if (direct !== undefined) return direct;
 	const font = isRecord(style.font) ? style.font : undefined;
 	const candidates = [
+		style.font,
 		font?.family,
 		font?.name,
 		font?.title,
@@ -323,7 +322,13 @@ function parseFontFamily({
 	];
 	for (const candidate of candidates) {
 		const family = readString(candidate)?.trim();
-		if (family !== undefined && family.toLowerCase() !== "none") return family;
+		if (
+			family !== undefined &&
+			family.length > 0 &&
+			family.toLowerCase() !== "none"
+		) {
+			return family;
+		}
 	}
 	return "Arial";
 }

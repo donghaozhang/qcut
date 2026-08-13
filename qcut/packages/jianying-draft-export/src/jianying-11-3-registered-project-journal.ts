@@ -8,6 +8,7 @@ import {
 	Jianying113RegisteredProjectWritebackError,
 } from "./jianying-11-3-registered-project-contract.js";
 import {
+	CONTENT_RELATIVE_PATH_PATTERN,
 	readRegularFile,
 	SHA256_PATTERN,
 	writeExclusiveFile,
@@ -18,8 +19,6 @@ export const JOURNAL_SCHEMA =
 	"qcut.jianying-11.3.registered-project-writeback-journal";
 const UUID_PATTERN =
 	/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
-const CONTENT_RELATIVE_PATH_PATTERN =
-	/^subdraft\/([^/]+)\/draft_content\.json$/u;
 
 export interface Jianying113WritebackJournalV1 {
 	committed: boolean;

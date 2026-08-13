@@ -9,7 +9,6 @@ import {
 } from "../../types/qcut-jianying-project-export-validation.js";
 import {
 	requireAllowedKeys,
-	requireRecord,
 	requireString,
 } from "../../types/strict-json-validation.js";
 import { generateId } from "../utils/helpers.js";
@@ -27,10 +26,10 @@ function parseRendererResponse({
 	requestId: string;
 	value: unknown;
 }): { matched: false } | { matched: true; error?: string; result?: unknown } {
-	const record = requireRecord({
-		label: "Jianying project export renderer response",
-		value,
-	});
+	if (typeof value !== "object" || value === null || Array.isArray(value)) {
+		return { matched: false };
+	}
+	const record = value as Record<string, unknown>;
 	if (record.requestId !== requestId) return { matched: false };
 	requireAllowedKeys({
 		allowedKeys: ["error", "requestId", "result"],

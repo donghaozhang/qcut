@@ -120,16 +120,34 @@ function createBeta4TextWrapper({
 function normalizeBeta4Text({
 	animationEntries,
 	includeDecorativeEffect,
+	styleFont,
 }: {
 	animationEntries?: unknown[];
 	includeDecorativeEffect?: boolean;
+	styleFont?: unknown;
 } = {}) {
 	const content = createBeta4TextWrapper({
 		...(animationEntries === undefined ? {} : { animationEntries }),
 		...(includeDecorativeEffect === undefined
 			? {}
 			: { includeDecorativeEffect }),
-	});
+	}) as CompoundFixture & Record<string, unknown>;
+	if (styleFont !== undefined) {
+		const inner = content.materials.drafts[0]?.draft as {
+			materials?: { texts?: Array<Record<string, unknown>> };
+		};
+		const textMaterial = inner.materials?.texts?.[0];
+		if (textMaterial === undefined) {
+			throw new Error("fixture has no text material");
+		}
+		const parsedContent = JSON.parse(textMaterial.content as string) as {
+			styles: Array<Record<string, unknown>>;
+		};
+		const style = parsedContent.styles[0];
+		if (style === undefined) throw new Error("fixture has no text style");
+		style.font = styleFont;
+		textMaterial.content = JSON.stringify(parsedContent);
+	}
 	const bytes = encodeJianyingCompoundContent({ content });
 	return normalizeRawDraft({
 		content,
@@ -198,6 +216,18 @@ describe("Jianying 11.3 beta4 static text import", () => {
 				],
 			},
 		]);
+	});
+
+	it('falls back to Arial for a direct "none" style font string', () => {
+		const result = normalizeBeta4Text({ styleFont: " None " });
+		const segment = result.document.timelines[0]?.tracks[0]?.segments[0];
+		expect(segment?.text).toMatchObject({ fontFamily: "Arial" });
+	});
+
+	it("trims a padded direct style font string", () => {
+		const result = normalizeBeta4Text({ styleFont: " Custom Font " });
+		const segment = result.document.timelines[0]?.tracks[0]?.segments[0];
+		expect(segment?.text).toMatchObject({ fontFamily: "Custom Font" });
 	});
 
 	it("keeps real animation payloads opaque", () => {

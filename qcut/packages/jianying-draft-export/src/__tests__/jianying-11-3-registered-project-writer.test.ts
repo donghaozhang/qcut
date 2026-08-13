@@ -287,6 +287,53 @@ describe("Jianying 11.3 registered-project writer", () => {
 		).toEqual([]);
 	});
 
+	it("recovers an interrupted active-subdraft transaction", async () => {
+		const fixture = await createActiveProject();
+		const preparedBytes = contentBytes({
+			appVersion: JIANYING_11_3_BETA4_APP_VERSION,
+			startUs: 400_000,
+		});
+		let appOpen = false;
+		const appGuard = async (): Promise<void> => {
+			if (appOpen) throw new Error("Jianying is running");
+		};
+
+		await expect(
+			writeJianying113RegisteredProjectContent({
+				assertTargetAppClosed: appGuard,
+				contentBytes: preparedBytes,
+				expectedSourceSha256: sha256({ bytes: fixture.originalBytes }),
+				instrumentation: {
+					afterContentReplaced: () => {
+						appOpen = true;
+					},
+				},
+				profileId: JIANYING_11_3_BETA4_PROFILE_ID,
+				projectDirectory,
+			})
+		).rejects.toMatchObject({ code: "RECOVERY_REQUIRED" });
+		appOpen = false;
+
+		// The journal recorded the id-less active path
+		// "subdraft/draft_content.json"; recovery must read it back and roll
+		// the active mirror back instead of rejecting its own journal.
+		const recovery = await recoverJianying113RegisteredProjectWriteback({
+			assertTargetAppClosed: appGuard,
+			projectDirectory,
+		});
+
+		expect(recovery.action).toBe("rolled-back");
+		expect(await readFile(fixture.activeContentPath)).toEqual(
+			Buffer.from(fixture.originalBytes)
+		);
+		expect(await readFile(fixture.staticContentPath)).toEqual(
+			Buffer.from(fixture.staticBytes)
+		);
+		expect(
+			await listQCutArtifacts({ contentPath: fixture.activeContentPath })
+		).toEqual([]);
+	});
+
 	it("retains recovery state if Jianying opens after replacement", async () => {
 		const fixture = await createProject();
 		const preparedBytes = contentBytes({ startUs: 1_000_000 });

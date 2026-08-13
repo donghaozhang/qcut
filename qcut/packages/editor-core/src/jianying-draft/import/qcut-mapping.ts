@@ -195,11 +195,14 @@ function mapMediaSegment({
 			: usToSeconds(resource.durationUs);
 	const trimEnd = Math.max(0, intrinsicSeconds - trimStart - sourceSeconds);
 	const visualKeyframes = segment.visual?.keyframes;
+	// Compute frames in the integer domain: usToSeconds(t) * fps can land on
+	// a near-integer (e.g. 4_100_000µs at 30fps → 122.99999999999999) and
+	// falsely reject frame-aligned keyframes the beta4 mapper accepted.
 	for (const keyframes of Object.values(visualKeyframes ?? {})) {
 		if (
 			keyframes?.some(
 				({ timeOffsetUs }) =>
-					!Number.isSafeInteger(usToSeconds(timeOffsetUs) * fps)
+					!Number.isSafeInteger((timeOffsetUs * fps) / MICROSECONDS_PER_SECOND)
 			)
 		) {
 			skipped.push({
@@ -214,7 +217,7 @@ function mapMediaSegment({
 	const toPlanKeyframes = ({ property }: { property: "x" | "y" }) =>
 		visualKeyframes?.[property]?.map((keyframe) => ({
 			id: keyframe.id,
-			frame: usToSeconds(keyframe.timeOffsetUs) * fps,
+			frame: (keyframe.timeOffsetUs * fps) / MICROSECONDS_PER_SECOND,
 			value: keyframe.value,
 			easing: keyframe.easing,
 		}));

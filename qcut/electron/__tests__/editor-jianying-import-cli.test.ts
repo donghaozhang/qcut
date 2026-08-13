@@ -507,6 +507,7 @@ describe("live Jianying import CLI transport", () => {
 				warningFingerprints: ["a".repeat(64)],
 			},
 		});
+		const abortController = new AbortController();
 		const result = await executeLiveJianyingImportCommand({
 			client,
 			options: makeOpts({
@@ -515,6 +516,7 @@ describe("live Jianying import CLI transport", () => {
 				draftPaths: ["/drafts/my-draft"],
 				format: "jianying",
 			}),
+			signal: abortController.signal,
 		});
 
 		expect(client.post).toHaveBeenCalledWith(
@@ -523,7 +525,7 @@ describe("live Jianying import CLI transport", () => {
 				acceptedWarningFingerprints: ["a".repeat(64)],
 				draftPath: "/drafts/my-draft",
 			},
-			{ timeout: 30 * 60 * 1000 }
+			{ signal: abortController.signal, timeout: 30 * 60 * 1000 }
 		);
 		expect(result).toMatchObject({
 			success: true,

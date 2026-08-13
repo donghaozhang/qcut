@@ -8,6 +8,7 @@ import {
 	inspectJianying113ProjectSource,
 	type Jianying113ProjectSource,
 } from "./jianying-11-3-project-source.js";
+import { syncDirectories } from "./jianying-11-3-registered-project-transaction.js";
 
 const COPY_WORKERS = 4;
 const COPY_BUFFER_BYTES = 1024 * 1024;
@@ -191,20 +192,6 @@ async function copyProjectFiles({
 	);
 }
 
-async function syncDirectory({
-	directory,
-}: {
-	directory: string;
-}): Promise<void> {
-	let handle: Awaited<ReturnType<typeof open>> | undefined;
-	try {
-		handle = await open(directory, constants.O_RDONLY);
-		await handle.sync();
-	} finally {
-		await handle?.close().catch(() => undefined);
-	}
-}
-
 export async function writeJianying113ProjectExport({
 	assertTargetAppClosed,
 	contentBytes,
@@ -289,9 +276,11 @@ export async function writeJianying113ProjectExport({
 			outputParentDirectory: outputParentRealPath,
 			sourceProjectDirectory: source.projectRootRealPath,
 		});
-		await syncDirectory({ directory: stagingDirectory });
+		// syncDirectories tolerates platforms that reject directory fsync
+		// (Windows EPERM/EISDIR) instead of failing the whole export.
+		await syncDirectories({ directories: [stagingDirectory] });
 		await rename(stagingDirectory, finalDirectory);
-		await syncDirectory({ directory: outputParentRealPath });
+		await syncDirectories({ directories: [outputParentRealPath] });
 		return {
 			contentRelativePath: source.contentRelativePath,
 			contentSha256,

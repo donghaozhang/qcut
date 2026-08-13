@@ -149,12 +149,12 @@ describe("Jianying 11.3 beta4 adjacent video import", () => {
 		expect(result.document.timelines[0]?.tracks[0]?.segments[0]).toMatchObject({
 			capability: "exact",
 			visual: {
-				xPx: 50,
+				xPx: 25,
 				yPx: 0,
 				keyframes: {
 					x: [
 						{ id: "position-x-start", timeOffsetUs: 0, value: 0 },
-						{ id: "position-x-end", timeOffsetUs: 2_000_000, value: 50 },
+						{ id: "position-x-end", timeOffsetUs: 2_000_000, value: 25 },
 					],
 					y: [
 						{ id: "position-y-start", timeOffsetUs: 0, value: 0 },
@@ -167,16 +167,49 @@ describe("Jianying 11.3 beta4 adjacent video import", () => {
 
 		const plan = mapInteropDocumentToQCutPlan({ document: result.document });
 		expect(plan.tracks[0]?.elements[0]).toMatchObject({
-			x: 50,
+			x: 25,
 			y: 0,
 			keyframes: {
 				x: [
 					{ frame: 0, value: 0, easing: "linear" },
-					{ frame: 60, value: 50, easing: "linear" },
+					{ frame: 60, value: 25, easing: "linear" },
 				],
 				y: [
 					{ frame: 0, value: 0, easing: "linear" },
 					{ frame: 60, value: 0, easing: "linear" },
+				],
+			},
+		});
+	});
+
+	it("accepts frame-aligned keyframe times that are inexact in float seconds", () => {
+		const content = createJianying113Beta4AdjacentVideoFixture();
+		addBeta4LinearPositionXKeyframes({ content });
+		const result = normalizeFixture({ content });
+		const segment = result.document.timelines[0]?.tracks[0]?.segments[0];
+		if (segment?.visual?.keyframes === undefined) {
+			throw new Error("normalized fixture has no visual keyframes");
+		}
+		// 4_100_000µs at 30fps is frame 123 exactly in the integer domain, but
+		// usToSeconds(4_100_000) * 30 === 122.99999999999999 in float64. The
+		// in-segment bound is the beta4 mapper's concern; this exercises the
+		// plan mapper's frame-grid gate in isolation.
+		for (const channel of [
+			segment.visual.keyframes.x,
+			segment.visual.keyframes.y,
+		]) {
+			const last = channel?.[channel.length - 1];
+			if (last === undefined) throw new Error("channel has no keyframes");
+			last.timeOffsetUs = 4_100_000;
+		}
+
+		const plan = mapInteropDocumentToQCutPlan({ document: result.document });
+		expect(plan.skipped).toEqual([]);
+		expect(plan.tracks[0]?.elements[0]).toMatchObject({
+			keyframes: {
+				x: [
+					{ frame: 0, value: 0, easing: "linear" },
+					{ frame: 123, value: 25, easing: "linear" },
 				],
 			},
 		});
@@ -273,6 +306,40 @@ describe("Jianying 11.3 beta4 adjacent video import", () => {
 		expect(
 			mapInteropDocumentToQCutPlan({ document: result.document }).resourceIds
 		).toEqual(["second-video"]);
+	});
+
+	it("keeps channels with mismatched keyframe counts opaque", () => {
+		const content = createJianying113Beta4AdjacentVideoFixture();
+		addBeta4LinearPositionXKeyframes({ content });
+		const first = readInnerSegments({ content })[0];
+		if (first === undefined) throw new Error("fixture has no first segment");
+		const groups = first.common_keyframes as Array<{
+			keyframe_list: Array<Record<string, unknown>>;
+		}>;
+		const yKeyframes = groups[1]?.keyframe_list;
+		if (yKeyframes === undefined) throw new Error("fixture has no Y channel");
+		// An extra Y keyframe whose X-prefix times still match must fail closed.
+		yKeyframes.push({
+			curveType: "Line",
+			graphID: "",
+			id: "position-y-extra",
+			left_control: { x: 0, y: 0 },
+			right_control: { x: 0, y: 0 },
+			string_value: "",
+			time_offset: 2_500_000,
+			values: [0],
+		});
+
+		const result = normalizeFixture({ content });
+		expect(result.document.timelines[0]?.tracks[0]?.segments).toMatchObject([
+			{ id: "first-segment", capability: "opaque" },
+			{ id: "second-segment", capability: "exact" },
+		]);
+		expect(
+			result.document.issues.some(({ message }) =>
+				message.includes("position keyframes")
+			)
+		).toBe(true);
 	});
 
 	it("keeps cropped media and active companion processing opaque", () => {

@@ -174,25 +174,28 @@ describe("Jianying 11.3 beta 2 same-profile preparation", () => {
 		});
 		const snapshot = createSnapshot();
 		snapshot.tracks[0].order = 1;
-		snapshot.tracks.push({
-			id: "qcut-track-2",
-			name: "Video 2",
-			type: "media",
-			order: 0,
-			elements: [
-				{
-					id: "qcut-segment-2",
-					type: "media",
-					mediaId: "qcut-resource-2",
-					name: "calibration-2.mp4",
-					duration: 3,
-					startTime: 0,
-					trimStart: 0,
-					trimEnd: 0,
-					playbackRate: 1,
-				},
-			],
-		});
+		snapshot.tracks = [
+			...snapshot.tracks,
+			{
+				id: "qcut-track-2",
+				name: "Video 2",
+				type: "media",
+				order: 0,
+				elements: [
+					{
+						id: "qcut-segment-2",
+						type: "media",
+						mediaId: "qcut-resource-2",
+						name: "calibration-2.mp4",
+						duration: 3,
+						startTime: 0,
+						trimStart: 0,
+						trimEnd: 0,
+						playbackRate: 1,
+					},
+				],
+			},
+		];
 		snapshot.timelineDurationByElementId = {
 			...snapshot.timelineDurationByElementId,
 			"qcut-segment-2": 3,
@@ -247,23 +250,26 @@ describe("Jianying 11.3 beta 2 same-profile preparation", () => {
 
 	it("blocks QCut structure additions instead of deleting unknown Jianying data", () => {
 		const snapshot = createSnapshot();
-		snapshot.tracks.push({
-			id: "qcut-added-track",
-			name: "Added",
-			type: "media",
-			elements: [
-				{
-					id: "qcut-added-segment",
-					type: "media",
-					mediaId: INTERNAL_RESOURCE_ID,
-					name: "added.mp4",
-					duration: 1,
-					startTime: 0,
-					trimStart: 0,
-					trimEnd: 0,
-				},
-			],
-		});
+		snapshot.tracks = [
+			...snapshot.tracks,
+			{
+				id: "qcut-added-track",
+				name: "Added",
+				type: "media",
+				elements: [
+					{
+						id: "qcut-added-segment",
+						type: "media",
+						mediaId: INTERNAL_RESOURCE_ID,
+						name: "added.mp4",
+						duration: 1,
+						startTime: 0,
+						trimStart: 0,
+						trimEnd: 0,
+					},
+				],
+			},
+		];
 
 		expect(prepare({ snapshot }).result).toMatchObject({
 			ok: false,

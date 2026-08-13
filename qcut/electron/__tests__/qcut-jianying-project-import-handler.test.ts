@@ -119,6 +119,15 @@ describe("Jianying project import main-process handler", () => {
 			ipcListeners.get(JIANYING_PROJECT_IMPORT_RESPONSE_CHANNEL)?.size
 		).toBe(1);
 		emitResponse({
+			args: [{ sender: webContents, senderFrame: mainFrame }, "not-a-record"],
+		});
+		emitResponse({
+			args: [
+				{ sender: webContents, senderFrame: mainFrame },
+				{ requestId: "unrelated-request", result: result() },
+			],
+		});
+		emitResponse({
 			args: [
 				{ sender: webContents, senderFrame: mainFrame },
 				{ requestId: sent.data.requestId, result: result() },

@@ -474,20 +474,23 @@ export async function executeJianyingImportCommand({
 export async function handleJianyingImportCommand({
 	client,
 	options,
+	signal,
 }: {
 	client: EditorApiClient;
 	options: CLIRunOptions;
 	signal?: AbortSignal;
 }): Promise<CLIResult> {
-	return routeJianyingImportCommand({ client, options });
+	return routeJianyingImportCommand({ client, options, signal });
 }
 
 export async function executeLiveJianyingImportCommand({
 	client,
 	options,
+	signal,
 }: {
 	client: EditorApiClient;
 	options: CLIRunOptions;
+	signal?: AbortSignal;
 }): Promise<CLIResult> {
 	try {
 		requireJianyingFormat({ value: options.format });
@@ -503,7 +506,7 @@ export async function executeLiveJianyingImportCommand({
 						options.acceptedWarningFingerprints ?? [],
 					draftPath,
 				},
-				{ timeout: LIVE_IMPORT_TIMEOUT_MS }
+				{ signal, timeout: LIVE_IMPORT_TIMEOUT_MS }
 			),
 		});
 		if (result.outcome !== "imported") {
@@ -529,6 +532,7 @@ export async function executeLiveJianyingImportCommand({
 type ExecuteImportCommand = (options: {
 	client: EditorApiClient;
 	options: CLIRunOptions;
+	signal?: AbortSignal;
 }) => Promise<CLIResult>;
 
 export async function routeJianyingImportCommand({
@@ -536,15 +540,17 @@ export async function routeJianyingImportCommand({
 	executeLive = executeLiveJianyingImportCommand,
 	executeOffline = ({ options }) => executeJianyingImportCommand({ options }),
 	options,
+	signal,
 }: {
 	client: EditorApiClient;
 	executeLive?: ExecuteImportCommand;
 	executeOffline?: ExecuteImportCommand;
 	options: CLIRunOptions;
+	signal?: AbortSignal;
 }): Promise<CLIResult> {
 	const action = options.command.split(":")[2] ?? "";
 	if (action === "import" && (await client.checkHealth())) {
-		return executeLive({ client, options });
+		return executeLive({ client, options, signal });
 	}
 	return executeOffline({ client, options });
 }

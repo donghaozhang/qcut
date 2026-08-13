@@ -688,6 +688,19 @@ function parseMediaVisual({
 		record.keyframes === undefined
 			? undefined
 			: asRecord({ value: record.keyframes, path: `${path}/keyframes` });
+	if (keyframesRecord !== undefined) {
+		// Unknown channels (scale, rotation, …) must fail closed rather than
+		// silently drop: semantic diffing only compares x/y and would never
+		// detect the loss. Mirrors parsePlanMediaKeyframes.
+		for (const key of Object.keys(keyframesRecord)) {
+			if (key !== "x" && key !== "y") {
+				fail({
+					message: "unsupported media keyframe property",
+					path: `${path}/keyframes`,
+				});
+			}
+		}
+	}
 	const parseProperty = ({ property }: { property: "x" | "y" }) => {
 		const entries = keyframesRecord?.[property];
 		return entries === undefined

@@ -25,7 +25,10 @@ const MAX_CONTENT_BYTES = 64 * 1024 * 1024;
 const JIANYING_LOCK_FILE_NAME = ".locked";
 export const QCUT_LOCK_FILE_NAME = ".qcut-jianying-writeback.lock";
 export const SHA256_PATTERN = /^[0-9a-f]{64}$/u;
-const CONTENT_RELATIVE_PATH_PATTERN =
+// Shared with the journal module: both id-named and ACTIVE (id-less)
+// subdraft content paths are first-class, so a journal recorded for an
+// active-subdraft transaction must stay readable during recovery.
+export const CONTENT_RELATIVE_PATH_PATTERN =
 	/^subdraft\/(?:[^/]+\/)?draft_content\.json$/u;
 
 export interface FileIdentity {

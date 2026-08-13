@@ -87,6 +87,11 @@ interface SubdraftCandidate {
 	rootRealPath: string;
 }
 
+interface SubdraftCandidateScan {
+	candidates: SubdraftCandidate[];
+	truncated: boolean;
+}
+
 async function hasActiveSubdraftContent({
 	projectRoot,
 }: {
@@ -103,11 +108,13 @@ async function findSubdraftCandidates({
 }: {
 	projectRoot: string;
 	maxEntries: number;
-}): Promise<SubdraftCandidate[]> {
+}): Promise<SubdraftCandidateScan> {
 	const subdraftRoot = join(projectRoot, "subdraft");
-	if (!(await isDirectory({ absolutePath: subdraftRoot }))) return [];
+	if (!(await isDirectory({ absolutePath: subdraftRoot }))) {
+		return { candidates: [], truncated: false };
+	}
 	const entries = await readdir(subdraftRoot, { withFileTypes: true });
-	if (entries.length > maxEntries) return [];
+	if (entries.length > maxEntries) return { candidates: [], truncated: true };
 	const directories = entries.filter(
 		(entry) => entry.isDirectory() && !entry.isSymbolicLink()
 	);
@@ -126,13 +133,16 @@ async function findSubdraftCandidates({
 			return { id: entry.name, rootRealPath: candidateRoot };
 		})
 	);
-	return candidates
-		.filter(
-			(candidate): candidate is SubdraftCandidate => candidate !== undefined
-		)
-		.sort((left, right) =>
-			left.id < right.id ? -1 : left.id > right.id ? 1 : 0
-		);
+	return {
+		candidates: candidates
+			.filter(
+				(candidate): candidate is SubdraftCandidate => candidate !== undefined
+			)
+			.sort((left, right) =>
+				left.id < right.id ? -1 : left.id > right.id ? 1 : 0
+			),
+		truncated: false,
+	};
 }
 
 async function resolveDirectSubdraftProjectRoot({
@@ -190,7 +200,7 @@ export async function resolveDraftSourceRoot({
 		};
 	}
 
-	const candidates = await findSubdraftCandidates({
+	const { candidates, truncated } = await findSubdraftCandidates({
 		projectRoot: rootRealPath,
 		maxEntries,
 	});
@@ -199,7 +209,15 @@ export async function resolveDraftSourceRoot({
 			rootRealPath,
 			sourceScope: "selected-directory",
 			subdraftCandidateCount: candidates.length,
-			issues: [],
+			issues: truncated
+				? [
+						{
+							code: "SOURCE_FILE_TOO_LARGE",
+							severity: "warning",
+							message: `The subdraft directory exceeds the ${maxEntries}-entry scan limit; importing the selected directory instead of a compound subdraft.`,
+						},
+					]
+				: [],
 		};
 	}
 

@@ -117,6 +117,11 @@ export function createRouter(): Router {
 		data: Record<string, unknown>;
 		meta?: RouteResponseMeta;
 	}) {
+		// A socket-timeout 408 (or the handler itself) may have already
+		// responded; writing again would throw ERR_HTTP_HEADERS_SENT.
+		if (res.writableEnded || res.headersSent) {
+			return;
+		}
 		let correlationId = meta?.correlationId;
 		try {
 			correlationId = correlationId ?? (generateId("corr") as CorrelationId);

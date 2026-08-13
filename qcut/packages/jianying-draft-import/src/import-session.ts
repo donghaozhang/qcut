@@ -602,7 +602,13 @@ export class JianyingDraftImportSession {
 			...normalized.document,
 			issues: [...discovery.issues, ...normalized.document.issues],
 		};
-		inspect.issues = [...snapshot.issues, ...document.issues];
+		// Stage order (discovery → snapshot → normalization), matching the
+		// early-return branch; document.issues already embeds discovery's.
+		inspect.issues = [
+			...discovery.issues,
+			...snapshot.issues,
+			...normalized.document.issues,
+		];
 		inspect.semantic = {
 			trackCount: document.timelines.reduce(
 				(total, timeline) => total + timeline.tracks.length,

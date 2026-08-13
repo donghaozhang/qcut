@@ -6,7 +6,9 @@ import { parseQCutJianyingProjectImportRequest } from "../../types/qcut-jianying
 import type { Router } from "../utils/http-router.js";
 import { HttpError } from "../utils/http-router.js";
 
-const ROUTE_TIMEOUT_MS = 30 * 60 * 1000;
+export const JIANYING_PROJECT_IMPORT_ROUTE_PATH =
+	"/api/claude/interop/jianying-project-import";
+export const JIANYING_PROJECT_IMPORT_ROUTE_TIMEOUT_MS = 30 * 60 * 1000;
 
 export function registerQCutJianyingProjectImportRoutes(
 	router: Router,
@@ -17,7 +19,7 @@ export function registerQCutJianyingProjectImportRoutes(
 		timeoutMs?: number;
 	}
 ): void {
-	router.post("/api/claude/interop/jianying-project-import", async (req) => {
+	router.post(JIANYING_PROJECT_IMPORT_ROUTE_PATH, async (req) => {
 		let request: QCutJianyingProjectImportRequest;
 		try {
 			request = parseQCutJianyingProjectImportRequest({ value: req.body });
@@ -37,7 +39,7 @@ export function registerQCutJianyingProjectImportRoutes(
 					timer = setTimeout(
 						() =>
 							reject(new HttpError(504, "Renderer Jianying import timed out.")),
-						options.timeoutMs ?? ROUTE_TIMEOUT_MS
+						options.timeoutMs ?? JIANYING_PROJECT_IMPORT_ROUTE_TIMEOUT_MS
 					);
 				}),
 			]);

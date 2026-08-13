@@ -62,9 +62,17 @@ import { registerQCutImportEvidenceRoutes } from "./claude-http-import-evidence-
 import { requestQCutImportEvidenceFromRenderer } from "../handlers/qcut-import-evidence-handler.js";
 import { registerQCutSameProfileWritebackRoutes } from "./claude-http-same-profile-writeback-routes.js";
 import { requestQCutSameProfileWritebackFromRenderer } from "../handlers/qcut-same-profile-writeback-handler.js";
-import { registerQCutJianyingProjectImportRoutes } from "./claude-http-jianying-project-import-routes.js";
+import {
+	JIANYING_PROJECT_IMPORT_ROUTE_PATH,
+	JIANYING_PROJECT_IMPORT_ROUTE_TIMEOUT_MS,
+	registerQCutJianyingProjectImportRoutes,
+} from "./claude-http-jianying-project-import-routes.js";
 import { requestQCutJianyingProjectImportFromRenderer } from "../handlers/qcut-jianying-project-import-handler.js";
-import { registerQCutJianyingProjectExportRoutes } from "./claude-http-jianying-project-export-routes.js";
+import {
+	JIANYING_PROJECT_EXPORT_ROUTE_PATH,
+	JIANYING_PROJECT_EXPORT_ROUTE_TIMEOUT_MS,
+	registerQCutJianyingProjectExportRoutes,
+} from "./claude-http-jianying-project-export-routes.js";
 import { requestQCutJianyingProjectExportFromRenderer } from "../handlers/qcut-jianying-project-export-handler.js";
 import { registerSnapshotRoutes } from "./claude-http-snapshot-routes.js";
 import { registerAgentPointerRoutes } from "./claude-http-pointer-routes.js";
@@ -100,6 +108,19 @@ import { getAuthToken, setAuthToken } from "../../license-handler.js";
 import { authorizeClaudeHttpRequest } from "./claude-http-auth.js";
 
 let server: Server | null = null;
+
+const REQUEST_TIMEOUT_MS = 30_000;
+const LONG_RUNNING_ROUTE_PATHS = new Set([
+	JIANYING_PROJECT_IMPORT_ROUTE_PATH,
+	JIANYING_PROJECT_EXPORT_ROUTE_PATH,
+]);
+// The extra minute keeps the route-level 504 authoritative: the socket-level
+// 408 must never fire before the route's own deadline.
+const LONG_RUNNING_REQUEST_TIMEOUT_MS =
+	Math.max(
+		JIANYING_PROJECT_IMPORT_ROUTE_TIMEOUT_MS,
+		JIANYING_PROJECT_EXPORT_ROUTE_TIMEOUT_MS
+	) + 60_000;
 
 /**
  * Get the first available BrowserWindow or throw 503
@@ -439,8 +460,12 @@ export function startClaudeHTTPServer(
 			return;
 		}
 
-		// 30s request timeout
-		req.setTimeout(30_000, () => {
+		const requestPath = (req.url ?? "").split("?")[0] ?? "";
+		const requestTimeoutMs = LONG_RUNNING_ROUTE_PATHS.has(requestPath)
+			? LONG_RUNNING_REQUEST_TIMEOUT_MS
+			: REQUEST_TIMEOUT_MS;
+		req.setTimeout(requestTimeoutMs, () => {
+			if (res.writableEnded || res.headersSent) return;
 			res.writeHead(408, {
 				"Content-Type": "application/json",
 				"X-Correlation-Id": requestCorrelationId,

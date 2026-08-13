@@ -159,6 +159,7 @@ export function mapBeta4PositionKeyframes({
 	if (
 		x === undefined ||
 		y === undefined ||
+		x.timeOffsetsUs.length !== y.timeOffsetsUs.length ||
 		x.timeOffsetsUs.some(
 			(timeOffsetUs, index) => timeOffsetUs !== y.timeOffsetsUs[index]
 		) ||
@@ -171,16 +172,18 @@ export function mapBeta4PositionKeyframes({
 		return { kind: "unsupported" };
 	}
 
+	// JianYing normalized positions are in half-canvas units (the
+	// clip.transform convention; the app UI displays value * canvasWidth).
 	const scaleX = ({ keyframe }: { keyframe: InteropVisualKeyframe }) => ({
 		...keyframe,
-		value: keyframe.value * canvasWidth,
+		value: (keyframe.value * canvasWidth) / 2,
 	});
 	return {
 		kind: "mapped",
 		finalNormalizedX: x.finalNormalizedValue,
 		finalNormalizedY: 0,
 		visual: {
-			xPx: x.finalNormalizedValue * canvasWidth,
+			xPx: (x.finalNormalizedValue * canvasWidth) / 2,
 			yPx: 0,
 			keyframes: {
 				x: x.keyframes.map((keyframe) => scaleX({ keyframe })),

@@ -213,7 +213,7 @@ function findCapturedBinding({
 }
 
 function pushPatchIfChanged({
-	basePointer,
+	bindingPointer,
 	domain,
 	expectedValue,
 	file,
@@ -221,9 +221,10 @@ function pushPatchIfChanged({
 	nextValue,
 	ownerSemanticId,
 	patches,
+	rangeName,
 	suffix,
 }: {
-	basePointer: string;
+	bindingPointer: string;
 	domain: SameProfileScalarPatch["domain"];
 	expectedValue: number;
 	file: string;
@@ -231,13 +232,16 @@ function pushPatchIfChanged({
 	nextValue: number;
 	ownerSemanticId: string;
 	patches: SameProfileScalarPatch[];
+	rangeName: "target_timerange" | "source_timerange";
 	suffix: string;
 }): void {
 	if (Object.is(expectedValue, nextValue)) return;
 	patches.push({
-		foreignRef: `${foreignRef}:${suffix}`,
+		// The range name keeps refs unique: target and source patches share the
+		// same binding and suffix, and issue reporting identifies patches by ref.
+		foreignRef: `${foreignRef}:${rangeName}:${suffix}`,
 		file,
-		jsonPointer: `${basePointer}/${suffix}`,
+		jsonPointer: `${bindingPointer}/${rangeName}/${suffix}`,
 		ownerSemanticId,
 		domain,
 		expectedValue,
@@ -501,7 +505,7 @@ export function planSameProfileTimingPatches({
 			}
 			const binding = bindingResult.binding;
 			pushPatchIfChanged({
-				basePointer: `${binding.jsonPointer}/target_timerange`,
+				bindingPointer: binding.jsonPointer,
 				domain: "timing",
 				expectedValue: semanticSegment.targetRange.startUs,
 				file: binding.file,
@@ -509,10 +513,11 @@ export function planSameProfileTimingPatches({
 				nextValue: times.targetStart.value,
 				ownerSemanticId: semanticId,
 				patches,
+				rangeName: "target_timerange",
 				suffix: "start",
 			});
 			pushPatchIfChanged({
-				basePointer: `${binding.jsonPointer}/target_timerange`,
+				bindingPointer: binding.jsonPointer,
 				domain: "timing",
 				expectedValue: semanticSegment.targetRange.durationUs,
 				file: binding.file,
@@ -520,11 +525,12 @@ export function planSameProfileTimingPatches({
 				nextValue: times.targetDuration.value,
 				ownerSemanticId: semanticId,
 				patches,
+				rangeName: "target_timerange",
 				suffix: "duration",
 			});
 			if (semanticSegment.sourceRange !== undefined) {
 				pushPatchIfChanged({
-					basePointer: `${binding.jsonPointer}/source_timerange`,
+					bindingPointer: binding.jsonPointer,
 					domain: "timing",
 					expectedValue: semanticSegment.sourceRange.startUs,
 					file: binding.file,
@@ -532,10 +538,11 @@ export function planSameProfileTimingPatches({
 					nextValue: times.sourceStart.value,
 					ownerSemanticId: semanticId,
 					patches,
+					rangeName: "source_timerange",
 					suffix: "start",
 				});
 				pushPatchIfChanged({
-					basePointer: `${binding.jsonPointer}/source_timerange`,
+					bindingPointer: binding.jsonPointer,
 					domain: "timing",
 					expectedValue: semanticSegment.sourceRange.durationUs,
 					file: binding.file,
@@ -543,6 +550,7 @@ export function planSameProfileTimingPatches({
 					nextValue: times.sourceDuration.value,
 					ownerSemanticId: semanticId,
 					patches,
+					rangeName: "source_timerange",
 					suffix: "duration",
 				});
 			}
