@@ -2,15 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { constants } from "node:fs";
 import { mkdir, open, readFile, realpath, rename, rm } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import {
-	JIANYING_11_3_BETA2_APP_ID,
-	JIANYING_11_3_BETA2_APP_SOURCE,
-	JIANYING_11_3_BETA2_APP_VERSION,
-	JIANYING_11_3_BETA2_NEW_VERSION,
-	JIANYING_11_3_BETA2_PROFILE_ID,
-	JIANYING_11_3_BETA2_SCHEMA_VERSION,
-	JIANYING_11_3_BETA2_TOP_LEVEL_KEYS,
-} from "@qcut/editor-core/jianying-draft";
+import type { Jianying113ProfileId } from "@qcut/editor-core/jianying-draft";
+import { requireJianying113ContentProfile } from "./jianying-11-3-content-profile.js";
 import {
 	inspectJianying113ProjectSource,
 	type Jianying113ProjectSource,
@@ -32,6 +25,7 @@ export interface WriteJianying113ProjectExportOptions {
 	draftName: string;
 	expectedSourceSha256: string;
 	outputParentDirectory: string;
+	profileId: string;
 	sourceProjectDirectory: string;
 }
 
@@ -40,51 +34,8 @@ export interface Jianying113ProjectExportResult {
 	contentSha256: string;
 	copiedFileCount: number;
 	outputDirectory: string;
-	profileId: typeof JIANYING_11_3_BETA2_PROFILE_ID;
+	profileId: Jianying113ProfileId;
 	subdraftId: string;
-}
-
-function readRecord({
-	value,
-}: {
-	value: unknown;
-}): Record<string, unknown> | undefined {
-	return typeof value === "object" && value !== null && !Array.isArray(value)
-		? (value as Record<string, unknown>)
-		: undefined;
-}
-
-function assertExactJianying113Content({
-	contentBytes,
-}: {
-	contentBytes: Uint8Array;
-}): void {
-	let parsed: unknown;
-	try {
-		const text = new TextDecoder("utf-8", { fatal: true }).decode(contentBytes);
-		parsed = JSON.parse(text);
-	} catch {
-		throw new Error("Jianying export content must be valid UTF-8 JSON.");
-	}
-	const parsedRecord = readRecord({ value: parsed });
-	if (parsedRecord === undefined) {
-		throw new Error("Jianying export content must be a JSON object.");
-	}
-	const platform = readRecord({ value: parsedRecord.last_modified_platform });
-	const topLevelKeys = Object.keys(parsedRecord).sort();
-	const expectedKeys = [...JIANYING_11_3_BETA2_TOP_LEVEL_KEYS].sort();
-	if (
-		parsedRecord.version !== JIANYING_11_3_BETA2_SCHEMA_VERSION ||
-		parsedRecord.new_version !== JIANYING_11_3_BETA2_NEW_VERSION ||
-		platform?.app_id !== JIANYING_11_3_BETA2_APP_ID ||
-		platform.app_source !== JIANYING_11_3_BETA2_APP_SOURCE ||
-		platform.app_version !== JIANYING_11_3_BETA2_APP_VERSION ||
-		JSON.stringify(topLevelKeys) !== JSON.stringify(expectedKeys)
-	) {
-		throw new Error(
-			"Jianying export content does not match the exact 11.3 beta 2 profile."
-		);
-	}
 }
 
 function sanitizeDraftName({ draftName }: { draftName: string }): string {
@@ -260,9 +211,13 @@ export async function writeJianying113ProjectExport({
 	draftName,
 	expectedSourceSha256,
 	outputParentDirectory,
+	profileId,
 	sourceProjectDirectory,
 }: WriteJianying113ProjectExportOptions): Promise<Jianying113ProjectExportResult> {
-	assertExactJianying113Content({ contentBytes });
+	const exactProfileId = requireJianying113ContentProfile({
+		contentBytes,
+		profileId,
+	});
 	await assertTargetAppClosed({
 		outputParentDirectory,
 		sourceProjectDirectory,
@@ -323,7 +278,10 @@ export async function writeJianying113ProjectExport({
 			...source.contentRelativePath.split("/")
 		);
 		const stagedContent = await readFile(stagedContentPath);
-		assertExactJianying113Content({ contentBytes: stagedContent });
+		requireJianying113ContentProfile({
+			contentBytes: stagedContent,
+			profileId: exactProfileId,
+		});
 		const contentSha256 = createHash("sha256")
 			.update(stagedContent)
 			.digest("hex");
@@ -339,7 +297,7 @@ export async function writeJianying113ProjectExport({
 			contentSha256,
 			copiedFileCount: source.fileRelativePaths.length,
 			outputDirectory: finalDirectory,
-			profileId: JIANYING_11_3_BETA2_PROFILE_ID,
+			profileId: exactProfileId,
 			subdraftId: source.subdraftId,
 		};
 	} catch (error) {

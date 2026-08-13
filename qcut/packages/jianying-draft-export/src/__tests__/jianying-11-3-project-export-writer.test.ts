@@ -14,8 +14,11 @@ import {
 	JIANYING_11_3_BETA2_APP_SOURCE,
 	JIANYING_11_3_BETA2_APP_VERSION,
 	JIANYING_11_3_BETA2_NEW_VERSION,
+	JIANYING_11_3_BETA2_PROFILE_ID,
 	JIANYING_11_3_BETA2_SCHEMA_VERSION,
 	JIANYING_11_3_BETA2_TOP_LEVEL_KEYS,
+	JIANYING_11_3_BETA3_APP_VERSION,
+	JIANYING_11_3_BETA3_PROFILE_ID,
 } from "@qcut/editor-core/jianying-draft";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { writeJianying113ProjectExport } from "../jianying-11-3-project-export-writer.js";
@@ -24,7 +27,13 @@ let rootDirectory: string;
 let sourceProjectDirectory: string;
 let outputParentDirectory: string;
 
-function contentBytes({ startUs = 0 }: { startUs?: number } = {}): Uint8Array {
+function contentBytes({
+	appVersion = JIANYING_11_3_BETA2_APP_VERSION,
+	startUs = 0,
+}: {
+	appVersion?: string;
+	startUs?: number;
+} = {}): Uint8Array {
 	const content: Record<string, unknown> = Object.fromEntries(
 		JIANYING_11_3_BETA2_TOP_LEVEL_KEYS.map((key) => [key, null])
 	);
@@ -35,7 +44,7 @@ function contentBytes({ startUs = 0 }: { startUs?: number } = {}): Uint8Array {
 		last_modified_platform: {
 			app_id: JIANYING_11_3_BETA2_APP_ID,
 			app_source: JIANYING_11_3_BETA2_APP_SOURCE,
-			app_version: JIANYING_11_3_BETA2_APP_VERSION,
+			app_version: appVersion,
 		},
 		tracks: [
 			{
@@ -120,6 +129,7 @@ describe("writeJianying113ProjectExport", () => {
 			draftName: "Jianying Export",
 			expectedSourceSha256: sha256({ bytes: originalBytes }),
 			outputParentDirectory,
+			profileId: JIANYING_11_3_BETA2_PROFILE_ID,
 			sourceProjectDirectory,
 		});
 
@@ -155,6 +165,34 @@ describe("writeJianying113ProjectExport", () => {
 		).toBe(false);
 	});
 
+	it("publishes content for an exact 11.3 beta 3 profile", async () => {
+		const originalBytes = contentBytes({
+			appVersion: JIANYING_11_3_BETA3_APP_VERSION,
+		});
+		const preparedBytes = contentBytes({
+			appVersion: JIANYING_11_3_BETA3_APP_VERSION,
+			startUs: 1_000_000,
+		});
+		await createSourceProject({ content: originalBytes });
+
+		const result = await writeJianying113ProjectExport({
+			assertTargetAppClosed: async () => undefined,
+			contentBytes: preparedBytes,
+			draftName: "Jianying Beta 3 Export",
+			expectedSourceSha256: sha256({ bytes: originalBytes }),
+			outputParentDirectory,
+			profileId: JIANYING_11_3_BETA3_PROFILE_ID,
+			sourceProjectDirectory,
+		});
+
+		expect(result.profileId).toBe(JIANYING_11_3_BETA3_PROFILE_ID);
+		expect(
+			await readFile(
+				join(result.outputDirectory, ...result.contentRelativePath.split("/"))
+			)
+		).toEqual(Buffer.from(preparedBytes));
+	});
+
 	it("refuses a locked Jianying source", async () => {
 		const originalBytes = contentBytes();
 		await createSourceProject({ content: originalBytes });
@@ -167,6 +205,7 @@ describe("writeJianying113ProjectExport", () => {
 				draftName: "Blocked",
 				expectedSourceSha256: sha256({ bytes: originalBytes }),
 				outputParentDirectory,
+				profileId: JIANYING_11_3_BETA2_PROFILE_ID,
 				sourceProjectDirectory,
 			})
 		).rejects.toThrow(/locked/u);
@@ -194,6 +233,7 @@ describe("writeJianying113ProjectExport", () => {
 				draftName: "Ambiguous",
 				expectedSourceSha256: sha256({ bytes: originalBytes }),
 				outputParentDirectory,
+				profileId: JIANYING_11_3_BETA2_PROFILE_ID,
 				sourceProjectDirectory,
 			})
 		).rejects.toThrow(/found 2/u);

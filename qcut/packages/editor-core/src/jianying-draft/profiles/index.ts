@@ -66,6 +66,9 @@ export {
 
 export {
 	isJianying113ProfileId,
+	JIANYING_11_3_NEW_VERSION,
 	JIANYING_11_3_PROFILE_IDS,
+	JIANYING_11_3_SCHEMA_VERSION,
+	JIANYING_11_3_TOP_LEVEL_KEYS,
 	type Jianying113ProfileId,
 } from "./jianying-11-3-shared.js";
