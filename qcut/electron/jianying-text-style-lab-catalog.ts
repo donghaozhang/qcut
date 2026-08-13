@@ -6,7 +6,13 @@ import type {
 	JianyingTextStylePackageKind,
 	JianyingTextStyleQcutApproximation,
 } from "./jianying-text-style-lab-contract.js";
-import type { JianyingTextRuntimeReference } from "./jianying-text-runtime-contract.js";
+import { createJianyingRuntimePackageCapabilities } from "./jianying-text-effect-capabilities.js";
+import { parseJianyingEffectStylePackage } from "./jianying-text-effect-style-parser.js";
+import type {
+	JianyingTextEffectCapabilities,
+	JianyingTextRuntimeDiagnostic,
+	JianyingTextRuntimeReference,
+} from "./jianying-text-runtime-contract.js";
 import {
 	detectJianyingTextPackageKind,
 	JIANYING_TEXT_PACKAGE_HASH_PATTERN,
@@ -35,6 +41,8 @@ export interface JianyingTextStyleCatalogEntry {
 	innerShadowCount: number;
 	shadowCount: number;
 	textureLayerCount: number;
+	capabilities: JianyingTextEffectCapabilities;
+	diagnostics: JianyingTextRuntimeDiagnostic[];
 	hasCover: boolean;
 	compatibility: JianyingTextStyleCompatibility;
 	approximation?: JianyingTextStyleQcutApproximation;
@@ -99,34 +107,6 @@ function getLayerKind({ layer }: { layer: unknown }) {
 
 function isEnabledLayer({ layer }: { layer: unknown }) {
 	return asRecord(layer)?.enable !== false;
-}
-
-function countEnabledLayers({ value }: { value: unknown }) {
-	return Array.isArray(value)
-		? value.filter((layer) => isEnabledLayer({ layer })).length
-		: 0;
-}
-
-function countRenderType({
-	value,
-	target,
-}: {
-	value: unknown;
-	target: string;
-}): number {
-	if (Array.isArray(value)) {
-		return value.reduce(
-			(total, entry) => total + countRenderType({ value: entry, target }),
-			0
-		);
-	}
-	const record = asRecord(value);
-	if (!record) return 0;
-	const current = record.render_type === target ? 1 : 0;
-	return Object.values(record).reduce<number>(
-		(total, entry) => total + countRenderType({ value: entry, target }),
-		current
-	);
 }
 
 function normalizedColorToHex({ value }: { value: unknown }): string | null {
@@ -258,37 +238,6 @@ function createApproximation({ style }: { style: Record<string, unknown> }) {
 	} satisfies JianyingTextStyleQcutApproximation;
 }
 
-function classifyCompatibility({
-	fillKind,
-	strokeCount,
-	innerShadowCount,
-	shadowCount,
-	textureLayerCount,
-	gradientLayerCount,
-	approximation,
-}: {
-	fillKind: JianyingTextStyleFillKind;
-	strokeCount: number;
-	innerShadowCount: number;
-	shadowCount: number;
-	textureLayerCount: number;
-	gradientLayerCount: number;
-	approximation?: JianyingTextStyleQcutApproximation;
-}): JianyingTextStyleCompatibility {
-	if (!approximation || fillKind === "texture") return "preview-only";
-	if (
-		fillKind === "solid" &&
-		strokeCount <= 1 &&
-		innerShadowCount === 0 &&
-		shadowCount <= 1 &&
-		textureLayerCount === 0 &&
-		gradientLayerCount === 0
-	) {
-		return "flat-compatible";
-	}
-	return "approximated";
-}
-
 export function createJianyingTextStyleId({
 	resourceId,
 	version,
@@ -297,6 +246,30 @@ export function createJianyingTextStyleId({
 	version: string;
 }) {
 	return `${resourceId}/${version}`;
+}
+
+function createRuntimeReference({
+	packageKind,
+	resourceId,
+	templateDuration,
+	version,
+}: {
+	packageKind: JianyingTextRuntimeReference["packageKind"];
+	resourceId: string;
+	templateDuration: number;
+	version: string;
+}): JianyingTextRuntimeReference {
+	return {
+		schemaVersion: 1,
+		source: "jianying-cache",
+		packageKind,
+		resourceId,
+		packageHash: version,
+		editMode: "runtime-with-preload-fallback",
+		slotMapping: "line-to-widget",
+		timeMapping: "stretch",
+		templateDuration,
+	};
 }
 
 export function isValidJianyingTextStyleId({ styleId }: { styleId: string }) {
@@ -347,6 +320,11 @@ async function scanPackage({
 				packagePath,
 				packageKind,
 			});
+			const capabilities = createJianyingRuntimePackageCapabilities({
+				animationComponents: true,
+				effectStyles: [],
+				scriptInfoSticker: packageKind === "ScriptInfoSticker",
+			});
 			return {
 				kind: "valid",
 				entry: {
@@ -360,19 +338,16 @@ async function scanPackage({
 					innerShadowCount: 0,
 					shadowCount: 0,
 					textureLayerCount: 0,
+					capabilities,
+					diagnostics: [],
 					hasCover,
 					compatibility: "native-runtime",
-					runtimeReference: {
-						schemaVersion: 1,
-						source: "jianying-cache",
+					runtimeReference: createRuntimeReference({
 						packageKind,
 						resourceId,
-						packageHash: version,
-						editMode: "runtime-with-preload-fallback",
-						slotMapping: "line-to-widget",
-						timeMapping: "stretch",
 						templateDuration,
-					},
+						version,
+					}),
 					...(hasCover ? { coverPath } : {}),
 				},
 			};
@@ -394,6 +369,12 @@ async function scanPackage({
 				innerShadowCount: 0,
 				shadowCount: 0,
 				textureLayerCount: 0,
+				capabilities: createJianyingRuntimePackageCapabilities({
+					animationComponents: false,
+					effectStyles: [],
+					scriptInfoSticker: false,
+				}),
+				diagnostics: [],
 				hasCover,
 				compatibility: "preview-only",
 				...(hasCover ? { coverPath } : {}),
@@ -402,24 +383,13 @@ async function scanPackage({
 	}
 
 	try {
-		const styleValue = await readBoundedJianyingTextJson({
-			filePath: join(packagePath, "effectStyle.json"),
+		const inspection = await parseJianyingEffectStylePackage({
+			packagePath,
+			resourceId,
 		});
-		const style = asRecord(styleValue);
-		if (!style) return { kind: "invalid" };
-		const fillKind = getLayerKind({ layer: style.fill });
-		const strokeCount = countEnabledLayers({ value: style.strokes });
-		const innerShadowCount = countEnabledLayers({ value: style.inner_shadows });
-		const shadowCount = countEnabledLayers({ value: style.shadows });
-		const textureLayerCount = countRenderType({
-			value: style,
-			target: "texture",
-		});
-		const gradientLayerCount = countRenderType({
-			value: style,
-			target: "gradient",
-		});
-		const approximation = createApproximation({ style });
+		const manifest = inspection.manifest;
+		if (!manifest) return { kind: "invalid" };
+		const approximation = createApproximation({ style: manifest.source });
 		return {
 			kind: "valid",
 			entry: {
@@ -427,24 +397,23 @@ async function scanPackage({
 				resourceId,
 				version,
 				packageKind,
-				packageVersion:
-					typeof style.version === "string" ? style.version : "unknown",
-				fillKind,
-				strokeCount,
-				innerShadowCount,
-				shadowCount,
-				textureLayerCount,
+				packageVersion: manifest.packageVersion,
+				fillKind: manifest.fillKind,
+				strokeCount: manifest.strokeCount,
+				innerShadowCount: manifest.innerShadowCount,
+				shadowCount: manifest.shadowCount,
+				textureLayerCount: manifest.textureLayerCount,
+				capabilities: manifest.capabilities,
+				diagnostics: manifest.diagnostics,
 				hasCover,
-				compatibility: classifyCompatibility({
-					fillKind,
-					strokeCount,
-					innerShadowCount,
-					shadowCount,
-					textureLayerCount,
-					gradientLayerCount,
-					approximation,
-				}),
+				compatibility: "native-runtime",
 				...(approximation ? { approximation } : {}),
+				runtimeReference: createRuntimeReference({
+					packageKind,
+					resourceId,
+					templateDuration: 3,
+					version,
+				}),
 				...(hasCover ? { coverPath } : {}),
 			},
 		};
