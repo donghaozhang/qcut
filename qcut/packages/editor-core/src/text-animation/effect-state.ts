@@ -190,6 +190,163 @@ function unitHorizontalProgress({
 	});
 }
 
+function flip3DVisual({
+	effect,
+	linearProgress,
+}: {
+	effect: Extract<TextAnimationEffect, { kind: "flip3d" }>;
+	linearProgress: number;
+}): TextAnimationVisualState {
+	const visual = identityVisual();
+	const motionProgress = clampUnitInterval({
+		value: linearProgress / effect.motionRatio,
+	});
+	const firstHalf = motionProgress < 0.5;
+	const halfProgress = firstHalf
+		? motionProgress * 2
+		: (motionProgress - 0.5) * 2;
+	const eased = easeTextAnimationProgress({
+		progress: halfProgress,
+		easing: effect.motionEasing,
+	});
+	const angle = firstHalf
+		? -effect.maxAngleDeg * eased
+		: effect.maxAngleDeg * (1 - eased);
+	visual.projection = {
+		kind: "plane",
+		cameraFovDeg: effect.cameraFovDeg,
+		rotationXDeg: effect.axis === "x" ? angle : 0,
+		rotationYDeg: effect.axis === "y" ? angle : 0,
+	};
+	return visual;
+}
+
+function cylinder3DVisual({
+	effect,
+	linearProgress,
+}: {
+	effect: Extract<TextAnimationEffect, { kind: "cylinder3d" }>;
+	linearProgress: number;
+}): TextAnimationVisualState {
+	const visual = identityVisual();
+	visual.projection = {
+		kind: "cylinder",
+		cameraFovDeg: effect.cameraFovDeg,
+		tiltXDeg: effect.tiltXDeg,
+		yawDeg: effect.startYawDeg - linearProgress * effect.turns * 360,
+		coverage: effect.coverage,
+		radiusRatio: effect.radiusRatio,
+	};
+	return visual;
+}
+
+function interpolatedJitter3DValue({
+	channel,
+	effect,
+	linearProgress,
+	unitIndex,
+}: {
+	channel: number;
+	effect: Extract<TextAnimationEffect, { kind: "jitter3d" }>;
+	linearProgress: number;
+	unitIndex: number;
+}) {
+	const segmentCount = Math.max(1, Math.round(effect.frequency));
+	const sample = loopFraction({ value: linearProgress }) * segmentCount;
+	const current = Math.floor(sample) % segmentCount;
+	const next = (current + 1) % segmentCount;
+	const blend = smoothstep({ progress: sample - Math.floor(sample) });
+	const currentValue = seededValue({
+		seed: effect.seed,
+		unitIndex,
+		particleIndex: current,
+		channel,
+	});
+	const nextValue = seededValue({
+		seed: effect.seed,
+		unitIndex,
+		particleIndex: next,
+		channel,
+	});
+	return lerp({ from: currentValue, to: nextValue, progress: blend }) * 2 - 1;
+}
+
+function jitter3DVisual({
+	effect,
+	layout,
+	linearProgress,
+	unit,
+}: {
+	effect: Extract<TextAnimationEffect, { kind: "jitter3d" }>;
+	layout: TextAnimationLayout;
+	linearProgress: number;
+	unit: CompiledTextAnimationUnit;
+}): TextAnimationVisualState {
+	const visual = identityVisual();
+	const bounds = unitBounds({ unit, layout });
+	const horizontalProgress = unitHorizontalProgress({ unit, layout });
+	const baseScale = lerp({
+		from: effect.scaleFrom,
+		to: effect.scaleTo,
+		progress: horizontalProgress,
+	});
+	const jitter = ({ channel }: { channel: number }) =>
+		interpolatedJitter3DValue({
+			channel,
+			effect,
+			linearProgress,
+			unitIndex: unit.index,
+		});
+	visual.translateX =
+		jitter({ channel: 0 }) * bounds.width * effect.positionJitter;
+	visual.translateY =
+		jitter({ channel: 1 }) * bounds.height * effect.positionJitter;
+	visual.rotationXDeg = jitter({ channel: 2 }) * effect.rotationXDeg;
+	visual.rotationYDeg = jitter({ channel: 3 }) * effect.rotationYDeg;
+	visual.rotationDeg = jitter({ channel: 4 }) * effect.rotationZDeg;
+	visual.scaleX = baseScale * (1 + jitter({ channel: 5 }) * 0.04);
+	visual.scaleY = baseScale * (1 + jitter({ channel: 6 }) * 0.04);
+	visual.projection = {
+		kind: "plane",
+		cameraFovDeg: effect.cameraFovDeg,
+		rotationXDeg: 0,
+		rotationYDeg: effect.groupYawDeg,
+	};
+	visual.postProcess = {
+		trailSamples: effect.trailSamples,
+		trailStrength: effect.trailStrength,
+		trapezoidAmount: effect.trapezoidAmount,
+	};
+	return visual;
+}
+
+function projectiveVisual({
+	context,
+}: {
+	context: TextAnimationEffectContext;
+}): TextAnimationEffectResult | null {
+	const { effect, layout, linearProgress, unit } = context;
+	if (effect.kind === "flip3d") {
+		return {
+			visual: flip3DVisual({ effect, linearProgress }),
+			decorations: [],
+		};
+	}
+	if (effect.kind === "cylinder3d") {
+		return {
+			visual: cylinder3DVisual({ effect, linearProgress }),
+			decorations: [],
+		};
+	}
+	if (effect.kind === "jitter3d") {
+		return {
+			visual: jitter3DVisual({ effect, layout, linearProgress, unit }),
+			decorations: [],
+		};
+	}
+	return null;
+}
+
 function spatialWaveMovement({
 	effect,
 	progress,
@@ -424,6 +581,8 @@ function loopVisual({
 }): TextAnimationEffectResult {
 	const { effect, progress, linearProgress, layout, unit } = context;
 	const visual = identityVisual();
+	const projective = projectiveVisual({ context });
+	if (projective) return projective;
 	const pulse = (1 - Math.cos(progress * Math.PI * 2)) / 2;
 	const wave = Math.sin(progress * Math.PI * 2);
 	if (effect.kind === "typewriter") {
@@ -662,6 +821,8 @@ function edgeVisual({
 	const { effect, role, progress, linearProgress, layout, unit } = context;
 	const presence = edgePresence({ role, progress });
 	const visual = identityVisual();
+	const projective = projectiveVisual({ context });
+	if (projective) return projective;
 	if (effect.kind === "typewriter") {
 		if (effect.reveal === "step") {
 			// Jianying pops a unit in only when its reveal slot completes (and,
