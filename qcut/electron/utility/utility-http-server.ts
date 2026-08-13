@@ -84,7 +84,8 @@ let server: Server | null = null;
 // Type for the requestFromMain function passed in from the utility process entry
 type RequestFromMainFn = (
 	channel: string,
-	data: Record<string, unknown>
+	data: Record<string, unknown>,
+	options?: { timeoutMs?: number }
 ) => Promise<unknown>;
 
 /** Window proxy shape returned by createWindowProxy */
@@ -436,9 +437,11 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 	});
 	registerQCutJianyingProjectExportRoutes(router, {
 		requestExport: async (request) =>
-			(await requestFromMain("get-qcut-jianying-project-export", {
-				request,
-			})) as QCutJianyingProjectExportResult,
+			(await requestFromMain(
+				"get-qcut-jianying-project-export",
+				{ request },
+				{ timeoutMs: 30 * 60 * 1000 }
+			)) as QCutJianyingProjectExportResult,
 	});
 	registerSnapshotRoutes(router, {
 		requestSnapshot: async (request) =>
