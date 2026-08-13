@@ -1,10 +1,12 @@
 import { createHash } from "node:crypto";
 import {
+	chmod,
 	mkdir,
 	mkdtemp,
 	readFile,
 	readdir,
 	rm,
+	stat,
 	writeFile,
 } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -124,6 +126,7 @@ afterEach(async () => {
 describe("Jianying 11.3 registered-project writer", () => {
 	it("atomically replaces only the matching beta 3 subdraft", async () => {
 		const fixture = await createProject();
+		await chmod(fixture.contentPath, 0o640);
 		const preparedBytes = contentBytes({ startUs: 1_000_000 });
 		let guardCalls = 0;
 
@@ -147,6 +150,7 @@ describe("Jianying 11.3 registered-project writer", () => {
 		expect(await readFile(fixture.contentPath)).toEqual(
 			Buffer.from(preparedBytes)
 		);
+		expect((await stat(fixture.contentPath)).mode & 0o777).toBe(0o640);
 		expect(await readFile(fixture.sidecarPath)).toEqual(
 			Buffer.from([0xff, 0x00, 0x7f])
 		);
@@ -201,6 +205,7 @@ describe("Jianying 11.3 registered-project writer", () => {
 
 	it("restores the original subdraft when commit verification fails", async () => {
 		const fixture = await createProject();
+		await chmod(fixture.contentPath, 0o640);
 
 		await expect(
 			writeJianying113RegisteredProjectContent({
@@ -219,6 +224,7 @@ describe("Jianying 11.3 registered-project writer", () => {
 		expect(await readFile(fixture.contentPath)).toEqual(
 			Buffer.from(fixture.originalBytes)
 		);
+		expect((await stat(fixture.contentPath)).mode & 0o777).toBe(0o640);
 		expect(
 			await listQCutArtifacts({ contentPath: fixture.contentPath })
 		).toEqual([]);

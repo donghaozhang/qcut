@@ -38,6 +38,7 @@ export interface FileIdentity {
 export interface ContentFileState {
 	bytes: Uint8Array;
 	identity: FileIdentity;
+	mode: number;
 }
 
 export interface TransactionPaths {
@@ -180,20 +181,22 @@ export async function readRegularFile({
 	const noFollowFlag = constants.O_NOFOLLOW ?? 0;
 	const handle = await open(path, constants.O_RDONLY | noFollowFlag);
 	try {
-		const before = identityFromStats({
-			stats: await handle.stat({ bigint: true }),
-		});
+		const beforeStats = await handle.stat({ bigint: true });
+		const before = identityFromStats({ stats: beforeStats });
 		const bytes = await handle.readFile();
-		const after = identityFromStats({
-			stats: await handle.stat({ bigint: true }),
-		});
+		const afterStats = await handle.stat({ bigint: true });
+		const after = identityFromStats({ stats: afterStats });
 		if (!identitiesEqual({ left: before, right: after })) {
 			failJianying113RegisteredProjectWriteback({
 				code: "SOURCE_STATE_CHANGED",
 				message: "Jianying subdraft content changed while it was read.",
 			});
 		}
-		return { bytes, identity: after };
+		return {
+			bytes,
+			identity: after,
+			mode: Number(afterStats.mode & 0o777n),
+		};
 	} finally {
 		await handle.close();
 	}
@@ -201,16 +204,18 @@ export async function readRegularFile({
 
 export async function writeExclusiveFile({
 	bytes,
+	mode = 0o600,
 	path,
 }: {
 	bytes: Uint8Array;
+	mode?: number;
 	path: string;
 }): Promise<void> {
 	const noFollowFlag = constants.O_NOFOLLOW ?? 0;
 	const handle = await open(
 		path,
 		constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | noFollowFlag,
-		0o600
+		mode
 	);
 	try {
 		await handle.writeFile(bytes);

@@ -115,9 +115,14 @@ export async function writeJianying113RegisteredProjectContent({
 		}
 		paths = buildTransactionPaths({ contentPath: targetPath, transactionId });
 		await Promise.all([
-			writeExclusiveFile({ bytes: contentBytes, path: paths.temporaryPath }),
+			writeExclusiveFile({
+				bytes: contentBytes,
+				mode: sourceState.mode,
+				path: paths.temporaryPath,
+			}),
 			writeExclusiveFile({
 				bytes: sourceState.bytes,
+				mode: sourceState.mode,
 				path: paths.rollbackPath,
 			}),
 		]);
