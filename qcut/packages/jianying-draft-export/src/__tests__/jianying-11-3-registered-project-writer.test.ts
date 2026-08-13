@@ -21,6 +21,8 @@ import {
 	JIANYING_11_3_BETA2_TOP_LEVEL_KEYS,
 	JIANYING_11_3_BETA3_APP_VERSION,
 	JIANYING_11_3_BETA3_PROFILE_ID,
+	JIANYING_11_3_BETA4_APP_VERSION,
+	JIANYING_11_3_BETA4_PROFILE_ID,
 } from "@qcut/editor-core/jianying-draft";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
@@ -97,6 +99,33 @@ async function createProject({
 	return { contentPath, originalBytes, sidecarPath };
 }
 
+async function createActiveProject(): Promise<{
+	activeContentPath: string;
+	originalBytes: Uint8Array;
+	staticContentPath: string;
+	staticBytes: Uint8Array;
+}> {
+	const subdraftRoot = join(projectDirectory, "subdraft");
+	const idNamedRoot = join(subdraftRoot, SUBDRAFT_ID);
+	const activeContentPath = join(subdraftRoot, "draft_content.json");
+	const staticContentPath = join(idNamedRoot, "draft_content.json");
+	const originalBytes = contentBytes({
+		appVersion: JIANYING_11_3_BETA4_APP_VERSION,
+	});
+	const staticBytes = contentBytes({ documentId: "static-copy" });
+	await mkdir(idNamedRoot, { recursive: true });
+	await Promise.all([
+		writeFile(activeContentPath, originalBytes),
+		writeFile(staticContentPath, staticBytes),
+	]);
+	return {
+		activeContentPath,
+		originalBytes,
+		staticContentPath,
+		staticBytes,
+	};
+}
+
 async function listQCutArtifacts({
 	contentPath,
 }: {
@@ -124,6 +153,34 @@ afterEach(async () => {
 });
 
 describe("Jianying 11.3 registered-project writer", () => {
+	it("atomically replaces beta 4 active content without touching its static copy", async () => {
+		const fixture = await createActiveProject();
+		const preparedBytes = contentBytes({
+			appVersion: JIANYING_11_3_BETA4_APP_VERSION,
+			startUs: 400_000,
+		});
+
+		const result = await writeJianying113RegisteredProjectContent({
+			assertTargetAppClosed: assertClosed,
+			contentBytes: preparedBytes,
+			expectedSourceSha256: sha256({ bytes: fixture.originalBytes }),
+			profileId: JIANYING_11_3_BETA4_PROFILE_ID,
+			projectDirectory,
+		});
+
+		expect(result).toMatchObject({
+			contentRelativePath: "subdraft/draft_content.json",
+			profileId: JIANYING_11_3_BETA4_PROFILE_ID,
+			subdraftId: SUBDRAFT_ID,
+		});
+		expect(await readFile(fixture.activeContentPath)).toEqual(
+			Buffer.from(preparedBytes)
+		);
+		expect(await readFile(fixture.staticContentPath)).toEqual(
+			Buffer.from(fixture.staticBytes)
+		);
+	});
+
 	it("atomically replaces only the matching beta 3 subdraft", async () => {
 		const fixture = await createProject();
 		await chmod(fixture.contentPath, 0o640);

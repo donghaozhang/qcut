@@ -6,7 +6,9 @@ import { join, relative, sep } from "node:path";
 const MAX_PROJECT_DEPTH = 16;
 const MAX_PROJECT_ENTRIES = 20_000;
 const MAX_CONTENT_BYTES = 64 * 1024 * 1024;
-const SUBDRAFT_CONTENT_PATTERN = /^subdraft\/([^/]+)\/draft_content\.json$/u;
+const ACTIVE_SUBDRAFT_CONTENT_PATH = "subdraft/draft_content.json";
+const ID_NAMED_SUBDRAFT_CONTENT_PATTERN =
+	/^subdraft\/([^/]+)\/draft_content\.json$/u;
 
 export interface Jianying113ProjectSource {
 	contentByteLength: number;
@@ -124,6 +126,31 @@ async function hashRegularFile({
 	}
 }
 
+function resolveSubdraftId({
+	fileRelativePaths,
+	relativePath,
+}: {
+	fileRelativePaths: string[];
+	relativePath: string;
+}): string {
+	const idNamedMatch = relativePath.match(ID_NAMED_SUBDRAFT_CONTENT_PATTERN);
+	if (idNamedMatch !== null) return idNamedMatch[1] ?? "";
+	const idNamedSubdraftIds = [
+		...new Set(
+			fileRelativePaths.flatMap((candidatePath) => {
+				const match = candidatePath.match(ID_NAMED_SUBDRAFT_CONTENT_PATTERN);
+				return match?.[1] === undefined ? [] : [match[1]];
+			})
+		),
+	];
+	if (idNamedSubdraftIds.length !== 1) {
+		throw new Error(
+			`Active Jianying content requires exactly one id-named subdraft, found ${idNamedSubdraftIds.length}.`
+		);
+	}
+	return idNamedSubdraftIds[0] ?? "";
+}
+
 export async function inspectJianying113ProjectSource({
 	expectedContentSha256,
 	projectDirectory,
@@ -156,8 +183,10 @@ export async function inspectJianying113ProjectSource({
 		subdraftId: string;
 	}> = [];
 	for (const relativePath of fileRelativePaths) {
-		const match = relativePath.match(SUBDRAFT_CONTENT_PATTERN);
-		if (match === null) continue;
+		const isActiveContent = relativePath === ACTIVE_SUBDRAFT_CONTENT_PATH;
+		const isIdNamedContent =
+			ID_NAMED_SUBDRAFT_CONTENT_PATTERN.test(relativePath);
+		if (!isActiveContent && !isIdNamedContent) continue;
 		const identity = await hashRegularFile({
 			absolutePath: join(projectRootRealPath, ...relativePath.split("/")),
 		});
@@ -165,7 +194,7 @@ export async function inspectJianying113ProjectSource({
 		matchingCandidates.push({
 			...identity,
 			relativePath,
-			subdraftId: match[1] ?? "",
+			subdraftId: resolveSubdraftId({ fileRelativePaths, relativePath }),
 		});
 	}
 	if (matchingCandidates.length !== 1) {
