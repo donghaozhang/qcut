@@ -25,6 +25,7 @@ import type {
 	InteropTransition,
 } from "./document.js";
 import { diffInteropTextSemantics } from "./semantic-text-diff.js";
+import { diffInteropMediaVisualSemantics } from "./semantic-visual-diff.js";
 
 export type SemanticDiffSeverity = "breaking" | "tolerable" | "info";
 
@@ -277,6 +278,15 @@ function diffSegment({
 		right: right.text,
 	})) {
 		report({ context, severity: "breaking", ...entry });
+	}
+	for (const entry of diffInteropMediaVisualSemantics({
+		path: `${path}/visual`,
+		subjectId,
+		timeToleranceUs: context.timeToleranceUs,
+		left: left.visual,
+		right: right.visual,
+	})) {
+		report({ context, ...entry });
 	}
 }
 

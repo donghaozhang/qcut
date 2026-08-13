@@ -1,7 +1,8 @@
 // @vitest-environment node
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { JianyingTextRuntimeReference } from "../jianying-text-runtime-contract.js";
 import { resolveJianyingTextPackage } from "../jianying-text-runtime/package-resolver.js";
@@ -80,6 +81,128 @@ describe("Jianying text package resolver", () => {
 		}
 	});
 
+	it("explains why an absent root package cannot be restored", async () => {
+		const temporary = await mkdtemp(
+			path.join(os.tmpdir(), "qcut-jianying-root-recovery-message-")
+		);
+		try {
+			const cacheRoot = path.join(temporary, "Cache");
+			const artistEffectRoot = path.join(cacheRoot, "artistEffect");
+			vi.stubEnv("QCUT_JIANYING_TEXT_PACKAGE_ROOT", artistEffectRoot);
+			vi.stubEnv("QCUT_JIANYING_CACHE_ROOT", cacheRoot);
+			vi.stubEnv(
+				"QCUT_JIANYING_TEXT_RECOVERY_ROOT",
+				path.join(temporary, "recovery")
+			);
+			vi.stubEnv("QCUT_JIANYING_TEXT_AUTO_RECOVER", "0");
+
+			await expect(
+				resolveJianyingTextPackage({ reference: createReference() })
+			).rejects.toMatchObject({
+				code: "package-missing",
+				message: expect.stringContaining("自动恢复已关闭"),
+			});
+
+			vi.stubEnv("QCUT_JIANYING_TEXT_AUTO_RECOVER", "1");
+			await expect(
+				resolveJianyingTextPackage({ reference: createReference() })
+			).rejects.toMatchObject({
+				code: "package-missing",
+				message: expect.stringContaining("没有可恢复记录"),
+			});
+		} finally {
+			await rm(temporary, { recursive: true, force: true });
+		}
+	});
+
+	it("reopens a legacy-ID project after relocating its current cached package", async () => {
+		const temporary = await mkdtemp(
+			path.join(os.tmpdir(), "qcut-jianying-root-relocation-")
+		);
+		try {
+			const cacheRoot = path.join(temporary, "Cache");
+			const artistEffectRoot = path.join(cacheRoot, "artistEffect");
+			const recoveryRoot = path.join(temporary, "recovery");
+			const catalogResourceId = "7426685437122497827";
+			const sourcePackagePath = path.join(
+				artistEffectRoot,
+				catalogResourceId,
+				PACKAGE_HASH
+			);
+			await Promise.all([
+				writeJson({
+					filePath: path.join(sourcePackagePath, "config.json"),
+					value: {
+						effect: { Link: [{ type: "ScriptInfoSticker" }] },
+					},
+				}),
+				writeJson({
+					filePath: path.join(sourcePackagePath, "content.json"),
+					value: { root: { duration: 3 }, children: [] },
+				}),
+			]);
+			const databaseRoot = path.join(cacheRoot, "ressdk_db");
+			const accountRoot = path.join(databaseRoot, "account");
+			await mkdir(accountRoot, { recursive: true });
+			const database = new DatabaseSync(path.join(accountRoot, "rp.db"));
+			database.exec(`
+				CREATE TABLE http_cache (
+					url TEXT NOT NULL,
+					response_body TEXT NOT NULL,
+					timestamp TEXT NOT NULL
+				)
+			`);
+			database
+				.prepare(
+					"INSERT INTO http_cache (url, response_body, timestamp) VALUES (?, ?, ?)"
+				)
+				.run(
+					"/artist/legacy-root",
+					JSON.stringify({
+						data: {
+							effect_item_list: [
+								{
+									common_attr: {
+										id: catalogResourceId,
+										third_resource_id_str: RESOURCE_ID,
+										md5: PACKAGE_HASH,
+										item_urls: [
+											"https://lf26-faceu-file-sign.bytecdn.com/root.zip",
+										],
+									},
+								},
+							],
+						},
+					}),
+					"2026-08-13 17:00:00"
+				);
+			database.close();
+			vi.stubEnv("QCUT_JIANYING_TEXT_PACKAGE_ROOT", artistEffectRoot);
+			vi.stubEnv("QCUT_JIANYING_CACHE_ROOT", cacheRoot);
+			vi.stubEnv("QCUT_JIANYING_TEXT_RECOVERY_ROOT", recoveryRoot);
+
+			const first = await resolveJianyingTextPackage({
+				reference: createReference(),
+			});
+			const canonicalRecoveryRoot = await realpath(recoveryRoot);
+			expect(path.relative(canonicalRecoveryRoot, first.packagePath)).toBe(
+				path.join("artistEffect", RESOURCE_ID, PACKAGE_HASH)
+			);
+			await rm(path.join(artistEffectRoot, catalogResourceId), {
+				recursive: true,
+				force: true,
+			});
+
+			const reopened = await resolveJianyingTextPackage({
+				reference: createReference(),
+			});
+			expect(reopened.packagePath).toBe(first.packagePath);
+			expect(reopened.resourceFingerprint).toBe(first.resourceFingerprint);
+		} finally {
+			await rm(temporary, { recursive: true, force: true });
+		}
+	});
+
 	it("degrades a missing effectStyle package without dropping script animation", async () => {
 		const temporary = await mkdtemp(
 			path.join(os.tmpdir(), "qcut-jianying-effect-style-resolver-")
@@ -125,6 +248,19 @@ describe("Jianying text package resolver", () => {
 							code: "effect-style-package-missing",
 							severity: "error",
 							resourceId: "3003",
+						},
+						{
+							code: "resource-recovery-unavailable",
+							severity: "warning",
+							resourceId: "3003",
+							recoveryReason: "catalog-missing",
+						},
+					],
+					recoveryFailures: [
+						{
+							resourceId: "3003",
+							role: "effect-style",
+							recoveryReason: "catalog-missing",
 						},
 					],
 				},
@@ -193,6 +329,19 @@ describe("Jianying text package resolver", () => {
 							code: "runtime-dependency-unresolved",
 							severity: "warning",
 							resourceId: "7153",
+						},
+						{
+							code: "resource-recovery-unavailable",
+							severity: "warning",
+							resourceId: "7153",
+							recoveryReason: "catalog-missing",
+						},
+					],
+					recoveryFailures: [
+						{
+							resourceId: "7153",
+							role: "animation",
+							recoveryReason: "catalog-missing",
 						},
 					],
 				},

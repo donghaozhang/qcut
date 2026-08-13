@@ -7,8 +7,7 @@ import {
 	type CapCut81SameProfilePrepareIssue,
 	type CapCut81WritebackTimingSnapshot,
 } from "@qcut/editor-core/jianying-draft";
-
-const BASE64_CHUNK_BYTES = 32 * 1024;
+import { encodeBytesAsBase64 } from "./bytes-base64";
 
 export type CapCut81WritebackClientResult =
 	| { ok: true; outcome: "unchanged" }
@@ -52,23 +51,6 @@ export interface CapCut81WritebackClientDeps {
 function getBridgeDefault(): JianyingSameProfileWritebackAPI | null {
 	if (typeof window === "undefined") return null;
 	return window.electronAPI?.jianyingSameProfileWriteback ?? null;
-}
-
-function bytesToBase64({ bytes }: { bytes: Uint8Array }): string {
-	const chunks: string[] = [];
-	for (
-		let offset = 0;
-		offset < bytes.byteLength;
-		offset += BASE64_CHUNK_BYTES
-	) {
-		const end = Math.min(offset + BASE64_CHUNK_BYTES, bytes.byteLength);
-		let binary = "";
-		for (let index = offset; index < end; index += 1) {
-			binary += String.fromCharCode(bytes[index] ?? 0);
-		}
-		chunks.push(binary);
-	}
-	return btoa(chunks.join(""));
 }
 
 export async function runCapCut81SameProfileWriteback({
@@ -170,7 +152,7 @@ export async function runCapCut81SameProfileWriteback({
 	}
 
 	const committed = await bridge.commitCapCut81Writeback({
-		contentBase64: bytesToBase64({ bytes: prepared.contentBytes }),
+		contentBase64: encodeBytesAsBase64({ bytes: prepared.contentBytes }),
 		expectedSourceSha256: prepared.expectedSourceSha256,
 		profileId: binding.profileId,
 		selectionToken: selected.value.selectionToken,

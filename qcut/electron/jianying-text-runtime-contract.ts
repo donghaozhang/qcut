@@ -42,6 +42,7 @@ export type JianyingTextRuntimeState =
 	| "unsupported-platform"
 	| "bridge-missing"
 	| "runtime-missing"
+	| "runtime-incompatible"
 	| "package-missing"
 	| "package-invalid"
 	| "dependency-missing"
@@ -50,7 +51,21 @@ export type JianyingTextRuntimeState =
 export type JianyingTextRuntimeDependencyRole =
 	| "animation"
 	| "effect-style"
+	| "font"
 	| "sticker";
+
+export type JianyingTextResourceRecoveryFailureReason =
+	| "recovery-disabled"
+	| "catalog-missing"
+	| "download-failed"
+	| "hash-mismatch"
+	| "package-invalid";
+
+export interface JianyingTextRuntimeDependencyStatus {
+	resourceId: string;
+	role: JianyingTextRuntimeDependencyRole;
+	recoveryReason?: JianyingTextResourceRecoveryFailureReason;
+}
 
 export interface JianyingTextEffectCapabilities {
 	staticTexture: boolean;
@@ -76,6 +91,8 @@ export type JianyingTextRuntimeDiagnosticCode =
 	| "effect-style-texture-path-missing"
 	| "font-asset-missing"
 	| "font-file-missing"
+	| "template-font-missing"
+	| "resource-recovery-unavailable"
 	| "runtime-dependency-unresolved";
 
 export interface JianyingTextRuntimeDiagnostic {
@@ -85,6 +102,7 @@ export interface JianyingTextRuntimeDiagnostic {
 	resourceId?: string;
 	relativePath?: string;
 	fontAssetId?: string;
+	recoveryReason?: JianyingTextResourceRecoveryFailureReason;
 }
 
 export interface JianyingTextRuntimeStatus {
@@ -94,19 +112,15 @@ export interface JianyingTextRuntimeStatus {
 	bridgeReady: boolean;
 	runtimeReady: boolean;
 	packageReady: boolean;
+	runtimeAbiProfile?: string;
+	runtimeCoreUuid?: string;
 	resourceId?: string;
 	packageHash?: string;
 	templateDuration?: number;
 	capabilities?: JianyingTextEffectCapabilities;
 	diagnostics?: JianyingTextRuntimeDiagnostic[];
-	missingDependencies?: Array<{
-		resourceId: string;
-		role: JianyingTextRuntimeDependencyRole;
-	}>;
-	degradedDependencies?: Array<{
-		resourceId: string;
-		role: JianyingTextRuntimeDependencyRole;
-	}>;
+	missingDependencies?: JianyingTextRuntimeDependencyStatus[];
+	degradedDependencies?: JianyingTextRuntimeDependencyStatus[];
 }
 
 export interface JianyingTextRuntimeInspectRequest {

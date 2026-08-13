@@ -4,6 +4,7 @@ import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { parseArgs } from "node:util";
 
+import { stringifyParityReport } from "./parity-report-json";
 import {
 	collectTransitionParityEvidence,
 	runCommand,
@@ -251,7 +252,7 @@ function writeReports({
 	};
 	writeFileSync(
 		path.join(outputDirectory, "evidence-report.json"),
-		JSON.stringify(report, null, 2)
+		stringifyParityReport({ value: report })
 	);
 	const lines = [
 		"# Jianying transition parity matrix",

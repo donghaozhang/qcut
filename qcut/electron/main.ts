@@ -90,6 +90,10 @@ import {
 	setupJianyingSameProfileWritebackIPC,
 	type JianyingSameProfileWritebackIPCController,
 } from "./jianying-same-profile-writeback-handler.js";
+import {
+	setupJianyingProjectExportIPC,
+	type JianyingProjectExportIPCController,
+} from "./jianying-project-export-handler.js";
 
 // Type definitions
 interface ReleaseNote {
@@ -135,6 +139,8 @@ let jianyingDraftImportController: JianyingDraftImportIPCController | null =
 let jianyingDraftExportController: JianyingDraftExportIPCController | null =
 	null;
 let jianyingSameProfileWritebackController: JianyingSameProfileWritebackIPCController | null =
+	null;
+let jianyingProjectExportController: JianyingProjectExportIPCController | null =
 	null;
 let jianyingFilterLabController: JianyingFilterLabIPCController | null = null;
 let jianyingFontLabController: JianyingFontLabIPCController | null = null;
@@ -1064,6 +1070,14 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 				},
 			],
 			[
+				"JianyingProjectExportIPC",
+				() => {
+					jianyingProjectExportController = setupJianyingProjectExportIPC({
+						getMainWindow: () => mainWindow,
+					});
+				},
+			],
+			[
 				"JianyingDraftImportIPC",
 				() => {
 					jianyingDraftImportController = setupJianyingDraftImportIPC({
@@ -1172,6 +1186,8 @@ app.on("before-quit", () => {
 	jianyingDraftExportController = null;
 	jianyingSameProfileWritebackController?.dispose();
 	jianyingSameProfileWritebackController = null;
+	jianyingProjectExportController?.dispose();
+	jianyingProjectExportController = null;
 	jianyingEnvelopeKeyController?.dispose();
 	jianyingEnvelopeKeyController = null;
 	jianyingDraftImportController?.dispose();

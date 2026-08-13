@@ -62,7 +62,8 @@ Editor Commands (requires running QCut — use --project-id for most):
 
 Local Jianying Reference (read-only; does not require running QCut):
   editor:jianying-transition:*
-  editor:jianying-import:inspect, editor:jianying-import:plan, editor:jianying-import:commit
+  editor:jianying-import:inspect, editor:jianying-import:plan,
+  editor:jianying-import:verify-roundtrip, editor:jianying-import:commit
 
   Use <command> --help --json for detailed flag info per command.
 

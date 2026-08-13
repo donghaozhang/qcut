@@ -1,6 +1,5 @@
-/// <reference lib="es2022.intl" />
-
 import { asJianyingRecord } from "../jianying-text-package-metadata.js";
+import { splitJianyingTextGraphemes } from "./graphemes.js";
 
 export interface JianyingCaptionWordTiming {
 	start_time: number;
@@ -13,14 +12,6 @@ export interface JianyingCaptionDurationInfo {
 	words: JianyingCaptionWordTiming[];
 }
 
-function splitCaptionGraphemes({ text }: { text: string }) {
-	if (typeof Intl.Segmenter !== "function") return Array.from(text);
-	const segmenter = new Intl.Segmenter(undefined, {
-		granularity: "grapheme",
-	});
-	return Array.from(segmenter.segment(text), ({ segment }) => segment);
-}
-
 export function createJianyingCaptionDurationInfo({
 	text,
 	durationSeconds,
@@ -31,7 +22,7 @@ export function createJianyingCaptionDurationInfo({
 	if (!(Number.isFinite(durationSeconds) && durationSeconds > 0)) {
 		throw new Error("Jianying caption duration must be positive");
 	}
-	const graphemes = splitCaptionGraphemes({ text });
+	const graphemes = splitJianyingTextGraphemes({ text });
 	const timedGraphemeCount = graphemes.filter(
 		(grapheme) => !/^\s+$/u.test(grapheme)
 	).length;

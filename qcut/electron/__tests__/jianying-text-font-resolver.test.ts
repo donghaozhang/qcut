@@ -1,5 +1,6 @@
 // @vitest-environment node
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -39,23 +40,72 @@ function catalog({
 }
 
 describe("Jianying text runtime font resolver", () => {
-	it("uses the requested font when its catalog file remains readable", async () => {
+	it("uses Jianying's bundled system font for the default timeline font", async () => {
+		const temporary = await mkdtemp(
+			path.join(os.tmpdir(), "qcut-font-runtime-")
+		);
+		try {
+			const runtimeFont = path.join(
+				temporary,
+				"Resources",
+				"Font",
+				"SystemFont",
+				"zh-hans.ttf"
+			);
+			await mkdir(path.dirname(runtimeFont), { recursive: true });
+			await writeFile(runtimeFont, "runtime-font");
+
+			await expect(
+				resolveJianyingTextRuntimeFont({ runtimeRoot: temporary })
+			).resolves.toEqual({
+				filePath: runtimeFont,
+				state: "default",
+				diagnostics: [],
+			});
+		} finally {
+			await rm(temporary, { recursive: true, force: true });
+		}
+	});
+
+	it("relocates a verified font and reopens it after the source disappears", async () => {
 		const temporary = await mkdtemp(path.join(os.tmpdir(), "qcut-font-ready-"));
 		try {
 			const fontPath = path.join(temporary, "requested.ttf");
-			await writeFile(fontPath, "font");
-			const fontId = `sha256:${"a".repeat(64)}`;
-			await expect(
-				resolveJianyingTextRuntimeFont({
-					fontAssetId: fontId,
-					getCatalog: async () => catalog({ fontId, filePaths: [fontPath] }),
-					fallbackCandidates: [],
-				})
-			).resolves.toEqual({
-				filePath: fontPath,
+			const fontBytes = Buffer.from("font");
+			await writeFile(fontPath, fontBytes);
+			const sha256 = createHash("sha256").update(fontBytes).digest("hex");
+			const fontId = `sha256:${sha256}`;
+			const persistentCacheRoot = path.join(temporary, "persistent");
+			const first = await resolveJianyingTextRuntimeFont({
+				fontAssetId: fontId,
+				getCatalog: async () => catalog({ fontId, filePaths: [fontPath] }),
+				fallbackCandidates: [],
+				persistentCacheRoot,
+			});
+
+			expect(first).toEqual({
+				filePath: path.join(persistentCacheRoot, `${sha256}.ttf`),
 				state: "requested",
 				diagnostics: [],
 			});
+			expect(await readFile(first.filePath)).toEqual(fontBytes);
+			await rm(fontPath);
+
+			await expect(
+				resolveJianyingTextRuntimeFont({
+					fontAssetId: fontId,
+					getCatalog: async () => ({
+						entries: [],
+						rootCount: 0,
+						fileCount: 0,
+						duplicateFileCount: 0,
+						invalidFileCount: 0,
+						oversizedFileCount: 0,
+					}),
+					fallbackCandidates: [],
+					persistentCacheRoot,
+				})
+			).resolves.toEqual(first);
 		} finally {
 			await rm(temporary, { recursive: true, force: true });
 		}
@@ -100,6 +150,7 @@ describe("Jianying text runtime font resolver", () => {
 							})
 						: emptyCatalog,
 				fallbackCandidates: [fallbackPath],
+				persistentCacheRoot: path.join(temporary, "persistent"),
 			});
 
 			expect(result).toMatchObject({

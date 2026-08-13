@@ -36,7 +36,7 @@ export interface DraftProfileContract {
 	appId: number;
 	/** platform.app_source in the draft content. */
 	appSource: string;
-	/** App versions this contract has been checked against. */
+	/** Exact app versions accepted by profile detection. */
 	appVersions: readonly string[];
 	/** The `version` field of the draft content. */
 	schemaVersion: number;

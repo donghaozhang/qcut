@@ -122,6 +122,11 @@ function buildMediaElement({
 		...(planElement.speed === undefined
 			? {}
 			: { playbackRate: planElement.speed }),
+		...(planElement.x === undefined ? {} : { x: planElement.x }),
+		...(planElement.y === undefined ? {} : { y: planElement.y }),
+		...(planElement.keyframes === undefined
+			? {}
+			: { keyframes: planElement.keyframes }),
 	};
 }
 

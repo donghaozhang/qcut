@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	measureJianyingHostTextAlphaBounds,
 	nextJianyingHostTextFontSize,
+	shouldFitJianyingHostText,
 } from "../jianying-text-runtime/host-text-fit.js";
 
 function rgbaFrame({
@@ -24,7 +25,17 @@ function rgbaFrame({
 	return bytes;
 }
 
-describe("Jianying TextStyle host-text fitting", () => {
+describe("Jianying host-text fitting", () => {
+	it("fits TextStyle and InfoSticker while leaving script templates to slot fitting", () => {
+		expect(shouldFitJianyingHostText({ packageKind: "TextStyle" })).toBe(true);
+		expect(shouldFitJianyingHostText({ packageKind: "InfoSticker" })).toBe(
+			true
+		);
+		expect(
+			shouldFitJianyingHostText({ packageKind: "ScriptInfoSticker" })
+		).toBe(false);
+	});
+
 	it("measures alpha bounds without treating transparent pixels as a box", () => {
 		expect(
 			measureJianyingHostTextAlphaBounds({

@@ -3,12 +3,15 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <string_view>
 
 namespace jianying_probe {
 
 void verifyRuntimeImage(const void* knownImageSymbol,
                         std::string_view expectedImageUuid);
+
+[[nodiscard]] std::string runtimeImageUuid(const void* knownImageSymbol);
 
 struct AmazerContextScopeRequest {
   const void* knownImageSymbol;

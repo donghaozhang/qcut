@@ -285,7 +285,7 @@ export async function handleEditorCommand(
 			return await handleJianyingTransitionCommand({ options, signal });
 		}
 		if (module === "jianying-import") {
-			return await handleJianyingImportCommand({ options, signal });
+			return await handleJianyingImportCommand({ client, options, signal });
 		}
 		const result = await (async (): Promise<CLIResult> => {
 			switch (module) {

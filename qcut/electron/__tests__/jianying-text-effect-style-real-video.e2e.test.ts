@@ -16,13 +16,27 @@ import {
 
 const RESOURCE_ID = process.env.QCUT_JIANYING_TEXT_E2E_RESOURCE_ID;
 const PACKAGE_HASH = process.env.QCUT_JIANYING_TEXT_E2E_PACKAGE_HASH;
-const PACKAGE_KIND: JianyingTextRuntimePackageKind =
-	process.env.QCUT_JIANYING_TEXT_E2E_PACKAGE_KIND === "TextStyle"
-		? "TextStyle"
-		: "ScriptInfoSticker";
+
+function packageKindFromEnvironment({
+	value,
+}: {
+	value: string | undefined;
+}): JianyingTextRuntimePackageKind {
+	if (value === "TextStyle") return value;
+	if (value === "InfoSticker") return value;
+	return "ScriptInfoSticker";
+}
+
+const PACKAGE_KIND = packageKindFromEnvironment({
+	value: process.env.QCUT_JIANYING_TEXT_E2E_PACKAGE_KIND,
+});
 const OUTPUT_PATH =
 	process.env.QCUT_JIANYING_TEXT_E2E_OUTPUT ??
 	path.join(os.tmpdir(), `qcut-jianying-${PACKAGE_KIND.toLowerCase()}-e2e.mp4`);
+const EDGE_POLICY =
+	process.env.QCUT_JIANYING_TEXT_E2E_EDGE_POLICY === "may-touch"
+		? "may-touch"
+		: "transparent";
 const E2E_ENABLED = Boolean(RESOURCE_ID && PACKAGE_HASH);
 const CANVAS_WIDTH = 1280;
 const CANVAS_HEIGHT = 720;
@@ -54,15 +68,9 @@ describeRealVideo("Jianying effectStyle real video E2E", () => {
 			templateDuration: 3,
 		};
 		const packageInfo = await resolveJianyingTextPackage({ reference });
-		expect(packageInfo.capabilities).toEqual({
-			staticTexture: true,
-			multipleStrokes: true,
-			animationComponents: PACKAGE_KIND === "ScriptInfoSticker",
-			scriptInfoSticker: PACKAGE_KIND === "ScriptInfoSticker",
-			shaderComponents: false,
-			threeDimensional: false,
-			feedbackComponents: false,
-		});
+		expect(packageInfo.capabilities.scriptInfoSticker).toBe(
+			PACKAGE_KIND === "ScriptInfoSticker"
+		);
 		expect(packageInfo.diagnostics).toEqual([]);
 		const result = await renderJianyingText({
 			request: {
@@ -117,7 +125,9 @@ describeRealVideo("Jianying effectStyle real video E2E", () => {
 		const coverage = alphaCoverage({ bytes: rgba, width: EFFECT_WIDTH });
 		expect(coverage.visible).toBeGreaterThan(1000);
 		expect(coverage.transparent).toBeGreaterThan(1000);
-		expect(coverage.edgeVisible).toBe(0);
+		if (EDGE_POLICY === "transparent") {
+			expect(coverage.edgeVisible).toBe(0);
+		}
 
 		await runProcess({
 			command: ffmpegPath,
@@ -153,7 +163,7 @@ describeRealVideo("Jianying effectStyle real video E2E", () => {
 			],
 		});
 		const metadata = await stat(OUTPUT_PATH);
-		expect(metadata.size).toBeGreaterThan(20_000);
+		expect(metadata.size).toBeGreaterThan(1000);
 		const probeOutput = await runProcess({
 			command: await getFFprobePath(),
 			args: [

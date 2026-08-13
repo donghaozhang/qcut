@@ -90,6 +90,26 @@ export interface InteropTextShadow {
 	blurPx: number;
 }
 
+export type InteropVisualKeyframeProperty = "x" | "y";
+
+export interface InteropVisualKeyframe {
+	id: string;
+	/** Time relative to the owning segment, in document microseconds. */
+	timeOffsetUs: number;
+	value: number;
+	easing: "linear";
+	foreignRef?: string;
+}
+
+/** Canvas-space visual state shared by foreign drafts and QCut. */
+export interface InteropMediaVisual {
+	xPx: number;
+	yPx: number;
+	keyframes?: Partial<
+		Record<InteropVisualKeyframeProperty, InteropVisualKeyframe[]>
+	>;
+}
+
 /** Static text subset shared by foreign drafts and QCut. */
 export interface InteropText {
 	content: string;
@@ -135,6 +155,7 @@ export interface InteropSegment {
 	targetRange: InteropTimeRange;
 	speed?: number;
 	text?: InteropText;
+	visual?: InteropMediaVisual;
 	capability: InteropCapability;
 	/** Binding key into the foreign envelope's raw-node map (JYI-002). */
 	foreignRef?: string;
@@ -588,6 +609,10 @@ function parseSegment({
 		record.text === undefined
 			? undefined
 			: parseText({ value: record.text, path: `${path}/text` });
+	const visual =
+		record.visual === undefined
+			? undefined
+			: parseMediaVisual({ value: record.visual, path: `${path}/visual` });
 	return {
 		id: asString({ value: record.id, path: `${path}/id` }),
 		kind: asEnum({
@@ -614,11 +639,95 @@ function parseSegment({
 		}),
 		...(speed === undefined ? {} : { speed }),
 		...(text === undefined ? {} : { text }),
+		...(visual === undefined ? {} : { visual }),
 		capability: asCapability({
 			value: record.capability,
 			path: `${path}/capability`,
 		}),
 		...(foreignRef === undefined ? {} : { foreignRef }),
+	};
+}
+
+function parseVisualKeyframe({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropVisualKeyframe {
+	const record = asRecord({ value, path });
+	const foreignRef = asOptionalString({
+		value: record.foreignRef,
+		path: `${path}/foreignRef`,
+	});
+	return {
+		id: asString({ value: record.id, path: `${path}/id` }),
+		timeOffsetUs: asNonNegativeSafeInteger({
+			value: record.timeOffsetUs,
+			path: `${path}/timeOffsetUs`,
+		}),
+		value: asFiniteNumber({ value: record.value, path: `${path}/value` }),
+		easing: asEnum({
+			value: record.easing,
+			path: `${path}/easing`,
+			allowed: ["linear"],
+		}),
+		...(foreignRef === undefined ? {} : { foreignRef }),
+	};
+}
+
+function parseMediaVisual({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropMediaVisual {
+	const record = asRecord({ value, path });
+	const keyframesRecord =
+		record.keyframes === undefined
+			? undefined
+			: asRecord({ value: record.keyframes, path: `${path}/keyframes` });
+	if (keyframesRecord !== undefined) {
+		// Unknown channels (scale, rotation, …) must fail closed rather than
+		// silently drop: semantic diffing only compares x/y and would never
+		// detect the loss. Mirrors parsePlanMediaKeyframes.
+		for (const key of Object.keys(keyframesRecord)) {
+			if (key !== "x" && key !== "y") {
+				fail({
+					message: "unsupported media keyframe property",
+					path: `${path}/keyframes`,
+				});
+			}
+		}
+	}
+	const parseProperty = ({ property }: { property: "x" | "y" }) => {
+		const entries = keyframesRecord?.[property];
+		return entries === undefined
+			? undefined
+			: asArray({
+					value: entries,
+					path: `${path}/keyframes/${property}`,
+				}).map((entry, index) =>
+					parseVisualKeyframe({
+						value: entry,
+						path: `${path}/keyframes/${property}/${index}`,
+					})
+				);
+	};
+	const x = parseProperty({ property: "x" });
+	const y = parseProperty({ property: "y" });
+	return {
+		xPx: asFiniteNumber({ value: record.xPx, path: `${path}/xPx` }),
+		yPx: asFiniteNumber({ value: record.yPx, path: `${path}/yPx` }),
+		...(keyframesRecord === undefined
+			? {}
+			: {
+					keyframes: {
+						...(x === undefined ? {} : { x }),
+						...(y === undefined ? {} : { y }),
+					},
+				}),
 	};
 }
 

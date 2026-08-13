@@ -1,6 +1,5 @@
-import { readdir } from "node:fs/promises";
-import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { listJianyingResourceDatabasePaths } from "../jianying-resource-database.js";
 import {
 	JIANYING_TEXT_PACKAGE_HASH_PATTERN,
 	JIANYING_TEXT_RESOURCE_ID_PATTERN,
@@ -105,24 +104,6 @@ function collectRows({
 	}
 }
 
-async function catalogDatabasePaths({
-	databaseRoot,
-}: {
-	databaseRoot: string;
-}) {
-	const entries = await readdir(databaseRoot, { withFileTypes: true }).catch(
-		() => []
-	);
-	return entries.flatMap((entry) => {
-		if (entry.isFile() && entry.name === "rp_master.db") {
-			return [path.join(databaseRoot, entry.name)];
-		}
-		return entry.isDirectory()
-			? [path.join(databaseRoot, entry.name, "rp.db")]
-			: [];
-	});
-}
-
 function parseDownloadUrls({ value }: { value: string | null }) {
 	if (!value) return [];
 	try {
@@ -179,7 +160,9 @@ export async function findJianyingTextResourceCatalogCandidates({
 	).sort();
 	if (normalizedIds.length === 0)
 		return new Map<string, JianyingTextResourceCatalogCandidate[]>();
-	const databasePaths = await catalogDatabasePaths({ databaseRoot });
+	const databasePaths = await listJianyingResourceDatabasePaths({
+		databaseRoot,
+	});
 	const rows = databasePaths.flatMap((databasePath) => {
 		try {
 			return collectRows({ databasePath, resourceIds: normalizedIds });

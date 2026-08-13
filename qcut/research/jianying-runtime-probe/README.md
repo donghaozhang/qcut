@@ -347,6 +347,106 @@ shows that core UUID `D6342ECD-5432-33F0-A2AD-0C28F5699994` and the 23-library
 private backup are sufficient for all three verified package classes in this
 local snapshot.
 
+The installed app later updated to `CFBundleVersion 11.3.0-beta4`
+(`CFBundleShortVersionString 11.2.13038`) with arm64 `libcccreator` UUID
+`FDF42EF4-427D-30DF-9310-A8C7B352C5CD`. Public text symbols still resolved, but
+allowing the new UUID while retaining the old private context offsets crashed
+the isolated process with `SIGBUS`. Disassembly identified the matching
+constructor/destructor thunks at `0x3fb3ec` and `0x3fb418`, each `0x30` later
+than the `D634` profile. The bridge now selects the complete profile by Mach-O
+UUID before constructing any runtime object and rejects unknown UUIDs.
+
+Both profiles then rendered the same cached `TextStyle` (`7623376604814904638`,
+hash `99d51368afceae9b105af34b8403a79f`) with identical text, font, size, canvas,
+and timestamp. Each produced one visible `640x360` transparent RGBA frame, and
+the two frame SHA-256 values were byte-identical. This proves versioned local
+binary reuse for this controlled case. It is not a substitute for a formal
+same-parameter export from the Jianying App UI.
+
+The product-side version gate extends that check to all 25 cached
+`ScriptInfoSticker` roots, 36 decoded RGBA frames per root, using identical long
+multiline content and one explicit fallback font. Twenty-four roots matched
+byte-for-byte across every frame. `7302280874177940770` differed only during
+entrance frames 3-7, with premultiplied whole-sequence RGBA RMSE `2.201`,
+worst-frame RMSE `8.241`, and at most `1px` bounds movement; its remaining 31
+frames matched. Four other roots diverged only when the fallback was left
+implicit: their authored fonts are absent locally, so the backup runtime chose
+the macOS system font while the installed runtime chose bundled `zh-hans.ttf`.
+The repeatable gate consequently requires `QCUT_JIANYING_TEXT_DEFAULT_FONT` and
+compares visible premultiplied RGBA plus alpha geometry instead of PNG bytes.
+
+```bash
+QCUT_JIANYING_TEXT_DEFAULT_FONT=/absolute/path/to/shared-font.ttc \
+QCUT_JIANYING_TEXT_RUNTIME_VERSION_E2E=1 \
+QCUT_JIANYING_TEXT_RUNTIME_BASELINE_ROOT=/absolute/path/to/baseline/Contents \
+QCUT_JIANYING_TEXT_RUNTIME_CANDIDATE_ROOT=/absolute/path/to/candidate/Contents \
+node node_modules/vitest/vitest.mjs run \
+  electron/__tests__/jianying-text-runtime-version-parity.e2e.test.ts
+```
+
+One separate formal Jianying App export has also passed the parity pipeline:
+`TextStyle` `7623376604814904638:99d51368afceae9b105af34b8403a79f`, text “花字”,
+font size 48, `1920x1080@30fps`. Against Jianying `11.3.0-beta4
+(11.2.13038)`, the result has worst five-stop full-frame RMSE `3.021`, worst
+foreground RMSE `5.024`, minimum foreground-mask IoU `0.984159`, maximum bounds
+shift `1px`, and full-interval SSIM `0.996499`. The private manifest, reference,
+frames, videos, and report remain outside the repository. This proves formal
+parity only for that one `TextStyle`; batch exports for all three package kinds
+remain required.
+
+The 2026-08-13 expanded audit separated top-level word-art roots from cached
+components. With the Jianying app path absent, all 212 top-level `TextStyle`,
+80 proven `InfoSticker` word-art roots, and all 25 `ScriptInfoSticker`
+candidates rendered visibly (`317/317`). Of the 80 `InfoSticker` roots, 79 have
+flower-catalog evidence and one was recovered from a structured
+`text + text_special_effect` selection in a local project's `key_value.json`.
+The remaining 70 `InfoSticker` packages comprise 53 non-flower catalog or
+standalone-structure matches and 17 dependency components. One of those
+components is proven by a structured `effectStyle` reference in a cached
+`ScriptInfoSticker`; arbitrary ID strings do not count. The current 500
+recognized packages have zero unresolved and zero ambiguous ownership results.
+None of the excluded packages are exposed as word-art cards. All 113
+`AmazingFeature` packages are non-flower: 98 exact filter
+matches, seven exact video-mask-stroke matches, five filter resource-lineage
+matches, and three canonical LUT structure matches. Counts are a mutable local
+cache snapshot; the classifier does not depend on fixed totals.
+
+Run the repeatable cache audit without copying any package payload into the
+repository:
+
+```bash
+bun x esbuild research/jianying-runtime-probe/run-text-cache-audit.ts \
+  --bundle --platform=node --format=esm \
+  --outfile=/tmp/qcut-text-cache-audit.mjs '--external:node:*'
+node /tmp/qcut-text-cache-audit.mjs \
+  --output ~/Documents/QCut-Jianying-Evidence/text-cache-audit.json
+```
+
+The report contains counts, package kinds, ownership evidence, dependency
+roles, and unresolved resource IDs. It intentionally omits cached package
+contents, local paths, catalog URLs, and download URLs.
+
+The project-recovered `InfoSticker`
+`7067070987363208485:c890d1bc4fc4c97e44f776ae3c47362d` also passed a direct
+app-absent binary probe and a 48-frame product H.264 E2E. Its four-character
+test exposed that host-text alpha-bound fitting had been limited to `TextStyle`;
+`InfoSticker` now uses the same bounded font-size convergence and passes the
+strict transparent-edge assertion. Script templates keep their separate
+rich-text-slot fitting path.
+
+The QCut product-side `ScriptInfoSticker` matrix now resolves template fonts
+separately from the timeline font. Its 25 packages contain 37 references across
+27 unique font IDs. Current local evidence resolves 33/37 references, including
+five current IDs recovered from legacy short-ID directories through draft
+`resource_id -> text/<md5>/font-file` mappings. Four references share three IDs
+with no local package, path mapping, or catalog record and therefore degrade
+only their affected rich-text slots. The app-absent real-video matrix remains
+28/28 after per-slot font hydration.
+
+`JY_TEXT_TIMESTAMP` also accepts finite fractional microseconds. A real
+app-absent batch at `500000.5` rendered successfully and records the numeric
+value without truncation in `run-context.json`.
+
 Script-template text can be tested in two edit modes:
 
 ```bash
@@ -375,11 +475,11 @@ Jianying cache remains untouched. The app-less 2026-08-11 matrix produced 25 of
 frames. This is the compatibility fallback for a private local adapter; it does
 not make the private runtime or cached packages redistributable QCut assets.
 
-These matrices fix one known-good local font while varying the package. They
-prove coverage of the 276 catalog-mapped flower packages plus the separate
-25-package script sample, not glyph coverage of every font file in Jianying's
-font caches. Keep font discovery and browser or export compatibility in a
-dedicated font-lab audit.
+The low-level shell matrices above still fix one known-good local font while
+varying the package. They prove package/runtime coverage, not glyph coverage of
+every cached font. The product-side matrix separately verifies per-ID template
+font resolution and scoped fallback; browser and export glyph compatibility
+remain part of the dedicated font-lab audit.
 
 The transition video wrapper does not need a Jianying draft or project file. It
 needs the local runtime and the downloaded transition package; a project file
@@ -437,6 +537,18 @@ C++ ABI with no vendor headers. A failed call or process crash is evidence about
 the missing host contract, not an API QCut can safely ship.
 
 ## ABI notes
+
+The text bridge recognizes complete UUID-pinned profiles rather than treating
+symbol presence as ABI compatibility:
+
+| Jianying build | arm64 `libcccreator` UUID | Context constructor | Context destructor |
+| --- | --- | ---: | ---: |
+| private app-less backup | `D6342ECD-5432-33F0-A2AD-0C28F5699994` | `0x3fb3bc` | `0x3fb3e8` |
+| `11.3.0-beta4` (`11.2.13038`) | `FDF42EF4-427D-30DF-9310-A8C7B352C5CD` | `0x3fb3ec` | `0x3fb418` |
+
+An unknown UUID is incompatible until its hidden entry points and one real
+render have both been verified. A successful `dlopen` or symbol lookup alone is
+not enough.
 
 Observed in Jianying `11.1.12975` (`CFBundleVersion 11.2.0-beta5`):
 

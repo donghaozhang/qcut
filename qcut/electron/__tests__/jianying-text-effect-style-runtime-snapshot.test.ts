@@ -163,7 +163,8 @@ describe("Jianying effectStyle runtime snapshot", () => {
 				value: content,
 				content: "花字验证",
 				resourcePaths: resources.resourcePaths,
-				fontPath: "/fonts/QCut-CJK.ttf",
+				fallbackFontPath: "/fonts/QCut-CJK.ttf",
+				fontOverridePath: "/fonts/QCut-CJK.ttf",
 			});
 			const snapshot = normalizeTemporaryPaths({
 				// Both forms can appear in resolved paths (macOS /var vs

@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -27,12 +28,18 @@ struct TextFrameProbeRequest {
   std::string text;
   std::vector<std::string> stickerParams;
   double fontSize = 12.0;
+  std::optional<double> innerPadding;
+  std::optional<double> lineGap;
+  std::optional<double> lineMaxWidth;
+  std::optional<double> shadowSmoothing;
+  std::optional<bool> enableSwingSimplify = true;
   int width = 512;
   int height = 512;
   int segmentType = 3;
   int resolutionType = -1;
+  int renderIndex = 0;
   std::int64_t timelineDuration = 60'000'000;
-  std::int64_t timestamp = 500'000;
+  double timestamp = 500'000.0;
 };
 
 struct TextFrameProbeResult {
@@ -55,6 +62,8 @@ struct TextSequenceProbeResult {
   int renderedFrames = 0;
   int visibleFrames = 0;
 };
+
+void inspectTextRuntime(const std::filesystem::path& runtimeRoot);
 
 [[nodiscard]] TextFrameProbeResult renderTextFrame(
     const TextFrameProbeRequest& request);

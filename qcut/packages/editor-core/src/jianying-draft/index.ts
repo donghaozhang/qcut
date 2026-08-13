@@ -137,6 +137,35 @@ export {
 	CAPCUT_8_1_DRAFT_PROFILE,
 	getDraftProfile,
 	isDraftProfileWritable,
+	JIANYING_11_3_BETA2_APP_ID,
+	JIANYING_11_3_BETA2_APP_SOURCE,
+	JIANYING_11_3_BETA2_APP_VERSION,
+	JIANYING_11_3_BETA2_NEW_VERSION,
+	JIANYING_11_3_BETA2_PROFILE,
+	JIANYING_11_3_BETA2_PROFILE_ID,
+	JIANYING_11_3_BETA2_SCHEMA_VERSION,
+	JIANYING_11_3_BETA2_TOP_LEVEL_KEYS,
+	isJianying113ProfileId,
+	JIANYING_11_3_BETA3_APP_ID,
+	JIANYING_11_3_BETA3_APP_SOURCE,
+	JIANYING_11_3_BETA3_APP_VERSION,
+	JIANYING_11_3_BETA3_NEW_VERSION,
+	JIANYING_11_3_BETA3_PROFILE,
+	JIANYING_11_3_BETA3_PROFILE_ID,
+	JIANYING_11_3_BETA3_SCHEMA_VERSION,
+	JIANYING_11_3_BETA3_TOP_LEVEL_KEYS,
+	JIANYING_11_3_BETA4_APP_ID,
+	JIANYING_11_3_BETA4_APP_SOURCE,
+	JIANYING_11_3_BETA4_APP_VERSION,
+	JIANYING_11_3_BETA4_NEW_VERSION,
+	JIANYING_11_3_BETA4_PROFILE,
+	JIANYING_11_3_BETA4_PROFILE_ID,
+	JIANYING_11_3_BETA4_SCHEMA_VERSION,
+	JIANYING_11_3_BETA4_TOP_LEVEL_KEYS,
+	JIANYING_11_3_NEW_VERSION,
+	JIANYING_11_3_PROFILE_IDS,
+	JIANYING_11_3_SCHEMA_VERSION,
+	JIANYING_11_3_TOP_LEVEL_KEYS,
 	listDraftProfiles,
 	PLAINTEXT_5_9_PROFILE,
 	PLAINTEXT_5_9_PROFILE_ID,
@@ -144,6 +173,7 @@ export {
 	registerDraftProfile,
 	type DraftProfileCapabilities,
 	type DraftProfileContract,
+	type Jianying113ProfileId,
 	type ProfileOperationLevel,
 } from "./profiles/index.js";
 
@@ -190,9 +220,24 @@ export {
 
 export {
 	mapCapCut81StaticText,
+	mapStaticText,
 	type MapCapCut81StaticTextInput,
 	type MappedCapCut81StaticText,
-} from "./import/capcut-8-1-text-mapper.js";
+	type MapStaticTextInput,
+	type MappedStaticText,
+} from "./import/static-text-mapper.js";
+
+export {
+	mapStaticAudio,
+	type MapStaticAudioInput,
+	type MappedStaticAudio,
+} from "./import/static-audio-mapper.js";
+
+export {
+	mapStaticVideo,
+	type MapStaticVideoInput,
+	type MappedStaticVideo,
+} from "./import/static-video-mapper.js";
 
 export {
 	mapCapCut81SeamTransition,
@@ -203,6 +248,7 @@ export {
 export {
 	mapInteropDocumentToQCutPlan,
 	type QCutImportPlanElement,
+	type QCutImportPlanMediaKeyframe,
 	type QCutImportPlanMediaElement,
 	type QCutImportPlanTextElement,
 	type QCutImportPlanTrack,
@@ -226,3 +272,37 @@ export {
 	type CapCut81SameProfilePrepareIssueCode,
 	type PrepareCapCut81SameProfileWritebackResult,
 } from "./writeback/capcut-8-1-same-profile-prepare.js";
+
+export {
+	JIANYING_11_3_BETA2_CONTENT_PATH,
+	prepareJianying113Beta2SameProfileWriteback,
+	type Jianying113Beta2SameProfilePrepareIssue,
+	type Jianying113Beta2SameProfilePrepareIssueCode,
+	type PrepareJianying113Beta2SameProfileWritebackResult,
+} from "./writeback/jianying-11-3-beta2-same-profile-prepare.js";
+
+export {
+	planJianying113Beta2TimingPatches,
+	type Jianying113Beta2TimingPatchIssue,
+	type Jianying113Beta2TimingPatchIssueCode,
+	type Jianying113Beta2WritebackTimingSnapshot,
+	type PlanJianying113Beta2TimingPatchesResult,
+} from "./writeback/jianying-11-3-beta2-timing-patches.js";
+
+export {
+	JIANYING_11_3_CONTENT_PATH,
+	prepareJianying113SameProfileWriteback,
+	type Jianying113SameProfilePrepareIssue,
+	type Jianying113SameProfilePrepareIssueCode,
+	type PrepareJianying113SameProfileWritebackResult,
+} from "./writeback/jianying-11-3-same-profile-prepare.js";
+
+export {
+	planJianying113TimingPatches,
+	type Jianying113TimingPatchIssue,
+	type Jianying113TimingPatchIssueCode,
+	type Jianying113WritebackTimingSnapshot,
+	type PlanJianying113TimingPatchesResult,
+} from "./writeback/jianying-11-3-timing-patches.js";
+
+export type { SameProfileWritebackTimingSnapshot } from "./writeback/same-profile-timing-patches.js";

@@ -183,6 +183,23 @@ describe("draft interop document", () => {
 		);
 	});
 
+	it("rejects unsupported visual keyframe properties", () => {
+		const value = JSON.parse(JSON.stringify(sampleDocument()));
+		value.timelines[0].tracks[0].segments[0].visual = {
+			xPx: 10,
+			yPx: 0,
+			keyframes: { scale: [] },
+		};
+		const parsed = parseDraftInteropDocumentV1(value);
+		expect(parsed.ok).toBe(false);
+		if (parsed.ok) return;
+		expect(parsed.issues[0]).toMatchObject({
+			code: "DOCUMENT_MALFORMED",
+			severity: "error",
+			path: "/timelines/0/tracks/0/segments/0/visual/keyframes",
+		});
+	});
+
 	it("rejects zero-duration seam transitions", () => {
 		const value = JSON.parse(JSON.stringify(sampleDocument()));
 		value.timelines[0].tracks[0].transitions[0].durationUs = 0;

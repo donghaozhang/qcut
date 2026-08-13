@@ -82,15 +82,23 @@ function evaluateCandidate({
 	const summary = input.contentSummary;
 	const signals: ProfileDetectionSignal[] = [];
 
+	const observedAppId = summary?.appId;
+	const observedAppSource = summary?.appSource;
+	const observedAppVersion = summary?.appVersion;
 	const metadataKnown =
-		summary?.appId !== undefined && summary.appSource !== undefined;
+		observedAppId !== undefined &&
+		observedAppSource !== undefined &&
+		observedAppVersion !== undefined;
 	const metadataMatched =
-		metadataKnown &&
-		summary.appId === contract.appId &&
-		summary.appSource === contract.appSource;
+		observedAppId === contract.appId &&
+		observedAppSource === contract.appSource &&
+		observedAppVersion !== undefined &&
+		contract.appVersions.includes(observedAppVersion);
 	signals.push({
 		kind: "app-metadata",
-		value: metadataKnown ? `${summary.appSource}:${summary.appId}` : "absent",
+		value: metadataKnown
+			? `${observedAppSource}:${observedAppId}@${observedAppVersion}`
+			: "absent",
 		matched: metadataMatched,
 	});
 

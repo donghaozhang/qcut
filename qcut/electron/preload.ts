@@ -122,6 +122,10 @@ import {
 	CAPCUT_8_1_WRITEBACK_COMMIT_CHANNEL,
 	CAPCUT_8_1_WRITEBACK_RECOVER_CHANNEL,
 } from "./jianying-same-profile-writeback-contract.js";
+import {
+	JIANYING_11_3_PROJECT_EXPORT_CHOOSE_CHANNEL,
+	JIANYING_11_3_PROJECT_EXPORT_COMMIT_CHANNEL,
+} from "./jianying-project-export-contract.js";
 
 function resolveNativeFilePath({ file }: { file: File }): string {
 	const filePath = webUtils.getPathForFile(file);
@@ -256,6 +260,12 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke(CAPCUT_8_1_WRITEBACK_COMMIT_CHANNEL, request),
 		recoverCapCut81Writeback: (request) =>
 			ipcRenderer.invoke(CAPCUT_8_1_WRITEBACK_RECOVER_CHANNEL, request),
+	},
+	jianyingProjectExport: {
+		chooseJianying113ProjectExportDirectory: () =>
+			ipcRenderer.invoke(JIANYING_11_3_PROJECT_EXPORT_CHOOSE_CHANNEL),
+		commitJianying113ProjectExport: (request) =>
+			ipcRenderer.invoke(JIANYING_11_3_PROJECT_EXPORT_COMMIT_CHANNEL, request),
 	},
 
 	// File operations

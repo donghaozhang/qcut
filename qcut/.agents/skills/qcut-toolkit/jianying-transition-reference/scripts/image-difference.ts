@@ -12,7 +12,7 @@ export interface PixelDifferenceMetrics {
 	p95AbsoluteError: number;
 }
 
-interface RawPixels {
+export interface CapturePixels {
 	data: Uint8Array;
 	width: number;
 	height: number;
@@ -38,7 +38,7 @@ function ppmToken({ bytes, cursor }: { bytes: Uint8Array; cursor: number }) {
 	};
 }
 
-function parsePpm({ bytes }: { bytes: Uint8Array }): RawPixels {
+function parsePpm({ bytes }: { bytes: Uint8Array }): CapturePixels {
 	const magic = ppmToken({ bytes, cursor: 0 });
 	const width = ppmToken({ bytes, cursor: magic.cursor });
 	const height = ppmToken({ bytes, cursor: width.cursor });
@@ -139,13 +139,13 @@ async function decodeWithFfmpeg({
 	return new Uint8Array(stdout);
 }
 
-async function rawPixels({
+export async function decodeCapturePixels({
 	filePath,
 	ffmpegPath,
 }: {
 	filePath: string;
 	ffmpegPath?: string;
-}): Promise<RawPixels> {
+}): Promise<CapturePixels> {
 	if ([".ppm", ".pnm"].includes(path.extname(filePath).toLowerCase())) {
 		return parsePpm({ bytes: readFileSync(filePath) });
 	}
@@ -183,8 +183,8 @@ export async function compareCaptureImages({
 	ffmpegPath?: string;
 }): Promise<PixelDifferenceMetrics> {
 	const [reference, candidate] = await Promise.all([
-		rawPixels({ filePath: referencePath, ffmpegPath }),
-		rawPixels({ filePath: candidatePath, ffmpegPath }),
+		decodeCapturePixels({ filePath: referencePath, ffmpegPath }),
+		decodeCapturePixels({ filePath: candidatePath, ffmpegPath }),
 	]);
 	if (
 		reference.width !== candidate.width ||
