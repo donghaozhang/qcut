@@ -54,4 +54,22 @@ describe("Jianying text preview video metadata", () => {
 	])("rejects metadata that cannot represent the cached sequence", (value) => {
 		expect(matches({ value })).toBe(false);
 	});
+
+	it("distinguishes an unavailable probe from invalid preview metadata", () => {
+		const unavailable = Object.assign(new Error("ffprobe unavailable"), {
+			code: "ENOENT",
+		});
+		const invalidPreview = new Error("ffprobe failed with invalid data");
+
+		expect(
+			jianyingTextPreviewVideoTestUtils.isExecutableUnavailableError({
+				cause: unavailable,
+			})
+		).toBe(true);
+		expect(
+			jianyingTextPreviewVideoTestUtils.isExecutableUnavailableError({
+				cause: invalidPreview,
+			})
+		).toBe(false);
+	});
 });
