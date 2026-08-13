@@ -16,6 +16,7 @@ import { createDeterministicJianyingId } from "../jianying-draft/deterministic-i
 import {
 	mapInteropDocumentToQCutPlan,
 	type QCutImportPlanElement,
+	type QCutImportPlanMediaKeyframe,
 	type QCutImportPlanMediaElement,
 	type QCutImportPlanTextElement,
 	type QCutImportPlanTrack,
@@ -242,6 +243,12 @@ function parsePlanMediaElement({
 		record.speed === undefined
 			? undefined
 			: asFiniteNumber({ value: record.speed, path: `${path}/speed` });
+	const x = asOptionalFiniteNumber({ value: record.x, path: `${path}/x` });
+	const y = asOptionalFiniteNumber({ value: record.y, path: `${path}/y` });
+	const keyframes = parsePlanMediaKeyframes({
+		value: record.keyframes,
+		path: `${path}/keyframes`,
+	});
 	return {
 		id: asString({ value: record.id, path: `${path}/id` }),
 		type: asEnum({
@@ -272,10 +279,70 @@ function parsePlanMediaElement({
 			path: `${path}/resourceId`,
 		}),
 		...(speed === undefined ? {} : { speed }),
+		...(x === undefined ? {} : { x }),
+		...(y === undefined ? {} : { y }),
+		...(keyframes === undefined ? {} : { keyframes }),
 		sourceSegmentId: asString({
 			value: record.sourceSegmentId,
 			path: `${path}/sourceSegmentId`,
 		}),
+	};
+}
+
+function parsePlanMediaKeyframe({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): QCutImportPlanMediaKeyframe {
+	const record = asRecord({ value, path });
+	return {
+		id: asString({ value: record.id, path: `${path}/id` }),
+		frame: asNonNegativeSafeInteger({
+			value: record.frame,
+			path: `${path}/frame`,
+		}),
+		value: asFiniteNumber({ value: record.value, path: `${path}/value` }),
+		easing: asEnum({
+			value: record.easing,
+			path: `${path}/easing`,
+			allowed: ["linear"],
+		}),
+	};
+}
+
+function parsePlanMediaKeyframes({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): QCutImportPlanMediaElement["keyframes"] {
+	if (value === undefined) return undefined;
+	const record = asRecord({ value, path });
+	for (const key of Object.keys(record)) {
+		if (key !== "x" && key !== "y") {
+			return fail({ message: "unsupported media keyframe property", path });
+		}
+	}
+	const parseProperty = ({ property }: { property: "x" | "y" }) => {
+		const entries = record[property];
+		return entries === undefined
+			? undefined
+			: asArray({ value: entries, path: `${path}/${property}` }).map(
+					(entry, index) =>
+						parsePlanMediaKeyframe({
+							value: entry,
+							path: `${path}/${property}/${index}`,
+						})
+				);
+	};
+	const x = parseProperty({ property: "x" });
+	const y = parseProperty({ property: "y" });
+	return {
+		...(x === undefined ? {} : { x }),
+		...(y === undefined ? {} : { y }),
 	};
 }
 

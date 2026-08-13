@@ -481,6 +481,57 @@ describe("diffDraftInteropDocuments", () => {
 		).toBe(true);
 	});
 
+	it("compares visual keyframes while ignoring their foreign identities", () => {
+		const left = createDocument();
+		left.timelines[0].tracks[0].segments[0].visual = {
+			xPx: 50,
+			yPx: 0,
+			keyframes: {
+				x: [
+					{
+						id: "left-start",
+						timeOffsetUs: 0,
+						value: 0,
+						easing: "linear",
+						foreignRef: "raw-left-start",
+					},
+					{
+						id: "left-end",
+						timeOffsetUs: 2_000_000,
+						value: 50,
+						easing: "linear",
+					},
+				],
+			},
+		};
+		const right = clone(left);
+		const rightKeyframes =
+			right.timelines[0].tracks[0].segments[0].visual?.keyframes?.x;
+		if (rightKeyframes === undefined)
+			throw new Error("visual fixture has no X keyframes");
+		rightKeyframes[0].id = "right-start";
+		rightKeyframes[0].foreignRef = "raw-right-start";
+		expect(diffDraftInteropDocuments({ left, right }).identical).toBe(true);
+
+		rightKeyframes[1].timeOffsetUs += 5;
+		rightKeyframes[1].value = 51;
+		const result = diffDraftInteropDocuments({
+			left,
+			right,
+			options: { timeToleranceUs: 10 },
+		});
+		expect(result.entries).toMatchObject([
+			{
+				path: "/timelines/0/tracks/0/segments/0/visual/keyframes/x/1/timeOffsetUs",
+				severity: "tolerable",
+			},
+			{
+				path: "/timelines/0/tracks/0/segments/0/visual/keyframes/x/1/value",
+				severity: "breaking",
+			},
+		]);
+	});
+
 	it("reports link set changes as breaking in both directions", () => {
 		const left = createDocument();
 		const removed = clone(left);

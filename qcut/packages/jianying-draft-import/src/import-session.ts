@@ -33,6 +33,7 @@ import {
 import {
 	detectDraftProfile,
 	getDraftProfile,
+	isJianying113ProfileId,
 	mapInteropDocumentToQCutPlan,
 	normalizeRawDraft,
 	type DraftContentSummary,
@@ -44,6 +45,7 @@ import {
 } from "./asset-resolver.js";
 import type { AssetResolutionCacheMetrics } from "./asset-resolution-work-cache.js";
 import { discoverDraftDirectory } from "./discovery.js";
+import type { DraftSourceScope } from "./source-root-resolver.js";
 import { readDesktopImportWithGrants } from "./desktop-import-inbox-grants.js";
 import {
 	createImportPlanArtifact,
@@ -56,6 +58,10 @@ import { ImportPlanStore } from "./import-plan-store.js";
 import { PersistentImportPlanStore } from "./persistent-import-plan-store.js";
 import { buildQCutImportBundle } from "./qcut-import-bundle-builder.js";
 import { buildForeignEnvelopeCapture } from "./foreign-envelope-capture.js";
+import {
+	verifyJianying113RoundTrip,
+	type VerifyJianyingRoundTripResult,
+} from "./round-trip-verifier.js";
 import {
 	MediaPayloadGrantStore,
 	type MediaPayloadChunkDto,
@@ -126,6 +132,10 @@ export class ImportSessionError extends Error {
 export interface DraftImportInspectDto {
 	outcome: ProfileDetectionResult["outcome"];
 	profileId?: string;
+	product?: "jianying" | "capcut";
+	sourceScope: DraftSourceScope;
+	subdraftCandidateCount: number;
+	selectedSubdraftId?: string;
 	canWrite: boolean;
 	fileCount: number;
 	skippedEntryCount: number;
@@ -173,6 +183,11 @@ export interface DraftImportGrantedCommitDto {
 	bundle: QCutImportBundleV1;
 	mediaGrants: MediaPayloadGrantDto[];
 	envelopeCapture?: DraftImportEnvelopeCaptureDto;
+}
+
+export interface DraftRoundTripVerificationDto {
+	inspect: DraftImportInspectDto;
+	result: VerifyJianyingRoundTripResult;
 }
 
 interface PlannedSessionState {
@@ -297,10 +312,21 @@ export function buildContentSummary({
 		return undefined;
 	}
 	const record = parsed as Record<string, unknown>;
-	const platform =
+	const primaryPlatform =
 		typeof record.platform === "object" && record.platform !== null
 			? (record.platform as Record<string, unknown>)
 			: {};
+	const lastModifiedPlatform =
+		typeof record.last_modified_platform === "object" &&
+		record.last_modified_platform !== null
+			? (record.last_modified_platform as Record<string, unknown>)
+			: {};
+	const hasPrimaryIdentity =
+		typeof primaryPlatform.app_id === "number" &&
+		primaryPlatform.app_id > 0 &&
+		typeof primaryPlatform.app_source === "string" &&
+		primaryPlatform.app_source.length > 0;
+	const platform = hasPrimaryIdentity ? primaryPlatform : lastModifiedPlatform;
 	return {
 		fileName: contentFile.relativePath,
 		topLevelKeys: Object.keys(record),
@@ -486,6 +512,7 @@ export class JianyingDraftImportSession {
 			run: () =>
 				readDraftSourceSnapshot({
 					rootRealPath: discovery.rootRealPath,
+					requestedRootRealPath: discovery.requestedRootRealPath,
 					files: discovery.files,
 					...(validated.request.maxFileBytes === undefined
 						? {}
@@ -510,16 +537,26 @@ export class JianyingDraftImportSession {
 			stage: "profile-detection",
 		});
 
+		const detectedProfile =
+			detection.profileId === undefined
+				? null
+				: getDraftProfile({ profileId: detection.profileId });
 		const inspect: DraftImportInspectDto = {
 			outcome: detection.outcome,
 			...(detection.profileId === undefined
 				? {}
 				: { profileId: detection.profileId }),
+			...(detectedProfile === null ? {} : { product: detectedProfile.product }),
+			sourceScope: discovery.sourceScope,
+			subdraftCandidateCount: discovery.subdraftCandidateCount,
+			...(discovery.selectedSubdraftId === undefined
+				? {}
+				: { selectedSubdraftId: discovery.selectedSubdraftId }),
 			canWrite: detection.canWrite,
 			fileCount: discovery.files.length,
 			skippedEntryCount: discovery.skipped.length,
 			hasContentFile: discovery.hasContentFile,
-			issues: [...snapshot.issues],
+			issues: [...discovery.issues, ...snapshot.issues],
 		};
 
 		if (
@@ -536,7 +573,7 @@ export class JianyingDraftImportSession {
 			};
 		}
 
-		const profile = getDraftProfile({ profileId: detection.profileId });
+		const profile = detectedProfile;
 		const source: DraftSourceDescriptor = {
 			product: profile?.product ?? "jianying",
 			profileId: detection.profileId,
@@ -561,8 +598,17 @@ export class JianyingDraftImportSession {
 				}),
 			stage: "document-normalization",
 		});
-		const document = normalized.document;
-		inspect.issues = [...snapshot.issues, ...document.issues];
+		const document: DraftInteropDocumentV1 = {
+			...normalized.document,
+			issues: [...discovery.issues, ...normalized.document.issues],
+		};
+		// Stage order (discovery → snapshot → normalization), matching the
+		// early-return branch; document.issues already embeds discovery's.
+		inspect.issues = [
+			...discovery.issues,
+			...snapshot.issues,
+			...normalized.document.issues,
+		];
 		inspect.semantic = {
 			trackCount: document.timelines.reduce(
 				(total, timeline) => total + timeline.tracks.length,
@@ -598,6 +644,81 @@ export class JianyingDraftImportSession {
 			stageMetrics: createPlanStageMetrics({ now: this.#metricsNow }),
 		});
 		return inspect;
+	}
+
+	/** Exercises import normalization and no-op writeback without creating state. */
+	async verifyRoundTrip({
+		input,
+	}: {
+		input: unknown;
+	}): Promise<DraftRoundTripVerificationDto> {
+		const { inspect, snapshot, detection, document, bindings } =
+			await this.#inspectInternal({
+				input,
+				stageMetrics: createPlanStageMetrics({ now: this.#metricsNow }),
+			});
+		if (
+			detection.outcome !== "exact" ||
+			detection.profileId === undefined ||
+			!isJianying113ProfileId({ profileId: detection.profileId }) ||
+			document === undefined ||
+			document.source.product !== "jianying"
+		) {
+			throw new ImportSessionError({
+				code: "profile-not-exact",
+				message:
+					"Round-trip verification requires an exact Jianying Professional 11.3 profile.",
+			});
+		}
+		const profile = getDraftProfile({ profileId: detection.profileId });
+		if (profile === null || profile.product !== "jianying") {
+			throw new ImportSessionError({
+				code: "profile-not-exact",
+				message: "The detected profile is not registered as Jianying.",
+			});
+		}
+		const envelopeCapture = buildForeignEnvelopeCapture({
+			acceptedDowngradeFingerprints: [],
+			allowlist: profile.envelopeAllowlist,
+			bindings,
+			importId: "round-trip-verification",
+			profileId: profile.profileId,
+			snapshot,
+		});
+		if (envelopeCapture === undefined) {
+			throw new ImportSessionError({
+				code: "no-content-file",
+				message:
+					"The Jianying content file could not be captured for verification.",
+			});
+		}
+		const artifact = createImportPlanArtifact({
+			buildIdentity: this.#buildIdentity,
+			detectionOutcome: detection.outcome,
+			document,
+			nowUnixMilliseconds: this.#now(),
+			profileId: detection.profileId,
+			snapshot,
+		});
+		const bundleResult = buildQCutImportBundle({
+			artifact,
+			document,
+			timelinePlan: mapInteropDocumentToQCutPlan({ document }),
+		});
+		if (!bundleResult.ok) {
+			throw new ImportSessionError({
+				code: "plan-blocked",
+				message: "The QCut import state could not be built for verification.",
+			});
+		}
+		return {
+			inspect,
+			result: verifyJianying113RoundTrip({
+				bundle: bundleResult.bundle,
+				bytesByPath: new Map(Object.entries(snapshot.bytesByPath)),
+				envelope: envelopeCapture.envelope,
+			}),
+		};
 	}
 
 	async #prepareExactImport({

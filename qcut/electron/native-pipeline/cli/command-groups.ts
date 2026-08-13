@@ -28,6 +28,20 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 		actions: {},
 	},
 	{
+		name: "draft",
+		label: "Jianying Draft Interop",
+		description:
+			"Inspect, import, and verify Jianying Professional draft round trips",
+		actions: {
+			inspect: "editor:jianying-import:inspect",
+			plan: "editor:jianying-import:plan",
+			import: "editor:jianying-import:import",
+			commit: "editor:jianying-import:commit",
+			export: "editor:interop:jianying-export",
+			"verify-roundtrip": "editor:jianying-import:verify-roundtrip",
+		},
+	},
+	{
 		name: "instances",
 		label: "QCut Instances",
 		description: "Discover running QCut apps and select the CLI target",

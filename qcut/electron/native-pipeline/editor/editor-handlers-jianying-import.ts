@@ -9,9 +9,14 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, posix, win32 } from "node:path";
 import type { CLIResult, CLIRunOptions } from "../cli/cli-runner/types.js";
+import { parseQCutJianyingProjectImportResult } from "../../types/qcut-jianying-project-import-validation.js";
+import type { EditorApiClient } from "./editor-api-client.js";
+
+const LIVE_IMPORT_TIMEOUT_MS = 30 * 60 * 1000;
 
 interface ImportSessionLike {
 	inspect(options: { input: unknown }): Promise<unknown>;
+	verifyRoundTrip(options: { input: unknown }): Promise<unknown>;
 	plan(options: { input: unknown }): Promise<unknown>;
 	commitWithMediaGrants(options: { input: unknown }): Promise<{
 		mediaGrants: Array<{ grantToken: string }>;
@@ -158,7 +163,170 @@ export function resolveQCutCliUserDataDirectory({
 	);
 }
 
-const SUPPORTED_ACTIONS = new Set(["inspect", "plan", "commit"]);
+const SUPPORTED_ACTIONS = new Set([
+	"inspect",
+	"plan",
+	"import",
+	"commit",
+	"verify-roundtrip",
+]);
+
+function requireJianyingFormat({ value }: { value: string | undefined }): void {
+	if (value !== undefined && value.toLowerCase() !== "jianying") {
+		throw new Error('--format must be "jianying" for Jianying draft commands');
+	}
+}
+
+function requireDraftPath({
+	action,
+	value,
+}: {
+	action: string;
+	value: string | undefined;
+}): string {
+	if (value === undefined || value.length === 0) {
+		throw new Error(`${action} requires --draft <directory>`);
+	}
+	return value;
+}
+
+function asRecord({
+	value,
+}: {
+	value: unknown;
+}): Record<string, unknown> | undefined {
+	return typeof value === "object" && value !== null && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: undefined;
+}
+
+function readInspectResult({
+	value,
+}: {
+	value: unknown;
+}): Record<string, unknown> | undefined {
+	const record = asRecord({ value });
+	if (record === undefined) return undefined;
+	return asRecord({ value: record.inspect }) ?? record;
+}
+
+function assertJianyingInspectResult({ value }: { value: unknown }): void {
+	const inspect = readInspectResult({ value });
+	if (inspect?.outcome !== "exact") return;
+	if (inspect.product !== "jianying") {
+		throw new Error(
+			"The exact draft profile is not verified as Jianying Professional."
+		);
+	}
+}
+
+function assertJianyingCommit({ value }: { value: unknown }): void {
+	const commit = asRecord({ value });
+	if (commit === undefined) {
+		throw new Error("The committed import bundle is malformed.");
+	}
+	const bundle = asRecord({ value: commit.bundle });
+	const document = asRecord({ value: bundle?.document });
+	const source = asRecord({ value: document?.source });
+	if (source?.product !== "jianying") {
+		throw new Error(
+			"The committed import bundle is not verified as Jianying Professional."
+		);
+	}
+}
+
+interface ImportSourceSelection {
+	sourceScope: "selected-directory" | "compound-subdraft";
+	subdraftCandidateCount: number;
+	selectedSubdraftId?: string;
+}
+
+function readImportSourceSelection({
+	value,
+}: {
+	value: unknown;
+}): ImportSourceSelection | undefined {
+	const record = asRecord({ value });
+	const inspect = asRecord({ value: record?.inspect });
+	if (
+		(inspect?.sourceScope !== "selected-directory" &&
+			inspect?.sourceScope !== "compound-subdraft") ||
+		typeof inspect.subdraftCandidateCount !== "number" ||
+		!Number.isSafeInteger(inspect.subdraftCandidateCount) ||
+		inspect.subdraftCandidateCount < 0
+	) {
+		return undefined;
+	}
+	return {
+		sourceScope: inspect.sourceScope,
+		subdraftCandidateCount: inspect.subdraftCandidateCount,
+		...(typeof inspect.selectedSubdraftId === "string"
+			? { selectedSubdraftId: inspect.selectedSubdraftId }
+			: {}),
+	};
+}
+
+async function queueImportCommit({
+	action,
+	acceptedWarningFingerprints,
+	activeSession,
+	planToken,
+	runtime,
+	sourceSelection,
+	userDataDirectory,
+}: {
+	action: "commit" | "import";
+	acceptedWarningFingerprints: string[];
+	activeSession: ImportSessionLike;
+	planToken: string;
+	runtime: ImportRuntimeModule;
+	sourceSelection?: ImportSourceSelection;
+	userDataDirectory: string;
+}): Promise<CLIResult> {
+	const commit = await activeSession.commitWithMediaGrants({
+		input: { planToken, acceptedWarningFingerprints },
+	});
+	const grantTokens = commit.mediaGrants.map(({ grantToken }) => grantToken);
+	try {
+		assertJianyingCommit({ value: commit });
+		const inboxEntry = await runtime.enqueueDesktopImportFromGrants({
+			inboxDirectory: join(userDataDirectory, "jianying-import", "inbox"),
+			commit,
+			readChunk: (chunkOptions) =>
+				activeSession.readMediaPayloadChunk(chunkOptions),
+		});
+		return {
+			success: true,
+			data: {
+				action,
+				envelopeStatus: "not-captured",
+				queuedForDesktop: true,
+				localOnly: true,
+				reversible: false,
+				...(sourceSelection ?? {}),
+				inboxEntry,
+			},
+		};
+	} finally {
+		activeSession.releaseMediaPayloadGrants({ input: { grantTokens } });
+	}
+}
+
+function readImportPlan({ value }: { value: unknown }): {
+	canCommit: boolean;
+	planToken: string;
+} | null {
+	const result = asRecord({ value });
+	const plan = asRecord({ value: result?.plan });
+	if (
+		plan?.canCommit !== true ||
+		typeof plan.planToken !== "string" ||
+		plan.planToken.length === 0
+	) {
+		return null;
+	}
+	return { canCommit: true, planToken: plan.planToken };
+}
 
 async function createSession({
 	action,
@@ -171,7 +339,11 @@ async function createSession({
 }): Promise<ImportSessionLike> {
 	const buildIdentity = { appVersion: "cli", interopSchemaVersion: 1 };
 	const SessionConstructor = runtime.JianyingDraftImportSession;
-	if (action === "inspect" || SessionConstructor.open === undefined) {
+	if (
+		action === "inspect" ||
+		action === "verify-roundtrip" ||
+		SessionConstructor.open === undefined
+	) {
 		return new SessionConstructor({ buildIdentity });
 	}
 	return SessionConstructor.open({
@@ -196,6 +368,14 @@ export async function executeJianyingImportCommand({
 			error: `Unknown jianying-import action: ${action}`,
 		};
 	}
+	try {
+		requireJianyingFormat({ value: options.format });
+	} catch (error) {
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : String(error),
+		};
+	}
 	const draftPath = options.draftPaths?.[0];
 	if (
 		action !== "commit" &&
@@ -217,40 +397,61 @@ export async function executeJianyingImportCommand({
 		session = await createSession({ action, runtime, userDataDirectory });
 		const activeSession = session;
 		if (action === "commit") {
-			const commit = await activeSession.commitWithMediaGrants({
-				input: {
-					planToken: options.planToken,
-					acceptedWarningFingerprints:
-						options.acceptedWarningFingerprints ?? [],
-				},
+			return await queueImportCommit({
+				action,
+				acceptedWarningFingerprints: options.acceptedWarningFingerprints ?? [],
+				activeSession,
+				planToken: options.planToken ?? "",
+				runtime,
+				userDataDirectory,
 			});
-			const grantTokens = commit.mediaGrants.map(
-				({ grantToken }) => grantToken
-			);
-			try {
-				const inboxEntry = await runtime.enqueueDesktopImportFromGrants({
-					inboxDirectory: join(userDataDirectory, "jianying-import", "inbox"),
-					commit,
-					readChunk: (chunkOptions) =>
-						activeSession.readMediaPayloadChunk(chunkOptions),
-				});
+		}
+		if (action === "import") {
+			const plan = await activeSession.plan({ input: { draftPath } });
+			assertJianyingInspectResult({ value: plan });
+			const sourceSelection = readImportSourceSelection({ value: plan });
+			const importPlan = readImportPlan({ value: plan });
+			if (importPlan === null) {
 				return {
-					success: true,
-					data: {
-						action,
-						queuedForDesktop: true,
-						localOnly: true,
-						inboxEntry,
-					},
+					success: false,
+					error: "Jianying import plan is blocked.",
+					data: { action, plan },
 				};
-			} finally {
-				activeSession.releaseMediaPayloadGrants({ input: { grantTokens } });
 			}
+			return await queueImportCommit({
+				action,
+				acceptedWarningFingerprints: options.acceptedWarningFingerprints ?? [],
+				activeSession,
+				planToken: importPlan.planToken,
+				runtime,
+				...(sourceSelection === undefined ? {} : { sourceSelection }),
+				userDataDirectory,
+			});
+		}
+		if (action === "verify-roundtrip") {
+			const result = await activeSession.verifyRoundTrip({
+				input: { draftPath },
+			});
+			assertJianyingInspectResult({ value: result });
+			const record = asRecord({ value: result });
+			const verification = asRecord({ value: record?.result });
+			if (verification?.ok !== true) {
+				return {
+					success: false,
+					error: "Jianying round-trip verification failed.",
+					data: { action, localOnly: true, readOnly: true, result },
+				};
+			}
+			return {
+				success: true,
+				data: { action, localOnly: true, readOnly: true, result },
+			};
 		}
 		const result =
 			action === "inspect"
 				? await activeSession.inspect({ input: { draftPath } })
 				: await activeSession.plan({ input: { draftPath } });
+		assertJianyingInspectResult({ value: result });
 		return {
 			success: true,
 			data: {
@@ -271,10 +472,85 @@ export async function executeJianyingImportCommand({
 }
 
 export async function handleJianyingImportCommand({
+	client,
 	options,
+	signal,
 }: {
+	client: EditorApiClient;
 	options: CLIRunOptions;
 	signal?: AbortSignal;
 }): Promise<CLIResult> {
-	return executeJianyingImportCommand({ options });
+	return routeJianyingImportCommand({ client, options, signal });
+}
+
+export async function executeLiveJianyingImportCommand({
+	client,
+	options,
+	signal,
+}: {
+	client: EditorApiClient;
+	options: CLIRunOptions;
+	signal?: AbortSignal;
+}): Promise<CLIResult> {
+	try {
+		requireJianyingFormat({ value: options.format });
+		const draftPath = requireDraftPath({
+			action: "import",
+			value: options.draftPaths?.[0],
+		});
+		const result = parseQCutJianyingProjectImportResult({
+			value: await client.post(
+				"/api/claude/interop/jianying-project-import",
+				{
+					acceptedWarningFingerprints:
+						options.acceptedWarningFingerprints ?? [],
+					draftPath,
+				},
+				{ signal, timeout: LIVE_IMPORT_TIMEOUT_MS }
+			),
+		});
+		if (result.outcome !== "imported") {
+			return { data: result, error: result.message, success: false };
+		}
+		return {
+			data: {
+				action: "import",
+				liveDesktop: true,
+				queuedForDesktop: false,
+				...result,
+			},
+			success: true,
+		};
+	} catch (error) {
+		return {
+			error: error instanceof Error ? error.message : String(error),
+			success: false,
+		};
+	}
+}
+
+type ExecuteImportCommand = (options: {
+	client: EditorApiClient;
+	options: CLIRunOptions;
+	signal?: AbortSignal;
+}) => Promise<CLIResult>;
+
+export async function routeJianyingImportCommand({
+	client,
+	executeLive = executeLiveJianyingImportCommand,
+	executeOffline = ({ options }) => executeJianyingImportCommand({ options }),
+	options,
+	signal,
+}: {
+	client: EditorApiClient;
+	executeLive?: ExecuteImportCommand;
+	executeOffline?: ExecuteImportCommand;
+	options: CLIRunOptions;
+	signal?: AbortSignal;
+}): Promise<CLIResult> {
+	const action = options.command.split(":")[2] ?? "";
+	if (action === "import" && (await client.checkHealth())) {
+		return executeLive({ client, options, signal });
+	}
+	return executeOffline({ client, options });
 }

@@ -8,7 +8,7 @@ import { resolveColorFilterSettings } from "@/lib/filters/filter-resolver";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { TProject } from "@/types/project";
 import type { MediaElement, TimelineTrack } from "@/types/timeline";
-import { buildTimelineDurationByElementId } from "./capcut-same-profile-writeback-snapshot";
+import { buildTimelineDurationByElementId } from "./same-profile-writeback-snapshot";
 
 const DEFAULT_PROJECT_FPS = 30;
 const DEFAULT_PROJECT_BACKGROUND_COLOR = "#000000";

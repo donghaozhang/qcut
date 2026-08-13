@@ -150,6 +150,31 @@ function expectedMedia() {
 }
 
 describe("QCut import materialization verification", () => {
+	it("materializes imported media position keyframes", () => {
+		const bundle = createBundle();
+		const element = bundle.timelinePlan.tracks[0]?.elements[0];
+		if (element?.type !== "media")
+			throw new Error("fixture has no media element");
+		element.x = 50;
+		element.y = 0;
+		element.keyframes = {
+			x: [
+				{ id: "x-start", frame: 0, value: 0, easing: "linear" },
+				{ id: "x-end", frame: 60, value: 50, easing: "linear" },
+			],
+			y: [
+				{ id: "y-start", frame: 0, value: 0, easing: "linear" },
+				{ id: "y-end", frame: 60, value: 0, easing: "linear" },
+			],
+		};
+
+		expect(expectedTracks({ bundle })[0]?.elements[0]).toMatchObject({
+			x: 50,
+			y: 0,
+			keyframes: element.keyframes,
+		});
+	});
+
 	it("hashes persisted media with bounded ordered output", async () => {
 		const result = await describeQCutImportMedia({
 			concurrency: 1,

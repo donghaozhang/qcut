@@ -155,21 +155,25 @@ describe("CapCut 8.1 timing patch planning", () => {
 		expect(result.importedSegmentCount).toBe(1);
 		expect(result.patches).toEqual([
 			expect.objectContaining({
+				foreignRef: "segment-1:target_timerange:start",
 				jsonPointer: "/tracks/0/segments/0/target_timerange/start",
 				expectedValue: 0,
 				nextValue: 1_000_000,
 			}),
 			expect.objectContaining({
+				foreignRef: "segment-1:target_timerange:duration",
 				jsonPointer: "/tracks/0/segments/0/target_timerange/duration",
 				expectedValue: 3_000_000,
 				nextValue: 2_000_000,
 			}),
 			expect.objectContaining({
+				foreignRef: "segment-1:source_timerange:start",
 				jsonPointer: "/tracks/0/segments/0/source_timerange/start",
 				expectedValue: 0,
 				nextValue: 500_000,
 			}),
 			expect.objectContaining({
+				foreignRef: "segment-1:source_timerange:duration",
 				jsonPointer: "/tracks/0/segments/0/source_timerange/duration",
 				expectedValue: 3_000_000,
 				nextValue: 2_000_000,

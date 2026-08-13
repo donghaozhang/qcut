@@ -176,6 +176,8 @@ export function createImportPlanArtifact({
 				sha256: file.sha256,
 			})),
 			profileId: profileId ?? null,
+			requestedRootRealPath:
+				snapshot.requestedRootRealPath ?? snapshot.rootRealPath,
 			resources: createResourceEvidence({ document }),
 			rootRealPath: snapshot.rootRealPath,
 		}),
@@ -195,7 +197,9 @@ export function createImportPlanArtifact({
 		}),
 		warningFingerprints: Object.freeze([...warningFingerprints]),
 		blockerFingerprints: Object.freeze([...blockerFingerprints]),
-		restricted: { rootRealPath: snapshot.rootRealPath },
+		restricted: {
+			rootRealPath: snapshot.requestedRootRealPath ?? snapshot.rootRealPath,
+		},
 		sourceFiles: Object.freeze(sourceFiles),
 	};
 }

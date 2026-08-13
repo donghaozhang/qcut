@@ -96,14 +96,26 @@ function malformed({
 	return { code: "DOCUMENT_MALFORMED", severity: "error", message, path };
 }
 
+function withPointerPrefix({
+	jsonPointerPrefix,
+	jsonPointer,
+}: {
+	jsonPointerPrefix: string;
+	jsonPointer: string;
+}): string {
+	return `${jsonPointerPrefix}${jsonPointer}`;
+}
+
 /**
  * Indexes a raw draft content object into an id-addressable graph.
  * Malformed subtrees are skipped and reported; nothing throws.
  */
 export function readRawDraftGraph({
 	content,
+	jsonPointerPrefix = "",
 }: {
 	content: RawDraftContent;
+	jsonPointerPrefix?: string;
 }): RawDraftGraph {
 	const graph: RawDraftGraph = {
 		draftId: readString(content.id),
@@ -127,11 +139,20 @@ export function readRawDraftGraph({
 	const rawTracks = Array.isArray(content.tracks) ? content.tracks : [];
 	if (!Array.isArray(content.tracks) && content.tracks !== undefined) {
 		graph.readIssues.push(
-			malformed({ message: "tracks must be an array", path: "/tracks" })
+			malformed({
+				message: "tracks must be an array",
+				path: withPointerPrefix({
+					jsonPointerPrefix,
+					jsonPointer: "/tracks",
+				}),
+			})
 		);
 	}
 	for (const [trackIndex, rawTrack] of rawTracks.entries()) {
-		const trackPointer = `/tracks/${trackIndex}`;
+		const trackPointer = withPointerPrefix({
+			jsonPointerPrefix,
+			jsonPointer: `/tracks/${trackIndex}`,
+		});
 		if (!isRawRecord(rawTrack)) {
 			graph.readIssues.push(
 				malformed({ message: "track must be an object", path: trackPointer })
@@ -225,7 +246,13 @@ export function readRawDraftGraph({
 	const rawMaterials = isRawRecord(content.materials) ? content.materials : {};
 	if (!isRawRecord(content.materials) && content.materials !== undefined) {
 		graph.readIssues.push(
-			malformed({ message: "materials must be an object", path: "/materials" })
+			malformed({
+				message: "materials must be an object",
+				path: withPointerPrefix({
+					jsonPointerPrefix,
+					jsonPointer: "/materials",
+				}),
+			})
 		);
 	}
 	for (const [bucket, entries] of Object.entries(rawMaterials)) {
@@ -234,7 +261,10 @@ export function readRawDraftGraph({
 			continue;
 		}
 		for (const [entryIndex, entry] of entries.entries()) {
-			const entryPointer = `/materials/${bucket}/${entryIndex}`;
+			const entryPointer = withPointerPrefix({
+				jsonPointerPrefix,
+				jsonPointer: `/materials/${bucket}/${entryIndex}`,
+			});
 			if (!isRawRecord(entry)) {
 				graph.readIssues.push(
 					malformed({

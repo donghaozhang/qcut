@@ -94,7 +94,8 @@ const pendingRequests = new Map<
  */
 export function requestFromMain(
 	channel: string,
-	data: Record<string, unknown>
+	data: Record<string, unknown>,
+	options: { timeoutMs?: number } = {}
 ): Promise<unknown> {
 	return new Promise((resolve, reject) => {
 		const id = `req-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -106,7 +107,9 @@ export function requestFromMain(
 		// Any shorter timeout here truncates main's own wait and produces
 		// a misleading "Main process request timed out" error while the
 		// renderer is still coming up.
-		const timeoutMs = channel.startsWith("screen-recording:") ? 35_000 : 10_000;
+		const timeoutMs =
+			options.timeoutMs ??
+			(channel.startsWith("screen-recording:") ? 35_000 : 10_000);
 		const timer = setTimeout(() => {
 			pendingRequests.delete(id);
 			reject(new Error(`Main process request timed out: ${channel}`));

@@ -38,6 +38,8 @@ export interface DraftSourceSnapshotFile extends DraftSourceFile {
 }
 
 export interface DraftSourceSnapshot {
+	/** RESTRICTED user-selected root used to reconstruct source selection. */
+	requestedRootRealPath?: string;
 	rootRealPath: string;
 	files: DraftSourceSnapshotFile[];
 	/** Parsed JSON for plaintext content/meta files, keyed by relative path. */
@@ -194,16 +196,19 @@ async function readBoundedFile({
  */
 export async function readDraftSourceSnapshot({
 	rootRealPath,
+	requestedRootRealPath,
 	files,
 	maxFileBytes = DEFAULT_MAX_FILE_BYTES,
 	maxTotalBytes = DEFAULT_MAX_TOTAL_BYTES,
 }: {
 	rootRealPath: string;
+	requestedRootRealPath?: string;
 	files: readonly DiscoveredDraftFile[];
 	maxFileBytes?: number;
 	maxTotalBytes?: number;
 }): Promise<DraftSourceSnapshot> {
 	const snapshot: DraftSourceSnapshot = {
+		...(requestedRootRealPath === undefined ? {} : { requestedRootRealPath }),
 		rootRealPath,
 		files: [],
 		parsedJsonByPath: {},

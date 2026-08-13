@@ -39,6 +39,14 @@ import type {
 	QCutSameProfileWritebackRendererRequest,
 	QCutSameProfileWritebackResult,
 } from "./types/qcut-same-profile-writeback-api.js";
+import type {
+	QCutJianyingProjectImportRendererRequest,
+	QCutJianyingProjectImportResult,
+} from "./types/qcut-jianying-project-import-api.js";
+import type {
+	QCutJianyingProjectExportRendererRequest,
+	QCutJianyingProjectExportResult,
+} from "./types/qcut-jianying-project-export-api.js";
 
 // ============================================================================
 // PTY Terminal
@@ -826,6 +834,66 @@ export function createClaudeAPI(): NonNullable<ElectronAPI["claude"]> {
 			removeListeners: () => {
 				ipcRenderer.removeAllListeners(
 					"qcut:interop:same-profile-writeback:request"
+				);
+			},
+		},
+		jianyingProjectImport: {
+			onRequest: (
+				callback: (data: QCutJianyingProjectImportRendererRequest) => void
+			) => {
+				ipcRenderer.removeAllListeners(
+					"qcut:interop:jianying-project-import:request"
+				);
+				ipcRenderer.on(
+					"qcut:interop:jianying-project-import:request",
+					(_: unknown, data: QCutJianyingProjectImportRendererRequest) =>
+						callback(data)
+				);
+			},
+			sendResponse: (
+				requestId: string,
+				result?: QCutJianyingProjectImportResult,
+				error?: string
+			) => {
+				ipcRenderer.send("qcut:interop:jianying-project-import:response", {
+					error,
+					requestId,
+					result,
+				});
+			},
+			removeListeners: () => {
+				ipcRenderer.removeAllListeners(
+					"qcut:interop:jianying-project-import:request"
+				);
+			},
+		},
+		jianyingProjectExport: {
+			onRequest: (
+				callback: (data: QCutJianyingProjectExportRendererRequest) => void
+			) => {
+				ipcRenderer.removeAllListeners(
+					"qcut:interop:jianying-project-export:request"
+				);
+				ipcRenderer.on(
+					"qcut:interop:jianying-project-export:request",
+					(_: unknown, data: QCutJianyingProjectExportRendererRequest) =>
+						callback(data)
+				);
+			},
+			sendResponse: (
+				requestId: string,
+				result?: QCutJianyingProjectExportResult,
+				error?: string
+			) => {
+				ipcRenderer.send("qcut:interop:jianying-project-export:response", {
+					error,
+					requestId,
+					result,
+				});
+			},
+			removeListeners: () => {
+				ipcRenderer.removeAllListeners(
+					"qcut:interop:jianying-project-export:request"
 				);
 			},
 		},

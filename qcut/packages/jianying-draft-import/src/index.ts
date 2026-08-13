@@ -114,7 +114,15 @@ export {
 	type DraftImportInspectDto,
 	type DraftImportMediaPayloadDto,
 	type DraftImportPlanDto,
+	type DraftRoundTripVerificationDto,
 } from "./import-session.js";
+
+export {
+	verifyJianying113RoundTrip,
+	type JianyingRoundTripVerification,
+	type JianyingRoundTripVerificationIssue,
+	type VerifyJianyingRoundTripResult,
+} from "./round-trip-verifier.js";
 
 export {
 	deleteDesktopImport,

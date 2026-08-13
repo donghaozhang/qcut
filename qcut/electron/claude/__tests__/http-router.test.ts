@@ -57,12 +57,16 @@ function createMockRes(): http.ServerResponse & {
 		_status: 0,
 		_body: "",
 		_headers: {} as Record<string, string>,
+		headersSent: false,
+		writableEnded: false,
 		writeHead(status: number, headers?: Record<string, string>) {
 			res._status = status;
+			res.headersSent = true;
 			if (headers) Object.assign(res._headers, headers);
 		},
 		end(body?: string) {
 			res._body = body || "";
+			res.writableEnded = true;
 		},
 	} as any;
 	return res;
@@ -281,6 +285,28 @@ describe("HTTP Router", () => {
 		await router.handle(req, res);
 
 		expect(handler.mock.calls[0][0].params.name).toBe("hello world");
+	});
+
+	it("does not write a second response after one was already sent", async () => {
+		const router = createRouter();
+		router.get("/api/test", async (req) => {
+			// Simulate a socket-timeout 408 racing the handler: the response
+			// is already finished when the handler settles.
+			req.rawRes.writeHead(408, { "Content-Type": "application/json" });
+			req.rawRes.end(
+				JSON.stringify({ success: false, error: "Request timeout" })
+			);
+			return { late: true };
+		});
+
+		const req = createMockReq("GET", "/api/test");
+		const res = createMockRes();
+
+		await expect(router.handle(req, res)).resolves.toBeUndefined();
+
+		expect(res._status).toBe(408);
+		const body = JSON.parse(res._body);
+		expect(body.error).toBe("Request timeout");
 	});
 
 	it("includes timestamp in all responses", async () => {

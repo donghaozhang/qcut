@@ -289,7 +289,7 @@ export class EditorApiClient {
 	async post<T = unknown>(
 		path: string,
 		body?: unknown,
-		options?: { timeout?: number }
+		options?: { signal?: AbortSignal; timeout?: number }
 	): Promise<T> {
 		await this.warnIfCapabilityLikelyUnsupported({
 			method: "POST",
@@ -299,7 +299,8 @@ export class EditorApiClient {
 			"POST",
 			`${this.config.baseUrl}${path}`,
 			body,
-			options?.timeout
+			options?.timeout,
+			options?.signal
 		);
 	}
 
@@ -906,17 +907,21 @@ export class EditorApiClient {
 		method: string,
 		url: string,
 		body?: unknown,
-		timeoutOverride?: number
+		timeoutOverride?: number,
+		signal?: AbortSignal
 	): Promise<T> {
 		const headers: Record<string, string> = {};
 		if (this.config.token) {
 			headers.Authorization = `Bearer ${this.config.token}`;
 		}
 
+		const timeoutSignal = AbortSignal.timeout(
+			timeoutOverride ?? this.config.timeout
+		);
 		const init: RequestInit = {
 			method,
 			headers,
-			signal: AbortSignal.timeout(timeoutOverride ?? this.config.timeout),
+			signal: signal ? AbortSignal.any([signal, timeoutSignal]) : timeoutSignal,
 		};
 
 		if (body !== undefined) {
