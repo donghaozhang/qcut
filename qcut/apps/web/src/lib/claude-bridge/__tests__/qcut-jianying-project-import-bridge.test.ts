@@ -6,6 +6,7 @@ import type {
 import { executeLiveQCutJianyingProjectImport } from "../qcut-jianying-project-import-bridge";
 
 const WARNING = "a".repeat(64);
+const SECOND_WARNING = "b".repeat(64);
 
 function plan({
 	blockerFingerprints = [],
@@ -134,5 +135,29 @@ describe("live QCut Jianying project import", () => {
 			selectedSubdraftId: "compound-1",
 			sourceScope: "compound-subdraft",
 		});
+	});
+
+	it("commits warnings in the order captured by the import plan", async () => {
+		const warningFingerprints = [SECOND_WARNING, WARNING];
+		const bridge = bridgeWithPlan({
+			value: plan({ warningFingerprints }),
+		});
+		const commitImport = vi.fn(async () => "project-1");
+
+		const result = await executeLiveQCutJianyingProjectImport({
+			bridge,
+			commitImport,
+			request: {
+				acceptedWarningFingerprints: [...warningFingerprints].reverse(),
+				draftPath: "/private/draft",
+			},
+		});
+
+		expect(commitImport).toHaveBeenCalledWith({
+			acceptedWarningFingerprints: warningFingerprints,
+			bridge,
+			planToken: "plan-token",
+		});
+		expect(result).toMatchObject({ outcome: "imported" });
 	});
 });

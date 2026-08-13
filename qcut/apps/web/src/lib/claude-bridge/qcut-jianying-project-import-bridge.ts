@@ -182,7 +182,7 @@ export async function executeLiveQCutJianyingProjectImport({
 
 	try {
 		const projectId = await commitImport({
-			acceptedWarningFingerprints: [...request.acceptedWarningFingerprints],
+			acceptedWarningFingerprints: [...plan.warningFingerprints],
 			bridge,
 			planToken: plan.planToken,
 		});
