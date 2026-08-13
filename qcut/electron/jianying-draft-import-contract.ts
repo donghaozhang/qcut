@@ -74,6 +74,7 @@ export interface DraftImportInspectRequestDto {
 export interface DraftImportInspectDto {
 	outcome: "exact" | "ambiguous" | "unsupported" | "encrypted";
 	profileId?: string;
+	product?: "jianying" | "capcut";
 	canWrite: boolean;
 	fileCount: number;
 	skippedEntryCount: number;

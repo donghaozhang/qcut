@@ -126,6 +126,7 @@ export class ImportSessionError extends Error {
 export interface DraftImportInspectDto {
 	outcome: ProfileDetectionResult["outcome"];
 	profileId?: string;
+	product?: "jianying" | "capcut";
 	canWrite: boolean;
 	fileCount: number;
 	skippedEntryCount: number;
@@ -297,10 +298,21 @@ export function buildContentSummary({
 		return undefined;
 	}
 	const record = parsed as Record<string, unknown>;
-	const platform =
+	const primaryPlatform =
 		typeof record.platform === "object" && record.platform !== null
 			? (record.platform as Record<string, unknown>)
 			: {};
+	const lastModifiedPlatform =
+		typeof record.last_modified_platform === "object" &&
+		record.last_modified_platform !== null
+			? (record.last_modified_platform as Record<string, unknown>)
+			: {};
+	const hasPrimaryIdentity =
+		typeof primaryPlatform.app_id === "number" &&
+		primaryPlatform.app_id > 0 &&
+		typeof primaryPlatform.app_source === "string" &&
+		primaryPlatform.app_source.length > 0;
+	const platform = hasPrimaryIdentity ? primaryPlatform : lastModifiedPlatform;
 	return {
 		fileName: contentFile.relativePath,
 		topLevelKeys: Object.keys(record),
@@ -510,11 +522,16 @@ export class JianyingDraftImportSession {
 			stage: "profile-detection",
 		});
 
+		const detectedProfile =
+			detection.profileId === undefined
+				? null
+				: getDraftProfile({ profileId: detection.profileId });
 		const inspect: DraftImportInspectDto = {
 			outcome: detection.outcome,
 			...(detection.profileId === undefined
 				? {}
 				: { profileId: detection.profileId }),
+			...(detectedProfile === null ? {} : { product: detectedProfile.product }),
 			canWrite: detection.canWrite,
 			fileCount: discovery.files.length,
 			skippedEntryCount: discovery.skipped.length,
@@ -536,7 +553,7 @@ export class JianyingDraftImportSession {
 			};
 		}
 
-		const profile = getDraftProfile({ profileId: detection.profileId });
+		const profile = detectedProfile;
 		const source: DraftSourceDescriptor = {
 			product: profile?.product ?? "jianying",
 			profileId: detection.profileId,

@@ -26,16 +26,27 @@ function command({
 const DRAFT_DIR_FLAG = flag(
 	"--draft",
 	"string[]",
-	"JianYing/CapCut draft directory to import (first value is used)",
+	"Jianying Professional draft directory to import (first value is used)",
 	{ required: true }
+);
+const JIANYING_FORMAT_FLAG = flag(
+	"--format",
+	"string",
+	"Draft product format (must be jianying)",
+	{ default: "jianying" }
+);
+const ACCEPT_WARNING_FLAG = flag(
+	"--accept-warning",
+	"string[]",
+	"Accepted warning fingerprint (repeatable; must match the plan exactly)"
 );
 
 export const JIANYING_IMPORT_COMMANDS: Record<string, CommandDef> = {
 	"editor:jianying-import:inspect": command({
 		name: "editor:jianying-import:inspect",
 		description:
-			"Read-only inspection of a local JianYing/CapCut draft: profile, counts, capabilities, issues",
-		flags: [DRAFT_DIR_FLAG],
+			"Read-only inspection of a local Jianying Professional draft: profile, counts, capabilities, issues",
+		flags: [DRAFT_DIR_FLAG, JIANYING_FORMAT_FLAG],
 		examples: [
 			'qcut editor jianying-import inspect --draft "~/Movies/JianyingPro Drafts/my-draft" --json',
 		],
@@ -44,9 +55,18 @@ export const JIANYING_IMPORT_COMMANDS: Record<string, CommandDef> = {
 		name: "editor:jianying-import:plan",
 		description:
 			"Build an expiring, single-use import plan (token + warning fingerprints); writes nothing",
-		flags: [DRAFT_DIR_FLAG],
+		flags: [DRAFT_DIR_FLAG, JIANYING_FORMAT_FLAG],
 		examples: [
 			'qcut editor jianying-import plan --draft "~/Movies/JianyingPro Drafts/my-draft" --json',
+		],
+	}),
+	"editor:jianying-import:import": command({
+		name: "editor:jianying-import:import",
+		description:
+			"Plan, validate, and queue a Jianying Professional draft for QCut desktop",
+		flags: [DRAFT_DIR_FLAG, JIANYING_FORMAT_FLAG, ACCEPT_WARNING_FLAG],
+		examples: [
+			'qcut draft import --format jianying --draft "~/Movies/JianyingPro/User Data/Projects/com.lveditor.draft/my-draft" --json',
 		],
 	}),
 	"editor:jianying-import:commit": command({
@@ -57,11 +77,7 @@ export const JIANYING_IMPORT_COMMANDS: Record<string, CommandDef> = {
 			flag("--plan-token", "string", "Token returned by plan", {
 				required: true,
 			}),
-			flag(
-				"--accept-warning",
-				"string[]",
-				"Accepted warning fingerprint (repeatable; must match the plan exactly)"
-			),
+			ACCEPT_WARNING_FLAG,
 		],
 		examples: [
 			"qcut editor jianying-import commit --plan-token <token> --accept-warning <fp>",

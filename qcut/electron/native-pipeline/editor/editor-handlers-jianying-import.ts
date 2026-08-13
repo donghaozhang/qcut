@@ -158,7 +158,109 @@ export function resolveQCutCliUserDataDirectory({
 	);
 }
 
-const SUPPORTED_ACTIONS = new Set(["inspect", "plan", "commit"]);
+const SUPPORTED_ACTIONS = new Set(["inspect", "plan", "import", "commit"]);
+
+function asRecord({
+	value,
+}: {
+	value: unknown;
+}): Record<string, unknown> | undefined {
+	return typeof value === "object" && value !== null && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: undefined;
+}
+
+function readInspectResult({
+	value,
+}: {
+	value: unknown;
+}): Record<string, unknown> | undefined {
+	const record = asRecord({ value });
+	if (record === undefined) return undefined;
+	return asRecord({ value: record.inspect }) ?? record;
+}
+
+function assertJianyingInspectResult({ value }: { value: unknown }): void {
+	const inspect = readInspectResult({ value });
+	if (inspect?.outcome !== "exact") return;
+	if (inspect.product !== "jianying") {
+		throw new Error(
+			"The exact draft profile is not verified as Jianying Professional."
+		);
+	}
+}
+
+function assertJianyingCommit({ value }: { value: unknown }): void {
+	const commit = asRecord({ value });
+	if (commit === undefined) {
+		throw new Error("The committed import bundle is malformed.");
+	}
+	const bundle = asRecord({ value: commit.bundle });
+	const document = asRecord({ value: bundle?.document });
+	const source = asRecord({ value: document?.source });
+	if (source?.product !== "jianying") {
+		throw new Error(
+			"The committed import bundle is not verified as Jianying Professional."
+		);
+	}
+}
+
+async function queueImportCommit({
+	action,
+	acceptedWarningFingerprints,
+	activeSession,
+	planToken,
+	runtime,
+	userDataDirectory,
+}: {
+	action: "commit" | "import";
+	acceptedWarningFingerprints: string[];
+	activeSession: ImportSessionLike;
+	planToken: string;
+	runtime: ImportRuntimeModule;
+	userDataDirectory: string;
+}): Promise<CLIResult> {
+	const commit = await activeSession.commitWithMediaGrants({
+		input: { planToken, acceptedWarningFingerprints },
+	});
+	const grantTokens = commit.mediaGrants.map(({ grantToken }) => grantToken);
+	try {
+		assertJianyingCommit({ value: commit });
+		const inboxEntry = await runtime.enqueueDesktopImportFromGrants({
+			inboxDirectory: join(userDataDirectory, "jianying-import", "inbox"),
+			commit,
+			readChunk: (chunkOptions) =>
+				activeSession.readMediaPayloadChunk(chunkOptions),
+		});
+		return {
+			success: true,
+			data: {
+				action,
+				queuedForDesktop: true,
+				localOnly: true,
+				inboxEntry,
+			},
+		};
+	} finally {
+		activeSession.releaseMediaPayloadGrants({ input: { grantTokens } });
+	}
+}
+
+function readImportPlan({ value }: { value: unknown }): {
+	canCommit: boolean;
+	planToken: string;
+} | null {
+	const result = asRecord({ value });
+	const plan = asRecord({ value: result?.plan });
+	if (
+		plan?.canCommit !== true ||
+		typeof plan.planToken !== "string" ||
+		plan.planToken.length === 0
+	) {
+		return null;
+	}
+	return { canCommit: true, planToken: plan.planToken };
+}
 
 async function createSession({
 	action,
@@ -196,6 +298,15 @@ export async function executeJianyingImportCommand({
 			error: `Unknown jianying-import action: ${action}`,
 		};
 	}
+	if (
+		options.format !== undefined &&
+		options.format.toLowerCase() !== "jianying"
+	) {
+		return {
+			success: false,
+			error: '--format must be "jianying" for Jianying draft commands',
+		};
+	}
 	const draftPath = options.draftPaths?.[0];
 	if (
 		action !== "commit" &&
@@ -217,40 +328,40 @@ export async function executeJianyingImportCommand({
 		session = await createSession({ action, runtime, userDataDirectory });
 		const activeSession = session;
 		if (action === "commit") {
-			const commit = await activeSession.commitWithMediaGrants({
-				input: {
-					planToken: options.planToken,
-					acceptedWarningFingerprints:
-						options.acceptedWarningFingerprints ?? [],
-				},
+			return await queueImportCommit({
+				action,
+				acceptedWarningFingerprints: options.acceptedWarningFingerprints ?? [],
+				activeSession,
+				planToken: options.planToken ?? "",
+				runtime,
+				userDataDirectory,
 			});
-			const grantTokens = commit.mediaGrants.map(
-				({ grantToken }) => grantToken
-			);
-			try {
-				const inboxEntry = await runtime.enqueueDesktopImportFromGrants({
-					inboxDirectory: join(userDataDirectory, "jianying-import", "inbox"),
-					commit,
-					readChunk: (chunkOptions) =>
-						activeSession.readMediaPayloadChunk(chunkOptions),
-				});
+		}
+		if (action === "import") {
+			const plan = await activeSession.plan({ input: { draftPath } });
+			assertJianyingInspectResult({ value: plan });
+			const importPlan = readImportPlan({ value: plan });
+			if (importPlan === null) {
 				return {
-					success: true,
-					data: {
-						action,
-						queuedForDesktop: true,
-						localOnly: true,
-						inboxEntry,
-					},
+					success: false,
+					error: "Jianying import plan is blocked.",
+					data: { action, plan },
 				};
-			} finally {
-				activeSession.releaseMediaPayloadGrants({ input: { grantTokens } });
 			}
+			return await queueImportCommit({
+				action,
+				acceptedWarningFingerprints: options.acceptedWarningFingerprints ?? [],
+				activeSession,
+				planToken: importPlan.planToken,
+				runtime,
+				userDataDirectory,
+			});
 		}
 		const result =
 			action === "inspect"
 				? await activeSession.inspect({ input: { draftPath } })
 				: await activeSession.plan({ input: { draftPath } });
+		assertJianyingInspectResult({ value: result });
 		return {
 			success: true,
 			data: {

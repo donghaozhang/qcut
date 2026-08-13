@@ -11,10 +11,10 @@ import { makeOpts } from "./editor-cli-test-setup.js";
 
 /** JYI-012 acceptance (CLI side): registration, dispatch, offline handler. */
 
-const ACTIONS = ["inspect", "plan", "commit"] as const;
+const ACTIONS = ["inspect", "plan", "import", "commit"] as const;
 
 describe("jianying-import command registration", () => {
-	it("registers all three commands in the registry", () => {
+	it("registers all Jianying import commands in the registry", () => {
 		for (const action of ACTIONS) {
 			const command = getCommand(`editor:jianying-import:${action}`);
 			expect(command, action).toBeDefined();
@@ -31,6 +31,21 @@ describe("jianying-import command registration", () => {
 			"/tmp/x",
 		]);
 		expect(resolved?.command).toBe("editor:jianying-import:inspect");
+	});
+
+	it("resolves the concise draft import command", () => {
+		const resolved = resolveCommandGroup([
+			"draft",
+			"import",
+			"--format",
+			"jianying",
+			"--draft",
+			"/tmp/x",
+		]);
+		expect(resolved).toEqual({
+			command: "editor:jianying-import:import",
+			remainingArgs: ["--format", "jianying", "--draft", "/tmp/x"],
+		});
 	});
 });
 
@@ -49,13 +64,18 @@ describe("executeJianyingImportCommand", () => {
 
 			async inspect({ input }: { input: unknown }) {
 				calls.push({ verb: "inspect", input });
-				return { outcome: "exact" };
+				return { outcome: "exact", product: "jianying" };
 			}
 
 			async plan({ input }: { input: unknown }) {
 				calls.push({ verb: "plan", input });
 				return {
-					plan: { planToken: "token" },
+					plan: {
+						planToken: "token",
+						canCommit: true,
+						warningFingerprints: ["warning"],
+					},
+					inspect: { outcome: "exact", product: "jianying" },
 					cacheMetrics: {
 						assetResolution: {
 							schemaVersion: 1,
@@ -80,7 +100,10 @@ describe("executeJianyingImportCommand", () => {
 			async commitWithMediaGrants({ input }: { input: unknown }) {
 				calls.push({ verb: "commit-grants", input });
 				return {
-					bundle: { planToken: "token" },
+					bundle: {
+						planToken: "token",
+						document: { source: { product: "jianying" } },
+					},
 					mediaGrants: [{ grantToken: "grant-token" }],
 				};
 			}
@@ -221,7 +244,10 @@ describe("executeJianyingImportCommand", () => {
 				input: {
 					inboxDirectory: join("/qcut-user-data", "jianying-import", "inbox"),
 					commit: {
-						bundle: { planToken: "token" },
+						bundle: {
+							planToken: "token",
+							document: { source: { product: "jianying" } },
+						},
 						mediaGrants: [{ grantToken: "grant-token" }],
 					},
 				},
@@ -232,6 +258,40 @@ describe("executeJianyingImportCommand", () => {
 				input: { grantTokens: ["grant-token"] },
 			},
 		]);
+	});
+
+	it("plans and queues a Jianying draft through the concise import command", async () => {
+		const runtime = createRuntime();
+		const result = await executeJianyingImportCommand({
+			options: makeOpts({
+				command: "editor:jianying-import:import",
+				draftPaths: ["/drafts/my-draft"],
+				format: "jianying",
+				acceptedWarningFingerprints: ["warning"],
+			}),
+			loadRuntime: async () => runtime.module,
+			getUserDataDirectory: () => "/qcut-user-data",
+		});
+
+		expect(result).toMatchObject({
+			success: true,
+			data: {
+				action: "import",
+				queuedForDesktop: true,
+				inboxEntry: { entryId: "entry-1" },
+			},
+		});
+		expect(runtime.calls[0]).toEqual({
+			verb: "plan",
+			input: { draftPath: "/drafts/my-draft" },
+		});
+		expect(runtime.calls[1]).toEqual({
+			verb: "commit-grants",
+			input: {
+				planToken: "token",
+				acceptedWarningFingerprints: ["warning"],
+			},
+		});
 	});
 
 	it("releases media grants when inbox streaming fails", async () => {
@@ -281,6 +341,50 @@ describe("executeJianyingImportCommand", () => {
 		});
 		expect(result.success).toBe(false);
 		expect(result.error).toContain("not a directory");
+	});
+
+	it("rejects an exact CapCut profile from the Jianying command", async () => {
+		class CapCutSession {
+			async inspect() {
+				return { outcome: "exact", product: "capcut" };
+			}
+
+			dispose() {}
+		}
+		const result = await executeJianyingImportCommand({
+			options: makeOpts({
+				command: "editor:jianying-import:inspect",
+				draftPaths: ["/drafts/capcut"],
+			}),
+			loadRuntime: async () => ({
+				JianyingDraftImportSession: CapCutSession,
+				enqueueDesktopImportFromGrants: async () => ({ entryId: "unused" }),
+			}),
+			getUserDataDirectory: () => "/qcut-user-data",
+		});
+
+		expect(result).toMatchObject({
+			success: false,
+			error: expect.stringContaining("not verified as Jianying"),
+		});
+	});
+
+	it("rejects a CapCut format before loading the runtime", async () => {
+		const runtime = createRuntime();
+		const result = await executeJianyingImportCommand({
+			options: makeOpts({
+				command: "editor:jianying-import:import",
+				draftPaths: ["/drafts/capcut"],
+				format: "capcut",
+			}),
+			loadRuntime: async () => runtime.module,
+		});
+
+		expect(result).toMatchObject({
+			success: false,
+			error: expect.stringContaining('must be "jianying"'),
+		});
+		expect(runtime.calls).toEqual([]);
 	});
 });
 
