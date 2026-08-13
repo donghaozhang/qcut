@@ -17,7 +17,9 @@ async function fixture({
 	version: string;
 	script: string;
 }) {
-	const root = await mkdtemp(path.join(os.tmpdir(), "qcut-filter-package-test-"));
+	const root = await mkdtemp(
+		path.join(os.tmpdir(), "qcut-filter-package-test-")
+	);
 	temporaryDirectories.push(root);
 	const packagePath = path.join(root, version);
 	const luaDirectory = path.join(packagePath, "AmazingFeature", "lua");
@@ -28,9 +30,9 @@ async function fixture({
 
 afterEach(async () => {
 	await Promise.all(
-		temporaryDirectories.splice(0).map((directory) =>
-			rm(directory, { recursive: true, force: true })
-		)
+		temporaryDirectories
+			.splice(0)
+			.map((directory) => rm(directory, { recursive: true, force: true }))
 	);
 });
 
@@ -48,6 +50,12 @@ describe("Jianying native multi-pass package preparation", () => {
 				version: "changed",
 			})
 		).toBe(false);
+		expect(
+			supportsJianyingNativeMultiPass({
+				resourceId: "7447126702137904420",
+				version: "9673f80b8e2f5a07f02f9ce1130b784a",
+			})
+		).toBe(true);
 	});
 
 	it("rejects a package whose script no longer matches the verified hash", async () => {
@@ -63,6 +71,51 @@ describe("Jianying native multi-pass package preparation", () => {
 				intensity: 100,
 			})
 		).rejects.toThrow("changed since verification");
+	});
+
+	it("rejects a changed package for an unchanged-package profile", async () => {
+		const root = await mkdtemp(
+			path.join(os.tmpdir(), "qcut-filter-package-test-")
+		);
+		temporaryDirectories.push(root);
+		const packagePath = path.join(root, "9673f80b8e2f5a07f02f9ce1130b784a");
+		await mkdir(packagePath, { recursive: true });
+		await writeFile(path.join(packagePath, "changed"), "package");
+
+		await expect(
+			prepareJianyingNativeMultiPassPackage({
+				resourceId: "7447126702137904420",
+				packagePath,
+				destinationDirectory: root,
+				intensity: 100,
+			})
+		).rejects.toThrow("changed since verification");
+	});
+
+	it("hashes package trees independently of file creation order", async () => {
+		const roots = await Promise.all(
+			["left", "right"].map(async (name) => {
+				const root = await mkdtemp(
+					path.join(os.tmpdir(), `qcut-filter-package-${name}-`)
+				);
+				temporaryDirectories.push(root);
+				return root;
+			})
+		);
+		await mkdir(path.join(roots[0], "nested"));
+		await writeFile(path.join(roots[0], "a"), "first");
+		await writeFile(path.join(roots[0], "nested", "b"), "second");
+		await mkdir(path.join(roots[1], "nested"));
+		await writeFile(path.join(roots[1], "nested", "b"), "second");
+		await writeFile(path.join(roots[1], "a"), "first");
+
+		await expect(
+			jianyingFilterPackagePreparerTestUtils.hashPackageTree({ root: roots[0] })
+		).resolves.toBe(
+			await jianyingFilterPackagePreparerTestUtils.hashPackageTree({
+				root: roots[1],
+			})
+		);
 	});
 
 	it("maps one UI intensity into every fog pass", () => {
