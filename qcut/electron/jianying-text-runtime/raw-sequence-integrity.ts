@@ -151,6 +151,7 @@ export async function repairTransientTransparentRgbaFrames({
 	height,
 	frameCount,
 	renderFrame,
+	throwIfCancelled,
 }: {
 	rawPath: string;
 	width: number;
@@ -160,6 +161,8 @@ export async function repairTransientTransparentRgbaFrames({
 		frameIndex: number;
 		outputPath: string;
 	}) => Promise<void>;
+	/** Rethrows cancellation out of an otherwise best-effort retry failure. */
+	throwIfCancelled?: () => void;
 }) {
 	const transparentFrameIndices = await findTransparentRgbaFrameIndices({
 		rawPath,
@@ -197,6 +200,11 @@ export async function repairTransientTransparentRgbaFrames({
 					await file.close();
 				}
 			}
+		} catch {
+			// Repair is best-effort: the original frame is still in place, so
+			// a failed retry must not abort the whole render. Cancellation is
+			// the exception — it must still propagate.
+			throwIfCancelled?.();
 		} finally {
 			await rm(outputPath, { force: true });
 		}

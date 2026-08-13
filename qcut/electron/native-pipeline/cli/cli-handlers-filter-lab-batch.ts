@@ -215,13 +215,20 @@ export async function handleFilterLabCoverage(
 		.split(",")
 		.map((field) => field.trim())
 		.filter(Boolean);
+	const supported = [...COVERAGE_STRATIFY_FIELDS].sort().join(", ");
+	if (fields.length === 0) {
+		return {
+			success: false,
+			error: `--stratify is empty. Supported: ${supported}.`,
+		};
+	}
 	const unknown = fields.filter(
 		(field) => !COVERAGE_STRATIFY_FIELDS.has(field)
 	);
-	if (fields.length === 0 || unknown.length > 0) {
+	if (unknown.length > 0) {
 		return {
 			success: false,
-			error: `Unknown stratify field(s): ${unknown.join(", ")}. Supported: ${[...COVERAGE_STRATIFY_FIELDS].sort().join(", ")}.`,
+			error: `Unknown stratify field(s): ${unknown.join(", ")}. Supported: ${supported}.`,
 		};
 	}
 	const exportCatalog = deps.exportCatalog ?? exportCatalogDefault;

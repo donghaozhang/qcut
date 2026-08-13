@@ -131,6 +131,10 @@ function buildBloomPass({
 	const scale = pass.scale ?? 1;
 	const downscale =
 		scale === 1 ? "" : `,scale=iw*${scale}:ih*${scale}:flags=bicubic`;
+	// FFmpeg defines gbrpf16le, but the lutrgb/gblur/blend chain negotiates
+	// float planes as 32-bit only on the pinned FFmpeg builds, so float16
+	// deliberately promotes to gbrpf32le. Precision only widens: a half-float
+	// trait loses nothing in a 32-bit intermediate.
 	const intermediateFormat =
 		pass.pixelFormat === "float16" || pass.pixelFormat === "float32"
 			? ",format=gbrpf32le"

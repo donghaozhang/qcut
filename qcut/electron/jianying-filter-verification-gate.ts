@@ -31,11 +31,12 @@ export function selectVerificationForCard({
 	version?: string;
 	implementation?: string;
 }): JianyingFilterVerification {
-	const list = Array.isArray(candidates)
-		? candidates
-		: candidates
-			? [candidates]
-			: [];
+	let list: JianyingFilterVerification[] = [];
+	if (Array.isArray(candidates)) {
+		list = candidates;
+	} else if (candidates) {
+		list = [candidates];
+	}
 	let chosen: JianyingFilterVerification | undefined;
 	for (const record of list) {
 		if (version && record.version !== version) continue;

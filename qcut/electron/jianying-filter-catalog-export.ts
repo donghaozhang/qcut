@@ -76,6 +76,28 @@ export interface ExportJianyingFilterCatalogOptions {
 	maxLutSize?: number;
 }
 
+/**
+ * The tiled renderer kind counts only when the renderer matches the card's
+ * selected version — a v1 renderer must not describe a v2 card.
+ */
+function versionGatedTiledRendererKind({
+	packageSummary,
+	version,
+}: {
+	packageSummary: JianyingFilterPackageSummary | undefined;
+	version?: string;
+}): string | undefined {
+	const dual = packageSummary?.dualRenderer;
+	if (dual && (!version || dual.background.version === version)) {
+		return dual.kind;
+	}
+	const single = packageSummary?.renderer;
+	if (single && (!version || single.version === version)) {
+		return single.kind;
+	}
+	return undefined;
+}
+
 function titlesByResource({
 	references,
 	titles,
@@ -141,8 +163,10 @@ export async function exportJianyingFilterCatalog({
 	const cards = summary.filters.map((filter): JianyingFilterCatalogCard => {
 		const known = knownById.get(filter.resourceId);
 		const packageSummary = packages.get(filter.resourceId);
-		const tiledRendererKind =
-			packageSummary?.dualRenderer?.kind ?? packageSummary?.renderer?.kind;
+		const tiledRendererKind = versionGatedTiledRendererKind({
+			packageSummary,
+			version: filter.version,
+		});
 		return {
 			resourceId: filter.resourceId,
 			title: filter.title,
@@ -162,10 +186,12 @@ export async function exportJianyingFilterCatalog({
 			verification: filter.verification.status,
 			lutCount: filter.luts.length,
 			...(tiledRendererKind ? { tiledRendererKind } : {}),
-			...(packageSummary?.multiPassRenderer
+			// filter.renderer is already gated by the selected version in
+			// buildJianyingFilterLabCatalog; the raw package summary is not.
+			...(filter.renderer
 				? {
-						multiPassKind: packageSummary.multiPassRenderer.kind,
-						multiPassCount: packageSummary.multiPassRenderer.passCount,
+						multiPassKind: filter.renderer.kind,
+						multiPassCount: filter.renderer.passCount,
 					}
 				: {}),
 		};

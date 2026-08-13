@@ -100,7 +100,12 @@ export function AdjustmentsView() {
 			name,
 			cube,
 			skinCube,
-			...(skinCube ? { localPortraitResourceId: entry.resourceId } : {}),
+			// Only bind the local runtime when it is actually ready: otherwise
+			// the stored settings must fall back to skin-tone-v1 so preview and
+			// export do not attempt (and force engines for) local rendering.
+			...(skinCube && localRuntimeReady
+				? { localPortraitResourceId: entry.resourceId }
+				: {}),
 			layerName: `剪映 - ${name}`,
 			successMessage,
 		});

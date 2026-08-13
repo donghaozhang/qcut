@@ -94,7 +94,9 @@ export function useScopeDockFrame({ enabled }: { enabled: boolean }): {
 					imageData: frame,
 					settings,
 					frameSeed,
-					timestampSeconds: time,
+					// Media source time, not timeline time: trims/retimes must not
+					// shift time-varying passes relative to preview and export.
+					timestampSeconds: sourceTime,
 				})
 			);
 			lastRefreshRef.current = performance.now();

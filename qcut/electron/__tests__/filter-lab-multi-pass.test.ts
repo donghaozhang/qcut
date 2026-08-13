@@ -289,9 +289,11 @@ describe("pass traits (FLP-002)", () => {
 			kind: "lut",
 			edgeMode: "mirror",
 		});
-		expect(
-			Array.isArray((result.passes[1] as { values?: unknown }).values)
-		).toBe(false);
+		// The cube payload itself crosses IPC as a plain number[] (the
+		// ColorCubeLut contract), so the loader must have serialized it.
+		const lutPass = result.passes[1] as { cube?: { values?: unknown } };
+		expect(Array.isArray(lutPass.cube?.values)).toBe(true);
+		expect(lutPass.cube?.values).toHaveLength(24);
 	});
 
 	it("lets observed traits override defaults field by field", () => {

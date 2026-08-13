@@ -590,7 +590,11 @@ bool inspectSkinResult(const InspectSkinResultOptions& options) {
         if (width <= 0 || height <= 0) {
             return false;
         }
-        if (!writeSkinSegInfoCpuMask({
+        // Only walk the documented libcccreator layout when the operator
+        // asked for a mask; a run without --mask-output must not fail (or
+        // dereference container internals) over an unexpected layout.
+        if (options.maskOutputPath != nullptr &&
+            !writeSkinSegInfoCpuMask({
                 .nativeResult = nativeResult,
                 .outputPath = options.maskOutputPath,
             })) {
@@ -604,7 +608,12 @@ bool inspectSkinResult(const InspectSkinResultOptions& options) {
         return options.maskOutputPath == nullptr;
     }
 
-    if (!writeSkinSegInfoCpuMask({
+    // The observed SkinSegInfo wrapper embeds the native result inline, so
+    // the same 0x0c/0x10/0x14/0x18 layout applies to resultObject directly.
+    // Still, only touch those offsets when a mask was explicitly requested:
+    // reading them on an unverified object type is the crash risk.
+    if (options.maskOutputPath != nullptr &&
+        !writeSkinSegInfoCpuMask({
             .nativeResult = resultObject,
             .outputPath = options.maskOutputPath,
         })) {

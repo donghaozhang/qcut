@@ -1,7 +1,4 @@
-import {
-	spawn,
-	type ChildProcessWithoutNullStreams,
-} from "node:child_process";
+import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { createInterface } from "node:readline";
 
 const HOST_READY_TIMEOUT_MS = 20_000;
@@ -60,7 +57,13 @@ function createDeferred<T>(): Deferred<T> {
 	};
 }
 
-function assertProtocolField({ field, label }: { field: string; label: string }) {
+function assertProtocolField({
+	field,
+	label,
+}: {
+	field: string;
+	label: string;
+}) {
 	if (!field || /[\t\r\n]/.test(field)) {
 		throw new Error(`${label} contains unsupported control characters`);
 	}
@@ -90,7 +93,13 @@ export function encodeJianyingFilterHostRenderCommand({
 	].join("\t");
 }
 
-function appendStderrTail({ current, chunk }: { current: string; chunk: string }) {
+function appendStderrTail({
+	current,
+	chunk,
+}: {
+	current: string;
+	chunk: string;
+}) {
 	return `${current}${chunk}`.slice(-STDERR_TAIL_LIMIT);
 }
 
@@ -128,22 +137,15 @@ function spawnHost({
 		...(captureMask ? ["--inspect-skin-result"] : []),
 		"--server",
 	];
-	return spawn(
-		bridgePath,
-		argumentsList,
-		{
-			env: {
-				...process.env,
-				DYLD_LIBRARY_PATH: [
-					frameworkDirectory,
-					process.env.DYLD_LIBRARY_PATH,
-				]
-					.filter(Boolean)
-					.join(":"),
-			},
-			stdio: ["pipe", "pipe", "pipe"],
-		}
-	);
+	return spawn(bridgePath, argumentsList, {
+		env: {
+			...process.env,
+			DYLD_LIBRARY_PATH: [frameworkDirectory, process.env.DYLD_LIBRARY_PATH]
+				.filter(Boolean)
+				.join(":"),
+		},
+		stdio: ["pipe", "pipe", "pipe"],
+	});
 }
 
 export async function startJianyingFilterHostProcess(
@@ -230,6 +232,16 @@ export async function startJianyingFilterHostProcess(
 	} catch (cause) {
 		isDisposed = true;
 		child.kill();
+		// The caller removes the temporary package/bootstrap files as soon as
+		// startup rejects, so wait until the host has actually terminated. A
+		// failed spawn emits `error` without `exit` and never has a pid — it
+		// needs no wait.
+		if (child.pid !== undefined && !exited) {
+			const forceKill = setTimeout(() => child.kill("SIGKILL"), 1000);
+			forceKill.unref();
+			await exitPromise;
+			clearTimeout(forceKill);
+		}
 		throw cause;
 	} finally {
 		clearTimeout(readyTimeout);

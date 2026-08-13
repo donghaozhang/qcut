@@ -598,6 +598,8 @@ async function renderUncached({
 						timestampStep: 0,
 					},
 				}),
+			throwIfCancelled: () =>
+				throwIfJianyingTextRenderCancelled({ requestId: request.requestId }),
 		});
 		strategy = "host-text";
 	}

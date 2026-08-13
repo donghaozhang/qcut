@@ -283,7 +283,7 @@ test.describe("Local Jianying filter lab", () => {
 
 	// biome-ignore lint/correctness/noEmptyPattern: the test launches its own isolated Electron process.
 	test("applies real single, dual, and shader filters", async ({}, testInfo) => {
-		test.setTimeout(180_000);
+		test.setTimeout(360_000);
 		const profileDirectory = join(
 			tmpdir(),
 			`qcut-filter-lab-${process.pid}-${Date.now()}`

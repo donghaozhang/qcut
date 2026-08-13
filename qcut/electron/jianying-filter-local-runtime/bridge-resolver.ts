@@ -17,7 +17,9 @@ const SOURCE_RELATIVE_PATH = path.join(
 	"effect-cgl-render-probe.cpp"
 );
 
-let pendingResolution: Promise<string | null> | null = null;
+// Keyed by `allowCompile`: a caller that forbids compiling must not share an
+// in-flight resolution that is allowed to compile (and vice versa).
+const pendingResolutions = new Map<boolean, Promise<string | null>>();
 
 async function isExecutable({ filePath }: { filePath: string }) {
 	try {
@@ -166,10 +168,12 @@ export function resolveJianyingFilterLocalBridge({
 }: {
 	allowCompile?: boolean;
 } = {}) {
-	if (!pendingResolution) {
-		pendingResolution = resolveBridgeInternal({ allowCompile }).finally(() => {
-			pendingResolution = null;
+	let pending = pendingResolutions.get(allowCompile);
+	if (!pending) {
+		pending = resolveBridgeInternal({ allowCompile }).finally(() => {
+			pendingResolutions.delete(allowCompile);
 		});
+		pendingResolutions.set(allowCompile, pending);
 	}
-	return pendingResolution;
+	return pending;
 }

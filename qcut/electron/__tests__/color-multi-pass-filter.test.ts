@@ -143,4 +143,29 @@ describe("multi-pass FFmpeg graph", () => {
 		expect(graph.filterSteps.join("\n")).toContain("gblur=sigma=8.0000");
 		expect(graph.filterSteps.at(-1)).toContain("blend=all_mode=screen");
 	});
+
+	it("promotes float16 like float32 to the 32-bit float intermediate", () => {
+		const stepsFor = (pixelFormat?: "float16" | "float32") =>
+			buildVideoColorMultiPassGraph({
+				settings: settings({
+					passes: [
+						{
+							kind: "bloom",
+							threshold: 0.72,
+							radius: 2,
+							amount: 65,
+							...(pixelFormat ? { pixelFormat } : {}),
+						},
+					],
+				}),
+				inputLabel: "source",
+				labelPrefix: "clip_1",
+			}).filterSteps.join("\n");
+
+		// gbrpf16le exists in FFmpeg but the lutrgb/gblur/blend chain only
+		// negotiates 32-bit float planes, so both traits map to gbrpf32le.
+		expect(stepsFor("float16")).toContain("format=gbrpf32le");
+		expect(stepsFor("float32")).toContain("format=gbrpf32le");
+		expect(stepsFor()).toContain("format=rgba");
+	});
 });

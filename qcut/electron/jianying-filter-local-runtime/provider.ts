@@ -153,10 +153,21 @@ export function createJianyingFilterLocalProvider(): JianyingFilterLocalProvider
 			.then(async (runtime) => {
 				if (!sessionPromise) {
 					activeSessionKey = requestedSessionKey;
-					sessionPromise = createJianyingFilterLocalRenderSession({
+					const creation = createJianyingFilterLocalRenderSession({
 						...request,
 						bootstrapRgba: request.rgba,
 						runtime,
+					});
+					sessionPromise = creation;
+					// A failed creation must not poison the session slot: reset it
+					// so the next render with the same key retries instead of
+					// re-awaiting the same rejected promise forever.
+					creation.catch(() => {
+						if (sessionPromise === creation) {
+							activeSessionKey = "";
+							lastTimestampSeconds = null;
+							sessionPromise = null;
+						}
 					});
 				}
 				const requestedSession = sessionPromise;

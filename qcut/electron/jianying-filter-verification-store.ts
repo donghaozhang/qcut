@@ -29,6 +29,7 @@ const COMPOSITE_KEY_SEPARATOR = "\u001f";
 const STORE_LOCK_RETRY_MILLISECONDS = 10;
 const STORE_LOCK_TIMEOUT_MILLISECONDS = 10_000;
 const STORE_LOCK_STALE_MILLISECONDS = 30_000;
+const STORE_LOCK_HEARTBEAT_MILLISECONDS = 10_000;
 export const LEGACY_INPUT_DIGEST = "legacy";
 
 const STATUS_VALUES = new Set<JianyingFilterVerificationStatus>([
@@ -237,9 +238,19 @@ async function withStoreLock<Result>({
 		deadline: Date.now() + STORE_LOCK_TIMEOUT_MILLISECONDS,
 		lockPath: `${storePath}.lock`,
 	});
+	// Keep the lock file visibly fresh while the operation runs, so a
+	// concurrent writer's stale-lock takeover (mtime older than
+	// STORE_LOCK_STALE_MILLISECONDS) cannot fire mid-operation and let two
+	// read-modify-write cycles overlap.
+	const heartbeat = setInterval(() => {
+		const now = new Date();
+		void lock.handle.utimes(now, now).catch(() => undefined);
+	}, STORE_LOCK_HEARTBEAT_MILLISECONDS);
+	heartbeat.unref?.();
 	try {
 		return await operation();
 	} finally {
+		clearInterval(heartbeat);
 		await releaseStoreLock({ lock });
 	}
 }

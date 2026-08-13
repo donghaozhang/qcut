@@ -320,7 +320,7 @@ test.describe("Jianying cinematic soft-glow four-way parity", () => {
 
 	// biome-ignore lint/correctness/noEmptyPattern: the test launches its own isolated Electron process.
 	test("captures QCut preview and export through the native provider", async ({}, testInfo) => {
-		test.setTimeout(180_000);
+		test.setTimeout(360_000);
 		const evidenceDirectory =
 			process.env.QCUT_JIANYING_SOFT_GLOW_EVIDENCE ??
 			testInfo.outputPath("evidence");

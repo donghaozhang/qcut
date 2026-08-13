@@ -404,6 +404,15 @@ export class ExportEngineFactory {
 						totalDuration
 					);
 				} catch (error) {
+					// The muxer engine is the only path that renders local
+					// Jianying color parity — a silent standard-engine fallback
+					// would export wrong colors with no user-visible signal.
+					if (requiresLocalColorExport) {
+						throw new Error(
+							"导出需要剪映本机色彩引擎(muxer),但引擎加载失败;已中止导出以避免导出颜色与预览不一致。",
+							{ cause: error }
+						);
+					}
 					debugWarn(
 						"Failed to load muxer engine, falling back to standard:",
 						error

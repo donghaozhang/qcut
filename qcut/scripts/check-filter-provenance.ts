@@ -138,7 +138,13 @@ export function checkBuildManifest(build: {
 }
 
 function main() {
-	const tracked = execSync("git ls-files", { encoding: "utf-8", cwd: ROOT })
+	// Scan from the Git top level, not the qcut package directory: a private
+	// artifact committed outside qcut/ must fail the gate too.
+	const gitRoot = execSync("git rev-parse --show-toplevel", {
+		encoding: "utf-8",
+		cwd: ROOT,
+	}).trim();
+	const tracked = execSync("git ls-files", { encoding: "utf-8", cwd: gitRoot })
 		.trim()
 		.split("\n")
 		.filter(Boolean);

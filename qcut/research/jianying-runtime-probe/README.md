@@ -266,6 +266,9 @@ bun transition-parity-matrix.ts \
   The probe cannot declare readiness itself: accept the result only when the
   same log places `skin_seg coreml is Ready!` before the re-seek marker. The
   default is off, so normal frame counts and rendering remain unchanged.
+  `JY_USE_BEF_CONTEXT_SCOPE=0/1` controls whether filter rendering runs inside
+  an `AmazerContextScope` (the BEF effect context guard). The default is on;
+  `0` skips the scope for renderer-difference diagnostics.
 - `render-transition-video.sh` uses FFmpeg to normalize two real videos to RGBA,
   preserves their adjacent timeline duration, centers the transition across the
   cut, renders it through `TransitionSegment`, and encodes the combined frames
