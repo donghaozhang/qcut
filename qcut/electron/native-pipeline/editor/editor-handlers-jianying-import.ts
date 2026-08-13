@@ -205,12 +205,44 @@ function assertJianyingCommit({ value }: { value: unknown }): void {
 	}
 }
 
+interface ImportSourceSelection {
+	sourceScope: "selected-directory" | "compound-subdraft";
+	subdraftCandidateCount: number;
+	selectedSubdraftId?: string;
+}
+
+function readImportSourceSelection({
+	value,
+}: {
+	value: unknown;
+}): ImportSourceSelection | undefined {
+	const record = asRecord({ value });
+	const inspect = asRecord({ value: record?.inspect });
+	if (
+		(inspect?.sourceScope !== "selected-directory" &&
+			inspect?.sourceScope !== "compound-subdraft") ||
+		typeof inspect.subdraftCandidateCount !== "number" ||
+		!Number.isSafeInteger(inspect.subdraftCandidateCount) ||
+		inspect.subdraftCandidateCount < 0
+	) {
+		return undefined;
+	}
+	return {
+		sourceScope: inspect.sourceScope,
+		subdraftCandidateCount: inspect.subdraftCandidateCount,
+		...(typeof inspect.selectedSubdraftId === "string"
+			? { selectedSubdraftId: inspect.selectedSubdraftId }
+			: {}),
+	};
+}
+
 async function queueImportCommit({
 	action,
 	acceptedWarningFingerprints,
 	activeSession,
 	planToken,
 	runtime,
+	sourceSelection,
 	userDataDirectory,
 }: {
 	action: "commit" | "import";
@@ -218,6 +250,7 @@ async function queueImportCommit({
 	activeSession: ImportSessionLike;
 	planToken: string;
 	runtime: ImportRuntimeModule;
+	sourceSelection?: ImportSourceSelection;
 	userDataDirectory: string;
 }): Promise<CLIResult> {
 	const commit = await activeSession.commitWithMediaGrants({
@@ -238,6 +271,7 @@ async function queueImportCommit({
 				action,
 				queuedForDesktop: true,
 				localOnly: true,
+				...(sourceSelection ?? {}),
 				inboxEntry,
 			},
 		};
@@ -340,6 +374,7 @@ export async function executeJianyingImportCommand({
 		if (action === "import") {
 			const plan = await activeSession.plan({ input: { draftPath } });
 			assertJianyingInspectResult({ value: plan });
+			const sourceSelection = readImportSourceSelection({ value: plan });
 			const importPlan = readImportPlan({ value: plan });
 			if (importPlan === null) {
 				return {
@@ -354,6 +389,7 @@ export async function executeJianyingImportCommand({
 				activeSession,
 				planToken: importPlan.planToken,
 				runtime,
+				...(sourceSelection === undefined ? {} : { sourceSelection }),
 				userDataDirectory,
 			});
 		}

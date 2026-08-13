@@ -75,7 +75,13 @@ describe("executeJianyingImportCommand", () => {
 						canCommit: true,
 						warningFingerprints: ["warning"],
 					},
-					inspect: { outcome: "exact", product: "jianying" },
+					inspect: {
+						outcome: "exact",
+						product: "jianying",
+						sourceScope: "compound-subdraft",
+						subdraftCandidateCount: 1,
+						selectedSubdraftId: "compound-1",
+					},
 					cacheMetrics: {
 						assetResolution: {
 							schemaVersion: 1,
@@ -278,6 +284,9 @@ describe("executeJianyingImportCommand", () => {
 			data: {
 				action: "import",
 				queuedForDesktop: true,
+				sourceScope: "compound-subdraft",
+				subdraftCandidateCount: 1,
+				selectedSubdraftId: "compound-1",
 				inboxEntry: { entryId: "entry-1" },
 			},
 		});

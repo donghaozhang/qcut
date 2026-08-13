@@ -75,6 +75,9 @@ export interface DraftImportInspectDto {
 	outcome: "exact" | "ambiguous" | "unsupported" | "encrypted";
 	profileId?: string;
 	product?: "jianying" | "capcut";
+	sourceScope?: "selected-directory" | "compound-subdraft";
+	subdraftCandidateCount?: number;
+	selectedSubdraftId?: string;
 	canWrite: boolean;
 	fileCount: number;
 	skippedEntryCount: number;
