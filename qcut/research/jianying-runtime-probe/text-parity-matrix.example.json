@@ -1,0 +1,34 @@
+{
+	"frameRate": 30,
+	"canvas": {
+		"width": 1280,
+		"height": 720,
+		"backgroundColor": "#000000"
+	},
+	"entries": [
+		{
+			"title": "Cached TextStyle parity",
+			"resourceId": "RESOURCE_ID",
+			"packageHash": "00000000000000000000000000000000",
+			"packageKind": "TextStyle",
+			"referenceVideo": "/absolute/private-evidence/jianying-reference.mov",
+			"referenceOrigin": "jianying-app-export",
+			"referenceAppVersion": "11.3.0-beta3",
+			"content": "剪映花字验证ABC123",
+			"fontAssetId": "OPTIONAL_QCUT_FONT_ASSET_ID",
+			"fontSize": 72,
+			"templateDuration": 3,
+			"sourceStartSeconds": 0,
+			"elementDurationSeconds": 3,
+			"captureDurationSeconds": 3,
+			"transform": {
+				"x": 0,
+				"y": 0,
+				"width": 1280,
+				"height": 720,
+				"rotation": 0,
+				"opacity": 1
+			}
+		}
+	]
+}
