@@ -1,6 +1,6 @@
 # 剪映滤镜运行时互操作性研究
 
-记录时间：2026-08-09，2026-08-10 追加中文剪映逐帧、ProRes 和无缩放对照，2026-08-12 追加产品批处理、固定时间基和长尾 Pass E2E
+记录时间：2026-08-09，2026-08-10 追加中文剪映逐帧、ProRes 和无缩放对照，2026-08-12 追加产品批处理、固定时间基和长尾 Pass E2E，2026-08-13 追加 7 张双 LUT 真实视频门禁
 
 ## 范围
 
@@ -19,6 +19,10 @@
 最新产品批处理、7 张双 LUT、1 秒固定时间基导出和五类 QCut 自有长尾 Pass 结果见
 [product-batches-and-long-tail-e2e.zh.md](product-batches-and-long-tail-e2e.zh.md)。这些结果把“产品能力可运行”
 与“剪映卡片像素平价”分开计分；后者仍必须有同素材 UI 无损帧门禁。
+
+7 张双 LUT 人像卡的 70 帧连续视频、人物移动、mask 边缘、素材切换和逐卡导出结果见
+[dual-lut-seven-real-video-e2e.zh.md](dual-lut-seven-real-video-e2e.zh.md)。奥林巴斯达到 verified；共享算法图
+的青灰、冷月夜、橙蓝、亮肤、森山、雾野达到 close，文档没有把 close 写成完美复刻。
 
 真实多 Pass 卡“电影柔光”的剪映 UI、独立二进制 oracle、QCut 产品预览和 QCut 产品导出四方对照见
 [cinematic-soft-glow-four-way-e2e.zh.md](cinematic-soft-glow-four-way-e2e.zh.md)。本轮确认本机 provider 达到
