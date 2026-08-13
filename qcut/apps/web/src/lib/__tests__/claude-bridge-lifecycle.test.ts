@@ -10,6 +10,10 @@ import {
 	setupClaudeTransactionBridge,
 } from "@/lib/claude-bridge/claude-transaction-bridge";
 import {
+	cleanupQCutJianyingProjectImportBridge,
+	setupQCutJianyingProjectImportBridge,
+} from "@/lib/claude-bridge/qcut-jianying-project-import-bridge";
+import {
 	cleanupQCutJianyingProjectExportBridge,
 	setupQCutJianyingProjectExportBridge,
 } from "@/lib/claude-bridge/qcut-jianying-project-export-bridge";
@@ -29,6 +33,10 @@ vi.mock("@/lib/claude-bridge/qcut-jianying-project-export-bridge", () => ({
 	setupQCutJianyingProjectExportBridge: vi.fn(),
 	cleanupQCutJianyingProjectExportBridge: vi.fn(),
 }));
+vi.mock("@/lib/claude-bridge/qcut-jianying-project-import-bridge", () => ({
+	setupQCutJianyingProjectImportBridge: vi.fn(),
+	cleanupQCutJianyingProjectImportBridge: vi.fn(),
+}));
 
 describe("setupClaudeBridgeLifecycle", () => {
 	beforeEach(() => {
@@ -41,6 +49,7 @@ describe("setupClaudeBridgeLifecycle", () => {
 		expect(setupClaudeTransactionBridge).toHaveBeenCalledTimes(1);
 		expect(setupClaudeTimelineBridge).toHaveBeenCalledTimes(1);
 		expect(setupClaudeProjectBridge).toHaveBeenCalledTimes(1);
+		expect(setupQCutJianyingProjectImportBridge).toHaveBeenCalledTimes(1);
 		expect(setupQCutJianyingProjectExportBridge).toHaveBeenCalledTimes(1);
 
 		cleanup();
@@ -48,6 +57,7 @@ describe("setupClaudeBridgeLifecycle", () => {
 		expect(cleanupClaudeTransactionBridge).toHaveBeenCalledTimes(1);
 		expect(cleanupClaudeTimelineBridge).toHaveBeenCalledTimes(1);
 		expect(cleanupClaudeProjectBridge).toHaveBeenCalledTimes(1);
+		expect(cleanupQCutJianyingProjectImportBridge).toHaveBeenCalledTimes(1);
 		expect(cleanupQCutJianyingProjectExportBridge).toHaveBeenCalledTimes(1);
 	});
 

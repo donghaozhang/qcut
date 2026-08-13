@@ -46,6 +46,10 @@ import {
 	setupQCutSameProfileWritebackBridge,
 } from "@/lib/claude-bridge/qcut-same-profile-writeback-bridge";
 import {
+	cleanupQCutJianyingProjectImportBridge,
+	setupQCutJianyingProjectImportBridge,
+} from "@/lib/claude-bridge/qcut-jianying-project-import-bridge";
+import {
 	cleanupQCutJianyingProjectExportBridge,
 	setupQCutJianyingProjectExportBridge,
 } from "@/lib/claude-bridge/qcut-jianying-project-export-bridge";
@@ -131,6 +135,11 @@ export function setupClaudeBridgeLifecycle({
 		onError,
 	});
 	runBridgeStep({
+		message: "[ClaudeBridge] Failed to setup Jianying project import bridge",
+		step: setupQCutJianyingProjectImportBridge,
+		onError,
+	});
+	runBridgeStep({
 		message: "[ClaudeBridge] Failed to setup Jianying project export bridge",
 		step: setupQCutJianyingProjectExportBridge,
 		onError,
@@ -190,6 +199,12 @@ export function setupClaudeBridgeLifecycle({
 		runBridgeStep({
 			message: "[ClaudeBridge] Failed to cleanup same-profile writeback bridge",
 			step: cleanupQCutSameProfileWritebackBridge,
+			onError,
+		});
+		runBridgeStep({
+			message:
+				"[ClaudeBridge] Failed to cleanup Jianying project import bridge",
+			step: cleanupQCutJianyingProjectImportBridge,
 			onError,
 		});
 		runBridgeStep({
