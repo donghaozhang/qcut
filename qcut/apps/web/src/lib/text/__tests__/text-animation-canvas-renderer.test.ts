@@ -4,6 +4,7 @@ import { getCachedCompiledTextAnimation } from "../text-animation-compiled-cache
 import { resolveCursorPosition } from "../text-animation-canvas-decorations";
 import { buildTextAnimationCanvasLayout } from "../text-animation-canvas-layout";
 import { renderCanonicalTextAnimationToCanvas } from "../text-animation-canvas-renderer";
+import { resetTextAnimationRasters } from "../text-animation-canvas-raster";
 import { applyTextAnimationVisualState } from "../text-animation-canvas-state";
 import { resolveTextStyle } from "../text-style";
 
@@ -56,6 +57,7 @@ function createContext(): CanvasRenderingContext2D {
 		translate: vi.fn(),
 		rotate: vi.fn(),
 		scale: vi.fn(),
+		transform: vi.fn(),
 		clearRect: vi.fn(),
 		drawImage: vi.fn(),
 		fillText: vi.fn(),
@@ -158,7 +160,66 @@ function shatterExitAnimation(): NonNullable<TextElement["textAnimations"]> {
 	};
 }
 
+function flip3DLoopAnimation(): NonNullable<TextElement["textAnimations"]> {
+	return {
+		schemaVersion: 1,
+		loop: {
+			timing: { duration: 1, delay: 0, easing: "linear" },
+			sequence: {
+				unit: "all",
+				order: "forward",
+				staggerRatio: 0,
+				seed: 1,
+			},
+			target: "textAndBackground",
+			effect: {
+				kind: "flip3d",
+				axis: "y",
+				maxAngleDeg: 60,
+				cameraFovDeg: 30,
+				motionRatio: 0.8,
+				motionEasing: "linear",
+			},
+			repeat: { mode: "restart", gap: 0, phaseOffset: 0 },
+		},
+	};
+}
+
+function jitter3DLoopAnimation(): NonNullable<TextElement["textAnimations"]> {
+	return {
+		schemaVersion: 1,
+		loop: {
+			timing: { duration: 1, delay: 0, easing: "linear" },
+			sequence: {
+				unit: "grapheme",
+				order: "forward",
+				staggerRatio: 0,
+				seed: 1,
+			},
+			target: "text",
+			effect: {
+				kind: "jitter3d",
+				cameraFovDeg: 60,
+				groupYawDeg: 20,
+				rotationXDeg: 15,
+				rotationYDeg: 15,
+				rotationZDeg: 10,
+				positionJitter: 0.03,
+				scaleFrom: 2 / 3,
+				scaleTo: 1,
+				frequency: 12,
+				seed: 42,
+				trailSamples: 5,
+				trailStrength: 0.65,
+				trapezoidAmount: 0.12,
+			},
+			repeat: { mode: "restart", gap: 0, phaseOffset: 0 },
+		},
+	};
+}
+
 afterEach(() => {
+	resetTextAnimationRasters();
 	vi.unstubAllGlobals();
 });
 
@@ -349,6 +410,91 @@ describe("canonical text animation canvas renderer", () => {
 		).toBe(true);
 		expect(context.scale).toHaveBeenCalled();
 		expect(context.fillText).toHaveBeenCalledWith("H", 0, 0);
+	});
+
+	it("rasterizes text once and projects the texture for a 3D animation", () => {
+		const rasterContext = createContext();
+		vi.stubGlobal(
+			"OffscreenCanvas",
+			class {
+				readonly width: number;
+				readonly height: number;
+
+				constructor(width: number, height: number) {
+					this.width = width;
+					this.height = height;
+				}
+
+				getContext(): CanvasRenderingContext2D {
+					return rasterContext;
+				}
+			}
+		);
+		const context = createContext();
+		const element = createTextElement({
+			overrides: {
+				content: "3D",
+				textAnimations: flip3DLoopAnimation(),
+			},
+		});
+
+		expect(
+			renderCanonicalTextAnimationToCanvas({
+				ctx: context,
+				canvas: { width: 1280, height: 720 },
+				sourceElement: element,
+				renderedElement: element,
+				style: resolveTextStyle(element),
+				currentTime: 0.4,
+				fps: 30,
+			})
+		).toBe(true);
+		expect(rasterContext.fillText).toHaveBeenCalled();
+		expect(context.transform).toHaveBeenCalled();
+		expect(context.drawImage).toHaveBeenCalled();
+		expect(context.fillText).not.toHaveBeenCalled();
+	});
+
+	it("projects each glyph independently and emits bounded 3D trail passes", () => {
+		const rasterContext = createContext();
+		vi.stubGlobal(
+			"OffscreenCanvas",
+			class {
+				readonly width: number;
+				readonly height: number;
+
+				constructor(width: number, height: number) {
+					this.width = width;
+					this.height = height;
+				}
+
+				getContext(): CanvasRenderingContext2D {
+					return rasterContext;
+				}
+			}
+		);
+		const context = createContext();
+		const element = createTextElement({
+			overrides: {
+				content: "3D",
+				textAnimations: jitter3DLoopAnimation(),
+			},
+		});
+
+		renderCanonicalTextAnimationToCanvas({
+			ctx: context,
+			canvas: { width: 1280, height: 720 },
+			sourceElement: element,
+			renderedElement: element,
+			style: resolveTextStyle(element),
+			currentTime: 0.17,
+			fps: 30,
+		});
+
+		expect(rasterContext.fillText).toHaveBeenCalledTimes(2);
+		expect(context.transform).toHaveBeenCalled();
+		expect(vi.mocked(context.drawImage).mock.calls.length).toBeGreaterThan(100);
+		expect(context.fillText).not.toHaveBeenCalled();
 	});
 
 	it("falls back to glyph rendering when shatter rasterization fails", () => {
