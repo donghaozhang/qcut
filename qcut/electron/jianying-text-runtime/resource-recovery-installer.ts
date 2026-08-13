@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { createWriteStream } from "node:fs";
 import {
 	type FileHandle,
+	cp,
 	lstat,
 	mkdir,
 	mkdtemp,
@@ -16,12 +17,16 @@ import path from "node:path";
 import { Readable, Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { setTimeout as delay } from "node:timers/promises";
-import type { JianyingTextRuntimeDependencyRole } from "../jianying-text-runtime-contract.js";
+import type {
+	JianyingTextResourceRecoveryFailureReason,
+	JianyingTextRuntimeDependencyRole,
+} from "../jianying-text-runtime-contract.js";
 import {
 	asJianyingRecord,
 	readBoundedJianyingTextJson,
 } from "../jianying-text-package-metadata.js";
 import type { JianyingTextResourceCatalogCandidate } from "./resource-catalog.js";
+import { findJianyingPackageFontFile } from "./package-font-files.js";
 import {
 	calculateJianyingResourceArchiveMd5,
 	extractValidatedJianyingResourceArchive,
@@ -57,11 +62,10 @@ export interface JianyingTextResourceRecoveryResult {
 	state: "already-ready" | "recovered" | "unavailable";
 	packageHash?: string;
 	packagePath?: string;
-	reason?:
-		| "catalog-missing"
-		| "download-failed"
-		| "hash-mismatch"
-		| "package-invalid";
+	reason?: Exclude<
+		JianyingTextResourceRecoveryFailureReason,
+		"recovery-disabled"
+	>;
 }
 
 export type ResourceFetcher = (
@@ -155,6 +159,7 @@ function packageSupportsRole({
 		return linkTypes.has("InfoSticker") || linkTypes.has("TextAnimation");
 	}
 	if (role === "effect-style") return linkTypes.has("TextStyle");
+	if (role === "font") return false;
 	return linkTypes.has("InfoSticker") || linkTypes.has("ScriptInfoSticker");
 }
 
@@ -171,6 +176,9 @@ async function isReadyPackage({
 		const config = await readBoundedJianyingTextJson({
 			filePath: path.join(packagePath, "config.json"),
 		});
+		if (role === "font") {
+			return Boolean(await findJianyingPackageFontFile({ packagePath }));
+		}
 		return packageSupportsRole({ config, role });
 	} catch {
 		return false;
@@ -315,18 +323,76 @@ async function installStagedPackage({
 	}
 }
 
+async function copyLocalPackage({
+	destination,
+	source,
+}: {
+	destination: string;
+	source: string;
+}) {
+	const sourceRoot = await realpath(source);
+	await cp(sourceRoot, destination, {
+		errorOnExist: true,
+		force: false,
+		recursive: true,
+		filter: async (sourcePath) => {
+			const metadata = await lstat(sourcePath);
+			if (metadata.isSymbolicLink()) {
+				throw new Error("Jianying local package contains a symbolic link");
+			}
+			return true;
+		},
+	});
+}
+
+async function installLocalPackage({
+	destination,
+	resourceDirectory,
+	role,
+	sourcePackagePaths,
+}: {
+	destination: string;
+	resourceDirectory: string;
+	role: JianyingTextRuntimeDependencyRole;
+	sourcePackagePaths: string[];
+}) {
+	const sourceChecks = await Promise.all(
+		sourcePackagePaths.map(async (source) => ({
+			ready: await isReadyPackage({ packagePath: source, role }),
+			source,
+		}))
+	);
+	const source = sourceChecks.find(({ ready }) => ready)?.source;
+	if (!source) return false;
+	const stagedPath = path.join(
+		resourceDirectory,
+		`.local-${path.basename(destination)}-${randomUUID()}`
+	);
+	try {
+		await copyLocalPackage({ destination: stagedPath, source });
+		await installStagedPackage({ destination, role, stagedPath });
+		return await isReadyPackage({ packagePath: destination, role });
+	} catch {
+		return false;
+	} finally {
+		await rm(stagedPath, { recursive: true, force: true });
+	}
+}
+
 export async function installJianyingTextCatalogCandidate({
 	candidate,
 	fetchResource,
 	extractArchive,
 	recoveryRoot,
 	role,
+	sourcePackagePaths = [],
 }: {
 	candidate: JianyingTextResourceCatalogCandidate;
 	fetchResource: ResourceFetcher;
 	extractArchive: ResourceArchiveExtractor;
 	recoveryRoot: string;
 	role: JianyingTextRuntimeDependencyRole;
+	sourcePackagePaths?: string[];
 }): Promise<JianyingTextResourceRecoveryResult> {
 	const resourceDirectory = path.join(
 		recoveryRoot,
@@ -349,6 +415,21 @@ export async function installJianyingTextCatalogCandidate({
 			};
 		}
 		await rm(destination, { recursive: true, force: true });
+		if (
+			await installLocalPackage({
+				destination,
+				resourceDirectory,
+				role,
+				sourcePackagePaths,
+			})
+		) {
+			return {
+				resourceId: candidate.resourceId,
+				state: "recovered",
+				packageHash: candidate.packageHash,
+				packagePath: await realpath(destination),
+			};
+		}
 		const workspace = await mkdtemp(path.join(resourceDirectory, ".recover-"));
 		try {
 			let failureReason: NonNullable<
