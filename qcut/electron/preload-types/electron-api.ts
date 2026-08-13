@@ -54,6 +54,7 @@ import type {
 	ClaudeStateAPI,
 	ClaudeImportEvidenceAPI,
 	ClaudeSameProfileWritebackAPI,
+	ClaudeJianyingProjectImportAPI,
 	ClaudeJianyingProjectExportAPI,
 } from "./api-types/claude-ui-api";
 import type {
@@ -142,6 +143,7 @@ export interface ElectronAPI
 		ClaudeStateAPI &
 		ClaudeImportEvidenceAPI &
 		ClaudeSameProfileWritebackAPI &
+		ClaudeJianyingProjectImportAPI &
 		ClaudeJianyingProjectExportAPI;
 }
 
