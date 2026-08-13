@@ -1,6 +1,6 @@
 # 剪映滤镜运行时：当前覆盖与剩余边界
 
-更新日期：2026-08-12
+更新日期：2026-08-13
 
 ## 先说结论
 
@@ -69,10 +69,11 @@ ready 后的恢复动作随后已经完成：同 timestamp re-seek 能恢复静�
 ready 后同 timestamp re-seek 已完成。静态历史达到 `48.888033 dB / mask IoU 0.962641`；同一 manager
 经过运动历史后回跳只剩 `40.140233 dB / 0.265185`，两次独立复跑逐字节一致。结合既有 source-switch
 实验，恢复规则确定为：连续 clip 复用 manager；clip/source 变化或向后时间跳转时重建 manager 与
-AlgorithmService。QCut 的 preview/export 已共用本机 provider 生命周期，7 张双 LUT 的三帧连续处理和
-奥林巴斯切源 reset 也已通过，平均连续帧约 `94.60 ms`。下一产品优先级是接入自有或获授权 skin
-segmentation 并提升吞吐；下一研究优先级是为 Bloom、色差、漏光和颗粒各采集一张真实剪映长尾样本，
-再研究关键点和真实导出 orchestration。
+AlgorithmService。QCut 的 preview/export 已共用本机 provider 生命周期。7 张双 LUT 现已逐卡完成 70 帧
+真实视频、人物移动、mask 响应、A -> B 素材切换和固定帧数导出：奥林巴斯相对直接 UI mask 的
+`maskEdgeMae=0.013262`，达到 verified；共享分割算法图的另外六张为 `0.075152`，达到 close。下一产品
+优先级仍是接入自有或获授权 skin segmentation 并提升吞吐；下一研究优先级是缩小共享分割图的边缘与羽化
+差距，再为 Bloom、色差、漏光和颗粒采集真实剪映长尾样本。
 
 记录见 [skin-seg-first-result-lifecycle.zh.md](skin-seg-first-result-lifecycle.zh.md)、
 [olympus-portrait-filter-e2e.zh.md](olympus-portrait-filter-e2e.zh.md)、
@@ -81,4 +82,5 @@ segmentation 并提升吞吐；下一研究优先级是为 Bloom、色差、漏�
 [support-external-model-name.zh.md](support-external-model-name.zh.md)、
 [model-clip-feature-params.zh.md](model-clip-feature-params.zh.md)、
 [bach-algorithm-model-clip-params.zh.md](bach-algorithm-model-clip-params.zh.md) 与
+[dual-lut-seven-real-video-e2e.zh.md](dual-lut-seven-real-video-e2e.zh.md)、
 [product-batches-and-long-tail-e2e.zh.md](product-batches-and-long-tail-e2e.zh.md)。
