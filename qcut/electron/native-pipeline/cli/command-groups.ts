@@ -37,6 +37,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 			plan: "editor:jianying-import:plan",
 			import: "editor:jianying-import:import",
 			commit: "editor:jianying-import:commit",
+			export: "editor:interop:jianying-export",
 			"verify-roundtrip": "editor:jianying-import:verify-roundtrip",
 		},
 	},

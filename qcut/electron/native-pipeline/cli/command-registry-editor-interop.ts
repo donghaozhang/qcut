@@ -10,6 +10,22 @@ function flag(
 }
 
 export const INTEROP_COMMANDS: Record<string, CommandDef> = {
+	"editor:interop:jianying-export": {
+		name: "editor:interop:jianying-export",
+		description:
+			"Export a persisted QCut project as a new Jianying Professional project copy",
+		category: "editor",
+		flags: [
+			flag("--project-id", "string", "Persisted QCut project ID", {
+				required: true,
+			}),
+			flag("--format", "string", "Draft target format", {
+				default: "jianying",
+				enum: ["jianying"],
+			}),
+		],
+		examples: ["qcut draft export --format jianying --project-id <id> --json"],
+	},
 	"editor:interop:import-snapshot": {
 		name: "editor:interop:import-snapshot",
 		description:

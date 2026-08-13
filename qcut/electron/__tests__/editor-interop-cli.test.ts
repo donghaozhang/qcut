@@ -15,6 +15,10 @@ import {
 	type QCutSameProfileWritebackResult,
 } from "../types/qcut-same-profile-writeback-api.js";
 import {
+	QCUT_JIANYING_PROJECT_EXPORT_RESULT_SCHEMA,
+	type QCutJianyingProjectExportResult,
+} from "../types/qcut-jianying-project-export-api.js";
+import {
 	BASE_URL,
 	clearRoutes,
 	installFetchMock,
@@ -55,6 +59,27 @@ function createSnapshot(): QCutPersistedImportEvidenceSnapshot {
 	};
 }
 
+function createProjectExportResult({
+	projectId = "project-1",
+}: {
+	projectId?: string;
+} = {}): QCutJianyingProjectExportResult {
+	return {
+		changed: true,
+		contentRelativePath: "subdraft/subdraft-1/draft_content.json",
+		contentSha256: "c".repeat(64),
+		copiedFileCount: 12,
+		outcome: "exported",
+		outputDirectory: "/exports/QCut-copy",
+		patchCount: 4,
+		projectId,
+		schema: QCUT_JIANYING_PROJECT_EXPORT_RESULT_SCHEMA,
+		schemaVersion: 1,
+		sourceProjectDirectory: "/jianying/source",
+		subdraftId: "subdraft-1",
+	};
+}
+
 describe("interop import snapshot CLI", () => {
 	let client: EditorApiClient;
 
@@ -71,6 +96,21 @@ describe("interop import snapshot CLI", () => {
 	});
 
 	it("registers and parses the nested command", () => {
+		expect(getCommand("editor:interop:jianying-export")).toBeDefined();
+		expect(
+			parseCliArgs([
+				"draft",
+				"export",
+				"--format",
+				"jianying",
+				"--project-id",
+				"project-1",
+			])
+		).toMatchObject({
+			command: "editor:interop:jianying-export",
+			format: "jianying",
+			projectId: "project-1",
+		});
 		expect(getCommand("editor:interop:import-snapshot")).toBeDefined();
 		expect(
 			parseCliArgs([
@@ -116,6 +156,93 @@ describe("interop import snapshot CLI", () => {
 			command: "editor:interop:writeback-recover",
 			recoveryToken: "selection-1",
 		});
+	});
+
+	it("exports through the pathless Jianying project endpoint", async () => {
+		const exported = createProjectExportResult();
+		mockRoute("POST", "/api/claude/interop/jianying-project-export", {
+			success: true,
+			data: exported,
+		});
+
+		const result = await handleInteropCommand({
+			client,
+			options: makeOpts({
+				command: "editor:interop:jianying-export",
+				format: "jianying",
+				projectId: "project-1",
+			}),
+		});
+
+		expect(result).toEqual({ data: exported, success: true });
+		expect(JSON.parse(lastCapturedBody ?? "{}")).toEqual({
+			projectId: "project-1",
+		});
+	});
+
+	it("returns a blocked Jianying export as a failed CLI command", async () => {
+		const blocked: QCutJianyingProjectExportResult = {
+			issues: [],
+			message: "The edit cannot be represented safely.",
+			outcome: "blocked",
+			projectId: "project-1",
+			reason: "prepare-blocked",
+			schema: QCUT_JIANYING_PROJECT_EXPORT_RESULT_SCHEMA,
+			schemaVersion: 1,
+		};
+		mockRoute("POST", "/api/claude/interop/jianying-project-export", {
+			success: true,
+			data: blocked,
+		});
+
+		expect(
+			await handleInteropCommand({
+				client,
+				options: makeOpts({
+					command: "editor:interop:jianying-export",
+					projectId: "project-1",
+				}),
+			})
+		).toEqual({
+			data: blocked,
+			error: blocked.message,
+			success: false,
+		});
+	});
+
+	it("rejects mismatched projects and non-Jianying formats", async () => {
+		mockRoute("POST", "/api/claude/interop/jianying-project-export", {
+			success: true,
+			data: createProjectExportResult({ projectId: "another-project" }),
+		});
+
+		await expect(
+			handleInteropCommand({
+				client,
+				options: makeOpts({
+					command: "editor:interop:jianying-export",
+					projectId: "project-1",
+				}),
+			})
+		).resolves.toMatchObject({
+			error: "Jianying export result does not match the requested project.",
+			success: false,
+		});
+
+		clearRoutes();
+		const invalidFormat = await handleInteropCommand({
+			client,
+			options: makeOpts({
+				command: "editor:interop:jianying-export",
+				format: "capcut",
+				projectId: "project-1",
+			}),
+		});
+		expect(invalidFormat).toMatchObject({
+			error: "--format must be 'jianying' for persisted draft export",
+			success: false,
+		});
+		expect(lastCapturedBody).toBeNull();
 	});
 
 	it("writes through the pathless same-profile endpoint", async () => {
