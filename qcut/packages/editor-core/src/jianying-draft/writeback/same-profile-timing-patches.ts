@@ -63,6 +63,7 @@ interface ImportedTrackContext {
 	internalTrackId: string;
 	expectedType: TimelineTrack["type"];
 	order: number;
+	sourceIndex: number;
 	segmentIds: string[];
 }
 
@@ -115,7 +116,7 @@ function collectImportedTracks({
 	}
 
 	const tracks: ImportedTrackContext[] = [];
-	for (const track of root.tracks) {
+	for (const [sourceIndex, track] of root.tracks.entries()) {
 		const internalTrackId = internalIdBySemanticId[track.id];
 		const expectedType = getExpectedTrackType({ kind: track.kind });
 		if (internalTrackId === undefined || expectedType === null) continue;
@@ -132,10 +133,44 @@ function collectImportedTracks({
 			internalTrackId,
 			expectedType,
 			order: track.order,
+			sourceIndex,
 			segmentIds,
 		});
 	}
 	return { ok: true, tracks };
+}
+
+function collectTracksWithChangedRelativeOrder({
+	currentTracks,
+	importedTracks,
+}: {
+	currentTracks: readonly TimelineTrack[];
+	importedTracks: readonly ImportedTrackContext[];
+}): ReadonlySet<string> {
+	const importedTrackIds = new Set(
+		importedTracks.map(({ internalTrackId }) => internalTrackId)
+	);
+	const currentTrackIds = new Set(currentTracks.map(({ id }) => id));
+	const expectedOrder = [...importedTracks]
+		.filter(({ internalTrackId }) => currentTrackIds.has(internalTrackId))
+		.sort(
+			(left, right) =>
+				left.order - right.order || left.sourceIndex - right.sourceIndex
+		)
+		.map(({ internalTrackId }) => internalTrackId);
+	const currentOrder = currentTracks
+		.map((track, index) => ({
+			id: track.id,
+			index,
+			order: track.order ?? index,
+		}))
+		.filter(({ id }) => importedTrackIds.has(id))
+		.sort((left, right) => left.order - right.order || left.index - right.index)
+		.map(({ id }) => id);
+
+	return new Set(
+		expectedOrder.filter((id, index) => currentOrder[index] !== id)
+	);
 }
 
 function findCapturedBinding({
@@ -317,6 +352,10 @@ export function planSameProfileTimingPatches({
 	const currentTracksById = new Map(
 		snapshot.tracks.map((track) => [track.id, track])
 	);
+	const tracksWithChangedRelativeOrder = collectTracksWithChangedRelativeOrder({
+		currentTracks: snapshot.tracks,
+		importedTracks,
+	});
 	const currentElementsById = buildElementLocations({
 		tracks: snapshot.tracks,
 	});
@@ -340,11 +379,11 @@ export function planSameProfileTimingPatches({
 		}
 		if (
 			currentTrack.type !== importedTrack.expectedType ||
-			(currentTrack.order ?? importedTrack.order) !== importedTrack.order
+			tracksWithChangedRelativeOrder.has(importedTrack.internalTrackId)
 		) {
 			issues.push({
 				code: "WRITEBACK_TRACK_CHANGED",
-				message: `Imported track ${importedTrack.semanticTrackId} changed type or order.`,
+				message: `Imported track ${importedTrack.semanticTrackId} changed type or imported-track relative order.`,
 				semanticId: importedTrack.semanticTrackId,
 				internalId: importedTrack.internalTrackId,
 			});

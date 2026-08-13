@@ -22,8 +22,29 @@ const internalIdBySemanticId = {
 	"inner-video": INTERNAL_RESOURCE_ID,
 };
 
-function createFixture() {
-	const content = createJianying113CompoundWrapper();
+interface MutableInnerDraft {
+	tracks: Record<string, unknown>[];
+	materials: { videos: Record<string, unknown>[] };
+}
+
+function getInnerDraft({
+	content,
+}: {
+	content: Record<string, unknown>;
+}): MutableInnerDraft {
+	const materials = content.materials as {
+		drafts: Array<{ draft: MutableInnerDraft }>;
+	};
+	const inner = materials.drafts[0]?.draft;
+	if (inner === undefined) throw new Error("missing inner draft fixture");
+	return inner;
+}
+
+function createFixture({
+	content = createJianying113CompoundWrapper(),
+}: {
+	content?: Record<string, unknown>;
+} = {}) {
 	const bytes = encodeJianyingCompoundContent({ content });
 	const normalized = normalizeRawDraft({
 		content,
@@ -82,18 +103,22 @@ function createSnapshot(): Jianying113Beta2WritebackTimingSnapshot {
 }
 
 function prepare({
+	content,
+	internalIds = internalIdBySemanticId,
 	snapshot = createSnapshot(),
 }: {
+	content?: Record<string, unknown>;
+	internalIds?: Record<string, string>;
 	snapshot?: Jianying113Beta2WritebackTimingSnapshot;
 } = {}) {
-	const fixture = createFixture();
+	const fixture = createFixture({ content });
 	return {
 		...fixture,
 		result: prepareJianying113Beta2SameProfileWriteback({
 			baselineDocument: fixture.normalized.document,
 			bytesByPath: new Map([["draft_content.json", fixture.bytes]]),
 			envelope: fixture.envelope,
-			internalIdBySemanticId,
+			internalIdBySemanticId: internalIds,
 			snapshot,
 		}),
 	};
@@ -108,6 +133,88 @@ describe("Jianying 11.3 beta 2 same-profile preparation", () => {
 		expect(result.changed).toBe(false);
 		expect(result.contentBytes).toBe(bytes);
 		expect(result.patches).toEqual([]);
+	});
+
+	it("ignores source-only opaque tracks when checking imported track order", () => {
+		const content = createJianying113CompoundWrapper();
+		getInnerDraft({ content }).tracks.unshift({
+			id: "inner-opaque-track",
+			type: "mixed",
+			segments: [],
+		});
+
+		const { result } = prepare({ content });
+
+		expect(result).toMatchObject({ ok: true, changed: false });
+	});
+
+	it("still blocks relative reordering of imported tracks", () => {
+		const content = createJianying113CompoundWrapper();
+		const inner = getInnerDraft({ content });
+		inner.tracks.push({
+			id: "inner-track-2",
+			type: "mixed",
+			segments: [
+				{
+					id: "inner-segment-2",
+					material_id: "inner-video-2",
+					extra_material_refs: [],
+					source_timerange: { start: 0, duration: 3_000_000 },
+					target_timerange: { start: 0, duration: 3_000_000 },
+					speed: 1,
+				},
+			],
+		});
+		inner.materials.videos.push({
+			id: "inner-video-2",
+			type: "video",
+			duration: 3_000_000,
+			material_name: "calibration-2.mp4",
+			path: "/private/calibration-2.mp4",
+		});
+		const snapshot = createSnapshot();
+		snapshot.tracks[0].order = 1;
+		snapshot.tracks.push({
+			id: "qcut-track-2",
+			name: "Video 2",
+			type: "media",
+			order: 0,
+			elements: [
+				{
+					id: "qcut-segment-2",
+					type: "media",
+					mediaId: "qcut-resource-2",
+					name: "calibration-2.mp4",
+					duration: 3,
+					startTime: 0,
+					trimStart: 0,
+					trimEnd: 0,
+					playbackRate: 1,
+				},
+			],
+		});
+		snapshot.timelineDurationByElementId = {
+			...snapshot.timelineDurationByElementId,
+			"qcut-segment-2": 3,
+		};
+
+		const { result } = prepare({
+			content,
+			internalIds: {
+				...internalIdBySemanticId,
+				"inner-track-2": "qcut-track-2",
+				"inner-segment-2": "qcut-segment-2",
+				"inner-video-2": "qcut-resource-2",
+			},
+			snapshot,
+		});
+
+		expect(result.ok).toBe(false);
+		if (result.ok) return;
+		expect(result.issues.map(({ code }) => code)).toEqual([
+			"WRITEBACK_TRACK_CHANGED",
+			"WRITEBACK_TRACK_CHANGED",
+		]);
 	});
 
 	it("patches only inner timing pointers and preserves outer and inner unknown fields", () => {
