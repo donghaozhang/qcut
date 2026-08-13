@@ -63,6 +63,20 @@ describe("Jianying native dual-LUT batch", () => {
 		).toThrow("Unknown dual-LUT resource IDs");
 	});
 
+	it("allows unverified UI masks only when explicitly requested", () => {
+		expect(
+			parseNativeDualLutArgs({
+				argv: [
+					"--video",
+					"/tmp/input.mov",
+					"--run-dir",
+					"/tmp/run",
+					"--allow-unverified-ui-mask",
+				],
+			})
+		).toMatchObject({ allowUnverifiedUiMask: true });
+	});
+
 	it("keeps direct and inferred UI mask timelines explicit", () => {
 		expect(
 			parseBuildUiMaskArgs({
