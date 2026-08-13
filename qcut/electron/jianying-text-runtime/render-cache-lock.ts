@@ -37,7 +37,12 @@ async function discardStaleRenderCacheLock({
 		const existing = await lstat(lockPath, { bigint: true });
 		if (Date.now() - Number(existing.mtimeMs) < staleMs) return false;
 		const current = await lstat(lockPath, { bigint: true });
-		if (current.dev !== existing.dev || current.ino !== existing.ino)
+		if (
+			current.dev !== existing.dev ||
+			current.ino !== existing.ino ||
+			current.mtimeNs !== existing.mtimeNs ||
+			Date.now() - Number(current.mtimeMs) < staleMs
+		)
 			return false;
 		await unlink(lockPath);
 		return true;
@@ -45,6 +50,49 @@ async function discardStaleRenderCacheLock({
 		if (nodeErrorCode({ error }) === "ENOENT") return true;
 		throw error;
 	}
+}
+
+async function refreshRenderCacheLock({ lock }: { lock: RenderCacheLock }) {
+	const refreshedAt = new Date();
+	await lock.handle.utimes(refreshedAt, refreshedAt);
+	const current = await lstat(lock.lockPath, { bigint: true });
+	if (
+		current.dev.toString() !== lock.device ||
+		current.ino.toString() !== lock.inode
+	) {
+		throw new Error("Jianying text render cache lock ownership was lost");
+	}
+}
+
+function startRenderCacheLockLease({
+	lock,
+	staleMs,
+}: {
+	lock: RenderCacheLock;
+	staleMs: number;
+}) {
+	const refreshIntervalMs = Math.max(1, Math.floor(staleMs / 3));
+	let refreshError: unknown;
+	let refreshPromise: Promise<void> | undefined;
+	const timer = setInterval(() => {
+		if (refreshPromise) return;
+		refreshPromise = refreshRenderCacheLock({ lock })
+			.catch((cause: unknown) => {
+				refreshError = cause;
+				clearInterval(timer);
+			})
+			.finally(() => {
+				refreshPromise = undefined;
+			});
+	}, refreshIntervalMs);
+	timer.unref();
+	return {
+		getError: () => refreshError,
+		stop: async () => {
+			clearInterval(timer);
+			await refreshPromise;
+		},
+	};
 }
 
 async function acquireRenderCacheLock({
@@ -138,17 +186,28 @@ export async function withJianyingTextRenderCacheLock<T>({
 	throwIfCancelled: () => void;
 }) {
 	const lockPath = path.join(cacheRoot, `${cacheKey}.lock`);
+	const staleMs = options.staleMs ?? DEFAULT_LOCK_STALE_MS;
 	const lock = await acquireRenderCacheLock({
 		deadline: Date.now() + (options.timeoutMs ?? DEFAULT_LOCK_TIMEOUT_MS),
 		lockPath,
 		retryMs: options.retryMs ?? DEFAULT_LOCK_RETRY_MS,
-		staleMs: options.staleMs ?? DEFAULT_LOCK_STALE_MS,
+		staleMs,
 		throwIfCancelled,
 	});
+	const lease = startRenderCacheLockLease({ lock, staleMs });
 	try {
 		throwIfCancelled();
-		return await task();
+		const result = await task();
+		await lease.stop();
+		const leaseError = lease.getError();
+		if (leaseError) {
+			const detail =
+				leaseError instanceof Error ? `: ${leaseError.message}` : "";
+			throw new Error(`Jianying text render cache lock lease failed${detail}`);
+		}
+		return result;
 	} finally {
+		await lease.stop();
 		await releaseRenderCacheLock({ lock });
 	}
 }
