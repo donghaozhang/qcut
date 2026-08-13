@@ -74,6 +74,25 @@ template <typename Value>
   return values;
 }
 
+[[nodiscard]] std::vector<jianying_probe::TextAnimationProbeRequest>
+textAnimations() {
+  std::vector<jianying_probe::TextAnimationProbeRequest> values;
+  for (int type = 1; type <= 3; ++type) {
+    const std::string prefix =
+        "JY_TEXT_ANIMATION_" + std::to_string(type);
+    const std::string packagePath =
+        optionalEnvironment((prefix + "_PATH").c_str());
+    if (packagePath.empty()) continue;
+    values.push_back({
+        .packagePath = packagePath,
+        .type = type,
+        .duration = optionalNumberEnvironment<std::int64_t>(
+            (prefix + "_DURATION").c_str(), 1'000'000),
+    });
+  }
+  return values;
+}
+
 [[nodiscard]] int run(const fs::path& runtimeRoot) {
   const fs::path packagePath = requireEnvironment("JY_TEXT_PACKAGE");
   if (!fs::is_directory(runtimeRoot)) {
@@ -96,6 +115,7 @@ template <typename Value>
                   .fontPath = optionalEnvironment("JY_TEXT_FONT_PATH"),
                   .resourceManifestPath = optionalEnvironment(
                       "JY_TEXT_RESOURCE_MANIFEST"),
+                  .animations = textAnimations(),
                   .segmentPayload =
                       optionalEnvironment("JY_TEXT_SEGMENT_PAYLOAD"),
                   .scriptParameters =
@@ -112,6 +132,9 @@ template <typename Value>
                       "JY_TEXT_SEGMENT_TYPE", 3),
                   .resolutionType = optionalNumberEnvironment<int>(
                       "JY_TEXT_RESOLUTION_TYPE", -1),
+                  .timelineDuration =
+                      optionalNumberEnvironment<std::int64_t>(
+                          "JY_TEXT_TIMELINE_DURATION", 60'000'000),
                   .timestamp = optionalNumberEnvironment<std::int64_t>(
                       "JY_TEXT_TIMESTAMP", 500'000),
               },
