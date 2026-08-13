@@ -20,6 +20,9 @@ export interface JianyingRoundTripVerification {
 	importedSegmentCount: number;
 	preservedBindingCount: number;
 	profileId: Jianying113ProfileId;
+	scope: "active-subdraft-noop";
+	targetAppPersistenceVerified: false;
+	writebackPerformed: false;
 }
 
 export type JianyingRoundTripVerificationIssue =
@@ -179,6 +182,9 @@ export function verifyJianying113RoundTrip({
 			importedSegmentCount: prepared.importedSegmentCount,
 			preservedBindingCount: envelope.bindings.length,
 			profileId,
+			scope: "active-subdraft-noop",
+			targetAppPersistenceVerified: false,
+			writebackPerformed: false,
 		},
 	};
 }

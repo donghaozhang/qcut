@@ -72,7 +72,7 @@ export const JIANYING_IMPORT_COMMANDS: Record<string, CommandDef> = {
 	"editor:jianying-import:verify-roundtrip": command({
 		name: "editor:jianying-import:verify-roundtrip",
 		description:
-			"Verify Jianying Professional import and no-op writeback byte-for-byte without modifying the draft",
+			"Verify the active Jianying plaintext subdraft's no-op QCut projection byte-for-byte; does not verify Jianying save/reopen",
 		flags: [DRAFT_DIR_FLAG, JIANYING_FORMAT_FLAG],
 		examples: [
 			'qcut draft verify-roundtrip --format jianying --draft "~/Movies/JianyingPro Drafts/my-draft" --json',

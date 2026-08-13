@@ -308,6 +308,9 @@ describe("verifyRoundTrip", () => {
 					importedSegmentCount: 1,
 					preservedBindingCount: 3,
 					profileId,
+					scope: "active-subdraft-noop",
+					targetAppPersistenceVerified: false,
+					writebackPerformed: false,
 				},
 			});
 			expect(JSON.stringify(verification)).not.toContain(root);

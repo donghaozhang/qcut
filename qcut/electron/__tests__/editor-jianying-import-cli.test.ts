@@ -101,6 +101,9 @@ describe("executeJianyingImportCommand", () => {
 						verification: {
 							byteIdentical: true,
 							contentRelativePath: "draft_content.json",
+							scope: "active-subdraft-noop",
+							targetAppPersistenceVerified: false,
+							writebackPerformed: false,
 						},
 					},
 				};
@@ -227,7 +230,15 @@ describe("executeJianyingImportCommand", () => {
 				localOnly: true,
 				readOnly: true,
 				result: {
-					result: { ok: true, verification: { byteIdentical: true } },
+					result: {
+						ok: true,
+						verification: {
+							byteIdentical: true,
+							scope: "active-subdraft-noop",
+							targetAppPersistenceVerified: false,
+							writebackPerformed: false,
+						},
+					},
 				},
 			},
 		});
