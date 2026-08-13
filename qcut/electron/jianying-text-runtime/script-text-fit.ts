@@ -1,4 +1,5 @@
 import { asJianyingRecord } from "../jianying-text-package-metadata.js";
+import { splitJianyingTextGraphemes } from "./graphemes.js";
 
 const RICH_TEXT_SLOT_PATTERN = /\[([^\]]*)\]/g;
 const WIDE_CHARACTER_PATTERN =
@@ -39,7 +40,7 @@ function isZeroWidthCharacter({ character }: { character: string }) {
 function lineWidth({ line }: { line: string }) {
 	let width = 0;
 	let joinsPrevious = false;
-	for (const character of Array.from(line)) {
+	for (const character of splitJianyingTextGraphemes({ text: line })) {
 		if (character === "\u200d") {
 			joinsPrevious = true;
 			continue;

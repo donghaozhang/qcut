@@ -1,7 +1,7 @@
-import { readdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { listJianyingResourceDatabasePaths } from "./jianying-resource-database.js";
 import type { JianyingTextStyleCategoryId } from "./jianying-text-style-lab-contract.js";
 
 const SQLITE_PARAMETER_LIMIT = 900;
@@ -159,16 +159,13 @@ export async function resolveJianyingFlowerResourceMetadata({
 	const categoryBySourceId = new Map<string, JianyingTextStyleCategoryId>(
 		JIANYING_FLOWER_CATEGORIES.map(({ id, sourceId }) => [sourceId, id])
 	);
-	let databaseDirectories: string[];
-	try {
-		databaseDirectories = await readdir(databaseRoot);
-	} catch {
-		return new Map();
-	}
-	const rows = databaseDirectories.flatMap((directory) => {
+	const databasePaths = await listJianyingResourceDatabasePaths({
+		databaseRoot,
+	});
+	const rows = databasePaths.flatMap((databasePath) => {
 		try {
 			return collectRows({
-				databasePath: join(databaseRoot, directory, "rp.db"),
+				databasePath,
 				resourceIds,
 			});
 		} catch {

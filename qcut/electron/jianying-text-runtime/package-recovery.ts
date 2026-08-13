@@ -1,7 +1,11 @@
 import path from "node:path";
 import type { JianyingEffectStyleInspection } from "../jianying-text-effect-style-contract.js";
 import { parseJianyingEffectStylePackage } from "../jianying-text-effect-style-parser.js";
-import type { JianyingTextRuntimeReference } from "../jianying-text-runtime-contract.js";
+import type {
+	JianyingTextResourceRecoveryFailureReason,
+	JianyingTextRuntimeDependencyStatus,
+	JianyingTextRuntimeReference,
+} from "../jianying-text-runtime-contract.js";
 import {
 	JianyingTextAnimationPackageError,
 	resolveJianyingTextAnimations,
@@ -11,6 +15,7 @@ import {
 	recoverJianyingTextResource,
 	recoverJianyingTextResources,
 } from "./resource-recovery.js";
+import { jianyingTextRecoveryFailureDiagnostic } from "./recovery-diagnostics.js";
 import {
 	resolveJianyingScriptResources,
 	type ResolvedJianyingScriptResources,
@@ -31,6 +36,39 @@ export function getJianyingTextResourceDatabaseRoot({
 	);
 }
 
+export interface JianyingTextRootPackageRecovery {
+	packagePath: string | null;
+	recoveryReason?: JianyingTextResourceRecoveryFailureReason;
+}
+
+export async function recoverJianyingTextRootPackageResult({
+	cacheRoot,
+	recoveryRoot,
+	reference,
+}: {
+	cacheRoot: string;
+	recoveryRoot: string;
+	reference: JianyingTextRuntimeReference;
+}): Promise<JianyingTextRootPackageRecovery> {
+	if (!automaticJianyingTextRecoveryEnabled()) {
+		return { packagePath: null, recoveryReason: "recovery-disabled" };
+	}
+	const recovered = await recoverJianyingTextResource({
+		resourceId: reference.resourceId,
+		role: reference.packageKind === "TextStyle" ? "effect-style" : "sticker",
+		expectedPackageHash: reference.packageHash,
+		databaseRoot: getJianyingTextResourceDatabaseRoot({ cacheRoot }),
+		recoveryRoot,
+		sourceCacheRoots: [cacheRoot],
+	});
+	return recovered.packagePath
+		? { packagePath: recovered.packagePath }
+		: {
+				packagePath: null,
+				recoveryReason: recovered.reason ?? "download-failed",
+			};
+}
+
 export async function recoverJianyingTextRootPackage({
 	cacheRoot,
 	recoveryRoot,
@@ -40,15 +78,18 @@ export async function recoverJianyingTextRootPackage({
 	recoveryRoot: string;
 	reference: JianyingTextRuntimeReference;
 }) {
-	if (!automaticJianyingTextRecoveryEnabled()) return null;
-	const recovered = await recoverJianyingTextResource({
-		resourceId: reference.resourceId,
-		role: reference.packageKind === "TextStyle" ? "effect-style" : "sticker",
-		expectedPackageHash: reference.packageHash,
-		databaseRoot: getJianyingTextResourceDatabaseRoot({ cacheRoot }),
-		recoveryRoot,
-	});
-	return recovered.packagePath ?? null;
+	return (
+		await recoverJianyingTextRootPackageResult({
+			cacheRoot,
+			recoveryRoot,
+			reference,
+		})
+	).packagePath;
+}
+
+interface JianyingTextDependencyRecoveryFailure
+	extends JianyingTextRuntimeDependencyStatus {
+	recoveryReason: JianyingTextResourceRecoveryFailureReason;
 }
 
 async function recoverScriptDependencies({
@@ -60,18 +101,49 @@ async function recoverScriptDependencies({
 	recoveryRoot: string;
 	resources: ResolvedJianyingScriptResources;
 }) {
-	if (
-		!automaticJianyingTextRecoveryEnabled() ||
-		(resources.missing.length === 0 && resources.degraded.length === 0)
-	) {
-		return false;
+	const requests = [...resources.missing, ...resources.degraded];
+	if (requests.length === 0) {
+		return {
+			recovered: false,
+			failures: [] as JianyingTextDependencyRecoveryFailure[],
+		};
+	}
+	if (!automaticJianyingTextRecoveryEnabled()) {
+		return {
+			recovered: false,
+			failures: requests.map((request) => ({
+				...request,
+				recoveryReason: "recovery-disabled" as const,
+			})),
+		};
 	}
 	const results = await recoverJianyingTextResources({
 		databaseRoot: getJianyingTextResourceDatabaseRoot({ cacheRoot }),
 		recoveryRoot,
-		requests: [...resources.missing, ...resources.degraded],
+		requests,
+		sourceCacheRoots: [cacheRoot],
 	});
-	return results.some(({ state }) => state !== "unavailable");
+	return {
+		recovered: results.some(({ state }) => state !== "unavailable"),
+		failures: results.flatMap((result, index) => {
+			const request = requests[index];
+			return result.state === "unavailable" && request
+				? [
+						{
+							...request,
+							recoveryReason: result.reason ?? "download-failed",
+						},
+					]
+				: [];
+		}),
+	};
+}
+
+function dependencyKey({
+	resourceId,
+	role,
+}: Pick<JianyingTextRuntimeDependencyStatus, "resourceId" | "role">) {
+	return `${role}:${resourceId}`;
 }
 
 export async function resolveJianyingScriptResourcesWithRecovery({
@@ -88,14 +160,38 @@ export async function resolveJianyingScriptResourcesWithRecovery({
 		cacheRoot,
 		additionalCacheRoots: [recoveryRoot],
 	});
-	if (await recoverScriptDependencies({ cacheRoot, recoveryRoot, resources })) {
+	const recovery = await recoverScriptDependencies({
+		cacheRoot,
+		recoveryRoot,
+		resources,
+	});
+	if (recovery.recovered) {
 		resources = await resolveJianyingScriptResources({
 			packagePath,
 			cacheRoot,
 			additionalCacheRoots: [recoveryRoot],
 		});
 	}
-	return resources;
+	const unresolved = new Set(
+		[...resources.missing, ...resources.degraded].map(dependencyKey)
+	);
+	const recoveryFailures = recovery.failures.filter((failure) =>
+		unresolved.has(dependencyKey(failure))
+	);
+	return {
+		...resources,
+		recoveryFailures,
+		diagnostics: [
+			...resources.diagnostics,
+			...recoveryFailures.map((failure) =>
+				jianyingTextRecoveryFailureDiagnostic({
+					reason: failure.recoveryReason,
+					resourceId: failure.resourceId,
+					role: failure.role,
+				})
+			),
+		],
+	};
 }
 
 function directAnimationReference({
@@ -148,8 +244,20 @@ export async function resolveJianyingTextAnimationsWithRecovery({
 			expectedPackageHash: animation.packageHash,
 			databaseRoot: getJianyingTextResourceDatabaseRoot({ cacheRoot }),
 			recoveryRoot,
+			sourceCacheRoots: [cacheRoot],
 		});
-		if (recovered.state === "unavailable") throw cause;
+		if (recovered.state === "unavailable") {
+			throw new JianyingTextAnimationPackageError({
+				code: "dependency-missing",
+				message: jianyingTextRecoveryFailureDiagnostic({
+					reason: recovered.reason ?? "download-failed",
+					resourceId: cause.dependency.resourceId,
+					role: "animation",
+				}).message,
+				recoveryReason: recovered.reason ?? "download-failed",
+				resourceId: cause.dependency.resourceId,
+			});
+		}
 		return resolveJianyingTextAnimationsWithRecovery({
 			attemptedResourceIds,
 			cacheRoot,

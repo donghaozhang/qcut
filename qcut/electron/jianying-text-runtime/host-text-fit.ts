@@ -1,3 +1,5 @@
+import type { JianyingTextRuntimePackageKind } from "../jianying-text-runtime-contract.js";
+
 export interface JianyingHostTextAlphaBounds {
 	minX: number;
 	minY: number;
@@ -10,6 +12,14 @@ export interface JianyingHostTextAlphaBounds {
 const TARGET_MARGIN_RATIO = 0.04;
 const CLIPPED_RETRY_SCALE = 0.75;
 const MINIMUM_FONT_SIZE = 1;
+
+export function shouldFitJianyingHostText({
+	packageKind,
+}: {
+	packageKind: JianyingTextRuntimePackageKind;
+}) {
+	return packageKind === "TextStyle" || packageKind === "InfoSticker";
+}
 
 export function measureJianyingHostTextAlphaBounds({
 	bytes,

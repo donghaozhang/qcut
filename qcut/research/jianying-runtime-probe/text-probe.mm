@@ -23,12 +23,45 @@ namespace {
 
 namespace fs = std::filesystem;
 
-constexpr std::string_view kVerifiedTextCoreUuid =
-    "D6342ECD-5432-33F0-A2AD-0C28F5699994";
-constexpr std::uintptr_t kAmazerContextScopeConstructorOffset = 0x3fb3bc;
-constexpr std::uintptr_t kAmazerContextScopeDestructorOffset = 0x3fb3e8;
 constexpr int kAutomaticRendererType = 14;
 constexpr std::int64_t kMaximumTimelineDuration = 60'000'000;
+
+struct TextRuntimeAbiProfile {
+  std::string_view name;
+  std::string_view coreUuid;
+  std::uintptr_t contextScopeConstructorOffset;
+  std::uintptr_t contextScopeDestructorOffset;
+};
+
+constexpr std::array<TextRuntimeAbiProfile, 2> kTextRuntimeAbiProfiles = {{
+    {
+        .name = "jianying-text-d634-arm64-v1",
+        .coreUuid = "D6342ECD-5432-33F0-A2AD-0C28F5699994",
+        .contextScopeConstructorOffset = 0x3fb3bc,
+        .contextScopeDestructorOffset = 0x3fb3e8,
+    },
+    {
+        .name = "jianying-text-fdf4-arm64-v1",
+        .coreUuid = "FDF42EF4-427D-30DF-9310-A8C7B352C5CD",
+        .contextScopeConstructorOffset = 0x3fb3ec,
+        .contextScopeDestructorOffset = 0x3fb418,
+    },
+}};
+
+[[nodiscard]] const TextRuntimeAbiProfile& resolveTextRuntimeAbiProfile(
+    const void* knownImageSymbol) {
+  const std::string uuid = runtimeImageUuid(knownImageSymbol);
+  const auto match = std::find_if(
+      kTextRuntimeAbiProfiles.begin(), kTextRuntimeAbiProfiles.end(),
+      [&uuid](const TextRuntimeAbiProfile& profile) {
+        return profile.coreUuid == uuid;
+      });
+  if (match == kTextRuntimeAbiProfiles.end()) {
+    throw std::runtime_error("unsupported libcccreator text ABI UUID: " +
+                             uuid);
+  }
+  return *match;
+}
 
 constexpr std::string_view kCreateManager =
     "bef_swing_manager_create_with_gpdevice";
@@ -62,6 +95,14 @@ constexpr std::string_view kSetTextEffect =
     "_bb";
 constexpr std::string_view kSetTextFontSize =
     "_ZN5vesdk3pub17TextStickerFilter13set_font_sizeERKd";
+constexpr std::string_view kSetTextInnerPadding =
+    "_ZN5vesdk3pub17TextStickerFilter17set_inner_paddingERKd";
+constexpr std::string_view kSetTextLineGap =
+    "_ZN5vesdk3pub17TextStickerFilter12set_line_gapERKd";
+constexpr std::string_view kSetTextLineMaxWidth =
+    "_ZN5vesdk3pub17TextStickerFilter18set_line_max_widthERKd";
+constexpr std::string_view kSetTextShadowSmoothing =
+    "_ZN5vesdk3pub17TextStickerFilter20set_shadow_smoothingERKd";
 constexpr std::string_view kSetUseEffectDefaultColor =
     "_ZN5vesdk3pub17TextStickerFilter28set_use_effect_default_colorERKb";
 constexpr std::string_view kTextStickerToJson =
@@ -136,22 +177,30 @@ struct TextSymbols {
   CreateTextStickerFilterMethod createTextStickerFilter;
   SetTextEffectMethod setTextEffect;
   SetDoubleReferenceMethod setTextFontSize;
+  SetDoubleReferenceMethod setTextInnerPadding;
+  SetDoubleReferenceMethod setTextLineGap;
+  SetDoubleReferenceMethod setTextLineMaxWidth;
+  SetDoubleReferenceMethod setTextShadowSmoothing;
   SetBoolReferenceMethod setUseEffectDefaultColor;
   TextStickerToJsonMethod textStickerToJson;
   SeekDeviceTextureMethod seekManagerDeviceTexture;
   SetParameterBoolMethod setManagerParameterBool;
   ConvertMetalTextureMethod convertMetalTexture;
+  TextRuntimeAbiProfile abiProfile;
 };
 
 [[nodiscard]] TextSymbols loadTextSymbols(const fs::path& runtimeRoot) {
   void* core = openLibrary(runtimeRoot / "Frameworks" / "libcccreator.dylib");
+  const GetObjectMethod getManagerAmazer =
+      resolveSymbol<GetObjectMethod>(core, kGetManagerAmazer);
+  const TextRuntimeAbiProfile abiProfile = resolveTextRuntimeAbiProfile(
+      reinterpret_cast<const void*>(getManagerAmazer));
   return {
       .createManager =
           resolveSymbol<CreateManagerMethod>(core, kCreateManager),
       .destroyManager =
           resolveSymbol<DestroyObjectMethod>(core, kDestroyManager),
-      .getManagerAmazer =
-          resolveSymbol<GetObjectMethod>(core, kGetManagerAmazer),
+      .getManagerAmazer = getManagerAmazer,
       .getManagerGraphicsDevice =
           resolveSymbol<GetObjectMethod>(core, kGetManagerGraphicsDevice),
       .createSegment =
@@ -178,6 +227,14 @@ struct TextSymbols {
           resolveSymbol<SetTextEffectMethod>(core, kSetTextEffect),
       .setTextFontSize = resolveSymbol<SetDoubleReferenceMethod>(
           core, kSetTextFontSize),
+      .setTextInnerPadding = resolveSymbol<SetDoubleReferenceMethod>(
+          core, kSetTextInnerPadding),
+      .setTextLineGap = resolveSymbol<SetDoubleReferenceMethod>(
+          core, kSetTextLineGap),
+      .setTextLineMaxWidth = resolveSymbol<SetDoubleReferenceMethod>(
+          core, kSetTextLineMaxWidth),
+      .setTextShadowSmoothing = resolveSymbol<SetDoubleReferenceMethod>(
+          core, kSetTextShadowSmoothing),
       .setUseEffectDefaultColor = resolveSymbol<SetBoolReferenceMethod>(
           core, kSetUseEffectDefaultColor),
       .textStickerToJson =
@@ -188,6 +245,7 @@ struct TextSymbols {
           core, kSetManagerParameterBool),
       .convertMetalTexture = resolveSymbol<ConvertMetalTextureMethod>(
           core, kConvertMetalTextureInPlace),
+      .abiProfile = abiProfile,
   };
 }
 
@@ -286,6 +344,18 @@ void writeTextFile(const fs::path& outputPath, const std::string& text) {
   symbols.setTextFontSize(sticker.get(), request.fontSize);
   symbols.setTextEffect(sticker, request.packagePath.string(), "", false,
                         false);
+  if (request.innerPadding.has_value()) {
+    symbols.setTextInnerPadding(sticker.get(), *request.innerPadding);
+  }
+  if (request.lineGap.has_value()) {
+    symbols.setTextLineGap(sticker.get(), *request.lineGap);
+  }
+  if (request.lineMaxWidth.has_value()) {
+    symbols.setTextLineMaxWidth(sticker.get(), *request.lineMaxWidth);
+  }
+  if (request.shadowSmoothing.has_value()) {
+    symbols.setTextShadowSmoothing(sticker.get(), *request.shadowSmoothing);
+  }
   constexpr bool kUseEffectDefaultColor = true;
   symbols.setUseEffectDefaultColor(sticker.get(), kUseEffectDefaultColor);
   const std::string payload = symbols.textStickerToJson(sticker);
@@ -334,14 +404,20 @@ class TextSwingSession {
         AmazerContextScopeRequest{
             .knownImageSymbol =
                 reinterpret_cast<const void*>(symbols_.getManagerAmazer),
-            .expectedImageUuid = kVerifiedTextCoreUuid,
-            .constructorOffset = kAmazerContextScopeConstructorOffset,
-            .destructorOffset = kAmazerContextScopeDestructorOffset,
+            .expectedImageUuid = symbols_.abiProfile.coreUuid,
+            .constructorOffset =
+                symbols_.abiProfile.contextScopeConstructorOffset,
+            .destructorOffset =
+                symbols_.abiProfile.contextScopeDestructorOffset,
             .context = amazer,
         });
 
-    const int simplifyResult = symbols_.setManagerParameterBool(
-        manager_->get(), "EnableSwingSimplify", true);
+    const int simplifyResult =
+        request.enableSwingSimplify.has_value()
+            ? symbols_.setManagerParameterBool(manager_->get(),
+                                               "EnableSwingSimplify",
+                                               *request.enableSwingSimplify)
+            : 0;
     const std::string hostPayload = buildHostTextPayload(symbols_, request);
     const std::string& segmentPayload =
         request.segmentPayload.empty() ? request.packagePath.string()
@@ -353,7 +429,7 @@ class TextSwingSession {
     const int timeRangeResult = symbols_.setSegmentTimeRange(
         segment_->get(), 0, request.timelineDuration);
     const int renderIndexResult =
-        symbols_.setSegmentRenderIndex(segment_->get(), 0);
+        symbols_.setSegmentRenderIndex(segment_->get(), request.renderIndex);
     const int addResult =
         symbols_.addManagerSegment(manager_->get(), segment_->get());
     const int resolutionResult =
@@ -507,6 +583,15 @@ void writeRawRgba(const fs::path& outputPath,
   return result;
 }
 
+void validateOptionalTextNumber(const std::optional<double>& value,
+                                double minimum, double maximum,
+                                std::string_view label) {
+  if (value.has_value() &&
+      (!std::isfinite(*value) || *value < minimum || *value > maximum)) {
+    throw std::runtime_error(std::string(label) + " is out of range");
+  }
+}
+
 void validateTextFrameRequest(const TextFrameProbeRequest& request) {
   if (!fs::is_directory(request.packagePath)) {
     throw std::runtime_error("text package does not exist: " +
@@ -527,11 +612,22 @@ void validateTextFrameRequest(const TextFrameProbeRequest& request) {
   if (request.fontSize <= 0.0 || request.fontSize > 1000.0) {
     throw std::runtime_error("text font size must be between 0 and 1000");
   }
+  validateOptionalTextNumber(request.innerPadding, -1.0, 1000.0,
+                             "text inner padding");
+  validateOptionalTextNumber(request.lineGap, -10.0, 10.0,
+                             "text line gap");
+  validateOptionalTextNumber(request.lineMaxWidth, -1.0, 10000.0,
+                             "text line max width");
+  validateOptionalTextNumber(request.shadowSmoothing, 0.0, 1.0,
+                             "text shadow smoothing");
   if (request.segmentType < 0 || request.segmentType > 10) {
     throw std::runtime_error("text segment type must be between 0 and 10");
   }
   if (request.resolutionType < -1 || request.resolutionType > 8) {
     throw std::runtime_error("text resolution type must be between -1 and 8");
+  }
+  if (request.renderIndex < 0) {
+    throw std::runtime_error("text render index must be non-negative");
   }
   if (request.timelineDuration <= 0 ||
       request.timelineDuration > kMaximumTimelineDuration) {
@@ -559,7 +655,8 @@ void validateTextFrameRequest(const TextFrameProbeRequest& request) {
   if (request.stickerParams.size() + generatedParamCount > 9) {
     throw std::runtime_error("text sticker params must contain at most 9 items");
   }
-  if (request.timestamp < 0 || request.timestamp > request.timelineDuration) {
+  if (!std::isfinite(request.timestamp) || request.timestamp < 0 ||
+      request.timestamp > request.timelineDuration) {
     throw std::runtime_error("text timestamp must fit the text timeline");
   }
 }
@@ -575,6 +672,23 @@ void printTextFrameResult(const TextFrameProbeResult& result) {
 
 }  // namespace
 
+void inspectTextRuntime(const fs::path& runtimeRoot) {
+  if (!fs::is_directory(runtimeRoot)) {
+    throw std::runtime_error("runtime root does not exist: " +
+                             runtimeRoot.string());
+  }
+
+  const TextSymbols symbols = loadTextSymbols(runtimeRoot);
+  verifyRuntimeImage(
+      reinterpret_cast<const void*>(symbols.getManagerAmazer),
+      symbols.abiProfile.coreUuid);
+  if (!inspectGraphicsContext(runtimeRoot, false)) {
+    throw std::runtime_error("AGFX GPU context initialization failed");
+  }
+  std::cout << "[text-runtime] abi-profile=" << symbols.abiProfile.name
+            << " core-uuid=" << symbols.abiProfile.coreUuid << '\n';
+}
+
 TextFrameProbeResult renderTextFrame(const TextFrameProbeRequest& request) {
   validateTextFrameRequest(request);
 
@@ -587,7 +701,7 @@ TextFrameProbeResult renderTextFrame(const TextFrameProbeRequest& request) {
   TextRenderContext context = {
       .symbols = symbols,
       .request = request,
-      .timestamp = request.timestamp,
+      .timestamp = static_cast<std::int64_t>(std::llround(request.timestamp)),
   };
   const GraphicsFrameProbeResult frame = graphics.renderFrame({
       .renderer = renderTextWithSwingHost,
@@ -611,7 +725,7 @@ TextSequenceProbeResult renderTextSequence(
     throw std::runtime_error("text sequence timestamp step must be non-negative");
   }
   const double finalTimestamp =
-      static_cast<double>(request.frame.timestamp) +
+      request.frame.timestamp +
       static_cast<double>(request.frameCount - 1) * request.timestampStep;
   if (finalTimestamp > static_cast<double>(request.frame.timelineDuration)) {
     throw std::runtime_error("text sequence exceeds the text timeline");
@@ -637,13 +751,14 @@ TextSequenceProbeResult renderTextSequence(
   TextRenderContext context = {
       .symbols = symbols,
       .request = request.frame,
-      .timestamp = request.frame.timestamp,
+      .timestamp =
+          static_cast<std::int64_t>(std::llround(request.frame.timestamp)),
   };
   TextSequenceProbeResult result = {.requestedFrames = request.frameCount};
 
   for (int frameIndex = 0; frameIndex < request.frameCount; ++frameIndex) {
     context.timestamp = static_cast<std::int64_t>(std::llround(
-        static_cast<double>(request.frame.timestamp) +
+        request.frame.timestamp +
         static_cast<double>(frameIndex) * request.timestampStep));
     const GraphicsFrameProbeResult frame = graphics.renderFrame({
         .renderer = renderTextWithSwingHost,

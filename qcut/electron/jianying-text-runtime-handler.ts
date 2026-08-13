@@ -96,6 +96,12 @@ async function inspectReference({
 	try {
 		const packageInfo = await resolveJianyingTextPackage({ reference });
 		const scriptResources = packageInfo.scriptResources;
+		const recoveryFailures = new Map(
+			(scriptResources?.recoveryFailures ?? []).map((failure) => [
+				`${failure.role}:${failure.resourceId}`,
+				failure,
+			])
+		);
 		const degradedDependencies = [
 			...(scriptResources?.degraded ?? []),
 			...(scriptResources?.missing ?? []).flatMap(({ resourceId, role }) =>
@@ -103,7 +109,14 @@ async function inspectReference({
 					? [{ resourceId, role: "effect-style" as const }]
 					: []
 			),
-		];
+		].map((dependency) => {
+			const failure = recoveryFailures.get(
+				`${dependency.role}:${dependency.resourceId}`
+			);
+			return failure
+				? { ...dependency, recoveryReason: failure.recoveryReason }
+				: dependency;
+		});
 		const degraded =
 			Boolean(degradedDependencies?.length) ||
 			packageInfo.diagnostics.length > 0;
@@ -132,6 +145,7 @@ async function inspectReference({
 				packageReady: false,
 				resourceId: reference.resourceId,
 				packageHash: reference.packageHash,
+				diagnostics: cause.diagnostics,
 				missingDependencies: cause.missingDependencies,
 			});
 		}

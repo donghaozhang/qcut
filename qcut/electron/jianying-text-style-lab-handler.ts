@@ -21,20 +21,16 @@ import {
 	type JianyingTextStyleCatalog,
 	type JianyingTextStyleCatalogEntry,
 } from "./jianying-text-style-lab-catalog.js";
+import {
+	resolveJianyingTextPackageOwnership,
+	type JianyingTextPackageOwnership,
+} from "./jianying-text-package-ownership.js";
+import { isDiscoverableJianyingTextCatalogEntry } from "./jianying-text-style-discovery.js";
 
 interface TextStyleLabCatalog {
 	catalog: JianyingTextStyleCatalog;
 	metadata: Map<string, JianyingFlowerResourceMetadata>;
-}
-
-function isDiscoverableCatalogEntry({
-	entry,
-	metadata,
-}: {
-	entry: JianyingTextStyleCatalogEntry;
-	metadata: ReadonlyMap<string, JianyingFlowerResourceMetadata>;
-}) {
-	return metadata.has(entry.styleId) || Boolean(entry.runtimeReference);
+	ownership: Map<string, JianyingTextPackageOwnership>;
 }
 
 export interface JianyingTextStyleLabIPCController {
@@ -49,6 +45,11 @@ export interface SetupJianyingTextStyleLabIPCOptions {
 	}: {
 		references: JianyingTextStyleCatalogEntry[];
 	}) => Promise<Map<string, JianyingFlowerResourceMetadata>>;
+	resolveOwnership?: ({
+		references,
+	}: {
+		references: JianyingTextStyleCatalogEntry[];
+	}) => Promise<Map<string, JianyingTextPackageOwnership>>;
 	readCover?: ({
 		entry,
 	}: {
@@ -119,16 +120,20 @@ function requireCatalogEntry({
 function summarizeEntry({
 	entry,
 	metadata,
+	ownership,
 }: {
 	entry: JianyingTextStyleCatalogEntry;
 	metadata: ReadonlyMap<string, JianyingFlowerResourceMetadata>;
+	ownership: ReadonlyMap<string, JianyingTextPackageOwnership>;
 }): JianyingTextStyleLabStyleSummary {
 	const resourceMetadata = metadata.get(entry.styleId);
+	const packageOwnership = ownership.get(entry.styleId);
+	const title = resourceMetadata?.title ?? packageOwnership?.title;
 	return {
 		styleId: entry.styleId,
 		resourceId: entry.resourceId,
 		version: entry.version,
-		...(resourceMetadata?.title ? { title: resourceMetadata.title } : {}),
+		...(title ? { title } : {}),
 		categoryIds: resourceMetadata?.categoryIds ?? [],
 		packageKind: entry.packageKind,
 		packageVersion: entry.packageVersion,
@@ -189,6 +194,8 @@ export function setupJianyingTextStyleLabIPC({
 	buildCatalog = () => buildJianyingTextStyleCatalog(),
 	resolveMetadata = ({ references }) =>
 		resolveJianyingFlowerResourceMetadata({ references }),
+	resolveOwnership = ({ references }) =>
+		resolveJianyingTextPackageOwnership({ references }),
 	readCover = readJianyingTextStyleCover,
 }: SetupJianyingTextStyleLabIPCOptions): JianyingTextStyleLabIPCController {
 	let catalogPromise: Promise<TextStyleLabCatalog> | null = null;
@@ -196,14 +203,27 @@ export function setupJianyingTextStyleLabIPC({
 		if (!catalogPromise || refresh) {
 			catalogPromise = buildCatalog().then(async (catalog) => {
 				const metadata = await resolveMetadata({ references: catalog.entries });
+				const ownershipCandidates = catalog.entries.filter(
+					({ packageKind, styleId }) =>
+						!metadata.has(styleId) &&
+						(packageKind === "AmazingFeature" || packageKind === "InfoSticker")
+				);
+				const ownership = await resolveOwnership({
+					references: ownershipCandidates,
+				});
 				return {
 					catalog: {
 						...catalog,
 						entries: catalog.entries.filter((entry) =>
-							isDiscoverableCatalogEntry({ entry, metadata })
+							isDiscoverableJianyingTextCatalogEntry({
+								entry,
+								metadata,
+								ownership,
+							})
 						),
 					},
 					metadata,
+					ownership,
 				};
 			});
 		}
@@ -220,9 +240,9 @@ export function setupJianyingTextStyleLabIPC({
 		): Promise<JianyingTextStyleLabListResult> => {
 			assertTrustedMainFrame({ event, mainWindow: getMainWindow() });
 			const { refresh = false } = parseListRequest({ request });
-			const { catalog, metadata } = await readCatalog({ refresh });
+			const { catalog, metadata, ownership } = await readCatalog({ refresh });
 			const styles = catalog.entries
-				.map((entry) => summarizeEntry({ entry, metadata }))
+				.map((entry) => summarizeEntry({ entry, metadata, ownership }))
 				.sort((left, right) => compareStyleSummaries({ left, right }));
 			return {
 				count: styles.length,

@@ -23,7 +23,7 @@ const execFileAsync = promisify(execFile);
 export const JIANYING_TEXT_RUNTIME_BRIDGE_FILE_NAME =
 	"jianying-text-runtime-bridge";
 
-const JIANYING_TEXT_RUNTIME_BRIDGE_BUILD_VERSION = "text-animation-slots-v2";
+const JIANYING_TEXT_RUNTIME_BRIDGE_BUILD_VERSION = "text-runtime-timing-v4";
 
 export const JIANYING_TEXT_RUNTIME_BRIDGE_SOURCE_FILE_NAMES = [
 	"text-runtime-main.mm",

@@ -107,7 +107,7 @@ export function resolveJianyingTextBridgeEnvironment({
 		JY_TEXT_FONT_PATH: request.fontPath ?? "",
 		JY_TEXT_FONT_SIZE: String(request.fontSize ?? 12),
 		JY_TEXT_RESOLUTION_TYPE: String(request.resolutionType ?? -1),
-		JY_TEXT_TIMESTAMP: String(Math.round(request.startTimestamp)),
+		JY_TEXT_TIMESTAMP: String(request.startTimestamp),
 		JY_TEXT_TIMESTAMP_STEP: String(request.timestampStep),
 		JY_TEXT_TIMELINE_DURATION: String(Math.round(request.timelineDuration)),
 		JY_TEXT_FRAME_COUNT: String(request.frameCount),
@@ -173,26 +173,29 @@ function degradedScriptResourceIds({
 	packageInfo: ResolvedJianyingTextPackage;
 }) {
 	return new Set(
-		scriptResources({ packageInfo }).degraded.map(
-			({ resourceId }) => resourceId
-		)
+		scriptResources({ packageInfo })
+			.degraded.filter(({ role }) => role === "animation" || role === "sticker")
+			.map(({ resourceId }) => resourceId)
 	);
 }
 
 function strategyKey({
 	runtime,
 	packageInfo,
-	fontPath,
+	fallbackFontPath,
+	fontOverridePath,
 }: {
 	runtime: JianyingTextBridgeRuntime;
 	packageInfo: ResolvedJianyingTextPackage;
-	fontPath: string;
+	fallbackFontPath: string;
+	fontOverridePath?: string;
 }) {
 	return createHash("sha256")
 		.update(runtime.runtimeFingerprint)
 		.update(packageInfo.packageHash)
 		.update(scriptResources({ packageInfo }).fingerprint)
-		.update(fontPath)
+		.update(fallbackFontPath)
+		.update(fontOverridePath ?? "template-fonts")
 		.digest("hex");
 }
 
@@ -299,12 +302,14 @@ async function inspectRuntimeParameterEditing({
 	runtime,
 	requestId,
 	packageInfo,
-	fontPath,
+	fallbackFontPath,
+	fontOverridePath,
 }: {
 	runtime: JianyingTextBridgeRuntime;
 	requestId: string;
 	packageInfo: ResolvedJianyingTextPackage;
-	fontPath: string;
+	fallbackFontPath: string;
+	fontOverridePath?: string;
 }) {
 	const temporary = await mkdtemp(
 		path.join(os.tmpdir(), "qcut-jianying-text-strategy-")
@@ -320,7 +325,9 @@ async function inspectRuntimeParameterEditing({
 			value: source,
 			content: probeContent,
 			resourcePaths: resources.resourcePaths,
-			fontPath,
+			templateFontPaths: resources.fontPaths,
+			fallbackFontPath,
+			fontOverridePath,
 			degradedResourceIds,
 		});
 		const hydratedPackagePath = await getHydratedJianyingScriptPackage({
@@ -328,7 +335,9 @@ async function inspectRuntimeParameterEditing({
 			packageHash: packageInfo.packageHash,
 			resourcePaths: resources.resourcePaths,
 			resourceFingerprint: resources.fingerprint,
-			fontPath,
+			templateFontPaths: resources.fontPaths,
+			fallbackFontPath,
+			fontOverridePath,
 			degradedResourceIds,
 		});
 		const preloadedPackagePath = await getEditedJianyingScriptPackage({
@@ -337,7 +346,9 @@ async function inspectRuntimeParameterEditing({
 			content: probeContent,
 			resourcePaths: resources.resourcePaths,
 			resourceFingerprint: resources.fingerprint,
-			fontPath,
+			templateFontPaths: resources.fontPaths,
+			fallbackFontPath,
+			fontOverridePath,
 			degradedResourceIds,
 		});
 		const referencePath = path.join(temporary, "reference.rgba");
@@ -398,14 +409,21 @@ async function chooseScriptStrategy({
 	runtime,
 	requestId,
 	packageInfo,
-	fontPath,
+	fallbackFontPath,
+	fontOverridePath,
 }: {
 	runtime: JianyingTextBridgeRuntime;
 	requestId: string;
 	packageInfo: ResolvedJianyingTextPackage;
-	fontPath: string;
+	fallbackFontPath: string;
+	fontOverridePath?: string;
 }): Promise<"runtime-parameters" | "preload-copy"> {
-	const cacheKey = strategyKey({ runtime, packageInfo, fontPath });
+	const cacheKey = strategyKey({
+		runtime,
+		packageInfo,
+		fallbackFontPath,
+		fontOverridePath,
+	});
 	const cached = await readCachedStrategy({ cacheKey });
 	if (cached) return cached;
 	let strategy: "runtime-parameters" | "preload-copy" = "preload-copy";
@@ -414,7 +432,8 @@ async function chooseScriptStrategy({
 			runtime,
 			requestId,
 			packageInfo,
-			fontPath,
+			fallbackFontPath,
+			fontOverridePath,
 		});
 	} catch {
 		throwIfJianyingTextRenderCancelled({ requestId });
@@ -430,18 +449,21 @@ export function resolveJianyingScriptEditStrategy({
 	runtime,
 	requestId,
 	packageInfo,
-	fontPath,
+	fallbackFontPath,
+	fontOverridePath,
 }: {
 	runtime: JianyingTextBridgeRuntime;
 	requestId: string;
 	packageInfo: ResolvedJianyingTextPackage;
-	fontPath: string;
+	fallbackFontPath: string;
+	fontOverridePath?: string;
 }) {
 	return chooseScriptStrategy({
 		runtime,
 		requestId,
 		packageInfo,
-		fontPath,
+		fallbackFontPath,
+		fontOverridePath,
 	});
 }
 
@@ -450,7 +472,8 @@ export async function renderEditableJianyingScriptSequence({
 	request,
 	packageInfo,
 	content,
-	fontPath,
+	fallbackFontPath,
+	fontOverridePath,
 }: {
 	runtime: JianyingTextBridgeRuntime;
 	request: Omit<
@@ -459,7 +482,8 @@ export async function renderEditableJianyingScriptSequence({
 	>;
 	packageInfo: ResolvedJianyingTextPackage;
 	content: string;
-	fontPath: string;
+	fallbackFontPath: string;
+	fontOverridePath?: string;
 }): Promise<JianyingTextRuntimeRenderStrategy> {
 	const source = await readBoundedJianyingTextJson({
 		filePath: path.join(packageInfo.packagePath, "content.json"),
@@ -470,7 +494,9 @@ export async function renderEditableJianyingScriptSequence({
 		value: source,
 		content,
 		resourcePaths: resources.resourcePaths,
-		fontPath,
+		templateFontPaths: resources.fontPaths,
+		fallbackFontPath,
+		fontOverridePath,
 		degradedResourceIds,
 	});
 	const hydratedPackagePath = await getHydratedJianyingScriptPackage({
@@ -478,14 +504,17 @@ export async function renderEditableJianyingScriptSequence({
 		packageHash: packageInfo.packageHash,
 		resourcePaths: resources.resourcePaths,
 		resourceFingerprint: resources.fingerprint,
-		fontPath,
+		templateFontPaths: resources.fontPaths,
+		fallbackFontPath,
+		fontOverridePath,
 		degradedResourceIds,
 	});
 	const strategy = await resolveJianyingScriptEditStrategy({
 		runtime,
 		requestId: request.requestId,
 		packageInfo,
-		fontPath,
+		fallbackFontPath,
+		fontOverridePath,
 	});
 	if (strategy === "runtime-parameters") {
 		try {
@@ -509,7 +538,9 @@ export async function renderEditableJianyingScriptSequence({
 		content,
 		resourcePaths: resources.resourcePaths,
 		resourceFingerprint: resources.fingerprint,
-		fontPath,
+		templateFontPaths: resources.fontPaths,
+		fallbackFontPath,
+		fontOverridePath,
 		degradedResourceIds,
 	});
 	await renderJianyingTextRawSequence({

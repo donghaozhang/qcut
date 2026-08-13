@@ -6,6 +6,11 @@ const activeProcesses = new Map<string, Set<ChildProcess>>();
 const cancelledRequests = new Set<string>();
 const cancellationExpiryTimers = new Map<string, NodeJS.Timeout>();
 
+export interface JianyingTextProcessOutput {
+	stdout: string;
+	stderr: string;
+}
+
 function appendBounded({ current, chunk }: { current: string; chunk: Buffer }) {
 	const combined = current + chunk.toString();
 	return combined.length <= MAX_CAPTURED_OUTPUT
@@ -48,7 +53,7 @@ export function throwIfJianyingTextRenderCancelled({
 	}
 }
 
-export function runJianyingTextProcess({
+function executeJianyingTextProcess({
 	requestId,
 	command,
 	args,
@@ -62,14 +67,15 @@ export function runJianyingTextProcess({
 	timeoutMs: number;
 }) {
 	throwIfJianyingTextRenderCancelled({ requestId });
-	return new Promise<void>((resolve, reject) => {
+	return new Promise<JianyingTextProcessOutput>((resolve, reject) => {
 		const child = spawn(command, args, {
 			env,
 			stdio: ["ignore", "pipe", "pipe"],
 			windowsHide: true,
 		});
 		addProcess({ requestId, child });
-		let output = "";
+		let stdout = "";
+		let stderr = "";
 		let settled = false;
 		let timer: NodeJS.Timeout | undefined;
 		const finish = ({ error }: { error?: Error }) => {
@@ -78,13 +84,13 @@ export function runJianyingTextProcess({
 			if (timer) clearTimeout(timer);
 			removeProcess({ requestId, child });
 			if (error) reject(error);
-			else resolve();
+			else resolve({ stdout, stderr });
 		};
 		child.stdout?.on("data", (chunk: Buffer) => {
-			output = appendBounded({ current: output, chunk });
+			stdout = appendBounded({ current: stdout, chunk });
 		});
 		child.stderr?.on("data", (chunk: Buffer) => {
-			output = appendBounded({ current: output, chunk });
+			stderr = appendBounded({ current: stderr, chunk });
 		});
 		child.on("error", (cause) => finish({ error: cause }));
 		child.on("close", (code, signal) => {
@@ -98,7 +104,7 @@ export function runJianyingTextProcess({
 			}
 			finish({
 				error: new Error(
-					`${path.basename(command)} failed (${signal ?? code ?? "unknown"}): ${output.trim()}`
+					`${path.basename(command)} failed (${signal ?? code ?? "unknown"}): ${(stderr || stdout).trim()}`
 				),
 			});
 		});
@@ -106,10 +112,54 @@ export function runJianyingTextProcess({
 			child.kill("SIGKILL");
 			finish({
 				error: new Error(
-					`${path.basename(command)} timed out after ${timeoutMs}ms: ${output.trim()}`
+					`${path.basename(command)} timed out after ${timeoutMs}ms: ${(stderr || stdout).trim()}`
 				),
 			});
 		}, timeoutMs);
+	});
+}
+
+export function captureJianyingTextProcess({
+	requestId,
+	command,
+	args,
+	env,
+	timeoutMs,
+}: {
+	requestId: string;
+	command: string;
+	args: string[];
+	env?: NodeJS.ProcessEnv;
+	timeoutMs: number;
+}) {
+	return executeJianyingTextProcess({
+		requestId,
+		command,
+		args,
+		env,
+		timeoutMs,
+	});
+}
+
+export async function runJianyingTextProcess({
+	requestId,
+	command,
+	args,
+	env,
+	timeoutMs,
+}: {
+	requestId: string;
+	command: string;
+	args: string[];
+	env?: NodeJS.ProcessEnv;
+	timeoutMs: number;
+}) {
+	await executeJianyingTextProcess({
+		requestId,
+		command,
+		args,
+		env,
+		timeoutMs,
 	});
 }
 
@@ -135,3 +185,8 @@ export function finishJianyingTextRender({ requestId }: { requestId: string }) {
 	if (timer) clearTimeout(timer);
 	cancellationExpiryTimers.delete(requestId);
 }
+
+export const jianyingTextRenderProcessTestUtils = {
+	hasActiveProcess: ({ requestId }: { requestId: string }) =>
+		(activeProcesses.get(requestId)?.size ?? 0) > 0,
+};

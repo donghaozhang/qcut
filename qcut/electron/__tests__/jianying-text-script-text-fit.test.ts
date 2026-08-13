@@ -48,6 +48,18 @@ describe("Jianying script text fitting", () => {
 		expect(shorterWidget.scale).toEqual([2, 2, 1]);
 	});
 
+	it("counts joined emoji and flags as one visual unit", () => {
+		const widget = { scale: [2, 2, 1] };
+		expect(
+			fitJianyingScriptTextWidget({
+				widget,
+				originalRichText: "[😀]",
+				editedRichText: "[🇦🇺]",
+			})
+		).toBe(1);
+		expect(widget.scale).toEqual([2, 2, 1]);
+	});
+
 	it("leaves templates without numeric scale metadata unchanged", () => {
 		const widget = { position: [0, 0, 0] };
 		expect(

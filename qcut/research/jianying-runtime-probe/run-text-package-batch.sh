@@ -46,10 +46,17 @@ if ! [[ "$LIMIT" =~ ^[0-9]+$ ]]; then
   printf 'JY_TEXT_LIMIT must be a non-negative integer\n' >&2
   exit 1
 fi
-if ! [[ "$TIMESTAMP" =~ ^[0-9]+$ ]] || [[ "$TIMESTAMP" -gt 60000000 ]]; then
-  printf 'JY_TEXT_TIMESTAMP must be an integer from 0 to 60000000\n' >&2
+if ! TIMESTAMP_JSON="$(
+  jq -ner --arg value "$TIMESTAMP" '
+    ($value | tonumber) as $timestamp
+    | select($timestamp >= 0 and $timestamp <= 60000000)
+    | $timestamp
+  ' 2>/dev/null
+)"; then
+  printf 'JY_TEXT_TIMESTAMP must be a number from 0 to 60000000\n' >&2
   exit 1
 fi
+readonly TIMESTAMP_JSON
 if [[ "$FLOWER_ONLY" != "0" && "$FLOWER_ONLY" != "1" ]]; then
   printf 'JY_TEXT_FLOWER_ONLY must be 0 or 1\n' >&2
   exit 1
@@ -88,7 +95,7 @@ jq -n \
   --argjson scriptTextRequested "$script_text_requested" \
   --argjson flowerOnly "$flower_only_json" \
   --argjson limit "$LIMIT" \
-  --argjson timestamp "$TIMESTAMP" \
+  --argjson timestamp "$TIMESTAMP_JSON" \
   '{
     packageType: $packageType,
     runtimeRoot: $runtimeRoot,

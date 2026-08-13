@@ -135,6 +135,75 @@ function createRuntimeEntry(): JianyingTextStyleCatalogEntry {
 	};
 }
 
+function createAmazingFeatureEntry({
+	resourceId,
+	version,
+}: {
+	resourceId: string;
+	version: string;
+}): JianyingTextStyleCatalogEntry {
+	return {
+		styleId: `${resourceId}/${version}`,
+		resourceId,
+		version,
+		packageKind: "AmazingFeature",
+		packageVersion: "runtime",
+		fillKind: "unknown",
+		strokeCount: 0,
+		innerShadowCount: 0,
+		shadowCount: 0,
+		textureLayerCount: 0,
+		capabilities: {
+			staticTexture: true,
+			multipleStrokes: false,
+			animationComponents: true,
+			scriptInfoSticker: false,
+			shaderComponents: true,
+			threeDimensional: false,
+			feedbackComponents: false,
+		},
+		diagnostics: [],
+		hasCover: true,
+		compatibility: "preview-only",
+	};
+}
+
+function createInfoStickerEntry({
+	resourceId,
+	version,
+}: {
+	resourceId: string;
+	version: string;
+}): JianyingTextStyleCatalogEntry {
+	return {
+		...createRuntimeEntry(),
+		styleId: `${resourceId}/${version}`,
+		resourceId,
+		version,
+		packageKind: "InfoSticker",
+		capabilities: {
+			staticTexture: false,
+			multipleStrokes: false,
+			animationComponents: false,
+			scriptInfoSticker: false,
+			shaderComponents: false,
+			threeDimensional: false,
+			feedbackComponents: false,
+		},
+		runtimeReference: {
+			schemaVersion: 1,
+			source: "jianying-cache",
+			packageKind: "InfoSticker",
+			resourceId,
+			packageHash: version,
+			editMode: "runtime-with-preload-fallback",
+			slotMapping: "line-to-widget",
+			timeMapping: "stretch",
+			templateDuration: 3,
+		},
+	};
+}
+
 function getHandler({ channel }: { channel: string }) {
 	const registration = mockHandle.mock.calls.find(
 		(call: unknown[]) => call[0] === channel
@@ -287,6 +356,154 @@ describe("Jianying text style lab IPC", () => {
 			packageKind: "ScriptInfoSticker",
 			categoryIds: [],
 			compatibility: "native-runtime",
+		});
+	});
+
+	it("requires positive flower ownership for top-level AmazingFeature packages", async () => {
+		const context = createWindowContext();
+		const flowerEntry = createAmazingFeatureEntry({
+			resourceId: "7000000000000000001",
+			version: "1".repeat(32),
+		});
+		const filterEntry = createAmazingFeatureEntry({
+			resourceId: "7000000000000000002",
+			version: "2".repeat(32),
+		});
+		const ambiguousEntry = createAmazingFeatureEntry({
+			resourceId: "7000000000000000003",
+			version: "3".repeat(32),
+		});
+		const resolveOwnership = vi.fn(
+			async () =>
+				new Map([
+					[
+						flowerEntry.styleId,
+						{
+							kind: "flower" as const,
+							match: "resource-lineage" as const,
+							catalogFamilies: ["flower" as const],
+						},
+					],
+					[
+						filterEntry.styleId,
+						{
+							kind: "non-flower" as const,
+							match: "exact" as const,
+							catalogFamilies: ["filter" as const],
+						},
+					],
+					[
+						ambiguousEntry.styleId,
+						{
+							kind: "ambiguous" as const,
+							match: "exact" as const,
+							catalogFamilies: ["flower" as const, "filter" as const],
+						},
+					],
+				])
+		);
+		setupJianyingTextStyleLabIPC({
+			getMainWindow: () => context.mainWindow,
+			buildCatalog: async () => ({
+				entries: [flowerEntry, filterEntry, ambiguousEntry],
+				packageCount: 3,
+				invalidPackageCount: 0,
+			}),
+			resolveMetadata: async () => new Map(),
+			resolveOwnership,
+		});
+
+		const listed = (await getHandler({
+			channel: JIANYING_TEXT_STYLE_LAB_LIST_CHANNEL,
+		})(context.event)) as JianyingTextStyleLabListResult;
+
+		expect(listed.styles.map(({ styleId }) => styleId)).toEqual([
+			flowerEntry.styleId,
+		]);
+		expect(resolveOwnership).toHaveBeenCalledWith({
+			references: [flowerEntry, filterEntry, ambiguousEntry],
+		});
+	});
+
+	it("hides non-flower and unclassified InfoSticker component packages", async () => {
+		const context = createWindowContext();
+		const catalogEntry = createInfoStickerEntry({
+			resourceId: "7000000000000000011",
+			version: "1".repeat(32),
+		});
+		const flowerEntry = createInfoStickerEntry({
+			resourceId: "7000000000000000012",
+			version: "2".repeat(32),
+		});
+		const filterEntry = createInfoStickerEntry({
+			resourceId: "7000000000000000013",
+			version: "3".repeat(32),
+		});
+		const unclassifiedEntry = createInfoStickerEntry({
+			resourceId: "7000000000000000014",
+			version: "4".repeat(32),
+		});
+		const resolveOwnership = vi.fn(
+			async () =>
+				new Map([
+					[
+						flowerEntry.styleId,
+						{
+							kind: "flower" as const,
+							match: "resource-lineage" as const,
+							catalogFamilies: ["flower" as const],
+							title: "项目恢复花字",
+						},
+					],
+					[
+						filterEntry.styleId,
+						{
+							kind: "non-flower" as const,
+							match: "exact" as const,
+							catalogFamilies: ["filter" as const],
+						},
+					],
+					[
+						unclassifiedEntry.styleId,
+						{
+							kind: "unclassified" as const,
+							match: "none" as const,
+							catalogFamilies: [],
+						},
+					],
+				])
+		);
+		setupJianyingTextStyleLabIPC({
+			getMainWindow: () => context.mainWindow,
+			buildCatalog: async () => ({
+				entries: [catalogEntry, flowerEntry, filterEntry, unclassifiedEntry],
+				packageCount: 4,
+				invalidPackageCount: 0,
+			}),
+			resolveMetadata: async () =>
+				new Map([
+					[
+						catalogEntry.styleId,
+						{ title: "目录花字", categoryIds: ["popular" as const] },
+					],
+				]),
+			resolveOwnership,
+		});
+
+		const listed = (await getHandler({
+			channel: JIANYING_TEXT_STYLE_LAB_LIST_CHANNEL,
+		})(context.event)) as JianyingTextStyleLabListResult;
+
+		expect(listed.styles).toHaveLength(2);
+		expect(listed.styles.map(({ styleId }) => styleId)).toEqual(
+			expect.arrayContaining([catalogEntry.styleId, flowerEntry.styleId])
+		);
+		expect(
+			listed.styles.find(({ styleId }) => styleId === flowerEntry.styleId)
+				?.title
+		).toBe("项目恢复花字");
+		expect(resolveOwnership).toHaveBeenCalledWith({
+			references: [flowerEntry, filterEntry, unclassifiedEntry],
 		});
 	});
 });

@@ -1,5 +1,6 @@
 import path from "node:path";
 import { asJianyingRecord } from "../jianying-text-package-metadata.js";
+import { hydrateJianyingRichTextFontPaths } from "./rich-text-fonts.js";
 import { replaceJianyingRichTextEffectStylePaths } from "./rich-text-resources.js";
 
 function requireResourcePath({
@@ -17,10 +18,6 @@ function requireResourcePath({
 		throw new Error(`Missing resolved Jianying resource ${resourceId}`);
 	}
 	return resolved;
-}
-
-function escapeRichTextAttribute({ value }: { value: string }) {
-	return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
 }
 
 function hasDegradedAnimation({
@@ -51,22 +48,26 @@ export function replaceJianyingRichTextFontPaths({
 	if (!path.isAbsolute(fontPath)) {
 		throw new Error("Jianying text font path must be absolute");
 	}
-	const escaped = escapeRichTextAttribute({ value: fontPath });
-	return richText.replace(
-		/(<font\b[^>]*\bpath=")[^"]*(")/g,
-		(_match, prefix: string, suffix: string) => `${prefix}${escaped}${suffix}`
-	);
+	return hydrateJianyingRichTextFontPaths({
+		richText,
+		fontPaths: {},
+		overrideFontPath: fontPath,
+	});
 }
 
 export function hydrateJianyingScriptContent({
 	value,
 	resourcePaths,
-	fontPath,
+	fallbackFontPath,
+	fontOverridePath,
+	fontPaths = {},
 	degradedResourceIds = new Set<string>(),
 }: {
 	value: unknown;
 	resourcePaths: Readonly<Record<string, string>>;
-	fontPath?: string;
+	fallbackFontPath?: string;
+	fontOverridePath?: string;
+	fontPaths?: Readonly<Record<string, string>>;
 	degradedResourceIds?: ReadonlySet<string>;
 }) {
 	const hydrated = structuredClone(value);
@@ -119,12 +120,12 @@ export function hydrateJianyingScriptContent({
 				resourcePaths,
 				missingBehavior: "clear-path",
 			});
-			record.richText = fontPath
-				? replaceJianyingRichTextFontPaths({
-						richText: effectStyleHydrated,
-						fontPath,
-					})
-				: effectStyleHydrated;
+			record.richText = hydrateJianyingRichTextFontPaths({
+				richText: effectStyleHydrated,
+				fontPaths,
+				fallbackFontPath,
+				overrideFontPath: fontOverridePath,
+			});
 		}
 		pending.push(...Object.values(record));
 	}

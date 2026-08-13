@@ -5,13 +5,22 @@ import {
 } from "../jianying-text-runtime/script-package-editor.js";
 
 describe("Jianying script text package editing", () => {
-	it("preserves rich-text tags and distributes code points across slots", () => {
+	it("preserves rich-text tags and distributes graphemes across slots", () => {
 		expect(
 			replaceJianyingRichTextSlots({
 				richText: "<color=red>[原]</color><size=12>[文]</size>",
 				text: "新😀字",
 			})
 		).toBe("<color=red>[新]</color><size=12>[😀字]</size>");
+	});
+
+	it("never splits joined emoji or combining sequences between slots", () => {
+		expect(
+			replaceJianyingRichTextSlots({
+				richText: "[a]-[b]-[c]",
+				text: "👨‍👩‍👧‍👦e\u0301🇦🇺",
+			})
+		).toBe("[👨‍👩‍👧‍👦]-[é]-[🇦🇺]");
 	});
 
 	it("keeps every slot non-empty and neutralizes bracket delimiters", () => {
@@ -24,6 +33,18 @@ describe("Jianying script text package editing", () => {
 		expect(
 			replaceJianyingRichTextSlots({ richText: "[a]-[b]", text: "" })
 		).toBe("[ ]-[ ]");
+	});
+
+	it("preserves mixed-style proportions when replacement text is longer", () => {
+		expect(
+			replaceJianyingRichTextSlots({
+				richText:
+					'<font id="a">[ABCD]</font><color=red>[E]</color><font id="b">[FG]</font>',
+				text: "1234567890",
+			})
+		).toBe(
+			'<font id="a">[12345]</font><color=red>[67]</color><font id="b">[890]</font>'
+		);
 	});
 
 	it("maps lines to widgets and appends extra lines to the last widget", () => {
@@ -43,7 +64,59 @@ describe("Jianying script text package editing", () => {
 			children: [
 				{ text_params: { richText: "<b>[第一行]</b>" } },
 				{ type: "sticker" },
-				{ text_params: { richText: "[第][二行\n第三行]" } },
+				{ text_params: { richText: "[第二行][\n第三行]" } },
+			],
+		});
+	});
+
+	it("normalizes legacy carriage returns before mapping lines", () => {
+		const result = editJianyingScriptContent({
+			content: "第一行\r第二行\r\n第三行",
+			value: {
+				children: [
+					{ type: "text", text_params: { richText: "[甲]" } },
+					{ type: "text", text_params: { richText: "[乙]" } },
+				],
+			},
+		});
+		expect(result.value).toMatchObject({
+			children: [
+				{ text_params: { richText: "[第一行]" } },
+				{ text_params: { richText: "[第二行\n第三行]" } },
+			],
+		});
+	});
+
+	it("edits nested slots without assigning lines to literal text layers", () => {
+		const result = editJianyingScriptContent({
+			content: "主标题\n副标题",
+			value: {
+				children: [
+					{
+						type: "group",
+						children: [
+							{ type: "text", text_params: { richText: "固定装饰" } },
+							{
+								type: "text",
+								text_params: { richText: "<b>[原主标题]</b>" },
+							},
+						],
+					},
+					{ type: "text", text_params: { richText: "[原副标题]" } },
+				],
+			},
+		});
+		expect(result.textWidgetCount).toBe(2);
+		expect(result.slotCount).toBe(2);
+		expect(result.value).toMatchObject({
+			children: [
+				{
+					children: [
+						{ text_params: { richText: "固定装饰" } },
+						{ text_params: { richText: "<b>[主标题]</b>" } },
+					],
+				},
+				{ text_params: { richText: "[副标题]" } },
 			],
 		});
 	});
@@ -61,7 +134,7 @@ describe("Jianying script text package editing", () => {
 		expect(result.value).toMatchObject({
 			children: [
 				{ text_params: { richText: "<b>[同层文字]</b>" } },
-				{ text_params: { richText: "[同][层文字]" } },
+				{ text_params: { richText: "[同层][文字]" } },
 			],
 		});
 	});
