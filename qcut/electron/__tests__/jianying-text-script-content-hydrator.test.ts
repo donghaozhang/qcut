@@ -12,7 +12,8 @@ describe("Jianying script content hydration", () => {
 					anim_resource_id: "1001",
 					anim_resource_path: "",
 					text_params: {
-						richText: '<font path="catalog-font">[原]</font>',
+						richText:
+							'<effectStyle id="3003" path=""><font path="catalog-font">[原]</font></effectStyle>',
 					},
 				},
 				{
@@ -26,6 +27,7 @@ describe("Jianying script content hydration", () => {
 			resourcePaths: {
 				"1001": "/private/cache/effect/1001/version",
 				"2002": "/private/cache/artistEffect/2002/version",
+				"3003": "/private/cache/artistEffect/3003/version",
 			},
 			fontPath: '/private/fonts/QCut & "CJK".ttf',
 		});
@@ -36,7 +38,7 @@ describe("Jianying script content hydration", () => {
 					anim_resource_path: "/private/cache/effect/1001/version",
 					text_params: {
 						richText:
-							'<font path="/private/fonts/QCut &amp; &quot;CJK&quot;.ttf">[原]</font>',
+							'<effectStyle id="3003" path="/private/cache/artistEffect/3003/version"><font path="/private/fonts/QCut &amp; &quot;CJK&quot;.ttf">[原]</font></effectStyle>',
 					},
 				},
 				{
@@ -56,6 +58,70 @@ describe("Jianying script content hydration", () => {
 				resourcePaths: {},
 			})
 		).toThrow("Missing resolved Jianying resource 1001");
+	});
+
+	it("removes a shape with a degraded animation while preserving sibling layers", () => {
+		expect(
+			hydrateJianyingScriptContent({
+				value: {
+					children: [
+						{
+							type: "text",
+							anims: [
+								{
+									anim_resource_id: "2002",
+									anim_resource_path: "",
+								},
+							],
+						},
+						{
+							type: "shape",
+							shape_params: { shape_type: 4 },
+							anims: [
+								{
+									anim_resource_id: "1001",
+									anim_resource_path: "/untrusted/catalog/path",
+								},
+							],
+						},
+					],
+				},
+				resourcePaths: {
+					"2002": "/private/cache/effect/2002/version",
+				},
+				degradedResourceIds: new Set(["1001"]),
+			})
+		).toEqual({
+			children: [
+				{
+					type: "text",
+					anims: [
+						{
+							anim_resource_id: "2002",
+							anim_resource_path: "/private/cache/effect/2002/version",
+						},
+					],
+				},
+			],
+		});
+	});
+
+	it("clears an unresolved effectStyle path while preserving editable text", () => {
+		expect(
+			hydrateJianyingScriptContent({
+				value: {
+					text_params: {
+						richText:
+							'<effectStyle id="3003" path="/untrusted/catalog/path">[保留文字]</effectStyle>',
+					},
+				},
+				resourcePaths: {},
+			})
+		).toMatchObject({
+			text_params: {
+				richText: '<effectStyle id="3003" path="">[保留文字]</effectStyle>',
+			},
+		});
 	});
 
 	it("requires absolute dependency and font paths", () => {
