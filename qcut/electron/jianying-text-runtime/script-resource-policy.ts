@@ -3,6 +3,7 @@ import {
 	asJianyingRecord,
 	JIANYING_TEXT_RESOURCE_ID_PATTERN,
 } from "../jianying-text-package-metadata.js";
+import { collectJianyingRichTextFontIds } from "./rich-text-fonts.js";
 import { collectJianyingRichTextEffectStyleIds } from "./rich-text-resources.js";
 
 export interface JianyingScriptResourceReference {
@@ -58,6 +59,12 @@ export function collectJianyingScriptResourceReferences({
 				richText: record.richText,
 			})) {
 				const reference = { resourceId, role: "effect-style" as const };
+				references.set(resourceReferenceKey(reference), reference);
+			}
+			for (const resourceId of collectJianyingRichTextFontIds({
+				richText: record.richText,
+			})) {
+				const reference = { resourceId, role: "font" as const };
 				references.set(resourceReferenceKey(reference), reference);
 			}
 		}
@@ -142,10 +149,11 @@ export function canDegradeJianyingScriptResource({
 }) {
 	const owners = ownerTypes.get(reference.resourceId);
 	return (
-		reference.role === "animation" &&
-		descriptor?.type === "shape-animation" &&
-		owners?.size === 1 &&
-		owners.has("shape")
+		reference.role === "font" ||
+		(reference.role === "animation" &&
+			descriptor?.type === "shape-animation" &&
+			owners?.size === 1 &&
+			owners.has("shape"))
 	);
 }
 
@@ -157,6 +165,7 @@ export function jianyingResourceContainers({
 	reference: JianyingScriptResourceReference;
 }) {
 	if (reference.role === "animation") return ["effect"] as const;
+	if (reference.role === "font") return ["artistEffect", "effect"] as const;
 	if (reference.role === "effect-style") {
 		return ["artistEffect", "effect"] as const;
 	}
