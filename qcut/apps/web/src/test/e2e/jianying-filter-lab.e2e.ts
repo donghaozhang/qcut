@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdir, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, rm, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -9,11 +9,16 @@ import {
 	type Locator,
 	type Page,
 } from "@playwright/test";
+import { JIANYING_NATIVE_PORTRAIT_PROFILES } from "../../../../../electron/native-pipeline/filters/filter-lab-native-portrait";
 import {
 	createTestProject,
-	importTestVideo,
 	navigateToProjects,
+	uploadTestMedia,
 } from "./helpers/electron-helpers";
+import {
+	exportAndVerifyMovingVideo,
+	trimTimelineToOneSecond,
+} from "./helpers/jianying-filter-lab-video-evidence";
 
 const cacheRoot = join(
 	homedir(),
@@ -23,8 +28,22 @@ const cacheRoot = join(
 	"Cache",
 	"artistEffect"
 );
+const portraitSourcePath =
+	process.env.QCUT_JIANYING_FILTER_LAB_SOURCE ??
+	join(
+		process.cwd(),
+		"output",
+		"playwright",
+		"portrait-filter-transition-audit",
+		"sources",
+		"colorful-influencer-10s.mp4"
+	);
 const enabled =
-	process.env.QCUT_JIANYING_FILTER_LAB_E2E === "1" && existsSync(cacheRoot);
+	process.env.QCUT_JIANYING_FILTER_LAB_E2E === "1" &&
+	existsSync(cacheRoot) &&
+	existsSync(portraitSourcePath);
+const catalogSummaryPattern = /显示 \d+ · 可用 \d+\/\d+ · 缓存 \d+/;
+const allCatalogTabPattern = /^全部 \d+\/\d+$/;
 
 async function addVideo({ page }: { page: Page }) {
 	const mediaItem = page.getByTestId("media-item").first();
@@ -278,12 +297,12 @@ async function findFilter({ lab, title }: { lab: Locator; title: string }) {
 test.describe("Local Jianying filter lab", () => {
 	test.skip(
 		!enabled,
-		"Requires a local Jianying LUT cache and explicit opt-in"
+		"Requires a local Jianying cache, real-person source video, and explicit opt-in"
 	);
 
 	// biome-ignore lint/correctness/noEmptyPattern: the test launches its own isolated Electron process.
 	test("applies real single, dual, and shader filters", async ({}, testInfo) => {
-		test.setTimeout(360_000);
+		test.setTimeout(1_800_000);
 		const profileDirectory = join(
 			tmpdir(),
 			`qcut-filter-lab-${process.pid}-${Date.now()}`
@@ -311,7 +330,7 @@ test.describe("Local Jianying filter lab", () => {
 			});
 			await navigateToProjects(page);
 			await createTestProject(page, "Jianying Filter Lab E2E");
-			await importTestVideo(page);
+			await uploadTestMedia(page, portraitSourcePath);
 			await addVideo({ page });
 
 			await page.getByTestId("adjustments-panel-tab").click();
@@ -331,19 +350,17 @@ test.describe("Local Jianying filter lab", () => {
 				runtimeReady: true,
 				modelReady: true,
 			});
+			await expect(lab.getByText(catalogSummaryPattern)).toBeVisible();
 			await expect(
-				lab.getByText(/显示 \d+ · 可用 \d+\/883 · 缓存 \d+/)
-			).toBeVisible();
-			await expect(
-				lab.getByRole("tab", { name: /^全部 \d+\/883$/ })
+				lab.getByRole("tab", { name: allCatalogTabPattern })
 			).toBeVisible();
 			await expect(
 				lab.getByRole("tab", { name: /^人像 \d+\/\d+$/ })
 			).toBeVisible();
 			await lab.getByRole("button", { name: "重新扫描本机剪映缓存" }).click();
-			await expect(
-				lab.getByText(/显示 \d+ · 可用 \d+\/883 · 缓存 \d+/)
-			).toBeVisible({ timeout: 30_000 });
+			await expect(lab.getByText(catalogSummaryPattern)).toBeVisible({
+				timeout: 30_000,
+			});
 			await page.screenshot({
 				path: join(evidenceDirectory, "01-filter-lab-list.png"),
 				animations: "disabled",
@@ -419,232 +436,94 @@ test.describe("Local Jianying filter lab", () => {
 			await expect
 				.poll(async () => (await adjustmentLutState({ page })).enabled)
 				.toBe(false);
-			const nativePortraitStats = await nativePortraitPreviewStats({
-				page,
-				resourceId: "7361792068475325735",
-			});
-			expect(nativePortraitStats).toMatchObject({
-				provider: "jianying-local-effect-v1",
-				resourceId: "7361792068475325735",
-				maskWidth: 224,
-				maskHeight: 128,
-			});
-
-			const dualLutButton = await findFilter({ lab, title: "奥林巴斯" });
-			await expect(dualLutButton.getByText("双 LUT")).toBeVisible();
-			await expect(dualLutButton.getByText("未验证")).toBeVisible();
-			await dualLutButton.click();
-			await expect
-				.poll(() => adjustmentLutState({ page }))
-				.toMatchObject({
-					name: "奥林巴斯",
-					size: 64,
-					values: 786_432,
-					skinSize: 64,
-					skinValues: 786_432,
-					maskKind: "skin-segmentation-v1",
-					resourceId: "7361792068475325735",
-					enabled: true,
+			await trimTimelineToOneSecond({ page });
+			const dualPortraitEvidence = [];
+			for (const [
+				index,
+				profile,
+			] of JIANYING_NATIVE_PORTRAIT_PROFILES.entries()) {
+				const nativeStats = await nativePortraitPreviewStats({
+					page,
+					resourceId: profile.resourceId,
 				});
-			await expect
-				.poll(
-					async () =>
-						(await nativePortraitPreviewDifference({ page }))
-							?.meanAbsoluteError ?? Number.POSITIVE_INFINITY,
-					{ timeout: 30_000 }
-				)
-				.toBeLessThan(2);
-			const nativeDifference = await nativePortraitPreviewDifference({ page });
-			expect(nativeDifference).toMatchObject({
-				width: expect.any(Number),
-				height: expect.any(Number),
-				maximumError: expect.any(Number),
-			});
-			const dualFilteredStats = await filteredPreviewStats({ page });
-			await expect(
-				page.getByText("本机剪映人像运行时不可用，已使用近似肤色蒙版")
-			).toHaveCount(0);
-			await page.screenshot({
-				path: join(evidenceDirectory, "04-olympus-dual-lut-applied.png"),
-				animations: "disabled",
-			});
-			await writeFile(
-				join(evidenceDirectory, "native-portrait-evidence.json"),
-				`${JSON.stringify(
-					{
-						localRuntime,
-						nativePortraitStats,
-						nativeDifference,
-					},
-					null,
-					2
-				)}\n`,
-				"utf8"
-			);
-
-			const qinghuiPortraitStats = await nativePortraitPreviewStats({
-				page,
-				resourceId: "7127671508264078599",
-			});
-			expect(qinghuiPortraitStats).toMatchObject({
-				provider: "jianying-local-effect-v1",
-				resourceId: "7127671508264078599",
-				maskWidth: 224,
-				maskHeight: 128,
-			});
-			const qinghuiButton = await findFilter({ lab, title: "青灰" });
-			await expect(qinghuiButton.getByText("双 LUT")).toBeVisible();
-			await qinghuiButton.click();
-			await expect
-				.poll(() => adjustmentLutState({ page }))
-				.toMatchObject({
-					name: "青灰",
-					size: 64,
-					skinSize: 64,
-					maskKind: "skin-segmentation-v1",
-					resourceId: "7127671508264078599",
-					enabled: true,
+				expect(nativeStats).toMatchObject({
+					provider: "jianying-local-effect-v1",
+					resourceId: profile.resourceId,
 				});
-			await expect
-				.poll(
-					async () =>
-						(await nativePortraitPreviewDifference({ page }))
-							?.meanAbsoluteError ?? Number.POSITIVE_INFINITY,
-					{ timeout: 30_000 }
-				)
-				.toBeLessThan(2);
-			const qinghuiDifference = await nativePortraitPreviewDifference({ page });
-			await page.screenshot({
-				path: join(evidenceDirectory, "05-qinghui-native-portrait.png"),
-				animations: "disabled",
-			});
-
-			await page.evaluate(() => {
-				const state = (
-					window as unknown as {
-						__timelineStore: {
-							getState: () => {
-								tracks: Array<{
-									id: string;
-									elements: Array<{ id: string; type: string }>;
-								}>;
-								updateElementDuration: (
-									trackId: string,
-									elementId: string,
-									duration: number,
-									recordHistory: boolean
-								) => void;
-								updateMediaElement: (
-									trackId: string,
-									elementId: string,
-									updates: { duration: number },
-									recordHistory: boolean
-								) => void;
-								updateAdjustmentElement: (
-									trackId: string,
-									elementId: string,
-									updates: { duration: number },
-									recordHistory: boolean
-								) => void;
-							};
-						};
-					}
-				).__timelineStore.getState();
-				for (const track of state.tracks) {
-					for (const element of track.elements) {
-						if (element.type === "media") {
-							state.updateMediaElement(
-								track.id,
-								element.id,
-								{ duration: 1 },
-								false
-							);
-							continue;
-						}
-						if (element.type === "adjustment") {
-							state.updateAdjustmentElement(
-								track.id,
-								element.id,
-								{ duration: 1 },
-								false
-							);
-							continue;
-						}
-						state.updateElementDuration(track.id, element.id, 1, false);
-					}
+				expect([nativeStats.maskWidth, nativeStats.maskHeight].sort()).toEqual([
+					128, 224,
+				]);
+				const dualLutButton = await findFilter({ lab, title: profile.title });
+				await expect(dualLutButton.getByText("双 LUT")).toBeVisible();
+				await dualLutButton.click();
+				await expect
+					.poll(() => adjustmentLutState({ page }))
+					.toMatchObject({
+						name: profile.title,
+						skinSize: 64,
+						skinValues: 786_432,
+						maskKind: "skin-segmentation-v1",
+						resourceId: profile.resourceId,
+						enabled: true,
+					});
+				const lutState = await adjustmentLutState({ page });
+				expect(lutState.size).toBeGreaterThan(1);
+				expect(lutState.values).toBe((lutState.size ?? 0) ** 3 * 3);
+				await expect
+					.poll(
+						async () =>
+							(await nativePortraitPreviewDifference({ page }))
+								?.meanAbsoluteError ?? Number.POSITIVE_INFINITY,
+						{ timeout: 30_000 }
+					)
+					.toBeLessThan(2);
+				const previewDifference = await nativePortraitPreviewDifference({
+					page,
+				});
+				if (!previewDifference) {
+					throw new Error(
+						`Missing native preview evidence for ${profile.title}`
+					);
 				}
-			});
-			await expect
-				.poll(() =>
-					page.evaluate(() => {
-						const tracks = (
-							window as unknown as {
-								__timelineStore: TestTimelineStore;
-							}
-						).__timelineStore.getState().tracks;
-						return Math.max(
-							0,
-							...tracks.flatMap(({ elements }) =>
-								elements.map(
-									(element) =>
-										((element as { startTime?: number }).startTime ?? 0) +
-										((element as { duration?: number }).duration ?? 0)
-								)
-							)
-						);
-					})
-				)
-				.toBe(1);
-			const exportPath = join(evidenceDirectory, "qinghui-native-export.mp4");
-			await rm(exportPath, { force: true });
-			await electronApp.evaluate(async ({ dialog }, selectedPath) => {
-				dialog.showSaveDialog = async () => ({
-					canceled: false,
-					filePath: selectedPath,
+				const profilePreviewStats = await filteredPreviewStats({ page });
+				await expect(
+					page.getByText("本机剪映人像运行时不可用，已使用近似肤色蒙版")
+				).toHaveCount(0);
+				const evidencePrefix = `${String(index + 4).padStart(2, "0")}-${profile.resourceId}`;
+				await page.screenshot({
+					path: join(evidenceDirectory, `${evidencePrefix}-preview.png`),
+					animations: "disabled",
 				});
-			}, exportPath);
-			await page.getByTestId("export-button").click();
-			await expect(page.getByTestId("export-dialog")).toBeVisible();
-			const includeAudio = page.getByRole("checkbox", {
-				name: "Include audio in export",
-			});
-			if (
-				(await includeAudio.count()) > 0 &&
-				(await includeAudio.isChecked())
-			) {
-				await includeAudio.click();
+				const exportEvidence = await exportAndVerifyMovingVideo({
+					electronApp,
+					filePath: join(evidenceDirectory, `${evidencePrefix}-export.mp4`),
+					page,
+				});
+				dualPortraitEvidence.push({
+					exportEvidence,
+					nativeStats,
+					previewDifference,
+					previewStats: profilePreviewStats,
+					resourceId: profile.resourceId,
+					title: profile.title,
+				});
 			}
-			await page.getByTestId("export-start-button").click();
-			await expect
-				.poll(
-					async () => {
-						try {
-							return (await stat(exportPath)).size;
-						} catch {
-							return 0;
-						}
-					},
-					{ timeout: 120_000, intervals: [500, 1_000, 2_000] }
-				)
-				.toBeGreaterThan(1_000);
-			const exportSize = (await stat(exportPath)).size;
+			expect(dualPortraitEvidence).toHaveLength(7);
+			const dualFilteredStats = dualPortraitEvidence.at(-1)?.previewStats;
+			if (!dualFilteredStats) throw new Error("No dual LUT evidence captured");
 			await writeFile(
 				join(evidenceDirectory, "native-portrait-evidence.json"),
 				`${JSON.stringify(
 					{
 						localRuntime,
-						nativePortraitStats,
-						nativeDifference,
-						qinghuiPortraitStats,
-						qinghuiDifference,
-						exportSize,
+						portraitSourcePath,
+						profiles: dualPortraitEvidence,
 					},
 					null,
 					2
 				)}\n`,
 				"utf8"
 			);
-			await page.getByRole("button", { name: "Close export dialog" }).click();
 
 			await lab
 				.getByRole("searchbox", { name: "搜索剪映滤镜目录" })
