@@ -4,8 +4,10 @@ import {
 	JIANYING_TEXT_PACKAGE_HASH_PATTERN,
 	JIANYING_TEXT_RESOURCE_ID_PATTERN,
 } from "../jianying-text-package-metadata.js";
+import { mapWithConcurrency } from "../lib/map-with-concurrency.js";
 
 const INDEX_TTL_MS = 60_000;
+const SCAN_CONCURRENCY = 8;
 const MAXIMUM_METADATA_BYTES = 16 * 1024 * 1024;
 const MAXIMUM_NESTED_JSON_BYTES = 2 * 1024 * 1024;
 const MAXIMUM_JSON_DEPTH = 64;
@@ -139,17 +141,17 @@ async function listResourceMetadataFiles({
 	const versionEntries = await readdir(resourceRoot, {
 		withFileTypes: true,
 	}).catch(() => []);
-	const filesByVersion = await Promise.all(
-		versionEntries.flatMap((versionEntry) =>
-			versionEntry.isDirectory()
-				? [
-						listVersionMetadataFiles({
-							versionRoot: path.join(resourceRoot, versionEntry.name),
-						}),
-					]
-				: []
-		)
+	const versionDirectories = versionEntries.filter((entry) =>
+		entry.isDirectory()
 	);
+	const filesByVersion = await mapWithConcurrency({
+		items: versionDirectories,
+		limit: SCAN_CONCURRENCY,
+		task: ({ item: versionEntry }) =>
+			listVersionMetadataFiles({
+				versionRoot: path.join(resourceRoot, versionEntry.name),
+			}),
+	});
 	return filesByVersion.flat();
 }
 
@@ -161,17 +163,17 @@ async function listFontMetadataFiles({
 	const resourceEntries = await readdir(artistEffectRoot, {
 		withFileTypes: true,
 	}).catch(() => []);
-	const filesByResource = await Promise.all(
-		resourceEntries.flatMap((resourceEntry) =>
-			resourceEntry.isDirectory()
-				? [
-						listResourceMetadataFiles({
-							resourceRoot: path.join(artistEffectRoot, resourceEntry.name),
-						}),
-					]
-				: []
-		)
+	const resourceDirectories = resourceEntries.filter((entry) =>
+		entry.isDirectory()
 	);
+	const filesByResource = await mapWithConcurrency({
+		items: resourceDirectories,
+		limit: SCAN_CONCURRENCY,
+		task: ({ item: resourceEntry }) =>
+			listResourceMetadataFiles({
+				resourceRoot: path.join(artistEffectRoot, resourceEntry.name),
+			}),
+	});
 	return filesByResource.flat().sort();
 }
 
@@ -180,8 +182,10 @@ async function buildFontAliasIndex({ cacheRoot }: { cacheRoot: string }) {
 		artistEffectRoot: path.join(cacheRoot, "artistEffect"),
 	});
 	const aliases = new Map<string, Set<string>>();
-	await Promise.all(
-		metadataFiles.map(async (filePath) => {
+	await mapWithConcurrency({
+		items: metadataFiles,
+		limit: SCAN_CONCURRENCY,
+		task: async ({ item: filePath }) => {
 			try {
 				const metadata = await stat(filePath);
 				if (
@@ -199,8 +203,8 @@ async function buildFontAliasIndex({ cacheRoot }: { cacheRoot: string }) {
 			} catch {
 				return;
 			}
-		})
-	);
+		},
+	});
 	return new Map(
 		[...aliases].map(([resourceId, hashes]) => [resourceId, [...hashes].sort()])
 	);
