@@ -107,6 +107,34 @@ export function classifyTextParityResult({
 	});
 }
 
+export function summarizeTextParityForeground({
+	samples,
+}: {
+	samples: readonly Pick<TextParitySampleEvidence, "foreground" | "geometry">[];
+}): TextParityEvidence["foregroundSummary"] {
+	if (samples.length === 0) {
+		throw new Error("Text parity comparison produced no frame samples");
+	}
+	const foregroundRmseValues = samples.map(
+		(sample) => sample.foreground.foregroundRmse
+	);
+	return {
+		meanRmse:
+			foregroundRmseValues.reduce((total, value) => total + value, 0) /
+			foregroundRmseValues.length,
+		worstRmse: Math.max(...foregroundRmseValues),
+		minimumMaskIou: Math.min(
+			...samples.map((sample) => sample.foreground.maskIou)
+		),
+		maximumCentroidDistance: Math.max(
+			...samples.map((sample) => sample.geometry.centroidDistance)
+		),
+		maximumBoundsDelta: Math.max(
+			...samples.map((sample) => sample.geometry.maximumBoundsDelta)
+		),
+	};
+}
+
 export async function collectTextParityEvidence({
 	entry,
 	matrix,
@@ -163,9 +191,6 @@ export async function collectTextParityEvidence({
 		);
 	}
 	const samples = await Promise.all(foregroundTasks);
-	const foregroundRmseValues = samples.map(
-		(sample) => sample.foreground.foregroundRmse
-	);
 	return {
 		...comparison,
 		packageHash: entry.packageHash,
@@ -182,20 +207,6 @@ export async function collectTextParityEvidence({
 			geometry: TEXT_PARITY_GEOMETRY_BACKGROUND_THRESHOLD,
 		},
 		samples,
-		foregroundSummary: {
-			meanRmse:
-				foregroundRmseValues.reduce((total, value) => total + value, 0) /
-				foregroundRmseValues.length,
-			worstRmse: Math.max(...foregroundRmseValues),
-			minimumMaskIou: Math.min(
-				...samples.map((sample) => sample.foreground.maskIou)
-			),
-			maximumCentroidDistance: Math.max(
-				...samples.map((sample) => sample.geometry.centroidDistance)
-			),
-			maximumBoundsDelta: Math.max(
-				...samples.map((sample) => sample.geometry.maximumBoundsDelta)
-			),
-		},
+		foregroundSummary: summarizeTextParityForeground({ samples }),
 	};
 }
