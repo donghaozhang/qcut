@@ -1,12 +1,16 @@
 import { join, posix, win32 } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { QCUT_JIANYING_PROJECT_IMPORT_RESULT_SCHEMA } from "../types/qcut-jianying-project-import-api";
 import { getCommand } from "../native-pipeline/cli/command-registry.js";
 import { resolveCommandGroup } from "../native-pipeline/cli/command-groups.js";
 import {
 	executeJianyingImportCommand,
+	executeLiveJianyingImportCommand,
 	resolveBundledImportRuntimePath,
 	resolveQCutCliUserDataDirectory,
+	routeJianyingImportCommand,
 } from "../native-pipeline/editor/editor-handlers-jianying-import.js";
+import type { EditorApiClient } from "../native-pipeline/editor/editor-api-client.js";
 import { makeOpts } from "./editor-cli-test-setup.js";
 
 /** JYI-012 acceptance (CLI side): registration, dispatch, offline handler. */
@@ -458,6 +462,121 @@ describe("executeJianyingImportCommand", () => {
 			error: expect.stringContaining('must be "jianying"'),
 		});
 		expect(runtime.calls).toEqual([]);
+	});
+});
+
+describe("live Jianying import CLI transport", () => {
+	function createClient({
+		healthy = true,
+		postResult,
+	}: {
+		healthy?: boolean;
+		postResult?: unknown;
+	} = {}): EditorApiClient {
+		return {
+			checkHealth: vi.fn(async () => healthy),
+			post: vi.fn(async () => postResult),
+		} as unknown as EditorApiClient;
+	}
+
+	it("imports through a running QCut instance with a long request timeout", async () => {
+		const client = createClient({
+			postResult: {
+				outcome: "imported",
+				profileId: "jianying-macos-11.3.0-beta2-plaintext-subdraft",
+				projectId: "project-1",
+				reversible: true,
+				schema: QCUT_JIANYING_PROJECT_IMPORT_RESULT_SCHEMA,
+				schemaVersion: 1,
+				sourceScope: "compound-subdraft",
+				warningFingerprints: ["a".repeat(64)],
+			},
+		});
+		const result = await executeLiveJianyingImportCommand({
+			client,
+			options: makeOpts({
+				acceptedWarningFingerprints: ["a".repeat(64)],
+				command: "editor:jianying-import:import",
+				draftPaths: ["/drafts/my-draft"],
+				format: "jianying",
+			}),
+		});
+
+		expect(client.post).toHaveBeenCalledWith(
+			"/api/claude/interop/jianying-project-import",
+			{
+				acceptedWarningFingerprints: ["a".repeat(64)],
+				draftPath: "/drafts/my-draft",
+			},
+			{ timeout: 30 * 60 * 1000 }
+		);
+		expect(result).toMatchObject({
+			success: true,
+			data: {
+				liveDesktop: true,
+				outcome: "imported",
+				projectId: "project-1",
+				queuedForDesktop: false,
+				reversible: true,
+			},
+		});
+	});
+
+	it("surfaces warning acceptance blocks as CLI failures", async () => {
+		const client = createClient({
+			postResult: {
+				blockerFingerprints: [],
+				message: "Warnings require acceptance.",
+				outcome: "blocked",
+				reason: "warning-acceptance-required",
+				schema: QCUT_JIANYING_PROJECT_IMPORT_RESULT_SCHEMA,
+				schemaVersion: 1,
+				warningFingerprints: ["a".repeat(64)],
+			},
+		});
+		const result = await executeLiveJianyingImportCommand({
+			client,
+			options: makeOpts({
+				command: "editor:jianying-import:import",
+				draftPaths: ["/drafts/my-draft"],
+			}),
+		});
+
+		expect(result).toMatchObject({
+			error: "Warnings require acceptance.",
+			success: false,
+			data: { reason: "warning-acceptance-required" },
+		});
+	});
+
+	it("uses live import only when the desktop is reachable", async () => {
+		const options = makeOpts({
+			command: "editor:jianying-import:import",
+			draftPaths: ["/drafts/my-draft"],
+		});
+		const liveResult = { success: true as const, data: { live: true } };
+		const offlineResult = { success: true as const, data: { offline: true } };
+		const executeLive = vi.fn(async () => liveResult);
+		const executeOffline = vi.fn(async () => offlineResult);
+
+		await expect(
+			routeJianyingImportCommand({
+				client: createClient({ healthy: true }),
+				executeLive,
+				executeOffline,
+				options,
+			})
+		).resolves.toEqual(liveResult);
+		await expect(
+			routeJianyingImportCommand({
+				client: createClient({ healthy: false }),
+				executeLive,
+				executeOffline,
+				options,
+			})
+		).resolves.toEqual(offlineResult);
+		expect(executeLive).toHaveBeenCalledTimes(1);
+		expect(executeOffline).toHaveBeenCalledTimes(1);
 	});
 });
 

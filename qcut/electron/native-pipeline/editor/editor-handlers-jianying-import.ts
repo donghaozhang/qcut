@@ -9,6 +9,10 @@ import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, posix, win32 } from "node:path";
 import type { CLIResult, CLIRunOptions } from "../cli/cli-runner/types.js";
+import { parseQCutJianyingProjectImportResult } from "../../types/qcut-jianying-project-import-validation.js";
+import type { EditorApiClient } from "./editor-api-client.js";
+
+const LIVE_IMPORT_TIMEOUT_MS = 30 * 60 * 1000;
 
 interface ImportSessionLike {
 	inspect(options: { input: unknown }): Promise<unknown>;
@@ -166,6 +170,25 @@ const SUPPORTED_ACTIONS = new Set([
 	"commit",
 	"verify-roundtrip",
 ]);
+
+function requireJianyingFormat({ value }: { value: string | undefined }): void {
+	if (value !== undefined && value.toLowerCase() !== "jianying") {
+		throw new Error('--format must be "jianying" for Jianying draft commands');
+	}
+}
+
+function requireDraftPath({
+	action,
+	value,
+}: {
+	action: string;
+	value: string | undefined;
+}): string {
+	if (value === undefined || value.length === 0) {
+		throw new Error(`${action} requires --draft <directory>`);
+	}
+	return value;
+}
 
 function asRecord({
 	value,
@@ -343,13 +366,12 @@ export async function executeJianyingImportCommand({
 			error: `Unknown jianying-import action: ${action}`,
 		};
 	}
-	if (
-		options.format !== undefined &&
-		options.format.toLowerCase() !== "jianying"
-	) {
+	try {
+		requireJianyingFormat({ value: options.format });
+	} catch (error) {
 		return {
 			success: false,
-			error: '--format must be "jianying" for Jianying draft commands',
+			error: error instanceof Error ? error.message : String(error),
 		};
 	}
 	const draftPath = options.draftPaths?.[0];
@@ -448,10 +470,79 @@ export async function executeJianyingImportCommand({
 }
 
 export async function handleJianyingImportCommand({
+	client,
 	options,
 }: {
+	client: EditorApiClient;
 	options: CLIRunOptions;
 	signal?: AbortSignal;
 }): Promise<CLIResult> {
-	return executeJianyingImportCommand({ options });
+	return routeJianyingImportCommand({ client, options });
+}
+
+export async function executeLiveJianyingImportCommand({
+	client,
+	options,
+}: {
+	client: EditorApiClient;
+	options: CLIRunOptions;
+}): Promise<CLIResult> {
+	try {
+		requireJianyingFormat({ value: options.format });
+		const draftPath = requireDraftPath({
+			action: "import",
+			value: options.draftPaths?.[0],
+		});
+		const result = parseQCutJianyingProjectImportResult({
+			value: await client.post(
+				"/api/claude/interop/jianying-project-import",
+				{
+					acceptedWarningFingerprints:
+						options.acceptedWarningFingerprints ?? [],
+					draftPath,
+				},
+				{ timeout: LIVE_IMPORT_TIMEOUT_MS }
+			),
+		});
+		if (result.outcome !== "imported") {
+			return { data: result, error: result.message, success: false };
+		}
+		return {
+			data: {
+				action: "import",
+				liveDesktop: true,
+				queuedForDesktop: false,
+				...result,
+			},
+			success: true,
+		};
+	} catch (error) {
+		return {
+			error: error instanceof Error ? error.message : String(error),
+			success: false,
+		};
+	}
+}
+
+type ExecuteImportCommand = (options: {
+	client: EditorApiClient;
+	options: CLIRunOptions;
+}) => Promise<CLIResult>;
+
+export async function routeJianyingImportCommand({
+	client,
+	executeLive = executeLiveJianyingImportCommand,
+	executeOffline = ({ options }) => executeJianyingImportCommand({ options }),
+	options,
+}: {
+	client: EditorApiClient;
+	executeLive?: ExecuteImportCommand;
+	executeOffline?: ExecuteImportCommand;
+	options: CLIRunOptions;
+}): Promise<CLIResult> {
+	const action = options.command.split(":")[2] ?? "";
+	if (action === "import" && (await client.checkHealth())) {
+		return executeLive({ client, options });
+	}
+	return executeOffline({ client, options });
 }
