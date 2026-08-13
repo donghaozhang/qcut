@@ -1,4 +1,5 @@
 import type { InteropCapability } from "../../draft-interop/capability.js";
+import type { InteropMediaVisual } from "../../draft-interop/document.js";
 import type { InteropIssueCode } from "../../draft-interop/issues.js";
 import { JIANYING_11_3_BETA4_PROFILE_ID } from "../profiles/jianying-11-3-beta4.js";
 import { hasVerifiedBeta4DefaultCompanions } from "./beta4-default-companions.js";
@@ -12,6 +13,7 @@ import type {
 	RawGraphMaterialNode,
 	RawGraphSegmentNode,
 } from "./graph-reader.js";
+import { mapBeta4PositionKeyframes } from "./beta4-position-keyframes.js";
 
 export interface MapStaticVideoInput {
 	profileId: string;
@@ -19,12 +21,15 @@ export interface MapStaticVideoInput {
 	segment: RawGraphSegmentNode;
 	graph: RawDraftGraph;
 	trackIndex: number;
+	canvasWidth: number;
+	fps: number;
 }
 
 export interface MappedStaticVideo {
 	capability: InteropCapability;
 	issueCode?: InteropIssueCode;
 	reason?: string;
+	visual?: InteropMediaVisual;
 }
 
 function opaque({ reason }: { reason: string }): MappedStaticVideo {
@@ -38,6 +43,8 @@ export function mapStaticVideo({
 	segment,
 	graph,
 	trackIndex,
+	canvasWidth,
+	fps,
 }: MapStaticVideoInput): MappedStaticVideo {
 	if (profileId !== JIANYING_11_3_BETA4_PROFILE_ID) {
 		return {
@@ -52,7 +59,24 @@ export function mapStaticVideo({
 				"video source, trim, crop, algorithm, or material state is outside the verified beta4 local-video subset",
 		});
 	}
-	if (!hasVerifiedBeta4VideoSegmentDefaults({ segment, trackIndex })) {
+	const positionKeyframes = mapBeta4PositionKeyframes({
+		canvasWidth,
+		fps,
+		segment,
+	});
+	if (positionKeyframes.kind === "unsupported") {
+		return opaque({
+			reason:
+				"video position keyframes are preserved but fall outside the verified beta4 linear X-only subset",
+		});
+	}
+	if (
+		!hasVerifiedBeta4VideoSegmentDefaults({
+			positionKeyframes,
+			segment,
+			trackIndex,
+		})
+	) {
 		return opaque({
 			reason:
 				"video transform, playback, visibility, color, mask, or keyframe state is preserved but not editable",
@@ -70,5 +94,10 @@ export function mapStaticVideo({
 				"video companion processing is preserved but falls outside the verified beta4 defaults",
 		});
 	}
-	return { capability: "exact" };
+	return {
+		capability: "exact",
+		...(positionKeyframes.kind === "mapped"
+			? { visual: positionKeyframes.visual }
+			: {}),
+	};
 }

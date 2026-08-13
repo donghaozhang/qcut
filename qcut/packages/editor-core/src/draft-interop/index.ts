@@ -95,6 +95,7 @@ export {
 	type DraftSourceProduct,
 	type InteropLink,
 	type InteropLinkType,
+	type InteropMediaVisual,
 	type InteropProject,
 	type InteropResource,
 	type InteropResourceKind,
@@ -105,6 +106,8 @@ export {
 	type InteropTimeRange,
 	type InteropTrack,
 	type InteropTrackKind,
+	type InteropVisualKeyframe,
+	type InteropVisualKeyframeProperty,
 	type ParseDraftInteropDocumentResult,
 } from "./document.js";
 

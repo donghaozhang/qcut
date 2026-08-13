@@ -23,6 +23,13 @@ const MICROSECONDS_PER_SECOND = 1_000_000;
 
 export type QCutImportPlanTrackType = "media" | "audio" | "text";
 
+export interface QCutImportPlanMediaKeyframe {
+	id: string;
+	frame: number;
+	value: number;
+	easing: "linear";
+}
+
 export interface QCutImportPlanMediaElement {
 	/** Deterministic: reuses the semantic segment id. */
 	id: string;
@@ -37,6 +44,9 @@ export interface QCutImportPlanMediaElement {
 	/** Interop resource the media element plays. */
 	resourceId: string;
 	speed?: number;
+	x?: number;
+	y?: number;
+	keyframes?: Partial<Record<"x" | "y", QCutImportPlanMediaKeyframe[]>>;
 	sourceSegmentId: string;
 }
 
@@ -131,10 +141,12 @@ function usToSeconds(us: number): number {
 }
 
 function mapMediaSegment({
+	fps,
 	segment,
 	resourcesById,
 	skipped,
 }: {
+	fps: number;
 	segment: InteropSegment;
 	resourcesById: Map<string, InteropResource>;
 	skipped: QCutImportSkippedNode[];
@@ -182,6 +194,32 @@ function mapMediaSegment({
 			? trimStart + sourceSeconds
 			: usToSeconds(resource.durationUs);
 	const trimEnd = Math.max(0, intrinsicSeconds - trimStart - sourceSeconds);
+	const visualKeyframes = segment.visual?.keyframes;
+	for (const keyframes of Object.values(visualKeyframes ?? {})) {
+		if (
+			keyframes?.some(
+				({ timeOffsetUs }) =>
+					!Number.isSafeInteger(usToSeconds(timeOffsetUs) * fps)
+			)
+		) {
+			skipped.push({
+				nodeId: segment.id,
+				nodeType: "segment",
+				capability: "blocked",
+				reason: "visual keyframe time does not align with the QCut frame grid",
+			});
+			return null;
+		}
+	}
+	const toPlanKeyframes = ({ property }: { property: "x" | "y" }) =>
+		visualKeyframes?.[property]?.map((keyframe) => ({
+			id: keyframe.id,
+			frame: usToSeconds(keyframe.timeOffsetUs) * fps,
+			value: keyframe.value,
+			easing: keyframe.easing,
+		}));
+	const xKeyframes = toPlanKeyframes({ property: "x" });
+	const yKeyframes = toPlanKeyframes({ property: "y" });
 	return {
 		id: segment.id,
 		type: "media",
@@ -194,6 +232,17 @@ function mapMediaSegment({
 		...(segment.speed === undefined || segment.speed === 1
 			? {}
 			: { speed: segment.speed }),
+		...(segment.visual === undefined
+			? {}
+			: { x: segment.visual.xPx, y: segment.visual.yPx }),
+		...(visualKeyframes === undefined
+			? {}
+			: {
+					keyframes: {
+						...(xKeyframes === undefined ? {} : { x: xKeyframes }),
+						...(yKeyframes === undefined ? {} : { y: yKeyframes }),
+					},
+				}),
 		sourceSegmentId: segment.id,
 	};
 }
@@ -313,10 +362,12 @@ function mapTransition({
 }
 
 function mapTrack({
+	fps,
 	track,
 	resourcesById,
 	skipped,
 }: {
+	fps: number;
 	track: InteropTrack;
 	resourcesById: Map<string, InteropResource>;
 	skipped: QCutImportSkippedNode[];
@@ -352,7 +403,7 @@ function mapTrack({
 		const element =
 			type === "text"
 				? mapTextSegment({ segment, skipped })
-				: mapMediaSegment({ segment, resourcesById, skipped });
+				: mapMediaSegment({ fps, segment, resourcesById, skipped });
 		if (element !== null) {
 			elements.push(element);
 		}
@@ -421,7 +472,12 @@ export function mapInteropDocumentToQCutPlan({
 	const skipped: QCutImportSkippedNode[] = [];
 	const tracks: QCutImportPlanTrack[] = [];
 	for (const track of root?.tracks ?? []) {
-		const mapped = mapTrack({ track, resourcesById, skipped });
+		const mapped = mapTrack({
+			fps: document.project.fps,
+			track,
+			resourcesById,
+			skipped,
+		});
 		if (mapped !== null) {
 			tracks.push(mapped);
 		}

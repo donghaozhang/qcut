@@ -312,6 +312,7 @@ function normalizeSegment({
 	profileId,
 	canvasWidth,
 	canvasHeight,
+	fps,
 	contentFileName,
 	issues,
 	bindings,
@@ -322,6 +323,7 @@ function normalizeSegment({
 	profileId: string;
 	canvasWidth: number;
 	canvasHeight: number;
+	fps: number;
 	contentFileName: string;
 	issues: InteropIssue[];
 	bindings: RawNodeBinding[];
@@ -335,6 +337,7 @@ function normalizeSegment({
 	let capability = classified.capability;
 	let featureMappingIssueAdded = false;
 	let text: InteropSegment["text"];
+	let visual: InteropSegment["visual"];
 	if (
 		classified.kind === "video" &&
 		material !== undefined &&
@@ -346,8 +349,11 @@ function normalizeSegment({
 			segment,
 			graph,
 			trackIndex,
+			canvasWidth,
+			fps,
 		});
 		capability = combineInteropCapabilities([capability, mapped.capability]);
+		visual = mapped.visual;
 		if (mapped.issueCode !== undefined && mapped.reason !== undefined) {
 			issues.push({
 				code: mapped.issueCode,
@@ -488,6 +494,7 @@ function normalizeSegment({
 		},
 		...(speed === undefined ? {} : { speed }),
 		...(text === undefined ? {} : { text }),
+		...(visual === undefined ? {} : { visual }),
 		capability,
 		foreignRef: segment.id,
 	};
@@ -577,6 +584,7 @@ function normalizeTracks({
 	profileId,
 	canvasWidth,
 	canvasHeight,
+	fps,
 	graph,
 	contentFileName,
 	issues,
@@ -585,6 +593,7 @@ function normalizeTracks({
 	profileId: string;
 	canvasWidth: number;
 	canvasHeight: number;
+	fps: number;
 	graph: RawDraftGraph;
 	contentFileName: string;
 	issues: InteropIssue[];
@@ -621,6 +630,7 @@ function normalizeTracks({
 				profileId,
 				canvasWidth,
 				canvasHeight,
+				fps,
 				contentFileName,
 				issues,
 				bindings,
@@ -700,6 +710,7 @@ export function normalizeRawDraft(
 		profileId: input.source.profileId,
 		canvasWidth: project.width,
 		canvasHeight: project.height,
+		fps: project.fps,
 		graph,
 		contentFileName: input.contentFileName,
 		issues,

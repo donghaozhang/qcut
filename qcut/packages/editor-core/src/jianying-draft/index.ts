@@ -248,6 +248,7 @@ export {
 export {
 	mapInteropDocumentToQCutPlan,
 	type QCutImportPlanElement,
+	type QCutImportPlanMediaKeyframe,
 	type QCutImportPlanMediaElement,
 	type QCutImportPlanTextElement,
 	type QCutImportPlanTrack,

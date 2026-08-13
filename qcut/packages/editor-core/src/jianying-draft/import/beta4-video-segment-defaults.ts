@@ -12,6 +12,7 @@ import {
 } from "./beta4-default-companions.js";
 import type { RawGraphSegmentNode } from "./graph-reader.js";
 import { isRawRecord } from "./raw-types.js";
+import type { Beta4PositionKeyframeResult } from "./beta4-position-keyframes.js";
 
 const VERIFIED_SEGMENT_KEYS = new Set([
 	"caption_info",
@@ -103,7 +104,13 @@ const MATERIAL_COLOR_KEYS = new Set([
 	"width",
 ]);
 
-function isDefaultClip({ value }: { value: unknown }): boolean {
+function isVerifiedClip({
+	positionKeyframes,
+	value,
+}: {
+	positionKeyframes: Beta4PositionKeyframeResult;
+	value: unknown;
+}): boolean {
 	if (!isRawRecord(value)) return false;
 	const flip = isRawRecord(value.flip) ? value.flip : undefined;
 	const scale = isRawRecord(value.scale) ? value.scale : undefined;
@@ -122,8 +129,14 @@ function isDefaultClip({ value }: { value: unknown }): boolean {
 		scale.y === 1 &&
 		transform !== undefined &&
 		hasExactKeys({ value: transform, keys: VECTOR_KEYS }) &&
-		transform.x === 0 &&
-		transform.y === 0
+		transform.x ===
+			(positionKeyframes.kind === "mapped"
+				? positionKeyframes.finalNormalizedX
+				: 0) &&
+		transform.y ===
+			(positionKeyframes.kind === "mapped"
+				? positionKeyframes.finalNormalizedY
+				: 0)
 	);
 }
 
@@ -184,9 +197,11 @@ export const BETA4_VIDEO_COMPANION_VALIDATORS: Readonly<
 };
 
 export function hasVerifiedBeta4VideoSegmentDefaults({
+	positionKeyframes,
 	segment,
 	trackIndex,
 }: {
+	positionKeyframes: Beta4PositionKeyframeResult;
 	segment: RawGraphSegmentNode;
 	trackIndex: number;
 }): boolean {
@@ -202,9 +217,10 @@ export function hasVerifiedBeta4VideoSegmentDefaults({
 		hasExactKeys({ value: raw, keys: VERIFIED_SEGMENT_KEYS }) &&
 		raw.caption_info === null &&
 		raw.cartoon === false &&
-		isDefaultClip({ value: raw.clip }) &&
+		isVerifiedClip({ value: raw.clip, positionKeyframes }) &&
 		isEmptyString({ value: raw.color_correct_alg_result }) &&
-		isMissingOrEmptyArray({ value: raw.common_keyframes }) &&
+		(positionKeyframes.kind === "mapped" ||
+			isMissingOrEmptyArray({ value: raw.common_keyframes })) &&
 		isEmptyString({ value: raw.desc }) &&
 		isEmptyString({ value: raw.digital_human_template_group_id }) &&
 		raw.enable_adjust === true &&
