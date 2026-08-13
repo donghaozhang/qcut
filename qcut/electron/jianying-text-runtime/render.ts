@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type {
 	JianyingTextRuntimeRenderRequest,
@@ -22,25 +22,35 @@ import { resolveJianyingTextRuntimeFont } from "./font-resolver.js";
 import {
 	measureJianyingHostTextAlphaBounds,
 	nextJianyingHostTextFontSize,
+	shouldFitJianyingHostText,
 } from "./host-text-fit.js";
 import { resolveJianyingTextPackage } from "./package-resolver.js";
 import { repairTransientTransparentRgbaFrames } from "./raw-sequence-integrity.js";
 import { normalizeJianyingTextRuntimeReference } from "./reference.js";
 import { ensureJianyingTextPreviewVideo } from "./preview-video.js";
+import { buildJianyingTextRawFrameFilter } from "./premultiplied-alpha.js";
+import {
+	JIANYING_TEXT_RENDER_CACHE_SCHEMA_VERSION,
+	jianyingTextFramePath,
+	jianyingTextFramePattern,
+	readJianyingTextCachedRender,
+	type JianyingTextCachedRenderManifest,
+} from "./render-cache.js";
+import { withJianyingTextRenderCacheLock } from "./render-cache-lock.js";
 import {
 	finishJianyingTextRender,
 	runJianyingTextProcess,
 	throwIfJianyingTextRenderCancelled,
 } from "./render-process.js";
 import { inspectJianyingTextRuntime } from "./runtime-discovery.js";
+import { JIANYING_SCRIPT_PACKAGE_COPY_SCHEMA_VERSION } from "./script-package-editor.js";
+import { resolveJianyingTextTemplateTiming } from "./timing.js";
 
-const RENDER_CACHE_SCHEMA_VERSION = 12;
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
 const MAXIMUM_CONTENT_CODE_POINTS = 4096;
 const MAXIMUM_DIMENSION = 4096;
 const MAXIMUM_FRAME_COUNT = 18_000;
-const TEXT_STYLE_RESOLUTION_TYPE = 1;
-const MAXIMUM_TEXT_STYLE_FIT_ATTEMPTS = 4;
+const MAXIMUM_HOST_TEXT_FIT_ATTEMPTS = 4;
 
 interface ValidatedRenderRequest
 	extends Omit<JianyingTextRuntimeRenderRequest, "reference"> {
@@ -49,13 +59,12 @@ interface ValidatedRenderRequest
 	>;
 }
 
-interface CachedRenderManifest {
-	schemaVersion: 12;
-	cacheKey: string;
+interface ExpectedRenderCache {
 	frameCount: number;
 	fps: number;
-	strategy: JianyingTextRuntimeRenderStrategy;
 	templateDuration: number;
+	width: number;
+	height: number;
 }
 
 function requireFiniteNumber({
@@ -202,10 +211,14 @@ function renderCacheKey({
 	return createHash("sha256")
 		.update(
 			JSON.stringify({
-				schemaVersion: RENDER_CACHE_SCHEMA_VERSION,
+				schemaVersion: JIANYING_TEXT_RENDER_CACHE_SCHEMA_VERSION,
 				runtimeFingerprint,
 				packageKind: request.reference.packageKind,
 				packageHash: request.reference.packageHash,
+				scriptPackageSchemaVersion:
+					request.reference.packageKind === "ScriptInfoSticker"
+						? JIANYING_SCRIPT_PACKAGE_COPY_SCHEMA_VERSION
+						: null,
 				resourceFingerprint: resourceFingerprint ?? null,
 				contentHash: createHash("sha256").update(request.content).digest("hex"),
 				fontAssetId: request.fontAssetId ?? null,
@@ -223,69 +236,6 @@ function renderCacheKey({
 			})
 		)
 		.digest("hex");
-}
-
-function framePath({ directory, index }: { directory: string; index: number }) {
-	return path.join(directory, `frame-${String(index).padStart(6, "0")}.png`);
-}
-
-function framePattern({ directory }: { directory: string }) {
-	return path.join(directory, "frame-%06d.png");
-}
-
-async function readCachedRender({
-	directory,
-	cacheKey,
-}: {
-	directory: string;
-	cacheKey: string;
-}): Promise<CachedRenderManifest | null> {
-	try {
-		const manifest = JSON.parse(
-			await readFile(path.join(directory, "manifest.json"), "utf8")
-		) as CachedRenderManifest;
-		if (
-			manifest.schemaVersion !== RENDER_CACHE_SCHEMA_VERSION ||
-			manifest.cacheKey !== cacheKey ||
-			manifest.frameCount < 1
-		) {
-			return null;
-		}
-		const [first, last] = await Promise.all([
-			stat(framePath({ directory, index: 0 })),
-			stat(framePath({ directory, index: manifest.frameCount - 1 })),
-		]);
-		return first.isFile() && first.size > 0 && last.isFile() && last.size > 0
-			? manifest
-			: null;
-	} catch {
-		return null;
-	}
-}
-
-function templateTiming({
-	request,
-	templateDuration,
-}: {
-	request: ValidatedRenderRequest;
-	templateDuration: number;
-}) {
-	const maximumTimestamp = Math.min(60, templateDuration) * 1_000_000;
-	const startTimestamp = Math.min(
-		maximumTimestamp,
-		(request.sourceStart / request.elementDuration) * maximumTimestamp
-	);
-	const desiredStep = maximumTimestamp / request.elementDuration / request.fps;
-	const maximumStep =
-		request.frameCount === 1
-			? 0
-			: (maximumTimestamp - startTimestamp) / (request.frameCount - 1);
-	return {
-		timelineDuration: maximumTimestamp,
-		startTimestamp,
-		timestampStep:
-			request.frameCount === 1 ? 0 : Math.min(desiredStep, maximumStep),
-	};
 }
 
 function runtimeAnimations({
@@ -358,12 +308,12 @@ async function convertRawSequence({
 		height,
 		rotation: request.transform.rotation,
 	});
-	const filter = [
-		"format=rgba",
-		`colorchannelmixer=aa=${request.transform.opacity}`,
-		`rotate=${rotated.radians}:c=none:ow=${rotated.width}:oh=${rotated.height}`,
-		"format=rgba",
-	].join(",");
+	const filter = buildJianyingTextRawFrameFilter({
+		opacity: request.transform.opacity,
+		rotationRadians: rotated.radians,
+		outputWidth: rotated.width,
+		outputHeight: rotated.height,
+	});
 	await runJianyingTextProcess({
 		requestId: request.requestId,
 		command: ffmpegPath,
@@ -389,7 +339,7 @@ async function convertRawSequence({
 			String(request.frameCount),
 			"-start_number",
 			"0",
-			framePattern({ directory }),
+			jianyingTextFramePattern({ directory }),
 		],
 	});
 	return rotated;
@@ -405,7 +355,7 @@ function responseForRender({
 }: {
 	request: ValidatedRenderRequest;
 	directory: string;
-	manifest: CachedRenderManifest;
+	manifest: JianyingTextCachedRenderManifest;
 	cacheHit: boolean;
 	diagnostics: JianyingTextRuntimeDiagnostic[];
 	previewUrl?: string;
@@ -433,10 +383,13 @@ function responseForRender({
 		...(previewUrl ? { previewUrl } : {}),
 		source:
 			manifest.frameCount === 1
-				? { kind: "image", path: framePath({ directory, index: 0 }) }
+				? {
+						kind: "image",
+						path: jianyingTextFramePath({ directory, index: 0 }),
+					}
 				: {
 						kind: "image-sequence",
-						path: framePattern({ directory }),
+						path: jianyingTextFramePattern({ directory }),
 						frameRate: manifest.fps,
 					},
 	};
@@ -451,8 +404,13 @@ async function previewVideoForRender({
 	request: ValidatedRenderRequest;
 	cacheKey: string;
 	directory: string;
-	manifest: CachedRenderManifest;
+	manifest: JianyingTextCachedRenderManifest;
 }) {
+	const rotated = rotatedDimensions({
+		width: Math.round(request.transform.width),
+		height: Math.round(request.transform.height),
+		rotation: request.transform.rotation,
+	});
 	return request.previewVideo
 		? ensureJianyingTextPreviewVideo({
 				requestId: request.requestId,
@@ -460,11 +418,44 @@ async function previewVideoForRender({
 				directory,
 				frameCount: manifest.frameCount,
 				fps: manifest.fps,
+				width: rotated.width,
+				height: rotated.height,
 			})
 		: undefined;
 }
 
-async function fitTextStyleHostRequest({
+async function responseFromStoredRender({
+	request,
+	cacheKey,
+	directory,
+	manifest,
+	cacheHit,
+	diagnostics,
+}: {
+	request: ValidatedRenderRequest;
+	cacheKey: string;
+	directory: string;
+	manifest: JianyingTextCachedRenderManifest;
+	cacheHit: boolean;
+	diagnostics: JianyingTextRuntimeDiagnostic[];
+}) {
+	const previewUrl = await previewVideoForRender({
+		request,
+		cacheKey,
+		directory,
+		manifest,
+	});
+	return responseForRender({
+		request,
+		directory,
+		manifest,
+		cacheHit,
+		diagnostics,
+		previewUrl,
+	});
+}
+
+async function fitHostTextRequest({
 	runtime,
 	request,
 	attempt = 0,
@@ -473,7 +464,9 @@ async function fitTextStyleHostRequest({
 	request: JianyingTextRawSequenceRequest;
 	attempt?: number;
 }): Promise<JianyingTextRawSequenceRequest> {
-	if (request.packageKind !== "TextStyle") return request;
+	if (!shouldFitJianyingHostText({ packageKind: request.packageKind })) {
+		return request;
+	}
 	const probePath = `${request.outputPath}.fit-probe.rgba`;
 	const fontSize = request.fontSize ?? 12;
 	try {
@@ -487,7 +480,6 @@ async function fitTextStyleHostRequest({
 					request.startTimestamp +
 					request.timestampStep * Math.floor(request.frameCount / 2),
 				timestampStep: 0,
-				resolutionType: TEXT_STYLE_RESOLUTION_TYPE,
 				fontSize,
 			},
 		});
@@ -502,14 +494,13 @@ async function fitTextStyleHostRequest({
 			width: request.width,
 			height: request.height,
 		});
-		if (nextFontSize === null || attempt >= MAXIMUM_TEXT_STYLE_FIT_ATTEMPTS) {
+		if (nextFontSize === null || attempt >= MAXIMUM_HOST_TEXT_FIT_ATTEMPTS) {
 			return {
 				...request,
-				resolutionType: TEXT_STYLE_RESOLUTION_TYPE,
 				fontSize,
 			};
 		}
-		return fitTextStyleHostRequest({
+		return fitHostTextRequest({
 			runtime,
 			request: { ...request, fontSize: nextFontSize },
 			attempt: attempt + 1,
@@ -537,8 +528,11 @@ async function renderUncached({
 	const width = Math.round(request.transform.width);
 	const height = Math.round(request.transform.height);
 	const rawPath = path.join(directory, "frames.rgba");
-	const timing = templateTiming({
-		request,
+	const timing = resolveJianyingTextTemplateTiming({
+		sourceStart: request.sourceStart,
+		elementDuration: request.elementDuration,
+		frameCount: request.frameCount,
+		fps: request.fps,
 		templateDuration: packageInfo.templateDuration,
 	});
 	const animations = runtimeAnimations({
@@ -562,10 +556,11 @@ async function renderUncached({
 			request: rawRequest,
 			packageInfo,
 			content: request.content,
-			fontPath,
+			fallbackFontPath: fontPath,
+			...(request.fontAssetId ? { fontOverridePath: fontPath } : {}),
 		});
 	} else {
-		const hostTextRequest = await fitTextStyleHostRequest({
+		const hostTextRequest = await fitHostTextRequest({
 			runtime,
 			request: {
 				...rawRequest,
@@ -605,8 +600,8 @@ async function renderUncached({
 	}
 	await convertRawSequence({ request, rawPath, directory, width, height });
 	await rm(rawPath, { force: true });
-	const manifest: CachedRenderManifest = {
-		schemaVersion: RENDER_CACHE_SCHEMA_VERSION,
+	const manifest: JianyingTextCachedRenderManifest = {
+		schemaVersion: JIANYING_TEXT_RENDER_CACHE_SCHEMA_VERSION,
 		cacheKey,
 		frameCount: request.frameCount,
 		fps: request.fps,
@@ -619,6 +614,99 @@ async function renderUncached({
 		"utf8"
 	);
 	return manifest;
+}
+
+async function renderWithCacheLock({
+	request,
+	runtime,
+	packageInfo,
+	cacheKey,
+	cacheRoot,
+	destination,
+	expectedCache,
+	fontPath,
+	diagnostics,
+}: {
+	request: ValidatedRenderRequest;
+	runtime: JianyingTextBridgeRuntime;
+	packageInfo: Awaited<ReturnType<typeof resolveJianyingTextPackage>>;
+	cacheKey: string;
+	cacheRoot: string;
+	destination: string;
+	expectedCache: ExpectedRenderCache;
+	fontPath: string;
+	diagnostics: JianyingTextRuntimeDiagnostic[];
+}) {
+	return withJianyingTextRenderCacheLock({
+		cacheKey,
+		cacheRoot,
+		throwIfCancelled: () =>
+			throwIfJianyingTextRenderCancelled({ requestId: request.requestId }),
+		task: async () => {
+			const cached = await readJianyingTextCachedRender({
+				directory: destination,
+				cacheKey,
+				expected: expectedCache,
+			});
+			if (cached) {
+				return responseFromStoredRender({
+					request,
+					cacheKey,
+					directory: destination,
+					manifest: cached,
+					cacheHit: true,
+					diagnostics,
+				});
+			}
+			await rm(destination, { recursive: true, force: true });
+			const temporary = path.join(
+				cacheRoot,
+				`.tmp-${cacheKey}-${randomUUID()}`
+			);
+			await mkdir(temporary, { recursive: true });
+			try {
+				await renderUncached({
+					request,
+					runtime,
+					packageInfo,
+					directory: temporary,
+					cacheKey,
+					fontPath,
+				});
+				throwIfJianyingTextRenderCancelled({ requestId: request.requestId });
+				await rename(temporary, destination).catch(async (cause) => {
+					if (
+						await readJianyingTextCachedRender({
+							directory: destination,
+							cacheKey,
+							expected: expectedCache,
+						})
+					) {
+						return;
+					}
+					throw cause;
+				});
+				const stored = await readJianyingTextCachedRender({
+					directory: destination,
+					cacheKey,
+					expected: expectedCache,
+				});
+				if (!stored) {
+					throw new Error("Jianying text render cache validation failed.");
+				}
+				return responseFromStoredRender({
+					request,
+					cacheKey,
+					directory: destination,
+					manifest: stored,
+					cacheHit: false,
+					diagnostics,
+				});
+			} finally {
+				await rm(temporary, { recursive: true, force: true });
+			}
+		},
+	});
 }
 
 export async function renderJianyingText({
@@ -648,6 +736,7 @@ export async function renderJianyingText({
 		};
 		const font = await resolveJianyingTextRuntimeFont({
 			fontAssetId: request.fontAssetId,
+			runtimeRoot: runtime.runtimeRoot,
 		});
 		const fontPath = font.filePath;
 		const diagnostics = [...packageInfo.diagnostics, ...font.diagnostics];
@@ -659,70 +748,45 @@ export async function renderJianyingText({
 			fontPath,
 		});
 		const destination = getJianyingTextRenderCacheDirectory({ cacheKey });
-		const cached = await readCachedRender({
+		const rotated = rotatedDimensions({
+			width: Math.round(request.transform.width),
+			height: Math.round(request.transform.height),
+			rotation: request.transform.rotation,
+		});
+		const expectedCache = {
+			frameCount: request.frameCount,
+			fps: request.fps,
+			templateDuration: packageInfo.templateDuration,
+			width: rotated.width,
+			height: rotated.height,
+		};
+		const cached = await readJianyingTextCachedRender({
 			directory: destination,
 			cacheKey,
+			expected: expectedCache,
 		});
-		if (cached) {
-			const previewUrl = await previewVideoForRender({
-				request,
-				cacheKey,
-				directory: destination,
-				manifest: cached,
-			});
+		if (cached && !request.previewVideo) {
 			return responseForRender({
 				request,
 				directory: destination,
 				manifest: cached,
 				cacheHit: true,
 				diagnostics,
-				previewUrl,
 			});
 		}
-		await rm(destination, { recursive: true, force: true });
 		const cacheRoot = getJianyingTextRenderCacheRoot();
 		await mkdir(cacheRoot, { recursive: true });
-		const temporary = path.join(cacheRoot, `.tmp-${cacheKey}-${randomUUID()}`);
-		await mkdir(temporary, { recursive: true });
-		try {
-			await renderUncached({
-				request,
-				runtime,
-				packageInfo,
-				directory: temporary,
-				cacheKey,
-				fontPath,
-			});
-			throwIfJianyingTextRenderCancelled({ requestId: request.requestId });
-			await rename(temporary, destination).catch(async (cause) => {
-				if (await readCachedRender({ directory: destination, cacheKey }))
-					return;
-				throw cause;
-			});
-			const stored = await readCachedRender({
-				directory: destination,
-				cacheKey,
-			});
-			if (!stored) {
-				throw new Error("Jianying text render cache validation failed.");
-			}
-			const previewUrl = await previewVideoForRender({
-				request,
-				cacheKey,
-				directory: destination,
-				manifest: stored,
-			});
-			return responseForRender({
-				request,
-				directory: destination,
-				manifest: stored,
-				cacheHit: false,
-				diagnostics,
-				previewUrl,
-			});
-		} finally {
-			await rm(temporary, { recursive: true, force: true });
-		}
+		return renderWithCacheLock({
+			request,
+			runtime,
+			packageInfo,
+			cacheKey,
+			cacheRoot,
+			destination,
+			expectedCache,
+			fontPath,
+			diagnostics,
+		});
 	} finally {
 		finishJianyingTextRender({ requestId: request.requestId });
 	}
