@@ -430,7 +430,7 @@ describe("Jianying text resource recovery", () => {
 		expect(fetchResource).not.toHaveBeenCalled();
 	});
 
-	it("relocates a cached font stored under a legacy ID by matching its package hash", async () => {
+	it("relocates a configless cached font by matching its package hash", async () => {
 		const archive = Buffer.from("catalog-font-package");
 		const currentResourceId = "7030677248797577765";
 		const fixture = await createRecoveryFixture({
@@ -448,17 +448,10 @@ describe("Jianying text resource recovery", () => {
 			fixture.packageHash
 		);
 		await mkdir(sourcePackagePath, { recursive: true });
-		await Promise.all([
-			writeFile(
-				path.join(sourcePackagePath, "config.json"),
-				JSON.stringify({ effect: { Link: [{ type: "InfoSticker" }] } }),
-				"utf8"
-			),
-			writeFile(
-				path.join(sourcePackagePath, "GalleryModern.otf"),
-				Buffer.from("OTTOsynthetic-font")
-			),
-		]);
+		await writeFile(
+			path.join(sourcePackagePath, "GalleryModern.otf"),
+			Buffer.from("OTTOsynthetic-font")
+		);
 		const fetchResource = vi.fn(async () => {
 			throw new Error("network recovery must not run");
 		});
