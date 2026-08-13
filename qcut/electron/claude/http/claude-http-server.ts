@@ -62,6 +62,8 @@ import { registerQCutImportEvidenceRoutes } from "./claude-http-import-evidence-
 import { requestQCutImportEvidenceFromRenderer } from "../handlers/qcut-import-evidence-handler.js";
 import { registerQCutSameProfileWritebackRoutes } from "./claude-http-same-profile-writeback-routes.js";
 import { requestQCutSameProfileWritebackFromRenderer } from "../handlers/qcut-same-profile-writeback-handler.js";
+import { registerQCutJianyingProjectExportRoutes } from "./claude-http-jianying-project-export-routes.js";
+import { requestQCutJianyingProjectExportFromRenderer } from "../handlers/qcut-jianying-project-export-handler.js";
 import { registerSnapshotRoutes } from "./claude-http-snapshot-routes.js";
 import { registerAgentPointerRoutes } from "./claude-http-pointer-routes.js";
 import {
@@ -247,6 +249,13 @@ export function startClaudeHTTPServer(
 	registerQCutSameProfileWritebackRoutes(router, {
 		requestOperation: (request) =>
 			requestQCutSameProfileWritebackFromRenderer({
+				request,
+				win: getWindow(),
+			}),
+	});
+	registerQCutJianyingProjectExportRoutes(router, {
+		requestExport: (request) =>
+			requestQCutJianyingProjectExportFromRenderer({
 				request,
 				win: getWindow(),
 			}),

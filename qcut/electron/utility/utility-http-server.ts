@@ -20,6 +20,7 @@ import {
 import { registerStateRoutes } from "../claude/http/claude-http-state-routes.js";
 import { registerQCutImportEvidenceRoutes } from "../claude/http/claude-http-import-evidence-routes.js";
 import { registerQCutSameProfileWritebackRoutes } from "../claude/http/claude-http-same-profile-writeback-routes.js";
+import { registerQCutJianyingProjectExportRoutes } from "../claude/http/claude-http-jianying-project-export-routes.js";
 import { registerSnapshotRoutes } from "../claude/http/claude-http-snapshot-routes.js";
 import { registerAgentPointerRoutes } from "../claude/http/claude-http-pointer-routes.js";
 import {
@@ -76,6 +77,7 @@ import type {
 import { authorizeClaudeHttpRequest } from "../claude/http/claude-http-auth.js";
 import type { QCutPersistedImportEvidenceSnapshot } from "../types/qcut-import-evidence-api.js";
 import type { QCutSameProfileWritebackResult } from "../types/qcut-same-profile-writeback-api.js";
+import type { QCutJianyingProjectExportResult } from "../types/qcut-jianying-project-export-api.js";
 
 let server: Server | null = null;
 
@@ -431,6 +433,12 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 			(await requestFromMain("get-qcut-same-profile-writeback", {
 				request,
 			})) as QCutSameProfileWritebackResult,
+	});
+	registerQCutJianyingProjectExportRoutes(router, {
+		requestExport: async (request) =>
+			(await requestFromMain("get-qcut-jianying-project-export", {
+				request,
+			})) as QCutJianyingProjectExportResult,
 	});
 	registerSnapshotRoutes(router, {
 		requestSnapshot: async (request) =>

@@ -56,6 +56,7 @@ import {
 import { requestEditorStateSnapshotFromRenderer } from "../claude/handlers/claude-state-handler.js";
 import { requestQCutImportEvidenceFromRenderer } from "../claude/handlers/qcut-import-evidence-handler.js";
 import { requestQCutSameProfileWritebackFromRenderer } from "../claude/handlers/qcut-same-profile-writeback-handler.js";
+import { requestQCutJianyingProjectExportFromRenderer } from "../claude/handlers/qcut-jianying-project-export-handler.js";
 import {
 	checkEditorSnapshotRef,
 	clickEditorSnapshotRef,
@@ -485,6 +486,16 @@ async function handleMainRequest(
 				request: import("../types/qcut-same-profile-writeback-api.js").QCutSameProfileWritebackRequest;
 			};
 			return requestQCutSameProfileWritebackFromRenderer({
+				request: req.request,
+				win,
+			});
+		}
+
+		case "get-qcut-jianying-project-export": {
+			const req = data as {
+				request: import("../types/qcut-jianying-project-export-api.js").QCutJianyingProjectExportRequest;
+			};
+			return requestQCutJianyingProjectExportFromRenderer({
 				request: req.request,
 				win,
 			});
