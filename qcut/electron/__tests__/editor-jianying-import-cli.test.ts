@@ -11,7 +11,13 @@ import { makeOpts } from "./editor-cli-test-setup.js";
 
 /** JYI-012 acceptance (CLI side): registration, dispatch, offline handler. */
 
-const ACTIONS = ["inspect", "plan", "import", "commit"] as const;
+const ACTIONS = [
+	"inspect",
+	"plan",
+	"import",
+	"commit",
+	"verify-roundtrip",
+] as const;
 
 describe("jianying-import command registration", () => {
 	it("registers all Jianying import commands in the registry", () => {
@@ -47,6 +53,21 @@ describe("jianying-import command registration", () => {
 			remainingArgs: ["--format", "jianying", "--draft", "/tmp/x"],
 		});
 	});
+
+	it("resolves the concise Jianying round-trip verification command", () => {
+		const resolved = resolveCommandGroup([
+			"draft",
+			"verify-roundtrip",
+			"--format",
+			"jianying",
+			"--draft",
+			"/tmp/x",
+		]);
+		expect(resolved).toEqual({
+			command: "editor:jianying-import:verify-roundtrip",
+			remainingArgs: ["--format", "jianying", "--draft", "/tmp/x"],
+		});
+	});
 });
 
 describe("executeJianyingImportCommand", () => {
@@ -65,6 +86,20 @@ describe("executeJianyingImportCommand", () => {
 			async inspect({ input }: { input: unknown }) {
 				calls.push({ verb: "inspect", input });
 				return { outcome: "exact", product: "jianying" };
+			}
+
+			async verifyRoundTrip({ input }: { input: unknown }) {
+				calls.push({ verb: "verify-roundtrip", input });
+				return {
+					inspect: { outcome: "exact", product: "jianying" },
+					result: {
+						ok: true,
+						verification: {
+							byteIdentical: true,
+							contentRelativePath: "draft_content.json",
+						},
+					},
+				};
 			}
 
 			async plan({ input }: { input: unknown }) {
@@ -167,6 +202,35 @@ describe("executeJianyingImportCommand", () => {
 			input: { draftPath: "/drafts/my-draft" },
 		});
 		expect(runtime.calls.at(-1)?.verb).toBe("dispose");
+	});
+
+	it("runs Jianying round-trip verification offline and read-only", async () => {
+		const runtime = createRuntime();
+		const result = await executeJianyingImportCommand({
+			options: makeOpts({
+				command: "editor:jianying-import:verify-roundtrip",
+				draftPaths: ["/drafts/my-draft"],
+				format: "jianying",
+			}),
+			loadRuntime: async () => runtime.module,
+			getUserDataDirectory: () => "/qcut-user-data",
+		});
+
+		expect(result).toMatchObject({
+			success: true,
+			data: {
+				action: "verify-roundtrip",
+				localOnly: true,
+				readOnly: true,
+				result: {
+					result: { ok: true, verification: { byteIdentical: true } },
+				},
+			},
+		});
+		expect(runtime.calls[0]).toEqual({
+			verb: "verify-roundtrip",
+			input: { draftPath: "/drafts/my-draft" },
+		});
 	});
 
 	it("requires --draft for inspect and plan", async () => {

@@ -69,6 +69,15 @@ export const JIANYING_IMPORT_COMMANDS: Record<string, CommandDef> = {
 			'qcut draft import --format jianying --draft "~/Movies/JianyingPro/User Data/Projects/com.lveditor.draft/my-draft" --json',
 		],
 	}),
+	"editor:jianying-import:verify-roundtrip": command({
+		name: "editor:jianying-import:verify-roundtrip",
+		description:
+			"Verify Jianying Professional import and no-op writeback byte-for-byte without modifying the draft",
+		flags: [DRAFT_DIR_FLAG, JIANYING_FORMAT_FLAG],
+		examples: [
+			'qcut draft verify-roundtrip --format jianying --draft "~/Movies/JianyingPro Drafts/my-draft" --json',
+		],
+	}),
 	"editor:jianying-import:commit": command({
 		name: "editor:jianying-import:commit",
 		description:

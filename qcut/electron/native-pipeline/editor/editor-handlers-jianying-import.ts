@@ -12,6 +12,7 @@ import type { CLIResult, CLIRunOptions } from "../cli/cli-runner/types.js";
 
 interface ImportSessionLike {
 	inspect(options: { input: unknown }): Promise<unknown>;
+	verifyRoundTrip(options: { input: unknown }): Promise<unknown>;
 	plan(options: { input: unknown }): Promise<unknown>;
 	commitWithMediaGrants(options: { input: unknown }): Promise<{
 		mediaGrants: Array<{ grantToken: string }>;
@@ -158,7 +159,13 @@ export function resolveQCutCliUserDataDirectory({
 	);
 }
 
-const SUPPORTED_ACTIONS = new Set(["inspect", "plan", "import", "commit"]);
+const SUPPORTED_ACTIONS = new Set([
+	"inspect",
+	"plan",
+	"import",
+	"commit",
+	"verify-roundtrip",
+]);
 
 function asRecord({
 	value,
@@ -307,7 +314,11 @@ async function createSession({
 }): Promise<ImportSessionLike> {
 	const buildIdentity = { appVersion: "cli", interopSchemaVersion: 1 };
 	const SessionConstructor = runtime.JianyingDraftImportSession;
-	if (action === "inspect" || SessionConstructor.open === undefined) {
+	if (
+		action === "inspect" ||
+		action === "verify-roundtrip" ||
+		SessionConstructor.open === undefined
+	) {
 		return new SessionConstructor({ buildIdentity });
 	}
 	return SessionConstructor.open({
@@ -392,6 +403,25 @@ export async function executeJianyingImportCommand({
 				...(sourceSelection === undefined ? {} : { sourceSelection }),
 				userDataDirectory,
 			});
+		}
+		if (action === "verify-roundtrip") {
+			const result = await activeSession.verifyRoundTrip({
+				input: { draftPath },
+			});
+			assertJianyingInspectResult({ value: result });
+			const record = asRecord({ value: result });
+			const verification = asRecord({ value: record?.result });
+			if (verification?.ok !== true) {
+				return {
+					success: false,
+					error: "Jianying round-trip verification failed.",
+					data: { action, localOnly: true, readOnly: true, result },
+				};
+			}
+			return {
+				success: true,
+				data: { action, localOnly: true, readOnly: true, result },
+			};
 		}
 		const result =
 			action === "inspect"

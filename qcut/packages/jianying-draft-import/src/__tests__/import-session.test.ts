@@ -272,6 +272,44 @@ describe("inspect", () => {
 	});
 });
 
+describe("verifyRoundTrip", () => {
+	it("proves a Jianying compound import is byte-identical without writing state", async () => {
+		const root = await mkdtemp(join(tmpdir(), "qcut-jianying-roundtrip-"));
+		try {
+			await writeJianyingCompoundRoot({ root });
+
+			const verification = await session.verifyRoundTrip({
+				input: { draftPath: root },
+			});
+
+			expect(verification.inspect).toMatchObject({
+				outcome: "exact",
+				product: "jianying",
+				sourceScope: "compound-subdraft",
+				selectedSubdraftId: "compound-1",
+			});
+			expect(verification.result).toMatchObject({
+				ok: true,
+				verification: {
+					byteIdentical: true,
+					contentRelativePath: "draft_content.json",
+					importedSegmentCount: 1,
+					preservedBindingCount: 3,
+				},
+			});
+			expect(JSON.stringify(verification)).not.toContain(root);
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
+	});
+
+	it("refuses to label an older plaintext profile as 11.3-compatible", async () => {
+		await expect(
+			session.verifyRoundTrip({ input: { draftPath: draftRoot } })
+		).rejects.toMatchObject({ code: "profile-not-exact" });
+	});
+});
+
 describe("plan", () => {
 	it("produces a redacted plan, asset statuses, and no absolute paths", async () => {
 		const plan = await session.plan({ input: { draftPath: draftRoot } });
