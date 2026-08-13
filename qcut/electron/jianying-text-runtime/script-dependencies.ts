@@ -13,6 +13,7 @@ import type {
 import { parseJianyingEffectStylePackage } from "../jianying-text-effect-style-parser.js";
 import type {
 	JianyingTextEffectCapabilities,
+	JianyingTextRuntimeDependencyStatus,
 	JianyingTextRuntimeDiagnostic,
 } from "../jianying-text-runtime-contract.js";
 import {
@@ -23,6 +24,7 @@ import {
 	inspectJianyingTextComponentPackage,
 	type JianyingTextComponentManifest,
 } from "./component-package-inspector.js";
+import { findJianyingPackageFontFile } from "./package-font-files.js";
 import {
 	canDegradeJianyingScriptResource,
 	collectJianyingAnimationOwnerTypes,
@@ -38,6 +40,7 @@ export type { JianyingScriptResourceReference };
 
 export interface ResolvedJianyingScriptResources {
 	resourcePaths: Readonly<Record<string, string>>;
+	fontPaths: Readonly<Record<string, string>>;
 	references: JianyingScriptResourceReference[];
 	missing: JianyingScriptResourceReference[];
 	degraded: JianyingScriptResourceReference[];
@@ -45,6 +48,14 @@ export interface ResolvedJianyingScriptResources {
 	components: JianyingScriptComponentResource[];
 	capabilities: JianyingTextEffectCapabilities;
 	diagnostics: JianyingTextRuntimeDiagnostic[];
+	recoveryFailures: Array<
+		Required<
+			Pick<
+				JianyingTextRuntimeDependencyStatus,
+				"recoveryReason" | "resourceId" | "role"
+			>
+		>
+	>;
 	fingerprint: string;
 }
 
@@ -61,6 +72,7 @@ interface ResourcePackageCandidate {
 interface ResourceResolution {
 	reference: JianyingScriptResourceReference;
 	packagePath?: string;
+	fontPath?: string;
 	effectStyle?: JianyingEffectStyleManifest;
 	effectStyleInspection?: JianyingEffectStyleInspection;
 	componentManifest?: JianyingTextComponentManifest;
@@ -192,6 +204,19 @@ function unresolvedRuntimeDependencyDiagnostic({
 	};
 }
 
+function missingTemplateFontDiagnostic({
+	resourceId,
+}: {
+	resourceId: string;
+}): JianyingTextRuntimeDiagnostic {
+	return {
+		code: "template-font-missing",
+		severity: "warning",
+		message: `模板字体 ${resourceId} 无法恢复，将仅为受影响字槽使用系统中文字体。`,
+		resourceId,
+	};
+}
+
 function runtimeComponentEffectStyleDiagnostic({
 	resourceId,
 }: {
@@ -239,6 +264,19 @@ async function resolveResourceReference({
 		reference,
 		descriptor,
 	});
+	if (reference.role === "font") {
+		const fontCandidates = await Promise.all(
+			candidates.map(({ path: candidatePath }) =>
+				findJianyingPackageFontFile({ packagePath: candidatePath }).catch(
+					() => null
+				)
+			)
+		);
+		const fontPath = fontCandidates.find(
+			(candidate): candidate is string => candidate !== null
+		);
+		return fontPath ? { reference, fontPath } : { reference };
+	}
 	if (reference.role !== "effect-style") {
 		const packagePath = candidates[0]?.path;
 		if (!packagePath) return { reference };
@@ -332,6 +370,7 @@ export async function resolveJianyingScriptResources({
 		)
 	);
 	const resourcePaths: Record<string, string> = {};
+	const fontPaths: Record<string, string> = {};
 	const missing: JianyingScriptResourceReference[] = [];
 	const degraded: JianyingScriptResourceReference[] = [];
 	const effectStyles: JianyingEffectStyleManifest[] = [];
@@ -339,6 +378,10 @@ export async function resolveJianyingScriptResources({
 	const diagnostics: JianyingTextRuntimeDiagnostic[] = [];
 	for (const resolution of resolutions) {
 		diagnostics.push(...(resolution.diagnostics ?? []));
+		if (resolution.fontPath) {
+			fontPaths[resolution.reference.resourceId] = resolution.fontPath;
+			continue;
+		}
 		if (resolution.effectStyle) effectStyles.push(resolution.effectStyle);
 		if (resolution.componentManifest) {
 			components.push({
@@ -362,9 +405,13 @@ export async function resolveJianyingScriptResources({
 			) {
 				degraded.push(resolution.reference);
 				diagnostics.push(
-					unresolvedRuntimeDependencyDiagnostic({
-						resourceId: resolution.reference.resourceId,
-					})
+					resolution.reference.role === "font"
+						? missingTemplateFontDiagnostic({
+								resourceId: resolution.reference.resourceId,
+							})
+						: unresolvedRuntimeDependencyDiagnostic({
+								resourceId: resolution.reference.resourceId,
+							})
 				);
 			} else {
 				missing.push(resolution.reference);
@@ -399,11 +446,13 @@ export async function resolveJianyingScriptResources({
 					({
 						reference,
 						packagePath: resolvedPath,
+						fontPath,
 						effectStyle,
 						componentManifest,
 					}) => ({
 						...reference,
 						path: resolvedPath ?? null,
+						fontPath: fontPath ?? null,
 						effectStyleFingerprint: effectStyle?.fingerprint ?? null,
 						componentFingerprint: componentManifest?.fingerprint ?? null,
 					})
@@ -413,6 +462,7 @@ export async function resolveJianyingScriptResources({
 		.digest("hex");
 	return {
 		resourcePaths,
+		fontPaths,
 		references,
 		missing,
 		degraded,
@@ -420,6 +470,7 @@ export async function resolveJianyingScriptResources({
 		components,
 		capabilities,
 		diagnostics,
+		recoveryFailures: [],
 		fingerprint,
 	};
 }
