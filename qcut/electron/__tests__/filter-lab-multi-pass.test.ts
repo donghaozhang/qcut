@@ -72,6 +72,28 @@ describe("Jianying multi-pass package detection", () => {
 		});
 	});
 
+	it("recognizes Lumi soft-glow and LUT packages", () => {
+		expect(
+			detectJianyingMultiPassTopology({
+				paths: [
+					"AmazingFeature/effects/LumiGaussianBlur/xshader/gaussianBlurX.xshader",
+					"AmazingFeature/effects/LumiGaussianBlur/xshader/gaussianBlurY.xshader",
+					"AmazingFeature/effects/LumiSGlow/xshader/mask.xshader",
+					"AmazingFeature/effects/LumiSGlow/xshader/BlurHorz.xshader",
+					"AmazingFeature/effects/LumiSGlow/xshader/BlurVert.xshader",
+					"AmazingFeature/effects/LumiSGlow/xshader/blend.xshader",
+					"AmazingFeature/effects/LumiLvFilter/xshader/pass6.xshader",
+					"AmazingFeature/effects/LumiLvFilter/image/filter.png",
+				],
+				signals: "glowWidth threshold SoftLight",
+			})
+		).toEqual({
+			kind: "bloom-lut",
+			lutRelativePath: "AmazingFeature/effects/LumiLvFilter/image/filter.png",
+			passCount: 10,
+		});
+	});
+
 	it("does not classify a tiled LUT as multi-pass from its title", () => {
 		expect(
 			detectJianyingMultiPassTopology({
@@ -122,6 +144,45 @@ describe("Jianying multi-pass recipe loading", () => {
 			"fog-blend",
 			"lut",
 		]);
+	});
+
+	it("keeps the observed soft-glow traits in its structural fallback", async () => {
+		const cube = {
+			size: 2,
+			values: new Float64Array(24),
+			domainMin: [0, 0, 0] as [number, number, number],
+			domainMax: [1, 1, 1] as [number, number, number],
+		};
+		const recipe = await loadJianyingMultiPassRecipe({
+			cacheRoot: "/cache",
+			renderer: {
+				kind: "bloom-lut",
+				container: "artistEffect",
+				packageIdentifier: "resource",
+				version: "version",
+				lutRelativePath: "AmazingFeature/effects/LumiLvFilter/image/filter.png",
+				passCount: 10,
+				fidelity: "structural",
+			},
+			loadCube: async () => cube,
+		});
+
+		expect(recipe).toEqual({
+			kind: "bloom-lut",
+			passes: [
+				{
+					kind: "bloom",
+					threshold: 0.86,
+					radius: 13,
+					amount: 70,
+					scale: 0.25,
+					pixelFormat: "rgba8",
+					mipLevels: 2,
+					edgeMode: "mirror",
+				},
+				{ kind: "lut", cube, intensity: 80 },
+			],
+		});
 	});
 });
 
