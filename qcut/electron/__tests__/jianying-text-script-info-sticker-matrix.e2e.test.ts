@@ -144,9 +144,8 @@ describeRealMatrix("Jianying ScriptInfoSticker real video matrix", () => {
 			resourceId,
 		});
 		expect(stress.alphaHashes).not.toEqual(baseline.alphaHashes);
-		expect(stress.maximumEdgeVisible).toBeLessThanOrEqual(
-			baseline.maximumEdgeVisible
-		);
+		expect(baseline.maximumEdgeVisible).toBe(0);
+		expect(stress.maximumEdgeVisible).toBe(0);
 	}, 240_000);
 
 	it.each(
