@@ -234,6 +234,12 @@ export {
 } from "./import/static-audio-mapper.js";
 
 export {
+	mapStaticVideo,
+	type MapStaticVideoInput,
+	type MappedStaticVideo,
+} from "./import/static-video-mapper.js";
+
+export {
 	mapCapCut81SeamTransition,
 	type MapCapCut81SeamTransitionInput,
 	type MappedCapCut81SeamTransition,

@@ -48,6 +48,7 @@ import { readDraftProjectSettings } from "./project-settings.js";
 import type { RawDraftContent } from "./raw-types.js";
 import { mapStaticAudio } from "./static-audio-mapper.js";
 import { mapStaticText } from "./static-text-mapper.js";
+import { mapStaticVideo } from "./static-video-mapper.js";
 import { validateRawDraftGraph } from "./validation.js";
 
 const MEDIA_BUCKETS = new Set(["videos", "audios"]);
@@ -314,6 +315,7 @@ function normalizeSegment({
 	contentFileName,
 	issues,
 	bindings,
+	trackIndex,
 }: {
 	segment: RawGraphSegmentNode;
 	graph: RawDraftGraph;
@@ -323,6 +325,7 @@ function normalizeSegment({
 	contentFileName: string;
 	issues: InteropIssue[];
 	bindings: RawNodeBinding[];
+	trackIndex: number;
 }): InteropSegment {
 	const material =
 		segment.materialId === undefined
@@ -332,6 +335,30 @@ function normalizeSegment({
 	let capability = classified.capability;
 	let featureMappingIssueAdded = false;
 	let text: InteropSegment["text"];
+	if (
+		classified.kind === "video" &&
+		material !== undefined &&
+		profileId === JIANYING_11_3_BETA4_PROFILE_ID
+	) {
+		const mapped = mapStaticVideo({
+			profileId,
+			material,
+			segment,
+			graph,
+			trackIndex,
+		});
+		capability = combineInteropCapabilities([capability, mapped.capability]);
+		if (mapped.issueCode !== undefined && mapped.reason !== undefined) {
+			issues.push({
+				code: mapped.issueCode,
+				severity: mapped.capability === "blocked" ? "error" : "warning",
+				message: mapped.reason,
+				path: segment.jsonPointer,
+				subjectId: segment.id,
+			});
+			featureMappingIssueAdded = true;
+		}
+	}
 	if (
 		classified.kind === "audio" &&
 		material !== undefined &&
@@ -566,7 +593,7 @@ function normalizeTracks({
 	const tracks: InteropTrack[] = [];
 	const claimedTransitionRefs = new Set<string>();
 	let mainAssigned = false;
-	for (const track of graph.tracks) {
+	for (const [trackIndex, track] of graph.tracks.entries()) {
 		const rawSegments = track.segmentIds
 			.map((segmentId) => graph.segmentsById.get(segmentId))
 			.filter(
@@ -597,6 +624,7 @@ function normalizeTracks({
 				contentFileName,
 				issues,
 				bindings,
+				trackIndex,
 			})
 		);
 		const transitions = normalizeTransitions({
