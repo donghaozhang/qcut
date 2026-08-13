@@ -17,13 +17,18 @@ function readRecord({
 		: undefined;
 }
 
-export function requireJianying113ContentProfile({
+export interface Jianying113ContentIdentity {
+	documentId: string;
+	profileId: Jianying113ProfileId;
+}
+
+export function readJianying113ContentIdentity({
 	contentBytes,
 	profileId,
 }: {
 	contentBytes: Uint8Array;
 	profileId: string;
-}): Jianying113ProfileId {
+}): Jianying113ContentIdentity {
 	const exactProfileId = JIANYING_11_3_PROFILE_IDS.find(
 		(candidate) => candidate === profileId
 	);
@@ -49,6 +54,8 @@ export function requireJianying113ContentProfile({
 		profile === null ||
 		parsedRecord.version !== JIANYING_11_3_SCHEMA_VERSION ||
 		parsedRecord.new_version !== JIANYING_11_3_NEW_VERSION ||
+		typeof parsedRecord.id !== "string" ||
+		parsedRecord.id.length === 0 ||
 		platform?.app_id !== profile.appId ||
 		platform.app_source !== profile.appSource ||
 		typeof platform.app_version !== "string" ||
@@ -59,5 +66,15 @@ export function requireJianying113ContentProfile({
 			"Jianying content does not match the requested exact 11.3 profile."
 		);
 	}
-	return exactProfileId;
+	return { documentId: parsedRecord.id, profileId: exactProfileId };
+}
+
+export function requireJianying113ContentProfile({
+	contentBytes,
+	profileId,
+}: {
+	contentBytes: Uint8Array;
+	profileId: string;
+}): Jianying113ProfileId {
+	return readJianying113ContentIdentity({ contentBytes, profileId }).profileId;
 }
