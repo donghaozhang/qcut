@@ -1,17 +1,10 @@
-import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { performance } from "node:perf_hooks";
-import { promisify } from "node:util";
-import { getFFmpegPath } from "../../electron/ffmpeg/paths.js";
+import { getFFmpegPath, getFFprobePath } from "../../electron/ffmpeg/paths.js";
 import { inspectJianyingFilterPackages } from "../../electron/jianying-filter-package-inspector.js";
 import type { JianyingKnownFilter } from "../../electron/jianying-filter-metadata.js";
-import { createJianyingFilterLocalProvider } from "../../electron/jianying-filter-local-runtime/provider.js";
-import {
-	decodePpm,
-	encodePpm,
-} from "../../electron/jianying-filter-local-runtime/portable-image.js";
 import {
 	createJianyingFilterLocalRenderSession,
 	type JianyingFilterLocalRenderResult,
@@ -25,8 +18,25 @@ import {
 	JIANYING_NATIVE_PORTRAIT_PROFILES,
 	resolveJianyingNativePortraitPackagePath,
 } from "../../electron/native-pipeline/filters/filter-lab-native-portrait.js";
-
-const execFileAsync = promisify(execFile);
+import {
+	compareUiMaskSequence,
+	loadUiMaskManifest,
+	loadUiMaskReference,
+} from "./dual-lut-ui-mask.js";
+import {
+	byteMae,
+	exportSequenceEvidence,
+	maskStatistics,
+	measureByteSequenceChange,
+	requireMask,
+	saveFrameEvidence,
+	verifySourceSwitch,
+} from "./dual-lut-evidence.js";
+import {
+	decodeRealVideoSequence,
+	measureSequenceMotion,
+	type RealVideoFrame,
+} from "./real-video-sequence.js";
 
 export const DUAL_LUT_TARGETS: JianyingKnownFilter[] =
 	JIANYING_NATIVE_PORTRAIT_PROFILES.map((profile) => ({
@@ -34,9 +44,16 @@ export const DUAL_LUT_TARGETS: JianyingKnownFilter[] =
 		categories: [...profile.categories],
 	}));
 
+const MASK_EDGE_VERIFIED_MAX = 0.02;
+const MASK_EDGE_CLOSE_MAX = 0.08;
+
 interface NativeDualLutOptions {
+	frameCount: number;
+	motionStartFrame: number;
+	resourceIds?: string[];
 	runDirectory: string;
-	sourcePath: string;
+	uiMaskManifestPath?: string;
+	videoPath: string;
 }
 
 function requiredValue({
@@ -51,8 +68,12 @@ function requiredValue({
 }
 
 export function parseNativeDualLutArgs({ argv }: { argv: string[] }) {
+	let frameCount = 70;
+	let motionStartFrame: number | undefined;
+	let resourceIds: string[] | undefined;
 	let runDirectory = "";
-	let sourcePath = "";
+	let uiMaskManifestPath = "";
+	let videoPath = "";
 	for (let index = 0; index < argv.length; index += 1) {
 		const argument = argv[index];
 		if (argument === "--run-dir") {
@@ -60,290 +81,119 @@ export function parseNativeDualLutArgs({ argv }: { argv: string[] }) {
 			index += 1;
 			continue;
 		}
-		if (argument === "--source") {
-			sourcePath = requiredValue({ argument, value: argv[index + 1] });
+		if (argument === "--video") {
+			videoPath = requiredValue({ argument, value: argv[index + 1] });
+			index += 1;
+			continue;
+		}
+		if (argument === "--frame-count") {
+			frameCount = Number(requiredValue({ argument, value: argv[index + 1] }));
+			index += 1;
+			continue;
+		}
+		if (argument === "--motion-start-frame") {
+			motionStartFrame = Number(
+				requiredValue({ argument, value: argv[index + 1] })
+			);
+			index += 1;
+			continue;
+		}
+		if (argument === "--ui-mask-manifest") {
+			uiMaskManifestPath = requiredValue({
+				argument,
+				value: argv[index + 1],
+			});
+			index += 1;
+			continue;
+		}
+		if (argument === "--resource-ids") {
+			const values = requiredValue({
+				argument,
+				value: argv[index + 1],
+			})
+				.split(",")
+				.map((value) => value.trim())
+				.filter(Boolean);
+			if (values.length === 0 || new Set(values).size !== values.length) {
+				throw new Error("--resource-ids must contain unique IDs");
+			}
+			const knownIds = new Set(
+				DUAL_LUT_TARGETS.map(({ resourceId }) => resourceId)
+			);
+			const unknownIds = values.filter((value) => !knownIds.has(value));
+			if (unknownIds.length > 0) {
+				throw new Error(
+					`Unknown dual-LUT resource IDs: ${unknownIds.join(", ")}`
+				);
+			}
+			resourceIds = values;
 			index += 1;
 			continue;
 		}
 		throw new Error(`Unknown argument: ${argument}`);
 	}
 	if (!runDirectory) throw new Error("--run-dir is required");
-	if (!sourcePath) throw new Error("--source is required");
-	return { runDirectory, sourcePath } satisfies NativeDualLutOptions;
+	if (!videoPath) throw new Error("--video is required");
+	if (!(Number.isSafeInteger(frameCount) && frameCount >= 2)) {
+		throw new Error("--frame-count must be an integer of at least two");
+	}
+	const resolvedMotionStartFrame =
+		motionStartFrame ?? Math.max(0, frameCount - 10);
+	if (
+		!(
+			Number.isSafeInteger(resolvedMotionStartFrame) &&
+			resolvedMotionStartFrame >= 0 &&
+			resolvedMotionStartFrame < frameCount - 1
+		)
+	) {
+		throw new Error(
+			"--motion-start-frame must leave at least two motion frames"
+		);
+	}
+	return {
+		frameCount,
+		motionStartFrame: resolvedMotionStartFrame,
+		...(resourceIds ? { resourceIds } : {}),
+		runDirectory,
+		videoPath,
+		...(uiMaskManifestPath ? { uiMaskManifestPath } : {}),
+	} satisfies NativeDualLutOptions;
 }
 
 function sha256({ bytes }: { bytes: Uint8Array }) {
 	return createHash("sha256").update(bytes).digest("hex");
 }
 
-export function translateFrame({
-	rgba,
-	width,
-	height,
-	offsetX,
+function maskEdgeStatus({ maskEdgeMae }: { maskEdgeMae: number }) {
+	if (maskEdgeMae <= MASK_EDGE_VERIFIED_MAX) return "verified" as const;
+	if (maskEdgeMae <= MASK_EDGE_CLOSE_MAX) return "close" as const;
+	return "unverified" as const;
+}
+
+async function renderSequence({
+	frames,
+	session,
 }: {
-	rgba: Uint8Array;
-	width: number;
-	height: number;
-	offsetX: number;
+	frames: RealVideoFrame[];
+	session: Awaited<ReturnType<typeof createJianyingFilterLocalRenderSession>>;
 }) {
-	const output = new Uint8Array(rgba.length);
-	for (let y = 0; y < height; y += 1) {
-		for (let x = 0; x < width; x += 1) {
-			const sourceX = Math.min(width - 1, Math.max(0, x - offsetX));
-			const source = (y * width + sourceX) * 4;
-			const destination = (y * width + x) * 4;
-			output.set(rgba.subarray(source, source + 4), destination);
-		}
-	}
-	return output;
-}
-
-export function mirrorFrame({
-	rgba,
-	width,
-	height,
-}: {
-	rgba: Uint8Array;
-	width: number;
-	height: number;
-}) {
-	const output = new Uint8Array(rgba.length);
-	for (let y = 0; y < height; y += 1) {
-		for (let x = 0; x < width; x += 1) {
-			const source = (y * width + (width - x - 1)) * 4;
-			const destination = (y * width + x) * 4;
-			output.set(rgba.subarray(source, source + 4), destination);
-		}
-	}
-	return output;
-}
-
-export function maskStatistics({
-	bytes,
-	width,
-	height,
-}: {
-	bytes: Uint8Array;
-	width: number;
-	height: number;
-}) {
-	let sum = 0;
-	let nonZero = 0;
-	let edgeSum = 0;
-	let edgeSamples = 0;
-	for (let y = 0; y < height; y += 1) {
-		for (let x = 0; x < width; x += 1) {
-			const index = y * width + x;
-			const value = bytes[index];
-			sum += value;
-			if (value > 0) nonZero += 1;
-			if (x + 1 < width) {
-				edgeSum += Math.abs(value - bytes[index + 1]);
-				edgeSamples += 1;
-			}
-			if (y + 1 < height) {
-				edgeSum += Math.abs(value - bytes[index + width]);
-				edgeSamples += 1;
-			}
-		}
-	}
-	return {
-		mean: sum / bytes.length,
-		nonZeroRatio: nonZero / bytes.length,
-		edgeMean: edgeSamples === 0 ? 0 : edgeSum / edgeSamples,
-	};
-}
-
-function byteMae({ left, right }: { left: Uint8Array; right: Uint8Array }) {
-	if (left.length !== right.length) return Number.POSITIVE_INFINITY;
-	let sum = 0;
-	for (let index = 0; index < left.length; index += 1) {
-		sum += Math.abs(left[index] - right[index]);
-	}
-	return sum / left.length;
-}
-
-function encodePgm({
-	bytes,
-	width,
-	height,
-}: {
-	bytes: Uint8Array;
-	width: number;
-	height: number;
-}) {
-	if (bytes.length !== width * height) {
-		throw new Error("Mask frame has the wrong size");
-	}
-	return Buffer.concat([
-		Buffer.from(`P5\n${width} ${height}\n255\n`, "ascii"),
-		bytes,
-	]);
-}
-
-async function convertPortableImage({
-	ffmpegPath,
-	inputPath,
-	outputPath,
-}: {
-	ffmpegPath: string;
-	inputPath: string;
-	outputPath: string;
-}) {
-	await execFileAsync(ffmpegPath, [
-		"-hide_banner",
-		"-loglevel",
-		"error",
-		"-y",
-		"-i",
-		inputPath,
-		outputPath,
-	]);
-}
-
-function requireMask({ result }: { result: JianyingFilterLocalRenderResult }) {
-	if (!result.mask) throw new Error("Native portrait render returned no mask");
-	return result.mask;
-}
-
-async function saveFrameEvidence({
-	directory,
-	ffmpegPath,
-	result,
-}: {
-	directory: string;
-	ffmpegPath: string;
-	result: JianyingFilterLocalRenderResult;
-}) {
-	const mask = requireMask({ result });
-	const framePath = join(directory, "frame.ppm");
-	const framePngPath = join(directory, "frame.png");
-	const maskPath = join(directory, "mask.pgm");
-	const maskPngPath = join(directory, "mask.png");
-	await mkdir(directory, { recursive: true });
-	await Promise.all([
-		writeFile(
-			framePath,
-			encodePpm({
-				rgba: result.rgba,
-				width: result.width,
-				height: result.height,
+	const results: JianyingFilterLocalRenderResult[] = [];
+	const timesMs: number[] = [];
+	const renderFrame = async ({ index }: { index: number }): Promise<void> => {
+		const frame = frames[index];
+		if (!frame) return;
+		const startedAt = performance.now();
+		results.push(
+			await session.render({
+				rgba: frame.rgba,
+				timestampSeconds: frame.timestampSeconds,
 			})
-		),
-		writeFile(
-			maskPath,
-			encodePgm({ bytes: mask.bytes, width: mask.width, height: mask.height })
-		),
-	]);
-	await Promise.all([
-		convertPortableImage({
-			ffmpegPath,
-			inputPath: framePath,
-			outputPath: framePngPath,
-		}),
-		convertPortableImage({
-			ffmpegPath,
-			inputPath: maskPath,
-			outputPath: maskPngPath,
-		}),
-	]);
-}
-
-async function renderFresh({
-	bootstrapRgba,
-	height,
-	packagePath,
-	resourceId,
-	rgba,
-	runtime,
-	timestampSeconds,
-	width,
-}: {
-	bootstrapRgba: Uint8Array;
-	height: number;
-	packagePath: string;
-	resourceId: string;
-	rgba: Uint8Array;
-	runtime: Awaited<ReturnType<typeof inspectJianyingFilterLocalRuntime>>;
-	timestampSeconds: number;
-	width: number;
-}) {
-	const session = await createJianyingFilterLocalRenderSession({
-		resourceId,
-		packagePath,
-		width,
-		height,
-		bootstrapRgba,
-		runtime,
-	});
-	try {
-		return await session.render({ rgba, timestampSeconds });
-	} finally {
-		await session.dispose();
-	}
-}
-
-async function verifySourceSwitch({
-	height,
-	packagePath,
-	resourceId,
-	rgba,
-	runtime,
-	width,
-}: {
-	height: number;
-	packagePath: string;
-	resourceId: string;
-	rgba: Uint8Array;
-	runtime: Awaited<ReturnType<typeof inspectJianyingFilterLocalRuntime>>;
-	width: number;
-}) {
-	const mirrored = mirrorFrame({ rgba, width, height });
-	const provider = createJianyingFilterLocalProvider();
-	try {
-		await provider.render({
-			resourceId,
-			packagePath,
-			width,
-			height,
-			rgba,
-			sourceKey: "clip:a",
-			timestampSeconds: 0,
-		});
-		const switched = await provider.render({
-			resourceId,
-			packagePath,
-			width,
-			height,
-			rgba: mirrored,
-			sourceKey: "clip:b",
-			timestampSeconds: 0,
-		});
-		const fresh = await renderFresh({
-			bootstrapRgba: mirrored,
-			height,
-			packagePath,
-			resourceId,
-			rgba: mirrored,
-			runtime,
-			timestampSeconds: 0,
-			width,
-		});
-		const switchedMask = requireMask({ result: switched });
-		const freshMask = requireMask({ result: fresh });
-		return {
-			rgbaExact:
-				sha256({ bytes: switched.rgba }) === sha256({ bytes: fresh.rgba }),
-			rgbaMae: byteMae({ left: switched.rgba, right: fresh.rgba }),
-			maskExact:
-				sha256({ bytes: switchedMask.bytes }) ===
-				sha256({ bytes: freshMask.bytes }),
-			maskMae: byteMae({ left: switchedMask.bytes, right: freshMask.bytes }),
-		};
-	} finally {
-		provider.clear();
-	}
+		);
+		timesMs.push(performance.now() - startedAt);
+		return renderFrame({ index: index + 1 });
+	};
+	await renderFrame({ index: 0 });
+	return { results, timesMs };
 }
 
 export async function runNativeDualLutParity({
@@ -351,11 +201,31 @@ export async function runNativeDualLutParity({
 }: {
 	options: NativeDualLutOptions;
 }) {
-	const source = decodePpm({ bytes: await readFile(options.sourcePath) });
+	const targets = options.resourceIds
+		? DUAL_LUT_TARGETS.filter(({ resourceId }) =>
+				options.resourceIds?.includes(resourceId)
+			)
+		: DUAL_LUT_TARGETS;
+	const sequence = await decodeRealVideoSequence({
+		videoPath: options.videoPath,
+		frameCount: options.frameCount,
+	});
+	if (sequence.motion.movingPairCount === 0) {
+		throw new Error("Decoded fixture contains no measurable real movement");
+	}
+	const manifest = options.uiMaskManifestPath
+		? await loadUiMaskManifest({
+				manifestPath: options.uiMaskManifestPath,
+				sourceSha256: sequence.sourceSha256,
+				frameCount: sequence.frames.length,
+				width: sequence.width,
+				height: sequence.height,
+			})
+		: null;
 	const references = await listJianyingLutReferences();
 	const [packages, runtime] = await Promise.all([
 		inspectJianyingFilterPackages({
-			filters: DUAL_LUT_TARGETS,
+			filters: targets,
 			references,
 		}),
 		inspectJianyingFilterLocalRuntime({ refresh: true }),
@@ -365,13 +235,9 @@ export async function runNativeDualLutParity({
 	}
 	const cacheRoot = dirname(jianyingEffectCacheRoot());
 	const ffmpegPath = getFFmpegPath();
-	const frames = [
-		source.rgba,
-		translateFrame({ ...source, offsetX: 2 }),
-		translateFrame({ ...source, offsetX: 4 }),
-	];
+	const ffprobePath = await getFFprobePath();
 	const results = [];
-	for (const target of DUAL_LUT_TARGETS) {
+	for (const target of targets) {
 		const renderer = packages.get(target.resourceId)?.nativePortraitRenderer;
 		if (!renderer || renderer.version !== target.version) {
 			results.push({
@@ -389,80 +255,154 @@ export async function runNativeDualLutParity({
 		const session = await createJianyingFilterLocalRenderSession({
 			resourceId: target.resourceId,
 			packagePath,
-			width: source.width,
-			height: source.height,
-			bootstrapRgba: frames[0],
+			width: sequence.width,
+			height: sequence.height,
+			bootstrapRgba: sequence.frames[0].rgba,
 			runtime,
 		});
 		const initializedMs = performance.now() - initializedAt;
-		const frameResults: JianyingFilterLocalRenderResult[] = [];
-		const frameTimesMs: number[] = [];
+		let renderedSequence:
+			| Awaited<ReturnType<typeof renderSequence>>
+			| undefined;
 		try {
-			for (let index = 0; index < frames.length; index += 1) {
-				const startedAt = performance.now();
-				frameResults.push(
-					await session.render({
-						rgba: frames[index],
-						timestampSeconds: index / 30,
-					})
-				);
-				frameTimesMs.push(performance.now() - startedAt);
-			}
+			renderedSequence = await renderSequence({
+				frames: sequence.frames,
+				session,
+			});
 		} finally {
 			await session.dispose();
 		}
+		if (!renderedSequence) throw new Error("Native sequence render failed");
+		const frameResults = renderedSequence.results;
+		const frameTimesMs = renderedSequence.timesMs;
 		const masks = frameResults.map((result) => requireMask({ result }));
+		const lastFrameResult = frameResults.at(-1);
+		const lastMask = masks.at(-1);
+		if (!(lastFrameResult && lastMask)) {
+			throw new Error("Native sequence render returned no frames");
+		}
 		const outputDirectory = join(options.runDirectory, target.resourceId);
+		await mkdir(outputDirectory, { recursive: true });
 		await saveFrameEvidence({
 			directory: outputDirectory,
 			ffmpegPath,
-			result: frameResults[2],
+			result: lastFrameResult,
 		});
+		const exportedVideo = await exportSequenceEvidence({
+			frames: frameResults.map((frame) => frame.rgba),
+			width: sequence.width,
+			height: sequence.height,
+			fps: sequence.fps,
+			ffmpegPath,
+			ffprobePath,
+			outputPath: join(outputDirectory, "real-video-export.mp4"),
+		});
+		const uiReference = manifest
+			? await loadUiMaskReference({ manifest, packagePath })
+			: null;
+		const uiMask = uiReference
+			? await compareUiMaskSequence({
+					nativeMasks: masks,
+					reference: uiReference,
+					candidatePath: join(outputDirectory, "candidate-mask-sequence.gray"),
+				})
+			: null;
+		const uiMaskStatus = uiMask
+			? maskEdgeStatus({ maskEdgeMae: uiMask.maskEdgeMae })
+			: null;
+		if (uiMaskStatus === "unverified") {
+			throw new Error(
+				`${target.title} mask edge MAE ${uiMask?.maskEdgeMae} exceeds ${MASK_EDGE_CLOSE_MAX}`
+			);
+		}
+		const measurementStartFrame =
+			uiReference?.measurementStartFrame ?? options.motionStartFrame;
+		const measuredSourceMotion = measureSequenceMotion({
+			frames: sequence.frames
+				.slice(measurementStartFrame)
+				.map((frame) => frame.rgba),
+		});
+		const measuredMaskMotion = measureByteSequenceChange({
+			frames: masks.slice(measurementStartFrame).map((mask) => mask.bytes),
+		});
+		if (measuredMaskMotion.changedPairCount === 0) {
+			throw new Error(
+				`${target.title} mask did not respond to person movement`
+			);
+		}
+		const sourceSwitch = await verifySourceSwitch({
+			height: sequence.height,
+			packagePath,
+			resourceId: target.resourceId,
+			sourceARgba: sequence.frames[0].rgba,
+			sourceBRgba: sequence.frames.at(-1)?.rgba ?? sequence.frames[0].rgba,
+			runtime,
+			width: sequence.width,
+		});
+		if (!(sourceSwitch.rgbaExact && sourceSwitch.maskExact)) {
+			throw new Error(
+				`${target.title} source switch diverged from a fresh session`
+			);
+		}
 		const result = {
 			status: "ok" as const,
 			...target,
 			processId: session.processId,
 			initializedMs,
 			frameTimesMs,
-			outputSha256: sha256({ bytes: frameResults[2].rgba }),
-			maskSha256: sha256({ bytes: masks[2].bytes }),
-			mask: maskStatistics(masks[2]),
-			maskTemporalMae: [
-				byteMae({ left: masks[0].bytes, right: masks[1].bytes }),
-				byteMae({ left: masks[1].bytes, right: masks[2].bytes }),
-			],
+			outputSha256: sha256({ bytes: lastFrameResult.rgba }),
+			maskSha256: sha256({ bytes: lastMask.bytes }),
+			mask: maskStatistics(lastMask),
+			maskTemporalMae: masks
+				.slice(1)
+				.map((mask, index) =>
+					byteMae({ left: masks[index].bytes, right: mask.bytes })
+				),
+			movement: measuredSourceMotion,
+			maskMovement: measuredMaskMotion,
+			sourceSwitch,
+			exportedVideo,
+			...(uiReference
+				? {
+						uiMaskReference: {
+							algorithmGraphSha256: uiReference.algorithmGraphSha256,
+							label: uiReference.label,
+							maskPath: uiReference.maskPath,
+							maskSha256: uiReference.maskSha256,
+							measurementStartFrame,
+						},
+						uiMask,
+						uiMaskStatus,
+						maskEdgeMae: uiMask?.maskEdgeMae,
+					}
+				: {}),
 		};
 		results.push(result);
 		console.log(
-			`[${results.length}/${DUAL_LUT_TARGETS.length}] ${target.title}: ${frameTimesMs.map((value) => value.toFixed(1)).join("/")} ms`
+			`[${results.length}/${targets.length}] ${target.title}: ${frameTimesMs.length} real frames, edge=${uiMask?.maskEdgeMae.toFixed(6) ?? "missing"}`
 		);
-	}
-	const olympus = results.find(
-		(result) => result.status === "ok" && result.title === "奥林巴斯"
-	);
-	let sourceSwitch = null;
-	if (olympus?.status === "ok") {
-		const renderer = packages.get(olympus.resourceId)?.nativePortraitRenderer;
-		if (renderer) {
-			sourceSwitch = await verifySourceSwitch({
-				height: source.height,
-				packagePath: resolveJianyingNativePortraitPackagePath({
-					cacheRoot,
-					renderer,
-				}),
-				resourceId: olympus.resourceId,
-				rgba: source.rgba,
-				runtime,
-				width: source.width,
-			});
-		}
 	}
 	const report = {
 		generatedAt: new Date().toISOString(),
 		provider: "jianying-local-effect-v1",
 		runtime: runtime.status,
-		source: { width: source.width, height: source.height },
-		sourceSwitch,
+		source: {
+			kind: "real-video" as const,
+			path: options.videoPath,
+			sha256: sequence.sourceSha256,
+			width: sequence.width,
+			height: sequence.height,
+			fps: sequence.fps,
+			frameCount: sequence.frames.length,
+			motion: sequence.motion,
+			motionStartFrame: options.motionStartFrame,
+		},
+		uiMaskManifest: manifest?.manifestPath ?? null,
+		uiMaskThresholds: {
+			verifiedMax: MASK_EDGE_VERIFIED_MAX,
+			closeMax: MASK_EDGE_CLOSE_MAX,
+		},
+		resourceIds: targets.map(({ resourceId }) => resourceId),
 		results,
 	};
 	await mkdir(options.runDirectory, { recursive: true });
