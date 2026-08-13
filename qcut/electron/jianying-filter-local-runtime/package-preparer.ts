@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { cp, readFile, writeFile } from "node:fs/promises";
+import { cp, readFile, readdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const SCRIPT_RELATIVE_PATH = path.join(
@@ -8,7 +8,8 @@ const SCRIPT_RELATIVE_PATH = path.join(
 	"SeekModeScript.lua"
 );
 
-interface NativeMultiPassProfile {
+interface ScriptBootstrapProfile {
+	kind: "script-bootstrap";
 	version: string;
 	scriptSha256: string;
 	bootstrap: ({
@@ -19,6 +20,14 @@ interface NativeMultiPassProfile {
 		intensity: number;
 	}) => string;
 }
+
+interface UnchangedPackageProfile {
+	kind: "unchanged-package";
+	version: string;
+	packageSha256: string;
+}
+
+type NativeMultiPassProfile = ScriptBootstrapProfile | UnchangedPackageProfile;
 
 function replaceExactlyOnce({
 	source,
@@ -42,6 +51,7 @@ function numberLiteral({ value }: { value: number }) {
 
 const MULTI_PASS_PROFILES: Readonly<Record<string, NativeMultiPassProfile>> = {
 	"7403664041945681191": {
+		kind: "script-bootstrap",
 		version: "59f14f9555fc38667c3ddb0814346cc8",
 		scriptSha256:
 			"79a632e90eb31fea308a9bde0af3effdb4eb7774310bd4bdd0c533765ddbf9e0",
@@ -57,6 +67,7 @@ const MULTI_PASS_PROFILES: Readonly<Record<string, NativeMultiPassProfile>> = {
 		},
 	},
 	"7647099764940557618": {
+		kind: "script-bootstrap",
 		version: "29fec8019c1c3fb2e4d8606e10ebb39d",
 		scriptSha256:
 			"e15e1a7f190162aacfd2426d55049815fd06aa1aa57c4779ce9ccfe2fff69945",
@@ -68,6 +79,7 @@ const MULTI_PASS_PROFILES: Readonly<Record<string, NativeMultiPassProfile>> = {
 			}),
 	},
 	"7160594413847203085": {
+		kind: "script-bootstrap",
 		version: "e745e131cff1db913aea07f4098ec8de",
 		scriptSha256:
 			"3e31309e74c274703ba5ef68c095fb1808ebbf502e2dc4ea599a69e9b6e75270",
@@ -84,6 +96,12 @@ const MULTI_PASS_PROFILES: Readonly<Record<string, NativeMultiPassProfile>> = {
 			});
 		},
 	},
+	"7447126702137904420": {
+		kind: "unchanged-package",
+		version: "9673f80b8e2f5a07f02f9ce1130b784a",
+		packageSha256:
+			"9db2974298a914c4a465c4fc42a1e797f4c2e416bd2d9442d2ab57174526f971",
+	},
 };
 
 export interface PreparedJianyingMultiPassPackage {
@@ -91,6 +109,60 @@ export interface PreparedJianyingMultiPassPackage {
 	resourceId: string;
 	version: string;
 	intensity: number;
+	outputBlendIntensity?: number;
+}
+
+function compareFileNames({ left, right }: { left: string; right: string }) {
+	if (left < right) return -1;
+	if (left > right) return 1;
+	return 0;
+}
+
+async function listPackageFiles({
+	root,
+	directory = root,
+	relativeDirectory = "",
+}: {
+	root: string;
+	directory?: string;
+	relativeDirectory?: string;
+}): Promise<string[]> {
+	const entries = (await readdir(directory, { withFileTypes: true })).sort(
+		(left, right) => compareFileNames({ left: left.name, right: right.name })
+	);
+	const files: string[] = [];
+	for (const entry of entries) {
+		const relativePath = relativeDirectory
+			? path.posix.join(relativeDirectory, entry.name)
+			: entry.name;
+		const absolutePath = path.join(root, ...relativePath.split("/"));
+		if (entry.isDirectory()) {
+			files.push(
+				...(await listPackageFiles({
+					root,
+					directory: absolutePath,
+					relativeDirectory: relativePath,
+				}))
+			);
+			continue;
+		}
+		if (!entry.isFile()) {
+			throw new Error("Native multi-pass package contains unsupported entries");
+		}
+		files.push(relativePath);
+	}
+	return files;
+}
+
+async function hashPackageTree({ root }: { root: string }) {
+	const hash = createHash("sha256");
+	for (const relativePath of await listPackageFiles({ root })) {
+		hash.update(relativePath);
+		hash.update("\0");
+		hash.update(await readFile(path.join(root, ...relativePath.split("/"))));
+		hash.update("\0");
+	}
+	return hash.digest("hex");
 }
 
 export function supportsJianyingNativeMultiPass({
@@ -122,10 +194,24 @@ export async function prepareJianyingNativeMultiPassPackage({
 		throw new Error("Native multi-pass intensity must be between 0 and 100");
 	}
 
-	const sourceScriptPath = path.join(packagePath, SCRIPT_RELATIVE_PATH);
-	const sourceScript = await readFile(sourceScriptPath);
-	const scriptSha256 = createHash("sha256").update(sourceScript).digest("hex");
-	if (scriptSha256 !== profile.scriptSha256) {
+	let preparedScript: string | undefined;
+	if (profile.kind === "script-bootstrap") {
+		const sourceScript = await readFile(
+			path.join(packagePath, SCRIPT_RELATIVE_PATH)
+		);
+		const scriptSha256 = createHash("sha256")
+			.update(sourceScript)
+			.digest("hex");
+		if (scriptSha256 !== profile.scriptSha256) {
+			throw new Error("Native multi-pass package changed since verification");
+		}
+		preparedScript = profile.bootstrap({
+			source: sourceScript.toString("utf8"),
+			intensity: intensity / 100,
+		});
+	} else if (
+		(await hashPackageTree({ root: packagePath })) !== profile.packageSha256
+	) {
 		throw new Error("Native multi-pass package changed since verification");
 	}
 
@@ -135,23 +221,23 @@ export async function prepareJianyingNativeMultiPassPackage({
 		errorOnExist: true,
 		force: false,
 	});
-	const normalizedIntensity = intensity / 100;
-	const preparedScript = profile.bootstrap({
-		source: sourceScript.toString("utf8"),
-		intensity: normalizedIntensity,
-	});
-	await writeFile(
-		path.join(preparedPath, SCRIPT_RELATIVE_PATH),
-		preparedScript,
-		{
-			mode: 0o600,
-		}
-	);
+	if (preparedScript !== undefined) {
+		await writeFile(
+			path.join(preparedPath, SCRIPT_RELATIVE_PATH),
+			preparedScript,
+			{
+				mode: 0o600,
+			}
+		);
+	}
 	return {
 		packagePath: preparedPath,
 		resourceId,
 		version: profile.version,
 		intensity,
+		...(profile.kind === "unchanged-package"
+			? { outputBlendIntensity: intensity }
+			: {}),
 	};
 }
 
@@ -166,7 +252,10 @@ export const jianyingFilterPackagePreparerTestUtils = {
 		intensity: number;
 	}) => {
 		const profile = MULTI_PASS_PROFILES[resourceId];
-		if (!profile) throw new Error("Unknown native multi-pass profile");
+		if (!profile || profile.kind !== "script-bootstrap") {
+			throw new Error("Unknown native multi-pass bootstrap profile");
+		}
 		return profile.bootstrap({ source, intensity });
 	},
+	hashPackageTree,
 };
