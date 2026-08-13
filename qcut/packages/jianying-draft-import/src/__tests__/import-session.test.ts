@@ -364,11 +364,15 @@ describe("inspect", () => {
 });
 
 describe("verifyRoundTrip", () => {
+	// beta4's fail-closed local-video gate keeps this minimal synthetic clip
+	// opaque (importedSegmentCount 0); real-shape exact-import coverage lives
+	// in jianying-11-3-beta4-video-session.test.ts. Byte-identity holds for
+	// all three profiles either way.
 	it.each([
-		[JIANYING_11_3_BETA2_APP_VERSION, JIANYING_11_3_BETA2_PROFILE_ID],
-		[JIANYING_11_3_BETA3_APP_VERSION, JIANYING_11_3_BETA3_PROFILE_ID],
-		[JIANYING_11_3_BETA4_APP_VERSION, JIANYING_11_3_BETA4_PROFILE_ID],
-	])("proves a Jianying %s compound import is byte-identical without writing state", async (appVersion, profileId) => {
+		[JIANYING_11_3_BETA2_APP_VERSION, JIANYING_11_3_BETA2_PROFILE_ID, 1],
+		[JIANYING_11_3_BETA3_APP_VERSION, JIANYING_11_3_BETA3_PROFILE_ID, 1],
+		[JIANYING_11_3_BETA4_APP_VERSION, JIANYING_11_3_BETA4_PROFILE_ID, 0],
+	])("proves a Jianying %s compound import is byte-identical without writing state", async (appVersion, profileId, importedSegmentCount) => {
 		const root = await mkdtemp(join(tmpdir(), "qcut-jianying-roundtrip-"));
 		try {
 			await writeJianyingCompoundRoot({ appVersion, root });
@@ -388,7 +392,7 @@ describe("verifyRoundTrip", () => {
 				verification: {
 					byteIdentical: true,
 					contentRelativePath: "draft_content.json",
-					importedSegmentCount: 1,
+					importedSegmentCount,
 					preservedBindingCount: 3,
 					profileId,
 					scope: "active-subdraft-noop",
