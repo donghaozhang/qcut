@@ -20,6 +20,16 @@ import {
 import { registerStateRoutes } from "../claude/http/claude-http-state-routes.js";
 import { registerQCutImportEvidenceRoutes } from "../claude/http/claude-http-import-evidence-routes.js";
 import { registerQCutSameProfileWritebackRoutes } from "../claude/http/claude-http-same-profile-writeback-routes.js";
+import {
+	JIANYING_PROJECT_IMPORT_ROUTE_PATH,
+	JIANYING_PROJECT_IMPORT_ROUTE_TIMEOUT_MS,
+	registerQCutJianyingProjectImportRoutes,
+} from "../claude/http/claude-http-jianying-project-import-routes.js";
+import {
+	JIANYING_PROJECT_EXPORT_ROUTE_PATH,
+	JIANYING_PROJECT_EXPORT_ROUTE_TIMEOUT_MS,
+	registerQCutJianyingProjectExportRoutes,
+} from "../claude/http/claude-http-jianying-project-export-routes.js";
 import { registerSnapshotRoutes } from "../claude/http/claude-http-snapshot-routes.js";
 import { registerAgentPointerRoutes } from "../claude/http/claude-http-pointer-routes.js";
 import {
@@ -76,13 +86,29 @@ import type {
 import { authorizeClaudeHttpRequest } from "../claude/http/claude-http-auth.js";
 import type { QCutPersistedImportEvidenceSnapshot } from "../types/qcut-import-evidence-api.js";
 import type { QCutSameProfileWritebackResult } from "../types/qcut-same-profile-writeback-api.js";
+import type { QCutJianyingProjectImportResult } from "../types/qcut-jianying-project-import-api.js";
+import type { QCutJianyingProjectExportResult } from "../types/qcut-jianying-project-export-api.js";
 
 let server: Server | null = null;
+
+const REQUEST_TIMEOUT_MS = 120_000;
+const LONG_RUNNING_ROUTE_PATHS = new Set([
+	JIANYING_PROJECT_IMPORT_ROUTE_PATH,
+	JIANYING_PROJECT_EXPORT_ROUTE_PATH,
+]);
+// The extra minute keeps the route-level 504 authoritative: the socket-level
+// 408 must never fire before the route's own deadline.
+const LONG_RUNNING_REQUEST_TIMEOUT_MS =
+	Math.max(
+		JIANYING_PROJECT_IMPORT_ROUTE_TIMEOUT_MS,
+		JIANYING_PROJECT_EXPORT_ROUTE_TIMEOUT_MS
+	) + 60_000;
 
 // Type for the requestFromMain function passed in from the utility process entry
 type RequestFromMainFn = (
 	channel: string,
-	data: Record<string, unknown>
+	data: Record<string, unknown>,
+	options?: { timeoutMs?: number }
 ) => Promise<unknown>;
 
 /** Window proxy shape returned by createWindowProxy */
@@ -431,6 +457,22 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 			(await requestFromMain("get-qcut-same-profile-writeback", {
 				request,
 			})) as QCutSameProfileWritebackResult,
+	});
+	registerQCutJianyingProjectImportRoutes(router, {
+		requestImport: async (request) =>
+			(await requestFromMain(
+				"get-qcut-jianying-project-import",
+				{ request },
+				{ timeoutMs: JIANYING_PROJECT_IMPORT_ROUTE_TIMEOUT_MS }
+			)) as QCutJianyingProjectImportResult,
+	});
+	registerQCutJianyingProjectExportRoutes(router, {
+		requestExport: async (request) =>
+			(await requestFromMain(
+				"get-qcut-jianying-project-export",
+				{ request },
+				{ timeoutMs: JIANYING_PROJECT_EXPORT_ROUTE_TIMEOUT_MS }
+			)) as QCutJianyingProjectExportResult,
 	});
 	registerSnapshotRoutes(router, {
 		requestSnapshot: async (request) =>
@@ -853,7 +895,12 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 			res.end();
 			return;
 		}
-		req.setTimeout(120_000, () => {
+		const requestPath = (req.url ?? "").split("?")[0] ?? "";
+		const requestTimeoutMs = LONG_RUNNING_ROUTE_PATHS.has(requestPath)
+			? LONG_RUNNING_REQUEST_TIMEOUT_MS
+			: REQUEST_TIMEOUT_MS;
+		req.setTimeout(requestTimeoutMs, () => {
+			if (res.writableEnded || res.headersSent) return;
 			res.writeHead(408, { "Content-Type": "application/json" });
 			res.end(
 				JSON.stringify({

@@ -35,18 +35,27 @@ import {
 import type { InteropIssue } from "../../draft-interop/issues.js";
 import type { RawNodeBinding } from "../../draft-interop/provenance.js";
 import { CAPCUT_8_1_PROFILE_ID } from "../capcut-8-1-profile.js";
+import { JIANYING_11_3_BETA4_PROFILE_ID } from "../profiles/jianying-11-3-beta4.js";
 import type {
 	RawDraftGraph,
 	RawGraphMaterialNode,
 	RawGraphSegmentNode,
 } from "./graph-reader.js";
-import { mapCapCut81StaticText } from "./capcut-8-1-text-mapper.js";
 import { mapCapCut81SeamTransition } from "./capcut-8-1-transition-mapper.js";
+import { resolveEditableDraftContent } from "./compound-draft.js";
 import { readRawDraftGraph } from "./graph-reader.js";
-import { isRawRecord, type RawDraftContent } from "./raw-types.js";
+import { readDraftProjectSettings } from "./project-settings.js";
+import type { RawDraftContent } from "./raw-types.js";
+import { mapStaticAudio } from "./static-audio-mapper.js";
+import { mapStaticText } from "./static-text-mapper.js";
+import { mapStaticVideo } from "./static-video-mapper.js";
 import { validateRawDraftGraph } from "./validation.js";
 
 const MEDIA_BUCKETS = new Set(["videos", "audios"]);
+const STATIC_TEXT_PROFILE_IDS = new Set([
+	CAPCUT_8_1_PROFILE_ID,
+	JIANYING_11_3_BETA4_PROFILE_ID,
+]);
 
 const SEGMENT_KIND_BY_BUCKET: Record<string, InteropSegmentKind> = {
 	videos: "video",
@@ -151,26 +160,24 @@ function normalizeProject({
 	content,
 	fallbackProjectName,
 	issues,
+	jsonPointerPrefix,
 }: {
 	content: RawDraftContent;
 	fallbackProjectName?: string;
 	issues: InteropIssue[];
+	jsonPointerPrefix: string;
 }): InteropProject {
-	const canvas = isRawRecord(content.canvas_config)
-		? content.canvas_config
-		: undefined;
-	const width = readPositiveNumber(canvas?.width);
-	const height = readPositiveNumber(canvas?.height);
-	const fps = readPositiveNumber(content.fps);
+	const { width, height, fps, durationUs } = readDraftProjectSettings({
+		content,
+	});
 	if (width === undefined || height === undefined || fps === undefined) {
 		issues.push({
 			code: "DOCUMENT_MALFORMED",
 			severity: "error",
 			message: "canvas_config/fps missing or invalid; using placeholders",
-			path: "/canvas_config",
+			path: `${jsonPointerPrefix}/canvas_config`,
 		});
 	}
-	const durationUs = readNonNegativeInteger(content.duration);
 	return {
 		id: readString(content.id) ?? "draft",
 		name: readString(content.name) ?? fallbackProjectName ?? "",
@@ -255,24 +262,72 @@ function classifySegment({
 	return { kind, capability: SEGMENT_CAPABILITY_BY_KIND[kind] };
 }
 
+function inferMixedTrackKind({
+	segments,
+	graph,
+}: {
+	segments: RawGraphSegmentNode[];
+	graph: RawDraftGraph;
+}): InteropTrackKind {
+	if (segments.length === 0) return "unknown";
+	const kinds = segments.map((segment) => {
+		const material =
+			segment.materialId === undefined
+				? undefined
+				: graph.materialsById.get(segment.materialId);
+		return classifySegment({ segment, material }).kind;
+	});
+	if (kinds.every((kind) => kind === "video" || kind === "image")) {
+		return "video";
+	}
+	if (kinds.every((kind) => kind === "audio")) return "audio";
+	return kinds.every((kind) => kind === "text") ? "text" : "unknown";
+}
+
+function resolveTrackKind({
+	profileId,
+	rawType,
+	segments,
+	graph,
+}: {
+	profileId: string;
+	rawType: string | undefined;
+	segments: RawGraphSegmentNode[];
+	graph: RawDraftGraph;
+}): InteropTrackKind {
+	if (
+		profileId === JIANYING_11_3_BETA4_PROFILE_ID &&
+		rawType === "mixed" &&
+		segments.length === 0
+	) {
+		return "video";
+	}
+	if (rawType === "mixed") return inferMixedTrackKind({ segments, graph });
+	return TRACK_KIND_BY_RAW_TYPE[rawType ?? ""] ?? "unknown";
+}
+
 function normalizeSegment({
 	segment,
 	graph,
 	profileId,
 	canvasWidth,
 	canvasHeight,
+	fps,
 	contentFileName,
 	issues,
 	bindings,
+	trackIndex,
 }: {
 	segment: RawGraphSegmentNode;
 	graph: RawDraftGraph;
 	profileId: string;
 	canvasWidth: number;
 	canvasHeight: number;
+	fps: number;
 	contentFileName: string;
 	issues: InteropIssue[];
 	bindings: RawNodeBinding[];
+	trackIndex: number;
 }): InteropSegment {
 	const material =
 		segment.materialId === undefined
@@ -280,19 +335,66 @@ function normalizeSegment({
 			: graph.materialsById.get(segment.materialId);
 	const classified = classifySegment({ segment, material });
 	let capability = classified.capability;
-	let textMappingIssueAdded = false;
+	let featureMappingIssueAdded = false;
 	let text: InteropSegment["text"];
+	let visual: InteropSegment["visual"];
+	if (
+		classified.kind === "video" &&
+		material !== undefined &&
+		profileId === JIANYING_11_3_BETA4_PROFILE_ID
+	) {
+		const mapped = mapStaticVideo({
+			profileId,
+			material,
+			segment,
+			graph,
+			trackIndex,
+			canvasWidth,
+			fps,
+		});
+		capability = combineInteropCapabilities([capability, mapped.capability]);
+		visual = mapped.visual;
+		if (mapped.issueCode !== undefined && mapped.reason !== undefined) {
+			issues.push({
+				code: mapped.issueCode,
+				severity: mapped.capability === "blocked" ? "error" : "warning",
+				message: mapped.reason,
+				path: segment.jsonPointer,
+				subjectId: segment.id,
+			});
+			featureMappingIssueAdded = true;
+		}
+	}
+	if (
+		classified.kind === "audio" &&
+		material !== undefined &&
+		profileId === JIANYING_11_3_BETA4_PROFILE_ID
+	) {
+		const mapped = mapStaticAudio({ profileId, material, segment, graph });
+		capability = combineInteropCapabilities([capability, mapped.capability]);
+		if (mapped.issueCode !== undefined && mapped.reason !== undefined) {
+			issues.push({
+				code: mapped.issueCode,
+				severity: mapped.capability === "blocked" ? "error" : "warning",
+				message: mapped.reason,
+				path: segment.jsonPointer,
+				subjectId: segment.id,
+			});
+			featureMappingIssueAdded = true;
+		}
+	}
 	if (
 		classified.kind === "text" &&
 		material !== undefined &&
-		profileId === CAPCUT_8_1_PROFILE_ID
+		STATIC_TEXT_PROFILE_IDS.has(profileId)
 	) {
-		const mapped = mapCapCut81StaticText({
+		const mapped = mapStaticText({
 			profileId,
 			canvasWidth,
 			canvasHeight,
 			material,
 			segment,
+			graph,
 		});
 		capability = combineInteropCapabilities([capability, mapped.capability]);
 		text = mapped.text;
@@ -303,7 +405,7 @@ function normalizeSegment({
 			path: material.jsonPointer,
 			subjectId: segment.id,
 		});
-		textMappingIssueAdded = true;
+		featureMappingIssueAdded = true;
 		bindings.push({
 			foreignRef: material.id,
 			file: contentFileName,
@@ -344,7 +446,7 @@ function normalizeSegment({
 		targetRange = { start: 0, duration: 0 };
 	}
 
-	if (capability === "downgrade" && !textMappingIssueAdded) {
+	if (capability === "downgrade" && !featureMappingIssueAdded) {
 		issues.push({
 			code: "FEATURE_DOWNGRADED",
 			severity: "warning",
@@ -352,7 +454,7 @@ function normalizeSegment({
 			path: segment.jsonPointer,
 			subjectId: segment.id,
 		});
-	} else if (capability === "opaque" && !textMappingIssueAdded) {
+	} else if (capability === "opaque" && !featureMappingIssueAdded) {
 		issues.push({
 			code: "FEATURE_OPAQUE",
 			severity: "warning",
@@ -392,6 +494,7 @@ function normalizeSegment({
 		},
 		...(speed === undefined ? {} : { speed }),
 		...(text === undefined ? {} : { text }),
+		...(visual === undefined ? {} : { visual }),
 		capability,
 		foreignRef: segment.id,
 	};
@@ -481,6 +584,7 @@ function normalizeTracks({
 	profileId,
 	canvasWidth,
 	canvasHeight,
+	fps,
 	graph,
 	contentFileName,
 	issues,
@@ -489,6 +593,7 @@ function normalizeTracks({
 	profileId: string;
 	canvasWidth: number;
 	canvasHeight: number;
+	fps: number;
 	graph: RawDraftGraph;
 	contentFileName: string;
 	issues: InteropIssue[];
@@ -497,8 +602,18 @@ function normalizeTracks({
 	const tracks: InteropTrack[] = [];
 	const claimedTransitionRefs = new Set<string>();
 	let mainAssigned = false;
-	for (const track of graph.tracks) {
-		const kind = TRACK_KIND_BY_RAW_TYPE[track.type ?? ""] ?? "unknown";
+	for (const [trackIndex, track] of graph.tracks.entries()) {
+		const rawSegments = track.segmentIds
+			.map((segmentId) => graph.segmentsById.get(segmentId))
+			.filter(
+				(segment): segment is RawGraphSegmentNode => segment !== undefined
+			);
+		const kind = resolveTrackKind({
+			profileId,
+			rawType: track.type,
+			segments: rawSegments,
+			graph,
+		});
 		if (kind === "unknown") {
 			issues.push({
 				code: "FEATURE_OPAQUE",
@@ -508,11 +623,6 @@ function normalizeTracks({
 				subjectId: track.id,
 			});
 		}
-		const rawSegments = track.segmentIds
-			.map((segmentId) => graph.segmentsById.get(segmentId))
-			.filter(
-				(segment): segment is RawGraphSegmentNode => segment !== undefined
-			);
 		const segments = rawSegments.map((segment) =>
 			normalizeSegment({
 				segment,
@@ -520,9 +630,11 @@ function normalizeTracks({
 				profileId,
 				canvasWidth,
 				canvasHeight,
+				fps,
 				contentFileName,
 				issues,
 				bindings,
+				trackIndex,
 			})
 		);
 		const transitions = normalizeTransitions({
@@ -571,17 +683,22 @@ function normalizeTracks({
 export function normalizeRawDraft(
 	input: NormalizeRawDraftInput
 ): NormalizeRawDraftResult {
-	const graph = readRawDraftGraph({ content: input.content });
+	const editable = resolveEditableDraftContent({ content: input.content });
+	const graph = readRawDraftGraph({
+		content: editable.content,
+		jsonPointerPrefix: editable.jsonPointerPrefix,
+	});
 	const issues: InteropIssue[] = validateRawDraftGraph({ graph });
 	const bindings: RawNodeBinding[] = [];
 	const restrictedSourcePathsByResourceId: Record<string, string> = {};
 
 	const project = normalizeProject({
-		content: input.content,
+		content: editable.content,
 		...(input.fallbackProjectName === undefined
 			? {}
 			: { fallbackProjectName: input.fallbackProjectName }),
 		issues,
+		jsonPointerPrefix: editable.jsonPointerPrefix,
 	});
 	const resources = normalizeResources({
 		graph,
@@ -593,6 +710,7 @@ export function normalizeRawDraft(
 		profileId: input.source.profileId,
 		canvasWidth: project.width,
 		canvasHeight: project.height,
+		fps: project.fps,
 		graph,
 		contentFileName: input.contentFileName,
 		issues,

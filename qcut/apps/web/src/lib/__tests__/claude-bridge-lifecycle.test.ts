@@ -9,6 +9,14 @@ import {
 	cleanupClaudeTransactionBridge,
 	setupClaudeTransactionBridge,
 } from "@/lib/claude-bridge/claude-transaction-bridge";
+import {
+	cleanupQCutJianyingProjectImportBridge,
+	setupQCutJianyingProjectImportBridge,
+} from "@/lib/claude-bridge/qcut-jianying-project-import-bridge";
+import {
+	cleanupQCutJianyingProjectExportBridge,
+	setupQCutJianyingProjectExportBridge,
+} from "@/lib/claude-bridge/qcut-jianying-project-export-bridge";
 import { setupClaudeBridgeLifecycle } from "@/lib/claude-bridge/claude-bridge-lifecycle";
 
 vi.mock("@/lib/claude-bridge/claude-timeline-bridge", () => ({
@@ -20,6 +28,14 @@ vi.mock("@/lib/claude-bridge/claude-timeline-bridge", () => ({
 vi.mock("@/lib/claude-bridge/claude-transaction-bridge", () => ({
 	setupClaudeTransactionBridge: vi.fn(),
 	cleanupClaudeTransactionBridge: vi.fn(),
+}));
+vi.mock("@/lib/claude-bridge/qcut-jianying-project-export-bridge", () => ({
+	setupQCutJianyingProjectExportBridge: vi.fn(),
+	cleanupQCutJianyingProjectExportBridge: vi.fn(),
+}));
+vi.mock("@/lib/claude-bridge/qcut-jianying-project-import-bridge", () => ({
+	setupQCutJianyingProjectImportBridge: vi.fn(),
+	cleanupQCutJianyingProjectImportBridge: vi.fn(),
 }));
 
 describe("setupClaudeBridgeLifecycle", () => {
@@ -33,12 +49,16 @@ describe("setupClaudeBridgeLifecycle", () => {
 		expect(setupClaudeTransactionBridge).toHaveBeenCalledTimes(1);
 		expect(setupClaudeTimelineBridge).toHaveBeenCalledTimes(1);
 		expect(setupClaudeProjectBridge).toHaveBeenCalledTimes(1);
+		expect(setupQCutJianyingProjectImportBridge).toHaveBeenCalledTimes(1);
+		expect(setupQCutJianyingProjectExportBridge).toHaveBeenCalledTimes(1);
 
 		cleanup();
 
 		expect(cleanupClaudeTransactionBridge).toHaveBeenCalledTimes(1);
 		expect(cleanupClaudeTimelineBridge).toHaveBeenCalledTimes(1);
 		expect(cleanupClaudeProjectBridge).toHaveBeenCalledTimes(1);
+		expect(cleanupQCutJianyingProjectImportBridge).toHaveBeenCalledTimes(1);
+		expect(cleanupQCutJianyingProjectExportBridge).toHaveBeenCalledTimes(1);
 	});
 
 	it("continues setup when timeline bridge setup throws", () => {

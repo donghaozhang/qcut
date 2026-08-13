@@ -61,6 +61,36 @@ export {
 	recoverCapCut81SameProfileWriteback,
 } from "./capcut-8-1-same-profile-transaction.js";
 export { writeCapCut81SameProfileContent } from "./capcut-8-1-same-profile-writer.js";
+
+export {
+	writeJianying113ProjectExport,
+	type Jianying113ProjectExportGuardContext,
+	type Jianying113ProjectExportResult,
+	type WriteJianying113ProjectExportOptions,
+} from "./jianying-11-3-project-export-writer.js";
+
+export {
+	failJianying113RegisteredProjectWriteback,
+	Jianying113RegisteredProjectWritebackError,
+	type Jianying113RegisteredProjectGuardContext,
+	type Jianying113RegisteredProjectRecoveryResult,
+	type Jianying113RegisteredProjectWritebackErrorCode,
+	type Jianying113RegisteredProjectWritebackInstrumentation,
+	type Jianying113RegisteredProjectWritebackResult,
+	type RecoverJianying113RegisteredProjectWritebackOptions,
+	type WriteJianying113RegisteredProjectContentOptions,
+} from "./jianying-11-3-registered-project-contract.js";
+
+export {
+	jianying113RegisteredProjectWriterTesting,
+	recoverJianying113RegisteredProjectWriteback,
+	writeJianying113RegisteredProjectContent,
+} from "./jianying-11-3-registered-project-writer.js";
+
+export {
+	inspectJianying113ProjectSource,
+	type Jianying113ProjectSource,
+} from "./jianying-11-3-project-source.js";
 export {
 	StandaloneJianyingDraftExportSession,
 	StandaloneJianyingDraftPlanBlockedError,

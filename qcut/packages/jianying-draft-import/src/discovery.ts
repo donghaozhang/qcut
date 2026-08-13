@@ -14,7 +14,14 @@
 
 import { lstat, readdir, realpath } from "node:fs/promises";
 import { join } from "node:path";
-import type { DraftSourceFileRole } from "@qcut/editor-core/draft-interop";
+import type {
+	DraftSourceFileRole,
+	InteropIssue,
+} from "@qcut/editor-core/draft-interop";
+import {
+	resolveDraftSourceRoot,
+	type DraftSourceScope,
+} from "./source-root-resolver.js";
 
 export const MAX_DISCOVERY_ENTRIES = 8192;
 export const MAX_DISCOVERY_DEPTH = 2;
@@ -53,8 +60,14 @@ export interface SkippedDraftEntry {
 }
 
 export interface DraftDiscoveryResult {
+	/** Canonical path originally selected by the user. */
+	requestedRootRealPath: string;
 	/** Canonical (realpath) draft root all reads must stay inside. */
 	rootRealPath: string;
+	sourceScope: DraftSourceScope;
+	subdraftCandidateCount: number;
+	selectedSubdraftId?: string;
+	issues: InteropIssue[];
 	files: DiscoveredDraftFile[];
 	skipped: SkippedDraftEntry[];
 	/** True when at least one candidate content file was found. */
@@ -154,20 +167,31 @@ export async function discoverDraftDirectory({
 }: {
 	draftDirectory: string;
 }): Promise<DraftDiscoveryResult> {
-	const rootRealPath = await realpath(draftDirectory);
-	const rootMetadata = await lstat(rootRealPath);
+	const requestedRootRealPath = await realpath(draftDirectory);
+	const rootMetadata = await lstat(requestedRootRealPath);
 	if (!rootMetadata.isDirectory()) {
 		throw new Error("Draft path is not a directory.");
 	}
+	const resolvedRoot = await resolveDraftSourceRoot({
+		rootRealPath: requestedRootRealPath,
+		maxEntries: MAX_DISCOVERY_ENTRIES,
+	});
 	const state: DraftDiscoveryResult & { entryCount: number } = {
-		rootRealPath,
+		requestedRootRealPath,
+		rootRealPath: resolvedRoot.rootRealPath,
+		sourceScope: resolvedRoot.sourceScope,
+		subdraftCandidateCount: resolvedRoot.subdraftCandidateCount,
+		...(resolvedRoot.selectedSubdraftId === undefined
+			? {}
+			: { selectedSubdraftId: resolvedRoot.selectedSubdraftId }),
+		issues: [...resolvedRoot.issues],
 		files: [],
 		skipped: [],
 		hasContentFile: false,
 		entryCount: 0,
 	};
 	await scanDirectory({
-		absoluteDirectory: rootRealPath,
+		absoluteDirectory: resolvedRoot.rootRealPath,
 		relativeDirectory: "",
 		depth: 0,
 		state,

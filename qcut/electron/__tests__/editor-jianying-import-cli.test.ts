@@ -1,20 +1,30 @@
 import { join, posix, win32 } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { QCUT_JIANYING_PROJECT_IMPORT_RESULT_SCHEMA } from "../types/qcut-jianying-project-import-api";
 import { getCommand } from "../native-pipeline/cli/command-registry.js";
 import { resolveCommandGroup } from "../native-pipeline/cli/command-groups.js";
 import {
 	executeJianyingImportCommand,
+	executeLiveJianyingImportCommand,
 	resolveBundledImportRuntimePath,
 	resolveQCutCliUserDataDirectory,
+	routeJianyingImportCommand,
 } from "../native-pipeline/editor/editor-handlers-jianying-import.js";
+import type { EditorApiClient } from "../native-pipeline/editor/editor-api-client.js";
 import { makeOpts } from "./editor-cli-test-setup.js";
 
 /** JYI-012 acceptance (CLI side): registration, dispatch, offline handler. */
 
-const ACTIONS = ["inspect", "plan", "commit"] as const;
+const ACTIONS = [
+	"inspect",
+	"plan",
+	"import",
+	"commit",
+	"verify-roundtrip",
+] as const;
 
 describe("jianying-import command registration", () => {
-	it("registers all three commands in the registry", () => {
+	it("registers all Jianying import commands in the registry", () => {
 		for (const action of ACTIONS) {
 			const command = getCommand(`editor:jianying-import:${action}`);
 			expect(command, action).toBeDefined();
@@ -31,6 +41,36 @@ describe("jianying-import command registration", () => {
 			"/tmp/x",
 		]);
 		expect(resolved?.command).toBe("editor:jianying-import:inspect");
+	});
+
+	it("resolves the concise draft import command", () => {
+		const resolved = resolveCommandGroup([
+			"draft",
+			"import",
+			"--format",
+			"jianying",
+			"--draft",
+			"/tmp/x",
+		]);
+		expect(resolved).toEqual({
+			command: "editor:jianying-import:import",
+			remainingArgs: ["--format", "jianying", "--draft", "/tmp/x"],
+		});
+	});
+
+	it("resolves the concise Jianying round-trip verification command", () => {
+		const resolved = resolveCommandGroup([
+			"draft",
+			"verify-roundtrip",
+			"--format",
+			"jianying",
+			"--draft",
+			"/tmp/x",
+		]);
+		expect(resolved).toEqual({
+			command: "editor:jianying-import:verify-roundtrip",
+			remainingArgs: ["--format", "jianying", "--draft", "/tmp/x"],
+		});
 	});
 });
 
@@ -49,13 +89,41 @@ describe("executeJianyingImportCommand", () => {
 
 			async inspect({ input }: { input: unknown }) {
 				calls.push({ verb: "inspect", input });
-				return { outcome: "exact" };
+				return { outcome: "exact", product: "jianying" };
+			}
+
+			async verifyRoundTrip({ input }: { input: unknown }) {
+				calls.push({ verb: "verify-roundtrip", input });
+				return {
+					inspect: { outcome: "exact", product: "jianying" },
+					result: {
+						ok: true,
+						verification: {
+							byteIdentical: true,
+							contentRelativePath: "draft_content.json",
+							scope: "active-subdraft-noop",
+							targetAppPersistenceVerified: false,
+							writebackPerformed: false,
+						},
+					},
+				};
 			}
 
 			async plan({ input }: { input: unknown }) {
 				calls.push({ verb: "plan", input });
 				return {
-					plan: { planToken: "token" },
+					plan: {
+						planToken: "token",
+						canCommit: true,
+						warningFingerprints: ["warning"],
+					},
+					inspect: {
+						outcome: "exact",
+						product: "jianying",
+						sourceScope: "compound-subdraft",
+						subdraftCandidateCount: 1,
+						selectedSubdraftId: "compound-1",
+					},
 					cacheMetrics: {
 						assetResolution: {
 							schemaVersion: 1,
@@ -80,7 +148,10 @@ describe("executeJianyingImportCommand", () => {
 			async commitWithMediaGrants({ input }: { input: unknown }) {
 				calls.push({ verb: "commit-grants", input });
 				return {
-					bundle: { planToken: "token" },
+					bundle: {
+						planToken: "token",
+						document: { source: { product: "jianying" } },
+					},
 					mediaGrants: [{ grantToken: "grant-token" }],
 				};
 			}
@@ -138,6 +209,43 @@ describe("executeJianyingImportCommand", () => {
 			input: { draftPath: "/drafts/my-draft" },
 		});
 		expect(runtime.calls.at(-1)?.verb).toBe("dispose");
+	});
+
+	it("runs Jianying round-trip verification offline and read-only", async () => {
+		const runtime = createRuntime();
+		const result = await executeJianyingImportCommand({
+			options: makeOpts({
+				command: "editor:jianying-import:verify-roundtrip",
+				draftPaths: ["/drafts/my-draft"],
+				format: "jianying",
+			}),
+			loadRuntime: async () => runtime.module,
+			getUserDataDirectory: () => "/qcut-user-data",
+		});
+
+		expect(result).toMatchObject({
+			success: true,
+			data: {
+				action: "verify-roundtrip",
+				localOnly: true,
+				readOnly: true,
+				result: {
+					result: {
+						ok: true,
+						verification: {
+							byteIdentical: true,
+							scope: "active-subdraft-noop",
+							targetAppPersistenceVerified: false,
+							writebackPerformed: false,
+						},
+					},
+				},
+			},
+		});
+		expect(runtime.calls[0]).toEqual({
+			verb: "verify-roundtrip",
+			input: { draftPath: "/drafts/my-draft" },
+		});
 	});
 
 	it("requires --draft for inspect and plan", async () => {
@@ -201,7 +309,9 @@ describe("executeJianyingImportCommand", () => {
 			success: true,
 			data: {
 				action: "commit",
+				envelopeStatus: "not-captured",
 				queuedForDesktop: true,
+				reversible: false,
 				inboxEntry: { entryId: "entry-1" },
 			},
 		});
@@ -221,7 +331,10 @@ describe("executeJianyingImportCommand", () => {
 				input: {
 					inboxDirectory: join("/qcut-user-data", "jianying-import", "inbox"),
 					commit: {
-						bundle: { planToken: "token" },
+						bundle: {
+							planToken: "token",
+							document: { source: { product: "jianying" } },
+						},
 						mediaGrants: [{ grantToken: "grant-token" }],
 					},
 				},
@@ -232,6 +345,45 @@ describe("executeJianyingImportCommand", () => {
 				input: { grantTokens: ["grant-token"] },
 			},
 		]);
+	});
+
+	it("plans and queues a Jianying draft through the concise import command", async () => {
+		const runtime = createRuntime();
+		const result = await executeJianyingImportCommand({
+			options: makeOpts({
+				command: "editor:jianying-import:import",
+				draftPaths: ["/drafts/my-draft"],
+				format: "jianying",
+				acceptedWarningFingerprints: ["warning"],
+			}),
+			loadRuntime: async () => runtime.module,
+			getUserDataDirectory: () => "/qcut-user-data",
+		});
+
+		expect(result).toMatchObject({
+			success: true,
+			data: {
+				action: "import",
+				envelopeStatus: "not-captured",
+				queuedForDesktop: true,
+				reversible: false,
+				sourceScope: "compound-subdraft",
+				subdraftCandidateCount: 1,
+				selectedSubdraftId: "compound-1",
+				inboxEntry: { entryId: "entry-1" },
+			},
+		});
+		expect(runtime.calls[0]).toEqual({
+			verb: "plan",
+			input: { draftPath: "/drafts/my-draft" },
+		});
+		expect(runtime.calls[1]).toEqual({
+			verb: "commit-grants",
+			input: {
+				planToken: "token",
+				acceptedWarningFingerprints: ["warning"],
+			},
+		});
 	});
 
 	it("releases media grants when inbox streaming fails", async () => {
@@ -281,6 +433,167 @@ describe("executeJianyingImportCommand", () => {
 		});
 		expect(result.success).toBe(false);
 		expect(result.error).toContain("not a directory");
+	});
+
+	it("rejects an exact CapCut profile from the Jianying command", async () => {
+		class CapCutSession {
+			async inspect() {
+				return { outcome: "exact", product: "capcut" };
+			}
+
+			dispose() {}
+		}
+		const result = await executeJianyingImportCommand({
+			options: makeOpts({
+				command: "editor:jianying-import:inspect",
+				draftPaths: ["/drafts/capcut"],
+			}),
+			loadRuntime: async () => ({
+				JianyingDraftImportSession: CapCutSession,
+				enqueueDesktopImportFromGrants: async () => ({ entryId: "unused" }),
+			}),
+			getUserDataDirectory: () => "/qcut-user-data",
+		});
+
+		expect(result).toMatchObject({
+			success: false,
+			error: expect.stringContaining("not verified as Jianying"),
+		});
+	});
+
+	it("rejects a CapCut format before loading the runtime", async () => {
+		const runtime = createRuntime();
+		const result = await executeJianyingImportCommand({
+			options: makeOpts({
+				command: "editor:jianying-import:import",
+				draftPaths: ["/drafts/capcut"],
+				format: "capcut",
+			}),
+			loadRuntime: async () => runtime.module,
+		});
+
+		expect(result).toMatchObject({
+			success: false,
+			error: expect.stringContaining('must be "jianying"'),
+		});
+		expect(runtime.calls).toEqual([]);
+	});
+});
+
+describe("live Jianying import CLI transport", () => {
+	function createClient({
+		healthy = true,
+		postResult,
+	}: {
+		healthy?: boolean;
+		postResult?: unknown;
+	} = {}): EditorApiClient {
+		return {
+			checkHealth: vi.fn(async () => healthy),
+			post: vi.fn(async () => postResult),
+		} as unknown as EditorApiClient;
+	}
+
+	it("imports through a running QCut instance with a long request timeout", async () => {
+		const client = createClient({
+			postResult: {
+				outcome: "imported",
+				profileId: "jianying-macos-11.3.0-beta2-plaintext-subdraft",
+				projectId: "project-1",
+				reversible: true,
+				schema: QCUT_JIANYING_PROJECT_IMPORT_RESULT_SCHEMA,
+				schemaVersion: 1,
+				sourceScope: "compound-subdraft",
+				warningFingerprints: ["a".repeat(64)],
+			},
+		});
+		const abortController = new AbortController();
+		const result = await executeLiveJianyingImportCommand({
+			client,
+			options: makeOpts({
+				acceptedWarningFingerprints: ["a".repeat(64)],
+				command: "editor:jianying-import:import",
+				draftPaths: ["/drafts/my-draft"],
+				format: "jianying",
+			}),
+			signal: abortController.signal,
+		});
+
+		expect(client.post).toHaveBeenCalledWith(
+			"/api/claude/interop/jianying-project-import",
+			{
+				acceptedWarningFingerprints: ["a".repeat(64)],
+				draftPath: "/drafts/my-draft",
+			},
+			{ signal: abortController.signal, timeout: 30 * 60 * 1000 }
+		);
+		expect(result).toMatchObject({
+			success: true,
+			data: {
+				liveDesktop: true,
+				outcome: "imported",
+				projectId: "project-1",
+				queuedForDesktop: false,
+				reversible: true,
+			},
+		});
+	});
+
+	it("surfaces warning acceptance blocks as CLI failures", async () => {
+		const client = createClient({
+			postResult: {
+				blockerFingerprints: [],
+				message: "Warnings require acceptance.",
+				outcome: "blocked",
+				reason: "warning-acceptance-required",
+				schema: QCUT_JIANYING_PROJECT_IMPORT_RESULT_SCHEMA,
+				schemaVersion: 1,
+				warningFingerprints: ["a".repeat(64)],
+			},
+		});
+		const result = await executeLiveJianyingImportCommand({
+			client,
+			options: makeOpts({
+				command: "editor:jianying-import:import",
+				draftPaths: ["/drafts/my-draft"],
+			}),
+		});
+
+		expect(result).toMatchObject({
+			error: "Warnings require acceptance.",
+			success: false,
+			data: { reason: "warning-acceptance-required" },
+		});
+	});
+
+	it("uses live import only when the desktop is reachable", async () => {
+		const options = makeOpts({
+			command: "editor:jianying-import:import",
+			draftPaths: ["/drafts/my-draft"],
+		});
+		const liveResult = { success: true as const, data: { live: true } };
+		const offlineResult = { success: true as const, data: { offline: true } };
+		const executeLive = vi.fn(async () => liveResult);
+		const executeOffline = vi.fn(async () => offlineResult);
+
+		await expect(
+			routeJianyingImportCommand({
+				client: createClient({ healthy: true }),
+				executeLive,
+				executeOffline,
+				options,
+			})
+		).resolves.toEqual(liveResult);
+		await expect(
+			routeJianyingImportCommand({
+				client: createClient({ healthy: false }),
+				executeLive,
+				executeOffline,
+				options,
+			})
+		).resolves.toEqual(offlineResult);
+		expect(executeLive).toHaveBeenCalledTimes(1);
+		expect(executeOffline).toHaveBeenCalledTimes(1);
 	});
 });
 

@@ -1,8 +1,17 @@
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { buildJianyingDraft } from "@qcut/editor-core/jianying-draft";
+import {
+	buildJianyingDraft,
+	JIANYING_11_3_BETA2_APP_VERSION,
+	JIANYING_11_3_BETA2_PROFILE_ID,
+	JIANYING_11_3_BETA2_TOP_LEVEL_KEYS,
+	JIANYING_11_3_BETA3_APP_VERSION,
+	JIANYING_11_3_BETA3_PROFILE_ID,
+	JIANYING_11_3_BETA4_APP_VERSION,
+	JIANYING_11_3_BETA4_PROFILE_ID,
+} from "@qcut/editor-core/jianying-draft";
 import type { QCutDraftExportSnapshotV1 } from "@qcut/editor-core/jianying-draft";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { ImportPlanConsumedError } from "../import-plan-store.js";
@@ -93,6 +102,200 @@ async function writeSyntheticDraft(): Promise<void> {
 	await writeFile(join(draftRoot, "assets", "clip.mp4"), "media-bytes");
 }
 
+async function writeJianyingCompoundRoot({
+	appVersion = JIANYING_11_3_BETA2_APP_VERSION,
+	root,
+}: {
+	appVersion?: string;
+	root: string;
+}): Promise<void> {
+	const durationUs = 3_000_000;
+	const subdraftId = "compound-1";
+	const mediaPath = join(root, "clip.mp4");
+	await writeFile(mediaPath, "compound-media");
+	await mkdir(join(root, "Timelines"));
+	await writeFile(
+		join(root, "Timelines", "project.json"),
+		JSON.stringify({ main_timeline_id: "timeline-1", timelines: [] })
+	);
+	await writeFile(join(root, "draft_info.json"), Buffer.from([0xff, 0x00]));
+	const subdraftRoot = join(root, "subdraft", subdraftId);
+	await mkdir(subdraftRoot, { recursive: true });
+
+	const innerDraft = {
+		id: subdraftId,
+		name: "Compound Clip 1",
+		canvas_config: { width: 1280, height: 720 },
+		duration: durationUs,
+		fps: 30,
+		tracks: [
+			{
+				id: "inner-track",
+				type: "mixed",
+				segments: [
+					{
+						id: "inner-segment",
+						material_id: "inner-video",
+						extra_material_refs: [],
+						source_timerange: { start: 0, duration: durationUs },
+						target_timerange: { start: 0, duration: durationUs },
+						speed: 1,
+					},
+				],
+			},
+		],
+		materials: {
+			videos: [
+				{
+					id: "inner-video",
+					type: "video",
+					duration: durationUs,
+					material_name: "clip.mp4",
+					path: mediaPath,
+				},
+			],
+		},
+	};
+	const content: Record<string, unknown> = Object.fromEntries(
+		JIANYING_11_3_BETA2_TOP_LEVEL_KEYS.map((key) => [key, null])
+	);
+	Object.assign(content, {
+		id: "outer-wrapper",
+		name: "",
+		canvas_config: { width: 0, height: 0 },
+		duration: 0,
+		fps: 30,
+		version: 360_000,
+		new_version: "183.0.0",
+		platform: { app_id: 0, app_source: "", app_version: "" },
+		last_modified_platform: {
+			app_id: 3704,
+			app_source: "lv",
+			app_version: appVersion,
+		},
+		tracks: [
+			{
+				id: "outer-track",
+				type: "mixed",
+				segments: [
+					{
+						id: "outer-segment",
+						material_id: "outer-video",
+						extra_material_refs: ["compound-material"],
+						source_timerange: { start: 0, duration: durationUs },
+						target_timerange: { start: 0, duration: durationUs },
+						speed: 1,
+					},
+				],
+			},
+		],
+		materials: {
+			drafts: [
+				{
+					id: "compound-material",
+					draft: innerDraft,
+					type: "combination",
+				},
+			],
+			videos: [
+				{
+					id: "outer-video",
+					type: "video",
+					duration: durationUs,
+					path: "",
+				},
+			],
+		},
+	});
+	await writeFile(
+		join(subdraftRoot, "draft_content.json"),
+		JSON.stringify(content)
+	);
+}
+
+async function writeJianyingStaticTextCompoundRoot({
+	root,
+}: {
+	root: string;
+}): Promise<void> {
+	await writeJianyingCompoundRoot({
+		appVersion: JIANYING_11_3_BETA4_APP_VERSION,
+		root,
+	});
+	const contentPath = join(
+		root,
+		"subdraft",
+		"compound-1",
+		"draft_content.json"
+	);
+	const content = JSON.parse(await readFile(contentPath, "utf8")) as {
+		materials: {
+			drafts: Array<{
+				draft: {
+					materials: Record<string, unknown>;
+					tracks: Array<{ segments: Array<Record<string, unknown>> }>;
+				};
+			}>;
+		};
+	};
+	const inner = content.materials.drafts[0]?.draft;
+	if (inner === undefined)
+		throw new Error("compound fixture has no inner draft");
+	const text = "QCut Plain 123 ";
+	inner.materials = {
+		material_animations: [
+			{
+				animations: [],
+				id: "text-animation",
+				type: "sticker_animation",
+			},
+		],
+		texts: [
+			{
+				alignment: 1,
+				background_style: 0,
+				content: JSON.stringify({
+					styles: [
+						{
+							fill: {
+								content: { solid: { color: [1, 1, 1] } },
+							},
+							font: { path: "built-in-system-font" },
+							range: [0, text.length],
+							size: 15,
+						},
+					],
+					text,
+				}),
+				font_size: 15,
+				font_title: "none",
+				global_alpha: 1,
+				id: "inner-text",
+				letter_spacing: 0,
+				line_max_width: 0.82,
+				text_color: "#FFFFFF",
+				type: "text",
+			},
+		],
+	};
+	const segment = inner.tracks[0]?.segments[0];
+	if (segment === undefined) throw new Error("compound fixture has no segment");
+	Object.assign(segment, {
+		clip: {
+			alpha: 1,
+			flip: { horizontal: false, vertical: false },
+			rotation: 0,
+			scale: { x: 1, y: 1 },
+			transform: { x: 0, y: 0 },
+		},
+		common_keyframes: [],
+		extra_material_refs: ["text-animation"],
+		keyframe_refs: [],
+		material_id: "inner-text",
+	});
+	await writeFile(contentPath, JSON.stringify(content));
+}
+
 beforeEach(async () => {
 	draftRoot = await mkdtemp(join(tmpdir(), "qcut-session-test-"));
 	planStoreRoot = await mkdtemp(join(tmpdir(), "qcut-session-store-test-"));
@@ -157,6 +360,82 @@ describe("inspect", () => {
 		} finally {
 			await rm(foreignRoot, { recursive: true, force: true });
 		}
+	});
+});
+
+describe("verifyRoundTrip", () => {
+	// beta4's fail-closed local-video gate keeps this minimal synthetic clip
+	// opaque (importedSegmentCount 0); real-shape exact-import coverage lives
+	// in jianying-11-3-beta4-video-session.test.ts. Byte-identity holds for
+	// all three profiles either way.
+	it.each([
+		[JIANYING_11_3_BETA2_APP_VERSION, JIANYING_11_3_BETA2_PROFILE_ID, 1],
+		[JIANYING_11_3_BETA3_APP_VERSION, JIANYING_11_3_BETA3_PROFILE_ID, 1],
+		[JIANYING_11_3_BETA4_APP_VERSION, JIANYING_11_3_BETA4_PROFILE_ID, 0],
+	])("proves a Jianying %s compound import is byte-identical without writing state", async (appVersion, profileId, importedSegmentCount) => {
+		const root = await mkdtemp(join(tmpdir(), "qcut-jianying-roundtrip-"));
+		try {
+			await writeJianyingCompoundRoot({ appVersion, root });
+
+			const verification = await session.verifyRoundTrip({
+				input: { draftPath: root },
+			});
+
+			expect(verification.inspect).toMatchObject({
+				outcome: "exact",
+				product: "jianying",
+				sourceScope: "compound-subdraft",
+				selectedSubdraftId: "compound-1",
+			});
+			expect(verification.result).toMatchObject({
+				ok: true,
+				verification: {
+					byteIdentical: true,
+					contentRelativePath: "draft_content.json",
+					importedSegmentCount,
+					preservedBindingCount: 3,
+					profileId,
+					scope: "active-subdraft-noop",
+					targetAppPersistenceVerified: false,
+					writebackPerformed: false,
+				},
+			});
+			expect(JSON.stringify(verification)).not.toContain(root);
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
+	});
+
+	it("accepts a beta4 static-text projection without claiming text writeback", async () => {
+		const root = await mkdtemp(join(tmpdir(), "qcut-jianying-text-roundtrip-"));
+		try {
+			await writeJianyingStaticTextCompoundRoot({ root });
+
+			const verification = await session.verifyRoundTrip({
+				input: { draftPath: root },
+			});
+
+			expect(verification.result).toMatchObject({
+				ok: true,
+				verification: {
+					byteIdentical: true,
+					importedSegmentCount: 1,
+					preservedBindingCount: 3,
+					profileId: JIANYING_11_3_BETA4_PROFILE_ID,
+					scope: "active-subdraft-noop",
+					targetAppPersistenceVerified: false,
+					writebackPerformed: false,
+				},
+			});
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
+	});
+
+	it("refuses to label an older plaintext profile as 11.3-compatible", async () => {
+		await expect(
+			session.verifyRoundTrip({ input: { draftPath: draftRoot } })
+		).rejects.toMatchObject({ code: "profile-not-exact" });
 	});
 });
 
@@ -236,6 +515,31 @@ describe("plan", () => {
 });
 
 describe("commit", () => {
+	it("rebuilds an auto-selected compound plan from the requested root", async () => {
+		const root = await mkdtemp(join(tmpdir(), "qcut-jianying-session-root-"));
+		try {
+			await writeJianyingCompoundRoot({ root });
+			const plan = await session.plan({ input: { draftPath: root } });
+			expect(plan.inspect).toMatchObject({
+				outcome: "exact",
+				sourceScope: "compound-subdraft",
+				selectedSubdraftId: "compound-1",
+			});
+			expect(plan.plan.warningFingerprints).toHaveLength(1);
+
+			const commit = await session.commit({
+				input: {
+					planToken: plan.plan.planToken,
+					acceptedWarningFingerprints: [...plan.plan.warningFingerprints],
+				},
+			});
+			expect(commit.bundle.document.source.product).toBe("jianying");
+			expect(commit.mediaPayloads).toHaveLength(1);
+		} finally {
+			await rm(root, { recursive: true, force: true });
+		}
+	});
+
 	it("returns the bundle and media payloads exactly once", async () => {
 		const plan = await session.plan({ input: { draftPath: draftRoot } });
 		const commit = await session.commit({

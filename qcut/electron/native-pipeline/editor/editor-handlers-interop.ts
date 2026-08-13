@@ -4,6 +4,8 @@ import type { CLIRunOptions, CLIResult } from "../cli/cli-runner/types.js";
 import { parseQCutPersistedImportEvidenceSnapshot } from "../../types/qcut-import-evidence-validation.js";
 import type { QCutSameProfileWritebackResult } from "../../types/qcut-same-profile-writeback-api.js";
 import { parseQCutSameProfileWritebackResult } from "../../types/qcut-same-profile-writeback-validation.js";
+import type { QCutJianyingProjectExportResult } from "../../types/qcut-jianying-project-export-api.js";
+import { parseQCutJianyingProjectExportResult } from "../../types/qcut-jianying-project-export-validation.js";
 import type { EditorApiClient } from "./editor-api-client.js";
 
 const CAPTURE_TIMEOUT_MS = 30 * 60 * 1000;
@@ -29,6 +31,19 @@ function requireProjectId({ value }: { value: string | undefined }): string {
 		throw new InteropArgumentError("Missing --project-id");
 	}
 	return value;
+}
+
+function requireJianyingFormat({
+	value,
+}: {
+	value: string | undefined;
+}): "jianying" {
+	if (value === undefined || value.trim().toLowerCase() === "jianying") {
+		return "jianying";
+	}
+	throw new InteropArgumentError(
+		"--format must be 'jianying' for persisted draft export"
+	);
 }
 
 function requireRecoveryToken({
@@ -58,6 +73,42 @@ function toCLIWritebackResult({
 		return { data: result, error: result.message, success: false };
 	}
 	return { data: result, success: true };
+}
+
+function toCLIProjectExportResult({
+	result,
+}: {
+	result: QCutJianyingProjectExportResult;
+}): CLIResult {
+	if (result.outcome === "blocked" || result.outcome === "failed") {
+		return { data: result, error: result.message, success: false };
+	}
+	return { data: result, success: true };
+}
+
+async function handleJianyingProjectExport({
+	client,
+	options,
+}: {
+	client: EditorApiClient;
+	options: CLIRunOptions;
+}): Promise<CLIResult> {
+	requireJianyingFormat({ value: options.format });
+	const projectId = requireProjectId({ value: options.projectId });
+	const result = parseQCutJianyingProjectExportResult({
+		value: await client.post(
+			"/api/claude/interop/jianying-project-export",
+			{ projectId },
+			{ timeout: CAPTURE_TIMEOUT_MS }
+		),
+	});
+	if (result.projectId !== projectId) {
+		return {
+			error: "Jianying export result does not match the requested project.",
+			success: false,
+		};
+	}
+	return toCLIProjectExportResult({ result });
 }
 
 async function handleWriteback({
@@ -170,6 +221,8 @@ export async function handleInteropCommand({
 		switch (action) {
 			case "import-snapshot":
 				return await handleImportSnapshot({ client, options });
+			case "jianying-export":
+				return await handleJianyingProjectExport({ client, options });
 			case "writeback":
 				return await handleWriteback({
 					client,
@@ -184,7 +237,7 @@ export async function handleInteropCommand({
 				});
 			default:
 				return {
-					error: `Unknown interop action: ${action ?? ""}. Available: import-snapshot, writeback, writeback-recover`,
+					error: `Unknown interop action: ${action ?? ""}. Available: import-snapshot, jianying-export, writeback, writeback-recover`,
 					success: false,
 				};
 		}

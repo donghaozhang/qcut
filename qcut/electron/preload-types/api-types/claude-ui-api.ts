@@ -14,6 +14,14 @@ import type {
 	QCutSameProfileWritebackRendererRequest,
 	QCutSameProfileWritebackResult,
 } from "../../types/qcut-same-profile-writeback-api";
+import type {
+	QCutJianyingProjectImportRendererRequest,
+	QCutJianyingProjectImportResult,
+} from "../../types/qcut-jianying-project-import-api";
+import type {
+	QCutJianyingProjectExportRendererRequest,
+	QCutJianyingProjectExportResult,
+} from "../../types/qcut-jianying-project-export-api";
 
 /** Claude video analysis operations. */
 export interface ClaudeAnalyzeAPI {
@@ -294,6 +302,36 @@ export interface ClaudeSameProfileWritebackAPI {
 		sendResponse: (
 			requestId: string,
 			result?: QCutSameProfileWritebackResult,
+			error?: string
+		) => void;
+		removeListeners: () => void;
+	};
+}
+
+/** Trusted persisted Jianying project import bridge. */
+export interface ClaudeJianyingProjectImportAPI {
+	jianyingProjectImport: {
+		onRequest: (
+			callback: (data: QCutJianyingProjectImportRendererRequest) => void
+		) => void;
+		sendResponse: (
+			requestId: string,
+			result?: QCutJianyingProjectImportResult,
+			error?: string
+		) => void;
+		removeListeners: () => void;
+	};
+}
+
+/** Trusted persisted Jianying project export bridge. */
+export interface ClaudeJianyingProjectExportAPI {
+	jianyingProjectExport: {
+		onRequest: (
+			callback: (data: QCutJianyingProjectExportRendererRequest) => void
+		) => void;
+		sendResponse: (
+			requestId: string,
+			result?: QCutJianyingProjectExportResult,
 			error?: string
 		) => void;
 		removeListeners: () => void;

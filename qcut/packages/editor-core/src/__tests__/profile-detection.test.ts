@@ -8,6 +8,17 @@ import { CAPCUT_8_1_TOP_LEVEL_KEYS } from "../jianying-draft/capcut-8-1-profile.
 import {
 	getDraftProfile,
 	isDraftProfileWritable,
+	JIANYING_11_3_BETA2_APP_ID,
+	JIANYING_11_3_BETA2_APP_SOURCE,
+	JIANYING_11_3_BETA2_APP_VERSION,
+	JIANYING_11_3_BETA2_NEW_VERSION,
+	JIANYING_11_3_BETA2_PROFILE_ID,
+	JIANYING_11_3_BETA2_SCHEMA_VERSION,
+	JIANYING_11_3_BETA2_TOP_LEVEL_KEYS,
+	JIANYING_11_3_BETA3_APP_VERSION,
+	JIANYING_11_3_BETA3_PROFILE_ID,
+	JIANYING_11_3_BETA4_APP_VERSION,
+	JIANYING_11_3_BETA4_PROFILE_ID,
 	listDraftProfiles,
 	PLAINTEXT_5_9_PROFILE,
 	PLAINTEXT_5_9_PROFILE_ID,
@@ -33,9 +44,12 @@ function plaintextFiles(): DraftSourceFile[] {
 }
 
 describe("profile registry", () => {
-	it("registers the two known profiles exactly once", () => {
+	it("registers known profiles exactly once", () => {
 		const ids = listDraftProfiles().map((profile) => profile.profileId);
 		expect(ids).toContain(PLAINTEXT_5_9_PROFILE_ID);
+		expect(ids).toContain(JIANYING_11_3_BETA2_PROFILE_ID);
+		expect(ids).toContain(JIANYING_11_3_BETA3_PROFILE_ID);
+		expect(ids).toContain(JIANYING_11_3_BETA4_PROFILE_ID);
 		expect(ids).toContain("capcut-desktop-8.1-plaintext");
 		expect(() =>
 			registerDraftProfile({ contract: PLAINTEXT_5_9_PROFILE })
@@ -50,9 +64,128 @@ describe("profile registry", () => {
 		}
 		expect(getDraftProfile({ profileId: "unknown" })).toBeNull();
 	});
+
+	it("ships beta 4 import without enabling unverified writeback", () => {
+		expect(
+			getDraftProfile({ profileId: JIANYING_11_3_BETA4_PROFILE_ID })
+		).toMatchObject({
+			capabilities: {
+				crossProfileExport: "none",
+				import: "stable",
+				inspect: "stable",
+				realAppVerified: false,
+				sameProfileWriteback: "none",
+			},
+			production: true,
+		});
+	});
 });
 
 describe("profile detection", () => {
+	it("detects the Jianying 11.3 beta 2 plaintext subdraft exactly", () => {
+		const result = detectDraftProfile({
+			files: [
+				{
+					relativePath: "draft_content.json",
+					byteLength: 4096,
+					sha256: "d".repeat(64),
+					role: "content",
+					classification: "plaintext-json",
+				},
+			],
+			contentSummary: {
+				fileName: "draft_content.json",
+				topLevelKeys: [...JIANYING_11_3_BETA2_TOP_LEVEL_KEYS],
+				appId: JIANYING_11_3_BETA2_APP_ID,
+				appSource: JIANYING_11_3_BETA2_APP_SOURCE,
+				appVersion: JIANYING_11_3_BETA2_APP_VERSION,
+				schemaVersion: JIANYING_11_3_BETA2_SCHEMA_VERSION,
+				newVersion: JIANYING_11_3_BETA2_NEW_VERSION,
+			},
+		});
+		expect(result.outcome).toBe("exact");
+		expect(result.profileId).toBe(JIANYING_11_3_BETA2_PROFILE_ID);
+		expect(result.canWrite).toBe(false);
+	});
+
+	it("detects the Jianying 11.3 beta 3 plaintext subdraft exactly", () => {
+		const result = detectDraftProfile({
+			files: [
+				{
+					relativePath: "draft_content.json",
+					byteLength: 4096,
+					sha256: "f".repeat(64),
+					role: "content",
+					classification: "plaintext-json",
+				},
+			],
+			contentSummary: {
+				fileName: "draft_content.json",
+				topLevelKeys: [...JIANYING_11_3_BETA2_TOP_LEVEL_KEYS],
+				appId: JIANYING_11_3_BETA2_APP_ID,
+				appSource: JIANYING_11_3_BETA2_APP_SOURCE,
+				appVersion: JIANYING_11_3_BETA3_APP_VERSION,
+				schemaVersion: JIANYING_11_3_BETA2_SCHEMA_VERSION,
+				newVersion: JIANYING_11_3_BETA2_NEW_VERSION,
+			},
+		});
+		expect(result.outcome).toBe("exact");
+		expect(result.profileId).toBe(JIANYING_11_3_BETA3_PROFILE_ID);
+		expect(result.canWrite).toBe(false);
+	});
+
+	it("detects the Jianying 11.3 beta 4 active subdraft exactly", () => {
+		const result = detectDraftProfile({
+			files: [
+				{
+					relativePath: "draft_content.json",
+					byteLength: 4096,
+					sha256: "4".repeat(64),
+					role: "content",
+					classification: "plaintext-json",
+				},
+			],
+			contentSummary: {
+				fileName: "draft_content.json",
+				topLevelKeys: [...JIANYING_11_3_BETA2_TOP_LEVEL_KEYS],
+				appId: JIANYING_11_3_BETA2_APP_ID,
+				appSource: JIANYING_11_3_BETA2_APP_SOURCE,
+				appVersion: JIANYING_11_3_BETA4_APP_VERSION,
+				schemaVersion: JIANYING_11_3_BETA2_SCHEMA_VERSION,
+				newVersion: JIANYING_11_3_BETA2_NEW_VERSION,
+			},
+		});
+		expect(result.outcome).toBe("exact");
+		expect(result.profileId).toBe(JIANYING_11_3_BETA4_PROFILE_ID);
+		expect(result.canWrite).toBe(false);
+	});
+
+	it("does not guess a Jianying profile for an unverified app version", () => {
+		const result = detectDraftProfile({
+			files: [
+				{
+					relativePath: "draft_content.json",
+					byteLength: 4096,
+					sha256: "e".repeat(64),
+					role: "content",
+					classification: "plaintext-json",
+				},
+			],
+			contentSummary: {
+				fileName: "draft_content.json",
+				topLevelKeys: [...JIANYING_11_3_BETA2_TOP_LEVEL_KEYS],
+				appId: JIANYING_11_3_BETA2_APP_ID,
+				appSource: JIANYING_11_3_BETA2_APP_SOURCE,
+				appVersion: "11.3.1",
+				schemaVersion: JIANYING_11_3_BETA2_SCHEMA_VERSION,
+				newVersion: JIANYING_11_3_BETA2_NEW_VERSION,
+			},
+		});
+		expect(result.outcome).toBe("ambiguous");
+		expect(result.profileId).toBeUndefined();
+		expect(result.canWrite).toBe(false);
+	});
+
 	it("detects CapCut 8.1 exactly from full evidence", () => {
 		const result = detectDraftProfile({
 			files: plaintextFiles(),
