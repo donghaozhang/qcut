@@ -22,6 +22,9 @@ import {
 } from "@/lib/text/text-animation-preset-preview";
 import { cn } from "@/lib/utils";
 import { useTextAnimationPreview } from "./use-text-animation-preview";
+import { TextAnimationProjectivePresetPreview } from "./text-animation-projective-preset-preview";
+
+const PROJECTIVE_PRESET_IDS = new Set(["flip-3d", "cylinder-3d", "jitter-3d"]);
 
 function maskClipPath({
 	mask,
@@ -380,6 +383,11 @@ export function TextAnimationPresetCard({
 					<CircleOff className="size-7 text-muted-foreground">
 						<title>{name}</title>
 					</CircleOff>
+				) : PROJECTIVE_PRESET_IDS.has(preset.id) ? (
+					<TextAnimationProjectivePresetPreview
+						preview={preview}
+						progress={progress}
+					/>
 				) : (
 					<TextAnimationPresetPreviewContent
 						fillScale={fillScale}

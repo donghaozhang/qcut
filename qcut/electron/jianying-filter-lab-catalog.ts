@@ -5,6 +5,10 @@ import type {
 	JianyingFilterLabLutSummary,
 	JianyingFilterVerification,
 } from "./jianying-filter-lab-contract.js";
+import {
+	selectVerificationForCard,
+	type JianyingFilterVerificationCandidates,
+} from "./jianying-filter-verification-gate.js";
 import type {
 	JianyingFilterKnownCatalog,
 	JianyingKnownFilter,
@@ -13,10 +17,33 @@ import type { JianyingFilterPackageSummary } from "./jianying-filter-package-ins
 import type { JianyingLutReference } from "./native-pipeline/filters/filter-lab-lut.js";
 import {
 	createTiledLutId,
+	type JianyingTiledLutRenderer,
 	resolveTiledLutPath,
 } from "./native-pipeline/filters/filter-lab-tiled-lut.js";
 
-const UNVERIFIED: JianyingFilterVerification = { status: "unverified" };
+interface TiledRendererRole {
+	renderer: JianyingTiledLutRenderer;
+	role: JianyingLutReference["role"];
+}
+
+function tiledRendererRoles({
+	packageSummary,
+}: {
+	packageSummary: JianyingFilterPackageSummary;
+}): TiledRendererRole[] {
+	if (packageSummary.dualRenderer) {
+		return [
+			{
+				renderer: packageSummary.dualRenderer.background,
+				role: "background",
+			},
+			{ renderer: packageSummary.dualRenderer.skin, role: "skin" },
+		];
+	}
+	return packageSummary.renderer
+		? [{ renderer: packageSummary.renderer, role: "single" }]
+		: [];
+}
 
 export function tiledReferencesFromPackages({
 	packages,
@@ -27,18 +54,20 @@ export function tiledReferencesFromPackages({
 }): Map<string, JianyingLutReference> {
 	const references = new Map<string, JianyingLutReference>();
 	for (const [resourceId, summary] of packages) {
-		const { renderer } = summary;
-		if (!renderer) continue;
-		const lutId = createTiledLutId({ resourceId, renderer });
-		references.set(lutId, {
-			lutId,
-			resourceId,
-			version: renderer.version,
-			fileName: renderer.relativePath.split("/").slice(-1)[0] ?? "filter.png",
-			filePath: resolveTiledLutPath({ cacheRoot, renderer }),
-			role: "single",
-			size: renderer.cubeSize,
-		});
+		for (const { renderer, role } of tiledRendererRoles({
+			packageSummary: summary,
+		})) {
+			const lutId = createTiledLutId({ resourceId, renderer });
+			references.set(lutId, {
+				lutId,
+				resourceId,
+				version: renderer.version,
+				fileName: renderer.relativePath.split("/").slice(-1)[0] ?? "filter.png",
+				filePath: resolveTiledLutPath({ cacheRoot, renderer }),
+				role,
+				size: renderer.cubeSize,
+			});
+		}
 	}
 	return references;
 }
@@ -167,27 +196,27 @@ function isDualLutAvailable({
 	);
 }
 
-function summarizeTiledRenderer({
+function summarizeTiledRenderers({
 	filter,
 	packageSummary,
 }: {
 	filter: JianyingKnownFilter;
 	packageSummary: JianyingFilterPackageSummary;
-}): JianyingFilterLabLutSummary | null {
-	const { renderer } = packageSummary;
-	if (!renderer || (filter.version && renderer.version !== filter.version)) {
-		return null;
-	}
-	return {
-		lutId: createTiledLutId({ resourceId: filter.resourceId, renderer }),
-		resourceId: filter.resourceId,
-		version: renderer.version,
-		fileName: renderer.relativePath.split("/").slice(-1)[0] ?? "filter.png",
-		role: "single",
-		size: renderer.cubeSize,
-		title: filter.title,
-		categories: filter.categories,
-	};
+}): JianyingFilterLabLutSummary[] {
+	return tiledRendererRoles({ packageSummary })
+		.filter(
+			({ renderer }) => !filter.version || renderer.version === filter.version
+		)
+		.map(({ renderer, role }) => ({
+			lutId: createTiledLutId({ resourceId: filter.resourceId, renderer }),
+			resourceId: filter.resourceId,
+			version: renderer.version,
+			fileName: renderer.relativePath.split("/").slice(-1)[0] ?? "filter.png",
+			role,
+			size: renderer.cubeSize,
+			title: filter.title,
+			categories: filter.categories,
+		}));
 }
 
 function summarizeMultiPassRenderer({
@@ -217,19 +246,13 @@ function verificationForFilter({
 	resourceId: string;
 	version?: string;
 	implementation: JianyingFilterLabFilterSummary["implementation"];
-	verifications: ReadonlyMap<string, JianyingFilterVerification>;
+	verifications: ReadonlyMap<string, JianyingFilterVerificationCandidates>;
 }): JianyingFilterVerification {
-	const verification = verifications.get(resourceId);
-	if (!verification) return UNVERIFIED;
-	if (version && verification.version !== version) return UNVERIFIED;
-	if (
-		implementation === "dual-lut" &&
-		verification.status !== "unverified" &&
-		verification.maskEdgeMae === undefined
-	) {
-		return { ...verification, status: "unverified" };
-	}
-	return verification;
+	return selectVerificationForCard({
+		candidates: verifications.get(resourceId),
+		version,
+		implementation,
+	});
 }
 
 function categorySummaries({
@@ -292,7 +315,7 @@ export function buildJianyingFilterLabCatalog({
 	catalog: JianyingFilterKnownCatalog;
 	references: JianyingLutReference[];
 	packages: ReadonlyMap<string, JianyingFilterPackageSummary>;
-	verifications?: ReadonlyMap<string, JianyingFilterVerification>;
+	verifications?: ReadonlyMap<string, JianyingFilterVerificationCandidates>;
 }): JianyingFilterLabListResult {
 	const referencesByResource = new Map<string, JianyingLutReference[]>();
 	for (const reference of references) {
@@ -315,14 +338,12 @@ export function buildJianyingFilterLabCatalog({
 			hasThumbnail: false,
 			issues: [],
 		};
-		const tiledRenderer = summarizeTiledRenderer({ filter, packageSummary });
+		const tiledLuts = summarizeTiledRenderers({ filter, packageSummary });
 		const multiPassRenderer = summarizeMultiPassRenderer({
 			filter,
 			packageSummary,
 		});
-		const luts = tiledRenderer
-			? [...referenceLuts, tiledRenderer]
-			: referenceLuts;
+		const luts = [...referenceLuts, ...tiledLuts];
 		const implementation =
 			packageSummary.renderer || packageSummary.multiPassRenderer
 				? ("shader" as const)
@@ -342,10 +363,10 @@ export function buildJianyingFilterLabCatalog({
 				isDualLutAvailable(availabilityInput)) ||
 			(implementation === "shader" &&
 				packageSummary.cacheStatus === "cached" &&
-				Boolean(tiledRenderer || multiPassRenderer));
+				Boolean(packageSummary.renderer || multiPassRenderer));
 		const version =
 			selected.version ??
-			tiledRenderer?.version ??
+			tiledLuts[0]?.version ??
 			packageSummary.multiPassRenderer?.version;
 		return {
 			resourceId: filter.resourceId,

@@ -1,6 +1,6 @@
 # 剪映滤镜运行时互操作性研究
 
-记录时间：2026-08-09，2026-08-10 追加中文剪映逐帧、ProRes 和无缩放对照
+记录时间：2026-08-09，2026-08-10 追加中文剪映逐帧、ProRes 和无缩放对照，2026-08-12 追加产品批处理、固定时间基和长尾 Pass E2E，2026-08-13 追加 7 张双 LUT 真实视频门禁
 
 ## 范围
 
@@ -15,6 +15,19 @@
 - 本地编译产物、PPM/PNG 输出和其他二进制证据。
 
 需要复现实验时，应由研究者在仓库之外提供自己有权使用的 SDK、模型和素材。不得从本目录推导出重新分发第三方运行时的许可。
+
+最新产品批处理、7 张双 LUT、1 秒固定时间基导出和五类 QCut 自有长尾 Pass 结果见
+[product-batches-and-long-tail-e2e.zh.md](product-batches-and-long-tail-e2e.zh.md)。这些结果把“产品能力可运行”
+与“剪映卡片像素平价”分开计分；后者仍必须有同素材 UI 无损帧门禁。
+
+7 张双 LUT 人像卡的 70 帧连续视频、人物移动、mask 边缘、素材切换和逐卡导出结果见
+[dual-lut-seven-real-video-e2e.zh.md](dual-lut-seven-real-video-e2e.zh.md)。奥林巴斯达到 verified；共享算法图
+的青灰、冷月夜、橙蓝、亮肤、森山、雾野达到 close，文档没有把 close 写成完美复刻。
+
+真实多 Pass 卡“电影柔光”的剪映 UI、独立二进制 oracle、QCut 产品预览和 QCut 产品导出四方对照见
+[cinematic-soft-glow-four-way-e2e.zh.md](cinematic-soft-glow-four-way-e2e.zh.md)。本轮确认本机 provider 达到
+verified，并修复了调整层未把 native-local multi-pass 传入像素预览链路的问题；H.264 4:2:0
+导出帧单独按 close 记录，未把编码损失伪装成滤镜误差。
 
 ## 已确认结果
 
@@ -271,12 +284,13 @@ ready 后，SIMD 0/1 的 71 张 RGBA 和 72 张完整 mask
 [ui-physical-skin-model.zh.md](ui-physical-skin-model.zh.md)、
 [skin-seg-simd-ab.zh.md](skin-seg-simd-ab.zh.md)。
 
-首次结果生命周期随后完成同帧双 readback。renderer callback 返回后，探针先读取 V2 原地输入纹理，在不调用
-EffectSDK 的条件下运行当前 run loop 并等待两秒，再读取同一纹理。五帧连续测试每次均为
-`0/1639680` 字节变化，最终单帧复跑仍为零；等待期间也没有额外 CPU mask 交付。ready 只有在后续 seek
-进入算法链时才被观察，且 ready 日志在 seek 内出现不代表该帧已经消费新结果。下一轮只应测试 ready 已被
-观察后的同 timestamp re-seek，不要同时加入 manager reset。见
-[skin-seg-first-result-lifecycle.zh.md](skin-seg-first-result-lifecycle.zh.md)。
+首次结果生命周期随后完成同帧双 readback与 ready 后 re-seek。被动等待两秒时，五帧连续测试每次均为
+`0/1639680` 字节变化，且没有额外 CPU mask 交付。显式同 timestamp re-seek 在静态历史下达到
+`48.888033 dB / mask IoU 0.962641`；同一 manager 经过运动历史后回跳只剩
+`40.140233 dB / 0.265185`，两次独立复跑逐字节一致。结合 source-switch manager-reset 结果，独立宿主应在
+clip/source 变化或向后时间跳转时重建 manager 与 AlgorithmService，连续 clip 内保持复用。见
+[skin-seg-first-result-lifecycle.zh.md](skin-seg-first-result-lifecycle.zh.md) 与
+[olympus-portrait-filter-e2e.zh.md](olympus-portrait-filter-e2e.zh.md)。
 
 各能力的“已证明 / 未证明”边界汇总在
 [current-coverage.zh.md](current-coverage.zh.md)。

@@ -5,6 +5,7 @@ import { MediaItem } from "@/stores/media/media-store";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
 import { useEffectsStore } from "@/stores/ai/effects-store";
 import { platform } from "@qcut/platform-core";
+import { requiresJianyingLocalColorExport } from "./jianying-local-color-export";
 
 // Engine types available
 export const ExportEngineType = {
@@ -108,6 +109,15 @@ export class ExportEngineFactory {
 		}
 
 		const capabilities = await this.detectCapabilities();
+		if (tracks && requiresJianyingLocalColorExport({ tracks })) {
+			return {
+				engineType: ExportEngineType.MUXER,
+				reason:
+					"Timeline uses a local Jianying color provider; fixed-timestamp canvas muxing preserves preview parity and timeline duration",
+				capabilities,
+				estimatedPerformance: "medium",
+			};
+		}
 
 		// 🚀 FORCE CLI FFmpeg in Electron - most stable and performant
 		// DEBUG OVERRIDE: Allow forcing regular engine for sticker debugging
@@ -226,6 +236,15 @@ export class ExportEngineFactory {
 		console.log("  - Export settings:", settings);
 
 		let selectedEngineType = engineType;
+		const requiresLocalColorExport = requiresJianyingLocalColorExport({
+			tracks,
+		});
+		if (
+			requiresLocalColorExport &&
+			selectedEngineType !== ExportEngineType.REMOTION
+		) {
+			selectedEngineType = ExportEngineType.MUXER;
+		}
 		if (!selectedEngineType) {
 			console.log("  - No engine type specified, getting recommendation...");
 			const recommendation = await this.getEngineRecommendation(
@@ -385,6 +404,15 @@ export class ExportEngineFactory {
 						totalDuration
 					);
 				} catch (error) {
+					// The muxer engine is the only path that renders local
+					// Jianying color parity — a silent standard-engine fallback
+					// would export wrong colors with no user-visible signal.
+					if (requiresLocalColorExport) {
+						throw new Error(
+							"导出需要剪映本机色彩引擎(muxer),但引擎加载失败;已中止导出以避免导出颜色与预览不一致。",
+							{ cause: error }
+						);
+					}
 					debugWarn(
 						"Failed to load muxer engine, falling back to standard:",
 						error

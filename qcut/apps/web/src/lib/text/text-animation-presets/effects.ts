@@ -198,6 +198,48 @@ export function effectForPreset({
 			// Jianying's 空间翻转 III: planar swing plus a perspective scale
 			// gradient across the line, 90° out of phase with the tilt.
 			return { kind: "flip", maxAngleDeg: 32, perspective: 0.35 };
+		case "loop:flip-3d":
+			return {
+				kind: "flip3d",
+				axis: "y",
+				maxAngleDeg: 60,
+				cameraFovDeg: 30,
+				motionRatio: 0.8,
+				motionEasing: {
+					type: "cubicBezier",
+					x1: 0.55,
+					y1: 0.06,
+					x2: 0.4,
+					y2: 0.96,
+				},
+			};
+		case "loop:cylinder-3d":
+			return {
+				kind: "cylinder3d",
+				turns: 1,
+				tiltXDeg: 20,
+				cameraFovDeg: 60,
+				coverage: 5 / 6,
+				radiusRatio: 1.2 / (Math.PI * 2),
+				startYawDeg: 540,
+			};
+		case "loop:jitter-3d":
+			return {
+				kind: "jitter3d",
+				cameraFovDeg: 60,
+				groupYawDeg: 20,
+				rotationXDeg: 15,
+				rotationYDeg: 15,
+				rotationZDeg: 10,
+				positionJitter: 0.03,
+				scaleFrom: 2 / 3,
+				scaleTo: 1,
+				frequency: 12,
+				seed: presetSeed({ presetId }),
+				trailSamples: 12,
+				trailStrength: 0.65,
+				trapezoidAmount: 0.12,
+			};
 		case "loop:ring-orbit":
 			// Jianying's 环绕 lays the characters out around a ring: each one
 			// runs the same circle, phase-spread across the whole cycle, and
@@ -477,6 +519,7 @@ function staggerRatioForPreset({
 		presetId === "wave" ||
 		presetId === "sway" ||
 		presetId === "jitter" ||
+		presetId === "jitter-3d" ||
 		presetId === "flip" ||
 		// Spatially phased or seeded per unit inside the effect itself.
 		presetId === "wave-squeeze" ||
@@ -525,6 +568,7 @@ export function sequenceForPreset({
 		"sway",
 		"wave",
 		"jitter",
+		"jitter-3d",
 		"ring-orbit",
 		"flip",
 		"vortex",

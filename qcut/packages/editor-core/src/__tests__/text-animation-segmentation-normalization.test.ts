@@ -244,7 +244,7 @@ describe("text animation normalization", () => {
 		});
 	});
 
-	it("migrates persisted 3D effect kinds onto the 2D replacements", () => {
+	it("restores all persisted 3D effects onto the portable renderer", () => {
 		const animation = {
 			schemaVersion: 1,
 			entrance: createPhase({
@@ -265,15 +265,22 @@ describe("text animation normalization", () => {
 		});
 
 		expect(result.animation?.entrance?.effect).toMatchObject({
-			kind: "flip",
+			kind: "flip3d",
+			axis: "y",
 			maxAngleDeg: 60,
+			cameraFovDeg: 30,
 		});
 		expect(result.animation?.exit?.effect).toMatchObject({
-			kind: "orbit",
-			ring: true,
-			radius: { value: 1.05, unit: "boxHeight" },
+			kind: "cylinder3d",
+			turns: 1,
+			coverage: 5 / 6,
 		});
-		expect(result.animation?.loop?.effect).toMatchObject({ kind: "jitter" });
+		expect(result.animation?.loop?.effect).toMatchObject({
+			kind: "jitter3d",
+			positionJitter: 0.03,
+			cameraFovDeg: 60,
+			trailSamples: 12,
+		});
 	});
 
 	it("clamps the flip and jitter parameters into renderable ranges", () => {

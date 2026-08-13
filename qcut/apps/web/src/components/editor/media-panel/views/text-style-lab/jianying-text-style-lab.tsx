@@ -68,7 +68,7 @@ function compatibilityLabel({
 }) {
 	if (style.compatibility === "flat-compatible") return "可直接映射";
 	if (style.compatibility === "approximated") return "QCut 近似";
-	if (style.compatibility === "native-runtime") return "本机原版动态渲染";
+	if (style.compatibility === "native-runtime") return "本机原版渲染";
 	return "仅参考预览";
 }
 

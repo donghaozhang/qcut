@@ -136,9 +136,12 @@ export const CATEGORIES: CategoryDef[] = [
 		label: "Filter Lab",
 		commands: [
 			"filter-lab-list",
+			"filter-lab-catalog",
 			"filter-lab-compare",
 			"filter-lab-match",
 			"filter-lab-verify",
+			"filter-lab-verify-batch",
+			"filter-lab-coverage",
 		],
 	},
 	{
@@ -289,6 +292,25 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		flags: [],
 		examples: ["qcut filter-lab list --json"],
 	},
+	"filter-lab-catalog": {
+		name: "filter-lab-catalog",
+		description:
+			"Dump every filter card the local Jianying metadata caches know about (capability tags, implementation kind, cache and verification status), with deterministic stratified sampling for batch parity runs",
+		category: "filter-lab",
+		flags: [
+			f("--sample", "number", "Deterministic stratified sample of N cards"),
+			f("--seed", "number", "Sample seed; same seed reproduces the sample"),
+			f(
+				"--stratify",
+				"string",
+				"Comma-separated fields to stratify by (default: implementation)"
+			),
+		],
+		examples: [
+			"qcut filter-lab catalog --json",
+			"qcut filter-lab catalog --sample 30 --seed 7 --stratify implementation,requirements --json",
+		],
+	},
 	"filter-lab-compare": {
 		name: "filter-lab-compare",
 		description:
@@ -348,6 +370,33 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		],
 		examples: [
 			"qcut filter-lab verify --resource-id 7429744855724641545 --filter-version f4d46cb5bca43ef171199ea673d53b00 --reference-frame jianying.png --candidate-frame qcut.png --json",
+		],
+	},
+	"filter-lab-verify-batch": {
+		name: "filter-lab-verify-batch",
+		description:
+			"Verify every entry of a JSON manifest ({entries:[{resourceId, filterVersion, referenceFrame, candidateFrame, ...}]}) through the parity pipeline, accumulating per-run history",
+		category: "filter-lab",
+		flags: [
+			f("--manifest", "string", "JSON manifest listing the comparison runs"),
+		],
+		examples: ["qcut filter-lab verify-batch --manifest runs.json --json"],
+	},
+	"filter-lab-coverage": {
+		name: "filter-lab-coverage",
+		description:
+			"Join the verification store against the full card catalog into a stratified verified/close/unverified coverage report",
+		category: "filter-lab",
+		flags: [
+			f(
+				"--stratify",
+				"string",
+				"Comma-separated fields to stratify by (default: implementation)"
+			),
+		],
+		examples: [
+			"qcut filter-lab coverage --json",
+			"qcut filter-lab coverage --stratify implementation,requirements --json",
 		],
 	},
 	update: {

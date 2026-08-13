@@ -335,33 +335,172 @@ export function normalizeTextAnimationEffect({
 			),
 		};
 	}
-	// Dev builds of the removed WebGL path persisted flip3d / cylinder3d /
-	// jitter3d. Alias them onto the Jianying-derived 2D effects so those
-	// projects keep animating instead of silently losing their loops.
 	if (record.kind === "flip3d") {
-		return normalizeTextAnimationEffect({
-			value: {
-				kind: "flip",
-				maxAngleDeg: record.maxAngleDeg,
-			},
-		});
+		return {
+			kind: "flip3d",
+			axis: oneOf({
+				value: record.axis,
+				values: ["x", "y"],
+				fallback: "y",
+			}),
+			maxAngleDeg: numberInRange({
+				value: record.maxAngleDeg,
+				fallback: 60,
+				minimum: 0,
+				maximum: 180,
+			}),
+			cameraFovDeg: numberInRange({
+				value: record.cameraFovDeg,
+				fallback: 30,
+				minimum: 10,
+				maximum: 140,
+			}),
+			motionRatio: numberInRange({
+				value: record.motionRatio,
+				fallback: 0.8,
+				minimum: 0.05,
+				maximum: 1,
+			}),
+			motionEasing: normalizeEasing({
+				value:
+					record.motionEasing ??
+					({
+						type: "cubicBezier",
+						x1: 0.55,
+						y1: 0.06,
+						x2: 0.4,
+						y2: 0.96,
+					} as const),
+			}),
+		};
 	}
 	if (record.kind === "cylinder3d") {
-		return normalizeTextAnimationEffect({
-			value: {
-				kind: "orbit",
-				rotation: "clockwise",
-				turns: record.turns,
-				radius: { value: 1.05, unit: "boxHeight" },
-				ring: true,
-				fade: false,
-			},
-		});
+		return {
+			kind: "cylinder3d",
+			turns: numberInRange({
+				value: record.turns,
+				fallback: 1,
+				minimum: -20,
+				maximum: 20,
+			}),
+			tiltXDeg: numberInRange({
+				value: record.tiltXDeg,
+				fallback: 20,
+				minimum: -89,
+				maximum: 89,
+			}),
+			cameraFovDeg: numberInRange({
+				value: record.cameraFovDeg,
+				fallback: 60,
+				minimum: 10,
+				maximum: 140,
+			}),
+			coverage: numberInRange({
+				value: record.coverage,
+				fallback: 5 / 6,
+				minimum: 0.05,
+				maximum: 1,
+			}),
+			radiusRatio: numberInRange({
+				value: record.radiusRatio,
+				fallback: 1.2 / (Math.PI * 2),
+				minimum: 0.01,
+				maximum: 4,
+			}),
+			startYawDeg: numberInRange({
+				value: record.startYawDeg,
+				fallback: 540,
+				minimum: -10_000,
+				maximum: 10_000,
+			}),
+		};
 	}
 	if (record.kind === "jitter3d") {
-		return normalizeTextAnimationEffect({
-			value: { kind: "jitter" },
-		});
+		return {
+			kind: "jitter3d",
+			cameraFovDeg: numberInRange({
+				value: record.cameraFovDeg,
+				fallback: 60,
+				minimum: 10,
+				maximum: 140,
+			}),
+			groupYawDeg: numberInRange({
+				value: record.groupYawDeg,
+				fallback: 20,
+				minimum: -180,
+				maximum: 180,
+			}),
+			rotationXDeg: numberInRange({
+				value: record.rotationXDeg,
+				fallback: 15,
+				minimum: 0,
+				maximum: 180,
+			}),
+			rotationYDeg: numberInRange({
+				value: record.rotationYDeg,
+				fallback: 15,
+				minimum: 0,
+				maximum: 180,
+			}),
+			rotationZDeg: numberInRange({
+				value: record.rotationZDeg,
+				fallback: 10,
+				minimum: 0,
+				maximum: 360,
+			}),
+			positionJitter: numberInRange({
+				value: record.positionJitter,
+				fallback: 0.03,
+				minimum: 0,
+				maximum: 1,
+			}),
+			scaleFrom: numberInRange({
+				value: record.scaleFrom,
+				fallback: 2 / 3,
+				minimum: 0.01,
+				maximum: 10,
+			}),
+			scaleTo: numberInRange({
+				value: record.scaleTo,
+				fallback: 1,
+				minimum: 0.01,
+				maximum: 10,
+			}),
+			frequency: numberInRange({
+				value: record.frequency,
+				fallback: 12,
+				minimum: 1,
+				maximum: 60,
+			}),
+			seed: Math.trunc(
+				numberInRange({
+					value: record.seed,
+					fallback: 1,
+					minimum: 0,
+					maximum: 0xffff_ffff,
+				})
+			),
+			trailSamples: Math.trunc(
+				numberInRange({
+					value: record.trailSamples,
+					fallback: 12,
+					minimum: 1,
+					maximum: 32,
+				})
+			),
+			trailStrength: numberInRange({
+				value: record.trailStrength,
+				fallback: 0.65,
+				minimum: 0,
+				maximum: 2,
+			}),
+			trapezoidAmount: numberInRange({
+				value: record.trapezoidAmount,
+				fallback: 0.12,
+				minimum: -1,
+				maximum: 1,
+			}),
+		};
 	}
 	if (record.kind === "arc") {
 		return {

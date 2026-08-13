@@ -334,6 +334,48 @@ export interface TextFlipEffect {
 	perspective: number;
 }
 
+/** A textured plane rotated in perspective around one of its local axes. */
+export interface TextFlip3DEffect {
+	kind: "flip3d";
+	axis: "x" | "y";
+	maxAngleDeg: number;
+	cameraFovDeg: number;
+	/** Portion of the phase used for the out-and-back motion. */
+	motionRatio: number;
+	motionEasing: TextAnimationEasing;
+}
+
+/** The complete text texture wrapped around a rotating cylindrical surface. */
+export interface TextCylinder3DEffect {
+	kind: "cylinder3d";
+	turns: number;
+	tiltXDeg: number;
+	cameraFovDeg: number;
+	/** Fraction of a full cylinder occupied by the texture, 0..1. */
+	coverage: number;
+	/** Cylinder radius relative to the unprojected texture width. */
+	radiusRatio: number;
+	startYawDeg: number;
+}
+
+/** Seeded per-glyph 3D poses with a bounded current-frame trail pass. */
+export interface TextJitter3DEffect {
+	kind: "jitter3d";
+	cameraFovDeg: number;
+	groupYawDeg: number;
+	rotationXDeg: number;
+	rotationYDeg: number;
+	rotationZDeg: number;
+	positionJitter: number;
+	scaleFrom: number;
+	scaleTo: number;
+	frequency: number;
+	seed: number;
+	trailSamples: number;
+	trailStrength: number;
+	trapezoidAmount: number;
+}
+
 /**
  * Stepped per-unit shake. Jianying quantizes local time into a handful of
  * poses per cycle and derives each unit's offset from a chaotic but
@@ -361,6 +403,9 @@ export type TextAnimationEffect =
 	| TextLaserEffect
 	| TextHeartEffect
 	| TextFlipEffect
+	| TextFlip3DEffect
+	| TextCylinder3DEffect
+	| TextJitter3DEffect
 	| TextJitterEffect
 	| TextArcEffect
 	| TextSqueezeEffect
@@ -426,16 +471,46 @@ export interface TextAnimationMaskState {
 	featherPx: number;
 }
 
+/** Renderer-level projection shared by preview and export canvas paths. */
+export type TextAnimationProjectionState =
+	| {
+			kind: "plane";
+			cameraFovDeg: number;
+			rotationXDeg: number;
+			rotationYDeg: number;
+	  }
+	| {
+			kind: "cylinder";
+			cameraFovDeg: number;
+			tiltXDeg: number;
+			yawDeg: number;
+			coverage: number;
+			radiusRatio: number;
+	  };
+
+export interface TextAnimationPostProcessState {
+	trailSamples: number;
+	trailStrength: number;
+	/** Reserved for the portable pixel-warp pass. */
+	trapezoidAmount: number;
+}
+
 export interface TextAnimationVisualState {
 	opacity: number;
 	translateX: number;
 	translateY: number;
+	translateZ?: number;
 	scaleX: number;
 	scaleY: number;
 	rotationDeg: number;
+	rotationXDeg?: number;
+	rotationYDeg?: number;
 	blurPx: number;
 	mask?: TextAnimationMaskState;
 	transformOrigin?: "center" | "bottomCenter";
+	/** Present when the rasterized text is mapped onto a projective surface. */
+	projection?: TextAnimationProjectionState;
+	postProcess?: TextAnimationPostProcessState;
 	/** Present while a shatter effect drives the frame; renderer-level. */
 	shatter?: TextAnimationShatterState;
 }
@@ -539,8 +614,11 @@ export const IDENTITY_TEXT_ANIMATION_VISUAL_STATE: TextAnimationVisualState = {
 	opacity: 1,
 	translateX: 0,
 	translateY: 0,
+	translateZ: 0,
 	scaleX: 1,
 	scaleY: 1,
 	rotationDeg: 0,
+	rotationXDeg: 0,
+	rotationYDeg: 0,
 	blurPx: 0,
 };

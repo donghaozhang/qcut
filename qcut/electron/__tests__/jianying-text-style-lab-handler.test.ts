@@ -58,6 +58,16 @@ function createEntry(): JianyingTextStyleCatalogEntry {
 		innerShadowCount: 0,
 		shadowCount: 1,
 		textureLayerCount: 0,
+		capabilities: {
+			staticTexture: false,
+			multipleStrokes: false,
+			animationComponents: false,
+			scriptInfoSticker: false,
+			shaderComponents: false,
+			threeDimensional: false,
+			feedbackComponents: false,
+		},
+		diagnostics: [],
 		hasCover: true,
 		compatibility: "flat-compatible",
 		approximation: {
@@ -99,6 +109,16 @@ function createRuntimeEntry(): JianyingTextStyleCatalogEntry {
 		innerShadowCount: 0,
 		shadowCount: 0,
 		textureLayerCount: 0,
+		capabilities: {
+			staticTexture: false,
+			multipleStrokes: false,
+			animationComponents: true,
+			scriptInfoSticker: true,
+			shaderComponents: false,
+			threeDimensional: false,
+			feedbackComponents: false,
+		},
+		diagnostics: [],
 		hasCover: false,
 		compatibility: "native-runtime",
 		runtimeReference: {

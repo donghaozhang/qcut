@@ -94,6 +94,83 @@ describe("color properties", () => {
 		});
 	});
 
+	it("discards persisted dual LUT settings with no maskKind", () => {
+		const skinCube = {
+			size: 2,
+			domainMin: [0, 0, 0] as [number, number, number],
+			domainMax: [1, 1, 1] as [number, number, number],
+			values: [],
+		};
+		const settings = normalizeMediaColorSettings({
+			element: mediaElement({
+				color: {
+					...structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS),
+					lut: {
+						...DEFAULT_MEDIA_COLOR_SETTINGS.lut,
+						// A legacy record persisted before maskKind existed.
+						dual: { skinCube } as never,
+					},
+				},
+			}),
+		});
+		expect(settings.lut.dual).toBeUndefined();
+	});
+
+	it("discards segmentation dual LUT settings without a resourceId", () => {
+		const skinCube = {
+			size: 2,
+			domainMin: [0, 0, 0] as [number, number, number],
+			domainMax: [1, 1, 1] as [number, number, number],
+			values: [],
+		};
+		const settings = normalizeMediaColorSettings({
+			element: mediaElement({
+				color: {
+					...structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS),
+					lut: {
+						...DEFAULT_MEDIA_COLOR_SETTINGS.lut,
+						dual: {
+							skinCube,
+							maskKind: "skin-segmentation-v1",
+						} as never,
+					},
+				},
+			}),
+		});
+		expect(settings.lut.dual).toBeUndefined();
+	});
+
+	it("preserves well-formed dual LUT settings of both shapes", () => {
+		const skinCube = {
+			size: 2,
+			domainMin: [0, 0, 0] as [number, number, number],
+			domainMax: [1, 1, 1] as [number, number, number],
+			values: [],
+		};
+		const withColor = (dual: unknown) =>
+			normalizeMediaColorSettings({
+				element: mediaElement({
+					color: {
+						...structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS),
+						lut: {
+							...DEFAULT_MEDIA_COLOR_SETTINGS.lut,
+							dual: dual as never,
+						},
+					},
+				}),
+			});
+		expect(
+			withColor({ skinCube, maskKind: "skin-tone-v1" }).lut.dual
+		).toMatchObject({ maskKind: "skin-tone-v1" });
+		expect(
+			withColor({
+				skinCube,
+				maskKind: "skin-segmentation-v1",
+				resourceId: "res-1",
+			}).lut.dual
+		).toMatchObject({ maskKind: "skin-segmentation-v1", resourceId: "res-1" });
+	});
+
 	it("interpolates canonical color keyframes at the local timeline frame", () => {
 		const settings = resolveMediaColorAtTime({
 			element: mediaElement({

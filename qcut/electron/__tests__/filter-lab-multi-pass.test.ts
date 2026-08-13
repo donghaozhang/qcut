@@ -2,7 +2,10 @@ import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
 	detectJianyingMultiPassTopology,
+	FILTER_LAB_PASS_TRAIT_DEFAULTS,
 	loadJianyingMultiPassRecipe,
+	resolveFilterLabPassTraits,
+	type FilterLabMultiPassOperation,
 	type JianyingFilterMultiPassRenderer,
 } from "../native-pipeline/filters/filter-lab-multi-pass";
 
@@ -69,6 +72,28 @@ describe("Jianying multi-pass package detection", () => {
 		});
 	});
 
+	it("recognizes Lumi soft-glow and LUT packages", () => {
+		expect(
+			detectJianyingMultiPassTopology({
+				paths: [
+					"AmazingFeature/effects/LumiGaussianBlur/xshader/gaussianBlurX.xshader",
+					"AmazingFeature/effects/LumiGaussianBlur/xshader/gaussianBlurY.xshader",
+					"AmazingFeature/effects/LumiSGlow/xshader/mask.xshader",
+					"AmazingFeature/effects/LumiSGlow/xshader/BlurHorz.xshader",
+					"AmazingFeature/effects/LumiSGlow/xshader/BlurVert.xshader",
+					"AmazingFeature/effects/LumiSGlow/xshader/blend.xshader",
+					"AmazingFeature/effects/LumiLvFilter/xshader/pass6.xshader",
+					"AmazingFeature/effects/LumiLvFilter/image/filter.png",
+				],
+				signals: "glowWidth threshold SoftLight",
+			})
+		).toEqual({
+			kind: "bloom-lut",
+			lutRelativePath: "AmazingFeature/effects/LumiLvFilter/image/filter.png",
+			passCount: 10,
+		});
+	});
+
 	it("does not classify a tiled LUT as multi-pass from its title", () => {
 		expect(
 			detectJianyingMultiPassTopology({
@@ -119,5 +144,185 @@ describe("Jianying multi-pass recipe loading", () => {
 			"fog-blend",
 			"lut",
 		]);
+	});
+
+	it("keeps the observed soft-glow traits in its structural fallback", async () => {
+		const cube = {
+			size: 2,
+			values: new Float64Array(24),
+			domainMin: [0, 0, 0] as [number, number, number],
+			domainMax: [1, 1, 1] as [number, number, number],
+		};
+		const recipe = await loadJianyingMultiPassRecipe({
+			cacheRoot: "/cache",
+			renderer: {
+				kind: "bloom-lut",
+				container: "artistEffect",
+				packageIdentifier: "resource",
+				version: "version",
+				lutRelativePath: "AmazingFeature/effects/LumiLvFilter/image/filter.png",
+				passCount: 10,
+				fidelity: "structural",
+			},
+			loadCube: async () => cube,
+		});
+
+		expect(recipe).toEqual({
+			kind: "bloom-lut",
+			passes: [
+				{
+					kind: "bloom",
+					threshold: 0.86,
+					radius: 13,
+					amount: 70,
+					scale: 0.25,
+					pixelFormat: "rgba8",
+					mipLevels: 2,
+					edgeMode: "mirror",
+				},
+				{ kind: "lut", cube, intensity: 80 },
+			],
+		});
+	});
+});
+
+describe("pass traits (FLP-002)", () => {
+	it("keeps existing recipes byte-identical: no trait keys appear", async () => {
+		const renderer: JianyingFilterMultiPassRenderer = {
+			kind: "fog-lut",
+			container: "artistEffect",
+			packageIdentifier: "resource",
+			version: "version",
+			lutRelativePath: "AmazingFeature/image/filter.png",
+			passCount: 4,
+			fidelity: "structural",
+		};
+		const cube = {
+			size: 2,
+			values: new Float64Array(24),
+			domainMin: [0, 0, 0] as [number, number, number],
+			domainMax: [1, 1, 1] as [number, number, number],
+		};
+		const recipe = await loadJianyingMultiPassRecipe({
+			cacheRoot: "/cache",
+			renderer,
+			loadCube: async () => cube,
+		});
+		// Absent, not defaulted-in: serialized recipes must not change shape.
+		expect(recipe?.passes).toEqual([
+			{ kind: "fog-blend", radius: 3.6, amount: 50 },
+			{ kind: "lut", cube, intensity: 100 },
+		]);
+		for (const pass of recipe?.passes ?? []) {
+			expect(Object.keys(pass)).not.toContain("scale");
+			expect(Object.keys(pass)).not.toContain("pixelFormat");
+			expect(Object.keys(pass)).not.toContain("intensityCurve");
+		}
+	});
+
+	it("resolves absent traits to the verified full-res RGBA8 defaults", () => {
+		const resolved = resolveFilterLabPassTraits({
+			kind: "sharpen",
+			amount: 1,
+		} as FilterLabMultiPassOperation);
+		expect(resolved).toEqual(FILTER_LAB_PASS_TRAIT_DEFAULTS);
+		expect(resolved).toEqual({
+			scale: 1,
+			pixelFormat: "rgba8",
+			mipLevels: 1,
+			edgeMode: "clamp",
+			intensityCurve: { kind: "linear" },
+			timeVarying: false,
+		});
+	});
+
+	it("serializes observed traits through the renderer loader untouched", async () => {
+		const { loadJianyingFilterLabRenderer } = await import(
+			"../jianying-filter-multi-pass-loader"
+		);
+		const renderer: JianyingFilterMultiPassRenderer = {
+			kind: "fog-lut",
+			container: "artistEffect",
+			packageIdentifier: "resource",
+			version: "v1",
+			lutRelativePath: "AmazingFeature/image/filter.png",
+			passCount: 4,
+			fidelity: "structural",
+		};
+		const result = await loadJianyingFilterLabRenderer({
+			cacheRoot: "/cache",
+			filterTitle: "迷雾",
+			renderer,
+			resourceId: "res-1",
+			loadRecipe: async () => ({
+				kind: "fog-lut",
+				passes: [
+					{
+						kind: "fog-blend",
+						radius: 3.6,
+						amount: 50,
+						scale: 0.5,
+						pixelFormat: "float16",
+						timeVarying: true,
+					},
+					{
+						kind: "lut",
+						cube: {
+							size: 2,
+							values: new Float64Array(24),
+							domainMin: [0, 0, 0],
+							domainMax: [1, 1, 1],
+						},
+						intensity: 100,
+						edgeMode: "mirror",
+					},
+				],
+			}),
+		});
+		expect(result.passes[0]).toMatchObject({
+			kind: "fog-blend",
+			scale: 0.5,
+			pixelFormat: "float16",
+			timeVarying: true,
+		});
+		expect(result.passes[1]).toMatchObject({
+			kind: "lut",
+			edgeMode: "mirror",
+		});
+		// The cube payload itself crosses IPC as a plain number[] (the
+		// ColorCubeLut contract), so the loader must have serialized it.
+		const lutPass = result.passes[1] as { cube?: { values?: unknown } };
+		expect(Array.isArray(lutPass.cube?.values)).toBe(true);
+		expect(lutPass.cube?.values).toHaveLength(24);
+	});
+
+	it("lets observed traits override defaults field by field", () => {
+		const resolved = resolveFilterLabPassTraits({
+			kind: "fog-blend",
+			radius: 3.6,
+			amount: 50,
+			scale: 0.5,
+			pixelFormat: "float16",
+			intensityCurve: {
+				kind: "piecewise",
+				points: [
+					[0, 0],
+					[100, 0.5],
+				],
+			},
+		} as FilterLabMultiPassOperation);
+		expect(resolved.scale).toBe(0.5);
+		expect(resolved.pixelFormat).toBe("float16");
+		expect(resolved.intensityCurve).toEqual({
+			kind: "piecewise",
+			points: [
+				[0, 0],
+				[100, 0.5],
+			],
+		});
+		// Unobserved fields stay at defaults.
+		expect(resolved.mipLevels).toBe(1);
+		expect(resolved.edgeMode).toBe("clamp");
+		expect(resolved.timeVarying).toBe(false);
 	});
 });

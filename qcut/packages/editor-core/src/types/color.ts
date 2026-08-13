@@ -34,11 +34,16 @@ export interface ColorCubeLut {
 	values: number[];
 }
 
-export interface ColorDualLutSettings {
-	skinCube: ColorCubeLut;
-	/** Deterministic chroma mask; person/face AI remains a separate renderer. */
-	maskKind: "skin-tone-v1";
-}
+export type ColorDualLutSettings =
+	| {
+			skinCube: ColorCubeLut;
+			maskKind: "skin-tone-v1";
+	  }
+	| {
+			skinCube: ColorCubeLut;
+			maskKind: "skin-segmentation-v1";
+			resourceId: string;
+	  };
 
 export interface ColorLutSettings {
 	enabled: boolean;
@@ -50,31 +55,81 @@ export interface ColorLutSettings {
 	dual?: ColorDualLutSettings;
 }
 
+/**
+ * Long-tail per-pass texture semantics. Structurally mirrors
+ * `JianyingFilterLabPassTraits` in electron/jianying-filter-lab-contract.ts
+ * (the contract's compile-time parity guard asserts assignability); keep
+ * the two in sync. Absent fields mean the full-resolution RGBA8 defaults
+ * every currently verified recipe uses.
+ */
+export interface ColorMultiPassTraits {
+	scale?: 1 | 0.5 | 0.25;
+	pixelFormat?: "rgba8" | "float16" | "float32";
+	mipLevels?: number;
+	edgeMode?: "clamp" | "repeat" | "mirror";
+	intensityCurve?:
+		| { kind: "linear" }
+		| { kind: "piecewise"; points: [number, number][] };
+	timeVarying?: boolean;
+}
+
 export type ColorMultiPassOperation =
-	| {
+	| ({
 			kind: "sharpen";
 			amount: number;
-	  }
-	| {
+	  } & ColorMultiPassTraits)
+	| ({
 			kind: "bilateral-blur";
 			radius: number;
 			threshold: number;
-	  }
-	| {
+	  } & ColorMultiPassTraits)
+	| ({
 			kind: "fog-blend";
 			radius: number;
 			amount: number;
-	  }
-	| {
+	  } & ColorMultiPassTraits)
+	| ({
 			kind: "vignette";
 			amount: number;
 			softness: number;
-	  }
-	| {
+	  } & ColorMultiPassTraits)
+	| ({
+			kind: "grain-noise";
+			amount: number;
+			size: number;
+			seed: number;
+	  } & ColorMultiPassTraits)
+	| ({
+			kind: "light-leak";
+			amount: number;
+			color: [number, number, number];
+			centerX: number;
+			centerY: number;
+			radius: number;
+			speed: number;
+	  } & ColorMultiPassTraits)
+	| ({
+			kind: "bloom";
+			threshold: number;
+			radius: number;
+			amount: number;
+	  } & ColorMultiPassTraits)
+	| ({
+			kind: "chromatic-aberration";
+			offset: number;
+			angle: number;
+	  } & ColorMultiPassTraits)
+	| ({
+			kind: "lens-distortion";
+			distortion: number;
+			centerX: number;
+			centerY: number;
+	  } & ColorMultiPassTraits)
+	| ({
 			kind: "lut";
 			cube: ColorCubeLut;
 			intensity: number;
-	  };
+	  } & ColorMultiPassTraits);
 
 /** Ordered spatial and colour passes reconstructed from a cached effect package. */
 export interface ColorMultiPassSettings {
@@ -82,7 +137,12 @@ export interface ColorMultiPassSettings {
 	presetId: string;
 	name: string;
 	intensity: number;
-	fidelity: "structural";
+	fidelity: "structural" | "native-local";
+	nativeEffect?: {
+		provider: "jianying-local-effect-v1";
+		resourceId: string;
+		version: string;
+	};
 	passes: ColorMultiPassOperation[];
 }
 

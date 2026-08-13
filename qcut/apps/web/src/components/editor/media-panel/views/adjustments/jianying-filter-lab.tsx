@@ -126,11 +126,13 @@ export function JianyingFilterLab({
 		cube,
 		skinCube,
 		entry,
+		localRuntimeReady,
 	}: {
 		name: string;
 		cube: ColorCubeLut;
 		skinCube?: ColorCubeLut;
 		entry: JianyingFilterLabLutSummary;
+		localRuntimeReady?: boolean;
 	}) => void;
 	onApplyMultiPass?: ({
 		settings,
@@ -301,14 +303,20 @@ export function JianyingFilterLab({
 			if (!reference) {
 				throw new Error("该滤镜缺少可加载 LUT");
 			}
-			const [loaded, loadedSkin] = await Promise.all([
+			const [loaded, loadedSkin, localRuntime] = await Promise.all([
 				api.load({ lutId: reference.lutId }),
 				skinReference ? api.load({ lutId: skinReference.lutId }) : undefined,
+				skinReference && typeof api.inspectLocalRuntime === "function"
+					? api.inspectLocalRuntime()
+					: undefined,
 			]);
 			onApply({
 				name: filter.title,
 				cube: loaded.cube,
 				...(loadedSkin ? { skinCube: loadedSkin.cube } : {}),
+				...(localRuntime
+					? { localRuntimeReady: localRuntime.state === "ready" }
+					: {}),
 				entry: loaded,
 			});
 			setRecentIds((current) =>

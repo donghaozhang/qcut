@@ -228,6 +228,96 @@ describe("Jianying-derived loop effects", () => {
 		expect(first?.visual.translateX).not.toBeCloseTo(0);
 	});
 
+	it("drives a real Y-axis plane projection for the 3D flip", () => {
+		const effect: TextAnimationEffect = {
+			kind: "flip3d",
+			axis: "y",
+			maxAngleDeg: 60,
+			cameraFovDeg: 30,
+			motionRatio: 0.8,
+			motionEasing: "linear",
+		};
+		const peak = sampleLoop({ effect, frame: 40 });
+		const resting = sampleLoop({ effect, frame: 80 });
+
+		expect(peak.container.projection).toEqual({
+			kind: "plane",
+			cameraFovDeg: 30,
+			rotationXDeg: 0,
+			rotationYDeg: 60,
+		});
+		expect(resting.container.projection).toMatchObject({ rotationYDeg: 0 });
+	});
+
+	it("rotates the complete text texture around a cylindrical surface", () => {
+		const effect: TextAnimationEffect = {
+			kind: "cylinder3d",
+			turns: 1,
+			tiltXDeg: 20,
+			cameraFovDeg: 60,
+			coverage: 5 / 6,
+			radiusRatio: 1.2 / (Math.PI * 2),
+			startYawDeg: 540,
+		};
+		const quarter = sampleLoop({ effect, frame: 25 });
+
+		expect(quarter.container.projection).toEqual({
+			kind: "cylinder",
+			cameraFovDeg: 60,
+			tiltXDeg: 20,
+			yawDeg: 450,
+			coverage: 5 / 6,
+			radiusRatio: 1.2 / (Math.PI * 2),
+		});
+	});
+
+	it("keeps per-glyph 3D jitter deterministic and carries its trail state", () => {
+		const effect: TextAnimationEffect = {
+			kind: "jitter3d",
+			cameraFovDeg: 60,
+			groupYawDeg: 20,
+			rotationXDeg: 15,
+			rotationYDeg: 15,
+			rotationZDeg: 10,
+			positionJitter: 0.03,
+			scaleFrom: 2 / 3,
+			scaleTo: 1,
+			frequency: 12,
+			seed: 42,
+			trailSamples: 12,
+			trailStrength: 0.65,
+			trapezoidAmount: 0.12,
+		};
+		const first = sampleLoop({
+			effect,
+			frame: 17,
+			content: "ABCD",
+			unit: "grapheme",
+		});
+		const repeated = sampleLoop({
+			effect,
+			frame: 17,
+			content: "ABCD",
+			unit: "grapheme",
+		});
+
+		expect(repeated.units).toEqual(first.units);
+		expect(first.units.every(({ visual }) => visual.projection)).toBe(true);
+		expect(first.units.at(0)?.visual.projection).toMatchObject({
+			kind: "plane",
+			rotationYDeg: 20,
+		});
+		expect(first.units.at(0)?.visual.postProcess).toEqual({
+			trailSamples: 12,
+			trailStrength: 0.65,
+			trapezoidAmount: 0.12,
+		});
+		expect(
+			new Set(first.units.map(({ visual }) => visual.rotationYDeg?.toFixed(5)))
+				.size
+		).toBeGreaterThan(1);
+	});
+
 	it("orbits every unit on the circle Jianying's 环绕 traces", () => {
 		// translate.x = sin(2*pi*t), translate.y = cos(2*pi*t) in their Lua.
 		const effect: TextAnimationEffect = {

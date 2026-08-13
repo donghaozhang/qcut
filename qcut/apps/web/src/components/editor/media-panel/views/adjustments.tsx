@@ -81,19 +81,31 @@ export function AdjustmentsView() {
 		name,
 		cube,
 		skinCube,
+		entry,
+		localRuntimeReady,
 	}: {
 		name: string;
 		cube: ColorCubeLut;
 		skinCube?: ColorCubeLut;
 		entry: JianyingFilterLabLutSummary;
+		localRuntimeReady?: boolean;
 	}) => {
-		const successMessage = skinCube
-			? `已应用 ${name} 双 LUT 与肤色蒙版到调节层`
-			: `已应用 ${name} 到调节层`;
+		let successMessage = `已应用 ${name} 到调节层`;
+		if (skinCube) {
+			successMessage = localRuntimeReady
+				? `已应用 ${name} 本机人像渲染到调节层`
+				: `已应用 ${name} 双 LUT；当前使用近似肤色蒙版`;
+		}
 		applyLut({
 			name,
 			cube,
 			skinCube,
+			// Only bind the local runtime when it is actually ready: otherwise
+			// the stored settings must fall back to skin-tone-v1 so preview and
+			// export do not attempt (and force engines for) local rendering.
+			...(skinCube && localRuntimeReady
+				? { localPortraitResourceId: entry.resourceId }
+				: {}),
 			layerName: `剪映 - ${name}`,
 			successMessage,
 		});

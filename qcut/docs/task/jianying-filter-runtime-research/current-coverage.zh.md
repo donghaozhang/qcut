@@ -1,30 +1,32 @@
 # 剪映滤镜运行时：当前覆盖与剩余边界
 
-更新日期：2026-08-11
+更新日期：2026-08-13
 
 ## 先说结论
 
 把已列出的八组问题全部搞懂，确实能解决剪映滤镜运行时的绝大多数技术问题，但要按滤镜类型区分：
 
-- 普通 LUT 与多 Pass 滤镜：核心执行语义已经跑通，当前可高置信覆盖大部分纯调色、纹理叠加、暗角、
-  旧影和常见多 Pass 组合；不能从三个普通多 Pass 样本外推成 883 个卡片全部完成。
+- 普通 LUT 与多 Pass 滤镜：核心执行语义已经跑通，产品门禁现有 `净白 + 清透美食 + 暗角旧影 + 迷雾`
+  共 4 张 verified；60 张单 LUT 已完成批处理。不能从这些样本外推成 883 个卡片全部完成。
 - 人像与区域滤镜：主要链路已定位，仍受私有人像模型、宿主配置和许可边界限制，尚不能宣称完美复刻。
-- 预览与导出：独立宿主的状态边界和销毁已验证；真实剪映导出子进程的外围调用序列仍未直接捕获。
+- QCut 预览与导出：本机 provider 已持久化，并在 source 变化或时间回跳时重建 session；预览与固定时间戳
+  muxer 共用同一 provider。真实剪映导出子进程的外围调用序列仍未直接捕获。
 
 ## 能力矩阵
 
 | 领域 | 当前状态 | 已证明 | 仍缺少 |
 | --- | --- | --- | --- |
 | 单 LUT / 纯调色 | 已掌握 | 本机二进制重放与 UI 可做到逐像素一致 | 批量验证更多卡片；产品侧需自有或获授权实现 |
-| 普通多 Pass | 已掌握核心语义 | 清透美食、暗角旧影、迷雾在显式 `intensity=1` 后 RGB 完全一致；迷雾覆盖四段 blur/mask/screen/LUT graph | 半分辨率、浮点/HDR 中间格式和动画纹理的代表性样本 |
+| 普通多 Pass | 核心语义与产品门禁已掌握 | 清透美食、暗角旧影、迷雾在显式 `intensity=1` 后 RGB 完全一致并进入产品门禁；迷雾覆盖四段 blur/mask/screen/LUT graph | 真实剪映半分辨率、浮点/HDR 和动画纹理代表样本 |
+| QCut 长尾 Pass | 结构化实现已完成 | grain、动态漏光、Bloom、色差、镜头畸变均有浏览器与 FFmpeg 实现；Bloom 覆盖 0.5x、浮点和多级 blur | 与剪映同卡的参数、UI 帧和逐像素门禁 |
 | 外部纹理与 sampler | 已掌握代表样本 | 暗角旧影的 `src1.png` 绑定、坐标、Y 翻转、Alpha 与 pass 链可完全一致 | 其他纹理用途，如噪声、光泄漏、位移和动画纹理 |
 | UI 强度映射 | 已掌握普通滤镜入口 | `intensity=0` 为 passthrough，`1` 与 UI 100 完全一致 | 非线性强度、分段参数和多 uniform 卡片的逐卡验证 |
-| skin mask 交付 | 已掌握独立宿主的静态与首次交付边界 | native texture 第三标志修复；CPU fallback mask 可完整读出；同帧等待前后 1639680 字节零变化且无额外 mask | UI 的恢复动作、动态追踪和真实导出 |
+| skin mask 交付 | 已掌握独立宿主的静态、首次交付与回跳边界 | passive wait 不改写当前纹理；ready 后 re-seek 可刷新静态结果至 mask IoU 0.962641；动态历史下不 reset 会降至 0.265185 | 获授权产品模型、UI 真实导出 |
 | 分割模型选择 | 已掌握 resolver 差异，纯增益待重测 | UI 与 V2 的逻辑请求和 `support_external_model_name=3` 一致；physical v5.1 会实质改变 mask 与 RGBA | v5.0/v5.1 同 readiness 对照；face-extra 物理映射 |
 | 人脸结果 | 部分掌握 | SDK 入口能读到有效人脸框、关键点和 face count | 独立结果 API、关键点到具体人像效果的绑定与逐帧追踪 |
 | 素材切换状态 | 已掌握独立宿主策略 | A -> gray -> B 时 manager reset 从 B 首帧起逐字节等于 fresh-B | UI 是否使用更窄 reset，以及 seek 回跳的真实策略 |
 | ExportMode | 已排除单一 bool | `ExportMode=0/1` 十帧逐字节一致，销毁顺序一致 | hardened `--lvve-service` 中真实导出 orchestration |
-| 视频时序 | 部分掌握 | 连续帧确定性、source-boundary reset 已验证；被动等待不会改写当前纹理，ready 需后续 seek 才被观察 | 同 timestamp re-seek 是否恢复；真实导出的时间戳、并发、flush/wait、跨帧平滑序列 |
+| 视频时序 | QCut 产品路径已掌握 | 连续 clip 复用 session；clip/source 或向后时间跳转重建；慢原生帧用固定时间戳 muxer 导出，1 秒时间线得到 30 帧、30 fps、1.000 秒 | 剪映真实导出的并发、flush/wait 与跨帧平滑序列 |
 
 ## 对“能否解决大部分滤镜”的准确回答
 
@@ -40,13 +42,19 @@ Screen 混合和联动多个 uniform 的强度事件可以精确重放。
 `43.042030 dB` 变为 `48.888033 dB`，证明 resolver 选择的是像素相关的真实模型；但后续实验发现 v5.1
 候选首次渲染发生在 CoreML ready 前。相同 v5.1 在受控 ready 后为 `46.780337 dB`，所以旧
 `5.846004 dB` 不能全部归因于模型文件。SIMD 0/1 已在受控静态与动态窗口下得到逐字节一致结果，可以排除；
-当前关键缺口转为 ready 后的显式恢复动作、关键点和导出路径，因此仍不能称为“完美复刻”。
+ready 后的恢复动作随后已经完成：同 timestamp re-seek 能恢复静态历史，却不能清除运动后的 segmentation
+状态。当前关键缺口转为产品侧获授权 skin segmentation、关键点和真实导出路径，因此仍不能称为“完美复刻”。
 
 ## 产品边界
 
 研究探针证明了本机互操作性和实现语义，不代表 QCut 可以重新分发剪映 Frameworks、模型、LUT、shader
 或效果包。产品落地仍应使用 QCut 自有 LUT/shader graph 与获得授权的分割、人脸能力。私有二进制可以做
 本机对照 oracle，不能当作可发布依赖。
+
+奥林巴斯产品 E2E 已把这条边界量化：Filter Lab 可以从用户本机缓存按需读取并解码背景/肤色两张 tiled LUT，
+卡片达到 `available=true / lutCount=2`；但现有 `skin-tone-v1` 只有 `28.460652 dB / mask IoU 0.445115`，
+所以 verification 仍为 `unverified`。研究二进制 oracle 的 `48.888033 dB / 0.962641` 不能写入产品 store，
+也不能作为产品已经复刻的证明。
 
 ## 下一优先级
 
@@ -58,15 +66,21 @@ Screen 混合和联动多个 uniform 的强度事件可以精确重放。
 前后连续五次都是 `0/1639680` 字节变化，单帧独立复跑也为零，且没有额外 mask 交付。CoreML ready 只有在
 后续 seek 中才被宿主观察；它在某次 seek 内出现也不证明该帧已经消费新结果。
 
-下一次只固定 UI v5.1、SIMD、包、manager 和输入，等待后续 seek 已观察到 ready，再对原输入和原时间戳做
-一次同 timestamp re-seek，确认旧结果能否被替换。不要同时加入 manager reset、source switch、face-extra、
-mode 或导出参数，也不要重复
-`amazing param`、Bach result directory、`AlgorithmCacheFlag`、`EnableImageQuality`、
-`EnableAdjustColorWithFloat`、manager init mode 或 `ExportMode`。
+ready 后同 timestamp re-seek 已完成。静态历史达到 `48.888033 dB / mask IoU 0.962641`；同一 manager
+经过运动历史后回跳只剩 `40.140233 dB / 0.265185`，两次独立复跑逐字节一致。结合既有 source-switch
+实验，恢复规则确定为：连续 clip 复用 manager；clip/source 变化或向后时间跳转时重建 manager 与
+AlgorithmService。QCut 的 preview/export 已共用本机 provider 生命周期。7 张双 LUT 现已逐卡完成 70 帧
+真实视频、人物移动、mask 响应、A -> B 素材切换和固定帧数导出：奥林巴斯相对直接 UI mask 的
+`maskEdgeMae=0.013262`，达到 verified；共享分割算法图的另外六张为 `0.075152`，达到 close。下一产品
+优先级仍是接入自有或获授权 skin segmentation 并提升吞吐；下一研究优先级是缩小共享分割图的边缘与羽化
+差距，再为 Bloom、色差、漏光和颗粒采集真实剪映长尾样本。
 
 记录见 [skin-seg-first-result-lifecycle.zh.md](skin-seg-first-result-lifecycle.zh.md)、
+[olympus-portrait-filter-e2e.zh.md](olympus-portrait-filter-e2e.zh.md)、
 [skin-seg-simd-ab.zh.md](skin-seg-simd-ab.zh.md)、
 [ui-physical-skin-model.zh.md](ui-physical-skin-model.zh.md)、
 [support-external-model-name.zh.md](support-external-model-name.zh.md)、
-[model-clip-feature-params.zh.md](model-clip-feature-params.zh.md) 与
-[bach-algorithm-model-clip-params.zh.md](bach-algorithm-model-clip-params.zh.md)。
+[model-clip-feature-params.zh.md](model-clip-feature-params.zh.md)、
+[bach-algorithm-model-clip-params.zh.md](bach-algorithm-model-clip-params.zh.md) 与
+[dual-lut-seven-real-video-e2e.zh.md](dual-lut-seven-real-video-e2e.zh.md)、
+[product-batches-and-long-tail-e2e.zh.md](product-batches-and-long-tail-e2e.zh.md)。

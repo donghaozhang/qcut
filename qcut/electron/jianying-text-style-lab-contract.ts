@@ -74,6 +74,8 @@ export interface JianyingTextStyleLabStyleSummary {
 	innerShadowCount: number;
 	shadowCount: number;
 	textureLayerCount: number;
+	capabilities: import("./jianying-text-runtime-contract.js").JianyingTextEffectCapabilities;
+	diagnostics: import("./jianying-text-runtime-contract.js").JianyingTextRuntimeDiagnostic[];
 	hasCover: boolean;
 	compatibility: JianyingTextStyleCompatibility;
 	approximation?: JianyingTextStyleQcutApproximation;

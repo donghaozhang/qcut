@@ -2,8 +2,10 @@ import { constants } from "node:fs";
 import { access } from "node:fs/promises";
 import {
 	buildJianyingFontCatalog,
+	type JianyingFontCatalog,
 	isValidJianyingFontId,
 } from "../jianying-font-lab-catalog.js";
+import type { JianyingTextRuntimeDiagnostic } from "../jianying-text-runtime-contract.js";
 
 const DEFAULT_FONT_CANDIDATES = [
 	process.env.QCUT_JIANYING_TEXT_DEFAULT_FONT,
@@ -23,9 +25,15 @@ async function isReadableFile({ filePath }: { filePath: string }) {
 	}
 }
 
-async function defaultFontPath() {
+export interface JianyingTextRuntimeFontResolution {
+	filePath: string;
+	state: "default" | "fallback" | "requested";
+	diagnostics: JianyingTextRuntimeDiagnostic[];
+}
+
+async function defaultFontPath({ candidates }: { candidates: string[] }) {
 	const checks = await Promise.all(
-		DEFAULT_FONT_CANDIDATES.map(async (filePath) => ({
+		candidates.map(async (filePath) => ({
 			filePath,
 			readable: await isReadableFile({ filePath }),
 		}))
@@ -42,16 +50,39 @@ async function fontCatalog() {
 
 export async function resolveJianyingTextRuntimeFont({
 	fontAssetId,
+	getCatalog = fontCatalog,
+	fallbackCandidates = DEFAULT_FONT_CANDIDATES,
 }: {
 	fontAssetId?: string;
-}) {
-	if (!fontAssetId) return defaultFontPath();
+	getCatalog?: () => Promise<JianyingFontCatalog>;
+	fallbackCandidates?: string[];
+}): Promise<JianyingTextRuntimeFontResolution> {
+	if (!fontAssetId) {
+		return {
+			filePath: await defaultFontPath({ candidates: fallbackCandidates }),
+			state: "default",
+			diagnostics: [],
+		};
+	}
 	if (!isValidJianyingFontId({ fontId: fontAssetId })) {
 		throw new Error("时间线字体引用格式无效。");
 	}
-	const catalog = await fontCatalog();
+	const catalog = await getCatalog();
 	const entry = catalog.entries.find(({ fontId }) => fontId === fontAssetId);
-	if (!entry) throw new Error("时间线引用的本机剪映字体已经缺失。");
+	if (!entry) {
+		return {
+			filePath: await defaultFontPath({ candidates: fallbackCandidates }),
+			state: "fallback",
+			diagnostics: [
+				{
+					code: "font-asset-missing",
+					severity: "warning",
+					message: "时间线引用的本机剪映字体已经缺失，已改用系统中文字体。",
+					fontAssetId,
+				},
+			],
+		};
+	}
 	const checks = await Promise.all(
 		entry.filePaths.map(async (filePath) => ({
 			filePath,
@@ -59,6 +90,19 @@ export async function resolveJianyingTextRuntimeFont({
 		}))
 	);
 	const selected = checks.find(({ readable }) => readable)?.filePath;
-	if (!selected) throw new Error("时间线引用的本机剪映字体文件已经缺失。");
-	return selected;
+	if (!selected) {
+		return {
+			filePath: await defaultFontPath({ candidates: fallbackCandidates }),
+			state: "fallback",
+			diagnostics: [
+				{
+					code: "font-file-missing",
+					severity: "warning",
+					message: "时间线引用的本机剪映字体文件已经缺失，已改用系统中文字体。",
+					fontAssetId,
+				},
+			],
+		};
+	}
+	return { filePath: selected, state: "requested", diagnostics: [] };
 }

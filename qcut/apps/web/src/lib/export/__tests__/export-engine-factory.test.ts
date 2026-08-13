@@ -158,6 +158,43 @@ describe("ExportEngineFactory", () => {
 			expect(rec.estimatedPerformance).toBe("high");
 		});
 
+		it("uses fixed-timestamp muxing when a timeline needs the persistent local provider", async () => {
+			mockPlatform.isElectron = true;
+			const factory = ExportEngineFactory.getInstance();
+			const tracks = [
+				{
+					id: "track-1",
+					type: "media",
+					elements: [
+						{
+							id: "media-1",
+							type: "media",
+							color: {
+								enabled: true,
+								multiPass: {
+									enabled: true,
+									fidelity: "native-local",
+									nativeEffect: {
+										provider: "jianying-local-effect-v1",
+									},
+								},
+							},
+						},
+					],
+				},
+			];
+
+			const rec = await factory.getEngineRecommendation(
+				{ width: 1280, height: 720 },
+				10,
+				"medium",
+				tracks as any
+			);
+
+			expect(rec.engineType).toBe(ExportEngineType.MUXER);
+			expect(rec.reason).toContain("timeline duration");
+		});
+
 		it("recommends Remotion engine when timeline has Remotion elements", async () => {
 			const factory = ExportEngineFactory.getInstance();
 			const tracks = [
@@ -413,6 +450,45 @@ describe("ExportEngineFactory", () => {
 			);
 
 			expect(engine).toBeDefined();
+		});
+
+		it("overrides explicit CLI export for a local-native color timeline", async () => {
+			mockPlatform.isElectron = true;
+			mockPlatform.ffmpeg.exportVideoCLI = vi.fn();
+			const factory = ExportEngineFactory.getInstance();
+			const canvas = createMockCanvas();
+			const tracks = [
+				{
+					id: "track-1",
+					type: "media",
+					elements: [
+						{
+							id: "media-1",
+							type: "media",
+							color: {
+								enabled: true,
+								multiPass: {
+									enabled: true,
+									fidelity: "native-local",
+									nativeEffect: {
+										provider: "jianying-local-effect-v1",
+									},
+								},
+							},
+						},
+					],
+				},
+			];
+			const engine = await factory.createEngine(
+				canvas,
+				defaultSettings,
+				tracks as any,
+				[],
+				1,
+				ExportEngineType.CLI
+			);
+
+			expect(engine.constructor.name).toBe("ExportEngineMuxer");
 		});
 
 		it("auto-selects engine type when none specified", async () => {

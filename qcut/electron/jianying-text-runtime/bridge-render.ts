@@ -13,6 +13,7 @@ import path from "node:path";
 import type { JianyingTextRuntimeRenderStrategy } from "../jianying-text-runtime-contract.js";
 import { readBoundedJianyingTextJson } from "../jianying-text-package-metadata.js";
 import type { ResolvedJianyingTextPackage } from "./package-resolver.js";
+import type { ResolvedJianyingTextAnimation } from "./animation-package-resolver.js";
 import {
 	getEditedJianyingScriptPackage,
 	getHydratedJianyingScriptPackage,
@@ -39,11 +40,17 @@ export interface JianyingTextRawSequenceRequest {
 	frameCount: number;
 	startTimestamp: number;
 	timestampStep: number;
+	timelineDuration: number;
+	animations?: ResolvedJianyingTextAnimation[];
 	content?: string;
 	fontPath?: string;
 	fontSize?: number;
+	resolutionType?: number;
 	scriptParameters?: string;
 }
+
+const SCRIPT_STRATEGY_CACHE_SCHEMA_VERSION = 5;
+const SCRIPT_STRATEGY_PROBE_FRACTIONS = [0.25, 2 / 3] as const;
 
 function bridgeTimeout({ frameCount }: { frameCount: number }) {
 	return Math.min(300_000, Math.max(20_000, 15_000 + frameCount * 350));
@@ -63,6 +70,50 @@ export function resolveJianyingTextBridgeLaunch({
 		command: runtime.bridgePath,
 		args: [runtime.runtimeRoot],
 		environment,
+	};
+}
+
+export function resolveJianyingTextBridgeEnvironment({
+	environment,
+	request,
+}: {
+	environment: NodeJS.ProcessEnv;
+	request: JianyingTextRawSequenceRequest;
+}): NodeJS.ProcessEnv {
+	const segmentPayload =
+		request.packageKind === "ScriptInfoSticker"
+			? JSON.stringify({ path: request.packagePath })
+			: "";
+	const animationEnvironment = Object.fromEntries(
+		(request.animations ?? []).flatMap(
+			({ animationType, duration, packagePath }) => [
+				[`JY_TEXT_ANIMATION_${animationType}_PATH`, packagePath],
+				[
+					`JY_TEXT_ANIMATION_${animationType}_DURATION`,
+					String(Math.round(duration * 1_000_000)),
+				],
+			]
+		)
+	);
+	return {
+		...environment,
+		JY_TEXT_PACKAGE: request.packagePath,
+		JY_TEXT_OUTPUT: request.outputPath,
+		JY_TEXT_SEGMENT_TYPE:
+			request.packageKind === "ScriptInfoSticker" ? "10" : "3",
+		JY_TEXT_SEGMENT_PAYLOAD: segmentPayload,
+		JY_TEXT_SCRIPT_PARAMETERS: request.scriptParameters ?? "",
+		JY_TEXT_CONTENT: request.content ?? "",
+		JY_TEXT_FONT_PATH: request.fontPath ?? "",
+		JY_TEXT_FONT_SIZE: String(request.fontSize ?? 12),
+		JY_TEXT_RESOLUTION_TYPE: String(request.resolutionType ?? -1),
+		JY_TEXT_TIMESTAMP: String(Math.round(request.startTimestamp)),
+		JY_TEXT_TIMESTAMP_STEP: String(request.timestampStep),
+		JY_TEXT_TIMELINE_DURATION: String(Math.round(request.timelineDuration)),
+		JY_TEXT_FRAME_COUNT: String(request.frameCount),
+		JY_VIDEO_WIDTH: String(request.width),
+		JY_VIDEO_HEIGHT: String(request.height),
+		...animationEnvironment,
 	};
 }
 
@@ -91,33 +142,16 @@ export async function renderJianyingTextRawSequence({
 	runtime: JianyingTextBridgeRuntime;
 	request: JianyingTextRawSequenceRequest;
 }) {
-	const segmentPayload =
-		request.packageKind === "ScriptInfoSticker"
-			? JSON.stringify({ path: request.packagePath })
-			: "";
 	const launch = resolveJianyingTextBridgeLaunch({ runtime });
 	await runJianyingTextProcess({
 		requestId: request.requestId,
 		command: launch.command,
 		args: launch.args,
 		timeoutMs: bridgeTimeout({ frameCount: request.frameCount }),
-		env: {
-			...launch.environment,
-			JY_TEXT_PACKAGE: request.packagePath,
-			JY_TEXT_OUTPUT: request.outputPath,
-			JY_TEXT_SEGMENT_TYPE:
-				request.packageKind === "ScriptInfoSticker" ? "10" : "3",
-			JY_TEXT_SEGMENT_PAYLOAD: segmentPayload,
-			JY_TEXT_SCRIPT_PARAMETERS: request.scriptParameters ?? "",
-			JY_TEXT_CONTENT: request.content ?? "",
-			JY_TEXT_FONT_PATH: request.fontPath ?? "",
-			JY_TEXT_FONT_SIZE: String(request.fontSize ?? 12),
-			JY_TEXT_TIMESTAMP: String(Math.round(request.startTimestamp)),
-			JY_TEXT_TIMESTAMP_STEP: String(request.timestampStep),
-			JY_TEXT_FRAME_COUNT: String(request.frameCount),
-			JY_VIDEO_WIDTH: String(request.width),
-			JY_VIDEO_HEIGHT: String(request.height),
-		},
+		env: resolveJianyingTextBridgeEnvironment({
+			environment: launch.environment,
+			request,
+		}),
 	});
 	await requireRawSequenceSize(request);
 }
@@ -131,6 +165,18 @@ function scriptResources({
 		throw new Error("ScriptInfoSticker resources were not resolved.");
 	}
 	return packageInfo.scriptResources;
+}
+
+function degradedScriptResourceIds({
+	packageInfo,
+}: {
+	packageInfo: ResolvedJianyingTextPackage;
+}) {
+	return new Set(
+		scriptResources({ packageInfo }).degraded.map(
+			({ resourceId }) => resourceId
+		)
+	);
 }
 
 function strategyKey({
@@ -167,7 +213,7 @@ async function readCachedStrategy({ cacheKey }: { cacheKey: string }) {
 		const value = JSON.parse(
 			await readFile(strategyCachePath({ cacheKey }), "utf8")
 		) as Record<string, unknown>;
-		return value.schemaVersion === 2 &&
+		return value.schemaVersion === SCRIPT_STRATEGY_CACHE_SCHEMA_VERSION &&
 			value.cacheKey === cacheKey &&
 			(value.strategy === "runtime-parameters" ||
 				value.strategy === "preload-copy")
@@ -191,7 +237,7 @@ async function writeCachedStrategy({
 	await writeFile(
 		temporary,
 		`${JSON.stringify({
-			schemaVersion: 2,
+			schemaVersion: SCRIPT_STRATEGY_CACHE_SCHEMA_VERSION,
 			cacheKey,
 			strategy,
 		})}\n`,
@@ -213,6 +259,42 @@ function isVisibleTransparentFrame({ bytes }: { bytes: Buffer }) {
 	return false;
 }
 
+export function verifyJianyingRuntimeParameterFrames({
+	referenceBytes,
+	candidateBytes,
+	width,
+	height,
+	frameCount,
+}: {
+	referenceBytes: Buffer;
+	candidateBytes: Buffer;
+	width: number;
+	height: number;
+	frameCount: number;
+}) {
+	const bytesPerFrame = width * height * 4;
+	const expectedBytes = bytesPerFrame * frameCount;
+	if (
+		referenceBytes.length !== expectedBytes ||
+		candidateBytes.length !== expectedBytes
+	) {
+		return false;
+	}
+	for (let index = 0; index < frameCount; index += 1) {
+		const start = index * bytesPerFrame;
+		const end = start + bytesPerFrame;
+		const referenceFrame = referenceBytes.subarray(start, end);
+		const candidateFrame = candidateBytes.subarray(start, end);
+		if (
+			!isVisibleTransparentFrame({ bytes: candidateFrame }) ||
+			!referenceFrame.equals(candidateFrame)
+		) {
+			return false;
+		}
+	}
+	return true;
+}
+
 async function inspectRuntimeParameterEditing({
 	runtime,
 	requestId,
@@ -232,11 +314,14 @@ async function inspectRuntimeParameterEditing({
 			filePath: path.join(packageInfo.packagePath, "content.json"),
 		});
 		const resources = scriptResources({ packageInfo });
+		const degradedResourceIds = degradedScriptResourceIds({ packageInfo });
+		const probeContent = "QCut 9Z 验证";
 		const edited = prepareJianyingScriptContent({
 			value: source,
-			content: "QCut 9Z 验证",
+			content: probeContent,
 			resourcePaths: resources.resourcePaths,
 			fontPath,
+			degradedResourceIds,
 		});
 		const hydratedPackagePath = await getHydratedJianyingScriptPackage({
 			packagePath: packageInfo.packagePath,
@@ -244,39 +329,64 @@ async function inspectRuntimeParameterEditing({
 			resourcePaths: resources.resourcePaths,
 			resourceFingerprint: resources.fingerprint,
 			fontPath,
+			degradedResourceIds,
 		});
-		const defaultPath = path.join(temporary, "default.rgba");
-		const editedPath = path.join(temporary, "edited.rgba");
-		const timestamp =
-			Math.min(60, packageInfo.templateDuration * (2 / 3)) * 1_000_000;
+		const preloadedPackagePath = await getEditedJianyingScriptPackage({
+			packagePath: packageInfo.packagePath,
+			packageHash: packageInfo.packageHash,
+			content: probeContent,
+			resourcePaths: resources.resourcePaths,
+			resourceFingerprint: resources.fingerprint,
+			fontPath,
+			degradedResourceIds,
+		});
+		const referencePath = path.join(temporary, "reference.rgba");
+		const candidatePath = path.join(temporary, "candidate.rgba");
+		const maximumTimestamp =
+			Math.min(60, packageInfo.templateDuration) * 1_000_000;
+		const startTimestamp =
+			maximumTimestamp * SCRIPT_STRATEGY_PROBE_FRACTIONS[0];
+		const timestampStep =
+			maximumTimestamp *
+			(SCRIPT_STRATEGY_PROBE_FRACTIONS[1] - SCRIPT_STRATEGY_PROBE_FRACTIONS[0]);
 		const baseRequest = {
 			requestId,
-			packagePath: hydratedPackagePath,
 			packageKind: packageInfo.packageKind,
 			width: 256,
 			height: 256,
-			frameCount: 1,
-			startTimestamp: timestamp,
-			timestampStep: 0,
+			frameCount: SCRIPT_STRATEGY_PROBE_FRACTIONS.length,
+			startTimestamp,
+			timestampStep,
+			timelineDuration: maximumTimestamp,
 		} as const;
 		await renderJianyingTextRawSequence({
 			runtime,
-			request: { ...baseRequest, outputPath: defaultPath },
+			request: {
+				...baseRequest,
+				packagePath: preloadedPackagePath,
+				outputPath: referencePath,
+			},
 		});
 		await renderJianyingTextRawSequence({
 			runtime,
 			request: {
 				...baseRequest,
-				outputPath: editedPath,
+				packagePath: hydratedPackagePath,
+				outputPath: candidatePath,
 				scriptParameters: JSON.stringify(edited),
 			},
 		});
-		const [defaultBytes, editedBytes] = await Promise.all([
-			readFile(defaultPath),
-			readFile(editedPath),
+		const [referenceBytes, candidateBytes] = await Promise.all([
+			readFile(referencePath),
+			readFile(candidatePath),
 		]);
-		return isVisibleTransparentFrame({ bytes: editedBytes }) &&
-			!defaultBytes.equals(editedBytes)
+		return verifyJianyingRuntimeParameterFrames({
+			referenceBytes,
+			candidateBytes,
+			width: baseRequest.width,
+			height: baseRequest.height,
+			frameCount: baseRequest.frameCount,
+		})
 			? "runtime-parameters"
 			: "preload-copy";
 	} finally {
@@ -355,11 +465,13 @@ export async function renderEditableJianyingScriptSequence({
 		filePath: path.join(packageInfo.packagePath, "content.json"),
 	});
 	const resources = scriptResources({ packageInfo });
+	const degradedResourceIds = degradedScriptResourceIds({ packageInfo });
 	const edited = prepareJianyingScriptContent({
 		value: source,
 		content,
 		resourcePaths: resources.resourcePaths,
 		fontPath,
+		degradedResourceIds,
 	});
 	const hydratedPackagePath = await getHydratedJianyingScriptPackage({
 		packagePath: packageInfo.packagePath,
@@ -367,6 +479,7 @@ export async function renderEditableJianyingScriptSequence({
 		resourcePaths: resources.resourcePaths,
 		resourceFingerprint: resources.fingerprint,
 		fontPath,
+		degradedResourceIds,
 	});
 	const strategy = await resolveJianyingScriptEditStrategy({
 		runtime,
@@ -397,6 +510,7 @@ export async function renderEditableJianyingScriptSequence({
 		resourcePaths: resources.resourcePaths,
 		resourceFingerprint: resources.fingerprint,
 		fontPath,
+		degradedResourceIds,
 	});
 	await renderJianyingTextRawSequence({
 		runtime,

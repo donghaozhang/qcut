@@ -3,6 +3,9 @@ import { open } from "node:fs/promises";
 
 const RGBA_BYTES_PER_PIXEL = 4;
 const RGBA_ALPHA_OFFSET = 3;
+const INTENTIONAL_BLACK_FADE_SAMPLE_COUNT = 3;
+const MAX_INTENTIONAL_BLACK_WINDOW_RATIO = 0.25;
+const MAX_FADE_EDGE_BRIGHTNESS_RATIO = 0.6;
 
 export interface RawTransitionFrameIssue {
 	frame: number;
@@ -12,6 +15,11 @@ export interface RawTransitionFrameIssue {
 export interface RawTransitionBoundaryRepair {
 	inputARepaired: boolean;
 	inputBRepaired: boolean;
+}
+
+export interface IntentionalRawBlackFrameRun {
+	startFrame: number;
+	endFrameExclusive: number;
 }
 
 function requireSafeInteger({
@@ -205,6 +213,113 @@ function frameHasVisibleColor({ frame }: { frame: Buffer }): boolean {
 		}
 	}
 	return false;
+}
+
+function rawFrameBrightness({ frame }: { frame: Buffer }): number {
+	let channelTotal = 0;
+	for (let index = 0; index < frame.length; index += RGBA_BYTES_PER_PIXEL) {
+		channelTotal += frame[index] + frame[index + 1] + frame[index + 2];
+	}
+	return channelTotal / ((frame.length / RGBA_BYTES_PER_PIXEL) * 3);
+}
+
+function hasFadeOut({ brightness }: { brightness: number[] }): boolean {
+	const [first, second, third] = brightness;
+	return (
+		first > second &&
+		second > third &&
+		third <= first * MAX_FADE_EDGE_BRIGHTNESS_RATIO
+	);
+}
+
+function hasFadeIn({ brightness }: { brightness: number[] }): boolean {
+	const [first, second, third] = brightness;
+	return (
+		first < second &&
+		second < third &&
+		first <= third * MAX_FADE_EDGE_BRIGHTNESS_RATIO
+	);
+}
+
+export async function findIntentionalRawBlackFrameRun({
+	rawPath,
+	frameBytes,
+	firstEmptyFrame,
+	windowStartFrame,
+	windowEndFrame,
+}: {
+	rawPath: string;
+	frameBytes: number;
+	firstEmptyFrame: number;
+	windowStartFrame: number;
+	windowEndFrame: number;
+}): Promise<IntentionalRawBlackFrameRun | null> {
+	const windowFrameCount = windowEndFrame - windowStartFrame;
+	const maximumBlackFrames = Math.floor(
+		windowFrameCount * MAX_INTENTIONAL_BLACK_WINDOW_RATIO
+	);
+	const hasFadeSamples =
+		firstEmptyFrame - INTENTIONAL_BLACK_FADE_SAMPLE_COUNT >= windowStartFrame &&
+		firstEmptyFrame + INTENTIONAL_BLACK_FADE_SAMPLE_COUNT < windowEndFrame;
+	if (maximumBlackFrames < 2 || !hasFadeSamples) return null;
+
+	const candidateFrameCount = Math.min(
+		maximumBlackFrames + 1,
+		windowEndFrame - firstEmptyFrame
+	);
+	const candidateFrames = await Promise.all(
+		Array.from({ length: candidateFrameCount }, (_, offset) =>
+			readRawFrame({
+				rawPath,
+				frameBytes,
+				frame: firstEmptyFrame + offset,
+			})
+		)
+	);
+	const nextVisibleFrameOffset = candidateFrames.findIndex((frame) =>
+		frameHasVisibleColor({ frame })
+	);
+	if (nextVisibleFrameOffset < 2) return null;
+
+	const endFrameExclusive = firstEmptyFrame + nextVisibleFrameOffset;
+	if (
+		endFrameExclusive + INTENTIONAL_BLACK_FADE_SAMPLE_COUNT >
+		windowEndFrame
+	) {
+		return null;
+	}
+	const fadeFrames = await Promise.all([
+		...Array.from({ length: INTENTIONAL_BLACK_FADE_SAMPLE_COUNT }, (_, index) =>
+			readRawFrame({
+				rawPath,
+				frameBytes,
+				frame: firstEmptyFrame - INTENTIONAL_BLACK_FADE_SAMPLE_COUNT + index,
+			})
+		),
+		...Array.from({ length: INTENTIONAL_BLACK_FADE_SAMPLE_COUNT }, (_, index) =>
+			readRawFrame({
+				rawPath,
+				frameBytes,
+				frame: endFrameExclusive + index,
+			})
+		),
+	]);
+	const brightness = fadeFrames.map((frame) => rawFrameBrightness({ frame }));
+	const fadeOutBrightness = brightness.slice(
+		0,
+		INTENTIONAL_BLACK_FADE_SAMPLE_COUNT
+	);
+	const fadeInBrightness = brightness.slice(
+		INTENTIONAL_BLACK_FADE_SAMPLE_COUNT
+	);
+	if (
+		!hasFadeOut({ brightness: fadeOutBrightness }) ||
+		!hasFadeIn({ brightness: fadeInBrightness })
+	) {
+		return null;
+	}
+
+	return { startFrame: firstEmptyFrame, endFrameExclusive };
 }
 
 async function writeRawFrame({

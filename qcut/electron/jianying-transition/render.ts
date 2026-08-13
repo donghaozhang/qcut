@@ -19,6 +19,7 @@ import {
 	type JianyingRuntimeInspection,
 } from "./runtime-discovery.js";
 import {
+	findIntentionalRawBlackFrameRun,
 	findFirstInvalidRawFrame,
 	rawFrameHasVisibleColor,
 	repairIsolatedRawOutputFrame,
@@ -28,7 +29,7 @@ import {
 import { buildJianyingRawDecodeFilter } from "./video-filters.js";
 
 const MAX_CAPTURED_PROCESS_OUTPUT = 64 * 1024;
-const MAX_RAW_TRANSITION_RENDER_ATTEMPTS = 3;
+const MAX_RAW_TRANSITION_RENDER_ATTEMPTS = 5;
 
 function requireLocalTransitionSegment({
 	transition,
@@ -438,7 +439,20 @@ async function renderValidatedRawTransition({
 			frameCount: endFrame - startFrame,
 		});
 		if (issue === null) return null;
-		if (await isUnexpectedEmptyFrame({ frame: issue.frame })) return issue;
+		if (await isUnexpectedEmptyFrame({ frame: issue.frame })) {
+			const intentionalBlackRun = await findIntentionalRawBlackFrameRun({
+				rawPath: rawOutput,
+				frameBytes,
+				firstEmptyFrame: issue.frame,
+				windowStartFrame: transitionStartFrame,
+				windowEndFrame: transitionStartFrame + transitionFrameCount,
+			});
+			if (intentionalBlackRun === null) return issue;
+			return findFirstUnexpectedFrame({
+				startFrame: intentionalBlackRun.endFrameExclusive,
+				endFrame,
+			});
+		}
 		return findFirstUnexpectedFrame({
 			startFrame: issue.frame + 1,
 			endFrame,

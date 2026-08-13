@@ -260,6 +260,15 @@ bun transition-parity-matrix.ts \
   It makes no EffectSDK call during the wait and reports the changed-byte count
   to test whether asynchronous completion mutates the current in-place texture
   without another seek. The default is `0` and performs no extra readback.
+  `JY_RESEEK_AFTER_READY=1` adds one diagnostic frame after the manifest. It
+  keeps the same manager and AlgorithmService, reloads the first input, seeks
+  timestamp `0` with update mode `1`, and writes `reseek-frame-0000.rgba`.
+  The probe cannot declare readiness itself: accept the result only when the
+  same log places `skin_seg coreml is Ready!` before the re-seek marker. The
+  default is off, so normal frame counts and rendering remain unchanged.
+  `JY_USE_BEF_CONTEXT_SCOPE=0/1` controls whether filter rendering runs inside
+  an `AmazerContextScope` (the BEF effect context guard). The default is on;
+  `0` skips the scope for renderer-difference diagnostics.
 - `render-transition-video.sh` uses FFmpeg to normalize two real videos to RGBA,
   preserves their adjacent timeline duration, centers the transition across the
   cut, renders it through `TransitionSegment`, and encodes the combined frames

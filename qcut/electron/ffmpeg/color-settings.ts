@@ -32,12 +32,67 @@ export interface VideoColorBasicSettings {
 	grain: number;
 }
 
+export interface VideoColorMultiPassTraits {
+	scale?: 1 | 0.5 | 0.25;
+	pixelFormat?: "rgba8" | "float16" | "float32";
+	mipLevels?: number;
+	edgeMode?: "clamp" | "repeat" | "mirror";
+	intensityCurve?:
+		| { kind: "linear" }
+		| { kind: "piecewise"; points: [number, number][] };
+	timeVarying?: boolean;
+}
+
 export type VideoColorMultiPassOperation =
-	| { kind: "sharpen"; amount: number }
-	| { kind: "bilateral-blur"; radius: number; threshold: number }
-	| { kind: "fog-blend"; radius: number; amount: number }
-	| { kind: "vignette"; amount: number; softness: number }
-	| {
+	| ({ kind: "sharpen"; amount: number } & VideoColorMultiPassTraits)
+	| ({
+			kind: "bilateral-blur";
+			radius: number;
+			threshold: number;
+	  } & VideoColorMultiPassTraits)
+	| ({
+			kind: "fog-blend";
+			radius: number;
+			amount: number;
+	  } & VideoColorMultiPassTraits)
+	| ({
+			kind: "vignette";
+			amount: number;
+			softness: number;
+	  } & VideoColorMultiPassTraits)
+	| ({
+			kind: "grain-noise";
+			amount: number;
+			size: number;
+			seed: number;
+	  } & VideoColorMultiPassTraits)
+	| ({
+			kind: "light-leak";
+			amount: number;
+			color: [number, number, number];
+			centerX: number;
+			centerY: number;
+			radius: number;
+			speed: number;
+	  } & VideoColorMultiPassTraits)
+	| ({
+			kind: "bloom";
+			threshold: number;
+			radius: number;
+			amount: number;
+	  } & VideoColorMultiPassTraits)
+	| ({
+			kind: "chromatic-aberration";
+			offset: number;
+			angle: number;
+	  } & VideoColorMultiPassTraits)
+	| ({
+			kind: "lens-distortion";
+			distortion: number;
+			centerX: number;
+			centerY: number;
+	  } & VideoColorMultiPassTraits)
+	| ({
 			kind: "lut";
 			cube: {
 				size: number;
@@ -46,15 +101,27 @@ export type VideoColorMultiPassOperation =
 				values: number[];
 			};
 			intensity: number;
-	  };
+	  } & VideoColorMultiPassTraits);
 
 export interface VideoColorMultiPassSettings {
 	enabled: boolean;
 	presetId: string;
 	name: string;
 	intensity: number;
-	fidelity: "structural";
+	fidelity: "structural" | "native-local";
+	nativeEffect?: {
+		provider: "jianying-local-effect-v1";
+		resourceId: string;
+		version: string;
+	};
 	passes: VideoColorMultiPassOperation[];
+}
+
+export interface VideoColorCube {
+	size: number;
+	domainMin: [number, number, number];
+	domainMax: [number, number, number];
+	values: number[];
 }
 
 export type VideoSecondaryCurveName =
@@ -83,21 +150,17 @@ export interface VideoColorSettings {
 		name: string;
 		intensity: number;
 		skinProtection: number;
-		cube?: {
-			size: number;
-			domainMin: [number, number, number];
-			domainMax: [number, number, number];
-			values: number[];
-		};
-		dual?: {
-			skinCube: {
-				size: number;
-				domainMin: [number, number, number];
-				domainMax: [number, number, number];
-				values: number[];
-			};
-			maskKind: "skin-tone-v1";
-		};
+		cube?: VideoColorCube;
+		dual?:
+			| {
+					skinCube: VideoColorCube;
+					maskKind: "skin-tone-v1";
+			  }
+			| {
+					skinCube: VideoColorCube;
+					maskKind: "skin-segmentation-v1";
+					resourceId: string;
+			  };
 	};
 	multiPass?: VideoColorMultiPassSettings;
 	hsl: {
@@ -306,6 +369,9 @@ export function normalizeVideoColorSettings({
 		multiPass: color?.multiPass
 			? {
 					...color.multiPass,
+					nativeEffect: color.multiPass.nativeEffect
+						? { ...color.multiPass.nativeEffect }
+						: undefined,
 					passes: color.multiPass.passes.map((pass) =>
 						pass.kind === "lut"
 							? {

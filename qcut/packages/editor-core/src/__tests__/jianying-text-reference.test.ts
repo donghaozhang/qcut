@@ -38,6 +38,91 @@ describe("normalizeJianyingTextStyleReference", () => {
 		expect(normalized).not.toHaveProperty("packagePath");
 	});
 
+	it("accepts TextStyle references for host-text runtime rendering", () => {
+		expect(
+			normalizeJianyingTextStyleReference({
+				value: { ...validReference(), packageKind: "TextStyle" },
+			})
+		).toMatchObject({
+			packageKind: "TextStyle",
+			packageHash: "39b4b7c4e070ede70ae25ab264c842d4",
+		});
+	});
+
+	it("normalizes all three path-free animation slots", () => {
+		expect(
+			normalizeJianyingTextStyleReference({
+				value: {
+					...validReference(),
+					animations: {
+						entrance: {
+							source: "jianying-cache",
+							resourceId: "1001",
+							packageHash: "A".repeat(32),
+							duration: 0.5,
+							packagePath: "/private/entrance",
+						},
+						exit: {
+							source: "jianying-cache",
+							resourceId: "1002",
+							packageHash: "B".repeat(32),
+							duration: 0.75,
+						},
+						loop: {
+							source: "jianying-cache",
+							resourceId: "1003",
+							packageHash: "C".repeat(32),
+							duration: 1.2,
+						},
+					},
+				},
+			})
+		).toMatchObject({
+			animations: {
+				entrance: {
+					resourceId: "1001",
+					packageHash: "a".repeat(32),
+					duration: 0.5,
+				},
+				exit: {
+					resourceId: "1002",
+					packageHash: "b".repeat(32),
+					duration: 0.75,
+				},
+				loop: {
+					resourceId: "1003",
+					packageHash: "c".repeat(32),
+					duration: 1.2,
+				},
+			},
+		});
+	});
+
+	it.each([
+		{ source: "copied-package" },
+		{ resourceId: "bad-id" },
+		{ packageHash: "short" },
+		{ duration: 0 },
+		{ duration: 61 },
+	])("rejects an invalid declared animation: %o", (override) => {
+		expect(
+			normalizeJianyingTextStyleReference({
+				value: {
+					...validReference(),
+					animations: {
+						loop: {
+							source: "jianying-cache",
+							resourceId: "1003",
+							packageHash: "c".repeat(32),
+							duration: 1,
+							...override,
+						},
+					},
+				},
+			})
+		).toBeUndefined();
+	});
+
 	it.each([
 		{ resourceId: "not-an-id" },
 		{ packageHash: "short" },

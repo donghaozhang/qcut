@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
 	findFirstInvalidRawFrame,
+	findIntentionalRawBlackFrameRun,
 	rawFrameHasVisibleColor,
 	repairIsolatedRawOutputFrame,
 	repairIsolatedRawTransitionBoundary,
@@ -144,6 +145,89 @@ describe("rawFrameHasVisibleColor", () => {
 		await expect(
 			rawFrameHasVisibleColor({ rawPath, frameBytes: FRAME_BYTES, frame: 1 })
 		).resolves.toBe(true);
+	});
+});
+
+describe("findIntentionalRawBlackFrameRun", () => {
+	it("accepts a bounded black hold between a fade-out and fade-in", async () => {
+		const rawPath = await writeRawFrames({
+			frames: [
+				makeFrame({ color: 90 }),
+				makeFrame({ color: 45 }),
+				makeFrame({ color: 15 }),
+				makeFrame({ color: 0 }),
+				makeFrame({ color: 0 }),
+				makeFrame({ color: 0 }),
+				makeFrame({ color: 10 }),
+				makeFrame({ color: 35 }),
+				makeFrame({ color: 70 }),
+				makeFrame({ color: 90 }),
+				makeFrame({ color: 90 }),
+				makeFrame({ color: 90 }),
+			],
+		});
+
+		await expect(
+			findIntentionalRawBlackFrameRun({
+				rawPath,
+				frameBytes: FRAME_BYTES,
+				firstEmptyFrame: 3,
+				windowStartFrame: 0,
+				windowEndFrame: 12,
+			})
+		).resolves.toEqual({ startFrame: 3, endFrameExclusive: 6 });
+	});
+
+	it("rejects an isolated empty frame", async () => {
+		const rawPath = await writeRawFrames({
+			frames: [
+				makeFrame({ color: 90 }),
+				makeFrame({ color: 45 }),
+				makeFrame({ color: 15 }),
+				makeFrame({ color: 0 }),
+				makeFrame({ color: 10 }),
+				makeFrame({ color: 35 }),
+				makeFrame({ color: 70 }),
+				makeFrame({ color: 90 }),
+			],
+		});
+
+		await expect(
+			findIntentionalRawBlackFrameRun({
+				rawPath,
+				frameBytes: FRAME_BYTES,
+				firstEmptyFrame: 3,
+				windowStartFrame: 0,
+				windowEndFrame: 8,
+			})
+		).resolves.toBeNull();
+	});
+
+	it("rejects consecutive empty frames without fade evidence", async () => {
+		const rawPath = await writeRawFrames({
+			frames: [
+				makeFrame({ color: 60 }),
+				makeFrame({ color: 60 }),
+				makeFrame({ color: 60 }),
+				makeFrame({ color: 0 }),
+				makeFrame({ color: 0 }),
+				makeFrame({ color: 60 }),
+				makeFrame({ color: 60 }),
+				makeFrame({ color: 60 }),
+				makeFrame({ color: 60 }),
+				makeFrame({ color: 60 }),
+			],
+		});
+
+		await expect(
+			findIntentionalRawBlackFrameRun({
+				rawPath,
+				frameBytes: FRAME_BYTES,
+				firstEmptyFrame: 3,
+				windowStartFrame: 0,
+				windowEndFrame: 10,
+			})
+		).resolves.toBeNull();
 	});
 });
 

@@ -1,6 +1,7 @@
 import type {
 	ColorBasicSettings,
 	ColorCurvePoint,
+	ColorDualLutSettings,
 	ColorHslRangeName,
 	ColorHslRangeSettings,
 	ColorKeyframeProperty,
@@ -290,6 +291,29 @@ function legacyBasic({
 	};
 }
 
+/**
+ * Persisted `dual` LUT settings are untrusted: a missing `maskKind` or a
+ * segmentation entry without `resourceId` would apply the wrong mask in the
+ * generic preview path or fail during FFmpeg export. Invalid shapes are
+ * discarded so downstream code only ever sees a well-formed union member.
+ */
+function normalizeDualLutSettings({
+	dual,
+}: {
+	dual: ColorDualLutSettings | undefined;
+}): ColorDualLutSettings | undefined {
+	if (!dual || typeof dual !== "object" || !dual.skinCube) return undefined;
+	if (dual.maskKind === "skin-tone-v1") return dual;
+	if (
+		dual.maskKind === "skin-segmentation-v1" &&
+		typeof dual.resourceId === "string" &&
+		dual.resourceId.length > 0
+	) {
+		return dual;
+	}
+	return undefined;
+}
+
 export function normalizeMediaColorSettings({
 	element,
 }: {
@@ -310,15 +334,23 @@ export function normalizeMediaColorSettings({
 			},
 		])
 	) as Record<ColorHslRangeName, ColorHslRangeSettings>;
+	const { dual: storedDual, ...lutRest } = {
+		...DEFAULT_MEDIA_COLOR_SETTINGS.lut,
+		...stored?.lut,
+	};
+	const dual = normalizeDualLutSettings({ dual: storedDual });
 	return {
 		...DEFAULT_MEDIA_COLOR_SETTINGS,
 		...stored,
 		filter: normalizeColorFilterApplication({ filter: stored?.filter }),
 		basic,
-		lut: { ...DEFAULT_MEDIA_COLOR_SETTINGS.lut, ...stored?.lut },
+		lut: { ...lutRest, ...(dual ? { dual } : {}) },
 		multiPass: stored?.multiPass
 			? {
 					...stored.multiPass,
+					nativeEffect: stored.multiPass.nativeEffect
+						? { ...stored.multiPass.nativeEffect }
+						: undefined,
 					passes: stored.multiPass.passes.map((pass) =>
 						pass.kind === "lut"
 							? {

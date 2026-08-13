@@ -321,6 +321,40 @@ function resolveEffectEnvelope({
 		envelope.scale = 1 + effect.perspective;
 		return envelope;
 	}
+	if (effect.kind === "flip3d") {
+		const angle = (Math.abs(effect.maxAngleDeg) * Math.PI) / 180;
+		const rotatingExtent =
+			effect.axis === "y" ? context.boxWidth : context.boxHeight;
+		const maximumDepth = (rotatingExtent / 2) * Math.abs(Math.sin(angle));
+		const fov = (effect.cameraFovDeg * Math.PI) / 180;
+		const baseDistance = context.boxHeight / (2 * Math.tan(fov / 2));
+		const cameraDistance =
+			baseDistance +
+			maximumDepth +
+			Math.max(context.boxWidth, context.boxHeight) * 0.05;
+		envelope.scale = Math.max(
+			1,
+			cameraDistance / Math.max(1, cameraDistance - maximumDepth)
+		);
+		return envelope;
+	}
+	if (effect.kind === "cylinder3d") {
+		const radius = context.boxWidth * effect.radiusRatio;
+		const horizontalScale = (radius * 2) / Math.max(1, context.boxWidth);
+		const tiltScale = 1 + Math.abs(Math.sin((effect.tiltXDeg * Math.PI) / 180));
+		envelope.scale = Math.max(1, horizontalScale, tiltScale);
+		return envelope;
+	}
+	if (effect.kind === "jitter3d") {
+		envelope.translateX = context.boxWidth * effect.positionJitter;
+		envelope.translateY = context.boxHeight * effect.positionJitter;
+		envelope.rotationDeg = effect.rotationZDeg;
+		envelope.scale =
+			Math.max(1, effect.scaleFrom, effect.scaleTo) *
+			(1 + effect.trailStrength * 0.08);
+		envelope.filterPadding = context.fontSize * effect.trailStrength * 0.08;
+		return envelope;
+	}
 	if (effect.kind === "jitter") {
 		envelope.translateX = context.fontSize * effect.amplitudeX;
 		envelope.translateY = context.fontSize * effect.amplitudeY;

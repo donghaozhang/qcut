@@ -6,6 +6,14 @@ import { buildColorCssFilter } from "./color-rendering";
 import { processColorImageData } from "./color-pixel-processor";
 import { reportColorDegradation } from "./color-degradation";
 import { gradeFrameOnGpu } from "./gpu-color-path";
+import {
+	canRenderJianyingLocalPortrait,
+	renderJianyingLocalPortraitPreview,
+} from "./jianying-local-portrait-preview";
+import {
+	canRenderJianyingLocalEffect,
+	renderJianyingLocalEffectPreview,
+} from "./jianying-local-effect-preview";
 
 const GRADE_MASK_CACHE_LIMIT = 8;
 let cssFallbackWarned = false;
@@ -142,6 +150,8 @@ export async function drawColorGradedSourceWithMasks({
 	masks,
 	settings,
 	frameSeed = 0,
+	sourceKey,
+	timestampSeconds,
 }: {
 	context: CanvasRenderingContext2D;
 	source: CanvasImageSource;
@@ -152,6 +162,8 @@ export async function drawColorGradedSourceWithMasks({
 	masks: MediaMask[];
 	settings: MediaColorSettings;
 	frameSeed?: number;
+	sourceKey?: string;
+	timestampSeconds?: number;
 }): Promise<void> {
 	const outputMasks = finalMediaMasks({ masks, settings });
 	if (!hasMediaColorEdits({ settings })) {
@@ -168,12 +180,15 @@ export async function drawColorGradedSourceWithMasks({
 	}
 	const pixelWidth = Math.max(1, Math.round(Math.abs(width)));
 	const pixelHeight = Math.max(1, Math.round(Math.abs(height)));
+	const usesLocalRuntime =
+		canRenderJianyingLocalEffect({ settings }) ||
+		canRenderJianyingLocalPortrait({ settings });
 
 	// Per-pixel grading on the GPU: one 1080p frame costs ~278ms walking pixels
 	// in JS versus ~4ms as a shader lookup. Returns null when the settings need
 	// spatial work (vignette, grain, sharpness) or WebGL2 is unavailable, and
 	// the CPU path below still handles those.
-	if (masks.length === 0) {
+	if (masks.length === 0 && !usesLocalRuntime) {
 		const graded = gradeFrameOnGpu({
 			source,
 			width: pixelWidth,
@@ -208,16 +223,47 @@ export async function drawColorGradedSourceWithMasks({
 			width: pixelWidth,
 			height: pixelHeight,
 		});
-		frameContext.putImageData(
-			processColorImageData({
-				imageData: sourceData,
+		const localEffect = await renderJianyingLocalEffectPreview({
+			source: sourceData,
+			settings,
+			maskData,
+			frameSeed,
+			sourceKey,
+			timestampSeconds,
+		});
+		if (localEffect) {
+			frameContext.putImageData(
+				processColorImageData({
+					imageData: localEffect,
+					settings: { ...settings, multiPass: undefined },
+					maskData,
+					frameSeed,
+					timestampSeconds,
+				}),
+				0,
+				0
+			);
+		} else {
+			const localPortrait = await renderJianyingLocalPortraitPreview({
+				source: sourceData,
 				settings,
 				maskData,
-				frameSeed,
-			}),
-			0,
-			0
-		);
+				sourceKey,
+				timestampSeconds,
+			});
+			frameContext.putImageData(
+				localPortrait ??
+					processColorImageData({
+						imageData: sourceData,
+						settings,
+						maskData,
+						frameSeed,
+						timestampSeconds,
+					}),
+				0,
+				0
+			);
+		}
 	} catch (error) {
 		if (!cssFallbackWarned) {
 			cssFallbackWarned = true;
@@ -270,6 +316,8 @@ async function renderColorGradeLayers({
 	width,
 	height,
 	frameSeed,
+	sourceKey,
+	timestampSeconds,
 }: {
 	source: CanvasImageSource;
 	layers: BrowserColorGradeLayer[];
@@ -277,6 +325,8 @@ async function renderColorGradeLayers({
 	width: number;
 	height: number;
 	frameSeed: number;
+	sourceKey?: string;
+	timestampSeconds?: number;
 }): Promise<CanvasImageSource> {
 	const layer = layers[index];
 	if (!layer) return source;
@@ -289,6 +339,8 @@ async function renderColorGradeLayers({
 			width,
 			height,
 			frameSeed,
+			sourceKey,
+			timestampSeconds,
 		});
 	}
 
@@ -305,6 +357,8 @@ async function renderColorGradeLayers({
 		masks: layer.masks,
 		settings: layer.settings,
 		frameSeed,
+		sourceKey: sourceKey ? `${sourceKey}:layer:${index}` : undefined,
+		timestampSeconds,
 	});
 
 	let output: CanvasImageSource = graded;
@@ -326,6 +380,8 @@ async function renderColorGradeLayers({
 		width,
 		height,
 		frameSeed,
+		sourceKey,
+		timestampSeconds,
 	});
 }
 
@@ -338,6 +394,8 @@ export async function drawColorGradedSourceStack({
 	height,
 	layers,
 	frameSeed = 0,
+	sourceKey,
+	timestampSeconds,
 }: {
 	context: CanvasRenderingContext2D;
 	source: CanvasImageSource;
@@ -347,6 +405,8 @@ export async function drawColorGradedSourceStack({
 	height: number;
 	layers: BrowserColorGradeLayer[];
 	frameSeed?: number;
+	sourceKey?: string;
+	timestampSeconds?: number;
 }): Promise<void> {
 	const pixelWidth = Math.max(1, Math.round(Math.abs(width)));
 	const pixelHeight = Math.max(1, Math.round(Math.abs(height)));
@@ -357,6 +417,8 @@ export async function drawColorGradedSourceStack({
 		width: pixelWidth,
 		height: pixelHeight,
 		frameSeed,
+		sourceKey,
+		timestampSeconds,
 	});
 	context.drawImage(output, x, y, width, height);
 }

@@ -458,12 +458,17 @@ void configure(ObjectStorage<kConfigStorageSize>& config,
             optionalBooleanEnvironment("JY_SWING_MANAGER_CREATE_OPTION"),
         .enableParallelAsyncSwing =
             optionalBooleanEnvironment("JY_ENABLE_PARALLEL_ASYNC_SWING"),
+        .useBefContextScope =
+            std::getenv("JY_USE_BEF_CONTEXT_SCOPE") == nullptr ||
+            optionalBooleanEnvironment("JY_USE_BEF_CONTEXT_SCOPE"),
         .skinSegUseSimdOptim = optionalBooleanOverrideEnvironment(
             "JY_ENABLE_SKIN_SEG_USE_SIMD_OPTIM"),
         .stageDelayMilliseconds = optionalNonNegativeIntegerEnvironment(
             "JY_FILTER_STAGE_DELAY_MS"),
         .postSeekDelayMilliseconds = optionalNonNegativeIntegerEnvironment(
             "JY_FILTER_POST_SEEK_DELAY_MS"),
+        .reseekAfterReady =
+            optionalBooleanEnvironment("JY_RESEEK_AFTER_READY"),
     });
     std::cout << "[filter] rendered " << result.renderedFrames << '/'
               << result.requestedFrames << " frames\n";

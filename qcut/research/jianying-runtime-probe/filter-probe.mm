@@ -248,7 +248,7 @@ class FilterHostSession {
                     bool exportMode, bool enableSwingSimplify,
                     bool enableAdjustColorWithFloat,
                     bool enableImageQuality, bool managerCreateOption,
-                    bool enableParallelAsyncSwing)
+                    bool enableParallelAsyncSwing, bool useBefContextScope)
       : symbols_(symbols), registration_(models),
         openGlContext_(openGlContext),
         packagePath_(packagePath),
@@ -263,7 +263,8 @@ class FilterHostSession {
         enableAdjustColorWithFloat_(enableAdjustColorWithFloat),
         enableImageQuality_(enableImageQuality),
         managerCreateOption_(managerCreateOption),
-        enableParallelAsyncSwing_(enableParallelAsyncSwing) {
+        enableParallelAsyncSwing_(enableParallelAsyncSwing),
+        useBefContextScope_(useBefContextScope) {
     // registration_ owns catalog activation: if createHost() throws, this
     // destructor never runs, but the member's does.
     createHost();
@@ -400,15 +401,17 @@ class FilterHostSession {
     }
     openGlContext_.makeCurrent();
     void* amazer = symbols_.getManagerAmazer(manager_);
-    contextScope_ = std::make_unique<AmazerContextScope>(
-        AmazerContextScopeRequest{
-            .knownImageSymbol =
-                reinterpret_cast<const void*>(symbols_.getManagerAmazer),
-            .expectedImageUuid = kVerifiedFilterCoreUuid,
-            .constructorOffset = kAmazerContextScopeConstructorOffset,
-            .destructorOffset = kAmazerContextScopeDestructorOffset,
-            .context = amazer,
-        });
+    if (useBefContextScope_) {
+      contextScope_ = std::make_unique<AmazerContextScope>(
+          AmazerContextScopeRequest{
+              .knownImageSymbol =
+                  reinterpret_cast<const void*>(symbols_.getManagerAmazer),
+              .expectedImageUuid = kVerifiedFilterCoreUuid,
+              .constructorOffset = kAmazerContextScopeConstructorOffset,
+              .destructorOffset = kAmazerContextScopeDestructorOffset,
+              .context = amazer,
+          });
+    }
 
     const int algorithmCacheResult = symbols_.setManagerParameterInt(
         manager_, "AlgorithmCacheFlag", algorithmCacheFlag_);
@@ -510,6 +513,7 @@ class FilterHostSession {
   bool enableImageQuality_;
   bool managerCreateOption_;
   bool enableParallelAsyncSwing_;
+  bool useBefContextScope_;
   bool featureParametersApplied_ = false;
   bool ready_ = false;
 };
@@ -532,6 +536,7 @@ struct RenderContext {
   bool enableImageQuality;
   bool managerCreateOption;
   bool enableParallelAsyncSwing;
+  bool useBefContextScope;
   int stageDelayMilliseconds;
   std::unique_ptr<FilterHostSession> session;
 };
@@ -549,11 +554,73 @@ bool renderFilterFrame(const GraphicsFrameResources& resources) {
         context->featureParameters, context->exportMode,
         context->enableSwingSimplify,
         context->enableAdjustColorWithFloat, context->enableImageQuality,
-        context->managerCreateOption, context->enableParallelAsyncSwing);
+        context->managerCreateOption, context->enableParallelAsyncSwing,
+        context->useBefContextScope);
   }
   return context->session->render(
       resources, context->renderPasses, context->resetAction,
       context->timestamp, context->stageDelayMilliseconds);
+}
+
+struct FilterFrameExecutionRequest {
+  GraphicsProbeSession& graphics;
+  RenderContext& context;
+  const FilterSequenceRequest& sequenceRequest;
+  std::span<const std::uint8_t> pixels;
+  std::size_t frameBytes;
+  fs::path outputPath;
+  std::string_view label;
+};
+
+[[nodiscard]] bool renderAndWriteFilterFrame(
+    const FilterFrameExecutionRequest& request) {
+  GraphicsFrameProbeResult frame = request.graphics.renderFrame({
+      .renderer = renderFilterFrame,
+      .callbackContext = &request.context,
+      .inputAPixels = request.pixels,
+      .inputBPixels = request.pixels,
+      .verifyInputReadback = false,
+      .captureRenderedInputA =
+          request.sequenceRequest.enableParallelAsyncSwing,
+      .useNativeInputTextures = true,
+      .nativeTextureFlags = request.sequenceRequest.nativeTextureFlags,
+      .postRenderReadbackDelayMilliseconds =
+          request.sequenceRequest.postSeekDelayMilliseconds,
+  });
+  std::vector<std::uint8_t>& renderedPixels =
+      request.sequenceRequest.enableParallelAsyncSwing
+          ? frame.renderedInputAPixels
+          : frame.outputPixels;
+  const std::vector<std::uint8_t>& preWaitRenderedPixels =
+      request.sequenceRequest.enableParallelAsyncSwing
+          ? frame.preWaitRenderedInputAPixels
+          : frame.preWaitOutputPixels;
+  const bool missingPreWaitReadback =
+      request.sequenceRequest.postSeekDelayMilliseconds > 0 &&
+      preWaitRenderedPixels.size() != request.frameBytes;
+  if (!frame.rendered || renderedPixels.size() != request.frameBytes ||
+      missingPreWaitReadback) {
+    std::cout << "[filter] " << request.label << " failed\n";
+    return false;
+  }
+  if (request.sequenceRequest.postSeekDelayMilliseconds > 0) {
+    std::size_t changedBytes = 0;
+    for (std::size_t byteIndex = 0; byteIndex < renderedPixels.size();
+         byteIndex += 1) {
+      if (renderedPixels[byteIndex] != preWaitRenderedPixels[byteIndex]) {
+        changedBytes += 1;
+      }
+    }
+    std::cout << "[filter] post-seek texture changed-bytes=" << changedBytes
+              << '/' << renderedPixels.size() << '\n';
+  }
+  // Textures created with the third createTextureFromNativeBuffer flag read
+  // back in RGBA order already; converting again would swap R and B.
+  if (!request.sequenceRequest.nativeTextureFlags[2]) {
+    convertBgraToRgba(renderedPixels);
+  }
+  writeRgbaFrame(request.outputPath, renderedPixels);
+  return true;
 }
 
 }  // namespace
@@ -628,10 +695,14 @@ FilterSequenceResult renderFilterSequence(
       .enableImageQuality = request.enableImageQuality,
       .managerCreateOption = request.managerCreateOption,
       .enableParallelAsyncSwing = request.enableParallelAsyncSwing,
+      .useBefContextScope = request.useBefContextScope,
       .stageDelayMilliseconds = request.stageDelayMilliseconds,
       .session = nullptr,
   };
-  FilterSequenceResult result = {.requestedFrames = steps.size()};
+  const std::size_t diagnosticFrameCount = request.reseekAfterReady ? 1 : 0;
+  FilterSequenceResult result = {
+      .requestedFrames = steps.size() + diagnosticFrameCount,
+  };
   const std::size_t frameBytes = width * height * 4;
   for (std::size_t index = 0; index < steps.size(); index += 1) {
     const FilterSequenceStep& step = steps[index];
@@ -641,54 +712,46 @@ FilterSequenceResult renderFilterSequence(
     context.resetAction = step.resetAction;
     context.timestamp = static_cast<std::int64_t>(
         static_cast<double>(index) * 1'000'000.0 / request.frameRate);
-    GraphicsFrameProbeResult frame = graphics.renderFrame({
-        .renderer = renderFilterFrame,
-        .callbackContext = &context,
-        .inputAPixels = pixels,
-        .inputBPixels = pixels,
-        .verifyInputReadback = false,
-        .captureRenderedInputA = request.enableParallelAsyncSwing,
-        .useNativeInputTextures = true,
-        .nativeTextureFlags = request.nativeTextureFlags,
-        .postRenderReadbackDelayMilliseconds =
-            request.postSeekDelayMilliseconds,
-    });
-    // V2 mutates its first texture; the legacy output texture is code-only.
-    std::vector<std::uint8_t>& renderedPixels =
-        request.enableParallelAsyncSwing ? frame.renderedInputAPixels
-                                         : frame.outputPixels;
-    const std::vector<std::uint8_t>& preWaitRenderedPixels =
-        request.enableParallelAsyncSwing
-            ? frame.preWaitRenderedInputAPixels
-            : frame.preWaitOutputPixels;
-    const bool missingPreWaitReadback =
-        request.postSeekDelayMilliseconds > 0 &&
-        preWaitRenderedPixels.size() != frameBytes;
-    if (!frame.rendered || renderedPixels.size() != frameBytes ||
-        missingPreWaitReadback) {
-      std::cout << "[filter] frame " << index << " failed\n";
-      continue;
-    }
-    if (request.postSeekDelayMilliseconds > 0) {
-      std::size_t changedBytes = 0;
-      for (std::size_t byteIndex = 0; byteIndex < renderedPixels.size();
-           byteIndex += 1) {
-        if (renderedPixels[byteIndex] != preWaitRenderedPixels[byteIndex]) {
-          changedBytes += 1;
-        }
-      }
-      std::cout << "[filter] post-seek texture changed-bytes=" << changedBytes
-                << '/' << renderedPixels.size() << '\n';
-    }
-    // Textures created with the third createTextureFromNativeBuffer flag read
-    // back in RGBA order already; converting again would swap R and B.
-    if (!request.nativeTextureFlags[2]) {
-      convertBgraToRgba(renderedPixels);
-    }
     char filename[32];
     std::snprintf(filename, sizeof(filename), "frame-%04zu.rgba", index);
-    writeRgbaFrame(request.outputDirectory / filename, renderedPixels);
-    result.renderedFrames += 1;
+    const std::string frameLabel = "frame " + std::to_string(index);
+    if (renderAndWriteFilterFrame({
+            .graphics = graphics,
+            .context = context,
+            .sequenceRequest = request,
+            .pixels = pixels,
+            .frameBytes = frameBytes,
+            .outputPath = request.outputDirectory / filename,
+            .label = frameLabel,
+        })) {
+      result.renderedFrames += 1;
+    }
+  }
+
+  if (request.reseekAfterReady) {
+    const FilterSequenceStep& firstStep = steps.front();
+    const std::vector<std::uint8_t> pixels =
+        readRgbaFrame(firstStep.inputPath, frameBytes);
+    const std::array<UpdateModePass, 1> reseekPasses = {
+        UpdateModePass{.modes = {1}},
+    };
+    context.renderPasses = reseekPasses;
+    context.resetAction = "none";
+    context.timestamp = 0;
+    std::cout << "[filter] same-timestamp re-seek begin timestamp=0 mode=1; "
+                 "verify CoreML ready precedes this marker\n";
+    if (renderAndWriteFilterFrame({
+            .graphics = graphics,
+            .context = context,
+            .sequenceRequest = request,
+            .pixels = pixels,
+            .frameBytes = frameBytes,
+            .outputPath =
+                request.outputDirectory / "reseek-frame-0000.rgba",
+            .label = "same-timestamp re-seek",
+        })) {
+      result.renderedFrames += 1;
+    }
   }
   return result;
 }

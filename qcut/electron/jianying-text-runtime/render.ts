@@ -5,19 +5,26 @@ import type {
 	JianyingTextRuntimeRenderRequest,
 	JianyingTextRuntimeRenderResult,
 	JianyingTextRuntimeRenderStrategy,
+	JianyingTextRuntimeDiagnostic,
 } from "../jianying-text-runtime-contract.js";
 import { getFFmpegPath } from "../ffmpeg/paths.js";
 import {
 	renderEditableJianyingScriptSequence,
 	renderJianyingTextRawSequence,
 	type JianyingTextBridgeRuntime,
+	type JianyingTextRawSequenceRequest,
 } from "./bridge-render.js";
 import {
 	getJianyingTextRenderCacheDirectory,
 	getJianyingTextRenderCacheRoot,
 } from "./cache-path.js";
 import { resolveJianyingTextRuntimeFont } from "./font-resolver.js";
+import {
+	measureJianyingHostTextAlphaBounds,
+	nextJianyingHostTextFontSize,
+} from "./host-text-fit.js";
 import { resolveJianyingTextPackage } from "./package-resolver.js";
+import { repairTransientTransparentRgbaFrames } from "./raw-sequence-integrity.js";
 import { normalizeJianyingTextRuntimeReference } from "./reference.js";
 import { ensureJianyingTextPreviewVideo } from "./preview-video.js";
 import {
@@ -27,11 +34,13 @@ import {
 } from "./render-process.js";
 import { inspectJianyingTextRuntime } from "./runtime-discovery.js";
 
-const RENDER_CACHE_SCHEMA_VERSION = 2;
+const RENDER_CACHE_SCHEMA_VERSION = 12;
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
 const MAXIMUM_CONTENT_CODE_POINTS = 4096;
 const MAXIMUM_DIMENSION = 4096;
 const MAXIMUM_FRAME_COUNT = 18_000;
+const TEXT_STYLE_RESOLUTION_TYPE = 1;
+const MAXIMUM_TEXT_STYLE_FIT_ATTEMPTS = 4;
 
 interface ValidatedRenderRequest
 	extends Omit<JianyingTextRuntimeRenderRequest, "reference"> {
@@ -41,7 +50,7 @@ interface ValidatedRenderRequest
 }
 
 interface CachedRenderManifest {
-	schemaVersion: 2;
+	schemaVersion: 12;
 	cacheKey: string;
 	frameCount: number;
 	fps: number;
@@ -181,13 +190,13 @@ function renderCacheKey({
 	request,
 	runtimeFingerprint,
 	templateDuration,
-	scriptResourceFingerprint,
+	resourceFingerprint,
 	fontPath,
 }: {
 	request: ValidatedRenderRequest;
 	runtimeFingerprint: string;
 	templateDuration: number;
-	scriptResourceFingerprint?: string;
+	resourceFingerprint?: string;
 	fontPath: string;
 }) {
 	return createHash("sha256")
@@ -197,7 +206,7 @@ function renderCacheKey({
 				runtimeFingerprint,
 				packageKind: request.reference.packageKind,
 				packageHash: request.reference.packageHash,
-				scriptResourceFingerprint: scriptResourceFingerprint ?? null,
+				resourceFingerprint: resourceFingerprint ?? null,
 				contentHash: createHash("sha256").update(request.content).digest("hex"),
 				fontAssetId: request.fontAssetId ?? null,
 				fontPath,
@@ -272,10 +281,33 @@ function templateTiming({
 			? 0
 			: (maximumTimestamp - startTimestamp) / (request.frameCount - 1);
 	return {
+		timelineDuration: maximumTimestamp,
 		startTimestamp,
 		timestampStep:
 			request.frameCount === 1 ? 0 : Math.min(desiredStep, maximumStep),
 	};
+}
+
+function runtimeAnimations({
+	request,
+	packageInfo,
+	timelineDuration,
+}: {
+	request: ValidatedRenderRequest;
+	packageInfo: Awaited<ReturnType<typeof resolveJianyingTextPackage>>;
+	timelineDuration: number;
+}) {
+	const runtimeDuration = timelineDuration / 1_000_000;
+	return packageInfo.animationResources.values.map((animation) => ({
+		...animation,
+		duration: Math.max(
+			1 / 1_000_000,
+			Math.min(
+				runtimeDuration,
+				(animation.duration / request.elementDuration) * runtimeDuration
+			)
+		),
+	}));
 }
 
 function rotatedDimensions({
@@ -368,12 +400,14 @@ function responseForRender({
 	directory,
 	manifest,
 	cacheHit,
+	diagnostics,
 	previewUrl,
 }: {
 	request: ValidatedRenderRequest;
 	directory: string;
 	manifest: CachedRenderManifest;
 	cacheHit: boolean;
+	diagnostics: JianyingTextRuntimeDiagnostic[];
 	previewUrl?: string;
 }): JianyingTextRuntimeRenderResult {
 	const width = Math.round(request.transform.width);
@@ -395,6 +429,7 @@ function responseForRender({
 		y: request.canvasHeight / 2 + request.transform.y - rotated.height / 2,
 		width: rotated.width,
 		height: rotated.height,
+		...(diagnostics.length > 0 ? { diagnostics } : {}),
 		...(previewUrl ? { previewUrl } : {}),
 		source:
 			manifest.frameCount === 1
@@ -429,6 +464,61 @@ async function previewVideoForRender({
 		: undefined;
 }
 
+async function fitTextStyleHostRequest({
+	runtime,
+	request,
+	attempt = 0,
+}: {
+	runtime: JianyingTextBridgeRuntime;
+	request: JianyingTextRawSequenceRequest;
+	attempt?: number;
+}): Promise<JianyingTextRawSequenceRequest> {
+	if (request.packageKind !== "TextStyle") return request;
+	const probePath = `${request.outputPath}.fit-probe.rgba`;
+	const fontSize = request.fontSize ?? 12;
+	try {
+		await renderJianyingTextRawSequence({
+			runtime,
+			request: {
+				...request,
+				outputPath: probePath,
+				frameCount: 1,
+				startTimestamp:
+					request.startTimestamp +
+					request.timestampStep * Math.floor(request.frameCount / 2),
+				timestampStep: 0,
+				resolutionType: TEXT_STYLE_RESOLUTION_TYPE,
+				fontSize,
+			},
+		});
+		const bounds = measureJianyingHostTextAlphaBounds({
+			bytes: await readFile(probePath),
+			width: request.width,
+			height: request.height,
+		});
+		const nextFontSize = nextJianyingHostTextFontSize({
+			fontSize,
+			bounds,
+			width: request.width,
+			height: request.height,
+		});
+		if (nextFontSize === null || attempt >= MAXIMUM_TEXT_STYLE_FIT_ATTEMPTS) {
+			return {
+				...request,
+				resolutionType: TEXT_STYLE_RESOLUTION_TYPE,
+				fontSize,
+			};
+		}
+		return fitTextStyleHostRequest({
+			runtime,
+			request: { ...request, fontSize: nextFontSize },
+			attempt: attempt + 1,
+		});
+	} finally {
+		await rm(probePath, { force: true });
+	}
+}
+
 async function renderUncached({
 	request,
 	runtime,
@@ -451,6 +541,11 @@ async function renderUncached({
 		request,
 		templateDuration: packageInfo.templateDuration,
 	});
+	const animations = runtimeAnimations({
+		request,
+		packageInfo,
+		timelineDuration: timing.timelineDuration,
+	});
 	const rawRequest = {
 		requestId: request.requestId,
 		outputPath: rawPath,
@@ -458,6 +553,7 @@ async function renderUncached({
 		height,
 		frameCount: request.frameCount,
 		...timing,
+		...(animations.length > 0 ? { animations } : {}),
 	};
 	let strategy: JianyingTextRuntimeRenderStrategy;
 	if (packageInfo.packageKind === "ScriptInfoSticker") {
@@ -469,16 +565,41 @@ async function renderUncached({
 			fontPath,
 		});
 	} else {
-		await renderJianyingTextRawSequence({
+		const hostTextRequest = await fitTextStyleHostRequest({
 			runtime,
 			request: {
 				...rawRequest,
 				packagePath: packageInfo.packagePath,
-				packageKind: "InfoSticker",
+				packageKind: packageInfo.packageKind,
 				content: request.content,
 				fontPath,
 				fontSize: request.fontSize,
 			},
+		});
+		await renderJianyingTextRawSequence({
+			runtime,
+			request: hostTextRequest,
+		});
+		await repairTransientTransparentRgbaFrames({
+			rawPath,
+			width,
+			height,
+			frameCount: request.frameCount,
+			renderFrame: async ({ frameIndex, outputPath }) =>
+				renderJianyingTextRawSequence({
+					runtime,
+					request: {
+						...hostTextRequest,
+						outputPath,
+						frameCount: 1,
+						startTimestamp:
+							hostTextRequest.startTimestamp +
+							hostTextRequest.timestampStep * frameIndex,
+						timestampStep: 0,
+					},
+				}),
+			throwIfCancelled: () =>
+				throwIfJianyingTextRenderCancelled({ requestId: request.requestId }),
 		});
 		strategy = "host-text";
 	}
@@ -525,14 +646,16 @@ export async function renderJianyingText({
 			runtimeRoot: inspection.runtimeRoot,
 			runtimeFingerprint: inspection.runtimeFingerprint,
 		};
-		const fontPath = await resolveJianyingTextRuntimeFont({
+		const font = await resolveJianyingTextRuntimeFont({
 			fontAssetId: request.fontAssetId,
 		});
+		const fontPath = font.filePath;
+		const diagnostics = [...packageInfo.diagnostics, ...font.diagnostics];
 		const cacheKey = renderCacheKey({
 			request,
 			runtimeFingerprint: runtime.runtimeFingerprint,
 			templateDuration: packageInfo.templateDuration,
-			scriptResourceFingerprint: packageInfo.scriptResources?.fingerprint,
+			resourceFingerprint: packageInfo.resourceFingerprint,
 			fontPath,
 		});
 		const destination = getJianyingTextRenderCacheDirectory({ cacheKey });
@@ -552,6 +675,7 @@ export async function renderJianyingText({
 				directory: destination,
 				manifest: cached,
 				cacheHit: true,
+				diagnostics,
 				previewUrl,
 			});
 		}
@@ -593,6 +717,7 @@ export async function renderJianyingText({
 				directory: destination,
 				manifest: stored,
 				cacheHit: false,
+				diagnostics,
 				previewUrl,
 			});
 		} finally {

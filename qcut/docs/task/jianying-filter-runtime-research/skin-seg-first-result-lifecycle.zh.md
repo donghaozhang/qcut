@@ -1,6 +1,6 @@
 # 人像路径：首次分割结果的交付生命周期
 
-记录时间：2026-08-11
+记录时间：2026-08-11；2026-08-12 完成 re-seek 后续实验
 
 ## 单一问题
 
@@ -149,14 +149,33 @@ ready-before-final-seek 的 RGBA 和 mask 内容树分别为
 
 这解决了“被动等待是否足够”的问题，但尚未证明独立宿主应采用哪一种恢复动作。
 
-## 下一轮唯一问题
+## ready 后同 timestamp re-seek 结果
 
-下一轮只验证：**某一帧以 pre-ready 状态完成后，等到后续 seek 已经观察到 CoreML ready，再对原时间戳和原
-输入执行一次显式同 timestamp re-seek，是否能重算并替换该帧结果。**
+后续实验已完成。`JY_RESEEK_AFTER_READY=1` 默认关闭；启用时先完整执行 manifest，再保持同一 manager、
+AlgorithmService、线程和 GL context，对第一张输入以 timestamp `0`、update mode `1` 重新 seek。结论必须以
+同一日志中 `skin_seg coreml is Ready!` 出现在 re-seek marker 前为准。
 
-固定模型、包、SIMD、manager、feature、输入和纹理，不同时测试 manager reset、source switch、export、
-face-extra 或其他 AB。如果同 timestamp re-seek 仍保留旧结果，下一轮之后再单独验证 manager reset；不要在
-同一次实验里混入两个恢复动作。
+静态历史下，两次独立复跑的最终 RGBA 逐字节一致，SHA-256 都为
+`aa58c13edb92d6a17e2bca1b108ea61eed96c02d857b7d41c818885362996e72`。与 UI 比较得到：
+
+| 指标 | pre-ready 最终 mask | ready 后 re-seek |
+| --- | ---: | ---: |
+| mask MAE | 4.056598 | 3.276394 |
+| mask IoU@128 | 0.943612 | 0.962641 |
+| RGB RMSE / PSNR | 不作同强度对照 | 0.916513 / 48.888033 dB |
+
+re-seek 确实交付了另一张 mask；它与较早的稳定 sequence 逐字节一致，而不是异步改写旧纹理。preparation
+首帧在 `intensity=1` 事件前完成，因此其 RGB 不参与 readiness 增益归因。
+
+动态历史下，同一 manager 先处理 60 张静态帧和 10 张运动帧再回到 timestamp `0`。两次复跑仍逐字节一致，
+但结果降为 `40.140233 dB / mask IoU 0.265185`；最终 RGBA SHA-256 都为
+`97a7da52d9e5ab5bdbad83c5f928e613c98a5a60e0c884709b4348f74782ae70`。这排除了随机竞态，并证明同
+timestamp re-seek 不会自动清除时序分割历史。
+
+宿主恢复规则由此闭合：连续 clip 保持 manager；source/clip 变化或向后时间跳转时重建 manager 与
+AlgorithmService。既有 source-switch 实验已经证明 manager reset 后从目标首帧起逐字节等于 fresh process，
+不需要把 reset 混入本轮单变量结果。完整对标见
+[olympus-portrait-filter-e2e.zh.md](olympus-portrait-filter-e2e.zh.md)。
 
 ## 仓库外证据
 

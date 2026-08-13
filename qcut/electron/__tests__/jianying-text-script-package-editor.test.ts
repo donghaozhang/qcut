@@ -48,6 +48,62 @@ describe("Jianying script text package editing", () => {
 		});
 	});
 
+	it("repeats one line across layered text widgets", () => {
+		const result = editJianyingScriptContent({
+			content: "同层文字",
+			value: {
+				children: [
+					{ type: "text", text_params: { richText: "<b>[左]</b>" } },
+					{ type: "text", text_params: { richText: "[主][题]" } },
+				],
+			},
+		});
+		expect(result.value).toMatchObject({
+			children: [
+				{ text_params: { richText: "<b>[同层文字]</b>" } },
+				{ text_params: { richText: "[同][层文字]" } },
+			],
+		});
+	});
+
+	it("fits longer text without moving or scaling sibling decorations", () => {
+		const result = editJianyingScriptContent({
+			content: "签名通过",
+			value: {
+				children: [
+					{
+						type: "sticker",
+						position: [-243.5, -37, 0],
+						scale: [0.675, 0.675, 1],
+					},
+					{
+						type: "text",
+						position: [-4.5, 0, 0],
+						scale: [2.5, 2.5, 1],
+						text_params: {
+							richText: '<effectStyle id="3003" path="">[整活]</effectStyle>',
+						},
+					},
+				],
+			},
+		});
+		expect(result.value).toMatchObject({
+			children: [
+				{
+					position: [-243.5, -37, 0],
+					scale: [0.675, 0.675, 1],
+				},
+				{
+					position: [-4.5, 0, 0],
+					scale: [1.25, 1.25, 1],
+					text_params: {
+						richText: '<effectStyle id="3003" path="">[签名通过]</effectStyle>',
+					},
+				},
+			],
+		});
+	});
+
 	it("rejects templates without editable text slots", () => {
 		expect(() =>
 			editJianyingScriptContent({

@@ -1,6 +1,10 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import type { JianyingFilterMultiPassKind } from "../../jianying-filter-lab-contract.js";
+import type {
+	JianyingFilterLabIntensityCurve,
+	JianyingFilterLabPassTraits,
+	JianyingFilterMultiPassKind,
+} from "../../jianying-filter-lab-contract.js";
 import type { FilterLabCube } from "./filter-lab-lut.js";
 import {
 	isSupportedTiledLutImage,
@@ -20,16 +24,97 @@ export interface JianyingFilterMultiPassRenderer {
 	fidelity: "structural";
 }
 
+/** Long-tail per-pass semantics; see the contract for field docs. */
+export type FilterLabPassTraits = JianyingFilterLabPassTraits;
+
 export type FilterLabMultiPassOperation =
-	| { kind: "sharpen"; amount: number }
-	| { kind: "bilateral-blur"; radius: number; threshold: number }
-	| { kind: "fog-blend"; radius: number; amount: number }
-	| { kind: "vignette"; amount: number; softness: number }
-	| { kind: "lut"; cube: FilterLabCube; intensity: number };
+	| ({ kind: "sharpen"; amount: number } & FilterLabPassTraits)
+	| ({
+			kind: "bilateral-blur";
+			radius: number;
+			threshold: number;
+	  } & FilterLabPassTraits)
+	| ({
+			kind: "fog-blend";
+			radius: number;
+			amount: number;
+	  } & FilterLabPassTraits)
+	| ({
+			kind: "vignette";
+			amount: number;
+			softness: number;
+	  } & FilterLabPassTraits)
+	| ({
+			kind: "grain-noise";
+			amount: number;
+			size: number;
+			seed: number;
+	  } & FilterLabPassTraits)
+	| ({
+			kind: "light-leak";
+			amount: number;
+			color: [number, number, number];
+			centerX: number;
+			centerY: number;
+			radius: number;
+			speed: number;
+	  } & FilterLabPassTraits)
+	| ({
+			kind: "bloom";
+			threshold: number;
+			radius: number;
+			amount: number;
+	  } & FilterLabPassTraits)
+	| ({
+			kind: "chromatic-aberration";
+			offset: number;
+			angle: number;
+	  } & FilterLabPassTraits)
+	| ({
+			kind: "lens-distortion";
+			distortion: number;
+			centerX: number;
+			centerY: number;
+	  } & FilterLabPassTraits)
+	| ({
+			kind: "lut";
+			cube: FilterLabCube;
+			intensity: number;
+	  } & FilterLabPassTraits);
 
 export interface FilterLabMultiPassRecipe {
 	kind: JianyingFilterMultiPassKind;
 	passes: FilterLabMultiPassOperation[];
+}
+
+/**
+ * The defaults every currently verified recipe runs with: full-resolution
+ * RGBA8 intermediates, single mip level, clamp-to-edge sampling, linear
+ * intensity, static in time. `resolveFilterLabPassTraits` is the one
+ * authoritative place renderers read trait values from, so an absent field
+ * and an explicit default stay indistinguishable.
+ */
+export const FILTER_LAB_PASS_TRAIT_DEFAULTS: Required<FilterLabPassTraits> = {
+	scale: 1,
+	pixelFormat: "rgba8",
+	mipLevels: 1,
+	edgeMode: "clamp",
+	intensityCurve: { kind: "linear" } as JianyingFilterLabIntensityCurve,
+	timeVarying: false,
+};
+
+export function resolveFilterLabPassTraits(
+	pass: FilterLabPassTraits
+): Required<FilterLabPassTraits> {
+	return {
+		scale: pass.scale ?? FILTER_LAB_PASS_TRAIT_DEFAULTS.scale,
+		pixelFormat: pass.pixelFormat ?? FILTER_LAB_PASS_TRAIT_DEFAULTS.pixelFormat,
+		mipLevels: pass.mipLevels ?? FILTER_LAB_PASS_TRAIT_DEFAULTS.mipLevels,
+		edgeMode: pass.edgeMode ?? FILTER_LAB_PASS_TRAIT_DEFAULTS.edgeMode,
+		intensityCurve:
+			pass.intensityCurve ?? FILTER_LAB_PASS_TRAIT_DEFAULTS.intensityCurve,
+		timeVarying: pass.timeVarying ?? FILTER_LAB_PASS_TRAIT_DEFAULTS.timeVarying,
+	};
 }
 
 function hasPaths({
@@ -120,6 +205,31 @@ export function detectJianyingMultiPassTopology({
 		};
 	}
 
+	if (
+		hasPaths({
+			paths,
+			required: [
+				"AmazingFeature/effects/LumiGaussianBlur/xshader/gaussianBlurX.xshader",
+				"AmazingFeature/effects/LumiGaussianBlur/xshader/gaussianBlurY.xshader",
+				"AmazingFeature/effects/LumiSGlow/xshader/mask.xshader",
+				"AmazingFeature/effects/LumiSGlow/xshader/BlurHorz.xshader",
+				"AmazingFeature/effects/LumiSGlow/xshader/BlurVert.xshader",
+				"AmazingFeature/effects/LumiSGlow/xshader/blend.xshader",
+				"AmazingFeature/effects/LumiLvFilter/xshader/pass6.xshader",
+				"AmazingFeature/effects/LumiLvFilter/image/filter.png",
+			],
+		}) &&
+		/glowWidth/.test(signals) &&
+		/threshold/.test(signals) &&
+		/SoftLight/.test(signals)
+	) {
+		return {
+			kind: "bloom-lut",
+			lutRelativePath: "AmazingFeature/effects/LumiLvFilter/image/filter.png",
+			passCount: 10,
+		};
+	}
+
 	return null;
 }
 
@@ -187,6 +297,19 @@ export function resolveMultiPassLutPath({
 	cacheRoot: string;
 	renderer: JianyingFilterMultiPassRenderer;
 }): string {
+	return join(
+		resolveMultiPassPackagePath({ cacheRoot, renderer }),
+		...renderer.lutRelativePath.split("/")
+	);
+}
+
+export function resolveMultiPassPackagePath({
+	cacheRoot,
+	renderer,
+}: {
+	cacheRoot: string;
+	renderer: JianyingFilterMultiPassRenderer;
+}): string {
 	if (
 		!SAFE_SEGMENT.test(renderer.packageIdentifier) ||
 		!SAFE_SEGMENT.test(renderer.version) ||
@@ -198,8 +321,7 @@ export function resolveMultiPassLutPath({
 		cacheRoot,
 		renderer.container,
 		renderer.packageIdentifier,
-		renderer.version,
-		...renderer.lutRelativePath.split("/")
+		renderer.version
 	);
 }
 
@@ -221,6 +343,21 @@ function operationsForRenderer({
 			{ kind: "lut", cube, intensity: 100 },
 			{ kind: "bilateral-blur", radius: 1.52, threshold: 7.75 },
 			{ kind: "vignette", amount: 100, softness: 65 },
+		];
+	}
+	if (renderer.kind === "bloom-lut") {
+		return [
+			{
+				kind: "bloom",
+				threshold: 0.86,
+				radius: 13,
+				amount: 70,
+				scale: 0.25,
+				pixelFormat: "rgba8",
+				mipLevels: 2,
+				edgeMode: "mirror",
+			},
+			{ kind: "lut", cube, intensity: 80 },
 		];
 	}
 	return [

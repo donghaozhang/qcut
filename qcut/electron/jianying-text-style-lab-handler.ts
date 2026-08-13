@@ -137,6 +137,8 @@ function summarizeEntry({
 		innerShadowCount: entry.innerShadowCount,
 		shadowCount: entry.shadowCount,
 		textureLayerCount: entry.textureLayerCount,
+		capabilities: entry.capabilities,
+		diagnostics: entry.diagnostics,
 		hasCover: entry.hasCover,
 		compatibility: entry.compatibility,
 		...(entry.approximation ? { approximation: entry.approximation } : {}),

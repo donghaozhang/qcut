@@ -5,8 +5,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	JIANYING_FILTER_LAB_CHANGED_CHANNEL,
 	JIANYING_FILTER_LAB_LIST_CHANNEL,
+	JIANYING_FILTER_LAB_LOCAL_RUNTIME_CHANNEL,
 	JIANYING_FILTER_LAB_LOAD_CHANNEL,
 	JIANYING_FILTER_LAB_LOAD_RENDERER_CHANNEL,
+	JIANYING_FILTER_LAB_RENDER_LOCAL_EFFECT_CHANNEL,
+	JIANYING_FILTER_LAB_RENDER_LOCAL_PORTRAIT_CHANNEL,
 	JIANYING_FILTER_LAB_THUMBNAIL_CHANNEL,
 	type JianyingFilterLabListResult,
 	type JianyingFilterLabLoadResult,
@@ -484,10 +487,225 @@ describe("Jianying filter lab IPC", () => {
 		});
 	});
 
+	it("loads both tiled cubes for a package-backed portrait filter", async () => {
+		const context = createWindowContext();
+		const resourceId = "portrait-filter";
+		const version = "v1";
+		const loadTiledCube = vi.fn(
+			async () =>
+				createEntry({
+					reference: createReference(),
+				}).cube
+		);
+		const renderer = ({ relativePath }: { relativePath: string }) => ({
+			kind: "tiled-lut-8x8" as const,
+			container: "artistEffect" as const,
+			packageIdentifier: resourceId,
+			version,
+			relativePath,
+			cubeSize: 64 as const,
+		});
+		setupJianyingFilterLabIPC({
+			getMainWindow: () => context.mainWindow,
+			readVerifications: async () => new Map(),
+			listReferences: async () => [],
+			loadTiledCube,
+			filterCacheRoot: "/cache",
+			resolveTitles: async () => new Map(),
+			resolveCategories: async () => ({
+				order: ["人像"],
+				byResourceId: new Map(),
+			}),
+			resolveKnownFilters: async () => ({
+				order: ["人像"],
+				filters: [
+					{
+						resourceId,
+						title: "奥林巴斯",
+						categories: ["人像"],
+						version,
+					},
+				],
+			}),
+			inspectPackages: async () =>
+				new Map([
+					[
+						resourceId,
+						{
+							...cachedPackage({ implementation: "dual-lut" }),
+							dualRenderer: {
+								kind: "dual-tiled-lut-8x8" as const,
+								background: renderer({
+									relativePath: "AmazingFeature/image/filter_bg.png",
+								}),
+								skin: renderer({
+									relativePath: "AmazingFeature/image/filter_skin.png",
+								}),
+							},
+						},
+					],
+				]),
+		});
+
+		const listed = (await getHandler({
+			channel: JIANYING_FILTER_LAB_LIST_CHANNEL,
+		})(context.event)) as JianyingFilterLabListResult;
+		const [filter] = listed.filters;
+		expect(filter).toMatchObject({
+			resourceId,
+			implementation: "dual-lut",
+			available: true,
+			verification: { status: "unverified" },
+		});
+		const luts = filter?.luts ?? [];
+		expect(luts.map(({ role }) => role).sort()).toEqual(["background", "skin"]);
+
+		await Promise.all(
+			luts.map(({ lutId }) =>
+				getHandler({ channel: JIANYING_FILTER_LAB_LOAD_CHANNEL })(
+					context.event,
+					{ lutId }
+				)
+			)
+		);
+		expect(loadTiledCube).toHaveBeenCalledTimes(2);
+		expect(
+			loadTiledCube.mock.calls.map(([{ filePath }]) => filePath).sort()
+		).toEqual(
+			[
+				join(
+					"/cache",
+					"artistEffect",
+					resourceId,
+					version,
+					"AmazingFeature",
+					"image",
+					"filter_bg.png"
+				),
+				join(
+					"/cache",
+					"artistEffect",
+					resourceId,
+					version,
+					"AmazingFeature",
+					"image",
+					"filter_skin.png"
+				),
+			].sort()
+		);
+	});
+
+	it("renders a catalog-verified portrait package through the local provider", async () => {
+		const context = createWindowContext();
+		const resourceId = "portrait-filter";
+		const version = "v1";
+		const renderer = ({ relativePath }: { relativePath: string }) => ({
+			kind: "tiled-lut-8x8" as const,
+			container: "artistEffect" as const,
+			packageIdentifier: resourceId,
+			version,
+			relativePath,
+			cubeSize: 64 as const,
+		});
+		const inspect = vi.fn(async () => ({
+			state: "ready" as const,
+			message: "ready",
+			provider: "jianying-local-effect-v1" as const,
+			platform: "darwin",
+			bridgeReady: true,
+			runtimeReady: true,
+			modelReady: true,
+		}));
+		const render = vi.fn(async ({ rgba }: { rgba: Uint8Array }) => ({
+			provider: "jianying-local-effect-v1" as const,
+			resourceId,
+			width: 1,
+			height: 1,
+			rgba,
+			mask: {
+				width: 1,
+				height: 1,
+				bytes: new Uint8Array([255]),
+				orientation: "bottom-left" as const,
+			},
+		}));
+		const clear = vi.fn();
+		const renderEffect = vi.fn();
+		setupJianyingFilterLabIPC({
+			getMainWindow: () => context.mainWindow,
+			readVerifications: async () => new Map(),
+			listReferences: async () => [],
+			filterCacheRoot: "/cache",
+			resolveTitles: async () => new Map(),
+			resolveCategories: async () => ({ order: [], byResourceId: new Map() }),
+			resolveKnownFilters: async () => ({
+				order: ["人像"],
+				filters: [
+					{
+						resourceId,
+						title: "奥林巴斯",
+						categories: ["人像"],
+						version,
+					},
+				],
+			}),
+			inspectPackages: async () =>
+				new Map([
+					[
+						resourceId,
+						{
+							...cachedPackage({ implementation: "dual-lut" }),
+							dualRenderer: {
+								kind: "dual-tiled-lut-8x8" as const,
+								background: renderer({
+									relativePath: "AmazingFeature/image/filter_bg.png",
+								}),
+								skin: renderer({
+									relativePath: "AmazingFeature/image/filter_skin.png",
+								}),
+							},
+						},
+					],
+				]),
+			localProvider: { inspect, render, renderEffect, clear },
+		});
+
+		await expect(
+			getHandler({ channel: JIANYING_FILTER_LAB_LOCAL_RUNTIME_CHANNEL })(
+				context.event,
+				{ refresh: true }
+			)
+		).resolves.toMatchObject({ state: "ready", modelReady: true });
+		expect(inspect).toHaveBeenCalledWith({ refresh: true });
+
+		const rgba = new Uint8Array([10, 20, 30, 255]);
+		await expect(
+			getHandler({
+				channel: JIANYING_FILTER_LAB_RENDER_LOCAL_PORTRAIT_CHANNEL,
+			})(context.event, {
+				resourceId,
+				width: 1,
+				height: 1,
+				sourceKey: "video:portrait",
+				timestampSeconds: 1.25,
+				rgba,
+			})
+		).resolves.toMatchObject({ resourceId, width: 1, height: 1 });
+		expect(render).toHaveBeenCalledWith({
+			resourceId,
+			packagePath: join("/cache", "artistEffect", resourceId, version),
+			width: 1,
+			height: 1,
+			sourceKey: "video:portrait",
+			timestampSeconds: 1.25,
+			rgba,
+		});
+	});
+
 	it("loads a recognized multi-pass shader without exposing cache paths", async () => {
 		const context = createWindowContext();
-		const resourceId = "food-shader";
-		const version = "v2";
+		const resourceId = "7403664041945681191";
+		const version = "59f14f9555fc38667c3ddb0814346cc8";
 		const cube = createEntry({ reference: createReference() }).cube;
 		const loadMultiPassRecipe = vi.fn(async () => ({
 			kind: "sharpen-lut" as const,
@@ -495,6 +713,13 @@ describe("Jianying filter lab IPC", () => {
 				{ kind: "sharpen" as const, amount: 1 },
 				{ kind: "lut" as const, cube, intensity: 100 },
 			],
+		}));
+		const renderEffect = vi.fn(async ({ rgba }: { rgba: Uint8Array }) => ({
+			provider: "jianying-local-effect-v1" as const,
+			resourceId,
+			width: 1,
+			height: 1,
+			rgba,
 		}));
 		setupJianyingFilterLabIPC({
 			getMainWindow: () => context.mainWindow,
@@ -536,6 +761,12 @@ describe("Jianying filter lab IPC", () => {
 						},
 					],
 				]),
+			localProvider: {
+				inspect: vi.fn(),
+				render: vi.fn(),
+				renderEffect,
+				clear: vi.fn(),
+			},
 		});
 
 		const listed = (await getHandler({
@@ -560,11 +791,43 @@ describe("Jianying filter lab IPC", () => {
 			resourceId,
 			version,
 			name: "清透美食",
+			fidelity: "native-local",
+			nativeEffect: {
+				provider: "jianying-local-effect-v1",
+				resourceId,
+				version,
+			},
 			passes: [
 				{ kind: "sharpen", amount: 1 },
 				{ kind: "lut", intensity: 100, cube: { size: 2 } },
 			],
 		});
 		expect(loaded).not.toHaveProperty("filePath");
+
+		const rgba = new Uint8Array([10, 20, 30, 255]);
+		await expect(
+			getHandler({ channel: JIANYING_FILTER_LAB_RENDER_LOCAL_EFFECT_CHANNEL })(
+				context.event,
+				{
+					resourceId,
+					width: 1,
+					height: 1,
+					intensity: 75,
+					sourceKey: "video:effect",
+					timestampSeconds: 0.5,
+					rgba,
+				}
+			)
+		).resolves.toMatchObject({ resourceId, width: 1, height: 1 });
+		expect(renderEffect).toHaveBeenCalledWith({
+			resourceId,
+			packagePath: join("/cache", "artistEffect", resourceId, version),
+			width: 1,
+			height: 1,
+			intensity: 75,
+			sourceKey: "video:effect",
+			timestampSeconds: 0.5,
+			rgba,
+		});
 	});
 });

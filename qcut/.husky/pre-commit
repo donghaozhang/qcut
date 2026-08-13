@@ -1,2 +1,3 @@
 npx ultracite format
 bun scripts/check-boundaries.ts --staged
+bun scripts/check-filter-provenance.ts

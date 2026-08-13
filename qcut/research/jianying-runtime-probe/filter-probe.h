@@ -29,9 +29,11 @@ struct FilterSequenceRequest {
   bool enableImageQuality = false;
   bool managerCreateOption = false;
   bool enableParallelAsyncSwing = false;
+  bool useBefContextScope = true;
   std::optional<bool> skinSegUseSimdOptim;
   int stageDelayMilliseconds = 0;
   int postSeekDelayMilliseconds = 0;
+  bool reseekAfterReady = false;
 };
 
 struct FilterSequenceResult {

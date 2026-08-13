@@ -196,6 +196,7 @@ function adjustedCube({
 							g: cube.values[valueIndex + 1] ?? input.g,
 							b: cube.values[valueIndex + 2] ?? input.b,
 						};
+				// Spatial segmentation is preview-only until native export can consume frame masks.
 				const skinWeight = skinToneWeight(input);
 				const output = dual
 					? mixRgb({
@@ -282,9 +283,12 @@ export function materializeVideoCubeLut({
 	}
 	if (
 		dual &&
-		(dual.maskKind !== "skin-tone-v1" ||
-			dual.skinCube.values.length !== dual.skinCube.size ** 3 * 3)
+		dual.maskKind !== "skin-tone-v1" &&
+		dual.maskKind !== "skin-segmentation-v1"
 	) {
+		throw new Error("Invalid dual 3D LUT mask kind");
+	}
+	if (dual && dual.skinCube.values.length !== dual.skinCube.size ** 3 * 3) {
 		throw new Error("Invalid dual 3D LUT payload");
 	}
 	const content = serializeCube({

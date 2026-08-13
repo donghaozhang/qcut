@@ -97,6 +97,26 @@ function scaleEffectIntensity({
 				maxAngleDeg: effect.maxAngleDeg * factor,
 				perspective: effect.perspective * factor,
 			};
+		case "flip3d":
+			return {
+				...effect,
+				maxAngleDeg: effect.maxAngleDeg * factor,
+			};
+		case "cylinder3d":
+			return {
+				...effect,
+				turns: effect.turns * factor,
+				tiltXDeg: effect.tiltXDeg * factor,
+			};
+		case "jitter3d":
+			return {
+				...effect,
+				positionJitter: effect.positionJitter * factor,
+				rotationXDeg: effect.rotationXDeg * factor,
+				rotationYDeg: effect.rotationYDeg * factor,
+				rotationZDeg: effect.rotationZDeg * factor,
+				trailStrength: effect.trailStrength * factor,
+			};
 		case "jitter":
 			return {
 				...effect,
@@ -177,6 +197,12 @@ function primaryEffectAmplitude({
 			return Math.abs(effect.spread);
 		case "flip":
 			return Math.abs(effect.maxAngleDeg);
+		case "flip3d":
+			return Math.abs(effect.maxAngleDeg);
+		case "cylinder3d":
+			return Math.abs(effect.turns);
+		case "jitter3d":
+			return Math.abs(effect.positionJitter);
 		case "jitter":
 			return Math.abs(effect.amplitudeX);
 		case "arc":

@@ -8,10 +8,15 @@ import {
 } from "./jianying-filter-lab-catalog.js";
 import {
 	JIANYING_FILTER_LAB_LIST_CHANNEL,
+	JIANYING_FILTER_LAB_LOCAL_RUNTIME_CHANNEL,
 	JIANYING_FILTER_LAB_LOAD_CHANNEL,
 	JIANYING_FILTER_LAB_LOAD_RENDERER_CHANNEL,
+	JIANYING_FILTER_LAB_RENDER_LOCAL_EFFECT_CHANNEL,
+	JIANYING_FILTER_LAB_RENDER_LOCAL_PORTRAIT_CHANNEL,
 	JIANYING_FILTER_LAB_CHANGED_CHANNEL,
 	JIANYING_FILTER_LAB_THUMBNAIL_CHANNEL,
+	type JianyingFilterLabRenderLocalEffectResult,
+	type JianyingFilterLabRenderLocalPortraitResult,
 	type JianyingFilterLabListResult,
 	type JianyingFilterLabLoadResult,
 	type JianyingFilterLabLoadRendererResult,
@@ -46,19 +51,34 @@ import {
 	type JianyingLutEntry,
 	type JianyingLutReference,
 } from "./native-pipeline/filters/filter-lab-lut.js";
-import { loadTiledLutCube } from "./native-pipeline/filters/filter-lab-tiled-lut.js";
+import {
+	loadTiledLutCube,
+	resolveTiledLutPackagePath,
+} from "./native-pipeline/filters/filter-lab-tiled-lut.js";
+import {
+	JIANYING_NATIVE_PORTRAIT_PROFILES,
+	resolveJianyingNativePortraitPackagePath,
+} from "./native-pipeline/filters/filter-lab-native-portrait.js";
 import {
 	loadJianyingMultiPassRecipe,
+	resolveMultiPassPackagePath,
 	type FilterLabMultiPassRecipe,
 	type JianyingFilterMultiPassRenderer,
 } from "./native-pipeline/filters/filter-lab-multi-pass.js";
 import {
 	parseFilterLabListRequest,
+	parseFilterLabLocalRuntimeRequest,
 	parseFilterLabLoadRequest,
+	parseFilterLabRenderLocalEffectRequest,
+	parseFilterLabRenderLocalPortraitRequest,
 	parseFilterLabRendererRequest,
 	parseFilterLabThumbnailRequest,
 } from "./jianying-filter-lab-request.js";
 import { loadJianyingFilterLabRenderer } from "./jianying-filter-multi-pass-loader.js";
+import {
+	createJianyingFilterLocalProvider,
+	type JianyingFilterLocalProvider,
+} from "./jianying-filter-local-runtime/provider.js";
 
 const MAX_EDITOR_LUT_SIZE = 65;
 
@@ -66,6 +86,7 @@ interface FilterLabCatalog {
 	references: JianyingLutReference[];
 	tiledReferences: Map<string, JianyingLutReference>;
 	multiPassRenderers: Map<string, JianyingFilterMultiPassRenderer>;
+	packages: Map<string, JianyingFilterPackageSummary>;
 	titles: Map<string, string>;
 	categories: JianyingFilterCategoryCatalog;
 	thumbnailSources: Map<string, JianyingFilterThumbnailSource>;
@@ -133,6 +154,7 @@ export interface SetupJianyingFilterLabIPCOptions {
 	}: {
 		onChange: () => void;
 	}) => JianyingFilterCacheWatcher;
+	localProvider?: JianyingFilterLocalProvider;
 }
 
 function assertTrustedMainFrame({
@@ -193,7 +215,12 @@ function titlesByResource({
 	references: JianyingLutReference[];
 	titles: ReadonlyMap<string, string>;
 }): Map<string, string> {
-	const byResource = new Map<string, string>();
+	const byResource = new Map<string, string>(
+		JIANYING_NATIVE_PORTRAIT_PROFILES.map(({ resourceId, title }) => [
+			resourceId,
+			title,
+		])
+	);
 	for (const reference of references) {
 		const title = findJianyingFilterTitle({ reference, titles });
 		if (title && !byResource.has(reference.resourceId)) {
@@ -275,6 +302,7 @@ export function setupJianyingFilterLabIPC(
 			"jianying-filter-thumbnails"
 		),
 		watchCache,
+		localProvider = createJianyingFilterLocalProvider(),
 	} = options;
 	let catalogPromise: Promise<FilterLabCatalog> | null = null;
 	const thumbnailPromises = new Map<string, Promise<JianyingFilterThumbnail>>();
@@ -350,6 +378,7 @@ export function setupJianyingFilterLabIPC(
 					}),
 					tiledReferences,
 					multiPassRenderers,
+					packages,
 				};
 			});
 		}
@@ -358,6 +387,7 @@ export function setupJianyingFilterLabIPC(
 	const invalidateCatalog = () => {
 		catalogPromise = null;
 		thumbnailPromises.clear();
+		localProvider.clear();
 		const mainWindow = getMainWindow();
 		if (
 			mainWindow &&
@@ -373,6 +403,9 @@ export function setupJianyingFilterLabIPC(
 	ipcMain.removeHandler(JIANYING_FILTER_LAB_LOAD_CHANNEL);
 	ipcMain.removeHandler(JIANYING_FILTER_LAB_LOAD_RENDERER_CHANNEL);
 	ipcMain.removeHandler(JIANYING_FILTER_LAB_THUMBNAIL_CHANNEL);
+	ipcMain.removeHandler(JIANYING_FILTER_LAB_LOCAL_RUNTIME_CHANNEL);
+	ipcMain.removeHandler(JIANYING_FILTER_LAB_RENDER_LOCAL_EFFECT_CHANNEL);
+	ipcMain.removeHandler(JIANYING_FILTER_LAB_RENDER_LOCAL_PORTRAIT_CHANNEL);
 	ipcMain.handle(
 		JIANYING_FILTER_LAB_LIST_CHANNEL,
 		async (event, request: unknown): Promise<JianyingFilterLabListResult> => {
@@ -380,6 +413,70 @@ export function setupJianyingFilterLabIPC(
 			const { refresh = false } = parseFilterLabListRequest({ request });
 			const catalog = await readCatalog({ refresh });
 			return catalog.result;
+		}
+	);
+	ipcMain.handle(
+		JIANYING_FILTER_LAB_LOCAL_RUNTIME_CHANNEL,
+		async (event, request: unknown) => {
+			assertTrustedMainFrame({ event, mainWindow: getMainWindow() });
+			const { refresh = false } = parseFilterLabLocalRuntimeRequest({
+				request,
+			});
+			return localProvider.inspect({ refresh });
+		}
+	);
+	ipcMain.handle(
+		JIANYING_FILTER_LAB_RENDER_LOCAL_EFFECT_CHANNEL,
+		async (
+			event,
+			request: unknown
+		): Promise<JianyingFilterLabRenderLocalEffectResult> => {
+			assertTrustedMainFrame({ event, mainWindow: getMainWindow() });
+			const parsed = parseFilterLabRenderLocalEffectRequest({ request });
+			const catalog = await readCatalog({ refresh: false });
+			const renderer = catalog.multiPassRenderers.get(parsed.resourceId);
+			if (!renderer) {
+				throw new Error("该滤镜不是可用的本机多 Pass 滤镜");
+			}
+			return localProvider.renderEffect({
+				...parsed,
+				packagePath: resolveMultiPassPackagePath({
+					cacheRoot: filterCacheRoot,
+					renderer,
+				}),
+			});
+		}
+	);
+	ipcMain.handle(
+		JIANYING_FILTER_LAB_RENDER_LOCAL_PORTRAIT_CHANNEL,
+		async (
+			event,
+			request: unknown
+		): Promise<JianyingFilterLabRenderLocalPortraitResult> => {
+			assertTrustedMainFrame({ event, mainWindow: getMainWindow() });
+			const parsed = parseFilterLabRenderLocalPortraitRequest({ request });
+			const catalog = await readCatalog({ refresh: false });
+			const packageSummary = catalog.packages.get(parsed.resourceId);
+			const nativeRenderer = packageSummary?.nativePortraitRenderer;
+			const tiledRenderer = packageSummary?.dualRenderer;
+			let packagePath: string;
+			if (nativeRenderer) {
+				packagePath = resolveJianyingNativePortraitPackagePath({
+					cacheRoot: filterCacheRoot,
+					renderer: nativeRenderer,
+				});
+			} else if (tiledRenderer) {
+				packagePath = resolveTiledLutPackagePath({
+					cacheRoot: filterCacheRoot,
+					renderer: tiledRenderer.background,
+				});
+			} else {
+				throw new Error("该滤镜不是可用的本机双 LUT 人像滤镜");
+			}
+			return localProvider.render({
+				...parsed,
+				packagePath,
+			});
 		}
 	);
 	ipcMain.handle(
@@ -471,10 +568,14 @@ export function setupJianyingFilterLabIPC(
 			cacheWatcher?.dispose();
 			catalogPromise = null;
 			thumbnailPromises.clear();
+			localProvider.clear();
 			ipcMain.removeHandler(JIANYING_FILTER_LAB_LIST_CHANNEL);
 			ipcMain.removeHandler(JIANYING_FILTER_LAB_LOAD_CHANNEL);
 			ipcMain.removeHandler(JIANYING_FILTER_LAB_LOAD_RENDERER_CHANNEL);
 			ipcMain.removeHandler(JIANYING_FILTER_LAB_THUMBNAIL_CHANNEL);
+			ipcMain.removeHandler(JIANYING_FILTER_LAB_LOCAL_RUNTIME_CHANNEL);
+			ipcMain.removeHandler(JIANYING_FILTER_LAB_RENDER_LOCAL_EFFECT_CHANNEL);
+			ipcMain.removeHandler(JIANYING_FILTER_LAB_RENDER_LOCAL_PORTRAIT_CHANNEL);
 		},
 	};
 }

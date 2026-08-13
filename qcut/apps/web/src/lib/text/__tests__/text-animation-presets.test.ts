@@ -470,6 +470,9 @@ describe("text animation preset registry", () => {
 
 	it.each([
 		["flip", 0.5],
+		["flip-3d", 0.55],
+		["cylinder-3d", 0.6],
+		["jitter-3d", 0.45],
 		["ring-orbit", 0.5],
 		["jitter", 0.4],
 	] as const)("round-trips %s intensity", (presetId, intensity) => {

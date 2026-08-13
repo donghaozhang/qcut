@@ -3,88 +3,16 @@ import type {
 	ColorMultiPassSettings,
 } from "@/types/timeline";
 import { clamp01, sampleCubeLut } from "./color-space-math";
-
-function clamp({
-	value,
-	min,
-	max,
-}: {
-	value: number;
-	min: number;
-	max: number;
-}) {
-	return Math.min(max, Math.max(min, value));
-}
-
-function mix({
-	left,
-	right,
-	amount,
-}: {
-	left: number;
-	right: number;
-	amount: number;
-}) {
-	return left + (right - left) * amount;
-}
-
-function blurHorizontal({
-	data,
-	width,
-	height,
-	radius,
-}: {
-	data: Uint8ClampedArray;
-	width: number;
-	height: number;
-	radius: number;
-}) {
-	const result = new Uint8ClampedArray(data);
-	for (let y = 0; y < height; y += 1) {
-		for (let x = 0; x < width; x += 1) {
-			const destination = (y * width + x) * 4;
-			for (let channel = 0; channel < 3; channel += 1) {
-				let sum = 0;
-				for (let offset = -radius; offset <= radius; offset += 1) {
-					const sourceX = clamp({ value: x + offset, min: 0, max: width - 1 });
-					sum += data[(y * width + sourceX) * 4 + channel];
-				}
-				result[destination + channel] = sum / (radius * 2 + 1);
-			}
-		}
-	}
-	return result;
-}
-
-function boxBlur({
-	data,
-	width,
-	height,
-	radius,
-}: {
-	data: Uint8ClampedArray;
-	width: number;
-	height: number;
-	radius: number;
-}) {
-	if (radius <= 0 || width < 2 || height < 2) return data;
-	const horizontal = blurHorizontal({ data, width, height, radius });
-	const result = new Uint8ClampedArray(horizontal);
-	for (let y = 0; y < height; y += 1) {
-		for (let x = 0; x < width; x += 1) {
-			const destination = (y * width + x) * 4;
-			for (let channel = 0; channel < 3; channel += 1) {
-				let sum = 0;
-				for (let offset = -radius; offset <= radius; offset += 1) {
-					const sourceY = clamp({ value: y + offset, min: 0, max: height - 1 });
-					sum += horizontal[(sourceY * width + x) * 4 + channel];
-				}
-				result[destination + channel] = sum / (radius * 2 + 1);
-			}
-		}
-	}
-	return result;
-}
+import {
+	applyLongTailMultiPassOperation,
+	type ColorLongTailMultiPassOperation,
+} from "./multi-pass-long-tail-operations";
+import {
+	boxBlurRgba,
+	clampNumber as clamp,
+	mixNumber as mix,
+	resizeRgba,
+} from "./multi-pass-spatial-utils";
 
 function sharpen({
 	data,
@@ -176,7 +104,13 @@ function applyBilateralApproximation({
 	overall: number;
 }) {
 	const radius = Math.max(1, Math.round(pass.radius * overall));
-	const blurred = boxBlur({ data, width, height, radius });
+	const blurred = boxBlurRgba({
+		data,
+		width,
+		height,
+		radius,
+		edgeMode: pass.edgeMode,
+	});
 	const output = new Uint8ClampedArray(data);
 	const threshold = Math.max(0.001, pass.threshold * 2.5);
 	for (let index = 0; index < data.length; index += 4) {
@@ -213,7 +147,13 @@ function applyFog({
 	overall: number;
 }) {
 	const radius = Math.max(1, Math.round(pass.radius * overall));
-	const blurred = boxBlur({ data, width, height, radius });
+	const blurred = boxBlurRgba({
+		data,
+		width,
+		height,
+		radius,
+		edgeMode: pass.edgeMode,
+	});
 	const output = new Uint8ClampedArray(data);
 	const amount = clamp({
 		value: (pass.amount / 100) * overall,
@@ -271,43 +211,196 @@ function applyVignette({
 	return output;
 }
 
+function resolvePassIntensity({
+	pass,
+	settingsIntensity,
+}: {
+	pass: ColorMultiPassOperation;
+	settingsIntensity: number;
+}) {
+	const linear = clamp({ value: settingsIntensity / 100, min: 0, max: 1 });
+	if (pass.intensityCurve?.kind !== "piecewise") return linear;
+	const points = [...pass.intensityCurve.points].sort(
+		([left], [right]) => left - right
+	);
+	if (points.length === 0) return linear;
+	if (settingsIntensity <= points[0][0]) {
+		return clamp({ value: points[0][1], min: 0, max: 1 });
+	}
+	for (let index = 1; index < points.length; index += 1) {
+		const [rightInput, rightOutput] = points[index];
+		const [leftInput, leftOutput] = points[index - 1];
+		if (settingsIntensity > rightInput) continue;
+		const span = Math.max(Number.EPSILON, rightInput - leftInput);
+		return clamp({
+			value: mix({
+				left: leftOutput,
+				right: rightOutput,
+				amount: (settingsIntensity - leftInput) / span,
+			}),
+			min: 0,
+			max: 1,
+		});
+	}
+	return clamp({ value: points.at(-1)?.[1] ?? linear, min: 0, max: 1 });
+}
+
+function isLongTailOperation(
+	pass: ColorMultiPassOperation
+): pass is ColorLongTailMultiPassOperation {
+	return (
+		pass.kind === "grain-noise" ||
+		pass.kind === "light-leak" ||
+		pass.kind === "bloom" ||
+		pass.kind === "chromatic-aberration" ||
+		pass.kind === "lens-distortion"
+	);
+}
+
+function applyOperation({
+	data,
+	width,
+	height,
+	pass,
+	overall,
+	frameSeed,
+	timestampSeconds,
+}: {
+	data: Uint8ClampedArray;
+	width: number;
+	height: number;
+	pass: ColorMultiPassOperation;
+	overall: number;
+	frameSeed: number;
+	timestampSeconds: number;
+}) {
+	if (pass.kind === "sharpen") {
+		return sharpen({
+			data,
+			width,
+			height,
+			amount: clamp({ value: pass.amount * overall, min: 0, max: 2 }),
+		});
+	}
+	if (pass.kind === "bilateral-blur") {
+		return applyBilateralApproximation({
+			data,
+			width,
+			height,
+			pass,
+			overall,
+		});
+	}
+	if (pass.kind === "fog-blend") {
+		return applyFog({ data, width, height, pass, overall });
+	}
+	if (pass.kind === "vignette") {
+		return applyVignette({ data, width, height, pass, overall });
+	}
+	if (isLongTailOperation(pass)) {
+		return applyLongTailMultiPassOperation({
+			data,
+			width,
+			height,
+			pass,
+			overall,
+			frameSeed,
+			timestampSeconds,
+		});
+	}
+	return applyLut({ data, pass, overall });
+}
+
+function applyOperationAtScale({
+	data,
+	width,
+	height,
+	pass,
+	overall,
+	frameSeed,
+	timestampSeconds,
+}: {
+	data: Uint8ClampedArray;
+	width: number;
+	height: number;
+	pass: ColorMultiPassOperation;
+	overall: number;
+	frameSeed: number;
+	timestampSeconds: number;
+}) {
+	const scale = pass.scale ?? 1;
+	if (scale === 1) {
+		return applyOperation({
+			data,
+			width,
+			height,
+			pass,
+			overall,
+			frameSeed,
+			timestampSeconds,
+		});
+	}
+	const scaledWidth = Math.max(1, Math.round(width * scale));
+	const scaledHeight = Math.max(1, Math.round(height * scale));
+	const scaled = resizeRgba({
+		data,
+		width,
+		height,
+		targetWidth: scaledWidth,
+		targetHeight: scaledHeight,
+		edgeMode: pass.edgeMode,
+	});
+	const rendered = applyOperation({
+		data: scaled,
+		width: scaledWidth,
+		height: scaledHeight,
+		pass,
+		overall,
+		frameSeed,
+		timestampSeconds,
+	});
+	return resizeRgba({
+		data: rendered,
+		width: scaledWidth,
+		height: scaledHeight,
+		targetWidth: width,
+		targetHeight: height,
+		edgeMode: pass.edgeMode,
+	});
+}
+
 export function applyColorMultiPass({
 	data,
 	width,
 	height,
 	settings,
+	frameSeed = 0,
+	timestampSeconds = frameSeed / 30,
 }: {
 	data: Uint8ClampedArray;
 	width: number;
 	height: number;
 	settings: ColorMultiPassSettings | undefined;
+	frameSeed?: number;
+	timestampSeconds?: number;
 }): Uint8ClampedArray {
 	if (!settings?.enabled || settings.intensity <= 0) return data;
-	const overall = clamp({ value: settings.intensity / 100, min: 0, max: 1 });
 	let output = data;
 	for (const pass of settings.passes) {
-		if (pass.kind === "sharpen") {
-			output = sharpen({
-				data: output,
-				width,
-				height,
-				amount: clamp({ value: pass.amount * overall, min: 0, max: 2 }),
-			});
-		} else if (pass.kind === "bilateral-blur") {
-			output = applyBilateralApproximation({
-				data: output,
-				width,
-				height,
-				pass,
-				overall,
-			});
-		} else if (pass.kind === "fog-blend") {
-			output = applyFog({ data: output, width, height, pass, overall });
-		} else if (pass.kind === "vignette") {
-			output = applyVignette({ data: output, width, height, pass, overall });
-		} else {
-			output = applyLut({ data: output, pass, overall });
-		}
+		const overall = resolvePassIntensity({
+			pass,
+			settingsIntensity: settings.intensity,
+		});
+		if (overall <= 0) continue;
+		output = applyOperationAtScale({
+			data: output,
+			width,
+			height,
+			pass,
+			overall,
+			frameSeed,
+			timestampSeconds,
+		});
 	}
 	return output;
 }

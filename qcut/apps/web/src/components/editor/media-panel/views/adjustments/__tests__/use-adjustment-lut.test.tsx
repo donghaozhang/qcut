@@ -86,6 +86,38 @@ describe("useAdjustmentLut", () => {
 		expect(latest.color.lut.dual).toBeUndefined();
 	});
 
+	it("stores a replaceable local portrait provider identity for Filter Lab", () => {
+		const background = cube({ value: 0.2 });
+		const skin = cube({ value: 0.8 });
+		const { result } = renderHook(() => useAdjustmentLut());
+
+		act(() => {
+			result.current.applyLut({
+				name: "Olympus",
+				cube: background,
+				skinCube: skin,
+				localPortraitResourceId: "7361792068475325735",
+			});
+		});
+
+		expect(updateAdjustmentElement).toHaveBeenLastCalledWith(
+			"adjustments",
+			"adjustment-1",
+			expect.objectContaining({
+				color: expect.objectContaining({
+					lut: expect.objectContaining({
+						dual: {
+							skinCube: skin,
+							maskKind: "skin-segmentation-v1",
+							resourceId: "7361792068475325735",
+						},
+					}),
+				}),
+			}),
+			true
+		);
+	});
+
 	it("stores shader recipes separately from the ordinary LUT slot", () => {
 		const { result } = renderHook(() => useAdjustmentLut());
 		const lutCube = cube({ value: 0.4 });

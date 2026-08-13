@@ -23,6 +23,16 @@ function createStyle({
 		innerShadowCount: 0,
 		shadowCount: 1,
 		textureLayerCount: compatible ? 0 : 1,
+		capabilities: {
+			staticTexture: !compatible,
+			multipleStrokes: false,
+			animationComponents: false,
+			scriptInfoSticker: false,
+			shaderComponents: false,
+			threeDimensional: false,
+			feedbackComponents: false,
+		},
+		diagnostics: [],
 		hasCover: true,
 		compatibility: compatible ? "flat-compatible" : "preview-only",
 		...(compatible
@@ -104,6 +114,34 @@ describe("text style lab mapping", () => {
 			content: "动态花字",
 			width: 1024,
 			height: 512,
+			jianyingTextStyle: runtimeReference,
+		});
+	});
+
+	it("keeps a flat fallback while a TextStyle uses the original runtime", () => {
+		const base = createStyle();
+		const runtimeReference = {
+			schemaVersion: 1 as const,
+			source: "jianying-cache" as const,
+			packageKind: "TextStyle" as const,
+			resourceId: base.resourceId,
+			packageHash: base.version,
+			editMode: "runtime-with-preload-fallback" as const,
+			slotMapping: "line-to-widget" as const,
+			timeMapping: "stretch" as const,
+			templateDuration: 3,
+		};
+		const style: JianyingTextStyleLabStyleSummary = {
+			...base,
+			compatibility: "native-runtime",
+			runtimeReference,
+		};
+
+		expect(buildTextStyleLabUpdates({ style })).toMatchObject({
+			color: "#ffcc00",
+			strokeColor: "#111111",
+			strokeWidth: 3,
+			shadowColor: "#333333",
 			jianyingTextStyle: runtimeReference,
 		});
 	});
