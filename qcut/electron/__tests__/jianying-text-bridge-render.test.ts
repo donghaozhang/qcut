@@ -111,6 +111,28 @@ describe("Jianying text bridge launch", () => {
 		});
 	});
 
+	it("preserves a fractional sequence origin for seek parity", () => {
+		const environment = resolveJianyingTextBridgeEnvironment({
+			environment: {},
+			request: {
+				requestId: "fractional-timing",
+				packagePath: "/cache/artistEffect/style/hash",
+				packageKind: "TextStyle",
+				outputPath: "/tmp/frames.rgba",
+				width: 320,
+				height: 180,
+				frameCount: 2,
+				startTimestamp: 123_456.75,
+				timestampStep: 33_333.333,
+				timelineDuration: 3_000_000,
+			},
+		});
+
+		expect(environment.JY_TEXT_TIMESTAMP).toBe("123456.75");
+		expect(environment.JY_TEXT_TIMESTAMP_STEP).toBe("33333.333");
+		expect(environment.JY_TEXT_RESOLUTION_TYPE).toBe("-1");
+	});
+
 	it("requires parameter editing to match every preloaded reference frame", () => {
 		const referenceFrames = Buffer.concat([
 			frame({ color: [0, 255, 0] }),
