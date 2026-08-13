@@ -147,6 +147,29 @@ describe("Jianying source root resolution", () => {
 		]);
 	});
 
+	it("does not select a sole candidate from a truncated scan", async () => {
+		await createMultiTimelineProject({ subdraftIds: ["compound-1"] });
+		await writeFile(join(projectRoot, "subdraft", "ignored-entry.json"), "{}");
+
+		const result = await resolveDraftSourceRoot({
+			rootRealPath: projectRoot,
+			maxEntries: 1,
+		});
+
+		expect(result).toMatchObject({
+			rootRealPath: projectRoot,
+			sourceScope: "selected-directory",
+			subdraftCandidateCount: 0,
+		});
+		expect(result.selectedSubdraftId).toBeUndefined();
+		expect(result.issues).toEqual([
+			expect.objectContaining({
+				code: "SOURCE_FILE_TOO_LARGE",
+				severity: "warning",
+			}),
+		]);
+	});
+
 	it("does not guess when more than one compound subdraft exists", async () => {
 		await createMultiTimelineProject({
 			subdraftIds: ["compound-1", "compound-2"],

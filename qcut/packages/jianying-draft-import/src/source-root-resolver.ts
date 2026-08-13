@@ -1,4 +1,5 @@
-import { lstat, readdir } from "node:fs/promises";
+import type { Dirent } from "node:fs";
+import { lstat, opendir } from "node:fs/promises";
 import { basename, dirname, join } from "node:path";
 import type { InteropIssue } from "@qcut/editor-core/draft-interop";
 
@@ -113,8 +114,15 @@ async function findSubdraftCandidates({
 	if (!(await isDirectory({ absolutePath: subdraftRoot }))) {
 		return { candidates: [], truncated: false };
 	}
-	const entries = await readdir(subdraftRoot, { withFileTypes: true });
-	if (entries.length > maxEntries) return { candidates: [], truncated: true };
+	const entries: Dirent[] = [];
+	const directory = await opendir(subdraftRoot);
+	// Async directory iteration closes the handle on completion and early return.
+	for await (const entry of directory) {
+		if (entries.length === maxEntries) {
+			return { candidates: [], truncated: true };
+		}
+		entries.push(entry);
+	}
 	const directories = entries.filter(
 		(entry) => entry.isDirectory() && !entry.isSymbolicLink()
 	);
@@ -204,7 +212,7 @@ export async function resolveDraftSourceRoot({
 		projectRoot: rootRealPath,
 		maxEntries,
 	});
-	if (candidates.length !== 1) {
+	if (truncated || candidates.length !== 1) {
 		return {
 			rootRealPath,
 			sourceScope: "selected-directory",
