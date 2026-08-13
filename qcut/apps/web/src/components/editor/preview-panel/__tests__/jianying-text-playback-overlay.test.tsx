@@ -221,4 +221,41 @@ describe("Jianying text playback overlay", () => {
 		await waitFor(() => expect(play).toHaveBeenCalled());
 		expect(renderText).toHaveBeenCalledTimes(1);
 	});
+
+	it("resynchronizes the cached preview when the timeline loops backward", async () => {
+		const element = createTextElement();
+		const track = createTrack({ element });
+		const onStatusChange = vi.fn();
+		const view = render(
+			<JianyingTextPlaybackOverlay
+				enabled
+				activeElements={[{ element, track, mediaItem: null }]}
+				canvasWidth={1920}
+				canvasHeight={1080}
+				fps={30}
+				currentTime={3.9}
+				isPlaying
+				onStatusChange={onStatusChange}
+			/>
+		);
+		const video = await screen.findByLabelText("剪映原版动态花字播放预览");
+		fireEvent.loadedData(video);
+		video.currentTime = 2.9;
+
+		view.rerender(
+			<JianyingTextPlaybackOverlay
+				enabled
+				activeElements={[{ element, track, mediaItem: null }]}
+				canvasWidth={1920}
+				canvasHeight={1080}
+				fps={30}
+				currentTime={1.05}
+				isPlaying
+				onStatusChange={onStatusChange}
+			/>
+		);
+
+		await waitFor(() => expect(video.currentTime).toBeCloseTo(0.05, 5));
+		expect(renderText).toHaveBeenCalledTimes(1);
+	});
 });
