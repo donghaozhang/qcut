@@ -35,20 +35,25 @@ import {
 import type { InteropIssue } from "../../draft-interop/issues.js";
 import type { RawNodeBinding } from "../../draft-interop/provenance.js";
 import { CAPCUT_8_1_PROFILE_ID } from "../capcut-8-1-profile.js";
+import { JIANYING_11_3_BETA4_PROFILE_ID } from "../profiles/jianying-11-3-beta4.js";
 import type {
 	RawDraftGraph,
 	RawGraphMaterialNode,
 	RawGraphSegmentNode,
 } from "./graph-reader.js";
-import { mapCapCut81StaticText } from "./capcut-8-1-text-mapper.js";
 import { mapCapCut81SeamTransition } from "./capcut-8-1-transition-mapper.js";
 import { resolveEditableDraftContent } from "./compound-draft.js";
 import { readRawDraftGraph } from "./graph-reader.js";
 import { readDraftProjectSettings } from "./project-settings.js";
 import type { RawDraftContent } from "./raw-types.js";
+import { mapStaticText } from "./static-text-mapper.js";
 import { validateRawDraftGraph } from "./validation.js";
 
 const MEDIA_BUCKETS = new Set(["videos", "audios"]);
+const STATIC_TEXT_PROFILE_IDS = new Set([
+	CAPCUT_8_1_PROFILE_ID,
+	JIANYING_11_3_BETA4_PROFILE_ID,
+]);
 
 const SEGMENT_KIND_BY_BUCKET: Record<string, InteropSegmentKind> = {
 	videos: "video",
@@ -273,7 +278,8 @@ function inferMixedTrackKind({
 	if (kinds.every((kind) => kind === "video" || kind === "image")) {
 		return "video";
 	}
-	return kinds.every((kind) => kind === "audio") ? "audio" : "unknown";
+	if (kinds.every((kind) => kind === "audio")) return "audio";
+	return kinds.every((kind) => kind === "text") ? "text" : "unknown";
 }
 
 function resolveTrackKind({
@@ -319,14 +325,15 @@ function normalizeSegment({
 	if (
 		classified.kind === "text" &&
 		material !== undefined &&
-		profileId === CAPCUT_8_1_PROFILE_ID
+		STATIC_TEXT_PROFILE_IDS.has(profileId)
 	) {
-		const mapped = mapCapCut81StaticText({
+		const mapped = mapStaticText({
 			profileId,
 			canvasWidth,
 			canvasHeight,
 			material,
 			segment,
+			graph,
 		});
 		capability = combineInteropCapabilities([capability, mapped.capability]);
 		text = mapped.text;

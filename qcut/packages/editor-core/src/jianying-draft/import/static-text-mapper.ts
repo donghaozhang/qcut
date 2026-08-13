@@ -9,26 +9,38 @@ import type { InteropIssueCode } from "../../draft-interop/issues.js";
 import { CAPCUT_8_1_PROFILE_ID } from "../capcut-8-1-profile.js";
 import { parseJianyingTextColor } from "../text-color.js";
 import type {
+	RawDraftGraph,
 	RawGraphMaterialNode,
 	RawGraphSegmentNode,
 } from "./graph-reader.js";
+import { JIANYING_11_3_BETA4_PROFILE_ID } from "../profiles/jianying-11-3-beta4.js";
 
 const TEXT_SIZE_REFERENCE_HEIGHT = 135;
 const MAX_TEXT_CONTENT_BYTES = 1_048_576;
 
-export interface MapCapCut81StaticTextInput {
+export interface MapStaticTextInput {
 	profileId: string;
 	canvasWidth: number;
 	canvasHeight: number;
 	material: RawGraphMaterialNode;
 	segment: RawGraphSegmentNode;
+	graph?: RawDraftGraph;
 }
 
-export interface MappedCapCut81StaticText {
+export interface MappedStaticText {
 	capability: InteropCapability;
 	issueCode: InteropIssueCode;
 	reason: string;
 	text?: InteropText;
+}
+
+export type MapCapCut81StaticTextInput = MapStaticTextInput;
+export type MappedCapCut81StaticText = MappedStaticText;
+
+interface StaticTextProfilePolicy {
+	allowMissingDecorationArrays: boolean;
+	allowNoopAnimationRefs: boolean;
+	reason: string;
 }
 
 interface ParsedSolidColor {
@@ -118,7 +130,7 @@ function parseFallbackColor(value: unknown): ParsedSolidColor | undefined {
 		: { color: parsed.hex, opacity: parsed.alpha };
 }
 
-function blocked(reason: string): MappedCapCut81StaticText {
+function blocked(reason: string): MappedStaticText {
 	return {
 		capability: "blocked",
 		issueCode: "FEATURE_OPAQUE",
@@ -126,14 +138,74 @@ function blocked(reason: string): MappedCapCut81StaticText {
 	};
 }
 
+function opaque(reason: string): MappedStaticText {
+	return {
+		capability: "opaque",
+		issueCode: "FEATURE_OPAQUE",
+		reason,
+	};
+}
+
+function resolveProfilePolicy({
+	profileId,
+}: {
+	profileId: string;
+}): StaticTextProfilePolicy | undefined {
+	if (profileId === CAPCUT_8_1_PROFILE_ID) {
+		return {
+			allowMissingDecorationArrays: false,
+			allowNoopAnimationRefs: false,
+			reason:
+				"static text imported without a real CapCut 8.1 render receipt; system font substitution may differ",
+		};
+	}
+	if (profileId === JIANYING_11_3_BETA4_PROFILE_ID) {
+		return {
+			allowMissingDecorationArrays: true,
+			allowNoopAnimationRefs: true,
+			reason:
+				"static text imported from a Jianying 11.3 beta4 creation-time subdraft; system font substitution and stale subdraft ownership may differ from the live project",
+		};
+	}
+	return undefined;
+}
+
+function hasOnlyAllowedExtraRefs({
+	graph,
+	policy,
+	segment,
+}: {
+	graph: RawDraftGraph | undefined;
+	policy: StaticTextProfilePolicy;
+	segment: RawGraphSegmentNode;
+}): boolean {
+	if (segment.extraMaterialRefs.length === 0) return true;
+	if (!policy.allowNoopAnimationRefs || graph === undefined) return false;
+	for (const ref of segment.extraMaterialRefs) {
+		const material = graph.materialsById.get(ref);
+		if (
+			material?.bucket !== "material_animations" ||
+			!Array.isArray(material.raw.animations) ||
+			material.raw.animations.length !== 0
+		) {
+			return false;
+		}
+	}
+	return true;
+}
+
 function parseStroke({
+	allowMissingDecorationArrays,
 	style,
 	fontSizePx,
 }: {
+	allowMissingDecorationArrays: boolean;
 	style: Record<string, unknown>;
 	fontSizePx: number;
 }): InteropTextStroke | null | undefined {
-	if (!Array.isArray(style.strokes)) return undefined;
+	if (!Array.isArray(style.strokes)) {
+		return allowMissingDecorationArrays ? null : undefined;
+	}
 	if (style.strokes.length === 0) return null;
 	if (style.strokes.length !== 1 || !isRecord(style.strokes[0])) {
 		return undefined;
@@ -149,13 +221,17 @@ function parseStroke({
 }
 
 function parseShadow({
+	allowMissingDecorationArrays,
 	style,
 	fontSizePx,
 }: {
+	allowMissingDecorationArrays: boolean;
 	style: Record<string, unknown>;
 	fontSizePx: number;
 }): InteropTextShadow | null | undefined {
-	if (!Array.isArray(style.shadows)) return undefined;
+	if (!Array.isArray(style.shadows)) {
+		return allowMissingDecorationArrays ? null : undefined;
+	}
 	if (style.shadows.length === 0) return null;
 	if (style.shadows.length !== 1 || !isRecord(style.shadows[0])) {
 		return undefined;
@@ -192,7 +268,12 @@ function parseBackground({
 	material: Record<string, unknown>;
 	fontSizePx: number;
 }): InteropTextBackground | null | undefined {
-	if (material.background_style === undefined) return null;
+	if (
+		material.background_style === undefined ||
+		material.background_style === 0
+	) {
+		return null;
+	}
 	if (material.background_style !== 1) return undefined;
 	const color = parseFallbackColor(material.background_color);
 	const opacity = readUnit(material.background_alpha);
@@ -223,19 +304,47 @@ function parseAlignment(value: unknown): InteropText["textAlign"] | undefined {
 	return undefined;
 }
 
+function parseFontFamily({
+	material,
+	style,
+}: {
+	material: Record<string, unknown>;
+	style: Record<string, unknown>;
+}): string {
+	const direct = readString(style.font);
+	if (direct !== undefined) return direct;
+	const font = isRecord(style.font) ? style.font : undefined;
+	const candidates = [
+		font?.family,
+		font?.name,
+		font?.title,
+		material.font_name,
+		material.font_title,
+	];
+	for (const candidate of candidates) {
+		const family = readString(candidate)?.trim();
+		if (family !== undefined && family.toLowerCase() !== "none") return family;
+	}
+	return "Arial";
+}
+
 /**
- * Reads the static single-style subset emitted by the verified 8.1 profile.
- * It remains downgrade until a real CapCut 8.1 import/render receipt exists.
+ * Reads the bounded static single-style subset shared by verified profiles.
+ * Profile policy controls only schema differences proven by real fixtures.
  */
-export function mapCapCut81StaticText({
+export function mapStaticText({
 	profileId,
 	canvasWidth,
 	canvasHeight,
 	material,
 	segment,
-}: MapCapCut81StaticTextInput): MappedCapCut81StaticText {
-	if (profileId !== CAPCUT_8_1_PROFILE_ID || material.bucket !== "texts") {
-		return blocked("text material is outside the CapCut 8.1 profile");
+	graph,
+}: MapStaticTextInput): MappedStaticText {
+	const policy = resolveProfilePolicy({ profileId });
+	if (policy === undefined || material.bucket !== "texts") {
+		return blocked(
+			"text material is outside the verified static-text profiles"
+		);
 	}
 	if (material.raw.type !== "text") {
 		return blocked("subtitle semantics are not mapped to a QCut text element");
@@ -248,8 +357,12 @@ export function mapCapCut81StaticText({
 	) {
 		return blocked("text mapping requires a positive finite canvas");
 	}
+	if (!hasOnlyAllowedExtraRefs({ graph, policy, segment })) {
+		return profileId === JIANYING_11_3_BETA4_PROFILE_ID
+			? opaque("animated or decorated text is preserved but not editable")
+			: blocked("animated or keyframed text is not mapped yet");
+	}
 	if (
-		segment.extraMaterialRefs.length > 0 ||
 		(Array.isArray(segment.raw.common_keyframes) &&
 			segment.raw.common_keyframes.length > 0) ||
 		(Array.isArray(segment.raw.keyframe_refs) &&
@@ -328,8 +441,16 @@ export function mapCapCut81StaticText({
 	const alignment = parseAlignment(material.raw.alignment);
 	const letterSpacing = readFinite(material.raw.letter_spacing);
 	const lineMaxWidth = readUnit(material.raw.line_max_width);
-	const stroke = parseStroke({ style, fontSizePx });
-	const shadow = parseShadow({ style, fontSizePx });
+	const stroke = parseStroke({
+		allowMissingDecorationArrays: policy.allowMissingDecorationArrays,
+		style,
+		fontSizePx,
+	});
+	const shadow = parseShadow({
+		allowMissingDecorationArrays: policy.allowMissingDecorationArrays,
+		style,
+		fontSizePx,
+	});
 	const background = parseBackground({ material: material.raw, fontSizePx });
 	if (
 		fill === undefined ||
@@ -345,7 +466,7 @@ export function mapCapCut81StaticText({
 	const text: InteropText = {
 		content: payload.text,
 		fontSizePx,
-		fontFamily: readString(style.font) ?? "Arial",
+		fontFamily: parseFontFamily({ material: material.raw, style }),
 		color: fill.color,
 		textAlign: alignment,
 		fontWeight: style.bold === true ? "bold" : "normal",
@@ -367,8 +488,9 @@ export function mapCapCut81StaticText({
 	return {
 		capability: "downgrade",
 		issueCode: "FEATURE_DOWNGRADED",
-		reason:
-			"static text imported without a real CapCut 8.1 render receipt; system font substitution may differ",
+		reason: policy.reason,
 		text,
 	};
 }
+
+export const mapCapCut81StaticText = mapStaticText;

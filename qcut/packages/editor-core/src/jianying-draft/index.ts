@@ -220,9 +220,12 @@ export {
 
 export {
 	mapCapCut81StaticText,
+	mapStaticText,
 	type MapCapCut81StaticTextInput,
 	type MappedCapCut81StaticText,
-} from "./import/capcut-8-1-text-mapper.js";
+	type MapStaticTextInput,
+	type MappedStaticText,
+} from "./import/static-text-mapper.js";
 
 export {
 	mapCapCut81SeamTransition,
