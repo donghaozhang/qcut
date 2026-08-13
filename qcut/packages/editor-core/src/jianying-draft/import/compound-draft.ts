@@ -140,7 +140,8 @@ function isVerifiedSingleCompoundWrapper({
 	const targetDuration = readRangeDuration({ value: segment.target_timerange });
 	return (
 		nestedDuration !== undefined &&
-		targetDuration === nestedDuration &&
+		targetDuration !== undefined &&
+		targetDuration <= nestedDuration &&
 		Array.isArray(selection.content.tracks)
 	);
 }

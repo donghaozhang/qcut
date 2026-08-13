@@ -100,4 +100,42 @@ describe("Jianying compound subdraft normalization", () => {
 			])
 		);
 	});
+
+	it("unwraps a neutral compound whose editable timeline outgrows its instance", () => {
+		const content = createJianying113CompoundWrapper({
+			innerDurationUs: 8_400_000,
+			wrapperDurationUs: JIANYING_COMPOUND_DURATION_US,
+		});
+		const normalized = normalizeRawDraft({
+			content,
+			source: createJianying113CompoundSource({
+				bytes: encodeJianyingCompoundContent({ content }),
+			}),
+			contentFileName: "draft_content.json",
+		});
+
+		expect(normalized.document.project).toMatchObject({
+			id: "inner-draft",
+			durationUs: 8_400_000,
+		});
+		expect(normalized.document.timelines[0]?.tracks[0]?.segments).toHaveLength(
+			1
+		);
+	});
+
+	it("keeps an invalid wrapper that outlasts its inner draft opaque", () => {
+		const content = createJianying113CompoundWrapper({
+			innerDurationUs: 2_000_000,
+			wrapperDurationUs: JIANYING_COMPOUND_DURATION_US,
+		});
+		const normalized = normalizeRawDraft({
+			content,
+			source: createJianying113CompoundSource({
+				bytes: encodeJianyingCompoundContent({ content }),
+			}),
+			contentFileName: "draft_content.json",
+		});
+
+		expect(normalized.document.project.id).toBe("outer-wrapper");
+	});
 });

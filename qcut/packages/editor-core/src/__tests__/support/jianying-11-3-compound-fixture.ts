@@ -33,12 +33,16 @@ export function createJianying113CompoundSource({
 	};
 }
 
-export function createJianying113InnerDraft(): Record<string, unknown> {
+export function createJianying113InnerDraft({
+	durationUs = JIANYING_COMPOUND_DURATION_US,
+}: {
+	durationUs?: number;
+} = {}): Record<string, unknown> {
 	return {
 		id: "inner-draft",
 		name: "Compound Clip 1",
 		canvas_config: { width: 1280, height: 720 },
-		duration: JIANYING_COMPOUND_DURATION_US,
+		duration: durationUs,
 		fps: 30,
 		tracks: [
 			{
@@ -51,11 +55,11 @@ export function createJianying113InnerDraft(): Record<string, unknown> {
 						extra_material_refs: [],
 						source_timerange: {
 							start: 0,
-							duration: JIANYING_COMPOUND_DURATION_US,
+							duration: durationUs,
 						},
 						target_timerange: {
 							start: 0,
-							duration: JIANYING_COMPOUND_DURATION_US,
+							duration: durationUs,
 						},
 						speed: 1,
 						unknown_inner_segment: { preserve: true },
@@ -68,7 +72,7 @@ export function createJianying113InnerDraft(): Record<string, unknown> {
 				{
 					id: "inner-video",
 					type: "video",
-					duration: JIANYING_COMPOUND_DURATION_US,
+					duration: durationUs,
 					material_name: "calibration.mp4",
 					path: "/private/calibration.mp4",
 				},
@@ -79,9 +83,13 @@ export function createJianying113InnerDraft(): Record<string, unknown> {
 }
 
 export function createJianying113CompoundWrapper({
+	innerDurationUs = JIANYING_COMPOUND_DURATION_US,
 	neutralWrapper = true,
+	wrapperDurationUs = JIANYING_COMPOUND_DURATION_US,
 }: {
+	innerDurationUs?: number;
 	neutralWrapper?: boolean;
+	wrapperDurationUs?: number;
 } = {}): Record<string, unknown> {
 	return {
 		id: "outer-wrapper",
@@ -89,7 +97,7 @@ export function createJianying113CompoundWrapper({
 		canvas_config: neutralWrapper
 			? { width: 0, height: 0 }
 			: { width: 1920, height: 1080 },
-		duration: neutralWrapper ? 0 : JIANYING_COMPOUND_DURATION_US,
+		duration: neutralWrapper ? 0 : wrapperDurationUs,
 		fps: 30,
 		tracks: [
 			{
@@ -102,11 +110,11 @@ export function createJianying113CompoundWrapper({
 						extra_material_refs: ["compound-material"],
 						source_timerange: {
 							start: 0,
-							duration: JIANYING_COMPOUND_DURATION_US,
+							duration: wrapperDurationUs,
 						},
 						target_timerange: {
 							start: 0,
-							duration: JIANYING_COMPOUND_DURATION_US,
+							duration: wrapperDurationUs,
 						},
 						speed: 1,
 					},
@@ -117,7 +125,7 @@ export function createJianying113CompoundWrapper({
 			drafts: [
 				{
 					id: "compound-material",
-					draft: createJianying113InnerDraft(),
+					draft: createJianying113InnerDraft({ durationUs: innerDurationUs }),
 					draft_file_path: "##_subdraft_placeholder_##/draft_content.json",
 					type: "combination",
 				},
@@ -126,7 +134,7 @@ export function createJianying113CompoundWrapper({
 				{
 					id: "outer-video",
 					type: "video",
-					duration: JIANYING_COMPOUND_DURATION_US,
+					duration: wrapperDurationUs,
 					material_name: "Compound Clip 1",
 					path: "",
 				},
