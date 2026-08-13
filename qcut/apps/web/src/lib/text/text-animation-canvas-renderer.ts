@@ -2,31 +2,32 @@ import {
 	computeShatterTiles,
 	evaluateTextAnimationFrame,
 	normalizeTextAnimations,
-	type TextAnimationRect,
 	type TextAnimationVisualState,
 } from "@qcut/editor-core";
 import { canvasFontFamily } from "@/lib/text/canvas-font";
 import type { TextElement } from "@/types/timeline";
-import {
-	buildTextAnimationCanvasLayout,
-	type CanvasTextAnimationGrapheme,
-} from "./text-animation-canvas-layout";
+import { buildTextAnimationCanvasLayout } from "./text-animation-canvas-layout";
 import { drawTextAnimationDecorations } from "./text-animation-canvas-decorations";
 import {
 	applyTextAnimationVisualState,
 	clampTextAnimationOpacity,
 } from "./text-animation-canvas-state";
-import {
-	type CanvasDimensions,
-	type CanvasTextContext,
-	roundedRectPath,
+import type {
+	CanvasDimensions,
+	CanvasTextContext,
 } from "./text-canvas-primitives";
-import {
-	blendModeToCanvas,
-	colorWithOpacity,
-	type ResolvedTextStyle,
-} from "./text-style";
+import { blendModeToCanvas, type ResolvedTextStyle } from "./text-style";
 import { getCachedCompiledTextAnimation } from "./text-animation-compiled-cache";
+import {
+	acquireTextAnimationRaster,
+	canRasterizeTextAnimation,
+} from "./text-animation-canvas-raster";
+import {
+	drawTextAnimationBackground,
+	drawTextAnimationGlyph,
+	textAnimationRasterPadding,
+} from "./text-animation-canvas-paint";
+import { renderProjectiveTextAnimationToCanvas } from "./text-animation-canvas-projective";
 
 const FRAME_EPSILON = 1e-7;
 
@@ -43,192 +44,6 @@ function hasCanonicalAnimation({
 		normalized.animation.entrance ||
 			normalized.animation.exit ||
 			normalized.animation.loop
-	);
-}
-
-function drawBackground({
-	ctx,
-	element,
-	style,
-	bounds,
-}: {
-	ctx: CanvasTextContext;
-	element: TextElement;
-	style: ResolvedTextStyle;
-	bounds: TextAnimationRect;
-}): void {
-	if (
-		style.backgroundOpacity <= 0 ||
-		element.backgroundColor === "transparent"
-	) {
-		return;
-	}
-	roundedRectPath({
-		ctx,
-		x: bounds.x,
-		y: bounds.y,
-		width: bounds.width,
-		height: bounds.height,
-		radius: style.backgroundRadius,
-	});
-	ctx.fillStyle = colorWithOpacity(
-		element.backgroundColor,
-		style.backgroundOpacity
-	);
-	ctx.fill();
-}
-
-function drawGlyphDecoration({
-	ctx,
-	element,
-	grapheme,
-}: {
-	ctx: CanvasTextContext;
-	element: TextElement;
-	grapheme: CanvasTextAnimationGrapheme;
-}): void {
-	if (
-		element.textDecoration === "none" ||
-		grapheme.bounds.width <= 0 ||
-		!grapheme.text.trim()
-	) {
-		return;
-	}
-	const y =
-		element.textDecoration === "underline"
-			? grapheme.anchorY + element.fontSize * 0.92
-			: grapheme.anchorY + element.fontSize * 0.52;
-	ctx.save();
-	ctx.strokeStyle = element.color;
-	ctx.lineWidth = Math.max(1, element.fontSize / 16);
-	ctx.beginPath();
-	ctx.moveTo(grapheme.bounds.x, y);
-	ctx.lineTo(grapheme.bounds.x + grapheme.bounds.width, y);
-	ctx.stroke();
-	ctx.restore();
-}
-
-function drawGlyph({
-	ctx,
-	element,
-	style,
-	grapheme,
-}: {
-	ctx: CanvasTextContext;
-	element: TextElement;
-	style: ResolvedTextStyle;
-	grapheme: CanvasTextAnimationGrapheme;
-}): void {
-	if (!grapheme.text || /^[\r\n]+$/u.test(grapheme.text)) return;
-	ctx.save();
-	ctx.translate(grapheme.anchorX, grapheme.anchorY);
-	ctx.rotate((grapheme.rotationDeg * Math.PI) / 180);
-	ctx.textAlign = grapheme.textAlign;
-	ctx.textBaseline = grapheme.textBaseline;
-
-	if (style.glowOpacity > 0) {
-		ctx.save();
-		ctx.fillStyle = element.color;
-		ctx.shadowColor = colorWithOpacity(style.glowColor, style.glowOpacity);
-		ctx.shadowBlur = style.glowBlur;
-		ctx.fillText(grapheme.text, 0, 0);
-		ctx.restore();
-	}
-
-	ctx.fillStyle = element.color;
-	if (style.shadowOpacity > 0) {
-		ctx.shadowColor = colorWithOpacity(style.shadowColor, style.shadowOpacity);
-		ctx.shadowBlur = style.shadowBlur;
-		ctx.shadowOffsetX = style.shadowOffsetX;
-		ctx.shadowOffsetY = style.shadowOffsetY;
-	}
-	if (style.strokeWidth > 0) {
-		ctx.strokeStyle = colorWithOpacity(style.strokeColor, style.strokeOpacity);
-		ctx.lineWidth = style.strokeWidth * 2;
-		ctx.lineJoin = "round";
-		ctx.strokeText(grapheme.text, 0, 0);
-	}
-	ctx.fillText(grapheme.text, 0, 0);
-	ctx.restore();
-	drawGlyphDecoration({ ctx, element, grapheme });
-}
-
-/** Bounds on the raster margin that captures stroke and shadow ink, px. */
-const SHATTER_PADDING_MIN = 8;
-const SHATTER_PADDING_MAX = 256;
-
-/**
- * Margin needed so the raster holds every pixel the resting text paints.
- * Sized from the element's own stroke and shadow reach: a fixed margin either
- * clips a big glow (the tiles then pop at shatter start) or wastes tiles on
- * plain text.
- */
-function shatterRasterPadding({ style }: { style: ResolvedTextStyle }): number {
-	const shadowReach =
-		style.shadowOpacity > 0
-			? style.shadowBlur +
-				Math.max(Math.abs(style.shadowOffsetX), Math.abs(style.shadowOffsetY))
-			: 0;
-	const strokeReach = style.strokeWidth > 0 ? style.strokeWidth * 2 : 0;
-	const glowReach = style.glowOpacity > 0 ? style.glowBlur : 0;
-	const paintedReach = Math.max(glowReach, shadowReach + strokeReach);
-	return Math.min(
-		SHATTER_PADDING_MAX,
-		Math.max(SHATTER_PADDING_MIN, Math.ceil(paintedReach + 4))
-	);
-}
-
-/**
- * Scratch raster reused across frames. Only ever written after a full clear,
- * so it holds no state between frames — it exists to avoid allocating a
- * canvas per rendered frame.
- */
-let shatterRaster: {
-	canvas: OffscreenCanvas | HTMLCanvasElement;
-	ctx: CanvasTextContext;
-	width: number;
-	height: number;
-} | null = null;
-
-function acquireShatterRaster({
-	width,
-	height,
-}: {
-	width: number;
-	height: number;
-}): {
-	canvas: OffscreenCanvas | HTMLCanvasElement;
-	ctx: CanvasTextContext;
-} | null {
-	if (
-		shatterRaster &&
-		shatterRaster.width === width &&
-		shatterRaster.height === height
-	) {
-		shatterRaster.ctx.clearRect(0, 0, width, height);
-		return { canvas: shatterRaster.canvas, ctx: shatterRaster.ctx };
-	}
-	let canvas: OffscreenCanvas | HTMLCanvasElement;
-	if (typeof OffscreenCanvas !== "undefined") {
-		canvas = new OffscreenCanvas(width, height);
-	} else if (typeof document !== "undefined") {
-		const element = document.createElement("canvas");
-		element.width = width;
-		element.height = height;
-		canvas = element;
-	} else {
-		return null;
-	}
-	const ctx = canvas.getContext("2d") as CanvasTextContext | null;
-	if (!ctx) return null;
-	shatterRaster = { canvas, ctx, width, height };
-	return { canvas, ctx };
-}
-
-/** Whether this environment can rasterise at all (jsdom without canvas cannot). */
-function canRasterizeShatter(): boolean {
-	return (
-		typeof OffscreenCanvas !== "undefined" || typeof document !== "undefined"
 	);
 }
 
@@ -253,10 +68,14 @@ function drawShatteredText({
 	beforeDrawTiles: () => void;
 }): boolean {
 	const bounds = layout.animationLayout.bounds;
-	const padding = shatterRasterPadding({ style });
+	const padding = textAnimationRasterPadding({ style });
 	const width = Math.max(1, Math.ceil(bounds.width + padding * 2));
 	const height = Math.max(1, Math.ceil(bounds.height + padding * 2));
-	const raster = acquireShatterRaster({ width, height });
+	const raster = acquireTextAnimationRaster({
+		channel: "shatter",
+		width,
+		height,
+	});
 	if (!raster) return false;
 	const source = raster.canvas;
 	const sourceCtx = raster.ctx;
@@ -264,9 +83,9 @@ function drawShatteredText({
 	sourceCtx.save();
 	sourceCtx.translate(padding - bounds.x, padding - bounds.y);
 	sourceCtx.font = `${element.fontStyle} ${element.fontWeight} ${element.fontSize}px ${canvasFontFamily(element.fontFamily)}`;
-	drawBackground({ ctx: sourceCtx, element, style, bounds });
+	drawTextAnimationBackground({ ctx: sourceCtx, element, style, bounds });
 	for (const grapheme of layout.graphemes) {
-		drawGlyph({ ctx: sourceCtx, element, style, grapheme });
+		drawTextAnimationGlyph({ ctx: sourceCtx, element, style, grapheme });
 	}
 	sourceCtx.restore();
 
@@ -355,7 +174,21 @@ export function renderCanonicalTextAnimationToCanvas({
 		visual: state.container,
 		bounds: layout.animationLayout.bounds,
 	});
-	if (state.container.shatter && canRasterizeShatter()) {
+	if (
+		canRasterizeTextAnimation() &&
+		renderProjectiveTextAnimationToCanvas({
+			compiled,
+			ctx,
+			element: renderedElement,
+			layout,
+			state,
+			style,
+		})
+	) {
+		ctx.restore();
+		return true;
+	}
+	if (state.container.shatter && canRasterizeTextAnimation()) {
 		const didDrawShatteredText = drawShatteredText({
 			ctx,
 			element: renderedElement,
@@ -388,7 +221,7 @@ export function renderCanonicalTextAnimationToCanvas({
 			return true;
 		}
 	}
-	drawBackground({
+	drawTextAnimationBackground({
 		ctx,
 		element: renderedElement,
 		style,
@@ -413,7 +246,7 @@ export function renderCanonicalTextAnimationToCanvas({
 			visual: unitState.visual,
 			bounds: grapheme.bounds,
 		});
-		drawGlyph({
+		drawTextAnimationGlyph({
 			ctx,
 			element: renderedElement,
 			style,
