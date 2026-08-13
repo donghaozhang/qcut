@@ -357,7 +357,12 @@ function mapTrack({
 			elements.push(element);
 		}
 	}
-	if (elements.length === 0) {
+	const isEmptyMainMediaTrack =
+		elements.length === 0 &&
+		type === "media" &&
+		track.isMain === true &&
+		track.segments.length === 0;
+	if (elements.length === 0 && !isEmptyMainMediaTrack) {
 		skipped.push({
 			nodeId: track.id,
 			nodeType: "track",

@@ -46,6 +46,7 @@ import { resolveEditableDraftContent } from "./compound-draft.js";
 import { readRawDraftGraph } from "./graph-reader.js";
 import { readDraftProjectSettings } from "./project-settings.js";
 import type { RawDraftContent } from "./raw-types.js";
+import { mapStaticAudio } from "./static-audio-mapper.js";
 import { mapStaticText } from "./static-text-mapper.js";
 import { validateRawDraftGraph } from "./validation.js";
 
@@ -283,14 +284,23 @@ function inferMixedTrackKind({
 }
 
 function resolveTrackKind({
+	profileId,
 	rawType,
 	segments,
 	graph,
 }: {
+	profileId: string;
 	rawType: string | undefined;
 	segments: RawGraphSegmentNode[];
 	graph: RawDraftGraph;
 }): InteropTrackKind {
+	if (
+		profileId === JIANYING_11_3_BETA4_PROFILE_ID &&
+		rawType === "mixed" &&
+		segments.length === 0
+	) {
+		return "video";
+	}
 	if (rawType === "mixed") return inferMixedTrackKind({ segments, graph });
 	return TRACK_KIND_BY_RAW_TYPE[rawType ?? ""] ?? "unknown";
 }
@@ -320,8 +330,26 @@ function normalizeSegment({
 			: graph.materialsById.get(segment.materialId);
 	const classified = classifySegment({ segment, material });
 	let capability = classified.capability;
-	let textMappingIssueAdded = false;
+	let featureMappingIssueAdded = false;
 	let text: InteropSegment["text"];
+	if (
+		classified.kind === "audio" &&
+		material !== undefined &&
+		profileId === JIANYING_11_3_BETA4_PROFILE_ID
+	) {
+		const mapped = mapStaticAudio({ profileId, material, segment, graph });
+		capability = combineInteropCapabilities([capability, mapped.capability]);
+		if (mapped.issueCode !== undefined && mapped.reason !== undefined) {
+			issues.push({
+				code: mapped.issueCode,
+				severity: mapped.capability === "blocked" ? "error" : "warning",
+				message: mapped.reason,
+				path: segment.jsonPointer,
+				subjectId: segment.id,
+			});
+			featureMappingIssueAdded = true;
+		}
+	}
 	if (
 		classified.kind === "text" &&
 		material !== undefined &&
@@ -344,7 +372,7 @@ function normalizeSegment({
 			path: material.jsonPointer,
 			subjectId: segment.id,
 		});
-		textMappingIssueAdded = true;
+		featureMappingIssueAdded = true;
 		bindings.push({
 			foreignRef: material.id,
 			file: contentFileName,
@@ -385,7 +413,7 @@ function normalizeSegment({
 		targetRange = { start: 0, duration: 0 };
 	}
 
-	if (capability === "downgrade" && !textMappingIssueAdded) {
+	if (capability === "downgrade" && !featureMappingIssueAdded) {
 		issues.push({
 			code: "FEATURE_DOWNGRADED",
 			severity: "warning",
@@ -393,7 +421,7 @@ function normalizeSegment({
 			path: segment.jsonPointer,
 			subjectId: segment.id,
 		});
-	} else if (capability === "opaque" && !textMappingIssueAdded) {
+	} else if (capability === "opaque" && !featureMappingIssueAdded) {
 		issues.push({
 			code: "FEATURE_OPAQUE",
 			severity: "warning",
@@ -545,6 +573,7 @@ function normalizeTracks({
 				(segment): segment is RawGraphSegmentNode => segment !== undefined
 			);
 		const kind = resolveTrackKind({
+			profileId,
 			rawType: track.type,
 			segments: rawSegments,
 			graph,

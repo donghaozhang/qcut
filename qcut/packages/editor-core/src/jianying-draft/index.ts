@@ -228,6 +228,12 @@ export {
 } from "./import/static-text-mapper.js";
 
 export {
+	mapStaticAudio,
+	type MapStaticAudioInput,
+	type MappedStaticAudio,
+} from "./import/static-audio-mapper.js";
+
+export {
 	mapCapCut81SeamTransition,
 	type MapCapCut81SeamTransitionInput,
 	type MappedCapCut81SeamTransition,

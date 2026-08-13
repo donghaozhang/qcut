@@ -72,25 +72,97 @@ export function selectCompoundDraft({
 	return candidates.length === 1 ? candidates[0] : undefined;
 }
 
+interface SingleRootSegment {
+	segment: Record<string, unknown>;
+	trackType: string;
+}
+
 function readOnlyRootSegment({
 	content,
 }: {
 	content: RawDraftContent;
-}): Record<string, unknown> | undefined {
+}): SingleRootSegment | undefined {
 	if (!Array.isArray(content.tracks) || content.tracks.length !== 1) {
 		return undefined;
 	}
 	const [track] = content.tracks;
 	if (
 		!isRawRecord(track) ||
-		track.type !== "mixed" ||
+		(track.type !== "mixed" && track.type !== "audio") ||
 		!Array.isArray(track.segments) ||
 		track.segments.length !== 1
 	) {
 		return undefined;
 	}
 	const [segment] = track.segments;
-	return isRawRecord(segment) ? segment : undefined;
+	return isRawRecord(segment) ? { segment, trackType: track.type } : undefined;
+}
+
+function hasMaterialId({
+	content,
+	bucket,
+	materialId,
+}: {
+	content: RawDraftContent;
+	bucket: string;
+	materialId: string;
+}): boolean {
+	if (!isRawRecord(content.materials)) return false;
+	const entries = content.materials[bucket];
+	return (
+		Array.isArray(entries) &&
+		entries.some((entry) => isRawRecord(entry) && entry.id === materialId)
+	);
+}
+
+function hasNestedAudioSegment({
+	content,
+}: {
+	content: RawDraftContent;
+}): boolean {
+	if (!Array.isArray(content.tracks)) return false;
+	for (const track of content.tracks) {
+		if (
+			!isRawRecord(track) ||
+			track.type !== "audio" ||
+			!Array.isArray(track.segments)
+		) {
+			continue;
+		}
+		for (const segment of track.segments) {
+			if (
+				isRawRecord(segment) &&
+				typeof segment.material_id === "string" &&
+				hasMaterialId({
+					content,
+					bucket: "audios",
+					materialId: segment.material_id,
+				})
+			) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+function isVerifiedRootTrackShape({
+	content,
+	selection,
+	root,
+}: {
+	content: RawDraftContent;
+	selection: CompoundDraftSelection;
+	root: SingleRootSegment;
+}): boolean {
+	if (root.trackType === "mixed") return true;
+	const materialId = readString({ value: root.segment.material_id });
+	return (
+		root.trackType === "audio" &&
+		materialId !== undefined &&
+		hasMaterialId({ content, bucket: "audios", materialId }) &&
+		hasNestedAudioSegment({ content: selection.content })
+	);
 }
 
 function isNeutralWrapperCanvas({
@@ -125,11 +197,17 @@ function isVerifiedSingleCompoundWrapper({
 	if (!selection.referencedByRoot || !isNeutralWrapperCanvas({ content })) {
 		return false;
 	}
-	const segment = readOnlyRootSegment({ content });
-	if (segment === undefined || !Array.isArray(segment.extra_material_refs)) {
+	const root = readOnlyRootSegment({ content });
+	if (
+		root === undefined ||
+		!isVerifiedRootTrackShape({ content, selection, root }) ||
+		!Array.isArray(root.segment.extra_material_refs)
+	) {
 		return false;
 	}
-	if (!segment.extra_material_refs.includes(selection.materialId)) return false;
+	if (!root.segment.extra_material_refs.includes(selection.materialId)) {
+		return false;
+	}
 
 	const nestedDuration =
 		typeof selection.content.duration === "number" &&
@@ -137,7 +215,9 @@ function isVerifiedSingleCompoundWrapper({
 		selection.content.duration > 0
 			? selection.content.duration
 			: undefined;
-	const targetDuration = readRangeDuration({ value: segment.target_timerange });
+	const targetDuration = readRangeDuration({
+		value: root.segment.target_timerange,
+	});
 	return (
 		nestedDuration !== undefined &&
 		targetDuration !== undefined &&
