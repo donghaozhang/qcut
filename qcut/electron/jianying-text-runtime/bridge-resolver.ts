@@ -23,7 +23,7 @@ const execFileAsync = promisify(execFile);
 export const JIANYING_TEXT_RUNTIME_BRIDGE_FILE_NAME =
 	"jianying-text-runtime-bridge";
 
-const JIANYING_TEXT_RUNTIME_BRIDGE_BUILD_VERSION = "relative-rpath-v1";
+const JIANYING_TEXT_RUNTIME_BRIDGE_BUILD_VERSION = "text-animation-slots-v2";
 
 export const JIANYING_TEXT_RUNTIME_BRIDGE_SOURCE_FILE_NAMES = [
 	"text-runtime-main.mm",
@@ -63,7 +63,7 @@ function uniquePaths({ paths }: { paths: Array<string | undefined> }) {
 	);
 }
 
-function bridgeCandidates({ projectRoot }: { projectRoot: string | null }) {
+function installedBridgeCandidates() {
 	const resourcesPath = processResourcesPath();
 	return uniquePaths({
 		paths: [
@@ -75,17 +75,18 @@ function bridgeCandidates({ projectRoot }: { projectRoot: string | null }) {
 						JIANYING_TEXT_RUNTIME_BRIDGE_FILE_NAME
 					)
 				: undefined,
-			projectRoot
-				? path.join(
-						projectRoot,
-						"electron",
-						"resources",
-						"bin",
-						JIANYING_TEXT_RUNTIME_BRIDGE_FILE_NAME
-					)
-				: undefined,
 		],
 	});
+}
+
+function stagedDevelopmentBridge({ projectRoot }: { projectRoot: string }) {
+	return path.join(
+		projectRoot,
+		"electron",
+		"resources",
+		"bin",
+		JIANYING_TEXT_RUNTIME_BRIDGE_FILE_NAME
+	);
 }
 
 async function sourceFingerprint({
@@ -261,7 +262,7 @@ async function compileDevelopmentBridge({
 async function resolveBridge({ allowCompile }: { allowCompile: boolean }) {
 	if (process.platform !== "darwin") return null;
 	const projectRoot = findQCutProjectRoot();
-	const candidates = bridgeCandidates({ projectRoot });
+	const candidates = installedBridgeCandidates();
 	const checks = await Promise.all(
 		candidates.map(async (candidate) => ({
 			candidate,
@@ -270,8 +271,12 @@ async function resolveBridge({ allowCompile }: { allowCompile: boolean }) {
 	);
 	const existing = checks.find(({ executable }) => executable)?.candidate;
 	if (existing) return existing;
-	if (!(allowCompile && projectRoot)) return null;
-	return compileDevelopmentBridge({ projectRoot });
+	if (allowCompile && projectRoot) {
+		return compileDevelopmentBridge({ projectRoot });
+	}
+	if (!projectRoot) return null;
+	const staged = stagedDevelopmentBridge({ projectRoot });
+	return (await isExecutable({ filePath: staged })) ? staged : null;
 }
 
 export function resolveJianyingTextRuntimeBridge({
