@@ -129,6 +129,33 @@ async function decodeRenderResult({
 	};
 }
 
+function blendNativeEffectOutput({
+	source,
+	rendered,
+	intensity,
+}: {
+	source: Uint8Array;
+	rendered: Uint8Array;
+	intensity: number;
+}) {
+	if (source.length !== rendered.length) {
+		throw new Error("剪映本机滤镜返回了错误的像素数量");
+	}
+	if (intensity >= 100) return rendered;
+	const amount = intensity / 100;
+	const output = new Uint8Array(source.length);
+	for (let index = 0; index < output.length; index += 4) {
+		for (let channel = 0; channel < 3; channel += 1) {
+			output[index + channel] = Math.round(
+				source[index + channel] +
+					(rendered[index + channel] - source[index + channel]) * amount
+			);
+		}
+		output[index + 3] = source[index + 3];
+	}
+	return output;
+}
+
 export async function createJianyingFilterLocalRenderSession({
 	resourceId,
 	packagePath,
@@ -149,18 +176,19 @@ export async function createJianyingFilterLocalRenderSession({
 		"bootstrap-output.ppm"
 	);
 	let host: JianyingFilterHostProcess | null = null;
+	let outputBlendIntensity: number | undefined;
 	try {
-		const activePackagePath =
-			mode === "multi-pass"
-				? (
-						await prepareJianyingNativeMultiPassPackage({
-							resourceId,
-							packagePath,
-							destinationDirectory: temporaryDirectory,
-							intensity,
-						})
-					).packagePath
-				: packagePath;
+		let activePackagePath = packagePath;
+		if (mode === "multi-pass") {
+			const prepared = await prepareJianyingNativeMultiPassPackage({
+				resourceId,
+				packagePath,
+				destinationDirectory: temporaryDirectory,
+				intensity,
+			});
+			activePackagePath = prepared.packagePath;
+			outputBlendIntensity = prepared.outputBlendIntensity;
+		}
 		await writeFile(
 			bootstrapInputPath,
 			encodePpm({ rgba: bootstrapRgba, width, height }),
@@ -214,7 +242,7 @@ export async function createJianyingFilterLocalRenderSession({
 					outputPath,
 					...(captureMask ? { maskPath } : {}),
 				});
-				return await decodeRenderResult({
+				const result = await decodeRenderResult({
 					resourceId,
 					width,
 					height,
@@ -222,6 +250,16 @@ export async function createJianyingFilterLocalRenderSession({
 					maskPath,
 					captureMask,
 				});
+				return outputBlendIntensity === undefined
+					? result
+					: {
+							...result,
+							rgba: blendNativeEffectOutput({
+								source: rgba,
+								rendered: result.rgba,
+								intensity: outputBlendIntensity,
+							}),
+						};
 			} finally {
 				await removeFrameFiles({ paths: framePaths });
 			}
@@ -234,6 +272,10 @@ export async function createJianyingFilterLocalRenderSession({
 		},
 	};
 }
+
+export const jianyingFilterLocalRenderTestUtils = {
+	blendNativeEffectOutput,
+};
 
 export async function renderJianyingLocalPortrait({
 	resourceId,
