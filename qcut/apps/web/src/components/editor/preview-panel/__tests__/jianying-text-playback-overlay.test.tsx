@@ -238,7 +238,9 @@ describe("Jianying text playback overlay", () => {
 				onStatusChange={onStatusChange}
 			/>
 		);
-		const video = await screen.findByLabelText("剪映原版动态花字播放预览");
+		const video = (await screen.findByLabelText(
+			"剪映原版动态花字播放预览"
+		)) as HTMLVideoElement;
 		fireEvent.loadedData(video);
 		video.currentTime = 2.9;
 
