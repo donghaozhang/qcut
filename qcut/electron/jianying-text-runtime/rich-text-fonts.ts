@@ -41,7 +41,8 @@ function replaceFontPathAttribute({
 	if (richTextAttribute({ tag, name: "path" }) !== undefined) {
 		return tag.replace(pathAttribute, replacement);
 	}
-	return `${tag.slice(0, -1)} ${replacement}>`;
+	const closing = tag.endsWith("/>") ? "/>" : ">";
+	return `${tag.slice(0, -closing.length).trimEnd()} ${replacement}${closing}`;
 }
 
 function requireAbsoluteFontPath({ fontPath }: { fontPath: string }) {
