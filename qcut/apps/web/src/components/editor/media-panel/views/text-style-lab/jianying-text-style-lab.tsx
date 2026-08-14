@@ -21,10 +21,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type {
+	JianyingTextAnimationLabSummary,
+	JianyingTextAnimationReferences,
+	JianyingTextAnimationSlot,
 	JianyingTextStyleCategoryId,
 	JianyingTextStyleLabStyleSummary,
 } from "@/types/electron";
 import { useJianyingTextStyleLab } from "./use-jianying-text-style-lab";
+import { useJianyingTextAnimationLab } from "./use-jianying-text-animation-lab";
+import { JianyingTextAnimationPicker } from "./jianying-text-animation-picker";
+import { updateTextStyleLabAnimationSelection } from "./text-style-lab-mapping";
 
 const TRIAL_STYLE_COUNT = 5;
 const CATEGORY_STYLE_LIMIT = 20;
@@ -236,15 +242,24 @@ function TextStyleLabCard({
 export function JianyingTextStyleLabDialog({
 	onApply,
 }: {
-	onApply: ({ style }: { style: JianyingTextStyleLabStyleSummary }) => void;
+	onApply: ({
+		animations,
+		style,
+	}: {
+		animations?: JianyingTextAnimationReferences;
+		style: JianyingTextStyleLabStyleSummary;
+	}) => void;
 }) {
 	const [open, setOpen] = useState(false);
 	const [query, setQuery] = useState("");
 	const [view, setView] = useState<LabView>("trial");
 	const [selectedStyleId, setSelectedStyleId] = useState("");
+	const [selectedAnimations, setSelectedAnimations] =
+		useState<JianyingTextAnimationReferences>({});
 	const { checking, result, error, refresh } = useJianyingTextStyleLab({
 		enabled: open,
 	});
+	const animationLab = useJianyingTextAnimationLab({ enabled: open });
 	const trialStyles = useMemo(
 		() => selectTrialStyles({ styles: result.styles }),
 		[result.styles]
@@ -276,6 +291,12 @@ export function JianyingTextStyleLabDialog({
 		view === "trial" || view === "all"
 			? undefined
 			: result.categories.find(({ id }) => id === view);
+	const selectedStyle = result.styles.find(
+		({ styleId }) => styleId === selectedStyleId
+	);
+	const animationPickerVisible = Boolean(
+		selectedStyle?.runtimeReference && selectedStyle.packageKind === "TextStyle"
+	);
 
 	const applyStyle = ({
 		style,
@@ -283,8 +304,25 @@ export function JianyingTextStyleLabDialog({
 		style: JianyingTextStyleLabStyleSummary;
 	}) => {
 		if (!(style.approximation || style.runtimeReference)) return;
+		if (style.styleId !== selectedStyleId) setSelectedAnimations({});
 		setSelectedStyleId(style.styleId);
 		onApply({ style });
+	};
+	const applyAnimation = ({
+		animation,
+		slot,
+	}: {
+		animation?: JianyingTextAnimationLabSummary;
+		slot: JianyingTextAnimationSlot;
+	}) => {
+		if (!selectedStyle?.runtimeReference) return;
+		const nextAnimations = updateTextStyleLabAnimationSelection({
+			animation,
+			animations: selectedAnimations,
+			slot,
+		});
+		setSelectedAnimations(nextAnimations);
+		onApply({ animations: nextAnimations, style: selectedStyle });
 	};
 
 	return (
@@ -292,7 +330,10 @@ export function JianyingTextStyleLabDialog({
 			open={open}
 			onOpenChange={(nextOpen) => {
 				setOpen(nextOpen);
-				if (!nextOpen) setSelectedStyleId("");
+				if (!nextOpen) {
+					setSelectedStyleId("");
+					setSelectedAnimations({});
+				}
 			}}
 		>
 			<DialogTrigger asChild>
@@ -425,7 +466,12 @@ export function JianyingTextStyleLabDialog({
 							</div>
 						) : null}
 						{!error && (!checking || result.count > 0) ? (
-							<div className="mt-2 grid max-h-[31rem] min-h-56 auto-rows-max content-start grid-cols-4 gap-2 overflow-y-auto pr-1 lg:grid-cols-5">
+							<div
+								className={cn(
+									"mt-2 grid min-h-56 auto-rows-max content-start grid-cols-4 gap-2 overflow-y-auto pr-1 lg:grid-cols-5",
+									animationPickerVisible ? "max-h-[19rem]" : "max-h-[31rem]"
+								)}
+							>
 								{visibleStyles.map((style) => (
 									<TextStyleLabCard
 										key={style.styleId}
@@ -435,6 +481,16 @@ export function JianyingTextStyleLabDialog({
 									/>
 								))}
 							</div>
+						) : null}
+						{animationPickerVisible ? (
+							<JianyingTextAnimationPicker
+								animations={animationLab.result.animations}
+								checking={animationLab.checking}
+								error={animationLab.error}
+								selected={selectedAnimations}
+								onChange={applyAnimation}
+								onRefresh={() => void animationLab.refresh({ force: true })}
+							/>
 						) : null}
 					</section>
 				</div>
