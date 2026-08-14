@@ -4,8 +4,10 @@ import { resolveTextStyle } from "@/lib/text/text-style";
 import {
 	createJianyingTextRenderEntry,
 	type JianyingTextRenderEntry,
+	resolveJianyingTextRenderContentBounds,
 	validateJianyingTextRenderResult,
 } from "@/lib/preview/jianying-text-render-entry";
+import type { TextOverlayBounds } from "@/lib/text/text-overlay-bounds";
 import type { JianyingTextRuntimeRenderResult } from "@/types/electron/api-jianying-text-runtime";
 import type { TextElement } from "@/types/timeline";
 import type { ActiveElement } from "./types";
@@ -28,6 +30,7 @@ function JianyingTextPlaybackLayer({
 	currentTime,
 	isPlaying,
 	onStatusChange,
+	onBoundsChange,
 }: {
 	element: TextElement;
 	zIndex: number;
@@ -43,6 +46,13 @@ function JianyingTextPlaybackLayer({
 		elementId: string;
 		status: JianyingTextPlaybackStatus;
 	}) => void;
+	onBoundsChange: ({
+		elementId,
+		bounds,
+	}: {
+		elementId: string;
+		bounds: TextOverlayBounds | null;
+	}) => void;
 }) {
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const [readyLayer, setReadyLayer] = useState<ReadyPlaybackLayer | null>(null);
@@ -53,6 +63,7 @@ function JianyingTextPlaybackLayer({
 		if (!api) {
 			setReadyLayer(null);
 			setError("剪映原版动态花字渲染服务不可用");
+			onBoundsChange({ elementId: element.id, bounds: null });
 			onStatusChange({ elementId: element.id, status: "error" });
 			return;
 		}
@@ -70,12 +81,14 @@ function JianyingTextPlaybackLayer({
 		if (!entry) {
 			setReadyLayer(null);
 			setError("剪映花字没有可播放的时间范围");
+			onBoundsChange({ elementId: element.id, bounds: null });
 			onStatusChange({ elementId: element.id, status: "error" });
 			return;
 		}
 		let cancelled = false;
 		setReadyLayer(null);
 		setError(null);
+		onBoundsChange({ elementId: element.id, bounds: null });
 		onStatusChange({ elementId: element.id, status: "loading" });
 		void api
 			.render(entry.renderRequest)
@@ -86,18 +99,35 @@ function JianyingTextPlaybackLayer({
 					throw new Error("剪映花字播放预览没有透明视频缓存");
 				}
 				setReadyLayer({ entry, result: validated });
+				onBoundsChange({
+					elementId: element.id,
+					bounds: resolveJianyingTextRenderContentBounds({
+						entry,
+						result: validated,
+					}),
+				});
 			})
 			.catch((cause: unknown) => {
 				if (cancelled) return;
 				setError(cause instanceof Error ? cause.message : String(cause));
+				onBoundsChange({ elementId: element.id, bounds: null });
 				onStatusChange({ elementId: element.id, status: "error" });
 			});
 		return () => {
 			cancelled = true;
+			onBoundsChange({ elementId: element.id, bounds: null });
 			onStatusChange({ elementId: element.id, status: "idle" });
 			void api.cancel({ requestId });
 		};
-	}, [canvasHeight, canvasWidth, element, fps, onStatusChange, zIndex]);
+	}, [
+		canvasHeight,
+		canvasWidth,
+		element,
+		fps,
+		onBoundsChange,
+		onStatusChange,
+		zIndex,
+	]);
 
 	const syncPlayback = useCallback(() => {
 		const video = videoRef.current;
@@ -169,6 +199,7 @@ function JianyingTextPlaybackLayer({
 			onCanPlay={syncPlayback}
 			onError={() => {
 				onStatusChange({ elementId: element.id, status: "error" });
+				onBoundsChange({ elementId: element.id, bounds: null });
 				setReadyLayer(null);
 				setError("剪映花字透明播放缓存无法解码");
 			}}
@@ -185,6 +216,7 @@ export function JianyingTextPlaybackOverlay({
 	currentTime,
 	isPlaying,
 	onStatusChange,
+	onBoundsChange,
 }: {
 	enabled: boolean;
 	activeElements: ActiveElement[];
@@ -200,6 +232,13 @@ export function JianyingTextPlaybackOverlay({
 		elementId: string;
 		status: JianyingTextPlaybackStatus;
 	}) => void;
+	onBoundsChange: ({
+		elementId,
+		bounds,
+	}: {
+		elementId: string;
+		bounds: TextOverlayBounds | null;
+	}) => void;
 }) {
 	if (!enabled) return null;
 	return activeElements.map(({ element }, index) =>
@@ -214,6 +253,7 @@ export function JianyingTextPlaybackOverlay({
 				currentTime={currentTime}
 				isPlaying={isPlaying}
 				onStatusChange={onStatusChange}
+				onBoundsChange={onBoundsChange}
 			/>
 		) : null
 	);
