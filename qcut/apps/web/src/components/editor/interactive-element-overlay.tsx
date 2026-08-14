@@ -9,6 +9,7 @@ import {
 	getTimelineElementTransform,
 	resizeInteractiveElementFromCenter,
 	type ElementResizeHandle,
+	type ElementContentBounds,
 	type ElementTransform,
 } from "./interactive-element-overlay-geometry";
 import { resolveTextOverlayBounds } from "@/lib/text/text-overlay-bounds";
@@ -22,6 +23,7 @@ interface InteractiveElementOverlayProps {
 	previewDimensions: { width: number; height: number };
 	onSelect: ({ multi }: { multi: boolean }) => void;
 	onTransformUpdate: (elementId: string, transform: ElementTransform) => void;
+	contentBounds?: ElementContentBounds;
 }
 
 interface DragState {
@@ -43,6 +45,7 @@ export function InteractiveElementOverlay({
 	previewDimensions,
 	onSelect,
 	onTransformUpdate,
+	contentBounds: nativeContentBounds,
 }: InteractiveElementOverlayProps) {
 	const elementRef = useRef<HTMLDivElement>(null);
 	const { getElementEffects } = useEffectsStore();
@@ -270,7 +273,7 @@ export function InteractiveElementOverlay({
 		}
 	}, [dragState.isDragging, handleMouseMove, handleMouseUp]);
 
-	const contentBounds = useMemo(
+	const measuredContentBounds = useMemo(
 		() =>
 			element.type === "text"
 				? resolveTextOverlayBounds({
@@ -281,6 +284,7 @@ export function InteractiveElementOverlay({
 				: undefined,
 		[element, canvasSize.width, canvasSize.height]
 	);
+	const contentBounds = nativeContentBounds ?? measuredContentBounds;
 
 	const hasEffects = getElementEffects(element.id).length > 0;
 	const hasDirectCanvasInteraction =
