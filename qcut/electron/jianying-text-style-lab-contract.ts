@@ -2,6 +2,8 @@ export const JIANYING_TEXT_STYLE_LAB_LIST_CHANNEL =
 	"jianying-text-style-lab:list";
 export const JIANYING_TEXT_STYLE_LAB_COVER_CHANNEL =
 	"jianying-text-style-lab:cover";
+export const JIANYING_TEXT_ANIMATION_LAB_LIST_CHANNEL =
+	"jianying-text-animation-lab:list";
 
 export type JianyingTextStyleFillKind =
 	| "solid"
@@ -104,6 +106,29 @@ export interface JianyingTextStyleLabCoverResult {
 	bytes: Uint8Array;
 }
 
+export interface JianyingTextAnimationLabSummary {
+	animationId: string;
+	resourceId: string;
+	packageHash: string;
+	title?: string;
+	slot: import("./jianying-text-runtime-contract.js").JianyingTextAnimationSlot;
+	duration: number;
+	capabilities: import("./jianying-text-runtime-contract.js").JianyingTextEffectCapabilities;
+}
+
+export interface JianyingTextAnimationLabListRequest {
+	refresh?: boolean;
+}
+
+export interface JianyingTextAnimationLabListResult {
+	count: number;
+	animations: JianyingTextAnimationLabSummary[];
+	catalogCount: number;
+	packageCount: number;
+	missingPackageCount: number;
+	invalidPackageCount: number;
+}
+
 export interface JianyingTextStyleLabAPI {
 	list: (
 		request?: JianyingTextStyleLabListRequest
@@ -111,4 +136,7 @@ export interface JianyingTextStyleLabAPI {
 	cover: (
 		request: JianyingTextStyleLabCoverRequest
 	) => Promise<JianyingTextStyleLabCoverResult>;
+	listAnimations: (
+		request?: JianyingTextAnimationLabListRequest
+	) => Promise<JianyingTextAnimationLabListResult>;
 }
