@@ -161,6 +161,13 @@ export type JianyingTextRuntimeRenderSource =
 	| { kind: "image"; path: string }
 	| { kind: "image-sequence"; path: string; frameRate: number };
 
+export interface JianyingTextRuntimeContentBounds {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+}
+
 export interface JianyingTextRuntimeRenderResult {
 	requestId: string;
 	resourceId: string;
@@ -173,6 +180,8 @@ export interface JianyingTextRuntimeRenderResult {
 	y: number;
 	width: number;
 	height: number;
+	/** Stable alpha union in the unrotated local render surface. */
+	contentBounds?: JianyingTextRuntimeContentBounds;
 	diagnostics?: JianyingTextRuntimeDiagnostic[];
 	previewUrl?: string;
 	source: JianyingTextRuntimeRenderSource;
