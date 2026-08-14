@@ -11,13 +11,27 @@ export const JIANYING_TRANSITION_BRIDGE_FILE_NAME =
 	"jianying-transition-bridge";
 export const JIANYING_TRANSITION_BRIDGE_SOURCE_FILE_NAMES = [
 	"probe.mm",
+	"amazer-context-scope.mm",
+	"amazer-context-scope.h",
+	"filter-host-support.mm",
+	"filter-host-support.h",
+	"filter-sequence-io.cpp",
+	"filter-sequence-io.h",
+	"graphics-runtime.mm",
+	"graphics-runtime.h",
 	"graphics-probe.mm",
-	"transition-probe.mm",
-	"video-transition-probe.mm",
-	"probe-utils.h",
 	"graphics-probe.h",
+	"filter-probe.mm",
+	"filter-probe.h",
+	"transition-probe.mm",
 	"transition-probe.h",
+	"text-probe.mm",
+	"text-probe.h",
+	"text-resource-finder.mm",
+	"text-resource-finder.h",
+	"video-transition-probe.mm",
 	"video-transition-probe.h",
+	"probe-utils.h",
 ] as const;
 
 let pendingBridgeResolution: Promise<string | null> | null = null;
@@ -129,6 +143,38 @@ async function sourceFingerprint({
 	return hash.digest("hex").slice(0, 16);
 }
 
+export function jianyingTransitionBridgeCompilerArguments({
+	sourceDirectory,
+	outputPath,
+}: {
+	sourceDirectory: string;
+	outputPath: string;
+}): string[] {
+	const sourcePaths = JIANYING_TRANSITION_BRIDGE_SOURCE_FILE_NAMES.filter(
+		(name) => name.endsWith(".mm") || name.endsWith(".cpp")
+	).map((name) => path.join(sourceDirectory, name));
+	return [
+		"clang++",
+		"-std=c++20",
+		"-fobjc-arc",
+		"-Wall",
+		"-Wextra",
+		"-Werror",
+		"-Wno-deprecated-declarations",
+		...sourcePaths,
+		"-framework",
+		"AppKit",
+		"-framework",
+		"CoreVideo",
+		"-framework",
+		"IOSurface",
+		"-framework",
+		"OpenGL",
+		"-o",
+		outputPath,
+	];
+}
+
 export async function compileJianyingTransitionBridge({
 	projectRoot,
 	outputPath,
@@ -149,26 +195,12 @@ export async function compileJianyingTransitionBridge({
 	if (await isExecutable({ filePath: outputPath })) return outputPath;
 
 	await mkdir(path.dirname(outputPath), { recursive: true });
-	const sourcePaths = JIANYING_TRANSITION_BRIDGE_SOURCE_FILE_NAMES.filter(
-		(name) => name.endsWith(".mm")
-	).map((name) => path.join(sourceDirectory, name));
 	await execFileAsync(
 		"xcrun",
-		[
-			"clang++",
-			"-std=c++20",
-			"-fobjc-arc",
-			"-Wall",
-			"-Wextra",
-			"-Werror",
-			...sourcePaths,
-			"-framework",
-			"AppKit",
-			"-framework",
-			"IOSurface",
-			"-o",
+		jianyingTransitionBridgeCompilerArguments({
+			sourceDirectory,
 			outputPath,
-		],
+		}),
 		{ maxBuffer: 16 * 1024 * 1024 }
 	);
 	if (!(await isExecutable({ filePath: outputPath }))) {
