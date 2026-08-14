@@ -90,6 +90,7 @@ import {
 	JIANYING_FONT_LAB_LOAD_CHANNEL,
 } from "./jianying-font-lab-contract.js";
 import {
+	JIANYING_TEXT_ANIMATION_LAB_LIST_CHANNEL,
 	JIANYING_TEXT_STYLE_LAB_COVER_CHANNEL,
 	JIANYING_TEXT_STYLE_LAB_LIST_CHANNEL,
 } from "./jianying-text-style-lab-contract.js";
@@ -216,6 +217,8 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke(JIANYING_TEXT_STYLE_LAB_LIST_CHANNEL, request),
 		cover: (request) =>
 			ipcRenderer.invoke(JIANYING_TEXT_STYLE_LAB_COVER_CHANNEL, request),
+		listAnimations: (request) =>
+			ipcRenderer.invoke(JIANYING_TEXT_ANIMATION_LAB_LIST_CHANNEL, request),
 	},
 	jianyingTextRuntime: {
 		inspect: (request) =>
