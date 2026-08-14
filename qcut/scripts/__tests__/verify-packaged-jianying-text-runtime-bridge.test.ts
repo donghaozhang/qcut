@@ -3,7 +3,10 @@ import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { verifyPackagedJianyingTextRuntimeBridge } from "../verify-packaged-jianying-text-runtime-bridge.js";
+import {
+	parseMachOUuidOutput,
+	verifyPackagedJianyingTextRuntimeBridge,
+} from "../verify-packaged-jianying-text-runtime-bridge.js";
 
 const BRIDGE_NAME = "jianying-text-runtime-bridge";
 const temporaryDirectories: string[] = [];
@@ -55,6 +58,20 @@ afterEach(async () => {
 });
 
 describe("packaged Jianying text runtime bridge verification", () => {
+	it("normalizes Mach-O UUIDs by architecture", () => {
+		expect(
+			parseMachOUuidOutput({
+				output: [
+					"UUID: AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE (x86_64) bridge",
+					"UUID: 11111111-2222-3333-4444-555555555555 (arm64) bridge",
+				].join("\n"),
+			})
+		).toEqual([
+			"arm64:11111111-2222-3333-4444-555555555555",
+			"x86_64:AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE",
+		]);
+	});
+
 	it("accepts the exact executable staged by the current build", async () => {
 		const fixture = await createFixture();
 		await expect(
