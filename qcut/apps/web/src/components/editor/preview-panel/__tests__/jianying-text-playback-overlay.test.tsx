@@ -66,6 +66,7 @@ describe("Jianying text playback overlay", () => {
 			y: 279,
 			width: 512,
 			height: 512,
+			contentBounds: { x: 76, y: 146, width: 360, height: 220 },
 			previewUrl: `app://jianying-text-preview/${"a".repeat(64)}.webm`,
 			source: {
 				kind: "image-sequence" as const,
@@ -98,6 +99,7 @@ describe("Jianying text playback overlay", () => {
 		const element = createTextElement();
 		const track = createTrack({ element });
 		const onStatusChange = vi.fn();
+		const onBoundsChange = vi.fn();
 		const view = render(
 			<JianyingTextPlaybackOverlay
 				enabled
@@ -108,6 +110,7 @@ describe("Jianying text playback overlay", () => {
 				currentTime={1.4}
 				isPlaying
 				onStatusChange={onStatusChange}
+				onBoundsChange={onBoundsChange}
 			/>
 		);
 
@@ -125,6 +128,10 @@ describe("Jianying text playback overlay", () => {
 		expect(video.getAttribute("src")).toBe(
 			`app://jianying-text-preview/${"a".repeat(64)}.webm`
 		);
+		expect(onBoundsChange).toHaveBeenCalledWith({
+			elementId: element.id,
+			bounds: { offsetX: 0, offsetY: 0, width: 372, height: 232 },
+		});
 		fireEvent.loadedData(video);
 		expect(onStatusChange).toHaveBeenCalledWith({
 			elementId: element.id,
@@ -141,6 +148,7 @@ describe("Jianying text playback overlay", () => {
 				currentTime={2.1}
 				isPlaying
 				onStatusChange={onStatusChange}
+				onBoundsChange={onBoundsChange}
 			/>
 		);
 		await waitFor(() => expect(renderText).toHaveBeenCalledTimes(1));
@@ -155,6 +163,7 @@ describe("Jianying text playback overlay", () => {
 	it("shows an explicit error instead of pretending the fallback is original", async () => {
 		const element = createTextElement();
 		const onStatusChange = vi.fn();
+		const onBoundsChange = vi.fn();
 		renderText.mockRejectedValueOnce(
 			new Error("本机剪映花字缺少 1 个动态依赖")
 		);
@@ -170,6 +179,7 @@ describe("Jianying text playback overlay", () => {
 				currentTime={1.4}
 				isPlaying
 				onStatusChange={onStatusChange}
+				onBoundsChange={onBoundsChange}
 			/>
 		);
 
@@ -186,6 +196,7 @@ describe("Jianying text playback overlay", () => {
 		const element = createTextElement();
 		const track = createTrack({ element });
 		const onStatusChange = vi.fn();
+		const onBoundsChange = vi.fn();
 		const play = vi.spyOn(HTMLMediaElement.prototype, "play");
 		const view = render(
 			<JianyingTextPlaybackOverlay
@@ -197,6 +208,7 @@ describe("Jianying text playback overlay", () => {
 				currentTime={1.4}
 				isPlaying={false}
 				onStatusChange={onStatusChange}
+				onBoundsChange={onBoundsChange}
 			/>
 		);
 
@@ -215,6 +227,7 @@ describe("Jianying text playback overlay", () => {
 				currentTime={1.5}
 				isPlaying
 				onStatusChange={onStatusChange}
+				onBoundsChange={onBoundsChange}
 			/>
 		);
 
@@ -226,6 +239,7 @@ describe("Jianying text playback overlay", () => {
 		const element = createTextElement();
 		const track = createTrack({ element });
 		const onStatusChange = vi.fn();
+		const onBoundsChange = vi.fn();
 		const view = render(
 			<JianyingTextPlaybackOverlay
 				enabled
@@ -236,6 +250,7 @@ describe("Jianying text playback overlay", () => {
 				currentTime={3.9}
 				isPlaying
 				onStatusChange={onStatusChange}
+				onBoundsChange={onBoundsChange}
 			/>
 		);
 		const video = (await screen.findByLabelText(
@@ -254,6 +269,7 @@ describe("Jianying text playback overlay", () => {
 				currentTime={1.05}
 				isPlaying
 				onStatusChange={onStatusChange}
+				onBoundsChange={onBoundsChange}
 			/>
 		);
 
