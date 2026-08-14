@@ -2,6 +2,7 @@ import type {
 	JianyingTextRuntimeRenderRequest,
 	JianyingTextRuntimeRenderResult,
 } from "@/types/electron/api-jianying-text-runtime";
+import type { TextOverlayBounds } from "@/lib/text/text-overlay-bounds";
 import {
 	sortTracksByOrder,
 	type TextElement,
@@ -17,6 +18,29 @@ export interface JianyingTextRenderEntry {
 	endTime: number;
 	element: TextElement;
 	renderRequest: JianyingTextRuntimeRenderRequest;
+}
+
+const JIANYING_TEXT_OVERLAY_BREATHING_PX = 6;
+
+export function resolveJianyingTextRenderContentBounds({
+	entry,
+	result,
+}: {
+	entry: JianyingTextRenderEntry;
+	result: JianyingTextRuntimeRenderResult;
+}): TextOverlayBounds | null {
+	const bounds = result.contentBounds;
+	if (!bounds) return null;
+	const renderWidth = Math.round(entry.renderRequest.transform.width);
+	const renderHeight = Math.round(entry.renderRequest.transform.height);
+	const scaleX = entry.renderRequest.transform.width / renderWidth;
+	const scaleY = entry.renderRequest.transform.height / renderHeight;
+	return {
+		offsetX: (bounds.x + bounds.width / 2 - renderWidth / 2) * scaleX,
+		offsetY: (bounds.y + bounds.height / 2 - renderHeight / 2) * scaleY,
+		width: bounds.width * scaleX + JIANYING_TEXT_OVERLAY_BREATHING_PX * 2,
+		height: bounds.height * scaleY + JIANYING_TEXT_OVERLAY_BREATHING_PX * 2,
+	};
 }
 
 export function createJianyingTextRenderEntry({
