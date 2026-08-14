@@ -91,6 +91,7 @@ import {
 } from "./preview-panel/jianying-text-playback-overlay";
 import type { BrowserColorGradeLayer } from "@/lib/color/browser-color-rendering";
 import { ensureTimelineLocalFontsLoaded } from "@/lib/fonts/local-font-runtime";
+import type { TextOverlayBounds } from "@/lib/text/text-overlay-bounds";
 
 function getPreviewElementDuration(element: TimelineElement): number {
 	return element.type === "media"
@@ -486,6 +487,9 @@ export function PreviewPanel() {
 	const [jianyingPlaybackStatuses, setJianyingPlaybackStatuses] = useState<
 		ReadonlyMap<string, JianyingTextPlaybackStatus>
 	>(() => new Map());
+	const [jianyingPlaybackBounds, setJianyingPlaybackBounds] = useState<
+		ReadonlyMap<string, TextOverlayBounds>
+	>(() => new Map());
 	const handleJianyingPlaybackStatusChange = useCallback(
 		({
 			elementId,
@@ -504,6 +508,25 @@ export function PreviewPanel() {
 		},
 		[]
 	);
+	const handleJianyingPlaybackBoundsChange = useCallback(
+		({
+			elementId,
+			bounds,
+		}: {
+			elementId: string;
+			bounds: TextOverlayBounds | null;
+		}) => {
+			setJianyingPlaybackBounds((previous) => {
+				if (bounds && previous.get(elementId) === bounds) return previous;
+				if (!bounds && !previous.has(elementId)) return previous;
+				const next = new Map(previous);
+				if (bounds) next.set(elementId, bounds);
+				else next.delete(elementId);
+				return next;
+			});
+		},
+		[]
+	);
 	const jianyingTextOverlayEnabled =
 		previewMode === "video" &&
 		platform().isElectron &&
@@ -512,6 +535,9 @@ export function PreviewPanel() {
 	useEffect(() => {
 		if (jianyingTextOverlayEnabled) return;
 		setJianyingPlaybackStatuses((previous) =>
+			previous.size === 0 ? previous : new Map()
+		);
+		setJianyingPlaybackBounds((previous) =>
 			previous.size === 0 ? previous : new Map()
 		);
 	}, [jianyingTextOverlayEnabled]);
@@ -1011,6 +1037,7 @@ export function PreviewPanel() {
 												currentTime={smoothTime}
 												isPlaying={isPlaying}
 												onStatusChange={handleJianyingPlaybackStatusChange}
+												onBoundsChange={handleJianyingPlaybackBoundsChange}
 											/>
 											{nativeCompositionPreview.status === "ready" &&
 											nativeCompositionPreview.url ? (
@@ -1126,6 +1153,9 @@ export function PreviewPanel() {
 										)}
 										canvasSize={canvasSize}
 										previewDimensions={previewDimensions}
+										contentBounds={jianyingPlaybackBounds.get(
+											elementData.element.id
+										)}
 										onSelect={({ multi }) =>
 											selectElement(
 												elementData.track.id,
