@@ -121,4 +121,29 @@ describe("InteractiveElementOverlay", () => {
 			screen.getByRole("button", { name: "Resize from top-left corner" })
 		).toBeInTheDocument();
 	});
+
+	it("uses native flower-text content bounds for the transform box", () => {
+		render(
+			<InteractiveElementOverlay
+				element={createTextElement()}
+				isSelected
+				canvasSize={{ width: 1920, height: 1080 }}
+				previewDimensions={{ width: 960, height: 540 }}
+				contentBounds={{
+					offsetX: 20,
+					offsetY: -10,
+					width: 320,
+					height: 180,
+				}}
+				onSelect={vi.fn()}
+				onTransformUpdate={vi.fn()}
+			/>
+		);
+
+		const overlay = screen.getByTestId("interactive-element-overlay");
+		expect(overlay.style.width).toBe("160px");
+		expect(overlay.style.height).toBe("90px");
+		expect(overlay.style.left).toBe("51.5625%");
+		expect(overlay.style.top).toBe("50.925925925925924%");
+	});
 });
