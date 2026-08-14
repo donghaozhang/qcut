@@ -29,7 +29,8 @@ function measurementContext(): CanvasTextContext | null {
  * Backgroundless text wraps the laid-out glyph runs (like Jianying), so the
  * box hugs the wrapped lines instead of the invisible logical box. Text with
  * a visible background keeps the logical box, because the background paints
- * that box and it is the shape the user sees.
+ * that box and it is the shape the user sees. Jianying runtime text also uses
+ * the logical box until its native alpha bounds are ready.
  */
 export function resolveTextOverlayBounds({
 	element,
@@ -52,6 +53,7 @@ export function resolveTextOverlayBounds({
 		height: boxHeight,
 	};
 	if (style.backgroundOpacity > 0) return logical;
+	if (element.jianyingTextStyle) return logical;
 	if (!element.content?.trim()) return logical;
 
 	const context = ctx ?? measurementContext();
