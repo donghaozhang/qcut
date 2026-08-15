@@ -27,6 +27,7 @@ import {
 	LayoutTemplateIcon,
 	SlidersHorizontalIcon,
 	CodeXmlIcon,
+	UserSquareIcon,
 } from "lucide-react";
 import { create } from "zustand";
 import type { AudioLibrarySectionId } from "@/lib/audio/audio-library-catalog";
@@ -56,6 +57,7 @@ export type Tab =
 	| "upscale"
 	| "moyin"
 	| "ai-chat"
+	| "digital-human"
 	| "search";
 
 export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
@@ -160,6 +162,10 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
 		icon: SearchIcon,
 		label: "Search",
 	},
+	"digital-human": {
+		icon: UserSquareIcon,
+		label: "数字人",
+	},
 };
 
 // --- Tab Groups ---
@@ -197,6 +203,7 @@ const editSubgroups: Record<EditSubgroup, Subgroup> = {
 			"filters",
 			"adjustments",
 			"templates",
+			"digital-human",
 		],
 	},
 };
@@ -212,6 +219,7 @@ export const STANDARD_EDITOR_TABS = [
 	"filters",
 	"adjustments",
 	"templates",
+	"digital-human",
 ] as const satisfies readonly Tab[];
 
 export type StandardEditorTab = (typeof STANDARD_EDITOR_TABS)[number];
