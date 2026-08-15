@@ -13,7 +13,12 @@ import {
 } from "@/lib/stickers/sticker-catalog";
 import { useStickersStore } from "@/stores/stickers-store";
 import { AIStickerGenerator } from "./components/ai-sticker-generator";
-import { LocalStickerReferencePanel } from "./components/local-sticker-reference-panel";
+import {
+	LocalStickerReferencePanel,
+	resolveStickerLabSelection,
+	type StickerLabSelection,
+} from "./components/local-sticker-reference-panel";
+import { buildPrivateStickerCategoryViews } from "./components/private-sticker-category-views";
 import { StickerCatalogGrid } from "./components/sticker-catalog-grid";
 import {
 	StickerSidebar,
@@ -33,8 +38,24 @@ export function StickersView() {
 		useState<StickerCategoryId>("popular");
 	const [mode, setMode] = useState<StickerPanelMode>("library");
 	const [isSearching, setIsSearching] = useState(false);
+	const [labSelection, setLabSelection] = useState<StickerLabSelection | null>(
+		null
+	);
 	const fileInputRef = useRef<HTMLInputElement>(null);
 	const localStickerCatalog = useLocalStickerCatalog();
+	const privateLabCategories = useMemo(
+		() =>
+			buildPrivateStickerCategoryViews({
+				catalogs: localStickerCatalog.privateCatalogs,
+			}),
+		[localStickerCatalog.privateCatalogs]
+	);
+	const publicLabCategories = localStickerCatalog.catalog?.categories ?? [];
+	const resolvedLabSelection = resolveStickerLabSelection({
+		privateCategories: privateLabCategories,
+		publicCategories: publicLabCategories,
+		selection: labSelection,
+	});
 
 	const {
 		searchResults,
@@ -125,6 +146,16 @@ export function StickersView() {
 		setSearchQuery("");
 	};
 
+	const selectLabCategory = ({
+		selection,
+	}: {
+		selection: StickerLabSelection;
+	}) => {
+		setLabSelection(selection);
+		setMode("reference-lab");
+		setSearchQuery("");
+	};
+
 	return (
 		<div
 			className="flex h-full min-h-0 flex-col bg-panel text-foreground"
@@ -172,8 +203,25 @@ export function StickersView() {
 			<div className="flex min-h-0 flex-1 overflow-hidden">
 				<StickerSidebar
 					mode={mode}
+					referenceLab={
+						localStickerCatalog.isAvailable
+							? {
+									privateCategories: privateLabCategories.map((category) => ({
+										count: category.items.length,
+										id: category.id,
+										label: category.label,
+									})),
+									publicCategories: publicLabCategories.map((category) => ({
+										count: category.items.length,
+										id: category.id,
+										label: category.label,
+									})),
+									selection: resolvedLabSelection,
+									onSelectCategory: selectLabCategory,
+								}
+							: null
+					}
 					selectedCategory={selectedCategory}
-					showReferenceLab={localStickerCatalog.isAvailable}
 					onSelectCategory={selectCategory}
 					onSelectMode={selectMode}
 				/>
@@ -217,7 +265,8 @@ export function StickersView() {
 							error={localStickerCatalog.error}
 							isLoading={localStickerCatalog.isLoading}
 							onSelect={handleLocalReferenceSelect}
-							privateCatalogs={localStickerCatalog.privateCatalogs}
+							privateCategories={privateLabCategories}
+							selection={resolvedLabSelection}
 							unavailablePrivateCatalogIds={
 								localStickerCatalog.unavailablePrivateCatalogIds
 							}
