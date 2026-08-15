@@ -785,7 +785,6 @@ export function TimelineToolbar({
 								onClick={toggleSnapping}
 								aria-label="Toggle timeline snapping"
 								aria-pressed={snappingEnabled}
-								title="Auto snapping"
 								data-testid="timeline-snapping-button"
 								data-enabled={snappingEnabled}
 							>
@@ -796,7 +795,14 @@ export function TimelineToolbar({
 								)}
 							</Button>
 						</TooltipTrigger>
-						<TooltipContent>Auto snapping</TooltipContent>
+						<TooltipContent>
+							{withShortcut(
+								snappingEnabled
+									? t("timeline.toolbar.disableSnapping")
+									: t("timeline.toolbar.enableSnapping"),
+								"toggle-snapping"
+							)}
+						</TooltipContent>
 					</Tooltip>
 
 					<Tooltip>
@@ -808,7 +814,6 @@ export function TimelineToolbar({
 								onClick={toggleMainTrackMagnet}
 								aria-label="Toggle main-track magnet"
 								aria-pressed={mainTrackMagnetEnabled}
-								title="Main-track magnet"
 								data-testid="timeline-main-magnet-button"
 								data-enabled={mainTrackMagnetEnabled}
 							>
@@ -820,7 +825,12 @@ export function TimelineToolbar({
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
-							Main-track magnet — deleting a main-track clip closes its gap
+							{withShortcut(
+								mainTrackMagnetEnabled
+									? t("timeline.toolbar.disableMainTrackMagnet")
+									: t("timeline.toolbar.enableMainTrackMagnet"),
+								"toggle-main-track-magnet"
+							)}
 						</TooltipContent>
 					</Tooltip>
 
@@ -833,7 +843,6 @@ export function TimelineToolbar({
 								onClick={toggleRippleEditing}
 								aria-label="Toggle ripple editing"
 								aria-pressed={rippleEditingEnabled}
-								title="Ripple editing"
 								data-testid="timeline-ripple-button"
 								data-enabled={rippleEditingEnabled}
 							>
@@ -846,8 +855,8 @@ export function TimelineToolbar({
 						</TooltipTrigger>
 						<TooltipContent>
 							{rippleEditingEnabled
-								? "Disable Ripple Editing"
-								: "Enable Ripple Editing"}
+								? t("timeline.toolbar.disableRippleEditing")
+								: t("timeline.toolbar.enableRippleEditing")}
 						</TooltipContent>
 					</Tooltip>
 
@@ -860,7 +869,6 @@ export function TimelineToolbar({
 								onClick={toggleLinkedRipple}
 								aria-label="Toggle linked ripple"
 								aria-pressed={linkedRippleEnabled}
-								title="Linked ripple"
 								data-testid="timeline-linked-ripple-button"
 								data-enabled={linkedRippleEnabled}
 							>
@@ -872,7 +880,12 @@ export function TimelineToolbar({
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
-							Linked ripple — ripple edits pull linked tracks along
+							{withShortcut(
+								linkedRippleEnabled
+									? t("timeline.toolbar.disableLinkedRipple")
+									: t("timeline.toolbar.enableLinkedRipple"),
+								"toggle-linked-ripple"
+							)}
 						</TooltipContent>
 					</Tooltip>
 
