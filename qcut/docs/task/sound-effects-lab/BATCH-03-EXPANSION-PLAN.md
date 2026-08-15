@@ -99,7 +99,7 @@ BGM 36、打斗 46 已达剪映确认全量；热门 114、最新 101（UI 计�
 | 档位 | 内容 | 新增 | 完成后总量 |
 |---|---|---:|---:|
 | A. 收齐已确认全量的 4 个小类 | 震惊/知识科普/BGM/打斗 补满 | +66 | 448 |
-| B. 每类对齐 50（一页深度） | 15 个大类各补到 50 | ≈+580 | ≈1,030 |
+| B. 每类对齐 50（一页深度） | 15 个大类各补到 50 | +450（条目口径） | ≈898（唯一资源因跨类重复会少一些） |
 | C. 云端全量 | 每类滚动到 `has_more=false` | 未知（估 +1,000~3,000） | 2,000+ |
 
 - A+B 的全部元数据本机已有，只需刷新签名即可下载；预计体积 ~220 MiB
@@ -124,6 +124,11 @@ for db in ~/Movies/JianyingPro/User\ Data/Cache/ressdk_db/*/rp.db; do
     WHERE url LIKE '%get_resources_by_category_id%audio%';"
 done
 ```
+
+   注意：上面只是聚合速览——一条无关的新行也能让它看起来"新鲜"。
+   逐类判定请用文末附录脚本（按分类统计 cached 数与 `has_more`），
+   任何目标分类 cached 数不足、或该分类最新 `timestamp`（UTC）早于
+   采集当天，都视为 Phase A 未完成。
 
 ### Phase B — 当天运行采集脚本
 
@@ -150,12 +155,14 @@ done
 
 ```bash
 # 1) 合并 batch-01/02/03 → combined-title-file-map.json（新目录）
-#    合并键: resourceId；冲突时保留旧条目（内容不可变，md5 相同）
+#    合并键: resourceId；冲突时必须校验 contentMd5/sha256/objectKey 完全
+#    一致后才保留旧条目，任何不一致直接让合并失败（fail-closed），
+#    禁止静默保留旧条目——资源被重发布时旧音频会悄悄留在 combined map 里
 # 2) 生成本地 v1 + 私有 v2 manifest
 bun run build:sound-effects-lab-manifest -- \
-  --input  "$HOME/Documents/QCut/exports/jianying-sfx-batch-03-<date>/combined-title-file-map.json" \
-  --output "$HOME/Documents/QCut/exports/jianying-sfx-lab-<date>/sound-effects-lab.local.json" \
-  --remote-output "$HOME/Documents/QCut/exports/jianying-sfx-lab-<date>/sound-effects-lab.private.json" \
+  --input  "$HOME/Documents/QCut/Exports/jianying-sfx-batch-03-<date>/combined-title-file-map.json" \
+  --output "$HOME/Documents/QCut/Exports/jianying-sfx-lab-<date>/sound-effects-lab.local.json" \
+  --remote-output "$HOME/Documents/QCut/Exports/jianying-sfx-lab-<date>/sound-effects-lab.private.json" \
   --catalog-date <date>
 ```
 
@@ -165,7 +172,9 @@ objectKey / md5 / sha256）和缺文件检查，任何一项不过直接失败�
 ### Phase D — 上传与 manifest key 策略
 
 ```bash
-SUPABASE_URL=... SUPABASE_SERVICE_KEY=... \
+# 高权限密钥不进命令行也不进 shell 历史：从 0600 的 ~/.qcut/.env
+# （仓库密钥的规范存放处）读进当前进程，用完即退出该 shell。
+set -a; source ~/.qcut/.env; set +a
 bun run upload:sound-effects-lab -- \
   --local-manifest   ".../sound-effects-lab.local.json" \
   --private-manifest ".../sound-effects-lab.private.json"
@@ -180,7 +189,18 @@ bun run upload:sound-effects-lab -- \
 - **方案 1（零部署，推荐）**：新音频上传到 `jianying/<新date>/assets/`，
   但把新 manifest **覆盖写到钉死的 `jianying/2026-08-01/manifest.json`**。
   manifest 内的 objectKey 带新日期，音频 key 正则放行，worker 不用动。
-  旧 manifest 先另存 `manifest.<旧date>.bak.json` 供回滚。
+  切换顺序必须避免 404 窗口（`storage cp` 不覆盖，覆盖=先 `rm` 再
+  `cp`，期间 license server 对钉死 key 返回 404，客户端入口消失）：
+  1. 先把新 manifest 传到临时 key（如
+     `jianying/<新date>/manifest.staging.json`）并验证能完整拉取；
+  2. 旧 manifest 另存 `manifest.<旧date>.bak.json`；
+  3. `rm` 钉死 key 后**立即** `cp` 新 manifest 过去（窗口压到秒级）；
+  4. `cp` 失败立即用第 2 步的备份恢复钉死 key。
+
+  另注意：Phase D 上传器带 `x-upsert: true` 写的是
+  `jianying/<catalog-date>/manifest.json`，license server 只读钉死 key——
+  上传完成后仍要按上面的顺序把 manifest 落到钉死 key（或走方案 2 改
+  worker 常量），否则新数据永远不生效。
 - **方案 2（正式）**：manifest 传到 `jianying/<新date>/manifest.json`，
   同时把 worker 常量改成新 key 并 `wrangler deploy`。适合顺路做 worker 变更时。
 
@@ -190,7 +210,7 @@ bun run upload:sound-effects-lab -- \
 `LabCategoryButton` 数量徽标）会自动反映新数量。验证清单：
 
 1. `bun run electron` 启动 → 音频面板 → 音效实验室；
-2. 左栏总数 = 新 manifest 总数（档位 A+B 应为 ~1,030），各分类数量与
+2. 左栏总数 = 新 manifest 总数（以去重后 manifest 实际条数为准），各分类数量与
    第 1 节目标一致；
 3. 抽 3 类各试听 2 条新增音效（卡片能下载、能播、能加时间线）；
 4. `bun x vitest run apps/web/src/components/editor/media-panel/views/__tests__/sound-effects-lab.test.tsx`；
@@ -219,8 +239,8 @@ bun run upload:sound-effects-lab -- \
 
 ```bash
 python3 - <<'EOF'
-import sqlite3, json, os, glob
-from collections import Counter, defaultdict
+import sqlite3, json, os, glob, re
+from collections import defaultdict
 CATS = {10892:'热门',5914796:'最新',10899:'转场',5914402:'网感口播',5914764:'热梗语录',
 10894:'笑声',5914403:'尴尬',5914404:'震惊',5914405:'提示音',5914365:'抽象',
 10895:'综艺感',5914406:'知识科普',10896:'机械',10897:'BGM',10901:'魔法',
@@ -231,11 +251,17 @@ for db in glob.glob(os.path.expanduser('~/Movies/JianyingPro/User Data/Cache/res
     for (url, body) in conn.execute("SELECT url, response_body FROM http_cache WHERE url LIKE '%get_resources_by_category_id%audio%'"):
         try: data = json.loads(body).get('data') or {}
         except Exception: continue
+        # 以请求 URL 里的 category_id 为准——响应内条目可能带多个分类，
+        # 多数票会把混类响应记到错误分类并虚增覆盖率。
+        m = re.search(r'category_id=(\d+)', url)
+        cat = int(m.group(1)) if m else None
+        if cat not in CATS: continue
         items = data.get('effect_item_list') or []
-        votes = Counter(int(c) for it in items for c in (it.get('common_attr') or {}).get('category_ids') or [] if str(c).isdigit())
-        cat = next((c for c,_ in votes.most_common() if c in CATS), None)
-        if cat is None: continue
-        by_cat[cat]['ids'].update((it.get('common_attr') or {}).get('effect_id') for it in items)
+        by_cat[cat]['ids'].update(
+            (it.get('common_attr') or {}).get('effect_id')
+            for it in items
+            if cat in [int(c) for c in (it.get('common_attr') or {}).get('category_ids') or [] if str(c).isdigit()]
+        )
         by_cat[cat]['has_more'] |= bool(data.get('has_more'))
     conn.close()
 for cid, name in CATS.items():
