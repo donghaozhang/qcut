@@ -217,6 +217,9 @@ export const STANDARD_EDITOR_TABS = [
 export type StandardEditorTab = (typeof STANDARD_EDITOR_TABS)[number];
 export type SoundsPanelTab = AudioLibrarySectionId;
 
+/** Collapsible groups in the sounds panel sidebar (Jianying-style). */
+export type AudioSidebarGroupId = "my" | "folders" | "music" | "sfx" | "lab";
+
 export const tabGroups: { [key in TabGroup]: TabGroupDef } = {
 	"ai-create": {
 		icon: SparklesIcon,
@@ -284,6 +287,15 @@ interface MediaPanelStore {
 
 	activeSoundsTab: SoundsPanelTab;
 	setActiveSoundsTab: (tab: SoundsPanelTab) => void;
+
+	collapsedAudioGroups: Record<AudioSidebarGroupId, boolean>;
+	setAudioGroupCollapsed: ({
+		group,
+		collapsed,
+	}: {
+		group: AudioSidebarGroupId;
+		collapsed: boolean;
+	}) => void;
 }
 
 const defaultLastTabPerGroup: Record<TabGroup, Tab> = {
@@ -334,6 +346,22 @@ export const useMediaPanelStore = create<MediaPanelStore>((set) => ({
 	setAiActiveTab: (tab) => set({ aiActiveTab: tab }),
 	activeSoundsTab: "music-latest",
 	setActiveSoundsTab: (activeSoundsTab) => set({ activeSoundsTab }),
+
+	// Sound effects start collapsed to keep the sidebar short, like Jianying.
+	collapsedAudioGroups: {
+		my: false,
+		folders: false,
+		music: false,
+		sfx: true,
+		lab: false,
+	},
+	setAudioGroupCollapsed: ({ group, collapsed }) =>
+		set((state) => ({
+			collapsedAudioGroups: {
+				...state.collapsedAudioGroups,
+				[group]: collapsed,
+			},
+		})),
 }));
 
 // Expose for iPad CLI debugging (qcut://eval, qcut://panel)
