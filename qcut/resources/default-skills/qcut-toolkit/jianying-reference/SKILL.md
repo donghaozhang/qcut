@@ -211,11 +211,11 @@ const jy = (f: number) => Math.min(N, Math.floor(Math.min(1, f / F) * (N + 1)));
 
 ## Scope Notes
 
-- Works identically for filters (pure color grades have their own skill:
+- The harvesting/capture workflow above is shared by filters (pure color grades have their own skill:
   `jianying-filter-parity`), transitions (`jianying-transition-reference`),
   画面特效/人物特效 (`jianying-video-effect-reference` — catalog/draft/package
-  anatomy for the 特效 panel), and stickers — only the panel and the package
-  contents differ.
+  anatomy for the 特效 panel), and stickers — but only that workflow is
+  shared; render contracts and cache layouts differ per family.
 - `Cache/effect` only contains effects that have been applied at least once on
   this machine; apply the card once to force the download.
 - Read-only analysis of locally cached files for interop/parity purposes; do
