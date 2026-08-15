@@ -95,6 +95,10 @@ export function ScreenRecordingPanel() {
 	// Keyboard shortcuts: Ctrl/Cmd+Shift+C = toggle cursor, Ctrl/Cmd+Shift+G = auto-zoom
 	useEffect(() => {
 		const handler = (e: KeyboardEvent) => {
+			// The keybinding registry runs first and only preventDefault()s, so
+			// without this a bound chord (e.g. ⌘⇧C copy attributes) would also
+			// toggle the cursor overlay.
+			if (e.defaultPrevented) return;
 			const hasModifier = e.ctrlKey || e.metaKey;
 			if (!hasModifier || !e.shiftKey || isEditableTarget(e.target)) return;
 

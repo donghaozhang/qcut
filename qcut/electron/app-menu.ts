@@ -71,7 +71,34 @@ export function setupApplicationMenu(): void {
 					}),
 		},
 		{ role: "editMenu" },
-		{ role: "viewMenu" },
+		{
+			// The stock viewMenu role claims ⌘+ / ⌘- / ⌘0 for page zoom and ⌘R
+			// for reload, and a menu accelerator wins before the renderer ever
+			// sees the key. That silently swallowed the timeline zoom and rotate
+			// shortcuts, so the zoom roles are dropped and reload is moved to a
+			// chord the editor does not use.
+			label: "View",
+			submenu: [
+				// Reload keeps its menu item but loses its accelerator: ⌘R is a
+				// timeline binding, and ⇧⌘R is already the screen-recording
+				// shortcut.
+				{
+					label: "Reload",
+					click: () => {
+						BrowserWindow.getFocusedWindow()?.webContents.reload();
+					},
+				},
+				{
+					label: "Force Reload",
+					click: () => {
+						BrowserWindow.getFocusedWindow()?.webContents.reloadIgnoringCache();
+					},
+				},
+				{ role: "toggleDevTools" as const },
+				{ type: "separator" as const },
+				{ role: "togglefullscreen" as const },
+			],
+		},
 		{ role: "windowMenu" },
 		{
 			role: "help",
