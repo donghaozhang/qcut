@@ -71,6 +71,7 @@ import {
 	setupJianyingDraftExportIPC,
 	type JianyingDraftExportIPCController,
 } from "./jianying-draft-export-handler.js";
+import { setupJianyingEffectIPC } from "./jianying-effect-handler.js";
 import { setupJianyingTransitionIPC } from "./jianying-transition-handler.js";
 import {
 	setupJianyingFilterLabIPC,
@@ -1064,6 +1065,7 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 				},
 			],
 			["JianyingTransitionIPC", setupJianyingTransitionIPC],
+			["JianyingEffectIPC", setupJianyingEffectIPC],
 			[
 				"JianyingFilterLabIPC",
 				() => {

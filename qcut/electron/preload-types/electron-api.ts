@@ -63,6 +63,7 @@ import type {
 } from "./api-types/remotion-moyin-api";
 import type { HyperframesAPI } from "./api-types/hyperframes-api";
 import type { JianyingDraftExportPreloadAPI } from "./api-types/jianying-draft-export-api";
+import type { JianyingEffectPreloadAPI } from "./api-types/jianying-effect-api";
 import type { JianyingTransitionPreloadAPI } from "./api-types/jianying-transition-api";
 import type { JianyingFilterLabPreloadAPI } from "./api-types/jianying-filter-lab-api";
 import type { JianyingFontLabPreloadAPI } from "./api-types/jianying-font-lab-api";
@@ -115,6 +116,7 @@ export interface ElectronAPI
 		YouTubeApi,
 		JianyingDraftExportPreloadAPI,
 		JianyingTransitionPreloadAPI,
+		JianyingEffectPreloadAPI,
 		JianyingFilterLabPreloadAPI,
 		JianyingFontLabPreloadAPI,
 		JianyingTextStyleLabPreloadAPI,

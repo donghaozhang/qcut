@@ -4,6 +4,8 @@
 #include "graphics-probe.h"
 #include "filter-probe.h"
 #include "probe-utils.h"
+#include "effect-probe.h"
+#include "effect-video-probe.h"
 #include "text-probe.h"
 #include "transition-probe.h"
 #include "video-transition-probe.h"
@@ -123,6 +125,71 @@ using jianying_probe::resolveSymbol;
   if (parsedLength != text.size() || value <= 0.0) {
     throw std::runtime_error(std::string(name) +
                              " must be a positive number");
+  }
+  return value;
+}
+
+[[nodiscard]] std::vector<jianying_probe::EffectAdjustParameter>
+parseEffectAdjustParameters() {
+  std::vector<jianying_probe::EffectAdjustParameter> parameters;
+  const char* rawValue = std::getenv("JY_EFFECT_ADJUST");
+  if (rawValue == nullptr || *rawValue == '\0') {
+    return parameters;
+  }
+
+  // "effects_adjust_speed=0.5,effects_adjust_intensity=0.8"
+  std::string text(rawValue);
+  std::size_t start = 0;
+  while (start <= text.size()) {
+    const std::size_t comma = text.find(',', start);
+    const std::string entry =
+        text.substr(start, comma == std::string::npos ? std::string::npos
+                                                     : comma - start);
+    if (entry.empty()) {
+      if (comma == std::string::npos) break;
+      start = comma + 1;
+      continue;
+    }
+    // A malformed pair must fail loudly: silently dropping it would render the
+    // effect with defaults and look like the slider had no effect.
+    const std::size_t equals = entry.find('=');
+    if (equals == std::string::npos || equals == 0 ||
+        equals + 1 >= entry.size()) {
+      throw std::runtime_error(
+          "JY_EFFECT_ADJUST entries must look like key=value, got: " + entry);
+    }
+    const std::string key = entry.substr(0, equals);
+    const std::string valueText = entry.substr(equals + 1);
+    std::size_t parsedLength = 0;
+    double value = 0.0;
+    try {
+      value = std::stod(valueText, &parsedLength);
+    } catch (const std::exception&) {
+      throw std::runtime_error("JY_EFFECT_ADJUST value is not a number: " +
+                               valueText);
+    }
+    if (parsedLength != valueText.size() || !std::isfinite(value)) {
+      throw std::runtime_error("JY_EFFECT_ADJUST value is not a number: " +
+                               valueText);
+    }
+    parameters.push_back({.key = key, .value = value});
+    if (comma == std::string::npos) break;
+    start = comma + 1;
+  }
+  return parameters;
+}
+
+[[nodiscard]] double optionalNonNegativeNumberEnvironment(const char* name) {
+  const char* rawValue = std::getenv(name);
+  if (rawValue == nullptr || *rawValue == '\0') {
+    return 0.0;
+  }
+  const std::string text(rawValue);
+  std::size_t parsedLength = 0;
+  const double value = std::stod(text, &parsedLength);
+  if (parsedLength != text.size() || !std::isfinite(value) || value < 0.0) {
+    throw std::runtime_error(std::string(name) +
+                             " must be a number of seconds at or above 0");
   }
   return value;
 }
@@ -494,6 +561,56 @@ void configure(ObjectStorage<kConfigStorageSize>& config,
     return result.renderedFrames == result.requestedFrames ? 0 : 9;
   }
 
+  if (mode == "effect-frame") {
+    const fs::path packagePath = requireEnvironment("JY_EFFECT_PACKAGE");
+    if (!fs::is_directory(packagePath)) {
+      throw std::runtime_error(
+          "JY_EFFECT_PACKAGE must name a package directory");
+    }
+
+    double seconds = 0.0;
+    if (const char* value = std::getenv("JY_EFFECT_SECONDS")) {
+      std::size_t parsedLength = 0;
+      const std::string text(value);
+      seconds = std::stod(text, &parsedLength);
+      if (parsedLength != text.size() || !std::isfinite(seconds) ||
+          seconds < 0.0 || seconds > 60.0) {
+        throw std::runtime_error(
+            "JY_EFFECT_SECONDS must be a number of seconds from 0 to 60");
+      }
+    }
+
+    return jianying_probe::inspectEffectPackage(runtimeRoot, packagePath,
+                                                seconds)
+               ? 0
+               : 10;
+  }
+
+  if (mode == "effect-video") {
+    const fs::path packagePath = requireEnvironment("JY_EFFECT_PACKAGE");
+    if (!fs::is_directory(packagePath)) {
+      throw std::runtime_error(
+          "JY_EFFECT_PACKAGE must name a package directory");
+    }
+
+    const std::vector<jianying_probe::EffectAdjustParameter> adjustParameters =
+        parseEffectAdjustParameters();
+    const auto result = jianying_probe::renderRawVideoEffect({
+        .runtimeRoot = runtimeRoot,
+        .packagePath = packagePath,
+        .inputPath = requireEnvironment("JY_RAW_INPUT"),
+        .outputPath = requireEnvironment("JY_RAW_OUTPUT"),
+        .width = requirePositiveIntegerEnvironment("JY_VIDEO_WIDTH"),
+        .height = requirePositiveIntegerEnvironment("JY_VIDEO_HEIGHT"),
+        .frameRate = requirePositiveNumberEnvironment("JY_VIDEO_FPS"),
+        .startSeconds = optionalNonNegativeNumberEnvironment("JY_EFFECT_START"),
+        .durationSeconds =
+            requirePositiveNumberEnvironment("JY_EFFECT_DURATION"),
+        .adjustParameters = adjustParameters,
+    });
+    return result.outputFrames > 0 ? 0 : 11;
+  }
+
   if (mode == "text-frame") {
     const fs::path packagePath = requireEnvironment("JY_TEXT_PACKAGE");
     if (!fs::is_directory(packagePath)) {
@@ -637,7 +754,7 @@ int main(int argc, char* argv[]) {
                 << " <runtime-root> "
                    "<inspect|config|launch|gpu|textures|transition|transition-"
                    "load|transition-frame|transition-video|filter-sequence|"
-                   "text-frame>\n";
+                   "text-frame|effect-frame|effect-video>\n";
       return 2;
     }
 

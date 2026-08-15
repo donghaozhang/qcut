@@ -29,6 +29,7 @@ export * from "./api-updates";
 export * from "./api-license";
 export * from "./api-pi-agent";
 export * from "./api-jianying-draft-export";
+export * from "./api-jianying-effects";
 export * from "./api-jianying-transitions";
 export * from "./api-jianying-filter-lab";
 export * from "./api-jianying-font-lab";

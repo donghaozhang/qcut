@@ -83,6 +83,10 @@ import {
 	applyJianyingTimelineTransitions,
 	partitionJianyingTransitions,
 } from "./export-engine-cli-jianying";
+import {
+	applyJianyingTimelineEffects,
+	collectJianyingEffectRequests,
+} from "./export-engine-cli-jianying-effects";
 
 // Re-export types for backward compatibility (using export from)
 export type {
@@ -955,7 +959,7 @@ export class CLIExportEngine extends ExportEngine {
 		});
 
 		const qcutOutputPath = await invokeFFmpegExport(exportOptions);
-		return applyJianyingTimelineTransitions({
+		const transitionOutputPath = await applyJianyingTimelineTransitions({
 			inputPath: qcutOutputPath,
 			transitions: jianyingTransitions,
 			tracks: this.tracks,
@@ -963,6 +967,15 @@ export class CLIExportEngine extends ExportEngine {
 			width: this.canvas.width,
 			height: this.canvas.height,
 			onProgress: progressCallback,
+		});
+		return applyJianyingTimelineEffects({
+			inputPath: transitionOutputPath,
+			requests: collectJianyingEffectRequests({ tracks: this.tracks }),
+			fps: this.fps,
+			width: this.canvas.width,
+			height: this.canvas.height,
+			onProgress: progressCallback,
+			shouldCancel: () => this.isExportCancelled(),
 		});
 	}
 

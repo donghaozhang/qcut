@@ -153,7 +153,17 @@ export interface EffectInstance {
 	animations?: AnimatedParameter[];
 	/** Runtime range; omitted for legacy effects that cover their entire target clip. */
 	timelineRange?: EffectTimelineRange;
+	/**
+	 * Which renderer owns this effect. "qcut" (the default) uses QCut's own
+	 * stages; "jianying-local" defers to the Jianying runtime installed on this
+	 * machine, which renders the package identified by packageHash.
+	 */
+	engine?: EffectEngine;
+	/** Package md5, required when engine is "jianying-local". */
+	packageHash?: string;
 }
+
+export type EffectEngine = "qcut" | "jianying-local";
 
 export interface EffectChain {
 	id: string;

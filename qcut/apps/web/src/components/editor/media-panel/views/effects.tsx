@@ -1,4 +1,5 @@
 import {
+	FlaskConical,
 	Activity,
 	Aperture,
 	AudioLines,
@@ -49,6 +50,7 @@ import { useEffectsStore } from "@/stores/ai/effects-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { EffectPreset } from "@/types/effects";
+import { JianyingEffectLabPanel } from "./effects/jianying-effect-lab-panel";
 import { EffectPreviewThumbnail } from "./effect-preview-thumbnail";
 
 const FALLBACK_PREVIEW = "/images/filter-previews/coastal.webp";
@@ -57,6 +59,7 @@ const SECTION_ICONS: Record<EffectLibrarySectionId, LucideIcon> = {
 	favorites: Star,
 	visual: Sparkles,
 	person: UserRound,
+	lab: FlaskConical,
 };
 
 const CATEGORY_ICONS: Record<VisualEffectCategoryId, LucideIcon> = {
@@ -328,7 +331,11 @@ export default function EffectsView() {
 						/>
 					</div>
 					<div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-						<span>{t("effects.count", { count: visibleEntries.length })}</span>
+						<span>
+							{selectedSection === "lab"
+								? ""
+								: t("effects.count", { count: visibleEntries.length })}
+						</span>
 						<span className={cn(selectedElements.length > 0 && "text-primary")}>
 							{selectedElements.length > 0
 								? t("effects.apply.selected")
@@ -337,88 +344,97 @@ export default function EffectsView() {
 					</div>
 				</div>
 
-				<div className="min-h-0 flex-1 overflow-y-auto p-3">
-					{visibleEntries.length > 0 ? (
-						<div className="grid grid-cols-[repeat(auto-fill,minmax(108px,1fr))] gap-2">
-							{visibleEntries.map(({ entry, name, description }) => {
-								const favorite = favoriteIds.has(entry.preset.id);
-								const favoriteLabel = t(
-									favorite
-										? "effects.card.unfavorite"
-										: "effects.card.favorite",
-									{ name }
-								);
-								return (
-									<div
-										key={entry.preset.id}
-										className={cn(
-											"group relative h-[116px] min-w-0 overflow-hidden rounded-md border bg-card transition-colors hover:border-primary/60 focus-within:border-primary/60",
-											draggedEffectId === entry.preset.id && "opacity-50"
-										)}
-									>
-										<button
-											type="button"
-											className="flex size-full min-w-0 flex-col text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
-											aria-label={t("effects.card.apply", { name })}
-											data-testid={`effect-card-${entry.preset.id}`}
-											draggable
-											title={`${name}: ${description}`}
-											onClick={() =>
-												handleApplyEffect({ preset: entry.preset })
-											}
-											onKeyDown={(event) => {
-												if (event.key === "Escape") event.currentTarget.blur();
-											}}
-											onDragStart={(event) =>
-												handleDragStart({ event, preset: entry.preset })
-											}
-											onDragEnd={() => setDraggedEffectId(null)}
-										>
-											<div className="h-[82px] w-full shrink-0 overflow-hidden bg-black">
-												<EffectPreviewThumbnail
-													entry={entry}
-													source={previewSource}
-												/>
-											</div>
-											<div className="flex min-h-0 flex-1 items-center gap-1.5 px-2 pr-8">
-												<Aperture className="size-3 shrink-0 text-primary" />
-												<span className="truncate text-[11px] font-medium">
-													{name}
-												</span>
-											</div>
-										</button>
-										<button
-											type="button"
+				{selectedSection === "lab" ? (
+					<JianyingEffectLabPanel
+						onApply={(preset) => handleApplyEffect({ preset })}
+						searchQuery={searchQuery}
+					/>
+				) : (
+					<div className="min-h-0 flex-1 overflow-y-auto p-3">
+						{visibleEntries.length > 0 ? (
+							<div className="grid grid-cols-[repeat(auto-fill,minmax(108px,1fr))] gap-2">
+								{visibleEntries.map(({ entry, name, description }) => {
+									const favorite = favoriteIds.has(entry.preset.id);
+									const favoriteLabel = t(
+										favorite
+											? "effects.card.unfavorite"
+											: "effects.card.favorite",
+										{ name }
+									);
+									return (
+										<div
+											key={entry.preset.id}
 											className={cn(
-												"absolute bottom-1.5 right-1.5 flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
-												favorite && "text-yellow-500"
+												"group relative h-[116px] min-w-0 overflow-hidden rounded-md border bg-card transition-colors hover:border-primary/60 focus-within:border-primary/60",
+												draggedEffectId === entry.preset.id && "opacity-50"
 											)}
-											aria-label={favoriteLabel}
-											aria-pressed={favorite}
-											data-testid={`effect-favorite-${entry.preset.id}`}
-											title={favoriteLabel}
-											onClick={() =>
-												handleToggleFavorite({ presetId: entry.preset.id })
-											}
-											onKeyDown={(event) => {
-												if (event.key === "Escape") event.currentTarget.blur();
-											}}
 										>
-											<Star
-												aria-hidden="true"
-												className={cn("size-3.5", favorite && "fill-current")}
-											/>
-										</button>
-									</div>
-								);
-							})}
-						</div>
-					) : (
-						<div className="flex h-full min-h-40 items-center justify-center border border-dashed border-border/70 px-6 text-center text-xs text-muted-foreground">
-							{t("effects.empty")}
-						</div>
-					)}
-				</div>
+											<button
+												type="button"
+												className="flex size-full min-w-0 flex-col text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+												aria-label={t("effects.card.apply", { name })}
+												data-testid={`effect-card-${entry.preset.id}`}
+												draggable
+												title={`${name}: ${description}`}
+												onClick={() =>
+													handleApplyEffect({ preset: entry.preset })
+												}
+												onKeyDown={(event) => {
+													if (event.key === "Escape")
+														event.currentTarget.blur();
+												}}
+												onDragStart={(event) =>
+													handleDragStart({ event, preset: entry.preset })
+												}
+												onDragEnd={() => setDraggedEffectId(null)}
+											>
+												<div className="h-[82px] w-full shrink-0 overflow-hidden bg-black">
+													<EffectPreviewThumbnail
+														entry={entry}
+														source={previewSource}
+													/>
+												</div>
+												<div className="flex min-h-0 flex-1 items-center gap-1.5 px-2 pr-8">
+													<Aperture className="size-3 shrink-0 text-primary" />
+													<span className="truncate text-[11px] font-medium">
+														{name}
+													</span>
+												</div>
+											</button>
+											<button
+												type="button"
+												className={cn(
+													"absolute bottom-1.5 right-1.5 flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+													favorite && "text-yellow-500"
+												)}
+												aria-label={favoriteLabel}
+												aria-pressed={favorite}
+												data-testid={`effect-favorite-${entry.preset.id}`}
+												title={favoriteLabel}
+												onClick={() =>
+													handleToggleFavorite({ presetId: entry.preset.id })
+												}
+												onKeyDown={(event) => {
+													if (event.key === "Escape")
+														event.currentTarget.blur();
+												}}
+											>
+												<Star
+													aria-hidden="true"
+													className={cn("size-3.5", favorite && "fill-current")}
+												/>
+											</button>
+										</div>
+									);
+								})}
+							</div>
+						) : (
+							<div className="flex h-full min-h-40 items-center justify-center border border-dashed border-border/70 px-6 text-center text-xs text-muted-foreground">
+								{t("effects.empty")}
+							</div>
+						)}
+					</div>
+				)}
 			</section>
 		</div>
 	);
