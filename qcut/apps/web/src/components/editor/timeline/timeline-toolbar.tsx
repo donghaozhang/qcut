@@ -775,36 +775,8 @@ export function TimelineToolbar({
 			</div>
 
 			<div className="flex items-center gap-1">
+				{/* Ordered to match Jianying: magnet, snapping, then ripple/linked. */}
 				<TooltipProvider delayDuration={500}>
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								type="button"
-								variant={snappingEnabled ? "default" : "text"}
-								size="icon"
-								onClick={toggleSnapping}
-								aria-label="Toggle timeline snapping"
-								aria-pressed={snappingEnabled}
-								data-testid="timeline-snapping-button"
-								data-enabled={snappingEnabled}
-							>
-								{snappingEnabled ? (
-									<Magnet className="h-4 w-4 text-primary" />
-								) : (
-									<Magnet className="h-4 w-4" />
-								)}
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>
-							{withShortcut(
-								snappingEnabled
-									? t("timeline.toolbar.disableSnapping")
-									: t("timeline.toolbar.enableSnapping"),
-								"toggle-snapping"
-							)}
-						</TooltipContent>
-					</Tooltip>
-
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
@@ -830,6 +802,35 @@ export function TimelineToolbar({
 									? t("timeline.toolbar.disableMainTrackMagnet")
 									: t("timeline.toolbar.enableMainTrackMagnet"),
 								"toggle-main-track-magnet"
+							)}
+						</TooltipContent>
+					</Tooltip>
+
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								variant={snappingEnabled ? "default" : "text"}
+								size="icon"
+								onClick={toggleSnapping}
+								aria-label="Toggle timeline snapping"
+								aria-pressed={snappingEnabled}
+								data-testid="timeline-snapping-button"
+								data-enabled={snappingEnabled}
+							>
+								{snappingEnabled ? (
+									<Magnet className="h-4 w-4 text-primary" />
+								) : (
+									<Magnet className="h-4 w-4" />
+								)}
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>
+							{withShortcut(
+								snappingEnabled
+									? t("timeline.toolbar.disableSnapping")
+									: t("timeline.toolbar.enableSnapping"),
+								"toggle-snapping"
 							)}
 						</TooltipContent>
 					</Tooltip>
