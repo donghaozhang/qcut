@@ -42,6 +42,7 @@ import type { ElectronPiAgentOps } from "./api-pi-agent";
 import type { ElectronYouTubeOps } from "./api-youtube";
 import type { ElectronWallpaperOps } from "./api-wallpapers";
 import type { ElectronJianyingDraftExportOps } from "./api-jianying-draft-export";
+import type { ElectronJianyingEffectOps } from "./api-jianying-effects";
 import type { ElectronJianyingTransitionOps } from "./api-jianying-transitions";
 import type { ElectronJianyingFilterLabOps } from "./api-jianying-filter-lab";
 import type { ElectronJianyingFontLabOps } from "./api-jianying-font-lab";
@@ -95,6 +96,7 @@ export interface ElectronAPI
 		ElectronWallpaperOps,
 		ElectronJianyingDraftExportOps,
 		ElectronJianyingTransitionOps,
+		ElectronJianyingEffectOps,
 		ElectronJianyingFilterLabOps,
 		ElectronJianyingFontLabOps,
 		ElectronJianyingTextStyleLabOps,
