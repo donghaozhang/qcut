@@ -29,8 +29,9 @@ import {
 import { useFrameCache } from "@/hooks/timeline/use-frame-cache";
 import {
 	InteractiveElementOverlay,
-	ElementTransform,
+	type ElementTransform,
 } from "./interactive-element-overlay";
+import type { ElementContentBoundsSnapshot } from "./interactive-element-overlay-geometry";
 import { EFFECTS_ENABLED } from "@/config/features";
 import {
 	PreviewBlurBackground,
@@ -91,7 +92,6 @@ import {
 } from "./preview-panel/jianying-text-playback-overlay";
 import type { BrowserColorGradeLayer } from "@/lib/color/browser-color-rendering";
 import { ensureTimelineLocalFontsLoaded } from "@/lib/fonts/local-font-runtime";
-import type { TextOverlayBounds } from "@/lib/text/text-overlay-bounds";
 
 function getPreviewElementDuration(element: TimelineElement): number {
 	return element.type === "media"
@@ -109,7 +109,7 @@ export function PreviewPanel() {
 		updateTextElement,
 		updateElementPosition,
 		updateElementSize,
-		updateElementRotation,
+		updateElementTransform,
 		selectedElements,
 		selectElement,
 	} = useTimelineStore();
@@ -488,8 +488,10 @@ export function PreviewPanel() {
 		ReadonlyMap<string, JianyingTextPlaybackStatus>
 	>(() => new Map());
 	const [jianyingPlaybackBounds, setJianyingPlaybackBounds] = useState<
-		ReadonlyMap<string, TextOverlayBounds>
+		ReadonlyMap<string, ElementContentBoundsSnapshot>
 	>(() => new Map());
+	const [interactivePreviewTransforms, setInteractivePreviewTransforms] =
+		useState<ReadonlyMap<string, ElementTransform>>(() => new Map());
 	const handleJianyingPlaybackStatusChange = useCallback(
 		({
 			elementId,
@@ -511,16 +513,16 @@ export function PreviewPanel() {
 	const handleJianyingPlaybackBoundsChange = useCallback(
 		({
 			elementId,
-			bounds,
+			snapshot,
 		}: {
 			elementId: string;
-			bounds: TextOverlayBounds | null;
+			snapshot: ElementContentBoundsSnapshot | null;
 		}) => {
 			setJianyingPlaybackBounds((previous) => {
-				if (bounds && previous.get(elementId) === bounds) return previous;
-				if (!bounds && !previous.has(elementId)) return previous;
+				if (snapshot && previous.get(elementId) === snapshot) return previous;
+				if (!snapshot && !previous.has(elementId)) return previous;
 				const next = new Map(previous);
-				if (bounds) next.set(elementId, bounds);
+				if (snapshot) next.set(elementId, snapshot);
 				else next.delete(elementId);
 				return next;
 			});
@@ -538,6 +540,9 @@ export function PreviewPanel() {
 			previous.size === 0 ? previous : new Map()
 		);
 		setJianyingPlaybackBounds((previous) =>
+			previous.size === 0 ? previous : new Map()
+		);
+		setInteractivePreviewTransforms((previous) =>
 			previous.size === 0 ? previous : new Map()
 		);
 	}, [jianyingTextOverlayEnabled]);
@@ -690,37 +695,39 @@ export function PreviewPanel() {
 	// Handler for transform updates from interactive overlay
 	const handleTransformUpdate = useCallback(
 		(elementId: string, transform: ElementTransform) => {
-			const element = activeElements.find((el) => el.element.id === elementId);
-			if (!element) return;
+			if (!activeElements.some(({ element }) => element.id === elementId))
+				return;
 
-			// Use generic element update methods that work for all element types
-			// Update position if changed
-			if (transform.x !== undefined || transform.y !== undefined) {
-				updateElementPosition(elementId, {
-					x: transform.x,
-					y: transform.y,
-				});
-			}
-
-			// Update size if changed
-			if (transform.width !== undefined || transform.height !== undefined) {
-				updateElementSize(elementId, {
-					width: transform.width,
-					height: transform.height,
-				});
-			}
-
-			// Update rotation if changed
-			if (transform.rotation !== undefined) {
-				updateElementRotation(elementId, transform.rotation);
-			}
+			updateElementTransform(
+				elementId,
+				{
+					position: {
+						x: transform.x,
+						y: transform.y,
+					},
+					size: {
+						width: transform.width,
+						height: transform.height,
+					},
+					rotation: transform.rotation,
+				},
+				{ pushHistory: true }
+			);
 		},
-		[
-			activeElements,
-			updateElementPosition,
-			updateElementSize,
-			updateElementRotation,
-		]
+		[activeElements, updateElementTransform]
+	);
+	const handleTransformPreview = useCallback(
+		(elementId: string, transform: ElementTransform | null) => {
+			setInteractivePreviewTransforms((previous) => {
+				if (transform && previous.get(elementId) === transform) return previous;
+				if (!transform && !previous.has(elementId)) return previous;
+				const next = new Map(previous);
+				if (transform) next.set(elementId, transform);
+				else next.delete(elementId);
+				return next;
+			});
+		},
+		[]
 	);
 	const handleElementResize = useCallback(
 		({
@@ -1036,6 +1043,7 @@ export function PreviewPanel() {
 												fps={activeProject?.fps ?? 30}
 												currentTime={smoothTime}
 												isPlaying={isPlaying}
+												previewTransforms={interactivePreviewTransforms}
 												onStatusChange={handleJianyingPlaybackStatusChange}
 												onBoundsChange={handleJianyingPlaybackBoundsChange}
 											/>
@@ -1153,9 +1161,13 @@ export function PreviewPanel() {
 										)}
 										canvasSize={canvasSize}
 										previewDimensions={previewDimensions}
-										contentBounds={jianyingPlaybackBounds.get(
-											elementData.element.id
-										)}
+										contentBounds={
+											jianyingPlaybackBounds.get(elementData.element.id)?.bounds
+										}
+										contentBoundsTransform={
+											jianyingPlaybackBounds.get(elementData.element.id)
+												?.transform
+										}
 										onSelect={({ multi }) =>
 											selectElement(
 												elementData.track.id,
@@ -1164,6 +1176,7 @@ export function PreviewPanel() {
 											)
 										}
 										onTransformUpdate={handleTransformUpdate}
+										onTransformPreview={handleTransformPreview}
 									/>
 								))}
 						</div>
