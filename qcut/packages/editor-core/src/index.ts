@@ -185,6 +185,7 @@ export type {
 	EffectAudioCompanion,
 	EffectTimelineRange,
 	EffectChain,
+	EffectEngine,
 	EffectInstance,
 	EffectKeyframe,
 	EffectParameters,
