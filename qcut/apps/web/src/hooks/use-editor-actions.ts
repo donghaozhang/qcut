@@ -29,6 +29,8 @@ export function useEditorActions() {
 		addElementToTrack,
 		snappingEnabled,
 		toggleSnapping,
+		toggleMainTrackMagnet,
+		toggleLinkedRipple,
 		undo,
 		redo,
 	} = useTimelineStore();
@@ -349,6 +351,22 @@ export function useEditorActions() {
 		"toggle-snapping",
 		() => {
 			toggleSnapping();
+		},
+		undefined
+	);
+
+	useActionHandler(
+		"toggle-main-track-magnet",
+		() => {
+			toggleMainTrackMagnet();
+		},
+		undefined
+	);
+
+	useActionHandler(
+		"toggle-linked-ripple",
+		() => {
+			toggleLinkedRipple();
 		},
 		undefined
 	);
