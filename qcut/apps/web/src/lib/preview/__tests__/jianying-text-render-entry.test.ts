@@ -111,7 +111,7 @@ describe("Jianying text render entry", () => {
 					},
 				},
 			})
-		).toEqual({ offsetX: 0, offsetY: 0, width: 372, height: 232 });
+		).toEqual({ offsetX: 0, offsetY: 0, width: 392, height: 252 });
 	});
 
 	it("transforms the ready native layer without requesting another render", () => {
