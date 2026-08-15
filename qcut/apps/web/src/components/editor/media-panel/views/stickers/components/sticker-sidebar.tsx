@@ -314,9 +314,11 @@ export function StickerSidebar({
 							setLabExpanded((expanded) => !expanded);
 						}}
 						onKeyDown={(event) => {
-							if (event.key === "Enter" || event.key === " ") {
-								event.currentTarget.click();
-							}
+							// Native buttons already click on Enter; only Space needs
+							// help, and preventDefault stops the native double-fire.
+							if (event.key !== " ") return;
+							event.preventDefault();
+							event.currentTarget.click();
 						}}
 					>
 						<FlaskConical className="size-3.5 shrink-0" aria-hidden="true" />
