@@ -194,6 +194,45 @@ Renderer families observed (classify before porting):
   shaders; QCut needs its own segmentation/landmark source or a documented
   known difference.
 
+## Rendering a package through the local runtime (verified)
+
+QCut can render these packages by driving the Jianying runtime installed on the
+machine — the same libraries the Transition Lab uses. Decoded by reading each
+created object's vtable pointer back to its symbol:
+
+**SwingSegmentType**: **0 = FeatureSegment (特效)**, 2 Sticker, 3 Text,
+4 Template, 5 Emoji, 6 Custom, 7 Video, 8 Transition, 9 StickerBrush,
+10 Script. 1/11/12 are unmapped and crash — the factory bounds-checks `<= 0xa`.
+
+Render contract (proven across every family above, including Lumi/AE):
+
+1. `bef_swing_manager_create_with_gpdevice` inside a GL/Metal context, then
+   `set_parameter_bool(manager, "EnableSwingSimplify", true)` — **required**, or
+   nothing renders at all.
+2. Video segment = type 7; effect = type 0 created WITH the package path (that
+   is what loads `main.scene`).
+3. `bef_swing_segment_video_add_feature(video, feature)` — a 特效 is a feature
+   ON the video segment, not a standalone segment. Adding it to the manager as
+   well trips `_preProcessWithoutTracks: invalid segments, two -1 layer found`
+   and voids both segments.
+4. Per frame: `video_set_device_texture(video, &input)` then
+   `manager_seek_frame_device_texture(manager, timestampMicroseconds, &input,
+   &output)`.
+5. Sliders arrive as `effects_adjust_*` key/value pairs (normalized 0–1,
+   straight from the draft).
+
+**The trap that wastes hours**: most effects are IDENTITY at most timestamps —
+抖动 differs only near 0.2 / 0.6 / 1.2 s. A single-timestamp test reads as "the
+effect never rendered". Sweep time, or validate against an always-on overlay
+(胶片框 / 怀旧边框 II hold a constant ~17–19 mean channel difference).
+
+The runtime needs the FULL 23-library closure
+(`~/Library/Application Support/qcut/PrivateRuntimes/JianyingTransition/current`);
+the 5-library `.local/jianying-runtime` root segfaults during manager init.
+
+Implementation: `research/jianying-runtime-probe/effect-probe.mm` +
+`electron/jianying-effect/` (PR #414).
+
 ## Harvest protocol
 
 1. Map card → package with the mtime-marker loop from

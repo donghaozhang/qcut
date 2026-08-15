@@ -12,7 +12,7 @@ export interface PixelDifferenceMetrics {
 	p95AbsoluteError: number;
 }
 
-export interface RawPixels {
+interface RawPixels {
 	data: Uint8Array;
 	width: number;
 	height: number;
@@ -139,7 +139,7 @@ async function decodeWithFfmpeg({
 	return new Uint8Array(stdout);
 }
 
-export async function rawPixels({
+async function rawPixels({
 	filePath,
 	ffmpegPath,
 }: {
