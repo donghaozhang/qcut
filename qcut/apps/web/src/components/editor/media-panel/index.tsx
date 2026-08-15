@@ -28,6 +28,7 @@ import { createElement, lazy, Suspense, type ReactNode } from "react";
 import { EFFECTS_ENABLED } from "@/config/features";
 import { CaptionsView } from "./views/captions";
 import { AdjustmentsView } from "./views/adjustments";
+import { DigitalHumanView } from "./views/digital-human";
 import { StandardEditorNavigation } from "./standard-editor-navigation";
 
 // Lazy load effects view only when enabled
@@ -83,6 +84,7 @@ export function MediaPanel() {
 		upscale: <UpscaleView />,
 		moyin: <MoyinView />,
 		"ai-chat": <GeminiTerminalView />,
+		"digital-human": <DigitalHumanView />,
 		search: <SearchView />,
 	};
 
