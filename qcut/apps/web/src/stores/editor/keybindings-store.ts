@@ -121,9 +121,9 @@ export function migrateKeybindingsState({
 						: DEFAULT_KEYBINDING_PROFILE_ID,
 				};
 	if (version >= 7) return versionThreeState;
-	// v4-v7 all re-derive non-customized profiles so users pick up new
-	// default bindings (v5 added freeze/bookmark/group/enable actions, v6
-	// added the main-track magnet and linked-ripple toggles, v7 added the
+	// Anything persisted below v7 re-derives non-customized profiles so users
+	// pick up new default bindings (v5 added freeze/bookmark/group/enable
+	// actions, v6 the main-track magnet and linked-ripple toggles, v7 the
 	// select-tool binding).
 	const activeProfileId =
 		versionThreeState.activeProfileId ?? DEFAULT_KEYBINDING_PROFILE_ID;
