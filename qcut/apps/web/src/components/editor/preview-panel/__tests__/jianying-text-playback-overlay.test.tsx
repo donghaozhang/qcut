@@ -1,6 +1,9 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { JianyingTextRuntimeRenderRequest } from "@/types/electron/api-jianying-text-runtime";
+import type {
+	JianyingTextRuntimeRenderRequest,
+	JianyingTextRuntimeRenderResult,
+} from "@/types/electron/api-jianying-text-runtime";
 import type { TextElement, TimelineTrack } from "@/types/timeline";
 import { JianyingTextPlaybackOverlay } from "../jianying-text-playback-overlay";
 
@@ -52,28 +55,38 @@ function createTrack({ element }: { element: TextElement }): TimelineTrack {
 	};
 }
 
+function createRenderResult({
+	request,
+	digest = "a",
+}: {
+	request: JianyingTextRuntimeRenderRequest;
+	digest?: string;
+}): JianyingTextRuntimeRenderResult {
+	return {
+		requestId: request.requestId,
+		resourceId: request.reference.resourceId,
+		packageHash: request.reference.packageHash,
+		templateDuration: 3,
+		frameCount: request.frameCount,
+		strategy: "runtime-parameters",
+		cacheHit: false,
+		x: 714,
+		y: 279,
+		width: 512,
+		height: 512,
+		contentBounds: { x: 76, y: 146, width: 360, height: 220 },
+		previewUrl: `app://jianying-text-preview/${digest.repeat(64)}.webm`,
+		source: {
+			kind: "image-sequence",
+			path: "/tmp/jianying/frame-%06d.png",
+			frameRate: 30,
+		},
+	};
+}
+
 describe("Jianying text playback overlay", () => {
-	const renderText = vi.fn(
-		async (request: JianyingTextRuntimeRenderRequest) => ({
-			requestId: request.requestId,
-			resourceId: request.reference.resourceId,
-			packageHash: request.reference.packageHash,
-			templateDuration: 3,
-			frameCount: request.frameCount,
-			strategy: "runtime-parameters" as const,
-			cacheHit: false,
-			x: 714,
-			y: 279,
-			width: 512,
-			height: 512,
-			contentBounds: { x: 76, y: 146, width: 360, height: 220 },
-			previewUrl: `app://jianying-text-preview/${"a".repeat(64)}.webm`,
-			source: {
-				kind: "image-sequence" as const,
-				path: "/tmp/jianying/frame-%06d.png",
-				frameRate: 30,
-			},
-		})
+	const renderText = vi.fn(async (request: JianyingTextRuntimeRenderRequest) =>
+		createRenderResult({ request })
 	);
 	const cancelText = vi.fn(async () => true);
 
@@ -109,6 +122,7 @@ describe("Jianying text playback overlay", () => {
 				fps={30}
 				currentTime={1.4}
 				isPlaying
+				previewTransforms={new Map()}
 				onStatusChange={onStatusChange}
 				onBoundsChange={onBoundsChange}
 			/>
@@ -130,7 +144,16 @@ describe("Jianying text playback overlay", () => {
 		);
 		expect(onBoundsChange).toHaveBeenCalledWith({
 			elementId: element.id,
-			bounds: { offsetX: 0, offsetY: 0, width: 372, height: 232 },
+			snapshot: {
+				bounds: { offsetX: 0, offsetY: 0, width: 372, height: 232 },
+				transform: {
+					x: 10,
+					y: -5,
+					width: 512,
+					height: 512,
+					rotation: 0,
+				},
+			},
 		});
 		fireEvent.loadedData(video);
 		expect(onStatusChange).toHaveBeenCalledWith({
@@ -147,6 +170,7 @@ describe("Jianying text playback overlay", () => {
 				fps={30}
 				currentTime={2.1}
 				isPlaying
+				previewTransforms={new Map()}
 				onStatusChange={onStatusChange}
 				onBoundsChange={onBoundsChange}
 			/>
@@ -178,6 +202,7 @@ describe("Jianying text playback overlay", () => {
 				fps={30}
 				currentTime={1.4}
 				isPlaying
+				previewTransforms={new Map()}
 				onStatusChange={onStatusChange}
 				onBoundsChange={onBoundsChange}
 			/>
@@ -207,6 +232,7 @@ describe("Jianying text playback overlay", () => {
 				fps={30}
 				currentTime={1.4}
 				isPlaying={false}
+				previewTransforms={new Map()}
 				onStatusChange={onStatusChange}
 				onBoundsChange={onBoundsChange}
 			/>
@@ -226,6 +252,7 @@ describe("Jianying text playback overlay", () => {
 				fps={30}
 				currentTime={1.5}
 				isPlaying
+				previewTransforms={new Map()}
 				onStatusChange={onStatusChange}
 				onBoundsChange={onBoundsChange}
 			/>
@@ -249,6 +276,7 @@ describe("Jianying text playback overlay", () => {
 				fps={30}
 				currentTime={3.9}
 				isPlaying
+				previewTransforms={new Map()}
 				onStatusChange={onStatusChange}
 				onBoundsChange={onBoundsChange}
 			/>
@@ -268,6 +296,7 @@ describe("Jianying text playback overlay", () => {
 				fps={30}
 				currentTime={1.05}
 				isPlaying
+				previewTransforms={new Map()}
 				onStatusChange={onStatusChange}
 				onBoundsChange={onBoundsChange}
 			/>
@@ -275,5 +304,149 @@ describe("Jianying text playback overlay", () => {
 
 		await waitFor(() => expect(video.currentTime).toBeCloseTo(0.05, 5));
 		expect(renderText).toHaveBeenCalledTimes(1);
+	});
+
+	it("applies an interactive transform to the cached video without rerendering", async () => {
+		const element = createTextElement();
+		const track = createTrack({ element });
+		const onStatusChange = vi.fn();
+		const onBoundsChange = vi.fn();
+		const view = render(
+			<JianyingTextPlaybackOverlay
+				enabled
+				activeElements={[{ element, track, mediaItem: null }]}
+				canvasWidth={1920}
+				canvasHeight={1080}
+				fps={30}
+				currentTime={1.4}
+				isPlaying={false}
+				previewTransforms={new Map()}
+				onStatusChange={onStatusChange}
+				onBoundsChange={onBoundsChange}
+			/>
+		);
+		const video = await screen.findByLabelText("剪映原版动态花字播放预览");
+
+		view.rerender(
+			<JianyingTextPlaybackOverlay
+				enabled
+				activeElements={[{ element, track, mediaItem: null }]}
+				canvasWidth={1920}
+				canvasHeight={1080}
+				fps={30}
+				currentTime={1.4}
+				isPlaying={false}
+				previewTransforms={
+					new Map([
+						[
+							element.id,
+							{
+								x: 110,
+								y: 45,
+								width: 1024,
+								height: 1024,
+								rotation: 30,
+							},
+						],
+					])
+				}
+				onStatusChange={onStatusChange}
+				onBoundsChange={onBoundsChange}
+			/>
+		);
+
+		expect(renderText).toHaveBeenCalledTimes(1);
+		expect(video.style.transform).toBe("rotate(30deg) scale(2, 2)");
+		expect(Number.parseFloat(video.style.left)).toBeCloseTo(42.395_833, 6);
+		expect(Number.parseFloat(video.style.top)).toBeCloseTo(30.462_963, 6);
+	});
+
+	it("keeps the previous native layer and bounds while a committed rerender is pending", async () => {
+		const element = createTextElement();
+		const track = createTrack({ element });
+		const onStatusChange = vi.fn();
+		const onBoundsChange = vi.fn();
+		let resolveSecondRender!: (result: JianyingTextRuntimeRenderResult) => void;
+		let secondRequest!: JianyingTextRuntimeRenderRequest;
+		const secondRender = new Promise<JianyingTextRuntimeRenderResult>(
+			(resolve) => {
+				resolveSecondRender = resolve;
+			}
+		);
+		renderText.mockImplementationOnce(async (request) =>
+			createRenderResult({ request })
+		);
+		renderText.mockImplementationOnce((request) => {
+			secondRequest = request;
+			return secondRender;
+		});
+		const view = render(
+			<JianyingTextPlaybackOverlay
+				enabled
+				activeElements={[{ element, track, mediaItem: null }]}
+				canvasWidth={1920}
+				canvasHeight={1080}
+				fps={30}
+				currentTime={1.4}
+				isPlaying={false}
+				previewTransforms={new Map()}
+				onStatusChange={onStatusChange}
+				onBoundsChange={onBoundsChange}
+			/>
+		);
+		const video = await screen.findByLabelText("剪映原版动态花字播放预览");
+		fireEvent.loadedData(video);
+		onStatusChange.mockClear();
+		onBoundsChange.mockClear();
+
+		const updatedElement = {
+			...element,
+			x: 110,
+			y: 45,
+			width: 1024,
+			height: 1024,
+			rotation: 30,
+		};
+		view.rerender(
+			<JianyingTextPlaybackOverlay
+				enabled
+				activeElements={[
+					{
+						element: updatedElement,
+						track: createTrack({ element: updatedElement }),
+						mediaItem: null,
+					},
+				]}
+				canvasWidth={1920}
+				canvasHeight={1080}
+				fps={30}
+				currentTime={1.4}
+				isPlaying={false}
+				previewTransforms={new Map()}
+				onStatusChange={onStatusChange}
+				onBoundsChange={onBoundsChange}
+			/>
+		);
+
+		await waitFor(() => expect(renderText).toHaveBeenCalledTimes(2));
+		expect(screen.getByLabelText("剪映原版动态花字播放预览")).toBe(video);
+		expect(video.getAttribute("src")).toContain("a".repeat(64));
+		expect(video.style.transform).toBe("rotate(30deg) scale(2, 2)");
+		expect(onBoundsChange).not.toHaveBeenCalled();
+		expect(onStatusChange).not.toHaveBeenCalledWith({
+			elementId: element.id,
+			status: "loading",
+		});
+		expect(onStatusChange).not.toHaveBeenCalledWith({
+			elementId: element.id,
+			status: "idle",
+		});
+
+		resolveSecondRender(
+			createRenderResult({ request: secondRequest, digest: "b" })
+		);
+		await waitFor(() =>
+			expect(video.getAttribute("src")).toContain("b".repeat(64))
+		);
 	});
 });
