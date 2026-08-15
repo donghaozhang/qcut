@@ -42,8 +42,11 @@ export function DigitalHumanVoiceStep({
 	return (
 		<div className="space-y-3 p-3" data-testid="digital-human-voice-step">
 			<div className="space-y-1.5">
-				<Label className="text-[11px]">{t("digitalHuman.voice.script")}</Label>
+				<Label htmlFor="digital-human-script" className="text-[11px]">
+					{t("digitalHuman.voice.script")}
+				</Label>
 				<Textarea
+					id="digital-human-script"
 					className="min-h-24 text-xs"
 					placeholder={t("digitalHuman.voice.scriptPlaceholder")}
 					value={script}
@@ -56,9 +59,12 @@ export function DigitalHumanVoiceStep({
 			</div>
 
 			<div className="space-y-1.5">
-				<Label className="text-[11px]">{t("digitalHuman.voice.model")}</Label>
+				<Label htmlFor="digital-human-voice-model" className="text-[11px]">
+					{t("digitalHuman.voice.model")}
+				</Label>
 				<Select value={voiceModel} onValueChange={onVoiceModelChange}>
 					<SelectTrigger
+						id="digital-human-voice-model"
 						className="h-8 text-xs"
 						aria-label={t("digitalHuman.voice.model")}
 						data-testid="digital-human-voice-model"
