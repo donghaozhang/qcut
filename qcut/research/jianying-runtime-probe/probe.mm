@@ -129,6 +129,40 @@ using jianying_probe::resolveSymbol;
   return value;
 }
 
+[[nodiscard]] std::vector<jianying_probe::EffectAdjustParameter>
+parseEffectAdjustParameters() {
+  std::vector<jianying_probe::EffectAdjustParameter> parameters;
+  const char* rawValue = std::getenv("JY_EFFECT_ADJUST");
+  if (rawValue == nullptr || *rawValue == '\0') {
+    return parameters;
+  }
+
+  // "effects_adjust_speed=0.5,effects_adjust_intensity=0.8"
+  std::string text(rawValue);
+  std::size_t start = 0;
+  while (start <= text.size()) {
+    const std::size_t comma = text.find(',', start);
+    const std::string entry =
+        text.substr(start, comma == std::string::npos ? std::string::npos
+                                                     : comma - start);
+    const std::size_t equals = entry.find('=');
+    if (equals != std::string::npos && equals > 0) {
+      const std::string key = entry.substr(0, equals);
+      std::size_t parsedLength = 0;
+      const std::string valueText = entry.substr(equals + 1);
+      const double value = std::stod(valueText, &parsedLength);
+      if (parsedLength != valueText.size() || !std::isfinite(value)) {
+        throw std::runtime_error(
+            "JY_EFFECT_ADJUST values must be finite numbers");
+      }
+      parameters.push_back({.key = key, .value = value});
+    }
+    if (comma == std::string::npos) break;
+    start = comma + 1;
+  }
+  return parameters;
+}
+
 [[nodiscard]] double optionalNonNegativeNumberEnvironment(const char* name) {
   const char* rawValue = std::getenv(name);
   if (rawValue == nullptr) {
@@ -543,6 +577,8 @@ void configure(ObjectStorage<kConfigStorageSize>& config,
           "JY_EFFECT_PACKAGE must name a package directory");
     }
 
+    const std::vector<jianying_probe::EffectAdjustParameter> adjustParameters =
+        parseEffectAdjustParameters();
     const auto result = jianying_probe::renderRawVideoEffect({
         .runtimeRoot = runtimeRoot,
         .packagePath = packagePath,
@@ -554,6 +590,7 @@ void configure(ObjectStorage<kConfigStorageSize>& config,
         .startSeconds = optionalNonNegativeNumberEnvironment("JY_EFFECT_START"),
         .durationSeconds =
             requirePositiveNumberEnvironment("JY_EFFECT_DURATION"),
+        .adjustParameters = adjustParameters,
     });
     return result.outputFrames > 0 ? 0 : 11;
   }
