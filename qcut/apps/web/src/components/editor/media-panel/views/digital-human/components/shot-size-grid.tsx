@@ -31,11 +31,38 @@ function FigureSilhouette({ viewBox }: { viewBox: string }) {
 	);
 }
 
+/**
+ * The same framing applied to the chosen figure, so the row previews the actual
+ * crop rather than a generic diagram once a figure exists.
+ */
+function FigurePreview({
+	figureUrl,
+	option,
+}: {
+	figureUrl: string;
+	option: DigitalHumanShotOption;
+}) {
+	return (
+		<img
+			src={figureUrl}
+			alt=""
+			loading="lazy"
+			className="size-full object-cover"
+			style={{
+				transform: `scale(${option.photoScale})`,
+				transformOrigin: option.photoOrigin,
+			}}
+		/>
+	);
+}
+
 function ShotSizeCard({
+	figureUrl,
 	isSelected,
 	option,
 	onSelect,
 }: {
+	figureUrl: string | null;
 	isSelected: boolean;
 	option: DigitalHumanShotOption;
 	onSelect: ({ shotSize }: { shotSize: DigitalHumanShotSize }) => void;
@@ -60,7 +87,11 @@ function ShotSizeCard({
 						: "group-hover:bg-foreground/10 group-focus-visible:ring-1 group-focus-visible:ring-ring"
 				)}
 			>
-				<FigureSilhouette viewBox={option.viewBox} />
+				{figureUrl ? (
+					<FigurePreview figureUrl={figureUrl} option={option} />
+				) : (
+					<FigureSilhouette viewBox={option.viewBox} />
+				)}
 			</span>
 			<span
 				className={cn(
@@ -75,9 +106,12 @@ function ShotSizeCard({
 }
 
 export function ShotSizeGrid({
+	figureUrl,
 	selected,
 	onSelect,
 }: {
+	/** Preview of the chosen figure, or null before one is picked. */
+	figureUrl: string | null;
 	selected: DigitalHumanShotSize;
 	onSelect: ({ shotSize }: { shotSize: DigitalHumanShotSize }) => void;
 }) {
@@ -86,6 +120,7 @@ export function ShotSizeGrid({
 			{DIGITAL_HUMAN_SHOT_OPTIONS.map((option) => (
 				<ShotSizeCard
 					key={option.id}
+					figureUrl={figureUrl}
 					isSelected={selected === option.id}
 					option={option}
 					onSelect={onSelect}
