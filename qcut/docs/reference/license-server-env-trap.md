@@ -27,7 +27,7 @@ nothing listening.
 
 Two aggravating factors:
 
-1. **The localhost override can never work in the renderer anyway.** The
+1. **The localhost override cannot work with the current renderer CSP.** The
    `Content-Security-Policy` meta tag in `apps/web/index.html` only allows the
    production worker origin (`https://qcut-license-server.zdhpeter.workers.dev`)
    in `connect-src`; the only localhost entry is the static-server port 8080.
