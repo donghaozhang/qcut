@@ -53,7 +53,7 @@ const commonReferenceShape = {
 	contentMd5: z.string().regex(MD5_PATTERN),
 	contentSha256: z.string().regex(SHA256_PATTERN),
 	resourceId: z.string().regex(RESOURCE_ID_PATTERN),
-	batch: z.enum(["01", "02"]),
+	batch: z.enum(["01", "02", "03"]),
 	mappingStrategy: z.enum([
 		"metadata-md5",
 		"isolated-card-download-probe",
