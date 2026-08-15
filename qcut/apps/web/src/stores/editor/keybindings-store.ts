@@ -120,10 +120,11 @@ export function migrateKeybindingsState({
 						? "custom"
 						: DEFAULT_KEYBINDING_PROFILE_ID,
 				};
-	if (version >= 6) return versionThreeState;
-	// v4-v6 all re-derive non-customized profiles so users pick up new
+	if (version >= 7) return versionThreeState;
+	// v4-v7 all re-derive non-customized profiles so users pick up new
 	// default bindings (v5 added freeze/bookmark/group/enable actions, v6
-	// added the main-track magnet and linked-ripple toggles).
+	// added the main-track magnet and linked-ripple toggles, v7 added the
+	// select-tool binding).
 	const activeProfileId =
 		versionThreeState.activeProfileId ?? DEFAULT_KEYBINDING_PROFILE_ID;
 	const activeProfile = KEYBINDING_PROFILES.find(
@@ -256,7 +257,7 @@ export const useKeybindingsStore = create<KeybindingsState>()(
 		}),
 		{
 			name: "qcut-keybindings",
-			version: 6,
+			version: 7,
 			migrate: (persistedState, version) =>
 				migrateKeybindingsState({ persistedState, version }),
 		}
