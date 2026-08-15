@@ -13,6 +13,7 @@ import {
 	createRemoteStickerCatalog,
 } from "@/lib/stickers/__tests__/fixtures/local-sticker-catalog";
 import { LocalStickerReferencePanel } from "../components/local-sticker-reference-panel";
+import { buildPrivateStickerCategoryViews } from "../components/private-sticker-category-views";
 
 const referenceMocks = vi.hoisted(() => ({
 	loadFile: vi.fn(),
@@ -33,6 +34,14 @@ vi.mock("@/lib/stickers/local-sticker-reference", async (importOriginal) => {
 
 const originalCreateObjectUrl = URL.createObjectURL;
 const originalRevokeObjectUrl = URL.revokeObjectURL;
+
+function privateCategoryViews({
+	catalogs,
+}: {
+	catalogs: Parameters<typeof buildPrivateStickerCategoryViews>[0]["catalogs"];
+}) {
+	return buildPrivateStickerCategoryViews({ catalogs });
+}
 
 describe("LocalStickerReferencePanel", () => {
 	beforeEach(() => {
@@ -70,7 +79,7 @@ describe("LocalStickerReferencePanel", () => {
 		URL.revokeObjectURL = originalRevokeObjectUrl;
 	});
 
-	it("renders four sticker references per row", () => {
+	it("lays stickers out in a responsive tile grid", () => {
 		render(
 			<LocalStickerReferencePanel
 				catalog={createLocalStickerCatalog()}
@@ -81,7 +90,7 @@ describe("LocalStickerReferencePanel", () => {
 		);
 
 		expect(screen.getByTestId("local-sticker-category-grid")).toHaveClass(
-			"grid-cols-4"
+			"grid-cols-[repeat(auto-fill,minmax(80px,1fr))]"
 		);
 	});
 
@@ -93,7 +102,7 @@ describe("LocalStickerReferencePanel", () => {
 		firstItem.fileName = "popular-1.gif";
 		firstItem.filePath = "/tmp/sticker-lab/popular-1.gif";
 		firstItem.mimeType = "image/gif";
-		const { unmount } = render(
+		const { rerender, unmount } = render(
 			<LocalStickerReferencePanel
 				catalog={catalog}
 				error={null}
@@ -105,21 +114,33 @@ describe("LocalStickerReferencePanel", () => {
 		await waitFor(() => {
 			expect(referenceMocks.loadFile).toHaveBeenCalledTimes(4);
 		});
-		expect(screen.getByText("贴纸 popular-1")).toBeInTheDocument();
-		expect(screen.queryByText("贴纸 mood-1")).toBeNull();
-		expect(screen.getByText("preview-gif")).toBeInTheDocument();
-		expect(screen.getAllByText("atlas-animation")).toHaveLength(2);
-		expect(screen.getByText("static-image")).toBeInTheDocument();
-		expect(screen.getByText("静态")).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "添加贴纸 popular-1到时间线" })
+		).toBeInTheDocument();
+		expect(
+			screen.queryByRole("button", { name: "添加贴纸 mood-1到时间线" })
+		).toBeNull();
 
-		fireEvent.click(screen.getByRole("tab", { name: "情绪，5 个贴纸" }));
+		rerender(
+			<LocalStickerReferencePanel
+				catalog={catalog}
+				error={null}
+				isLoading={false}
+				onSelect={async () => {}}
+				selection={{ catalogKey: "public", categoryId: "mood" }}
+			/>
+		);
 
 		await waitFor(() => {
 			expect(referenceMocks.loadFile).toHaveBeenCalledTimes(9);
 			expect(URL.revokeObjectURL).toHaveBeenCalledTimes(4);
 		});
-		expect(screen.queryByText("贴纸 popular-1")).toBeNull();
-		expect(screen.getByText("贴纸 mood-1")).toBeInTheDocument();
+		expect(
+			screen.queryByRole("button", { name: "添加贴纸 popular-1到时间线" })
+		).toBeNull();
+		expect(
+			screen.getByRole("button", { name: "添加贴纸 mood-1到时间线" })
+		).toBeInTheDocument();
 
 		unmount();
 		expect(URL.revokeObjectURL).toHaveBeenCalledTimes(9);
@@ -141,9 +162,10 @@ describe("LocalStickerReferencePanel", () => {
 					);
 				})
 		);
-		const { unmount } = render(
+		const catalog = createLocalStickerCatalog();
+		const { rerender, unmount } = render(
 			<LocalStickerReferencePanel
-				catalog={createLocalStickerCatalog()}
+				catalog={catalog}
 				error={null}
 				isLoading={false}
 				onSelect={async () => {}}
@@ -153,7 +175,15 @@ describe("LocalStickerReferencePanel", () => {
 		await waitFor(() => expect(pendingSignals).toHaveLength(4));
 		expect(pendingSignals.every((signal) => !signal.aborted)).toBe(true);
 
-		fireEvent.click(screen.getByRole("tab", { name: "情绪，5 个贴纸" }));
+		rerender(
+			<LocalStickerReferencePanel
+				catalog={catalog}
+				error={null}
+				isLoading={false}
+				onSelect={async () => {}}
+				selection={{ catalogKey: "public", categoryId: "mood" }}
+			/>
+		);
 
 		await waitFor(() => expect(pendingSignals).toHaveLength(9));
 		expect(pendingSignals.slice(0, 4).every((signal) => signal.aborted)).toBe(
@@ -338,107 +368,6 @@ describe("LocalStickerReferencePanel", () => {
 		expect(onSelect.mock.calls[0]?.[0].file.name).toBe("popular-1-updated.png");
 	});
 
-	it("supports arrow-key navigation across category tabs", async () => {
-		render(
-			<LocalStickerReferencePanel
-				catalog={createLocalStickerCatalog()}
-				error={null}
-				isLoading={false}
-				onSelect={async () => {}}
-			/>
-		);
-
-		const popularTab = screen.getByRole("tab", {
-			name: "热门，4 个贴纸",
-		});
-		const moodTab = screen.getByRole("tab", {
-			name: "情绪，5 个贴纸",
-		});
-		popularTab.focus();
-		fireEvent.keyDown(popularTab, { key: "ArrowRight" });
-
-		await waitFor(() => {
-			expect(moodTab).toHaveAttribute("aria-selected", "true");
-			expect(moodTab).toHaveFocus();
-		});
-		expect(popularTab).toHaveAttribute("tabindex", "-1");
-		expect(moodTab).toHaveAttribute("aria-controls");
-		expect(screen.getByRole("tabpanel")).toHaveAttribute(
-			"aria-labelledby",
-			moodTab.id
-		);
-	});
-
-	it("wires catalogue tabs to panels and supports roving keyboard navigation", async () => {
-		render(
-			<LocalStickerReferencePanel
-				catalog={createRemoteStickerCatalog()}
-				error={null}
-				isLoading={false}
-				onSelect={async () => {}}
-				privateCatalogs={[createPrivateStickerCatalog()]}
-			/>
-		);
-
-		const catalogTablist = screen.getByRole("tablist", {
-			name: "贴纸实验室目录",
-		});
-		const publicTab = within(catalogTablist).getByRole("tab", {
-			name: "QCut 原创",
-		});
-		const privateTab = within(catalogTablist).getByRole("tab", {
-			name: "剪映参照 · 内部",
-		});
-		const publicPanelId = publicTab.getAttribute("aria-controls");
-		const privatePanelId = privateTab.getAttribute("aria-controls");
-		if (!publicPanelId || !privatePanelId) {
-			throw new Error("Expected catalogue tabs to control panels");
-		}
-
-		expect(publicTab).toHaveAttribute("type", "button");
-		expect(publicTab).toHaveAttribute("aria-selected", "true");
-		expect(publicTab).toHaveAttribute("tabindex", "0");
-		expect(privateTab).toHaveAttribute("aria-selected", "false");
-		expect(privateTab).toHaveAttribute("tabindex", "-1");
-		expect(document.getElementById(publicPanelId)).toHaveAttribute(
-			"aria-labelledby",
-			publicTab.id
-		);
-		expect(document.getElementById(publicPanelId)).not.toHaveAttribute(
-			"hidden"
-		);
-		expect(document.getElementById(privatePanelId)).toHaveAttribute("hidden");
-
-		publicTab.focus();
-		fireEvent.keyDown(publicTab, { key: "ArrowRight" });
-		await waitFor(() => {
-			expect(privateTab).toHaveFocus();
-			expect(privateTab).toHaveAttribute("aria-selected", "true");
-			expect(privateTab).toHaveAttribute("tabindex", "0");
-			expect(publicTab).toHaveAttribute("tabindex", "-1");
-			expect(document.getElementById(privatePanelId)).toHaveAttribute(
-				"aria-labelledby",
-				privateTab.id
-			);
-			expect(document.getElementById(privatePanelId)).not.toHaveAttribute(
-				"hidden"
-			);
-			expect(document.getElementById(publicPanelId)).toHaveAttribute("hidden");
-		});
-
-		fireEvent.keyDown(privateTab, { key: "Home" });
-		await waitFor(() => expect(publicTab).toHaveFocus());
-
-		fireEvent.keyDown(publicTab, { key: "End" });
-		await waitFor(() => expect(privateTab).toHaveFocus());
-
-		fireEvent.keyDown(privateTab, { key: "ArrowLeft" });
-		await waitFor(() => {
-			expect(publicTab).toHaveFocus();
-			expect(publicTab).toHaveAttribute("aria-selected", "true");
-		});
-	});
-
 	it("isolates a failed card while keeping its category usable", async () => {
 		let failedReferenceAttempts = 0;
 		referenceMocks.loadFile.mockImplementation(
@@ -600,35 +529,35 @@ describe("LocalStickerReferencePanel", () => {
 				error={null}
 				isLoading={false}
 				onSelect={async () => {}}
-				privateCatalogs={createPrivateStickerCatalogs({ itemCount: 4 })}
+				privateCategories={privateCategoryViews({
+					catalogs: createPrivateStickerCatalogs({ itemCount: 4 }),
+				})}
+				selection={{ catalogKey: "private", categoryId: "hot" }}
 			/>
 		);
-
-		fireEvent.click(screen.getByTestId("sticker-lab-catalog-private"));
 
 		await waitFor(() =>
 			expect(
 				screen.getAllByTestId("local-sticker-reference-item")
 			).toHaveLength(12)
 		);
-		expect(
-			screen.getByRole("tab", { name: "热门，12 个贴纸" })
-		).toHaveAttribute("aria-selected", "true");
 		expect(screen.getByText("剪映贴纸面板 · 3 批参照")).toBeInTheDocument();
 	});
 
-	it("renders the private catalogue even while the public manifest fails", async () => {
+	it("falls back to the private catalogue when the public manifest fails", async () => {
+		// No explicit selection: with the public manifest broken the resolver
+		// must land on the reference slice instead of the error state.
 		render(
 			<LocalStickerReferencePanel
 				catalog={null}
 				error="Invalid local sticker manifest"
 				isLoading={false}
 				onSelect={async () => {}}
-				privateCatalogs={[createPrivateStickerCatalog()]}
+				privateCategories={privateCategoryViews({
+					catalogs: [createPrivateStickerCatalog()],
+				})}
 			/>
 		);
-
-		fireEvent.click(screen.getByTestId("sticker-lab-catalog-private"));
 
 		await waitFor(() =>
 			expect(
@@ -649,19 +578,20 @@ describe("LocalStickerReferencePanel", () => {
 				error={null}
 				isLoading={false}
 				onSelect={async () => {}}
-				privateCatalogs={[createPrivateStickerCatalog()]}
+				privateCategories={privateCategoryViews({
+					catalogs: [createPrivateStickerCatalog()],
+				})}
+				selection={{ catalogKey: "private", categoryId: "hot" }}
 			/>
 		);
 
-		fireEvent.click(screen.getByTestId("sticker-lab-catalog-private"));
 		await waitFor(() =>
 			expect(referenceMocks.loadFile).toHaveBeenCalledTimes(2)
 		);
 
 		// Private previews go through the IndexedDB-cached original loader —
 		// the uncached thumbnail tier would re-download megabytes of GIF on
-		// every category switch. (The public tab rendered first and may use
-		// thumbnails freely; none of those calls may carry a private key.)
+		// every category switch.
 		for (const call of referenceMocks.loadThumbnail.mock.calls) {
 			expect(call[0].reference.asset.objectKey).not.toMatch(/^jianying\//);
 		}
@@ -674,6 +604,7 @@ describe("LocalStickerReferencePanel", () => {
 			})
 		);
 	});
+
 	it("names the catalogues that failed while others still load", () => {
 		render(
 			<LocalStickerReferencePanel
@@ -681,7 +612,9 @@ describe("LocalStickerReferencePanel", () => {
 				error={null}
 				isLoading={false}
 				onSelect={async () => {}}
-				privateCatalogs={[createPrivateStickerCatalog()]}
+				privateCategories={privateCategoryViews({
+					catalogs: [createPrivateStickerCatalog()],
+				})}
 				unavailablePrivateCatalogIds={["jianying-2026-08-01-batch-2"]}
 			/>
 		);
@@ -694,15 +627,15 @@ describe("LocalStickerReferencePanel", () => {
 
 	it("still reports the failure when every catalogue is unavailable", () => {
 		// The worst case, and the one a deployment regression actually produces:
-		// no private catalogue loads, so the private tab never renders. A warning
-		// gated on that tab would leave the shortfall as silent as before.
+		// no private catalogue loads. A warning gated on the private view would
+		// leave the shortfall as silent as before.
 		render(
 			<LocalStickerReferencePanel
 				catalog={createRemoteStickerCatalog()}
 				error={null}
 				isLoading={false}
 				onSelect={async () => {}}
-				privateCatalogs={[]}
+				privateCategories={[]}
 				unavailablePrivateCatalogIds={[
 					"jianying-2026-07-31",
 					"jianying-2026-08-01-batch-2",
@@ -711,9 +644,6 @@ describe("LocalStickerReferencePanel", () => {
 			/>
 		);
 
-		expect(
-			screen.queryByTestId("sticker-lab-catalog-private")
-		).not.toBeInTheDocument();
 		const warning = screen.getByTestId("sticker-lab-private-catalog-warning");
 		expect(warning).toHaveTextContent("3 个参照素材包未能载入");
 		expect(warning).toHaveTextContent("暂时无法显示");

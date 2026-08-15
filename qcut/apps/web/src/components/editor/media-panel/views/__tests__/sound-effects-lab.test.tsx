@@ -124,4 +124,35 @@ describe("SoundEffectsLabPanel", () => {
 		});
 		expect(screen.getByText("没有找到匹配的音频。")).toBeVisible();
 	});
+
+	it("filters by category from the Jianying-style left rail", async () => {
+		render(
+			<SoundEffectsLabPanel
+				catalog={catalog}
+				error={null}
+				isLoading={false}
+				onPlay={vi.fn()}
+				onStop={vi.fn()}
+				playingId={null}
+			/>
+		);
+		await screen.findByTestId("audio-library-item-sound-effect--900000000");
+
+		// Rail lists every catalog category with its item count.
+		const hot = screen.getByRole("button", { name: /热门/, pressed: false });
+		expect(hot).toBeVisible();
+		expect(hot).toHaveTextContent("1");
+		expect(
+			screen.getByRole("button", { name: /全部分类/, pressed: true })
+		).toBeVisible();
+
+		// Selecting a category keeps only its sounds; the sample belongs to both.
+		fireEvent.click(hot);
+		expect(
+			screen.getByRole("button", { name: /热门/, pressed: true })
+		).toBeVisible();
+		expect(
+			await screen.findByTestId("audio-library-item-sound-effect--900000000")
+		).toBeVisible();
+	});
 });

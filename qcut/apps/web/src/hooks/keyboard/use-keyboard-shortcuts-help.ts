@@ -40,6 +40,8 @@ export function formatShortcutKey({ key }: { key: string }): string {
 				delete: "Delete",
 				backspace: "Backspace",
 				escape: "Esc",
+				// Match the keycap legend most editors print for this key.
+				"`": "~",
 			};
 			return displayNames[part] ?? part.toUpperCase();
 		})

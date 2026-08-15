@@ -71,6 +71,15 @@ export function registerStorageHandlers(deps: MainIpcDeps): void {
 		}
 	);
 
+	ipcMain.handle(
+		"storage:project-file-path",
+		(_event: IpcMainInvokeEvent, key: string): string => {
+			const safeKey = path.basename(key);
+			const userDataPath = app.getPath("userData");
+			return path.join(userDataPath, "projects", `${safeKey}.json`);
+		}
+	);
+
 	ipcMain.handle("storage:list", async (): Promise<string[]> => {
 		try {
 			const userDataPath = app.getPath("userData");

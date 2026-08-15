@@ -8,6 +8,8 @@ import {
 	isValidJianyingTextStyleId,
 	readJianyingTextStyleCover,
 } from "../jianying-text-style-lab-catalog.js";
+import { isDiscoverableJianyingTextCatalogEntry } from "../jianying-text-style-discovery.js";
+import type { JianyingTextPackageOwnership } from "../jianying-text-package-ownership.js";
 
 const temporaryDirectories: string[] = [];
 const PNG_BYTES = Buffer.from([
@@ -95,6 +97,43 @@ const solidStyle = {
 };
 
 describe("Jianying text style lab catalog", () => {
+	it("normalizes uppercase directory hashes into lowercase style ids", async () => {
+		const root = await createTemporaryDirectory();
+		const resourceId = "7405879107424111910";
+		await createPackage({
+			root,
+			resourceId,
+			version: "A0B1C2D3E4F5".padEnd(32, "A"),
+			type: "TextStyle",
+			style: solidStyle,
+		});
+
+		const catalog = await buildJianyingTextStyleCatalog({ root });
+
+		// The uppercase directory still scans, but every derived key is
+		// canonical lowercase like the ownership and metadata maps.
+		expect(catalog.entries).toHaveLength(1);
+		const entry = catalog.entries[0];
+		const lowercaseHash = "a0b1c2d3e4f5".padEnd(32, "a");
+		expect(entry).toMatchObject({
+			styleId: `${resourceId}/${lowercaseHash}`,
+			version: lowercaseHash,
+		});
+
+		const flowerOwnership: JianyingTextPackageOwnership = {
+			kind: "flower",
+			match: "resource-id",
+			catalogFamilies: [],
+		};
+		expect(
+			isDiscoverableJianyingTextCatalogEntry({
+				entry: { ...entry, packageKind: "InfoSticker" },
+				metadata: new Map(),
+				ownership: new Map([[entry.styleId, flowerOwnership]]),
+			})
+		).toBe(true);
+	});
+
 	it("classifies editable TextStyle packages and builds a bounded QCut mapping", async () => {
 		const root = await createTemporaryDirectory();
 		await Promise.all([

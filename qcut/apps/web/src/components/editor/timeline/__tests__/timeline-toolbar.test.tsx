@@ -251,6 +251,23 @@ describe("TimelineToolbar", () => {
 		});
 	});
 
+	it("orders the toggles like Jianying: magnet, snapping, ripple, linked", () => {
+		render(<TimelineToolbar zoomLevel={1} setZoomLevel={setZoomLevel} />);
+
+		const sequence = [
+			"timeline-main-magnet-button",
+			"timeline-snapping-button",
+			"timeline-ripple-button",
+			"timeline-linked-ripple-button",
+		].map((testId) => screen.getByTestId(testId));
+		for (const [index, button] of sequence.slice(0, -1).entries()) {
+			expect(
+				button.compareDocumentPosition(sequence[index + 1]) &
+					Node.DOCUMENT_POSITION_FOLLOWING
+			).toBeTruthy();
+		}
+	});
+
 	it("toggles snapping and linked ripple editing from visible toolbar buttons", () => {
 		render(<TimelineToolbar zoomLevel={1} setZoomLevel={setZoomLevel} />);
 

@@ -137,7 +137,16 @@ describe("SoundsView", () => {
 		};
 		localStorage.clear();
 		useLocaleStore.getState().setLocale({ locale: "zh" });
-		useMediaPanelStore.setState({ activeSoundsTab: "music-latest" });
+		useMediaPanelStore.setState({
+			activeSoundsTab: "music-latest",
+			collapsedAudioGroups: {
+				my: false,
+				folders: false,
+				music: false,
+				sfx: true,
+				lab: false,
+			},
+		});
 		useSoundsStore.setState({
 			savedSounds: [],
 			recentSounds: [],
@@ -160,6 +169,28 @@ describe("SoundsView", () => {
 		expect(screen.getAllByText("1.3万").length).toBeGreaterThan(0);
 		expect(screen.getAllByTitle("调性 E").length).toBeGreaterThan(0);
 		expect(screen.getAllByTestId(/^audio-library-item-music-/)).toHaveLength(9);
+	});
+
+	it("collapses and expands sidebar groups from their headers", () => {
+		render(<SoundsView />);
+
+		// Sound effect categories start collapsed (Jianying-style short sidebar).
+		expect(
+			screen.queryByRole("button", { name: "转场", pressed: false })
+		).not.toBeInTheDocument();
+		fireEvent.click(screen.getByRole("button", { name: "音效库" }));
+		expect(
+			screen.getByRole("button", { name: "转场", pressed: false })
+		).toBeVisible();
+
+		// Music categories start expanded and collapse on header click.
+		expect(
+			screen.getByRole("button", { name: "旅行", pressed: false })
+		).toBeVisible();
+		fireEvent.click(screen.getByRole("button", { name: "音乐库" }));
+		expect(
+			screen.queryByRole("button", { name: "旅行", pressed: false })
+		).not.toBeInTheDocument();
 	});
 
 	it("filters bundled content by scene and Chinese search", () => {

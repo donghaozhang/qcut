@@ -92,6 +92,7 @@ export const lucideReact = {
 	CaptionsIcon: icon("captions"),
 	LayoutTemplateIcon: icon("layout-template"),
 	SlidersHorizontalIcon: icon("sliders-horizontal"),
+	UserSquareIcon: icon("user-square"),
 };
 
 // ── UI Components ──

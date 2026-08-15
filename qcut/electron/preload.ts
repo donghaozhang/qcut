@@ -335,6 +335,8 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke("storage:remove", key),
 		list: (): Promise<string[]> => ipcRenderer.invoke("storage:list"),
 		clear: (): Promise<boolean> => ipcRenderer.invoke("storage:clear"),
+		projectFilePath: (key: string): Promise<string> =>
+			ipcRenderer.invoke("storage:project-file-path", key),
 	},
 
 	// Theme operations

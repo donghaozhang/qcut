@@ -48,7 +48,10 @@ import {
 	setupUtilityPtyIPC,
 	cleanupUtilityProcess,
 } from "./utility/utility-bridge.js";
-import { resolveInitialWindowSize } from "./window-sizing.js";
+import {
+	clampBoundsToWorkArea,
+	resolveInitialWindowSize,
+} from "./window-sizing.js";
 import { toReleaseVersion } from "./update-version.js";
 import {
 	loadInitialLicenseServerRuntimeConfig,
@@ -719,6 +722,46 @@ function createWindow(): void {
 		mainWindow.center();
 	} catch {
 		// Fallback for headless/CI environments without a display
+	}
+
+	// A window keeps its pixel size when dragged across displays, so one
+	// sized on a large monitor overflows a smaller one. Re-fit it to
+	// whichever display it lands on.
+	{
+		const window = mainWindow;
+		let refitTimer: NodeJS.Timeout | null = null;
+		const refitWindowToDisplay = () => {
+			if (window.isDestroyed()) return;
+			if (window.isFullScreen() || window.isMaximized()) return;
+			const bounds = window.getBounds();
+			const clamped = clampBoundsToWorkArea({
+				bounds,
+				workArea: screen.getDisplayMatching(bounds).workArea,
+			});
+			if (
+				clamped.width !== bounds.width ||
+				clamped.height !== bounds.height ||
+				clamped.x !== bounds.x ||
+				clamped.y !== bounds.y
+			) {
+				window.setBounds(clamped);
+			}
+		};
+		const scheduleRefit = () => {
+			if (refitTimer) clearTimeout(refitTimer);
+			refitTimer = setTimeout(refitWindowToDisplay, 250);
+		};
+		// "move" fires for user drags and programmatic moves alike (macOS's
+		// "moved" skips the latter); the debounce collapses the continuous
+		// stream so the refit lands once the window comes to rest.
+		window.on("move", scheduleRefit);
+		screen.on("display-metrics-changed", scheduleRefit);
+		screen.on("display-removed", scheduleRefit);
+		window.on("closed", () => {
+			if (refitTimer) clearTimeout(refitTimer);
+			screen.removeListener("display-metrics-changed", scheduleRefit);
+			screen.removeListener("display-removed", scheduleRefit);
+		});
 	}
 
 	// E2E invisible mode: make window fully transparent so tests run
