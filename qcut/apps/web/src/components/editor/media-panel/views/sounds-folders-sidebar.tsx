@@ -245,7 +245,9 @@ export function AudioFoldersSidebar({
 							onClick={() => setEditor({ mode: "create", initialName: "" })}
 							onKeyDown={() => undefined}
 						>
-							<Plus className="size-3" />
+							<Plus className="size-3">
+								<title>{t("audioLibrary.folders.create")}</title>
+							</Plus>
 						</Button>
 					}
 				/>
