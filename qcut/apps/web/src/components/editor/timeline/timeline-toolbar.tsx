@@ -12,10 +12,15 @@ import {
 	SplitSquareHorizontal,
 	Pause,
 	Play,
+	FlipHorizontal2,
 	FoldHorizontal,
 	Magnet,
 	Link,
 	Link2,
+	Redo2,
+	Rewind,
+	RotateCw,
+	Undo2,
 	ZoomIn,
 	ZoomOut,
 	Bookmark,
@@ -55,6 +60,7 @@ import { debugLog, debugError } from "@/lib/debug/debug-config";
 import { getTimelineElementEndTime } from "@/lib/timeline";
 import { addAdjustmentLayer } from "@/lib/timeline/adjustment-layer";
 import { freezeSelectedElementAtPlayhead } from "@/lib/timeline/freeze-frame";
+import { invokeAction } from "@/constants/actions";
 import { useActionShortcutLabels } from "@/hooks/keyboard/use-action-shortcut-label";
 import {
 	DropdownMenu,
@@ -527,36 +533,45 @@ export function TimelineToolbar({
 
 					<div className="w-px h-6 bg-border mx-1" />
 
+					{/* Jianying order: undo/redo | split, keep-left, keep-right,
+					    delete, freeze, reverse, mirror, rotate, crop | extras. */}
 					<Tooltip>
 						<TooltipTrigger asChild>
 							<Button
 								type="button"
-								variant={compactTracks ? "default" : "text"}
+								variant="text"
 								size="icon"
-								onClick={() =>
-									setTrackHeightMode(compactTracks ? "default" : "compact")
-								}
-								onKeyDown={(event) => {
-									if (event.key !== "Enter" && event.key !== " ") return;
-									event.preventDefault();
-									setTrackHeightMode(compactTracks ? "default" : "compact");
-								}}
-								aria-label={
-									compactTracks
-										? "Restore default track heights"
-										: "Compact tracks"
-								}
-								aria-pressed={compactTracks}
-								title="Compact tracks"
-								data-testid="compact-tracks-button"
+								onClick={() => invokeAction("undo")}
+								aria-label="Undo"
+								data-testid="timeline-undo-button"
 							>
-								<Rows3 className="h-4 w-4" />
+								<Undo2 className="h-4 w-4" />
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
-							{compactTracks ? "Restore track heights" : "Compact tracks"}
+							{withShortcut(t("timeline.toolbar.undo"), "undo")}
 						</TooltipContent>
 					</Tooltip>
+
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								variant="text"
+								size="icon"
+								onClick={() => invokeAction("redo")}
+								aria-label="Redo"
+								data-testid="timeline-redo-button"
+							>
+								<Redo2 className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>
+							{withShortcut(t("timeline.toolbar.redo"), "redo")}
+						</TooltipContent>
+					</Tooltip>
+
+					<div className="w-px h-6 bg-border mx-1" />
 
 					<Tooltip>
 						<TooltipTrigger asChild>
@@ -573,7 +588,7 @@ export function TimelineToolbar({
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
-							{withShortcut("Split element", "split-element")}
+							{withShortcut(t("timeline.toolbar.split"), "split-element")}
 						</TooltipContent>
 					</Tooltip>
 
@@ -592,7 +607,10 @@ export function TimelineToolbar({
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
-							{withShortcut("Split and keep left", "trim-end-to-playhead")}
+							{withShortcut(
+								t("timeline.toolbar.keepLeft"),
+								"trim-end-to-playhead"
+							)}
 						</TooltipContent>
 					</Tooltip>
 
@@ -611,88 +629,10 @@ export function TimelineToolbar({
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
-							{withShortcut("Split and keep right", "trim-start-to-playhead")}
-						</TooltipContent>
-					</Tooltip>
-
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								type="button"
-								variant="text"
-								size="icon"
-								onClick={handleSeparateAudio}
-								disabled={!hasSingleMediaSelection}
-								aria-label="Separate audio from selected clip"
-								data-testid="separate-audio-button"
-							>
-								<SplitSquareHorizontal className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>
-							{withShortcut("Separate audio", "separate-audio-selected")}
-						</TooltipContent>
-					</Tooltip>
-
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								type="button"
-								variant="text"
-								size="icon"
-								onClick={handleDuplicateSelected}
-								disabled={!hasSingleSelection}
-								aria-label="Duplicate selected clip"
-								data-testid="duplicate-clip-button"
-							>
-								<Copy className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>
-							{withShortcut("Duplicate clip", "duplicate-selected")}
-						</TooltipContent>
-					</Tooltip>
-
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								type="button"
-								variant="text"
-								size="icon"
-								onClick={handleCropSelected}
-								disabled={!hasSingleMediaSelection}
-								aria-label="Crop selected clip"
-								data-testid="crop-clip-button"
-							>
-								<Crop className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>
-							{withShortcut("Crop clip", "crop-selected")}
-						</TooltipContent>
-					</Tooltip>
-
-					<Tooltip>
-						<TooltipTrigger asChild>
-							<Button
-								type="button"
-								variant="text"
-								size="icon"
-								onClick={handleFreezeSelected}
-								onKeyDown={(event) => {
-									if (event.key !== "Enter" && event.key !== " ") return;
-									event.preventDefault();
-									handleFreezeSelected();
-								}}
-								aria-label="Add freeze frame at playhead"
-								title="Freeze frame"
-								data-testid="freeze-frame-button"
-							>
-								<Snowflake className="h-4 w-4" />
-							</Button>
-						</TooltipTrigger>
-						<TooltipContent>
-							{withShortcut("Freeze frame", "freeze-selected")}
+							{withShortcut(
+								t("timeline.toolbar.keepRight"),
+								"trim-start-to-playhead"
+							)}
 						</TooltipContent>
 					</Tooltip>
 
@@ -716,13 +656,190 @@ export function TimelineToolbar({
 						</TooltipTrigger>
 						<TooltipContent>
 							{withShortcut(
-								rippleEditingEnabled ? "Delete with ripple" : "Delete element",
+								rippleEditingEnabled
+									? t("timeline.toolbar.deleteRipple")
+									: t("timeline.toolbar.delete"),
 								"delete-selected"
 							)}
 						</TooltipContent>
 					</Tooltip>
 
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								variant="text"
+								size="icon"
+								onClick={handleFreezeSelected}
+								onKeyDown={(event) => {
+									if (event.key !== "Enter" && event.key !== " ") return;
+									event.preventDefault();
+									handleFreezeSelected();
+								}}
+								aria-label="Add freeze frame at playhead"
+								data-testid="freeze-frame-button"
+							>
+								<Snowflake className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>
+							{withShortcut(t("timeline.toolbar.freeze"), "freeze-selected")}
+						</TooltipContent>
+					</Tooltip>
+
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								variant="text"
+								size="icon"
+								onClick={() => invokeAction("reverse-selected")}
+								disabled={!hasSingleMediaSelection}
+								aria-label="Reverse selected clip"
+								data-testid="reverse-clip-button"
+							>
+								<Rewind className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>
+							{withShortcut(t("timeline.toolbar.reverse"), "reverse-selected")}
+						</TooltipContent>
+					</Tooltip>
+
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								variant="text"
+								size="icon"
+								onClick={() => invokeAction("mirror-selected")}
+								disabled={!hasSingleMediaSelection}
+								aria-label="Mirror selected clip"
+								data-testid="mirror-clip-button"
+							>
+								<FlipHorizontal2 className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>
+							{withShortcut(t("timeline.toolbar.mirror"), "mirror-selected")}
+						</TooltipContent>
+					</Tooltip>
+
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								variant="text"
+								size="icon"
+								onClick={() => invokeAction("rotate-selected")}
+								disabled={!hasSingleMediaSelection}
+								aria-label="Rotate selected clip"
+								data-testid="rotate-clip-button"
+							>
+								<RotateCw className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>
+							{withShortcut(t("timeline.toolbar.rotate"), "rotate-selected")}
+						</TooltipContent>
+					</Tooltip>
+
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								variant="text"
+								size="icon"
+								onClick={handleCropSelected}
+								disabled={!hasSingleMediaSelection}
+								aria-label="Crop selected clip"
+								data-testid="crop-clip-button"
+							>
+								<Crop className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>
+							{withShortcut(t("timeline.toolbar.crop"), "crop-selected")}
+						</TooltipContent>
+					</Tooltip>
+
 					<div className="w-px h-6 bg-border mx-1" />
+
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								variant="text"
+								size="icon"
+								onClick={handleSeparateAudio}
+								disabled={!hasSingleMediaSelection}
+								aria-label="Separate audio from selected clip"
+								data-testid="separate-audio-button"
+							>
+								<SplitSquareHorizontal className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>
+							{withShortcut(
+								t("timeline.toolbar.separateAudio"),
+								"separate-audio-selected"
+							)}
+						</TooltipContent>
+					</Tooltip>
+
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								variant="text"
+								size="icon"
+								onClick={handleDuplicateSelected}
+								disabled={!hasSingleSelection}
+								aria-label="Duplicate selected clip"
+								data-testid="duplicate-clip-button"
+							>
+								<Copy className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>
+							{withShortcut(
+								t("timeline.toolbar.duplicate"),
+								"duplicate-selected"
+							)}
+						</TooltipContent>
+					</Tooltip>
+
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								variant={compactTracks ? "default" : "text"}
+								size="icon"
+								onClick={() =>
+									setTrackHeightMode(compactTracks ? "default" : "compact")
+								}
+								onKeyDown={(event) => {
+									if (event.key !== "Enter" && event.key !== " ") return;
+									event.preventDefault();
+									setTrackHeightMode(compactTracks ? "default" : "compact");
+								}}
+								aria-label={
+									compactTracks
+										? "Restore default track heights"
+										: "Compact tracks"
+								}
+								aria-pressed={compactTracks}
+								data-testid="compact-tracks-button"
+							>
+								<Rows3 className="h-4 w-4" />
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>
+							{compactTracks
+								? t("timeline.toolbar.restoreTracks")
+								: t("timeline.toolbar.compactTracks")}
+						</TooltipContent>
+					</Tooltip>
 
 					<Tooltip>
 						<TooltipTrigger asChild>
@@ -742,7 +859,9 @@ export function TimelineToolbar({
 						</TooltipTrigger>
 						<TooltipContent>
 							{withShortcut(
-								currentBookmarked ? "Remove bookmark" : "Add bookmark",
+								currentBookmarked
+									? t("timeline.toolbar.removeBookmark")
+									: t("timeline.toolbar.addBookmark"),
 								"toggle-bookmark"
 							)}
 						</TooltipContent>
