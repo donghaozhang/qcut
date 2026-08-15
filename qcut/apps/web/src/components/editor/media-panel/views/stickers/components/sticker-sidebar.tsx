@@ -175,8 +175,9 @@ function LabCategoryGroup({
 						>
 							<span className="min-w-0 flex-1 truncate whitespace-nowrap">
 								{/* Narrow rail: the QCut prefix is implied by the group
-								    header, so drop it from the visible label only. */}
-								{category.label.replace(/^QCut\s*/, "")}
+								    header, so drop it from the visible label only. Not
+								    anchored — manifest labels lead with an emoji. */}
+								{category.label.replace(/QCut\s*/, "")}
 							</span>
 						</button>
 					);
@@ -207,7 +208,7 @@ export function StickerSidebar({
 
 	return (
 		<aside
-			className="w-[112px] shrink-0 overflow-y-auto border-r border-border/50 px-1.5 py-2"
+			className="w-[128px] shrink-0 overflow-y-auto border-r border-border/50 px-1.5 py-2"
 			data-testid="sticker-sidebar"
 		>
 			<div className="space-y-0.5 border-b border-border/50 pb-2">
