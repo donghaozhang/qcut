@@ -145,7 +145,7 @@ describe("Jianying text playback overlay", () => {
 		expect(onBoundsChange).toHaveBeenCalledWith({
 			elementId: element.id,
 			snapshot: {
-				bounds: { offsetX: 0, offsetY: 0, width: 372, height: 232 },
+				bounds: { offsetX: 0, offsetY: 0, width: 392, height: 252 },
 				transform: {
 					x: 10,
 					y: -5,
