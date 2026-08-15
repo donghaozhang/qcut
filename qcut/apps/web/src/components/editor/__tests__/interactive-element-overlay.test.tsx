@@ -39,21 +39,64 @@ function createTextElement({
 	};
 }
 
-function renderOverlay({ isSelected }: { isSelected: boolean }) {
+function createNativeFlowerTextElement(): TextElement {
+	return createTextElement({
+		overrides: {
+			jianyingTextStyle: {
+				schemaVersion: 1,
+				source: "jianying-cache",
+				packageKind: "ScriptInfoSticker",
+				resourceId: "flower-text",
+				packageHash: "hash",
+				editMode: "runtime-with-preload-fallback",
+				slotMapping: "line-to-widget",
+				timeMapping: "stretch",
+				templateDuration: 3,
+			},
+		},
+	});
+}
+
+function renderOverlay({
+	isSelected,
+	element = createTextElement(),
+	contentBounds,
+	contentBoundsTransform,
+}: {
+	isSelected: boolean;
+	element?: TextElement;
+	contentBounds?: {
+		offsetX: number;
+		offsetY: number;
+		width: number;
+		height: number;
+	};
+	contentBoundsTransform?: {
+		x: number;
+		y: number;
+		width: number;
+		height: number;
+		rotation: number;
+	};
+}) {
 	const onSelect = vi.fn();
 	const onTransformUpdate = vi.fn();
+	const onTransformPreview = vi.fn();
 	render(
 		<InteractiveElementOverlay
-			element={createTextElement()}
+			element={element}
 			isSelected={isSelected}
 			canvasSize={{ width: 1920, height: 1080 }}
 			previewDimensions={{ width: 960, height: 540 }}
 			onSelect={onSelect}
 			onTransformUpdate={onTransformUpdate}
+			onTransformPreview={onTransformPreview}
+			contentBounds={contentBounds}
+			contentBoundsTransform={contentBoundsTransform}
 		/>
 	);
 
-	return { onSelect, onTransformUpdate };
+	return { onSelect, onTransformPreview, onTransformUpdate };
 }
 
 describe("InteractiveElementOverlay", () => {
@@ -72,8 +115,8 @@ describe("InteractiveElementOverlay", () => {
 		expect(onSelect).toHaveBeenCalledWith({ multi: false });
 	});
 
-	it("drags selected text from anywhere inside the full bounding box", () => {
-		const { onSelect, onTransformUpdate } = renderOverlay({
+	it("previews a drag locally and commits it once on mouseup", () => {
+		const { onSelect, onTransformPreview, onTransformUpdate } = renderOverlay({
 			isSelected: true,
 		});
 		const dragSurface = screen.getByRole("button", {
@@ -84,10 +127,19 @@ describe("InteractiveElementOverlay", () => {
 		fireEvent.mouseMove(window, { clientX: 120, clientY: 110 });
 
 		expect(onSelect).toHaveBeenCalledWith({ multi: false });
+		expect(onTransformPreview).toHaveBeenCalledWith(
+			"text-1",
+			expect.objectContaining({ x: 50, y: 40 })
+		);
+		expect(onTransformUpdate).not.toHaveBeenCalled();
+
+		fireEvent.mouseUp(window);
 		expect(onTransformUpdate).toHaveBeenCalledWith(
 			"text-1",
 			expect.objectContaining({ x: 50, y: 40 })
 		);
+		expect(onTransformUpdate).toHaveBeenCalledTimes(1);
+		expect(onTransformPreview).toHaveBeenLastCalledWith("text-1", null);
 	});
 
 	it("keeps resize handles exclusive to selected text", () => {
@@ -119,6 +171,138 @@ describe("InteractiveElementOverlay", () => {
 
 		expect(
 			screen.getByRole("button", { name: "Resize from top-left corner" })
-		).toBeInTheDocument();
+		).toHaveClass("pointer-events-auto");
+	});
+
+	it("uses native flower-text content bounds for the transform box", () => {
+		render(
+			<InteractiveElementOverlay
+				element={createTextElement()}
+				isSelected
+				canvasSize={{ width: 1920, height: 1080 }}
+				previewDimensions={{ width: 960, height: 540 }}
+				contentBounds={{
+					offsetX: 20,
+					offsetY: -10,
+					width: 320,
+					height: 180,
+				}}
+				onSelect={vi.fn()}
+				onTransformUpdate={vi.fn()}
+			/>
+		);
+
+		const overlay = screen.getByTestId("interactive-element-overlay");
+		expect(overlay.style.width).toBe("160px");
+		expect(overlay.style.height).toBe("90px");
+		expect(overlay.style.left).toBe("51.5625%");
+		expect(overlay.style.top).toBe("50.925925925925924%");
+	});
+
+	it("puts the rotation handle below the bounding box", () => {
+		renderOverlay({ isSelected: true });
+
+		const rotationHandle = screen.getByRole("button", {
+			name: "Rotate element. Use arrow keys to rotate",
+		});
+		expect(rotationHandle).toHaveClass("-bottom-8", "pointer-events-auto");
+	});
+
+	it("keeps Jianying-style handle markers compact without shrinking hit targets", () => {
+		renderOverlay({
+			isSelected: true,
+			element: createNativeFlowerTextElement(),
+		});
+
+		const resizeHandle = screen.getByRole("button", {
+			name: "Resize from top-left corner",
+		});
+		expect(resizeHandle).toHaveClass("size-3", "pointer-events-auto");
+		expect(resizeHandle.querySelector("span")).toHaveClass(
+			"size-2",
+			"border-neutral-500",
+			"bg-white"
+		);
+
+		const rotationHandle = screen.getByRole("button", {
+			name: "Rotate element. Use arrow keys to rotate",
+		});
+		expect(rotationHandle).toHaveClass("size-6", "bg-transparent");
+		expect(rotationHandle.querySelector("span")).toHaveClass(
+			"size-3",
+			"border-neutral-500",
+			"bg-white"
+		);
+	});
+
+	it("keeps native flower-text corner resizing centered and proportional", () => {
+		const element = createNativeFlowerTextElement();
+		const { onTransformPreview, onTransformUpdate } = renderOverlay({
+			isSelected: true,
+			element,
+		});
+		const handle = screen.getByRole("button", {
+			name: "Resize from bottom-right corner",
+		});
+
+		fireEvent.mouseDown(handle, { clientX: 0, clientY: 0 });
+		fireEvent.mouseMove(window, { clientX: 100, clientY: 30 });
+
+		expect(onTransformPreview).toHaveBeenCalledWith("text-1", {
+			x: 10,
+			y: 20,
+			width: 800,
+			height: 240,
+			rotation: 0,
+		});
+		expect(onTransformUpdate).not.toHaveBeenCalled();
+	});
+
+	it("rotates native flower text around its visible bounds center", () => {
+		const element = createNativeFlowerTextElement();
+		const sourceTransform = {
+			x: 10,
+			y: 20,
+			width: 400,
+			height: 120,
+			rotation: 0,
+		};
+		const { onTransformPreview } = renderOverlay({
+			isSelected: true,
+			element,
+			contentBounds: {
+				offsetX: 20,
+				offsetY: -10,
+				width: 320,
+				height: 100,
+			},
+			contentBoundsTransform: sourceTransform,
+		});
+		const overlay = screen.getByTestId("interactive-element-overlay");
+		vi.spyOn(overlay, "getBoundingClientRect").mockReturnValue({
+			x: 100,
+			y: 100,
+			left: 100,
+			top: 100,
+			right: 420,
+			bottom: 300,
+			width: 320,
+			height: 200,
+			toJSON: () => ({}),
+		});
+		const rotationHandle = screen.getByRole("button", {
+			name: "Rotate element. Use arrow keys to rotate",
+		});
+
+		fireEvent.mouseDown(rotationHandle, { clientX: 260, clientY: 300 });
+		fireEvent.mouseMove(window, {
+			clientX: 210,
+			clientY: 286.60254037844385,
+		});
+
+		const preview = onTransformPreview.mock.calls.at(-1)?.[1];
+		expect(preview?.rotation).toBe(30);
+		expect(preview?.x).toBeCloseTo(7.6795, 3);
+		expect(preview?.y).toBeCloseTo(8.6603, 3);
 	});
 });

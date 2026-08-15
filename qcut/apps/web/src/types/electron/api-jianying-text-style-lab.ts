@@ -1,4 +1,7 @@
 export type {
+	JianyingTextAnimationLabListRequest,
+	JianyingTextAnimationLabListResult,
+	JianyingTextAnimationLabSummary,
 	JianyingTextStyleCompatibility,
 	JianyingTextStyleCategoryId,
 	JianyingTextStyleFillKind,

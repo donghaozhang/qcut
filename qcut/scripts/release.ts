@@ -434,9 +434,11 @@ function buildElectronApp(): void {
 		process.stdout.write("⚠️  FFmpeg verification failed (non-fatal)\n");
 	}
 	try {
+		// Must exceed verify-packaged-aicp's VERSION_TIMEOUT_MS (30s) so the
+		// script's own deadline stays authoritative; margin covers bun startup.
 		execSync("bun run verify:packaged-aicp", {
 			stdio: "inherit",
-			timeout: 15_000,
+			timeout: 45_000,
 		});
 	} catch {
 		process.stdout.write("⚠️  AICP verification skipped (non-fatal)\n");

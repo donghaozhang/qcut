@@ -5,6 +5,9 @@ export interface ElectronJianyingTextRuntimeOps {
 }
 
 export type {
+	JianyingTextAnimationReference,
+	JianyingTextAnimationReferences,
+	JianyingTextAnimationSlot,
 	JianyingTextRuntimeCancelRequest,
 	JianyingTextRuntimeInspectRequest,
 	JianyingTextRuntimePackageKind,

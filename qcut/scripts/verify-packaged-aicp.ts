@@ -27,7 +27,8 @@ const DEFAULT_STAGE_TARGETS = [
 	"win32-x64",
 	"linux-x64",
 ];
-const VERSION_TIMEOUT_MS = 8000;
+// A signed binary's first launch can include macOS trust validation.
+const VERSION_TIMEOUT_MS = 30_000;
 
 function getErrorMessage({ error }: { error: unknown }): string {
 	try {

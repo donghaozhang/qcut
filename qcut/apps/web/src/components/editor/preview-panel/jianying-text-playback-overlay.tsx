@@ -4,10 +4,17 @@ import { resolveTextStyle } from "@/lib/text/text-style";
 import {
 	createJianyingTextRenderEntry,
 	type JianyingTextRenderEntry,
+	resolveJianyingTextPlaybackLayerStyle,
+	resolveJianyingTextRenderContentBounds,
 	validateJianyingTextRenderResult,
 } from "@/lib/preview/jianying-text-render-entry";
 import type { JianyingTextRuntimeRenderResult } from "@/types/electron/api-jianying-text-runtime";
 import type { TextElement } from "@/types/timeline";
+import {
+	getTimelineElementTransform,
+	type ElementContentBoundsSnapshot,
+	type ElementTransform,
+} from "../interactive-element-overlay-geometry";
 import type { ActiveElement } from "./types";
 
 const MAXIMUM_PLAYBACK_DRIFT_SECONDS = 0.1;
@@ -27,7 +34,9 @@ function JianyingTextPlaybackLayer({
 	fps,
 	currentTime,
 	isPlaying,
+	previewTransform,
 	onStatusChange,
+	onBoundsChange,
 }: {
 	element: TextElement;
 	zIndex: number;
@@ -36,6 +45,7 @@ function JianyingTextPlaybackLayer({
 	fps: number;
 	currentTime: number;
 	isPlaying: boolean;
+	previewTransform?: ElementTransform;
 	onStatusChange: ({
 		elementId,
 		status,
@@ -43,16 +53,27 @@ function JianyingTextPlaybackLayer({
 		elementId: string;
 		status: JianyingTextPlaybackStatus;
 	}) => void;
+	onBoundsChange: ({
+		elementId,
+		snapshot,
+	}: {
+		elementId: string;
+		snapshot: ElementContentBoundsSnapshot | null;
+	}) => void;
 }) {
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const [readyLayer, setReadyLayer] = useState<ReadyPlaybackLayer | null>(null);
+	const readyLayerRef = useRef<ReadyPlaybackLayer | null>(null);
 	const [error, setError] = useState<string | null>(null);
 
 	useEffect(() => {
 		const api = window.electronAPI?.jianyingTextRuntime;
 		if (!api) {
-			setReadyLayer(null);
 			setError("剪映原版动态花字渲染服务不可用");
+			if (!readyLayerRef.current) {
+				setReadyLayer(null);
+				onBoundsChange({ elementId: element.id, snapshot: null });
+			}
 			onStatusChange({ elementId: element.id, status: "error" });
 			return;
 		}
@@ -68,15 +89,19 @@ function JianyingTextPlaybackLayer({
 			mode: "sequence",
 		});
 		if (!entry) {
-			setReadyLayer(null);
 			setError("剪映花字没有可播放的时间范围");
+			if (!readyLayerRef.current) {
+				setReadyLayer(null);
+				onBoundsChange({ elementId: element.id, snapshot: null });
+			}
 			onStatusChange({ elementId: element.id, status: "error" });
 			return;
 		}
 		let cancelled = false;
-		setReadyLayer(null);
 		setError(null);
-		onStatusChange({ elementId: element.id, status: "loading" });
+		if (!readyLayerRef.current) {
+			onStatusChange({ elementId: element.id, status: "loading" });
+		}
 		void api
 			.render(entry.renderRequest)
 			.then((result) => {
@@ -85,19 +110,59 @@ function JianyingTextPlaybackLayer({
 				if (!validated.previewUrl) {
 					throw new Error("剪映花字播放预览没有透明视频缓存");
 				}
-				setReadyLayer({ entry, result: validated });
+				const nextReadyLayer = { entry, result: validated };
+				readyLayerRef.current = nextReadyLayer;
+				setReadyLayer(nextReadyLayer);
+				const bounds = resolveJianyingTextRenderContentBounds({
+					entry,
+					result: validated,
+				});
+				onBoundsChange({
+					elementId: element.id,
+					snapshot: bounds
+						? {
+								bounds,
+								transform: {
+									x: entry.renderRequest.transform.x,
+									y: entry.renderRequest.transform.y,
+									width: entry.renderRequest.transform.width,
+									height: entry.renderRequest.transform.height,
+									rotation: entry.renderRequest.transform.rotation,
+								},
+							}
+						: null,
+				});
 			})
 			.catch((cause: unknown) => {
 				if (cancelled) return;
 				setError(cause instanceof Error ? cause.message : String(cause));
+				if (!readyLayerRef.current) {
+					onBoundsChange({ elementId: element.id, snapshot: null });
+				}
 				onStatusChange({ elementId: element.id, status: "error" });
 			});
 		return () => {
 			cancelled = true;
-			onStatusChange({ elementId: element.id, status: "idle" });
 			void api.cancel({ requestId });
 		};
-	}, [canvasHeight, canvasWidth, element, fps, onStatusChange, zIndex]);
+	}, [
+		canvasHeight,
+		canvasWidth,
+		element,
+		fps,
+		onBoundsChange,
+		onStatusChange,
+		zIndex,
+	]);
+
+	useEffect(
+		() => () => {
+			readyLayerRef.current = null;
+			onBoundsChange({ elementId: element.id, snapshot: null });
+			onStatusChange({ elementId: element.id, status: "idle" });
+		},
+		[element.id, onBoundsChange, onStatusChange]
+	);
 
 	const syncPlayback = useCallback(() => {
 		const video = videoRef.current;
@@ -142,19 +207,23 @@ function JianyingTextPlaybackLayer({
 		) : null;
 	}
 	const { result } = readyLayer;
+	const targetTransform =
+		previewTransform ?? getTimelineElementTransform({ element });
 	return (
 		<video
 			ref={videoRef}
 			src={result.previewUrl}
 			className="pointer-events-none absolute object-fill"
 			style={{
-				left: `${(result.x / canvasWidth) * 100}%`,
-				top: `${(result.y / canvasHeight) * 100}%`,
-				width: `${(result.width / canvasWidth) * 100}%`,
-				height: `${(result.height / canvasHeight) * 100}%`,
+				...resolveJianyingTextPlaybackLayerStyle({
+					entry: readyLayer.entry,
+					result,
+					targetTransform,
+				}),
 				mixBlendMode: resolveTextStyle(element).blendMode,
 				zIndex,
 			}}
+			title={error ?? undefined}
 			muted
 			playsInline
 			preload="auto"
@@ -169,6 +238,8 @@ function JianyingTextPlaybackLayer({
 			onCanPlay={syncPlayback}
 			onError={() => {
 				onStatusChange({ elementId: element.id, status: "error" });
+				onBoundsChange({ elementId: element.id, snapshot: null });
+				readyLayerRef.current = null;
 				setReadyLayer(null);
 				setError("剪映花字透明播放缓存无法解码");
 			}}
@@ -184,7 +255,9 @@ export function JianyingTextPlaybackOverlay({
 	fps,
 	currentTime,
 	isPlaying,
+	previewTransforms,
 	onStatusChange,
+	onBoundsChange,
 }: {
 	enabled: boolean;
 	activeElements: ActiveElement[];
@@ -193,12 +266,20 @@ export function JianyingTextPlaybackOverlay({
 	fps: number;
 	currentTime: number;
 	isPlaying: boolean;
+	previewTransforms?: ReadonlyMap<string, ElementTransform>;
 	onStatusChange: ({
 		elementId,
 		status,
 	}: {
 		elementId: string;
 		status: JianyingTextPlaybackStatus;
+	}) => void;
+	onBoundsChange: ({
+		elementId,
+		snapshot,
+	}: {
+		elementId: string;
+		snapshot: ElementContentBoundsSnapshot | null;
 	}) => void;
 }) {
 	if (!enabled) return null;
@@ -213,7 +294,9 @@ export function JianyingTextPlaybackOverlay({
 				fps={fps}
 				currentTime={currentTime}
 				isPlaying={isPlaying}
+				previewTransform={previewTransforms?.get(element.id)}
 				onStatusChange={onStatusChange}
+				onBoundsChange={onBoundsChange}
 			/>
 		) : null
 	);

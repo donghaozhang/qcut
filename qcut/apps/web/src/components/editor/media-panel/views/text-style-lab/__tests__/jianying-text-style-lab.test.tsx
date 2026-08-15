@@ -1,6 +1,8 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
+	JianyingTextAnimationLabListResult,
+	JianyingTextAnimationReferences,
 	JianyingTextStyleLabListResult,
 	JianyingTextStyleLabStyleSummary,
 } from "@/types/electron";
@@ -127,18 +129,73 @@ function createRuntimeStyle(): JianyingTextStyleLabStyleSummary {
 	};
 }
 
+function createAnimatedTextStyle({
+	animations,
+}: {
+	animations?: JianyingTextAnimationReferences;
+} = {}): JianyingTextStyleLabStyleSummary {
+	const base = createStyle({ index: 20 });
+	return {
+		...base,
+		title: "原版黄色花字",
+		compatibility: "native-runtime",
+		runtimeReference: {
+			schemaVersion: 1,
+			source: "jianying-cache",
+			packageKind: "TextStyle",
+			resourceId: base.resourceId,
+			packageHash: base.version,
+			editMode: "runtime-with-preload-fallback",
+			slotMapping: "line-to-widget",
+			timeMapping: "stretch",
+			templateDuration: 3,
+			...(animations ? { animations } : {}),
+		},
+	};
+}
+
+function createAnimationResult(): JianyingTextAnimationLabListResult {
+	return {
+		count: 1,
+		animations: [
+			{
+				animationId: `loop:7168819879183651359/${"d".repeat(32)}`,
+				resourceId: "7168819879183651359",
+				packageHash: "d".repeat(32),
+				title: "翻页 I",
+				slot: "loop",
+				duration: 1.2,
+				capabilities: {
+					staticTexture: false,
+					multipleStrokes: false,
+					animationComponents: true,
+					scriptInfoSticker: false,
+					shaderComponents: true,
+					threeDimensional: true,
+					feedbackComponents: false,
+				},
+			},
+		],
+		catalogCount: 1,
+		packageCount: 1,
+		missingPackageCount: 0,
+		invalidPackageCount: 0,
+	};
+}
+
 function installTextStyleLabAPI() {
 	const result = createResult();
 	const list = vi.fn(async () => result);
+	const listAnimations = vi.fn(async () => createAnimationResult());
 	const cover = vi.fn(async ({ styleId }: { styleId: string }) => ({
 		styleId,
 		mimeType: "image/png" as const,
 		bytes: new Uint8Array([1, 2, 3]),
 	}));
 	window.electronAPI = {
-		jianyingTextStyleLab: { list, cover },
+		jianyingTextStyleLab: { list, cover, listAnimations },
 	} as never;
-	return { cover, list, result };
+	return { cover, list, listAnimations, result };
 }
 
 describe("JianyingTextStyleLabDialog", () => {
@@ -209,6 +266,7 @@ describe("JianyingTextStyleLabDialog", () => {
 		window.electronAPI = {
 			jianyingTextStyleLab: {
 				list,
+				listAnimations: vi.fn(async () => createAnimationResult()),
 				cover: vi.fn(async ({ styleId }: { styleId: string }) => ({
 					styleId,
 					mimeType: "image/png" as const,
@@ -228,6 +286,118 @@ describe("JianyingTextStyleLabDialog", () => {
 
 		expect(onApply).toHaveBeenCalledWith({ style: runtimeStyle });
 		expect(card).toHaveAttribute("aria-pressed", "true");
+	});
+
+	it("attaches and clears an original loop animation on a TextStyle", async () => {
+		const style = createAnimatedTextStyle();
+		const list = vi.fn(
+			async (): Promise<JianyingTextStyleLabListResult> => ({
+				count: 1,
+				styles: [style],
+				categories: [{ id: "popular", label: "热门", count: 1 }],
+				packageCount: 1,
+				invalidPackageCount: 0,
+			})
+		);
+		const animationResult = createAnimationResult();
+		const listAnimations = vi.fn(async () => animationResult);
+		window.electronAPI = {
+			jianyingTextStyleLab: {
+				list,
+				listAnimations,
+				cover: vi.fn(async ({ styleId }: { styleId: string }) => ({
+					styleId,
+					mimeType: "image/png" as const,
+					bytes: new Uint8Array([1, 2, 3]),
+				})),
+			},
+		} as never;
+		const onApply = vi.fn();
+		render(<JianyingTextStyleLabDialog onApply={onApply} />);
+
+		fireEvent.click(screen.getByRole("button", { name: "花字实验室" }));
+		const styleCard = await screen.findByRole("button", {
+			name: "应用花字 原版黄色花字",
+		});
+		fireEvent.click(styleCard);
+		await waitFor(() =>
+			expect(listAnimations).toHaveBeenCalledWith({ refresh: false })
+		);
+		const animationButton = await screen.findByRole("button", {
+			name: "应用循环动画 翻页 I",
+		});
+		fireEvent.click(animationButton);
+
+		expect(onApply).toHaveBeenLastCalledWith({
+			style,
+			animations: {
+				loop: {
+					source: "jianying-cache",
+					resourceId: animationResult.animations[0].resourceId,
+					packageHash: animationResult.animations[0].packageHash,
+					duration: 1.2,
+				},
+			},
+		});
+		expect(animationButton).toHaveAttribute("aria-pressed", "true");
+
+		fireEvent.click(screen.getByRole("button", { name: "清除循环动画" }));
+		expect(onApply).toHaveBeenLastCalledWith({ style, animations: {} });
+	});
+
+	it("keeps bundled animation slots when picking another slot", async () => {
+		const bundledEntrance = {
+			source: "jianying-cache" as const,
+			resourceId: "7168819879183651300",
+			packageHash: "e".repeat(32),
+			duration: 0.8,
+		};
+		const style = createAnimatedTextStyle({
+			animations: { entrance: bundledEntrance },
+		});
+		const animationResult = createAnimationResult();
+		window.electronAPI = {
+			jianyingTextStyleLab: {
+				list: vi.fn(
+					async (): Promise<JianyingTextStyleLabListResult> => ({
+						count: 1,
+						styles: [style],
+						categories: [{ id: "popular", label: "热门", count: 1 }],
+						packageCount: 1,
+						invalidPackageCount: 0,
+					})
+				),
+				listAnimations: vi.fn(async () => animationResult),
+				cover: vi.fn(async ({ styleId }: { styleId: string }) => ({
+					styleId,
+					mimeType: "image/png" as const,
+					bytes: new Uint8Array([1, 2, 3]),
+				})),
+			},
+		} as never;
+		const onApply = vi.fn();
+		render(<JianyingTextStyleLabDialog onApply={onApply} />);
+
+		fireEvent.click(screen.getByRole("button", { name: "花字实验室" }));
+		fireEvent.click(
+			await screen.findByRole("button", { name: "应用花字 原版黄色花字" })
+		);
+		fireEvent.click(
+			await screen.findByRole("button", { name: "应用循环动画 翻页 I" })
+		);
+
+		expect(onApply).toHaveBeenLastCalledWith({
+			style,
+			animations: {
+				entrance: bundledEntrance,
+				loop: {
+					source: "jianying-cache",
+					resourceId: animationResult.animations[0].resourceId,
+					packageHash: animationResult.animations[0].packageHash,
+					duration: 1.2,
+				},
+			},
+		});
 	});
 
 	it("filters the local cache by Jianying flower category", async () => {

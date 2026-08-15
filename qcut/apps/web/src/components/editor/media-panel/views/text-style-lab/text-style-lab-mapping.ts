@@ -1,5 +1,10 @@
 import { TIMELINE_CONSTANTS } from "@/constants/timeline-constants";
-import type { JianyingTextStyleLabStyleSummary } from "@/types/electron";
+import type {
+	JianyingTextAnimationLabSummary,
+	JianyingTextAnimationReferences,
+	JianyingTextAnimationSlot,
+	JianyingTextStyleLabStyleSummary,
+} from "@/types/electron";
 import type { TextElement } from "@/types/timeline";
 
 export type TextStyleLabUpdates = Pick<
@@ -24,12 +29,21 @@ export type TextStyleLabUpdates = Pick<
 >;
 
 export function buildTextStyleLabUpdates({
+	animations,
 	style,
 }: {
+	animations?: JianyingTextAnimationReferences;
 	style: JianyingTextStyleLabStyleSummary;
 }): TextStyleLabUpdates | null {
 	if (style.runtimeReference) {
 		const fallback = style.approximation;
+		const { animations: existingAnimations, ...runtimeReference } =
+			style.runtimeReference;
+		const selectedAnimations = animations ?? existingAnimations;
+		const jianyingTextStyle =
+			selectedAnimations && Object.keys(selectedAnimations).length > 0
+				? { ...runtimeReference, animations: selectedAnimations }
+				: runtimeReference;
 		return {
 			color: fallback?.color ?? "#ffffff",
 			strokeColor: fallback?.strokeColor ?? "#000000",
@@ -47,7 +61,7 @@ export function buildTextStyleLabUpdates({
 			glowBlur: fallback?.glowBlur ?? 0,
 			width: 1024,
 			height: 512,
-			jianyingTextStyle: style.runtimeReference,
+			jianyingTextStyle,
 		};
 	}
 	const approximation = style.approximation;
@@ -72,13 +86,15 @@ export function buildTextStyleLabUpdates({
 }
 
 export function buildTextStyleLabElement({
+	animations,
 	style,
 	content,
 }: {
+	animations?: JianyingTextAnimationReferences;
 	style: JianyingTextStyleLabStyleSummary;
 	content?: string;
 }): TextElement | null {
-	const updates = buildTextStyleLabUpdates({ style });
+	const updates = buildTextStyleLabUpdates({ animations, style });
 	if (!updates) return null;
 	return {
 		id: `jianying-text-style-lab:${style.styleId}`,
@@ -113,4 +129,32 @@ export function buildTextStyleLabElement({
 		trimEnd: 0,
 		...updates,
 	};
+}
+
+export function updateTextStyleLabAnimationSelection({
+	animation,
+	animations,
+	slot,
+}: {
+	animation?: JianyingTextAnimationLabSummary;
+	animations: JianyingTextAnimationReferences;
+	slot: JianyingTextAnimationSlot;
+}): JianyingTextAnimationReferences {
+	const retained: JianyingTextAnimationReferences = {
+		...(slot !== "entrance" && animations.entrance
+			? { entrance: animations.entrance }
+			: {}),
+		...(slot !== "exit" && animations.exit ? { exit: animations.exit } : {}),
+		...(slot !== "loop" && animations.loop ? { loop: animations.loop } : {}),
+	};
+	if (!animation) return retained;
+	const reference = {
+		source: "jianying-cache" as const,
+		resourceId: animation.resourceId,
+		packageHash: animation.packageHash,
+		duration: animation.duration,
+	};
+	if (slot === "entrance") return { ...retained, entrance: reference };
+	if (slot === "exit") return { ...retained, exit: reference };
+	return { ...retained, loop: reference };
 }

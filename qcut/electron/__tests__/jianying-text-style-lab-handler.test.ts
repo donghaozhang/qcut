@@ -2,8 +2,10 @@
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+	JIANYING_TEXT_ANIMATION_LAB_LIST_CHANNEL,
 	JIANYING_TEXT_STYLE_LAB_COVER_CHANNEL,
 	JIANYING_TEXT_STYLE_LAB_LIST_CHANNEL,
+	type JianyingTextAnimationLabListResult,
 	type JianyingTextStyleLabCoverResult,
 	type JianyingTextStyleLabListResult,
 } from "../jianying-text-style-lab-contract.js";
@@ -93,6 +95,35 @@ function createCatalog(): JianyingTextStyleCatalog {
 	return {
 		entries: [createEntry()],
 		packageCount: 224,
+		invalidPackageCount: 0,
+	};
+}
+
+function createAnimationCatalog(): JianyingTextAnimationLabListResult {
+	return {
+		count: 1,
+		animations: [
+			{
+				animationId: `loop:7168819879183651359/${"d".repeat(32)}`,
+				resourceId: "7168819879183651359",
+				packageHash: "d".repeat(32),
+				title: "翻页 I",
+				slot: "loop",
+				duration: 1.2,
+				capabilities: {
+					staticTexture: false,
+					multipleStrokes: false,
+					animationComponents: true,
+					scriptInfoSticker: false,
+					shaderComponents: true,
+					threeDimensional: true,
+					feedbackComponents: false,
+				},
+			},
+		],
+		catalogCount: 3,
+		packageCount: 1,
+		missingPackageCount: 2,
 		invalidPackageCount: 0,
 	};
 }
@@ -315,6 +346,32 @@ describe("Jianying text style lab IPC", () => {
 		await list(context.event);
 		await list(context.event, { refresh: true });
 		expect(buildCatalog).toHaveBeenCalledTimes(2);
+	});
+
+	it("lists sanitized animation references and refreshes them independently", async () => {
+		const context = createWindowContext();
+		const buildAnimationCatalog = vi.fn(async () => createAnimationCatalog());
+		setupJianyingTextStyleLabIPC({
+			getMainWindow: () => context.mainWindow,
+			buildCatalog: async () => createCatalog(),
+			buildAnimationCatalog,
+			resolveMetadata: async () => new Map(),
+		});
+		const listAnimations = getHandler({
+			channel: JIANYING_TEXT_ANIMATION_LAB_LIST_CHANNEL,
+		});
+
+		const first = (await listAnimations(
+			context.event
+		)) as JianyingTextAnimationLabListResult;
+		expect(first).toEqual(createAnimationCatalog());
+		expect(JSON.stringify(first)).not.toContain("/Users/");
+		await listAnimations(context.event);
+		await listAnimations(context.event, { refresh: true });
+		expect(buildAnimationCatalog).toHaveBeenCalledTimes(2);
+		await expect(listAnimations(context.iframeEvent)).rejects.toThrow(
+			"非主窗口"
+		);
 	});
 
 	it("keeps runtime packages discoverable without catalog metadata", async () => {

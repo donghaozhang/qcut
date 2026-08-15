@@ -1,9 +1,12 @@
 import { open, readFile } from "node:fs/promises";
 import path from "node:path";
-import type { JianyingTextRuntimeRenderStrategy } from "../jianying-text-runtime-contract.js";
+import type {
+	JianyingTextRuntimeContentBounds,
+	JianyingTextRuntimeRenderStrategy,
+} from "../jianying-text-runtime-contract.js";
 import { mapWithConcurrency } from "../lib/map-with-concurrency.js";
 
-export const JIANYING_TEXT_RENDER_CACHE_SCHEMA_VERSION = 16;
+export const JIANYING_TEXT_RENDER_CACHE_SCHEMA_VERSION = 17;
 const FRAME_VALIDATION_CONCURRENCY = 32;
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 
@@ -14,6 +17,7 @@ export interface JianyingTextCachedRenderManifest {
 	fps: number;
 	strategy: JianyingTextRuntimeRenderStrategy;
 	templateDuration: number;
+	contentBounds: JianyingTextRuntimeContentBounds | null;
 }
 
 interface ExpectedCachedRender {
@@ -22,6 +26,8 @@ interface ExpectedCachedRender {
 	templateDuration: number;
 	width: number;
 	height: number;
+	sourceWidth: number;
+	sourceHeight: number;
 }
 
 function asRecord({
@@ -45,6 +51,41 @@ function renderStrategy({
 		: null;
 }
 
+function contentBounds({
+	value,
+	width,
+	height,
+}: {
+	value: unknown;
+	width: number;
+	height: number;
+}): JianyingTextRuntimeContentBounds | null | undefined {
+	if (value === null) return null;
+	const bounds = asRecord({ value });
+	if (!bounds) return undefined;
+	const { x, y, width: boundsWidth, height: boundsHeight } = bounds;
+	if (
+		!Number.isInteger(x) ||
+		!Number.isInteger(y) ||
+		!Number.isInteger(boundsWidth) ||
+		!Number.isInteger(boundsHeight) ||
+		(x as number) < 0 ||
+		(y as number) < 0 ||
+		(boundsWidth as number) < 1 ||
+		(boundsHeight as number) < 1 ||
+		(x as number) + (boundsWidth as number) > width ||
+		(y as number) + (boundsHeight as number) > height
+	) {
+		return undefined;
+	}
+	return {
+		x: x as number,
+		y: y as number,
+		width: boundsWidth as number,
+		height: boundsHeight as number,
+	};
+}
+
 function parseManifest({
 	value,
 	cacheKey,
@@ -56,6 +97,11 @@ function parseManifest({
 }): JianyingTextCachedRenderManifest | null {
 	const manifest = asRecord({ value });
 	const strategy = renderStrategy({ value: manifest?.strategy });
+	const parsedContentBounds = contentBounds({
+		value: manifest?.contentBounds,
+		width: expected.sourceWidth,
+		height: expected.sourceHeight,
+	});
 	if (
 		!manifest ||
 		manifest.schemaVersion !== JIANYING_TEXT_RENDER_CACHE_SCHEMA_VERSION ||
@@ -63,6 +109,7 @@ function parseManifest({
 		manifest.frameCount !== expected.frameCount ||
 		manifest.fps !== expected.fps ||
 		manifest.templateDuration !== expected.templateDuration ||
+		parsedContentBounds === undefined ||
 		!strategy
 	) {
 		return null;
@@ -74,6 +121,7 @@ function parseManifest({
 		fps: expected.fps,
 		strategy,
 		templateDuration: expected.templateDuration,
+		contentBounds: parsedContentBounds,
 	};
 }
 

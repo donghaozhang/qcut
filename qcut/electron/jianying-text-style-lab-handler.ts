@@ -1,14 +1,18 @@
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
 import { ipcMain } from "electron";
 import {
+	JIANYING_TEXT_ANIMATION_LAB_LIST_CHANNEL,
 	JIANYING_TEXT_STYLE_LAB_COVER_CHANNEL,
 	JIANYING_TEXT_STYLE_LAB_LIST_CHANNEL,
+	type JianyingTextAnimationLabListRequest,
+	type JianyingTextAnimationLabListResult,
 	type JianyingTextStyleLabCoverRequest,
 	type JianyingTextStyleLabCoverResult,
 	type JianyingTextStyleLabListRequest,
 	type JianyingTextStyleLabListResult,
 	type JianyingTextStyleLabStyleSummary,
 } from "./jianying-text-style-lab-contract.js";
+import { buildJianyingTextAnimationCatalog } from "./jianying-text-animation-lab-catalog.js";
 import {
 	JIANYING_FLOWER_CATEGORIES,
 	resolveJianyingFlowerResourceMetadata,
@@ -40,6 +44,7 @@ export interface JianyingTextStyleLabIPCController {
 export interface SetupJianyingTextStyleLabIPCOptions {
 	getMainWindow: () => BrowserWindow | null;
 	buildCatalog?: () => Promise<JianyingTextStyleCatalog>;
+	buildAnimationCatalog?: () => Promise<JianyingTextAnimationLabListResult>;
 	resolveMetadata?: ({
 		references,
 	}: {
@@ -192,6 +197,7 @@ function summarizeCategories({
 export function setupJianyingTextStyleLabIPC({
 	getMainWindow,
 	buildCatalog = () => buildJianyingTextStyleCatalog(),
+	buildAnimationCatalog = () => buildJianyingTextAnimationCatalog(),
 	resolveMetadata = ({ references }) =>
 		resolveJianyingFlowerResourceMetadata({ references }),
 	resolveOwnership = ({ references }) =>
@@ -199,6 +205,8 @@ export function setupJianyingTextStyleLabIPC({
 	readCover = readJianyingTextStyleCover,
 }: SetupJianyingTextStyleLabIPCOptions): JianyingTextStyleLabIPCController {
 	let catalogPromise: Promise<TextStyleLabCatalog> | null = null;
+	let animationCatalogPromise: Promise<JianyingTextAnimationLabListResult> | null =
+		null;
 	const readCatalog = ({ refresh }: { refresh: boolean }) => {
 		if (!catalogPromise || refresh) {
 			catalogPromise = buildCatalog().then(async (catalog) => {
@@ -229,9 +237,16 @@ export function setupJianyingTextStyleLabIPC({
 		}
 		return catalogPromise;
 	};
+	const readAnimationCatalog = ({ refresh }: { refresh: boolean }) => {
+		if (!animationCatalogPromise || refresh) {
+			animationCatalogPromise = buildAnimationCatalog();
+		}
+		return animationCatalogPromise;
+	};
 
 	ipcMain.removeHandler(JIANYING_TEXT_STYLE_LAB_LIST_CHANNEL);
 	ipcMain.removeHandler(JIANYING_TEXT_STYLE_LAB_COVER_CHANNEL);
+	ipcMain.removeHandler(JIANYING_TEXT_ANIMATION_LAB_LIST_CHANNEL);
 	ipcMain.handle(
 		JIANYING_TEXT_STYLE_LAB_LIST_CHANNEL,
 		async (
@@ -271,12 +286,27 @@ export function setupJianyingTextStyleLabIPC({
 			};
 		}
 	);
+	ipcMain.handle(
+		JIANYING_TEXT_ANIMATION_LAB_LIST_CHANNEL,
+		async (
+			event,
+			request: unknown
+		): Promise<JianyingTextAnimationLabListResult> => {
+			assertTrustedMainFrame({ event, mainWindow: getMainWindow() });
+			const { refresh = false } = parseListRequest({
+				request,
+			}) satisfies JianyingTextAnimationLabListRequest;
+			return readAnimationCatalog({ refresh });
+		}
+	);
 
 	return {
 		dispose: () => {
 			catalogPromise = null;
+			animationCatalogPromise = null;
 			ipcMain.removeHandler(JIANYING_TEXT_STYLE_LAB_LIST_CHANNEL);
 			ipcMain.removeHandler(JIANYING_TEXT_STYLE_LAB_COVER_CHANNEL);
+			ipcMain.removeHandler(JIANYING_TEXT_ANIMATION_LAB_LIST_CHANNEL);
 		},
 	};
 }
