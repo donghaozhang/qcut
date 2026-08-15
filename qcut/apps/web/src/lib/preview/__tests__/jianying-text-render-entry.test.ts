@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { TextElement } from "@/types/timeline";
 import {
 	createJianyingTextRenderEntry,
+	resolveJianyingTextPlaybackLayerStyle,
 	resolveJianyingTextRenderContentBounds,
 } from "../jianying-text-render-entry";
 
@@ -111,5 +112,49 @@ describe("Jianying text render entry", () => {
 				},
 			})
 		).toEqual({ offsetX: 0, offsetY: 0, width: 372, height: 232 });
+	});
+
+	it("transforms the ready native layer without requesting another render", () => {
+		const entry = createJianyingTextRenderEntry({
+			element: element(),
+			requestId: "sequence",
+			trackOrder: 0,
+			elementOrder: 0,
+			canvasWidth: 1920,
+			canvasHeight: 1080,
+			fps: 30,
+			mode: "sequence",
+		});
+		if (!entry) throw new Error("Expected Jianying text render entry");
+
+		const style = resolveJianyingTextPlaybackLayerStyle({
+			entry,
+			result: {
+				requestId: entry.requestId,
+				resourceId: "123",
+				packageHash: "a".repeat(32),
+				templateDuration: 2,
+				frameCount: entry.renderRequest.frameCount,
+				strategy: "host-text",
+				cacheHit: false,
+				x: 704,
+				y: 284,
+				width: 512,
+				height: 512,
+				source: { kind: "image", path: "/tmp/frame.png" },
+			},
+			targetTransform: {
+				x: 100,
+				y: -50,
+				width: 768,
+				height: 256,
+				rotation: 30,
+			},
+		});
+
+		expect(Number.parseFloat(style.left)).toBeCloseTo(41.875, 6);
+		expect(Number.parseFloat(style.top)).toBeCloseTo(21.666_667, 6);
+		expect(style.transform).toBe("rotate(30deg) scale(1.5, 0.5)");
+		expect(style.transformOrigin).toBe("center");
 	});
 });
