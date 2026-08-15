@@ -12,6 +12,7 @@ import {
 	createPastedTimelineElement,
 	useTimelineClipboardStore,
 } from "@/stores/timeline/timeline-clipboard-store";
+import { useTimelineEditModeStore } from "@/stores/timeline/timeline-edit-mode-store";
 
 /**
  * Custom hook that sets up editor action handlers for keyboard shortcuts and commands
@@ -29,6 +30,8 @@ export function useEditorActions() {
 		addElementToTrack,
 		snappingEnabled,
 		toggleSnapping,
+		toggleMainTrackMagnet,
+		toggleLinkedRipple,
 		undo,
 		redo,
 	} = useTimelineStore();
@@ -349,6 +352,52 @@ export function useEditorActions() {
 		"toggle-snapping",
 		() => {
 			toggleSnapping();
+		},
+		undefined
+	);
+
+	useActionHandler(
+		"toggle-main-track-magnet",
+		() => {
+			toggleMainTrackMagnet();
+		},
+		undefined
+	);
+
+	useActionHandler(
+		"toggle-linked-ripple",
+		() => {
+			toggleLinkedRipple();
+		},
+		undefined
+	);
+
+	const setEditMode = useTimelineEditModeStore((state) => state.setEditMode);
+	useActionHandler(
+		"edit-mode-select",
+		() => {
+			setEditMode({ mode: "select" });
+		},
+		undefined
+	);
+	useActionHandler(
+		"edit-mode-roll",
+		() => {
+			setEditMode({ mode: "roll" });
+		},
+		undefined
+	);
+	useActionHandler(
+		"edit-mode-slip",
+		() => {
+			setEditMode({ mode: "slip" });
+		},
+		undefined
+	);
+	useActionHandler(
+		"edit-mode-slide",
+		() => {
+			setEditMode({ mode: "slide" });
 		},
 		undefined
 	);

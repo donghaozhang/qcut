@@ -1,7 +1,6 @@
 import { assetManifestVersionKey } from "@qcut/editor-core";
 import { platform } from "@qcut/platform-core";
 import {
-	AudioWaveform,
 	Clock3,
 	Download,
 	FileMusic,
@@ -9,7 +8,6 @@ import {
 	Heart,
 	ListFilter,
 	Mic2,
-	Music2,
 	Search,
 	Sparkles,
 	Upload,
@@ -53,7 +51,10 @@ import { mergeUniqueAudio } from "@/lib/audio/audio-catalog-merge";
 import { useTranslation, type TranslationKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
-import { useMediaPanelStore } from "@/components/editor/media-panel/store";
+import {
+	useMediaPanelStore,
+	type AudioSidebarGroupId,
+} from "@/components/editor/media-panel/store";
 import { projectAudioToSound } from "@/lib/audio/ai-music";
 import {
 	AUDIO_LIBRARY_PERSONAL_CHANGED_EVENT,
@@ -76,6 +77,7 @@ import { AiMusicView } from "./sounds-ai-music";
 import { AudioPreviewPlayer } from "./audio-preview-player";
 import { AudioLibraryItem, type AudioAssetKind } from "./sounds-audio-item";
 import { AudioFoldersSidebar } from "./sounds-folders-sidebar";
+import { SidebarGroupHeader } from "./sounds-sidebar-group";
 import { ProjectAudioRecommendationSummary } from "./sounds-project-recommendations";
 import { SoundEffectsLabPanel } from "./sound-effects-lab";
 
@@ -189,34 +191,39 @@ function SidebarButton({
 
 function CategoryList({
 	title,
-	icon,
 	categories,
 	activeSection,
+	collapsed,
 	onSelect,
+	onToggle,
 }: {
 	title: string;
-	icon: ReactNode;
 	categories: readonly AudioLibraryCategory[];
 	activeSection: AudioLibrarySectionId;
+	collapsed: boolean;
 	onSelect: ({ section }: { section: AudioLibrarySectionId }) => void;
+	onToggle: () => void;
 }) {
 	const { t } = useTranslation();
 	return (
 		<div className="mt-3">
-			<div className="mb-1 flex items-center gap-1.5 px-2 text-[10px] font-medium text-foreground">
-				{icon}
-				<span>{title}</span>
-			</div>
-			<div className="space-y-0.5">
-				{categories.map((category) => (
-					<SidebarButton
-						key={category.id}
-						active={activeSection === category.id}
-						label={t(category.labelKey)}
-						onSelect={() => onSelect({ section: category.id })}
-					/>
-				))}
-			</div>
+			<SidebarGroupHeader
+				title={title}
+				collapsed={collapsed}
+				onToggle={onToggle}
+			/>
+			{collapsed ? null : (
+				<div className="space-y-0.5">
+					{categories.map((category) => (
+						<SidebarButton
+							key={category.id}
+							active={activeSection === category.id}
+							label={t(category.labelKey)}
+							onSelect={() => onSelect({ section: category.id })}
+						/>
+					))}
+				</div>
+			)}
 		</div>
 	);
 }
@@ -232,6 +239,14 @@ export function SoundsView() {
 		(state) => state.setActiveSoundsTab
 	);
 	const setActiveTab = useMediaPanelStore((state) => state.setActiveTab);
+	const collapsedGroups = useMediaPanelStore(
+		(state) => state.collapsedAudioGroups
+	);
+	const setAudioGroupCollapsed = useMediaPanelStore(
+		(state) => state.setAudioGroupCollapsed
+	);
+	const toggleGroup = (group: AudioSidebarGroupId) =>
+		setAudioGroupCollapsed({ group, collapsed: !collapsedGroups[group] });
 	const [query, setQuery] = useState("");
 	const [commercialOnly, setCommercialOnly] = useState(true);
 	const [continuousPlayback, setContinuousPlayback] = useState(false);
@@ -601,28 +616,38 @@ export function SoundsView() {
 							{t("audioLibrary.import")}
 						</Button>
 
-						<div className="mb-1 px-2 text-[9px] font-medium uppercase text-muted-foreground">
-							{t("audioLibrary.my")}
-						</div>
-						<div className="space-y-0.5">
-							{MY_LIBRARY_ITEMS.map((item) => (
-								<SidebarButton
-									key={item.id}
-									active={activeSection === item.id}
-									icon={item.icon}
-									label={t(item.labelKey)}
-									onSelect={() => selectSection({ section: item.id })}
-								/>
-							))}
-						</div>
+						<SidebarGroupHeader
+							title={t("audioLibrary.my")}
+							collapsed={collapsedGroups.my}
+							onToggle={() => toggleGroup("my")}
+						/>
+						{collapsedGroups.my ? null : (
+							<div className="space-y-0.5">
+								{MY_LIBRARY_ITEMS.map((item) => (
+									<SidebarButton
+										key={item.id}
+										active={activeSection === item.id}
+										icon={item.icon}
+										label={t(item.labelKey)}
+										onSelect={() => selectSection({ section: item.id })}
+									/>
+								))}
+							</div>
+						)}
 
 						<AudioFoldersSidebar
 							activeSection={activeSection}
+							collapsed={collapsedGroups.folders}
 							folders={audioFolders}
 							onSelect={selectSection}
+							onToggle={() => toggleGroup("folders")}
 							onCreate={({ name }) => {
 								const folderId = createAudioFolder({ name });
 								if (folderId) {
+									setAudioGroupCollapsed({
+										group: "folders",
+										collapsed: false,
+									});
 									selectSection({ section: `audio-folder:${folderId}` });
 								}
 								return folderId;
@@ -633,32 +658,37 @@ export function SoundsView() {
 
 						<CategoryList
 							title={t("audioLibrary.music")}
-							icon={<Music2 className="size-3" />}
 							categories={MUSIC_CATEGORIES}
 							activeSection={activeSection}
+							collapsed={collapsedGroups.music}
 							onSelect={selectSection}
+							onToggle={() => toggleGroup("music")}
 						/>
 						<CategoryList
 							title={t("audioLibrary.soundEffects")}
-							icon={<AudioWaveform className="size-3" />}
 							categories={SOUND_EFFECT_CATEGORIES}
 							activeSection={activeSection}
+							collapsed={collapsedGroups.sfx}
 							onSelect={selectSection}
+							onToggle={() => toggleGroup("sfx")}
 						/>
 						{soundEffectsLab.isAvailable ? (
 							<div className="mt-3">
-								<div className="mb-1 flex items-center gap-1.5 px-2 text-[10px] font-medium text-foreground">
-									<FlaskConical className="size-3" />
-									<span>{t("audioLibrary.section.soundEffectsLab")}</span>
-								</div>
-								<SidebarButton
-									active={activeSection === "sound-effects-lab"}
-									icon={<FlaskConical className="size-3" />}
-									label={t("audioLibrary.soundEffectsLab.referenceCatalog")}
-									onSelect={() =>
-										selectSection({ section: "sound-effects-lab" })
-									}
+								<SidebarGroupHeader
+									title={t("audioLibrary.section.soundEffectsLab")}
+									collapsed={collapsedGroups.lab}
+									onToggle={() => toggleGroup("lab")}
 								/>
+								{collapsedGroups.lab ? null : (
+									<SidebarButton
+										active={activeSection === "sound-effects-lab"}
+										icon={<FlaskConical className="size-3" />}
+										label={t("audioLibrary.soundEffectsLab.referenceCatalog")}
+										onSelect={() =>
+											selectSection({ section: "sound-effects-lab" })
+										}
+									/>
+								)}
 							</div>
 						) : null}
 					</div>

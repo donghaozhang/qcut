@@ -11,7 +11,7 @@ import { z } from "zod";
 
 const sourceResourceSchema = z
 	.object({
-		batch: z.enum(["01", "02"]),
+		batch: z.enum(["01", "02", "03"]),
 		title: z.string().trim().min(1).max(160),
 		resourceId: z.string().regex(/^\d{16,20}$/),
 		contentMd5: z.string().regex(/^[a-f0-9]{32}$/),

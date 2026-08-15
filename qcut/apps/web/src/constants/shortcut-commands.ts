@@ -130,6 +130,30 @@ export const SHORTCUT_COMMANDS: Record<Action, ShortcutCommandDefinition> = {
 		category: "timeline",
 		labelKey: "shortcuts.action.snapping",
 	},
+	"toggle-main-track-magnet": {
+		category: "timeline",
+		labelKey: "shortcuts.action.mainTrackMagnet",
+	},
+	"toggle-linked-ripple": {
+		category: "timeline",
+		labelKey: "shortcuts.action.linkedRipple",
+	},
+	"edit-mode-select": {
+		category: "timeline",
+		labelKey: "shortcuts.action.editModeSelect",
+	},
+	"edit-mode-roll": {
+		category: "timeline",
+		labelKey: "shortcuts.action.editModeRoll",
+	},
+	"edit-mode-slip": {
+		category: "timeline",
+		labelKey: "shortcuts.action.editModeSlip",
+	},
+	"edit-mode-slide": {
+		category: "timeline",
+		labelKey: "shortcuts.action.editModeSlide",
+	},
 	"select-all": {
 		category: "basic",
 		labelKey: "shortcuts.action.selectAll",

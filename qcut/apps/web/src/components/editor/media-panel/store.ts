@@ -27,6 +27,7 @@ import {
 	LayoutTemplateIcon,
 	SlidersHorizontalIcon,
 	CodeXmlIcon,
+	UserSquareIcon,
 } from "lucide-react";
 import { create } from "zustand";
 import type { AudioLibrarySectionId } from "@/lib/audio/audio-library-catalog";
@@ -56,6 +57,7 @@ export type Tab =
 	| "upscale"
 	| "moyin"
 	| "ai-chat"
+	| "digital-human"
 	| "search";
 
 export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
@@ -160,6 +162,10 @@ export const tabs: { [key in Tab]: { icon: LucideIcon; label: string } } = {
 		icon: SearchIcon,
 		label: "Search",
 	},
+	"digital-human": {
+		icon: UserSquareIcon,
+		label: "数字人",
+	},
 };
 
 // --- Tab Groups ---
@@ -197,6 +203,7 @@ const editSubgroups: Record<EditSubgroup, Subgroup> = {
 			"filters",
 			"adjustments",
 			"templates",
+			"digital-human",
 		],
 	},
 };
@@ -212,10 +219,14 @@ export const STANDARD_EDITOR_TABS = [
 	"filters",
 	"adjustments",
 	"templates",
+	"digital-human",
 ] as const satisfies readonly Tab[];
 
 export type StandardEditorTab = (typeof STANDARD_EDITOR_TABS)[number];
 export type SoundsPanelTab = AudioLibrarySectionId;
+
+/** Collapsible groups in the sounds panel sidebar (Jianying-style). */
+export type AudioSidebarGroupId = "my" | "folders" | "music" | "sfx" | "lab";
 
 export const tabGroups: { [key in TabGroup]: TabGroupDef } = {
 	"ai-create": {
@@ -284,6 +295,15 @@ interface MediaPanelStore {
 
 	activeSoundsTab: SoundsPanelTab;
 	setActiveSoundsTab: (tab: SoundsPanelTab) => void;
+
+	collapsedAudioGroups: Record<AudioSidebarGroupId, boolean>;
+	setAudioGroupCollapsed: ({
+		group,
+		collapsed,
+	}: {
+		group: AudioSidebarGroupId;
+		collapsed: boolean;
+	}) => void;
 }
 
 const defaultLastTabPerGroup: Record<TabGroup, Tab> = {
@@ -334,6 +354,22 @@ export const useMediaPanelStore = create<MediaPanelStore>((set) => ({
 	setAiActiveTab: (tab) => set({ aiActiveTab: tab }),
 	activeSoundsTab: "music-latest",
 	setActiveSoundsTab: (activeSoundsTab) => set({ activeSoundsTab }),
+
+	// Sound effects start collapsed to keep the sidebar short, like Jianying.
+	collapsedAudioGroups: {
+		my: false,
+		folders: false,
+		music: false,
+		sfx: true,
+		lab: false,
+	},
+	setAudioGroupCollapsed: ({ group, collapsed }) =>
+		set((state) => ({
+			collapsedAudioGroups: {
+				...state.collapsedAudioGroups,
+				[group]: collapsed,
+			},
+		})),
 }));
 
 // Expose for iPad CLI debugging (qcut://eval, qcut://panel)

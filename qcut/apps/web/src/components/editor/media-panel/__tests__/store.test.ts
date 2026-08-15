@@ -39,6 +39,7 @@ describe("media-panel store", () => {
 				"filters",
 				"adjustments",
 				"templates",
+				"digital-human",
 			]);
 		});
 

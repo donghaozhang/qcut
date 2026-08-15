@@ -86,7 +86,9 @@ test.describe("Professional audio properties", () => {
 
 		await clips.first().click();
 		await expect(page.getByTestId("audio-properties-panel")).toBeVisible();
-		await page.getByTestId("panel-tab-export").click();
+		// The export view opens only from the header button; the panel tab
+		// appears just while that view is active.
+		await page.getByTestId("export-button").click();
 		await expect(page.getByTestId("panel-tab-export")).toHaveClass(
 			/border-primary/
 		);

@@ -26,20 +26,17 @@ export function PanelTabs({ activeTab, onTabChange }: PanelTabsProps) {
 			>
 				{t("editor.panel.properties")}
 			</button>
-			<div className="flex items-center">
-				<button
-					type="button"
-					data-testid="panel-tab-export"
-					onClick={() => onTabChange(PanelView.EXPORT)}
-					className={cn(
-						"px-3 py-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-2",
-						activeTab === PanelView.EXPORT
-							? "border-primary text-primary"
-							: "border-transparent text-muted-foreground hover:text-foreground"
-					)}
-				>
-					{t("editor.panel.export")}
-					{activeTab === PanelView.EXPORT && (
+			{/* Export opens only from the header's export button; the tab exists
+			    just while that view is active so it can be closed again. */}
+			{activeTab === PanelView.EXPORT && (
+				<div className="flex items-center">
+					<button
+						type="button"
+						data-testid="panel-tab-export"
+						onClick={() => onTabChange(PanelView.EXPORT)}
+						className="flex items-center gap-2 border-b-2 border-primary px-3 py-2 text-sm font-medium text-primary transition-colors"
+					>
+						{t("editor.panel.export")}
 						<X
 							size={14}
 							onClick={(e) => {
@@ -48,9 +45,9 @@ export function PanelTabs({ activeTab, onTabChange }: PanelTabsProps) {
 							}}
 							className="hover:text-red-500 cursor-pointer"
 						/>
-					)}
-				</button>
-			</div>
+					</button>
+				</div>
+			)}
 			<button
 				type="button"
 				data-testid="panel-tab-settings"

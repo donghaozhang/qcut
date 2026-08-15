@@ -9,5 +9,7 @@ export interface ElectronStorageOps {
 		remove: (key: string) => Promise<boolean>;
 		list: () => Promise<string[]>;
 		clear: () => Promise<boolean>;
+		/** Absolute path of the project's on-disk JSON file. */
+		projectFilePath?: (key: string) => Promise<string>;
 	};
 }

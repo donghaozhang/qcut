@@ -181,8 +181,11 @@ export function LocalStickerReferenceItem({
 		<div className="min-w-0">
 			<button
 				type="button"
-				className="relative aspect-square w-full overflow-hidden rounded-lg border border-border/80 bg-foreground/[0.04] transition-colors hover:border-primary hover:bg-foreground/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed"
+				className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg bg-foreground/[0.06] transition-colors hover:bg-foreground/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed"
 				disabled={!activeLoaded || hasError || isAdding}
+				title={`${reference.displayName} · ${playbackDescription({
+					playback: reference.playback,
+				})}`}
 				aria-label={`添加${reference.displayName}到时间线`}
 				aria-describedby={hasError ? loadErrorId : undefined}
 				data-testid="local-sticker-reference-item"
@@ -195,12 +198,12 @@ export function LocalStickerReferenceItem({
 				}}
 			>
 				{!activeLoaded && !hasError && (
-					<Loader2 className="mx-auto size-6 animate-spin text-muted-foreground">
+					<Loader2 className="size-6 animate-spin text-muted-foreground">
 						<title>正在载入实验贴纸</title>
 					</Loader2>
 				)}
 				{hasError && (
-					<AlertCircle className="mx-auto size-6 text-destructive">
+					<AlertCircle className="size-6 text-destructive">
 						<title>实验贴纸无法载入</title>
 					</AlertCircle>
 				)}
@@ -208,7 +211,10 @@ export function LocalStickerReferenceItem({
 					<img
 						src={activeLoaded.previewUrl}
 						alt={reference.displayName}
-						className={cn("size-full object-contain", isAdding && "opacity-50")}
+						className={cn(
+							"size-full object-contain p-1.5",
+							isAdding && "opacity-50"
+						)}
 						draggable={false}
 					/>
 				)}
@@ -240,15 +246,6 @@ export function LocalStickerReferenceItem({
 					</span>
 				)}
 			</button>
-			<p className="mt-1 truncate text-[11px] font-medium">
-				{reference.displayName}
-			</p>
-			<p className="truncate text-[10px] text-muted-foreground">
-				{playbackDescription({ playback: reference.playback })}
-			</p>
-			<p className="truncate font-mono text-[9px] text-muted-foreground/80">
-				{reference.sourceKind}
-			</p>
 			{hasError && (
 				<div className="mt-1 flex items-center justify-between gap-1 text-[9px] text-destructive">
 					<span id={loadErrorId} role="alert">

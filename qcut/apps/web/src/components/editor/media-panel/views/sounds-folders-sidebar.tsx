@@ -1,4 +1,5 @@
 import { Folder, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { SidebarGroupHeader } from "./sounds-sidebar-group";
 import { useEffect, useState } from "react";
 import {
 	AlertDialog,
@@ -203,18 +204,22 @@ function AudioFolderRow({
 
 export function AudioFoldersSidebar({
 	activeSection,
+	collapsed,
 	folders,
 	onCreate,
 	onDelete,
 	onRename,
 	onSelect,
+	onToggle,
 }: {
 	activeSection: AudioLibrarySectionId;
+	collapsed: boolean;
 	folders: readonly AudioLibraryFolder[];
 	onCreate: ({ name }: { name: string }) => string | null;
 	onDelete: ({ folderId }: { folderId: string }) => void;
 	onRename: ({ folderId, name }: { folderId: string; name: string }) => boolean;
 	onSelect: ({ section }: { section: AudioLibrarySectionId }) => void;
+	onToggle: () => void;
 }) {
 	const { t } = useTranslation();
 	const [editor, setEditor] = useState<FolderEditorState | null>(null);
@@ -225,42 +230,49 @@ export function AudioFoldersSidebar({
 	return (
 		<>
 			<div className="mt-3">
-				<div className="mb-1 flex h-6 items-center gap-1.5 px-2 text-[10px] font-medium text-foreground">
-					<Folder className="size-3" />
-					<span>{t("audioLibrary.folders.title")}</span>
-					<Button
-						type="button"
-						variant="text"
-						size="icon"
-						className="ml-auto size-5"
-						aria-label={t("audioLibrary.folders.create")}
-						title={t("audioLibrary.folders.create")}
-						onClick={() => setEditor({ mode: "create", initialName: "" })}
-						onKeyDown={() => undefined}
-					>
-						<Plus className="size-3" />
-					</Button>
-				</div>
-				<div className="space-y-0.5">
-					{folders.map((folder) => (
-						<AudioFolderRow
-							key={folder.id}
-							folder={folder}
-							active={activeSection === `audio-folder:${folder.id}`}
-							onSelect={() =>
-								onSelect({ section: `audio-folder:${folder.id}` })
-							}
-							onRename={() =>
-								setEditor({
-									mode: "rename",
-									folderId: folder.id,
-									initialName: folder.name,
-								})
-							}
-							onDelete={() => setDeleteTarget(folder)}
-						/>
-					))}
-				</div>
+				<SidebarGroupHeader
+					title={t("audioLibrary.folders.title")}
+					collapsed={collapsed}
+					onToggle={onToggle}
+					actions={
+						<Button
+							type="button"
+							variant="text"
+							size="icon"
+							className="ml-auto size-5 shrink-0"
+							aria-label={t("audioLibrary.folders.create")}
+							title={t("audioLibrary.folders.create")}
+							onClick={() => setEditor({ mode: "create", initialName: "" })}
+							onKeyDown={() => undefined}
+						>
+							<Plus className="size-3">
+								<title>{t("audioLibrary.folders.create")}</title>
+							</Plus>
+						</Button>
+					}
+				/>
+				{collapsed ? null : (
+					<div className="space-y-0.5">
+						{folders.map((folder) => (
+							<AudioFolderRow
+								key={folder.id}
+								folder={folder}
+								active={activeSection === `audio-folder:${folder.id}`}
+								onSelect={() =>
+									onSelect({ section: `audio-folder:${folder.id}` })
+								}
+								onRename={() =>
+									setEditor({
+										mode: "rename",
+										folderId: folder.id,
+										initialName: folder.name,
+									})
+								}
+								onDelete={() => setDeleteTarget(folder)}
+							/>
+						))}
+					</div>
+				)}
 			</div>
 
 			<AudioFolderEditor

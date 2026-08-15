@@ -46,7 +46,9 @@ interface FlowerResourceRow {
 }
 
 function metadataKey({ resourceId, version }: JianyingFlowerResourceReference) {
-	return `${resourceId}/${version}`;
+	// Hash casing differs between package directories and database rows;
+	// canonicalize so both sides of the lookup agree.
+	return `${resourceId}/${version.toLowerCase()}`;
 }
 
 function tableExists({
