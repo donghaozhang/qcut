@@ -107,6 +107,7 @@ function ColorSwatches({
 					ref={colorInputRef}
 					type="color"
 					className="sr-only"
+					tabIndex={-1}
 					aria-label={t("digitalHuman.customColor")}
 					value={selected ?? "#ffffff"}
 					onChange={(event) => onSelect({ color: event.currentTarget.value })}
