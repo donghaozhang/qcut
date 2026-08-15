@@ -22,7 +22,11 @@ import { useTranslation } from "@/lib/i18n";
 /** QCut previews and exports through an 8-bit BT.709 SDR pipeline. */
 const PROJECT_COLOR_SPACE = "Rec.709 SDR";
 
-/** One label/value row styled like Jianying's draft-parameter list. */
+/**
+ * One label/value row styled like Jianying's draft-parameter list. The label
+ * is plain text, not a `label` element: these rows describe static metadata
+ * with no form control to associate.
+ */
 function InfoRow({
 	label,
 	children,
@@ -32,9 +36,9 @@ function InfoRow({
 }) {
 	return (
 		<PropertyItem direction="row" className="items-start gap-4">
-			<PropertyItemLabel className="w-20 shrink-0 text-muted-foreground">
+			<span className="w-20 shrink-0 text-xs text-muted-foreground">
 				{label}
-			</PropertyItemLabel>
+			</span>
 			<PropertyItemValue className="min-w-0 text-xs">
 				{children}
 			</PropertyItemValue>
@@ -54,28 +58,38 @@ export function ProjectInfoView() {
 		useProjectStore();
 	const { canvasSize, canvasPresets, setCanvasSize } = useEditorStore();
 	const { getDisplayName, currentPreset } = useAspectRatio();
-	const [projectFilePath, setProjectFilePath] = useState<string | null>(null);
+	const [projectFile, setProjectFile] = useState<{
+		projectId: string;
+		filePath: string;
+	} | null>(null);
 
 	const projectId = activeProject?.id;
 	useEffect(() => {
 		let cancelled = false;
 		const storage = window.electronAPI?.storage;
 		if (!projectId || !storage?.projectFilePath) {
-			setProjectFilePath(null);
+			setProjectFile(null);
 			return;
 		}
 		storage
 			.projectFilePath(projectId)
 			.then((filePath) => {
-				if (!cancelled) setProjectFilePath(filePath);
+				if (!cancelled) setProjectFile({ projectId, filePath });
 			})
 			.catch(() => {
-				if (!cancelled) setProjectFilePath(null);
+				if (!cancelled) setProjectFile(null);
 			});
 		return () => {
 			cancelled = true;
 		};
 	}, [projectId]);
+
+	// Render the path only when it belongs to the current project, so a
+	// project switch never flashes the previous project's location.
+	const projectFilePath =
+		projectFile && projectFile.projectId === projectId
+			? projectFile.filePath
+			: null;
 
 	const currentScene = activeProject?.scenes.find(
 		(scene) => scene.id === activeProject.currentSceneId
@@ -141,7 +155,10 @@ export function ProjectInfoView() {
 			) : null}
 
 			<PropertyItem direction="row" className="gap-4">
-				<PropertyItemLabel className="w-20 shrink-0 text-muted-foreground">
+				<PropertyItemLabel
+					htmlFor="project-info-aspect-ratio"
+					className="w-20 shrink-0 text-muted-foreground"
+				>
 					{t("editor.projectInfo.aspectRatio")}
 				</PropertyItemLabel>
 				<PropertyItemValue className="min-w-0">
@@ -149,7 +166,10 @@ export function ProjectInfoView() {
 						value={currentPreset?.name}
 						onValueChange={handleAspectRatioChange}
 					>
-						<SelectTrigger className="bg-panel-accent">
+						<SelectTrigger
+							id="project-info-aspect-ratio"
+							className="bg-panel-accent"
+						>
 							<SelectValue placeholder={getDisplayName()} />
 						</SelectTrigger>
 						<SelectContent>
@@ -170,7 +190,10 @@ export function ProjectInfoView() {
 			</InfoRow>
 
 			<PropertyItem direction="row" className="gap-4">
-				<PropertyItemLabel className="w-20 shrink-0 text-muted-foreground">
+				<PropertyItemLabel
+					htmlFor="project-info-frame-rate"
+					className="w-20 shrink-0 text-muted-foreground"
+				>
 					{t("editor.projectInfo.frameRate")}
 				</PropertyItemLabel>
 				<PropertyItemValue className="min-w-0">
@@ -178,7 +201,10 @@ export function ProjectInfoView() {
 						value={(activeProject?.fps || 30).toString()}
 						onValueChange={handleFpsChange}
 					>
-						<SelectTrigger className="bg-panel-accent">
+						<SelectTrigger
+							id="project-info-frame-rate"
+							className="bg-panel-accent"
+						>
 							<SelectValue placeholder="Select a frame rate" />
 						</SelectTrigger>
 						<SelectContent>
