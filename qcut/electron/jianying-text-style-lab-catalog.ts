@@ -452,7 +452,11 @@ async function listPackageCandidates({ root }: { root: string }) {
 			candidates.push({
 				packagePath: join(resourcePath, versionDirectory.name),
 				resourceId: resourceDirectory.name,
-				version: versionDirectory.name,
+				// Canonicalize once at ingestion: ownership and metadata keys
+				// use lowercase hashes, and the package resolver already joins
+				// paths with a lowercased hash. The raw directory name above
+				// keeps on-disk access working for uppercase directories.
+				version: versionDirectory.name.toLowerCase(),
 			});
 			if (candidates.length >= MAXIMUM_PACKAGE_COUNT) return candidates;
 		}
