@@ -4,7 +4,10 @@ import { useMemo, useRef, type ChangeEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/lib/i18n";
 import { useMediaStore } from "@/stores/media/media-store";
-import { useDigitalHumanStore } from "@/stores/digital-human-store";
+import {
+	hasDigitalHumanFigure,
+	useDigitalHumanStore,
+} from "@/stores/digital-human-store";
 import { BackgroundPicker } from "./components/background-picker";
 import { DigitalHumanSection } from "./components/digital-human-section";
 import { DigitalHumanSidebar } from "./components/digital-human-sidebar";
@@ -12,6 +15,7 @@ import { DigitalHumanStepHeader } from "./components/digital-human-step-header";
 import { DigitalHumanVoiceStep } from "./components/digital-human-voice-step";
 import { FigureGrid } from "./components/figure-grid";
 import { ShotSizeGrid } from "./components/shot-size-grid";
+import { findDigitalHumanFigurePreset } from "./digital-human-figure-presets";
 import { selectDigitalHumanImages } from "./digital-human-media";
 import { useDigitalHumanImageImport } from "./hooks/use-digital-human-image-import";
 
@@ -31,6 +35,10 @@ export function DigitalHumanView() {
 	const setFigureMediaId = useDigitalHumanStore(
 		(state) => state.setFigureMediaId
 	);
+	const figurePresetId = useDigitalHumanStore((state) => state.figurePresetId);
+	const setFigurePresetId = useDigitalHumanStore(
+		(state) => state.setFigurePresetId
+	);
 	const shotSize = useDigitalHumanStore((state) => state.shotSize);
 	const setShotSize = useDigitalHumanStore((state) => state.setShotSize);
 	const backgroundColor = useDigitalHumanStore(
@@ -49,6 +57,20 @@ export function DigitalHumanView() {
 	const setScript = useDigitalHumanStore((state) => state.setScript);
 	const voiceModel = useDigitalHumanStore((state) => state.voiceModel);
 	const setVoiceModel = useDigitalHumanStore((state) => state.setVoiceModel);
+
+	// Whichever figure source is active, the shot row previews the same picture.
+	const selectedFigureUrl = useMemo(() => {
+		if (figurePresetId) {
+			return (
+				findDigitalHumanFigurePreset({ presetId: figurePresetId })
+					?.previewUrl ?? null
+			);
+		}
+		if (!figureMediaId) return null;
+		return (
+			images.find((image) => image.id === figureMediaId)?.previewUrl ?? null
+		);
+	}, [figureMediaId, figurePresetId, images]);
 
 	const { importImages } = useDigitalHumanImageImport();
 	const fileInputRef = useRef<HTMLInputElement>(null);
@@ -85,7 +107,10 @@ export function DigitalHumanView() {
 
 				<section className="flex min-w-0 flex-1 flex-col overflow-hidden">
 					<DigitalHumanStepHeader
-						canEnterVoiceStep={Boolean(figureMediaId)}
+						canEnterVoiceStep={hasDigitalHumanFigure({
+							figureMediaId,
+							figurePresetId,
+						})}
 						step={step}
 						onStepChange={({ step: nextStep }) => setStep(nextStep)}
 					/>
@@ -100,8 +125,12 @@ export function DigitalHumanView() {
 									<FigureGrid
 										images={images}
 										selectedMediaId={figureMediaId}
+										selectedPresetId={figurePresetId}
 										onImport={() => openImport({ target: "figure" })}
 										onSelect={({ mediaId }) => setFigureMediaId(mediaId)}
+										onSelectPreset={({ presetId }) =>
+											setFigurePresetId(presetId)
+										}
 									/>
 								</DigitalHumanSection>
 
@@ -110,6 +139,7 @@ export function DigitalHumanView() {
 									title={t("digitalHuman.section.shotSize")}
 								>
 									<ShotSizeGrid
+										figureUrl={selectedFigureUrl}
 										selected={shotSize}
 										onSelect={({ shotSize: nextShotSize }) =>
 											setShotSize(nextShotSize)
@@ -137,7 +167,9 @@ export function DigitalHumanView() {
 									<Button
 										type="button"
 										className="w-full"
-										disabled={!figureMediaId}
+										disabled={
+											!hasDigitalHumanFigure({ figureMediaId, figurePresetId })
+										}
 										data-testid="digital-human-next"
 										onClick={() => setStep("voice")}
 									>
