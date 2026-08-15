@@ -4,6 +4,7 @@ import {
 	FlaskConical,
 	Heart,
 	Library,
+	Shapes,
 	Sparkles,
 	type LucideIcon,
 } from "lucide-react";
@@ -21,6 +22,7 @@ export type StickerPanelMode =
 	| "library"
 	| "reference-lab"
 	| "recent"
+	| "shapes"
 	| "store";
 
 export interface StickerLabSidebarCategory {
@@ -353,6 +355,18 @@ export function StickerSidebar({
 					)}
 				</div>
 			)}
+			<div
+				className="border-t border-border/50 pt-2"
+				data-testid="sticker-shapes-entry"
+			>
+				<ModeButton
+					icon={Shapes}
+					id="shapes"
+					label="图形库"
+					mode={mode}
+					onSelectMode={onSelectMode}
+				/>
+			</div>
 		</aside>
 	);
 }

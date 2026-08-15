@@ -236,6 +236,33 @@ describe("StickersView", () => {
 		).toHaveAttribute("aria-pressed", "true");
 	});
 
+	it("opens the shape library from the sidebar entry below the lab", () => {
+		render(<StickersView />);
+
+		const sidebar = screen.getByTestId("sticker-sidebar");
+		const labEntry = screen.getByTestId("sticker-reference-lab-entry");
+		const shapesEntry = screen.getByTestId("sticker-shapes-entry");
+		// 图形库 sits below the sticker lab section, Jianying-style.
+		expect(
+			labEntry.compareDocumentPosition(shapesEntry) &
+				Node.DOCUMENT_POSITION_FOLLOWING
+		).toBeTruthy();
+
+		fireEvent.click(within(sidebar).getByRole("button", { name: "图形库" }));
+		expect(screen.getByTestId("sticker-shape-library")).toBeInTheDocument();
+		expect(
+			screen.getAllByTestId("sticker-shape-item").length
+		).toBeGreaterThanOrEqual(7);
+	});
+
+	it("keeps the shape library available without a sticker lab catalog", () => {
+		localCatalogMock.current.isAvailable = false;
+		render(<StickersView />);
+
+		fireEvent.click(screen.getByRole("button", { name: "图形库" }));
+		expect(screen.getByTestId("sticker-shape-library")).toBeInTheDocument();
+	});
+
 	it("hides the bottom lab entry when no local catalog is configured", () => {
 		localCatalogMock.current.isAvailable = false;
 		render(<StickersView />);

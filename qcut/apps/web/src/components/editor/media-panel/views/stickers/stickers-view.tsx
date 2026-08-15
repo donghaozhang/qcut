@@ -20,6 +20,7 @@ import {
 } from "./components/local-sticker-reference-panel";
 import { buildPrivateStickerCategoryViews } from "./components/private-sticker-category-views";
 import { StickerCatalogGrid } from "./components/sticker-catalog-grid";
+import { StickerShapeLibrary } from "./components/sticker-shape-library";
 import {
 	StickerSidebar,
 	type StickerPanelMode,
@@ -259,6 +260,8 @@ export function StickersView() {
 						</div>
 					) : mode === "ai" ? (
 						<AIStickerGenerator onAddGeneratedSticker={handleStickerUpload} />
+					) : mode === "shapes" ? (
+						<StickerShapeLibrary onSelect={handleLocalReferenceSelect} />
 					) : mode === "reference-lab" ? (
 						<LocalStickerReferencePanel
 							catalog={localStickerCatalog.catalog}
