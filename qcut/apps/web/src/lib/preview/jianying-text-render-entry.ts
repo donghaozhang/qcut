@@ -21,7 +21,7 @@ export interface JianyingTextRenderEntry {
 	renderRequest: JianyingTextRuntimeRenderRequest;
 }
 
-const JIANYING_TEXT_OVERLAY_BREATHING_PX = 6;
+const JIANYING_TEXT_OVERLAY_BREATHING_PX = 16;
 
 export type JianyingTextPreviewTransform = Pick<
 	JianyingTextRuntimeTransform,
