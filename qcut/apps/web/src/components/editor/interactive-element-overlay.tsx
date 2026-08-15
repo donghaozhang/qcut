@@ -7,7 +7,10 @@ import {
 	getInteractiveElementOverlayStyle,
 	getInteractiveElementPreviewScale,
 	getTimelineElementTransform,
+	preserveInteractiveElementContentCenter,
 	resizeInteractiveElementFromCenter,
+	resizeInteractiveElementProportionallyFromCenter,
+	scaleElementContentBounds,
 	type ElementResizeHandle,
 	type ElementContentBounds,
 	type ElementTransform,
@@ -23,7 +26,12 @@ interface InteractiveElementOverlayProps {
 	previewDimensions: { width: number; height: number };
 	onSelect: ({ multi }: { multi: boolean }) => void;
 	onTransformUpdate: (elementId: string, transform: ElementTransform) => void;
+	onTransformPreview?: (
+		elementId: string,
+		transform: ElementTransform | null
+	) => void;
 	contentBounds?: ElementContentBounds;
+	contentBoundsTransform?: ElementTransform;
 }
 
 interface DragState {
@@ -32,11 +40,19 @@ interface DragState {
 	dragType: "move" | "resize" | "rotate" | null;
 	startX: number;
 	startY: number;
+	pivotX: number;
+	pivotY: number;
 	startTransform: ElementTransform;
 	resizeHandle?: ElementResizeHandle;
 }
 
 const DRAG_ACTIVATION_PX = 2;
+
+function isCornerResizeHandle(
+	handle: ElementResizeHandle
+): handle is Extract<ElementResizeHandle, "nw" | "ne" | "sw" | "se"> {
+	return handle.length === 2;
+}
 
 export function InteractiveElementOverlay({
 	element,
@@ -45,7 +61,9 @@ export function InteractiveElementOverlay({
 	previewDimensions,
 	onSelect,
 	onTransformUpdate,
+	onTransformPreview,
 	contentBounds: nativeContentBounds,
+	contentBoundsTransform,
 }: InteractiveElementOverlayProps) {
 	const elementRef = useRef<HTMLDivElement>(null);
 	const { getElementEffects } = useEffectsStore();
@@ -53,6 +71,9 @@ export function InteractiveElementOverlay({
 	const [transform, setTransform] = useState<ElementTransform>(() =>
 		getTimelineElementTransform({ element })
 	);
+	const latestTransformRef = useRef(transform);
+	const isNativeFlowerText =
+		element.type === "text" && Boolean(element.jianyingTextStyle);
 
 	const [dragState, setDragState] = useState<DragState>({
 		isDragging: false,
@@ -60,6 +81,8 @@ export function InteractiveElementOverlay({
 		dragType: null,
 		startX: 0,
 		startY: 0,
+		pivotX: 0,
+		pivotY: 0,
 		startTransform: transform,
 	});
 
@@ -67,11 +90,30 @@ export function InteractiveElementOverlay({
 		canvasSize,
 		previewDimensions,
 	});
+	const resolveNativeContentBoundsForTransform = useCallback(
+		({ targetTransform }: { targetTransform: ElementTransform }) => {
+			if (!nativeContentBounds) return undefined;
+			if (!contentBoundsTransform) return nativeContentBounds;
+			return scaleElementContentBounds({
+				bounds: nativeContentBounds,
+				sourceTransform: contentBoundsTransform,
+				targetTransform,
+			});
+		},
+		[contentBoundsTransform, nativeContentBounds]
+	);
 
 	useEffect(() => {
 		if (dragState.isDragging) return;
-		setTransform(getTimelineElementTransform({ element }));
+		const nextTransform = getTimelineElementTransform({ element });
+		latestTransformRef.current = nextTransform;
+		setTransform(nextTransform);
 	}, [dragState.isDragging, element]);
+
+	useEffect(
+		() => () => onTransformPreview?.(element.id, null),
+		[element.id, onTransformPreview]
+	);
 
 	// Handle mouse down for drag start
 	const handleMouseDown = useCallback(
@@ -82,6 +124,10 @@ export function InteractiveElementOverlay({
 		) => {
 			e.preventDefault();
 			e.stopPropagation();
+			const bounds =
+				type === "rotate"
+					? elementRef.current?.getBoundingClientRect()
+					: undefined;
 
 			setDragState({
 				isDragging: true,
@@ -89,6 +135,8 @@ export function InteractiveElementOverlay({
 				dragType: type,
 				startX: e.clientX,
 				startY: e.clientY,
+				pivotX: bounds ? bounds.left + bounds.width / 2 : e.clientX,
+				pivotY: bounds ? bounds.top + bounds.height / 2 : e.clientY,
 				startTransform: { ...transform },
 				resizeHandle: handle,
 			});
@@ -126,39 +174,68 @@ export function InteractiveElementOverlay({
 
 				case "resize":
 					if (dragState.resizeHandle) {
-						newTransform = resizeInteractiveElementFromCenter({
-							delta: { x: deltaX, y: deltaY },
-							handle: dragState.resizeHandle,
-							transform: dragState.startTransform,
-						});
+						newTransform =
+							isNativeFlowerText && isCornerResizeHandle(dragState.resizeHandle)
+								? resizeInteractiveElementProportionallyFromCenter({
+										contentBounds: resolveNativeContentBoundsForTransform({
+											targetTransform: dragState.startTransform,
+										}),
+										delta: { x: deltaX, y: deltaY },
+										handle: dragState.resizeHandle,
+										transform: dragState.startTransform,
+									})
+								: resizeInteractiveElementFromCenter({
+										delta: { x: deltaX, y: deltaY },
+										handle: dragState.resizeHandle,
+										transform: dragState.startTransform,
+									});
 					}
 					break;
 
 				case "rotate": {
-					const bounds = elementRef.current?.getBoundingClientRect();
-					if (!bounds) return;
-					const centerX = bounds.left + bounds.width / 2;
-					const centerY = bounds.top + bounds.height / 2;
 					const angle =
-						Math.atan2(e.clientY - centerY, e.clientX - centerX) *
+						Math.atan2(
+							e.clientY - dragState.pivotY,
+							e.clientX - dragState.pivotX
+						) *
 						(180 / Math.PI);
-					newTransform.rotation = Math.round(angle + 90);
+					const targetTransform = {
+						...dragState.startTransform,
+						rotation: Math.round(angle - 90),
+					};
+					newTransform = isNativeFlowerText
+						? preserveInteractiveElementContentCenter({
+								contentBounds: resolveNativeContentBoundsForTransform({
+									targetTransform: dragState.startTransform,
+								}),
+								sourceTransform: dragState.startTransform,
+								targetTransform,
+							})
+						: targetTransform;
 					break;
 				}
 			}
 
+			latestTransformRef.current = newTransform;
 			setTransform(newTransform);
-			onTransformUpdate(element.id, newTransform);
+			onTransformPreview?.(element.id, newTransform);
 		},
-		[dragState, previewScale, element.id, onTransformUpdate]
+		[
+			dragState,
+			previewScale,
+			element.id,
+			isNativeFlowerText,
+			onTransformPreview,
+			resolveNativeContentBoundsForTransform,
+		]
 	);
 
 	// Handle mouse up for drag end
 	const handleMouseUp = useCallback(() => {
 		if (dragState.isDragging && dragState.hasMoved) {
-			// Save the transform via the callback
-			onTransformUpdate(element.id, transform);
+			onTransformUpdate(element.id, latestTransformRef.current);
 		}
+		onTransformPreview?.(element.id, null);
 
 		setDragState({
 			isDragging: false,
@@ -166,13 +243,15 @@ export function InteractiveElementOverlay({
 			dragType: null,
 			startX: 0,
 			startY: 0,
-			startTransform: transform,
+			pivotX: 0,
+			pivotY: 0,
+			startTransform: latestTransformRef.current,
 		});
 	}, [
 		dragState.isDragging,
 		dragState.hasMoved,
-		transform,
 		element.id,
+		onTransformPreview,
 		onTransformUpdate,
 	]);
 
@@ -202,15 +281,32 @@ export function InteractiveElementOverlay({
 			if (delta.x === 0 && delta.y === 0) return;
 
 			event.preventDefault();
-			const nextTransform = resizeInteractiveElementFromCenter({
-				delta,
-				handle,
-				transform,
-			});
+			const nextTransform =
+				isNativeFlowerText && isCornerResizeHandle(handle)
+					? resizeInteractiveElementProportionallyFromCenter({
+							contentBounds: resolveNativeContentBoundsForTransform({
+								targetTransform: transform,
+							}),
+							delta,
+							handle,
+							transform,
+						})
+					: resizeInteractiveElementFromCenter({
+							delta,
+							handle,
+							transform,
+						});
+			latestTransformRef.current = nextTransform;
 			setTransform(nextTransform);
 			onTransformUpdate(element.id, nextTransform);
 		},
-		[element.id, onTransformUpdate, transform]
+		[
+			element.id,
+			isNativeFlowerText,
+			onTransformUpdate,
+			resolveNativeContentBoundsForTransform,
+			transform,
+		]
 	);
 
 	const handleMoveSurfaceMouseDown = useCallback(
@@ -254,6 +350,7 @@ export function InteractiveElementOverlay({
 				x: transform.x + delta.x,
 				y: transform.y + delta.y,
 			};
+			latestTransformRef.current = nextTransform;
 			setTransform(nextTransform);
 			onTransformUpdate(element.id, nextTransform);
 		},
@@ -284,7 +381,16 @@ export function InteractiveElementOverlay({
 				: undefined,
 		[element, canvasSize.width, canvasSize.height]
 	);
-	const contentBounds = nativeContentBounds ?? measuredContentBounds;
+	const contentBounds = useMemo(() => {
+		return (
+			resolveNativeContentBoundsForTransform({ targetTransform: transform }) ??
+			measuredContentBounds
+		);
+	}, [
+		measuredContentBounds,
+		resolveNativeContentBoundsForTransform,
+		transform,
+	]);
 
 	const hasEffects = getElementEffects(element.id).length > 0;
 	const hasDirectCanvasInteraction =
@@ -340,7 +446,7 @@ export function InteractiveElementOverlay({
 				<>
 					{/* Resize handles - corners and edges */}
 					<div
-						className="absolute -top-1 -left-1 w-3 h-3 bg-primary rounded-full cursor-nw-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						className="pointer-events-auto absolute -top-1 -left-1 w-3 h-3 bg-primary rounded-full cursor-nw-resize focus:outline-none focus:ring-2 focus:ring-primary"
 						onMouseDown={(e) => handleMouseDown(e, "resize", "nw")}
 						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "nw" })}
 						tabIndex={0}
@@ -348,7 +454,7 @@ export function InteractiveElementOverlay({
 						aria-label="Resize from top-left corner"
 					/>
 					<div
-						className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full cursor-ne-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						className="pointer-events-auto absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full cursor-ne-resize focus:outline-none focus:ring-2 focus:ring-primary"
 						onMouseDown={(e) => handleMouseDown(e, "resize", "ne")}
 						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "ne" })}
 						tabIndex={0}
@@ -356,7 +462,7 @@ export function InteractiveElementOverlay({
 						aria-label="Resize from top-right corner"
 					/>
 					<div
-						className="absolute -bottom-1 -left-1 w-3 h-3 bg-primary rounded-full cursor-sw-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						className="pointer-events-auto absolute -bottom-1 -left-1 w-3 h-3 bg-primary rounded-full cursor-sw-resize focus:outline-none focus:ring-2 focus:ring-primary"
 						onMouseDown={(e) => handleMouseDown(e, "resize", "sw")}
 						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "sw" })}
 						tabIndex={0}
@@ -364,7 +470,7 @@ export function InteractiveElementOverlay({
 						aria-label="Resize from bottom-left corner"
 					/>
 					<div
-						className="absolute -bottom-1 -right-1 w-3 h-3 bg-primary rounded-full cursor-se-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						className="pointer-events-auto absolute -bottom-1 -right-1 w-3 h-3 bg-primary rounded-full cursor-se-resize focus:outline-none focus:ring-2 focus:ring-primary"
 						onMouseDown={(e) => handleMouseDown(e, "resize", "se")}
 						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "se" })}
 						tabIndex={0}
@@ -374,7 +480,7 @@ export function InteractiveElementOverlay({
 
 					{/* Edge resize handles */}
 					<div
-						className="absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-primary rounded-full cursor-n-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						className="pointer-events-auto absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-primary rounded-full cursor-n-resize focus:outline-none focus:ring-2 focus:ring-primary"
 						onMouseDown={(e) => handleMouseDown(e, "resize", "n")}
 						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "n" })}
 						tabIndex={0}
@@ -382,7 +488,7 @@ export function InteractiveElementOverlay({
 						aria-label="Resize from top edge"
 					/>
 					<div
-						className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-primary rounded-full cursor-s-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						className="pointer-events-auto absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-primary rounded-full cursor-s-resize focus:outline-none focus:ring-2 focus:ring-primary"
 						onMouseDown={(e) => handleMouseDown(e, "resize", "s")}
 						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "s" })}
 						tabIndex={0}
@@ -390,7 +496,7 @@ export function InteractiveElementOverlay({
 						aria-label="Resize from bottom edge"
 					/>
 					<div
-						className="absolute top-1/2 -left-1 -translate-y-1/2 w-3 h-3 bg-primary rounded-full cursor-w-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						className="pointer-events-auto absolute top-1/2 -left-1 -translate-y-1/2 w-3 h-3 bg-primary rounded-full cursor-w-resize focus:outline-none focus:ring-2 focus:ring-primary"
 						onMouseDown={(e) => handleMouseDown(e, "resize", "w")}
 						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "w" })}
 						tabIndex={0}
@@ -398,7 +504,7 @@ export function InteractiveElementOverlay({
 						aria-label="Resize from left edge"
 					/>
 					<div
-						className="absolute top-1/2 -right-1 -translate-y-1/2 w-3 h-3 bg-primary rounded-full cursor-e-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						className="pointer-events-auto absolute top-1/2 -right-1 -translate-y-1/2 w-3 h-3 bg-primary rounded-full cursor-e-resize focus:outline-none focus:ring-2 focus:ring-primary"
 						onMouseDown={(e) => handleMouseDown(e, "resize", "e")}
 						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "e" })}
 						tabIndex={0}
@@ -406,9 +512,9 @@ export function InteractiveElementOverlay({
 						aria-label="Resize from right edge"
 					/>
 
-					{/* Rotation handle - top center */}
+					{/* Rotation handle - bottom center */}
 					<div
-						className="absolute -top-8 left-1/2 -translate-x-1/2 w-6 h-6 bg-primary/80 rounded-full flex items-center justify-center cursor-pointer hover:bg-primary focus:outline-none focus:ring-2 focus:ring-primary"
+						className="pointer-events-auto absolute -bottom-8 left-1/2 -translate-x-1/2 w-6 h-6 bg-primary/80 rounded-full flex items-center justify-center cursor-pointer hover:bg-primary focus:outline-none focus:ring-2 focus:ring-primary"
 						onMouseDown={(e) => handleMouseDown(e, "rotate")}
 						onKeyDown={(e) => {
 							if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
@@ -417,7 +523,17 @@ export function InteractiveElementOverlay({
 								const direction = e.key === "ArrowLeft" ? -1 : 1;
 								const newRotation =
 									(transform.rotation || 0) + direction * rotationStep;
-								const nextTransform = { ...transform, rotation: newRotation };
+								const targetTransform = { ...transform, rotation: newRotation };
+								const nextTransform = isNativeFlowerText
+									? preserveInteractiveElementContentCenter({
+											contentBounds: resolveNativeContentBoundsForTransform({
+												targetTransform: transform,
+											}),
+											sourceTransform: transform,
+											targetTransform,
+										})
+									: targetTransform;
+								latestTransformRef.current = nextTransform;
 								setTransform(nextTransform);
 								onTransformUpdate(element.id, nextTransform);
 							}
@@ -438,7 +554,7 @@ export function InteractiveElementOverlay({
 
 			{/* Info display */}
 			{dragState.isDragging && (
-				<div className="absolute -bottom-8 left-0 bg-background/90 text-xs px-2 py-1 rounded">
+				<div className="absolute -top-8 left-0 bg-background/90 text-xs px-2 py-1 rounded">
 					{dragState.dragType === "move" &&
 						`X: ${Math.round(transform.x)}, Y: ${Math.round(transform.y)}`}
 					{dragState.dragType === "resize" &&
