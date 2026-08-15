@@ -51,6 +51,8 @@ export type Action =
 	| "copy-attributes-selected" // Copy selected media attributes
 	| "paste-attributes-selected" // Paste media attributes onto selected element
 	| "toggle-snapping" // Toggle snapping
+	| "toggle-main-track-magnet" // Toggle the main-track magnet
+	| "toggle-linked-ripple" // Toggle linked ripple
 	| "trim-start-to-playhead" // Remove the selected clip before the playhead
 	| "trim-end-to-playhead" // Remove the selected clip after the playhead
 	| "zoom-timeline-in" // Increase timeline zoom
