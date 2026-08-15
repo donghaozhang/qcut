@@ -28,3 +28,35 @@ export function resolveInitialWindowSize({
 		height: Math.min(workAreaHeight, preferredHeight),
 	};
 }
+
+export interface WindowBounds {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+}
+
+/**
+ * Fit window bounds into a display's work area: shrink to fit, then shift
+ * the window so it lies fully inside. Never grows the window, so a window
+ * that already fits keeps its size and only gets pulled back on-screen.
+ */
+export function clampBoundsToWorkArea({
+	bounds,
+	workArea,
+}: {
+	bounds: WindowBounds;
+	workArea: WindowBounds;
+}): WindowBounds {
+	const width = Math.min(bounds.width, workArea.width);
+	const height = Math.min(bounds.height, workArea.height);
+	const x = Math.min(
+		Math.max(bounds.x, workArea.x),
+		workArea.x + workArea.width - width
+	);
+	const y = Math.min(
+		Math.max(bounds.y, workArea.y),
+		workArea.y + workArea.height - height
+	);
+	return { x, y, width, height };
+}
