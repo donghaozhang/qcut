@@ -112,7 +112,10 @@ export function TimelineEditModeControl() {
 						<ChevronDown className="h-3 w-3" />
 					</Button>
 				</DropdownMenuTrigger>
-				<DropdownMenuContent align="start">
+				{/* The timeline stacks above the default z-50 popover layer, so
+				    raise the menu like gap-menu does or its lower half is
+				    hidden behind the track rows. */}
+				<DropdownMenuContent align="start" className="z-[250]">
 					{EDIT_MODES.map(({ icon: Icon, labelKey, mode, action }) => {
 						const shortcut = shortcutFor(action);
 						return (
