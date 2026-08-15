@@ -4,6 +4,49 @@
 现状基线: 382 个音效 / 20 个分类（catalog `jianying-sfx-reference-2026-08-01`）
 定位: 剪映参照目录，仅限内部对标（internal-reference, redistribution prohibited）
 
+## 0. 执行记录（2026-08-15 当晚完成，档位 A+B ✅）
+
+**结果：382 → 914 个音效（+532），20 分类，200 MB，已上线并在客户端验证。**
+catalog `jianying-sfx-reference-2026-08-15`；尴尬 16、震惊 29、知识科普 31、
+BGM 36、打斗 46 已达剪映确认全量；热门 114、最新 101（UI 计数按跨类标签）。
+
+- Phase A：computer-use 驱动剪映逐类点击+滚动，20 类全部刷新签名
+  （新鲜池 918，唯一新增 536）。
+- Phase B：`collect-batch-03.ts`（本目录同名文件的落地版在
+  `~/Documents/QCut/Exports/jianying-sfx-batch-03-2026-08-15/`）下载 532、
+  内容重复跳过 4、失败 0。
+- Phase C：合并 map 914 全唯一；`--catalog-date 2026-08-15` 生成双 manifest。
+- Phase D：supabase CLI 上传 914 资产至 `jianying/2026-08-15/assets/`，
+  manifest 双写（canonical 新 key + 覆盖钉死 key，旧版备份
+  `manifest.2026-08-01.bak.json`），回读字节一致。
+- Phase E：重启 QCut，实验室侧栏显示 全部分类 914，分类计数齐全。
+
+**实操踩坑（下次 batch 直接照抄解法）：**
+
+1. `http_cache.timestamp` 是 **UTC**，判断新鲜度别用本地时间。
+2. **bun:sqlite 在本环境（沙箱）里打不开任何数据库**（连 bun spawn 的
+   sqlite3 子进程也一样）。解法：外层 shell 直接
+   `sqlite3 -json -readonly <snapshot.db> < card-query.sql > cards-*.json`
+   预导出，采集脚本只读 JSON。剪映持有的活库先 `.backup` 快照再查。
+3. 剪映客户端对 <1 小时内的分页有内存缓存，重复点击不会重新请求
+   （即不刷新 http_cache 行）——热门/最新如果当天已浏览过，签名时间以
+   首次浏览为准。
+4. 多数分类滚 3 屏只触发第 1 页（50 条）；要拿第 2 页以上需要更长的滚动
+   （C 档全量时注意）。
+5. supabase CLI 必须在 **linked 目录**（`packages/db/`）运行；
+   `storage cp -r <dir> ss:///bucket/prefix` 是把目录内文件平铺到 prefix 下；
+   `cp` **不覆盖**（409 KeyAlreadyExists），覆盖 = 先 `rm`（有交互确认，
+   `echo y |`）再 `cp`；bucket 的 MIME 白名单会拒掉非 audio/json。
+6. batch 枚举有 **两处**要加 "03"：`scripts/build-local-sound-effects-lab-manifest.ts`
+   （commit `21b7d9918`）和客户端
+   `apps/web/src/lib/audio/local-sound-effects-manifest.ts`（commit
+   `6fb792fdc`）。漏掉客户端那处的表现是：manifest 校验失败 → 实验室入口
+   静默消失（fail-closed），无报错弹窗。
+7. `bun run electron` 必须从仓库根跑；cwd 在 packages/db 时 `electron .`
+   只会打印 usage。
+
+剩余工作：C 档（云端全量，15 类翻页到底，估还有 1,000+）。
+
 ## 1. 现状与缺口（2026-08-15 实测）
 
 数据来源：剪映专业版本机缓存
