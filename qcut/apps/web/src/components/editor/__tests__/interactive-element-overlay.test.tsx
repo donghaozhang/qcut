@@ -39,6 +39,24 @@ function createTextElement({
 	};
 }
 
+function createNativeFlowerTextElement(): TextElement {
+	return createTextElement({
+		overrides: {
+			jianyingTextStyle: {
+				schemaVersion: 1,
+				source: "jianying-cache",
+				packageKind: "ScriptInfoSticker",
+				resourceId: "flower-text",
+				packageHash: "hash",
+				editMode: "runtime-with-preload-fallback",
+				slotMapping: "line-to-widget",
+				timeMapping: "stretch",
+				templateDuration: 3,
+			},
+		},
+	});
+}
+
 function renderOverlay({
 	isSelected,
 	element = createTextElement(),
@@ -190,22 +208,35 @@ describe("InteractiveElementOverlay", () => {
 		expect(rotationHandle).toHaveClass("-bottom-8", "pointer-events-auto");
 	});
 
-	it("keeps native flower-text corner resizing centered and proportional", () => {
-		const element = createTextElement({
-			overrides: {
-				jianyingTextStyle: {
-					schemaVersion: 1,
-					source: "jianying-cache",
-					packageKind: "ScriptInfoSticker",
-					resourceId: "flower-text",
-					packageHash: "hash",
-					editMode: "runtime-with-preload-fallback",
-					slotMapping: "line-to-widget",
-					timeMapping: "stretch",
-					templateDuration: 3,
-				},
-			},
+	it("keeps Jianying-style handle markers compact without shrinking hit targets", () => {
+		renderOverlay({
+			isSelected: true,
+			element: createNativeFlowerTextElement(),
 		});
+
+		const resizeHandle = screen.getByRole("button", {
+			name: "Resize from top-left corner",
+		});
+		expect(resizeHandle).toHaveClass("size-3", "pointer-events-auto");
+		expect(resizeHandle.querySelector("span")).toHaveClass(
+			"size-2",
+			"border-neutral-500",
+			"bg-white"
+		);
+
+		const rotationHandle = screen.getByRole("button", {
+			name: "Rotate element. Use arrow keys to rotate",
+		});
+		expect(rotationHandle).toHaveClass("size-6", "bg-transparent");
+		expect(rotationHandle.querySelector("span")).toHaveClass(
+			"size-3",
+			"border-neutral-500",
+			"bg-white"
+		);
+	});
+
+	it("keeps native flower-text corner resizing centered and proportional", () => {
+		const element = createNativeFlowerTextElement();
 		const { onTransformPreview, onTransformUpdate } = renderOverlay({
 			isSelected: true,
 			element,
@@ -228,21 +259,7 @@ describe("InteractiveElementOverlay", () => {
 	});
 
 	it("rotates native flower text around its visible bounds center", () => {
-		const element = createTextElement({
-			overrides: {
-				jianyingTextStyle: {
-					schemaVersion: 1,
-					source: "jianying-cache",
-					packageKind: "ScriptInfoSticker",
-					resourceId: "flower-text",
-					packageHash: "hash",
-					editMode: "runtime-with-preload-fallback",
-					slotMapping: "line-to-widget",
-					timeMapping: "stretch",
-					templateDuration: 3,
-				},
-			},
-		});
+		const element = createNativeFlowerTextElement();
 		const sourceTransform = {
 			x: 10,
 			y: 20,
