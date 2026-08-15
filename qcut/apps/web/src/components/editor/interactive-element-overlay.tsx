@@ -74,6 +74,12 @@ export function InteractiveElementOverlay({
 	const latestTransformRef = useRef(transform);
 	const isNativeFlowerText =
 		element.type === "text" && Boolean(element.jianyingTextStyle);
+	const resizeHandleMarkerClassName = cn(
+		"pointer-events-none rounded-full",
+		isNativeFlowerText
+			? "size-2 border border-neutral-500 bg-white shadow-sm"
+			: "size-3 bg-primary"
+	);
 
 	const [dragState, setDragState] = useState<DragState>({
 		isDragging: false,
@@ -446,75 +452,96 @@ export function InteractiveElementOverlay({
 				<>
 					{/* Resize handles - corners and edges */}
 					<div
-						className="pointer-events-auto absolute -top-1 -left-1 w-3 h-3 bg-primary rounded-full cursor-nw-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						className="pointer-events-auto absolute -top-1 -left-1 flex size-3 cursor-nw-resize items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary"
 						onMouseDown={(e) => handleMouseDown(e, "resize", "nw")}
 						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "nw" })}
 						tabIndex={0}
 						role="button"
 						aria-label="Resize from top-left corner"
-					/>
+					>
+						<span aria-hidden="true" className={resizeHandleMarkerClassName} />
+					</div>
 					<div
-						className="pointer-events-auto absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full cursor-ne-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						className="pointer-events-auto absolute -top-1 -right-1 flex size-3 cursor-ne-resize items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary"
 						onMouseDown={(e) => handleMouseDown(e, "resize", "ne")}
 						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "ne" })}
 						tabIndex={0}
 						role="button"
 						aria-label="Resize from top-right corner"
-					/>
+					>
+						<span aria-hidden="true" className={resizeHandleMarkerClassName} />
+					</div>
 					<div
-						className="pointer-events-auto absolute -bottom-1 -left-1 w-3 h-3 bg-primary rounded-full cursor-sw-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						className="pointer-events-auto absolute -bottom-1 -left-1 flex size-3 cursor-sw-resize items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary"
 						onMouseDown={(e) => handleMouseDown(e, "resize", "sw")}
 						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "sw" })}
 						tabIndex={0}
 						role="button"
 						aria-label="Resize from bottom-left corner"
-					/>
+					>
+						<span aria-hidden="true" className={resizeHandleMarkerClassName} />
+					</div>
 					<div
-						className="pointer-events-auto absolute -bottom-1 -right-1 w-3 h-3 bg-primary rounded-full cursor-se-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						className="pointer-events-auto absolute -bottom-1 -right-1 flex size-3 cursor-se-resize items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary"
 						onMouseDown={(e) => handleMouseDown(e, "resize", "se")}
 						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "se" })}
 						tabIndex={0}
 						role="button"
 						aria-label="Resize from bottom-right corner"
-					/>
+					>
+						<span aria-hidden="true" className={resizeHandleMarkerClassName} />
+					</div>
 
 					{/* Edge resize handles */}
 					<div
-						className="pointer-events-auto absolute -top-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-primary rounded-full cursor-n-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						className="pointer-events-auto absolute -top-1 left-1/2 flex size-3 -translate-x-1/2 cursor-n-resize items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary"
 						onMouseDown={(e) => handleMouseDown(e, "resize", "n")}
 						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "n" })}
 						tabIndex={0}
 						role="button"
 						aria-label="Resize from top edge"
-					/>
+					>
+						<span aria-hidden="true" className={resizeHandleMarkerClassName} />
+					</div>
 					<div
-						className="pointer-events-auto absolute -bottom-1 left-1/2 -translate-x-1/2 w-3 h-3 bg-primary rounded-full cursor-s-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						className="pointer-events-auto absolute -bottom-1 left-1/2 flex size-3 -translate-x-1/2 cursor-s-resize items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary"
 						onMouseDown={(e) => handleMouseDown(e, "resize", "s")}
 						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "s" })}
 						tabIndex={0}
 						role="button"
 						aria-label="Resize from bottom edge"
-					/>
+					>
+						<span aria-hidden="true" className={resizeHandleMarkerClassName} />
+					</div>
 					<div
-						className="pointer-events-auto absolute top-1/2 -left-1 -translate-y-1/2 w-3 h-3 bg-primary rounded-full cursor-w-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						className="pointer-events-auto absolute top-1/2 -left-1 flex size-3 -translate-y-1/2 cursor-w-resize items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary"
 						onMouseDown={(e) => handleMouseDown(e, "resize", "w")}
 						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "w" })}
 						tabIndex={0}
 						role="button"
 						aria-label="Resize from left edge"
-					/>
+					>
+						<span aria-hidden="true" className={resizeHandleMarkerClassName} />
+					</div>
 					<div
-						className="pointer-events-auto absolute top-1/2 -right-1 -translate-y-1/2 w-3 h-3 bg-primary rounded-full cursor-e-resize focus:outline-none focus:ring-2 focus:ring-primary"
+						className="pointer-events-auto absolute top-1/2 -right-1 flex size-3 -translate-y-1/2 cursor-e-resize items-center justify-center focus:outline-none focus:ring-2 focus:ring-primary"
 						onMouseDown={(e) => handleMouseDown(e, "resize", "e")}
 						onKeyDown={(event) => handleResizeKeyDown({ event, handle: "e" })}
 						tabIndex={0}
 						role="button"
 						aria-label="Resize from right edge"
-					/>
+					>
+						<span aria-hidden="true" className={resizeHandleMarkerClassName} />
+					</div>
 
 					{/* Rotation handle - bottom center */}
 					<div
-						className="pointer-events-auto absolute -bottom-8 left-1/2 -translate-x-1/2 w-6 h-6 bg-primary/80 rounded-full flex items-center justify-center cursor-pointer hover:bg-primary focus:outline-none focus:ring-2 focus:ring-primary"
+						className={cn(
+							"pointer-events-auto absolute -bottom-8 left-1/2 flex size-6 -translate-x-1/2 cursor-pointer items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-primary",
+							isNativeFlowerText
+								? "bg-transparent"
+								: "bg-primary/80 hover:bg-primary"
+						)}
 						onMouseDown={(e) => handleMouseDown(e, "rotate")}
 						onKeyDown={(e) => {
 							if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
@@ -542,7 +569,16 @@ export function InteractiveElementOverlay({
 						role="button"
 						aria-label="Rotate element. Use arrow keys to rotate"
 					>
-						<RotateCw className="w-3 h-3 text-primary-foreground" />
+						{isNativeFlowerText ? (
+							<span
+								aria-hidden="true"
+								className="pointer-events-none flex size-3 items-center justify-center rounded-full border border-neutral-500 bg-white shadow-sm"
+							>
+								<RotateCw className="size-1.5 text-neutral-700" />
+							</span>
+						) : (
+							<RotateCw className="size-3 text-primary-foreground" />
+						)}
 					</div>
 				</>
 			) : null}
