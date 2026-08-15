@@ -31,6 +31,10 @@ export const JIANYING_TRANSITION_BRIDGE_SOURCE_FILE_NAMES = [
 	"text-resource-finder.h",
 	"video-transition-probe.mm",
 	"video-transition-probe.h",
+	"effect-probe.mm",
+	"effect-probe.h",
+	"effect-video-probe.mm",
+	"effect-video-probe.h",
 	"probe-utils.h",
 ] as const;
 
