@@ -1,6 +1,6 @@
 ---
 name: jianying-video-effect-reference
-description: Trace how Jianying (剪映专业版) implements 画面特效/人物特效 (the 特效 panel) across its four layers — effects2/face-prop catalog in ressdk_db http_cache, materials.video_effects + dedicated effect tracks in drafts, AmazingFeature packages under Cache/effect, and the single-input seek-mode render contract — and map the QCut landing zone. Use for 剪映特效, 画面特效, 人物特效, 特效对标, effects2 panel, materials.video_effects, effect track render_index, AmazingFeature 包结构, effects_adjust_* params, or planning QCut video-effect parity.
+description: Trace how Jianying (剪映专业版) implements 画面特效/人物特效 (the 特效 panel) across its four layers — effects2/face-prop catalog in ressdk_db http_cache, materials.video_effects + dedicated effect tracks in drafts, AmazingFeature packages under Cache/effect, and the single-input render contract (seek-mode for script/Lua packages; wall-clock Lumi/AE packages have no SeekModeScript) — and map the QCut landing zone. Use for 剪映特效, 画面特效, 人物特效, 特效对标, effects2 panel, materials.video_effects, effect track render_index, AmazingFeature 包结构, effects_adjust_* params, or planning QCut video-effect parity.
 ---
 
 # Jianying Video Effect (画面特效) Reference
