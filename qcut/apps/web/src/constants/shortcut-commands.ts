@@ -130,6 +130,14 @@ export const SHORTCUT_COMMANDS: Record<Action, ShortcutCommandDefinition> = {
 		category: "timeline",
 		labelKey: "shortcuts.action.snapping",
 	},
+	"toggle-main-track-magnet": {
+		category: "timeline",
+		labelKey: "shortcuts.action.mainTrackMagnet",
+	},
+	"toggle-linked-ripple": {
+		category: "timeline",
+		labelKey: "shortcuts.action.linkedRipple",
+	},
 	"select-all": {
 		category: "basic",
 		labelKey: "shortcuts.action.selectAll",
