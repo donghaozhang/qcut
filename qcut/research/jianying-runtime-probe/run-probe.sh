@@ -18,16 +18,16 @@ if [[ ! -f "$RUNTIME_ROOT/Frameworks/libLumiGeneRuntime.dylib" ]]; then
 fi
 
 case "$MODE" in
-  inspect | config | launch | gpu | textures | transition | transition-load | transition-frame | transition-video | filter-sequence | text-frame) ;;
+  inspect | config | launch | gpu | textures | transition | transition-load | transition-frame | transition-video | filter-sequence | text-frame | effect-frame) ;;
   *)
-    printf 'Usage: %s [inspect|config|launch|gpu|textures|transition|transition-load|transition-frame|transition-video|filter-sequence|text-frame]\n' "$0" >&2
+    printf 'Usage: %s [inspect|config|launch|gpu|textures|transition|transition-load|transition-frame|transition-video|filter-sequence|text-frame|effect-frame]\n' "$0" >&2
     exit 2
     ;;
 esac
 
 # Native segment modes require the complete libcccreator dependency closure.
 case "$MODE" in
-  transition* | text-*)
+  transition* | text-* | effect-*)
     if [[ ! -f "$RUNTIME_ROOT/Frameworks/libcccreator.dylib" ]]; then
       printf 'libcccreator is missing from the private runtime: %s\n' "$RUNTIME_ROOT" >&2
       exit 1
@@ -52,6 +52,7 @@ xcrun clang++ \
   "$SCRIPT_DIR/graphics-probe.mm" \
   "$SCRIPT_DIR/filter-probe.mm" \
   "$SCRIPT_DIR/transition-probe.mm" \
+  "$SCRIPT_DIR/effect-probe.mm" \
   "$SCRIPT_DIR/text-probe.mm" \
   "$SCRIPT_DIR/text-resource-finder.mm" \
   "$SCRIPT_DIR/video-transition-probe.mm" \

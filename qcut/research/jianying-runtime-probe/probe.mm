@@ -4,6 +4,7 @@
 #include "graphics-probe.h"
 #include "filter-probe.h"
 #include "probe-utils.h"
+#include "effect-probe.h"
 #include "text-probe.h"
 #include "transition-probe.h"
 #include "video-transition-probe.h"
@@ -494,6 +495,31 @@ void configure(ObjectStorage<kConfigStorageSize>& config,
     return result.renderedFrames == result.requestedFrames ? 0 : 9;
   }
 
+  if (mode == "effect-frame") {
+    const fs::path packagePath = requireEnvironment("JY_EFFECT_PACKAGE");
+    if (!fs::is_directory(packagePath)) {
+      throw std::runtime_error(
+          "JY_EFFECT_PACKAGE must name a package directory");
+    }
+
+    double seconds = 0.0;
+    if (const char* value = std::getenv("JY_EFFECT_SECONDS")) {
+      std::size_t parsedLength = 0;
+      const std::string text(value);
+      seconds = std::stod(text, &parsedLength);
+      if (parsedLength != text.size() || !std::isfinite(seconds) ||
+          seconds < 0.0 || seconds > 60.0) {
+        throw std::runtime_error(
+            "JY_EFFECT_SECONDS must be a number of seconds from 0 to 60");
+      }
+    }
+
+    return jianying_probe::inspectEffectPackage(runtimeRoot, packagePath,
+                                                seconds)
+               ? 0
+               : 10;
+  }
+
   if (mode == "text-frame") {
     const fs::path packagePath = requireEnvironment("JY_TEXT_PACKAGE");
     if (!fs::is_directory(packagePath)) {
@@ -637,7 +663,7 @@ int main(int argc, char* argv[]) {
                 << " <runtime-root> "
                    "<inspect|config|launch|gpu|textures|transition|transition-"
                    "load|transition-frame|transition-video|filter-sequence|"
-                   "text-frame>\n";
+                   "text-frame|effect-frame>\n";
       return 2;
     }
 
