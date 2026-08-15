@@ -4,13 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select";
-import {
 	loadSoundEffectReferenceFile,
 	soundEffectReferenceToSound,
 } from "@/lib/audio/local-sound-effect-reference";
@@ -21,6 +14,7 @@ import type {
 } from "@/lib/audio/local-sound-effects-manifest";
 import { debugError } from "@/lib/debug/debug-config";
 import { useTranslation } from "@/lib/i18n";
+import { cn } from "@/lib/utils";
 import type { SoundEffect } from "@/types/sounds";
 import { AudioLibraryItem } from "./sounds-audio-item";
 
@@ -166,6 +160,45 @@ function SoundEffectReferenceItem({
 	);
 }
 
+/** One category row in the Jianying-style rail on the left of the lab. */
+function LabCategoryButton({
+	active,
+	count,
+	label,
+	onSelect,
+}: {
+	active: boolean;
+	count: number;
+	label: string;
+	onSelect: () => void;
+}) {
+	return (
+		<button
+			type="button"
+			className={cn(
+				"flex h-7 w-full items-center gap-1 rounded px-2 text-left text-[10px] transition-colors",
+				active
+					? "bg-primary/15 text-primary"
+					: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+			)}
+			aria-pressed={active}
+			title={label}
+			onClick={onSelect}
+			onKeyDown={(event) => {
+				if (event.key === "Enter" || event.key === " ") {
+					event.preventDefault();
+					onSelect();
+				}
+			}}
+		>
+			<span className="truncate">{label}</span>
+			<span className="ml-auto text-[9px] tabular-nums opacity-60">
+				{count}
+			</span>
+		</button>
+	);
+}
+
 export function SoundEffectsLabPanel({
 	catalog,
 	error,
@@ -193,6 +226,15 @@ export function SoundEffectsLabPanel({
 			),
 		[catalog]
 	);
+	const categoryCounts = useMemo(() => {
+		const counts = new Map<string, number>();
+		for (const reference of catalog?.items ?? []) {
+			for (const id of reference.categoryIds) {
+				counts.set(id, (counts.get(id) ?? 0) + 1);
+			}
+		}
+		return counts;
+	}, [catalog]);
 	const matchingItems = useMemo(
 		() =>
 			(catalog?.items ?? []).filter((reference) =>
@@ -257,101 +299,105 @@ export function SoundEffectsLabPanel({
 					</span>
 				</div>
 
-				<div className="mt-3 flex items-center gap-2">
-					<div className="relative min-w-0 flex-1">
-						<Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-						<Input
-							value={query}
-							onChange={(event) =>
-								changeQuery({ nextQuery: event.target.value })
-							}
-							placeholder={t("audioLibrary.soundEffectsLab.search")}
-							aria-label={t("audioLibrary.soundEffectsLab.searchLabel")}
-							className="h-8 pl-8 text-xs"
-						/>
-					</div>
-					<Select
-						value={categoryId}
-						onValueChange={(nextCategoryId) =>
-							changeCategory({ nextCategoryId })
-						}
-					>
-						<SelectTrigger
-							className="h-8 w-[148px] text-[10px]"
-							aria-label={t("audioLibrary.soundEffectsLab.category")}
-						>
-							<SelectValue />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value={ALL_CATEGORIES}>
-								{t("audioLibrary.soundEffectsLab.allCategories")}
-							</SelectItem>
-							{catalog?.categories.map((category) => (
-								<SelectItem key={category.id} value={category.id}>
-									{category.label}
-								</SelectItem>
-							))}
-						</SelectContent>
-					</Select>
+				<div className="relative mt-3 min-w-0">
+					<Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+					<Input
+						value={query}
+						onChange={(event) => changeQuery({ nextQuery: event.target.value })}
+						placeholder={t("audioLibrary.soundEffectsLab.search")}
+						aria-label={t("audioLibrary.soundEffectsLab.searchLabel")}
+						className="h-8 pl-8 text-xs"
+					/>
 				</div>
 			</div>
 
-			<ScrollArea className="min-h-0 flex-1">
-				<div className="p-3">
-					{isLoading ? (
-						<div className="flex h-48 items-center justify-center gap-2 text-xs text-muted-foreground">
-							<Loader2 className="size-4 animate-spin" />
-							{t("audioLibrary.soundEffectsLab.loading")}
-						</div>
-					) : error ? (
-						<div className="flex h-48 items-center justify-center px-6 text-center text-xs text-destructive">
-							{error}
-						</div>
-					) : visibleItems.length > 0 && catalog ? (
-						<>
-							<div className="mb-2 text-[10px] text-muted-foreground">
-								{t("audioLibrary.resultCount", {
-									count: matchingItems.length,
-								})}
-							</div>
-							<div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2">
-								{visibleItems.map((reference) => (
-									<SoundEffectReferenceItem
-										key={reference.id}
-										categories={catalog.categories}
-										isPlaying={playingId === reference.numericId}
-										onPlay={onPlay}
-										reference={reference}
-									/>
-								))}
-							</div>
-							{visibleCount < matchingItems.length ? (
-								<Button
-									type="button"
-									variant="outline"
-									size="sm"
-									className="mt-3 w-full"
-									onClick={() =>
-										setVisibleCount((count) => count + VISIBLE_BATCH_SIZE)
+			<div className="flex min-h-0 flex-1">
+				<aside
+					className="w-[104px] shrink-0 border-r border-border/60 bg-panel-accent/40"
+					aria-label={t("audioLibrary.soundEffectsLab.category")}
+				>
+					<ScrollArea className="h-full">
+						<div className="space-y-0.5 p-2 pb-10">
+							<LabCategoryButton
+								active={categoryId === ALL_CATEGORIES}
+								count={catalog?.items.length ?? 0}
+								label={t("audioLibrary.soundEffectsLab.allCategories")}
+								onSelect={() =>
+									changeCategory({ nextCategoryId: ALL_CATEGORIES })
+								}
+							/>
+							{catalog?.categories.map((category) => (
+								<LabCategoryButton
+									key={category.id}
+									active={categoryId === category.id}
+									count={categoryCounts.get(category.id) ?? 0}
+									label={category.label}
+									onSelect={() =>
+										changeCategory({ nextCategoryId: category.id })
 									}
-									onKeyDown={(event) => {
-										if (event.key === "Enter" || event.key === " ") {
-											event.preventDefault();
-											setVisibleCount((count) => count + VISIBLE_BATCH_SIZE);
-										}
-									}}
-								>
-									{t("audioLibrary.loadMore")}
-								</Button>
-							) : null}
-						</>
-					) : (
-						<div className="flex h-48 items-center justify-center text-xs text-muted-foreground">
-							{t("audioLibrary.empty")}
+								/>
+							))}
 						</div>
-					)}
-				</div>
-			</ScrollArea>
+					</ScrollArea>
+				</aside>
+
+				<ScrollArea className="min-h-0 flex-1">
+					<div className="p-3">
+						{isLoading ? (
+							<div className="flex h-48 items-center justify-center gap-2 text-xs text-muted-foreground">
+								<Loader2 className="size-4 animate-spin" />
+								{t("audioLibrary.soundEffectsLab.loading")}
+							</div>
+						) : error ? (
+							<div className="flex h-48 items-center justify-center px-6 text-center text-xs text-destructive">
+								{error}
+							</div>
+						) : visibleItems.length > 0 && catalog ? (
+							<>
+								<div className="mb-2 text-[10px] text-muted-foreground">
+									{t("audioLibrary.resultCount", {
+										count: matchingItems.length,
+									})}
+								</div>
+								<div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2">
+									{visibleItems.map((reference) => (
+										<SoundEffectReferenceItem
+											key={reference.id}
+											categories={catalog.categories}
+											isPlaying={playingId === reference.numericId}
+											onPlay={onPlay}
+											reference={reference}
+										/>
+									))}
+								</div>
+								{visibleCount < matchingItems.length ? (
+									<Button
+										type="button"
+										variant="outline"
+										size="sm"
+										className="mt-3 w-full"
+										onClick={() =>
+											setVisibleCount((count) => count + VISIBLE_BATCH_SIZE)
+										}
+										onKeyDown={(event) => {
+											if (event.key === "Enter" || event.key === " ") {
+												event.preventDefault();
+												setVisibleCount((count) => count + VISIBLE_BATCH_SIZE);
+											}
+										}}
+									>
+										{t("audioLibrary.loadMore")}
+									</Button>
+								) : null}
+							</>
+						) : (
+							<div className="flex h-48 items-center justify-center text-xs text-muted-foreground">
+								{t("audioLibrary.empty")}
+							</div>
+						)}
+					</div>
+				</ScrollArea>
+			</div>
 		</section>
 	);
 }
