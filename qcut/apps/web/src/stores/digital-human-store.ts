@@ -49,11 +49,23 @@ const initialState = {
 	voiceModel: DEFAULT_VOICE_MODEL,
 };
 
-export const useDigitalHumanStore = create<DigitalHumanState>((set) => ({
+export const useDigitalHumanStore = create<DigitalHumanState>((set, get) => ({
 	...initialState,
 
-	setStep: (step) => set({ step }),
-	setFigureMediaId: (figureMediaId) => set({ figureMediaId }),
+	// The voice step requires a selected figure; enforce it here so callers
+	// other than the wizard buttons cannot skip the prerequisite.
+	setStep: (step) => {
+		if (step === "voice" && !get().figureMediaId) return;
+		set({ step });
+	},
+	setFigureMediaId: (figureMediaId) =>
+		set((state) => ({
+			figureMediaId,
+			step:
+				figureMediaId === null && state.step === "voice"
+					? "figure"
+					: state.step,
+		})),
 	setShotSize: (shotSize) => set({ shotSize }),
 
 	// A colour and an image cannot both be the background, so selecting one
