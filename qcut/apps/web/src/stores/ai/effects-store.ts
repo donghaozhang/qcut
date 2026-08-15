@@ -188,6 +188,8 @@ export const useEffectsStore = create<EffectsStore>((set, get) => ({
 			audioCompanion: preset.audioCompanion,
 			duration: 0, // Will be set based on element duration
 			enabled: true,
+			engine: preset.engine,
+			packageHash: preset.packageHash,
 		};
 
 		set((state) => {

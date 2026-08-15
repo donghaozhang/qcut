@@ -1,3 +1,4 @@
+import type { EffectEngine } from "@qcut/editor-core";
 import type {
 	AnimatedParameter,
 	EffectAudioCompanion,
@@ -30,6 +31,9 @@ export interface EffectPreset {
 	renderProgram?: EffectRenderProgram;
 	audioCompanion?: EffectAudioCompanion;
 	preview?: string;
+	/** Set for lab presets rendered by the local Jianying runtime. */
+	engine?: EffectEngine;
+	packageHash?: string;
 }
 
 export type EffectCategory =
@@ -53,3 +57,5 @@ export interface TimelineEffect {
 	enabled: boolean;
 	animations?: AnimatedParameter[];
 }
+
+export type { EffectEngine };

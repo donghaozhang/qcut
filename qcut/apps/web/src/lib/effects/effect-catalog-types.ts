@@ -5,6 +5,7 @@ export const EFFECT_LIBRARY_SECTION_IDS = [
 	"favorites",
 	"visual",
 	"person",
+	"lab",
 ] as const;
 
 export type EffectLibrarySectionId =

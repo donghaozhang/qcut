@@ -19,6 +19,11 @@ export const EFFECT_LIBRARY_SECTIONS = [
 		label: "Person effects",
 		localizedLabel: "人物特效",
 	},
+	{
+		id: "lab",
+		label: "Effect lab",
+		localizedLabel: "特效实验室",
+	},
 ] as const satisfies readonly EffectLibrarySectionDefinition[];
 
 export const VISUAL_EFFECT_NAVIGATION = [
