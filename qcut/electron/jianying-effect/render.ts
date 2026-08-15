@@ -182,24 +182,51 @@ export async function renderJianyingEffectClip({
 			}),
 		});
 
+		// The raw stream carries video only, so the source is muxed back in for
+		// its audio — otherwise every lab effect would silence the export.
 		await runProcess({
 			command: ffmpegPath,
 			args: [
+				"-hide_banner",
+				"-loglevel",
+				"error",
 				"-y",
 				"-f",
 				"rawvideo",
-				"-pix_fmt",
+				"-pixel_format",
 				"rgba",
-				"-s",
+				"-video_size",
 				`${width}x${height}`,
-				"-r",
+				"-framerate",
 				String(frameRate),
 				"-i",
 				rawOutput,
+				"-i",
+				inputPath,
+				"-map",
+				"0:v:0",
+				"-map",
+				"1:a:0?",
+				"-c:a",
+				"copy",
+				"-vf",
+				"scale=in_range=full:out_range=limited:out_color_matrix=bt709,format=yuv420p,setparams=range=limited:color_primaries=bt709:color_trc=bt709:colorspace=bt709",
 				"-c:v",
 				"libx264",
-				"-pix_fmt",
-				"yuv420p",
+				"-preset",
+				"medium",
+				"-crf",
+				"18",
+				"-color_range",
+				"tv",
+				"-colorspace",
+				"bt709",
+				"-color_trc",
+				"bt709",
+				"-color_primaries",
+				"bt709",
+				"-movflags",
+				"+faststart",
 				outputPath,
 			],
 		});
@@ -208,30 +235,4 @@ export async function renderJianyingEffectClip({
 	} finally {
 		await rm(workspace, { recursive: true, force: true });
 	}
-}
-
-/** Renders a single frame as raw RGBA, used for panel preview thumbnails. */
-export async function renderJianyingEffectFrame({
-	inspection,
-	definition,
-	seconds,
-}: {
-	inspection: JianyingEffectRuntimeInspection;
-	definition: JianyingEffectDefinition;
-	seconds: number;
-}): Promise<void> {
-	if (!inspection.runtimeRootPath || !inspection.bridgePath) {
-		throw new Error(inspection.status.message);
-	}
-	await runProcess({
-		command: inspection.bridgePath,
-		args: [inspection.runtimeRootPath, "effect-frame"],
-		env: bridgeEnvironment({
-			inspection,
-			extra: {
-				JY_EFFECT_PACKAGE: definition.packagePath,
-				JY_EFFECT_SECONDS: String(seconds),
-			},
-		}),
-	});
 }

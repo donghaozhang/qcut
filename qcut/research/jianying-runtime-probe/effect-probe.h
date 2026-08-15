@@ -32,6 +32,8 @@ struct EffectPixelFrameRequest {
   int height;
   std::span<const std::uint8_t> inputPixels;
   double seconds = 0.0;
+  /** How long the effect clip runs; the segments span this whole window. */
+  double durationSeconds = 3.0;
   std::span<const EffectAdjustParameter> adjustParameters;
 };
 
@@ -45,7 +47,7 @@ class EffectPixelSession {
  public:
   EffectPixelSession(const std::filesystem::path& runtimeRoot,
                      const std::filesystem::path& packagePath, int width,
-                     int height,
+                     int height, double durationSeconds,
                      std::span<const EffectAdjustParameter> adjustParameters);
   ~EffectPixelSession();
 

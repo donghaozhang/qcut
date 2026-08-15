@@ -23,6 +23,7 @@ struct RawVideoEffectRequest {
    * effect clip on its own track does to the frames it does not cover.
    */
   double startSeconds = 0.0;
+  /** Effect clip length; also the span the runtime segments cover. */
   double durationSeconds = 3.0;
   std::span<const EffectAdjustParameter> adjustParameters;
 };

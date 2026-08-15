@@ -105,8 +105,9 @@ async function readCatalogRows(): Promise<CatalogRow[]> {
 			databaseRoot: root,
 		});
 		for (const databasePath of databasePaths) {
+			let database: DatabaseSync | null = null;
 			try {
-				const database = new DatabaseSync(databasePath, { readOnly: true });
+				database = new DatabaseSync(databasePath, { readOnly: true });
 				const records = database
 					.prepare(
 						"SELECT url, response_body FROM http_cache WHERE url LIKE ? OR url LIKE ?"
@@ -119,10 +120,13 @@ async function readCatalogRows(): Promise<CatalogRow[]> {
 					if (!record.url || !record.response_body) continue;
 					rows.push({ url: record.url, responseBody: record.response_body });
 				}
-				database.close();
 			} catch {
 				// A database from another Jianying build, or one lacking http_cache,
 				// simply contributes nothing.
+			} finally {
+				// A db that throws at prepare (no http_cache table) must still be
+				// closed, or every discovery leaks a handle.
+				database?.close();
 			}
 		}
 	}

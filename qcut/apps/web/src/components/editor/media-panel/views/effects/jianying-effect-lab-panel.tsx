@@ -1,4 +1,4 @@
-import { FlaskConical, Loader2, Lock, RefreshCw } from "lucide-react";
+import { FlaskConical, ImageOff, Loader2, Lock, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -48,6 +48,13 @@ function EffectPreviewTile({
 			</div>
 		);
 	}
+	if (dataUrl === "") {
+		return (
+			<div className="flex h-full w-full items-center justify-center text-muted-foreground">
+				<ImageOff className="size-4" />
+			</div>
+		);
+	}
 	if (!dataUrl) {
 		return (
 			<div className="flex h-full w-full items-center justify-center">
@@ -67,10 +74,14 @@ function EffectPreviewTile({
 
 export function JianyingEffectLabPanel({
 	onApply,
+	searchQuery = "",
 }: {
 	onApply: (preset: EffectPreset) => void;
+	searchQuery?: string;
 }) {
 	const { checking, status, error, refresh } = useJianyingEffectRuntime();
+	// "" marks a render that failed — without it the pump would retry forever
+	// and the tile would spin forever.
 	const [previews, setPreviews] = useState<Record<string, string>>({});
 
 	const effects = status?.effects ?? [];
@@ -81,7 +92,7 @@ export function JianyingEffectLabPanel({
 		const api = window.electronAPI?.jianyingEffects;
 		if (!api) return;
 		const pending = effects.filter(
-			(effect) => effect.supported && !previews[effect.id]
+			(effect) => effect.supported && previews[effect.id] === undefined
 		);
 		if (pending.length === 0) return;
 
@@ -97,7 +108,10 @@ export function JianyingEffectLabPanel({
 						[effect.id]: result.dataUrl,
 					}));
 				} catch {
-					// A package that fails to render simply keeps its placeholder.
+					// Record the failure so the pump advances to the next batch.
+					if (!cancelled) {
+						setPreviews((current) => ({ ...current, [effect.id]: "" }));
+					}
 				}
 			})
 		);
@@ -112,6 +126,11 @@ export function JianyingEffectLabPanel({
 		},
 		[onApply]
 	);
+
+	const query = searchQuery.trim().toLowerCase();
+	const visibleEffects = query
+		? effects.filter((effect) => effect.name.toLowerCase().includes(query))
+		: effects;
 
 	if (checking) {
 		return (
@@ -143,13 +162,15 @@ export function JianyingEffectLabPanel({
 			data-testid="effect-lab-panel"
 		>
 			<div className="flex items-center justify-between px-3 py-2 text-[11px] text-muted-foreground">
-				<span>本机剪映特效 {status.availableCount} 个</span>
+				<span>
+					本机剪映特效 {visibleEffects.filter((e) => e.supported).length} 个
+				</span>
 				<Button size="sm" variant="text" onClick={() => void refresh()}>
 					<RefreshCw className="size-3" />
 				</Button>
 			</div>
 			<div className="grid min-h-0 flex-1 grid-cols-3 gap-2 overflow-y-auto p-3 pt-0">
-				{effects.map((definition) => (
+				{visibleEffects.map((definition) => (
 					<button
 						key={definition.id}
 						type="button"

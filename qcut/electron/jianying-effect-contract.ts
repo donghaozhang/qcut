@@ -74,6 +74,8 @@ export interface JianyingEffectPreviewResult {
 
 export interface JianyingEffectRenderRequest {
 	effectId: string;
+	/** Must match the catalog entry, so a repackaged effect fails loudly. */
+	packageHash?: string;
 	inputPath: string;
 	outputPath: string;
 	width: number;

@@ -1,22 +1,29 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { TimelineTrack } from "@/types/timeline";
-import { collectJianyingEffectRequests } from "../export-engine-cli-jianying-effects";
+import {
+	applyJianyingTimelineEffects,
+	collectJianyingEffectRequests,
+} from "../export-engine-cli-jianying-effects";
 
 function trackWithEffects({
 	effects,
 	startTime = 0,
 	duration = 5,
+	muted = false,
+	hidden = false,
 }: {
 	effects: unknown[];
 	startTime?: number;
 	duration?: number;
+	muted?: boolean;
+	hidden?: boolean;
 }) {
 	return [
 		{
 			id: "track-1",
 			name: "Track",
 			type: "media",
-			muted: false,
+			muted,
 			elements: [
 				{
 					id: "element-1",
@@ -27,11 +34,27 @@ function trackWithEffects({
 					duration,
 					trimStart: 0,
 					trimEnd: 0,
+					hidden,
 					effects,
 				},
 			],
 		},
 	] as unknown as TimelineTrack[];
+}
+
+function labEffect(overrides: Record<string, unknown> = {}) {
+	return {
+		id: "a",
+		presetId: "jy-effect-1",
+		name: "胶片框",
+		effectType: "motion",
+		parameters: {},
+		duration: 3,
+		enabled: true,
+		engine: "jianying-local",
+		packageHash: "ec4c71da4734c48f5511d698cf9daa90",
+		...overrides,
+	};
 }
 
 describe("collectJianyingEffectRequests", () => {
@@ -82,6 +105,19 @@ describe("collectJianyingEffectRequests", () => {
 		]);
 	});
 
+	it("skips effects on hidden clips and muted tracks", () => {
+		expect(
+			collectJianyingEffectRequests({
+				tracks: trackWithEffects({ effects: [labEffect()], hidden: true }),
+			})
+		).toEqual([]);
+		expect(
+			collectJianyingEffectRequests({
+				tracks: trackWithEffects({ effects: [labEffect()], muted: true }),
+			})
+		).toEqual([]);
+	});
+
 	it("skips disabled effects and those missing a package", () => {
 		const tracks = trackWithEffects({
 			effects: [
@@ -110,5 +146,89 @@ describe("collectJianyingEffectRequests", () => {
 		});
 
 		expect(collectJianyingEffectRequests({ tracks })).toEqual([]);
+	});
+});
+
+describe("applyJianyingTimelineEffects", () => {
+	afterEach(() => {
+		Reflect.deleteProperty(window, "electronAPI");
+		vi.restoreAllMocks();
+	});
+
+	it("keeps a muxable extension on every intermediate pass", async () => {
+		const render = vi
+			.fn()
+			.mockImplementation(({ outputPath }: { outputPath: string }) =>
+				Promise.resolve({ outputPath })
+			);
+		Object.defineProperty(window, "electronAPI", {
+			value: { jianyingEffects: { render } },
+			configurable: true,
+			writable: true,
+		});
+
+		const output = await applyJianyingTimelineEffects({
+			inputPath: "/tmp/export/out-jianying.mp4",
+			requests: [
+				{
+					effectId: "jy-effect-1",
+					packageHash: "hash-1",
+					startSeconds: 0,
+					durationSeconds: 2,
+				},
+				{
+					effectId: "jy-effect-2",
+					packageHash: "hash-2",
+					startSeconds: 3,
+					durationSeconds: 1,
+				},
+			],
+			fps: 30,
+			width: 1920,
+			height: 1080,
+		});
+
+		const paths = render.mock.calls.map((call) => call[0].outputPath);
+		expect(paths).toEqual([
+			"/tmp/export/out-jianying-jy-effect-0.mp4",
+			"/tmp/export/out-jianying-jy-effect-1.mp4",
+		]);
+		expect(output.endsWith(".mp4")).toBe(true);
+		expect(render.mock.calls.map((call) => call[0].packageHash)).toEqual([
+			"hash-1",
+			"hash-2",
+		]);
+	});
+
+	it("stops before the next pass when the export is cancelled", async () => {
+		const render = vi
+			.fn()
+			.mockImplementation(({ outputPath }: { outputPath: string }) =>
+				Promise.resolve({ outputPath })
+			);
+		Object.defineProperty(window, "electronAPI", {
+			value: { jianyingEffects: { render } },
+			configurable: true,
+			writable: true,
+		});
+
+		await expect(
+			applyJianyingTimelineEffects({
+				inputPath: "/tmp/export/out.mp4",
+				requests: [
+					{
+						effectId: "jy-effect-1",
+						packageHash: "hash-1",
+						startSeconds: 0,
+						durationSeconds: 1,
+					},
+				],
+				fps: 30,
+				width: 1920,
+				height: 1080,
+				shouldCancel: () => true,
+			})
+		).rejects.toThrow("导出已取消");
+		expect(render).not.toHaveBeenCalled();
 	});
 });

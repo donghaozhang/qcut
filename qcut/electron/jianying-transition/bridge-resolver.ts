@@ -240,10 +240,37 @@ async function compileDevelopmentBridge({
 	});
 }
 
+/**
+ * A prebuilt bridge is preferred over the fingerprinted dev build, so a binary
+ * predating a newly added mode would be picked and fail every call to it.
+ * Callers that need a specific mode ask for it, and a binary without it is
+ * skipped in favour of compiling one that has it.
+ */
+async function supportsMode({
+	bridgePath,
+	mode,
+}: {
+	bridgePath: string;
+	mode: string;
+}): Promise<boolean> {
+	try {
+		// No arguments prints the usage line, which enumerates the modes.
+		await execFileAsync(bridgePath, [], { timeout: 10_000 });
+		return false;
+	} catch (error) {
+		const usage = `${(error as { stdout?: string }).stdout ?? ""}${
+			(error as { stderr?: string }).stderr ?? ""
+		}`;
+		return usage.includes(mode);
+	}
+}
+
 async function resolveBridgeInternal({
 	allowCompile,
+	requiredMode,
 }: {
 	allowCompile: boolean;
+	requiredMode?: string;
 }): Promise<string | null> {
 	if (process.platform !== "darwin") return null;
 	const projectRoot = findQCutProjectRoot();
@@ -254,17 +281,32 @@ async function resolveBridgeInternal({
 			executable: await isExecutable({ filePath: candidate }),
 		}))
 	);
-	const existing = checks.find((check) => check.executable)?.candidate;
-	if (existing) return existing;
+	for (const check of checks) {
+		if (!check.executable) continue;
+		if (
+			requiredMode &&
+			!(await supportsMode({ bridgePath: check.candidate, mode: requiredMode }))
+		) {
+			continue;
+		}
+		return check.candidate;
+	}
 	if (!allowCompile || !projectRoot) return null;
 	return compileDevelopmentBridge({ projectRoot });
 }
 
 export function resolveJianyingTransitionBridge({
 	allowCompile = true,
+	requiredMode,
 }: {
 	allowCompile?: boolean;
+	requiredMode?: string;
 } = {}): Promise<string | null> {
+	// Only the shared no-mode resolution is memoized; a mode-specific lookup is
+	// rare and must not poison the shared result.
+	if (requiredMode) {
+		return resolveBridgeInternal({ allowCompile, requiredMode });
+	}
 	if (!pendingBridgeResolution) {
 		pendingBridgeResolution = resolveBridgeInternal({ allowCompile }).finally(
 			() => {

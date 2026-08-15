@@ -1,6 +1,7 @@
 #include "effect-video-probe.h"
 
 #include <cmath>
+#include <system_error>
 #include <cstddef>
 #include <cstdint>
 #include <fstream>
@@ -61,9 +62,19 @@ void writeFrame(std::ofstream& stream, std::span<const std::uint8_t> frame) {
   }
 }
 
+/**
+ * A lexical comparison misses case-insensitive volumes and symlinks, and
+ * getting this wrong truncates the input, so an existing target is compared by
+ * device/inode as well.
+ */
 [[nodiscard]] bool pathsMatch(const fs::path& left, const fs::path& right) {
-  return fs::absolute(left).lexically_normal() ==
-         fs::absolute(right).lexically_normal();
+  if (fs::absolute(left).lexically_normal() ==
+      fs::absolute(right).lexically_normal()) {
+    return true;
+  }
+  std::error_code error;
+  return fs::exists(left) && fs::exists(right) &&
+         fs::equivalent(left, right, error) && !error;
 }
 
 void validateTiming(const RawVideoEffectRequest& request) {
@@ -107,45 +118,70 @@ RawVideoEffectResult renderRawVideoEffect(
   const std::size_t effectFrames =
       std::min(requestedEffectFrames, inputFrames - firstEffectFrame);
 
+  // The session is built before the output is touched: loading the runtime can
+  // throw, and a caller's existing output should survive that.
+  EffectPixelSession session(request.runtimeRoot, request.packagePath,
+                             request.width, request.height,
+                             request.durationSeconds, request.adjustParameters);
+
   std::ifstream input(request.inputPath, std::ios::binary);
-  std::ofstream output(request.outputPath, std::ios::binary | std::ios::trunc);
+  // Written aside and renamed at the end so a failed render never leaves a
+  // plausible-looking partial stream behind.
+  const fs::path pendingPath = request.outputPath.string() + ".partial";
+  std::ofstream output(pendingPath, std::ios::binary | std::ios::trunc);
   if (!input || !output) {
     throw std::runtime_error("failed to open raw effect streams");
   }
 
   std::vector<std::uint8_t> frame(frameBytes);
-  EffectPixelSession session(request.runtimeRoot, request.packagePath,
-                             request.width, request.height,
-                             request.adjustParameters);
 
-  for (std::size_t index = 0; index < inputFrames; index += 1) {
-    readFrame(input, frame);
-    const bool inWindow = index >= firstEffectFrame &&
-                          index < firstEffectFrame + effectFrames;
-    if (!inWindow) {
-      writeFrame(output, frame);
-      continue;
+  const auto discardPending = [&pendingPath]() {
+    std::error_code ignored;
+    fs::remove(pendingPath, ignored);
+  };
+
+  try {
+    for (std::size_t index = 0; index < inputFrames; index += 1) {
+      readFrame(input, frame);
+      const bool inWindow = index >= firstEffectFrame &&
+                            index < firstEffectFrame + effectFrames;
+      if (!inWindow) {
+        writeFrame(output, frame);
+        continue;
+      }
+
+      const double seconds = static_cast<double>(index - firstEffectFrame) /
+                             request.frameRate;
+      const EffectPixelFrameResult rendered = session.renderFrame({
+          .inputPixels = frame,
+          .seconds = seconds,
+      });
+      if (!rendered.rendered || rendered.outputPixels.size() != frameBytes) {
+        throw std::runtime_error("effect engine failed to render video frame " +
+                                 std::to_string(index));
+      }
+      writeFrame(output, rendered.outputPixels);
     }
 
-    const double seconds = static_cast<double>(index - firstEffectFrame) /
-                           request.frameRate;
-    const EffectPixelFrameResult rendered = session.renderFrame({
-        .inputPixels = frame,
-        .seconds = seconds,
-    });
-    if (!rendered.rendered || rendered.outputPixels.size() != frameBytes) {
-      throw std::runtime_error("effect engine failed to render video frame " +
-                               std::to_string(index));
+    output.close();
+    if (!output) {
+      throw std::runtime_error("failed to finalize raw effect output");
     }
-    writeFrame(output, rendered.outputPixels);
+    if (fs::file_size(pendingPath) != inputFrames * frameBytes) {
+      throw std::runtime_error("raw effect output has an unexpected size");
+    }
+  } catch (...) {
+    output.close();
+    discardPending();
+    throw;
   }
 
-  output.close();
-  if (!output) {
-    throw std::runtime_error("failed to finalize raw effect output");
-  }
-  if (fs::file_size(request.outputPath) != inputFrames * frameBytes) {
-    throw std::runtime_error("raw effect output has an unexpected size");
+  std::error_code renameError;
+  fs::rename(pendingPath, request.outputPath, renameError);
+  if (renameError) {
+    discardPending();
+    throw std::runtime_error("failed to publish raw effect output: " +
+                             renameError.message());
   }
 
   std::cout << "[effect] frames: input=" << inputFrames

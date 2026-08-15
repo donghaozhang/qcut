@@ -8,6 +8,8 @@
 #include <dlfcn.h>
 #include <mach-o/loader.h>
 
+#include <algorithm>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -43,8 +45,21 @@ constexpr int kFeatureSegmentType = 0;  // 画面特效 / 人物特效
 constexpr int kVideoSegmentType = 7;
 
 constexpr int kAutomaticRendererType = 14;
-/** Packages declare a 3 s default duration; the catalog agrees. */
-constexpr std::int64_t kEffectDurationMicroseconds = 3'000'000;
+/**
+ * Packages declare a 3 s default duration, but an effect clip can be dragged
+ * to any length. The segments must span the WHOLE clip: seeking past their
+ * time range leaves the frame uncomposited, so this is only a floor.
+ */
+constexpr std::int64_t kMinimumEffectDurationMicroseconds = 3'000'000;
+
+[[nodiscard]] std::int64_t segmentDurationMicroseconds(double durationSeconds) {
+  if (!std::isfinite(durationSeconds) || durationSeconds <= 0.0) {
+    return kMinimumEffectDurationMicroseconds;
+  }
+  const auto requested =
+      static_cast<std::int64_t>(std::llround(durationSeconds * 1'000'000.0));
+  return std::max(requested, kMinimumEffectDurationMicroseconds);
+}
 
 constexpr std::string_view kCreateSwingManagerApi =
     "bef_swing_manager_create_with_gpdevice";
@@ -339,6 +354,7 @@ class SegmentHandle {
 class EffectRenderSession {
  public:
   EffectRenderSession(const EffectSymbols& symbols, const fs::path& packagePath,
+                      double durationSeconds,
                       std::span<const EffectAdjustParameter> adjustParameters,
                       const GraphicsFrameResources& resources)
       : symbols_(symbols), graphicsDevice_(resources.graphicsDevice) {
@@ -375,10 +391,11 @@ class EffectRenderSession {
 
     applyAdjustParameters(adjustParameters);
 
-    const int videoRange = symbols.setSegmentTimeRange(
-        videoSegment_->get(), 0, kEffectDurationMicroseconds);
-    const int effectRange = symbols.setSegmentTimeRange(
-        effectSegment_->get(), 0, kEffectDurationMicroseconds);
+    const std::int64_t span = segmentDurationMicroseconds(durationSeconds);
+    const int videoRange =
+        symbols.setSegmentTimeRange(videoSegment_->get(), 0, span);
+    const int effectRange =
+        symbols.setSegmentTimeRange(effectSegment_->get(), 0, span);
     const int videoIndex = symbols.setSegmentRenderIndex(videoSegment_->get(), 0);
     static_cast<void>(symbols.featureSetOrder(effectSegment_->get(), 0));
     const int attachResult =
@@ -454,6 +471,7 @@ struct EffectRenderContext {
   const EffectSymbols& symbols;
   fs::path packagePath;
   std::vector<EffectAdjustParameter> adjustParameters;
+  double durationSeconds = 3.0;
   double seconds = 0.0;
   std::unique_ptr<EffectRenderSession> session;
 };
@@ -466,8 +484,8 @@ struct EffectRenderContext {
   auto& context = *static_cast<EffectRenderContext*>(resources.callbackContext);
   if (context.session == nullptr) {
     context.session = std::make_unique<EffectRenderSession>(
-        context.symbols, context.packagePath, context.adjustParameters,
-        resources);
+        context.symbols, context.packagePath, context.durationSeconds,
+        context.adjustParameters, resources);
   }
   return context.session->render(resources, context.seconds);
 }
@@ -480,7 +498,8 @@ struct EffectPixelSession::Impl {
   EffectRenderContext context;
 
   Impl(const fs::path& runtimeRoot, const fs::path& packagePath, int width,
-       int height, std::span<const EffectAdjustParameter> adjustParameters)
+       int height, double durationSeconds,
+       std::span<const EffectAdjustParameter> adjustParameters)
       : symbols(loadEffectCore(runtimeRoot)),
         graphics(runtimeRoot, width, height),
         context{
@@ -488,6 +507,7 @@ struct EffectPixelSession::Impl {
             .packagePath = packagePath,
             .adjustParameters = {adjustParameters.begin(),
                                  adjustParameters.end()},
+            .durationSeconds = durationSeconds,
         } {}
 
   [[nodiscard]] EffectPixelFrameResult renderFrame(
@@ -509,9 +529,10 @@ struct EffectPixelSession::Impl {
 
 EffectPixelSession::EffectPixelSession(
     const fs::path& runtimeRoot, const fs::path& packagePath, int width,
-    int height, std::span<const EffectAdjustParameter> adjustParameters)
+    int height, double durationSeconds,
+    std::span<const EffectAdjustParameter> adjustParameters)
     : impl_(std::make_unique<Impl>(runtimeRoot, packagePath, width, height,
-                                   adjustParameters)) {}
+                                   durationSeconds, adjustParameters)) {}
 
 EffectPixelSession::~EffectPixelSession() = default;
 EffectPixelSession::EffectPixelSession(EffectPixelSession&&) noexcept = default;
@@ -530,7 +551,7 @@ EffectPixelFrameResult renderEffectPixelFrame(
     const EffectPixelFrameRequest& request) {
   EffectPixelSession session(request.runtimeRoot, request.packagePath,
                              request.width, request.height,
-                             request.adjustParameters);
+                             request.durationSeconds, request.adjustParameters);
   return session.renderFrame({
       .inputPixels = request.inputPixels,
       .seconds = request.seconds,

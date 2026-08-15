@@ -975,6 +975,7 @@ export class CLIExportEngine extends ExportEngine {
 			width: this.canvas.width,
 			height: this.canvas.height,
 			onProgress: progressCallback,
+			shouldCancel: () => this.isExportCancelled(),
 		});
 	}
 

@@ -1,3 +1,4 @@
+import { resolveJianyingTransitionBridge } from "../jianying-transition/bridge-resolver.js";
 import { inspectJianyingTransitionRuntime } from "../jianying-transition/runtime-discovery.js";
 import type {
 	JianyingEffectDefinition,
@@ -46,7 +47,15 @@ function describe({
  */
 export async function inspectJianyingEffectRuntime(): Promise<JianyingEffectRuntimeInspection> {
 	const transitionInspection = await inspectJianyingTransitionRuntime();
-	const { appBundlePath, runtimeRootPath, bridgePath } = transitionInspection;
+	const { appBundlePath, runtimeRootPath } = transitionInspection;
+	// A bridge built before the effect modes existed would fail every render, so
+	// discovery insists on one that advertises effect-video.
+	const bridgePath =
+		process.platform === "darwin"
+			? await resolveJianyingTransitionBridge({
+					requiredMode: "effect-video",
+				}).catch(() => null)
+			: null;
 
 	const effects =
 		transitionInspection.status.state === "unsupported-platform"

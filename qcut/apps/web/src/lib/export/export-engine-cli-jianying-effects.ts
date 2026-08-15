@@ -1,5 +1,4 @@
 import type { TimelineTrack } from "@/types/timeline";
-import { buildJianyingOutputPath } from "./export-engine-cli-jianying";
 
 /**
  * Lab effects render through the Jianying runtime rather than QCut's own
@@ -7,6 +6,28 @@ import { buildJianyingOutputPath } from "./export-engine-cli-jianying";
  * over the exported file, one clip window at a time, the same way Transition
  * Lab renders its transitions after the main export.
  */
+
+const EFFECT_PROGRESS_START = 94;
+const EFFECT_PROGRESS_END = 98;
+
+/**
+ * Keeps a real video extension on every intermediate file — ffmpeg picks the
+ * muxer from it, and a name ending in ".effect-0" has no muxer at all.
+ */
+function buildEffectPassOutputPath({
+	inputPath,
+	index,
+}: {
+	inputPath: string;
+	index: number;
+}): string {
+	const separator = inputPath.lastIndexOf("/");
+	const extensionIndex = inputPath.lastIndexOf(".");
+	if (extensionIndex <= separator) {
+		return `${inputPath}-jy-effect-${index}.mp4`;
+	}
+	return `${inputPath.slice(0, extensionIndex)}-jy-effect-${index}${inputPath.slice(extensionIndex)}`;
+}
 
 export interface JianyingEffectExportRequest {
 	effectId: string;
@@ -23,7 +44,9 @@ export function collectJianyingEffectRequests({
 	const requests: JianyingEffectExportRequest[] = [];
 
 	for (const track of tracks) {
+		if (track.muted) continue;
 		for (const element of track.elements) {
+			if (element.hidden) continue;
 			for (const effect of element.effects ?? []) {
 				if (effect.engine !== "jianying-local") continue;
 				if (!effect.packageHash || !effect.presetId) continue;
@@ -58,6 +81,7 @@ export async function applyJianyingTimelineEffects({
 	width,
 	height,
 	onProgress,
+	shouldCancel,
 }: {
 	inputPath: string;
 	requests: JianyingEffectExportRequest[];
@@ -65,6 +89,7 @@ export async function applyJianyingTimelineEffects({
 	width: number;
 	height: number;
 	onProgress?: (percent: number, message: string) => void;
+	shouldCancel?: () => boolean;
 }): Promise<string> {
 	if (requests.length === 0) return inputPath;
 
@@ -77,13 +102,14 @@ export async function applyJianyingTimelineEffects({
 	// in timeline order.
 	let currentPath = inputPath;
 	for (const [index, request] of requests.entries()) {
-		const outputPath = buildJianyingOutputPath({
-			inputPath: `${currentPath}.effect-${index}`,
-		});
+		if (shouldCancel?.()) {
+			throw new Error("导出已取消。");
+		}
 		const result = await api.render({
 			effectId: request.effectId,
+			packageHash: request.packageHash,
 			inputPath: currentPath,
-			outputPath,
+			outputPath: buildEffectPassOutputPath({ inputPath, index }),
 			width,
 			height,
 			frameRate: fps,
@@ -92,7 +118,11 @@ export async function applyJianyingTimelineEffects({
 		});
 		currentPath = result.outputPath;
 		onProgress?.(
-			95,
+			EFFECT_PROGRESS_START +
+				Math.round(
+					((index + 1) / requests.length) *
+						(EFFECT_PROGRESS_END - EFFECT_PROGRESS_START)
+				),
 			`已用本机剪映引擎渲染 ${index + 1}/${requests.length} 个特效`
 		);
 	}

@@ -331,7 +331,11 @@ export default function EffectsView() {
 						/>
 					</div>
 					<div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
-						<span>{t("effects.count", { count: visibleEntries.length })}</span>
+						<span>
+							{selectedSection === "lab"
+								? ""
+								: t("effects.count", { count: visibleEntries.length })}
+						</span>
 						<span className={cn(selectedElements.length > 0 && "text-primary")}>
 							{selectedElements.length > 0
 								? t("effects.apply.selected")
@@ -343,6 +347,7 @@ export default function EffectsView() {
 				{selectedSection === "lab" ? (
 					<JianyingEffectLabPanel
 						onApply={(preset) => handleApplyEffect({ preset })}
+						searchQuery={searchQuery}
 					/>
 				) : (
 					<div className="min-h-0 flex-1 overflow-y-auto p-3">

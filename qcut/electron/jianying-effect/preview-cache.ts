@@ -1,6 +1,13 @@
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import {
+	mkdir,
+	mkdtemp,
+	readFile,
+	rename,
+	rm,
+	writeFile,
+} from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { app } from "electron";
@@ -22,6 +29,16 @@ const PREVIEW_FPS = 12;
  */
 const PREVIEW_SECONDS = 0.75;
 const PREVIEW_SOURCE_IMAGE = "neon-city.webp";
+const MAX_PREVIEW_SECONDS = 10;
+
+/**
+ * Rendering a preview costs a full native session, so identical concurrent
+ * requests share one render instead of racing to write the same cache file.
+ */
+const inFlightPreviews = new Map<
+	string,
+	Promise<JianyingEffectPreviewResult>
+>();
 
 function previewCacheDirectory(): string {
 	return path.join(
@@ -91,7 +108,27 @@ async function firstReadableFile({
 	throw new Error("未找到特效预览底图。");
 }
 
-export async function getJianyingEffectPreview({
+export function getJianyingEffectPreview({
+	request,
+}: {
+	request: JianyingEffectPreviewRequest;
+}): Promise<JianyingEffectPreviewResult> {
+	const shareKey = JSON.stringify([
+		request.effectId,
+		request.seconds ?? PREVIEW_SECONDS,
+		request.adjustValues ?? [],
+	]);
+	const existing = inFlightPreviews.get(shareKey);
+	if (existing) return existing;
+
+	const pending = renderPreview({ request }).finally(() => {
+		inFlightPreviews.delete(shareKey);
+	});
+	inFlightPreviews.set(shareKey, pending);
+	return pending;
+}
+
+async function renderPreview({
 	request,
 }: {
 	request: JianyingEffectPreviewRequest;
@@ -121,7 +158,11 @@ export async function getJianyingEffectPreview({
 		};
 	}
 
-	const seconds = request.seconds ?? PREVIEW_SECONDS;
+	const requestedSeconds = request.seconds ?? PREVIEW_SECONDS;
+	if (!Number.isFinite(requestedSeconds) || requestedSeconds < 0) {
+		throw new Error("特效预览时间点无效。");
+	}
+	const seconds = Math.min(requestedSeconds, MAX_PREVIEW_SECONDS);
 	const ffmpegPath = getFFmpegPath();
 	const sourceImage = await firstReadableFile({
 		candidates: resolvePreviewSourceImage(),
@@ -183,7 +224,10 @@ export async function getJianyingEffectPreview({
 
 		const still = await readFile(stillPath);
 		await mkdir(cacheDirectory, { recursive: true });
-		await writeFile(cachedPath, still);
+		// Written aside and renamed so a concurrent reader never sees a half file.
+		const pendingPath = `${cachedPath}.${process.pid}.tmp`;
+		await writeFile(pendingPath, still);
+		await rename(pendingPath, cachedPath);
 		return {
 			effectId: request.effectId,
 			dataUrl: `data:image/png;base64,${still.toString("base64")}`,

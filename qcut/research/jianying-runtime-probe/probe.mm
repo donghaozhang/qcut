@@ -145,18 +145,34 @@ parseEffectAdjustParameters() {
     const std::string entry =
         text.substr(start, comma == std::string::npos ? std::string::npos
                                                      : comma - start);
-    const std::size_t equals = entry.find('=');
-    if (equals != std::string::npos && equals > 0) {
-      const std::string key = entry.substr(0, equals);
-      std::size_t parsedLength = 0;
-      const std::string valueText = entry.substr(equals + 1);
-      const double value = std::stod(valueText, &parsedLength);
-      if (parsedLength != valueText.size() || !std::isfinite(value)) {
-        throw std::runtime_error(
-            "JY_EFFECT_ADJUST values must be finite numbers");
-      }
-      parameters.push_back({.key = key, .value = value});
+    if (entry.empty()) {
+      if (comma == std::string::npos) break;
+      start = comma + 1;
+      continue;
     }
+    // A malformed pair must fail loudly: silently dropping it would render the
+    // effect with defaults and look like the slider had no effect.
+    const std::size_t equals = entry.find('=');
+    if (equals == std::string::npos || equals == 0 ||
+        equals + 1 >= entry.size()) {
+      throw std::runtime_error(
+          "JY_EFFECT_ADJUST entries must look like key=value, got: " + entry);
+    }
+    const std::string key = entry.substr(0, equals);
+    const std::string valueText = entry.substr(equals + 1);
+    std::size_t parsedLength = 0;
+    double value = 0.0;
+    try {
+      value = std::stod(valueText, &parsedLength);
+    } catch (const std::exception&) {
+      throw std::runtime_error("JY_EFFECT_ADJUST value is not a number: " +
+                               valueText);
+    }
+    if (parsedLength != valueText.size() || !std::isfinite(value)) {
+      throw std::runtime_error("JY_EFFECT_ADJUST value is not a number: " +
+                               valueText);
+    }
+    parameters.push_back({.key = key, .value = value});
     if (comma == std::string::npos) break;
     start = comma + 1;
   }
@@ -165,7 +181,7 @@ parseEffectAdjustParameters() {
 
 [[nodiscard]] double optionalNonNegativeNumberEnvironment(const char* name) {
   const char* rawValue = std::getenv(name);
-  if (rawValue == nullptr) {
+  if (rawValue == nullptr || *rawValue == '\0') {
     return 0.0;
   }
   const std::string text(rawValue);
