@@ -31,7 +31,10 @@ import {
 	InteractiveElementOverlay,
 	type ElementTransform,
 } from "./interactive-element-overlay";
-import type { ElementContentBoundsSnapshot } from "./interactive-element-overlay-geometry";
+import {
+	areElementContentBoundsSnapshotsEqual,
+	type ElementContentBoundsSnapshot,
+} from "./interactive-element-overlay-geometry";
 import { EFFECTS_ENABLED } from "@/config/features";
 import {
 	PreviewBlurBackground,
@@ -519,7 +522,19 @@ export function PreviewPanel() {
 			snapshot: ElementContentBoundsSnapshot | null;
 		}) => {
 			setJianyingPlaybackBounds((previous) => {
-				if (snapshot && previous.get(elementId) === snapshot) return previous;
+				const current = previous.get(elementId);
+				// Producers rebuild the snapshot each render; compare values so
+				// unchanged bounds don't allocate a new Map and re-render.
+				if (
+					snapshot &&
+					current &&
+					areElementContentBoundsSnapshotsEqual({
+						left: current,
+						right: snapshot,
+					})
+				) {
+					return previous;
+				}
 				if (!snapshot && !previous.has(elementId)) return previous;
 				const next = new Map(previous);
 				if (snapshot) next.set(elementId, snapshot);

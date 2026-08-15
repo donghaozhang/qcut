@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+	areElementContentBoundsSnapshotsEqual,
 	getInteractiveElementOverlayStyle,
 	getTimelineElementTransform,
 	preserveInteractiveElementContentCenter,
@@ -284,5 +285,37 @@ describe("interactive element overlay geometry", () => {
 		expect(rotated.x).toBeCloseTo(100, 8);
 		expect(rotated.y).toBeCloseTo(-100, 8);
 		expect(rotated.rotation).toBe(90);
+	});
+
+	it("treats rebuilt value-equal bounds snapshots as equal", () => {
+		const snapshot = () => ({
+			bounds: { offsetX: 20, offsetY: -10, width: 320, height: 180 },
+			transform: { x: -86, y: 12, width: 780, height: 230, rotation: 15 },
+		});
+
+		expect(
+			areElementContentBoundsSnapshotsEqual({
+				left: snapshot(),
+				right: snapshot(),
+			})
+		).toBe(true);
+		expect(
+			areElementContentBoundsSnapshotsEqual({
+				left: snapshot(),
+				right: {
+					...snapshot(),
+					transform: { ...snapshot().transform, rotation: 16 },
+				},
+			})
+		).toBe(false);
+		expect(
+			areElementContentBoundsSnapshotsEqual({
+				left: snapshot(),
+				right: {
+					...snapshot(),
+					bounds: { ...snapshot().bounds, width: 321 },
+				},
+			})
+		).toBe(false);
 	});
 });

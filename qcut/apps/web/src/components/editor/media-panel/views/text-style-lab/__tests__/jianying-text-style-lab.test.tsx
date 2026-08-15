@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
 	JianyingTextAnimationLabListResult,
+	JianyingTextAnimationReferences,
 	JianyingTextStyleLabListResult,
 	JianyingTextStyleLabStyleSummary,
 } from "@/types/electron";
@@ -128,7 +129,11 @@ function createRuntimeStyle(): JianyingTextStyleLabStyleSummary {
 	};
 }
 
-function createAnimatedTextStyle(): JianyingTextStyleLabStyleSummary {
+function createAnimatedTextStyle({
+	animations,
+}: {
+	animations?: JianyingTextAnimationReferences;
+} = {}): JianyingTextStyleLabStyleSummary {
 	const base = createStyle({ index: 20 });
 	return {
 		...base,
@@ -144,6 +149,7 @@ function createAnimatedTextStyle(): JianyingTextStyleLabStyleSummary {
 			slotMapping: "line-to-widget",
 			timeMapping: "stretch",
 			templateDuration: 3,
+			...(animations ? { animations } : {}),
 		},
 	};
 }
@@ -337,6 +343,61 @@ describe("JianyingTextStyleLabDialog", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: "清除循环动画" }));
 		expect(onApply).toHaveBeenLastCalledWith({ style, animations: {} });
+	});
+
+	it("keeps bundled animation slots when picking another slot", async () => {
+		const bundledEntrance = {
+			source: "jianying-cache" as const,
+			resourceId: "7168819879183651300",
+			packageHash: "e".repeat(32),
+			duration: 0.8,
+		};
+		const style = createAnimatedTextStyle({
+			animations: { entrance: bundledEntrance },
+		});
+		const animationResult = createAnimationResult();
+		window.electronAPI = {
+			jianyingTextStyleLab: {
+				list: vi.fn(
+					async (): Promise<JianyingTextStyleLabListResult> => ({
+						count: 1,
+						styles: [style],
+						categories: [{ id: "popular", label: "热门", count: 1 }],
+						packageCount: 1,
+						invalidPackageCount: 0,
+					})
+				),
+				listAnimations: vi.fn(async () => animationResult),
+				cover: vi.fn(async ({ styleId }: { styleId: string }) => ({
+					styleId,
+					mimeType: "image/png" as const,
+					bytes: new Uint8Array([1, 2, 3]),
+				})),
+			},
+		} as never;
+		const onApply = vi.fn();
+		render(<JianyingTextStyleLabDialog onApply={onApply} />);
+
+		fireEvent.click(screen.getByRole("button", { name: "花字实验室" }));
+		fireEvent.click(
+			await screen.findByRole("button", { name: "应用花字 原版黄色花字" })
+		);
+		fireEvent.click(
+			await screen.findByRole("button", { name: "应用循环动画 翻页 I" })
+		);
+
+		expect(onApply).toHaveBeenLastCalledWith({
+			style,
+			animations: {
+				entrance: bundledEntrance,
+				loop: {
+					source: "jianying-cache",
+					resourceId: animationResult.animations[0].resourceId,
+					packageHash: animationResult.animations[0].packageHash,
+					duration: 1.2,
+				},
+			},
+		});
 	});
 
 	it("filters the local cache by Jianying flower category", async () => {

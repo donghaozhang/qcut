@@ -84,6 +84,31 @@ export interface ElementContentBoundsSnapshot {
 	transform: ElementTransform;
 }
 
+/**
+ * Field-wise equality for bounds snapshots. Producers rebuild the snapshot
+ * object after every render, so identity checks alone can't dedupe
+ * value-equal updates.
+ */
+export function areElementContentBoundsSnapshotsEqual({
+	left,
+	right,
+}: {
+	left: ElementContentBoundsSnapshot;
+	right: ElementContentBoundsSnapshot;
+}): boolean {
+	return (
+		left.bounds.offsetX === right.bounds.offsetX &&
+		left.bounds.offsetY === right.bounds.offsetY &&
+		left.bounds.width === right.bounds.width &&
+		left.bounds.height === right.bounds.height &&
+		left.transform.x === right.transform.x &&
+		left.transform.y === right.transform.y &&
+		left.transform.width === right.transform.width &&
+		left.transform.height === right.transform.height &&
+		left.transform.rotation === right.transform.rotation
+	);
+}
+
 function rotateElementContentOffset({
 	bounds,
 	rotation,

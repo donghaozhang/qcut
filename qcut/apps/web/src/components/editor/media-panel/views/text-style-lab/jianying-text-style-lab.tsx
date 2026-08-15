@@ -304,7 +304,12 @@ export function JianyingTextStyleLabDialog({
 		style: JianyingTextStyleLabStyleSummary;
 	}) => {
 		if (!(style.approximation || style.runtimeReference)) return;
-		if (style.styleId !== selectedStyleId) setSelectedAnimations({});
+		if (style.styleId !== selectedStyleId) {
+			// Seed from the style's bundled slots so a later single-slot pick
+			// doesn't wipe them: buildTextStyleLabUpdates gives a supplied
+			// animations object full priority over runtimeReference.animations.
+			setSelectedAnimations(style.runtimeReference?.animations ?? {});
+		}
 		setSelectedStyleId(style.styleId);
 		onApply({ style });
 	};
