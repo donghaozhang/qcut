@@ -64,6 +64,7 @@ export type Key =
 	| "]"
 	| "-"
 	| "="
+	| "`"
 	| "enter"
 	| "tab"
 	| "space"
