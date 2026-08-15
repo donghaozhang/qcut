@@ -18,9 +18,9 @@ if [[ ! -f "$RUNTIME_ROOT/Frameworks/libLumiGeneRuntime.dylib" ]]; then
 fi
 
 case "$MODE" in
-  inspect | config | launch | gpu | textures | transition | transition-load | transition-frame | transition-video | filter-sequence | text-frame | effect-frame) ;;
+  inspect | config | launch | gpu | textures | transition | transition-load | transition-frame | transition-video | filter-sequence | text-frame | effect-frame | effect-video) ;;
   *)
-    printf 'Usage: %s [inspect|config|launch|gpu|textures|transition|transition-load|transition-frame|transition-video|filter-sequence|text-frame|effect-frame]\n' "$0" >&2
+    printf 'Usage: %s [inspect|config|launch|gpu|textures|transition|transition-load|transition-frame|transition-video|filter-sequence|text-frame|effect-frame|effect-video]\n' "$0" >&2
     exit 2
     ;;
 esac
@@ -53,6 +53,7 @@ xcrun clang++ \
   "$SCRIPT_DIR/filter-probe.mm" \
   "$SCRIPT_DIR/transition-probe.mm" \
   "$SCRIPT_DIR/effect-probe.mm" \
+  "$SCRIPT_DIR/effect-video-probe.mm" \
   "$SCRIPT_DIR/text-probe.mm" \
   "$SCRIPT_DIR/text-resource-finder.mm" \
   "$SCRIPT_DIR/video-transition-probe.mm" \

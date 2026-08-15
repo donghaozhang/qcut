@@ -5,6 +5,7 @@
 #include "filter-probe.h"
 #include "probe-utils.h"
 #include "effect-probe.h"
+#include "effect-video-probe.h"
 #include "text-probe.h"
 #include "transition-probe.h"
 #include "video-transition-probe.h"
@@ -124,6 +125,21 @@ using jianying_probe::resolveSymbol;
   if (parsedLength != text.size() || value <= 0.0) {
     throw std::runtime_error(std::string(name) +
                              " must be a positive number");
+  }
+  return value;
+}
+
+[[nodiscard]] double optionalNonNegativeNumberEnvironment(const char* name) {
+  const char* rawValue = std::getenv(name);
+  if (rawValue == nullptr) {
+    return 0.0;
+  }
+  const std::string text(rawValue);
+  std::size_t parsedLength = 0;
+  const double value = std::stod(text, &parsedLength);
+  if (parsedLength != text.size() || !std::isfinite(value) || value < 0.0) {
+    throw std::runtime_error(std::string(name) +
+                             " must be a number of seconds at or above 0");
   }
   return value;
 }
@@ -520,6 +536,28 @@ void configure(ObjectStorage<kConfigStorageSize>& config,
                : 10;
   }
 
+  if (mode == "effect-video") {
+    const fs::path packagePath = requireEnvironment("JY_EFFECT_PACKAGE");
+    if (!fs::is_directory(packagePath)) {
+      throw std::runtime_error(
+          "JY_EFFECT_PACKAGE must name a package directory");
+    }
+
+    const auto result = jianying_probe::renderRawVideoEffect({
+        .runtimeRoot = runtimeRoot,
+        .packagePath = packagePath,
+        .inputPath = requireEnvironment("JY_RAW_INPUT"),
+        .outputPath = requireEnvironment("JY_RAW_OUTPUT"),
+        .width = requirePositiveIntegerEnvironment("JY_VIDEO_WIDTH"),
+        .height = requirePositiveIntegerEnvironment("JY_VIDEO_HEIGHT"),
+        .frameRate = requirePositiveNumberEnvironment("JY_VIDEO_FPS"),
+        .startSeconds = optionalNonNegativeNumberEnvironment("JY_EFFECT_START"),
+        .durationSeconds =
+            requirePositiveNumberEnvironment("JY_EFFECT_DURATION"),
+    });
+    return result.outputFrames > 0 ? 0 : 11;
+  }
+
   if (mode == "text-frame") {
     const fs::path packagePath = requireEnvironment("JY_TEXT_PACKAGE");
     if (!fs::is_directory(packagePath)) {
@@ -663,7 +701,7 @@ int main(int argc, char* argv[]) {
                 << " <runtime-root> "
                    "<inspect|config|launch|gpu|textures|transition|transition-"
                    "load|transition-frame|transition-video|filter-sequence|"
-                   "text-frame|effect-frame>\n";
+                   "text-frame|effect-frame|effect-video>\n";
       return 2;
     }
 
