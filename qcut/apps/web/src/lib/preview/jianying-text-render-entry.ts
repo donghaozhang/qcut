@@ -1,6 +1,7 @@
 import type {
 	JianyingTextRuntimeRenderRequest,
 	JianyingTextRuntimeRenderResult,
+	JianyingTextRuntimeTransform,
 } from "@/types/electron/api-jianying-text-runtime";
 import type { TextOverlayBounds } from "@/lib/text/text-overlay-bounds";
 import {
@@ -21,6 +22,47 @@ export interface JianyingTextRenderEntry {
 }
 
 const JIANYING_TEXT_OVERLAY_BREATHING_PX = 6;
+
+export type JianyingTextPreviewTransform = Pick<
+	JianyingTextRuntimeTransform,
+	"x" | "y" | "width" | "height" | "rotation"
+>;
+
+interface JianyingTextPlaybackLayerStyle {
+	left: string;
+	top: string;
+	width: string;
+	height: string;
+	transform: string;
+	transformOrigin: "center";
+}
+
+export function resolveJianyingTextPlaybackLayerStyle({
+	entry,
+	result,
+	targetTransform,
+}: {
+	entry: JianyingTextRenderEntry;
+	result: JianyingTextRuntimeRenderResult;
+	targetTransform?: JianyingTextPreviewTransform;
+}): JianyingTextPlaybackLayerStyle {
+	const sourceTransform = entry.renderRequest.transform;
+	const target = targetTransform ?? sourceTransform;
+	const scaleX =
+		sourceTransform.width > 0 ? target.width / sourceTransform.width : 1;
+	const scaleY =
+		sourceTransform.height > 0 ? target.height / sourceTransform.height : 1;
+	const x = result.x + target.x - sourceTransform.x;
+	const y = result.y + target.y - sourceTransform.y;
+	return {
+		left: `${(x / entry.renderRequest.canvasWidth) * 100}%`,
+		top: `${(y / entry.renderRequest.canvasHeight) * 100}%`,
+		width: `${(result.width / entry.renderRequest.canvasWidth) * 100}%`,
+		height: `${(result.height / entry.renderRequest.canvasHeight) * 100}%`,
+		transform: `rotate(${target.rotation - sourceTransform.rotation}deg) scale(${scaleX}, ${scaleY})`,
+		transformOrigin: "center",
+	};
+}
 
 export function resolveJianyingTextRenderContentBounds({
 	entry,
