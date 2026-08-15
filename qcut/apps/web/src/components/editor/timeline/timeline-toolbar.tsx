@@ -542,10 +542,17 @@ export function TimelineToolbar({
 								variant="text"
 								size="icon"
 								onClick={() => invokeAction("undo")}
+								onKeyDown={(event) => {
+									if (event.key !== "Enter" && event.key !== " ") return;
+									event.preventDefault();
+									invokeAction("undo");
+								}}
 								aria-label="Undo"
 								data-testid="timeline-undo-button"
 							>
-								<Undo2 className="h-4 w-4" />
+								<Undo2 className="h-4 w-4">
+									<title>{t("timeline.toolbar.undo")}</title>
+								</Undo2>
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
@@ -560,10 +567,17 @@ export function TimelineToolbar({
 								variant="text"
 								size="icon"
 								onClick={() => invokeAction("redo")}
+								onKeyDown={(event) => {
+									if (event.key !== "Enter" && event.key !== " ") return;
+									event.preventDefault();
+									invokeAction("redo");
+								}}
 								aria-label="Redo"
 								data-testid="timeline-redo-button"
 							>
-								<Redo2 className="h-4 w-4" />
+								<Redo2 className="h-4 w-4">
+									<title>{t("timeline.toolbar.redo")}</title>
+								</Redo2>
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
@@ -694,11 +708,18 @@ export function TimelineToolbar({
 								variant="text"
 								size="icon"
 								onClick={() => invokeAction("reverse-selected")}
+								onKeyDown={(event) => {
+									if (event.key !== "Enter" && event.key !== " ") return;
+									event.preventDefault();
+									invokeAction("reverse-selected");
+								}}
 								disabled={!hasSingleMediaSelection}
 								aria-label="Reverse selected clip"
 								data-testid="reverse-clip-button"
 							>
-								<Rewind className="h-4 w-4" />
+								<Rewind className="h-4 w-4">
+									<title>{t("timeline.toolbar.reverse")}</title>
+								</Rewind>
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
@@ -713,11 +734,18 @@ export function TimelineToolbar({
 								variant="text"
 								size="icon"
 								onClick={() => invokeAction("mirror-selected")}
+								onKeyDown={(event) => {
+									if (event.key !== "Enter" && event.key !== " ") return;
+									event.preventDefault();
+									invokeAction("mirror-selected");
+								}}
 								disabled={!hasSingleMediaSelection}
 								aria-label="Mirror selected clip"
 								data-testid="mirror-clip-button"
 							>
-								<FlipHorizontal2 className="h-4 w-4" />
+								<FlipHorizontal2 className="h-4 w-4">
+									<title>{t("timeline.toolbar.mirror")}</title>
+								</FlipHorizontal2>
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
@@ -732,11 +760,18 @@ export function TimelineToolbar({
 								variant="text"
 								size="icon"
 								onClick={() => invokeAction("rotate-selected")}
+								onKeyDown={(event) => {
+									if (event.key !== "Enter" && event.key !== " ") return;
+									event.preventDefault();
+									invokeAction("rotate-selected");
+								}}
 								disabled={!hasSingleMediaSelection}
 								aria-label="Rotate selected clip"
 								data-testid="rotate-clip-button"
 							>
-								<RotateCw className="h-4 w-4" />
+								<RotateCw className="h-4 w-4">
+									<title>{t("timeline.toolbar.rotate")}</title>
+								</RotateCw>
 							</Button>
 						</TooltipTrigger>
 						<TooltipContent>
