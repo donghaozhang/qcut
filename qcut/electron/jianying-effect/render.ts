@@ -11,6 +11,8 @@ import { buildJianyingRawDecodeFilter } from "../jianying-transition/video-filte
 import type { JianyingEffectRuntimeInspection } from "./runtime-discovery.js";
 
 const MAX_CAPTURED_PROCESS_OUTPUT = 8192;
+/** A stalled ffmpeg or bridge must fail the pass, not hang the export. */
+const PROCESS_TIMEOUT_MS = 15 * 60 * 1000;
 
 export interface JianyingEffectFrameCounts {
 	inputFrames: number;
@@ -40,14 +42,16 @@ function appendBounded({ current, chunk }: { current: string; chunk: Buffer }) {
 		: combined.slice(-MAX_CAPTURED_PROCESS_OUTPUT);
 }
 
-function runProcess({
+export function runJianyingEffectProcess({
 	command,
 	args,
 	env,
+	timeoutMs = PROCESS_TIMEOUT_MS,
 }: {
 	command: string;
 	args: string[];
 	env?: NodeJS.ProcessEnv;
+	timeoutMs?: number;
 }): Promise<string> {
 	return new Promise((resolve, reject) => {
 		const child = spawn(command, args, {
@@ -55,6 +59,11 @@ function runProcess({
 			stdio: ["ignore", "pipe", "pipe"],
 			windowsHide: true,
 		});
+		let timedOut = false;
+		const timer = setTimeout(() => {
+			timedOut = true;
+			child.kill("SIGKILL");
+		}, timeoutMs);
 		let output = "";
 		child.stdout.on("data", (chunk: Buffer) => {
 			output = appendBounded({ current: output, chunk });
@@ -62,8 +71,20 @@ function runProcess({
 		child.stderr.on("data", (chunk: Buffer) => {
 			output = appendBounded({ current: output, chunk });
 		});
-		child.on("error", reject);
+		child.on("error", (error) => {
+			clearTimeout(timer);
+			reject(error);
+		});
 		child.on("close", (code, signal) => {
+			clearTimeout(timer);
+			if (timedOut) {
+				reject(
+					new Error(
+						`${path.basename(command)} timed out after ${timeoutMs / 1000}s`
+					)
+				);
+				return;
+			}
 			if (code === 0) {
 				resolve(output);
 				return;
@@ -145,7 +166,7 @@ export async function renderJianyingEffectClip({
 	const rawOutput = path.join(workspace, "output.rgba");
 
 	try {
-		await runProcess({
+		await runJianyingEffectProcess({
 			command: ffmpegPath,
 			args: [
 				"-y",
@@ -161,7 +182,7 @@ export async function renderJianyingEffectClip({
 			],
 		});
 
-		const bridgeOutput = await runProcess({
+		const bridgeOutput = await runJianyingEffectProcess({
 			command: inspection.bridgePath,
 			args: [inspection.runtimeRootPath, "effect-video"],
 			env: bridgeEnvironment({
@@ -184,7 +205,7 @@ export async function renderJianyingEffectClip({
 
 		// The raw stream carries video only, so the source is muxed back in for
 		// its audio — otherwise every lab effect would silence the export.
-		await runProcess({
+		await runJianyingEffectProcess({
 			command: ffmpegPath,
 			args: [
 				"-hide_banner",

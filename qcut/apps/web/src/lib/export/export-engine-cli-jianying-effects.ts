@@ -44,7 +44,9 @@ export function collectJianyingEffectRequests({
 	const requests: JianyingEffectExportRequest[] = [];
 
 	for (const track of tracks) {
-		if (track.muted) continue;
+		// Mirrors the base export's visibility rules; a hidden track must not
+		// change the picture through a post-pass either.
+		if (track.hidden || track.muted) continue;
 		for (const element of track.elements) {
 			if (element.hidden) continue;
 			for (const effect of element.effects ?? []) {

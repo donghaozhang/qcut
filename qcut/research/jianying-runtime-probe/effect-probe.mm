@@ -416,7 +416,10 @@ class EffectRenderSession {
       return false;
     }
 
-    const auto timestamp = static_cast<std::int64_t>(seconds * 1'000'000.0);
+    // Rounded, not truncated: the ABI takes int64 microseconds and every
+    // frame timestamp must be converted the same way segment spans are.
+    const auto timestamp =
+        static_cast<std::int64_t>(std::llround(seconds * 1'000'000.0));
     const DeviceTextureProbe input =
         bridgeTexture(symbols_, manager_->get(), resources.inputA, timestamp);
     const DeviceTextureProbe output =

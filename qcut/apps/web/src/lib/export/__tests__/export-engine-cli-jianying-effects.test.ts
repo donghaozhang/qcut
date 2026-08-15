@@ -11,12 +11,14 @@ function trackWithEffects({
 	duration = 5,
 	muted = false,
 	hidden = false,
+	trackHidden = false,
 }: {
 	effects: unknown[];
 	startTime?: number;
 	duration?: number;
 	muted?: boolean;
 	hidden?: boolean;
+	trackHidden?: boolean;
 }) {
 	return [
 		{
@@ -24,6 +26,7 @@ function trackWithEffects({
 			name: "Track",
 			type: "media",
 			muted,
+			hidden: trackHidden,
 			elements: [
 				{
 					id: "element-1",
@@ -105,10 +108,15 @@ describe("collectJianyingEffectRequests", () => {
 		]);
 	});
 
-	it("skips effects on hidden clips and muted tracks", () => {
+	it("skips effects on hidden clips, hidden tracks, and muted tracks", () => {
 		expect(
 			collectJianyingEffectRequests({
 				tracks: trackWithEffects({ effects: [labEffect()], hidden: true }),
+			})
+		).toEqual([]);
+		expect(
+			collectJianyingEffectRequests({
+				tracks: trackWithEffects({ effects: [labEffect()], trackHidden: true }),
 			})
 		).toEqual([]);
 		expect(

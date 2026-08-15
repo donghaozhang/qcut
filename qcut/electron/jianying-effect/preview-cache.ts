@@ -1,4 +1,3 @@
-import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import {
 	mkdir,
@@ -16,7 +15,10 @@ import type {
 	JianyingEffectPreviewResult,
 } from "../jianying-effect-contract.js";
 import { getFFmpegPath } from "../ffmpeg/paths.js";
-import { renderJianyingEffectClip } from "./render.js";
+import {
+	renderJianyingEffectClip,
+	runJianyingEffectProcess,
+} from "./render.js";
 import { inspectJianyingEffectRuntime } from "./runtime-discovery.js";
 
 const PREVIEW_CACHE_VERSION = 1;
@@ -30,6 +32,19 @@ const PREVIEW_FPS = 12;
 const PREVIEW_SECONDS = 0.75;
 const PREVIEW_SOURCE_IMAGE = "neon-city.webp";
 const MAX_PREVIEW_SECONDS = 10;
+
+/**
+ * Clamped once, up front — the cache key, the render, and the frame selection
+ * must all see the same value, or values past the cap would each miss the
+ * cache while producing the same image.
+ */
+function clampPreviewSeconds({ requested }: { requested?: number }): number {
+	const value = requested ?? PREVIEW_SECONDS;
+	if (!Number.isFinite(value) || value < 0) {
+		throw new Error("特效预览时间点无效。");
+	}
+	return Math.min(value, MAX_PREVIEW_SECONDS);
+}
 
 /**
  * Rendering a preview costs a full native session, so identical concurrent
@@ -52,23 +67,18 @@ function previewCacheDirectory(): string {
 function cacheKey({
 	request,
 	packageHash,
+	seconds,
 }: {
 	request: JianyingEffectPreviewRequest;
 	packageHash: string;
+	seconds: number;
 }): string {
 	const adjust = (request.adjustValues ?? [])
 		.map((entry) => `${entry.key}=${entry.value}`)
 		.sort()
 		.join(",");
 	return createHash("sha256")
-		.update(
-			[
-				request.effectId,
-				packageHash,
-				String(request.seconds ?? PREVIEW_SECONDS),
-				adjust,
-			].join("|")
-		)
+		.update([request.effectId, packageHash, String(seconds), adjust].join("|"))
 		.digest("hex");
 }
 
@@ -115,7 +125,7 @@ export function getJianyingEffectPreview({
 }): Promise<JianyingEffectPreviewResult> {
 	const shareKey = JSON.stringify([
 		request.effectId,
-		request.seconds ?? PREVIEW_SECONDS,
+		clampPreviewSeconds({ requested: request.seconds }),
 		request.adjustValues ?? [],
 	]);
 	const existing = inFlightPreviews.get(shareKey);
@@ -144,7 +154,12 @@ async function renderPreview({
 		throw new Error(definition.unsupportedReason ?? "该特效暂不支持本机渲染。");
 	}
 
-	const key = cacheKey({ request, packageHash: definition.packageHash });
+	const seconds = clampPreviewSeconds({ requested: request.seconds });
+	const key = cacheKey({
+		request,
+		packageHash: definition.packageHash,
+		seconds,
+	});
 	const cacheDirectory = previewCacheDirectory();
 	const cachedPath = path.join(cacheDirectory, `${key}.png`);
 	const cached = await readFile(cachedPath).catch(() => null);
@@ -158,11 +173,6 @@ async function renderPreview({
 		};
 	}
 
-	const requestedSeconds = request.seconds ?? PREVIEW_SECONDS;
-	if (!Number.isFinite(requestedSeconds) || requestedSeconds < 0) {
-		throw new Error("特效预览时间点无效。");
-	}
-	const seconds = Math.min(requestedSeconds, MAX_PREVIEW_SECONDS);
 	const ffmpegPath = getFFmpegPath();
 	const sourceImage = await firstReadableFile({
 		candidates: resolvePreviewSourceImage(),
@@ -173,8 +183,8 @@ async function renderPreview({
 		// A still image looped into a short clip gives the effect a timeline to
 		// animate along, which is what its seek-driven scene expects.
 		const sourceClip = path.join(workspace, "source.mp4");
-		await runFfmpeg({
-			ffmpegPath,
+		await runJianyingEffectProcess({
+			command: ffmpegPath,
 			args: [
 				"-y",
 				"-loop",
@@ -194,6 +204,13 @@ async function renderPreview({
 		});
 
 		const renderedClip = path.join(workspace, "rendered.mp4");
+		// The window covers the selected frame even when the requested timestamp
+		// is past the package's default duration — a frame outside the window
+		// would be copied through untouched and preview as "no effect".
+		const windowSeconds = Math.max(
+			definition.defaultDurationMs / 1000,
+			seconds + 1 / PREVIEW_FPS
+		);
 		await renderJianyingEffectClip({
 			inspection,
 			definition,
@@ -203,13 +220,13 @@ async function renderPreview({
 			height: PREVIEW_HEIGHT,
 			frameRate: PREVIEW_FPS,
 			startSeconds: 0,
-			durationSeconds: definition.defaultDurationMs / 1000,
+			durationSeconds: windowSeconds,
 			adjustValues: request.adjustValues,
 		});
 
 		const stillPath = path.join(workspace, "still.png");
-		await runFfmpeg({
-			ffmpegPath,
+		await runJianyingEffectProcess({
+			command: ffmpegPath,
 			args: [
 				"-y",
 				"-i",
@@ -238,31 +255,4 @@ async function renderPreview({
 	} finally {
 		await rm(workspace, { recursive: true, force: true });
 	}
-}
-
-function runFfmpeg({
-	ffmpegPath,
-	args,
-}: {
-	ffmpegPath: string;
-	args: string[];
-}): Promise<void> {
-	return new Promise((resolve, reject) => {
-		const child = spawn(ffmpegPath, args, {
-			stdio: ["ignore", "ignore", "pipe"],
-			windowsHide: true,
-		});
-		let error = "";
-		child.stderr?.on("data", (chunk: Buffer) => {
-			error = (error + chunk.toString()).slice(-4096);
-		});
-		child.on("error", reject);
-		child.on("close", (code: number | null) => {
-			if (code === 0) {
-				resolve();
-				return;
-			}
-			reject(new Error(`ffmpeg failed (${code}): ${error.trim()}`));
-		});
-	});
 }

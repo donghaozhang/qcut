@@ -1,5 +1,5 @@
 import { FlaskConical, ImageOff, Loader2, Lock, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { EffectPreset } from "@/types/effects";
@@ -83,6 +83,8 @@ export function JianyingEffectLabPanel({
 	// "" marks a render that failed — without it the pump would retry forever
 	// and the tile would spin forever.
 	const [previews, setPreviews] = useState<Record<string, string>>({});
+	// Requests already on the wire; a state update must not re-issue them.
+	const inFlightIds = useRef(new Set<string>());
 
 	const effects = status?.effects ?? [];
 
@@ -92,12 +94,19 @@ export function JianyingEffectLabPanel({
 		const api = window.electronAPI?.jianyingEffects;
 		if (!api) return;
 		const pending = effects.filter(
-			(effect) => effect.supported && previews[effect.id] === undefined
+			(effect) =>
+				effect.supported &&
+				previews[effect.id] === undefined &&
+				!inFlightIds.current.has(effect.id)
 		);
-		if (pending.length === 0) return;
+		const capacity = PREVIEW_CONCURRENCY - inFlightIds.current.size;
+		if (pending.length === 0 || capacity <= 0) return;
 
 		let cancelled = false;
-		const batch = pending.slice(0, PREVIEW_CONCURRENCY);
+		const batch = pending.slice(0, capacity);
+		for (const effect of batch) {
+			inFlightIds.current.add(effect.id);
+		}
 		void Promise.all(
 			batch.map(async (effect) => {
 				try {
@@ -112,6 +121,8 @@ export function JianyingEffectLabPanel({
 					if (!cancelled) {
 						setPreviews((current) => ({ ...current, [effect.id]: "" }));
 					}
+				} finally {
+					inFlightIds.current.delete(effect.id);
 				}
 			})
 		);
@@ -165,8 +176,13 @@ export function JianyingEffectLabPanel({
 				<span>
 					本机剪映特效 {visibleEffects.filter((e) => e.supported).length} 个
 				</span>
-				<Button size="sm" variant="text" onClick={() => void refresh()}>
-					<RefreshCw className="size-3" />
+				<Button
+					size="sm"
+					variant="text"
+					aria-label="重新检测本机剪映特效"
+					onClick={() => void refresh()}
+				>
+					<RefreshCw aria-hidden="true" className="size-3" />
 				</Button>
 			</div>
 			<div className="grid min-h-0 flex-1 grid-cols-3 gap-2 overflow-y-auto p-3 pt-0">
