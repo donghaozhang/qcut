@@ -24,6 +24,13 @@ function packageKindFromEnvironment({
 }): JianyingTextRuntimePackageKind {
 	if (value === "TextStyle") return value;
 	if (value === "InfoSticker") return value;
+	// This test produces parity evidence; a misspelled kind must fail loudly
+	// instead of silently running the ScriptInfoSticker assertions.
+	if (value !== undefined && value !== "ScriptInfoSticker") {
+		throw new Error(
+			`Unsupported QCUT_JIANYING_TEXT_E2E_PACKAGE_KIND: ${value}`
+		);
+	}
 	return "ScriptInfoSticker";
 }
 

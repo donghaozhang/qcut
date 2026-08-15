@@ -48,6 +48,7 @@ const MASK_EDGE_VERIFIED_MAX = 0.02;
 const MASK_EDGE_CLOSE_MAX = 0.08;
 
 interface NativeDualLutOptions {
+	allowUnverifiedUiMask?: boolean;
 	frameCount: number;
 	motionStartFrame: number;
 	resourceIds?: string[];
@@ -69,6 +70,7 @@ function requiredValue({
 
 export function parseNativeDualLutArgs({ argv }: { argv: string[] }) {
 	let frameCount = 70;
+	let allowUnverifiedUiMask = false;
 	let motionStartFrame: number | undefined;
 	let resourceIds: string[] | undefined;
 	let runDirectory = "";
@@ -76,6 +78,10 @@ export function parseNativeDualLutArgs({ argv }: { argv: string[] }) {
 	let videoPath = "";
 	for (let index = 0; index < argv.length; index += 1) {
 		const argument = argv[index];
+		if (argument === "--allow-unverified-ui-mask") {
+			allowUnverifiedUiMask = true;
+			continue;
+		}
 		if (argument === "--run-dir") {
 			runDirectory = requiredValue({ argument, value: argv[index + 1] });
 			index += 1;
@@ -151,6 +157,7 @@ export function parseNativeDualLutArgs({ argv }: { argv: string[] }) {
 		);
 	}
 	return {
+		...(allowUnverifiedUiMask ? { allowUnverifiedUiMask } : {}),
 		frameCount,
 		motionStartFrame: resolvedMotionStartFrame,
 		...(resourceIds ? { resourceIds } : {}),
@@ -310,7 +317,7 @@ export async function runNativeDualLutParity({
 		const uiMaskStatus = uiMask
 			? maskEdgeStatus({ maskEdgeMae: uiMask.maskEdgeMae })
 			: null;
-		if (uiMaskStatus === "unverified") {
+		if (uiMaskStatus === "unverified" && !options.allowUnverifiedUiMask) {
 			throw new Error(
 				`${target.title} mask edge MAE ${uiMask?.maskEdgeMae} exceeds ${MASK_EDGE_CLOSE_MAX}`
 			);
@@ -372,6 +379,7 @@ export async function runNativeDualLutParity({
 							measurementStartFrame,
 						},
 						uiMask,
+						uiMaskGatePassed: uiMaskStatus !== "unverified",
 						uiMaskStatus,
 						maskEdgeMae: uiMask?.maskEdgeMae,
 					}
@@ -399,6 +407,7 @@ export async function runNativeDualLutParity({
 		},
 		uiMaskManifest: manifest?.manifestPath ?? null,
 		uiMaskThresholds: {
+			allowUnverified: options.allowUnverifiedUiMask ?? false,
 			verifiedMax: MASK_EDGE_VERIFIED_MAX,
 			closeMax: MASK_EDGE_CLOSE_MAX,
 		},

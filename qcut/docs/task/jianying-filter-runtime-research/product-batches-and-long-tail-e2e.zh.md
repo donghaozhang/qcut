@@ -47,11 +47,12 @@
 | 7 张 A -> B 与 fresh-B RGBA | 全部逐字节一致，MAE 0 |
 | 7 张 A -> B 与 fresh-B mask | 全部逐字节一致，MAE 0 |
 | 7 张导出 | 全部 854x480、30 fps、70 帧、2.333333 秒 |
-| UI mask 门禁 | 奥林巴斯 verified；共享算法图六张 close |
+| UI mask 门禁 | 1 verified / 3 close / 3 unverified，全部为逐卡 reference |
 
 七张输出 SHA-256 均不相同。奥林巴斯相对直接剪映 UI mask 的 `maskEdgeMae=0.013262`，达到 verified；
-其余六张使用同一分割 graph，在相同输入上共享逐字节一致的 raw mask，相对经过校准的青灰 UI 反推 mask 为
-`maskEdgeMae=0.075152`，只达到 close。完整素材绑定、校准方法和逐卡结果见
+青灰、冷月夜、亮肤分别为 `0.075152 / 0.059560 / 0.079349`，达到 close；橙蓝、森山、雾野分别为
+`0.113760 / 0.220857 / 0.096268`，仍为 unverified。旧的共享青灰 mask 只能证明共同算法图，不能充当逐卡
+UI 结论，现已由每张卡自己的 UI 导出替换。完整素材绑定、校准方法和逐卡结果见
 [dual-lut-seven-real-video-e2e.zh.md](dual-lut-seven-real-video-e2e.zh.md)。
 
 ## 导出时间基修复
@@ -63,7 +64,11 @@
 provider，但每帧显式写入 `frame / fps` 与 `1 / fps`。单元测试故意延迟每帧渲染，确认写入时间戳仍为
 `0, 1/30, 2/30...`。
 
-真实 Electron E2E 的青灰导出由 `ffprobe` 确认：
+最新真实 Electron E2E 已依次应用七张人像卡，每张保存真实预览截图，并导出 `1280x720 / 30 fps / 30 帧 /
+1.000 秒` H.264。每个导出抽取的三张采样帧哈希均不同，证明不是静态占位。逐卡预览 canvas 相对本机
+provider RGBA 的 RGB MAE 为 `0.023146` 到 `0.061505`。
+
+此前青灰单卡导出还由 `ffprobe` 确认为：
 
 ```text
 codec=h264
@@ -106,8 +111,8 @@ MD5 全部不同，证明时变分支不是静态占位；输出保持 320x180�
 | 双 LUT 批处理报告 | `da525cd52793867b746111edae694632ffd1962c8a87368031b8e1047725c54c` |
 | 双 LUT contact sheet | `aa9ba28382b111affa5b21fa7dfa73cfaf3e06c305ad0825e18c99c67c35bf44` |
 | 奥林巴斯 70 帧 UI mask E2E 报告 | `7277bfbd98a0fd3ff65a7fe588dec1af3e335d5223f927327c6912453c4621b8` |
-| 共享六卡 70 帧 UI mask E2E 报告 | `2aa6e6dc1223085edca13fe934681c16535d6a10f26ac0a3e9835d45fca01632` |
-| Electron 原生预览证据 | `eba6b1b2e9c214dc0339621a6ac849f9cfacf55c59dfae3674ac868ff1ed8a40` |
+| 七张逐卡 UI mask E2E 报告 | 见逐卡文档中的 7 个 SHA-256 |
+| Electron 七张预览与导出清单 | `75444956dae70a4f1a2562b7a4ae2e044dde669c416edffe1855670903ce7864` |
 | 1 秒青灰导出 | `8b90fe6c904a8ec8aa0347f25578d7743ae4d610f973a3b8d3c744992f789ca9` |
 | 五类长尾 Pass 烟测视频 | `dbaa85416d7c9311fce15638d78a9d59f146f3fae4ae3ce718806f29e1cbb7c8` |
 | 长尾 Pass 0 秒 / 0.5 秒 contact sheet | `c7568ae4e07184e9e7ce43317e3f409b4c9afab4d8f444c1ede2d41a7aaf04d0` |

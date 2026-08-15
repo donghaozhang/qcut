@@ -225,6 +225,10 @@ describeRealTimeline("Jianying text timeline consistency real E2E", () => {
 					"error",
 					"-framerate",
 					String(FPS),
+					// framePathFromPattern numbers frames from 0; image2 defaults
+					// start_number to 1 and would shift or fail the decode.
+					"-start_number",
+					"0",
 					"-i",
 					sequence.source.path,
 					"-frames:v",

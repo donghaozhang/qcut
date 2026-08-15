@@ -2,6 +2,7 @@
 
 #include "text-probe.h"
 
+#include <cmath>
 #include <cstdlib>
 #include <filesystem>
 #include <iostream>
@@ -36,7 +37,9 @@ template <typename Value>
   std::size_t parsedLength = 0;
   if constexpr (std::is_same_v<Value, double>) {
     const double value = std::stod(text, &parsedLength);
-    if (parsedLength != text.size()) {
+    // std::stod accepts "nan" and "inf"; range checks such as fontSize's do
+    // not reject NaN, so non-finite values must fail here.
+    if (parsedLength != text.size() || !std::isfinite(value)) {
       throw std::runtime_error(std::string(name) + " must be a number");
     }
     return value;

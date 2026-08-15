@@ -127,6 +127,22 @@ describe("Jianying text render cache lock", () => {
 		});
 	});
 
+	it("honors the deadline while discarding stale locks", async () => {
+		const cacheRoot = await createCacheRoot();
+		const lockPath = path.join(cacheRoot, `${cacheKey}.lock`);
+		await writeFile(lockPath, JSON.stringify({ pid: 0 }), "utf8");
+		const stale = new Date(Date.now() - 10_000);
+		await utimes(lockPath, stale, stale);
+
+		await expect(
+			runLocked({
+				cacheRoot,
+				options: { timeoutMs: 0 },
+				task: async () => "rendered",
+			})
+		).rejects.toThrow("Timed out acquiring Jianying text render cache lock");
+	});
+
 	it("renews a live lock while rendering exceeds the stale threshold", async () => {
 		const cacheRoot = await createCacheRoot();
 		const events: string[] = [];

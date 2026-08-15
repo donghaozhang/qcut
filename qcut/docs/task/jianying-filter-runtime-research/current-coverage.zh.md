@@ -70,10 +70,12 @@ ready 后同 timestamp re-seek 已完成。静态历史达到 `48.888033 dB / ma
 经过运动历史后回跳只剩 `40.140233 dB / 0.265185`，两次独立复跑逐字节一致。结合既有 source-switch
 实验，恢复规则确定为：连续 clip 复用 manager；clip/source 变化或向后时间跳转时重建 manager 与
 AlgorithmService。QCut 的 preview/export 已共用本机 provider 生命周期。7 张双 LUT 现已逐卡完成 70 帧
-真实视频、人物移动、mask 响应、A -> B 素材切换和固定帧数导出：奥林巴斯相对直接 UI mask 的
-`maskEdgeMae=0.013262`，达到 verified；共享分割算法图的另外六张为 `0.075152`，达到 close。下一产品
-优先级仍是接入自有或获授权 skin segmentation 并提升吞吐；下一研究优先级是缩小共享分割图的边缘与羽化
-差距，再为 Bloom、色差、漏光和颗粒采集真实剪映长尾样本。
+真实视频、人物移动、mask 响应、A -> B 素材切换和固定帧数导出；Electron 产品 E2E 也逐卡完成真实预览与
+1 秒、30 帧导出。相对各自剪映 UI reference，奥林巴斯 `0.013262` 为 verified，青灰 `0.075152`、
+冷月夜 `0.059560`、亮肤 `0.079349` 为 close，橙蓝 `0.113760`、森山 `0.220857`、雾野 `0.096268`
+为 unverified。旧的“六张共享青灰 mask 均为 `0.075152`”结论已经撤回。下一产品优先级仍是接入自有或
+获授权 skin segmentation 并提升吞吐；下一研究优先级是解释相同 native raw mask 为何对应不同的逐卡 UI
+边缘，再为 Bloom、色差、漏光和颗粒采集真实剪映长尾样本。
 
 记录见 [skin-seg-first-result-lifecycle.zh.md](skin-seg-first-result-lifecycle.zh.md)、
 [olympus-portrait-filter-e2e.zh.md](olympus-portrait-filter-e2e.zh.md)、

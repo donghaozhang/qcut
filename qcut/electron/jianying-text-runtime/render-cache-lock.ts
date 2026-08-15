@@ -114,21 +114,16 @@ async function acquireRenderCacheLock({
 		handle = await open(lockPath, "wx", 0o600);
 	} catch (error) {
 		if (nodeErrorCode({ error }) !== "EEXIST") throw error;
-		if (await discardStaleRenderCacheLock({ lockPath, staleMs })) {
-			return acquireRenderCacheLock({
-				deadline,
-				lockPath,
-				retryMs,
-				staleMs,
-				throwIfCancelled,
-			});
-		}
+		const discarded = await discardStaleRenderCacheLock({ lockPath, staleMs });
+		// The discard path must also honor the deadline: it reports success on
+		// ENOENT, so a lock repeatedly created and removed by another process
+		// would otherwise retry past timeoutMs.
 		if (Date.now() >= deadline) {
 			throw new Error(
 				`Timed out acquiring Jianying text render cache lock: ${lockPath}`
 			);
 		}
-		await delay(retryMs);
+		if (!discarded) await delay(retryMs);
 		return acquireRenderCacheLock({
 			deadline,
 			lockPath,
