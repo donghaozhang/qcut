@@ -26,6 +26,7 @@ export const TAB_LABEL_KEYS: Record<Tab, TranslationKey> = {
 	upscale: "tabs.upscale",
 	moyin: "tabs.moyin",
 	"ai-chat": "tabs.aiChat",
+	"digital-human": "tabs.digitalHuman",
 	search: "tabs.search",
 };
 

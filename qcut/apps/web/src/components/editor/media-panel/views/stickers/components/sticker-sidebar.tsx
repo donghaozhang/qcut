@@ -4,6 +4,7 @@ import {
 	FlaskConical,
 	Heart,
 	Library,
+	Shapes,
 	Sparkles,
 	type LucideIcon,
 } from "lucide-react";
@@ -13,6 +14,7 @@ import {
 	type StickerCategoryId,
 } from "@/lib/stickers/sticker-catalog";
 import { cn } from "@/lib/utils";
+import type { StickerLabSelection } from "./local-sticker-reference-panel";
 
 export type StickerPanelMode =
 	| "ai"
@@ -20,12 +22,27 @@ export type StickerPanelMode =
 	| "library"
 	| "reference-lab"
 	| "recent"
+	| "shapes"
 	| "store";
+
+export interface StickerLabSidebarCategory {
+	count: number;
+	id: string;
+	label: string;
+}
+
+export interface StickerLabSidebarProps {
+	privateCategories: readonly StickerLabSidebarCategory[];
+	publicCategories: readonly StickerLabSidebarCategory[];
+	selection: StickerLabSelection | null;
+	onSelectCategory: ({ selection }: { selection: StickerLabSelection }) => void;
+}
 
 interface StickerSidebarProps {
 	mode: StickerPanelMode;
+	/** Lab navigation model; null hides the entry (lab not configured). */
+	referenceLab: StickerLabSidebarProps | null;
 	selectedCategory: StickerCategoryId;
-	showReferenceLab: boolean;
 	onSelectCategory: ({ category }: { category: StickerCategoryId }) => void;
 	onSelectMode: ({ mode }: { mode: StickerPanelMode }) => void;
 }
@@ -36,11 +53,6 @@ const AUXILIARY_MODE_ITEMS = [
 ] as const;
 
 const AI_MODE_ITEM = { id: "ai", label: "AI生成", icon: Sparkles } as const;
-const REFERENCE_LAB_MODE_ITEM = {
-	id: "reference-lab",
-	label: "贴纸实验室",
-	icon: FlaskConical,
-} as const;
 
 function navigationButtonClass({ active }: { active: boolean }): string {
 	return cn(
@@ -117,14 +129,75 @@ function CategoryButton({
 	);
 }
 
+function LabCategoryGroup({
+	catalogKey,
+	categories,
+	label,
+	mode,
+	selection,
+	onSelectCategory,
+}: {
+	catalogKey: StickerLabSelection["catalogKey"];
+	categories: readonly StickerLabSidebarCategory[];
+	label: string;
+	mode: StickerPanelMode;
+	selection: StickerLabSelection | null;
+	onSelectCategory: ({ selection }: { selection: StickerLabSelection }) => void;
+}) {
+	if (!categories.length) return null;
+	return (
+		<div>
+			<p className="px-2 pb-0.5 pt-1.5 text-[10px] text-muted-foreground/70">
+				{label}
+			</p>
+			<div className="space-y-0.5">
+				{categories.map((category) => {
+					const active =
+						mode === "reference-lab" &&
+						selection?.catalogKey === catalogKey &&
+						selection.categoryId === category.id;
+					return (
+						<button
+							key={category.id}
+							type="button"
+							className={navigationButtonClass({ active })}
+							aria-pressed={active}
+							aria-label={`${category.label}，${category.count} 个贴纸`}
+							data-testid={`sticker-lab-category-${catalogKey}-${category.id}`}
+							onClick={() =>
+								onSelectCategory({
+									selection: { catalogKey, categoryId: category.id },
+								})
+							}
+							onKeyDown={(event) => {
+								if (event.key === "Enter" || event.key === " ") {
+									event.currentTarget.click();
+								}
+							}}
+						>
+							<span className="min-w-0 flex-1 truncate whitespace-nowrap">
+								{/* Narrow rail: the QCut prefix is implied by the group
+								    header, so drop it from the visible label only. Not
+								    anchored — manifest labels lead with an emoji. */}
+								{category.label.replace(/QCut\s*/, "")}
+							</span>
+						</button>
+					);
+				})}
+			</div>
+		</div>
+	);
+}
+
 export function StickerSidebar({
 	mode,
+	referenceLab,
 	selectedCategory,
-	showReferenceLab,
 	onSelectCategory,
 	onSelectMode,
 }: StickerSidebarProps) {
 	const [libraryExpanded, setLibraryExpanded] = useState(true);
+	const [labExpanded, setLabExpanded] = useState(true);
 	const featuredCategories = STICKER_CATEGORIES.filter(
 		(category) => category.group === "featured"
 	);
@@ -137,7 +210,7 @@ export function StickerSidebar({
 
 	return (
 		<aside
-			className="w-[112px] shrink-0 overflow-y-auto border-r border-border/50 px-1.5 py-2"
+			className="w-[128px] shrink-0 overflow-y-auto border-r border-border/50 px-1.5 py-2"
 			data-testid="sticker-sidebar"
 		>
 			<div className="space-y-0.5 border-b border-border/50 pb-2">
@@ -218,20 +291,84 @@ export function StickerSidebar({
 					</div>
 				)}
 			</div>
-			{showReferenceLab && (
+			{referenceLab && (
 				<div
 					className="border-t border-border/50 pt-2"
 					data-testid="sticker-reference-lab-entry"
 				>
-					<ModeButton
-						icon={REFERENCE_LAB_MODE_ITEM.icon}
-						id={REFERENCE_LAB_MODE_ITEM.id}
-						label={REFERENCE_LAB_MODE_ITEM.label}
-						mode={mode}
-						onSelectMode={onSelectMode}
-					/>
+					<button
+						type="button"
+						className={cn(
+							navigationButtonClass({ active: false }),
+							mode === "reference-lab" && "font-semibold text-primary"
+						)}
+						aria-expanded={labExpanded}
+						aria-label="贴纸实验室"
+						aria-pressed={mode === "reference-lab"}
+						onClick={() => {
+							if (mode !== "reference-lab") {
+								onSelectMode({ mode: "reference-lab" });
+								setLabExpanded(true);
+								return;
+							}
+							setLabExpanded((expanded) => !expanded);
+						}}
+						onKeyDown={(event) => {
+							// Native buttons already click on Enter; only Space needs
+							// help, and preventDefault stops the native double-fire.
+							if (event.key !== " ") return;
+							event.preventDefault();
+							event.currentTarget.click();
+						}}
+					>
+						<FlaskConical className="size-3.5 shrink-0" aria-hidden="true" />
+						{/* The rail is too narrow for 贴纸实验室 plus a chevron; the
+						    stickers panel context already supplies the 贴纸 half. */}
+						<span className="min-w-0 flex-1 truncate whitespace-nowrap">
+							实验室
+						</span>
+						<ChevronDown
+							className={cn(
+								"size-3 shrink-0 transition-transform",
+								!labExpanded && "-rotate-90"
+							)}
+							aria-hidden="true"
+						/>
+					</button>
+					{labExpanded && (
+						<div className="mt-0.5">
+							<LabCategoryGroup
+								catalogKey="public"
+								categories={referenceLab.publicCategories}
+								label="QCut 原创"
+								mode={mode}
+								selection={referenceLab.selection}
+								onSelectCategory={referenceLab.onSelectCategory}
+							/>
+							<LabCategoryGroup
+								catalogKey="private"
+								categories={referenceLab.privateCategories}
+								label="剪映参照 · 内部"
+								mode={mode}
+								selection={referenceLab.selection}
+								onSelectCategory={referenceLab.onSelectCategory}
+							/>
+						</div>
+					)}
 				</div>
 			)}
+			<div
+				className="border-t border-border/50 pt-2"
+				data-testid="sticker-shapes-entry"
+			>
+				<ModeButton
+					icon={Shapes}
+					id="shapes"
+					label="图形库"
+					mode={mode}
+					onSelectMode={onSelectMode}
+				/>
+			</div>
 		</aside>
 	);
 }

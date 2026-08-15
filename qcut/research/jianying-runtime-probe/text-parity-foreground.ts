@@ -1,6 +1,6 @@
 import {
-	decodeCapturePixels,
-	type CapturePixels,
+	rawPixels,
+	type RawPixels,
 } from "../../.agents/skills/qcut-toolkit/jianying-transition-reference/scripts/image-difference";
 
 export const TEXT_PARITY_FOREGROUND_BACKGROUND_THRESHOLD = 8;
@@ -191,8 +191,8 @@ function compareDecodedTextForeground({
 	backgroundColor,
 	backgroundThreshold,
 }: {
-	reference: CapturePixels;
-	candidate: CapturePixels;
+	reference: RawPixels;
+	candidate: RawPixels;
 	backgroundColor: string;
 	backgroundThreshold: number;
 }): TextForegroundDifferenceMetrics {
@@ -299,8 +299,8 @@ async function decodeTextForegroundFrames({
 	ffmpegPath?: string;
 }) {
 	const [reference, candidate] = await Promise.all([
-		decodeCapturePixels({ filePath: referencePath, ffmpegPath }),
-		decodeCapturePixels({ filePath: candidatePath, ffmpegPath }),
+		rawPixels({ filePath: referencePath, ffmpegPath }),
+		rawPixels({ filePath: candidatePath, ffmpegPath }),
 	]);
 	return { reference, candidate };
 }

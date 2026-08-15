@@ -201,18 +201,66 @@ describe("StickersView", () => {
 		expect(screen.getByTestId("ai-sticker-generator")).toBeInTheDocument();
 
 		const sidebar = screen.getByTestId("sticker-sidebar");
-		const sidebarButtons = within(sidebar).getAllByRole("button");
-		expect(sidebarButtons.at(-1)).toHaveAccessibleName("贴纸实验室");
 		fireEvent.click(
 			within(sidebar).getByRole("button", { name: "贴纸实验室" })
 		);
 		expect(
 			screen.getByTestId("local-sticker-reference-panel")
 		).toBeInTheDocument();
-		expect(screen.getByText("手绘弯箭头")).toBeInTheDocument();
+		expect(
+			screen.getByRole("button", { name: "添加手绘弯箭头到时间线" })
+		).toBeInTheDocument();
+		// The lab lists its categories in the sidebar, Jianying-style, and the
+		// resolved default category is highlighted.
+		expect(
+			screen.getByTestId("sticker-lab-category-public-popular")
+		).toHaveAttribute("aria-pressed", "true");
 
 		fireEvent.click(screen.getByTestId("sticker-category-interaction"));
 		expect(screen.getByTestId("sticker-category-grid")).toBeInTheDocument();
+		expect(
+			screen.getByTestId("sticker-lab-category-public-popular")
+		).toHaveAttribute("aria-pressed", "false");
+	});
+
+	it("opens a lab category directly from the sidebar", () => {
+		render(<StickersView />);
+
+		fireEvent.click(screen.getByTestId("sticker-lab-category-public-popular"));
+
+		expect(
+			screen.getByTestId("local-sticker-reference-panel")
+		).toBeInTheDocument();
+		expect(
+			screen.getByTestId("sticker-lab-category-public-popular")
+		).toHaveAttribute("aria-pressed", "true");
+	});
+
+	it("opens the shape library from the sidebar entry below the lab", () => {
+		render(<StickersView />);
+
+		const sidebar = screen.getByTestId("sticker-sidebar");
+		const labEntry = screen.getByTestId("sticker-reference-lab-entry");
+		const shapesEntry = screen.getByTestId("sticker-shapes-entry");
+		// 图形库 sits below the sticker lab section, Jianying-style.
+		expect(
+			labEntry.compareDocumentPosition(shapesEntry) &
+				Node.DOCUMENT_POSITION_FOLLOWING
+		).toBeTruthy();
+
+		fireEvent.click(within(sidebar).getByRole("button", { name: "图形库" }));
+		expect(screen.getByTestId("sticker-shape-library")).toBeInTheDocument();
+		expect(
+			screen.getAllByTestId("sticker-shape-item").length
+		).toBeGreaterThanOrEqual(7);
+	});
+
+	it("keeps the shape library available without a sticker lab catalog", () => {
+		localCatalogMock.current.isAvailable = false;
+		render(<StickersView />);
+
+		fireEvent.click(screen.getByRole("button", { name: "图形库" }));
+		expect(screen.getByTestId("sticker-shape-library")).toBeInTheDocument();
 	});
 
 	it("hides the bottom lab entry when no local catalog is configured", () => {

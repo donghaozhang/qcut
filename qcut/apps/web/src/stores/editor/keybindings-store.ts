@@ -120,9 +120,11 @@ export function migrateKeybindingsState({
 						? "custom"
 						: DEFAULT_KEYBINDING_PROFILE_ID,
 				};
-	if (version >= 5) return versionThreeState;
-	// v4 and v5 both re-derive non-customized profiles so users pick up new
-	// default bindings (v5 added freeze/bookmark/group/enable actions).
+	if (version >= 7) return versionThreeState;
+	// Anything persisted below v7 re-derives non-customized profiles so users
+	// pick up new default bindings (v5 added freeze/bookmark/group/enable
+	// actions, v6 the main-track magnet and linked-ripple toggles, v7 the
+	// select-tool binding).
 	const activeProfileId =
 		versionThreeState.activeProfileId ?? DEFAULT_KEYBINDING_PROFILE_ID;
 	const activeProfile = KEYBINDING_PROFILES.find(
@@ -255,7 +257,7 @@ export const useKeybindingsStore = create<KeybindingsState>()(
 		}),
 		{
 			name: "qcut-keybindings",
-			version: 5,
+			version: 7,
 			migrate: (persistedState, version) =>
 				migrateKeybindingsState({ persistedState, version }),
 		}
@@ -343,11 +345,12 @@ function getPressedKey(ev: KeyboardEvent): string | null {
 		Minus: "-",
 		Equal: "=",
 		Slash: "/",
+		Backquote: "`",
 	};
 	const punctuation = punctuationByCode[code];
 	if (punctuation) return punctuation;
 
-	if (["/", ".", ",", "[", "]", "-", "=", "enter"].includes(key)) {
+	if (["/", ".", ",", "[", "]", "-", "=", "`", "enter"].includes(key)) {
 		return key;
 	}
 
