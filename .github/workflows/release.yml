@@ -195,6 +195,9 @@ jobs:
           path: ~/Library/Caches/electron
           key: electron-${{ runner.os }}-${{ hashFiles('qcut/node_modules/electron/package.json') }}
 
+      - name: Stage Jianying text runtime bridge
+        run: bun run stage-jianying-text-runtime-bridge
+
       - name: Build Electron application
         run: |
           rm -rf dist-electron
@@ -210,6 +213,9 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+
+      - name: Verify packaged Jianying text runtime bridge
+        run: bun run verify:packaged-jianying-text-runtime-bridge
 
       - name: Build macOS DMG (custom hdiutil-based, sidesteps dmg-builder Tahoe bug)
         run: bun run build:mac-dmg

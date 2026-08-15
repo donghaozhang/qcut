@@ -3,6 +3,7 @@ import type { JianyingTextStyleLabStyleSummary } from "@/types/electron";
 import {
 	buildTextStyleLabElement,
 	buildTextStyleLabUpdates,
+	updateTextStyleLabAnimationSelection,
 } from "../text-style-lab-mapping";
 
 function createStyle({
@@ -144,5 +145,71 @@ describe("text style lab mapping", () => {
 			shadowColor: "#333333",
 			jianyingTextStyle: runtimeReference,
 		});
+	});
+
+	it("updates one original animation slot without replacing the others", () => {
+		const base = createStyle();
+		const style: JianyingTextStyleLabStyleSummary = {
+			...base,
+			compatibility: "native-runtime",
+			runtimeReference: {
+				schemaVersion: 1,
+				source: "jianying-cache",
+				packageKind: "TextStyle",
+				resourceId: base.resourceId,
+				packageHash: base.version,
+				editMode: "runtime-with-preload-fallback",
+				slotMapping: "line-to-widget",
+				timeMapping: "stretch",
+				templateDuration: 3,
+			},
+		};
+		const entrance = {
+			source: "jianying-cache" as const,
+			resourceId: "7000000000000000001",
+			packageHash: "b".repeat(32),
+			duration: 0.5,
+		};
+		const loopAnimation = {
+			animationId: `loop:7168819879183651359/${"c".repeat(32)}`,
+			resourceId: "7168819879183651359",
+			packageHash: "c".repeat(32),
+			title: "翻页 I",
+			slot: "loop" as const,
+			duration: 1.2,
+			capabilities: {
+				staticTexture: false,
+				multipleStrokes: false,
+				animationComponents: true,
+				scriptInfoSticker: false,
+				shaderComponents: true,
+				threeDimensional: true,
+				feedbackComponents: false,
+			},
+		};
+		const animations = updateTextStyleLabAnimationSelection({
+			animation: loopAnimation,
+			animations: { entrance },
+			slot: "loop",
+		});
+
+		expect(buildTextStyleLabUpdates({ animations, style })).toMatchObject({
+			jianyingTextStyle: {
+				animations: {
+					entrance,
+					loop: {
+						resourceId: loopAnimation.resourceId,
+						packageHash: loopAnimation.packageHash,
+						duration: 1.2,
+					},
+				},
+			},
+		});
+		expect(
+			updateTextStyleLabAnimationSelection({
+				animations,
+				slot: "loop",
+			})
+		).toEqual({ entrance });
 	});
 });

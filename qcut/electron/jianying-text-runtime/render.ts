@@ -26,6 +26,7 @@ import {
 } from "./host-text-fit.js";
 import { resolveJianyingTextPackage } from "./package-resolver.js";
 import { repairTransientTransparentRgbaFrames } from "./raw-sequence-integrity.js";
+import { measureJianyingTextRawSequenceAlphaBounds } from "./raw-sequence-alpha-bounds.js";
 import { normalizeJianyingTextRuntimeReference } from "./reference.js";
 import { ensureJianyingTextPreviewVideo } from "./preview-video.js";
 import { buildJianyingTextRawFrameFilter } from "./premultiplied-alpha.js";
@@ -65,6 +66,8 @@ interface ExpectedRenderCache {
 	templateDuration: number;
 	width: number;
 	height: number;
+	sourceWidth: number;
+	sourceHeight: number;
 }
 
 function requireFiniteNumber({
@@ -379,6 +382,9 @@ function responseForRender({
 		y: request.canvasHeight / 2 + request.transform.y - rotated.height / 2,
 		width: rotated.width,
 		height: rotated.height,
+		...(manifest.contentBounds
+			? { contentBounds: manifest.contentBounds }
+			: {}),
 		...(diagnostics.length > 0 ? { diagnostics } : {}),
 		...(previewUrl ? { previewUrl } : {}),
 		source:
@@ -598,6 +604,12 @@ async function renderUncached({
 		});
 		strategy = "host-text";
 	}
+	const contentBounds = await measureJianyingTextRawSequenceAlphaBounds({
+		rawPath,
+		width,
+		height,
+		frameCount: request.frameCount,
+	});
 	await convertRawSequence({ request, rawPath, directory, width, height });
 	await rm(rawPath, { force: true });
 	const manifest: JianyingTextCachedRenderManifest = {
@@ -607,6 +619,7 @@ async function renderUncached({
 		fps: request.fps,
 		strategy,
 		templateDuration: packageInfo.templateDuration,
+		contentBounds,
 	};
 	await writeFile(
 		path.join(directory, "manifest.json"),
@@ -759,6 +772,8 @@ export async function renderJianyingText({
 			templateDuration: packageInfo.templateDuration,
 			width: rotated.width,
 			height: rotated.height,
+			sourceWidth: Math.round(request.transform.width),
+			sourceHeight: Math.round(request.transform.height),
 		};
 		const cached = await readJianyingTextCachedRender({
 			directory: destination,

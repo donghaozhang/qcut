@@ -15,6 +15,8 @@ const expected = {
 	templateDuration: 2.5,
 	width: 320,
 	height: 180,
+	sourceWidth: 320,
+	sourceHeight: 180,
 };
 
 function pngHeader({ width, height }: { width: number; height: number }) {
@@ -40,6 +42,7 @@ async function createCache() {
 			fps: expected.fps,
 			strategy: "host-text",
 			templateDuration: expected.templateDuration,
+			contentBounds: { x: 40, y: 30, width: 240, height: 100 },
 		})
 	);
 	await Promise.all(
@@ -66,7 +69,11 @@ describe("Jianying text render cache", () => {
 		const directory = await createCache();
 		await expect(
 			readJianyingTextCachedRender({ directory, cacheKey, expected })
-		).resolves.toMatchObject({ frameCount: 3, fps: 30 });
+		).resolves.toMatchObject({
+			frameCount: 3,
+			fps: 30,
+			contentBounds: { x: 40, y: 30, width: 240, height: 100 },
+		});
 	});
 
 	it("rejects a missing middle frame", async () => {
@@ -96,6 +103,26 @@ describe("Jianying text render cache", () => {
 				cacheKey,
 				expected: { ...expected, fps: 24 },
 			})
+		).resolves.toBeNull();
+	});
+
+	it("rejects content bounds outside the local render surface", async () => {
+		const directory = await createCache();
+		await writeFile(
+			path.join(directory, "manifest.json"),
+			JSON.stringify({
+				schemaVersion: JIANYING_TEXT_RENDER_CACHE_SCHEMA_VERSION,
+				cacheKey,
+				frameCount: expected.frameCount,
+				fps: expected.fps,
+				strategy: "host-text",
+				templateDuration: expected.templateDuration,
+				contentBounds: { x: 300, y: 20, width: 40, height: 80 },
+			})
+		);
+
+		await expect(
+			readJianyingTextCachedRender({ directory, cacheKey, expected })
 		).resolves.toBeNull();
 	});
 });

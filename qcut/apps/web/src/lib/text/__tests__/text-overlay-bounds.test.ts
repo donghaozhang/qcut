@@ -88,4 +88,34 @@ describe("resolveTextOverlayBounds", () => {
 		expect(bounds.width).toBe(640);
 		expect(bounds.height).toBe(180);
 	});
+
+	it("keeps the runtime surface while native Jianying bounds are loading", () => {
+		const bounds = resolveTextOverlayBounds({
+			element: createTextElement({
+				overrides: {
+					jianyingTextStyle: {
+						schemaVersion: 1,
+						source: "jianying-cache",
+						packageKind: "TextStyle",
+						resourceId: "style-1",
+						packageHash: "a".repeat(32),
+						editMode: "runtime-with-preload-fallback",
+						slotMapping: "line-to-widget",
+						timeMapping: "stretch",
+						templateDuration: 2,
+					},
+				},
+			}),
+			canvasWidth: 1920,
+			canvasHeight: 1080,
+			ctx: createContext(),
+		});
+
+		expect(bounds).toEqual({
+			offsetX: 0,
+			offsetY: 0,
+			width: 640,
+			height: 180,
+		});
+	});
 });

@@ -58,8 +58,8 @@ describe("FFmpeg staged packaging contract", () => {
 		expect(asarUnpack).not.toContain("**/node_modules/ffprobe-static/**/*");
 	});
 
-	it("uses a direct archive extractor instead of package metadata", () => {
-		expect(packageJson.devDependencies?.["extract-zip"]).toBeDefined();
+	it("packages the archive extractor used by runtime recovery", () => {
+		expect(packageJson.dependencies?.["extract-zip"]).toBeDefined();
 		expect(packageJson.devDependencies?.["7zip-bin"]).toBeDefined();
 		const scriptPath = join(
 			__dirname,

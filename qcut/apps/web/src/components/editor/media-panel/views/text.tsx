@@ -2333,11 +2333,13 @@ export function TextView() {
 		useTimelineStore.getState().addMarkdownAtTime(markdownData, time);
 	};
 	const applyTextStyleLabStyle = ({
+		animations,
 		style,
 	}: {
+		animations?: import("@/types/electron").JianyingTextAnimationReferences;
 		style: JianyingTextStyleLabStyleSummary;
 	}) => {
-		const updates = buildTextStyleLabUpdates({ style });
+		const updates = buildTextStyleLabUpdates({ animations, style });
 		if (!updates) {
 			toast.error("该花字依赖 QCut 尚未支持的纹理或运行时效果");
 			return;
@@ -2363,7 +2365,7 @@ export function TextView() {
 			toast.success(`已应用 ${style.title ?? "本机花字"}`);
 			return;
 		}
-		const element = buildTextStyleLabElement({ style });
+		const element = buildTextStyleLabElement({ animations, style });
 		if (!element) return;
 		const added = timeline.addTextAtTime(
 			element,
