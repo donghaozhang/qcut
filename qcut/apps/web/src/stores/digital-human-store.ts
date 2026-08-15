@@ -13,9 +13,13 @@ interface DigitalHumanState {
 	step: DigitalHumanStep;
 	setStep: (step: DigitalHumanStep) => void;
 
-	/** Media-store id of the image used as the avatar figure. */
+	/** Media-store id of a project image used as the avatar figure. */
 	figureMediaId: string | null;
 	setFigureMediaId: (figureMediaId: string | null) => void;
+
+	/** Id of a bundled portrait preset used as the avatar figure. */
+	figurePresetId: string | null;
+	setFigurePresetId: (figurePresetId: string | null) => void;
 
 	shotSize: DigitalHumanShotSize;
 	setShotSize: (shotSize: DigitalHumanShotSize) => void;
@@ -39,9 +43,36 @@ interface DigitalHumanState {
 
 const DEFAULT_VOICE_MODEL = "chatterbox_tts";
 
+interface FigureSelection {
+	figureMediaId: string | null;
+	figurePresetId: string | null;
+}
+
+/** True when either figure source is selected. */
+export function hasDigitalHumanFigure(figure: FigureSelection): boolean {
+	return Boolean(figure.figureMediaId || figure.figurePresetId);
+}
+
+/**
+ * Clearing the last figure invalidates the voice step's prerequisite, so the
+ * wizard falls back rather than stranding the user on a step they can no longer
+ * satisfy.
+ */
+function stepAfterFigureChange({
+	figure,
+	state,
+}: {
+	figure: FigureSelection;
+	state: { step: DigitalHumanStep };
+}): DigitalHumanStep {
+	if (state.step === "voice" && !hasDigitalHumanFigure(figure)) return "figure";
+	return state.step;
+}
+
 const initialState = {
 	step: "figure" as DigitalHumanStep,
 	figureMediaId: null,
+	figurePresetId: null,
 	shotSize: "medium" as DigitalHumanShotSize,
 	backgroundColor: null,
 	backgroundMediaId: null,
@@ -55,17 +86,29 @@ export const useDigitalHumanStore = create<DigitalHumanState>((set, get) => ({
 	// The voice step requires a selected figure; enforce it here so callers
 	// other than the wizard buttons cannot skip the prerequisite.
 	setStep: (step) => {
-		if (step === "voice" && !get().figureMediaId) return;
+		if (step === "voice" && !hasDigitalHumanFigure(get())) return;
 		set({ step });
 	},
+
+	// A figure comes either from a bundled preset or from a project image, never
+	// both — picking one clears the other so there is a single answer to "which
+	// picture is this avatar".
 	setFigureMediaId: (figureMediaId) =>
-		set((state) => ({
-			figureMediaId,
-			step:
-				figureMediaId === null && state.step === "voice"
-					? "figure"
-					: state.step,
-		})),
+		set((state) => {
+			const figure = {
+				figureMediaId,
+				figurePresetId: figureMediaId === null ? state.figurePresetId : null,
+			};
+			return { ...figure, step: stepAfterFigureChange({ figure, state }) };
+		}),
+	setFigurePresetId: (figurePresetId) =>
+		set((state) => {
+			const figure = {
+				figurePresetId,
+				figureMediaId: figurePresetId === null ? state.figureMediaId : null,
+			};
+			return { ...figure, step: stepAfterFigureChange({ figure, state }) };
+		}),
 	setShotSize: (shotSize) => set({ shotSize }),
 
 	// A colour and an image cannot both be the background, so selecting one
