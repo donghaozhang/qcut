@@ -750,13 +750,10 @@ function createWindow(): void {
 			if (refitTimer) clearTimeout(refitTimer);
 			refitTimer = setTimeout(refitWindowToDisplay, 250);
 		};
-		// "moved" fires once a drag completes (macOS/Windows); Linux only
-		// emits the continuous "move", which the debounce collapses.
-		if (process.platform === "linux") {
-			window.on("move", scheduleRefit);
-		} else {
-			window.on("moved", scheduleRefit);
-		}
+		// "move" fires for user drags and programmatic moves alike (macOS's
+		// "moved" skips the latter); the debounce collapses the continuous
+		// stream so the refit lands once the window comes to rest.
+		window.on("move", scheduleRefit);
 		screen.on("display-metrics-changed", scheduleRefit);
 		screen.on("display-removed", scheduleRefit);
 		window.on("closed", () => {
