@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
 	getInteractiveElementOverlayStyle,
 	getTimelineElementTransform,
+	preserveInteractiveElementContentCenter,
 	resizeInteractiveElementFromCenter,
+	resizeInteractiveElementProportionallyFromCenter,
+	scaleElementContentBounds,
 	type ElementTransform,
 } from "../interactive-element-overlay-geometry";
 import type { TextElement } from "@/types/timeline";
@@ -47,6 +50,46 @@ describe("interactive element overlay geometry", () => {
 			transform: "translate(-50%, -50%) rotate(0deg)",
 			transformOrigin: "center",
 		});
+	});
+
+	it("keeps an offset flower-text visual center fixed while scaling", () => {
+		const contentBounds = {
+			offsetX: 20,
+			offsetY: -10,
+			width: 300,
+			height: 100,
+		};
+		const original = {
+			x: 25,
+			y: -40,
+			width: 400,
+			height: 200,
+			rotation: 0,
+		};
+		const resized = resizeInteractiveElementProportionallyFromCenter({
+			contentBounds,
+			delta: { x: 85, y: 20 },
+			handle: "se",
+			transform: original,
+		});
+		const scaledBounds = scaleElementContentBounds({
+			bounds: contentBounds,
+			sourceTransform: original,
+			targetTransform: resized,
+		});
+
+		expect(resized).toMatchObject({
+			x: 15,
+			y: -35,
+			width: 600,
+			height: 300,
+		});
+		expect(resized.x + scaledBounds.offsetX).toBe(
+			original.x + contentBounds.offsetX
+		);
+		expect(resized.y + scaledBounds.offsetY).toBe(
+			original.y + contentBounds.offsetY
+		);
 	});
 
 	it("uses content bounds for the box size and keeps rotation on the box", () => {
@@ -121,5 +164,125 @@ describe("interactive element overlay geometry", () => {
 		expect(resized.x - resized.width / 2).toBe(
 			transform.x - transform.width / 2
 		);
+	});
+
+	it("scales flower text proportionally around its fixed center", () => {
+		const original = {
+			x: 25,
+			y: -40,
+			width: 400,
+			height: 200,
+			rotation: 0,
+		};
+		const resized = resizeInteractiveElementProportionallyFromCenter({
+			delta: { x: 100, y: 50 },
+			handle: "se",
+			transform: original,
+		});
+
+		expect(resized).toEqual({
+			...original,
+			width: 600,
+			height: 300,
+		});
+		expect(resized.width / resized.height).toBe(
+			original.width / original.height
+		);
+	});
+
+	it("projects proportional resizing along a rotated visual corner", () => {
+		const resized = resizeInteractiveElementProportionallyFromCenter({
+			delta: { x: -100, y: 200 },
+			handle: "se",
+			transform: {
+				x: 25,
+				y: -40,
+				width: 400,
+				height: 200,
+				rotation: 90,
+			},
+		});
+
+		expect(resized).toMatchObject({
+			x: 25,
+			y: -40,
+			width: 800,
+			height: 400,
+			rotation: 90,
+		});
+	});
+
+	it("tracks a flower-text content corner when its logical canvas has another ratio", () => {
+		const resized = resizeInteractiveElementProportionallyFromCenter({
+			contentBounds: {
+				offsetX: 0,
+				offsetY: 0,
+				width: 518,
+				height: 530,
+			},
+			delta: { x: 259, y: 265 },
+			handle: "se",
+			transform: {
+				x: 0,
+				y: 0,
+				width: 1024,
+				height: 512,
+				rotation: 0,
+			},
+		});
+
+		expect(resized).toMatchObject({
+			x: 0,
+			y: 0,
+			width: 2048,
+			height: 1024,
+			rotation: 0,
+		});
+	});
+
+	it("scales cached native content bounds with the interactive transform", () => {
+		expect(
+			scaleElementContentBounds({
+				bounds: { offsetX: 20, offsetY: -10, width: 320, height: 180 },
+				sourceTransform: {
+					x: 0,
+					y: 0,
+					width: 400,
+					height: 200,
+					rotation: 0,
+				},
+				targetTransform: {
+					x: 0,
+					y: 0,
+					width: 600,
+					height: 300,
+					rotation: 0,
+				},
+			})
+		).toEqual({ offsetX: 30, offsetY: -15, width: 480, height: 270 });
+	});
+
+	it("keeps an offset flower-text visual center fixed while rotating", () => {
+		const sourceTransform = {
+			x: 0,
+			y: 0,
+			width: 400,
+			height: 200,
+			rotation: 0,
+		};
+		const rotated = preserveInteractiveElementContentCenter({
+			contentBounds: {
+				offsetX: 100,
+				offsetY: 0,
+				width: 300,
+				height: 100,
+			},
+			sourceTransform,
+			targetTransform: { ...sourceTransform, rotation: 90 },
+		});
+
+		expect(rotated.x).toBeCloseTo(100, 8);
+		expect(rotated.y).toBeCloseTo(-100, 8);
+		expect(rotated.rotation).toBe(90);
 	});
 });
