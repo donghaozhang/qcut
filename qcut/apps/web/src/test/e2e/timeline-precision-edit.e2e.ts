@@ -131,6 +131,18 @@ async function readTiming({ page }: { page: Page }): Promise<PrecisionTiming> {
 	});
 }
 
+async function selectEditMode({
+	page,
+	mode,
+}: {
+	page: Page;
+	mode: "select" | "roll" | "slip" | "slide";
+}) {
+	// The edit tools live in a Jianying-style dropdown behind the chevron.
+	await page.getByTestId("timeline-edit-mode-trigger").click();
+	await page.getByTestId(`timeline-edit-mode-${mode}`).click();
+}
+
 async function waitForPreviewFrame({ page }: { page: Page }) {
 	const videos = page.getByTestId("preview-panel").locator("video");
 	await expect.poll(() => videos.count()).toBeGreaterThanOrEqual(1);
@@ -236,7 +248,7 @@ test.describe("Timeline precision editing", () => {
 		await waitForPreviewFrame({ page });
 
 		const beforeSlip = await readTiming({ page });
-		await page.getByTestId("timeline-edit-mode-slip").click();
+		await selectEditMode({ page, mode: "slip" });
 		const firstClip = clips.first();
 		await expect(firstClip).toHaveAttribute("data-edit-mode", "slip");
 		const slipBounds = await firstClip.boundingBox();
@@ -270,7 +282,7 @@ test.describe("Timeline precision editing", () => {
 			animations: "disabled",
 		});
 
-		await page.getByTestId("timeline-edit-mode-roll").click();
+		await selectEditMode({ page, mode: "roll" });
 		await expect(firstClip).toHaveAttribute("data-edit-mode", "roll");
 		const rollHandle = firstClip.getByTestId("trim-end-handle");
 		await expect(rollHandle).toBeVisible();
