@@ -81,6 +81,57 @@ describe("compareTextForeground", () => {
 		expect(metrics.foregroundRmse).toBe(0);
 	});
 
+	test("treats two background-only frames as an exact match", async () => {
+		const directory = mkdtempSync(path.join(tmpdir(), "text-foreground-"));
+		directories.push(directory);
+		const referencePath = path.join(directory, "reference.ppm");
+		const candidatePath = path.join(directory, "candidate.ppm");
+		const pixels = frameWithWhitePixels({ width: 4, height: 3, indices: [] });
+		writePpm({ filePath: referencePath, width: 4, height: 3, pixels });
+		writePpm({ filePath: candidatePath, width: 4, height: 3, pixels });
+
+		const metrics = await compareTextForeground({
+			referencePath,
+			candidatePath,
+			backgroundColor: "#000000",
+		});
+
+		expect(metrics.maskIou).toBe(1);
+		expect(metrics.centroidDistance).toBe(0);
+		expect(metrics.maximumBoundsDelta).toBe(0);
+		expect(metrics.foregroundRmse).toBe(0);
+		expect(metrics.unionVisiblePixels).toBe(0);
+	});
+
+	test("fails when only one frame has foreground pixels", async () => {
+		const directory = mkdtempSync(path.join(tmpdir(), "text-foreground-"));
+		directories.push(directory);
+		const referencePath = path.join(directory, "reference.ppm");
+		const candidatePath = path.join(directory, "candidate.ppm");
+		writePpm({
+			filePath: referencePath,
+			width: 4,
+			height: 3,
+			pixels: frameWithWhitePixels({ width: 4, height: 3, indices: [5] }),
+		});
+		writePpm({
+			filePath: candidatePath,
+			width: 4,
+			height: 3,
+			pixels: frameWithWhitePixels({ width: 4, height: 3, indices: [] }),
+		});
+
+		await expect(
+			compareTextForeground({
+				referencePath,
+				candidatePath,
+				backgroundColor: "#000000",
+			})
+		).rejects.toThrow(
+			"Text parity frame has foreground pixels on only one side"
+		);
+	});
+
 	test("detects a one-pixel position shift inside a mostly empty frame", async () => {
 		const directory = mkdtempSync(path.join(tmpdir(), "text-foreground-"));
 		directories.push(directory);

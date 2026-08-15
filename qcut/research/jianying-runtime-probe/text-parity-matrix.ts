@@ -214,6 +214,11 @@ function verifyOnlyRender({
 	};
 }
 
+function renderOutcome({ result }: { result: TextParityRenderResult }) {
+	if (result.exitCode !== 0) return "failed";
+	return result.videoReused ? "reused" : "rendered";
+}
+
 function renderEntries({
 	matrix,
 	options,
@@ -242,12 +247,7 @@ function renderEntries({
 						reuse: options.reuse,
 					});
 		results.push(result);
-		const outcome =
-			result.exitCode === 0
-				? result.videoReused
-					? "reused"
-					: "rendered"
-				: "failed";
+		const outcome = renderOutcome({ result });
 		console.log(`[text-render] ${entry.title}: ${outcome}`);
 	}
 	return results;

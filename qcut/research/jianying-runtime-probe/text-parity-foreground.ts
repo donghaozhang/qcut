@@ -94,7 +94,14 @@ function foregroundMask({
 		ySum += y;
 	}
 	if (visiblePixels === 0) {
-		throw new Error("Text parity frame has no foreground pixels");
+		// Progress stops 0 and 1 often sample frames before any glyph appears
+		// or after every glyph has faded; report an empty mask instead of
+		// throwing so the comparison can treat two empty frames as identical.
+		return {
+			mask,
+			bounds: { x: 0, y: 0, width: 0, height: 0, visiblePixels: 0 },
+			centroid: { x: 0, y: 0 },
+		};
 	}
 	return {
 		mask,
@@ -153,6 +160,31 @@ function maximumBoundsDelta({
 	);
 }
 
+function emptyForegroundMatch({
+	backgroundThreshold,
+}: {
+	backgroundThreshold: number;
+}): TextForegroundDifferenceMetrics {
+	const bounds = { x: 0, y: 0, width: 0, height: 0, visiblePixels: 0 };
+	return {
+		backgroundThreshold,
+		unionBounds: { ...bounds },
+		referenceBounds: { ...bounds },
+		candidateBounds: { ...bounds },
+		referenceVisiblePixels: 0,
+		candidateVisiblePixels: 0,
+		unionVisiblePixels: 0,
+		intersectionVisiblePixels: 0,
+		maskIou: 1,
+		centroidDistance: 0,
+		maximumBoundsDelta: 0,
+		roiMae: 0,
+		roiRmse: 0,
+		foregroundMae: 0,
+		foregroundRmse: 0,
+	};
+}
+
 function compareDecodedTextForeground({
 	reference,
 	candidate,
@@ -187,6 +219,14 @@ function compareDecodedTextForeground({
 		background,
 		threshold: backgroundThreshold,
 	});
+	const referenceEmpty = referenceMask.bounds.visiblePixels === 0;
+	const candidateEmpty = candidateMask.bounds.visiblePixels === 0;
+	if (referenceEmpty && candidateEmpty) {
+		return emptyForegroundMatch({ backgroundThreshold });
+	}
+	if (referenceEmpty || candidateEmpty) {
+		throw new Error("Text parity frame has foreground pixels on only one side");
+	}
 	const bounds = unionBounds({
 		reference: referenceMask.bounds,
 		candidate: candidateMask.bounds,

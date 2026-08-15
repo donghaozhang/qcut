@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { JianyingFontCatalog } from "../jianying-font-lab-catalog.js";
 import { resolveJianyingTextRuntimeFont } from "../jianying-text-runtime/font-resolver.js";
 
@@ -40,7 +40,14 @@ function catalog({
 }
 
 describe("Jianying text runtime font resolver", () => {
+	afterEach(() => {
+		vi.unstubAllEnvs();
+	});
+
 	it("uses Jianying's bundled system font for the default timeline font", async () => {
+		// The resolver prefers this variable over the runtimeRoot candidate, so
+		// a developer or CI environment that sets it would break the assertion.
+		vi.stubEnv("QCUT_JIANYING_TEXT_DEFAULT_FONT", "");
 		const temporary = await mkdtemp(
 			path.join(os.tmpdir(), "qcut-font-runtime-")
 		);
