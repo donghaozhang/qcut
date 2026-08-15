@@ -300,7 +300,9 @@ export function SoundEffectsLabPanel({
 				</div>
 
 				<div className="relative mt-3 min-w-0">
-					<Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+					<Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground">
+						<title>{t("audioLibrary.soundEffectsLab.searchLabel")}</title>
+					</Search>
 					<Input
 						value={query}
 						onChange={(event) => changeQuery({ nextQuery: event.target.value })}
