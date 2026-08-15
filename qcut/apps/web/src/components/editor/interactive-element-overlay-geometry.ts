@@ -79,6 +79,81 @@ export interface ElementContentBounds {
 	height: number;
 }
 
+export interface ElementContentBoundsSnapshot {
+	bounds: ElementContentBounds;
+	transform: ElementTransform;
+}
+
+function rotateElementContentOffset({
+	bounds,
+	rotation,
+}: {
+	bounds: ElementContentBounds;
+	rotation: number;
+}): { x: number; y: number } {
+	const radians = (rotation * Math.PI) / 180;
+	return {
+		x: bounds.offsetX * Math.cos(radians) - bounds.offsetY * Math.sin(radians),
+		y: bounds.offsetX * Math.sin(radians) + bounds.offsetY * Math.cos(radians),
+	};
+}
+
+export function scaleElementContentBounds({
+	bounds,
+	sourceTransform,
+	targetTransform,
+}: {
+	bounds: ElementContentBounds;
+	sourceTransform: ElementTransform;
+	targetTransform: ElementTransform;
+}): ElementContentBounds {
+	const scaleX =
+		sourceTransform.width > 0
+			? targetTransform.width / sourceTransform.width
+			: 1;
+	const scaleY =
+		sourceTransform.height > 0
+			? targetTransform.height / sourceTransform.height
+			: 1;
+	return {
+		offsetX: bounds.offsetX * scaleX,
+		offsetY: bounds.offsetY * scaleY,
+		width: bounds.width * scaleX,
+		height: bounds.height * scaleY,
+	};
+}
+
+export function preserveInteractiveElementContentCenter({
+	contentBounds,
+	sourceTransform,
+	targetTransform,
+}: {
+	contentBounds?: ElementContentBounds;
+	sourceTransform: ElementTransform;
+	targetTransform: ElementTransform;
+}): ElementTransform {
+	if (!contentBounds) return targetTransform;
+
+	const targetBounds = scaleElementContentBounds({
+		bounds: contentBounds,
+		sourceTransform,
+		targetTransform,
+	});
+	const sourceOffset = rotateElementContentOffset({
+		bounds: contentBounds,
+		rotation: sourceTransform.rotation,
+	});
+	const targetOffset = rotateElementContentOffset({
+		bounds: targetBounds,
+		rotation: targetTransform.rotation,
+	});
+	return {
+		...targetTransform,
+		x: sourceTransform.x + sourceOffset.x - targetOffset.x,
+		y: sourceTransform.y + sourceOffset.y - targetOffset.y,
+	};
+}
+
 export function getInteractiveElementOverlayStyle({
 	canvasSize,
 	previewDimensions,
@@ -96,15 +171,14 @@ export function getInteractiveElementOverlayStyle({
 	});
 	// The element rotates about its own center, so a content rect whose center
 	// is offset from the element center orbits that pivot when rotated.
-	const radians = ((transform.rotation || 0) * Math.PI) / 180;
-	const offsetX = contentBounds?.offsetX ?? 0;
-	const offsetY = contentBounds?.offsetY ?? 0;
-	const rotatedOffsetX =
-		offsetX * Math.cos(radians) - offsetY * Math.sin(radians);
-	const rotatedOffsetY =
-		offsetX * Math.sin(radians) + offsetY * Math.cos(radians);
-	const centerX = transform.x + rotatedOffsetX;
-	const centerY = transform.y + rotatedOffsetY;
+	const rotatedOffset = contentBounds
+		? rotateElementContentOffset({
+				bounds: contentBounds,
+				rotation: transform.rotation,
+			})
+		: { x: 0, y: 0 };
+	const centerX = transform.x + rotatedOffset.x;
+	const centerY = transform.y + rotatedOffset.y;
 	const width = contentBounds?.width ?? transform.width;
 	const height = contentBounds?.height ?? transform.height;
 	const left =
@@ -157,4 +231,52 @@ export function resizeInteractiveElementFromCenter({
 	}
 
 	return { ...transform, x, y, width, height };
+}
+
+export function resizeInteractiveElementProportionallyFromCenter({
+	contentBounds,
+	delta,
+	handle,
+	minimumSize = 50,
+	transform,
+}: {
+	contentBounds?: ElementContentBounds;
+	delta: { x: number; y: number };
+	handle: Extract<ElementResizeHandle, "nw" | "ne" | "sw" | "se">;
+	minimumSize?: number;
+	transform: ElementTransform;
+}): ElementTransform {
+	const localCornerX =
+		(contentBounds?.offsetX ?? 0) +
+		(handle.includes("e") ? 1 : -1) *
+			((contentBounds?.width ?? transform.width) / 2);
+	const localCornerY =
+		(contentBounds?.offsetY ?? 0) +
+		(handle.includes("s") ? 1 : -1) *
+			((contentBounds?.height ?? transform.height) / 2);
+	const radians = (transform.rotation * Math.PI) / 180;
+	const cornerX =
+		localCornerX * Math.cos(radians) - localCornerY * Math.sin(radians);
+	const cornerY =
+		localCornerX * Math.sin(radians) + localCornerY * Math.cos(radians);
+	const cornerLengthSquared = localCornerX ** 2 + localCornerY ** 2;
+	if (cornerLengthSquared === 0) return transform;
+
+	const projectedScale =
+		1 + (delta.x * cornerX + delta.y * cornerY) / cornerLengthSquared;
+	const minimumScale = Math.max(
+		minimumSize / transform.width,
+		minimumSize / transform.height
+	);
+	const scale = Math.max(minimumScale, projectedScale);
+	const targetTransform = {
+		...transform,
+		width: transform.width * scale,
+		height: transform.height * scale,
+	};
+	return preserveInteractiveElementContentCenter({
+		contentBounds,
+		sourceTransform: transform,
+		targetTransform,
+	});
 }
