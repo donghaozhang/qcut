@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	collectCatalogItems,
+	findUnsafeZipEntries,
 	readAdjustParameters,
 } from "../jianying-effect/catalog-parsing.js";
 
@@ -130,5 +131,68 @@ describe("Jianying effect catalog", () => {
 				rows: [{ url: "/x_effects2_jianyingpro_0", responseBody: "not json" }],
 			})
 		).not.toThrow();
+	});
+
+	it("keeps only https download urls", () => {
+		const item = catalogItem({ effectId: "1", title: "星火", md5: "aaa" });
+		(item.common_attr as Record<string, unknown>).item_urls = [
+			"https://p9-artist.example/pkg.zip",
+			"http://insecure.example/pkg.zip",
+			42,
+		];
+		const items = collectCatalogItems({
+			rows: [catalogRow({ panel: "effects2", items: [item] })],
+		});
+
+		expect(items[0].itemUrls).toEqual(["https://p9-artist.example/pkg.zip"]);
+	});
+
+	it("defaults item urls to empty when the catalog omits them", () => {
+		const items = collectCatalogItems({
+			rows: [
+				catalogRow({
+					panel: "effects2",
+					items: [catalogItem({ effectId: "1", title: "抖动", md5: "aaa" })],
+				}),
+			],
+		});
+
+		expect(items[0].itemUrls).toEqual([]);
+	});
+});
+
+describe("zip entry safety", () => {
+	it("accepts ordinary package entries", () => {
+		expect(
+			findUnsafeZipEntries({
+				entries: [
+					"config.json",
+					"extra.json",
+					"amazingfeature/main.scene",
+					"amazingfeature/xshader/pass.frag",
+				],
+			})
+		).toEqual([]);
+	});
+
+	it("flags entries that could escape the extraction directory", () => {
+		expect(
+			findUnsafeZipEntries({
+				entries: [
+					"../outside.txt",
+					"nested/../../outside.txt",
+					"/etc/passwd",
+					"\\windows\\system32",
+					"C:evil.txt",
+					"safe.txt",
+				],
+			})
+		).toEqual([
+			"../outside.txt",
+			"nested/../../outside.txt",
+			"/etc/passwd",
+			"\\windows\\system32",
+			"C:evil.txt",
+		]);
 	});
 });
