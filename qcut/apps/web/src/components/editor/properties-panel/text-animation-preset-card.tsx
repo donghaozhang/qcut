@@ -55,13 +55,30 @@ export function textAnimationVisualStyle({
 	// and the export both go through the canvas tile pass.
 	const shatterBlurPx = visual.shatter ? visual.shatter.progress * 3 : 0;
 	const blurPx = Math.max(visual.blurPx, shatterBlurPx);
+	const colorMix =
+		visual.colorMix && visual.colorMix.amount > 0 ? visual.colorMix : undefined;
+	const glow = visual.postProcess?.glow;
 	return {
 		clipPath: maskClipPath({ mask: visual.mask }),
+		// The card inherits its text color, so the color channel blends the
+		// animated tint against currentColor — same math as the canvas path.
+		// Multiply-mode tints also use this blend: against the near-white
+		// preview foreground a multiplicative filter and a replace blend are
+		// visually identical.
+		color: colorMix
+			? `color-mix(in srgb, ${colorMix.color} ${Math.round(colorMix.amount * 100)}%, currentcolor)`
+			: undefined,
+		textShadow:
+			glow && glow.intensity > 0
+				? `0 0 ${glow.radiusPx}px color-mix(in srgb, ${glow.color} ${Math.round(glow.intensity * 100)}%, transparent)`
+				: undefined,
 		filter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
 		opacity: visual.shatter
 			? visual.opacity * (1 - visual.shatter.progress * 0.85)
 			: visual.opacity,
-		transform: `translate3d(${visual.translateX}px, ${visual.translateY}px, 0) rotate(${visual.rotationDeg}deg) scale(${visual.scaleX}, ${visual.scaleY})`,
+		// Bare 3D rotation channels (keyframe documents without a projective
+		// pipeline) get real CSS rotations, which foreshorten like the canvas.
+		transform: `translate3d(${visual.translateX}px, ${visual.translateY}px, 0) rotate(${visual.rotationDeg}deg) rotateX(${visual.rotationXDeg ?? 0}deg) rotateY(${visual.rotationYDeg ?? 0}deg) scale(${visual.scaleX}, ${visual.scaleY})`,
 		transformOrigin:
 			visual.transformOrigin === "bottomCenter" ? "50% 100%" : undefined,
 	};

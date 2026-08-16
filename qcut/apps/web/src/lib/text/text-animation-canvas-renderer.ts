@@ -1,10 +1,13 @@
 import {
 	computeShatterTiles,
 	evaluateTextAnimationFrame,
+	mixTextAnimationColors,
+	multiplyTextAnimationColors,
 	normalizeTextAnimations,
 	type TextAnimationVisualState,
 } from "@qcut/editor-core";
 import { canvasFontFamily } from "@/lib/text/canvas-font";
+import { applyTextAnimationRasterPass } from "./text-animation-raster-pass";
 import type { TextElement } from "@/types/timeline";
 import { buildTextAnimationCanvasLayout } from "./text-animation-canvas-layout";
 import { drawTextAnimationDecorations } from "./text-animation-canvas-decorations";
@@ -45,6 +48,76 @@ function hasCanonicalAnimation({
 			normalized.animation.exit ||
 			normalized.animation.loop
 	);
+}
+
+/**
+ * Raster post-pass: draw the block (with its per-unit transforms) once to an
+ * offscreen canvas, then hand it to the mosaic / RGB-split / displacement
+ * pass. This is the portable stand-in for Jianying's fragment-shader stages —
+ * it runs identically in the editor preview and the export bake because both
+ * share this renderer. Falls back to the normal path when unavailable.
+ */
+function drawRasterPostProcessedText({
+	ctx,
+	element,
+	style,
+	layout,
+	raster,
+	units,
+}: {
+	ctx: CanvasTextContext;
+	element: TextElement;
+	style: ResolvedTextStyle;
+	layout: ReturnType<typeof buildTextAnimationCanvasLayout>;
+	raster: NonNullable<
+		NonNullable<TextAnimationVisualState["postProcess"]>["raster"]
+	>;
+	units: ReturnType<typeof evaluateTextAnimationFrame>["units"];
+}): boolean {
+	const bounds = layout.animationLayout.bounds;
+	const padding =
+		textAnimationRasterPadding({ style }) +
+		Math.ceil(
+			Math.abs(raster.amplitudePx ?? 0) + Math.abs(raster.offsetPx ?? 0)
+		);
+	const width = Math.max(1, Math.ceil(bounds.width + padding * 2));
+	const height = Math.max(1, Math.ceil(bounds.height + padding * 2));
+	const source = acquireTextAnimationRaster({
+		channel: "post",
+		width,
+		height,
+	});
+	if (!source) return false;
+
+	const sourceCtx = source.ctx;
+	sourceCtx.save();
+	sourceCtx.translate(padding - bounds.x, padding - bounds.y);
+	sourceCtx.font = `${element.fontStyle} ${element.fontWeight} ${element.fontSize}px ${canvasFontFamily(element.fontFamily)}`;
+	drawTextAnimationBackground({ ctx: sourceCtx, element, style, bounds });
+	for (const grapheme of layout.graphemes) {
+		const unitState = units[grapheme.index];
+		sourceCtx.save();
+		if (unitState) {
+			applyTextAnimationVisualState({
+				ctx: sourceCtx,
+				visual: unitState.visual,
+				bounds: grapheme.bounds,
+			});
+		}
+		drawTextAnimationGlyph({ ctx: sourceCtx, element, style, grapheme });
+		sourceCtx.restore();
+	}
+	sourceCtx.restore();
+
+	return applyTextAnimationRasterPass({
+		ctx,
+		source: source.canvas as CanvasImageSource,
+		width,
+		height,
+		dx: bounds.x - padding,
+		dy: bounds.y - padding,
+		raster,
+	});
 }
 
 /**
@@ -188,6 +261,29 @@ export function renderCanonicalTextAnimationToCanvas({
 		ctx.restore();
 		return true;
 	}
+	if (state.container.postProcess?.raster && canRasterizeTextAnimation()) {
+		const didDrawRaster = drawRasterPostProcessedText({
+			ctx,
+			element: renderedElement,
+			style,
+			layout,
+			raster: state.container.postProcess.raster,
+			units: state.units,
+		});
+		if (didDrawRaster) {
+			drawTextAnimationDecorations({
+				ctx,
+				decorations: state.decorations,
+				layer: "front",
+				compiled,
+				activePhases: state.activePhases,
+				layout,
+				element: renderedElement,
+			});
+			ctx.restore();
+			return true;
+		}
+	}
 	if (state.container.shatter && canRasterizeTextAnimation()) {
 		const didDrawShatteredText = drawShatteredText({
 			ctx,
@@ -237,6 +333,10 @@ export function renderCanonicalTextAnimationToCanvas({
 		element: renderedElement,
 	});
 
+	const animatedGlow = state.container.postProcess?.glow;
+	// Container-level documents (unit "all") carry their tint on the container
+	// visual; thread it into the glyph fill the same way the glow is.
+	const containerColorMix = state.container.colorMix;
 	for (const grapheme of layout.graphemes) {
 		const unitState = state.units[grapheme.index];
 		if (!unitState) continue;
@@ -246,11 +346,29 @@ export function renderCanonicalTextAnimationToCanvas({
 			visual: unitState.visual,
 			bounds: grapheme.bounds,
 		});
+		const colorMix = unitState.visual.colorMix ?? containerColorMix;
 		drawTextAnimationGlyph({
 			ctx,
 			element: renderedElement,
 			style,
 			grapheme,
+			...(colorMix
+				? {
+						fillColor:
+							colorMix.mode === "multiply"
+								? multiplyTextAnimationColors({
+										base: renderedElement.color,
+										tint: colorMix.color,
+										amount: colorMix.amount,
+									})
+								: mixTextAnimationColors({
+										from: renderedElement.color,
+										to: colorMix.color,
+										amount: colorMix.amount,
+									}),
+					}
+				: {}),
+			...(animatedGlow ? { animatedGlow } : {}),
 		});
 		ctx.restore();
 	}

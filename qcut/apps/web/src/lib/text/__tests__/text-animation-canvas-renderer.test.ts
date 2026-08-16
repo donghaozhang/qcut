@@ -185,6 +185,27 @@ function flip3DLoopAnimation(): NonNullable<TextElement["textAnimations"]> {
 	};
 }
 
+function pixelateLoopAnimation(): NonNullable<TextElement["textAnimations"]> {
+	return {
+		schemaVersion: 1,
+		loop: {
+			timing: { duration: 1, delay: 0, easing: "linear" },
+			sequence: {
+				unit: "all",
+				order: "forward",
+				staggerRatio: 0,
+				seed: 1,
+			},
+			target: "textAndBackground",
+			effect: {
+				kind: "keyframes",
+				channels: { pixelateCell: [{ t: 0, v: 8 }] },
+			},
+			repeat: { mode: "restart", gap: 0, phaseOffset: 0 },
+		},
+	};
+}
+
 function jitter3DLoopAnimation(): NonNullable<TextElement["textAnimations"]> {
 	return {
 		schemaVersion: 1,
@@ -410,6 +431,49 @@ describe("canonical text animation canvas renderer", () => {
 		).toBe(true);
 		expect(context.scale).toHaveBeenCalled();
 		expect(context.fillText).toHaveBeenCalledWith("H", 0, 0);
+	});
+
+	it("routes a raster post-pass through the offscreen canvas", () => {
+		const rasterContext = createContext();
+		vi.stubGlobal(
+			"OffscreenCanvas",
+			class {
+				readonly width: number;
+				readonly height: number;
+
+				constructor(width: number, height: number) {
+					this.width = width;
+					this.height = height;
+				}
+
+				getContext(): CanvasRenderingContext2D {
+					return rasterContext;
+				}
+			}
+		);
+		const context = createContext();
+		const element = createTextElement({
+			overrides: {
+				content: "HI",
+				textAnimations: pixelateLoopAnimation(),
+			},
+		});
+
+		renderCanonicalTextAnimationToCanvas({
+			ctx: context,
+			canvas: { width: 1280, height: 720 },
+			sourceElement: element,
+			renderedElement: element,
+			style: resolveTextStyle(element),
+			currentTime: 0.3,
+			fps: 30,
+		});
+
+		// Glyphs are drawn to the offscreen raster, never straight to the target,
+		// and the mosaic re-draws that raster through the destination context.
+		expect(rasterContext.fillText).toHaveBeenCalledTimes(2);
+		expect(context.fillText).not.toHaveBeenCalled();
+		expect(vi.mocked(context.drawImage).mock.calls.length).toBeGreaterThan(0);
 	});
 
 	it("rasterizes text once and projects the texture for a 3D animation", () => {

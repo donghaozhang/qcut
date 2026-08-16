@@ -14,6 +14,18 @@ export {
 } from "./segmentation.js";
 export { computeShatterTiles, shatterNoise } from "./shatter.js";
 export type { ShatterTile } from "./shatter.js";
+export type { RgbColor } from "./color.js";
+export {
+	mixTextAnimationColors,
+	multiplyTextAnimationColors,
+	parseTextAnimationHexColor,
+	sampleTextAnimationPalette,
+} from "./color.js";
+export {
+	evaluateTextColorKeyframeTrack,
+	evaluateTextKeyframeTrack,
+} from "./keyframes.js";
+export { selectorUnitWeight } from "./effect-state.js";
 
 export type {
 	CompiledTextAnimation,
@@ -29,6 +41,8 @@ export type {
 	TextAnimationEffect,
 	TextAnimationFrameState,
 	TextAnimationGraphemeLayout,
+	TextAnimationColorMixState,
+	TextAnimationGlowState,
 	TextAnimationLayout,
 	TextAnimationLoopPhase,
 	TextAnimationMaskState,
@@ -36,6 +50,7 @@ export type {
 	TextAnimationPhaseBase,
 	TextAnimationPostProcessState,
 	TextAnimationProjectionState,
+	TextAnimationRasterEffectState,
 	TextAnimationPresetRef,
 	TextAnimationRect,
 	TextAnimations,
@@ -55,6 +70,13 @@ export type {
 	TextCylinder3DEffect,
 	TextJitter3DEffect,
 	TextJitterEffect,
+	TextColorCycleEffect,
+	TextKeyframesEffect,
+	TextKeyframesSelector,
+	TextSelectorShape,
+	TextKeyframeChannel,
+	TextColorKeyframePoint,
+	TextKeyframePoint,
 	TextArcEffect,
 	TextSqueezeEffect,
 	TextFoldEffect,

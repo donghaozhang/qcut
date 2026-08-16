@@ -377,6 +377,151 @@ export interface TextJitter3DEffect {
 }
 
 /**
+ * One keyframe of a declarative value track, mirroring Jianying's
+ * `motionKeyFrameInfo` rows `[t, v, vi, vo, vti, vto]`. Times are normalized
+ * to 0..1 of the phase; handle times are relative to the key (incoming
+ * handles usually negative). Keys without handles interpolate linearly.
+ */
+export interface TextKeyframePoint {
+	t: number;
+	v: number;
+	/** Incoming handle value (Jianying `vi`). */
+	inValue?: number;
+	/** Outgoing handle value (Jianying `vo`). */
+	outValue?: number;
+	/** Incoming handle time offset (Jianying `vti`). */
+	inTime?: number;
+	/** Outgoing handle time offset (Jianying `vto`). */
+	outTime?: number;
+}
+
+export type TextKeyframeChannel =
+	| "translateXEm"
+	| "translateYEm"
+	| "scaleX"
+	| "scaleY"
+	| "rotationDeg"
+	| "rotationXDeg"
+	| "rotationYDeg"
+	| "opacity"
+	| "blurPx"
+	| "colorAmount"
+	| "glowIntensity"
+	| "glowRadiusPx"
+	// Raster post-pass parameters, so a document can animate the mosaic
+	// coarseness, the channel separation, or the displacement strength.
+	| "pixelateCell"
+	| "rgbSplitPx"
+	| "displaceAmplitudePx";
+
+/**
+ * One key of an animated tint track; `v` and the bezier handle values are
+ * [r, g, b] in 0..1 (Jianying keyframes its `color` base attribute as an RGBA
+ * vector with per-component handles).
+ */
+export interface TextColorKeyframePoint {
+	t: number;
+	v: [number, number, number];
+	inValue?: [number, number, number];
+	outValue?: [number, number, number];
+	inTime?: number;
+	outTime?: number;
+}
+
+/** Weight profile across an animated selector window (Jianying `shape`). */
+export type TextSelectorShape =
+	| "square"
+	| "rampUp"
+	| "rampDown"
+	| "triangle"
+	| "round"
+	| "smooth";
+
+/**
+ * AE-style range selector: a window over normalized unit positions whose
+ * start/end are themselves keyframable, with a weight shape inside and a
+ * feathered edge. Jianying's 变色弹跳 is exactly this — a smooth window
+ * opening from the text center whose front tints and lifts each character it
+ * passes.
+ */
+export interface TextKeyframesSelector {
+	/** Window start over unit positions 0..1; single key = constant. */
+	start: TextKeyframePoint[];
+	/** Window end over unit positions 0..1. */
+	end: TextKeyframePoint[];
+	shape: TextSelectorShape;
+	/** Edge feather width in unit-position space, 0..1 (剪映 smooth). */
+	feather: number;
+	/**
+	 * Which ordinal maps a unit onto the 0..1 window axis. "index" is layout
+	 * order; "rank" follows the sequence order, so a `random` sequence makes
+	 * the window consume characters in shuffled order (剪映 randomSort).
+	 */
+	basedOn?: "index" | "rank";
+}
+
+/**
+ * Declarative keyframe animation: instead of a hand-written evaluator, the
+ * effect IS the data — per-channel bezier tracks sampled at each unit's phase
+ * progress. This is how Jianying ships its text animations (studioAnim.lsanim
+ * property tracks), and porting one becomes transcription instead of coding.
+ */
+export interface TextKeyframesEffect {
+	kind: "keyframes";
+	channels: Partial<Record<TextKeyframeChannel, TextKeyframePoint[]>>;
+	/** Tint target for the colorAmount channel, #rrggbb. */
+	color?: string;
+	/**
+	 * Animated tint target (Jianying's keyframed `color` base attribute, e.g.
+	 * 彩虹渐变's red→violet→white sweep). Overrides `color`; the colorAmount
+	 * channel still scales the blend and defaults to 1 when absent.
+	 */
+	colorTrack?: TextColorKeyframePoint[];
+	/** Glow color for the glow channels, #rrggbb; defaults to white. */
+	glowColor?: string;
+	/** rgbSplit direction, degrees; 0 separates horizontally. */
+	rasterAngleDeg?: number;
+	/** displace field spatial scale in px; smaller means finer grain. */
+	rasterScale?: number;
+	/** displace field turns this many times over the phase. */
+	rasterEvolution?: number;
+	/**
+	 * Optional animated range selector. With a selector the phase clock is
+	 * shared by every unit and the WINDOW does the spatial differentiation:
+	 * each unit's effect strength is its selector weight.
+	 */
+	selector?: TextKeyframesSelector;
+}
+
+/**
+ * Per-unit color cycling, the base of Jianying's 变色弹跳 / 彩虹 / 亮度渐变
+ * family: every unit blends toward palette stops swept over time, shifted by
+ * rank so neighbouring characters sit on different stops.
+ */
+export interface TextColorCycleEffect {
+	kind: "colorCycle";
+	/** Palette stops as #rrggbb, cycled in order. */
+	palette: string[];
+	/** Peak blend toward the palette color, 0..1; 0 keeps the base fill. */
+	amount: number;
+	/** Palette sweeps per phase pass. */
+	cycles: number;
+	/** Palette stops a unit is shifted per rank; 0 keeps all units in sync. */
+	rankOffset: number;
+	/** Snap to whole stops instead of interpolating between them. */
+	stepped: boolean;
+	/**
+	 * Amount curve over each unit's cycle. Jianying's 变色弹跳 sweeps a
+	 * feathered window across the text and characters keep their tint once the
+	 * front passes ("hold"); "beat" pulses once per cycle; "constant" leaves
+	 * the tint always on (rainbow cycling).
+	 */
+	envelope: "constant" | "hold" | "beat";
+	/** Vertical lift coupled to the amount envelope, in em (变色弹跳: 0.2). */
+	bounceEm?: number;
+}
+
+/**
  * Stepped per-unit shake. Jianying quantizes local time into a handful of
  * poses per cycle and derives each unit's offset from a chaotic but
  * deterministic product of sines, phase-shifted by unit rank.
@@ -407,6 +552,8 @@ export type TextAnimationEffect =
 	| TextCylinder3DEffect
 	| TextJitter3DEffect
 	| TextJitterEffect
+	| TextColorCycleEffect
+	| TextKeyframesEffect
 	| TextArcEffect
 	| TextSqueezeEffect
 	| TextFoldEffect
@@ -488,11 +635,69 @@ export type TextAnimationProjectionState =
 			radiusRatio: number;
 	  };
 
+/**
+ * Block-level glow pass, the first stop of Jianying's effectAnimators chain
+ * (SoftGlow / DeepGlow / RadianceGlow families keyframe exposure and
+ * intensity on the text render group).
+ */
+export interface TextAnimationGlowState {
+	color: string;
+	radiusPx: number;
+	/** 0..1 glow pass opacity. */
+	intensity: number;
+}
+
+/**
+ * A raster post-pass applied to the block after it is drawn to an offscreen
+ * canvas — the portable stand-in for Jianying's fragment-shader passes that
+ * operate on the rendered text image rather than on per-unit transforms.
+ * - `pixelate`: snap sampling to a `cell`-px grid (mosaic).
+ * - `rgbSplit`: draw the raster three times, the red and blue channels
+ *   offset by `offsetPx` along `angleDeg` (chromatic aberration / glitch).
+ * - `displace`: offset each sampled block by a value-noise field of
+ *   `amplitudePx`, at spatial `scale`, advanced by `evolution` — the general
+ *   case covering boil, turbulence and ripple.
+ */
+export interface TextAnimationRasterEffectState {
+	kind: "pixelate" | "rgbSplit" | "displace";
+	/** pixelate: grid cell size in px. */
+	cell?: number;
+	/** rgbSplit: channel separation in px, and its direction. */
+	offsetPx?: number;
+	angleDeg?: number;
+	/** displace: field amplitude px, spatial scale px, and time phase. */
+	amplitudePx?: number;
+	scale?: number;
+	evolution?: number;
+}
+
 export interface TextAnimationPostProcessState {
 	trailSamples: number;
 	trailStrength: number;
 	/** Reserved for the portable pixel-warp pass. */
 	trapezoidAmount: number;
+	/** Animated render-group glow. */
+	glow?: TextAnimationGlowState;
+	/** Raster post-pass (mosaic / RGB split / noise displacement). */
+	raster?: TextAnimationRasterEffectState;
+}
+
+/**
+ * Per-unit fill recolor. The renderer blends the element's own fill toward
+ * `color`; `amount` 0 keeps the base fill untouched, 1 replaces it.
+ */
+export interface TextAnimationColorMixState {
+	/** Target color, #rrggbb. */
+	color: string;
+	/** Blend toward the target, 0..1. */
+	amount: number;
+	/**
+	 * "multiply" filters the element's own fill through `color` instead of
+	 * replacing it — Jianying's keyframed color base attribute is a
+	 * multiplicative tint whose white keys mean "no tint", regardless of the
+	 * text's own color. Absent = replace blend.
+	 */
+	mode?: "multiply";
 }
 
 export interface TextAnimationVisualState {
@@ -507,6 +712,8 @@ export interface TextAnimationVisualState {
 	rotationYDeg?: number;
 	blurPx: number;
 	mask?: TextAnimationMaskState;
+	/** Present while a color effect drives the frame; blended by the renderer. */
+	colorMix?: TextAnimationColorMixState;
 	transformOrigin?: "center" | "bottomCenter";
 	/** Present when the rasterized text is mapped onto a projective surface. */
 	projection?: TextAnimationProjectionState;

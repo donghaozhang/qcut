@@ -1,4 +1,8 @@
-import type { TextAnimationEffect } from "./model.js";
+import type {
+	TextAnimationEffect,
+	TextColorKeyframePoint,
+	TextKeyframePoint,
+} from "./model.js";
 import {
 	asRecord,
 	normalizeDistance,
@@ -765,6 +769,230 @@ export function normalizeTextAnimationEffect({
 				minimum: 0,
 				maximum: 1,
 			}),
+		};
+	}
+	if (record.kind === "keyframes") {
+		const KEYFRAME_CHANNELS = [
+			"translateXEm",
+			"translateYEm",
+			"scaleX",
+			"scaleY",
+			"rotationDeg",
+			"rotationXDeg",
+			"rotationYDeg",
+			"opacity",
+			"blurPx",
+			"colorAmount",
+			"glowIntensity",
+			"glowRadiusPx",
+			"pixelateCell",
+			"rgbSplitPx",
+			"displaceAmplitudePx",
+		] as const;
+		const normalizeTrack = (value: unknown): TextKeyframePoint[] | null => {
+			if (!Array.isArray(value)) return null;
+			const track: TextKeyframePoint[] = [];
+			for (const entry of value.slice(0, 64)) {
+				const point = asRecord({ value: entry });
+				if (
+					!point ||
+					typeof point.t !== "number" ||
+					!Number.isFinite(point.t) ||
+					typeof point.v !== "number" ||
+					!Number.isFinite(point.v)
+				) {
+					continue;
+				}
+				const handle = (handleValue: unknown) =>
+					typeof handleValue === "number" && Number.isFinite(handleValue)
+						? handleValue
+						: undefined;
+				const inValue = handle(point.inValue);
+				const outValue = handle(point.outValue);
+				const inTime = handle(point.inTime);
+				const outTime = handle(point.outTime);
+				track.push({
+					t: Math.min(1, Math.max(0, point.t)),
+					v: point.v,
+					...(inValue !== undefined ? { inValue } : {}),
+					...(outValue !== undefined ? { outValue } : {}),
+					...(inTime !== undefined ? { inTime } : {}),
+					...(outTime !== undefined ? { outTime } : {}),
+				});
+			}
+			if (track.length === 0) return null;
+			track.sort((left, right) => left.t - right.t);
+			return track;
+		};
+		const normalizeColorTrack = (
+			value: unknown
+		): TextColorKeyframePoint[] | null => {
+			if (!Array.isArray(value)) return null;
+			const rgb = (entry: unknown): [number, number, number] | undefined => {
+				if (
+					!Array.isArray(entry) ||
+					entry.length < 3 ||
+					entry
+						.slice(0, 3)
+						.some(
+							(component) =>
+								typeof component !== "number" || !Number.isFinite(component)
+						)
+				) {
+					return undefined;
+				}
+				return [
+					Math.min(1, Math.max(0, entry[0])),
+					Math.min(1, Math.max(0, entry[1])),
+					Math.min(1, Math.max(0, entry[2])),
+				];
+			};
+			const track: TextColorKeyframePoint[] = [];
+			for (const entry of value.slice(0, 64)) {
+				const point = asRecord({ value: entry });
+				if (
+					!point ||
+					typeof point.t !== "number" ||
+					!Number.isFinite(point.t)
+				) {
+					continue;
+				}
+				const v = rgb(point.v);
+				if (!v) continue;
+				const inValue = rgb(point.inValue);
+				const outValue = rgb(point.outValue);
+				const time = (timeValue: unknown) =>
+					typeof timeValue === "number" && Number.isFinite(timeValue)
+						? timeValue
+						: undefined;
+				const inTime = time(point.inTime);
+				const outTime = time(point.outTime);
+				track.push({
+					t: Math.min(1, Math.max(0, point.t)),
+					v,
+					...(inValue ? { inValue } : {}),
+					...(outValue ? { outValue } : {}),
+					...(inTime !== undefined ? { inTime } : {}),
+					...(outTime !== undefined ? { outTime } : {}),
+				});
+			}
+			if (track.length === 0) return null;
+			track.sort((left, right) => left.t - right.t);
+			return track;
+		};
+		const channelsRecord = asRecord({ value: record.channels });
+		if (!channelsRecord) return null;
+		const channels: Partial<
+			Record<(typeof KEYFRAME_CHANNELS)[number], TextKeyframePoint[]>
+		> = {};
+		for (const name of KEYFRAME_CHANNELS) {
+			const track = normalizeTrack(channelsRecord[name]);
+			if (track) channels[name] = track;
+		}
+		if (Object.keys(channels).length === 0) return null;
+		const colorTrack = normalizeColorTrack(record.colorTrack);
+		const selectorRecord = asRecord({ value: record.selector });
+		const selectorStart = selectorRecord
+			? normalizeTrack(selectorRecord.start)
+			: null;
+		const selectorEnd = selectorRecord
+			? normalizeTrack(selectorRecord.end)
+			: null;
+		const selector =
+			selectorRecord && selectorStart && selectorEnd
+				? {
+						start: selectorStart,
+						end: selectorEnd,
+						shape: oneOf({
+							value: selectorRecord.shape,
+							values: [
+								"square",
+								"rampUp",
+								"rampDown",
+								"triangle",
+								"round",
+								"smooth",
+							] as const,
+							fallback: "square" as const,
+						}),
+						feather: numberInRange({
+							value: selectorRecord.feather,
+							fallback: 0,
+							minimum: 0,
+							maximum: 1,
+						}),
+						...(selectorRecord.basedOn === "rank"
+							? { basedOn: "rank" as const }
+							: {}),
+					}
+				: undefined;
+		return {
+			kind: "keyframes",
+			channels,
+			...(typeof record.color === "string" && record.color.trim()
+				? { color: record.color.trim() }
+				: {}),
+			...(colorTrack ? { colorTrack } : {}),
+			...(typeof record.glowColor === "string" && record.glowColor.trim()
+				? { glowColor: record.glowColor.trim() }
+				: {}),
+			...(typeof record.rasterAngleDeg === "number" &&
+			Number.isFinite(record.rasterAngleDeg)
+				? { rasterAngleDeg: record.rasterAngleDeg }
+				: {}),
+			...(typeof record.rasterScale === "number" &&
+			Number.isFinite(record.rasterScale)
+				? { rasterScale: record.rasterScale }
+				: {}),
+			...(typeof record.rasterEvolution === "number" &&
+			Number.isFinite(record.rasterEvolution)
+				? { rasterEvolution: record.rasterEvolution }
+				: {}),
+			...(selector ? { selector } : {}),
+		};
+	}
+	if (record.kind === "colorCycle") {
+		const palette = Array.isArray(record.palette)
+			? record.palette
+					.filter((entry): entry is string => typeof entry === "string")
+					.slice(0, 12)
+			: [];
+		const bounceEm = numberInRange({
+			value: record.bounceEm,
+			fallback: 0,
+			minimum: 0,
+			maximum: 2,
+		});
+		return {
+			kind: "colorCycle",
+			palette:
+				palette.length > 0
+					? palette
+					: ["#f43f5e", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7"],
+			amount: numberInRange({
+				value: record.amount,
+				fallback: 1,
+				minimum: 0,
+				maximum: 1,
+			}),
+			cycles: numberInRange({
+				value: record.cycles,
+				fallback: 1,
+				minimum: 0.1,
+				maximum: 12,
+			}),
+			rankOffset: numberInRange({
+				value: record.rankOffset,
+				fallback: 1,
+				minimum: 0,
+				maximum: 12,
+			}),
+			stepped: record.stepped === true,
+			envelope:
+				record.envelope === "hold" || record.envelope === "beat"
+					? record.envelope
+					: "constant",
+			...(bounceEm > 0 ? { bounceEm } : {}),
 		};
 	}
 	if (record.kind === "jitter") {

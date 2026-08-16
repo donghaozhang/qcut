@@ -2,7 +2,10 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { useDigitalHumanStore } from "@/stores/digital-human-store";
 import { useMediaStore } from "@/stores/media/media-store";
+import { DIGITAL_HUMAN_FIGURE_PRESETS } from "../digital-human-figure-presets";
 import { DigitalHumanView } from "../digital-human-view";
+
+const [FIRST_PRESET] = DIGITAL_HUMAN_FIGURE_PRESETS;
 
 const PORTRAIT = {
 	id: "portrait-1",
@@ -32,6 +35,67 @@ describe("DigitalHumanView", () => {
 		render(<DigitalHumanView />);
 
 		expect(screen.getByTestId("digital-human-figure-empty")).toBeVisible();
+	});
+
+	it("ships built-in figures so an empty project is still usable", () => {
+		useMediaStore.setState({ mediaItems: [] });
+		render(<DigitalHumanView />);
+
+		const presets = screen.getByTestId("digital-human-figure-presets");
+		expect(presets.childElementCount).toBe(DIGITAL_HUMAN_FIGURE_PRESETS.length);
+		expect(
+			screen.getByTestId(`digital-human-figure-preset-${FIRST_PRESET.id}`)
+		).toBeVisible();
+	});
+
+	it("unlocks the voiceover step from a built-in figure alone", () => {
+		useMediaStore.setState({ mediaItems: [] });
+		render(<DigitalHumanView />);
+
+		expect(screen.getByTestId("digital-human-next")).toBeDisabled();
+
+		fireEvent.click(
+			screen.getByTestId(`digital-human-figure-preset-${FIRST_PRESET.id}`)
+		);
+
+		expect(useDigitalHumanStore.getState().figurePresetId).toBe(
+			FIRST_PRESET.id
+		);
+		expect(screen.getByTestId("digital-human-next")).toBeEnabled();
+		expect(screen.getByTestId("digital-human-step-voice")).toBeEnabled();
+	});
+
+	it("keeps a preset and a project image from both being the figure", () => {
+		render(<DigitalHumanView />);
+
+		fireEvent.click(
+			screen.getByTestId(`digital-human-figure-preset-${FIRST_PRESET.id}`)
+		);
+		fireEvent.click(screen.getByTestId("digital-human-figure-portrait-1"));
+
+		const afterImage = useDigitalHumanStore.getState();
+		expect(afterImage.figureMediaId).toBe("portrait-1");
+		expect(afterImage.figurePresetId).toBeNull();
+
+		fireEvent.click(
+			screen.getByTestId(`digital-human-figure-preset-${FIRST_PRESET.id}`)
+		);
+
+		const afterPreset = useDigitalHumanStore.getState();
+		expect(afterPreset.figurePresetId).toBe(FIRST_PRESET.id);
+		expect(afterPreset.figureMediaId).toBeNull();
+	});
+
+	it("falls back off the voiceover step when the figure is cleared", () => {
+		render(<DigitalHumanView />);
+
+		fireEvent.click(screen.getByTestId("digital-human-figure-portrait-1"));
+		fireEvent.click(screen.getByTestId("digital-human-next"));
+		expect(useDigitalHumanStore.getState().step).toBe("voice");
+
+		useDigitalHumanStore.getState().setFigureMediaId(null);
+
+		expect(useDigitalHumanStore.getState().step).toBe("figure");
 	});
 
 	it("keeps the voiceover step locked until a figure is chosen", () => {

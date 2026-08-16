@@ -4,6 +4,7 @@ import type {
 	TextAnimationSequence,
 } from "@/types/timeline";
 
+import { TEXT_KEYFRAME_DOCUMENTS } from "./keyframe-documents";
 import type { TextAnimationPhase } from "./types";
 
 const NATURAL_EASE: TextAnimationEasing = {
@@ -54,6 +55,8 @@ export function effectForPreset({
 	phase: TextAnimationPhase;
 	presetId: string;
 }): TextAnimationEffect {
+	const transcribed = TEXT_KEYFRAME_DOCUMENTS[`${phase}:${presetId}`];
+	if (transcribed) return transcribed.effect;
 	switch (`${phase}:${presetId}`) {
 		case "entrance:typewriter-cursor":
 			// Jianying renders a solid block cursor that stays lit while typing
@@ -123,6 +126,90 @@ export function effectForPreset({
 			// Jianying's 淡入文字 dissolves the whole block from a soft blur
 			// while fading in.
 			return { kind: "blur", radiusPx: 12, fade: true };
+		case "entrance:fade-reveal":
+			// Jianying's 淡入显现 (7660451431320669481), transcribed verbatim
+			// from its plaintext studioAnim.lsanim keyframe tracks: fade + rise
+			// from 0.5 em below + slight Y swivel + 0.8→1 uniform scale, all
+			// settling at 2/3 of the phase. This preset is pure data — the
+			// declarative keyframes interpreter plays it.
+			return {
+				kind: "keyframes",
+				channels: {
+					opacity: [
+						{ t: 0, v: 0 },
+						{ t: 2 / 3, v: 1 },
+						{ t: 1, v: 1 },
+					],
+					translateYEm: [
+						{ t: 0, v: 0.5 },
+						{ t: 2 / 3, v: 0 },
+						{ t: 1, v: 0 },
+					],
+					rotationYDeg: [
+						{ t: 0, v: -5 },
+						{ t: 2 / 3, v: 0 },
+						{ t: 1, v: 0 },
+					],
+					scaleX: [
+						{ t: 0, v: 0.8 },
+						{ t: 2 / 3, v: 1 },
+						{ t: 1, v: 1 },
+					],
+					scaleY: [
+						{ t: 0, v: 0.8 },
+						{ t: 2 / 3, v: 1 },
+						{ t: 1, v: 1 },
+					],
+				},
+			};
+		case "entrance:petal-wipe":
+			// Jianying's 蓝瓣划入 (7647442470346788138), transcribed from its
+			// plaintext studioAnim.lsanim minus the petal overlay video and the
+			// Dust/DeepGlow post passes (they mostly light the petals, and the
+			// canvas paints glow at container level only). The package keyframes
+			// the range selector's `offset` -1 → 1 with a rampUp shape, baked
+			// here into both window tracks; selected characters collapse to a
+			// point anchored 0.3 em below home (their anchor y −0.3) with a blue
+			// tint. The reference tint itself animates 0.31,0.73,1 → 0.14,0.59,1
+			// before settling white; we hold its mid-sweep value.
+			return {
+				kind: "keyframes",
+				color: "#3dabff",
+				selector: {
+					start: [
+						{ t: 0, v: -1, outValue: -0.34, outTime: 0.209 },
+						{
+							t: 0.633,
+							v: 1,
+							inValue: 0.32,
+							inTime: -0.215,
+							outValue: 1,
+							outTime: 0.121,
+						},
+						{ t: 1, v: 1, inValue: 1, inTime: -0.125 },
+					],
+					end: [
+						{ t: 0, v: 0, outValue: 0.66, outTime: 0.209 },
+						{
+							t: 0.633,
+							v: 2,
+							inValue: 1.32,
+							inTime: -0.215,
+							outValue: 2,
+							outTime: 0.121,
+						},
+						{ t: 1, v: 2, inValue: 2, inTime: -0.125 },
+					],
+					shape: "rampUp",
+					feather: 0,
+				},
+				channels: {
+					scaleX: [{ t: 0, v: 0 }],
+					scaleY: [{ t: 0, v: 0 }],
+					translateYEm: [{ t: 0, v: 0.3 }],
+					colorAmount: [{ t: 0, v: 1 }],
+				},
+			};
 		case "exit:fade-out":
 		case "loop:flicker":
 			return {
@@ -339,6 +426,36 @@ export function effectForPreset({
 				flutter: 0.25,
 				seed: presetSeed({ presetId }),
 			};
+		case "loop:glow-pulse":
+			// 文字泛光-style breathing glow, shaped after 闪色循环's SoftGlow
+			// track (exposure 0.2→0.5→0.2 with glowIntensity 5→15→5 over the
+			// cycle): a symmetric white bloom that never fully dies out.
+			return {
+				kind: "keyframes",
+				glowColor: "#ffffff",
+				channels: {
+					glowIntensity: [
+						{ t: 0, v: 0.35 },
+						{ t: 0.5, v: 1 },
+						{ t: 1, v: 0.35 },
+					],
+					glowRadiusPx: [{ t: 0, v: 14 }],
+				},
+			};
+		case "loop:color-bounce":
+			// 变色弹跳, calibrated from the plaintext package (7522411659407789353):
+			// a feathered window sweeps outward tinting characters pure yellow
+			// [1,1,0] and lifting them 0.2 em; both hold until the cycle restarts.
+			return {
+				kind: "colorCycle",
+				palette: ["#ffff00"],
+				amount: 1,
+				cycles: 1,
+				rankOffset: 0,
+				stepped: false,
+				envelope: "hold",
+				bounceEm: 0.2,
+			};
 		case "exit:particle-shatter":
 			// LumiDust port: noise dissolve front, seeded tile drift, gravity.
 			return {
@@ -526,11 +643,15 @@ function staggerRatioForPreset({
 		presetId === "fold" ||
 		presetId === "arc-up" ||
 		presetId === "flicker-scatter" ||
-		presetId === "shrink-shake"
+		presetId === "shrink-shake" ||
+		// The animated selector window sweeps the line on the shared clock.
+		presetId === "petal-wipe"
 	) {
 		return 0;
 	}
 	if (presetId === "flip-open") return 0.83;
+	// 变色弹跳's window front takes most of the cycle to sweep the line.
+	if (presetId === "color-bounce") return 0.7;
 	// Spreading phases across nearly the whole cycle is what turns orbit's
 	// shared circle into Jianying's ring layout.
 	if (presetId === "ring-orbit") return 0.95;
@@ -551,6 +672,13 @@ export function sequenceForPreset({
 	phase: TextAnimationPhase;
 	presetId: string;
 }): TextAnimationSequence {
+	const transcribed = TEXT_KEYFRAME_DOCUMENTS[`${phase}:${presetId}`];
+	if (transcribed) {
+		return {
+			...transcribed.sequence,
+			seed: presetSeed({ presetId: `${phase}:${presetId}` }),
+		};
+	}
 	// fade-characters is intentionally absent: Jianying's 文字渐显 fades the
 	// whole block at once rather than staggering per grapheme.
 	const graphemePresets = new Set([
@@ -582,13 +710,19 @@ export function sequenceForPreset({
 		"random-fly-out",
 		"shrink-shake",
 		"elastic-out",
+		"color-bounce",
+		"petal-wipe",
 	]);
 	const order =
 		presetId === "typewriter-out"
 			? "reverse"
 			: presetId === "random-fly-out" || presetId === "elastic-out"
 				? "random"
-				: "forward";
+				: // Reference 变色弹跳: the tint window opens from the text center
+					// outward, so the color front reaches both ends last.
+					presetId === "color-bounce"
+					? "centerOut"
+					: "forward";
 	const staggerRatio = staggerRatioForPreset({
 		isGraphemePreset: graphemePresets.has(presetId),
 		presetId,
@@ -609,6 +743,10 @@ export function easingForPreset({
 	phase: TextAnimationPhase;
 	presetId: string;
 }): TextAnimationEasing {
+	// Transcribed documents carry their own bezier handles per channel, so the
+	// phase clock stays linear — the substring rules below would otherwise
+	// bend a document by its id (wave-bounce-in matching "bounce").
+	if (TEXT_KEYFRAME_DOCUMENTS[`${phase}:${presetId}`]) return "linear";
 	if (phase === "loop" || presetId === "bounce-up") {
 		return "linear";
 	}

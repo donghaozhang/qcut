@@ -11,6 +11,13 @@ export interface DigitalHumanShotOption {
 	 * of frame. Every box keeps the 3:4 card ratio so nothing is distorted.
 	 */
 	viewBox: string;
+	/**
+	 * Equivalent framing for a real photo, which cannot use a viewBox. Zoom is
+	 * anchored high in the frame because a portrait puts the head in the upper
+	 * third — scaling from the centre would crop the face away.
+	 */
+	photoScale: number;
+	photoOrigin: string;
 }
 
 export const DIGITAL_HUMAN_SHOT_OPTIONS: readonly DigitalHumanShotOption[] = [
@@ -18,21 +25,29 @@ export const DIGITAL_HUMAN_SHOT_OPTIONS: readonly DigitalHumanShotOption[] = [
 		id: "wide",
 		labelKey: "digitalHuman.shot.wide",
 		viewBox: "-4 4 109 145",
+		photoScale: 1,
+		photoOrigin: "50% 50%",
 	},
 	{
 		id: "medium",
 		labelKey: "digitalHuman.shot.medium",
 		viewBox: "12 8 75 100",
+		photoScale: 1.35,
+		photoOrigin: "50% 28%",
 	},
 	{
 		id: "close",
 		labelKey: "digitalHuman.shot.close",
 		viewBox: "23 12 54 72",
+		photoScale: 1.8,
+		photoOrigin: "50% 22%",
 	},
 	{
 		id: "closeup",
 		labelKey: "digitalHuman.shot.closeup",
 		viewBox: "32 14 36 48",
+		photoScale: 2.5,
+		photoOrigin: "50% 19%",
 	},
 ];
 

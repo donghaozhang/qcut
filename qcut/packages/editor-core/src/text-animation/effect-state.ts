@@ -7,6 +7,7 @@ import {
 	type TextAnimationDistance,
 	type TextAnimationEffect,
 	type TextAnimationLayout,
+	type TextAnimationRasterEffectState,
 	type TextAnimationVisualState,
 } from "./model.js";
 import {
@@ -14,6 +15,11 @@ import {
 	easeTextAnimationProgress,
 	springProgress,
 } from "./easing.js";
+import { sampleTextAnimationPalette } from "./color.js";
+import {
+	evaluateTextColorKeyframeTrack,
+	evaluateTextKeyframeTrack,
+} from "./keyframes.js";
 
 export interface TextAnimationEffectResult {
 	visual: TextAnimationVisualState;
@@ -27,6 +33,8 @@ export interface TextAnimationEffectContext {
 	linearProgress: number;
 	layout: TextAnimationLayout;
 	unit: CompiledTextAnimationUnit;
+	/** Units in the phase; animated selectors need the unit's 0..1 position. */
+	unitCount?: number;
 }
 
 function lerp({
@@ -347,6 +355,293 @@ function projectiveVisual({
 	return null;
 }
 
+function selectorShapeWeight({
+	shape,
+	position,
+}: {
+	shape: NonNullable<
+		Extract<TextAnimationEffect, { kind: "keyframes" }>["selector"]
+	>["shape"];
+	/** Position inside the window, 0..1. */
+	position: number;
+}): number {
+	if (shape === "square") return 1;
+	if (shape === "rampUp") return position;
+	if (shape === "rampDown") return 1 - position;
+	if (shape === "triangle") return 1 - Math.abs(position * 2 - 1);
+	if (shape === "round") {
+		return Math.sqrt(Math.max(0, 1 - (position * 2 - 1) ** 2));
+	}
+	return smoothstep({ progress: 1 - Math.abs(position * 2 - 1) });
+}
+
+/**
+ * Weight of one unit under an animated selector window: shape inside the
+ * window, feathered linear falloff beyond its edges (Jianying `smooth`).
+ * Ramp shapes follow AE range-selector semantics and hold at full weight
+ * past their full edge — a rampUp wipe keeps the characters it has not
+ * reached yet fully selected instead of dropping them to zero.
+ */
+export function selectorUnitWeight({
+	selector,
+	unitPosition,
+	progress,
+}: {
+	selector: NonNullable<
+		Extract<TextAnimationEffect, { kind: "keyframes" }>["selector"]
+	>;
+	unitPosition: number;
+	progress: number;
+}): number {
+	const start = evaluateTextKeyframeTrack({
+		track: selector.start,
+		progress,
+	});
+	const end = evaluateTextKeyframeTrack({ track: selector.end, progress });
+	const low = Math.min(start, end);
+	const high = Math.max(start, end);
+	if (unitPosition >= low && unitPosition <= high) {
+		const span = Math.max(1e-6, high - low);
+		return selectorShapeWeight({
+			shape: selector.shape,
+			position: (unitPosition - low) / span,
+		});
+	}
+	// 蓝瓣划入 sweeps a rampUp window across the line: characters ahead of
+	// the sweep stay hidden at weight 1 until the ramp releases them.
+	if (selector.shape === "rampUp" && unitPosition > high) return 1;
+	if (selector.shape === "rampDown" && unitPosition < low) return 1;
+	if (selector.feather <= 0) return 0;
+	// A collapsed window selects nothing; feathering it outward would
+	// pre-select the whole line one frame before a growing sweep (e.g.
+	// twist-dissolve's end track starting from [0, 0]) has moved at all.
+	if (high - low <= 1e-6) return 0;
+	// Outside the window the edge weight decays linearly over the feather
+	// width; shapes whose profile already ends at zero stay at zero.
+	const distance =
+		unitPosition < low ? low - unitPosition : unitPosition - high;
+	const edgeWeight = selectorShapeWeight({
+		shape: selector.shape,
+		position: unitPosition < low ? 0 : 1,
+	});
+	return edgeWeight * Math.max(0, 1 - distance / selector.feather);
+}
+
+function blendVisualTowardIdentity({
+	visual,
+	weight,
+}: {
+	visual: TextAnimationVisualState;
+	weight: number;
+}): TextAnimationVisualState {
+	if (weight >= 1) return visual;
+	const identity = IDENTITY_TEXT_ANIMATION_VISUAL_STATE;
+	const mix = (from: number, to: number) => from + (to - from) * weight;
+	const blended: TextAnimationVisualState = {
+		...visual,
+		opacity: mix(identity.opacity, visual.opacity),
+		translateX: mix(0, visual.translateX),
+		translateY: mix(0, visual.translateY),
+		translateZ: mix(0, visual.translateZ ?? 0),
+		scaleX: mix(1, visual.scaleX),
+		scaleY: mix(1, visual.scaleY),
+		rotationDeg: mix(0, visual.rotationDeg),
+		rotationXDeg: mix(0, visual.rotationXDeg ?? 0),
+		rotationYDeg: mix(0, visual.rotationYDeg ?? 0),
+		blurPx: mix(0, visual.blurPx),
+	};
+	if (visual.colorMix) {
+		blended.colorMix = {
+			...visual.colorMix,
+			amount: visual.colorMix.amount * weight,
+		};
+	}
+	if (visual.postProcess?.glow) {
+		blended.postProcess = {
+			...visual.postProcess,
+			glow: {
+				...visual.postProcess.glow,
+				intensity: visual.postProcess.glow.intensity * weight,
+			},
+		};
+	}
+	return blended;
+}
+
+function keyframesVisual({
+	effect,
+	linearProgress,
+	layout,
+	unit,
+	unitCount,
+}: {
+	effect: Extract<TextAnimationEffect, { kind: "keyframes" }>;
+	linearProgress: number;
+	layout: TextAnimationLayout;
+	unit?: CompiledTextAnimationUnit;
+	unitCount?: number;
+}): TextAnimationVisualState {
+	const visual = identityVisual();
+	const channel = (name: keyof typeof effect.channels) => {
+		const track = effect.channels[name];
+		if (!track || track.length === 0) return undefined;
+		return evaluateTextKeyframeTrack({ track, progress: linearProgress });
+	};
+	const translateXEm = channel("translateXEm");
+	if (translateXEm !== undefined) {
+		visual.translateX = translateXEm * layout.fontSize;
+	}
+	const translateYEm = channel("translateYEm");
+	if (translateYEm !== undefined) {
+		visual.translateY = translateYEm * layout.fontSize;
+	}
+	const scaleX = channel("scaleX");
+	if (scaleX !== undefined) visual.scaleX = scaleX;
+	const scaleY = channel("scaleY");
+	if (scaleY !== undefined) visual.scaleY = scaleY;
+	const rotationDeg = channel("rotationDeg");
+	if (rotationDeg !== undefined) visual.rotationDeg = rotationDeg;
+	const rotationXDeg = channel("rotationXDeg");
+	if (rotationXDeg !== undefined) visual.rotationXDeg = rotationXDeg;
+	const rotationYDeg = channel("rotationYDeg");
+	if (rotationYDeg !== undefined) visual.rotationYDeg = rotationYDeg;
+	const opacity = channel("opacity");
+	if (opacity !== undefined) {
+		visual.opacity = Math.min(1, Math.max(0, opacity));
+	}
+	const blurPx = channel("blurPx");
+	if (blurPx !== undefined) visual.blurPx = Math.max(0, blurPx);
+	const colorAmount = channel("colorAmount");
+	// An animated tint track overrides the constant tint and implies a full
+	// blend when no colorAmount channel shapes it (the track's own arc — e.g.
+	// settling on white — is what fades the tint out).
+	const tintColor = effect.colorTrack?.length
+		? evaluateTextColorKeyframeTrack({
+				track: effect.colorTrack,
+				progress: linearProgress,
+			})
+		: effect.color;
+	if (tintColor && (colorAmount !== undefined || effect.colorTrack?.length)) {
+		visual.colorMix = {
+			color: tintColor,
+			amount: Math.min(1, Math.max(0, colorAmount ?? 1)),
+			// Jianying's keyframed color attribute is a multiplicative tint:
+			// its tracks settle on white to mean "no tint", which only reads
+			// correctly as a filter over the element's own fill.
+			...(effect.colorTrack?.length ? { mode: "multiply" as const } : {}),
+		};
+	}
+	const glowIntensity = channel("glowIntensity");
+	if (glowIntensity !== undefined && glowIntensity > 0) {
+		const glowRadiusPx = channel("glowRadiusPx");
+		visual.postProcess = {
+			trailSamples: 0,
+			trailStrength: 0,
+			trapezoidAmount: 0,
+			glow: {
+				color: effect.glowColor ?? "#ffffff",
+				radiusPx: Math.max(0, glowRadiusPx ?? layout.fontSize * 0.6),
+				intensity: Math.min(1, Math.max(0, glowIntensity)),
+			},
+		};
+	}
+	// Raster post-pass. Driven by whichever of its channels the document
+	// carries; the pass runs on the block's offscreen raster, so it composes
+	// with (rather than replaces) the per-unit transforms above.
+	const pixelateCell = channel("pixelateCell");
+	const rgbSplitPx = channel("rgbSplitPx");
+	const displaceAmplitudePx = channel("displaceAmplitudePx");
+	const raster: TextAnimationRasterEffectState | undefined =
+		pixelateCell !== undefined && pixelateCell >= 1
+			? { kind: "pixelate", cell: pixelateCell }
+			: rgbSplitPx !== undefined && Math.abs(rgbSplitPx) > 0.01
+				? {
+						kind: "rgbSplit",
+						offsetPx: rgbSplitPx,
+						angleDeg: effect.rasterAngleDeg ?? 0,
+					}
+				: displaceAmplitudePx !== undefined &&
+						Math.abs(displaceAmplitudePx) > 0.01
+					? {
+							kind: "displace",
+							amplitudePx: displaceAmplitudePx,
+							scale: effect.rasterScale ?? 24,
+							evolution: linearProgress * (effect.rasterEvolution ?? 1),
+						}
+					: undefined;
+	if (raster) {
+		visual.postProcess = {
+			trailSamples: visual.postProcess?.trailSamples ?? 0,
+			trailStrength: visual.postProcess?.trailStrength ?? 0,
+			trapezoidAmount: visual.postProcess?.trapezoidAmount ?? 0,
+			...(visual.postProcess?.glow ? { glow: visual.postProcess.glow } : {}),
+			raster,
+		};
+	}
+	if (effect.selector && unit) {
+		// Position by unit index (Jianying basedOn: characters) by default;
+		// "rank" follows the sequence order so a random sequence shuffles
+		// which character the window consumes next (Jianying randomSort).
+		const ordinal = effect.selector.basedOn === "rank" ? unit.rank : unit.index;
+		const unitPosition =
+			unitCount && unitCount > 1 ? ordinal / (unitCount - 1) : 0.5;
+		const weight = selectorUnitWeight({
+			selector: effect.selector,
+			unitPosition,
+			progress: linearProgress,
+		});
+		return blendVisualTowardIdentity({ visual, weight });
+	}
+	return visual;
+}
+
+function colorCycleVisual({
+	effect,
+	linearProgress,
+	presence,
+	layout,
+	unit,
+}: {
+	effect: Extract<TextAnimationEffect, { kind: "colorCycle" }>;
+	linearProgress: number;
+	/** 1 for loops; edge phases scale the blend in with their presence. */
+	presence: number;
+	layout: TextAnimationLayout;
+	unit: CompiledTextAnimationUnit;
+}): TextAnimationVisualState {
+	const visual = identityVisual();
+	// The palette position sweeps with time and shifts by rank so neighbours
+	// can land on different stops; rankOffset 0 keeps every unit in sync.
+	const stops = Math.max(1, effect.palette.length);
+	const position =
+		linearProgress * effect.cycles + (unit.rank * effect.rankOffset) / stops;
+	// Reference 变色弹跳: a feathered window front passes a character, which
+	// then keeps its tint and lift until the cycle restarts. The wrap stagger
+	// already phase-shifts linearProgress per unit, so the envelope below is
+	// the per-character response to that front.
+	const envelope =
+		effect.envelope === "hold"
+			? smoothstep({
+					progress: clampUnitInterval({ value: linearProgress / 0.35 }),
+				})
+			: effect.envelope === "beat"
+				? Math.sin(clampUnitInterval({ value: linearProgress }) * Math.PI) ** 2
+				: 1;
+	visual.colorMix = {
+		color: sampleTextAnimationPalette({
+			palette: effect.palette,
+			position,
+			stepped: effect.stepped,
+		}),
+		amount: effect.amount * envelope * clampUnitInterval({ value: presence }),
+	};
+	if (effect.bounceEm && effect.bounceEm > 0) {
+		visual.translateY =
+			-envelope * effect.bounceEm * layout.fontSize * presence;
+	}
+	return visual;
+}
+
 function spatialWaveMovement({
 	effect,
 	progress,
@@ -579,10 +874,34 @@ function loopVisual({
 }: {
 	context: TextAnimationEffectContext;
 }): TextAnimationEffectResult {
-	const { effect, progress, linearProgress, layout, unit } = context;
+	const { effect, progress, linearProgress, layout, unit, unitCount } = context;
 	const visual = identityVisual();
 	const projective = projectiveVisual({ context });
 	if (projective) return projective;
+	if (effect.kind === "colorCycle") {
+		return {
+			visual: colorCycleVisual({
+				effect,
+				linearProgress,
+				presence: 1,
+				layout,
+				unit,
+			}),
+			decorations: [],
+		};
+	}
+	if (effect.kind === "keyframes") {
+		return {
+			visual: keyframesVisual({
+				effect,
+				linearProgress,
+				layout,
+				unit,
+				unitCount,
+			}),
+			decorations: [],
+		};
+	}
 	const pulse = (1 - Math.cos(progress * Math.PI * 2)) / 2;
 	const wave = Math.sin(progress * Math.PI * 2);
 	if (effect.kind === "typewriter") {
@@ -818,11 +1137,39 @@ function edgeVisual({
 }: {
 	context: TextAnimationEffectContext;
 }): TextAnimationEffectResult {
-	const { effect, role, progress, linearProgress, layout, unit } = context;
+	const { effect, role, progress, linearProgress, layout, unit, unitCount } =
+		context;
 	const presence = edgePresence({ role, progress });
 	const visual = identityVisual();
 	const projective = projectiveVisual({ context });
 	if (projective) return projective;
+	if (effect.kind === "colorCycle") {
+		return {
+			visual: colorCycleVisual({
+				effect,
+				linearProgress,
+				presence,
+				layout,
+				unit,
+			}),
+			decorations: [],
+		};
+	}
+	if (effect.kind === "keyframes") {
+		// Keyframe documents are authored per phase (Jianying ships separate
+		// in/out packages), so edge roles play the track as written: exit
+		// tracks already end hidden.
+		return {
+			visual: keyframesVisual({
+				effect,
+				linearProgress,
+				layout,
+				unit,
+				unitCount,
+			}),
+			decorations: [],
+		};
+	}
 	if (effect.kind === "typewriter") {
 		if (effect.reveal === "step") {
 			// Jianying pops a unit in only when its reveal slot completes (and,
