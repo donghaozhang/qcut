@@ -405,7 +405,9 @@ export type TextKeyframeChannel =
 	| "rotationYDeg"
 	| "opacity"
 	| "blurPx"
-	| "colorAmount";
+	| "colorAmount"
+	| "glowIntensity"
+	| "glowRadiusPx";
 
 /**
  * Declarative keyframe animation: instead of a hand-written evaluator, the
@@ -418,6 +420,8 @@ export interface TextKeyframesEffect {
 	channels: Partial<Record<TextKeyframeChannel, TextKeyframePoint[]>>;
 	/** Tint target for the colorAmount channel, #rrggbb. */
 	color?: string;
+	/** Glow color for the glow channels, #rrggbb; defaults to white. */
+	glowColor?: string;
 }
 
 /**
@@ -562,11 +566,25 @@ export type TextAnimationProjectionState =
 			radiusRatio: number;
 	  };
 
+/**
+ * Block-level glow pass, the first stop of Jianying's effectAnimators chain
+ * (SoftGlow / DeepGlow / RadianceGlow families keyframe exposure and
+ * intensity on the text render group).
+ */
+export interface TextAnimationGlowState {
+	color: string;
+	radiusPx: number;
+	/** 0..1 glow pass opacity. */
+	intensity: number;
+}
+
 export interface TextAnimationPostProcessState {
 	trailSamples: number;
 	trailStrength: number;
 	/** Reserved for the portable pixel-warp pass. */
 	trapezoidAmount: number;
+	/** Animated render-group glow. */
+	glow?: TextAnimationGlowState;
 }
 
 /**
