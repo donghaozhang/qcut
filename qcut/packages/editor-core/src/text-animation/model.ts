@@ -407,7 +407,12 @@ export type TextKeyframeChannel =
 	| "blurPx"
 	| "colorAmount"
 	| "glowIntensity"
-	| "glowRadiusPx";
+	| "glowRadiusPx"
+	// Raster post-pass parameters, so a document can animate the mosaic
+	// coarseness, the channel separation, or the displacement strength.
+	| "pixelateCell"
+	| "rgbSplitPx"
+	| "displaceAmplitudePx";
 
 /**
  * One key of an animated tint track; `v` and the bezier handle values are
@@ -474,6 +479,12 @@ export interface TextKeyframesEffect {
 	colorTrack?: TextColorKeyframePoint[];
 	/** Glow color for the glow channels, #rrggbb; defaults to white. */
 	glowColor?: string;
+	/** rgbSplit direction, degrees; 0 separates horizontally. */
+	rasterAngleDeg?: number;
+	/** displace field spatial scale in px; smaller means finer grain. */
+	rasterScale?: number;
+	/** displace field turns this many times over the phase. */
+	rasterEvolution?: number;
 	/**
 	 * Optional animated range selector. With a selector the phase clock is
 	 * shared by every unit and the WINDOW does the spatial differentiation:
@@ -636,6 +647,30 @@ export interface TextAnimationGlowState {
 	intensity: number;
 }
 
+/**
+ * A raster post-pass applied to the block after it is drawn to an offscreen
+ * canvas — the portable stand-in for Jianying's fragment-shader passes that
+ * operate on the rendered text image rather than on per-unit transforms.
+ * - `pixelate`: snap sampling to a `cell`-px grid (mosaic).
+ * - `rgbSplit`: draw the raster three times, the red and blue channels
+ *   offset by `offsetPx` along `angleDeg` (chromatic aberration / glitch).
+ * - `displace`: offset each sampled block by a value-noise field of
+ *   `amplitudePx`, at spatial `scale`, advanced by `evolution` — the general
+ *   case covering boil, turbulence and ripple.
+ */
+export interface TextAnimationRasterEffectState {
+	kind: "pixelate" | "rgbSplit" | "displace";
+	/** pixelate: grid cell size in px. */
+	cell?: number;
+	/** rgbSplit: channel separation in px, and its direction. */
+	offsetPx?: number;
+	angleDeg?: number;
+	/** displace: field amplitude px, spatial scale px, and time phase. */
+	amplitudePx?: number;
+	scale?: number;
+	evolution?: number;
+}
+
 export interface TextAnimationPostProcessState {
 	trailSamples: number;
 	trailStrength: number;
@@ -643,6 +678,8 @@ export interface TextAnimationPostProcessState {
 	trapezoidAmount: number;
 	/** Animated render-group glow. */
 	glow?: TextAnimationGlowState;
+	/** Raster post-pass (mosaic / RGB split / noise displacement). */
+	raster?: TextAnimationRasterEffectState;
 }
 
 /**
