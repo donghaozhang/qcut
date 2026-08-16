@@ -15,6 +15,7 @@ import {
 	springProgress,
 } from "./easing.js";
 import { sampleTextAnimationPalette } from "./color.js";
+import { evaluateTextKeyframeTrack } from "./keyframes.js";
 
 export interface TextAnimationEffectResult {
 	visual: TextAnimationVisualState;
@@ -348,6 +349,55 @@ function projectiveVisual({
 	return null;
 }
 
+function keyframesVisual({
+	effect,
+	linearProgress,
+	layout,
+}: {
+	effect: Extract<TextAnimationEffect, { kind: "keyframes" }>;
+	linearProgress: number;
+	layout: TextAnimationLayout;
+}): TextAnimationVisualState {
+	const visual = identityVisual();
+	const channel = (name: keyof typeof effect.channels) => {
+		const track = effect.channels[name];
+		if (!track || track.length === 0) return undefined;
+		return evaluateTextKeyframeTrack({ track, progress: linearProgress });
+	};
+	const translateXEm = channel("translateXEm");
+	if (translateXEm !== undefined) {
+		visual.translateX = translateXEm * layout.fontSize;
+	}
+	const translateYEm = channel("translateYEm");
+	if (translateYEm !== undefined) {
+		visual.translateY = translateYEm * layout.fontSize;
+	}
+	const scaleX = channel("scaleX");
+	if (scaleX !== undefined) visual.scaleX = scaleX;
+	const scaleY = channel("scaleY");
+	if (scaleY !== undefined) visual.scaleY = scaleY;
+	const rotationDeg = channel("rotationDeg");
+	if (rotationDeg !== undefined) visual.rotationDeg = rotationDeg;
+	const rotationXDeg = channel("rotationXDeg");
+	if (rotationXDeg !== undefined) visual.rotationXDeg = rotationXDeg;
+	const rotationYDeg = channel("rotationYDeg");
+	if (rotationYDeg !== undefined) visual.rotationYDeg = rotationYDeg;
+	const opacity = channel("opacity");
+	if (opacity !== undefined) {
+		visual.opacity = Math.min(1, Math.max(0, opacity));
+	}
+	const blurPx = channel("blurPx");
+	if (blurPx !== undefined) visual.blurPx = Math.max(0, blurPx);
+	const colorAmount = channel("colorAmount");
+	if (colorAmount !== undefined && effect.color) {
+		visual.colorMix = {
+			color: effect.color,
+			amount: Math.min(1, Math.max(0, colorAmount)),
+		};
+	}
+	return visual;
+}
+
 function colorCycleVisual({
 	effect,
 	linearProgress,
@@ -643,6 +693,12 @@ function loopVisual({
 			decorations: [],
 		};
 	}
+	if (effect.kind === "keyframes") {
+		return {
+			visual: keyframesVisual({ effect, linearProgress, layout }),
+			decorations: [],
+		};
+	}
 	const pulse = (1 - Math.cos(progress * Math.PI * 2)) / 2;
 	const wave = Math.sin(progress * Math.PI * 2);
 	if (effect.kind === "typewriter") {
@@ -892,6 +948,15 @@ function edgeVisual({
 				layout,
 				unit,
 			}),
+			decorations: [],
+		};
+	}
+	if (effect.kind === "keyframes") {
+		// Keyframe documents are authored per phase (Jianying ships separate
+		// in/out packages), so edge roles play the track as written: exit
+		// tracks already end hidden.
+		return {
+			visual: keyframesVisual({ effect, linearProgress, layout }),
 			decorations: [],
 		};
 	}
