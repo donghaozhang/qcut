@@ -632,4 +632,14 @@ export const ENTRANCE_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["spin", "rotate", "each", "逐字旋转", "逐字", "旋转"],
 	},
+	{
+		id: "mischief-hop",
+		phase: "entrance",
+		nameKey: "textProperties.animationPreset.mischiefHop",
+		previewKind: "keyframes",
+		defaultDuration: 1.8,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["hop", "bounce", "mischief", "跳跳捣蛋鬼", "跳跳", "捣蛋鬼"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
