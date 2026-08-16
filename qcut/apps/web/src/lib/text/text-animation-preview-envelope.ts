@@ -419,6 +419,11 @@ function resolveEffectEnvelope({
 		envelope.translateY = reach;
 		return envelope;
 	}
+	if (effect.kind === "colorCycle") {
+		// Color rides in place; only the coupled bounce lift moves the glyphs.
+		envelope.translateY = (effect.bounceEm ?? 0) * context.fontSize;
+		return envelope;
+	}
 	const distance = resolveDistance({
 		distance: effect.distance,
 		...context,
