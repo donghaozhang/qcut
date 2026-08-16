@@ -123,6 +123,42 @@ export function effectForPreset({
 			// Jianying's 淡入文字 dissolves the whole block from a soft blur
 			// while fading in.
 			return { kind: "blur", radiusPx: 12, fade: true };
+		case "entrance:fade-reveal":
+			// Jianying's 淡入显现 (7660451431320669481), transcribed verbatim
+			// from its plaintext studioAnim.lsanim keyframe tracks: fade + rise
+			// from 0.5 em below + slight Y swivel + 0.8→1 uniform scale, all
+			// settling at 2/3 of the phase. This preset is pure data — the
+			// declarative keyframes interpreter plays it.
+			return {
+				kind: "keyframes",
+				channels: {
+					opacity: [
+						{ t: 0, v: 0 },
+						{ t: 2 / 3, v: 1 },
+						{ t: 1, v: 1 },
+					],
+					translateYEm: [
+						{ t: 0, v: 0.5 },
+						{ t: 2 / 3, v: 0 },
+						{ t: 1, v: 0 },
+					],
+					rotationYDeg: [
+						{ t: 0, v: -5 },
+						{ t: 2 / 3, v: 0 },
+						{ t: 1, v: 0 },
+					],
+					scaleX: [
+						{ t: 0, v: 0.8 },
+						{ t: 2 / 3, v: 1 },
+						{ t: 1, v: 1 },
+					],
+					scaleY: [
+						{ t: 0, v: 0.8 },
+						{ t: 2 / 3, v: 1 },
+						{ t: 1, v: 1 },
+					],
+				},
+			};
 		case "exit:fade-out":
 		case "loop:flicker":
 			return {
