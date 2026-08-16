@@ -341,6 +341,36 @@ export const EXIT_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["scale", "two", "stage", "二段缩放", "二段", "缩放"],
 	},
+	{
+		id: "lie-down",
+		phase: "exit",
+		nameKey: "textProperties.animationPreset.lieDown",
+		previewKind: "keyframes",
+		defaultDuration: 0.8,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["lie", "down", "fall", "躺下"],
+	},
+	{
+		id: "whip-out",
+		phase: "exit",
+		nameKey: "textProperties.animationPreset.whipOut",
+		previewKind: "keyframes",
+		defaultDuration: 0.6,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["whip", "out", "甩回", "甩出"],
+	},
+	{
+		id: "spin-scale-out",
+		phase: "exit",
+		nameKey: "textProperties.animationPreset.spinScaleOut",
+		previewKind: "keyframes",
+		defaultDuration: 1.6,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["spin", "scale", "rotate", "旋转缩放", "旋转", "缩放"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
 
 export const LOOP_TEXT_ANIMATION_PRESETS = [
