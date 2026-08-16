@@ -138,6 +138,28 @@ export const KEYBINDING_PROFILES: KeybindingProfile[] = [
 			v: "toggle-element-enabled",
 			"ctrl+g": "group-selected",
 			"ctrl+shift+g": "ungroup-selected",
+			// Jianying parity. Its own trim keys are Q/W; "[" and "]" stay bound
+			// so nobody's muscle memory breaks.
+			q: "trim-start-to-playhead",
+			w: "trim-end-to-playhead",
+			// 轨道放大/缩小. A US layout sends ⌘+ as ctrl+shift+=, so both forms
+			// are bound; the bare -/= aliases stay for every profile.
+			"ctrl+=": "zoom-timeline-in",
+			"ctrl+shift+=": "zoom-timeline-in",
+			"ctrl+-": "zoom-timeline-out",
+			"alt+shift+k": "add-keyframe",
+			"ctrl+shift+c": "copy-attributes-selected",
+			"ctrl+shift+v": "paste-attributes-selected",
+			"alt+shift+=": "player-zoom-in",
+			"alt+shift+-": "player-zoom-out",
+			"alt+shift+z": "player-zoom-fit",
+			// Jianying uses a real Control chord here, which this key layer
+			// cannot express, so the ⌘ form matches the qcut profile instead.
+			"ctrl+shift+s": "separate-audio-selected",
+			// JKL transport. QCut seeks a fixed step rather than shuttling.
+			j: "seek-backward",
+			k: "toggle-play",
+			l: "seek-forward",
 		},
 	},
 ];

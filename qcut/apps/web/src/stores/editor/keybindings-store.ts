@@ -120,11 +120,12 @@ export function migrateKeybindingsState({
 						? "custom"
 						: DEFAULT_KEYBINDING_PROFILE_ID,
 				};
-	if (version >= 7) return versionThreeState;
-	// Anything persisted below v7 re-derives non-customized profiles so users
+	if (version >= 8) return versionThreeState;
+	// Anything persisted below v8 re-derives non-customized profiles so users
 	// pick up new default bindings (v5 added freeze/bookmark/group/enable
 	// actions, v6 the main-track magnet and linked-ripple toggles, v7 the
-	// select-tool binding).
+	// select-tool binding, v8 the Jianying parity bindings on the CapCut
+	// profile). Customized maps are deliberately left alone.
 	const activeProfileId =
 		versionThreeState.activeProfileId ?? DEFAULT_KEYBINDING_PROFILE_ID;
 	const activeProfile = KEYBINDING_PROFILES.find(
@@ -257,7 +258,7 @@ export const useKeybindingsStore = create<KeybindingsState>()(
 		}),
 		{
 			name: "qcut-keybindings",
-			version: 7,
+			version: 8,
 			migrate: (persistedState, version) =>
 				migrateKeybindingsState({ persistedState, version }),
 		}
