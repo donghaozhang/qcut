@@ -4,6 +4,7 @@ import {
 	evaluateTextAnimationFrame,
 	evaluateTextColorKeyframeTrack,
 	evaluateTextKeyframeTrack,
+	multiplyTextAnimationColors,
 	segmentText,
 	selectorUnitWeight,
 	type TextAnimationEffect,
@@ -314,6 +315,23 @@ describe("animated selector", () => {
 		).toBeCloseTo(0);
 	});
 
+	it("selects nothing outside a collapsed window even with feather", () => {
+		// twist-dissolve's end track grows from [0, 0]; outward feather must
+		// not pre-select the line before the sweep starts.
+		const selector = {
+			start: [{ t: 0, v: 0 }],
+			end: [{ t: 0, v: 0 }],
+			shape: "square" as const,
+			feather: 1,
+		};
+		expect(
+			selectorUnitWeight({ selector, unitPosition: 0.1, progress: 0 })
+		).toBe(0);
+		expect(
+			selectorUnitWeight({ selector, unitPosition: 0.9, progress: 0 })
+		).toBe(0);
+	});
+
 	it("holds ramps at full weight past their full edge", () => {
 		const rampUp = {
 			start: [{ t: 0, v: 0.2 }],
@@ -578,5 +596,73 @@ describe("animated tint track", () => {
 		});
 		expect(state.container.colorMix?.color).toBe("#800080");
 		expect(state.container.colorMix?.amount).toBe(1);
+		// Jianying tint tracks are multiplicative: white keys mean "no tint"
+		// whatever the element's own fill is.
+		expect(state.container.colorMix?.mode).toBe("multiply");
+	});
+
+	it("filters colors multiplicatively with white as identity", () => {
+		expect(
+			multiplyTextAnimationColors({
+				base: "#ff0000",
+				tint: "#ffffff",
+				amount: 1,
+			})
+		).toBe("#ff0000");
+		expect(
+			multiplyTextAnimationColors({
+				base: "#ff8000",
+				tint: "#80ff80",
+				amount: 1,
+			})
+		).toBe("#808000");
+		expect(
+			multiplyTextAnimationColors({
+				base: "#ff0000",
+				tint: "#000000",
+				amount: 0.5,
+			})
+		).toBe("#800000");
+	});
+
+	it("maps rank-based selectors through the sequence order", () => {
+		// 扭曲消散's randomSort: with basedOn "rank" and a reverse sequence the
+		// window consumes the LAST character first.
+		const effect: TextAnimationEffect = {
+			kind: "keyframes",
+			channels: { opacity: [{ t: 0, v: 0 }] },
+			selector: {
+				start: [{ t: 0, v: 0 }],
+				end: [{ t: 0, v: 0.4 }],
+				shape: "square",
+				feather: 0,
+				basedOn: "rank",
+			},
+		};
+		const element = createElement({
+			overrides: {
+				content: "ABCDEF",
+				duration: 3,
+				textAnimations: createAnimation({
+					entrance: createPhase({
+						effect,
+						target: "text",
+						unit: "grapheme",
+						order: "reverse",
+						duration: 1,
+					}),
+				}),
+			},
+		});
+		const state = evaluateTextAnimationFrame({
+			compiled: compileTextAnimation({ element, fps: 100 }),
+			frame: 10,
+			layout: createLayout({ content: "ABCDEF" }),
+		});
+		// Ranks run 5..0 left to right, so the [0, 0.4] window covers the two
+		// RIGHTMOST characters (ranks 0 and 1) and leaves the first ones alone.
+		expect(state.units[5]?.visual.opacity).toBeCloseTo(0);
+		expect(state.units[4]?.visual.opacity).toBeCloseTo(0);
+		expect(state.units[0]?.visual.opacity).toBeCloseTo(1);
 	});
 });
