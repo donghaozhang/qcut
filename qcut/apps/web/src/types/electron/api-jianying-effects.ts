@@ -10,6 +10,8 @@ export type {
 	JianyingEffectAdjustParameter,
 	JianyingEffectAdjustValue,
 	JianyingEffectDefinition,
+	JianyingEffectDownloadRequest,
+	JianyingEffectDownloadResult,
 	JianyingEffectPanel,
 	JianyingEffectPreviewRequest,
 	JianyingEffectPreviewResult,
