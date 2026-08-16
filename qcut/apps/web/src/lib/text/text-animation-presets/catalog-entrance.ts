@@ -692,4 +692,14 @@ export const ENTRANCE_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["stroke", "outline", "fill", "描边填充", "描边", "填充"],
 	},
+	{
+		id: "warp-blur-in",
+		phase: "entrance",
+		nameKey: "textProperties.animationPreset.warpBlurIn",
+		previewKind: "keyframes",
+		defaultDuration: 2.0,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["warp", "blur", "distort", "扭曲模糊", "扭曲", "模糊"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
