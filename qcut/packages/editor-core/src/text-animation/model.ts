@@ -408,6 +408,9 @@ export type TextKeyframeChannel =
 	| "colorAmount"
 	| "glowIntensity"
 	| "glowRadiusPx"
+	// Outline↔fill crossfade: 1 renders the glyph as pure stroke, 0 as the
+	// normal fill, in between blends — Jianying's 描边填充-style reveals.
+	| "outlineAmount"
 	// Raster post-pass parameters, so a document can animate the mosaic
 	// coarseness, the channel separation, or the displacement strength.
 	| "pixelateCell"
@@ -714,6 +717,8 @@ export interface TextAnimationVisualState {
 	mask?: TextAnimationMaskState;
 	/** Present while a color effect drives the frame; blended by the renderer. */
 	colorMix?: TextAnimationColorMixState;
+	/** Outline↔fill crossfade: 1 = pure stroke, 0 = normal fill. */
+	outlineAmount?: number;
 	transformOrigin?: "center" | "bottomCenter";
 	/** Present when the rasterized text is mapped onto a projective surface. */
 	projection?: TextAnimationProjectionState;
