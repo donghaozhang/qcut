@@ -257,6 +257,42 @@ describe("keyframes effect", () => {
 		});
 	});
 
+	it("drives the directional blur pass from its channel", () => {
+		const effect: TextAnimationEffect = {
+			kind: "keyframes",
+			rasterAngleDeg: 180,
+			channels: {
+				dirBlurPx: [
+					{ t: 0, v: 0 },
+					{ t: 1, v: 30 },
+				],
+			},
+		};
+		const element = createElement({
+			overrides: {
+				content: "AB",
+				duration: 3,
+				textAnimations: createAnimation({
+					entrance: createPhase({
+						effect,
+						target: "textAndBackground",
+						duration: 1,
+					}),
+				}),
+			},
+		});
+		const state = evaluateTextAnimationFrame({
+			compiled: compileTextAnimation({ element, fps: 100 }),
+			frame: 50,
+			layout: createLayout({ content: "AB" }),
+		});
+		expect(state.container.postProcess?.raster).toEqual({
+			kind: "dirBlur",
+			offsetPx: 15,
+			angleDeg: 180,
+		});
+	});
+
 	it("wraps marquee characters around the period seamlessly", () => {
 		const element = createElement({
 			overrides: {
