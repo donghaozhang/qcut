@@ -57,6 +57,7 @@ export function textAnimationVisualStyle({
 	const blurPx = Math.max(visual.blurPx, shatterBlurPx);
 	const colorMix =
 		visual.colorMix && visual.colorMix.amount > 0 ? visual.colorMix : undefined;
+	const glow = visual.postProcess?.glow;
 	return {
 		clipPath: maskClipPath({ mask: visual.mask }),
 		// The card inherits its text color, so the color channel blends the
@@ -64,6 +65,10 @@ export function textAnimationVisualStyle({
 		color: colorMix
 			? `color-mix(in srgb, ${colorMix.color} ${Math.round(colorMix.amount * 100)}%, currentcolor)`
 			: undefined,
+		textShadow:
+			glow && glow.intensity > 0
+				? `0 0 ${glow.radiusPx}px color-mix(in srgb, ${glow.color} ${Math.round(glow.intensity * 100)}%, transparent)`
+				: undefined,
 		filter: blurPx > 0 ? `blur(${blurPx}px)` : undefined,
 		opacity: visual.shatter
 			? visual.opacity * (1 - visual.shatter.progress * 0.85)
