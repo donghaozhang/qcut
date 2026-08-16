@@ -183,6 +183,40 @@ describe("keyframes effect", () => {
 		});
 	});
 
+	it("drives the outline crossfade from the outlineAmount track", () => {
+		const effect: TextAnimationEffect = {
+			kind: "keyframes",
+			channels: {
+				// Over-range endpoints prove the clamp; the midpoint blends.
+				outlineAmount: [
+					{ t: 0, v: 1.4 },
+					{ t: 0.5, v: 0.5 },
+					{ t: 1, v: -0.4 },
+				],
+			},
+		};
+		const element = createElement({
+			overrides: {
+				content: "AB",
+				duration: 3,
+				textAnimations: createAnimation({
+					entrance: createPhase({
+						effect,
+						target: "textAndBackground",
+						duration: 1,
+					}),
+				}),
+			},
+		});
+		const compiled = compileTextAnimation({ element, fps: 100 });
+		const layout = createLayout({ content: "AB" });
+		const at = (frame: number) =>
+			evaluateTextAnimationFrame({ compiled, frame, layout });
+		expect(at(0).container.outlineAmount).toBe(1);
+		expect(at(50).container.outlineAmount).toBeCloseTo(0.5);
+		expect(at(99).container.outlineAmount).toBeCloseTo(0, 1);
+	});
+
 	it("feeds the color channel from a colorAmount track", () => {
 		const effect: TextAnimationEffect = {
 			kind: "keyframes",
