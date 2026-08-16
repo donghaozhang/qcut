@@ -417,6 +417,8 @@ export type TextKeyframeChannel =
 	| "bloomRadiusPx"
 	// Concentric echo shells: signed spread, + inward / - outward.
 	| "echoAmount"
+	// Directional motion smear along rasterAngleDeg, in px.
+	| "dirBlurPx"
 	// Raster post-pass parameters, so a document can animate the mosaic
 	// coarseness, the channel separation, or the displacement strength.
 	| "pixelateCell"
@@ -683,10 +685,10 @@ export interface TextAnimationGlowState {
  *   case covering boil, turbulence and ripple.
  */
 export interface TextAnimationRasterEffectState {
-	kind: "pixelate" | "rgbSplit" | "displace" | "bloom" | "echo";
+	kind: "pixelate" | "rgbSplit" | "displace" | "bloom" | "echo" | "dirBlur";
 	/** pixelate: grid cell size in px. */
 	cell?: number;
-	/** rgbSplit: channel separation in px, and its direction. */
+	/** rgbSplit / dirBlur: separation or smear length in px, and direction. */
 	offsetPx?: number;
 	angleDeg?: number;
 	/** displace: field amplitude px, spatial scale px, and time phase. */
