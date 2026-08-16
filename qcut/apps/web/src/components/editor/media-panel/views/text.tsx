@@ -1683,7 +1683,11 @@ function TextLibraryNav({
 									"h-3 w-3 shrink-0 transition-transform",
 									isExpanded ? "rotate-0" : "-rotate-90"
 								)}
-							/>
+							>
+								<title>
+									{getLocalizedTextTemplateGroupLabel({ group, locale })}
+								</title>
+							</ChevronDown>
 							<span
 								className="truncate"
 								title={getLocalizedTextTemplateGroupLabel({ group, locale })}
