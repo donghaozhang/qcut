@@ -539,6 +539,20 @@ export interface TextJitterEffect {
 	amplitudeY: number;
 }
 
+/**
+ * Modulo marquee. Each line slides sideways by exactly one wrap period per
+ * cycle and characters that leave one edge re-enter from the other —
+ * Jianying's 环形滚动: period = block width + a fixed gap, odd rows run the
+ * opposite way.
+ */
+export interface TextMarqueeEffect {
+	kind: "marquee";
+	/** Extra wrap gap beyond the block width, in em. */
+	gapEm: number;
+	/** Odd lines scroll the opposite direction (the source's rowth % 2). */
+	alternate: boolean;
+}
+
 export type TextAnimationEffect =
 	| TextTypewriterEffect
 	| TextFadeEffect
@@ -555,6 +569,7 @@ export type TextAnimationEffect =
 	| TextCylinder3DEffect
 	| TextJitter3DEffect
 	| TextJitterEffect
+	| TextMarqueeEffect
 	| TextColorCycleEffect
 	| TextKeyframesEffect
 	| TextArcEffect
