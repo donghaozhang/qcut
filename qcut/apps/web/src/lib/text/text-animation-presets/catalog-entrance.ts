@@ -702,4 +702,14 @@ export const ENTRANCE_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["warp", "blur", "distort", "扭曲模糊", "扭曲", "模糊"],
 	},
+	{
+		id: "echo-trail-in",
+		phase: "entrance",
+		nameKey: "textProperties.animationPreset.echoTrailIn",
+		previewKind: "keyframes",
+		defaultDuration: 1.1,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["echo", "trail", "zoom", "拖尾入场", "拖尾", "入场"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
