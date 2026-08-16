@@ -283,6 +283,48 @@ function drawBloom({
 	return true;
 }
 
+function drawEcho({
+	ctx,
+	source,
+	width,
+	height,
+	dx,
+	dy,
+	spread,
+	samples,
+}: {
+	ctx: CanvasTextContext;
+	source: CanvasImageSource;
+	width: number;
+	height: number;
+	dx: number;
+	dy: number;
+	spread: number;
+	samples: number;
+}): void {
+	// Concentric shells behind the block — Jianying's 拖尾: staggered copies
+	// trailing the main scale, nearer shells stronger. Farthest first so the
+	// stack layers toward the crisp block on top.
+	const centerX = dx + width / 2;
+	const centerY = dy + height / 2;
+	const previousAlpha = ctx.globalAlpha;
+	for (let index = samples; index >= 1; index--) {
+		const distance = index / samples;
+		const scale = 1 - spread * distance;
+		if (scale <= 0.02) continue;
+		ctx.globalAlpha = previousAlpha * 0.32 * (1 - distance * 0.75);
+		ctx.drawImage(
+			source,
+			centerX - (width * scale) / 2,
+			centerY - (height * scale) / 2,
+			width * scale,
+			height * scale
+		);
+	}
+	ctx.globalAlpha = previousAlpha;
+	ctx.drawImage(source, dx, dy, width, height);
+}
+
 export function applyTextAnimationRasterPass({
 	ctx,
 	source,
@@ -300,6 +342,21 @@ export function applyTextAnimationRasterPass({
 	dy: number;
 	raster: TextAnimationRasterEffectState;
 }): boolean {
+	if (raster.kind === "echo") {
+		const spread = raster.spread ?? 0;
+		if (Math.abs(spread) < 0.01) return false;
+		drawEcho({
+			ctx,
+			source,
+			width,
+			height,
+			dx,
+			dy,
+			spread,
+			samples: Math.max(2, Math.min(16, raster.samples ?? 12)),
+		});
+		return true;
+	}
 	if (raster.kind === "bloom") {
 		const intensity = raster.intensity ?? 0;
 		const radiusPx = raster.radiusPx ?? 0;
