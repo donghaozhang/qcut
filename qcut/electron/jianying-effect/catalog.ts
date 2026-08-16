@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import os from "node:os";
@@ -14,6 +15,7 @@ import {
 	type CatalogRow,
 	collectCatalogItems,
 	collectPanelCategories,
+	collectReferenceVerdicts,
 	readAdjustParameters,
 	SUPPORTED_REQUIREMENTS,
 } from "./catalog-parsing.js";
@@ -47,6 +49,24 @@ export function qcutManagedEffectPackageRoot(): string | null {
 	}
 }
 
+/**
+ * The reference production line (scripts/jianying-effect-reference-batch.cjs)
+ * keeps its downloaded packages and per-effect render verdicts inside the repo
+ * checkout, so this resolves only in development — a packaged app has no repo
+ * and returns null.
+ */
+function referenceLibraryRoot(): string | null {
+	const root = path.resolve(
+		__dirname,
+		"..",
+		"..",
+		"..",
+		".local",
+		"jianying-effect-references"
+	);
+	return existsSync(root) ? root : null;
+}
+
 function packageCacheRoots(): string[] {
 	const override = process.env.QCUT_JIANYING_EFFECT_PACKAGE_ROOT;
 	if (override) return override.split(path.delimiter).filter(Boolean);
@@ -69,7 +89,21 @@ function packageCacheRoots(): string[] {
 	];
 	const managedRoot = qcutManagedEffectPackageRoot();
 	if (managedRoot) roots.push(managedRoot);
+	const referenceRoot = referenceLibraryRoot();
+	if (referenceRoot) roots.push(path.join(referenceRoot, "_packages"));
 	return roots;
+}
+
+/** effectId → local render verdict from the reference batch, when present. */
+async function readReferenceVerdicts(): Promise<Map<string, boolean>> {
+	const referenceRoot = referenceLibraryRoot();
+	if (!referenceRoot) return new Map();
+	const jsonl = await readFile(
+		path.join(referenceRoot, "manifest.jsonl"),
+		"utf8"
+	).catch(() => "");
+	if (jsonl.length === 0) return new Map();
+	return collectReferenceVerdicts({ jsonl });
 }
 
 function resourceDatabaseRoots(): string[] {
@@ -204,10 +238,11 @@ export interface JianyingEffectLibrary {
 }
 
 export async function discoverJianyingEffectLibrary(): Promise<JianyingEffectLibrary> {
-	const [rows, panelRows, packages] = await Promise.all([
+	const [rows, panelRows, packages, verdicts] = await Promise.all([
 		readCatalogRows(),
 		readPanelRows(),
 		indexPackagesByMd5(),
+		readReferenceVerdicts(),
 	]);
 
 	const items = collectCatalogItems({ rows });
@@ -232,6 +267,19 @@ export async function discoverJianyingEffectLibrary(): Promise<JianyingEffectLib
 			? await readPackageAdjustParameters({ packagePath })
 			: [];
 
+		// The reference batch has actually run these packages; an explicit
+		// failure there means an export pass would fail the same way, so the
+		// tile is locked instead of pretending to work.
+		const failedLocalVerification = verdicts.get(item.effectId) === false;
+		const supported =
+			unsupportedRequirements.length === 0 && !failedLocalVerification;
+		const unsupportedReason =
+			unsupportedRequirements.length > 0
+				? `需要剪映算法能力：${unsupportedRequirements.join("、")}`
+				: failedLocalVerification
+					? "本机渲染验证未通过"
+					: undefined;
+
 		keptItems.push(item);
 		definitions.push({
 			id: `jy-effect-${item.effectId}`,
@@ -249,11 +297,8 @@ export async function discoverJianyingEffectLibrary(): Promise<JianyingEffectLib
 					? packageParameters
 					: item.adjustParameters,
 			access: item.vip ? "vip" : "free",
-			supported: unsupportedRequirements.length === 0,
-			unsupportedReason:
-				unsupportedRequirements.length === 0
-					? undefined
-					: `需要剪映算法能力：${unsupportedRequirements.join("、")}`,
+			supported,
+			unsupportedReason,
 			installed,
 			downloadable,
 		});
