@@ -1,4 +1,5 @@
 import { readdir, readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -8,6 +9,7 @@ import type {
 	JianyingEffectDefinition,
 } from "../jianying-effect-contract.js";
 import {
+	type CatalogItem,
 	type CatalogRow,
 	collectCatalogItems,
 	readAdjustParameters,
@@ -22,12 +24,33 @@ import {
  * only offered once its package is present on disk.
  */
 
+const nodeRequire = createRequire(__filename);
+
+/**
+ * Where QCut unpacks packages it downloads on demand. Null outside Electron
+ * (the batch reference script runs this module under plain node).
+ */
+export function qcutManagedEffectPackageRoot(): string | null {
+	try {
+		const electron = nodeRequire("electron") as
+			| string
+			| { app?: { getPath: (name: string) => string } };
+		if (typeof electron === "string" || !electron.app) return null;
+		return path.join(
+			electron.app.getPath("userData"),
+			"JianyingEffectPackages"
+		);
+	} catch {
+		return null;
+	}
+}
+
 function packageCacheRoots(): string[] {
 	const override = process.env.QCUT_JIANYING_EFFECT_PACKAGE_ROOT;
 	if (override) return override.split(path.delimiter).filter(Boolean);
 
 	const home = os.homedir();
-	return [
+	const roots = [
 		path.join(home, "Movies", "JianyingPro", "User Data", "Cache", "effect"),
 		path.join(
 			home,
@@ -42,6 +65,9 @@ function packageCacheRoots(): string[] {
 			"effect"
 		),
 	];
+	const managedRoot = qcutManagedEffectPackageRoot();
+	if (managedRoot) roots.push(managedRoot);
+	return roots;
 }
 
 function resourceDatabaseRoots(): string[] {
@@ -145,6 +171,17 @@ async function readPackageAdjustParameters({
 	return readAdjustParameters({ sdkExtra: text });
 }
 
+/** Catalog lookup for the download handler; URLs stay in the main process. */
+export async function findJianyingEffectCatalogItem({
+	effectId,
+}: {
+	effectId: string;
+}): Promise<CatalogItem | null> {
+	const rows = await readCatalogRows();
+	const items = collectCatalogItems({ rows });
+	return items.find((item) => item.effectId === effectId) ?? null;
+}
+
 export async function discoverJianyingEffects(): Promise<
 	JianyingEffectDefinition[]
 > {
@@ -158,21 +195,28 @@ export async function discoverJianyingEffects(): Promise<
 
 	for (const item of items) {
 		const packagePath = packages.get(item.md5);
-		if (packagePath === undefined) continue;
+		const installed = packagePath !== undefined;
+		const downloadable = item.itemUrls.length > 0;
+		// Neither on disk nor fetchable — nothing QCut could ever do with it.
+		if (!installed && !downloadable) continue;
 
 		const unsupportedRequirements = item.requirements.filter(
 			(requirement) => !SUPPORTED_REQUIREMENTS.has(requirement)
 		);
-		const packageParameters = await readPackageAdjustParameters({
-			packagePath,
-		});
+		// CV-locked entries are only worth showing when the user already has
+		// them from Jianying; offering hundreds of undownloaded locked tiles
+		// would just be noise.
+		if (!installed && unsupportedRequirements.length > 0) continue;
+		const packageParameters = installed
+			? await readPackageAdjustParameters({ packagePath })
+			: [];
 
 		definitions.push({
 			id: `jy-effect-${item.effectId}`,
 			effectId: item.effectId,
 			resourceId: item.resourceId,
 			packageHash: item.md5,
-			packagePath,
+			packagePath: packagePath ?? "",
 			name: item.title,
 			panel: item.panel,
 			defaultDurationMs: item.durationMs,
@@ -186,8 +230,17 @@ export async function discoverJianyingEffects(): Promise<
 				unsupportedRequirements.length === 0
 					? undefined
 					: `需要剪映算法能力：${unsupportedRequirements.join("、")}`,
+			installed,
+			downloadable,
 		});
 	}
 
-	return definitions.sort((left, right) => left.name.localeCompare(right.name));
+	// Installed effects first — they are immediately usable; within each group
+	// keep a stable name order.
+	return definitions.sort((left, right) => {
+		if (left.installed !== right.installed) {
+			return left.installed ? -1 : 1;
+		}
+		return left.name.localeCompare(right.name);
+	});
 }
