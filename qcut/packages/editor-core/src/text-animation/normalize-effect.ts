@@ -785,6 +785,7 @@ export function normalizeTextAnimationEffect({
 			"colorAmount",
 			"glowIntensity",
 			"glowRadiusPx",
+			"outlineAmount",
 			"pixelateCell",
 			"rgbSplitPx",
 			"displaceAmplitudePx",
