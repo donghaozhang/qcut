@@ -10,6 +10,34 @@ import type { TextKeyframeDocument } from "./keyframe-documents-entrance-a";
 type Doc = TextKeyframeDocument;
 
 export const ENTRANCE_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
+	// 剪映 马赛克滑入 (7667041862917655859). The block resolves out of a coarse
+	// mosaic: the source feeds a 40 px cell size to its pixelate shader while
+	// the text slides in. Now expressible directly — the raster post-pass runs
+	// the same downscale/upscale on the block's offscreen render, so the cell
+	// size animates as an ordinary keyframe channel.
+	"mosaic-in": {
+		sequence: { unit: "all", order: "forward", staggerRatio: 0 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				pixelateCell: [
+					{ t: 0, v: 40 },
+					{ t: 0.65, v: 8 },
+					{ t: 0.9, v: 1 },
+					{ t: 1, v: 1 },
+				],
+				opacity: [
+					{ t: 0, v: 0 },
+					{ t: 0.2, v: 1 },
+					{ t: 1, v: 1 },
+				],
+				translateXEm: [
+					{ t: 0, v: 0.8 },
+					{ t: 1, v: 0 },
+				],
+			},
+		},
+	},
 	// 剪映 向右集合 (7081206983461704199). Glyphs converge in from half a text
 	// box away on a shared ease (.16,.81,.44,1), staggered back-to-front —
 	// (size − i)/size in the driver — so the rightmost character lands first
@@ -191,6 +219,52 @@ export const LOOP_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
 					{ t: 0.75, v: 0 },
 					{ t: 1, v: -0.03 },
 				],
+			},
+		},
+	},
+	// 剪映 色差故障 (6835878163575214605). Chromatic-aberration glitch: the
+	// source pushes a per-character offset vector into a channel-splitting
+	// shader so the red and cyan fringes jump around the text. The raster pass
+	// reproduces the look block-wide — the separation is keyframed to stutter
+	// rather than drift, which is what makes it read as a glitch. The source's
+	// per-character offset directions are not representable block-wide.
+	"chroma-glitch": {
+		sequence: { unit: "all", order: "forward", staggerRatio: 0 },
+		effect: {
+			kind: "keyframes",
+			rasterAngleDeg: 0,
+			channels: {
+				rgbSplitPx: [
+					{ t: 0, v: 0 },
+					{ t: 0.08, v: 0 },
+					{ t: 0.09, v: 7 },
+					{ t: 0.16, v: 7 },
+					{ t: 0.17, v: 0 },
+					{ t: 0.38, v: 0 },
+					{ t: 0.39, v: -5 },
+					{ t: 0.46, v: -5 },
+					{ t: 0.47, v: 0 },
+					{ t: 0.7, v: 0 },
+					{ t: 0.71, v: 9 },
+					{ t: 0.8, v: 9 },
+					{ t: 0.81, v: 0 },
+					{ t: 1, v: 0 },
+				],
+			},
+		},
+	},
+	// 剪映 水墨晕开 (7134190113780666887 family). Ink-bleed boil: the glyph
+	// edges wobble on a slowly evolving noise field rather than moving as a
+	// whole. The displacement pass is the general form of that shader — bands
+	// of the rendered block offset by value noise, advancing over the cycle.
+	"ink-boil": {
+		sequence: { unit: "all", order: "forward", staggerRatio: 0 },
+		effect: {
+			kind: "keyframes",
+			rasterScale: 18,
+			rasterEvolution: 6,
+			channels: {
+				displaceAmplitudePx: [{ t: 0, v: 2.2 }],
 			},
 		},
 	},
