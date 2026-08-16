@@ -258,6 +258,7 @@ export type {
 	TextAnimationPhaseBase,
 	TextAnimationPostProcessState,
 	TextAnimationProjectionState,
+	RgbColor,
 	TextAnimationRasterEffectState,
 	TextAnimationPresetRef,
 	TextAnimationRect,
