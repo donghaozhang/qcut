@@ -15,7 +15,10 @@ export interface TextKeyframeDocument {
 		order: "forward" | "reverse" | "random" | "centerOut";
 		staggerRatio: number;
 	};
-	effect: Extract<TextAnimationEffect, { kind: "keyframes" }>;
+	// Usually a keyframes document; a few T-script ports resolve to the
+	// parametric effect that IS the exact mechanism (彩虹's stepped palette
+	// rotation → colorCycle, 扭动's seeded shake → jitter).
+	effect: TextAnimationEffect;
 }
 
 export const ENTRANCE_KEYFRAME_DOCUMENTS_A: Record<
