@@ -1,6 +1,7 @@
 import {
 	computeShatterTiles,
 	evaluateTextAnimationFrame,
+	mixTextAnimationColors,
 	normalizeTextAnimations,
 	type TextAnimationVisualState,
 } from "@qcut/editor-core";
@@ -246,11 +247,21 @@ export function renderCanonicalTextAnimationToCanvas({
 			visual: unitState.visual,
 			bounds: grapheme.bounds,
 		});
+		const colorMix = unitState.visual.colorMix;
 		drawTextAnimationGlyph({
 			ctx,
 			element: renderedElement,
 			style,
 			grapheme,
+			...(colorMix
+				? {
+						fillColor: mixTextAnimationColors({
+							from: renderedElement.color,
+							to: colorMix.color,
+							amount: colorMix.amount,
+						}),
+					}
+				: {}),
 		});
 		ctx.restore();
 	}
