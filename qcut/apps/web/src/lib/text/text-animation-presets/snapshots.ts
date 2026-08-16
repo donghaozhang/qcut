@@ -42,6 +42,10 @@ const RESTART_LOOP_PRESET_IDS = new Set([
 	"rainbow-macaron",
 	"rainbow-new-year",
 	"rainbow-valentine",
+	// AEData ports whose cycle ends away from its start pose: the wave keeps
+	// travelling one way, and the reveal counts characters up.
+	"wave-glide",
+	"one-by-one-reveal",
 ]);
 
 function isLoopPreset({
