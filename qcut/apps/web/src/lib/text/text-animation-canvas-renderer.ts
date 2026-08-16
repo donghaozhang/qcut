@@ -333,7 +333,10 @@ export function renderCanonicalTextAnimationToCanvas({
 		element: renderedElement,
 	});
 
-	const animatedGlow = state.container.postProcess?.glow;
+	// Per-grapheme documents carry their glow on the unit visual, container
+	// documents (unit "all") on the container — prefer the unit's own halo so
+	// per-character glow tracks aren't silently dropped.
+	const containerGlow = state.container.postProcess?.glow;
 	// Container-level documents (unit "all") carry their tint on the container
 	// visual; thread it into the glyph fill the same way the glow is.
 	const containerColorMix = state.container.colorMix;
@@ -347,6 +350,7 @@ export function renderCanonicalTextAnimationToCanvas({
 			bounds: grapheme.bounds,
 		});
 		const colorMix = unitState.visual.colorMix ?? containerColorMix;
+		const animatedGlow = unitState.visual.postProcess?.glow ?? containerGlow;
 		drawTextAnimationGlyph({
 			ctx,
 			element: renderedElement,
