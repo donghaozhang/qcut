@@ -460,7 +460,7 @@ export const ENTRANCE_TEXT_ANIMATION_PRESETS = [
 		defaultDuration: 1,
 		defaultDelay: 0,
 		defaultIntensity: 1,
-		searchTerms: ["feathered", "wipe", "right", "羽化向右擦开"],
+		searchTerms: ["feather", "wipe", "right", "羽化向右擦开"],
 	},
 	{
 		id: "fly-in-down",
