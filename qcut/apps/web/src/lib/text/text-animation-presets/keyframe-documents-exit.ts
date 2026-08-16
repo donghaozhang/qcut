@@ -189,6 +189,9 @@ export const EXIT_KEYFRAME_DOCUMENTS: Record<string, TextKeyframeDocument> = {
 				],
 				shape: "square",
 				feather: 1,
+				// The package sets randomSort: the dissolve front consumes
+				// characters in the sequence's shuffled rank order.
+				basedOn: "rank",
 			},
 		},
 	},
