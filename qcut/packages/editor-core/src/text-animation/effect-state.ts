@@ -14,6 +14,7 @@ import {
 	easeTextAnimationProgress,
 	springProgress,
 } from "./easing.js";
+import { sampleTextAnimationPalette } from "./color.js";
 
 export interface TextAnimationEffectResult {
 	visual: TextAnimationVisualState;
@@ -347,6 +348,53 @@ function projectiveVisual({
 	return null;
 }
 
+function colorCycleVisual({
+	effect,
+	linearProgress,
+	presence,
+	layout,
+	unit,
+}: {
+	effect: Extract<TextAnimationEffect, { kind: "colorCycle" }>;
+	linearProgress: number;
+	/** 1 for loops; edge phases scale the blend in with their presence. */
+	presence: number;
+	layout: TextAnimationLayout;
+	unit: CompiledTextAnimationUnit;
+}): TextAnimationVisualState {
+	const visual = identityVisual();
+	// The palette position sweeps with time and shifts by rank so neighbours
+	// can land on different stops; rankOffset 0 keeps every unit in sync.
+	const stops = Math.max(1, effect.palette.length);
+	const position =
+		linearProgress * effect.cycles + (unit.rank * effect.rankOffset) / stops;
+	// Reference 变色弹跳: a feathered window front passes a character, which
+	// then keeps its tint and lift until the cycle restarts. The wrap stagger
+	// already phase-shifts linearProgress per unit, so the envelope below is
+	// the per-character response to that front.
+	const envelope =
+		effect.envelope === "hold"
+			? smoothstep({
+					progress: clampUnitInterval({ value: linearProgress / 0.35 }),
+				})
+			: effect.envelope === "beat"
+				? Math.sin(clampUnitInterval({ value: linearProgress }) * Math.PI) ** 2
+				: 1;
+	visual.colorMix = {
+		color: sampleTextAnimationPalette({
+			palette: effect.palette,
+			position,
+			stepped: effect.stepped,
+		}),
+		amount: effect.amount * envelope * clampUnitInterval({ value: presence }),
+	};
+	if (effect.bounceEm && effect.bounceEm > 0) {
+		visual.translateY =
+			-envelope * effect.bounceEm * layout.fontSize * presence;
+	}
+	return visual;
+}
+
 function spatialWaveMovement({
 	effect,
 	progress,
@@ -583,6 +631,18 @@ function loopVisual({
 	const visual = identityVisual();
 	const projective = projectiveVisual({ context });
 	if (projective) return projective;
+	if (effect.kind === "colorCycle") {
+		return {
+			visual: colorCycleVisual({
+				effect,
+				linearProgress,
+				presence: 1,
+				layout,
+				unit,
+			}),
+			decorations: [],
+		};
+	}
 	const pulse = (1 - Math.cos(progress * Math.PI * 2)) / 2;
 	const wave = Math.sin(progress * Math.PI * 2);
 	if (effect.kind === "typewriter") {
@@ -823,6 +883,18 @@ function edgeVisual({
 	const visual = identityVisual();
 	const projective = projectiveVisual({ context });
 	if (projective) return projective;
+	if (effect.kind === "colorCycle") {
+		return {
+			visual: colorCycleVisual({
+				effect,
+				linearProgress,
+				presence,
+				layout,
+				unit,
+			}),
+			decorations: [],
+		};
+	}
 	if (effect.kind === "typewriter") {
 		if (effect.reveal === "step") {
 			// Jianying pops a unit in only when its reveal slot completes (and,
