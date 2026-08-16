@@ -57,6 +57,34 @@ function hasCanonicalAnimation({
  * it runs identically in the editor preview and the export bake because both
  * share this renderer. Falls back to the normal path when unavailable.
  */
+function strongestUnitRaster({
+	units,
+}: {
+	units: ReturnType<typeof evaluateTextAnimationFrame>["units"];
+}):
+	| NonNullable<NonNullable<TextAnimationVisualState["postProcess"]>["raster"]>
+	| undefined {
+	let strongest:
+		| NonNullable<
+				NonNullable<TextAnimationVisualState["postProcess"]>["raster"]
+		  >
+		| undefined;
+	let strongestScore = 0;
+	for (const unit of units) {
+		const raster = unit?.visual.postProcess?.raster;
+		if (!raster) continue;
+		const score =
+			Math.abs(raster.cell ?? 0) +
+			Math.abs(raster.offsetPx ?? 0) +
+			Math.abs(raster.amplitudePx ?? 0);
+		if (score > strongestScore) {
+			strongest = raster;
+			strongestScore = score;
+		}
+	}
+	return strongest;
+}
+
 function drawRasterPostProcessedText({
 	ctx,
 	element,
@@ -261,13 +289,20 @@ export function renderCanonicalTextAnimationToCanvas({
 		ctx.restore();
 		return true;
 	}
-	if (state.container.postProcess?.raster && canRasterizeTextAnimation()) {
+	// The raster pass runs on the whole block, but per-unit documents carry
+	// their raster state on the units. Drive the pass from the strongest
+	// unit still asking for it, so a staggered document keeps warping until
+	// its last unit has settled instead of silently dropping the channel.
+	const raster =
+		state.container.postProcess?.raster ??
+		strongestUnitRaster({ units: state.units });
+	if (raster && canRasterizeTextAnimation()) {
 		const didDrawRaster = drawRasterPostProcessedText({
 			ctx,
 			element: renderedElement,
 			style,
 			layout,
-			raster: state.container.postProcess.raster,
+			raster,
 			units: state.units,
 		});
 		if (didDrawRaster) {
