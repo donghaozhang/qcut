@@ -1,4 +1,4 @@
-import type { TextKeyframePoint } from "./model.js";
+import type { TextColorKeyframePoint, TextKeyframePoint } from "./model.js";
 
 /**
  * Cubic bezier value-track evaluation, mirroring Jianying's
@@ -129,4 +129,34 @@ export function evaluateTextKeyframeTrack({
 		}
 	}
 	return last.v;
+}
+
+/**
+ * Evaluate an animated tint track at a phase progress as #rrggbb. Each RGB
+ * component runs through the same cubic machinery as a scalar track — this
+ * mirrors Jianying's vector `motionKeyFrameInfo` rows, whose handles are
+ * per-component.
+ */
+export function evaluateTextColorKeyframeTrack({
+	track,
+	progress,
+}: {
+	track: readonly TextColorKeyframePoint[];
+	progress: number;
+}): string {
+	const componentChannel = (component: number): string => {
+		const scalarTrack: TextKeyframePoint[] = track.map((point) => ({
+			t: point.t,
+			v: point.v[component],
+			...(point.inValue ? { inValue: point.inValue[component] } : {}),
+			...(point.outValue ? { outValue: point.outValue[component] } : {}),
+			...(point.inTime !== undefined ? { inTime: point.inTime } : {}),
+			...(point.outTime !== undefined ? { outTime: point.outTime } : {}),
+		}));
+		const value = evaluateTextKeyframeTrack({ track: scalarTrack, progress });
+		return Math.round(Math.min(1, Math.max(0, value)) * 255)
+			.toString(16)
+			.padStart(2, "0");
+	};
+	return `#${componentChannel(0)}${componentChannel(1)}${componentChannel(2)}`;
 }
