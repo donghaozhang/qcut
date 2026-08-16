@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	compileTextAnimation,
 	evaluateTextAnimationFrame,
+	evaluateTextColorKeyframeTrack,
 	evaluateTextKeyframeTrack,
 	segmentText,
 	selectorUnitWeight,
@@ -476,5 +477,106 @@ describe("keyframes normalization", () => {
 		expect(
 			normalizeTextAnimationEffect({ value: { kind: "keyframes" } })
 		).toBeNull();
+	});
+
+	it("round-trips an animated tint track and drops junk points", () => {
+		expect(
+			normalizeTextAnimationEffect({
+				value: {
+					kind: "keyframes",
+					channels: { colorAmount: [{ t: 0, v: 1 }] },
+					colorTrack: [
+						{ t: 1, v: [1, 1, 1] },
+						{ t: 0, v: [1, 0, 0], outValue: [0.9, 0.19, 0.33], outTime: 0.13 },
+						{ t: 0.5, v: "oops" },
+						{ t: 0.6, v: [1, 2] },
+					],
+				},
+			})
+		).toEqual({
+			kind: "keyframes",
+			channels: { colorAmount: [{ t: 0, v: 1 }] },
+			colorTrack: [
+				{ t: 0, v: [1, 0, 0], outValue: [0.9, 0.19, 0.33], outTime: 0.13 },
+				{ t: 1, v: [1, 1, 1] },
+			],
+		});
+	});
+});
+
+describe("animated tint track", () => {
+	it("sweeps 彩虹渐变's red→violet→white color keys", () => {
+		// The reference color track (times renormalized /3), per-component
+		// cubic handles preserved.
+		const track = [
+			{
+				t: 0,
+				v: [1, 0, 0] as [number, number, number],
+				outValue: [0.902, 0.186, 0.33] as [number, number, number],
+				outTime: 0.132,
+			},
+			{
+				t: 0.4,
+				v: [0.703, 0.563, 1] as [number, number, number],
+				inValue: [0.804, 0.371, 0.66] as [number, number, number],
+				inTime: -0.136,
+				outValue: [0.801, 0.707, 1] as [number, number, number],
+				outTime: 0.198,
+			},
+			{
+				t: 1,
+				v: [1, 1, 1] as [number, number, number],
+				inValue: [0.899, 0.851, 1] as [number, number, number],
+				inTime: -0.204,
+			},
+		];
+		expect(evaluateTextColorKeyframeTrack({ track, progress: 0 })).toBe(
+			"#ff0000"
+		);
+		expect(evaluateTextColorKeyframeTrack({ track, progress: 0.4 })).toBe(
+			"#b390ff"
+		);
+		expect(evaluateTextColorKeyframeTrack({ track, progress: 1 })).toBe(
+			"#ffffff"
+		);
+		// Mid-sweep the red channel dips while blue has risen — the violet leg.
+		const middle = evaluateTextColorKeyframeTrack({ track, progress: 0.2 });
+		const red = Number.parseInt(middle.slice(1, 3), 16);
+		const blue = Number.parseInt(middle.slice(5, 7), 16);
+		expect(red).toBeLessThan(255);
+		expect(blue).toBeGreaterThan(64);
+	});
+
+	it("feeds the per-unit color mix from the track", () => {
+		const effect: TextAnimationEffect = {
+			kind: "keyframes",
+			colorTrack: [
+				{ t: 0, v: [1, 0, 0] },
+				{ t: 1, v: [0, 0, 1] },
+			],
+			channels: {
+				opacity: [{ t: 0, v: 1 }],
+			},
+		};
+		const element = createElement({
+			overrides: {
+				content: "AB",
+				duration: 3,
+				textAnimations: createAnimation({
+					entrance: createPhase({
+						effect,
+						target: "textAndBackground",
+						duration: 1,
+					}),
+				}),
+			},
+		});
+		const state = evaluateTextAnimationFrame({
+			compiled: compileTextAnimation({ element, fps: 100 }),
+			frame: 50,
+			layout: createLayout({ content: "AB" }),
+		});
+		expect(state.container.colorMix?.color).toBe("#800080");
+		expect(state.container.colorMix?.amount).toBe(1);
 	});
 });
