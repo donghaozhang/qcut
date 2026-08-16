@@ -13,7 +13,14 @@ export type KaraokeMode =
 	| "word-by-word"
 	| "karaoke"
 	| "bounce"
-	| "typewriter";
+	| "typewriter"
+	// Jianying caption-pool ports (docs/task/jianying-text-anim-port/RECLASS-2026-08.md):
+	| "slam"
+	| "spring"
+	| "overlap"
+	| "expand"
+	| "shine"
+	| "pulse";
 
 /** All available karaoke mode values for UI iteration */
 export const KARAOKE_MODES: { value: KaraokeMode; label: string }[] = [
@@ -23,6 +30,12 @@ export const KARAOKE_MODES: { value: KaraokeMode; label: string }[] = [
 	{ value: "karaoke", label: "卡拉 OK 填充" },
 	{ value: "bounce", label: "弹跳" },
 	{ value: "typewriter", label: "打字机" },
+	{ value: "slam", label: "缩小砸入" },
+	{ value: "spring", label: "弹簧" },
+	{ value: "overlap", label: "重叠" },
+	{ value: "expand", label: "扩展" },
+	{ value: "shine", label: "扫光" },
+	{ value: "pulse", label: "律动" },
 ];
 
 /** Per-word render state computed by karaoke utils */
