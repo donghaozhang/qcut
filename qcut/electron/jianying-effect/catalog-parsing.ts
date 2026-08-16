@@ -1,5 +1,6 @@
 import type {
 	JianyingEffectAdjustParameter,
+	JianyingEffectCategory,
 	JianyingEffectPanel,
 } from "../jianying-effect-contract.js";
 
@@ -25,6 +26,10 @@ export interface CatalogItem {
 	vip: boolean;
 	/** Signed package download URLs from the catalog (may be empty). */
 	itemUrls: string[];
+	/** Sidebar categories the effect appears under. */
+	categoryIds: string[];
+	/** Signed official cover image, empty when the catalog omits one. */
+	coverUrl: string;
 }
 
 /** 画面特效 lives in the `effects2` panel, 人物特效 in `face-prop`. */
@@ -120,6 +125,83 @@ function readPanel({ url }: { url: string }): JianyingEffectPanel | null {
 }
 
 /**
+ * Rebuilds the 特效 sidebar from Jianying's cached panel responses. The panel
+ * URLs carry only a parameter hash, so the effects panel is identified by
+ * overlap: the cached panel whose category ids cover the most effect items IS
+ * the 特效 sidebar, and its array order is Jianying's own tab order.
+ */
+export function collectPanelCategories({
+	panelRows,
+	items,
+}: {
+	panelRows: CatalogRow[];
+	items: CatalogItem[];
+}): JianyingEffectCategory[] {
+	const usedByPanel = new Map<JianyingEffectPanel, Set<string>>();
+	for (const item of items) {
+		const used = usedByPanel.get(item.panel) ?? new Set<string>();
+		for (const categoryId of item.categoryIds) used.add(categoryId);
+		usedByPanel.set(item.panel, used);
+	}
+
+	const parsedRows: Array<Array<{ id: string; name: string }>> = [];
+	const namesById = new Map<string, string>();
+	for (const row of panelRows) {
+		const body = parseJsonObject({ text: row.responseBody });
+		const data = body.data;
+		if (typeof data !== "object" || data === null) continue;
+		const categories = (data as Record<string, unknown>).categories;
+		if (!Array.isArray(categories)) continue;
+		const list: Array<{ id: string; name: string }> = [];
+		for (const raw of categories) {
+			if (typeof raw !== "object" || raw === null) continue;
+			const record = raw as Record<string, unknown>;
+			const idValue = record.category_id;
+			const id =
+				typeof idValue === "number" || typeof idValue === "string"
+					? String(idValue)
+					: "";
+			const name = readString({ source: record, key: "category_name" });
+			if (id.length === 0 || id === "0" || name.length === 0) continue;
+			list.push({ id, name });
+			if (!namesById.has(id)) namesById.set(id, name);
+		}
+		if (list.length > 0) parsedRows.push(list);
+	}
+
+	const result: JianyingEffectCategory[] = [];
+	for (const panel of EFFECT_PANELS) {
+		const used = usedByPanel.get(panel);
+		if (!used || used.size === 0) continue;
+
+		let bestRow: Array<{ id: string; name: string }> | null = null;
+		let bestScore = 0;
+		for (const list of parsedRows) {
+			const score = list.filter((category) => used.has(category.id)).length;
+			if (score > bestScore) {
+				bestScore = score;
+				bestRow = list;
+			}
+		}
+
+		const seen = new Set<string>();
+		for (const category of bestRow ?? []) {
+			if (!used.has(category.id) || seen.has(category.id)) continue;
+			seen.add(category.id);
+			result.push({ ...category, panel });
+		}
+		// Ids the winning panel misses (stale pages, cross-panel reuse) still
+		// deserve a tab; other cached panels usually know their names.
+		const leftover = [...used]
+			.filter((id) => !seen.has(id))
+			.map((id) => ({ id, name: namesById.get(id) ?? id, panel }))
+			.sort((left, right) => left.name.localeCompare(right.name));
+		result.push(...leftover);
+	}
+	return result;
+}
+
+/**
  * Zip entries that could escape the extraction directory. Checked against the
  * archive listing before unzip runs, because the CLI extractor offers no
  * containment guarantee of its own.
@@ -180,6 +262,26 @@ export function collectCatalogItems({
 					)
 				: [];
 
+			const categoryIds = Array.isArray(attributes.category_ids)
+				? attributes.category_ids.flatMap((value) =>
+						typeof value === "number" || typeof value === "string"
+							? [String(value)]
+							: []
+					)
+				: [];
+
+			const cover =
+				typeof attributes.cover_url === "object" &&
+				attributes.cover_url !== null
+					? (attributes.cover_url as Record<string, unknown>)
+					: {};
+			const coverCandidate =
+				readString({ source: cover, key: "small" }) ||
+				readString({ source: cover, key: "static_img" });
+			const coverUrl = coverCandidate.startsWith("https://")
+				? coverCandidate
+				: "";
+
 			byEffectId.set(effectId, {
 				effectId,
 				title: readString({ source: attributes, key: "title" }),
@@ -195,6 +297,8 @@ export function collectCatalogItems({
 				}),
 				vip: extra.is_vip === true,
 				itemUrls,
+				categoryIds,
+				coverUrl,
 			});
 		}
 	}
