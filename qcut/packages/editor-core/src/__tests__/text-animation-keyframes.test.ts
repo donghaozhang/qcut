@@ -312,6 +312,130 @@ describe("animated selector", () => {
 			selectorUnitWeight({ selector, unitPosition: 0.9, progress: 0 })
 		).toBeCloseTo(0);
 	});
+
+	it("holds ramps at full weight past their full edge", () => {
+		const rampUp = {
+			start: [{ t: 0, v: 0.2 }],
+			end: [{ t: 0, v: 0.4 }],
+			shape: "rampUp" as const,
+			feather: 0,
+		};
+		expect(
+			selectorUnitWeight({ selector: rampUp, unitPosition: 0.9, progress: 0 })
+		).toBe(1);
+		expect(
+			selectorUnitWeight({ selector: rampUp, unitPosition: 0.3, progress: 0 })
+		).toBeCloseTo(0.5);
+		expect(
+			selectorUnitWeight({ selector: rampUp, unitPosition: 0.1, progress: 0 })
+		).toBe(0);
+
+		const rampDown = { ...rampUp, shape: "rampDown" as const };
+		expect(
+			selectorUnitWeight({ selector: rampDown, unitPosition: 0.1, progress: 0 })
+		).toBe(1);
+		expect(
+			selectorUnitWeight({ selector: rampDown, unitPosition: 0.9, progress: 0 })
+		).toBe(0);
+	});
+});
+
+describe("ramp wipe selector", () => {
+	// Jianying 蓝瓣划入's real selector: start 0 / end 1 with the `offset`
+	// keyframed -1 → 1 (baked here into both window tracks), rampUp shape.
+	// Selected characters collapse to a point 0.3 em below home with a blue
+	// tint; the sweep releases them left to right.
+	const PETAL_WIPE: TextAnimationEffect = {
+		kind: "keyframes",
+		color: "#3dabff",
+		selector: {
+			start: [
+				{ t: 0, v: -1, outValue: -0.34, outTime: 0.209 },
+				{
+					t: 0.633,
+					v: 1,
+					inValue: 0.32,
+					inTime: -0.215,
+					outValue: 1,
+					outTime: 0.121,
+				},
+				{ t: 1, v: 1, inValue: 1, inTime: -0.125 },
+			],
+			end: [
+				{ t: 0, v: 0, outValue: 0.66, outTime: 0.209 },
+				{
+					t: 0.633,
+					v: 2,
+					inValue: 1.32,
+					inTime: -0.215,
+					outValue: 2,
+					outTime: 0.121,
+				},
+				{ t: 1, v: 2, inValue: 2, inTime: -0.125 },
+			],
+			shape: "rampUp",
+			feather: 0,
+		},
+		channels: {
+			scaleX: [{ t: 0, v: 0 }],
+			scaleY: [{ t: 0, v: 0 }],
+			translateYEm: [{ t: 0, v: 0.3 }],
+			colorAmount: [{ t: 0, v: 1 }],
+		},
+	};
+
+	function sampleWipe({ frame }: { frame: number }) {
+		const element = createElement({
+			overrides: {
+				content: "ABCDEF",
+				duration: 3,
+				textAnimations: createAnimation({
+					entrance: createPhase({
+						effect: PETAL_WIPE,
+						target: "text",
+						unit: "grapheme",
+						duration: 1,
+					}),
+				}),
+			},
+		});
+		return evaluateTextAnimationFrame({
+			compiled: compileTextAnimation({ element, fps: 100 }),
+			frame,
+			layout: createLayout({ content: "ABCDEF" }),
+		});
+	}
+
+	it("hides every character before the sweep starts", () => {
+		const start = sampleWipe({ frame: 0 });
+		for (const unit of start.units) {
+			expect(unit.visual.scaleX).toBeCloseTo(0);
+			// Anchored 0.3 em below home on a 20 px font.
+			expect(unit.visual.translateY).toBeCloseTo(6);
+			expect(unit.visual.colorMix?.amount ?? 0).toBeCloseTo(1);
+		}
+	});
+
+	it("releases characters left to right as the window sweeps", () => {
+		const mid = sampleWipe({ frame: 25 });
+		const amounts = mid.units.map((unit) => unit.visual.colorMix?.amount ?? 0);
+		for (let index = 1; index < amounts.length; index++) {
+			expect(amounts[index]).toBeGreaterThanOrEqual(amounts[index - 1] - 1e-9);
+		}
+		expect(amounts[0]).toBeLessThan(amounts[amounts.length - 1]);
+		const first = mid.units[0]?.visual;
+		const last = mid.units[5]?.visual;
+		expect(first?.scaleX ?? 0).toBeGreaterThan(last?.scaleX ?? 0);
+	});
+
+	it("settles every character once the offset reaches 1", () => {
+		const settled = sampleWipe({ frame: 70 });
+		for (const unit of settled.units) {
+			expect(unit.visual.scaleX).toBeCloseTo(1);
+			expect(unit.visual.translateY).toBeCloseTo(0);
+			expect(unit.visual.colorMix?.amount ?? 0).toBeCloseTo(0);
+		}
+	});
 });
 
 describe("keyframes normalization", () => {
