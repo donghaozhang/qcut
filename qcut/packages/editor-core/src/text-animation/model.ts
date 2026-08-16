@@ -409,6 +409,32 @@ export type TextKeyframeChannel =
 	| "glowIntensity"
 	| "glowRadiusPx";
 
+/** Weight profile across an animated selector window (Jianying `shape`). */
+export type TextSelectorShape =
+	| "square"
+	| "rampUp"
+	| "rampDown"
+	| "triangle"
+	| "round"
+	| "smooth";
+
+/**
+ * AE-style range selector: a window over normalized unit positions whose
+ * start/end are themselves keyframable, with a weight shape inside and a
+ * feathered edge. Jianying's 变色弹跳 is exactly this — a smooth window
+ * opening from the text center whose front tints and lifts each character it
+ * passes.
+ */
+export interface TextKeyframesSelector {
+	/** Window start over unit positions 0..1; single key = constant. */
+	start: TextKeyframePoint[];
+	/** Window end over unit positions 0..1. */
+	end: TextKeyframePoint[];
+	shape: TextSelectorShape;
+	/** Edge feather width in unit-position space, 0..1 (剪映 smooth). */
+	feather: number;
+}
+
 /**
  * Declarative keyframe animation: instead of a hand-written evaluator, the
  * effect IS the data — per-channel bezier tracks sampled at each unit's phase
@@ -422,6 +448,12 @@ export interface TextKeyframesEffect {
 	color?: string;
 	/** Glow color for the glow channels, #rrggbb; defaults to white. */
 	glowColor?: string;
+	/**
+	 * Optional animated range selector. With a selector the phase clock is
+	 * shared by every unit and the WINDOW does the spatial differentiation:
+	 * each unit's effect strength is its selector weight.
+	 */
+	selector?: TextKeyframesSelector;
 }
 
 /**
