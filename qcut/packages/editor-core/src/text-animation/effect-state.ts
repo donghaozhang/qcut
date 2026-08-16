@@ -7,6 +7,7 @@ import {
 	type TextAnimationDistance,
 	type TextAnimationEffect,
 	type TextAnimationLayout,
+	type TextAnimationRasterEffectState,
 	type TextAnimationVisualState,
 } from "./model.js";
 import {
@@ -542,6 +543,39 @@ function keyframesVisual({
 				radiusPx: Math.max(0, glowRadiusPx ?? layout.fontSize * 0.6),
 				intensity: Math.min(1, Math.max(0, glowIntensity)),
 			},
+		};
+	}
+	// Raster post-pass. Driven by whichever of its channels the document
+	// carries; the pass runs on the block's offscreen raster, so it composes
+	// with (rather than replaces) the per-unit transforms above.
+	const pixelateCell = channel("pixelateCell");
+	const rgbSplitPx = channel("rgbSplitPx");
+	const displaceAmplitudePx = channel("displaceAmplitudePx");
+	const raster: TextAnimationRasterEffectState | undefined =
+		pixelateCell !== undefined && pixelateCell >= 1
+			? { kind: "pixelate", cell: pixelateCell }
+			: rgbSplitPx !== undefined && Math.abs(rgbSplitPx) > 0.01
+				? {
+						kind: "rgbSplit",
+						offsetPx: rgbSplitPx,
+						angleDeg: effect.rasterAngleDeg ?? 0,
+					}
+				: displaceAmplitudePx !== undefined &&
+						Math.abs(displaceAmplitudePx) > 0.01
+					? {
+							kind: "displace",
+							amplitudePx: displaceAmplitudePx,
+							scale: effect.rasterScale ?? 24,
+							evolution: linearProgress * (effect.rasterEvolution ?? 1),
+						}
+					: undefined;
+	if (raster) {
+		visual.postProcess = {
+			trailSamples: visual.postProcess?.trailSamples ?? 0,
+			trailStrength: visual.postProcess?.trailStrength ?? 0,
+			trapezoidAmount: visual.postProcess?.trapezoidAmount ?? 0,
+			...(visual.postProcess?.glow ? { glow: visual.postProcess.glow } : {}),
+			raster,
 		};
 	}
 	if (effect.selector && unit) {
