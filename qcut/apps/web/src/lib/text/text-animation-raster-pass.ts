@@ -1,5 +1,6 @@
 import type { TextAnimationRasterEffectState } from "@qcut/editor-core";
 import { acquireTextAnimationRaster } from "./text-animation-canvas-raster";
+import { getTextAnimationGpuPass } from "./text-animation-gpu-pass";
 import type { CanvasTextContext } from "./text-canvas-primitives";
 
 /**
@@ -9,9 +10,10 @@ import type { CanvasTextContext } from "./text-canvas-primitives";
  * destination context, so they compose with whatever transform the caller has
  * already applied.
  *
- * All three are block-scale sampling operations built from `drawImage`, which
- * keeps them portable across the preview canvas and the export bake without a
- * second (WebGL) pipeline.
+ * The drawImage passes are block-scale sampling operations that stay portable
+ * everywhere. Bloom is the exception: it prefers the WebGL2 pass (true
+ * bright-pass + separable gaussian) and degrades to a canvas-filter
+ * approximation when no GPU is available.
  */
 
 /** Deterministic value noise in [-1, 1]; smooth in x, y and evolution. */
@@ -221,6 +223,66 @@ function drawDisplaced({
  * `ctx`. Returns false when the pass could not run, so callers fall back to
  * drawing the raster untouched.
  */
+function drawBloom({
+	ctx,
+	source,
+	width,
+	height,
+	dx,
+	dy,
+	intensity,
+	radiusPx,
+	threshold,
+}: {
+	ctx: CanvasTextContext;
+	source: CanvasImageSource;
+	width: number;
+	height: number;
+	dx: number;
+	dy: number;
+	intensity: number;
+	radiusPx: number;
+	threshold: number | undefined;
+}): boolean {
+	const gpu = getTextAnimationGpuPass();
+	if (gpu) {
+		const result = gpu.renderBloom({
+			source,
+			width,
+			height,
+			intensity,
+			radiusPx,
+			...(threshold !== undefined ? { threshold } : {}),
+		});
+		if (result) {
+			ctx.drawImage(result, dx, dy);
+			return true;
+		}
+	}
+	// Degraded 2D path: the sharp source plus an additive blurred copy. No
+	// bright pass, so dim pixels halo a little too — acceptable for machines
+	// without WebGL2.
+	const scratch = acquireTextAnimationRaster({
+		channel: "post-scratch",
+		width,
+		height,
+	});
+	if (!scratch || typeof scratch.ctx.filter !== "string") return false;
+	scratch.ctx.clearRect(0, 0, width, height);
+	scratch.ctx.filter = `blur(${Math.max(0.5, radiusPx / 2)}px)`;
+	scratch.ctx.drawImage(source, 0, 0, width, height);
+	scratch.ctx.filter = "none";
+	ctx.drawImage(source, dx, dy, width, height);
+	const previousOp = ctx.globalCompositeOperation;
+	const previousAlpha = ctx.globalAlpha;
+	ctx.globalCompositeOperation = "lighter";
+	ctx.globalAlpha = Math.min(1, intensity);
+	ctx.drawImage(scratch.canvas as CanvasImageSource, dx, dy);
+	ctx.globalAlpha = previousAlpha;
+	ctx.globalCompositeOperation = previousOp;
+	return true;
+}
+
 export function applyTextAnimationRasterPass({
 	ctx,
 	source,
@@ -238,6 +300,22 @@ export function applyTextAnimationRasterPass({
 	dy: number;
 	raster: TextAnimationRasterEffectState;
 }): boolean {
+	if (raster.kind === "bloom") {
+		const intensity = raster.intensity ?? 0;
+		const radiusPx = raster.radiusPx ?? 0;
+		if (intensity < 0.01 || radiusPx < 0.5) return false;
+		return drawBloom({
+			ctx,
+			source,
+			width,
+			height,
+			dx,
+			dy,
+			intensity,
+			radiusPx,
+			threshold: raster.threshold,
+		});
+	}
 	if (raster.kind === "pixelate") {
 		const cell = Math.max(1, raster.cell ?? 1);
 		if (cell <= 1) return false;
