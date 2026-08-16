@@ -325,6 +325,42 @@ function drawEcho({
 	ctx.drawImage(source, dx, dy, width, height);
 }
 
+function drawDirectionalBlur({
+	ctx,
+	source,
+	width,
+	height,
+	dx,
+	dy,
+	offsetPx,
+	angleDeg,
+}: {
+	ctx: CanvasTextContext;
+	source: CanvasImageSource;
+	width: number;
+	height: number;
+	dx: number;
+	dy: number;
+	offsetPx: number;
+	angleDeg: number;
+}): void {
+	// Motion smear: taps along the smear direction fading with distance,
+	// crisp source on top. drawImage-only, so it bakes identically.
+	const radians = (angleDeg * Math.PI) / 180;
+	const stepX = (Math.cos(radians) * offsetPx) / DIRECTIONAL_BLUR_TAPS;
+	const stepY = (Math.sin(radians) * offsetPx) / DIRECTIONAL_BLUR_TAPS;
+	const previousAlpha = ctx.globalAlpha;
+	for (let tap = DIRECTIONAL_BLUR_TAPS; tap >= 1; tap--) {
+		const distance = tap / DIRECTIONAL_BLUR_TAPS;
+		ctx.globalAlpha = previousAlpha * 0.3 * (1 - distance * 0.7);
+		ctx.drawImage(source, dx + stepX * tap, dy + stepY * tap, width, height);
+	}
+	ctx.globalAlpha = previousAlpha * 0.92;
+	ctx.drawImage(source, dx, dy, width, height);
+	ctx.globalAlpha = previousAlpha;
+}
+const DIRECTIONAL_BLUR_TAPS = 9;
+
 export function applyTextAnimationRasterPass({
 	ctx,
 	source,
@@ -342,6 +378,21 @@ export function applyTextAnimationRasterPass({
 	dy: number;
 	raster: TextAnimationRasterEffectState;
 }): boolean {
+	if (raster.kind === "dirBlur") {
+		const offsetPx = raster.offsetPx ?? 0;
+		if (Math.abs(offsetPx) < 0.5) return false;
+		drawDirectionalBlur({
+			ctx,
+			source,
+			width,
+			height,
+			dx,
+			dy,
+			offsetPx,
+			angleDeg: raster.angleDeg ?? 0,
+		});
+		return true;
+	}
 	if (raster.kind === "echo") {
 		const spread = raster.spread ?? 0;
 		if (Math.abs(spread) < 0.01) return false;
