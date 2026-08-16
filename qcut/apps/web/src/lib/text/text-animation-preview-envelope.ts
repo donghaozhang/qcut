@@ -458,8 +458,12 @@ function resolveEffectEnvelope({
 				? maxAbs(effect.channels.bloomRadiusPx)
 				: 0;
 		envelope.filterPadding =
-			Math.max(glowRadius, bloomRadius, maxAbs(effect.channels.blurPx)) *
-			TEXT_ANIMATION_FILTER_BLUR_EXTENT;
+			Math.max(
+				glowRadius,
+				bloomRadius,
+				maxAbs(effect.channels.blurPx),
+				maxAbs(effect.channels.dirBlurPx)
+			) * TEXT_ANIMATION_FILTER_BLUR_EXTENT;
 		return envelope;
 	}
 	const distance = resolveDistance({
