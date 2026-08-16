@@ -447,6 +447,12 @@ export interface TextKeyframesSelector {
 	shape: TextSelectorShape;
 	/** Edge feather width in unit-position space, 0..1 (剪映 smooth). */
 	feather: number;
+	/**
+	 * Which ordinal maps a unit onto the 0..1 window axis. "index" is layout
+	 * order; "rank" follows the sequence order, so a `random` sequence makes
+	 * the window consume characters in shuffled order (剪映 randomSort).
+	 */
+	basedOn?: "index" | "rank";
 }
 
 /**
@@ -648,6 +654,13 @@ export interface TextAnimationColorMixState {
 	color: string;
 	/** Blend toward the target, 0..1. */
 	amount: number;
+	/**
+	 * "multiply" filters the element's own fill through `color` instead of
+	 * replacing it — Jianying's keyframed color base attribute is a
+	 * multiplicative tint whose white keys mean "no tint", regardless of the
+	 * text's own color. Absent = replace blend.
+	 */
+	mode?: "multiply";
 }
 
 export interface TextAnimationVisualState {
