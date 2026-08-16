@@ -39,6 +39,165 @@ export const ENTRANCE_TEXTANIM_DOCUMENTS: Record<string, Doc> = {
 			},
 		},
 	},
+	// 剪映 站起 (7265288917279052344). Each glyph pivots up off its baseline:
+	// the driver swings the character around a point 0.375 em below its centre
+	// (polar placement in the source), so the rotation 90°→0 pairs with a
+	// translate that starts right-and-below home and lands at zero. X is
+	// squashed to 35% at the start (foreshortened while lying flat). Its window
+	// is AE [7/30, 23/30] — the rising half of a track it shares with 躺下.
+	"stand-up": {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0.2 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				rotationDeg: [
+					{ t: 0, v: 90 },
+					{ t: 0.125, v: 82.61 },
+					{ t: 0.25, v: 45 },
+					{ t: 0.375, v: 22.785 },
+					{ t: 0.5, v: 11.917 },
+					{ t: 0.625, v: 5.767 },
+					{ t: 0.75, v: 2.27 },
+					{ t: 0.875, v: 0.512 },
+					{ t: 1, v: 0 },
+				],
+				scaleX: [
+					{ t: 0, v: 0.35 },
+					{ t: 0.125, v: 0.403 },
+					{ t: 0.25, v: 0.675 },
+					{ t: 0.375, v: 0.835 },
+					{ t: 0.5, v: 0.914 },
+					{ t: 0.625, v: 0.958 },
+					{ t: 0.75, v: 0.984 },
+					{ t: 0.875, v: 0.996 },
+					{ t: 1, v: 1 },
+				],
+				opacity: [
+					{ t: 0, v: 0 },
+					{ t: 0.125, v: 0.868 },
+					{ t: 0.25, v: 1 },
+					{ t: 1, v: 1 },
+				],
+				// Pivot placement: 0.375 em right and below home while flat,
+				// resolving to zero as the glyph comes upright.
+				translateXEm: [
+					{ t: 0, v: 0.375 },
+					{ t: 0.25, v: 0.265 },
+					{ t: 0.5, v: 0.077 },
+					{ t: 0.75, v: 0.015 },
+					{ t: 1, v: 0 },
+				],
+				translateYEm: [
+					{ t: 0, v: 0.375 },
+					{ t: 0.25, v: 0.11 },
+					{ t: 0.5, v: 0.008 },
+					{ t: 0.75, v: 0 },
+					{ t: 1, v: 0 },
+				],
+			},
+		},
+	},
+	// 剪映 波浪弹跳 (7317536986691015218). Characters spring up in mirrored
+	// pairs spreading from the line centre outward, each dipping and settling
+	// with a rotation whose sign flips per side (the driver's `polarity`).
+	// centerOut carries the pairing; the per-character horizontal separation
+	// (majorOffset, unique per index) is dropped — a shared document cannot
+	// vary translateX amplitude per unit.
+	"wave-bounce": {
+		sequence: { unit: "grapheme", order: "centerOut", staggerRatio: 0.45 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				opacity: [
+					{ t: 0, v: 0 },
+					{ t: 0.15, v: 1 },
+					{ t: 1, v: 1 },
+				],
+				translateYEm: [
+					{ t: 0, v: 1.2 },
+					{ t: 0.35, v: -0.18 },
+					{ t: 0.6, v: 0.06 },
+					{ t: 0.8, v: -0.02 },
+					{ t: 1, v: 0 },
+				],
+				scaleX: [
+					{ t: 0, v: 0.55 },
+					{ t: 0.35, v: 1.08 },
+					{ t: 0.6, v: 0.98 },
+					{ t: 1, v: 1 },
+				],
+				scaleY: [
+					{ t: 0, v: 0.55 },
+					{ t: 0.35, v: 1.08 },
+					{ t: 0.6, v: 0.98 },
+					{ t: 1, v: 1 },
+				],
+				rotationDeg: [
+					{ t: 0, v: -18 },
+					{ t: 0.35, v: 6 },
+					{ t: 0.65, v: -2 },
+					{ t: 1, v: 0 },
+				],
+			},
+		},
+	},
+	// 剪映 甩出 (7244102679851438650). A whip-in: each glyph swings in from the
+	// left with a 151% elastic overshoot on both axes and a −32°→0 tilt,
+	// staggered one frame apart. The X travel is scaled by line width in the
+	// source (a per-line constant, preserved here as a fixed 1.34 em) and the
+	// motion-blur pass is dropped.
+	"whip-in": {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0.35 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				translateXEm: [
+					{ t: 0, v: -1.34 },
+					{ t: 0.125, v: -0.36 },
+					{ t: 0.25, v: -0.05 },
+					{ t: 0.375, v: 0.08 },
+					{ t: 0.5, v: 0.06 },
+					{ t: 0.75, v: 0.02 },
+					{ t: 1, v: 0 },
+				],
+				translateYEm: [
+					{ t: 0, v: -0.6 },
+					{ t: 0.125, v: -0.21 },
+					{ t: 0.25, v: 0.32 },
+					{ t: 0.375, v: 0.37 },
+					{ t: 0.5, v: 0.28 },
+					{ t: 0.75, v: 0.03 },
+					{ t: 1, v: 0 },
+				],
+				scaleX: [
+					{ t: 0, v: 0.8 },
+					{ t: 0.25, v: 1.51 },
+					{ t: 0.375, v: 1.516 },
+					{ t: 0.5, v: 1.064 },
+					{ t: 0.625, v: 0.866 },
+					{ t: 0.75, v: 0.914 },
+					{ t: 1, v: 1 },
+				],
+				scaleY: [
+					{ t: 0, v: 0.6 },
+					{ t: 0.25, v: 1.504 },
+					{ t: 0.375, v: 1.532 },
+					{ t: 0.5, v: 1.484 },
+					{ t: 0.625, v: 1.306 },
+					{ t: 0.75, v: 1.095 },
+					{ t: 1, v: 1 },
+				],
+				rotationDeg: [
+					{ t: 0, v: -32 },
+					{ t: 0.125, v: -9.473 },
+					{ t: 0.375, v: -14.351 },
+					{ t: 0.625, v: -10.278 },
+					{ t: 0.875, v: -1.578 },
+					{ t: 1, v: 0 },
+				],
+			},
+		},
+	},
 	// 剪映 随机集合 (7223959789175312954). Shuffled-order gather: each character
 	// drops in from ~1.37 em above while scaling 0.15→1 and settling a damped
 	// tilt (−15°→0). The driver also fans each glyph in horizontally by its
@@ -143,6 +302,141 @@ export const EXIT_TEXTANIM_DOCUMENTS: Record<string, Doc> = {
 			rotateDeg: 300,
 			flicker: false,
 			seed: 20230619,
+		},
+	},
+	// 剪映 躺下 (7265288999470633509). The mirror of 站起: each glyph tips over
+	// forward around the same pivot 0.375 em below its centre, rotating 0→−90°,
+	// squashing X to 35% and fading as it lands. Its driver reads AE
+	// [51/30, 67/30] — the falling half of the track 站起 rises through.
+	"lie-down": {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0.2 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				rotationDeg: [
+					{ t: 0, v: 0 },
+					{ t: 0.125, v: -0.512 },
+					{ t: 0.25, v: -2.27 },
+					{ t: 0.375, v: -5.767 },
+					{ t: 0.5, v: -11.917 },
+					{ t: 0.625, v: -22.785 },
+					{ t: 0.75, v: -45 },
+					{ t: 0.875, v: -82.61 },
+					{ t: 1, v: -90 },
+				],
+				scaleX: [
+					{ t: 0, v: 1 },
+					{ t: 0.25, v: 0.984 },
+					{ t: 0.5, v: 0.914 },
+					{ t: 0.625, v: 0.835 },
+					{ t: 0.75, v: 0.675 },
+					{ t: 0.875, v: 0.403 },
+					{ t: 1, v: 0.35 },
+				],
+				opacity: [
+					{ t: 0, v: 1 },
+					{ t: 0.5, v: 0.969 },
+					{ t: 0.75, v: 0.732 },
+					{ t: 0.875, v: 0.246 },
+					{ t: 1, v: 0 },
+				],
+				translateXEm: [
+					{ t: 0, v: 0 },
+					{ t: 0.5, v: -0.077 },
+					{ t: 0.75, v: -0.265 },
+					{ t: 1, v: -0.375 },
+				],
+				translateYEm: [
+					{ t: 0, v: 0 },
+					{ t: 0.5, v: 0.008 },
+					{ t: 0.75, v: 0.11 },
+					{ t: 1, v: 0.375 },
+				],
+			},
+		},
+	},
+	// 剪映 甩回 (7244102747698500156). The exit twin of 甩出: the same elastic
+	// scale and tilt tracks, but the position track hurls each glyph far to the
+	// right (its own MOVE_DURATION of 38/30) instead of settling home.
+	"whip-out": {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0.35 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				translateXEm: [
+					{ t: 0, v: 0 },
+					{ t: 0.25, v: 0.42 },
+					{ t: 0.5, v: 1.19 },
+					{ t: 0.75, v: 1.93 },
+					{ t: 1, v: 2.6 },
+				],
+				translateYEm: [
+					{ t: 0, v: -0.09 },
+					{ t: 0.25, v: 0.11 },
+					{ t: 0.5, v: 0.09 },
+					{ t: 0.75, v: 0.02 },
+					{ t: 1, v: 0 },
+				],
+				scaleX: [
+					{ t: 0, v: 0.8 },
+					{ t: 0.25, v: 1.51 },
+					{ t: 0.5, v: 1.064 },
+					{ t: 0.75, v: 0.914 },
+					{ t: 1, v: 1 },
+				],
+				scaleY: [
+					{ t: 0, v: 0.6 },
+					{ t: 0.25, v: 1.504 },
+					{ t: 0.5, v: 1.484 },
+					{ t: 0.75, v: 1.095 },
+					{ t: 1, v: 1 },
+				],
+				rotationDeg: [
+					{ t: 0, v: -32 },
+					{ t: 0.125, v: -9.473 },
+					{ t: 0.375, v: -14.351 },
+					{ t: 0.75, v: -5.877 },
+					{ t: 1, v: 0 },
+				],
+				opacity: [
+					{ t: 0, v: 1 },
+					{ t: 0.7, v: 1 },
+					{ t: 1, v: 0 },
+				],
+			},
+		},
+	},
+	// 剪映 旋转缩放 (7243633648237285949). Played in reverse by its driver
+	// (elapsed = duration − elapsed), so the exit is a spin-away: the block
+	// rotates about the text-box centre while an elastic scale track — baked
+	// per frame in the source, sampled here at its extrema — collapses it to
+	// nothing. Block-level transform, hence unit "all".
+	"spin-scale-out": {
+		sequence: { unit: "all", order: "forward", staggerRatio: 0 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				scaleX: [
+					{ t: 0, v: 1 },
+					{ t: 0.35, v: 0.972 },
+					{ t: 0.55, v: 1.014 },
+					{ t: 0.78, v: 1.2 },
+					{ t: 0.9, v: 0.774 },
+					{ t: 1, v: 0 },
+				],
+				scaleY: [
+					{ t: 0, v: 1 },
+					{ t: 0.35, v: 0.972 },
+					{ t: 0.55, v: 1.014 },
+					{ t: 0.78, v: 1.2 },
+					{ t: 0.9, v: 0.774 },
+					{ t: 1, v: 0 },
+				],
+				rotationDeg: [
+					{ t: 0, v: 0, outValue: 0, outTime: 0.66 },
+					{ t: 1, v: 30, inValue: 25, inTime: -0.167 },
+				],
+			},
 		},
 	},
 	// 剪映 二段缩放 (7238519014866031162). Two-stage shrink-out: the whole block
