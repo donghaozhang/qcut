@@ -377,6 +377,34 @@ export interface TextJitter3DEffect {
 }
 
 /**
+ * Per-unit color cycling, the base of Jianying's 变色弹跳 / 彩虹 / 亮度渐变
+ * family: every unit blends toward palette stops swept over time, shifted by
+ * rank so neighbouring characters sit on different stops.
+ */
+export interface TextColorCycleEffect {
+	kind: "colorCycle";
+	/** Palette stops as #rrggbb, cycled in order. */
+	palette: string[];
+	/** Peak blend toward the palette color, 0..1; 0 keeps the base fill. */
+	amount: number;
+	/** Palette sweeps per phase pass. */
+	cycles: number;
+	/** Palette stops a unit is shifted per rank; 0 keeps all units in sync. */
+	rankOffset: number;
+	/** Snap to whole stops instead of interpolating between them. */
+	stepped: boolean;
+	/**
+	 * Amount curve over each unit's cycle. Jianying's 变色弹跳 sweeps a
+	 * feathered window across the text and characters keep their tint once the
+	 * front passes ("hold"); "beat" pulses once per cycle; "constant" leaves
+	 * the tint always on (rainbow cycling).
+	 */
+	envelope: "constant" | "hold" | "beat";
+	/** Vertical lift coupled to the amount envelope, in em (变色弹跳: 0.2). */
+	bounceEm?: number;
+}
+
+/**
  * Stepped per-unit shake. Jianying quantizes local time into a handful of
  * poses per cycle and derives each unit's offset from a chaotic but
  * deterministic product of sines, phase-shifted by unit rank.
@@ -407,6 +435,7 @@ export type TextAnimationEffect =
 	| TextCylinder3DEffect
 	| TextJitter3DEffect
 	| TextJitterEffect
+	| TextColorCycleEffect
 	| TextArcEffect
 	| TextSqueezeEffect
 	| TextFoldEffect
@@ -495,6 +524,17 @@ export interface TextAnimationPostProcessState {
 	trapezoidAmount: number;
 }
 
+/**
+ * Per-unit fill recolor. The renderer blends the element's own fill toward
+ * `color`; `amount` 0 keeps the base fill untouched, 1 replaces it.
+ */
+export interface TextAnimationColorMixState {
+	/** Target color, #rrggbb. */
+	color: string;
+	/** Blend toward the target, 0..1. */
+	amount: number;
+}
+
 export interface TextAnimationVisualState {
 	opacity: number;
 	translateX: number;
@@ -507,6 +547,8 @@ export interface TextAnimationVisualState {
 	rotationYDeg?: number;
 	blurPx: number;
 	mask?: TextAnimationMaskState;
+	/** Present while a color effect drives the frame; blended by the renderer. */
+	colorMix?: TextAnimationColorMixState;
 	transformOrigin?: "center" | "bottomCenter";
 	/** Present when the rasterized text is mapped onto a projective surface. */
 	projection?: TextAnimationProjectionState;
