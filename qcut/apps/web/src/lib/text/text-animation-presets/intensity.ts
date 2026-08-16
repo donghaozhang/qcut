@@ -14,7 +14,11 @@ export function textAnimationPresetSupportsIntensity({
 }: {
 	preset: TextAnimationPresetDefinition;
 }): boolean {
-	return !["none", "fade", "typewriter"].includes(preset.previewKind);
+	// petal-wipe is a transcribed keyframes document; scaleEffectIntensity has
+	// no keyframes case, so offering the slider would render a dead control.
+	return !["none", "fade", "typewriter", "petal-wipe"].includes(
+		preset.previewKind
+	);
 }
 
 function scaleEffectIntensity({
