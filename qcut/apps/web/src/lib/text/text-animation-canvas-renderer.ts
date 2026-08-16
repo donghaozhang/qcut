@@ -77,7 +77,8 @@ function strongestUnitRaster({
 			Math.abs(raster.cell ?? 0) +
 			Math.abs(raster.offsetPx ?? 0) +
 			Math.abs(raster.amplitudePx ?? 0) +
-			Math.abs(raster.intensity ?? 0);
+			Math.abs(raster.intensity ?? 0) +
+			Math.abs(raster.spread ?? 0);
 		if (score > strongestScore) {
 			strongest = raster;
 			strongestScore = score;
@@ -111,7 +112,13 @@ function drawRasterPostProcessedText({
 				Math.abs(raster.offsetPx ?? 0) +
 				// The bloom halo reaches ~3σ past the glyphs; reserve for it or
 				// the offscreen raster clips the glow flat at its edges.
-				(raster.kind === "bloom" ? (raster.radiusPx ?? 0) * 1.5 : 0)
+				(raster.kind === "bloom" ? (raster.radiusPx ?? 0) * 1.5 : 0) +
+				// Outward echo shells scale past the block bounds.
+				(raster.kind === "echo" && (raster.spread ?? 0) < 0
+					? Math.abs(raster.spread ?? 0) *
+						Math.max(bounds.width, bounds.height) *
+						0.5
+					: 0)
 		);
 	const width = Math.max(1, Math.ceil(bounds.width + padding * 2));
 	const height = Math.max(1, Math.ceil(bounds.height + padding * 2));
