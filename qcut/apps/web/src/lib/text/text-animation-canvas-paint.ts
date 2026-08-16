@@ -46,10 +46,12 @@ function drawGlyphDecoration({
 	ctx,
 	element,
 	grapheme,
+	fillColor,
 }: {
 	ctx: CanvasTextContext;
 	element: TextElement;
 	grapheme: CanvasTextAnimationGrapheme;
+	fillColor?: string;
 }): void {
 	if (
 		element.textDecoration === "none" ||
@@ -63,7 +65,7 @@ function drawGlyphDecoration({
 			? grapheme.anchorY + element.fontSize * 0.92
 			: grapheme.anchorY + element.fontSize * 0.52;
 	ctx.save();
-	ctx.strokeStyle = element.color;
+	ctx.strokeStyle = fillColor ?? element.color;
 	ctx.lineWidth = Math.max(1, element.fontSize / 16);
 	ctx.beginPath();
 	ctx.moveTo(grapheme.bounds.x, y);
@@ -77,13 +79,17 @@ export function drawTextAnimationGlyph({
 	element,
 	grapheme,
 	style,
+	fillColor,
 }: {
 	ctx: CanvasTextContext;
 	element: TextElement;
 	grapheme: CanvasTextAnimationGrapheme;
 	style: ResolvedTextStyle;
+	/** Animated per-unit fill (color channel); defaults to the element fill. */
+	fillColor?: string;
 }): void {
 	if (!grapheme.text || /^[\r\n]+$/u.test(grapheme.text)) return;
+	const fill = fillColor ?? element.color;
 	ctx.save();
 	ctx.translate(grapheme.anchorX, grapheme.anchorY);
 	ctx.rotate((grapheme.rotationDeg * Math.PI) / 180);
@@ -92,14 +98,14 @@ export function drawTextAnimationGlyph({
 
 	if (style.glowOpacity > 0) {
 		ctx.save();
-		ctx.fillStyle = element.color;
+		ctx.fillStyle = fill;
 		ctx.shadowColor = colorWithOpacity(style.glowColor, style.glowOpacity);
 		ctx.shadowBlur = style.glowBlur;
 		ctx.fillText(grapheme.text, 0, 0);
 		ctx.restore();
 	}
 
-	ctx.fillStyle = element.color;
+	ctx.fillStyle = fill;
 	if (style.shadowOpacity > 0) {
 		ctx.shadowColor = colorWithOpacity(style.shadowColor, style.shadowOpacity);
 		ctx.shadowBlur = style.shadowBlur;
@@ -114,7 +120,12 @@ export function drawTextAnimationGlyph({
 	}
 	ctx.fillText(grapheme.text, 0, 0);
 	ctx.restore();
-	drawGlyphDecoration({ ctx, element, grapheme });
+	drawGlyphDecoration({
+		ctx,
+		element,
+		grapheme,
+		...(fillColor ? { fillColor } : {}),
+	});
 }
 
 export function textAnimationRasterPadding({
