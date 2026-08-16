@@ -183,6 +183,44 @@ describe("keyframes effect", () => {
 		});
 	});
 
+	it("drives the bloom raster pass from its channels", () => {
+		const effect: TextAnimationEffect = {
+			kind: "keyframes",
+			channels: {
+				bloomIntensity: [
+					{ t: 0, v: 1.2 },
+					{ t: 0.8, v: 0 },
+					{ t: 1, v: 0 },
+				],
+				bloomRadiusPx: [{ t: 0, v: 18 }],
+			},
+		};
+		const element = createElement({
+			overrides: {
+				content: "AB",
+				duration: 3,
+				textAnimations: createAnimation({
+					entrance: createPhase({
+						effect,
+						target: "textAndBackground",
+						duration: 1,
+					}),
+				}),
+			},
+		});
+		const compiled = compileTextAnimation({ element, fps: 100 });
+		const layout = createLayout({ content: "AB" });
+		const at = (frame: number) =>
+			evaluateTextAnimationFrame({ compiled, frame, layout });
+		expect(at(0).container.postProcess?.raster).toEqual({
+			kind: "bloom",
+			intensity: 1.2,
+			radiusPx: 18,
+		});
+		// The track fading to zero drops the pass entirely.
+		expect(at(99).container.postProcess?.raster).toBeUndefined();
+	});
+
 	it("wraps marquee characters around the period seamlessly", () => {
 		const element = createElement({
 			overrides: {
