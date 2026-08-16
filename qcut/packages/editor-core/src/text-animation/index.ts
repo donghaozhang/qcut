@@ -16,6 +16,7 @@ export { computeShatterTiles, shatterNoise } from "./shatter.js";
 export type { ShatterTile } from "./shatter.js";
 export {
 	mixTextAnimationColors,
+	multiplyTextAnimationColors,
 	parseTextAnimationHexColor,
 	sampleTextAnimationPalette,
 } from "./color.js";
