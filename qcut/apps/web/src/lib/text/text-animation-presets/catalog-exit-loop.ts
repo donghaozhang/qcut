@@ -414,4 +414,14 @@ export const LOOP_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["color", "bounce", "tint", "变色", "弹跳", "彩色"],
 	},
+	{
+		id: "glow-pulse",
+		phase: "loop",
+		nameKey: "textProperties.animationPreset.glowPulse",
+		previewKind: "glow-pulse",
+		defaultDuration: 1.6,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["glow", "pulse", "shine", "泛光", "发光", "辉光"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
