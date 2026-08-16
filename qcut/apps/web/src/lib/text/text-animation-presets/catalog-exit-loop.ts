@@ -412,6 +412,16 @@ export const EXIT_TEXT_ANIMATION_PRESETS = [
 		searchTerms: ["glow", "flicker", "neon", "发光闪出", "发光", "闪出"],
 	},
 	{
+		id: "blur-left-out",
+		phase: "exit",
+		nameKey: "textProperties.animationPreset.blurLeftOut",
+		previewKind: "keyframes",
+		defaultDuration: 0.9,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["blur", "left", "smear", "向左模糊", "向左", "模糊"],
+	},
+	{
 		id: "echo-trail-out",
 		phase: "exit",
 		nameKey: "textProperties.animationPreset.echoTrailOut",
