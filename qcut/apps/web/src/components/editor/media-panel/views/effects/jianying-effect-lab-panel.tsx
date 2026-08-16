@@ -1,5 +1,13 @@
-import { FlaskConical, ImageOff, Loader2, Lock, RefreshCw } from "lucide-react";
+import {
+	Download,
+	FlaskConical,
+	ImageOff,
+	Loader2,
+	Lock,
+	RefreshCw,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { EffectPreset } from "@/types/effects";
@@ -7,12 +15,15 @@ import type { JianyingEffectDefinition } from "@/types/electron";
 import { useJianyingEffectRuntime } from "./use-jianying-effect-runtime";
 
 /**
- * Lists the Jianying effects cached on this machine. QCut ships none of them:
- * each entry renders through the local Jianying runtime, so the list is exactly
- * what the user has already downloaded inside Jianying itself.
+ * Lists the Jianying effects this machine can render. QCut ships none of them:
+ * installed entries come from the local Jianying caches, and the rest of the
+ * catalog can be fetched on demand through the main process — every package
+ * still renders through the local Jianying runtime.
  */
 
 const PREVIEW_CONCURRENCY = 2;
+
+type DownloadState = "downloading" | "failed";
 
 function labPreset({
 	definition,
@@ -28,15 +39,18 @@ function labPreset({
 		parameters: {},
 		engine: "jianying-local",
 		packageHash: definition.packageHash,
+		adjustParameters: definition.adjustParameters,
 	};
 }
 
 function EffectPreviewTile({
 	definition,
 	dataUrl,
+	downloadState,
 }: {
 	definition: JianyingEffectDefinition;
 	dataUrl: string | undefined;
+	downloadState: DownloadState | undefined;
 }) {
 	if (!definition.supported) {
 		return (
@@ -44,6 +58,24 @@ function EffectPreviewTile({
 				<Lock className="size-4" />
 				<span className="px-1 text-center text-[9px] leading-tight">
 					需剪映算法
+				</span>
+			</div>
+		);
+	}
+	if (!definition.installed) {
+		if (downloadState === "downloading") {
+			return (
+				<div className="flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground">
+					<Loader2 className="size-4 animate-spin" />
+					<span className="text-[9px]">下载中…</span>
+				</div>
+			);
+		}
+		return (
+			<div className="flex h-full w-full flex-col items-center justify-center gap-1 text-muted-foreground group-hover:text-primary">
+				<Download className="size-4" />
+				<span className="text-[9px]">
+					{downloadState === "failed" ? "下载失败，点击重试" : "点击下载"}
 				</span>
 			</div>
 		);
@@ -83,6 +115,7 @@ export function JianyingEffectLabPanel({
 	// "" marks a render that failed — without it the pump would retry forever
 	// and the tile would spin forever.
 	const [previews, setPreviews] = useState<Record<string, string>>({});
+	const [downloads, setDownloads] = useState<Record<string, DownloadState>>({});
 	// Requests already on the wire; a state update must not re-issue them.
 	const inFlightIds = useRef(new Set<string>());
 
@@ -96,6 +129,7 @@ export function JianyingEffectLabPanel({
 		const pending = effects.filter(
 			(effect) =>
 				effect.supported &&
+				effect.installed &&
 				previews[effect.id] === undefined &&
 				!inFlightIds.current.has(effect.id)
 		);
@@ -131,11 +165,47 @@ export function JianyingEffectLabPanel({
 		};
 	}, [effects, previews]);
 
-	const handleApply = useCallback(
+	const handleDownload = useCallback(
+		async ({ definition }: { definition: JianyingEffectDefinition }) => {
+			const api = window.electronAPI?.jianyingEffects;
+			if (!api?.download) return;
+			setDownloads((current) => ({
+				...current,
+				[definition.effectId]: "downloading",
+			}));
+			try {
+				await api.download({ effectId: definition.effectId });
+				setDownloads((current) => {
+					const next = { ...current };
+					delete next[definition.effectId];
+					return next;
+				});
+				// A fresh status marks the effect installed, which also lets the
+				// preview pump pick it up.
+				await refresh();
+			} catch (cause) {
+				setDownloads((current) => ({
+					...current,
+					[definition.effectId]: "failed",
+				}));
+				toast.error(
+					cause instanceof Error ? cause.message : "特效包下载失败。"
+				);
+			}
+		},
+		[refresh]
+	);
+
+	const handleTileClick = useCallback(
 		({ definition }: { definition: JianyingEffectDefinition }) => {
+			if (!definition.installed) {
+				if (downloads[definition.effectId] === "downloading") return;
+				void handleDownload({ definition });
+				return;
+			}
 			onApply(labPreset({ definition }));
 		},
-		[onApply]
+		[downloads, handleDownload, onApply]
 	);
 
 	const query = searchQuery.trim().toLowerCase();
@@ -167,6 +237,13 @@ export function JianyingEffectLabPanel({
 		);
 	}
 
+	const installedCount = visibleEffects.filter(
+		(effect) => effect.supported && effect.installed
+	).length;
+	const downloadableCount = visibleEffects.filter(
+		(effect) => effect.supported && !effect.installed
+	).length;
+
 	return (
 		<div
 			className="flex h-full min-h-0 flex-col"
@@ -174,7 +251,8 @@ export function JianyingEffectLabPanel({
 		>
 			<div className="flex items-center justify-between px-3 py-2 text-[11px] text-muted-foreground">
 				<span>
-					本机剪映特效 {visibleEffects.filter((e) => e.supported).length} 个
+					本机剪映特效 {installedCount} 个
+					{downloadableCount > 0 ? ` · 可下载 ${downloadableCount} 个` : ""}
 				</span>
 				<Button
 					size="sm"
@@ -199,12 +277,13 @@ export function JianyingEffectLabPanel({
 								? "hover:border-primary/60"
 								: "cursor-not-allowed opacity-60"
 						)}
-						onClick={() => handleApply({ definition })}
+						onClick={() => handleTileClick({ definition })}
 					>
 						<div className="aspect-video w-full bg-foreground/5">
 							<EffectPreviewTile
 								definition={definition}
 								dataUrl={previews[definition.id]}
+								downloadState={downloads[definition.effectId]}
 							/>
 						</div>
 						<span className="truncate px-1.5 py-1 text-[10px]">
