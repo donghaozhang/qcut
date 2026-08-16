@@ -353,6 +353,9 @@ async function main() {
 				error: String(error?.message ?? error).slice(0, 500),
 			});
 			failed++;
+			// A bridge that reports no frame counts still muxed a pass-through
+			// file — delete it so the refs directory only holds real references.
+			fs.rmSync(outPath, { force: true });
 			console.log(`FAIL ${label}: ${entry.error}`);
 		}
 		manifest.write(`${JSON.stringify(entry)}\n`);
