@@ -415,6 +415,8 @@ export type TextKeyframeChannel =
 	// per-glyph glow channels — bloom blurs the rendered block itself.
 	| "bloomIntensity"
 	| "bloomRadiusPx"
+	// Concentric echo shells: signed spread, + inward / - outward.
+	| "echoAmount"
 	// Raster post-pass parameters, so a document can animate the mosaic
 	// coarseness, the channel separation, or the displacement strength.
 	| "pixelateCell"
@@ -681,7 +683,7 @@ export interface TextAnimationGlowState {
  *   case covering boil, turbulence and ripple.
  */
 export interface TextAnimationRasterEffectState {
-	kind: "pixelate" | "rgbSplit" | "displace" | "bloom";
+	kind: "pixelate" | "rgbSplit" | "displace" | "bloom" | "echo";
 	/** pixelate: grid cell size in px. */
 	cell?: number;
 	/** rgbSplit: channel separation in px, and its direction. */
@@ -695,6 +697,12 @@ export interface TextAnimationRasterEffectState {
 	intensity?: number;
 	radiusPx?: number;
 	threshold?: number;
+	/**
+	 * echo: concentric scale shells behind the block. Positive spread trails
+	 * inward (smaller shells, a zoom-in echo), negative trails outward.
+	 */
+	spread?: number;
+	samples?: number;
 }
 
 export interface TextAnimationPostProcessState {
