@@ -20,7 +20,13 @@ export type KaraokeMode =
 	| "overlap"
 	| "expand"
 	| "shine"
-	| "pulse";
+	| "pulse"
+	| "fly-in"
+	| "gather"
+	| "flip"
+	| "blur-roll"
+	| "glitch"
+	| "mischief";
 
 /** All available karaoke mode values for UI iteration */
 export const KARAOKE_MODES: { value: KaraokeMode; label: string }[] = [
@@ -36,6 +42,12 @@ export const KARAOKE_MODES: { value: KaraokeMode; label: string }[] = [
 	{ value: "expand", label: "扩展" },
 	{ value: "shine", label: "扫光" },
 	{ value: "pulse", label: "律动" },
+	{ value: "fly-in", label: "向下飞入" },
+	{ value: "gather", label: "集合" },
+	{ value: "flip", label: "空翻" },
+	{ value: "blur-roll", label: "模糊滚动" },
+	{ value: "glitch", label: "故障闪烁" },
+	{ value: "mischief", label: "调皮" },
 ];
 
 /** Per-word render state computed by karaoke utils */
@@ -54,4 +66,10 @@ export interface KaraokeSegment {
 	offsetY: number;
 	/** Color override — may be a CSS color or a linear-gradient string */
 	color?: string;
+	/** Horizontal offset in pixels (positive = right) */
+	offsetX?: number;
+	/** 2D rotation in degrees */
+	rotationDeg?: number;
+	/** Gaussian blur radius in pixels */
+	blurPx?: number;
 }
