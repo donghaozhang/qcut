@@ -238,6 +238,7 @@ export function renderCanonicalTextAnimationToCanvas({
 		element: renderedElement,
 	});
 
+	const animatedGlow = state.container.postProcess?.glow;
 	for (const grapheme of layout.graphemes) {
 		const unitState = state.units[grapheme.index];
 		if (!unitState) continue;
@@ -262,6 +263,7 @@ export function renderCanonicalTextAnimationToCanvas({
 						}),
 					}
 				: {}),
+			...(animatedGlow ? { animatedGlow } : {}),
 		});
 		ctx.restore();
 	}
