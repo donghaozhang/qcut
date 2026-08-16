@@ -409,6 +409,20 @@ export type TextKeyframeChannel =
 	| "glowIntensity"
 	| "glowRadiusPx";
 
+/**
+ * One key of an animated tint track; `v` and the bezier handle values are
+ * [r, g, b] in 0..1 (Jianying keyframes its `color` base attribute as an RGBA
+ * vector with per-component handles).
+ */
+export interface TextColorKeyframePoint {
+	t: number;
+	v: [number, number, number];
+	inValue?: [number, number, number];
+	outValue?: [number, number, number];
+	inTime?: number;
+	outTime?: number;
+}
+
 /** Weight profile across an animated selector window (Jianying `shape`). */
 export type TextSelectorShape =
 	| "square"
@@ -446,6 +460,12 @@ export interface TextKeyframesEffect {
 	channels: Partial<Record<TextKeyframeChannel, TextKeyframePoint[]>>;
 	/** Tint target for the colorAmount channel, #rrggbb. */
 	color?: string;
+	/**
+	 * Animated tint target (Jianying's keyframed `color` base attribute, e.g.
+	 * 彩虹渐变's red→violet→white sweep). Overrides `color`; the colorAmount
+	 * channel still scales the blend and defaults to 1 when absent.
+	 */
+	colorTrack?: TextColorKeyframePoint[];
 	/** Glow color for the glow channels, #rrggbb; defaults to white. */
 	glowColor?: string;
 	/**
