@@ -24,7 +24,7 @@ function describe({
 }): string {
 	switch (state) {
 		case "ready":
-			return `已发现 ${availableCount} 个本机剪映特效。`;
+			return `已发现 ${availableCount} 个可用的本机剪映特效。`;
 		case "unsupported-platform":
 			return "本机剪映特效仅支持 macOS。";
 		case "app-missing":
@@ -34,7 +34,7 @@ function describe({
 		case "runtime-incompatible":
 			return "本机剪映版本与已验证的运行时不一致。";
 		case "packages-missing":
-			return "尚未缓存任何特效素材：请在剪映中使用一次目标特效后重试。";
+			return "尚未发现任何特效目录：请在剪映中打开一次特效面板后重试。";
 		default:
 			return "读取本机剪映特效时出错。";
 	}
@@ -61,7 +61,11 @@ export async function inspectJianyingEffectRuntime(): Promise<JianyingEffectRunt
 		transitionInspection.status.state === "unsupported-platform"
 			? []
 			: await discoverJianyingEffects();
-	const availableCount = effects.filter((effect) => effect.supported).length;
+	// "Available" = renderable right now; downloadable-only entries still count
+	// toward readiness because one click installs them.
+	const availableCount = effects.filter(
+		(effect) => effect.supported && effect.installed
+	).length;
 
 	const state: JianyingEffectRuntimeState = (() => {
 		if (transitionInspection.status.state === "unsupported-platform") {
@@ -72,7 +76,7 @@ export async function inspectJianyingEffectRuntime(): Promise<JianyingEffectRunt
 		if (transitionInspection.status.state === "runtime-incompatible") {
 			return "runtime-incompatible";
 		}
-		return availableCount > 0 ? "ready" : "packages-missing";
+		return effects.length > 0 ? "ready" : "packages-missing";
 	})();
 
 	return {
