@@ -4,6 +4,7 @@ import type {
 	TextAnimationSequence,
 } from "@/types/timeline";
 
+import { TEXT_KEYFRAME_DOCUMENTS } from "./keyframe-documents";
 import type { TextAnimationPhase } from "./types";
 
 const NATURAL_EASE: TextAnimationEasing = {
@@ -54,6 +55,8 @@ export function effectForPreset({
 	phase: TextAnimationPhase;
 	presetId: string;
 }): TextAnimationEffect {
+	const transcribed = TEXT_KEYFRAME_DOCUMENTS[`${phase}:${presetId}`];
+	if (transcribed) return transcribed.effect;
 	switch (`${phase}:${presetId}`) {
 		case "entrance:typewriter-cursor":
 			// Jianying renders a solid block cursor that stays lit while typing
@@ -669,6 +672,13 @@ export function sequenceForPreset({
 	phase: TextAnimationPhase;
 	presetId: string;
 }): TextAnimationSequence {
+	const transcribed = TEXT_KEYFRAME_DOCUMENTS[`${phase}:${presetId}`];
+	if (transcribed) {
+		return {
+			...transcribed.sequence,
+			seed: presetSeed({ presetId: `${phase}:${presetId}` }),
+		};
+	}
 	// fade-characters is intentionally absent: Jianying's 文字渐显 fades the
 	// whole block at once rather than staggering per grapheme.
 	const graphemePresets = new Set([
