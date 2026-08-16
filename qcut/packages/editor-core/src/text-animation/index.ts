@@ -14,6 +14,7 @@ export {
 } from "./segmentation.js";
 export { computeShatterTiles, shatterNoise } from "./shatter.js";
 export type { ShatterTile } from "./shatter.js";
+export type { RgbColor } from "./color.js";
 export {
 	mixTextAnimationColors,
 	multiplyTextAnimationColors,
