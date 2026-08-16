@@ -10,6 +10,31 @@ import type { TextKeyframeDocument } from "./keyframe-documents-entrance-a";
 type Doc = TextKeyframeDocument;
 
 export const ENTRANCE_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
+	// 剪映 向右集合 (7081206983461704199). Glyphs converge in from half a text
+	// box away on a shared ease (.16,.81,.44,1), staggered back-to-front —
+	// (size − i)/size in the driver — so the rightmost character lands first
+	// and the line gathers toward it. The source blends three per-index bezier
+	// curves, but all three constants are identical here, so the blend
+	// collapses to that one curve and the transcription is exact.
+	"gather-right": {
+		sequence: { unit: "grapheme", order: "reverse", staggerRatio: 0.5 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				translateXEm: [
+					{ t: 0, v: 2 },
+					{ t: 0.125, v: 1.1 },
+					{ t: 0.25, v: 0.623 },
+					{ t: 0.375, v: 0.348 },
+					{ t: 0.5, v: 0.184 },
+					{ t: 0.625, v: 0.088 },
+					{ t: 0.75, v: 0.033 },
+					{ t: 0.875, v: 0.007 },
+					{ t: 1, v: 0 },
+				],
+			},
+		},
+	},
 	// 剪映 跳跳捣蛋鬼 (7200340219109839419). Each glyph dips and springs back
 	// over a 25-frame window while rocking −15° → +15° → 0, staggered so the
 	// line bounces along. The keyframes live inline in the driver as a
@@ -32,6 +57,36 @@ export const ENTRANCE_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
 					{ t: 0.2, v: -15, inValue: -15, inTime: -0.033 },
 					{ t: 0.76, v: 15, inValue: 15, inTime: -0.093 },
 					{ t: 1, v: 0, inValue: 0, inTime: -0.08 },
+				],
+			},
+		},
+	},
+};
+
+export const EXIT_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
+	// 剪映 向左解散 (7083752251742753287). The exit twin of 向右集合: identical
+	// constants and stagger, played as a dispersal — each glyph slides half a
+	// text box to the left, the line coming apart from the right end first.
+	"scatter-left": {
+		sequence: { unit: "grapheme", order: "reverse", staggerRatio: 0.5 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				translateXEm: [
+					{ t: 0, v: 0 },
+					{ t: 0.125, v: -0.007 },
+					{ t: 0.25, v: -0.033 },
+					{ t: 0.375, v: -0.088 },
+					{ t: 0.5, v: -0.184 },
+					{ t: 0.625, v: -0.348 },
+					{ t: 0.75, v: -0.623 },
+					{ t: 0.875, v: -1.1 },
+					{ t: 1, v: -2 },
+				],
+				opacity: [
+					{ t: 0, v: 1 },
+					{ t: 0.6, v: 1 },
+					{ t: 1, v: 0 },
 				],
 			},
 		},
