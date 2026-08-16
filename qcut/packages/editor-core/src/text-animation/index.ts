@@ -20,6 +20,7 @@ export {
 	sampleTextAnimationPalette,
 } from "./color.js";
 export { evaluateTextKeyframeTrack } from "./keyframes.js";
+export { selectorUnitWeight } from "./effect-state.js";
 
 export type {
 	CompiledTextAnimation,
@@ -65,6 +66,8 @@ export type {
 	TextJitterEffect,
 	TextColorCycleEffect,
 	TextKeyframesEffect,
+	TextKeyframesSelector,
+	TextSelectorShape,
 	TextKeyframeChannel,
 	TextKeyframePoint,
 	TextArcEffect,
