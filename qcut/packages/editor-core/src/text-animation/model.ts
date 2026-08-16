@@ -411,6 +411,10 @@ export type TextKeyframeChannel =
 	// Outline↔fill crossfade: 1 renders the glyph as pure stroke, 0 as the
 	// normal fill, in between blends — Jianying's 描边填充-style reveals.
 	| "outlineAmount"
+	// GPU bloom pass: halo strength and blur radius. Distinct from the
+	// per-glyph glow channels — bloom blurs the rendered block itself.
+	| "bloomIntensity"
+	| "bloomRadiusPx"
 	// Raster post-pass parameters, so a document can animate the mosaic
 	// coarseness, the channel separation, or the displacement strength.
 	| "pixelateCell"
@@ -677,7 +681,7 @@ export interface TextAnimationGlowState {
  *   case covering boil, turbulence and ripple.
  */
 export interface TextAnimationRasterEffectState {
-	kind: "pixelate" | "rgbSplit" | "displace";
+	kind: "pixelate" | "rgbSplit" | "displace" | "bloom";
 	/** pixelate: grid cell size in px. */
 	cell?: number;
 	/** rgbSplit: channel separation in px, and its direction. */
@@ -687,6 +691,10 @@ export interface TextAnimationRasterEffectState {
 	amplitudePx?: number;
 	scale?: number;
 	evolution?: number;
+	/** bloom: halo strength (0..~2), blur radius px, bright-pass threshold. */
+	intensity?: number;
+	radiusPx?: number;
+	threshold?: number;
 }
 
 export interface TextAnimationPostProcessState {
