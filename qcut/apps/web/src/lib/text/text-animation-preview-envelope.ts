@@ -424,6 +424,13 @@ function resolveEffectEnvelope({
 		envelope.translateY = (effect.bounceEm ?? 0) * context.fontSize;
 		return envelope;
 	}
+	if (effect.kind === "marquee") {
+		// Wrapped characters stay within half a period of the block center,
+		// so the widest excursion is bounded by the box plus the wrap gap.
+		envelope.translateX =
+			context.boxWidth / 2 + (effect.gapEm * context.fontSize) / 2;
+		return envelope;
+	}
 	if (effect.kind === "keyframes") {
 		const maxAbs = (track?: { v: number }[]) =>
 			track?.reduce((max, point) => Math.max(max, Math.abs(point.v)), 0) ?? 0;
