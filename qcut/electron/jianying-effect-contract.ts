@@ -2,6 +2,7 @@ export const JIANYING_EFFECT_STATUS_CHANNEL = "jianying-effect:status";
 export const JIANYING_EFFECT_PREVIEW_CHANNEL = "jianying-effect:preview";
 export const JIANYING_EFFECT_RENDER_CHANNEL = "jianying-effect:render";
 export const JIANYING_EFFECT_DOWNLOAD_CHANNEL = "jianying-effect:download";
+export const JIANYING_EFFECT_COVER_CHANNEL = "jianying-effect:cover";
 
 /** 画面特效 and 人物特效 are two panels of the same 特效 tab. */
 export type JianyingEffectPanel = "effects2" | "face-prop";
@@ -120,6 +121,17 @@ export interface JianyingEffectDownloadRequest {
 	effectId: string;
 }
 
+export interface JianyingEffectCoverRequest {
+	effectId: string;
+}
+
+export interface JianyingEffectCoverResult {
+	effectId: string;
+	/** Cover image as a data URL, cached on disk by the main process. */
+	dataUrl: string;
+	cached: boolean;
+}
+
 export interface JianyingEffectDownloadResult {
 	effectId: string;
 	packageHash: string;
@@ -137,4 +149,7 @@ export interface JianyingEffectAPI {
 	download: (
 		request: JianyingEffectDownloadRequest
 	) => Promise<JianyingEffectDownloadResult>;
+	cover: (
+		request: JianyingEffectCoverRequest
+	) => Promise<JianyingEffectCoverResult>;
 }
