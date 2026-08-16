@@ -36,6 +36,7 @@ export type {
 	TextAnimationFrameState,
 	TextAnimationGraphemeLayout,
 	TextAnimationColorMixState,
+	TextAnimationGlowState,
 	TextAnimationLayout,
 	TextAnimationLoopPhase,
 	TextAnimationMaskState,
