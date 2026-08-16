@@ -3,13 +3,17 @@ import os from "node:os";
 import path from "node:path";
 import { app, ipcMain } from "electron";
 import {
+	JIANYING_EFFECT_DOWNLOAD_CHANNEL,
 	JIANYING_EFFECT_PREVIEW_CHANNEL,
 	JIANYING_EFFECT_RENDER_CHANNEL,
 	JIANYING_EFFECT_STATUS_CHANNEL,
+	type JianyingEffectDownloadRequest,
+	type JianyingEffectDownloadResult,
 	type JianyingEffectPreviewRequest,
 	type JianyingEffectRenderRequest,
 	type JianyingEffectRenderResult,
 } from "./jianying-effect-contract.js";
+import { downloadJianyingEffectPackage } from "./jianying-effect/download.js";
 import { getJianyingEffectPreview } from "./jianying-effect/preview-cache.js";
 import { renderJianyingEffectClip } from "./jianying-effect/render.js";
 import { inspectJianyingEffectRuntime } from "./jianying-effect/runtime-discovery.js";
@@ -118,6 +122,24 @@ export function setupJianyingEffectIPC(): void {
 	});
 
 	ipcMain.handle(
+		JIANYING_EFFECT_DOWNLOAD_CHANNEL,
+		async (
+			_event,
+			request: JianyingEffectDownloadRequest
+		): Promise<JianyingEffectDownloadResult> => {
+			// The renderer only names an effect; URL, checksum and destination all
+			// come from the main process's own catalog read.
+			if (
+				typeof request?.effectId !== "string" ||
+				!/^\d{1,32}$/.test(request.effectId)
+			) {
+				throw new Error("特效编号无效。");
+			}
+			return downloadJianyingEffectPackage({ effectId: request.effectId });
+		}
+	);
+
+	ipcMain.handle(
 		JIANYING_EFFECT_PREVIEW_CHANNEL,
 		async (_event, request: JianyingEffectPreviewRequest) => {
 			try {
@@ -151,6 +173,9 @@ export function setupJianyingEffectIPC(): void {
 				throw new Error(
 					definition.unsupportedReason ?? "该特效暂不支持本机渲染。"
 				);
+			}
+			if (!definition.installed) {
+				throw new Error(`该特效素材包尚未下载：${definition.name}`);
 			}
 			if (
 				request.packageHash &&
