@@ -789,6 +789,7 @@ export function normalizeTextAnimationEffect({
 			"bloomIntensity",
 			"bloomRadiusPx",
 			"echoAmount",
+			"dirBlurPx",
 			"pixelateCell",
 			"rgbSplitPx",
 			"displaceAmplitudePx",
