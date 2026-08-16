@@ -67,6 +67,38 @@ export function mixTextAnimationColors({
 }
 
 /**
+ * Filter `base` through `tint` multiplicatively (white tint = identity),
+ * blended by `amount` — Jianying's keyframed color base attribute. Falls back
+ * to `base` when either endpoint fails to parse.
+ */
+export function multiplyTextAnimationColors({
+	base,
+	tint,
+	amount,
+}: {
+	base: string;
+	tint: string;
+	amount: number;
+}): string {
+	const baseRgb = parseTextAnimationHexColor({ color: base });
+	const tintRgb = parseTextAnimationHexColor({ color: tint });
+	if (!baseRgb || !tintRgb) return base;
+	const filtered = {
+		r: (baseRgb.r * tintRgb.r) / 255,
+		g: (baseRgb.g * tintRgb.g) / 255,
+		b: (baseRgb.b * tintRgb.b) / 255,
+	};
+	const ratio = Math.min(1, Math.max(0, amount));
+	return formatHex({
+		color: {
+			r: baseRgb.r + (filtered.r - baseRgb.r) * ratio,
+			g: baseRgb.g + (filtered.g - baseRgb.g) * ratio,
+			b: baseRgb.b + (filtered.b - baseRgb.b) * ratio,
+		},
+	});
+}
+
+/**
  * Sample a palette at a fractional stop position. Wraps around, so 1.0 maps
  * back to the first stop; `stepped` snaps to whole stops.
  */
