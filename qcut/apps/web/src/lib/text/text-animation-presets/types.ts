@@ -49,7 +49,9 @@ export type TextAnimationPreviewKind =
 	| "lucky-bag"
 	| "color-bounce"
 	| "glow-pulse"
-	| "petal-wipe";
+	| "petal-wipe"
+	// Shared by every preset that plays a transcribed keyframes document.
+	| "keyframes";
 
 export interface TextAnimationPresetDefinition {
 	id: string;
