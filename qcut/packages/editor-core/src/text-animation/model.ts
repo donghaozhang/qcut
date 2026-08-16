@@ -377,6 +377,50 @@ export interface TextJitter3DEffect {
 }
 
 /**
+ * One keyframe of a declarative value track, mirroring Jianying's
+ * `motionKeyFrameInfo` rows `[t, v, vi, vo, vti, vto]`. Times are normalized
+ * to 0..1 of the phase; handle times are relative to the key (incoming
+ * handles usually negative). Keys without handles interpolate linearly.
+ */
+export interface TextKeyframePoint {
+	t: number;
+	v: number;
+	/** Incoming handle value (Jianying `vi`). */
+	inValue?: number;
+	/** Outgoing handle value (Jianying `vo`). */
+	outValue?: number;
+	/** Incoming handle time offset (Jianying `vti`). */
+	inTime?: number;
+	/** Outgoing handle time offset (Jianying `vto`). */
+	outTime?: number;
+}
+
+export type TextKeyframeChannel =
+	| "translateXEm"
+	| "translateYEm"
+	| "scaleX"
+	| "scaleY"
+	| "rotationDeg"
+	| "rotationXDeg"
+	| "rotationYDeg"
+	| "opacity"
+	| "blurPx"
+	| "colorAmount";
+
+/**
+ * Declarative keyframe animation: instead of a hand-written evaluator, the
+ * effect IS the data — per-channel bezier tracks sampled at each unit's phase
+ * progress. This is how Jianying ships its text animations (studioAnim.lsanim
+ * property tracks), and porting one becomes transcription instead of coding.
+ */
+export interface TextKeyframesEffect {
+	kind: "keyframes";
+	channels: Partial<Record<TextKeyframeChannel, TextKeyframePoint[]>>;
+	/** Tint target for the colorAmount channel, #rrggbb. */
+	color?: string;
+}
+
+/**
  * Per-unit color cycling, the base of Jianying's 变色弹跳 / 彩虹 / 亮度渐变
  * family: every unit blends toward palette stops swept over time, shifted by
  * rank so neighbouring characters sit on different stops.
@@ -436,6 +480,7 @@ export type TextAnimationEffect =
 	| TextJitter3DEffect
 	| TextJitterEffect
 	| TextColorCycleEffect
+	| TextKeyframesEffect
 	| TextArcEffect
 	| TextSqueezeEffect
 	| TextFoldEffect
