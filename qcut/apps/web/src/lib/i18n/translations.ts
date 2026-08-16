@@ -1087,7 +1087,7 @@ const EN_TRANSLATIONS = {
 	"textProperties.animationPreset.featherEraseLeft": "Feather erase left",
 	"textProperties.animationPreset.featherEraseRight": "Feather erase right",
 	"textProperties.animationPreset.featherWipeLeft": "Feather wipe left",
-	"textProperties.animationPreset.featherWipeRight": "Feathered wipe right",
+	"textProperties.animationPreset.featherWipeRight": "Feather wipe right",
 	"textProperties.animationPreset.flyInDown": "Fly in down",
 	"textProperties.animationPreset.ghostMergeIn": "Ghost merge in",
 	"textProperties.animationPreset.ghostSwell": "Ghost swell",
