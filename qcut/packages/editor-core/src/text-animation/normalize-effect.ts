@@ -918,6 +918,9 @@ export function normalizeTextAnimationEffect({
 							minimum: 0,
 							maximum: 1,
 						}),
+						...(selectorRecord.basedOn === "rank"
+							? { basedOn: "rank" as const }
+							: {}),
 					}
 				: undefined;
 		return {
