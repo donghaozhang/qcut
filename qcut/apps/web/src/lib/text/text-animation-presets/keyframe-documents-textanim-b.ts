@@ -35,6 +35,33 @@ export const ENTRANCE_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
 			},
 		},
 	},
+	// 剪映 渐变拖尾 (7308277117622424090). Each glyph slides in diagonally from
+	// up and to the right (the source's offset, ~0.35 em at the default
+	// duration) and snaps visible once it is a tenth of the way in, staggered
+	// so the line arrives as a trailing diagonal. The smear itself comes from a
+	// feedback-blur pass that is dropped — what remains is the entrance move.
+	"trail-in": {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0.6 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				translateXEm: [
+					{ t: 0, v: 0.35 },
+					{ t: 1, v: 0 },
+				],
+				translateYEm: [
+					{ t: 0, v: 0.35 },
+					{ t: 1, v: 0 },
+				],
+				opacity: [
+					{ t: 0, v: 0 },
+					{ t: 0.099, v: 0 },
+					{ t: 0.1, v: 1 },
+					{ t: 1, v: 1 },
+				],
+			},
+		},
+	},
 	// 剪映 跳跳捣蛋鬼 (7200340219109839419). Each glyph dips and springs back
 	// over a 25-frame window while rocking −15° → +15° → 0, staggered so the
 	// line bounces along. The keyframes live inline in the driver as a
@@ -64,6 +91,37 @@ export const ENTRANCE_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
 };
 
 export const EXIT_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
+	// 剪映 模糊发光 (7301536173959156274). The block turns edge-on about Y (89°
+	// over the first ~19 frames, easing hard out) while its height stretches to
+	// 110% and then crushes to 85% — the source pairs that with a heavy
+	// directional-blur and glow stack, which is dropped; the turn plus the
+	// squash is what carries the exit. rotationYDeg renders as 2D
+	// foreshortening, so the line thins away as it rotates.
+	"blur-glow-out": {
+		sequence: { unit: "all", order: "forward", staggerRatio: 0 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				rotationYDeg: [
+					{ t: 0, v: 0, outValue: 0, outTime: 0.56 },
+					{ t: 0.567, v: 89, inValue: 89, inTime: -0.19 },
+					{ t: 0.649, v: 109 },
+					{ t: 1, v: 109 },
+				],
+				scaleY: [
+					{ t: 0, v: 1 },
+					{ t: 0.147, v: 1 },
+					{ t: 0.561, v: 1.1, inValue: 1.1, inTime: -0.28 },
+					{ t: 1, v: 0.85, inValue: 0.85, inTime: -0.29 },
+				],
+				opacity: [
+					{ t: 0, v: 1 },
+					{ t: 0.7, v: 1 },
+					{ t: 1, v: 0 },
+				],
+			},
+		},
+	},
 	// 剪映 向左解散 (7083752251742753287). The exit twin of 向右集合: identical
 	// constants and stagger, played as a dispersal — each glyph slides half a
 	// text box to the left, the line coming apart from the right end first.
@@ -134,6 +192,21 @@ export const LOOP_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
 					{ t: 1, v: -0.03 },
 				],
 			},
+		},
+	},
+	// 剪映 超强晃动 (7065208406633615909). Every glyph shakes on its own seeded
+	// frequency and amplitude — the driver rolls a per-character frequency
+	// (around 6) and rotation range (±30° on Z, ±10/±15 on X/Y) plus a 0.2–0.5
+	// character-width wobble. QCut's jitter is that same per-unit stepped
+	// shake, so the parametric kind is the mechanism rather than an
+	// approximation; the source's X/Y tilts are dropped (Z dominates).
+	"wild-shake": {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0 },
+		effect: {
+			kind: "jitter",
+			steps: 24,
+			amplitudeX: 0.35,
+			amplitudeY: 0.35,
 		},
 	},
 	// 剪映 颤抖 II (6986920909927879199). A whole-block tremble: the source
