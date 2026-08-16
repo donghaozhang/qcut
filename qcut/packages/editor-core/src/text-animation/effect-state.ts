@@ -555,6 +555,7 @@ function keyframesVisual({
 	const pixelateCell = channel("pixelateCell");
 	const rgbSplitPx = channel("rgbSplitPx");
 	const displaceAmplitudePx = channel("displaceAmplitudePx");
+	const bloomIntensity = channel("bloomIntensity");
 	const raster: TextAnimationRasterEffectState | undefined =
 		pixelateCell !== undefined && pixelateCell >= 1
 			? { kind: "pixelate", cell: pixelateCell }
@@ -572,7 +573,16 @@ function keyframesVisual({
 							scale: effect.rasterScale ?? 24,
 							evolution: linearProgress * (effect.rasterEvolution ?? 1),
 						}
-					: undefined;
+					: bloomIntensity !== undefined && bloomIntensity > 0.01
+						? {
+								kind: "bloom",
+								intensity: bloomIntensity,
+								radiusPx: Math.max(
+									0,
+									channel("bloomRadiusPx") ?? layout.fontSize * 0.5
+								),
+							}
+						: undefined;
 	if (raster) {
 		visual.postProcess = {
 			trailSamples: visual.postProcess?.trailSamples ?? 0,
