@@ -443,15 +443,20 @@ function resolveEffectEnvelope({
 			maxAbs(effect.channels.scaleX),
 			maxAbs(effect.channels.scaleY)
 		);
-		// The painter turns glowRadiusPx into shadowBlur and blurPx into a
-		// filter, both of which paint outside the glyph box — reserve room for
-		// them or the preview clips the halo (glow-pulse peaks at 14 px).
+		// The painter turns glowRadiusPx into shadowBlur, blurPx into a filter
+		// and bloomRadiusPx into the GPU halo, all of which paint outside the
+		// glyph box — reserve room for them or the preview clips the halo
+		// (glow-pulse peaks at 14 px).
 		const glowRadius =
 			maxAbs(effect.channels.glowIntensity) > 0
 				? maxAbs(effect.channels.glowRadiusPx)
 				: 0;
+		const bloomRadius =
+			maxAbs(effect.channels.bloomIntensity) > 0
+				? maxAbs(effect.channels.bloomRadiusPx)
+				: 0;
 		envelope.filterPadding =
-			Math.max(glowRadius, maxAbs(effect.channels.blurPx)) *
+			Math.max(glowRadius, bloomRadius, maxAbs(effect.channels.blurPx)) *
 			TEXT_ANIMATION_FILTER_BLUR_EXTENT;
 		return envelope;
 	}
