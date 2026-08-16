@@ -6,7 +6,7 @@ import {
 	Lock,
 	RefreshCw,
 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -19,13 +19,16 @@ import { useJianyingEffectRuntime } from "./use-jianying-effect-runtime";
 
 /**
  * Jianying-style effect browser: the sidebar mirrors Jianying's own category
- * tabs and every card shows the official cover. QCut ships none of the
- * effects — installed entries come from the local Jianying caches, the rest
- * download on demand through the main process, and every package renders
- * through the local Jianying runtime.
+ * tabs and every card shows the official cover, proxied and disk-cached by the
+ * main process so signatures can expire without breaking tiles. QCut ships
+ * none of the effects — installed entries come from the local Jianying caches,
+ * the rest download on demand, and every package renders through the local
+ * Jianying runtime.
  */
 
 type DownloadState = "downloading" | "failed";
+
+const COVER_CONCURRENCY = 6;
 
 const PANEL_LABELS: Record<JianyingEffectPanel, string> = {
 	effects2: "画面特效",
@@ -52,24 +55,30 @@ function labPreset({
 
 function EffectCoverTile({
 	definition,
+	coverDataUrl,
 	downloadState,
 }: {
 	definition: JianyingEffectDefinition;
+	coverDataUrl: string | undefined;
 	downloadState: DownloadState | undefined;
 }) {
 	return (
 		<div className="relative aspect-video w-full overflow-hidden bg-foreground/5">
-			{definition.coverUrl ? (
+			{coverDataUrl ? (
 				<img
-					src={definition.coverUrl}
+					src={coverDataUrl}
 					alt={definition.name}
-					loading="lazy"
 					className="h-full w-full object-cover"
 					draggable={false}
 				/>
 			) : (
 				<div className="flex h-full w-full items-center justify-center text-muted-foreground">
-					<FlaskConical className="size-4" />
+					{/* "" records a failed fetch; undefined means still loading. */}
+					{definition.coverUrl && coverDataUrl === undefined ? (
+						<Loader2 className="size-4 animate-spin" />
+					) : (
+						<FlaskConical className="size-4" />
+					)}
 				</div>
 			)}
 			{definition.access === "vip" && (
@@ -116,9 +125,70 @@ export function JianyingEffectLabPanel({
 	const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
 		null
 	);
+	// "" marks a cover that failed so the pump advances instead of retrying
+	// forever; anything else is a data URL from the main-process cache.
+	const [covers, setCovers] = useState<Record<string, string>>({});
+	const coversInFlight = useRef(new Set<string>());
 
 	const effects = status?.effects ?? [];
 	const categories = status?.categories ?? [];
+
+	const query = searchQuery.trim().toLowerCase();
+	const activeCategory =
+		categories.find((category) => category.id === selectedCategoryId) ??
+		categories[0];
+	// A search covers everything, like Jianying's 搜索全部特效 box.
+	const visibleEffects = query
+		? effects.filter((effect) => effect.name.toLowerCase().includes(query))
+		: activeCategory
+			? effects.filter(
+					(effect) =>
+						effect.panel === activeCategory.panel &&
+						effect.categoryIds.includes(activeCategory.id)
+				)
+			: effects;
+
+	// Covers stream in through the main process at a small concurrency; the
+	// disk cache makes revisits instant.
+	useEffect(() => {
+		const api = window.electronAPI?.jianyingEffects;
+		if (!api?.cover) return;
+		const pending = visibleEffects.filter(
+			(effect) =>
+				Boolean(effect.coverUrl) &&
+				covers[effect.effectId] === undefined &&
+				!coversInFlight.current.has(effect.effectId)
+		);
+		const capacity = COVER_CONCURRENCY - coversInFlight.current.size;
+		if (pending.length === 0 || capacity <= 0) return;
+
+		let cancelled = false;
+		const batch = pending.slice(0, capacity);
+		for (const effect of batch) {
+			coversInFlight.current.add(effect.effectId);
+		}
+		void Promise.all(
+			batch.map(async (effect) => {
+				try {
+					const result = await api.cover({ effectId: effect.effectId });
+					if (cancelled) return;
+					setCovers((current) => ({
+						...current,
+						[effect.effectId]: result.dataUrl,
+					}));
+				} catch {
+					if (!cancelled) {
+						setCovers((current) => ({ ...current, [effect.effectId]: "" }));
+					}
+				} finally {
+					coversInFlight.current.delete(effect.effectId);
+				}
+			})
+		);
+		return () => {
+			cancelled = true;
+		};
+	}, [visibleEffects, covers]);
 
 	const handleDownload = useCallback(
 		async ({ definition }: { definition: JianyingEffectDefinition }) => {
@@ -185,21 +255,6 @@ export function JianyingEffectLabPanel({
 			</div>
 		);
 	}
-
-	const query = searchQuery.trim().toLowerCase();
-	const activeCategory =
-		categories.find((category) => category.id === selectedCategoryId) ??
-		categories[0];
-	// A search covers everything, like Jianying's 搜索全部特效 box.
-	const visibleEffects = query
-		? effects.filter((effect) => effect.name.toLowerCase().includes(query))
-		: activeCategory
-			? effects.filter(
-					(effect) =>
-						effect.panel === activeCategory.panel &&
-						effect.categoryIds.includes(activeCategory.id)
-				)
-			: effects;
 
 	const installedCount = visibleEffects.filter(
 		(effect) => effect.supported && effect.installed
@@ -283,6 +338,7 @@ export function JianyingEffectLabPanel({
 						>
 							<EffectCoverTile
 								definition={definition}
+								coverDataUrl={covers[definition.effectId]}
 								downloadState={downloads[definition.effectId]}
 							/>
 							<span className="truncate px-1.5 py-1 text-[10px]">
