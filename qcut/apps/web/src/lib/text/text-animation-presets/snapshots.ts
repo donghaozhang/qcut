@@ -31,6 +31,17 @@ const RESTART_LOOP_PRESET_IDS = new Set([
 	"lucky-bag",
 	// The tint window opens outward every cycle; alternating would close it.
 	"color-bounce",
+	// T-script ports whose cycles do not return to their start pose (their
+	// transcription notes flag loopSafeAlternate: false), plus the stepped
+	// palette rotations, which sweep one direction like 变色弹跳.
+	"space-flip-i",
+	"space-flip-ii",
+	"scream-shake",
+	"graffiti-doodle",
+	"rainbow-mocha",
+	"rainbow-macaron",
+	"rainbow-new-year",
+	"rainbow-valentine",
 ]);
 
 function isLoopPreset({
