@@ -374,6 +374,9 @@ function selectorShapeWeight({
 /**
  * Weight of one unit under an animated selector window: shape inside the
  * window, feathered linear falloff beyond its edges (Jianying `smooth`).
+ * Ramp shapes follow AE range-selector semantics and hold at full weight
+ * past their full edge — a rampUp wipe keeps the characters it has not
+ * reached yet fully selected instead of dropping them to zero.
  */
 export function selectorUnitWeight({
 	selector,
@@ -400,6 +403,10 @@ export function selectorUnitWeight({
 			position: (unitPosition - low) / span,
 		});
 	}
+	// 蓝瓣划入 sweeps a rampUp window across the line: characters ahead of
+	// the sweep stay hidden at weight 1 until the ramp releases them.
+	if (selector.shape === "rampUp" && unitPosition > high) return 1;
+	if (selector.shape === "rampDown" && unitPosition < low) return 1;
 	if (selector.feather <= 0) return 0;
 	// Outside the window the edge weight decays linearly over the feather
 	// width; shapes whose profile already ends at zero stay at zero.
