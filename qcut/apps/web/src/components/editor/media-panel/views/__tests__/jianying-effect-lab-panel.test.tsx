@@ -17,6 +17,8 @@ function definition(
 		packagePath: "/cache/effect/1/aaa",
 		name: "卷动",
 		panel: "effects2",
+		categoryIds: ["7728"],
+		coverUrl: "https://p3-heycan-jy-sign.byteimg.com/cover-1.image",
 		defaultDurationMs: 3000,
 		adjustParameters: [
 			{
@@ -43,6 +45,10 @@ function readyStatus(
 		bridgeReady: true,
 		availableCount: effects.filter((e) => e.supported && e.installed).length,
 		effects,
+		categories: [
+			{ id: "7728", name: "基础", panel: "effects2" },
+			{ id: "7730", name: "动感", panel: "effects2" },
+		],
 		message: "已发现本机剪映特效。",
 	};
 }
@@ -114,9 +120,7 @@ describe("JianyingEffectLabPanel", () => {
 		const onApply = vi.fn();
 		render(<JianyingEffectLabPanel onApply={onApply} />);
 
-		expect(
-			await screen.findByText("本机剪映特效 1 个 · 可下载 1 个")
-		).toBeInTheDocument();
+		expect(await screen.findByText(/已装 1 · 可下载 1/)).toBeInTheDocument();
 		fireEvent.click(screen.getByTestId("effect-lab-card-jy-effect-2"));
 
 		await waitFor(() => {
@@ -128,5 +132,29 @@ describe("JianyingEffectLabPanel", () => {
 		await waitFor(() => {
 			expect(status).toHaveBeenCalledTimes(2);
 		});
+	});
+
+	it("filters the grid by the selected Jianying category", async () => {
+		const dynamicEffect = definition({
+			id: "jy-effect-3",
+			effectId: "3",
+			packageHash: "ccc",
+			name: "抖动",
+			categoryIds: ["7730"],
+		});
+		status.mockResolvedValue(readyStatus([definition({}), dynamicEffect]));
+		render(<JianyingEffectLabPanel onApply={vi.fn()} />);
+
+		// The first category (基础) is selected by default.
+		expect(
+			await screen.findByTestId("effect-lab-card-jy-effect-1")
+		).toBeInTheDocument();
+		expect(screen.queryByTestId("effect-lab-card-jy-effect-3")).toBeNull();
+
+		fireEvent.click(screen.getByTestId("effect-lab-category-7730"));
+		expect(
+			await screen.findByTestId("effect-lab-card-jy-effect-3")
+		).toBeInTheDocument();
+		expect(screen.queryByTestId("effect-lab-card-jy-effect-1")).toBeNull();
 	});
 });
