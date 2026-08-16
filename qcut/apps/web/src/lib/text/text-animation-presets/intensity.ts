@@ -123,6 +123,14 @@ function scaleEffectIntensity({
 				amplitudeX: effect.amplitudeX * factor,
 				amplitudeY: effect.amplitudeY * factor,
 			};
+		case "colorCycle":
+			return {
+				...effect,
+				amount: Math.min(1, effect.amount * factor),
+				...(effect.bounceEm !== undefined
+					? { bounceEm: effect.bounceEm * factor }
+					: {}),
+			};
 		case "arc":
 			return {
 				...effect,
