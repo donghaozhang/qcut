@@ -5,6 +5,7 @@ import {
 	evaluateTextColorKeyframeTrack,
 	evaluateTextKeyframeTrack,
 	multiplyTextAnimationColors,
+	sampleTextAnimationPalette,
 	segmentText,
 	selectorUnitWeight,
 	type TextAnimationEffect,
@@ -538,6 +539,7 @@ describe("animated tint track", () => {
 				v: [0.703, 0.563, 1] as [number, number, number],
 				inValue: [0.804, 0.371, 0.66] as [number, number, number],
 				inTime: -0.136,
+				// biome-ignore lint/suspicious/noApproximativeNumericConstant: transcribed handle value, not Math.SQRT1_2
 				outValue: [0.801, 0.707, 1] as [number, number, number],
 				outTime: 0.198,
 			},
@@ -599,6 +601,29 @@ describe("animated tint track", () => {
 		// Jianying tint tracks are multiplicative: white keys mean "no tint"
 		// whatever the element's own fill is.
 		expect(state.container.colorMix?.mode).toBe("multiply");
+	});
+
+	it("lands each rank on its own palette stop", () => {
+		// 彩虹's per-character rotation: rank r sits at position r/stops, which
+		// must floor onto stop r exactly — the old wrap arithmetic dropped
+		// ranks 1 and 2 onto the previous stop.
+		const palette = ["#111111", "#222222", "#333333", "#444444", "#555555"];
+		const sampled = [0, 1, 2, 3, 4].map((rank) =>
+			sampleTextAnimationPalette({
+				palette,
+				position: rank / palette.length,
+				stepped: true,
+			})
+		);
+		expect(sampled).toEqual(palette);
+		// Negative positions still wrap to the end of the palette.
+		expect(
+			sampleTextAnimationPalette({
+				palette,
+				position: -0.2,
+				stepped: true,
+			})
+		).toBe("#555555");
 	});
 
 	it("filters colors multiplicatively with white as identity", () => {
