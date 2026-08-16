@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
 	collectCatalogItems,
 	collectPanelCategories,
+	collectReferenceVerdicts,
 	findUnsafeZipEntries,
 	readAdjustParameters,
 } from "../jianying-effect/catalog-parsing.js";
@@ -276,6 +277,23 @@ describe("panel categories", () => {
 			{ id: "7730", name: "动感", panel: "effects2" },
 			{ id: "424242", name: "综艺", panel: "effects2" },
 		]);
+	});
+});
+
+describe("reference verdicts", () => {
+	it("keeps the last verdict per effect and survives torn lines", () => {
+		const jsonl = [
+			JSON.stringify({ effectId: "1", ok: false }),
+			JSON.stringify({ effectId: "2", ok: true }),
+			'{"effectId": "3", "ok"', // torn line from an interrupted run
+			JSON.stringify({ effectId: "1", ok: true }),
+			"",
+		].join("\n");
+
+		const verdicts = collectReferenceVerdicts({ jsonl });
+		expect(verdicts.get("1")).toBe(true);
+		expect(verdicts.get("2")).toBe(true);
+		expect(verdicts.has("3")).toBe(false);
 	});
 });
 
