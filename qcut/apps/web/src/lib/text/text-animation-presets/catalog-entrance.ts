@@ -602,4 +602,14 @@ export const ENTRANCE_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["whip", "swing", "甩出", "甩入"],
 	},
+	{
+		id: "slide-pop-in",
+		phase: "entrance",
+		nameKey: "textProperties.animationPreset.slidePopIn",
+		previewKind: "keyframes",
+		defaultDuration: 1.0,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["slide", "pop", "左移弹动", "左移", "弹动"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
