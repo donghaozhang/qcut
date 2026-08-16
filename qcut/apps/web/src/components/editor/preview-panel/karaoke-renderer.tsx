@@ -68,8 +68,11 @@ export function KaraokeRenderer({
 						key={seg.wordId || i}
 						style={{
 							display: "inline-block",
-							transform: `scale(${seg.scale}) translateY(${seg.offsetY * canvasScale}px)`,
+							transform: `scale(${seg.scale}) translate(${(seg.offsetX ?? 0) * canvasScale}px, ${seg.offsetY * canvasScale}px)${seg.rotationDeg ? ` rotate(${seg.rotationDeg}deg)` : ""}`,
 							opacity: seg.opacity,
+							...(seg.blurPx
+								? { filter: `blur(${seg.blurPx * canvasScale}px)` }
+								: {}),
 							transition: "transform 0.1s ease-out, opacity 0.1s ease-out",
 							...(isGradient
 								? {
