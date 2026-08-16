@@ -9,6 +9,7 @@ import {
 } from "./keyframe-documents-entrance-a";
 import {
 	ENTRANCE_TEXTANIM_DOCUMENTS_B,
+	EXIT_TEXTANIM_DOCUMENTS_B,
 	LOOP_TEXTANIM_DOCUMENTS_B,
 } from "./keyframe-documents-textanim-b";
 import {
@@ -53,6 +54,7 @@ export const TEXT_KEYFRAME_DOCUMENTS: Record<string, TextKeyframeDocument> = {
 	...withPhase({ phase: "exit", documents: EXIT_KEYFRAME_DOCUMENTS_B }),
 	...withPhase({ phase: "exit", documents: EXIT_AEDATA_DOCUMENTS }),
 	...withPhase({ phase: "exit", documents: EXIT_TEXTANIM_DOCUMENTS }),
+	...withPhase({ phase: "exit", documents: EXIT_TEXTANIM_DOCUMENTS_B }),
 	...withPhase({ phase: "loop", documents: LOOP_KEYFRAME_DOCUMENTS }),
 	...withPhase({ phase: "loop", documents: LOOP_AEDATA_DOCUMENTS }),
 	...withPhase({ phase: "loop", documents: LOOP_TEXTANIM_DOCUMENTS }),
