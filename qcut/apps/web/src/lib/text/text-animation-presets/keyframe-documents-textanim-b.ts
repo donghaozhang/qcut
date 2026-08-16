@@ -348,6 +348,38 @@ export const EXIT_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
 			},
 		},
 	},
+	// 剪映 向左模糊 (7112703727336690189), D≈0.93 (28-frame clock). A leftward
+	// erase: motion blur ramps 0→100 over frames 4–11 and holds while a mask
+	// sweeps right-to-left (mask_right = 1 − bezier(.4,.08,.28,.4)) and a
+	// slight mesh warp (0→−14) drags the glyphs. The smear is the dirBlur
+	// raster pass at 180°; the sweep edge is the per-character stagger
+	// (leading, leftmost characters streak out first). Dropped: the exact
+	// mesh warp (a small leftward drift stands in).
+	"blur-left-out": {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0.3 },
+		effect: {
+			kind: "keyframes",
+			rasterAngleDeg: 180,
+			channels: {
+				opacity: [
+					{ t: 0, v: 1 },
+					{ t: 0.2, v: 1 },
+					{ t: 0.78, v: 0, inValue: 0.15, inTime: -0.2 },
+					{ t: 1, v: 0 },
+				],
+				translateXEm: [
+					{ t: 0, v: 0, outValue: -0.05, outTime: 0.28 },
+					{ t: 1, v: -1.2, inValue: -0.9, inTime: -0.2 },
+				],
+				dirBlurPx: [
+					{ t: 0, v: 0 },
+					{ t: 0.14, v: 3 },
+					{ t: 0.4, v: 30 },
+					{ t: 1, v: 34 },
+				],
+			},
+		},
+	},
 	// 剪映 拖尾 exit (7244102819731477049), D≈0.87 (26-frame clock). The text
 	// collapses to nothing (100→0 over 20 frames, bezier (.37,0,.32,1.02) —
 	// the in-handle overshoots slightly past zero), fading to 25% over the
