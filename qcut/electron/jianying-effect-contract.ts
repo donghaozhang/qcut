@@ -16,6 +16,13 @@ export interface JianyingEffectAdjustParameter {
 	maximum: number;
 }
 
+/** One sidebar tab of the 特效 panel, in Jianying's own order. */
+export interface JianyingEffectCategory {
+	id: string;
+	name: string;
+	panel: JianyingEffectPanel;
+}
+
 export interface JianyingEffectDefinition {
 	id: string;
 	effectId: string;
@@ -26,6 +33,10 @@ export interface JianyingEffectDefinition {
 	packagePath: string;
 	name: string;
 	panel: JianyingEffectPanel;
+	/** Sidebar categories this effect appears under. */
+	categoryIds: string[];
+	/** Signed official cover image (valid ~1 year), for the panel tile. */
+	coverUrl?: string;
 	defaultDurationMs: number;
 	adjustParameters: JianyingEffectAdjustParameter[];
 	access: JianyingEffectAccess;
@@ -56,6 +67,8 @@ export interface JianyingEffectRuntimeStatus {
 	bridgeReady: boolean;
 	availableCount: number;
 	effects: JianyingEffectDefinition[];
+	/** Sidebar tabs for both panels, in Jianying's own order. */
+	categories: JianyingEffectCategory[];
 	message: string;
 }
 
