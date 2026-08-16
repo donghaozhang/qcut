@@ -19,6 +19,7 @@ export {
 	parseTextAnimationHexColor,
 	sampleTextAnimationPalette,
 } from "./color.js";
+export { evaluateTextKeyframeTrack } from "./keyframes.js";
 
 export type {
 	CompiledTextAnimation,
@@ -62,6 +63,9 @@ export type {
 	TextJitter3DEffect,
 	TextJitterEffect,
 	TextColorCycleEffect,
+	TextKeyframesEffect,
+	TextKeyframeChannel,
+	TextKeyframePoint,
 	TextArcEffect,
 	TextSqueezeEffect,
 	TextFoldEffect,
