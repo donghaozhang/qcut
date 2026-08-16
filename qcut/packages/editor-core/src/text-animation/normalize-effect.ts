@@ -1,4 +1,8 @@
-import type { TextAnimationEffect, TextKeyframePoint } from "./model.js";
+import type {
+	TextAnimationEffect,
+	TextColorKeyframePoint,
+	TextKeyframePoint,
+} from "./model.js";
 import {
 	asRecord,
 	normalizeDistance,
@@ -817,6 +821,62 @@ export function normalizeTextAnimationEffect({
 			track.sort((left, right) => left.t - right.t);
 			return track;
 		};
+		const normalizeColorTrack = (
+			value: unknown
+		): TextColorKeyframePoint[] | null => {
+			if (!Array.isArray(value)) return null;
+			const rgb = (entry: unknown): [number, number, number] | undefined => {
+				if (
+					!Array.isArray(entry) ||
+					entry.length < 3 ||
+					entry
+						.slice(0, 3)
+						.some(
+							(component) =>
+								typeof component !== "number" || !Number.isFinite(component)
+						)
+				) {
+					return undefined;
+				}
+				return [
+					Math.min(1, Math.max(0, entry[0])),
+					Math.min(1, Math.max(0, entry[1])),
+					Math.min(1, Math.max(0, entry[2])),
+				];
+			};
+			const track: TextColorKeyframePoint[] = [];
+			for (const entry of value.slice(0, 64)) {
+				const point = asRecord({ value: entry });
+				if (
+					!point ||
+					typeof point.t !== "number" ||
+					!Number.isFinite(point.t)
+				) {
+					continue;
+				}
+				const v = rgb(point.v);
+				if (!v) continue;
+				const inValue = rgb(point.inValue);
+				const outValue = rgb(point.outValue);
+				const time = (timeValue: unknown) =>
+					typeof timeValue === "number" && Number.isFinite(timeValue)
+						? timeValue
+						: undefined;
+				const inTime = time(point.inTime);
+				const outTime = time(point.outTime);
+				track.push({
+					t: Math.min(1, Math.max(0, point.t)),
+					v,
+					...(inValue ? { inValue } : {}),
+					...(outValue ? { outValue } : {}),
+					...(inTime !== undefined ? { inTime } : {}),
+					...(outTime !== undefined ? { outTime } : {}),
+				});
+			}
+			if (track.length === 0) return null;
+			track.sort((left, right) => left.t - right.t);
+			return track;
+		};
 		const channelsRecord = asRecord({ value: record.channels });
 		if (!channelsRecord) return null;
 		const channels: Partial<
@@ -827,6 +887,7 @@ export function normalizeTextAnimationEffect({
 			if (track) channels[name] = track;
 		}
 		if (Object.keys(channels).length === 0) return null;
+		const colorTrack = normalizeColorTrack(record.colorTrack);
 		const selectorRecord = asRecord({ value: record.selector });
 		const selectorStart = selectorRecord
 			? normalizeTrack(selectorRecord.start)
@@ -865,6 +926,7 @@ export function normalizeTextAnimationEffect({
 			...(typeof record.color === "string" && record.color.trim()
 				? { color: record.color.trim() }
 				: {}),
+			...(colorTrack ? { colorTrack } : {}),
 			...(typeof record.glowColor === "string" && record.glowColor.trim()
 				? { glowColor: record.glowColor.trim() }
 				: {}),
