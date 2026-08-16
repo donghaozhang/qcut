@@ -202,6 +202,32 @@ export function collectPanelCategories({
 }
 
 /**
+ * Verdicts from the local reference batch (manifest.jsonl): effectId → did the
+ * runtime actually render it. Reruns append, so the last line per effect wins.
+ */
+export function collectReferenceVerdicts({
+	jsonl,
+}: {
+	jsonl: string;
+}): Map<string, boolean> {
+	const verdicts = new Map<string, boolean>();
+	for (const line of jsonl.split("\n")) {
+		const trimmed = line.trim();
+		if (trimmed.length === 0) continue;
+		try {
+			const entry: unknown = JSON.parse(trimmed);
+			if (typeof entry !== "object" || entry === null) continue;
+			const record = entry as Record<string, unknown>;
+			if (typeof record.effectId !== "string") continue;
+			verdicts.set(record.effectId, record.ok === true);
+		} catch {
+			// A torn line from an interrupted run contributes nothing.
+		}
+	}
+	return verdicts;
+}
+
+/**
  * Zip entries that could escape the extraction directory. Checked against the
  * archive listing before unzip runs, because the CLI extractor offers no
  * containment guarantee of its own.
