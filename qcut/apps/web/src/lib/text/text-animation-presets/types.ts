@@ -48,7 +48,8 @@ export type TextAnimationPreviewKind =
 	| "confetti-burst"
 	| "lucky-bag"
 	| "color-bounce"
-	| "glow-pulse";
+	| "glow-pulse"
+	| "petal-wipe";
 
 export interface TextAnimationPresetDefinition {
 	id: string;
