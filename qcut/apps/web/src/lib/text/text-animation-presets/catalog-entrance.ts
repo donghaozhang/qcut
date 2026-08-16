@@ -672,4 +672,14 @@ export const ENTRANCE_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["mosaic", "pixel", "马赛克滑入", "马赛克", "滑入"],
 	},
+	{
+		id: "glow-flicker-in",
+		phase: "entrance",
+		nameKey: "textProperties.animationPreset.glowFlickerIn",
+		previewKind: "keyframes",
+		defaultDuration: 2.0,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["glow", "flicker", "neon", "发光闪入", "发光", "闪入"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
