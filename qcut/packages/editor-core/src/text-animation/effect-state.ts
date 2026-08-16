@@ -1013,6 +1013,23 @@ function loopVisual({
 		visual.scaleX = scale;
 		visual.scaleY = scale;
 	}
+	if (effect.kind === "marquee") {
+		// Jianying's 环形滚动: each line slides exactly one wrap period per
+		// cycle and characters that leave one edge re-enter from the other
+		// (position wraps mod period, period = block width + gap). Odd rows
+		// run the opposite way when alternate is set. progress 0 and 1 land
+		// on identity, so the loop is seamless.
+		const bounds = unitBounds({ unit, layout });
+		const period = layout.bounds.width + effect.gapEm * layout.fontSize;
+		const lineIndex = layout.graphemes[unit.graphemeStart]?.lineIndex ?? 0;
+		const direction = effect.alternate && lineIndex % 2 === 1 ? -1 : 1;
+		const center = bounds.x + bounds.width / 2;
+		const blockCenter = layout.bounds.x + layout.bounds.width / 2;
+		const rel = center - blockCenter;
+		let wrapped = (rel + period / 2 + direction * progress * period) % period;
+		if (wrapped < 0) wrapped += period;
+		visual.translateX = wrapped - period / 2 - rel;
+	}
 	if (effect.kind === "jitter") {
 		// Ported from Jianying's stepped shake: local time is floored into
 		// `steps` poses per cycle, then each unit's offset comes from a product
