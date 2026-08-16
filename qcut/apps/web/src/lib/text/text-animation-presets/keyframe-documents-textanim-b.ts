@@ -125,6 +125,49 @@ export const ENTRANCE_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
 	// each character's flicker modulates its own glow. Dropped: the second
 	// clone-layer noise (glow already tracks the glyph alpha here); the
 	// self-colored glow (u_TextColor) — ours stays white.
+	// 剪映 描边填充 (7308269965453300262), D=0.9. The line arrives as pure
+	// stroke copies sliding in from off-axis (offset 0.25·(1−ss), ss on the
+	// sharp-attack bezier (.027,.82,.667,1), alpha on (.027,.28,.667,1)),
+	// the block holds 82% scale until halfway then settles to 100%
+	// (ADBE_Scale_0_0: 82→100 over frames 25–44, S-eased), and the fill pops
+	// word-by-word over the last third (alpha_p = remap01(0.67, 1, p)) — the
+	// stroke hides where the fill lands. The stroke↔fill swap is the
+	// outlineAmount channel; word order and the pop spread come from the
+	// word-unit stagger. Dropped: the extra echo copies (6 staggered offsets
+	// per clone) and the alternating ± slide direction — one stroke layer
+	// slides from above.
+	"stroke-fill-in": {
+		sequence: { unit: "word", order: "forward", staggerRatio: 0.3 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				opacity: [
+					{ t: 0, v: 0, outValue: 0.28, outTime: 0.004 },
+					{ t: 0.15, v: 1, inValue: 1, inTime: -0.05 },
+				],
+				translateYEm: [
+					{ t: 0, v: -1.2, outValue: -0.21, outTime: 0.014 },
+					{ t: 0.5, v: 0, inValue: 0, inTime: -0.167 },
+				],
+				outlineAmount: [
+					{ t: 0, v: 1 },
+					{ t: 0.68, v: 1 },
+					{ t: 0.78, v: 0 },
+					{ t: 1, v: 0 },
+				],
+				scaleX: [
+					{ t: 0, v: 0.82 },
+					{ t: 0.5, v: 0.82, outValue: 0.82, outTime: 0.167 },
+					{ t: 1, v: 1, inValue: 0.998, inTime: -0.167 },
+				],
+				scaleY: [
+					{ t: 0, v: 0.82 },
+					{ t: 0.5, v: 0.82, outValue: 0.82, outTime: 0.167 },
+					{ t: 1, v: 1, inValue: 0.998, inTime: -0.167 },
+				],
+			},
+		},
+	},
 	"glow-flicker-in": {
 		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0.3 },
 		effect: {
