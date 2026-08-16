@@ -183,6 +183,37 @@ describe("keyframes effect", () => {
 		});
 	});
 
+	it("wraps marquee characters around the period seamlessly", () => {
+		const element = createElement({
+			overrides: {
+				content: "AB",
+				duration: 3,
+				textAnimations: createAnimation({
+					loop: createPhase({
+						effect: { kind: "marquee", gapEm: 1, alternate: true },
+						unit: "grapheme",
+						// Per-unit target: the block-level target would evaluate
+						// the marquee once and land it on the container.
+						target: "text",
+						duration: 1,
+					}),
+				}),
+			},
+		});
+		const compiled = compileTextAnimation({ element, fps: 100 });
+		const layout = createLayout({ content: "AB" });
+		const at = (frame: number) =>
+			evaluateTextAnimationFrame({ compiled, frame, layout });
+		// Period = block width 40 + gap 20 = 60. Identity at the cycle edges.
+		expect(at(0).units[0]?.visual.translateX).toBeCloseTo(0);
+		expect(at(0).units[1]?.visual.translateX).toBeCloseTo(0);
+		// Halfway: A (center 10) slides +30 into the gap; B (center 30) has
+		// wrapped and re-entered from the left edge.
+		const mid = at(50);
+		expect(mid.units[0]?.visual.translateX).toBeCloseTo(30);
+		expect(mid.units[1]?.visual.translateX).toBeCloseTo(-30);
+	});
+
 	it("drives the outline crossfade from the outlineAmount track", () => {
 		const effect: TextAnimationEffect = {
 			kind: "keyframes",
