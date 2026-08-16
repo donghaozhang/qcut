@@ -44,6 +44,12 @@ const KARAOKE_MODE_LABEL_KEYS: Record<KaraokeMode, TranslationKey> = {
 	expand: "caption.karaoke.expand",
 	shine: "caption.karaoke.shine",
 	pulse: "caption.karaoke.pulse",
+	"fly-in": "caption.karaoke.flyIn",
+	gather: "caption.karaoke.gather",
+	flip: "caption.karaoke.flip",
+	"blur-roll": "caption.karaoke.blurRoll",
+	glitch: "caption.karaoke.glitch",
+	mischief: "caption.karaoke.mischief",
 };
 
 interface LyricsSource {
