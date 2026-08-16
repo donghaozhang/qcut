@@ -624,6 +624,21 @@ describe("animated tint track", () => {
 				stepped: true,
 			})
 		).toBe("#555555");
+		// Every negative stop boundary lands exactly: wrapping in 0..1 space
+		// first put −0.8 at 0.999… and picked stop 0 instead of stop 1.
+		expect(
+			[-0.8, -0.6, -0.4, -0.2].map((position) =>
+				sampleTextAnimationPalette({ palette, position, stepped: true })
+			)
+		).toEqual(["#222222", "#333333", "#444444", "#555555"]);
+		// Other palette lengths keep their exact boundaries too.
+		expect(
+			sampleTextAnimationPalette({
+				palette: ["#aaaaaa", "#bbbbbb", "#cccccc"],
+				position: -1 / 3,
+				stepped: true,
+			})
+		).toBe("#cccccc");
 	});
 
 	it("filters colors multiplicatively with white as identity", () => {
