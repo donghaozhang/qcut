@@ -37,6 +37,195 @@ function easeOutBounce(t: number): number {
 	return n1 * v * v + 0.984375;
 }
 
+/**
+ * Standard CSS cubic-bezier easing: solves x(t) = progress for t, returns
+ * y(t). Newton iteration is plenty at render precision.
+ */
+function cubicBezier(
+	x1: number,
+	y1: number,
+	x2: number,
+	y2: number
+): (progress: number) => number {
+	const sample = (t: number, a: number, b: number) =>
+		3 * t * (1 - t) * (1 - t) * a + 3 * t * t * (1 - t) * b + t * t * t;
+	return (progress: number) => {
+		const x = clamp(progress, 0, 1);
+		if (x <= 0) return 0;
+		if (x >= 1) return 1;
+		let t = x;
+		for (let i = 0; i < 6; i++) {
+			const error = sample(t, x1, x2) - x;
+			if (Math.abs(error) < 1e-4) break;
+			const dx =
+				3 * (1 - t) * (1 - t) * x1 +
+				6 * t * (1 - t) * (x2 - x1) +
+				3 * t * t * (1 - x2);
+			if (Math.abs(dx) < 1e-6) break;
+			t -= error / dx;
+			t = clamp(t, 0, 1);
+		}
+		return sample(t, y1, y2);
+	};
+}
+
+/** 缩小's slam curve; the source drives each spoken word 10→1 with it. */
+const slamEase = cubicBezier(0.43, 0.09, 0.44, 0.96);
+/** 扩展's sharp-attack spread curve. */
+const expandEase = cubicBezier(0.074, 0, 0.324, 1);
+/** 律动's beat ease. */
+const pulseEase = cubicBezier(0.72, 0, 0.28, 1);
+
+/** 弹簧's elastic-out: exp(−7t)·sin((t−0.075)·2π/0.3)+1, from its driver. */
+function springElastic(t: number): number {
+	if (t <= 0) return 0;
+	if (t >= 1) return 1;
+	return Math.exp(-7 * t) * Math.sin(((t - 0.075) * 2 * Math.PI) / 0.3) + 1;
+}
+
+/** A word's 0..1 progress through its own spoken slot. */
+function wordProgress(word: WordItem, time: number): number {
+	return clamp(
+		(time - word.start) / Math.max(0.05, word.end - word.start),
+		0,
+		1
+	);
+}
+
+/**
+ * Shared shape for the Jianying caption-pool entrance mechanisms: words
+ * before their slot are hidden, the active word plays `animate(progress)`,
+ * spoken words rest. Curves are transcribed from the caption-pool drivers
+ * (docs/task/jianying-text-anim-port/RECLASS-2026-08.md) — here they run on
+ * the real word clock the sources used.
+ */
+function wordEntrance(
+	words: WordItem[],
+	time: number,
+	animate: (progress: number) => Pick<KaraokeSegment, "opacity" | "scale">
+): KaraokeSegment[] {
+	return words.map((word) => {
+		if (time < word.start) {
+			return {
+				wordId: word.id,
+				text: word.text,
+				state: "hidden" as const,
+				opacity: 0,
+				scale: 1,
+				offsetY: 0,
+			};
+		}
+		if (time >= word.end) {
+			return {
+				wordId: word.id,
+				text: word.text,
+				state: "completed" as const,
+				opacity: 1,
+				scale: 1,
+				offsetY: 0,
+			};
+		}
+		return {
+			wordId: word.id,
+			text: word.text,
+			state: "active" as const,
+			offsetY: 0,
+			...animate(wordProgress(word, time)),
+		};
+	});
+}
+
+/** 剪映 缩小: the word slams from large to rest (source 10×, toned to 3×). */
+function slam(words: WordItem[], time: number): KaraokeSegment[] {
+	return wordEntrance(words, time, (progress) => ({
+		opacity: clamp(progress / 0.05, 0, 1),
+		scale: 3 - 2 * slamEase(progress),
+	}));
+}
+
+/** 剪映 弹簧: the word springs in on the driver's elastic-out. */
+function spring(words: WordItem[], time: number): KaraokeSegment[] {
+	return wordEntrance(words, time, (progress) => ({
+		opacity: clamp(progress / 0.08, 0, 1),
+		scale: Math.max(0, springElastic(progress)),
+	}));
+}
+
+/** 剪映 重叠: the word drops onto the line from 1.35×. */
+function overlap(words: WordItem[], time: number): KaraokeSegment[] {
+	return wordEntrance(words, time, (progress) => ({
+		opacity: clamp(progress / 0.06, 0, 1),
+		scale: 1.35 - 0.35 * clamp(progress / 0.4, 0, 1),
+	}));
+}
+
+/** 剪映 扩展: the word spreads 0.85→1.06 and settles. */
+function expand(words: WordItem[], time: number): KaraokeSegment[] {
+	return wordEntrance(words, time, (progress) => {
+		const spread = expandEase(clamp(progress / 0.5, 0, 1));
+		const settle = clamp((progress - 0.5) / 0.5, 0, 1);
+		return {
+			opacity: clamp(progress / 0.08, 0, 1),
+			scale: 0.85 + 0.21 * spread - 0.06 * settle,
+		};
+	});
+}
+
+/** 剪映 波形扫光: a light band brightens the word being spoken. */
+function shine(
+	words: WordItem[],
+	time: number,
+	highlightColor: string
+): KaraokeSegment[] {
+	return words.map((word) => {
+		const isActive = time >= word.start && time < word.end;
+		const progress = wordProgress(word, time);
+		// The band peaks mid-word and hands off to the next.
+		const band = isActive ? Math.sin(progress * Math.PI) : 0;
+		return {
+			wordId: word.id,
+			text: word.text,
+			state: isActive
+				? ("active" as const)
+				: time >= word.end
+					? ("completed" as const)
+					: ("upcoming" as const),
+			opacity: 1,
+			scale: 1 + 0.06 * band,
+			offsetY: 0,
+			...(band > 0.25 ? { color: highlightColor } : {}),
+		};
+	});
+}
+
+/** 剪映 律动: the spoken word bumps on the beat ease (RGB split dropped). */
+function pulse(words: WordItem[], time: number): KaraokeSegment[] {
+	return words.map((word) => {
+		const isActive = time >= word.start && time < word.end;
+		const progress = wordProgress(word, time);
+		// Up fast, dip, settle — the driver's beat shape on (.72,0,.28,1).
+		const beat = isActive
+			? progress < 0.3
+				? 1 + 0.12 * pulseEase(progress / 0.3)
+				: progress < 0.55
+					? 1.12 - 0.14 * pulseEase((progress - 0.3) / 0.25)
+					: 0.98 + 0.02 * pulseEase((progress - 0.55) / 0.45)
+			: 1;
+		return {
+			wordId: word.id,
+			text: word.text,
+			state: isActive
+				? ("active" as const)
+				: time >= word.end
+					? ("completed" as const)
+					: ("upcoming" as const),
+			opacity: 1,
+			scale: beat,
+			offsetY: 0,
+		};
+	});
+}
+
 /** Word highlight: current word changes color + scales up 15%, floats up 2px */
 function wordHighlight(
 	words: WordItem[],
@@ -214,6 +403,18 @@ export function getKaraokeSegments(
 			return bounce(words, currentTime);
 		case "typewriter":
 			return typewriter(words, currentTime);
+		case "slam":
+			return slam(words, currentTime);
+		case "spring":
+			return spring(words, currentTime);
+		case "overlap":
+			return overlap(words, currentTime);
+		case "expand":
+			return expand(words, currentTime);
+		case "shine":
+			return shine(words, currentTime, highlightColor);
+		case "pulse":
+			return pulse(words, currentTime);
 		default:
 			return staticMode(words);
 	}
