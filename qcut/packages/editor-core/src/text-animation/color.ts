@@ -4,7 +4,7 @@
  * blank a frame.
  */
 
-interface RgbColor {
+export interface RgbColor {
 	r: number;
 	g: number;
 	b: number;
@@ -113,13 +113,14 @@ export function sampleTextAnimationPalette({
 }): string {
 	if (palette.length === 0) return "#ffffff";
 	if (palette.length === 1) return palette[0];
-	// Shift negatives up rather than round-tripping through `(x % 1 + 1) % 1`:
-	// that form loses a bit of precision on exact stop boundaries (0.2 comes
-	// back as 0.19999999999999996), which floors a unit onto the PREVIOUS
-	// stop — 彩虹's neighbouring characters landed on the same color.
-	let wrapped = position % 1;
-	if (wrapped < 0) wrapped += 1;
-	const scaled = wrapped * palette.length;
+	// Wrap in STOP space, not in 0..1 space. Normalizing the position first
+	// loses a bit on exact stop boundaries (0.2 comes back as
+	// 0.19999999999999996, and −0.8 as 0.19999999999999996 × 5 = 0.999…),
+	// which floors a unit onto the PREVIOUS stop — 彩虹's neighbouring
+	// characters landed on the same color. Scaling first keeps the boundaries
+	// on whole numbers, which are exact.
+	let scaled = (position * palette.length) % palette.length;
+	if (scaled < 0) scaled += palette.length;
 	const index = Math.floor(scaled) % palette.length;
 	if (stepped) return palette[index];
 	const next = (index + 1) % palette.length;
