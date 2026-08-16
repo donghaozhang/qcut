@@ -19,7 +19,10 @@ export {
 	parseTextAnimationHexColor,
 	sampleTextAnimationPalette,
 } from "./color.js";
-export { evaluateTextKeyframeTrack } from "./keyframes.js";
+export {
+	evaluateTextColorKeyframeTrack,
+	evaluateTextKeyframeTrack,
+} from "./keyframes.js";
 export { selectorUnitWeight } from "./effect-state.js";
 
 export type {
@@ -69,6 +72,7 @@ export type {
 	TextKeyframesSelector,
 	TextSelectorShape,
 	TextKeyframeChannel,
+	TextColorKeyframePoint,
 	TextKeyframePoint,
 	TextArcEffect,
 	TextSqueezeEffect,
