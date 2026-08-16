@@ -1,4 +1,7 @@
-import type { TextAnimationRect } from "@qcut/editor-core";
+import type {
+	TextAnimationGlowState,
+	TextAnimationRect,
+} from "@qcut/editor-core";
 import type { TextElement } from "@/types/timeline";
 import type { CanvasTextAnimationGrapheme } from "./text-animation-canvas-layout";
 import {
@@ -80,6 +83,7 @@ export function drawTextAnimationGlyph({
 	grapheme,
 	style,
 	fillColor,
+	animatedGlow,
 }: {
 	ctx: CanvasTextContext;
 	element: TextElement;
@@ -87,6 +91,8 @@ export function drawTextAnimationGlyph({
 	style: ResolvedTextStyle;
 	/** Animated per-unit fill (color channel); defaults to the element fill. */
 	fillColor?: string;
+	/** Animated render-group glow (post-effect chain). */
+	animatedGlow?: TextAnimationGlowState;
 }): void {
 	if (!grapheme.text || /^[\r\n]+$/u.test(grapheme.text)) return;
 	const fill = fillColor ?? element.color;
@@ -101,6 +107,17 @@ export function drawTextAnimationGlyph({
 		ctx.fillStyle = fill;
 		ctx.shadowColor = colorWithOpacity(style.glowColor, style.glowOpacity);
 		ctx.shadowBlur = style.glowBlur;
+		ctx.fillText(grapheme.text, 0, 0);
+		ctx.restore();
+	}
+	if (animatedGlow && animatedGlow.intensity > 0 && animatedGlow.radiusPx > 0) {
+		ctx.save();
+		ctx.fillStyle = fill;
+		ctx.shadowColor = colorWithOpacity(
+			animatedGlow.color,
+			animatedGlow.intensity
+		);
+		ctx.shadowBlur = animatedGlow.radiusPx;
 		ctx.fillText(grapheme.text, 0, 0);
 		ctx.restore();
 	}
