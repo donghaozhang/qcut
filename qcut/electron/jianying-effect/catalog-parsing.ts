@@ -23,6 +23,8 @@ export interface CatalogItem {
 	requirements: string[];
 	adjustParameters: JianyingEffectAdjustParameter[];
 	vip: boolean;
+	/** Signed package download URLs from the catalog (may be empty). */
+	itemUrls: string[];
 }
 
 /** 画面特效 lives in the `effects2` panel, 人物特效 in `face-prop`. */
@@ -117,6 +119,23 @@ function readPanel({ url }: { url: string }): JianyingEffectPanel | null {
 	return EFFECT_PANELS.find((panel) => url.includes(`_${panel}_`)) ?? null;
 }
 
+/**
+ * Zip entries that could escape the extraction directory. Checked against the
+ * archive listing before unzip runs, because the CLI extractor offers no
+ * containment guarantee of its own.
+ */
+export function findUnsafeZipEntries({
+	entries,
+}: {
+	entries: string[];
+}): string[] {
+	return entries.filter((entry) => {
+		if (entry.startsWith("/") || entry.startsWith("\\")) return true;
+		if (/^[A-Za-z]:/.test(entry)) return true;
+		return entry.split(/[\\/]/).some((segment) => segment === "..");
+	});
+}
+
 export function collectCatalogItems({
 	rows,
 }: {
@@ -154,6 +173,13 @@ export function collectCatalogItems({
 					)
 				: [];
 
+			const itemUrls = Array.isArray(attributes.item_urls)
+				? attributes.item_urls.filter(
+						(value): value is string =>
+							typeof value === "string" && value.startsWith("https://")
+					)
+				: [];
+
 			byEffectId.set(effectId, {
 				effectId,
 				title: readString({ source: attributes, key: "title" }),
@@ -168,6 +194,7 @@ export function collectCatalogItems({
 					sdkExtra: readString({ source: attributes, key: "sdk_extra" }),
 				}),
 				vip: extra.is_vip === true,
+				itemUrls,
 			});
 		}
 	}
