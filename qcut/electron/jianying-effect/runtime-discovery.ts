@@ -5,7 +5,7 @@ import type {
 	JianyingEffectRuntimeState,
 	JianyingEffectRuntimeStatus,
 } from "../jianying-effect-contract.js";
-import { discoverJianyingEffects } from "./catalog.js";
+import { discoverJianyingEffectLibrary } from "./catalog.js";
 
 export interface JianyingEffectRuntimeInspection {
 	status: JianyingEffectRuntimeStatus;
@@ -57,10 +57,10 @@ export async function inspectJianyingEffectRuntime(): Promise<JianyingEffectRunt
 				}).catch(() => null)
 			: null;
 
-	const effects =
+	const { effects, categories } =
 		transitionInspection.status.state === "unsupported-platform"
-			? []
-			: await discoverJianyingEffects();
+			? { effects: [], categories: [] }
+			: await discoverJianyingEffectLibrary();
 	// "Available" = renderable right now; downloadable-only entries still count
 	// toward readiness because one click installs them.
 	const availableCount = effects.filter(
@@ -86,6 +86,7 @@ export async function inspectJianyingEffectRuntime(): Promise<JianyingEffectRunt
 			bridgeReady: Boolean(bridgePath),
 			availableCount,
 			effects,
+			categories,
 			message: describe({ state, availableCount }),
 		},
 		appBundlePath,
