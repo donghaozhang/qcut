@@ -339,6 +339,20 @@ export function effectForPreset({
 				flutter: 0.25,
 				seed: presetSeed({ presetId }),
 			};
+		case "loop:color-bounce":
+			// 变色弹跳, calibrated from the plaintext package (7522411659407789353):
+			// a feathered window sweeps outward tinting characters pure yellow
+			// [1,1,0] and lifting them 0.2 em; both hold until the cycle restarts.
+			return {
+				kind: "colorCycle",
+				palette: ["#ffff00"],
+				amount: 1,
+				cycles: 1,
+				rankOffset: 0,
+				stepped: false,
+				envelope: "hold",
+				bounceEm: 0.2,
+			};
 		case "exit:particle-shatter":
 			// LumiDust port: noise dissolve front, seeded tile drift, gravity.
 			return {
@@ -531,6 +545,8 @@ function staggerRatioForPreset({
 		return 0;
 	}
 	if (presetId === "flip-open") return 0.83;
+	// 变色弹跳's window front takes most of the cycle to sweep the line.
+	if (presetId === "color-bounce") return 0.7;
 	// Spreading phases across nearly the whole cycle is what turns orbit's
 	// shared circle into Jianying's ring layout.
 	if (presetId === "ring-orbit") return 0.95;
@@ -582,13 +598,18 @@ export function sequenceForPreset({
 		"random-fly-out",
 		"shrink-shake",
 		"elastic-out",
+		"color-bounce",
 	]);
 	const order =
 		presetId === "typewriter-out"
 			? "reverse"
 			: presetId === "random-fly-out" || presetId === "elastic-out"
 				? "random"
-				: "forward";
+				: // Reference 变色弹跳: the tint window opens from the text center
+					// outward, so the color front reaches both ends last.
+					presetId === "color-bounce"
+					? "centerOut"
+					: "forward";
 	const staggerRatio = staggerRatioForPreset({
 		isGraphemePreset: graphemePresets.has(presetId),
 		presetId,
