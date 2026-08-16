@@ -9,6 +9,7 @@ export type {
 	JianyingEffectAccess,
 	JianyingEffectAdjustParameter,
 	JianyingEffectAdjustValue,
+	JianyingEffectCategory,
 	JianyingEffectDefinition,
 	JianyingEffectDownloadRequest,
 	JianyingEffectDownloadResult,
