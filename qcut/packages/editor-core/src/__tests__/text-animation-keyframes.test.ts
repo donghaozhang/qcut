@@ -221,6 +221,42 @@ describe("keyframes effect", () => {
 		expect(at(99).container.postProcess?.raster).toBeUndefined();
 	});
 
+	it("drives the echo raster pass with a signed spread", () => {
+		const effect: TextAnimationEffect = {
+			kind: "keyframes",
+			channels: {
+				// Negative spread = outward shells; over-range proves the clamp.
+				echoAmount: [
+					{ t: 0, v: -1.4 },
+					{ t: 1, v: -1.4 },
+				],
+			},
+		};
+		const element = createElement({
+			overrides: {
+				content: "AB",
+				duration: 3,
+				textAnimations: createAnimation({
+					entrance: createPhase({
+						effect,
+						target: "textAndBackground",
+						duration: 1,
+					}),
+				}),
+			},
+		});
+		const state = evaluateTextAnimationFrame({
+			compiled: compileTextAnimation({ element, fps: 100 }),
+			frame: 50,
+			layout: createLayout({ content: "AB" }),
+		});
+		expect(state.container.postProcess?.raster).toEqual({
+			kind: "echo",
+			spread: -1,
+			samples: 12,
+		});
+	});
+
 	it("wraps marquee characters around the period seamlessly", () => {
 		const element = createElement({
 			overrides: {
