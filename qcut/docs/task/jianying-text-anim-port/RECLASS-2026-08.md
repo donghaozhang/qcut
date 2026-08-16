@@ -31,7 +31,7 @@ bloom, outlineAmount, per-unit glow, strongest-unit raster, marquee).
 | 拖尾(入场 7244102915239973432)| entrance | **可做** — 13 份同心缩放回声(0.5→1,bezier .167/.167/.48/1,错峰 (4+i)/34,长满即隐)+ AE 缩放/高斯轨。需给 keyframes 文档加 trail 通道(trailStrength/trailSamples 状态已存在,缺通道接线) |
 | 拖尾(出场 7244102819731477049)| exit | **可做** — 入场的镜像(同族 driver) |
 | 向左模糊 | exit | **可做** — 方向性模糊;raster pass 加 "dirBlur" kind(沿方向多次 drawImage 低 alpha 叠印)即可,连 WebGL 都不用 |
-| 缤纷冲屏 | entrance | **待读** — 唯一逐帧驱动 glow 的包(×3),大场面多 shader,需单独判定 |
+| 缤纷冲屏 | entrance | **可近似**(已读,7116829842271638053)— 三层实例 ×8 档 Deep_Glow + 径向模糊冲屏 + 高斯。径向模糊≈echo kind(小 spread 多壳),deep glow≈bloom,冲屏≈scale 过冲 —— 无需新能力,但 939 行 driver 转录量大,留作下批 |
 | 影像叠加 | loop | **阻塞** — 混合模式 + 影像纹理 |
 | 拼贴纹理 | loop | **阻塞** — 纹理拼贴素材 |
 | 彩色火焰 | loop | **阻塞** — 程序化火焰 shader(多 pass 噪声场,超出 raster pass 表达力) |
@@ -46,9 +46,9 @@ bloom, outlineAmount, per-unit glow, strongest-unit raster, marquee).
 
 ## 下一步 / Next
 
-1. 拖尾对(entrance+exit):加 trail 通道 → 双预设
-2. 向左模糊:dirBlur raster kind → 单预设
-3. 缤纷冲屏:读 driver 单独判定
+1. ~~拖尾对~~ ✅ echo raster kind(带符号 spread)→ echo-trail-in / echo-trail-out
+2. ~~向左模糊~~ ✅ dirBlur raster kind → blur-left-out
+3. ~~缤纷冲屏判定~~ ✅ 可近似(echo+bloom+scale 组合),转录留作下批
 4. 已移植的发光近似预设(glow-flicker 等)可选升级:glowIntensity →
    bloomIntensity(视觉从 shadowBlur 换成真 bloom)
 5. 之后进入"自己写"阶段(README §7 的命名决策仍待定)
