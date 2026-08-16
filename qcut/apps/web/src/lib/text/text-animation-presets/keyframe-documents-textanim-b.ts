@@ -125,6 +125,49 @@ export const ENTRANCE_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
 	// each character's flicker modulates its own glow. Dropped: the second
 	// clone-layer noise (glow already tracks the glyph alpha here); the
 	// self-colored glow (u_TextColor) — ours stays white.
+	// 剪映 扭曲模糊 (7089261793406620197), D=2. Characters fade in and grow
+	// 0.95→1 on the bezier (.22,.6,.52,.93) with a 25% in-line stagger while
+	// the whole block boils under a noise warp plus a blur (blurSize 2,
+	// noiseInfo drifting 0.2 per cycle) that both clear over the last ~30%
+	// (blur_live_time 0.781, wave_progress.y = remap01(0.7, 1, p)). The warp
+	// is the displacement raster pass; with a per-grapheme document the pass
+	// follows the strongest unit, so it keeps boiling until the last
+	// character settles — matching the source's global clear wave. Dropped:
+	// the warp shader's exact noise (ours is the shared value-noise field).
+	"warp-blur-in": {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0.25 },
+		effect: {
+			kind: "keyframes",
+			rasterScale: 24,
+			rasterEvolution: 1.5,
+			channels: {
+				opacity: [
+					{ t: 0, v: 0, outValue: 0.6, outTime: 0.22 },
+					{ t: 1, v: 1, inValue: 0.93, inTime: -0.48 },
+				],
+				scaleX: [
+					{ t: 0, v: 0.95, outValue: 0.98, outTime: 0.22 },
+					{ t: 1, v: 1, inValue: 0.9965, inTime: -0.48 },
+				],
+				scaleY: [
+					{ t: 0, v: 0.95, outValue: 0.98, outTime: 0.22 },
+					{ t: 1, v: 1, inValue: 0.9965, inTime: -0.48 },
+				],
+				displaceAmplitudePx: [
+					{ t: 0, v: 6 },
+					{ t: 0.55, v: 4 },
+					{ t: 0.8, v: 0 },
+					{ t: 1, v: 0 },
+				],
+				blurPx: [
+					{ t: 0, v: 6 },
+					{ t: 0.55, v: 4 },
+					{ t: 0.8, v: 0 },
+					{ t: 1, v: 0 },
+				],
+			},
+		},
+	},
 	// 剪映 描边填充 (7308269965453300262), D=0.9. The line arrives as pure
 	// stroke copies sliding in from off-axis (offset 0.25·(1−ss), ss on the
 	// sharp-attack bezier (.027,.82,.667,1), alpha on (.027,.28,.667,1)),
