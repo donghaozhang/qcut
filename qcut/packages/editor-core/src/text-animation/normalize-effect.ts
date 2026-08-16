@@ -1,4 +1,4 @@
-import type { TextAnimationEffect } from "./model.js";
+import type { TextAnimationEffect, TextKeyframePoint } from "./model.js";
 import {
 	asRecord,
 	normalizeDistance,
@@ -765,6 +765,69 @@ export function normalizeTextAnimationEffect({
 				minimum: 0,
 				maximum: 1,
 			}),
+		};
+	}
+	if (record.kind === "keyframes") {
+		const KEYFRAME_CHANNELS = [
+			"translateXEm",
+			"translateYEm",
+			"scaleX",
+			"scaleY",
+			"rotationDeg",
+			"rotationXDeg",
+			"rotationYDeg",
+			"opacity",
+			"blurPx",
+			"colorAmount",
+		] as const;
+		const channelsRecord = asRecord({ value: record.channels });
+		if (!channelsRecord) return null;
+		const channels: Partial<
+			Record<(typeof KEYFRAME_CHANNELS)[number], TextKeyframePoint[]>
+		> = {};
+		for (const name of KEYFRAME_CHANNELS) {
+			const raw = channelsRecord[name];
+			if (!Array.isArray(raw)) continue;
+			const track: TextKeyframePoint[] = [];
+			for (const entry of raw.slice(0, 64)) {
+				const point = asRecord({ value: entry });
+				if (
+					!point ||
+					typeof point.t !== "number" ||
+					!Number.isFinite(point.t) ||
+					typeof point.v !== "number" ||
+					!Number.isFinite(point.v)
+				) {
+					continue;
+				}
+				const handle = (value: unknown) =>
+					typeof value === "number" && Number.isFinite(value)
+						? value
+						: undefined;
+				const inValue = handle(point.inValue);
+				const outValue = handle(point.outValue);
+				const inTime = handle(point.inTime);
+				const outTime = handle(point.outTime);
+				track.push({
+					t: Math.min(1, Math.max(0, point.t)),
+					v: point.v,
+					...(inValue !== undefined ? { inValue } : {}),
+					...(outValue !== undefined ? { outValue } : {}),
+					...(inTime !== undefined ? { inTime } : {}),
+					...(outTime !== undefined ? { outTime } : {}),
+				});
+			}
+			if (track.length === 0) continue;
+			track.sort((left, right) => left.t - right.t);
+			channels[name] = track;
+		}
+		if (Object.keys(channels).length === 0) return null;
+		return {
+			kind: "keyframes",
+			channels,
+			...(typeof record.color === "string" && record.color.trim()
+				? { color: record.color.trim() }
+				: {}),
 		};
 	}
 	if (record.kind === "colorCycle") {
