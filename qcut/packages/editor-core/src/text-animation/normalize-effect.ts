@@ -767,6 +767,50 @@ export function normalizeTextAnimationEffect({
 			}),
 		};
 	}
+	if (record.kind === "colorCycle") {
+		const palette = Array.isArray(record.palette)
+			? record.palette
+					.filter((entry): entry is string => typeof entry === "string")
+					.slice(0, 12)
+			: [];
+		const bounceEm = numberInRange({
+			value: record.bounceEm,
+			fallback: 0,
+			minimum: 0,
+			maximum: 2,
+		});
+		return {
+			kind: "colorCycle",
+			palette:
+				palette.length > 0
+					? palette
+					: ["#f43f5e", "#f59e0b", "#22c55e", "#3b82f6", "#a855f7"],
+			amount: numberInRange({
+				value: record.amount,
+				fallback: 1,
+				minimum: 0,
+				maximum: 1,
+			}),
+			cycles: numberInRange({
+				value: record.cycles,
+				fallback: 1,
+				minimum: 0.1,
+				maximum: 12,
+			}),
+			rankOffset: numberInRange({
+				value: record.rankOffset,
+				fallback: 1,
+				minimum: 0,
+				maximum: 12,
+			}),
+			stepped: record.stepped === true,
+			envelope:
+				record.envelope === "hold" || record.envelope === "beat"
+					? record.envelope
+					: "constant",
+			...(bounceEm > 0 ? { bounceEm } : {}),
+		};
+	}
 	if (record.kind === "jitter") {
 		return {
 			kind: "jitter",
