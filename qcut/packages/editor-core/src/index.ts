@@ -230,6 +230,7 @@ export {
 	evaluateTextKeyframeTrack,
 	selectorUnitWeight,
 	mixTextAnimationColors,
+	multiplyTextAnimationColors,
 	parseTextAnimationHexColor,
 	sampleTextAnimationPalette,
 	segmentGraphemesFallback,
