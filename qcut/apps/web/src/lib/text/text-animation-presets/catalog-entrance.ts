@@ -682,4 +682,14 @@ export const ENTRANCE_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["glow", "flicker", "neon", "发光闪入", "发光", "闪入"],
 	},
+	{
+		id: "stroke-fill-in",
+		phase: "entrance",
+		nameKey: "textProperties.animationPreset.strokeFillIn",
+		previewKind: "keyframes",
+		defaultDuration: 0.9,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["stroke", "outline", "fill", "描边填充", "描边", "填充"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
