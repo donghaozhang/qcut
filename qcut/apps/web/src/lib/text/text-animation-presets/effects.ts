@@ -375,6 +375,22 @@ export function effectForPreset({
 				flutter: 0.25,
 				seed: presetSeed({ presetId }),
 			};
+		case "loop:glow-pulse":
+			// 文字泛光-style breathing glow, shaped after 闪色循环's SoftGlow
+			// track (exposure 0.2→0.5→0.2 with glowIntensity 5→15→5 over the
+			// cycle): a symmetric white bloom that never fully dies out.
+			return {
+				kind: "keyframes",
+				glowColor: "#ffffff",
+				channels: {
+					glowIntensity: [
+						{ t: 0, v: 0.35 },
+						{ t: 0.5, v: 1 },
+						{ t: 1, v: 0.35 },
+					],
+					glowRadiusPx: [{ t: 0, v: 14 }],
+				},
+			};
 		case "loop:color-bounce":
 			// 变色弹跳, calibrated from the plaintext package (7522411659407789353):
 			// a feathered window sweeps outward tinting characters pure yellow
