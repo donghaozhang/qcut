@@ -411,6 +411,10 @@ export function selectorUnitWeight({
 	if (selector.shape === "rampUp" && unitPosition > high) return 1;
 	if (selector.shape === "rampDown" && unitPosition < low) return 1;
 	if (selector.feather <= 0) return 0;
+	// A collapsed window selects nothing; feathering it outward would
+	// pre-select the whole line one frame before a growing sweep (e.g.
+	// twist-dissolve's end track starting from [0, 0]) has moved at all.
+	if (high - low <= 1e-6) return 0;
 	// Outside the window the edge weight decays linearly over the feather
 	// width; shapes whose profile already ends at zero stay at zero.
 	const distance =
@@ -520,6 +524,10 @@ function keyframesVisual({
 		visual.colorMix = {
 			color: tintColor,
 			amount: Math.min(1, Math.max(0, colorAmount ?? 1)),
+			// Jianying's keyframed color attribute is a multiplicative tint:
+			// its tracks settle on white to mean "no tint", which only reads
+			// correctly as a filter over the element's own fill.
+			...(effect.colorTrack?.length ? { mode: "multiply" as const } : {}),
 		};
 	}
 	const glowIntensity = channel("glowIntensity");
@@ -537,10 +545,12 @@ function keyframesVisual({
 		};
 	}
 	if (effect.selector && unit) {
-		// Position by unit index (Jianying basedOn: characters), independent
-		// of the stagger order.
+		// Position by unit index (Jianying basedOn: characters) by default;
+		// "rank" follows the sequence order so a random sequence shuffles
+		// which character the window consumes next (Jianying randomSort).
+		const ordinal = effect.selector.basedOn === "rank" ? unit.rank : unit.index;
 		const unitPosition =
-			unitCount && unitCount > 1 ? unit.index / (unitCount - 1) : 0.5;
+			unitCount && unitCount > 1 ? ordinal / (unitCount - 1) : 0.5;
 		const weight = selectorUnitWeight({
 			selector: effect.selector,
 			unitPosition,
