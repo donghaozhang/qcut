@@ -557,6 +557,7 @@ function keyframesVisual({
 	const displaceAmplitudePx = channel("displaceAmplitudePx");
 	const bloomIntensity = channel("bloomIntensity");
 	const echoAmount = channel("echoAmount");
+	const dirBlurPx = channel("dirBlurPx");
 	const raster: TextAnimationRasterEffectState | undefined =
 		pixelateCell !== undefined && pixelateCell >= 1
 			? { kind: "pixelate", cell: pixelateCell }
@@ -589,7 +590,13 @@ function keyframesVisual({
 									spread: Math.max(-1, Math.min(1, echoAmount)),
 									samples: 12,
 								}
-							: undefined;
+							: dirBlurPx !== undefined && Math.abs(dirBlurPx) > 0.5
+								? {
+										kind: "dirBlur",
+										offsetPx: dirBlurPx,
+										angleDeg: effect.rasterAngleDeg ?? 0,
+									}
+								: undefined;
 	if (raster) {
 		visual.postProcess = {
 			trailSamples: visual.postProcess?.trailSamples ?? 0,
