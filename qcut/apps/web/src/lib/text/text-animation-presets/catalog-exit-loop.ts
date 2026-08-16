@@ -401,6 +401,16 @@ export const EXIT_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["blur", "glow", "out", "模糊发光", "模糊", "发光"],
 	},
+	{
+		id: "glow-flicker-out",
+		phase: "exit",
+		nameKey: "textProperties.animationPreset.glowFlickerOut",
+		previewKind: "keyframes",
+		defaultDuration: 2.0,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["glow", "flicker", "neon", "发光闪出", "发光", "闪出"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
 
 export const LOOP_TEXT_ANIMATION_PRESETS = [
