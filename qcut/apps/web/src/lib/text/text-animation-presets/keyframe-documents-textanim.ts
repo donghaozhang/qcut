@@ -228,6 +228,87 @@ export const ENTRANCE_TEXTANIM_DOCUMENTS: Record<string, Doc> = {
 			},
 		},
 	},
+	// 剪映 逐字翻转 (7112241904216969765). Unlike the AE-table packages, this
+	// family computes its motion from closed-form curves: each glyph slides in
+	// one text-box width from the right on move_bezier (.16,.84,.44,1) while
+	// flipping upright about X from 180°, and its alpha is derived from how far
+	// it still is from home rather than from an opacity track. The source
+	// blends three rotation curves per character index; the representative
+	// curve is transcribed. rotationXDeg renders as 2D foreshortening.
+	"flip-in-each": {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0.5 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				translateXEm: [
+					{ t: 0, v: 4 },
+					{ t: 0.125, v: 2.152 },
+					{ t: 0.25, v: 1.195 },
+					{ t: 0.375, v: 0.654 },
+					{ t: 0.5, v: 0.339 },
+					{ t: 0.625, v: 0.158 },
+					{ t: 0.75, v: 0.059 },
+					{ t: 0.875, v: 0.012 },
+					{ t: 1, v: 0 },
+				],
+				rotationXDeg: [
+					{ t: 0, v: 180 },
+					{ t: 0.25, v: 108 },
+					{ t: 0.5, v: 54 },
+					{ t: 0.75, v: 16 },
+					{ t: 1, v: 0 },
+				],
+				opacity: [
+					{ t: 0, v: 0 },
+					{ t: 0.25, v: 0.55 },
+					{ t: 0.5, v: 0.85 },
+					{ t: 0.75, v: 1 },
+					{ t: 1, v: 1 },
+				],
+			},
+		},
+	},
+	// 剪映 逐字旋转 (7111643562676064805). The sister package of 逐字翻转 — same
+	// closed-form family, same move_bezier and stagger constants — but the
+	// glyph spins a full 360° about Z instead of flipping about X as it slides
+	// in from one text-box width to the right.
+	"spin-in-each": {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0.5 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				translateXEm: [
+					{ t: 0, v: 4 },
+					{ t: 0.125, v: 2.152 },
+					{ t: 0.25, v: 1.195 },
+					{ t: 0.375, v: 0.654 },
+					{ t: 0.5, v: 0.339 },
+					{ t: 0.625, v: 0.158 },
+					{ t: 0.75, v: 0.059 },
+					{ t: 0.875, v: 0.012 },
+					{ t: 1, v: 0 },
+				],
+				rotationDeg: [
+					{ t: 0, v: 360 },
+					{ t: 0.125, v: 193.7 },
+					{ t: 0.25, v: 107.5 },
+					{ t: 0.375, v: 58.9 },
+					{ t: 0.5, v: 30.5 },
+					{ t: 0.625, v: 14.2 },
+					{ t: 0.75, v: 5.3 },
+					{ t: 0.875, v: 1.1 },
+					{ t: 1, v: 0 },
+				],
+				opacity: [
+					{ t: 0, v: 0 },
+					{ t: 0.25, v: 0.55 },
+					{ t: 0.5, v: 0.85 },
+					{ t: 0.75, v: 1 },
+					{ t: 1, v: 1 },
+				],
+			},
+		},
+	},
 	// 剪映 随机集合 (7223959789175312954). Shuffled-order gather: each character
 	// drops in from ~1.37 em above while scaling 0.15→1 and settling a damped
 	// tilt (−15°→0). The driver also fans each glyph in horizontally by its
@@ -465,6 +546,45 @@ export const EXIT_TEXTANIM_DOCUMENTS: Record<string, Doc> = {
 				rotationDeg: [
 					{ t: 0, v: 0, outValue: 0, outTime: 0.66 },
 					{ t: 1, v: 30, inValue: 25, inTime: -0.167 },
+				],
+			},
+		},
+	},
+	// 剪映 环绕滑出 (7261858590808347193). The line slides right and each glyph,
+	// on reaching the box edge, wraps away around a vertical axis: the source
+	// places it at sin(rad)·r while turning it up to 180° about Y, then fades
+	// it as it goes over. Which glyph wraps when depends on its own x, so the
+	// per-character phase becomes the stagger here. rotationYDeg renders as 2D
+	// foreshortening, which is what makes the wrap read as edge-on.
+	"wrap-slide-out": {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0.55 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				translateXEm: [
+					{ t: 0, v: 0 },
+					{ t: 0.25, v: 0.6 },
+					{ t: 0.5, v: 1.35 },
+					{ t: 0.75, v: 2.3 },
+					{ t: 1, v: 3.4 },
+				],
+				translateYEm: [
+					{ t: 0, v: 0 },
+					{ t: 0.5, v: -0.12 },
+					{ t: 1, v: -0.3 },
+				],
+				rotationYDeg: [
+					{ t: 0, v: 0 },
+					{ t: 0.35, v: 42 },
+					{ t: 0.6, v: 95 },
+					{ t: 0.8, v: 145 },
+					{ t: 1, v: 180 },
+				],
+				opacity: [
+					{ t: 0, v: 1 },
+					{ t: 0.6, v: 1 },
+					{ t: 0.85, v: 0.45 },
+					{ t: 1, v: 0 },
 				],
 			},
 		},
