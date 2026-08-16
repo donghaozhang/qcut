@@ -14,7 +14,12 @@ export function textAnimationPresetSupportsIntensity({
 }: {
 	preset: TextAnimationPresetDefinition;
 }): boolean {
-	return !["none", "fade", "typewriter"].includes(preset.previewKind);
+	// petal-wipe and the shared "keyframes" kind are transcribed keyframe
+	// documents; scaleEffectIntensity has no keyframes case, so offering the
+	// slider would render a dead control.
+	return !["none", "fade", "typewriter", "petal-wipe", "keyframes"].includes(
+		preset.previewKind
+	);
 }
 
 function scaleEffectIntensity({
@@ -122,6 +127,14 @@ function scaleEffectIntensity({
 				...effect,
 				amplitudeX: effect.amplitudeX * factor,
 				amplitudeY: effect.amplitudeY * factor,
+			};
+		case "colorCycle":
+			return {
+				...effect,
+				amount: Math.min(1, effect.amount * factor),
+				...(effect.bounceEm !== undefined
+					? { bounceEm: effect.bounceEm * factor }
+					: {}),
 			};
 		case "arc":
 			return {

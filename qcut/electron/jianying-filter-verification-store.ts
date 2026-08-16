@@ -27,6 +27,8 @@ const STORE_SCHEMA_VERSION = 2;
 const LEGACY_SCHEMA_VERSION = 1;
 const COMPOSITE_KEY_SEPARATOR = "\u001f";
 const STORE_LOCK_RETRY_MILLISECONDS = 10;
+/** Errors that mean the lock file exists, across platforms. */
+const STORE_LOCK_CONTENDED_CODES = new Set(["EEXIST", "EPERM", "EACCES"]);
 const STORE_LOCK_TIMEOUT_MILLISECONDS = 10_000;
 const STORE_LOCK_STALE_MILLISECONDS = 30_000;
 const STORE_LOCK_HEARTBEAT_MILLISECONDS = 10_000;
@@ -174,7 +176,13 @@ async function acquireStoreLock({
 	try {
 		handle = await open(lockPath, "wx", 0o600);
 	} catch (error) {
-		if (nodeErrorCode({ error }) !== "EEXIST") throw error;
+		// "wx" reports an already-held lock as EEXIST on POSIX, but Windows
+		// surfaces the same contention as EPERM/EACCES — treat all three as
+		// "someone else holds it" so the stale-lock and retry paths below run
+		// instead of failing the write outright.
+		if (!STORE_LOCK_CONTENDED_CODES.has(nodeErrorCode({ error }) ?? "")) {
+			throw error;
+		}
 		if (await discardStaleStoreLock({ lockPath })) {
 			return acquireStoreLock({ deadline, lockPath });
 		}

@@ -79,7 +79,16 @@ export function applyTextAnimationVisualState({
 	ctx.translate(visual.translateX, visual.translateY);
 	ctx.translate(centerX, centerY);
 	ctx.rotate((visual.rotationDeg * Math.PI) / 180);
-	ctx.scale(visual.scaleX, visual.scaleY);
+	// Bare 3D rotation channels (no projective pipeline attached) render as
+	// their 2D foreshortening: a page flipped 90° about Y collapses to zero
+	// width — this is what makes 立体翻书-style keyframe documents vanish.
+	const foreshortenX = visual.rotationYDeg
+		? Math.abs(Math.cos((visual.rotationYDeg * Math.PI) / 180))
+		: 1;
+	const foreshortenY = visual.rotationXDeg
+		? Math.abs(Math.cos((visual.rotationXDeg * Math.PI) / 180))
+		: 1;
+	ctx.scale(visual.scaleX * foreshortenX, visual.scaleY * foreshortenY);
 	ctx.translate(-centerX, -centerY);
 	if (visual.blurPx > 0) {
 		ctx.filter = `blur(${visual.blurPx}px)`;

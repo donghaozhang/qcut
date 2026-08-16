@@ -419,6 +419,35 @@ function resolveEffectEnvelope({
 		envelope.translateY = reach;
 		return envelope;
 	}
+	if (effect.kind === "colorCycle") {
+		// Color rides in place; only the coupled bounce lift moves the glyphs.
+		envelope.translateY = (effect.bounceEm ?? 0) * context.fontSize;
+		return envelope;
+	}
+	if (effect.kind === "keyframes") {
+		const maxAbs = (track?: { v: number }[]) =>
+			track?.reduce((max, point) => Math.max(max, Math.abs(point.v)), 0) ?? 0;
+		envelope.translateX =
+			maxAbs(effect.channels.translateXEm) * context.fontSize;
+		envelope.translateY =
+			maxAbs(effect.channels.translateYEm) * context.fontSize;
+		envelope.scale = Math.max(
+			1,
+			maxAbs(effect.channels.scaleX),
+			maxAbs(effect.channels.scaleY)
+		);
+		// The painter turns glowRadiusPx into shadowBlur and blurPx into a
+		// filter, both of which paint outside the glyph box — reserve room for
+		// them or the preview clips the halo (glow-pulse peaks at 14 px).
+		const glowRadius =
+			maxAbs(effect.channels.glowIntensity) > 0
+				? maxAbs(effect.channels.glowRadiusPx)
+				: 0;
+		envelope.filterPadding =
+			Math.max(glowRadius, maxAbs(effect.channels.blurPx)) *
+			TEXT_ANIMATION_FILTER_BLUR_EXTENT;
+		return envelope;
+	}
 	const distance = resolveDistance({
 		distance: effect.distance,
 		...context,

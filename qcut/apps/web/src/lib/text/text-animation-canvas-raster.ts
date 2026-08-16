@@ -1,6 +1,11 @@
 import type { CanvasTextContext } from "./text-canvas-primitives";
 
-type TextAnimationRasterChannel = "projection" | "projection-unit" | "shatter";
+type TextAnimationRasterChannel =
+	| "projection"
+	| "projection-unit"
+	| "shatter"
+	| "post"
+	| "post-scratch";
 
 interface TextAnimationRaster {
 	canvas: OffscreenCanvas | HTMLCanvasElement;
