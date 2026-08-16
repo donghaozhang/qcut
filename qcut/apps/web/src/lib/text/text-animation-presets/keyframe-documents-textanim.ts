@@ -198,6 +198,36 @@ export const ENTRANCE_TEXTANIM_DOCUMENTS: Record<string, Doc> = {
 			},
 		},
 	},
+	// 剪映 左移弹动 (7313890082040058406). The entrance half of a package that
+	// also carries its own exit (frames 76-102, not transcribed here): the line
+	// slides in from the right while each glyph pops 0→112%→98%→100% two frames
+	// apart. AETools layout (frame numbers + relative handles) rather than the
+	// AEAdapter tables, so the curves were read from AE_Scale/AE_Position
+	// directly. Per-line dX travel becomes a fixed 1.2 em; scale is per-unit.
+	"slide-pop-in": {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0.4 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				scaleX: [
+					{ t: 0, v: 0, outValue: 0, outTime: 0.1 },
+					{ t: 0.304, v: 1.12, inValue: 1.12, inTime: -0.1 },
+					{ t: 0.609, v: 0.98 },
+					{ t: 1, v: 1 },
+				],
+				scaleY: [
+					{ t: 0, v: 0, outValue: 0, outTime: 0.1 },
+					{ t: 0.304, v: 1.12, inValue: 1.12, inTime: -0.1 },
+					{ t: 0.609, v: 0.98 },
+					{ t: 1, v: 1 },
+				],
+				translateXEm: [
+					{ t: 0, v: 1.2, outValue: 0.47, outTime: 0.126 },
+					{ t: 1, v: 0, inValue: 0.2, inTime: -0.33 },
+				],
+			},
+		},
+	},
 	// 剪映 随机集合 (7223959789175312954). Shuffled-order gather: each character
 	// drops in from ~1.37 em above while scaling 0.15→1 and settling a damped
 	// tilt (−15°→0). The driver also fans each glyph in horizontally by its
@@ -500,6 +530,92 @@ export const LOOP_TEXTANIM_DOCUMENTS: Record<string, Doc> = {
 					{ t: 0.227, v: -0.12 },
 					{ t: 0.591, v: 0.12 },
 					{ t: 0.773, v: 0.12 },
+					{ t: 1, v: 0 },
+				],
+			},
+		},
+	},
+	// 剪映 悸动 (7229526981807706680). A restless vertical throb: the glyph
+	// squashes to 85% then rebounds past 105% before settling, bottom-anchored
+	// (translateYEm = 0.3·(1 − scaleY)). The source deals six such tracks out
+	// to characters at random and scales each by a random 0.8–1.2 factor; a
+	// shared document carries one representative track at unit amplitude, so
+	// all glyphs throb together instead of independently.
+	throb: {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				scaleY: [
+					{ t: 0, v: 1 },
+					{ t: 0.1, v: 0.942 },
+					{ t: 0.2, v: 0.888 },
+					{ t: 0.3, v: 0.853 },
+					{ t: 0.4, v: 0.868 },
+					{ t: 0.5, v: 0.934 },
+					{ t: 0.6, v: 1.014 },
+					{ t: 0.7, v: 1.048 },
+					{ t: 0.8, v: 1.034 },
+					{ t: 0.9, v: 1.017 },
+					{ t: 1, v: 1 },
+				],
+				translateYEm: [
+					{ t: 0, v: 0 },
+					{ t: 0.1, v: 0.017 },
+					{ t: 0.2, v: 0.034 },
+					{ t: 0.3, v: 0.044 },
+					{ t: 0.4, v: 0.04 },
+					{ t: 0.5, v: 0.02 },
+					{ t: 0.6, v: -0.004 },
+					{ t: 0.7, v: -0.014 },
+					{ t: 0.8, v: -0.01 },
+					{ t: 0.9, v: -0.005 },
+					{ t: 1, v: 0 },
+				],
+			},
+		},
+	},
+	// 剪映 爆闪 (7308279705252139530). Strobe: the source steps a 30-slot
+	// on/off table over the cycle, hiding the whole block on the zero slots.
+	// Transcribed as a stepped opacity track holding each slot's value — the
+	// pattern (5 on, 2 off, 2 on, 2 off, 4 on …) is carried verbatim.
+	"strobe-flash": {
+		sequence: { unit: "all", order: "forward", staggerRatio: 0 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				opacity: [
+					{ t: 0, v: 1 },
+					{ t: 0.167, v: 1 },
+					{ t: 0.168, v: 0 },
+					{ t: 0.233, v: 0 },
+					{ t: 0.234, v: 1 },
+					{ t: 0.3, v: 1 },
+					{ t: 0.301, v: 0 },
+					{ t: 0.367, v: 0 },
+					{ t: 0.368, v: 1 },
+					{ t: 0.5, v: 1 },
+					{ t: 0.501, v: 0 },
+					{ t: 0.533, v: 0 },
+					{ t: 0.534, v: 1 },
+					{ t: 0.567, v: 1 },
+					{ t: 0.568, v: 0 },
+					{ t: 0.6, v: 0 },
+					{ t: 0.601, v: 1 },
+					{ t: 0.633, v: 1 },
+					{ t: 0.634, v: 0 },
+					{ t: 0.667, v: 0 },
+					{ t: 0.668, v: 1 },
+					{ t: 0.7, v: 1 },
+					{ t: 0.701, v: 0 },
+					{ t: 0.733, v: 0 },
+					{ t: 0.734, v: 1 },
+					{ t: 0.8, v: 1 },
+					{ t: 0.801, v: 0 },
+					{ t: 0.9, v: 0 },
+					{ t: 0.901, v: 1 },
+					{ t: 0.933, v: 1 },
+					{ t: 0.934, v: 0 },
 					{ t: 1, v: 0 },
 				],
 			},
