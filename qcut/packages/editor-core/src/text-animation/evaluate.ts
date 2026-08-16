@@ -215,6 +215,7 @@ function applyPhase({
 				linearProgress: phaseProgress,
 				layout,
 				unit,
+				unitCount: phase.units.length,
 			},
 		});
 		appendDecorations({ target: decorations, source: result.decorations });
@@ -249,6 +250,7 @@ function applyPhase({
 				linearProgress: rawProgress,
 				layout,
 				unit,
+				unitCount: phase.units.length,
 			},
 		});
 		for (
