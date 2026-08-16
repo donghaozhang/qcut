@@ -46,6 +46,12 @@ const KARAOKE_MODE_LABEL_KEYS: Record<KaraokeMode, TranslationKey> = {
 	karaoke: "caption.karaoke.fill",
 	bounce: "caption.karaoke.bounce",
 	typewriter: "caption.karaoke.typewriter",
+	slam: "caption.karaoke.slam",
+	spring: "caption.karaoke.spring",
+	overlap: "caption.karaoke.overlap",
+	expand: "caption.karaoke.expand",
+	shine: "caption.karaoke.shine",
+	pulse: "caption.karaoke.pulse",
 };
 
 function activateOnKeyboard({
