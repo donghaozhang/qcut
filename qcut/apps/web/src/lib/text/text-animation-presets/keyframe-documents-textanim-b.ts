@@ -116,6 +116,47 @@ export const ENTRANCE_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
 			},
 		},
 	},
+	// 剪映 发光闪入 (7308272157442707978), D=2 from the driver. Each character's
+	// alpha is pow(noise, 1.5) flicker that "recovers" to solid in character
+	// order over the back half while a glow halo burns early and dies by ~95%.
+	// The noise is transcribed as a low-biased flicker track whose minima rise
+	// toward 1 (the driver's mix(noise, 1, p) recovery), decorrelated across
+	// characters by the stagger; the halo rides the per-unit glow channels so
+	// each character's flicker modulates its own glow. Dropped: the second
+	// clone-layer noise (glow already tracks the glyph alpha here); the
+	// self-colored glow (u_TextColor) — ours stays white.
+	"glow-flicker-in": {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0.3 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				opacity: [
+					{ t: 0, v: 0 },
+					{ t: 0.05, v: 0.6 },
+					{ t: 0.12, v: 0.15 },
+					{ t: 0.19, v: 0.85 },
+					{ t: 0.26, v: 0.1 },
+					{ t: 0.33, v: 0.7 },
+					{ t: 0.4, v: 0.25 },
+					{ t: 0.47, v: 0.9 },
+					{ t: 0.54, v: 0.3 },
+					{ t: 0.61, v: 0.95 },
+					{ t: 0.68, v: 0.45 },
+					{ t: 0.75, v: 1 },
+					{ t: 0.82, v: 0.7 },
+					{ t: 0.9, v: 1 },
+					{ t: 1, v: 1 },
+				],
+				glowIntensity: [
+					{ t: 0, v: 0.9 },
+					{ t: 0.7, v: 0.55 },
+					{ t: 0.95, v: 0 },
+					{ t: 1, v: 0 },
+				],
+				glowRadiusPx: [{ t: 0, v: 14 }],
+			},
+		},
+	},
 };
 
 export const EXIT_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
