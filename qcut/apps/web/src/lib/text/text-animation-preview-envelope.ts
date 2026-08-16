@@ -424,6 +424,20 @@ function resolveEffectEnvelope({
 		envelope.translateY = (effect.bounceEm ?? 0) * context.fontSize;
 		return envelope;
 	}
+	if (effect.kind === "keyframes") {
+		const maxAbs = (track?: { v: number }[]) =>
+			track?.reduce((max, point) => Math.max(max, Math.abs(point.v)), 0) ?? 0;
+		envelope.translateX =
+			maxAbs(effect.channels.translateXEm) * context.fontSize;
+		envelope.translateY =
+			maxAbs(effect.channels.translateYEm) * context.fontSize;
+		envelope.scale = Math.max(
+			1,
+			maxAbs(effect.channels.scaleX),
+			maxAbs(effect.channels.scaleY)
+		);
+		return envelope;
+	}
 	const distance = resolveDistance({
 		distance: effect.distance,
 		...context,
