@@ -652,4 +652,14 @@ export const ENTRANCE_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["gather", "converge", "right", "向右集合", "向右", "集合"],
 	},
+	{
+		id: "trail-in",
+		phase: "entrance",
+		nameKey: "textProperties.animationPreset.trailIn",
+		previewKind: "keyframes",
+		defaultDuration: 0.8,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["trail", "diagonal", "渐变拖尾", "渐变", "拖尾"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];

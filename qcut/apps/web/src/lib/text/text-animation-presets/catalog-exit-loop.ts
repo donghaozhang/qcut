@@ -391,6 +391,16 @@ export const EXIT_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["scatter", "disperse", "left", "向左解散", "向左", "解散"],
 	},
+	{
+		id: "blur-glow-out",
+		phase: "exit",
+		nameKey: "textProperties.animationPreset.blurGlowOut",
+		previewKind: "keyframes",
+		defaultDuration: 1.8,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["blur", "glow", "out", "模糊发光", "模糊", "发光"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
 
 export const LOOP_TEXT_ANIMATION_PRESETS = [
@@ -883,5 +893,15 @@ export const LOOP_TEXT_ANIMATION_PRESETS = [
 		defaultDelay: 0,
 		defaultIntensity: 1,
 		searchTerms: ["tremble", "shake", "颤抖"],
+	},
+	{
+		id: "wild-shake",
+		phase: "loop",
+		nameKey: "textProperties.animationPreset.wildShake",
+		previewKind: "jitter",
+		defaultDuration: 1.0,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["wild", "shake", "超强晃动", "超强", "晃动"],
 	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
