@@ -785,6 +785,9 @@ export function normalizeTextAnimationEffect({
 			"colorAmount",
 			"glowIntensity",
 			"glowRadiusPx",
+			"pixelateCell",
+			"rgbSplitPx",
+			"displaceAmplitudePx",
 		] as const;
 		const normalizeTrack = (value: unknown): TextKeyframePoint[] | null => {
 			if (!Array.isArray(value)) return null;
@@ -932,6 +935,18 @@ export function normalizeTextAnimationEffect({
 			...(colorTrack ? { colorTrack } : {}),
 			...(typeof record.glowColor === "string" && record.glowColor.trim()
 				? { glowColor: record.glowColor.trim() }
+				: {}),
+			...(typeof record.rasterAngleDeg === "number" &&
+			Number.isFinite(record.rasterAngleDeg)
+				? { rasterAngleDeg: record.rasterAngleDeg }
+				: {}),
+			...(typeof record.rasterScale === "number" &&
+			Number.isFinite(record.rasterScale)
+				? { rasterScale: record.rasterScale }
+				: {}),
+			...(typeof record.rasterEvolution === "number" &&
+			Number.isFinite(record.rasterEvolution)
+				? { rasterEvolution: record.rasterEvolution }
 				: {}),
 			...(selector ? { selector } : {}),
 		};
