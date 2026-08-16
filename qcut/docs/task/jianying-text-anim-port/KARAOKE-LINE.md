@@ -24,12 +24,12 @@ ASS 导出 \k 标签)。移植 = 给 karaokeMode 加档位,用真词钟,零时�
 | 波浪/律动 | 6 | **✅ pulse 已上线**((.72,0,.28,1) 节拍;RGB 分离未表达) |
 | 弹跳/弹入 | 3 | 现有 bounce 档已覆盖基形;变体待评 |
 | 打字机/渐显 | 9 | 现有 typewriter 档覆盖基形;括号/滑入变体待评 |
-| 翻转/翻动/空翻 | 6 | 待做 — KaraokeSegment 需加 rotationX/Y |
-| 飞入/集合 | 6+ | 待做 — 需加 offsetX(现仅 offsetY) |
-| 故障/闪烁 | 2 | 待做 — 需 color 闪烁序列,可用现 color 字段 |
-| 模糊滚动 | 1 | 待做 — 需 blur 字段 |
-| 雨刷/擦除 | 1 | 待做 — 需逐词内 clip/gradient(color 梯度可近似) |
-| 调皮/随机 | 2 | 待做 — 需 seeded per-word 随机 |
+| 翻转/翻动/空翻 | 6 | **✅ flip 已上线**(360° 展开;源的投影翻转以 2D 转读出) |
+| 飞入/集合 | 6+ | **✅ fly-in / gather 已上线**(飞入:(.0,.78,.2,.99) 斜升 + 定向模糊清除;集合:(.16,.81,.44,1) 右滑) |
+| 故障/闪烁 | 2 | **✅ glitch 已上线**(种子化 8 步 alpha 抖动 + 高亮闪,后 1/4 落定) |
+| 模糊滚动 | 1 | **✅ blur-roll 已上线**(×1.5/×.7/×.7/×1.2 脉冲列 + 4px 模糊清除) |
+| 雨刷/擦除 | 1 | 剩余唯一待做 — 逐词内 gradient 擦除(karaokeFill 变体可近似) |
+| 调皮/随机 | 2 | **✅ mischief 已上线**(±15° 摇 + 下沉,mischief-hop 轨道上词钟) |
 | 排版风格类(下划线/大字报/拼贴/多行排版) | ~30 | 非动画 — 属字幕样式预设,另一个系统 |
 
 收敛结论:**动画机制 ~15 个家族**,与估计(15–25)一致。首批 6 档
@@ -45,8 +45,16 @@ ASS 导出 \k 标签)。移植 = 给 karaokeMode 加档位,用真词钟,零时�
   zh+en / 单测 ×6
 - 导出:ASS 通道对非 none 档统一走逐词 \k 计时(既有行为)
 
-## 下一批 / Next
+## 第二批(已合入)/ Second batch
 
-1. `KaraokeSegment` 扩 `offsetX` + `rotationDeg` → 飞入/集合、翻转家族
-2. 故障闪烁(color 序列)与雨刷(gradient 近似)
-3. 排版风格类与字幕样式预设系统对接(独立议题)
+`KaraokeSegment` 扩 `offsetX / rotationDeg / blurPx`,span 渲染器
+应用 translate/rotate/filter。新档:`fly-in / gather / flip /
+blur-roll / glitch / mischief`。至此 15 个动画机制家族中 **13 个有
+档位**(11 新 + bounce/typewriter 既有),剩余:雨刷(gradient
+近似)、随机出现(词钟本身即随机序,无需新档)。
+
+## 遗留 / Remaining
+
+1. 雨刷:逐词内 gradient 擦除
+2. 排版风格类(~30)与字幕样式预设系统对接(独立议题)
+3. 吉祥物类(18):贴纸资产阻塞
