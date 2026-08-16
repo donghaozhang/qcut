@@ -3,16 +3,20 @@ import os from "node:os";
 import path from "node:path";
 import { app, ipcMain } from "electron";
 import {
+	JIANYING_EFFECT_COVER_CHANNEL,
 	JIANYING_EFFECT_DOWNLOAD_CHANNEL,
 	JIANYING_EFFECT_PREVIEW_CHANNEL,
 	JIANYING_EFFECT_RENDER_CHANNEL,
 	JIANYING_EFFECT_STATUS_CHANNEL,
+	type JianyingEffectCoverRequest,
+	type JianyingEffectCoverResult,
 	type JianyingEffectDownloadRequest,
 	type JianyingEffectDownloadResult,
 	type JianyingEffectPreviewRequest,
 	type JianyingEffectRenderRequest,
 	type JianyingEffectRenderResult,
 } from "./jianying-effect-contract.js";
+import { getJianyingEffectCover } from "./jianying-effect/cover-cache.js";
 import { downloadJianyingEffectPackage } from "./jianying-effect/download.js";
 import { getJianyingEffectPreview } from "./jianying-effect/preview-cache.js";
 import { renderJianyingEffectClip } from "./jianying-effect/render.js";
@@ -120,6 +124,22 @@ export function setupJianyingEffectIPC(): void {
 		const inspection = await inspectJianyingEffectRuntime();
 		return inspection.status;
 	});
+
+	ipcMain.handle(
+		JIANYING_EFFECT_COVER_CHANNEL,
+		async (
+			_event,
+			request: JianyingEffectCoverRequest
+		): Promise<JianyingEffectCoverResult> => {
+			if (
+				typeof request?.effectId !== "string" ||
+				!/^\d{1,32}$/.test(request.effectId)
+			) {
+				throw new Error("特效编号无效。");
+			}
+			return getJianyingEffectCover({ effectId: request.effectId });
+		}
+	);
 
 	ipcMain.handle(
 		JIANYING_EFFECT_DOWNLOAD_CHANNEL,
