@@ -140,6 +140,22 @@ export interface EffectTimelineRange {
 	duration: number;
 }
 
+/**
+ * Slider schema a Jianying package declares. Values are normalized exactly as
+ * a Jianying draft stores them (almost always 0..1).
+ */
+export interface JianyingAdjustParameter {
+	key: string;
+	defaultValue: number;
+	minimum: number;
+	maximum: number;
+}
+
+export interface JianyingAdjustValue {
+	key: string;
+	value: number;
+}
+
 export interface EffectInstance {
 	id: string;
 	presetId?: string;
@@ -161,6 +177,10 @@ export interface EffectInstance {
 	engine?: EffectEngine;
 	/** Package md5, required when engine is "jianying-local". */
 	packageHash?: string;
+	/** Slider schema for jianying-local effects, copied from the package. */
+	adjustParameters?: JianyingAdjustParameter[];
+	/** Current slider values, in the package's normalized units. */
+	adjustValues?: JianyingAdjustValue[];
 }
 
 export type EffectEngine = "qcut" | "jianying-local";
