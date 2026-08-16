@@ -779,6 +779,8 @@ export function normalizeTextAnimationEffect({
 			"opacity",
 			"blurPx",
 			"colorAmount",
+			"glowIntensity",
+			"glowRadiusPx",
 		] as const;
 		const channelsRecord = asRecord({ value: record.channels });
 		if (!channelsRecord) return null;
@@ -827,6 +829,9 @@ export function normalizeTextAnimationEffect({
 			channels,
 			...(typeof record.color === "string" && record.color.trim()
 				? { color: record.color.trim() }
+				: {}),
+			...(typeof record.glowColor === "string" && record.glowColor.trim()
+				? { glowColor: record.glowColor.trim() }
 				: {}),
 		};
 	}
