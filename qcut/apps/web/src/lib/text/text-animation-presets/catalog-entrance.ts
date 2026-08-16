@@ -662,4 +662,14 @@ export const ENTRANCE_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["trail", "diagonal", "渐变拖尾", "渐变", "拖尾"],
 	},
+	{
+		id: "mosaic-in",
+		phase: "entrance",
+		nameKey: "textProperties.animationPreset.mosaicIn",
+		previewKind: "keyframes",
+		defaultDuration: 2.0,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["mosaic", "pixel", "马赛克滑入", "马赛克", "滑入"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
