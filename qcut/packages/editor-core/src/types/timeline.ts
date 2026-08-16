@@ -992,7 +992,13 @@ export interface SubtitleStyle {
 		| "word-by-word"
 		| "karaoke"
 		| "bounce"
-		| "typewriter";
+		| "typewriter"
+		| "slam"
+		| "spring"
+		| "overlap"
+		| "expand"
+		| "shine"
+		| "pulse";
 	/** Highlight color for active/completed words (default: "#ffff00") */
 	highlightColor?: string;
 	/** Color for upcoming (not-yet-reached) words in karaoke-fill mode */
