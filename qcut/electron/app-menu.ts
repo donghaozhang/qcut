@@ -75,8 +75,8 @@ export function setupApplicationMenu(): void {
 			// The stock viewMenu role claims ⌘+ / ⌘- / ⌘0 for page zoom and ⌘R
 			// for reload, and a menu accelerator wins before the renderer ever
 			// sees the key. That silently swallowed the timeline zoom and rotate
-			// shortcuts, so the zoom roles are dropped and reload is moved to a
-			// chord the editor does not use.
+			// shortcuts, so the zoom roles are dropped and the reload items keep
+			// no accelerator at all.
 			label: "View",
 			submenu: [
 				// Reload keeps its menu item but loses its accelerator: ⌘R is a
