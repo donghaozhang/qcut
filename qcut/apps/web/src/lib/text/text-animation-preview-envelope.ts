@@ -441,7 +441,9 @@ function resolveEffectEnvelope({
 		envelope.scale = Math.max(
 			1,
 			maxAbs(effect.channels.scaleX),
-			maxAbs(effect.channels.scaleY)
+			maxAbs(effect.channels.scaleY),
+			// Outward echo shells scale the block past 1.
+			1 + maxAbs(effect.channels.echoAmount) * 0.6
 		);
 		// The painter turns glowRadiusPx into shadowBlur, blurPx into a filter
 		// and bloomRadiusPx into the GPU halo, all of which paint outside the
