@@ -257,3 +257,50 @@ describe("caption-pool mechanism modes", () => {
 		expect(bump[2].opacity).toBe(1);
 	});
 });
+
+describe("second-batch mechanism modes", () => {
+	it("fly-in: the active word rises with clearing blur", () => {
+		const early = getKaraokeSegments(sampleWords, 1.05, "fly-in");
+		expect(early[0].offsetY).toBeGreaterThan(0);
+		expect(early[0].blurPx ?? 0).toBeGreaterThan(0);
+		const landed = getKaraokeSegments(sampleWords, 1.49, "fly-in");
+		expect(landed[0].offsetY).toBeCloseTo(0, 1);
+	});
+
+	it("gather: the word slides in from the right", () => {
+		const early = getKaraokeSegments(sampleWords, 1.02, "gather");
+		expect(early[0].offsetX ?? 0).toBeGreaterThan(10);
+		const landed = getKaraokeSegments(sampleWords, 1.49, "gather");
+		expect(landed[0].offsetX ?? 0).toBeCloseTo(0, 1);
+	});
+
+	it("flip: the word unwinds a full turn", () => {
+		const early = getKaraokeSegments(sampleWords, 1.02, "flip");
+		expect(early[0].rotationDeg ?? 0).toBeGreaterThan(180);
+		const landed = getKaraokeSegments(sampleWords, 1.49, "flip");
+		expect(Math.abs(landed[0].rotationDeg ?? 0)).toBeLessThan(15);
+	});
+
+	it("blur-roll: the pulse train peaks then settles", () => {
+		const peak = getKaraokeSegments(sampleWords, 1.15, "blur-roll");
+		expect(peak[0].scale).toBeGreaterThan(1.2);
+		const settle = getKaraokeSegments(sampleWords, 1.49, "blur-roll");
+		expect(settle[0].scale).toBeGreaterThan(0.85);
+		expect(settle[0].scale).toBeLessThan(1.25);
+	});
+
+	it("glitch: flicker is deterministic and settles solid", () => {
+		const a = getKaraokeSegments(sampleWords, 1.2, "glitch", "#00ff00");
+		const b = getKaraokeSegments(sampleWords, 1.2, "glitch", "#00ff00");
+		expect(a[0].opacity).toBe(b[0].opacity);
+		const settled = getKaraokeSegments(sampleWords, 1.45, "glitch");
+		expect(settled[0].opacity).toBe(1);
+	});
+
+	it("mischief: the word dips and rocks through its slot", () => {
+		const rockIn = getKaraokeSegments(sampleWords, 1.05, "mischief");
+		expect(rockIn[0].rotationDeg ?? 0).toBeLessThan(0);
+		const rockOut = getKaraokeSegments(sampleWords, 1.35, "mischief");
+		expect(rockOut[0].rotationDeg ?? 0).toBeGreaterThan(0);
+	});
+});
