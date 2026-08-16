@@ -6,12 +6,14 @@ import { DatabaseSync } from "node:sqlite";
 import { listJianyingResourceDatabasePaths } from "../jianying-resource-database.js";
 import type {
 	JianyingEffectAdjustParameter,
+	JianyingEffectCategory,
 	JianyingEffectDefinition,
 } from "../jianying-effect-contract.js";
 import {
 	type CatalogItem,
 	type CatalogRow,
 	collectCatalogItems,
+	collectPanelCategories,
 	readAdjustParameters,
 	SUPPORTED_REQUIREMENTS,
 } from "./catalog-parsing.js";
@@ -124,7 +126,12 @@ async function indexPackagesByMd5(): Promise<Map<string, string>> {
 	return packages;
 }
 
-async function readCatalogRows(): Promise<CatalogRow[]> {
+async function readHttpCacheRows({
+	patterns,
+}: {
+	patterns: string[];
+}): Promise<CatalogRow[]> {
+	const condition = patterns.map(() => "url LIKE ?").join(" OR ");
 	const rows: CatalogRow[] = [];
 	for (const root of resourceDatabaseRoots()) {
 		const databasePaths = await listJianyingResourceDatabasePaths({
@@ -136,9 +143,9 @@ async function readCatalogRows(): Promise<CatalogRow[]> {
 				database = new DatabaseSync(databasePath, { readOnly: true });
 				const records = database
 					.prepare(
-						"SELECT url, response_body FROM http_cache WHERE url LIKE ? OR url LIKE ?"
+						`SELECT url, response_body FROM http_cache WHERE ${condition}`
 					)
-					.all("%effects2%", "%face-prop%") as Array<{
+					.all(...patterns) as Array<{
 					url?: string;
 					response_body?: string;
 				}>;
@@ -157,6 +164,15 @@ async function readCatalogRows(): Promise<CatalogRow[]> {
 		}
 	}
 	return rows;
+}
+
+function readCatalogRows(): Promise<CatalogRow[]> {
+	return readHttpCacheRows({ patterns: ["%effects2%", "%face-prop%"] });
+}
+
+/** Panel URLs hide the panel behind a hash, so all of them are collected. */
+function readPanelRows(): Promise<CatalogRow[]> {
+	return readHttpCacheRows({ patterns: ["%panel/get_panel_info%"] });
 }
 
 /** Reads the slider defaults the package itself ships, when present. */
@@ -182,16 +198,21 @@ export async function findJianyingEffectCatalogItem({
 	return items.find((item) => item.effectId === effectId) ?? null;
 }
 
-export async function discoverJianyingEffects(): Promise<
-	JianyingEffectDefinition[]
-> {
-	const [rows, packages] = await Promise.all([
+export interface JianyingEffectLibrary {
+	effects: JianyingEffectDefinition[];
+	categories: JianyingEffectCategory[];
+}
+
+export async function discoverJianyingEffectLibrary(): Promise<JianyingEffectLibrary> {
+	const [rows, panelRows, packages] = await Promise.all([
 		readCatalogRows(),
+		readPanelRows(),
 		indexPackagesByMd5(),
 	]);
 
 	const items = collectCatalogItems({ rows });
 	const definitions: JianyingEffectDefinition[] = [];
+	const keptItems: CatalogItem[] = [];
 
 	for (const item of items) {
 		const packagePath = packages.get(item.md5);
@@ -211,6 +232,7 @@ export async function discoverJianyingEffects(): Promise<
 			? await readPackageAdjustParameters({ packagePath })
 			: [];
 
+		keptItems.push(item);
 		definitions.push({
 			id: `jy-effect-${item.effectId}`,
 			effectId: item.effectId,
@@ -219,6 +241,8 @@ export async function discoverJianyingEffects(): Promise<
 			packagePath: packagePath ?? "",
 			name: item.title,
 			panel: item.panel,
+			categoryIds: item.categoryIds,
+			coverUrl: item.coverUrl.length > 0 ? item.coverUrl : undefined,
 			defaultDurationMs: item.durationMs,
 			adjustParameters:
 				packageParameters.length > 0
@@ -237,10 +261,22 @@ export async function discoverJianyingEffects(): Promise<
 
 	// Installed effects first — they are immediately usable; within each group
 	// keep a stable name order.
-	return definitions.sort((left, right) => {
+	definitions.sort((left, right) => {
 		if (left.installed !== right.installed) {
 			return left.installed ? -1 : 1;
 		}
 		return left.name.localeCompare(right.name);
 	});
+
+	return {
+		effects: definitions,
+		categories: collectPanelCategories({ panelRows, items: keptItems }),
+	};
+}
+
+export async function discoverJianyingEffects(): Promise<
+	JianyingEffectDefinition[]
+> {
+	const { effects } = await discoverJianyingEffectLibrary();
+	return effects;
 }
