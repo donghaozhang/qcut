@@ -392,6 +392,8 @@ const HYPERFRAMES_VARIABLE_OPTION_KEYS = new Set(["label", "value"]);
 
 const EFFECT_INSTANCE_KEYS = createAllowedKeySet<EffectInstance>({
 	keys: {
+		adjustParameters: true,
+		adjustValues: true,
 		animations: true,
 		audioCompanion: true,
 		duration: true,
