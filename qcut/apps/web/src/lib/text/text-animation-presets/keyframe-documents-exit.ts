@@ -1,6 +1,6 @@
 import type { TextKeyframeDocument } from "./keyframe-documents-entrance-a";
 
-/** Exit-phase documents; see keyframe-documents-entrance.ts for conventions. */
+/** Exit-phase documents; see keyframe-documents-entrance-a.ts for conventions. */
 export const EXIT_KEYFRAME_DOCUMENTS: Record<string, TextKeyframeDocument> = {
 	// 剪映 立体翻书 (7526837871102283018), transcribed from its plaintext
 	// studioAnim.lsanim. D=3 (no effectAnimators; largest key t).
@@ -9,9 +9,12 @@ export const EXIT_KEYFRAME_DOCUMENTS: Record<string, TextKeyframeDocument> = {
 		effect: {
 			kind: "keyframes",
 			channels: {
+				// Exit tracks play forward, so the block starts opaque and fades
+				// as it flips away — the source's entrance-shaped alpha ramp is
+				// reversed here rather than transcribed literally.
 				opacity: [
-					{ t: 0, v: 0, outValue: 0, outTime: 0.42 },
-					{ t: 1, v: 1, inValue: 1, inTime: -0.42 },
+					{ t: 0, v: 1, outValue: 1, outTime: 0.42 },
+					{ t: 1, v: 0, inValue: 0, inTime: -0.42 },
 				],
 				translateYEm: [
 					{ t: 0, v: 0, outValue: 0, outTime: 0.21 },
