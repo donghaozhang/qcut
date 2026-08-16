@@ -116,15 +116,6 @@ export const ENTRANCE_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
 			},
 		},
 	},
-	// 剪映 发光闪入 (7308272157442707978), D=2 from the driver. Each character's
-	// alpha is pow(noise, 1.5) flicker that "recovers" to solid in character
-	// order over the back half while a glow halo burns early and dies by ~95%.
-	// The noise is transcribed as a low-biased flicker track whose minima rise
-	// toward 1 (the driver's mix(noise, 1, p) recovery), decorrelated across
-	// characters by the stagger; the halo rides the per-unit glow channels so
-	// each character's flicker modulates its own glow. Dropped: the second
-	// clone-layer noise (glow already tracks the glyph alpha here); the
-	// self-colored glow (u_TextColor) — ours stays white.
 	// 剪映 扭曲模糊 (7089261793406620197), D=2. Characters fade in and grow
 	// 0.95→1 on the bezier (.22,.6,.52,.93) with a 25% in-line stagger while
 	// the whole block boils under a noise warp plus a blur (blurSize 2,
@@ -211,6 +202,15 @@ export const ENTRANCE_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
 			},
 		},
 	},
+	// 剪映 发光闪入 (7308272157442707978), D=2 from the driver. Each character's
+	// alpha is pow(noise, 1.5) flicker that "recovers" to solid in character
+	// order over the back half while a glow halo burns early and dies by ~95%.
+	// The noise is transcribed as a low-biased flicker track whose minima rise
+	// toward 1 (the driver's mix(noise, 1, p) recovery), decorrelated across
+	// characters by the stagger; the halo rides the per-unit glow channels so
+	// each character's flicker modulates its own glow. Dropped: the second
+	// clone-layer noise (glow already tracks the glyph alpha here); the
+	// self-colored glow (u_TextColor) — ours stays white.
 	"glow-flicker-in": {
 		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0.3 },
 		effect: {
@@ -347,6 +347,16 @@ export const EXIT_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
 };
 
 export const LOOP_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
+	// 剪映 环形滚动 (7179135028343870012). Not a circular path — a modulo
+	// marquee: every character slides one full wrap period (line width +
+	// 200 px ≈ 3.5 em) per cycle and re-enters from the far edge, odd rows
+	// running the opposite way. The parametric marquee kind IS that formula
+	// (mix over one period, mod, recenter), so nothing is approximated; the
+	// source's commented-out edge fade never runs and is not carried.
+	"ring-scroll": {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0 },
+		effect: { kind: "marquee", gapEm: 3.5, alternate: true },
+	},
 	// 剪映 摇摆 I (6908281696253121038). A metronome sway: the whole line tips
 	// ±20° about a pivot at its baseline (the source anchors each glyph at
 	// −0.5·height). Its clock is not a plain cosine — the driver reshapes time
