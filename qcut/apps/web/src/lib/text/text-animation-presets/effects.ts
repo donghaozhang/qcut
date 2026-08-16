@@ -743,6 +743,10 @@ export function easingForPreset({
 	phase: TextAnimationPhase;
 	presetId: string;
 }): TextAnimationEasing {
+	// Transcribed documents carry their own bezier handles per channel, so the
+	// phase clock stays linear — the substring rules below would otherwise
+	// bend a document by its id (wave-bounce-in matching "bounce").
+	if (TEXT_KEYFRAME_DOCUMENTS[`${phase}:${presetId}`]) return "linear";
 	if (phase === "loop" || presetId === "bounce-up") {
 		return "linear";
 	}
