@@ -226,6 +226,173 @@ function pulse(words: WordItem[], time: number): KaraokeSegment[] {
 	});
 }
 
+/** Deterministic per-word hash in [0,1): seeded flicker without Math.random. */
+function seededUnit(wordId: string, salt: number): number {
+	let state = salt >>> 0;
+	for (let i = 0; i < wordId.length; i++) {
+		state = Math.imul(state ^ wordId.charCodeAt(i), 0x9e3779b1);
+	}
+	state ^= state >>> 15;
+	state = Math.imul(state, 0x85ebca77);
+	state ^= state >>> 13;
+	return (state >>> 0) / 0xffffffff;
+}
+
+/** 向下飞入's sharp-attack rise. */
+const flyEase = cubicBezier(0, 0.78, 0.2, 0.99);
+/** 向下飞入's blur clear. */
+const flyBlurEase = cubicBezier(0.61, 1, 0.88, 1);
+/** 向右集合's shared gather ease (same constants as the text-anim port). */
+const gatherEase = cubicBezier(0.16, 0.81, 0.44, 1);
+
+/** 剪映 向下飞入: the word rises in from below on a slight diagonal, its
+ * directional blur (3px step) clearing as it lands. */
+function flyIn(words: WordItem[], time: number): KaraokeSegment[] {
+	return wordEntrance(words, time, (progress) => ({
+		opacity: clamp(progress / 0.15, 0, 1),
+		scale: 1,
+	})).map((segment, index) => {
+		if (segment.state !== "active") return segment;
+		const progress = wordProgress(words[index], time);
+		const motion = flyEase(progress);
+		return {
+			...segment,
+			offsetY: 26 * (1 - motion),
+			offsetX: 7 * (1 - motion),
+			blurPx: 3 * (1 - flyBlurEase(progress)),
+		};
+	});
+}
+
+/** 剪映 向右集合: the word slides in from the right on the gather ease. */
+function gather(words: WordItem[], time: number): KaraokeSegment[] {
+	return wordEntrance(words, time, (progress) => ({
+		opacity: clamp(progress / 0.12, 0, 1),
+		scale: 1,
+	})).map((segment, index) => {
+		if (segment.state !== "active") return segment;
+		const progress = wordProgress(words[index], time);
+		return { ...segment, offsetX: 36 * (1 - gatherEase(progress)) };
+	});
+}
+
+/** 剪映 空翻: the word somersaults a full turn into place. */
+function flip(words: WordItem[], time: number): KaraokeSegment[] {
+	return wordEntrance(words, time, (progress) => ({
+		opacity: clamp(progress / 0.1, 0, 1),
+		scale: 0.6 + 0.4 * gatherEase(progress),
+	})).map((segment, index) => {
+		if (segment.state !== "active") return segment;
+		const progress = wordProgress(words[index], time);
+		return { ...segment, rotationDeg: 360 * (1 - gatherEase(progress)) };
+	});
+}
+
+/** 剪映 模糊滚动: the word rolls through a blur with the driver's pulse
+ * train — mix(1,1.5)·mix(1,.7)·mix(1,.7)·mix(1,1.2) over its slot. */
+function blurRoll(words: WordItem[], time: number): KaraokeSegment[] {
+	return words.map((word) => {
+		const isActive = time >= word.start && time < word.end;
+		if (!isActive) {
+			const done = time >= word.end;
+			return {
+				wordId: word.id,
+				text: word.text,
+				state: done ? ("completed" as const) : ("hidden" as const),
+				opacity: done ? 1 : 0,
+				scale: 1,
+				offsetY: 0,
+			};
+		}
+		const progress = wordProgress(word, time);
+		const stage = (from: number, to: number) =>
+			clamp((progress - from) / Math.max(0.001, to - from), 0, 1);
+		const scale =
+			(1 + 0.5 * stage(0, 0.3)) *
+			(1 - 0.3 * stage(0.3, 0.55)) *
+			(1 - 0.3 * stage(0.55, 0.75)) *
+			(1 + 0.2 * stage(0.75, 1));
+		return {
+			wordId: word.id,
+			text: word.text,
+			state: "active" as const,
+			opacity: clamp(progress / 0.1, 0, 1),
+			scale,
+			offsetY: 8 * (1 - gatherEase(progress)),
+			blurPx: 4 * (1 - clamp(progress / 0.6, 0, 1)),
+		};
+	});
+}
+
+/** 剪映 故障闪烁: the active word stutters through seeded alpha flicker
+ * with highlight flashes (the driver rolls a random alpha per step). */
+function glitch(
+	words: WordItem[],
+	time: number,
+	highlightColor: string
+): KaraokeSegment[] {
+	return words.map((word) => {
+		const isActive = time >= word.start && time < word.end;
+		const done = time >= word.end;
+		if (!isActive) {
+			return {
+				wordId: word.id,
+				text: word.text,
+				state: done ? ("completed" as const) : ("hidden" as const),
+				opacity: done ? 1 : 0,
+				scale: 1,
+				offsetY: 0,
+			};
+		}
+		const progress = wordProgress(word, time);
+		const step = Math.floor(progress * 8);
+		const flickerAlpha = 0.35 + 0.65 * seededUnit(word.id, step + 1);
+		const flash = seededUnit(word.id, step + 101) > 0.6;
+		return {
+			wordId: word.id,
+			text: word.text,
+			state: "active" as const,
+			// Settles solid over the last quarter of the slot.
+			opacity: progress > 0.75 ? 1 : flickerAlpha,
+			scale: 1,
+			offsetY: 0,
+			offsetX: flash ? (seededUnit(word.id, step + 201) - 0.5) * 4 : 0,
+			...(flash && progress <= 0.75 ? { color: highlightColor } : {}),
+		};
+	});
+}
+
+/** 剪映 调皮: the word dips and rocks −15°→+15°→0 (the mischief-hop pair
+ * of tracks from the text-anim port, on the word clock). */
+function mischief(words: WordItem[], time: number): KaraokeSegment[] {
+	return wordEntrance(words, time, (progress) => ({
+		opacity: clamp(progress / 0.08, 0, 1),
+		scale: 1,
+	})).map((segment, index) => {
+		if (segment.state !== "active") return segment;
+		const progress = wordProgress(words[index], time);
+		const dip =
+			progress < 0.2
+				? 0
+				: progress < 0.4
+					? (progress - 0.2) / 0.2
+					: progress < 0.76
+						? 1 - (progress - 0.4) / 0.36
+						: 0;
+		const rock =
+			progress < 0.2
+				? -15 * (progress / 0.2)
+				: progress < 0.76
+					? -15 + 30 * ((progress - 0.2) / 0.56)
+					: 15 * (1 - (progress - 0.76) / 0.24);
+		return {
+			...segment,
+			offsetY: 6 * dip,
+			rotationDeg: rock,
+		};
+	});
+}
+
 /** Word highlight: current word changes color + scales up 15%, floats up 2px */
 function wordHighlight(
 	words: WordItem[],
@@ -415,6 +582,18 @@ export function getKaraokeSegments(
 			return shine(words, currentTime, highlightColor);
 		case "pulse":
 			return pulse(words, currentTime);
+		case "fly-in":
+			return flyIn(words, currentTime);
+		case "gather":
+			return gather(words, currentTime);
+		case "flip":
+			return flip(words, currentTime);
+		case "blur-roll":
+			return blurRoll(words, currentTime);
+		case "glitch":
+			return glitch(words, currentTime, highlightColor);
+		case "mischief":
+			return mischief(words, currentTime);
 		default:
 			return staticMode(words);
 	}
