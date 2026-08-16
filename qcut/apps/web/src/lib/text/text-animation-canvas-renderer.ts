@@ -351,6 +351,8 @@ export function renderCanonicalTextAnimationToCanvas({
 		});
 		const colorMix = unitState.visual.colorMix ?? containerColorMix;
 		const animatedGlow = unitState.visual.postProcess?.glow ?? containerGlow;
+		const outlineAmount =
+			unitState.visual.outlineAmount ?? state.container.outlineAmount;
 		drawTextAnimationGlyph({
 			ctx,
 			element: renderedElement,
@@ -373,6 +375,7 @@ export function renderCanonicalTextAnimationToCanvas({
 					}
 				: {}),
 			...(animatedGlow ? { animatedGlow } : {}),
+			...(outlineAmount !== undefined ? { outlineAmount } : {}),
 		});
 		ctx.restore();
 	}
