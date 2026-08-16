@@ -11,7 +11,7 @@ import type { TextAnimationEffect } from "@/types/timeline";
  */
 export interface TextKeyframeDocument {
 	sequence: {
-		unit: "grapheme" | "all";
+		unit: "grapheme" | "word" | "all";
 		order: "forward" | "reverse" | "random" | "centerOut";
 		staggerRatio: number;
 	};
