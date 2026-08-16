@@ -411,6 +411,16 @@ export const EXIT_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["glow", "flicker", "neon", "发光闪出", "发光", "闪出"],
 	},
+	{
+		id: "echo-trail-out",
+		phase: "exit",
+		nameKey: "textProperties.animationPreset.echoTrailOut",
+		previewKind: "keyframes",
+		defaultDuration: 0.9,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["echo", "trail", "shrink", "拖尾出场", "拖尾", "出场"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
 
 export const LOOP_TEXT_ANIMATION_PRESETS = [
