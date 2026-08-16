@@ -29,6 +29,8 @@ const RESTART_LOOP_PRESET_IDS = new Set([
 	// Ballistic bursts must not alternate: a reversed cycle would suck the
 	// particles back into the emitter.
 	"lucky-bag",
+	// The tint window opens outward every cycle; alternating would close it.
+	"color-bounce",
 ]);
 
 function isLoopPreset({
