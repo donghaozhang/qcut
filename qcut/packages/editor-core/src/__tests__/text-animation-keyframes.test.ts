@@ -141,6 +141,44 @@ describe("keyframes effect", () => {
 		expect(settled.container.scaleX).toBeCloseTo(1, 1);
 	});
 
+	it("drives the render-group glow from glow tracks", () => {
+		const effect: TextAnimationEffect = {
+			kind: "keyframes",
+			glowColor: "#ffeeaa",
+			channels: {
+				glowIntensity: [
+					{ t: 0, v: 0.35 },
+					{ t: 0.5, v: 1 },
+					{ t: 1, v: 0.35 },
+				],
+				glowRadiusPx: [{ t: 0, v: 14 }],
+			},
+		};
+		const element = createElement({
+			overrides: {
+				content: "AB",
+				duration: 3,
+				textAnimations: createAnimation({
+					entrance: createPhase({
+						effect,
+						target: "textAndBackground",
+						duration: 1,
+					}),
+				}),
+			},
+		});
+		const state = evaluateTextAnimationFrame({
+			compiled: compileTextAnimation({ element, fps: 100 }),
+			frame: 50,
+			layout: createLayout({ content: "AB" }),
+		});
+		expect(state.container.postProcess?.glow).toEqual({
+			color: "#ffeeaa",
+			radiusPx: 14,
+			intensity: 1,
+		});
+	});
+
 	it("feeds the color channel from a colorAmount track", () => {
 		const effect: TextAnimationEffect = {
 			kind: "keyframes",
