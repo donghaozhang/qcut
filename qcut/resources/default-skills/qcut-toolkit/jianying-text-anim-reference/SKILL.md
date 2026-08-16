@@ -34,24 +34,24 @@ panel, not text.
 
 | File | Meaning |
 |---|---|
-| `config.json` | `{"script_type":"js","studio_animation_path":"/studioAnim.lsanim","version":"19.x–20.x"}` |
-| `studioAnim.lsanim` | THE animation document (see §3). Header `7b0a2020` = plaintext JSON; header `9dd78a1b` = encrypted |
-| `textAnim.lsproj` | Lumi node graph (`LumiAITool: true`, nodes + connections) wiring the animator into the text render pipeline; usually plaintext |
-| `res/*.jsdat` | expression-selector JS, encrypted with a *different* header (`9bd21aa3`) |
+| `config.json` | script type, animation document path, package version |
+| `studioAnim.lsanim` | THE animation document (see §3). Some are plaintext JSON, some are encrypted — check whether the file starts with `{` |
+| `textAnim.lsproj` | node graph wiring the animator into the text render pipeline; usually plaintext |
+| `res/*.jsdat` | expression-selector script, encrypted under its own format |
 
-Of the 20 packages cached locally, **11 are plaintext** (mostly version
-19.2/20.2). Name mapping comes from rp.db (`effect_id` == the directory name).
-Locally cached plaintext gems include 变色弹跳 (7522411659407789353 — pure
-color-channel keyframes), 波浪挤压, 粒子碎落, 彩带喷射, 文字渐显, 撕裂分割,
-流泪坠落, 碎屑炸裂, 旋转飞入, 文字旋入, 闪色循环. Packages are only written on
-first download — apply-from-cache leaves no new files.
+Roughly half of a typical local cache is plaintext. Directory names are opaque
+resource ids; the human-readable name mapping lives in the catalog database.
+
+**Do not record specific resource ids, cached file inventories, or package
+name lists in this repo.** Work from whatever the local cache happens to hold
+at the time, and keep only the structural conclusions here.
 
 ## 3. The animation model (plaintext `studioAnim.lsanim`)
 
 Top-level `studio_anim_params` has two arrays — this is After Effects' text
 animator model, executed by `AERender/data/AETextAnimator.cpp`:
 
-```jsonc
+```text
 {
   "studio_anim_params": {
     "selectors": [{
@@ -124,16 +124,18 @@ setup, `EnableSwingSimplify`, and the full-runtime-closure trap):
 
 Segments reference `materials.material_animations[]` entries through
 `extra_material_refs`; one entry bundles all phases in its `animations[]`.
-**Current 剪映 encrypts `draft_info.json`, `draft_info.json.bak`, and even
-`Timelines/*/template-2.tmp`** — scan older plaintext `template.tmp`, subdraft
-`draft_content.json`, or `.bak` backups instead (same approach as the
-transition skill). No local draft currently holds a saved plaintext example;
-capture one before relying on exact field names.
+The current draft format is encrypted, so exact field names are not verified
+here.
+
+**Do not read the user's local draft files to work around that.** If field
+names ever matter, confirm them against a draft this project itself produced,
+or a synthetic fixture — not against whatever happens to be in the user's
+project folder.
 
 ## 6. Traps
 
-1. Encrypted tiers: `9dd78a1b` (lsanim), `9bd21aa3` (jsdat) — don't attempt
-   decryption; prefer the 11 plaintext packages as math ground truth.
+1. Both the animation document and the expression scripts have encrypted
+   variants — don't attempt decryption; use the plaintext ones as ground truth.
 2. rp.db must be snapshotted (`sqlite3 ".backup"`) while 剪映 runs; bun:sqlite
    cannot open any db in the sandboxed shell — pre-export JSON via the sqlite3
    CLI (see sound-effects batch-03 notes in docs/task/sound-effects-lab/).
