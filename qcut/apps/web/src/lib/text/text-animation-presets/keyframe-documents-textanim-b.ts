@@ -116,6 +116,50 @@ export const ENTRANCE_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
 			},
 		},
 	},
+	// 剪映 拖尾 (7244102915239973432), D≈1.13 (34-frame clock). The text pops
+	// to half size blurred (ADBE_Scale_0_1: 0→50 over 4 frames, gaussian 40→0
+	// over the same span), grows to full by frame 18 on bezier
+	// (.167,.167,.48,1), and 13 concentric shells trail the growth — echo i
+	// lives frames (4+i)…(21+i), scale 0.5→1, vanishing on arrival. The
+	// shells are the echo raster kind (signed spread, + = inward trail);
+	// their staggered per-shell alpha collapses into the pass's fixed
+	// nearest-strongest profile.
+	"echo-trail-in": {
+		sequence: { unit: "all", order: "forward", staggerRatio: 0 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				opacity: [
+					{ t: 0, v: 0 },
+					{ t: 0.06, v: 1 },
+					{ t: 1, v: 1 },
+				],
+				scaleX: [
+					{ t: 0, v: 0 },
+					{ t: 0.118, v: 0.5, outValue: 0.583, outTime: 0.069 },
+					{ t: 0.53, v: 1, inValue: 1, inTime: -0.214 },
+					{ t: 1, v: 1 },
+				],
+				scaleY: [
+					{ t: 0, v: 0 },
+					{ t: 0.118, v: 0.5, outValue: 0.583, outTime: 0.069 },
+					{ t: 0.53, v: 1, inValue: 1, inTime: -0.214 },
+					{ t: 1, v: 1 },
+				],
+				blurPx: [
+					{ t: 0, v: 8 },
+					{ t: 0.12, v: 0 },
+					{ t: 1, v: 0 },
+				],
+				echoAmount: [
+					{ t: 0, v: 0 },
+					{ t: 0.15, v: 0.5 },
+					{ t: 0.6, v: 0.4 },
+					{ t: 1, v: 0 },
+				],
+			},
+		},
+	},
 	// 剪映 扭曲模糊 (7089261793406620197), D=2. Characters fade in and grow
 	// 0.95→1 on the bezier (.22,.6,.52,.93) with a 25% in-line stagger while
 	// the whole block boils under a noise warp plus a blur (blurSize 2,
@@ -300,6 +344,46 @@ export const EXIT_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
 					{ t: 0, v: 1 },
 					{ t: 0.6, v: 1 },
 					{ t: 1, v: 0 },
+				],
+			},
+		},
+	},
+	// 剪映 拖尾 exit (7244102819731477049), D≈0.87 (26-frame clock). The text
+	// collapses to nothing (100→0 over 20 frames, bezier (.37,0,.32,1.02) —
+	// the in-handle overshoots slightly past zero), fading to 25% over the
+	// back half while blur ramps up at the very end; 6 shells collapse
+	// behind it, each larger than the shrinking body — outward trail, so the
+	// echo spread runs negative.
+	"echo-trail-out": {
+		sequence: { unit: "all", order: "forward", staggerRatio: 0 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				opacity: [
+					{ t: 0, v: 1 },
+					{ t: 0.46, v: 1 },
+					{ t: 1, v: 0.25 },
+				],
+				scaleX: [
+					{ t: 0, v: 1, outValue: 1, outTime: 0.285 },
+					{ t: 0.77, v: 0, inValue: -0.024, inTime: -0.526 },
+					{ t: 1, v: 0 },
+				],
+				scaleY: [
+					{ t: 0, v: 1, outValue: 1, outTime: 0.285 },
+					{ t: 0.77, v: 0, inValue: -0.024, inTime: -0.526 },
+					{ t: 1, v: 0 },
+				],
+				blurPx: [
+					{ t: 0, v: 0 },
+					{ t: 0.77, v: 0 },
+					{ t: 0.88, v: 4 },
+					{ t: 1, v: 4 },
+				],
+				echoAmount: [
+					{ t: 0, v: 0 },
+					{ t: 0.08, v: -0.35 },
+					{ t: 1, v: -0.55 },
 				],
 			},
 		},
