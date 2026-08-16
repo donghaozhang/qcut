@@ -996,6 +996,18 @@ export function normalizeTextAnimationEffect({
 			...(bounceEm > 0 ? { bounceEm } : {}),
 		};
 	}
+	if (record.kind === "marquee") {
+		return {
+			kind: "marquee",
+			gapEm: numberInRange({
+				value: record.gapEm,
+				fallback: 3.5,
+				minimum: 0,
+				maximum: 20,
+			}),
+			alternate: record.alternate !== false,
+		};
+	}
 	if (record.kind === "jitter") {
 		return {
 			kind: "jitter",
