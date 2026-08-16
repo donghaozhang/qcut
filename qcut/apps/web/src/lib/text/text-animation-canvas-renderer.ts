@@ -2,6 +2,7 @@ import {
 	computeShatterTiles,
 	evaluateTextAnimationFrame,
 	mixTextAnimationColors,
+	multiplyTextAnimationColors,
 	normalizeTextAnimations,
 	type TextAnimationVisualState,
 } from "@qcut/editor-core";
@@ -239,6 +240,9 @@ export function renderCanonicalTextAnimationToCanvas({
 	});
 
 	const animatedGlow = state.container.postProcess?.glow;
+	// Container-level documents (unit "all") carry their tint on the container
+	// visual; thread it into the glyph fill the same way the glow is.
+	const containerColorMix = state.container.colorMix;
 	for (const grapheme of layout.graphemes) {
 		const unitState = state.units[grapheme.index];
 		if (!unitState) continue;
@@ -248,7 +252,7 @@ export function renderCanonicalTextAnimationToCanvas({
 			visual: unitState.visual,
 			bounds: grapheme.bounds,
 		});
-		const colorMix = unitState.visual.colorMix;
+		const colorMix = unitState.visual.colorMix ?? containerColorMix;
 		drawTextAnimationGlyph({
 			ctx,
 			element: renderedElement,
@@ -256,11 +260,18 @@ export function renderCanonicalTextAnimationToCanvas({
 			grapheme,
 			...(colorMix
 				? {
-						fillColor: mixTextAnimationColors({
-							from: renderedElement.color,
-							to: colorMix.color,
-							amount: colorMix.amount,
-						}),
+						fillColor:
+							colorMix.mode === "multiply"
+								? multiplyTextAnimationColors({
+										base: renderedElement.color,
+										tint: colorMix.color,
+										amount: colorMix.amount,
+									})
+								: mixTextAnimationColors({
+										from: renderedElement.color,
+										to: colorMix.color,
+										amount: colorMix.amount,
+									}),
 					}
 				: {}),
 			...(animatedGlow ? { animatedGlow } : {}),
