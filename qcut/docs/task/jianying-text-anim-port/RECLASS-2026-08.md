@@ -52,3 +52,19 @@ bloom, outlineAmount, per-unit glow, strongest-unit raster, marquee).
 4. 已移植的发光近似预设(glow-flicker 等)可选升级:glowIntensity →
    bloomIntensity(视觉从 shadowBlur 换成真 bloom)
 5. 之后进入"自己写"阶段(README §7 的命名决策仍待定)
+
+## 补记 2026-08-17:字幕池复核 / Caption-pool addendum
+
+字幕类实际 **156**(README 的 133 是旧数),全部已下载、149 可读。
+上文"误伤 17 个普通 driver"的说法**不成立** —— 家族分类器漏了
+`textTimeData.words`(逐词毫秒时间戳)这个信号;复核后 6 个"普通
+driver"候选(缩小/弹簧/重叠/波形扫光/扩展/律动)**全部**是卡拉 OK
+逐词机。字幕池范围外判定对全部 156 个成立。
+
+但六个的逐词曲线是普通关键帧数学,已按"曲线照抄 + 语音时钟换
+word-unit 错峰"移植(keyframe-documents-textanim-c.ts):
+shrink-slam-in(3× 砸入,源 10× 单词窗口,幅度适配)、
+spring-pop-in(elastic-out 烘焙)、overlap-drop-in、expand-in
+(词心 scaleX ≡ 字距展开)、wave-shine(扫光→循环辉光带)、
+rhythm-pulse(节拍脉冲 + rgbSplit 尖峰)。共同语义损失:不再与
+语音对齐,文档头注释已声明。
