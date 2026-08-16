@@ -218,6 +218,46 @@ export const EXIT_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
 			},
 		},
 	},
+	// 剪映 发光闪出 (7308275717505028617). Verbatim the 发光闪入 driver plus
+	// `progress = 1 - progress` (confirmed by package diff), so this document
+	// is the entrance track time-reversed: solid characters destabilize into
+	// pow(noise, 1.5) flicker — minima sinking instead of rising — while the
+	// glow ignites and burns brightest at the vanish point. The reversed
+	// recovery order means the LAST character breaks up first, hence
+	// order "reverse". Same drops as the entrance (clone-layer noise,
+	// self-colored glow).
+	"glow-flicker-out": {
+		sequence: { unit: "grapheme", order: "reverse", staggerRatio: 0.3 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				opacity: [
+					{ t: 0, v: 1 },
+					{ t: 0.1, v: 1 },
+					{ t: 0.18, v: 0.7 },
+					{ t: 0.25, v: 1 },
+					{ t: 0.32, v: 0.45 },
+					{ t: 0.39, v: 0.95 },
+					{ t: 0.46, v: 0.3 },
+					{ t: 0.53, v: 0.9 },
+					{ t: 0.6, v: 0.25 },
+					{ t: 0.67, v: 0.7 },
+					{ t: 0.74, v: 0.1 },
+					{ t: 0.81, v: 0.85 },
+					{ t: 0.88, v: 0.15 },
+					{ t: 0.95, v: 0.6 },
+					{ t: 1, v: 0 },
+				],
+				glowIntensity: [
+					{ t: 0, v: 0 },
+					{ t: 0.05, v: 0 },
+					{ t: 0.3, v: 0.55 },
+					{ t: 1, v: 0.9 },
+				],
+				glowRadiusPx: [{ t: 0, v: 14 }],
+			},
+		},
+	},
 };
 
 export const LOOP_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
