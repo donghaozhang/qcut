@@ -782,16 +782,10 @@ export function normalizeTextAnimationEffect({
 			"glowIntensity",
 			"glowRadiusPx",
 		] as const;
-		const channelsRecord = asRecord({ value: record.channels });
-		if (!channelsRecord) return null;
-		const channels: Partial<
-			Record<(typeof KEYFRAME_CHANNELS)[number], TextKeyframePoint[]>
-		> = {};
-		for (const name of KEYFRAME_CHANNELS) {
-			const raw = channelsRecord[name];
-			if (!Array.isArray(raw)) continue;
+		const normalizeTrack = (value: unknown): TextKeyframePoint[] | null => {
+			if (!Array.isArray(value)) return null;
 			const track: TextKeyframePoint[] = [];
-			for (const entry of raw.slice(0, 64)) {
+			for (const entry of value.slice(0, 64)) {
 				const point = asRecord({ value: entry });
 				if (
 					!point ||
@@ -802,9 +796,9 @@ export function normalizeTextAnimationEffect({
 				) {
 					continue;
 				}
-				const handle = (value: unknown) =>
-					typeof value === "number" && Number.isFinite(value)
-						? value
+				const handle = (handleValue: unknown) =>
+					typeof handleValue === "number" && Number.isFinite(handleValue)
+						? handleValue
 						: undefined;
 				const inValue = handle(point.inValue);
 				const outValue = handle(point.outValue);
@@ -819,11 +813,52 @@ export function normalizeTextAnimationEffect({
 					...(outTime !== undefined ? { outTime } : {}),
 				});
 			}
-			if (track.length === 0) continue;
+			if (track.length === 0) return null;
 			track.sort((left, right) => left.t - right.t);
-			channels[name] = track;
+			return track;
+		};
+		const channelsRecord = asRecord({ value: record.channels });
+		if (!channelsRecord) return null;
+		const channels: Partial<
+			Record<(typeof KEYFRAME_CHANNELS)[number], TextKeyframePoint[]>
+		> = {};
+		for (const name of KEYFRAME_CHANNELS) {
+			const track = normalizeTrack(channelsRecord[name]);
+			if (track) channels[name] = track;
 		}
 		if (Object.keys(channels).length === 0) return null;
+		const selectorRecord = asRecord({ value: record.selector });
+		const selectorStart = selectorRecord
+			? normalizeTrack(selectorRecord.start)
+			: null;
+		const selectorEnd = selectorRecord
+			? normalizeTrack(selectorRecord.end)
+			: null;
+		const selector =
+			selectorRecord && selectorStart && selectorEnd
+				? {
+						start: selectorStart,
+						end: selectorEnd,
+						shape: oneOf({
+							value: selectorRecord.shape,
+							values: [
+								"square",
+								"rampUp",
+								"rampDown",
+								"triangle",
+								"round",
+								"smooth",
+							] as const,
+							fallback: "square" as const,
+						}),
+						feather: numberInRange({
+							value: selectorRecord.feather,
+							fallback: 0,
+							minimum: 0,
+							maximum: 1,
+						}),
+					}
+				: undefined;
 		return {
 			kind: "keyframes",
 			channels,
@@ -833,6 +868,7 @@ export function normalizeTextAnimationEffect({
 			...(typeof record.glowColor === "string" && record.glowColor.trim()
 				? { glowColor: record.glowColor.trim() }
 				: {}),
+			...(selector ? { selector } : {}),
 		};
 	}
 	if (record.kind === "colorCycle") {
