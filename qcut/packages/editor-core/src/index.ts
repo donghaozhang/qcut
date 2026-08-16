@@ -294,6 +294,7 @@ export type {
 	TextKeyframeChannel,
 	TextKeyframePoint,
 	TextAnimationColorMixState,
+	TextAnimationGlowState,
 	TextAnimationNormalizationIssue,
 	TextAnimationNormalizationResult,
 	TextAnimationNormalizationSource,
