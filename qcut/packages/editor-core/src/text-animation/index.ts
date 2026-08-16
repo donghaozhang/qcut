@@ -14,6 +14,11 @@ export {
 } from "./segmentation.js";
 export { computeShatterTiles, shatterNoise } from "./shatter.js";
 export type { ShatterTile } from "./shatter.js";
+export {
+	mixTextAnimationColors,
+	parseTextAnimationHexColor,
+	sampleTextAnimationPalette,
+} from "./color.js";
 
 export type {
 	CompiledTextAnimation,
@@ -29,6 +34,7 @@ export type {
 	TextAnimationEffect,
 	TextAnimationFrameState,
 	TextAnimationGraphemeLayout,
+	TextAnimationColorMixState,
 	TextAnimationLayout,
 	TextAnimationLoopPhase,
 	TextAnimationMaskState,
@@ -55,6 +61,7 @@ export type {
 	TextCylinder3DEffect,
 	TextJitter3DEffect,
 	TextJitterEffect,
+	TextColorCycleEffect,
 	TextArcEffect,
 	TextSqueezeEffect,
 	TextFoldEffect,
