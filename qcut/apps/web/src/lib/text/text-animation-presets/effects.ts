@@ -159,6 +159,54 @@ export function effectForPreset({
 					],
 				},
 			};
+		case "entrance:petal-wipe":
+			// Jianying's 蓝瓣划入 (7647442470346788138), transcribed from its
+			// plaintext studioAnim.lsanim minus the petal overlay video and the
+			// Dust/DeepGlow post passes (they mostly light the petals, and the
+			// canvas paints glow at container level only). The package keyframes
+			// the range selector's `offset` -1 → 1 with a rampUp shape, baked
+			// here into both window tracks; selected characters collapse to a
+			// point anchored 0.3 em below home (their anchor y −0.3) with a blue
+			// tint. The reference tint itself animates 0.31,0.73,1 → 0.14,0.59,1
+			// before settling white; we hold its mid-sweep value.
+			return {
+				kind: "keyframes",
+				color: "#3dabff",
+				selector: {
+					start: [
+						{ t: 0, v: -1, outValue: -0.34, outTime: 0.209 },
+						{
+							t: 0.633,
+							v: 1,
+							inValue: 0.32,
+							inTime: -0.215,
+							outValue: 1,
+							outTime: 0.121,
+						},
+						{ t: 1, v: 1, inValue: 1, inTime: -0.125 },
+					],
+					end: [
+						{ t: 0, v: 0, outValue: 0.66, outTime: 0.209 },
+						{
+							t: 0.633,
+							v: 2,
+							inValue: 1.32,
+							inTime: -0.215,
+							outValue: 2,
+							outTime: 0.121,
+						},
+						{ t: 1, v: 2, inValue: 2, inTime: -0.125 },
+					],
+					shape: "rampUp",
+					feather: 0,
+				},
+				channels: {
+					scaleX: [{ t: 0, v: 0 }],
+					scaleY: [{ t: 0, v: 0 }],
+					translateYEm: [{ t: 0, v: 0.3 }],
+					colorAmount: [{ t: 0, v: 1 }],
+				},
+			};
 		case "exit:fade-out":
 		case "loop:flicker":
 			return {
@@ -592,7 +640,9 @@ function staggerRatioForPreset({
 		presetId === "fold" ||
 		presetId === "arc-up" ||
 		presetId === "flicker-scatter" ||
-		presetId === "shrink-shake"
+		presetId === "shrink-shake" ||
+		// The animated selector window sweeps the line on the shared clock.
+		presetId === "petal-wipe"
 	) {
 		return 0;
 	}
@@ -651,6 +701,7 @@ export function sequenceForPreset({
 		"shrink-shake",
 		"elastic-out",
 		"color-bounce",
+		"petal-wipe",
 	]);
 	const order =
 		presetId === "typewriter-out"
