@@ -1665,7 +1665,7 @@ function TextLibraryNav({
 							type="button"
 							aria-expanded={isExpanded}
 							className={cn(
-								"flex h-7 w-full items-center justify-between rounded-md px-2 text-left text-[0.72rem] font-medium text-muted-foreground transition-colors",
+								"flex h-7 w-full items-center gap-1 rounded-md px-1.5 text-left text-[0.72rem] font-medium text-muted-foreground transition-colors",
 								hasActiveCategory && "bg-accent text-cyan-300 shadow-inner",
 								!hasActiveCategory && "hover:bg-accent/70 hover:text-foreground"
 							)}
@@ -1676,12 +1676,7 @@ function TextLibraryNav({
 								onSelectGroup({ group });
 							}}
 						>
-							<span
-								className="truncate"
-								title={getLocalizedTextTemplateGroupLabel({ group, locale })}
-							>
-								{getLocalizedTextTemplateGroupLabel({ group, locale })}
-							</span>
+							{/* Jianying keeps the expand indicator on the left. */}
 							<ChevronDown
 								aria-hidden="true"
 								className={cn(
@@ -1689,6 +1684,12 @@ function TextLibraryNav({
 									isExpanded ? "rotate-0" : "-rotate-90"
 								)}
 							/>
+							<span
+								className="truncate"
+								title={getLocalizedTextTemplateGroupLabel({ group, locale })}
+							>
+								{getLocalizedTextTemplateGroupLabel({ group, locale })}
+							</span>
 						</button>
 						{isExpanded && (
 							<div className="space-y-0.5 pl-2">
@@ -2150,9 +2151,10 @@ export function TextView() {
 	const online = useOnlineStatus();
 	const [activeCategoryId, setActiveCategoryId] =
 		useState<TextTemplateCategoryId>(DEFAULT_TEXT_TEMPLATE_CATEGORY_ID);
+	// 花字库 starts collapsed like Jianying; groups expand on demand.
 	const [expandedGroupIds, setExpandedGroupIds] = useState<
 		ReadonlySet<TextTemplateGroupId>
-	>(() => new Set(["new-text", "fancy"]));
+	>(() => new Set(["new-text"]));
 	const [searchQuery, setSearchQuery] = useState("");
 	const [statusFilter, setStatusFilter] =
 		useState<TextLibraryStatusFilter>("all");
@@ -2381,6 +2383,16 @@ export function TextView() {
 		setActiveCategoryId(categoryId);
 	};
 	const handleSelectGroup = ({ group }: { group: TextTemplateGroup }) => {
+		// Clicking a group header toggles it: collapsing keeps the active
+		// category, expanding also jumps to the group's first category.
+		if (expandedGroupIds.has(group.id)) {
+			setExpandedGroupIds((current) => {
+				const next = new Set(current);
+				next.delete(group.id);
+				return next;
+			});
+			return;
+		}
 		const firstCategory = group.categories[0];
 		if (firstCategory) setActiveCategoryId(firstCategory.id);
 		setExpandedGroupIds((current) => {
