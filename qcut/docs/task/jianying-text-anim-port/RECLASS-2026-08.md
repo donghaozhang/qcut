@@ -68,3 +68,24 @@ spring-pop-in(elastic-out 烘焙)、overlap-drop-in、expand-in
 (词心 scaleX ≡ 字距展开)、wave-shine(扫光→循环辉光带)、
 rhythm-pulse(节拍脉冲 + rgbSplit 尖峰)。共同语义损失:不再与
 语音对齐,文档头注释已声明。
+
+## 再更正 2026-08-17:字幕池"产品缺口"论不成立 / Second correction
+
+用户指出 SmartEdit 后核实,QCut 已具备完整的逐词字幕产品面:
+
+- **逐词时间戳**:`TranscriptionSegment.words`(editor-core)、
+  `WordItem`(SmartEdit / word-timeline)、字幕 clip 上的
+  `words?: AudioLyricsWord[]` —— ElevenLabs 转写全程保留词级 start/end
+- **卡拉 OK 渲染系统**:`SubtitleStyle.karaokeMode` 已有 6 档
+  (word-highlight / word-by-word / karaoke / bounce / typewriter)+
+  highlightColor / upcomingColor / 活动词缩放
+- **ASS 导出**带 \k / \kf 卡拉 OK 标签(ass-generator.ts)
+
+因此 132 个字幕排版机包**并非不可移植** —— 它们的正确移植目标是
+karaokeMode 家族(真语音时钟),而不是文字动画预设系统。缩小/弹簧/
+重叠/波形扫光/扩展/律动这 6 个的逐词机制,可作为新的 karaokeMode
+档位做**忠实**移植(本批的 word-stagger 预设版并不作废:它们无需
+转写即可用于任意文本元素,二者互补)。
+
+修订后的字幕池判定:范围外 → **另一条移植线**(目标系统不同)。
+规模:132 个排版机 driver 按机制家族去重后预计 ~15-25 个独立机制。
