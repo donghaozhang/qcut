@@ -231,4 +231,14 @@ export const ENTRANCE_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 0.85,
 		searchTerms: ["rotate", "in", "旋入"],
 	},
+	{
+		id: "fade-reveal",
+		phase: "entrance",
+		nameKey: "textProperties.animationPreset.fadeReveal",
+		previewKind: "fade",
+		defaultDuration: 1,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["fade", "reveal", "rise", "淡入", "显现", "浮现"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
