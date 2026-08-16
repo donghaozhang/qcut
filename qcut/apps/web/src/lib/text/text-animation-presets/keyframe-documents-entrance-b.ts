@@ -467,13 +467,22 @@ export const ENTRANCE_KEYFRAME_DOCUMENTS_B: Record<
 		},
 	},
 	// 剪映 青粒牵引 (7647442111515741446), transcribed from its plaintext
-	// studioAnim.lsanim. D=3 from renderGroup duration [0,3]. Dropped: SoftGlow
-	// teal glow pass; Text_BaseSticker green-particle overlay video ×1.
+	// studioAnim.lsanim. D=3 from renderGroup duration [0,3]. Its motion tracks
+	// match 星光流转's; the teal is what separates them, so the dropped SoftGlow
+	// pass's own glowColor (0.562, 0.852, 0.715) is carried here as a
+	// multiplicative tint that resolves to the text's own color as it settles.
+	// Dropped: the SoftGlow pass itself; Text_BaseSticker particle overlay ×1.
 	"teal-pull": {
 		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0.4 },
 		effect: {
 			kind: "keyframes",
+			colorTrack: [
+				{ t: 0, v: [0.562, 0.852, 0.715] },
+				{ t: 0.7, v: [0.562, 0.852, 0.715] },
+				{ t: 1, v: [1, 1, 1] },
+			],
 			channels: {
+				colorAmount: [{ t: 0, v: 1 }],
 				opacity: [
 					{ t: 0, v: 0, outValue: 0.575, outTime: 0.39 },
 					{ t: 1, v: 1, inValue: 1, inTime: -0.435 },
