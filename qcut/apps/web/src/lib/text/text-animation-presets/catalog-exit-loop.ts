@@ -934,4 +934,14 @@ export const LOOP_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["ink", "boil", "水墨晕开", "水墨", "晕开"],
 	},
+	{
+		id: "ring-scroll",
+		phase: "loop",
+		nameKey: "textProperties.animationPreset.ringScroll",
+		previewKind: "keyframes",
+		defaultDuration: 1.2,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["ring", "scroll", "marquee", "环形滚动", "环形", "滚动"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
