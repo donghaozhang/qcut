@@ -241,4 +241,15 @@ export const ENTRANCE_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["fade", "reveal", "rise", "淡入", "显现", "浮现"],
 	},
+	{
+		id: "petal-wipe",
+		phase: "entrance",
+		nameKey: "textProperties.animationPreset.petalWipe",
+		previewKind: "petal-wipe",
+		// The package ships animation_duration 0.5 s as its default.
+		defaultDuration: 0.5,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["petal", "wipe", "sweep", "blue", "蓝瓣", "划入", "蓝色"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
