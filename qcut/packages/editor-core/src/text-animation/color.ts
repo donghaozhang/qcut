@@ -113,7 +113,12 @@ export function sampleTextAnimationPalette({
 }): string {
 	if (palette.length === 0) return "#ffffff";
 	if (palette.length === 1) return palette[0];
-	const wrapped = ((position % 1) + 1) % 1;
+	// Shift negatives up rather than round-tripping through `(x % 1 + 1) % 1`:
+	// that form loses a bit of precision on exact stop boundaries (0.2 comes
+	// back as 0.19999999999999996), which floors a unit onto the PREVIOUS
+	// stop — 彩虹's neighbouring characters landed on the same color.
+	let wrapped = position % 1;
+	if (wrapped < 0) wrapped += 1;
 	const scaled = wrapped * palette.length;
 	const index = Math.floor(scaled) % palette.length;
 	if (stepped) return palette[index];
