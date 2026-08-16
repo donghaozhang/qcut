@@ -531,6 +531,10 @@ function keyframesVisual({
 			...(effect.colorTrack?.length ? { mode: "multiply" as const } : {}),
 		};
 	}
+	const outlineAmount = channel("outlineAmount");
+	if (outlineAmount !== undefined) {
+		visual.outlineAmount = Math.min(1, Math.max(0, outlineAmount));
+	}
 	const glowIntensity = channel("glowIntensity");
 	if (glowIntensity !== undefined && glowIntensity > 0) {
 		const glowRadiusPx = channel("glowRadiusPx");
