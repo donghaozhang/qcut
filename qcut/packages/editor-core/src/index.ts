@@ -190,6 +190,8 @@ export type {
 	EffectKeyframe,
 	EffectParameters,
 	EffectType,
+	JianyingAdjustParameter,
+	JianyingAdjustValue,
 	EffectAudioReactiveRenderStage,
 	EffectAudioReactiveEnvelope,
 	EffectAudioReactiveKeyframe,
