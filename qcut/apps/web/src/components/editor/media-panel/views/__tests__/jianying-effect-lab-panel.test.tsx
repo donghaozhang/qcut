@@ -56,6 +56,7 @@ function readyStatus(
 const status = vi.fn();
 const preview = vi.fn();
 const download = vi.fn();
+const cover = vi.fn();
 const renderEffect = vi.fn();
 
 describe("JianyingEffectLabPanel", () => {
@@ -70,8 +71,20 @@ describe("JianyingEffectLabPanel", () => {
 			height: 180,
 			cached: true,
 		});
+		cover.mockReset();
+		cover.mockImplementation(async ({ effectId }: { effectId: string }) => ({
+			effectId,
+			dataUrl: "data:image/gif;base64,cover",
+			cached: true,
+		}));
 		(window as unknown as { electronAPI: unknown }).electronAPI = {
-			jianyingEffects: { status, preview, download, render: renderEffect },
+			jianyingEffects: {
+				status,
+				preview,
+				download,
+				cover,
+				render: renderEffect,
+			},
 		};
 	});
 
