@@ -404,4 +404,14 @@ export const LOOP_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["lucky", "coin", "burst", "福袋", "炸开", "金币"],
 	},
+	{
+		id: "color-bounce",
+		phase: "loop",
+		nameKey: "textProperties.animationPreset.colorBounce",
+		previewKind: "color-bounce",
+		defaultDuration: 1.6,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["color", "bounce", "tint", "变色", "弹跳", "彩色"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
