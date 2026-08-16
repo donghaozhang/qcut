@@ -275,6 +275,16 @@ Mechanics worth knowing before touching it:
 - **SSIM ≠ identity check**: sparse effects legitimately score ~0.99 (星火);
   only >0.997 gets `flaggedIdentity`, and even that needs a frame sweep before
   concluding (same trap as the single-timestamp one above).
+- **Lumi family fails, and that is the ONLY failure family** (2026-08-17 full
+  run: 517/618 ok, all 101 failures are Lumi — ~90% the JS variant with a
+  root `LumiManager.js` + `config.json.js_path` and an embedded ThreeJS, the
+  rest Lua `LumiFamily/`). The bridge's `effect-video` mode exits 0 without
+  printing frame counts for them; a failed pass still MUXES a pass-through
+  mp4, which the script now deletes on failure. Unlocking the family needs
+  native-side stepping support — do not burn time re-running them.
+- The lab UI consumes `manifest.jsonl` as a verification ledger: effects with
+  a failing verdict are locked as 「本机渲染验证未通过」 instead of
+  pretending to work (electron/jianying-effect/catalog.ts).
 - Outputs live in `.local/jianying-effect-references/` (gitignored). Same red
   line as everything else here: packages and rendered references never enter
   git, public storage, or the product. Team sharing goes through the
