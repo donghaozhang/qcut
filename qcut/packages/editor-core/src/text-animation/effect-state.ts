@@ -395,6 +395,20 @@ function keyframesVisual({
 			amount: Math.min(1, Math.max(0, colorAmount)),
 		};
 	}
+	const glowIntensity = channel("glowIntensity");
+	if (glowIntensity !== undefined && glowIntensity > 0) {
+		const glowRadiusPx = channel("glowRadiusPx");
+		visual.postProcess = {
+			trailSamples: 0,
+			trailStrength: 0,
+			trapezoidAmount: 0,
+			glow: {
+				color: effect.glowColor ?? "#ffffff",
+				radiusPx: Math.max(0, glowRadiusPx ?? layout.fontSize * 0.6),
+				intensity: Math.min(1, Math.max(0, glowIntensity)),
+			},
+		};
+	}
 	return visual;
 }
 
