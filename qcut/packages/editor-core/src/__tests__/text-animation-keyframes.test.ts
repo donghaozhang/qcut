@@ -1,0 +1,217 @@
+import { describe, expect, it } from "vitest";
+import {
+	compileTextAnimation,
+	evaluateTextAnimationFrame,
+	evaluateTextKeyframeTrack,
+	segmentText,
+	type TextAnimationEffect,
+	type TextAnimationLayout,
+	type TextKeyframePoint,
+} from "../text-animation/index.js";
+import { normalizeTextAnimationEffect } from "../text-animation/normalize-effect.js";
+import {
+	createAnimation,
+	createElement,
+	createPhase,
+} from "./text-animation-test-helpers.js";
+
+function createLayout({ content }: { content: string }): TextAnimationLayout {
+	const graphemes = segmentText({ content, unit: "grapheme" });
+	return {
+		bounds: { x: 0, y: 0, width: graphemes.length * 20, height: 20 },
+		fontSize: 20,
+		graphemes: graphemes.map((segment, index) => ({
+			index,
+			start: segment.start,
+			end: segment.end,
+			lineIndex: 0,
+			bounds: { x: index * 20, y: 0, width: 20, height: 20 },
+		})),
+	};
+}
+
+describe("keyframe track evaluation", () => {
+	it("interpolates linearly when keys carry no handles", () => {
+		const track: TextKeyframePoint[] = [
+			{ t: 0, v: 0 },
+			{ t: 1, v: 10 },
+		];
+		expect(evaluateTextKeyframeTrack({ track, progress: 0.5 })).toBeCloseTo(5);
+		expect(evaluateTextKeyframeTrack({ track, progress: -1 })).toBe(0);
+		expect(evaluateTextKeyframeTrack({ track, progress: 2 })).toBe(10);
+	});
+
+	it("holds multi-segment values and picks the right segment", () => {
+		const track: TextKeyframePoint[] = [
+			{ t: 0, v: 0 },
+			{ t: 2 / 3, v: 1 },
+			{ t: 1, v: 1 },
+		];
+		expect(evaluateTextKeyframeTrack({ track, progress: 1 / 3 })).toBeCloseTo(
+			0.5
+		);
+		expect(evaluateTextKeyframeTrack({ track, progress: 0.9 })).toBeCloseTo(1);
+	});
+
+	it("bends toward bezier handles like Jianying's 变色弹跳 selector track", () => {
+		// The reference selector `start` track, times renormalized from 0..3 s
+		// to 0..1: fast open (out handle at +0.15 of the phase) into a long
+		// ease-out (in handle reaching back -0.54).
+		const track: TextKeyframePoint[] = [
+			{ t: 0, v: 0.5, outValue: 0.14000000059604645, outTime: 0.15 },
+			{ t: 1, v: 0, inValue: 0.05000000074505806, inTime: -0.54 },
+		];
+		expect(evaluateTextKeyframeTrack({ track, progress: 0 })).toBeCloseTo(0.5);
+		expect(evaluateTextKeyframeTrack({ track, progress: 1 })).toBeCloseTo(0);
+		// The handle pair pulls the curve far below the linear midpoint 0.25.
+		const middle = evaluateTextKeyframeTrack({ track, progress: 0.5 });
+		expect(middle).toBeLessThan(0.15);
+		expect(middle).toBeGreaterThan(0);
+		// Monotonic descent across the segment.
+		let previous = 0.5;
+		for (let step = 1; step <= 10; step++) {
+			const value = evaluateTextKeyframeTrack({
+				track,
+				progress: step / 10,
+			});
+			expect(value).toBeLessThanOrEqual(previous + 1e-9);
+			previous = value;
+		}
+	});
+});
+
+describe("keyframes effect", () => {
+	const FADE_REVEAL: TextAnimationEffect = {
+		kind: "keyframes",
+		channels: {
+			opacity: [
+				{ t: 0, v: 0 },
+				{ t: 2 / 3, v: 1 },
+				{ t: 1, v: 1 },
+			],
+			translateYEm: [
+				{ t: 0, v: 0.5 },
+				{ t: 2 / 3, v: 0 },
+				{ t: 1, v: 0 },
+			],
+			scaleX: [
+				{ t: 0, v: 0.8 },
+				{ t: 2 / 3, v: 1 },
+				{ t: 1, v: 1 },
+			],
+			scaleY: [
+				{ t: 0, v: 0.8 },
+				{ t: 2 / 3, v: 1 },
+				{ t: 1, v: 1 },
+			],
+		},
+	};
+
+	function sampleEntrance({ frame }: { frame: number }) {
+		const element = createElement({
+			overrides: {
+				content: "AB",
+				duration: 3,
+				textAnimations: createAnimation({
+					entrance: createPhase({
+						effect: FADE_REVEAL,
+						target: "textAndBackground",
+						duration: 1,
+					}),
+				}),
+			},
+		});
+		return evaluateTextAnimationFrame({
+			compiled: compileTextAnimation({ element, fps: 100 }),
+			frame,
+			layout: createLayout({ content: "AB" }),
+		});
+	}
+
+	it("plays the transcribed 淡入显现 document (data, not code)", () => {
+		const start = sampleEntrance({ frame: 0 });
+		expect(start.container.opacity).toBeCloseTo(0);
+		// 0.5 em below on a 20 px font.
+		expect(start.container.translateY).toBeCloseTo(10);
+		expect(start.container.scaleX).toBeCloseTo(0.8);
+
+		const settled = sampleEntrance({ frame: 67 });
+		expect(settled.container.opacity).toBeCloseTo(1, 1);
+		expect(settled.container.translateY).toBeCloseTo(0, 1);
+		expect(settled.container.scaleX).toBeCloseTo(1, 1);
+	});
+
+	it("feeds the color channel from a colorAmount track", () => {
+		const effect: TextAnimationEffect = {
+			kind: "keyframes",
+			color: "#00ffcc",
+			channels: {
+				colorAmount: [
+					{ t: 0, v: 0 },
+					{ t: 1, v: 1 },
+				],
+			},
+		};
+		const element = createElement({
+			overrides: {
+				content: "AB",
+				duration: 3,
+				textAnimations: createAnimation({
+					entrance: createPhase({
+						effect,
+						target: "textAndBackground",
+						duration: 1,
+					}),
+				}),
+			},
+		});
+		const state = evaluateTextAnimationFrame({
+			compiled: compileTextAnimation({ element, fps: 100 }),
+			frame: 50,
+			layout: createLayout({ content: "AB" }),
+		});
+		expect(state.container.colorMix?.color).toBe("#00ffcc");
+		expect(state.container.colorMix?.amount).toBeCloseTo(0.5);
+	});
+});
+
+describe("keyframes normalization", () => {
+	it("keeps valid tracks, sorts keys, and drops junk", () => {
+		expect(
+			normalizeTextAnimationEffect({
+				value: {
+					kind: "keyframes",
+					color: " #ffcc00 ",
+					channels: {
+						opacity: [
+							{ t: 1, v: 1 },
+							{ t: 0, v: 0, outTime: 0.2, outValue: 0.1 },
+							{ t: 0.5, v: "oops" },
+						],
+						sparkle: [{ t: 0, v: 1 }],
+					},
+				},
+			})
+		).toEqual({
+			kind: "keyframes",
+			channels: {
+				opacity: [
+					{ t: 0, v: 0, outValue: 0.1, outTime: 0.2 },
+					{ t: 1, v: 1 },
+				],
+			},
+			color: "#ffcc00",
+		});
+	});
+
+	it("rejects documents without a single usable track", () => {
+		expect(
+			normalizeTextAnimationEffect({
+				value: { kind: "keyframes", channels: { opacity: [] } },
+			})
+		).toBeNull();
+		expect(
+			normalizeTextAnimationEffect({ value: { kind: "keyframes" } })
+		).toBeNull();
+	});
+});
