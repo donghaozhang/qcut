@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	collectCatalogItems,
+	collectPanelCategories,
 	findUnsafeZipEntries,
 	readAdjustParameters,
 } from "../jianying-effect/catalog-parsing.js";
@@ -19,6 +20,8 @@ function catalogItem({
 	extra = {},
 	sdkExtra,
 	requirements,
+	categoryIds,
+	coverUrl,
 }: {
 	effectId: string;
 	title: string;
@@ -26,6 +29,8 @@ function catalogItem({
 	extra?: Record<string, unknown>;
 	sdkExtra?: string;
 	requirements?: string[];
+	categoryIds?: Array<number | string>;
+	coverUrl?: string;
 }) {
 	return {
 		common_attr: {
@@ -36,8 +41,28 @@ function catalogItem({
 			extra: JSON.stringify(extra),
 			sdk_extra: sdkExtra,
 			requirements,
+			category_ids: categoryIds,
+			cover_url: coverUrl ? { small: coverUrl } : undefined,
 		},
 		special_effect: { effect_duration: 3000 },
+	};
+}
+
+function panelRow({
+	categories,
+}: {
+	categories: Array<{ id: number; name: string }>;
+}) {
+	return {
+		url: "/artist/v1/panel/get_panel_info_ABCDEF__jianyingpro_0",
+		responseBody: JSON.stringify({
+			data: {
+				categories: categories.map((category) => ({
+					category_id: category.id,
+					category_name: category.name,
+				})),
+			},
+		}),
 	};
 }
 
@@ -147,6 +172,28 @@ describe("Jianying effect catalog", () => {
 		expect(items[0].itemUrls).toEqual(["https://p9-artist.example/pkg.zip"]);
 	});
 
+	it("reads category ids and https covers", () => {
+		const items = collectCatalogItems({
+			rows: [
+				catalogRow({
+					panel: "effects2",
+					items: [
+						catalogItem({
+							effectId: "1",
+							title: "抖动",
+							md5: "aaa",
+							categoryIds: [7730, "39654"],
+							coverUrl: "https://p3.byteimg.example/cover.image",
+						}),
+					],
+				}),
+			],
+		});
+
+		expect(items[0].categoryIds).toEqual(["7730", "39654"]);
+		expect(items[0].coverUrl).toBe("https://p3.byteimg.example/cover.image");
+	});
+
 	it("defaults item urls to empty when the catalog omits them", () => {
 		const items = collectCatalogItems({
 			rows: [
@@ -158,6 +205,77 @@ describe("Jianying effect catalog", () => {
 		});
 
 		expect(items[0].itemUrls).toEqual([]);
+	});
+});
+
+describe("panel categories", () => {
+	it("rebuilds the sidebar from the best-overlapping panel row", () => {
+		const items = collectCatalogItems({
+			rows: [
+				catalogRow({
+					panel: "effects2",
+					items: [
+						catalogItem({
+							effectId: "1",
+							title: "抖动",
+							md5: "aaa",
+							categoryIds: [7730, 39654],
+						}),
+						catalogItem({
+							effectId: "2",
+							title: "开幕",
+							md5: "bbb",
+							categoryIds: [7728],
+						}),
+					],
+				}),
+			],
+		});
+		const panelRows = [
+			// The sticker panel shares no ids and must lose.
+			panelRow({ categories: [{ id: 111, name: "贴纸" }] }),
+			panelRow({
+				categories: [
+					{ id: 39654, name: "热门" },
+					{ id: 7728, name: "基础" },
+					{ id: 7730, name: "动感" },
+					{ id: 999, name: "无关" },
+				],
+			}),
+		];
+
+		expect(collectPanelCategories({ panelRows, items })).toEqual([
+			{ id: "39654", name: "热门", panel: "effects2" },
+			{ id: "7728", name: "基础", panel: "effects2" },
+			{ id: "7730", name: "动感", panel: "effects2" },
+		]);
+	});
+
+	it("keeps used ids the winning panel misses", () => {
+		const items = collectCatalogItems({
+			rows: [
+				catalogRow({
+					panel: "effects2",
+					items: [
+						catalogItem({
+							effectId: "1",
+							title: "抖动",
+							md5: "aaa",
+							categoryIds: [7730, 424242],
+						}),
+					],
+				}),
+			],
+		});
+		const panelRows = [
+			panelRow({ categories: [{ id: 7730, name: "动感" }] }),
+			panelRow({ categories: [{ id: 424242, name: "综艺" }] }),
+		];
+
+		expect(collectPanelCategories({ panelRows, items })).toEqual([
+			{ id: "7730", name: "动感", panel: "effects2" },
+			{ id: "424242", name: "综艺", panel: "effects2" },
+		]);
 	});
 });
 
