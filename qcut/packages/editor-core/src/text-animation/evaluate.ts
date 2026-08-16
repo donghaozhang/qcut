@@ -56,6 +56,13 @@ function composeVisual({
 	const transformOrigin = overlay.transformOrigin ?? base.transformOrigin;
 	const projection = overlay.projection ?? base.projection;
 	const postProcess = overlay.postProcess ?? base.postProcess;
+	let colorMix = overlay.colorMix ?? base.colorMix;
+	if (base.colorMix && overlay.colorMix) {
+		colorMix =
+			overlay.colorMix.amount >= base.colorMix.amount
+				? overlay.colorMix
+				: base.colorMix;
+	}
 	return {
 		opacity: base.opacity * overlay.opacity,
 		translateX: base.translateX + overlay.translateX,
@@ -68,6 +75,7 @@ function composeVisual({
 		rotationYDeg: (base.rotationYDeg ?? 0) + (overlay.rotationYDeg ?? 0),
 		blurPx: Math.max(base.blurPx, overlay.blurPx),
 		...(mask ? { mask } : {}),
+		...(colorMix ? { colorMix } : {}),
 		...(transformOrigin ? { transformOrigin } : {}),
 		...(projection ? { projection } : {}),
 		...(postProcess ? { postProcess } : {}),
