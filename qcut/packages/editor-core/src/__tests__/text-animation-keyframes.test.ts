@@ -4,6 +4,7 @@ import {
 	evaluateTextAnimationFrame,
 	evaluateTextKeyframeTrack,
 	segmentText,
+	selectorUnitWeight,
 	type TextAnimationEffect,
 	type TextAnimationLayout,
 	type TextKeyframePoint,
@@ -210,6 +211,106 @@ describe("keyframes effect", () => {
 		});
 		expect(state.container.colorMix?.color).toBe("#00ffcc");
 		expect(state.container.colorMix?.amount).toBeCloseTo(0.5);
+	});
+});
+
+describe("animated selector", () => {
+	// Jianying 变色弹跳's real selector: the window opens from the text center
+	// (0.5, 0.5) to full (0, 1) over the cycle; characters inside get the
+	// constant tint + lift, feathered at the moving front.
+	const COLOR_BOUNCE_SELECTOR: TextAnimationEffect = {
+		kind: "keyframes",
+		color: "#ffff00",
+		selector: {
+			start: [
+				{ t: 0, v: 0.5, outValue: 0.14000000059604645, outTime: 0.15 },
+				{ t: 1, v: 0, inValue: 0.05000000074505806, inTime: -0.54 },
+			],
+			end: [
+				{ t: 0, v: 0.5, outValue: 0.8600000143051147, outTime: 0.15 },
+				{ t: 1, v: 1, inValue: 0.949999988079071, inTime: -0.54 },
+			],
+			shape: "square",
+			feather: 0.25,
+		},
+		channels: {
+			colorAmount: [{ t: 0, v: 1 }],
+			translateYEm: [{ t: 0, v: -0.2 }],
+		},
+	};
+
+	function sampleSelector({ frame }: { frame: number }) {
+		const element = createElement({
+			overrides: {
+				content: "ABCDEF",
+				duration: 3,
+				textAnimations: createAnimation({
+					entrance: createPhase({
+						effect: COLOR_BOUNCE_SELECTOR,
+						target: "text",
+						unit: "grapheme",
+						duration: 1,
+					}),
+				}),
+			},
+		});
+		return evaluateTextAnimationFrame({
+			compiled: compileTextAnimation({ element, fps: 100 }),
+			frame,
+			layout: createLayout({ content: "ABCDEF" }),
+		});
+	}
+
+	it("opens the tint window from the center outward", () => {
+		const early = sampleSelector({ frame: 8 });
+		const centerAmount = early.units[2]?.visual.colorMix?.amount ?? 0;
+		const edgeAmount = early.units[0]?.visual.colorMix?.amount ?? 0;
+		expect(centerAmount).toBeGreaterThan(edgeAmount);
+		expect(centerAmount).toBeGreaterThan(0.5);
+	});
+
+	it("covers every character once the window is fully open", () => {
+		const settled = sampleSelector({ frame: 99 });
+		for (const unit of settled.units) {
+			expect(unit.visual.colorMix?.amount ?? 0).toBeGreaterThan(0.95);
+			expect(unit.visual.translateY).toBeLessThan(-3.8);
+		}
+	});
+
+	it("weights shapes across the window", () => {
+		const selector = {
+			start: [{ t: 0, v: 0 }],
+			end: [{ t: 0, v: 1 }],
+			shape: "triangle" as const,
+			feather: 0,
+		};
+		expect(
+			selectorUnitWeight({ selector, unitPosition: 0.5, progress: 0 })
+		).toBeCloseTo(1);
+		expect(
+			selectorUnitWeight({ selector, unitPosition: 0, progress: 0 })
+		).toBeCloseTo(0);
+		expect(
+			selectorUnitWeight({ selector, unitPosition: 0.25, progress: 0 })
+		).toBeCloseTo(0.5);
+	});
+
+	it("feathers square windows past their edges", () => {
+		const selector = {
+			start: [{ t: 0, v: 0.4 }],
+			end: [{ t: 0, v: 0.6 }],
+			shape: "square" as const,
+			feather: 0.2,
+		};
+		expect(
+			selectorUnitWeight({ selector, unitPosition: 0.5, progress: 0 })
+		).toBeCloseTo(1);
+		expect(
+			selectorUnitWeight({ selector, unitPosition: 0.7, progress: 0 })
+		).toBeCloseTo(0.5);
+		expect(
+			selectorUnitWeight({ selector, unitPosition: 0.9, progress: 0 })
+		).toBeCloseTo(0);
 	});
 });
 
