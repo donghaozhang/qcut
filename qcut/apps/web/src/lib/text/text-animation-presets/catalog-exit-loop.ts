@@ -371,6 +371,16 @@ export const EXIT_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["spin", "scale", "rotate", "旋转缩放", "旋转", "缩放"],
 	},
+	{
+		id: "wrap-slide-out",
+		phase: "exit",
+		nameKey: "textProperties.animationPreset.wrapSlideOut",
+		previewKind: "keyframes",
+		defaultDuration: 1.0,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["wrap", "slide", "out", "环绕滑出", "环绕", "滑出"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
 
 export const LOOP_TEXT_ANIMATION_PRESETS = [
