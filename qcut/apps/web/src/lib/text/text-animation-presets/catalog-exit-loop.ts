@@ -381,6 +381,16 @@ export const EXIT_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["wrap", "slide", "out", "环绕滑出", "环绕", "滑出"],
 	},
+	{
+		id: "scatter-left",
+		phase: "exit",
+		nameKey: "textProperties.animationPreset.scatterLeft",
+		previewKind: "keyframes",
+		defaultDuration: 2.0,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["scatter", "disperse", "left", "向左解散", "向左", "解散"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
 
 export const LOOP_TEXT_ANIMATION_PRESETS = [

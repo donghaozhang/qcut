@@ -642,4 +642,14 @@ export const ENTRANCE_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["hop", "bounce", "mischief", "跳跳捣蛋鬼", "跳跳", "捣蛋鬼"],
 	},
+	{
+		id: "gather-right",
+		phase: "entrance",
+		nameKey: "textProperties.animationPreset.gatherRight",
+		previewKind: "keyframes",
+		defaultDuration: 2.0,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["gather", "converge", "right", "向右集合", "向右", "集合"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
