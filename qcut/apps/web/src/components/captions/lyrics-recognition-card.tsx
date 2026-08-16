@@ -38,6 +38,12 @@ const KARAOKE_MODE_LABEL_KEYS: Record<KaraokeMode, TranslationKey> = {
 	karaoke: "captions.lyrics.effect.karaoke",
 	bounce: "captions.lyrics.effect.bounce",
 	typewriter: "captions.lyrics.effect.typewriter",
+	slam: "caption.karaoke.slam",
+	spring: "caption.karaoke.spring",
+	overlap: "caption.karaoke.overlap",
+	expand: "caption.karaoke.expand",
+	shine: "caption.karaoke.shine",
+	pulse: "caption.karaoke.pulse",
 };
 
 interface LyricsSource {
