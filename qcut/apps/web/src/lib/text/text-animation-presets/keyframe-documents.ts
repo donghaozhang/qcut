@@ -7,6 +7,11 @@ import {
 	ENTRANCE_KEYFRAME_DOCUMENTS_A,
 	type TextKeyframeDocument,
 } from "./keyframe-documents-entrance-a";
+import {
+	ENTRANCE_TEXTANIM_DOCUMENTS,
+	EXIT_TEXTANIM_DOCUMENTS,
+	LOOP_TEXTANIM_DOCUMENTS,
+} from "./keyframe-documents-textanim";
 import { ENTRANCE_KEYFRAME_DOCUMENTS_B } from "./keyframe-documents-entrance-b";
 import { ENTRANCE_KEYFRAME_DOCUMENTS_C } from "./keyframe-documents-entrance-c";
 import { EXIT_KEYFRAME_DOCUMENTS } from "./keyframe-documents-exit";
@@ -38,9 +43,12 @@ export const TEXT_KEYFRAME_DOCUMENTS: Record<string, TextKeyframeDocument> = {
 	...withPhase({ phase: "entrance", documents: ENTRANCE_KEYFRAME_DOCUMENTS_B }),
 	...withPhase({ phase: "entrance", documents: ENTRANCE_KEYFRAME_DOCUMENTS_C }),
 	...withPhase({ phase: "entrance", documents: ENTRANCE_AEDATA_DOCUMENTS }),
+	...withPhase({ phase: "entrance", documents: ENTRANCE_TEXTANIM_DOCUMENTS }),
 	...withPhase({ phase: "exit", documents: EXIT_KEYFRAME_DOCUMENTS }),
 	...withPhase({ phase: "exit", documents: EXIT_KEYFRAME_DOCUMENTS_B }),
 	...withPhase({ phase: "exit", documents: EXIT_AEDATA_DOCUMENTS }),
+	...withPhase({ phase: "exit", documents: EXIT_TEXTANIM_DOCUMENTS }),
 	...withPhase({ phase: "loop", documents: LOOP_KEYFRAME_DOCUMENTS }),
 	...withPhase({ phase: "loop", documents: LOOP_AEDATA_DOCUMENTS }),
+	...withPhase({ phase: "loop", documents: LOOP_TEXTANIM_DOCUMENTS }),
 };
