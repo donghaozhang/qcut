@@ -206,3 +206,54 @@ describe("getKaraokeSegments", () => {
 		}
 	});
 });
+
+describe("caption-pool mechanism modes", () => {
+	it("slam: the active word shrinks from large toward rest", () => {
+		const early = getKaraokeSegments(sampleWords, 1.05, "slam");
+		const late = getKaraokeSegments(sampleWords, 1.45, "slam");
+		expect(early[0].scale).toBeGreaterThan(late[0].scale);
+		expect(early[0].scale).toBeLessThanOrEqual(3);
+		expect(late[0].scale).toBeCloseTo(1, 1);
+		// Upcoming words stay hidden; spoken words rest at 1.
+		expect(early[1].opacity).toBe(0);
+		const after = getKaraokeSegments(sampleWords, 1.55, "slam");
+		expect(after[0].scale).toBe(1);
+		expect(after[0].opacity).toBe(1);
+	});
+
+	it("spring: the word overshoots past 1 before settling", () => {
+		const peak = getKaraokeSegments(sampleWords, 1.0 + 0.5 * 0.2, "spring");
+		expect(peak[0].scale).toBeGreaterThan(1.1);
+		const settled = getKaraokeSegments(sampleWords, 1.49, "spring");
+		expect(settled[0].scale).toBeCloseTo(1, 1);
+	});
+
+	it("overlap: the word drops from 1.35 to rest", () => {
+		const start = getKaraokeSegments(sampleWords, 1.001, "overlap");
+		expect(start[0].scale).toBeCloseTo(1.35, 1);
+		const landed = getKaraokeSegments(sampleWords, 1.3, "overlap");
+		expect(landed[0].scale).toBeCloseTo(1, 2);
+	});
+
+	it("expand: the word spreads up from 0.85", () => {
+		const start = getKaraokeSegments(sampleWords, 1.001, "expand");
+		expect(start[0].scale).toBeLessThan(0.9);
+		const spread = getKaraokeSegments(sampleWords, 1.25, "expand");
+		expect(spread[0].scale).toBeGreaterThan(1);
+	});
+
+	it("shine: the mid-word band highlights only the active word", () => {
+		const mid = getKaraokeSegments(sampleWords, 1.25, "shine", "#ffffff");
+		expect(mid[0].color).toBe("#ffffff");
+		expect(mid[0].scale).toBeGreaterThan(1);
+		expect(mid[1].color).toBeUndefined();
+		expect(mid[1].opacity).toBe(1);
+	});
+
+	it("pulse: the active word bumps and everyone stays visible", () => {
+		const bump = getKaraokeSegments(sampleWords, 1.12, "pulse");
+		expect(bump[0].scale).toBeGreaterThan(1.05);
+		expect(bump[1].scale).toBe(1);
+		expect(bump[2].opacity).toBe(1);
+	});
+});
