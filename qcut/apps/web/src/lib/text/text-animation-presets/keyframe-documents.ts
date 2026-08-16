@@ -1,4 +1,9 @@
 import {
+	ENTRANCE_AEDATA_DOCUMENTS,
+	EXIT_AEDATA_DOCUMENTS,
+	LOOP_AEDATA_DOCUMENTS,
+} from "./keyframe-documents-aedata";
+import {
 	ENTRANCE_KEYFRAME_DOCUMENTS_A,
 	type TextKeyframeDocument,
 } from "./keyframe-documents-entrance-a";
@@ -32,7 +37,10 @@ export const TEXT_KEYFRAME_DOCUMENTS: Record<string, TextKeyframeDocument> = {
 	...withPhase({ phase: "entrance", documents: ENTRANCE_KEYFRAME_DOCUMENTS_A }),
 	...withPhase({ phase: "entrance", documents: ENTRANCE_KEYFRAME_DOCUMENTS_B }),
 	...withPhase({ phase: "entrance", documents: ENTRANCE_KEYFRAME_DOCUMENTS_C }),
+	...withPhase({ phase: "entrance", documents: ENTRANCE_AEDATA_DOCUMENTS }),
 	...withPhase({ phase: "exit", documents: EXIT_KEYFRAME_DOCUMENTS }),
 	...withPhase({ phase: "exit", documents: EXIT_KEYFRAME_DOCUMENTS_B }),
+	...withPhase({ phase: "exit", documents: EXIT_AEDATA_DOCUMENTS }),
 	...withPhase({ phase: "loop", documents: LOOP_KEYFRAME_DOCUMENTS }),
+	...withPhase({ phase: "loop", documents: LOOP_AEDATA_DOCUMENTS }),
 };
