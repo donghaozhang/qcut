@@ -423,6 +423,12 @@ export type TextKeyframeChannel =
 	// Radial light shafts (WebGL2): brightness and reach.
 	| "godRayIntensity"
 	| "godRayReach"
+	// Noise-eroded silhouette (WebGL2): bite depth and how much is noise.
+	| "roughEdgePx"
+	| "roughEdgeNoise"
+	// Stacked directional copies (Jianying LayeredReplacement), in px.
+	| "layerOffsetXPx"
+	| "layerOffsetYPx"
 	// Directional motion smear along rasterAngleDeg, in px.
 	| "dirBlurPx"
 	// Raster post-pass parameters, so a document can animate the mosaic
@@ -725,7 +731,9 @@ export interface TextAnimationRasterEffectState {
 		| "echo"
 		| "dirBlur"
 		| "flame"
-		| "godRay";
+		| "godRay"
+		| "roughEdge"
+		| "layered";
 	/** pixelate: grid cell size in px. */
 	cell?: number;
 	/** rgbSplit / dirBlur: separation or smear length in px, and direction. */
@@ -737,6 +745,8 @@ export interface TextAnimationRasterEffectState {
 	evolution?: number;
 	/** flame / godRay: how far the effect reaches from the glyphs (~0..2). */
 	reach?: number;
+	/** roughEdge: noise cell size in uv (the source ships 0.15). */
+	noiseScale?: number;
 	/** bloom: halo strength (0..~2), blur radius px, bright-pass threshold. */
 	intensity?: number;
 	radiusPx?: number;
