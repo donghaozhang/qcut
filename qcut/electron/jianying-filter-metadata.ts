@@ -1,6 +1,12 @@
 import { readdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+// The pure lookups live in their own module so a runtime without node:sqlite
+// can still use them; re-exported here so existing importers are unaffected.
+export {
+	findJianyingFilterCategories,
+	findJianyingFilterTitle,
+} from "./jianying-filter-metadata-lookup.js";
 import {
 	jianyingEffectCacheRoot,
 	type JianyingLutReference,
@@ -633,16 +639,6 @@ export async function scanJianyingFilterMetadata({
 	};
 }
 
-export function findJianyingFilterCategories({
-	reference,
-	catalog,
-}: {
-	reference: JianyingLutReference;
-	catalog: JianyingFilterCategoryCatalog;
-}) {
-	return catalog.byResourceId.get(reference.resourceId);
-}
-
 export async function resolveJianyingFilterTitles({
 	references,
 	databaseRoot = join(dirname(jianyingEffectCacheRoot()), "ressdk_db"),
@@ -688,19 +684,4 @@ function buildTitleMap({
 		);
 	}
 	return titles;
-}
-
-export function findJianyingFilterTitle({
-	reference,
-	titles,
-}: {
-	reference: JianyingLutReference;
-	titles: ReadonlyMap<string, string>;
-}) {
-	return titles.get(
-		titleKey({
-			resourceId: reference.resourceId,
-			version: reference.version,
-		})
-	);
 }
