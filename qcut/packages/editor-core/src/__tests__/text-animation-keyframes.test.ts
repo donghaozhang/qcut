@@ -212,11 +212,9 @@ describe("keyframes effect", () => {
 		const layout = createLayout({ content: "AB" });
 		const at = (frame: number) =>
 			evaluateTextAnimationFrame({ compiled, frame, layout });
-		expect(at(0).container.postProcess?.raster).toEqual({
-			kind: "bloom",
-			intensity: 1.2,
-			radiusPx: 18,
-		});
+		expect(at(0).container.postProcess?.raster).toEqual([
+			{ kind: "bloom", intensity: 1.2, radiusPx: 18 },
+		]);
 		// The track fading to zero drops the pass entirely.
 		expect(at(99).container.postProcess?.raster).toBeUndefined();
 	});
@@ -250,11 +248,9 @@ describe("keyframes effect", () => {
 			frame: 50,
 			layout: createLayout({ content: "AB" }),
 		});
-		expect(state.container.postProcess?.raster).toEqual({
-			kind: "echo",
-			spread: -1,
-			samples: 12,
-		});
+		expect(state.container.postProcess?.raster).toEqual([
+			{ kind: "echo", spread: -1, samples: 12 },
+		]);
 	});
 
 	it("drives the directional blur pass from its channel", () => {
@@ -286,11 +282,44 @@ describe("keyframes effect", () => {
 			frame: 50,
 			layout: createLayout({ content: "AB" }),
 		});
-		expect(state.container.postProcess?.raster).toEqual({
-			kind: "dirBlur",
-			offsetPx: 15,
-			angleDeg: 180,
+		expect(state.container.postProcess?.raster).toEqual([
+			{ kind: "dirBlur", offsetPx: 15, angleDeg: 180 },
+		]);
+	});
+
+	it("chains every driven raster pass in render order", () => {
+		const effect: TextAnimationEffect = {
+			kind: "keyframes",
+			channels: {
+				bloomIntensity: [{ t: 0, v: 1 }],
+				bloomRadiusPx: [{ t: 0, v: 10 }],
+				displaceAmplitudePx: [{ t: 0, v: 4 }],
+				rgbSplitPx: [{ t: 0, v: 6 }],
+			},
+		};
+		const element = createElement({
+			overrides: {
+				content: "AB",
+				duration: 3,
+				textAnimations: createAnimation({
+					entrance: createPhase({
+						effect,
+						target: "textAndBackground",
+						duration: 1,
+					}),
+				}),
+			},
 		});
+		const state = evaluateTextAnimationFrame({
+			compiled: compileTextAnimation({ element, fps: 100 }),
+			frame: 50,
+			layout: createLayout({ content: "AB" }),
+		});
+		// Geometry first, chroma next, halo last — so the glow blooms what the
+		// earlier passes produced.
+		expect(
+			state.container.postProcess?.raster?.map((pass) => pass.kind)
+		).toEqual(["displace", "rgbSplit", "bloom"]);
 	});
 
 	it("wraps marquee characters around the period seamlessly", () => {
