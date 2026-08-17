@@ -19,6 +19,7 @@ import type {
 	JianyingTextAnimationReferences,
 	JianyingTextAnimationSlot,
 	JianyingTextStyleCategoryId,
+	JianyingTextStyleLabListResult,
 	JianyingTextStyleLabStyleSummary,
 } from "@/types/electron";
 import { useJianyingTextStyleLab } from "./use-jianying-text-style-lab";
@@ -28,7 +29,7 @@ import { updateTextStyleLabAnimationSelection } from "./text-style-lab-mapping";
 
 const TRIAL_STYLE_COUNT = 5;
 const CATEGORY_STYLE_LIMIT = 20;
-type LabView = "trial" | "all" | JianyingTextStyleCategoryId;
+export type LabView = "trial" | "all" | JianyingTextStyleCategoryId;
 type CoverState = "loading" | "ready" | "error" | "missing";
 
 function displayTitle({ style }: { style: JianyingTextStyleLabStyleSummary }) {
@@ -238,7 +239,7 @@ function TextStyleLabCard({
  * left panel, so they fold into the four groupings Jianying itself implies —
  * charts, styles, effects, colours — and each group remembers its own state.
  */
-const CATEGORY_GROUPS = [
+export const CATEGORY_GROUPS = [
 	{ id: "charts", label: "榜单", members: ["popular", "latest"] },
 	{ id: "styles", label: "风格", members: ["summer", "variety", "guofeng"] },
 	{ id: "effects", label: "效果", members: ["glow", "gradient", "texture"] },
@@ -340,9 +341,71 @@ function CategoryGroup({
 	);
 }
 
+/**
+ * The lab's category rail. It renders nested under the 花字实验室 entry in the
+ * text panel's own left rail rather than inside the lab, so the lab expands
+ * the way every other library group does — the panel keeps only the grid.
+ */
+export function JianyingTextStyleLabCategoryNav({
+	expandedGroups,
+	result,
+	view,
+	onSelect,
+	onToggleGroup,
+}: {
+	expandedGroups: Record<string, boolean>;
+	result: JianyingTextStyleLabListResult;
+	view: LabView;
+	onSelect: (id: LabView) => void;
+	onToggleGroup: (groupId: string) => void;
+}) {
+	const trialCount = selectTrialStyles({ styles: result.styles }).length;
+	return (
+		<div className="pl-2">
+			{(["trial", "all"] as const).map((option) => (
+				<button
+					key={option}
+					type="button"
+					aria-pressed={view === option}
+					className={cn(
+						"mb-1 flex h-7 w-full items-center justify-between rounded-sm px-2 text-[11px]",
+						view === option
+							? "bg-white/10 text-foreground"
+							: "text-muted-foreground hover:bg-white/[0.06]"
+					)}
+					onClick={() => onSelect(option)}
+					onKeyDown={(event) => {
+						if (event.key === "Enter" || event.key === " ") {
+							onSelect(option);
+						}
+					}}
+				>
+					<span>{option === "trial" ? "五款预览" : "全部"}</span>
+					<span className="text-[10px] text-muted-foreground">
+						{option === "trial" ? trialCount : result.count}
+					</span>
+				</button>
+			))}
+			{CATEGORY_GROUPS.map((group) => (
+				<CategoryGroup
+					key={group.id}
+					group={group}
+					categories={result.categories}
+					view={view}
+					expanded={expandedGroups[group.id] ?? false}
+					onToggle={() => onToggleGroup(group.id)}
+					onSelect={onSelect}
+				/>
+			))}
+		</div>
+	);
+}
+
 export function JianyingTextStyleLabPanel({
 	onApply,
 	onClose,
+	view,
+	lab,
 }: {
 	onApply: ({
 		animations,
@@ -353,22 +416,16 @@ export function JianyingTextStyleLabPanel({
 	}) => void;
 	/** Returns to the template list; the panel owns no open state of its own. */
 	onClose: () => void;
+	/** Category selection lives in the panel's own nav rail, one level up. */
+	view: LabView;
+	lab: ReturnType<typeof useJianyingTextStyleLab>;
 }) {
-	// The panel only renders while the text view has it open, so the data hook
-	// is always enabled here.
-	const open = true;
-	const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
-		() => ({ charts: true, styles: false, effects: false, colors: false })
-	);
 	const [query, setQuery] = useState("");
-	const [view, setView] = useState<LabView>("trial");
 	const [selectedStyleId, setSelectedStyleId] = useState("");
 	const [selectedAnimations, setSelectedAnimations] =
 		useState<JianyingTextAnimationReferences>({});
-	const { checking, result, error, refresh } = useJianyingTextStyleLab({
-		enabled: open,
-	});
-	const animationLab = useJianyingTextAnimationLab({ enabled: open });
+	const { checking, result, error, refresh } = lab;
+	const animationLab = useJianyingTextAnimationLab({ enabled: true });
 	const trialStyles = useMemo(
 		() => selectTrialStyles({ styles: result.styles }),
 		[result.styles]
@@ -496,49 +553,6 @@ export function JianyingTextStyleLabPanel({
 				</Button>
 			</div>
 			<div className="flex min-h-0 flex-1 gap-2">
-				<nav className="w-24 shrink-0 overflow-y-auto border-white/10 border-r pr-1.5">
-					{(["trial", "all"] as const).map((option) => (
-						<button
-							key={option}
-							type="button"
-							aria-pressed={view === option}
-							className={cn(
-								"mb-1 flex h-7 w-full items-center justify-between rounded-sm px-2 text-[11px]",
-								view === option
-									? "bg-white/10 text-foreground"
-									: "text-muted-foreground hover:bg-white/[0.06]"
-							)}
-							onClick={() => setView(option)}
-							onKeyDown={(event) => {
-								if (event.key === "Enter" || event.key === " ") {
-									setView(option);
-								}
-							}}
-						>
-							<span>{option === "trial" ? "五款预览" : "全部"}</span>
-							<span className="text-[10px] text-muted-foreground">
-								{option === "trial" ? trialStyles.length : result.count}
-							</span>
-						</button>
-					))}
-					<div className="my-1 border-white/10 border-t" />
-					{CATEGORY_GROUPS.map((group) => (
-						<CategoryGroup
-							key={group.id}
-							group={group}
-							categories={result.categories}
-							view={view}
-							expanded={expandedGroups[group.id] ?? false}
-							onToggle={() =>
-								setExpandedGroups((current) => ({
-									...current,
-									[group.id]: !(current[group.id] ?? false),
-								}))
-							}
-							onSelect={setView}
-						/>
-					))}
-				</nav>
 				<section className="min-w-0 flex-1">
 					<div className="flex h-7 items-center justify-between gap-2 border-white/10 border-b pb-2">
 						<span className="text-xs font-medium text-foreground">
