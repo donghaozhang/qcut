@@ -531,6 +531,7 @@ function keyframesVisual({
 			...(effect.colorTrack?.length ? { mode: "multiply" as const } : {}),
 		};
 	}
+	if (effect.pivot) visual.transformOrigin = effect.pivot;
 	const outlineAmount = channel("outlineAmount");
 	if (outlineAmount !== undefined) {
 		visual.outlineAmount = Math.min(1, Math.max(0, outlineAmount));
