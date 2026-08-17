@@ -491,6 +491,16 @@ export const EXIT_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["smear", "streak", "fade", "文字淡隐", "淡隐"],
 	},
+	{
+		id: "horizontal-split-out",
+		phase: "exit",
+		nameKey: "textProperties.animationPreset.horizontalSplitOut",
+		previewKind: "keyframes",
+		defaultDuration: 1.5,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["split", "tear", "half", "横向分割", "分割"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
 
 export const LOOP_TEXT_ANIMATION_PRESETS = [
