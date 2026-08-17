@@ -108,6 +108,20 @@ describe("collectJianyingEffectRequests", () => {
 		]);
 	});
 
+	it("carries the effect's slider values into the render request", () => {
+		const adjustValues = [
+			{ key: "effects_adjust_speed", value: 0.8 },
+			{ key: "effects_adjust_background_animation", value: 0.2 },
+		];
+		const tracks = trackWithEffects({
+			effects: [labEffect({ adjustValues })],
+		});
+
+		expect(collectJianyingEffectRequests({ tracks })[0].adjustValues).toEqual(
+			adjustValues
+		);
+	});
+
 	it("skips effects on hidden clips, hidden tracks, and muted tracks", () => {
 		expect(
 			collectJianyingEffectRequests({

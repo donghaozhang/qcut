@@ -206,3 +206,101 @@ describe("getKaraokeSegments", () => {
 		}
 	});
 });
+
+describe("caption-pool mechanism modes", () => {
+	it("slam: the active word shrinks from large toward rest", () => {
+		const early = getKaraokeSegments(sampleWords, 1.05, "slam");
+		const late = getKaraokeSegments(sampleWords, 1.45, "slam");
+		expect(early[0].scale).toBeGreaterThan(late[0].scale);
+		expect(early[0].scale).toBeLessThanOrEqual(3);
+		expect(late[0].scale).toBeCloseTo(1, 1);
+		// Upcoming words stay hidden; spoken words rest at 1.
+		expect(early[1].opacity).toBe(0);
+		const after = getKaraokeSegments(sampleWords, 1.55, "slam");
+		expect(after[0].scale).toBe(1);
+		expect(after[0].opacity).toBe(1);
+	});
+
+	it("spring: the word overshoots past 1 before settling", () => {
+		const peak = getKaraokeSegments(sampleWords, 1.0 + 0.5 * 0.2, "spring");
+		expect(peak[0].scale).toBeGreaterThan(1.1);
+		const settled = getKaraokeSegments(sampleWords, 1.49, "spring");
+		expect(settled[0].scale).toBeCloseTo(1, 1);
+	});
+
+	it("overlap: the word drops from 1.35 to rest", () => {
+		const start = getKaraokeSegments(sampleWords, 1.001, "overlap");
+		expect(start[0].scale).toBeCloseTo(1.35, 1);
+		const landed = getKaraokeSegments(sampleWords, 1.3, "overlap");
+		expect(landed[0].scale).toBeCloseTo(1, 2);
+	});
+
+	it("expand: the word spreads up from 0.85", () => {
+		const start = getKaraokeSegments(sampleWords, 1.001, "expand");
+		expect(start[0].scale).toBeLessThan(0.9);
+		const spread = getKaraokeSegments(sampleWords, 1.25, "expand");
+		expect(spread[0].scale).toBeGreaterThan(1);
+	});
+
+	it("shine: the mid-word band highlights only the active word", () => {
+		const mid = getKaraokeSegments(sampleWords, 1.25, "shine", "#ffffff");
+		expect(mid[0].color).toBe("#ffffff");
+		expect(mid[0].scale).toBeGreaterThan(1);
+		expect(mid[1].color).toBeUndefined();
+		expect(mid[1].opacity).toBe(1);
+	});
+
+	it("pulse: the active word bumps and everyone stays visible", () => {
+		const bump = getKaraokeSegments(sampleWords, 1.12, "pulse");
+		expect(bump[0].scale).toBeGreaterThan(1.05);
+		expect(bump[1].scale).toBe(1);
+		expect(bump[2].opacity).toBe(1);
+	});
+});
+
+describe("second-batch mechanism modes", () => {
+	it("fly-in: the active word rises with clearing blur", () => {
+		const early = getKaraokeSegments(sampleWords, 1.05, "fly-in");
+		expect(early[0].offsetY).toBeGreaterThan(0);
+		expect(early[0].blurPx ?? 0).toBeGreaterThan(0);
+		const landed = getKaraokeSegments(sampleWords, 1.49, "fly-in");
+		expect(landed[0].offsetY).toBeCloseTo(0, 1);
+	});
+
+	it("gather: the word slides in from the right", () => {
+		const early = getKaraokeSegments(sampleWords, 1.02, "gather");
+		expect(early[0].offsetX ?? 0).toBeGreaterThan(10);
+		const landed = getKaraokeSegments(sampleWords, 1.49, "gather");
+		expect(landed[0].offsetX ?? 0).toBeCloseTo(0, 1);
+	});
+
+	it("flip: the word unwinds a full turn", () => {
+		const early = getKaraokeSegments(sampleWords, 1.02, "flip");
+		expect(early[0].rotationDeg ?? 0).toBeGreaterThan(180);
+		const landed = getKaraokeSegments(sampleWords, 1.49, "flip");
+		expect(Math.abs(landed[0].rotationDeg ?? 0)).toBeLessThan(15);
+	});
+
+	it("blur-roll: the pulse train peaks then settles", () => {
+		const peak = getKaraokeSegments(sampleWords, 1.15, "blur-roll");
+		expect(peak[0].scale).toBeGreaterThan(1.2);
+		const settle = getKaraokeSegments(sampleWords, 1.49, "blur-roll");
+		expect(settle[0].scale).toBeGreaterThan(0.85);
+		expect(settle[0].scale).toBeLessThan(1.25);
+	});
+
+	it("glitch: flicker is deterministic and settles solid", () => {
+		const a = getKaraokeSegments(sampleWords, 1.2, "glitch", "#00ff00");
+		const b = getKaraokeSegments(sampleWords, 1.2, "glitch", "#00ff00");
+		expect(a[0].opacity).toBe(b[0].opacity);
+		const settled = getKaraokeSegments(sampleWords, 1.45, "glitch");
+		expect(settled[0].opacity).toBe(1);
+	});
+
+	it("mischief: the word dips and rocks through its slot", () => {
+		const rockIn = getKaraokeSegments(sampleWords, 1.05, "mischief");
+		expect(rockIn[0].rotationDeg ?? 0).toBeLessThan(0);
+		const rockOut = getKaraokeSegments(sampleWords, 1.35, "mischief");
+		expect(rockOut[0].rotationDeg ?? 0).toBeGreaterThan(0);
+	});
+});

@@ -9,6 +9,7 @@ import type {
 	EffectInstance,
 	EffectType,
 	AnimatedParameter,
+	JianyingAdjustValue,
 } from "@/types/effects";
 import {
 	processEffectChain,
@@ -106,6 +107,12 @@ interface EffectsStore {
 		effectId: string,
 		parameters: EffectParameters
 	) => void;
+	/** Sets one jianying-local slider value on an applied effect. */
+	updateEffectAdjustValue: (
+		elementId: string,
+		effectId: string,
+		adjust: JianyingAdjustValue
+	) => void;
 	toggleEffect: (elementId: string, effectId: string) => void;
 	clearEffects: (elementId: string) => void;
 	setSelectedCategory: (category: EffectCategory | "all") => void;
@@ -190,6 +197,11 @@ export const useEffectsStore = create<EffectsStore>((set, get) => ({
 			enabled: true,
 			engine: preset.engine,
 			packageHash: preset.packageHash,
+			adjustParameters: preset.adjustParameters,
+			adjustValues: preset.adjustParameters?.map((parameter) => ({
+				key: parameter.key,
+				value: parameter.defaultValue,
+			})),
 		};
 
 		set((state) => {
@@ -242,6 +254,27 @@ export const useEffectsStore = create<EffectsStore>((set, get) => ({
 					? { ...e, parameters: { ...e.parameters, ...parameters } }
 					: e
 			);
+			const newMap = new Map(state.activeEffects);
+			newMap.set(elementId, newEffects);
+			return { activeEffects: newMap };
+		});
+	},
+
+	updateEffectAdjustValue: (elementId, effectId, adjust) => {
+		set((state) => {
+			const effects = state.activeEffects.get(elementId) || [];
+			const newEffects = effects.map((e) => {
+				if (e.id !== effectId) return e;
+				const current = e.adjustValues ?? [];
+				const index = current.findIndex((entry) => entry.key === adjust.key);
+				const adjustValues =
+					index >= 0
+						? current.map((entry, position) =>
+								position === index ? adjust : entry
+							)
+						: [...current, adjust];
+				return { ...e, adjustValues };
+			});
 			const newMap = new Map(state.activeEffects);
 			newMap.set(elementId, newEffects);
 			return { activeEffects: newMap };

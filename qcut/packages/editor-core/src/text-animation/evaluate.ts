@@ -63,6 +63,7 @@ function composeVisual({
 				? overlay.colorMix
 				: base.colorMix;
 	}
+	const outlineAmount = overlay.outlineAmount ?? base.outlineAmount;
 	return {
 		opacity: base.opacity * overlay.opacity,
 		translateX: base.translateX + overlay.translateX,
@@ -76,6 +77,7 @@ function composeVisual({
 		blurPx: Math.max(base.blurPx, overlay.blurPx),
 		...(mask ? { mask } : {}),
 		...(colorMix ? { colorMix } : {}),
+		...(outlineAmount !== undefined ? { outlineAmount } : {}),
 		...(transformOrigin ? { transformOrigin } : {}),
 		...(projection ? { projection } : {}),
 		...(postProcess ? { postProcess } : {}),

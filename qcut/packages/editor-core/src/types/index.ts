@@ -86,6 +86,8 @@ export type {
 	EffectKeyframe,
 	EffectParameters,
 	EffectType,
+	JianyingAdjustParameter,
+	JianyingAdjustValue,
 } from "./effects.js";
 
 export type {

@@ -1,3 +1,4 @@
+import type { JianyingAdjustValue } from "@/types/effects";
 import type { TimelineTrack } from "@/types/timeline";
 
 /**
@@ -34,6 +35,7 @@ export interface JianyingEffectExportRequest {
 	packageHash: string;
 	startSeconds: number;
 	durationSeconds: number;
+	adjustValues?: JianyingAdjustValue[];
 }
 
 export function collectJianyingEffectRequests({
@@ -68,6 +70,7 @@ export function collectJianyingEffectRequests({
 					packageHash: effect.packageHash,
 					startSeconds: start,
 					durationSeconds: duration,
+					adjustValues: effect.adjustValues,
 				});
 			}
 		}
@@ -117,6 +120,7 @@ export async function applyJianyingTimelineEffects({
 			frameRate: fps,
 			startSeconds: request.startSeconds,
 			durationSeconds: request.durationSeconds,
+			adjustValues: request.adjustValues,
 		});
 		currentPath = result.outputPath;
 		onProgress?.(

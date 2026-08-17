@@ -408,6 +408,17 @@ export type TextKeyframeChannel =
 	| "colorAmount"
 	| "glowIntensity"
 	| "glowRadiusPx"
+	// Outline↔fill crossfade: 1 renders the glyph as pure stroke, 0 as the
+	// normal fill, in between blends — Jianying's 描边填充-style reveals.
+	| "outlineAmount"
+	// GPU bloom pass: halo strength and blur radius. Distinct from the
+	// per-glyph glow channels — bloom blurs the rendered block itself.
+	| "bloomIntensity"
+	| "bloomRadiusPx"
+	// Concentric echo shells: signed spread, + inward / - outward.
+	| "echoAmount"
+	// Directional motion smear along rasterAngleDeg, in px.
+	| "dirBlurPx"
 	// Raster post-pass parameters, so a document can animate the mosaic
 	// coarseness, the channel separation, or the displacement strength.
 	| "pixelateCell"
@@ -536,6 +547,20 @@ export interface TextJitterEffect {
 	amplitudeY: number;
 }
 
+/**
+ * Modulo marquee. Each line slides sideways by exactly one wrap period per
+ * cycle and characters that leave one edge re-enter from the other —
+ * Jianying's 环形滚动: period = block width + a fixed gap, odd rows run the
+ * opposite way.
+ */
+export interface TextMarqueeEffect {
+	kind: "marquee";
+	/** Extra wrap gap beyond the block width, in em. */
+	gapEm: number;
+	/** Odd lines scroll the opposite direction (the source's rowth % 2). */
+	alternate: boolean;
+}
+
 export type TextAnimationEffect =
 	| TextTypewriterEffect
 	| TextFadeEffect
@@ -552,6 +577,7 @@ export type TextAnimationEffect =
 	| TextCylinder3DEffect
 	| TextJitter3DEffect
 	| TextJitterEffect
+	| TextMarqueeEffect
 	| TextColorCycleEffect
 	| TextKeyframesEffect
 	| TextArcEffect
@@ -659,16 +685,26 @@ export interface TextAnimationGlowState {
  *   case covering boil, turbulence and ripple.
  */
 export interface TextAnimationRasterEffectState {
-	kind: "pixelate" | "rgbSplit" | "displace";
+	kind: "pixelate" | "rgbSplit" | "displace" | "bloom" | "echo" | "dirBlur";
 	/** pixelate: grid cell size in px. */
 	cell?: number;
-	/** rgbSplit: channel separation in px, and its direction. */
+	/** rgbSplit / dirBlur: separation or smear length in px, and direction. */
 	offsetPx?: number;
 	angleDeg?: number;
 	/** displace: field amplitude px, spatial scale px, and time phase. */
 	amplitudePx?: number;
 	scale?: number;
 	evolution?: number;
+	/** bloom: halo strength (0..~2), blur radius px, bright-pass threshold. */
+	intensity?: number;
+	radiusPx?: number;
+	threshold?: number;
+	/**
+	 * echo: concentric scale shells behind the block. Positive spread trails
+	 * inward (smaller shells, a zoom-in echo), negative trails outward.
+	 */
+	spread?: number;
+	samples?: number;
 }
 
 export interface TextAnimationPostProcessState {
@@ -714,6 +750,8 @@ export interface TextAnimationVisualState {
 	mask?: TextAnimationMaskState;
 	/** Present while a color effect drives the frame; blended by the renderer. */
 	colorMix?: TextAnimationColorMixState;
+	/** Outline↔fill crossfade: 1 = pure stroke, 0 = normal fill. */
+	outlineAmount?: number;
 	transformOrigin?: "center" | "bottomCenter";
 	/** Present when the rasterized text is mapped onto a projective surface. */
 	projection?: TextAnimationProjectionState;

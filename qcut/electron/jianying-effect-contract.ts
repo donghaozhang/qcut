@@ -1,6 +1,8 @@
 export const JIANYING_EFFECT_STATUS_CHANNEL = "jianying-effect:status";
 export const JIANYING_EFFECT_PREVIEW_CHANNEL = "jianying-effect:preview";
 export const JIANYING_EFFECT_RENDER_CHANNEL = "jianying-effect:render";
+export const JIANYING_EFFECT_DOWNLOAD_CHANNEL = "jianying-effect:download";
+export const JIANYING_EFFECT_COVER_CHANNEL = "jianying-effect:cover";
 
 /** 画面特效 and 人物特效 are two panels of the same 特效 tab. */
 export type JianyingEffectPanel = "effects2" | "face-prop";
@@ -15,21 +17,40 @@ export interface JianyingEffectAdjustParameter {
 	maximum: number;
 }
 
+/** One sidebar tab of the 特效 panel, in Jianying's own order. */
+export interface JianyingEffectCategory {
+	id: string;
+	name: string;
+	panel: JianyingEffectPanel;
+}
+
 export interface JianyingEffectDefinition {
 	id: string;
 	effectId: string;
 	resourceId: string;
 	/** Package md5 — the only id the catalog and the disk agree on. */
 	packageHash: string;
+	/** Empty until the package is installed locally. */
 	packagePath: string;
 	name: string;
 	panel: JianyingEffectPanel;
+	/** Sidebar categories this effect appears under. */
+	categoryIds: string[];
+	/** Signed official cover image (valid ~1 year), for the panel tile. */
+	coverUrl?: string;
 	defaultDurationMs: number;
 	adjustParameters: JianyingEffectAdjustParameter[];
 	access: JianyingEffectAccess;
 	/** False when the package needs CV models QCut cannot feed yet. */
 	supported: boolean;
 	unsupportedReason?: string;
+	/** True when the package directory exists on this machine. */
+	installed: boolean;
+	/**
+	 * True when the catalog carries a signed package URL, so the package can
+	 * be fetched on demand. The URL itself never leaves the main process.
+	 */
+	downloadable: boolean;
 }
 
 export type JianyingEffectRuntimeState =
@@ -47,6 +68,8 @@ export interface JianyingEffectRuntimeStatus {
 	bridgeReady: boolean;
 	availableCount: number;
 	effects: JianyingEffectDefinition[];
+	/** Sidebar tabs for both panels, in Jianying's own order. */
+	categories: JianyingEffectCategory[];
 	message: string;
 }
 
@@ -94,6 +117,27 @@ export interface JianyingEffectRenderResult {
 	outputFrames: number;
 }
 
+export interface JianyingEffectDownloadRequest {
+	effectId: string;
+}
+
+export interface JianyingEffectCoverRequest {
+	effectId: string;
+}
+
+export interface JianyingEffectCoverResult {
+	effectId: string;
+	/** Cover image as a data URL, cached on disk by the main process. */
+	dataUrl: string;
+	cached: boolean;
+}
+
+export interface JianyingEffectDownloadResult {
+	effectId: string;
+	packageHash: string;
+	packagePath: string;
+}
+
 export interface JianyingEffectAPI {
 	status: () => Promise<JianyingEffectRuntimeStatus>;
 	preview: (
@@ -102,4 +146,10 @@ export interface JianyingEffectAPI {
 	render: (
 		request: JianyingEffectRenderRequest
 	) => Promise<JianyingEffectRenderResult>;
+	download: (
+		request: JianyingEffectDownloadRequest
+	) => Promise<JianyingEffectDownloadResult>;
+	cover: (
+		request: JianyingEffectCoverRequest
+	) => Promise<JianyingEffectCoverResult>;
 }

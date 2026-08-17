@@ -84,6 +84,7 @@ export function drawTextAnimationGlyph({
 	style,
 	fillColor,
 	animatedGlow,
+	outlineAmount,
 }: {
 	ctx: CanvasTextContext;
 	element: TextElement;
@@ -93,9 +94,13 @@ export function drawTextAnimationGlyph({
 	fillColor?: string;
 	/** Animated render-group glow (post-effect chain). */
 	animatedGlow?: TextAnimationGlowState;
+	/** Animated outline↔fill crossfade: 1 = pure stroke, 0 = normal fill. */
+	outlineAmount?: number;
 }): void {
 	if (!grapheme.text || /^[\r\n]+$/u.test(grapheme.text)) return;
 	const fill = fillColor ?? element.color;
+	const outline =
+		outlineAmount === undefined ? 0 : Math.min(1, Math.max(0, outlineAmount));
 	ctx.save();
 	ctx.translate(grapheme.anchorX, grapheme.anchorY);
 	ctx.rotate((grapheme.rotationDeg * Math.PI) / 180);
@@ -135,7 +140,22 @@ export function drawTextAnimationGlyph({
 		ctx.lineJoin = "round";
 		ctx.strokeText(grapheme.text, 0, 0);
 	}
-	ctx.fillText(grapheme.text, 0, 0);
+	if (outline > 0) {
+		ctx.save();
+		ctx.strokeStyle = colorWithOpacity(fill, outline);
+		ctx.lineWidth = Math.max(1.5, element.fontSize / 20);
+		ctx.lineJoin = "round";
+		ctx.strokeText(grapheme.text, 0, 0);
+		ctx.restore();
+		if (outline < 1) {
+			ctx.save();
+			ctx.globalAlpha *= 1 - outline;
+			ctx.fillText(grapheme.text, 0, 0);
+			ctx.restore();
+		}
+	} else {
+		ctx.fillText(grapheme.text, 0, 0);
+	}
 	ctx.restore();
 	drawGlyphDecoration({
 		ctx,

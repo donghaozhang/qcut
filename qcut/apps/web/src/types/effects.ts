@@ -5,6 +5,7 @@ import type {
 	EffectParameters,
 	EffectRenderProgram,
 	EffectType,
+	JianyingAdjustParameter,
 } from "@qcut/editor-core";
 
 export type {
@@ -18,6 +19,8 @@ export type {
 	EffectRenderStage,
 	EffectMotionRenderStage,
 	EffectType,
+	JianyingAdjustParameter,
+	JianyingAdjustValue,
 } from "@qcut/editor-core";
 
 export interface EffectPreset {
@@ -34,6 +37,8 @@ export interface EffectPreset {
 	/** Set for lab presets rendered by the local Jianying runtime. */
 	engine?: EffectEngine;
 	packageHash?: string;
+	/** Slider schema for jianying-local presets, from the package itself. */
+	adjustParameters?: JianyingAdjustParameter[];
 }
 
 export type EffectCategory =

@@ -531,6 +531,10 @@ function keyframesVisual({
 			...(effect.colorTrack?.length ? { mode: "multiply" as const } : {}),
 		};
 	}
+	const outlineAmount = channel("outlineAmount");
+	if (outlineAmount !== undefined) {
+		visual.outlineAmount = Math.min(1, Math.max(0, outlineAmount));
+	}
 	const glowIntensity = channel("glowIntensity");
 	if (glowIntensity !== undefined && glowIntensity > 0) {
 		const glowRadiusPx = channel("glowRadiusPx");
@@ -551,6 +555,9 @@ function keyframesVisual({
 	const pixelateCell = channel("pixelateCell");
 	const rgbSplitPx = channel("rgbSplitPx");
 	const displaceAmplitudePx = channel("displaceAmplitudePx");
+	const bloomIntensity = channel("bloomIntensity");
+	const echoAmount = channel("echoAmount");
+	const dirBlurPx = channel("dirBlurPx");
 	const raster: TextAnimationRasterEffectState | undefined =
 		pixelateCell !== undefined && pixelateCell >= 1
 			? { kind: "pixelate", cell: pixelateCell }
@@ -568,7 +575,28 @@ function keyframesVisual({
 							scale: effect.rasterScale ?? 24,
 							evolution: linearProgress * (effect.rasterEvolution ?? 1),
 						}
-					: undefined;
+					: bloomIntensity !== undefined && bloomIntensity > 0.01
+						? {
+								kind: "bloom",
+								intensity: bloomIntensity,
+								radiusPx: Math.max(
+									0,
+									channel("bloomRadiusPx") ?? layout.fontSize * 0.5
+								),
+							}
+						: echoAmount !== undefined && Math.abs(echoAmount) > 0.01
+							? {
+									kind: "echo",
+									spread: Math.max(-1, Math.min(1, echoAmount)),
+									samples: 12,
+								}
+							: dirBlurPx !== undefined && Math.abs(dirBlurPx) > 0.5
+								? {
+										kind: "dirBlur",
+										offsetPx: dirBlurPx,
+										angleDeg: effect.rasterAngleDeg ?? 0,
+									}
+								: undefined;
 	if (raster) {
 		visual.postProcess = {
 			trailSamples: visual.postProcess?.trailSamples ?? 0,
@@ -1008,6 +1036,23 @@ function loopVisual({
 		const scale = 1 + effect.perspective * lineRatio * swing * 2;
 		visual.scaleX = scale;
 		visual.scaleY = scale;
+	}
+	if (effect.kind === "marquee") {
+		// Jianying's 环形滚动: each line slides exactly one wrap period per
+		// cycle and characters that leave one edge re-enter from the other
+		// (position wraps mod period, period = block width + gap). Odd rows
+		// run the opposite way when alternate is set. progress 0 and 1 land
+		// on identity, so the loop is seamless.
+		const bounds = unitBounds({ unit, layout });
+		const period = layout.bounds.width + effect.gapEm * layout.fontSize;
+		const lineIndex = layout.graphemes[unit.graphemeStart]?.lineIndex ?? 0;
+		const direction = effect.alternate && lineIndex % 2 === 1 ? -1 : 1;
+		const center = bounds.x + bounds.width / 2;
+		const blockCenter = layout.bounds.x + layout.bounds.width / 2;
+		const rel = center - blockCenter;
+		let wrapped = (rel + period / 2 + direction * progress * period) % period;
+		if (wrapped < 0) wrapped += period;
+		visual.translateX = wrapped - period / 2 - rel;
 	}
 	if (effect.kind === "jitter") {
 		// Ported from Jianying's stepped shake: local time is floored into

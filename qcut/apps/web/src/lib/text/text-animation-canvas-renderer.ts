@@ -57,6 +57,36 @@ function hasCanonicalAnimation({
  * it runs identically in the editor preview and the export bake because both
  * share this renderer. Falls back to the normal path when unavailable.
  */
+function strongestUnitRaster({
+	units,
+}: {
+	units: ReturnType<typeof evaluateTextAnimationFrame>["units"];
+}):
+	| NonNullable<NonNullable<TextAnimationVisualState["postProcess"]>["raster"]>
+	| undefined {
+	let strongest:
+		| NonNullable<
+				NonNullable<TextAnimationVisualState["postProcess"]>["raster"]
+		  >
+		| undefined;
+	let strongestScore = 0;
+	for (const unit of units) {
+		const raster = unit?.visual.postProcess?.raster;
+		if (!raster) continue;
+		const score =
+			Math.abs(raster.cell ?? 0) +
+			Math.abs(raster.offsetPx ?? 0) +
+			Math.abs(raster.amplitudePx ?? 0) +
+			Math.abs(raster.intensity ?? 0) +
+			Math.abs(raster.spread ?? 0);
+		if (score > strongestScore) {
+			strongest = raster;
+			strongestScore = score;
+		}
+	}
+	return strongest;
+}
+
 function drawRasterPostProcessedText({
 	ctx,
 	element,
@@ -78,7 +108,17 @@ function drawRasterPostProcessedText({
 	const padding =
 		textAnimationRasterPadding({ style }) +
 		Math.ceil(
-			Math.abs(raster.amplitudePx ?? 0) + Math.abs(raster.offsetPx ?? 0)
+			Math.abs(raster.amplitudePx ?? 0) +
+				Math.abs(raster.offsetPx ?? 0) +
+				// The bloom halo reaches ~3σ past the glyphs; reserve for it or
+				// the offscreen raster clips the glow flat at its edges.
+				(raster.kind === "bloom" ? (raster.radiusPx ?? 0) * 1.5 : 0) +
+				// Outward echo shells scale past the block bounds.
+				(raster.kind === "echo" && (raster.spread ?? 0) < 0
+					? Math.abs(raster.spread ?? 0) *
+						Math.max(bounds.width, bounds.height) *
+						0.5
+					: 0)
 		);
 	const width = Math.max(1, Math.ceil(bounds.width + padding * 2));
 	const height = Math.max(1, Math.ceil(bounds.height + padding * 2));
@@ -104,7 +144,17 @@ function drawRasterPostProcessedText({
 				bounds: grapheme.bounds,
 			});
 		}
-		drawTextAnimationGlyph({ ctx: sourceCtx, element, style, grapheme });
+		// Thread the outline crossfade into the offscreen draw too — a
+		// document combining a raster pass with outlineAmount would
+		// otherwise silently render solid glyphs.
+		const outlineAmount = unitState?.visual.outlineAmount;
+		drawTextAnimationGlyph({
+			ctx: sourceCtx,
+			element,
+			style,
+			grapheme,
+			...(outlineAmount !== undefined ? { outlineAmount } : {}),
+		});
 		sourceCtx.restore();
 	}
 	sourceCtx.restore();
@@ -261,13 +311,20 @@ export function renderCanonicalTextAnimationToCanvas({
 		ctx.restore();
 		return true;
 	}
-	if (state.container.postProcess?.raster && canRasterizeTextAnimation()) {
+	// The raster pass runs on the whole block, but per-unit documents carry
+	// their raster state on the units. Drive the pass from the strongest
+	// unit still asking for it, so a staggered document keeps warping until
+	// its last unit has settled instead of silently dropping the channel.
+	const raster =
+		state.container.postProcess?.raster ??
+		strongestUnitRaster({ units: state.units });
+	if (raster && canRasterizeTextAnimation()) {
 		const didDrawRaster = drawRasterPostProcessedText({
 			ctx,
 			element: renderedElement,
 			style,
 			layout,
-			raster: state.container.postProcess.raster,
+			raster,
 			units: state.units,
 		});
 		if (didDrawRaster) {
@@ -333,7 +390,10 @@ export function renderCanonicalTextAnimationToCanvas({
 		element: renderedElement,
 	});
 
-	const animatedGlow = state.container.postProcess?.glow;
+	// Per-grapheme documents carry their glow on the unit visual, container
+	// documents (unit "all") on the container — prefer the unit's own halo so
+	// per-character glow tracks aren't silently dropped.
+	const containerGlow = state.container.postProcess?.glow;
 	// Container-level documents (unit "all") carry their tint on the container
 	// visual; thread it into the glyph fill the same way the glow is.
 	const containerColorMix = state.container.colorMix;
@@ -347,6 +407,9 @@ export function renderCanonicalTextAnimationToCanvas({
 			bounds: grapheme.bounds,
 		});
 		const colorMix = unitState.visual.colorMix ?? containerColorMix;
+		const animatedGlow = unitState.visual.postProcess?.glow ?? containerGlow;
+		const outlineAmount =
+			unitState.visual.outlineAmount ?? state.container.outlineAmount;
 		drawTextAnimationGlyph({
 			ctx,
 			element: renderedElement,
@@ -369,6 +432,7 @@ export function renderCanonicalTextAnimationToCanvas({
 					}
 				: {}),
 			...(animatedGlow ? { animatedGlow } : {}),
+			...(outlineAmount !== undefined ? { outlineAmount } : {}),
 		});
 		ctx.restore();
 	}

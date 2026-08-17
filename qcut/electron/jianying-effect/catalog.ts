@@ -1,15 +1,21 @@
+import { existsSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { listJianyingResourceDatabasePaths } from "../jianying-resource-database.js";
 import type {
 	JianyingEffectAdjustParameter,
+	JianyingEffectCategory,
 	JianyingEffectDefinition,
 } from "../jianying-effect-contract.js";
 import {
+	type CatalogItem,
 	type CatalogRow,
 	collectCatalogItems,
+	collectPanelCategories,
+	collectReferenceVerdicts,
 	readAdjustParameters,
 	SUPPORTED_REQUIREMENTS,
 } from "./catalog-parsing.js";
@@ -22,12 +28,51 @@ import {
  * only offered once its package is present on disk.
  */
 
+const nodeRequire = createRequire(__filename);
+
+/**
+ * Where QCut unpacks packages it downloads on demand. Null outside Electron
+ * (the batch reference script runs this module under plain node).
+ */
+export function qcutManagedEffectPackageRoot(): string | null {
+	try {
+		const electron = nodeRequire("electron") as
+			| string
+			| { app?: { getPath: (name: string) => string } };
+		if (typeof electron === "string" || !electron.app) return null;
+		return path.join(
+			electron.app.getPath("userData"),
+			"JianyingEffectPackages"
+		);
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * The reference production line (scripts/jianying-effect-reference-batch.cjs)
+ * keeps its downloaded packages and per-effect render verdicts inside the repo
+ * checkout, so this resolves only in development — a packaged app has no repo
+ * and returns null.
+ */
+function referenceLibraryRoot(): string | null {
+	const root = path.resolve(
+		__dirname,
+		"..",
+		"..",
+		"..",
+		".local",
+		"jianying-effect-references"
+	);
+	return existsSync(root) ? root : null;
+}
+
 function packageCacheRoots(): string[] {
 	const override = process.env.QCUT_JIANYING_EFFECT_PACKAGE_ROOT;
 	if (override) return override.split(path.delimiter).filter(Boolean);
 
 	const home = os.homedir();
-	return [
+	const roots = [
 		path.join(home, "Movies", "JianyingPro", "User Data", "Cache", "effect"),
 		path.join(
 			home,
@@ -42,6 +87,23 @@ function packageCacheRoots(): string[] {
 			"effect"
 		),
 	];
+	const managedRoot = qcutManagedEffectPackageRoot();
+	if (managedRoot) roots.push(managedRoot);
+	const referenceRoot = referenceLibraryRoot();
+	if (referenceRoot) roots.push(path.join(referenceRoot, "_packages"));
+	return roots;
+}
+
+/** effectId → local render verdict from the reference batch, when present. */
+async function readReferenceVerdicts(): Promise<Map<string, boolean>> {
+	const referenceRoot = referenceLibraryRoot();
+	if (!referenceRoot) return new Map();
+	const jsonl = await readFile(
+		path.join(referenceRoot, "manifest.jsonl"),
+		"utf8"
+	).catch(() => "");
+	if (jsonl.length === 0) return new Map();
+	return collectReferenceVerdicts({ jsonl });
 }
 
 function resourceDatabaseRoots(): string[] {
@@ -98,7 +160,12 @@ async function indexPackagesByMd5(): Promise<Map<string, string>> {
 	return packages;
 }
 
-async function readCatalogRows(): Promise<CatalogRow[]> {
+async function readHttpCacheRows({
+	patterns,
+}: {
+	patterns: string[];
+}): Promise<CatalogRow[]> {
+	const condition = patterns.map(() => "url LIKE ?").join(" OR ");
 	const rows: CatalogRow[] = [];
 	for (const root of resourceDatabaseRoots()) {
 		const databasePaths = await listJianyingResourceDatabasePaths({
@@ -110,9 +177,9 @@ async function readCatalogRows(): Promise<CatalogRow[]> {
 				database = new DatabaseSync(databasePath, { readOnly: true });
 				const records = database
 					.prepare(
-						"SELECT url, response_body FROM http_cache WHERE url LIKE ? OR url LIKE ?"
+						`SELECT url, response_body FROM http_cache WHERE ${condition}`
 					)
-					.all("%effects2%", "%face-prop%") as Array<{
+					.all(...patterns) as Array<{
 					url?: string;
 					response_body?: string;
 				}>;
@@ -133,6 +200,15 @@ async function readCatalogRows(): Promise<CatalogRow[]> {
 	return rows;
 }
 
+function readCatalogRows(): Promise<CatalogRow[]> {
+	return readHttpCacheRows({ patterns: ["%effects2%", "%face-prop%"] });
+}
+
+/** Panel URLs hide the panel behind a hash, so all of them are collected. */
+function readPanelRows(): Promise<CatalogRow[]> {
+	return readHttpCacheRows({ patterns: ["%panel/get_panel_info%"] });
+}
+
 /** Reads the slider defaults the package itself ships, when present. */
 async function readPackageAdjustParameters({
 	packagePath,
@@ -145,49 +221,107 @@ async function readPackageAdjustParameters({
 	return readAdjustParameters({ sdkExtra: text });
 }
 
-export async function discoverJianyingEffects(): Promise<
-	JianyingEffectDefinition[]
-> {
-	const [rows, packages] = await Promise.all([
+/** Catalog lookup for the download handler; URLs stay in the main process. */
+export async function findJianyingEffectCatalogItem({
+	effectId,
+}: {
+	effectId: string;
+}): Promise<CatalogItem | null> {
+	const rows = await readCatalogRows();
+	const items = collectCatalogItems({ rows });
+	return items.find((item) => item.effectId === effectId) ?? null;
+}
+
+export interface JianyingEffectLibrary {
+	effects: JianyingEffectDefinition[];
+	categories: JianyingEffectCategory[];
+}
+
+export async function discoverJianyingEffectLibrary(): Promise<JianyingEffectLibrary> {
+	const [rows, panelRows, packages, verdicts] = await Promise.all([
 		readCatalogRows(),
+		readPanelRows(),
 		indexPackagesByMd5(),
+		readReferenceVerdicts(),
 	]);
 
 	const items = collectCatalogItems({ rows });
 	const definitions: JianyingEffectDefinition[] = [];
+	const keptItems: CatalogItem[] = [];
 
 	for (const item of items) {
 		const packagePath = packages.get(item.md5);
-		if (packagePath === undefined) continue;
+		const installed = packagePath !== undefined;
+		const downloadable = item.itemUrls.length > 0;
+		// Neither on disk nor fetchable — nothing QCut could ever do with it.
+		if (!installed && !downloadable) continue;
 
 		const unsupportedRequirements = item.requirements.filter(
 			(requirement) => !SUPPORTED_REQUIREMENTS.has(requirement)
 		);
-		const packageParameters = await readPackageAdjustParameters({
-			packagePath,
-		});
+		// CV-locked entries are only worth showing when the user already has
+		// them from Jianying; offering hundreds of undownloaded locked tiles
+		// would just be noise.
+		if (!installed && unsupportedRequirements.length > 0) continue;
+		const packageParameters = installed
+			? await readPackageAdjustParameters({ packagePath })
+			: [];
 
+		// The reference batch has actually run these packages; an explicit
+		// failure there means an export pass would fail the same way, so the
+		// tile is locked instead of pretending to work.
+		const failedLocalVerification = verdicts.get(item.effectId) === false;
+		const supported =
+			unsupportedRequirements.length === 0 && !failedLocalVerification;
+		const unsupportedReason =
+			unsupportedRequirements.length > 0
+				? `需要剪映算法能力：${unsupportedRequirements.join("、")}`
+				: failedLocalVerification
+					? "本机渲染验证未通过"
+					: undefined;
+
+		keptItems.push(item);
 		definitions.push({
 			id: `jy-effect-${item.effectId}`,
 			effectId: item.effectId,
 			resourceId: item.resourceId,
 			packageHash: item.md5,
-			packagePath,
+			packagePath: packagePath ?? "",
 			name: item.title,
 			panel: item.panel,
+			categoryIds: item.categoryIds,
+			coverUrl: item.coverUrl.length > 0 ? item.coverUrl : undefined,
 			defaultDurationMs: item.durationMs,
 			adjustParameters:
 				packageParameters.length > 0
 					? packageParameters
 					: item.adjustParameters,
 			access: item.vip ? "vip" : "free",
-			supported: unsupportedRequirements.length === 0,
-			unsupportedReason:
-				unsupportedRequirements.length === 0
-					? undefined
-					: `需要剪映算法能力：${unsupportedRequirements.join("、")}`,
+			supported,
+			unsupportedReason,
+			installed,
+			downloadable,
 		});
 	}
 
-	return definitions.sort((left, right) => left.name.localeCompare(right.name));
+	// Installed effects first — they are immediately usable; within each group
+	// keep a stable name order.
+	definitions.sort((left, right) => {
+		if (left.installed !== right.installed) {
+			return left.installed ? -1 : 1;
+		}
+		return left.name.localeCompare(right.name);
+	});
+
+	return {
+		effects: definitions,
+		categories: collectPanelCategories({ panelRows, items: keptItems }),
+	};
+}
+
+export async function discoverJianyingEffects(): Promise<
+	JianyingEffectDefinition[]
+> {
+	const { effects } = await discoverJianyingEffectLibrary();
+	return effects;
 }

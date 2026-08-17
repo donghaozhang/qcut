@@ -97,6 +97,33 @@ const PARAMETER_LABELS: Partial<Record<keyof EffectParameters, string>> = {
 	// blendMode is a string enum, not a number - handled separately
 };
 
+/** Chinese labels for the package slider keys Jianying effects declare. */
+const JIANYING_ADJUST_LABELS: Record<string, string> = {
+	effects_adjust_speed: "速度",
+	effects_adjust_intensity: "强度",
+	effects_adjust_luminance: "亮度",
+	effects_adjust_blur: "模糊",
+	effects_adjust_background_animation: "背景动画",
+	effects_adjust_filter: "滤镜",
+	effects_adjust_size: "大小",
+	effects_adjust_color: "颜色",
+	effects_adjust_range: "范围",
+	effects_adjust_distortion: "扭曲",
+	effects_adjust_number: "数量",
+	effects_adjust_rotate: "旋转",
+	effects_adjust_texture: "纹理",
+	effects_adjust_noise: "噪点",
+	effects_adjust_sharpen: "锐化",
+	effects_adjust_horizontal_shift: "水平偏移",
+	effects_adjust_vertical_shift: "垂直偏移",
+	effects_adjust_horizontal_chromatic: "水平色散",
+	effects_adjust_vertical_chromatic: "垂直色散",
+};
+
+function jianyingAdjustLabel(key: string): string {
+	return JIANYING_ADJUST_LABELS[key] ?? key.replace(/^effects_adjust_/, "");
+}
+
 interface EffectsPropertiesProps {
 	elementId: string;
 }
@@ -104,6 +131,7 @@ interface EffectsPropertiesProps {
 export function EffectsProperties({ elementId }: EffectsPropertiesProps) {
 	const {
 		updateEffectParameters,
+		updateEffectAdjustValue,
 		toggleEffect,
 		removeEffect,
 		duplicateEffect,
@@ -262,7 +290,55 @@ export function EffectsProperties({ elementId }: EffectsPropertiesProps) {
 		return null;
 	};
 
+	// Jianying lab effects expose the package's own normalized sliders instead
+	// of QCut parameters. The values feed the export-time render request.
+	const renderJianyingAdjustControls = (effect: EffectInstance) => {
+		const parameters = effect.adjustParameters ?? [];
+		if (effect.engine !== "jianying-local" || parameters.length === 0) {
+			return null;
+		}
+		return (
+			<div className="space-y-4">
+				{parameters.map((parameter) => {
+					const value =
+						effect.adjustValues?.find((entry) => entry.key === parameter.key)
+							?.value ?? parameter.defaultValue;
+					const label = jianyingAdjustLabel(parameter.key);
+					const step = (parameter.maximum - parameter.minimum) / 100 || 0.01;
+					return (
+						<div key={parameter.key} className="space-y-2">
+							<div className="flex justify-between text-sm">
+								<span>{label}</span>
+								<span className="text-muted-foreground">
+									{value.toFixed(2)}
+								</span>
+							</div>
+							<Slider
+								value={[value]}
+								onValueChange={([newValue]) =>
+									updateEffectAdjustValue(elementId, effect.id, {
+										key: parameter.key,
+										value: newValue,
+									})
+								}
+								min={parameter.minimum}
+								max={parameter.maximum}
+								step={step}
+								className="w-full"
+								aria-label={label}
+							/>
+						</div>
+					);
+				})}
+			</div>
+		);
+	};
+
 	const renderEffectParameters = (effect: EffectInstance) => {
+		if (effect.engine === "jianying-local") {
+			return renderJianyingAdjustControls(effect);
+		}
+
 		// Dynamically render only the parameters that exist in the effect
 		const parameters = Object.keys(effect.parameters) as Array<
 			keyof EffectParameters

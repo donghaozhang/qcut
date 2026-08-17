@@ -67,6 +67,8 @@ import {
 	CAPCUT_8_1_MIGRATION_PLAN_CHANNEL,
 } from "./jianying-draft-export-contract.js";
 import {
+	JIANYING_EFFECT_COVER_CHANNEL,
+	JIANYING_EFFECT_DOWNLOAD_CHANNEL,
 	JIANYING_EFFECT_PREVIEW_CHANNEL,
 	JIANYING_EFFECT_RENDER_CHANNEL,
 	JIANYING_EFFECT_STATUS_CHANNEL,
@@ -172,6 +174,10 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke(JIANYING_EFFECT_PREVIEW_CHANNEL, request),
 		render: (request) =>
 			ipcRenderer.invoke(JIANYING_EFFECT_RENDER_CHANNEL, request),
+		download: (request) =>
+			ipcRenderer.invoke(JIANYING_EFFECT_DOWNLOAD_CHANNEL, request),
+		cover: (request) =>
+			ipcRenderer.invoke(JIANYING_EFFECT_COVER_CHANNEL, request),
 	},
 	jianyingTransitions: {
 		inspect: () => ipcRenderer.invoke(JIANYING_TRANSITION_INSPECT_CHANNEL),

@@ -82,9 +82,11 @@ Top slider keys by frequency: `effects_adjust_speed` (545/680), `intensity`,
 
 Coverage caveats: only categories the user actually browsed have cached pages
 (one row per 50-item scroll page); packages download lazily on FIRST APPLY, so
-a machine can know 680 catalog effects yet hold only ~7 on disk. To re-derive:
-open the 特效 panel (caches the panel row), click every tab and scroll each to
-the bottom, and apply a card once to force its package download.
+a machine can know ~1000 catalog effects yet hold only ~10 on disk (2026-08-16
+measurement: 1024 rows — 707 effects2 + 317 face-prop — of which 618 are
+blit-only). To widen the CATALOG, browse tabs in the app; but packages
+themselves no longer need in-app clicking — `item_urls[0]` is directly
+fetchable and `md5` verifies the zip (see the batch pipeline section below).
 
 ## Layer 2 — Draft (materials.video_effects + effect tracks)
 
@@ -232,6 +234,63 @@ the 5-library `.local/jianying-runtime` root segfaults during manager init.
 
 Implementation: `research/jianying-runtime-probe/effect-probe.mm` +
 `electron/jianying-effect/` (PR #414).
+
+## Batch reference pipeline (参照生产线)
+
+`scripts/jianying-effect-reference-batch.cjs` mass-produces ground-truth
+reference clips for every blit-only catalog effect — the scale path chosen
+2026-08-16 (the lab itself cannot scale to end users: macOS ∩ JianYing
+installed ∩ package cached; references drive QCut-native reimplementation
+instead, like the filter LUT fitting and sound-effects lab precedents).
+
+```bash
+bun run build   # dist/electron must be fresh — the script requires it
+node scripts/jianying-effect-reference-batch.cjs              # full run
+node scripts/jianying-effect-reference-batch.cjs --limit 5    # smoke
+node scripts/jianying-effect-reference-batch.cjs --panel effects2
+node scripts/jianying-effect-reference-batch.cjs --only <effectId,...>
+```
+
+Mechanics worth knowing before touching it:
+
+- **node, never bun** — the catalog reader statically needs `node:sqlite`.
+  The `dist/electron/jianying-effect/*` modules have zero electron imports, so
+  plain node can `require()` them (`getFFmpegPath` resolves the staged dev
+  ffmpeg).
+- **Acquisition**: reuses packages already in JianYing's caches (md5-indexed),
+  else fetches `item_urls[0]` (UA-spoofed, 500 ms throttle), verifies
+  `md5(zip) == common_attr.md5 == dir name`, unzips into
+  `.local/jianying-effect-references/_packages/<effectId>/<md5>/`. JianYing's
+  own cache is never written to — `definition.packagePath` accepts any
+  directory.
+- **Render**: 6 s / 1280x720 / 30 fps via `renderJianyingEffectClip`, default
+  slider values from the package `extra.json` (fallback catalog `sdk_extra`),
+  effect window spanning the whole clip. ~5-6 s per effect cached, 8-13 s with
+  download.
+- **Reference clip**: real footage (skate) + SMPTE bars + grayscale ramp
+  strips — fit on real colors only (LUT-fitting lesson).
+- **Manifest**: `manifest.jsonl` append-only, one line per effect
+  (md5/seconds/frames/ssim/adjust params/error); reruns skip `ok:true` rows,
+  so interrupted runs just resume.
+- **SSIM ≠ identity check**: sparse effects legitimately score ~0.99 (星火);
+  only >0.997 gets `flaggedIdentity`, and even that needs a frame sweep before
+  concluding (same trap as the single-timestamp one above).
+- **Lumi family fails, and that is the ONLY failure family** (2026-08-17 full
+  run: 517/618 ok, all 101 failures are Lumi — ~90% the JS variant with a
+  root `LumiManager.js` + `config.json.js_path` and an embedded ThreeJS, the
+  rest Lua `LumiFamily/`). The bridge's `effect-video` mode exits 0 without
+  printing frame counts for them; a failed pass still MUXES a pass-through
+  mp4, which the script now deletes on failure. Unlocking the family needs
+  native-side stepping support — do not burn time re-running them.
+- The lab UI consumes `manifest.jsonl` as a verification ledger: effects with
+  a failing verdict are locked as 「本机渲染验证未通过」 instead of
+  pretending to work (electron/jianying-effect/catalog.ts).
+- Outputs live in `.local/jianying-effect-references/` (gitignored). Same red
+  line as everything else here: packages and rendered references never enter
+  git, public storage, or the product. Team sharing goes through the
+  sound-effects-lab private-bucket + allowlist pattern.
+
+Companion doc: `docs/task/jianying-effect-reference-line/README.md`.
 
 ## Harvest protocol
 

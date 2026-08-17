@@ -153,6 +153,9 @@ async function renderPreview({
 	if (!definition.supported) {
 		throw new Error(definition.unsupportedReason ?? "该特效暂不支持本机渲染。");
 	}
+	if (!definition.installed) {
+		throw new Error(`该特效素材包尚未下载：${definition.name}`);
+	}
 
 	const seconds = clampPreviewSeconds({ requested: request.seconds });
 	const key = cacheKey({

@@ -116,6 +116,177 @@ export const ENTRANCE_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
 			},
 		},
 	},
+	// 剪映 拖尾 (7244102915239973432), D≈1.13 (34-frame clock). The text pops
+	// to half size blurred (ADBE_Scale_0_1: 0→50 over 4 frames, gaussian 40→0
+	// over the same span), grows to full by frame 18 on bezier
+	// (.167,.167,.48,1), and 13 concentric shells trail the growth — echo i
+	// lives frames (4+i)…(21+i), scale 0.5→1, vanishing on arrival. The
+	// shells are the echo raster kind (signed spread, + = inward trail);
+	// their staggered per-shell alpha collapses into the pass's fixed
+	// nearest-strongest profile.
+	"echo-trail-in": {
+		sequence: { unit: "all", order: "forward", staggerRatio: 0 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				opacity: [
+					{ t: 0, v: 0 },
+					{ t: 0.06, v: 1 },
+					{ t: 1, v: 1 },
+				],
+				scaleX: [
+					{ t: 0, v: 0 },
+					{ t: 0.118, v: 0.5, outValue: 0.583, outTime: 0.069 },
+					{ t: 0.53, v: 1, inValue: 1, inTime: -0.214 },
+					{ t: 1, v: 1 },
+				],
+				scaleY: [
+					{ t: 0, v: 0 },
+					{ t: 0.118, v: 0.5, outValue: 0.583, outTime: 0.069 },
+					{ t: 0.53, v: 1, inValue: 1, inTime: -0.214 },
+					{ t: 1, v: 1 },
+				],
+				blurPx: [
+					{ t: 0, v: 8 },
+					{ t: 0.12, v: 0 },
+					{ t: 1, v: 0 },
+				],
+				echoAmount: [
+					{ t: 0, v: 0 },
+					{ t: 0.15, v: 0.5 },
+					{ t: 0.6, v: 0.4 },
+					{ t: 1, v: 0 },
+				],
+			},
+		},
+	},
+	// 剪映 扭曲模糊 (7089261793406620197), D=2. Characters fade in and grow
+	// 0.95→1 on the bezier (.22,.6,.52,.93) with a 25% in-line stagger while
+	// the whole block boils under a noise warp plus a blur (blurSize 2,
+	// noiseInfo drifting 0.2 per cycle) that both clear over the last ~30%
+	// (blur_live_time 0.781, wave_progress.y = remap01(0.7, 1, p)). The warp
+	// is the displacement raster pass; with a per-grapheme document the pass
+	// follows the strongest unit, so it keeps boiling until the last
+	// character settles — matching the source's global clear wave. Dropped:
+	// the warp shader's exact noise (ours is the shared value-noise field).
+	"warp-blur-in": {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0.25 },
+		effect: {
+			kind: "keyframes",
+			rasterScale: 24,
+			rasterEvolution: 1.5,
+			channels: {
+				opacity: [
+					{ t: 0, v: 0, outValue: 0.6, outTime: 0.22 },
+					{ t: 1, v: 1, inValue: 0.93, inTime: -0.48 },
+				],
+				scaleX: [
+					{ t: 0, v: 0.95, outValue: 0.98, outTime: 0.22 },
+					{ t: 1, v: 1, inValue: 0.9965, inTime: -0.48 },
+				],
+				scaleY: [
+					{ t: 0, v: 0.95, outValue: 0.98, outTime: 0.22 },
+					{ t: 1, v: 1, inValue: 0.9965, inTime: -0.48 },
+				],
+				displaceAmplitudePx: [
+					{ t: 0, v: 6 },
+					{ t: 0.55, v: 4 },
+					{ t: 0.8, v: 0 },
+					{ t: 1, v: 0 },
+				],
+				blurPx: [
+					{ t: 0, v: 6 },
+					{ t: 0.55, v: 4 },
+					{ t: 0.8, v: 0 },
+					{ t: 1, v: 0 },
+				],
+			},
+		},
+	},
+	// 剪映 描边填充 (7308269965453300262), D=0.9. The line arrives as pure
+	// stroke copies sliding in from off-axis (offset 0.25·(1−ss), ss on the
+	// sharp-attack bezier (.027,.82,.667,1), alpha on (.027,.28,.667,1)),
+	// the block holds 82% scale until halfway then settles to 100%
+	// (ADBE_Scale_0_0: 82→100 over frames 25–44, S-eased), and the fill pops
+	// word-by-word over the last third (alpha_p = remap01(0.67, 1, p)) — the
+	// stroke hides where the fill lands. The stroke↔fill swap is the
+	// outlineAmount channel; word order and the pop spread come from the
+	// word-unit stagger. Dropped: the extra echo copies (6 staggered offsets
+	// per clone) and the alternating ± slide direction — one stroke layer
+	// slides from above.
+	"stroke-fill-in": {
+		sequence: { unit: "word", order: "forward", staggerRatio: 0.3 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				opacity: [
+					{ t: 0, v: 0, outValue: 0.28, outTime: 0.004 },
+					{ t: 0.15, v: 1, inValue: 1, inTime: -0.05 },
+				],
+				translateYEm: [
+					{ t: 0, v: -1.2, outValue: -0.21, outTime: 0.014 },
+					{ t: 0.5, v: 0, inValue: 0, inTime: -0.167 },
+				],
+				outlineAmount: [
+					{ t: 0, v: 1 },
+					{ t: 0.68, v: 1 },
+					{ t: 0.78, v: 0 },
+					{ t: 1, v: 0 },
+				],
+				scaleX: [
+					{ t: 0, v: 0.82 },
+					{ t: 0.5, v: 0.82, outValue: 0.82, outTime: 0.167 },
+					{ t: 1, v: 1, inValue: 0.998, inTime: -0.167 },
+				],
+				scaleY: [
+					{ t: 0, v: 0.82 },
+					{ t: 0.5, v: 0.82, outValue: 0.82, outTime: 0.167 },
+					{ t: 1, v: 1, inValue: 0.998, inTime: -0.167 },
+				],
+			},
+		},
+	},
+	// 剪映 发光闪入 (7308272157442707978), D=2 from the driver. Each character's
+	// alpha is pow(noise, 1.5) flicker that "recovers" to solid in character
+	// order over the back half while a glow halo burns early and dies by ~95%.
+	// The noise is transcribed as a low-biased flicker track whose minima rise
+	// toward 1 (the driver's mix(noise, 1, p) recovery), decorrelated across
+	// characters by the stagger; the halo rides the per-unit glow channels so
+	// each character's flicker modulates its own glow. Dropped: the second
+	// clone-layer noise (glow already tracks the glyph alpha here); the
+	// self-colored glow (u_TextColor) — ours stays white.
+	"glow-flicker-in": {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0.3 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				opacity: [
+					{ t: 0, v: 0 },
+					{ t: 0.05, v: 0.6 },
+					{ t: 0.12, v: 0.15 },
+					{ t: 0.19, v: 0.85 },
+					{ t: 0.26, v: 0.1 },
+					{ t: 0.33, v: 0.7 },
+					{ t: 0.4, v: 0.25 },
+					{ t: 0.47, v: 0.9 },
+					{ t: 0.54, v: 0.3 },
+					{ t: 0.61, v: 0.95 },
+					{ t: 0.68, v: 0.45 },
+					{ t: 0.75, v: 1 },
+					{ t: 0.82, v: 0.7 },
+					{ t: 0.9, v: 1 },
+					{ t: 1, v: 1 },
+				],
+				glowIntensity: [
+					{ t: 0, v: 0.9 },
+					{ t: 0.7, v: 0.55 },
+					{ t: 0.95, v: 0 },
+					{ t: 1, v: 0 },
+				],
+				glowRadiusPx: [{ t: 0, v: 14 }],
+			},
+		},
+	},
 };
 
 export const EXIT_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
@@ -177,9 +348,131 @@ export const EXIT_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
 			},
 		},
 	},
+	// 剪映 向左模糊 (7112703727336690189), D≈0.93 (28-frame clock). A leftward
+	// erase: motion blur ramps 0→100 over frames 4–11 and holds while a mask
+	// sweeps right-to-left (mask_right = 1 − bezier(.4,.08,.28,.4)) and a
+	// slight mesh warp (0→−14) drags the glyphs. The smear is the dirBlur
+	// raster pass at 180°; the sweep edge is the per-character stagger
+	// (leading, leftmost characters streak out first). Dropped: the exact
+	// mesh warp (a small leftward drift stands in).
+	"blur-left-out": {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0.3 },
+		effect: {
+			kind: "keyframes",
+			rasterAngleDeg: 180,
+			channels: {
+				opacity: [
+					{ t: 0, v: 1 },
+					{ t: 0.2, v: 1 },
+					{ t: 0.78, v: 0, inValue: 0.15, inTime: -0.2 },
+					{ t: 1, v: 0 },
+				],
+				translateXEm: [
+					{ t: 0, v: 0, outValue: -0.05, outTime: 0.28 },
+					{ t: 1, v: -1.2, inValue: -0.9, inTime: -0.2 },
+				],
+				dirBlurPx: [
+					{ t: 0, v: 0 },
+					{ t: 0.14, v: 3 },
+					{ t: 0.4, v: 30 },
+					{ t: 1, v: 34 },
+				],
+			},
+		},
+	},
+	// 剪映 拖尾 exit (7244102819731477049), D≈0.87 (26-frame clock). The text
+	// collapses to nothing (100→0 over 20 frames, bezier (.37,0,.32,1.02) —
+	// the in-handle overshoots slightly past zero), fading to 25% over the
+	// back half while blur ramps up at the very end; 6 shells collapse
+	// behind it, each larger than the shrinking body — outward trail, so the
+	// echo spread runs negative.
+	"echo-trail-out": {
+		sequence: { unit: "all", order: "forward", staggerRatio: 0 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				opacity: [
+					{ t: 0, v: 1 },
+					{ t: 0.46, v: 1 },
+					{ t: 1, v: 0.25 },
+				],
+				scaleX: [
+					{ t: 0, v: 1, outValue: 1, outTime: 0.285 },
+					{ t: 0.77, v: 0, inValue: -0.024, inTime: -0.526 },
+					{ t: 1, v: 0 },
+				],
+				scaleY: [
+					{ t: 0, v: 1, outValue: 1, outTime: 0.285 },
+					{ t: 0.77, v: 0, inValue: -0.024, inTime: -0.526 },
+					{ t: 1, v: 0 },
+				],
+				blurPx: [
+					{ t: 0, v: 0 },
+					{ t: 0.77, v: 0 },
+					{ t: 0.88, v: 4 },
+					{ t: 1, v: 4 },
+				],
+				echoAmount: [
+					{ t: 0, v: 0 },
+					{ t: 0.08, v: -0.35 },
+					{ t: 1, v: -0.55 },
+				],
+			},
+		},
+	},
+	// 剪映 发光闪出 (7308275717505028617). Verbatim the 发光闪入 driver plus
+	// `progress = 1 - progress` (confirmed by package diff), so this document
+	// is the entrance track time-reversed: solid characters destabilize into
+	// pow(noise, 1.5) flicker — minima sinking instead of rising — while the
+	// glow ignites and burns brightest at the vanish point. The reversed
+	// recovery order means the LAST character breaks up first, hence
+	// order "reverse". Same drops as the entrance (clone-layer noise,
+	// self-colored glow).
+	"glow-flicker-out": {
+		sequence: { unit: "grapheme", order: "reverse", staggerRatio: 0.3 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				opacity: [
+					{ t: 0, v: 1 },
+					{ t: 0.1, v: 1 },
+					{ t: 0.18, v: 0.7 },
+					{ t: 0.25, v: 1 },
+					{ t: 0.32, v: 0.45 },
+					{ t: 0.39, v: 0.95 },
+					{ t: 0.46, v: 0.3 },
+					{ t: 0.53, v: 0.9 },
+					{ t: 0.6, v: 0.25 },
+					{ t: 0.67, v: 0.7 },
+					{ t: 0.74, v: 0.1 },
+					{ t: 0.81, v: 0.85 },
+					{ t: 0.88, v: 0.15 },
+					{ t: 0.95, v: 0.6 },
+					{ t: 1, v: 0 },
+				],
+				glowIntensity: [
+					{ t: 0, v: 0 },
+					{ t: 0.05, v: 0 },
+					{ t: 0.3, v: 0.55 },
+					{ t: 1, v: 0.9 },
+				],
+				glowRadiusPx: [{ t: 0, v: 14 }],
+			},
+		},
+	},
 };
 
 export const LOOP_TEXTANIM_DOCUMENTS_B: Record<string, Doc> = {
+	// 剪映 环形滚动 (7179135028343870012). Not a circular path — a modulo
+	// marquee: every character slides one full wrap period (line width +
+	// 200 px ≈ 3.5 em) per cycle and re-enters from the far edge, odd rows
+	// running the opposite way. The parametric marquee kind IS that formula
+	// (mix over one period, mod, recenter), so nothing is approximated; the
+	// source's commented-out edge fade never runs and is not carried.
+	"ring-scroll": {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0 },
+		effect: { kind: "marquee", gapEm: 3.5, alternate: true },
+	},
 	// 剪映 摇摆 I (6908281696253121038). A metronome sway: the whole line tips
 	// ±20° about a pivot at its baseline (the source anchors each glyph at
 	// −0.5·height). Its clock is not a plain cosine — the driver reshapes time

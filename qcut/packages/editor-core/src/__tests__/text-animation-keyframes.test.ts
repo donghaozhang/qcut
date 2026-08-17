@@ -183,6 +183,181 @@ describe("keyframes effect", () => {
 		});
 	});
 
+	it("drives the bloom raster pass from its channels", () => {
+		const effect: TextAnimationEffect = {
+			kind: "keyframes",
+			channels: {
+				bloomIntensity: [
+					{ t: 0, v: 1.2 },
+					{ t: 0.8, v: 0 },
+					{ t: 1, v: 0 },
+				],
+				bloomRadiusPx: [{ t: 0, v: 18 }],
+			},
+		};
+		const element = createElement({
+			overrides: {
+				content: "AB",
+				duration: 3,
+				textAnimations: createAnimation({
+					entrance: createPhase({
+						effect,
+						target: "textAndBackground",
+						duration: 1,
+					}),
+				}),
+			},
+		});
+		const compiled = compileTextAnimation({ element, fps: 100 });
+		const layout = createLayout({ content: "AB" });
+		const at = (frame: number) =>
+			evaluateTextAnimationFrame({ compiled, frame, layout });
+		expect(at(0).container.postProcess?.raster).toEqual({
+			kind: "bloom",
+			intensity: 1.2,
+			radiusPx: 18,
+		});
+		// The track fading to zero drops the pass entirely.
+		expect(at(99).container.postProcess?.raster).toBeUndefined();
+	});
+
+	it("drives the echo raster pass with a signed spread", () => {
+		const effect: TextAnimationEffect = {
+			kind: "keyframes",
+			channels: {
+				// Negative spread = outward shells; over-range proves the clamp.
+				echoAmount: [
+					{ t: 0, v: -1.4 },
+					{ t: 1, v: -1.4 },
+				],
+			},
+		};
+		const element = createElement({
+			overrides: {
+				content: "AB",
+				duration: 3,
+				textAnimations: createAnimation({
+					entrance: createPhase({
+						effect,
+						target: "textAndBackground",
+						duration: 1,
+					}),
+				}),
+			},
+		});
+		const state = evaluateTextAnimationFrame({
+			compiled: compileTextAnimation({ element, fps: 100 }),
+			frame: 50,
+			layout: createLayout({ content: "AB" }),
+		});
+		expect(state.container.postProcess?.raster).toEqual({
+			kind: "echo",
+			spread: -1,
+			samples: 12,
+		});
+	});
+
+	it("drives the directional blur pass from its channel", () => {
+		const effect: TextAnimationEffect = {
+			kind: "keyframes",
+			rasterAngleDeg: 180,
+			channels: {
+				dirBlurPx: [
+					{ t: 0, v: 0 },
+					{ t: 1, v: 30 },
+				],
+			},
+		};
+		const element = createElement({
+			overrides: {
+				content: "AB",
+				duration: 3,
+				textAnimations: createAnimation({
+					entrance: createPhase({
+						effect,
+						target: "textAndBackground",
+						duration: 1,
+					}),
+				}),
+			},
+		});
+		const state = evaluateTextAnimationFrame({
+			compiled: compileTextAnimation({ element, fps: 100 }),
+			frame: 50,
+			layout: createLayout({ content: "AB" }),
+		});
+		expect(state.container.postProcess?.raster).toEqual({
+			kind: "dirBlur",
+			offsetPx: 15,
+			angleDeg: 180,
+		});
+	});
+
+	it("wraps marquee characters around the period seamlessly", () => {
+		const element = createElement({
+			overrides: {
+				content: "AB",
+				duration: 3,
+				textAnimations: createAnimation({
+					loop: createPhase({
+						effect: { kind: "marquee", gapEm: 1, alternate: true },
+						unit: "grapheme",
+						// Per-unit target: the block-level target would evaluate
+						// the marquee once and land it on the container.
+						target: "text",
+						duration: 1,
+					}),
+				}),
+			},
+		});
+		const compiled = compileTextAnimation({ element, fps: 100 });
+		const layout = createLayout({ content: "AB" });
+		const at = (frame: number) =>
+			evaluateTextAnimationFrame({ compiled, frame, layout });
+		// Period = block width 40 + gap 20 = 60. Identity at the cycle edges.
+		expect(at(0).units[0]?.visual.translateX).toBeCloseTo(0);
+		expect(at(0).units[1]?.visual.translateX).toBeCloseTo(0);
+		// Halfway: A (center 10) slides +30 into the gap; B (center 30) has
+		// wrapped and re-entered from the left edge.
+		const mid = at(50);
+		expect(mid.units[0]?.visual.translateX).toBeCloseTo(30);
+		expect(mid.units[1]?.visual.translateX).toBeCloseTo(-30);
+	});
+
+	it("drives the outline crossfade from the outlineAmount track", () => {
+		const effect: TextAnimationEffect = {
+			kind: "keyframes",
+			channels: {
+				// Over-range endpoints prove the clamp; the midpoint blends.
+				outlineAmount: [
+					{ t: 0, v: 1.4 },
+					{ t: 0.5, v: 0.5 },
+					{ t: 1, v: -0.4 },
+				],
+			},
+		};
+		const element = createElement({
+			overrides: {
+				content: "AB",
+				duration: 3,
+				textAnimations: createAnimation({
+					entrance: createPhase({
+						effect,
+						target: "textAndBackground",
+						duration: 1,
+					}),
+				}),
+			},
+		});
+		const compiled = compileTextAnimation({ element, fps: 100 });
+		const layout = createLayout({ content: "AB" });
+		const at = (frame: number) =>
+			evaluateTextAnimationFrame({ compiled, frame, layout });
+		expect(at(0).container.outlineAmount).toBe(1);
+		expect(at(50).container.outlineAmount).toBeCloseTo(0.5);
+		expect(at(99).container.outlineAmount).toBeCloseTo(0, 1);
+	});
+
 	it("feeds the color channel from a colorAmount track", () => {
 		const effect: TextAnimationEffect = {
 			kind: "keyframes",

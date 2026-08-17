@@ -392,6 +392,8 @@ const HYPERFRAMES_VARIABLE_OPTION_KEYS = new Set(["label", "value"]);
 
 const EFFECT_INSTANCE_KEYS = createAllowedKeySet<EffectInstance>({
 	keys: {
+		adjustParameters: true,
+		adjustValues: true,
 		animations: true,
 		audioCompanion: true,
 		duration: true,
@@ -407,6 +409,14 @@ const EFFECT_INSTANCE_KEYS = createAllowedKeySet<EffectInstance>({
 		timelineRange: true,
 	},
 });
+const EFFECT_ADJUST_PARAMETER_KEYS = new Set([
+	"key",
+	"defaultValue",
+	"minimum",
+	"maximum",
+]);
+const EFFECT_ADJUST_VALUE_KEYS = new Set(["key", "value"]);
+
 const EFFECT_CHAIN_KEYS = createAllowedKeySet<EffectChain>({
 	keys: {
 		blendMode: true,
@@ -710,6 +720,45 @@ function validateEffectInstance({
 			path: rangePath,
 			record: range,
 		});
+	}
+	if (effect.adjustParameters !== undefined) {
+		const parametersArray = getArray({
+			path: `${path}.adjustParameters`,
+			value: effect.adjustParameters,
+		});
+		for (const [index, entry] of parametersArray.entries()) {
+			const entryPath = `${path}.adjustParameters[${index}]`;
+			const record = getRecord({ path: entryPath, value: entry });
+			assertKeys({
+				allowed: EFFECT_ADJUST_PARAMETER_KEYS,
+				path: entryPath,
+				record,
+			});
+			getString({ path: `${entryPath}.key`, value: record.key });
+			getFiniteNumber({
+				path: `${entryPath}.defaultValue`,
+				value: record.defaultValue,
+			});
+			getFiniteNumber({ path: `${entryPath}.minimum`, value: record.minimum });
+			getFiniteNumber({ path: `${entryPath}.maximum`, value: record.maximum });
+		}
+	}
+	if (effect.adjustValues !== undefined) {
+		const valuesArray = getArray({
+			path: `${path}.adjustValues`,
+			value: effect.adjustValues,
+		});
+		for (const [index, entry] of valuesArray.entries()) {
+			const entryPath = `${path}.adjustValues[${index}]`;
+			const record = getRecord({ path: entryPath, value: entry });
+			assertKeys({
+				allowed: EFFECT_ADJUST_VALUE_KEYS,
+				path: entryPath,
+				record,
+			});
+			getString({ path: `${entryPath}.key`, value: record.key });
+			getFiniteNumber({ path: `${entryPath}.value`, value: record.value });
+		}
 	}
 	if (effect.animations !== undefined) {
 		const animations = getArray({

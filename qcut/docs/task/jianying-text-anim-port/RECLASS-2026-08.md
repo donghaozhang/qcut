@@ -1,0 +1,91 @@
+# Shader 池复查(bloom 能力落地后)/ Shader-pool reclassification
+
+日期 / Date: 2026-08-17 · 分支 / branch: `text-animation-v3`(PR #417)
+
+## 背景 / Context
+
+复现线的 5 个真字符数学候选全部移植后,对"字符层为空、内容在装饰性
+shader 里"的剩余包做第二次分类 —— 这次的能力上限包含:WebGL2 bloom
+pass(`text-animation-gpu-pass.ts`)、`outlineAmount` 通道、per-unit
+辉光、最强 unit 驱动的 raster pass、参数化 marquee。
+
+After the five real char-math candidates shipped, the shader-decorated
+remainder was re-classified against the NEW capability ceiling (WebGL2
+bloom, outlineAmount, per-unit glow, strongest-unit raster, marquee).
+
+## 方法 / Method
+
+三层信号,逐层收紧(脚本在会话 scratchpad,结论如下):
+
+1. 全量:619 包中可读、未移植(按 i18n 中文名匹配)、非 caption → **172**
+2. 关键词计数含模板噪音(GlowBlurLayerScript 引入即 +9),收紧为
+   **seek/updateAnim 内主动驱动的 uniform 写入** → 仅 1 个逐帧驱动
+3. 辉光多为**初始化静态配置**(动画在 alpha 层)→ 改查 prefab/scene/
+   init 层的 glow 挂载 → **8 个真候选**
+
+## 结论 / Verdict(8 个真候选)
+
+| 包 | 相位 | 判定 |
+|---|---|---|
+| 发光模糊多行 | loop | **范围外** — 实为 caption 排版机(c_module 分页/逐词),辉光是静态装饰 |
+| 拖尾(入场 7244102915239973432)| entrance | **可做** — 13 份同心缩放回声(0.5→1,bezier .167/.167/.48/1,错峰 (4+i)/34,长满即隐)+ AE 缩放/高斯轨。需给 keyframes 文档加 trail 通道(trailStrength/trailSamples 状态已存在,缺通道接线) |
+| 拖尾(出场 7244102819731477049)| exit | **可做** — 入场的镜像(同族 driver) |
+| 向左模糊 | exit | **可做** — 方向性模糊;raster pass 加 "dirBlur" kind(沿方向多次 drawImage 低 alpha 叠印)即可,连 WebGL 都不用 |
+| 缤纷冲屏 | entrance | **可近似**(已读,7116829842271638053)— 三层实例 ×8 档 Deep_Glow + 径向模糊冲屏 + 高斯。径向模糊≈echo kind(小 spread 多壳),deep glow≈bloom,冲屏≈scale 过冲 —— 无需新能力,但 939 行 driver 转录量大,留作下批 |
+| 影像叠加 | loop | **阻塞** — 混合模式 + 影像纹理 |
+| 拼贴纹理 | loop | **阻塞** — 纹理拼贴素材 |
+| 彩色火焰 | loop | **阻塞** — 程序化火焰 shader(多 pass 噪声场,超出 raster pass 表达力) |
+
+其余 164 个可读未移植包:辉光/模糊仅为静态装饰或无视觉主体,不构成
+独立预设价值 —— 与上次"其余 70 个字符层为空"的结论一致,这次的口径
+覆盖更全(172 > 70 是因为包含了全部 no-lsanim 家族的可读 driver)。
+
+**bloom 的直接消费者**:发光类循环预设(文字泛光/霓虹类 look)不在
+未移植池里 —— 那一族要么已按近似移植(可回头升级为 bloom 版),要么
+是"自己写"阶段的原创素材。bloom 能力的主要价值在后者。
+
+## 下一步 / Next
+
+1. ~~拖尾对~~ ✅ echo raster kind(带符号 spread)→ echo-trail-in / echo-trail-out
+2. ~~向左模糊~~ ✅ dirBlur raster kind → blur-left-out
+3. ~~缤纷冲屏判定~~ ✅ 可近似(echo+bloom+scale 组合),转录留作下批
+4. 已移植的发光近似预设(glow-flicker 等)可选升级:glowIntensity →
+   bloomIntensity(视觉从 shadowBlur 换成真 bloom)
+5. 之后进入"自己写"阶段(README §7 的命名决策仍待定)
+
+## 补记 2026-08-17:字幕池复核 / Caption-pool addendum
+
+字幕类实际 **156**(README 的 133 是旧数),全部已下载、149 可读。
+上文"误伤 17 个普通 driver"的说法**不成立** —— 家族分类器漏了
+`textTimeData.words`(逐词毫秒时间戳)这个信号;复核后 6 个"普通
+driver"候选(缩小/弹簧/重叠/波形扫光/扩展/律动)**全部**是卡拉 OK
+逐词机。字幕池范围外判定对全部 156 个成立。
+
+但六个的逐词曲线是普通关键帧数学,已按"曲线照抄 + 语音时钟换
+word-unit 错峰"移植(keyframe-documents-textanim-c.ts):
+shrink-slam-in(3× 砸入,源 10× 单词窗口,幅度适配)、
+spring-pop-in(elastic-out 烘焙)、overlap-drop-in、expand-in
+(词心 scaleX ≡ 字距展开)、wave-shine(扫光→循环辉光带)、
+rhythm-pulse(节拍脉冲 + rgbSplit 尖峰)。共同语义损失:不再与
+语音对齐,文档头注释已声明。
+
+## 再更正 2026-08-17:字幕池"产品缺口"论不成立 / Second correction
+
+用户指出 SmartEdit 后核实,QCut 已具备完整的逐词字幕产品面:
+
+- **逐词时间戳**:`TranscriptionSegment.words`(editor-core)、
+  `WordItem`(SmartEdit / word-timeline)、字幕 clip 上的
+  `words?: AudioLyricsWord[]` —— ElevenLabs 转写全程保留词级 start/end
+- **卡拉 OK 渲染系统**:`SubtitleStyle.karaokeMode` 已有 6 档
+  (word-highlight / word-by-word / karaoke / bounce / typewriter)+
+  highlightColor / upcomingColor / 活动词缩放
+- **ASS 导出**带 \k / \kf 卡拉 OK 标签(ass-generator.ts)
+
+因此 132 个字幕排版机包**并非不可移植** —— 它们的正确移植目标是
+karaokeMode 家族(真语音时钟),而不是文字动画预设系统。缩小/弹簧/
+重叠/波形扫光/扩展/律动这 6 个的逐词机制,可作为新的 karaokeMode
+档位做**忠实**移植(本批的 word-stagger 预设版并不作废:它们无需
+转写即可用于任意文本元素,二者互补)。
+
+修订后的字幕池判定:范围外 → **另一条移植线**(目标系统不同)。
+规模:132 个排版机 driver 按机制家族去重后预计 ~15-25 个独立机制。

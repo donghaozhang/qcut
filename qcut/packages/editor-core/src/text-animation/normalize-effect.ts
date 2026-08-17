@@ -785,6 +785,11 @@ export function normalizeTextAnimationEffect({
 			"colorAmount",
 			"glowIntensity",
 			"glowRadiusPx",
+			"outlineAmount",
+			"bloomIntensity",
+			"bloomRadiusPx",
+			"echoAmount",
+			"dirBlurPx",
 			"pixelateCell",
 			"rgbSplitPx",
 			"displaceAmplitudePx",
@@ -993,6 +998,18 @@ export function normalizeTextAnimationEffect({
 					? record.envelope
 					: "constant",
 			...(bounceEm > 0 ? { bounceEm } : {}),
+		};
+	}
+	if (record.kind === "marquee") {
+		return {
+			kind: "marquee",
+			gapEm: numberInRange({
+				value: record.gapEm,
+				fallback: 3.5,
+				minimum: 0,
+				maximum: 20,
+			}),
+			alternate: record.alternate !== false,
 		};
 	}
 	if (record.kind === "jitter") {
