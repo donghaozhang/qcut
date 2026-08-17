@@ -308,7 +308,7 @@ export function setupJianyingFilterLabIPC(
 	const thumbnailPromises = new Map<string, Promise<JianyingFilterThumbnail>>();
 	const readCatalog = ({ refresh }: { refresh: boolean }) => {
 		if (!catalogPromise || refresh) {
-			catalogPromise = listReferences().then(async (references) => {
+			const attempt = listReferences().then(async (references) => {
 				const supported = references.filter(
 					({ size }) => size <= MAX_EDITOR_LUT_SIZE
 				);
@@ -381,6 +381,15 @@ export function setupJianyingFilterLabIPC(
 					packages,
 				};
 			});
+			// Every caller below reads with refresh:false, so a rejected memo
+			// would keep being handed out for the rest of the session. Clear it
+			// on failure, but only while this attempt is still the current one —
+			// a refresh may already have replaced it.
+			const memo: Promise<FilterLabCatalog> = attempt.catch((cause) => {
+				if (catalogPromise === memo) catalogPromise = null;
+				throw cause;
+			});
+			catalogPromise = memo;
 		}
 		return catalogPromise;
 	};
