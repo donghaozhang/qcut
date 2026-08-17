@@ -79,6 +79,7 @@ function parseArgs() {
 		panel: null,
 		only: null,
 		capability: null,
+		plate: null,
 	};
 	const argv = process.argv.slice(2);
 	for (let i = 0; i < argv.length; i++) {
@@ -89,6 +90,9 @@ function parseArgs() {
 		// been verified, and the 29 tokens do not behave alike.
 		else if (argv[i] === "--capability")
 			args.capability = new Set(argv[++i].split(","));
+		// Lets the same population be retried against another subject plate: an
+		// effect that needs limbs fails honestly on a head-and-shoulders plate.
+		else if (argv[i] === "--plate") args.plate = argv[++i];
 	}
 	return args;
 }
@@ -161,6 +165,12 @@ async function readFullCatalog() {
 							itemUrls: Array.isArray(attr.item_urls) ? attr.item_urls : [],
 							sdkExtra:
 								typeof attr.sdk_extra === "string" ? attr.sdk_extra : "",
+							// Declared CV models, used to skip effects whose weights
+							// this machine does not have — the runtime segfaults when
+							// the resource finder cannot answer.
+							modelNames: `${typeof attr.model_names === "string" ? attr.model_names : ""} ${(
+								Array.isArray(attr.sdk_model) ? attr.sdk_model : []
+							).join(" ")}`,
 						});
 					}
 				}
@@ -283,12 +293,40 @@ function ssimVsBaseline(ffmpeg, renderedPath, baselinePath) {
 }
 
 /** The plate a run must use, given the capabilities it was asked to cover. */
-function resolvePlate(capabilities) {
+function resolvePlate(capabilities, override) {
+	if (override) {
+		const plate = SUBJECT_PLATES[override];
+		if (!plate) throw new Error(`unknown plate: ${override}`);
+		return plate;
+	}
 	for (const capability of capabilities ?? []) {
 		const plate = SUBJECT_PLATES[capability];
 		if (plate) return plate;
 	}
 	return { clip: REF_CLIP, baseline: REF_BASELINE };
+}
+
+/** Model stems this machine actually has, e.g. tt_matting, tt_face_extra. */
+function installedModelStems() {
+	const directory = jianyingModelDirectory();
+	if (!directory) return new Set();
+	const stems = new Set();
+	for (const name of fs.readdirSync(directory)) {
+		const match = name.match(/^(.+?)_v\d/);
+		if (match) stems.add(match[1]);
+	}
+	return stems;
+}
+
+/**
+ * A resource finder that cannot answer crashes the render process, so an
+ * effect whose declared weights are absent is skipped rather than attempted.
+ */
+function missingModels(item, installed) {
+	const declared = new Set(
+		(item.modelNames ?? "").match(/tt_[a-z0-9_]+/g) ?? []
+	);
+	return [...declared].filter((stem) => !installed.has(stem));
 }
 
 function loadDoneSet() {
@@ -313,7 +351,7 @@ function safeName(title) {
 async function main() {
 	const args = parseArgs();
 	const ffmpeg = getFFmpegPath();
-	const plate = resolvePlate(args.capability);
+	const plate = resolvePlate(args.capability, args.plate);
 	if (!fs.existsSync(plate.clip) || !fs.existsSync(plate.baseline)) {
 		throw new Error(`reference clip missing: ${plate.clip}`);
 	}
@@ -351,6 +389,7 @@ async function main() {
 	const pending = targets.filter((t) => !done.has(t.effectId));
 	const queue = pending.slice(0, args.limit);
 
+	const installedModels = args.capability ? installedModelStems() : new Set();
 	const modelDirectory = args.capability ? jianyingModelDirectory() : null;
 	if (args.capability && !modelDirectory) {
 		throw new Error("no JianYing model directory found; CV renders need one");
@@ -382,6 +421,10 @@ async function main() {
 			renderedAt: new Date().toISOString(),
 		};
 		try {
+			const absent = missingModels(item, installedModels);
+			if (absent.length > 0) {
+				throw new Error(`本机缺少算法模型:${absent.join("、")}`);
+			}
 			let packagePath = existingPackages.get(item.md5);
 			let downloaded = false;
 			if (!packagePath) {
