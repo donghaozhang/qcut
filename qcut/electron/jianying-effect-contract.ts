@@ -22,6 +22,12 @@ export interface JianyingEffectCategory {
 	id: string;
 	name: string;
 	panel: JianyingEffectPanel;
+	/**
+	 * The catalog ids this tab stands for. Usually just `id`, but the
+	 * catch-all tab covers several at once, so consumers must match against
+	 * this list rather than against `id` alone.
+	 */
+	categoryIds: string[];
 }
 
 export interface JianyingEffectDefinition {
