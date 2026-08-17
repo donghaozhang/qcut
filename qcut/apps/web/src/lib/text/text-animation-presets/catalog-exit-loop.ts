@@ -501,6 +501,26 @@ export const EXIT_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["split", "tear", "half", "横向分割", "分割"],
 	},
+	{
+		id: "chroma-dissolve-out",
+		phase: "exit",
+		nameKey: "textProperties.animationPreset.chromaDissolveOut",
+		previewKind: "keyframes",
+		defaultDuration: 1.5,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["chroma", "dissolve", "文字消散", "消散"],
+	},
+	{
+		id: "red-dust-out",
+		phase: "exit",
+		nameKey: "textProperties.animationPreset.redDustOut",
+		previewKind: "keyframes",
+		defaultDuration: 1.8,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["dust", "red", "sprint", "红色灰尘", "灰尘"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
 
 export const LOOP_TEXT_ANIMATION_PRESETS = [
@@ -1103,5 +1123,15 @@ export const LOOP_TEXT_ANIMATION_PRESETS = [
 		defaultDelay: 0,
 		defaultIntensity: 1,
 		searchTerms: ["flame", "fire", "burn", "彩色火焰", "火焰"],
+	},
+	{
+		id: "soft-focus-loop",
+		phase: "loop",
+		nameKey: "textProperties.animationPreset.softFocusLoop",
+		previewKind: "keyframes",
+		defaultDuration: 2.0,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["focus", "blur", "breathe", "文字淡变", "淡变"],
 	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
