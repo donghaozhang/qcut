@@ -802,4 +802,14 @@ export const ENTRANCE_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["prism", "rush", "gradient", "缤纷冲屏", "缤纷", "冲屏"],
 	},
+	{
+		id: "pulse-beam-in",
+		phase: "entrance",
+		nameKey: "textProperties.animationPreset.pulseBeamIn",
+		previewKind: "keyframes",
+		defaultDuration: 1.8,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["pulse", "beam", "godray", "脉冲光束", "光束"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
