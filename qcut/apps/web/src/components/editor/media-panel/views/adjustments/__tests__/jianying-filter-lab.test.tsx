@@ -287,7 +287,9 @@ describe("JianyingFilterLab catalog", () => {
 		const uncachedRow = screen.getByRole("button", {
 			name: "未缓存滤镜 汽水冰摇",
 		});
-		expect(uncachedRow.parentElement?.className).toContain("border-dashed");
+		// Unavailable tiles stay visually distinguishable; the dashed edge lives
+		// on the thumbnail, so query the subtree rather than a fixed ancestor.
+		expect(uncachedRow.querySelector(".border-dashed")).not.toBeNull();
 		fireEvent.click(uncachedRow);
 		expect(toast.info).toHaveBeenCalledWith(
 			"「汽水冰摇」尚未下载，点击卡片右侧的下载按钮获取"
