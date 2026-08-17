@@ -246,9 +246,9 @@ describe("panel categories", () => {
 		];
 
 		expect(collectPanelCategories({ panelRows, items })).toEqual([
-			{ id: "39654", name: "热门", panel: "effects2" },
-			{ id: "7728", name: "基础", panel: "effects2" },
-			{ id: "7730", name: "动感", panel: "effects2" },
+			{ id: "39654", name: "热门", panel: "effects2", categoryIds: ["39654"] },
+			{ id: "7728", name: "基础", panel: "effects2", categoryIds: ["7728"] },
+			{ id: "7730", name: "动感", panel: "effects2", categoryIds: ["7730"] },
 		]);
 	});
 
@@ -274,8 +274,73 @@ describe("panel categories", () => {
 		];
 
 		expect(collectPanelCategories({ panelRows, items })).toEqual([
-			{ id: "7730", name: "动感", panel: "effects2" },
-			{ id: "424242", name: "综艺", panel: "effects2" },
+			{ id: "7730", name: "动感", panel: "effects2", categoryIds: ["7730"] },
+			{
+				id: "424242",
+				name: "综艺",
+				panel: "effects2",
+				categoryIds: ["424242"],
+			},
+		]);
+	});
+
+	it("drops an unnamed category whose effects are reachable elsewhere", () => {
+		const items = collectCatalogItems({
+			rows: [
+				catalogRow({
+					panel: "effects2",
+					items: [
+						catalogItem({
+							effectId: "1",
+							title: "抖动",
+							md5: "aaa",
+							categoryIds: [7730, 999999],
+						}),
+					],
+				}),
+			],
+		});
+		const panelRows = [panelRow({ categories: [{ id: 7730, name: "动感" }] })];
+
+		// 999999 has no name anywhere, but its only member also sits in 动感,
+		// so a raw-id tab would be noise.
+		expect(collectPanelCategories({ panelRows, items })).toEqual([
+			{ id: "7730", name: "动感", panel: "effects2", categoryIds: ["7730"] },
+		]);
+	});
+
+	it("folds unnamed categories holding unreachable effects into 其他", () => {
+		const items = collectCatalogItems({
+			rows: [
+				catalogRow({
+					panel: "effects2",
+					items: [
+						catalogItem({
+							effectId: "1",
+							title: "抖动",
+							md5: "aaa",
+							categoryIds: [7730],
+						}),
+						catalogItem({
+							effectId: "2",
+							title: "孤儿",
+							md5: "bbb",
+							categoryIds: [888888],
+						}),
+					],
+				}),
+			],
+		});
+		const panelRows = [panelRow({ categories: [{ id: 7730, name: "动感" }] })];
+
+		expect(collectPanelCategories({ panelRows, items })).toEqual([
+			{ id: "7730", name: "动感", panel: "effects2", categoryIds: ["7730"] },
+			{
+				id: "effects2-other",
+				name: "其他",
+				panel: "effects2",
+				categoryIds: ["888888"],
+			},
 		]);
 	});
 });
