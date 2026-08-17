@@ -69,6 +69,83 @@ void main() {
   fragColor = clamp(source + halo * u_intensity, 0.0, 1.0);
 }`;
 
+/**
+ * Procedural flame: fBm noise rising through the glyph alpha, shaded through
+ * a blackbody-ish ramp. The text stays legible because the fire is keyed to
+ * the alpha's own gradient — this is the pass a 2D canvas cannot fake, which
+ * is why 彩色火焰-class effects were out of reach before WebGL2.
+ */
+const FLAME_SHADER = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+uniform sampler2D u_source;
+uniform vec2 u_texel;
+uniform float u_time;
+uniform float u_intensity;
+uniform float u_height;
+out vec4 fragColor;
+
+float hash(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+
+float noise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  float a = hash(i);
+  float b = hash(i + vec2(1.0, 0.0));
+  float c = hash(i + vec2(0.0, 1.0));
+  float d = hash(i + vec2(1.0, 1.0));
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+float fbm(vec2 p) {
+  float total = 0.0;
+  float amplitude = 0.5;
+  for (int i = 0; i < 5; i++) {
+    total += noise(p) * amplitude;
+    p *= 2.0;
+    amplitude *= 0.5;
+  }
+  return total;
+}
+
+void main() {
+  vec4 source = texture(u_source, v_uv);
+  // Fuel is the glyph mass BELOW this pixel, falling off with distance — a
+  // flat max would make every interior pixel burn equally and the block would
+  // just wash orange. Positive v is downward on screen after the flip, so
+  // stepping +v walks toward the glyph feeding this pixel.
+  float fuel = 0.0;
+  for (int i = 1; i <= 14; i++) {
+    float dist = float(i) / 14.0;
+    float a = texture(u_source, v_uv + vec2(0.0, u_texel.y * float(i) * 4.0)).a;
+    fuel = max(fuel, a * (1.0 - dist));
+  }
+  fuel *= u_height;
+  // Rising, curling field; the domain warp is what gives the tongues shape.
+  vec2 flow = vec2(v_uv.x * 7.0, v_uv.y * 5.0 - u_time * 2.2);
+  float f = fbm(flow + fbm(flow * 0.6) * 0.8);
+  // Burn hardest just OUTSIDE the glyph: inside, the text should stay legible.
+  float outside = 1.0 - smoothstep(0.0, 0.85, source.a);
+  // Multiplicative, not additive: summing saturates the whole fuel column to
+  // solid and the fire reads as a rectangle over each glyph. Letting the noise
+  // gate the fuel is what carves tongues, and the gate tightens as fuel thins
+  // so the tips break into flecks.
+  float gate = smoothstep(0.62 - fuel * 0.30, 0.92 - fuel * 0.18, f);
+  float flame = clamp(fuel * gate * 1.6, 0.0, 1.0) * outside;
+  // Blackbody-ish ramp: red tips, amber body, white core.
+  vec3 fire = mix(vec3(0.9, 0.13, 0.02), vec3(1.0, 0.58, 0.06), smoothstep(0.1, 0.5, flame));
+  fire = mix(fire, vec3(1.0, 0.95, 0.75), smoothstep(0.6, 1.0, flame));
+  // A little heat licks onto the glyph itself without hiding it.
+  vec3 lit = source.rgb + fire * flame * u_intensity * 0.9;
+  float alpha = clamp(source.a + flame * u_intensity, 0.0, 1.0);
+  fragColor = vec4(clamp(lit, 0.0, 1.0) * alpha, alpha);
+}`;
+
 export interface TextAnimationGpuPass {
 	/**
 	 * Draws `source` with a bloom halo and returns the canvas holding the
@@ -84,6 +161,21 @@ export interface TextAnimationGpuPass {
 		radiusPx: number;
 		/** Bright-pass threshold, 0..1. Defaults to 0.25. */
 		threshold?: number;
+	}): HTMLCanvasElement | null;
+	/**
+	 * Draws `source` with procedural flame rising off the glyphs, or null when
+	 * the pass cannot run.
+	 */
+	renderFlame(input: {
+		source: CanvasImageSource;
+		width: number;
+		height: number;
+		/** Flame strength; 1 is a full blaze. */
+		intensity: number;
+		/** How far the fire reaches above the glyphs, roughly 0..2. */
+		reach: number;
+		/** Animation phase in seconds. */
+		time: number;
 	}): HTMLCanvasElement | null;
 	dispose(): void;
 }
@@ -155,10 +247,12 @@ function createTextAnimationGpuPass(): TextAnimationGpuPass | null {
 	let brightProgram: WebGLProgram;
 	let blurProgram: WebGLProgram;
 	let compositeProgram: WebGLProgram;
+	let flameProgram: WebGLProgram;
 	try {
 		brightProgram = linkProgram({ gl, fragmentSource: BRIGHT_SHADER });
 		blurProgram = linkProgram({ gl, fragmentSource: BLUR_SHADER });
 		compositeProgram = linkProgram({ gl, fragmentSource: COMPOSITE_SHADER });
+		flameProgram = linkProgram({ gl, fragmentSource: FLAME_SHADER });
 	} catch {
 		return null;
 	}
@@ -335,7 +429,55 @@ function createTextAnimationGpuPass(): TextAnimationGpuPass | null {
 			if (gl.isContextLost() || gl.getError() !== gl.NO_ERROR) return null;
 			return canvas;
 		},
+		renderFlame({ source, width, height, intensity, reach, time }) {
+			if (width <= 0 || height <= 0) return null;
+			if (gl.isContextLost()) return null;
+			canvas.width = width;
+			canvas.height = height;
+			allocate({ width, height });
+			gl.viewport(0, 0, width, height);
+			gl.disable(gl.BLEND);
+			gl.activeTexture(gl.TEXTURE0);
+			setupTexture(sourceTexture);
+			gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+			gl.texImage2D(
+				gl.TEXTURE_2D,
+				0,
+				gl.RGBA8,
+				gl.RGBA,
+				gl.UNSIGNED_BYTE,
+				source as TexImageSource
+			);
+			gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+			drawPass({
+				program: flameProgram,
+				target: null,
+				flipY: true,
+				bind: () => {
+					gl.activeTexture(gl.TEXTURE0);
+					gl.bindTexture(gl.TEXTURE_2D, sourceTexture);
+					gl.uniform1i(gl.getUniformLocation(flameProgram, "u_source"), 0);
+					gl.uniform2f(
+						gl.getUniformLocation(flameProgram, "u_texel"),
+						1 / width,
+						1 / height
+					);
+					gl.uniform1f(gl.getUniformLocation(flameProgram, "u_time"), time);
+					gl.uniform1f(
+						gl.getUniformLocation(flameProgram, "u_intensity"),
+						Math.max(0, intensity)
+					);
+					gl.uniform1f(
+						gl.getUniformLocation(flameProgram, "u_height"),
+						Math.max(0.05, reach)
+					);
+				},
+			});
+			if (gl.isContextLost() || gl.getError() !== gl.NO_ERROR) return null;
+			return canvas;
+		},
 		dispose() {
+			gl.deleteProgram(flameProgram);
 			gl.deleteTexture(sourceTexture);
 			for (const texture of passTextures) gl.deleteTexture(texture);
 			for (const framebuffer of framebuffers) {
