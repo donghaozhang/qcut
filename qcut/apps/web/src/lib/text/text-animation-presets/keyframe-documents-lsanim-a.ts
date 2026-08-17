@@ -19,6 +19,63 @@ import type { TextKeyframeDocument } from "./keyframe-documents-entrance-a";
 type Doc = TextKeyframeDocument;
 
 export const ENTRANCE_LSANIM_DOCUMENTS_A: Record<string, Doc> = {
+	// 剪映 立体折叠 (7526839887526448430), D=3. Stacked copies offset along a
+	// shallow diagonal (LayeredReplacement, offsetX 0.1 → 0, offsetY 0.05 → 0
+	// of the block, interval 0.15) give the fold its depth, and a wave warp
+	// (amplitude 20 → 0) flexes the stack as it collapses onto the flat
+	// original. The stack is the new layered pass — concentric echo shells
+	// could not express a directional offset.
+	"fold-stack-in": {
+		sequence: { unit: "all", order: "forward", staggerRatio: 0 },
+		effect: {
+			kind: "keyframes",
+			rasterScale: 20,
+			rasterEvolution: 1,
+			channels: {
+				opacity: [
+					{ t: 0, v: 0 },
+					{ t: 0.1, v: 1 },
+					{ t: 1, v: 1 },
+				],
+				layerOffsetXPx: [
+					{ t: 0, v: 60, outValue: 60, outTime: 0.169 },
+					{
+						t: 0.512,
+						v: 61,
+						inValue: 61,
+						inTime: -0.169,
+						outValue: 12,
+						outTime: 0.0367,
+					},
+					{ t: 1, v: 0, inValue: 0, inTime: -0.4073 },
+				],
+				layerOffsetYPx: [
+					{ t: 0, v: 30, outValue: 30, outTime: 0.176 },
+					{
+						t: 0.5333,
+						v: 30,
+						inValue: 30,
+						inTime: -0.176,
+						outValue: -8,
+						outTime: 0.0837,
+					},
+					{ t: 1, v: 0, inValue: -4, inTime: -0.253 },
+				],
+				displaceAmplitudePx: [
+					{ t: 0, v: 10, outValue: 9, outTime: 0.1333 },
+					{
+						t: 0.5333,
+						v: 0,
+						inValue: 0,
+						inTime: -0.176,
+						outValue: 0,
+						outTime: 0.154,
+					},
+					{ t: 1, v: 0, inValue: 0, inTime: -0.35 },
+				],
+			},
+		},
+	},
 	// 剪映 脉冲光束 (D=3, GodRay + LinearWipe). Two selector windows arrive
 	// from different distances — one from four text-heights up, one from a
 	// single height — while a light source sweeps from below the block to
