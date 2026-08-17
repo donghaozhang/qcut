@@ -502,6 +502,13 @@ export interface TextKeyframesEffect {
 	 */
 	pivot?: "center" | "bottomCenter";
 	/**
+	 * Spatial gradient across the line: each unit takes its tint from this
+	 * palette by horizontal position, the way Jianying's 4-colour gradient
+	 * layers paint a block. Strength still comes from the colorAmount
+	 * channel, so the gradient can fade in and out like any other track.
+	 */
+	palette?: readonly string[];
+	/**
 	 * Optional animated range selector. With a selector the phase clock is
 	 * shared by every unit and the WINDOW does the spatial differentiation:
 	 * each unit's effect strength is its selector weight.
