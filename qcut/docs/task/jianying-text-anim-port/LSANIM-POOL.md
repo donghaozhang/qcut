@@ -128,3 +128,28 @@ color-flash-loop(闪色循环)
 所以任何"tint + raster pass"的组合都会画成纯色字再做后处理 —— 调色板
 第一次渲染就是白的。与 CodeRabbit 抓到的 outlineAmount 同一类问题
 (离屏路径漏传每单元状态),现已一并接上。
+
+## 三项能力补完 2026-08-17 / Three capability gaps closed
+
+之前列为"未建"的三项全部落地,并各用一个原生用例证明:
+
+**1. 多 selector(分层)** —— `TextKeyframesEffect.layers`:每层带自己的
+selector 窗口和通道轨,按权重合成到基础 visual 上(平移旋转相加,
+缩放透明度相乘)。剪映一个 animator 挂多个 selector、各配 base_attrs
+就是这个结构。证明:**横向分割**(`horizontal-split-out`)—— 三层共用
+一个时钟,只靠 shape 区分(rampDown 抬头段、rampUp 压尾段、square 全体
+淡出),两半反向移动不再互相抵消。
+
+**2. 程序化 shader** —— GPU harness 加了 fBm 火焰:燃料取自像素下方
+glyph alpha 的距离衰减场(而非 max,否则整块糊成暖色),噪声**乘性**
+门控雕出火舌(加性会饱和成矩形),blackbody 色带上色,字形保持可读。
+证明:**彩色火焰**(`flame-loop`)。这一类此前判为"raster pass 表达力
+不够" —— 那个判断在 WebGL2 之前成立,之后失效。GPU-only:无 WebGL2
+时原样绘制,不做假火。
+
+**3. GodRay** —— 径向遮挡行进(24 步向光源采样、按 decay 累积亮度),
+只有亮部投射光轴。证明:**脉冲光束**(`pulse-beam-in`)—— 同时用上
+分层(两个 selector 分别从 4 em 和 1 em 外抵达)与光束。
+
+剩余 5 种未映射效果:LayeredReplacement、PixelSprint、RoughEdge、
+DistortChroma、CrossBlur,各出现 1 次。
