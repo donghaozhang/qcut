@@ -497,6 +497,11 @@ export interface TextKeyframesEffect {
 	/** displace field turns this many times over the phase. */
 	rasterEvolution?: number;
 	/**
+	 * Pivot for the document's rotation and scale. Jianying's 雨刷 swings the
+	 * block about a point below it, which only reads right off-center.
+	 */
+	pivot?: "center" | "bottomCenter";
+	/**
 	 * Optional animated range selector. With a selector the phase clock is
 	 * shared by every unit and the WINDOW does the spatial differentiation:
 	 * each unit's effect strength is its selector weight.
