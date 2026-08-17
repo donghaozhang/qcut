@@ -792,6 +792,8 @@ export function normalizeTextAnimationEffect({
 			"dirBlurPx",
 			"flameIntensity",
 			"flameReach",
+			"godRayIntensity",
+			"godRayReach",
 			"pixelateCell",
 			"rgbSplitPx",
 			"displaceAmplitudePx",
