@@ -14,12 +14,15 @@ import path from "node:path";
  * Nothing here is ever copied or redistributed: the bridge reads the weights
  * from the user's own JianYing installation.
  */
-export function jianyingModelDirectory(): string | null {
+export function jianyingModelDirectories(): string[] {
 	const override = process.env.QCUT_JIANYING_EFFECT_MODEL_ROOT;
-	if (override) return existsSync(override) ? override : null;
+	if (override) return override.split(path.delimiter).filter(existsSync);
 
 	const home = os.homedir();
-	const candidates = [
+	// Both roots are needed, not the first that exists: the download cache
+	// carries newer versions of some models while the app bundle is the only
+	// source of others (head segmentation, avatar drive, eye fitting…).
+	return [
 		path.join(
 			home,
 			"Movies",
@@ -30,6 +33,11 @@ export function jianyingModelDirectory(): string | null {
 			"model"
 		),
 		"/Applications/VideoFusion-macOS.app/Contents/Resources/models",
-	];
-	return candidates.find((candidate) => existsSync(candidate)) ?? null;
+	].filter(existsSync);
+}
+
+/** The delimiter-separated list the native resource finder expects. */
+export function jianyingModelDirectory(): string | null {
+	const directories = jianyingModelDirectories();
+	return directories.length > 0 ? directories.join(path.delimiter) : null;
 }
