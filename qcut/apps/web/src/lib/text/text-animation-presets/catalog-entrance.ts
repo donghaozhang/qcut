@@ -812,4 +812,14 @@ export const ENTRANCE_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["pulse", "beam", "godray", "脉冲光束", "光束"],
 	},
+	{
+		id: "fold-stack-in",
+		phase: "entrance",
+		nameKey: "textProperties.animationPreset.foldStackIn",
+		previewKind: "keyframes",
+		defaultDuration: 1.5,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["fold", "stack", "layers", "立体折叠", "折叠"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
