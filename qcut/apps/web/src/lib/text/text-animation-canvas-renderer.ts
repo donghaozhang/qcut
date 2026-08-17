@@ -155,15 +155,30 @@ function drawRasterPostProcessedText({
 				bounds: grapheme.bounds,
 			});
 		}
-		// Thread the outline crossfade into the offscreen draw too — a
-		// document combining a raster pass with outlineAmount would
-		// otherwise silently render solid glyphs.
+		// Thread the per-unit fill and outline into the offscreen draw too — a
+		// document combining a raster pass with a tint or outlineAmount would
+		// otherwise render plain solid glyphs before the pass ever runs.
 		const outlineAmount = unitState?.visual.outlineAmount;
+		const colorMix = unitState?.visual.colorMix;
+		const fillColor = colorMix
+			? colorMix.mode === "multiply"
+				? multiplyTextAnimationColors({
+						base: element.color,
+						tint: colorMix.color,
+						amount: colorMix.amount,
+					})
+				: mixTextAnimationColors({
+						from: element.color,
+						to: colorMix.color,
+						amount: colorMix.amount,
+					})
+			: undefined;
 		drawTextAnimationGlyph({
 			ctx: sourceCtx,
 			element,
 			style,
 			grapheme,
+			...(fillColor ? { fillColor } : {}),
 			...(outlineAmount !== undefined ? { outlineAmount } : {}),
 		});
 		sourceCtx.restore();
