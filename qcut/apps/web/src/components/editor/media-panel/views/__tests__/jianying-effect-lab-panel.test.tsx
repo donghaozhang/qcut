@@ -47,8 +47,8 @@ function readyStatus(
 		availableCount: effects.filter((e) => e.supported && e.installed).length,
 		effects,
 		categories: [
-			{ id: "7728", name: "基础", panel: "effects2" },
-			{ id: "7730", name: "动感", panel: "effects2" },
+			{ id: "7728", name: "基础", panel: "effects2", categoryIds: ["7728"] },
+			{ id: "7730", name: "动感", panel: "effects2", categoryIds: ["7730"] },
 		],
 		message: "已发现本机剪映特效。",
 	};
@@ -176,9 +176,9 @@ describe("JianyingEffectLabPanel", () => {
 		status.mockResolvedValue({
 			...readyStatus([definition({})]),
 			categories: [
-				{ id: "7728", name: "基础", panel: "effects2" },
-				{ id: "9001", name: "热门", panel: "effects2" },
-				{ id: "9001", name: "道具", panel: "face-prop" },
+				{ id: "7728", name: "基础", panel: "effects2", categoryIds: ["7728"] },
+				{ id: "9001", name: "热门", panel: "effects2", categoryIds: ["9001"] },
+				{ id: "9001", name: "道具", panel: "face-prop", categoryIds: ["9001"] },
 			],
 		});
 		render(<JianyingEffectLabPanel onApply={vi.fn()} />);
