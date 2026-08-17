@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import {
 	AlertTriangle,
+	ArrowLeft,
 	Check,
+	ChevronRight,
 	FlaskConical,
 	ImageOff,
 	Layers3,
@@ -10,14 +12,6 @@ import {
 	Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-	Dialog,
-	DialogContent,
-	DialogDescription,
-	DialogHeader,
-	DialogTitle,
-	DialogTrigger,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import type {
@@ -239,8 +233,116 @@ function TextStyleLabCard({
 	);
 }
 
-export function JianyingTextStyleLabDialog({
+/**
+ * Theme groups for the category rail. Fifteen flat categories overflow the
+ * left panel, so they fold into the four groupings Jianying itself implies —
+ * charts, styles, effects, colours — and each group remembers its own state.
+ */
+const CATEGORY_GROUPS = [
+	{ id: "charts", label: "榜单", members: ["popular", "latest"] },
+	{ id: "styles", label: "风格", members: ["summer", "variety", "guofeng"] },
+	{ id: "effects", label: "效果", members: ["glow", "gradient", "texture"] },
+	{
+		id: "colors",
+		label: "颜色",
+		members: [
+			"red",
+			"yellow",
+			"black-white",
+			"blue",
+			"pink",
+			"green",
+			"purple",
+		],
+	},
+] as const;
+
+function CategoryGroup({
+	group,
+	categories,
+	view,
+	expanded,
+	onToggle,
+	onSelect,
+}: {
+	group: (typeof CATEGORY_GROUPS)[number];
+	categories: { id: string; label: string; count: number }[];
+	view: LabView;
+	expanded: boolean;
+	onToggle: () => void;
+	onSelect: (id: LabView) => void;
+}) {
+	const members = group.members
+		.map((id) => categories.find((category) => category.id === id))
+		.filter((category): category is NonNullable<typeof category> =>
+			Boolean(category)
+		);
+	if (members.length === 0) return null;
+	const holdsActive = members.some((category) => category.id === view);
+	return (
+		<div className="mb-1">
+			<button
+				type="button"
+				aria-expanded={expanded}
+				className={cn(
+					"flex h-6 w-full items-center gap-1 rounded-sm px-1.5 text-[10px] uppercase tracking-wide",
+					holdsActive && !expanded
+						? "text-cyan-200"
+						: "text-muted-foreground hover:bg-white/[0.06]"
+				)}
+				onClick={onToggle}
+				onKeyDown={(event) => {
+					if (event.key === "Enter" || event.key === " ") {
+						event.preventDefault();
+						onToggle();
+					}
+				}}
+			>
+				<ChevronRight
+					className={cn(
+						"size-3 shrink-0 transition-transform",
+						expanded && "rotate-90"
+					)}
+				>
+					<title>{expanded ? "收起" : "展开"}</title>
+				</ChevronRight>
+				<span className="truncate">{group.label}</span>
+				<span className="ml-auto text-[10px]">{members.length}</span>
+			</button>
+			{expanded
+				? members.map((category) => (
+						<button
+							key={category.id}
+							type="button"
+							aria-label={`${category.label}，${Math.min(category.count, CATEGORY_STYLE_LIMIT)} 个本地花字`}
+							aria-pressed={view === category.id}
+							className={cn(
+								"mb-0.5 flex h-7 w-full items-center justify-between rounded-sm pl-4 pr-2 text-[11px]",
+								view === category.id
+									? "bg-cyan-400/10 text-cyan-200"
+									: "text-muted-foreground hover:bg-white/[0.06]"
+							)}
+							onClick={() => onSelect(category.id as LabView)}
+							onKeyDown={(event) => {
+								if (event.key === "Enter" || event.key === " ") {
+									onSelect(category.id as LabView);
+								}
+							}}
+						>
+							<span className="truncate">{category.label}</span>
+							<span className="text-[10px] text-muted-foreground">
+								{Math.min(category.count, CATEGORY_STYLE_LIMIT)}
+							</span>
+						</button>
+					))
+				: null}
+		</div>
+	);
+}
+
+export function JianyingTextStyleLabPanel({
 	onApply,
+	onClose,
 }: {
 	onApply: ({
 		animations,
@@ -249,8 +351,15 @@ export function JianyingTextStyleLabDialog({
 		animations?: JianyingTextAnimationReferences;
 		style: JianyingTextStyleLabStyleSummary;
 	}) => void;
+	/** Returns to the template list; the panel owns no open state of its own. */
+	onClose: () => void;
 }) {
-	const [open, setOpen] = useState(false);
+	// The panel only renders while the text view has it open, so the data hook
+	// is always enabled here.
+	const open = true;
+	const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
+		() => ({ charts: true, styles: false, effects: false, colors: false })
+	);
 	const [query, setQuery] = useState("");
 	const [view, setView] = useState<LabView>("trial");
 	const [selectedStyleId, setSelectedStyleId] = useState("");
@@ -331,175 +440,158 @@ export function JianyingTextStyleLabDialog({
 	};
 
 	return (
-		<Dialog
-			open={open}
-			onOpenChange={(nextOpen) => {
-				setOpen(nextOpen);
-				if (!nextOpen) {
-					setSelectedStyleId("");
-					setSelectedAnimations({});
-				}
-			}}
+		<div
+			className="flex h-full min-h-0 flex-col gap-2"
+			data-testid="jianying-text-style-lab-panel"
 		>
-			<DialogTrigger asChild>
+			<div className="flex h-7 shrink-0 items-center gap-1.5">
 				<Button
 					type="button"
 					variant="text"
-					size="sm"
-					className="h-6 gap-1.5 px-2 text-[0.68rem] text-cyan-300"
+					size="icon"
+					className="size-6"
+					aria-label="返回文字模板"
+					onClick={onClose}
+					onKeyDown={(event) => {
+						if (event.key === "Enter" || event.key === " ") {
+							onClose();
+						}
+					}}
 				>
-					<FlaskConical className="size-3.5" />
-					<span>花字实验室</span>
+					<ArrowLeft className="size-3.5">
+						<title>返回文字模板</title>
+					</ArrowLeft>
 				</Button>
-			</DialogTrigger>
-			<DialogContent
-				className="max-h-[calc(100vh-2rem)] overflow-hidden border-white/10 bg-[#202020]"
-				style={{ maxWidth: "min(72rem, calc(100vw - 2rem))" }}
-			>
-				<DialogHeader>
-					<DialogTitle className="flex items-center gap-2 text-base">
-						<FlaskConical className="size-4 text-cyan-300" />
-						花字实验室
-					</DialogTitle>
-					<DialogDescription className="sr-only">
-						浏览本机剪映缓存的可编辑花字样式并测试 QCut 映射
-					</DialogDescription>
-				</DialogHeader>
-				<div className="flex items-center gap-2">
-					<label className="relative min-w-0 flex-1">
-						<Search className="-translate-y-1/2 pointer-events-none absolute left-2.5 top-1/2 size-3.5 text-muted-foreground" />
-						<Input
-							aria-label="搜索花字实验室"
-							className="h-8 bg-black/20 pl-8 text-xs"
-							placeholder="搜索花字名称/结构"
-							value={query}
-							onChange={(event) => setQuery(event.target.value)}
-						/>
-					</label>
-					<Button
-						type="button"
-						variant="text"
-						size="icon"
-						className="size-8"
-						aria-label="刷新本机花字缓存"
-						disabled={checking}
-						onClick={() => void refresh({ force: true })}
-						onKeyDown={(event) => {
-							if (event.key === "Enter" || event.key === " ") {
-								void refresh({ force: true });
-							}
-						}}
-					>
-						<RefreshCw className={cn("size-3.5", checking && "animate-spin")} />
-					</Button>
-				</div>
-				<div className="flex min-h-0 gap-3">
-					<nav className="max-h-[34rem] w-32 shrink-0 overflow-y-auto border-white/10 border-r pr-2">
-						{(["trial", "all"] as const).map((option) => (
-							<button
-								key={option}
-								type="button"
-								aria-pressed={view === option}
-								className={cn(
-									"mb-1 flex h-7 w-full items-center justify-between rounded-sm px-2 text-[11px]",
-									view === option
-										? "bg-white/10 text-foreground"
-										: "text-muted-foreground hover:bg-white/[0.06]"
-								)}
-								onClick={() => setView(option)}
-								onKeyDown={(event) => {
-									if (event.key === "Enter" || event.key === " ") {
-										setView(option);
-									}
-								}}
-							>
-								<span>{option === "trial" ? "五款预览" : "全部"}</span>
-								<span className="text-[10px] text-muted-foreground">
-									{option === "trial" ? trialStyles.length : result.count}
-								</span>
-							</button>
-						))}
-						<div className="my-1 border-white/10 border-t" />
-						{result.categories.map((category) => (
-							<button
-								key={category.id}
-								type="button"
-								aria-label={`${category.label}，${Math.min(category.count, CATEGORY_STYLE_LIMIT)} 个本地花字`}
-								aria-pressed={view === category.id}
-								className={cn(
-									"mb-0.5 flex h-7 w-full items-center justify-between rounded-sm px-2 text-[11px]",
-									view === category.id
-										? "bg-cyan-400/10 text-cyan-200"
-										: "text-muted-foreground hover:bg-white/[0.06]"
-								)}
-								onClick={() => setView(category.id)}
-								onKeyDown={(event) => {
-									if (event.key === "Enter" || event.key === " ") {
-										setView(category.id);
-									}
-								}}
-							>
-								<span>{category.label}</span>
-								<span className="text-[10px] text-muted-foreground">
-									{Math.min(category.count, CATEGORY_STYLE_LIMIT)}
-								</span>
-							</button>
-						))}
-					</nav>
-					<section className="min-w-0 flex-1">
-						<div className="flex h-7 items-center justify-between gap-2 border-white/10 border-b pb-2">
-							<span className="text-xs font-medium text-foreground">
-								{activeCategory?.label ??
-									(view === "trial" ? "五款预览" : "全部花字")}
-							</span>
+				<FlaskConical className="size-3.5 shrink-0 text-cyan-300" />
+				<h2 className="truncate font-medium text-foreground text-sm">
+					花字实验室
+				</h2>
+			</div>
+			<div className="flex items-center gap-2">
+				<label className="relative min-w-0 flex-1">
+					<Search className="-translate-y-1/2 pointer-events-none absolute left-2.5 top-1/2 size-3.5 text-muted-foreground" />
+					<Input
+						aria-label="搜索花字实验室"
+						className="h-8 bg-black/20 pl-8 text-xs"
+						placeholder="搜索花字名称/结构"
+						value={query}
+						onChange={(event) => setQuery(event.target.value)}
+					/>
+				</label>
+				<Button
+					type="button"
+					variant="text"
+					size="icon"
+					className="size-8"
+					aria-label="刷新本机花字缓存"
+					disabled={checking}
+					onClick={() => void refresh({ force: true })}
+					onKeyDown={(event) => {
+						if (event.key === "Enter" || event.key === " ") {
+							void refresh({ force: true });
+						}
+					}}
+				>
+					<RefreshCw className={cn("size-3.5", checking && "animate-spin")} />
+				</Button>
+			</div>
+			<div className="flex min-h-0 flex-1 gap-2">
+				<nav className="w-24 shrink-0 overflow-y-auto border-white/10 border-r pr-1.5">
+					{(["trial", "all"] as const).map((option) => (
+						<button
+							key={option}
+							type="button"
+							aria-pressed={view === option}
+							className={cn(
+								"mb-1 flex h-7 w-full items-center justify-between rounded-sm px-2 text-[11px]",
+								view === option
+									? "bg-white/10 text-foreground"
+									: "text-muted-foreground hover:bg-white/[0.06]"
+							)}
+							onClick={() => setView(option)}
+							onKeyDown={(event) => {
+								if (event.key === "Enter" || event.key === " ") {
+									setView(option);
+								}
+							}}
+						>
+							<span>{option === "trial" ? "五款预览" : "全部"}</span>
 							<span className="text-[10px] text-muted-foreground">
-								{visibleStyles.length}
-								{activeCategory ? ` / ${activeCategory.count}` : ""} 本地缓存 ·{" "}
-								{result.packageCount} 包
+								{option === "trial" ? trialStyles.length : result.count}
 							</span>
+						</button>
+					))}
+					<div className="my-1 border-white/10 border-t" />
+					{CATEGORY_GROUPS.map((group) => (
+						<CategoryGroup
+							key={group.id}
+							group={group}
+							categories={result.categories}
+							view={view}
+							expanded={expandedGroups[group.id] ?? false}
+							onToggle={() =>
+								setExpandedGroups((current) => ({
+									...current,
+									[group.id]: !(current[group.id] ?? false),
+								}))
+							}
+							onSelect={setView}
+						/>
+					))}
+				</nav>
+				<section className="min-w-0 flex-1">
+					<div className="flex h-7 items-center justify-between gap-2 border-white/10 border-b pb-2">
+						<span className="text-xs font-medium text-foreground">
+							{activeCategory?.label ??
+								(view === "trial" ? "五款预览" : "全部花字")}
+						</span>
+						<span className="text-[10px] text-muted-foreground">
+							{visibleStyles.length}
+							{activeCategory ? ` / ${activeCategory.count}` : ""} 本地缓存 ·{" "}
+							{result.packageCount} 包
+						</span>
+					</div>
+					{error ? (
+						<div className="flex h-56 items-center justify-center text-xs text-amber-300">
+							<AlertTriangle className="mr-2 size-4" />
+							{error}
 						</div>
-						{error ? (
-							<div className="flex h-56 items-center justify-center text-xs text-amber-300">
-								<AlertTriangle className="mr-2 size-4" />
-								{error}
-							</div>
-						) : null}
-						{!error && checking && result.count === 0 ? (
-							<div className="flex h-56 items-center justify-center text-xs text-muted-foreground">
-								<Loader2 className="mr-2 size-4 animate-spin" />
-								正在读取本机花字缓存
-							</div>
-						) : null}
-						{!error && (!checking || result.count > 0) ? (
-							<div
-								className={cn(
-									"mt-2 grid min-h-56 auto-rows-max content-start grid-cols-4 gap-2 overflow-y-auto pr-1 lg:grid-cols-5",
-									animationPickerVisible ? "max-h-[19rem]" : "max-h-[31rem]"
-								)}
-							>
-								{visibleStyles.map((style) => (
-									<TextStyleLabCard
-										key={style.styleId}
-										style={style}
-										selected={selectedStyleId === style.styleId}
-										onApply={applyStyle}
-									/>
-								))}
-							</div>
-						) : null}
-						{animationPickerVisible ? (
-							<JianyingTextAnimationPicker
-								animations={animationLab.result.animations}
-								checking={animationLab.checking}
-								error={animationLab.error}
-								selected={selectedAnimations}
-								onChange={applyAnimation}
-								onRefresh={() => void animationLab.refresh({ force: true })}
-							/>
-						) : null}
-					</section>
-				</div>
-			</DialogContent>
-		</Dialog>
+					) : null}
+					{!error && checking && result.count === 0 ? (
+						<div className="flex h-56 items-center justify-center text-xs text-muted-foreground">
+							<Loader2 className="mr-2 size-4 animate-spin" />
+							正在读取本机花字缓存
+						</div>
+					) : null}
+					{!error && (!checking || result.count > 0) ? (
+						<div
+							className={cn(
+								"mt-2 grid auto-rows-max content-start grid-cols-2 gap-2 overflow-y-auto pr-1",
+								animationPickerVisible ? "max-h-[16rem]" : "flex-1"
+							)}
+						>
+							{visibleStyles.map((style) => (
+								<TextStyleLabCard
+									key={style.styleId}
+									style={style}
+									selected={selectedStyleId === style.styleId}
+									onApply={applyStyle}
+								/>
+							))}
+						</div>
+					) : null}
+					{animationPickerVisible ? (
+						<JianyingTextAnimationPicker
+							animations={animationLab.result.animations}
+							checking={animationLab.checking}
+							error={animationLab.error}
+							selected={selectedAnimations}
+							onChange={applyAnimation}
+							onRefresh={() => void animationLab.refresh({ force: true })}
+						/>
+					) : null}
+				</section>
+			</div>
+		</div>
 	);
 }
