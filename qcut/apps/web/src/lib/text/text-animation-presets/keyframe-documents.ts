@@ -18,6 +18,10 @@ import {
 } from "./keyframe-documents-textanim-c";
 import { ENTRANCE_LSANIM_DOCUMENTS_A } from "./keyframe-documents-lsanim-a";
 import {
+	EXIT_LSANIM_DOCUMENTS_A,
+	LOOP_LSANIM_DOCUMENTS_A,
+} from "./keyframe-documents-lsanim-b";
+import {
 	ENTRANCE_TEXTANIM_DOCUMENTS,
 	EXIT_TEXTANIM_DOCUMENTS,
 	LOOP_TEXTANIM_DOCUMENTS,
@@ -62,9 +66,11 @@ export const TEXT_KEYFRAME_DOCUMENTS: Record<string, TextKeyframeDocument> = {
 	...withPhase({ phase: "exit", documents: EXIT_AEDATA_DOCUMENTS }),
 	...withPhase({ phase: "exit", documents: EXIT_TEXTANIM_DOCUMENTS }),
 	...withPhase({ phase: "exit", documents: EXIT_TEXTANIM_DOCUMENTS_B }),
+	...withPhase({ phase: "exit", documents: EXIT_LSANIM_DOCUMENTS_A }),
 	...withPhase({ phase: "loop", documents: LOOP_KEYFRAME_DOCUMENTS }),
 	...withPhase({ phase: "loop", documents: LOOP_AEDATA_DOCUMENTS }),
 	...withPhase({ phase: "loop", documents: LOOP_TEXTANIM_DOCUMENTS }),
 	...withPhase({ phase: "loop", documents: LOOP_TEXTANIM_DOCUMENTS_C }),
+	...withPhase({ phase: "loop", documents: LOOP_LSANIM_DOCUMENTS_A }),
 	...withPhase({ phase: "loop", documents: LOOP_TEXTANIM_DOCUMENTS_B }),
 };
