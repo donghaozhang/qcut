@@ -182,6 +182,52 @@ void main() {
   fragColor = vec4(clamp(lit, 0.0, 1.0) * alpha, alpha);
 }`;
 
+/**
+ * Rough edge: erode the glyph silhouette against a noise field so the outline
+ * crumbles instead of staying razor-sharp. This is alpha thresholding per
+ * pixel — the displacement pass moves whole bands and cannot chew an edge —
+ * so it needs the GPU tier.
+ */
+const ROUGH_EDGE_SHADER = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+uniform sampler2D u_source;
+uniform vec2 u_noiseScale;
+uniform float u_edgeSize;
+uniform float u_noiseIntensity;
+uniform float u_smooth;
+out vec4 fragColor;
+
+float hash(vec2 p) {
+  p = fract(p * vec2(127.1, 311.7));
+  p += dot(p, p + 34.56);
+  return fract(p.x * p.y);
+}
+
+float noise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  f = f * f * (3.0 - 2.0 * f);
+  float a = hash(i);
+  float b = hash(i + vec2(1.0, 0.0));
+  float c = hash(i + vec2(0.0, 1.0));
+  float d = hash(i + vec2(1.0, 1.0));
+  return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+}
+
+void main() {
+  vec4 source = texture(u_source, v_uv);
+  float n = noise(v_uv / max(u_noiseScale, vec2(0.001)));
+  // Bite into the silhouette where the noise is low; edgeSize sets how deep
+  // the erosion can reach, noiseIntensity how much of it is noise-driven.
+  float bite = (1.0 - n) * u_noiseIntensity * u_edgeSize;
+  float alpha = smoothstep(bite, bite + max(0.02, u_smooth), source.a);
+  // Un-premultiply, re-premultiply against the eaten alpha so the colour does
+  // not darken as the edge thins.
+  vec3 rgb = source.a > 0.001 ? source.rgb / source.a : vec3(0.0);
+  fragColor = vec4(rgb * alpha, alpha);
+}`;
+
 export interface TextAnimationGpuPass {
 	/**
 	 * Draws `source` with a bloom halo and returns the canvas holding the
@@ -225,6 +271,18 @@ export interface TextAnimationGpuPass {
 		originY: number;
 		/** How far the shafts reach, roughly 0..2. */
 		spread: number;
+	}): HTMLCanvasElement | null;
+	/** Draws `source` with a noise-eroded silhouette, or null when unavailable. */
+	renderRoughEdge(input: {
+		source: CanvasImageSource;
+		width: number;
+		height: number;
+		/** How deep the erosion can bite, roughly 0..1. */
+		edgeSize: number;
+		/** How much of the bite is noise-driven, 0..1. */
+		noiseIntensity: number;
+		/** Noise cell size in uv; the source ships 0.15. */
+		noiseScale: number;
 	}): HTMLCanvasElement | null;
 	dispose(): void;
 }
@@ -298,12 +356,17 @@ function createTextAnimationGpuPass(): TextAnimationGpuPass | null {
 	let compositeProgram: WebGLProgram;
 	let flameProgram: WebGLProgram;
 	let godRayProgram: WebGLProgram;
+	let roughEdgeProgram: WebGLProgram;
 	try {
 		brightProgram = linkProgram({ gl, fragmentSource: BRIGHT_SHADER });
 		blurProgram = linkProgram({ gl, fragmentSource: BLUR_SHADER });
 		compositeProgram = linkProgram({ gl, fragmentSource: COMPOSITE_SHADER });
 		flameProgram = linkProgram({ gl, fragmentSource: FLAME_SHADER });
 		godRayProgram = linkProgram({ gl, fragmentSource: GODRAY_SHADER });
+		roughEdgeProgram = linkProgram({
+			gl,
+			fragmentSource: ROUGH_EDGE_SHADER,
+		});
 	} catch {
 		return null;
 	}
@@ -582,7 +645,65 @@ function createTextAnimationGpuPass(): TextAnimationGpuPass | null {
 			if (gl.isContextLost() || gl.getError() !== gl.NO_ERROR) return null;
 			return canvas;
 		},
+		renderRoughEdge({
+			source,
+			width,
+			height,
+			edgeSize,
+			noiseIntensity,
+			noiseScale,
+		}) {
+			if (width <= 0 || height <= 0) return null;
+			if (gl.isContextLost()) return null;
+			canvas.width = width;
+			canvas.height = height;
+			allocate({ width, height });
+			gl.viewport(0, 0, width, height);
+			gl.disable(gl.BLEND);
+			gl.activeTexture(gl.TEXTURE0);
+			setupTexture(sourceTexture);
+			gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+			gl.texImage2D(
+				gl.TEXTURE_2D,
+				0,
+				gl.RGBA8,
+				gl.RGBA,
+				gl.UNSIGNED_BYTE,
+				source as TexImageSource
+			);
+			gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+			drawPass({
+				program: roughEdgeProgram,
+				target: null,
+				flipY: true,
+				bind: () => {
+					gl.activeTexture(gl.TEXTURE0);
+					gl.bindTexture(gl.TEXTURE_2D, sourceTexture);
+					gl.uniform1i(gl.getUniformLocation(roughEdgeProgram, "u_source"), 0);
+					gl.uniform2f(
+						gl.getUniformLocation(roughEdgeProgram, "u_noiseScale"),
+						Math.max(0.01, noiseScale),
+						Math.max(0.01, noiseScale)
+					);
+					gl.uniform1f(
+						gl.getUniformLocation(roughEdgeProgram, "u_edgeSize"),
+						Math.max(0, edgeSize)
+					);
+					gl.uniform1f(
+						gl.getUniformLocation(roughEdgeProgram, "u_noiseIntensity"),
+						Math.max(0, noiseIntensity)
+					);
+					gl.uniform1f(
+						gl.getUniformLocation(roughEdgeProgram, "u_smooth"),
+						0.3
+					);
+				},
+			});
+			if (gl.isContextLost() || gl.getError() !== gl.NO_ERROR) return null;
+			return canvas;
+		},
 		dispose() {
+			gl.deleteProgram(roughEdgeProgram);
 			gl.deleteProgram(godRayProgram);
 			gl.deleteProgram(flameProgram);
 			gl.deleteTexture(sourceTexture);
