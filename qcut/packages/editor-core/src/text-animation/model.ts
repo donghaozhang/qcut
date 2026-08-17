@@ -420,6 +420,9 @@ export type TextKeyframeChannel =
 	// Procedural flame (WebGL2): blaze strength and how high it licks.
 	| "flameIntensity"
 	| "flameReach"
+	// Radial light shafts (WebGL2): brightness and reach.
+	| "godRayIntensity"
+	| "godRayReach"
 	// Directional motion smear along rasterAngleDeg, in px.
 	| "dirBlurPx"
 	// Raster post-pass parameters, so a document can animate the mosaic
@@ -721,7 +724,8 @@ export interface TextAnimationRasterEffectState {
 		| "bloom"
 		| "echo"
 		| "dirBlur"
-		| "flame";
+		| "flame"
+		| "godRay";
 	/** pixelate: grid cell size in px. */
 	cell?: number;
 	/** rgbSplit / dirBlur: separation or smear length in px, and direction. */
@@ -731,7 +735,7 @@ export interface TextAnimationRasterEffectState {
 	amplitudePx?: number;
 	scale?: number;
 	evolution?: number;
-	/** flame: how far the fire licks above the glyphs (~0..2). */
+	/** flame / godRay: how far the effect reaches from the glyphs (~0..2). */
 	reach?: number;
 	/** bloom: halo strength (0..~2), blur radius px, bright-pass threshold. */
 	intensity?: number;
