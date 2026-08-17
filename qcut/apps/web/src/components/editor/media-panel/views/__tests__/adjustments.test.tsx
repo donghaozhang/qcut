@@ -147,6 +147,7 @@ const localFilterSummary: JianyingFilterLabFilterSummary = {
 	implementation: "single-lut",
 	available: true,
 	hasThumbnail: false,
+	downloadable: false,
 	verification: { status: "unverified" },
 	luts: [localLutSummary],
 };

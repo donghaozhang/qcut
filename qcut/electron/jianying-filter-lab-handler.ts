@@ -14,7 +14,9 @@ import {
 	JIANYING_FILTER_LAB_RENDER_LOCAL_EFFECT_CHANNEL,
 	JIANYING_FILTER_LAB_RENDER_LOCAL_PORTRAIT_CHANNEL,
 	JIANYING_FILTER_LAB_CHANGED_CHANNEL,
+	JIANYING_FILTER_LAB_DOWNLOAD_CHANNEL,
 	JIANYING_FILTER_LAB_THUMBNAIL_CHANNEL,
+	type JianyingFilterLabDownloadResult,
 	type JianyingFilterLabRenderLocalEffectResult,
 	type JianyingFilterLabRenderLocalPortraitResult,
 	type JianyingFilterLabListResult,
@@ -31,7 +33,12 @@ import {
 	findJianyingFilterTitle,
 	type JianyingFilterCategoryCatalog,
 	type JianyingFilterKnownCatalog,
+	type JianyingKnownFilter,
 } from "./jianying-filter-metadata.js";
+import {
+	downloadJianyingFilterPackage,
+	type JianyingFilterDownloadResult,
+} from "./jianying-filter-download.js";
 import {
 	inspectJianyingFilterPackages,
 	type JianyingFilterPackageSummary,
@@ -73,6 +80,7 @@ import {
 	parseFilterLabRenderLocalPortraitRequest,
 	parseFilterLabRendererRequest,
 	parseFilterLabThumbnailRequest,
+	parseFilterLabDownloadRequest,
 } from "./jianying-filter-lab-request.js";
 import { loadJianyingFilterLabRenderer } from "./jianying-filter-multi-pass-loader.js";
 import {
@@ -83,6 +91,8 @@ import {
 const MAX_EDITOR_LUT_SIZE = 65;
 
 interface FilterLabCatalog {
+	/** Keyed by resourceId; carries the package addresses the download uses. */
+	knownFilters: Map<string, JianyingKnownFilter>;
 	references: JianyingLutReference[];
 	tiledReferences: Map<string, JianyingLutReference>;
 	multiPassRenderers: Map<string, JianyingFilterMultiPassRenderer>;
@@ -147,6 +157,11 @@ export interface SetupJianyingFilterLabIPCOptions {
 		source: JianyingFilterThumbnailSource;
 		cacheRoot: string;
 	}) => Promise<JianyingFilterThumbnail>;
+	downloadPackage?: ({
+		filter,
+	}: {
+		filter: JianyingKnownFilter;
+	}) => Promise<JianyingFilterDownloadResult>;
 	thumbnailCacheRoot?: string;
 	filterCacheRoot?: string;
 	watchCache?: ({
@@ -295,6 +310,7 @@ export function setupJianyingFilterLabIPC(
 		inspectPackages = inspectJianyingFilterPackages,
 		readVerifications = () => readJianyingFilterVerifications(),
 		readThumbnail = readJianyingFilterThumbnail,
+		downloadPackage = downloadJianyingFilterPackage,
 		filterCacheRoot = dirname(jianyingEffectCacheRoot()),
 		thumbnailCacheRoot = join(
 			app.getPath("userData"),
@@ -366,6 +382,9 @@ export function setupJianyingFilterLabIPC(
 					});
 				}
 				return {
+					knownFilters: new Map(
+						mergedCatalog.filters.map((filter) => [filter.resourceId, filter])
+					),
 					references: supported,
 					titles,
 					categories,
@@ -412,6 +431,7 @@ export function setupJianyingFilterLabIPC(
 	ipcMain.removeHandler(JIANYING_FILTER_LAB_LOAD_CHANNEL);
 	ipcMain.removeHandler(JIANYING_FILTER_LAB_LOAD_RENDERER_CHANNEL);
 	ipcMain.removeHandler(JIANYING_FILTER_LAB_THUMBNAIL_CHANNEL);
+	ipcMain.removeHandler(JIANYING_FILTER_LAB_DOWNLOAD_CHANNEL);
 	ipcMain.removeHandler(JIANYING_FILTER_LAB_LOCAL_RUNTIME_CHANNEL);
 	ipcMain.removeHandler(JIANYING_FILTER_LAB_RENDER_LOCAL_EFFECT_CHANNEL);
 	ipcMain.removeHandler(JIANYING_FILTER_LAB_RENDER_LOCAL_PORTRAIT_CHANNEL);
@@ -516,6 +536,25 @@ export function setupJianyingFilterLabIPC(
 		}
 	);
 	ipcMain.handle(
+		JIANYING_FILTER_LAB_DOWNLOAD_CHANNEL,
+		async (
+			event,
+			request: unknown
+		): Promise<JianyingFilterLabDownloadResult> => {
+			assertTrustedMainFrame({ event, mainWindow: getMainWindow() });
+			const { resourceId } = parseFilterLabDownloadRequest({ request });
+			const catalog = await readCatalog({ refresh: false });
+			const filter = catalog.knownFilters.get(resourceId);
+			if (!filter) throw new Error("未找到该剪映滤镜目录条目");
+			const result = await downloadPackage({ filter });
+			// The package only becomes visible once discovery re-scans, so drop
+			// the memo and tell the renderer to reload rather than leaving the
+			// card showing its pre-download state.
+			invalidateCatalog();
+			return { resourceId: result.resourceId, version: result.version };
+		}
+	);
+	ipcMain.handle(
 		JIANYING_FILTER_LAB_LOAD_CHANNEL,
 		async (event, request: unknown): Promise<JianyingFilterLabLoadResult> => {
 			assertTrustedMainFrame({ event, mainWindow: getMainWindow() });
@@ -582,6 +621,7 @@ export function setupJianyingFilterLabIPC(
 			ipcMain.removeHandler(JIANYING_FILTER_LAB_LOAD_CHANNEL);
 			ipcMain.removeHandler(JIANYING_FILTER_LAB_LOAD_RENDERER_CHANNEL);
 			ipcMain.removeHandler(JIANYING_FILTER_LAB_THUMBNAIL_CHANNEL);
+			ipcMain.removeHandler(JIANYING_FILTER_LAB_DOWNLOAD_CHANNEL);
 			ipcMain.removeHandler(JIANYING_FILTER_LAB_LOCAL_RUNTIME_CHANNEL);
 			ipcMain.removeHandler(JIANYING_FILTER_LAB_RENDER_LOCAL_EFFECT_CHANNEL);
 			ipcMain.removeHandler(JIANYING_FILTER_LAB_RENDER_LOCAL_PORTRAIT_CHANNEL);

@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import {
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+	within,
+} from "@testing-library/react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
@@ -25,6 +31,7 @@ const cachedSummer: JianyingFilterLabFilterSummary = {
 	implementation: "single-lut",
 	available: true,
 	hasThumbnail: false,
+	downloadable: false,
 	verification: { status: "unverified" },
 	luts: [
 		{
@@ -49,6 +56,7 @@ const dualPortrait: JianyingFilterLabFilterSummary = {
 	implementation: "dual-lut",
 	available: true,
 	hasThumbnail: false,
+	downloadable: false,
 	verification: { status: "unverified" },
 	luts: [
 		{
@@ -79,6 +87,7 @@ const uncachedSummer: JianyingFilterLabFilterSummary = {
 	implementation: "unknown",
 	available: false,
 	hasThumbnail: false,
+	downloadable: true,
 	verification: { status: "unverified" },
 	luts: [],
 };
@@ -92,6 +101,7 @@ const shaderFood: JianyingFilterLabFilterSummary = {
 	implementation: "shader",
 	available: true,
 	hasThumbnail: false,
+	downloadable: false,
 	verification: { status: "unverified" },
 	luts: [],
 	renderer: {
@@ -159,6 +169,10 @@ function installFilterLabApi({
 			],
 		})
 	);
+	const download = vi.fn(async ({ resourceId }: { resourceId: string }) => ({
+		resourceId,
+		version: "remote-version",
+	}));
 	const onCatalogChanged = vi.fn(() => vi.fn());
 	Object.defineProperty(window, "electronAPI", {
 		configurable: true,
@@ -169,11 +183,12 @@ function installFilterLabApi({
 				load,
 				loadRenderer,
 				thumbnail,
+				download,
 				onCatalogChanged,
 			},
 		},
 	});
-	return { list, load, loadRenderer, thumbnail, onCatalogChanged };
+	return { list, load, loadRenderer, thumbnail, download, onCatalogChanged };
 }
 
 describe("JianyingFilterLab catalog", () => {
@@ -275,9 +290,50 @@ describe("JianyingFilterLab catalog", () => {
 		expect(uncachedRow.parentElement?.className).toContain("border-dashed");
 		fireEvent.click(uncachedRow);
 		expect(toast.info).toHaveBeenCalledWith(
-			"在剪映中使用一次「汽水冰摇」后，返回这里重新扫描"
+			"「汽水冰摇」尚未下载，点击卡片右侧的下载按钮获取"
 		);
 		expect(api.load).not.toHaveBeenCalled();
+	});
+
+	it("tells the user to open Jianying when a filter cannot be downloaded", async () => {
+		installFilterLabApi({
+			result: {
+				...catalogResult,
+				filters: catalogResult.filters.map((filter) =>
+					filter.cacheStatus === "uncached"
+						? { ...filter, downloadable: false }
+						: filter
+				),
+			},
+		});
+		render(<JianyingFilterLab onApply={vi.fn()} />);
+
+		fireEvent.click(await screen.findByRole("tab", { name: "全部目录" }));
+		fireEvent.click(
+			screen.getByRole("button", { name: "未缓存滤镜 汽水冰摇" })
+		);
+		expect(toast.info).toHaveBeenCalledWith(
+			"在剪映中使用一次「汽水冰摇」后，返回这里重新扫描"
+		);
+		expect(
+			screen.queryByRole("button", { name: "下载 汽水冰摇" })
+		).not.toBeInTheDocument();
+	});
+
+	it("downloads an uncached filter and refreshes the catalog", async () => {
+		const api = installFilterLabApi({ result: catalogResult });
+		render(<JianyingFilterLab onApply={vi.fn()} />);
+
+		fireEvent.click(await screen.findByRole("tab", { name: "全部目录" }));
+		fireEvent.click(screen.getByRole("button", { name: "下载 汽水冰摇" }));
+
+		await waitFor(() =>
+			expect(api.download).toHaveBeenCalledWith({ resourceId: "uncached-1" })
+		);
+		// A rescan is what turns the card from uncached into usable.
+		await waitFor(() =>
+			expect(api.list).toHaveBeenCalledWith({ refresh: true })
+		);
 	});
 
 	it("loads the selected single LUT only when the grouped filter is available", async () => {

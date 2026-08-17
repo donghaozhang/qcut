@@ -1,5 +1,6 @@
 import {
 	CloudOff,
+	Download,
 	Layers3,
 	LoaderCircle,
 	Palette,
@@ -68,19 +69,29 @@ export function JianyingFilterLabCard({
 	filter,
 	loading,
 	favorite,
+	downloading = false,
 	onApply,
+	onDownload,
 	onToggleFavorite,
 }: {
 	filter: JianyingFilterLabFilterSummary;
 	loading: boolean;
 	favorite: boolean;
+	downloading?: boolean;
 	onApply: ({ filter }: { filter: JianyingFilterLabFilterSummary }) => void;
+	onDownload?: ({ filter }: { filter: JianyingFilterLabFilterSummary }) => void;
 	onToggleFavorite: ({
 		filter,
 	}: {
 		filter: JianyingFilterLabFilterSummary;
 	}) => void;
 }) {
+	// Only offer the fetch where it changes the outcome: the package is absent
+	// and the catalog knows an address plus a hash to verify it against.
+	const canDownload =
+		Boolean(onDownload) &&
+		filter.downloadable &&
+		filter.cacheStatus !== "cached";
 	const thumbnail = useJianyingFilterThumbnail({
 		resourceId: filter.resourceId,
 		hasThumbnail: filter.hasThumbnail,
@@ -162,6 +173,28 @@ export function JianyingFilterLabCard({
 					</span>
 				</span>
 			</button>
+			{canDownload ? (
+				<button
+					type="button"
+					className="grid size-8 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors hover:bg-foreground/8 hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary disabled:opacity-50"
+					disabled={downloading}
+					aria-label={`下载 ${filter.title}`}
+					title={downloading ? "正在下载" : "下载滤镜包"}
+					onClick={() => onDownload?.({ filter })}
+					onKeyDown={(event) => {
+						if (event.key === "Escape") event.currentTarget.blur();
+					}}
+				>
+					{downloading ? (
+						<LoaderCircle
+							className="size-3.5 animate-spin"
+							aria-hidden="true"
+						/>
+					) : (
+						<Download className="size-3.5" aria-hidden="true" />
+					)}
+				</button>
+			) : null}
 			<button
 				type="button"
 				className={cn(

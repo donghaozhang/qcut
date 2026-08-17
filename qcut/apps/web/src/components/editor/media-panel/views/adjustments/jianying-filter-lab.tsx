@@ -59,7 +59,9 @@ function unavailableMessage({
 	filter: JianyingFilterLabFilterSummary;
 }) {
 	if (filter.cacheStatus === "uncached") {
-		return `在剪映中使用一次「${filter.title}」后，返回这里重新扫描`;
+		return filter.downloadable
+			? `「${filter.title}」尚未下载，点击卡片右侧的下载按钮获取`
+			: `在剪映中使用一次「${filter.title}」后，返回这里重新扫描`;
 	}
 	if (filter.cacheStatus === "partial") {
 		return `「${filter.title}」的本地缓存版本不完整或已经过期`;
@@ -152,6 +154,8 @@ export function JianyingFilterLab({
 		categories,
 		error,
 		refresh,
+		download,
+		downloading,
 	} = useJianyingFilterLab();
 	const [query, setQuery] = useState("");
 	const [catalogView, setCatalogView] = useState<CatalogView>("available");
@@ -485,8 +489,12 @@ export function JianyingFilterLab({
 							filter={filter}
 							loading={loadingResourceId === filter.resourceId}
 							favorite={favoriteIds.has(filter.resourceId)}
+							downloading={downloading.has(filter.resourceId)}
 							onApply={({ filter: selectedFilter }) =>
 								void applyFilter({ filter: selectedFilter })
+							}
+							onDownload={({ filter: selectedFilter }) =>
+								void download({ resourceId: selectedFilter.resourceId })
 							}
 							onToggleFavorite={({ filter: selectedFilter }) =>
 								toggleFavorite({

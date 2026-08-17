@@ -12,6 +12,8 @@ export const JIANYING_FILTER_LAB_RENDER_LOCAL_PORTRAIT_CHANNEL =
 	"jianying-filter-lab:render-local-portrait";
 export const JIANYING_FILTER_LAB_RENDER_LOCAL_EFFECT_CHANNEL =
 	"jianying-filter-lab:render-local-effect";
+export const JIANYING_FILTER_LAB_DOWNLOAD_CHANNEL =
+	"jianying-filter-lab:download";
 export const JIANYING_FILTER_LAB_CHANGED_CHANNEL =
 	"jianying-filter-lab:changed";
 
@@ -87,6 +89,13 @@ export interface JianyingFilterLabFilterSummary {
 	/** True when QCut has every local component required by its renderer. */
 	available: boolean;
 	hasThumbnail: boolean;
+	/**
+	 * True when the local metadata holds a package address and a version hash
+	 * to verify it against, so this filter can be fetched instead of requiring
+	 * the user to apply it in Jianying first. The address itself stays in the
+	 * main process — the renderer only needs to know the action is available.
+	 */
+	downloadable: boolean;
 	verification: JianyingFilterVerification;
 	luts: JianyingFilterLabLutSummary[];
 	renderer?: JianyingFilterLabRendererSummary;
@@ -246,6 +255,15 @@ export interface JianyingFilterLabThumbnailRequest {
 	resourceId: string;
 }
 
+export interface JianyingFilterLabDownloadRequest {
+	resourceId: string;
+}
+
+export interface JianyingFilterLabDownloadResult {
+	resourceId: string;
+	version: string;
+}
+
 export interface JianyingFilterLabThumbnailResult {
 	resourceId: string;
 	mimeType: "image/jpeg" | "image/png" | "image/webp";
@@ -333,6 +351,9 @@ export interface JianyingFilterLabAPI {
 	renderLocalEffect: (
 		request: JianyingFilterLabRenderLocalEffectRequest
 	) => Promise<JianyingFilterLabRenderLocalEffectResult>;
+	download: (
+		request: JianyingFilterLabDownloadRequest
+	) => Promise<JianyingFilterLabDownloadResult>;
 	onCatalogChanged: (callback: () => void) => () => void;
 }
 

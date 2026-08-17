@@ -38,6 +38,12 @@ export interface JianyingKnownFilter {
 	requirements?: string[];
 	sdkModel?: string;
 	thumbnailUrl?: string;
+	/**
+	 * Signed package addresses from the local metadata cache, newest listing
+	 * first. Present for uncached filters too — this is what lets the lab fetch
+	 * a package instead of asking the user to open the filter in Jianying.
+	 */
+	packageUrls?: string[];
 }
 
 /**
@@ -177,6 +183,20 @@ interface CatalogItemSignal {
 	requirements: Set<string>;
 	sdkModel?: string;
 	thumbnailUrl?: string;
+	packageUrls?: string[];
+}
+
+/**
+ * Only absolute https addresses are kept: these are signed CDN URLs read out
+ * of a local cache, and anything else is not something to hand to fetch().
+ */
+function packageUrls({ attributes }: { attributes: Record<string, unknown> }) {
+	if (!Array.isArray(attributes.item_urls)) return;
+	const urls = attributes.item_urls.filter(
+		(value): value is string =>
+			typeof value === "string" && value.startsWith("https://")
+	);
+	return urls.length > 0 ? urls : undefined;
 }
 
 function thumbnailUrl({
@@ -258,6 +278,7 @@ function collectItemSignal({
 	const requirements = stringSet({ value: attributes?.requirements });
 	const sdkModel = nonEmptyString({ value: attributes?.sdk_model });
 	const thumbnail = thumbnailUrl({ attributes });
+	const packages = attributes ? packageUrls({ attributes }) : undefined;
 	const existing = signals.items.get(id);
 	if (existing) {
 		if (!existing.title && title) existing.title = title;
@@ -272,6 +293,9 @@ function collectItemSignal({
 		}
 		if (!existing.sdkModel && sdkModel) existing.sdkModel = sdkModel;
 		if (!existing.thumbnailUrl && thumbnail) existing.thumbnailUrl = thumbnail;
+		// Signed URLs expire, so a later listing's copy is the better one to
+		// keep; every other field above keeps its first non-empty value.
+		if (packages) existing.packageUrls = packages;
 		return;
 	}
 	signals.items.set(id, {
@@ -283,6 +307,7 @@ function collectItemSignal({
 		requirements,
 		...(sdkModel ? { sdkModel } : {}),
 		...(thumbnail ? { thumbnailUrl: thumbnail } : {}),
+		...(packages ? { packageUrls: packages } : {}),
 	});
 }
 
@@ -543,6 +568,7 @@ function buildKnownCatalog({
 				: {}),
 			...(item.sdkModel ? { sdkModel: item.sdkModel } : {}),
 			...(item.thumbnailUrl ? { thumbnailUrl: item.thumbnailUrl } : {}),
+			...(item.packageUrls ? { packageUrls: item.packageUrls } : {}),
 		});
 	}
 	const order: string[] = [];

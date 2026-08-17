@@ -90,6 +90,7 @@ import {
 	JIANYING_FILTER_LAB_RENDER_LOCAL_EFFECT_CHANNEL,
 	JIANYING_FILTER_LAB_RENDER_LOCAL_PORTRAIT_CHANNEL,
 	JIANYING_FILTER_LAB_THUMBNAIL_CHANNEL,
+	JIANYING_FILTER_LAB_DOWNLOAD_CHANNEL,
 } from "./jianying-filter-lab-contract.js";
 import {
 	JIANYING_FONT_LAB_INSPECT_CHANNEL,
@@ -199,6 +200,8 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke(JIANYING_FILTER_LAB_LOAD_RENDERER_CHANNEL, request),
 		thumbnail: (request) =>
 			ipcRenderer.invoke(JIANYING_FILTER_LAB_THUMBNAIL_CHANNEL, request),
+		download: (request) =>
+			ipcRenderer.invoke(JIANYING_FILTER_LAB_DOWNLOAD_CHANNEL, request),
 		inspectLocalRuntime: (request) =>
 			ipcRenderer.invoke(JIANYING_FILTER_LAB_LOCAL_RUNTIME_CHANNEL, request),
 		renderLocalEffect: (request) =>

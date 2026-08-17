@@ -1,4 +1,5 @@
 import type {
+	JianyingFilterLabDownloadRequest,
 	JianyingFilterLabLocalRuntimeRequest,
 	JianyingFilterLabListRequest,
 	JianyingFilterLabLoadRendererRequest,
@@ -63,6 +64,16 @@ export function parseFilterLabThumbnailRequest({
 	return {
 		resourceId: parseResourceId({ request }),
 	} satisfies JianyingFilterLabThumbnailRequest;
+}
+
+export function parseFilterLabDownloadRequest({
+	request,
+}: {
+	request: unknown;
+}) {
+	return {
+		resourceId: parseResourceId({ request }),
+	} satisfies JianyingFilterLabDownloadRequest;
 }
 
 export function parseFilterLabRendererRequest({
