@@ -521,6 +521,16 @@ export const EXIT_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["dust", "red", "sprint", "红色灰尘", "灰尘"],
 	},
+	{
+		id: "rough-fade-out",
+		phase: "exit",
+		nameKey: "textProperties.animationPreset.roughFadeOut",
+		previewKind: "keyframes",
+		defaultDuration: 1.5,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["rough", "erode", "crumble", "右移淡出", "淡出"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
 
 export const LOOP_TEXT_ANIMATION_PRESETS = [
