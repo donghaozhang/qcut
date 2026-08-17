@@ -151,5 +151,18 @@ glyph alpha 的距离衰减场(而非 max,否则整块糊成暖色),噪声**乘�
 只有亮部投射光轴。证明:**脉冲光束**(`pulse-beam-in`)—— 同时用上
 分层(两个 selector 分别从 4 em 和 1 em 外抵达)与光束。
 
-剩余 5 种未映射效果:LayeredReplacement、PixelSprint、RoughEdge、
-DistortChroma、CrossBlur,各出现 1 次。
+### 5 种"未映射"效果复查
+
+逐个读参数后,**3 种其实早有对应**,只是名字不同:
+
+| 效果 | 参数 | 实为 |
+|---|---|---|
+| DistortChroma | warpRed +5 / warpBlue −5(同曲线反号) | 就是色差分离 → `rgbSplitPx` |
+| CrossBlur | radiusX / radiusY 同轨(各向同性) | 就是高斯 → `blurPx` |
+| PixelSprint | 单一强度 + 中心 0.5/0.5 | 径向像素冲刺 → `echo` 外扩壳 |
+
+据此补移植:`chroma-dissolve-out`(文字消散)、`red-dust-out`
+(红色灰尘)、`soft-focus-loop`(文字淡变)。
+
+真正无对应的只剩 2 种,各出现 1 次:**LayeredReplacement**(立体折叠
+的分层替换)与 **RoughEdge**(右移淡出的噪声毛边)。
