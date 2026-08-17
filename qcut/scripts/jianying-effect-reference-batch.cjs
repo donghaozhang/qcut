@@ -26,7 +26,7 @@ const { renderJianyingEffectClip } = require(
 const { readAdjustParameters } = require(
 	path.join(DIST, "jianying-effect/catalog-parsing.js")
 );
-const { jianyingModelDirectory } = require(
+const { jianyingModelDirectories, jianyingModelDirectory } = require(
 	path.join(DIST, "jianying-effect/model-directory.js")
 );
 const { getFFmpegPath } = require(path.join(DIST, "ffmpeg/paths.js"));
@@ -308,12 +308,18 @@ function resolvePlate(capabilities, override) {
 
 /** Model stems this machine actually has, e.g. tt_matting, tt_face_extra. */
 function installedModelStems() {
-	const directory = jianyingModelDirectory();
-	if (!directory) return new Set();
 	const stems = new Set();
-	for (const name of fs.readdirSync(directory)) {
-		const match = name.match(/^(.+?)_v\d/);
-		if (match) stems.add(match[1]);
+	// The app bundle nests weights one level down in per-family folders, so a
+	// flat read of a single root reports present models as missing.
+	for (const root of jianyingModelDirectories()) {
+		for (const entry of fs.readdirSync(root, {
+			recursive: true,
+			withFileTypes: true,
+		})) {
+			if (!entry.isFile()) continue;
+			const match = entry.name.match(/^(.+?)_v\d/);
+			if (match) stems.add(match[1]);
+		}
 	}
 	return stems;
 }
