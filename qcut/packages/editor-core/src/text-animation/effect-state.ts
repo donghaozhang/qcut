@@ -515,20 +515,37 @@ function keyframesVisual({
 	// An animated tint track overrides the constant tint and implies a full
 	// blend when no colorAmount channel shapes it (the track's own arc — e.g.
 	// settling on white — is what fades the tint out).
-	const tintColor = effect.colorTrack?.length
-		? evaluateTextColorKeyframeTrack({
-				track: effect.colorTrack,
-				progress: linearProgress,
-			})
-		: effect.color;
-	if (tintColor && (colorAmount !== undefined || effect.colorTrack?.length)) {
+	// A palette paints a gradient ACROSS the line — each unit samples it by
+	// horizontal position — where colorTrack animates one tint over time.
+	const paletteColor =
+		effect.palette && effect.palette.length > 0 && unit
+			? sampleTextAnimationPalette({
+					palette: effect.palette,
+					position: unitHorizontalProgress({ unit, layout }),
+					stepped: false,
+				})
+			: undefined;
+	const tintColor =
+		paletteColor ??
+		(effect.colorTrack?.length
+			? evaluateTextColorKeyframeTrack({
+					track: effect.colorTrack,
+					progress: linearProgress,
+				})
+			: effect.color);
+	if (
+		tintColor &&
+		(colorAmount !== undefined || effect.colorTrack?.length || paletteColor)
+	) {
 		visual.colorMix = {
 			color: tintColor,
 			amount: Math.min(1, Math.max(0, colorAmount ?? 1)),
 			// Jianying's keyframed color attribute is a multiplicative tint:
 			// its tracks settle on white to mean "no tint", which only reads
 			// correctly as a filter over the element's own fill.
-			...(effect.colorTrack?.length ? { mode: "multiply" as const } : {}),
+			...(effect.colorTrack?.length || paletteColor
+				? { mode: "multiply" as const }
+				: {}),
 		};
 	}
 	if (effect.pivot) visual.transformOrigin = effect.pivot;
