@@ -714,8 +714,13 @@ export interface TextAnimationPostProcessState {
 	trapezoidAmount: number;
 	/** Animated render-group glow. */
 	glow?: TextAnimationGlowState;
-	/** Raster post-pass (mosaic / RGB split / noise displacement). */
-	raster?: TextAnimationRasterEffectState;
+	/**
+	 * Raster post-passes, run in order on the block's offscreen render. A
+	 * document may drive several at once — Jianying's effectAnimators chain
+	 * warp, chroma and glow in one animator, and the passes compose the same
+	 * way here.
+	 */
+	raster?: TextAnimationRasterEffectState[];
 }
 
 /**
