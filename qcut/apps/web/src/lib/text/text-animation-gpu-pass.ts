@@ -241,6 +241,7 @@ function createTextAnimationGpuPass(): TextAnimationGpuPass | null {
 	return {
 		renderBloom({ source, width, height, intensity, radiusPx, threshold }) {
 			if (width <= 0 || height <= 0) return null;
+			if (gl.isContextLost()) return null;
 			canvas.width = width;
 			canvas.height = height;
 			allocate({ width, height });
@@ -328,6 +329,9 @@ function createTextAnimationGpuPass(): TextAnimationGpuPass | null {
 					);
 				},
 			});
+			// A lost context or GL error means the canvas holds garbage —
+			// report failure so the caller runs the 2D fallback instead.
+			if (gl.isContextLost() || gl.getError() !== gl.NO_ERROR) return null;
 			return canvas;
 		},
 		dispose() {
