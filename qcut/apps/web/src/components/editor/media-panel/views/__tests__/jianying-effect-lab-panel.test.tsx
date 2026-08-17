@@ -30,6 +30,7 @@ function definition(
 		],
 		access: "free",
 		supported: true,
+		requiresAlgorithm: false,
 		installed: true,
 		downloadable: true,
 		...overrides,
