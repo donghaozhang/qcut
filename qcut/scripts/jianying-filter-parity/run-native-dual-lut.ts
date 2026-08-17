@@ -18,10 +18,13 @@ import {
 	JIANYING_NATIVE_PORTRAIT_PROFILES,
 	resolveJianyingNativePortraitPackagePath,
 } from "../../electron/native-pipeline/filters/filter-lab-native-portrait.js";
+import { saveJianyingFilterVerification } from "../../electron/jianying-filter-verification-store.js";
+import type { JianyingFilterVerificationStatus } from "../../electron/jianying-filter-lab-contract.js";
 import {
 	compareUiMaskSequence,
 	loadUiMaskManifest,
 	loadUiMaskReference,
+	type UiMaskReference,
 } from "./dual-lut-ui-mask.js";
 import {
 	byteMae,
@@ -175,6 +178,43 @@ function maskEdgeStatus({ maskEdgeMae }: { maskEdgeMae: number }) {
 	if (maskEdgeMae <= MASK_EDGE_VERIFIED_MAX) return "verified" as const;
 	if (maskEdgeMae <= MASK_EDGE_CLOSE_MAX) return "close" as const;
 	return "unverified" as const;
+}
+
+/**
+ * Mask evidence is what a dual-LUT run exists to produce: without
+ * `maskEdgeMae` the verification gate downgrades a dual-LUT card to
+ * unverified, so a card is recorded only once it has been compared against a
+ * UI mask reference. Saved per card rather than after the loop because the
+ * gates below throw mid-run, which would otherwise discard every card already
+ * measured.
+ */
+async function recordUiMaskVerification({
+	target,
+	uiMask,
+	uiMaskStatus,
+	uiReference,
+}: {
+	target: { resourceId: string; version: string };
+	uiMask: Awaited<ReturnType<typeof compareUiMaskSequence>> | null;
+	uiMaskStatus: JianyingFilterVerificationStatus | null;
+	uiReference: UiMaskReference | null;
+}): Promise<void> {
+	if (!uiMask || !uiMaskStatus || !uiReference) return;
+	await saveJianyingFilterVerification({
+		record: {
+			resourceId: target.resourceId,
+			version: target.version,
+			status: uiMaskStatus,
+			width: uiReference.width,
+			height: uiReference.height,
+			referenceSha256: uiReference.maskSha256,
+			candidateSha256: uiMask.candidateSha256,
+			maskIou: uiMask.maskIou,
+			maskMae: uiMask.maskMae,
+			maskEdgeMae: uiMask.maskEdgeMae,
+			verifiedAt: new Date().toISOString(),
+		},
+	});
 }
 
 async function renderSequence({
@@ -386,6 +426,12 @@ export async function runNativeDualLutParity({
 				: {}),
 		};
 		results.push(result);
+		await recordUiMaskVerification({
+			target,
+			uiMask,
+			uiMaskStatus,
+			uiReference,
+		});
 		console.log(
 			`[${results.length}/${targets.length}] ${target.title}: ${frameTimesMs.length} real frames, edge=${uiMask?.maskEdgeMae.toFixed(6) ?? "missing"}`
 		);
