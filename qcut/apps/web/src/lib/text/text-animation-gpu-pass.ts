@@ -228,6 +228,7 @@ function createTextAnimationGpuPass(): TextAnimationGpuPass | null {
 		flipY: boolean;
 		bind: () => void;
 	}) {
+		// biome-ignore lint/correctness/useHookAtTopLevel: WebGL call, not a React hook
 		gl.useProgram(program);
 		gl.bindFramebuffer(gl.FRAMEBUFFER, target);
 		const position = gl.getAttribLocation(program, "a_position");
