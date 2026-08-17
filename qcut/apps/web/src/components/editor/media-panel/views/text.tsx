@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { DraggableMediaItem } from "@/components/ui/draggable-item";
 import {
 	ResizableHandle,
@@ -51,6 +52,7 @@ import {
 	ChevronDown,
 	Download,
 	FileText,
+	FlaskConical,
 	Gem,
 	Heart,
 	Layers3,
@@ -121,7 +123,7 @@ import type {
 	TextItemDragData,
 } from "@/types/timeline";
 import { toast } from "sonner";
-import { JianyingTextStyleLabDialog } from "./text-style-lab/jianying-text-style-lab";
+import { JianyingTextStyleLabPanel } from "./text-style-lab/jianying-text-style-lab";
 import {
 	buildTextStyleLabElement,
 	buildTextStyleLabUpdates,
@@ -2143,6 +2145,9 @@ export function sortTextDefinitionsForBrowsing({
 }
 
 export function TextView() {
+	// The flower-text lab lives in this panel rather than a modal, so the view
+	// swaps in place the way the other left-panel browsers do.
+	const [styleLabOpen, setStyleLabOpen] = useState(false);
 	const { locale, t } = useTranslation();
 	const tracks = useTimelineStore((state) => state.tracks);
 	const transcriptions = useSearchStore((state) => state.transcriptions);
@@ -2669,101 +2674,124 @@ export function TextView() {
 				</ResizablePanel>
 				<ResizableHandle />
 				<ResizablePanel className="min-w-0" minSize="50%">
-					<section className="h-full min-w-0 overflow-y-auto pl-2">
-						<div className="sticky top-0 z-10 space-y-2 bg-background/95 pb-2">
-							<TextLibrarySearchField
-								searchQuery={searchQuery}
-								onSearchQueryChange={handleSearchQueryChange}
+					{styleLabOpen ? (
+						<section className="h-full min-w-0 overflow-hidden pl-2">
+							<JianyingTextStyleLabPanel
+								onApply={applyTextStyleLabStyle}
+								onClose={() => setStyleLabOpen(false)}
 							/>
-							<div className="flex h-6 items-center justify-between gap-2">
-								<h2 className="truncate text-sm font-medium text-foreground">
-									{activeHeading}
-								</h2>
-								<div className="flex shrink-0 items-center gap-1.5">
-									{activeCategory.groupId === "fancy" ? (
-										<JianyingTextStyleLabDialog
-											onApply={applyTextStyleLabStyle}
-										/>
-									) : null}
-									<span className="text-[0.68rem] text-muted-foreground">
-										{smartTextStatus}
-									</span>
-									<button
-										type="button"
-										aria-label={t("textLibrary.cacheCurrent")}
-										className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-										onClick={() => void handleCacheVisibleTemplates()}
-										onKeyDown={(event) => {
-											if (!isActivationKey({ event })) return;
-											event.preventDefault();
-											void handleCacheVisibleTemplates();
-										}}
-									>
-										<Download aria-hidden="true" className="h-3.5 w-3.5">
-											<title>{t("textLibrary.cacheCurrent")}</title>
-										</Download>
-									</button>
-									<button
-										type="button"
-										aria-label={t("textLibrary.expand")}
-										className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-										onClick={() => setExpandedLibraryOpen(true)}
-										onKeyDown={(event) => {
-											if (!isActivationKey({ event })) return;
-											event.preventDefault();
-											setExpandedLibraryOpen(true);
-										}}
-									>
-										<Maximize2 aria-hidden="true" className="h-3.5 w-3.5">
-											<title>{t("textLibrary.expand")}</title>
-										</Maximize2>
-									</button>
+						</section>
+					) : (
+						<section className="h-full min-w-0 overflow-y-auto pl-2">
+							<div className="sticky top-0 z-10 space-y-2 bg-background/95 pb-2">
+								<TextLibrarySearchField
+									searchQuery={searchQuery}
+									onSearchQueryChange={handleSearchQueryChange}
+								/>
+								<div className="flex h-6 items-center justify-between gap-2">
+									<h2 className="truncate text-sm font-medium text-foreground">
+										{activeHeading}
+									</h2>
+									<div className="flex shrink-0 items-center gap-1.5">
+										{activeCategory.groupId === "fancy" ? (
+											<Button
+												type="button"
+												variant="text"
+												size="sm"
+												className="h-6 gap-1.5 px-2 text-[0.68rem] text-cyan-300"
+												onClick={() => setStyleLabOpen(true)}
+												onKeyDown={(event) => {
+													if (!isActivationKey({ event })) return;
+													event.preventDefault();
+													setStyleLabOpen(true);
+												}}
+											>
+												<FlaskConical className="size-3.5">
+													<title>花字实验室</title>
+												</FlaskConical>
+												<span>花字实验室</span>
+											</Button>
+										) : null}
+										<span className="text-[0.68rem] text-muted-foreground">
+											{smartTextStatus}
+										</span>
+										<button
+											type="button"
+											aria-label={t("textLibrary.cacheCurrent")}
+											className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+											onClick={() => void handleCacheVisibleTemplates()}
+											onKeyDown={(event) => {
+												if (!isActivationKey({ event })) return;
+												event.preventDefault();
+												void handleCacheVisibleTemplates();
+											}}
+										>
+											<Download aria-hidden="true" className="h-3.5 w-3.5">
+												<title>{t("textLibrary.cacheCurrent")}</title>
+											</Download>
+										</button>
+										<button
+											type="button"
+											aria-label={t("textLibrary.expand")}
+											className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+											onClick={() => setExpandedLibraryOpen(true)}
+											onKeyDown={(event) => {
+												if (!isActivationKey({ event })) return;
+												event.preventDefault();
+												setExpandedLibraryOpen(true);
+											}}
+										>
+											<Maximize2 aria-hidden="true" className="h-3.5 w-3.5">
+												<title>{t("textLibrary.expand")}</title>
+											</Maximize2>
+										</button>
+									</div>
 								</div>
+								<FilterBar
+									activeFilter={statusFilter}
+									filters={TEXT_LIBRARY_STATUS_FILTERS}
+									onSelectFilter={setStatusFilter}
+								/>
+								<FilterBar
+									activeFilter={styleFilter}
+									filters={TEXT_LIBRARY_STYLE_FILTERS}
+									onSelectFilter={setStyleFilter}
+								/>
+								<FilterBar
+									activeFilter={marketFilter}
+									filters={TEXT_LIBRARY_MARKET_FILTERS}
+									onSelectFilter={setMarketFilter}
+								/>
+								<FilterBar
+									activeFilter={sourceFilter}
+									filters={TEXT_LIBRARY_SOURCE_FILTERS}
+									onSelectFilter={setSourceFilter}
+								/>
+								<TextLibraryResourceReadinessBar
+									designerGoalSummary={designerGoalSummary}
+									summary={resourceReadinessSummary}
+								/>
 							</div>
-							<FilterBar
-								activeFilter={statusFilter}
-								filters={TEXT_LIBRARY_STATUS_FILTERS}
-								onSelectFilter={setStatusFilter}
-							/>
-							<FilterBar
-								activeFilter={styleFilter}
-								filters={TEXT_LIBRARY_STYLE_FILTERS}
-								onSelectFilter={setStyleFilter}
-							/>
-							<FilterBar
-								activeFilter={marketFilter}
-								filters={TEXT_LIBRARY_MARKET_FILTERS}
-								onSelectFilter={setMarketFilter}
-							/>
-							<FilterBar
-								activeFilter={sourceFilter}
-								filters={TEXT_LIBRARY_SOURCE_FILTERS}
-								onSelectFilter={setSourceFilter}
-							/>
-							<TextLibraryResourceReadinessBar
-								designerGoalSummary={designerGoalSummary}
-								summary={resourceReadinessSummary}
-							/>
-						</div>
-						{visibleDefinitions.length > 0 ? (
-							<TemplateGrid
-								definitions={visibleDefinitions}
-								libraryState={libraryState}
-								onDownload={handleDownload}
-								onToggleFavorite={handleToggleFavorite}
-								onUseTemplate={handleUseTemplate}
-								runtimeByAssetKey={runtimeByAssetKey}
-							/>
-						) : (
-							<div className="py-12 text-center text-xs text-muted-foreground">
-								{emptyMessage}
-							</div>
-						)}
-						{!normalizedSearchQuery &&
-							activeCategory.id === DEFAULT_TEXT_TEMPLATE_CATEGORY_ID && (
-								<MarkdownTemplate onAdd={addMarkdown} />
+							{visibleDefinitions.length > 0 ? (
+								<TemplateGrid
+									definitions={visibleDefinitions}
+									libraryState={libraryState}
+									onDownload={handleDownload}
+									onToggleFavorite={handleToggleFavorite}
+									onUseTemplate={handleUseTemplate}
+									runtimeByAssetKey={runtimeByAssetKey}
+								/>
+							) : (
+								<div className="py-12 text-center text-xs text-muted-foreground">
+									{emptyMessage}
+								</div>
 							)}
-					</section>
+							{!normalizedSearchQuery &&
+								activeCategory.id === DEFAULT_TEXT_TEMPLATE_CATEGORY_ID && (
+									<MarkdownTemplate onAdd={addMarkdown} />
+								)}
+						</section>
+					)}
 				</ResizablePanel>
 			</ResizablePanelGroup>
 			<ExpandedTextLibraryDialog
