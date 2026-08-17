@@ -81,8 +81,30 @@ async function loadCover({
 	if (!response.ok) {
 		throw new Error(`封面下载失败（HTTP ${response.status}）。`);
 	}
-	const data = Buffer.from(await response.arrayBuffer());
-	if (data.byteLength === 0 || data.byteLength > MAX_COVER_BYTES) {
+	// Enforce the cap WHILE consuming: buffering the whole body first would
+	// let a rogue or chunked response allocate far past MAX_COVER_BYTES.
+	const declaredLength = Number(response.headers.get("content-length"));
+	if (Number.isFinite(declaredLength) && declaredLength > MAX_COVER_BYTES) {
+		await response.body?.cancel();
+		throw new Error("封面大小异常。");
+	}
+	const chunks: Buffer[] = [];
+	let received = 0;
+	if (response.body) {
+		const reader = response.body.getReader();
+		for (;;) {
+			const { done, value } = await reader.read();
+			if (done) break;
+			received += value.byteLength;
+			if (received > MAX_COVER_BYTES) {
+				await reader.cancel();
+				throw new Error("封面大小异常。");
+			}
+			chunks.push(Buffer.from(value));
+		}
+	}
+	const data = Buffer.concat(chunks);
+	if (data.byteLength === 0) {
 		throw new Error("封面大小异常。");
 	}
 	const type = contentTypeFor(data, response.headers.get("content-type"));
