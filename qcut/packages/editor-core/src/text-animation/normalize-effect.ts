@@ -956,6 +956,13 @@ export function normalizeTextAnimationEffect({
 			...(record.pivot === "bottomCenter"
 				? { pivot: "bottomCenter" as const }
 				: {}),
+			...(Array.isArray(record.palette)
+				? {
+						palette: record.palette
+							.filter((entry): entry is string => typeof entry === "string")
+							.slice(0, 12),
+					}
+				: {}),
 			...(selector ? { selector } : {}),
 		};
 	}
