@@ -492,6 +492,25 @@ export function applyTextAnimationRasterPass({
 		});
 		return true;
 	}
+	if (raster.kind === "godRay") {
+		const intensity = raster.intensity ?? 0;
+		if (intensity < 0.01) return false;
+		// GPU-only, like the flame: the radial march has no drawImage stand-in.
+		const gpu = getTextAnimationGpuPass();
+		if (!gpu) return false;
+		const result = gpu.renderGodRay({
+			source,
+			width,
+			height,
+			intensity,
+			originX: 0.5,
+			originY: 0.5,
+			spread: raster.reach ?? 1,
+		});
+		if (!result) return false;
+		ctx.drawImage(result, dx, dy);
+		return true;
+	}
 	if (raster.kind === "flame") {
 		const intensity = raster.intensity ?? 0;
 		if (intensity < 0.01) return false;
