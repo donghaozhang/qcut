@@ -425,10 +425,11 @@ function resolveEffectEnvelope({
 		return envelope;
 	}
 	if (effect.kind === "marquee") {
-		// Wrapped characters stay within half a period of the block center,
-		// so the widest excursion is bounded by the box plus the wrap gap.
+		// A character at one edge can wrap to the far side of the period, so
+		// its excursion from home reaches period/2 plus its own half-box
+		// distance from the block center.
 		envelope.translateX =
-			context.boxWidth / 2 + (effect.gapEm * context.fontSize) / 2;
+			context.boxWidth + (effect.gapEm * context.fontSize) / 2;
 		return envelope;
 	}
 	if (effect.kind === "keyframes") {
@@ -442,8 +443,8 @@ function resolveEffectEnvelope({
 			1,
 			maxAbs(effect.channels.scaleX),
 			maxAbs(effect.channels.scaleY),
-			// Outward echo shells scale the block past 1.
-			1 + maxAbs(effect.channels.echoAmount) * 0.6
+			// Outward echo shells reach 1 + |spread| of the block size.
+			1 + maxAbs(effect.channels.echoAmount)
 		);
 		// The painter turns glowRadiusPx into shadowBlur, blurPx into a filter
 		// and bloomRadiusPx into the GPU halo, all of which paint outside the
