@@ -1094,4 +1094,14 @@ export const LOOP_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["wiper", "swing", "rock", "雨刷", "摆动"],
 	},
+	{
+		id: "flame-loop",
+		phase: "loop",
+		nameKey: "textProperties.animationPreset.flameLoop",
+		previewKind: "keyframes",
+		defaultDuration: 2.0,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["flame", "fire", "burn", "彩色火焰", "火焰"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
