@@ -144,7 +144,17 @@ function drawRasterPostProcessedText({
 				bounds: grapheme.bounds,
 			});
 		}
-		drawTextAnimationGlyph({ ctx: sourceCtx, element, style, grapheme });
+		// Thread the outline crossfade into the offscreen draw too — a
+		// document combining a raster pass with outlineAmount would
+		// otherwise silently render solid glyphs.
+		const outlineAmount = unitState?.visual.outlineAmount;
+		drawTextAnimationGlyph({
+			ctx: sourceCtx,
+			element,
+			style,
+			grapheme,
+			...(outlineAmount !== undefined ? { outlineAmount } : {}),
+		});
 		sourceCtx.restore();
 	}
 	sourceCtx.restore();
