@@ -591,6 +591,19 @@ function keyframesVisual({
 			evolution: linearProgress * (effect.rasterEvolution ?? 1),
 		});
 	}
+	const layerOffsetXPx = channel("layerOffsetXPx");
+	const layerOffsetYPx = channel("layerOffsetYPx");
+	if (
+		(layerOffsetXPx !== undefined && Math.abs(layerOffsetXPx) > 0.5) ||
+		(layerOffsetYPx !== undefined && Math.abs(layerOffsetYPx) > 0.5)
+	) {
+		raster.push({
+			kind: "layered",
+			offsetPx: layerOffsetXPx ?? 0,
+			amplitudePx: layerOffsetYPx ?? 0,
+			samples: 6,
+		});
+	}
 	if (echoAmount !== undefined && Math.abs(echoAmount) > 0.01) {
 		raster.push({
 			kind: "echo",
@@ -620,6 +633,15 @@ function keyframesVisual({
 			kind: "bloom",
 			intensity: bloomIntensity,
 			radiusPx: Math.max(0, channel("bloomRadiusPx") ?? layout.fontSize * 0.5),
+		});
+	}
+	const roughEdgePx = channel("roughEdgePx");
+	if (roughEdgePx !== undefined && roughEdgePx > 0.01) {
+		raster.push({
+			kind: "roughEdge",
+			amplitudePx: roughEdgePx,
+			intensity: Math.max(0, channel("roughEdgeNoise") ?? 0.5),
+			noiseScale: 0.15,
 		});
 	}
 	const godRayIntensity = channel("godRayIntensity");
