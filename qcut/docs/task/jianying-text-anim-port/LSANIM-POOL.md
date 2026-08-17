@@ -164,5 +164,11 @@ glyph alpha 的距离衰减场(而非 max,否则整块糊成暖色),噪声**乘�
 据此补移植:`chroma-dissolve-out`(文字消散)、`red-dust-out`
 (红色灰尘)、`soft-focus-loop`(文字淡变)。
 
-真正无对应的只剩 2 种,各出现 1 次:**LayeredReplacement**(立体折叠
-的分层替换)与 **RoughEdge**(右移淡出的噪声毛边)。
+最后 2 种也补完了,各需一个新 pass:
+
+| 效果 | 新 pass | 为什么现有的不够 | 预设 |
+|---|---|---|---|
+| LayeredReplacement | `layered`(2D 定向堆叠副本) | echo 是同心缩放壳,表达不了**定向**偏移 | 立体折叠 `fold-stack-in` |
+| RoughEdge | `roughEdge`(WebGL2 噪声侵蚀 alpha) | displace 移动整条带,**啃不动边缘**;需要逐像素 alpha 阈值 | 右移淡出 `rough-fade-out` |
+
+至此 lsanim 池用到的 **23 种效果全部有对应能力**,无一遗留。
