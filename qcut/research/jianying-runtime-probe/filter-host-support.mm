@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
@@ -88,12 +89,10 @@ char* ModelCatalog::resolve(const char* directory, const char* name) const {
   const std::string request =
       std::string(directory == nullptr ? "" : directory) + "/" +
       std::string(name == nullptr ? "" : name);
+  // Resolution is attempted before giving up on an unknown family: most CV
+  // models (tt_matting, tt_skeleton, …) have no family rule and would
+  // otherwise go unanswered, and an unanswered request crashes the runtime.
   const std::string_view family = modelFamily(request);
-  if (family.empty()) {
-    std::cerr << "[resource] unresolved request = " << request << '\n';
-    return nullptr;
-  }
-
   auto match = paths_.end();
   std::string_view resolution = "family fallback";
   if (preferExactFilename_ && name != nullptr) {
@@ -107,7 +106,32 @@ char* ModelCatalog::resolve(const char* directory, const char* name) const {
       resolution = "exact filename";
     }
   }
-  if (match == paths_.end()) {
+  // Disk names are <stem>_v<major>.<minor>_size<N>_md5<hash>.model while the
+  // runtime asks for <stem>[_v<major>.<minor>].model, and the version it asks
+  // for is often not the one installed. Matching the bare stem is what keeps a
+  // request for tt_matting from binding tt_matting_large, which renders a
+  // plausible-looking but wrong result instead of failing.
+  if (match == paths_.end() && name != nullptr) {
+    std::string stem = fs::path(name).filename().string();
+    if (stem.ends_with(".model")) {
+      stem = stem.substr(0, stem.size() - 6);
+    }
+    const std::size_t versionAt = stem.rfind("_v");
+    if (versionAt != std::string::npos && versionAt + 2 < stem.size() &&
+        std::isdigit(static_cast<unsigned char>(stem[versionAt + 2]))) {
+      stem = stem.substr(0, versionAt);
+    }
+    const std::string wanted = stem + "_v";
+    match = std::find_if(paths_.begin(), paths_.end(),
+                         [&wanted](const std::string& path) {
+                           return fs::path(path).filename().string().starts_with(
+                               wanted);
+                         });
+    if (match != paths_.end()) {
+      resolution = "stem match";
+    }
+  }
+  if (match == paths_.end() && !family.empty()) {
     match = std::find_if(
         paths_.begin(), paths_.end(), [family](const std::string& path) {
           const std::string filename = fs::path(path).filename().string();
@@ -119,8 +143,7 @@ char* ModelCatalog::resolve(const char* directory, const char* name) const {
         });
   }
   if (match == paths_.end()) {
-    std::cerr << "[resource] missing family " << family
-              << " for request = " << request << '\n';
+    std::cerr << "[resource] unresolved request = " << request << '\n';
     return nullptr;
   }
 
