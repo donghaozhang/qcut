@@ -514,6 +514,20 @@ export interface TextKeyframesEffect {
 	 * each unit's effect strength is its selector weight.
 	 */
 	selector?: TextKeyframesSelector;
+	/**
+	 * Extra selector layers. Jianying ships several selectors per animator,
+	 * each with its OWN base_attrs — 横向分割 splits a line by giving one
+	 * window +1.5 em and another −1.5 em. Each layer is weighted by its own
+	 * window and composed onto the base: translations and rotations add,
+	 * scales and opacity multiply.
+	 */
+	layers?: TextKeyframesLayer[];
+}
+
+/** One selector window plus the channels it drives. */
+export interface TextKeyframesLayer {
+	selector?: TextKeyframesSelector;
+	channels: Partial<Record<TextKeyframeChannel, TextKeyframePoint[]>>;
 }
 
 /**
