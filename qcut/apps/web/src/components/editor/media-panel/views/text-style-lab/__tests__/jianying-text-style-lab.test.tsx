@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
@@ -6,7 +7,56 @@ import type {
 	JianyingTextStyleLabListResult,
 	JianyingTextStyleLabStyleSummary,
 } from "@/types/electron";
-import { JianyingTextStyleLabPanel } from "../jianying-text-style-lab";
+import {
+	JianyingTextStyleLabCategoryNav,
+	type LabView,
+	JianyingTextStyleLabPanel,
+} from "../jianying-text-style-lab";
+import { useJianyingTextStyleLab } from "../use-jianying-text-style-lab";
+
+/**
+ * Mirrors how the text panel wires the lab: the category rail sits in the
+ * left rail one level up, so the parent owns the view and the cache query
+ * and the panel only renders the grid.
+ */
+function LabHarness({
+	onApply,
+	onClose,
+}: {
+	onApply: (props: {
+		animations?: JianyingTextAnimationReferences;
+		style: JianyingTextStyleLabStyleSummary;
+	}) => void;
+	onClose: () => void;
+}) {
+	const lab = useJianyingTextStyleLab({ enabled: true });
+	const [view, setView] = useState<LabView>("trial");
+	const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
+		() => ({ charts: true, styles: false, effects: false, colors: false })
+	);
+	return (
+		<>
+			<JianyingTextStyleLabCategoryNav
+				expandedGroups={expandedGroups}
+				result={lab.result}
+				view={view}
+				onSelect={setView}
+				onToggleGroup={(groupId) =>
+					setExpandedGroups((current) => ({
+						...current,
+						[groupId]: !(current[groupId] ?? false),
+					}))
+				}
+			/>
+			<JianyingTextStyleLabPanel
+				lab={lab}
+				onApply={onApply}
+				onClose={onClose}
+				view={view}
+			/>
+		</>
+	);
+}
 
 function createStyle({
 	categoryIds = ["popular" as const],
@@ -213,7 +263,7 @@ describe("JianyingTextStyleLabPanel", () => {
 		const api = installTextStyleLabAPI();
 		const onApply = vi.fn();
 		const onClose = vi.fn();
-		render(<JianyingTextStyleLabPanel onApply={onApply} onClose={onClose} />);
+		render(<LabHarness onApply={onApply} onClose={onClose} />);
 
 		await waitFor(() =>
 			expect(api.list).toHaveBeenCalledWith({ refresh: false })
@@ -234,7 +284,7 @@ describe("JianyingTextStyleLabPanel", () => {
 
 	it("keeps every cached flower package visible in the complete view", async () => {
 		installTextStyleLabAPI();
-		render(<JianyingTextStyleLabPanel onApply={vi.fn()} onClose={vi.fn()} />);
+		render(<LabHarness onApply={vi.fn()} onClose={vi.fn()} />);
 		expect(
 			await screen.findAllByTestId("jianying-text-style-lab-card")
 		).toHaveLength(5);
@@ -273,7 +323,7 @@ describe("JianyingTextStyleLabPanel", () => {
 			},
 		} as never;
 		const onApply = vi.fn();
-		render(<JianyingTextStyleLabPanel onApply={onApply} onClose={vi.fn()} />);
+		render(<LabHarness onApply={onApply} onClose={vi.fn()} />);
 
 		fireEvent.click(await screen.findByRole("button", { name: "全部 1" }));
 		const card = await screen.findByRole("button", {
@@ -310,7 +360,7 @@ describe("JianyingTextStyleLabPanel", () => {
 			},
 		} as never;
 		const onApply = vi.fn();
-		render(<JianyingTextStyleLabPanel onApply={onApply} onClose={vi.fn()} />);
+		render(<LabHarness onApply={onApply} onClose={vi.fn()} />);
 
 		const styleCard = await screen.findByRole("button", {
 			name: "应用花字 原版黄色花字",
@@ -372,7 +422,7 @@ describe("JianyingTextStyleLabPanel", () => {
 			},
 		} as never;
 		const onApply = vi.fn();
-		render(<JianyingTextStyleLabPanel onApply={onApply} onClose={vi.fn()} />);
+		render(<LabHarness onApply={onApply} onClose={vi.fn()} />);
 
 		fireEvent.click(
 			await screen.findByRole("button", { name: "应用花字 原版黄色花字" })
@@ -397,7 +447,7 @@ describe("JianyingTextStyleLabPanel", () => {
 
 	it("filters the local cache by Jianying flower category", async () => {
 		installTextStyleLabAPI();
-		render(<JianyingTextStyleLabPanel onApply={vi.fn()} onClose={vi.fn()} />);
+		render(<LabHarness onApply={vi.fn()} onClose={vi.fn()} />);
 
 		fireEvent.click(
 			await screen.findByRole("button", {
@@ -424,7 +474,7 @@ describe("JianyingTextStyleLabPanel", () => {
 	});
 
 	it("reports when the desktop cache API is unavailable", async () => {
-		render(<JianyingTextStyleLabPanel onApply={vi.fn()} onClose={vi.fn()} />);
+		render(<LabHarness onApply={vi.fn()} onClose={vi.fn()} />);
 		expect(
 			await screen.findByText("花字实验室仅在 QCut 桌面版中可用")
 		).toBeInTheDocument();
