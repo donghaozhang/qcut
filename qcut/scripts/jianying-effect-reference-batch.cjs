@@ -49,6 +49,12 @@ const SUBJECT_PLATES = {
 		clip: path.join(REF_ROOT, "_assets/ref-clip-face-1280x720.mp4"),
 		baseline: path.join(REF_ROOT, "_assets/ref-baseline-face.mp4"),
 	},
+	// Pose needs limbs in frame, so the body plate keeps the whole portrait
+	// framing and pillarboxes it rather than cropping to head and shoulders.
+	skeleton: {
+		clip: path.join(REF_ROOT, "_assets/ref-clip-body-1280x720.mp4"),
+		baseline: path.join(REF_ROOT, "_assets/ref-baseline-body.mp4"),
+	},
 };
 const MANIFEST_PATH = path.join(REF_ROOT, "manifest.jsonl");
 const WIDTH = 1280;
