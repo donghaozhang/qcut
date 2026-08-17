@@ -1,7 +1,13 @@
-import type {
-	JianyingFilterCategoryCatalog,
-	JianyingLutReference,
-} from "./jianying-filter-lab-contract.js";
+import type { JianyingLutReference } from "./native-pipeline/filters/filter-lab-lut.js";
+
+/**
+ * Resolved category catalog. Declared here rather than beside the sqlite
+ * reader so consumers of the pure lookups never reach into that module.
+ */
+export interface JianyingFilterCategoryCatalog {
+	order: string[];
+	byResourceId: Map<string, string[]>;
+}
 
 /**
  * Pure lookups over already-resolved filter metadata.
