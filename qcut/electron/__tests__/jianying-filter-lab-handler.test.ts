@@ -402,6 +402,31 @@ describe("Jianying filter lab IPC", () => {
 		expect(disposeWatcher).toHaveBeenCalledOnce();
 	});
 
+	it("retries the catalog after a failed scan instead of caching the rejection", async () => {
+		const context = createWindowContext();
+		const listReferences = vi
+			.fn<() => Promise<never[]>>()
+			.mockRejectedValueOnce(new Error("cache unreadable"))
+			.mockResolvedValue([]);
+		setupJianyingFilterLabIPC({
+			getMainWindow: () => context.mainWindow,
+			readVerifications: async () => new Map(),
+			listReferences,
+			resolveTitles: async () => new Map(),
+			resolveCategories: async () => ({ order: [], byResourceId: new Map() }),
+			resolveKnownFilters: async () => ({ order: [], filters: [] }),
+			inspectPackages: async () => new Map(),
+			watchCache: () => ({ dispose: () => undefined }),
+		});
+		const list = getHandler({ channel: JIANYING_FILTER_LAB_LIST_CHANNEL });
+
+		await expect(list(context.event)).rejects.toThrow("cache unreadable");
+		// The retry uses the same refresh:false path every caller uses, so it
+		// only succeeds if the rejected promise was cleared rather than memoized.
+		await expect(list(context.event)).resolves.toBeDefined();
+		expect(listReferences).toHaveBeenCalledTimes(2);
+	});
+
 	it("loads a recognized tiled LUT shader through its private cached image", async () => {
 		const context = createWindowContext();
 		const resourceId = "shader-filter";
