@@ -68,17 +68,35 @@ void OpenGlContext::printCurrent(std::string_view stage) const {
 
 ModelCatalog::ModelCatalog(const fs::path& directory, bool preferExactFilename)
     : preferExactFilename_(preferExactFilename) {
-  if (!fs::is_directory(directory)) {
-    throw std::runtime_error("model directory does not exist: " +
-                             directory.string());
+  // Weights live in two places with different shapes: the user's download
+  // cache is flat, while the app bundle nests them one level down in
+  // per-family folders (headsegmodel/, ttfacemodel/, …). Indexing only one of
+  // them, or only its top level, makes present models look absent — so the
+  // argument is a delimiter-separated list and every root is walked in full.
+  std::vector<fs::path> roots;
+  const std::string list = directory.string();
+  for (std::size_t start = 0; start <= list.size();) {
+    const std::size_t end = list.find(':', start);
+    const std::string piece =
+        list.substr(start, end == std::string::npos ? std::string::npos
+                                                   : end - start);
+    if (!piece.empty()) roots.emplace_back(piece);
+    if (end == std::string::npos) break;
+    start = end + 1;
   }
-  for (const fs::directory_entry& entry : fs::directory_iterator(directory)) {
-    if (entry.is_regular_file()) {
-      paths_.push_back(entry.path().string());
+
+  for (const fs::path& root : roots) {
+    if (!fs::is_directory(root)) continue;
+    for (const fs::directory_entry& entry : fs::recursive_directory_iterator(
+             root, fs::directory_options::skip_permission_denied)) {
+      if (entry.is_regular_file()) {
+        paths_.push_back(entry.path().string());
+      }
     }
   }
   if (paths_.empty()) {
-    throw std::runtime_error("model directory contains no files");
+    throw std::runtime_error("model directory contains no files: " +
+                             directory.string());
   }
   // Directory iteration order is unspecified; sort so the family prefix match
   // in resolve() picks the same model on every machine and run.
