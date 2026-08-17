@@ -417,6 +417,9 @@ export type TextKeyframeChannel =
 	| "bloomRadiusPx"
 	// Concentric echo shells: signed spread, + inward / - outward.
 	| "echoAmount"
+	// Procedural flame (WebGL2): blaze strength and how high it licks.
+	| "flameIntensity"
+	| "flameReach"
 	// Directional motion smear along rasterAngleDeg, in px.
 	| "dirBlurPx"
 	// Raster post-pass parameters, so a document can animate the mosaic
@@ -711,7 +714,14 @@ export interface TextAnimationGlowState {
  *   case covering boil, turbulence and ripple.
  */
 export interface TextAnimationRasterEffectState {
-	kind: "pixelate" | "rgbSplit" | "displace" | "bloom" | "echo" | "dirBlur";
+	kind:
+		| "pixelate"
+		| "rgbSplit"
+		| "displace"
+		| "bloom"
+		| "echo"
+		| "dirBlur"
+		| "flame";
 	/** pixelate: grid cell size in px. */
 	cell?: number;
 	/** rgbSplit / dirBlur: separation or smear length in px, and direction. */
@@ -721,6 +731,8 @@ export interface TextAnimationRasterEffectState {
 	amplitudePx?: number;
 	scale?: number;
 	evolution?: number;
+	/** flame: how far the fire licks above the glyphs (~0..2). */
+	reach?: number;
 	/** bloom: halo strength (0..~2), blur radius px, bright-pass threshold. */
 	intensity?: number;
 	radiusPx?: number;
