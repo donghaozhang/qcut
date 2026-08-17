@@ -20,11 +20,12 @@ export interface JianyingEffectFrameCounts {
 	outputFrames: number;
 }
 
+export const EFFECT_FRAME_COUNT_PATTERN =
+	/\[effect\] frames: input=(\d+), effect=(\d+), output=(\d+)/;
+
 /** Reads the counts the probe prints, so callers never guess them. */
 function parseFrameCounts({ output }: { output: string }) {
-	const match = output.match(
-		/\[effect\] frames: input=(\d+), effect=(\d+), output=(\d+)/
-	);
+	const match = output.match(EFFECT_FRAME_COUNT_PATTERN);
 	if (!match) {
 		throw new Error("剪映运行时未报告特效渲染帧数。");
 	}
@@ -35,8 +36,8 @@ function parseFrameCounts({ output }: { output: string }) {
 	};
 }
 
-function appendBounded({ current, chunk }: { current: string; chunk: Buffer }) {
-	const combined = current + chunk.toString();
+function appendBounded({ current, chunk }: { current: string; chunk: string }) {
+	const combined = current + chunk;
 	return combined.length <= MAX_CAPTURED_PROCESS_OUTPUT
 		? combined
 		: combined.slice(-MAX_CAPTURED_PROCESS_OUTPUT);
@@ -47,11 +48,19 @@ export function runJianyingEffectProcess({
 	args,
 	env,
 	timeoutMs = PROCESS_TIMEOUT_MS,
+	retainPattern,
 }: {
 	command: string;
 	args: string[];
 	env?: NodeJS.ProcessEnv;
 	timeoutMs?: number;
+	/**
+	 * A line matching this is latched as it streams by and prepended to the
+	 * result, so it survives the tail window. Packages that embed a JS engine
+	 * log ~90KB of scene teardown after the probe prints its counts, which
+	 * would otherwise scroll the one line the caller needs out of view.
+	 */
+	retainPattern?: RegExp;
 }): Promise<string> {
 	return new Promise((resolve, reject) => {
 		const child = spawn(command, args, {
@@ -65,12 +74,18 @@ export function runJianyingEffectProcess({
 			child.kill("SIGKILL");
 		}, timeoutMs);
 		let output = "";
-		child.stdout.on("data", (chunk: Buffer) => {
-			output = appendBounded({ current: output, chunk });
-		});
-		child.stderr.on("data", (chunk: Buffer) => {
-			output = appendBounded({ current: output, chunk });
-		});
+		let retained = "";
+		const absorb = (chunk: Buffer) => {
+			const text = chunk.toString();
+			// Matched against the pre-truncation window: a chunk boundary can
+			// split the line, and the retained tail always holds the leading part.
+			const match = retainPattern ? (output + text).match(retainPattern) : null;
+			if (match) retained = match[0];
+			output = appendBounded({ current: output, chunk: text });
+		};
+		const finalOutput = () => (retained ? `${retained}\n${output}` : output);
+		child.stdout.on("data", absorb);
+		child.stderr.on("data", absorb);
 		child.on("error", (error) => {
 			clearTimeout(timer);
 			reject(error);
@@ -86,7 +101,7 @@ export function runJianyingEffectProcess({
 				return;
 			}
 			if (code === 0) {
-				resolve(output);
+				resolve(finalOutput());
 				return;
 			}
 			reject(
@@ -185,6 +200,7 @@ export async function renderJianyingEffectClip({
 		const bridgeOutput = await runJianyingEffectProcess({
 			command: inspection.bridgePath,
 			args: [inspection.runtimeRootPath, "effect-video"],
+			retainPattern: EFFECT_FRAME_COUNT_PATTERN,
 			env: bridgeEnvironment({
 				inspection,
 				extra: {
