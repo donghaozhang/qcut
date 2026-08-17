@@ -792,4 +792,14 @@ export const ENTRANCE_TEXT_ANIMATION_PRESETS = [
 		defaultIntensity: 1,
 		searchTerms: ["outline", "trace", "stroke", "逐字显现", "描边", "显现"],
 	},
+	{
+		id: "prism-rush-in",
+		phase: "entrance",
+		nameKey: "textProperties.animationPreset.prismRushIn",
+		previewKind: "keyframes",
+		defaultDuration: 1.5,
+		defaultDelay: 0,
+		defaultIntensity: 1,
+		searchTerms: ["prism", "rush", "gradient", "缤纷冲屏", "缤纷", "冲屏"],
+	},
 ] as const satisfies readonly TextAnimationPresetDefinition[];
