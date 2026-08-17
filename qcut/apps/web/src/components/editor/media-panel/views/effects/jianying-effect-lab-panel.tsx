@@ -122,9 +122,13 @@ export function JianyingEffectLabPanel({
 }) {
 	const { checking, status, error, refresh } = useJianyingEffectRuntime();
 	const [downloads, setDownloads] = useState<Record<string, DownloadState>>({});
-	const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
-		null
-	);
+	// Category ids repeat across panels, so the selection keeps both halves
+	// of the identity — resolving by id alone can land on another panel's
+	// category of the same id.
+	const [selectedCategory, setSelectedCategory] = useState<{
+		id: string;
+		panel: string;
+	} | null>(null);
 	// "" marks a cover that failed so the pump advances instead of retrying
 	// forever; anything else is a data URL from the main-process cache.
 	const [covers, setCovers] = useState<Record<string, string>>({});
@@ -135,8 +139,11 @@ export function JianyingEffectLabPanel({
 
 	const query = searchQuery.trim().toLowerCase();
 	const activeCategory =
-		categories.find((category) => category.id === selectedCategoryId) ??
-		categories[0];
+		categories.find(
+			(category) =>
+				category.id === selectedCategory?.id &&
+				category.panel === selectedCategory?.panel
+		) ?? categories[0];
 	// A search covers everything, like Jianying's 搜索全部特效 box.
 	const visibleEffects = query
 		? effects.filter((effect) => effect.name.toLowerCase().includes(query))
@@ -162,7 +169,11 @@ export function JianyingEffectLabPanel({
 		const capacity = COVER_CONCURRENCY - coversInFlight.current.size;
 		if (pending.length === 0 || capacity <= 0) return;
 
-		let cancelled = false;
+		// No per-run cancellation: the effect re-runs on every cover update,
+		// and cancelling the rest of the batch then would discard results that
+		// nothing re-requests (deleting from the in-flight ref does not
+		// re-trigger the effect). Results are keyed by effectId, so a late
+		// write is idempotent even after the deps change.
 		const batch = pending.slice(0, capacity);
 		for (const effect of batch) {
 			coversInFlight.current.add(effect.effectId);
@@ -171,23 +182,17 @@ export function JianyingEffectLabPanel({
 			batch.map(async (effect) => {
 				try {
 					const result = await api.cover({ effectId: effect.effectId });
-					if (cancelled) return;
 					setCovers((current) => ({
 						...current,
 						[effect.effectId]: result.dataUrl,
 					}));
 				} catch {
-					if (!cancelled) {
-						setCovers((current) => ({ ...current, [effect.effectId]: "" }));
-					}
+					setCovers((current) => ({ ...current, [effect.effectId]: "" }));
 				} finally {
 					coversInFlight.current.delete(effect.effectId);
 				}
 			})
 		);
-		return () => {
-			cancelled = true;
-		};
 	}, [visibleEffects, covers]);
 
 	const handleDownload = useCallback(
@@ -294,7 +299,12 @@ export function JianyingEffectLabPanel({
 												? "font-medium text-primary"
 												: "text-foreground/75 hover:text-foreground"
 										)}
-										onClick={() => setSelectedCategoryId(category.id)}
+										onClick={() =>
+											setSelectedCategory({
+												id: category.id,
+												panel: category.panel,
+											})
+										}
 									>
 										{category.name}
 									</button>
