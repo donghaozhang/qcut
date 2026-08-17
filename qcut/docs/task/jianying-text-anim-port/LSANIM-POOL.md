@@ -106,3 +106,25 @@ color-flash-loop(闪色循环)
 2. ~~raster 链式~~ ✅ 已建成
 3. 多 selector 支持 → 解锁 横向分割 类
 4. 6 种无对应效果按需评估(GodRay 出现 2 次,可能值得做)
+
+## 补记:缤纷冲屏与空间调色板 / Spatial palette addendum
+
+缤纷冲屏(7116829842271638053,D=2)是清单上最后一个"可做未做"项。
+读 driver 后其结构是:16 个错峰幽灵层 + DeepGlow + 径向模糊 + 高斯,
+**全部透过一个 4 色渐变绘制**(ADBE_4ColorGradient,20 处引用 —— 名字
+里的"缤纷"就是它)。
+
+我们原来只有 `colorTrack`(单一 tint 随时间变),没有"沿行铺开的空间
+渐变"。但引擎里早有逐单元调色板采样(`sampleTextAnimationPalette`,
+彩虹用的),于是给关键帧文档加了 `palette` 字段复用它:每个单元按
+横向位置取色,强度仍由 colorAmount 通道控制,可淡入淡出。
+
+移植为 `prism-rush-in`:调色板取源包四层的起始色
+(#50ff00 / #ecff00 / #ff00ff / #ff00f8),幽灵层→echo,辉光→bloom,
+高斯→blurPx,冲屏→scale 1.6→1。丢弃:16 路逐实例错峰(我们的 echo
+壳共用一个剖面)与渐变自身的控制点位移。
+
+**顺带修掉一个同类缺陷**:raster 离屏绘制此前不应用 `colorMix`,
+所以任何"tint + raster pass"的组合都会画成纯色字再做后处理 —— 调色板
+第一次渲染就是白的。与 CodeRabbit 抓到的 outlineAmount 同一类问题
+(离屏路径漏传每单元状态),现已一并接上。
