@@ -46,8 +46,13 @@ PixelSprint、RoughEdge、DistortChroma、CrossBlur。
 按需要的 raster pass 数分布:
 
 - **0 或 1 个 pass:45 个** —— 现有单槽 raster 链即可,**可立即移植**
-- **2 个:15 个**,**3 个:5 个** —— 需要 raster 链式(`raster` 单值 →
-  数组 + ping-pong 缓冲逐个跑)。这是解锁其余 20 个的唯一引擎工作
+- **2 个:15 个**,**3 个:5 个** —— ✅ **raster 链式已建成**
+  (`postProcess.raster` 单值 → 数组;`applyTextAnimationRasterPasses`
+  用 post-chain-a/b 两个 ping-pong 缓冲逐个跑,只有最后一个 pass 画进
+  目标 ctx)。链序固定为 **几何 → 色度 → 辉光**
+  (displace / echo / dirBlur → pixelate / rgbSplit → bloom),与剪映
+  effectAnimators 的堆叠顺序一致 —— 辉光对前序结果起晕才正确。
+  padding 按全链累加。这 20 个包现在也可移植。
 
 另有多 selector 包(如 横向分割 用 3 个 selector 让不同字符组反向移动)
 超出当前单 selector 支持。
@@ -66,7 +71,7 @@ PixelSprint、RoughEdge、DistortChroma、CrossBlur。
 
 ## 下一步 / Next
 
-1. 继续移植剩余 41 个单 raster 包(纯转录,无引擎工作)
-2. raster 链式 → 解锁 20 个多 pass 包
+1. 继续移植剩余 41 个单 raster 包 + 20 个多 pass 包(纯转录,无引擎工作)
+2. ~~raster 链式~~ ✅ 已建成
 3. 多 selector 支持 → 解锁 横向分割 类
 4. 6 种无对应效果按需评估(GodRay 出现 2 次,可能值得做)
