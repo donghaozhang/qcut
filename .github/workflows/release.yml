@@ -96,6 +96,13 @@ jobs:
           # full-resolution originals stay behind the license server's
           # allow list.
           VITE_QCUT_ENABLE_STICKER_LAB: "true"
+          # Ships the sound effects lab. Unlike the sticker lab there is no
+          # public tier: the entry stays hidden until the license server
+          # returns a private manifest, which it only does for accounts in
+          # SOUND_EFFECTS_LAB_ALLOWED_USER_IDS. Everyone else — including a
+          # signed-in non-allowlisted account — sees nothing at all, so the
+          # flag alone exposes no third-party reference audio.
+          VITE_QCUT_ENABLE_SOUND_EFFECTS_LAB: "true"
 
       - name: Build Electron scripts
         run: bun run build:electron
@@ -181,6 +188,13 @@ jobs:
           # full-resolution originals stay behind the license server's
           # allow list.
           VITE_QCUT_ENABLE_STICKER_LAB: "true"
+          # Ships the sound effects lab. Unlike the sticker lab there is no
+          # public tier: the entry stays hidden until the license server
+          # returns a private manifest, which it only does for accounts in
+          # SOUND_EFFECTS_LAB_ALLOWED_USER_IDS. Everyone else — including a
+          # signed-in non-allowlisted account — sees nothing at all, so the
+          # flag alone exposes no third-party reference audio.
+          VITE_QCUT_ENABLE_SOUND_EFFECTS_LAB: "true"
 
       - name: Build Electron scripts
         run: bun run build:electron
@@ -286,6 +300,13 @@ jobs:
           # full-resolution originals stay behind the license server's
           # allow list.
           VITE_QCUT_ENABLE_STICKER_LAB: "true"
+          # Ships the sound effects lab. Unlike the sticker lab there is no
+          # public tier: the entry stays hidden until the license server
+          # returns a private manifest, which it only does for accounts in
+          # SOUND_EFFECTS_LAB_ALLOWED_USER_IDS. Everyone else — including a
+          # signed-in non-allowlisted account — sees nothing at all, so the
+          # flag alone exposes no third-party reference audio.
+          VITE_QCUT_ENABLE_SOUND_EFFECTS_LAB: "true"
 
       - name: Build Electron scripts
         run: bun run build:electron
