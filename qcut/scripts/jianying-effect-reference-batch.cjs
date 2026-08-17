@@ -26,6 +26,9 @@ const { renderJianyingEffectClip } = require(
 const { readAdjustParameters } = require(
 	path.join(DIST, "jianying-effect/catalog-parsing.js")
 );
+const { jianyingModelDirectory } = require(
+	path.join(DIST, "jianying-effect/model-directory.js")
+);
 const { getFFmpegPath } = require(path.join(DIST, "ffmpeg/paths.js"));
 const { listJianyingResourceDatabasePaths } = require(
 	path.join(DIST, "jianying-resource-database.js")
@@ -44,14 +47,30 @@ const SUPPORTED_REQUIREMENTS = new Set(["blit", "texture_blit"]);
 /** Above this SSIM vs the untouched baseline, flag for a manual time-sweep. */
 const IDENTITY_SSIM_THRESHOLD = 0.997;
 const DOWNLOAD_DELAY_MS = 500;
+/**
+ * A CV render is only trusted when the SAME package renders differently with
+ * and without its models. "The picture changed" is not enough: a mis-bound
+ * model renders a plausible-looking result, and packages like 撕纸特写 render
+ * visibly from non-CV sub-features while the algorithm contributes nothing.
+ */
+const CV_ISOLATION_MIN_SSIM_DELTA = 0.001;
 
 function parseArgs() {
-	const args = { limit: Infinity, panel: null, only: null };
+	const args = {
+		limit: Infinity,
+		panel: null,
+		only: null,
+		capability: null,
+	};
 	const argv = process.argv.slice(2);
 	for (let i = 0; i < argv.length; i++) {
 		if (argv[i] === "--limit") args.limit = Number(argv[++i]);
 		else if (argv[i] === "--panel") args.panel = argv[++i];
 		else if (argv[i] === "--only") args.only = new Set(argv[++i].split(","));
+		// Capabilities are unlocked one at a time: only matting and face have
+		// been verified, and the 29 tokens do not behave alike.
+		else if (argv[i] === "--capability")
+			args.capability = new Set(argv[++i].split(","));
 	}
 	return args;
 }
@@ -221,14 +240,14 @@ async function downloadPackage(item) {
 	return dest;
 }
 
-function ssimVsBaseline(ffmpeg, renderedPath) {
+function ssimOf(ffmpeg, leftPath, rightPath) {
 	const result = spawnSync(
 		ffmpeg,
 		[
 			"-i",
-			renderedPath,
+			leftPath,
 			"-i",
-			REF_BASELINE,
+			rightPath,
 			"-filter_complex",
 			"[0:v][1:v]ssim",
 			"-f",
@@ -239,6 +258,10 @@ function ssimVsBaseline(ffmpeg, renderedPath) {
 	);
 	const match = (result.stderr || "").match(/All:(\d+\.\d+)/);
 	return match ? Number(match[1]) : null;
+}
+
+function ssimVsBaseline(ffmpeg, renderedPath) {
+	return ssimOf(ffmpeg, renderedPath, REF_BASELINE);
 }
 
 function loadDoneSet() {
@@ -276,20 +299,37 @@ async function main() {
 	const existingPackages = indexExistingPackages();
 	const done = loadDoneSet();
 
+	// Without --capability the run stays on packages that need no CV at all;
+	// with it, exactly the named capabilities are additionally allowed.
+	const allowed = new Set([
+		...SUPPORTED_REQUIREMENTS,
+		...(args.capability ?? []),
+	]);
 	let targets = catalog.filter(
 		(item) =>
-			item.requirements.every((requirement) =>
-				SUPPORTED_REQUIREMENTS.has(requirement)
-			) &&
+			item.requirements.every((requirement) => allowed.has(requirement)) &&
 			(item.itemUrls.length > 0 || existingPackages.has(item.md5))
 	);
+	if (args.capability) {
+		// Only the CV ones — the blit-only population is already covered.
+		targets = targets.filter((item) =>
+			item.requirements.some(
+				(requirement) => !SUPPORTED_REQUIREMENTS.has(requirement)
+			)
+		);
+	}
 	if (args.panel) targets = targets.filter((t) => t.panel === args.panel);
 	if (args.only) targets = targets.filter((t) => args.only.has(t.effectId));
 	const pending = targets.filter((t) => !done.has(t.effectId));
 	const queue = pending.slice(0, args.limit);
 
+	const modelDirectory = args.capability ? jianyingModelDirectory() : null;
+	if (args.capability && !modelDirectory) {
+		throw new Error("no JianYing model directory found; CV renders need one");
+	}
 	console.log(
-		`catalog=${catalog.length} blit=${targets.length} done=${done.size} queue=${queue.length}`
+		`catalog=${catalog.length} targets=${targets.length} done=${done.size} queue=${queue.length}` +
+			(args.capability ? ` capability=${[...args.capability].join(",")}` : "")
 	);
 
 	const manifest = fs.createWriteStream(MANIFEST_PATH, { flags: "a" });
@@ -328,23 +368,26 @@ async function main() {
 				: item.sdkExtra;
 			const adjustParameters = readAdjustParameters({ sdkExtra });
 
-			const counts = await renderJianyingEffectClip({
+			const requiresAlgorithm = item.requirements.some(
+				(requirement) => !SUPPORTED_REQUIREMENTS.has(requirement)
+			);
+			const definition = {
+				id: `jy-effect-${item.effectId}`,
+				effectId: item.effectId,
+				resourceId: item.effectId,
+				packageHash: item.md5,
+				packagePath,
+				name: item.title,
+				panel: item.panel,
+				defaultDurationMs: 3000,
+				adjustParameters,
+				access: "free",
+				supported: true,
+				requiresAlgorithm,
+			};
+			const renderOptions = {
 				inspection,
-				definition: {
-					id: `jy-effect-${item.effectId}`,
-					effectId: item.effectId,
-					resourceId: item.effectId,
-					packageHash: item.md5,
-					packagePath,
-					name: item.title,
-					panel: item.panel,
-					defaultDurationMs: 3000,
-					adjustParameters,
-					access: "free",
-					supported: true,
-				},
 				inputPath: REF_CLIP,
-				outputPath: outPath,
 				width: WIDTH,
 				height: HEIGHT,
 				frameRate: FPS,
@@ -354,9 +397,42 @@ async function main() {
 					key: parameter.key,
 					value: parameter.defaultValue,
 				})),
+			};
+
+			const counts = await renderJianyingEffectClip({
+				...renderOptions,
+				definition,
+				outputPath: outPath,
 			});
 
 			const ssim = ssimVsBaseline(ffmpeg, outPath);
+
+			// The CV oracle: render the same package again with the algorithm
+			// switched off. Anything the algorithm truly contributed disappears,
+			// so an unchanged control means the CV did nothing and the clip is
+			// not a usable reference no matter how different it looks.
+			if (requiresAlgorithm) {
+				const controlPath = `${outPath}.no-models.mp4`;
+				try {
+					await renderJianyingEffectClip({
+						...renderOptions,
+						definition: { ...definition, requiresAlgorithm: false },
+						outputPath: controlPath,
+					});
+					const controlSsim = ssimOf(ffmpeg, outPath, controlPath);
+					entry.controlSsim = controlSsim;
+					if (
+						controlSsim !== null &&
+						controlSsim > 1 - CV_ISOLATION_MIN_SSIM_DELTA
+					) {
+						throw new Error(
+							`算法未产生贡献:有模型与无模型渲染一致(ssim ${controlSsim})`
+						);
+					}
+				} finally {
+					fs.rmSync(controlPath, { force: true });
+				}
+			}
 			Object.assign(entry, {
 				ok: true,
 				downloaded,
