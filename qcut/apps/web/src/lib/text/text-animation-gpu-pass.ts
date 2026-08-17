@@ -146,6 +146,42 @@ void main() {
   fragColor = vec4(clamp(lit, 0.0, 1.0) * alpha, alpha);
 }`;
 
+/**
+ * God rays: radial light shafts streaming out of the bright parts of the
+ * glyphs. A standard radial-occlusion march — step toward the light origin
+ * accumulating brightness with decay — which needs per-pixel sampling along a
+ * direction, so it belongs on the GPU tier next to the flame.
+ */
+const GODRAY_SHADER = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+uniform sampler2D u_source;
+uniform vec2 u_origin;
+uniform float u_intensity;
+uniform float u_decay;
+uniform float u_spread;
+out vec4 fragColor;
+
+void main() {
+  vec4 source = texture(u_source, v_uv);
+  vec2 delta = (v_uv - u_origin) * u_spread / 24.0;
+  vec2 coord = v_uv;
+  float weight = 1.0;
+  vec3 rays = vec3(0.0);
+  for (int i = 0; i < 24; i++) {
+    coord -= delta;
+    vec4 sampled = texture(u_source, coord);
+    // Only bright pixels cast shafts, so the rays follow the lit strokes.
+    float lum = max(sampled.r, max(sampled.g, sampled.b)) * sampled.a;
+    rays += sampled.rgb * lum * weight;
+    weight *= u_decay;
+  }
+  rays /= 24.0;
+  vec3 lit = source.rgb + rays * u_intensity;
+  float alpha = clamp(source.a + max(rays.r, max(rays.g, rays.b)) * u_intensity, 0.0, 1.0);
+  fragColor = vec4(clamp(lit, 0.0, 1.0) * alpha, alpha);
+}`;
+
 export interface TextAnimationGpuPass {
 	/**
 	 * Draws `source` with a bloom halo and returns the canvas holding the
@@ -176,6 +212,19 @@ export interface TextAnimationGpuPass {
 		reach: number;
 		/** Animation phase in seconds. */
 		time: number;
+	}): HTMLCanvasElement | null;
+	/** Draws `source` with radial light shafts, or null when unavailable. */
+	renderGodRay(input: {
+		source: CanvasImageSource;
+		width: number;
+		height: number;
+		/** Shaft brightness. */
+		intensity: number;
+		/** Light origin in 0..1 uv; 0.5,0.5 centres it on the block. */
+		originX: number;
+		originY: number;
+		/** How far the shafts reach, roughly 0..2. */
+		spread: number;
 	}): HTMLCanvasElement | null;
 	dispose(): void;
 }
@@ -248,11 +297,13 @@ function createTextAnimationGpuPass(): TextAnimationGpuPass | null {
 	let blurProgram: WebGLProgram;
 	let compositeProgram: WebGLProgram;
 	let flameProgram: WebGLProgram;
+	let godRayProgram: WebGLProgram;
 	try {
 		brightProgram = linkProgram({ gl, fragmentSource: BRIGHT_SHADER });
 		blurProgram = linkProgram({ gl, fragmentSource: BLUR_SHADER });
 		compositeProgram = linkProgram({ gl, fragmentSource: COMPOSITE_SHADER });
 		flameProgram = linkProgram({ gl, fragmentSource: FLAME_SHADER });
+		godRayProgram = linkProgram({ gl, fragmentSource: GODRAY_SHADER });
 	} catch {
 		return null;
 	}
@@ -476,7 +527,63 @@ function createTextAnimationGpuPass(): TextAnimationGpuPass | null {
 			if (gl.isContextLost() || gl.getError() !== gl.NO_ERROR) return null;
 			return canvas;
 		},
+		renderGodRay({
+			source,
+			width,
+			height,
+			intensity,
+			originX,
+			originY,
+			spread,
+		}) {
+			if (width <= 0 || height <= 0) return null;
+			if (gl.isContextLost()) return null;
+			canvas.width = width;
+			canvas.height = height;
+			allocate({ width, height });
+			gl.viewport(0, 0, width, height);
+			gl.disable(gl.BLEND);
+			gl.activeTexture(gl.TEXTURE0);
+			setupTexture(sourceTexture);
+			gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+			gl.texImage2D(
+				gl.TEXTURE_2D,
+				0,
+				gl.RGBA8,
+				gl.RGBA,
+				gl.UNSIGNED_BYTE,
+				source as TexImageSource
+			);
+			gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
+			drawPass({
+				program: godRayProgram,
+				target: null,
+				flipY: true,
+				bind: () => {
+					gl.activeTexture(gl.TEXTURE0);
+					gl.bindTexture(gl.TEXTURE_2D, sourceTexture);
+					gl.uniform1i(gl.getUniformLocation(godRayProgram, "u_source"), 0);
+					gl.uniform2f(
+						gl.getUniformLocation(godRayProgram, "u_origin"),
+						originX,
+						originY
+					);
+					gl.uniform1f(
+						gl.getUniformLocation(godRayProgram, "u_intensity"),
+						Math.max(0, intensity)
+					);
+					gl.uniform1f(gl.getUniformLocation(godRayProgram, "u_decay"), 0.94);
+					gl.uniform1f(
+						gl.getUniformLocation(godRayProgram, "u_spread"),
+						Math.max(0.05, spread)
+					);
+				},
+			});
+			if (gl.isContextLost() || gl.getError() !== gl.NO_ERROR) return null;
+			return canvas;
+		},
 		dispose() {
+			gl.deleteProgram(godRayProgram);
 			gl.deleteProgram(flameProgram);
 			gl.deleteTexture(sourceTexture);
 			for (const texture of passTextures) gl.deleteTexture(texture);
