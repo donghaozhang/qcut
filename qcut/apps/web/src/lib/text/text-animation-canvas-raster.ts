@@ -5,7 +5,11 @@ type TextAnimationRasterChannel =
 	| "projection-unit"
 	| "shatter"
 	| "post"
-	| "post-scratch";
+	| "post-scratch"
+	// Ping-pong buffers for chained passes; kept distinct from "post-scratch"
+	// because individual passes use that one internally.
+	| "post-chain-a"
+	| "post-chain-b";
 
 interface TextAnimationRaster {
 	canvas: OffscreenCanvas | HTMLCanvasElement;
