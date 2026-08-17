@@ -15,6 +15,109 @@ import type { TextKeyframeDocument } from "./keyframe-documents-entrance-a";
 type Doc = TextKeyframeDocument;
 
 export const EXIT_LSANIM_DOCUMENTS_A: Record<string, Doc> = {
+	// 剪映 横向分割 (7563555749822090522), D=3. The line tears in half: three
+	// selectors share one clock and differ only by SHAPE — rampDown weights
+	// the leading characters (they lift 1.5 em), rampUp weights the trailing
+	// ones (they drop 1.5 em), and a square window fades the whole line out.
+	// A directional smear grows to 33 px through the tear. This is the
+	// multi-layer selector case: each layer carries its own window and its
+	// own channels, so the two halves move opposite ways instead of
+	// cancelling.
+	"horizontal-split-out": {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0 },
+		effect: {
+			kind: "keyframes",
+			rasterAngleDeg: 90,
+			channels: {
+				dirBlurPx: [
+					{ t: 0, v: 0, outValue: 0, outTime: 0.055 },
+					{
+						t: 0.1667,
+						v: 0,
+						inValue: 0,
+						inTime: -0.0567,
+						outValue: 0.99,
+						outTime: 0.5967,
+					},
+					{
+						t: 0.8333,
+						v: 33,
+						inValue: 7.26,
+						inTime: -0.21,
+						outValue: 22.11,
+						outTime: 0.055,
+					},
+					{ t: 1, v: 0, inValue: 11.22, inTime: -0.0567 },
+				],
+			},
+			layers: [
+				{
+					// rampDown: strongest at the head of the line.
+					selector: {
+						start: [{ t: 0, v: 0 }],
+						end: [{ t: 0, v: 1 }],
+						shape: "rampDown",
+						feather: 1,
+					},
+					channels: {
+						translateYEm: [
+							{ t: 0, v: 0 },
+							{
+								t: 0.4443,
+								v: -1.5,
+								inValue: -1.5,
+								inTime: -0.1867,
+								outValue: -1.5,
+								outTime: 0.1833,
+							},
+							{ t: 1, v: -1.5, inValue: -1.5, inTime: -0.189 },
+						],
+					},
+				},
+				{
+					// rampUp: strongest at the tail, so that half drops.
+					selector: {
+						start: [{ t: 0, v: 0 }],
+						end: [{ t: 0, v: 1 }],
+						shape: "rampUp",
+						feather: 1,
+					},
+					channels: {
+						translateYEm: [
+							{ t: 0, v: 0, outValue: 0, outTime: 0.1867 },
+							{ t: 0.4443, v: 1.5, outValue: 1.5, outTime: 0.1833 },
+							{ t: 1, v: 1.5, inValue: 1.5, inTime: -0.189 },
+						],
+					},
+				},
+				{
+					// Square window: the whole line fades together.
+					channels: {
+						opacity: [
+							{ t: 0, v: 1, outValue: 1, outTime: 0.055 },
+							{
+								t: 0.1667,
+								v: 1,
+								inValue: 1,
+								inTime: -0.0567,
+								outValue: 0.67,
+								outTime: 0.231,
+							},
+							{
+								t: 0.8667,
+								v: 0,
+								inValue: 0,
+								inTime: -0.231,
+								outValue: 0,
+								outTime: 0.044,
+							},
+							{ t: 1, v: 0, inValue: 0, inTime: -0.0453 },
+						],
+					},
+				},
+			],
+		},
+	},
 	// 剪映 像素辉光 (D=3). The line drops away while a Mosaic deconstructs it —
 	// cell 1000 → 1 in the source's own units, read here as the block breaking
 	// into coarse pixels as it goes. SGlow rides along with constant
