@@ -38,6 +38,18 @@ const REF_ROOT = path.join(REPO, ".local/jianying-effect-references");
 const PACKAGE_ROOT = path.join(REF_ROOT, "_packages");
 const REF_CLIP = path.join(REF_ROOT, "_assets/ref-clip-1280x720.mp4");
 const REF_BASELINE = path.join(REF_ROOT, "_assets/ref-baseline.mp4");
+/**
+ * Capabilities that need a subject in frame get their own plate. The default
+ * plate is skateboard footage with no person in it, on which a face effect
+ * legitimately renders nothing — the isolation control then reports "the
+ * algorithm contributed nothing" and the effect is failed for the wrong reason.
+ */
+const SUBJECT_PLATES = {
+	face: {
+		clip: path.join(REF_ROOT, "_assets/ref-clip-face-1280x720.mp4"),
+		baseline: path.join(REF_ROOT, "_assets/ref-baseline-face.mp4"),
+	},
+};
 const MANIFEST_PATH = path.join(REF_ROOT, "manifest.jsonl");
 const WIDTH = 1280;
 const HEIGHT = 720;
@@ -260,8 +272,17 @@ function ssimOf(ffmpeg, leftPath, rightPath) {
 	return match ? Number(match[1]) : null;
 }
 
-function ssimVsBaseline(ffmpeg, renderedPath) {
-	return ssimOf(ffmpeg, renderedPath, REF_BASELINE);
+function ssimVsBaseline(ffmpeg, renderedPath, baselinePath) {
+	return ssimOf(ffmpeg, renderedPath, baselinePath);
+}
+
+/** The plate a run must use, given the capabilities it was asked to cover. */
+function resolvePlate(capabilities) {
+	for (const capability of capabilities ?? []) {
+		const plate = SUBJECT_PLATES[capability];
+		if (plate) return plate;
+	}
+	return { clip: REF_CLIP, baseline: REF_BASELINE };
 }
 
 function loadDoneSet() {
@@ -286,8 +307,9 @@ function safeName(title) {
 async function main() {
 	const args = parseArgs();
 	const ffmpeg = getFFmpegPath();
-	if (!fs.existsSync(REF_CLIP) || !fs.existsSync(REF_BASELINE)) {
-		throw new Error(`reference clip missing: ${REF_CLIP}`);
+	const plate = resolvePlate(args.capability);
+	if (!fs.existsSync(plate.clip) || !fs.existsSync(plate.baseline)) {
+		throw new Error(`reference clip missing: ${plate.clip}`);
 	}
 
 	const inspection = await inspectJianyingEffectRuntime();
@@ -387,7 +409,7 @@ async function main() {
 			};
 			const renderOptions = {
 				inspection,
-				inputPath: REF_CLIP,
+				inputPath: plate.clip,
 				width: WIDTH,
 				height: HEIGHT,
 				frameRate: FPS,
@@ -405,7 +427,7 @@ async function main() {
 				outputPath: outPath,
 			});
 
-			const ssim = ssimVsBaseline(ffmpeg, outPath);
+			const ssim = ssimVsBaseline(ffmpeg, outPath, plate.baseline);
 
 			// The CV oracle: render the same package again with the algorithm
 			// switched off. Anything the algorithm truly contributed disappears,
