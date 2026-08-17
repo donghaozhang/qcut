@@ -144,15 +144,32 @@ export function JianyingEffectLabPanel({
 				category.id === selectedCategory?.id &&
 				category.panel === selectedCategory?.panel
 		) ?? categories[0];
+	// The catch-all tab is a complement, not a list: it holds exactly what no
+	// named tab in its panel can show, so nothing is unreachable and nothing
+	// is duplicated into it.
+	const isCatchAll = activeCategory?.id.endsWith("-other") ?? false;
+	const namedCategoryIds = new Set(
+		categories
+			.filter(
+				(category) =>
+					category.panel === activeCategory?.panel &&
+					!category.id.endsWith("-other")
+			)
+			.flatMap((category) => category.categoryIds)
+	);
 	// A search covers everything, like Jianying's 搜索全部特效 box.
 	const visibleEffects = query
 		? effects.filter((effect) => effect.name.toLowerCase().includes(query))
 		: activeCategory
-			? effects.filter(
-					(effect) =>
-						effect.panel === activeCategory.panel &&
-						effect.categoryIds.includes(activeCategory.id)
-				)
+			? effects.filter((effect) => {
+					if (effect.panel !== activeCategory.panel) return false;
+					if (isCatchAll) {
+						return !effect.categoryIds.some((id) => namedCategoryIds.has(id));
+					}
+					return effect.categoryIds.some((id) =>
+						activeCategory.categoryIds.includes(id)
+					);
+				})
 			: effects;
 
 	// Covers stream in through the main process at a small concurrency; the
@@ -275,9 +292,24 @@ export function JianyingEffectLabPanel({
 				data-testid="effect-lab-category-rail"
 			>
 				{(Object.keys(PANEL_LABELS) as JianyingEffectPanel[]).map((panel) => {
-					const panelCategories = categories.filter(
-						(category) => category.panel === panel
+					const named = new Set(
+						categories
+							.filter(
+								(category) =>
+									category.panel === panel && !category.id.endsWith("-other")
+							)
+							.flatMap((category) => category.categoryIds)
 					);
+					const panelCategories = categories.filter((category) => {
+						if (category.panel !== panel) return false;
+						// A catch-all with nothing left over would be an empty tab.
+						if (!category.id.endsWith("-other")) return true;
+						return effects.some(
+							(effect) =>
+								effect.panel === panel &&
+								!effect.categoryIds.some((id) => named.has(id))
+						);
+					});
 					if (panelCategories.length === 0) return null;
 					return (
 						<div key={panel} className="mb-2">
