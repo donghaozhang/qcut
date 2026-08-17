@@ -69,9 +69,40 @@ PixelSprint、RoughEdge、DistortChroma、CrossBlur。
 | blur-resolve-in | 模糊显现 | 单一 GaussianBlur 50→0 长缓清除 |
 | outline-trace-in | 逐字显现2 | AlphaOutline 描边 + 蓝→青→琥珀→珊瑚 循环色 |
 
+## 第二批(已合入)/ Second batch
+
+`keyframe-documents-lsanim-b.ts` —— 9 个出场/循环预设,用生成器
+`scratchpad/gen_lsanim.py`(映射表 + 缩放系数固化在代码里,避免多次
+转录漂移)批量产出后逐个复核:
+
+pixel-glow-out(像素辉光,Mosaic 解构)、brighten-fade-out(亮度渐变)、
+blur-fade-out(模糊淡出)、dust-scatter-out(破碎消散)、
+glitch-dissolve-out(故障消散)、smear-fade-out(文字淡隐)、
+energy-pulse-loop(能量脉冲)、flash-loop(文字亮闪)、
+color-flash-loop(闪色循环)
+
+## ⚠ 关键限制:运动在加密脚本里 / Motion lives in encrypted script
+
+生成 38 个候选后发现:**其中 34 个的字符运动在 `custom_script`
+(加密 .jsdat 表达式选择器)里,只有效果链可读**。移植它们只能得到
+"静态文字 + 光晕",名字里的"旋入/滑入/归位"全丢 —— 那是目录噪音,
+不是移植。
+
+因此筛选标准改为:**可读的效果链是否就是该预设的身份**。
+- 是(模糊淡出、故障消散、亮闪…)→ 移植
+- 否(发光旋入 的"旋"、左滑入场 的"滑"…)→ 跳过
+
+据此,65 个 lsanim 包的**实际可移植数约 13 个**(已全部完成),
+而非早先估计的 58。"58 个效果链全覆盖"只说明能力够,不代表内容够。
+
+人工复核发现并修正的三处生成偏差:
+1. 金粉拉开 与已移植的 light-wave-in 运动骨架逐字节相同(仅 tint 不同)→ 丢弃
+2. 横向分割 需 3 个 selector 做反向分离,单 selector 版丢了"分割"身份 → 丢弃
+3. 故障消散 色差 ×600 系数产出 300 px 分离(远超可读)→ 按曲线形状重标定到 26 px
+
 ## 下一步 / Next
 
-1. 继续移植剩余 41 个单 raster 包 + 20 个多 pass 包(纯转录,无引擎工作)
+1. ~~继续移植~~ ✅ 可移植的已做完(13 个)
 2. ~~raster 链式~~ ✅ 已建成
 3. 多 selector 支持 → 解锁 横向分割 类
 4. 6 种无对应效果按需评估(GodRay 出现 2 次,可能值得做)
