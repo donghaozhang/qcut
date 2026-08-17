@@ -15,6 +15,71 @@ import type { TextKeyframeDocument } from "./keyframe-documents-entrance-a";
 type Doc = TextKeyframeDocument;
 
 export const EXIT_LSANIM_DOCUMENTS_A: Record<string, Doc> = {
+	// 剪映 右移淡出 (7649346444947688746), D=3. The silhouette starts crumbling
+	// a third of the way in — RoughEdge chews the outline against a 0.15-cell
+	// noise field (edgeSize 0 → 3, noiseIntensity 0 → 0.5) — while a
+	// directional blur smears it rightward and both release at the very end.
+	// The erosion is the new GPU pass: displacement moves whole bands and
+	// cannot eat an edge.
+	"rough-fade-out": {
+		sequence: { unit: "all", order: "forward", staggerRatio: 0 },
+		effect: {
+			kind: "keyframes",
+			rasterAngleDeg: 0,
+			channels: {
+				roughEdgePx: [
+					{ t: 0, v: 0, outValue: 0, outTime: 0.11 },
+					{
+						t: 0.3333,
+						v: 0,
+						inValue: 0,
+						inTime: -0.1133,
+						outValue: 0,
+						outTime: 0.0313,
+					},
+					{
+						t: 0.4,
+						v: 0.5,
+						inValue: 0.357,
+						inTime: -0.017,
+						outValue: 0.5,
+						outTime: 0.143,
+					},
+					{
+						t: 0.8333,
+						v: 0.5,
+						inValue: 0.5,
+						inTime: -0.1473,
+						outValue: 0.213,
+						outTime: 0.065,
+					},
+					{ t: 1, v: 0.85, inValue: 0.7, inTime: -0.0723 },
+				],
+				roughEdgeNoise: [
+					{ t: 0, v: 0 },
+					{ t: 0.4, v: 0.5 },
+					{ t: 1, v: 0.6 },
+				],
+				dirBlurPx: [
+					{ t: 0, v: 0, outValue: 1.1, outTime: 0.2967 },
+					{
+						t: 0.6667,
+						v: 22,
+						inValue: 20.9,
+						inTime: -0.3,
+						outValue: 9.35,
+						outTime: 0.13,
+					},
+					{ t: 1, v: 0, inValue: 0, inTime: -0.145 },
+				],
+				opacity: [
+					{ t: 0, v: 1 },
+					{ t: 0.75, v: 1 },
+					{ t: 1, v: 0 },
+				],
+			},
+		},
+	},
 	// 剪映 文字消散 (D=3, DistortChroma + RadialBlur). The red and blue warps
 	// run exactly opposite (+5 / −5, same curve), which IS a chromatic
 	// separation — so the pass we already have covers it; only the naming
