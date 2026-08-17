@@ -19,6 +19,60 @@ import type { TextKeyframeDocument } from "./keyframe-documents-entrance-a";
 type Doc = TextKeyframeDocument;
 
 export const ENTRANCE_LSANIM_DOCUMENTS_A: Record<string, Doc> = {
+	// 剪映 缤纷冲屏 (7116829842271638053), D=2. Sixteen staggered ghost copies
+	// rush the screen behind a DeepGlow + radial blur, all painted through a
+	// four-colour gradient (ADBE_4ColorGradient, 20 references — the 缤纷 the
+	// name promises). The gradient is the spatial palette: each unit takes
+	// its tint by horizontal position, which is what those four colour layers
+	// do. The ghost stack is the echo pass; the glow and gaussian ride their
+	// own channels. Dropped: the per-instance 16-way stagger (our echo shells
+	// share one profile) and the gradient's own point motion.
+	"prism-rush-in": {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0.35 },
+		effect: {
+			kind: "keyframes",
+			palette: ["#50ff00", "#ecff00", "#ff00ff", "#ff00f8"],
+			channels: {
+				colorAmount: [
+					{ t: 0, v: 1 },
+					{ t: 0.65, v: 1 },
+					{ t: 1, v: 0 },
+				],
+				opacity: [
+					{ t: 0, v: 0 },
+					{ t: 0.12, v: 1 },
+					{ t: 1, v: 1 },
+				],
+				scaleX: [
+					{ t: 0, v: 1.6, outValue: 1.45, outTime: 0.1 },
+					{ t: 0.55, v: 1, inValue: 1.02, inTime: -0.22 },
+					{ t: 1, v: 1 },
+				],
+				scaleY: [
+					{ t: 0, v: 1.6, outValue: 1.45, outTime: 0.1 },
+					{ t: 0.55, v: 1, inValue: 1.02, inTime: -0.22 },
+					{ t: 1, v: 1 },
+				],
+				echoAmount: [
+					{ t: 0, v: 0.55 },
+					{ t: 0.5, v: 0.3 },
+					{ t: 0.85, v: 0 },
+					{ t: 1, v: 0 },
+				],
+				bloomIntensity: [
+					{ t: 0, v: 1.1 },
+					{ t: 0.6, v: 0.5 },
+					{ t: 1, v: 0 },
+				],
+				bloomRadiusPx: [{ t: 0, v: 22 }],
+				blurPx: [
+					{ t: 0, v: 6 },
+					{ t: 0.4, v: 0 },
+					{ t: 1, v: 0 },
+				],
+			},
+		},
+	},
 	// 剪映 烟花爆破 (7538330883162508570), D=3. The block bursts up from 30%
 	// scale and fades in while a warm DeepGlow (radius 600, tint
 	// (1, 0.736, 0.286)) flares at 1.05 exposure and burns out by 98%. The
