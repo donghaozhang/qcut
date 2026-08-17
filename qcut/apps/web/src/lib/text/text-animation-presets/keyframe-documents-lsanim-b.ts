@@ -373,6 +373,34 @@ export const EXIT_LSANIM_DOCUMENTS_A: Record<string, Doc> = {
 };
 
 export const LOOP_LSANIM_DOCUMENTS_A: Record<string, Doc> = {
+	// 剪映 彩色火焰 family. The source runs a multi-pass procedural fire that
+	// no drawImage composition can fake — it was the one class the earlier
+	// sweep correctly called out of reach, and the WebGL2 harness is what
+	// changed that. The pass grows fBm noise out of the glyph alpha (each
+	// pixel fed by the alpha below it, so the fire licks upward) and shades it
+	// through a blackbody ramp. Reach and blaze breathe over the cycle.
+	// GPU-only by design: without WebGL2 the block draws untouched rather
+	// than showing a flat orange stand-in.
+	"flame-loop": {
+		sequence: { unit: "all", order: "forward", staggerRatio: 0 },
+		effect: {
+			kind: "keyframes",
+			rasterEvolution: 3,
+			channels: {
+				flameIntensity: [
+					{ t: 0, v: 0.85 },
+					{ t: 0.35, v: 1.1 },
+					{ t: 0.7, v: 0.8 },
+					{ t: 1, v: 0.85 },
+				],
+				flameReach: [
+					{ t: 0, v: 1 },
+					{ t: 0.5, v: 1.35 },
+					{ t: 1, v: 1 },
+				],
+			},
+		},
+	},
 	// 剪映 雨刷 (7664907544720198953). Not a wipe at all — the block swings
 	// like a windshield wiper about a pivot below itself: 0 → −20° on quadOut
 	// over the first quarter, sweeping to +20° on quadInOut through the
