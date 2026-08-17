@@ -172,6 +172,26 @@ describe("JianyingEffectLabPanel", () => {
 		expect(screen.queryByTestId("effect-lab-card-jy-effect-1")).toBeNull();
 	});
 
+	it("folds a panel's categories away when its header is clicked", async () => {
+		status.mockResolvedValue(readyStatus([definition({})]));
+		render(<JianyingEffectLabPanel onApply={vi.fn()} />);
+
+		const header = await screen.findByTestId("effect-lab-panel-effects2");
+		expect(header).toHaveAttribute("aria-expanded", "true");
+		expect(screen.getByTestId("effect-lab-category-7728")).toBeInTheDocument();
+
+		fireEvent.click(header);
+		expect(header).toHaveAttribute("aria-expanded", "false");
+		expect(screen.queryByTestId("effect-lab-category-7728")).toBeNull();
+		// Collapsing only hides the tabs; the grid keeps showing the selection.
+		expect(
+			screen.getByTestId("effect-lab-card-jy-effect-1")
+		).toBeInTheDocument();
+
+		fireEvent.click(header);
+		expect(screen.getByTestId("effect-lab-category-7728")).toBeInTheDocument();
+	});
+
 	it("keeps the selection on the clicked panel when category ids collide", async () => {
 		status.mockResolvedValue({
 			...readyStatus([definition({})]),
