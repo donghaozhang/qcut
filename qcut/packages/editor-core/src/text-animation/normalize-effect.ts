@@ -896,41 +896,70 @@ export function normalizeTextAnimationEffect({
 		}
 		if (Object.keys(channels).length === 0) return null;
 		const colorTrack = normalizeColorTrack(record.colorTrack);
-		const selectorRecord = asRecord({ value: record.selector });
-		const selectorStart = selectorRecord
-			? normalizeTrack(selectorRecord.start)
-			: null;
-		const selectorEnd = selectorRecord
-			? normalizeTrack(selectorRecord.end)
-			: null;
-		const selector =
-			selectorRecord && selectorStart && selectorEnd
-				? {
-						start: selectorStart,
-						end: selectorEnd,
-						shape: oneOf({
-							value: selectorRecord.shape,
-							values: [
-								"square",
-								"rampUp",
-								"rampDown",
-								"triangle",
-								"round",
-								"smooth",
-							] as const,
-							fallback: "square" as const,
-						}),
-						feather: numberInRange({
-							value: selectorRecord.feather,
-							fallback: 0,
-							minimum: 0,
-							maximum: 1,
-						}),
-						...(selectorRecord.basedOn === "rank"
-							? { basedOn: "rank" as const }
-							: {}),
-					}
-				: undefined;
+		const normalizeSelector = (value: unknown) => {
+			const selectorRecord = asRecord({ value });
+			const selectorStart = selectorRecord
+				? normalizeTrack(selectorRecord.start)
+				: null;
+			const selectorEnd = selectorRecord
+				? normalizeTrack(selectorRecord.end)
+				: null;
+			if (!selectorRecord || !selectorStart || !selectorEnd) return undefined;
+			return {
+				start: selectorStart,
+				end: selectorEnd,
+				shape: oneOf({
+					value: selectorRecord.shape,
+					values: [
+						"square",
+						"rampUp",
+						"rampDown",
+						"triangle",
+						"round",
+						"smooth",
+					],
+					fallback: "square",
+				}),
+				feather: numberInRange({
+					value: selectorRecord.feather,
+					fallback: 0,
+					minimum: 0,
+					maximum: 1,
+				}),
+				...(selectorRecord.basedOn === "rank"
+					? { basedOn: "rank" as const }
+					: {}),
+			};
+		};
+		const selector = normalizeSelector(record.selector);
+		// Extra selector layers: each carries its own window and channels, so
+		// one document can move different runs of characters different ways.
+		const layers: {
+			selector?: ReturnType<typeof normalizeSelector>;
+			channels: Partial<
+				Record<(typeof KEYFRAME_CHANNELS)[number], TextKeyframePoint[]>
+			>;
+		}[] = [];
+		if (Array.isArray(record.layers)) {
+			for (const entry of record.layers.slice(0, 8)) {
+				const layerRecord = asRecord({ value: entry });
+				const layerChannels = asRecord({ value: layerRecord?.channels });
+				if (!layerRecord || !layerChannels) continue;
+				const built: Partial<
+					Record<(typeof KEYFRAME_CHANNELS)[number], TextKeyframePoint[]>
+				> = {};
+				for (const name of KEYFRAME_CHANNELS) {
+					const track = normalizeTrack(layerChannels[name]);
+					if (track) built[name] = track;
+				}
+				if (Object.keys(built).length === 0) continue;
+				const layerSelector = normalizeSelector(layerRecord.selector);
+				layers.push({
+					channels: built,
+					...(layerSelector ? { selector: layerSelector } : {}),
+				});
+			}
+		}
 		return {
 			kind: "keyframes",
 			channels,
@@ -964,6 +993,7 @@ export function normalizeTextAnimationEffect({
 					}
 				: {}),
 			...(selector ? { selector } : {}),
+			...(layers.length > 0 ? { layers } : {}),
 		};
 	}
 	if (record.kind === "colorCycle") {
