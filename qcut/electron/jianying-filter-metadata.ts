@@ -7,6 +7,8 @@ export {
 	findJianyingFilterCategories,
 	findJianyingFilterTitle,
 } from "./jianying-filter-metadata-lookup.js";
+export type { JianyingFilterCategoryCatalog } from "./jianying-filter-metadata-lookup.js";
+import type { JianyingFilterCategoryCatalog } from "./jianying-filter-metadata-lookup.js";
 import {
 	jianyingEffectCacheRoot,
 	type JianyingLutReference,
@@ -28,10 +30,6 @@ interface JianyingPanelCategory {
  * `order` follows Jianying's own panel ordering (e.g. 夏日/人像/风景/…);
  * `byResourceId` maps a filter resource id to its category names.
  */
-export interface JianyingFilterCategoryCatalog {
-	order: string[];
-	byResourceId: Map<string, string[]>;
-}
 
 /** One filter known to the local Jianying catalog metadata. */
 export interface JianyingKnownFilter {
