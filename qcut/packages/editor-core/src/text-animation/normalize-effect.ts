@@ -953,6 +953,9 @@ export function normalizeTextAnimationEffect({
 			Number.isFinite(record.rasterEvolution)
 				? { rasterEvolution: record.rasterEvolution }
 				: {}),
+			...(record.pivot === "bottomCenter"
+				? { pivot: "bottomCenter" as const }
+				: {}),
 			...(selector ? { selector } : {}),
 		};
 	}
