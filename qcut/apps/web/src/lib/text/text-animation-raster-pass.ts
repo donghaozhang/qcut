@@ -492,6 +492,25 @@ export function applyTextAnimationRasterPass({
 		});
 		return true;
 	}
+	if (raster.kind === "flame") {
+		const intensity = raster.intensity ?? 0;
+		if (intensity < 0.01) return false;
+		// GPU-only: the fBm fire has no honest 2D stand-in, so a machine
+		// without WebGL2 draws the untouched block rather than a fake.
+		const gpu = getTextAnimationGpuPass();
+		if (!gpu) return false;
+		const result = gpu.renderFlame({
+			source,
+			width,
+			height,
+			intensity,
+			reach: raster.reach ?? 1,
+			time: raster.evolution ?? 0,
+		});
+		if (!result) return false;
+		ctx.drawImage(result, dx, dy);
+		return true;
+	}
 	if (raster.kind === "bloom") {
 		const intensity = raster.intensity ?? 0;
 		const radiusPx = raster.radiusPx ?? 0;
