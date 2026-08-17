@@ -15,6 +15,115 @@ import type { TextKeyframeDocument } from "./keyframe-documents-entrance-a";
 type Doc = TextKeyframeDocument;
 
 export const EXIT_LSANIM_DOCUMENTS_A: Record<string, Doc> = {
+	// 剪映 文字消散 (D=3, DistortChroma + RadialBlur). The red and blue warps
+	// run exactly opposite (+5 / −5, same curve), which IS a chromatic
+	// separation — so the pass we already have covers it; only the naming
+	// differed. A radial blur spikes with them at the same instant, read here
+	// as an outward echo. Both clear by two-thirds, leaving the block to sit
+	// out the rest of the exit.
+	"chroma-dissolve-out": {
+		sequence: { unit: "all", order: "forward", staggerRatio: 0 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				rgbSplitPx: [
+					{ t: 0, v: 0, outValue: 5.28, outTime: 0.055 },
+					{
+						t: 0.1667,
+						v: 16,
+						inValue: 10.56,
+						inTime: -0.0567,
+						outValue: 10.72,
+						outTime: 0.165,
+					},
+					{
+						t: 0.6667,
+						v: 0,
+						inValue: 5.44,
+						inTime: -0.17,
+						outValue: 0,
+						outTime: 0.11,
+					},
+					{ t: 1, v: 0, inValue: 0, inTime: -0.1133 },
+				],
+				echoAmount: [
+					{ t: 0, v: 0 },
+					{ t: 0.1667, v: -0.3 },
+					{ t: 0.3333, v: 0 },
+					{ t: 1, v: 0 },
+				],
+				opacity: [
+					{ t: 0, v: 1 },
+					{ t: 0.55, v: 1 },
+					{ t: 1, v: 0 },
+				],
+			},
+		},
+	},
+	// 剪映 红色灰尘 (D=3). Turbulence roughens the glyph edges while a
+	// PixelSprint pushes pixels out from the centre (intensity 0.25, centre
+	// 0.5/0.5 — an outward echo here) and a Dust pass sweeps the block away.
+	// The dust progress drives the fade since our shatter cannot chain with a
+	// keyframe document.
+	"red-dust-out": {
+		sequence: { unit: "all", order: "forward", staggerRatio: 0 },
+		effect: {
+			kind: "keyframes",
+			rasterScale: 16,
+			rasterEvolution: 2,
+			colorTrack: [
+				{ t: 0, v: [1, 0.45, 0.35] },
+				{ t: 1, v: [1, 0.3, 0.2] },
+			],
+			channels: {
+				colorAmount: [{ t: 0, v: 0.7 }],
+				displaceAmplitudePx: [
+					{ t: 0, v: 0, outValue: 0, outTime: 0.0807 },
+					{
+						t: 0.2443,
+						v: 6,
+						inValue: 6,
+						inTime: -0.0807,
+						outValue: 6,
+						outTime: 0.066,
+					},
+					{
+						t: 0.4443,
+						v: 6,
+						inValue: 6,
+						inTime: -0.066,
+						outValue: 6,
+						outTime: 0.1833,
+					},
+					{ t: 1, v: 4.2, inValue: 4.2, inTime: -0.189 },
+				],
+				echoAmount: [
+					{ t: 0, v: 0, outValue: 0, outTime: 0.11 },
+					{
+						t: 0.3333,
+						v: -0.25,
+						inValue: -0.25,
+						inTime: -0.11,
+						outValue: -0.25,
+						outTime: 0.22,
+					},
+					{ t: 1, v: -0.25, inValue: -0.25, inTime: -0.2267 },
+				],
+				opacity: [
+					{ t: 0, v: 1, outValue: 1, outTime: 0.055 },
+					{
+						t: 0.1667,
+						v: 1,
+						inValue: 1,
+						inTime: -0.055,
+						outValue: 0.67,
+						outTime: 0.275,
+					},
+					{ t: 1, v: 0, inValue: 0.34, inTime: -0.2833 },
+				],
+			},
+		},
+	},
 	// 剪映 横向分割 (7563555749822090522), D=3. The line tears in half: three
 	// selectors share one clock and differ only by SHAPE — rampDown weights
 	// the leading characters (they lift 1.5 em), rampUp weights the trailing
@@ -373,6 +482,29 @@ export const EXIT_LSANIM_DOCUMENTS_A: Record<string, Doc> = {
 };
 
 export const LOOP_LSANIM_DOCUMENTS_A: Record<string, Doc> = {
+	// 剪映 文字淡变 (D=3, CrossBlur). radiusX and radiusY are keyframed
+	// identically (0 → 1.2 → 0), so the "cross" blur is isotropic here and
+	// collapses onto our single blur channel — a breath in and out of focus.
+	"soft-focus-loop": {
+		sequence: { unit: "all", order: "forward", staggerRatio: 0 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				blurPx: [
+					{ t: 0, v: 0, outValue: 0.72, outTime: 0.2227 },
+					{
+						t: 0.5,
+						v: 14.4,
+						inValue: 13.68,
+						inTime: -0.225,
+						outValue: 13.68,
+						outTime: 0.2227,
+					},
+					{ t: 1, v: 0, inValue: 0.72, inTime: -0.225 },
+				],
+			},
+		},
+	},
 	// 剪映 彩色火焰 family. The source runs a multi-pass procedural fire that
 	// no drawImage composition can fake — it was the one class the earlier
 	// sweep correctly called out of reach, and the WebGL2 harness is what
