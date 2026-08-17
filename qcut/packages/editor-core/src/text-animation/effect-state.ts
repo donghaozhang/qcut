@@ -622,6 +622,14 @@ function keyframesVisual({
 			radiusPx: Math.max(0, channel("bloomRadiusPx") ?? layout.fontSize * 0.5),
 		});
 	}
+	const godRayIntensity = channel("godRayIntensity");
+	if (godRayIntensity !== undefined && godRayIntensity > 0.01) {
+		raster.push({
+			kind: "godRay",
+			intensity: godRayIntensity,
+			reach: Math.max(0.05, channel("godRayReach") ?? 1),
+		});
+	}
 	const flameIntensity = channel("flameIntensity");
 	if (flameIntensity !== undefined && flameIntensity > 0.01) {
 		raster.push({
