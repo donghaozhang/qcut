@@ -64,6 +64,57 @@ function createMotionCatalogEntry({
 	};
 }
 
+/**
+ * 渐显开幕 is a one-shot: the picture rises out of black and then stays put.
+ * The factory cannot express that — a bare cosine channel would fade back out
+ * halfway through the clip — so the entry is written out to carry a render
+ * window, which ends the channel once the fade has completed.
+ */
+const FADE_OPEN_ENTRY: VisualEffectCatalogEntry = {
+	preset: {
+		id: "basic-fade-open",
+		name: "Fade Open",
+		description: "The picture rises out of black over the first beat.",
+		category: "basic",
+		icon: "FO",
+		parameters: {},
+		effectType: "motion",
+		renderProgram: {
+			version: 1,
+			stages: [
+				{
+					kind: "motion",
+					intensity: 1,
+					channels: [
+						{
+							property: "opacity",
+							waveform: "cosine",
+							amplitude: -1,
+							frequencyHz: 0.1445,
+						},
+					],
+					window: { startSeconds: 0, endSeconds: 1.73 },
+				},
+			],
+		},
+	},
+	assetVersion: 1,
+	localizedName: "渐显开幕",
+	localizedDescription: "画面从纯黑渐渐显现，约 1.7 秒完成开幕。",
+	family: "visual",
+	category: "basic",
+	tags: ["fade", "open", "intro", "basic"],
+	releasedAt: "2026-08-17T00:00:00.000Z",
+	popularityScore: 90,
+	publication: "published",
+	render: {
+		kind: "motion",
+		previewBackend: "canvas",
+		exportBackend: "ffmpeg-filter-complex",
+		parity: "verified",
+	},
+};
+
 export const EXTRA_MOTION_EFFECT_CATALOG = [
 	createMotionCatalogEntry({
 		id: "camera-slow-zoom",
@@ -324,4 +375,5 @@ export const EXTRA_MOTION_EFFECT_CATALOG = [
 		releasedAt: "2026-07-27T00:00:00.000Z",
 		popularityScore: 92,
 	}),
+	FADE_OPEN_ENTRY,
 ] as const satisfies readonly VisualEffectCatalogEntry[];
