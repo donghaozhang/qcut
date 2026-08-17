@@ -8,6 +8,7 @@ import type {
 } from "../jianying-effect-contract.js";
 import { getFFmpegPath } from "../ffmpeg/paths.js";
 import { buildJianyingRawDecodeFilter } from "../jianying-transition/video-filters.js";
+import { jianyingModelDirectory } from "./model-directory.js";
 import type { JianyingEffectRuntimeInspection } from "./runtime-discovery.js";
 
 const MAX_CAPTURED_PROCESS_OUTPUT = 8192;
@@ -148,6 +149,25 @@ function bridgeEnvironment({
 	};
 }
 
+/**
+ * CV packages (matting, face, skeleton …) only render when the bridge can
+ * resolve their models; supplying the directory is what switches the native
+ * side into algorithm mode. Plain blit packages must NOT get it — that mode
+ * also changes how frames are uploaded.
+ */
+function algorithmEnvironment({
+	definition,
+}: {
+	definition: JianyingEffectDefinition;
+}): NodeJS.ProcessEnv {
+	if (!definition.requiresAlgorithm) return {};
+	const modelDirectory = jianyingModelDirectory();
+	if (!modelDirectory) {
+		throw new Error(`未找到剪映算法模型目录：${definition.name}`);
+	}
+	return { JY_MODEL_DIRECTORY: modelDirectory };
+}
+
 export async function renderJianyingEffectClip({
 	inspection,
 	definition,
@@ -204,6 +224,7 @@ export async function renderJianyingEffectClip({
 			env: bridgeEnvironment({
 				inspection,
 				extra: {
+					...algorithmEnvironment({ definition }),
 					JY_EFFECT_PACKAGE: definition.packagePath,
 					JY_RAW_INPUT: rawInput,
 					JY_RAW_OUTPUT: rawOutput,
