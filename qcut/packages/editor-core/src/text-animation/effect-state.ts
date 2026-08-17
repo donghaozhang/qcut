@@ -643,9 +643,88 @@ function keyframesVisual({
 			unitPosition,
 			progress: linearProgress,
 		});
-		return blendVisualTowardIdentity({ visual, weight });
+		return composeKeyframeLayers({
+			base: blendVisualTowardIdentity({ visual, weight }),
+			effect,
+			linearProgress,
+			layout,
+			unit,
+			unitCount,
+		});
 	}
-	return visual;
+	return composeKeyframeLayers({
+		base: visual,
+		effect,
+		linearProgress,
+		layout,
+		unit,
+		unitCount,
+	});
+}
+
+/**
+ * Fold the effect's extra selector layers onto the base visual. Each layer is
+ * its own keyframes document — its channels evaluated at the shared clock and
+ * scaled by its own selector window — so a document can move one half of a
+ * line up while another goes down (Jianying's 横向分割).
+ */
+function composeKeyframeLayers({
+	base,
+	effect,
+	linearProgress,
+	layout,
+	unit,
+	unitCount,
+}: {
+	base: TextAnimationVisualState;
+	effect: Extract<TextAnimationEffect, { kind: "keyframes" }>;
+	linearProgress: number;
+	layout: TextAnimationLayout;
+	unit?: CompiledTextAnimationUnit;
+	unitCount?: number;
+}): TextAnimationVisualState {
+	if (!effect.layers || effect.layers.length === 0) return base;
+	let result = base;
+	for (const layer of effect.layers) {
+		const layerVisual = keyframesVisual({
+			effect: {
+				kind: "keyframes",
+				channels: layer.channels,
+				...(layer.selector ? { selector: layer.selector } : {}),
+			},
+			linearProgress,
+			layout,
+			...(unit ? { unit } : {}),
+			...(unitCount !== undefined ? { unitCount } : {}),
+		});
+		result = {
+			...result,
+			opacity: result.opacity * layerVisual.opacity,
+			translateX: result.translateX + layerVisual.translateX,
+			translateY: result.translateY + layerVisual.translateY,
+			scaleX: result.scaleX * layerVisual.scaleX,
+			scaleY: result.scaleY * layerVisual.scaleY,
+			rotationDeg: result.rotationDeg + layerVisual.rotationDeg,
+			blurPx: Math.max(result.blurPx, layerVisual.blurPx),
+			...(layerVisual.colorMix ? { colorMix: layerVisual.colorMix } : {}),
+			...(layerVisual.postProcess?.raster
+				? {
+						postProcess: {
+							...(result.postProcess ?? {
+								trailSamples: 0,
+								trailStrength: 0,
+								trapezoidAmount: 0,
+							}),
+							raster: [
+								...(result.postProcess?.raster ?? []),
+								...layerVisual.postProcess.raster,
+							],
+						},
+					}
+				: {}),
+		};
+	}
+	return result;
 }
 
 function colorCycleVisual({
