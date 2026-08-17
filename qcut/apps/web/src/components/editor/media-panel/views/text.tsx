@@ -1649,7 +1649,7 @@ const EMPTY_TEXT_STYLE_LAB_RESULT: JianyingTextStyleLabListResult = {
 	invalidPackageCount: 0,
 };
 
-function TextLibraryNav({
+export function TextLibraryNav({
 	activeCategoryId,
 	className,
 	expandedGroupIds,
