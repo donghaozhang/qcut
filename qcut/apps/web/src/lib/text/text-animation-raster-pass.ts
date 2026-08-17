@@ -492,6 +492,47 @@ export function applyTextAnimationRasterPass({
 		});
 		return true;
 	}
+	if (raster.kind === "layered") {
+		const offsetX = raster.offsetPx ?? 0;
+		const offsetY = raster.amplitudePx ?? 0;
+		if (Math.abs(offsetX) < 0.5 && Math.abs(offsetY) < 0.5) return false;
+		// Jianying's LayeredReplacement: copies stacked along one direction at
+		// a fixed interval, the far ones faintest, crisp original on top.
+		const samples = Math.max(2, Math.min(10, raster.samples ?? 6));
+		const previousAlpha = ctx.globalAlpha;
+		for (let index = samples; index >= 1; index--) {
+			const step = index / samples;
+			ctx.globalAlpha = previousAlpha * 0.3 * (1 - step * 0.8);
+			ctx.drawImage(
+				source,
+				dx + offsetX * step,
+				dy + offsetY * step,
+				width,
+				height
+			);
+		}
+		ctx.globalAlpha = previousAlpha;
+		ctx.drawImage(source, dx, dy, width, height);
+		return true;
+	}
+	if (raster.kind === "roughEdge") {
+		const edgeSize = raster.amplitudePx ?? 0;
+		if (edgeSize < 0.01) return false;
+		// GPU-only: eating an alpha edge is per-pixel work.
+		const gpu = getTextAnimationGpuPass();
+		if (!gpu) return false;
+		const result = gpu.renderRoughEdge({
+			source,
+			width,
+			height,
+			edgeSize,
+			noiseIntensity: raster.intensity ?? 0.5,
+			noiseScale: raster.noiseScale ?? 0.15,
+		});
+		if (!result) return false;
+		ctx.drawImage(result, dx, dy);
+		return true;
+	}
 	if (raster.kind === "godRay") {
 		const intensity = raster.intensity ?? 0;
 		if (intensity < 0.01) return false;
