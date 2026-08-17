@@ -361,6 +361,90 @@ function drawDirectionalBlur({
 }
 const DIRECTIONAL_BLUR_TAPS = 9;
 
+/**
+ * Run a chain of passes. Each pass reads the previous result from a ping-pong
+ * buffer; only the last one draws into `ctx`, so the caller sees a single
+ * composite. A pass that declines (returns false) is skipped without breaking
+ * the chain. Falls back to the single-pass path when only one is asked for.
+ */
+export function applyTextAnimationRasterPasses({
+	ctx,
+	source,
+	width,
+	height,
+	dx,
+	dy,
+	rasters,
+}: {
+	ctx: CanvasTextContext;
+	source: CanvasImageSource;
+	width: number;
+	height: number;
+	dx: number;
+	dy: number;
+	rasters: readonly TextAnimationRasterEffectState[];
+}): boolean {
+	if (rasters.length === 0) return false;
+	if (rasters.length === 1) {
+		const only = rasters[0];
+		if (!only) return false;
+		return applyTextAnimationRasterPass({
+			ctx,
+			source,
+			width,
+			height,
+			dx,
+			dy,
+			raster: only,
+		});
+	}
+	let current: CanvasImageSource = source;
+	let drewAny = false;
+	// All but the last pass render into a buffer at the origin; the last one
+	// lands in the destination context at (dx, dy).
+	for (let index = 0; index < rasters.length; index++) {
+		const raster = rasters[index];
+		if (!raster) continue;
+		const isLast = index === rasters.length - 1;
+		if (isLast) {
+			const drew = applyTextAnimationRasterPass({
+				ctx,
+				source: current,
+				width,
+				height,
+				dx,
+				dy,
+				raster,
+			});
+			if (!drew && !drewAny) return false;
+			if (!drew) ctx.drawImage(current, dx, dy, width, height);
+			return true;
+		}
+		const buffer = acquireTextAnimationRaster({
+			channel: index % 2 === 0 ? "post-chain-a" : "post-chain-b",
+			width,
+			height,
+		});
+		if (!buffer) continue;
+		buffer.ctx.clearRect(0, 0, width, height);
+		const drew = applyTextAnimationRasterPass({
+			ctx: buffer.ctx,
+			source: current,
+			width,
+			height,
+			dx: 0,
+			dy: 0,
+			raster,
+		});
+		if (drew) {
+			current = buffer.canvas as CanvasImageSource;
+			drewAny = true;
+		}
+	}
+	// Every pass declined; let the caller draw the untouched raster.
+	return false;
+}
+
 export function applyTextAnimationRasterPass({
 	ctx,
 	source,
