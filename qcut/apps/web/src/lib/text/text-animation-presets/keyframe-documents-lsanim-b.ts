@@ -270,6 +270,36 @@ export const EXIT_LSANIM_DOCUMENTS_A: Record<string, Doc> = {
 };
 
 export const LOOP_LSANIM_DOCUMENTS_A: Record<string, Doc> = {
+	// 剪映 雨刷 (7664907544720198953). Not a wipe at all — the block swings
+	// like a windshield wiper about a pivot below itself: 0 → −20° on quadOut
+	// over the first quarter, sweeping to +20° on quadInOut through the
+	// middle half, then easing back on quadIn. The source drives it from the
+	// caption page's own progress and rotates the whole transform, so this is
+	// a loop document with a bottom pivot rather than a per-word mode. The
+	// three easing segments are baked to keys here; angles are negated for
+	// CSS's clockwise-positive convention.
+	"wiper-swing": {
+		sequence: { unit: "all", order: "forward", staggerRatio: 0 },
+		effect: {
+			kind: "keyframes",
+			pivot: "bottomCenter",
+			channels: {
+				rotationDeg: [
+					{ t: 0, v: 0 },
+					{ t: 0.1, v: 12.8 },
+					{ t: 0.15, v: 16.8 },
+					{ t: 0.25, v: 20 },
+					{ t: 0.4, v: 12.8 },
+					{ t: 0.5, v: 0 },
+					{ t: 0.6, v: -12.8 },
+					{ t: 0.75, v: -20 },
+					{ t: 0.85, v: -16.8 },
+					{ t: 0.9, v: -12.8 },
+					{ t: 1, v: 0 },
+				],
+			},
+		},
+	},
 	// 剪映 能量脉冲 (D=3). A turbulence field breathes through the glyph edges
 	// each cycle. Dropped: the RadianceGlow angle sweep (our bloom has no
 	// directional term).
