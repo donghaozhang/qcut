@@ -2,6 +2,7 @@
 
 #include "effect-probe.h"
 
+#include "filter-host-support.h"
 #include "graphics-probe.h"
 #include "probe-utils.h"
 
@@ -96,10 +97,50 @@ constexpr std::string_view kConvertMetalTextureInPlace =
 constexpr std::string_view kImageAnchorSymbol =
     "_ZN13AmazingEngine17TransitionSegmentC1Ev";
 
+/**
+ * CV packages (matting, face, skeleton …) only render when the host both
+ * resolves their models and hands the algorithm a native, CVPixelBuffer-backed
+ * input texture. Both are keyed off JY_MODEL_DIRECTORY: with no model
+ * directory the effect is a plain blit package and takes the original path.
+ */
+[[nodiscard]] const char* effectModelDirectory() {
+  return std::getenv("JY_MODEL_DIRECTORY");
+}
+
+[[nodiscard]] bool effectAlgorithmEnabled() {
+  return effectModelDirectory() != nullptr;
+}
+
+/**
+ * The third flag makes the effect sample the native buffer with the vertical
+ * convention the algorithm uses; without it a delivered mask arrives mirrored.
+ * Overridable for probing, but the default is the verified combination.
+ */
+[[nodiscard]] std::array<bool, 3> effectNativeTextureFlags() {
+  const char* value = std::getenv("JY_NATIVE_TEXTURE_FLAGS");
+  if (value == nullptr) return {false, false, true};
+  const std::string_view flags(value);
+  if (flags.size() != 3 ||
+      !std::all_of(flags.begin(), flags.end(),
+                   [](char flag) { return flag == '0' || flag == '1'; })) {
+    throw std::runtime_error(
+        "JY_NATIVE_TEXTURE_FLAGS must contain exactly three 0/1 values");
+  }
+  return {flags[0] == '1', flags[1] == '1', flags[2] == '1'};
+}
+
 using ObjectMethod = void (*)(void*);
 using GetObjectMethod = void* (*)(const void*);
+/**
+ * The runtime asks the host to turn a logical model name into a local path.
+ * Leaving this null is what makes CV effects render as a silent no-op: the
+ * algorithm subsystem logs "initAlgorithm: finder is null" and every frame
+ * passes through untouched.
+ */
+using EffectResourceFinderMethod = char* (*)(void*, const char*, const char*);
 using CreateSwingManagerApiMethod = int (*)(void**, unsigned int, unsigned int,
-                                            void*, bool, void*);
+                                            EffectResourceFinderMethod, bool,
+                                            void*);
 using DestroySwingManagerApiMethod = int (*)(void*);
 using CreateSegmentApiMethod = int (*)(void*, void**, int, const char*);
 using DestroySegmentApiMethod = int (*)(void*);
@@ -278,9 +319,14 @@ class SwingManagerHandle {
   SwingManagerHandle(const EffectSymbols& symbols, int width, int height,
                      void* graphicsDevice)
       : symbols_(symbols) {
+    // A CV package needs its models resolved through the finder; a plain blit
+    // package does not, and passing a finder that cannot answer crashes the
+    // runtime, so this follows whether a model directory was supplied.
     const int result = symbols.createSwingManager(
         &manager_, static_cast<unsigned int>(width),
-        static_cast<unsigned int>(height), nullptr, false, graphicsDevice);
+        static_cast<unsigned int>(height),
+        effectAlgorithmEnabled() ? &jianying_probe::findModelResource : nullptr,
+        false, graphicsDevice);
     if (result != 0) {
       if (manager_ != nullptr) {
         static_cast<void>(symbols.destroySwingManager(manager_));
@@ -495,6 +541,26 @@ struct EffectRenderContext {
 
 }  // namespace
 
+namespace {
+/**
+ * Owns the catalog for the process lifetime so the finder stays valid for as
+ * long as the runtime might call back into it. The runtime segfaults if the
+ * finder ever answers with nothing, so the catalog must outlive every render.
+ */
+std::unique_ptr<jianying_probe::ModelCatalog> gEffectModelCatalog;
+std::unique_ptr<jianying_probe::CatalogRegistration> gEffectCatalogRegistration;
+
+void activateEffectModelCatalog() {
+  const char* directory = effectModelDirectory();
+  if (directory == nullptr || gEffectModelCatalog != nullptr) return;
+  gEffectModelCatalog =
+      std::make_unique<jianying_probe::ModelCatalog>(fs::path(directory));
+  gEffectCatalogRegistration =
+      std::make_unique<jianying_probe::CatalogRegistration>(
+          *gEffectModelCatalog);
+}
+}  // namespace
+
 struct EffectPixelSession::Impl {
   EffectSymbols symbols;
   GraphicsProbeSession graphics;
@@ -503,7 +569,9 @@ struct EffectPixelSession::Impl {
   Impl(const fs::path& runtimeRoot, const fs::path& packagePath, int width,
        int height, double durationSeconds,
        std::span<const EffectAdjustParameter> adjustParameters)
-      : symbols(loadEffectCore(runtimeRoot)),
+      // The catalog has to be live before the runtime loads, because the
+      // manager resolves models during creation.
+      : symbols((activateEffectModelCatalog(), loadEffectCore(runtimeRoot))),
         graphics(runtimeRoot, width, height),
         context{
             .symbols = symbols,
@@ -516,12 +584,19 @@ struct EffectPixelSession::Impl {
   [[nodiscard]] EffectPixelFrameResult renderFrame(
       const EffectSessionFrameRequest& request) {
     context.seconds = request.seconds;
+    // A plain 2D upload never reaches the algorithm graph — the runtime reports
+    // "algorithm input buffer is null" and every frame passes through. The
+    // algorithm reads from the native buffer instead, so CV renders need one.
+    static const bool useNativeTextures = effectAlgorithmEnabled();
+    static const std::array<bool, 3> nativeFlags = effectNativeTextureFlags();
     GraphicsFrameProbeResult result = graphics.renderFrame({
         .renderer = renderWithEffectHost,
         .callbackContext = &context,
         .inputAPixels = request.inputPixels,
         .inputBPixels = request.inputPixels,
         .verifyInputReadback = false,
+        .useNativeInputTextures = useNativeTextures,
+        .nativeTextureFlags = nativeFlags,
     });
     return {
         .rendered = result.rendered,
