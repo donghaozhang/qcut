@@ -322,6 +322,59 @@ describe("keyframes effect", () => {
 		).toEqual(["displace", "rgbSplit", "bloom"]);
 	});
 
+	it("splits a line with per-layer selector windows", () => {
+		// Two windows over four characters: the first half lifts, the second
+		// half drops — Jianying's 横向分割 shape.
+		const effect: TextAnimationEffect = {
+			kind: "keyframes",
+			channels: { opacity: [{ t: 0, v: 1 }] },
+			layers: [
+				{
+					selector: {
+						start: [{ t: 0, v: 0 }],
+						end: [{ t: 0, v: 0.5 }],
+						shape: "square",
+						feather: 0,
+					},
+					channels: { translateYEm: [{ t: 0, v: -1 }] },
+				},
+				{
+					selector: {
+						start: [{ t: 0, v: 0.5 }],
+						end: [{ t: 0, v: 1 }],
+						shape: "square",
+						feather: 0,
+					},
+					channels: { translateYEm: [{ t: 0, v: 1 }] },
+				},
+			],
+		};
+		const element = createElement({
+			overrides: {
+				content: "ABCD",
+				duration: 3,
+				textAnimations: createAnimation({
+					entrance: createPhase({
+						effect,
+						unit: "grapheme",
+						target: "text",
+						duration: 1,
+					}),
+				}),
+			},
+		});
+		const state = evaluateTextAnimationFrame({
+			compiled: compileTextAnimation({ element, fps: 100 }),
+			frame: 50,
+			layout: createLayout({ content: "ABCD" }),
+		});
+		const shifts = state.units.map((unit) => unit?.visual.translateY ?? 0);
+		// Leading characters take the first window (up, negative Y), trailing
+		// ones the second (down) — the layers do not cancel.
+		expect(shifts[0]).toBeLessThan(0);
+		expect(shifts[3]).toBeGreaterThan(0);
+	});
+
 	it("wraps marquee characters around the period seamlessly", () => {
 		const element = createElement({
 			overrides: {
