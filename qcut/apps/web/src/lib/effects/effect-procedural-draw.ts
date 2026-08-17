@@ -46,7 +46,7 @@ export function decorationStages({
 
 /** Decorations that render identically for every frame (export bakes 1 frame). */
 const STATIC_DECORATION_VARIANTS: ReadonlySet<EffectDecorationVariant> =
-	new Set(["grid", "glass-shatter", "dashed-ring"]);
+	new Set(["grid", "glass-shatter", "dashed-ring", "letterbox"]);
 
 /** Static decorations render identically for every frame (bake 1 frame). */
 export function isDecorationStageAnimated({
@@ -573,6 +573,23 @@ function drawGlassShatter({
 	context.globalAlpha = 1;
 }
 
+/** 电影感画幅: fixed cinematic bars, sized to the 2.807:1 window Jianying uses. */
+function drawLetterbox({
+	context,
+	stage,
+	width,
+	height,
+}: Omit<DecorationDrawArgs, "timeSeconds">) {
+	const visibleHeight = width / 2.807;
+	const barHeight = Math.round((height - visibleHeight) / 2);
+	if (barHeight <= 0) return;
+	context.globalAlpha = stage.opacity;
+	context.fillStyle = stage.color;
+	context.fillRect(0, 0, width, barHeight);
+	context.fillRect(0, height - barHeight, width, barHeight);
+	context.globalAlpha = 1;
+}
+
 function drawDashedRing({
 	context,
 	stage,
@@ -663,6 +680,8 @@ export function drawDecorationStageFrame({
 		drawGlassShatter({ context, stage, width, height });
 	} else if (stage.variant === "dashed-ring") {
 		drawDashedRing({ context, stage, width, height });
+	} else if (stage.variant === "letterbox") {
+		drawLetterbox({ context, stage, width, height });
 	} else {
 		drawFloatingText(args);
 	}
