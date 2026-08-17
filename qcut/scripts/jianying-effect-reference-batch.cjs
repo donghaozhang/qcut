@@ -188,10 +188,34 @@ async function downloadPackage(item) {
 	fs.mkdirSync(dest, { recursive: true });
 	const zipPath = path.join(dest, "__package.zip");
 	fs.writeFileSync(zipPath, data);
-	const unzip = spawnSync("unzip", ["-o", "-q", zipPath, "-d", dest]);
-	fs.rmSync(zipPath, { force: true });
-	if (unzip.status !== 0) {
-		throw new Error(`unzip failed: ${unzip.stderr?.toString().trim()}`);
+	try {
+		// Same containment check as electron/jianying-effect/download.ts:
+		// reject traversal and absolute entries before anything is extracted.
+		const listing = spawnSync("unzip", ["-Z1", zipPath], {
+			maxBuffer: 32 * 1024 * 1024,
+		});
+		if (listing.status !== 0) {
+			throw new Error(
+				`unzip listing failed: ${listing.stderr?.toString().trim()}`
+			);
+		}
+		const entries = listing.stdout.toString().split("\n").filter(Boolean);
+		const unsafe = entries.filter(
+			(entry) =>
+				entry.startsWith("/") ||
+				entry.startsWith("\\") ||
+				/^[A-Za-z]:/.test(entry) ||
+				entry.split(/[\\/]/).some((segment) => segment === "..")
+		);
+		if (unsafe.length > 0) {
+			throw new Error(`unsafe zip entry: ${unsafe[0]}`);
+		}
+		const unzip = spawnSync("unzip", ["-o", "-q", zipPath, "-d", dest]);
+		if (unzip.status !== 0) {
+			throw new Error(`unzip failed: ${unzip.stderr?.toString().trim()}`);
+		}
+	} finally {
+		fs.rmSync(zipPath, { force: true });
 	}
 	await sleep(DOWNLOAD_DELAY_MS);
 	return dest;
