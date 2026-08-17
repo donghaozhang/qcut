@@ -170,4 +170,25 @@ describe("JianyingEffectLabPanel", () => {
 		).toBeInTheDocument();
 		expect(screen.queryByTestId("effect-lab-card-jy-effect-1")).toBeNull();
 	});
+
+	it("keeps the selection on the clicked panel when category ids collide", async () => {
+		status.mockResolvedValue({
+			...readyStatus([definition({})]),
+			categories: [
+				{ id: "7728", name: "基础", panel: "effects2" },
+				{ id: "9001", name: "热门", panel: "effects2" },
+				{ id: "9001", name: "道具", panel: "face-prop" },
+			],
+		});
+		render(<JianyingEffectLabPanel onApply={vi.fn()} />);
+		await screen.findByTestId("effect-lab-card-jy-effect-1");
+
+		// The same id exists in both panels; clicking the face-prop twin must
+		// activate that panel's chip, not the first id match.
+		const twins = screen.getAllByTestId("effect-lab-category-9001");
+		expect(twins).toHaveLength(2);
+		fireEvent.click(twins[1]);
+		expect(twins[1].className).toContain("text-primary");
+		expect(twins[0].className).not.toContain("text-primary");
+	});
 });
