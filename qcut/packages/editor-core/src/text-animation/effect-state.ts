@@ -622,6 +622,15 @@ function keyframesVisual({
 			radiusPx: Math.max(0, channel("bloomRadiusPx") ?? layout.fontSize * 0.5),
 		});
 	}
+	const flameIntensity = channel("flameIntensity");
+	if (flameIntensity !== undefined && flameIntensity > 0.01) {
+		raster.push({
+			kind: "flame",
+			intensity: flameIntensity,
+			reach: Math.max(0.05, channel("flameReach") ?? 1),
+			evolution: linearProgress * (effect.rasterEvolution ?? 1),
+		});
+	}
 	if (raster.length > 0) {
 		visual.postProcess = {
 			trailSamples: visual.postProcess?.trailSamples ?? 0,
