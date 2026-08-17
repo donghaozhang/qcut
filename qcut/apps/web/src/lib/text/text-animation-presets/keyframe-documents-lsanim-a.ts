@@ -19,6 +19,90 @@ import type { TextKeyframeDocument } from "./keyframe-documents-entrance-a";
 type Doc = TextKeyframeDocument;
 
 export const ENTRANCE_LSANIM_DOCUMENTS_A: Record<string, Doc> = {
+	// 剪映 脉冲光束 (D=3, GodRay + LinearWipe). Two selector windows arrive
+	// from different distances — one from four text-heights up, one from a
+	// single height — while a light source sweeps from below the block to
+	// above it (center_y −0.5 → 0.5) casting shafts off the strokes, then
+	// cuts out at 100%. Both new capabilities meet here: the layers keep the
+	// two arrivals from cancelling, and the shafts are the GPU god-ray pass.
+	// Dropped: the LinearWipe (its own reveal is subsumed by the arrivals)
+	// and the light's horizontal travel — ours stays centred.
+	"pulse-beam-in": {
+		sequence: { unit: "grapheme", order: "forward", staggerRatio: 0.3 },
+		effect: {
+			kind: "keyframes",
+			channels: {
+				opacity: [
+					{ t: 0, v: 0 },
+					{ t: 0.1, v: 1 },
+					{ t: 1, v: 1 },
+				],
+				godRayIntensity: [
+					{ t: 0, v: 1, outValue: 1, outTime: 0.2457 },
+					{
+						t: 0.7223,
+						v: 1,
+						inValue: 1,
+						inTime: -0.2383,
+						outValue: 1,
+						outTime: 0.0917,
+					},
+					{ t: 1, v: 0, inValue: 0, inTime: -0.0943 },
+				],
+				godRayReach: [
+					{ t: 0, v: 1.4 },
+					{ t: 0.889, v: 0.7 },
+					{ t: 1, v: 0.7 },
+				],
+			},
+			layers: [
+				{
+					selector: {
+						start: [{ t: 0, v: 0 }],
+						end: [{ t: 0, v: 1 }],
+						shape: "rampDown",
+						feather: 1,
+					},
+					channels: {
+						translateYEm: [
+							{ t: 0, v: -4, outValue: -4, outTime: 0.275 },
+							{
+								t: 0.8333,
+								v: 0,
+								inValue: 0,
+								inTime: -0.275,
+								outValue: 0,
+								outTime: 0.055,
+							},
+							{ t: 1, v: 0, inValue: 0, inTime: -0.0567 },
+						],
+					},
+				},
+				{
+					selector: {
+						start: [{ t: 0, v: 0 }],
+						end: [{ t: 0, v: 1 }],
+						shape: "rampUp",
+						feather: 1,
+					},
+					channels: {
+						translateYEm: [
+							{ t: 0, v: -1, outValue: -1, outTime: 0.2713 },
+							{
+								t: 0.8223,
+								v: 0,
+								inValue: 0,
+								inTime: -0.2713,
+								outValue: 0,
+								outTime: 0.0587,
+							},
+							{ t: 1, v: 0, inValue: 0, inTime: -0.0603 },
+						],
+					},
+				},
+			],
+		},
+	},
 	// 剪映 缤纷冲屏 (7116829842271638053), D=2. Sixteen staggered ghost copies
 	// rush the screen behind a DeepGlow + radial blur, all painted through a
 	// four-colour gradient (ADBE_4ColorGradient, 20 references — the 缤纷 the
