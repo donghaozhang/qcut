@@ -558,46 +558,53 @@ function keyframesVisual({
 	const bloomIntensity = channel("bloomIntensity");
 	const echoAmount = channel("echoAmount");
 	const dirBlurPx = channel("dirBlurPx");
-	const raster: TextAnimationRasterEffectState | undefined =
-		pixelateCell !== undefined && pixelateCell >= 1
-			? { kind: "pixelate", cell: pixelateCell }
-			: rgbSplitPx !== undefined && Math.abs(rgbSplitPx) > 0.01
-				? {
-						kind: "rgbSplit",
-						offsetPx: rgbSplitPx,
-						angleDeg: effect.rasterAngleDeg ?? 0,
-					}
-				: displaceAmplitudePx !== undefined &&
-						Math.abs(displaceAmplitudePx) > 0.01
-					? {
-							kind: "displace",
-							amplitudePx: displaceAmplitudePx,
-							scale: effect.rasterScale ?? 24,
-							evolution: linearProgress * (effect.rasterEvolution ?? 1),
-						}
-					: bloomIntensity !== undefined && bloomIntensity > 0.01
-						? {
-								kind: "bloom",
-								intensity: bloomIntensity,
-								radiusPx: Math.max(
-									0,
-									channel("bloomRadiusPx") ?? layout.fontSize * 0.5
-								),
-							}
-						: echoAmount !== undefined && Math.abs(echoAmount) > 0.01
-							? {
-									kind: "echo",
-									spread: Math.max(-1, Math.min(1, echoAmount)),
-									samples: 12,
-								}
-							: dirBlurPx !== undefined && Math.abs(dirBlurPx) > 0.5
-								? {
-										kind: "dirBlur",
-										offsetPx: dirBlurPx,
-										angleDeg: effect.rasterAngleDeg ?? 0,
-									}
-								: undefined;
-	if (raster) {
+	// Ordered chain: geometry first, then chroma, then the halo last so the
+	// glow blooms whatever the earlier passes produced — the order Jianying's
+	// own effectAnimators use.
+	const raster: TextAnimationRasterEffectState[] = [];
+	if (
+		displaceAmplitudePx !== undefined &&
+		Math.abs(displaceAmplitudePx) > 0.01
+	) {
+		raster.push({
+			kind: "displace",
+			amplitudePx: displaceAmplitudePx,
+			scale: effect.rasterScale ?? 24,
+			evolution: linearProgress * (effect.rasterEvolution ?? 1),
+		});
+	}
+	if (echoAmount !== undefined && Math.abs(echoAmount) > 0.01) {
+		raster.push({
+			kind: "echo",
+			spread: Math.max(-1, Math.min(1, echoAmount)),
+			samples: 12,
+		});
+	}
+	if (dirBlurPx !== undefined && Math.abs(dirBlurPx) > 0.5) {
+		raster.push({
+			kind: "dirBlur",
+			offsetPx: dirBlurPx,
+			angleDeg: effect.rasterAngleDeg ?? 0,
+		});
+	}
+	if (pixelateCell !== undefined && pixelateCell >= 1) {
+		raster.push({ kind: "pixelate", cell: pixelateCell });
+	}
+	if (rgbSplitPx !== undefined && Math.abs(rgbSplitPx) > 0.01) {
+		raster.push({
+			kind: "rgbSplit",
+			offsetPx: rgbSplitPx,
+			angleDeg: effect.rasterAngleDeg ?? 0,
+		});
+	}
+	if (bloomIntensity !== undefined && bloomIntensity > 0.01) {
+		raster.push({
+			kind: "bloom",
+			intensity: bloomIntensity,
+			radiusPx: Math.max(0, channel("bloomRadiusPx") ?? layout.fontSize * 0.5),
+		});
+	}
+	if (raster.length > 0) {
 		visual.postProcess = {
 			trailSamples: visual.postProcess?.trailSamples ?? 0,
 			trailStrength: visual.postProcess?.trailStrength ?? 0,
