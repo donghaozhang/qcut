@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -14,9 +14,22 @@ import path from "node:path";
  * Nothing here is ever copied or redistributed: the bridge reads the weights
  * from the user's own JianYing installation.
  */
+/**
+ * `existsSync` alone would also admit a plain file, and a file smuggled in
+ * through the override would ride all the way to the native model lookup
+ * before failing. Stat errors count as invalid entries.
+ */
+function isDirectory(candidate: string): boolean {
+	try {
+		return statSync(candidate).isDirectory();
+	} catch {
+		return false;
+	}
+}
+
 export function jianyingModelDirectories(): string[] {
 	const override = process.env.QCUT_JIANYING_EFFECT_MODEL_ROOT;
-	if (override) return override.split(path.delimiter).filter(existsSync);
+	if (override) return override.split(path.delimiter).filter(isDirectory);
 
 	const home = os.homedir();
 	// Both roots are needed, not the first that exists: the download cache
@@ -33,7 +46,7 @@ export function jianyingModelDirectories(): string[] {
 			"model"
 		),
 		"/Applications/VideoFusion-macOS.app/Contents/Resources/models",
-	].filter(existsSync);
+	].filter(isDirectory);
 }
 
 /** The delimiter-separated list the native resource finder expects. */
