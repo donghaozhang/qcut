@@ -11,7 +11,9 @@ import { z } from "zod";
 
 const sourceResourceSchema = z
 	.object({
-		batch: z.enum(["01", "02", "03"]),
+		// Two-digit label rather than an enum — see the matching note in
+		// apps/web/src/lib/audio/local-sound-effects-manifest.ts.
+		batch: z.string().regex(/^\d{2}$/),
 		title: z.string().trim().min(1).max(160),
 		resourceId: z.string().regex(/^\d{16,20}$/),
 		contentMd5: z.string().regex(/^[a-f0-9]{32}$/),
@@ -31,7 +33,7 @@ const sourceMapSchema = z
 		schemaVersion: z.literal(1),
 		generatedAt: z.string().datetime(),
 		summary: z.record(z.string(), z.number()),
-		resources: z.array(sourceResourceSchema).min(1).max(2_000),
+		resources: z.array(sourceResourceSchema).min(1).max(4_000),
 	})
 	.strict();
 

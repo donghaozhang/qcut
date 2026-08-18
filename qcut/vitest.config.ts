@@ -58,8 +58,13 @@ export default defineConfig({
 		],
 		isolate: true,
 		pool: "forks",
-		testTimeout: 5000,
-		hookTimeout: 5000,
+		// Windows CI runners are roughly an order of magnitude slower than the
+		// macOS/Linux ones here — a suite that finishes in ~480 ms locally has
+		// been seen crossing 5 s there. Give that platform headroom rather than
+		// scattering per-test timeouts, and keep the tight budget everywhere
+		// else so a genuine hang still fails fast.
+		testTimeout: process.platform === "win32" ? 30_000 : 5000,
+		hookTimeout: process.platform === "win32" ? 30_000 : 5000,
 		server: {
 			deps: {
 				inline: [

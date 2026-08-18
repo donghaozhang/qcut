@@ -438,4 +438,32 @@ export const PARTICLE_EFFECT_CATALOG = [
 		releasedAt: "2026-07-27T00:00:00.000Z",
 		popularityScore: 87,
 	}),
+	createParticleCatalogEntry({
+		id: "nature-mist",
+		name: "Mist",
+		localizedName: "雾气",
+		description: "Cool blue-white mist drifting slowly across the frame.",
+		localizedDescription: "冷蓝白色的雾气在画面中缓慢流动。",
+		category: "nature",
+		icon: "MT",
+		variant: "fog",
+		density: 0.9,
+		speed: 0.5,
+		// Fitted against the reference's added-RGB direction: a bluer mist
+		// overshot the hue gate at 13.1°, this lands at 5.2°.
+		color: "#e8ecf2",
+		opacity: 0.8,
+		tags: ["mist", "fog", "haze", "nature", "particles"],
+		releasedAt: "2026-08-17T00:00:00.000Z",
+		popularityScore: 88,
+	}),
 ] as const satisfies readonly VisualEffectCatalogEntry[];
+
+/**
+ * 孔明灯 (sky lanterns) is deliberately NOT published. Direction, colour and
+ * additivity all match the `embers` variant, but particle size is fixed at
+ * 0.004–0.012 of the canvas with no catalog knob, so lanterns render as sparks
+ * and measure 2% of the reference's light coverage. Publishing a stage that
+ * fails its own acceptance gate would make the gate meaningless; the effect
+ * unblocks as soon as particle size becomes a stage parameter.
+ */

@@ -246,9 +246,9 @@ describe("panel categories", () => {
 		];
 
 		expect(collectPanelCategories({ panelRows, items })).toEqual([
-			{ id: "39654", name: "热门", panel: "effects2" },
-			{ id: "7728", name: "基础", panel: "effects2" },
-			{ id: "7730", name: "动感", panel: "effects2" },
+			{ id: "39654", name: "热门", panel: "effects2", categoryIds: ["39654"] },
+			{ id: "7728", name: "基础", panel: "effects2", categoryIds: ["7728"] },
+			{ id: "7730", name: "动感", panel: "effects2", categoryIds: ["7730"] },
 		]);
 	});
 
@@ -274,8 +274,154 @@ describe("panel categories", () => {
 		];
 
 		expect(collectPanelCategories({ panelRows, items })).toEqual([
-			{ id: "7730", name: "动感", panel: "effects2" },
-			{ id: "424242", name: "综艺", panel: "effects2" },
+			{ id: "7730", name: "动感", panel: "effects2", categoryIds: ["7730"] },
+			{
+				id: "424242",
+				name: "综艺",
+				panel: "effects2",
+				categoryIds: ["424242"],
+			},
+		]);
+	});
+
+	it("never borrows a name from a zero-overlap row for a duplicate id", () => {
+		const items = collectCatalogItems({
+			rows: [
+				catalogRow({
+					panel: "effects2",
+					items: [
+						catalogItem({
+							effectId: "1",
+							title: "抖动",
+							md5: "aaa",
+							categoryIds: [7730, 555],
+						}),
+					],
+				}),
+			],
+		});
+		const panelRows = [
+			// The winning row names 动感 but misses 555.
+			panelRow({ categories: [{ id: 7730, name: "动感" }] }),
+			// A foreign panel reuses id 555 under its own name and shares no
+			// ids with effects2 — it must not donate "贴纸热门".
+			panelRow({
+				categories: [
+					{ id: 555, name: "贴纸热门" },
+					{ id: 111, name: "贴纸" },
+				],
+			}),
+		];
+
+		const categories = collectPanelCategories({ panelRows, items });
+
+		expect(categories).not.toContainEqual(
+			expect.objectContaining({ name: "贴纸热门" })
+		);
+		// 555's effect stays reachable through its named tab.
+		expect(categories).toContainEqual(
+			expect.objectContaining({ id: "7730", name: "动感" })
+		);
+	});
+
+	it("prefers the higher-overlap row's name for a contested id", () => {
+		const items = collectCatalogItems({
+			rows: [
+				catalogRow({
+					panel: "effects2",
+					items: [
+						catalogItem({
+							effectId: "1",
+							title: "抖动",
+							md5: "aaa",
+							categoryIds: [7730, 7731, 555],
+						}),
+					],
+				}),
+			],
+		});
+		const panelRows = [
+			// Winning row: names two of the three used ids.
+			panelRow({
+				categories: [
+					{ id: 7730, name: "动感" },
+					{ id: 7731, name: "复古" },
+				],
+			}),
+			// Both leftovers name 555; the one sharing more ids with the
+			// panel is the plausible sibling and must win.
+			panelRow({
+				categories: [
+					{ id: 7730, name: "动感" },
+					{ id: 7731, name: "复古" },
+					{ id: 555, name: "氛围" },
+				],
+			}),
+			panelRow({ categories: [{ id: 555, name: "别的面板" }] }),
+		];
+
+		expect(collectPanelCategories({ panelRows, items })).toContainEqual(
+			expect.objectContaining({ id: "555", name: "氛围" })
+		);
+	});
+
+	it("drops an unnamed category whose effects are reachable elsewhere", () => {
+		const items = collectCatalogItems({
+			rows: [
+				catalogRow({
+					panel: "effects2",
+					items: [
+						catalogItem({
+							effectId: "1",
+							title: "抖动",
+							md5: "aaa",
+							categoryIds: [7730, 999999],
+						}),
+					],
+				}),
+			],
+		});
+		const panelRows = [panelRow({ categories: [{ id: 7730, name: "动感" }] })];
+
+		// 999999 has no name anywhere, but its only member also sits in 动感,
+		// so a raw-id tab would be noise.
+		expect(collectPanelCategories({ panelRows, items })).toEqual([
+			{ id: "7730", name: "动感", panel: "effects2", categoryIds: ["7730"] },
+		]);
+	});
+
+	it("folds unnamed categories holding unreachable effects into 其他", () => {
+		const items = collectCatalogItems({
+			rows: [
+				catalogRow({
+					panel: "effects2",
+					items: [
+						catalogItem({
+							effectId: "1",
+							title: "抖动",
+							md5: "aaa",
+							categoryIds: [7730],
+						}),
+						catalogItem({
+							effectId: "2",
+							title: "孤儿",
+							md5: "bbb",
+							categoryIds: [888888],
+						}),
+					],
+				}),
+			],
+		});
+		const panelRows = [panelRow({ categories: [{ id: 7730, name: "动感" }] })];
+
+		expect(collectPanelCategories({ panelRows, items })).toEqual([
+			{ id: "7730", name: "动感", panel: "effects2", categoryIds: ["7730"] },
+			{
+				id: "effects2-other",
+				name: "其他",
+				panel: "effects2",
+				categoryIds: ["888888"],
+			},
 		]);
 	});
 });

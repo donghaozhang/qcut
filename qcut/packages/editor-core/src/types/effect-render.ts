@@ -164,7 +164,8 @@ export type EffectDecorationVariant =
 	| "anger-burst"
 	| "hp-bar"
 	| "glass-shatter"
-	| "dashed-ring";
+	| "dashed-ring"
+	| "letterbox";
 
 /**
  * Procedural non-particle overlays (上下网格 / 彩虹射线 / 全剧终) drawn on a

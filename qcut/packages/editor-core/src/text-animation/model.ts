@@ -417,6 +417,18 @@ export type TextKeyframeChannel =
 	| "bloomRadiusPx"
 	// Concentric echo shells: signed spread, + inward / - outward.
 	| "echoAmount"
+	// Procedural flame (WebGL2): blaze strength and how high it licks.
+	| "flameIntensity"
+	| "flameReach"
+	// Radial light shafts (WebGL2): brightness and reach.
+	| "godRayIntensity"
+	| "godRayReach"
+	// Noise-eroded silhouette (WebGL2): bite depth and how much is noise.
+	| "roughEdgePx"
+	| "roughEdgeNoise"
+	// Stacked directional copies (Jianying LayeredReplacement), in px.
+	| "layerOffsetXPx"
+	| "layerOffsetYPx"
 	// Directional motion smear along rasterAngleDeg, in px.
 	| "dirBlurPx"
 	// Raster post-pass parameters, so a document can animate the mosaic
@@ -497,11 +509,37 @@ export interface TextKeyframesEffect {
 	/** displace field turns this many times over the phase. */
 	rasterEvolution?: number;
 	/**
+	 * Pivot for the document's rotation and scale. Jianying's 雨刷 swings the
+	 * block about a point below it, which only reads right off-center.
+	 */
+	pivot?: "center" | "bottomCenter";
+	/**
+	 * Spatial gradient across the line: each unit takes its tint from this
+	 * palette by horizontal position, the way Jianying's 4-colour gradient
+	 * layers paint a block. Strength still comes from the colorAmount
+	 * channel, so the gradient can fade in and out like any other track.
+	 */
+	palette?: readonly string[];
+	/**
 	 * Optional animated range selector. With a selector the phase clock is
 	 * shared by every unit and the WINDOW does the spatial differentiation:
 	 * each unit's effect strength is its selector weight.
 	 */
 	selector?: TextKeyframesSelector;
+	/**
+	 * Extra selector layers. Jianying ships several selectors per animator,
+	 * each with its OWN base_attrs — 横向分割 splits a line by giving one
+	 * window +1.5 em and another −1.5 em. Each layer is weighted by its own
+	 * window and composed onto the base: translations and rotations add,
+	 * scales and opacity multiply.
+	 */
+	layers?: TextKeyframesLayer[];
+}
+
+/** One selector window plus the channels it drives. */
+export interface TextKeyframesLayer {
+	selector?: TextKeyframesSelector;
+	channels: Partial<Record<TextKeyframeChannel, TextKeyframePoint[]>>;
 }
 
 /**
@@ -685,7 +723,17 @@ export interface TextAnimationGlowState {
  *   case covering boil, turbulence and ripple.
  */
 export interface TextAnimationRasterEffectState {
-	kind: "pixelate" | "rgbSplit" | "displace" | "bloom" | "echo" | "dirBlur";
+	kind:
+		| "pixelate"
+		| "rgbSplit"
+		| "displace"
+		| "bloom"
+		| "echo"
+		| "dirBlur"
+		| "flame"
+		| "godRay"
+		| "roughEdge"
+		| "layered";
 	/** pixelate: grid cell size in px. */
 	cell?: number;
 	/** rgbSplit / dirBlur: separation or smear length in px, and direction. */
@@ -695,6 +743,10 @@ export interface TextAnimationRasterEffectState {
 	amplitudePx?: number;
 	scale?: number;
 	evolution?: number;
+	/** flame / godRay: how far the effect reaches from the glyphs (~0..2). */
+	reach?: number;
+	/** roughEdge: noise cell size in uv (the source ships 0.15). */
+	noiseScale?: number;
 	/** bloom: halo strength (0..~2), blur radius px, bright-pass threshold. */
 	intensity?: number;
 	radiusPx?: number;
@@ -714,8 +766,13 @@ export interface TextAnimationPostProcessState {
 	trapezoidAmount: number;
 	/** Animated render-group glow. */
 	glow?: TextAnimationGlowState;
-	/** Raster post-pass (mosaic / RGB split / noise displacement). */
-	raster?: TextAnimationRasterEffectState;
+	/**
+	 * Raster post-passes, run in order on the block's offscreen render. A
+	 * document may drive several at once — Jianying's effectAnimators chain
+	 * warp, chroma and glow in one animator, and the passes compose the same
+	 * way here.
+	 */
+	raster?: TextAnimationRasterEffectState[];
 }
 
 /**

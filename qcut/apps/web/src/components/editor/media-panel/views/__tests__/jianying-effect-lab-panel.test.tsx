@@ -4,7 +4,52 @@ import type {
 	JianyingEffectDefinition,
 	JianyingEffectRuntimeStatus,
 } from "@/types/electron";
-import { JianyingEffectLabPanel } from "../effects/jianying-effect-lab-panel";
+import { useState } from "react";
+import {
+	JianyingEffectLabCategoryNav,
+	type JianyingEffectLabCategorySelection,
+	JianyingEffectLabPanel,
+} from "../effects/jianying-effect-lab-panel";
+import { useJianyingEffectRuntime } from "../effects/use-jianying-effect-runtime";
+import type { JianyingEffectPanel } from "@/types/electron";
+import type { EffectPreset } from "@/types/effects";
+
+/**
+ * Mirrors how the effects view wires the lab: the category rail sits in the
+ * view's own left rail one level up, so the view owns the runtime probe and
+ * the selection while the panel only renders the tile grid.
+ */
+function LabHarness({ onApply }: { onApply: (preset: EffectPreset) => void }) {
+	const runtime = useJianyingEffectRuntime({ enabled: true });
+	const [selectedCategory, setSelectedCategory] =
+		useState<JianyingEffectLabCategorySelection | null>(null);
+	const [collapsedPanels, setCollapsedPanels] = useState<JianyingEffectPanel[]>(
+		[]
+	);
+	return (
+		<>
+			<JianyingEffectLabCategoryNav
+				categories={runtime.status?.categories ?? []}
+				effects={runtime.status?.effects ?? []}
+				selectedCategory={selectedCategory}
+				collapsedPanels={collapsedPanels}
+				onSelectCategory={setSelectedCategory}
+				onTogglePanel={(panel) =>
+					setCollapsedPanels((current) =>
+						current.includes(panel)
+							? current.filter((entry) => entry !== panel)
+							: [...current, panel]
+					)
+				}
+			/>
+			<JianyingEffectLabPanel
+				onApply={onApply}
+				runtime={runtime}
+				selectedCategory={selectedCategory}
+			/>
+		</>
+	);
+}
 
 function definition(
 	overrides: Partial<JianyingEffectDefinition>
@@ -30,6 +75,7 @@ function definition(
 		],
 		access: "free",
 		supported: true,
+		requiresAlgorithm: false,
 		installed: true,
 		downloadable: true,
 		...overrides,
@@ -46,8 +92,8 @@ function readyStatus(
 		availableCount: effects.filter((e) => e.supported && e.installed).length,
 		effects,
 		categories: [
-			{ id: "7728", name: "基础", panel: "effects2" },
-			{ id: "7730", name: "动感", panel: "effects2" },
+			{ id: "7728", name: "基础", panel: "effects2", categoryIds: ["7728"] },
+			{ id: "7730", name: "动感", panel: "effects2", categoryIds: ["7730"] },
 		],
 		message: "已发现本机剪映特效。",
 	};
@@ -95,7 +141,7 @@ describe("JianyingEffectLabPanel", () => {
 	it("applies an installed effect with its slider schema", async () => {
 		status.mockResolvedValue(readyStatus([definition({})]));
 		const onApply = vi.fn();
-		render(<JianyingEffectLabPanel onApply={onApply} />);
+		render(<LabHarness onApply={onApply} />);
 
 		const card = await screen.findByTestId("effect-lab-card-jy-effect-1");
 		fireEvent.click(card);
@@ -131,7 +177,7 @@ describe("JianyingEffectLabPanel", () => {
 			packagePath: "/managed/2/bbb",
 		});
 		const onApply = vi.fn();
-		render(<JianyingEffectLabPanel onApply={onApply} />);
+		render(<LabHarness onApply={onApply} />);
 
 		expect(await screen.findByText(/已装 1 · 可下载 1/)).toBeInTheDocument();
 		fireEvent.click(screen.getByTestId("effect-lab-card-jy-effect-2"));
@@ -156,7 +202,7 @@ describe("JianyingEffectLabPanel", () => {
 			categoryIds: ["7730"],
 		});
 		status.mockResolvedValue(readyStatus([definition({}), dynamicEffect]));
-		render(<JianyingEffectLabPanel onApply={vi.fn()} />);
+		render(<LabHarness onApply={vi.fn()} />);
 
 		// The first category (基础) is selected by default.
 		expect(
@@ -171,16 +217,36 @@ describe("JianyingEffectLabPanel", () => {
 		expect(screen.queryByTestId("effect-lab-card-jy-effect-1")).toBeNull();
 	});
 
+	it("folds a panel's categories away when its header is clicked", async () => {
+		status.mockResolvedValue(readyStatus([definition({})]));
+		render(<LabHarness onApply={vi.fn()} />);
+
+		const header = await screen.findByTestId("effect-lab-panel-effects2");
+		expect(header).toHaveAttribute("aria-expanded", "true");
+		expect(screen.getByTestId("effect-lab-category-7728")).toBeInTheDocument();
+
+		fireEvent.click(header);
+		expect(header).toHaveAttribute("aria-expanded", "false");
+		expect(screen.queryByTestId("effect-lab-category-7728")).toBeNull();
+		// Collapsing only hides the tabs; the grid keeps showing the selection.
+		expect(
+			screen.getByTestId("effect-lab-card-jy-effect-1")
+		).toBeInTheDocument();
+
+		fireEvent.click(header);
+		expect(screen.getByTestId("effect-lab-category-7728")).toBeInTheDocument();
+	});
+
 	it("keeps the selection on the clicked panel when category ids collide", async () => {
 		status.mockResolvedValue({
 			...readyStatus([definition({})]),
 			categories: [
-				{ id: "7728", name: "基础", panel: "effects2" },
-				{ id: "9001", name: "热门", panel: "effects2" },
-				{ id: "9001", name: "道具", panel: "face-prop" },
+				{ id: "7728", name: "基础", panel: "effects2", categoryIds: ["7728"] },
+				{ id: "9001", name: "热门", panel: "effects2", categoryIds: ["9001"] },
+				{ id: "9001", name: "道具", panel: "face-prop", categoryIds: ["9001"] },
 			],
 		});
-		render(<JianyingEffectLabPanel onApply={vi.fn()} />);
+		render(<LabHarness onApply={vi.fn()} />);
 		await screen.findByTestId("effect-lab-card-jy-effect-1");
 
 		// The same id exists in both panels; clicking the face-prop twin must

@@ -361,6 +361,94 @@ function drawDirectionalBlur({
 }
 const DIRECTIONAL_BLUR_TAPS = 9;
 
+/**
+ * Run a chain of passes. Each pass reads the previous result from a ping-pong
+ * buffer; only the last one draws into `ctx`, so the caller sees a single
+ * composite. A pass that declines (returns false) is skipped without breaking
+ * the chain. Falls back to the single-pass path when only one is asked for.
+ */
+export function applyTextAnimationRasterPasses({
+	ctx,
+	source,
+	width,
+	height,
+	dx,
+	dy,
+	rasters,
+}: {
+	ctx: CanvasTextContext;
+	source: CanvasImageSource;
+	width: number;
+	height: number;
+	dx: number;
+	dy: number;
+	rasters: readonly TextAnimationRasterEffectState[];
+}): boolean {
+	if (rasters.length === 0) return false;
+	if (rasters.length === 1) {
+		const only = rasters.at(0);
+		if (!only) return false;
+		return applyTextAnimationRasterPass({
+			ctx,
+			source,
+			width,
+			height,
+			dx,
+			dy,
+			raster: only,
+		});
+	}
+	let current: CanvasImageSource = source;
+	let drewAny = false;
+	// Ping-pong by SUCCESSFUL writes, not by loop index: when a pass declines
+	// the source stays in the previously written buffer, and an index-driven
+	// channel would hand the next pass that very canvas — whose clearRect
+	// then wipes the chain's output before it is read.
+	let writes = 0;
+	// All but the last pass render into a buffer at the origin; the last one
+	// lands in the destination context at (dx, dy).
+	for (const [index, raster] of rasters.entries()) {
+		const isLast = index === rasters.length - 1;
+		if (isLast) {
+			const drew = applyTextAnimationRasterPass({
+				ctx,
+				source: current,
+				width,
+				height,
+				dx,
+				dy,
+				raster,
+			});
+			if (!drew && !drewAny) return false;
+			if (!drew) ctx.drawImage(current, dx, dy, width, height);
+			return true;
+		}
+		const buffer = acquireTextAnimationRaster({
+			channel: writes % 2 === 0 ? "post-chain-a" : "post-chain-b",
+			width,
+			height,
+		});
+		if (!buffer) continue;
+		buffer.ctx.clearRect(0, 0, width, height);
+		const drew = applyTextAnimationRasterPass({
+			ctx: buffer.ctx,
+			source: current,
+			width,
+			height,
+			dx: 0,
+			dy: 0,
+			raster,
+		});
+		if (drew) {
+			current = buffer.canvas as CanvasImageSource;
+			drewAny = true;
+			writes += 1;
+		}
+	}
+	// Every pass declined; let the caller draw the untouched raster.
+	return false;
+}
+
 export function applyTextAnimationRasterPass({
 	ctx,
 	source,
@@ -406,6 +494,85 @@ export function applyTextAnimationRasterPass({
 			spread,
 			samples: Math.max(2, Math.min(16, raster.samples ?? 12)),
 		});
+		return true;
+	}
+	if (raster.kind === "layered") {
+		const offsetX = raster.offsetPx ?? 0;
+		const offsetY = raster.amplitudePx ?? 0;
+		if (Math.abs(offsetX) < 0.5 && Math.abs(offsetY) < 0.5) return false;
+		// Jianying's LayeredReplacement: copies stacked along one direction at
+		// a fixed interval, the far ones faintest, crisp original on top.
+		const samples = Math.max(2, Math.min(10, raster.samples ?? 6));
+		const previousAlpha = ctx.globalAlpha;
+		for (let index = samples; index >= 1; index--) {
+			const step = index / samples;
+			ctx.globalAlpha = previousAlpha * 0.3 * (1 - step * 0.8);
+			ctx.drawImage(
+				source,
+				dx + offsetX * step,
+				dy + offsetY * step,
+				width,
+				height
+			);
+		}
+		ctx.globalAlpha = previousAlpha;
+		ctx.drawImage(source, dx, dy, width, height);
+		return true;
+	}
+	if (raster.kind === "roughEdge") {
+		const edgeSize = raster.amplitudePx ?? 0;
+		if (edgeSize < 0.01) return false;
+		// GPU-only: eating an alpha edge is per-pixel work.
+		const gpu = getTextAnimationGpuPass();
+		if (!gpu) return false;
+		const result = gpu.renderRoughEdge({
+			source,
+			width,
+			height,
+			edgeSize,
+			noiseIntensity: raster.intensity ?? 0.5,
+			noiseScale: raster.noiseScale ?? 0.15,
+		});
+		if (!result) return false;
+		ctx.drawImage(result, dx, dy);
+		return true;
+	}
+	if (raster.kind === "godRay") {
+		const intensity = raster.intensity ?? 0;
+		if (intensity < 0.01) return false;
+		// GPU-only, like the flame: the radial march has no drawImage stand-in.
+		const gpu = getTextAnimationGpuPass();
+		if (!gpu) return false;
+		const result = gpu.renderGodRay({
+			source,
+			width,
+			height,
+			intensity,
+			originX: 0.5,
+			originY: 0.5,
+			spread: raster.reach ?? 1,
+		});
+		if (!result) return false;
+		ctx.drawImage(result, dx, dy);
+		return true;
+	}
+	if (raster.kind === "flame") {
+		const intensity = raster.intensity ?? 0;
+		if (intensity < 0.01) return false;
+		// GPU-only: the fBm fire has no honest 2D stand-in, so a machine
+		// without WebGL2 draws the untouched block rather than a fake.
+		const gpu = getTextAnimationGpuPass();
+		if (!gpu) return false;
+		const result = gpu.renderFlame({
+			source,
+			width,
+			height,
+			intensity,
+			reach: raster.reach ?? 1,
+			time: raster.evolution ?? 0,
+		});
+		if (!result) return false;
+		ctx.drawImage(result, dx, dy);
 		return true;
 	}
 	if (raster.kind === "bloom") {

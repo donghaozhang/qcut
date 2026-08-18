@@ -299,6 +299,7 @@ export async function discoverJianyingEffectLibrary(): Promise<JianyingEffectLib
 			access: item.vip ? "vip" : "free",
 			supported,
 			unsupportedReason,
+			requiresAlgorithm: unsupportedRequirements.length > 0,
 			installed,
 			downloadable,
 		});

@@ -3,7 +3,6 @@ import {
 	ChevronDown,
 	CirclePlus,
 	FileUp,
-	FlaskConical,
 	Layers,
 	Plus,
 	Upload,
@@ -12,29 +11,14 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { parseLutFile } from "@/lib/color/color-lut";
 import { cn } from "@/lib/utils";
-import type { ColorCubeLut, ColorMultiPassSettings } from "@/types/timeline";
-import type { JianyingFilterLabLutSummary } from "@/types/electron";
-import { JianyingFilterLab } from "./adjustments/jianying-filter-lab";
 import { useAdjustmentLut } from "./adjustments/use-adjustment-lut";
 
-type AdjustmentShelf = "mine" | "lut" | "lab";
+type AdjustmentShelf = "mine" | "lut";
 
 export function AdjustmentsView() {
 	const fileInput = useRef<HTMLInputElement>(null);
 	const [activeShelf, setActiveShelf] = useState<AdjustmentShelf>("mine");
-	const {
-		activeLut,
-		activeMultiPass,
-		applyLut,
-		applyMultiPass,
-		completeLutIntensityInteraction,
-		createAdjustment,
-		setLutEnabled,
-		setMultiPassEnabled,
-		target,
-		updateLutIntensity,
-		updateMultiPassIntensity,
-	} = useAdjustmentLut();
+	const { applyLut, createAdjustment, target } = useAdjustmentLut();
 
 	const importLut = async ({ file }: { file: File }) => {
 		try {
@@ -51,64 +35,6 @@ export function AdjustmentsView() {
 		} catch (error) {
 			toast.error(error instanceof Error ? error.message : "无法导入 LUT");
 		}
-	};
-
-	const applyJianyingMultiPass = ({
-		settings,
-	}: {
-		settings: ColorMultiPassSettings;
-	}) => {
-		applyMultiPass({ settings });
-	};
-
-	const setActiveEffectEnabled = ({ enabled }: { enabled: boolean }) => {
-		if (activeMultiPass) {
-			setMultiPassEnabled({ enabled });
-			return;
-		}
-		setLutEnabled({ enabled });
-	};
-
-	const updateActiveEffectIntensity = ({ value }: { value: number }) => {
-		if (activeMultiPass) {
-			updateMultiPassIntensity({ value });
-			return;
-		}
-		updateLutIntensity({ value });
-	};
-
-	const applyJianyingLut = ({
-		name,
-		cube,
-		skinCube,
-		entry,
-		localRuntimeReady,
-	}: {
-		name: string;
-		cube: ColorCubeLut;
-		skinCube?: ColorCubeLut;
-		entry: JianyingFilterLabLutSummary;
-		localRuntimeReady?: boolean;
-	}) => {
-		let successMessage = `已应用 ${name} 到调节层`;
-		if (skinCube) {
-			successMessage = localRuntimeReady
-				? `已应用 ${name} 本机人像渲染到调节层`
-				: `已应用 ${name} 双 LUT；当前使用近似肤色蒙版`;
-		}
-		applyLut({
-			name,
-			cube,
-			skinCube,
-			// Only bind the local runtime when it is actually ready: otherwise
-			// the stored settings must fall back to skin-tone-v1 so preview and
-			// export do not attempt (and force engines for) local rendering.
-			...(skinCube && localRuntimeReady
-				? { localPortraitResourceId: entry.resourceId }
-				: {}),
-			layerName: `剪映 - ${name}`,
-			successMessage,
-		});
 	};
 
 	return (
@@ -149,22 +75,6 @@ export function AdjustmentsView() {
 				>
 					LUT
 				</button>
-				<button
-					type="button"
-					className={cn(
-						"mt-1 flex h-7 w-full items-center gap-0.5 rounded-sm px-1 text-left text-[10px] font-medium transition-colors",
-						activeShelf === "lab"
-							? "bg-foreground/10 text-primary"
-							: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-					)}
-					onClick={() => setActiveShelf("lab")}
-					onKeyDown={(event) => {
-						if (event.key === "Escape") event.currentTarget.blur();
-					}}
-				>
-					<FlaskConical className="size-3" />
-					<span className="truncate">滤镜实验室</span>
-				</button>
 			</aside>
 
 			<section className="min-w-0 flex-1 overflow-y-auto p-3">
@@ -186,7 +96,7 @@ export function AdjustmentsView() {
 							点击卡片创建调节轨，参数会显示在右侧属性面板。
 						</div>
 					</div>
-				) : activeShelf === "lut" ? (
+				) : (
 					<div className="space-y-3">
 						<input
 							ref={fileInput}
@@ -233,16 +143,6 @@ export function AdjustmentsView() {
 							选择 LUT 文件
 						</Button>
 					</div>
-				) : (
-					<JianyingFilterLab
-						targetName={target?.element.name}
-						activeEffect={activeMultiPass ?? activeLut}
-						onApply={applyJianyingLut}
-						onApplyMultiPass={applyJianyingMultiPass}
-						onEffectEnabledChange={setActiveEffectEnabled}
-						onEffectIntensityChange={updateActiveEffectIntensity}
-						onEffectIntensityCommit={completeLutIntensityInteraction}
-					/>
 				)}
 			</section>
 		</div>

@@ -7,7 +7,7 @@ import {
 	type TextAnimationVisualState,
 } from "@qcut/editor-core";
 import { canvasFontFamily } from "@/lib/text/canvas-font";
-import { applyTextAnimationRasterPass } from "./text-animation-raster-pass";
+import { applyTextAnimationRasterPasses } from "./text-animation-raster-pass";
 import type { TextElement } from "@/types/timeline";
 import { buildTextAnimationCanvasLayout } from "./text-animation-canvas-layout";
 import { drawTextAnimationDecorations } from "./text-animation-canvas-decorations";
@@ -71,16 +71,24 @@ function strongestUnitRaster({
 		| undefined;
 	let strongestScore = 0;
 	for (const unit of units) {
-		const raster = unit?.visual.postProcess?.raster;
-		if (!raster) continue;
-		const score =
-			Math.abs(raster.cell ?? 0) +
-			Math.abs(raster.offsetPx ?? 0) +
-			Math.abs(raster.amplitudePx ?? 0) +
-			Math.abs(raster.intensity ?? 0) +
-			Math.abs(raster.spread ?? 0);
+		const chain = unit?.visual.postProcess?.raster;
+		if (!chain || chain.length === 0) continue;
+		const score = chain.reduce(
+			(total, raster) =>
+				total +
+				Math.abs(raster.cell ?? 0) +
+				Math.abs(raster.offsetPx ?? 0) +
+				Math.abs(raster.amplitudePx ?? 0) +
+				Math.abs(raster.intensity ?? 0) +
+				// Staggered units can bloom at equal intensity but different
+				// radii; without the radius in the score the first chain wins
+				// and the block keeps the smaller halo.
+				Math.abs(raster.radiusPx ?? 0) +
+				Math.abs(raster.spread ?? 0),
+			0
+		);
 		if (score > strongestScore) {
-			strongest = raster;
+			strongest = chain;
 			strongestScore = score;
 		}
 	}
@@ -105,20 +113,27 @@ function drawRasterPostProcessedText({
 	units: ReturnType<typeof evaluateTextAnimationFrame>["units"];
 }): boolean {
 	const bounds = layout.animationLayout.bounds;
+	// Every pass in the chain paints into the same offscreen raster, so the
+	// padding has to cover their reaches summed.
 	const padding =
 		textAnimationRasterPadding({ style }) +
 		Math.ceil(
-			Math.abs(raster.amplitudePx ?? 0) +
-				Math.abs(raster.offsetPx ?? 0) +
-				// The bloom halo reaches ~3σ past the glyphs; reserve for it or
-				// the offscreen raster clips the glow flat at its edges.
-				(raster.kind === "bloom" ? (raster.radiusPx ?? 0) * 1.5 : 0) +
-				// Outward echo shells scale past the block bounds.
-				(raster.kind === "echo" && (raster.spread ?? 0) < 0
-					? Math.abs(raster.spread ?? 0) *
-						Math.max(bounds.width, bounds.height) *
-						0.5
-					: 0)
+			raster.reduce(
+				(total, pass) =>
+					total +
+					Math.abs(pass.amplitudePx ?? 0) +
+					Math.abs(pass.offsetPx ?? 0) +
+					// The bloom halo reaches ~3σ past the glyphs; reserve for it
+					// or the offscreen raster clips the glow flat at its edges.
+					(pass.kind === "bloom" ? (pass.radiusPx ?? 0) * 1.5 : 0) +
+					// Outward echo shells scale past the block bounds.
+					(pass.kind === "echo" && (pass.spread ?? 0) < 0
+						? Math.abs(pass.spread ?? 0) *
+							Math.max(bounds.width, bounds.height) *
+							0.5
+						: 0),
+				0
+			)
 		);
 	const width = Math.max(1, Math.ceil(bounds.width + padding * 2));
 	const height = Math.max(1, Math.ceil(bounds.height + padding * 2));
@@ -144,29 +159,44 @@ function drawRasterPostProcessedText({
 				bounds: grapheme.bounds,
 			});
 		}
-		// Thread the outline crossfade into the offscreen draw too — a
-		// document combining a raster pass with outlineAmount would
-		// otherwise silently render solid glyphs.
+		// Thread the per-unit fill and outline into the offscreen draw too — a
+		// document combining a raster pass with a tint or outlineAmount would
+		// otherwise render plain solid glyphs before the pass ever runs.
 		const outlineAmount = unitState?.visual.outlineAmount;
+		const colorMix = unitState?.visual.colorMix;
+		const fillColor = colorMix
+			? colorMix.mode === "multiply"
+				? multiplyTextAnimationColors({
+						base: element.color,
+						tint: colorMix.color,
+						amount: colorMix.amount,
+					})
+				: mixTextAnimationColors({
+						from: element.color,
+						to: colorMix.color,
+						amount: colorMix.amount,
+					})
+			: undefined;
 		drawTextAnimationGlyph({
 			ctx: sourceCtx,
 			element,
 			style,
 			grapheme,
+			...(fillColor ? { fillColor } : {}),
 			...(outlineAmount !== undefined ? { outlineAmount } : {}),
 		});
 		sourceCtx.restore();
 	}
 	sourceCtx.restore();
 
-	return applyTextAnimationRasterPass({
+	return applyTextAnimationRasterPasses({
 		ctx,
 		source: source.canvas as CanvasImageSource,
 		width,
 		height,
 		dx: bounds.x - padding,
 		dy: bounds.y - padding,
-		raster,
+		rasters: raster,
 	});
 }
 
@@ -318,7 +348,7 @@ export function renderCanonicalTextAnimationToCanvas({
 	const raster =
 		state.container.postProcess?.raster ??
 		strongestUnitRaster({ units: state.units });
-	if (raster && canRasterizeTextAnimation()) {
+	if (raster && raster.length > 0 && canRasterizeTextAnimation()) {
 		const didDrawRaster = drawRasterPostProcessedText({
 			ctx,
 			element: renderedElement,

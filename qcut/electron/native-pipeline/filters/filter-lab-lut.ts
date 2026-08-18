@@ -3,15 +3,18 @@
  * own filter cubes, so recipe work can be measured against a reference instead
  * of eyeballed.
  *
- * Only reads what Jianying itself downloaded during normal use — nothing is
- * fetched from their servers, and no LUT is copied into QCut. The decoded
- * values are decoded on demand for local scoring or an editor session; cached
- * files are never bundled with QCut.
+ * Two roots are read: Jianying's own cache, populated when the user applies a
+ * filter there, and QCut's managed root, populated by an explicit user-invoked
+ * download (see electron/jianying-filter-download.ts). Jianying's cache is
+ * read-only to QCut — downloads never write into another application's data.
+ * No LUT is copied into QCut's source or bundled with it; values are decoded
+ * on demand for local scoring or an editor session.
  *
  * @module electron/native-pipeline/filters/filter-lab-lut
  */
 
 import { open, readFile, readdir } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import {
@@ -58,6 +61,37 @@ export function jianyingEffectCacheRoot(): string {
 		"Cache",
 		"artistEffect"
 	);
+}
+
+const nodeRequire = createRequire(__filename);
+
+/**
+ * Where QCut unpacks filter packages it downloads on demand. Null outside
+ * Electron — the parity and fitting scripts run this module under plain bun,
+ * where only Jianying's own cache is available.
+ */
+export function qcutManagedFilterPackageRoot(): string | null {
+	try {
+		const electron = nodeRequire("electron") as
+			| string
+			| { app?: { getPath: (name: string) => string } };
+		if (typeof electron === "string" || !electron.app) return null;
+		return join(electron.app.getPath("userData"), "JianyingFilterPackages");
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Jianying's cache first: when the same resource/version exists in both roots
+ * the user's own Jianying copy is the authority, and downloads are only a way
+ * to obtain what is missing.
+ */
+export function jianyingFilterCacheRoots(): string[] {
+	const managed = qcutManagedFilterPackageRoot();
+	return managed
+		? [jianyingEffectCacheRoot(), managed]
+		: [jianyingEffectCacheRoot()];
 }
 
 export function createJianyingLutId({
@@ -263,17 +297,41 @@ function compareLutReferences(
 	);
 }
 
-/** Lists valid local LUT files without decoding their full cube payloads. */
-export async function listJianyingLutReferences({
-	root = jianyingEffectCacheRoot(),
+async function listRootLuts({
+	root,
 }: {
-	root?: string;
-} = {}): Promise<JianyingLutReference[]> {
+	root: string;
+}): Promise<JianyingLutReference[]> {
 	const resourceIds = await readDirectory({ directory: root });
 	const references = await Promise.all(
 		resourceIds.map((resourceId) => listResourceLuts({ root, resourceId }))
 	);
-	return references.flat().sort(compareLutReferences);
+	return references.flat();
+}
+
+/**
+ * Lists valid local LUT files without decoding their full cube payloads.
+ * Pass `root` to scan exactly one directory; by default every root in
+ * `jianyingFilterCacheRoots()` is scanned and earlier roots win a collision.
+ */
+export async function listJianyingLutReferences({
+	root,
+	roots = root ? [root] : jianyingFilterCacheRoots(),
+}: {
+	root?: string;
+	roots?: string[];
+} = {}): Promise<JianyingLutReference[]> {
+	const perRoot = await Promise.all(
+		roots.map((entry) => listRootLuts({ root: entry }))
+	);
+	const byLutId = new Map<string, JianyingLutReference>();
+	for (const references of perRoot) {
+		for (const reference of references) {
+			if (!byLutId.has(reference.lutId))
+				byLutId.set(reference.lutId, reference);
+		}
+	}
+	return [...byLutId.values()].sort(compareLutReferences);
 }
 
 export async function loadJianyingLut({
@@ -294,11 +352,11 @@ export async function loadJianyingLut({
 
 /** Lists and decodes every Jianying LUT currently in the local effect cache. */
 export async function listJianyingLuts({
-	root = jianyingEffectCacheRoot(),
+	root,
 }: {
 	root?: string;
 } = {}): Promise<JianyingLutEntry[]> {
-	const references = await listJianyingLutReferences({ root });
+	const references = await listJianyingLutReferences(root ? { root } : {});
 	const loaded = await Promise.all(
 		references.map((reference) => loadJianyingLut({ reference }))
 	);

@@ -380,6 +380,10 @@ export function buildJianyingFilterLabCatalog({
 			implementation,
 			available,
 			hasThumbnail: packageSummary.hasThumbnail || Boolean(filter.thumbnailUrl),
+			// Needs both halves: an address to fetch and a hash to verify the
+			// bytes against. Without the hash the download cannot be checked,
+			// and an unverified package must never reach the cache roots.
+			downloadable: Boolean(filter.packageUrls?.length && filter.version),
 			verification: verificationForFilter({
 				resourceId: filter.resourceId,
 				version,

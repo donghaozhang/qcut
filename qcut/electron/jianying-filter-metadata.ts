@@ -1,6 +1,14 @@
 import { readdir } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+// The pure lookups live in their own module so a runtime without node:sqlite
+// can still use them; re-exported here so existing importers are unaffected.
+export {
+	findJianyingFilterCategories,
+	findJianyingFilterTitle,
+} from "./jianying-filter-metadata-lookup.js";
+export type { JianyingFilterCategoryCatalog } from "./jianying-filter-metadata-lookup.js";
+import type { JianyingFilterCategoryCatalog } from "./jianying-filter-metadata-lookup.js";
 import {
 	jianyingEffectCacheRoot,
 	type JianyingLutReference,
@@ -22,10 +30,6 @@ interface JianyingPanelCategory {
  * `order` follows Jianying's own panel ordering (e.g. 夏日/人像/风景/…);
  * `byResourceId` maps a filter resource id to its category names.
  */
-export interface JianyingFilterCategoryCatalog {
-	order: string[];
-	byResourceId: Map<string, string[]>;
-}
 
 /** One filter known to the local Jianying catalog metadata. */
 export interface JianyingKnownFilter {
@@ -38,6 +42,12 @@ export interface JianyingKnownFilter {
 	requirements?: string[];
 	sdkModel?: string;
 	thumbnailUrl?: string;
+	/**
+	 * Signed package addresses from the local metadata cache, newest listing
+	 * first. Present for uncached filters too — this is what lets the lab fetch
+	 * a package instead of asking the user to open the filter in Jianying.
+	 */
+	packageUrls?: string[];
 }
 
 /**
@@ -177,6 +187,20 @@ interface CatalogItemSignal {
 	requirements: Set<string>;
 	sdkModel?: string;
 	thumbnailUrl?: string;
+	packageUrls?: string[];
+}
+
+/**
+ * Only absolute https addresses are kept: these are signed CDN URLs read out
+ * of a local cache, and anything else is not something to hand to fetch().
+ */
+function packageUrls({ attributes }: { attributes: Record<string, unknown> }) {
+	if (!Array.isArray(attributes.item_urls)) return;
+	const urls = attributes.item_urls.filter(
+		(value): value is string =>
+			typeof value === "string" && value.startsWith("https://")
+	);
+	return urls.length > 0 ? urls : undefined;
 }
 
 function thumbnailUrl({
@@ -258,6 +282,7 @@ function collectItemSignal({
 	const requirements = stringSet({ value: attributes?.requirements });
 	const sdkModel = nonEmptyString({ value: attributes?.sdk_model });
 	const thumbnail = thumbnailUrl({ attributes });
+	const packages = attributes ? packageUrls({ attributes }) : undefined;
 	const existing = signals.items.get(id);
 	if (existing) {
 		if (!existing.title && title) existing.title = title;
@@ -272,6 +297,9 @@ function collectItemSignal({
 		}
 		if (!existing.sdkModel && sdkModel) existing.sdkModel = sdkModel;
 		if (!existing.thumbnailUrl && thumbnail) existing.thumbnailUrl = thumbnail;
+		// Signed URLs expire, so a later listing's copy is the better one to
+		// keep; every other field above keeps its first non-empty value.
+		if (packages) existing.packageUrls = packages;
 		return;
 	}
 	signals.items.set(id, {
@@ -283,6 +311,7 @@ function collectItemSignal({
 		requirements,
 		...(sdkModel ? { sdkModel } : {}),
 		...(thumbnail ? { thumbnailUrl: thumbnail } : {}),
+		...(packages ? { packageUrls: packages } : {}),
 	});
 }
 
@@ -543,6 +572,7 @@ function buildKnownCatalog({
 				: {}),
 			...(item.sdkModel ? { sdkModel: item.sdkModel } : {}),
 			...(item.thumbnailUrl ? { thumbnailUrl: item.thumbnailUrl } : {}),
+			...(item.packageUrls ? { packageUrls: item.packageUrls } : {}),
 		});
 	}
 	const order: string[] = [];
@@ -607,16 +637,6 @@ export async function scanJianyingFilterMetadata({
 	};
 }
 
-export function findJianyingFilterCategories({
-	reference,
-	catalog,
-}: {
-	reference: JianyingLutReference;
-	catalog: JianyingFilterCategoryCatalog;
-}) {
-	return catalog.byResourceId.get(reference.resourceId);
-}
-
 export async function resolveJianyingFilterTitles({
 	references,
 	databaseRoot = join(dirname(jianyingEffectCacheRoot()), "ressdk_db"),
@@ -662,19 +682,4 @@ function buildTitleMap({
 		);
 	}
 	return titles;
-}
-
-export function findJianyingFilterTitle({
-	reference,
-	titles,
-}: {
-	reference: JianyingLutReference;
-	titles: ReadonlyMap<string, string>;
-}) {
-	return titles.get(
-		titleKey({
-			resourceId: reference.resourceId,
-			version: reference.version,
-		})
-	);
 }
