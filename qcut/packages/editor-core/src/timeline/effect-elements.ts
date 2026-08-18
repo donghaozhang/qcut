@@ -61,6 +61,9 @@ export function collectTimelineEffectsByTarget({
 	for (const track of effectTracks) {
 		for (const element of track.elements) {
 			if (element.type !== "effect" || element.hidden) continue;
+			// Untargeted segments are REGION effects — resolved through the
+			// composition plan, not the per-target collector.
+			if (!element.targetElementId) continue;
 			const target = findTargetElement({
 				tracks,
 				targetElementId: element.targetElementId,
