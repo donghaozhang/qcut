@@ -95,7 +95,8 @@ export function useTimelineElementResize({
 		if (
 			element.type === "text" ||
 			element.type === "markdown" ||
-			element.type === "adjustment"
+			element.type === "adjustment" ||
+			element.type === "effect"
 		) {
 			return true;
 		}
