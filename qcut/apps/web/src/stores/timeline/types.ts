@@ -816,6 +816,11 @@ export interface TimelineStore {
 	) => string;
 	addMediaAtTime: (item: MediaItem, currentTime?: number) => boolean;
 	addTextAtTime: (item: Partial<TextElement>, currentTime?: number) => boolean;
+	/** Drop a preset as a region effect segment at the playhead (特效轨). */
+	addEffectAtTime: (
+		preset: import("@/types/effects").EffectPreset,
+		currentTime?: number
+	) => string | null;
 	addMarkdownAtTime: (item: MarkdownElement, currentTime?: number) => boolean;
 	addMediaToNewTrack: (item: MediaItem) => boolean;
 	addTextToNewTrack: (item: TextElement | DragData) => boolean;
