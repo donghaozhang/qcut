@@ -53,15 +53,22 @@ export function createAddOps(
 					startElementTime,
 					clickOffsetTime,
 					currentTime: startElementTime,
+					reorderPreview: null,
 				},
 			});
 		},
 
-		updateDragTime: (currentTime: number) => {
+		updateDragTime: (
+			currentTime: number,
+			reorderPreview?: Record<string, number> | null
+		) => {
 			set((state: TimelineStore) => ({
 				dragState: {
 					...state.dragState,
 					currentTime,
+					// undefined leaves the current preview alone (callers that
+					// only track time); null clears it explicitly.
+					...(reorderPreview === undefined ? {} : { reorderPreview }),
 				},
 			}));
 		},
