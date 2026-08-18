@@ -5,6 +5,7 @@ export type {
 	DraftInteropWritebackStatus,
 	ProjectFolder,
 	ProjectGuides,
+	OverlayStackingMode,
 	ProjectTimelineSettings,
 	Scene,
 	TProject,
