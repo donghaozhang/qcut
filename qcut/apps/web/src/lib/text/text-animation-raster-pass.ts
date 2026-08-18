@@ -386,7 +386,7 @@ export function applyTextAnimationRasterPasses({
 }): boolean {
 	if (rasters.length === 0) return false;
 	if (rasters.length === 1) {
-		const only = rasters[0];
+		const only = rasters.at(0);
 		if (!only) return false;
 		return applyTextAnimationRasterPass({
 			ctx,
@@ -400,11 +400,14 @@ export function applyTextAnimationRasterPasses({
 	}
 	let current: CanvasImageSource = source;
 	let drewAny = false;
+	// Ping-pong by SUCCESSFUL writes, not by loop index: when a pass declines
+	// the source stays in the previously written buffer, and an index-driven
+	// channel would hand the next pass that very canvas — whose clearRect
+	// then wipes the chain's output before it is read.
+	let writes = 0;
 	// All but the last pass render into a buffer at the origin; the last one
 	// lands in the destination context at (dx, dy).
-	for (let index = 0; index < rasters.length; index++) {
-		const raster = rasters[index];
-		if (!raster) continue;
+	for (const [index, raster] of rasters.entries()) {
 		const isLast = index === rasters.length - 1;
 		if (isLast) {
 			const drew = applyTextAnimationRasterPass({
@@ -421,7 +424,7 @@ export function applyTextAnimationRasterPasses({
 			return true;
 		}
 		const buffer = acquireTextAnimationRaster({
-			channel: index % 2 === 0 ? "post-chain-a" : "post-chain-b",
+			channel: writes % 2 === 0 ? "post-chain-a" : "post-chain-b",
 			width,
 			height,
 		});
@@ -439,6 +442,7 @@ export function applyTextAnimationRasterPasses({
 		if (drew) {
 			current = buffer.canvas as CanvasImageSource;
 			drewAny = true;
+			writes += 1;
 		}
 	}
 	// Every pass declined; let the caller draw the untouched raster.
