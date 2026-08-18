@@ -123,7 +123,7 @@ function encodeAdjustValues({
 	return adjustValues.map((entry) => `${entry.key}=${entry.value}`).join(",");
 }
 
-function bridgeEnvironment({
+export function bridgeEnvironment({
 	inspection,
 	extra,
 }: {
@@ -136,8 +136,14 @@ function bridgeEnvironment({
 	const appFrameworks = inspection.appBundlePath
 		? path.join(inspection.appBundlePath, "Contents", "Frameworks")
 		: undefined;
+	// The bridge switches into algorithm mode purely on JY_MODEL_DIRECTORY
+	// being present, and that mode also changes how frames are uploaded — so
+	// a value inherited from QCut's own environment must never reach a blit
+	// render. algorithmEnvironment() re-adds it via `extra` when the
+	// definition actually requires models.
+	const { JY_MODEL_DIRECTORY: _inherited, ...baseEnvironment } = process.env;
 	return {
-		...process.env,
+		...baseEnvironment,
 		DYLD_LIBRARY_PATH: [
 			runtimeFrameworks,
 			appFrameworks,

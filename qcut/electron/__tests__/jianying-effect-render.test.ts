@@ -1,8 +1,10 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
+	bridgeEnvironment,
 	EFFECT_FRAME_COUNT_PATTERN,
 	runJianyingEffectProcess,
 } from "../jianying-effect/render.js";
+import type { JianyingEffectRuntimeInspection } from "../jianying-effect/runtime-discovery.js";
 
 const FRAME_LINE = "[effect] frames: input=60, effect=60, output=60";
 
@@ -56,5 +58,44 @@ describe("runJianyingEffectProcess", () => {
 				script: `process.stderr.write("boom\\n");process.exit(3);`,
 			})
 		).rejects.toThrow(/boom/);
+	});
+});
+
+describe("bridgeEnvironment", () => {
+	const inspection: JianyingEffectRuntimeInspection = {
+		status: {
+			state: "ready",
+			message: "ready",
+		} as JianyingEffectRuntimeInspection["status"],
+		appBundlePath: null,
+		runtimeRootPath: null,
+		bridgePath: "/tmp/bridge",
+		effects: [],
+	};
+
+	afterEach(() => {
+		delete process.env.JY_MODEL_DIRECTORY;
+	});
+
+	// The bridge enters algorithm mode purely on JY_MODEL_DIRECTORY being
+	// present, so a value inherited from QCut's own environment must not
+	// leak into a blit render whose definition never asked for models.
+	it("drops an inherited JY_MODEL_DIRECTORY for blit renders", () => {
+		process.env.JY_MODEL_DIRECTORY = "/tmp/inherited-models";
+
+		const environment = bridgeEnvironment({ inspection, extra: {} });
+
+		expect(environment.JY_MODEL_DIRECTORY).toBeUndefined();
+	});
+
+	it("keeps the explicitly supplied model directory", () => {
+		process.env.JY_MODEL_DIRECTORY = "/tmp/inherited-models";
+
+		const environment = bridgeEnvironment({
+			inspection,
+			extra: { JY_MODEL_DIRECTORY: "/tmp/algorithm-models" },
+		});
+
+		expect(environment.JY_MODEL_DIRECTORY).toBe("/tmp/algorithm-models");
 	});
 });
