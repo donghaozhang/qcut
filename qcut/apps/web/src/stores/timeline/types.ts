@@ -88,6 +88,12 @@ export interface DragState {
 	clickOffsetTime: number;
 	/** Current time position during drag */
 	currentTime: number;
+	/**
+	 * Live yield offsets (seconds) for the OTHER clips on a magnetic main
+	 * track while one of them is being carried to a new slot — pure preview,
+	 * nothing is written to the tracks until the drop commits (QTL-005).
+	 */
+	reorderPreview: Record<string, number> | null;
 }
 
 /**
@@ -101,6 +107,7 @@ export const INITIAL_DRAG_STATE: DragState = {
 	startElementTime: 0,
 	clickOffsetTime: 0,
 	currentTime: 0,
+	reorderPreview: null,
 };
 
 /**
@@ -213,7 +220,10 @@ export interface TimelineStore {
 		clickOffsetTime: number
 	) => void;
 	/** Update the current time during drag operation */
-	updateDragTime: (currentTime: number) => void;
+	updateDragTime: (
+		currentTime: number,
+		reorderPreview?: Record<string, number> | null
+	) => void;
 	/** End the current drag operation */
 	endDrag: () => void;
 
