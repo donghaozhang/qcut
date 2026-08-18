@@ -1,38 +1,32 @@
 // @vitest-environment node
 import { createHash } from "node:crypto";
-import { execFile } from "node:child_process";
-import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { promisify } from "node:util";
+import JSZip from "jszip";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { downloadJianyingFilterPackage } from "../jianying-filter-download.js";
 import type { JianyingKnownFilter } from "../jianying-filter-metadata.js";
 
-const execFileAsync = promisify(execFile);
-
 let workspace = "";
 let managedRoot = "";
 
-/** Builds a real zip so the unzip-based safety check runs for real. */
+/**
+ * Builds a real zip so the safety check parses real archive bytes. jszip, not
+ * a spawned `zip`: the CLI does not exist on Windows CI runners, and STORE
+ * compression keeps the byte layout amenable to the traversal test's
+ * same-length name rewrite.
+ */
 async function buildZip({
 	entries,
 }: {
 	entries: { name: string; body: string }[];
 }): Promise<Buffer> {
-	const stage = join(workspace, `stage-${entries.length}-${Math.abs(1)}`);
-	const contentDir = await mkdtemp(`${stage}-`);
+	const zip = new JSZip();
 	for (const entry of entries) {
-		await writeFile(join(contentDir, entry.name), entry.body);
+		zip.file(entry.name, entry.body);
 	}
-	const zipPath = join(contentDir, "out.zip");
-	await execFileAsync("zip", [
-		"-q",
-		"-j",
-		zipPath,
-		...entries.map((entry) => join(contentDir, entry.name)),
-	]);
-	return readFile(zipPath);
+	return zip.generateAsync({ type: "nodebuffer", compression: "STORE" });
 }
 
 function filterFor({

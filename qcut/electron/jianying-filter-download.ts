@@ -1,19 +1,17 @@
-import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { promisify } from "node:util";
+// jszip rather than spawning zip/unzip: the CLI tools exist on macOS but not
+// on Windows (runners or user machines), where the download feature and its
+// tests were failing with spawn ENOENT.
+import JSZip from "jszip";
 import type { JianyingKnownFilter } from "./jianying-filter-metadata.js";
 import { findUnsafeZipEntries } from "./jianying-effect/catalog-parsing.js";
 import { qcutManagedFilterPackageRoot } from "./native-pipeline/filters/filter-lab-lut.js";
 
-const execFileAsync = promisify(execFile);
-
 /** Filter packages observed so far are well under 1 MB; this bounds a rogue response. */
 const MAX_PACKAGE_BYTES = 200 * 1024 * 1024;
 const DOWNLOAD_TIMEOUT_MS = 120_000;
-/** Package listings are small, but never let the entry check truncate. */
-const ZIP_LISTING_MAX_BUFFER = 32 * 1024 * 1024;
 
 export interface JianyingFilterDownloadResult {
 	resourceId: string;
@@ -43,21 +41,42 @@ async function fetchPackage({ url }: { url: string }): Promise<Buffer> {
 	return data;
 }
 
-async function assertZipIsSafe({
-	zipPath,
-}: {
-	zipPath: string;
-}): Promise<void> {
-	const { stdout } = await execFileAsync("unzip", ["-Z1", zipPath], {
-		maxBuffer: ZIP_LISTING_MAX_BUFFER,
-	});
-	const entries = stdout.split("\n").filter(Boolean);
+async function openSafeZip({ data }: { data: Buffer }): Promise<JSZip> {
+	const zip = await JSZip.loadAsync(data);
+	// jszip normalizes hostile names on load ("../a" becomes "a") and parks
+	// the raw bytes in unsafeOriginalName. The check must see the RAW name:
+	// a package that carried a traversal entry is refused outright rather
+	// than silently neutralized — the tampering is the signal.
+	const entries = Object.values(zip.files).map(
+		(entry) => entry.unsafeOriginalName ?? entry.name
+	);
 	if (entries.length === 0) {
 		throw new Error("滤镜包为空。");
 	}
 	const unsafe = findUnsafeZipEntries({ entries });
 	if (unsafe.length > 0) {
 		throw new Error(`滤镜包包含不安全路径：${unsafe[0]}`);
+	}
+	return zip;
+}
+
+async function extractZip({
+	zip,
+	destination,
+}: {
+	zip: JSZip;
+	destination: string;
+}): Promise<void> {
+	// Entry names were vetted by openSafeZip, so a join cannot escape the
+	// staging directory here.
+	for (const entry of Object.values(zip.files)) {
+		const target = path.join(destination, entry.name);
+		if (entry.dir) {
+			await mkdir(target, { recursive: true });
+			continue;
+		}
+		await mkdir(path.dirname(target), { recursive: true });
+		await writeFile(target, await entry.async("nodebuffer"));
 	}
 }
 
@@ -87,18 +106,17 @@ async function installPackage({
 		);
 	}
 
+	// The safety check runs on the bytes before anything touches the disk.
+	const zip = await openSafeZip({ data });
+
 	// Unpack next to the final directory, then rename — a crash mid-extract
 	// must not leave a half-package where discovery would pick it up.
 	const finalDir = path.join(managedRoot, filter.resourceId, filter.version);
 	const stagingDir = `${finalDir}.downloading`;
 	await rm(stagingDir, { recursive: true, force: true });
 	await mkdir(stagingDir, { recursive: true });
-	const zipPath = path.join(stagingDir, "__package.zip");
 	try {
-		await writeFile(zipPath, data);
-		await assertZipIsSafe({ zipPath });
-		await execFileAsync("unzip", ["-o", "-q", zipPath, "-d", stagingDir]);
-		await rm(zipPath, { force: true });
+		await extractZip({ zip, destination: stagingDir });
 		await rm(finalDir, { recursive: true, force: true });
 		await rename(stagingDir, finalDir);
 	} catch (cause) {
