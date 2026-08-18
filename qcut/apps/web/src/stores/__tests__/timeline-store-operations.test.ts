@@ -96,6 +96,7 @@ describe("Timeline Store Operations", () => {
 				startElementTime: 0,
 				clickOffsetTime: 0,
 				currentTime: 0,
+				reorderPreview: null,
 			},
 		});
 
