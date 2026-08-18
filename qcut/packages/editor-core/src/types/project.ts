@@ -107,10 +107,20 @@ export interface TProject {
  * magnet (deleting a main-track clip closes its gap even outside ripple
  * mode), and linked ripple (ripple edits pull explicitly linked tracks).
  */
+/**
+ * Where newly created overlay tracks (text/captions/markdown/sticker/
+ * adjustment/effect) slot in. "byType" keeps the classic TRACK_PRIORITY
+ * grouping; "byArrival" stacks every new overlay lane on top, the way
+ * Jianying layers its floating tracks (docs/task/timeline-rules-vs-jianying,
+ * experiment J1b). Placement-only: existing tracks never re-sort on toggle.
+ */
+export type OverlayStackingMode = "byType" | "byArrival";
+
 export interface ProjectTimelineSettings {
 	snappingEnabled: boolean;
 	mainTrackMagnetEnabled: boolean;
 	linkedRippleEnabled: boolean;
+	overlayStacking: OverlayStackingMode;
 }
 
 /**
@@ -124,6 +134,9 @@ export const DEFAULT_PROJECT_TIMELINE_SETTINGS: ProjectTimelineSettings = {
 	snappingEnabled: true,
 	mainTrackMagnetEnabled: true,
 	linkedRippleEnabled: true,
+	// Type grouping stays the default: flipping the worldview re-layers
+	// existing compositions, so byArrival is a per-project opt-in.
+	overlayStacking: "byType",
 };
 
 /** Fill missing fields of a persisted settings object with the defaults. */
