@@ -26,14 +26,9 @@
 
 ## 但它们确实不属于文字动画线 / Why they still don't fit
 
-读进代码看,这些包做的是**版式生成**而非变换叠加:
-
-```
-letter.letterStyle.fontSize = oriLetter.letterStyle.fontSize * 2.5
-letter.position = Amaz.Vector2f(lineCenter.x - 140, ... )
-```
-
-字号被重新决定、每个字被绝对摆放 —— 行宽、换行、落点全部随之改变。
+读进代码看,这些包做的是**版式生成**而非变换叠加:driver 按倍数
+重新决定每个字的字号,再给每个字计算一个绝对落点(相对行中心的
+偏移)逐字摆放 —— 行宽、换行、落点全部随之改变。
 
 QCut 的文字动画层在**布局之后**施加逐单元变换(平移/缩放/旋转/
 透明度)。`scaleX` 放大一个字**不会推开邻居**,行也不会重排。要复刻
