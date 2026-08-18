@@ -114,13 +114,15 @@ export interface ProjectTimelineSettings {
 }
 
 /**
- * Deterministic defaults for legacy projects: snapping stays on (the
- * historical default), the magnet is off (it did not exist), and linked
- * ripple is on (ripple edits have followed typed links since QTL-003).
+ * Deterministic defaults: snapping stays on (the historical default), the
+ * magnet is on (the main track keeps Jianying-style behavior out of the box —
+ * projects whose users explicitly toggled it off keep their persisted false),
+ * and linked ripple is on (ripple edits have followed typed links since
+ * QTL-003).
  */
 export const DEFAULT_PROJECT_TIMELINE_SETTINGS: ProjectTimelineSettings = {
 	snappingEnabled: true,
-	mainTrackMagnetEnabled: false,
+	mainTrackMagnetEnabled: true,
 	linkedRippleEnabled: true,
 };
 
