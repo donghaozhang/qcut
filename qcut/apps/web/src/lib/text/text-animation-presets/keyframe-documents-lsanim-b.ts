@@ -295,12 +295,18 @@ export const EXIT_LSANIM_DOCUMENTS_A: Record<string, Doc> = {
 	// 剪映 像素辉光 (D=3). The line drops away while a Mosaic deconstructs it —
 	// cell 1000 → 1 in the source's own units, read here as the block breaking
 	// into coarse pixels as it goes. SGlow rides along with constant
-	// brightness, so only the mosaic and the fall are animated.
+	// brightness, so only the mosaic and the fall are animated — but "rides
+	// along" still needs the pass: without a bloomIntensity value the
+	// evaluator emits no bloom at all and the 辉光 half of the name is lost.
+	// The package has since left the local cache, so the constant is set
+	// in-family (brighten-fade-out's transcribed peak) with the default
+	// radius rather than re-transcribed.
 	"pixel-glow-out": {
 		sequence: { unit: "all", order: "forward", staggerRatio: 0 },
 		effect: {
 			kind: "keyframes",
 			channels: {
+				bloomIntensity: [{ t: 0, v: 0.3 }],
 				// Source cell 1000 → 100 → 1 in its own units; 34 → 1 px reads
 				// as the same deconstruction at preview scale.
 				pixelateCell: [
@@ -681,13 +687,17 @@ export const LOOP_LSANIM_DOCUMENTS_A: Record<string, Doc> = {
 			},
 		},
 	},
-	// 剪映 闪色循环 (D=3). The same breath as 文字亮闪 but carried on the
-	// package's own tint, so the block pulses in colour rather than in
-	// brightness alone.
+	// 剪映 闪色循环 (D=3). The readable chain is a white SoftGlow driving two
+	// tracks in lockstep: exposure 0.2→0.5→0.2 (→ bloomIntensity) and
+	// glowIntensity 5→15→5 (→ glow, normalized by its peak). The package's
+	// glowColor is [1,1,1,1] — the 闪色 tint itself rides the encrypted
+	// selector custom_script (see LSANIM-POOL.md) and cannot be transcribed,
+	// so the port's identity is the double glow breath, not a colour cycle.
 	"color-flash-loop": {
 		sequence: { unit: "all", order: "forward", staggerRatio: 0 },
 		effect: {
 			kind: "keyframes",
+			glowColor: "#ffffff",
 			channels: {
 				bloomIntensity: [
 					{ t: 0.0, v: 0.2, outValue: 0.215, outTime: 0.2227 },
@@ -701,6 +711,19 @@ export const LOOP_LSANIM_DOCUMENTS_A: Record<string, Doc> = {
 					},
 					{ t: 1.0, v: 0.2, inValue: 0.215, inTime: -0.225 },
 				],
+				glowIntensity: [
+					{ t: 0.0, v: 0.33, outValue: 0.363, outTime: 0.2227 },
+					{
+						t: 0.5,
+						v: 1.0,
+						inValue: 0.967,
+						inTime: -0.225,
+						outValue: 0.967,
+						outTime: 0.2227,
+					},
+					{ t: 1.0, v: 0.33, inValue: 0.363, inTime: -0.225 },
+				],
+				glowRadiusPx: [{ t: 0, v: 14 }],
 			},
 		},
 	},
