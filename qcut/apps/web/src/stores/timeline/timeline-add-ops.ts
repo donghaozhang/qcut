@@ -21,6 +21,8 @@ import type {
 } from "./timeline-store-operations";
 import { blockedByTrackLock } from "./timeline-lock-guard";
 import { getTimelineElementEndTime } from "@/lib/timeline";
+import type { EffectPreset } from "@/types/effects";
+import { createRegionEffectInstance } from "@/lib/effects/region-effects";
 
 export function createAddOps(
 	get: StoreGet,
@@ -156,6 +158,28 @@ export function createAddOps(
 				trimEnd: 0,
 			});
 			return true;
+		},
+
+		// Region effect segment (Jianying-style 特效轨, experiment J3): a fresh
+		// effect lane goes directly above the topmost media track — covering
+		// every media lane below while leaving text/sticker overlays alone,
+		// same placement philosophy as adjustment layers — and the segment
+		// starts at the playhead with Jianying's ~3s default length.
+		addEffectAtTime: (preset: EffectPreset, currentTime = 0): string | null => {
+			let insertIndex = get().tracks.findIndex(
+				(track) => track.type === "media"
+			);
+			if (insertIndex === -1) insertIndex = get().tracks.length;
+			const targetTrackId = get().insertTrackAt("effect", insertIndex);
+			return get().addElementToTrack(targetTrackId, {
+				type: "effect",
+				name: preset.name,
+				effect: createRegionEffectInstance({ preset }),
+				duration: TIMELINE_CONSTANTS.DEFAULT_REGION_EFFECT_DURATION,
+				startTime: currentTime,
+				trimStart: 0,
+				trimEnd: 0,
+			});
 		},
 
 		// Accepts a partial element (e.g. DragData.textTemplate): every field is
