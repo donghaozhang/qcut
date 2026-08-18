@@ -134,6 +134,7 @@ export {
 	clampResizeTimelineDelta,
 	planMagnetShiftedStartTimes,
 	resolveResizeNeighborBounds,
+	spansHaveOverlap,
 	type MagnetDownstreamSnapshot,
 	type ResizeNeighborBounds,
 	type TimelineSpan,
