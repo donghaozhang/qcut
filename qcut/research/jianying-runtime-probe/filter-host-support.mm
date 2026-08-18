@@ -86,12 +86,25 @@ ModelCatalog::ModelCatalog(const fs::path& directory, bool preferExactFilename)
   }
 
   for (const fs::path& root : roots) {
-    if (!fs::is_directory(root)) continue;
-    for (const fs::directory_entry& entry : fs::recursive_directory_iterator(
-             root, fs::directory_options::skip_permission_denied)) {
-      if (entry.is_regular_file()) {
+    // Every filesystem query goes through the error_code overloads:
+    // skip_permission_denied only quiets the iterator's own EACCES, not
+    // is_directory/is_regular_file status probes or traversal failures
+    // (disappearing entries, unreadable mounts). A throwing call on one
+    // root must not stop the later roots from being scanned.
+    std::error_code rootError;
+    if (!fs::is_directory(root, rootError) || rootError) continue;
+    fs::recursive_directory_iterator iterator(
+        root, fs::directory_options::skip_permission_denied, rootError);
+    if (rootError) continue;
+    const fs::recursive_directory_iterator end;
+    while (iterator != end) {
+      const fs::directory_entry& entry = *iterator;
+      std::error_code entryError;
+      if (entry.is_regular_file(entryError) && !entryError) {
         paths_.push_back(entry.path().string());
       }
+      iterator.increment(entryError);
+      if (entryError) break;
     }
   }
   if (paths_.empty()) {
