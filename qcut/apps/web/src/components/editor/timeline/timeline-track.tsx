@@ -22,8 +22,13 @@ import type {
 import {
 	snapTimeToFrame,
 	TIMELINE_CONSTANTS,
+	getCumulativeHeightBefore,
 	getTrackHeight,
 } from "@/constants/timeline-constants";
+import {
+	resolveDragOutZone,
+	resolveTypeGroupEdgeIndex,
+} from "./track-drop-zones";
 import { useProjectStore } from "@/stores/project-store";
 import { useExportStore } from "@/stores/export-store";
 import {
@@ -69,6 +74,7 @@ function TimelineTrackContentComponent({
 	// Use individual selectors to keep snapshots stable and avoid infinite update loops
 	const tracks = useTimelineStore((s) => s.tracks);
 	const moveElementToTrack = useTimelineStore((s) => s.moveElementToTrack);
+	const insertTrackAt = useTimelineStore((s) => s.insertTrackAt);
 	const updateElementStartTime = useTimelineStore(
 		(s) => s.updateElementStartTime
 	);
@@ -339,9 +345,54 @@ function TimelineTrackContentComponent({
 					}
 				}
 			} else if (isTrackThatStartedDrag) {
-				// Mouse is not over this track, but this track started the drag
-				// This means user released over ruler/outside - update position within same track
+				// Mouse is not over any lane and this track started the drag. A
+				// release clearly above or below the lane stack grows the timeline
+				// with a fresh lane at the edge of the clip's type group and moves
+				// the clip there (T4 of docs/task/timeline-rules-vs-jianying —
+				// Jianying's drag-up-for-a-new-PiP-lane gesture, experiment E3).
+				// Anything else repositions within the source track as before.
 				const sourceTrack = tracks.find((t) => t.id === dragState.trackId);
+				const lanesContainer = timelineRef.current?.closest(
+					"[data-timeline-lanes-container]"
+				);
+				const dragOutZone =
+					sourceTrack && lanesContainer
+						? resolveDragOutZone({
+								clientX: e.clientX,
+								clientY: e.clientY,
+								lanesRect: lanesContainer.getBoundingClientRect(),
+								lanesContentHeight: getCumulativeHeightBefore(
+									tracks,
+									tracks.length
+								),
+							})
+						: null;
+				if (sourceTrack && dragOutZone) {
+					const newTrackId = insertTrackAt(
+						sourceTrack.type,
+						resolveTypeGroupEdgeIndex({
+							tracks,
+							trackType: sourceTrack.type,
+							edge: dragOutZone,
+						})
+					);
+					const movedElementId = dragState.elementId;
+					moveElementToTrack(dragState.trackId, newTrackId, movedElementId);
+					requestAnimationFrame(() => {
+						if (rippleEditingEnabled) {
+							updateElementStartTimeWithRipple(
+								newTrackId,
+								movedElementId,
+								finalTime
+							);
+						} else {
+							updateElementStartTime(newTrackId, movedElementId, finalTime);
+						}
+					});
+					endDragAction();
+					onSnapPointChange?.(null);
+					return;
+				}
 				const movingElement = sourceTrack?.elements.find(
 					(c) => c.id === dragState.elementId
 				);
@@ -406,6 +457,7 @@ function TimelineTrackContentComponent({
 		updateElementStartTime,
 		updateElementStartTimeWithRipple,
 		moveElementToTrack,
+		insertTrackAt,
 		endDragAction,
 		selectedElements,
 		selectElement,
