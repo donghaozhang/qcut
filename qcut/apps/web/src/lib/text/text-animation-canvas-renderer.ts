@@ -80,6 +80,10 @@ function strongestUnitRaster({
 				Math.abs(raster.offsetPx ?? 0) +
 				Math.abs(raster.amplitudePx ?? 0) +
 				Math.abs(raster.intensity ?? 0) +
+				// Staggered units can bloom at equal intensity but different
+				// radii; without the radius in the score the first chain wins
+				// and the block keeps the smaller halo.
+				Math.abs(raster.radiusPx ?? 0) +
 				Math.abs(raster.spread ?? 0),
 			0
 		);
