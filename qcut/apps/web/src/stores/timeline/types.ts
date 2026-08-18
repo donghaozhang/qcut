@@ -178,8 +178,11 @@ export interface TimelineStore {
 	toggleMainTrackMagnet: () => void;
 	/** Whether ripple edits pull explicitly linked tracks along (QTL-005) */
 	linkedRippleEnabled: boolean;
+	/** Where new overlay lanes slot in (QTL-005 / T6: byType | byArrival). */
+	overlayStacking: import("@/types/project").OverlayStackingMode;
 	/** Toggle linked ripple on/off (persisted per project) */
 	toggleLinkedRipple: () => void;
+	toggleOverlayStacking: () => void;
 	/** Apply persisted project timeline settings (called on project load) */
 	applyProjectTimelineSettings: (input: {
 		settings: import("@/types/project").ProjectTimelineSettings;
