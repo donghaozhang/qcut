@@ -262,6 +262,13 @@ export function setupLicenseIPC(): void {
 
 	ipcMain.handle("license:clear-auth-token", async () => {
 		setAuthToken({ token: "" });
+		// The cached license outlives the token unless it is dropped here, and
+		// `getCachedLicense()` happily serves it for OFFLINE_GRACE_DAYS. That
+		// left the app in a zombie state after sign-out: the account chip still
+		// rendered a user, so no sign-in link appeared, while every
+		// authenticated request 401'd — the sticker lab showed "素材无法载入"
+		// on every card and the sound effects lab entry vanished entirely.
+		clearCachedLicense();
 		return true;
 	});
 
