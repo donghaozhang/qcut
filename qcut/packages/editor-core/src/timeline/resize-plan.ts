@@ -139,3 +139,26 @@ export function planMagnetShiftedStartTimes({
 	}
 	return startTimes;
 }
+
+/**
+ * Whether any two spans in the set intersect (half-open, epsilon-tolerant).
+ * The magnet commit preflights its final layout with this before writing:
+ * on a track carrying a pre-existing overlap the arrange step would reject
+ * the downstream shift, and committing the trim writes anyway would leave
+ * an overlap or a hole behind.
+ */
+export function spansHaveOverlap({
+	spans,
+	epsilon = 1e-6,
+}: {
+	spans: readonly TimelineSpan[];
+	epsilon?: number;
+}): boolean {
+	const sorted = [...spans].sort((a, b) => a.startTime - b.startTime);
+	for (let index = 1; index < sorted.length; index++) {
+		if (sorted[index].startTime < sorted[index - 1].endTime - epsilon) {
+			return true;
+		}
+	}
+	return false;
+}
