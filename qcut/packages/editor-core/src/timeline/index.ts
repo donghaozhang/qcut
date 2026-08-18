@@ -124,6 +124,16 @@ export {
 } from "./collision-policy.js";
 
 export {
+	captureMagnetDownstream,
+	clampResizeTimelineDelta,
+	planMagnetShiftedStartTimes,
+	resolveResizeNeighborBounds,
+	type MagnetDownstreamSnapshot,
+	type ResizeNeighborBounds,
+	type TimelineSpan,
+} from "./resize-plan.js";
+
+export {
 	deriveTimelineLinks,
 	resolveRippleDomain,
 	type LinkAwareElement,
