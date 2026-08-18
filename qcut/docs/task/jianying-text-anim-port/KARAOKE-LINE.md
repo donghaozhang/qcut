@@ -50,8 +50,9 @@ ASS 导出 \k 标签)。移植 = 给 karaokeMode 加档位,用真词钟,零时�
 `KaraokeSegment` 扩 `offsetX / rotationDeg / blurPx`,span 渲染器
 应用 translate/rotate/filter。新档:`fly-in / gather / flip /
 blur-roll / glitch / mischief`。至此 15 个动画机制家族中 **13 个有
-档位**(11 新 + bounce/typewriter 既有),剩余:雨刷(gradient
-近似)、随机出现(词钟本身即随机序,无需新档)。
+档位**(11 新 + bounce/typewriter 既有),剩余:随机出现(词钟
+本身即随机序,无需新档);雨刷经读 driver 定性为整块摆动、已作为
+loop 预设 `wiper-swing` 移植(见上表,不属 karaokeMode)。
 
 ## 遗留 / Remaining
 
