@@ -124,6 +124,11 @@ export {
 } from "./collision-policy.js";
 
 export {
+	planMainTrackReorder,
+	type MainTrackReorderPlan,
+} from "./reorder-plan.js";
+
+export {
 	captureMagnetDownstream,
 	clampResizeTimelineDelta,
 	planMagnetShiftedStartTimes,
