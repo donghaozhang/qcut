@@ -15,8 +15,9 @@ import type { EffectPreset } from "@/types/effects";
 import type {
 	JianyingEffectDefinition,
 	JianyingEffectPanel,
+	JianyingEffectRuntimeStatus,
 } from "@/types/electron";
-import { useJianyingEffectRuntime } from "./use-jianying-effect-runtime";
+import type { useJianyingEffectRuntime } from "./use-jianying-effect-runtime";
 
 /**
  * Jianying-style effect browser: the sidebar mirrors Jianying's own category
@@ -114,26 +115,136 @@ function EffectCoverTile({
 	);
 }
 
+/**
+ * Category selection for the lab. Category ids repeat across panels, so the
+ * selection keeps both halves of the identity — resolving by id alone can
+ * land on another panel's category of the same id.
+ */
+export interface JianyingEffectLabCategorySelection {
+	id: string;
+	panel: string;
+}
+
+/**
+ * The lab's category rail. It renders nested under the 特效实验室 entry in
+ * the effects view's own left rail rather than inside the lab, so the lab
+ * expands the way 画面特效 does — the panel keeps only the tile grid.
+ * Both panels together list 40 categories, so each group folds away.
+ */
+export function JianyingEffectLabCategoryNav({
+	categories,
+	effects,
+	selectedCategory,
+	collapsedPanels,
+	onSelectCategory,
+	onTogglePanel,
+}: {
+	categories: JianyingEffectRuntimeStatus["categories"];
+	effects: JianyingEffectRuntimeStatus["effects"];
+	selectedCategory: JianyingEffectLabCategorySelection | null;
+	collapsedPanels: JianyingEffectPanel[];
+	onSelectCategory: (selection: JianyingEffectLabCategorySelection) => void;
+	onTogglePanel: (panel: JianyingEffectPanel) => void;
+}) {
+	const activeCategory =
+		categories.find(
+			(category) =>
+				category.id === selectedCategory?.id &&
+				category.panel === selectedCategory?.panel
+		) ?? categories[0];
+	return (
+		<div data-testid="effect-lab-category-rail">
+			{(Object.keys(PANEL_LABELS) as JianyingEffectPanel[]).map((panel) => {
+				const named = new Set(
+					categories
+						.filter(
+							(category) =>
+								category.panel === panel && !category.id.endsWith("-other")
+						)
+						.flatMap((category) => category.categoryIds)
+				);
+				const panelCategories = categories.filter((category) => {
+					if (category.panel !== panel) return false;
+					// A catch-all with nothing left over would be an empty tab.
+					if (!category.id.endsWith("-other")) return true;
+					return effects.some(
+						(effect) =>
+							effect.panel === panel &&
+							!effect.categoryIds.some((id) => named.has(id))
+					);
+				});
+				if (panelCategories.length === 0) return null;
+				const isCollapsed = collapsedPanels.includes(panel);
+				return (
+					<div key={panel} className="mb-2">
+						<button
+							type="button"
+							data-testid={`effect-lab-panel-${panel}`}
+							aria-expanded={!isCollapsed}
+							className="flex w-full items-center gap-1 px-1.5 py-1 text-left font-medium text-[10px] text-muted-foreground transition-colors hover:text-foreground"
+							onClick={() => onTogglePanel(panel)}
+						>
+							<ChevronRight
+								aria-hidden="true"
+								className={cn(
+									"size-3 shrink-0 transition-transform",
+									!isCollapsed && "rotate-90"
+								)}
+							/>
+							<span className="truncate">{PANEL_LABELS[panel]}</span>
+							<span className="ml-auto tabular-nums opacity-60">
+								{panelCategories.length}
+							</span>
+						</button>
+						{!isCollapsed &&
+							panelCategories.map((category) => {
+								const isActive =
+									activeCategory?.id === category.id &&
+									activeCategory.panel === category.panel;
+								return (
+									<button
+										key={`${panel}-${category.id}`}
+										type="button"
+										data-testid={`effect-lab-category-${category.id}`}
+										className={cn(
+											"block w-full truncate rounded px-1.5 py-1 pl-5 text-left text-[11px] transition-colors",
+											isActive
+												? "font-medium text-primary"
+												: "text-foreground/75 hover:text-foreground"
+										)}
+										onClick={() =>
+											onSelectCategory({
+												id: category.id,
+												panel: category.panel,
+											})
+										}
+									>
+										{category.name}
+									</button>
+								);
+							})}
+					</div>
+				);
+			})}
+		</div>
+	);
+}
+
 export function JianyingEffectLabPanel({
 	onApply,
 	searchQuery = "",
+	runtime,
+	selectedCategory,
 }: {
 	onApply: (preset: EffectPreset) => void;
 	searchQuery?: string;
+	/** Owned by the effects view, which also feeds the category rail. */
+	runtime: ReturnType<typeof useJianyingEffectRuntime>;
+	/** Category selection lives in the effects view's own rail, one level up. */
+	selectedCategory: JianyingEffectLabCategorySelection | null;
 }) {
-	const { checking, status, error, refresh } = useJianyingEffectRuntime();
+	const { checking, status, error, refresh } = runtime;
 	const [downloads, setDownloads] = useState<Record<string, DownloadState>>({});
-	// Category ids repeat across panels, so the selection keeps both halves
-	// of the identity — resolving by id alone can land on another panel's
-	// category of the same id.
-	const [selectedCategory, setSelectedCategory] = useState<{
-		id: string;
-		panel: string;
-	} | null>(null);
-	// Both panels together list 40 categories, so each group folds away.
-	const [collapsedPanels, setCollapsedPanels] = useState<JianyingEffectPanel[]>(
-		[]
-	);
 	// "" marks a cover that failed so the pump advances instead of retrying
 	// forever; anything else is a data URL from the main-process cache.
 	const [covers, setCovers] = useState<Record<string, string>>({});
@@ -292,89 +403,6 @@ export function JianyingEffectLabPanel({
 
 	return (
 		<div className="flex h-full min-h-0" data-testid="effect-lab-panel">
-			<aside
-				className="w-20 shrink-0 overflow-y-auto border-border/40 border-r py-1"
-				data-testid="effect-lab-category-rail"
-			>
-				{(Object.keys(PANEL_LABELS) as JianyingEffectPanel[]).map((panel) => {
-					const named = new Set(
-						categories
-							.filter(
-								(category) =>
-									category.panel === panel && !category.id.endsWith("-other")
-							)
-							.flatMap((category) => category.categoryIds)
-					);
-					const panelCategories = categories.filter((category) => {
-						if (category.panel !== panel) return false;
-						// A catch-all with nothing left over would be an empty tab.
-						if (!category.id.endsWith("-other")) return true;
-						return effects.some(
-							(effect) =>
-								effect.panel === panel &&
-								!effect.categoryIds.some((id) => named.has(id))
-						);
-					});
-					if (panelCategories.length === 0) return null;
-					const isCollapsed = collapsedPanels.includes(panel);
-					return (
-						<div key={panel} className="mb-2">
-							<button
-								type="button"
-								data-testid={`effect-lab-panel-${panel}`}
-								aria-expanded={!isCollapsed}
-								className="flex w-full items-center gap-1 px-2 py-1 text-left font-medium text-[10px] text-muted-foreground transition-colors hover:text-foreground"
-								onClick={() =>
-									setCollapsedPanels((current) =>
-										current.includes(panel)
-											? current.filter((entry) => entry !== panel)
-											: [...current, panel]
-									)
-								}
-							>
-								<ChevronRight
-									aria-hidden="true"
-									className={cn(
-										"size-3 shrink-0 transition-transform",
-										!isCollapsed && "rotate-90"
-									)}
-								/>
-								<span className="truncate">{PANEL_LABELS[panel]}</span>
-								<span className="ml-auto tabular-nums opacity-60">
-									{panelCategories.length}
-								</span>
-							</button>
-							{!isCollapsed &&
-								panelCategories.map((category) => {
-									const isActive =
-										activeCategory?.id === category.id &&
-										activeCategory.panel === category.panel;
-									return (
-										<button
-											key={`${panel}-${category.id}`}
-											type="button"
-											data-testid={`effect-lab-category-${category.id}`}
-											className={cn(
-												"block w-full truncate px-2 py-1 text-left text-[11px] transition-colors",
-												isActive
-													? "font-medium text-primary"
-													: "text-foreground/75 hover:text-foreground"
-											)}
-											onClick={() =>
-												setSelectedCategory({
-													id: category.id,
-													panel: category.panel,
-												})
-											}
-										>
-											{category.name}
-										</button>
-									);
-								})}
-						</div>
-					);
-				})}
-			</aside>
 			<div className="flex min-h-0 flex-1 flex-col">
 				<div className="flex items-center justify-between px-3 py-2 text-[11px] text-muted-foreground">
 					<span>
