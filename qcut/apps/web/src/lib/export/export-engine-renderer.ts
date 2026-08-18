@@ -10,6 +10,7 @@ import { renderStickersToCanvas } from "@/lib/stickers/sticker-export-helper";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useEffectsStore } from "@/stores/ai/effects-store";
+import type { EffectParameters } from "@qcut/editor-core";
 import {
 	applyEffectsToCanvas,
 	mergeEffectParameters,
@@ -18,6 +19,7 @@ import { applyAdvancedCanvasEffects } from "@/lib/effects/effects-canvas-advance
 import { EFFECTS_ENABLED } from "@/config/features";
 import {
 	getActiveElements,
+	buildRegionParametersForFrame,
 	calculateElementBounds,
 } from "./export-engine-utils";
 import { validateRenderedFrame } from "./export-engine-debug";
@@ -121,6 +123,12 @@ export interface RenderContext {
 	fps: number;
 	/** Canvas fill behind the composition; defaults to black. */
 	backgroundColor?: string;
+	/**
+	 * Per-frame region-effect coverage (untargeted effect segments applying
+	 * to the layers below them), refreshed by renderFrame. Media draws merge
+	 * these on top of the element's own effects so exports match the preview.
+	 */
+	regionParametersByElementId?: ReadonlyMap<string, EffectParameters>;
 }
 
 /** Render a single frame at the specified time */
@@ -140,6 +148,11 @@ export async function renderFrame(
 	const activeElements = getActiveElements(
 		context.tracks,
 		context.mediaItems,
+		currentTime,
+		context.fps
+	);
+	context.regionParametersByElementId = buildRegionParametersForFrame(
+		context.tracks,
 		currentTime,
 		context.fps
 	);
@@ -427,10 +440,14 @@ export async function renderImage(
 							`✨ EXPORT ENGINE: ${enabledEffects.length} enabled effects for image element ${element.id}`
 						);
 
-						if (enabledEffects.length > 0) {
+						const imageRegionParams = context.regionParametersByElementId?.get(
+							element.id
+						);
+						if (enabledEffects.length > 0 || imageRegionParams) {
 							ctx.save();
 							const mergedParams = mergeEffectParameters(
-								...enabledEffects.map((e) => e.parameters)
+								...enabledEffects.map((e) => e.parameters),
+								...(imageRegionParams ? [imageRegionParams] : [])
 							);
 							debugLog(
 								"🔨 EXPORT ENGINE: Applying effects to image canvas:",
@@ -611,12 +628,15 @@ async function renderVideoAttempt(
 				debugLog(
 					`🎨 EXPORT ENGINE: Retrieved ${effects?.length || 0} effects for video element ${element.id}`
 				);
-				if (effects && effects.length > 0) {
-					const activeEffects = effects.filter((e) => e.enabled);
+				const videoRegionParams = context.regionParametersByElementId?.get(
+					element.id
+				);
+				if ((effects && effects.length > 0) || videoRegionParams) {
+					const activeEffects = (effects ?? []).filter((e) => e.enabled);
 					debugLog(
 						`✨ EXPORT ENGINE: ${activeEffects.length} enabled effects for video element ${element.id}`
 					);
-					if (activeEffects.length === 0) {
+					if (activeEffects.length === 0 && !videoRegionParams) {
 						debugLog(
 							`🚫 EXPORT ENGINE: No enabled effects for video element ${element.id}, drawing normally`
 						);
@@ -626,7 +646,8 @@ async function renderVideoAttempt(
 
 					ctx.save();
 					const mergedParams = mergeEffectParameters(
-						...activeEffects.map((e) => e.parameters)
+						...activeEffects.map((e) => e.parameters),
+						...(videoRegionParams ? [videoRegionParams] : [])
 					);
 					debugLog(
 						"🔨 EXPORT ENGINE: Applying effects to video canvas:",
