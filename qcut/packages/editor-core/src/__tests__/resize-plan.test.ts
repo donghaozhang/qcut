@@ -4,6 +4,7 @@ import {
 	clampResizeTimelineDelta,
 	planMagnetShiftedStartTimes,
 	resolveResizeNeighborBounds,
+	spansHaveOverlap,
 } from "../timeline/resize-plan";
 
 // Main-track shape from the Jianying comparison experiments (docs/task/
@@ -156,5 +157,27 @@ describe("magnet downstream planning", () => {
 				endDelta: -3,
 			})
 		).toEqual({ b: 0 });
+	});
+});
+
+describe("spansHaveOverlap", () => {
+	it("accepts touching spans and packed layouts", () => {
+		expect(spansHaveOverlap({ spans: SPANS })).toBe(false);
+	});
+
+	it("detects a pre-existing overlap regardless of input order", () => {
+		const spans = [
+			{ id: "b", startTime: 9, endTime: 14 },
+			{ id: "a", startTime: 0, endTime: 10 },
+		];
+		expect(spansHaveOverlap({ spans })).toBe(true);
+	});
+
+	it("tolerates sub-epsilon seams", () => {
+		const spans = [
+			{ id: "a", startTime: 0, endTime: 5.0000004 },
+			{ id: "b", startTime: 5, endTime: 10 },
+		];
+		expect(spansHaveOverlap({ spans })).toBe(false);
 	});
 });
