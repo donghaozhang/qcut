@@ -11,7 +11,12 @@ T5，T6/T7 视决策插入。
 T5 阶段1 ✅（区间段作用于媒体层；CSS 参数类预设；标准/CLI/muxer 三条
 导出引擎走共享 renderFrame 一致生效，optimized 浏览器兜底引擎本就不
 渲染特效；render-program 叠加类与 jianying-local 本机特效的区间应用留
-阶段2）。T6/T7 未动（决策/口味项）。
+阶段2）。T6 ✅（`overlayStacking: byType|byArrival` per-project 开关，
+默认 byType；纯插入位实现——新浮层轨的落点跟随模式，既有轨永不重排；
+工具栏磁吸簇新增切换钮；未编辑过的 legacy 无 order 项目首读仍按类型
+排，编辑一次即固化显式 order，此后 byArrival 完整生效）。T7 未动
+（口味项）。已知边角：选中「区间特效段」时再点特效面板会把预设挂成该
+段的 per-element 特效（无渲染效果、无害），后续可改为替换段内特效。
 
 ---
 
