@@ -119,10 +119,14 @@ void main() {
   // flat max would make every interior pixel burn equally and the block would
   // just wash orange. Positive v is downward on screen after the flip, so
   // stepping +v walks toward the glyph feeding this pixel.
+  // u_height scales the SAMPLE DISTANCE, not just the fuel: reach is
+  // documented as how far the fire climbs above the glyphs, so a taller
+  // reach must let pixels farther from the glyph still find fuel below
+  // them. The falloff stays normalized, stretching the gradient with it.
   float fuel = 0.0;
   for (int i = 1; i <= 14; i++) {
     float dist = float(i) / 14.0;
-    float a = texture(u_source, v_uv + vec2(0.0, u_texel.y * float(i) * 4.0)).a;
+    float a = texture(u_source, v_uv + vec2(0.0, u_texel.y * float(i) * 4.0 * u_height)).a;
     fuel = max(fuel, a * (1.0 - dist));
   }
   fuel *= u_height;
