@@ -145,7 +145,6 @@ export function collectPanelCategories({
 	}
 
 	const parsedRows: Array<Array<{ id: string; name: string }>> = [];
-	const namesById = new Map<string, string>();
 	for (const row of panelRows) {
 		const body = parseJsonObject({ text: row.responseBody });
 		const data = body.data;
@@ -164,7 +163,6 @@ export function collectPanelCategories({
 			const name = readString({ source: record, key: "category_name" });
 			if (id.length === 0 || id === "0" || name.length === 0) continue;
 			list.push({ id, name });
-			if (!namesById.has(id)) namesById.set(id, name);
 		}
 		if (list.length > 0) parsedRows.push(list);
 	}
@@ -191,10 +189,31 @@ export function collectPanelCategories({
 			result.push({ ...category, panel, categoryIds: [category.id] });
 		}
 		// Ids the winning panel misses can still be named by another cached
-		// panel; those get an ordinary tab.
+		// row — but only one whose panel scope plausibly IS this panel.
+		// Category ids repeat across panels with different names, and the
+		// panel URLs are hashed, so a row's panel is only inferable from its
+		// contents. Any-overlap is not enough: the contested id itself would
+		// qualify the foreign row that collides on it. A row counts as a
+		// sibling when MOST of its categories are exercised by this panel's
+		// items; among siblings, higher absolute overlap wins the tie.
+		const namesForPanel = new Map<string, string>();
+		const siblingRows = parsedRows
+			.map((list) => ({
+				list,
+				score: list.filter((category) => used.has(category.id)).length,
+			}))
+			.filter((entry) => entry.score * 2 > entry.list.length)
+			.sort((left, right) => right.score - left.score);
+		for (const { list } of siblingRows) {
+			for (const category of list) {
+				if (!namesForPanel.has(category.id)) {
+					namesForPanel.set(category.id, category.name);
+				}
+			}
+		}
 		const unresolved: string[] = [];
 		for (const id of [...used].filter((candidate) => !seen.has(candidate))) {
-			const name = namesById.get(id);
+			const name = namesForPanel.get(id);
 			if (name) {
 				seen.add(id);
 				result.push({ id, name, panel, categoryIds: [id] });
