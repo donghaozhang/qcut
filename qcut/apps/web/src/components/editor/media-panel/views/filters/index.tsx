@@ -1,4 +1,4 @@
-import { Search, Star } from "lucide-react";
+import { FlaskConical, Search, Star } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { assetManifestIdentity } from "@qcut/editor-core";
 import { toast } from "sonner";
@@ -28,11 +28,12 @@ import {
 	filterPresetMatchesCategory,
 	type FilterCategoryId,
 } from "./filter-categories";
+import { JianyingFilterLabShelf } from "../adjustments/jianying-filter-lab-shelf";
 import { updateSelectedMediaColors } from "./filter-application";
 import { FilterCard } from "./filter-card";
 import { getSelectedMediaTargets } from "./filter-selection";
 
-type LibraryMode = "library" | "favorites";
+type LibraryMode = "library" | "favorites" | "lab";
 
 function matchesQuery({
 	preset,
@@ -199,8 +200,8 @@ export function FiltersView() {
 			data-testid="filters-view"
 		>
 			<div className="border-b border-border/50 p-3">
-				<div className="grid grid-cols-2 rounded-md bg-foreground/5 p-0.5">
-					{(["library", "favorites"] as const).map((item) => (
+				<div className="grid grid-cols-3 rounded-md bg-foreground/5 p-0.5">
+					{(["library", "favorites", "lab"] as const).map((item) => (
 						<button
 							key={item}
 							type="button"
@@ -223,175 +224,190 @@ export function FiltersView() {
 							aria-pressed={mode === item}
 						>
 							{item === "favorites" && <Star className="size-3" />}
-							{item === "library" ? "Filter library" : "Favorites"}
+							{item === "lab" && <FlaskConical className="size-3" />}
+							{item === "library"
+								? "Filter library"
+								: item === "favorites"
+									? "Favorites"
+									: "滤镜实验室"}
 						</button>
 					))}
 				</div>
-				<div className="relative mt-2">
-					<Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-					<Input
-						value={query}
-						onChange={(event) => setQuery(event.target.value)}
-						placeholder="Search filters / 搜索滤镜"
-						className="h-8 pl-8 text-xs"
-						aria-label="Search filters"
-					/>
-				</div>
+				{mode !== "lab" ? (
+					<div className="relative mt-2">
+						<Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+						<Input
+							value={query}
+							onChange={(event) => setQuery(event.target.value)}
+							placeholder="Search filters / 搜索滤镜"
+							className="h-8 pl-8 text-xs"
+							aria-label="Search filters"
+						/>
+					</div>
+				) : null}
 			</div>
 
-			<div className="flex min-h-0 flex-1">
-				<aside className="w-[120px] shrink-0 overflow-y-auto border-r border-border/50 p-2">
-					<div className="space-y-0.5">
-						{FILTER_CATEGORIES.filter(
-							(item) => mode === "library" || item.id !== "mine"
-						).map((item) => {
-							const Icon = item.icon;
-							return (
-								<button
-									key={item.id}
-									type="button"
-									className={cn(
-										"flex h-8 w-full items-center gap-2 rounded px-2 text-left text-[10px] transition-colors",
-										category === item.id
-											? "bg-primary/15 text-primary"
-											: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-									)}
-									aria-pressed={category === item.id}
-									aria-label={`${item.label} / ${item.localizedLabel}`}
-									title={item.label}
-									data-testid={`filter-category-${item.id}`}
-									onClick={() => setCategory(item.id)}
-									onKeyDown={(event) => {
-										if (event.key === "Enter" || event.key === " ") {
-											event.currentTarget.click();
-										}
-									}}
-								>
-									<Icon className="size-3.5 shrink-0" />
-									<span className="whitespace-nowrap">
-										{item.localizedLabel}
-									</span>
-								</button>
-							);
-						})}
-					</div>
-				</aside>
+			{mode === "lab" ? (
+				<div className="min-h-0 flex-1 overflow-y-auto p-3">
+					<JianyingFilterLabShelf />
+				</div>
+			) : (
+				<>
+					<div className="flex min-h-0 flex-1">
+						<aside className="w-[120px] shrink-0 overflow-y-auto border-r border-border/50 p-2">
+							<div className="space-y-0.5">
+								{FILTER_CATEGORIES.filter(
+									(item) => mode === "library" || item.id !== "mine"
+								).map((item) => {
+									const Icon = item.icon;
+									return (
+										<button
+											key={item.id}
+											type="button"
+											className={cn(
+												"flex h-8 w-full items-center gap-2 rounded px-2 text-left text-[10px] transition-colors",
+												category === item.id
+													? "bg-primary/15 text-primary"
+													: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+											)}
+											aria-pressed={category === item.id}
+											aria-label={`${item.label} / ${item.localizedLabel}`}
+											title={item.label}
+											data-testid={`filter-category-${item.id}`}
+											onClick={() => setCategory(item.id)}
+											onKeyDown={(event) => {
+												if (event.key === "Enter" || event.key === " ") {
+													event.currentTarget.click();
+												}
+											}}
+										>
+											<Icon className="size-3.5 shrink-0" />
+											<span className="whitespace-nowrap">
+												{item.localizedLabel}
+											</span>
+										</button>
+									);
+								})}
+							</div>
+						</aside>
 
-				<section className="flex min-w-0 flex-1 flex-col">
-					<div className="flex h-9 shrink-0 items-center justify-between border-b border-border/40 px-3 text-[10px] text-muted-foreground">
-						<div className="flex min-w-0 items-center gap-2">
-							<span className="truncate font-medium text-foreground">
-								{activeCategory?.localizedLabel ?? "滤镜"}
-							</span>
-							<span className="tabular-nums">
-								{resultCount + (showNoneCard ? 1 : 0)}
-							</span>
-						</div>
-						<span>
-							{hasSelection
-								? `${selectedTargets.length} clip selected`
-								: "Select a clip"}
-						</span>
-					</div>
-					<div className="min-h-0 flex-1 overflow-y-auto p-3">
-						{resultCount > 0 || showNoneCard ? (
-							<div className="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-2">
-								{showNoneCard && (
-									<FilterCard
-										id={FILTER_NONE_ID}
-										name="None"
-										localizedName="无滤镜"
-										thumbnail="/images/filter-previews/none.webp"
-										selected={activeFilter.presetId === FILTER_NONE_ID}
-										disabled={!hasSelection}
-										reset
-										onSelect={() => applyFilter({ preset: undefined })}
-									/>
+						<section className="flex min-w-0 flex-1 flex-col">
+							<div className="flex h-9 shrink-0 items-center justify-between border-b border-border/40 px-3 text-[10px] text-muted-foreground">
+								<div className="flex min-w-0 items-center gap-2">
+									<span className="truncate font-medium text-foreground">
+										{activeCategory?.localizedLabel ?? "滤镜"}
+									</span>
+									<span className="tabular-nums">
+										{resultCount + (showNoneCard ? 1 : 0)}
+									</span>
+								</div>
+								<span>
+									{hasSelection
+										? `${selectedTargets.length} clip selected`
+										: "Select a clip"}
+								</span>
+							</div>
+							<div className="min-h-0 flex-1 overflow-y-auto p-3">
+								{resultCount > 0 || showNoneCard ? (
+									<div className="grid grid-cols-[repeat(auto-fill,minmax(104px,1fr))] gap-2">
+										{showNoneCard && (
+											<FilterCard
+												id={FILTER_NONE_ID}
+												name="None"
+												localizedName="无滤镜"
+												thumbnail="/images/filter-previews/none.webp"
+												selected={activeFilter.presetId === FILTER_NONE_ID}
+												disabled={!hasSelection}
+												reset
+												onSelect={() => applyFilter({ preset: undefined })}
+											/>
+										)}
+										{visiblePresets.map((preset) => (
+											<FilterCard
+												key={preset.id}
+												id={preset.id}
+												name={preset.name}
+												localizedName={preset.localizedName}
+												thumbnail={preset.thumbnail}
+												selected={activeFilter.presetId === preset.id}
+												disabled={!hasSelection}
+												favorite={favoriteIds.has(preset.id)}
+												featured={preset.isNew}
+												onSelect={() => applyFilter({ preset })}
+												onFavoriteChange={() =>
+													toggleFavorite({ presetId: preset.id })
+												}
+											/>
+										))}
+										{visibleSavedPresets.map((preset) => (
+											<FilterCard
+												key={preset.id}
+												id={preset.id}
+												name={preset.name}
+												localizedName="Saved color preset"
+												thumbnail="/images/filter-previews/none.webp"
+												selected={selectedSavedPresetId === preset.id}
+												disabled={!hasSelection}
+												onSelect={() => applySavedPreset({ preset })}
+											/>
+										))}
+									</div>
+								) : (
+									<div className="flex h-full min-h-40 items-center justify-center rounded-md border border-dashed border-border/70 px-6 text-center text-xs text-muted-foreground">
+										{mode === "favorites"
+											? "Favorite filters appear here."
+											: category === "mine"
+												? "Save a color preset to add it here."
+												: "No filters match this search."}
+									</div>
 								)}
-								{visiblePresets.map((preset) => (
-									<FilterCard
-										key={preset.id}
-										id={preset.id}
-										name={preset.name}
-										localizedName={preset.localizedName}
-										thumbnail={preset.thumbnail}
-										selected={activeFilter.presetId === preset.id}
+							</div>
+						</section>
+					</div>
+
+					<div className="h-[68px] shrink-0 border-t border-border/50 px-3 py-2">
+						{activePreset ? (
+							<div className="flex h-full items-center gap-3">
+								<div className="w-[112px] min-w-0">
+									<div className="truncate text-xs font-medium">
+										{activePreset.name}
+									</div>
+									<div className="truncate text-[10px] text-muted-foreground">
+										{activePreset.localizedName}
+									</div>
+								</div>
+								<div className="min-w-0 flex-1">
+									<div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
+										<span>Intensity</span>
+										<span className="tabular-nums">
+											{Math.round(activeFilter.intensity)}%
+										</span>
+									</div>
+									<Slider
+										value={[activeFilter.intensity]}
+										min={0}
+										max={100}
+										step={1}
 										disabled={!hasSelection}
-										favorite={favoriteIds.has(preset.id)}
-										featured={preset.isNew}
-										onSelect={() => applyFilter({ preset })}
-										onFavoriteChange={() =>
-											toggleFavorite({ presetId: preset.id })
-										}
+										aria-label="Filter intensity"
+										data-testid="filter-intensity-slider"
+										onValueChange={([value]) => updateIntensity({ value })}
+										onValueCommit={() => {
+											intensityInteractionActive.current = false;
+										}}
 									/>
-								))}
-								{visibleSavedPresets.map((preset) => (
-									<FilterCard
-										key={preset.id}
-										id={preset.id}
-										name={preset.name}
-										localizedName="Saved color preset"
-										thumbnail="/images/filter-previews/none.webp"
-										selected={selectedSavedPresetId === preset.id}
-										disabled={!hasSelection}
-										onSelect={() => applySavedPreset({ preset })}
-									/>
-								))}
+								</div>
 							</div>
 						) : (
-							<div className="flex h-full min-h-40 items-center justify-center rounded-md border border-dashed border-border/70 px-6 text-center text-xs text-muted-foreground">
-								{mode === "favorites"
-									? "Favorite filters appear here."
-									: category === "mine"
-										? "Save a color preset to add it here."
-										: "No filters match this search."}
+							<div className="flex h-full items-center text-[11px] text-muted-foreground">
+								{hasSelection
+									? "Choose a filter to adjust its intensity."
+									: "Select one or more image or video clips to apply a filter."}
 							</div>
 						)}
 					</div>
-				</section>
-			</div>
-
-			<div className="h-[68px] shrink-0 border-t border-border/50 px-3 py-2">
-				{activePreset ? (
-					<div className="flex h-full items-center gap-3">
-						<div className="w-[112px] min-w-0">
-							<div className="truncate text-xs font-medium">
-								{activePreset.name}
-							</div>
-							<div className="truncate text-[10px] text-muted-foreground">
-								{activePreset.localizedName}
-							</div>
-						</div>
-						<div className="min-w-0 flex-1">
-							<div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
-								<span>Intensity</span>
-								<span className="tabular-nums">
-									{Math.round(activeFilter.intensity)}%
-								</span>
-							</div>
-							<Slider
-								value={[activeFilter.intensity]}
-								min={0}
-								max={100}
-								step={1}
-								disabled={!hasSelection}
-								aria-label="Filter intensity"
-								data-testid="filter-intensity-slider"
-								onValueChange={([value]) => updateIntensity({ value })}
-								onValueCommit={() => {
-									intensityInteractionActive.current = false;
-								}}
-							/>
-						</div>
-					</div>
-				) : (
-					<div className="flex h-full items-center text-[11px] text-muted-foreground">
-						{hasSelection
-							? "Choose a filter to adjust its intensity."
-							: "Select one or more image or video clips to apply a filter."}
-					</div>
-				)}
-			</div>
+				</>
+			)}
 		</div>
 	);
 }

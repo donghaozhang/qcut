@@ -26,6 +26,9 @@ const { renderJianyingEffectClip } = require(
 const { readAdjustParameters } = require(
 	path.join(DIST, "jianying-effect/catalog-parsing.js")
 );
+const { jianyingModelDirectories, jianyingModelDirectory } = require(
+	path.join(DIST, "jianying-effect/model-directory.js")
+);
 const { getFFmpegPath } = require(path.join(DIST, "ffmpeg/paths.js"));
 const { listJianyingResourceDatabasePaths } = require(
 	path.join(DIST, "jianying-resource-database.js")
@@ -35,6 +38,24 @@ const REF_ROOT = path.join(REPO, ".local/jianying-effect-references");
 const PACKAGE_ROOT = path.join(REF_ROOT, "_packages");
 const REF_CLIP = path.join(REF_ROOT, "_assets/ref-clip-1280x720.mp4");
 const REF_BASELINE = path.join(REF_ROOT, "_assets/ref-baseline.mp4");
+/**
+ * Capabilities that need a subject in frame get their own plate. The default
+ * plate is skateboard footage with no person in it, on which a face effect
+ * legitimately renders nothing — the isolation control then reports "the
+ * algorithm contributed nothing" and the effect is failed for the wrong reason.
+ */
+const SUBJECT_PLATES = {
+	face: {
+		clip: path.join(REF_ROOT, "_assets/ref-clip-face-1280x720.mp4"),
+		baseline: path.join(REF_ROOT, "_assets/ref-baseline-face.mp4"),
+	},
+	// Pose needs limbs in frame, so the body plate keeps the whole portrait
+	// framing and pillarboxes it rather than cropping to head and shoulders.
+	skeleton: {
+		clip: path.join(REF_ROOT, "_assets/ref-clip-body-1280x720.mp4"),
+		baseline: path.join(REF_ROOT, "_assets/ref-baseline-body.mp4"),
+	},
+};
 const MANIFEST_PATH = path.join(REF_ROOT, "manifest.jsonl");
 const WIDTH = 1280;
 const HEIGHT = 720;
@@ -44,14 +65,34 @@ const SUPPORTED_REQUIREMENTS = new Set(["blit", "texture_blit"]);
 /** Above this SSIM vs the untouched baseline, flag for a manual time-sweep. */
 const IDENTITY_SSIM_THRESHOLD = 0.997;
 const DOWNLOAD_DELAY_MS = 500;
+/**
+ * A CV render is only trusted when the SAME package renders differently with
+ * and without its models. "The picture changed" is not enough: a mis-bound
+ * model renders a plausible-looking result, and packages like 撕纸特写 render
+ * visibly from non-CV sub-features while the algorithm contributes nothing.
+ */
+const CV_ISOLATION_MIN_SSIM_DELTA = 0.001;
 
 function parseArgs() {
-	const args = { limit: Infinity, panel: null, only: null };
+	const args = {
+		limit: Infinity,
+		panel: null,
+		only: null,
+		capability: null,
+		plate: null,
+	};
 	const argv = process.argv.slice(2);
 	for (let i = 0; i < argv.length; i++) {
 		if (argv[i] === "--limit") args.limit = Number(argv[++i]);
 		else if (argv[i] === "--panel") args.panel = argv[++i];
 		else if (argv[i] === "--only") args.only = new Set(argv[++i].split(","));
+		// Capabilities are unlocked one at a time: only matting and face have
+		// been verified, and the 29 tokens do not behave alike.
+		else if (argv[i] === "--capability")
+			args.capability = new Set(argv[++i].split(","));
+		// Lets the same population be retried against another subject plate: an
+		// effect that needs limbs fails honestly on a head-and-shoulders plate.
+		else if (argv[i] === "--plate") args.plate = argv[++i];
 	}
 	return args;
 }
@@ -124,6 +165,12 @@ async function readFullCatalog() {
 							itemUrls: Array.isArray(attr.item_urls) ? attr.item_urls : [],
 							sdkExtra:
 								typeof attr.sdk_extra === "string" ? attr.sdk_extra : "",
+							// Declared CV models, used to skip effects whose weights
+							// this machine does not have — the runtime segfaults when
+							// the resource finder cannot answer.
+							modelNames: `${typeof attr.model_names === "string" ? attr.model_names : ""} ${(
+								Array.isArray(attr.sdk_model) ? attr.sdk_model : []
+							).join(" ")}`,
 						});
 					}
 				}
@@ -221,14 +268,14 @@ async function downloadPackage(item) {
 	return dest;
 }
 
-function ssimVsBaseline(ffmpeg, renderedPath) {
+function ssimOf(ffmpeg, leftPath, rightPath) {
 	const result = spawnSync(
 		ffmpeg,
 		[
 			"-i",
-			renderedPath,
+			leftPath,
 			"-i",
-			REF_BASELINE,
+			rightPath,
 			"-filter_complex",
 			"[0:v][1:v]ssim",
 			"-f",
@@ -239,6 +286,53 @@ function ssimVsBaseline(ffmpeg, renderedPath) {
 	);
 	const match = (result.stderr || "").match(/All:(\d+\.\d+)/);
 	return match ? Number(match[1]) : null;
+}
+
+function ssimVsBaseline(ffmpeg, renderedPath, baselinePath) {
+	return ssimOf(ffmpeg, renderedPath, baselinePath);
+}
+
+/** The plate a run must use, given the capabilities it was asked to cover. */
+function resolvePlate(capabilities, override) {
+	if (override) {
+		const plate = SUBJECT_PLATES[override];
+		if (!plate) throw new Error(`unknown plate: ${override}`);
+		return plate;
+	}
+	for (const capability of capabilities ?? []) {
+		const plate = SUBJECT_PLATES[capability];
+		if (plate) return plate;
+	}
+	return { clip: REF_CLIP, baseline: REF_BASELINE };
+}
+
+/** Model stems this machine actually has, e.g. tt_matting, tt_face_extra. */
+function installedModelStems() {
+	const stems = new Set();
+	// The app bundle nests weights one level down in per-family folders, so a
+	// flat read of a single root reports present models as missing.
+	for (const root of jianyingModelDirectories()) {
+		for (const entry of fs.readdirSync(root, {
+			recursive: true,
+			withFileTypes: true,
+		})) {
+			if (!entry.isFile()) continue;
+			const match = entry.name.match(/^(.+?)_v\d/);
+			if (match) stems.add(match[1]);
+		}
+	}
+	return stems;
+}
+
+/**
+ * A resource finder that cannot answer crashes the render process, so an
+ * effect whose declared weights are absent is skipped rather than attempted.
+ */
+function missingModels(item, installed) {
+	const declared = new Set(
+		(item.modelNames ?? "").match(/tt_[a-z0-9_]+/g) ?? []
+	);
+	return [...declared].filter((stem) => !installed.has(stem));
 }
 
 function loadDoneSet() {
@@ -263,8 +357,9 @@ function safeName(title) {
 async function main() {
 	const args = parseArgs();
 	const ffmpeg = getFFmpegPath();
-	if (!fs.existsSync(REF_CLIP) || !fs.existsSync(REF_BASELINE)) {
-		throw new Error(`reference clip missing: ${REF_CLIP}`);
+	const plate = resolvePlate(args.capability, args.plate);
+	if (!fs.existsSync(plate.clip) || !fs.existsSync(plate.baseline)) {
+		throw new Error(`reference clip missing: ${plate.clip}`);
 	}
 
 	const inspection = await inspectJianyingEffectRuntime();
@@ -276,20 +371,38 @@ async function main() {
 	const existingPackages = indexExistingPackages();
 	const done = loadDoneSet();
 
+	// Without --capability the run stays on packages that need no CV at all;
+	// with it, exactly the named capabilities are additionally allowed.
+	const allowed = new Set([
+		...SUPPORTED_REQUIREMENTS,
+		...(args.capability ?? []),
+	]);
 	let targets = catalog.filter(
 		(item) =>
-			item.requirements.every((requirement) =>
-				SUPPORTED_REQUIREMENTS.has(requirement)
-			) &&
+			item.requirements.every((requirement) => allowed.has(requirement)) &&
 			(item.itemUrls.length > 0 || existingPackages.has(item.md5))
 	);
+	if (args.capability) {
+		// Only the CV ones — the blit-only population is already covered.
+		targets = targets.filter((item) =>
+			item.requirements.some(
+				(requirement) => !SUPPORTED_REQUIREMENTS.has(requirement)
+			)
+		);
+	}
 	if (args.panel) targets = targets.filter((t) => t.panel === args.panel);
 	if (args.only) targets = targets.filter((t) => args.only.has(t.effectId));
 	const pending = targets.filter((t) => !done.has(t.effectId));
 	const queue = pending.slice(0, args.limit);
 
+	const installedModels = args.capability ? installedModelStems() : new Set();
+	const modelDirectory = args.capability ? jianyingModelDirectory() : null;
+	if (args.capability && !modelDirectory) {
+		throw new Error("no JianYing model directory found; CV renders need one");
+	}
 	console.log(
-		`catalog=${catalog.length} blit=${targets.length} done=${done.size} queue=${queue.length}`
+		`catalog=${catalog.length} targets=${targets.length} done=${done.size} queue=${queue.length}` +
+			(args.capability ? ` capability=${[...args.capability].join(",")}` : "")
 	);
 
 	const manifest = fs.createWriteStream(MANIFEST_PATH, { flags: "a" });
@@ -314,6 +427,10 @@ async function main() {
 			renderedAt: new Date().toISOString(),
 		};
 		try {
+			const absent = missingModels(item, installedModels);
+			if (absent.length > 0) {
+				throw new Error(`本机缺少算法模型:${absent.join("、")}`);
+			}
 			let packagePath = existingPackages.get(item.md5);
 			let downloaded = false;
 			if (!packagePath) {
@@ -328,23 +445,26 @@ async function main() {
 				: item.sdkExtra;
 			const adjustParameters = readAdjustParameters({ sdkExtra });
 
-			const counts = await renderJianyingEffectClip({
+			const requiresAlgorithm = item.requirements.some(
+				(requirement) => !SUPPORTED_REQUIREMENTS.has(requirement)
+			);
+			const definition = {
+				id: `jy-effect-${item.effectId}`,
+				effectId: item.effectId,
+				resourceId: item.effectId,
+				packageHash: item.md5,
+				packagePath,
+				name: item.title,
+				panel: item.panel,
+				defaultDurationMs: 3000,
+				adjustParameters,
+				access: "free",
+				supported: true,
+				requiresAlgorithm,
+			};
+			const renderOptions = {
 				inspection,
-				definition: {
-					id: `jy-effect-${item.effectId}`,
-					effectId: item.effectId,
-					resourceId: item.effectId,
-					packageHash: item.md5,
-					packagePath,
-					name: item.title,
-					panel: item.panel,
-					defaultDurationMs: 3000,
-					adjustParameters,
-					access: "free",
-					supported: true,
-				},
-				inputPath: REF_CLIP,
-				outputPath: outPath,
+				inputPath: plate.clip,
 				width: WIDTH,
 				height: HEIGHT,
 				frameRate: FPS,
@@ -354,9 +474,42 @@ async function main() {
 					key: parameter.key,
 					value: parameter.defaultValue,
 				})),
+			};
+
+			const counts = await renderJianyingEffectClip({
+				...renderOptions,
+				definition,
+				outputPath: outPath,
 			});
 
-			const ssim = ssimVsBaseline(ffmpeg, outPath);
+			const ssim = ssimVsBaseline(ffmpeg, outPath, plate.baseline);
+
+			// The CV oracle: render the same package again with the algorithm
+			// switched off. Anything the algorithm truly contributed disappears,
+			// so an unchanged control means the CV did nothing and the clip is
+			// not a usable reference no matter how different it looks.
+			if (requiresAlgorithm) {
+				const controlPath = `${outPath}.no-models.mp4`;
+				try {
+					await renderJianyingEffectClip({
+						...renderOptions,
+						definition: { ...definition, requiresAlgorithm: false },
+						outputPath: controlPath,
+					});
+					const controlSsim = ssimOf(ffmpeg, outPath, controlPath);
+					entry.controlSsim = controlSsim;
+					if (
+						controlSsim !== null &&
+						controlSsim > 1 - CV_ISOLATION_MIN_SSIM_DELTA
+					) {
+						throw new Error(
+							`算法未产生贡献:有模型与无模型渲染一致(ssim ${controlSsim})`
+						);
+					}
+				} finally {
+					fs.rmSync(controlPath, { force: true });
+				}
+			}
 			Object.assign(entry, {
 				ok: true,
 				downloaded,

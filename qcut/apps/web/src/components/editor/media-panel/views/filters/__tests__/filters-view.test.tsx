@@ -169,6 +169,25 @@ describe("FiltersView", () => {
 		});
 	});
 
+	it("hosts the Jianying filter lab as its third mode", async () => {
+		render(<FiltersView />);
+
+		const labTab = screen.getByRole("button", { name: "滤镜实验室" });
+		fireEvent.click(labTab);
+		expect(labTab).toHaveAttribute("aria-pressed", "true");
+		// No electronAPI in this environment, so the lab renders its
+		// desktop-only notice — proof the lab itself is mounted here.
+		expect(
+			await screen.findByText("滤镜实验室仅在 QCut 桌面版中可用")
+		).toBeInTheDocument();
+		// The preset browser chrome steps aside while the lab is active.
+		expect(screen.queryByLabelText("Search filters")).not.toBeInTheDocument();
+		expect(screen.queryByTestId("filter-category-all")).not.toBeInTheDocument();
+
+		fireEvent.click(screen.getByRole("button", { name: "Filter library" }));
+		expect(screen.getByLabelText("Search filters")).toBeInTheDocument();
+	});
+
 	it("renders the library with the None card and full result count", () => {
 		render(<FiltersView />);
 

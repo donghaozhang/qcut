@@ -170,6 +170,29 @@ async function loadListMetadata({
 	luts: JianyingLutEntry[];
 	deps: Partial<FilterLabListDeps>;
 }): Promise<LutMetadataLookup> {
+	// The pure lookups have no node:sqlite dependency, so they import on every
+	// runtime — keeping them out of the try below is what lets injected
+	// resolvers work where the sqlite-backed module cannot load.
+	const { findJianyingFilterCategories, findJianyingFilterTitle } =
+		await import("../../jianying-filter-metadata-lookup.js");
+	if (deps.resolveCategories && deps.resolveTitles) {
+		try {
+			const [catalog, titles] = await Promise.all([
+				deps.resolveCategories({ references: luts }),
+				deps.resolveTitles({ references: luts }),
+			]);
+			return {
+				titleFor: (entry) =>
+					findJianyingFilterTitle({ reference: entry, titles }),
+				categoriesFor: (entry) =>
+					findJianyingFilterCategories({ reference: entry, catalog }),
+			};
+		} catch {
+			// Metadata is best-effort decoration: a locked or missing DB drops
+			// the titles, never the rows.
+			return NO_METADATA;
+		}
+	}
 	try {
 		// Dynamic import via a variable specifier: a static import (or a literal
 		// dynamic one, which bun pre-resolves while parsing the CLI entry graph)
@@ -189,9 +212,9 @@ async function loadListMetadata({
 		]);
 		return {
 			titleFor: (entry) =>
-				metadata.findJianyingFilterTitle({ reference: entry, titles }),
+				findJianyingFilterTitle({ reference: entry, titles }),
 			categoriesFor: (entry) =>
-				metadata.findJianyingFilterCategories({ reference: entry, catalog }),
+				findJianyingFilterCategories({ reference: entry, catalog }),
 		};
 	} catch {
 		// In-process import only fails under bun (no node:sqlite there).

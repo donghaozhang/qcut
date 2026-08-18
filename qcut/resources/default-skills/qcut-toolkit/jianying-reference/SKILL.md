@@ -196,6 +196,21 @@ const jy = (f: number) => Math.min(N, Math.floor(Math.min(1, f / F) * (N + 1)));
   `osascript -e 'set the clipboard to "彩带喷射"'`, Cmd+V, Return.
   (`printf | pbcopy` yields mojibake — always set the clipboard via
   AppleScript for CJK.)
+- The accessibility API is NOT an escape hatch from the line above (verified
+  2026-08-17 against the 音效库 list). Every `AXScrollBar` reports `AXValue`
+  settable=true and accepts the write without error, then discards it — the
+  grid's pixels were byte-identical before and after (same md5). The tree is
+  label-only in general: `root_音频` and the other panel tabs are AXStaticText
+  with an EMPTY action list, so AXPress does nothing either. What AX IS good
+  for is reading live element coordinates without stealing focus, which fixes
+  the "panel was resized, yesterday's grid is wrong" trap above —
+  `scroll bars of window 1` resolves in ~1s where filtering
+  `UI elements of window 1` by role times out past 40s on a populated grid.
+- Never drag with a y-range that can leave the panel you are targeting. A drag
+  to y=700 aimed at the media panel (bottom edge ~680) grabs the timeline
+  divider and UNDOCKS the timeline into a floating window — no data loss, but
+  the layout must be restored by hand. Clamp drag bounds to coordinates read
+  from the AX tree, never to hand-written config.
 - NEVER send Cmd+A unless a text field is visibly focused: if the search
   box closed itself, Cmd+A selects every timeline clip and a follow-up
   Delete wipes the project (Cmd+Z recovers — check the timeline crop

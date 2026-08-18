@@ -228,6 +228,64 @@ describe("private Sound Effects Lab manifest", () => {
 		).resolves.toEqual(manifest);
 	});
 
+	// The real batch-04 catalog is 938 references / 806,806 bytes and Phase A is
+	// expected to roughly double it. Growth past the old 1 MiB ceiling had to
+	// keep loading, because exceeding it fails closed AND silently — the lab
+	// entry would simply vanish with no error surfaced.
+	it("accepts a catalog grown past the old 1 MiB ceiling", async () => {
+		const base = privateManifestFixture();
+		const template = base.items[0];
+		// ~2,500 references, comfortably past 1 MiB and past the ~1,219 the old
+		// ceiling allowed. Every identity field has to stay unique or the
+		// duplicate-identity rule rejects it before size is ever considered.
+		const items = Array.from({ length: 2_500 }, (_, index) => {
+			const md5 = index.toString(16).padStart(32, "0");
+			return {
+				...template,
+				id: `${6_896_679_799_100_000_000n + BigInt(index)}`,
+				numericId: template.numericId - index,
+				fileName: `${md5}.mp3`,
+				contentMd5: md5,
+				contentSha256: index.toString(16).padStart(64, "0"),
+				resourceId: `${6_896_679_799_100_000_000n + BigInt(index)}`,
+				asset: {
+					...template.asset,
+					objectKey: `jianying/2026-08-01/assets/${md5}.mp3`,
+					checksumSha256: index.toString(16).padStart(64, "0"),
+				},
+			};
+		});
+		const manifest = { ...base, items };
+		const body = JSON.stringify(manifest);
+		expect(body.length).toBeGreaterThan(1024 * 1024);
+
+		await expect(
+			loadPrivateSoundEffectsLabManifest({
+				fetchImpl: (async () =>
+					new Response(body, {
+						headers: { "Content-Type": "application/json" },
+					})) as typeof fetch,
+				manifestUrl:
+					"https://license.example/api/sound-effects-lab/private-manifest",
+			})
+		).resolves.toEqual(manifest);
+	});
+
+	// The byte ceiling is applied to the raw response before any parsing, so
+	// an oversized body is refused whatever it contains.
+	it("still refuses a response past the byte ceiling", async () => {
+		await expect(
+			loadPrivateSoundEffectsLabManifest({
+				fetchImpl: (async () =>
+					new Response("x".repeat(5 * 1024 * 1024), {
+						headers: { "Content-Type": "application/json" },
+					})) as typeof fetch,
+				manifestUrl:
+					"https://license.example/api/sound-effects-lab/private-manifest",
+			})
+		).rejects.toThrow(/too large|exceed/i);
+	});
+
 	it("rejects forbidden private manifest responses", async () => {
 		await expect(
 			loadPrivateSoundEffectsLabManifest({

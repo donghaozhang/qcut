@@ -1,3 +1,4 @@
+import { Button } from "@/components/ui/button";
 import { DraggableMediaItem } from "@/components/ui/draggable-item";
 import {
 	ResizableHandle,
@@ -41,7 +42,10 @@ import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useSearchStore } from "@/stores/search-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import type { JianyingTextStyleLabStyleSummary } from "@/types/electron";
+import type {
+	JianyingTextStyleLabListResult,
+	JianyingTextStyleLabStyleSummary,
+} from "@/types/electron";
 import {
 	assetManifestVersionKey,
 	type AssetManifestEntry,
@@ -51,6 +55,7 @@ import {
 	ChevronDown,
 	Download,
 	FileText,
+	FlaskConical,
 	Gem,
 	Heart,
 	Layers3,
@@ -121,7 +126,12 @@ import type {
 	TextItemDragData,
 } from "@/types/timeline";
 import { toast } from "sonner";
-import { JianyingTextStyleLabDialog } from "./text-style-lab/jianying-text-style-lab";
+import {
+	JianyingTextStyleLabCategoryNav,
+	JianyingTextStyleLabPanel,
+	type LabView as StyleLabView,
+} from "./text-style-lab/jianying-text-style-lab";
+import { useJianyingTextStyleLab } from "./text-style-lab/use-jianying-text-style-lab";
 import {
 	buildTextStyleLabElement,
 	buildTextStyleLabUpdates,
@@ -1630,18 +1640,46 @@ export function getTextLibraryNavDefaultWidth({
 	return locale === "en" ? 160 : 88;
 }
 
-function TextLibraryNav({
+/** Placeholder for call sites that render the rail with the lab collapsed. */
+const EMPTY_TEXT_STYLE_LAB_RESULT: JianyingTextStyleLabListResult = {
+	count: 0,
+	styles: [],
+	categories: [],
+	packageCount: 0,
+	invalidPackageCount: 0,
+};
+
+export function TextLibraryNav({
 	activeCategoryId,
 	className,
 	expandedGroupIds,
 	onSelectCategory,
 	onSelectGroup,
+	styleLabOpen,
+	onOpenStyleLab,
+	styleLabView = "trial",
+	styleLabResult = EMPTY_TEXT_STYLE_LAB_RESULT,
+	styleLabExpandedGroups = {},
+	onSelectStyleLabView,
+	onToggleStyleLabGroup,
 }: {
 	activeCategoryId: TextTemplateCategoryId;
 	className?: string;
 	expandedGroupIds: ReadonlySet<TextTemplateGroupId>;
 	onSelectCategory: (props: { categoryId: TextTemplateCategoryId }) => void;
 	onSelectGroup: (props: { group: TextTemplateGroup }) => void;
+	styleLabOpen: boolean;
+	onOpenStyleLab: () => void;
+	/**
+	 * The lab's own categories hang off its rail entry, so the rail owns the
+	 * selection. Optional because the library dialog reuses this nav with the
+	 * lab collapsed — none of it renders there.
+	 */
+	styleLabView?: StyleLabView;
+	styleLabResult?: JianyingTextStyleLabListResult;
+	styleLabExpandedGroups?: Record<string, boolean>;
+	onSelectStyleLabView?: (view: StyleLabView) => void;
+	onToggleStyleLabGroup?: (groupId: string) => void;
 }) {
 	const { locale, t } = useTranslation();
 	return (
@@ -1735,6 +1773,41 @@ function TextLibraryNav({
 					</div>
 				);
 			})}
+			{/* The lab sits in the rail with the groups rather than in the
+			    content header, so every browser in this panel is reached the
+			    same way. */}
+			<button
+				type="button"
+				aria-pressed={styleLabOpen}
+				className={cn(
+					"flex h-7 w-full items-center gap-1 rounded-md px-1.5 text-left font-medium text-[0.72rem] transition-colors",
+					styleLabOpen
+						? "bg-accent text-cyan-300 shadow-inner"
+						: "text-muted-foreground hover:bg-accent/70 hover:text-foreground"
+				)}
+				onClick={onOpenStyleLab}
+				onKeyDown={(event) => {
+					if (!isActivationKey({ event })) return;
+					event.preventDefault();
+					onOpenStyleLab();
+				}}
+			>
+				<FlaskConical aria-hidden="true" className="h-3 w-3 shrink-0">
+					<title>花字实验室</title>
+				</FlaskConical>
+				<span className="truncate" title="花字实验室">
+					花字实验室
+				</span>
+			</button>
+			{styleLabOpen && (
+				<JianyingTextStyleLabCategoryNav
+					expandedGroups={styleLabExpandedGroups}
+					result={styleLabResult}
+					view={styleLabView}
+					onSelect={(next) => onSelectStyleLabView?.(next)}
+					onToggleGroup={(groupId) => onToggleStyleLabGroup?.(groupId)}
+				/>
+			)}
 		</nav>
 	);
 }
@@ -1916,6 +1989,7 @@ function ExpandedTextLibraryDialog({
 	onSelectMarketFilter,
 	onSelectCategory,
 	onSelectGroup,
+	onOpenStyleLab,
 	onSelectSourceFilter,
 	onSelectStatusFilter,
 	onSelectStyleFilter,
@@ -1945,6 +2019,7 @@ function ExpandedTextLibraryDialog({
 	onSelectMarketFilter: (filter: TextLibraryMarketFilter) => void;
 	onSelectCategory: (props: { categoryId: TextTemplateCategoryId }) => void;
 	onSelectGroup: (props: { group: TextTemplateGroup }) => void;
+	onOpenStyleLab: () => void;
 	onSelectSourceFilter: (filter: TextLibrarySourceFilter) => void;
 	onSelectStatusFilter: (filter: TextLibraryStatusFilter) => void;
 	onSelectStyleFilter: (filter: TextLibraryStyleFilter) => void;
@@ -1999,6 +2074,10 @@ function ExpandedTextLibraryDialog({
 						expandedGroupIds={expandedGroupIds}
 						onSelectCategory={onSelectCategory}
 						onSelectGroup={onSelectGroup}
+						// The lab renders in the panel, not in this dialog; the rail
+						// entry is shown for consistency but closes back to the panel.
+						styleLabOpen={false}
+						onOpenStyleLab={onOpenStyleLab}
 					/>
 					<div className="min-w-0 flex-1 overflow-y-auto">
 						<div className="sticky top-0 z-10 space-y-2 bg-background/95 pb-2">
@@ -2143,6 +2222,16 @@ export function sortTextDefinitionsForBrowsing({
 }
 
 export function TextView() {
+	// The flower-text lab lives in this panel rather than a modal, so the view
+	// swaps in place the way the other left-panel browsers do. Its categories
+	// hang off the rail entry like every other group's, which means the rail —
+	// not the lab — owns the selection and the data.
+	const [styleLabOpen, setStyleLabOpen] = useState(false);
+	const [styleLabView, setStyleLabView] = useState<StyleLabView>("trial");
+	const [styleLabExpandedGroups, setStyleLabExpandedGroups] = useState<
+		Record<string, boolean>
+	>(() => ({ charts: true, styles: false, effects: false, colors: false }));
+	const styleLab = useJianyingTextStyleLab({ enabled: styleLabOpen });
 	const { locale, t } = useTranslation();
 	const tracks = useTimelineStore((state) => state.tracks);
 	const transcriptions = useSearchStore((state) => state.transcriptions);
@@ -2663,112 +2752,137 @@ export function TextView() {
 						activeCategoryId={activeCategoryId}
 						className="h-full w-full"
 						expandedGroupIds={expandedGroupIds}
-						onSelectCategory={handleSelectCategory}
+						onSelectCategory={(props) => {
+							setStyleLabOpen(false);
+							handleSelectCategory(props);
+						}}
 						onSelectGroup={handleSelectGroup}
+						styleLabOpen={styleLabOpen}
+						onOpenStyleLab={() => setStyleLabOpen(true)}
+						styleLabView={styleLabView}
+						styleLabResult={styleLab.result}
+						styleLabExpandedGroups={styleLabExpandedGroups}
+						onSelectStyleLabView={setStyleLabView}
+						onToggleStyleLabGroup={(groupId) =>
+							setStyleLabExpandedGroups((current) => ({
+								...current,
+								[groupId]: !(current[groupId] ?? false),
+							}))
+						}
 					/>
 				</ResizablePanel>
 				<ResizableHandle />
 				<ResizablePanel className="min-w-0" minSize="50%">
-					<section className="h-full min-w-0 overflow-y-auto pl-2">
-						<div className="sticky top-0 z-10 space-y-2 bg-background/95 pb-2">
-							<TextLibrarySearchField
-								searchQuery={searchQuery}
-								onSearchQueryChange={handleSearchQueryChange}
+					{styleLabOpen ? (
+						<section className="h-full min-w-0 overflow-hidden pl-2">
+							<JianyingTextStyleLabPanel
+								lab={styleLab}
+								onApply={applyTextStyleLabStyle}
+								onClose={() => setStyleLabOpen(false)}
+								view={styleLabView}
 							/>
-							<div className="flex h-6 items-center justify-between gap-2">
-								<h2 className="truncate text-sm font-medium text-foreground">
-									{activeHeading}
-								</h2>
-								<div className="flex shrink-0 items-center gap-1.5">
-									{activeCategory.groupId === "fancy" ? (
-										<JianyingTextStyleLabDialog
-											onApply={applyTextStyleLabStyle}
-										/>
-									) : null}
-									<span className="text-[0.68rem] text-muted-foreground">
-										{smartTextStatus}
-									</span>
-									<button
-										type="button"
-										aria-label={t("textLibrary.cacheCurrent")}
-										className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-										onClick={() => void handleCacheVisibleTemplates()}
-										onKeyDown={(event) => {
-											if (!isActivationKey({ event })) return;
-											event.preventDefault();
-											void handleCacheVisibleTemplates();
-										}}
-									>
-										<Download aria-hidden="true" className="h-3.5 w-3.5">
-											<title>{t("textLibrary.cacheCurrent")}</title>
-										</Download>
-									</button>
-									<button
-										type="button"
-										aria-label={t("textLibrary.expand")}
-										className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-										onClick={() => setExpandedLibraryOpen(true)}
-										onKeyDown={(event) => {
-											if (!isActivationKey({ event })) return;
-											event.preventDefault();
-											setExpandedLibraryOpen(true);
-										}}
-									>
-										<Maximize2 aria-hidden="true" className="h-3.5 w-3.5">
-											<title>{t("textLibrary.expand")}</title>
-										</Maximize2>
-									</button>
+						</section>
+					) : (
+						<section className="h-full min-w-0 overflow-y-auto pl-2">
+							<div className="sticky top-0 z-10 space-y-2 bg-background/95 pb-2">
+								<TextLibrarySearchField
+									searchQuery={searchQuery}
+									onSearchQueryChange={handleSearchQueryChange}
+								/>
+								<div className="flex h-6 items-center justify-between gap-2">
+									<h2 className="truncate text-sm font-medium text-foreground">
+										{activeHeading}
+									</h2>
+									<div className="flex shrink-0 items-center gap-1.5">
+										<span className="text-[0.68rem] text-muted-foreground">
+											{smartTextStatus}
+										</span>
+										<button
+											type="button"
+											aria-label={t("textLibrary.cacheCurrent")}
+											className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+											onClick={() => void handleCacheVisibleTemplates()}
+											onKeyDown={(event) => {
+												if (!isActivationKey({ event })) return;
+												event.preventDefault();
+												void handleCacheVisibleTemplates();
+											}}
+										>
+											<Download aria-hidden="true" className="h-3.5 w-3.5">
+												<title>{t("textLibrary.cacheCurrent")}</title>
+											</Download>
+										</button>
+										<button
+											type="button"
+											aria-label={t("textLibrary.expand")}
+											className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+											onClick={() => setExpandedLibraryOpen(true)}
+											onKeyDown={(event) => {
+												if (!isActivationKey({ event })) return;
+												event.preventDefault();
+												setExpandedLibraryOpen(true);
+											}}
+										>
+											<Maximize2 aria-hidden="true" className="h-3.5 w-3.5">
+												<title>{t("textLibrary.expand")}</title>
+											</Maximize2>
+										</button>
+									</div>
 								</div>
+								<FilterBar
+									activeFilter={statusFilter}
+									filters={TEXT_LIBRARY_STATUS_FILTERS}
+									onSelectFilter={setStatusFilter}
+								/>
+								<FilterBar
+									activeFilter={styleFilter}
+									filters={TEXT_LIBRARY_STYLE_FILTERS}
+									onSelectFilter={setStyleFilter}
+								/>
+								<FilterBar
+									activeFilter={marketFilter}
+									filters={TEXT_LIBRARY_MARKET_FILTERS}
+									onSelectFilter={setMarketFilter}
+								/>
+								<FilterBar
+									activeFilter={sourceFilter}
+									filters={TEXT_LIBRARY_SOURCE_FILTERS}
+									onSelectFilter={setSourceFilter}
+								/>
+								<TextLibraryResourceReadinessBar
+									designerGoalSummary={designerGoalSummary}
+									summary={resourceReadinessSummary}
+								/>
 							</div>
-							<FilterBar
-								activeFilter={statusFilter}
-								filters={TEXT_LIBRARY_STATUS_FILTERS}
-								onSelectFilter={setStatusFilter}
-							/>
-							<FilterBar
-								activeFilter={styleFilter}
-								filters={TEXT_LIBRARY_STYLE_FILTERS}
-								onSelectFilter={setStyleFilter}
-							/>
-							<FilterBar
-								activeFilter={marketFilter}
-								filters={TEXT_LIBRARY_MARKET_FILTERS}
-								onSelectFilter={setMarketFilter}
-							/>
-							<FilterBar
-								activeFilter={sourceFilter}
-								filters={TEXT_LIBRARY_SOURCE_FILTERS}
-								onSelectFilter={setSourceFilter}
-							/>
-							<TextLibraryResourceReadinessBar
-								designerGoalSummary={designerGoalSummary}
-								summary={resourceReadinessSummary}
-							/>
-						</div>
-						{visibleDefinitions.length > 0 ? (
-							<TemplateGrid
-								definitions={visibleDefinitions}
-								libraryState={libraryState}
-								onDownload={handleDownload}
-								onToggleFavorite={handleToggleFavorite}
-								onUseTemplate={handleUseTemplate}
-								runtimeByAssetKey={runtimeByAssetKey}
-							/>
-						) : (
-							<div className="py-12 text-center text-xs text-muted-foreground">
-								{emptyMessage}
-							</div>
-						)}
-						{!normalizedSearchQuery &&
-							activeCategory.id === DEFAULT_TEXT_TEMPLATE_CATEGORY_ID && (
-								<MarkdownTemplate onAdd={addMarkdown} />
+							{visibleDefinitions.length > 0 ? (
+								<TemplateGrid
+									definitions={visibleDefinitions}
+									libraryState={libraryState}
+									onDownload={handleDownload}
+									onToggleFavorite={handleToggleFavorite}
+									onUseTemplate={handleUseTemplate}
+									runtimeByAssetKey={runtimeByAssetKey}
+								/>
+							) : (
+								<div className="py-12 text-center text-xs text-muted-foreground">
+									{emptyMessage}
+								</div>
 							)}
-					</section>
+							{!normalizedSearchQuery &&
+								activeCategory.id === DEFAULT_TEXT_TEMPLATE_CATEGORY_ID && (
+									<MarkdownTemplate onAdd={addMarkdown} />
+								)}
+						</section>
+					)}
 				</ResizablePanel>
 			</ResizablePanelGroup>
 			<ExpandedTextLibraryDialog
 				activeHeading={activeHeading}
 				activeCategoryId={activeCategoryId}
+				onOpenStyleLab={() => {
+					setExpandedLibraryOpen(false);
+					setStyleLabOpen(true);
+				}}
 				designerGoalSummary={designerGoalSummary}
 				definitions={visibleDefinitions}
 				emptyMessage={emptyMessage}

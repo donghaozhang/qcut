@@ -61,6 +61,37 @@ export function useJianyingFilterLab() {
 		}
 	}, []);
 	const refresh = useCallback(() => load({ refresh: true }), [load]);
+	const [downloading, setDownloading] = useState<ReadonlySet<string>>(
+		() => new Set()
+	);
+	const download = useCallback(
+		async ({ resourceId }: { resourceId: string }) => {
+			const api = window.electronAPI?.jianyingFilterLab;
+			if (!api?.download) return false;
+			setDownloading((current) => new Set(current).add(resourceId));
+			try {
+				await api.download({ resourceId });
+				// The main process invalidates its catalog and emits `changed`,
+				// but that listener is not guaranteed to have fired yet — reload
+				// here so the card reflects the new package immediately.
+				await load({ refresh: true });
+				return true;
+			} catch (cause) {
+				setState((current) => ({
+					...current,
+					error: cause instanceof Error ? cause.message : String(cause),
+				}));
+				return false;
+			} finally {
+				setDownloading((current) => {
+					const next = new Set(current);
+					next.delete(resourceId);
+					return next;
+				});
+			}
+		},
+		[load]
+	);
 
 	useEffect(() => {
 		void load({ refresh: false });
@@ -70,5 +101,5 @@ export function useJianyingFilterLab() {
 		});
 	}, [load]);
 
-	return { ...state, refresh };
+	return { ...state, refresh, download, downloading };
 }

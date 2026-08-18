@@ -19,10 +19,9 @@ import type {
 	JianyingFilterLabFilterSummary,
 	JianyingFilterLabLutSummary,
 } from "@/types/electron";
-import {
-	JIANYING_FILTER_IMPLEMENTATION_LABELS,
-	JianyingFilterLabCard,
-} from "./jianying-filter-lab-card";
+import { JIANYING_FILTER_IMPLEMENTATION_LABELS } from "./jianying-filter-lab-labels";
+import { JianyingFilterLabSidebar } from "./jianying-filter-lab-sidebar";
+import { JianyingFilterLabTile } from "./jianying-filter-lab-tile";
 import { JianyingFilterLabControls } from "./jianying-filter-lab-controls";
 import { useJianyingFilterLab } from "./use-jianying-filter-lab";
 
@@ -59,7 +58,9 @@ function unavailableMessage({
 	filter: JianyingFilterLabFilterSummary;
 }) {
 	if (filter.cacheStatus === "uncached") {
-		return `在剪映中使用一次「${filter.title}」后，返回这里重新扫描`;
+		return filter.downloadable
+			? `「${filter.title}」尚未下载，点击卡片右侧的下载按钮获取`
+			: `在剪映中使用一次「${filter.title}」后，返回这里重新扫描`;
 	}
 	if (filter.cacheStatus === "partial") {
 		return `「${filter.title}」的本地缓存版本不完整或已经过期`;
@@ -152,6 +153,8 @@ export function JianyingFilterLab({
 		categories,
 		error,
 		refresh,
+		download,
+		downloading,
 	} = useJianyingFilterLab();
 	const [query, setQuery] = useState("");
 	const [catalogView, setCatalogView] = useState<CatalogView>("available");
@@ -211,6 +214,37 @@ export function JianyingFilterLab({
 	const activeCategory = categoryOptions.some(({ id }) => id === category)
 		? category
 		: ALL_CATEGORIES;
+	// The accessible names here are the panel's contract: a category tab reads
+	// "夏日 1/2", a view tab reads "已缓存". Keep them stable when restyling.
+	const sidebarGroups = useMemo(
+		() => [
+			{
+				id: "views",
+				label: "浏览",
+				activeId: catalogView,
+				entries: CATALOG_VIEWS.map(({ id, label }) => ({ id, label })),
+				onSelect: ({ id }: { id: string }) => {
+					setCatalogView(id as CatalogView);
+					setVisibleLimit(INITIAL_VISIBLE_FILTERS);
+				},
+			},
+			{
+				id: "categories",
+				label: "滤镜库",
+				activeId: activeCategory,
+				entries: categoryOptions.map((option) => ({
+					id: option.id,
+					label: option.label,
+					count: `${option.available}/${option.total}`,
+				})),
+				onSelect: ({ id }: { id: string }) => {
+					setCategory(id);
+					setVisibleLimit(INITIAL_VISIBLE_FILTERS);
+				},
+			},
+		],
+		[activeCategory, catalogView, categoryOptions]
+	);
 	const matchingFilters = useMemo(() => {
 		const normalizedQuery = query.trim().toLocaleLowerCase();
 		const recentOrder = new Map(recentIds.map((id, index) => [id, index]));
@@ -366,71 +400,11 @@ export function JianyingFilterLab({
 				</Button>
 			</div>
 
-			<div
-				className="flex gap-1 overflow-x-auto pb-0.5"
-				role="tablist"
-				aria-label="剪映滤镜分类"
-				data-testid="jianying-filter-lab-categories"
-			>
-				{categoryOptions.map((option) => (
-					<button
-						key={option.id}
-						type="button"
-						role="tab"
-						aria-selected={activeCategory === option.id}
-						className={cn(
-							"h-7 shrink-0 whitespace-nowrap rounded-sm border px-2 text-[10px] transition-colors",
-							activeCategory === option.id
-								? "border-primary/50 bg-primary/15 text-primary"
-								: "border-border/60 text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-						)}
-						onClick={() => {
-							setCategory(option.id);
-							setVisibleLimit(INITIAL_VISIBLE_FILTERS);
-						}}
-						onKeyDown={(event) => {
-							if (event.key === "Escape") event.currentTarget.blur();
-						}}
-					>
-						{`${option.label} ${option.available}/${option.total}`}
-					</button>
-				))}
-			</div>
-
 			<div className="flex items-center gap-1.5">
-				<div
-					className="grid min-w-0 flex-1 grid-cols-5 gap-1"
-					role="tablist"
-					aria-label="滤镜目录状态"
-				>
-					{CATALOG_VIEWS.map((option) => (
-						<button
-							key={option.id}
-							type="button"
-							role="tab"
-							aria-selected={catalogView === option.id}
-							className={cn(
-								"h-7 min-w-0 rounded-sm border px-1 text-[10px] transition-colors",
-								catalogView === option.id
-									? "border-primary/50 bg-primary/15 text-primary"
-									: "border-border/60 text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-							)}
-							onClick={() => {
-								setCatalogView(option.id);
-								setVisibleLimit(INITIAL_VISIBLE_FILTERS);
-							}}
-							onKeyDown={(event) => {
-								if (event.key === "Escape") event.currentTarget.blur();
-							}}
-						>
-							<span className="block truncate">{option.label}</span>
-						</button>
-					))}
-				</div>
 				<select
 					value={implementation}
 					aria-label="筛选滤镜实现类型"
-					className="h-7 w-[92px] rounded-sm border border-border/60 bg-background px-1 text-[10px] text-foreground outline-none focus:border-primary/60"
+					className="h-7 min-w-0 flex-1 rounded-sm border border-border/60 bg-background px-1 text-[10px] text-foreground outline-none focus:border-primary/60"
 					onChange={(event) => {
 						setImplementation(event.target.value as ImplementationFilter);
 						setVisibleLimit(INITIAL_VISIBLE_FILTERS);
@@ -471,45 +445,53 @@ export function JianyingFilterLab({
 				/>
 			) : null}
 
-			{!checking && !error && matchingFilters.length === 0 ? (
-				<div className="grid h-28 place-items-center border-y border-border/50 px-4 text-center text-xs text-muted-foreground">
-					{filters.length === 0 ? "没有找到剪映滤镜目录" : "没有匹配的滤镜"}
+			<div className="flex min-w-0 gap-2">
+				<JianyingFilterLabSidebar groups={sidebarGroups} />
+
+				<div className="min-w-0 flex-1 space-y-2">
+					{!checking && !error && matchingFilters.length === 0 ? (
+						<div className="grid h-28 place-items-center rounded-md border border-border/50 px-4 text-center text-xs text-muted-foreground">
+							{filters.length === 0 ? "没有找到剪映滤镜目录" : "没有匹配的滤镜"}
+						</div>
+					) : null}
+
+					<div className="grid grid-cols-[repeat(auto-fill,minmax(84px,1fr))] gap-2">
+						{visibleFilters.map((filter) => (
+							<JianyingFilterLabTile
+								key={filter.resourceId}
+								filter={filter}
+								loading={loadingResourceId === filter.resourceId}
+								favorite={favoriteIds.has(filter.resourceId)}
+								downloading={downloading.has(filter.resourceId)}
+								onApply={({ filter: selectedFilter }) =>
+									void applyFilter({ filter: selectedFilter })
+								}
+								onDownload={({ filter: selectedFilter }) =>
+									void download({ resourceId: selectedFilter.resourceId })
+								}
+								onToggleFavorite={({ filter: selectedFilter }) =>
+									toggleFavorite({
+										kind: "filter",
+										id: `jianying:${selectedFilter.resourceId}`,
+									})
+								}
+							/>
+						))}
+					</div>
+
+					{visibleFilters.length < matchingFilters.length ? (
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							className="h-8 w-full"
+							onClick={() => setVisibleLimit((current) => current + 120)}
+						>
+							显示更多
+						</Button>
+					) : null}
 				</div>
-			) : null}
-
-			<div className="space-y-1.5">
-				{visibleFilters.map((filter) => {
-					return (
-						<JianyingFilterLabCard
-							key={filter.resourceId}
-							filter={filter}
-							loading={loadingResourceId === filter.resourceId}
-							favorite={favoriteIds.has(filter.resourceId)}
-							onApply={({ filter: selectedFilter }) =>
-								void applyFilter({ filter: selectedFilter })
-							}
-							onToggleFavorite={({ filter: selectedFilter }) =>
-								toggleFavorite({
-									kind: "filter",
-									id: `jianying:${selectedFilter.resourceId}`,
-								})
-							}
-						/>
-					);
-				})}
 			</div>
-
-			{visibleFilters.length < matchingFilters.length ? (
-				<Button
-					type="button"
-					variant="outline"
-					size="sm"
-					className="h-8 w-full"
-					onClick={() => setVisibleLimit((current) => current + 120)}
-				>
-					显示更多
-				</Button>
-			) : null}
 		</div>
 	);
 }

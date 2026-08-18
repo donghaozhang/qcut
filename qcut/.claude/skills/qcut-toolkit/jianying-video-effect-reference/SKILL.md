@@ -275,13 +275,25 @@ Mechanics worth knowing before touching it:
 - **SSIM ≠ identity check**: sparse effects legitimately score ~0.99 (星火);
   only >0.997 gets `flaggedIdentity`, and even that needs a frame sweep before
   concluding (same trap as the single-timestamp one above).
-- **Lumi family fails, and that is the ONLY failure family** (2026-08-17 full
-  run: 517/618 ok, all 101 failures are Lumi — ~90% the JS variant with a
-  root `LumiManager.js` + `config.json.js_path` and an embedded ThreeJS, the
-  rest Lua `LumiFamily/`). The bridge's `effect-video` mode exits 0 without
-  printing frame counts for them; a failed pass still MUXES a pass-through
-  mp4, which the script now deletes on failure. Unlocking the family needs
-  native-side stepping support — do not burn time re-running them.
+- **The Lumi "failures" were a truncation artifact, not a runtime limit.** A
+  2026-08-17 run reported 517/618 with all 101 failures in the Lumi family
+  (~90 the JS variant: root `LumiManager.js` + `config.json.js_path` +
+  embedded ThreeJS; rest Lua `LumiFamily/`), and the family's known
+  wall-clock/`onUpdate` contract made "needs native stepping" look obvious.
+  Running the bridge directly disproved it: exit 0, a complete raw output,
+  the `[effect] frames:` receipt present in stdout, and 60/60 frames
+  differing from the input. The receipt sat 10,268 bytes from EOF while
+  `render.ts` kept only the last 8,192 — Lumi's JS-engine teardown
+  (`[AE_JSRUNTIME_TAG]'Scene: 开始清理场景资源'` plus dispose/destroy stacks,
+  ~90KB) scrolled it out. Packages without a JS engine barely log at
+  teardown, which is why the false failures landed **exactly** on one family.
+  Fixed by latching the line as it streams (`retainPattern`); all 101 then
+  passed, taking the library to 618/618.
+- **Diagnostic rule this cost us**: when the bridge "finishes without
+  reporting", read the FULL raw stdout before theorising about the render
+  contract. Tail-window truncation is a silent source of false failures.
+  (A failed pass still muxes an mp4 — the third ffmpeg step runs before the
+  receipt is parsed — so the batch script deletes its output on failure.)
 - The lab UI consumes `manifest.jsonl` as a verification ledger: effects with
   a failing verdict are locked as 「本机渲染验证未通过」 instead of
   pretending to work (electron/jianying-effect/catalog.ts).

@@ -38,6 +38,8 @@ export type {
 	JianyingFilterLabAPI,
 	JianyingFilterLabCategorySummary,
 	JianyingFilterLabCube,
+	JianyingFilterLabDownloadRequest,
+	JianyingFilterLabDownloadResult,
 	JianyingFilterLabFilterSummary,
 	JianyingFilterLabListRequest,
 	JianyingFilterLabListResult,

@@ -12,6 +12,7 @@ import type {
 import type { TimelineStore } from "@/stores/timeline/types";
 import type { TimelineTrack } from "@/types/timeline";
 import { AdjustmentsView } from "../adjustments";
+import { JianyingFilterLabShelf } from "../adjustments/jianying-filter-lab-shelf";
 
 vi.mock("sonner", () => ({
 	toast: {
@@ -147,6 +148,7 @@ const localFilterSummary: JianyingFilterLabFilterSummary = {
 	implementation: "single-lut",
 	available: true,
 	hasThumbnail: false,
+	downloadable: false,
 	verification: { status: "unverified" },
 	luts: [localLutSummary],
 };
@@ -184,14 +186,15 @@ describe("AdjustmentsView", () => {
 		installFilterLabApi();
 	});
 
-	it("renders the adjustment, LUT import, and filter lab entry points", () => {
+	it("renders the adjustment and LUT import entry points without the lab", () => {
 		installTimelineState();
 		render(<AdjustmentsView />);
 
 		expect(screen.getByText("新建调节")).toBeInTheDocument();
 		expect(screen.getByText("我的")).toBeInTheDocument();
 		expect(screen.getByText("LUT")).toBeInTheDocument();
-		expect(screen.getByText("滤镜实验室")).toBeInTheDocument();
+		// The lab moved to the 滤镜 panel; adjustments must not offer it twice.
+		expect(screen.queryByText("滤镜实验室")).not.toBeInTheDocument();
 		expect(screen.getByText("自定义调节")).toBeInTheDocument();
 		expect(
 			screen.queryByTestId("color-properties-panel")
@@ -285,9 +288,8 @@ describe("AdjustmentsView", () => {
 	it("loads and applies the exact local Jianying LUT to the selected layer", async () => {
 		const timeline = installTimelineState();
 		const api = installFilterLabApi();
-		render(<AdjustmentsView />);
+		render(<JianyingFilterLabShelf />);
 
-		fireEvent.click(screen.getByText("滤镜实验室"));
 		await screen.findByText("高清黑白");
 		expect(api.list).toHaveBeenCalledOnce();
 		fireEvent.click(screen.getByRole("button", { name: "应用 高清黑白" }));
@@ -314,9 +316,8 @@ describe("AdjustmentsView", () => {
 
 	it("previews the active LUT against the original and updates its intensity", async () => {
 		const timeline = installTimelineState({ withLut: true });
-		render(<AdjustmentsView />);
+		render(<JianyingFilterLabShelf />);
 
-		fireEvent.click(screen.getByText("滤镜实验室"));
 		await screen.findByTestId("jianying-filter-lab-controls");
 		expect(screen.getByRole("button", { name: "B 滤镜" })).toHaveAttribute(
 			"aria-pressed",
@@ -360,9 +361,8 @@ describe("AdjustmentsView", () => {
 	it("shows a desktop-only state when the local cache bridge is unavailable", async () => {
 		installTimelineState();
 		installFilterLabApi({ available: false });
-		render(<AdjustmentsView />);
+		render(<JianyingFilterLabShelf />);
 
-		fireEvent.click(screen.getByText("滤镜实验室"));
 		expect(
 			await screen.findByText("滤镜实验室仅在 QCut 桌面版中可用")
 		).toBeInTheDocument();

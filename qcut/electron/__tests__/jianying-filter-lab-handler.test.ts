@@ -4,6 +4,7 @@ import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	JIANYING_FILTER_LAB_CHANGED_CHANNEL,
+	JIANYING_FILTER_LAB_DOWNLOAD_CHANNEL,
 	JIANYING_FILTER_LAB_LIST_CHANNEL,
 	JIANYING_FILTER_LAB_LOCAL_RUNTIME_CHANNEL,
 	JIANYING_FILTER_LAB_LOAD_CHANNEL,
@@ -400,6 +401,108 @@ describe("Jianying filter lab IPC", () => {
 		expect(listReferences).toHaveBeenCalledTimes(3);
 		controller.dispose();
 		expect(disposeWatcher).toHaveBeenCalledOnce();
+	});
+
+	it("downloads an uncached filter package and rescans so the card updates", async () => {
+		const context = createWindowContext();
+		const knownFilter = {
+			resourceId: "7127664822921022734",
+			title: "蓝调",
+			categories: ["风景"],
+			version: "abc123",
+			packageUrls: ["https://example.invalid/package.zip"],
+		};
+		const downloadPackage = vi.fn(async () => ({
+			resourceId: knownFilter.resourceId,
+			version: knownFilter.version,
+			packagePath: "/managed/7127664822921022734/abc123",
+		}));
+		const listReferences = vi.fn(async () => []);
+		setupJianyingFilterLabIPC({
+			getMainWindow: () => context.mainWindow,
+			readVerifications: async () => new Map(),
+			listReferences,
+			resolveTitles: async () => new Map(),
+			resolveCategories: async () => ({ order: [], byResourceId: new Map() }),
+			resolveKnownFilters: async () => ({
+				order: ["风景"],
+				filters: [knownFilter],
+			}),
+			inspectPackages: async () => new Map(),
+			downloadPackage,
+			watchCache: () => ({ dispose: () => undefined }),
+		});
+		const download = getHandler({
+			channel: JIANYING_FILTER_LAB_DOWNLOAD_CHANNEL,
+		});
+
+		await expect(
+			download(context.event, { resourceId: knownFilter.resourceId })
+		).resolves.toEqual({
+			resourceId: knownFilter.resourceId,
+			version: "abc123",
+		});
+		expect(downloadPackage).toHaveBeenCalledWith({ filter: knownFilter });
+		// The renderer is told to reload, and the next read must re-scan rather
+		// than serve the pre-download catalog.
+		expect(context.mainWindow.webContents.send).toHaveBeenCalledWith(
+			JIANYING_FILTER_LAB_CHANGED_CHANNEL
+		);
+		const scansBefore = listReferences.mock.calls.length;
+		await getHandler({ channel: JIANYING_FILTER_LAB_LIST_CHANNEL })(
+			context.event
+		);
+		expect(listReferences.mock.calls.length).toBeGreaterThan(scansBefore);
+	});
+
+	it("rejects a download for a filter outside the catalog", async () => {
+		const context = createWindowContext();
+		const downloadPackage = vi.fn();
+		setupJianyingFilterLabIPC({
+			getMainWindow: () => context.mainWindow,
+			readVerifications: async () => new Map(),
+			listReferences: async () => [],
+			resolveTitles: async () => new Map(),
+			resolveCategories: async () => ({ order: [], byResourceId: new Map() }),
+			resolveKnownFilters: async () => ({ order: [], filters: [] }),
+			inspectPackages: async () => new Map(),
+			downloadPackage,
+			watchCache: () => ({ dispose: () => undefined }),
+		});
+		const download = getHandler({
+			channel: JIANYING_FILTER_LAB_DOWNLOAD_CHANNEL,
+		});
+
+		await expect(
+			download(context.event, { resourceId: "9999999999999999999" })
+		).rejects.toThrow("未找到该剪映滤镜目录条目");
+		await expect(download(context.iframeEvent, {})).rejects.toThrow("非主窗口");
+		expect(downloadPackage).not.toHaveBeenCalled();
+	});
+
+	it("retries the catalog after a failed scan instead of caching the rejection", async () => {
+		const context = createWindowContext();
+		const listReferences = vi
+			.fn<() => Promise<never[]>>()
+			.mockRejectedValueOnce(new Error("cache unreadable"))
+			.mockResolvedValue([]);
+		setupJianyingFilterLabIPC({
+			getMainWindow: () => context.mainWindow,
+			readVerifications: async () => new Map(),
+			listReferences,
+			resolveTitles: async () => new Map(),
+			resolveCategories: async () => ({ order: [], byResourceId: new Map() }),
+			resolveKnownFilters: async () => ({ order: [], filters: [] }),
+			inspectPackages: async () => new Map(),
+			watchCache: () => ({ dispose: () => undefined }),
+		});
+		const list = getHandler({ channel: JIANYING_FILTER_LAB_LIST_CHANNEL });
+
+		await expect(list(context.event)).rejects.toThrow("cache unreadable");
+		// The retry uses the same refresh:false path every caller uses, so it
+		// only succeeds if the rejected promise was cleared rather than memoized.
+		await expect(list(context.event)).resolves.toBeDefined();
+		expect(listReferences).toHaveBeenCalledTimes(2);
 	});
 
 	it("loads a recognized tiled LUT shader through its private cached image", async () => {

@@ -145,7 +145,6 @@ export function collectPanelCategories({
 	}
 
 	const parsedRows: Array<Array<{ id: string; name: string }>> = [];
-	const namesById = new Map<string, string>();
 	for (const row of panelRows) {
 		const body = parseJsonObject({ text: row.responseBody });
 		const data = body.data;
@@ -164,7 +163,6 @@ export function collectPanelCategories({
 			const name = readString({ source: record, key: "category_name" });
 			if (id.length === 0 || id === "0" || name.length === 0) continue;
 			list.push({ id, name });
-			if (!namesById.has(id)) namesById.set(id, name);
 		}
 		if (list.length > 0) parsedRows.push(list);
 	}
@@ -188,15 +186,67 @@ export function collectPanelCategories({
 		for (const category of bestRow ?? []) {
 			if (!used.has(category.id) || seen.has(category.id)) continue;
 			seen.add(category.id);
-			result.push({ ...category, panel });
+			result.push({ ...category, panel, categoryIds: [category.id] });
 		}
-		// Ids the winning panel misses (stale pages, cross-panel reuse) still
-		// deserve a tab; other cached panels usually know their names.
-		const leftover = [...used]
-			.filter((id) => !seen.has(id))
-			.map((id) => ({ id, name: namesById.get(id) ?? id, panel }))
-			.sort((left, right) => left.name.localeCompare(right.name));
-		result.push(...leftover);
+		// Ids the winning panel misses can still be named by another cached
+		// row — but only one whose panel scope plausibly IS this panel.
+		// Category ids repeat across panels with different names, and the
+		// panel URLs are hashed, so a row's panel is only inferable from its
+		// contents. Any-overlap is not enough: the contested id itself would
+		// qualify the foreign row that collides on it. A row counts as a
+		// sibling when MOST of its categories are exercised by this panel's
+		// items; among siblings, higher absolute overlap wins the tie.
+		const namesForPanel = new Map<string, string>();
+		const siblingRows = parsedRows
+			.map((list) => ({
+				list,
+				score: list.filter((category) => used.has(category.id)).length,
+			}))
+			.filter((entry) => entry.score * 2 > entry.list.length)
+			.sort((left, right) => right.score - left.score);
+		for (const { list } of siblingRows) {
+			for (const category of list) {
+				if (!namesForPanel.has(category.id)) {
+					namesForPanel.set(category.id, category.name);
+				}
+			}
+		}
+		const unresolved: string[] = [];
+		for (const id of [...used].filter((candidate) => !seen.has(candidate))) {
+			const name = namesForPanel.get(id);
+			if (name) {
+				seen.add(id);
+				result.push({ id, name, panel, categoryIds: [id] });
+				continue;
+			}
+			unresolved.push(id);
+		}
+
+		// A category nobody cached a name for must never surface as a raw id.
+		// Most are redundant — their effects also sit in a named tab — so they
+		// are dropped; the rest are folded into one catch-all so no effect
+		// becomes unreachable.
+		const named = new Set(
+			result
+				.filter((entry) => entry.panel === panel)
+				.flatMap((e) => e.categoryIds)
+		);
+		const orphanIds = unresolved.filter((id) =>
+			items.some(
+				(item) =>
+					item.panel === panel &&
+					item.categoryIds.includes(id) &&
+					!item.categoryIds.some((candidate) => named.has(candidate))
+			)
+		);
+		if (orphanIds.length > 0) {
+			result.push({
+				id: `${panel}-other`,
+				name: "其他",
+				panel,
+				categoryIds: orphanIds,
+			});
+		}
 	}
 	return result;
 }

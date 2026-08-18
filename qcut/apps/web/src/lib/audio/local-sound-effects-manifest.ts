@@ -18,7 +18,12 @@ const PRIVATE_AUDIO_OBJECT_KEY_PATTERN =
 	/^jianying\/\d{4}-\d{2}-\d{2}\/assets\/[a-f0-9]{32}\.mp3$/;
 const MAX_REFERENCE_AUDIO_BYTES = 50 * 1024 * 1024;
 const MAX_REFERENCE_AUDIO_DURATION_SECONDS = 30 * 60;
-const MAX_REMOTE_MANIFEST_BYTES = 1024 * 1024;
+// The catalog runs about 860 bytes per item, so the original 1 MiB ceiling
+// would have started rejecting the manifest at roughly 1,219 references — and
+// the rejection is silent (use-local-sound-effects-lab.ts swallows private
+// manifest errors to stay fail-closed), so it would have shown up as the lab
+// entry vanishing rather than as an error. 4 MiB leaves room for ~4,800.
+const MAX_REMOTE_MANIFEST_BYTES = 4 * 1024 * 1024;
 
 const localAudioPathSchema = z
 	.string()
@@ -53,7 +58,12 @@ const commonReferenceShape = {
 	contentMd5: z.string().regex(MD5_PATTERN),
 	contentSha256: z.string().regex(SHA256_PATTERN),
 	resourceId: z.string().regex(RESOURCE_ID_PATTERN),
-	batch: z.enum(["01", "02", "03"]),
+	// A two-digit batch label, not an enum: this schema and the builder's copy
+	// in scripts/build-local-sound-effects-lab-manifest.ts both had to be
+	// widened for every new batch, and forgetting THIS one fails closed — the
+	// manifest is rejected and the lab entry silently disappears with no error
+	// surfaced (see use-local-sound-effects-lab.ts).
+	batch: z.string().regex(/^\d{2}$/),
 	mappingStrategy: z.enum([
 		"metadata-md5",
 		"isolated-card-download-probe",
@@ -261,7 +271,7 @@ const localSoundEffectsLabManifestSchema = z
 	.object({
 		schemaVersion: z.literal(1),
 		...commonManifestShape,
-		items: z.array(localSoundEffectReferenceSchema).min(1).max(2_000),
+		items: z.array(localSoundEffectReferenceSchema).min(1).max(4_000),
 	})
 	.strict()
 	.superRefine((manifest, context) => {
@@ -276,7 +286,7 @@ const privateSoundEffectsLabManifestSchema = z
 	.object({
 		schemaVersion: z.literal(2),
 		...commonManifestShape,
-		items: z.array(privateSoundEffectReferenceSchema).min(1).max(2_000),
+		items: z.array(privateSoundEffectReferenceSchema).min(1).max(4_000),
 	})
 	.strict()
 	.superRefine((manifest, context) => {

@@ -515,22 +515,40 @@ function keyframesVisual({
 	// An animated tint track overrides the constant tint and implies a full
 	// blend when no colorAmount channel shapes it (the track's own arc — e.g.
 	// settling on white — is what fades the tint out).
-	const tintColor = effect.colorTrack?.length
-		? evaluateTextColorKeyframeTrack({
-				track: effect.colorTrack,
-				progress: linearProgress,
-			})
-		: effect.color;
-	if (tintColor && (colorAmount !== undefined || effect.colorTrack?.length)) {
+	// A palette paints a gradient ACROSS the line — each unit samples it by
+	// horizontal position — where colorTrack animates one tint over time.
+	const paletteColor =
+		effect.palette && effect.palette.length > 0 && unit
+			? sampleTextAnimationPalette({
+					palette: effect.palette,
+					position: unitHorizontalProgress({ unit, layout }),
+					stepped: false,
+				})
+			: undefined;
+	const tintColor =
+		paletteColor ??
+		(effect.colorTrack?.length
+			? evaluateTextColorKeyframeTrack({
+					track: effect.colorTrack,
+					progress: linearProgress,
+				})
+			: effect.color);
+	if (
+		tintColor &&
+		(colorAmount !== undefined || effect.colorTrack?.length || paletteColor)
+	) {
 		visual.colorMix = {
 			color: tintColor,
 			amount: Math.min(1, Math.max(0, colorAmount ?? 1)),
 			// Jianying's keyframed color attribute is a multiplicative tint:
 			// its tracks settle on white to mean "no tint", which only reads
 			// correctly as a filter over the element's own fill.
-			...(effect.colorTrack?.length ? { mode: "multiply" as const } : {}),
+			...(effect.colorTrack?.length || paletteColor
+				? { mode: "multiply" as const }
+				: {}),
 		};
 	}
+	if (effect.pivot) visual.transformOrigin = effect.pivot;
 	const outlineAmount = channel("outlineAmount");
 	if (outlineAmount !== undefined) {
 		visual.outlineAmount = Math.min(1, Math.max(0, outlineAmount));
@@ -558,46 +576,95 @@ function keyframesVisual({
 	const bloomIntensity = channel("bloomIntensity");
 	const echoAmount = channel("echoAmount");
 	const dirBlurPx = channel("dirBlurPx");
-	const raster: TextAnimationRasterEffectState | undefined =
-		pixelateCell !== undefined && pixelateCell >= 1
-			? { kind: "pixelate", cell: pixelateCell }
-			: rgbSplitPx !== undefined && Math.abs(rgbSplitPx) > 0.01
-				? {
-						kind: "rgbSplit",
-						offsetPx: rgbSplitPx,
-						angleDeg: effect.rasterAngleDeg ?? 0,
-					}
-				: displaceAmplitudePx !== undefined &&
-						Math.abs(displaceAmplitudePx) > 0.01
-					? {
-							kind: "displace",
-							amplitudePx: displaceAmplitudePx,
-							scale: effect.rasterScale ?? 24,
-							evolution: linearProgress * (effect.rasterEvolution ?? 1),
-						}
-					: bloomIntensity !== undefined && bloomIntensity > 0.01
-						? {
-								kind: "bloom",
-								intensity: bloomIntensity,
-								radiusPx: Math.max(
-									0,
-									channel("bloomRadiusPx") ?? layout.fontSize * 0.5
-								),
-							}
-						: echoAmount !== undefined && Math.abs(echoAmount) > 0.01
-							? {
-									kind: "echo",
-									spread: Math.max(-1, Math.min(1, echoAmount)),
-									samples: 12,
-								}
-							: dirBlurPx !== undefined && Math.abs(dirBlurPx) > 0.5
-								? {
-										kind: "dirBlur",
-										offsetPx: dirBlurPx,
-										angleDeg: effect.rasterAngleDeg ?? 0,
-									}
-								: undefined;
-	if (raster) {
+	// Ordered chain: geometry first, then chroma, then the halo last so the
+	// glow blooms whatever the earlier passes produced — the order Jianying's
+	// own effectAnimators use.
+	const raster: TextAnimationRasterEffectState[] = [];
+	if (
+		displaceAmplitudePx !== undefined &&
+		Math.abs(displaceAmplitudePx) > 0.01
+	) {
+		raster.push({
+			kind: "displace",
+			amplitudePx: displaceAmplitudePx,
+			scale: effect.rasterScale ?? 24,
+			evolution: linearProgress * (effect.rasterEvolution ?? 1),
+		});
+	}
+	const layerOffsetXPx = channel("layerOffsetXPx");
+	const layerOffsetYPx = channel("layerOffsetYPx");
+	if (
+		(layerOffsetXPx !== undefined && Math.abs(layerOffsetXPx) > 0.5) ||
+		(layerOffsetYPx !== undefined && Math.abs(layerOffsetYPx) > 0.5)
+	) {
+		raster.push({
+			kind: "layered",
+			offsetPx: layerOffsetXPx ?? 0,
+			amplitudePx: layerOffsetYPx ?? 0,
+			samples: 6,
+		});
+	}
+	if (echoAmount !== undefined && Math.abs(echoAmount) > 0.01) {
+		raster.push({
+			kind: "echo",
+			spread: Math.max(-1, Math.min(1, echoAmount)),
+			samples: 12,
+		});
+	}
+	if (dirBlurPx !== undefined && Math.abs(dirBlurPx) > 0.5) {
+		raster.push({
+			kind: "dirBlur",
+			offsetPx: dirBlurPx,
+			angleDeg: effect.rasterAngleDeg ?? 0,
+		});
+	}
+	if (pixelateCell !== undefined && pixelateCell >= 1) {
+		raster.push({ kind: "pixelate", cell: pixelateCell });
+	}
+	if (rgbSplitPx !== undefined && Math.abs(rgbSplitPx) > 0.01) {
+		raster.push({
+			kind: "rgbSplit",
+			offsetPx: rgbSplitPx,
+			angleDeg: effect.rasterAngleDeg ?? 0,
+		});
+	}
+	// roughEdge erodes source alpha, so it must run before bloom: the other
+	// way round, bloom builds its halo from the un-eroded glyphs and the
+	// erosion then clips it.
+	const roughEdgePx = channel("roughEdgePx");
+	if (roughEdgePx !== undefined && roughEdgePx > 0.01) {
+		raster.push({
+			kind: "roughEdge",
+			amplitudePx: roughEdgePx,
+			intensity: Math.max(0, channel("roughEdgeNoise") ?? 0.5),
+			noiseScale: 0.15,
+		});
+	}
+	if (bloomIntensity !== undefined && bloomIntensity > 0.01) {
+		raster.push({
+			kind: "bloom",
+			intensity: bloomIntensity,
+			radiusPx: Math.max(0, channel("bloomRadiusPx") ?? layout.fontSize * 0.5),
+		});
+	}
+	const godRayIntensity = channel("godRayIntensity");
+	if (godRayIntensity !== undefined && godRayIntensity > 0.01) {
+		raster.push({
+			kind: "godRay",
+			intensity: godRayIntensity,
+			reach: Math.max(0.05, channel("godRayReach") ?? 1),
+		});
+	}
+	const flameIntensity = channel("flameIntensity");
+	if (flameIntensity !== undefined && flameIntensity > 0.01) {
+		raster.push({
+			kind: "flame",
+			intensity: flameIntensity,
+			reach: Math.max(0.05, channel("flameReach") ?? 1),
+			evolution: linearProgress * (effect.rasterEvolution ?? 1),
+		});
+	}
+	if (raster.length > 0) {
 		visual.postProcess = {
 			trailSamples: visual.postProcess?.trailSamples ?? 0,
 			trailStrength: visual.postProcess?.trailStrength ?? 0,
@@ -618,9 +685,99 @@ function keyframesVisual({
 			unitPosition,
 			progress: linearProgress,
 		});
-		return blendVisualTowardIdentity({ visual, weight });
+		return composeKeyframeLayers({
+			base: blendVisualTowardIdentity({ visual, weight }),
+			effect,
+			linearProgress,
+			layout,
+			unit,
+			unitCount,
+		});
 	}
-	return visual;
+	return composeKeyframeLayers({
+		base: visual,
+		effect,
+		linearProgress,
+		layout,
+		unit,
+		unitCount,
+	});
+}
+
+/**
+ * Fold the effect's extra selector layers onto the base visual. Each layer is
+ * its own keyframes document — its channels evaluated at the shared clock and
+ * scaled by its own selector window — so a document can move one half of a
+ * line up while another goes down (Jianying's 横向分割).
+ */
+function composeKeyframeLayers({
+	base,
+	effect,
+	linearProgress,
+	layout,
+	unit,
+	unitCount,
+}: {
+	base: TextAnimationVisualState;
+	effect: Extract<TextAnimationEffect, { kind: "keyframes" }>;
+	linearProgress: number;
+	layout: TextAnimationLayout;
+	unit?: CompiledTextAnimationUnit;
+	unitCount?: number;
+}): TextAnimationVisualState {
+	if (!effect.layers || effect.layers.length === 0) return base;
+	// Layers own only their window and channels; everything else — tint
+	// sources, glow color, raster angle/scale/evolution, pivot — is document
+	// configuration and must survive into the synthetic per-layer effect, or a
+	// layer driving dirBlurPx/rgbSplitPx renders at 0° and colorAmount finds
+	// no tint target. `layers` is dropped so a layer cannot recurse.
+	const {
+		layers: _layers,
+		selector: _documentSelector,
+		channels: _documentChannels,
+		...documentConfig
+	} = effect;
+	let result = base;
+	for (const layer of effect.layers) {
+		const layerVisual = keyframesVisual({
+			effect: {
+				...documentConfig,
+				channels: layer.channels,
+				...(layer.selector ? { selector: layer.selector } : {}),
+			},
+			linearProgress,
+			layout,
+			...(unit ? { unit } : {}),
+			...(unitCount !== undefined ? { unitCount } : {}),
+		});
+		result = {
+			...result,
+			opacity: result.opacity * layerVisual.opacity,
+			translateX: result.translateX + layerVisual.translateX,
+			translateY: result.translateY + layerVisual.translateY,
+			scaleX: result.scaleX * layerVisual.scaleX,
+			scaleY: result.scaleY * layerVisual.scaleY,
+			rotationDeg: result.rotationDeg + layerVisual.rotationDeg,
+			blurPx: Math.max(result.blurPx, layerVisual.blurPx),
+			...(layerVisual.colorMix ? { colorMix: layerVisual.colorMix } : {}),
+			...(layerVisual.postProcess?.raster
+				? {
+						postProcess: {
+							...(result.postProcess ?? {
+								trailSamples: 0,
+								trailStrength: 0,
+								trapezoidAmount: 0,
+							}),
+							raster: [
+								...(result.postProcess?.raster ?? []),
+								...layerVisual.postProcess.raster,
+							],
+						},
+					}
+				: {}),
+		};
+	}
+	return result;
 }
 
 function colorCycleVisual({

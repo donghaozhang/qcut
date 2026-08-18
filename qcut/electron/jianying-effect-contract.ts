@@ -22,6 +22,12 @@ export interface JianyingEffectCategory {
 	id: string;
 	name: string;
 	panel: JianyingEffectPanel;
+	/**
+	 * The catalog ids this tab stands for. Usually just `id`, but the
+	 * catch-all tab covers several at once, so consumers must match against
+	 * this list rather than against `id` alone.
+	 */
+	categoryIds: string[];
 }
 
 export interface JianyingEffectDefinition {
@@ -44,6 +50,12 @@ export interface JianyingEffectDefinition {
 	/** False when the package needs CV models QCut cannot feed yet. */
 	supported: boolean;
 	unsupportedReason?: string;
+	/**
+	 * True when the package's algorithm graph needs JianYing's CV models, so
+	 * the render must run in algorithm mode (models resolved, native input
+	 * textures). Plain blit packages must stay out of that mode.
+	 */
+	requiresAlgorithm: boolean;
 	/** True when the package directory exists on this machine. */
 	installed: boolean;
 	/**

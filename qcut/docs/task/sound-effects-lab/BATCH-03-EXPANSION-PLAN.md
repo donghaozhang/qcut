@@ -45,43 +45,72 @@ BGM 36、打斗 46 已达剪映确认全量；热门 114、最新 101（UI 计�
 7. `bun run electron` 必须从仓库根跑；cwd 在 packages/db 时 `electron .`
    只会打印 usage。
 
-剩余工作：C 档（云端全量，15 类翻页到底，估还有 1,000+）。
+剩余工作：C 档（云端全量，12 类翻页到底）。缺口复测见第 1 节。
 
-## 1. 现状与缺口（2026-08-15 实测）
+> **2026-08-17 更新**：batch-04 已把缓存里签名未过期的 24 条采完，
+> 库存 914 → **938**。翻页仍需人工（9 种自动化手段全部实测无效）。
+> 增量上传方式、三个"静默失败"上限的修复、以及不产生 404 窗口的切换做法，
+> 见 [BATCH-04-RECORD.md](BATCH-04-RECORD.md) —— **下一批开工前先读那份**。
+
+## 1. 现状与缺口（2026-08-17 复测）
 
 数据来源：剪映专业版本机缓存
 `~/Movies/JianyingPro/User Data/Cache/ressdk_db/{4504805502666160584,515395108782262524}/rp.db`
-的 `http_cache` 表（`/artist/v1/effect/get_resources_by_category_id_*_audio_jianyingpro_*` 分页响应）。
+的 `http_cache` 表（`/artist/v1/effect/get_resources_by_category_id_*_audio_jianyingpro_*` 分页响应，
+当前共 31 条分页响应、1,028 张唯一卡片）。
 
-- 剪映音效库面板共 **20 个分类**，我们分类覆盖 20/20，不缺类，缺的是每类深度（目前每类只有第一页 20 个）。
-- 本机缓存中可定位到的唯一音效（含标题、resourceId、时长、下载地址等完整元数据）：**1,028 个**。
-- 我们已收 382 个，全部在该池内 → **立即可补采 646 个**。
-- 20 类里 15 类最后一页仍 `has_more=true`，1,028 只是下界；按热门 ≥150、最新 ≥183 的密度推算，云端全量约 2,000–4,000。
+- 分类覆盖 20/20，不缺类；缺的全部是**每类深度**。
+- 已收 **914** 条。本机缓存池里还有 **114 条已知条目**没采（都能点名道姓）。
+- 20 类中 **8 类已翻到 `has_more=false`**（列表总量已确认），**12 类只有第 1 页**
+  （50 条封顶、仍 `has_more=true`），真实深度未知。
 
-每类明细（"剪映总量"列：无 `>` 前缀 = 缓存已翻到底，总量确认）：
+每类明细（"剪映列表"= 按请求分页归属统计的该分类列表长度；`>` 前缀 = 未探底）：
 
-| 分类 | category_id | key | 剪映总量 | 我们 | 缺口 |
-|---|---|---|---:|---:|---:|
-| 尴尬 | 5914403 | ganga | 16 | 16 | 0 ✅ |
-| 震惊 | 5914404 | zhenjing | 29 | 20 | 9 |
-| 知识科普 | 5914406 | zhishi | 35 | 20 | 15 |
-| BGM | 10897 | 10897 | 36 | 20 | 16 |
-| 打斗 | 10902 | 10902 | 46 | 20 | 26 |
-| 热门 | 10892 | 10892 | >150 | 20 | ≥130 |
-| 最新 | 5914796 | new | >183 | 20 | ≥163 |
-| 转场 | 10899 | 10899 | >83 | 20 | ≥63 |
-| 网感口播🔥 | 5914402 | wanggan | >51 | 20 | ≥31 |
-| 热梗语录 | 5914764 | regeng | >50 | 20 | ≥30 |
-| 笑声 | 10894 | 10894 | >50 | 20 | ≥30 |
-| 提示音 | 5914405 | tishi | >50 | 20 | ≥30 |
-| 抽象 | 5914365 | 抽象 | >50 | 20 | ≥30 |
-| 综艺感 | 10895 | zongyi | >50 | 20 | ≥30 |
-| 机械 | 10896 | 10896 | >50 | 20 | ≥30 |
-| 魔法 | 10901 | 10901 | >50 | 20 | ≥30 |
-| 美食 | 10903 | 10903 | >50 | 20 | ≥30 |
-| 动物 | 10904 | 10904 | >50 | 20 | ≥30 |
-| 环境音 | 10905 | 10905 | >50 | 20 | ≥30 |
-| 悬疑 | 10907 | 10907 | >50 | 20 | ≥30 |
+| 分类 | category_id | 剪映列表 | 列表内已收 | 缺口 | 已翻到 |
+|---|---|---:|---:|---:|---|
+| 热门 | 10892 | 150 | 149 | 1 | offset 150 ✅ |
+| 最新 | 5914796 | 183 | 100 | 83 | offset 200 ✅ |
+| 转场 | 10899 | 83 | 53 | 27 | offset 83 ✅ |
+| 尴尬 | 5914403 | 16 | 16 | 0 ✅ | 探底 |
+| 震惊 | 5914404 | 29 | 29 | 0 ✅ | 探底 |
+| 知识科普 | 5914406 | 35 | 35 | 0 ✅ | 探底 |
+| BGM | 10897 | 36 | 36 | 0 ✅ | 探底 |
+| 打斗 | 10902 | 46 | 46 | 0 ✅ | 探底 |
+| 网感口播🔥 | 5914402 | >52 | 51 | 1 | 仅第 1 页 |
+| 机械 | 10896 | >50 | 47 | 3 | 仅第 1 页 |
+| 热梗语录 | 5914764 | >50 | 50 | 0 | 仅第 1 页 |
+| 笑声 | 10894 | >50 | 50 | 0 | 仅第 1 页 |
+| 提示音 | 5914405 | >50 | 50 | 0 | 仅第 1 页 |
+| 抽象 | 5914365 | >50 | 50 | 0 | 仅第 1 页 |
+| 综艺感 | 10895 | >50 | 50 | 0 | 仅第 1 页 |
+| 魔法 | 10901 | >50 | 50 | 0 | 仅第 1 页 |
+| 美食 | 10903 | >50 | 50 | 0 | 仅第 1 页 |
+| 动物 | 10904 | >50 | 50 | 0 | 仅第 1 页 |
+| 环境音 | 10905 | >50 | 50 | 0 | 仅第 1 页 |
+| 悬疑 | 10907 | >50 | 50 | 0 | 仅第 1 页 |
+
+（"库内"口径与上表不同：manifest 按卡片自带的 `category_ids` 归类，跨类条目会
+被多次计入，所以侧栏分类计数会大于这里的"列表内已收"。）
+
+**缺口结论：**
+
+1. **已知具体条目：114 条**（最新 83、转场 27、机械 3、热门 1）。其中 109 条来自
+   2026-08-01 的分页，签名已死（见下节），必须重新浏览才能下载。
+2. **深度未知：12 类**。唯一探到底的真实分类是转场（83）；其余已探底的真实分类
+   都在 16–46 之间、根本没撑满 50。所以这 12 类每类真实总量大概率在 80–150，
+   据此估计**还差 400–900 条**，全库上限约 **1,400–1,900**。
+   （热门 150 / 最新 183 是跨类聚合位，不代表单类深度。）
+
+### 签名有效期（2026-08-17 实测）
+
+分页响应里的 `download_info.url` 有两种 host，TTL 差一个数量级：
+
+| host | 到期参数 | 实测 TTL | 现在还能下吗 |
+|---|---|---|---|
+| `v*-artist.vlabvod.com` | 路径段十六进制时间戳 | **7 天** | 08-01 的链接返回 403 |
+| `lf26-faceu-file-sign.bytecdn.com` | `x-expires` | **1 年** | 08-15 的链接 206 正常 |
+
+大多数卡片走 vlabvod，所以"当天浏览、当天采集"这条铁律不变。
 
 ## 2. 采集原理与两个关键约束
 
@@ -100,7 +129,7 @@ BGM 36、打斗 46 已达剪映确认全量；热门 114、最新 101（UI 计�
 |---|---|---:|---:|
 | A. 收齐已确认全量的 4 个小类 | 震惊/知识科普/BGM/打斗 补满 | +66 | 448 |
 | B. 每类对齐 50（一页深度） | 15 个大类各补到 50 | +450（条目口径） | ≈898（唯一资源因跨类重复会少一些） |
-| C. 云端全量 | 每类滚动到 `has_more=false` | 未知（估 +1,000~3,000） | 2,000+ |
+| C. 云端全量 | 剩下 12 类滚动到 `has_more=false` | 估 +500~1,000（含已知的 114） | 1,400~1,900 |
 
 - A+B 的全部元数据本机已有，只需刷新签名即可下载；预计体积 ~220 MiB
   （现库 80.7 MiB × 2.7），单文件仍远低于 bucket 50 MiB 限制。
@@ -231,42 +260,55 @@ bun run upload:sound-effects-lab -- \
 - [ ] manifest 构建通过全部约束校验
 - [ ] Supabase 对象数 = manifest 条目数，上传器最后才写 manifest
 - [ ] 客户端五项验证全过（见 Phase E）
-- [ ] 本文档第 1 节表格更新为采后数字
+- [x] 本文档第 1 节表格更新为采后数字（2026-08-17 复测）
 
 ## 附录：缺口复算脚本
 
-任何时候想重新体检（例如 Phase A 之后确认浏览深度够不够）：
+任何时候想重新体检（例如 Phase A 之后确认浏览深度够不够）。判定标准：目标分类的
+`has_more` 必须是 `False`，或 `deepest_offset` 已达目标深度，且 `last`（UTC）是采集当天。
+
+> 早先版本用 `re.search(r'category_id=(\d+)', url)` 归类，但缓存里的 URL 是
+> `..._audio_jianyingpro_beta` 这样的**哈希 key**，根本没有 `category_id` 查询串，
+> 所以那版脚本对每一类都输出"未浏览"。下面这版沿用 `card-query.sql` 的
+> 首 10 张卡多数票归属，并额外打印分页深度。
 
 ```bash
 python3 - <<'EOF'
-import sqlite3, json, os, glob, re
+import sqlite3, json, os, glob
 from collections import defaultdict
-CATS = {10892:'热门',5914796:'最新',10899:'转场',5914402:'网感口播',5914764:'热梗语录',
-10894:'笑声',5914403:'尴尬',5914404:'震惊',5914405:'提示音',5914365:'抽象',
-10895:'综艺感',5914406:'知识科普',10896:'机械',10897:'BGM',10901:'魔法',
-10902:'打斗',10903:'美食',10904:'动物',10905:'环境音',10907:'悬疑'}
-by_cat = defaultdict(lambda: {'ids': set(), 'has_more': False})
+CATS = {'10892':'热门','5914796':'最新','10899':'转场','5914402':'网感口播','5914764':'热梗语录',
+'10894':'笑声','5914403':'尴尬','5914404':'震惊','5914405':'提示音','5914365':'抽象',
+'10895':'综艺感','5914406':'知识科普','10896':'机械','10897':'BGM','10901':'魔法',
+'10902':'打斗','10903':'美食','10904':'动物','10905':'环境音','10907':'悬疑'}
+cat = defaultdict(lambda: {'ids': set(), 'pages': {}})
 for db in glob.glob(os.path.expanduser('~/Movies/JianyingPro/User Data/Cache/ressdk_db/*/rp.db')):
-    conn = sqlite3.connect(db)
-    for (url, body) in conn.execute("SELECT url, response_body FROM http_cache WHERE url LIKE '%get_resources_by_category_id%audio%'"):
-        try: data = json.loads(body).get('data') or {}
-        except Exception: continue
-        # 以请求 URL 里的 category_id 为准——响应内条目可能带多个分类，
-        # 多数票会把混类响应记到错误分类并虚增覆盖率。
-        m = re.search(r'category_id=(\d+)', url)
-        cat = int(m.group(1)) if m else None
-        if cat not in CATS: continue
+    # immutable=1 才能读剪映正持有的活库，不用先 .backup 快照。
+    conn = sqlite3.connect(f'file:{db}?immutable=1', uri=True)
+    for url, body, ts in conn.execute(
+        "SELECT url, response_body, timestamp FROM http_cache"
+        " WHERE instr(url, '_audio_') > 0 ORDER BY timestamp"):
+        data = json.loads(body).get('data') or {}
         items = data.get('effect_item_list') or []
-        by_cat[cat]['ids'].update(
-            (it.get('common_attr') or {}).get('effect_id')
-            for it in items
-            if cat in [int(c) for c in (it.get('common_attr') or {}).get('category_ids') or [] if str(c).isdigit()]
-        )
-        by_cat[cat]['has_more'] |= bool(data.get('has_more'))
+        if not items: continue
+        votes = defaultdict(int)
+        for it in items[:10]:
+            for c in (it.get('common_attr') or {}).get('category_ids') or []:
+                if str(c) in CATS: votes[str(c)] += 1
+        if not votes: continue
+        cid = sorted(votes.items(), key=lambda kv: (-kv[1], kv[0]))[0][0]
+        e = cat[cid]
+        e['pages'][data.get('next_offset') or 0] = (bool(data.get('has_more')), ts)
+        e['ids'].update(it['common_attr']['id'] for it in items)
     conn.close()
 for cid, name in CATS.items():
-    e = by_cat.get(cid)
-    if e: print(f"{name}: cached={len(e['ids'])} has_more={e['has_more']}")
-    else: print(f"{name}: 未浏览")
+    e = cat.get(cid)
+    if not e:
+        print(f"{name}: 未浏览"); continue
+    deep = max(e['pages']); more, ts = e['pages'][deep]
+    print(f"{name}: cached={len(e['ids'])} pages={sorted(e['pages'])}"
+          f" deepest_offset={deep} has_more={more} last={ts}")
 EOF
 ```
+
+对照 manifest 算"还差哪些具体条目"（把 cached 卡片的 `common_attr.id` 与
+`sound-effects-lab.private.json` 的 `resourceId` 求差集）即可拿到可点名的补采清单。
