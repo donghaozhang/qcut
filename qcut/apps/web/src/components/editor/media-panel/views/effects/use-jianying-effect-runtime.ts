@@ -9,7 +9,11 @@ interface JianyingEffectRuntimeViewState {
 
 const DESKTOP_ONLY_MESSAGE = "本机剪映特效仅在 QCut 桌面版中可用。";
 
-export function useJianyingEffectRuntime() {
+export function useJianyingEffectRuntime({
+	enabled = true,
+}: {
+	enabled?: boolean;
+} = {}) {
 	const [state, setState] = useState<JianyingEffectRuntimeViewState>({
 		checking: true,
 		status: null,
@@ -38,8 +42,12 @@ export function useJianyingEffectRuntime() {
 	}, []);
 
 	useEffect(() => {
+		// The status probe reaches the local Jianying runtime, so the caller
+		// decides when it may run — the hook now lives in the effects view,
+		// which mounts long before anyone opens the lab.
+		if (!enabled) return;
 		void refresh();
-	}, [refresh]);
+	}, [enabled, refresh]);
 
 	return { ...state, refresh };
 }
