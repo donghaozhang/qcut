@@ -270,7 +270,8 @@ export interface TimelineStore {
 	moveElementToTrack: (
 		fromTrackId: string,
 		toTrackId: string,
-		elementId: string
+		elementId: string,
+		pushHistory?: boolean
 	) => void;
 	/** Update the trim start and end values for an element */
 	updateElementTrim: (
