@@ -1,4 +1,8 @@
-import type { TimelineElement, TimelineTrack } from "../types/timeline.js";
+import type {
+	EffectElement,
+	TimelineElement,
+	TimelineTrack,
+} from "../types/timeline.js";
 import { getEffectiveDuration } from "./element-utils.js";
 import { normalizeTrackOrder } from "./track-utils.js";
 
@@ -8,6 +12,20 @@ export interface CompositionLayer {
 	trackOrder: number;
 	elementOrder: number;
 	drawOrder: number;
+}
+
+/**
+ * A region effect segment: for [startTime, endTime) it applies to every
+ * visual layer whose track sits BELOW its own (trackOrder greater than its
+ * trackOrder — UI order is top-to-bottom). Extracted here so preview and
+ * export resolve coverage from the same plan.
+ */
+export interface CompositionRegionEffect {
+	track: TimelineTrack;
+	element: EffectElement;
+	trackOrder: number;
+	startTime: number;
+	endTime: number;
 }
 
 export interface CompositionAudioElement {
@@ -24,6 +42,8 @@ export interface CompositionPlan {
 	visualLayers: CompositionLayer[];
 	/** Active dedicated audio-track elements. Audio is mixed, not composited. */
 	audioElements: CompositionAudioElement[];
+	/** Active untargeted effect segments from effect tracks (region effects). */
+	regionEffects: CompositionRegionEffect[];
 }
 
 export interface CompositionDurationContext {
@@ -159,7 +179,39 @@ export function buildCompositionPlan({
 		}
 	}
 
-	const visualTracks = visibleTracks.filter((track) => track.type !== "audio");
+	const regionEffects: CompositionRegionEffect[] = [];
+	for (let trackOrder = 0; trackOrder < visibleTracks.length; trackOrder++) {
+		const track = visibleTracks[trackOrder];
+		if (track.type !== "effect") continue;
+		for (const element of track.elements) {
+			if (element.type !== "effect" || element.targetElementId) continue;
+			if (!includeHidden && element.hidden) continue;
+			if (
+				!isElementActive({
+					element,
+					track,
+					currentTime,
+					getElementDuration,
+					forceActiveElementIds,
+				})
+			) {
+				continue;
+			}
+			const duration = Math.max(0, getElementDuration({ element, track }));
+			regionEffects.push({
+				track,
+				element,
+				trackOrder,
+				startTime: element.startTime,
+				endTime: element.startTime + duration,
+			});
+		}
+	}
+
+	// Effect tracks carry region segments, not drawable content.
+	const visualTracks = visibleTracks.filter(
+		(track) => track.type !== "audio" && track.type !== "effect"
+	);
 	for (
 		let reverseIndex = visualTracks.length - 1;
 		reverseIndex >= 0;
@@ -197,5 +249,5 @@ export function buildCompositionPlan({
 		}
 	}
 
-	return { tracks: orderedTracks, visualLayers, audioElements };
+	return { tracks: orderedTracks, visualLayers, audioElements, regionEffects };
 }

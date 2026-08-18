@@ -47,6 +47,7 @@ function projectWithTimelineSettings(): TProject {
 			snappingEnabled: false,
 			mainTrackMagnetEnabled: true,
 			linkedRippleEnabled: true,
+			overlayStacking: "byType",
 		},
 	};
 }

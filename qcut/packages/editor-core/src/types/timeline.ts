@@ -951,10 +951,15 @@ export interface AdjustmentElement extends BaseTimelineElement {
 	masks?: MediaMask[];
 }
 
-/** Independently editable effect range targeting one timeline element. */
+/**
+ * Independently editable effect range. With a target it styles that one
+ * element; without one it is a REGION effect: for its time range it applies
+ * to every visual layer on tracks below its own, the way Jianying's 特效轨
+ * segments behave (docs/task/timeline-rules-vs-jianying, experiment J3).
+ */
 export interface EffectElement extends BaseTimelineElement {
 	type: "effect";
-	targetElementId: string;
+	targetElementId?: string;
 	effect: EffectInstance;
 }
 

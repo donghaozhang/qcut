@@ -18,6 +18,7 @@ export {
 	buildCompositionPlan,
 	type BuildCompositionPlanOptions,
 	type CompositionAudioElement,
+	type CompositionRegionEffect,
 	type CompositionDurationContext,
 	type CompositionLayer,
 	type CompositionPlan,
@@ -122,6 +123,22 @@ export {
 	type TimeRange,
 	type TimelineRangeItem,
 } from "./collision-policy.js";
+
+export {
+	planMainTrackReorder,
+	type MainTrackReorderPlan,
+} from "./reorder-plan.js";
+
+export {
+	captureMagnetDownstream,
+	clampResizeTimelineDelta,
+	planMagnetShiftedStartTimes,
+	resolveResizeNeighborBounds,
+	spansHaveOverlap,
+	type MagnetDownstreamSnapshot,
+	type ResizeNeighborBounds,
+	type TimelineSpan,
+} from "./resize-plan.js";
 
 export {
 	deriveTimelineLinks,

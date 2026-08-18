@@ -1220,6 +1220,8 @@ const EN_TRANSLATIONS = {
 	"effects.count": "{{count}} effects",
 	"effects.apply.selected": "Apply to selected clip",
 	"effects.selectClip": "Select a timeline clip",
+	"effects.toast.addedAsRegion":
+		"Added as a region effect segment at the playhead",
 	"effects.toast.selectClip":
 		"Select a timeline clip before applying an effect.",
 	"effects.status.ready": "Ready",
@@ -1446,6 +1448,10 @@ const EN_TRANSLATIONS = {
 	"timeline.toolbar.enableSnapping": "Enable auto snapping",
 	"timeline.toolbar.disableSnapping": "Disable auto snapping",
 	"timeline.toolbar.enableMainTrackMagnet": "Enable main-track magnet",
+	"timeline.toolbar.overlayStackingByArrival":
+		"Overlay stacking: newest on top (Jianying style) — click for type groups",
+	"timeline.toolbar.overlayStackingByType":
+		"Overlay stacking: by type groups — click for newest-on-top",
 	"timeline.toolbar.disableMainTrackMagnet": "Disable main-track magnet",
 	"timeline.toolbar.enableRippleEditing": "Enable ripple editing",
 	"timeline.toolbar.disableRippleEditing": "Disable ripple editing",
@@ -3112,6 +3118,7 @@ const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
 	"effects.count": "{{count}} 个特效",
 	"effects.apply.selected": "应用到所选片段",
 	"effects.selectClip": "请选择时间线片段",
+	"effects.toast.addedAsRegion": "已在播放头处添加区间特效段",
 	"effects.toast.selectClip": "请先选择时间线片段，再应用特效。",
 	"effects.status.ready": "可用",
 	"effects.empty": "没有符合搜索条件的特效。",
@@ -3320,6 +3327,10 @@ const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
 	"timeline.toolbar.enableSnapping": "开启自动吸附",
 	"timeline.toolbar.disableSnapping": "关闭自动吸附",
 	"timeline.toolbar.enableMainTrackMagnet": "开启主轨磁吸",
+	"timeline.toolbar.overlayStackingByArrival":
+		"浮层排布：后加者居上（剪映式）— 点击切回类型分组",
+	"timeline.toolbar.overlayStackingByType":
+		"浮层排布：按类型分组 — 点击切换为后加者居上",
 	"timeline.toolbar.disableMainTrackMagnet": "关闭主轨磁吸",
 	"timeline.toolbar.enableRippleEditing": "开启波纹编辑",
 	"timeline.toolbar.disableRippleEditing": "关闭波纹编辑",

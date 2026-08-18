@@ -70,9 +70,16 @@ export function buildElementEffectsRendering({
 	};
 }
 
-/** Computes preview render data for every timeline element with enabled effects. */
+/**
+ * Computes preview render data for every timeline element with enabled
+ * effects. Region-effect parameters (untargeted effect segments covering the
+ * layers below them, resolved per frame by the caller) merge into each
+ * covered element's look on top of its own effects, so a clip under a region
+ * segment previews exactly the way it exports.
+ */
 export function useEffectsRendering(
-	enabled = false
+	enabled = false,
+	regionParametersByElementId?: ReadonlyMap<string, EffectParameters>
 ): ReadonlyMap<string, ElementEffectsRendering> {
 	const activeEffects = useEffectsStore((state) => state.activeEffects);
 
@@ -83,6 +90,20 @@ export function useEffectsRendering(
 			const rendering = buildElementEffectsRendering({ effects });
 			if (rendering.hasEffects) result.set(elementId, rendering);
 		}
+		if (regionParametersByElementId) {
+			for (const [elementId, regionParameters] of regionParametersByElementId) {
+				const own = result.get(elementId);
+				const parameters = own?.parameters
+					? mergeEffectParameters(own.parameters, regionParameters)
+					: regionParameters;
+				result.set(elementId, {
+					...(own ?? EMPTY_ELEMENT_EFFECTS_RENDERING),
+					filterStyle: parametersToCSSFilters(parameters),
+					hasEffects: true,
+					parameters,
+				});
+			}
+		}
 		return result;
-	}, [activeEffects, enabled]);
+	}, [activeEffects, enabled, regionParametersByElementId]);
 }

@@ -14,6 +14,7 @@ import {
 	Play,
 	FlipHorizontal2,
 	FoldHorizontal,
+	ArrowUpFromLine,
 	Magnet,
 	Link,
 	Link2,
@@ -130,6 +131,10 @@ export function TimelineToolbar({
 	const toggleRippleEditing = useTimelineStore((s) => s.toggleRippleEditing);
 	const mainTrackMagnetEnabled = useTimelineStore(
 		(s) => s.mainTrackMagnetEnabled
+	);
+	const overlayStacking = useTimelineStore((s) => s.overlayStacking);
+	const toggleOverlayStacking = useTimelineStore(
+		(s) => s.toggleOverlayStacking
 	);
 	const toggleMainTrackMagnet = useTimelineStore(
 		(s) => s.toggleMainTrackMagnet
@@ -389,7 +394,13 @@ export function TimelineToolbar({
 			return;
 		}
 		addAdjustmentLayer({
-			timeline: { tracks, insertTrackAt, addElementToTrack, getTotalDuration },
+			timeline: {
+				tracks,
+				insertTrackAt,
+				addElementToTrack,
+				getTotalDuration,
+				overlayStacking: useTimelineStore.getState().overlayStacking,
+			},
 			currentTime,
 		});
 	};
@@ -957,6 +968,32 @@ export function TimelineToolbar({
 									: t("timeline.toolbar.enableMainTrackMagnet"),
 								"toggle-main-track-magnet"
 							)}
+						</TooltipContent>
+					</Tooltip>
+
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								type="button"
+								variant={overlayStacking === "byArrival" ? "default" : "text"}
+								size="icon"
+								onClick={toggleOverlayStacking}
+								aria-label="Toggle overlay stacking mode"
+								aria-pressed={overlayStacking === "byArrival"}
+								data-testid="timeline-overlay-stacking-button"
+								data-mode={overlayStacking}
+							>
+								<ArrowUpFromLine
+									className={`h-4 w-4 ${
+										overlayStacking === "byArrival" ? "text-primary" : ""
+									}`}
+								/>
+							</Button>
+						</TooltipTrigger>
+						<TooltipContent>
+							{overlayStacking === "byArrival"
+								? t("timeline.toolbar.overlayStackingByArrival")
+								: t("timeline.toolbar.overlayStackingByType")}
 						</TooltipContent>
 					</Tooltip>
 

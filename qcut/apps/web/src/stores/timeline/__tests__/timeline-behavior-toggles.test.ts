@@ -98,7 +98,10 @@ describe("timeline behavior toggles", () => {
 		});
 		const state = useTimelineStore.getState();
 		expect(state.snappingEnabled).toBe(true);
-		expect(state.mainTrackMagnetEnabled).toBe(false);
+		// The magnet defaults on since the Jianying-alignment work (docs/task/
+		// timeline-rules-vs-jianying); projects that persisted an explicit
+		// false keep it via the settings spread.
+		expect(state.mainTrackMagnetEnabled).toBe(true);
 		expect(state.linkedRippleEnabled).toBe(true);
 
 		useTimelineStore.getState().applyProjectTimelineSettings({
@@ -214,6 +217,7 @@ describe("timeline behavior toggles", () => {
 			snappingEnabled: true,
 			mainTrackMagnetEnabled: true,
 			linkedRippleEnabled: true,
+			overlayStacking: "byType",
 		});
 		expect(useProjectStore.getState().activeProject?.timeline).toEqual(
 			savedProject.timeline

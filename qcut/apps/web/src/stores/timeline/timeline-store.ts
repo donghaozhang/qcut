@@ -41,16 +41,21 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 	const initialTracks = ensureMainTrack([]);
 	const sortedInitialTracks = sortTracksByOrder(initialTracks);
 
-	// Persist the three behavior toggles onto the active project (QTL-005).
+	// Persist the behavior toggles onto the active project (QTL-005).
 	const persistTimelineSettings = () => {
-		const { snappingEnabled, mainTrackMagnetEnabled, linkedRippleEnabled } =
-			get();
+		const {
+			snappingEnabled,
+			mainTrackMagnetEnabled,
+			linkedRippleEnabled,
+			overlayStacking,
+		} = get();
 		useProjectStore
 			.getState()
 			.updateProjectTimelineSettings({
 				snappingEnabled,
 				mainTrackMagnetEnabled,
 				linkedRippleEnabled,
+				overlayStacking,
 			})
 			.catch(() => {
 				// No active project (or storage failure already reported).
@@ -75,6 +80,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 		mainTrackMagnetEnabled:
 			DEFAULT_PROJECT_TIMELINE_SETTINGS.mainTrackMagnetEnabled,
 		linkedRippleEnabled: DEFAULT_PROJECT_TIMELINE_SETTINGS.linkedRippleEnabled,
+		overlayStacking: DEFAULT_PROJECT_TIMELINE_SETTINGS.overlayStacking,
 
 		// Effects track visibility - load from localStorage, default to false
 		showEffectsTrack:
@@ -207,11 +213,20 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 			persistTimelineSettings();
 		},
 
+		toggleOverlayStacking: () => {
+			set((state) => ({
+				overlayStacking:
+					state.overlayStacking === "byArrival" ? "byType" : "byArrival",
+			}));
+			persistTimelineSettings();
+		},
+
 		applyProjectTimelineSettings: ({ settings }) => {
 			set({
 				snappingEnabled: settings.snappingEnabled,
 				mainTrackMagnetEnabled: settings.mainTrackMagnetEnabled,
 				linkedRippleEnabled: settings.linkedRippleEnabled,
+				overlayStacking: settings.overlayStacking,
 			});
 		},
 
@@ -276,6 +291,15 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 			if (trackType === "text" || trackType === "markdown") {
 				return get().insertTrackAt(trackType, 0);
 			}
+			// Jianying-style arrival stacking (T6): a NEW overlay lane of any
+			// type goes straight to the top instead of its type group. Reuse of
+			// an existing free lane below is unchanged in both modes.
+			const overlayCreatesOnTop =
+				get().overlayStacking === "byArrival" &&
+				(trackType === "captions" ||
+					trackType === "sticker" ||
+					trackType === "adjustment" ||
+					trackType === "effect");
 
 			const existingTrack = get()._tracks.find((track) => {
 				if (track.type !== trackType || track.locked) return false;
@@ -293,7 +317,9 @@ export const useTimelineStore = create<TimelineStore>((set, get) => {
 				return existingTrack.id;
 			}
 
-			return get().addTrack(trackType);
+			return overlayCreatesOnTop
+				? get().insertTrackAt(trackType, 0)
+				: get().addTrack(trackType);
 		},
 
 		// CRUD operations (add/remove/move/update tracks and elements)

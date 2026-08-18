@@ -8,12 +8,34 @@ import type { MediaItem } from "@/stores/media/media-store-types";
 import { debugLog, debugWarn } from "@/lib/debug/debug-config";
 import { useEffectsStore } from "@/stores/ai/effects-store";
 import { getTimelineElementDuration } from "@/lib/timeline";
+import type { EffectParameters } from "@qcut/editor-core";
+import { buildRegionParametersByElementId } from "@/lib/effects/region-effects";
 
 /** Interface for active elements at a specific time */
 export interface ActiveElement {
 	element: TimelineElement;
 	track: TimelineTrack;
 	mediaItem: MediaItem | null;
+}
+
+/**
+ * Region-effect coverage for one export frame: which elements the active
+ * untargeted effect segments apply to, with their merged parameters. Built
+ * per frame beside getActiveElements so the export draws what the preview
+ * shows.
+ */
+export function buildRegionParametersForFrame(
+	tracks: TimelineTrack[],
+	currentTime: number,
+	fps = 30
+): ReadonlyMap<string, EffectParameters> {
+	const plan = buildCompositionPlan({
+		tracks,
+		currentTime,
+		getElementDuration: ({ element }) =>
+			getTimelineElementDuration({ element, fps }),
+	});
+	return buildRegionParametersByElementId({ plan, currentTime });
 }
 
 /** Calculate total number of frames needed for export */

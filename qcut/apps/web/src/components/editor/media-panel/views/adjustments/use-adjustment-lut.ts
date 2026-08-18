@@ -126,6 +126,7 @@ export function useAdjustmentLut() {
 					insertTrackAt,
 					addElementToTrack,
 					getTotalDuration,
+					overlayStacking: useTimelineStore.getState().overlayStacking,
 				},
 				currentTime,
 				name,

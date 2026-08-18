@@ -22,8 +22,14 @@ import type {
 import {
 	snapTimeToFrame,
 	TIMELINE_CONSTANTS,
+	getCumulativeHeightBefore,
 	getTrackHeight,
 } from "@/constants/timeline-constants";
+import {
+	resolveDragOutZone,
+	resolveTypeGroupEdgeIndex,
+} from "./track-drop-zones";
+import { planMainTrackReorder } from "@qcut/editor-core/timeline";
 import { useProjectStore } from "@/stores/project-store";
 import { useExportStore } from "@/stores/export-store";
 import {
@@ -69,6 +75,13 @@ function TimelineTrackContentComponent({
 	// Use individual selectors to keep snapshots stable and avoid infinite update loops
 	const tracks = useTimelineStore((s) => s.tracks);
 	const moveElementToTrack = useTimelineStore((s) => s.moveElementToTrack);
+	const insertTrackAt = useTimelineStore((s) => s.insertTrackAt);
+	const setTrackElementStartTimes = useTimelineStore(
+		(s) => s.setTrackElementStartTimes
+	);
+	const mainTrackMagnetEnabled = useTimelineStore(
+		(s) => s.mainTrackMagnetEnabled
+	);
 	const updateElementStartTime = useTimelineStore(
 		(s) => s.updateElementStartTime
 	);
@@ -144,6 +157,37 @@ function TimelineTrackContentComponent({
 	// Set up mouse event listeners for drag - moved before early return to fix hook order
 	useEffect(() => {
 		if (!dragState.isDragging || track.locked) return;
+
+		// Reorder-by-drag applies only to a drag that started on THIS track,
+		// when this track is the magnetic main track and the clip is not part
+		// of a group (grouped clips keep the atomic group-move semantics).
+		const resolveReorderPlan = (finalTime: number) => {
+			if (
+				!mainTrackMagnetEnabled ||
+				!track.isMain ||
+				dragState.trackId !== track.id ||
+				!dragState.elementId
+			) {
+				return null;
+			}
+			const draggedElement = track.elements.find(
+				(candidate) => candidate.id === dragState.elementId
+			);
+			if (!draggedElement || draggedElement.groupId) return null;
+			const spans = track.elements.map((candidate) => ({
+				id: candidate.id,
+				startTime: candidate.startTime,
+				endTime: getTimelineElementEndTime({ element: candidate }),
+			}));
+			const draggedDuration = getTimelineElementDuration({
+				element: draggedElement,
+			});
+			return planMainTrackReorder({
+				spans,
+				draggedId: draggedElement.id,
+				draggedCenter: finalTime + draggedDuration / 2,
+			});
+		};
 
 		const handleMouseMove = (e: MouseEvent) => {
 			if (!timelineRef.current) return;
@@ -233,7 +277,35 @@ function TimelineTrackContentComponent({
 				onSnapPointChange?.(null);
 			}
 
-			updateDragTime(finalTime);
+			// Magnetic main track: preview the slot the clip is heading for by
+			// letting every other clip yield toward its final packed position.
+			// Only the source main track publishes the preview; a pointer that
+			// left the lane clears it (another lane may claim the drop).
+			let reorderPreview: Record<string, number> | null | undefined;
+			if (
+				mainTrackMagnetEnabled &&
+				track.isMain &&
+				dragState.trackId === track.id
+			) {
+				const laneRect = timelineRef.current.getBoundingClientRect();
+				const pointerInLane =
+					e.clientY >= laneRect.top && e.clientY <= laneRect.bottom;
+				const plan = pointerInLane ? resolveReorderPlan(finalTime) : null;
+				if (plan) {
+					const offsets: Record<string, number> = {};
+					for (const candidate of track.elements) {
+						if (candidate.id === dragState.elementId) continue;
+						const target = plan.startTimes[candidate.id];
+						if (target === undefined) continue;
+						const offset = target - candidate.startTime;
+						if (offset !== 0) offsets[candidate.id] = offset;
+					}
+					reorderPreview = offsets;
+				} else {
+					reorderPreview = null;
+				}
+			}
+			updateDragTime(finalTime, reorderPreview);
 		};
 
 		const handleMouseUp = (e: MouseEvent) => {
@@ -299,7 +371,16 @@ function TimelineTrackContentComponent({
 						return finalTime < existingEnd && movingElementEnd > existingStart;
 					});
 
-					if (!hasOverlap) {
+					const reorderPlan =
+						dragState.trackId === track.id
+							? resolveReorderPlan(finalTime)
+							: null;
+					if (reorderPlan) {
+						// Magnetic main track: the drop picks a slot — commit the
+						// packed layout in one history entry (E2/E2b). Stale seam
+						// transitions go inert positionally, never broken.
+						setTrackElementStartTimes(track.id, reorderPlan.startTimes);
+					} else if (!hasOverlap) {
 						if (dragState.trackId === track.id) {
 							if (rippleEditingEnabled) {
 								updateElementStartTimeWithRipple(
@@ -339,9 +420,67 @@ function TimelineTrackContentComponent({
 					}
 				}
 			} else if (isTrackThatStartedDrag) {
-				// Mouse is not over this track, but this track started the drag
-				// This means user released over ruler/outside - update position within same track
+				// Mouse is not over any lane and this track started the drag. A
+				// release clearly above or below the lane stack grows the timeline
+				// with a fresh lane at the edge of the clip's type group and moves
+				// the clip there (T4 of docs/task/timeline-rules-vs-jianying —
+				// Jianying's drag-up-for-a-new-PiP-lane gesture, experiment E3).
+				// Anything else repositions within the source track as before.
 				const sourceTrack = tracks.find((t) => t.id === dragState.trackId);
+				const lanesContainer = timelineRef.current?.closest(
+					"[data-timeline-lanes-container]"
+				);
+				const dragOutZone =
+					sourceTrack && lanesContainer
+						? resolveDragOutZone({
+								clientX: e.clientX,
+								clientY: e.clientY,
+								lanesRect: lanesContainer.getBoundingClientRect(),
+								lanesContentHeight: getCumulativeHeightBefore(
+									tracks,
+									tracks.length
+								),
+							})
+						: null;
+				if (sourceTrack && dragOutZone) {
+					const newTrackId = insertTrackAt(
+						sourceTrack.type,
+						resolveTypeGroupEdgeIndex({
+							tracks,
+							trackType: sourceTrack.type,
+							edge: dragOutZone,
+						})
+					);
+					const movedElementId = dragState.elementId;
+					// insertTrackAt above already pushed the pre-gesture snapshot;
+					// the move and the start-time write join that entry so the whole
+					// drag-out undoes as one step (no empty track left behind).
+					moveElementToTrack(
+						dragState.trackId,
+						newTrackId,
+						movedElementId,
+						false
+					);
+					requestAnimationFrame(() => {
+						if (rippleEditingEnabled) {
+							updateElementStartTimeWithRipple(
+								newTrackId,
+								movedElementId,
+								finalTime
+							);
+						} else {
+							updateElementStartTime(
+								newTrackId,
+								movedElementId,
+								finalTime,
+								false
+							);
+						}
+					});
+					endDragAction();
+					onSnapPointChange?.(null);
+					return;
+				}
 				const movingElement = sourceTrack?.elements.find(
 					(c) => c.id === dragState.elementId
 				);
@@ -401,11 +540,15 @@ function TimelineTrackContentComponent({
 		tracks,
 		track.id,
 		track.elements,
+		track.isMain,
 		track.locked,
 		updateDragTime,
 		updateElementStartTime,
 		updateElementStartTimeWithRipple,
 		moveElementToTrack,
+		insertTrackAt,
+		setTrackElementStartTimes,
+		mainTrackMagnetEnabled,
 		endDragAction,
 		selectedElements,
 		selectElement,

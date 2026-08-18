@@ -20,13 +20,16 @@ import type {
 	StoreSet,
 } from "./timeline-store-operations";
 import { blockedByTrackLock } from "./timeline-lock-guard";
+import { getTimelineElementEndTime } from "@/lib/timeline";
+import type { EffectPreset } from "@/types/effects";
+import { createRegionEffectInstance } from "@/lib/effects/region-effects";
 
 export function createAddOps(
 	get: StoreGet,
 	set: StoreSet,
 	deps: OperationDeps
 ) {
-	const { autoSaveTimeline, updateTracks } = deps;
+	const { autoSaveTimeline, updateTracks, getProjectFps } = deps;
 
 	return {
 		dragState: INITIAL_DRAG_STATE,
@@ -52,15 +55,22 @@ export function createAddOps(
 					startElementTime,
 					clickOffsetTime,
 					currentTime: startElementTime,
+					reorderPreview: null,
 				},
 			});
 		},
 
-		updateDragTime: (currentTime: number) => {
+		updateDragTime: (
+			currentTime: number,
+			reorderPreview?: Record<string, number> | null
+		) => {
 			set((state: TimelineStore) => ({
 				dragState: {
 					...state.dragState,
 					currentTime,
+					// undefined leaves the current preview alone (callers that
+					// only track time); null clears it explicitly.
+					...(reorderPreview === undefined ? {} : { reorderPreview }),
 				},
 			}));
 		},
@@ -77,6 +87,41 @@ export function createAddOps(
 			const trackType = item.type === "audio" ? "audio" : "media";
 			const duration =
 				item.duration || TIMELINE_CONSTANTS.DEFAULT_IMAGE_DURATION;
+
+			// Magnetic main track (QTL-005): visual media inserts AT the playhead —
+			// splitting whatever sits there and pushing everything downstream right,
+			// the way Jianying's + button behaves (docs/task/timeline-rules-vs-
+			// jianying, experiment E-add). A playhead past the end clamps flush to
+			// the last clip so the main track never opens a hole. Audio keeps the
+			// lane behavior (Jianying routes audio to audio lanes too), and a
+			// locked main track falls through to the legacy lane search.
+			if (trackType === "media" && get().mainTrackMagnetEnabled) {
+				const mainTrack = get()._tracks.find(
+					(track) => track.isMain && !track.locked
+				);
+				if (mainTrack) {
+					const fps = getProjectFps();
+					const contentEnd = mainTrack.elements.reduce(
+						(end, element) =>
+							Math.max(end, getTimelineElementEndTime({ element, fps })),
+						0
+					);
+					const insertId = get().addElementToTrack(
+						mainTrack.id,
+						{
+							type: "media",
+							mediaId: item.id,
+							name: item.name,
+							duration,
+							startTime: Math.min(currentTime, contentEnd),
+							trimStart: 0,
+							trimEnd: 0,
+						},
+						{ collision: "insert" }
+					);
+					return insertId !== null;
+				}
+			}
 
 			// Never reject a drop as "overlapping": place on the first same-type
 			// track with room at this time, or stack a new track when every lane
@@ -113,6 +158,31 @@ export function createAddOps(
 				trimEnd: 0,
 			});
 			return true;
+		},
+
+		// Region effect segment (Jianying-style 特效轨, experiment J3): a fresh
+		// effect lane goes directly above the topmost media track — covering
+		// every media lane below while leaving text/sticker overlays alone,
+		// same placement philosophy as adjustment layers — and the segment
+		// starts at the playhead with Jianying's ~3s default length.
+		addEffectAtTime: (preset: EffectPreset, currentTime = 0): string | null => {
+			// byArrival (T6): the newest overlay lane goes on top of everything;
+			// byType keeps it at the top of the media group like an adjustment.
+			let insertIndex = 0;
+			if (get().overlayStacking !== "byArrival") {
+				insertIndex = get().tracks.findIndex((track) => track.type === "media");
+				if (insertIndex === -1) insertIndex = get().tracks.length;
+			}
+			const targetTrackId = get().insertTrackAt("effect", insertIndex);
+			return get().addElementToTrack(targetTrackId, {
+				type: "effect",
+				name: preset.name,
+				effect: createRegionEffectInstance({ preset }),
+				duration: TIMELINE_CONSTANTS.DEFAULT_REGION_EFFECT_DURATION,
+				startTime: currentTime,
+				trimStart: 0,
+				trimEnd: 0,
+			});
 		},
 
 		// Accepts a partial element (e.g. DragData.textTemplate): every field is

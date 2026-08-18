@@ -52,6 +52,7 @@ export type {
 	DraftInteropWritebackStatus,
 	ProjectFolder,
 	ProjectGuides,
+	OverlayStackingMode,
 	ProjectTimelineSettings,
 	Scene,
 	TProject,
@@ -387,6 +388,7 @@ export type {
 	CompositionDurationContext,
 	CompositionLayer,
 	CompositionPlan,
+	CompositionRegionEffect,
 	MediaSeam,
 	ResolvedClipTransition,
 } from "./timeline/index.js";

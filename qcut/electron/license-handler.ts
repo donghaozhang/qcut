@@ -58,10 +58,22 @@ interface LicenseInfo {
 }
 
 let authToken = "";
+// Bumped on every token change so an in-flight getOnlineLicense() from the
+// previous identity can never write its response into the cache after a
+// sign-out or account switch.
+let authGeneration = 0;
 
 function setAuthToken({ token }: { token: string }): void {
 	const trimmed = token.trim();
 	authToken = trimmed;
+	authGeneration += 1;
+	if (trimmed.length === 0) {
+		// Every token-clearing path — IPC sign-out, the HTTP DELETE route, and
+		// any future caller — must invalidate the cached license, or
+		// getCachedLicense() keeps serving the previous user for
+		// OFFLINE_GRACE_DAYS (the sign-out zombie state).
+		clearCachedLicense();
+	}
 	// Persist to ~/.qcut/.env so token survives app restarts
 	try {
 		if (trimmed.length > 0) {
@@ -184,14 +196,28 @@ function getCachedLicense(): LicenseInfo {
 	}
 }
 
-function clearCachedLicense(): void {
+function clearCachedLicense(): boolean {
+	const cachePath = getCachePath();
 	try {
-		const cachePath = getCachePath();
 		if (fs.existsSync(cachePath)) {
 			fs.unlinkSync(cachePath);
 		}
+		return true;
 	} catch (error) {
 		console.error("[License] Failed to clear cache:", error);
+		// Unlink can fail (permissions, AV locks). Truncating the file still
+		// fails closed: getCachedLicense() cannot parse an empty file and
+		// falls back to the free tier instead of the previous user's license.
+		try {
+			fs.writeFileSync(cachePath, "");
+			return true;
+		} catch (truncateError) {
+			console.error(
+				"[License] Failed to truncate cache after unlink failure:",
+				truncateError
+			);
+			return false;
+		}
 	}
 }
 
@@ -205,6 +231,7 @@ function getDeviceName(): string {
 
 async function getOnlineLicense(): Promise<LicenseInfo | null> {
 	try {
+		const generationAtStart = authGeneration;
 		const token = await getAuthToken();
 		if (token.length === 0) {
 			return null;
@@ -229,6 +256,11 @@ async function getOnlineLicense(): Promise<LicenseInfo | null> {
 			...payload.license,
 			user: payload.user ?? null,
 		};
+		if (generationAtStart !== authGeneration) {
+			// The identity changed while this request was in flight: caching or
+			// returning the response would resurrect the previous user.
+			return null;
+		}
 		cacheLicense({ license: licenseWithUser });
 		return licenseWithUser;
 	} catch {
@@ -261,8 +293,13 @@ export function setupLicenseIPC(): void {
 	});
 
 	ipcMain.handle("license:clear-auth-token", async () => {
+		// setAuthToken({token:""}) invalidates the cached license itself — the
+		// single authority every token-clearing path shares. The second call
+		// here only reports whether the cache is really gone, so the renderer
+		// never treats a sign-out as complete while a user-bound cache file
+		// survives on disk.
 		setAuthToken({ token: "" });
-		return true;
+		return clearCachedLicense();
 	});
 
 	ipcMain.handle("license:get-auth-token", async () => {

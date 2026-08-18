@@ -488,7 +488,12 @@ export function createCrudOperations(
 			}
 		},
 
-		moveElementToTrack: (fromTrackId, toTrackId, elementId) => {
+		moveElementToTrack: (
+			fromTrackId,
+			toTrackId,
+			elementId,
+			pushHistory = true
+		) => {
 			const fromTrack = get()._tracks.find((t) => t.id === fromTrackId);
 			const toTrack = get()._tracks.find((t) => t.id === toTrackId);
 			const elementToMove = fromTrack?.elements.find(
@@ -563,8 +568,10 @@ export function createCrudOperations(
 				return;
 			}
 
-			// Push history after validation passes
-			get().pushHistory();
+			// Push history after validation passes. Compound gestures (e.g. the
+			// drag-out that creates a track first) pass false so the whole
+			// gesture undoes as one step.
+			if (pushHistory) get().pushHistory();
 
 			const newTracks = get()
 				._tracks.map((t) => {

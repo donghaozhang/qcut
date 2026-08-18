@@ -305,6 +305,7 @@ export function TimelineTracksArea({
 				>
 					<div
 						className="relative flex-1"
+						data-timeline-lanes-container
 						style={{
 							height: `${Math.max(
 								200,

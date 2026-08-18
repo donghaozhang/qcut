@@ -88,6 +88,12 @@ export interface DragState {
 	clickOffsetTime: number;
 	/** Current time position during drag */
 	currentTime: number;
+	/**
+	 * Live yield offsets (seconds) for the OTHER clips on a magnetic main
+	 * track while one of them is being carried to a new slot — pure preview,
+	 * nothing is written to the tracks until the drop commits (QTL-005).
+	 */
+	reorderPreview: Record<string, number> | null;
 }
 
 /**
@@ -101,6 +107,7 @@ export const INITIAL_DRAG_STATE: DragState = {
 	startElementTime: 0,
 	clickOffsetTime: 0,
 	currentTime: 0,
+	reorderPreview: null,
 };
 
 /**
@@ -171,8 +178,11 @@ export interface TimelineStore {
 	toggleMainTrackMagnet: () => void;
 	/** Whether ripple edits pull explicitly linked tracks along (QTL-005) */
 	linkedRippleEnabled: boolean;
+	/** Where new overlay lanes slot in (QTL-005 / T6: byType | byArrival). */
+	overlayStacking: import("@/types/project").OverlayStackingMode;
 	/** Toggle linked ripple on/off (persisted per project) */
 	toggleLinkedRipple: () => void;
+	toggleOverlayStacking: () => void;
 	/** Apply persisted project timeline settings (called on project load) */
 	applyProjectTimelineSettings: (input: {
 		settings: import("@/types/project").ProjectTimelineSettings;
@@ -213,7 +223,10 @@ export interface TimelineStore {
 		clickOffsetTime: number
 	) => void;
 	/** Update the current time during drag operation */
-	updateDragTime: (currentTime: number) => void;
+	updateDragTime: (
+		currentTime: number,
+		reorderPreview?: Record<string, number> | null
+	) => void;
 	/** End the current drag operation */
 	endDrag: () => void;
 
@@ -257,7 +270,8 @@ export interface TimelineStore {
 	moveElementToTrack: (
 		fromTrackId: string,
 		toTrackId: string,
-		elementId: string
+		elementId: string,
+		pushHistory?: boolean
 	) => void;
 	/** Update the trim start and end values for an element */
 	updateElementTrim: (
@@ -806,6 +820,11 @@ export interface TimelineStore {
 	) => string;
 	addMediaAtTime: (item: MediaItem, currentTime?: number) => boolean;
 	addTextAtTime: (item: Partial<TextElement>, currentTime?: number) => boolean;
+	/** Drop a preset as a region effect segment at the playhead (特效轨). */
+	addEffectAtTime: (
+		preset: import("@/types/effects").EffectPreset,
+		currentTime?: number
+	) => string | null;
 	addMarkdownAtTime: (item: MarkdownElement, currentTime?: number) => boolean;
 	addMediaToNewTrack: (item: MediaItem) => boolean;
 	addTextToNewTrack: (item: TextElement | DragData) => boolean;
