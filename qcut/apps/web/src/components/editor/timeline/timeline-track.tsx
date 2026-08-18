@@ -452,7 +452,15 @@ function TimelineTrackContentComponent({
 						})
 					);
 					const movedElementId = dragState.elementId;
-					moveElementToTrack(dragState.trackId, newTrackId, movedElementId);
+					// insertTrackAt above already pushed the pre-gesture snapshot;
+					// the move and the start-time write join that entry so the whole
+					// drag-out undoes as one step (no empty track left behind).
+					moveElementToTrack(
+						dragState.trackId,
+						newTrackId,
+						movedElementId,
+						false
+					);
 					requestAnimationFrame(() => {
 						if (rippleEditingEnabled) {
 							updateElementStartTimeWithRipple(
@@ -461,7 +469,12 @@ function TimelineTrackContentComponent({
 								finalTime
 							);
 						} else {
-							updateElementStartTime(newTrackId, movedElementId, finalTime);
+							updateElementStartTime(
+								newTrackId,
+								movedElementId,
+								finalTime,
+								false
+							);
 						}
 					});
 					endDragAction();
