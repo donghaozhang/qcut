@@ -628,13 +628,9 @@ function keyframesVisual({
 			angleDeg: effect.rasterAngleDeg ?? 0,
 		});
 	}
-	if (bloomIntensity !== undefined && bloomIntensity > 0.01) {
-		raster.push({
-			kind: "bloom",
-			intensity: bloomIntensity,
-			radiusPx: Math.max(0, channel("bloomRadiusPx") ?? layout.fontSize * 0.5),
-		});
-	}
+	// roughEdge erodes source alpha, so it must run before bloom: the other
+	// way round, bloom builds its halo from the un-eroded glyphs and the
+	// erosion then clips it.
 	const roughEdgePx = channel("roughEdgePx");
 	if (roughEdgePx !== undefined && roughEdgePx > 0.01) {
 		raster.push({
@@ -642,6 +638,13 @@ function keyframesVisual({
 			amplitudePx: roughEdgePx,
 			intensity: Math.max(0, channel("roughEdgeNoise") ?? 0.5),
 			noiseScale: 0.15,
+		});
+	}
+	if (bloomIntensity !== undefined && bloomIntensity > 0.01) {
+		raster.push({
+			kind: "bloom",
+			intensity: bloomIntensity,
+			radiusPx: Math.max(0, channel("bloomRadiusPx") ?? layout.fontSize * 0.5),
 		});
 	}
 	const godRayIntensity = channel("godRayIntensity");
@@ -723,11 +726,22 @@ function composeKeyframeLayers({
 	unitCount?: number;
 }): TextAnimationVisualState {
 	if (!effect.layers || effect.layers.length === 0) return base;
+	// Layers own only their window and channels; everything else — tint
+	// sources, glow color, raster angle/scale/evolution, pivot — is document
+	// configuration and must survive into the synthetic per-layer effect, or a
+	// layer driving dirBlurPx/rgbSplitPx renders at 0° and colorAmount finds
+	// no tint target. `layers` is dropped so a layer cannot recurse.
+	const {
+		layers: _layers,
+		selector: _documentSelector,
+		channels: _documentChannels,
+		...documentConfig
+	} = effect;
 	let result = base;
 	for (const layer of effect.layers) {
 		const layerVisual = keyframesVisual({
 			effect: {
-				kind: "keyframes",
+				...documentConfig,
 				channels: layer.channels,
 				...(layer.selector ? { selector: layer.selector } : {}),
 			},
