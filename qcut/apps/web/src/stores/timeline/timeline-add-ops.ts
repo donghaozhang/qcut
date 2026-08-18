@@ -20,13 +20,14 @@ import type {
 	StoreSet,
 } from "./timeline-store-operations";
 import { blockedByTrackLock } from "./timeline-lock-guard";
+import { getTimelineElementEndTime } from "@/lib/timeline";
 
 export function createAddOps(
 	get: StoreGet,
 	set: StoreSet,
 	deps: OperationDeps
 ) {
-	const { autoSaveTimeline, updateTracks } = deps;
+	const { autoSaveTimeline, updateTracks, getProjectFps } = deps;
 
 	return {
 		dragState: INITIAL_DRAG_STATE,
@@ -77,6 +78,41 @@ export function createAddOps(
 			const trackType = item.type === "audio" ? "audio" : "media";
 			const duration =
 				item.duration || TIMELINE_CONSTANTS.DEFAULT_IMAGE_DURATION;
+
+			// Magnetic main track (QTL-005): visual media inserts AT the playhead —
+			// splitting whatever sits there and pushing everything downstream right,
+			// the way Jianying's + button behaves (docs/task/timeline-rules-vs-
+			// jianying, experiment E-add). A playhead past the end clamps flush to
+			// the last clip so the main track never opens a hole. Audio keeps the
+			// lane behavior (Jianying routes audio to audio lanes too), and a
+			// locked main track falls through to the legacy lane search.
+			if (trackType === "media" && get().mainTrackMagnetEnabled) {
+				const mainTrack = get()._tracks.find(
+					(track) => track.isMain && !track.locked
+				);
+				if (mainTrack) {
+					const fps = getProjectFps();
+					const contentEnd = mainTrack.elements.reduce(
+						(end, element) =>
+							Math.max(end, getTimelineElementEndTime({ element, fps })),
+						0
+					);
+					const insertId = get().addElementToTrack(
+						mainTrack.id,
+						{
+							type: "media",
+							mediaId: item.id,
+							name: item.name,
+							duration,
+							startTime: Math.min(currentTime, contentEnd),
+							trimStart: 0,
+							trimEnd: 0,
+						},
+						{ collision: "insert" }
+					);
+					return insertId !== null;
+				}
+			}
 
 			// Never reject a drop as "overlapping": place on the first same-type
 			// track with room at this time, or stack a new track when every lane
