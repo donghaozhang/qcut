@@ -1220,6 +1220,8 @@ const EN_TRANSLATIONS = {
 	"effects.count": "{{count}} effects",
 	"effects.apply.selected": "Apply to selected clip",
 	"effects.selectClip": "Select a timeline clip",
+	"effects.toast.addedAsRegion":
+		"Added as a region effect segment at the playhead",
 	"effects.toast.selectClip":
 		"Select a timeline clip before applying an effect.",
 	"effects.status.ready": "Ready",
@@ -3112,6 +3114,7 @@ const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
 	"effects.count": "{{count}} 个特效",
 	"effects.apply.selected": "应用到所选片段",
 	"effects.selectClip": "请选择时间线片段",
+	"effects.toast.addedAsRegion": "已在播放头处添加区间特效段",
 	"effects.toast.selectClip": "请先选择时间线片段，再应用特效。",
 	"effects.status.ready": "可用",
 	"effects.empty": "没有符合搜索条件的特效。",
