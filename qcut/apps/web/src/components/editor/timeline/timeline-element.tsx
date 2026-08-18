@@ -333,10 +333,17 @@ function TimelineElementComponent({
 
 	// Use real-time position during drag, otherwise use stored position
 	const isBeingDragged = dragState.elementId === element.id;
+	// While a magnetic main-track drag runs, the OTHER clips on that track
+	// yield toward their final packed slots (QTL-005 reorder preview) — a
+	// visual offset only; the store is untouched until the drop commits.
+	const reorderYieldOffset =
+		!isBeingDragged && dragState.isDragging && dragState.trackId === track.id
+			? (dragState.reorderPreview?.[element.id] ?? 0)
+			: 0;
 	const elementStartTime =
 		isBeingDragged && dragState.isDragging
 			? dragState.currentTime
-			: element.startTime;
+			: element.startTime + reorderYieldOffset;
 
 	// Element should always be positioned at startTime - trimStart only affects content, not position
 	const elementLeft = elementStartTime * 50 * zoomLevel;
@@ -1538,6 +1545,10 @@ function TimelineElementComponent({
 					style={{
 						left: `${elementLeft}px`,
 						width: `${elementWidth}px`,
+						// Yielding clips glide to their preview slots; the dragged
+						// clip itself must track the pointer with zero lag.
+						transition:
+							reorderYieldOffset !== 0 ? "left 150ms ease-out" : undefined,
 					}}
 					data-element-id={element.id}
 					data-track-id={track.id}
