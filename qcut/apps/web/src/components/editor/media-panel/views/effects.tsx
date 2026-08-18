@@ -268,7 +268,7 @@ export default function EffectsView() {
 			className="flex h-full min-h-0 bg-panel text-foreground"
 			data-testid="effects-view"
 		>
-			<aside className="w-[116px] shrink-0 overflow-y-auto border-r border-border/50 p-2">
+			<aside className="w-[148px] shrink-0 overflow-y-auto border-r border-border/50 p-2">
 				<div className="space-y-1">
 					{EFFECT_LIBRARY_SECTIONS.map((section) => {
 						const Icon = SECTION_ICONS[section.id];
