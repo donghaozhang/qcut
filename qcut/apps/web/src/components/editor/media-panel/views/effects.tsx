@@ -1,4 +1,5 @@
 import {
+	ChevronRight,
 	FlaskConical,
 	Activity,
 	Aperture,
@@ -38,6 +39,7 @@ import type {
 	EffectLibrarySectionId,
 	VisualEffectCategoryId,
 } from "@/lib/effects/effect-catalog-types";
+import type { JianyingEffectPanel } from "@/types/electron";
 import {
 	readEffectFavoriteIds,
 	toggleEffectFavoriteId,
@@ -50,7 +52,12 @@ import { useEffectsStore } from "@/stores/ai/effects-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { EffectPreset } from "@/types/effects";
-import { JianyingEffectLabPanel } from "./effects/jianying-effect-lab-panel";
+import {
+	JianyingEffectLabCategoryNav,
+	type JianyingEffectLabCategorySelection,
+	JianyingEffectLabPanel,
+} from "./effects/jianying-effect-lab-panel";
+import { useJianyingEffectRuntime } from "./effects/use-jianying-effect-runtime";
 import { EffectPreviewThumbnail } from "./effect-preview-thumbnail";
 
 const FALLBACK_PREVIEW = "/images/filter-previews/coastal.webp";
@@ -147,6 +154,21 @@ export default function EffectsView() {
 	const [searchQuery, setSearchQuery] = useState("");
 	const [draggedEffectId, setDraggedEffectId] = useState<string | null>(null);
 	const [favoriteIds, setFavoriteIds] = useState(readEffectFavoriteIds);
+	// Sections with children fold in place: the chevron shows where a section
+	// can collapse, and a click on an already-selected section toggles it.
+	const [expandedSections, setExpandedSections] = useState<
+		Record<string, boolean>
+	>(() => ({ visual: true, lab: true }));
+	// The lab's categories hang off its rail entry like 画面特效's do, so the
+	// rail — not the lab panel — owns the selection and the runtime probe.
+	const [labSelectedCategory, setLabSelectedCategory] =
+		useState<JianyingEffectLabCategorySelection | null>(null);
+	const [labCollapsedPanels, setLabCollapsedPanels] = useState<
+		JianyingEffectPanel[]
+	>([]);
+	const labRuntime = useJianyingEffectRuntime({
+		enabled: selectedSection === "lab",
+	});
 
 	const localizedCatalog = useMemo(
 		() =>
@@ -251,6 +273,8 @@ export default function EffectsView() {
 					{EFFECT_LIBRARY_SECTIONS.map((section) => {
 						const Icon = SECTION_ICONS[section.id];
 						const selected = selectedSection === section.id;
+						const hasChildren = section.id === "visual" || section.id === "lab";
+						const expanded = expandedSections[section.id] ?? true;
 						return (
 							<div key={section.id}>
 								<button
@@ -262,8 +286,24 @@ export default function EffectsView() {
 											: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
 									)}
 									aria-pressed={selected}
+									aria-expanded={hasChildren ? selected && expanded : undefined}
 									data-testid={`effect-section-${section.id}`}
-									onClick={() => setSelectedSection(section.id)}
+									onClick={() => {
+										if (selected && hasChildren) {
+											setExpandedSections((current) => ({
+												...current,
+												[section.id]: !(current[section.id] ?? true),
+											}));
+											return;
+										}
+										setSelectedSection(section.id);
+										if (hasChildren) {
+											setExpandedSections((current) => ({
+												...current,
+												[section.id]: true,
+											}));
+										}
+									}}
 									onKeyDown={(event) => {
 										if (event.key === "Escape") event.currentTarget.blur();
 									}}
@@ -272,8 +312,17 @@ export default function EffectsView() {
 									<span className="truncate">
 										{locale === "zh" ? section.localizedLabel : section.label}
 									</span>
+									{hasChildren ? (
+										<ChevronRight
+											aria-hidden="true"
+											className={cn(
+												"ml-auto size-3 shrink-0 text-muted-foreground transition-transform",
+												selected && expanded && "rotate-90"
+											)}
+										/>
+									) : null}
 								</button>
-								{section.id === "visual" && selected ? (
+								{section.id === "visual" && selected && expanded ? (
 									<div className="mt-1 space-y-0.5 border-l border-border/60 pl-2">
 										{VISUAL_EFFECT_NAVIGATION.map((item) => {
 											const NavigationIcon = navigationIcon({
@@ -309,6 +358,24 @@ export default function EffectsView() {
 												</button>
 											);
 										})}
+									</div>
+								) : null}
+								{section.id === "lab" && selected && expanded ? (
+									<div className="mt-1 border-l border-border/60 pl-2">
+										<JianyingEffectLabCategoryNav
+											categories={labRuntime.status?.categories ?? []}
+											effects={labRuntime.status?.effects ?? []}
+											selectedCategory={labSelectedCategory}
+											collapsedPanels={labCollapsedPanels}
+											onSelectCategory={setLabSelectedCategory}
+											onTogglePanel={(panel) =>
+												setLabCollapsedPanels((current) =>
+													current.includes(panel)
+														? current.filter((entry) => entry !== panel)
+														: [...current, panel]
+												)
+											}
+										/>
 									</div>
 								) : null}
 							</div>
@@ -347,7 +414,9 @@ export default function EffectsView() {
 				{selectedSection === "lab" ? (
 					<JianyingEffectLabPanel
 						onApply={(preset) => handleApplyEffect({ preset })}
+						runtime={labRuntime}
 						searchQuery={searchQuery}
+						selectedCategory={labSelectedCategory}
 					/>
 				) : (
 					<div className="min-h-0 flex-1 overflow-y-auto p-3">
