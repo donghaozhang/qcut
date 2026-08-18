@@ -166,10 +166,13 @@ export function createAddOps(
 		// same placement philosophy as adjustment layers — and the segment
 		// starts at the playhead with Jianying's ~3s default length.
 		addEffectAtTime: (preset: EffectPreset, currentTime = 0): string | null => {
-			let insertIndex = get().tracks.findIndex(
-				(track) => track.type === "media"
-			);
-			if (insertIndex === -1) insertIndex = get().tracks.length;
+			// byArrival (T6): the newest overlay lane goes on top of everything;
+			// byType keeps it at the top of the media group like an adjustment.
+			let insertIndex = 0;
+			if (get().overlayStacking !== "byArrival") {
+				insertIndex = get().tracks.findIndex((track) => track.type === "media");
+				if (insertIndex === -1) insertIndex = get().tracks.length;
+			}
 			const targetTrackId = get().insertTrackAt("effect", insertIndex);
 			return get().addElementToTrack(targetTrackId, {
 				type: "effect",
