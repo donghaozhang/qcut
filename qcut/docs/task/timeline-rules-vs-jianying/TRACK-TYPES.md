@@ -16,9 +16,10 @@
 **QCut：类型分层 + 显式重排。** `TRACK_PRIORITY`：text 1 < captions 2 <
 markdown 2.5 < remotion 3 < hyperframes 3.25 < sticker 4 < adjustment
 4.5 < effect 4.75 < media 5 < audio 6（[track-utils.ts:12-23]）——
-**文本永远压在贴纸上面**，与剪映相反（剪映谁后加谁在上）。现代项目带
-显式 `order` 字段，`moveTrack` 允许用户自由重排任何轨道
-（[track-utils.ts:88-112]）——剪映做不到的能力。
+**默认文本压在贴纸上面**，与剪映相反（剪映谁后加谁在上）。这是默认
+落位而非不变量：现代项目带显式 `order` 字段，`moveTrack` 允许用户自由
+重排任何轨道、覆盖类型序（[track-utils.ts:88-112]）——剪映做不到的
+能力。
 
 含义：从剪映导入的草稿在 QCut 里重排序后，浮层遮挡关系可能与剪映原片
 不同（导入层用数组序做 `order` 保真，但用户一重排就进入 QCut 世界观）。
@@ -56,7 +57,9 @@ ScriptInfoSticker 挡在 opaque 级，无风险。
 | 默认时长 | ≈3s 段 | 调节层默认 max(5s, 播放头→项目尾)（[adjustment-layer.ts:45-49]） |
 | 参数 | 强度 0-100 | LUT intensity + 完整 color settings |
 
-结论：**表达能力等价（调节层≈滤镜段），交互模型不同**。剪映「滤镜是
+结论：**参数能力部分重叠，作用域与时间行为不同**。剪映滤镜段作用于
+其下所有层、默认 ≈3s 独立时间段；QCut 写进单个片段或调节层——调节层
+只调媒体不碰浮层、默认从播放头到项目尾。交互模型亦不同：剪映「滤镜是
 个可拖拽的段」；QCut「滤镜是片段/调节层的属性」。剪映的滤镜段在
 draft 里是 filter 轨 + extra_material_refs LUT——互导按 opaque 保留。
 
@@ -67,9 +70,9 @@ draft 里是 filter 轨 + extra_material_refs LUT——互导按 opaque 保留�
 | 应用模型 | **特效轨段**（默认 ≈3s，起点=播放头），作用于其下所有层（实测雨滴打在贴纸上）；每特效带独立参数集（雨滴：大小/纹理/模糊/速度/噪点/柔和/范围） | **特效挂片段**：`effectsStore.applyEffect(elementId, preset)`，`effect` TrackType 在模型里存在但**没有任何代码创建 effect 轨**（[effects.tsx:213-221]；track-model 审读确认零调用点）；「特效轨道」只是 UI lane 开关 |
 | 参数 | 每段可调 | `adjustParameters`（特效实验室已镜像剪映参数 schema） |
 
-结论：**真差距**。剪映的「区间特效」（作用一段时间内所有层）QCut 没有
+结论：**真差距**。剪映的区间特效段（作用一段时间内所有层）QCut 没有
 对应物——挂片段的特效只作用于那个片段。要对齐需要激活 effect 轨类型
-并让渲染管线支持「特效段作用其下」。这也是特效实验室港的剪映特效目前
+并让渲染管线支持「特效段作用其下」。这也是特效实验室里的剪映特效目前
 只能逐片段应用的原因。
 
 ### 5. 调节
@@ -87,7 +90,7 @@ draft 里是 filter 轨 + extra_material_refs LUT——互导按 opaque 保留�
 
 | | 剪映（实测 J5） | QCut |
 |---|---|---|
-| 落轨 | 主轨下方音频轨，起点=播放头，允许 gap | 同：audio 轨恒在底部（priority 6，新音频轨 `addTrack("audio")` 追加底部），`addMediaAtTime` 起点=播放头，找空 lane 或叠新轨（[timeline-add-ops.ts:76-116]） |
+| 落轨 | 主轨下方音频轨，起点=播放头，允许 gap | 同：audio 轨默认在底部（moveTrack 可重排）（priority 6，新音频轨 `addTrack("audio")` 追加底部），`addMediaAtTime` 起点=播放头，找空 lane 或叠新轨（[timeline-add-ops.ts:76-116]） |
 | 片段音频面板 | dB 音量、淡入/淡出时长、响度统一、降噪、人声美化、声音分离、变调、立体声平衡、声道配置；tab：换音色/声音效果/变速/改词翻唱 | `volumeDb`、`fadeIn/fadeOut`（[audio-basic-settings.tsx]、[timeline.ts:717-718]）、playbackRate/preservePitch、EQ/压缩器/声像（导出层枚举过） |
 | 轨级能力 | （未对测轨级） | 轨级 audio bus（`TimelineTrackAudioSettings`）+ 轨内 crossfades（`audioCrossfades`）——剪映无轨级总线概念 |
 | 视频分离音频 | 「分离音频」（未实测） | `separateAudio`：分离副本落空闲 audio 轨或叠新轨，groupId 链接、原片段内嵌音频静音（[timeline-element-ops.ts:362-464]） |
