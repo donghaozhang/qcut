@@ -51,6 +51,7 @@ import { cn } from "@/lib/utils";
 import { useEffectsStore } from "@/stores/ai/effects-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import { usePlaybackStore } from "@/stores/editor/playback-store";
 import type { EffectPreset } from "@/types/effects";
 import {
 	JianyingEffectLabCategoryNav,
@@ -141,6 +142,7 @@ function localizeCatalogEntry({
 export default function EffectsView() {
 	const { locale, t } = useTranslation();
 	const applyEffect = useEffectsStore((state) => state.applyEffect);
+	const addEffectAtTime = useTimelineStore((state) => state.addEffectAtTime);
 	const selectedElements = useTimelineStore((state) => state.selectedElements);
 	const tracks = useTimelineStore((state) => state.tracks);
 	const autoShowEffectsTrack = useTimelineStore(
@@ -235,7 +237,14 @@ export default function EffectsView() {
 	const handleApplyEffect = ({ preset }: { preset: EffectPreset }) => {
 		const selectedElementId = selectedElements[0]?.elementId;
 		if (!selectedElementId) {
-			toast.info(t("effects.toast.selectClip"));
+			// No clip picked: drop the preset as a region effect segment at the
+			// playhead — a Jianying-style 特效轨 range covering the layers below
+			// it — instead of bouncing the user with a toast.
+			const elementId = addEffectAtTime(
+				preset,
+				usePlaybackStore.getState().currentTime
+			);
+			if (elementId) toast.success(t("effects.toast.addedAsRegion"));
 			return;
 		}
 		applyEffect(selectedElementId, preset);
