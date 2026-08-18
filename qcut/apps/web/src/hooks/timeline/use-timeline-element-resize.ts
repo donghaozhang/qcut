@@ -4,6 +4,7 @@ import {
 	clampResizeTimelineDelta,
 	planMagnetShiftedStartTimes,
 	resolveResizeNeighborBounds,
+	spansHaveOverlap,
 	type MagnetDownstreamSnapshot,
 	type ResizeNeighborBounds,
 } from "@qcut/editor-core/timeline";
@@ -217,7 +218,14 @@ export function useTimelineElementResize({
 					// Text/Image: extend to the left by moving startTime and
 					// increasing duration
 					const extensionAmount = Math.abs(calculated);
-					const maxExtension = resizing.initialStartTime * trimTimeScale;
+					// Under the magnet the start stays anchored — the extension
+					// grows the clip rightward and pushes downstream — so free
+					// space to the LEFT is not the budget; only content limits
+					// apply. Without the magnet the clip walks left into that
+					// free space, which is exactly what the limit describes.
+					const maxExtension = magnetApplies
+						? Number.POSITIVE_INFINITY
+						: resizing.initialStartTime * trimTimeScale;
 					const maxEffectiveDuration = getMaxEffectiveDuration();
 					const maxDurationFromType = Number.isFinite(maxEffectiveDuration)
 						? Math.max(
@@ -305,16 +313,47 @@ export function useTimelineElementResize({
 				trimTimeScale;
 			const endDelta =
 				next.startTime + newVisibleDuration - (plan?.initialEndTime ?? 0);
-			const shiftDownstream = () => {
-				if (!magnetApplies || !plan || plan.downstream.length === 0) return;
-				setTrackElementStartTimes(
-					track.id,
-					planMagnetShiftedStartTimes({
-						downstream: plan.downstream,
-						endDelta,
-					}),
-					false
-				);
+			const shiftedStartTimes =
+				magnetApplies && plan && plan.downstream.length > 0
+					? planMagnetShiftedStartTimes({
+							downstream: plan.downstream,
+							endDelta,
+						})
+					: null;
+
+			// Atomicity preflight: on a track carrying a pre-existing overlap
+			// the arrange step below rejects the downstream shift; committing
+			// the trim writes anyway would leave an overlap (growth) or a hole
+			// (shrink). Simulate the final layout first and freeze the gesture
+			// instead when it cannot commit cleanly.
+			if (magnetApplies) {
+				const finalSpans = track.elements
+					.filter((candidate) => candidate.id !== element.id)
+					.map((candidate) => {
+						const currentStart = candidate.startTime;
+						const currentEnd = getTimelineElementEndTime({
+							element: candidate,
+							fps,
+						});
+						const shiftedStart = shiftedStartTimes?.[candidate.id];
+						const startTime = shiftedStart ?? currentStart;
+						return {
+							id: candidate.id,
+							startTime,
+							endTime: startTime + (currentEnd - currentStart),
+						};
+					});
+				finalSpans.push({
+					id: element.id,
+					startTime: next.startTime,
+					endTime: next.startTime + newVisibleDuration,
+				});
+				if (spansHaveOverlap({ spans: finalSpans })) return;
+			}
+
+			const shiftDownstream = (): boolean => {
+				if (!shiftedStartTimes) return true;
+				return setTrackElementStartTimes(track.id, shiftedStartTimes, false);
 			};
 
 			// Push the neighbours out of the way before growing into their
@@ -322,8 +361,10 @@ export function useTimelineElementResize({
 			// store free of same-track overlaps at every commit. Every value is
 			// written unconditionally: a drag that returns to its starting point
 			// must also return the store, so "unchanged vs the snapshot" is not
-			// a reason to skip a write.
-			if (endDelta > 0) shiftDownstream();
+			// a reason to skip a write. A rejected growth shift aborts before
+			// anything is written (the preflight makes that unreachable in
+			// practice, but the arrange result stays authoritative).
+			if (endDelta > 0 && !shiftDownstream()) return;
 			updateElementDuration(track.id, element.id, next.duration, false);
 			updateElementTrim(
 				track.id,
