@@ -18,6 +18,7 @@ export {
 	buildCompositionPlan,
 	type BuildCompositionPlanOptions,
 	type CompositionAudioElement,
+	type CompositionRegionEffect,
 	type CompositionDurationContext,
 	type CompositionLayer,
 	type CompositionPlan,
