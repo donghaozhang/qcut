@@ -387,6 +387,7 @@ export type {
 	CompositionDurationContext,
 	CompositionLayer,
 	CompositionPlan,
+	CompositionRegionEffect,
 	MediaSeam,
 	ResolvedClipTransition,
 } from "./timeline/index.js";
