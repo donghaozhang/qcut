@@ -217,6 +217,7 @@ describe("timeline behavior toggles", () => {
 			snappingEnabled: true,
 			mainTrackMagnetEnabled: true,
 			linkedRippleEnabled: true,
+			overlayStacking: "byType",
 		});
 		expect(useProjectStore.getState().activeProject?.timeline).toEqual(
 			savedProject.timeline
