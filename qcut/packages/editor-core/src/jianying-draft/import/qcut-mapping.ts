@@ -30,6 +30,14 @@ export interface QCutImportPlanMediaKeyframe {
 	easing: "linear";
 }
 
+/** A fitted filter recipe applied to a media element (L6). */
+export interface QCutImportPlanMediaFilter {
+	presetId: string;
+	presetVersion: number;
+	/** QCut 0-100 intensity scale. */
+	intensity: number;
+}
+
 export interface QCutImportPlanMediaElement {
 	/** Deterministic: reuses the semantic segment id. */
 	id: string;
@@ -52,6 +60,7 @@ export interface QCutImportPlanMediaElement {
 	scaleY?: number;
 	opacity?: number;
 	keyframes?: Partial<Record<"x" | "y", QCutImportPlanMediaKeyframe[]>>;
+	filter?: QCutImportPlanMediaFilter;
 	sourceSegmentId: string;
 }
 
@@ -298,6 +307,9 @@ function mapMediaSegment({
 						...(yKeyframes === undefined ? {} : { y: yKeyframes }),
 					},
 				}),
+		...(segment.filterPreset === undefined
+			? {}
+			: { filter: { ...segment.filterPreset } }),
 		sourceSegmentId: segment.id,
 	};
 }
