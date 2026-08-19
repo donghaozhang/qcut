@@ -24,6 +24,7 @@ import type {
 } from "../../../ffmpeg/types.js";
 import { buildVideoFitFilter } from "../../../ffmpeg/video-fit-filter.js";
 import {
+	buildAtempoChain,
 	buildSegmentTransformFilter,
 	isIdentitySegmentTransform,
 	type SegmentTransform,
@@ -435,10 +436,28 @@ export async function collectExportSegments({
 					continue;
 				}
 
-				const durationFromElement =
-					typeof element.duration === "number" && element.duration > 0
-						? element.duration
+				// A constant playback rate makes source and timeline durations
+				// diverge: `duration` must stay TIMELINE seconds (gap math,
+				// transitions, and totals all assume it). Speed curves keep the
+				// legacy 1x path — they need their own export mapping.
+				const playbackRate =
+					typeof element.playbackRate === "number" &&
+					Number.isFinite(element.playbackRate) &&
+					element.playbackRate > 0 &&
+					(element.speedKeyframes?.length ?? 0) === 0
+						? element.playbackRate
+						: 1;
+				const timelineDurationFromElement =
+					typeof element.timelineDuration === "number" &&
+					element.timelineDuration > 0
+						? element.timelineDuration
 						: element.endTime - element.startTime;
+				const durationFromElement =
+					playbackRate !== 1
+						? timelineDurationFromElement
+						: typeof element.duration === "number" && element.duration > 0
+							? element.duration
+							: element.endTime - element.startTime;
 
 				if (!Number.isFinite(durationFromElement) || durationFromElement <= 0) {
 					continue;
@@ -461,6 +480,7 @@ export async function collectExportSegments({
 					isImage: media.type === "image",
 					fitMode: element.fitMode ?? "cover",
 					...(transform === undefined ? {} : { transform }),
+					...(playbackRate === 1 ? {} : { playbackRate }),
 				});
 			}
 		}
@@ -858,12 +878,15 @@ export function buildExportSegmentInputArgs({
 	}
 	const seekArgs =
 		segment.trimStart > 0 ? ["-ss", String(segment.trimStart)] : [];
+	// duration is timeline seconds; a sped-up segment consumes rate× as much
+	// of the source before setpts compresses it back to the timeline length.
+	const sourceReadDuration = segment.duration * (segment.playbackRate ?? 1);
 	return [
 		...seekArgs,
 		"-i",
 		segment.sourcePath,
 		"-t",
-		String(segment.duration),
+		String(sourceReadDuration),
 	];
 }
 
@@ -902,20 +925,31 @@ export function buildExportSegmentScaleFilter({
 	settings,
 }: {
 	segment: ExportSegment;
-	settings: Pick<ResolvedExportSettings, "width" | "height">;
+	settings: Pick<ResolvedExportSettings, "width" | "height" | "fps">;
 }): string {
 	const fit = `${buildVideoFitFilter({
 		fitMode: segment.fitMode,
 		width: settings.width,
 		height: settings.height,
 	})},setsar=1`;
-	if (segment.transform === undefined) return fit;
-	const transformFilter = buildSegmentTransformFilter({
-		transform: segment.transform,
-		width: settings.width,
-		height: settings.height,
-	});
-	return transformFilter === "" ? fit : `${fit},${transformFilter}`;
+	const transformFilter =
+		segment.transform === undefined
+			? ""
+			: buildSegmentTransformFilter({
+					transform: segment.transform,
+					width: settings.width,
+					height: settings.height,
+				});
+	const rate = segment.playbackRate ?? 1;
+	// Normalize to zero, scale, then resample with the fps filter: the output
+	// -r option alone mis-samples retimed streams (measured 90→47 frames at
+	// rate 2 instead of 45), while an in-graph fps stage lands exactly on the
+	// 2× mapping.
+	const rateFilter =
+		rate === 1 ? "" : `setpts=(PTS-STARTPTS)/${rate},fps=${settings.fps}`;
+	return [fit, transformFilter, rateFilter]
+		.filter((stage) => stage !== "")
+		.join(",");
 }
 
 export function buildTransitionVideoSources({
@@ -1165,6 +1199,12 @@ export async function executeExportJob({
 					"-pix_fmt",
 					"yuv420p",
 					...(segment.isImage ? [] : ["-c:a", "aac", "-b:a", "192k"]),
+					...(() => {
+						const atempo = segment.isImage
+							? null
+							: buildAtempoChain({ rate: segment.playbackRate ?? 1 });
+						return atempo === null ? [] : ["-af", atempo];
+					})(),
 					"-shortest",
 					outputSegmentPath,
 				],
