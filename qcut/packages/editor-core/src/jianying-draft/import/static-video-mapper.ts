@@ -70,7 +70,8 @@ function buildStaticVisual({
 			? { ...positionKeyframes.visual }
 			: {
 					xPx: (clipTransform.transformX * canvasWidth) / 2,
-					yPx: (clipTransform.transformY * canvasHeight) / 2,
+					// JianYing Y is up-positive; QCut is screen-down-positive.
+					yPx: (clipTransform.transformY * -canvasHeight) / 2 + 0,
 				};
 	if (clipTransform.rotationDegrees !== 0) {
 		base.rotationDegrees = clipTransform.rotationDegrees;
