@@ -209,6 +209,7 @@ apps/web/public/sticker-lab/*
 # Local Jianying runtime payloads used by research probes; proprietary, never commit.
 /.local/jianying-runtime/
 /.local/jianying-effect-references/
+/.local/jianying-parity/
 /research/jianying-runtime-probe/build/
 
 # Filter lab cube bake — regenerate with scripts/generate-filter-lab-cubes.ts
