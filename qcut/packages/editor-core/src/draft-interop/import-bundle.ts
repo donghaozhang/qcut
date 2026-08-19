@@ -20,6 +20,7 @@ import {
 	type QCutImportPlanMediaKeyframe,
 	type QCutImportPlanMediaElement,
 	type QCutImportPlanMediaFilter,
+	type QCutImportPlanEffectElement,
 	type QCutImportPlanTextElement,
 	type QCutImportPlanTrack,
 	type QCutImportPlanTransition,
@@ -665,10 +666,90 @@ function parsePlanElement({
 	if (record.type === "text") {
 		return parsePlanTextElement({ value: record, path });
 	}
+	if (record.type === "effect") {
+		return parsePlanEffectElement({ value: record, path });
+	}
 	return fail({
-		message: "expected media or text plan element",
+		message: "expected media, text, or effect plan element",
 		path: `${path}/type`,
 	});
+}
+
+function parsePlanEffectElement({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): QCutImportPlanEffectElement {
+	const record = asRecord({ value, path });
+	const effectPath = `${path}/effect`;
+	const effect = asRecord({ value: record.effect, path: effectPath });
+	const adjustParameters =
+		effect.adjustParameters === undefined
+			? undefined
+			: asArray({
+					value: effect.adjustParameters,
+					path: `${effectPath}/adjustParameters`,
+				}).map((entry, index) => {
+					const parameterPath = `${effectPath}/adjustParameters/${index}`;
+					const parameter = asRecord({ value: entry, path: parameterPath });
+					return {
+						key: asString({
+							value: parameter.key,
+							path: `${parameterPath}/key`,
+						}),
+						defaultValue: asFiniteNumber({
+							value: parameter.defaultValue,
+							path: `${parameterPath}/defaultValue`,
+						}),
+						minimum: asFiniteNumber({
+							value: parameter.minimum,
+							path: `${parameterPath}/minimum`,
+						}),
+						maximum: asFiniteNumber({
+							value: parameter.maximum,
+							path: `${parameterPath}/maximum`,
+						}),
+					};
+				});
+	if (record.trimStart !== 0 || record.trimEnd !== 0) {
+		return fail({
+			message: "effect plan elements carry no trims",
+			path: `${path}/trimStart`,
+		});
+	}
+	return {
+		id: asString({ value: record.id, path: `${path}/id` }),
+		type: "effect",
+		name: asString({ value: record.name, path: `${path}/name` }),
+		startTime: asFiniteNumber({
+			value: record.startTime,
+			path: `${path}/startTime`,
+		}),
+		duration: asFiniteNumber({
+			value: record.duration,
+			path: `${path}/duration`,
+		}),
+		trimStart: 0,
+		trimEnd: 0,
+		effect: {
+			presetId: asString({
+				value: effect.presetId,
+				path: `${effectPath}/presetId`,
+			}),
+			name: asString({ value: effect.name, path: `${effectPath}/name` }),
+			packageHash: asString({
+				value: effect.packageHash,
+				path: `${effectPath}/packageHash`,
+			}),
+			...(adjustParameters === undefined ? {} : { adjustParameters }),
+		},
+		sourceSegmentId: asString({
+			value: record.sourceSegmentId,
+			path: `${path}/sourceSegmentId`,
+		}),
+	};
 }
 
 function parsePlanTransition({
@@ -766,7 +847,7 @@ function parsePlanTrack({
 		type: asEnum({
 			value: record.type,
 			path: `${path}/type`,
-			allowed: ["media", "audio", "text"],
+			allowed: ["media", "audio", "text", "effect"],
 		}),
 		name: asString({ value: record.name, path: `${path}/name` }),
 		order: asNonNegativeSafeInteger({
@@ -1095,10 +1176,13 @@ export function parseQCutImportBundleV1(
 			}
 			for (const [elementIndex, element] of track.elements.entries()) {
 				const elementPath = `/timelinePlan/tracks/${trackIndex}/elements/${elementIndex}`;
-				if (
-					(track.type === "text" && element.type !== "text") ||
-					(track.type !== "text" && element.type !== "media")
-				) {
+				const expectedElementType =
+					track.type === "text"
+						? "text"
+						: track.type === "effect"
+							? "effect"
+							: "media";
+				if (element.type !== expectedElementType) {
 					fail({
 						message: "plan element type does not match its track",
 						path: `${elementPath}/type`,
