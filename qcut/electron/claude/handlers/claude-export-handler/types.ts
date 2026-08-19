@@ -32,6 +32,12 @@ export interface ExportSegment {
 	/** Element visual transform; absent when the element sits at defaults. */
 	transform?: import("../../../ffmpeg/segment-transform-filter.js").SegmentTransform;
 	/**
+	 * Renderer-resolved color grade (filter presets already baked to LUT
+	 * cubes); absent when the element carries no grade. Normalized by the
+	 * ffmpeg color pipeline before use.
+	 */
+	color?: import("../../../ffmpeg/color-settings.js").VideoColorSettings;
+	/**
 	 * Constant playback rate; absent = 1. `duration` stays in TIMELINE
 	 * seconds — the source read length is duration × playbackRate.
 	 */
