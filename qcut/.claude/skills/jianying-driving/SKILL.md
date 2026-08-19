@@ -73,6 +73,13 @@ description: 驱动本机剪映专业版(JianyingPro)做参照采集/导出/草�
 7. 数值框编辑细节(2026-08-19 四案实采):**triple_click 比 double_click 可靠**(不透明度框
    double_click 曾静默失败);变速倍数框输 "2" 会追加成 1.20x,**必须输完整 "2.0"**;
    Escape 会取消片段选中导致右面板整体置灰(不是弹窗)。
+8. 转场案例配方(transition-move-left,待采):导入 `_assets/parity-plate.mp4` 与
+   `parity-plate-b.mp4` 两素材 → 依次拖上同一轨道使其相邻(B 紧贴 A 尾部)→
+   off:直接导出(硬切基线)→ on:顶部「转场」页签搜「左移」→ 拖到两段接缝 →
+   选中转场把时长设 0.5s → 导出。产物放
+   `cases/transition-move-left/jianying-{on,off}.mp4`,比对器采样点已集中在接缝
+   2.75-3.25s 窗口。QCut 侧四件套已就位(qcut-on/off + 双变体草稿),只欠剪映真机对照。
+   已测 QCut 语义:0.5s 窗口以接缝为中心、easeInOutQuint 对称缓动(边界逐帧实测中点恰在接缝帧)。
 
 ## 5. 无头替代品(能不开 UI 就用这些)
 
@@ -84,3 +91,4 @@ description: 驱动本机剪映专业版(JianyingPro)做参照采集/导出/草�
 ## 更新记录
 
 - 2026-08-19 初版:L1 平价采集实战(beta5 拒开明文草稿、TERM 退出、UI 导出配方、旋转逆时针语义、不透明度字段陷阱)。
+- 2026-08-19 L5:转场案例配方与 QCut 窗口语义(接缝居中 + easeInOutQuint);教训:改完 editor-core 必须 `bun run build` 再做真机验证,旧包曾复现「段丢失」假象。
