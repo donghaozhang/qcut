@@ -384,6 +384,34 @@ export function hasVerifiedBeta4VideoMaterial({
 		segment.sourceRange.duration === duration &&
 		segment.targetRange !== undefined &&
 		segment.targetRange.start >= 0 &&
-		segment.targetRange.duration === duration
+		hasVerifiedSpeedTiming({
+			sourceDurationUs: duration,
+			speed: segment.raw.speed,
+			targetDurationUs: segment.targetRange.duration,
+		})
 	);
+}
+
+/**
+ * The constant-rate timing relation (L3): target duration must equal the
+ * source duration divided by the speed scalar, within 1µs for the integer
+ * rounding the app applies. Speed 1 keeps the original exact equality.
+ */
+function hasVerifiedSpeedTiming({
+	sourceDurationUs,
+	speed,
+	targetDurationUs,
+}: {
+	sourceDurationUs: unknown;
+	speed: unknown;
+	targetDurationUs: number;
+}): boolean {
+	if (typeof sourceDurationUs !== "number") return false;
+	if (speed === 1 || speed === undefined) {
+		return targetDurationUs === sourceDurationUs;
+	}
+	if (typeof speed !== "number" || !Number.isFinite(speed) || speed <= 0) {
+		return false;
+	}
+	return Math.abs(targetDurationUs - sourceDurationUs / speed) < 1;
 }
