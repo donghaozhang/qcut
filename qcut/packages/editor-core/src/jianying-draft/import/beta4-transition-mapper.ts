@@ -244,7 +244,7 @@ export function mapBeta4SeamTransition({
 				downgrade: {
 					approximation: `transition-preset:${catalogued.preset.presetId}`,
 					fidelityEvidence:
-						"jianying-transition-lab reimplementation (ressdk_db id catalog 2026-08-19); per-preset parity receipt pending",
+						"jianying-transition-lab reimplementation (ressdk_db id catalog 2026-08-19); move-left receipt 2026-08-19: push curve aligned (boundary within 9px, seam midpoint exact, same 0.5s centered window), native flourish on the wings unmatched (RMSE 15.0 vs strict ceiling 11.0)",
 				},
 			},
 			issueCode: "FEATURE_DOWNGRADED",
