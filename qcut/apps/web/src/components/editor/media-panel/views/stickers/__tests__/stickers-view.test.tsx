@@ -45,7 +45,34 @@ const localCatalogMock = vi.hoisted(() => ({
 		error: null as string | null,
 		isAvailable: true,
 		isLoading: false,
-		privateCatalogs: [],
+		privateCatalogs: [
+			{
+				categories: [
+					{
+						id: "trending",
+						label: "热门",
+						sourcePanel: "剪映贴纸面板",
+						items: [
+							{
+								id: "private-1",
+								displayName: "参照贴纸 甲",
+								fileName: "private-1.png",
+								filePath: "/tmp/private-1.png",
+								mimeType: "image/png" as const,
+								sourceKind: "atlas-animation" as const,
+								playback: {
+									kind: "animated" as const,
+									frameCount: 4,
+									frameRate: 5,
+									cycleDuration: 0.8,
+									loop: true,
+								},
+							},
+						],
+					},
+				],
+			},
+		],
 	},
 }));
 const stickerSelectMocks = vi.hoisted(() => ({
@@ -201,19 +228,23 @@ describe("StickersView", () => {
 		expect(screen.getByTestId("ai-sticker-generator")).toBeInTheDocument();
 
 		const sidebar = screen.getByTestId("sticker-sidebar");
-		fireEvent.click(
-			within(sidebar).getByRole("button", { name: "贴纸实验室" })
-		);
+		fireEvent.click(within(sidebar).getByRole("button", { name: "QCut 原创" }));
 		expect(
 			screen.getByTestId("local-sticker-reference-panel")
 		).toBeInTheDocument();
 		expect(
 			screen.getByRole("button", { name: "添加手绘弯箭头到时间线" })
 		).toBeInTheDocument();
-		// The lab keeps its categories in its own rail, and the resolved
-		// default category is highlighted.
 		expect(
 			screen.getByTestId("sticker-lab-category-public-popular")
+		).toHaveAttribute("aria-pressed", "true");
+
+		// The reference slice is its own sidebar section named 贴纸实验室.
+		fireEvent.click(
+			within(sidebar).getByRole("button", { name: "贴纸实验室" })
+		);
+		expect(
+			screen.getByTestId("sticker-lab-category-private-trending")
 		).toHaveAttribute("aria-pressed", "true");
 
 		fireEvent.click(screen.getByTestId("sticker-category-interaction"));
@@ -221,22 +252,34 @@ describe("StickersView", () => {
 		expect(screen.queryByTestId("local-sticker-reference-panel")).toBeNull();
 	});
 
-	it("keeps lab categories inside the lab panel rail, not the sidebar", () => {
+	it("folds the QCut 原创 and 贴纸实验室 sections independently", () => {
 		render(<StickersView />);
-
-		// Outside the lab the reference categories stay out of the way.
-		expect(
-			screen.queryByTestId("sticker-lab-category-public-popular")
-		).toBeNull();
 		const sidebar = screen.getByTestId("sticker-sidebar");
+		const labHeader = within(sidebar).getByRole("button", {
+			name: "贴纸实验室",
+		});
 
-		fireEvent.click(screen.getByRole("button", { name: "贴纸实验室" }));
-		const rail = screen.getByTestId("sticker-lab-category-rail");
-		const category = within(rail).getByTestId(
-			"sticker-lab-category-public-popular"
-		);
-		expect(category).toHaveAttribute("aria-pressed", "true");
-		expect(sidebar.contains(rail)).toBe(false);
+		// First click enters the lab on the reference slice…
+		fireEvent.click(labHeader);
+		expect(
+			screen.getByTestId("sticker-lab-category-private-trending")
+		).toHaveAttribute("aria-pressed", "true");
+
+		// …and the second click only folds the section.
+		fireEvent.click(labHeader);
+		expect(labHeader).toHaveAttribute("aria-expanded", "false");
+		expect(
+			screen.queryByTestId("sticker-lab-category-private-trending")
+		).toBeNull();
+		expect(
+			screen.getByTestId("sticker-lab-category-public-popular")
+		).toBeInTheDocument();
+
+		fireEvent.click(labHeader);
+		expect(labHeader).toHaveAttribute("aria-expanded", "true");
+		expect(
+			screen.getByTestId("sticker-lab-category-private-trending")
+		).toBeInTheDocument();
 	});
 
 	it("opens the shape library from the sidebar entry below the lab", () => {
@@ -266,17 +309,18 @@ describe("StickersView", () => {
 		expect(screen.getByTestId("sticker-shape-library")).toBeInTheDocument();
 	});
 
-	it("hides the bottom lab entry when no local catalog is configured", () => {
+	it("hides both lab sections when no local catalog is configured", () => {
 		localCatalogMock.current.isAvailable = false;
 		render(<StickersView />);
 
 		expect(screen.queryByRole("button", { name: "贴纸实验室" })).toBeNull();
+		expect(screen.queryByRole("button", { name: "QCut 原创" })).toBeNull();
 	});
 
 	it("surfaces a failed local reference upload as a retryable card error", async () => {
 		stickerSelectMocks.upload.mockResolvedValue(undefined);
 		render(<StickersView />);
-		fireEvent.click(screen.getByRole("button", { name: "贴纸实验室" }));
+		fireEvent.click(screen.getByRole("button", { name: "QCut 原创" }));
 
 		const referenceButton = await screen.findByRole("button", {
 			name: "添加手绘弯箭头到时间线",
