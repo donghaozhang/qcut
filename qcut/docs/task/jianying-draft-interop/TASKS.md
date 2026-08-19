@@ -112,5 +112,5 @@ harness 复用,可穿插)→ L7/L8(本机运行时路径,内部先行)。总量�
 | 任务 | 状态 |
 |---|---|
 | L0 downgrade 准入通道 | ✅ 2026-08-19 landed(timeline-v2)。`InteropSegment.downgrade` 声明 + `qcut-mapping` 声明门准入 + plan `downgrades` 清单 + bundle 解析(顺手修了 skipped nodeType 缺 "transition" 的既有缺口)。文本段沿用旧 downgrade 通道未动。 |
-| L1 真剪映验收 harness | 🔨 2026-08-19 代码 landed(`scripts/jianying-parity/`:5 个单变量用例 + 构建/注册 CLI + 隔离纪律比对器 + 回执;自检测试过 beta4 归一化,比对器正负例冒烟通过)。**真机采集未跑**:本机剪映为 11.3.0-beta5(加密草稿),beta4 明文草稿能否被其打开待副屏实测;不行则退路为 UI 手工作草稿(证据降档,回执注明)。 |
+| L1 真剪映验收 harness | ✅ 2026-08-19 landed + 真机首采完成。代码:`scripts/jianying-parity/`(5 个单变量用例 + 构建/注册 CLI + 隔离纪律比对器 + 回执)。**真机实测结论**:(1) beta5 能扫描列出 beta4 明文草稿但**拒绝打开**(「草稿内容已损坏」,缺加密 meta)——`--register` 路线对 beta5 不可用;(2) 退路 UI 作草稿已跑通并采到 transform-rotation 的 on/off ground truth(640×360/90帧,`.local/jianying-parity/cases/transform-rotation/jianying-{on,off}.mp4`);(3) **语义发现:剪映 UI 旋转 +30° = 屏幕逆时针**。剩余 4 case(alpha/position/scale/speed)待下个 UI 窗口采集(每个约 90 秒,透明度字段编辑要先 zoom 验证再导出)。 |
 | L2-L8 | 未开始(规划) |
