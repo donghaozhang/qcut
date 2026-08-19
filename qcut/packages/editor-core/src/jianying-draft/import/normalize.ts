@@ -350,6 +350,7 @@ function normalizeSegment({
 			graph,
 			trackIndex,
 			canvasWidth,
+			canvasHeight,
 			fps,
 		});
 		capability = combineInteropCapabilities([capability, mapped.capability]);
