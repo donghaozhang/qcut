@@ -27,6 +27,7 @@ import {
 	buildAtempoChain,
 	buildSegmentTransformFilter,
 	isIdentitySegmentTransform,
+	type SegmentPositionKeyframe,
 	type SegmentTransform,
 } from "../../../ffmpeg/segment-transform-filter.js";
 import { claudeLog } from "../../utils/logger.js";
@@ -463,7 +464,10 @@ export async function collectExportSegments({
 					continue;
 				}
 
-				const transform = readElementTransform({ element });
+				const transform = readElementTransform({
+					element,
+					fps: timeline.fps || 30,
+				});
 				segments.push({
 					elementId: element.id,
 					trackId,
@@ -891,23 +895,66 @@ export function buildExportSegmentInputArgs({
 }
 
 /**
+ * Converts one media keyframe channel to timeline-seconds tracks. Only the
+ * all-linear shape animates in export (matching what draft import produces);
+ * any other easing keeps the legacy static behavior for the channel.
+ */
+function readPositionKeyframeTrack({
+	channel,
+	fps,
+}: {
+	channel: unknown;
+	fps: number;
+}): SegmentPositionKeyframe[] | undefined {
+	if (!Array.isArray(channel) || channel.length < 2) return undefined;
+	const track: SegmentPositionKeyframe[] = [];
+	for (const entry of channel) {
+		if (
+			typeof entry !== "object" ||
+			entry === null ||
+			typeof (entry as { frame?: unknown }).frame !== "number" ||
+			typeof (entry as { value?: unknown }).value !== "number" ||
+			(entry as { easing?: unknown }).easing !== "linear"
+		) {
+			return undefined;
+		}
+		track.push({
+			timeSeconds: (entry as { frame: number }).frame / fps,
+			value: (entry as { value: number }).value,
+		});
+	}
+	return track;
+}
+
+/**
  * Reads the element's visual transform for export, or undefined at defaults.
  * The timeline snapshot carries the full element state; the typed contract
  * lags behind for scaleX/scaleY, so those are read defensively.
  */
 function readElementTransform({
 	element,
+	fps,
 }: {
 	element: {
 		x?: number;
 		y?: number;
 		rotation?: number;
 		opacity?: number;
+		keyframes?: Partial<Record<string, unknown>>;
 	};
+	fps: number;
 }): SegmentTransform | undefined {
 	const loose = element as { scaleX?: unknown; scaleY?: unknown };
 	const asFinite = (value: unknown, fallback: number) =>
 		typeof value === "number" && Number.isFinite(value) ? value : fallback;
+	const xKeyframes = readPositionKeyframeTrack({
+		channel: element.keyframes?.x,
+		fps,
+	});
+	const yKeyframes = readPositionKeyframeTrack({
+		channel: element.keyframes?.y,
+		fps,
+	});
 	const transform: SegmentTransform = {
 		x: asFinite(element.x, 0),
 		y: asFinite(element.y, 0),
@@ -915,6 +962,8 @@ function readElementTransform({
 		scaleX: asFinite(loose.scaleX, 1),
 		scaleY: asFinite(loose.scaleY, 1),
 		opacity: asFinite(element.opacity, 1),
+		...(xKeyframes === undefined ? {} : { xKeyframes }),
+		...(yKeyframes === undefined ? {} : { yKeyframes }),
 	};
 	return isIdentitySegmentTransform({ transform }) ? undefined : transform;
 }
@@ -939,6 +988,7 @@ export function buildExportSegmentScaleFilter({
 					transform: segment.transform,
 					width: settings.width,
 					height: settings.height,
+					playbackRate: segment.playbackRate ?? 1,
 				});
 	const rate = segment.playbackRate ?? 1;
 	// Normalize to zero, scale, then resample with the fps filter: the output
