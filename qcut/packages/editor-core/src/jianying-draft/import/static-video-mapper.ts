@@ -2,7 +2,10 @@ import type { InteropCapability } from "../../draft-interop/capability.js";
 import type { InteropMediaVisual } from "../../draft-interop/document.js";
 import type { InteropIssueCode } from "../../draft-interop/issues.js";
 import { JIANYING_11_3_BETA4_PROFILE_ID } from "../profiles/jianying-11-3-beta4.js";
-import { hasVerifiedBeta4DefaultCompanions } from "./beta4-default-companions.js";
+import {
+	hasVerifiedBeta4DefaultCompanions,
+	isConstantRateSpeed,
+} from "./beta4-default-companions.js";
 import { hasVerifiedBeta4VideoMaterial } from "./beta4-video-material-defaults.js";
 import {
 	BETA4_VIDEO_COMPANION_VALIDATORS,
@@ -136,11 +139,19 @@ export function mapStaticVideo({
 				"video transform, playback, visibility, color, mask, or keyframe state is preserved but not editable",
 		});
 	}
+	// The speed companion must mirror the segment's own scalar (L3): the app
+	// keeps the pair in sync, so a mismatch signals an unverified state.
+	const segmentSpeed =
+		typeof segment.raw.speed === "number" ? segment.raw.speed : 1;
 	if (
 		!hasVerifiedBeta4DefaultCompanions({
 			graph,
 			segment,
-			validators: BETA4_VIDEO_COMPANION_VALIDATORS,
+			validators: {
+				...BETA4_VIDEO_COMPANION_VALIDATORS,
+				speeds: ({ value }) =>
+					isConstantRateSpeed({ value, expectedSpeed: segmentSpeed }),
+			},
 		})
 	) {
 		return opaque({
