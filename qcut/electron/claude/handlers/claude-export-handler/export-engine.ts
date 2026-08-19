@@ -664,10 +664,13 @@ export async function collectStickerOverlays({
 	timeline,
 	mediaFiles,
 	projectId,
+	settings,
 }: {
 	timeline: ClaudeTimeline;
 	mediaFiles: MediaFile[];
 	projectId?: string;
+	/** Export canvas, for percent → pixel conversion; falls back to timeline. */
+	settings?: Pick<ResolvedExportSettings, "width" | "height">;
 }): Promise<StickerOverlay[]> {
 	try {
 		const mediaById = new Map<string, MediaFile>();
@@ -737,14 +740,30 @@ export async function collectStickerOverlays({
 				const style = (element.style ?? {}) as Record<string, unknown>;
 				const el = element as unknown as Record<string, unknown>;
 
+				// Timeline sticker elements store CENTER position as canvas
+				// percentages and size as a percentage of the shorter canvas
+				// dimension (see resolveStickerGeometry in the preview) — the
+				// overlay compositor wants top-left pixels at export size.
+				const canvasWidth = settings?.width ?? timeline.width ?? 1920;
+				const canvasHeight = settings?.height ?? timeline.height ?? 1080;
+				const shortSide = Math.min(canvasWidth, canvasHeight);
+				const xPercent = (style.x as number) ?? (el.x as number) ?? 50;
+				const yPercent = (style.y as number) ?? (el.y as number) ?? 50;
+				const widthPercent =
+					(style.width as number) ?? (el.width as number) ?? 15;
+				const heightPercent =
+					(style.height as number) ?? (el.height as number) ?? 15;
+				const pixelWidth = (widthPercent / 100) * shortSide;
+				const pixelHeight = (heightPercent / 100) * shortSide;
+
 				overlays.push({
 					sourcePath: media.path,
 					startTime: element.startTime,
 					endTime: element.startTime + duration,
-					x: (style.x as number) ?? (el.x as number) ?? 0,
-					y: (style.y as number) ?? (el.y as number) ?? 0,
-					width: (style.width as number) ?? (el.width as number) ?? 200,
-					height: (style.height as number) ?? (el.height as number) ?? 200,
+					x: (xPercent / 100) * canvasWidth - pixelWidth / 2,
+					y: (yPercent / 100) * canvasHeight - pixelHeight / 2,
+					width: pixelWidth,
+					height: pixelHeight,
 					opacity: (style.opacity as number) ?? (el.opacity as number) ?? 1,
 					rotation: (style.rotation as number) ?? (el.rotation as number) ?? 0,
 				});
