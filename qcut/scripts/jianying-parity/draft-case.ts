@@ -79,7 +79,101 @@ export const PARITY_CASES: readonly ParityCase[] = [
 			innerDraft.duration = PARITY_DURATION_US / 2;
 		},
 	},
+	{
+		id: "keyframe-position-x",
+		description: "位置 X 关键帧 0→0.25(0s→2s 线性,真机双通道形状,Y 全零)",
+		mutate: ({ segment }) => {
+			applyLinearPositionKeyframes({
+				segment,
+				endX: 0.25,
+				endY: 0,
+			});
+		},
+	},
+	{
+		id: "keyframe-position-xy",
+		description: "位置双轴关键帧 X 0→0.25 / Y 0→-0.2(0s→2s 线性)",
+		mutate: ({ segment }) => {
+			applyLinearPositionKeyframes({
+				segment,
+				endX: 0.25,
+				endY: -0.2,
+			});
+		},
+	},
 ];
+
+const KEYFRAME_END_US = 2_000_000;
+
+function createLinearChannel({
+	endValue,
+	prefix,
+	propertyType,
+}: {
+	endValue: number;
+	prefix: string;
+	propertyType: "KFTypePositionX" | "KFTypePositionY";
+}): Json {
+	const keyframe = ({
+		id,
+		timeOffsetUs,
+		value,
+	}: {
+		id: string;
+		timeOffsetUs: number;
+		value: number;
+	}) => ({
+		curveType: "Line",
+		graphID: "",
+		id,
+		left_control: { x: 0, y: 0 },
+		right_control: { x: 0, y: 0 },
+		string_value: "",
+		time_offset: timeOffsetUs,
+		values: [value],
+	});
+	return {
+		id: `${prefix}-group`,
+		keyframe_list: [
+			keyframe({ id: `${prefix}-start`, timeOffsetUs: 0, value: 0 }),
+			keyframe({
+				id: `${prefix}-end`,
+				timeOffsetUs: KEYFRAME_END_US,
+				value: endValue,
+			}),
+		],
+		material_id: "",
+		property_type: propertyType,
+	};
+}
+
+/**
+ * Reproduces the real two-channel persisted shape: paired X/Y groups with
+ * Line curves, and the static clip transform resting on the final values.
+ */
+function applyLinearPositionKeyframes({
+	segment,
+	endX,
+	endY,
+}: {
+	segment: Json;
+	endX: number;
+	endY: number;
+}): void {
+	(segment.clip as Json).transform = { x: endX, y: endY };
+	segment.common_keyframes = [
+		createLinearChannel({
+			endValue: endX,
+			prefix: "kf-x",
+			propertyType: "KFTypePositionX",
+		}),
+		createLinearChannel({
+			endValue: endY,
+			prefix: "kf-y",
+			propertyType: "KFTypePositionY",
+		}),
+	];
+}
 
 export function getParityCase({ caseId }: { caseId: string }): ParityCase {
 	const found = PARITY_CASES.find(({ id }) => id === caseId);
