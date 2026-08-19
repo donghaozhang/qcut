@@ -162,10 +162,16 @@ export function hasVerifiedBeta4DefaultCompanions({
 	validators: Readonly<Record<string, Beta4CompanionValidator>>;
 }): boolean {
 	const expectedBuckets = Object.keys(validators);
-	if (segment.extraMaterialRefs.length !== expectedBuckets.length) return false;
+	// Transition refs are seam ownership, not processing companions — the
+	// seam mapper validates them separately (L5). Everything else must be a
+	// known, default-valued companion.
+	const companionRefs = segment.extraMaterialRefs.filter(
+		(ref) => graph.materialsById.get(ref)?.bucket !== "transitions"
+	);
+	if (companionRefs.length !== expectedBuckets.length) return false;
 
 	const observedBuckets = new Set<string>();
-	for (const ref of segment.extraMaterialRefs) {
+	for (const ref of companionRefs) {
 		const companion = graph.materialsById.get(ref);
 		if (companion === undefined || observedBuckets.has(companion.bucket)) {
 			return false;
