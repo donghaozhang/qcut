@@ -42,6 +42,7 @@ import type {
 	RawGraphSegmentNode,
 } from "./graph-reader.js";
 import { mapCapCut81SeamTransition } from "./capcut-8-1-transition-mapper.js";
+import { mapBeta4SegmentFilter } from "./beta4-filter-mapper.js";
 import { mapBeta4SeamTransition } from "./beta4-transition-mapper.js";
 import { resolveEditableDraftContent } from "./compound-draft.js";
 import { readRawDraftGraph } from "./graph-reader.js";
@@ -339,6 +340,9 @@ function normalizeSegment({
 	let featureMappingIssueAdded = false;
 	let text: InteropSegment["text"];
 	let visual: InteropSegment["visual"];
+	let filterPreset: InteropSegment["filterPreset"];
+	let downgrade: InteropSegment["downgrade"];
+	let filterRefsHandled = false;
 	if (
 		classified.kind === "video" &&
 		material !== undefined &&
@@ -365,6 +369,32 @@ function normalizeSegment({
 				subjectId: segment.id,
 			});
 			featureMappingIssueAdded = true;
+		}
+		// L6: a single catalogued filter on an otherwise-mappable video
+		// segment becomes a declared downgrade onto its fitted recipe.
+		const filterMaterials = segment.extraMaterialRefs
+			.map((ref) => graph.materialsById.get(ref))
+			.filter(
+				(extra): extra is RawGraphMaterialNode => extra?.bucket === "filters"
+			);
+		if (filterMaterials.length === 1) {
+			const mappedFilter = mapBeta4SegmentFilter({
+				material: filterMaterials[0],
+			});
+			if (mappedFilter !== undefined) {
+				filterRefsHandled = true;
+				capability = combineInteropCapabilities([capability, "downgrade"]);
+				filterPreset = mappedFilter.filterPreset;
+				downgrade = mappedFilter.downgrade;
+				issues.push({
+					code: "FEATURE_DOWNGRADED",
+					severity: "warning",
+					message: mappedFilter.reason,
+					path: segment.jsonPointer,
+					subjectId: segment.id,
+				});
+				featureMappingIssueAdded = true;
+			}
 		}
 	}
 	if (
@@ -427,6 +457,9 @@ function normalizeSegment({
 			continue;
 		}
 		if (extra.bucket === "transitions") {
+			continue;
+		}
+		if (extra.bucket === "filters" && filterRefsHandled) {
 			continue;
 		}
 		capability = combineInteropCapabilities([
@@ -497,7 +530,9 @@ function normalizeSegment({
 		...(speed === undefined ? {} : { speed }),
 		...(text === undefined ? {} : { text }),
 		...(visual === undefined ? {} : { visual }),
+		...(filterPreset === undefined ? {} : { filterPreset }),
 		capability,
+		...(downgrade === undefined ? {} : { downgrade }),
 		foreignRef: segment.id,
 	};
 }
