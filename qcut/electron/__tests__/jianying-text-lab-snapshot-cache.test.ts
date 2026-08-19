@@ -138,6 +138,34 @@ describe("snapshot read/write", () => {
 		).toBeNull();
 	});
 
+	it("rejects valid JSON that is not a snapshot object", async () => {
+		await mkdir(join(cacheFilePath, ".."), { recursive: true });
+		for (const payload of ["null", "42", '"snapshot"', "[]", "{}"]) {
+			await writeFile(cacheFilePath, payload, "utf8");
+			expect(
+				await readJianyingTextLabSnapshot({
+					cacheFilePath,
+					fingerprint: "any",
+				}),
+				payload
+			).toBeNull();
+		}
+	});
+
+	it("rejects malformed persisted map-entry tuples", async () => {
+		const snapshot = createSnapshot({ fingerprint: "print-1" });
+		await writeJianyingTextLabSnapshot({ cacheFilePath, snapshot });
+		const raw = JSON.parse(await readFile(cacheFilePath, "utf8"));
+		raw.styles.metadataEntries = [["id-only"], ["id", null], "not-a-tuple"];
+		await writeFile(cacheFilePath, JSON.stringify(raw), "utf8");
+		expect(
+			await readJianyingTextLabSnapshot({
+				cacheFilePath,
+				fingerprint: "print-1",
+			})
+		).toBeNull();
+	});
+
 	it("rejects a snapshot from a different schema version", async () => {
 		const snapshot = createSnapshot({ fingerprint: "print-1" });
 		await writeJianyingTextLabSnapshot({ cacheFilePath, snapshot });
