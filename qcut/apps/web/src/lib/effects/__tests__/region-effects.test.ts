@@ -38,7 +38,12 @@ describe("createRegionEffectInstance", () => {
 		const withAdjust = {
 			...preset,
 			adjustParameters: [
-				{ key: "effects_adjust_speed", defaultValue: 0.33, minimum: 0, maximum: 1 },
+				{
+					key: "effects_adjust_speed",
+					defaultValue: 0.33,
+					minimum: 0,
+					maximum: 1,
+				},
 			],
 		} as EffectPreset;
 		const instance = createRegionEffectInstance({ preset: withAdjust });
