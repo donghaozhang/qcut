@@ -246,6 +246,22 @@ function parsePlanMediaElement({
 			: asFiniteNumber({ value: record.speed, path: `${path}/speed` });
 	const x = asOptionalFiniteNumber({ value: record.x, path: `${path}/x` });
 	const y = asOptionalFiniteNumber({ value: record.y, path: `${path}/y` });
+	const rotation = asOptionalFiniteNumber({
+		value: record.rotation,
+		path: `${path}/rotation`,
+	});
+	const scaleX = asOptionalFiniteNumber({
+		value: record.scaleX,
+		path: `${path}/scaleX`,
+	});
+	const scaleY = asOptionalFiniteNumber({
+		value: record.scaleY,
+		path: `${path}/scaleY`,
+	});
+	const opacity = asOptionalFiniteNumber({
+		value: record.opacity,
+		path: `${path}/opacity`,
+	});
 	const keyframes = parsePlanMediaKeyframes({
 		value: record.keyframes,
 		path: `${path}/keyframes`,
@@ -282,6 +298,10 @@ function parsePlanMediaElement({
 		...(speed === undefined ? {} : { speed }),
 		...(x === undefined ? {} : { x }),
 		...(y === undefined ? {} : { y }),
+		...(rotation === undefined ? {} : { rotation }),
+		...(scaleX === undefined ? {} : { scaleX }),
+		...(scaleY === undefined ? {} : { scaleY }),
+		...(opacity === undefined ? {} : { opacity }),
 		...(keyframes === undefined ? {} : { keyframes }),
 		sourceSegmentId: asString({
 			value: record.sourceSegmentId,
