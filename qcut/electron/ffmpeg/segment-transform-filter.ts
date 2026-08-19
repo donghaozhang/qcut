@@ -2,12 +2,19 @@
  * Media element transform → ffmpeg filter chain for the segment export
  * pipeline. Mirrors the preview's application order (scale, then rotate,
  * then translate; opacity last) so exports match what the editor shows.
- * All sizes are computed numerically in TS — no ffmpeg expressions with
- * escaped commas. The pipeline composites segments over an opaque black
- * canvas, so opacity is premultiplied against black via colorchannelmixer.
- * Rotation is degrees, screen-clockwise positive (ffmpeg rotate's own
- * convention, same as the editor's element rotation).
+ * Static sizes are computed numerically in TS; linear position keyframes
+ * (L4) become time-varying crop expressions with `\,`-escaped commas. The
+ * pipeline composites segments over an opaque black canvas, so opacity is
+ * premultiplied against black via colorchannelmixer. Rotation is degrees,
+ * screen-clockwise positive (ffmpeg rotate's own convention, same as the
+ * editor's element rotation).
  */
+
+/** One linear position keyframe in TIMELINE seconds and canvas pixels. */
+export interface SegmentPositionKeyframe {
+	timeSeconds: number;
+	value: number;
+}
 
 export interface SegmentTransform {
 	x: number;
@@ -16,6 +23,9 @@ export interface SegmentTransform {
 	scaleX: number;
 	scaleY: number;
 	opacity: number;
+	/** When present, animates the axis and overrides the static offset. */
+	xKeyframes?: SegmentPositionKeyframe[];
+	yKeyframes?: SegmentPositionKeyframe[];
 }
 
 export function isIdentitySegmentTransform({
@@ -29,8 +39,44 @@ export function isIdentitySegmentTransform({
 		transform.rotationDegrees === 0 &&
 		transform.scaleX === 1 &&
 		transform.scaleY === 1 &&
-		transform.opacity === 1
+		transform.opacity === 1 &&
+		(transform.xKeyframes?.length ?? 0) === 0 &&
+		(transform.yKeyframes?.length ?? 0) === 0
 	);
+}
+
+/**
+ * Piecewise-linear track value as an ffmpeg expression over `t` (source
+ * seconds). Keyframe times are timeline seconds; at playback rate r the
+ * source clock runs r× faster, so the expression samples at t/r.
+ */
+export function buildLinearTrackExpression({
+	keyframes,
+	playbackRate = 1,
+}: {
+	keyframes: SegmentPositionKeyframe[];
+	playbackRate?: number;
+}): string {
+	if (keyframes.length === 0) return "0";
+	if (keyframes.length === 1) return String(keyframes[0].value);
+	const clock = playbackRate === 1 ? "t" : `(t/${playbackRate})`;
+	const first = keyframes[0];
+	const last = keyframes[keyframes.length - 1];
+	const terms = [
+		`lt(${clock}\\,${first.timeSeconds})*(${first.value})`,
+		`gte(${clock}\\,${last.timeSeconds})*(${last.value})`,
+	];
+	for (let index = 0; index < keyframes.length - 1; index += 1) {
+		const from = keyframes[index];
+		const to = keyframes[index + 1];
+		const span = to.timeSeconds - from.timeSeconds;
+		if (span <= 0) continue;
+		const slope = (to.value - from.value) / span;
+		terms.push(
+			`gte(${clock}\\,${from.timeSeconds})*lt(${clock}\\,${to.timeSeconds})*(${from.value}+${slope}*(${clock}-${from.timeSeconds}))`
+		);
+	}
+	return terms.join("+");
 }
 
 /**
@@ -42,10 +88,12 @@ export function buildSegmentTransformFilter({
 	transform,
 	width,
 	height,
+	playbackRate = 1,
 }: {
 	transform: SegmentTransform;
 	width: number;
 	height: number;
+	playbackRate?: number;
 }): string {
 	if (isIdentitySegmentTransform({ transform })) return "";
 	const stages: string[] = [];
@@ -70,9 +118,17 @@ export function buildSegmentTransformFilter({
 	}
 
 	// Ensure the crop window (canvas size, shifted against the translation)
-	// stays inside the frame even for large offsets.
-	const neededWidth = width + 2 * Math.ceil(Math.abs(transform.x));
-	const neededHeight = height + 2 * Math.ceil(Math.abs(transform.y));
+	// stays inside the frame across the whole animation range.
+	const xTrack = transform.xKeyframes?.length ? transform.xKeyframes : null;
+	const yTrack = transform.yKeyframes?.length ? transform.yKeyframes : null;
+	const maxAbsX = xTrack
+		? Math.max(...xTrack.map(({ value }) => Math.abs(value)))
+		: Math.abs(transform.x);
+	const maxAbsY = yTrack
+		? Math.max(...yTrack.map(({ value }) => Math.abs(value)))
+		: Math.abs(transform.y);
+	const neededWidth = width + 2 * Math.ceil(maxAbsX);
+	const neededHeight = height + 2 * Math.ceil(maxAbsY);
 	const paddedWidth = Math.max(currentWidth, neededWidth);
 	const paddedHeight = Math.max(currentHeight, neededHeight);
 	if (paddedWidth !== currentWidth || paddedHeight !== currentHeight) {
@@ -83,10 +139,23 @@ export function buildSegmentTransformFilter({
 		currentHeight = paddedHeight;
 	}
 
-	if (currentWidth !== width || currentHeight !== height) {
+	const animated = xTrack !== null || yTrack !== null;
+	if (currentWidth !== width || currentHeight !== height || animated) {
 		// Content moved +x renders further right, so the crop window shifts left.
-		const cropX = (currentWidth - width) / 2 - transform.x;
-		const cropY = (currentHeight - height) / 2 - transform.y;
+		const xOffset = xTrack
+			? `(${buildLinearTrackExpression({ keyframes: xTrack, playbackRate })})`
+			: null;
+		const yOffset = yTrack
+			? `(${buildLinearTrackExpression({ keyframes: yTrack, playbackRate })})`
+			: null;
+		const cropX =
+			xOffset === null
+				? String((currentWidth - width) / 2 - transform.x)
+				: `(${currentWidth}-${width})/2-${xOffset}`;
+		const cropY =
+			yOffset === null
+				? String((currentHeight - height) / 2 - transform.y)
+				: `(${currentHeight}-${height})/2-${yOffset}`;
 		stages.push(`crop=${width}:${height}:${cropX}:${cropY}`);
 	}
 
