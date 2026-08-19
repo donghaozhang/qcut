@@ -129,3 +129,73 @@ export function calculateElementBounds(
 		height,
 	};
 }
+
+/** The subset of resolved media visual properties the canvas transform needs. */
+export interface MediaTransformVisual {
+	x: number;
+	y: number;
+	rotation: number;
+	scaleX: number;
+	scaleY: number;
+	flipHorizontal: boolean;
+	flipVertical: boolean;
+	opacity: number;
+}
+
+export function isIdentityMediaTransform({
+	visual,
+}: {
+	visual: MediaTransformVisual;
+}): boolean {
+	return (
+		visual.x === 0 &&
+		visual.y === 0 &&
+		visual.rotation === 0 &&
+		visual.scaleX === 1 &&
+		visual.scaleY === 1 &&
+		!visual.flipHorizontal &&
+		!visual.flipVertical &&
+		visual.opacity === 1
+	);
+}
+
+/**
+ * Draws a media element under its visual transform, matching the preview
+ * semantics exactly: the element's bounds center moves to
+ * (boundsCenter + x/y), rotation is clockwise-positive degrees about that
+ * center (canvas and CSS agree in y-down space), flips ride the scale sign,
+ * and opacity multiplies into globalAlpha. Identity transforms skip the
+ * save/restore entirely so untouched exports stay byte-stable.
+ */
+export async function drawWithMediaTransform({
+	ctx,
+	visual,
+	bounds,
+	draw,
+}: {
+	ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+	visual: MediaTransformVisual;
+	bounds: { x: number; y: number; width: number; height: number };
+	draw: () => Promise<void> | void;
+}): Promise<void> {
+	if (isIdentityMediaTransform({ visual })) {
+		await draw();
+		return;
+	}
+	const centerX = bounds.x + bounds.width / 2;
+	const centerY = bounds.y + bounds.height / 2;
+	ctx.save();
+	try {
+		ctx.translate(centerX + visual.x, centerY + visual.y);
+		ctx.rotate((visual.rotation * Math.PI) / 180);
+		ctx.scale(
+			visual.scaleX * (visual.flipHorizontal ? -1 : 1),
+			visual.scaleY * (visual.flipVertical ? -1 : 1)
+		);
+		ctx.translate(-centerX, -centerY);
+		ctx.globalAlpha *= Math.min(1, Math.max(0, visual.opacity));
+		await draw();
+	} finally {
+		ctx.restore();
+	}
+}
