@@ -37,6 +37,8 @@ import {
 	mapInteropDocumentToQCutPlan,
 	normalizeRawDraft,
 	type DraftContentSummary,
+	type JianyingLocalEffectCapabilities,
+	type JianyingLocalEffectCapability,
 	type ProfileDetectionResult,
 } from "@qcut/editor-core/jianying-draft";
 import {
@@ -416,6 +418,10 @@ function arraysEqual({
 
 export class JianyingDraftImportSession {
 	readonly #buildIdentity: ImportPlanBuildIdentity;
+	readonly #loadLocalJianyingEffects:
+		| (() => Promise<JianyingLocalEffectCapabilities>)
+		| undefined;
+	#localJianyingEffects: Promise<JianyingLocalEffectCapabilities> | undefined;
 	readonly #metricsNow: () => number;
 	readonly #mediaGrantStore: MediaPayloadGrantStore;
 	readonly #now: () => number;
@@ -424,6 +430,7 @@ export class JianyingDraftImportSession {
 
 	constructor({
 		buildIdentity,
+		loadLocalJianyingEffects,
 		metricsNow = () => performance.now(),
 		mediaGrantStore = new MediaPayloadGrantStore(),
 		planTtlMilliseconds,
@@ -431,6 +438,12 @@ export class JianyingDraftImportSession {
 		planStore,
 	}: {
 		buildIdentity: ImportPlanBuildIdentity;
+		/**
+		 * Resolves the locally installed jianying-local effect packages (L7).
+		 * Absent means no effect segment is admitted. Resolved once per
+		 * session and cached — the catalog is stable for a session lifetime.
+		 */
+		loadLocalJianyingEffects?: () => Promise<JianyingLocalEffectCapabilities>;
 		metricsNow?: () => number;
 		mediaGrantStore?: MediaPayloadGrantStore;
 		planTtlMilliseconds?: number;
@@ -438,6 +451,7 @@ export class JianyingDraftImportSession {
 		planStore?: ImportPlanStoreAdapter;
 	}) {
 		this.#buildIdentity = { ...buildIdentity };
+		this.#loadLocalJianyingEffects = loadLocalJianyingEffects;
 		this.#metricsNow = metricsNow;
 		this.#mediaGrantStore = mediaGrantStore;
 		this.#planTtlMilliseconds = planTtlMilliseconds;
@@ -445,8 +459,23 @@ export class JianyingDraftImportSession {
 		this.#planStore = planStore ?? new ImportPlanStore({ buildIdentity, now });
 	}
 
+	async #resolveLocalJianyingEffects(): Promise<
+		JianyingLocalEffectCapabilities | undefined
+	> {
+		if (this.#loadLocalJianyingEffects === undefined) return undefined;
+		if (this.#localJianyingEffects === undefined) {
+			// A failed catalog read must not fail the import — it just means
+			// no effect segment is admitted on this run.
+			this.#localJianyingEffects = this.#loadLocalJianyingEffects().catch(
+				() => new Map<string, JianyingLocalEffectCapability>()
+			);
+		}
+		return this.#localJianyingEffects;
+	}
+
 	static async open({
 		buildIdentity,
+		loadLocalJianyingEffects,
 		metricsNow = () => performance.now(),
 		mediaGrantStore = new MediaPayloadGrantStore(),
 		planTtlMilliseconds,
@@ -454,6 +483,7 @@ export class JianyingDraftImportSession {
 		storageDirectory,
 	}: {
 		buildIdentity: ImportPlanBuildIdentity;
+		loadLocalJianyingEffects?: () => Promise<JianyingLocalEffectCapabilities>;
 		metricsNow?: () => number;
 		mediaGrantStore?: MediaPayloadGrantStore;
 		planTtlMilliseconds?: number;
@@ -467,6 +497,9 @@ export class JianyingDraftImportSession {
 		});
 		return new JianyingDraftImportSession({
 			buildIdentity,
+			...(loadLocalJianyingEffects === undefined
+				? {}
+				: { loadLocalJianyingEffects }),
 			metricsNow,
 			mediaGrantStore,
 			...(planTtlMilliseconds === undefined ? {} : { planTtlMilliseconds }),
@@ -586,6 +619,7 @@ export class JianyingDraftImportSession {
 			platform: "macos",
 			files: snapshot.files.map(({ identity: _identity, ...file }) => file),
 		};
+		const localJianyingEffects = await this.#resolveLocalJianyingEffects();
 		const normalized = stageMetrics.measureSync({
 			run: () =>
 				normalizeRawDraft({
@@ -595,6 +629,9 @@ export class JianyingDraftImportSession {
 					>,
 					source,
 					contentFileName: contentSummary.fileName,
+					...(localJianyingEffects === undefined
+						? {}
+						: { localJianyingEffects }),
 				}),
 			stage: "document-normalization",
 		});
