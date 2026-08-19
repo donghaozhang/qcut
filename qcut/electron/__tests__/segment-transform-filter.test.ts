@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	buildAtempoChain,
+	buildLinearTrackExpression,
 	buildSegmentTransformFilter,
 	isIdentitySegmentTransform,
 	type SegmentTransform,
@@ -70,6 +71,54 @@ describe("buildSegmentTransformFilter", () => {
 			height: 360,
 		});
 		expect(chain).toBe("colorchannelmixer=rr=0.5:gg=0.5:bb=0.5");
+	});
+});
+
+describe("buildLinearTrackExpression", () => {
+	it("builds the piecewise-linear expression with escaped commas", () => {
+		const expression = buildLinearTrackExpression({
+			keyframes: [
+				{ timeSeconds: 0, value: 0 },
+				{ timeSeconds: 2, value: 80 },
+			],
+		});
+		expect(expression).toBe(
+			"lt(t\\,0)*(0)+gte(t\\,2)*(80)+gte(t\\,0)*lt(t\\,2)*(0+40*(t-0))"
+		);
+	});
+
+	it("samples the timeline clock at t over the playback rate", () => {
+		const expression = buildLinearTrackExpression({
+			keyframes: [
+				{ timeSeconds: 0, value: 0 },
+				{ timeSeconds: 1, value: 10 },
+			],
+			playbackRate: 2,
+		});
+		expect(expression).toBe(
+			"lt((t/2)\\,0)*(0)+gte((t/2)\\,1)*(10)+gte((t/2)\\,0)*lt((t/2)\\,1)*(0+10*((t/2)-0))"
+		);
+	});
+});
+
+describe("animated position crops", () => {
+	it("pads to the animation extent and crops with a time expression", () => {
+		const chain = buildSegmentTransformFilter({
+			transform: {
+				...IDENTITY,
+				x: 80,
+				xKeyframes: [
+					{ timeSeconds: 0, value: 0 },
+					{ timeSeconds: 2, value: 80 },
+				],
+			},
+			width: 640,
+			height: 360,
+		});
+		expect(chain).toBe(
+			"pad=800:360:(ow-iw)/2:(oh-ih)/2:color=black," +
+				"crop=640:360:(800-640)/2-(lt(t\\,0)*(0)+gte(t\\,2)*(80)+gte(t\\,0)*lt(t\\,2)*(0+40*(t-0))):0"
+		);
 	});
 });
 
