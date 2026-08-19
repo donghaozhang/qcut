@@ -1,6 +1,7 @@
 import type {
 	QCutImportPlanEffectElement,
 	QCutImportPlanElement,
+	QCutImportPlanStickerElement,
 	QCutImportPlanTextElement,
 } from "../jianying-draft/import/qcut-mapping.js";
 import { createImportMediaColorSettings } from "./import-media-color.js";
@@ -151,6 +152,46 @@ function buildEffectElement({
 	};
 }
 
+/**
+ * Materializes an imported reference sticker (L8): the staged image plays as
+ * a sticker element at the overlay-store defaults (centered, 15% of the
+ * shorter canvas dimension) — per-segment transforms stay a declared loss
+ * until a plaintext sticker draft sample pins their shape.
+ */
+function buildStickerElement({
+	bundle,
+	mediaItemIdByResourceId,
+	planElement,
+}: {
+	bundle: QCutImportBundleV1;
+	mediaItemIdByResourceId: ReadonlyMap<string, string>;
+	planElement: QCutImportPlanStickerElement;
+}): TimelineElement {
+	const mediaId = mediaItemIdByResourceId.get(planElement.resourceId);
+	if (mediaId === undefined) {
+		throw new Error(`Plan sticker ${planElement.id} has no staged image item.`);
+	}
+	const internalId = requireInternalId({ bundle, semanticId: planElement.id });
+	return {
+		id: internalId,
+		type: "sticker",
+		stickerId: internalId,
+		mediaId,
+		name: planElement.name,
+		duration: planElement.duration,
+		startTime: planElement.startTime,
+		trimStart: planElement.trimStart,
+		trimEnd: planElement.trimEnd,
+		x: 50,
+		y: 50,
+		width: 15,
+		height: 15,
+		rotation: 0,
+		opacity: 1,
+		maintainAspectRatio: true,
+	};
+}
+
 function buildMediaElement({
 	bundle,
 	mediaItemIdByResourceId,
@@ -160,7 +201,9 @@ function buildMediaElement({
 	mediaItemIdByResourceId: ReadonlyMap<string, string>;
 	planElement: Exclude<
 		QCutImportPlanElement,
-		QCutImportPlanTextElement | QCutImportPlanEffectElement
+		| QCutImportPlanTextElement
+		| QCutImportPlanEffectElement
+		| QCutImportPlanStickerElement
 	>;
 }): TimelineElement {
 	const mediaId = mediaItemIdByResourceId.get(planElement.resourceId);
@@ -218,7 +261,17 @@ export function buildQCutImportTimelineTracks({
 				? buildTextElement({ bundle, planElement })
 				: planElement.type === "effect"
 					? buildEffectElement({ bundle, planElement })
-					: buildMediaElement({ bundle, mediaItemIdByResourceId, planElement })
+					: planElement.type === "sticker"
+						? buildStickerElement({
+								bundle,
+								mediaItemIdByResourceId,
+								planElement,
+							})
+						: buildMediaElement({
+								bundle,
+								mediaItemIdByResourceId,
+								planElement,
+							})
 		),
 		...((planTrack.transitions?.length ?? 0) === 0
 			? {}
