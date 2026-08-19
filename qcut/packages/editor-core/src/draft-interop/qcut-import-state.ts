@@ -124,6 +124,14 @@ function buildMediaElement({
 			: { playbackRate: planElement.speed }),
 		...(planElement.x === undefined ? {} : { x: planElement.x }),
 		...(planElement.y === undefined ? {} : { y: planElement.y }),
+		...(planElement.rotation === undefined
+			? {}
+			: { rotation: planElement.rotation }),
+		...(planElement.scaleX === undefined ? {} : { scaleX: planElement.scaleX }),
+		...(planElement.scaleY === undefined ? {} : { scaleY: planElement.scaleY }),
+		...(planElement.opacity === undefined
+			? {}
+			: { opacity: planElement.opacity }),
 		...(planElement.keyframes === undefined
 			? {}
 			: { keyframes: planElement.keyframes }),
