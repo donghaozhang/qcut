@@ -19,6 +19,7 @@ import { EFFECTS_ENABLED } from "@/config/features";
 import {
 	getActiveElements,
 	calculateElementBounds,
+	drawWithMediaTransform,
 } from "./export-engine-utils";
 import { validateRenderedFrame } from "./export-engine-debug";
 import { stripMarkdownSyntax } from "@/lib/markdown";
@@ -444,18 +445,24 @@ export async function renderImage(
 					fps: context.fps,
 				});
 				const drawImage = () =>
-					drawColorGradedSourceWithMasks({
-						context: ctx,
-						source: img,
-						x,
-						y,
-						width,
-						height,
-						masks: visual.masks,
-						settings: visual.color,
-						frameSeed: Math.round(currentTime * context.fps),
-						sourceKey: `image:${element.id}:${mediaItem.id}`,
-						timestampSeconds: 0,
+					drawWithMediaTransform({
+						ctx,
+						visual,
+						bounds: { x, y, width, height },
+						draw: () =>
+							drawColorGradedSourceWithMasks({
+								context: ctx,
+								source: img,
+								x,
+								y,
+								width,
+								height,
+								masks: visual.masks,
+								settings: visual.color,
+								frameSeed: Math.round(currentTime * context.fps),
+								sourceKey: `image:${element.id}:${mediaItem.id}`,
+								timestampSeconds: 0,
+							}),
 					});
 
 				if (EFFECTS_ENABLED) {
@@ -633,18 +640,26 @@ async function renderVideoAttempt(
 			fps: context.fps,
 		});
 		const drawVideo = () =>
-			drawColorGradedSourceWithMasks({
-				context: ctx,
-				source: video,
-				x,
-				y,
-				width,
-				height,
-				masks: visual.masks,
-				settings: visual.color,
-				frameSeed: Math.round((element.startTime + timeOffset) * context.fps),
-				sourceKey: `video:${element.id}:${mediaItem.id}`,
-				timestampSeconds: video.currentTime,
+			drawWithMediaTransform({
+				ctx,
+				visual,
+				bounds: { x, y, width, height },
+				draw: () =>
+					drawColorGradedSourceWithMasks({
+						context: ctx,
+						source: video,
+						x,
+						y,
+						width,
+						height,
+						masks: visual.masks,
+						settings: visual.color,
+						frameSeed: Math.round(
+							(element.startTime + timeOffset) * context.fps
+						),
+						sourceKey: `video:${element.id}:${mediaItem.id}`,
+						timestampSeconds: video.currentTime,
+					}),
 			});
 
 		if (EFFECTS_ENABLED) {
