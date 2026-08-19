@@ -166,6 +166,17 @@ export interface InteropDowngradeDeclaration {
 	fidelityEvidence: string;
 }
 
+/**
+ * A QCut fitted filter recipe a segment-attached foreign filter maps to (L6).
+ * Values are in QCut vocabulary; the source resource id stays in the foreign
+ * envelope. Intensity is the QCut 0-100 scale.
+ */
+export interface InteropFilterPreset {
+	presetId: string;
+	presetVersion: number;
+	intensity: number;
+}
+
 export interface InteropSegment {
 	id: string;
 	kind: InteropSegmentKind;
@@ -178,6 +189,8 @@ export interface InteropSegment {
 	speed?: number;
 	text?: InteropText;
 	visual?: InteropMediaVisual;
+	/** Present when a fitted recipe backs a filter downgrade admission (L6). */
+	filterPreset?: InteropFilterPreset;
 	capability: InteropCapability;
 	/** Required for downgrade admission into the media import plan. */
 	downgrade?: InteropDowngradeDeclaration;
@@ -660,6 +673,13 @@ function parseSegment({
 					value: record.downgrade,
 					path: `${path}/downgrade`,
 				});
+	const filterPreset =
+		record.filterPreset === undefined
+			? undefined
+			: parseFilterPreset({
+					value: record.filterPreset,
+					path: `${path}/filterPreset`,
+				});
 	return {
 		id: asString({ value: record.id, path: `${path}/id` }),
 		kind: asEnum({
@@ -687,12 +707,34 @@ function parseSegment({
 		...(speed === undefined ? {} : { speed }),
 		...(text === undefined ? {} : { text }),
 		...(visual === undefined ? {} : { visual }),
+		...(filterPreset === undefined ? {} : { filterPreset }),
 		capability: asCapability({
 			value: record.capability,
 			path: `${path}/capability`,
 		}),
 		...(downgrade === undefined ? {} : { downgrade }),
 		...(foreignRef === undefined ? {} : { foreignRef }),
+	};
+}
+
+function parseFilterPreset({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropFilterPreset {
+	const record = asRecord({ value, path });
+	return {
+		presetId: asString({ value: record.presetId, path: `${path}/presetId` }),
+		presetVersion: asPositiveFinite({
+			value: record.presetVersion,
+			path: `${path}/presetVersion`,
+		}),
+		intensity: asFiniteNumber({
+			value: record.intensity,
+			path: `${path}/intensity`,
+		}),
 	};
 }
 
