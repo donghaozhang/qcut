@@ -210,30 +210,33 @@ describe("StickersView", () => {
 		expect(
 			screen.getByRole("button", { name: "添加手绘弯箭头到时间线" })
 		).toBeInTheDocument();
-		// The lab lists its categories in the sidebar, Jianying-style, and the
-		// resolved default category is highlighted.
+		// The lab keeps its categories in its own rail, and the resolved
+		// default category is highlighted.
 		expect(
 			screen.getByTestId("sticker-lab-category-public-popular")
 		).toHaveAttribute("aria-pressed", "true");
 
 		fireEvent.click(screen.getByTestId("sticker-category-interaction"));
 		expect(screen.getByTestId("sticker-category-grid")).toBeInTheDocument();
-		expect(
-			screen.getByTestId("sticker-lab-category-public-popular")
-		).toHaveAttribute("aria-pressed", "false");
+		expect(screen.queryByTestId("local-sticker-reference-panel")).toBeNull();
 	});
 
-	it("opens a lab category directly from the sidebar", () => {
+	it("keeps lab categories inside the lab panel rail, not the sidebar", () => {
 		render(<StickersView />);
 
-		fireEvent.click(screen.getByTestId("sticker-lab-category-public-popular"));
+		// Outside the lab the reference categories stay out of the way.
+		expect(
+			screen.queryByTestId("sticker-lab-category-public-popular")
+		).toBeNull();
+		const sidebar = screen.getByTestId("sticker-sidebar");
 
-		expect(
-			screen.getByTestId("local-sticker-reference-panel")
-		).toBeInTheDocument();
-		expect(
-			screen.getByTestId("sticker-lab-category-public-popular")
-		).toHaveAttribute("aria-pressed", "true");
+		fireEvent.click(screen.getByRole("button", { name: "贴纸实验室" }));
+		const rail = screen.getByTestId("sticker-lab-category-rail");
+		const category = within(rail).getByTestId(
+			"sticker-lab-category-public-popular"
+		);
+		expect(category).toHaveAttribute("aria-pressed", "true");
+		expect(sidebar.contains(rail)).toBe(false);
 	});
 
 	it("opens the shape library from the sidebar entry below the lab", () => {
