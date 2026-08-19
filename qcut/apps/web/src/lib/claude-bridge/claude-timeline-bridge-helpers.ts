@@ -1495,6 +1495,12 @@ function formatElementForExport({
 				freezeFrameDuration: element.freezeFrameDuration,
 				preservePitch: element.preservePitch,
 				frameInterpolation: element.frameInterpolation,
+				x: element.x,
+				y: element.y,
+				rotation: element.rotation,
+				scaleX: element.scaleX,
+				scaleY: element.scaleY,
+				opacity: element.opacity,
 				timelineDuration,
 			};
 		}
