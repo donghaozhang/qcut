@@ -21,7 +21,7 @@ import type {
 
 const MICROSECONDS_PER_SECOND = 1_000_000;
 
-export type QCutImportPlanTrackType = "media" | "audio" | "text";
+export type QCutImportPlanTrackType = "media" | "audio" | "text" | "effect";
 
 export interface QCutImportPlanMediaKeyframe {
 	id: string;
@@ -101,9 +101,37 @@ export interface QCutImportPlanTextElement {
 	sourceSegmentId: string;
 }
 
+/**
+ * A region effect element rendered by the locally installed Jianying
+ * runtime (L7). Machine-bound: the packageHash only resolves on the machine
+ * that admitted it, and exporting the element stays blocked by design.
+ */
+export interface QCutImportPlanEffectElement {
+	id: string;
+	type: "effect";
+	name: string;
+	startTime: number;
+	duration: number;
+	trimStart: 0;
+	trimEnd: 0;
+	effect: {
+		presetId: string;
+		name: string;
+		packageHash: string;
+		adjustParameters?: {
+			key: string;
+			defaultValue: number;
+			minimum: number;
+			maximum: number;
+		}[];
+	};
+	sourceSegmentId: string;
+}
+
 export type QCutImportPlanElement =
 	| QCutImportPlanMediaElement
-	| QCutImportPlanTextElement;
+	| QCutImportPlanTextElement
+	| QCutImportPlanEffectElement;
 
 export interface QCutImportPlanTransition {
 	id: string;
@@ -314,6 +342,63 @@ function mapMediaSegment({
 	};
 }
 
+/**
+ * Effect segments cross only as declared machine-bound downgrades (L7):
+ * normalize attaches `effectPreset` + `downgrade` when the package is
+ * installed and render-verified locally; everything else stays skipped.
+ */
+function mapEffectSegment({
+	segment,
+	skipped,
+	downgrades,
+}: {
+	segment: InteropSegment;
+	skipped: QCutImportSkippedNode[];
+	downgrades: QCutImportPlanDowngrade[];
+}): QCutImportPlanEffectElement | null {
+	if (
+		segment.kind !== "effect" ||
+		segment.capability !== "downgrade" ||
+		segment.effectPreset === undefined ||
+		segment.downgrade === undefined
+	) {
+		skipped.push({
+			nodeId: segment.id,
+			nodeType: "segment",
+			capability: segment.capability,
+			reason:
+				segment.kind === "effect"
+					? "effect package is not installed and render-verified on this machine"
+					: `segment kind "${segment.kind}" is not an effect`,
+		});
+		return null;
+	}
+	downgrades.push({
+		nodeId: segment.id,
+		nodeType: "segment",
+		approximation: segment.downgrade.approximation,
+		fidelityEvidence: segment.downgrade.fidelityEvidence,
+	});
+	return {
+		id: segment.id,
+		type: "effect",
+		name: segment.effectPreset.name,
+		startTime: usToSeconds(segment.targetRange.startUs),
+		duration: usToSeconds(segment.targetRange.durationUs),
+		trimStart: 0,
+		trimEnd: 0,
+		effect: {
+			presetId: segment.effectPreset.presetId,
+			name: segment.effectPreset.name,
+			packageHash: segment.effectPreset.packageHash,
+			...(segment.effectPreset.adjustParameters === undefined
+				? {}
+				: { adjustParameters: segment.effectPreset.adjustParameters }),
+		},
+		sourceSegmentId: segment.id,
+	};
+}
+
 function mapTextSegment({
 	segment,
 	skipped,
@@ -488,7 +573,9 @@ function mapTrack({
 				? "audio"
 				: track.kind === "text"
 					? "text"
-					: null;
+					: track.kind === "effect"
+						? "effect"
+						: null;
 	if (type === null) {
 		skipped.push({
 			nodeId: track.id,
@@ -512,7 +599,15 @@ function mapTrack({
 		const element =
 			type === "text"
 				? mapTextSegment({ segment, skipped })
-				: mapMediaSegment({ fps, segment, resourcesById, skipped, downgrades });
+				: type === "effect"
+					? mapEffectSegment({ segment, skipped, downgrades })
+					: mapMediaSegment({
+							fps,
+							segment,
+							resourcesById,
+							skipped,
+							downgrades,
+						});
 		if (element !== null) {
 			elements.push(element);
 		}
@@ -561,7 +656,14 @@ function mapTrack({
 	return {
 		id: track.id,
 		type,
-		name: type === "media" ? "Video" : type === "audio" ? "Audio" : "Text",
+		name:
+			type === "media"
+				? "Video"
+				: type === "audio"
+					? "Audio"
+					: type === "effect"
+						? "Effect"
+						: "Text",
 		order: track.order,
 		...(track.isMain === true ? { isMain: true } : {}),
 		elements,
