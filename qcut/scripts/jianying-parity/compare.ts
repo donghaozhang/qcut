@@ -27,8 +27,18 @@ const WORKSPACE = join(REPO_ROOT, ".local/jianying-parity");
 const SAMPLE_FRACTIONS = [0.15, 0.35, 0.5, 0.65, 0.85] as const;
 /** JY on-vs-off mean RMSE below this = the feature never rendered. */
 const ISOLATION_MIN_RMSE = 2;
-/** QCut-on vs JY-on mean RMSE above this = not parity. */
-const PARITY_MAX_RMSE = 8;
+/**
+ * Codec-noise cap: qcut-off vs jianying-off measures the two pipelines'
+ * irreducible re-encode floor (calibrated 2026-08-19 at ~8.5 on the
+ * synthetic plate — sharp saturated edges are a codec worst case).
+ */
+const BASELINE_MAX_RMSE = 12;
+/**
+ * The parity residual beyond the codec floor must stay a small fraction of
+ * the feature's own visual magnitude: parity ≤ baseline + this × isolation.
+ * Without a qcut-off baseline the floor term falls back to BASELINE_MAX_RMSE.
+ */
+const PARITY_RESIDUAL_MAX_RATIO = 0.15;
 /** Parity distance must be at most this fraction of the isolation distance. */
 const CONTRAST_MAX_RATIO = 0.5;
 
@@ -109,7 +119,12 @@ async function extractFrame({
 			"-i",
 			videoPath,
 			"-vf",
-			`select=eq(n\\,${frameOrdinal}),scale=${width}:${height}`,
+			// Force one colorimetry interpretation before RGB conversion:
+			// JianYing tags bt709 while QCut exports untagged, but both carry
+			// the same YUV content — without this the extractor decodes them
+			// with different matrices and manufactures a constant ~17 RMSE
+			// floor on saturated colors.
+			`setparams=color_primaries=bt709:color_trc=bt709:colorspace=bt709:range=tv,select=eq(n\\,${frameOrdinal}),scale=${width}:${height}`,
 			"-frames:v",
 			"1",
 			"-f",
@@ -276,14 +291,17 @@ async function main() {
 				})
 			: null;
 
+		const noiseFloor = baseline?.meanRmse ?? BASELINE_MAX_RMSE;
+		const parityCeiling =
+			noiseFloor + PARITY_RESIDUAL_MAX_RATIO * isolation.meanRmse;
 		const checks = {
 			isolationRenders: isolation.meanRmse >= ISOLATION_MIN_RMSE,
-			parityWithinThreshold: parity.meanRmse <= PARITY_MAX_RMSE,
+			parityWithinThreshold: parity.meanRmse <= parityCeiling,
 			parityBeatsCross:
 				parity.meanRmse <= crossCheck.meanRmse * CONTRAST_MAX_RATIO,
 			...(baseline === null
 				? {}
-				: { baselineWithinThreshold: baseline.meanRmse <= PARITY_MAX_RMSE }),
+				: { baselineWithinThreshold: baseline.meanRmse <= BASELINE_MAX_RMSE }),
 		};
 		const verdict = Object.values(checks).every(Boolean) ? "pass" : "fail";
 		const receipt = {
@@ -295,7 +313,9 @@ async function main() {
 			sampleOrdinals,
 			thresholds: {
 				isolationMinRmse: ISOLATION_MIN_RMSE,
-				parityMaxRmse: PARITY_MAX_RMSE,
+				baselineMaxRmse: BASELINE_MAX_RMSE,
+				parityResidualMaxRatio: PARITY_RESIDUAL_MAX_RATIO,
+				parityCeiling,
 				contrastMaxRatio: CONTRAST_MAX_RATIO,
 			},
 			metrics: {
