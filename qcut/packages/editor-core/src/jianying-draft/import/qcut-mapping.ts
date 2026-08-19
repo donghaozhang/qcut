@@ -119,6 +119,18 @@ export interface QCutImportSkippedNode {
 	reason: string;
 }
 
+/**
+ * A downgrade segment admitted into the plan (L0). The commit gate (JYI-001)
+ * requires these warnings to be explicitly accepted before execution, so the
+ * plan lists every admission with its declared approximation and evidence.
+ */
+export interface QCutImportPlanDowngrade {
+	nodeId: string;
+	nodeType: "segment";
+	approximation: string;
+	fidelityEvidence: string;
+}
+
 export interface QCutImportTimelinePlanV1 {
 	schemaVersion: 1;
 	project: {
@@ -132,6 +144,8 @@ export interface QCutImportTimelinePlanV1 {
 	/** Interop resource ids the plan actually references. */
 	resourceIds: string[];
 	skipped: QCutImportSkippedNode[];
+	/** Present only when downgrade segments were admitted. */
+	downgrades?: QCutImportPlanDowngrade[];
 }
 
 const IMPORTABLE_SEGMENT_KINDS = new Set(["video", "image", "audio"]);
@@ -145,11 +159,13 @@ function mapMediaSegment({
 	segment,
 	resourcesById,
 	skipped,
+	downgrades,
 }: {
 	fps: number;
 	segment: InteropSegment;
 	resourcesById: Map<string, InteropResource>;
 	skipped: QCutImportSkippedNode[];
+	downgrades: QCutImportPlanDowngrade[];
 }): QCutImportPlanMediaElement | null {
 	if (!IMPORTABLE_SEGMENT_KINDS.has(segment.kind)) {
 		skipped.push({
@@ -160,12 +176,19 @@ function mapMediaSegment({
 		});
 		return null;
 	}
-	if (segment.capability !== "exact") {
+	// Admission (L0): exact crosses as-is; downgrade crosses only with an
+	// explicit approximation declaration; opaque and blocked never cross.
+	const downgradeDeclaration =
+		segment.capability === "downgrade" ? segment.downgrade : undefined;
+	if (segment.capability !== "exact" && downgradeDeclaration === undefined) {
 		skipped.push({
 			nodeId: segment.id,
 			nodeType: "segment",
 			capability: segment.capability,
-			reason: `capability "${segment.capability}" is below the import bar`,
+			reason:
+				segment.capability === "downgrade"
+					? "downgrade segment carries no approximation declaration"
+					: `capability "${segment.capability}" is below the import bar`,
 		});
 		return null;
 	}
@@ -223,6 +246,16 @@ function mapMediaSegment({
 		}));
 	const xKeyframes = toPlanKeyframes({ property: "x" });
 	const yKeyframes = toPlanKeyframes({ property: "y" });
+	// Record the admission only for a segment that actually made the plan —
+	// later guards above return null without touching `downgrades`.
+	if (downgradeDeclaration !== undefined) {
+		downgrades.push({
+			nodeId: segment.id,
+			nodeType: "segment",
+			approximation: downgradeDeclaration.approximation,
+			fidelityEvidence: downgradeDeclaration.fidelityEvidence,
+		});
+	}
 	return {
 		id: segment.id,
 		type: "media",
@@ -369,11 +402,13 @@ function mapTrack({
 	track,
 	resourcesById,
 	skipped,
+	downgrades,
 }: {
 	fps: number;
 	track: InteropTrack;
 	resourcesById: Map<string, InteropResource>;
 	skipped: QCutImportSkippedNode[];
+	downgrades: QCutImportPlanDowngrade[];
 }): QCutImportPlanTrack | null {
 	const type: QCutImportPlanTrackType | null =
 		track.kind === "video"
@@ -406,7 +441,7 @@ function mapTrack({
 		const element =
 			type === "text"
 				? mapTextSegment({ segment, skipped })
-				: mapMediaSegment({ fps, segment, resourcesById, skipped });
+				: mapMediaSegment({ fps, segment, resourcesById, skipped, downgrades });
 		if (element !== null) {
 			elements.push(element);
 		}
@@ -473,6 +508,7 @@ export function mapInteropDocumentToQCutPlan({
 		document.resources.map((resource) => [resource.id, resource])
 	);
 	const skipped: QCutImportSkippedNode[] = [];
+	const downgrades: QCutImportPlanDowngrade[] = [];
 	const tracks: QCutImportPlanTrack[] = [];
 	for (const track of root?.tracks ?? []) {
 		const mapped = mapTrack({
@@ -480,6 +516,7 @@ export function mapInteropDocumentToQCutPlan({
 			track,
 			resourcesById,
 			skipped,
+			downgrades,
 		});
 		if (mapped !== null) {
 			tracks.push(mapped);
@@ -511,5 +548,6 @@ export function mapInteropDocumentToQCutPlan({
 		tracks,
 		resourceIds,
 		skipped,
+		...(downgrades.length === 0 ? {} : { downgrades }),
 	};
 }
