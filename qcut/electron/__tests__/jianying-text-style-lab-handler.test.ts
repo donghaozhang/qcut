@@ -615,4 +615,60 @@ describe("Jianying text style lab IPC", () => {
 		expect(buildCatalog).toHaveBeenCalledTimes(1);
 		second.dispose();
 	});
+
+	it("rebuilds both snapshot halves when one catalog refreshes", async () => {
+		const workspace = await mkdtemp(join(tmpdir(), "text-lab-handler-"));
+		const cacheFilePath = join(workspace, "snapshot.json");
+		const context = createWindowContext();
+		const staleAnimations = createAnimationCatalog();
+		const rebuiltAnimations = {
+			...createAnimationCatalog(),
+			count: 2,
+			catalogCount: 2,
+		};
+		const buildAnimationCatalog = vi.fn(async () => staleAnimations);
+		const options = {
+			getMainWindow: () => context.mainWindow,
+			buildCatalog: vi.fn(async () => createCatalog()),
+			buildAnimationCatalog,
+			resolveMetadata: async () =>
+				new Map([
+					[STYLE_ID, { title: "黄色花字", categoryIds: ["yellow" as const] }],
+				]),
+			snapshotCacheFilePath: cacheFilePath,
+			computeSnapshotFingerprint: async () => "test-fingerprint",
+		};
+
+		// Seed the shared snapshot with both catalogs.
+		const first = setupJianyingTextStyleLabIPC(options);
+		await getHandler({ channel: JIANYING_TEXT_STYLE_LAB_LIST_CHANNEL })(
+			context.event
+		);
+		await getHandler({ channel: JIANYING_TEXT_ANIMATION_LAB_LIST_CHANNEL })(
+			context.event
+		);
+		await vi.waitFor(async () => {
+			await readFile(cacheFilePath, "utf8");
+		});
+		first.dispose();
+
+		// Next launch serves from the snapshot; the animation packages have
+		// since changed on disk. A styles-only refresh must not persist the
+		// snapshot-era animations under the new write.
+		buildAnimationCatalog.mockImplementation(async () => rebuiltAnimations);
+		const second = setupJianyingTextStyleLabIPC(options);
+		await getHandler({ channel: JIANYING_TEXT_ANIMATION_LAB_LIST_CHANNEL })(
+			context.event
+		);
+		await getHandler({ channel: JIANYING_TEXT_STYLE_LAB_LIST_CHANNEL })(
+			context.event,
+			{ refresh: true }
+		);
+		await vi.waitFor(async () => {
+			const persisted = JSON.parse(await readFile(cacheFilePath, "utf8"));
+			expect(persisted.animations.count).toBe(rebuiltAnimations.count);
+		});
+		expect(buildAnimationCatalog).toHaveBeenCalled();
+		second.dispose();
+	});
 });
