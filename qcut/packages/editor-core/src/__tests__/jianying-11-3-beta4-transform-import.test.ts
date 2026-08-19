@@ -76,13 +76,13 @@ describe("Jianying 11.3 beta4 static clip transform import (L2)", () => {
 	it("maps a static position in half-canvas units", () => {
 		const content = createJianying113Beta4AdjacentVideoFixture();
 		const segment = firstSegmentRaw({ content });
-		// Fixture canvas is 640×360; 0.25 half-canvas units = 80 px, -0.5 = -90 px.
+		// 640×360 canvas: X 0.25 → 80 px; Y -0.5 up-positive → +90 px screen-down.
 		(segment.clip as Record<string, unknown>).transform = { x: 0.25, y: -0.5 };
 
 		const result = normalizeFixture({ content });
 		const mapped = result.document.timelines[0]?.tracks[0]?.segments[0];
 		expect(mapped?.capability).toBe("exact");
-		expect(mapped?.visual).toEqual({ xPx: 80, yPx: -90 });
+		expect(mapped?.visual).toEqual({ xPx: 80, yPx: 90 });
 	});
 
 	it("keeps non-uniform scale and flips out of the exact subset", () => {
