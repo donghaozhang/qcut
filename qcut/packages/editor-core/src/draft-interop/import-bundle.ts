@@ -15,6 +15,7 @@
 import { createDeterministicJianyingId } from "../jianying-draft/deterministic-id.js";
 import {
 	mapInteropDocumentToQCutPlan,
+	type QCutImportPlanDowngrade,
 	type QCutImportPlanElement,
 	type QCutImportPlanMediaKeyframe,
 	type QCutImportPlanMediaElement,
@@ -733,10 +734,36 @@ function parseSkippedNode({
 		nodeType: asEnum({
 			value: record.nodeType,
 			path: `${path}/nodeType`,
-			allowed: ["track", "segment"],
+			allowed: ["track", "segment", "transition"],
 		}),
 		capability: record.capability,
 		reason: asString({ value: record.reason, path: `${path}/reason` }),
+	};
+}
+
+function parsePlanDowngrade({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): QCutImportPlanDowngrade {
+	const record = asRecord({ value, path });
+	return {
+		nodeId: asString({ value: record.nodeId, path: `${path}/nodeId` }),
+		nodeType: asEnum({
+			value: record.nodeType,
+			path: `${path}/nodeType`,
+			allowed: ["segment"],
+		}),
+		approximation: asString({
+			value: record.approximation,
+			path: `${path}/approximation`,
+		}),
+		fidelityEvidence: asString({
+			value: record.fidelityEvidence,
+			path: `${path}/fidelityEvidence`,
+		}),
 	};
 }
 
@@ -795,6 +822,19 @@ function parseTimelinePlan({
 			(node, index) =>
 				parseSkippedNode({ value: node, path: `${path}/skipped/${index}` })
 		),
+		...(record.downgrades === undefined
+			? {}
+			: {
+					downgrades: asArray({
+						value: record.downgrades,
+						path: `${path}/downgrades`,
+					}).map((node, index) =>
+						parsePlanDowngrade({
+							value: node,
+							path: `${path}/downgrades/${index}`,
+						})
+					),
+				}),
 	};
 }
 
