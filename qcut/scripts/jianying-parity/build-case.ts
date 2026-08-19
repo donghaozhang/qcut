@@ -33,6 +33,7 @@ import {
 const REPO_ROOT = resolve(import.meta.dirname, "../..");
 const WORKSPACE = join(REPO_ROOT, ".local/jianying-parity");
 const ASSET_PATH = join(WORKSPACE, "_assets/parity-plate.mp4");
+const ASSET_PATH_B = join(WORKSPACE, "_assets/parity-plate-b.mp4");
 const JIANYING_DRAFT_ROOT = join(
 	homedir(),
 	"Movies",
@@ -64,26 +65,20 @@ function parseArgs() {
 	return args;
 }
 
-/**
- * A deterministic, spatially asymmetric plate: gradient test pattern plus two
- * different corner marks, so rotation/flip/translate/scale all move visible
- * structure. Regenerated only when missing.
- */
-async function ensurePlateAsset() {
-	if (existsSync(ASSET_PATH)) return;
+async function renderPlate({
+	filter,
+	outputPath,
+}: {
+	filter: string;
+	outputPath: string;
+}) {
+	if (existsSync(outputPath)) return;
 	await mkdir(join(WORKSPACE, "_assets"), { recursive: true });
 	const ffmpegPath = await resolveBundledToolPath({
 		projectRoot: REPO_ROOT,
 		targetKey: getBundledTargetKey(),
 		tool: "ffmpeg",
 	});
-	const seconds = PARITY_DURATION_US / 1_000_000;
-	const filter = [
-		`testsrc2=size=${PARITY_CANVAS_WIDTH}x${PARITY_CANVAS_HEIGHT}:rate=${PARITY_FPS}:duration=${seconds}`,
-		"drawbox=x=10:y=10:w=60:h=60:color=red@1:t=fill",
-		"drawbox=x=iw-40:y=ih-40:w=30:h=30:color=white@1:t=fill",
-		"format=yuv420p",
-	].join(",");
 	await runCommand({
 		command: ffmpegPath,
 		args: [
@@ -98,19 +93,51 @@ async function ensurePlateAsset() {
 			"10",
 			"-g",
 			"1",
-			ASSET_PATH,
+			outputPath,
 		],
 	});
-	console.log(`plate asset: ${ASSET_PATH}`);
+	console.log(`plate asset: ${outputPath}`);
+}
+
+/**
+ * Deterministic, spatially asymmetric plates. A: gradient test pattern plus
+ * two different corner marks, so rotation/flip/translate/scale all move
+ * visible structure. B: a flat, differently colored plate so seam cases
+ * (transitions) show unmistakably which side each pixel comes from.
+ * Regenerated only when missing.
+ */
+async function ensurePlateAssets() {
+	const seconds = PARITY_DURATION_US / 1_000_000;
+	const base = `size=${PARITY_CANVAS_WIDTH}x${PARITY_CANVAS_HEIGHT}:rate=${PARITY_FPS}:duration=${seconds}`;
+	await renderPlate({
+		filter: [
+			`testsrc2=${base}`,
+			"drawbox=x=10:y=10:w=60:h=60:color=red@1:t=fill",
+			"drawbox=x=iw-40:y=ih-40:w=30:h=30:color=white@1:t=fill",
+			"format=yuv420p",
+		].join(","),
+		outputPath: ASSET_PATH,
+	});
+	await renderPlate({
+		filter: [
+			`color=c=0x2040c0:${base}`,
+			"drawbox=x=10:y=10:w=60:h=60:color=yellow@1:t=fill",
+			"drawbox=x=iw-40:y=ih-40:w=30:h=30:color=white@1:t=fill",
+			"format=yuv420p",
+		].join(","),
+		outputPath: ASSET_PATH_B,
+	});
 }
 
 async function writeCaseDrafts({ caseId }: { caseId: string }) {
 	const caseDirectory = join(WORKSPACE, "cases", caseId);
+	const parityCase = getParityCase({ caseId });
 	const manifest: Record<string, unknown> = {
 		schema: "qcut.jianying-parity.case/1",
 		caseId,
-		description: getParityCase({ caseId }).description,
+		description: parityCase.description,
 		assetPath: ASSET_PATH,
+		...(parityCase.adjacentSegments ? { assetPathB: ASSET_PATH_B } : {}),
 		drafts: {} as Record<string, unknown>,
 	};
 	for (const variant of VARIANTS) {
@@ -118,6 +145,7 @@ async function writeCaseDrafts({ caseId }: { caseId: string }) {
 			caseId,
 			variant,
 			assetPath: ASSET_PATH,
+			...(parityCase.adjacentSegments ? { assetPathB: ASSET_PATH_B } : {}),
 		});
 		const serialized = JSON.stringify(content);
 		const draftDirectory = join(caseDirectory, variant);
@@ -162,7 +190,7 @@ async function main() {
 		caseId === "all"
 			? PARITY_CASES.map(({ id }) => id)
 			: [getParityCase({ caseId }).id];
-	await ensurePlateAsset();
+	await ensurePlateAssets();
 	for (const id of caseIds) {
 		const directory = await writeCaseDrafts({ caseId: id });
 		console.log(`case drafts: ${directory}`);
