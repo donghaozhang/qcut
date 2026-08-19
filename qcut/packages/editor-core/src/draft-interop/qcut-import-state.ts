@@ -1,4 +1,5 @@
 import type {
+	QCutImportPlanEffectElement,
 	QCutImportPlanElement,
 	QCutImportPlanTextElement,
 } from "../jianying-draft/import/qcut-mapping.js";
@@ -102,6 +103,54 @@ function buildTextElement({
 	};
 }
 
+/**
+ * Materializes an imported jianying-local region effect (L7). The instance
+ * mirrors what the effect lab creates: empty qcut parameters (the local
+ * runtime renders the package), sliders at package defaults, and the
+ * "brightness" effectType placeholder the lab convention uses for
+ * parameterless presets.
+ */
+function buildEffectElement({
+	bundle,
+	planElement,
+}: {
+	bundle: QCutImportBundleV1;
+	planElement: QCutImportPlanEffectElement;
+}): TimelineElement {
+	const internalId = requireInternalId({ bundle, semanticId: planElement.id });
+	return {
+		id: internalId,
+		type: "effect",
+		name: planElement.name,
+		duration: planElement.duration,
+		startTime: planElement.startTime,
+		trimStart: planElement.trimStart,
+		trimEnd: planElement.trimEnd,
+		effect: {
+			id: `${internalId}-effect`,
+			presetId: planElement.effect.presetId,
+			name: planElement.effect.name,
+			effectType: "brightness",
+			parameters: {},
+			duration: 0,
+			enabled: true,
+			engine: "jianying-local",
+			packageHash: planElement.effect.packageHash,
+			...(planElement.effect.adjustParameters === undefined
+				? {}
+				: {
+						adjustParameters: planElement.effect.adjustParameters,
+						adjustValues: planElement.effect.adjustParameters.map(
+							(parameter) => ({
+								key: parameter.key,
+								value: parameter.defaultValue,
+							})
+						),
+					}),
+		},
+	};
+}
+
 function buildMediaElement({
 	bundle,
 	mediaItemIdByResourceId,
@@ -109,7 +158,10 @@ function buildMediaElement({
 }: {
 	bundle: QCutImportBundleV1;
 	mediaItemIdByResourceId: ReadonlyMap<string, string>;
-	planElement: Exclude<QCutImportPlanElement, QCutImportPlanTextElement>;
+	planElement: Exclude<
+		QCutImportPlanElement,
+		QCutImportPlanTextElement | QCutImportPlanEffectElement
+	>;
 }): TimelineElement {
 	const mediaId = mediaItemIdByResourceId.get(planElement.resourceId);
 	if (mediaId === undefined) {
@@ -164,7 +216,9 @@ export function buildQCutImportTimelineTracks({
 		elements: planTrack.elements.map((planElement) =>
 			planElement.type === "text"
 				? buildTextElement({ bundle, planElement })
-				: buildMediaElement({ bundle, mediaItemIdByResourceId, planElement })
+				: planElement.type === "effect"
+					? buildEffectElement({ bundle, planElement })
+					: buildMediaElement({ bundle, mediaItemIdByResourceId, planElement })
 		),
 		...((planTrack.transitions?.length ?? 0) === 0
 			? {}
