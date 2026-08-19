@@ -203,25 +203,8 @@ export function StickersView() {
 
 			<div className="flex min-h-0 flex-1 overflow-hidden">
 				<StickerSidebar
+					labAvailable={localStickerCatalog.isAvailable}
 					mode={mode}
-					referenceLab={
-						localStickerCatalog.isAvailable
-							? {
-									privateCategories: privateLabCategories.map((category) => ({
-										count: category.items.length,
-										id: category.id,
-										label: category.label,
-									})),
-									publicCategories: publicLabCategories.map((category) => ({
-										count: category.items.length,
-										id: category.id,
-										label: category.label,
-									})),
-									selection: resolvedLabSelection,
-									onSelectCategory: selectLabCategory,
-								}
-							: null
-					}
 					selectedCategory={selectedCategory}
 					onSelectCategory={selectCategory}
 					onSelectMode={selectMode}
@@ -268,6 +251,7 @@ export function StickersView() {
 							error={localStickerCatalog.error}
 							isLoading={localStickerCatalog.isLoading}
 							onSelect={handleLocalReferenceSelect}
+							onSelectCategory={selectLabCategory}
 							privateCategories={privateLabCategories}
 							selection={resolvedLabSelection}
 							unavailablePrivateCatalogIds={
