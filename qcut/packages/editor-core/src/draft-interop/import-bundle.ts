@@ -662,25 +662,49 @@ function parsePlanTransition({
 			value: record.toElementId,
 			path: `${path}/toElementId`,
 		}),
-		presetId: asEnum({
-			value: record.presetId,
-			path: `${path}/presetId`,
-			allowed: ["dissolve"],
-		}),
-		type: asEnum({
-			value: record.type,
-			path: `${path}/type`,
-			allowed: ["dissolve"],
-		}),
+		presetId: asString({ value: record.presetId, path: `${path}/presetId` }),
+		type: asString({ value: record.type, path: `${path}/type` }),
 		duration: asPositiveFiniteNumber({
 			value: record.duration,
 			path: `${path}/duration`,
 		}),
-		easing: asEnum({
-			value: record.easing,
-			path: `${path}/easing`,
-			allowed: ["easeInOut"],
-		}),
+		easing: asString({ value: record.easing, path: `${path}/easing` }),
+		...(record.direction === undefined
+			? {}
+			: {
+					direction: asString({
+						value: record.direction,
+						path: `${path}/direction`,
+					}),
+				}),
+		...(record.tuning === undefined
+			? {}
+			: {
+					tuning: parsePlanTransitionTuning({
+						value: record.tuning,
+						path: `${path}/tuning`,
+					}),
+				}),
+	};
+}
+
+function parsePlanTransitionTuning({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): { intensity?: number } {
+	const record = asRecord({ value, path });
+	return {
+		...(record.intensity === undefined
+			? {}
+			: {
+					intensity: asFiniteNumber({
+						value: record.intensity,
+						path: `${path}/intensity`,
+					}),
+				}),
 	};
 }
 
@@ -774,7 +798,7 @@ function parsePlanDowngrade({
 		nodeType: asEnum({
 			value: record.nodeType,
 			path: `${path}/nodeType`,
-			allowed: ["segment"],
+			allowed: ["segment", "transition"],
 		}),
 		approximation: asString({
 			value: record.approximation,
