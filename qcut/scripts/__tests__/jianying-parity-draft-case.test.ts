@@ -13,6 +13,7 @@ import {
 } from "../jianying-parity/draft-case.js";
 
 const ASSET_PATH = "/private/parity-plate.mp4";
+const ASSET_PATH_B = "/private/parity-plate-b.mp4";
 
 function createSource({
 	content,
@@ -48,6 +49,7 @@ function normalizeCase({
 		caseId,
 		variant,
 		assetPath: ASSET_PATH,
+		assetPathB: ASSET_PATH_B,
 	});
 	return normalizeRawDraft({
 		content,
@@ -57,18 +59,22 @@ function normalizeCase({
 }
 
 describe("jianying parity draft cases (L1)", () => {
-	it("every off twin normalizes to an exact default video segment", () => {
+	it("every off twin normalizes to exact default video segments", () => {
 		for (const parityCase of PARITY_CASES) {
 			const result = normalizeCase({ caseId: parityCase.id, variant: "off" });
 			const track = result.document.timelines[0]?.tracks[0];
-			expect(track?.segments, parityCase.id).toHaveLength(1);
-			expect(track?.segments[0], parityCase.id).toMatchObject({
-				capability: "exact",
-				kind: "video",
-			});
-			expect(track?.segments[0]?.targetRange.durationUs, parityCase.id).toBe(
-				PARITY_DURATION_US
+			expect(track?.segments, parityCase.id).toHaveLength(
+				parityCase.adjacentSegments ? 2 : 1
 			);
+			for (const segment of track?.segments ?? []) {
+				expect(segment, parityCase.id).toMatchObject({
+					capability: "exact",
+					kind: "video",
+				});
+				expect(segment.targetRange.durationUs, parityCase.id).toBe(
+					PARITY_DURATION_US
+				);
+			}
 		}
 	});
 
@@ -136,6 +142,7 @@ describe("jianying parity draft cases (L1)", () => {
 					caseId: parityCase.id,
 					variant: "on",
 					assetPath: ASSET_PATH,
+					assetPathB: ASSET_PATH_B,
 				})
 			);
 			const second = JSON.stringify(
@@ -143,25 +150,124 @@ describe("jianying parity draft cases (L1)", () => {
 					caseId: parityCase.id,
 					variant: "on",
 					assetPath: ASSET_PATH,
+					assetPathB: ASSET_PATH_B,
 				})
 			);
 			expect(first, parityCase.id).toBe(second);
 		}
 	});
 
-	it("keeps on and off variants byte-different in exactly one dimension", () => {
+	it("keeps each on/off diff confined to the case's declared mutation", () => {
 		for (const parityCase of PARITY_CASES) {
-			const on = buildParityDraftContent({
-				caseId: parityCase.id,
-				variant: "on",
-				assetPath: ASSET_PATH,
+			const expectedPrefixes = EXPECTED_DIFF_PREFIXES[parityCase.id];
+			expect(expectedPrefixes, parityCase.id).toBeDefined();
+			const paths = diffPaths({
+				left: neutralInnerDraft({ caseId: parityCase.id, variant: "on" }),
+				right: neutralInnerDraft({ caseId: parityCase.id, variant: "off" }),
 			});
-			const off = buildParityDraftContent({
-				caseId: parityCase.id,
-				variant: "off",
-				assetPath: ASSET_PATH,
-			});
-			expect(JSON.stringify(on), parityCase.id).not.toBe(JSON.stringify(off));
+			// The variants must differ (the feature really mutates the draft)…
+			expect(paths.length, parityCase.id).toBeGreaterThan(0);
+			// …and only along the declared rendering dimension — anything else
+			// would break the parity receipt's single-variable isolation claim.
+			for (const path of paths) {
+				expect(
+					expectedPrefixes?.some((prefix) => path.startsWith(prefix)),
+					`${parityCase.id}: unexpected diff at ${path}`
+				).toBe(true);
+			}
 		}
 	});
 });
+
+/**
+ * Allowed inner-draft diff path prefixes per case. Everything outside these
+ * prefixes must be byte-identical between the on and off twins.
+ */
+const EXPECTED_DIFF_PREFIXES: Record<string, string[]> = {
+	"transform-rotation": ["/tracks/0/segments/0/clip/rotation"],
+	"transform-scale": [
+		"/tracks/0/segments/0/clip/scale",
+		"/tracks/0/segments/0/uniform_scale",
+	],
+	"transform-alpha": ["/tracks/0/segments/0/clip/alpha"],
+	"transform-position": ["/tracks/0/segments/0/clip/transform"],
+	"speed-scalar": [
+		"/duration",
+		"/materials/speeds/0/speed",
+		"/tracks/0/segments/0/speed",
+		"/tracks/0/segments/0/target_timerange/duration",
+	],
+	"keyframe-position-x": [
+		"/tracks/0/segments/0/clip/transform",
+		"/tracks/0/segments/0/common_keyframes",
+	],
+	"keyframe-position-xy": [
+		"/tracks/0/segments/0/clip/transform",
+		"/tracks/0/segments/0/common_keyframes",
+	],
+	"transition-move-left": [
+		"/materials/transitions",
+		"/tracks/0/segments/0/extra_material_refs",
+	],
+};
+
+/**
+ * Builds a variant's inner draft with the variant-encoding metadata (draft
+ * id/name) neutralized, so any remaining diff is a real rendering mutation.
+ */
+function neutralInnerDraft({
+	caseId,
+	variant,
+}: {
+	caseId: string;
+	variant: "on" | "off";
+}): Record<string, unknown> {
+	const content = buildParityDraftContent({
+		caseId,
+		variant,
+		assetPath: ASSET_PATH,
+		assetPathB: ASSET_PATH_B,
+	});
+	const materials = content.materials as {
+		drafts: Array<{ draft: Record<string, unknown> }>;
+	};
+	const inner = { ...materials.drafts[0].draft };
+	inner.id = "neutral";
+	inner.name = "neutral";
+	return inner;
+}
+
+/** Collects JSON-pointer-style paths where the two values differ. */
+function diffPaths({
+	left,
+	right,
+	path = "",
+}: {
+	left: unknown;
+	right: unknown;
+	path?: string;
+}): string[] {
+	if (Object.is(left, right)) return [];
+	const bothObjects =
+		typeof left === "object" &&
+		typeof right === "object" &&
+		left !== null &&
+		right !== null &&
+		Array.isArray(left) === Array.isArray(right);
+	if (!bothObjects) return [path || "/"];
+	const keys = new Set([
+		...Object.keys(left as Record<string, unknown>),
+		...Object.keys(right as Record<string, unknown>),
+	]);
+	const paths: string[] = [];
+	for (const key of keys) {
+		paths.push(
+			...diffPaths({
+				left: (left as Record<string, unknown>)[key],
+				right: (right as Record<string, unknown>)[key],
+				path: `${path}/${key}`,
+			})
+		);
+	}
+	return paths;
+}
