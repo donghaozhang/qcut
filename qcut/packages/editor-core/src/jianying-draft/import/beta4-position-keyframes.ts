@@ -181,8 +181,11 @@ export function mapBeta4PositionKeyframes({
 
 	// JianYing normalized positions are in half-canvas units (the
 	// clip.transform convention; the app UI displays value * canvasWidth).
-	// X scales by width/2 (receipt: KF01 + transform-position parity); Y by
-	// height/2 is the symmetric candidate awaiting its own parity receipt.
+	// X scales by width/2 (receipt: KF01 + transform-position parity). Y
+	// scales by height/2 with the SIGN FLIPPED: JianYing's Y is up-positive
+	// (math convention) while QCut's is screen-down-positive — measured via
+	// shift-matching on the keyframe-position-xy capture (UI Y=-72 rendered
+	// 36px DOWN, best-fit (80,+36) rmse 2.8, 2026-08-19).
 	const toPx = ({
 		keyframe,
 		halfCanvas,
@@ -199,14 +202,16 @@ export function mapBeta4PositionKeyframes({
 		finalNormalizedY: y.finalNormalizedValue,
 		visual: {
 			xPx: (x.finalNormalizedValue * canvasWidth) / 2,
-			yPx: (y.finalNormalizedValue * canvasHeight) / 2,
+			yPx: (y.finalNormalizedValue * -canvasHeight) / 2 + 0,
 			keyframes: {
 				x: x.keyframes.map((keyframe) =>
 					toPx({ keyframe, halfCanvas: canvasWidth / 2 })
 				),
-				y: y.keyframes.map((keyframe) =>
-					toPx({ keyframe, halfCanvas: canvasHeight / 2 })
-				),
+				y: y.keyframes.map((keyframe) => {
+					const scaled = toPx({ keyframe, halfCanvas: -canvasHeight / 2 });
+					// +0 normalizes the -0 that 0 × negative-half produces.
+					return { ...scaled, value: scaled.value + 0 };
+				}),
 			},
 		},
 	};
