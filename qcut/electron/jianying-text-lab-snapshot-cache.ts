@@ -98,19 +98,48 @@ export async function computeJianyingTextLabFingerprint({
 	return hash.digest("hex");
 }
 
-function isValidSnapshotShape({
-	snapshot,
-}: {
-	snapshot: JianyingTextLabSnapshot;
-}) {
+/** Persisted map entries must restore through `new Map(...)` untouched. */
+function isEntryTupleArray(value: unknown): boolean {
 	return (
-		snapshot.schemaVersion === JIANYING_TEXT_LAB_SNAPSHOT_SCHEMA_VERSION &&
-		typeof snapshot.fingerprint === "string" &&
-		Array.isArray(snapshot.styles?.catalog?.entries) &&
-		Array.isArray(snapshot.styles?.metadataEntries) &&
-		Array.isArray(snapshot.styles?.ownershipEntries) &&
-		Array.isArray(snapshot.animations?.animations)
+		Array.isArray(value) &&
+		value.every(
+			(entry) =>
+				Array.isArray(entry) &&
+				entry.length === 2 &&
+				typeof entry[0] === "string" &&
+				typeof entry[1] === "object" &&
+				entry[1] !== null
+		)
 	);
+}
+
+/**
+ * Validates untrusted parsed JSON before any property access: `JSON.parse`
+ * happily returns null, scalars, and arbitrary objects, and a malformed
+ * cache must fall back to a rebuild instead of failing the catalog read.
+ */
+function isValidSnapshotShape(
+	snapshot: unknown
+): snapshot is JianyingTextLabSnapshot {
+	if (snapshot === null || typeof snapshot !== "object") return false;
+	const record = snapshot as Record<string, unknown>;
+	if (record.schemaVersion !== JIANYING_TEXT_LAB_SNAPSHOT_SCHEMA_VERSION) {
+		return false;
+	}
+	if (typeof record.fingerprint !== "string") return false;
+	const styles = record.styles;
+	if (styles === null || typeof styles !== "object") return false;
+	const stylesRecord = styles as Record<string, unknown>;
+	const catalog = stylesRecord.catalog;
+	if (catalog === null || typeof catalog !== "object") return false;
+	if (!Array.isArray((catalog as Record<string, unknown>).entries)) {
+		return false;
+	}
+	if (!isEntryTupleArray(stylesRecord.metadataEntries)) return false;
+	if (!isEntryTupleArray(stylesRecord.ownershipEntries)) return false;
+	const animations = record.animations;
+	if (animations === null || typeof animations !== "object") return false;
+	return Array.isArray((animations as Record<string, unknown>).animations);
 }
 
 export async function readJianyingTextLabSnapshot({
@@ -120,17 +149,15 @@ export async function readJianyingTextLabSnapshot({
 	cacheFilePath: string;
 	fingerprint: string;
 }): Promise<JianyingTextLabSnapshot | null> {
-	let snapshot: JianyingTextLabSnapshot;
+	let parsed: unknown;
 	try {
-		snapshot = JSON.parse(
-			await readFile(cacheFilePath, "utf8")
-		) as JianyingTextLabSnapshot;
+		parsed = JSON.parse(await readFile(cacheFilePath, "utf8"));
 	} catch {
 		return null;
 	}
-	if (!isValidSnapshotShape({ snapshot })) return null;
-	if (snapshot.fingerprint !== fingerprint) return null;
-	return snapshot;
+	if (!isValidSnapshotShape(parsed)) return null;
+	if (parsed.fingerprint !== fingerprint) return null;
+	return parsed;
 }
 
 export async function writeJianyingTextLabSnapshot({
