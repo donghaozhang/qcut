@@ -112,4 +112,5 @@ harness 复用,可穿插)→ L7/L8(本机运行时路径,内部先行)。总量�
 | 任务 | 状态 |
 |---|---|
 | L0 downgrade 准入通道 | ✅ 2026-08-19 landed(timeline-v2)。`InteropSegment.downgrade` 声明 + `qcut-mapping` 声明门准入 + plan `downgrades` 清单 + bundle 解析(顺手修了 skipped nodeType 缺 "transition" 的既有缺口)。文本段沿用旧 downgrade 通道未动。 |
-| L1-L8 | 未开始(规划) |
+| L1 真剪映验收 harness | 🔨 2026-08-19 代码 landed(`scripts/jianying-parity/`:5 个单变量用例 + 构建/注册 CLI + 隔离纪律比对器 + 回执;自检测试过 beta4 归一化,比对器正负例冒烟通过)。**真机采集未跑**:本机剪映为 11.3.0-beta5(加密草稿),beta4 明文草稿能否被其打开待副屏实测;不行则退路为 UI 手工作草稿(证据降档,回执注明)。 |
+| L2-L8 | 未开始(规划) |
