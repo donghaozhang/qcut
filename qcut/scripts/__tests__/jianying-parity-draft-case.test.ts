@@ -72,15 +72,33 @@ describe("jianying parity draft cases (L1)", () => {
 		}
 	});
 
-	it("every on variant leaves the verified-default fingerprint", () => {
-		// Today's truth: single-variable mutations demote the segment below
-		// exact. L2+ relaxations flip these expectations case by case.
-		for (const parityCase of PARITY_CASES) {
-			const result = normalizeCase({ caseId: parityCase.id, variant: "on" });
-			const segment = result.document.timelines[0]?.tracks[0]?.segments[0];
-			expect(segment, parityCase.id).toBeDefined();
-			expect(segment?.capability, parityCase.id).not.toBe("exact");
-		}
+	it("maps each on variant to today's capability truth", () => {
+		// L2 landed: static clip transforms cross as exact with dialect
+		// conversions applied (half-canvas position units, rotation carried
+		// sign-unchanged). Speed stays below exact until L3.
+		const onSegment = ({ caseId }: { caseId: string }) =>
+			normalizeCase({ caseId, variant: "on" }).document.timelines[0]?.tracks[0]
+				?.segments[0];
+
+		const rotation = onSegment({ caseId: "transform-rotation" });
+		expect(rotation?.capability).toBe("exact");
+		expect(rotation?.visual).toEqual({ xPx: 0, yPx: 0, rotationDegrees: 30 });
+
+		const scale = onSegment({ caseId: "transform-scale" });
+		expect(scale?.capability).toBe("exact");
+		expect(scale?.visual).toEqual({ xPx: 0, yPx: 0, scaleX: 0.5, scaleY: 0.5 });
+
+		const alpha = onSegment({ caseId: "transform-alpha" });
+		expect(alpha?.capability).toBe("exact");
+		expect(alpha?.visual).toEqual({ xPx: 0, yPx: 0, opacity: 0.5 });
+
+		const position = onSegment({ caseId: "transform-position" });
+		expect(position?.capability).toBe("exact");
+		// 0.25 half-canvas units × 640 / 2 = 80 real px.
+		expect(position?.visual).toEqual({ xPx: 80, yPx: 0 });
+
+		const speed = onSegment({ caseId: "speed-scalar" });
+		expect(speed?.capability).not.toBe("exact");
 	});
 
 	it("serializes deterministically for identical inputs", () => {
