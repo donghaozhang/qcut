@@ -260,6 +260,13 @@ export interface ClaudeElement
 	name?: string;
 	opacity?: number;
 	adjustments?: Record<string, unknown>;
+	/**
+	 * Resolved media color grade (MediaColorSettings with any filter preset
+	 * already baked into a LUT cube by the renderer). Untrusted JSON; the
+	 * export engine normalizes it before building ffmpeg filters. Distinct
+	 * from `color`, which is the text color string.
+	 */
+	colorSettings?: Record<string, unknown>;
 	masks?: Record<string, unknown>[];
 	backgroundColor?: string;
 	textColor?: string;
