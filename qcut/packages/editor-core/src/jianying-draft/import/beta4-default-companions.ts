@@ -107,6 +107,21 @@ export function isDefaultSpeed({
 }: {
 	value: Record<string, unknown>;
 }): boolean {
+	return isConstantRateSpeed({ value, expectedSpeed: 1 });
+}
+
+/**
+ * The constant-rate speed companion subset (L3): mode 0 with no curve, and
+ * the companion's scalar matching the segment's own speed field. Curve
+ * speeds (mode ≠ 0 / curve_speed set) stay opaque.
+ */
+export function isConstantRateSpeed({
+	expectedSpeed,
+	value,
+}: {
+	expectedSpeed: number;
+	value: Record<string, unknown>;
+}): boolean {
 	return (
 		hasExactKeys({ value, keys: SPEED_KEYS }) &&
 		typeof value.id === "string" &&
@@ -114,7 +129,7 @@ export function isDefaultSpeed({
 		value.type === "speed" &&
 		value.curve_speed === null &&
 		value.mode === 0 &&
-		value.speed === 1
+		value.speed === expectedSpeed
 	);
 }
 
