@@ -97,3 +97,23 @@ export function buildSegmentTransformFilter({
 
 	return stages.join(",");
 }
+
+/**
+ * atempo only accepts factors in [0.5, 2] per stage; chain stages until the
+ * remaining factor fits. Returns null at rate 1 (no audio filter needed).
+ */
+export function buildAtempoChain({ rate }: { rate: number }): string | null {
+	if (rate === 1) return null;
+	const stages: number[] = [];
+	let remaining = rate;
+	while (remaining > 2) {
+		stages.push(2);
+		remaining /= 2;
+	}
+	while (remaining < 0.5) {
+		stages.push(0.5);
+		remaining *= 2;
+	}
+	stages.push(remaining);
+	return stages.map((stage) => `atempo=${stage}`).join(",");
+}
