@@ -219,6 +219,13 @@ export {
 } from "./import/normalize.js";
 
 export {
+	mapBeta4SegmentEffect,
+	type JianyingLocalEffectCapabilities,
+	type JianyingLocalEffectCapability,
+	type MappedBeta4SegmentEffect,
+} from "./import/beta4-effect-mapper.js";
+
+export {
 	mapCapCut81StaticText,
 	mapStaticText,
 	type MapCapCut81StaticTextInput,
