@@ -310,7 +310,9 @@ export function hasVerifiedBeta4VideoSegmentDefaults({
 		raw.reverse === false &&
 		isEmptyString({ value: raw.segment_color_tag }) &&
 		raw.source === "segmentsourcenormal" &&
-		raw.speed === 1 &&
+		typeof raw.speed === "number" &&
+		Number.isFinite(raw.speed) &&
+		raw.speed > 0 &&
 		raw.state === 0 &&
 		hasExactRangeShape({ value: raw.source_timerange }) &&
 		hasExactRangeShape({ value: raw.target_timerange }) &&
