@@ -9,6 +9,8 @@ import {
 import type { BrowserColorGradeLayer } from "@/lib/color/browser-color-rendering";
 import type { AdjustmentElement, MediaColorSettings } from "@/types/timeline";
 import { MediaMaskOverlay } from "./media-mask-overlay";
+import { EffectOverlayLayers } from "@/components/editor/effects/effect-overlay-layers";
+import { buildElementEffectsRendering } from "./use-effects-rendering";
 import type { ActiveElement } from "./types";
 
 function pixelColorSettings({
@@ -100,6 +102,48 @@ export function AdjustmentLayerStack({
 	let renderedLayers: ReactNode[] = [];
 	for (let index = 0; index < activeElements.length; index++) {
 		const elementData = activeElements[index];
+		if (elementData.element.type === "effect") {
+			// Region effect segment (untargeted): everything rendered so far is
+			// the composite below it — wrap it exactly the way an adjustment
+			// layer does, so the segment styles text and stickers too, and its
+			// overlay programs (vignette, particles) draw once over the group
+			// instead of once per clip. Targeted effect elements and
+			// jianying-local runtime effects stay out of this fold.
+			const segment = elementData.element;
+			if (
+				segment.targetElementId ||
+				segment.effect.engine === "jianying-local"
+			) {
+				continue;
+			}
+			const rendering = buildElementEffectsRendering({
+				effects: [segment.effect],
+			});
+			if (!rendering.hasEffects) continue;
+			renderedLayers = [
+				<div
+					key={segment.id}
+					className="absolute inset-0"
+					style={{ zIndex: index + 1 }}
+					data-testid={`region-effect-layer-${segment.id}`}
+				>
+					<div
+						className="absolute inset-0"
+						style={{
+							filter: rendering.filterStyle || undefined,
+							isolation: "isolate",
+						}}
+					>
+						{renderedLayers}
+					</div>
+					<EffectOverlayLayers
+						program={rendering.renderProgram}
+						parameters={rendering.parameters}
+					/>
+				</div>,
+			];
+			continue;
+		}
 		if (elementData.element.type !== "adjustment") {
 			renderedLayers.push(
 				renderElement(elementData, index, pixelLayersByIndex.get(index) ?? [])

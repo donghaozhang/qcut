@@ -15,9 +15,11 @@
 import { createDeterministicJianyingId } from "../jianying-draft/deterministic-id.js";
 import {
 	mapInteropDocumentToQCutPlan,
+	type QCutImportPlanDowngrade,
 	type QCutImportPlanElement,
 	type QCutImportPlanMediaKeyframe,
 	type QCutImportPlanMediaElement,
+	type QCutImportPlanMediaFilter,
 	type QCutImportPlanTextElement,
 	type QCutImportPlanTrack,
 	type QCutImportPlanTransition,
@@ -245,10 +247,30 @@ function parsePlanMediaElement({
 			: asFiniteNumber({ value: record.speed, path: `${path}/speed` });
 	const x = asOptionalFiniteNumber({ value: record.x, path: `${path}/x` });
 	const y = asOptionalFiniteNumber({ value: record.y, path: `${path}/y` });
+	const rotation = asOptionalFiniteNumber({
+		value: record.rotation,
+		path: `${path}/rotation`,
+	});
+	const scaleX = asOptionalFiniteNumber({
+		value: record.scaleX,
+		path: `${path}/scaleX`,
+	});
+	const scaleY = asOptionalFiniteNumber({
+		value: record.scaleY,
+		path: `${path}/scaleY`,
+	});
+	const opacity = asOptionalFiniteNumber({
+		value: record.opacity,
+		path: `${path}/opacity`,
+	});
 	const keyframes = parsePlanMediaKeyframes({
 		value: record.keyframes,
 		path: `${path}/keyframes`,
 	});
+	const filter =
+		record.filter === undefined
+			? undefined
+			: parsePlanMediaFilter({ value: record.filter, path: `${path}/filter` });
 	return {
 		id: asString({ value: record.id, path: `${path}/id` }),
 		type: asEnum({
@@ -281,10 +303,36 @@ function parsePlanMediaElement({
 		...(speed === undefined ? {} : { speed }),
 		...(x === undefined ? {} : { x }),
 		...(y === undefined ? {} : { y }),
+		...(rotation === undefined ? {} : { rotation }),
+		...(scaleX === undefined ? {} : { scaleX }),
+		...(scaleY === undefined ? {} : { scaleY }),
+		...(opacity === undefined ? {} : { opacity }),
 		...(keyframes === undefined ? {} : { keyframes }),
+		...(filter === undefined ? {} : { filter }),
 		sourceSegmentId: asString({
 			value: record.sourceSegmentId,
 			path: `${path}/sourceSegmentId`,
+		}),
+	};
+}
+
+function parsePlanMediaFilter({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): QCutImportPlanMediaFilter {
+	const record = asRecord({ value, path });
+	return {
+		presetId: asString({ value: record.presetId, path: `${path}/presetId` }),
+		presetVersion: asFiniteNumber({
+			value: record.presetVersion,
+			path: `${path}/presetVersion`,
+		}),
+		intensity: asFiniteNumber({
+			value: record.intensity,
+			path: `${path}/intensity`,
 		}),
 	};
 }
@@ -641,25 +689,49 @@ function parsePlanTransition({
 			value: record.toElementId,
 			path: `${path}/toElementId`,
 		}),
-		presetId: asEnum({
-			value: record.presetId,
-			path: `${path}/presetId`,
-			allowed: ["dissolve"],
-		}),
-		type: asEnum({
-			value: record.type,
-			path: `${path}/type`,
-			allowed: ["dissolve"],
-		}),
+		presetId: asString({ value: record.presetId, path: `${path}/presetId` }),
+		type: asString({ value: record.type, path: `${path}/type` }),
 		duration: asPositiveFiniteNumber({
 			value: record.duration,
 			path: `${path}/duration`,
 		}),
-		easing: asEnum({
-			value: record.easing,
-			path: `${path}/easing`,
-			allowed: ["easeInOut"],
-		}),
+		easing: asString({ value: record.easing, path: `${path}/easing` }),
+		...(record.direction === undefined
+			? {}
+			: {
+					direction: asString({
+						value: record.direction,
+						path: `${path}/direction`,
+					}),
+				}),
+		...(record.tuning === undefined
+			? {}
+			: {
+					tuning: parsePlanTransitionTuning({
+						value: record.tuning,
+						path: `${path}/tuning`,
+					}),
+				}),
+	};
+}
+
+function parsePlanTransitionTuning({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): { intensity?: number } {
+	const record = asRecord({ value, path });
+	return {
+		...(record.intensity === undefined
+			? {}
+			: {
+					intensity: asFiniteNumber({
+						value: record.intensity,
+						path: `${path}/intensity`,
+					}),
+				}),
 	};
 }
 
@@ -733,10 +805,36 @@ function parseSkippedNode({
 		nodeType: asEnum({
 			value: record.nodeType,
 			path: `${path}/nodeType`,
-			allowed: ["track", "segment"],
+			allowed: ["track", "segment", "transition"],
 		}),
 		capability: record.capability,
 		reason: asString({ value: record.reason, path: `${path}/reason` }),
+	};
+}
+
+function parsePlanDowngrade({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): QCutImportPlanDowngrade {
+	const record = asRecord({ value, path });
+	return {
+		nodeId: asString({ value: record.nodeId, path: `${path}/nodeId` }),
+		nodeType: asEnum({
+			value: record.nodeType,
+			path: `${path}/nodeType`,
+			allowed: ["segment", "transition"],
+		}),
+		approximation: asString({
+			value: record.approximation,
+			path: `${path}/approximation`,
+		}),
+		fidelityEvidence: asString({
+			value: record.fidelityEvidence,
+			path: `${path}/fidelityEvidence`,
+		}),
 	};
 }
 
@@ -795,6 +893,19 @@ function parseTimelinePlan({
 			(node, index) =>
 				parseSkippedNode({ value: node, path: `${path}/skipped/${index}` })
 		),
+		...(record.downgrades === undefined
+			? {}
+			: {
+					downgrades: asArray({
+						value: record.downgrades,
+						path: `${path}/downgrades`,
+					}).map((node, index) =>
+						parsePlanDowngrade({
+							value: node,
+							path: `${path}/downgrades/${index}`,
+						})
+					),
+				}),
 	};
 }
 

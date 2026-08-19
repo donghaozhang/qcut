@@ -2,7 +2,12 @@ import type {
 	QCutImportPlanElement,
 	QCutImportPlanTextElement,
 } from "../jianying-draft/import/qcut-mapping.js";
-import type { TimelineElement, TimelineTrack } from "../types/timeline.js";
+import { createImportMediaColorSettings } from "./import-media-color.js";
+import type {
+	ClipTransition,
+	TimelineElement,
+	TimelineTrack,
+} from "../types/timeline.js";
 import type { QCutImportBundleV1 } from "./import-bundle.js";
 
 export function getQCutImportMediaType({
@@ -124,9 +129,24 @@ function buildMediaElement({
 			: { playbackRate: planElement.speed }),
 		...(planElement.x === undefined ? {} : { x: planElement.x }),
 		...(planElement.y === undefined ? {} : { y: planElement.y }),
+		...(planElement.rotation === undefined
+			? {}
+			: { rotation: planElement.rotation }),
+		...(planElement.scaleX === undefined ? {} : { scaleX: planElement.scaleX }),
+		...(planElement.scaleY === undefined ? {} : { scaleY: planElement.scaleY }),
+		...(planElement.opacity === undefined
+			? {}
+			: { opacity: planElement.opacity }),
 		...(planElement.keyframes === undefined
 			? {}
 			: { keyframes: planElement.keyframes }),
+		...(planElement.filter === undefined
+			? {}
+			: {
+					color: createImportMediaColorSettings({
+						filter: planElement.filter,
+					}),
+				}),
 	};
 }
 
@@ -160,9 +180,18 @@ export function buildQCutImportTimelineTracks({
 							semanticId: transition.toElementId,
 						}),
 						presetId: transition.presetId,
-						type: transition.type,
+						type: transition.type as ClipTransition["type"],
 						duration: transition.duration,
-						easing: transition.easing,
+						easing: transition.easing as ClipTransition["easing"],
+						...(transition.direction === undefined
+							? {}
+							: {
+									direction:
+										transition.direction as ClipTransition["direction"],
+								}),
+						...(transition.tuning === undefined
+							? {}
+							: { tuning: transition.tuning }),
 					})),
 				}),
 		order: planTrack.order,

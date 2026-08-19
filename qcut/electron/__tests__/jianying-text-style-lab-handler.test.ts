@@ -1,4 +1,7 @@
 // @vitest-environment node
+import { mkdtemp, readFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -562,5 +565,110 @@ describe("Jianying text style lab IPC", () => {
 		expect(resolveOwnership).toHaveBeenCalledWith({
 			references: [flowerEntry, filterEntry, unclassifiedEntry],
 		});
+	});
+
+	it("serves both catalogs from the disk snapshot on the next launch", async () => {
+		const workspace = await mkdtemp(join(tmpdir(), "text-lab-handler-"));
+		const cacheFilePath = join(workspace, "snapshot.json");
+		const context = createWindowContext();
+		const buildCatalog = vi.fn(async () => createCatalog());
+		const buildAnimationCatalog = vi.fn(async () => createAnimationCatalog());
+		const options = {
+			getMainWindow: () => context.mainWindow,
+			buildCatalog,
+			buildAnimationCatalog,
+			resolveMetadata: async () =>
+				new Map([
+					[STYLE_ID, { title: "黄色花字", categoryIds: ["yellow" as const] }],
+				]),
+			snapshotCacheFilePath: cacheFilePath,
+			computeSnapshotFingerprint: async () => "test-fingerprint",
+		};
+
+		const first = setupJianyingTextStyleLabIPC(options);
+		const firstListed = await getHandler({
+			channel: JIANYING_TEXT_STYLE_LAB_LIST_CHANNEL,
+		})(context.event);
+		expect(buildCatalog).toHaveBeenCalledTimes(1);
+		await vi.waitFor(async () => {
+			await readFile(cacheFilePath, "utf8");
+		});
+		first.dispose();
+		vi.clearAllMocks();
+
+		const second = setupJianyingTextStyleLabIPC(options);
+		const relisted = await getHandler({
+			channel: JIANYING_TEXT_STYLE_LAB_LIST_CHANNEL,
+		})(context.event);
+		const animations = await getHandler({
+			channel: JIANYING_TEXT_ANIMATION_LAB_LIST_CHANNEL,
+		})(context.event);
+		expect(relisted).toEqual(firstListed);
+		expect(animations).toEqual(createAnimationCatalog());
+		expect(buildCatalog).not.toHaveBeenCalled();
+		expect(buildAnimationCatalog).not.toHaveBeenCalled();
+
+		await getHandler({ channel: JIANYING_TEXT_STYLE_LAB_LIST_CHANNEL })(
+			context.event,
+			{ refresh: true }
+		);
+		expect(buildCatalog).toHaveBeenCalledTimes(1);
+		second.dispose();
+	});
+
+	it("rebuilds both snapshot halves when one catalog refreshes", async () => {
+		const workspace = await mkdtemp(join(tmpdir(), "text-lab-handler-"));
+		const cacheFilePath = join(workspace, "snapshot.json");
+		const context = createWindowContext();
+		const staleAnimations = createAnimationCatalog();
+		const rebuiltAnimations = {
+			...createAnimationCatalog(),
+			count: 2,
+			catalogCount: 2,
+		};
+		const buildAnimationCatalog = vi.fn(async () => staleAnimations);
+		const options = {
+			getMainWindow: () => context.mainWindow,
+			buildCatalog: vi.fn(async () => createCatalog()),
+			buildAnimationCatalog,
+			resolveMetadata: async () =>
+				new Map([
+					[STYLE_ID, { title: "黄色花字", categoryIds: ["yellow" as const] }],
+				]),
+			snapshotCacheFilePath: cacheFilePath,
+			computeSnapshotFingerprint: async () => "test-fingerprint",
+		};
+
+		// Seed the shared snapshot with both catalogs.
+		const first = setupJianyingTextStyleLabIPC(options);
+		await getHandler({ channel: JIANYING_TEXT_STYLE_LAB_LIST_CHANNEL })(
+			context.event
+		);
+		await getHandler({ channel: JIANYING_TEXT_ANIMATION_LAB_LIST_CHANNEL })(
+			context.event
+		);
+		await vi.waitFor(async () => {
+			await readFile(cacheFilePath, "utf8");
+		});
+		first.dispose();
+
+		// Next launch serves from the snapshot; the animation packages have
+		// since changed on disk. A styles-only refresh must not persist the
+		// snapshot-era animations under the new write.
+		buildAnimationCatalog.mockImplementation(async () => rebuiltAnimations);
+		const second = setupJianyingTextStyleLabIPC(options);
+		await getHandler({ channel: JIANYING_TEXT_ANIMATION_LAB_LIST_CHANNEL })(
+			context.event
+		);
+		await getHandler({ channel: JIANYING_TEXT_STYLE_LAB_LIST_CHANNEL })(
+			context.event,
+			{ refresh: true }
+		);
+		await vi.waitFor(async () => {
+			const persisted = JSON.parse(await readFile(cacheFilePath, "utf8"));
+			expect(persisted.animations.count).toBe(rebuiltAnimations.count);
+		});
+		expect(buildAnimationCatalog).toHaveBeenCalled();
+		second.dispose();
 	});
 });

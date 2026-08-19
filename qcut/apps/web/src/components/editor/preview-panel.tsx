@@ -56,7 +56,6 @@ import {
 	buildMcpMediaAppHtml,
 } from "./preview-panel/mcp-media-app";
 import { useEffectsRendering } from "./preview-panel/use-effects-rendering";
-import { buildRegionParametersByElementId } from "@/lib/effects/region-effects";
 import { EffectCompanionAudioPlayers } from "./effects/effect-companion-audio-players";
 import { usePreviewDrag } from "./preview-panel/use-preview-drag";
 import {
@@ -627,36 +626,7 @@ export function PreviewPanel() {
 		activeProject,
 	});
 
-	// Region effect segments (untargeted effect-track elements) cover the
-	// layers below them; resolve the coverage for the frame being previewed so
-	// the rendering hook can merge it into each covered element's look.
-	const regionParametersByElementId = useMemo(() => {
-		if (!EFFECTS_ENABLED) return undefined;
-		const effectiveTime = isPlaying ? playbackTime : currentTime;
-		const plan = buildCompositionPlan({
-			tracks: renderTracks,
-			currentTime: effectiveTime,
-			forceActiveElementIds: forcedActiveElementIds,
-			activeTransitionIds: activeTransitionPreview.activeTransitionIds,
-			getElementDuration: ({ element }) => getPreviewElementDuration(element),
-		});
-		if (plan.regionEffects.length === 0) return undefined;
-		return buildRegionParametersByElementId({
-			plan,
-			currentTime: effectiveTime,
-		});
-	}, [
-		isPlaying,
-		playbackTime,
-		currentTime,
-		renderTracks,
-		forcedActiveElementIds,
-		activeTransitionPreview.activeTransitionIds,
-	]);
-	const effectsRenderingByElementId = useEffectsRendering(
-		EFFECTS_ENABLED,
-		regionParametersByElementId
-	);
+	const effectsRenderingByElementId = useEffectsRendering(EFFECTS_ENABLED);
 
 	useEffect(() => {
 		const seekTime = lastSeekEventTimeRef.current;

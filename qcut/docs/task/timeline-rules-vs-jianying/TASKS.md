@@ -15,8 +15,13 @@ T5 阶段1 ✅（区间段作用于媒体层；CSS 参数类预设；标准/CLI/
 默认 byType；纯插入位实现——新浮层轨的落点跟随模式，既有轨永不重排；
 工具栏磁吸簇新增切换钮；未编辑过的 legacy 无 order 项目首读仍按类型
 排，编辑一次即固化显式 order，此后 byArrival 完整生效）。T7 未动
-（口味项）。**剩余清单**：T5 阶段2（浮层覆盖 + render-program/
-jianying-local 区间应用，需下层合成→离屏→回贴管线）；变速/倒放/定格
+（口味项）。**T5 阶段2 ✅（2026-08-19，timeline-v2 分支）**：区间段
+改为「标记层」随合成序生效——预览复用调节层的 fold（wrapper 组级
+CSS filter + EffectOverlayLayers 组级 overlay），导出复用调节层的快照
+回贴（applyCanvasRegionEffect）；文字/贴纸浮层被覆盖，真机以「段外
+文字清晰 / 段内被组级辉光冲淡」对照验证；阶段1 的 per-element 注入
+已拆除。jianying-local 本机特效的区间应用仍除外（需原生帧往返）。
+**剩余清单**：jianying-local 区间应用（原生帧往返管线）；变速/倒放/定格
 片段 resize 只钳制不磁吸（T1 v1 限制）；左缘磁吸 trim 未回剪映实测该
 手势（按 FCP 锚定惯例实现）。mouseup 落点判定的最终实现优先级（T2/T4 复审后确认）：
 指针在主轨 lane 内且磁吸开 → 换序提交；在其它 lane 内 → 既有跨轨

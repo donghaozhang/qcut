@@ -205,6 +205,64 @@ describe("Claude export trigger", () => {
 		);
 	});
 
+	it("grades color before the geometric transform in the segment chain", async () => {
+		const timeline = {
+			...testTimeline,
+			tracks: [
+				{
+					...testTimeline.tracks[0],
+					elements: [
+						{
+							...testTimeline.tracks[0].elements[0],
+							rotation: 30,
+							colorSettings: {
+								enabled: true,
+								filter: {
+									presetId: "jy-nostalgia",
+									presetVersion: 1,
+									intensity: 80,
+								},
+								basic: { enabled: true, brightness: 25 },
+							},
+						},
+					],
+				},
+			],
+		};
+		const [segment] = await collectExportSegments({
+			timeline,
+			mediaFiles: testMediaFiles,
+			projectId: "project_color",
+		});
+
+		expect(segment.color).toMatchObject({
+			filter: { presetId: "jy-nostalgia" },
+		});
+		const chain = buildExportSegmentScaleFilter({
+			segment,
+			settings: { width: 1920, height: 1080, fps: 30 },
+		});
+		const colorIndex = chain.indexOf("eq=brightness=");
+		const rotateIndex = chain.indexOf("rotate=");
+		expect(colorIndex).toBeGreaterThan(chain.indexOf("setsar=1"));
+		expect(rotateIndex).toBeGreaterThan(colorIndex);
+	});
+
+	it("keeps ungraded segments free of color stages", async () => {
+		const [segment] = await collectExportSegments({
+			timeline: testTimeline,
+			mediaFiles: testMediaFiles,
+			projectId: "project_no_color",
+		});
+		expect(segment.color).toBeUndefined();
+		expect(
+			buildExportSegmentScaleFilter({
+				segment,
+				settings: { width: 1920, height: 1080, fps: 30 },
+			})
+		).not.toContain("eq=");
+	});
+
 	it("omits media clips from hidden tracks", async () => {
 		const segments = await collectExportSegments({
 			timeline: {

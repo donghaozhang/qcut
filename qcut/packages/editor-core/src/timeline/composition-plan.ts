@@ -208,10 +208,10 @@ export function buildCompositionPlan({
 		}
 	}
 
-	// Effect tracks carry region segments, not drawable content.
-	const visualTracks = visibleTracks.filter(
-		(track) => track.type !== "audio" && track.type !== "effect"
-	);
+	// Effect tracks stay in the visual walk: their untargeted segments are
+	// marker layers, applied to the composite below them the way adjustment
+	// layers are (renderers branch on element.type === "effect").
+	const visualTracks = visibleTracks.filter((track) => track.type !== "audio");
 	for (
 		let reverseIndex = visualTracks.length - 1;
 		reverseIndex >= 0;

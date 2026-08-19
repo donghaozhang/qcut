@@ -101,10 +101,20 @@ export interface InteropVisualKeyframe {
 	foreignRef?: string;
 }
 
-/** Canvas-space visual state shared by foreign drafts and QCut. */
+/**
+ * Canvas-space visual state shared by foreign drafts and QCut. All values are
+ * already in QCut conventions: pixels from canvas center, degrees clockwise
+ * on screen, 1-based scale, 0..1 opacity — source-dialect conversions (e.g.
+ * JianYing's half-canvas units and counterclockwise rotation) happen in the
+ * profile mappers.
+ */
 export interface InteropMediaVisual {
 	xPx: number;
 	yPx: number;
+	rotationDegrees?: number;
+	scaleX?: number;
+	scaleY?: number;
+	opacity?: number;
 	keyframes?: Partial<
 		Record<InteropVisualKeyframeProperty, InteropVisualKeyframe[]>
 	>;
@@ -144,6 +154,29 @@ export type InteropSegmentKind =
 	| "transition"
 	| "unknown";
 
+/**
+ * Declares how a downgrade segment is approximated in QCut (L0). Admission
+ * into the import plan is declaration-gated: a downgrade segment without one
+ * stays skipped, so every approximation is explicit and evidence-backed.
+ */
+export interface InteropDowngradeDeclaration {
+	/** Machine-readable approximation kind, e.g. "filter-lut-recipe". */
+	approximation: string;
+	/** Pointer to the parity receipt backing the fidelity claim. */
+	fidelityEvidence: string;
+}
+
+/**
+ * A QCut fitted filter recipe a segment-attached foreign filter maps to (L6).
+ * Values are in QCut vocabulary; the source resource id stays in the foreign
+ * envelope. Intensity is the QCut 0-100 scale.
+ */
+export interface InteropFilterPreset {
+	presetId: string;
+	presetVersion: number;
+	intensity: number;
+}
+
 export interface InteropSegment {
 	id: string;
 	kind: InteropSegmentKind;
@@ -156,12 +189,28 @@ export interface InteropSegment {
 	speed?: number;
 	text?: InteropText;
 	visual?: InteropMediaVisual;
+	/** Present when a fitted recipe backs a filter downgrade admission (L6). */
+	filterPreset?: InteropFilterPreset;
 	capability: InteropCapability;
+	/** Required for downgrade admission into the media import plan. */
+	downgrade?: InteropDowngradeDeclaration;
 	/** Binding key into the foreign envelope's raw-node map (JYI-002). */
 	foreignRef?: string;
 }
 
 export type InteropTransitionType = "dissolve" | "unknown";
+
+/**
+ * A QCut transition preset a foreign transition maps to (L5). Values are in
+ * QCut vocabulary; the source resource id stays in the foreign envelope.
+ */
+export interface InteropTransitionPreset {
+	presetId: string;
+	clipType: string;
+	easing: string;
+	direction?: string;
+	intensity?: number;
+}
 
 /** A transition owned by the outgoing segment at one same-track seam. */
 export interface InteropTransition {
@@ -171,6 +220,10 @@ export interface InteropTransition {
 	toSegmentId: string;
 	durationUs: number;
 	capability: InteropCapability;
+	/** Present when a lab preset mapping backs a downgrade admission. */
+	preset?: InteropTransitionPreset;
+	/** Required for downgrade admission into the import plan. */
+	downgrade?: InteropDowngradeDeclaration;
 	foreignRef?: string;
 }
 
@@ -613,6 +666,20 @@ function parseSegment({
 		record.visual === undefined
 			? undefined
 			: parseMediaVisual({ value: record.visual, path: `${path}/visual` });
+	const downgrade =
+		record.downgrade === undefined
+			? undefined
+			: parseDowngradeDeclaration({
+					value: record.downgrade,
+					path: `${path}/downgrade`,
+				});
+	const filterPreset =
+		record.filterPreset === undefined
+			? undefined
+			: parseFilterPreset({
+					value: record.filterPreset,
+					path: `${path}/filterPreset`,
+				});
 	return {
 		id: asString({ value: record.id, path: `${path}/id` }),
 		kind: asEnum({
@@ -640,11 +707,54 @@ function parseSegment({
 		...(speed === undefined ? {} : { speed }),
 		...(text === undefined ? {} : { text }),
 		...(visual === undefined ? {} : { visual }),
+		...(filterPreset === undefined ? {} : { filterPreset }),
 		capability: asCapability({
 			value: record.capability,
 			path: `${path}/capability`,
 		}),
+		...(downgrade === undefined ? {} : { downgrade }),
 		...(foreignRef === undefined ? {} : { foreignRef }),
+	};
+}
+
+function parseFilterPreset({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropFilterPreset {
+	const record = asRecord({ value, path });
+	return {
+		presetId: asString({ value: record.presetId, path: `${path}/presetId` }),
+		presetVersion: asPositiveFinite({
+			value: record.presetVersion,
+			path: `${path}/presetVersion`,
+		}),
+		intensity: asFiniteNumber({
+			value: record.intensity,
+			path: `${path}/intensity`,
+		}),
+	};
+}
+
+function parseDowngradeDeclaration({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropDowngradeDeclaration {
+	const record = asRecord({ value, path });
+	return {
+		approximation: asString({
+			value: record.approximation,
+			path: `${path}/approximation`,
+		}),
+		fidelityEvidence: asString({
+			value: record.fidelityEvidence,
+			path: `${path}/fidelityEvidence`,
+		}),
 	};
 }
 
@@ -717,9 +827,32 @@ function parseMediaVisual({
 	};
 	const x = parseProperty({ property: "x" });
 	const y = parseProperty({ property: "y" });
+	const rotationDegrees =
+		record.rotationDegrees === undefined
+			? undefined
+			: asFiniteNumber({
+					value: record.rotationDegrees,
+					path: `${path}/rotationDegrees`,
+				});
+	const scaleX =
+		record.scaleX === undefined
+			? undefined
+			: asPositiveFinite({ value: record.scaleX, path: `${path}/scaleX` });
+	const scaleY =
+		record.scaleY === undefined
+			? undefined
+			: asPositiveFinite({ value: record.scaleY, path: `${path}/scaleY` });
+	const opacity =
+		record.opacity === undefined
+			? undefined
+			: asUnitInterval({ value: record.opacity, path: `${path}/opacity` });
 	return {
 		xPx: asFiniteNumber({ value: record.xPx, path: `${path}/xPx` }),
 		yPx: asFiniteNumber({ value: record.yPx, path: `${path}/yPx` }),
+		...(rotationDegrees === undefined ? {} : { rotationDegrees }),
+		...(scaleX === undefined ? {} : { scaleX }),
+		...(scaleY === undefined ? {} : { scaleY }),
+		...(opacity === undefined ? {} : { opacity }),
 		...(keyframesRecord === undefined
 			? {}
 			: {
@@ -901,6 +1034,34 @@ function parseText({
 	};
 }
 
+function parseTransitionPreset({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropTransitionPreset {
+	const record = asRecord({ value, path });
+	const direction = asOptionalString({
+		value: record.direction,
+		path: `${path}/direction`,
+	});
+	const intensity =
+		record.intensity === undefined
+			? undefined
+			: asUnitInterval({
+					value: record.intensity,
+					path: `${path}/intensity`,
+				});
+	return {
+		presetId: asString({ value: record.presetId, path: `${path}/presetId` }),
+		clipType: asString({ value: record.clipType, path: `${path}/clipType` }),
+		easing: asString({ value: record.easing, path: `${path}/easing` }),
+		...(direction === undefined ? {} : { direction }),
+		...(intensity === undefined ? {} : { intensity }),
+	};
+}
+
 function parseTransition({
 	value,
 	path,
@@ -913,6 +1074,17 @@ function parseTransition({
 		value: record.foreignRef,
 		path: `${path}/foreignRef`,
 	});
+	const preset =
+		record.preset === undefined
+			? undefined
+			: parseTransitionPreset({ value: record.preset, path: `${path}/preset` });
+	const downgrade =
+		record.downgrade === undefined
+			? undefined
+			: parseDowngradeDeclaration({
+					value: record.downgrade,
+					path: `${path}/downgrade`,
+				});
 	return {
 		id: asString({ value: record.id, path: `${path}/id` }),
 		type: asEnum({
@@ -936,6 +1108,8 @@ function parseTransition({
 			value: record.capability,
 			path: `${path}/capability`,
 		}),
+		...(preset === undefined ? {} : { preset }),
+		...(downgrade === undefined ? {} : { downgrade }),
 		...(foreignRef === undefined ? {} : { foreignRef }),
 	};
 }

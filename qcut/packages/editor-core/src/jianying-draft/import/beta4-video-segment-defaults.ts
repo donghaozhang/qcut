@@ -104,40 +104,85 @@ const MATERIAL_COLOR_KEYS = new Set([
 	"width",
 ]);
 
-function isVerifiedClip({
+/**
+ * The verified static clip-transform subset (L2 relaxation). In JianYing's
+ * own conventions: alpha 0..1, rotation degrees (UI-positive renders
+ * counterclockwise on screen), 1-based uniform scale, transform in
+ * half-canvas units.
+ */
+export interface Beta4ClipTransform {
+	alpha: number;
+	rotationDegrees: number;
+	scaleX: number;
+	scaleY: number;
+	transformX: number;
+	transformY: number;
+}
+
+/**
+ * Reads a segment's clip transform when it sits inside the verified subset,
+ * or null when anything is out of it (malformed shape, flips, non-uniform
+ * scale, keyframe/static position mismatch). Uniform scale only: the UI's
+ * 缩放 keeps scale.x === scale.y with uniform_scale mirroring the value;
+ * 变形-driven non-uniform state stays opaque until separately verified.
+ */
+export function readBeta4ClipTransform({
 	positionKeyframes,
+	uniformScale,
 	value,
 }: {
 	positionKeyframes: Beta4PositionKeyframeResult;
+	uniformScale: unknown;
 	value: unknown;
-}): boolean {
-	if (!isRawRecord(value)) return false;
+}): Beta4ClipTransform | null {
+	if (!isRawRecord(value)) return null;
 	const flip = isRawRecord(value.flip) ? value.flip : undefined;
 	const scale = isRawRecord(value.scale) ? value.scale : undefined;
 	const transform = isRawRecord(value.transform) ? value.transform : undefined;
-	return (
+	const uniform = isRawRecord(uniformScale) ? uniformScale : undefined;
+	const isVerified =
 		hasExactKeys({ value, keys: CLIP_KEYS }) &&
-		value.alpha === 1 &&
-		value.rotation === 0 &&
+		typeof value.alpha === "number" &&
+		Number.isFinite(value.alpha) &&
+		value.alpha > 0 &&
+		value.alpha <= 1 &&
+		typeof value.rotation === "number" &&
+		Number.isFinite(value.rotation) &&
 		flip !== undefined &&
 		hasExactKeys({ value: flip, keys: FLIP_KEYS }) &&
 		flip.horizontal === false &&
 		flip.vertical === false &&
 		scale !== undefined &&
 		hasExactKeys({ value: scale, keys: VECTOR_KEYS }) &&
-		scale.x === 1 &&
-		scale.y === 1 &&
+		typeof scale.x === "number" &&
+		Number.isFinite(scale.x) &&
+		scale.x > 0 &&
+		scale.y === scale.x &&
+		uniform !== undefined &&
+		hasExactKeys({ value: uniform, keys: UNIFORM_SCALE_KEYS }) &&
+		uniform.on === true &&
+		uniform.value === scale.x &&
 		transform !== undefined &&
 		hasExactKeys({ value: transform, keys: VECTOR_KEYS }) &&
-		transform.x ===
-			(positionKeyframes.kind === "mapped"
-				? positionKeyframes.finalNormalizedX
-				: 0) &&
-		transform.y ===
-			(positionKeyframes.kind === "mapped"
-				? positionKeyframes.finalNormalizedY
-				: 0)
-	);
+		typeof transform.x === "number" &&
+		Number.isFinite(transform.x) &&
+		typeof transform.y === "number" &&
+		Number.isFinite(transform.y) &&
+		// A mapped keyframe channel owns the position: the static transform
+		// must agree with the channel's final values (the app keeps them in
+		// sync). Without keyframes any static position is fine.
+		(positionKeyframes.kind !== "mapped" ||
+			(transform.x === positionKeyframes.finalNormalizedX &&
+				transform.y === positionKeyframes.finalNormalizedY));
+	if (!isVerified) return null;
+	return {
+		alpha: value.alpha as number,
+		rotationDegrees: value.rotation as number,
+		scaleX: (scale as { x: number }).x,
+		scaleY: (scale as { x: number }).x,
+		transformX: (transform as { x: number }).x,
+		transformY: (transform as { y: number }).y,
+	};
 }
 
 function isDefaultCanvas({
@@ -210,14 +255,15 @@ export function hasVerifiedBeta4VideoSegmentDefaults({
 	const responsive = isRawRecord(raw.responsive_layout)
 		? raw.responsive_layout
 		: undefined;
-	const uniformScale = isRawRecord(raw.uniform_scale)
-		? raw.uniform_scale
-		: undefined;
 	return (
 		hasExactKeys({ value: raw, keys: VERIFIED_SEGMENT_KEYS }) &&
 		raw.caption_info === null &&
 		raw.cartoon === false &&
-		isVerifiedClip({ value: raw.clip, positionKeyframes }) &&
+		readBeta4ClipTransform({
+			positionKeyframes,
+			uniformScale: raw.uniform_scale,
+			value: raw.clip,
+		}) !== null &&
 		isEmptyString({ value: raw.color_correct_alg_result }) &&
 		(positionKeyframes.kind === "mapped" ||
 			isMissingOrEmptyArray({ value: raw.common_keyframes })) &&
@@ -264,7 +310,9 @@ export function hasVerifiedBeta4VideoSegmentDefaults({
 		raw.reverse === false &&
 		isEmptyString({ value: raw.segment_color_tag }) &&
 		raw.source === "segmentsourcenormal" &&
-		raw.speed === 1 &&
+		typeof raw.speed === "number" &&
+		Number.isFinite(raw.speed) &&
+		raw.speed > 0 &&
 		raw.state === 0 &&
 		hasExactRangeShape({ value: raw.source_timerange }) &&
 		hasExactRangeShape({ value: raw.target_timerange }) &&
@@ -272,10 +320,6 @@ export function hasVerifiedBeta4VideoSegmentDefaults({
 		raw.template_scene === "default" &&
 		raw.track_attribute === 0 &&
 		raw.track_render_index === trackIndex &&
-		uniformScale !== undefined &&
-		hasExactKeys({ value: uniformScale, keys: UNIFORM_SCALE_KEYS }) &&
-		uniformScale.on === true &&
-		uniformScale.value === 1 &&
 		raw.visible === true &&
 		raw.volume === 1
 	);

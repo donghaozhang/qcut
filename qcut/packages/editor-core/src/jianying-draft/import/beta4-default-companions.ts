@@ -107,6 +107,21 @@ export function isDefaultSpeed({
 }: {
 	value: Record<string, unknown>;
 }): boolean {
+	return isConstantRateSpeed({ value, expectedSpeed: 1 });
+}
+
+/**
+ * The constant-rate speed companion subset (L3): mode 0 with no curve, and
+ * the companion's scalar matching the segment's own speed field. Curve
+ * speeds (mode ≠ 0 / curve_speed set) stay opaque.
+ */
+export function isConstantRateSpeed({
+	expectedSpeed,
+	value,
+}: {
+	expectedSpeed: number;
+	value: Record<string, unknown>;
+}): boolean {
 	return (
 		hasExactKeys({ value, keys: SPEED_KEYS }) &&
 		typeof value.id === "string" &&
@@ -114,7 +129,7 @@ export function isDefaultSpeed({
 		value.type === "speed" &&
 		value.curve_speed === null &&
 		value.mode === 0 &&
-		value.speed === 1
+		value.speed === expectedSpeed
 	);
 }
 
@@ -147,10 +162,17 @@ export function hasVerifiedBeta4DefaultCompanions({
 	validators: Readonly<Record<string, Beta4CompanionValidator>>;
 }): boolean {
 	const expectedBuckets = Object.keys(validators);
-	if (segment.extraMaterialRefs.length !== expectedBuckets.length) return false;
+	// Transition refs are seam ownership (L5) and filter refs are looks the
+	// filter mapper rules on separately (L6) — neither is a processing
+	// companion. Everything else must be a known, default-valued companion.
+	const companionRefs = segment.extraMaterialRefs.filter((ref) => {
+		const bucket = graph.materialsById.get(ref)?.bucket;
+		return bucket !== "transitions" && bucket !== "filters";
+	});
+	if (companionRefs.length !== expectedBuckets.length) return false;
 
 	const observedBuckets = new Set<string>();
-	for (const ref of segment.extraMaterialRefs) {
+	for (const ref of companionRefs) {
 		const companion = graph.materialsById.get(ref);
 		if (companion === undefined || observedBuckets.has(companion.bucket)) {
 			return false;

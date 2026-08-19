@@ -14,6 +14,8 @@ import { resolveAnimatedTextElement } from "@/lib/text/text-element-animation";
 import { getTimelineElementEndTime } from "@/lib/timeline";
 import { getMediaSourcePlaybackTime } from "@/lib/video/video-timing";
 import { canvasFontFamily } from "@/lib/text/canvas-font";
+import { resolveMediaKeyframes } from "@/lib/video/video-properties";
+import { drawWithMediaTransform } from "./export-engine-utils";
 
 // Frame cache entry
 interface CachedFrame {
@@ -288,7 +290,7 @@ export class OptimizedExportEngine extends ExportEngine {
 
 		// Batch render images
 		if (imageBatch.length > 0) {
-			await this.renderImageBatch(imageBatch, renderCtx);
+			await this.renderImageBatch(imageBatch, renderCtx, currentTime);
 		}
 
 		// Batch render text
@@ -358,10 +360,20 @@ export class OptimizedExportEngine extends ExportEngine {
 		return allElements;
 	}
 
+	/** Resolves the element's visual transform for preview-parity drawing. */
+	private resolveMediaVisual(element: TimelineElement, currentTime: number) {
+		return resolveMediaKeyframes({
+			element: element as MediaElement,
+			currentTime,
+			fps: this.getFrameRate(),
+		});
+	}
+
 	// Batch render images for better performance
 	private async renderImageBatch(
 		imageBatch: Array<{ element: TimelineElement; mediaItem: MediaItem }>,
-		ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
+		ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+		currentTime: number
 	): Promise<void> {
 		for (const { element, mediaItem } of imageBatch) {
 			const preloadedImg = this.preloadedImages.get(mediaItem.id);
@@ -371,16 +383,22 @@ export class OptimizedExportEngine extends ExportEngine {
 					preloadedImg.width,
 					preloadedImg.height
 				);
-				ctx.drawImage(
-					preloadedImg,
-					bounds.x,
-					bounds.y,
-					bounds.width,
-					bounds.height
-				);
+				await drawWithMediaTransform({
+					ctx,
+					visual: this.resolveMediaVisual(element, currentTime),
+					bounds,
+					draw: () =>
+						ctx.drawImage(
+							preloadedImg,
+							bounds.x,
+							bounds.y,
+							bounds.width,
+							bounds.height
+						),
+				});
 			} else {
 				// Fallback to regular loading
-				await this.renderImageElement(element, mediaItem, ctx);
+				await this.renderImageElement(element, mediaItem, ctx, currentTime);
 			}
 		}
 	}
@@ -439,7 +457,8 @@ export class OptimizedExportEngine extends ExportEngine {
 	private async renderImageElement(
 		element: TimelineElement,
 		mediaItem: MediaItem,
-		ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
+		ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D,
+		currentTime: number
 	): Promise<void> {
 		if (!mediaItem.url) return;
 
@@ -447,14 +466,26 @@ export class OptimizedExportEngine extends ExportEngine {
 			const img = new Image();
 			img.crossOrigin = "anonymous";
 
-			img.onload = () => {
+			img.onload = async () => {
 				try {
 					const bounds = this.calculateElementBounds(
 						element,
 						img.width,
 						img.height
 					);
-					ctx.drawImage(img, bounds.x, bounds.y, bounds.width, bounds.height);
+					await drawWithMediaTransform({
+						ctx,
+						visual: this.resolveMediaVisual(element, currentTime),
+						bounds,
+						draw: () =>
+							ctx.drawImage(
+								img,
+								bounds.x,
+								bounds.y,
+								bounds.width,
+								bounds.height
+							),
+					});
 					resolve();
 				} catch (error) {
 					reject(error);
@@ -529,8 +560,16 @@ export class OptimizedExportEngine extends ExportEngine {
 				video.videoHeight
 			);
 
-			// Draw video frame to canvas
-			ctx.drawImage(video, x, y, width, height);
+			// Draw video frame to canvas under the element's visual transform
+			await drawWithMediaTransform({
+				ctx,
+				visual: this.resolveMediaVisual(
+					element,
+					element.startTime + timeOffset
+				),
+				bounds: { x, y, width, height },
+				draw: () => ctx.drawImage(video, x, y, width, height),
+			});
 
 			// Clean up
 			video.remove();

@@ -1088,6 +1088,10 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 				() => {
 					jianyingTextStyleLabController = setupJianyingTextStyleLabIPC({
 						getMainWindow: () => mainWindow,
+						snapshotCacheFilePath: path.join(
+							app.getPath("userData"),
+							"jianying-text-lab-catalog-cache.json"
+						),
 					});
 				},
 			],

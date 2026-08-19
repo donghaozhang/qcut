@@ -30,6 +30,13 @@ import {
 	type JianyingTextPackageOwnership,
 } from "./jianying-text-package-ownership.js";
 import { isDiscoverableJianyingTextCatalogEntry } from "./jianying-text-style-discovery.js";
+import {
+	computeJianyingTextLabFingerprint,
+	JIANYING_TEXT_LAB_SNAPSHOT_SCHEMA_VERSION,
+	readJianyingTextLabSnapshot,
+	writeJianyingTextLabSnapshot,
+	type JianyingTextLabSnapshot,
+} from "./jianying-text-lab-snapshot-cache.js";
 
 interface TextStyleLabCatalog {
 	catalog: JianyingTextStyleCatalog;
@@ -60,6 +67,9 @@ export interface SetupJianyingTextStyleLabIPCOptions {
 	}: {
 		entry: JianyingTextStyleCatalogEntry;
 	}) => Promise<Buffer>;
+	/** Enables the on-disk catalog snapshot when set; tests leave it unset. */
+	snapshotCacheFilePath?: string;
+	computeSnapshotFingerprint?: () => Promise<string>;
 }
 
 function assertTrustedMainFrame({
@@ -203,43 +213,135 @@ export function setupJianyingTextStyleLabIPC({
 	resolveOwnership = ({ references }) =>
 		resolveJianyingTextPackageOwnership({ references }),
 	readCover = readJianyingTextStyleCover,
+	snapshotCacheFilePath,
+	computeSnapshotFingerprint = computeJianyingTextLabFingerprint,
 }: SetupJianyingTextStyleLabIPCOptions): JianyingTextStyleLabIPCController {
 	let catalogPromise: Promise<TextStyleLabCatalog> | null = null;
 	let animationCatalogPromise: Promise<JianyingTextAnimationLabListResult> | null =
 		null;
-	const readCatalog = ({ refresh }: { refresh: boolean }) => {
-		if (!catalogPromise || refresh) {
-			catalogPromise = buildCatalog().then(async (catalog) => {
-				const metadata = await resolveMetadata({ references: catalog.entries });
-				const ownershipCandidates = catalog.entries.filter(
-					({ packageKind, styleId }) =>
-						!metadata.has(styleId) &&
-						(packageKind === "AmazingFeature" || packageKind === "InfoSticker")
-				);
-				const ownership = await resolveOwnership({
-					references: ownershipCandidates,
-				});
-				return {
-					catalog: {
-						...catalog,
-						entries: catalog.entries.filter((entry) =>
-							isDiscoverableJianyingTextCatalogEntry({
-								entry,
-								metadata,
-								ownership,
-							})
-						),
+	let snapshotPromise: Promise<JianyingTextLabSnapshot | null> | null = null;
+	let snapshotWriteQueued = false;
+	const loadSnapshot = () => {
+		if (!snapshotCacheFilePath) return Promise.resolve(null);
+		if (!snapshotPromise) {
+			snapshotPromise = computeSnapshotFingerprint()
+				.then((fingerprint) =>
+					readJianyingTextLabSnapshot({
+						cacheFilePath: snapshotCacheFilePath,
+						fingerprint,
+					})
+				)
+				.catch(() => null);
+		}
+		return snapshotPromise;
+	};
+	const queueSnapshotWrite = () => {
+		if (!snapshotCacheFilePath || snapshotWriteQueued) return;
+		snapshotWriteQueued = true;
+		void (async () => {
+			const [styles, animations] = await Promise.all([
+				readCatalog({ refresh: false }),
+				readAnimationCatalog({ refresh: false }),
+			]);
+			const fingerprint = await computeSnapshotFingerprint();
+			await writeJianyingTextLabSnapshot({
+				cacheFilePath: snapshotCacheFilePath,
+				snapshot: {
+					schemaVersion: JIANYING_TEXT_LAB_SNAPSHOT_SCHEMA_VERSION,
+					fingerprint,
+					styles: {
+						catalog: styles.catalog,
+						metadataEntries: [...styles.metadata],
+						ownershipEntries: [...styles.ownership],
 					},
-					metadata,
-					ownership,
-				};
+					animations,
+				},
 			});
+		})()
+			.catch(() => {})
+			.finally(() => {
+				snapshotWriteQueued = false;
+			});
+	};
+	const buildResolvedCatalog = () =>
+		buildCatalog().then(async (catalog) => {
+			const metadata = await resolveMetadata({ references: catalog.entries });
+			const ownershipCandidates = catalog.entries.filter(
+				({ packageKind, styleId }) =>
+					!metadata.has(styleId) &&
+					(packageKind === "AmazingFeature" || packageKind === "InfoSticker")
+			);
+			const ownership = await resolveOwnership({
+				references: ownershipCandidates,
+			});
+			return {
+				catalog: {
+					...catalog,
+					entries: catalog.entries.filter((entry) =>
+						isDiscoverableJianyingTextCatalogEntry({
+							entry,
+							metadata,
+							ownership,
+						})
+					),
+				},
+				metadata,
+				ownership,
+			};
+		});
+	const readCatalog = ({
+		refresh,
+	}: {
+		refresh: boolean;
+	}): Promise<TextStyleLabCatalog> => {
+		if (!catalogPromise || refresh) {
+			if (refresh) {
+				// The snapshot is shared between both catalogs under one
+				// fingerprint. A refresh must invalidate the other half too,
+				// or the queued write would combine rebuilt styles with
+				// animations loaded under an older fingerprint and persist
+				// that stale half as current.
+				snapshotPromise = Promise.resolve(null);
+				animationCatalogPromise = null;
+			}
+			catalogPromise = (async () => {
+				if (!refresh) {
+					const snapshot = await loadSnapshot();
+					if (snapshot) {
+						return {
+							catalog: snapshot.styles.catalog,
+							metadata: new Map(snapshot.styles.metadataEntries),
+							ownership: new Map(snapshot.styles.ownershipEntries),
+						};
+					}
+				}
+				const built = await buildResolvedCatalog();
+				queueSnapshotWrite();
+				return built;
+			})();
 		}
 		return catalogPromise;
 	};
-	const readAnimationCatalog = ({ refresh }: { refresh: boolean }) => {
+	const readAnimationCatalog = ({
+		refresh,
+	}: {
+		refresh: boolean;
+	}): Promise<JianyingTextAnimationLabListResult> => {
 		if (!animationCatalogPromise || refresh) {
-			animationCatalogPromise = buildAnimationCatalog();
+			if (refresh) {
+				// Mirror of readCatalog: keep both snapshot halves coherent.
+				snapshotPromise = Promise.resolve(null);
+				catalogPromise = null;
+			}
+			animationCatalogPromise = (async () => {
+				if (!refresh) {
+					const snapshot = await loadSnapshot();
+					if (snapshot) return snapshot.animations;
+				}
+				const built = await buildAnimationCatalog();
+				queueSnapshotWrite();
+				return built;
+			})();
 		}
 		return animationCatalogPromise;
 	};
@@ -304,6 +406,7 @@ export function setupJianyingTextStyleLabIPC({
 		dispose: () => {
 			catalogPromise = null;
 			animationCatalogPromise = null;
+			snapshotPromise = null;
 			ipcMain.removeHandler(JIANYING_TEXT_STYLE_LAB_LIST_CHANNEL);
 			ipcMain.removeHandler(JIANYING_TEXT_STYLE_LAB_COVER_CHANNEL);
 			ipcMain.removeHandler(JIANYING_TEXT_ANIMATION_LAB_LIST_CHANNEL);

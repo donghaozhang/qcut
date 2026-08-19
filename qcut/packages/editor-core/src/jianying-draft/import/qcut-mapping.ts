@@ -30,6 +30,14 @@ export interface QCutImportPlanMediaKeyframe {
 	easing: "linear";
 }
 
+/** A fitted filter recipe applied to a media element (L6). */
+export interface QCutImportPlanMediaFilter {
+	presetId: string;
+	presetVersion: number;
+	/** QCut 0-100 intensity scale. */
+	intensity: number;
+}
+
 export interface QCutImportPlanMediaElement {
 	/** Deterministic: reuses the semantic segment id. */
 	id: string;
@@ -46,7 +54,13 @@ export interface QCutImportPlanMediaElement {
 	speed?: number;
 	x?: number;
 	y?: number;
+	/** Degrees, QCut screen-clockwise convention (dialect sign already applied). */
+	rotation?: number;
+	scaleX?: number;
+	scaleY?: number;
+	opacity?: number;
 	keyframes?: Partial<Record<"x" | "y", QCutImportPlanMediaKeyframe[]>>;
+	filter?: QCutImportPlanMediaFilter;
 	sourceSegmentId: string;
 }
 
@@ -95,10 +109,12 @@ export interface QCutImportPlanTransition {
 	id: string;
 	fromElementId: string;
 	toElementId: string;
-	presetId: "dissolve";
-	type: "dissolve";
+	presetId: string;
+	type: string;
 	duration: number;
-	easing: "easeInOut";
+	easing: string;
+	direction?: string;
+	tuning?: { intensity?: number };
 }
 
 export interface QCutImportPlanTrack {
@@ -119,6 +135,18 @@ export interface QCutImportSkippedNode {
 	reason: string;
 }
 
+/**
+ * A downgrade segment admitted into the plan (L0). The commit gate (JYI-001)
+ * requires these warnings to be explicitly accepted before execution, so the
+ * plan lists every admission with its declared approximation and evidence.
+ */
+export interface QCutImportPlanDowngrade {
+	nodeId: string;
+	nodeType: "segment" | "transition";
+	approximation: string;
+	fidelityEvidence: string;
+}
+
 export interface QCutImportTimelinePlanV1 {
 	schemaVersion: 1;
 	project: {
@@ -132,6 +160,8 @@ export interface QCutImportTimelinePlanV1 {
 	/** Interop resource ids the plan actually references. */
 	resourceIds: string[];
 	skipped: QCutImportSkippedNode[];
+	/** Present only when downgrade segments were admitted. */
+	downgrades?: QCutImportPlanDowngrade[];
 }
 
 const IMPORTABLE_SEGMENT_KINDS = new Set(["video", "image", "audio"]);
@@ -145,11 +175,13 @@ function mapMediaSegment({
 	segment,
 	resourcesById,
 	skipped,
+	downgrades,
 }: {
 	fps: number;
 	segment: InteropSegment;
 	resourcesById: Map<string, InteropResource>;
 	skipped: QCutImportSkippedNode[];
+	downgrades: QCutImportPlanDowngrade[];
 }): QCutImportPlanMediaElement | null {
 	if (!IMPORTABLE_SEGMENT_KINDS.has(segment.kind)) {
 		skipped.push({
@@ -160,12 +192,19 @@ function mapMediaSegment({
 		});
 		return null;
 	}
-	if (segment.capability !== "exact") {
+	// Admission (L0): exact crosses as-is; downgrade crosses only with an
+	// explicit approximation declaration; opaque and blocked never cross.
+	const downgradeDeclaration =
+		segment.capability === "downgrade" ? segment.downgrade : undefined;
+	if (segment.capability !== "exact" && downgradeDeclaration === undefined) {
 		skipped.push({
 			nodeId: segment.id,
 			nodeType: "segment",
 			capability: segment.capability,
-			reason: `capability "${segment.capability}" is below the import bar`,
+			reason:
+				segment.capability === "downgrade"
+					? "downgrade segment carries no approximation declaration"
+					: `capability "${segment.capability}" is below the import bar`,
 		});
 		return null;
 	}
@@ -223,6 +262,16 @@ function mapMediaSegment({
 		}));
 	const xKeyframes = toPlanKeyframes({ property: "x" });
 	const yKeyframes = toPlanKeyframes({ property: "y" });
+	// Record the admission only for a segment that actually made the plan —
+	// later guards above return null without touching `downgrades`.
+	if (downgradeDeclaration !== undefined) {
+		downgrades.push({
+			nodeId: segment.id,
+			nodeType: "segment",
+			approximation: downgradeDeclaration.approximation,
+			fidelityEvidence: downgradeDeclaration.fidelityEvidence,
+		});
+	}
 	return {
 		id: segment.id,
 		type: "media",
@@ -238,6 +287,18 @@ function mapMediaSegment({
 		...(segment.visual === undefined
 			? {}
 			: { x: segment.visual.xPx, y: segment.visual.yPx }),
+		...(segment.visual?.rotationDegrees === undefined
+			? {}
+			: { rotation: segment.visual.rotationDegrees }),
+		...(segment.visual?.scaleX === undefined
+			? {}
+			: { scaleX: segment.visual.scaleX }),
+		...(segment.visual?.scaleY === undefined
+			? {}
+			: { scaleY: segment.visual.scaleY }),
+		...(segment.visual?.opacity === undefined
+			? {}
+			: { opacity: segment.visual.opacity }),
 		...(visualKeyframes === undefined
 			? {}
 			: {
@@ -246,6 +307,9 @@ function mapMediaSegment({
 						...(yKeyframes === undefined ? {} : { y: yKeyframes }),
 					},
 				}),
+		...(segment.filterPreset === undefined
+			? {}
+			: { filter: { ...segment.filterPreset } }),
 		sourceSegmentId: segment.id,
 	};
 }
@@ -327,17 +391,33 @@ function mapTransition({
 	transition,
 	importedElementIds,
 	skipped,
+	downgrades,
 }: {
 	transition: InteropTransition;
 	importedElementIds: ReadonlySet<string>;
 	skipped: QCutImportSkippedNode[];
+	downgrades: QCutImportPlanDowngrade[];
 }): QCutImportPlanTransition | null {
-	if (transition.capability !== "exact" || transition.type !== "dissolve") {
+	// Admission (L5): the exact native dissolve crosses as-is; a catalogued
+	// preset mapping crosses as a declared downgrade; everything else stays
+	// skipped.
+	const isExactDissolve =
+		transition.capability === "exact" && transition.type === "dissolve";
+	const presetDowngrade =
+		transition.capability === "downgrade" &&
+		transition.preset !== undefined &&
+		transition.downgrade !== undefined
+			? { preset: transition.preset, declaration: transition.downgrade }
+			: undefined;
+	if (!isExactDissolve && presetDowngrade === undefined) {
 		skipped.push({
 			nodeId: transition.id,
 			nodeType: "transition",
 			capability: transition.capability,
-			reason: "transition is not an exact native dissolve",
+			reason:
+				transition.capability === "downgrade"
+					? "transition downgrade carries no preset mapping"
+					: "transition is not an exact native dissolve",
 		});
 		return null;
 	}
@@ -352,6 +432,30 @@ function mapTransition({
 			reason: "transition endpoint is not imported on this track",
 		});
 		return null;
+	}
+	if (presetDowngrade !== undefined) {
+		downgrades.push({
+			nodeId: transition.id,
+			nodeType: "transition",
+			approximation: presetDowngrade.declaration.approximation,
+			fidelityEvidence: presetDowngrade.declaration.fidelityEvidence,
+		});
+		const { preset } = presetDowngrade;
+		return {
+			id: transition.id,
+			fromElementId: transition.fromSegmentId,
+			toElementId: transition.toSegmentId,
+			presetId: preset.presetId,
+			type: preset.clipType,
+			duration: usToSeconds(transition.durationUs),
+			easing: preset.easing,
+			...(preset.direction === undefined
+				? {}
+				: { direction: preset.direction }),
+			...(preset.intensity === undefined
+				? {}
+				: { tuning: { intensity: preset.intensity } }),
+		};
 	}
 	return {
 		id: transition.id,
@@ -369,11 +473,13 @@ function mapTrack({
 	track,
 	resourcesById,
 	skipped,
+	downgrades,
 }: {
 	fps: number;
 	track: InteropTrack;
 	resourcesById: Map<string, InteropResource>;
 	skipped: QCutImportSkippedNode[];
+	downgrades: QCutImportPlanDowngrade[];
 }): QCutImportPlanTrack | null {
 	const type: QCutImportPlanTrackType | null =
 		track.kind === "video"
@@ -406,7 +512,7 @@ function mapTrack({
 		const element =
 			type === "text"
 				? mapTextSegment({ segment, skipped })
-				: mapMediaSegment({ fps, segment, resourcesById, skipped });
+				: mapMediaSegment({ fps, segment, resourcesById, skipped, downgrades });
 		if (element !== null) {
 			elements.push(element);
 		}
@@ -430,7 +536,12 @@ function mapTrack({
 		type === "media"
 			? (track.transitions ?? [])
 					.map((transition) =>
-						mapTransition({ transition, importedElementIds, skipped })
+						mapTransition({
+							transition,
+							importedElementIds,
+							skipped,
+							downgrades,
+						})
 					)
 					.filter(
 						(transition): transition is QCutImportPlanTransition =>
@@ -473,6 +584,7 @@ export function mapInteropDocumentToQCutPlan({
 		document.resources.map((resource) => [resource.id, resource])
 	);
 	const skipped: QCutImportSkippedNode[] = [];
+	const downgrades: QCutImportPlanDowngrade[] = [];
 	const tracks: QCutImportPlanTrack[] = [];
 	for (const track of root?.tracks ?? []) {
 		const mapped = mapTrack({
@@ -480,6 +592,7 @@ export function mapInteropDocumentToQCutPlan({
 			track,
 			resourcesById,
 			skipped,
+			downgrades,
 		});
 		if (mapped !== null) {
 			tracks.push(mapped);
@@ -511,5 +624,6 @@ export function mapInteropDocumentToQCutPlan({
 		tracks,
 		resourceIds,
 		skipped,
+		...(downgrades.length === 0 ? {} : { downgrades }),
 	};
 }

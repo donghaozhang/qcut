@@ -36,7 +36,7 @@ export type Beta4PositionKeyframeResult =
 	| {
 			kind: "mapped";
 			finalNormalizedX: number;
-			finalNormalizedY: 0;
+			finalNormalizedY: number;
 			visual: InteropMediaVisual;
 	  };
 
@@ -111,12 +111,18 @@ function parseChannel({
 	};
 }
 
-/** Maps only the real beta4 two-channel linear X-position shape. */
+/**
+ * Maps the real beta4 two-channel linear position shape. Both axes may
+ * animate (L4 two-axis relaxation); the channel pair, Line curves, and
+ * frame-aligned integer times stay mandatory.
+ */
 export function mapBeta4PositionKeyframes({
+	canvasHeight,
 	canvasWidth,
 	fps,
 	segment,
 }: {
+	canvasHeight: number;
 	canvasWidth: number;
 	fps: number;
 	segment: RawGraphSegmentNode;
@@ -129,6 +135,8 @@ export function mapBeta4PositionKeyframes({
 		rawGroups.length !== 2 ||
 		!Number.isFinite(canvasWidth) ||
 		canvasWidth <= 0 ||
+		!Number.isFinite(canvasHeight) ||
+		canvasHeight <= 0 ||
 		!Number.isFinite(fps) ||
 		fps <= 0 ||
 		segment.targetRange === undefined
@@ -166,28 +174,44 @@ export function mapBeta4PositionKeyframes({
 		x.timeOffsetsUs.some(
 			(timeOffsetUs) =>
 				Number.isSafeInteger((timeOffsetUs * fps) / 1_000_000) === false
-		) ||
-		y.keyframes.some(({ value }) => value !== 0)
+		)
 	) {
 		return { kind: "unsupported" };
 	}
 
 	// JianYing normalized positions are in half-canvas units (the
 	// clip.transform convention; the app UI displays value * canvasWidth).
-	const scaleX = ({ keyframe }: { keyframe: InteropVisualKeyframe }) => ({
+	// X scales by width/2 (receipt: KF01 + transform-position parity). Y
+	// scales by height/2 with the SIGN FLIPPED: JianYing's Y is up-positive
+	// (math convention) while QCut's is screen-down-positive — measured via
+	// shift-matching on the keyframe-position-xy capture (UI Y=-72 rendered
+	// 36px DOWN, best-fit (80,+36) rmse 2.8, 2026-08-19).
+	const toPx = ({
+		keyframe,
+		halfCanvas,
+	}: {
+		keyframe: InteropVisualKeyframe;
+		halfCanvas: number;
+	}) => ({
 		...keyframe,
-		value: (keyframe.value * canvasWidth) / 2,
+		value: keyframe.value * halfCanvas,
 	});
 	return {
 		kind: "mapped",
 		finalNormalizedX: x.finalNormalizedValue,
-		finalNormalizedY: 0,
+		finalNormalizedY: y.finalNormalizedValue,
 		visual: {
 			xPx: (x.finalNormalizedValue * canvasWidth) / 2,
-			yPx: 0,
+			yPx: (y.finalNormalizedValue * -canvasHeight) / 2 + 0,
 			keyframes: {
-				x: x.keyframes.map((keyframe) => scaleX({ keyframe })),
-				y: y.keyframes,
+				x: x.keyframes.map((keyframe) =>
+					toPx({ keyframe, halfCanvas: canvasWidth / 2 })
+				),
+				y: y.keyframes.map((keyframe) => {
+					const scaled = toPx({ keyframe, halfCanvas: -canvasHeight / 2 });
+					// +0 normalizes the -0 that 0 × negative-half produces.
+					return { ...scaled, value: scaled.value + 0 };
+				}),
 			},
 		},
 	};

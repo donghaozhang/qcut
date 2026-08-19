@@ -23,6 +23,16 @@ import type {
 	VideoTransition,
 } from "../../../ffmpeg/types.js";
 import { buildVideoFitFilter } from "../../../ffmpeg/video-fit-filter.js";
+import {
+	buildAtempoChain,
+	buildSegmentTransformFilter,
+	isIdentitySegmentTransform,
+	type SegmentPositionKeyframe,
+	type SegmentTransform,
+} from "../../../ffmpeg/segment-transform-filter.js";
+import { buildVideoColorFilter } from "../../../ffmpeg/color-filter.js";
+import type { VideoColorSettings } from "../../../ffmpeg/color-settings.js";
+import { DEFAULT_VISUAL } from "../../../ffmpeg-video-transform.js";
 import { claudeLog } from "../../utils/logger.js";
 import { logOperation } from "../../claude-operation-log.js";
 import { emitClaudeEvent } from "../claude-events-handler.js";
@@ -430,15 +440,38 @@ export async function collectExportSegments({
 					continue;
 				}
 
-				const durationFromElement =
-					typeof element.duration === "number" && element.duration > 0
-						? element.duration
+				// A constant playback rate makes source and timeline durations
+				// diverge: `duration` must stay TIMELINE seconds (gap math,
+				// transitions, and totals all assume it). Speed curves keep the
+				// legacy 1x path — they need their own export mapping.
+				const playbackRate =
+					typeof element.playbackRate === "number" &&
+					Number.isFinite(element.playbackRate) &&
+					element.playbackRate > 0 &&
+					(element.speedKeyframes?.length ?? 0) === 0
+						? element.playbackRate
+						: 1;
+				const timelineDurationFromElement =
+					typeof element.timelineDuration === "number" &&
+					element.timelineDuration > 0
+						? element.timelineDuration
 						: element.endTime - element.startTime;
+				const durationFromElement =
+					playbackRate !== 1
+						? timelineDurationFromElement
+						: typeof element.duration === "number" && element.duration > 0
+							? element.duration
+							: element.endTime - element.startTime;
 
 				if (!Number.isFinite(durationFromElement) || durationFromElement <= 0) {
 					continue;
 				}
 
+				const transform = readElementTransform({
+					element,
+					fps: timeline.fps || 30,
+				});
+				const color = readElementColorSettings({ element });
 				segments.push({
 					elementId: element.id,
 					trackId,
@@ -454,6 +487,9 @@ export async function collectExportSegments({
 					sourceId: media.id,
 					isImage: media.type === "image",
 					fitMode: element.fitMode ?? "cover",
+					...(transform === undefined ? {} : { transform }),
+					...(color === undefined ? {} : { color }),
+					...(playbackRate === 1 ? {} : { playbackRate }),
 				});
 			}
 		}
@@ -851,13 +887,108 @@ export function buildExportSegmentInputArgs({
 	}
 	const seekArgs =
 		segment.trimStart > 0 ? ["-ss", String(segment.trimStart)] : [];
+	// duration is timeline seconds; a sped-up segment consumes rate× as much
+	// of the source before setpts compresses it back to the timeline length.
+	const sourceReadDuration = segment.duration * (segment.playbackRate ?? 1);
 	return [
 		...seekArgs,
 		"-i",
 		segment.sourcePath,
 		"-t",
-		String(segment.duration),
+		String(sourceReadDuration),
 	];
+}
+
+/**
+ * Converts one media keyframe channel to timeline-seconds tracks. Only the
+ * all-linear shape animates in export (matching what draft import produces);
+ * any other easing keeps the legacy static behavior for the channel.
+ */
+function readPositionKeyframeTrack({
+	channel,
+	fps,
+}: {
+	channel: unknown;
+	fps: number;
+}): SegmentPositionKeyframe[] | undefined {
+	if (!Array.isArray(channel) || channel.length < 2) return undefined;
+	const track: SegmentPositionKeyframe[] = [];
+	for (const entry of channel) {
+		if (
+			typeof entry !== "object" ||
+			entry === null ||
+			typeof (entry as { frame?: unknown }).frame !== "number" ||
+			typeof (entry as { value?: unknown }).value !== "number" ||
+			(entry as { easing?: unknown }).easing !== "linear"
+		) {
+			return undefined;
+		}
+		track.push({
+			timeSeconds: (entry as { frame: number }).frame / fps,
+			value: (entry as { value: number }).value,
+		});
+	}
+	return track;
+}
+
+/**
+ * Reads the element's visual transform for export, or undefined at defaults.
+ * The timeline snapshot carries the full element state; the typed contract
+ * lags behind for scaleX/scaleY, so those are read defensively.
+ */
+function readElementTransform({
+	element,
+	fps,
+}: {
+	element: {
+		x?: number;
+		y?: number;
+		rotation?: number;
+		opacity?: number;
+		keyframes?: Partial<Record<string, unknown>>;
+	};
+	fps: number;
+}): SegmentTransform | undefined {
+	const loose = element as { scaleX?: unknown; scaleY?: unknown };
+	const asFinite = (value: unknown, fallback: number) =>
+		typeof value === "number" && Number.isFinite(value) ? value : fallback;
+	const xKeyframes = readPositionKeyframeTrack({
+		channel: element.keyframes?.x,
+		fps,
+	});
+	const yKeyframes = readPositionKeyframeTrack({
+		channel: element.keyframes?.y,
+		fps,
+	});
+	const transform: SegmentTransform = {
+		x: asFinite(element.x, 0),
+		y: asFinite(element.y, 0),
+		rotationDegrees: asFinite(element.rotation, 0),
+		scaleX: asFinite(loose.scaleX, 1),
+		scaleY: asFinite(loose.scaleY, 1),
+		opacity: asFinite(element.opacity, 1),
+		...(xKeyframes === undefined ? {} : { xKeyframes }),
+		...(yKeyframes === undefined ? {} : { yKeyframes }),
+	};
+	return isIdentitySegmentTransform({ transform }) ? undefined : transform;
+}
+
+/**
+ * Reads the renderer-resolved color grade from the snapshot. The renderer
+ * only serializes `colorSettings` when the grade has visible edits (filter
+ * presets already baked to LUT cubes), so presence is the signal; the ffmpeg
+ * color pipeline normalizes the untrusted shape before building filters.
+ */
+function readElementColorSettings({
+	element,
+}: {
+	element: ClaudeElement;
+}): VideoColorSettings | undefined {
+	const raw = element.colorSettings;
+	if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+		return undefined;
+	}
+	return raw as unknown as VideoColorSettings;
 }
 
 /** Build the same cover/contain/fill scaling used by the editor preview. */
@@ -866,13 +997,41 @@ export function buildExportSegmentScaleFilter({
 	settings,
 }: {
 	segment: ExportSegment;
-	settings: Pick<ResolvedExportSettings, "width" | "height">;
+	settings: Pick<ResolvedExportSettings, "width" | "height" | "fps">;
 }): string {
-	return `${buildVideoFitFilter({
+	const fit = `${buildVideoFitFilter({
 		fitMode: segment.fitMode,
 		width: settings.width,
 		height: settings.height,
 	})},setsar=1`;
+	// Color grades the media pixels before the geometric transform: padding
+	// introduced by rotation/position must stay untouched black, not get
+	// lifted by brightness or vignetted.
+	const colorFilter =
+		segment.color === undefined
+			? ""
+			: buildVideoColorFilter({
+					visual: { ...DEFAULT_VISUAL, color: segment.color },
+				});
+	const transformFilter =
+		segment.transform === undefined
+			? ""
+			: buildSegmentTransformFilter({
+					transform: segment.transform,
+					width: settings.width,
+					height: settings.height,
+					playbackRate: segment.playbackRate ?? 1,
+				});
+	const rate = segment.playbackRate ?? 1;
+	// Normalize to zero, scale, then resample with the fps filter: the output
+	// -r option alone mis-samples retimed streams (measured 90→47 frames at
+	// rate 2 instead of 45), while an in-graph fps stage lands exactly on the
+	// 2× mapping.
+	const rateFilter =
+		rate === 1 ? "" : `setpts=(PTS-STARTPTS)/${rate},fps=${settings.fps}`;
+	return [fit, colorFilter, transformFilter, rateFilter]
+		.filter((stage) => stage !== "")
+		.join(",");
 }
 
 export function buildTransitionVideoSources({
@@ -1122,6 +1281,12 @@ export async function executeExportJob({
 					"-pix_fmt",
 					"yuv420p",
 					...(segment.isImage ? [] : ["-c:a", "aac", "-b:a", "192k"]),
+					...(() => {
+						const atempo = segment.isImage
+							? null
+							: buildAtempoChain({ rate: segment.playbackRate ?? 1 });
+						return atempo === null ? [] : ["-af", atempo];
+					})(),
 					"-shortest",
 					outputSegmentPath,
 				],

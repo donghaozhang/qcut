@@ -91,7 +91,7 @@ const DEFAULT_CUSTOM_CUTOUT: NonNullable<VideoVisual["customCutout"]> = {
 	status: "idle",
 };
 
-const DEFAULT_VISUAL: VideoVisual = {
+export const DEFAULT_VISUAL: VideoVisual = {
 	x: 0,
 	y: 0,
 	rotation: 0,
