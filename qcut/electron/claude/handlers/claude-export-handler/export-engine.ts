@@ -23,6 +23,11 @@ import type {
 	VideoTransition,
 } from "../../../ffmpeg/types.js";
 import { buildVideoFitFilter } from "../../../ffmpeg/video-fit-filter.js";
+import {
+	buildSegmentTransformFilter,
+	isIdentitySegmentTransform,
+	type SegmentTransform,
+} from "../../../ffmpeg/segment-transform-filter.js";
 import { claudeLog } from "../../utils/logger.js";
 import { logOperation } from "../../claude-operation-log.js";
 import { emitClaudeEvent } from "../claude-events-handler.js";
@@ -439,6 +444,7 @@ export async function collectExportSegments({
 					continue;
 				}
 
+				const transform = readElementTransform({ element });
 				segments.push({
 					elementId: element.id,
 					trackId,
@@ -454,6 +460,7 @@ export async function collectExportSegments({
 					sourceId: media.id,
 					isImage: media.type === "image",
 					fitMode: element.fitMode ?? "cover",
+					...(transform === undefined ? {} : { transform }),
 				});
 			}
 		}
@@ -860,6 +867,35 @@ export function buildExportSegmentInputArgs({
 	];
 }
 
+/**
+ * Reads the element's visual transform for export, or undefined at defaults.
+ * The timeline snapshot carries the full element state; the typed contract
+ * lags behind for scaleX/scaleY, so those are read defensively.
+ */
+function readElementTransform({
+	element,
+}: {
+	element: {
+		x?: number;
+		y?: number;
+		rotation?: number;
+		opacity?: number;
+	};
+}): SegmentTransform | undefined {
+	const loose = element as { scaleX?: unknown; scaleY?: unknown };
+	const asFinite = (value: unknown, fallback: number) =>
+		typeof value === "number" && Number.isFinite(value) ? value : fallback;
+	const transform: SegmentTransform = {
+		x: asFinite(element.x, 0),
+		y: asFinite(element.y, 0),
+		rotationDegrees: asFinite(element.rotation, 0),
+		scaleX: asFinite(loose.scaleX, 1),
+		scaleY: asFinite(loose.scaleY, 1),
+		opacity: asFinite(element.opacity, 1),
+	};
+	return isIdentitySegmentTransform({ transform }) ? undefined : transform;
+}
+
 /** Build the same cover/contain/fill scaling used by the editor preview. */
 export function buildExportSegmentScaleFilter({
 	segment,
@@ -868,11 +904,18 @@ export function buildExportSegmentScaleFilter({
 	segment: ExportSegment;
 	settings: Pick<ResolvedExportSettings, "width" | "height">;
 }): string {
-	return `${buildVideoFitFilter({
+	const fit = `${buildVideoFitFilter({
 		fitMode: segment.fitMode,
 		width: settings.width,
 		height: settings.height,
 	})},setsar=1`;
+	if (segment.transform === undefined) return fit;
+	const transformFilter = buildSegmentTransformFilter({
+		transform: segment.transform,
+		width: settings.width,
+		height: settings.height,
+	});
+	return transformFilter === "" ? fit : `${fit},${transformFilter}`;
 }
 
 export function buildTransitionVideoSources({
