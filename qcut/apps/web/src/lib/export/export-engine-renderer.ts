@@ -10,7 +10,6 @@ import { renderStickersToCanvas } from "@/lib/stickers/sticker-export-helper";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useEffectsStore } from "@/stores/ai/effects-store";
-import type { EffectParameters } from "@qcut/editor-core";
 import {
 	applyEffectsToCanvas,
 	mergeEffectParameters,
@@ -19,7 +18,6 @@ import { applyAdvancedCanvasEffects } from "@/lib/effects/effects-canvas-advance
 import { EFFECTS_ENABLED } from "@/config/features";
 import {
 	getActiveElements,
-	buildRegionParametersForFrame,
 	calculateElementBounds,
 } from "./export-engine-utils";
 import { validateRenderedFrame } from "./export-engine-debug";
@@ -123,12 +121,6 @@ export interface RenderContext {
 	fps: number;
 	/** Canvas fill behind the composition; defaults to black. */
 	backgroundColor?: string;
-	/**
-	 * Per-frame region-effect coverage (untargeted effect segments applying
-	 * to the layers below them), refreshed by renderFrame. Media draws merge
-	 * these on top of the element's own effects so exports match the preview.
-	 */
-	regionParametersByElementId?: ReadonlyMap<string, EffectParameters>;
 }
 
 /** Render a single frame at the specified time */
@@ -148,11 +140,6 @@ export async function renderFrame(
 	const activeElements = getActiveElements(
 		context.tracks,
 		context.mediaItems,
-		currentTime,
-		context.fps
-	);
-	context.regionParametersByElementId = buildRegionParametersForFrame(
-		context.tracks,
 		currentTime,
 		context.fps
 	);
@@ -242,11 +229,55 @@ async function renderElement(
 		});
 	} else if (element.type === "adjustment") {
 		await applyCanvasAdjustment({ context, element, currentTime });
+	} else if (element.type === "effect") {
+		applyCanvasRegionEffect({ context, element });
 	} else if (element.type === "remotion") {
 		// Remotion elements are handled by RemotionExportEngine.compositeRemotionFrames()
 		// Skip in standard canvas render to avoid double-rendering
 		return;
 	}
+}
+
+/**
+ * Region effect segment: restyle the composite drawn so far — the same
+ * snapshot-and-redraw mechanism adjustment layers use, so the segment
+ * covers text and stickers below it and exports match the preview's
+ * group-level application. Targeted effect elements resolve through the
+ * per-target collector, and jianying-local runtime effects stay per-clip
+ * until the native frame roundtrip exists.
+ */
+function applyCanvasRegionEffect({
+	context,
+	element,
+}: {
+	context: RenderContext;
+	element: import("@/types/timeline").EffectElement;
+}): void {
+	if (element.targetElementId) return;
+	const instance = element.effect;
+	if (!instance.enabled || instance.engine === "jianying-local") return;
+
+	const { canvas, ctx } = context;
+	if (
+		!adjustmentFrameCanvas ||
+		adjustmentFrameCanvas.width !== canvas.width ||
+		adjustmentFrameCanvas.height !== canvas.height
+	) {
+		adjustmentFrameCanvas = document.createElement("canvas");
+		adjustmentFrameCanvas.width = canvas.width;
+		adjustmentFrameCanvas.height = canvas.height;
+		adjustmentFrameCtx = adjustmentFrameCanvas.getContext("2d");
+	}
+	if (!adjustmentFrameCtx) return;
+
+	adjustmentFrameCtx.clearRect(0, 0, canvas.width, canvas.height);
+	adjustmentFrameCtx.drawImage(canvas, 0, 0);
+	ctx.save();
+	applyEffectsToCanvas(ctx, instance.parameters);
+	ctx.clearRect(0, 0, canvas.width, canvas.height);
+	ctx.drawImage(adjustmentFrameCanvas, 0, 0);
+	ctx.restore();
+	applyAdvancedCanvasEffects(ctx, instance.parameters);
 }
 
 async function applyCanvasAdjustment({
@@ -440,14 +471,10 @@ export async function renderImage(
 							`✨ EXPORT ENGINE: ${enabledEffects.length} enabled effects for image element ${element.id}`
 						);
 
-						const imageRegionParams = context.regionParametersByElementId?.get(
-							element.id
-						);
-						if (enabledEffects.length > 0 || imageRegionParams) {
+						if (enabledEffects.length > 0) {
 							ctx.save();
 							const mergedParams = mergeEffectParameters(
-								...enabledEffects.map((e) => e.parameters),
-								...(imageRegionParams ? [imageRegionParams] : [])
+								...enabledEffects.map((e) => e.parameters)
 							);
 							debugLog(
 								"🔨 EXPORT ENGINE: Applying effects to image canvas:",
@@ -628,15 +655,12 @@ async function renderVideoAttempt(
 				debugLog(
 					`🎨 EXPORT ENGINE: Retrieved ${effects?.length || 0} effects for video element ${element.id}`
 				);
-				const videoRegionParams = context.regionParametersByElementId?.get(
-					element.id
-				);
-				if ((effects && effects.length > 0) || videoRegionParams) {
-					const activeEffects = (effects ?? []).filter((e) => e.enabled);
+				if (effects && effects.length > 0) {
+					const activeEffects = effects.filter((e) => e.enabled);
 					debugLog(
 						`✨ EXPORT ENGINE: ${activeEffects.length} enabled effects for video element ${element.id}`
 					);
-					if (activeEffects.length === 0 && !videoRegionParams) {
+					if (activeEffects.length === 0) {
 						debugLog(
 							`🚫 EXPORT ENGINE: No enabled effects for video element ${element.id}, drawing normally`
 						);
@@ -646,8 +670,7 @@ async function renderVideoAttempt(
 
 					ctx.save();
 					const mergedParams = mergeEffectParameters(
-						...activeEffects.map((e) => e.parameters),
-						...(videoRegionParams ? [videoRegionParams] : [])
+						...activeEffects.map((e) => e.parameters)
 					);
 					debugLog(
 						"🔨 EXPORT ENGINE: Applying effects to video canvas:",
