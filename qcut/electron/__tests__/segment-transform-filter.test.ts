@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
 import {
+	buildAtempoChain,
 	buildSegmentTransformFilter,
 	isIdentitySegmentTransform,
 	type SegmentTransform,
@@ -69,5 +70,23 @@ describe("buildSegmentTransformFilter", () => {
 			height: 360,
 		});
 		expect(chain).toBe("colorchannelmixer=rr=0.5:gg=0.5:bb=0.5");
+	});
+});
+
+describe("buildAtempoChain", () => {
+	it("returns null at rate 1", () => {
+		expect(buildAtempoChain({ rate: 1 })).toBeNull();
+	});
+
+	it("passes in-range rates through as one stage", () => {
+		expect(buildAtempoChain({ rate: 2 })).toBe("atempo=2");
+		expect(buildAtempoChain({ rate: 0.5 })).toBe("atempo=0.5");
+	});
+
+	it("chains stages for rates outside [0.5, 2]", () => {
+		expect(buildAtempoChain({ rate: 5 })).toBe("atempo=2,atempo=2,atempo=1.25");
+		expect(buildAtempoChain({ rate: 0.2 })).toBe(
+			"atempo=0.5,atempo=0.5,atempo=0.8"
+		);
 	});
 });
