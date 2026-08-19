@@ -542,11 +542,13 @@ class StorageService {
 			return null;
 		}
 
-		// Verify or regenerate localPath for videos
-		// Temp files in /tmp may be cleaned up by the OS between sessions
+		// Verify or regenerate localPath for videos and images. The FFmpeg
+		// export pipeline resolves media by on-disk path — images need it too,
+		// or sticker overlays and image clips silently drop from exports.
+		// Temp files in /tmp may be cleaned up by the OS between sessions.
 		let localPath = metadata.localPath;
 		if (
-			metadata.type === "video" &&
+			(metadata.type === "video" || metadata.type === "image") &&
 			actualFile &&
 			actualFile.size > 0 &&
 			this.isElectronEnvironment() &&
