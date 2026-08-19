@@ -40,6 +40,11 @@ import {
 } from "@/lib/video/video-speed-constants";
 import { getMediaTimelineDuration } from "@/lib/video/video-timing";
 import {
+	hasMediaColorEdits,
+	normalizeMediaColorSettings,
+} from "@/lib/color/color-properties";
+import { resolveColorFilterSettings } from "@/lib/filters/filter-resolver";
+import {
 	applyTextAnimationPreset,
 	getTextAnimationPreset,
 	updateTextAnimationPhaseTiming,
@@ -1444,6 +1449,34 @@ export function formatTracksForExport({
 }
 
 /**
+ * Resolves an element's color grade for export snapshots: normalizes stored
+ * color/adjustments and bakes any filter preset into a LUT cube (the main
+ * process has no recipe knowledge, mirroring the video-properties export
+ * path). Undefined when the element carries no grade at all.
+ */
+function resolveExportElementColorSettings({
+	element,
+}: {
+	element: {
+		color?: MediaColorSettings;
+		adjustments?: MediaAdjustments;
+	};
+}): Record<string, unknown> | undefined {
+	if (element.color === undefined && element.adjustments === undefined) {
+		return undefined;
+	}
+	const settings = normalizeMediaColorSettings({ element });
+	// Neutral grades stay out of the snapshot so untouched segments keep
+	// byte-identical export pipelines (the basic eq stage always runs once a
+	// grade is present).
+	if (!hasMediaColorEdits({ settings })) return undefined;
+	return resolveColorFilterSettings({ settings }) as unknown as Record<
+		string,
+		unknown
+	>;
+}
+
+/**
  * Format a single element for export
  */
 function formatElementForExport({
@@ -1502,6 +1535,7 @@ function formatElementForExport({
 				scaleY: element.scaleY,
 				opacity: element.opacity,
 				keyframes: element.keyframes as ClaudeElement["keyframes"],
+				colorSettings: resolveExportElementColorSettings({ element }),
 				timelineDuration,
 			};
 		}
