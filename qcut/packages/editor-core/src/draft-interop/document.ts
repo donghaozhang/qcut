@@ -187,6 +187,18 @@ export interface InteropSegment {
 
 export type InteropTransitionType = "dissolve" | "unknown";
 
+/**
+ * A QCut transition preset a foreign transition maps to (L5). Values are in
+ * QCut vocabulary; the source resource id stays in the foreign envelope.
+ */
+export interface InteropTransitionPreset {
+	presetId: string;
+	clipType: string;
+	easing: string;
+	direction?: string;
+	intensity?: number;
+}
+
 /** A transition owned by the outgoing segment at one same-track seam. */
 export interface InteropTransition {
 	id: string;
@@ -195,6 +207,10 @@ export interface InteropTransition {
 	toSegmentId: string;
 	durationUs: number;
 	capability: InteropCapability;
+	/** Present when a lab preset mapping backs a downgrade admission. */
+	preset?: InteropTransitionPreset;
+	/** Required for downgrade admission into the import plan. */
+	downgrade?: InteropDowngradeDeclaration;
 	foreignRef?: string;
 }
 
@@ -976,6 +992,34 @@ function parseText({
 	};
 }
 
+function parseTransitionPreset({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropTransitionPreset {
+	const record = asRecord({ value, path });
+	const direction = asOptionalString({
+		value: record.direction,
+		path: `${path}/direction`,
+	});
+	const intensity =
+		record.intensity === undefined
+			? undefined
+			: asUnitInterval({
+					value: record.intensity,
+					path: `${path}/intensity`,
+				});
+	return {
+		presetId: asString({ value: record.presetId, path: `${path}/presetId` }),
+		clipType: asString({ value: record.clipType, path: `${path}/clipType` }),
+		easing: asString({ value: record.easing, path: `${path}/easing` }),
+		...(direction === undefined ? {} : { direction }),
+		...(intensity === undefined ? {} : { intensity }),
+	};
+}
+
 function parseTransition({
 	value,
 	path,
@@ -988,6 +1032,17 @@ function parseTransition({
 		value: record.foreignRef,
 		path: `${path}/foreignRef`,
 	});
+	const preset =
+		record.preset === undefined
+			? undefined
+			: parseTransitionPreset({ value: record.preset, path: `${path}/preset` });
+	const downgrade =
+		record.downgrade === undefined
+			? undefined
+			: parseDowngradeDeclaration({
+					value: record.downgrade,
+					path: `${path}/downgrade`,
+				});
 	return {
 		id: asString({ value: record.id, path: `${path}/id` }),
 		type: asEnum({
@@ -1011,6 +1066,8 @@ function parseTransition({
 			value: record.capability,
 			path: `${path}/capability`,
 		}),
+		...(preset === undefined ? {} : { preset }),
+		...(downgrade === undefined ? {} : { downgrade }),
 		...(foreignRef === undefined ? {} : { foreignRef }),
 	};
 }
