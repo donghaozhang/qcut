@@ -104,6 +104,29 @@ describe("jianying parity draft cases (L1)", () => {
 		expect(speed?.speed).toBe(2);
 		expect(speed?.targetRange.durationUs).toBe(PARITY_DURATION_US / 2);
 		expect(speed?.sourceRange?.durationUs).toBe(PARITY_DURATION_US);
+
+		// L4 landed: two-channel linear position keyframes cross as exact —
+		// X in half-canvas-width px, Y in half-canvas-height px (candidate).
+		const keyframeX = onSegment({ caseId: "keyframe-position-x" });
+		expect(keyframeX?.capability).toBe("exact");
+		expect(keyframeX?.visual?.xPx).toBe(80);
+		expect(keyframeX?.visual?.keyframes?.x?.map(({ value }) => value)).toEqual([
+			0, 80,
+		]);
+		expect(
+			keyframeX?.visual?.keyframes?.y?.every(({ value }) => value === 0)
+		).toBe(true);
+
+		const keyframeXy = onSegment({ caseId: "keyframe-position-xy" });
+		expect(keyframeXy?.capability).toBe("exact");
+		expect(keyframeXy?.visual?.keyframes?.x?.map(({ value }) => value)).toEqual(
+			[0, 80]
+		);
+		// -0.2 half-canvas-height units × 360 / 2 = -36 px.
+		expect(keyframeXy?.visual?.keyframes?.y?.map(({ value }) => value)).toEqual(
+			[0, -36]
+		);
+		expect(keyframeXy?.visual?.yPx).toBe(-36);
 	});
 
 	it("serializes deterministically for identical inputs", () => {
