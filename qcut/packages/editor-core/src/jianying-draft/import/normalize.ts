@@ -42,6 +42,7 @@ import type {
 	RawGraphSegmentNode,
 } from "./graph-reader.js";
 import { mapCapCut81SeamTransition } from "./capcut-8-1-transition-mapper.js";
+import { mapBeta4SeamTransition } from "./beta4-transition-mapper.js";
 import { resolveEditableDraftContent } from "./compound-draft.js";
 import { readRawDraftGraph } from "./graph-reader.js";
 import { readDraftProjectSettings } from "./project-settings.js";
@@ -540,12 +541,20 @@ function normalizeTransitions({
 				continue;
 			}
 			claimedTransitionRefs.add(ref);
-			const mapped = mapCapCut81SeamTransition({
-				profileId,
-				material,
-				fromSegment: segment,
-				toSegment: segments[segmentIndex + 1],
-			});
+			const mapped =
+				profileId === JIANYING_11_3_BETA4_PROFILE_ID
+					? mapBeta4SeamTransition({
+							profileId,
+							material,
+							fromSegment: segment,
+							toSegment: segments[segmentIndex + 1],
+						})
+					: mapCapCut81SeamTransition({
+							profileId,
+							material,
+							fromSegment: segment,
+							toSegment: segments[segmentIndex + 1],
+						});
 			const transition: InteropTransition = hasAmbiguousSeamOwner
 				? { ...mapped.transition, type: "unknown", capability: "blocked" }
 				: mapped.transition;
