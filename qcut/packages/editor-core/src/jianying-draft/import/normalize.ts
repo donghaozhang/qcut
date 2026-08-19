@@ -42,6 +42,10 @@ import type {
 	RawGraphSegmentNode,
 } from "./graph-reader.js";
 import { mapCapCut81SeamTransition } from "./capcut-8-1-transition-mapper.js";
+import {
+	type JianyingLocalEffectCapabilities,
+	mapBeta4SegmentEffect,
+} from "./beta4-effect-mapper.js";
 import { mapBeta4SegmentFilter } from "./beta4-filter-mapper.js";
 import { mapBeta4SeamTransition } from "./beta4-transition-mapper.js";
 import { resolveEditableDraftContent } from "./compound-draft.js";
@@ -129,6 +133,12 @@ export interface NormalizeRawDraftInput {
 	contentFileName: string;
 	/** Display name when the content itself carries none. */
 	fallbackProjectName?: string;
+	/**
+	 * Locally installed jianying-local effect packages by resource id (L7),
+	 * supplied by the import host. Absent (the default) means no effect
+	 * segment can cross — capability rulings stay machine-honest.
+	 */
+	localJianyingEffects?: JianyingLocalEffectCapabilities;
 }
 
 export interface NormalizeRawDraftResult {
@@ -319,6 +329,7 @@ function normalizeSegment({
 	issues,
 	bindings,
 	trackIndex,
+	localJianyingEffects,
 }: {
 	segment: RawGraphSegmentNode;
 	graph: RawDraftGraph;
@@ -330,6 +341,7 @@ function normalizeSegment({
 	issues: InteropIssue[];
 	bindings: RawNodeBinding[];
 	trackIndex: number;
+	localJianyingEffects: JianyingLocalEffectCapabilities | undefined;
 }): InteropSegment {
 	const material =
 		segment.materialId === undefined
@@ -395,6 +407,36 @@ function normalizeSegment({
 				});
 				featureMappingIssueAdded = true;
 			}
+		}
+	}
+	// L7: an effect segment whose package is installed and render-verified on
+	// this machine becomes a declared, machine-bound downgrade onto the local
+	// Jianying runtime. Everything else keeps today's opaque ruling.
+	let effectPreset: InteropSegment["effectPreset"];
+	if (
+		classified.kind === "effect" &&
+		material !== undefined &&
+		profileId === JIANYING_11_3_BETA4_PROFILE_ID
+	) {
+		const mappedEffect = mapBeta4SegmentEffect({
+			material,
+			localEffects: localJianyingEffects,
+		});
+		// The classified baseline for effect segments is opaque, so this is a
+		// deliberate upgrade to downgrade, not a combine (combine keeps the
+		// worst) — the local package IS the mapping evidence.
+		if (mappedEffect !== undefined && capability === "opaque") {
+			capability = "downgrade";
+			effectPreset = mappedEffect.effectPreset;
+			downgrade = mappedEffect.downgrade;
+			issues.push({
+				code: "FEATURE_DOWNGRADED",
+				severity: "warning",
+				message: mappedEffect.reason,
+				path: segment.jsonPointer,
+				subjectId: segment.id,
+			});
+			featureMappingIssueAdded = true;
 		}
 	}
 	if (
@@ -531,6 +573,7 @@ function normalizeSegment({
 		...(text === undefined ? {} : { text }),
 		...(visual === undefined ? {} : { visual }),
 		...(filterPreset === undefined ? {} : { filterPreset }),
+		...(effectPreset === undefined ? {} : { effectPreset }),
 		capability,
 		...(downgrade === undefined ? {} : { downgrade }),
 		foreignRef: segment.id,
@@ -634,6 +677,7 @@ function normalizeTracks({
 	contentFileName,
 	issues,
 	bindings,
+	localJianyingEffects,
 }: {
 	profileId: string;
 	canvasWidth: number;
@@ -643,6 +687,7 @@ function normalizeTracks({
 	contentFileName: string;
 	issues: InteropIssue[];
 	bindings: RawNodeBinding[];
+	localJianyingEffects: JianyingLocalEffectCapabilities | undefined;
 }): InteropTrack[] {
 	const tracks: InteropTrack[] = [];
 	const claimedTransitionRefs = new Set<string>();
@@ -680,6 +725,7 @@ function normalizeTracks({
 				issues,
 				bindings,
 				trackIndex,
+				localJianyingEffects,
 			})
 		);
 		const transitions = normalizeTransitions({
@@ -760,6 +806,7 @@ export function normalizeRawDraft(
 		contentFileName: input.contentFileName,
 		issues,
 		bindings,
+		localJianyingEffects: input.localJianyingEffects,
 	});
 
 	const document: DraftInteropDocumentV1 = {
