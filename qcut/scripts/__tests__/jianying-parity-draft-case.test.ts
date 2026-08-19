@@ -97,8 +97,13 @@ describe("jianying parity draft cases (L1)", () => {
 		// 0.25 half-canvas units × 640 / 2 = 80 real px.
 		expect(position?.visual).toEqual({ xPx: 80, yPx: 0 });
 
+		// L3 landed: the constant-rate scalar crosses as exact with the
+		// source = target × speed relation intact.
 		const speed = onSegment({ caseId: "speed-scalar" });
-		expect(speed?.capability).not.toBe("exact");
+		expect(speed?.capability).toBe("exact");
+		expect(speed?.speed).toBe(2);
+		expect(speed?.targetRange.durationUs).toBe(PARITY_DURATION_US / 2);
+		expect(speed?.sourceRange?.durationUs).toBe(PARITY_DURATION_US);
 	});
 
 	it("serializes deterministically for identical inputs", () => {
