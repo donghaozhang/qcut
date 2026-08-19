@@ -19,6 +19,7 @@ import {
 	type QCutImportPlanElement,
 	type QCutImportPlanMediaKeyframe,
 	type QCutImportPlanMediaElement,
+	type QCutImportPlanMediaFilter,
 	type QCutImportPlanTextElement,
 	type QCutImportPlanTrack,
 	type QCutImportPlanTransition,
@@ -266,6 +267,10 @@ function parsePlanMediaElement({
 		value: record.keyframes,
 		path: `${path}/keyframes`,
 	});
+	const filter =
+		record.filter === undefined
+			? undefined
+			: parsePlanMediaFilter({ value: record.filter, path: `${path}/filter` });
 	return {
 		id: asString({ value: record.id, path: `${path}/id` }),
 		type: asEnum({
@@ -303,9 +308,31 @@ function parsePlanMediaElement({
 		...(scaleY === undefined ? {} : { scaleY }),
 		...(opacity === undefined ? {} : { opacity }),
 		...(keyframes === undefined ? {} : { keyframes }),
+		...(filter === undefined ? {} : { filter }),
 		sourceSegmentId: asString({
 			value: record.sourceSegmentId,
 			path: `${path}/sourceSegmentId`,
+		}),
+	};
+}
+
+function parsePlanMediaFilter({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): QCutImportPlanMediaFilter {
+	const record = asRecord({ value, path });
+	return {
+		presetId: asString({ value: record.presetId, path: `${path}/presetId` }),
+		presetVersion: asFiniteNumber({
+			value: record.presetVersion,
+			path: `${path}/presetVersion`,
+		}),
+		intensity: asFiniteNumber({
+			value: record.intensity,
+			path: `${path}/intensity`,
 		}),
 	};
 }
