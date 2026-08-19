@@ -2,6 +2,7 @@ import type {
 	QCutImportPlanElement,
 	QCutImportPlanTextElement,
 } from "../jianying-draft/import/qcut-mapping.js";
+import { createImportMediaColorSettings } from "./import-media-color.js";
 import type {
 	ClipTransition,
 	TimelineElement,
@@ -139,6 +140,13 @@ function buildMediaElement({
 		...(planElement.keyframes === undefined
 			? {}
 			: { keyframes: planElement.keyframes }),
+		...(planElement.filter === undefined
+			? {}
+			: {
+					color: createImportMediaColorSettings({
+						filter: planElement.filter,
+					}),
+				}),
 	};
 }
 
