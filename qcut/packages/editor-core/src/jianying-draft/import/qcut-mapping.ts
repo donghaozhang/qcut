@@ -100,10 +100,12 @@ export interface QCutImportPlanTransition {
 	id: string;
 	fromElementId: string;
 	toElementId: string;
-	presetId: "dissolve";
-	type: "dissolve";
+	presetId: string;
+	type: string;
 	duration: number;
-	easing: "easeInOut";
+	easing: string;
+	direction?: string;
+	tuning?: { intensity?: number };
 }
 
 export interface QCutImportPlanTrack {
@@ -131,7 +133,7 @@ export interface QCutImportSkippedNode {
  */
 export interface QCutImportPlanDowngrade {
 	nodeId: string;
-	nodeType: "segment";
+	nodeType: "segment" | "transition";
 	approximation: string;
 	fidelityEvidence: string;
 }
@@ -377,17 +379,33 @@ function mapTransition({
 	transition,
 	importedElementIds,
 	skipped,
+	downgrades,
 }: {
 	transition: InteropTransition;
 	importedElementIds: ReadonlySet<string>;
 	skipped: QCutImportSkippedNode[];
+	downgrades: QCutImportPlanDowngrade[];
 }): QCutImportPlanTransition | null {
-	if (transition.capability !== "exact" || transition.type !== "dissolve") {
+	// Admission (L5): the exact native dissolve crosses as-is; a catalogued
+	// preset mapping crosses as a declared downgrade; everything else stays
+	// skipped.
+	const isExactDissolve =
+		transition.capability === "exact" && transition.type === "dissolve";
+	const presetDowngrade =
+		transition.capability === "downgrade" &&
+		transition.preset !== undefined &&
+		transition.downgrade !== undefined
+			? { preset: transition.preset, declaration: transition.downgrade }
+			: undefined;
+	if (!isExactDissolve && presetDowngrade === undefined) {
 		skipped.push({
 			nodeId: transition.id,
 			nodeType: "transition",
 			capability: transition.capability,
-			reason: "transition is not an exact native dissolve",
+			reason:
+				transition.capability === "downgrade"
+					? "transition downgrade carries no preset mapping"
+					: "transition is not an exact native dissolve",
 		});
 		return null;
 	}
@@ -402,6 +420,30 @@ function mapTransition({
 			reason: "transition endpoint is not imported on this track",
 		});
 		return null;
+	}
+	if (presetDowngrade !== undefined) {
+		downgrades.push({
+			nodeId: transition.id,
+			nodeType: "transition",
+			approximation: presetDowngrade.declaration.approximation,
+			fidelityEvidence: presetDowngrade.declaration.fidelityEvidence,
+		});
+		const { preset } = presetDowngrade;
+		return {
+			id: transition.id,
+			fromElementId: transition.fromSegmentId,
+			toElementId: transition.toSegmentId,
+			presetId: preset.presetId,
+			type: preset.clipType,
+			duration: usToSeconds(transition.durationUs),
+			easing: preset.easing,
+			...(preset.direction === undefined
+				? {}
+				: { direction: preset.direction }),
+			...(preset.intensity === undefined
+				? {}
+				: { tuning: { intensity: preset.intensity } }),
+		};
 	}
 	return {
 		id: transition.id,
@@ -482,7 +524,12 @@ function mapTrack({
 		type === "media"
 			? (track.transitions ?? [])
 					.map((transition) =>
-						mapTransition({ transition, importedElementIds, skipped })
+						mapTransition({
+							transition,
+							importedElementIds,
+							skipped,
+							downgrades,
+						})
 					)
 					.filter(
 						(transition): transition is QCutImportPlanTransition =>
