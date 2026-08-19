@@ -15,7 +15,6 @@ import {
 	type IpcMainInvokeEvent,
 	ipcMain,
 } from "electron";
-import { discoverJianyingEffectLibrary } from "./jianying-effect/catalog.js";
 import {
 	JIANYING_IMPORT_CHOOSE_DIRECTORY_CHANNEL,
 	JIANYING_IMPORT_COMMIT_CHANNEL,
@@ -179,6 +178,12 @@ function toErrorDto({ error }: { error: unknown }): {
 async function loadInstalledJianyingEffectCapabilities(): Promise<
 	ReadonlyMap<string, LocalJianyingEffectCapability>
 > {
+	// Dynamic import keeps `node:sqlite` (reached transitively through the
+	// effect catalog) out of the module's static dependency graph — a static
+	// import there breaks the vite bundler used by the vitest suites.
+	const { discoverJianyingEffectLibrary } = await import(
+		"./jianying-effect/catalog.js"
+	);
 	const library = await discoverJianyingEffectLibrary();
 	const capabilities = new Map<string, LocalJianyingEffectCapability>();
 	for (const definition of library.effects) {
