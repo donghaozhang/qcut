@@ -144,6 +144,18 @@ export type InteropSegmentKind =
 	| "transition"
 	| "unknown";
 
+/**
+ * Declares how a downgrade segment is approximated in QCut (L0). Admission
+ * into the import plan is declaration-gated: a downgrade segment without one
+ * stays skipped, so every approximation is explicit and evidence-backed.
+ */
+export interface InteropDowngradeDeclaration {
+	/** Machine-readable approximation kind, e.g. "filter-lut-recipe". */
+	approximation: string;
+	/** Pointer to the parity receipt backing the fidelity claim. */
+	fidelityEvidence: string;
+}
+
 export interface InteropSegment {
 	id: string;
 	kind: InteropSegmentKind;
@@ -157,6 +169,8 @@ export interface InteropSegment {
 	text?: InteropText;
 	visual?: InteropMediaVisual;
 	capability: InteropCapability;
+	/** Required for downgrade admission into the media import plan. */
+	downgrade?: InteropDowngradeDeclaration;
 	/** Binding key into the foreign envelope's raw-node map (JYI-002). */
 	foreignRef?: string;
 }
@@ -613,6 +627,13 @@ function parseSegment({
 		record.visual === undefined
 			? undefined
 			: parseMediaVisual({ value: record.visual, path: `${path}/visual` });
+	const downgrade =
+		record.downgrade === undefined
+			? undefined
+			: parseDowngradeDeclaration({
+					value: record.downgrade,
+					path: `${path}/downgrade`,
+				});
 	return {
 		id: asString({ value: record.id, path: `${path}/id` }),
 		kind: asEnum({
@@ -644,7 +665,28 @@ function parseSegment({
 			value: record.capability,
 			path: `${path}/capability`,
 		}),
+		...(downgrade === undefined ? {} : { downgrade }),
 		...(foreignRef === undefined ? {} : { foreignRef }),
+	};
+}
+
+function parseDowngradeDeclaration({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropDowngradeDeclaration {
+	const record = asRecord({ value, path });
+	return {
+		approximation: asString({
+			value: record.approximation,
+			path: `${path}/approximation`,
+		}),
+		fidelityEvidence: asString({
+			value: record.fidelityEvidence,
+			path: `${path}/fidelityEvidence`,
+		}),
 	};
 }
 
