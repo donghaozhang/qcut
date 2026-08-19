@@ -47,6 +47,10 @@ import {
 	mapBeta4SegmentEffect,
 } from "./beta4-effect-mapper.js";
 import { mapBeta4SegmentFilter } from "./beta4-filter-mapper.js";
+import {
+	mapBeta4SegmentSticker,
+	readBeta4StickerAssetPath,
+} from "./beta4-sticker-mapper.js";
 import { mapBeta4SeamTransition } from "./beta4-transition-mapper.js";
 import { resolveEditableDraftContent } from "./compound-draft.js";
 import { readRawDraftGraph } from "./graph-reader.js";
@@ -213,13 +217,19 @@ function normalizeResources({
 }): InteropResource[] {
 	const resources: InteropResource[] = [];
 	for (const material of graph.materialsById.values()) {
-		if (!MEDIA_BUCKETS.has(material.bucket)) {
+		// Sticker materials with a stageable draft-embedded image become
+		// image resources (L8), so the existing media staging pipeline
+		// carries the asset into local project storage.
+		const isStageableSticker =
+			material.bucket === "stickers" &&
+			readBeta4StickerAssetPath({ material }) !== undefined;
+		if (!MEDIA_BUCKETS.has(material.bucket) && !isStageableSticker) {
 			continue;
 		}
 		const kind =
 			material.bucket === "audios"
 				? "audio"
-				: material.raw.type === "photo"
+				: material.raw.type === "photo" || isStageableSticker
 					? "image"
 					: "video";
 		const name =
@@ -439,6 +449,27 @@ function normalizeSegment({
 			featureMappingIssueAdded = true;
 		}
 	}
+	// L8: a sticker segment whose material carries a stageable draft-embedded
+	// image gains its downgrade declaration (admission); everything else keeps
+	// the undeclared-downgrade ruling and stays skipped at the plan gate.
+	if (
+		classified.kind === "sticker" &&
+		material !== undefined &&
+		profileId === JIANYING_11_3_BETA4_PROFILE_ID
+	) {
+		const mappedSticker = mapBeta4SegmentSticker({ material });
+		if (mappedSticker !== undefined) {
+			downgrade = mappedSticker.downgrade;
+			issues.push({
+				code: "FEATURE_DOWNGRADED",
+				severity: "warning",
+				message: mappedSticker.reason,
+				path: segment.jsonPointer,
+				subjectId: segment.id,
+			});
+			featureMappingIssueAdded = true;
+		}
+	}
 	if (
 		classified.kind === "audio" &&
 		material !== undefined &&
@@ -549,7 +580,9 @@ function normalizeSegment({
 	});
 
 	const resourceId =
-		material !== undefined && MEDIA_BUCKETS.has(material.bucket)
+		material !== undefined &&
+		(MEDIA_BUCKETS.has(material.bucket) ||
+			(classified.kind === "sticker" && downgrade !== undefined))
 			? material.id
 			: undefined;
 	const speed = readPositiveNumber(segment.raw.speed);
