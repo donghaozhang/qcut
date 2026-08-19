@@ -100,6 +100,7 @@ export {
 	type InteropResource,
 	type InteropResourceKind,
 	type InteropResourceStatus,
+	type InteropDowngradeDeclaration,
 	type InteropSegment,
 	type InteropSegmentKind,
 	type InteropTimeline,
