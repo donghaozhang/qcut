@@ -122,11 +122,11 @@ describe("jianying parity draft cases (L1)", () => {
 		expect(keyframeXy?.visual?.keyframes?.x?.map(({ value }) => value)).toEqual(
 			[0, 80]
 		);
-		// -0.2 half-canvas-height units × 360 / 2 = -36 px.
+		// -0.2 up-positive half-canvas-height units → +36 px screen-down.
 		expect(keyframeXy?.visual?.keyframes?.y?.map(({ value }) => value)).toEqual(
-			[0, -36]
+			[0, 36]
 		);
-		expect(keyframeXy?.visual?.yPx).toBe(-36);
+		expect(keyframeXy?.visual?.yPx).toBe(36);
 	});
 
 	it("serializes deterministically for identical inputs", () => {
