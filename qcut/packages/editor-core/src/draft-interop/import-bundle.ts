@@ -21,6 +21,7 @@ import {
 	type QCutImportPlanMediaElement,
 	type QCutImportPlanMediaFilter,
 	type QCutImportPlanEffectElement,
+	type QCutImportPlanStickerElement,
 	type QCutImportPlanTextElement,
 	type QCutImportPlanTrack,
 	type QCutImportPlanTransition,
@@ -669,10 +670,52 @@ function parsePlanElement({
 	if (record.type === "effect") {
 		return parsePlanEffectElement({ value: record, path });
 	}
+	if (record.type === "sticker") {
+		return parsePlanStickerElement({ value: record, path });
+	}
 	return fail({
-		message: "expected media, text, or effect plan element",
+		message: "expected media, text, effect, or sticker plan element",
 		path: `${path}/type`,
 	});
+}
+
+function parsePlanStickerElement({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): QCutImportPlanStickerElement {
+	const record = asRecord({ value, path });
+	if (record.trimStart !== 0 || record.trimEnd !== 0) {
+		return fail({
+			message: "sticker plan elements carry no trims",
+			path: `${path}/trimStart`,
+		});
+	}
+	return {
+		id: asString({ value: record.id, path: `${path}/id` }),
+		type: "sticker",
+		name: asString({ value: record.name, path: `${path}/name` }),
+		startTime: asFiniteNumber({
+			value: record.startTime,
+			path: `${path}/startTime`,
+		}),
+		duration: asFiniteNumber({
+			value: record.duration,
+			path: `${path}/duration`,
+		}),
+		trimStart: 0,
+		trimEnd: 0,
+		resourceId: asString({
+			value: record.resourceId,
+			path: `${path}/resourceId`,
+		}),
+		sourceSegmentId: asString({
+			value: record.sourceSegmentId,
+			path: `${path}/sourceSegmentId`,
+		}),
+	};
 }
 
 function parsePlanEffectElement({
@@ -847,7 +890,7 @@ function parsePlanTrack({
 		type: asEnum({
 			value: record.type,
 			path: `${path}/type`,
-			allowed: ["media", "audio", "text", "effect"],
+			allowed: ["media", "audio", "text", "effect", "sticker"],
 		}),
 		name: asString({ value: record.name, path: `${path}/name` }),
 		order: asNonNegativeSafeInteger({
@@ -1181,7 +1224,9 @@ export function parseQCutImportBundleV1(
 						? "text"
 						: track.type === "effect"
 							? "effect"
-							: "media";
+							: track.type === "sticker"
+								? "sticker"
+								: "media";
 				if (element.type !== expectedElementType) {
 					fail({
 						message: "plan element type does not match its track",
@@ -1195,7 +1240,7 @@ export function parseQCutImportBundleV1(
 					});
 				}
 				if (
-					element.type === "media" &&
+					(element.type === "media" || element.type === "sticker") &&
 					!stagingByResourceId.has(element.resourceId)
 				) {
 					fail({
