@@ -24,13 +24,29 @@ type Json = Record<string, unknown>;
 export interface ParityCase {
 	id: string;
 	description: string;
-	/** Mutates the inner segment (and companions) for the "on" variant. */
+	/**
+	 * Two adjacent 3s segments (seam at 3s, distinct plates) instead of the
+	 * default single segment. Both variants share the layout — the mutation
+	 * stays the only difference between the twins.
+	 */
+	adjacentSegments?: boolean;
+	/**
+	 * Comparator sample points as fractions of the draft duration. Cases whose
+	 * feature is only active in a narrow window (transitions) concentrate the
+	 * samples there; others use the comparator's default spread.
+	 */
+	sampleFractions?: readonly number[];
+	/** Mutates the inner segments (and companions) for the "on" variant. */
 	mutate: ({
 		segment,
+		segments,
 		companions,
 		innerDraft,
 	}: {
+		/** First segment — same object as segments[0]. */
 		segment: Json;
+		segments: Json[];
+		/** First segment's companions. */
 		companions: Record<string, Json>;
 		innerDraft: Json;
 	}) => void;
@@ -99,6 +115,32 @@ export const PARITY_CASES: readonly ParityCase[] = [
 				endX: 0.25,
 				endY: -0.2,
 			});
+		},
+	},
+	{
+		id: "transition-move-left",
+		description:
+			"左移转场 500ms 接缝@3s(resource_id 6726711499676455435;off = 硬切)",
+		adjacentSegments: true,
+		// 转场只活跃在接缝 ±0.25s(2.75s-3.25s / 6s),采样点全落在窗口内。
+		sampleFractions: [0.462, 0.481, 0.5, 0.519, 0.538],
+		mutate: ({ segments, innerDraft }) => {
+			const materials = innerDraft.materials as Json;
+			materials.transitions = [
+				{
+					category_id: "",
+					category_name: "",
+					duration: 500_000,
+					effect_id: "321493",
+					id: "parity-transition",
+					is_overlap: true,
+					name: "左移",
+					platform: "all",
+					resource_id: "6726711499676455435",
+					type: "transition",
+				},
+			];
+			(segments[0].extra_material_refs as string[]).push("parity-transition");
 		},
 	},
 ];
@@ -216,7 +258,17 @@ function createVideoAlgorithm(): Json {
 	};
 }
 
-function createVideoMaterial({ assetPath }: { assetPath: string }): Json {
+function createVideoMaterial({
+	assetPath,
+	id = "parity-video",
+	localMaterialId = "parity-local-media",
+	materialName = "parity-plate.mp4",
+}: {
+	assetPath: string;
+	id?: string;
+	localMaterialId?: string;
+	materialName?: string;
+}): Json {
 	return {
 		aigc_history_id: "",
 		aigc_item_id: "",
@@ -257,7 +309,7 @@ function createVideoMaterial({ assetPath }: { assetPath: string }): Json {
 		has_audio: false,
 		has_sound_separated: false,
 		height: PARITY_CANVAS_HEIGHT,
-		id: "parity-video",
+		id,
 		intensifies_audio_path: "",
 		intensifies_path: "",
 		is_ai_generate_content: false,
@@ -269,9 +321,9 @@ function createVideoMaterial({ assetPath }: { assetPath: string }): Json {
 		live_photo_timestamp: -1,
 		local_id: "",
 		local_material_from: "",
-		local_material_id: "parity-local-media",
+		local_material_id: localMaterialId,
 		material_id: "",
-		material_name: "parity-plate.mp4",
+		material_name: materialName,
 		material_url: "",
 		matting: {
 			cloud_product_fps: 0,
@@ -341,8 +393,11 @@ function createVideoMaterial({ assetPath }: { assetPath: string }): Json {
 	};
 }
 
-function createCompanions(): Record<string, Json> {
-	const prefix = "parity";
+function createCompanions({
+	prefix = "parity",
+}: {
+	prefix?: string;
+} = {}): Record<string, Json> {
 	return {
 		canvas: {
 			album_image: "",
@@ -402,8 +457,15 @@ function createCompanions(): Record<string, Json> {
 	};
 }
 
-function createVideoSegment(): Json {
-	const prefix = "parity";
+function createVideoSegment({
+	prefix = "parity",
+	materialId = "parity-video",
+	startUs = 0,
+}: {
+	prefix?: string;
+	materialId?: string;
+	startUs?: number;
+} = {}): Json {
 	return {
 		caption_info: null,
 		cartoon: false,
@@ -442,7 +504,7 @@ function createVideoSegment(): Json {
 		],
 		group_id: "",
 		hdr_settings: { intensity: 1, mode: 1, nits: 1000 },
-		id: "parity-segment",
+		id: `${prefix}-segment`,
 		intensifies_audio: false,
 		is_loop: false,
 		is_placeholder: false,
@@ -450,7 +512,7 @@ function createVideoSegment(): Json {
 		keyframe_refs: [],
 		last_nonzero_volume: 1,
 		lyric_keyframes: null,
-		material_id: "parity-video",
+		material_id: materialId,
 		raw_segment_id: "",
 		render_index: 0,
 		render_timerange: { duration: 0, start: 0 },
@@ -467,7 +529,7 @@ function createVideoSegment(): Json {
 		source_timerange: { duration: PARITY_DURATION_US, start: 0 },
 		speed: 1,
 		state: 0,
-		target_timerange: { duration: PARITY_DURATION_US, start: 0 },
+		target_timerange: { duration: PARITY_DURATION_US, start: startUs },
 		template_id: "",
 		template_scene: "default",
 		track_attribute: 0,
@@ -486,14 +548,41 @@ export function buildParityDraftContent({
 	caseId,
 	variant,
 	assetPath,
+	assetPathB,
 }: {
 	caseId: string;
 	variant: ParityVariant;
 	assetPath: string;
+	/** Second-segment plate, required by adjacentSegments cases. */
+	assetPathB?: string;
 }): Json {
 	const parityCase = getParityCase({ caseId });
+	if (parityCase.adjacentSegments && assetPathB === undefined) {
+		throw new Error(`Case ${caseId} needs assetPathB for its second segment.`);
+	}
 	const companions = createCompanions();
 	const segment = createVideoSegment();
+	const companionSets = [companions];
+	const segments = [segment];
+	const videos = [createVideoMaterial({ assetPath })];
+	if (parityCase.adjacentSegments && assetPathB !== undefined) {
+		companionSets.push(createCompanions({ prefix: "parity-b" }));
+		segments.push(
+			createVideoSegment({
+				prefix: "parity-b",
+				materialId: "parity-video-b",
+				startUs: PARITY_DURATION_US,
+			})
+		);
+		videos.push(
+			createVideoMaterial({
+				assetPath: assetPathB,
+				id: "parity-video-b",
+				localMaterialId: "parity-local-media-b",
+				materialName: "parity-plate-b.mp4",
+			})
+		);
+	}
 	const innerDraft: Json = {
 		canvas_config: {
 			background: null,
@@ -501,29 +590,29 @@ export function buildParityDraftContent({
 			ratio: "original",
 			width: PARITY_CANVAS_WIDTH,
 		},
-		duration: PARITY_DURATION_US,
+		duration: PARITY_DURATION_US * segments.length,
 		fps: PARITY_FPS,
 		id: `parity-${caseId}-${variant}`,
 		materials: {
-			canvases: [companions.canvas],
-			material_colors: [companions.color],
-			placeholder_infos: [companions.placeholder],
-			sound_channel_mappings: [companions.sound],
-			speeds: [companions.speed],
-			videos: [createVideoMaterial({ assetPath })],
-			vocal_separations: [companions.vocal],
+			canvases: companionSets.map(({ canvas }) => canvas),
+			material_colors: companionSets.map(({ color }) => color),
+			placeholder_infos: companionSets.map(({ placeholder }) => placeholder),
+			sound_channel_mappings: companionSets.map(({ sound }) => sound),
+			speeds: companionSets.map(({ speed }) => speed),
+			videos,
+			vocal_separations: companionSets.map(({ vocal }) => vocal),
 		},
 		name: `QCUT-PARITY ${caseId} ${variant}`,
 		tracks: [
 			{
 				id: "parity-video-track",
-				segments: [segment],
+				segments,
 				type: "mixed",
 			},
 		],
 	};
 	if (variant === "on") {
-		parityCase.mutate({ segment, companions, innerDraft });
+		parityCase.mutate({ segment, segments, companions, innerDraft });
 	}
 	const durationUs = innerDraft.duration as number;
 
