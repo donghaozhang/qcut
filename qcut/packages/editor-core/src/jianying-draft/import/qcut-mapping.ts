@@ -21,7 +21,12 @@ import type {
 
 const MICROSECONDS_PER_SECOND = 1_000_000;
 
-export type QCutImportPlanTrackType = "media" | "audio" | "text" | "effect";
+export type QCutImportPlanTrackType =
+	| "media"
+	| "audio"
+	| "text"
+	| "effect"
+	| "sticker";
 
 export interface QCutImportPlanMediaKeyframe {
 	id: string;
@@ -128,10 +133,29 @@ export interface QCutImportPlanEffectElement {
 	sourceSegmentId: string;
 }
 
+/**
+ * A sticker element backed by a draft-embedded image asset (L8). The asset
+ * stages into local project storage like media; provenance (剪映参照 · 内部)
+ * lives in the admission declaration.
+ */
+export interface QCutImportPlanStickerElement {
+	id: string;
+	type: "sticker";
+	name: string;
+	startTime: number;
+	duration: number;
+	trimStart: 0;
+	trimEnd: 0;
+	/** Interop resource id of the staged sticker image. */
+	resourceId: string;
+	sourceSegmentId: string;
+}
+
 export type QCutImportPlanElement =
 	| QCutImportPlanMediaElement
 	| QCutImportPlanTextElement
-	| QCutImportPlanEffectElement;
+	| QCutImportPlanEffectElement
+	| QCutImportPlanStickerElement;
 
 export interface QCutImportPlanTransition {
 	id: string;
@@ -399,6 +423,61 @@ function mapEffectSegment({
 	};
 }
 
+/**
+ * Sticker segments cross only as declared downgrades whose draft-embedded
+ * image asset resolved into a stageable resource (L8).
+ */
+function mapStickerSegment({
+	segment,
+	resourcesById,
+	skipped,
+	downgrades,
+}: {
+	segment: InteropSegment;
+	resourcesById: Map<string, InteropResource>;
+	skipped: QCutImportSkippedNode[];
+	downgrades: QCutImportPlanDowngrade[];
+}): QCutImportPlanStickerElement | null {
+	const resource =
+		segment.resourceId === undefined
+			? undefined
+			: resourcesById.get(segment.resourceId);
+	if (
+		segment.kind !== "sticker" ||
+		segment.capability !== "downgrade" ||
+		segment.downgrade === undefined ||
+		resource === undefined
+	) {
+		skipped.push({
+			nodeId: segment.id,
+			nodeType: "segment",
+			capability: segment.capability,
+			reason:
+				segment.kind === "sticker"
+					? "sticker carries no stageable draft-embedded image asset"
+					: `segment kind "${segment.kind}" is not a sticker`,
+		});
+		return null;
+	}
+	downgrades.push({
+		nodeId: segment.id,
+		nodeType: "segment",
+		approximation: segment.downgrade.approximation,
+		fidelityEvidence: segment.downgrade.fidelityEvidence,
+	});
+	return {
+		id: segment.id,
+		type: "sticker",
+		name: resource.name ?? segment.id,
+		startTime: usToSeconds(segment.targetRange.startUs),
+		duration: usToSeconds(segment.targetRange.durationUs),
+		trimStart: 0,
+		trimEnd: 0,
+		resourceId: resource.id,
+		sourceSegmentId: segment.id,
+	};
+}
+
 function mapTextSegment({
 	segment,
 	skipped,
@@ -575,7 +654,9 @@ function mapTrack({
 					? "text"
 					: track.kind === "effect"
 						? "effect"
-						: null;
+						: track.kind === "sticker"
+							? "sticker"
+							: null;
 	if (type === null) {
 		skipped.push({
 			nodeId: track.id,
@@ -601,13 +682,15 @@ function mapTrack({
 				? mapTextSegment({ segment, skipped })
 				: type === "effect"
 					? mapEffectSegment({ segment, skipped, downgrades })
-					: mapMediaSegment({
-							fps,
-							segment,
-							resourcesById,
-							skipped,
-							downgrades,
-						});
+					: type === "sticker"
+						? mapStickerSegment({ segment, resourcesById, skipped, downgrades })
+						: mapMediaSegment({
+								fps,
+								segment,
+								resourcesById,
+								skipped,
+								downgrades,
+							});
 		if (element !== null) {
 			elements.push(element);
 		}
@@ -663,7 +746,9 @@ function mapTrack({
 					? "Audio"
 					: type === "effect"
 						? "Effect"
-						: "Text",
+						: type === "sticker"
+							? "Sticker"
+							: "Text",
 		order: track.order,
 		...(track.isMain === true ? { isMain: true } : {}),
 		elements,
@@ -705,7 +790,9 @@ export function mapInteropDocumentToQCutPlan({
 		...new Set(
 			tracks.flatMap((track) =>
 				track.elements.flatMap((element) =>
-					element.type === "media" ? [element.resourceId] : []
+					element.type === "media" || element.type === "sticker"
+						? [element.resourceId]
+						: []
 				)
 			)
 		),
