@@ -15,6 +15,12 @@ import {
 	mergeEffectParameters,
 } from "@/lib/effects/effects-utils";
 import { applyAdvancedCanvasEffects } from "@/lib/effects/effects-canvas-advanced";
+import {
+	decorationStages,
+	drawDecorationStageFrame,
+	drawParticleStageFrame,
+	particleStages,
+} from "@/lib/effects/effect-procedural-draw";
 import { EFFECTS_ENABLED } from "@/config/features";
 import {
 	getActiveElements,
@@ -231,7 +237,7 @@ async function renderElement(
 	} else if (element.type === "adjustment") {
 		await applyCanvasAdjustment({ context, element, currentTime });
 	} else if (element.type === "effect") {
-		applyCanvasRegionEffect({ context, element });
+		applyCanvasRegionEffect({ context, element, currentTime });
 	} else if (element.type === "remotion") {
 		// Remotion elements are handled by RemotionExportEngine.compositeRemotionFrames()
 		// Skip in standard canvas render to avoid double-rendering
@@ -250,9 +256,11 @@ async function renderElement(
 function applyCanvasRegionEffect({
 	context,
 	element,
+	currentTime,
 }: {
 	context: RenderContext;
 	element: import("@/types/timeline").EffectElement;
+	currentTime: number;
 }): void {
 	if (element.targetElementId) return;
 	const instance = element.effect;
@@ -279,6 +287,35 @@ function applyCanvasRegionEffect({
 	ctx.drawImage(adjustmentFrameCanvas, 0, 0);
 	ctx.restore();
 	applyAdvancedCanvasEffects(ctx, instance.parameters);
+
+	// Procedural render-program stages (particles, decorations) draw on top
+	// of the restyled composite with the same deterministic frame renderers
+	// the CLI procedural sources use, clocked in element-local time. Overlay
+	// video, person-tracking, and distortion stages need the ffmpeg session
+	// pipeline and stay CLI-only.
+	const timeSeconds = Math.max(0, currentTime - element.startTime);
+	for (const stage of particleStages({ program: instance.renderProgram })) {
+		ctx.save();
+		drawParticleStageFrame({
+			context: ctx,
+			stage,
+			timeSeconds,
+			width: canvas.width,
+			height: canvas.height,
+		});
+		ctx.restore();
+	}
+	for (const stage of decorationStages({ program: instance.renderProgram })) {
+		ctx.save();
+		drawDecorationStageFrame({
+			context: ctx,
+			stage,
+			timeSeconds,
+			width: canvas.width,
+			height: canvas.height,
+		});
+		ctx.restore();
+	}
 }
 
 async function applyCanvasAdjustment({
