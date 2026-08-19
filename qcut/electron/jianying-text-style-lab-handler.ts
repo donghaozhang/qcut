@@ -295,7 +295,15 @@ export function setupJianyingTextStyleLabIPC({
 		refresh: boolean;
 	}): Promise<TextStyleLabCatalog> => {
 		if (!catalogPromise || refresh) {
-			if (refresh) snapshotPromise = Promise.resolve(null);
+			if (refresh) {
+				// The snapshot is shared between both catalogs under one
+				// fingerprint. A refresh must invalidate the other half too,
+				// or the queued write would combine rebuilt styles with
+				// animations loaded under an older fingerprint and persist
+				// that stale half as current.
+				snapshotPromise = Promise.resolve(null);
+				animationCatalogPromise = null;
+			}
 			catalogPromise = (async () => {
 				if (!refresh) {
 					const snapshot = await loadSnapshot();
@@ -320,7 +328,11 @@ export function setupJianyingTextStyleLabIPC({
 		refresh: boolean;
 	}): Promise<JianyingTextAnimationLabListResult> => {
 		if (!animationCatalogPromise || refresh) {
-			if (refresh) snapshotPromise = Promise.resolve(null);
+			if (refresh) {
+				// Mirror of readCatalog: keep both snapshot halves coherent.
+				snapshotPromise = Promise.resolve(null);
+				catalogPromise = null;
+			}
 			animationCatalogPromise = (async () => {
 				if (!refresh) {
 					const snapshot = await loadSnapshot();
