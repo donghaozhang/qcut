@@ -8,8 +8,10 @@
 
 ## 前置事实(代码锚点)
 
-- 导入准入闸在 `packages/editor-core/src/jianying-draft/import/qcut-mapping.ts:163`:
-  `capability !== "exact"` 一律不跨,进 `skipped` 报告。**downgrade 今天没有准入通道**。
+- 导入准入闸在 `packages/editor-core/src/jianying-draft/import/qcut-mapping.ts`
+  (`mapMediaSegment` 的准入分支)。规划时(pre-L0)`capability !== "exact"` 一律不跨;
+  **L0 落地后**:`downgrade` 段/转场携带 `{approximation, fidelityEvidence}` 声明即准入,
+  进 plan 的 `downgrades` 清单并受指纹接受门约束;无声明仍进 `skipped`。
 - beta4 验证默认指纹: `import/beta4-video-segment-defaults.ts`、`beta4-video-material-defaults.ts`、
   `beta4-default-companions.ts`;关键帧只认 `beta4-position-keyframes.ts` 的双通道线性 X 形状。
 - 转场导入映射先例: `import/capcut-8-1-transition-mapper.ts`(仅原生叠化)。
@@ -34,8 +36,9 @@
 
 - **目标**:一条可复跑的「构造剪映草稿 → 剪映原生导出 → 与 QCut 渲染逐帧比对」流水线,
   作为 L2-L8 每次开闸的回执生产器(registry `verificationEvidence` 用)。
-- **新增文件**:`scripts/interop-parity/`(草稿构造器 + 帧比对器,复用滤镜实验室采参照
-  与隔离验收方法——记住 SSIM 会被错模型骗过,必须做「有/无该特性」隔离对照)。
+- **新增文件**(已实现为 `scripts/jianying-parity/`):草稿构造器(`build-case.ts` /
+  `draft-case.ts`)+ 帧比对器(`compare.ts`),复用滤镜实验室采参照
+  与隔离验收方法——记住 SSIM 会被错模型骗过,必须做「有/无该特性」隔离对照。
 - **代码核心**:参数化生成单变量草稿(只含被测特性),比对报告落盘为带分数的参照记录。
 - **规模**:2 天(此后每项开闸边际成本大幅下降)。
 
