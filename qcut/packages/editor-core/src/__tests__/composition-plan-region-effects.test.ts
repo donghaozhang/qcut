@@ -62,9 +62,12 @@ describe("composition plan region effects", () => {
 			endTime: 4,
 			trackOrder: 0,
 		});
-		// The effect track contributes no drawable layer.
+		// The segment stays in the visual walk as a marker layer — renderers
+		// apply it to the composite below, the way adjustment layers work —
+		// drawn after (above) the clip it covers.
 		expect(plan.visualLayers.map(({ element }) => element.id)).toEqual([
 			"clip",
+			"region",
 		]);
 		// The covered clip sits below the effect track in UI order.
 		expect(plan.visualLayers[0].trackOrder).toBeGreaterThan(
