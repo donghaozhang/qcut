@@ -85,9 +85,11 @@ function ModeButton({
 			aria-pressed={active}
 			onClick={() => onSelectMode({ mode: id })}
 			onKeyDown={(event) => {
-				if (event.key === "Enter" || event.key === " ") {
-					event.currentTarget.click();
-				}
+				// Native buttons already click on Enter; only Space needs
+				// help, and preventDefault stops the native double-fire.
+				if (event.key !== " ") return;
+				event.preventDefault();
+				event.currentTarget.click();
 			}}
 		>
 			<Icon className="size-3.5 shrink-0" aria-hidden="true" />
@@ -117,9 +119,11 @@ function CategoryButton({
 			data-testid={`sticker-category-${category.id}`}
 			onClick={() => onSelectCategory({ category: category.id })}
 			onKeyDown={(event) => {
-				if (event.key === "Enter" || event.key === " ") {
-					event.currentTarget.click();
-				}
+				// Native buttons already click on Enter; only Space needs
+				// help, and preventDefault stops the native double-fire.
+				if (event.key !== " ") return;
+				event.preventDefault();
+				event.currentTarget.click();
 			}}
 		>
 			<span className="w-4 shrink-0 text-center text-sm" aria-hidden="true">
@@ -219,9 +223,12 @@ function LabSection({
 									})
 								}
 								onKeyDown={(event) => {
-									if (event.key === "Enter" || event.key === " ") {
-										event.currentTarget.click();
-									}
+									// Native buttons already click on Enter; only Space
+									// needs help, and preventDefault stops the native
+									// double-fire.
+									if (event.key !== " ") return;
+									event.preventDefault();
+									event.currentTarget.click();
 								}}
 							>
 								<span className="min-w-0 flex-1 truncate whitespace-nowrap">
@@ -293,9 +300,11 @@ export function StickerSidebar({
 						setLibraryExpanded((expanded) => !expanded);
 					}}
 					onKeyDown={(event) => {
-						if (event.key === "Enter" || event.key === " ") {
-							event.currentTarget.click();
-						}
+						// Native buttons already click on Enter; only Space needs
+						// help, and preventDefault stops the native double-fire.
+						if (event.key !== " ") return;
+						event.preventDefault();
+						event.currentTarget.click();
 					}}
 				>
 					<Library className="size-3.5" aria-hidden="true" />
