@@ -2,7 +2,11 @@ import type {
 	QCutImportPlanElement,
 	QCutImportPlanTextElement,
 } from "../jianying-draft/import/qcut-mapping.js";
-import type { TimelineElement, TimelineTrack } from "../types/timeline.js";
+import type {
+	ClipTransition,
+	TimelineElement,
+	TimelineTrack,
+} from "../types/timeline.js";
 import type { QCutImportBundleV1 } from "./import-bundle.js";
 
 export function getQCutImportMediaType({
@@ -168,9 +172,18 @@ export function buildQCutImportTimelineTracks({
 							semanticId: transition.toElementId,
 						}),
 						presetId: transition.presetId,
-						type: transition.type,
+						type: transition.type as ClipTransition["type"],
 						duration: transition.duration,
-						easing: transition.easing,
+						easing: transition.easing as ClipTransition["easing"],
+						...(transition.direction === undefined
+							? {}
+							: {
+									direction:
+										transition.direction as ClipTransition["direction"],
+								}),
+						...(transition.tuning === undefined
+							? {}
+							: { tuning: transition.tuning }),
 					})),
 				}),
 		order: planTrack.order,
