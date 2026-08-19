@@ -31,6 +31,11 @@ export interface ExportSegment {
 	fitMode: "cover" | "contain" | "fill";
 	/** Element visual transform; absent when the element sits at defaults. */
 	transform?: import("../../../ffmpeg/segment-transform-filter.js").SegmentTransform;
+	/**
+	 * Constant playback rate; absent = 1. `duration` stays in TIMELINE
+	 * seconds — the source read length is duration × playbackRate.
+	 */
+	playbackRate?: number;
 }
 
 export interface ResolvedExportSettings {
