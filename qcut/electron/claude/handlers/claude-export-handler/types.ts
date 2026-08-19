@@ -29,6 +29,8 @@ export interface ExportSegment {
 	sourceId: string;
 	isImage?: boolean;
 	fitMode: "cover" | "contain" | "fill";
+	/** Element visual transform; absent when the element sits at defaults. */
+	transform?: import("../../../ffmpeg/segment-transform-filter.js").SegmentTransform;
 }
 
 export interface ResolvedExportSettings {
