@@ -23,7 +23,11 @@ import { getParityCase, PARITY_FPS } from "./draft-case.js";
 
 const REPO_ROOT = resolve(import.meta.dirname, "../..");
 const WORKSPACE = join(REPO_ROOT, ".local/jianying-parity");
-/** Sampled frame ordinals, chosen away from first/last-frame edge effects. */
+/**
+ * Default sampled frame ordinals, chosen away from first/last-frame edge
+ * effects. Cases with a narrow active window (transitions) override these
+ * via ParityCase.sampleFractions.
+ */
 const SAMPLE_FRACTIONS = [0.15, 0.35, 0.5, 0.65, 0.85] as const;
 /** JY on-vs-off mean RMSE below this = the feature never rendered. */
 const ISOLATION_MIN_RMSE = 2;
@@ -236,7 +240,9 @@ async function main() {
 		ffprobePath,
 		videoPath: videos.jianyingOn,
 	});
-	const sampleOrdinals = SAMPLE_FRACTIONS.map((fraction) =>
+	const sampleFractions =
+		getParityCase({ caseId }).sampleFractions ?? SAMPLE_FRACTIONS;
+	const sampleOrdinals = sampleFractions.map((fraction) =>
 		Math.max(
 			0,
 			Math.min(
