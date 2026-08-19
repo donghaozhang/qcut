@@ -30,6 +30,9 @@ import {
 	type SegmentPositionKeyframe,
 	type SegmentTransform,
 } from "../../../ffmpeg/segment-transform-filter.js";
+import { buildVideoColorFilter } from "../../../ffmpeg/color-filter.js";
+import type { VideoColorSettings } from "../../../ffmpeg/color-settings.js";
+import { DEFAULT_VISUAL } from "../../../ffmpeg-video-transform.js";
 import { claudeLog } from "../../utils/logger.js";
 import { logOperation } from "../../claude-operation-log.js";
 import { emitClaudeEvent } from "../claude-events-handler.js";
@@ -468,6 +471,7 @@ export async function collectExportSegments({
 					element,
 					fps: timeline.fps || 30,
 				});
+				const color = readElementColorSettings({ element });
 				segments.push({
 					elementId: element.id,
 					trackId,
@@ -484,6 +488,7 @@ export async function collectExportSegments({
 					isImage: media.type === "image",
 					fitMode: element.fitMode ?? "cover",
 					...(transform === undefined ? {} : { transform }),
+					...(color === undefined ? {} : { color }),
 					...(playbackRate === 1 ? {} : { playbackRate }),
 				});
 			}
@@ -968,6 +973,24 @@ function readElementTransform({
 	return isIdentitySegmentTransform({ transform }) ? undefined : transform;
 }
 
+/**
+ * Reads the renderer-resolved color grade from the snapshot. The renderer
+ * only serializes `colorSettings` when the grade has visible edits (filter
+ * presets already baked to LUT cubes), so presence is the signal; the ffmpeg
+ * color pipeline normalizes the untrusted shape before building filters.
+ */
+function readElementColorSettings({
+	element,
+}: {
+	element: ClaudeElement;
+}): VideoColorSettings | undefined {
+	const raw = element.colorSettings;
+	if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+		return undefined;
+	}
+	return raw as unknown as VideoColorSettings;
+}
+
 /** Build the same cover/contain/fill scaling used by the editor preview. */
 export function buildExportSegmentScaleFilter({
 	segment,
@@ -981,6 +1004,15 @@ export function buildExportSegmentScaleFilter({
 		width: settings.width,
 		height: settings.height,
 	})},setsar=1`;
+	// Color grades the media pixels before the geometric transform: padding
+	// introduced by rotation/position must stay untouched black, not get
+	// lifted by brightness or vignetted.
+	const colorFilter =
+		segment.color === undefined
+			? ""
+			: buildVideoColorFilter({
+					visual: { ...DEFAULT_VISUAL, color: segment.color },
+				});
 	const transformFilter =
 		segment.transform === undefined
 			? ""
@@ -997,7 +1029,7 @@ export function buildExportSegmentScaleFilter({
 	// 2× mapping.
 	const rateFilter =
 		rate === 1 ? "" : `setpts=(PTS-STARTPTS)/${rate},fps=${settings.fps}`;
-	return [fit, transformFilter, rateFilter]
+	return [fit, colorFilter, transformFilter, rateFilter]
 		.filter((stage) => stage !== "")
 		.join(",");
 }
