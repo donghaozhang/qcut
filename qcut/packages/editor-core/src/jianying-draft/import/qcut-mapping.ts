@@ -46,6 +46,11 @@ export interface QCutImportPlanMediaElement {
 	speed?: number;
 	x?: number;
 	y?: number;
+	/** Degrees, QCut screen-clockwise convention (dialect sign already applied). */
+	rotation?: number;
+	scaleX?: number;
+	scaleY?: number;
+	opacity?: number;
 	keyframes?: Partial<Record<"x" | "y", QCutImportPlanMediaKeyframe[]>>;
 	sourceSegmentId: string;
 }
@@ -271,6 +276,18 @@ function mapMediaSegment({
 		...(segment.visual === undefined
 			? {}
 			: { x: segment.visual.xPx, y: segment.visual.yPx }),
+		...(segment.visual?.rotationDegrees === undefined
+			? {}
+			: { rotation: segment.visual.rotationDegrees }),
+		...(segment.visual?.scaleX === undefined
+			? {}
+			: { scaleX: segment.visual.scaleX }),
+		...(segment.visual?.scaleY === undefined
+			? {}
+			: { scaleY: segment.visual.scaleY }),
+		...(segment.visual?.opacity === undefined
+			? {}
+			: { opacity: segment.visual.opacity }),
 		...(visualKeyframes === undefined
 			? {}
 			: {
