@@ -177,6 +177,27 @@ export interface InteropFilterPreset {
 	intensity: number;
 }
 
+/** Slider schema entry copied from a locally installed effect package (L7). */
+export interface InteropEffectAdjustParameter {
+	key: string;
+	defaultValue: number;
+	minimum: number;
+	maximum: number;
+}
+
+/**
+ * A locally installed jianying-local effect package an effect segment maps
+ * to (L7). Machine-bound by design: admission requires the package on this
+ * machine, and the mapped element renders through the local Jianying runtime.
+ */
+export interface InteropEffectPreset {
+	presetId: string;
+	name: string;
+	/** Package md5 — the id the local catalog and the disk agree on. */
+	packageHash: string;
+	adjustParameters?: InteropEffectAdjustParameter[];
+}
+
 export interface InteropSegment {
 	id: string;
 	kind: InteropSegmentKind;
@@ -191,6 +212,8 @@ export interface InteropSegment {
 	visual?: InteropMediaVisual;
 	/** Present when a fitted recipe backs a filter downgrade admission (L6). */
 	filterPreset?: InteropFilterPreset;
+	/** Present when a local package backs an effect downgrade admission (L7). */
+	effectPreset?: InteropEffectPreset;
 	capability: InteropCapability;
 	/** Required for downgrade admission into the media import plan. */
 	downgrade?: InteropDowngradeDeclaration;
@@ -680,6 +703,13 @@ function parseSegment({
 					value: record.filterPreset,
 					path: `${path}/filterPreset`,
 				});
+	const effectPreset =
+		record.effectPreset === undefined
+			? undefined
+			: parseEffectPreset({
+					value: record.effectPreset,
+					path: `${path}/effectPreset`,
+				});
 	return {
 		id: asString({ value: record.id, path: `${path}/id` }),
 		kind: asEnum({
@@ -708,12 +738,60 @@ function parseSegment({
 		...(text === undefined ? {} : { text }),
 		...(visual === undefined ? {} : { visual }),
 		...(filterPreset === undefined ? {} : { filterPreset }),
+		...(effectPreset === undefined ? {} : { effectPreset }),
 		capability: asCapability({
 			value: record.capability,
 			path: `${path}/capability`,
 		}),
 		...(downgrade === undefined ? {} : { downgrade }),
 		...(foreignRef === undefined ? {} : { foreignRef }),
+	};
+}
+
+function parseEffectPreset({
+	value,
+	path,
+}: {
+	value: unknown;
+	path: string;
+}): InteropEffectPreset {
+	const record = asRecord({ value, path });
+	const adjustParameters =
+		record.adjustParameters === undefined
+			? undefined
+			: asArray({
+					value: record.adjustParameters,
+					path: `${path}/adjustParameters`,
+				}).map((entry, index) => {
+					const parameterPath = `${path}/adjustParameters/${index}`;
+					const parameter = asRecord({ value: entry, path: parameterPath });
+					return {
+						key: asString({
+							value: parameter.key,
+							path: `${parameterPath}/key`,
+						}),
+						defaultValue: asFiniteNumber({
+							value: parameter.defaultValue,
+							path: `${parameterPath}/defaultValue`,
+						}),
+						minimum: asFiniteNumber({
+							value: parameter.minimum,
+							path: `${parameterPath}/minimum`,
+						}),
+						maximum: asFiniteNumber({
+							value: parameter.maximum,
+							path: `${parameterPath}/maximum`,
+						}),
+					};
+				});
+	return {
+		presetId: asString({ value: record.presetId, path: `${path}/presetId` }),
+		name: asString({ value: record.name, path: `${path}/name` }),
+		packageHash: asString({
+			value: record.packageHash,
+			path: `${path}/packageHash`,
+		}),
+		...(adjustParameters === undefined ? {} : { adjustParameters }),
 	};
 }
 
