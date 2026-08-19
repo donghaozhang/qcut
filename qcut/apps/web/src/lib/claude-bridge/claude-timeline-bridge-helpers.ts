@@ -1501,6 +1501,7 @@ function formatElementForExport({
 				scaleX: element.scaleX,
 				scaleY: element.scaleY,
 				opacity: element.opacity,
+				keyframes: element.keyframes as ClaudeElement["keyframes"],
 				timelineDuration,
 			};
 		}
