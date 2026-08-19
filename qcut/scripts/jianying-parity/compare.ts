@@ -95,9 +95,26 @@ async function probeVideo({
 		| { width: number; height: number; nb_frames?: string; duration?: string }
 		| undefined;
 	if (!stream) throw new Error(`No video stream in ${videoPath}`);
-	const frameCount = stream.nb_frames
-		? Number(stream.nb_frames)
-		: Math.floor(Number(stream.duration ?? 0) * PARITY_FPS);
+	// nb_frames can be "N/A"; durations can be missing. Use each source only
+	// when it yields a finite, positive count — sampling with NaN/0 ordinals
+	// would silently hand FFmpeg garbage select expressions.
+	const nbFrames = Number(stream.nb_frames);
+	const durationFrames = Math.floor(Number(stream.duration) * PARITY_FPS);
+	const frameCount =
+		Number.isFinite(nbFrames) && nbFrames > 0
+			? nbFrames
+			: Number.isFinite(durationFrames) && durationFrames > 0
+				? durationFrames
+				: 0;
+	if (
+		frameCount <= 0 ||
+		!Number.isFinite(stream.width) ||
+		!Number.isFinite(stream.height) ||
+		stream.width <= 0 ||
+		stream.height <= 0
+	) {
+		throw new Error(`No usable frame count or dimensions in ${videoPath}`);
+	}
 	return { width: stream.width, height: stream.height, frameCount };
 }
 
@@ -236,10 +253,30 @@ async function main() {
 		targetKey: getBundledTargetKey(),
 		tool: "ffprobe",
 	});
-	const reference = await probeVideo({
-		ffprobePath,
-		videoPath: videos.jianyingOn,
-	});
+	// Probe every video, not just the reference: extractFrame rescales its
+	// input to the reference dimensions, so a wrong-sized export would
+	// otherwise be silently stretched into a passing comparison.
+	const probes: Record<
+		string,
+		{ width: number; height: number; frameCount: number }
+	> = {};
+	for (const [label, videoPath] of Object.entries(videos)) {
+		if (!existsSync(videoPath)) continue;
+		probes[label] = await probeVideo({ ffprobePath, videoPath });
+	}
+	const reference = probes.jianyingOn;
+	for (const [label, probe] of Object.entries(probes)) {
+		if (
+			probe.width !== reference.width ||
+			probe.height !== reference.height ||
+			Math.abs(probe.frameCount - reference.frameCount) > 1
+		) {
+			throw new Error(
+				`视频参数不一致,拒绝比对:${label} ${probe.width}x${probe.height}/${probe.frameCount}帧 ` +
+					`vs 参照 ${reference.width}x${reference.height}/${reference.frameCount}帧`
+			);
+		}
+	}
 	const sampleFractions =
 		getParityCase({ caseId }).sampleFractions ?? SAMPLE_FRACTIONS;
 	const sampleOrdinals = sampleFractions.map((fraction) =>
@@ -317,6 +354,8 @@ async function main() {
 			groundTruthNote:
 				"exported by locally installed JianyingPro (see build-case output for version caveat)",
 			sampleOrdinals,
+			/** Validated per-video metadata — extraction refuses mismatches. */
+			videos: probes,
 			thresholds: {
 				isolationMinRmse: ISOLATION_MIN_RMSE,
 				baselineMaxRmse: BASELINE_MAX_RMSE,
