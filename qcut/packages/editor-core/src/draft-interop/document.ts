@@ -101,10 +101,20 @@ export interface InteropVisualKeyframe {
 	foreignRef?: string;
 }
 
-/** Canvas-space visual state shared by foreign drafts and QCut. */
+/**
+ * Canvas-space visual state shared by foreign drafts and QCut. All values are
+ * already in QCut conventions: pixels from canvas center, degrees clockwise
+ * on screen, 1-based scale, 0..1 opacity — source-dialect conversions (e.g.
+ * JianYing's half-canvas units and counterclockwise rotation) happen in the
+ * profile mappers.
+ */
 export interface InteropMediaVisual {
 	xPx: number;
 	yPx: number;
+	rotationDegrees?: number;
+	scaleX?: number;
+	scaleY?: number;
+	opacity?: number;
 	keyframes?: Partial<
 		Record<InteropVisualKeyframeProperty, InteropVisualKeyframe[]>
 	>;
@@ -759,9 +769,32 @@ function parseMediaVisual({
 	};
 	const x = parseProperty({ property: "x" });
 	const y = parseProperty({ property: "y" });
+	const rotationDegrees =
+		record.rotationDegrees === undefined
+			? undefined
+			: asFiniteNumber({
+					value: record.rotationDegrees,
+					path: `${path}/rotationDegrees`,
+				});
+	const scaleX =
+		record.scaleX === undefined
+			? undefined
+			: asPositiveFinite({ value: record.scaleX, path: `${path}/scaleX` });
+	const scaleY =
+		record.scaleY === undefined
+			? undefined
+			: asPositiveFinite({ value: record.scaleY, path: `${path}/scaleY` });
+	const opacity =
+		record.opacity === undefined
+			? undefined
+			: asUnitInterval({ value: record.opacity, path: `${path}/opacity` });
 	return {
 		xPx: asFiniteNumber({ value: record.xPx, path: `${path}/xPx` }),
 		yPx: asFiniteNumber({ value: record.yPx, path: `${path}/yPx` }),
+		...(rotationDegrees === undefined ? {} : { rotationDegrees }),
+		...(scaleX === undefined ? {} : { scaleX }),
+		...(scaleY === undefined ? {} : { scaleY }),
+		...(opacity === undefined ? {} : { opacity }),
 		...(keyframesRecord === undefined
 			? {}
 			: {
