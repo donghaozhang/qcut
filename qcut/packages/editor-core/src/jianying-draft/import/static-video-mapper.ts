@@ -117,6 +117,7 @@ export function mapStaticVideo({
 		});
 	}
 	const positionKeyframes = mapBeta4PositionKeyframes({
+		canvasHeight,
 		canvasWidth,
 		fps,
 		segment,
@@ -124,7 +125,7 @@ export function mapStaticVideo({
 	if (positionKeyframes.kind === "unsupported") {
 		return opaque({
 			reason:
-				"video position keyframes are preserved but fall outside the verified beta4 linear X-only subset",
+				"video position keyframes are preserved but fall outside the verified beta4 two-channel linear subset",
 		});
 	}
 	if (
