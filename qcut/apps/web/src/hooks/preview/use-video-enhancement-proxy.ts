@@ -1,5 +1,5 @@
 import { platform } from "@qcut/platform-core";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { hasMediaEnhancements } from "@/lib/video/video-properties";
 import { getMediaSourcePlaybackTime } from "@/lib/video/video-timing";
 import type { MediaElement, MediaEnhancements } from "@/types/timeline";
@@ -57,6 +57,82 @@ export function getVideoEnhancementProxyWindow({
 			Math.min(safeChunkDuration, clipEnd - sourceStart).toFixed(6)
 		),
 	};
+}
+
+export interface VideoEnhancementProxyWindow {
+	sourceStart: number;
+	sourceDuration: number;
+}
+
+const EMPTY_PROXY_WINDOW: VideoEnhancementProxyWindow = {
+	sourceStart: 0,
+	sourceDuration: 0,
+};
+
+function sameProxyWindow(
+	previous: VideoEnhancementProxyWindow,
+	next: VideoEnhancementProxyWindow
+): boolean {
+	return (
+		previous.sourceStart === next.sourceStart &&
+		previous.sourceDuration === next.sourceDuration
+	);
+}
+
+/**
+ * Current proxy chunk window for a media element, advanced by
+ * "playback-update" events during playback instead of per-frame React
+ * renders. State only changes when the stride-aligned chunk changes
+ * (~once per DEFAULT_PROXY_CHUNK_SECONDS), so proxy-backed playback does
+ * not force the preview tree to re-render every frame.
+ */
+export function useVideoEnhancementProxyWindow({
+	element,
+	currentTime,
+	isPlaying,
+}: {
+	element: MediaElement | null;
+	currentTime: number;
+	isPlaying: boolean;
+}): VideoEnhancementProxyWindow {
+	const [proxyWindow, setProxyWindow] =
+		useState<VideoEnhancementProxyWindow>(EMPTY_PROXY_WINDOW);
+	const elementRef = useRef(element);
+
+	useEffect(() => {
+		elementRef.current = element;
+	}, [element]);
+
+	// Seeks, pauses, and element switches resolve from the rendered time.
+	useEffect(() => {
+		const next = element
+			? getVideoEnhancementProxyWindow({ element, currentTime })
+			: EMPTY_PROXY_WINDOW;
+		setProxyWindow((previous) =>
+			sameProxyWindow(previous, next) ? previous : next
+		);
+	}, [element, currentTime]);
+
+	// Playback advances the chunk from the shared clock events.
+	useEffect(() => {
+		if (!isPlaying || !element) return;
+		const handleUpdate = (event: Event) => {
+			const time = (event as CustomEvent).detail.time as number;
+			const currentElement = elementRef.current;
+			if (!currentElement || !Number.isFinite(time)) return;
+			const next = getVideoEnhancementProxyWindow({
+				element: currentElement,
+				currentTime: time,
+			});
+			setProxyWindow((previous) =>
+				sameProxyWindow(previous, next) ? previous : next
+			);
+		};
+		window.addEventListener("playback-update", handleUpdate);
+		return () => window.removeEventListener("playback-update", handleUpdate);
+	}, [isPlaying, element]);
+
+	return proxyWindow;
 }
 
 export function videoEnhancementProxyDimensions({
