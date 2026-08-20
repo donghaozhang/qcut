@@ -126,6 +126,29 @@ describe("timelineElementNeedsSmoothTime", () => {
 		).toBe(true);
 	});
 
+	it("ignores disabled default custom cutouts but flags enabled ones", () => {
+		const disabledCutout = {
+			enabled: false,
+			applyStrokes: true,
+			strokes: [],
+			status: "idle",
+		} as unknown as MediaElement["customCutout"];
+		expect(
+			timelineElementNeedsSmoothTime({
+				element: makeMediaElement({ customCutout: disabledCutout }),
+			})
+		).toBe(false);
+		const enabledCutout = {
+			...disabledCutout,
+			enabled: true,
+		} as unknown as MediaElement["customCutout"];
+		expect(
+			timelineElementNeedsSmoothTime({
+				element: makeMediaElement({ customCutout: enabledCutout }),
+			})
+		).toBe(true);
+	});
+
 	it("treats plain text as static and animated text as smooth", () => {
 		expect(timelineElementNeedsSmoothTime({ element: makeTextElement() })).toBe(
 			false

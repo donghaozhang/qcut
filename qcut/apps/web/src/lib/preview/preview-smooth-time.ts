@@ -81,8 +81,9 @@ function mediaElementNeedsSmoothTime(element: MediaElement): boolean {
 		if (mask.enabled === false) continue;
 		if (hasAnyKeyframes(mask.keyframes) || mask.tracking) return true;
 	}
-	// Custom cutouts are frame-indexed; their style depends on the playhead.
-	if (element.customCutout) return true;
+	// Enabled custom cutouts are frame-indexed; their style depends on the
+	// playhead. Elements carry a disabled default object — ignore it.
+	if (element.customCutout?.enabled) return true;
 	if (
 		element.chromaKey?.enabled &&
 		hasAnyKeyframes(element.chromaKey.keyframes)
