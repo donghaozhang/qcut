@@ -264,6 +264,7 @@ export function VideoPlayer({
 		const handleUpdateEvent = (e: CustomEvent) => {
 			// Always update video time, even if outside clip range
 			const timelineTime = e.detail.time;
+			timelineTimeRef.current = timelineTime;
 			const targetTime = getVideoTime(timelineTime);
 
 			if (
@@ -271,6 +272,23 @@ export function VideoPlayer({
 				Math.abs(video.currentTime - targetTime) > 0.5
 			) {
 				video.currentTime = targetTime;
+			}
+
+			// Self-heal: a proxy-chunk reload or a rejected play() leaves the
+			// element paused while the master clock keeps running; without this
+			// the drift corrector above degrades playback into a 2fps slideshow.
+			if (
+				!requiresManualTiming &&
+				video.paused &&
+				video.readyState >= 2 &&
+				usePlaybackStore.getState().isPlaying
+			) {
+				video.play().catch((cause) => {
+					console.warn(
+						`[VideoPlayer] resume play() failed for ${videoId ?? "video"}:`,
+						cause
+					);
+				});
 			}
 		};
 
@@ -303,15 +321,24 @@ export function VideoPlayer({
 				handleSpeed as EventListener
 			);
 		};
-	}, [isInClipRange, requiresManualTiming, getVideoTime, syncVideoTiming]);
+	}, [
+		isInClipRange,
+		requiresManualTiming,
+		getVideoTime,
+		syncVideoTiming,
+		videoId,
+	]);
 
 	// Sync playback state with readyState check
 	useEffect(() => {
 		const video = videoRef.current;
 		if (!video) return;
 
-		const handlePlayError = (_err: any) => {
-			// Silently handle play errors
+		const handlePlayError = (cause: unknown) => {
+			console.warn(
+				`[VideoPlayer] play() failed for ${videoId ?? "video"}:`,
+				cause
+			);
 		};
 
 		const tryPlay = () => {
@@ -346,7 +373,7 @@ export function VideoPlayer({
 		return () => {
 			window.removeEventListener("playback-play", handleDirectPlay);
 		};
-	}, [isPlaying, isInClipRange, requiresManualTiming]);
+	}, [isPlaying, isInClipRange, requiresManualTiming, videoId]);
 
 	// Sync global playback speed with clip-local timing.
 	useEffect(() => {
