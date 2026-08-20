@@ -5,7 +5,9 @@
  * "playback-update" events and re-render the whole React preview tree every
  * animation frame ("smooth time"). That is required for content that animates
  * through React (keyframes, transitions, captions, Remotion, screen-recording
- * zoom, chunked playback proxies), but it is pure overhead for static clips.
+ * zoom), but it is pure overhead for static clips. Chunked playback proxies
+ * advance their windows from playback events (useVideoEnhancementProxyWindow)
+ * and do not need per-frame renders.
  *
  * These helpers decide whether anything currently on the canvas actually
  * needs per-frame React updates. When nothing does, the preview panel skips
@@ -15,13 +17,10 @@
  */
 
 import { resolveActiveAudioCrossfadePreview } from "@/lib/audio/audio-crossfade-preview";
-import { resolveEffectivePreviewQualityOption } from "@/lib/preview/preview-quality";
 import { getTimelineElementDuration } from "@/lib/timeline";
 import { resolveActiveClipTransitionPreview } from "@/lib/transitions/clip-transition-preview";
 import { JIANYING_TIMELINE_PREFETCH_SECONDS } from "@/lib/transitions/jianying-timeline-preview";
-import { hasMediaEnhancements } from "@/lib/video/video-properties";
 import { getMediaTimelineDuration } from "@/lib/video/video-timing";
-import type { PreviewQualityPreset } from "@/types/playback";
 import {
 	resolveClipTransition,
 	type MediaElement,
@@ -45,13 +44,6 @@ export const PREVIEW_SMOOTH_TIME_NOT_NEEDED: PreviewSmoothTimeNeed = {
 export interface JianyingPrefetchWindow {
 	start: number;
 	end: number;
-}
-
-/** Minimal media info the gate needs to mirror the playback-proxy decision. */
-export interface PreviewSmoothTimeMediaInfo {
-	type: string;
-	width?: number;
-	height?: number;
 }
 
 function need(reason: string): PreviewSmoothTimeNeed {
@@ -230,12 +222,7 @@ export interface ResolvePreviewSmoothTimeNeedParams {
 	fps: number;
 	zoomActive: boolean;
 	cursorOverlayActive: boolean;
-	previewQuality: PreviewQualityPreset;
-	runtimePreviewQuality: PreviewQualityPreset | null;
-	canvasWidth: number;
-	canvasHeight: number;
 	hasElementEffects: (elementId: string) => boolean;
-	getMediaInfo: (mediaId: string) => PreviewSmoothTimeMediaInfo | undefined;
 	jianyingPrefetchWindows: readonly JianyingPrefetchWindow[];
 }
 
@@ -251,12 +238,7 @@ export function resolvePreviewSmoothTimeNeed({
 	fps,
 	zoomActive,
 	cursorOverlayActive,
-	previewQuality,
-	runtimePreviewQuality,
-	canvasWidth,
-	canvasHeight,
 	hasElementEffects,
-	getMediaInfo,
 	jianyingPrefetchWindows,
 }: ResolvePreviewSmoothTimeNeedParams): PreviewSmoothTimeNeed {
 	if (zoomActive) return need("zoom-region");
@@ -279,25 +261,6 @@ export function resolvePreviewSmoothTimeNeed({
 			if (hasElementEffects(element.id)) return need("element-effects");
 			if (timelineElementNeedsSmoothTime({ element })) {
 				return need(`animated-element:${element.type}`);
-			}
-			if (element.type === "media") {
-				const mediaInfo = getMediaInfo(element.mediaId);
-				if (mediaInfo?.type === "video") {
-					const hasEnhancements = element.enhancements
-						? hasMediaEnhancements({ enhancements: element.enhancements })
-						: false;
-					// Enhanced or proxy-forced playback streams from a chunked
-					// proxy whose window advances with the rendered time.
-					if (hasEnhancements) return need("video-enhancements");
-					const qualityOption = resolveEffectivePreviewQualityOption({
-						quality: previewQuality,
-						runtimeQuality: runtimePreviewQuality,
-						sourceWidth: mediaInfo.width ?? canvasWidth,
-						sourceHeight: mediaInfo.height ?? canvasHeight,
-						hasEnhancements,
-					});
-					if (qualityOption.forceProxy) return need("playback-proxy");
-				}
 			}
 		}
 	}

@@ -72,12 +72,7 @@ function makeNeedParams(
 		fps: 30,
 		zoomActive: false,
 		cursorOverlayActive: false,
-		previewQuality: "original",
-		runtimePreviewQuality: null,
-		canvasWidth: 1920,
-		canvasHeight: 1080,
 		hasElementEffects: () => false,
-		getMediaInfo: () => ({ type: "video", width: 1280, height: 720 }),
 		jianyingPrefetchWindows: [],
 		...overrides,
 	};
@@ -186,24 +181,13 @@ describe("resolvePreviewSmoothTimeNeed", () => {
 		).toMatchObject({ reason: "element-effects" });
 	});
 
-	it("turns on when the effective quality forces a playback proxy", () => {
-		expect(
-			resolvePreviewSmoothTimeNeed(
-				makeNeedParams({
-					previewQuality: "auto",
-					getMediaInfo: () => ({ type: "video", width: 3840, height: 2160 }),
-				})
-			)
-		).toMatchObject({ reason: "playback-proxy" });
-		// Small sources at auto quality stay on the direct source.
-		expect(
-			resolvePreviewSmoothTimeNeed(
-				makeNeedParams({
-					previewQuality: "auto",
-					getMediaInfo: () => ({ type: "video", width: 1280, height: 720 }),
-				})
-			)
-		).toMatchObject({ needsSmoothTime: false });
+	it("stays off for plain high-resolution video (proxy advances via events)", () => {
+		// Proxy-backed playback no longer forces per-frame renders: the chunk
+		// window is advanced by useVideoEnhancementProxyWindow from
+		// playback-update events instead of rendered time.
+		expect(resolvePreviewSmoothTimeNeed(makeNeedParams())).toMatchObject({
+			needsSmoothTime: false,
+		});
 	});
 
 	it("ignores hidden tracks and out-of-range elements", () => {

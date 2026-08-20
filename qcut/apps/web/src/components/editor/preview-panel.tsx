@@ -260,18 +260,8 @@ export function PreviewPanel() {
 			fps: activeProject?.fps ?? 30,
 			zoomActive: zoomPreviewActive,
 			cursorOverlayActive: cursorOverlayPreviewActive,
-			previewQuality,
-			runtimePreviewQuality,
-			canvasWidth: canvasSize.width,
-			canvasHeight: canvasSize.height,
 			hasElementEffects: (elementId) =>
 				effectsRenderingByElementId.has(elementId),
-			getMediaInfo: (mediaId) => {
-				const item = mediaItems.find((candidate) => candidate.id === mediaId);
-				return item
-					? { type: item.type, width: item.width, height: item.height }
-					: undefined;
-			},
 			jianyingPrefetchWindows,
 		});
 	}, [
@@ -282,12 +272,7 @@ export function PreviewPanel() {
 		activeProject?.fps,
 		zoomPreviewActive,
 		cursorOverlayPreviewActive,
-		previewQuality,
-		runtimePreviewQuality,
-		canvasSize.width,
-		canvasSize.height,
 		effectsRenderingByElementId,
-		mediaItems,
 		jianyingPrefetchWindows,
 	]);
 	const smoothTime = useSmoothPlaybackTime({
