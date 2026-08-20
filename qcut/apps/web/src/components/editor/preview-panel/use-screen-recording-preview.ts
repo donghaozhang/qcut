@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useMemo } from "react";
 import { useScreenRecordingEnhancementStore } from "@/stores/screen-recording-store";
 import { computeZoomTransform } from "@/lib/screen-recording/zoom-transform";
 import type { ZoomTransform } from "@/lib/screen-recording/zoom-transform";
@@ -10,13 +10,13 @@ import type { BackgroundConfig } from "@/lib/screen-recording/wallpapers";
 interface ScreenRecordingPreviewParams {
 	isPlaying: boolean;
 	currentTime: number;
+	/** Continuous playback time from useSmoothPlaybackTime (gated per-frame). */
+	smoothTime: number;
 	previewWidth: number;
 	previewHeight: number;
 }
 
 interface ScreenRecordingPreviewResult {
-	/** Continuous time (seconds) that updates every frame during playback. */
-	smoothTime: number;
 	/** Current zoom transform, or null when no zoom is active. */
 	zoomTransform: ZoomTransform | null;
 	/** CSS style to apply zoom, or undefined when identity. */
@@ -29,12 +29,14 @@ interface ScreenRecordingPreviewResult {
 }
 
 /**
- * Encapsulates screen-recording preview state: smooth playback time,
- * zoom transform computation, and store selectors.
+ * Encapsulates screen-recording preview state: zoom transform computation
+ * and store selectors. Smooth playback time is supplied by the caller
+ * (useSmoothPlaybackTime) so per-frame updates stay gated in one place.
  */
 export function useScreenRecordingPreview({
 	isPlaying,
 	currentTime,
+	smoothTime,
 	previewWidth,
 	previewHeight,
 }: ScreenRecordingPreviewParams): ScreenRecordingPreviewResult {
@@ -51,22 +53,6 @@ export function useScreenRecordingPreview({
 		(s) => s.background
 	);
 	const zoomRegions = useScreenRecordingEnhancementStore((s) => s.zoomRegions);
-
-	// Continuous time for smooth zoom/cursor animation during playback.
-	// The main playbackTime only updates on element boundary crossings,
-	// so we listen to every playback-update event for per-frame fidelity.
-	const [smoothTime, setSmoothTime] = useState(currentTime);
-	useEffect(() => {
-		if (!isPlaying) {
-			setSmoothTime(currentTime);
-			return;
-		}
-		const handleUpdate = (e: Event) => {
-			setSmoothTime((e as CustomEvent).detail.time as number);
-		};
-		window.addEventListener("playback-update", handleUpdate);
-		return () => window.removeEventListener("playback-update", handleUpdate);
-	}, [isPlaying, currentTime]);
 
 	// Compute zoom transform using preview dimensions (not canvas dimensions)
 	// so translation values match the CSS-sized preview container.
@@ -97,7 +83,6 @@ export function useScreenRecordingPreview({
 			: undefined;
 
 	return {
-		smoothTime,
 		zoomTransform,
 		zoomStyle,
 		cursorTelemetry,
