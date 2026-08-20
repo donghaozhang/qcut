@@ -31,6 +31,7 @@ import {
 	registerQCutJianyingProjectExportRoutes,
 } from "../claude/http/claude-http-jianying-project-export-routes.js";
 import { registerSnapshotRoutes } from "../claude/http/claude-http-snapshot-routes.js";
+import { registerPlaybackDiagnosticsRoutes } from "../claude/http/claude-http-playback-routes.js";
 import { registerAgentPointerRoutes } from "../claude/http/claude-http-pointer-routes.js";
 import {
 	handleClaudeEventsStreamRequest,
@@ -496,6 +497,10 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 				request,
 			})) as EditorSnapshotActionResult,
 		timeoutMs: 10_000,
+	});
+	registerPlaybackDiagnosticsRoutes(router, {
+		pullSnapshot: () => requestFromMain("playback-diagnostics:snapshot", {}),
+		resetCollector: () => requestFromMain("playback-diagnostics:reset", {}),
 	});
 	registerAgentPointerRoutes(router, {
 		getState: async () =>
