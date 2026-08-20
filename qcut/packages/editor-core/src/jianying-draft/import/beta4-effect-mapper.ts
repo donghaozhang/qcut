@@ -67,7 +67,7 @@ export function mapBeta4SegmentEffect({
 		downgrade: {
 			approximation: `jianying-local-effect:${local.presetId}`,
 			fidelityEvidence:
-				"rendered by the locally installed Jianying runtime (reference batch verified; machine-bound: exports of this element stay blocked until the native frame roundtrip lands); sliders import at package defaults",
+				"rendered by the locally installed Jianying runtime (reference batch verified; machine-bound: exports via the CLI engine's native effect post-pass on this machine, and drop on machines without the package); sliders import at package defaults",
 		},
 		reason: `effect ${local.name} maps to the locally installed jianying-local package ${local.packageHash}`,
 	};
