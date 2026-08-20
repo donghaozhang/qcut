@@ -14,7 +14,10 @@ import {
 } from "@/lib/video/video-timing";
 
 const LOCAL_PACKAGE_HASH_PATTERN = /^[a-f0-9]{32,64}$/;
-const DEFAULT_PREFETCH_SECONDS = 4;
+/** Seconds before a jianying-local transition window in which the preview
+ * proxy prefetch must run; also consumed by preview smooth-time gating. */
+export const JIANYING_TIMELINE_PREFETCH_SECONDS = 4;
+const DEFAULT_PREFETCH_SECONDS = JIANYING_TIMELINE_PREFETCH_SECONDS;
 const MAX_PROXY_DIMENSION = 960;
 const MAX_PROXY_FPS = 30;
 
