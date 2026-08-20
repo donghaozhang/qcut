@@ -51,7 +51,16 @@ export function collectJianyingEffectRequests({
 		if (track.hidden || track.muted) continue;
 		for (const element of track.elements) {
 			if (element.hidden) continue;
-			for (const effect of element.effects ?? []) {
+			// Clip-attached effects live in `element.effects[]`; a region
+			// effect segment (type "effect", e.g. an imported jianying-local
+			// effect) carries its single instance in `element.effect`. Both
+			// render through the same native post-pass, so collect both — a
+			// region effect that only lived in `.effect` was silently dropped.
+			const instances =
+				element.type === "effect" && element.effect
+					? [...(element.effects ?? []), element.effect]
+					: (element.effects ?? []);
+			for (const effect of instances) {
 				if (effect.engine !== "jianying-local") continue;
 				if (!effect.packageHash || !effect.presetId) continue;
 				if (!effect.enabled) continue;
