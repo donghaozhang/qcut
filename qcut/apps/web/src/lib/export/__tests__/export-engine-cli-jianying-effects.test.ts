@@ -122,6 +122,40 @@ describe("collectJianyingEffectRequests", () => {
 		);
 	});
 
+	it("collects a jianying-local region effect element (the imported shape)", () => {
+		// An imported L7 effect is a region effect element: type "effect" with
+		// its single instance in `element.effect`, not in `element.effects[]`.
+		const tracks = [
+			{
+				id: "effect-track",
+				name: "Effect",
+				type: "effect",
+				elements: [
+					{
+						id: "region-effect-1",
+						type: "effect",
+						name: "70s",
+						startTime: 1,
+						duration: 2,
+						trimStart: 0,
+						trimEnd: 0,
+						effect: labEffect({ duration: 0 }),
+					},
+				],
+			},
+		] as unknown as TimelineTrack[];
+		expect(collectJianyingEffectRequests({ tracks })).toEqual([
+			{
+				effectId: "jy-effect-1",
+				packageHash: "ec4c71da4734c48f5511d698cf9daa90",
+				startSeconds: 1,
+				// effect.duration 0 → falls back to the element duration.
+				durationSeconds: 2,
+				adjustValues: undefined,
+			},
+		]);
+	});
+
 	it("skips effects on hidden clips, hidden tracks, and muted tracks", () => {
 		expect(
 			collectJianyingEffectRequests({
