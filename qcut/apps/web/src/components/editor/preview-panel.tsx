@@ -103,6 +103,10 @@ import {
 } from "./preview-panel/jianying-text-playback-overlay";
 import type { BrowserColorGradeLayer } from "@/lib/color/browser-color-rendering";
 import { ensureTimelineLocalFontsLoaded } from "@/lib/fonts/local-font-runtime";
+import {
+	installPlaybackDiagnostics,
+	recordPreviewPanelRender,
+} from "@/lib/debug/playback-diagnostics";
 
 function getPreviewElementDuration(element: TimelineElement): number {
 	return element.type === "media"
@@ -112,6 +116,7 @@ function getPreviewElementDuration(element: TimelineElement): number {
 
 /** Main preview panel component for video playback, MCP apps, and element overlays. */
 export function PreviewPanel() {
+	recordPreviewPanelRender();
 	useAudioMixMonitor();
 	usePlaybackHealthPreviewQuality();
 	const {
@@ -178,6 +183,10 @@ export function PreviewPanel() {
 			}),
 		[tracks, activeProject?.fps]
 	);
+
+	useEffect(() => {
+		installPlaybackDiagnostics();
+	}, []);
 
 	useEffect(() => {
 		void ensureTimelineLocalFontsLoaded({ tracks }).catch((cause) => {
