@@ -1,5 +1,7 @@
 import type {
+	QCutImportPlanEffectElement,
 	QCutImportPlanElement,
+	QCutImportPlanStickerElement,
 	QCutImportPlanTextElement,
 } from "../jianying-draft/import/qcut-mapping.js";
 import { createImportMediaColorSettings } from "./import-media-color.js";
@@ -102,6 +104,94 @@ function buildTextElement({
 	};
 }
 
+/**
+ * Materializes an imported jianying-local region effect (L7). The instance
+ * mirrors what the effect lab creates: empty qcut parameters (the local
+ * runtime renders the package), sliders at package defaults, and the
+ * "brightness" effectType placeholder the lab convention uses for
+ * parameterless presets.
+ */
+function buildEffectElement({
+	bundle,
+	planElement,
+}: {
+	bundle: QCutImportBundleV1;
+	planElement: QCutImportPlanEffectElement;
+}): TimelineElement {
+	const internalId = requireInternalId({ bundle, semanticId: planElement.id });
+	return {
+		id: internalId,
+		type: "effect",
+		name: planElement.name,
+		duration: planElement.duration,
+		startTime: planElement.startTime,
+		trimStart: planElement.trimStart,
+		trimEnd: planElement.trimEnd,
+		effect: {
+			id: `${internalId}-effect`,
+			presetId: planElement.effect.presetId,
+			name: planElement.effect.name,
+			effectType: "brightness",
+			parameters: {},
+			duration: 0,
+			enabled: true,
+			engine: "jianying-local",
+			packageHash: planElement.effect.packageHash,
+			...(planElement.effect.adjustParameters === undefined
+				? {}
+				: {
+						adjustParameters: planElement.effect.adjustParameters,
+						adjustValues: planElement.effect.adjustParameters.map(
+							(parameter) => ({
+								key: parameter.key,
+								value: parameter.defaultValue,
+							})
+						),
+					}),
+		},
+	};
+}
+
+/**
+ * Materializes an imported reference sticker (L8): the staged image plays as
+ * a sticker element at the overlay-store defaults (centered, 15% of the
+ * shorter canvas dimension) — per-segment transforms stay a declared loss
+ * until a plaintext sticker draft sample pins their shape.
+ */
+function buildStickerElement({
+	bundle,
+	mediaItemIdByResourceId,
+	planElement,
+}: {
+	bundle: QCutImportBundleV1;
+	mediaItemIdByResourceId: ReadonlyMap<string, string>;
+	planElement: QCutImportPlanStickerElement;
+}): TimelineElement {
+	const mediaId = mediaItemIdByResourceId.get(planElement.resourceId);
+	if (mediaId === undefined) {
+		throw new Error(`Plan sticker ${planElement.id} has no staged image item.`);
+	}
+	const internalId = requireInternalId({ bundle, semanticId: planElement.id });
+	return {
+		id: internalId,
+		type: "sticker",
+		stickerId: internalId,
+		mediaId,
+		name: planElement.name,
+		duration: planElement.duration,
+		startTime: planElement.startTime,
+		trimStart: planElement.trimStart,
+		trimEnd: planElement.trimEnd,
+		x: 50,
+		y: 50,
+		width: 15,
+		height: 15,
+		rotation: 0,
+		opacity: 1,
+		maintainAspectRatio: true,
+	};
+}
+
 function buildMediaElement({
 	bundle,
 	mediaItemIdByResourceId,
@@ -109,7 +199,12 @@ function buildMediaElement({
 }: {
 	bundle: QCutImportBundleV1;
 	mediaItemIdByResourceId: ReadonlyMap<string, string>;
-	planElement: Exclude<QCutImportPlanElement, QCutImportPlanTextElement>;
+	planElement: Exclude<
+		QCutImportPlanElement,
+		| QCutImportPlanTextElement
+		| QCutImportPlanEffectElement
+		| QCutImportPlanStickerElement
+	>;
 }): TimelineElement {
 	const mediaId = mediaItemIdByResourceId.get(planElement.resourceId);
 	if (mediaId === undefined) {
@@ -164,7 +259,19 @@ export function buildQCutImportTimelineTracks({
 		elements: planTrack.elements.map((planElement) =>
 			planElement.type === "text"
 				? buildTextElement({ bundle, planElement })
-				: buildMediaElement({ bundle, mediaItemIdByResourceId, planElement })
+				: planElement.type === "effect"
+					? buildEffectElement({ bundle, planElement })
+					: planElement.type === "sticker"
+						? buildStickerElement({
+								bundle,
+								mediaItemIdByResourceId,
+								planElement,
+							})
+						: buildMediaElement({
+								bundle,
+								mediaItemIdByResourceId,
+								planElement,
+							})
 		),
 		...((planTrack.transitions?.length ?? 0) === 0
 			? {}

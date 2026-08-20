@@ -42,8 +42,24 @@ interface ImportSessionLike {
 	dispose(): void;
 }
 
+interface LocalJianyingEffectCapability {
+	presetId: string;
+	name: string;
+	packageHash: string;
+	adjustParameters: {
+		key: string;
+		defaultValue: number;
+		minimum: number;
+		maximum: number;
+	}[];
+}
+
 interface ImportSessionOptions {
 	buildIdentity: { appVersion: string; interopSchemaVersion: number };
+	/** Locally installed jianying-local effect packages, for L7 admission. */
+	loadLocalJianyingEffects?: () => Promise<
+		ReadonlyMap<string, LocalJianyingEffectCapability>
+	>;
 }
 
 interface PersistentImportSessionOptions extends ImportSessionOptions {
@@ -75,6 +91,9 @@ export interface SetupJianyingDraftImportIPCOptions {
 	loadRuntime?: () => Promise<unknown>;
 	getAppVersion?: () => string;
 	getUserDataDirectory?: () => string;
+	loadLocalJianyingEffects?: () => Promise<
+		ReadonlyMap<string, LocalJianyingEffectCapability>
+	>;
 	chooseDraftDirectory?: (options: {
 		mainWindow: BrowserWindow;
 	}) => Promise<string | null>;
@@ -151,6 +170,39 @@ function toErrorDto({ error }: { error: unknown }): {
 	};
 }
 
+/**
+ * L7 admission source: only packages that are installed on this machine AND
+ * render-verified (`supported`) can back an effect-segment downgrade. The
+ * map carries catalog metadata only — no Jianying assets.
+ */
+async function loadInstalledJianyingEffectCapabilities(): Promise<
+	ReadonlyMap<string, LocalJianyingEffectCapability>
+> {
+	// Dynamic import keeps `node:sqlite` (reached transitively through the
+	// effect catalog) out of the module's static dependency graph — a static
+	// import there breaks the vite bundler used by the vitest suites.
+	const { discoverJianyingEffectLibrary } = await import(
+		"./jianying-effect/catalog.js"
+	);
+	const library = await discoverJianyingEffectLibrary();
+	const capabilities = new Map<string, LocalJianyingEffectCapability>();
+	for (const definition of library.effects) {
+		if (!definition.installed || !definition.supported) continue;
+		capabilities.set(definition.resourceId, {
+			presetId: definition.id,
+			name: definition.name,
+			packageHash: definition.packageHash,
+			adjustParameters: definition.adjustParameters.map((parameter) => ({
+				key: parameter.key,
+				defaultValue: parameter.defaultValue,
+				minimum: parameter.minimum,
+				maximum: parameter.maximum,
+			})),
+		});
+	}
+	return capabilities;
+}
+
 async function loadBundledImportRuntime(): Promise<unknown> {
 	const runtimePath = join(__dirname, "jianying-draft-import-runtime.js");
 	return import(runtimePath);
@@ -203,6 +255,7 @@ export function setupJianyingDraftImportIPC({
 	loadRuntime = loadBundledImportRuntime,
 	getAppVersion = () => app.getVersion(),
 	getUserDataDirectory = () => app.getPath("userData"),
+	loadLocalJianyingEffects = loadInstalledJianyingEffectCapabilities,
 	chooseDraftDirectory = async ({ mainWindow }) => {
 		const result = await dialog.showOpenDialog(mainWindow, {
 			title: "Choose a JianYing or CapCut draft folder",
@@ -238,6 +291,7 @@ export function setupJianyingDraftImportIPC({
 						appVersion: getAppVersion(),
 						interopSchemaVersion: 1,
 					},
+					loadLocalJianyingEffects,
 					storageDirectory: join(
 						getUserDataDirectory(),
 						"jianying-import",

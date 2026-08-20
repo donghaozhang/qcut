@@ -181,6 +181,7 @@ export async function startExportJob({
 			timeline,
 			mediaFiles,
 			projectId,
+			settings,
 		});
 		if (stickerOverlays.length > 0) {
 			claudeLog.info(

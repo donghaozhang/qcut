@@ -923,6 +923,24 @@ export async function addClaudeStickerElement({
 	const stickerId = element.stickerId ?? `sticker_${Date.now()}`;
 	const mediaId = element.mediaId ?? stickerId;
 
+	// The CLI passes top-left PIXEL geometry, but every sticker consumer —
+	// resolveStickerGeometry, the overlay store, and the export overlay
+	// collector — reads the canonical contract: center-based position as a
+	// canvas percentage, and size as a percentage of the shorter canvas
+	// dimension. Convert once here so the timeline element and the overlay
+	// store agree (storing raw pixels made exports place/scale wrong).
+	const canvasWidth = 1920;
+	const canvasHeight = 1080;
+	const shortSide = Math.min(canvasWidth, canvasHeight);
+	const pxX = element.x ?? 0;
+	const pxY = element.y ?? 0;
+	const pxW = element.width ?? 200;
+	const pxH = element.height ?? 200;
+	const pctX = ((pxX + pxW / 2) / canvasWidth) * 100;
+	const pctY = ((pxY + pxH / 2) / canvasHeight) * 100;
+	const pctW = (pxW / shortSide) * 100;
+	const pctH = (pxH / shortSide) * 100;
+
 	timelineStore.addElementToTrack(trackId, {
 		type: "sticker",
 		name: element.sourceName ?? "Sticker",
@@ -932,40 +950,19 @@ export async function addClaudeStickerElement({
 		duration,
 		trimStart: 0,
 		trimEnd: 0,
-		x: element.x ?? 0,
-		y: element.y ?? 0,
-		width: element.width,
-		height: element.height,
+		x: pctX,
+		y: pctY,
+		width: pctW,
+		height: pctH,
 		rotation: element.rotation ?? 0,
 		opacity: element.opacity ?? 1,
 	});
 
-	// Also add to sticker overlay store for canvas rendering + export
-	// NOTE: Overlay store uses percentage-based coordinates (0-100)
-	// CLI passes pixel coordinates, so we convert using timeline dimensions
+	// Also add to sticker overlay store for canvas rendering + export.
 	try {
 		const { useStickersOverlayStore } = await import(
 			"@/stores/stickers-overlay-store"
 		);
-		// Default canvas dimensions — matches standard export presets
-		const canvasWidth = 1920;
-		const canvasHeight = 1080;
-
-		// Convert pixel → percentage for overlay store
-		// Position: percentage of canvas dimensions (center-based in overlay)
-		const pxX = element.x ?? 0;
-		const pxY = element.y ?? 0;
-		const pxW = element.width ?? 200;
-		const pxH = element.height ?? 200;
-
-		// Overlay store position is center-based, CLI gives top-left
-		const centerX = pxX + pxW / 2;
-		const centerY = pxY + pxH / 2;
-		const pctX = (centerX / canvasWidth) * 100;
-		const pctY = (centerY / canvasHeight) * 100;
-		// Size: percentage of respective canvas dimension (width % of canvasWidth, height % of canvasHeight)
-		const pctW = (pxW / canvasWidth) * 100;
-		const pctH = (pxH / canvasHeight) * 100;
 
 		debugLog(
 			`[ClaudeTimelineBridge] Sticker coords: px(${pxX},${pxY} ${pxW}x${pxH}) → pct(${pctX.toFixed(1)},${pctY.toFixed(1)} ${pctW.toFixed(1)}x${pctH.toFixed(1)})`

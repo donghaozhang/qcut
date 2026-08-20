@@ -68,7 +68,11 @@ function buildTimelineDurations({
 			if (internalId === undefined) {
 				throw new Error(`Import bundle has no internal id for ${element.id}.`);
 			}
-			if (element.type === "text") {
+			if (
+				element.type === "text" ||
+				element.type === "effect" ||
+				element.type === "sticker"
+			) {
 				durations[internalId] = element.duration;
 				continue;
 			}

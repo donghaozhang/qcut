@@ -21,7 +21,12 @@ import type {
 
 const MICROSECONDS_PER_SECOND = 1_000_000;
 
-export type QCutImportPlanTrackType = "media" | "audio" | "text";
+export type QCutImportPlanTrackType =
+	| "media"
+	| "audio"
+	| "text"
+	| "effect"
+	| "sticker";
 
 export interface QCutImportPlanMediaKeyframe {
 	id: string;
@@ -101,9 +106,56 @@ export interface QCutImportPlanTextElement {
 	sourceSegmentId: string;
 }
 
+/**
+ * A region effect element rendered by the locally installed Jianying
+ * runtime (L7). Machine-bound: the packageHash only resolves on the machine
+ * that admitted it, and exporting the element stays blocked by design.
+ */
+export interface QCutImportPlanEffectElement {
+	id: string;
+	type: "effect";
+	name: string;
+	startTime: number;
+	duration: number;
+	trimStart: 0;
+	trimEnd: 0;
+	effect: {
+		presetId: string;
+		name: string;
+		packageHash: string;
+		adjustParameters?: {
+			key: string;
+			defaultValue: number;
+			minimum: number;
+			maximum: number;
+		}[];
+	};
+	sourceSegmentId: string;
+}
+
+/**
+ * A sticker element backed by a draft-embedded image asset (L8). The asset
+ * stages into local project storage like media; provenance (剪映参照 · 内部)
+ * lives in the admission declaration.
+ */
+export interface QCutImportPlanStickerElement {
+	id: string;
+	type: "sticker";
+	name: string;
+	startTime: number;
+	duration: number;
+	trimStart: 0;
+	trimEnd: 0;
+	/** Interop resource id of the staged sticker image. */
+	resourceId: string;
+	sourceSegmentId: string;
+}
+
 export type QCutImportPlanElement =
 	| QCutImportPlanMediaElement
-	| QCutImportPlanTextElement;
+	| QCutImportPlanTextElement
+	| QCutImportPlanEffectElement
+	| QCutImportPlanStickerElement;
 
 export interface QCutImportPlanTransition {
 	id: string;
@@ -314,6 +366,118 @@ function mapMediaSegment({
 	};
 }
 
+/**
+ * Effect segments cross only as declared machine-bound downgrades (L7):
+ * normalize attaches `effectPreset` + `downgrade` when the package is
+ * installed and render-verified locally; everything else stays skipped.
+ */
+function mapEffectSegment({
+	segment,
+	skipped,
+	downgrades,
+}: {
+	segment: InteropSegment;
+	skipped: QCutImportSkippedNode[];
+	downgrades: QCutImportPlanDowngrade[];
+}): QCutImportPlanEffectElement | null {
+	if (
+		segment.kind !== "effect" ||
+		segment.capability !== "downgrade" ||
+		segment.effectPreset === undefined ||
+		segment.downgrade === undefined
+	) {
+		skipped.push({
+			nodeId: segment.id,
+			nodeType: "segment",
+			capability: segment.capability,
+			reason:
+				segment.kind === "effect"
+					? "effect package is not installed and render-verified on this machine"
+					: `segment kind "${segment.kind}" is not an effect`,
+		});
+		return null;
+	}
+	downgrades.push({
+		nodeId: segment.id,
+		nodeType: "segment",
+		approximation: segment.downgrade.approximation,
+		fidelityEvidence: segment.downgrade.fidelityEvidence,
+	});
+	return {
+		id: segment.id,
+		type: "effect",
+		name: segment.effectPreset.name,
+		startTime: usToSeconds(segment.targetRange.startUs),
+		duration: usToSeconds(segment.targetRange.durationUs),
+		trimStart: 0,
+		trimEnd: 0,
+		effect: {
+			presetId: segment.effectPreset.presetId,
+			name: segment.effectPreset.name,
+			packageHash: segment.effectPreset.packageHash,
+			...(segment.effectPreset.adjustParameters === undefined
+				? {}
+				: { adjustParameters: segment.effectPreset.adjustParameters }),
+		},
+		sourceSegmentId: segment.id,
+	};
+}
+
+/**
+ * Sticker segments cross only as declared downgrades whose draft-embedded
+ * image asset resolved into a stageable resource (L8).
+ */
+function mapStickerSegment({
+	segment,
+	resourcesById,
+	skipped,
+	downgrades,
+}: {
+	segment: InteropSegment;
+	resourcesById: Map<string, InteropResource>;
+	skipped: QCutImportSkippedNode[];
+	downgrades: QCutImportPlanDowngrade[];
+}): QCutImportPlanStickerElement | null {
+	const resource =
+		segment.resourceId === undefined
+			? undefined
+			: resourcesById.get(segment.resourceId);
+	if (
+		segment.kind !== "sticker" ||
+		segment.capability !== "downgrade" ||
+		segment.downgrade === undefined ||
+		resource === undefined
+	) {
+		skipped.push({
+			nodeId: segment.id,
+			nodeType: "segment",
+			capability: segment.capability,
+			reason:
+				segment.kind === "sticker"
+					? "sticker carries no stageable draft-embedded image asset"
+					: `segment kind "${segment.kind}" is not a sticker`,
+		});
+		return null;
+	}
+	downgrades.push({
+		nodeId: segment.id,
+		nodeType: "segment",
+		approximation: segment.downgrade.approximation,
+		fidelityEvidence: segment.downgrade.fidelityEvidence,
+	});
+	return {
+		id: segment.id,
+		type: "sticker",
+		name: resource.name ?? segment.id,
+		startTime: usToSeconds(segment.targetRange.startUs),
+		duration: usToSeconds(segment.targetRange.durationUs),
+		trimStart: 0,
+		trimEnd: 0,
+		resourceId: resource.id,
+		sourceSegmentId: segment.id,
+	};
+}
+
 function mapTextSegment({
 	segment,
 	skipped,
@@ -488,7 +652,11 @@ function mapTrack({
 				? "audio"
 				: track.kind === "text"
 					? "text"
-					: null;
+					: track.kind === "effect"
+						? "effect"
+						: track.kind === "sticker"
+							? "sticker"
+							: null;
 	if (type === null) {
 		skipped.push({
 			nodeId: track.id,
@@ -512,7 +680,17 @@ function mapTrack({
 		const element =
 			type === "text"
 				? mapTextSegment({ segment, skipped })
-				: mapMediaSegment({ fps, segment, resourcesById, skipped, downgrades });
+				: type === "effect"
+					? mapEffectSegment({ segment, skipped, downgrades })
+					: type === "sticker"
+						? mapStickerSegment({ segment, resourcesById, skipped, downgrades })
+						: mapMediaSegment({
+								fps,
+								segment,
+								resourcesById,
+								skipped,
+								downgrades,
+							});
 		if (element !== null) {
 			elements.push(element);
 		}
@@ -561,7 +739,16 @@ function mapTrack({
 	return {
 		id: track.id,
 		type,
-		name: type === "media" ? "Video" : type === "audio" ? "Audio" : "Text",
+		name:
+			type === "media"
+				? "Video"
+				: type === "audio"
+					? "Audio"
+					: type === "effect"
+						? "Effect"
+						: type === "sticker"
+							? "Sticker"
+							: "Text",
 		order: track.order,
 		...(track.isMain === true ? { isMain: true } : {}),
 		elements,
@@ -603,7 +790,9 @@ export function mapInteropDocumentToQCutPlan({
 		...new Set(
 			tracks.flatMap((track) =>
 				track.elements.flatMap((element) =>
-					element.type === "media" ? [element.resourceId] : []
+					element.type === "media" || element.type === "sticker"
+						? [element.resourceId]
+						: []
 				)
 			)
 		),
