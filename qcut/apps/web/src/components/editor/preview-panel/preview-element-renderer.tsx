@@ -74,8 +74,8 @@ import { TimelineStickerLayer } from "./timeline-sticker-layer";
 import type { AudioCrossfadePreviewState } from "@/lib/audio/audio-crossfade-preview";
 import { useNativeVideoEnhancementPreview } from "@/hooks/preview/use-native-video-enhancement-preview";
 import {
-	getVideoEnhancementProxyWindow,
 	useVideoEnhancementProxy,
+	useVideoEnhancementProxyWindow,
 } from "@/hooks/preview/use-video-enhancement-proxy";
 import { LoaderCircle, TriangleAlert } from "lucide-react";
 import {
@@ -326,13 +326,11 @@ export function PreviewElementRenderer({
 	const renderCompositePreviewEffects = previewEffectRenderMode !== "minimal";
 	const renderHighCostPreviewEffects = previewEffectRenderMode === "full";
 	const renderDecorativePreviewEffects = previewEffectRenderMode !== "minimal";
-	const proxyWindow =
-		elementData.element.type === "media"
-			? getVideoEnhancementProxyWindow({
-					element: elementData.element,
-					currentTime,
-				})
-			: { sourceStart: 0, sourceDuration: 0 };
+	const proxyWindow = useVideoEnhancementProxyWindow({
+		element: elementData.element.type === "media" ? elementData.element : null,
+		currentTime,
+		isPlaying,
+	});
 	const enhancementProxy = useVideoEnhancementProxy({
 		enabled:
 			elementData.element.type === "media" &&
