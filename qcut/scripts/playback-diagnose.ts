@@ -10,7 +10,6 @@
  *
  * Usage:
  *   bun scripts/playback-diagnose.ts --project <id> [--from 0] [--seconds 12]
- *   bun scripts/playback-diagnose.ts --seconds 10          # keeps current playhead project
  *
  * Auth: pass --token or set QCUT_API_TOKEN when the app was launched with one.
  */
@@ -85,6 +84,7 @@ interface Snapshot {
 	clockIntervalsMs: number[];
 	longTasks: { at: number; durationMs: number }[];
 	longTaskTotalCount: number;
+	longTaskTotalDurationMs: number;
 	mediaEvents: { at: number; type: string; videoId: string; src: string }[];
 	previewRenderTimestamps: number[];
 	previewRenderTotalCount: number;
@@ -204,10 +204,9 @@ async function main(): Promise<void> {
 	if (snapshot.longTasks.length === 0) {
 		console.log("  无长任务 ✓");
 	} else {
-		const total = snapshot.longTasks.reduce(
-			(sum, task) => sum + task.durationMs,
-			0
-		);
+		const total =
+			snapshot.longTaskTotalDurationMs ??
+			snapshot.longTasks.reduce((sum, task) => sum + task.durationMs, 0);
 		console.log(
 			`  ${snapshot.longTaskTotalCount} 个, 合计 ${ms(total)} (占播放时长 ${((total / runWallMs) * 100).toFixed(1)}%)`
 		);
@@ -221,7 +220,7 @@ async function main(): Promise<void> {
 
 	console.log("\n━━━ 预览 React 重渲 ━━━");
 	console.log(
-		`  本次运行: ${snapshot.previewRenderTimestamps.length} 次 | smooth-time reason: ${snapshot.smoothTimeReason ?? "n/a"}`
+		`  本次运行: ${snapshot.previewRenderTotalCount} 次 | smooth-time reason: ${snapshot.smoothTimeReason ?? "n/a"}`
 	);
 
 	console.log("\n━━━ 媒体元素事件 (seek/停顿/重载) ━━━");
@@ -290,18 +289,17 @@ async function main(): Promise<void> {
 			`主时钟 p95=${ms(clockP95)} ≥50ms → 主线程 JS 阻塞是首要原因`
 		);
 	}
-	const longTaskTotal = snapshot.longTasks.reduce(
-		(sum, task) => sum + task.durationMs,
-		0
-	);
+	const longTaskTotal =
+		snapshot.longTaskTotalDurationMs ??
+		snapshot.longTasks.reduce((sum, task) => sum + task.durationMs, 0);
 	if (longTaskTotal / runWallMs > 0.1) {
 		verdicts.push(
 			`长任务占播放时长 ${((longTaskTotal / runWallMs) * 100).toFixed(0)}% → 找出长任务来源`
 		);
 	}
-	if (snapshot.previewRenderTimestamps.length > args.seconds * 5) {
+	if (snapshot.previewRenderTotalCount > args.seconds * 5) {
 		verdicts.push(
-			`预览重渲 ${snapshot.previewRenderTimestamps.length} 次 (reason=${snapshot.smoothTimeReason}) → 每帧重渲仍在发生`
+			`预览重渲 ${snapshot.previewRenderTotalCount} 次 (reason=${snapshot.smoothTimeReason}) → 每帧重渲仍在发生`
 		);
 	}
 	const reloadCount = interesting.filter(
