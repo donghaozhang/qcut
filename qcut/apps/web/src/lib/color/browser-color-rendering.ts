@@ -100,9 +100,15 @@ async function gradeMaskPixels({
 	});
 	const cached = gradeMaskCache.get(cacheKey);
 	if (cached) return cached;
-	const url = mediaMaskSvgUrl(selected);
-	if (!url) return new Uint8ClampedArray(width * height * 4);
 	if (gradeMaskCache.size >= GRADE_MASK_CACHE_LIMIT) gradeMaskCache.clear();
+	const url = mediaMaskSvgUrl(selected);
+	if (!url) {
+		// Cache the all-zero mask too — a fresh array per frame would defeat
+		// the GPU mask-texture cache keyed on array identity.
+		const empty = Promise.resolve(new Uint8ClampedArray(width * height * 4));
+		gradeMaskCache.set(cacheKey, empty);
+		return empty;
+	}
 	const rendered = (async () => {
 		const canvas = document.createElement("canvas");
 		canvas.width = width;
@@ -185,27 +191,44 @@ export async function drawColorGradedSourceWithMasks({
 		canRenderJianyingLocalPortrait({ settings });
 
 	// Per-pixel grading on the GPU: one 1080p frame costs ~278ms walking pixels
-	// in JS versus ~4ms as a shader lookup. Returns null when the settings need
-	// spatial work (vignette, grain, sharpness) or WebGL2 is unavailable, and
-	// the CPU path below still handles those.
-	if (masks.length === 0 && !usesLocalRuntime) {
-		const graded = gradeFrameOnGpu({
-			source,
-			width: pixelWidth,
-			height: pixelHeight,
-			settings,
-		});
-		if (graded) {
-			await drawMediaSourceWithMasks({
-				context,
-				source: graded,
-				x,
-				y,
-				width,
-				height,
-				masks: outputMasks,
+	// in JS versus ~4ms as a shader pass. Vignette/grain/sharpness run as
+	// shader stages and grade masks ride along as an alpha texture; only
+	// multi-pass operations, jianying local runtimes, WebGL2 absence, or a
+	// failed mask rasterisation fall through to the CPU path below.
+	if (!usesLocalRuntime) {
+		let gradeMask: Uint8ClampedArray | undefined;
+		let maskUnavailable = false;
+		try {
+			gradeMask = await gradeMaskPixels({
+				masks,
+				settings,
+				width: pixelWidth,
+				height: pixelHeight,
 			});
-			return;
+		} catch {
+			maskUnavailable = true;
+		}
+		if (!maskUnavailable) {
+			const graded = gradeFrameOnGpu({
+				source,
+				width: pixelWidth,
+				height: pixelHeight,
+				settings,
+				frameSeed,
+				gradeMask,
+			});
+			if (graded) {
+				await drawMediaSourceWithMasks({
+					context,
+					source: graded,
+					x,
+					y,
+					width,
+					height,
+					masks: outputMasks,
+				});
+				return;
+			}
 		}
 	}
 

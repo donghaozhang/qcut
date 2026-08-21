@@ -206,6 +206,7 @@ function createFakeGl(): {
 		texParameteri: noop,
 		uniform1i: noop,
 		uniform1f: noop,
+		uniform2f: noop,
 		drawArrays: noop,
 	};
 	return { context: fake as unknown as WebGL2RenderingContext, state };
