@@ -85,7 +85,9 @@ describe("preview quality options", () => {
 		).toBe("original");
 	});
 
-	it("uses proxy automatically for high-resolution or effect-heavy clips", () => {
+	it("keeps high-resolution clips on the original source until the runtime downgrades", () => {
+		// Resolution alone no longer forces a proxy — the playback health
+		// monitor engages one (via runtimeQuality) only on measured pressure.
 		expect(
 			resolveEffectivePreviewQualityOption({
 				quality: "auto",
@@ -93,15 +95,19 @@ describe("preview quality options", () => {
 				sourceHeight: 2160,
 				hasEnhancements: false,
 			}).value
-		).toBe("smooth");
+		).toBe("original");
 		expect(
 			resolveEffectivePreviewQualityOption({
 				quality: "auto",
-				sourceWidth: 1920,
-				sourceHeight: 1080,
+				sourceWidth: 3840,
+				sourceHeight: 2160,
+				runtimeQuality: "smooth",
 				hasEnhancements: false,
 			}).value
-		).toBe("clear");
+		).toBe("smooth");
+	});
+
+	it("uses the proxy automatically for enhancement-bearing clips", () => {
 		expect(
 			resolveEffectivePreviewQualityOption({
 				quality: "auto",
