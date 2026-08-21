@@ -66,6 +66,14 @@ import { PreviewAgentView } from "./preview-panel/preview-agent-view";
 import { CursorOverlay } from "./preview-panel/cursor-overlay";
 import { RecordingBackground } from "./preview-panel/recording-background";
 import { useScreenRecordingPreview } from "./preview-panel/use-screen-recording-preview";
+import { useSmoothPlaybackTime } from "./preview-panel/use-smooth-playback-time";
+import {
+	findJianyingPrefetchWindowIndex,
+	PREVIEW_SMOOTH_TIME_NOT_NEEDED,
+	resolveJianyingTransitionPrefetchWindows,
+	resolvePreviewSmoothTimeNeed,
+} from "@/lib/preview/preview-smooth-time";
+import { useScreenRecordingEnhancementStore } from "@/stores/screen-recording-store";
 import { resolveActiveClipTransitionPreview } from "@/lib/transitions/clip-transition-preview";
 import { useAudioMixMonitor } from "@/lib/audio/use-audio-mix-monitor";
 import { resolveActiveAudioCrossfadePreview } from "@/lib/audio/audio-crossfade-preview";
@@ -95,6 +103,14 @@ import {
 } from "./preview-panel/jianying-text-playback-overlay";
 import type { BrowserColorGradeLayer } from "@/lib/color/browser-color-rendering";
 import { ensureTimelineLocalFontsLoaded } from "@/lib/fonts/local-font-runtime";
+import {
+	installPlaybackDiagnostics,
+	recordPreviewPanelRender,
+} from "@/lib/debug/playback-diagnostics";
+
+/** Seconds ahead of the playhead at which upcoming media clips are mounted
+ * hidden, so their video is buffered and seeked before the cut. */
+const CLIP_PRELOAD_LOOKAHEAD_SECONDS = 2;
 
 function getPreviewElementDuration(element: TimelineElement): number {
 	return element.type === "media"
@@ -104,6 +120,7 @@ function getPreviewElementDuration(element: TimelineElement): number {
 
 /** Main preview panel component for video playback, MCP apps, and element overlays. */
 export function PreviewPanel() {
+	recordPreviewPanelRender();
 	useAudioMixMonitor();
 	usePlaybackHealthPreviewQuality();
 	const {
@@ -151,6 +168,29 @@ export function PreviewPanel() {
 	// the set of active elements changes (not every frame).
 	const [playbackTime, setPlaybackTime] = useState(currentTime);
 	const lastActiveIdsRef = useRef<string>("");
+	const renderTracks = useMemo(
+		() => expandCompoundMediaTracks({ tracks }),
+		[tracks]
+	);
+	const effectsRenderingByElementId = useEffectsRendering(EFFECTS_ENABLED);
+	const zoomPreviewActive = useScreenRecordingEnhancementStore(
+		(state) => state.zoomRegions.length > 0
+	);
+	const cursorOverlayPreviewActive = useScreenRecordingEnhancementStore(
+		(state) => Boolean(state.showCursorOverlay && state.cursorTelemetry)
+	);
+	const jianyingPrefetchWindows = useMemo(
+		() =>
+			resolveJianyingTransitionPrefetchWindows({
+				tracks,
+				fps: activeProject?.fps ?? 30,
+			}),
+		[tracks, activeProject?.fps]
+	);
+
+	useEffect(() => {
+		installPlaybackDiagnostics();
+	}, []);
 
 	useEffect(() => {
 		void ensureTimelineLocalFontsLoaded({ tracks }).catch((cause) => {
@@ -167,14 +207,25 @@ export function PreviewPanel() {
 
 		const handlePlaybackUpdate = (e: Event) => {
 			const time = (e as CustomEvent).detail.time as number;
-			// Check if active elements changed by testing element boundaries
+			// Check if active elements changed by testing element boundaries.
+			// Scan the EXPANDED tracks (compound children included) so the
+			// boundary set matches what getActiveElements mounts and what the
+			// smooth-time gate evaluates.
 			let activeIds = "";
-			for (const track of tracks) {
+			for (const track of renderTracks) {
 				for (const el of track.elements) {
 					if (el.hidden) continue;
 					const end = el.startTime + getPreviewElementDuration(el);
 					if (time >= el.startTime && time < end) {
 						activeIds += el.id + ",";
+					} else if (
+						el.type === "media" &&
+						time >= el.startTime - CLIP_PRELOAD_LOOKAHEAD_SECONDS &&
+						time < el.startTime
+					) {
+						// Entering the preload window must trigger a render so the
+						// upcoming clip mounts (hidden) before the cut.
+						activeIds += `preload:${el.id},`;
 					}
 				}
 			}
@@ -194,6 +245,15 @@ export function PreviewPanel() {
 			for (const elementId of audioCrossfadePreview.forceActiveElementIds) {
 				activeIds += `audio-crossfade:${elementId},`;
 			}
+			// Entering a jianying prefetch window must trigger a render so the
+			// smooth-time gate (and proxy prefetch) re-evaluate in time.
+			const prefetchWindowIndex = findJianyingPrefetchWindowIndex({
+				windows: jianyingPrefetchWindows,
+				time,
+			});
+			if (prefetchWindowIndex >= 0) {
+				activeIds += `jyprefetch:${prefetchWindowIndex},`;
+			}
 			if (activeIds !== lastActiveIdsRef.current) {
 				lastActiveIdsRef.current = activeIds;
 				setPlaybackTime(time);
@@ -203,7 +263,48 @@ export function PreviewPanel() {
 		window.addEventListener("playback-update", handlePlaybackUpdate);
 		return () =>
 			window.removeEventListener("playback-update", handlePlaybackUpdate);
-	}, [activeProject?.fps, isPlaying, currentTime, tracks]);
+	}, [
+		activeProject?.fps,
+		isPlaying,
+		currentTime,
+		tracks,
+		renderTracks,
+		jianyingPrefetchWindows,
+	]);
+
+	// Per-frame React re-renders during playback are opt-in: only content that
+	// visibly animates through React (keyframes, transitions, captions, zoom,
+	// chunked proxies, …) turns them on. Static clips play back with zero
+	// preview re-renders — video/audio elements sync via window events.
+	const smoothTimeNeed = useMemo(() => {
+		if (!isPlaying) return PREVIEW_SMOOTH_TIME_NOT_NEEDED;
+		return resolvePreviewSmoothTimeNeed({
+			tracks: renderTracks,
+			transitionTracks: tracks,
+			time: playbackTime,
+			fps: activeProject?.fps ?? 30,
+			zoomActive: zoomPreviewActive,
+			cursorOverlayActive: cursorOverlayPreviewActive,
+			hasElementEffects: (elementId) =>
+				effectsRenderingByElementId.has(elementId),
+			jianyingPrefetchWindows,
+		});
+	}, [
+		isPlaying,
+		renderTracks,
+		tracks,
+		playbackTime,
+		activeProject?.fps,
+		zoomPreviewActive,
+		cursorOverlayPreviewActive,
+		effectsRenderingByElementId,
+		jianyingPrefetchWindows,
+	]);
+	const smoothTime = useSmoothPlaybackTime({
+		isPlaying,
+		enabled: smoothTimeNeed.needsSmoothTime,
+		fallbackTime: isPlaying ? playbackTime : currentTime,
+	});
 	const previewScale = usePreviewViewStore((state) => state.previewScale);
 	const setPreviewScale = usePreviewViewStore((state) => state.setPreviewScale);
 	const showSafeAreas = usePreviewViewStore((state) => state.showSafeAreas);
@@ -246,7 +347,6 @@ export function PreviewPanel() {
 	});
 
 	const {
-		smoothTime,
 		zoomStyle,
 		cursorTelemetry,
 		cursorConfig,
@@ -255,6 +355,7 @@ export function PreviewPanel() {
 	} = useScreenRecordingPreview({
 		isPlaying,
 		currentTime,
+		smoothTime,
 		previewWidth: previewDimensions.width || canvasSize.width,
 		previewHeight: previewDimensions.height || canvasSize.height,
 	});
@@ -429,10 +530,6 @@ export function PreviewPanel() {
 		]
 	);
 	const hasAnyElements = tracks.some((track) => track.elements.length > 0);
-	const renderTracks = useMemo(
-		() => expandCompoundMediaTracks({ tracks }),
-		[tracks]
-	);
 	const jianyingTimelinePreview = useJianyingTimelineTransitionPreview({
 		tracks,
 		mediaItems,
@@ -463,13 +560,41 @@ export function PreviewPanel() {
 			});
 			const layers = [...plan.visualLayers, ...plan.audioElements];
 
-			return layers.map(({ element, track }) => {
+			const active: ActiveElement[] = layers.map(({ element, track }) => {
 				const mediaItem =
 					element.type === "media" && element.mediaId !== TEST_MEDIA_ID
 						? (mediaItems.find((item) => item.id === element.mediaId) ?? null)
 						: null;
 				return { element, track, mediaItem };
 			});
+
+			// While playing, mount upcoming media clips hidden so their video
+			// buffers and seeks before the cut — the boundary flip then paints
+			// a ready frame instead of a black loading gap.
+			if (isPlaying) {
+				const activeIds = new Set(active.map(({ element }) => element.id));
+				for (const track of renderTracks) {
+					if (track.hidden) continue;
+					for (const element of track.elements) {
+						if (
+							element.hidden ||
+							element.type !== "media" ||
+							element.mediaId === TEST_MEDIA_ID ||
+							activeIds.has(element.id) ||
+							effectiveTime >= element.startTime ||
+							element.startTime - effectiveTime > CLIP_PRELOAD_LOOKAHEAD_SECONDS
+						) {
+							continue;
+						}
+						const mediaItem =
+							mediaItems.find((item) => item.id === element.mediaId) ?? null;
+						if (!mediaItem) continue;
+						active.push({ element, track, mediaItem, preload: true });
+					}
+				}
+			}
+
+			return active;
 		} catch {
 			return [];
 		}
@@ -607,7 +732,8 @@ export function PreviewPanel() {
 				(candidate) =>
 					candidate.track.id === trackId && candidate.element.id === elementId
 			);
-			if (!active || active.element.type !== "media") return [];
+			if (!active || active.preload || active.element.type !== "media")
+				return [];
 			return [{ trackId, element: active.element }];
 		});
 	}, [activeElements, selectedElements]);
@@ -625,8 +751,6 @@ export function PreviewPanel() {
 		mediaItems,
 		activeProject,
 	});
-
-	const effectsRenderingByElementId = useEffectsRendering(EFFECTS_ENABLED);
 
 	useEffect(() => {
 		const seekTime = lastSeekEventTimeRef.current;
@@ -790,6 +914,7 @@ export function PreviewPanel() {
 				blurBackgroundElements={blurBackgroundElements}
 				blurBackgroundSource={blurBackgroundSource}
 				effectsRenderingByElementId={effectsRenderingByElementId}
+				timelineTime={isPlaying ? playbackTime : currentTime}
 			/>
 		),
 		[
@@ -797,6 +922,9 @@ export function PreviewPanel() {
 			blurBackgroundElements,
 			blurBackgroundSource,
 			effectsRenderingByElementId,
+			isPlaying,
+			playbackTime,
+			currentTime,
 		]
 	);
 
@@ -809,16 +937,22 @@ export function PreviewPanel() {
 			const effectRendering = effectsRenderingByElementId.get(
 				elementData.element.id
 			);
+			const isPreload = elementData.preload === true;
 			return (
 				<div
 					key={`${elementData.element.id}-${elementData.track.id}`}
-					className="contents"
+					className={isPreload ? undefined : "contents"}
+					style={isPreload ? { visibility: "hidden" } : undefined}
+					aria-hidden={isPreload || undefined}
 				>
 					<EffectCompanionAudioPlayers
-						companions={effectRendering?.audioCompanions ?? []}
+						companions={
+							isPreload ? [] : (effectRendering?.audioCompanions ?? [])
+						}
 						element={elementData.element}
 						trackId={elementData.track.id}
 						trackMuted={elementData.track.muted}
+						timelineTime={isPlaying ? smoothTime : currentTime}
 					/>
 					<PreviewElementRenderer
 						elementData={elementData}
@@ -1012,6 +1146,7 @@ export function PreviewPanel() {
 								ref={previewCaptureRef}
 								className="absolute inset-0 overflow-hidden"
 								data-testid="preview-capture-surface"
+								data-smooth-time-reason={smoothTimeNeed.reason ?? "none"}
 							>
 								{(() => {
 									const pw = previewDimensions.width || canvasSize.width;

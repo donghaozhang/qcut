@@ -38,6 +38,7 @@ export function usePreviewMedia({
 		try {
 			for (let index = activeElements.length - 1; index >= 0; index--) {
 				const item = activeElements[index];
+				if (item.preload) continue;
 				if (item.element.type === "media" && item.mediaItem?.type === "video") {
 					return item;
 				}
@@ -106,8 +107,8 @@ export function usePreviewMedia({
 
 	const blurBackgroundElements = useMemo(() => {
 		try {
-			return activeElements.filter(({ element, mediaItem }) => {
-				if (element.type !== "media" || !mediaItem) {
+			return activeElements.filter(({ element, mediaItem, preload }) => {
+				if (preload || element.type !== "media" || !mediaItem) {
 					return false;
 				}
 

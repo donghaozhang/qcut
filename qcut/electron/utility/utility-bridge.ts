@@ -66,6 +66,10 @@ import {
 	resolveEditorSnapshotRef,
 	selectEditorSnapshotRef,
 } from "../claude/handlers/claude-snapshot-handler.js";
+import {
+	pullPlaybackDiagnosticsFromRenderer,
+	resetPlaybackDiagnosticsInRenderer,
+} from "../claude/http/claude-http-playback-routes.js";
 import { getAgentPointerController } from "../claude/handlers/agent-pointer-controller.js";
 import type {
 	AgentKeyboardPressRequest,
@@ -535,6 +539,14 @@ async function handleMainRequest(
 		case "snapshot:check": {
 			const req = data as { request: EditorSnapshotCheckRequest };
 			return checkEditorSnapshotRef(win, req.request);
+		}
+
+		case "playback-diagnostics:snapshot": {
+			return pullPlaybackDiagnosticsFromRenderer(win);
+		}
+
+		case "playback-diagnostics:reset": {
+			return resetPlaybackDiagnosticsInRenderer(win);
 		}
 
 		case "pointer:state": {

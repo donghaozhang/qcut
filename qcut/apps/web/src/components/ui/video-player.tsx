@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useCallback } from "react";
+import { useRef, useEffect, useCallback, useState } from "react";
 import type { CSSProperties } from "react";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import type { VideoSource } from "@/lib/media/media-source";
@@ -42,6 +42,13 @@ interface VideoPlayerProps {
 	trackMuted?: boolean;
 	previewGain?: number;
 	sourceTimeOffset?: number;
+	/**
+	 * Fresh timeline time from the preview panel (boundary-crossing
+	 * playbackTime / smoothTime). The playback store's currentTime freezes
+	 * during playback, so a player mounted mid-playback (every clip after a
+	 * cut) would otherwise judge itself out of range and pause forever.
+	 */
+	timelineTime?: number;
 }
 
 function getVideoPlaybackRate({
@@ -69,6 +76,10 @@ function getVideoPlaybackRate({
 	);
 }
 
+/** Seek-driven playback (reverse / freeze) quantises to this grid, capping
+ * decoder seeks per second regardless of the display refresh rate. */
+const MANUAL_SEEK_GRID_FPS = 30;
+
 export function VideoPlayer({
 	videoId,
 	videoSource,
@@ -89,21 +100,25 @@ export function VideoPlayer({
 	trackMuted = false,
 	previewGain = 1,
 	sourceTimeOffset = 0,
+	timelineTime,
 }: VideoPlayerProps) {
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const blobUrlRef = useRef<string | null>(null);
 	const pendingCleanupRef = useRef<string | null>(null);
 	const videoLoadedRef = useRef(false);
 	const recoveryAttemptRef = useRef(0);
+	const failedProtocolSrcRef = useRef<Set<string>>(new Set());
+	const [protocolSourceEpoch, setProtocolSourceEpoch] = useState(0);
 	const presentedFramesRef = useRef(0);
 	const lastPresentedFrameCallbackAtRef = useRef<number | null>(null);
 	const MAX_RECOVERY_ATTEMPTS = 2;
 	const { isPlaying, currentTime, speed } = usePlaybackStore();
-	const timelineTimeRef = useRef(currentTime);
+	const effectiveTimelineTime = timelineTime ?? currentTime;
+	const timelineTimeRef = useRef(effectiveTimelineTime);
 
 	useEffect(() => {
-		timelineTimeRef.current = currentTime;
-	}, [currentTime]);
+		timelineTimeRef.current = effectiveTimelineTime;
+	}, [effectiveTimelineTime]);
 
 	const timelineDuration = timingElement
 		? getMediaTimelineDuration(timingElement)
@@ -112,7 +127,8 @@ export function VideoPlayer({
 	const clipEndTime =
 		playbackWindow?.endTime ?? clipStartTime + timelineDuration;
 	const isInClipRange =
-		currentTime >= clipRangeStart && currentTime < clipEndTime;
+		effectiveTimelineTime >= clipRangeStart &&
+		effectiveTimelineTime < clipEndTime;
 	const shouldReportPlaybackHealth = isPlaying && isInClipRange;
 	useEffect(() => {
 		if (!shouldReportPlaybackHealth) {
@@ -131,12 +147,16 @@ export function VideoPlayer({
 		fallbackFadeIn: fadeIn,
 		fallbackFadeOut: fadeOut,
 	});
+	// Reverse and freeze frames cannot be expressed by a playing element, so
+	// they stay seek-driven (deduped on a frame grid). Speed keyframes alone
+	// let the element PLAY with a per-tick playbackRate plus a tight drift
+	// corrector — far smoother than a seek per animation frame.
 	const requiresManualTiming = Boolean(
 		timingElement &&
-			(timingElement.reverse ||
-				(timingElement.freezeFrameDuration ?? 0) > 0 ||
-				(timingElement.speedKeyframes?.length ?? 0) > 0)
+			(timingElement.reverse || (timingElement.freezeFrameDuration ?? 0) > 0)
 	);
+	const hasKeyframedSpeed =
+		!requiresManualTiming && (timingElement?.speedKeyframes?.length ?? 0) > 0;
 	const getVideoTime = useCallback(
 		(timelineTime: number) => {
 			if (!timingElement) {
@@ -233,11 +253,11 @@ export function VideoPlayer({
 		if (!video || !isInClipRange) return;
 		syncVideoTiming({
 			video,
-			timelineTime: currentTime,
+			timelineTime: effectiveTimelineTime,
 			syncPosition: !isPlaying || requiresManualTiming,
 		});
 	}, [
-		currentTime,
+		effectiveTimelineTime,
 		isInClipRange,
 		isPlaying,
 		requiresManualTiming,
@@ -252,6 +272,11 @@ export function VideoPlayer({
 			return;
 		}
 
+		// A rejected play() leaves `paused` true; without a backoff every
+		// playback-update would spawn another rejected promise plus a warning
+		// at the animation frame rate.
+		let resumeBlockedUntil = 0;
+
 		const handleSeekEvent = (e: CustomEvent) => {
 			// Always update video time, even if outside clip range
 			const timelineTime = e.detail.time;
@@ -264,13 +289,65 @@ export function VideoPlayer({
 		const handleUpdateEvent = (e: CustomEvent) => {
 			// Always update video time, even if outside clip range
 			const timelineTime = e.detail.time;
+			timelineTimeRef.current = timelineTime;
 			const targetTime = getVideoTime(timelineTime);
 
-			if (
-				requiresManualTiming ||
-				Math.abs(video.currentTime - targetTime) > 0.5
-			) {
+			if (requiresManualTiming) {
+				// Quantise seek-driven playback to a frame grid: a freeze holds
+				// with zero further seeks and reverse seeks at most once per
+				// grid step instead of every animation frame. Comparing against
+				// the element's actual position (not a remembered target) keeps
+				// this self-correcting after out-of-band writes like a source
+				// reload or a mount sync.
+				const quantized =
+					Math.round(targetTime * MANUAL_SEEK_GRID_FPS) / MANUAL_SEEK_GRID_FPS;
+				if (
+					Math.abs(video.currentTime - quantized) >
+					0.5 / MANUAL_SEEK_GRID_FPS
+				) {
+					video.currentTime = quantized;
+				}
+				return;
+			}
+
+			if (hasKeyframedSpeed) {
+				const rate = getVideoPlaybackRate({
+					timingElement,
+					clipPlaybackRate,
+					clipStartTime,
+					timelineTime,
+					playbackSpeed: usePlaybackStore.getState().speed,
+				});
+				if (Math.abs(video.playbackRate - rate) > 0.001) {
+					video.playbackRate = rate;
+				}
+			}
+
+			// Rate discretisation drifts faster on speed ramps, so correct them
+			// on a tighter leash than plain playback.
+			const driftLimit = hasKeyframedSpeed ? 0.15 : 0.5;
+			if (Math.abs(video.currentTime - targetTime) > driftLimit) {
 				video.currentTime = targetTime;
+			}
+
+			// Self-heal: a proxy-chunk reload or a rejected play() leaves the
+			// element paused while the master clock keeps running; without this
+			// the drift corrector above degrades playback into a 2fps slideshow.
+			// Never resume an ended element — play() would restart it from 0.
+			if (
+				video.paused &&
+				!video.ended &&
+				video.readyState >= 2 &&
+				performance.now() >= resumeBlockedUntil &&
+				usePlaybackStore.getState().isPlaying
+			) {
+				video.play().catch((cause) => {
+					resumeBlockedUntil = performance.now() + 1000;
+					console.warn(
+						`[VideoPlayer] resume play() failed for ${videoId ?? "video"}:`,
+						cause
+					);
+				});
 			}
 		};
 
@@ -303,26 +380,39 @@ export function VideoPlayer({
 				handleSpeed as EventListener
 			);
 		};
-	}, [isInClipRange, requiresManualTiming, getVideoTime, syncVideoTiming]);
+	}, [
+		isInClipRange,
+		requiresManualTiming,
+		hasKeyframedSpeed,
+		clipPlaybackRate,
+		clipStartTime,
+		timingElement,
+		getVideoTime,
+		syncVideoTiming,
+		videoId,
+	]);
 
 	// Sync playback state with readyState check
 	useEffect(() => {
 		const video = videoRef.current;
 		if (!video) return;
 
-		const handlePlayError = (_err: any) => {
-			// Silently handle play errors
+		const handlePlayError = (cause: unknown) => {
+			console.warn(
+				`[VideoPlayer] play() failed for ${videoId ?? "video"}:`,
+				cause
+			);
 		};
 
+		const handleCanPlay = () => {
+			if (usePlaybackStore.getState().isPlaying) {
+				video.play().catch(handlePlayError);
+			}
+		};
 		const tryPlay = () => {
 			if (video.readyState >= 3) {
 				video.play().catch(handlePlayError);
 			} else {
-				const handleCanPlay = () => {
-					if (usePlaybackStore.getState().isPlaying) {
-						video.play().catch(handlePlayError);
-					}
-				};
 				video.addEventListener("canplay", handleCanPlay, { once: true });
 			}
 		};
@@ -345,15 +435,18 @@ export function VideoPlayer({
 
 		return () => {
 			window.removeEventListener("playback-play", handleDirectPlay);
+			// Drop any pending canplay trigger so a later manual-timing or
+			// out-of-range state cannot be started by a stale listener.
+			video.removeEventListener("canplay", handleCanPlay);
 		};
-	}, [isPlaying, isInClipRange, requiresManualTiming]);
+	}, [isPlaying, isInClipRange, requiresManualTiming, videoId]);
 
 	// Sync global playback speed with clip-local timing.
 	useEffect(() => {
 		const video = videoRef.current;
 		if (!video) return;
-		syncVideoTiming({ video, timelineTime: currentTime });
-	}, [currentTime, syncVideoTiming]);
+		syncVideoTiming({ video, timelineTime: effectiveTimelineTime });
+	}, [effectiveTimelineTime, syncVideoTiming]);
 
 	// Check video element dimensions on mount
 	useEffect(() => {
@@ -364,6 +457,7 @@ export function VideoPlayer({
 	}, []);
 
 	// Video source tracking with cached blob URLs and ref-counted cleanup
+	// biome-ignore lint/correctness/useExhaustiveDependencies: protocolSourceEpoch intentionally re-runs this effect after a local-media stream failure
 	useEffect(() => {
 		const video = videoRef.current;
 		if (!video || !videoSource) return;
@@ -376,6 +470,25 @@ export function VideoPlayer({
 		video.removeAttribute("data-qcut-presented-at");
 
 		if (videoSource.type === "file") {
+			// Prefer the disk-streaming protocol source: the element then reads
+			// via Range requests instead of the in-memory File blob. Errors mark
+			// the URL failed and re-run this effect onto the blob path.
+			const protocolSrc = videoSource.protocolSrc;
+			if (protocolSrc && !failedProtocolSrcRef.current.has(protocolSrc)) {
+				video.src = protocolSrc;
+				if (pendingCleanupRef.current) {
+					releaseObjectURL(
+						pendingCleanupRef.current,
+						"VideoPlayer-protocol-switch"
+					);
+					pendingCleanupRef.current = null;
+				}
+				blobUrlRef.current = null;
+				return () => {
+					if (video) video.src = "";
+				};
+			}
+
 			// Release reference to previous blob URL (if any)
 			const previousBlobUrl = pendingCleanupRef.current;
 
@@ -425,7 +538,7 @@ export function VideoPlayer({
 				video.src = "";
 			}
 		};
-	}, [videoSource, videoId]);
+	}, [videoSource, videoId, protocolSourceEpoch]);
 
 	useEffect(() => {
 		const video = videoRef.current;
@@ -541,6 +654,22 @@ export function VideoPlayer({
 						readyState: video.readyState,
 					}
 				);
+
+				// A failed local-media protocol source (e.g. the extracted temp
+				// file was cleaned up) falls back to the in-memory blob path.
+				if (
+					videoSource?.type === "file" &&
+					videoSource.protocolSrc &&
+					video.currentSrc?.startsWith("app://local-media/") &&
+					!failedProtocolSrcRef.current.has(videoSource.protocolSrc)
+				) {
+					console.warn(
+						`[VideoPlayer] Local-media stream failed for ${videoId ?? "video"}; falling back to blob URL`
+					);
+					failedProtocolSrcRef.current.add(videoSource.protocolSrc);
+					setProtocolSourceEpoch((epoch) => epoch + 1);
+					return;
+				}
 
 				// Handle ERR_UPLOAD_FILE_CHANGED by creating fresh blob URL
 				// This error occurs when the File backing a blob URL is invalidated

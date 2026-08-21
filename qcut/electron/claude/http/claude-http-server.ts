@@ -75,6 +75,11 @@ import {
 } from "./claude-http-jianying-project-export-routes.js";
 import { requestQCutJianyingProjectExportFromRenderer } from "../handlers/qcut-jianying-project-export-handler.js";
 import { registerSnapshotRoutes } from "./claude-http-snapshot-routes.js";
+import {
+	pullPlaybackDiagnosticsFromRenderer,
+	registerPlaybackDiagnosticsRoutes,
+	resetPlaybackDiagnosticsInRenderer,
+} from "./claude-http-playback-routes.js";
 import { registerAgentPointerRoutes } from "./claude-http-pointer-routes.js";
 import {
 	checkEditorSnapshotRef,
@@ -298,6 +303,10 @@ export function startClaudeHTTPServer(
 		selectSnapshotRef: (request) =>
 			selectEditorSnapshotRef(getWindow(), request),
 		checkSnapshotRef: (request) => checkEditorSnapshotRef(getWindow(), request),
+	});
+	registerPlaybackDiagnosticsRoutes(router, {
+		pullSnapshot: () => pullPlaybackDiagnosticsFromRenderer(getWindow()),
+		resetCollector: () => resetPlaybackDiagnosticsInRenderer(getWindow()),
 	});
 	registerAgentPointerRoutes(router, {
 		getState: async () => pointerController().getState(),

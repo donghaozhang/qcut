@@ -52,8 +52,6 @@ export function buildPreviewFrameCacheIdentity({
 	return `preview-quality:${quality}:viewport:${normalizedWidth}x${normalizedHeight}`;
 }
 
-const HIGH_RESOLUTION_EDGE = 2160;
-const LARGE_RESOLUTION_EDGE = 1440;
 const SMOOTH_FRAME_INTERVAL_MS = 45;
 const LOW_FRAME_INTERVAL_MS = 70;
 const SMOOTH_STUTTER_COUNT = 3;
@@ -112,8 +110,6 @@ export function getPreviewQualityOption({
 export function resolveEffectivePreviewQualityOption({
 	quality,
 	runtimeQuality,
-	sourceWidth,
-	sourceHeight,
 	hasEnhancements,
 }: ResolveEffectivePreviewQualityOptionParams): PreviewQualityOption {
 	const selectedOption = getPreviewQualityOption({ quality });
@@ -128,16 +124,15 @@ export function resolveEffectivePreviewQualityOption({
 		return getPreviewQualityOption({ quality: runtimeQuality });
 	}
 
-	const longestEdge = Math.max(
-		Number.isFinite(sourceWidth) ? sourceWidth : 0,
-		Number.isFinite(sourceHeight) ? sourceHeight : 0
-	);
-	if (longestEdge >= HIGH_RESOLUTION_EDGE) {
-		return getPreviewQualityOption({ quality: "smooth" });
-	}
-	if (longestEdge >= LARGE_RESOLUTION_EDGE || hasEnhancements) {
+	// Enhancements are rendered by the ffmpeg proxy, so they always need it.
+	if (hasEnhancements) {
 		return getPreviewQualityOption({ quality: "clear" });
 	}
+	// Resolution no longer forces a proxy up front: playback starts on the
+	// original source and the runtime health monitor downgrades to a proxy
+	// preset (resolveRuntimePreviewQualityDecision) only when real frame
+	// pressure is measured. Machines that decode high-res sources directly
+	// skip the proxy — and its chunk-switch churn — entirely.
 	return getPreviewQualityOption({ quality: "original" });
 }
 

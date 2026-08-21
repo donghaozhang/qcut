@@ -5,6 +5,7 @@ import { sampleCubeLut } from "../color-space-math";
 import {
 	__bakeCountForTests,
 	bakeColorCube,
+	gradeFrameOnGpu,
 	isGpuEligible,
 	resetGpuColorPath,
 } from "../gpu-color-path";
@@ -36,12 +37,21 @@ describe("GPU colour path eligibility", () => {
 		).toBe(true);
 	});
 
-	it("rejects spatial effects a colour cube cannot express", () => {
-		// Each of these reads neighbouring pixels or the pixel's position, so
-		// baking them into a lookup would silently drop them.
+	it("accepts spatial effects now expressed as shader stages", () => {
+		// Vignette, grain and sharpness run inside the fragment shader — they
+		// no longer force the CPU pixel loop.
 		for (const patch of [{ vignette: 40 }, { grain: 25 }, { sharpness: 30 }]) {
-			expect(isGpuEligible({ settings: settingsWith(patch) })).toBe(false);
+			expect(isGpuEligible({ settings: settingsWith(patch) })).toBe(true);
 		}
+	});
+
+	it("rejects multi-pass operations the single-draw shader cannot express", () => {
+		const settings = structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS);
+		settings.multiPass = {
+			...settings.multiPass,
+			enabled: true,
+		} as typeof settings.multiPass;
+		expect(isGpuEligible({ settings })).toBe(false);
 	});
 
 	it("treats disabled basic adjustments as eligible", () => {
@@ -51,21 +61,30 @@ describe("GPU colour path eligibility", () => {
 		expect(isGpuEligible({ settings })).toBe(true);
 	});
 
-	it("rejects an enabled grade mask even when it selects no masks", () => {
-		// The CPU path weights the grade by the mask's alpha whenever the mask
-		// feature is on; an empty selection renders an all-zero mask, so the CPU
-		// grades nowhere while an unmasked GPU grade would land everywhere.
-		const settings = structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS);
-		settings.mask.enabled = true;
-		settings.mask.maskIds = [];
-		expect(isGpuEligible({ settings })).toBe(false);
-	});
-
-	it("rejects an enabled grade mask with a selection", () => {
+	it("accepts an enabled grade mask (weighted via the mask texture)", () => {
+		// The mask's alpha now rides along as a texture the shader mixes by;
+		// callers pass the rasterised pixels through gradeFrameOnGpu.
 		const settings = structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS);
 		settings.mask.enabled = true;
 		settings.mask.maskIds = ["mask-1"];
-		expect(isGpuEligible({ settings })).toBe(false);
+		expect(isGpuEligible({ settings })).toBe(true);
+	});
+
+	it("rejects a grade mask whose pixels do not match the frame", () => {
+		// Without matching mask pixels the shader would grade everywhere while
+		// the CPU path grades nowhere — fall back instead.
+		const settings = structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS);
+		settings.mask.enabled = true;
+		settings.mask.maskIds = ["mask-1"];
+		expect(
+			gradeFrameOnGpu({
+				source: {} as unknown as CanvasImageSource,
+				width: 4,
+				height: 4,
+				settings,
+				gradeMask: new Uint8ClampedArray(8),
+			})
+		).toBeNull();
 	});
 
 	it("ignores stale mask selections while the feature is off", () => {

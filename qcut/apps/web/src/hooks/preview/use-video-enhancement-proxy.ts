@@ -1,5 +1,5 @@
 import { platform } from "@qcut/platform-core";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { hasMediaEnhancements } from "@/lib/video/video-properties";
 import { getMediaSourcePlaybackTime } from "@/lib/video/video-timing";
 import type { MediaElement, MediaEnhancements } from "@/types/timeline";
@@ -17,8 +17,11 @@ interface VideoEnhancementProxyState {
 }
 
 let proxyRequestSequence = 0;
-const DEFAULT_PROXY_CHUNK_SECONDS = 12;
+const DEFAULT_PROXY_CHUNK_SECONDS = 30;
 const DEFAULT_PROXY_CHUNK_OVERLAP_SECONDS = 2;
+/** Seconds before a chunk boundary at which the next chunk is pre-generated
+ * into the main-process cache, so the boundary switch never encodes live. */
+const PROXY_PREFETCH_LEAD_SECONDS = 10;
 
 export function getVideoEnhancementProxyWindow({
 	element,
@@ -59,6 +62,115 @@ export function getVideoEnhancementProxyWindow({
 	};
 }
 
+export interface VideoEnhancementProxyWindow {
+	sourceStart: number;
+	sourceDuration: number;
+}
+
+export interface VideoEnhancementProxyWindowState
+	extends VideoEnhancementProxyWindow {
+	/** Upcoming chunk to pre-generate, set while inside the prefetch lead. */
+	prefetch: VideoEnhancementProxyWindow | null;
+}
+
+const EMPTY_PROXY_WINDOW: VideoEnhancementProxyWindowState = {
+	sourceStart: 0,
+	sourceDuration: 0,
+	prefetch: null,
+};
+
+function sameProxyWindow(
+	previous: VideoEnhancementProxyWindowState,
+	next: VideoEnhancementProxyWindowState
+): boolean {
+	return (
+		previous.sourceStart === next.sourceStart &&
+		previous.sourceDuration === next.sourceDuration &&
+		(previous.prefetch?.sourceStart ?? null) ===
+			(next.prefetch?.sourceStart ?? null) &&
+		(previous.prefetch?.sourceDuration ?? null) ===
+			(next.prefetch?.sourceDuration ?? null)
+	);
+}
+
+function resolveProxyWindowState({
+	element,
+	currentTime,
+	withPrefetch,
+}: {
+	element: MediaElement;
+	currentTime: number;
+	withPrefetch: boolean;
+}): VideoEnhancementProxyWindowState {
+	const window = getVideoEnhancementProxyWindow({ element, currentTime });
+	if (!withPrefetch) return { ...window, prefetch: null };
+	const ahead = getVideoEnhancementProxyWindow({
+		element,
+		currentTime: currentTime + PROXY_PREFETCH_LEAD_SECONDS,
+	});
+	return {
+		...window,
+		prefetch: ahead.sourceStart !== window.sourceStart ? ahead : null,
+	};
+}
+
+/**
+ * Current proxy chunk window for a media element, advanced by
+ * "playback-update" events during playback instead of per-frame React
+ * renders. State only changes when the stride-aligned chunk changes
+ * (~once per DEFAULT_PROXY_CHUNK_SECONDS), so proxy-backed playback does
+ * not force the preview tree to re-render every frame.
+ */
+export function useVideoEnhancementProxyWindow({
+	element,
+	currentTime,
+	isPlaying,
+}: {
+	element: MediaElement | null;
+	currentTime: number;
+	isPlaying: boolean;
+}): VideoEnhancementProxyWindowState {
+	const [proxyWindow, setProxyWindow] =
+		useState<VideoEnhancementProxyWindowState>(EMPTY_PROXY_WINDOW);
+	const elementRef = useRef(element);
+
+	useEffect(() => {
+		elementRef.current = element;
+	}, [element]);
+
+	// Seeks, pauses, and element switches resolve from the rendered time.
+	useEffect(() => {
+		const next = element
+			? resolveProxyWindowState({ element, currentTime, withPrefetch: false })
+			: EMPTY_PROXY_WINDOW;
+		setProxyWindow((previous) =>
+			sameProxyWindow(previous, next) ? previous : next
+		);
+	}, [element, currentTime]);
+
+	// Playback advances the chunk from the shared clock events.
+	useEffect(() => {
+		if (!isPlaying || !element) return;
+		const handleUpdate = (event: Event) => {
+			const time = (event as CustomEvent).detail.time as number;
+			const currentElement = elementRef.current;
+			if (!currentElement || !Number.isFinite(time)) return;
+			const next = resolveProxyWindowState({
+				element: currentElement,
+				currentTime: time,
+				withPrefetch: true,
+			});
+			setProxyWindow((previous) =>
+				sameProxyWindow(previous, next) ? previous : next
+			);
+		};
+		window.addEventListener("playback-update", handleUpdate);
+		return () => window.removeEventListener("playback-update", handleUpdate);
+	}, [isPlaying, element]);
+
+	return proxyWindow;
+}
+
 export function videoEnhancementProxyDimensions({
 	width,
 	height,
@@ -91,6 +203,7 @@ export function useVideoEnhancementProxy({
 	enhancements,
 	forceProxy = false,
 	maxDimension = 960,
+	prefetchWindow = null,
 }: {
 	enabled: boolean;
 	elementId: string;
@@ -103,6 +216,7 @@ export function useVideoEnhancementProxy({
 	enhancements: MediaEnhancements;
 	forceProxy?: boolean;
 	maxDimension?: number;
+	prefetchWindow?: VideoEnhancementProxyWindow | null;
 }): VideoEnhancementProxyState {
 	const [retrySequence, setRetrySequence] = useState(0);
 	const [state, setState] = useState<Omit<VideoEnhancementProxyState, "retry">>(
@@ -153,11 +267,14 @@ export function useVideoEnhancementProxy({
 			height: sourceHeight,
 			maxDimension,
 		});
-		setState({
+		// Keep the previous chunk's url/offset while the next one generates —
+		// the old chunk keeps playing through its overlap instead of flapping
+		// back to the original source (two src reloads per boundary).
+		setState((current) => ({
+			...current,
 			status: "generating",
 			progress: 0,
-			sourceTimeOffset: sourceStart,
-		});
+		}));
 		const removeProgressListener =
 			platform().ffmpeg.onVideoPreviewProxyProgress((progress) => {
 				if (cancelled || progress.requestId !== requestId) return;
@@ -216,6 +333,74 @@ export function useVideoEnhancementProxy({
 		sourceHeight,
 		sourcePath,
 		sourceStart,
+		sourceWidth,
+	]);
+
+	// Warm the main-process cache with the upcoming chunk while the current
+	// one still plays, so the boundary switch resolves from cache instead of
+	// encoding live. Fire-and-forget: failures fall back to the live encode.
+	const activePrefetchRef = useRef<{ requestId: string; key: string } | null>(
+		null
+	);
+	useEffect(() => {
+		if (
+			!prefetchWindow ||
+			prefetchWindow.sourceDuration <= 0 ||
+			!enabled ||
+			!sourcePath ||
+			!platform().isElectron ||
+			(!forceProxy &&
+				!hasMediaEnhancements({ enhancements: enhancementSnapshot }))
+		) {
+			return;
+		}
+		const dimensions = videoEnhancementProxyDimensions({
+			width: sourceWidth,
+			height: sourceHeight,
+			maxDimension,
+		});
+		const requestId = `video-proxy-prefetch-${elementId}-${++proxyRequestSequence}`;
+		const key = `${sourcePath}:${prefetchWindow.sourceStart}:${prefetchWindow.sourceDuration}:${dimensions.width}x${dimensions.height}`;
+		// A seek can retarget the prefetch before the previous chunk finished
+		// encoding — cancel the superseded job so it stops competing with live
+		// preview work. The boundary handoff itself is untouched: the window
+		// going null keeps the completed (or completing) prefetch in cache.
+		const previous = activePrefetchRef.current;
+		if (previous && previous.key !== key) {
+			void platform()
+				.ffmpeg.cancelVideoPreviewProxy(previous.requestId)
+				.catch(() => {});
+		}
+		activePrefetchRef.current = { requestId, key };
+		void platform()
+			.ffmpeg.renderVideoPreviewProxy({
+				requestId,
+				sourcePath,
+				sourceStart: prefetchWindow.sourceStart,
+				sourceDuration: prefetchWindow.sourceDuration,
+				width: dimensions.width,
+				height: dimensions.height,
+				fps,
+				enhancements: enhancementSnapshot,
+			})
+			.catch(() => {
+				// Best-effort warmup only.
+			})
+			.finally(() => {
+				if (activePrefetchRef.current?.requestId === requestId) {
+					activePrefetchRef.current = null;
+				}
+			});
+	}, [
+		prefetchWindow,
+		enabled,
+		elementId,
+		enhancementSnapshot,
+		forceProxy,
+		fps,
+		maxDimension,
+		sourceHeight,
+		sourcePath,
 		sourceWidth,
 	]);
 

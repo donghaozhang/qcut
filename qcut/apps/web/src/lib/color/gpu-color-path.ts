@@ -4,8 +4,9 @@
  *
  * `transformColorPixel` is a pure function of the input colour — LUT, curves,
  * HSL, smart tone — so it can be baked into a 3D lookup once per settings
- * change and then applied by the hardware. Vignette, grain, sharpness and
- * masks are spatial and stay on the CPU path.
+ * change and then applied by the hardware. Vignette, grain and sharpness run
+ * as shader stages, and grade masks arrive as an alpha texture; only
+ * multi-pass long-tail operations still force the CPU path.
  *
  * @module lib/color/gpu-color-path
  */
@@ -21,26 +22,15 @@ import { createGpuLutRenderer, type GpuLutRenderer } from "./gpu-lut-renderer";
  */
 const BAKE_SIZE = 33;
 
-/** True when every enabled effect is a per-pixel colour transform. */
+/** True when the shader path can express every enabled effect. */
 export function isGpuEligible({
 	settings,
 }: {
 	settings: MediaColorSettings;
 }): boolean {
-	// An enabled grade mask weights the transform per pixel by position — the
-	// CPU path applies that weighting even when the mask selects nothing (the
-	// grade then lands nowhere), so a colour cube cannot stand in for it.
-	if (settings.mask?.enabled) return false;
-	if (settings.multiPass?.enabled) return false;
-	const basic = settings.basic;
-	if (!basic?.enabled) return true;
-	// These three read neighbouring pixels or the pixel's position, so a colour
-	// cube cannot express them.
-	return (
-		(basic.vignette ?? 0) === 0 &&
-		(basic.grain ?? 0) === 0 &&
-		(basic.sharpness ?? 0) === 0
-	);
+	// Multi-pass long-tail operations mix temporal and iterative work the
+	// single-draw shader cannot express.
+	return !settings.multiPass?.enabled;
 }
 
 /**
@@ -68,9 +58,18 @@ function settingsFingerprint({
 	settings: MediaColorSettings;
 }): string {
 	const cube = settings.lut?.cube;
-	const normalizedSettings = settings.multiPass
-		? { ...settings, multiPass: undefined }
-		: settings;
+	// The bake only captures the per-pixel colour transform; spatial stages
+	// (vignette/grain/sharpness, grade masks, multi-pass) run outside the
+	// cube, so normalising them out keeps the cache warm while their sliders
+	// move.
+	const normalizedSettings: MediaColorSettings = {
+		...settings,
+		multiPass: undefined,
+		mask: { ...settings.mask, enabled: false, maskIds: [] },
+		basic: settings.basic
+			? { ...settings.basic, vignette: 0, grain: 0, sharpness: 0 }
+			: settings.basic,
+	};
 	if (!cube) return JSON.stringify(normalizedSettings);
 	const skinCube = settings.lut.dual?.skinCube;
 	return JSON.stringify({
@@ -168,22 +167,31 @@ function sharedRenderer(): GpuLutRenderer | null {
 
 /**
  * Grades a frame on the GPU, or returns null when the caller should stay on
- * the CPU path (spatial effects present, or no WebGL2).
+ * the CPU path (multi-pass operations present, no WebGL2, or a grade mask
+ * whose pixels do not match the frame dimensions).
  */
 export function gradeFrameOnGpu({
 	source,
 	width,
 	height,
 	settings,
+	frameSeed = 0,
+	gradeMask,
 }: {
 	source: CanvasImageSource;
 	width: number;
 	height: number;
 	settings: MediaColorSettings;
+	frameSeed?: number;
+	/** RGBA pixels (width x height) whose alpha weights the grade. */
+	gradeMask?: Uint8ClampedArray;
 }): HTMLCanvasElement | null {
 	if (!isGpuEligible({ settings })) return null;
+	if (gradeMask && gradeMask.length !== width * height * 4) return null;
 	const gpu = sharedRenderer();
 	if (!gpu) return null;
+	const basic = settings.basic?.enabled ? settings.basic : null;
+	const sharpness = basic?.sharpness ?? 0;
 	try {
 		return gpu.render({
 			source,
@@ -192,6 +200,17 @@ export function gradeFrameOnGpu({
 			cube: bakeColorCube({ settings }),
 			// The bake already carries intensity, so the shader mixes fully.
 			intensity: 1,
+			spatial: {
+				vignette: (basic?.vignette ?? 0) / 100,
+				grain: (basic?.grain ?? 0) / 100,
+				grainSeed: frameSeed,
+				// The CPU kernel needs at least a 3x3 frame to sharpen.
+				sharpness:
+					sharpness > 0 && width >= 3 && height >= 3
+						? Math.min(2, sharpness / 50)
+						: 0,
+				mask: gradeMask,
+			},
 		});
 	} catch {
 		return null;

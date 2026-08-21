@@ -89,8 +89,17 @@ const startTimer = (store: () => PlaybackStore) => {
 	const storeDuration = store().duration;
 	const actualContentDuration =
 		timelineStore?.getState()?.getTotalDuration() ?? storeDuration;
-	const effectiveDuration =
+	let effectiveDuration =
 		actualContentDuration > 0 ? actualContentDuration : storeDuration;
+	const refreshEffectiveDuration = () => {
+		// Guard against a stale cache: play() can race project hydration and
+		// capture a partial timeline's duration, which would end playback
+		// mid-timeline. Re-check only when the end appears reached.
+		const fresh = timelineStore?.getState()?.getTotalDuration();
+		if (typeof fresh === "number" && fresh > effectiveDuration) {
+			effectiveDuration = fresh;
+		}
+	};
 
 	// Reuse event detail object to reduce GC pressure
 	const eventDetail = { time: 0 };
@@ -98,6 +107,7 @@ const startTimer = (store: () => PlaybackStore) => {
 	let lastUpdate = performance.now();
 	const updateTime = () => {
 		const state = store();
+		if (_mutableCurrentTime >= effectiveDuration) refreshEffectiveDuration();
 		if (!state.isPlaying || _mutableCurrentTime >= effectiveDuration) {
 			return;
 		}
@@ -108,6 +118,7 @@ const startTimer = (store: () => PlaybackStore) => {
 
 		const newTime = _mutableCurrentTime + delta * state.speed;
 
+		if (newTime >= effectiveDuration) refreshEffectiveDuration();
 		if (newTime >= effectiveDuration) {
 			const stopTime = Math.max(0, effectiveDuration - frameOffset);
 			_mutableCurrentTime = stopTime;
