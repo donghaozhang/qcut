@@ -1,7 +1,32 @@
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
 import path from "node:path";
-import extractZip from "extract-zip";
+import type extractZipType from "extract-zip";
+
+let cachedExtractZip: typeof extractZipType | null | undefined;
+
+/**
+ * Loaded lazily: this module's import chain reaches main.js, so a top-level
+ * import would turn a packaging omission of extract-zip into a startup crash
+ * of the whole app. Missing here only disables archive recovery.
+ */
+function loadExtractZip(): typeof extractZipType | null {
+	if (cachedExtractZip !== undefined) return cachedExtractZip;
+	try {
+		const loaded = require("extract-zip") as
+			| typeof extractZipType
+			| { default: typeof extractZipType };
+		cachedExtractZip =
+			typeof loaded === "function" ? loaded : (loaded.default ?? null);
+	} catch (error) {
+		console.warn(
+			"[JianyingTextRuntime] extract-zip unavailable; archive recovery disabled:",
+			error
+		);
+		cachedExtractZip = null;
+	}
+	return cachedExtractZip;
+}
 
 const MAXIMUM_ARCHIVE_ENTRIES = 8192;
 const MAXIMUM_ARCHIVE_FILE_BYTES = 128 * 1024 * 1024;
@@ -86,6 +111,12 @@ export async function extractValidatedJianyingResourceArchive({
 		entryCount: 0,
 		uncompressedBytes: 0,
 	};
+	const extractZip = loadExtractZip();
+	if (!extractZip) {
+		throw new Error(
+			"Archive extraction unavailable: extract-zip is missing from this build"
+		);
+	}
 	await extractZip(archivePath, {
 		dir: destination,
 		onEntry: (entry) => validateJianyingRecoveryArchiveEntry({ entry, state }),

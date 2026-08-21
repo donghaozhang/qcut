@@ -116,6 +116,9 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Verify packaged dependencies
+        run: bun run verify:packaged-dependencies
+
       - name: Verify update artifacts
         run: bun run verify:update-artifacts -- --manifest latest.yml
 
@@ -231,6 +234,9 @@ jobs:
       - name: Verify packaged Jianying text runtime bridge
         run: bun run verify:packaged-jianying-text-runtime-bridge
 
+      - name: Verify packaged dependencies
+        run: bun run verify:packaged-dependencies
+
       - name: Build macOS DMG (custom hdiutil-based, sidesteps dmg-builder Tahoe bug)
         run: bun run build:mac-dmg
 
@@ -340,6 +346,9 @@ jobs:
           npx electron-builder --linux --publish never --config.publish.channel=${{ needs.prepare.outputs.channel }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify packaged dependencies
+        run: bun run verify:packaged-dependencies
 
       - name: Verify update artifacts
         run: bun run verify:update-artifacts -- --manifest latest-linux.yml
