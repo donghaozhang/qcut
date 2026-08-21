@@ -272,6 +272,11 @@ export function VideoPlayer({
 			return;
 		}
 
+		// A rejected play() leaves `paused` true; without a backoff every
+		// playback-update would spawn another rejected promise plus a warning
+		// at the animation frame rate.
+		let resumeBlockedUntil = 0;
+
 		const handleSeekEvent = (e: CustomEvent) => {
 			// Always update video time, even if outside clip range
 			const timelineTime = e.detail.time;
@@ -333,9 +338,11 @@ export function VideoPlayer({
 				video.paused &&
 				!video.ended &&
 				video.readyState >= 2 &&
+				performance.now() >= resumeBlockedUntil &&
 				usePlaybackStore.getState().isPlaying
 			) {
 				video.play().catch((cause) => {
+					resumeBlockedUntil = performance.now() + 1000;
 					console.warn(
 						`[VideoPlayer] resume play() failed for ${videoId ?? "video"}:`,
 						cause
@@ -450,6 +457,7 @@ export function VideoPlayer({
 	}, []);
 
 	// Video source tracking with cached blob URLs and ref-counted cleanup
+	// biome-ignore lint/correctness/useExhaustiveDependencies: protocolSourceEpoch intentionally re-runs this effect after a local-media stream failure
 	useEffect(() => {
 		const video = videoRef.current;
 		if (!video || !videoSource) return;
