@@ -25,10 +25,12 @@ function EffectCompanionAudioPlayer({
 	element,
 	trackId,
 	trackMuted,
+	timelineTime,
 }: ElementEffectAudioCompanion & {
 	element: TimelineElement;
 	trackId: string;
 	trackMuted: boolean;
+	timelineTime?: number;
 }) {
 	const duration = resolvePlaybackDuration({ companion, element });
 	const startTime = element.startTime + companion.offsetSeconds;
@@ -84,6 +86,7 @@ function EffectCompanionAudioPlayer({
 				trackId={trackId}
 				playbackWindow={{ startTime, endTime: startTime + duration }}
 				element={audioElement}
+				timelineTime={timelineTime}
 			/>
 			<span
 				hidden
@@ -100,11 +103,13 @@ export function EffectCompanionAudioPlayers({
 	element,
 	trackId,
 	trackMuted = false,
+	timelineTime,
 }: {
 	companions: readonly ElementEffectAudioCompanion[];
 	element: TimelineElement;
 	trackId: string;
 	trackMuted?: boolean;
+	timelineTime?: number;
 }) {
 	return (
 		<>
@@ -115,6 +120,7 @@ export function EffectCompanionAudioPlayers({
 					element={element}
 					trackId={trackId}
 					trackMuted={trackMuted}
+					timelineTime={timelineTime}
 				/>
 			))}
 		</>

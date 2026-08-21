@@ -144,6 +144,7 @@ interface PreviewBlurBackgroundProps {
 	blurBackgroundElements: ActiveElement[];
 	blurBackgroundSource: VideoSource;
 	effectsRenderingByElementId: ReadonlyMap<string, ElementEffectsRendering>;
+	timelineTime?: number;
 }
 
 /** Renders a blurred background video layer behind the main preview content. */
@@ -152,6 +153,7 @@ export function PreviewBlurBackground({
 	blurBackgroundElements,
 	blurBackgroundSource,
 	effectsRenderingByElementId,
+	timelineTime,
 }: PreviewBlurBackgroundProps): React.ReactNode {
 	try {
 		if (activeProject?.backgroundType !== "blur") {
@@ -201,6 +203,7 @@ export function PreviewBlurBackground({
 						videoId={`${mediaItem.id}-blur-background`}
 						videoSource={blurBackgroundSource}
 						poster={mediaItem.thumbnailUrl}
+						timelineTime={timelineTime}
 						clipStartTime={element.startTime}
 						trimStart={element.trimStart}
 						trimEnd={element.trimEnd}
@@ -347,6 +350,7 @@ export function PreviewElementRenderer({
 		enhancements: previewEnhancements,
 		forceProxy: previewQualityOption.forceProxy,
 		maxDimension: previewQualityOption.maxDimension ?? 960,
+		prefetchWindow: proxyWindow.prefetch,
 	});
 	const nativeEnhancementPreview = useNativeVideoEnhancementPreview({
 		enabled:
@@ -372,10 +376,10 @@ export function PreviewElementRenderer({
 	});
 	const enhancementProxyVideoSource = useMemo<VideoSource>(
 		() =>
-			enhancementProxy.status === "ready" && enhancementProxy.url
+			enhancementProxy.url
 				? { type: "remote", src: enhancementProxy.url }
 				: null,
-		[enhancementProxy.status, enhancementProxy.url]
+		[enhancementProxy.url]
 	);
 	try {
 		const { element, mediaItem } = elementData;
@@ -782,6 +786,7 @@ export function PreviewElementRenderer({
 									previewGain={previewAudioGain}
 									playbackWindow={audioPlaybackWindow}
 									element={previewDerivedElement}
+									timelineTime={currentTime}
 								/>,
 							];
 						})
@@ -805,8 +810,10 @@ export function PreviewElementRenderer({
 					dragState.isDragging && dragState.elementId === element.id;
 				const visual = previewMediaVisual;
 				if (!visual) return null;
-				const proxyReady =
-					enhancementProxy.status === "ready" && Boolean(enhancementProxy.url);
+				// A url during "generating" is the previous chunk kept alive
+				// through its overlap — keep playing it instead of flapping
+				// back to the original source at every boundary.
+				const proxyReady = Boolean(enhancementProxy.url);
 				const previewSource = resolvePreviewVideoSource({
 					source,
 					proxySource: enhancementProxyVideoSource,
@@ -1009,6 +1016,7 @@ export function PreviewElementRenderer({
 								playbackWindow={audioPlaybackWindow}
 								videoId={sourceVideoId}
 								sourceTimeOffset={previewSource.sourceTimeOffset}
+								timelineTime={currentTime}
 								style={{
 									objectFit: visual.fitMode,
 									filter: combinedFilter || undefined,
@@ -1142,6 +1150,7 @@ export function PreviewElementRenderer({
 									previewGain={previewAudioGain}
 									playbackWindow={audioPlaybackWindow}
 									videoId={`${mediaItem.id}-mask-audio`}
+									timelineTime={currentTime}
 									className="pointer-events-none absolute inset-0 opacity-0"
 								/>
 							) : null}
@@ -1506,6 +1515,7 @@ export function PreviewElementRenderer({
 						) : (
 							<AudioPlayer
 								src={mediaItem.url || mediaItem.originalUrl || ""}
+								timelineTime={currentTime}
 								clipStartTime={previewAudioElement.startTime}
 								trimStart={previewAudioElement.trimStart}
 								trimEnd={previewAudioElement.trimEnd}

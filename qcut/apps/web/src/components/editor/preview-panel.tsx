@@ -869,6 +869,7 @@ export function PreviewPanel() {
 				blurBackgroundElements={blurBackgroundElements}
 				blurBackgroundSource={blurBackgroundSource}
 				effectsRenderingByElementId={effectsRenderingByElementId}
+				timelineTime={isPlaying ? playbackTime : currentTime}
 			/>
 		),
 		[
@@ -876,6 +877,9 @@ export function PreviewPanel() {
 			blurBackgroundElements,
 			blurBackgroundSource,
 			effectsRenderingByElementId,
+			isPlaying,
+			playbackTime,
+			currentTime,
 		]
 	);
 
@@ -898,6 +902,7 @@ export function PreviewPanel() {
 						element={elementData.element}
 						trackId={elementData.track.id}
 						trackMuted={elementData.track.muted}
+						timelineTime={isPlaying ? smoothTime : currentTime}
 					/>
 					<PreviewElementRenderer
 						elementData={elementData}
