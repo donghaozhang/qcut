@@ -42,6 +42,13 @@ interface VideoPlayerProps {
 	trackMuted?: boolean;
 	previewGain?: number;
 	sourceTimeOffset?: number;
+	/**
+	 * Fresh timeline time from the preview panel (boundary-crossing
+	 * playbackTime / smoothTime). The playback store's currentTime freezes
+	 * during playback, so a player mounted mid-playback (every clip after a
+	 * cut) would otherwise judge itself out of range and pause forever.
+	 */
+	timelineTime?: number;
 }
 
 function getVideoPlaybackRate({
@@ -89,6 +96,7 @@ export function VideoPlayer({
 	trackMuted = false,
 	previewGain = 1,
 	sourceTimeOffset = 0,
+	timelineTime,
 }: VideoPlayerProps) {
 	const videoRef = useRef<HTMLVideoElement>(null);
 	const blobUrlRef = useRef<string | null>(null);
@@ -99,11 +107,12 @@ export function VideoPlayer({
 	const lastPresentedFrameCallbackAtRef = useRef<number | null>(null);
 	const MAX_RECOVERY_ATTEMPTS = 2;
 	const { isPlaying, currentTime, speed } = usePlaybackStore();
-	const timelineTimeRef = useRef(currentTime);
+	const effectiveTimelineTime = timelineTime ?? currentTime;
+	const timelineTimeRef = useRef(effectiveTimelineTime);
 
 	useEffect(() => {
-		timelineTimeRef.current = currentTime;
-	}, [currentTime]);
+		timelineTimeRef.current = effectiveTimelineTime;
+	}, [effectiveTimelineTime]);
 
 	const timelineDuration = timingElement
 		? getMediaTimelineDuration(timingElement)
@@ -112,7 +121,8 @@ export function VideoPlayer({
 	const clipEndTime =
 		playbackWindow?.endTime ?? clipStartTime + timelineDuration;
 	const isInClipRange =
-		currentTime >= clipRangeStart && currentTime < clipEndTime;
+		effectiveTimelineTime >= clipRangeStart &&
+		effectiveTimelineTime < clipEndTime;
 	const shouldReportPlaybackHealth = isPlaying && isInClipRange;
 	useEffect(() => {
 		if (!shouldReportPlaybackHealth) {
@@ -233,11 +243,11 @@ export function VideoPlayer({
 		if (!video || !isInClipRange) return;
 		syncVideoTiming({
 			video,
-			timelineTime: currentTime,
+			timelineTime: effectiveTimelineTime,
 			syncPosition: !isPlaying || requiresManualTiming,
 		});
 	}, [
-		currentTime,
+		effectiveTimelineTime,
 		isInClipRange,
 		isPlaying,
 		requiresManualTiming,
@@ -277,9 +287,11 @@ export function VideoPlayer({
 			// Self-heal: a proxy-chunk reload or a rejected play() leaves the
 			// element paused while the master clock keeps running; without this
 			// the drift corrector above degrades playback into a 2fps slideshow.
+			// Never resume an ended element — play() would restart it from 0.
 			if (
 				!requiresManualTiming &&
 				video.paused &&
+				!video.ended &&
 				video.readyState >= 2 &&
 				usePlaybackStore.getState().isPlaying
 			) {
@@ -379,8 +391,8 @@ export function VideoPlayer({
 	useEffect(() => {
 		const video = videoRef.current;
 		if (!video) return;
-		syncVideoTiming({ video, timelineTime: currentTime });
-	}, [currentTime, syncVideoTiming]);
+		syncVideoTiming({ video, timelineTime: effectiveTimelineTime });
+	}, [effectiveTimelineTime, syncVideoTiming]);
 
 	// Check video element dimensions on mount
 	useEffect(() => {
