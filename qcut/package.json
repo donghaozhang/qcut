@@ -381,6 +381,18 @@
 				"name": "WebM Video",
 				"description": "WebM Video File",
 				"icon": "build/icon.ico"
+			},
+			{
+				"ext": "m4v",
+				"name": "M4V Video",
+				"description": "MPEG-4 Video File",
+				"icon": "build/icon.ico"
+			},
+			{
+				"ext": "ogv",
+				"name": "Ogg Video",
+				"description": "Ogg Theora Video File",
+				"icon": "build/icon.ico"
 			}
 		]
 	},

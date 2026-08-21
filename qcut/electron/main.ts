@@ -287,10 +287,12 @@ function consumeActivationTokenFromArgs(args: string[]): void {
 // excluded — they need a dedicated open flow, not a media import.
 const OPENABLE_MEDIA_EXTENSIONS = new Set([
 	".mp4",
+	".m4v",
 	".mov",
 	".avi",
 	".mkv",
 	".webm",
+	".ogv",
 ]);
 
 function extractOpenableMediaPath(arg: string): string | null {
@@ -878,6 +880,7 @@ if (!isHeadlessRecorder) {
 	const gotTheLock = app.requestSingleInstanceLock();
 	if (gotTheLock) {
 		app.on("second-instance", (_event, commandLine) => {
+			logger.info(`[OpenFile] second-instance argv: ${JSON.stringify(commandLine)}`);
 			try {
 				for (const arg of commandLine) {
 					const token = extractActivationTokenFromUrl(arg);
