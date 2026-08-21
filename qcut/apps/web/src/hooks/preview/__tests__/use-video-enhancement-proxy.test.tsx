@@ -211,12 +211,12 @@ describe("useVideoEnhancementProxy", () => {
 
 		expect(
 			getVideoEnhancementProxyWindow({ element, currentTime: 16 })
-		).toEqual({ sourceStart: 5, sourceDuration: 12 });
+		).toEqual({ sourceStart: 5, sourceDuration: 30 });
 		expect(
-			getVideoEnhancementProxyWindow({ element, currentTime: 27 })
-		).toEqual({ sourceStart: 15, sourceDuration: 12 });
+			getVideoEnhancementProxyWindow({ element, currentTime: 45 })
+		).toEqual({ sourceStart: 33, sourceDuration: 30 });
 		expect(
 			getVideoEnhancementProxyWindow({ element, currentTime: 100 })
-		).toEqual({ sourceStart: 83, sourceDuration: 12 });
+		).toEqual({ sourceStart: 65, sourceDuration: 30 });
 	});
 });

@@ -32,7 +32,11 @@ describe("useVideoEnhancementProxyWindow", () => {
 				isPlaying: false,
 			})
 		);
-		expect(result.current).toEqual({ sourceStart: 0, sourceDuration: 0 });
+		expect(result.current).toEqual({
+			sourceStart: 0,
+			sourceDuration: 0,
+			prefetch: null,
+		});
 	});
 
 	it("derives the window from the rendered time while paused", () => {
@@ -50,8 +54,10 @@ describe("useVideoEnhancementProxyWindow", () => {
 		expect(result.current.sourceDuration).toBeGreaterThan(0);
 
 		// Seeking far ahead moves to a later stride-aligned chunk.
-		rerender({ currentTime: 25 });
+		rerender({ currentTime: 35 });
 		expect(result.current.sourceStart).toBeGreaterThan(0);
+		// Paused derivation never requests prefetch.
+		expect(result.current.prefetch).toBeNull();
 	});
 
 	it("advances the chunk from playback-update events, not renders", () => {
@@ -71,6 +77,16 @@ describe("useVideoEnhancementProxyWindow", () => {
 			dispatchPlaybackUpdate(5);
 		});
 		expect(result.current).toBe(initialWindow);
+
+		// Inside the prefetch lead the upcoming chunk is announced once.
+		act(() => {
+			dispatchPlaybackUpdate(20);
+		});
+		expect(result.current.sourceStart).toBe(initialWindow.sourceStart);
+		expect(result.current.prefetch).not.toBeNull();
+		expect(result.current.prefetch?.sourceStart ?? 0).toBeGreaterThan(
+			initialWindow.sourceStart
+		);
 
 		// Crossing the stride boundary advances the chunk.
 		act(() => {
