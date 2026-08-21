@@ -207,9 +207,12 @@ export function PreviewPanel() {
 
 		const handlePlaybackUpdate = (e: Event) => {
 			const time = (e as CustomEvent).detail.time as number;
-			// Check if active elements changed by testing element boundaries
+			// Check if active elements changed by testing element boundaries.
+			// Scan the EXPANDED tracks (compound children included) so the
+			// boundary set matches what getActiveElements mounts and what the
+			// smooth-time gate evaluates.
 			let activeIds = "";
-			for (const track of tracks) {
+			for (const track of renderTracks) {
 				for (const el of track.elements) {
 					if (el.hidden) continue;
 					const end = el.startTime + getPreviewElementDuration(el);
@@ -265,6 +268,7 @@ export function PreviewPanel() {
 		isPlaying,
 		currentTime,
 		tracks,
+		renderTracks,
 		jianyingPrefetchWindows,
 	]);
 
