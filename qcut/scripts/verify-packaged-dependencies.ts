@@ -16,8 +16,24 @@
 import fs from "node:fs";
 import path from "node:path";
 
-/** Packages required beyond direct dependencies (bundled via build.files). */
-const EXPLICITLY_BUNDLED = ["yauzl", "fd-slicer", "pend"];
+/**
+ * The full extract-zip@2.0.1 runtime require closure, bundled via build.files
+ * as a private tree under node_modules/extract-zip/node_modules. Checked at
+ * those nested paths so incidental top-level copies can't mask an omission.
+ */
+const EXPLICITLY_BUNDLED = [
+	"debug",
+	"ms",
+	"get-stream",
+	"pump",
+	"end-of-stream",
+	"once",
+	"wrappy",
+	"yauzl",
+	"buffer-crc32",
+	"fd-slicer",
+	"pend",
+].map((name) => `extract-zip/node_modules/${name}`);
 
 function findDefaultAsar(): string | null {
 	const roots = fs
@@ -47,6 +63,34 @@ function findDefaultAsar(): string | null {
 	return candidates[0]?.file ?? null;
 }
 
+interface AsarDirectory {
+	files?: Record<string, AsarDirectory>;
+}
+
+/**
+ * Collects package names from one node_modules directory node, including
+ * nested private trees as "<parent>/node_modules/<child>".
+ */
+function collectPackageNames(
+	nodeModules: Record<string, AsarDirectory>,
+	prefix: string,
+	names: Set<string>
+) {
+	for (const [name, entry] of Object.entries(nodeModules)) {
+		if (name.startsWith("@")) {
+			for (const scoped of Object.keys(entry.files ?? {})) {
+				names.add(`${prefix}${name}/${scoped}`);
+			}
+			continue;
+		}
+		names.add(`${prefix}${name}`);
+		const nested = entry.files?.node_modules?.files;
+		if (nested) {
+			collectPackageNames(nested, `${prefix}${name}/node_modules/`, names);
+		}
+	}
+}
+
 function readAsarPackageNames(asarPath: string): Set<string> {
 	const fd = fs.openSync(asarPath, "r");
 	try {
@@ -57,19 +101,10 @@ function readAsarPackageNames(asarPath: string): Set<string> {
 		fs.readSync(fd, headerBuffer, 0, headerSize, 16);
 		const json = headerBuffer.toString("utf8");
 		const header = JSON.parse(json.slice(json.indexOf("{"))) as {
-			files: Record<string, { files?: Record<string, { files?: object }> }>;
+			files: Record<string, AsarDirectory>;
 		};
-		const nodeModules = header.files.node_modules?.files ?? {};
 		const names = new Set<string>();
-		for (const [name, entry] of Object.entries(nodeModules)) {
-			if (name.startsWith("@")) {
-				for (const scoped of Object.keys(entry.files ?? {})) {
-					names.add(`${name}/${scoped}`);
-				}
-			} else {
-				names.add(name);
-			}
-		}
+		collectPackageNames(header.files.node_modules?.files ?? {}, "", names);
 		return names;
 	} finally {
 		fs.closeSync(fd);
