@@ -108,6 +108,10 @@ import {
 	recordPreviewPanelRender,
 } from "@/lib/debug/playback-diagnostics";
 
+/** Seconds ahead of the playhead at which upcoming media clips are mounted
+ * hidden, so their video is buffered and seeked before the cut. */
+const CLIP_PRELOAD_LOOKAHEAD_SECONDS = 2;
+
 function getPreviewElementDuration(element: TimelineElement): number {
 	return element.type === "media"
 		? getMediaTimelineDuration(element)
@@ -211,6 +215,14 @@ export function PreviewPanel() {
 					const end = el.startTime + getPreviewElementDuration(el);
 					if (time >= el.startTime && time < end) {
 						activeIds += el.id + ",";
+					} else if (
+						el.type === "media" &&
+						time >= el.startTime - CLIP_PRELOAD_LOOKAHEAD_SECONDS &&
+						time < el.startTime
+					) {
+						// Entering the preload window must trigger a render so the
+						// upcoming clip mounts (hidden) before the cut.
+						activeIds += `preload:${el.id},`;
 					}
 				}
 			}
@@ -544,13 +556,41 @@ export function PreviewPanel() {
 			});
 			const layers = [...plan.visualLayers, ...plan.audioElements];
 
-			return layers.map(({ element, track }) => {
+			const active: ActiveElement[] = layers.map(({ element, track }) => {
 				const mediaItem =
 					element.type === "media" && element.mediaId !== TEST_MEDIA_ID
 						? (mediaItems.find((item) => item.id === element.mediaId) ?? null)
 						: null;
 				return { element, track, mediaItem };
 			});
+
+			// While playing, mount upcoming media clips hidden so their video
+			// buffers and seeks before the cut — the boundary flip then paints
+			// a ready frame instead of a black loading gap.
+			if (isPlaying) {
+				const activeIds = new Set(active.map(({ element }) => element.id));
+				for (const track of renderTracks) {
+					if (track.hidden) continue;
+					for (const element of track.elements) {
+						if (
+							element.hidden ||
+							element.type !== "media" ||
+							element.mediaId === TEST_MEDIA_ID ||
+							activeIds.has(element.id) ||
+							effectiveTime >= element.startTime ||
+							element.startTime - effectiveTime > CLIP_PRELOAD_LOOKAHEAD_SECONDS
+						) {
+							continue;
+						}
+						const mediaItem =
+							mediaItems.find((item) => item.id === element.mediaId) ?? null;
+						if (!mediaItem) continue;
+						active.push({ element, track, mediaItem, preload: true });
+					}
+				}
+			}
+
+			return active;
 		} catch {
 			return [];
 		}
@@ -688,7 +728,8 @@ export function PreviewPanel() {
 				(candidate) =>
 					candidate.track.id === trackId && candidate.element.id === elementId
 			);
-			if (!active || active.element.type !== "media") return [];
+			if (!active || active.preload || active.element.type !== "media")
+				return [];
 			return [{ trackId, element: active.element }];
 		});
 	}, [activeElements, selectedElements]);
@@ -892,13 +933,18 @@ export function PreviewPanel() {
 			const effectRendering = effectsRenderingByElementId.get(
 				elementData.element.id
 			);
+			const isPreload = elementData.preload === true;
 			return (
 				<div
 					key={`${elementData.element.id}-${elementData.track.id}`}
-					className="contents"
+					className={isPreload ? undefined : "contents"}
+					style={isPreload ? { visibility: "hidden" } : undefined}
+					aria-hidden={isPreload || undefined}
 				>
 					<EffectCompanionAudioPlayers
-						companions={effectRendering?.audioCompanions ?? []}
+						companions={
+							isPreload ? [] : (effectRendering?.audioCompanions ?? [])
+						}
 						element={elementData.element}
 						trackId={elementData.track.id}
 						trackMuted={elementData.track.muted}
