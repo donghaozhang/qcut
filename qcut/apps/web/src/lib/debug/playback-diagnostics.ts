@@ -79,6 +79,8 @@ interface VideoElementSample {
 interface PlaybackStoreSample {
 	isPlaying: boolean;
 	currentTime: number;
+	duration: number | null;
+	timelineTotalDuration: number | null;
 	previewQuality: string;
 	runtimePreviewQuality: string | null;
 	runtimeDiagnosticReason: string | null;
@@ -165,25 +167,37 @@ function sampleVideos(): VideoElementSample[] {
 }
 
 function samplePlaybackStore(): PlaybackStoreSample | null {
-	const store = (
-		window as unknown as {
-			__playbackStore?: {
-				getState: () => {
-					isPlaying: boolean;
-					currentTime: number;
-					previewQuality: string;
-					runtimePreviewQuality: string | null;
-					runtimePreviewQualityDiagnostic: { reason?: string } | null;
-				};
+	const exposed = window as unknown as {
+		__playbackStore?: {
+			getState: () => {
+				isPlaying: boolean;
+				currentTime: number;
+				duration: number;
+				previewQuality: string;
+				runtimePreviewQuality: string | null;
+				runtimePreviewQualityDiagnostic: { reason?: string } | null;
 			};
-		}
-	).__playbackStore;
+		};
+		__timelineStore?: {
+			getState: () => { getTotalDuration: () => number };
+		};
+	};
+	const store = exposed.__playbackStore;
 	if (!store) return null;
 	try {
 		const snapshot = store.getState();
+		let timelineTotalDuration: number | null = null;
+		try {
+			timelineTotalDuration =
+				exposed.__timelineStore?.getState().getTotalDuration() ?? null;
+		} catch {
+			timelineTotalDuration = null;
+		}
 		return {
 			isPlaying: snapshot.isPlaying,
 			currentTime: snapshot.currentTime,
+			duration: snapshot.duration ?? null,
+			timelineTotalDuration,
 			previewQuality: snapshot.previewQuality,
 			runtimePreviewQuality: snapshot.runtimePreviewQuality,
 			runtimeDiagnosticReason:
