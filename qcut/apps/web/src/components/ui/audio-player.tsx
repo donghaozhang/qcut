@@ -104,9 +104,17 @@ export function AudioPlayer({
 		const audio = audioRef.current;
 		if (!audio) return;
 
+		// The store's currentTime freezes during playback, so track the latest
+		// event time for handlers (speed changes) that need a fresh position.
+		let latestTimelineTime = usePlaybackStore.getState().currentTime;
+		// A rejected play() leaves `paused` true; without a backoff every
+		// playback-update would spawn another rejected promise.
+		let resumeBlockedUntil = 0;
+
 		const handleSeekEvent = (e: CustomEvent) => {
+			latestTimelineTime = e.detail.time as number;
 			syncAudioTiming({
-				timelineTime: e.detail.time,
+				timelineTime: latestTimelineTime,
 				playbackSpeed: usePlaybackStore.getState().speed,
 				forcePosition: true,
 			});
@@ -114,6 +122,7 @@ export function AudioPlayer({
 
 		const handleUpdateEvent = (e: CustomEvent) => {
 			const time = e.detail.time as number;
+			latestTimelineTime = time;
 			syncAudioTiming({
 				timelineTime: time,
 				playbackSpeed: usePlaybackStore.getState().speed,
@@ -127,15 +136,18 @@ export function AudioPlayer({
 				!trackMuted &&
 				time >= clipRangeStart &&
 				time < clipEndTime &&
+				performance.now() >= resumeBlockedUntil &&
 				usePlaybackStore.getState().isPlaying
 			) {
-				audio.play().catch(() => {});
+				audio.play().catch(() => {
+					resumeBlockedUntil = performance.now() + 1000;
+				});
 			}
 		};
 
 		const handleSpeed = (e: CustomEvent) => {
 			syncAudioTiming({
-				timelineTime: usePlaybackStore.getState().currentTime,
+				timelineTime: latestTimelineTime,
 				playbackSpeed: e.detail.speed,
 				forcePosition: false,
 			});
