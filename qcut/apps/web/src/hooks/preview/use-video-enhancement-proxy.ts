@@ -339,6 +339,9 @@ export function useVideoEnhancementProxy({
 	// Warm the main-process cache with the upcoming chunk while the current
 	// one still plays, so the boundary switch resolves from cache instead of
 	// encoding live. Fire-and-forget: failures fall back to the live encode.
+	const activePrefetchRef = useRef<{ requestId: string; key: string } | null>(
+		null
+	);
 	useEffect(() => {
 		if (
 			!prefetchWindow ||
@@ -357,6 +360,18 @@ export function useVideoEnhancementProxy({
 			maxDimension,
 		});
 		const requestId = `video-proxy-prefetch-${elementId}-${++proxyRequestSequence}`;
+		const key = `${sourcePath}:${prefetchWindow.sourceStart}:${prefetchWindow.sourceDuration}:${dimensions.width}x${dimensions.height}`;
+		// A seek can retarget the prefetch before the previous chunk finished
+		// encoding — cancel the superseded job so it stops competing with live
+		// preview work. The boundary handoff itself is untouched: the window
+		// going null keeps the completed (or completing) prefetch in cache.
+		const previous = activePrefetchRef.current;
+		if (previous && previous.key !== key) {
+			void platform()
+				.ffmpeg.cancelVideoPreviewProxy(previous.requestId)
+				.catch(() => {});
+		}
+		activePrefetchRef.current = { requestId, key };
 		void platform()
 			.ffmpeg.renderVideoPreviewProxy({
 				requestId,
@@ -370,6 +385,11 @@ export function useVideoEnhancementProxy({
 			})
 			.catch(() => {
 				// Best-effort warmup only.
+			})
+			.finally(() => {
+				if (activePrefetchRef.current?.requestId === requestId) {
+					activePrefetchRef.current = null;
+				}
 			});
 	}, [
 		prefetchWindow,
