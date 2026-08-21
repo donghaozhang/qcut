@@ -78,9 +78,7 @@ function readAsarPackageNames(asarPath: string): Set<string> {
 
 const asarPath = process.argv[2] ?? findDefaultAsar();
 if (!asarPath || !fs.existsSync(asarPath)) {
-	console.error(
-		"✗ No app.asar found — pass a path or run a dist build first."
-	);
+	console.error("✗ No app.asar found — pass a path or run a dist build first.");
 	process.exit(2);
 }
 
