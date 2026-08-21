@@ -15,7 +15,11 @@ export function registerPlaybackDiagnosticsRoutes(
 ): void {
 	router.get("/api/claude/playback/diagnostics", async () => {
 		const snapshot = await options.pullSnapshot();
-		if (!snapshot || typeof snapshot !== "object") {
+		if (
+			!snapshot ||
+			typeof snapshot !== "object" ||
+			(snapshot as { installed?: boolean }).installed !== true
+		) {
 			throw new HttpError(
 				503,
 				"Playback diagnostics collector is not installed (editor not open?)"
@@ -25,7 +29,17 @@ export function registerPlaybackDiagnosticsRoutes(
 	});
 
 	router.post("/api/claude/playback/diagnostics/reset", async () => {
-		await options.resetCollector();
+		const result = await options.resetCollector();
+		if (
+			!result ||
+			typeof result !== "object" ||
+			(result as { installed?: boolean }).installed !== true
+		) {
+			throw new HttpError(
+				503,
+				"Playback diagnostics collector is not installed (editor not open?)"
+			);
+		}
 		return { reset: true };
 	});
 }
