@@ -29,6 +29,11 @@ import {
 	JIANYING_TEXT_PREVIEW_PROTOCOL_PATH,
 	resolveJianyingTextPreviewFilename,
 } from "./jianying-text-runtime/cache-path.js";
+import {
+	LOCAL_MEDIA_PROTOCOL_PATH,
+	localMediaContentType,
+	resolveLocalMediaFilename,
+} from "./local-media-protocol.js";
 
 export interface RegisterAppProtocolOptions {
 	/** Override the logger — defaults to console. */
@@ -125,6 +130,22 @@ export function registerAppProtocol(
 				return createVideoPreviewProxyResponse({
 					request,
 					filePath: previewPath,
+				});
+			}
+
+			if (pathSegments[0] === LOCAL_MEDIA_PROTOCOL_PATH) {
+				const token = pathSegments[1];
+				if (pathSegments.length !== 2 || !token) {
+					return new Response("Not Found", { status: 404 });
+				}
+				const mediaPath = resolveLocalMediaFilename({ token });
+				if (!mediaPath) {
+					return new Response("Not Found", { status: 404 });
+				}
+				return createVideoPreviewProxyResponse({
+					request,
+					filePath: mediaPath,
+					contentType: localMediaContentType({ filePath: mediaPath }),
 				});
 			}
 
