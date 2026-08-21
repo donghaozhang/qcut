@@ -21,6 +21,13 @@ interface AudioPlayerProps {
 	previewGain?: number;
 	playbackWindow?: { startTime: number; endTime: number };
 	element: MediaElement;
+	/**
+	 * Fresh timeline time from the preview panel. The playback store's
+	 * currentTime freezes during playback, so a player mounted mid-playback
+	 * (every clip after a cut) would otherwise judge itself out of range and
+	 * stay paused.
+	 */
+	timelineTime?: number;
 }
 
 export function AudioPlayer({
@@ -31,9 +38,11 @@ export function AudioPlayer({
 	previewGain = 1,
 	playbackWindow,
 	element,
+	timelineTime,
 }: AudioPlayerProps) {
 	const audioRef = useRef<HTMLAudioElement>(null);
 	const { isPlaying, currentTime, speed } = usePlaybackStore();
+	const effectiveTimelineTime = timelineTime ?? currentTime;
 	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
 	const reversed = useReversedAudioUrl({
 		source: src,
@@ -55,7 +64,8 @@ export function AudioPlayer({
 	const clipEndTime =
 		playbackWindow?.endTime ?? element.startTime + timelineDuration;
 	const isInClipRange =
-		currentTime >= clipRangeStart && currentTime < clipEndTime;
+		effectiveTimelineTime >= clipRangeStart &&
+		effectiveTimelineTime < clipEndTime;
 	const syncAudioTiming = useCallback(
 		({
 			timelineTime,
@@ -103,11 +113,24 @@ export function AudioPlayer({
 		};
 
 		const handleUpdateEvent = (e: CustomEvent) => {
+			const time = e.detail.time as number;
 			syncAudioTiming({
-				timelineTime: e.detail.time,
+				timelineTime: time,
 				playbackSpeed: usePlaybackStore.getState().speed,
 				forcePosition: false,
 			});
+			// Self-heal: resume an element that should be audible but sits
+			// paused (mounted mid-playback, or an src reload reset it).
+			if (
+				audio.paused &&
+				!audio.ended &&
+				!trackMuted &&
+				time >= clipRangeStart &&
+				time < clipEndTime &&
+				usePlaybackStore.getState().isPlaying
+			) {
+				audio.play().catch(() => {});
+			}
 		};
 
 		const handleSpeed = (e: CustomEvent) => {
@@ -139,11 +162,16 @@ export function AudioPlayer({
 				handleSpeed as EventListener
 			);
 		};
-	}, [syncAudioTiming]);
+	}, [syncAudioTiming, clipRangeStart, clipEndTime, trackMuted]);
 
+	// Force-sync position on mount and on real seeks/pauses (store time),
+	// but seed with the fresh panel time so a player mounted mid-playback
+	// starts at the playhead instead of the store's frozen value. Boundary
+	// crossings alone must NOT force-seek a continuously playing element.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: effectiveTimelineTime is intentionally read without being a trigger
 	useEffect(() => {
 		syncAudioTiming({
-			timelineTime: currentTime,
+			timelineTime: effectiveTimelineTime,
 			playbackSpeed: speed,
 			forcePosition: true,
 		});
@@ -192,7 +220,7 @@ export function AudioPlayer({
 			data-audio-reverse-error={reversed.error}
 			onLoadedMetadata={() =>
 				syncAudioTiming({
-					timelineTime: usePlaybackStore.getState().currentTime,
+					timelineTime: effectiveTimelineTime,
 					playbackSpeed: usePlaybackStore.getState().speed,
 					forcePosition: true,
 				})
