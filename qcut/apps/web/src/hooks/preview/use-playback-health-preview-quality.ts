@@ -11,6 +11,14 @@ const SAMPLE_SIZE = 24;
 const STUTTER_INTERVAL_MS = 50;
 const PRESENTED_FRAME_STALL_INTERVAL_MS = 80;
 const STABLE_INTERVAL_MS = 34;
+/** Playback-start warmup: mounting/seeking costs in the first moments of
+ * playback are one-off, not sustained pressure — sampling them causes a
+ * downgrade→proxy→recover→source flap right at play start. */
+const STARTUP_WARMUP_MS = 1000;
+/** Averages over a nearly-empty ring are dominated by a single spike; only
+ * let a ring's average influence the decision once it is half full. Stall
+ * counts stay live so genuine repeated stalls still downgrade quickly. */
+const MIN_SAMPLES_FOR_AVERAGE = SAMPLE_SIZE / 2;
 
 function average({ values }: { values: number[] }): number {
 	if (values.length === 0) return 0;
@@ -62,6 +70,7 @@ export function usePlaybackHealthPreviewQuality() {
 		const presentedFrameIntervals: number[] = [];
 		let stableFrameCount = 0;
 		let lastFrameTime = performance.now();
+		const warmupUntil = performance.now() + STARTUP_WARMUP_MS;
 
 		const applyRuntimeQuality = () => {
 			const stutterFrameCount = intervals.filter(
@@ -73,12 +82,16 @@ export function usePlaybackHealthPreviewQuality() {
 			const decision = resolveRuntimePreviewQualityDecision({
 				selectedQuality: previewQuality,
 				currentRuntimeQuality: runtimeQualityRef.current,
-				averageFrameIntervalMs: average({ values: intervals }),
+				averageFrameIntervalMs:
+					intervals.length >= MIN_SAMPLES_FOR_AVERAGE
+						? average({ values: intervals })
+						: 0,
 				stutterFrameCount,
 				stableFrameCount,
-				averagePresentedFrameIntervalMs: average({
-					values: presentedFrameIntervals,
-				}),
+				averagePresentedFrameIntervalMs:
+					presentedFrameIntervals.length >= MIN_SAMPLES_FOR_AVERAGE
+						? average({ values: presentedFrameIntervals })
+						: 0,
 				presentedFrameStallCount,
 			});
 
@@ -101,6 +114,7 @@ export function usePlaybackHealthPreviewQuality() {
 			const now = performance.now();
 			const interval = now - lastFrameTime;
 			lastFrameTime = now;
+			if (now < warmupUntil) return;
 			if (!Number.isFinite(interval) || interval <= 0) return;
 
 			intervals.push(interval);
@@ -120,6 +134,7 @@ export function usePlaybackHealthPreviewQuality() {
 		const handleVideoFrame = (event: Event) => {
 			if (!isQcutVideoFrameEvent(event)) return;
 			if (!event.detail.isActivePlaybackFrame) return;
+			if (performance.now() < warmupUntil) return;
 			const interval = event.detail.intervalMs;
 			if (typeof interval !== "number" || interval <= 0) return;
 			presentedFrameIntervals.push(interval);

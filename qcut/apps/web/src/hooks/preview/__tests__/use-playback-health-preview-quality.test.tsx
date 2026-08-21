@@ -1,5 +1,5 @@
 import { act, render } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { QCUT_VIDEO_FRAME_EVENT } from "@/lib/preview/preview-health-events";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { usePlaybackHealthPreviewQuality } from "../use-playback-health-preview-quality";
@@ -31,7 +31,11 @@ function presentStalledFrames({
 }
 
 describe("usePlaybackHealthPreviewQuality", () => {
+	let nowValue = 0;
+
 	beforeEach(() => {
+		nowValue = 0;
+		vi.spyOn(performance, "now").mockImplementation(() => nowValue);
 		usePlaybackStore.setState({
 			isPlaying: true,
 			previewQuality: "auto",
@@ -40,8 +44,14 @@ describe("usePlaybackHealthPreviewQuality", () => {
 		});
 	});
 
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
 	it("ignores inactive video frames when adapting preview quality", () => {
 		render(<PlaybackHealthHarness />);
+		// Skip past the playback-start warmup window.
+		nowValue = 5000;
 
 		act(() => presentStalledFrames({ isActivePlaybackFrame: false }));
 		expect(usePlaybackStore.getState().runtimePreviewQuality).toBeNull();
