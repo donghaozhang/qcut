@@ -94,6 +94,7 @@ export interface PlaybackDiagnosticsSnapshot {
 	lastClockTickAt: number | null;
 	longTasks: LongTaskRecord[];
 	longTaskTotalCount: number;
+	longTaskTotalDurationMs: number;
 	mediaEvents: MediaEventRecord[];
 	previewRenderTimestamps: number[];
 	previewRenderTotalCount: number;
@@ -109,6 +110,7 @@ interface CollectorState {
 	lastClockTickAt: number | null;
 	longTasks: RingBuffer<LongTaskRecord>;
 	longTaskTotalCount: number;
+	longTaskTotalDurationMs: number;
 	mediaEvents: RingBuffer<MediaEventRecord>;
 	renderTimestamps: RingBuffer<number>;
 	renderTotalCount: number;
@@ -224,6 +226,7 @@ function buildSnapshot(): PlaybackDiagnosticsSnapshot {
 		lastClockTickAt: current.lastClockTickAt,
 		longTasks: [...current.longTasks.values],
 		longTaskTotalCount: current.longTaskTotalCount,
+		longTaskTotalDurationMs: current.longTaskTotalDurationMs,
 		mediaEvents: [...current.mediaEvents.values],
 		previewRenderTimestamps: [...current.renderTimestamps.values],
 		previewRenderTotalCount: current.renderTotalCount,
@@ -241,6 +244,7 @@ function resetCollector(): void {
 	state.lastClockTickAt = null;
 	state.longTasks.values = [];
 	state.longTaskTotalCount = 0;
+	state.longTaskTotalDurationMs = 0;
 	state.mediaEvents.values = [];
 	state.renderTimestamps.values = [];
 	state.renderTotalCount = 0;
@@ -256,6 +260,7 @@ export function installPlaybackDiagnostics(): void {
 		lastClockTickAt: null,
 		longTasks: { values: [], capacity: LONG_TASK_RING_SIZE },
 		longTaskTotalCount: 0,
+		longTaskTotalDurationMs: 0,
 		mediaEvents: { values: [], capacity: MEDIA_EVENT_RING_SIZE },
 		renderTimestamps: { values: [], capacity: RENDER_RING_SIZE },
 		renderTotalCount: 0,
@@ -315,6 +320,7 @@ export function installPlaybackDiagnostics(): void {
 			if (!current) return;
 			for (const entry of list.getEntries()) {
 				current.longTaskTotalCount++;
+				current.longTaskTotalDurationMs += entry.duration;
 				pushRing(current.longTasks, {
 					at: entry.startTime,
 					durationMs: entry.duration,
