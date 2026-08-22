@@ -429,16 +429,34 @@ describe("panel categories", () => {
 describe("reference verdicts", () => {
 	it("keeps the last verdict per effect and survives torn lines", () => {
 		const jsonl = [
-			JSON.stringify({ effectId: "1", ok: false }),
-			JSON.stringify({ effectId: "2", ok: true }),
+			JSON.stringify({ effectId: "1", md5: "a".repeat(32), ok: false }),
+			JSON.stringify({
+				effectId: "2",
+				md5: "b".repeat(32),
+				ok: true,
+				controlSsim: 0.98,
+			}),
 			'{"effectId": "3", "ok"', // torn line from an interrupted run
-			JSON.stringify({ effectId: "1", ok: true }),
+			JSON.stringify({
+				effectId: "1",
+				md5: "c".repeat(32),
+				ok: true,
+				controlSsim: 0.9999,
+			}),
 			"",
 		].join("\n");
 
 		const verdicts = collectReferenceVerdicts({ jsonl });
-		expect(verdicts.get("1")).toBe(true);
-		expect(verdicts.get("2")).toBe(true);
+		expect(verdicts.get("1")).toEqual({
+			packageHash: "c".repeat(32),
+			ok: true,
+			algorithmIsolated: false,
+		});
+		expect(verdicts.get("2")).toEqual({
+			packageHash: "b".repeat(32),
+			ok: true,
+			algorithmIsolated: true,
+		});
 		expect(verdicts.has("3")).toBe(false);
 	});
 });
