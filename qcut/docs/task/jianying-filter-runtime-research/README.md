@@ -132,8 +132,12 @@ vector 位于 `+0x38/+0x40`；每条 face record 可稳定读出归一化矩形�
 输出或 mask。包检查器只在 `algorithmConfig.json` 确实包含 `face` 节点时开启该通道，IPC 返回值经过 schema、
 数量、有限数值与数组上限校验。
 
-这证明的是单人 face detection / landmark **交付链路**，不是高级人像效果 parity。关键点如何绑定磨皮、五官形变、
-美妆和多人分配仍未验证；人像滤镜整体继续保持 `unverified`。face 与 skin mask 独立性的原始实验见
+单人 face detection / landmark **交付链路**之后又完成了一个五官形变样本。“韩系清透 80”在剪映专业版
+展开为“大眼 12”；同一“大眼”原始图在仓库外私有副本中注入默认强度 `0.12` 后，独立结果 API 交付的
+1 张人脸和 106 个关键点会驱动 FaceReshape 写出变形帧。`0.12` 也在 `0.06/0.12/0.18` 三组中最接近
+剪映专业版只开启“大眼 12”的导出帧。未修改宿主的 composer-to-Lua 事件桥、动态逐帧追踪、美妆和多人
+分配仍未验证；人像滤镜整体继续保持 `unverified`。见
+[face-keypoint-binding.zh.md](face-keypoint-binding.zh.md) 与
 [mask-binding-fix.zh.md](mask-binding-fix.zh.md)。
 
 另外，完全退出中文剪映主程序和托盘辅助进程后，独立探针仍能在约 2.1 秒内完成一张真人帧的加载、20 帧预热、滤镜处理和读回，进程退出码为 `0`。输出与剪映仍运行时连续测试中的对应帧逐字节一致，证明执行滤镜时不需要启动剪映应用进程。
