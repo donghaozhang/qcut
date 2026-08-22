@@ -23,6 +23,7 @@ export interface JianyingFilterHostRenderCommand {
 	inputPath: string;
 	outputPath: string;
 	maskPath?: string;
+	facePath?: string;
 }
 
 export interface JianyingFilterHostProcess {
@@ -41,6 +42,7 @@ export interface StartJianyingFilterHostProcessOptions {
 	frameworkDirectory: string;
 	skipAlgorithm?: boolean;
 	captureMask?: boolean;
+	captureFace?: boolean;
 }
 
 function createDeferred<T>(): Deferred<T> {
@@ -75,22 +77,26 @@ export function encodeJianyingFilterHostRenderCommand({
 	inputPath,
 	outputPath,
 	maskPath,
+	facePath,
 }: JianyingFilterHostRenderCommand) {
 	assertProtocolField({ field: requestId, label: "requestId" });
 	assertProtocolField({ field: inputPath, label: "inputPath" });
 	assertProtocolField({ field: outputPath, label: "outputPath" });
 	if (maskPath) assertProtocolField({ field: maskPath, label: "maskPath" });
+	if (facePath) assertProtocolField({ field: facePath, label: "facePath" });
 	if (!Number.isFinite(timestampSeconds) || timestampSeconds < 0) {
 		throw new Error("timestampSeconds must be a non-negative finite number");
 	}
-	return [
+	const fields = [
 		"render",
 		requestId,
 		String(timestampSeconds),
 		inputPath,
 		outputPath,
 		maskPath ?? "-",
-	].join("\t");
+	];
+	if (facePath) fields.push(facePath);
+	return fields.join("\t");
 }
 
 function appendStderrTail({
@@ -124,6 +130,7 @@ function spawnHost({
 	frameworkDirectory,
 	skipAlgorithm = false,
 	captureMask = true,
+	captureFace = false,
 }: StartJianyingFilterHostProcessOptions): ChildProcessWithoutNullStreams {
 	const argumentsList = [
 		effectLibraryPath,
@@ -135,6 +142,7 @@ function spawnHost({
 		bootstrapInputPath,
 		...(skipAlgorithm ? ["--skip-algorithm"] : []),
 		...(captureMask ? ["--inspect-skin-result"] : []),
+		...(captureFace ? ["--inspect-face-result"] : []),
 		"--server",
 	];
 	return spawn(bridgePath, argumentsList, {
