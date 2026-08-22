@@ -11,6 +11,7 @@ import {
 
 class MemoryAssetCache implements AssetResourceCacheStorage {
 	readonly resources = new Map<string, CachedAssetResource>();
+	listCalls = 0;
 
 	async get({ cacheKey }: { cacheKey: string }) {
 		return this.resources.get(cacheKey) ?? null;
@@ -25,6 +26,7 @@ class MemoryAssetCache implements AssetResourceCacheStorage {
 	}
 
 	async list() {
+		this.listCalls += 1;
 		return [...this.resources.values()];
 	}
 }
@@ -100,6 +102,7 @@ describe("sticker pack resources", () => {
 			await removeStickerPackResources({ pack: remotePack(), storage })
 		).toEqual({ removedResourceCount: 2 });
 		expect(storage.resources.size).toBe(0);
+		expect(storage.listCalls).toBe(1);
 	});
 
 	it("reports the failing asset and leaves the operation retryable", async () => {

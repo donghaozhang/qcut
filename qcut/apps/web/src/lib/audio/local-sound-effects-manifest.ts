@@ -25,6 +25,21 @@ const MAX_REFERENCE_AUDIO_DURATION_SECONDS = 30 * 60;
 // entry vanishing rather than as an error. 4 MiB leaves room for ~4,800.
 const MAX_REMOTE_MANIFEST_BYTES = 4 * 1024 * 1024;
 
+export class SoundEffectsLabManifestHttpError extends Error {
+	readonly status: number;
+
+	constructor({
+		manifestUrl,
+		status,
+	}: { manifestUrl: string; status: number }) {
+		super(
+			`Unable to fetch Sound Effects Lab manifest (${status}): ${manifestUrl}`
+		);
+		this.name = "SoundEffectsLabManifestHttpError";
+		this.status = status;
+	}
+}
+
 const localAudioPathSchema = z
 	.string()
 	.trim()
@@ -446,9 +461,10 @@ export async function loadPrivateSoundEffectsLabManifest({
 }): Promise<PrivateSoundEffectsLabManifest> {
 	const response = await fetchImpl(manifestUrl, { signal });
 	if (!response.ok) {
-		throw new Error(
-			`Unable to fetch Sound Effects Lab manifest (${response.status}): ${manifestUrl}`
-		);
+		throw new SoundEffectsLabManifestHttpError({
+			manifestUrl,
+			status: response.status,
+		});
 	}
 	const bytes = await readRemoteManifestResponse({
 		manifestUrl,

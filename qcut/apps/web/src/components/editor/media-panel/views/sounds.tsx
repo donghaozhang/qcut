@@ -34,6 +34,7 @@ import { useAudioLibrarySearch } from "@/hooks/media/use-audio-library-search";
 import { useExtendedAudioCatalog } from "@/hooks/media/use-extended-audio-catalog";
 import { useAudioPreview } from "@/hooks/media/use-audio-preview";
 import { useLocalSoundEffectsLab } from "@/hooks/media/use-local-sound-effects-lab";
+import { useSoundEffectsLabOfflinePack } from "@/hooks/media/use-sound-effects-lab-offline-pack";
 import {
 	AUDIO_LIBRARY_CATEGORIES,
 	BUILT_IN_AUDIO,
@@ -51,6 +52,7 @@ import { mergeUniqueAudio } from "@/lib/audio/audio-catalog-merge";
 import { useTranslation, type TranslationKey } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
+import { useLicenseStore } from "@/stores/license-store";
 import {
 	useMediaPanelStore,
 	type AudioSidebarGroupId,
@@ -298,6 +300,13 @@ export function SoundsView() {
 		onEnded: ({ sound }) => playNextRef.current?.({ sound }),
 	});
 	const soundEffectsLab = useLocalSoundEffectsLab();
+	const soundEffectsLabOwnerEmail = useLicenseStore(
+		(state) => state.license?.user?.email ?? null
+	);
+	const soundEffectsLabOfflinePack = useSoundEffectsLabOfflinePack({
+		catalog: soundEffectsLab.catalog,
+		ownerEmail: soundEffectsLabOwnerEmail,
+	});
 	const category = findAudioLibraryCategory({ categoryId: activeSection });
 	const catalogActive = isKnownCategory({ section: activeSection });
 	// Personal sections (favorites, recents, folders) have no catalog category;
@@ -700,6 +709,8 @@ export function SoundsView() {
 					catalog={soundEffectsLab.catalog}
 					error={soundEffectsLab.error}
 					isLoading={soundEffectsLab.isLoading}
+					isOffline={soundEffectsLab.isOffline}
+					offlinePack={soundEffectsLabOfflinePack}
 					onPlay={({ sound }) => void preview.togglePreview({ sound })}
 					onStop={preview.stop}
 					playingId={preview.playingId}

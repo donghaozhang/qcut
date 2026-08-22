@@ -39,6 +39,14 @@ export interface ResolvedAssetResource {
 	blob?: Blob;
 }
 
+export interface AssetResourceCacheInspection {
+	cachedBytes: number;
+	cachedResourceCount: number;
+	complete: boolean;
+	missingCacheKeys: string[];
+	resourceCount: number;
+}
+
 export interface AssetResourceCacheStorage {
 	get: ({
 		cacheKey,
@@ -47,6 +55,11 @@ export interface AssetResourceCacheStorage {
 	}) => Promise<CachedAssetResource | null>;
 	put: ({ resource }: { resource: CachedAssetResource }) => Promise<void>;
 	remove: ({ cacheKey }: { cacheKey: string }) => Promise<void>;
+	removeMany?: ({
+		cacheKeys,
+	}: {
+		cacheKeys: readonly string[];
+	}) => Promise<void>;
 	list: () => Promise<CachedAssetResource[]>;
 }
 
@@ -98,6 +111,22 @@ export class IndexedDbAssetResourceCache implements AssetResourceCacheStorage {
 
 	async remove({ cacheKey }: { cacheKey: string }): Promise<void> {
 		await (await this.database()).delete("files", cacheKey);
+	}
+
+	async removeMany({
+		cacheKeys,
+	}: {
+		cacheKeys: readonly string[];
+	}): Promise<void> {
+		if (cacheKeys.length === 0) return;
+		const transaction = (await this.database()).transaction(
+			"files",
+			"readwrite"
+		);
+		for (const cacheKey of cacheKeys) {
+			transaction.store.delete(cacheKey);
+		}
+		await transaction.done;
 	}
 
 	async list(): Promise<CachedAssetResource[]> {
@@ -339,17 +368,24 @@ async function cachedResourceMatches({
 	cached: CachedAssetResource;
 	file: AssetManifestFile;
 }): Promise<boolean> {
+	if (!cachedResourceMetadataMatches({ cached, file })) return false;
+	if (file.checksumSha256 === undefined) return true;
+	const checksumSha256 = await sha256({
+		bytes: new Uint8Array(await cached.blob.arrayBuffer()),
+	});
+	return checksumSha256 === file.checksumSha256.toLocaleLowerCase();
+}
+
+function cachedResourceMetadataMatches({
+	cached,
+	file,
+}: {
+	cached: CachedAssetResource;
+	file: AssetManifestFile;
+}): boolean {
 	if (cached.blob.size !== cached.byteSize) return false;
 	if (file.byteSize !== undefined && cached.blob.size !== file.byteSize) {
 		return false;
-	}
-	if (file.checksumSha256 !== undefined) {
-		const checksumSha256 = await sha256({
-			bytes: new Uint8Array(await cached.blob.arrayBuffer()),
-		});
-		if (checksumSha256 !== file.checksumSha256.toLocaleLowerCase()) {
-			return false;
-		}
 	}
 	return (
 		cached.sourceUrl === file.url &&
@@ -357,6 +393,19 @@ async function cachedResourceMatches({
 		(file.checksumSha256 === undefined ||
 			cached.checksumSha256 === file.checksumSha256.toLocaleLowerCase())
 	);
+}
+
+function selectedAssetFiles({
+	asset,
+	roles,
+}: {
+	asset: AssetManifestEntry;
+	roles?: readonly AssetFileRole[];
+}): Array<{ file: AssetManifestFile; fileIndex: number }> {
+	const roleSet = roles ? new Set(roles) : undefined;
+	return asset.files
+		.map((file, fileIndex) => ({ file, fileIndex }))
+		.filter(({ file }) => !roleSet || roleSet.has(file.role));
 }
 
 async function ensureFetchedResource({
@@ -554,10 +603,7 @@ export async function ensureAssetResources({
 	signal?: AbortSignal;
 	storage?: AssetResourceCacheStorage;
 }): Promise<ResolvedAssetResource[]> {
-	const roleSet = roles ? new Set(roles) : undefined;
-	const selectedFiles = asset.files
-		.map((file, fileIndex) => ({ file, fileIndex }))
-		.filter(({ file }) => !roleSet || roleSet.has(file.role));
+	const selectedFiles = selectedAssetFiles({ asset, roles });
 	if (asset.delivery !== "remote") {
 		if (
 			asset.delivery === "bundled" &&
@@ -605,6 +651,66 @@ export async function ensureAssetResources({
 	});
 }
 
+export async function inspectAssetResources({
+	asset,
+	roles,
+	storage = getDefaultStorage(),
+	verifyChecksum = false,
+}: {
+	asset: AssetManifestEntry;
+	roles?: readonly AssetFileRole[];
+	storage?: AssetResourceCacheStorage;
+	verifyChecksum?: boolean;
+}): Promise<AssetResourceCacheInspection> {
+	const selectedFiles = selectedAssetFiles({ asset, roles });
+	if (asset.delivery !== "remote") {
+		return {
+			cachedBytes: selectedFiles.reduce(
+				(total, { file }) => total + (file.byteSize ?? 0),
+				0
+			),
+			cachedResourceCount: selectedFiles.length,
+			complete: true,
+			missingCacheKeys: [],
+			resourceCount: selectedFiles.length,
+		};
+	}
+	if (selectedFiles.length === 0) {
+		throw new Error(
+			`Remote asset has no matching files: ${asset.kind}:${asset.id}`
+		);
+	}
+
+	const inspected = await Promise.all(
+		selectedFiles.map(async ({ file, fileIndex }) => {
+			const cacheKey = resourceCacheKey({ asset, file, fileIndex });
+			const cached = await storage.get({ cacheKey });
+			const matches = cached
+				? verifyChecksum
+					? await cachedResourceMatches({ cached, file })
+					: cachedResourceMetadataMatches({ cached, file })
+				: false;
+			return { cacheKey, cached: matches ? cached : null };
+		})
+	);
+	const cached = inspected.filter(
+		(entry): entry is { cacheKey: string; cached: CachedAssetResource } =>
+			entry.cached !== null
+	);
+	return {
+		cachedBytes: cached.reduce(
+			(total, entry) => total + entry.cached.byteSize,
+			0
+		),
+		cachedResourceCount: cached.length,
+		complete: cached.length === selectedFiles.length,
+		missingCacheKeys: inspected
+			.filter((entry) => entry.cached === null)
+			.map((entry) => entry.cacheKey),
+		resourceCount: selectedFiles.length,
+	};
+}
+
 export async function removeAssetResourceVersion({
 	asset,
 	storage = getDefaultStorage(),
@@ -612,18 +718,67 @@ export async function removeAssetResourceVersion({
 	asset: AssetManifestEntry;
 	storage?: AssetResourceCacheStorage;
 }): Promise<number> {
-	const assetKey = assetManifestVersionKey({
-		kind: asset.kind,
-		id: asset.id,
-		version: asset.version,
+	return removeAssetResourceVersions({ assets: [asset], storage });
+}
+
+async function removeCacheKeysInBatches({
+	batchSize,
+	cacheKeys,
+	index,
+	storage,
+}: {
+	batchSize: number;
+	cacheKeys: readonly string[];
+	index: number;
+	storage: AssetResourceCacheStorage;
+}): Promise<void> {
+	const batch = cacheKeys.slice(index, index + batchSize);
+	if (batch.length === 0) return;
+	await Promise.all(batch.map((cacheKey) => storage.remove({ cacheKey })));
+	return removeCacheKeysInBatches({
+		batchSize,
+		cacheKeys,
+		index: index + batchSize,
+		storage,
 	});
-	const matching = (await storage.list()).filter(
-		(resource) => resource.assetKey === assetKey
+}
+
+export async function removeAssetResourceVersions({
+	assets,
+	concurrency = 8,
+	storage = getDefaultStorage(),
+}: {
+	assets: readonly AssetManifestEntry[];
+	concurrency?: number;
+	storage?: AssetResourceCacheStorage;
+}): Promise<number> {
+	const assetKeys = new Set(
+		assets.map((asset) =>
+			assetManifestVersionKey({
+				kind: asset.kind,
+				id: asset.id,
+				version: asset.version,
+			})
+		)
 	);
-	await Promise.all(
-		matching.map((resource) => storage.remove({ cacheKey: resource.cacheKey }))
-	);
-	return matching.length;
+	if (assetKeys.size === 0) return 0;
+	const matchingCacheKeys = (await storage.list())
+		.filter((resource) => assetKeys.has(resource.assetKey))
+		.map((resource) => resource.cacheKey);
+	if (storage.removeMany) {
+		await storage.removeMany({ cacheKeys: matchingCacheKeys });
+		return matchingCacheKeys.length;
+	}
+	const normalizedConcurrency = Number.isFinite(concurrency)
+		? Math.floor(concurrency)
+		: 1;
+	await removeCacheKeysInBatches({
+		batchSize: Math.max(1, Math.min(32, normalizedConcurrency)),
+		cacheKeys: matchingCacheKeys,
+		index: 0,
+		storage,
+	});
+	return matchingCacheKeys.length;
 }
 
 export async function pruneAssetResourceCache({

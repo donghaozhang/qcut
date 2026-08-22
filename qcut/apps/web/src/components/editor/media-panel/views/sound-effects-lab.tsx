@@ -1,8 +1,21 @@
-import { AlertCircle, FlaskConical, Loader2, Lock, Search } from "lucide-react";
+import {
+	AlertCircle,
+	CloudDownload,
+	FlaskConical,
+	HardDrive,
+	Loader2,
+	Lock,
+	Search,
+	Trash2,
+	WifiOff,
+} from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import type { SoundEffectsLabOfflinePackController } from "@/hooks/media/use-sound-effects-lab-offline-pack";
 import {
 	loadSoundEffectReferenceFile,
 	soundEffectReferenceToSound,
@@ -20,6 +33,141 @@ import { AudioLibraryItem } from "./sounds-audio-item";
 
 const ALL_CATEGORIES = "all";
 const VISIBLE_BATCH_SIZE = 60;
+
+function formatOfflinePackSize({ bytes }: { bytes: number }): string {
+	return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function OfflinePackControls({
+	isOffline,
+	offlinePack,
+}: {
+	isOffline: boolean;
+	offlinePack: SoundEffectsLabOfflinePackController;
+}) {
+	const { t } = useTranslation();
+	const busy =
+		offlinePack.state === "installing" || offlinePack.state === "removing";
+	const progressPercent = Math.round(offlinePack.progress * 100);
+	const installLabel =
+		offlinePack.state === "update-available"
+			? t("audioLibrary.soundEffectsLab.offlinePackUpdate")
+			: offlinePack.state === "failed"
+				? t("audioLibrary.soundEffectsLab.offlinePackRetry")
+				: t("audioLibrary.soundEffectsLab.offlinePackDownload");
+
+	if (offlinePack.state === "unavailable") {
+		return isOffline ? (
+			<span className="flex shrink-0 items-center gap-1 text-[9px] text-cyan-300">
+				<WifiOff className="size-3" />
+				{t("audioLibrary.soundEffectsLab.offlineCatalog")}
+			</span>
+		) : null;
+	}
+
+	return (
+		<div className="flex min-w-0 flex-col items-end gap-1.5">
+			<div className="flex items-center gap-1.5">
+				{isOffline ? (
+					<span className="flex shrink-0 items-center gap-1 text-[9px] text-cyan-300">
+						<WifiOff className="size-3" />
+						{t("audioLibrary.soundEffectsLab.offlineCatalog")}
+					</span>
+				) : null}
+				{offlinePack.state === "checking" ? (
+					<Loader2 className="size-3.5 animate-spin text-muted-foreground">
+						<title>
+							{t("audioLibrary.soundEffectsLab.offlinePackChecking")}
+						</title>
+					</Loader2>
+				) : offlinePack.state === "installed" ? (
+					<>
+						<span className="flex items-center gap-1 text-[9px] text-emerald-400">
+							<HardDrive className="size-3" />
+							{t("audioLibrary.soundEffectsLab.offlinePackInstalled")} ·{" "}
+							{formatOfflinePackSize({ bytes: offlinePack.cachedBytes })}
+						</span>
+						<Button
+							type="button"
+							variant="text"
+							size="icon"
+							className="size-6 text-muted-foreground hover:text-destructive"
+							aria-label={t("audioLibrary.soundEffectsLab.offlinePackRemove")}
+							onClick={() => {
+								void offlinePack.remove().then((removed) => {
+									if (removed) {
+										toast.success(
+											t("audioLibrary.soundEffectsLab.offlinePackRemoved")
+										);
+										return;
+									}
+									toast.error(
+										t("audioLibrary.soundEffectsLab.offlinePackRemoveFailed")
+									);
+								});
+							}}
+							onKeyDown={(event) => {
+								if (event.key === "Enter" || event.key === " ") {
+									event.preventDefault();
+									event.currentTarget.click();
+								}
+							}}
+						>
+							<Trash2 className="size-3.5">
+								<title>
+									{t("audioLibrary.soundEffectsLab.offlinePackRemove")}
+								</title>
+							</Trash2>
+						</Button>
+					</>
+				) : busy ? (
+					<span className="flex items-center gap-1 text-[9px] text-muted-foreground">
+						<Loader2 className="size-3 animate-spin" />
+						{progressPercent}%
+					</span>
+				) : (
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						className="h-7 gap-1 px-2 text-[9px]"
+						title={offlinePack.error ?? installLabel}
+						onClick={() => {
+							void offlinePack.install().then((installed) => {
+								if (installed) {
+									toast.success(
+										t("audioLibrary.soundEffectsLab.offlinePackDownloaded")
+									);
+									return;
+								}
+								toast.error(
+									t("audioLibrary.soundEffectsLab.offlinePackDownloadFailed")
+								);
+							});
+						}}
+						onKeyDown={(event) => {
+							if (event.key === "Enter" || event.key === " ") {
+								event.preventDefault();
+								event.currentTarget.click();
+							}
+						}}
+					>
+						<CloudDownload className="size-3" />
+						{installLabel}
+					</Button>
+				)}
+			</div>
+			{busy ? (
+				<div className="w-32">
+					<Progress value={progressPercent} className="h-1" />
+					<p className="mt-1 text-right text-[8px] tabular-nums text-muted-foreground">
+						{offlinePack.completedItems}/{offlinePack.totalItems}
+					</p>
+				</div>
+			) : null}
+		</div>
+	);
+}
 
 function referenceMatches({
 	categoryId,
@@ -203,6 +351,8 @@ export function SoundEffectsLabPanel({
 	catalog,
 	error,
 	isLoading,
+	isOffline,
+	offlinePack,
 	onPlay,
 	onStop,
 	playingId,
@@ -210,6 +360,8 @@ export function SoundEffectsLabPanel({
 	catalog: SoundEffectsLabManifest | null;
 	error: string | null;
 	isLoading: boolean;
+	isOffline: boolean;
+	offlinePack: SoundEffectsLabOfflinePackController;
 	onPlay: ({ sound }: { sound: SoundEffect }) => void;
 	onStop: () => void;
 	playingId: number | null;
@@ -268,7 +420,7 @@ export function SoundEffectsLabPanel({
 			data-testid="sound-effects-lab"
 		>
 			<div className="shrink-0 border-b border-border/60 p-3">
-				<div className="flex items-center justify-between gap-3">
+				<div className="flex items-start justify-between gap-3">
 					<div className="flex min-w-0 items-center gap-2">
 						<span className="flex size-7 shrink-0 items-center justify-center rounded border border-cyan-400/30 bg-cyan-400/10 text-cyan-300">
 							<FlaskConical className="size-3.5">
@@ -289,14 +441,22 @@ export function SoundEffectsLabPanel({
 							</p>
 						</div>
 					</div>
-					<span className="flex shrink-0 items-center gap-1 text-[9px] text-amber-300">
-						<Lock className="size-3">
-							<title>
-								{t("audioLibrary.soundEffectsLab.internalReference")}
-							</title>
-						</Lock>
-						{t("audioLibrary.soundEffectsLab.restricted")}
-					</span>
+					<div className="flex shrink-0 items-start gap-2">
+						<span className="mt-1 flex shrink-0 items-center gap-1 text-[9px] text-amber-300">
+							<Lock className="size-3">
+								<title>
+									{t("audioLibrary.soundEffectsLab.internalReference")}
+								</title>
+							</Lock>
+							{t("audioLibrary.soundEffectsLab.restricted")}
+						</span>
+						{catalog?.schemaVersion === 2 ? (
+							<OfflinePackControls
+								isOffline={isOffline}
+								offlinePack={offlinePack}
+							/>
+						) : null}
+					</div>
 				</div>
 
 				<div className="relative mt-3 min-w-0">
