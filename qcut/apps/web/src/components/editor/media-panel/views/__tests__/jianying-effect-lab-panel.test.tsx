@@ -198,6 +198,27 @@ describe("JianyingEffectLabPanel", () => {
 		});
 	});
 
+	it("rechecks a downloaded package before applying it", async () => {
+		const pending = definition({ packagePath: "", installed: false });
+		const locked = definition({
+			packagePath: "/managed/1/package",
+			installed: true,
+			supported: false,
+			requiresAlgorithm: true,
+			unsupportedReason: "该算法特效尚未通过隔离验证",
+		});
+		status
+			.mockResolvedValueOnce(readyStatus([pending]))
+			.mockResolvedValueOnce(readyStatus([locked]));
+		const onApply = vi.fn();
+		render(<LabHarness onApply={onApply} />);
+
+		fireEvent.click(await screen.findByTestId("effect-lab-card-jy-effect-1"));
+
+		await waitFor(() => expect(status).toHaveBeenCalledTimes(2));
+		expect(onApply).not.toHaveBeenCalled();
+	});
+
 	it("filters the grid by the selected Jianying category", async () => {
 		const dynamicEffect = definition({
 			id: "jy-effect-3",
