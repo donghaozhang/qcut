@@ -168,6 +168,18 @@ export async function isReadyQCutEffectOfflineRuntime({
 			),
 			access(path.join(runtimeRoot, "Models", "user-cache"), constants.R_OK),
 			access(path.join(runtimeRoot, "Models", "app-bundle"), constants.R_OK),
+			// Truncated or partially deleted snapshots must not be reused; sizes
+			// are cheap to check on every call, content hashes are not — those
+			// are pinned by the snapshot name and verified when the backup is
+			// written.
+			...manifest.files.map(async (file) => {
+				const metadata = await lstat(
+					path.join(runtimeRoot, ...file.path.split("/"))
+				);
+				if (!metadata.isFile() || metadata.size !== file.bytes) {
+					throw new Error(`damaged runtime file: ${file.path}`);
+				}
+			}),
 		]);
 		return true;
 	} catch {
