@@ -87,40 +87,38 @@ async function installPackage({
 	if (!PACKAGE_HASH_PATTERN.test(item.md5)) {
 		throw new Error(`特效包校验值无效：${item.md5}`);
 	}
+	// Digest comparison, cache lookups, and paths all expect lowercase hex.
+	const packageHash = item.md5.toLowerCase();
 	if (
 		isVerifiedAlgorithmPackage({
 			effectId: item.effectId,
-			packageHash: item.md5,
+			packageHash,
 		})
 	) {
 		await ensureQCutEffectOfflineRuntime();
 	}
-	const finalDir = path.join(
-		managedRoot,
-		item.effectId,
-		item.md5.toLowerCase()
-	);
+	const finalDir = path.join(managedRoot, item.effectId, packageHash);
 	if (await isReadyQCutEffectPackage({ packagePath: finalDir })) {
 		return {
 			effectId: item.effectId,
-			packageHash: item.md5,
+			packageHash,
 			packagePath: finalDir,
 		};
 	}
 	await rm(finalDir, { recursive: true, force: true });
 	const localSource = await findJianyingEffectPackagePath({
-		packageHash: item.md5,
+		packageHash,
 	});
 	if (localSource) {
 		const packagePath = await cacheQCutEffectPackage({
 			effectId: item.effectId,
-			packageHash: item.md5,
+			packageHash,
 			sourcePath: localSource,
 			managedRoot,
 		});
 		return {
 			effectId: item.effectId,
-			packageHash: item.md5,
+			packageHash,
 			packagePath,
 		};
 	}
@@ -131,9 +129,9 @@ async function installPackage({
 
 	const data = await fetchPackage({ url });
 	const digest = createHash("md5").update(data).digest("hex");
-	if (digest !== item.md5) {
+	if (digest !== packageHash) {
 		throw new Error(
-			`特效包校验失败：${item.title}（预期 ${item.md5}，实际 ${digest}）`
+			`特效包校验失败：${item.title}（预期 ${packageHash}，实际 ${digest}）`
 		);
 	}
 
@@ -160,7 +158,7 @@ async function installPackage({
 
 	return {
 		effectId: item.effectId,
-		packageHash: item.md5,
+		packageHash,
 		packagePath: finalDir,
 	};
 }
