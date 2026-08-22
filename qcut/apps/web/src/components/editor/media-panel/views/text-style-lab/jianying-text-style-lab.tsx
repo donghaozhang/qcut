@@ -1,9 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
 	AlertTriangle,
 	ArrowLeft,
 	Check,
-	ChevronRight,
 	FlaskConical,
 	ImageOff,
 	Layers3,
@@ -18,49 +17,23 @@ import type {
 	JianyingTextAnimationLabSummary,
 	JianyingTextAnimationReferences,
 	JianyingTextAnimationSlot,
-	JianyingTextStyleCategoryId,
-	JianyingTextStyleLabListResult,
 	JianyingTextStyleLabStyleSummary,
 } from "@/types/electron";
 import { useJianyingTextStyleLab } from "./use-jianying-text-style-lab";
 import { useJianyingTextAnimationLab } from "./use-jianying-text-animation-lab";
 import { JianyingTextAnimationPicker } from "./jianying-text-animation-picker";
 import { updateTextStyleLabAnimationSelection } from "./text-style-lab-mapping";
+import type { LabView } from "./jianying-text-style-lab-category-nav";
+import { displayTitle, selectTrialStyles } from "./text-style-lab-selection";
 
-const TRIAL_STYLE_COUNT = 5;
-const CATEGORY_STYLE_LIMIT = 20;
-export type LabView = "trial" | "all" | JianyingTextStyleCategoryId;
+export {
+	JianyingTextStyleLabCategoryNav,
+	type LabView,
+} from "./jianying-text-style-lab-category-nav";
+
+const INITIAL_STYLE_BATCH = 24;
+const STYLE_BATCH_SIZE = 24;
 type CoverState = "loading" | "ready" | "error" | "missing";
-
-function displayTitle({ style }: { style: JianyingTextStyleLabStyleSummary }) {
-	return style.title ?? `本机花字 ${style.resourceId.slice(-6)}`;
-}
-
-function selectTrialStyles({
-	styles,
-}: {
-	styles: JianyingTextStyleLabStyleSummary[];
-}) {
-	return styles
-		.filter(
-			(style) =>
-				style.approximation &&
-				style.fillKind === "solid" &&
-				style.textureLayerCount === 0
-		)
-		.sort((left, right) => {
-			const titleDelta =
-				Number(Boolean(right.title)) - Number(Boolean(left.title));
-			return (
-				titleDelta ||
-				displayTitle({ style: left }).localeCompare(
-					displayTitle({ style: right }),
-					"zh-CN"
-				)
-			);
-		})
-		.slice(0, TRIAL_STYLE_COUNT);
-}
 
 function compatibilityLabel({
 	style,
@@ -234,173 +207,6 @@ function TextStyleLabCard({
 	);
 }
 
-/**
- * Theme groups for the category rail. Fifteen flat categories overflow the
- * left panel, so they fold into the four groupings Jianying itself implies —
- * charts, styles, effects, colours — and each group remembers its own state.
- */
-export const CATEGORY_GROUPS = [
-	{ id: "charts", label: "榜单", members: ["popular", "latest"] },
-	{ id: "styles", label: "风格", members: ["summer", "variety", "guofeng"] },
-	{ id: "effects", label: "效果", members: ["glow", "gradient", "texture"] },
-	{
-		id: "colors",
-		label: "颜色",
-		members: [
-			"red",
-			"yellow",
-			"black-white",
-			"blue",
-			"pink",
-			"green",
-			"purple",
-		],
-	},
-] as const;
-
-function CategoryGroup({
-	group,
-	categories,
-	view,
-	expanded,
-	onToggle,
-	onSelect,
-}: {
-	group: (typeof CATEGORY_GROUPS)[number];
-	categories: { id: string; label: string; count: number }[];
-	view: LabView;
-	expanded: boolean;
-	onToggle: () => void;
-	onSelect: (id: LabView) => void;
-}) {
-	const members = group.members
-		.map((id) => categories.find((category) => category.id === id))
-		.filter((category): category is NonNullable<typeof category> =>
-			Boolean(category)
-		);
-	if (members.length === 0) return null;
-	const holdsActive = members.some((category) => category.id === view);
-	return (
-		<div className="mb-1">
-			<button
-				type="button"
-				aria-expanded={expanded}
-				className={cn(
-					"flex h-6 w-full items-center gap-1 rounded-sm px-1.5 text-[10px] uppercase tracking-wide",
-					holdsActive && !expanded
-						? "text-cyan-200"
-						: "text-muted-foreground hover:bg-white/[0.06]"
-				)}
-				onClick={onToggle}
-				onKeyDown={(event) => {
-					if (event.key === "Enter" || event.key === " ") {
-						event.preventDefault();
-						onToggle();
-					}
-				}}
-			>
-				<ChevronRight
-					className={cn(
-						"size-3 shrink-0 transition-transform",
-						expanded && "rotate-90"
-					)}
-				>
-					<title>{expanded ? "收起" : "展开"}</title>
-				</ChevronRight>
-				<span className="truncate">{group.label}</span>
-				<span className="ml-auto text-[10px]">{members.length}</span>
-			</button>
-			{expanded
-				? members.map((category) => (
-						<button
-							key={category.id}
-							type="button"
-							aria-label={`${category.label}，${Math.min(category.count, CATEGORY_STYLE_LIMIT)} 个本地花字`}
-							aria-pressed={view === category.id}
-							className={cn(
-								"mb-0.5 flex h-7 w-full items-center justify-between rounded-sm pl-4 pr-2 text-[11px]",
-								view === category.id
-									? "bg-cyan-400/10 text-cyan-200"
-									: "text-muted-foreground hover:bg-white/[0.06]"
-							)}
-							onClick={() => onSelect(category.id as LabView)}
-							onKeyDown={(event) => {
-								if (event.key === "Enter" || event.key === " ") {
-									onSelect(category.id as LabView);
-								}
-							}}
-						>
-							<span className="truncate">{category.label}</span>
-							<span className="text-[10px] text-muted-foreground">
-								{Math.min(category.count, CATEGORY_STYLE_LIMIT)}
-							</span>
-						</button>
-					))
-				: null}
-		</div>
-	);
-}
-
-/**
- * The lab's category rail. It renders nested under the 花字实验室 entry in the
- * text panel's own left rail rather than inside the lab, so the lab expands
- * the way every other library group does — the panel keeps only the grid.
- */
-export function JianyingTextStyleLabCategoryNav({
-	expandedGroups,
-	result,
-	view,
-	onSelect,
-	onToggleGroup,
-}: {
-	expandedGroups: Record<string, boolean>;
-	result: JianyingTextStyleLabListResult;
-	view: LabView;
-	onSelect: (id: LabView) => void;
-	onToggleGroup: (groupId: string) => void;
-}) {
-	const trialCount = selectTrialStyles({ styles: result.styles }).length;
-	return (
-		<div className="pl-2">
-			{(["trial", "all"] as const).map((option) => (
-				<button
-					key={option}
-					type="button"
-					aria-pressed={view === option}
-					className={cn(
-						"mb-1 flex h-7 w-full items-center justify-between rounded-sm px-2 text-[11px]",
-						view === option
-							? "bg-white/10 text-foreground"
-							: "text-muted-foreground hover:bg-white/[0.06]"
-					)}
-					onClick={() => onSelect(option)}
-					onKeyDown={(event) => {
-						if (event.key === "Enter" || event.key === " ") {
-							onSelect(option);
-						}
-					}}
-				>
-					<span>{option === "trial" ? "五款预览" : "全部"}</span>
-					<span className="text-[10px] text-muted-foreground">
-						{option === "trial" ? trialCount : result.count}
-					</span>
-				</button>
-			))}
-			{CATEGORY_GROUPS.map((group) => (
-				<CategoryGroup
-					key={group.id}
-					group={group}
-					categories={result.categories}
-					view={view}
-					expanded={expandedGroups[group.id] ?? false}
-					onToggle={() => onToggleGroup(group.id)}
-					onSelect={onSelect}
-				/>
-			))}
-		</div>
-	);
-}
-
 export function JianyingTextStyleLabPanel({
 	onApply,
 	onClose,
@@ -424,20 +230,22 @@ export function JianyingTextStyleLabPanel({
 	const [selectedStyleId, setSelectedStyleId] = useState("");
 	const [selectedAnimations, setSelectedAnimations] =
 		useState<JianyingTextAnimationReferences>({});
+	const [visibleCount, setVisibleCount] = useState(INITIAL_STYLE_BATCH);
+	const loadMoreRef = useRef<HTMLDivElement>(null);
 	const { checking, result, error, refresh } = lab;
 	const animationLab = useJianyingTextAnimationLab({ enabled: true });
 	const trialStyles = useMemo(
 		() => selectTrialStyles({ styles: result.styles }),
 		[result.styles]
 	);
-	const visibleStyles = useMemo(() => {
+	const filteredStyles = useMemo(() => {
 		const normalizedQuery = query.trim().toLocaleLowerCase();
 		const source = (() => {
 			if (normalizedQuery || view === "all") return result.styles;
 			if (view === "trial") return trialStyles;
-			return result.styles
-				.filter(({ categoryIds }) => categoryIds.includes(view))
-				.slice(0, CATEGORY_STYLE_LIMIT);
+			return result.styles.filter(({ categoryIds }) =>
+				categoryIds.includes(view)
+			);
 		})();
 		if (!normalizedQuery) return source;
 		return source.filter((style) =>
@@ -453,6 +261,33 @@ export function JianyingTextStyleLabPanel({
 				.includes(normalizedQuery)
 		);
 	}, [query, result.styles, trialStyles, view]);
+	const visibleStyles = useMemo(
+		() =>
+			view === "trial" ? filteredStyles : filteredStyles.slice(0, visibleCount),
+		[filteredStyles, view, visibleCount]
+	);
+	const hasMore = visibleStyles.length < filteredStyles.length;
+	const loadMore = useCallback(() => {
+		setVisibleCount((current) =>
+			Math.min(current + STYLE_BATCH_SIZE, filteredStyles.length)
+		);
+	}, [filteredStyles.length]);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: each data/filter change starts at the first page
+	useEffect(() => {
+		setVisibleCount(INITIAL_STYLE_BATCH);
+	}, [query, result.styles, view]);
+	useEffect(() => {
+		const target = loadMoreRef.current;
+		if (!hasMore || !target || typeof IntersectionObserver === "undefined") {
+			return;
+		}
+		const observer = new IntersectionObserver((entries) => {
+			if (!entries.some(({ isIntersecting }) => isIntersecting)) return;
+			loadMore();
+		});
+		observer.observe(target);
+		return () => observer.disconnect();
+	}, [hasMore, loadMore]);
 	const activeCategory =
 		view === "trial" || view === "all"
 			? undefined
@@ -540,7 +375,7 @@ export function JianyingTextStyleLabPanel({
 					variant="text"
 					size="icon"
 					className="size-8"
-					aria-label="刷新本机花字缓存"
+					aria-label="同步 QCut 花字私有备份"
 					disabled={checking}
 					onClick={() => void refresh({ force: true })}
 					onKeyDown={(event) => {
@@ -553,15 +388,14 @@ export function JianyingTextStyleLabPanel({
 				</Button>
 			</div>
 			<div className="flex min-h-0 flex-1 gap-2">
-				<section className="min-w-0 flex-1">
+				<section className="flex min-h-0 min-w-0 flex-1 flex-col">
 					<div className="flex h-7 items-center justify-between gap-2 border-white/10 border-b pb-2">
 						<span className="text-xs font-medium text-foreground">
 							{activeCategory?.label ??
 								(view === "trial" ? "五款预览" : "全部花字")}
 						</span>
 						<span className="text-[10px] text-muted-foreground">
-							{visibleStyles.length}
-							{activeCategory ? ` / ${activeCategory.count}` : ""} 本地缓存 ·{" "}
+							{visibleStyles.length} / {filteredStyles.length} QCut 备份 ·{" "}
 							{result.packageCount} 包
 						</span>
 					</div>
@@ -574,7 +408,7 @@ export function JianyingTextStyleLabPanel({
 					{!error && checking && result.count === 0 ? (
 						<div className="flex h-56 items-center justify-center text-xs text-muted-foreground">
 							<Loader2 className="mr-2 size-4 animate-spin" />
-							正在读取本机花字缓存
+							正在读取 QCut 花字私有备份
 						</div>
 					) : null}
 					{!error && (!checking || result.count > 0) ? (
@@ -592,13 +426,36 @@ export function JianyingTextStyleLabPanel({
 									onApply={applyStyle}
 								/>
 							))}
+							{hasMore ? (
+								<div
+									ref={loadMoreRef}
+									className="col-span-2 flex h-10 items-center justify-center"
+								>
+									<Button
+										type="button"
+										variant="text"
+										size="sm"
+										onClick={loadMore}
+										onKeyDown={(event) => {
+											if (event.key === "Enter" || event.key === " ") {
+												event.preventDefault();
+												loadMore();
+											}
+										}}
+									>
+										加载更多
+									</Button>
+								</div>
+							) : null}
 						</div>
 					) : null}
 					{animationPickerVisible ? (
 						<JianyingTextAnimationPicker
 							animations={animationLab.result.animations}
+							catalogCount={animationLab.result.catalogCount}
 							checking={animationLab.checking}
 							error={animationLab.error}
+							invalidPackageCount={animationLab.result.invalidPackageCount}
 							selected={selectedAnimations}
 							onChange={applyAnimation}
 							onRefresh={() => void animationLab.refresh({ force: true })}
