@@ -13,6 +13,12 @@ const storageMocks = vi.hoisted(() => ({
 	from: vi.fn(),
 }));
 
+const LEGACY_STICKER_LAB_ALLOWLIST = "STICKER_LAB_ALLOWED_USER_IDS";
+const ORIGINAL_STICKER_LAB_ALLOWLIST = "STICKER_LAB_ORIGINAL_ALLOWED_USER_IDS";
+const PRIVATE_REFERENCE_ALLOWLIST =
+	"STICKER_LAB_PRIVATE_REFERENCE_ALLOWED_USER_IDS";
+const MOCK_USER_ID = "mock-user-001";
+
 vi.mock("../db/supabase", () => ({
 	getSupabase: vi.fn(() => ({
 		storage: {
@@ -40,7 +46,9 @@ function buildAssetUrl({ objectKey }: { objectKey?: string } = {}) {
 
 beforeEach(() => {
 	vi.stubEnv("MOCK_MODE", "true");
-	vi.stubEnv("STICKER_LAB_ALLOWED_USER_IDS", "");
+	vi.stubEnv(LEGACY_STICKER_LAB_ALLOWLIST, "");
+	vi.stubEnv(ORIGINAL_STICKER_LAB_ALLOWLIST, "");
+	vi.stubEnv(PRIVATE_REFERENCE_ALLOWLIST, "");
 	vi.clearAllMocks();
 	storageMocks.from.mockReturnValue({
 		createSignedUrl: storageMocks.createSignedUrl,
@@ -89,8 +97,16 @@ function buildPrivateObjectKey({
 	return `${assetObjectPrefix}7437023238108105995.${extension}`;
 }
 
-function allowMockUser() {
-	vi.stubEnv("STICKER_LAB_ALLOWED_USER_IDS", "mock-user-001");
+function allowOriginalMockUser() {
+	vi.stubEnv(ORIGINAL_STICKER_LAB_ALLOWLIST, MOCK_USER_ID);
+}
+
+function allowPrivateReferenceMockUser() {
+	vi.stubEnv(PRIVATE_REFERENCE_ALLOWLIST, MOCK_USER_ID);
+}
+
+function expectNoStore({ response }: { response: Response }): void {
+	expect(response.headers.get("cache-control")).toBe("no-store");
 }
 
 describe("sticker lab routes", () => {
@@ -100,6 +116,7 @@ describe("sticker lab routes", () => {
 		const response = await buildApp().request(buildAssetUrl());
 
 		expect(response.status).toBe(401);
+		expectNoStore({ response });
 		expect(storageMocks.from).not.toHaveBeenCalled();
 	});
 
@@ -111,13 +128,14 @@ describe("sticker lab routes", () => {
 		);
 
 		expect(response.status).toBe(403);
+		expectNoStore({ response });
 		await expect(response.json()).resolves.toEqual({ error: "Forbidden" });
 		expect(storageMocks.from).not.toHaveBeenCalled();
 	});
 
 	it("forbids authenticated users outside the allowlist", async () => {
 		vi.stubEnv(
-			"STICKER_LAB_ALLOWED_USER_IDS",
+			ORIGINAL_STICKER_LAB_ALLOWLIST,
 			" , another-user, a-third-user, "
 		);
 
@@ -128,12 +146,13 @@ describe("sticker lab routes", () => {
 		);
 
 		expect(response.status).toBe(403);
+		expectNoStore({ response });
 		await expect(response.json()).resolves.toEqual({ error: "Forbidden" });
 		expect(storageMocks.from).not.toHaveBeenCalled();
 	});
 
 	it("rejects missing and malformed object keys", async () => {
-		allowMockUser();
+		allowOriginalMockUser();
 		const invalidKeys = [
 			undefined,
 			"",
@@ -153,6 +172,7 @@ describe("sticker lab routes", () => {
 
 		for (const response of responses) {
 			expect(response.status).toBe(400);
+			expectNoStore({ response });
 			await expect(response.json()).resolves.toEqual({
 				error: "Invalid sticker object key",
 			});
@@ -161,7 +181,7 @@ describe("sticker lab routes", () => {
 	});
 
 	it("rejects traversal attempts", async () => {
-		allowMockUser();
+		allowOriginalMockUser();
 		const encodedTraversalUrl =
 			"/api/sticker-lab/assets?objectKey=catalogs%2Fqcut-original-test%2Fassets%2F%2e%2e%2Fsecret.gif";
 		const traversalUrls = [
@@ -183,13 +203,14 @@ describe("sticker lab routes", () => {
 
 		for (const response of responses) {
 			expect(response.status).toBe(400);
+			expectNoStore({ response });
 		}
 		expect(storageMocks.from).not.toHaveBeenCalled();
 	});
 
 	it("redirects authenticated requests to a short-lived signed URL", async () => {
 		vi.stubEnv(
-			"STICKER_LAB_ALLOWED_USER_IDS",
+			ORIGINAL_STICKER_LAB_ALLOWLIST,
 			" another-user, , mock-user-001, "
 		);
 		const objectKey = "catalogs/qcut-original-test/assets/sticker-123.gif";
@@ -204,13 +225,13 @@ describe("sticker lab routes", () => {
 
 		expect(response.status).toBe(302);
 		expect(response.headers.get("Location")).toBe(signedUrl);
-		expect(response.headers.get("Cache-Control")).toBe("no-store");
+		expectNoStore({ response });
 		expect(storageMocks.from).toHaveBeenCalledWith("sticker-lab");
 		expect(storageMocks.createSignedUrl).toHaveBeenCalledWith(objectKey, 600);
 	});
 
 	it("returns a sanitized upstream error when Supabase cannot sign", async () => {
-		allowMockUser();
+		allowOriginalMockUser();
 		storageMocks.createSignedUrl.mockResolvedValue({
 			data: null,
 			error: {
@@ -226,12 +247,13 @@ describe("sticker lab routes", () => {
 		const responseText = await response.text();
 
 		expect(response.status).toBe(502);
+		expectNoStore({ response });
 		expect(responseText).toBe('{"error":"Failed to sign sticker asset"}');
 		expect(responseText).not.toContain("do-not-leak");
 	});
 
 	it("sanitizes exceptions raised while signing", async () => {
-		allowMockUser();
+		allowOriginalMockUser();
 		storageMocks.createSignedUrl.mockRejectedValue(
 			new Error("service-role secret leaked by upstream")
 		);
@@ -244,6 +266,7 @@ describe("sticker lab routes", () => {
 		const responseText = await response.text();
 
 		expect(response.status).toBe(502);
+		expectNoStore({ response });
 		expect(responseText).toBe('{"error":"Failed to sign sticker asset"}');
 		expect(responseText).not.toContain("service-role");
 	});
@@ -265,7 +288,7 @@ describe("sticker lab preview tier", () => {
 		expect(response.headers.get("location")).toBe(
 			"https://storage.example/preview"
 		);
-		expect(response.headers.get("cache-control")).toBe("no-store");
+		expectNoStore({ response });
 	});
 
 	it("signs previews with a server-side transform", async () => {
@@ -298,6 +321,7 @@ describe("sticker lab preview tier", () => {
 		const response = await buildApp().request(buildThumbnailUrl({ objectKey }));
 
 		expect(response.status).toBe(401);
+		expectNoStore({ response });
 		expect(storageMocks.from).not.toHaveBeenCalled();
 	});
 
@@ -310,6 +334,7 @@ describe("sticker lab preview tier", () => {
 
 		for (const response of responses) {
 			expect(response.status).toBe(400);
+			expectNoStore({ response });
 		}
 		expect(storageMocks.from).not.toHaveBeenCalled();
 	});
@@ -324,7 +349,181 @@ describe("sticker lab preview tier", () => {
 		const original = await buildApp().request(buildAssetUrl({ objectKey }));
 
 		expect(preview.status).toBe(302);
+		expectNoStore({ response: preview });
 		expect(original.status).toBe(403);
+		expectNoStore({ response: original });
+	});
+
+	it("marks thumbnail signing failures as no-store", async () => {
+		storageMocks.createSignedUrl.mockResolvedValue({
+			data: null,
+			error: { message: "private storage detail" },
+		});
+
+		const response = await buildApp().request(buildThumbnailUrl({ objectKey }));
+
+		expect(response.status).toBe(502);
+		expectNoStore({ response });
+		await expect(response.json()).resolves.toEqual({
+			error: "Failed to sign sticker asset",
+		});
+	});
+});
+
+describe("sticker lab entitlement migration", () => {
+	const originalObjectKey =
+		"catalogs/qcut-original-test/assets/sticker-123.gif";
+	const privateObjectKey = buildPrivateObjectKey({
+		assetObjectPrefix: PRIVATE_CATALOG_CASES[0].assetObjectPrefix,
+	});
+
+	it("allows the original tier to intentionally use the wildcard", async () => {
+		vi.stubEnv(ORIGINAL_STICKER_LAB_ALLOWLIST, "*");
+		storageMocks.createSignedUrl.mockResolvedValue({
+			data: { signedUrl: "https://storage.example/original" },
+			error: null,
+		});
+
+		const response = await buildApp().request(
+			buildAssetUrl({ objectKey: originalObjectKey })
+		);
+
+		expect(response.status).toBe(302);
+		expectNoStore({ response });
+		expect(storageMocks.createSignedUrl).toHaveBeenCalledOnce();
+	});
+
+	it("still requires authentication when the original tier uses the wildcard", async () => {
+		vi.stubEnv(ORIGINAL_STICKER_LAB_ALLOWLIST, "*");
+		vi.stubEnv("MOCK_MODE", "false");
+
+		const response = await buildApp().request(
+			buildAssetUrl({ objectKey: originalObjectKey })
+		);
+
+		expect(response.status).toBe(401);
+		expectNoStore({ response });
+		expect(storageMocks.from).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		{ allowlist: "*" },
+		{ allowlist: `*,${MOCK_USER_ID}` },
+	])("rejects wildcard private-reference configuration $allowlist", async ({
+		allowlist,
+	}) => {
+		vi.stubEnv(PRIVATE_REFERENCE_ALLOWLIST, allowlist);
+
+		const responses = await Promise.all([
+			buildApp().request(buildAssetUrl({ objectKey: privateObjectKey })),
+			buildApp().request(buildThumbnailUrl({ objectKey: privateObjectKey })),
+			buildApp().request(buildPrivateManifestUrl()),
+		]);
+
+		for (const response of responses) {
+			expect(response.status).toBe(403);
+			expectNoStore({ response });
+		}
+		expect(storageMocks.from).not.toHaveBeenCalled();
+		expect(storageMocks.createSignedUrl).not.toHaveBeenCalled();
+		expect(storageMocks.download).not.toHaveBeenCalled();
+	});
+
+	it("keeps the original and private-reference entitlements independent", async () => {
+		allowPrivateReferenceMockUser();
+
+		const response = await buildApp().request(
+			buildAssetUrl({ objectKey: originalObjectKey })
+		);
+
+		expect(response.status).toBe(403);
+		expectNoStore({ response });
+		expect(storageMocks.from).not.toHaveBeenCalled();
+	});
+
+	it("does not use the original entitlement for private-reference routes", async () => {
+		allowOriginalMockUser();
+
+		const responses = await Promise.all([
+			buildApp().request(buildAssetUrl({ objectKey: privateObjectKey })),
+			buildApp().request(buildThumbnailUrl({ objectKey: privateObjectKey })),
+			buildApp().request(buildPrivateManifestUrl()),
+		]);
+
+		for (const response of responses) {
+			expect(response.status).toBe(403);
+			expectNoStore({ response });
+		}
+		expect(storageMocks.from).not.toHaveBeenCalled();
+		expect(storageMocks.createSignedUrl).not.toHaveBeenCalled();
+		expect(storageMocks.download).not.toHaveBeenCalled();
+	});
+
+	it("falls back to explicit legacy IDs when both new variables are undefined", async () => {
+		vi.stubEnv(ORIGINAL_STICKER_LAB_ALLOWLIST, undefined);
+		vi.stubEnv(PRIVATE_REFERENCE_ALLOWLIST, undefined);
+		vi.stubEnv(LEGACY_STICKER_LAB_ALLOWLIST, MOCK_USER_ID);
+		storageMocks.createSignedUrl.mockResolvedValue({
+			data: { signedUrl: "https://storage.example/legacy" },
+			error: null,
+		});
+
+		const originalResponse = await buildApp().request(
+			buildAssetUrl({ objectKey: originalObjectKey })
+		);
+		const privateResponse = await buildApp().request(
+			buildAssetUrl({ objectKey: privateObjectKey })
+		);
+
+		expect(originalResponse.status).toBe(302);
+		expectNoStore({ response: originalResponse });
+		expect(privateResponse.status).toBe(302);
+		expectNoStore({ response: privateResponse });
+		expect(storageMocks.createSignedUrl).toHaveBeenCalledTimes(2);
+	});
+
+	it("allows legacy wildcard access only to original assets", async () => {
+		vi.stubEnv(ORIGINAL_STICKER_LAB_ALLOWLIST, undefined);
+		vi.stubEnv(PRIVATE_REFERENCE_ALLOWLIST, undefined);
+		vi.stubEnv(LEGACY_STICKER_LAB_ALLOWLIST, "*");
+		storageMocks.createSignedUrl.mockResolvedValue({
+			data: { signedUrl: "https://storage.example/legacy-original" },
+			error: null,
+		});
+
+		const originalResponse = await buildApp().request(
+			buildAssetUrl({ objectKey: originalObjectKey })
+		);
+		const privateResponses = await Promise.all([
+			buildApp().request(buildAssetUrl({ objectKey: privateObjectKey })),
+			buildApp().request(buildThumbnailUrl({ objectKey: privateObjectKey })),
+			buildApp().request(buildPrivateManifestUrl()),
+		]);
+
+		expect(originalResponse.status).toBe(302);
+		expectNoStore({ response: originalResponse });
+		for (const response of privateResponses) {
+			expect(response.status).toBe(403);
+			expectNoStore({ response });
+		}
+		expect(storageMocks.from).toHaveBeenCalledTimes(1);
+		expect(storageMocks.createSignedUrl).toHaveBeenCalledOnce();
+		expect(storageMocks.download).not.toHaveBeenCalled();
+	});
+
+	it("treats empty new variables as fail-closed legacy overrides", async () => {
+		vi.stubEnv(LEGACY_STICKER_LAB_ALLOWLIST, MOCK_USER_ID);
+
+		const responses = await Promise.all([
+			buildApp().request(buildAssetUrl({ objectKey: originalObjectKey })),
+			buildApp().request(buildAssetUrl({ objectKey: privateObjectKey })),
+		]);
+
+		for (const response of responses) {
+			expect(response.status).toBe(403);
+			expectNoStore({ response });
+		}
+		expect(storageMocks.from).not.toHaveBeenCalled();
 	});
 });
 
@@ -339,7 +538,7 @@ describe("sticker lab private reference tier", () => {
 	)("signs private originals from $catalogId for allow-listed users", async ({
 		assetObjectPrefix,
 	}) => {
-		allowMockUser();
+		allowPrivateReferenceMockUser();
 		const objectKey = buildPrivateObjectKey({ assetObjectPrefix });
 		const signedUrl = "https://storage.example/private.gif?token=signed";
 		storageMocks.createSignedUrl.mockResolvedValue({
@@ -350,6 +549,7 @@ describe("sticker lab private reference tier", () => {
 		const response = await buildApp().request(buildAssetUrl({ objectKey }));
 
 		expect(response.status).toBe(302);
+		expectNoStore({ response });
 		expect(response.headers.get("Location")).toBe(signedUrl);
 		expect(storageMocks.createSignedUrl).toHaveBeenCalledWith(objectKey, 600);
 	});
@@ -368,6 +568,7 @@ describe("sticker lab private reference tier", () => {
 		);
 
 		expect(response.status).toBe(403);
+		expectNoStore({ response });
 		expect(storageMocks.from).not.toHaveBeenCalled();
 	});
 
@@ -379,11 +580,31 @@ describe("sticker lab private reference tier", () => {
 		);
 
 		expect(response.status).toBe(403);
+		expectNoStore({ response });
+		expect(storageMocks.from).not.toHaveBeenCalled();
+	});
+
+	it("checks entitlement before revealing private asset registry validity", async () => {
+		const unregisteredObjectKey = buildPrivateObjectKey({
+			assetObjectPrefix: "jianying/2026-08-01-batch-4/assets/",
+		});
+
+		const responses = await Promise.all([
+			buildApp().request(buildAssetUrl({ objectKey: unregisteredObjectKey })),
+			buildApp().request(
+				buildThumbnailUrl({ objectKey: unregisteredObjectKey })
+			),
+		]);
+
+		for (const response of responses) {
+			expect(response.status).toBe(403);
+			expectNoStore({ response });
+		}
 		expect(storageMocks.from).not.toHaveBeenCalled();
 	});
 
 	it("rejects traversal attempts against private asset keys", async () => {
-		allowMockUser();
+		allowPrivateReferenceMockUser();
 		const traversalKeys = [
 			`${PRIVATE_CATALOG_CASES[0].assetObjectPrefix}../7437023238108105995.gif`,
 			"jianying/../2026-07-31/assets/7437023238108105995.gif",
@@ -407,12 +628,13 @@ describe("sticker lab private reference tier", () => {
 
 		for (const response of responses) {
 			expect(response.status).toBe(400);
+			expectNoStore({ response });
 		}
 		expect(storageMocks.from).not.toHaveBeenCalled();
 	});
 
 	it("signs private thumbnails without a transform for allow-listed users", async () => {
-		allowMockUser();
+		allowPrivateReferenceMockUser();
 		storageMocks.createSignedUrl.mockResolvedValue({
 			data: { signedUrl: "https://storage.example/private.gif" },
 			error: null,
@@ -423,6 +645,7 @@ describe("sticker lab private reference tier", () => {
 		);
 
 		expect(response.status).toBe(302);
+		expectNoStore({ response });
 		expect(storageMocks.createSignedUrl).toHaveBeenCalledWith(
 			privateObjectKey,
 			600
@@ -444,7 +667,7 @@ describe("sticker lab private reference tier", () => {
 		assetObjectPrefix,
 		extension,
 	}) => {
-		allowMockUser();
+		allowPrivateReferenceMockUser();
 		const objectKey = buildPrivateObjectKey({
 			assetObjectPrefix,
 			extension,
@@ -457,11 +680,12 @@ describe("sticker lab private reference tier", () => {
 		const response = await buildApp().request(buildThumbnailUrl({ objectKey }));
 
 		expect(response.status).toBe(302);
+		expectNoStore({ response });
 		expect(storageMocks.createSignedUrl).toHaveBeenCalledWith(objectKey, 600);
 	});
 
 	it("rejects well-formed private keys outside the catalog registry", async () => {
-		allowMockUser();
+		allowPrivateReferenceMockUser();
 		const unregisteredKeys = [
 			buildPrivateObjectKey({
 				assetObjectPrefix: "jianying/2026-08-01/assets/",
@@ -482,12 +706,13 @@ describe("sticker lab private reference tier", () => {
 
 		for (const response of responses) {
 			expect(response.status).toBe(400);
+			expectNoStore({ response });
 		}
 		expect(storageMocks.from).not.toHaveBeenCalled();
 	});
 
 	it("rejects malformed private object keys", async () => {
-		allowMockUser();
+		allowPrivateReferenceMockUser();
 		const invalidKeys = [
 			"jianying/2026-07-31/assets/sticker-abc.gif",
 			"jianying/2026-07-31/assets/../123.gif",
@@ -504,12 +729,13 @@ describe("sticker lab private reference tier", () => {
 
 		for (const response of responses) {
 			expect(response.status).toBe(400);
+			expectNoStore({ response });
 		}
 		expect(storageMocks.from).not.toHaveBeenCalled();
 	});
 
 	it("defaults to the first private manifest for old clients", async () => {
-		allowMockUser();
+		allowPrivateReferenceMockUser();
 		const defaultCatalog = PRIVATE_CATALOG_CASES[0];
 		const manifestJson = JSON.stringify({
 			version: 2,
@@ -525,7 +751,7 @@ describe("sticker lab private reference tier", () => {
 
 		expect(response.status).toBe(200);
 		expect(response.headers.get("Content-Type")).toBe("application/json");
-		expect(response.headers.get("Cache-Control")).toBe("no-store");
+		expectNoStore({ response });
 		await expect(response.text()).resolves.toBe(manifestJson);
 		// Only the path: storage-js spreads any third argument into the fetch
 		// RequestInit, and workerd rejects a `cache` field outright. Asserting
@@ -541,7 +767,7 @@ describe("sticker lab private reference tier", () => {
 		catalogId,
 		manifestObjectKey,
 	}) => {
-		allowMockUser();
+		allowPrivateReferenceMockUser();
 		const manifestJson = JSON.stringify({
 			version: 2,
 			catalogId,
@@ -557,12 +783,13 @@ describe("sticker lab private reference tier", () => {
 		);
 
 		expect(response.status).toBe(200);
+		expectNoStore({ response });
 		await expect(response.text()).resolves.toBe(manifestJson);
 		expect(storageMocks.download).toHaveBeenCalledWith(manifestObjectKey);
 	});
 
 	it("rejects an oversized private manifest before reading its bytes", async () => {
-		allowMockUser();
+		allowPrivateReferenceMockUser();
 		const arrayBuffer = vi.fn();
 		storageMocks.download.mockResolvedValue({
 			data: {
@@ -575,7 +802,7 @@ describe("sticker lab private reference tier", () => {
 		const response = await buildApp().request(manifestUrl);
 
 		expect(response.status).toBe(502);
-		expect(response.headers.get("Cache-Control")).toBe("no-store");
+		expectNoStore({ response });
 		await expect(response.json()).resolves.toEqual({
 			error: "Private manifest unavailable",
 		});
@@ -583,7 +810,7 @@ describe("sticker lab private reference tier", () => {
 	});
 
 	it("rejects private manifest bytes larger than their declared size", async () => {
-		allowMockUser();
+		allowPrivateReferenceMockUser();
 		const manifestBytes = new Uint8Array(MAX_PRIVATE_STICKER_MANIFEST_BYTES + 1)
 			.buffer;
 		const arrayBuffer = vi.fn().mockResolvedValue(manifestBytes);
@@ -598,7 +825,7 @@ describe("sticker lab private reference tier", () => {
 		const response = await buildApp().request(manifestUrl);
 
 		expect(response.status).toBe(502);
-		expect(response.headers.get("Cache-Control")).toBe("no-store");
+		expectNoStore({ response });
 		await expect(response.json()).resolves.toEqual({
 			error: "Private manifest unavailable",
 		});
@@ -606,7 +833,7 @@ describe("sticker lab private reference tier", () => {
 	});
 
 	it("allows a private manifest exactly at the byte limit", async () => {
-		allowMockUser();
+		allowPrivateReferenceMockUser();
 		const manifestBytes = new Uint8Array(MAX_PRIVATE_STICKER_MANIFEST_BYTES)
 			.buffer;
 		const arrayBuffer = vi.fn().mockResolvedValue(manifestBytes);
@@ -621,7 +848,7 @@ describe("sticker lab private reference tier", () => {
 		const response = await buildApp().request(manifestUrl);
 
 		expect(response.status).toBe(200);
-		expect(response.headers.get("Cache-Control")).toBe("no-store");
+		expectNoStore({ response });
 		expect((await response.arrayBuffer()).byteLength).toBe(
 			MAX_PRIVATE_STICKER_MANIFEST_BYTES
 		);
@@ -637,13 +864,14 @@ describe("sticker lab private reference tier", () => {
 	])("rejects an unknown private catalog selector: $catalogId", async ({
 		catalogId,
 	}) => {
-		allowMockUser();
+		allowPrivateReferenceMockUser();
 
 		const response = await buildApp().request(
 			buildPrivateManifestUrl({ catalogId })
 		);
 
 		expect(response.status).toBe(400);
+		expectNoStore({ response });
 		await expect(response.json()).resolves.toEqual({
 			error: "Invalid private sticker catalog",
 		});
@@ -659,6 +887,7 @@ describe("sticker lab private reference tier", () => {
 		);
 
 		expect(response.status).toBe(403);
+		expectNoStore({ response });
 		expect(storageMocks.from).not.toHaveBeenCalled();
 		expect(storageMocks.download).not.toHaveBeenCalled();
 	});
@@ -671,6 +900,7 @@ describe("sticker lab private reference tier", () => {
 		);
 
 		expect(response.status).toBe(403);
+		expectNoStore({ response });
 		expect(storageMocks.download).not.toHaveBeenCalled();
 	});
 
@@ -684,11 +914,12 @@ describe("sticker lab private reference tier", () => {
 		);
 
 		expect(response.status).toBe(401);
+		expectNoStore({ response });
 		expect(storageMocks.download).not.toHaveBeenCalled();
 	});
 
 	it("returns a sanitized 404 when the private manifest object is missing", async () => {
-		allowMockUser();
+		allowPrivateReferenceMockUser();
 		storageMocks.download.mockResolvedValue({
 			data: null,
 			error: { message: "SUPABASE_SERVICE_KEY=do-not-leak" },
@@ -698,13 +929,13 @@ describe("sticker lab private reference tier", () => {
 		const responseText = await response.text();
 
 		expect(response.status).toBe(404);
-		expect(response.headers.get("Cache-Control")).toBe("no-store");
+		expectNoStore({ response });
 		expect(responseText).toBe('{"error":"Private manifest unavailable"}');
 		expect(responseText).not.toContain("do-not-leak");
 	});
 
 	it("sanitizes exceptions raised while downloading the private manifest", async () => {
-		allowMockUser();
+		allowPrivateReferenceMockUser();
 		storageMocks.download.mockRejectedValue(
 			new Error("service-role secret leaked by upstream")
 		);
@@ -713,7 +944,7 @@ describe("sticker lab private reference tier", () => {
 		const responseText = await response.text();
 
 		expect(response.status).toBe(502);
-		expect(response.headers.get("Cache-Control")).toBe("no-store");
+		expectNoStore({ response });
 		expect(responseText).toBe('{"error":"Private manifest unavailable"}');
 		expect(responseText).not.toContain("service-role");
 	});

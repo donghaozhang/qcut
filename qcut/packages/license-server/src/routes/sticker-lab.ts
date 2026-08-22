@@ -6,7 +6,10 @@ import {
 import { Hono, type Context } from "hono";
 import { getSupabase } from "../db/supabase";
 import { authMiddleware } from "../middleware/auth";
-import { isUserIdAllowlisted } from "../services/user-id-allowlist";
+import {
+	isUserIdAllowlisted,
+	isUserIdExplicitlyAllowlisted,
+} from "../services/user-id-allowlist";
 
 const STICKER_BUCKET = "sticker-lab";
 const SIGNED_URL_TTL_SECONDS = 600;
@@ -28,19 +31,48 @@ const STICKER_OBJECT_KEY_PATTERN =
 const PRIVATE_REFERENCE_OBJECT_KEY_PATTERN =
 	/^jianying\/([a-z0-9]+(?:-[a-z0-9]+)*)\/assets\/[0-9]+\.(gif|png)$/;
 
-function isStickerLabUserAllowed({
+function isOriginalStickerLabUserAllowed({
 	userId,
 }: {
 	userId: string | undefined;
 }): boolean {
 	return isUserIdAllowlisted({
-		allowlist: process.env.STICKER_LAB_ALLOWED_USER_IDS,
+		allowlist:
+			process.env.STICKER_LAB_ORIGINAL_ALLOWED_USER_IDS ??
+			process.env.STICKER_LAB_ALLOWED_USER_IDS,
+		userId,
+	});
+}
+
+function isPrivateReferenceUserAllowed({
+	userId,
+}: {
+	userId: string | undefined;
+}): boolean {
+	return isUserIdExplicitlyAllowlisted({
+		allowlist:
+			process.env.STICKER_LAB_PRIVATE_REFERENCE_ALLOWED_USER_IDS ??
+			process.env.STICKER_LAB_ALLOWED_USER_IDS,
 		userId,
 	});
 }
 
 const stickerLabRoutes = new Hono();
+stickerLabRoutes.use("/*", async (c, next) => {
+	await next();
+	// Downstream handlers return both Context responses and raw Responses.
+	// Applying this last also covers auth failures and future rate-limit exits.
+	c.header("Cache-Control", "no-store");
+});
 stickerLabRoutes.use("/*", authMiddleware);
+
+function isPrivateReferenceNamespace({
+	objectKey,
+}: {
+	objectKey: string | undefined;
+}): boolean {
+	return objectKey?.startsWith("jianying/") ?? false;
+}
 
 function isPrivateReferenceObjectKey({
 	objectKey,
@@ -59,17 +91,34 @@ function isPrivateReferenceObjectKey({
 	);
 }
 
+function isValidStickerObjectKey({
+	isPrivateReference,
+	objectKey,
+}: {
+	isPrivateReference: boolean;
+	objectKey: string | undefined;
+}): boolean {
+	if (!objectKey) return false;
+	if (isPrivateReference) {
+		return isPrivateReferenceObjectKey({ objectKey });
+	}
+	return STICKER_OBJECT_KEY_PATTERN.test(objectKey);
+}
+
 stickerLabRoutes.get("/assets", async (c) => {
 	const userId = c.get("userId") as string | undefined;
-	if (!isStickerLabUserAllowed({ userId })) {
+	const objectKey = c.req.query("objectKey");
+	const isPrivateReference = isPrivateReferenceNamespace({ objectKey });
+	const isAllowed = isPrivateReference
+		? isPrivateReferenceUserAllowed({ userId })
+		: isOriginalStickerLabUserAllowed({ userId });
+	if (!isAllowed) {
 		return c.json({ error: "Forbidden" }, 403);
 	}
 
-	const objectKey = c.req.query("objectKey");
 	if (
 		!objectKey ||
-		(!STICKER_OBJECT_KEY_PATTERN.test(objectKey) &&
-			!isPrivateReferenceObjectKey({ objectKey }))
+		!isValidStickerObjectKey({ isPrivateReference, objectKey })
 	) {
 		return c.json({ error: "Invalid sticker object key" }, 400);
 	}
@@ -79,13 +128,16 @@ stickerLabRoutes.get("/assets", async (c) => {
 
 stickerLabRoutes.get("/thumbnail", async (c) => {
 	const objectKey = c.req.query("objectKey");
-	if (objectKey && isPrivateReferenceObjectKey({ objectKey })) {
+	if (isPrivateReferenceNamespace({ objectKey })) {
 		// The harvested reference catalogue has no public preview tier: even
 		// thumbnails require the allow list. Skip the transform because the private
 		// grid intentionally reuses the cached original for both GIF and PNG assets.
 		const userId = c.get("userId") as string | undefined;
-		if (!isStickerLabUserAllowed({ userId })) {
+		if (!isPrivateReferenceUserAllowed({ userId })) {
 			return c.json({ error: "Forbidden" }, 403);
+		}
+		if (!objectKey || !isPrivateReferenceObjectKey({ objectKey })) {
+			return c.json({ error: "Invalid sticker object key" }, 400);
 		}
 		return signStickerObject({ c, objectKey });
 	}
@@ -110,9 +162,8 @@ stickerLabRoutes.get("/thumbnail", async (c) => {
 });
 
 stickerLabRoutes.get("/private-manifest", async (c) => {
-	c.header("Cache-Control", "no-store");
 	const userId = c.get("userId") as string | undefined;
-	if (!isStickerLabUserAllowed({ userId })) {
+	if (!isPrivateReferenceUserAllowed({ userId })) {
 		return c.json({ error: "Forbidden" }, 403);
 	}
 	const requestedCatalogId =
@@ -130,7 +181,7 @@ stickerLabRoutes.get("/private-manifest", async (c) => {
 		// compatibility date. The throw surfaces as a download error, which this
 		// route reports as a missing manifest, so every catalogue 404s in
 		// production while passing under Bun. Freshness is already guaranteed by
-		// the no-store response header above.
+		// the route-wide no-store middleware.
 		const { data, error } = await getSupabase()
 			.storage.from(STICKER_BUCKET)
 			.download(catalog.manifestObjectKey);
@@ -149,7 +200,6 @@ stickerLabRoutes.get("/private-manifest", async (c) => {
 		return new Response(manifestBytes, {
 			headers: {
 				"Content-Type": "application/json",
-				"Cache-Control": "no-store",
 			},
 		});
 	} catch {
@@ -186,9 +236,7 @@ async function signStickerObject({
 			return c.json({ error: "Failed to sign sticker asset" }, 502);
 		}
 
-		const response = c.redirect(data.signedUrl, 302);
-		response.headers.set("Cache-Control", "no-store");
-		return response;
+		return c.redirect(data.signedUrl, 302);
 	} catch {
 		return c.json({ error: "Failed to sign sticker asset" }, 502);
 	}

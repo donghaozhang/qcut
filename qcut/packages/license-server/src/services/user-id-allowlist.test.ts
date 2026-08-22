@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
 	ALLOW_ANY_SIGNED_IN_USER,
+	isUserIdExplicitlyAllowlisted,
 	isUserIdAllowlisted,
 } from "./user-id-allowlist";
 
@@ -66,5 +67,60 @@ describe("isUserIdAllowlisted", () => {
 		it("is not matched by a user literally named like the sentinel prefix", () => {
 			expect(isUserIdAllowlisted({ allowlist: USER, userId: "*" })).toBe(false);
 		});
+	});
+});
+
+describe("isUserIdExplicitlyAllowlisted", () => {
+	it("admits a listed user", () => {
+		expect(
+			isUserIdExplicitlyAllowlisted({
+				allowlist: `${OTHER}, ${USER}`,
+				userId: USER,
+			})
+		).toBe(true);
+	});
+
+	it("refuses an unlisted user", () => {
+		expect(
+			isUserIdExplicitlyAllowlisted({ allowlist: OTHER, userId: USER })
+		).toBe(false);
+	});
+
+	it.each([
+		undefined,
+		"",
+		"   ",
+		",,",
+	])("fails closed when the allowlist is %p", (allowlist) => {
+		expect(isUserIdExplicitlyAllowlisted({ allowlist, userId: USER })).toBe(
+			false
+		);
+	});
+
+	it("rejects the wildcard sentinel", () => {
+		expect(
+			isUserIdExplicitlyAllowlisted({
+				allowlist: ALLOW_ANY_SIGNED_IN_USER,
+				userId: USER,
+			})
+		).toBe(false);
+	});
+
+	it("fails closed when a wildcard is mixed with explicit IDs", () => {
+		expect(
+			isUserIdExplicitlyAllowlisted({
+				allowlist: `${OTHER},${ALLOW_ANY_SIGNED_IN_USER},${USER}`,
+				userId: USER,
+			})
+		).toBe(false);
+	});
+
+	it("still requires an authenticated user", () => {
+		expect(
+			isUserIdExplicitlyAllowlisted({
+				allowlist: USER,
+				userId: undefined,
+			})
+		).toBe(false);
 	});
 });
