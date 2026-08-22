@@ -339,6 +339,18 @@ export function JianyingEffectLabPanel({
 			}));
 			try {
 				const cached = await api.download({ effectId: definition.effectId });
+				if (cached.packageHash !== definition.packageHash) {
+					throw new Error("特效包版本已变化，请重新选择。");
+				}
+				const refreshedStatus = await refresh();
+				const refreshedDefinition = refreshedStatus?.effects.find(
+					(effect) => effect.effectId === definition.effectId
+				);
+				if (refreshedDefinition && !refreshedDefinition.supported) {
+					throw new Error(
+						refreshedDefinition.unsupportedReason ?? "该特效尚未通过本机验证。"
+					);
+				}
 				setDownloads((current) =>
 					Object.fromEntries(
 						Object.entries(current).filter(
@@ -349,13 +361,12 @@ export function JianyingEffectLabPanel({
 				onApply(
 					labPreset({
 						definition: {
-							...definition,
+							...(refreshedDefinition ?? definition),
 							installed: true,
 							packagePath: cached.packagePath,
 						},
 					})
 				);
-				if (!definition.installed) await refresh();
 			} catch (cause) {
 				setDownloads((current) => ({
 					...current,
