@@ -14,6 +14,8 @@ import {
 	cacheQCutEffectPackage,
 	isReadyQCutEffectPackage,
 } from "./package-cache.js";
+import { ensureQCutEffectOfflineRuntime } from "./offline-runtime.js";
+import { isVerifiedAlgorithmPackage } from "./verified-algorithm-packages.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -75,6 +77,14 @@ async function installPackage({
 	const managedRoot = qcutManagedEffectPackageRoot();
 	if (!managedRoot) {
 		throw new Error("特效包下载仅在 QCut 桌面版中可用。");
+	}
+	if (
+		isVerifiedAlgorithmPackage({
+			effectId: item.effectId,
+			packageHash: item.md5,
+		})
+	) {
+		await ensureQCutEffectOfflineRuntime();
 	}
 	const finalDir = path.join(
 		managedRoot,
