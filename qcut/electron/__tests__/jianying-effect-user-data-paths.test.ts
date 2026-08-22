@@ -10,7 +10,9 @@ describe("QCut standalone user-data paths", () => {
 				platform: "darwin",
 				environment: {},
 			})
-		).toBe("/Users/tester/Library/Application Support/QCut");
+		).toBe(
+			path.join("/Users/tester", "Library", "Application Support", "QCut")
+		);
 	});
 
 	test("uses platform configuration roots and an explicit override", () => {
@@ -20,7 +22,7 @@ describe("QCut standalone user-data paths", () => {
 				platform: "linux",
 				environment: { XDG_CONFIG_HOME: "/config" },
 			})
-		).toBe("/config/QCut");
+		).toBe(path.join("/config", "QCut"));
 		expect(
 			qcutStandaloneUserDataRoot({
 				homeDirectory: "/home/tester",
