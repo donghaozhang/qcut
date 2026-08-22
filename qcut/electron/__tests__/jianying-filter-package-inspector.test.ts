@@ -266,4 +266,30 @@ describe("Jianying filter package inspector", () => {
 		});
 		expect(JSON.stringify(result.get("tiled"))).not.toContain(cacheRoot);
 	});
+
+	it("inspects a QCut-managed package root after the primary cache", async () => {
+		const primaryCacheRoot = await temporaryCache();
+		const managedCacheRoot = await temporaryCache();
+		await packageFile({
+			cacheRoot: managedCacheRoot,
+			resourceId: "managed",
+			version: "v1",
+			relativePath: "AmazingFeature/texture/filter.cube.vf",
+		});
+
+		const result = await inspectJianyingFilterPackages({
+			filters: [filter({ resourceId: "managed" })],
+			references: [reference({ resourceId: "managed" })],
+			cacheRoots: [primaryCacheRoot, managedCacheRoot],
+		});
+
+		expect(result.get("managed")).toMatchObject({
+			cacheStatus: "cached",
+			implementation: "single-lut",
+			versions: ["v1"],
+		});
+		expect(JSON.stringify(result.get("managed"))).not.toContain(
+			managedCacheRoot
+		);
+	});
 });
