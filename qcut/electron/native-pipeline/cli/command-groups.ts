@@ -130,6 +130,16 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 		},
 	},
 	{
+		name: "text-lab",
+		label: "Text Lab",
+		description: "Browse and render cached Jianying flower text and animations",
+		actions: {
+			list: "text-lab-list",
+			animations: "text-lab-animations",
+			render: "text-lab-render",
+		},
+	},
+	{
 		name: "effect-lab",
 		label: "Effect Lab",
 		description: "Search and render QCut's locally cached video effects",
