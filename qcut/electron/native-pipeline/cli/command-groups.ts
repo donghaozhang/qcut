@@ -130,6 +130,17 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 		},
 	},
 	{
+		name: "effect-lab",
+		label: "Effect Lab",
+		description: "Search and render QCut's locally cached video effects",
+		actions: {
+			list: "effect-lab-list",
+			search: "effect-lab-search",
+			doctor: "effect-lab-doctor",
+			render: "effect-lab-render",
+		},
+	},
+	{
 		name: "flow",
 		label: "Workflows & Orchestration",
 		description: "ViMax pipelines, YAML workflows, script/character generation",
