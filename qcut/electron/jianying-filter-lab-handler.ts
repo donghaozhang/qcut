@@ -583,6 +583,7 @@ export function setupJianyingFilterLabIPC(
 			return localProvider.render({
 				...parsed,
 				packagePath,
+				captureFace: nativeRenderer?.faceDetection === true,
 			});
 		}
 	);
