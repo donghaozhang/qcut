@@ -5,10 +5,9 @@ import { isUserIdAllowlisted } from "../services/user-id-allowlist";
 
 const SOUND_EFFECTS_BUCKET = "sound-effects-lab";
 const SIGNED_URL_TTL_SECONDS = 600;
-const PRIVATE_MANIFEST_OBJECT_KEY =
-	"jianying/2026-08-22/manifest.batch-07.json";
+const PRIVATE_MANIFEST_OBJECT_KEY = "qcut/2026-08-22/manifest.batch-08.json";
 const PRIVATE_AUDIO_OBJECT_KEY_PATTERN =
-	/^jianying\/\d{4}-\d{2}-\d{2}\/assets\/[a-f0-9]{32}\.mp3$/;
+	/^(?:jianying|qcut)\/\d{4}-\d{2}-\d{2}\/assets\/[a-f0-9]{32}\.mp3$/;
 
 function isSoundEffectsLabUserAllowed({
 	userId,

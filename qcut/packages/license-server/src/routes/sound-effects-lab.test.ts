@@ -122,6 +122,25 @@ describe("sound effects lab routes", () => {
 		expect(storageMocks.createSignedUrl).toHaveBeenCalledWith(objectKey, 600);
 	});
 
+	it("signs QCut-owned Batch-08 assets", async () => {
+		allowMockUser();
+		const qcutObjectKey = objectKey.replace("jianying/", "qcut/");
+		storageMocks.createSignedUrl.mockResolvedValue({
+			data: { signedUrl: "https://example.supabase.co/signed" },
+			error: null,
+		});
+
+		const response = await buildApp().request(
+			buildAssetUrl({ objectKey: qcutObjectKey })
+		);
+
+		expect(response.status).toBe(302);
+		expect(storageMocks.createSignedUrl).toHaveBeenCalledWith(
+			qcutObjectKey,
+			600
+		);
+	});
+
 	it("sanitizes signing failures", async () => {
 		allowMockUser();
 		storageMocks.createSignedUrl.mockResolvedValue({
@@ -155,7 +174,7 @@ describe("sound effects lab routes", () => {
 		expect(response.headers.get("Cache-Control")).toBe("no-store");
 		await expect(response.text()).resolves.toBe(manifestJson);
 		expect(storageMocks.download).toHaveBeenCalledWith(
-			"jianying/2026-08-22/manifest.batch-07.json"
+			"qcut/2026-08-22/manifest.batch-08.json"
 		);
 	});
 

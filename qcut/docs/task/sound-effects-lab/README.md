@@ -17,7 +17,8 @@ Offline pack PR / 离线包 PR: [#424](https://github.com/Quriosity-agent/qcut/p
 音效实验室已经从“仅本机文件”扩展为与贴纸实验室相同的私有发布架构:
 
 - 私有 Supabase bucket: `sound-effects-lab`;
-- 当前私有 manifest 包含 1108 个 MP3，Git 和安装包都不包含这些音频;
+- 当前私有 manifest 包含 1422 个 MP3:1108 个剪映内部参照和 314 个
+  Freesound CC0;Git 和安装包都不包含这些音频;
 - license server 提供白名单 manifest 接口和 10 分钟音效签名接口;
 - `SOUND_EFFECTS_LAB_ALLOWED_USER_IDS` 是独立、fail-closed 的账号 ID
   白名单，不复用贴纸实验室白名单;
@@ -27,7 +28,7 @@ Offline pack PR / 离线包 PR: [#424](https://github.com/Quriosity-agent/qcut/p
   不含本机路径的 schema v2 manifest。
 
 2026-08-22 新增完整离线包。用户点击“离线下载”后，QCut 会把当前私有目录的
-全部 1108 个音效写入自己的本地缓存，而不是继续依赖剪映缓存:
+全部 1422 个音效写入自己的本地缓存，而不是继续依赖剪映缓存:
 
 - `qcut-asset-resources/files`:保存经过大小和 SHA-256 校验的音频 Blob;
 - `qcut-sound-effects-lab-offline/packs`:保存完整 manifest、账号、目录版本、
@@ -42,9 +43,9 @@ Offline pack PR / 离线包 PR: [#424](https://github.com/Quriosity-agent/qcut/p
 这套离线包不读取 `~/Movies/JianyingPro/User Data/Cache/music`。剪映缓存只用于
 最初采集，安装完成后目录显示、搜索和试听均来自 QCut 自己的 IndexedDB。
 
-这些资源来自剪映参照目录，只允许内部对标。客户端统一标记
-`commercialUse: "restricted"` 和“禁止分发”，不能收藏、不能写入最近使用，
-也不能通过拖拽绕开受控导入。
+目录采用逐项许可证。1108 个剪映参照只允许内部对标，客户端标记
+`commercialUse: "restricted"`;314 个 Freesound 条目保留 `CC0-1.0`、作者和
+来源。页面顶部暂时仍显示保守的全局“禁止分发”提示，后续要改成混合授权文案。
 
 ### 完整流程
 
@@ -71,7 +72,7 @@ VITE_QCUT_ENABLE_SOUND_EFFECTS_LAB=true
   -> 检查配额并请求 navigator.storage.persist()
   -> 最多 4 路并发下载 manifest 中的全部音效
   -> 每个文件复用 qcut-asset-resources 的大小和 SHA-256 校验
-  -> 1108/1108 全部完成后写入账号绑定的 packs 完成记录
+  -> 1422/1422 全部完成后写入账号绑定的 packs 完成记录
   -> 后续断网时读取本地 manifest + Blob
   -> 不访问剪映目录，也不请求远程音效文件
 ```
@@ -87,12 +88,12 @@ VITE_QCUT_ENABLE_SOUND_EFFECTS_LAB=true
 | 可见性 | private |
 | 单文件上限 | 50 MiB |
 | MIME | `audio/mpeg`, `application/json` |
-| Manifest | `jianying/2026-08-22/manifest.batch-07.json` |
-| 音效对象 | `jianying/2026-08-15/assets/<md5>.mp3` |
+| Manifest | `qcut/2026-08-22/manifest.batch-08.json` |
+| 音效对象 | `jianying/<date>/assets/<md5>.mp3` 和 `qcut/2026-08-22/assets/<md5>.mp3` |
 | Manifest API | `GET /api/sound-effects-lab/private-manifest` |
 | 音效 API | `GET /api/sound-effects-lab/assets?objectKey=...` |
 | Signed URL TTL | 600 秒 |
-| 当前 Worker | `35d42262-0dee-47d8-86ec-e04d9d431622` |
+| 当前 Worker | `598b7351-dfe1-400a-80c3-19cc530c683e` |
 
 生产 Worker 显式允许 `http://localhost:5173` 和
 `http://127.0.0.1:5173`，供 Vite Electron 开发版做带登录态的生产 E2E。
@@ -118,11 +119,18 @@ Supabase service-role key。普通已登录但不在白名单内的真实账号�
 | 指标 | 结果 |
 |---|---:|
 | 分类 | 20 |
-| 音效 | 1108 |
-| QCut 当前 manifest 对应 Blob | 1108 |
-| 当前 manifest 唯一 SHA-256 | 1108 |
-| 本地 Blob / manifest 总字节数 | 255,746,234 / 255,746,234 |
-| 总大小 | 约 243.9 MiB |
+| 音效 | 1422 |
+| 剪映内部参照 / Freesound CC0 | 1108 / 314 |
+| QCut 当前 manifest 对应 Blob | 1422 |
+| 当前 manifest 唯一 SHA-256 | 1422 |
+| 本地 Blob / manifest 总字节数 | 279,900,295 / 279,900,295 |
+| 总大小 | 约 266.9 MiB |
+
+Batch-08 对比当前剪映目录后确认仍缺 314 个一对一原始 resource ID。为避免复制
+受限载荷，本批改用 314 个 Freesound CC0 条目补齐相同分类的容量。当前目录为
+1422 项，但不能把 CC0 替代项解释成剪映内容的一对一复刻。完整缺口、分类、
+Supabase、离线 E2E 和未完成清单见
+[Batch-08 记录](./BATCH-08-RECORD.md)。
 
 Batch-07 枚举到 384 个签名有效的未收录候选，尝试 74 个唯一 resource ID，
 保留 70 个唯一 MP3，4 个内容重复项按哈希跳过，下载、解码和校验失败为 0。
@@ -200,6 +208,24 @@ bun run dev --host 127.0.0.1
 schema v1 开发模式，不访问私有 manifest。
 
 ### 验证结果
+
+2026-08-22 Batch-08 生产与离线 E2E（`qcutlove@qcut.app`）:
+
+1. 314 个 Freesound CC0 对象上传后逐个回读，大小和 SHA-256 全部匹配;
+2. 生产目录为 20 个分类 / 1422 项 / 279,900,295 bytes，未认证请求返回 401;
+3. QCut 完整离线包命中 1422/1422，0 缺失、0 大小错误、0 哈希错误;
+4. 模拟断网整页重载后恢复 1422 项，远端音效资源请求为 0;
+5. 搜索并播放 `Crowd laugh`，页面显示作者和 `CC0-1.0`，播放器推进到
+   `0:01 / 0:03`;
+6. 8 个聚焦测试文件 50/50、license-server 路由 11/11、TypeScript 与启用
+   功能的 production build 全部通过。
+
+Batch-08 截图证据:
+
+- [1422 项更新入口](./evidence/18-batch-08-update-available.png)
+- [1422 项完整离线安装](./evidence/19-batch-08-local-pack-1422-installed.png)
+- [断网恢复 1422 项目录](./evidence/20-batch-08-offline-1422-catalog.png)
+- [断网播放 CC0 音效](./evidence/21-batch-08-offline-cc0-sound-playing.png)
 
 2026-08-22 Batch-07 生产与离线增量 E2E（`qcutlove@qcut.app`）:
 
@@ -351,14 +377,15 @@ Electron 真实 E2E:
 
 ### 下一步
 
-1. 在正式 `app://.` 安装包再跑一次 1108 项冷下载、退出重开和断网试听，验证
+1. 在正式 `app://.` 安装包再跑一次 1422 项冷下载、退出重开和断网试听，验证
    packaged origin 的持久化行为。
-2. 把真实账号生产 smoke test 做成显式 opt-in E2E，CI 默认不下载 243.9 MiB。
+2. 把真实账号生产 smoke test 做成显式 opt-in E2E，CI 默认不下载 266.9 MiB。
 3. 为目录更新增加可视化差量说明，例如“新增 24、删除 3”，现有实现已经会
    复用未变化 Blob 并清理无引用旧版本。
-4. 对 1108 条音效执行响度、峰值、静音头尾、损坏帧和主观重复 QA。
-5. 公开发布前，用 QCut 自有、CC0、AI 生成或另行授权的音效替换所有剪映
-   参照资源;当前私有 bucket 和离线包都不能作为公开发行内容。
+4. 对 1422 条音效执行响度、峰值、静音头尾、损坏帧、主观重复和分类语义 QA。
+5. 公开发布前，用 QCut 自有、CC0、AI 生成或另行授权的音效替换剩余 1108 个
+   剪映参照;314 个 CC0 条目可以按其逐项许可证使用。
+6. 其余未完成项和优先级见 [Batch-08 记录](./BATCH-08-RECORD.md)。
 
 ## English
 
@@ -377,33 +404,31 @@ an explicit 401 or 403 revokes the current account's offline record and fails
 closed. Shared Blobs are retained until the last account that references them
 removes its pack.
 
-The production catalog observed after Batch-07 on 2026-08-22 contains 1,108
-sounds in 20 categories and totals 255,746,234 bytes (243.9 MiB). The update
-added 70 unique MP3 files; four content duplicates were skipped and no
-download, decode, or validation failures occurred. Nine categories gained 10
-items each. Ten categories exposed no new candidate, while all three new
-Mechanical candidates duplicated existing content. No category was padded
-with copies, relabelled content, or another source.
+The current Batch-08 production catalog contains 1,422 sounds in 20 categories
+and totals 279,900,295 bytes (266.9 MiB). It combines 1,108 restricted Jianying
+internal references with 314 Freesound CC0 items. Those CC0 items fill the
+numeric category-capacity gap; QCut still intentionally lacks 314 exact current
+Jianying payloads because they are not redistributable.
 
-QCut installed an account-bound 1,108-item offline record with persistent
-storage enabled. An exact manifest-to-cache comparison found 1,108 matching
-Blobs, 1,108 unique SHA-256 values, zero missing resources, and the same
-255,746,234-byte total. After an offline page reload, QCut restored all 1,108
-items from its local pack. It made zero asset requests and played the newly
-collected three-second `鬼畜加速笑声` sound while the player advanced to 0:02.
-Batch-07 screenshots are in [`evidence/`](./evidence/), and the full report is
-[`BATCH-07-RECORD.md`](./BATCH-07-RECORD.md).
+QCut installed an account-bound 1,422-item offline record with persistent
+storage enabled. An exact manifest-to-cache comparison found 1,422 matching
+Blobs, 1,422 unique SHA-256 values, zero missing resources, and the same
+279,900,295-byte total. After an offline page reload, QCut restored all items,
+made zero asset requests, and played a `Crowd laugh` CC0 item while showing its
+creator and `CC0-1.0` license. Screenshots are in [`evidence/`](./evidence/),
+and the complete report and remaining-work list are in
+[`BATCH-08-RECORD.md`](./BATCH-08-RECORD.md).
 
 The previous 938-item cold-download baseline remains valid: it completed in
 225.0 seconds, stored 210,322,616 bytes, and played the 36.048-second
 `派对嘈杂声7` sound after one blocked manifest request and zero asset requests.
 
-The current focused regression run passed 36 tests across six offline-pack
-files, plus 10 license-server route tests and the license-server TypeScript
-check. The enabled production build also passed. The next required production
-check is the same 1,108-item cold-download, restart, and offline-playback flow
-in a packaged build. The initial 382-item data below is retained as the
-2026-08-01 publication snapshot.
+The current focused regression run passed 50 tests across eight Web/publisher
+files, plus 11 license-server route tests and both TypeScript checks. The
+enabled production build also passed. The next required production check is a
+1,422-item cold-download, restart, and offline-playback flow in a packaged
+build. The initial 382-item data below is retained as the 2026-08-01
+publication snapshot.
 
 ### Architecture and access
 
@@ -441,7 +466,8 @@ are in
 
 ### Release boundary
 
-All references remain third-party, restricted, and non-redistributable. The
-private bucket is an internal parity source, not a public QCut audio CDN.
-Public release requires replacing every item with QCut-owned, CC0, generated,
-or separately licensed audio.
+The 1,108 Jianying references remain third-party, restricted, and
+non-redistributable. The 314 Freesound additions are individually recorded as
+CC0. The private bucket is still an internal mixed-license source, not a public
+QCut audio CDN. Public release requires replacing every restricted item and
+preserving per-item provenance for the CC0 set.

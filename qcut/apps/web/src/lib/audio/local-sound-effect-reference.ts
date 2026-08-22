@@ -90,6 +90,43 @@ export function createSoundEffectsLabAssetFetch({
 	});
 }
 
+function soundEffectRights({
+	reference,
+}: {
+	reference: SoundEffectsLabReference;
+}) {
+	if (reference.source?.provider === "freesound") {
+		return {
+			assetLicense: {
+				name: "CC0 1.0",
+				spdxId: "CC0-1.0",
+				commercialUse: "allowed" as const,
+				attributionRequired: false,
+				sourceUrl: reference.source.sourceUrl,
+			},
+			descriptionPrefix: "Freesound CC0",
+			localizedDescriptionPrefix: "Freesound CC0",
+			metadataSource: "freesound",
+			tags: ["sound-effects-lab", "cc0"],
+			username: reference.source.creator,
+			soundLicense: reference.source.licenseUrl,
+		};
+	}
+	return {
+		assetLicense: {
+			name: "Third-party reference - internal use only",
+			commercialUse: "restricted" as const,
+			attributionRequired: false,
+		},
+		descriptionPrefix: "Jianying internal reference",
+		localizedDescriptionPrefix: "剪映内部参照",
+		metadataSource: "jianying-reference",
+		tags: ["sound-effects-lab", "internal-reference"],
+		username: "Jianying reference",
+		soundLicense: "Third-party reference - redistribution prohibited",
+	};
+}
+
 export function buildSoundEffectsLabAssetEntry({
 	licenseServerUrl = LICENSE_SERVER_URL,
 	reference,
@@ -97,6 +134,7 @@ export function buildSoundEffectsLabAssetEntry({
 	licenseServerUrl?: string;
 	reference: PrivateSoundEffectReference;
 }): AssetManifestEntry {
+	const rights = soundEffectRights({ reference });
 	return {
 		schemaVersion: ASSET_MANIFEST_SCHEMA_VERSION,
 		id: `sound-effects-lab:${reference.asset.objectKey}`,
@@ -105,7 +143,7 @@ export function buildSoundEffectsLabAssetEntry({
 		name: reference.title,
 		localizedNames: { "zh-CN": reference.title },
 		category: "sound-effects-lab",
-		tags: ["sound-effects-lab", "internal-reference"],
+		tags: rights.tags,
 		delivery: "remote",
 		files: [
 			{
@@ -119,16 +157,12 @@ export function buildSoundEffectsLabAssetEntry({
 				checksumSha256: reference.asset.checksumSha256,
 			},
 		],
-		license: {
-			name: "Third-party reference - internal use only",
-			commercialUse: "restricted",
-			attributionRequired: false,
-		},
+		license: rights.assetLicense,
 		metadata: {
 			objectKey: reference.asset.objectKey,
 			duration: reference.duration,
 			resourceId: reference.resourceId,
-			source: "jianying-reference",
+			source: rights.metadataSource,
 		},
 	};
 }
@@ -232,12 +266,13 @@ export function soundEffectReferenceToSound({
 	const categoryLabels = reference.categoryIds
 		.map((categoryId) => labelsById.get(categoryId))
 		.filter((label): label is string => Boolean(label));
+	const rights = soundEffectRights({ reference });
 	return {
 		id: reference.numericId,
 		name: reference.title,
 		localizedName: reference.title,
-		description: `Jianying internal reference · ${categoryLabels.join(" / ")}`,
-		localizedDescription: `剪映内部参照 · ${categoryLabels.join(" / ")}`,
+		description: `${rights.descriptionPrefix} · ${categoryLabels.join(" / ")}`,
+		localizedDescription: `${rights.localizedDescriptionPrefix} · ${categoryLabels.join(" / ")}`,
 		url: previewUrl,
 		previewUrl,
 		duration: reference.duration,
@@ -247,9 +282,9 @@ export function soundEffectReferenceToSound({
 		bitrate: 0,
 		bitdepth: 0,
 		samplerate: 0,
-		username: "Jianying reference",
-		tags: ["sound-effect", "internal-reference", ...categoryLabels],
-		license: "Third-party reference - redistribution prohibited",
+		username: rights.username,
+		tags: ["sound-effect", ...rights.tags, ...categoryLabels],
+		license: rights.soundLicense,
 		created: "2026-08-01T00:00:00.000Z",
 		downloads: 0,
 		rating: 0,
