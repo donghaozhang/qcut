@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, relative } from "node:path";
+import { join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
 	inspectJianyingNativePortraitRenderer,
@@ -114,7 +114,11 @@ async function fixture({
 			return inspectJianyingNativePortraitRenderer({
 				container: "artistEffect",
 				packageIdentifier: "portrait",
-				paths: paths.map((filePath) => relative(directory, filePath)),
+				// The inspector's contract is POSIX relative paths, matching the
+				// normalization in jianying-filter-package-inspector.ts.
+				paths: paths.map((filePath) =>
+					relative(directory, filePath).split(sep).join("/")
+				),
 				root: directory,
 				version: "v1",
 			});
