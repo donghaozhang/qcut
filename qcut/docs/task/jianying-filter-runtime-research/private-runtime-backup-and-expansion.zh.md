@@ -9,8 +9,8 @@
 1. QCut 能把本机已有的滤镜 Framework、模型、效果包和目录数据库复制到仓库外的版本化私有快照。
 2. 快照创建后，滤镜实验室优先使用该快照；严格测试会同时禁用剪映 App Bundle 和剪映用户缓存。
 3. 在严格离线模式下，真实 Electron 产品完成真人视频导入、本机二进制渲染、skin mask 返回和双 LUT 应用。
-4. 首批通过通用结构识别新增 5 张双 LUT 人像滤镜，随后七轮分类扩充分别新增 19、20、65、139、150、144、85 张。
-5. 当前目录可用数由最初的 `85` 增至 `712`；七轮分类扩充累计新增 622 张，连同首批共新增 627 张。
+4. 首批通过通用结构识别新增 5 张双 LUT 人像滤镜，随后七轮分类扩充分别新增 19、20、65、139、150、144、85 张，并补齐 9 张此前已缓存但被结构检查误拒绝的双 LUT 卡。
+5. 当前目录可用数由最初的 `85` 增至 `721`；七轮分类扩充累计新增 622 张，连同首批和本轮补齐共新增 636 张。
 
 这里的“脱离剪映运行”指执行阶段不启动剪映，也不读取剪映安装目录或用户缓存。首次创建或刷新快照仍要求用户本机已有且有权使用对应资源。本机互操作性验证不构成重新分发第三方二进制、模型或效果包的许可。
 
@@ -113,7 +113,7 @@ QCUT_JIANYING_FILTER_CACHE_ROOT=<QCut private snapshot>/Cache
 | 可用 | 85 | 90 |
 | 已缓存但不可用 | 17 | 12 |
 
-剩余 12 张没有被强行开放：鲜美、黑金红、美食增色、热气腾腾、夜景增色II、蓝金、花间、银蓝、超白、佳能G12、徕卡II、聚焦。它们需要逐包确认 Shader graph、额外纹理、人脸算法或多 Pass 语义，不能仅凭文件名猜测。
+当时剩余 12 张没有被强行开放：鲜美、黑金红、美食增色、热气腾腾、夜景增色II、蓝金、花间、银蓝、超白、佳能G12、徕卡II、聚焦。它们需要逐包确认 Shader graph、额外纹理、人脸算法或多 Pass 语义，不能仅凭文件名猜测。下文记录其中 9 张在完成逐包结构检查后的补齐结果。
 
 ## 第二批：15 类全覆盖扩充
 
@@ -383,6 +383,38 @@ QCUT_JIANYING_FILTER_CACHE_ROOT=<QCut private snapshot>/Cache
 ~/Library/Application Support/QCut/Research/JianyingFilter/category-expansion-batch-7-2026-08-22/selection.json
 ```
 
+## 已缓存双 LUT 结构补齐：9 张
+
+第八批完成后，目录仍有 9 张效果包已经完整缓存、两张 512 x 512 LUT 也都能解析，但被旧结构检查误拒绝。本轮逐包检查发现两个原因：
+
+1. 鲜美、黑金红、美食增色、夜景增色II、蓝金使用 `AmazingFeature` 结构，但同一包内存在多个 `algorithmConfig.json`。旧逻辑只读取按路径排序后的第一份基础 `blit` 配置，漏掉根目录真实的 `skin_seg` 图。
+2. 花间、银蓝、超白、佳能G12 使用 `SkinFilter` 结构，材质与 Shader 分别命名为 `SkinSeg.material` 和 `skinseg.xshader`，不符合旧逻辑只接受 `Filter.material` 与 `Filter.xshader` 的文件名限制。
+
+检查器现在按结构而不是卡片 ID 判断：背景与肤色 LUT 必须位于同一效果目录；该目录必须同时具有 material、xshader 和 `SeekModeScript.lua`；包内任意算法图必须明确声明 `skin_seg`。没有增加 9 张卡片的硬编码白名单。
+
+| 滤镜 | 资源 ID | 结构家族 |
+| --- | --- | --- |
+| 鲜美 | `7330581892510649636` | `AmazingFeature`，多算法配置 |
+| 黑金红 | `7341266486536768831` | `AmazingFeature`，多算法配置 |
+| 美食增色 | `7403664465390013735` | `AmazingFeature`，多算法配置 |
+| 夜景增色II | `7411477748130139403` | `AmazingFeature`，多算法配置 |
+| 蓝金 | `7341300292148907327` | `AmazingFeature`，多算法配置 |
+| 花间 | `7211008985187487036` | `SkinFilter` |
+| 银蓝 | `7145394266209127694` | `SkinFilter` |
+| 超白 | `7302338645938261287` | `SkinFilter` |
+| 佳能G12 | `7485292050917657906` | `SkinFilter` |
+
+重扫结果：
+
+| 项目 | 补齐前 | 补齐后 |
+| --- | ---: | ---: |
+| 总目录 | 887 | 887 |
+| 已缓存 | 725 | 725 |
+| 可用 | 712 | 721 |
+| 双 LUT 可用 | 52/61 | 61/61 |
+
+这 9 张已经达到“QCut 可识别、可加载、可调用本机人像 provider 真实渲染”的门槛，但尚未逐张完成剪映 UI 同素材无损帧对照，因此不能标为逐像素 `verified`。
+
 ## 真实 E2E
 
 测试：`apps/web/src/test/e2e/jianying-filter-private-runtime.e2e.ts`
@@ -392,14 +424,14 @@ QCUT_JIANYING_FILTER_CACHE_ROOT=<QCut private snapshot>/Cache
 1. 严格离线环境启动 Electron QCut。
 2. 创建项目并导入真人 10 秒视频。
 3. 进入“滤镜 -> 滤镜实验室”。
-4. 刷新目录并确认 `可用 712/887 · 缓存 725`。
-5. 逐张加载 5 张新增卡的背景、肤色 64 级 LUT。
+4. 刷新目录并确认 `可用 721/887 · 缓存 725`。
+5. 逐张加载首批 5 张和本轮补齐 9 张卡的背景、肤色 64 级 LUT。
 6. 逐张调用私有本机 provider 渲染同一真人帧。
 7. 检查每张都返回 `128 x 224` skin mask、非零 mask 和输出像素变化。
-8. 在界面应用“高清暖调”并检查调节层包含两张 64 级 LUT 和 `skin-segmentation-v1` 绑定。
+8. 在界面应用本轮补齐的“鲜美”，并检查调节层包含两张 64 级 LUT 和 `skin-segmentation-v1` 绑定。
 9. 等待真实预览画布出现非黑像素后截图。
 
-最终与分类扩充用例串行运行：`2 passed (58.7s)`；双 LUT 截图调整后的分类用例再次单跑为 `1 passed (18.3s)`。
+本轮私有运行时用例单跑为 `1 passed (43.2s)`；分类扩充用例单跑为 `1 passed (19.8s)`；最终两套用例以单 worker 串行复跑为 `2 passed (58.5s)`。
 
 关键数据：
 
@@ -408,8 +440,8 @@ QCUT_JIANYING_FILTER_CACHE_ROOT=<QCut private snapshot>/Cache
 | Provider | `jianying-local-effect-v1` |
 | 输入帧 | 320 x 569 |
 | Skin mask | 128 x 224 |
-| 5 张 Mask 最大值 | 均为 253 |
-| 5 张相对输入发生变化的 RGB 通道 | 530,964 至 541,294 |
+| 14 张 Mask 最大值 | 均为 253 |
+| 14 张相对输入发生变化的 RGB 通道 | 527,013 至 541,294 |
 | 背景 LUT | 64 级，786,432 values |
 | 肤色 LUT | 64 级，786,432 values |
 
@@ -418,7 +450,7 @@ QCUT_JIANYING_FILTER_CACHE_ROOT=<QCut private snapshot>/Cache
 ```text
 ~/Library/Application Support/QCut/Research/JianyingFilter/private-runtime-offline/2026-08-22/ui/report.json
 ~/Library/Application Support/QCut/Research/JianyingFilter/private-runtime-offline/2026-08-22/ui/01-private-runtime-filter-lab.png
-~/Library/Application Support/QCut/Research/JianyingFilter/private-runtime-offline/2026-08-22/ui/02-high-definition-warm-preview.png
+~/Library/Application Support/QCut/Research/JianyingFilter/private-runtime-offline/2026-08-22/ui/02-new-dual-lut-preview.png
 ```
 
 另外，“高清暖调”已在同一严格离线环境完成 1280 x 720 原生帧和非空 mask 渲染：
@@ -433,17 +465,17 @@ QCUT_JIANYING_FILTER_CACHE_ROOT=<QCut private snapshot>/Cache
 
 测试：`apps/web/src/test/e2e/jianying-filter-category-expansion.e2e.ts`
 
-门禁比普通启动更严格：测试显式禁用剪映 App Bundle 与剪映用户缓存，并把 QCut 自管包根指向空目录，因此运行时、目录数据库和七轮累计 622 张分类扩充卡只能来自私有快照。真实 Electron 流程完成：
+门禁比普通启动更严格：测试显式禁用剪映 App Bundle 与剪映用户缓存，并把 QCut 自管包根指向空目录，因此运行时、目录数据库、七轮累计 622 张分类扩充卡和本轮补齐的 9 张双 LUT 卡只能来自私有快照。真实 Electron 流程完成：
 
 1. 导入真人 10 秒视频并打开“滤镜实验室”。
 2. 检查状态行为“QCut 离线运行已就绪”。
 3. 精确检查 15 个分类的可用数和总数。
-4. 先检查此前六轮 537 张扩充卡仍为可用，防止目录或包根回退。
+4. 先检查此前六轮 537 张扩充卡仍为可用，并确认目录总可用数为 721，防止目录或包根回退。
 5. 通过 Electron IPC 以每组最多 6 张的方式加载本轮 85 张，避免大 LUT 同时占用过多页面内存。
 6. 普通 LUT、Shader 包中可抽取 LUT 和双 LUT 都检查实际 cube 数据。
 7. 截取全部分类、夏日、人像、风景和室内五个真实产品画面，并搜索到本轮新增卡。
 
-结果：旧卡 `537/537` 保持可用，新卡 `85/85` 加载成功，其中 51 张单 LUT、34 张双 LUT。报告中的运行时状态为：
+结果：旧卡 `537/537` 保持可用，新卡 `85/85` 加载成功，其中 51 张单 LUT、34 张双 LUT；9 张已缓存双 LUT 补齐后，目录总可用数为 `721/887`。分类可用数增加于夏日、美食、人像、夜景、户外、相机模拟和风格化。报告中的运行时状态为：
 
 ```json
 {
@@ -471,10 +503,10 @@ QCUT_JIANYING_FILTER_CACHE_ROOT=<QCut private snapshot>/Cache
 - 运行时优先级、ABI、模型和离线状态测试。
 - IPC 主窗口信任边界、并发备份合并和路径不泄漏测试。
 - 原生人像包结构与 tiled LUT 识别测试。
-- 目录双 LUT 构建及错误包拒绝测试。
+- 目录双 LUT 构建、多个算法图、`SkinFilter` 命名家族及错误包拒绝测试。
 - 包根选择、双根检查、下载安全、LUT、平铺 LUT、多 Pass、人像运行时和网页交互均有回归测试。
-- 七轮累计 622 张分类扩充卡已通过目录回归；最新 85 张通过 Electron IPC 真实加载，此前六轮 537 张在同一严格离线进程中保持可用。
-- 滤镜相关 `44` 个测试文件、`478/478` 项测试通过。
+- 七轮累计 622 张分类扩充卡已通过目录回归；最新 85 张通过 Electron IPC 真实加载，此前六轮 537 张在同一严格离线进程中保持可用；14 张双 LUT 卡完成私有 provider 真实渲染，其中包括本轮补齐的 9 张。
+- 滤镜相关 `44` 个测试文件、`480/480` 项测试通过。
 - 两套 Electron E2E 后再次验证私有清单；SQLite 临时 sidecar 已清理，26,273 个不可变文件的大小和 SHA-256 全部匹配。
 - Web 生产构建通过；Electron 构建在本轮滤镜改动后通过。
 - 完整工作区类型检查最终通过。
