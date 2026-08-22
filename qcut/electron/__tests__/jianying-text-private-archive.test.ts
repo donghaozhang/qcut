@@ -1,8 +1,15 @@
 // @vitest-environment node
-import { mkdir, mkdtemp, readFile, unlink, writeFile } from "node:fs/promises";
+import {
+	mkdir,
+	mkdtemp,
+	readFile,
+	rm,
+	unlink,
+	writeFile,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
 	ensureQCutJianyingTextPrivateArchive,
 	findQCutJianyingTextPrivateArchive,
@@ -83,6 +90,10 @@ describe("QCut Jianying text private archive", () => {
 				value: "must-not-copy",
 			}),
 		]);
+	});
+
+	afterEach(async () => {
+		await rm(workspace, { recursive: true, force: true });
 	});
 
 	it("copies packages, dependencies, and metadata before publishing a manifest", async () => {
