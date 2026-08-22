@@ -104,7 +104,8 @@ async function isNonemptyFileWithinPackage({
 	packagePath: string;
 	relativePath: string;
 }) {
-	const resolvedRoot = await realpath(packagePath);
+	const resolvedRoot = await realpath(packagePath).catch(() => null);
+	if (!resolvedRoot) return false;
 	const candidate = await realpath(
 		path.resolve(resolvedRoot, relativePath)
 	).catch(() => null);
