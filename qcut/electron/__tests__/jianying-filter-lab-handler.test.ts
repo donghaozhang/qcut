@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+	JIANYING_FILTER_LAB_BACKUP_LOCAL_RUNTIME_CHANNEL,
 	JIANYING_FILTER_LAB_CHANGED_CHANNEL,
 	JIANYING_FILTER_LAB_DOWNLOAD_CHANNEL,
 	JIANYING_FILTER_LAB_LIST_CHANNEL,
@@ -803,6 +804,76 @@ describe("Jianying filter lab IPC", () => {
 			timestampSeconds: 1.25,
 			rgba,
 		});
+	});
+
+	it("backs up the private runtime without exposing local paths", async () => {
+		const context = createWindowContext();
+		const status = {
+			state: "ready" as const,
+			message: "QCut private runtime ready",
+			provider: "jianying-local-effect-v1" as const,
+			platform: "darwin",
+			bridgeReady: true,
+			runtimeReady: true,
+			modelReady: true,
+			runtimeSource: "qcut-private" as const,
+			modelSource: "qcut-private" as const,
+			snapshotReady: true,
+			offlineReady: true,
+		};
+		const inspect = vi.fn(async () => status);
+		const clear = vi.fn();
+		const backupRuntime = vi.fn(async () => ({
+			created: true,
+			coreUuid: "D6342ECD-5432-33F0-A2AD-0C28F5699994",
+			fileCount: 12,
+			runtimeLibraryCount: 2,
+			modelCount: 3,
+			packageCount: 4,
+			databaseFileCount: 3,
+			totalBytes: 1024,
+			createdAt: "2026-08-22T00:00:00.000Z",
+		}));
+		setupJianyingFilterLabIPC({
+			getMainWindow: () => context.mainWindow,
+			readVerifications: async () => new Map(),
+			listReferences: async () => [],
+			resolveTitles: async () => new Map(),
+			resolveCategories: async () => ({ order: [], byResourceId: new Map() }),
+			resolveKnownFilters: async () => ({
+				order: ["人像"],
+				filters: [
+					{
+						resourceId: "portrait-filter",
+						title: "奥林巴斯",
+						categories: ["人像"],
+					},
+				],
+			}),
+			inspectPackages: async () => new Map(),
+			backupRuntime,
+			localProvider: {
+				inspect,
+				render: vi.fn(),
+				renderEffect: vi.fn(),
+				clear,
+			},
+		});
+
+		const result = await getHandler({
+			channel: JIANYING_FILTER_LAB_BACKUP_LOCAL_RUNTIME_CHANNEL,
+		})(context.event);
+		expect(backupRuntime).toHaveBeenCalledWith({
+			filters: [expect.objectContaining({ resourceId: "portrait-filter" })],
+		});
+		expect(clear).toHaveBeenCalledOnce();
+		expect(inspect).toHaveBeenCalledWith({ refresh: true });
+		expect(result).toMatchObject({
+			created: true,
+			packageCount: 4,
+			status: { offlineReady: true },
+		});
+		expect(JSON.stringify(result)).not.toContain("/Users/");
 	});
 
 	it("loads a recognized multi-pass shader without exposing cache paths", async () => {
