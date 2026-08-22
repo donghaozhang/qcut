@@ -19,6 +19,10 @@ import {
 	recoverJianyingTextResources,
 	validateJianyingRecoveryArchiveEntry,
 } from "../jianying-text-runtime/resource-recovery.js";
+import {
+	installJianyingTextCatalogCandidate,
+	JIANYING_PRIVATE_CATALOG_ARCHIVE_FILE_NAME,
+} from "../jianying-text-runtime/resource-recovery-installer.js";
 
 const temporaryDirectories: string[] = [];
 
@@ -212,6 +216,123 @@ describe("Jianying text resource recovery", () => {
 		});
 		expect(cached.state).toBe("already-ready");
 		expect(fetchResource).toHaveBeenCalledOnce();
+	});
+
+	it.each([
+		"TextStyle",
+		"InfoSticker",
+		"ScriptInfoSticker",
+		"AmazingFeature",
+		"UnknownWordArtPackage",
+	])("accepts %s packages in the private word-art mirror", async (type) => {
+		const archive = Buffer.from(`synthetic-${type}-package`);
+		const fixture = await createRecoveryFixture({ archive });
+		const result = await installJianyingTextCatalogCandidate({
+			candidate: {
+				resourceId: fixture.resourceId,
+				packageHash: fixture.packageHash,
+				downloadUrls: [fixture.downloadUrl],
+				timestamp: "2026-08-22 00:00:00",
+			},
+			fetchResource: async () => new Response(archive),
+			extractArchive: async ({ destination }) => {
+				await mkdir(destination, { recursive: true });
+				await writeFile(
+					path.join(destination, "config.json"),
+					JSON.stringify({ effect: { Link: [{ type }] } }),
+					"utf8"
+				);
+			},
+			recoveryRoot: fixture.recoveryRoot,
+			role: "word-art",
+		});
+
+		expect(result.state).toBe("recovered");
+		expect(result.packagePath).toContain(`${path.sep}artistEffect${path.sep}`);
+	});
+
+	it("accepts a legacy word-art package containing only effectStyle.json", async () => {
+		const archive = Buffer.from("synthetic-configless-text-style-package");
+		const fixture = await createRecoveryFixture({ archive });
+		const result = await installJianyingTextCatalogCandidate({
+			candidate: {
+				resourceId: fixture.resourceId,
+				packageHash: fixture.packageHash,
+				downloadUrls: [fixture.downloadUrl],
+				timestamp: "2026-08-22 00:00:00",
+			},
+			fetchResource: async () => new Response(archive),
+			extractArchive: async ({ destination }) => {
+				await mkdir(destination, { recursive: true });
+				await writeFile(
+					path.join(destination, "effectStyle.json"),
+					JSON.stringify({ version: "3.0", fill: {} }),
+					"utf8"
+				);
+			},
+			recoveryRoot: fixture.recoveryRoot,
+			role: "word-art",
+		});
+
+		expect(result).toMatchObject({ state: "recovered" });
+		expect(result.packagePath).toContain(`${path.sep}artistEffect${path.sep}`);
+	});
+
+	it("keeps an unsupported animation catalog package for offline inspection", async () => {
+		const archive = Buffer.from("synthetic-unsupported-animation-package");
+		const fixture = await createRecoveryFixture({ archive });
+		const result = await installJianyingTextCatalogCandidate({
+			candidate: {
+				resourceId: fixture.resourceId,
+				packageHash: fixture.packageHash,
+				downloadUrls: [fixture.downloadUrl],
+				timestamp: "2026-08-22 00:00:00",
+			},
+			fetchResource: async () => new Response(archive),
+			extractArchive: async ({ destination }) => {
+				await mkdir(destination, { recursive: true });
+				await writeFile(
+					path.join(destination, "config.json"),
+					JSON.stringify({ effect: { Link: [{ type: "UnknownAnimation" }] } }),
+					"utf8"
+				);
+			},
+			recoveryRoot: fixture.recoveryRoot,
+			role: "animation-catalog",
+		});
+
+		expect(result.state).toBe("recovered");
+		expect(result.packagePath).toContain(`${path.sep}effect${path.sep}`);
+	});
+
+	it("preserves a verified raw catalog archive when no package root is usable", async () => {
+		const archive = Buffer.from("synthetic-raw-animation-package");
+		const fixture = await createRecoveryFixture({ archive });
+		const result = await installJianyingTextCatalogCandidate({
+			candidate: {
+				resourceId: fixture.resourceId,
+				packageHash: fixture.packageHash,
+				downloadUrls: [fixture.downloadUrl],
+				timestamp: "2026-08-22 00:00:00",
+			},
+			fetchResource: async () => new Response(archive),
+			extractArchive: async () => {
+				throw new Error("unsupported catalog archive layout");
+			},
+			recoveryRoot: fixture.recoveryRoot,
+			role: "animation-catalog",
+		});
+
+		expect(result.state).toBe("recovered");
+		if (!result.packagePath) throw new Error("Raw mirror path is missing");
+		expect(
+			await readFile(
+				path.join(
+					result.packagePath,
+					JIANYING_PRIVATE_CATALOG_ARCHIVE_FILE_NAME
+				)
+			)
+		).toEqual(archive);
 	});
 
 	it("does not extract an archive whose bytes fail the catalog MD5", async () => {
