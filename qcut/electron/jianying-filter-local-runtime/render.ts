@@ -2,6 +2,8 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type {
+	JianyingFilterLabFaceEvidence,
+	JianyingFilterLabFaceObservation,
 	JianyingFilterLabRenderLocalEffectResult,
 	JianyingFilterLabRenderLocalPortraitResult,
 } from "../jianying-filter-lab-contract.js";
@@ -18,6 +20,7 @@ export type JianyingFilterLocalRenderMode = "portrait" | "multi-pass";
 export interface JianyingFilterLocalRenderResult
 	extends JianyingFilterLabRenderLocalEffectResult {
 	mask?: JianyingFilterLabRenderLocalPortraitResult["mask"];
+	face?: JianyingFilterLabFaceEvidence;
 }
 
 export interface RenderJianyingLocalPortraitOptions {
@@ -28,6 +31,7 @@ export interface RenderJianyingLocalPortraitOptions {
 	rgba: Uint8Array;
 	timestampSeconds?: number;
 	runtime: JianyingFilterLocalRuntimeInspection;
+	captureFace?: boolean;
 }
 
 export interface CreateJianyingFilterLocalRenderSessionOptions {
@@ -39,6 +43,7 @@ export interface CreateJianyingFilterLocalRenderSessionOptions {
 	runtime: JianyingFilterLocalRuntimeInspection;
 	mode?: JianyingFilterLocalRenderMode;
 	intensity?: number;
+	captureFace?: boolean;
 }
 
 export interface JianyingFilterLocalRenderSession {
@@ -86,6 +91,159 @@ async function removeFrameFiles({ paths }: { paths: string[] }) {
 	await Promise.all(paths.map((filePath) => rm(filePath, { force: true })));
 }
 
+function recordValue({
+	value,
+}: {
+	value: unknown;
+}): Record<string, unknown> | null {
+	return Boolean(value) && typeof value === "object" && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: null;
+}
+
+function requireFiniteNumber({
+	value,
+	label,
+}: {
+	value: unknown;
+	label: string;
+}) {
+	if (typeof value !== "number" || !Number.isFinite(value)) {
+		throw new Error(`剪映本机人脸结果中的 ${label} 无效`);
+	}
+	return value;
+}
+
+function requireInteger({ value, label }: { value: unknown; label: string }) {
+	const number = requireFiniteNumber({ value, label });
+	if (!Number.isInteger(number)) {
+		throw new Error(`剪映本机人脸结果中的 ${label} 不是整数`);
+	}
+	return number;
+}
+
+function requireNumberArray({
+	value,
+	length,
+	label,
+}: {
+	value: unknown;
+	length: number;
+	label: string;
+}) {
+	if (!Array.isArray(value) || value.length !== length) {
+		throw new Error(`剪映本机人脸结果中的 ${label} 尺寸无效`);
+	}
+	return value.map((item, index) =>
+		requireFiniteNumber({ value: item, label: `${label}[${index}]` })
+	);
+}
+
+function decodeFaceObservation({
+	value,
+	index,
+}: {
+	value: unknown;
+	index: number;
+}): JianyingFilterLabFaceObservation {
+	const record = recordValue({ value });
+	if (!record) {
+		throw new Error(`剪映本机人脸结果中的 faces[${index}] 无效`);
+	}
+	const rawRectValues = requireNumberArray({
+		value: record.rawRect,
+		length: 4,
+		label: `faces[${index}].rawRect`,
+	});
+	const landmarksValue = record.landmarks;
+	if (!Array.isArray(landmarksValue) || landmarksValue.length > 512) {
+		throw new Error(`剪映本机人脸结果中的 faces[${index}].landmarks 无效`);
+	}
+	const landmarks = landmarksValue.map((landmark, landmarkIndex) => {
+		const values = requireNumberArray({
+			value: landmark,
+			length: 3,
+			label: `faces[${index}].landmarks[${landmarkIndex}]`,
+		});
+		return [values[0], values[1], values[2]] as [number, number, number];
+	});
+	return {
+		rawRect: [
+			rawRectValues[0],
+			rawRectValues[1],
+			rawRectValues[2],
+			rawRectValues[3],
+		],
+		score: requireFiniteNumber({
+			value: record.score,
+			label: `faces[${index}].score`,
+		}),
+		yaw: requireFiniteNumber({
+			value: record.yaw,
+			label: `faces[${index}].yaw`,
+		}),
+		pitch: requireFiniteNumber({
+			value: record.pitch,
+			label: `faces[${index}].pitch`,
+		}),
+		roll: requireFiniteNumber({
+			value: record.roll,
+			label: `faces[${index}].roll`,
+		}),
+		eyeDistance: requireFiniteNumber({
+			value: record.eyeDistance,
+			label: `faces[${index}].eyeDistance`,
+		}),
+		id: requireInteger({ value: record.id, label: `faces[${index}].id` }),
+		action: requireInteger({
+			value: record.action,
+			label: `faces[${index}].action`,
+		}),
+		trackingCount: requireInteger({
+			value: record.trackingCount,
+			label: `faces[${index}].trackingCount`,
+		}),
+		landmarks,
+	};
+}
+
+function decodeFaceEvidence({
+	text,
+}: {
+	text: string;
+}): JianyingFilterLabFaceEvidence {
+	let value: unknown;
+	try {
+		value = JSON.parse(text) as unknown;
+	} catch {
+		throw new Error("剪映本机人脸结果不是有效 JSON");
+	}
+	const record = recordValue({ value });
+	if (
+		!record ||
+		record.schemaVersion !== 1 ||
+		record.coordinateSpace !== "source-normalized-top-left" ||
+		!Array.isArray(record.faces)
+	) {
+		throw new Error("剪映本机人脸结果结构无效");
+	}
+	const faceCount = requireInteger({
+		value: record.faceCount,
+		label: "faceCount",
+	});
+	if (faceCount < 0 || faceCount > 10 || faceCount !== record.faces.length) {
+		throw new Error("剪映本机人脸结果中的 faceCount 无效");
+	}
+	return {
+		schemaVersion: 1,
+		coordinateSpace: "source-normalized-top-left",
+		faceCount,
+		faces: record.faces.map((face, index) =>
+			decodeFaceObservation({ value: face, index })
+		),
+	};
+}
+
 async function decodeRenderResult({
 	resourceId,
 	width,
@@ -93,6 +251,8 @@ async function decodeRenderResult({
 	outputPath,
 	maskPath,
 	captureMask,
+	facePath,
+	captureFace,
 }: {
 	resourceId: string;
 	width: number;
@@ -100,16 +260,20 @@ async function decodeRenderResult({
 	outputPath: string;
 	maskPath: string;
 	captureMask: boolean;
+	facePath: string;
+	captureFace: boolean;
 }): Promise<JianyingFilterLocalRenderResult> {
-	const [renderedFile, maskFile] = await Promise.all([
+	const [renderedFile, maskFile, faceFile] = await Promise.all([
 		readFile(outputPath),
 		captureMask ? readFile(maskPath) : Promise.resolve(null),
+		captureFace ? readFile(facePath, "utf8") : Promise.resolve(null),
 	]);
 	const rendered = decodePpm({ bytes: renderedFile });
 	if (rendered.width !== width || rendered.height !== height) {
 		throw new Error("剪映本机滤镜返回了错误的画面尺寸");
 	}
 	const mask = maskFile ? decodePgm({ bytes: maskFile }) : null;
+	const face = faceFile ? decodeFaceEvidence({ text: faceFile }) : null;
 	return {
 		provider: "jianying-local-effect-v1",
 		resourceId,
@@ -126,6 +290,7 @@ async function decodeRenderResult({
 					},
 				}
 			: {}),
+		...(face ? { face } : {}),
 	};
 }
 
@@ -165,6 +330,7 @@ export async function createJianyingFilterLocalRenderSession({
 	runtime,
 	mode = "portrait",
 	intensity = 100,
+	captureFace = false,
 }: CreateJianyingFilterLocalRenderSessionOptions): Promise<JianyingFilterLocalRenderSession> {
 	const runtimePaths = requireReadyRuntime({ runtime });
 	const temporaryDirectory = await mkdtemp(
@@ -177,6 +343,7 @@ export async function createJianyingFilterLocalRenderSession({
 	);
 	let host: JianyingFilterHostProcess | null = null;
 	let outputBlendIntensity: number | undefined;
+	const shouldCaptureFace = mode === "portrait" && captureFace;
 	try {
 		let activePackagePath = packagePath;
 		if (mode === "multi-pass") {
@@ -201,6 +368,7 @@ export async function createJianyingFilterLocalRenderSession({
 			bootstrapOutputPath,
 			skipAlgorithm: mode === "multi-pass",
 			captureMask: mode === "portrait",
+			captureFace: shouldCaptureFace,
 		});
 	} catch (cause) {
 		await rm(temporaryDirectory, { recursive: true, force: true });
@@ -225,11 +393,16 @@ export async function createJianyingFilterLocalRenderSession({
 				temporaryDirectory,
 				`frame-${requestId}-mask.pgm`
 			);
+			const facePath = path.join(
+				temporaryDirectory,
+				`frame-${requestId}-face.json`
+			);
 			const captureMask = mode === "portrait";
 			const framePaths = [
 				inputPath,
 				outputPath,
 				...(captureMask ? [maskPath] : []),
+				...(shouldCaptureFace ? [facePath] : []),
 			];
 			try {
 				await writeFile(inputPath, encodePpm({ rgba, width, height }), {
@@ -241,6 +414,7 @@ export async function createJianyingFilterLocalRenderSession({
 					inputPath,
 					outputPath,
 					...(captureMask ? { maskPath } : {}),
+					...(shouldCaptureFace ? { facePath } : {}),
 				});
 				const result = await decodeRenderResult({
 					resourceId,
@@ -249,6 +423,8 @@ export async function createJianyingFilterLocalRenderSession({
 					outputPath,
 					maskPath,
 					captureMask,
+					facePath,
+					captureFace: shouldCaptureFace,
 				});
 				return outputBlendIntensity === undefined
 					? result
@@ -275,6 +451,7 @@ export async function createJianyingFilterLocalRenderSession({
 
 export const jianyingFilterLocalRenderTestUtils = {
 	blendNativeEffectOutput,
+	decodeFaceEvidence,
 };
 
 export async function renderJianyingLocalPortrait({
@@ -285,6 +462,7 @@ export async function renderJianyingLocalPortrait({
 	rgba,
 	timestampSeconds,
 	runtime,
+	captureFace = false,
 }: RenderJianyingLocalPortraitOptions): Promise<JianyingFilterLabRenderLocalPortraitResult> {
 	const session = await createJianyingFilterLocalRenderSession({
 		resourceId,
@@ -293,6 +471,7 @@ export async function renderJianyingLocalPortrait({
 		height,
 		bootstrapRgba: rgba,
 		runtime,
+		captureFace,
 	});
 	try {
 		const result = await session.render({ rgba, timestampSeconds });
