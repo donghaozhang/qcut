@@ -24,6 +24,9 @@ const MAX_PACKAGE_BYTES = 200 * 1024 * 1024;
 const DOWNLOAD_TIMEOUT_MS = 120_000;
 /** Package listings are small, but never let the entry check truncate. */
 const ZIP_LISTING_MAX_BUFFER = 32 * 1024 * 1024;
+/** Live catalog rows are unvalidated; these bound the path we build below. */
+const EFFECT_ID_PATTERN = /^\d{1,32}$/;
+const PACKAGE_HASH_PATTERN = /^[a-f0-9]{32}$/i;
 
 /** One download per effect at a time; repeat clicks join the same promise. */
 const inFlight = new Map<string, Promise<JianyingEffectDownloadResult>>();
@@ -77,6 +80,12 @@ async function installPackage({
 	const managedRoot = qcutManagedEffectPackageRoot();
 	if (!managedRoot) {
 		throw new Error("特效包下载仅在 QCut 桌面版中可用。");
+	}
+	if (!EFFECT_ID_PATTERN.test(item.effectId)) {
+		throw new Error(`特效编号无效：${item.effectId}`);
+	}
+	if (!PACKAGE_HASH_PATTERN.test(item.md5)) {
+		throw new Error(`特效包校验值无效：${item.md5}`);
 	}
 	if (
 		isVerifiedAlgorithmPackage({
