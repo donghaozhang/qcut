@@ -19,6 +19,13 @@ import {
 	readAdjustParameters,
 	SUPPORTED_REQUIREMENTS,
 } from "./catalog-parsing.js";
+import {
+	mergeQCutEffectCatalog,
+	qcutEffectCatalogContentMatches,
+	readQCutEffectCatalogSnapshot,
+	selectQCutEffectCategories,
+	writeQCutEffectCatalogSnapshot,
+} from "./catalog-cache.js";
 
 /**
  * Effect packages download lazily — a machine typically knows hundreds of
@@ -29,12 +36,23 @@ import {
  */
 
 const nodeRequire = createRequire(__filename);
+const CATALOG_MEMORY_TTL_MS = 60_000;
+
+interface EffectCatalogState {
+	items: CatalogItem[];
+	categories: JianyingEffectCategory[];
+}
+
+let catalogStatePromise: Promise<EffectCatalogState> | null = null;
+let catalogStateExpiresAt = 0;
 
 /**
  * Where QCut unpacks packages it downloads on demand. Null outside Electron
  * (the batch reference script runs this module under plain node).
  */
 export function qcutManagedEffectPackageRoot(): string | null {
+	const override = process.env.QCUT_JIANYING_EFFECT_MANAGED_PACKAGE_ROOT;
+	if (override) return override;
 	try {
 		const electron = nodeRequire("electron") as
 			| string
@@ -43,6 +61,24 @@ export function qcutManagedEffectPackageRoot(): string | null {
 		return path.join(
 			electron.app.getPath("userData"),
 			"JianyingEffectPackages"
+		);
+	} catch {
+		return null;
+	}
+}
+
+function qcutManagedEffectCatalogPath(): string | null {
+	const override = process.env.QCUT_JIANYING_EFFECT_CATALOG_CACHE_PATH;
+	if (override) return override;
+	try {
+		const electron = nodeRequire("electron") as
+			| string
+			| { app?: { getPath: (name: string) => string } };
+		if (typeof electron === "string" || !electron.app) return null;
+		return path.join(
+			electron.app.getPath("userData"),
+			"JianyingEffectCatalog",
+			"catalog-v1.json"
 		);
 	} catch {
 		return null;
@@ -69,10 +105,16 @@ function referenceLibraryRoot(): string | null {
 
 function packageCacheRoots(): string[] {
 	const override = process.env.QCUT_JIANYING_EFFECT_PACKAGE_ROOT;
-	if (override) return override.split(path.delimiter).filter(Boolean);
+	const managedRoot = qcutManagedEffectPackageRoot();
+	if (override) {
+		return [managedRoot, ...override.split(path.delimiter)]
+			.filter((entry): entry is string => Boolean(entry))
+			.filter((entry, index, entries) => entries.indexOf(entry) === index);
+	}
 
 	const home = os.homedir();
-	const roots = [
+	const roots = managedRoot ? [managedRoot] : [];
+	roots.push(
 		path.join(home, "Movies", "JianyingPro", "User Data", "Cache", "effect"),
 		path.join(
 			home,
@@ -85,10 +127,8 @@ function packageCacheRoots(): string[] {
 			"User Data",
 			"Cache",
 			"effect"
-		),
-	];
-	const managedRoot = qcutManagedEffectPackageRoot();
-	if (managedRoot) roots.push(managedRoot);
+		)
+	);
 	const referenceRoot = referenceLibraryRoot();
 	if (referenceRoot) roots.push(path.join(referenceRoot, "_packages"));
 	return roots;
@@ -160,6 +200,15 @@ async function indexPackagesByMd5(): Promise<Map<string, string>> {
 	return packages;
 }
 
+export async function findJianyingEffectPackagePath({
+	packageHash,
+}: {
+	packageHash: string;
+}): Promise<string | null> {
+	const packages = await indexPackagesByMd5();
+	return packages.get(packageHash.toLowerCase()) ?? null;
+}
+
 async function readHttpCacheRows({
 	patterns,
 }: {
@@ -209,6 +258,62 @@ function readPanelRows(): Promise<CatalogRow[]> {
 	return readHttpCacheRows({ patterns: ["%panel/get_panel_info%"] });
 }
 
+async function loadEffectCatalogState(): Promise<EffectCatalogState> {
+	const cachePath = qcutManagedEffectCatalogPath();
+	const [catalogRows, panelRows, cached] = await Promise.all([
+		readCatalogRows(),
+		readPanelRows(),
+		cachePath
+			? readQCutEffectCatalogSnapshot({ cachePath })
+			: Promise.resolve(null),
+	]);
+	const liveItems = collectCatalogItems({ rows: catalogRows });
+	const liveCategories = collectPanelCategories({
+		panelRows,
+		items: liveItems,
+	});
+	const merged = mergeQCutEffectCatalog({
+		cached,
+		liveItems,
+		liveCategories,
+	});
+	if (
+		cachePath &&
+		liveItems.length > 0 &&
+		!qcutEffectCatalogContentMatches({
+			snapshot: cached,
+			items: merged.items,
+			categories: merged.categories,
+		})
+	) {
+		await writeQCutEffectCatalogSnapshot({
+			cachePath,
+			items: merged.items,
+			categories: merged.categories,
+		}).catch((cause) => {
+			console.warn(
+				"[jianying-effect] failed to persist QCut catalog cache",
+				cause
+			);
+		});
+	}
+	return merged;
+}
+
+function readEffectCatalogState(): Promise<EffectCatalogState> {
+	const now = Date.now();
+	if (catalogStatePromise && now < catalogStateExpiresAt) {
+		return catalogStatePromise;
+	}
+	catalogStateExpiresAt = now + CATALOG_MEMORY_TTL_MS;
+	catalogStatePromise = loadEffectCatalogState().catch((cause) => {
+		catalogStatePromise = null;
+		catalogStateExpiresAt = 0;
+		throw cause;
+	});
+	return catalogStatePromise;
+}
+
 /** Reads the slider defaults the package itself ships, when present. */
 async function readPackageAdjustParameters({
 	packagePath,
@@ -227,8 +332,7 @@ export async function findJianyingEffectCatalogItem({
 }: {
 	effectId: string;
 }): Promise<CatalogItem | null> {
-	const rows = await readCatalogRows();
-	const items = collectCatalogItems({ rows });
+	const { items } = await readEffectCatalogState();
 	return items.find((item) => item.effectId === effectId) ?? null;
 }
 
@@ -238,18 +342,16 @@ export interface JianyingEffectLibrary {
 }
 
 export async function discoverJianyingEffectLibrary(): Promise<JianyingEffectLibrary> {
-	const [rows, panelRows, packages, verdicts] = await Promise.all([
-		readCatalogRows(),
-		readPanelRows(),
+	const [catalog, packages, verdicts] = await Promise.all([
+		readEffectCatalogState(),
 		indexPackagesByMd5(),
 		readReferenceVerdicts(),
 	]);
 
-	const items = collectCatalogItems({ rows });
 	const definitions: JianyingEffectDefinition[] = [];
 	const keptItems: CatalogItem[] = [];
 
-	for (const item of items) {
+	for (const item of catalog.items) {
 		const packagePath = packages.get(item.md5);
 		const installed = packagePath !== undefined;
 		const downloadable = item.itemUrls.length > 0;
@@ -316,7 +418,10 @@ export async function discoverJianyingEffectLibrary(): Promise<JianyingEffectLib
 
 	return {
 		effects: definitions,
-		categories: collectPanelCategories({ panelRows, items: keptItems }),
+		categories: selectQCutEffectCategories({
+			categories: catalog.categories,
+			items: keptItems,
+		}),
 	};
 }
 
