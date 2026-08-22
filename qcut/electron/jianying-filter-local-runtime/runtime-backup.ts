@@ -211,7 +211,11 @@ async function buildCopyTasks({
 	managedPackageRoot: string | null;
 }): Promise<CopyTask[]> {
 	const identifiers = filterPackageIdentifiers({ filters });
-	const resourceIds = filters.map(({ resourceId }) => resourceId);
+	const resourceIds = filters
+		.map(({ resourceId }) => resourceId)
+		.filter(
+			(value) => SAFE_SEGMENT.test(value) && value !== "." && value !== ".."
+		);
 	const [artistPackages, effectPackages, managedPackages] = await Promise.all([
 		packageTasksForRoot({
 			container: "artistEffect",
