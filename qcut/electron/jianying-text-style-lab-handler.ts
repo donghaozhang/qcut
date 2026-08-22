@@ -10,12 +10,16 @@ import {
 	type JianyingTextStyleLabCoverResult,
 	type JianyingTextStyleLabListRequest,
 	type JianyingTextStyleLabListResult,
-	type JianyingTextStyleLabStyleSummary,
 } from "./jianying-text-style-lab-contract.js";
 import { buildJianyingTextAnimationCatalog } from "./jianying-text-animation-lab-catalog.js";
+import { ensureQCutJianyingTextPrivateArchive } from "./jianying-text-private-archive.js";
 import {
-	JIANYING_FLOWER_CATEGORIES,
-	resolveJianyingFlowerResourceMetadata,
+	type JianyingFlowerCategoryDefinition,
+	type JianyingFlowerCategoryGroupDefinition,
+} from "./jianying-flower-taxonomy.js";
+import {
+	resolveJianyingFlowerCatalogMetadata,
+	type JianyingFlowerCatalogMetadata,
 	type JianyingFlowerResourceMetadata,
 } from "./jianying-flower-resource-metadata.js";
 import {
@@ -31,6 +35,13 @@ import {
 } from "./jianying-text-package-ownership.js";
 import { isDiscoverableJianyingTextCatalogEntry } from "./jianying-text-style-discovery.js";
 import {
+	compareStyleSummaries,
+	normalizeResolvedMetadata,
+	summarizeCategories,
+	summarizeCategoryGroups,
+	summarizeEntry,
+} from "./jianying-text-style-lab-summary.js";
+import {
 	computeJianyingTextLabFingerprint,
 	JIANYING_TEXT_LAB_SNAPSHOT_SCHEMA_VERSION,
 	readJianyingTextLabSnapshot,
@@ -42,6 +53,8 @@ interface TextStyleLabCatalog {
 	catalog: JianyingTextStyleCatalog;
 	metadata: Map<string, JianyingFlowerResourceMetadata>;
 	ownership: Map<string, JianyingTextPackageOwnership>;
+	categories: JianyingFlowerCategoryDefinition[];
+	categoryGroups: JianyingFlowerCategoryGroupDefinition[];
 }
 
 export interface JianyingTextStyleLabIPCController {
@@ -50,13 +63,23 @@ export interface JianyingTextStyleLabIPCController {
 
 export interface SetupJianyingTextStyleLabIPCOptions {
 	getMainWindow: () => BrowserWindow | null;
-	buildCatalog?: () => Promise<JianyingTextStyleCatalog>;
-	buildAnimationCatalog?: () => Promise<JianyingTextAnimationLabListResult>;
+	buildCatalog?: ({
+		refresh,
+	}: {
+		refresh: boolean;
+	}) => Promise<JianyingTextStyleCatalog>;
+	buildAnimationCatalog?: ({
+		refresh,
+	}: {
+		refresh: boolean;
+	}) => Promise<JianyingTextAnimationLabListResult>;
 	resolveMetadata?: ({
 		references,
 	}: {
 		references: JianyingTextStyleCatalogEntry[];
-	}) => Promise<Map<string, JianyingFlowerResourceMetadata>>;
+	}) => Promise<
+		Map<string, JianyingFlowerResourceMetadata> | JianyingFlowerCatalogMetadata
+	>;
 	resolveOwnership?: ({
 		references,
 	}: {
@@ -128,93 +151,48 @@ function requireCatalogEntry({
 	const entry = catalog.entries.find(
 		(candidate) => candidate.styleId === styleId
 	);
-	if (!entry) throw new Error("本机剪映缓存中没有找到该花字样式");
+	if (!entry) throw new Error("QCut 私有备份中没有找到该花字样式");
 	return entry;
-}
-
-function summarizeEntry({
-	entry,
-	metadata,
-	ownership,
-}: {
-	entry: JianyingTextStyleCatalogEntry;
-	metadata: ReadonlyMap<string, JianyingFlowerResourceMetadata>;
-	ownership: ReadonlyMap<string, JianyingTextPackageOwnership>;
-}): JianyingTextStyleLabStyleSummary {
-	const resourceMetadata = metadata.get(entry.styleId);
-	const packageOwnership = ownership.get(entry.styleId);
-	const title = resourceMetadata?.title ?? packageOwnership?.title;
-	return {
-		styleId: entry.styleId,
-		resourceId: entry.resourceId,
-		version: entry.version,
-		...(title ? { title } : {}),
-		categoryIds: resourceMetadata?.categoryIds ?? [],
-		packageKind: entry.packageKind,
-		packageVersion: entry.packageVersion,
-		fillKind: entry.fillKind,
-		strokeCount: entry.strokeCount,
-		innerShadowCount: entry.innerShadowCount,
-		shadowCount: entry.shadowCount,
-		textureLayerCount: entry.textureLayerCount,
-		capabilities: entry.capabilities,
-		diagnostics: entry.diagnostics,
-		hasCover: entry.hasCover,
-		compatibility: entry.compatibility,
-		...(entry.approximation ? { approximation: entry.approximation } : {}),
-		...(entry.runtimeReference
-			? { runtimeReference: entry.runtimeReference }
-			: {}),
-	};
-}
-
-function compareStyleSummaries({
-	left,
-	right,
-}: {
-	left: JianyingTextStyleLabStyleSummary;
-	right: JianyingTextStyleLabStyleSummary;
-}) {
-	const compatibilityOrder = {
-		"flat-compatible": 0,
-		approximated: 1,
-		"native-runtime": 2,
-		"preview-only": 3,
-	} as const;
-	return (
-		compatibilityOrder[left.compatibility] -
-			compatibilityOrder[right.compatibility] ||
-		(left.title ?? left.resourceId).localeCompare(
-			right.title ?? right.resourceId,
-			"zh-CN"
-		) ||
-		left.styleId.localeCompare(right.styleId)
-	);
-}
-
-function summarizeCategories({
-	styles,
-}: {
-	styles: JianyingTextStyleLabStyleSummary[];
-}) {
-	return JIANYING_FLOWER_CATEGORIES.map(({ id, label }) => ({
-		id,
-		label,
-		count: styles.filter(({ categoryIds }) => categoryIds.includes(id)).length,
-	}));
 }
 
 export function setupJianyingTextStyleLabIPC({
 	getMainWindow,
-	buildCatalog = () => buildJianyingTextStyleCatalog(),
-	buildAnimationCatalog = () => buildJianyingTextAnimationCatalog(),
-	resolveMetadata = ({ references }) =>
-		resolveJianyingFlowerResourceMetadata({ references }),
-	resolveOwnership = ({ references }) =>
-		resolveJianyingTextPackageOwnership({ references }),
+	buildCatalog = async ({ refresh }) => {
+		const archive = await ensureQCutJianyingTextPrivateArchive({ refresh });
+		return buildJianyingTextStyleCatalog({ root: archive.packageRoot });
+	},
+	buildAnimationCatalog = async ({ refresh }) => {
+		const archive = await ensureQCutJianyingTextPrivateArchive({ refresh });
+		return buildJianyingTextAnimationCatalog({
+			cacheRoot: archive.cacheRoot,
+			databaseRoot: archive.databaseRoot,
+		});
+	},
+	resolveMetadata = async ({ references }) => {
+		const archive = await ensureQCutJianyingTextPrivateArchive();
+		return resolveJianyingFlowerCatalogMetadata({
+			references,
+			databaseRoot: archive.databaseRoot,
+		});
+	},
+	resolveOwnership = async ({ references }) => {
+		const archive = await ensureQCutJianyingTextPrivateArchive();
+		return resolveJianyingTextPackageOwnership({
+			references,
+			databaseRoot: archive.databaseRoot,
+			packageRoot: archive.packageRoot,
+			projectRoot: archive.projectEvidenceRoot,
+		});
+	},
 	readCover = readJianyingTextStyleCover,
 	snapshotCacheFilePath,
-	computeSnapshotFingerprint = computeJianyingTextLabFingerprint,
+	computeSnapshotFingerprint = async () => {
+		const archive = await ensureQCutJianyingTextPrivateArchive();
+		return computeJianyingTextLabFingerprint({
+			styleRoot: archive.packageRoot,
+			animationPackageRoot: archive.animationPackageRoot,
+		});
+	},
 }: SetupJianyingTextStyleLabIPCOptions): JianyingTextStyleLabIPCController {
 	let catalogPromise: Promise<TextStyleLabCatalog> | null = null;
 	let animationCatalogPromise: Promise<JianyingTextAnimationLabListResult> | null =
@@ -253,6 +231,8 @@ export function setupJianyingTextStyleLabIPC({
 						catalog: styles.catalog,
 						metadataEntries: [...styles.metadata],
 						ownershipEntries: [...styles.ownership],
+						categories: styles.categories,
+						categoryGroups: styles.categoryGroups,
 					},
 					animations,
 				},
@@ -263,17 +243,21 @@ export function setupJianyingTextStyleLabIPC({
 				snapshotWriteQueued = false;
 			});
 	};
-	const buildResolvedCatalog = () =>
-		buildCatalog().then(async (catalog) => {
-			const metadata = await resolveMetadata({ references: catalog.entries });
+	const buildResolvedCatalog = ({ refresh }: { refresh: boolean }) =>
+		buildCatalog({ refresh }).then(async (catalog) => {
+			const resolvedMetadata = normalizeResolvedMetadata({
+				resolved: await resolveMetadata({ references: catalog.entries }),
+			});
+			const { categories, categoryGroups, metadata } = resolvedMetadata;
 			const ownershipCandidates = catalog.entries.filter(
 				({ packageKind, styleId }) =>
 					!metadata.has(styleId) &&
 					(packageKind === "AmazingFeature" || packageKind === "InfoSticker")
 			);
-			const ownership = await resolveOwnership({
-				references: ownershipCandidates,
-			});
+			const ownership =
+				ownershipCandidates.length > 0
+					? await resolveOwnership({ references: ownershipCandidates })
+					: new Map<string, JianyingTextPackageOwnership>();
 			return {
 				catalog: {
 					...catalog,
@@ -287,6 +271,8 @@ export function setupJianyingTextStyleLabIPC({
 				},
 				metadata,
 				ownership,
+				categories,
+				categoryGroups,
 			};
 		});
 	const readCatalog = ({
@@ -312,10 +298,12 @@ export function setupJianyingTextStyleLabIPC({
 							catalog: snapshot.styles.catalog,
 							metadata: new Map(snapshot.styles.metadataEntries),
 							ownership: new Map(snapshot.styles.ownershipEntries),
+							categories: snapshot.styles.categories,
+							categoryGroups: snapshot.styles.categoryGroups,
 						};
 					}
 				}
-				const built = await buildResolvedCatalog();
+				const built = await buildResolvedCatalog({ refresh });
 				queueSnapshotWrite();
 				return built;
 			})();
@@ -338,7 +326,7 @@ export function setupJianyingTextStyleLabIPC({
 					const snapshot = await loadSnapshot();
 					if (snapshot) return snapshot.animations;
 				}
-				const built = await buildAnimationCatalog();
+				const built = await buildAnimationCatalog({ refresh });
 				queueSnapshotWrite();
 				return built;
 			})();
@@ -357,14 +345,19 @@ export function setupJianyingTextStyleLabIPC({
 		): Promise<JianyingTextStyleLabListResult> => {
 			assertTrustedMainFrame({ event, mainWindow: getMainWindow() });
 			const { refresh = false } = parseListRequest({ request });
-			const { catalog, metadata, ownership } = await readCatalog({ refresh });
+			const { catalog, categories, categoryGroups, metadata, ownership } =
+				await readCatalog({ refresh });
 			const styles = catalog.entries
 				.map((entry) => summarizeEntry({ entry, metadata, ownership }))
 				.sort((left, right) => compareStyleSummaries({ left, right }));
 			return {
 				count: styles.length,
 				styles,
-				categories: summarizeCategories({ styles }),
+				categories: summarizeCategories({ categories, styles }),
+				categoryGroups: summarizeCategoryGroups({
+					groups: categoryGroups,
+					styles,
+				}),
 				packageCount: catalog.packageCount,
 				invalidPackageCount: catalog.invalidPackageCount,
 			};
