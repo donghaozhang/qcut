@@ -23,9 +23,8 @@ import type { useJianyingEffectRuntime } from "./use-jianying-effect-runtime";
  * Jianying-style effect browser: the sidebar mirrors Jianying's own category
  * tabs and every card shows the official cover, proxied and disk-cached by the
  * main process so signatures can expire without breaking tiles. QCut ships
- * none of the effects — installed entries come from the local Jianying caches,
- * the rest download on demand, and every package renders through the local
- * Jianying runtime.
+ * none of the effects — cards are discovered from local metadata, then every
+ * selected package is persisted in QCut's private cache before it is applied.
  */
 
 type DownloadState = "downloading" | "failed";
@@ -96,19 +95,18 @@ function EffectCoverTile({
 				</div>
 			)}
 			{definition.supported &&
-				!definition.installed &&
 				(downloadState === "downloading" ? (
 					<div className="absolute inset-0 flex items-center justify-center bg-black/40">
 						<Loader2 className="size-4 animate-spin text-white" />
 					</div>
-				) : (
+				) : definition.installed ? null : (
 					<span className="absolute right-1 bottom-1 rounded-full bg-black/60 p-0.5">
 						<Download aria-hidden="true" className="size-3 text-white" />
 					</span>
 				))}
 			{downloadState === "failed" && (
 				<span className="absolute inset-x-0 bottom-0 bg-red-600/80 py-0.5 text-center text-[9px] text-white">
-					下载失败，点击重试
+					缓存失败，点击重试
 				</span>
 			)}
 		</div>
@@ -331,43 +329,52 @@ export function JianyingEffectLabPanel({
 	const handleDownload = useCallback(
 		async ({ definition }: { definition: JianyingEffectDefinition }) => {
 			const api = window.electronAPI?.jianyingEffects;
-			if (!api?.download) return;
+			if (!api?.download) {
+				if (definition.installed) onApply(labPreset({ definition }));
+				return;
+			}
 			setDownloads((current) => ({
 				...current,
 				[definition.effectId]: "downloading",
 			}));
 			try {
-				await api.download({ effectId: definition.effectId });
-				setDownloads((current) => {
-					const next = { ...current };
-					delete next[definition.effectId];
-					return next;
-				});
-				// A fresh status marks the effect installed.
-				await refresh();
+				const cached = await api.download({ effectId: definition.effectId });
+				setDownloads((current) =>
+					Object.fromEntries(
+						Object.entries(current).filter(
+							([effectId]) => effectId !== definition.effectId
+						)
+					)
+				);
+				onApply(
+					labPreset({
+						definition: {
+							...definition,
+							installed: true,
+							packagePath: cached.packagePath,
+						},
+					})
+				);
+				if (!definition.installed) await refresh();
 			} catch (cause) {
 				setDownloads((current) => ({
 					...current,
 					[definition.effectId]: "failed",
 				}));
 				toast.error(
-					cause instanceof Error ? cause.message : "特效包下载失败。"
+					cause instanceof Error ? cause.message : "特效包缓存失败。"
 				);
 			}
 		},
-		[refresh]
+		[onApply, refresh]
 	);
 
 	const handleTileClick = useCallback(
 		({ definition }: { definition: JianyingEffectDefinition }) => {
-			if (!definition.installed) {
-				if (downloads[definition.effectId] === "downloading") return;
-				void handleDownload({ definition });
-				return;
-			}
-			onApply(labPreset({ definition }));
+			if (downloads[definition.effectId] === "downloading") return;
+			void handleDownload({ definition });
 		},
-		[downloads, handleDownload, onApply]
+		[downloads, handleDownload]
 	);
 
 	if (checking) {
