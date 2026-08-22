@@ -131,19 +131,19 @@ const retainedExpandedFilters = [
 ] as const;
 
 const expectedCategories = [
-	{ name: "🍉夏日", available: 117, total: 138 },
-	{ name: "美食", available: 48, total: 56 },
+	{ name: "🍉夏日", available: 118, total: 138 },
+	{ name: "美食", available: 50, total: 56 },
 	{ name: "风景", available: 128, total: 153 },
 	{ name: "最新", available: 128, total: 145 },
-	{ name: "人像", available: 207, total: 237 },
+	{ name: "人像", available: 209, total: 237 },
 	{ name: "影视级", available: 83, total: 100 },
-	{ name: "夜景", available: 45, total: 54 },
-	{ name: "户外", available: 41, total: 53 },
-	{ name: "相机模拟", available: 27, total: 50 },
+	{ name: "夜景", available: 48, total: 54 },
+	{ name: "户外", available: 42, total: 53 },
+	{ name: "相机模拟", available: 28, total: 50 },
 	{ name: "高清", available: 32, total: 37 },
 	{ name: "室内", available: 51, total: 58 },
 	{ name: "复古胶片", available: 69, total: 102 },
-	{ name: "风格化", available: 34, total: 50 },
+	{ name: "风格化", available: 35, total: 50 },
 	{ name: "黑白", available: 16, total: 19 },
 	{ name: "基础", available: 13, total: 16 },
 ] as const;
@@ -310,7 +310,7 @@ test.describe("Jianying Filter Lab category expansion", () => {
 			).toContainText("QCut 离线运行已就绪", { timeout: 120_000 });
 			await lab.getByRole("button", { name: "重新扫描本机剪映缓存" }).click();
 			await expect(
-				lab.getByText(/显示 712 · 可用 712\/\d+ · 缓存 \d+/)
+				lab.getByText(/显示 721 · 可用 721\/\d+ · 缓存 \d+/)
 			).toBeVisible({ timeout: 120_000 });
 
 			await Promise.all(
@@ -416,7 +416,7 @@ test.describe("Jianying Filter Lab category expansion", () => {
 				}
 			);
 			expect(evidence.catalog).toMatchObject({
-				availableCount: 712,
+				availableCount: 721,
 				cachedCount: 725,
 				count: 887,
 			});
