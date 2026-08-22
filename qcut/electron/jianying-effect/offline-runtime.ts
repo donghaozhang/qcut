@@ -662,9 +662,13 @@ async function createOfflineRuntime({
 		const destinationExists = await access(destinationRoot)
 			.then(() => true)
 			.catch(() => false);
-		if (destinationExists) {
+		if (
+			destinationExists &&
+			(await isReadyQCutEffectOfflineRuntime({ runtimeRoot: destinationRoot }))
+		) {
 			await rm(stagingRoot, { recursive: true, force: true });
 		} else {
+			await rm(destinationRoot, { recursive: true, force: true });
 			await rename(stagingRoot, destinationRoot);
 		}
 		await pointCurrentAt({ privateRuntimeRoot, snapshotName });
