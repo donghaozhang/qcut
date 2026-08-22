@@ -110,6 +110,11 @@ describe("JianyingEffectLabPanel", () => {
 		status.mockReset();
 		preview.mockReset();
 		download.mockReset();
+		download.mockImplementation(async ({ effectId }: { effectId: string }) => ({
+			effectId,
+			packageHash: effectId === "1" ? "aaa" : "bbb",
+			packagePath: `/managed/${effectId}/package`,
+		}));
 		preview.mockResolvedValue({
 			effectId: "jy-effect-1",
 			dataUrl: "data:image/png;base64,preview",
@@ -146,7 +151,7 @@ describe("JianyingEffectLabPanel", () => {
 		const card = await screen.findByTestId("effect-lab-card-jy-effect-1");
 		fireEvent.click(card);
 
-		expect(onApply).toHaveBeenCalledTimes(1);
+		await waitFor(() => expect(onApply).toHaveBeenCalledTimes(1));
 		const preset = onApply.mock.calls[0][0];
 		expect(preset.engine).toBe("jianying-local");
 		expect(preset.packageHash).toBe("aaa");
@@ -158,10 +163,10 @@ describe("JianyingEffectLabPanel", () => {
 				maximum: 1,
 			},
 		]);
-		expect(download).not.toHaveBeenCalled();
+		expect(download).toHaveBeenCalledWith({ effectId: "1" });
 	});
 
-	it("downloads an uninstalled effect instead of applying it", async () => {
+	it("caches an uninstalled effect before applying it", async () => {
 		const uninstalled = definition({
 			id: "jy-effect-2",
 			effectId: "2",
@@ -185,8 +190,8 @@ describe("JianyingEffectLabPanel", () => {
 		await waitFor(() => {
 			expect(download).toHaveBeenCalledWith({ effectId: "2" });
 		});
-		expect(onApply).not.toHaveBeenCalled();
-		// A successful download re-checks the runtime so the tile flips to
+		await waitFor(() => expect(onApply).toHaveBeenCalledTimes(1));
+		// A successful cache fill re-checks the runtime so the tile flips to
 		// installed.
 		await waitFor(() => {
 			expect(status).toHaveBeenCalledTimes(2);
