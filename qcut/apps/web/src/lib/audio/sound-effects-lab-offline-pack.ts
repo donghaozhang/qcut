@@ -388,8 +388,8 @@ export async function removeSoundEffectsLabOfflinePack({
 	ownerEmail: string;
 }): Promise<{ removedResourceCount: number }> {
 	const offline = await readOfflineRecord({ offlineStorage, ownerEmail });
-	if (!offline) return { removedResourceCount: 0 };
 	await offlineStorage.remove({ ownerEmail });
+	if (!offline) return { removedResourceCount: 0 };
 	const retained = await retainedAssetKeys({ offlineStorage });
 	const removable = catalogAssets({ catalog: offline.catalog }).filter(
 		(asset) => !retained.has(assetVersionKey({ asset }))
