@@ -3,6 +3,10 @@ import { mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import type { JianyingFlowerResourceMetadata } from "./jianying-flower-resource-metadata.js";
+import type {
+	JianyingFlowerCategoryDefinition,
+	JianyingFlowerCategoryGroupDefinition,
+} from "./jianying-flower-taxonomy.js";
 import type { JianyingTextAnimationLabListResult } from "./jianying-text-style-lab-contract.js";
 import type { JianyingTextStyleCatalog } from "./jianying-text-style-lab-catalog.js";
 import {
@@ -21,7 +25,7 @@ import { jianyingEffectCacheRoot } from "./native-pipeline/filters/filter-lab-lu
  * rp.db is deliberately ignored; the lab's refresh button forces a rebuild.
  * Everything stays on this machine — nothing is uploaded anywhere.
  */
-export const JIANYING_TEXT_LAB_SNAPSHOT_SCHEMA_VERSION = 1;
+export const JIANYING_TEXT_LAB_SNAPSHOT_SCHEMA_VERSION = 3;
 
 export interface JianyingTextLabSnapshot {
 	schemaVersion: typeof JIANYING_TEXT_LAB_SNAPSHOT_SCHEMA_VERSION;
@@ -30,6 +34,8 @@ export interface JianyingTextLabSnapshot {
 		catalog: JianyingTextStyleCatalog;
 		metadataEntries: [string, JianyingFlowerResourceMetadata][];
 		ownershipEntries: [string, JianyingTextPackageOwnership][];
+		categories: JianyingFlowerCategoryDefinition[];
+		categoryGroups: JianyingFlowerCategoryGroupDefinition[];
 	};
 	animations: JianyingTextAnimationLabListResult;
 }
@@ -137,6 +143,8 @@ function isValidSnapshotShape(
 	}
 	if (!isEntryTupleArray(stylesRecord.metadataEntries)) return false;
 	if (!isEntryTupleArray(stylesRecord.ownershipEntries)) return false;
+	if (!Array.isArray(stylesRecord.categories)) return false;
+	if (!Array.isArray(stylesRecord.categoryGroups)) return false;
 	const animations = record.animations;
 	if (animations === null || typeof animations !== "object") return false;
 	return Array.isArray((animations as Record<string, unknown>).animations);
