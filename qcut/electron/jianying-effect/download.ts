@@ -6,9 +6,14 @@ import { promisify } from "node:util";
 import type { JianyingEffectDownloadResult } from "../jianying-effect-contract.js";
 import {
 	findJianyingEffectCatalogItem,
+	findJianyingEffectPackagePath,
 	qcutManagedEffectPackageRoot,
 } from "./catalog.js";
 import { findUnsafeZipEntries } from "./catalog-parsing.js";
+import {
+	cacheQCutEffectPackage,
+	isReadyQCutEffectPackage,
+} from "./package-cache.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -67,13 +72,42 @@ async function installPackage({
 	if (!item) {
 		throw new Error(`未找到剪映特效目录条目：${effectId}`);
 	}
-	const url = item.itemUrls[0];
-	if (!url) {
-		throw new Error(`该特效没有可用的下载地址：${item.title}`);
-	}
 	const managedRoot = qcutManagedEffectPackageRoot();
 	if (!managedRoot) {
 		throw new Error("特效包下载仅在 QCut 桌面版中可用。");
+	}
+	const finalDir = path.join(
+		managedRoot,
+		item.effectId,
+		item.md5.toLowerCase()
+	);
+	if (await isReadyQCutEffectPackage({ packagePath: finalDir })) {
+		return {
+			effectId: item.effectId,
+			packageHash: item.md5,
+			packagePath: finalDir,
+		};
+	}
+	await rm(finalDir, { recursive: true, force: true });
+	const localSource = await findJianyingEffectPackagePath({
+		packageHash: item.md5,
+	});
+	if (localSource) {
+		const packagePath = await cacheQCutEffectPackage({
+			effectId: item.effectId,
+			packageHash: item.md5,
+			sourcePath: localSource,
+			managedRoot,
+		});
+		return {
+			effectId: item.effectId,
+			packageHash: item.md5,
+			packagePath,
+		};
+	}
+	const url = item.itemUrls[0];
+	if (!url) {
+		throw new Error(`该特效没有可用的下载地址：${item.title}`);
 	}
 
 	const data = await fetchPackage({ url });
@@ -86,7 +120,6 @@ async function installPackage({
 
 	// Unpack next to the final directory, then rename — a crash mid-extract
 	// must not leave a half-package where discovery would pick it up.
-	const finalDir = path.join(managedRoot, item.effectId, item.md5);
 	const stagingDir = `${finalDir}.downloading`;
 	await rm(stagingDir, { recursive: true, force: true });
 	await mkdir(stagingDir, { recursive: true });
@@ -96,6 +129,9 @@ async function installPackage({
 		await assertZipIsSafe({ zipPath });
 		await execFileAsync("unzip", ["-o", "-q", zipPath, "-d", stagingDir]);
 		await rm(zipPath, { force: true });
+		if (!(await isReadyQCutEffectPackage({ packagePath: stagingDir }))) {
+			throw new Error(`特效包内容不完整：${item.title}`);
+		}
 		await rm(finalDir, { recursive: true, force: true });
 		await rename(stagingDir, finalDir);
 	} catch (cause) {
@@ -124,3 +160,5 @@ export function downloadJianyingEffectPackage({
 	inFlight.set(effectId, task);
 	return task;
 }
+
+export const ensureQCutManagedEffectPackage = downloadJianyingEffectPackage;
