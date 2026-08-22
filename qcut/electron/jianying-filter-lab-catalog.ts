@@ -15,6 +15,7 @@ import type {
 } from "./jianying-filter-metadata.js";
 import type { JianyingFilterPackageSummary } from "./jianying-filter-package-inspector.js";
 import type { JianyingLutReference } from "./native-pipeline/filters/filter-lab-lut.js";
+import { selectJianyingFilterCacheRoot } from "./native-pipeline/filters/filter-lab-package-path.js";
 import {
 	createTiledLutId,
 	type JianyingTiledLutRenderer,
@@ -40,6 +41,33 @@ function tiledRendererRoles({
 			{ renderer: packageSummary.dualRenderer.skin, role: "skin" },
 		];
 	}
+	const native = packageSummary.nativePortraitRenderer;
+	if (native?.backgroundLutRelativePath && native.skinLutRelativePath) {
+		const renderer = ({
+			relativePath,
+		}: {
+			relativePath: string;
+		}): JianyingTiledLutRenderer => ({
+			kind: "tiled-lut-8x8",
+			container: native.container,
+			packageIdentifier: native.packageIdentifier,
+			version: native.version,
+			relativePath,
+			cubeSize: 64,
+		});
+		return [
+			{
+				renderer: renderer({
+					relativePath: native.backgroundLutRelativePath,
+				}),
+				role: "background",
+			},
+			{
+				renderer: renderer({ relativePath: native.skinLutRelativePath }),
+				role: "skin",
+			},
+		];
+	}
 	return packageSummary.renderer
 		? [{ renderer: packageSummary.renderer, role: "single" }]
 		: [];
@@ -48,9 +76,11 @@ function tiledRendererRoles({
 export function tiledReferencesFromPackages({
 	packages,
 	cacheRoot,
+	cacheRoots = cacheRoot ? [cacheRoot] : [],
 }: {
 	packages: ReadonlyMap<string, JianyingFilterPackageSummary>;
-	cacheRoot: string;
+	cacheRoot?: string;
+	cacheRoots?: string[];
 }): Map<string, JianyingLutReference> {
 	const references = new Map<string, JianyingLutReference>();
 	for (const [resourceId, summary] of packages) {
@@ -58,12 +88,19 @@ export function tiledReferencesFromPackages({
 			packageSummary: summary,
 		})) {
 			const lutId = createTiledLutId({ resourceId, renderer });
+			const rendererCacheRoot = selectJianyingFilterCacheRoot({
+				cacheRoots,
+				identity: renderer,
+			});
 			references.set(lutId, {
 				lutId,
 				resourceId,
 				version: renderer.version,
 				fileName: renderer.relativePath.split("/").slice(-1)[0] ?? "filter.png",
-				filePath: resolveTiledLutPath({ cacheRoot, renderer }),
+				filePath: resolveTiledLutPath({
+					cacheRoot: rendererCacheRoot,
+					renderer,
+				}),
 				role,
 				size: renderer.cubeSize,
 			});
