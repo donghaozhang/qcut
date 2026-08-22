@@ -5,6 +5,7 @@ const EMPTY_RESULT: JianyingTextStyleLabListResult = {
 	count: 0,
 	styles: [],
 	categories: [],
+	categoryGroups: [],
 	packageCount: 0,
 	invalidPackageCount: 0,
 };
