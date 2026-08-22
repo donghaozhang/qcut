@@ -317,8 +317,11 @@ async function scanPackage({
 			});
 			if (!asRecord(effectStyle)) return { kind: "invalid" };
 			packageKind = "TextStyle";
-		} catch {
-			return { kind: "skip" };
+		} catch (cause) {
+			const missing =
+				cause instanceof Error && "code" in cause && cause.code === "ENOENT";
+			if (missing) return { kind: "skip" };
+			return { kind: "invalid" };
 		}
 	}
 	const coverPath = join(packagePath, "cover_icon.png");
