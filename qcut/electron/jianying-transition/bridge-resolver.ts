@@ -57,6 +57,21 @@ function processResourcesPath(): string | undefined {
 	return (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath;
 }
 
+export function qcutPrivateRuntimeBridgePath({
+	homeDirectory = os.homedir(),
+}: {
+	homeDirectory?: string;
+} = {}): string {
+	return path.join(
+		homeDirectory,
+		"Library",
+		"Application Support",
+		"QCut",
+		"RuntimeBridges",
+		JIANYING_TRANSITION_BRIDGE_FILE_NAME
+	);
+}
+
 function uniquePaths({
 	paths,
 }: {
@@ -110,6 +125,7 @@ function bridgeCandidates({
 			resourcesPath
 				? path.join(resourcesPath, "bin", JIANYING_TRANSITION_BRIDGE_FILE_NAME)
 				: undefined,
+			qcutPrivateRuntimeBridgePath(),
 			projectRoot
 				? path.join(
 						projectRoot,

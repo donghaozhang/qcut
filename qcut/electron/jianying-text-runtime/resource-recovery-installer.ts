@@ -3,6 +3,7 @@ import { createWriteStream } from "node:fs";
 import {
 	type FileHandle,
 	cp,
+	copyFile,
 	lstat,
 	mkdir,
 	mkdtemp,
@@ -12,6 +13,7 @@ import {
 	rename,
 	rm,
 	unlink,
+	writeFile,
 } from "node:fs/promises";
 import path from "node:path";
 import { Readable, Transform } from "node:stream";
@@ -43,6 +45,7 @@ const DOWNLOAD_TIMEOUT_MS = 120_000;
 const INSTALL_LOCK_TIMEOUT_MS = 180_000;
 const INSTALL_LOCK_STALE_MS = 10 * 60_000;
 const INSTALL_LOCK_RETRY_MS = 50;
+export const JIANYING_PRIVATE_CATALOG_ARCHIVE_FILE_NAME = "catalog-package.zip";
 const TRUSTED_CDN_SUFFIXES = [
 	".bytecdn.com",
 	".byteeffecttos.com",
@@ -80,6 +83,20 @@ export type ResourceArchiveExtractor = ({
 	archivePath: string;
 	destination: string;
 }) => Promise<void>;
+
+export type JianyingPrivateCatalogPackageRole =
+	| JianyingTextRuntimeDependencyRole
+	| "word-art"
+	| "animation-catalog";
+
+function getCatalogMirrorRole({
+	role,
+}: {
+	role: JianyingPrivateCatalogPackageRole;
+}) {
+	if (role === "word-art" || role === "animation-catalog") return role;
+	return null;
+}
 
 export function isTrustedJianyingResourceUrl({ value }: { value: string }) {
 	try {
@@ -145,7 +162,7 @@ function packageSupportsRole({
 	role,
 }: {
 	config: unknown;
-	role: JianyingTextRuntimeDependencyRole;
+	role: JianyingPrivateCatalogPackageRole;
 }) {
 	const links = asJianyingRecord(asJianyingRecord(config)?.effect)?.Link;
 	if (!Array.isArray(links)) return false;
@@ -155,6 +172,9 @@ function packageSupportsRole({
 			return typeof type === "string" ? [type] : [];
 		})
 	);
+	if (role === "word-art" || role === "animation-catalog") {
+		return Boolean(asJianyingRecord(config));
+	}
 	if (role === "animation") {
 		return linkTypes.has("InfoSticker") || linkTypes.has("TextAnimation");
 	}
@@ -168,13 +188,37 @@ async function isReadyPackage({
 	role,
 }: {
 	packagePath: string;
-	role: JianyingTextRuntimeDependencyRole;
+	role: JianyingPrivateCatalogPackageRole;
 }) {
 	try {
 		const metadata = await lstat(packagePath);
 		if (!metadata.isDirectory()) return false;
 		if (role === "font") {
 			return Boolean(await findJianyingPackageFontFile({ packagePath }));
+		}
+		if (getCatalogMirrorRole({ role })) {
+			if (role === "word-art") {
+				try {
+					const effectStyle = await readBoundedJianyingTextJson({
+						filePath: path.join(packagePath, "effectStyle.json"),
+					});
+					if (asJianyingRecord(effectStyle)) return true;
+				} catch {
+					// Some catalog-only records are not editable TextStyle packages.
+				}
+			}
+			try {
+				const config = await readBoundedJianyingTextJson({
+					filePath: path.join(packagePath, "config.json"),
+				});
+				if (asJianyingRecord(config)) return true;
+			} catch {
+				const archive = await lstat(
+					path.join(packagePath, JIANYING_PRIVATE_CATALOG_ARCHIVE_FILE_NAME)
+				);
+				return archive.isFile() && archive.size > 0;
+			}
+			return false;
 		}
 		const config = await readBoundedJianyingTextJson({
 			filePath: path.join(packagePath, "config.json"),
@@ -185,12 +229,44 @@ async function isReadyPackage({
 	}
 }
 
+async function installRawCatalogArchive({
+	archivePath,
+	destination,
+	packageHash,
+	resourceId,
+	role,
+}: {
+	archivePath: string;
+	destination: string;
+	packageHash: string;
+	resourceId: string;
+	role: "word-art" | "animation-catalog";
+}) {
+	const stagedPath = `${destination}.staged-${randomUUID()}`;
+	try {
+		await mkdir(stagedPath, { recursive: true });
+		await copyFile(
+			archivePath,
+			path.join(stagedPath, JIANYING_PRIVATE_CATALOG_ARCHIVE_FILE_NAME)
+		);
+		await writeFile(
+			path.join(stagedPath, "qcut-catalog-mirror.json"),
+			`${JSON.stringify({ schemaVersion: 1, resourceId, packageHash, role })}\n`,
+			"utf8"
+		);
+		await installStagedPackage({ destination, role, stagedPath });
+		return await isReadyPackage({ packagePath: destination, role });
+	} finally {
+		await rm(stagedPath, { recursive: true, force: true });
+	}
+}
+
 async function locateExtractedPackageRoot({
 	extractionRoot,
 	role,
 }: {
 	extractionRoot: string;
-	role: JianyingTextRuntimeDependencyRole;
+	role: JianyingPrivateCatalogPackageRole;
 }) {
 	if (await isReadyPackage({ packagePath: extractionRoot, role })) {
 		return extractionRoot;
@@ -298,9 +374,11 @@ async function releaseInstallLock({ lock }: { lock: ResourceInstallLock }) {
 function recoveryContainer({
 	role,
 }: {
-	role: JianyingTextRuntimeDependencyRole;
+	role: JianyingPrivateCatalogPackageRole;
 }) {
-	return role === "animation" ? "effect" : "artistEffect";
+	return role === "animation" || role === "animation-catalog"
+		? "effect"
+		: "artistEffect";
 }
 
 async function installStagedPackage({
@@ -309,7 +387,7 @@ async function installStagedPackage({
 	stagedPath,
 }: {
 	destination: string;
-	role: JianyingTextRuntimeDependencyRole;
+	role: JianyingPrivateCatalogPackageRole;
 	stagedPath: string;
 }) {
 	try {
@@ -353,7 +431,7 @@ async function installLocalPackage({
 }: {
 	destination: string;
 	resourceDirectory: string;
-	role: JianyingTextRuntimeDependencyRole;
+	role: JianyingPrivateCatalogPackageRole;
 	sourcePackagePaths: string[];
 }) {
 	const sourceChecks = await Promise.all(
@@ -391,7 +469,7 @@ export async function installJianyingTextCatalogCandidate({
 	fetchResource: ResourceFetcher;
 	extractArchive: ResourceArchiveExtractor;
 	recoveryRoot: string;
-	role: JianyingTextRuntimeDependencyRole;
+	role: JianyingPrivateCatalogPackageRole;
 	sourcePackagePaths?: string[];
 }): Promise<JianyingTextResourceRecoveryResult> {
 	const resourceDirectory = path.join(
@@ -469,6 +547,24 @@ export async function installJianyingTextCatalogCandidate({
 						throw new Error("Recovered Jianying package is invalid");
 					}
 				} catch {
+					const catalogMirrorRole = getCatalogMirrorRole({ role });
+					if (
+						catalogMirrorRole &&
+						(await installRawCatalogArchive({
+							archivePath,
+							destination,
+							packageHash: candidate.packageHash,
+							resourceId: candidate.resourceId,
+							role: catalogMirrorRole,
+						}))
+					) {
+						return {
+							resourceId: candidate.resourceId,
+							state: "recovered",
+							packageHash: candidate.packageHash,
+							packagePath: await realpath(destination),
+						};
+					}
 					failureReason = "package-invalid";
 					continue;
 				} finally {

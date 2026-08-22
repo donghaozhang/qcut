@@ -572,6 +572,7 @@ async function renderUncached({
 				...rawRequest,
 				packagePath: packageInfo.packagePath,
 				packageKind: packageInfo.packageKind,
+				styleResourceId: packageInfo.resourceId,
 				content: request.content,
 				fontPath,
 				fontSize: request.fontSize,

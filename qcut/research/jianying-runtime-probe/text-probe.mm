@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -31,6 +32,7 @@ struct TextRuntimeAbiProfile {
   std::string_view coreUuid;
   std::uintptr_t contextScopeConstructorOffset;
   std::uintptr_t contextScopeDestructorOffset;
+  std::uintptr_t studioScriptSegmentOffset;
 };
 
 constexpr std::array<TextRuntimeAbiProfile, 2> kTextRuntimeAbiProfiles = {{
@@ -39,12 +41,14 @@ constexpr std::array<TextRuntimeAbiProfile, 2> kTextRuntimeAbiProfiles = {{
         .coreUuid = "D6342ECD-5432-33F0-A2AD-0C28F5699994",
         .contextScopeConstructorOffset = 0x3fb3bc,
         .contextScopeDestructorOffset = 0x3fb3e8,
+        .studioScriptSegmentOffset = 0x320,
     },
     {
         .name = "jianying-text-fdf4-arm64-v1",
         .coreUuid = "FDF42EF4-427D-30DF-9310-A8C7B352C5CD",
         .contextScopeConstructorOffset = 0x3fb3ec,
         .contextScopeDestructorOffset = 0x3fb418,
+        .studioScriptSegmentOffset = 0,
     },
 }};
 
@@ -86,6 +90,15 @@ constexpr std::string_view kSetStickerParams =
     "bef_swing_segment_sticker_set_params";
 constexpr std::string_view kSetStickerAnimation =
     "bef_swing_segment_sticker_set_animation";
+constexpr std::string_view kSetStickerStudioAnimation =
+    "_ZN13AmazingEngine20StickerCommonSegment13setStudioAnimEPKcidb";
+constexpr std::string_view kSetTextSegmentParameters =
+    "_ZN13AmazingEngine11TextSegment13setParametersERKNSt3__112basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE";
+constexpr std::string_view kInitTextSegmentStudioAnimation =
+    "_ZN13AmazingEngine11TextSegment23initScriptForStudioAnimEv";
+constexpr std::string_view kSetStudioAnimationParameters =
+    "_ZN13AmazingEngine13ScriptSegment22setParametersForScriptERKNSt3__1"
+    "12basic_stringIcNS1_11char_traitsIcEENS1_9allocatorIcEEEE";
 constexpr std::string_view kCreateTextStickerFilter =
     "_ZN5vesdk3pub23createTextStickerFilterERKNSt3__112basic_stringIcNS1_11"
     "char_traitsIcEENS1_9allocatorIcEEEES9_S9_S9_x";
@@ -138,6 +151,12 @@ static_assert(offsetof(StickerParamsProbe, count) == 0x50);
 using SetStickerParamsMethod = int (*)(void*, const StickerParamsProbe*);
 using SetStickerAnimationMethod = int (*)(void*, int, const char*,
                                           std::int64_t);
+using SetStickerStudioAnimationMethod = void (*)(void*, const char*, int,
+                                                 double, bool);
+using SetTextSegmentParametersMethod = int (*)(void*, const std::string&);
+using InitTextSegmentStudioAnimationMethod = void (*)(void*);
+using SetStudioAnimationParametersMethod = void (*)(void*,
+                                                    const std::string&);
 
 namespace vesdk::pub {
 class TextStickerFilter;
@@ -174,6 +193,10 @@ struct TextSymbols {
   SetIntegerMethod setStickerResolutionType;
   SetStickerParamsMethod setStickerParams;
   SetStickerAnimationMethod setStickerAnimation;
+  SetStickerStudioAnimationMethod setStickerStudioAnimation;
+  SetTextSegmentParametersMethod setTextSegmentParameters;
+  InitTextSegmentStudioAnimationMethod initTextSegmentStudioAnimation;
+  SetStudioAnimationParametersMethod setStudioAnimationParameters;
   CreateTextStickerFilterMethod createTextStickerFilter;
   SetTextEffectMethod setTextEffect;
   SetDoubleReferenceMethod setTextFontSize;
@@ -221,6 +244,16 @@ struct TextSymbols {
           resolveSymbol<SetStickerParamsMethod>(core, kSetStickerParams),
       .setStickerAnimation = resolveSymbol<SetStickerAnimationMethod>(
           core, kSetStickerAnimation),
+      .setStickerStudioAnimation = resolveSymbol<SetStickerStudioAnimationMethod>(
+          core, kSetStickerStudioAnimation),
+      .setTextSegmentParameters = resolveSymbol<SetTextSegmentParametersMethod>(
+          core, kSetTextSegmentParameters),
+      .initTextSegmentStudioAnimation =
+          resolveSymbol<InitTextSegmentStudioAnimationMethod>(
+              core, kInitTextSegmentStudioAnimation),
+      .setStudioAnimationParameters =
+          resolveSymbol<SetStudioAnimationParametersMethod>(
+              core, kSetStudioAnimationParameters),
       .createTextStickerFilter = resolveSymbol<CreateTextStickerFilterMethod>(
           core, kCreateTextStickerFilter),
       .setTextEffect =
@@ -386,6 +419,7 @@ class TextSwingSession {
                    const GraphicsFrameResources& resources)
       : symbols_(symbols), graphicsDevice_(resources.graphicsDevice),
         scriptParameters_(request.scriptParameters),
+        studioAnimationParameters_(request.studioAnimationParameters),
         resourceFinder_(request.resourceManifestPath) {
     manager_ = std::make_unique<ManagerHandle>(
         symbols_, resources.width, resources.height, resources.graphicsDevice,
@@ -452,26 +486,45 @@ class TextSwingSession {
         effectiveStickerParams.empty()
             ? 0
             : symbols_.setStickerParams(segment_->get(), &stickerParams);
+    const int studioScriptResult =
+        request.studioScriptParameters.empty()
+            ? 0
+            : symbols_.setTextSegmentParameters(
+                  segment_->get(), request.studioScriptParameters);
     std::vector<int> animationResults;
     animationResults.reserve(request.animations.size());
     for (const TextAnimationProbeRequest& animation : request.animations) {
       const std::string animationPath = animation.packagePath.string();
+      if (animation.useStudioAnimation) {
+        symbols_.setStickerStudioAnimation(
+            segment_->get(), animationPath.c_str(), animation.type,
+            static_cast<double>(animation.duration) / 1'000'000.0, false);
+        animationResults.push_back(0);
+        continue;
+      }
       animationResults.push_back(symbols_.setStickerAnimation(
           segment_->get(), animation.type, animationPath.c_str(),
           animation.duration));
     }
+    hasStudioAnimation_ = std::any_of(
+        request.animations.begin(), request.animations.end(),
+        [](const TextAnimationProbeRequest& animation) {
+          return animation.useStudioAnimation;
+        });
     const bool animationsReady =
         std::all_of(animationResults.begin(), animationResults.end(),
                     [](int result) { return result == 0; });
     std::cout << "[text] configure results = " << simplifyResult << ','
-              << resolutionResult << ',' << stickerParamsResult;
+              << resolutionResult << ',' << stickerParamsResult << ','
+              << studioScriptResult;
     for (const int animationResult : animationResults) {
       std::cout << ',' << animationResult;
     }
     std::cout << ',' << timeRangeResult << ',' << renderIndexResult << ','
               << addResult << '\n';
     ready_ = simplifyResult == 0 && resolutionResult == 0 &&
-             stickerParamsResult == 0 && animationsReady &&
+             stickerParamsResult == 0 && studioScriptResult == 0 &&
+             animationsReady &&
              timeRangeResult == 0 && renderIndexResult == 0 && addResult == 0;
   }
 
@@ -492,14 +545,20 @@ class TextSwingSession {
     const DeviceTextureProbe output = bridgeTexture(
         symbols_, manager_->get(), resources.output, timestamp, "output");
     if (input.texture == nullptr || output.texture == nullptr) return false;
-    if (!scriptParameters_.empty() && !scriptParametersApplied_) {
+    if ((!scriptParameters_.empty() && !scriptParametersApplied_) ||
+        (hasStudioAnimation_ && !studioAnimationInitialized_)) {
       const int primeResult = symbols_.seekManagerDeviceTexture(
           manager_->get(), 0, &input, &output);
       const int parametersResult =
-          primeResult == 0
+          primeResult == 0 && !scriptParameters_.empty()
               ? symbols_.setSegmentParams(segment_->get(),
                                           scriptParameters_.c_str())
-              : -1;
+              : primeResult;
+      if (primeResult == 0 && hasStudioAnimation_) {
+        symbols_.initTextSegmentStudioAnimation(segment_->get());
+        applyStudioAnimationParameters();
+        studioAnimationInitialized_ = true;
+      }
       std::cout << "[text] script parameter results = " << primeResult << ','
                 << parametersResult << '\n';
       if (primeResult != 0 || parametersResult != 0) return false;
@@ -513,15 +572,37 @@ class TextSwingSession {
   }
 
  private:
+  void applyStudioAnimationParameters() {
+    if (studioAnimationParameters_.empty()) return;
+    const std::uintptr_t offset = symbols_.abiProfile.studioScriptSegmentOffset;
+    if (offset == 0) {
+      throw std::runtime_error(
+          "Studio text animation is unsupported for this runtime ABI");
+    }
+    void* studioScriptSegment = nullptr;
+    const auto* storage = static_cast<const std::byte*>(segment_->get()) + offset;
+    std::memcpy(&studioScriptSegment, storage, sizeof(studioScriptSegment));
+    if (studioScriptSegment == nullptr) {
+      throw std::runtime_error("Studio text animation bridge was not created");
+    }
+    symbols_.setStudioAnimationParameters(studioScriptSegment,
+                                          studioAnimationParameters_);
+    std::cout << "[text] studio animation parameter bytes = "
+              << studioAnimationParameters_.size() << '\n';
+  }
+
   const TextSymbols& symbols_;
   void* graphicsDevice_ = nullptr;
   std::string scriptParameters_;
+  std::string studioAnimationParameters_;
   TextResourceFinder resourceFinder_;
   std::unique_ptr<ManagerHandle> manager_;
   std::unique_ptr<AmazerContextScope> contextScope_;
   std::unique_ptr<SegmentHandle> segment_;
   bool ready_ = false;
   bool scriptParametersApplied_ = false;
+  bool hasStudioAnimation_ = false;
+  bool studioAnimationInitialized_ = false;
 };
 
 struct TextRenderContext {

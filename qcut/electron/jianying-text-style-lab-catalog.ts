@@ -304,14 +304,26 @@ async function scanPackage({
 	version: string;
 }): Promise<ScannedPackage> {
 	let config: unknown;
+	let packageKind: JianyingTextStylePackageKind;
 	try {
 		config = await readBoundedJianyingTextJson({
 			filePath: join(packagePath, "config.json"),
 		});
+		packageKind = detectJianyingTextPackageKind({ config });
 	} catch {
-		return { kind: "skip" };
+		try {
+			const effectStyle = await readBoundedJianyingTextJson({
+				filePath: join(packagePath, "effectStyle.json"),
+			});
+			if (!asRecord(effectStyle)) return { kind: "invalid" };
+			packageKind = "TextStyle";
+		} catch (cause) {
+			const missing =
+				cause instanceof Error && "code" in cause && cause.code === "ENOENT";
+			if (missing) return { kind: "skip" };
+			return { kind: "invalid" };
+		}
 	}
-	const packageKind = detectJianyingTextPackageKind({ config });
 	const coverPath = join(packagePath, "cover_icon.png");
 	const hasCover = await hasValidCover({ coverPath });
 	if (packageKind === "InfoSticker" || packageKind === "ScriptInfoSticker") {

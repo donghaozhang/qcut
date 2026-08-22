@@ -19,6 +19,8 @@ const SIGNAL_EXTENSIONS = new Set([
 	".fsh",
 	".glsl",
 	".json",
+	".lsanim",
+	".lsproj",
 	".lua",
 	".material",
 	".prefab",

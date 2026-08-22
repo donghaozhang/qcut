@@ -40,6 +40,68 @@ describe("Jianying text package resolver", () => {
 		vi.unstubAllEnvs();
 	});
 
+	it("prefers QCut's private archive without a Jianying package root", async () => {
+		const temporary = await mkdtemp(
+			path.join(os.tmpdir(), "qcut-private-text-package-resolver-")
+		);
+		try {
+			const archiveRoot = path.join(temporary, "PrivateAssets", "JianyingText");
+			const cacheRoot = path.join(archiveRoot, "Cache");
+			const packagePath = path.join(
+				cacheRoot,
+				"artistEffect",
+				RESOURCE_ID,
+				PACKAGE_HASH
+			);
+			await Promise.all([
+				writeJson({
+					filePath: path.join(packagePath, "config.json"),
+					value: {
+						effect: { Link: [{ type: "ScriptInfoSticker" }] },
+					},
+				}),
+				writeJson({
+					filePath: path.join(packagePath, "content.json"),
+					value: { root: { duration: 3 }, children: [] },
+				}),
+				...[
+					"effect",
+					"ressdk_db",
+					"recovered-resources",
+					"project-evidence",
+				].map((name) => mkdir(path.join(cacheRoot, name), { recursive: true })),
+			]);
+			const emptySummary = {
+				fileCount: 0,
+				byteCount: 0,
+				latestMtimeMs: 0,
+			};
+			await writeJson({
+				filePath: path.join(archiveRoot, "manifest.json"),
+				value: {
+					schemaVersion: 3,
+					completedAt: "2026-08-22T00:00:00.000Z",
+					containers: {
+						artistEffect: emptySummary,
+						effect: emptySummary,
+						ressdk_db: emptySummary,
+						"recovered-resources": emptySummary,
+						"project-evidence": emptySummary,
+					},
+				},
+			});
+			vi.stubEnv("QCUT_JIANYING_TEXT_PRIVATE_ARCHIVE_ROOT", archiveRoot);
+			vi.stubEnv("QCUT_JIANYING_TEXT_AUTO_RECOVER", "0");
+
+			const resolved = await resolveJianyingTextPackage({
+				reference: createReference(),
+			});
+			expect(resolved.packagePath).toBe(await realpath(packagePath));
+		} finally {
+			await rm(temporary, { recursive: true, force: true });
+		}
+	});
+
 	it("reports missing script dependencies as a first-class package state", async () => {
 		const temporary = await mkdtemp(
 			path.join(os.tmpdir(), "qcut-jianying-package-resolver-")

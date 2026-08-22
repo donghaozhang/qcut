@@ -26,6 +26,8 @@ function createSnapshot({
 			catalog: { entries: [], packageCount: 0, invalidPackageCount: 0 },
 			metadataEntries: [],
 			ownershipEntries: [],
+			categories: [],
+			categoryGroups: [],
 		},
 		animations: {
 			count: 0,

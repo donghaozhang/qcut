@@ -1,6 +1,6 @@
-import os from "node:os";
 import path from "node:path";
 import type { JianyingTextRuntimeDependencyRole } from "../jianying-text-runtime-contract.js";
+import { getQCutJianyingTextPrivateArchiveRoot } from "../jianying-text-private-archive.js";
 import { findJianyingCachedFontPackageHashes } from "./font-alias-index.js";
 import { findJianyingLocalPackagesByHash } from "./local-package-index.js";
 import {
@@ -39,11 +39,8 @@ export function getJianyingTextRecoveryCacheRoot() {
 	return (
 		process.env.QCUT_JIANYING_TEXT_RECOVERY_ROOT ??
 		path.join(
-			os.homedir(),
-			"Library",
-			"Caches",
-			"QCut",
-			"jianying-text-runtime",
+			getQCutJianyingTextPrivateArchiveRoot(),
+			"Cache",
 			"recovered-resources"
 		)
 	);

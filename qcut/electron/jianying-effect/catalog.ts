@@ -3,7 +3,6 @@ import { readdir, readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import { listJianyingResourceDatabasePaths } from "../jianying-resource-database.js";
 import type {
 	JianyingEffectAdjustParameter,
@@ -13,12 +12,25 @@ import type {
 import {
 	type CatalogItem,
 	type CatalogRow,
+	type ReferenceEffectVerdict,
 	collectCatalogItems,
 	collectPanelCategories,
 	collectReferenceVerdicts,
 	readAdjustParameters,
 	SUPPORTED_REQUIREMENTS,
 } from "./catalog-parsing.js";
+import {
+	inspectEffectPackageAlgorithm,
+	resolveEffectSupport,
+} from "./algorithm-support.js";
+import {
+	mergeQCutEffectCatalog,
+	qcutEffectCatalogContentMatches,
+	readQCutEffectCatalogSnapshot,
+	selectQCutEffectCategories,
+	writeQCutEffectCatalogSnapshot,
+} from "./catalog-cache.js";
+import { qcutStandaloneUserDataRoot } from "./user-data-paths.js";
 
 /**
  * Effect packages download lazily — a machine typically knows hundreds of
@@ -29,24 +41,80 @@ import {
  */
 
 const nodeRequire = createRequire(__filename);
+const CATALOG_MEMORY_TTL_MS = 60_000;
 
-/**
- * Where QCut unpacks packages it downloads on demand. Null outside Electron
- * (the batch reference script runs this module under plain node).
- */
-export function qcutManagedEffectPackageRoot(): string | null {
+interface EffectCatalogState {
+	items: CatalogItem[];
+	categories: JianyingEffectCategory[];
+}
+
+interface ReadonlyDatabase {
+	prepare: (sql: string) => {
+		all: (...parameters: string[]) => unknown[];
+	};
+	close: () => void;
+}
+
+let catalogStatePromise: Promise<EffectCatalogState> | null = null;
+let catalogStateExpiresAt = 0;
+
+function openReadonlyDatabase({
+	databasePath,
+}: {
+	databasePath: string;
+}): ReadonlyDatabase | null {
+	try {
+		const sqlite = nodeRequire("node:sqlite") as {
+			DatabaseSync: new (
+				path: string,
+				options: { readOnly: boolean }
+			) => ReadonlyDatabase;
+		};
+		return new sqlite.DatabaseSync(databasePath, { readOnly: true });
+	} catch {
+		try {
+			const sqlite = nodeRequire("bun:sqlite") as {
+				Database: new (
+					path: string,
+					options: { readonly: boolean }
+				) => ReadonlyDatabase;
+			};
+			return new sqlite.Database(databasePath, { readonly: true });
+		} catch {
+			return null;
+		}
+	}
+}
+
+function qcutUserDataRoot(): string {
 	try {
 		const electron = nodeRequire("electron") as
 			| string
 			| { app?: { getPath: (name: string) => string } };
-		if (typeof electron === "string" || !electron.app) return null;
-		return path.join(
-			electron.app.getPath("userData"),
-			"JianyingEffectPackages"
-		);
+		if (typeof electron !== "string" && electron.app) {
+			return electron.app.getPath("userData");
+		}
 	} catch {
-		return null;
+		// The standalone CLI has no Electron app; use the same platform path.
 	}
+	return qcutStandaloneUserDataRoot();
+}
+
+/** Where QCut unpacks packages it downloads on demand. */
+export function qcutManagedEffectPackageRoot(): string | null {
+	const override = process.env.QCUT_JIANYING_EFFECT_MANAGED_PACKAGE_ROOT;
+	if (override) return override;
+	return path.join(qcutUserDataRoot(), "JianyingEffectPackages");
+}
+
+function qcutManagedEffectCatalogPath(): string | null {
+	const override = process.env.QCUT_JIANYING_EFFECT_CATALOG_CACHE_PATH;
+	if (override) return override;
+	return path.join(
+		qcutUserDataRoot(),
+		"JianyingEffectCatalog",
+		"catalog-v1.json"
+	);
 }
 
 /**
@@ -69,10 +137,16 @@ function referenceLibraryRoot(): string | null {
 
 function packageCacheRoots(): string[] {
 	const override = process.env.QCUT_JIANYING_EFFECT_PACKAGE_ROOT;
-	if (override) return override.split(path.delimiter).filter(Boolean);
+	const managedRoot = qcutManagedEffectPackageRoot();
+	if (override) {
+		return [managedRoot, ...override.split(path.delimiter)]
+			.filter((entry): entry is string => Boolean(entry))
+			.filter((entry, index, entries) => entries.indexOf(entry) === index);
+	}
 
 	const home = os.homedir();
-	const roots = [
+	const roots = managedRoot ? [managedRoot] : [];
+	roots.push(
 		path.join(home, "Movies", "JianyingPro", "User Data", "Cache", "effect"),
 		path.join(
 			home,
@@ -85,17 +159,17 @@ function packageCacheRoots(): string[] {
 			"User Data",
 			"Cache",
 			"effect"
-		),
-	];
-	const managedRoot = qcutManagedEffectPackageRoot();
-	if (managedRoot) roots.push(managedRoot);
+		)
+	);
 	const referenceRoot = referenceLibraryRoot();
 	if (referenceRoot) roots.push(path.join(referenceRoot, "_packages"));
 	return roots;
 }
 
 /** effectId → local render verdict from the reference batch, when present. */
-async function readReferenceVerdicts(): Promise<Map<string, boolean>> {
+async function readReferenceVerdicts(): Promise<
+	Map<string, ReferenceEffectVerdict>
+> {
 	const referenceRoot = referenceLibraryRoot();
 	if (!referenceRoot) return new Map();
 	const jsonl = await readFile(
@@ -160,6 +234,15 @@ async function indexPackagesByMd5(): Promise<Map<string, string>> {
 	return packages;
 }
 
+export async function findJianyingEffectPackagePath({
+	packageHash,
+}: {
+	packageHash: string;
+}): Promise<string | null> {
+	const packages = await indexPackagesByMd5();
+	return packages.get(packageHash.toLowerCase()) ?? null;
+}
+
 async function readHttpCacheRows({
 	patterns,
 }: {
@@ -172,9 +255,10 @@ async function readHttpCacheRows({
 			databaseRoot: root,
 		});
 		for (const databasePath of databasePaths) {
-			let database: DatabaseSync | null = null;
+			let database: ReadonlyDatabase | null = null;
 			try {
-				database = new DatabaseSync(databasePath, { readOnly: true });
+				database = openReadonlyDatabase({ databasePath });
+				if (!database) continue;
 				const records = database
 					.prepare(
 						`SELECT url, response_body FROM http_cache WHERE ${condition}`
@@ -209,6 +293,62 @@ function readPanelRows(): Promise<CatalogRow[]> {
 	return readHttpCacheRows({ patterns: ["%panel/get_panel_info%"] });
 }
 
+async function loadEffectCatalogState(): Promise<EffectCatalogState> {
+	const cachePath = qcutManagedEffectCatalogPath();
+	const [catalogRows, panelRows, cached] = await Promise.all([
+		readCatalogRows(),
+		readPanelRows(),
+		cachePath
+			? readQCutEffectCatalogSnapshot({ cachePath })
+			: Promise.resolve(null),
+	]);
+	const liveItems = collectCatalogItems({ rows: catalogRows });
+	const liveCategories = collectPanelCategories({
+		panelRows,
+		items: liveItems,
+	});
+	const merged = mergeQCutEffectCatalog({
+		cached,
+		liveItems,
+		liveCategories,
+	});
+	if (
+		cachePath &&
+		liveItems.length > 0 &&
+		!qcutEffectCatalogContentMatches({
+			snapshot: cached,
+			items: merged.items,
+			categories: merged.categories,
+		})
+	) {
+		await writeQCutEffectCatalogSnapshot({
+			cachePath,
+			items: merged.items,
+			categories: merged.categories,
+		}).catch((cause) => {
+			console.warn(
+				"[jianying-effect] failed to persist QCut catalog cache",
+				cause
+			);
+		});
+	}
+	return merged;
+}
+
+function readEffectCatalogState(): Promise<EffectCatalogState> {
+	const now = Date.now();
+	if (catalogStatePromise && now < catalogStateExpiresAt) {
+		return catalogStatePromise;
+	}
+	catalogStateExpiresAt = now + CATALOG_MEMORY_TTL_MS;
+	catalogStatePromise = loadEffectCatalogState().catch((cause) => {
+		catalogStatePromise = null;
+		catalogStateExpiresAt = 0;
+		throw cause;
+	});
+	return catalogStatePromise;
+}
+
 /** Reads the slider defaults the package itself ships, when present. */
 async function readPackageAdjustParameters({
 	packagePath,
@@ -227,8 +367,7 @@ export async function findJianyingEffectCatalogItem({
 }: {
 	effectId: string;
 }): Promise<CatalogItem | null> {
-	const rows = await readCatalogRows();
-	const items = collectCatalogItems({ rows });
+	const { items } = await readEffectCatalogState();
 	return items.find((item) => item.effectId === effectId) ?? null;
 }
 
@@ -238,18 +377,16 @@ export interface JianyingEffectLibrary {
 }
 
 export async function discoverJianyingEffectLibrary(): Promise<JianyingEffectLibrary> {
-	const [rows, panelRows, packages, verdicts] = await Promise.all([
-		readCatalogRows(),
-		readPanelRows(),
+	const [catalog, packages, verdicts] = await Promise.all([
+		readEffectCatalogState(),
 		indexPackagesByMd5(),
 		readReferenceVerdicts(),
 	]);
 
-	const items = collectCatalogItems({ rows });
 	const definitions: JianyingEffectDefinition[] = [];
 	const keptItems: CatalogItem[] = [];
 
-	for (const item of items) {
+	for (const item of catalog.items) {
 		const packagePath = packages.get(item.md5);
 		const installed = packagePath !== undefined;
 		const downloadable = item.itemUrls.length > 0;
@@ -259,26 +396,25 @@ export async function discoverJianyingEffectLibrary(): Promise<JianyingEffectLib
 		const unsupportedRequirements = item.requirements.filter(
 			(requirement) => !SUPPORTED_REQUIREMENTS.has(requirement)
 		);
-		// CV-locked entries are only worth showing when the user already has
-		// them from Jianying; offering hundreds of undownloaded locked tiles
-		// would just be noise.
-		if (!installed && unsupportedRequirements.length > 0) continue;
-		const packageParameters = installed
-			? await readPackageAdjustParameters({ packagePath })
-			: [];
-
-		// The reference batch has actually run these packages; an explicit
-		// failure there means an export pass would fail the same way, so the
-		// tile is locked instead of pretending to work.
-		const failedLocalVerification = verdicts.get(item.effectId) === false;
-		const supported =
-			unsupportedRequirements.length === 0 && !failedLocalVerification;
-		const unsupportedReason =
-			unsupportedRequirements.length > 0
-				? `需要剪映算法能力：${unsupportedRequirements.join("、")}`
-				: failedLocalVerification
-					? "本机渲染验证未通过"
-					: undefined;
+		const [packageParameters, packageInspection] = installed
+			? await Promise.all([
+					readPackageAdjustParameters({ packagePath }),
+					inspectEffectPackageAlgorithm({ packagePath }),
+				])
+			: [[], undefined];
+		const support = resolveEffectSupport({
+			effectId: item.effectId,
+			packageHash: item.md5,
+			unsupportedRequirements,
+			packageInspection,
+			localVerdict: verdicts.get(item.effectId),
+		});
+		// These packages preprocess a still image for a remote AI portrait job;
+		// they have no local visual effect graph to place on a video timeline.
+		if (packageInspection?.remoteGeneration) continue;
+		// Keep verified downloadable algorithm effects visible, but do not fill
+		// the panel with hundreds of unavailable experiments that remain locked.
+		if (!installed && support.requiresAlgorithm && !support.supported) continue;
 
 		keptItems.push(item);
 		definitions.push({
@@ -297,9 +433,9 @@ export async function discoverJianyingEffectLibrary(): Promise<JianyingEffectLib
 					? packageParameters
 					: item.adjustParameters,
 			access: item.vip ? "vip" : "free",
-			supported,
-			unsupportedReason,
-			requiresAlgorithm: unsupportedRequirements.length > 0,
+			supported: support.supported,
+			unsupportedReason: support.unsupportedReason,
+			requiresAlgorithm: support.requiresAlgorithm,
 			installed,
 			downloadable,
 		});
@@ -316,7 +452,10 @@ export async function discoverJianyingEffectLibrary(): Promise<JianyingEffectLib
 
 	return {
 		effects: definitions,
-		categories: collectPanelCategories({ panelRows, items: keptItems }),
+		categories: selectQCutEffectCategories({
+			categories: catalog.categories,
+			items: keptItems,
+		}),
 	};
 }
 

@@ -7,6 +7,7 @@ import {
 	tiledReferencesFromPackages,
 } from "./jianying-filter-lab-catalog.js";
 import {
+	JIANYING_FILTER_LAB_BACKUP_LOCAL_RUNTIME_CHANNEL,
 	JIANYING_FILTER_LAB_LIST_CHANNEL,
 	JIANYING_FILTER_LAB_LOCAL_RUNTIME_CHANNEL,
 	JIANYING_FILTER_LAB_LOAD_CHANNEL,
@@ -24,6 +25,7 @@ import {
 	type JianyingFilterLabLoadRendererResult,
 	type JianyingFilterLabLutSummary,
 	type JianyingFilterLabThumbnailResult,
+	type JianyingFilterRuntimeBackupResult,
 	type JianyingFilterVerification,
 } from "./jianying-filter-lab-contract.js";
 import { readJianyingFilterVerifications } from "./jianying-filter-verification-store.js";
@@ -54,6 +56,7 @@ import {
 	listJianyingLutReferences,
 	loadJianyingLut,
 	measureCubeChroma,
+	qcutManagedFilterPackageRoot,
 	type FilterLabCube,
 	type JianyingLutEntry,
 	type JianyingLutReference,
@@ -62,6 +65,7 @@ import {
 	loadTiledLutCube,
 	resolveTiledLutPackagePath,
 } from "./native-pipeline/filters/filter-lab-tiled-lut.js";
+import { selectJianyingFilterCacheRoot } from "./native-pipeline/filters/filter-lab-package-path.js";
 import {
 	JIANYING_NATIVE_PORTRAIT_PROFILES,
 	resolveJianyingNativePortraitPackagePath,
@@ -87,6 +91,8 @@ import {
 	createJianyingFilterLocalProvider,
 	type JianyingFilterLocalProvider,
 } from "./jianying-filter-local-runtime/provider.js";
+import { backupJianyingFilterRuntime } from "./jianying-filter-local-runtime/runtime-backup.js";
+import { inspectJianyingFilterLocalRuntime } from "./jianying-filter-local-runtime/runtime-discovery.js";
 
 const MAX_EDITOR_LUT_SIZE = 65;
 
@@ -145,9 +151,11 @@ export interface SetupJianyingFilterLabIPCOptions {
 	inspectPackages?: ({
 		filters,
 		references,
+		cacheRoots,
 	}: {
 		filters: JianyingFilterKnownCatalog["filters"];
 		references: JianyingLutReference[];
+		cacheRoots?: string[];
 	}) => Promise<Map<string, JianyingFilterPackageSummary>>;
 	readVerifications?: () => Promise<Map<string, JianyingFilterVerification>>;
 	readThumbnail?: ({
@@ -164,12 +172,18 @@ export interface SetupJianyingFilterLabIPCOptions {
 	}) => Promise<JianyingFilterDownloadResult>;
 	thumbnailCacheRoot?: string;
 	filterCacheRoot?: string;
+	filterCacheRoots?: string[];
 	watchCache?: ({
 		onChange,
 	}: {
 		onChange: () => void;
 	}) => JianyingFilterCacheWatcher;
 	localProvider?: JianyingFilterLocalProvider;
+	backupRuntime?: ({
+		filters,
+	}: {
+		filters: JianyingKnownFilter[];
+	}) => Promise<Omit<JianyingFilterRuntimeBackupResult, "status">>;
 }
 
 function assertTrustedMainFrame({
@@ -311,7 +325,8 @@ export function setupJianyingFilterLabIPC(
 		readVerifications = () => readJianyingFilterVerifications(),
 		readThumbnail = readJianyingFilterThumbnail,
 		downloadPackage = downloadJianyingFilterPackage,
-		filterCacheRoot = dirname(jianyingEffectCacheRoot()),
+		filterCacheRoot: configuredFilterCacheRoot,
+		filterCacheRoots: configuredFilterCacheRoots,
 		thumbnailCacheRoot = join(
 			app.getPath("userData"),
 			"Cache",
@@ -319,8 +334,43 @@ export function setupJianyingFilterLabIPC(
 		),
 		watchCache,
 		localProvider = createJianyingFilterLocalProvider(),
+		backupRuntime = async ({ filters }) =>
+			backupJianyingFilterRuntime({
+				filters,
+				runtime: await inspectJianyingFilterLocalRuntime({ refresh: true }),
+				managedPackageRoot: qcutManagedFilterPackageRoot(),
+			}),
 	} = options;
+	const filterCacheRoot =
+		configuredFilterCacheRoot ?? dirname(jianyingEffectCacheRoot());
+	const managedFilterPackageRoot = qcutManagedFilterPackageRoot();
+	const filterCacheRoots = (
+		configuredFilterCacheRoots ??
+		(configuredFilterCacheRoot
+			? [filterCacheRoot]
+			: [
+					filterCacheRoot,
+					...(managedFilterPackageRoot
+						? [dirname(managedFilterPackageRoot)]
+						: []),
+				])
+	).filter((root, index, roots) => roots.indexOf(root) === index);
+	const cacheRootForRenderer = ({
+		renderer,
+	}: {
+		renderer: {
+			container: "artistEffect" | "effect";
+			packageIdentifier: string;
+			version: string;
+		};
+	}) =>
+		selectJianyingFilterCacheRoot({
+			cacheRoots: filterCacheRoots,
+			identity: renderer,
+		});
 	let catalogPromise: Promise<FilterLabCatalog> | null = null;
+	let runtimeBackupPromise: Promise<JianyingFilterRuntimeBackupResult> | null =
+		null;
 	const thumbnailPromises = new Map<string, Promise<JianyingFilterThumbnail>>();
 	const readCatalog = ({ refresh }: { refresh: boolean }) => {
 		if (!catalogPromise || refresh) {
@@ -353,10 +403,11 @@ export function setupJianyingFilterLabIPC(
 				const packages = await inspectPackages({
 					filters: mergedCatalog.filters,
 					references: supported,
+					cacheRoots: filterCacheRoots,
 				});
 				const tiledReferences = tiledReferencesFromPackages({
 					packages,
-					cacheRoot: filterCacheRoot,
+					cacheRoots: filterCacheRoots,
 				});
 				const multiPassRenderers = new Map<
 					string,
@@ -433,6 +484,7 @@ export function setupJianyingFilterLabIPC(
 	ipcMain.removeHandler(JIANYING_FILTER_LAB_THUMBNAIL_CHANNEL);
 	ipcMain.removeHandler(JIANYING_FILTER_LAB_DOWNLOAD_CHANNEL);
 	ipcMain.removeHandler(JIANYING_FILTER_LAB_LOCAL_RUNTIME_CHANNEL);
+	ipcMain.removeHandler(JIANYING_FILTER_LAB_BACKUP_LOCAL_RUNTIME_CHANNEL);
 	ipcMain.removeHandler(JIANYING_FILTER_LAB_RENDER_LOCAL_EFFECT_CHANNEL);
 	ipcMain.removeHandler(JIANYING_FILTER_LAB_RENDER_LOCAL_PORTRAIT_CHANNEL);
 	ipcMain.handle(
@@ -455,6 +507,30 @@ export function setupJianyingFilterLabIPC(
 		}
 	);
 	ipcMain.handle(
+		JIANYING_FILTER_LAB_BACKUP_LOCAL_RUNTIME_CHANNEL,
+		async (event): Promise<JianyingFilterRuntimeBackupResult> => {
+			assertTrustedMainFrame({ event, mainWindow: getMainWindow() });
+			if (!runtimeBackupPromise) {
+				const task = readCatalog({ refresh: true })
+					.then(({ knownFilters }) =>
+						backupRuntime({ filters: [...knownFilters.values()] })
+					)
+					.then(async (result) => {
+						localProvider.clear();
+						return {
+							...result,
+							status: await localProvider.inspect({ refresh: true }),
+						};
+					});
+				const pending = task.finally(() => {
+					if (runtimeBackupPromise === pending) runtimeBackupPromise = null;
+				});
+				runtimeBackupPromise = pending;
+			}
+			return runtimeBackupPromise;
+		}
+	);
+	ipcMain.handle(
 		JIANYING_FILTER_LAB_RENDER_LOCAL_EFFECT_CHANNEL,
 		async (
 			event,
@@ -470,7 +546,7 @@ export function setupJianyingFilterLabIPC(
 			return localProvider.renderEffect({
 				...parsed,
 				packagePath: resolveMultiPassPackagePath({
-					cacheRoot: filterCacheRoot,
+					cacheRoot: cacheRootForRenderer({ renderer }),
 					renderer,
 				}),
 			});
@@ -491,12 +567,14 @@ export function setupJianyingFilterLabIPC(
 			let packagePath: string;
 			if (nativeRenderer) {
 				packagePath = resolveJianyingNativePortraitPackagePath({
-					cacheRoot: filterCacheRoot,
+					cacheRoot: cacheRootForRenderer({ renderer: nativeRenderer }),
 					renderer: nativeRenderer,
 				});
 			} else if (tiledRenderer) {
 				packagePath = resolveTiledLutPackagePath({
-					cacheRoot: filterCacheRoot,
+					cacheRoot: cacheRootForRenderer({
+						renderer: tiledRenderer.background,
+					}),
 					renderer: tiledRenderer.background,
 				});
 			} else {
@@ -505,6 +583,7 @@ export function setupJianyingFilterLabIPC(
 			return localProvider.render({
 				...parsed,
 				packagePath,
+				captureFace: nativeRenderer?.faceDetection === true,
 			});
 		}
 	);
@@ -602,7 +681,7 @@ export function setupJianyingFilterLabIPC(
 				throw new Error("该剪映 Shader 尚无可用的多 Pass 渲染器");
 			}
 			return loadJianyingFilterLabRenderer({
-				cacheRoot: filterCacheRoot,
+				cacheRoot: cacheRootForRenderer({ renderer }),
 				filterTitle: filter.title,
 				loadRecipe: loadMultiPassRecipe,
 				renderer,
@@ -615,6 +694,7 @@ export function setupJianyingFilterLabIPC(
 		dispose: () => {
 			cacheWatcher?.dispose();
 			catalogPromise = null;
+			runtimeBackupPromise = null;
 			thumbnailPromises.clear();
 			localProvider.clear();
 			ipcMain.removeHandler(JIANYING_FILTER_LAB_LIST_CHANNEL);
@@ -623,6 +703,7 @@ export function setupJianyingFilterLabIPC(
 			ipcMain.removeHandler(JIANYING_FILTER_LAB_THUMBNAIL_CHANNEL);
 			ipcMain.removeHandler(JIANYING_FILTER_LAB_DOWNLOAD_CHANNEL);
 			ipcMain.removeHandler(JIANYING_FILTER_LAB_LOCAL_RUNTIME_CHANNEL);
+			ipcMain.removeHandler(JIANYING_FILTER_LAB_BACKUP_LOCAL_RUNTIME_CHANNEL);
 			ipcMain.removeHandler(JIANYING_FILTER_LAB_RENDER_LOCAL_EFFECT_CHANNEL);
 			ipcMain.removeHandler(JIANYING_FILTER_LAB_RENDER_LOCAL_PORTRAIT_CHANNEL);
 		},

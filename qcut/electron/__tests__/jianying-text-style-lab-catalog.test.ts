@@ -257,4 +257,36 @@ describe("Jianying text style lab catalog", () => {
 			false
 		);
 	});
+
+	it("classifies a legacy effectStyle package without config.json", async () => {
+		const root = await createTemporaryDirectory();
+		const resourceId = "7241433848943365436";
+		const version = "5".repeat(32);
+		const directory = join(root, resourceId, version);
+		await mkdir(directory, { recursive: true });
+		await Promise.all([
+			writeFile(
+				join(directory, "effectStyle.json"),
+				JSON.stringify(solidStyle)
+			),
+			writeFile(join(directory, "cover_icon.png"), PNG_BYTES),
+		]);
+
+		const catalog = await buildJianyingTextStyleCatalog({ root });
+
+		expect(catalog).toMatchObject({
+			packageCount: 1,
+			invalidPackageCount: 0,
+		});
+		expect(catalog.entries[0]).toMatchObject({
+			styleId: `${resourceId}/${version}`,
+			packageKind: "TextStyle",
+			compatibility: "native-runtime",
+			runtimeReference: {
+				packageKind: "TextStyle",
+				resourceId,
+				packageHash: version,
+			},
+		});
+	});
 });

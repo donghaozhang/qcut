@@ -1,6 +1,7 @@
 import { statSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { qcutEffectPrivateRuntimeCurrent } from "./offline-runtime.js";
 
 /**
  * Kept free of `node:sqlite` (unlike catalog.ts) so the render path stays
@@ -9,10 +10,10 @@ import path from "node:path";
  */
 
 /**
- * Where JianYing keeps the CV model weights an effect's algorithm graph needs.
- * The download cache carries newer versions than the app bundle, so it wins.
- * Nothing here is ever copied or redistributed: the bridge reads the weights
- * from the user's own JianYing installation.
+ * Where the CV model weights live. QCut's local-only snapshot wins when ready;
+ * the user's JianYing cache and app bundle remain fallbacks before that first
+ * offline copy. None of these model files are part of the repository or app
+ * package.
  */
 /**
  * `existsSync` alone would also admit a plain file, and a file smuggled in
@@ -36,6 +37,18 @@ export function jianyingModelDirectories(): string[] {
 	// carries newer versions of some models while the app bundle is the only
 	// source of others (head segmentation, avatar drive, eye fitting…).
 	return [
+		path.join(qcutEffectPrivateRuntimeCurrent(), "Models", "user-cache"),
+		path.join(qcutEffectPrivateRuntimeCurrent(), "Models", "app-bundle"),
+		path.join(
+			home,
+			"Library",
+			"Application Support",
+			"QCut",
+			"PrivateRuntimes",
+			"JianyingFilter",
+			"current",
+			"Models"
+		),
 		path.join(
 			home,
 			"Movies",

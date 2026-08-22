@@ -10,6 +10,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
 	JianyingFilterLabFilterSummary,
 	JianyingFilterLabListResult,
+	JianyingFilterLocalRuntimeStatus,
 } from "@/types/electron";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { JianyingFilterLab } from "../jianying-filter-lab";
@@ -122,6 +123,20 @@ const catalogResult: JianyingFilterLabListResult = {
 	],
 };
 
+const runtimeStatus: JianyingFilterLocalRuntimeStatus = {
+	state: "ready",
+	message: "QCut private runtime ready",
+	provider: "jianying-local-effect-v1",
+	platform: "darwin",
+	bridgeReady: true,
+	runtimeReady: true,
+	modelReady: true,
+	runtimeSource: "qcut-private",
+	modelSource: "qcut-private",
+	snapshotReady: true,
+	offlineReady: true,
+};
+
 function installFilterLabApi({
 	result,
 }: {
@@ -173,6 +188,19 @@ function installFilterLabApi({
 		resourceId,
 		version: "remote-version",
 	}));
+	const inspectLocalRuntime = vi.fn(async () => runtimeStatus);
+	const backupLocalRuntime = vi.fn(async () => ({
+		created: false,
+		coreUuid: "D6342ECD-5432-33F0-A2AD-0C28F5699994",
+		fileCount: 1,
+		runtimeLibraryCount: 1,
+		modelCount: 1,
+		packageCount: 1,
+		databaseFileCount: 1,
+		totalBytes: 1,
+		createdAt: "2026-08-22T00:00:00.000Z",
+		status: runtimeStatus,
+	}));
 	const onCatalogChanged = vi.fn(() => vi.fn());
 	Object.defineProperty(window, "electronAPI", {
 		configurable: true,
@@ -184,6 +212,8 @@ function installFilterLabApi({
 				loadRenderer,
 				thumbnail,
 				download,
+				inspectLocalRuntime,
+				backupLocalRuntime,
 				onCatalogChanged,
 			},
 		},

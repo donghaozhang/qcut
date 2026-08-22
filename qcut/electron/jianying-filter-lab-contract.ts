@@ -8,6 +8,8 @@ export const JIANYING_FILTER_LAB_THUMBNAIL_CHANNEL =
 	"jianying-filter-lab:thumbnail";
 export const JIANYING_FILTER_LAB_LOCAL_RUNTIME_CHANNEL =
 	"jianying-filter-lab:local-runtime";
+export const JIANYING_FILTER_LAB_BACKUP_LOCAL_RUNTIME_CHANNEL =
+	"jianying-filter-lab:backup-local-runtime";
 export const JIANYING_FILTER_LAB_RENDER_LOCAL_PORTRAIT_CHANNEL =
 	"jianying-filter-lab:render-local-portrait";
 export const JIANYING_FILTER_LAB_RENDER_LOCAL_EFFECT_CHANNEL =
@@ -286,6 +288,29 @@ export interface JianyingFilterLocalRuntimeStatus {
 	bridgeReady: boolean;
 	runtimeReady: boolean;
 	modelReady: boolean;
+	runtimeSource?: JianyingFilterLocalRuntimeSource;
+	modelSource?: JianyingFilterLocalRuntimeSource;
+	snapshotReady?: boolean;
+	offlineReady?: boolean;
+}
+
+export type JianyingFilterLocalRuntimeSource =
+	| "qcut-private"
+	| "jianying-installation"
+	| "environment"
+	| "none";
+
+export interface JianyingFilterRuntimeBackupResult {
+	created: boolean;
+	coreUuid: string;
+	fileCount: number;
+	runtimeLibraryCount: number;
+	modelCount: number;
+	packageCount: number;
+	databaseFileCount: number;
+	totalBytes: number;
+	createdAt: string;
+	status: JianyingFilterLocalRuntimeStatus;
 }
 
 export interface JianyingFilterLabLocalRuntimeRequest {
@@ -319,6 +344,26 @@ export interface JianyingFilterLabRenderLocalEffectResult {
 	rgba: Uint8Array;
 }
 
+export interface JianyingFilterLabFaceObservation {
+	rawRect: [number, number, number, number];
+	score: number;
+	yaw: number;
+	pitch: number;
+	roll: number;
+	eyeDistance: number;
+	id: number;
+	action: number;
+	trackingCount: number;
+	landmarks: [number, number, number][];
+}
+
+export interface JianyingFilterLabFaceEvidence {
+	schemaVersion: 1;
+	coordinateSpace: "source-normalized-top-left";
+	faceCount: number;
+	faces: JianyingFilterLabFaceObservation[];
+}
+
 export interface JianyingFilterLabRenderLocalPortraitResult
 	extends JianyingFilterLabRenderLocalEffectResult {
 	mask: {
@@ -327,6 +372,7 @@ export interface JianyingFilterLabRenderLocalPortraitResult
 		bytes: Uint8Array;
 		orientation: "bottom-left";
 	};
+	face?: JianyingFilterLabFaceEvidence;
 }
 
 export interface JianyingFilterLabAPI {
@@ -345,6 +391,7 @@ export interface JianyingFilterLabAPI {
 	inspectLocalRuntime: (
 		request?: JianyingFilterLabLocalRuntimeRequest
 	) => Promise<JianyingFilterLocalRuntimeStatus>;
+	backupLocalRuntime: () => Promise<JianyingFilterRuntimeBackupResult>;
 	renderLocalPortrait: (
 		request: JianyingFilterLabRenderLocalPortraitRequest
 	) => Promise<JianyingFilterLabRenderLocalPortraitResult>;

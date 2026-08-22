@@ -13,6 +13,7 @@ struct TextAnimationProbeRequest {
   std::filesystem::path packagePath;
   int type = 0;
   std::int64_t duration = 1'000'000;
+  bool useStudioAnimation = false;
 };
 
 struct TextFrameProbeRequest {
@@ -25,6 +26,8 @@ struct TextFrameProbeRequest {
   std::vector<TextAnimationProbeRequest> animations;
   std::string segmentPayload;
   std::string scriptParameters;
+  std::string studioScriptParameters;
+  std::string studioAnimationParameters;
   std::string text;
   std::vector<std::string> stickerParams;
   double fontSize = 12.0;

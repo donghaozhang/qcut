@@ -1,4 +1,5 @@
 import path from "node:path";
+import { rm } from "node:fs/promises";
 import {
 	compileJianyingTransitionBridge,
 	JIANYING_TRANSITION_BRIDGE_FILE_NAME,
@@ -18,5 +19,6 @@ const outputPath = path.join(
 	JIANYING_TRANSITION_BRIDGE_FILE_NAME
 );
 
+await rm(outputPath, { force: true });
 await compileJianyingTransitionBridge({ projectRoot, outputPath });
 console.log(`Staged Jianying transition bridge: ${outputPath}`);

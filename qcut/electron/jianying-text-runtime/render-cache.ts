@@ -6,7 +6,7 @@ import type {
 } from "../jianying-text-runtime-contract.js";
 import { mapWithConcurrency } from "../lib/map-with-concurrency.js";
 
-export const JIANYING_TEXT_RENDER_CACHE_SCHEMA_VERSION = 17;
+export const JIANYING_TEXT_RENDER_CACHE_SCHEMA_VERSION = 20;
 const FRAME_VALIDATION_CONCURRENCY = 32;
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 

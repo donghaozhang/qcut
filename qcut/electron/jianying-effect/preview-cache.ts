@@ -15,6 +15,7 @@ import type {
 	JianyingEffectPreviewResult,
 } from "../jianying-effect-contract.js";
 import { getFFmpegPath } from "../ffmpeg/paths.js";
+import { ensureQCutManagedEffectPackage } from "./download.js";
 import {
 	renderJianyingEffectClip,
 	runJianyingEffectProcess,
@@ -156,11 +157,18 @@ async function renderPreview({
 	if (!definition.installed) {
 		throw new Error(`该特效素材包尚未下载：${definition.name}`);
 	}
+	const cachedPackage = await ensureQCutManagedEffectPackage({
+		effectId: definition.effectId,
+	});
+	const cachedDefinition = {
+		...definition,
+		packagePath: cachedPackage.packagePath,
+	};
 
 	const seconds = clampPreviewSeconds({ requested: request.seconds });
 	const key = cacheKey({
 		request,
-		packageHash: definition.packageHash,
+		packageHash: cachedDefinition.packageHash,
 		seconds,
 	});
 	const cacheDirectory = previewCacheDirectory();
@@ -211,12 +219,12 @@ async function renderPreview({
 		// is past the package's default duration — a frame outside the window
 		// would be copied through untouched and preview as "no effect".
 		const windowSeconds = Math.max(
-			definition.defaultDurationMs / 1000,
+			cachedDefinition.defaultDurationMs / 1000,
 			seconds + 1 / PREVIEW_FPS
 		);
 		await renderJianyingEffectClip({
 			inspection,
-			definition,
+			definition: cachedDefinition,
 			inputPath: sourceClip,
 			outputPath: renderedClip,
 			width: PREVIEW_WIDTH,

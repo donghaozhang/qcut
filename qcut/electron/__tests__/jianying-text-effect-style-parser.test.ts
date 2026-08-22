@@ -109,6 +109,28 @@ afterEach(async () => {
 });
 
 describe("Jianying effectStyle parser", () => {
+	it("accepts a legacy effectStyle-only package", async () => {
+		const packagePath = await mkdtemp(
+			path.join(os.tmpdir(), "qcut-effect-style-parser-configless-")
+		);
+		temporaryDirectories.push(packagePath);
+		await writeStyle({
+			packagePath,
+			style: layeredStyle({ texturePath: "textures/missing.png" }),
+		});
+
+		const result = await parseJianyingEffectStylePackage({
+			packagePath,
+			resourceId: RESOURCE_ID,
+		});
+
+		expect(result.manifest).toMatchObject({
+			resourceId: RESOURCE_ID,
+			packageVersion: "3",
+			fillKind: "gradient",
+		});
+	});
+
 	it("normalizes layered styles and preserves versioned source parameters", async () => {
 		const packagePath = await createTemporaryPackage();
 		await mkdir(path.join(packagePath, "textures"), { recursive: true });

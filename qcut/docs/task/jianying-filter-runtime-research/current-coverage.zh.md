@@ -1,6 +1,6 @@
 # 剪映滤镜运行时：当前覆盖与剩余边界
 
-更新日期：2026-08-13
+更新日期：2026-08-22
 
 ## 先说结论
 
@@ -23,7 +23,7 @@
 | UI 强度映射 | 已掌握普通滤镜入口 | `intensity=0` 为 passthrough，`1` 与 UI 100 完全一致 | 非线性强度、分段参数和多 uniform 卡片的逐卡验证 |
 | skin mask 交付 | 已掌握独立宿主的静态、首次交付与回跳边界 | passive wait 不改写当前纹理；ready 后 re-seek 可刷新静态结果至 mask IoU 0.962641；动态历史下不 reset 会降至 0.265185 | 获授权产品模型、UI 真实导出 |
 | 分割模型选择 | 已掌握 resolver 差异，纯增益待重测 | UI 与 V2 的逻辑请求和 `support_external_model_name=3` 一致；physical v5.1 会实质改变 mask 与 RGBA | v5.0/v5.1 同 readiness 对照；face-extra 物理映射 |
-| 人脸结果 | 部分掌握 | SDK 入口能读到有效人脸框、关键点和 face count | 独立结果 API、关键点到具体人像效果的绑定与逐帧追踪 |
+| 人脸结果 | 静态链路已掌握 | 独立结果 API 读到 1 张人脸和 106 个关键点；私有默认参数注入证明关键点会驱动原始 FaceReshape 并写出变形帧；`0.12` 在相邻强度中最接近剪映专业版“大眼 12” | 未修改宿主的 composer-to-Lua 事件桥、无损 UI 帧、动态逐帧追踪与多人分配 |
 | 素材切换状态 | 已掌握独立宿主策略 | A -> gray -> B 时 manager reset 从 B 首帧起逐字节等于 fresh-B | UI 是否使用更窄 reset，以及 seek 回跳的真实策略 |
 | ExportMode | 已排除单一 bool | `ExportMode=0/1` 十帧逐字节一致，销毁顺序一致 | hardened `--lvve-service` 中真实导出 orchestration |
 | 视频时序 | QCut 产品路径已掌握 | 连续 clip 复用 session；clip/source 或向后时间跳转重建；慢原生帧用固定时间戳 muxer 导出，1 秒时间线得到 30 帧、30 fps、1.000 秒 | 剪映真实导出的并发、flush/wait 与跨帧平滑序列 |
@@ -85,4 +85,5 @@ AlgorithmService。QCut 的 preview/export 已共用本机 provider 生命周期
 [model-clip-feature-params.zh.md](model-clip-feature-params.zh.md)、
 [bach-algorithm-model-clip-params.zh.md](bach-algorithm-model-clip-params.zh.md) 与
 [dual-lut-seven-real-video-e2e.zh.md](dual-lut-seven-real-video-e2e.zh.md)、
-[product-batches-and-long-tail-e2e.zh.md](product-batches-and-long-tail-e2e.zh.md)。
+[product-batches-and-long-tail-e2e.zh.md](product-batches-and-long-tail-e2e.zh.md)、
+[face-keypoint-binding.zh.md](face-keypoint-binding.zh.md)。

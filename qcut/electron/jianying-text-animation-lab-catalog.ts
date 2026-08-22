@@ -42,15 +42,17 @@ interface AnimationCatalogRow {
 	categoryIds: string | null;
 	durationMilliseconds: number | null;
 	sdkExtra: string | null;
+	downloadUrlsJson: string | null;
 	timestamp: string | null;
 }
 
-interface AnimationCandidate {
+export interface JianyingTextAnimationCatalogCandidate {
 	resourceId: string;
 	packageHash: string;
 	title?: string;
 	slot: JianyingTextAnimationSlot;
 	duration: number;
+	downloadUrls: string[];
 	timestamp: string;
 }
 
@@ -102,6 +104,8 @@ function readCatalogRows({ database }: { database: DatabaseSync }) {
 					AS durationMilliseconds,
 				CAST(json_extract(node.value, '$.common_attr.sdk_extra') AS TEXT)
 					AS sdkExtra,
+				CAST(json_extract(node.value, '$.common_attr.item_urls') AS TEXT)
+					AS downloadUrlsJson,
 				CAST(cache.timestamp AS TEXT) AS timestamp
 			FROM http_cache AS cache,
 				json_tree(
@@ -213,6 +217,13 @@ function normalizeCatalogRow({ row }: { row: AnimationCatalogRow }) {
 		return null;
 	}
 	const title = row.title?.trim();
+	const parsedDownloadUrls = parseJson({ value: row.downloadUrlsJson });
+	const downloadUrls = Array.isArray(parsedDownloadUrls)
+		? parsedDownloadUrls.filter(
+				(value): value is string =>
+					typeof value === "string" && value.length > 0
+			)
+		: [];
 	return {
 		resourceId,
 		packageHash,
@@ -222,16 +233,17 @@ function normalizeCatalogRow({ row }: { row: AnimationCatalogRow }) {
 			durationMilliseconds: row.durationMilliseconds,
 			sdkExtra: row.sdkExtra,
 		}),
+		downloadUrls,
 		timestamp: row.timestamp ?? "",
-	} satisfies AnimationCandidate;
+	} satisfies JianyingTextAnimationCatalogCandidate;
 }
 
 function compareTimestamps({
 	left,
 	right,
 }: {
-	left: AnimationCandidate;
-	right: AnimationCandidate;
+	left: JianyingTextAnimationCatalogCandidate;
+	right: JianyingTextAnimationCatalogCandidate;
 }) {
 	const numericDelta = Number(right.timestamp) - Number(left.timestamp);
 	if (Number.isFinite(numericDelta) && numericDelta !== 0) return numericDelta;
@@ -245,13 +257,22 @@ function deduplicateCandidates({ rows }: { rows: AnimationCatalogRow[] }) {
 			return candidate ? [candidate] : [];
 		})
 		.sort((left, right) => compareTimestamps({ left, right }));
-	const seen = new Set<string>();
-	return normalized.filter((candidate) => {
+	const byIdentity = new Map<string, JianyingTextAnimationCatalogCandidate>();
+	for (const candidate of normalized) {
 		const key = `${candidate.slot}/${candidate.resourceId}/${candidate.packageHash}`;
-		if (seen.has(key)) return false;
-		seen.add(key);
-		return true;
-	});
+		const current = byIdentity.get(key);
+		if (!current) {
+			byIdentity.set(key, candidate);
+			continue;
+		}
+		byIdentity.set(key, {
+			...current,
+			downloadUrls: Array.from(
+				new Set([...current.downloadUrls, ...candidate.downloadUrls])
+			),
+		});
+	}
+	return Array.from(byIdentity.values());
 }
 
 async function listLocalPackageIdentities({
@@ -293,7 +314,7 @@ async function listLocalPackageIdentities({
 function animationReference({
 	candidate,
 }: {
-	candidate: AnimationCandidate;
+	candidate: JianyingTextAnimationCatalogCandidate;
 }): JianyingTextAnimationReference {
 	return {
 		source: "jianying-cache",
@@ -308,7 +329,7 @@ async function resolveCandidate({
 	candidate,
 }: {
 	cacheRoot: string;
-	candidate: AnimationCandidate;
+	candidate: JianyingTextAnimationCatalogCandidate;
 }): Promise<AnimationResolution> {
 	try {
 		const resolved = await resolveJianyingTextAnimations({
@@ -360,10 +381,11 @@ function compareAnimationEntries({
 	);
 }
 
-export async function buildJianyingTextAnimationCatalog({
-	cacheRoot = defaultCacheRoot(),
-	databaseRoot = path.join(cacheRoot, "ressdk_db"),
-}: BuildJianyingTextAnimationCatalogOptions = {}): Promise<JianyingTextAnimationLabListResult> {
+export async function listJianyingTextAnimationCatalogCandidates({
+	databaseRoot,
+}: {
+	databaseRoot: string;
+}) {
 	const databasePaths = await listJianyingResourceDatabasePaths({
 		databaseRoot,
 	});
@@ -374,7 +396,16 @@ export async function buildJianyingTextAnimationCatalog({
 			return [];
 		}
 	});
-	const candidates = deduplicateCandidates({ rows });
+	return deduplicateCandidates({ rows });
+}
+
+export async function buildJianyingTextAnimationCatalog({
+	cacheRoot = defaultCacheRoot(),
+	databaseRoot = path.join(cacheRoot, "ressdk_db"),
+}: BuildJianyingTextAnimationCatalogOptions = {}): Promise<JianyingTextAnimationLabListResult> {
+	const candidates = await listJianyingTextAnimationCatalogCandidates({
+		databaseRoot,
+	});
 	const localIdentities = await listLocalPackageIdentities({ cacheRoot });
 	const localCandidates = candidates.filter((candidate) =>
 		localIdentities.has(`${candidate.resourceId}/${candidate.packageHash}`)

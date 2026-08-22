@@ -67,6 +67,29 @@ async function writeSyntheticAnimationPackage({
 	return packagePath;
 }
 
+async function writeSyntheticStudioAnimationPackage({
+	cacheRoot,
+}: {
+	cacheRoot: string;
+}) {
+	const packagePath = path.join(cacheRoot, "effect", RESOURCE_ID, PACKAGE_HASH);
+	await mkdir(packagePath, { recursive: true });
+	await Promise.all([
+		writeJson({
+			filePath: path.join(packagePath, "config.json"),
+			value: {
+				encrypt: 0,
+				script_type: "js",
+				studio_animation_path: "/studioAnim.lsanim",
+				version: "20.2.0",
+			},
+		}),
+		writeFile(path.join(packagePath, "studioAnim.lsanim"), "animation"),
+		writeFile(path.join(packagePath, "textAnim.lsproj"), "project"),
+	]);
+	return packagePath;
+}
+
 describe("Jianying text animation package resolver", () => {
 	it("resolves exact packages and classifies shader, 3D, and feedback components", async () => {
 		const temporary = await mkdtemp(
@@ -87,6 +110,7 @@ describe("Jianying text animation package resolver", () => {
 					{
 						slot: "loop",
 						animationType: 3,
+						loader: "component",
 						packagePath: resolvedPackagePath,
 						resourceId: RESOURCE_ID,
 						packageHash: PACKAGE_HASH,
@@ -136,6 +160,52 @@ describe("Jianying text animation package resolver", () => {
 				code: "dependency-missing",
 				dependency: { resourceId: RESOURCE_ID, role: "animation" },
 			});
+		} finally {
+			await rm(temporary, { recursive: true, force: true });
+		}
+	});
+
+	it("resolves studio animation documents without an effect Link", async () => {
+		const temporary = await mkdtemp(
+			path.join(os.tmpdir(), "qcut-jianying-studio-animation-")
+		);
+		try {
+			const packagePath = await writeSyntheticStudioAnimationPackage({
+				cacheRoot: temporary,
+			});
+			const result = await resolveJianyingTextAnimations({
+				animations: animationReferences(),
+				cacheRoot: temporary,
+			});
+
+			expect(result.values[0]).toMatchObject({
+				loader: "studio",
+				packagePath: await realpath(packagePath),
+				resourceId: RESOURCE_ID,
+				slot: "loop",
+			});
+			expect(result.capabilities.animationComponents).toBe(true);
+		} finally {
+			await rm(temporary, { recursive: true, force: true });
+		}
+	});
+
+	it("rejects incomplete studio animation document packages", async () => {
+		const temporary = await mkdtemp(
+			path.join(os.tmpdir(), "qcut-jianying-studio-animation-invalid-")
+		);
+		try {
+			const packagePath = await writeSyntheticStudioAnimationPackage({
+				cacheRoot: temporary,
+			});
+			await rm(path.join(packagePath, "textAnim.lsproj"));
+
+			await expect(
+				resolveJianyingTextAnimations({
+					animations: animationReferences(),
+					cacheRoot: temporary,
+				})
+			).rejects.toMatchObject({ code: "package-invalid" });
 		} finally {
 			await rm(temporary, { recursive: true, force: true });
 		}
