@@ -1,6 +1,9 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { PrivateSoundEffectsLabManifest } from "@/lib/audio/local-sound-effects-manifest";
+import type {
+	LocalSoundEffectsLabManifest,
+	PrivateSoundEffectsLabManifest,
+} from "@/lib/audio/local-sound-effects-manifest";
 import { useSoundEffectsLabOfflinePack } from "../use-sound-effects-lab-offline-pack";
 
 const packMocks = vi.hoisted(() => ({
@@ -51,6 +54,33 @@ const catalog: PrivateSoundEffectsLabManifest = {
 		sourceApp: "Jianying Pro",
 	},
 	schemaVersion: 2,
+};
+
+const localCatalog: LocalSoundEffectsLabManifest = {
+	catalogId: catalog.catalogId,
+	categories: catalog.categories,
+	generatedAt: catalog.generatedAt,
+	items: [
+		{
+			batch: "01",
+			byteSize: 4,
+			categoryIds: ["jianying-0123456789ab"],
+			contentMd5: "0291b72047769e085e7595ce5d65dbd2",
+			contentSha256:
+				"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+			duration: 1.25,
+			fileName: "0291b72047769e085e7595ce5d65dbd2.mp3",
+			filePath: "/tmp/0291b72047769e085e7595ce5d65dbd2.mp3",
+			id: "6896679799100689",
+			mappingStrategy: "metadata-md5",
+			mimeType: "audio/mpeg",
+			numericId: -900_000_000,
+			resourceId: "6896679799100689",
+			title: "唰",
+		},
+	],
+	provenance: catalog.provenance,
+	schemaVersion: 1,
 };
 
 describe("useSoundEffectsLabOfflinePack", () => {
@@ -118,6 +148,14 @@ describe("useSoundEffectsLabOfflinePack", () => {
 			useSoundEffectsLabOfflinePack({ catalog, ownerEmail: null })
 		);
 		expect(result.current.state).toBe("unavailable");
+
+		const { result: localResult } = renderHook(() =>
+			useSoundEffectsLabOfflinePack({
+				catalog: localCatalog,
+				ownerEmail: "qcutlove@qcut.app",
+			})
+		);
+		expect(localResult.current.state).toBe("unavailable");
 		expect(packMocks.getStatus).not.toHaveBeenCalled();
 	});
 });
