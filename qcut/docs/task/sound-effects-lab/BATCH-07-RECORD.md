@@ -92,9 +92,9 @@ PR: [#424](https://github.com/Quriosity-agent/qcut/pull/424)
 
 独立于剪映缓存的 QCut 文件备份位于:
 
-- `/Users/peter/Documents/QCut/Exports/jianying-sfx-batch-07-2026-08-22`:
+- `$HOME/Documents/QCut/Exports/jianying-sfx-batch-07-2026-08-22`:
   70 个新增 MP3、增量映射、完整 1108 项映射和采集校验报告;
-- `/Users/peter/Documents/QCut/Exports/jianying-sfx-lab-batch-07-2026-08-22`:
+- `$HOME/Documents/QCut/Exports/jianying-sfx-lab-batch-07-2026-08-22`:
   完整本地/私有 manifest，以及切换前的 1038 项 manifest 备份。
 
 QCut 应用自己的完整离线包也已更新，不依赖
