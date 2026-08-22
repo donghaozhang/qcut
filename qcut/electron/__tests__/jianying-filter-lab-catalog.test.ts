@@ -380,6 +380,55 @@ describe("Jianying filter lab catalog", () => {
 		expect(JSON.stringify(result)).not.toContain("/cache");
 	});
 
+	it("exposes tiled LUTs validated by the native portrait renderer", () => {
+		const resourceId = "native-portrait";
+		const version = "v1";
+		const packages = new Map<string, JianyingFilterPackageSummary>([
+			[
+				resourceId,
+				{
+					...packageSummary({ implementation: "dual-lut" }),
+					nativePortraitRenderer: {
+						kind: "native-portrait-effect",
+						container: "artistEffect",
+						packageIdentifier: resourceId,
+						version,
+						backgroundLutRelativePath: "AmazingFeature/image/filter_bg.png",
+						skinLutRelativePath: "AmazingFeature/image/filter_skin.png",
+					},
+				},
+			],
+		]);
+
+		const result = buildJianyingFilterLabCatalog({
+			catalog: {
+				order: ["人像"],
+				filters: [
+					{
+						resourceId,
+						title: "高清暖调",
+						categories: ["人像"],
+						version,
+					},
+				],
+			},
+			references: [],
+			packages,
+		});
+
+		expect(result).toMatchObject({
+			availableCount: 1,
+			filters: [
+				{
+					implementation: "dual-lut",
+					available: true,
+					luts: [{ role: "background" }, { role: "skin" }],
+				},
+			],
+		});
+		expect(JSON.stringify(result)).not.toContain("/cache");
+	});
+
 	it("exposes a recognized multi-pass shader without pretending it is a LUT", () => {
 		const result = buildJianyingFilterLabCatalog({
 			catalog: {
