@@ -637,6 +637,13 @@ describe("Jianying filter lab IPC", () => {
 						resourceId,
 						{
 							...cachedPackage({ implementation: "dual-lut" }),
+							nativePortraitRenderer: {
+								kind: "native-portrait-effect" as const,
+								container: "artistEffect" as const,
+								packageIdentifier: resourceId,
+								version,
+								faceDetection: true as const,
+							},
 							dualRenderer: {
 								kind: "dual-tiled-lut-8x8" as const,
 								background: renderer({
@@ -759,6 +766,13 @@ describe("Jianying filter lab IPC", () => {
 						resourceId,
 						{
 							...cachedPackage({ implementation: "dual-lut" }),
+							nativePortraitRenderer: {
+								kind: "native-portrait-effect" as const,
+								container: "artistEffect" as const,
+								packageIdentifier: resourceId,
+								version,
+								faceDetection: true as const,
+							},
 							dualRenderer: {
 								kind: "dual-tiled-lut-8x8" as const,
 								background: renderer({
@@ -798,6 +812,7 @@ describe("Jianying filter lab IPC", () => {
 		expect(render).toHaveBeenCalledWith({
 			resourceId,
 			packagePath: join("/cache", "artistEffect", resourceId, version),
+			captureFace: true,
 			width: 1,
 			height: 1,
 			sourceKey: "video:portrait",
