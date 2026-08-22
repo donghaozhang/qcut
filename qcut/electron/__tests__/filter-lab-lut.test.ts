@@ -10,6 +10,7 @@ import {
 	gridColours,
 	listJianyingLutReferences,
 	loadJianyingLut,
+	qcutManagedFilterPackageRoot,
 	sampleCube,
 	type FilterLabCube,
 } from "../native-pipeline/filters/filter-lab-lut";
@@ -67,6 +68,24 @@ function serializeTextCube({ cube }: { cube: FilterLabCube }): string {
 }
 
 describe("filter lab LUT decoding", () => {
+	it("lets the native CLI target the desktop managed package root", () => {
+		const previous = process.env.QCUT_JIANYING_FILTER_PACKAGE_ROOT;
+		const root = join(tmpdir(), "qcut-managed-filter-packages");
+		try {
+			process.env.QCUT_JIANYING_FILTER_PACKAGE_ROOT = root;
+			expect(qcutManagedFilterPackageRoot()).toBe(root);
+		} finally {
+			if (typeof previous === "string") {
+				process.env.QCUT_JIANYING_FILTER_PACKAGE_ROOT = previous;
+			} else {
+				Reflect.deleteProperty(
+					process.env,
+					"QCUT_JIANYING_FILTER_PACKAGE_ROOT"
+				);
+			}
+		}
+	});
+
 	it("decodes a VF cube and preserves the red-fastest ordering", () => {
 		const size = 2;
 		const cube = identityCube({ size });

@@ -39,12 +39,20 @@ export type JianyingTextStyleCategoryId =
 	| "blue"
 	| "pink"
 	| "green"
-	| "purple";
+	| "purple"
+	| `source-${string}`;
 
 export interface JianyingTextStyleLabCategorySummary {
 	id: JianyingTextStyleCategoryId;
 	label: string;
 	count: number;
+}
+
+export interface JianyingTextStyleLabCategoryGroupSummary {
+	id: string;
+	label: string;
+	count: number;
+	categoryIds: JianyingTextStyleCategoryId[];
 }
 
 export interface JianyingTextStyleQcutApproximation {
@@ -92,6 +100,7 @@ export interface JianyingTextStyleLabListResult {
 	count: number;
 	styles: JianyingTextStyleLabStyleSummary[];
 	categories: JianyingTextStyleLabCategorySummary[];
+	categoryGroups?: JianyingTextStyleLabCategoryGroupSummary[];
 	packageCount: number;
 	invalidPackageCount: number;
 }

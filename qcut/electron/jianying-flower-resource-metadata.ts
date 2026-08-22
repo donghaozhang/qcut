@@ -2,31 +2,24 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { listJianyingResourceDatabasePaths } from "./jianying-resource-database.js";
+import {
+	JIANYING_TEXT_PACKAGE_HASH_PATTERN,
+	JIANYING_TEXT_RESOURCE_ID_PATTERN,
+} from "./jianying-text-package-metadata.js";
+import {
+	resolveJianyingFlowerTaxonomy,
+	type JianyingFlowerCategoryDefinition,
+	type JianyingFlowerCategoryGroupDefinition,
+} from "./jianying-flower-taxonomy.js";
 import type { JianyingTextStyleCategoryId } from "./jianying-text-style-lab-contract.js";
 
 const SQLITE_PARAMETER_LIMIT = 900;
 
-export const JIANYING_FLOWER_CATEGORIES = [
-	{ id: "popular", label: "热门", sourceId: "10721" },
-	{ id: "latest", label: "最新", sourceId: "11754" },
-	{ id: "summer", label: "夏日", sourceId: "5914419" },
-	{ id: "variety", label: "综艺感", sourceId: "5914008" },
-	{ id: "guofeng", label: "国风", sourceId: "5913894" },
-	{ id: "glow", label: "发光", sourceId: "10729" },
-	{ id: "gradient", label: "渐变", sourceId: "10728" },
-	{ id: "texture", label: "纹理", sourceId: "5914009" },
-	{ id: "red", label: "红色", sourceId: "10723" },
-	{ id: "yellow", label: "黄色", sourceId: "10727" },
-	{ id: "black-white", label: "黑白", sourceId: "10726" },
-	{ id: "blue", label: "蓝色", sourceId: "10725" },
-	{ id: "pink", label: "粉色", sourceId: "10724" },
-	{ id: "green", label: "绿色", sourceId: "10722" },
-	{ id: "purple", label: "紫色", sourceId: "11886" },
-] as const satisfies readonly {
-	id: JianyingTextStyleCategoryId;
-	label: string;
-	sourceId: string;
-}[];
+export interface JianyingFlowerCatalogMetadata {
+	metadata: Map<string, JianyingFlowerResourceMetadata>;
+	categories: JianyingFlowerCategoryDefinition[];
+	categoryGroups: JianyingFlowerCategoryGroupDefinition[];
+}
 
 export interface JianyingFlowerResourceReference {
 	resourceId: string;
@@ -38,11 +31,33 @@ export interface JianyingFlowerResourceMetadata {
 	categoryIds: JianyingTextStyleCategoryId[];
 }
 
+export interface JianyingFlowerCatalogPackageReference {
+	resourceId: string;
+	packageHash: string;
+	title?: string;
+	downloadUrls: string[];
+	timestamp: string;
+}
+
 interface FlowerResourceRow {
 	resourceId: string | null;
 	title: string | null;
 	version: string | null;
 	categoryIdsJson: string | null;
+}
+
+interface FlowerCatalogPackageRow {
+	resourceId: string | null;
+	packageHash: string | null;
+	title: string | null;
+	downloadUrlsJson: string | null;
+	timestamp: string | null;
+}
+
+interface FlowerPanelRow {
+	categoriesJson: string | null;
+	overlapCount: number;
+	timestamp: string | null;
 }
 
 function metadataKey({ resourceId, version }: JianyingFlowerResourceReference) {
@@ -109,6 +124,79 @@ function readFlowerRows({
 	});
 }
 
+function readFlowerCatalogPackageRows({
+	database,
+}: {
+	database: DatabaseSync;
+}) {
+	if (!tableExists({ database, table: "http_cache" })) return [];
+	return database
+		.prepare(`
+			SELECT
+				CAST(json_extract(item.value, '$.common_attr.id') AS TEXT)
+					AS resourceId,
+				LOWER(CAST(json_extract(item.value, '$.common_attr.md5') AS TEXT))
+					AS packageHash,
+				CAST(json_extract(item.value, '$.common_attr.title') AS TEXT)
+					AS title,
+				CAST(json_extract(item.value, '$.common_attr.item_urls') AS TEXT)
+					AS downloadUrlsJson,
+				CAST(cache.timestamp AS TEXT) AS timestamp
+			FROM http_cache AS cache,
+				json_each(
+					CASE WHEN json_valid(cache.response_body)
+						THEN cache.response_body ELSE '{}' END,
+					'$.data.effect_item_list'
+				) AS item
+			WHERE cache.url LIKE '%flower%'
+			ORDER BY cache.timestamp DESC
+		`)
+		.all() as unknown as FlowerCatalogPackageRow[];
+}
+
+function readFlowerPanelRow({
+	database,
+	observedCategoryIds,
+}: {
+	database: DatabaseSync;
+	observedCategoryIds: string[];
+}) {
+	if (
+		!tableExists({ database, table: "http_cache" }) ||
+		observedCategoryIds.length === 0
+	) {
+		return null;
+	}
+	return database
+		.prepare(`
+			WITH observed(sourceId) AS (
+				SELECT CAST(value AS TEXT) FROM json_each(?)
+			), panels AS (
+				SELECT
+					CAST(json_extract(cache.response_body, '$.data.categories') AS TEXT)
+						AS categoriesJson,
+					CAST(cache.timestamp AS TEXT) AS timestamp,
+					(
+						SELECT COUNT(*)
+						FROM json_tree(cache.response_body, '$.data.categories') AS category
+						INNER JOIN observed
+							ON observed.sourceId = CAST(category.atom AS TEXT)
+						WHERE category.key = 'category_id'
+					) AS overlapCount
+				FROM http_cache AS cache
+				WHERE cache.url LIKE '%get_panel_info%'
+					AND json_valid(cache.response_body)
+					AND json_type(cache.response_body, '$.data.categories') = 'array'
+			)
+			SELECT categoriesJson, overlapCount, timestamp
+			FROM panels
+			WHERE overlapCount > 0
+			ORDER BY overlapCount DESC, timestamp DESC
+			LIMIT 1
+		`)
+		.get(JSON.stringify(observedCategoryIds)) as FlowerPanelRow | undefined;
+}
+
 function collectRows({
 	databasePath,
 	resourceIds,
@@ -119,6 +207,75 @@ function collectRows({
 	const database = new DatabaseSync(databasePath, { readOnly: true });
 	try {
 		return readFlowerRows({ database, resourceIds });
+	} finally {
+		database.close();
+	}
+}
+
+function collectCatalogPackageRows({ databasePath }: { databasePath: string }) {
+	const database = new DatabaseSync(databasePath, { readOnly: true });
+	try {
+		return readFlowerCatalogPackageRows({ database });
+	} finally {
+		database.close();
+	}
+}
+
+function normalizeCatalogPackageRow({ row }: { row: FlowerCatalogPackageRow }) {
+	const resourceId = row.resourceId?.trim() ?? "";
+	const packageHash = row.packageHash?.trim().toLowerCase() ?? "";
+	if (
+		!JIANYING_TEXT_RESOURCE_ID_PATTERN.test(resourceId) ||
+		!JIANYING_TEXT_PACKAGE_HASH_PATTERN.test(packageHash)
+	) {
+		return null;
+	}
+	const title = row.title?.trim();
+	const downloadUrls = (() => {
+		if (!row.downloadUrlsJson) return [];
+		try {
+			const parsed = JSON.parse(row.downloadUrlsJson) as unknown;
+			return Array.isArray(parsed)
+				? parsed.filter(
+						(value): value is string =>
+							typeof value === "string" && value.length > 0
+					)
+				: [];
+		} catch {
+			return [];
+		}
+	})();
+	return {
+		resourceId,
+		packageHash,
+		...(title ? { title } : {}),
+		downloadUrls,
+		timestamp: row.timestamp ?? "",
+	} satisfies JianyingFlowerCatalogPackageReference;
+}
+
+function compareCatalogTimestamps({
+	left,
+	right,
+}: {
+	left: JianyingFlowerCatalogPackageReference;
+	right: JianyingFlowerCatalogPackageReference;
+}) {
+	const numericDelta = Number(right.timestamp) - Number(left.timestamp);
+	if (Number.isFinite(numericDelta) && numericDelta !== 0) return numericDelta;
+	return right.timestamp.localeCompare(left.timestamp);
+}
+
+function collectPanelRow({
+	databasePath,
+	observedCategoryIds,
+}: {
+	databasePath: string;
+	observedCategoryIds: string[];
+}) {
+	const database = new DatabaseSync(databasePath, { readOnly: true });
+	try {
+		return readFlowerPanelRow({ database, observedCategoryIds });
 	} finally {
 		database.close();
 	}
@@ -145,22 +302,63 @@ export function getDefaultJianyingFlowerDatabaseRoot() {
 	);
 }
 
-export async function resolveJianyingFlowerResourceMetadata({
+export async function listJianyingFlowerCatalogPackageReferences({
+	databaseRoot = getDefaultJianyingFlowerDatabaseRoot(),
+}: {
+	databaseRoot?: string;
+} = {}) {
+	const databasePaths = await listJianyingResourceDatabasePaths({
+		databaseRoot,
+	});
+	const references = databasePaths
+		.flatMap((databasePath) => {
+			try {
+				return collectCatalogPackageRows({ databasePath });
+			} catch {
+				return [];
+			}
+		})
+		.flatMap((row) => {
+			const reference = normalizeCatalogPackageRow({ row });
+			return reference ? [reference] : [];
+		})
+		.sort((left, right) => compareCatalogTimestamps({ left, right }));
+	const byResourceId = new Map<string, JianyingFlowerCatalogPackageReference>();
+	for (const reference of references) {
+		const current = byResourceId.get(reference.resourceId);
+		if (!current) {
+			byResourceId.set(reference.resourceId, reference);
+			continue;
+		}
+		if (current.packageHash !== reference.packageHash) continue;
+		byResourceId.set(reference.resourceId, {
+			...current,
+			downloadUrls: Array.from(
+				new Set([...current.downloadUrls, ...reference.downloadUrls])
+			),
+		});
+	}
+	return Array.from(byResourceId.values());
+}
+
+export async function resolveJianyingFlowerCatalogMetadata({
 	references,
 	databaseRoot = getDefaultJianyingFlowerDatabaseRoot(),
 }: {
 	references: JianyingFlowerResourceReference[];
 	databaseRoot?: string;
-}): Promise<Map<string, JianyingFlowerResourceMetadata>> {
+}): Promise<JianyingFlowerCatalogMetadata> {
 	const resourceIds = [
 		...new Set(references.map(({ resourceId }) => resourceId)),
 	];
-	if (resourceIds.length === 0) return new Map();
+	if (resourceIds.length === 0) {
+		return {
+			metadata: new Map(),
+			...resolveJianyingFlowerTaxonomy({ categoriesJson: null }),
+		};
+	}
 
 	const referenceKeys = new Set(references.map(metadataKey));
-	const categoryBySourceId = new Map<string, JianyingTextStyleCategoryId>(
-		JIANYING_FLOWER_CATEGORIES.map(({ id, sourceId }) => [sourceId, id])
-	);
 	const databasePaths = await listJianyingResourceDatabasePaths({
 		databaseRoot,
 	});
@@ -174,6 +372,32 @@ export async function resolveJianyingFlowerResourceMetadata({
 			return [];
 		}
 	});
+	const observedCategoryIds = [
+		...new Set(
+			rows.flatMap((row) =>
+				parseSourceCategoryIds({ value: row.categoryIdsJson })
+			)
+		),
+	];
+	const panelRows = databasePaths.flatMap((databasePath) => {
+		try {
+			const row = collectPanelRow({ databasePath, observedCategoryIds });
+			return row ? [row] : [];
+		} catch {
+			return [];
+		}
+	});
+	const panelRow = panelRows.sort(
+		(left, right) =>
+			right.overlapCount - left.overlapCount ||
+			(right.timestamp ?? "").localeCompare(left.timestamp ?? "")
+	)[0];
+	const { categories, categoryGroups } = resolveJianyingFlowerTaxonomy({
+		categoriesJson: panelRow?.categoriesJson ?? null,
+	});
+	const categoryBySourceId = new Map(
+		categories.map(({ id, sourceId }) => [sourceId, id])
+	);
 
 	const mutableMetadata = new Map<
 		string,
@@ -197,9 +421,9 @@ export async function resolveJianyingFlowerResourceMetadata({
 		mutableMetadata.set(key, current);
 	}
 
-	return new Map(
+	const metadata = new Map(
 		[...mutableMetadata.entries()].flatMap(([key, metadata]) => {
-			const categoryIds = JIANYING_FLOWER_CATEGORIES.flatMap(({ id }) =>
+			const categoryIds = categories.flatMap(({ id }) =>
 				metadata.categoryIds.has(id) ? [id] : []
 			);
 			if (categoryIds.length === 0) return [];
@@ -214,4 +438,20 @@ export async function resolveJianyingFlowerResourceMetadata({
 			];
 		})
 	);
+	return { metadata, categories, categoryGroups };
+}
+
+export async function resolveJianyingFlowerResourceMetadata({
+	references,
+	databaseRoot = getDefaultJianyingFlowerDatabaseRoot(),
+}: {
+	references: JianyingFlowerResourceReference[];
+	databaseRoot?: string;
+}) {
+	return (
+		await resolveJianyingFlowerCatalogMetadata({
+			databaseRoot,
+			references,
+		})
+	).metadata;
 }

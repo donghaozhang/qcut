@@ -23,6 +23,7 @@ import { JIANYING_FILTER_IMPLEMENTATION_LABELS } from "./jianying-filter-lab-lab
 import { JianyingFilterLabSidebar } from "./jianying-filter-lab-sidebar";
 import { JianyingFilterLabTile } from "./jianying-filter-lab-tile";
 import { JianyingFilterLabControls } from "./jianying-filter-lab-controls";
+import { JianyingFilterRuntimeStatus } from "./jianying-filter-runtime-status";
 import { useJianyingFilterLab } from "./use-jianying-filter-lab";
 
 type CatalogView = "available" | "cached" | "favorites" | "recent" | "all";
@@ -432,6 +433,8 @@ export function JianyingFilterLab({
 					</span>
 				) : null}
 			</div>
+
+			<JianyingFilterRuntimeStatus />
 
 			{activeEffect &&
 			onEffectEnabledChange &&

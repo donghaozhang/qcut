@@ -6,6 +6,7 @@ export type {
 	JianyingTextStyleCategoryId,
 	JianyingTextStyleFillKind,
 	JianyingTextStyleLabCategorySummary,
+	JianyingTextStyleLabCategoryGroupSummary,
 	JianyingTextStyleLabAPI,
 	JianyingTextStyleLabCoverRequest,
 	JianyingTextStyleLabCoverResult,

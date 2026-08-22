@@ -72,6 +72,19 @@ describe("Command Groups", () => {
 			});
 		});
 
+		it("resolves text lab render commands", () => {
+			const result = resolveCommandGroup([
+				"text-lab",
+				"render",
+				"--style",
+				"gold",
+			]);
+			expect(result).toEqual({
+				command: "text-lab-render",
+				remainingArgs: ["--style", "gold"],
+			});
+		});
+
 		it("resolves three-level editor commands without leaking the action", () => {
 			const result = resolveCommandGroup([
 				"editor",

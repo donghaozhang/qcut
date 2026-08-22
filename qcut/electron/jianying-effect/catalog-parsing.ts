@@ -251,16 +251,24 @@ export function collectPanelCategories({
 	return result;
 }
 
+export interface ReferenceEffectVerdict {
+	packageHash: string | null;
+	ok: boolean;
+	/** True only when model-on and model-off renders measurably differed. */
+	algorithmIsolated: boolean;
+}
+
 /**
- * Verdicts from the local reference batch (manifest.jsonl): effectId → did the
- * runtime actually render it. Reruns append, so the last line per effect wins.
+ * Verdicts from the local reference batch. Reruns append, so the last line per
+ * effect wins, but the package hash remains part of the verdict: evidence for
+ * an older package build cannot authorize a newer one.
  */
 export function collectReferenceVerdicts({
 	jsonl,
 }: {
 	jsonl: string;
-}): Map<string, boolean> {
-	const verdicts = new Map<string, boolean>();
+}): Map<string, ReferenceEffectVerdict> {
+	const verdicts = new Map<string, ReferenceEffectVerdict>();
 	for (const line of jsonl.split("\n")) {
 		const trimmed = line.trim();
 		if (trimmed.length === 0) continue;
@@ -269,7 +277,19 @@ export function collectReferenceVerdicts({
 			if (typeof entry !== "object" || entry === null) continue;
 			const record = entry as Record<string, unknown>;
 			if (typeof record.effectId !== "string") continue;
-			verdicts.set(record.effectId, record.ok === true);
+			const packageHash =
+				typeof record.md5 === "string" && /^[a-f0-9]{32}$/i.test(record.md5)
+					? record.md5.toLowerCase()
+					: null;
+			const controlSsim = record.controlSsim;
+			verdicts.set(record.effectId, {
+				packageHash,
+				ok: record.ok === true,
+				algorithmIsolated:
+					typeof controlSsim === "number" &&
+					Number.isFinite(controlSsim) &&
+					controlSsim <= 0.999,
+			});
 		} catch {
 			// A torn line from an interrupted run contributes nothing.
 		}

@@ -17,6 +17,7 @@ import {
 	readBoundedJianyingTextJson,
 	readJianyingTextTemplateDuration,
 } from "../jianying-text-package-metadata.js";
+import { findQCutJianyingTextPrivateArchive } from "../jianying-text-private-archive.js";
 import {
 	createJianyingRuntimePackageCapabilities,
 	mergeJianyingTextEffectCapabilities,
@@ -84,10 +85,28 @@ export interface ResolvedJianyingTextPackage {
 	scriptResources?: ResolvedJianyingScriptResources;
 }
 
-function packageRoot() {
-	return (
-		process.env.QCUT_JIANYING_TEXT_PACKAGE_ROOT ?? jianyingEffectCacheRoot()
-	);
+async function packageContext() {
+	const configuredPackageRoot = process.env.QCUT_JIANYING_TEXT_PACKAGE_ROOT;
+	if (configuredPackageRoot) {
+		return {
+			root: configuredPackageRoot,
+			cacheRoot:
+				process.env.QCUT_JIANYING_CACHE_ROOT ??
+				path.dirname(configuredPackageRoot),
+		};
+	}
+	const archive = await findQCutJianyingTextPrivateArchive();
+	if (archive) {
+		return {
+			root: archive.packageRoot,
+			cacheRoot: process.env.QCUT_JIANYING_CACHE_ROOT ?? archive.cacheRoot,
+		};
+	}
+	const root = jianyingEffectCacheRoot();
+	return {
+		root,
+		cacheRoot: process.env.QCUT_JIANYING_CACHE_ROOT ?? path.dirname(root),
+	};
 }
 
 async function isReadableDirectory({ directory }: { directory: string }) {
@@ -159,7 +178,7 @@ async function resolveRootPackage({
 	});
 	throw new JianyingTextPackageError({
 		code: "package-missing",
-		message: `${recoveryMessage} 请在剪映中重新下载或重新预览该花字后重试。`,
+		message: `${recoveryMessage} 请刷新花字实验室以补全 QCut 私有备份。`,
 	});
 }
 
@@ -177,8 +196,7 @@ export async function resolveJianyingTextPackage({
 			message: "剪映花字资源引用格式无效。",
 		});
 	}
-	const root = packageRoot();
-	const cacheRoot = process.env.QCUT_JIANYING_CACHE_ROOT ?? path.dirname(root);
+	const { cacheRoot, root } = await packageContext();
 	const recoveryRoot = getJianyingTextRecoveryCacheRoot();
 	let packagePath = await resolveRootPackage({
 		cacheRoot,
@@ -187,17 +205,45 @@ export async function resolveJianyingTextPackage({
 		root,
 	});
 	let config: unknown;
+	let packageKind: JianyingTextRuntimePackageKind;
 	try {
 		config = await readBoundedJianyingTextJson({
 			filePath: path.join(packagePath, "config.json"),
 		});
 	} catch {
+		config = undefined;
+	}
+	const detectedPackageKind =
+		config === undefined
+			? "unknown"
+			: detectJianyingTextPackageKind({ config });
+	if (
+		detectedPackageKind === "TextStyle" ||
+		detectedPackageKind === "InfoSticker" ||
+		detectedPackageKind === "ScriptInfoSticker"
+	) {
+		packageKind = detectedPackageKind;
+	} else if (config === undefined && reference.packageKind === "TextStyle") {
+		try {
+			await readBoundedJianyingTextJson({
+				filePath: path.join(packagePath, "effectStyle.json"),
+			});
+			packageKind = "TextStyle";
+		} catch {
+			throw new JianyingTextPackageError({
+				code: "package-invalid",
+				message: "剪映花字 config.json 与 effectStyle.json 均缺失或损坏。",
+			});
+		}
+	} else {
 		throw new JianyingTextPackageError({
 			code: "package-invalid",
-			message: "剪映花字 config.json 缺失或损坏。",
+			message:
+				config === undefined
+					? "剪映花字 config.json 缺失或损坏。"
+					: "剪映花字缓存类型与项目引用不一致。",
 		});
 	}
-	const packageKind = detectJianyingTextPackageKind({ config });
 	if (packageKind !== reference.packageKind) {
 		throw new JianyingTextPackageError({
 			code: "package-invalid",
@@ -308,7 +354,7 @@ export async function resolveJianyingTextPackage({
 		const remaining = blockingDependencies.length - 3;
 		throw new JianyingTextPackageError({
 			code: "dependency-missing",
-			message: `本机剪映花字缺少动态依赖 ${dependencySummary}${remaining > 0 ? ` 等 ${blockingDependencies.length} 项` : ""}，请在剪映中重新预览或下载该花字。`,
+			message: `QCut 花字私有备份缺少动态依赖 ${dependencySummary}${remaining > 0 ? ` 等 ${blockingDependencies.length} 项` : ""}，请刷新花字实验室以补全备份。`,
 			diagnostics: scriptResources?.diagnostics,
 			missingDependencies,
 		});

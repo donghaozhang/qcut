@@ -22,6 +22,7 @@ export interface JianyingFilterLocalRenderRequest {
 	rgba: Uint8Array;
 	sourceKey?: string;
 	timestampSeconds?: number;
+	captureFace?: boolean;
 }
 
 export interface JianyingFilterLocalEffectRenderRequest
@@ -59,6 +60,7 @@ function renderKey({
 	timestampSeconds = 0,
 	mode,
 	intensity,
+	captureFace = false,
 }: ProfiledRenderRequest) {
 	return createHash("sha256")
 		.update(resourceId)
@@ -68,7 +70,7 @@ function renderKey({
 		.update(`${width}x${height}\0`)
 		.update(sourceKey)
 		.update("\0")
-		.update(`${timestampSeconds}\0${mode}\0${intensity}\0`)
+		.update(`${timestampSeconds}\0${mode}\0${intensity}\0${captureFace}\0`)
 		.update(rgba)
 		.digest("hex");
 }
@@ -81,6 +83,7 @@ function sessionKey({
 	sourceKey = "",
 	mode,
 	intensity,
+	captureFace = false,
 }: ProfiledRenderRequest) {
 	return [
 		resourceId,
@@ -90,6 +93,7 @@ function sessionKey({
 		sourceKey,
 		mode,
 		intensity,
+		captureFace,
 	].join("\0");
 }
 

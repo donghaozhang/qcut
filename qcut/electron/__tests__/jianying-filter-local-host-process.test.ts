@@ -29,6 +29,21 @@ describe("Jianying filter local host protocol", () => {
 		).toMatch(/\t-$/);
 	});
 
+	it("appends an optional face evidence path without changing legacy commands", () => {
+		expect(
+			encodeJianyingFilterHostRenderCommand({
+				requestId: "7",
+				timestampSeconds: 2,
+				inputPath: "/tmp/input.ppm",
+				outputPath: "/tmp/output.ppm",
+				maskPath: "/tmp/mask.pgm",
+				facePath: "/tmp/face.json",
+			})
+		).toBe(
+			"render\t7\t2\t/tmp/input.ppm\t/tmp/output.ppm\t/tmp/mask.pgm\t/tmp/face.json"
+		);
+	});
+
 	it("rejects control characters and invalid timestamps", () => {
 		expect(() =>
 			encodeJianyingFilterHostRenderCommand({
@@ -36,6 +51,15 @@ describe("Jianying filter local host protocol", () => {
 				timestampSeconds: 0,
 				inputPath: "/tmp/input.ppm",
 				outputPath: "/tmp/output.ppm",
+			})
+		).toThrow("control characters");
+		expect(() =>
+			encodeJianyingFilterHostRenderCommand({
+				requestId: "1",
+				timestampSeconds: 0,
+				inputPath: "/tmp/input.ppm",
+				outputPath: "/tmp/output.ppm",
+				facePath: "/tmp/face\n.json",
 			})
 		).toThrow("control characters");
 		expect(() =>

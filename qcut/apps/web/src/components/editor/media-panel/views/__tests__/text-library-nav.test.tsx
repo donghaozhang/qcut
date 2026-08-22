@@ -12,6 +12,20 @@ const RESULT: JianyingTextStyleLabListResult = {
 		{ id: "latest", label: "最新", count: 4 },
 		{ id: "purple", label: "紫色", count: 1 },
 	],
+	categoryGroups: [
+		{
+			id: "charts",
+			label: "榜单",
+			count: 11,
+			categoryIds: ["popular", "latest"],
+		},
+		{
+			id: "colors",
+			label: "颜色",
+			count: 1,
+			categoryIds: ["purple"],
+		},
+	],
 	packageCount: 12,
 	invalidPackageCount: 0,
 };
@@ -55,6 +69,9 @@ describe("TextLibraryNav", () => {
 		const category = screen.getByRole("button", {
 			name: "热门，7 个本地花字",
 		});
+		expect(screen.getByRole("button", { name: /榜单/ })).toHaveTextContent(
+			"11"
+		);
 		// The categories belong to the lab, so they must follow its rail entry
 		// rather than sitting beside the template groups above it.
 		expect(

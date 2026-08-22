@@ -130,6 +130,27 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 		},
 	},
 	{
+		name: "text-lab",
+		label: "Text Lab",
+		description: "Browse and render cached Jianying flower text and animations",
+		actions: {
+			list: "text-lab-list",
+			animations: "text-lab-animations",
+			render: "text-lab-render",
+		},
+	},
+	{
+		name: "effect-lab",
+		label: "Effect Lab",
+		description: "Search and render QCut's locally cached video effects",
+		actions: {
+			list: "effect-lab-list",
+			search: "effect-lab-search",
+			doctor: "effect-lab-doctor",
+			render: "effect-lab-render",
+		},
+	},
+	{
 		name: "flow",
 		label: "Workflows & Orchestration",
 		description: "ViMax pipelines, YAML workflows, script/character generation",

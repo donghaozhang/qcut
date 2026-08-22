@@ -291,14 +291,21 @@ export async function parseJianyingEffectStylePackage({
 		config = await readBoundedJianyingTextJson({
 			filePath: path.join(packageRoot, "config.json"),
 		});
-	} catch {
-		return invalidInspection({
-			code: "effect-style-config-invalid",
-			message: `花字外观资源 ${resourceId} 的 config.json 缺失或损坏。`,
-			resourceId,
-		});
+	} catch (cause) {
+		const missing =
+			cause instanceof Error && "code" in cause && cause.code === "ENOENT";
+		if (missing) config = undefined;
+		else
+			return invalidInspection({
+				code: "effect-style-config-invalid",
+				message: `花字外观资源 ${resourceId} 的 config.json 损坏。`,
+				resourceId,
+			});
 	}
-	if (detectJianyingTextPackageKind({ config }) !== "TextStyle") {
+	if (
+		config !== undefined &&
+		detectJianyingTextPackageKind({ config }) !== "TextStyle"
+	) {
 		return invalidInspection({
 			code: "effect-style-config-invalid",
 			message: `花字外观资源 ${resourceId} 不是 TextStyle 包，不能作为 effectStyle 加载。`,

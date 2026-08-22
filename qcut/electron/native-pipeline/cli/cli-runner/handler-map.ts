@@ -129,6 +129,17 @@ import {
 	handleFilterLabCoverage,
 	handleFilterLabVerifyBatch,
 } from "../cli-handlers-filter-lab-batch.js";
+import {
+	handleTextLabAnimations,
+	handleTextLabList,
+	handleTextLabRender,
+} from "../cli-handlers-text-lab.js";
+import {
+	handleEffectLabDoctor,
+	handleEffectLabList,
+	handleEffectLabRender,
+	handleEffectLabSearch,
+} from "../cli-handlers-effect-lab.js";
 
 /**
  * Unified handler signature.
@@ -228,6 +239,13 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 			candidateVideo: options.candidateVideo,
 		})
 	),
+	"text-lab-list": wrap(handleTextLabList),
+	"text-lab-animations": wrap(handleTextLabAnimations),
+	"text-lab-render": wrapOP(handleTextLabRender),
+	"effect-lab-list": wrap(handleEffectLabList),
+	"effect-lab-search": wrap(handleEffectLabSearch),
+	"effect-lab-doctor": wrap(handleEffectLabDoctor),
+	"effect-lab-render": wrapOP(handleEffectLabRender),
 	"transition-list": wrap0(handleTransitionList),
 	"transition-doctor": wrap0(handleTransitionDoctor),
 	"transition-render": wrapOP(handleTransitionRender),

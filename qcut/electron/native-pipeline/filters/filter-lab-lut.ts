@@ -13,10 +13,13 @@
  * @module electron/native-pipeline/filters/filter-lab-lut
  */
 
+import { existsSync } from "node:fs";
 import { open, readFile, readdir } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { jianyingFilterPrivateCacheRoot } from "../../jianying-filter-local-runtime/private-runtime.js";
+import { mapWithConcurrency } from "../../lib/map-with-concurrency.js";
 import {
 	inspectTextCubeFile,
 	loadTextCubeFile,
@@ -51,9 +54,12 @@ export interface JianyingLutEntry extends JianyingLutReference {
 
 const VF_MAGIC = "VF_V";
 const VF_HEADER_BYTES = 10;
+const FILTER_CACHE_SCAN_CONCURRENCY = 24;
 
 export function jianyingEffectCacheRoot(): string {
-	return join(
+	const override = process.env.QCUT_JIANYING_FILTER_CACHE_ROOT;
+	if (override) return join(override, "artistEffect");
+	const installedRoot = join(
 		homedir(),
 		"Movies",
 		"JianyingPro",
@@ -61,25 +67,64 @@ export function jianyingEffectCacheRoot(): string {
 		"Cache",
 		"artistEffect"
 	);
+	if (
+		process.env.QCUT_JIANYING_DISABLE_USER_CACHE !== "1" &&
+		existsSync(installedRoot)
+	) {
+		return installedRoot;
+	}
+	const privateRoot = join(jianyingFilterPrivateCacheRoot(), "artistEffect");
+	return existsSync(privateRoot) ? privateRoot : installedRoot;
 }
 
 const nodeRequire = createRequire(__filename);
 
+function qcutDesktopUserDataRoot(): string | null {
+	const override = process.env.QCUT_USER_DATA_PATH;
+	if (override) return override;
+	if (process.platform === "darwin") {
+		return join(homedir(), "Library", "Application Support", "QCut");
+	}
+	if (process.platform === "win32") {
+		return join(
+			process.env.APPDATA ?? join(homedir(), "AppData", "Roaming"),
+			"QCut"
+		);
+	}
+	if (process.platform === "linux") {
+		return join(
+			process.env.XDG_CONFIG_HOME ?? join(homedir(), ".config"),
+			"QCut"
+		);
+	}
+	return null;
+}
+
 /**
- * Where QCut unpacks filter packages it downloads on demand. Null outside
- * Electron — the parity and fitting scripts run this module under plain bun,
- * where only Jianying's own cache is available.
+ * Where QCut unpacks filter packages it downloads on demand. The platform
+ * fallback keeps the native CLI and Electron pointed at the same app profile.
  */
 export function qcutManagedFilterPackageRoot(): string | null {
+	const override = process.env.QCUT_JIANYING_FILTER_PACKAGE_ROOT;
+	if (override) return override;
 	try {
 		const electron = nodeRequire("electron") as
 			| string
 			| { app?: { getPath: (name: string) => string } };
-		if (typeof electron === "string" || !electron.app) return null;
-		return join(electron.app.getPath("userData"), "JianyingFilterPackages");
+		if (typeof electron !== "string" && electron.app) {
+			return join(
+				electron.app.getPath("userData"),
+				"JianyingFilterPackages",
+				"artistEffect"
+			);
+		}
 	} catch {
-		return null;
+		// The native CLI does not initialize Electron.
 	}
+	const userDataRoot = qcutDesktopUserDataRoot();
+	return userDataRoot
+		? join(userDataRoot, "JianyingFilterPackages", "artistEffect")
+		: null;
 }
 
 /**
@@ -204,8 +249,10 @@ async function listTextCubeReferences({
 	const fileNames = (await readDirectory({ directory })).filter((fileName) =>
 		fileName.toLowerCase().endsWith(".cube")
 	);
-	const references = await Promise.all(
-		fileNames.map(async (fileName) => {
+	const references = await mapWithConcurrency({
+		items: fileNames,
+		limit: FILTER_CACHE_SCAN_CONCURRENCY,
+		task: async ({ item: fileName }) => {
 			const filePath = join(directory, fileName);
 			const size = await inspectTextCubeFile({ filePath });
 			if (!size) return null;
@@ -218,8 +265,8 @@ async function listTextCubeReferences({
 				role: classifyJianyingLutRole({ fileName }),
 				size,
 			} satisfies JianyingLutReference;
-		})
-	);
+		},
+	});
 	return references.filter(
 		(reference): reference is JianyingLutReference => reference !== null
 	);
@@ -237,9 +284,13 @@ async function listVersionLuts({
 	const versionRoot = join(root, resourceId, version);
 	const textureDirectory = join(versionRoot, "AmazingFeature", "texture");
 	const files = await readDirectory({ directory: textureDirectory });
-	const candidates = files
-		.filter((fileName) => fileName.toLowerCase().endsWith(".vf"))
-		.map(async (fileName) => {
+	const vfFileNames = files.filter((fileName) =>
+		fileName.toLowerCase().endsWith(".vf")
+	);
+	const inspected = await mapWithConcurrency({
+		items: vfFileNames,
+		limit: FILTER_CACHE_SCAN_CONCURRENCY,
+		task: async ({ item: fileName }) => {
 			const filePath = join(textureDirectory, fileName);
 			const size = await inspectVfFile({ filePath });
 			if (!size) return null;
@@ -252,23 +303,24 @@ async function listVersionLuts({
 				role: classifyJianyingLutRole({ fileName }),
 				size,
 			} satisfies JianyingLutReference;
-		});
-	const inspected = await Promise.all(candidates);
+		},
+	});
 	const vfReferences = inspected.filter(
 		(reference): reference is JianyingLutReference => reference !== null
 	);
 	const featureDirectories = (
 		await readDirectory({ directory: versionRoot })
 	).filter((name) => name.startsWith("AmazingFeature"));
-	const textCubeGroups = await Promise.all(
-		featureDirectories.map((featureDirectory) =>
+	const textCubeGroups = await mapWithConcurrency({
+		items: featureDirectories,
+		limit: FILTER_CACHE_SCAN_CONCURRENCY,
+		task: ({ item: featureDirectory }) =>
 			listTextCubeReferences({
 				directory: join(versionRoot, featureDirectory, "texture"),
 				resourceId,
 				version,
-			})
-		)
-	);
+			}),
+	});
 	return [...vfReferences, ...textCubeGroups.flat()];
 }
 
@@ -280,9 +332,11 @@ async function listResourceLuts({
 	resourceId: string;
 }): Promise<JianyingLutReference[]> {
 	const versions = await readDirectory({ directory: join(root, resourceId) });
-	const references = await Promise.all(
-		versions.map((version) => listVersionLuts({ root, resourceId, version }))
-	);
+	const references = await mapWithConcurrency({
+		items: versions,
+		limit: FILTER_CACHE_SCAN_CONCURRENCY,
+		task: ({ item: version }) => listVersionLuts({ root, resourceId, version }),
+	});
 	return references.flat();
 }
 
@@ -303,9 +357,11 @@ async function listRootLuts({
 	root: string;
 }): Promise<JianyingLutReference[]> {
 	const resourceIds = await readDirectory({ directory: root });
-	const references = await Promise.all(
-		resourceIds.map((resourceId) => listResourceLuts({ root, resourceId }))
-	);
+	const references = await mapWithConcurrency({
+		items: resourceIds,
+		limit: FILTER_CACHE_SCAN_CONCURRENCY,
+		task: ({ item: resourceId }) => listResourceLuts({ root, resourceId }),
+	});
 	return references.flat();
 }
 

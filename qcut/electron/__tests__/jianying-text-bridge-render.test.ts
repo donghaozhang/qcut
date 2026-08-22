@@ -56,10 +56,13 @@ describe("Jianying text bridge launch", () => {
 	it("maps entrance, exit, and loop animations into isolated bridge slots", () => {
 		const environment = resolveJianyingTextBridgeEnvironment({
 			environment: { EXISTING_VALUE: "kept" },
+			runtimeRoot: "/Applications/JianyingPro.app/Contents",
+			studioScriptRoot: "/runtime/SegmentJS",
 			request: {
 				requestId: "animation-slots",
 				packagePath: "/cache/artistEffect/style/hash",
 				packageKind: "TextStyle",
+				styleResourceId: "2001",
 				outputPath: "/tmp/frames.rgba",
 				width: 960,
 				height: 540,
@@ -67,10 +70,14 @@ describe("Jianying text bridge launch", () => {
 				startTimestamp: 0,
 				timestampStep: 33_333.333,
 				timelineDuration: 3_000_000,
+				content: "QCut",
+				fontPath: "/fonts/QCut.ttf",
+				fontSize: 96,
 				animations: [
 					{
 						slot: "entrance",
 						animationType: 1,
+						loader: "component",
 						packagePath: "/cache/effect/entrance/hash",
 						resourceId: "1001",
 						packageHash: "a".repeat(32),
@@ -80,6 +87,7 @@ describe("Jianying text bridge launch", () => {
 					{
 						slot: "exit",
 						animationType: 2,
+						loader: "component",
 						packagePath: "/cache/effect/exit/hash",
 						resourceId: "1002",
 						packageHash: "b".repeat(32),
@@ -89,6 +97,7 @@ describe("Jianying text bridge launch", () => {
 					{
 						slot: "loop",
 						animationType: 3,
+						loader: "studio",
 						packagePath: "/cache/effect/loop/hash",
 						resourceId: "1003",
 						packageHash: "c".repeat(32),
@@ -103,17 +112,49 @@ describe("Jianying text bridge launch", () => {
 			EXISTING_VALUE: "kept",
 			JY_TEXT_TIMELINE_DURATION: "3000000",
 			JY_TEXT_ANIMATION_1_PATH: "/cache/effect/entrance/hash",
+			JY_TEXT_ANIMATION_1_LOADER: "component",
 			JY_TEXT_ANIMATION_1_DURATION: "500000",
 			JY_TEXT_ANIMATION_2_PATH: "/cache/effect/exit/hash",
+			JY_TEXT_ANIMATION_2_LOADER: "component",
 			JY_TEXT_ANIMATION_2_DURATION: "750000",
 			JY_TEXT_ANIMATION_3_PATH: "/cache/effect/loop/hash",
+			JY_TEXT_ANIMATION_3_LOADER: "studio",
 			JY_TEXT_ANIMATION_3_DURATION: "1200000",
+			JY_TEXT_STUDIO_SCRIPT_PARAMETERS: JSON.stringify({
+				segment_js_path: "/runtime/SegmentJS",
+			}),
+		});
+		expect(JSON.parse(environment.JY_TEXT_SEGMENT_PAYLOAD ?? "")).toEqual({
+			richText:
+				'<effectStyle id="2001" path="/cache/artistEffect/style/hash"><font path="/fonts/QCut.ttf"><size=38.4>[QCut]</size></font></effectStyle>',
+			version: "2",
+		});
+		expect(
+			JSON.parse(environment.JY_TEXT_STUDIO_ANIMATION_PARAMETERS ?? "")
+		).toEqual({
+			children: [
+				{
+					name: "qcut-text",
+					anims: [
+						{
+							anim_type: "loop",
+							anim_script_type: "js",
+							anim_resource_id: "1003",
+							anim_resource_path: "/cache/effect/loop/hash",
+							anim_start_time: 0,
+							duration: 3,
+							loop_duration: 1.2,
+						},
+					],
+				},
+			],
 		});
 	});
 
 	it("preserves a fractional sequence origin for seek parity", () => {
 		const environment = resolveJianyingTextBridgeEnvironment({
 			environment: {},
+			runtimeRoot: "/Applications/JianyingPro.app/Contents",
 			request: {
 				requestId: "fractional-timing",
 				packagePath: "/cache/artistEffect/style/hash",

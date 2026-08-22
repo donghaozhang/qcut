@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { jianyingFilterLocalRuntimeDiscoveryTestUtils } from "../jianying-filter-local-runtime/runtime-discovery.js";
 
 const KNOWN_UUID = "9A8A8F6B-31C0-3DDC-85AC-5F11087D7965";
+const PRIVATE_RUNTIME_UUID = "D6342ECD-5432-33F0-A2AD-0C28F5699994";
 
 function uuidLine({
 	uuid,
@@ -39,6 +40,20 @@ describe("Jianying filter local runtime discovery", () => {
 			jianyingFilterLocalRuntimeDiscoveryTestUtils.hasCompatibleLibrarySlice({
 				stdout,
 				architecture: "x64",
+			})
+		).toBe(true);
+	});
+
+	it("accepts the verified QCut private runtime slice", () => {
+		const stdout = uuidLine({
+			uuid: PRIVATE_RUNTIME_UUID,
+			architecture: "arm64",
+		});
+
+		expect(
+			jianyingFilterLocalRuntimeDiscoveryTestUtils.hasCompatibleLibrarySlice({
+				stdout,
+				architecture: "arm64",
 			})
 		).toBe(true);
 	});

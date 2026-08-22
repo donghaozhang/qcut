@@ -6,9 +6,15 @@ import path from "node:path";
 import { promisify } from "node:util";
 import type { JianyingFilterLocalRuntimeStatus } from "../jianying-filter-lab-contract.js";
 import { resolveJianyingFilterLocalBridge } from "./bridge-resolver.js";
+import {
+	hasJianyingFilterPrivateRuntime,
+	jianyingFilterPrivateModelDirectory,
+	jianyingFilterPrivateRuntimeCurrent,
+} from "./private-runtime.js";
 
 const execFileAsync = promisify(execFile);
 const KNOWN_LIBCCCREATOR_UUIDS = new Set([
+	"D6342ECD-5432-33F0-A2AD-0C28F5699994",
 	"9A8A8F6B-31C0-3DDC-85AC-5F11087D7965",
 	"FDF42EF4-427D-30DF-9310-A8C7B352C5CD",
 	"9723BA50-5F7F-353D-8CEF-3472AAE6643D",
@@ -20,6 +26,20 @@ export interface JianyingFilterLocalRuntimeInspection {
 	effectLibraryPath: string | null;
 	frameworkDirectory: string | null;
 	modelDirectory: string | null;
+}
+
+type RuntimeSource = NonNullable<
+	JianyingFilterLocalRuntimeStatus["runtimeSource"]
+>;
+
+interface RuntimeCandidate {
+	frameworkDirectory: string;
+	source: RuntimeSource;
+}
+
+interface ModelCandidate {
+	modelDirectory: string;
+	source: RuntimeSource;
 }
 
 let pendingInspection: Promise<JianyingFilterLocalRuntimeInspection> | null =
@@ -54,6 +74,7 @@ async function hasSkinSegModel({ directory }: { directory: string }) {
 }
 
 function appBundleCandidates() {
+	if (process.env.QCUT_JIANYING_DISABLE_APP_BUNDLE === "1") return [];
 	return uniquePaths({
 		paths: [
 			process.env.QCUT_JIANYING_APP_BUNDLE,
@@ -64,11 +85,51 @@ function appBundleCandidates() {
 	});
 }
 
-function modelDirectoryCandidates() {
-	return uniquePaths({
-		paths: [
-			process.env.QCUT_JIANYING_FILTER_MODEL_DIRECTORY,
-			path.join(
+function transitionPrivateRuntimeCurrent() {
+	return path.join(
+		os.homedir(),
+		"Library",
+		"Application Support",
+		"QCut",
+		"PrivateRuntimes",
+		"JianyingTransition",
+		"current"
+	);
+}
+
+function runtimeCandidates(): RuntimeCandidate[] {
+	const override = process.env.QCUT_JIANYING_FILTER_FRAMEWORK_DIRECTORY;
+	if (override) {
+		return [{ frameworkDirectory: override, source: "environment" }];
+	}
+	const privateRoots = [
+		jianyingFilterPrivateRuntimeCurrent(),
+		transitionPrivateRuntimeCurrent(),
+	];
+	return [
+		...privateRoots.map((runtimeRoot) => ({
+			frameworkDirectory: path.join(runtimeRoot, "Frameworks"),
+			source: "qcut-private" as const,
+		})),
+		...appBundleCandidates().map((appBundlePath) => ({
+			frameworkDirectory: path.join(appBundlePath, "Contents", "Frameworks"),
+			source: "jianying-installation" as const,
+		})),
+	];
+}
+
+function modelDirectoryCandidates(): ModelCandidate[] {
+	const override = process.env.QCUT_JIANYING_FILTER_MODEL_DIRECTORY;
+	if (override) return [{ modelDirectory: override, source: "environment" }];
+	const candidates: ModelCandidate[] = [
+		{
+			modelDirectory: jianyingFilterPrivateModelDirectory(),
+			source: "qcut-private",
+		},
+	];
+	if (process.env.QCUT_JIANYING_DISABLE_USER_CACHE !== "1") {
+		candidates.push({
+			modelDirectory: path.join(
 				os.homedir(),
 				"Movies",
 				"JianyingPro",
@@ -77,8 +138,10 @@ function modelDirectoryCandidates() {
 				"effect",
 				"model"
 			),
-		],
-	});
+			source: "jianying-installation",
+		});
+	}
+	return candidates;
 }
 
 function status({
@@ -87,7 +150,13 @@ function status({
 	bridgeReady,
 	runtimeReady,
 	modelReady,
-}: Omit<JianyingFilterLocalRuntimeStatus, "provider" | "platform">) {
+	runtimeSource = "none",
+	modelSource = "none",
+	snapshotReady = false,
+}: Omit<
+	JianyingFilterLocalRuntimeStatus,
+	"provider" | "platform" | "offlineReady"
+>) {
 	return {
 		state,
 		message,
@@ -96,6 +165,13 @@ function status({
 		bridgeReady,
 		runtimeReady,
 		modelReady,
+		runtimeSource,
+		modelSource,
+		snapshotReady,
+		offlineReady:
+			state === "ready" &&
+			runtimeSource === "qcut-private" &&
+			modelSource === "qcut-private",
 	};
 }
 
@@ -131,6 +207,7 @@ function hasCompatibleLibrarySlice({
 }
 
 async function inspectRuntime(): Promise<JianyingFilterLocalRuntimeInspection> {
+	const snapshotReady = await hasJianyingFilterPrivateRuntime();
 	if (process.platform !== "darwin") {
 		return {
 			status: status({
@@ -139,6 +216,7 @@ async function inspectRuntime(): Promise<JianyingFilterLocalRuntimeInspection> {
 				bridgeReady: false,
 				runtimeReady: false,
 				modelReady: false,
+				snapshotReady,
 			}),
 			bridgePath: null,
 			effectLibraryPath: null,
@@ -156,6 +234,7 @@ async function inspectRuntime(): Promise<JianyingFilterLocalRuntimeInspection> {
 				bridgeReady: false,
 				runtimeReady: false,
 				modelReady: false,
+				snapshotReady,
 			}),
 			bridgePath: null,
 			effectLibraryPath: null,
@@ -164,13 +243,8 @@ async function inspectRuntime(): Promise<JianyingFilterLocalRuntimeInspection> {
 		};
 	}
 
-	const appChecks = await Promise.all(
-		appBundleCandidates().map(async (appBundlePath) => {
-			const frameworkDirectory = path.join(
-				appBundlePath,
-				"Contents",
-				"Frameworks"
-			);
+	const runtimeChecks = await Promise.all(
+		runtimeCandidates().map(async ({ frameworkDirectory, source }) => {
 			const effectLibraryPath = path.join(
 				frameworkDirectory,
 				"libcccreator.dylib"
@@ -178,13 +252,14 @@ async function inspectRuntime(): Promise<JianyingFilterLocalRuntimeInspection> {
 			return {
 				effectLibraryPath,
 				frameworkDirectory,
+				source,
 				usable:
 					(await isReadable({ filePath: effectLibraryPath })) &&
 					(await compatibleLibrary({ filePath: effectLibraryPath })),
 			};
 		})
 	);
-	const runtime = appChecks.find(({ usable }) => usable);
+	const runtime = runtimeChecks.find(({ usable }) => usable);
 	if (!runtime) {
 		return {
 			status: status({
@@ -193,6 +268,7 @@ async function inspectRuntime(): Promise<JianyingFilterLocalRuntimeInspection> {
 				bridgeReady: true,
 				runtimeReady: false,
 				modelReady: false,
+				snapshotReady,
 			}),
 			bridgePath,
 			effectLibraryPath: null,
@@ -202,17 +278,16 @@ async function inspectRuntime(): Promise<JianyingFilterLocalRuntimeInspection> {
 	}
 
 	const modelChecks = await Promise.all(
-		modelDirectoryCandidates().map(async (modelDirectory) => ({
+		modelDirectoryCandidates().map(async ({ modelDirectory, source }) => ({
 			modelDirectory,
+			source,
 			usable:
 				(await isReadable({ filePath: modelDirectory })) &&
 				(await hasSkinSegModel({ directory: modelDirectory })),
 		}))
 	);
-	const modelDirectory = modelChecks.find(
-		({ usable }) => usable
-	)?.modelDirectory;
-	if (!modelDirectory) {
+	const model = modelChecks.find(({ usable }) => usable);
+	if (!model) {
 		return {
 			status: status({
 				state: "model-missing",
@@ -220,6 +295,8 @@ async function inspectRuntime(): Promise<JianyingFilterLocalRuntimeInspection> {
 				bridgeReady: true,
 				runtimeReady: true,
 				modelReady: false,
+				runtimeSource: runtime.source,
+				snapshotReady,
 			}),
 			bridgePath,
 			effectLibraryPath: runtime.effectLibraryPath,
@@ -235,11 +312,14 @@ async function inspectRuntime(): Promise<JianyingFilterLocalRuntimeInspection> {
 			bridgeReady: true,
 			runtimeReady: true,
 			modelReady: true,
+			runtimeSource: runtime.source,
+			modelSource: model.source,
+			snapshotReady,
 		}),
 		bridgePath,
 		effectLibraryPath: runtime.effectLibraryPath,
 		frameworkDirectory: runtime.frameworkDirectory,
-		modelDirectory,
+		modelDirectory: model.modelDirectory,
 	};
 }
 
@@ -257,6 +337,7 @@ export function inspectJianyingFilterLocalRuntime({
 				bridgeReady: false,
 				runtimeReady: false,
 				modelReady: false,
+				snapshotReady: false,
 			}),
 			bridgePath: null,
 			effectLibraryPath: null,

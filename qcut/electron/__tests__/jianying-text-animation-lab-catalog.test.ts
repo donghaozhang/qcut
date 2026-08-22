@@ -4,7 +4,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { afterEach, describe, expect, it } from "vitest";
-import { buildJianyingTextAnimationCatalog } from "../jianying-text-animation-lab-catalog.js";
+import {
+	buildJianyingTextAnimationCatalog,
+	listJianyingTextAnimationCatalogCandidates,
+} from "../jianying-text-animation-lab-catalog.js";
 
 const VALID_RESOURCE_ID = "7168819879183651359";
 const MISSING_RESOURCE_ID = "7179135028343870012";
@@ -140,10 +143,19 @@ describe("Jianying text animation lab catalog", () => {
 				],
 			}),
 		]);
+		const candidates = await listJianyingTextAnimationCatalogCandidates({
+			databaseRoot,
+		});
 
 		const catalog = await buildJianyingTextAnimationCatalog({
 			cacheRoot,
 			databaseRoot,
+		});
+		expect(candidates).toHaveLength(3);
+		expect(candidates[0]).toMatchObject({
+			resourceId: VALID_RESOURCE_ID,
+			packageHash: VALID_HASH,
+			slot: "loop",
 		});
 
 		expect(catalog).toMatchObject({

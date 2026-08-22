@@ -300,6 +300,48 @@ describe("JianyingTextStyleLabPanel", () => {
 		).toBeDisabled();
 	});
 
+	it("pages beyond the first 24 cached flowers instead of truncating a category", async () => {
+		const styles = Array.from({ length: 30 }, (_, index) =>
+			createStyle({ index: index + 1 })
+		);
+		window.electronAPI = {
+			jianyingTextStyleLab: {
+				list: vi.fn(
+					async (): Promise<JianyingTextStyleLabListResult> => ({
+						count: styles.length,
+						styles,
+						categories: [
+							{ id: "popular", label: "热门", count: styles.length },
+						],
+						packageCount: styles.length,
+						invalidPackageCount: 0,
+					})
+				),
+				listAnimations: vi.fn(async () => createAnimationResult()),
+				cover: vi.fn(async ({ styleId }: { styleId: string }) => ({
+					styleId,
+					mimeType: "image/png" as const,
+					bytes: new Uint8Array([1, 2, 3]),
+				})),
+			},
+		} as never;
+		render(<LabHarness onApply={vi.fn()} onClose={vi.fn()} />);
+
+		fireEvent.click(await screen.findByRole("button", { name: "全部 30" }));
+		await waitFor(() =>
+			expect(
+				screen.getAllByTestId("jianying-text-style-lab-card")
+			).toHaveLength(24)
+		);
+		fireEvent.click(screen.getByRole("button", { name: "加载更多" }));
+		await waitFor(() =>
+			expect(
+				screen.getAllByTestId("jianying-text-style-lab-card")
+			).toHaveLength(30)
+		);
+		expect(screen.queryByRole("button", { name: "加载更多" })).toBeNull();
+	});
+
 	it("applies a native ScriptInfoSticker card to the timeline", async () => {
 		const runtimeStyle = createRuntimeStyle();
 		const list = vi.fn(
@@ -369,6 +411,7 @@ describe("JianyingTextStyleLabPanel", () => {
 		await waitFor(() =>
 			expect(listAnimations).toHaveBeenCalledWith({ refresh: false })
 		);
+		expect(await screen.findByText("可渲染 1 / 1")).toBeInTheDocument();
 		const animationButton = await screen.findByRole("button", {
 			name: "应用循环动画 翻页 I",
 		});

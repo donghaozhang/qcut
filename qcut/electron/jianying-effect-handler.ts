@@ -17,7 +17,10 @@ import {
 	type JianyingEffectRenderResult,
 } from "./jianying-effect-contract.js";
 import { getJianyingEffectCover } from "./jianying-effect/cover-cache.js";
-import { downloadJianyingEffectPackage } from "./jianying-effect/download.js";
+import {
+	downloadJianyingEffectPackage,
+	ensureQCutManagedEffectPackage,
+} from "./jianying-effect/download.js";
 import { getJianyingEffectPreview } from "./jianying-effect/preview-cache.js";
 import { renderJianyingEffectClip } from "./jianying-effect/render.js";
 import { inspectJianyingEffectRuntime } from "./jianying-effect/runtime-discovery.js";
@@ -206,10 +209,16 @@ export function setupJianyingEffectIPC(): void {
 				);
 			}
 			await validateRenderRequest({ request });
+			const cachedPackage = await ensureQCutManagedEffectPackage({
+				effectId: definition.effectId,
+			});
 
 			const counts = await renderJianyingEffectClip({
 				inspection,
-				definition,
+				definition: {
+					...definition,
+					packagePath: cachedPackage.packagePath,
+				},
 				inputPath: request.inputPath,
 				outputPath: request.outputPath,
 				width: request.width,

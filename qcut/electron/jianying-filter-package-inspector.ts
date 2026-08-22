@@ -5,8 +5,10 @@ import type {
 	JianyingFilterCacheStatus,
 	JianyingFilterImplementation,
 } from "./jianying-filter-lab-contract.js";
+import { mapWithConcurrency } from "./lib/map-with-concurrency.js";
 import {
 	jianyingEffectCacheRoot,
+	qcutManagedFilterPackageRoot,
 	type JianyingLutReference,
 } from "./native-pipeline/filters/filter-lab-lut.js";
 import {
@@ -26,6 +28,7 @@ import {
 
 const PACKAGE_CONTAINERS = ["artistEffect", "effect"] as const;
 const MAX_PACKAGE_FILES = 5000;
+const PACKAGE_SCAN_CONCURRENCY = 16;
 const SAFE_SEGMENT = /^[A-Za-z0-9._-]+$/;
 
 interface PackageLocation {
@@ -71,33 +74,37 @@ async function directoryNames({ directory }: { directory: string }) {
 }
 
 async function indexPackageLocations({
-	cacheRoot,
+	cacheRoots,
 }: {
-	cacheRoot: string;
+	cacheRoots: string[];
 }): Promise<Map<string, PackageLocation[]>> {
 	const byIdentifier = new Map<string, PackageLocation[]>();
-	for (const container of PACKAGE_CONTAINERS) {
-		const containerRoot = join(cacheRoot, container);
-		const identifiers = await directoryNames({ directory: containerRoot });
-		const versionsByIdentifier = await Promise.all(
-			identifiers.map(async (identifier) => ({
-				identifier,
-				versions: await directoryNames({
-					directory: join(containerRoot, identifier),
-				}),
-			}))
-		);
-		for (const { identifier, versions } of versionsByIdentifier) {
-			const locations = byIdentifier.get(identifier) ?? [];
-			for (const version of versions) {
-				locations.push({
-					container,
+	for (const cacheRoot of cacheRoots) {
+		for (const container of PACKAGE_CONTAINERS) {
+			const containerRoot = join(cacheRoot, container);
+			const identifiers = await directoryNames({ directory: containerRoot });
+			const versionsByIdentifier = await mapWithConcurrency({
+				items: identifiers,
+				limit: PACKAGE_SCAN_CONCURRENCY,
+				task: async ({ item: identifier }) => ({
 					identifier,
-					version,
-					root: join(containerRoot, identifier, version),
-				});
+					versions: await directoryNames({
+						directory: join(containerRoot, identifier),
+					}),
+				}),
+			});
+			for (const { identifier, versions } of versionsByIdentifier) {
+				const locations = byIdentifier.get(identifier) ?? [];
+				for (const version of versions) {
+					locations.push({
+						container,
+						identifier,
+						version,
+						root: join(containerRoot, identifier, version),
+					});
+				}
+				byIdentifier.set(identifier, locations);
 			}
-			byIdentifier.set(identifier, locations);
 		}
 	}
 	return byIdentifier;
@@ -162,9 +169,15 @@ function matchingLocations({
 	const exact = candidates.filter(({ version }) => exactVersions.has(version));
 	const selected = exact.length > 0 ? exact : candidates;
 	const unique = new Map(selected.map((entry) => [entry.root, entry]));
-	return [...unique.values()].sort((left, right) =>
-		left.root.localeCompare(right.root)
-	);
+	return [...unique.values()];
+}
+
+function defaultPackageCacheRoots(): string[] {
+	const managedRoot = qcutManagedFilterPackageRoot();
+	return [
+		dirname(jianyingEffectCacheRoot()),
+		...(managedRoot ? [dirname(managedRoot)] : []),
+	].filter((root, index, roots) => roots.indexOf(root) === index);
 }
 
 function hasAny({ paths, suffixes }: { paths: string[]; suffixes: string[] }) {
@@ -252,20 +265,22 @@ function cacheStatus({
 	return "cached";
 }
 
-/**
- * Inspects only packages already present in Jianying's cache. Paths stay in the
- * Electron process and cached assets are never copied into QCut.
- */
+/** Inspects installed, private-runtime, and QCut-managed package roots. */
 export async function inspectJianyingFilterPackages({
 	filters,
 	references,
-	cacheRoot = dirname(jianyingEffectCacheRoot()),
+	cacheRoot,
+	cacheRoots,
 }: {
 	filters: JianyingKnownFilter[];
 	references: JianyingLutReference[];
 	cacheRoot?: string;
+	cacheRoots?: string[];
 }): Promise<Map<string, JianyingFilterPackageSummary>> {
-	const byIdentifier = await indexPackageLocations({ cacheRoot });
+	const roots = (
+		cacheRoots ?? (cacheRoot ? [cacheRoot] : defaultPackageCacheRoots())
+	).filter((root, index, entries) => entries.indexOf(root) === index);
+	const byIdentifier = await indexPackageLocations({ cacheRoots: roots });
 	const referencesByResource = new Map<string, JianyingLutReference[]>();
 	for (const reference of references) {
 		const grouped = referencesByResource.get(reference.resourceId) ?? [];
@@ -273,8 +288,10 @@ export async function inspectJianyingFilterPackages({
 		referencesByResource.set(reference.resourceId, grouped);
 	}
 
-	const inspected = await Promise.all(
-		filters.map(async (filter) => {
+	const inspected = await mapWithConcurrency({
+		items: filters,
+		limit: PACKAGE_SCAN_CONCURRENCY,
+		task: async ({ item: filter }) => {
 			const filterReferences =
 				referencesByResource.get(filter.resourceId) ?? [];
 			const referenceVersions = new Set(
@@ -382,7 +399,7 @@ export async function inspectJianyingFilterPackages({
 					issues,
 				} satisfies JianyingFilterPackageSummary,
 			] as const;
-		})
-	);
+		},
+	});
 	return new Map(inspected);
 }

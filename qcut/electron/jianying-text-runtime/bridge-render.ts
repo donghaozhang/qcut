@@ -23,6 +23,7 @@ import {
 	runJianyingTextProcess,
 	throwIfJianyingTextRenderCancelled,
 } from "./render-process.js";
+import { buildJianyingStudioAnimationEnvironment } from "./studio-animation-bridge.js";
 
 export interface JianyingTextBridgeRuntime {
 	bridgePath: string;
@@ -34,6 +35,7 @@ export interface JianyingTextRawSequenceRequest {
 	requestId: string;
 	packagePath: string;
 	packageKind: ResolvedJianyingTextPackage["packageKind"];
+	styleResourceId?: string;
 	outputPath: string;
 	width: number;
 	height: number;
@@ -76,9 +78,13 @@ export function resolveJianyingTextBridgeLaunch({
 export function resolveJianyingTextBridgeEnvironment({
 	environment,
 	request,
+	runtimeRoot,
+	studioScriptRoot,
 }: {
 	environment: NodeJS.ProcessEnv;
 	request: JianyingTextRawSequenceRequest;
+	runtimeRoot: string;
+	studioScriptRoot?: string;
 }): NodeJS.ProcessEnv {
 	const segmentPayload =
 		request.packageKind === "ScriptInfoSticker"
@@ -86,8 +92,9 @@ export function resolveJianyingTextBridgeEnvironment({
 			: "";
 	const animationEnvironment = Object.fromEntries(
 		(request.animations ?? []).flatMap(
-			({ animationType, duration, packagePath }) => [
+			({ animationType, duration, loader, packagePath }) => [
 				[`JY_TEXT_ANIMATION_${animationType}_PATH`, packagePath],
+				[`JY_TEXT_ANIMATION_${animationType}_LOADER`, loader],
 				[
 					`JY_TEXT_ANIMATION_${animationType}_DURATION`,
 					String(Math.round(duration * 1_000_000)),
@@ -95,6 +102,18 @@ export function resolveJianyingTextBridgeEnvironment({
 			]
 		)
 	);
+	const studioAnimationEnvironment = buildJianyingStudioAnimationEnvironment({
+		animations: request.animations ?? [],
+		content: request.content ?? "",
+		fontPath: request.fontPath,
+		fontSize: request.fontSize ?? 12,
+		packageKind: request.packageKind,
+		packagePath: request.packagePath,
+		resourceId: request.styleResourceId,
+		runtimeRoot,
+		studioScriptRoot,
+		timelineDuration: request.timelineDuration,
+	});
 	return {
 		...environment,
 		JY_TEXT_PACKAGE: request.packagePath,
@@ -114,6 +133,7 @@ export function resolveJianyingTextBridgeEnvironment({
 		JY_VIDEO_WIDTH: String(request.width),
 		JY_VIDEO_HEIGHT: String(request.height),
 		...animationEnvironment,
+		...studioAnimationEnvironment,
 	};
 }
 
@@ -151,6 +171,7 @@ export async function renderJianyingTextRawSequence({
 		env: resolveJianyingTextBridgeEnvironment({
 			environment: launch.environment,
 			request,
+			runtimeRoot: runtime.runtimeRoot,
 		}),
 	});
 	await requireRawSequenceSize(request);

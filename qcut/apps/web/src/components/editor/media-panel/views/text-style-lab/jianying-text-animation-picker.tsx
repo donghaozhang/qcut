@@ -57,15 +57,19 @@ function isActivationKey({ event }: { event: React.KeyboardEvent }) {
 
 export function JianyingTextAnimationPicker({
 	animations,
+	catalogCount,
 	checking,
 	error,
+	invalidPackageCount,
 	selected,
 	onChange,
 	onRefresh,
 }: {
 	animations: JianyingTextAnimationLabSummary[];
+	catalogCount: number;
 	checking: boolean;
 	error: string;
+	invalidPackageCount: number;
 	selected: JianyingTextAnimationReferences;
 	onChange: ({
 		animation,
@@ -107,6 +111,12 @@ export function JianyingTextAnimationPicker({
 			className="mt-3 border-white/10 border-t pt-2"
 			data-testid="jianying-text-animation-picker"
 		>
+			<div className="mb-2 flex items-center justify-between text-[10px] text-muted-foreground">
+				<span>文字动画</span>
+				<span title={`${invalidPackageCount} 个目录包当前不可渲染`}>
+					可渲染 {animations.length} / {catalogCount}
+				</span>
+			</div>
 			<div className="flex items-center gap-2">
 				<div className="flex h-7 shrink-0 overflow-hidden rounded-md border border-white/10 bg-black/20">
 					{SLOT_OPTIONS.map(({ icon: Icon, label, slot }) => (

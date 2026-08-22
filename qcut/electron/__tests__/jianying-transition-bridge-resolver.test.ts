@@ -4,9 +4,25 @@ import { describe, expect, it } from "vitest";
 import {
 	JIANYING_TRANSITION_BRIDGE_SOURCE_FILE_NAMES,
 	jianyingTransitionBridgeCompilerArguments,
+	qcutPrivateRuntimeBridgePath,
 } from "../jianying-transition/bridge-resolver.js";
 
 describe("Jianying transition bridge resolver", () => {
+	it("resolves the user-local QCut runtime bridge path", () => {
+		expect(
+			qcutPrivateRuntimeBridgePath({ homeDirectory: "/Users/tester" })
+		).toBe(
+			path.join(
+				"/Users/tester",
+				"Library",
+				"Application Support",
+				"QCut",
+				"RuntimeBridges",
+				"jianying-transition-bridge"
+			)
+		);
+	});
+
 	it("links every probe dependency and required macOS framework", () => {
 		const sourceDirectory = "/fixture/probe";
 		const outputPath = "/fixture/bin/jianying-transition-bridge";
