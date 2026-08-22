@@ -15,7 +15,7 @@ Branch / 分支: `codex/sound-effects-offline-pack`
 音效实验室已经从“仅本机文件”扩展为与贴纸实验室相同的私有发布架构:
 
 - 私有 Supabase bucket: `sound-effects-lab`;
-- 当前私有 manifest 包含 938 个 MP3，Git 和安装包都不包含这些音频;
+- 当前私有 manifest 包含 995 个 MP3，Git 和安装包都不包含这些音频;
 - license server 提供白名单 manifest 接口和 10 分钟音效签名接口;
 - `SOUND_EFFECTS_LAB_ALLOWED_USER_IDS` 是独立、fail-closed 的账号 ID
   白名单，不复用贴纸实验室白名单;
@@ -25,7 +25,7 @@ Branch / 分支: `codex/sound-effects-offline-pack`
   不含本机路径的 schema v2 manifest。
 
 2026-08-22 新增完整离线包。用户点击“离线下载”后，QCut 会把当前私有目录的
-全部 938 个音效写入自己的本地缓存，而不是继续依赖剪映缓存:
+全部 995 个音效写入自己的本地缓存，而不是继续依赖剪映缓存:
 
 - `qcut-asset-resources/files`:保存经过大小和 SHA-256 校验的音频 Blob;
 - `qcut-sound-effects-lab-offline/packs`:保存完整 manifest、账号、目录版本、
@@ -69,7 +69,7 @@ VITE_QCUT_ENABLE_SOUND_EFFECTS_LAB=true
   -> 检查配额并请求 navigator.storage.persist()
   -> 最多 4 路并发下载 manifest 中的全部音效
   -> 每个文件复用 qcut-asset-resources 的大小和 SHA-256 校验
-  -> 938/938 全部完成后写入账号绑定的 packs 完成记录
+  -> 995/995 全部完成后写入账号绑定的 packs 完成记录
   -> 后续断网时读取本地 manifest + Blob
   -> 不访问剪映目录，也不请求远程音效文件
 ```
@@ -85,12 +85,12 @@ VITE_QCUT_ENABLE_SOUND_EFFECTS_LAB=true
 | 可见性 | private |
 | 单文件上限 | 50 MiB |
 | MIME | `audio/mpeg`, `application/json` |
-| Manifest | `jianying/2026-08-01/manifest.json` |
-| 音效对象 | `jianying/2026-08-01/assets/<md5>.mp3` |
+| Manifest | `jianying/2026-08-22/manifest.json` |
+| 音效对象 | `jianying/2026-08-15/assets/<md5>.mp3` |
 | Manifest API | `GET /api/sound-effects-lab/private-manifest` |
 | 音效 API | `GET /api/sound-effects-lab/assets?objectKey=...` |
 | Signed URL TTL | 600 秒 |
-| 当前 Worker | `e3ca8422-498e-4cd8-a6a0-807a6635e371` |
+| 当前 Worker | `90f245d4-be1b-47d4-9172-92bfb5de8326` |
 
 生产 Worker 显式允许 `http://localhost:5173` 和
 `http://127.0.0.1:5173`，供 Vite Electron 开发版做带登录态的生产 E2E。
@@ -116,11 +116,17 @@ Supabase service-role key。普通已登录但不在白名单内的真实账号�
 | 指标 | 结果 |
 |---|---:|
 | 分类 | 20 |
-| 音效 | 938 |
-| QCut 本地 Blob | 938 |
-| 唯一 SHA-256 | 938 |
-| 本地 Blob / manifest 总字节数 | 210,322,616 / 210,322,616 |
-| 总大小 | 约 200.6 MiB |
+| 音效 | 995 |
+| QCut 当前 manifest 对应 Blob | 995 |
+| 当前 manifest 唯一 SHA-256 | 995 |
+| 本地 Blob / manifest 总字节数 | 220,527,448 / 220,527,448 |
+| 总大小 | 约 210.3 MiB |
+
+Batch-05 从重新浏览的剪映目录中下载了 57 个唯一 MP3，3 个内容重复项按 MD5
+跳过，下载和解码失败为 0。合并目录从 938 增加到 995。15 个分类取得 3–9 个
+真实新增项;`尴尬`、`震惊`、`知识科普`、`BGM` 和 `打斗` 已翻到
+`has_more=false`，没有未收录的新卡，因此没有复制旧文件或错误改分类凑数。
+完整分类结果见 [Batch-05 记录](./BATCH-05-RECORD.md)。
 
 以下是 2026-08-01 首次私有发布时的历史快照，不是当前线上数量。
 
@@ -181,8 +187,8 @@ schema v1 开发模式，不访问私有 manifest。
 
 2026-08-22 完整离线包自动化:
 
-- 10 个相关回归测试文件、74 个测试通过，其中新离线链路的 6 个聚焦文件
-  共 29 个测试;
+- 本轮 6 个离线链路聚焦测试文件、36 个测试通过;此前更宽的相关回归为
+  10 个文件、74 个测试通过;
 - 覆盖完整安装、重试复用、半包不写完成记录、缺失 Blob 检出、目录更新、
   双账号共享缓存、最后账号删除、无 token 拒绝、断网回退和 401/403 撤销;
 - Web TypeScript `tsc --noEmit` 通过;
@@ -191,7 +197,27 @@ schema v1 开发模式，不访问私有 manifest。
 - 938 条合成 IndexedDB 资源通过一次扫描和一次事务全部删除，实测约 47 ms，
   避免逐条删除时重复读取 200.6 MiB 缓存。
 
-2026-08-22 真实 Electron E2E（`qcutlove@qcut.app`）:
+2026-08-22 Batch-05 生产与离线增量 E2E（`qcutlove@qcut.app`）:
+
+1. 生产白名单 API 返回 20 个分类 / 995 项，未认证请求返回 401;
+2. 57 个新增 Supabase 对象逐个回读并通过大小和 SHA-256 校验;
+3. QCut 离线安装完成后，账号完成记录为 995 项、220,527,448 bytes，
+   `persistentStorage: true`;
+4. 当前 manifest 的 995 个资源在 `qcut-asset-resources` 中全部命中，0 缺失，
+   唯一 SHA-256 为 995，总字节数与 manifest 完全一致;
+5. 主动阻断音效实验室 API 后重启，拦截 2 次 manifest 请求、音效资源请求为
+   0，页面仍恢复 995 项并显示“离线目录”;
+6. 搜索并试听本批新增“时钟滴答”，按钮切换为暂停，播放器从 `0:01 / 0:04`
+   持续播放，全程没有远端音效请求。
+
+Batch-05 截图证据:
+
+- [995 项线上目录与离线下载入口](./evidence/06-production-995-offline-download.jpg)
+- [995 项完整离线安装](./evidence/07-local-pack-995-installed.jpg)
+- [阻断 API 后恢复 995 项离线目录](./evidence/08-offline-995-catalog.png)
+- [离线播放本批新增“时钟滴答”](./evidence/09-offline-new-sound-playing.png)
+
+此前 938 项冷下载 E2E 历史基线:
 
 1. 从空缓存开始，线上目录显示 938 个音效和 20 个分类;
 2. 938 个文件全部下载完成，用时 225.0 秒;
@@ -260,12 +286,12 @@ Electron 真实 E2E:
 
 ### 下一步
 
-1. 在正式 `app://.` 安装包再跑一次 938 项冷下载、退出重开和断网试听，验证
+1. 在正式 `app://.` 安装包再跑一次 995 项冷下载、退出重开和断网试听，验证
    packaged origin 的持久化行为。
-2. 把真实账号生产 smoke test 做成显式 opt-in E2E，CI 默认不下载 200.6 MiB。
+2. 把真实账号生产 smoke test 做成显式 opt-in E2E，CI 默认不下载 210.3 MiB。
 3. 为目录更新增加可视化差量说明，例如“新增 24、删除 3”，现有实现已经会
    复用未变化 Blob 并清理无引用旧版本。
-4. 对 938 条音效执行响度、峰值、静音头尾、损坏帧和主观重复 QA。
+4. 对 995 条音效执行响度、峰值、静音头尾、损坏帧和主观重复 QA。
 5. 公开发布前，用 QCut 自有、CC0、AI 生成或另行授权的音效替换所有剪映
    参照资源;当前私有 bucket 和离线包都不能作为公开发行内容。
 
@@ -286,24 +312,33 @@ an explicit 401 or 403 revokes the current account's offline record and fails
 closed. Shared Blobs are retained until the last account that references them
 removes its pack.
 
-The real production catalog observed on 2026-08-22 contains 938 sounds in 20
-categories. A cold Electron download completed 938/938 resources in 225.0
-seconds and stored 210,322,616 bytes (200.6 MiB). IndexedDB contained 938
-Blobs and 938 unique SHA-256 values, and persistent browser storage was
-granted.
+The production catalog observed after Batch-05 on 2026-08-22 contains 995
+sounds in 20 categories and totals 220,527,448 bytes (210.3 MiB). The update
+added 57 unique MP3 files; three content duplicates were skipped and no
+download or decode failures occurred. Fifteen categories gained 3–9 real
+items. Five fully enumerated Jianying categories had no uncollected cards and
+were not padded with duplicates or relabelled content.
 
-After blocking every `/api/sound-effects-lab/**` request and reloading, QCut
-made one blocked manifest request and zero asset requests, restored all 938
-items from its local pack, and played the 36.048-second `派对嘈杂声7` sound
-from a local `blob:` URL. The five screenshots are in
-[`evidence/`](./evidence/01-before-download.png).
+QCut installed an account-bound 995-item offline record with persistent
+storage enabled. An exact manifest-to-cache comparison found 995 matching
+Blobs, 995 unique SHA-256 values, zero missing resources, and the same
+220,527,448-byte total. After blocking every
+`/api/sound-effects-lab/**` request and restarting, QCut restored all 995
+items from its local pack. It made zero asset requests and played the newly
+collected four-second `时钟滴答` sound while the player advanced to 0:01.
+Batch-05 screenshots are in
+[`evidence/`](./evidence/06-production-995-offline-download.jpg).
 
-Related regression verification passed 74 tests across ten files, including
-29 focused offline-pack tests across six files, plus Web TypeScript, the Web
-production build, and the Electron build. The next required production check
-is the same cold-download, restart, and offline-playback flow in a packaged
-`app://.` build. The initial 382-item data below is retained as the 2026-08-01
-publication snapshot.
+The previous 938-item cold-download baseline remains valid: it completed in
+225.0 seconds, stored 210,322,616 bytes, and played the 36.048-second
+`派对嘈杂声7` sound after one blocked manifest request and zero asset requests.
+
+The current focused regression run passed 36 tests across six offline-pack
+files; the earlier wider run passed 74 tests across ten files. Web TypeScript,
+the Web production build, and the Electron build also passed. The next required
+production check is the same cold-download, restart, and offline-playback flow
+in a packaged `app://.` build. The initial 382-item data below is retained as
+the 2026-08-01 publication snapshot.
 
 ### Architecture and access
 

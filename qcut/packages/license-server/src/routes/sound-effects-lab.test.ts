@@ -155,7 +155,7 @@ describe("sound effects lab routes", () => {
 		expect(response.headers.get("Cache-Control")).toBe("no-store");
 		await expect(response.text()).resolves.toBe(manifestJson);
 		expect(storageMocks.download).toHaveBeenCalledWith(
-			"jianying/2026-08-01/manifest.json"
+			"jianying/2026-08-22/manifest.json"
 		);
 	});
 
