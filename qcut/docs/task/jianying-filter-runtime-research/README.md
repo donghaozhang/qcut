@@ -1,6 +1,6 @@
 # 剪映滤镜运行时互操作性研究
 
-记录时间：2026-08-09，2026-08-10 追加中文剪映逐帧、ProRes 和无缩放对照，2026-08-12 追加产品批处理、固定时间基和长尾 Pass E2E，2026-08-13 追加 7 张双 LUT 真实视频门禁
+记录时间：2026-08-09，2026-08-10 追加中文剪映逐帧、ProRes 和无缩放对照，2026-08-12 追加产品批处理、固定时间基和长尾 Pass E2E，2026-08-13 追加 7 张双 LUT 真实视频门禁，2026-08-22 追加 QCut 私有运行时备份与首批目录扩充
 
 ## 范围
 
@@ -29,6 +29,11 @@
 [cinematic-soft-glow-four-way-e2e.zh.md](cinematic-soft-glow-four-way-e2e.zh.md)。本轮确认本机 provider 达到
 verified，并修复了调整层未把 native-local multi-pass 传入像素预览链路的问题；H.264 4:2:0
 导出帧单独按 close 记录，未把编码损失伪装成滤镜误差。
+
+QCut 私有运行时的版本化本地备份、完整哈希清单、严格离线产品 E2E，以及首批新增 5 张双 LUT
+人像滤镜的结果见
+[private-runtime-backup-and-expansion.zh.md](private-runtime-backup-and-expansion.zh.md)。该方案只支持用户本机
+私有互操作，不把第三方二进制、模型、滤镜包或数据库提交到仓库或作为可分发资产。
 
 ## 已确认结果
 
