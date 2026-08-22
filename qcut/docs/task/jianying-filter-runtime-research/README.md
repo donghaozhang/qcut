@@ -115,11 +115,26 @@ OpenGL legacy profile 只有 2.1，无法编译运行时生成的 GLSL 330，因
 
 状态重置实验仍给出独立的有效结论：真人、灰底、同一真人的返回序列中，`feature` 和 `video` reset 都不能恢复初始 mask；重建 Swing manager 及其 `AlgorithmService` 后，返回真人与初始 mask 的 SHA-256 完全一致。该结果确定了可复现的内容边界清理方式，但不代表剪映 UI 在所有边界上也必然销毁 manager。
 
-`FaceMakeupV2System` 在预热日志中仍报告 `facecount = 0`，所以人脸关键点结果尚未通过独立 API 读回。这个日志不推翻 skin segmentation 结论：动态 mask 已随人物移动，并在真人近景中与脸、颈肩和四肢对齐；但“人脸关键点链路已完整复刻”仍不能宣称。
+2026-08-22 又补齐了产品侧直接交付链路，不再只依赖 SDK 入口拦截。`Bach::FaceBuffer` 的主 face
+vector 位于 `+0x38/+0x40`；每条 face record 可稳定读出归一化矩形、score、yaw/pitch/roll、tracking
+字段以及 106 个关键点。此前 `FaceMakeupV2System` 的 `facecount = 0` 日志不是这份 BACH 检测结果，不能再用它
+判断 face 失败。
 
-> 更正：该日志不代表检测失败。直接拦截人脸 SDK 入口后读到有效的人脸矩形、关键点和数量字段，
-> 人脸链路是通的；同时实测人脸对 skin mask 没有影响（删除 `face_0 -> skin_seg_0` 连线后输出逐字节相同）。
-> 见 [mask-binding-fix.zh.md](mask-binding-fix.zh.md)。
+方向 A/B 找到真正原因：主 OpenGL 滤镜纹理保持现有方向时，奥林巴斯对剪映 UI 仍为既有 `37.331351 dB`，
+但 face 算法会把画面按相反的行方向理解。直接改主 handle orientation 虽能检出人脸，却把 UI parity 降到
+`34.980531 dB`。产品实现因此保留主 handle 不变，另建隔离的 face handle，并只对 face 输入做垂直行翻转。
+真人 1280x720 样本返回 `faceCount=1`、score `0.982111`、roll `0.06198` 和 106 点；无脸灰图返回
+`faceCount=0`。坐标契约固定为 `source-normalized-top-left`。
+
+隔离性门禁也已通过：同一真人帧开启/关闭 face handle 后，产品层 raw RGBA SHA-256 都为
+`d023b4036d74ab043e159bec132e79d8570f3f4ddfa14026aa5dc6d84d9f879e`，raw skin mask SHA-256 都为
+`97ccb67a58c04de0a715441d782d7ccb8aedfe576ffdd7d483829f469de1be32`。因此 face 读取没有改变现有双 LUT
+输出或 mask。包检查器只在 `algorithmConfig.json` 确实包含 `face` 节点时开启该通道，IPC 返回值经过 schema、
+数量、有限数值与数组上限校验。
+
+这证明的是单人 face detection / landmark **交付链路**，不是高级人像效果 parity。关键点如何绑定磨皮、五官形变、
+美妆和多人分配仍未验证；人像滤镜整体继续保持 `unverified`。face 与 skin mask 独立性的原始实验见
+[mask-binding-fix.zh.md](mask-binding-fix.zh.md)。
 
 另外，完全退出中文剪映主程序和托盘辅助进程后，独立探针仍能在约 2.1 秒内完成一张真人帧的加载、20 帧预热、滤镜处理和读回，进程退出码为 `0`。输出与剪映仍运行时连续测试中的对应帧逐字节一致，证明执行滤镜时不需要启动剪映应用进程。
 
