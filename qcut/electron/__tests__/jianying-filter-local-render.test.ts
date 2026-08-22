@@ -35,3 +35,57 @@ describe("Jianying local effect output blending", () => {
 		).toThrow("错误的像素数量");
 	});
 });
+
+describe("Jianying local face evidence", () => {
+	const face = {
+		rawRect: [0.25, 0.2, 0.4, 0.5],
+		score: 0.98,
+		yaw: 0.01,
+		pitch: -0.02,
+		roll: 0.03,
+		eyeDistance: 0,
+		id: 1,
+		action: 0,
+		trackingCount: 3,
+		landmarks: [[0.4, 0.3, -1]],
+	};
+
+	it("decodes finite face geometry in source coordinates", () => {
+		expect(
+			jianyingFilterLocalRenderTestUtils.decodeFaceEvidence({
+				text: JSON.stringify({
+					schemaVersion: 1,
+					coordinateSpace: "source-normalized-top-left",
+					faceCount: 1,
+					faces: [face],
+				}),
+			})
+		).toMatchObject({
+			faceCount: 1,
+			faces: [{ score: 0.98, landmarks: [[0.4, 0.3, -1]] }],
+		});
+	});
+
+	it("rejects inconsistent counts and non-finite values", () => {
+		expect(() =>
+			jianyingFilterLocalRenderTestUtils.decodeFaceEvidence({
+				text: JSON.stringify({
+					schemaVersion: 1,
+					coordinateSpace: "source-normalized-top-left",
+					faceCount: 0,
+					faces: [face],
+				}),
+			})
+		).toThrow("faceCount");
+		expect(() =>
+			jianyingFilterLocalRenderTestUtils.decodeFaceEvidence({
+				text: JSON.stringify({
+					schemaVersion: 1,
+					coordinateSpace: "source-normalized-top-left",
+					faceCount: 1,
+					faces: [{ ...face, score: "invalid" }],
+				}),
+			})
+		).toThrow("score");
+	});
+});
