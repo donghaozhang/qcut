@@ -108,9 +108,13 @@ function databaseRoots() {
 	];
 }
 
-function jianyingPackageRoots() {
+function effectPackageRoots() {
 	const home = os.homedir();
+	const qcutManagedRoot =
+		process.env.QCUT_JIANYING_EFFECT_MANAGED_PACKAGE_ROOT ||
+		path.join(home, "Library/Application Support/QCut/JianyingEffectPackages");
 	return [
+		qcutManagedRoot,
 		path.join(home, "Movies/JianyingPro/User Data/Cache/effect"),
 		path.join(
 			home,
@@ -184,10 +188,10 @@ async function readFullCatalog() {
 	return [...byEffectId.values()];
 }
 
-/** md5 → package dir across JianYing's own caches (reuse before downloading). */
+/** md5 → package dir; prove QCut's managed copy before using source caches. */
 function indexExistingPackages() {
 	const packages = new Map();
-	for (const root of [...jianyingPackageRoots(), PACKAGE_ROOT]) {
+	for (const root of [...effectPackageRoots(), PACKAGE_ROOT]) {
 		let effectDirs = [];
 		try {
 			effectDirs = fs.readdirSync(root, { withFileTypes: true });
