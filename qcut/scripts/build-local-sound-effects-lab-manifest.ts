@@ -9,6 +9,28 @@ import {
 import { dirname, isAbsolute, resolve } from "node:path";
 import { z } from "zod";
 
+const soundEffectSourceSchema = z.discriminatedUnion("provider", [
+	z
+		.object({
+			provider: z.literal("jianying-reference"),
+			redistribution: z.literal("prohibited"),
+		})
+		.strict(),
+	z
+		.object({
+			provider: z.literal("freesound"),
+			sourceId: z.string().regex(/^\d+$/),
+			creator: z.string().trim().min(1).max(160),
+			sourceUrl: z.string().trim().url().max(512),
+			license: z.literal("CC0-1.0"),
+			licenseUrl: z.literal(
+				"https://creativecommons.org/publicdomain/zero/1.0/"
+			),
+			redistribution: z.literal("allowed"),
+		})
+		.strict(),
+]);
+
 const sourceResourceSchema = z
 	.object({
 		// Two-digit label rather than an enum — see the matching note in
@@ -23,10 +45,22 @@ const sourceResourceSchema = z
 			"metadata-md5",
 			"isolated-card-download-probe",
 			"isolated-card-download",
+			"freesound-cc0",
 		]),
+		source: soundEffectSourceSchema.optional(),
 		categories: z.array(z.string().trim().min(1).max(80)).min(1).max(20),
 	})
-	.strict();
+	.strict()
+	.superRefine((resource, context) => {
+		const isFreesoundMapping = resource.mappingStrategy === "freesound-cc0";
+		const isFreesoundSource = resource.source?.provider === "freesound";
+		if (isFreesoundMapping === isFreesoundSource) return;
+		context.addIssue({
+			code: z.ZodIssueCode.custom,
+			path: ["source"],
+			message: "freesound-cc0 mappings require Freesound source metadata",
+		});
+	});
 
 const sourceMapSchema = z
 	.object({
@@ -37,11 +71,32 @@ const sourceMapSchema = z
 	})
 	.strict();
 
+const reusablePrivateManifestSchema = z.object({
+	items: z.array(
+		z.object({
+			resourceId: z.string().regex(/^\d{16,20}$/),
+			byteSize: z.number().int().positive(),
+			contentSha256: z.string().regex(/^[a-f0-9]{64}$/),
+			asset: z.object({
+				kind: z.literal("supabase-storage"),
+				objectKey: z
+					.string()
+					.regex(
+						/^(?:jianying|qcut)\/\d{4}-\d{2}-\d{2}\/assets\/[a-f0-9]{32}\.mp3$/
+					),
+				byteSize: z.number().int().positive(),
+				checksumSha256: z.string().regex(/^[a-f0-9]{64}$/),
+			}),
+		})
+	),
+});
+
 interface CliOptions {
 	catalogDate: string;
 	ffprobePath: string;
 	inputPath: string;
 	outputPath: string;
+	previousPrivateManifestPath?: string;
 	remoteOutputPath?: string;
 }
 
@@ -69,9 +124,13 @@ export function parseCliOptions({
 	const inputPath = argumentValue({ args, name: "--input" });
 	const outputPath = argumentValue({ args, name: "--output" });
 	const remoteOutputPath = argumentValue({ args, name: "--remote-output" });
+	const previousPrivateManifestPath = argumentValue({
+		args,
+		name: "--previous-private-manifest",
+	});
 	if (!inputPath || !outputPath) {
 		throw new Error(
-			"Usage: bun scripts/build-local-sound-effects-lab-manifest.ts --input <combined-map.json> --output <local-manifest.json> [--remote-output <private-manifest.json>] [--catalog-date YYYY-MM-DD] [--ffprobe /path/to/ffprobe]"
+			"Usage: bun scripts/build-local-sound-effects-lab-manifest.ts --input <combined-map.json> --output <local-manifest.json> [--remote-output <private-manifest.json>] [--previous-private-manifest <private-manifest.json>] [--catalog-date YYYY-MM-DD] [--ffprobe /path/to/ffprobe]"
 		);
 	}
 	const catalogDate =
@@ -88,6 +147,9 @@ export function parseCliOptions({
 			"ffprobe",
 		inputPath: resolve(inputPath),
 		outputPath: resolve(outputPath),
+		previousPrivateManifestPath: previousPrivateManifestPath
+			? resolve(previousPrivateManifestPath)
+			: undefined,
 		remoteOutputPath: remoteOutputPath ? resolve(remoteOutputPath) : undefined,
 	};
 }
@@ -149,6 +211,9 @@ export function buildManifest({
 	ffprobePath: string;
 	source: z.infer<typeof sourceMapSchema>;
 }) {
+	const isMixedLibrary = source.resources.some(
+		(resource) => resource.source?.provider === "freesound"
+	);
 	const categoryLabels = Array.from(
 		new Set(source.resources.flatMap((resource) => resource.categories))
 	);
@@ -195,6 +260,10 @@ export function buildManifest({
 			resourceId: resource.resourceId,
 			batch: resource.batch,
 			mappingStrategy: resource.mappingStrategy,
+			source: resource.source ?? {
+				provider: "jianying-reference" as const,
+				redistribution: "prohibited" as const,
+			},
 			categoryIds: resource.categories.map((label) => {
 				const id = categoryIdsByLabel.get(label);
 				if (!id) throw new Error(`Missing generated category: ${label}`);
@@ -205,13 +274,21 @@ export function buildManifest({
 
 	return {
 		schemaVersion: 1 as const,
-		catalogId: `jianying-sfx-reference-${catalogDate}`,
+		catalogId: isMixedLibrary
+			? `qcut-sfx-library-${catalogDate}`
+			: `jianying-sfx-reference-${catalogDate}`,
 		generatedAt: new Date().toISOString(),
-		provenance: {
-			sourceApp: "Jianying Pro" as const,
-			purpose: "internal-reference" as const,
-			redistribution: "prohibited" as const,
-		},
+		provenance: isMixedLibrary
+			? {
+					sourceApp: "QCut" as const,
+					purpose: "mixed-private-library" as const,
+					redistribution: "per-item-license" as const,
+				}
+			: {
+					sourceApp: "Jianying Pro" as const,
+					purpose: "internal-reference" as const,
+					redistribution: "prohibited" as const,
+				},
 		categories,
 		items,
 	};
@@ -220,37 +297,72 @@ export function buildManifest({
 export function buildPrivateManifest({
 	catalogDate,
 	localManifest,
+	previousPrivateManifest,
 }: {
 	catalogDate: string;
 	localManifest: ReturnType<typeof buildManifest>;
+	previousPrivateManifest?: z.infer<typeof reusablePrivateManifestSchema>;
 }) {
+	const previousItemsByResourceId = new Map(
+		(previousPrivateManifest?.items ?? []).map((item) => [
+			item.resourceId,
+			item,
+		])
+	);
+	if (
+		previousItemsByResourceId.size !==
+		(previousPrivateManifest?.items.length ?? 0)
+	) {
+		throw new Error(
+			"Previous private manifest contains duplicate resource IDs"
+		);
+	}
 	return {
 		schemaVersion: 2 as const,
 		catalogId: localManifest.catalogId,
 		generatedAt: localManifest.generatedAt,
 		provenance: localManifest.provenance,
 		categories: localManifest.categories,
-		items: localManifest.items.map((item) => ({
-			id: item.id,
-			numericId: item.numericId,
-			title: item.title,
-			fileName: item.fileName,
-			mimeType: item.mimeType,
-			byteSize: item.byteSize,
-			duration: item.duration,
-			contentMd5: item.contentMd5,
-			contentSha256: item.contentSha256,
-			resourceId: item.resourceId,
-			batch: item.batch,
-			mappingStrategy: item.mappingStrategy,
-			categoryIds: item.categoryIds,
-			asset: {
-				kind: "supabase-storage" as const,
-				objectKey: `jianying/${catalogDate}/assets/${item.fileName}`,
+		items: localManifest.items.map((item) => {
+			const previousItem = previousItemsByResourceId.get(item.resourceId);
+			if (
+				previousItem &&
+				(previousItem.byteSize !== item.byteSize ||
+					previousItem.contentSha256 !== item.contentSha256 ||
+					previousItem.asset.byteSize !== item.byteSize ||
+					previousItem.asset.checksumSha256 !== item.contentSha256)
+			) {
+				throw new Error(
+					`Existing private asset integrity changed for ${item.resourceId}`
+				);
+			}
+			return {
+				id: item.id,
+				numericId: item.numericId,
+				title: item.title,
+				fileName: item.fileName,
+				mimeType: item.mimeType,
 				byteSize: item.byteSize,
-				checksumSha256: item.contentSha256,
-			},
-		})),
+				duration: item.duration,
+				contentMd5: item.contentMd5,
+				contentSha256: item.contentSha256,
+				resourceId: item.resourceId,
+				batch: item.batch,
+				mappingStrategy: item.mappingStrategy,
+				source: item.source,
+				categoryIds: item.categoryIds,
+				asset: {
+					kind: "supabase-storage" as const,
+					objectKey:
+						previousItem?.asset.objectKey ??
+						`${
+							item.source.provider === "freesound" ? "qcut" : "jianying"
+						}/${catalogDate}/assets/${item.fileName}`,
+					byteSize: item.byteSize,
+					checksumSha256: item.contentSha256,
+				},
+			};
+		}),
 	};
 }
 
@@ -270,6 +382,13 @@ export function run({ options }: { options: CliOptions }): void {
 		? buildPrivateManifest({
 				catalogDate: options.catalogDate,
 				localManifest: manifest,
+				previousPrivateManifest: options.previousPrivateManifestPath
+					? reusablePrivateManifestSchema.parse(
+							JSON.parse(
+								readFileSync(options.previousPrivateManifestPath, "utf8")
+							)
+						)
+					: undefined,
 			})
 		: undefined;
 	if (options.remoteOutputPath && privateManifest) {

@@ -5,7 +5,9 @@ import {
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	ensureAssetResources,
+	inspectAssetResources,
 	pruneAssetResourceCache,
+	removeAssetResourceVersions,
 	type AssetResourceCacheStorage,
 	type CachedAssetResource,
 } from "../asset-resource-cache";
@@ -27,6 +29,27 @@ class MemoryAssetCache implements AssetResourceCacheStorage {
 
 	async list() {
 		return [...this.resources.values()];
+	}
+}
+
+class BulkMemoryAssetCache extends MemoryAssetCache {
+	listCalls = 0;
+	removeManyCalls = 0;
+
+	override async list() {
+		this.listCalls += 1;
+		return super.list();
+	}
+
+	async removeMany({
+		cacheKeys,
+	}: {
+		cacheKeys: readonly string[];
+	}): Promise<void> {
+		this.removeManyCalls += 1;
+		for (const cacheKey of cacheKeys) {
+			this.resources.delete(cacheKey);
+		}
 	}
 }
 
@@ -120,6 +143,65 @@ describe("asset resource cache", () => {
 		expect(second[0]).toMatchObject({ fromCache: true, byteSize: 5 });
 		expect(await second[0].blob?.text()).toBe("hello");
 		expect(fetchImpl).toHaveBeenCalledTimes(1);
+	});
+
+	it("inspects cache completeness without fetching missing resources", async () => {
+		const asset = remoteAsset({
+			byteSize: 5,
+			checksumSha256:
+				"2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824",
+		});
+		await expect(
+			inspectAssetResources({ asset, storage })
+		).resolves.toMatchObject({
+			cachedBytes: 0,
+			cachedResourceCount: 0,
+			complete: false,
+			resourceCount: 1,
+		});
+
+		await ensureAssetResources({
+			asset,
+			fetchImpl: successfulFetch(),
+			storage,
+		});
+		await expect(
+			inspectAssetResources({ asset, storage, verifyChecksum: true })
+		).resolves.toMatchObject({
+			cachedBytes: 5,
+			cachedResourceCount: 1,
+			complete: true,
+			resourceCount: 1,
+		});
+	});
+
+	it("removes multiple asset versions with one cache scan and bulk delete", async () => {
+		const bulkStorage = new BulkMemoryAssetCache();
+		const assets = [
+			remoteAsset({ version: 1 }),
+			remoteAsset({ version: 2 }),
+			remoteAsset({ version: 3 }),
+		];
+		await Promise.all(
+			assets.map((asset) =>
+				ensureAssetResources({
+					asset,
+					fetchImpl: successfulFetch(),
+					storage: bulkStorage,
+				})
+			)
+		);
+
+		await expect(
+			removeAssetResourceVersions({
+				assets: assets.slice(0, 2),
+				storage: bulkStorage,
+			})
+		).resolves.toBe(2);
+		expect(bulkStorage.listCalls).toBe(1);
+		expect(bulkStorage.removeManyCalls).toBe(1);
+		expect([...bulkStorage.resources.values()]).toHaveLength(1);
+		expect([...bulkStorage.resources.values()][0]?.version).toBe(3);
 	});
 
 	it("refetches cached resources when the stored blob checksum is stale", async () => {

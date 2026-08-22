@@ -47,6 +47,10 @@ function buildLocalManifest({
 				resourceId: "6896679799100689672",
 				batch: "01" as const,
 				mappingStrategy: "metadata-md5" as const,
+				source: {
+					provider: "jianying-reference" as const,
+					redistribution: "prohibited" as const,
+				},
 				categoryIds: ["jianying-0123456789ab"],
 			},
 		],
@@ -115,5 +119,56 @@ describe("private Sound Effects Lab publishing", () => {
 		expect(() =>
 			buildUploadEntries({ localManifest, privateManifest })
 		).toThrow(`Local file SHA-256 mismatch for ${FILE_NAME}`);
+	});
+
+	it("preserves an existing immutable object key across catalog releases", async () => {
+		const bytes = new TextEncoder().encode("audio-payload");
+		const filePath = join(testDirectory, FILE_NAME);
+		await writeFile(filePath, bytes);
+		const contentSha256 = sha256({ bytes });
+		const localManifest = buildLocalManifest({
+			byteSize: bytes.byteLength,
+			contentSha256,
+			filePath,
+		});
+		const previousPrivateManifest = buildPrivateManifest({
+			catalogDate: "2026-08-01",
+			localManifest,
+		});
+
+		const nextPrivateManifest = buildPrivateManifest({
+			catalogDate: "2026-08-22",
+			localManifest,
+			previousPrivateManifest,
+		});
+
+		expect(nextPrivateManifest.items[0].asset.objectKey).toBe(OBJECT_KEY);
+	});
+
+	it("rejects reuse when an existing asset's integrity changed", async () => {
+		const bytes = new TextEncoder().encode("audio-payload");
+		const filePath = join(testDirectory, FILE_NAME);
+		await writeFile(filePath, bytes);
+		const contentSha256 = sha256({ bytes });
+		const localManifest = buildLocalManifest({
+			byteSize: bytes.byteLength,
+			contentSha256,
+			filePath,
+		});
+		const previousPrivateManifest = buildPrivateManifest({
+			catalogDate: "2026-08-01",
+			localManifest,
+		});
+		previousPrivateManifest.items[0].asset.checksumSha256 = "0".repeat(64);
+
+		expect(() =>
+			buildPrivateManifest({
+				catalogDate: "2026-08-22",
+				localManifest,
+				previousPrivateManifest,
+			})
+		).toThrow(
+			"Existing private asset integrity changed for 6896679799100689672"
+		);
 	});
 });

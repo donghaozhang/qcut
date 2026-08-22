@@ -46,4 +46,49 @@ describe("local reference audio asset", () => {
 			checksumSha256: sound.checksumSha256,
 		});
 	});
+
+	it("preserves an explicit CC0 license on a QCut-owned lab sound", () => {
+		const sound: SoundEffect = {
+			id: -900_000_001,
+			name: "Owned CC0 sound",
+			description: "Freesound CC0",
+			url: "blob:owned-cc0",
+			previewUrl: "blob:owned-cc0",
+			duration: 1,
+			filesize: 4,
+			type: "audio/mpeg",
+			channels: 0,
+			bitrate: 0,
+			bitdepth: 0,
+			samplerate: 0,
+			username: "CC0 creator",
+			tags: ["sound-effects-lab", "cc0"],
+			license: "https://creativecommons.org/publicdomain/zero/1.0/",
+			created: "2026-08-22T00:00:00.000Z",
+			downloads: 0,
+			rating: 0,
+			ratingCount: 0,
+			source: "sound-effects-lab",
+			kind: "sound-effect",
+			checksumSha256:
+				"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+		};
+
+		const asset = createAudioLibraryAssetEntry({
+			sound,
+			kind: "sound-effect",
+		});
+
+		expect(asset.license).toEqual({
+			name: "Creative Commons Zero",
+			spdxId: "CC0-1.0",
+			commercialUse: "allowed",
+			attributionRequired: false,
+			sourceUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
+		});
+		expect(asset.files[0]).toMatchObject({
+			byteSize: 4,
+			checksumSha256: sound.checksumSha256,
+		});
+	});
 });

@@ -44,6 +44,26 @@ const privateReference: PrivateSoundEffectReference = {
 	},
 };
 
+const freesoundReference: PrivateSoundEffectReference = {
+	...commonReference,
+	id: "8800000000000540790",
+	resourceId: "8800000000000540790",
+	mappingStrategy: "freesound-cc0",
+	source: {
+		provider: "freesound",
+		sourceId: "540790",
+		creator: "CC0 creator",
+		sourceUrl: "https://freesound.org/s/540790/",
+		license: "CC0-1.0",
+		licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
+		redistribution: "allowed",
+	},
+	asset: {
+		...privateReference.asset,
+		objectKey: "qcut/2026-08-01/assets/0291b72047769e085e7595ce5d65dbd2.mp3",
+	},
+};
+
 describe("Sound Effects Lab references", () => {
 	it("loads a size-verified owned local File", async () => {
 		const readFile = vi.fn(async () => new Uint8Array([1, 2, 3, 4]));
@@ -84,6 +104,22 @@ describe("Sound Effects Lab references", () => {
 			],
 			license: { commercialUse: "restricted" },
 		});
+	});
+
+	it("preserves Freesound CC0 rights on private assets", () => {
+		const asset = buildSoundEffectsLabAssetEntry({
+			licenseServerUrl: "https://license.example",
+			reference: freesoundReference,
+		});
+
+		expect(asset.license).toEqual({
+			name: "CC0 1.0",
+			spdxId: "CC0-1.0",
+			commercialUse: "allowed",
+			attributionRequired: false,
+			sourceUrl: "https://freesound.org/s/540790/",
+		});
+		expect(asset.tags).toContain("cc0");
 	});
 
 	it("adds the QCut session token only to license-server requests", async () => {
@@ -155,5 +191,20 @@ describe("Sound Effects Lab references", () => {
 			checksumSha256: privateReference.contentSha256,
 		});
 		expect(sound.tags).toContain("转场");
+	});
+
+	it("shows CC0 creator and license on QCut-owned cards", () => {
+		const sound = soundEffectReferenceToSound({
+			categories: [{ id: "jianying-0123456789ab", label: "转场" }],
+			previewUrl: "blob:cc0",
+			reference: freesoundReference,
+		});
+
+		expect(sound).toMatchObject({
+			username: "CC0 creator",
+			license: "https://creativecommons.org/publicdomain/zero/1.0/",
+			description: "Freesound CC0 · 转场",
+		});
+		expect(sound.tags).toContain("cc0");
 	});
 });

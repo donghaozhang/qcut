@@ -13,9 +13,10 @@ const CATEGORY_ID_PATTERN = /^jianying-[a-f0-9]{12}$/;
 const RESOURCE_ID_PATTERN = /^\d{16,20}$/;
 const MD5_PATTERN = /^[a-f0-9]{32}$/;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
-const CATALOG_ID_PATTERN = /^jianying-sfx-reference-\d{4}-\d{2}-\d{2}$/;
+const CATALOG_ID_PATTERN =
+	/^(?:jianying-sfx-reference|qcut-sfx-library)-\d{4}-\d{2}-\d{2}$/;
 const PRIVATE_AUDIO_OBJECT_KEY_PATTERN =
-	/^jianying\/\d{4}-\d{2}-\d{2}\/assets\/[a-f0-9]{32}\.mp3$/;
+	/^(?:jianying|qcut)\/\d{4}-\d{2}-\d{2}\/assets\/[a-f0-9]{32}\.mp3$/;
 const MAX_REFERENCE_AUDIO_BYTES = 50 * 1024 * 1024;
 const MAX_REFERENCE_AUDIO_DURATION_SECONDS = 30 * 60;
 // The catalog runs about 860 bytes per item, so the original 1 MiB ceiling
@@ -24,6 +25,21 @@ const MAX_REFERENCE_AUDIO_DURATION_SECONDS = 30 * 60;
 // manifest errors to stay fail-closed), so it would have shown up as the lab
 // entry vanishing rather than as an error. 4 MiB leaves room for ~4,800.
 const MAX_REMOTE_MANIFEST_BYTES = 4 * 1024 * 1024;
+
+export class SoundEffectsLabManifestHttpError extends Error {
+	readonly status: number;
+
+	constructor({
+		manifestUrl,
+		status,
+	}: { manifestUrl: string; status: number }) {
+		super(
+			`Unable to fetch Sound Effects Lab manifest (${status}): ${manifestUrl}`
+		);
+		this.name = "SoundEffectsLabManifestHttpError";
+		this.status = status;
+	}
+}
 
 const localAudioPathSchema = z
 	.string()
@@ -43,6 +59,28 @@ const localSoundEffectsCategorySchema = z
 		label: z.string().trim().min(1).max(80),
 	})
 	.strict();
+
+const soundEffectSourceSchema = z.discriminatedUnion("provider", [
+	z
+		.object({
+			provider: z.literal("jianying-reference"),
+			redistribution: z.literal("prohibited"),
+		})
+		.strict(),
+	z
+		.object({
+			provider: z.literal("freesound"),
+			sourceId: z.string().regex(/^\d+$/),
+			creator: z.string().trim().min(1).max(160),
+			sourceUrl: z.string().trim().url().max(512),
+			license: z.literal("CC0-1.0"),
+			licenseUrl: z.literal(
+				"https://creativecommons.org/publicdomain/zero/1.0/"
+			),
+			redistribution: z.literal("allowed"),
+		})
+		.strict(),
+]);
 
 const commonReferenceShape = {
 	id: z.string().regex(RESOURCE_ID_PATTERN),
@@ -68,7 +106,9 @@ const commonReferenceShape = {
 		"metadata-md5",
 		"isolated-card-download-probe",
 		"isolated-card-download",
+		"freesound-cc0",
 	]),
+	source: soundEffectSourceSchema.optional(),
 	categoryIds: z.array(z.string().regex(CATEGORY_ID_PATTERN)).min(1).max(20),
 } as const;
 
@@ -77,7 +117,13 @@ interface ReferenceCandidate {
 	contentMd5: string;
 	fileName: string;
 	id: string;
+	mappingStrategy:
+		| "metadata-md5"
+		| "isolated-card-download-probe"
+		| "isolated-card-download"
+		| "freesound-cc0";
 	resourceId: string;
+	source?: z.infer<typeof soundEffectSourceSchema>;
 }
 
 function validateReference({
@@ -106,6 +152,15 @@ function validateReference({
 			code: z.ZodIssueCode.custom,
 			path: ["categoryIds"],
 			message: "categoryIds must be unique",
+		});
+	}
+	const isFreesoundMapping = reference.mappingStrategy === "freesound-cc0";
+	const isFreesoundSource = reference.source?.provider === "freesound";
+	if (isFreesoundMapping !== isFreesoundSource) {
+		context.addIssue({
+			code: z.ZodIssueCode.custom,
+			path: ["source"],
+			message: "freesound-cc0 mappings require Freesound source metadata",
 		});
 	}
 }
@@ -160,13 +215,22 @@ const privateSoundEffectReferenceSchema = z
 		}
 	});
 
-const provenanceSchema = z
-	.object({
-		sourceApp: z.literal("Jianying Pro"),
-		purpose: z.literal("internal-reference"),
-		redistribution: z.literal("prohibited"),
-	})
-	.strict();
+const provenanceSchema = z.union([
+	z
+		.object({
+			sourceApp: z.literal("Jianying Pro"),
+			purpose: z.literal("internal-reference"),
+			redistribution: z.literal("prohibited"),
+		})
+		.strict(),
+	z
+		.object({
+			sourceApp: z.literal("QCut"),
+			purpose: z.literal("mixed-private-library"),
+			redistribution: z.literal("per-item-license"),
+		})
+		.strict(),
+]);
 
 const commonManifestShape = {
 	catalogId: z.string().regex(CATALOG_ID_PATTERN),
@@ -296,14 +360,24 @@ const privateSoundEffectsLabManifestSchema = z
 			items: manifest.items,
 		});
 		const catalogDate = manifest.catalogId.slice(-10);
-		const expectedPrefix = `jianying/${catalogDate}/assets/`;
 		for (const [index, item] of manifest.items.entries()) {
-			if (item.asset.objectKey.startsWith(expectedPrefix)) continue;
-			context.addIssue({
-				code: z.ZodIssueCode.custom,
-				path: ["items", index, "asset", "objectKey"],
-				message: `Object key must belong to catalog ${manifest.catalogId}`,
-			});
+			const [objectNamespace, objectDate] = item.asset.objectKey.split("/");
+			const expectedNamespace =
+				item.source?.provider === "freesound" ? "qcut" : "jianying";
+			if (objectNamespace !== expectedNamespace) {
+				context.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ["items", index, "asset", "objectKey"],
+					message: "Object key namespace must match item source",
+				});
+			}
+			if (objectDate && objectDate > catalogDate) {
+				context.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ["items", index, "asset", "objectKey"],
+					message: `Object key date cannot be newer than catalog ${catalogDate}`,
+				});
+			}
 		}
 	});
 
@@ -446,9 +520,10 @@ export async function loadPrivateSoundEffectsLabManifest({
 }): Promise<PrivateSoundEffectsLabManifest> {
 	const response = await fetchImpl(manifestUrl, { signal });
 	if (!response.ok) {
-		throw new Error(
-			`Unable to fetch Sound Effects Lab manifest (${response.status}): ${manifestUrl}`
-		);
+		throw new SoundEffectsLabManifestHttpError({
+			manifestUrl,
+			status: response.status,
+		});
 	}
 	const bytes = await readRemoteManifestResponse({
 		manifestUrl,

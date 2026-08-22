@@ -75,6 +75,40 @@ function privateManifestFixture() {
 	};
 }
 
+function qcutPrivateManifestFixture() {
+	const manifest = privateManifestFixture();
+	const item = manifest.items[0];
+	return {
+		...manifest,
+		catalogId: "qcut-sfx-library-2026-08-01",
+		provenance: {
+			sourceApp: "QCut" as const,
+			purpose: "mixed-private-library" as const,
+			redistribution: "per-item-license" as const,
+		},
+		items: [
+			{
+				...item,
+				mappingStrategy: "freesound-cc0" as const,
+				source: {
+					provider: "freesound" as const,
+					sourceId: "540790",
+					creator: "CC0 creator",
+					sourceUrl: "https://freesound.org/s/540790/",
+					license: "CC0-1.0" as const,
+					licenseUrl:
+						"https://creativecommons.org/publicdomain/zero/1.0/" as const,
+					redistribution: "allowed" as const,
+				},
+				asset: {
+					...item.asset,
+					objectKey: `qcut/2026-08-01/assets/${item.fileName}`,
+				},
+			},
+		],
+	};
+}
+
 describe("local Sound Effects Lab manifest", () => {
 	it("parses a strict, integrity-bearing local catalog", () => {
 		const manifest = manifestFixture();
@@ -187,16 +221,64 @@ describe("private Sound Effects Lab manifest", () => {
 		expect(jsonText).not.toContain("/Users/test");
 	});
 
-	it("rejects object keys outside the catalog namespace", () => {
+	it("parses a QCut-owned CC0 item with per-item provenance", () => {
+		const manifest = qcutPrivateManifestFixture();
+
+		expect(
+			parsePrivateSoundEffectsLabManifest({
+				jsonText: JSON.stringify(manifest),
+			})
+		).toEqual(manifest);
+	});
+
+	it("rejects a Freesound mapping without verified CC0 source metadata", () => {
+		const manifest = qcutPrivateManifestFixture();
+		const candidate = structuredClone(manifest) as Record<string, unknown> & {
+			items: Array<Record<string, unknown>>;
+		};
+		candidate.items[0].source = undefined;
+
+		expect(() =>
+			parsePrivateSoundEffectsLabManifest({
+				jsonText: JSON.stringify(candidate),
+			})
+		).toThrow("freesound-cc0 mappings require Freesound source metadata");
+	});
+
+	it("accepts an immutable object key from an older catalog", () => {
 		const manifest = privateManifestFixture();
 		manifest.items[0].asset.objectKey =
 			"jianying/2026-07-31/assets/0291b72047769e085e7595ce5d65dbd2.mp3";
+
+		expect(
+			parsePrivateSoundEffectsLabManifest({
+				jsonText: JSON.stringify(manifest),
+			})
+		).toEqual(manifest);
+	});
+
+	it("rejects an object key newer than its catalog", () => {
+		const manifest = privateManifestFixture();
+		manifest.items[0].asset.objectKey =
+			"jianying/2026-08-02/assets/0291b72047769e085e7595ce5d65dbd2.mp3";
 
 		expect(() =>
 			parsePrivateSoundEffectsLabManifest({
 				jsonText: JSON.stringify(manifest),
 			})
-		).toThrow("Object key must belong to catalog");
+		).toThrow("Object key date cannot be newer than catalog");
+	});
+
+	it("rejects an object namespace that disagrees with its source", () => {
+		const manifest = qcutPrivateManifestFixture();
+		manifest.items[0].asset.objectKey =
+			"jianying/2026-08-01/assets/0291b72047769e085e7595ce5d65dbd2.mp3";
+
+		expect(() =>
+			parsePrivateSoundEffectsLabManifest({
+				jsonText: JSON.stringify(manifest),
+			})
+		).toThrow("Object key namespace must match item source");
 	});
 
 	it("rejects asset integrity metadata that differs from the reference", () => {

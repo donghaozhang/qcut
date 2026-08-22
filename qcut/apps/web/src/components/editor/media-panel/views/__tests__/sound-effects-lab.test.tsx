@@ -6,7 +6,11 @@ import {
 	within,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { LocalSoundEffectsLabManifest } from "@/lib/audio/local-sound-effects-manifest";
+import type { SoundEffectsLabOfflinePackController } from "@/hooks/media/use-sound-effects-lab-offline-pack";
+import type {
+	LocalSoundEffectsLabManifest,
+	PrivateSoundEffectsLabManifest,
+} from "@/lib/audio/local-sound-effects-manifest";
 import { useLocaleStore } from "@/stores/locale-store";
 import { useSoundsStore } from "@/stores/media/sounds-store";
 import { SoundEffectsLabPanel } from "../sound-effects-lab";
@@ -69,6 +73,49 @@ const catalog: LocalSoundEffectsLabManifest = {
 	],
 };
 
+const offlinePack: SoundEffectsLabOfflinePackController = {
+	cachedBytes: 0,
+	completedItems: 0,
+	error: null,
+	install: vi.fn(async () => true),
+	persistentStorage: false,
+	progress: 0,
+	remove: vi.fn(async () => true),
+	state: "unavailable",
+	totalBytes: 0,
+	totalItems: 0,
+};
+
+const localReference = catalog.items[0];
+if (!localReference) throw new Error("Sound Effects Lab fixture is empty");
+const privateCatalog: PrivateSoundEffectsLabManifest = {
+	...catalog,
+	items: [
+		{
+			asset: {
+				byteSize: localReference.byteSize,
+				checksumSha256: localReference.contentSha256,
+				kind: "supabase-storage",
+				objectKey: `jianying/2026-08-01/assets/${localReference.fileName}`,
+			},
+			batch: localReference.batch,
+			byteSize: localReference.byteSize,
+			categoryIds: localReference.categoryIds,
+			contentMd5: localReference.contentMd5,
+			contentSha256: localReference.contentSha256,
+			duration: localReference.duration,
+			fileName: localReference.fileName,
+			id: localReference.id,
+			mappingStrategy: localReference.mappingStrategy,
+			mimeType: localReference.mimeType,
+			numericId: localReference.numericId,
+			resourceId: localReference.resourceId,
+			title: localReference.title,
+		},
+	],
+	schemaVersion: 2,
+};
+
 describe("SoundEffectsLabPanel", () => {
 	beforeEach(() => {
 		useLocaleStore.getState().setLocale({ locale: "zh" });
@@ -85,6 +132,8 @@ describe("SoundEffectsLabPanel", () => {
 				catalog={catalog}
 				error={null}
 				isLoading={false}
+				isOffline={false}
+				offlinePack={offlinePack}
 				onPlay={onPlay}
 				onStop={vi.fn()}
 				playingId={null}
@@ -131,6 +180,8 @@ describe("SoundEffectsLabPanel", () => {
 				catalog={catalog}
 				error={null}
 				isLoading={false}
+				isOffline={false}
+				offlinePack={offlinePack}
 				onPlay={vi.fn()}
 				onStop={vi.fn()}
 				playingId={null}
@@ -154,5 +205,59 @@ describe("SoundEffectsLabPanel", () => {
 		expect(
 			await screen.findByTestId("audio-library-item-sound-effect--900000000")
 		).toBeVisible();
+	});
+
+	it("downloads, reports, and removes the private offline pack", async () => {
+		const install = vi.fn(async () => true);
+		const remove = vi.fn(async () => true);
+		const { rerender } = render(
+			<SoundEffectsLabPanel
+				catalog={privateCatalog}
+				error={null}
+				isLoading={false}
+				isOffline={false}
+				offlinePack={{
+					...offlinePack,
+					install,
+					remove,
+					state: "not-installed",
+					totalBytes: 4,
+					totalItems: 1,
+				}}
+				onPlay={vi.fn()}
+				onStop={vi.fn()}
+				playingId={null}
+			/>
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "离线下载" }));
+		await waitFor(() => expect(install).toHaveBeenCalledTimes(1));
+
+		rerender(
+			<SoundEffectsLabPanel
+				catalog={privateCatalog}
+				error={null}
+				isLoading={false}
+				isOffline={true}
+				offlinePack={{
+					...offlinePack,
+					cachedBytes: 4,
+					completedItems: 1,
+					install,
+					progress: 1,
+					remove,
+					state: "installed",
+					totalBytes: 4,
+					totalItems: 1,
+				}}
+				onPlay={vi.fn()}
+				onStop={vi.fn()}
+				playingId={null}
+			/>
+		);
+		expect(screen.getByText("离线目录")).toBeVisible();
+		expect(screen.getByText(/已离线/)).toBeVisible();
+		fireEvent.click(screen.getByRole("button", { name: "删除离线包" }));
+		await waitFor(() => expect(remove).toHaveBeenCalledTimes(1));
 	});
 });
