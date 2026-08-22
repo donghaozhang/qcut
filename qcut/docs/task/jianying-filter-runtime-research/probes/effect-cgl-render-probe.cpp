@@ -229,6 +229,20 @@ void updateTexture(const UpdateTextureOptions& options) {
     glBindTexture(GL_TEXTURE_2D, 0);
 }
 
+std::vector<std::uint8_t> flipImageRows(
+    const std::vector<std::uint8_t>& pixels,
+    const ImageSize& size) {
+    const std::size_t rowBytes = static_cast<std::size_t>(size.width) * 4;
+    std::vector<std::uint8_t> flipped(pixels.size());
+    for (int y = 0; y < size.height; ++y) {
+        const std::size_t sourceOffset = static_cast<std::size_t>(y) * rowBytes;
+        const std::size_t targetOffset =
+            static_cast<std::size_t>(size.height - y - 1) * rowBytes;
+        std::copy_n(pixels.data() + sourceOffset, rowBytes, flipped.data() + targetOffset);
+    }
+    return flipped;
+}
+
 struct ReadTextureOptions {
     GLuint texture;
     ImageSize size;
@@ -369,6 +383,14 @@ struct InspectSkinResultOptions {
     EffectGetBachResultByGraphAndNodeName getResultByGraphAndNode;
     SkinSegTextureId getTextureId;
     const char* maskOutputPath;
+};
+
+struct InspectFaceResultOptions {
+    EffectHandle handle;
+    EffectGetBachResult getResultByType;
+    EffectGetBachResultByNodeName getResult;
+    const char* outputPath;
+    const char* coordinateSpace;
 };
 
 struct InspectTextureOptions {
@@ -649,15 +671,235 @@ bool inspectSkinResult(const InspectSkinResultOptions& options) {
     return true;
 }
 
+struct FaceLandmark {
+    float x = 0.0F;
+    float y = 0.0F;
+    float visibility = 0.0F;
+};
+
+struct FaceObservation {
+    std::array<float, 4> rawRect{};
+    float score = 0.0F;
+    float yaw = 0.0F;
+    float pitch = 0.0F;
+    float roll = 0.0F;
+    float eyeDistance = 0.0F;
+    std::int32_t id = 0;
+    std::int32_t action = 0;
+    std::int32_t trackingCount = 0;
+    std::vector<FaceLandmark> landmarks;
+};
+
+struct PrimitiveVectorView {
+    const std::uint8_t* begin;
+    std::size_t size;
+};
+
+bool readPrimitiveVectorView(
+    const void* object,
+    std::size_t elementSize,
+    std::size_t maximumElements,
+    PrimitiveVectorView* view) {
+    if (object == nullptr || elementSize == 0 || view == nullptr) {
+        return false;
+    }
+    const auto* objectBytes = static_cast<const std::uint8_t*>(object);
+    const std::uint8_t* begin = nullptr;
+    const std::uint8_t* end = nullptr;
+    std::memcpy(&begin, objectBytes + 0x10, sizeof(begin));
+    std::memcpy(&end, objectBytes + 0x18, sizeof(end));
+    const std::uintptr_t beginAddress = reinterpret_cast<std::uintptr_t>(begin);
+    const std::uintptr_t endAddress = reinterpret_cast<std::uintptr_t>(end);
+    if (begin == nullptr || end == nullptr || endAddress < beginAddress) {
+        return false;
+    }
+    const std::uintptr_t byteCount = endAddress - beginAddress;
+    if (byteCount % elementSize != 0 || byteCount / elementSize > maximumElements) {
+        return false;
+    }
+    *view = {.begin = begin, .size = byteCount / elementSize};
+    return true;
+}
+
+bool readFaceLandmarks(
+    const std::uint8_t* faceBytes,
+    std::vector<FaceLandmark>* landmarks) {
+    const void* pointsObject = nullptr;
+    const void* visibilityObject = nullptr;
+    std::memcpy(&pointsObject, faceBytes + 0x20, sizeof(pointsObject));
+    std::memcpy(&visibilityObject, faceBytes + 0x28, sizeof(visibilityObject));
+
+    PrimitiveVectorView points{};
+    PrimitiveVectorView visibility{};
+    if (!readPrimitiveVectorView(pointsObject, sizeof(float) * 2, 512, &points) ||
+        !readPrimitiveVectorView(visibilityObject, sizeof(float), 512, &visibility) ||
+        points.size != visibility.size) {
+        return false;
+    }
+
+    landmarks->reserve(points.size);
+    for (std::size_t index = 0; index < points.size; ++index) {
+        FaceLandmark landmark;
+        std::memcpy(&landmark.x, points.begin + index * sizeof(float) * 2, sizeof(float));
+        std::memcpy(
+            &landmark.y,
+            points.begin + index * sizeof(float) * 2 + sizeof(float),
+            sizeof(float));
+        std::memcpy(
+            &landmark.visibility,
+            visibility.begin + index * sizeof(float),
+            sizeof(float));
+        if (!std::isfinite(landmark.x) || !std::isfinite(landmark.y) ||
+            !std::isfinite(landmark.visibility)) {
+            return false;
+        }
+        landmarks->push_back(landmark);
+    }
+    return true;
+}
+
+bool writeFaceEvidence(
+    const char* outputPath,
+    const char* coordinateSpace,
+    const std::vector<FaceObservation>& faces) {
+    if (outputPath == nullptr) {
+        return true;
+    }
+    std::ofstream output(outputPath);
+    if (!output) {
+        return false;
+    }
+    output << "{\n  \"schemaVersion\": 1,\n"
+           << "  \"coordinateSpace\": \"" << coordinateSpace << "\",\n"
+           << "  \"faceCount\": " << faces.size() << ",\n  \"faces\": [";
+    for (std::size_t index = 0; index < faces.size(); ++index) {
+        const FaceObservation& face = faces[index];
+        output << (index == 0 ? "\n" : ",\n")
+               << "    {\"rawRect\":[" << face.rawRect[0] << ',' << face.rawRect[1]
+               << ',' << face.rawRect[2] << ',' << face.rawRect[3] << "],"
+               << "\"score\":" << face.score << ','
+               << "\"yaw\":" << face.yaw << ','
+               << "\"pitch\":" << face.pitch << ','
+               << "\"roll\":" << face.roll << ','
+               << "\"eyeDistance\":" << face.eyeDistance << ','
+               << "\"id\":" << face.id << ','
+               << "\"action\":" << face.action << ','
+               << "\"trackingCount\":" << face.trackingCount << ','
+               << "\"landmarks\":[";
+        for (std::size_t landmarkIndex = 0;
+             landmarkIndex < face.landmarks.size();
+             ++landmarkIndex) {
+            const FaceLandmark& landmark = face.landmarks[landmarkIndex];
+            output << (landmarkIndex == 0 ? "" : ",") << '[' << landmark.x << ','
+                   << landmark.y << ',' << landmark.visibility << ']';
+        }
+        output << "]}";
+    }
+    output << (faces.empty() ? "" : "\n") << "  ]\n}\n";
+    return output.good();
+}
+
+bool inspectFaceResult(const InspectFaceResultOptions& options) {
+    void* resultObject = nullptr;
+    Result result = options.getResult(options.handle, "face_0", &resultObject);
+    std::cout << "face_result_by_node_status=" << result << " object=" << resultObject << '\n';
+    if (result != 0 || resultObject == nullptr) {
+        resultObject = nullptr;
+        constexpr std::int32_t faceAlgorithmType = 4;
+        result = options.getResultByType(
+            options.handle, &resultObject, faceAlgorithmType);
+        std::cout << "face_result_by_type_status=" << result << " object=" << resultObject
+                  << '\n';
+    }
+    if (result != 0 || resultObject == nullptr) {
+        return false;
+    }
+
+    void* const vtable = *static_cast<void**>(resultObject);
+    Dl_info symbolInfo{};
+    const bool hasSymbol =
+        dladdr(vtable, &symbolInfo) != 0 && symbolInfo.dli_sname != nullptr;
+    const std::string_view symbolName = hasSymbol ? symbolInfo.dli_sname : "<unknown>";
+    std::cout << "face_result_vtable=" << vtable << " symbol=" << symbolName << '\n';
+    if (symbolName.find("FaceBuffer") == std::string_view::npos) {
+        return false;
+    }
+
+    // Verified FaceBuffer layout for the UUID-gated local runtime: the primary
+    // face vector occupies +0x38/+0x40 and owns pointers to 0x50-byte face records.
+    const auto* objectBytes = static_cast<const std::uint8_t*>(resultObject);
+    const void* const* begin = nullptr;
+    const void* const* end = nullptr;
+    std::memcpy(&begin, objectBytes + 0x38, sizeof(begin));
+    std::memcpy(&end, objectBytes + 0x40, sizeof(end));
+    const std::uintptr_t beginAddress = reinterpret_cast<std::uintptr_t>(begin);
+    const std::uintptr_t endAddress = reinterpret_cast<std::uintptr_t>(end);
+    if ((begin == nullptr) != (end == nullptr) || endAddress < beginAddress) {
+        return false;
+    }
+    const std::uintptr_t byteCount = endAddress - beginAddress;
+    if (byteCount % sizeof(void*) != 0 || byteCount / sizeof(void*) > 10) {
+        return false;
+    }
+
+    std::vector<FaceObservation> faces;
+    faces.reserve(byteCount / sizeof(void*));
+    for (std::size_t index = 0; index < byteCount / sizeof(void*); ++index) {
+        const void* faceObject = begin[index];
+        if (faceObject == nullptr) {
+            return false;
+        }
+        const auto* faceBytes = static_cast<const std::uint8_t*>(faceObject);
+        FaceObservation face;
+        std::memcpy(face.rawRect.data(), faceBytes + 0x0c, sizeof(face.rawRect));
+        std::memcpy(&face.score, faceBytes + 0x1c, sizeof(face.score));
+        std::memcpy(&face.yaw, faceBytes + 0x30, sizeof(face.yaw));
+        std::memcpy(&face.pitch, faceBytes + 0x34, sizeof(face.pitch));
+        std::memcpy(&face.roll, faceBytes + 0x38, sizeof(face.roll));
+        std::memcpy(&face.eyeDistance, faceBytes + 0x3c, sizeof(face.eyeDistance));
+        std::memcpy(&face.id, faceBytes + 0x40, sizeof(face.id));
+        std::memcpy(&face.action, faceBytes + 0x44, sizeof(face.action));
+        std::memcpy(&face.trackingCount, faceBytes + 0x48, sizeof(face.trackingCount));
+        const bool finite =
+            std::all_of(face.rawRect.begin(), face.rawRect.end(), [](float value) {
+                return std::isfinite(value);
+            }) &&
+            std::isfinite(face.score) && std::isfinite(face.yaw) &&
+            std::isfinite(face.pitch) && std::isfinite(face.roll) &&
+            std::isfinite(face.eyeDistance);
+        if (!finite) {
+            return false;
+        }
+        if (!readFaceLandmarks(faceBytes, &face.landmarks)) {
+            return false;
+        }
+        faces.push_back(face);
+    }
+
+    std::cout << "face_count=" << faces.size();
+    for (std::size_t index = 0; index < faces.size(); ++index) {
+        const FaceObservation& face = faces[index];
+        std::cout << " face[" << index << "]=" << face.rawRect[0] << ','
+                  << face.rawRect[1] << ',' << face.rawRect[2] << ','
+                  << face.rawRect[3] << " score=" << face.score;
+        std::cout << " landmarks=" << face.landmarks.size();
+    }
+    std::cout << '\n';
+    return writeFaceEvidence(options.outputPath, options.coordinateSpace, faces);
+}
+
 struct ProbeOptions {
     bool useCoreProfile = false;
     bool usePipeline = false;
     bool server = false;
     bool skipAlgorithm = false;
     bool inspectSkinResult = false;
+    bool inspectFaceResult = false;
     bool forceSkinSegPictureMode = false;
     std::int32_t skinSegVideoMode = -1;
+    std::int32_t orientation = 0;
     const char* maskOutputPath = nullptr;
+    const char* faceOutputPath = nullptr;
     const char* inputPath = nullptr;
     const char* inputListPath = nullptr;
     const char* parameterKey = nullptr;
@@ -700,6 +942,10 @@ ProbeOptions parseProbeOptions(int argc, char** argv) {
             options.inspectSkinResult = true;
             continue;
         }
+        if (argument == "--inspect-face-result") {
+            options.inspectFaceResult = true;
+            continue;
+        }
         if (argument == "--force-skin-seg-picture-mode") {
             options.forceSkinSegPictureMode = true;
             continue;
@@ -719,6 +965,26 @@ ProbeOptions parseProbeOptions(int argc, char** argv) {
         if (argument == "--mask-output" && index + 1 < argc) {
             options.maskOutputPath = argv[++index];
             options.inspectSkinResult = true;
+            continue;
+        }
+        if (argument == "--orientation" && index + 1 < argc) {
+            const std::string_view value = argv[++index];
+            if (value == "0") {
+                options.orientation = 0;
+            } else if (value == "90") {
+                options.orientation = 1;
+            } else if (value == "180") {
+                options.orientation = 2;
+            } else if (value == "270") {
+                options.orientation = 3;
+            } else {
+                throw std::runtime_error("orientation must be 0, 90, 180, or 270");
+            }
+            continue;
+        }
+        if (argument == "--face-output" && index + 1 < argc) {
+            options.faceOutputPath = argv[++index];
+            options.inspectFaceResult = true;
             continue;
         }
         if (argument == "--input" && index + 1 < argc) {
@@ -811,6 +1077,7 @@ struct HostCommand {
     std::string inputPath;
     std::string outputPath;
     std::string maskPath;
+    std::string facePath;
 };
 
 std::vector<std::string> splitHostFields(const std::string& line) {
@@ -832,11 +1099,13 @@ HostCommand parseHostCommand(const std::string& line) {
         return {.kind = HostCommandKind::shutdown};
     }
     const std::vector<std::string> fields = splitHostFields(line);
-    if (fields.size() != 6 || fields[0] != "render") {
+    if ((fields.size() != 6 && fields.size() != 7) || fields[0] != "render") {
         throw std::runtime_error(
-            "host command must be render<TAB>id<TAB>timestamp<TAB>input<TAB>output<TAB>mask");
+            "host command must be "
+            "render<TAB>id<TAB>timestamp<TAB>input<TAB>output<TAB>mask[<TAB>face]");
     }
-    if (fields[1].empty() || fields[3].empty() || fields[4].empty() || fields[5].empty()) {
+    if (fields[1].empty() || fields[3].empty() || fields[4].empty() || fields[5].empty() ||
+        (fields.size() == 7 && fields[6].empty())) {
         throw std::runtime_error("host command fields cannot be empty");
     }
     std::size_t parsedCharacters = 0;
@@ -851,6 +1120,7 @@ HostCommand parseHostCommand(const std::string& line) {
         .inputPath = fields[3],
         .outputPath = fields[4],
         .maskPath = fields[5],
+        .facePath = fields.size() == 7 ? fields[6] : "-",
     };
 }
 
@@ -880,8 +1150,10 @@ int main(int argc, char** argv) {
                "[--inspect-feature type] "
                "[--send-message type arg1 arg2 text] "
                "[--intensity-type type --intensity value] "
-               "[--skip-algorithm] [--inspect-skin-result] "
+               "[--skip-algorithm] [--inspect-skin-result] [--inspect-face-result] "
                "[--mask-output output.pgm] "
+               "[--face-output output.json] "
+               "[--orientation 0|90|180|270] "
                "[--force-skin-seg-picture-mode] "
                "[--skin-seg-mode picture|video]\n";
         return 2;
@@ -933,10 +1205,26 @@ int main(int argc, char** argv) {
     }
     const GLuint inputTexture = createTexture({.pixels = inputPixels, .size = size});
     const GLuint outputTexture = createTexture({.pixels = outputSeed, .size = size});
+    const bool useFaceAnalyzer =
+        probeOptions.server && probeOptions.inspectFaceResult && !probeOptions.skipAlgorithm;
+    std::vector<std::uint8_t> faceInputPixels =
+        useFaceAnalyzer ? flipImageRows(inputPixels, size) : std::vector<std::uint8_t>{};
+    const GLuint faceInputTexture = useFaceAnalyzer
+                                        ? createTexture({.pixels = faceInputPixels, .size = size})
+                                        : 0;
+    const GLuint faceOutputTexture = useFaceAnalyzer
+                                         ? createTexture({.pixels = outputSeed, .size = size})
+                                         : 0;
     std::cout << "input_texture=" << inputTexture
               << " valid=" << static_cast<int>(glIsTexture(inputTexture)) << '\n';
     std::cout << "output_texture=" << outputTexture
               << " valid=" << static_cast<int>(glIsTexture(outputTexture)) << '\n';
+    if (useFaceAnalyzer) {
+        std::cout << "face_input_texture=" << faceInputTexture
+                  << " valid=" << static_cast<int>(glIsTexture(faceInputTexture)) << '\n';
+        std::cout << "face_output_texture=" << faceOutputTexture
+                  << " valid=" << static_cast<int>(glIsTexture(faceOutputTexture)) << '\n';
+    }
     std::cout << "texture_create_gl_error=0x" << std::hex << glGetError() << std::dec << '\n';
 
     void* effectLibrary = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
@@ -978,7 +1266,7 @@ int main(int argc, char** argv) {
     EffectGetBachResult effectGetBachResult = nullptr;
     EffectGetBachResultByGraphAndNodeName effectGetBachResultByGraphAndNodeName = nullptr;
     SkinSegTextureId skinSegTextureId = nullptr;
-    if (probeOptions.inspectSkinResult) {
+    if (probeOptions.inspectSkinResult || probeOptions.inspectFaceResult) {
         effectGetBachResult = loadSymbol<EffectGetBachResult>(
             {effectLibrary, "bef_effect_get_bach_result"});
         effectGetBachResultByNodeName = loadSymbol<EffectGetBachResultByNodeName>(
@@ -986,8 +1274,10 @@ int main(int argc, char** argv) {
         effectGetBachResultByGraphAndNodeName =
             loadSymbol<EffectGetBachResultByGraphAndNodeName>(
                 {effectLibrary, "bef_effect_get_bach_result_by_graph_and_node_name"});
-        skinSegTextureId = loadSymbol<SkinSegTextureId>(
-            {effectLibrary, "_ZN4Bach11SkinSegInfo9textureIdEv"});
+        if (probeOptions.inspectSkinResult) {
+            skinSegTextureId = loadSymbol<SkinSegTextureId>(
+                {effectLibrary, "_ZN4Bach11SkinSegInfo9textureIdEv"});
+        }
     }
     if (probeOptions.skinSegVideoMode >= 0) {
         effectSetAlgorithmParam = loadSymbol<EffectSetAlgorithmParam>(
@@ -1025,12 +1315,49 @@ int main(int argc, char** argv) {
         return 11;
     }
     std::cout << "set_width_height=" << effectSetWidthHeight(handle, size.width, size.height) << '\n';
-    std::cout << "set_orientation=" << effectSetOrientation(handle, 0) << '\n';
+    std::cout << "set_orientation="
+              << effectSetOrientation(handle, probeOptions.orientation)
+              << " value=" << probeOptions.orientation << '\n';
     result = effectSet(handle, argv[3]);
     std::cout << "set_effect=" << result << '\n';
     if (result != 0) {
         effectDestroy(handle);
         return 12;
+    }
+
+    EffectHandle faceHandle = 0;
+    if (useFaceAnalyzer) {
+        result = effectCreate(&faceHandle);
+        std::cout << "face_create=" << result << " handle=" << faceHandle << '\n';
+        if (result != 0 || faceHandle == 0) {
+            effectDestroy(handle);
+            return 15;
+        }
+        const Result faceRenderApiResult = effectSetRenderApi(faceHandle, 1);
+        const Result facePipelineResult =
+            effectUsePipeline(faceHandle, probeOptions.usePipeline);
+        const Result faceInitResult =
+            effectInit(faceHandle, size.width, size.height, argv[2], "");
+        const Result faceSizeResult =
+            faceInitResult == 0
+                ? effectSetWidthHeight(faceHandle, size.width, size.height)
+                : faceInitResult;
+        const Result faceOrientationResult =
+            faceInitResult == 0 ? effectSetOrientation(faceHandle, 0) : faceInitResult;
+        const Result faceEffectResult =
+            faceInitResult == 0 ? effectSet(faceHandle, argv[3]) : faceInitResult;
+        std::cout << "face_set_render_api=" << faceRenderApiResult
+                  << " face_use_pipeline=" << facePipelineResult
+                  << " face_init=" << faceInitResult
+                  << " face_set_width_height=" << faceSizeResult
+                  << " face_set_orientation=" << faceOrientationResult
+                  << " face_set_effect=" << faceEffectResult << '\n';
+        if (faceRenderApiResult != 0 || facePipelineResult != 0 || faceInitResult != 0 ||
+            faceSizeResult != 0 || faceOrientationResult != 0 || faceEffectResult != 0) {
+            effectDestroy(faceHandle);
+            effectDestroy(handle);
+            return 16;
+        }
     }
     const auto inspectFeature = [&](const char* featureType) {
         void* feature = nullptr;
@@ -1101,6 +1428,14 @@ int main(int argc, char** argv) {
                 algorithmResult = effectAlgorithmTexture(handle, inputTexture, 0.0);
             }
             processResult = effectProcessTexture(handle, inputTexture, outputTexture, 0.0);
+            Result faceAlgorithmResult = -1;
+            Result faceProcessResult = -1;
+            if (faceHandle != 0) {
+                faceAlgorithmResult =
+                    effectAlgorithmTexture(faceHandle, faceInputTexture, 0.0);
+                faceProcessResult = effectProcessTexture(
+                    faceHandle, faceInputTexture, faceOutputTexture, 0.0);
+            }
             if (attempt == 0) {
                 applyProbeParameters();
             }
@@ -1110,7 +1445,12 @@ int main(int argc, char** argv) {
             } else {
                 std::cout << algorithmResult;
             }
-            std::cout << " process=" << processResult << " gl_error=0x" << std::hex
+            std::cout << " process=" << processResult;
+            if (faceHandle != 0) {
+                std::cout << " face_algorithm=" << faceAlgorithmResult
+                          << " face_process=" << faceProcessResult;
+            }
+            std::cout << " gl_error=0x" << std::hex
                       << glGetError() << std::dec << '\n';
             std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
@@ -1157,6 +1497,9 @@ int main(int argc, char** argv) {
                         std::to_string(processResult));
                 }
                 if (command.maskPath != "-") {
+                    if (!probeOptions.inspectSkinResult) {
+                        throw std::runtime_error("skin mask capture was not enabled for this host");
+                    }
                     const bool wroteMask = inspectSkinResult({
                         .handle = handle,
                         .getResultByType = effectGetBachResult,
@@ -1181,6 +1524,45 @@ int main(int argc, char** argv) {
                         .size = size,
                     })) {
                     throw std::runtime_error("failed to write native effect output");
+                }
+                if (command.facePath != "-") {
+                    if (faceHandle == 0) {
+                        throw std::runtime_error("face capture was not enabled for this host");
+                    }
+                    faceInputPixels = flipImageRows(inputPixels, size);
+                    updateTexture({
+                        .texture = faceInputTexture,
+                        .pixels = faceInputPixels,
+                        .size = size,
+                    });
+                    updateTexture({
+                        .texture = faceOutputTexture,
+                        .pixels = outputSeed,
+                        .size = size,
+                    });
+                    const Result faceAlgorithmResult = effectAlgorithmTexture(
+                        faceHandle, faceInputTexture, command.timestamp);
+                    const Result faceProcessResult = effectProcessTexture(
+                        faceHandle,
+                        faceInputTexture,
+                        faceOutputTexture,
+                        command.timestamp);
+                    glFinish();
+                    if (faceAlgorithmResult != 0 || faceProcessResult != 0) {
+                        throw std::runtime_error(
+                            "native face analysis failed: algorithm=" +
+                            std::to_string(faceAlgorithmResult) + " process=" +
+                            std::to_string(faceProcessResult));
+                    }
+                    if (!inspectFaceResult({
+                            .handle = faceHandle,
+                            .getResultByType = effectGetBachResult,
+                            .getResult = effectGetBachResultByNodeName,
+                            .outputPath = command.facePath.c_str(),
+                            .coordinateSpace = "source-normalized-top-left",
+                        })) {
+                        throw std::runtime_error("native effect did not expose face evidence");
+                    }
                 }
                 finalAlgorithmResult = algorithmResult;
                 finalDifference = calculateDifference({
@@ -1234,6 +1616,15 @@ int main(int argc, char** argv) {
                 .getTextureId = skinSegTextureId,
                 .maskOutputPath = probeOptions.maskOutputPath,
             });
+        }
+        if (probeOptions.inspectFaceResult) {
+            processingSucceeded = inspectFaceResult({
+                .handle = handle,
+                .getResultByType = effectGetBachResult,
+                .getResult = effectGetBachResultByNodeName,
+                .outputPath = probeOptions.faceOutputPath,
+                .coordinateSpace = "algorithm-input",
+            }) && processingSucceeded;
         }
 
         const std::filesystem::path outputDirectory(argv[4]);
@@ -1344,6 +1735,15 @@ int main(int argc, char** argv) {
                 .maskOutputPath = probeOptions.maskOutputPath,
             });
         }
+        if (probeOptions.inspectFaceResult) {
+            processingSucceeded = inspectFaceResult({
+                .handle = handle,
+                .getResultByType = effectGetBachResult,
+                .getResult = effectGetBachResultByNodeName,
+                .outputPath = probeOptions.faceOutputPath,
+                .coordinateSpace = "algorithm-input",
+            }) && processingSucceeded;
+        }
         glFinish();
 
         const std::vector<std::uint8_t> outputPixels =
@@ -1371,8 +1771,16 @@ int main(int argc, char** argv) {
         }
     }
 
+    if (faceHandle != 0) {
+        effectDestroy(faceHandle);
+    }
     effectDestroy(handle);
-    const std::array textures = {inputTexture, outputTexture};
+    const std::array textures = {
+        inputTexture,
+        outputTexture,
+        faceInputTexture,
+        faceOutputTexture,
+    };
     glDeleteTextures(static_cast<GLsizei>(textures.size()), textures.data());
     CGLSetCurrentContext(nullptr);
     CGLDestroyContext(contextResult.context);
