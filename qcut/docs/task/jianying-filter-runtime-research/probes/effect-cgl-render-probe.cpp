@@ -35,6 +35,13 @@ using EffectInit = Result (*)(EffectHandle, std::int32_t, std::int32_t, const ch
 using EffectSetWidthHeight = Result (*)(EffectHandle, std::int32_t, std::int32_t);
 using EffectSetOrientation = Result (*)(EffectHandle, std::int32_t);
 using EffectSet = Result (*)(EffectHandle, const char*);
+using EffectComposerSetNodes =
+    Result (*)(EffectHandle, const char* const*, std::int32_t);
+using EffectComposerSetMode = Result (*)(EffectHandle, std::int32_t, std::int32_t);
+using EffectComposerUpdateNode =
+    Result (*)(EffectHandle, const char*, const char*, float);
+using EffectComposerUpdateNodeWithJson =
+    Result (*)(EffectHandle, const char*, const char*, const char*);
 using EffectGetFeature = Result (*)(EffectHandle, const char*, void**);
 using EffectSetIntensity = Result (*)(EffectHandle, std::int32_t, float);
 using EffectSendMessage =
@@ -896,6 +903,7 @@ struct ProbeOptions {
     bool inspectSkinResult = false;
     bool inspectFaceResult = false;
     bool forceSkinSegPictureMode = false;
+    bool enableComposerNodeEvent = false;
     std::int32_t skinSegVideoMode = -1;
     std::int32_t orientation = 0;
     const char* maskOutputPath = nullptr;
@@ -904,6 +912,9 @@ struct ProbeOptions {
     const char* inputListPath = nullptr;
     const char* parameterKey = nullptr;
     const char* parameterValue = nullptr;
+    const char* composerNodePath = nullptr;
+    const char* composerKey = nullptr;
+    const char* composerJson = nullptr;
     const char* featureType = nullptr;
     const char* messageText = nullptr;
     std::int32_t intensityType = -1;
@@ -911,6 +922,8 @@ struct ProbeOptions {
     std::int32_t messageArgument1 = 0;
     std::int32_t messageArgument2 = 0;
     float intensity = 1.0F;
+    float composerValue = 0.0F;
+    bool hasComposerValue = false;
     double framesPerSecond = 30.0;
 };
 
@@ -948,6 +961,10 @@ ProbeOptions parseProbeOptions(int argc, char** argv) {
         }
         if (argument == "--force-skin-seg-picture-mode") {
             options.forceSkinSegPictureMode = true;
+            continue;
+        }
+        if (argument == "--enable-composer-node-event") {
+            options.enableComposerNodeEvent = true;
             continue;
         }
         if (argument == "--skin-seg-mode" && index + 1 < argc) {
@@ -1012,6 +1029,28 @@ ProbeOptions parseProbeOptions(int argc, char** argv) {
             options.parameterValue = argv[++index];
             continue;
         }
+        if (argument == "--composer-node" && index + 1 < argc) {
+            options.composerNodePath = argv[++index];
+            continue;
+        }
+        if (argument == "--composer-key" && index + 1 < argc) {
+            options.composerKey = argv[++index];
+            continue;
+        }
+        if (argument == "--composer-value" && index + 1 < argc) {
+            const std::string value = argv[++index];
+            std::size_t parsedCharacters = 0;
+            options.composerValue = std::stof(value, &parsedCharacters);
+            if (parsedCharacters != value.size() || !std::isfinite(options.composerValue)) {
+                throw std::runtime_error("--composer-value must be finite");
+            }
+            options.hasComposerValue = true;
+            continue;
+        }
+        if (argument == "--composer-json" && index + 1 < argc) {
+            options.composerJson = argv[++index];
+            continue;
+        }
         if (argument == "--inspect-feature" && index + 1 < argc) {
             options.featureType = argv[++index];
             continue;
@@ -1061,6 +1100,21 @@ ProbeOptions parseProbeOptions(int argc, char** argv) {
     }
     if (options.server && options.inputPath == nullptr) {
         throw std::runtime_error("--server requires --input for session dimensions and warm-up");
+    }
+    if ((options.composerKey != nullptr || options.hasComposerValue ||
+         options.composerJson != nullptr) &&
+        options.composerNodePath == nullptr) {
+        throw std::runtime_error(
+            "composer updates require --composer-node");
+    }
+    if (options.composerJson != nullptr && options.hasComposerValue) {
+        throw std::runtime_error(
+            "--composer-json and --composer-value are mutually exclusive");
+    }
+    const bool hasComposerPayload = options.hasComposerValue || options.composerJson != nullptr;
+    if ((options.composerKey != nullptr) != hasComposerPayload) {
+        throw std::runtime_error(
+            "--composer-key requires either --composer-value or --composer-json");
     }
     return options;
 }
@@ -1154,6 +1208,9 @@ int main(int argc, char** argv) {
                "[--mask-output output.pgm] "
                "[--face-output output.json] "
                "[--orientation 0|90|180|270] "
+               "[--composer-node path --composer-key key "
+               "(--composer-value value | --composer-json json)] "
+               "[--enable-composer-node-event] "
                "[--force-skin-seg-picture-mode] "
                "[--skin-seg-mode picture|video]\n";
         return 2;
@@ -1245,6 +1302,26 @@ int main(int argc, char** argv) {
     const auto effectSetOrientation =
         loadSymbol<EffectSetOrientation>({effectLibrary, "bef_effect_set_orientation"});
     const auto effectSet = loadSymbol<EffectSet>({effectLibrary, "bef_effect_set_effect"});
+    EffectComposerSetNodes effectComposerSetNodes = nullptr;
+    EffectComposerSetMode effectComposerSetMode = nullptr;
+    EffectComposerUpdateNode effectComposerUpdateNode = nullptr;
+    EffectComposerUpdateNodeWithJson effectComposerUpdateNodeWithJson = nullptr;
+    if (probeOptions.composerNodePath != nullptr) {
+        effectComposerSetMode = loadSymbol<EffectComposerSetMode>(
+            {effectLibrary, "bef_effect_composer_set_mode"});
+        effectComposerSetNodes = loadSymbol<EffectComposerSetNodes>(
+            {effectLibrary, "bef_effect_composer_set_nodes"});
+        if (probeOptions.composerKey != nullptr) {
+            if (probeOptions.composerJson != nullptr) {
+                effectComposerUpdateNodeWithJson =
+                    loadSymbol<EffectComposerUpdateNodeWithJson>(
+                        {effectLibrary, "bef_effect_composer_update_node_with_json"});
+            } else {
+                effectComposerUpdateNode = loadSymbol<EffectComposerUpdateNode>(
+                    {effectLibrary, "bef_effect_composer_update_node"});
+            }
+        }
+    }
     const auto effectGetFeature =
         loadSymbol<EffectGetFeature>({effectLibrary, "bef_effect_get_feature"});
     const auto effectSetIntensity =
@@ -1283,7 +1360,7 @@ int main(int argc, char** argv) {
         effectSetAlgorithmParam = loadSymbol<EffectSetAlgorithmParam>(
             {effectLibrary, "bef_effect_set_algorithm_param"});
     }
-    if (probeOptions.forceSkinSegPictureMode) {
+    if (probeOptions.forceSkinSegPictureMode || probeOptions.enableComposerNodeEvent) {
         effectConfigAbValue =
             loadSymbol<EffectConfigAbValue>({effectLibrary, "bef_effect_config_ab_value"});
     }
@@ -1296,6 +1373,15 @@ int main(int argc, char** argv) {
             &forceSkinSegPictureMode,
             integerAbValueType);
         std::cout << "config_skin_seg_picture_mode=" << configResult << '\n';
+    }
+    if (probeOptions.enableComposerNodeEvent) {
+        constexpr bool enabled = true;
+        constexpr std::int32_t booleanAbValueType = 0;
+        const Result configResult = effectConfigAbValue(
+            "enable_composerNodeEvent_to_amazingScene",
+            &enabled,
+            booleanAbValueType);
+        std::cout << "config_composer_node_event=" << configResult << '\n';
     }
 
     EffectHandle handle = 0;
@@ -1318,8 +1404,21 @@ int main(int argc, char** argv) {
     std::cout << "set_orientation="
               << effectSetOrientation(handle, probeOptions.orientation)
               << " value=" << probeOptions.orientation << '\n';
-    result = effectSet(handle, argv[3]);
-    std::cout << "set_effect=" << result << '\n';
+    if (effectComposerSetNodes != nullptr) {
+        const Result composerModeResult = effectComposerSetMode(handle, 1, 0);
+        std::cout << "composer_set_mode=" << composerModeResult << '\n';
+        if (composerModeResult != 0) {
+            effectDestroy(handle);
+            return 12;
+        }
+        const char* composerNodes[] = {probeOptions.composerNodePath};
+        result = effectComposerSetNodes(handle, composerNodes, 1);
+        std::cout << "composer_set_nodes=" << result
+                  << " node=" << probeOptions.composerNodePath << '\n';
+    } else {
+        result = effectSet(handle, argv[3]);
+        std::cout << "set_effect=" << result << '\n';
+    }
     if (result != 0) {
         effectDestroy(handle);
         return 12;
@@ -1344,8 +1443,16 @@ int main(int argc, char** argv) {
                 : faceInitResult;
         const Result faceOrientationResult =
             faceInitResult == 0 ? effectSetOrientation(faceHandle, 0) : faceInitResult;
-        const Result faceEffectResult =
-            faceInitResult == 0 ? effectSet(faceHandle, argv[3]) : faceInitResult;
+        Result faceEffectResult = faceInitResult;
+        if (faceInitResult == 0 && effectComposerSetNodes != nullptr) {
+            faceEffectResult = effectComposerSetMode(faceHandle, 1, 0);
+            const char* composerNodes[] = {probeOptions.composerNodePath};
+            if (faceEffectResult == 0) {
+                faceEffectResult = effectComposerSetNodes(faceHandle, composerNodes, 1);
+            }
+        } else if (faceInitResult == 0) {
+            faceEffectResult = effectSet(faceHandle, argv[3]);
+        }
         std::cout << "face_set_render_api=" << faceRenderApiResult
                   << " face_use_pipeline=" << facePipelineResult
                   << " face_init=" << faceInitResult
@@ -1393,8 +1500,28 @@ int main(int argc, char** argv) {
     Result processResult = -1;
     DifferenceResult finalDifference{};
     bool processingSucceeded = true;
+    bool probeParametersApplied = false;
 
     const auto applyProbeParameters = [&]() {
+        if (effectComposerUpdateNode != nullptr) {
+            const Result composerResult = effectComposerUpdateNode(
+                handle,
+                probeOptions.composerNodePath,
+                probeOptions.composerKey,
+                probeOptions.composerValue);
+            std::cout << "composer_update_node=" << composerResult
+                      << " key=" << probeOptions.composerKey
+                      << " value=" << probeOptions.composerValue << '\n';
+        }
+        if (effectComposerUpdateNodeWithJson != nullptr) {
+            const Result composerResult = effectComposerUpdateNodeWithJson(
+                handle,
+                probeOptions.composerNodePath,
+                probeOptions.composerKey,
+                probeOptions.composerJson);
+            std::cout << "composer_update_node_with_json=" << composerResult
+                      << " key=" << probeOptions.composerKey << '\n';
+        }
         if (probeOptions.parameterKey != nullptr) {
             effectSetParamWithKey(probeOptions.parameterKey, probeOptions.parameterValue);
             std::cout << "set_param_with_key=" << probeOptions.parameterKey << '\n';
@@ -1436,8 +1563,10 @@ int main(int argc, char** argv) {
                 faceProcessResult = effectProcessTexture(
                     faceHandle, faceInputTexture, faceOutputTexture, 0.0);
             }
-            if (attempt == 0) {
+            const bool algorithmReady = probeOptions.skipAlgorithm || algorithmResult == 0;
+            if (!probeParametersApplied && algorithmReady && processResult == 0) {
                 applyProbeParameters();
+                probeParametersApplied = true;
             }
             std::cout << "warmup[" << attempt << "] algorithm=";
             if (probeOptions.skipAlgorithm) {
@@ -1593,8 +1722,10 @@ int main(int argc, char** argv) {
                 algorithmResult = effectAlgorithmTexture(handle, inputTexture, 0.0);
             }
             processResult = effectProcessTexture(handle, inputTexture, outputTexture, 0.0);
-            if (attempt == 0) {
+            const bool algorithmReady = probeOptions.skipAlgorithm || algorithmResult == 0;
+            if (!probeParametersApplied && algorithmReady && processResult == 0) {
                 applyProbeParameters();
+                probeParametersApplied = true;
             }
             std::cout << "warmup[" << attempt << "] algorithm=";
             if (probeOptions.skipAlgorithm) {
@@ -1708,8 +1839,10 @@ int main(int argc, char** argv) {
             }
             updateTexture({.texture = outputTexture, .pixels = outputSeed, .size = size});
             processResult = effectProcessTexture(handle, inputTexture, outputTexture, timestamp);
-            if (attempt == 0) {
+            const bool algorithmReady = probeOptions.skipAlgorithm || algorithmResult == 0;
+            if (!probeParametersApplied && algorithmReady && processResult == 0) {
                 applyProbeParameters();
+                probeParametersApplied = true;
             }
             finalAlgorithmResult = algorithmResult;
             std::cout << "frame[" << attempt << "] algorithm=";
