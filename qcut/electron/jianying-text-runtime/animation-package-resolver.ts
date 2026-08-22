@@ -37,6 +37,7 @@ export type JianyingTextAnimationManifest = JianyingTextComponentManifest;
 export interface ResolvedJianyingTextAnimation {
 	slot: JianyingTextAnimationSlot;
 	animationType: 1 | 2 | 3;
+	loader: "component" | "studio";
 	packagePath: string;
 	resourceId: string;
 	packageHash: string;
@@ -94,6 +95,47 @@ function animationLinkTypes({ config }: { config: unknown }) {
 		const type = asJianyingRecord(link)?.type;
 		return typeof type === "string" ? [type] : [];
 	});
+}
+
+async function isNonemptyFileWithinPackage({
+	packagePath,
+	relativePath,
+}: {
+	packagePath: string;
+	relativePath: string;
+}) {
+	const resolvedRoot = await realpath(packagePath);
+	const candidate = await realpath(
+		path.resolve(resolvedRoot, relativePath)
+	).catch(() => null);
+	if (!candidate || !isWithinRoot({ root: resolvedRoot, candidate }))
+		return false;
+	const metadata = await stat(candidate).catch(() => null);
+	return Boolean(metadata?.isFile() && metadata.size > 0);
+}
+
+async function isStudioAnimationDocumentPackage({
+	config,
+	packagePath,
+}: {
+	config: unknown;
+	packagePath: string;
+}) {
+	const configuredPath = asJianyingRecord(config)?.studio_animation_path;
+	if (typeof configuredPath !== "string") return false;
+	const relativeAnimationPath = configuredPath.replace(/^[/\\]+/, "");
+	if (!relativeAnimationPath) return false;
+	const [hasAnimationDocument, hasProjectDocument] = await Promise.all([
+		isNonemptyFileWithinPackage({
+			packagePath,
+			relativePath: relativeAnimationPath,
+		}),
+		isNonemptyFileWithinPackage({
+			packagePath,
+			relativePath: "textAnim.lsproj",
+		}),
+	]);
+	return hasAnimationDocument && hasProjectDocument;
 }
 
 async function resolveAnimation({
@@ -163,9 +205,13 @@ async function resolveAnimation({
 		});
 	}
 	const linkTypes = animationLinkTypes({ config });
-	if (
-		!(linkTypes.includes("InfoSticker") || linkTypes.includes("TextAnimation"))
-	) {
+	const isComponentPackage =
+		linkTypes.includes("InfoSticker") || linkTypes.includes("TextAnimation");
+	const isAnimationDocumentPackage = await isStudioAnimationDocumentPackage({
+		config,
+		packagePath,
+	});
+	if (!(isComponentPackage || isAnimationDocumentPackage)) {
 		throw new JianyingTextAnimationPackageError({
 			code: "package-invalid",
 			message: `剪映${slot}文字动画 ${animation.resourceId} 不是可加载的动画包。`,
@@ -188,6 +234,7 @@ async function resolveAnimation({
 	return {
 		slot,
 		animationType,
+		loader: isAnimationDocumentPackage ? "studio" : "component",
 		packagePath,
 		resourceId: animation.resourceId,
 		packageHash: animation.packageHash.toLowerCase(),
@@ -230,13 +277,16 @@ export async function resolveJianyingTextAnimations({
 	const fingerprint = createHash("sha256")
 		.update(
 			JSON.stringify(
-				values.map(({ slot, resourceId, packageHash, duration, manifest }) => ({
-					slot,
-					resourceId,
-					packageHash,
-					duration,
-					manifestFingerprint: manifest.fingerprint,
-				}))
+				values.map(
+					({ slot, loader, resourceId, packageHash, duration, manifest }) => ({
+						slot,
+						loader,
+						resourceId,
+						packageHash,
+						duration,
+						manifestFingerprint: manifest.fingerprint,
+					})
+				)
 			)
 		)
 		.digest("hex");
