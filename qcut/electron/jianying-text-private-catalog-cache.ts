@@ -237,13 +237,12 @@ async function cacheJob({
 	job: CatalogCacheJob;
 }): Promise<JianyingPrivateCatalogCacheEntryResult> {
 	const { packageHash, resourceId } = job.reference;
-	const destination = path.join(
-		archive.cacheRoot,
-		job.container,
-		resourceId,
-		packageHash
-	);
-	if (await isCachedDirectory({ directory: destination })) {
+	const existing = await verifyCatalogReference({
+		archive,
+		container: job.container,
+		reference: job.reference,
+	});
+	if (existing.kind === "extracted" || existing.kind === "raw") {
 		return {
 			target: job.target,
 			resourceId,
