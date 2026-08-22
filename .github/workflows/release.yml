@@ -212,8 +212,11 @@ jobs:
           path: ~/Library/Caches/electron
           key: electron-${{ runner.os }}-${{ hashFiles('qcut/node_modules/electron/package.json') }}
 
-      - name: Stage Jianying text runtime bridge
-        run: bun run stage-jianying-text-runtime-bridge
+      - name: Stage Jianying runtime bridges
+        run: |
+          bun run stage-jianying-transition-bridge
+          bun run stage-jianying-text-runtime-bridge
+          bun run stage-jianying-filter-local-bridge
 
       - name: Build Electron application
         run: |
@@ -231,8 +234,8 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
 
-      - name: Verify packaged Jianying text runtime bridge
-        run: bun run verify:packaged-jianying-text-runtime-bridge
+      - name: Verify packaged Jianying runtime bridges
+        run: bun run verify:packaged-jianying-runtime-bridges
 
       - name: Verify packaged dependencies
         run: bun run verify:packaged-dependencies
