@@ -141,6 +141,10 @@ export interface CLIRunOptions {
 	maxCharacters?: number;
 	saveRegistry?: boolean;
 	style?: string;
+	effect?: string;
+	installedOnly?: boolean;
+	supportedOnly?: boolean;
+	effectAdjustments?: string[];
 	referenceModel?: string;
 	referenceStrength?: number;
 	// autoclip options
