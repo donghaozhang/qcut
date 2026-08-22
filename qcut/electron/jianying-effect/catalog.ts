@@ -12,12 +12,17 @@ import type {
 import {
 	type CatalogItem,
 	type CatalogRow,
+	type ReferenceEffectVerdict,
 	collectCatalogItems,
 	collectPanelCategories,
 	collectReferenceVerdicts,
 	readAdjustParameters,
 	SUPPORTED_REQUIREMENTS,
 } from "./catalog-parsing.js";
+import {
+	inspectEffectPackageAlgorithm,
+	resolveEffectSupport,
+} from "./algorithm-support.js";
 import {
 	mergeQCutEffectCatalog,
 	qcutEffectCatalogContentMatches,
@@ -162,7 +167,9 @@ function packageCacheRoots(): string[] {
 }
 
 /** effectId → local render verdict from the reference batch, when present. */
-async function readReferenceVerdicts(): Promise<Map<string, boolean>> {
+async function readReferenceVerdicts(): Promise<
+	Map<string, ReferenceEffectVerdict>
+> {
 	const referenceRoot = referenceLibraryRoot();
 	if (!referenceRoot) return new Map();
 	const jsonl = await readFile(
@@ -389,26 +396,25 @@ export async function discoverJianyingEffectLibrary(): Promise<JianyingEffectLib
 		const unsupportedRequirements = item.requirements.filter(
 			(requirement) => !SUPPORTED_REQUIREMENTS.has(requirement)
 		);
-		// CV-locked entries are only worth showing when the user already has
-		// them from Jianying; offering hundreds of undownloaded locked tiles
-		// would just be noise.
-		if (!installed && unsupportedRequirements.length > 0) continue;
-		const packageParameters = installed
-			? await readPackageAdjustParameters({ packagePath })
-			: [];
-
-		// The reference batch has actually run these packages; an explicit
-		// failure there means an export pass would fail the same way, so the
-		// tile is locked instead of pretending to work.
-		const failedLocalVerification = verdicts.get(item.effectId) === false;
-		const supported =
-			unsupportedRequirements.length === 0 && !failedLocalVerification;
-		const unsupportedReason =
-			unsupportedRequirements.length > 0
-				? `需要剪映算法能力：${unsupportedRequirements.join("、")}`
-				: failedLocalVerification
-					? "本机渲染验证未通过"
-					: undefined;
+		const [packageParameters, packageInspection] = installed
+			? await Promise.all([
+					readPackageAdjustParameters({ packagePath }),
+					inspectEffectPackageAlgorithm({ packagePath }),
+				])
+			: [[], undefined];
+		const support = resolveEffectSupport({
+			effectId: item.effectId,
+			packageHash: item.md5,
+			unsupportedRequirements,
+			packageInspection,
+			localVerdict: verdicts.get(item.effectId),
+		});
+		// These packages preprocess a still image for a remote AI portrait job;
+		// they have no local visual effect graph to place on a video timeline.
+		if (packageInspection?.remoteGeneration) continue;
+		// Keep verified downloadable algorithm effects visible, but do not fill
+		// the panel with hundreds of unavailable experiments that remain locked.
+		if (!installed && support.requiresAlgorithm && !support.supported) continue;
 
 		keptItems.push(item);
 		definitions.push({
@@ -427,9 +433,9 @@ export async function discoverJianyingEffectLibrary(): Promise<JianyingEffectLib
 					? packageParameters
 					: item.adjustParameters,
 			access: item.vip ? "vip" : "free",
-			supported,
-			unsupportedReason,
-			requiresAlgorithm: unsupportedRequirements.length > 0,
+			supported: support.supported,
+			unsupportedReason: support.unsupportedReason,
+			requiresAlgorithm: support.requiresAlgorithm,
 			installed,
 			downloadable,
 		});
