@@ -274,6 +274,9 @@ export async function writeQCutEffectCatalogSnapshot({
 		items,
 		categories,
 	};
+	if (items.length > MAX_ITEMS || categories.length > MAX_CATEGORIES) {
+		throw new Error("QCut 特效目录缓存条目超过数量限制。");
+	}
 	const data = JSON.stringify(snapshot);
 	if (Buffer.byteLength(data) > MAX_CACHE_BYTES) {
 		throw new Error("QCut 特效目录缓存超过大小限制。");
