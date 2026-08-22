@@ -187,7 +187,7 @@ schema v1 开发模式，不访问私有 manifest。
 
 2026-08-22 完整离线包自动化:
 
-- 本轮 6 个离线链路聚焦测试文件、36 个测试通过;此前更宽的相关回归为
+- 本轮 6 个离线链路聚焦测试文件、36 个测试通过;此前更大范围的相关回归测试为
   10 个文件、74 个测试通过;
 - 覆盖完整安装、重试复用、半包不写完成记录、缺失 Blob 检出、目录更新、
   双账号共享缓存、最后账号删除、无 token 拒绝、断网回退和 401/403 撤销;
@@ -327,7 +327,7 @@ Blobs, 995 unique SHA-256 values, zero missing resources, and the same
 items from its local pack. It made zero asset requests and played the newly
 collected four-second `时钟滴答` sound while the player advanced to 0:01.
 Batch-05 screenshots are in
-[`evidence/`](./evidence/06-production-995-offline-download.jpg).
+[`evidence/`](./evidence/).
 
 The previous 938-item cold-download baseline remains valid: it completed in
 225.0 seconds, stored 210,322,616 bytes, and played the 36.048-second

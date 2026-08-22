@@ -90,7 +90,7 @@ QCut 自己的完整离线包也已安装:
 - 6 个离线链路聚焦测试文件、36 个测试通过;license server 路由 10 个测试和
   TypeScript 检查通过;启用音效实验室的 Web production build 通过。
 
-证据截图见 [`evidence/`](./evidence/06-production-995-offline-download.jpg)。
+四张证据截图见 [`evidence/`](./evidence/)。
 
 ### 下一子任务
 
