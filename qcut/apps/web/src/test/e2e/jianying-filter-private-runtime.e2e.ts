@@ -14,14 +14,26 @@ import {
 	uploadTestMedia,
 } from "./helpers/electron-helpers";
 
+const newlySupportedDualLutFilters = [
+	{ resourceId: "7330581892510649636", title: "鲜美" },
+	{ resourceId: "7341266486536768831", title: "黑金红" },
+	{ resourceId: "7403664465390013735", title: "美食增色" },
+	{ resourceId: "7411477748130139403", title: "夜景增色II" },
+	{ resourceId: "7341300292148907327", title: "蓝金" },
+	{ resourceId: "7211008985187487036", title: "花间" },
+	{ resourceId: "7145394266209127694", title: "银蓝" },
+	{ resourceId: "7302338645938261287", title: "超白" },
+	{ resourceId: "7485292050917657906", title: "佳能G12" },
+] as const;
 const expandedFilters = [
 	{ resourceId: "7431187754379136266", title: "高清暖调" },
 	{ resourceId: "7473437502787816740", title: "去雾" },
 	{ resourceId: "7320436048134147340", title: "高清" },
 	{ resourceId: "7426668776491453707", title: "高清增强" },
 	{ resourceId: "7325426821267295551", title: "高清II" },
+	...newlySupportedDualLutFilters,
 ] as const;
-const primaryFilter = expandedFilters[0];
+const primaryFilter = newlySupportedDualLutFilters[0];
 const privateRuntimeRoot = join(
 	homedir(),
 	"Library",
@@ -297,12 +309,12 @@ test.describe("Jianying Filter Lab private runtime", () => {
 			});
 			await lab.getByRole("button", { name: "重新扫描本机剪映缓存" }).click();
 			await expect(
-				lab.getByText(/显示 712 · 可用 712\/\d+ · 缓存 \d+/)
+				lab.getByText(/显示 721 · 可用 721\/\d+ · 缓存 \d+/)
 			).toBeVisible({ timeout: 120_000 });
 			const catalog = await page.evaluate(() =>
 				window.electronAPI?.jianyingFilterLab?.list()
 			);
-			expect(catalog?.availableCount).toBe(712);
+			expect(catalog?.availableCount).toBe(721);
 			const expanded = expandedFilters.map(({ resourceId, title }) => {
 				const entry = catalog?.filters.find(
 					({ resourceId: candidate }) => candidate === resourceId
@@ -384,7 +396,7 @@ test.describe("Jianying Filter Lab private runtime", () => {
 				animations: "disabled",
 			});
 			await page.getByTestId("preview-capture-surface").screenshot({
-				path: join(evidenceDirectory, "02-high-definition-warm-preview.png"),
+				path: join(evidenceDirectory, "02-new-dual-lut-preview.png"),
 				animations: "disabled",
 			});
 			await writeFile(
