@@ -9,6 +9,7 @@
  */
 
 import { EDITOR_COMMANDS } from "./command-registry-editor.js";
+import { EFFECT_LAB_COMMANDS } from "./command-registry-effect-lab.js";
 export type {
 	FlagDef,
 	CommandDef,
@@ -142,6 +143,16 @@ export const CATEGORIES: CategoryDef[] = [
 			"filter-lab-verify",
 			"filter-lab-verify-batch",
 			"filter-lab-coverage",
+		],
+	},
+	{
+		name: "effect-lab",
+		label: "Effect Lab",
+		commands: [
+			"effect-lab-list",
+			"effect-lab-search",
+			"effect-lab-doctor",
+			"effect-lab-render",
 		],
 	},
 	{
@@ -2484,6 +2495,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 /** Complete registry of all CLI commands. */
 export const COMMANDS_REGISTRY: Record<string, CommandDef> = {
 	...CORE_COMMANDS,
+	...EFFECT_LAB_COMMANDS,
 	...EDITOR_COMMANDS,
 };
 
