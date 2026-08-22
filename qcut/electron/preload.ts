@@ -82,6 +82,7 @@ import {
 	JIANYING_TRANSITION_TIMELINE_PREVIEW_CHANNEL,
 } from "./jianying-transition-contract.js";
 import {
+	JIANYING_FILTER_LAB_BACKUP_LOCAL_RUNTIME_CHANNEL,
 	JIANYING_FILTER_LAB_CHANGED_CHANNEL,
 	JIANYING_FILTER_LAB_LIST_CHANNEL,
 	JIANYING_FILTER_LAB_LOCAL_RUNTIME_CHANNEL,
@@ -204,6 +205,8 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke(JIANYING_FILTER_LAB_DOWNLOAD_CHANNEL, request),
 		inspectLocalRuntime: (request) =>
 			ipcRenderer.invoke(JIANYING_FILTER_LAB_LOCAL_RUNTIME_CHANNEL, request),
+		backupLocalRuntime: () =>
+			ipcRenderer.invoke(JIANYING_FILTER_LAB_BACKUP_LOCAL_RUNTIME_CHANNEL),
 		renderLocalEffect: (request) =>
 			ipcRenderer.invoke(
 				JIANYING_FILTER_LAB_RENDER_LOCAL_EFFECT_CHANNEL,
