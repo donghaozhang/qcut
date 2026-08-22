@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { basename, join } from "node:path";
+import { isSupportedTiledLutImage } from "./filter-lab-tiled-lut.js";
 
 const SAFE_SEGMENT = /^[A-Za-z0-9._-]+$/;
 
@@ -53,6 +54,8 @@ export interface JianyingNativePortraitRenderer {
 	container: "artistEffect" | "effect";
 	packageIdentifier: string;
 	version: string;
+	backgroundLutRelativePath?: string;
+	skinLutRelativePath?: string;
 }
 
 function hasNamedAsset({ paths, name }: { paths: string[]; name: string }) {
@@ -77,14 +80,21 @@ function hasSkinSegNode({ value }: { value: unknown }) {
 	);
 }
 
-function hasDualPortraitAssets({ paths }: { paths: string[] }) {
-	const hasBackground =
-		hasNamedAsset({ paths, name: "filter_bg.3dl.vf" }) ||
-		hasNamedAsset({ paths, name: "filter_bg.png" });
-	const hasSkin =
-		hasNamedAsset({ paths, name: "filter_skin.3dl.vf" }) ||
-		hasNamedAsset({ paths, name: "filter_skin.png" });
-	return hasBackground && hasSkin;
+function namedAssetPath({ paths, name }: { paths: string[]; name: string }) {
+	const normalizedName = name.toLowerCase();
+	return paths.find(
+		(filePath) => basename(filePath).toLowerCase() === normalizedName
+	);
+}
+
+function dualPortraitAssets({ paths }: { paths: string[] }) {
+	const background =
+		namedAssetPath({ paths, name: "filter_bg.png" }) ??
+		namedAssetPath({ paths, name: "filter_bg.3dl.vf" });
+	const skin =
+		namedAssetPath({ paths, name: "filter_skin.png" }) ??
+		namedAssetPath({ paths, name: "filter_skin.3dl.vf" });
+	return background && skin ? { background, skin } : null;
 }
 
 export async function inspectJianyingNativePortraitRenderer({
@@ -100,7 +110,8 @@ export async function inspectJianyingNativePortraitRenderer({
 	root: string;
 	version: string;
 }): Promise<JianyingNativePortraitRenderer | null> {
-	if (!hasDualPortraitAssets({ paths })) return null;
+	const assets = dualPortraitAssets({ paths });
+	if (!assets) return null;
 	if (
 		!hasNamedAsset({ paths, name: "Filter.material" }) ||
 		!hasNamedAsset({ paths, name: "Filter.xshader" }) ||
@@ -120,11 +131,28 @@ export async function inspectJianyingNativePortraitRenderer({
 	} catch {
 		return null;
 	}
+	const tiledAssets =
+		assets.background.toLowerCase().endsWith(".png") &&
+		assets.skin.toLowerCase().endsWith(".png") &&
+		(
+			await Promise.all([
+				isSupportedTiledLutImage({
+					filePath: join(root, assets.background),
+				}),
+				isSupportedTiledLutImage({ filePath: join(root, assets.skin) }),
+			])
+		).every(Boolean)
+			? {
+					backgroundLutRelativePath: assets.background,
+					skinLutRelativePath: assets.skin,
+				}
+			: {};
 	return {
 		kind: "native-portrait-effect",
 		container,
 		packageIdentifier,
 		version,
+		...tiledAssets,
 	};
 }
 
