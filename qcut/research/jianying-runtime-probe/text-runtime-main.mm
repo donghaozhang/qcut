@@ -105,11 +105,17 @@ textAnimations() {
     const std::string packagePath =
         optionalEnvironment((prefix + "_PATH").c_str());
     if (packagePath.empty()) continue;
+    const std::string loader =
+        optionalEnvironment((prefix + "_LOADER").c_str());
+    if (!loader.empty() && loader != "component" && loader != "studio") {
+      throw std::runtime_error(prefix + "_LOADER must be component or studio");
+    }
     values.push_back({
         .packagePath = packagePath,
         .type = type,
         .duration = optionalNumberEnvironment<std::int64_t>(
             (prefix + "_DURATION").c_str(), 1'000'000),
+        .useStudioAnimation = loader == "studio",
     });
   }
   return values;
@@ -142,6 +148,10 @@ textAnimations() {
                       optionalEnvironment("JY_TEXT_SEGMENT_PAYLOAD"),
                   .scriptParameters =
                       optionalEnvironment("JY_TEXT_SCRIPT_PARAMETERS"),
+                  .studioScriptParameters = optionalEnvironment(
+                      "JY_TEXT_STUDIO_SCRIPT_PARAMETERS"),
+                  .studioAnimationParameters = optionalEnvironment(
+                      "JY_TEXT_STUDIO_ANIMATION_PARAMETERS"),
                   .text = optionalEnvironment("JY_TEXT_CONTENT"),
                   .stickerParams = stickerParameters(),
                   .fontSize = optionalNumberEnvironment<double>(
