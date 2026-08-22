@@ -120,6 +120,17 @@ function isEntryTupleArray(value: unknown): boolean {
 }
 
 /**
+ * Taxonomy members are destructured by the summary helpers, so `[null]` or a
+ * member missing `categoryIds` would throw in the list handler instead of
+ * falling back to a rebuild.
+ */
+function isTaxonomyMember(value: unknown): value is Record<string, unknown> {
+	if (value === null || typeof value !== "object") return false;
+	const record = value as Record<string, unknown>;
+	return typeof record.id === "string" && typeof record.label === "string";
+}
+
+/**
  * Validates untrusted parsed JSON before any property access: `JSON.parse`
  * happily returns null, scalars, and arbitrary objects, and a malformed
  * cache must fall back to a rebuild instead of failing the catalog read.
@@ -143,8 +154,18 @@ function isValidSnapshotShape(
 	}
 	if (!isEntryTupleArray(stylesRecord.metadataEntries)) return false;
 	if (!isEntryTupleArray(stylesRecord.ownershipEntries)) return false;
-	if (!Array.isArray(stylesRecord.categories)) return false;
-	if (!Array.isArray(stylesRecord.categoryGroups)) return false;
+	const { categories, categoryGroups } = stylesRecord;
+	if (!Array.isArray(categories) || !categories.every(isTaxonomyMember)) {
+		return false;
+	}
+	if (
+		!Array.isArray(categoryGroups) ||
+		!categoryGroups.every(
+			(group) => isTaxonomyMember(group) && Array.isArray(group.categoryIds)
+		)
+	) {
+		return false;
+	}
 	const animations = record.animations;
 	if (animations === null || typeof animations !== "object") return false;
 	return Array.isArray((animations as Record<string, unknown>).animations);
