@@ -344,6 +344,26 @@ export interface JianyingFilterLabRenderLocalEffectResult {
 	rgba: Uint8Array;
 }
 
+export interface JianyingFilterLabFaceObservation {
+	rawRect: [number, number, number, number];
+	score: number;
+	yaw: number;
+	pitch: number;
+	roll: number;
+	eyeDistance: number;
+	id: number;
+	action: number;
+	trackingCount: number;
+	landmarks: [number, number, number][];
+}
+
+export interface JianyingFilterLabFaceEvidence {
+	schemaVersion: 1;
+	coordinateSpace: "source-normalized-top-left";
+	faceCount: number;
+	faces: JianyingFilterLabFaceObservation[];
+}
+
 export interface JianyingFilterLabRenderLocalPortraitResult
 	extends JianyingFilterLabRenderLocalEffectResult {
 	mask: {
@@ -352,6 +372,7 @@ export interface JianyingFilterLabRenderLocalPortraitResult
 		bytes: Uint8Array;
 		orientation: "bottom-left";
 	};
+	face?: JianyingFilterLabFaceEvidence;
 }
 
 export interface JianyingFilterLabAPI {
