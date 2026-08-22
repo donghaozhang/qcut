@@ -256,6 +256,10 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"max-characters": { type: "string" },
 			"save-registry": { type: "boolean", default: true },
 			style: { type: "string" },
+			effect: { type: "string" },
+			"installed-only": { type: "boolean", default: false },
+			"supported-only": { type: "boolean", default: false },
+			adjust: { type: "string", multiple: true },
 			"reference-model": { type: "string" },
 			"reference-strength": { type: "string" },
 			// transcribe options
@@ -729,6 +733,10 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			: undefined,
 		saveRegistry: (values["save-registry"] as boolean) ?? true,
 		style: values.style as string | undefined,
+		effect: values.effect as string | undefined,
+		installedOnly: (values["installed-only"] as boolean) ?? false,
+		supportedOnly: (values["supported-only"] as boolean) ?? false,
+		effectAdjustments: values.adjust as string[] | undefined,
 		referenceModel: values["reference-model"] as string | undefined,
 		referenceStrength: values["reference-strength"]
 			? Number.isNaN(parseFloat(values["reference-strength"] as string))
