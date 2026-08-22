@@ -3,7 +3,6 @@ import { readdir, readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
-import { DatabaseSync } from "node:sqlite";
 import { listJianyingResourceDatabasePaths } from "../jianying-resource-database.js";
 import type {
 	JianyingEffectAdjustParameter,
@@ -26,6 +25,7 @@ import {
 	selectQCutEffectCategories,
 	writeQCutEffectCatalogSnapshot,
 } from "./catalog-cache.js";
+import { qcutStandaloneUserDataRoot } from "./user-data-paths.js";
 
 /**
  * Effect packages download lazily — a machine typically knows hundreds of
@@ -43,46 +43,73 @@ interface EffectCatalogState {
 	categories: JianyingEffectCategory[];
 }
 
+interface ReadonlyDatabase {
+	prepare: (sql: string) => {
+		all: (...parameters: string[]) => unknown[];
+	};
+	close: () => void;
+}
+
 let catalogStatePromise: Promise<EffectCatalogState> | null = null;
 let catalogStateExpiresAt = 0;
 
-/**
- * Where QCut unpacks packages it downloads on demand. Null outside Electron
- * (the batch reference script runs this module under plain node).
- */
-export function qcutManagedEffectPackageRoot(): string | null {
-	const override = process.env.QCUT_JIANYING_EFFECT_MANAGED_PACKAGE_ROOT;
-	if (override) return override;
+function openReadonlyDatabase({
+	databasePath,
+}: {
+	databasePath: string;
+}): ReadonlyDatabase | null {
+	try {
+		const sqlite = nodeRequire("node:sqlite") as {
+			DatabaseSync: new (
+				path: string,
+				options: { readOnly: boolean }
+			) => ReadonlyDatabase;
+		};
+		return new sqlite.DatabaseSync(databasePath, { readOnly: true });
+	} catch {
+		try {
+			const sqlite = nodeRequire("bun:sqlite") as {
+				Database: new (
+					path: string,
+					options: { readonly: boolean }
+				) => ReadonlyDatabase;
+			};
+			return new sqlite.Database(databasePath, { readonly: true });
+		} catch {
+			return null;
+		}
+	}
+}
+
+function qcutUserDataRoot(): string {
 	try {
 		const electron = nodeRequire("electron") as
 			| string
 			| { app?: { getPath: (name: string) => string } };
-		if (typeof electron === "string" || !electron.app) return null;
-		return path.join(
-			electron.app.getPath("userData"),
-			"JianyingEffectPackages"
-		);
+		if (typeof electron !== "string" && electron.app) {
+			return electron.app.getPath("userData");
+		}
 	} catch {
-		return null;
+		// The standalone CLI has no Electron app; use the same platform path.
 	}
+	return qcutStandaloneUserDataRoot();
+}
+
+/** Where QCut unpacks packages it downloads on demand. */
+export function qcutManagedEffectPackageRoot(): string | null {
+	const override = process.env.QCUT_JIANYING_EFFECT_MANAGED_PACKAGE_ROOT;
+	if (override) return override;
+	return path.join(qcutUserDataRoot(), "JianyingEffectPackages");
 }
 
 function qcutManagedEffectCatalogPath(): string | null {
 	const override = process.env.QCUT_JIANYING_EFFECT_CATALOG_CACHE_PATH;
 	if (override) return override;
-	try {
-		const electron = nodeRequire("electron") as
-			| string
-			| { app?: { getPath: (name: string) => string } };
-		if (typeof electron === "string" || !electron.app) return null;
-		return path.join(
-			electron.app.getPath("userData"),
-			"JianyingEffectCatalog",
-			"catalog-v1.json"
-		);
-	} catch {
-		return null;
-	}
+	return path.join(
+		qcutUserDataRoot(),
+		"JianyingEffectCatalog",
+		"catalog-v1.json"
+	);
 }
 
 /**
@@ -221,9 +248,10 @@ async function readHttpCacheRows({
 			databaseRoot: root,
 		});
 		for (const databasePath of databasePaths) {
-			let database: DatabaseSync | null = null;
+			let database: ReadonlyDatabase | null = null;
 			try {
-				database = new DatabaseSync(databasePath, { readOnly: true });
+				database = openReadonlyDatabase({ databasePath });
+				if (!database) continue;
 				const records = database
 					.prepare(
 						`SELECT url, response_body FROM http_cache WHERE ${condition}`
