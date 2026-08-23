@@ -9,6 +9,7 @@
 
 import type { TimelineElement, TimelineTrack } from "@/types/timeline";
 import {
+	normalizeMediaPortraitAdjustments,
 	normalizeJianyingTextStyleReference,
 	normalizeTextAnimations,
 } from "@qcut/editor-core";
@@ -120,6 +121,9 @@ export function normalizeMediaElement({
 			relight: 0,
 			beauty: 0,
 		},
+		portraitAdjustments: normalizeMediaPortraitAdjustments({
+			adjustments: element.portraitAdjustments,
+		}),
 		audio,
 		...legacyAudio,
 		playbackRate: element.playbackRate ?? 1,
