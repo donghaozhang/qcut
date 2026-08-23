@@ -278,7 +278,10 @@ export function createJianyingPortraitAdjustmentProvider(): JianyingPortraitAdju
 		if (!temporaryDirectoryPromise) {
 			temporaryDirectoryPromise = mkdtemp(
 				path.join(os.tmpdir(), "qcut-jianying-portrait-")
-			);
+			).catch((cause) => {
+				temporaryDirectoryPromise = null;
+				throw cause;
+			});
 		}
 		const directory = await temporaryDirectoryPromise;
 
