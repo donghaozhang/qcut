@@ -1,11 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 
-const { mockClose, mockOpen, mockRead, mockStat } = vi.hoisted(() => ({
-	mockClose: vi.fn(),
-	mockOpen: vi.fn(),
-	mockRead: vi.fn(),
-	mockStat: vi.fn(),
-}));
+const { mockClose, mockLstat, mockOpen, mockRead, mockStat } = vi.hoisted(
+	() => ({
+		mockClose: vi.fn(),
+		mockLstat: vi.fn(),
+		mockOpen: vi.fn(),
+		mockRead: vi.fn(),
+		mockStat: vi.fn(),
+	})
+);
 
 vi.mock("electron", () => ({
 	app: { getPath: vi.fn(() => "/mock/Documents") },
@@ -22,6 +25,7 @@ vi.mock("electron-log", () => ({
 }));
 
 vi.mock("node:fs/promises", () => ({
+	lstat: (...args: unknown[]) => mockLstat(...args),
 	open: (...args: unknown[]) => mockOpen(...args),
 }));
 
@@ -29,6 +33,10 @@ import { readMediaRestrictedMetadata } from "../claude/handlers/claude-media-res
 
 describe("restricted sidecar bounded read", () => {
 	it("fails closed if the open file grows during the read", async () => {
+		mockLstat.mockResolvedValue({
+			isDirectory: () => true,
+			isSymbolicLink: () => false,
+		});
 		mockStat
 			.mockResolvedValueOnce({
 				dev: 1,
