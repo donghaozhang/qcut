@@ -1,4 +1,4 @@
-import { FlaskConical, Search, Star } from "lucide-react";
+import { Search } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { assetManifestIdentity } from "@qcut/editor-core";
 import { toast } from "sonner";
@@ -20,7 +20,6 @@ import {
 } from "@/lib/filters/filter-registry";
 import type { FilterPreset } from "@/lib/filters/filter-types";
 import { DEFAULT_COLOR_FILTER_APPLICATION } from "@/lib/filters/filter-resolver";
-import { cn } from "@/lib/utils";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import {
@@ -32,8 +31,7 @@ import { JianyingFilterLabShelf } from "../adjustments/jianying-filter-lab-shelf
 import { updateSelectedMediaColors } from "./filter-application";
 import { FilterCard } from "./filter-card";
 import { getSelectedMediaTargets } from "./filter-selection";
-
-type LibraryMode = "library" | "favorites" | "lab";
+import { FilterSidebar, type FilterLibraryMode } from "./filter-sidebar";
 
 function matchesQuery({
 	preset,
@@ -63,9 +61,12 @@ function savedPresetMatchesQuery({
 }
 
 export function FiltersView() {
-	const [mode, setMode] = useState<LibraryMode>("library");
+	const [mode, setMode] = useState<FilterLibraryMode>("library");
 	const [category, setCategory] = useState<FilterCategoryId>("all");
 	const [query, setQuery] = useState("");
+	const [labSidebarHost, setLabSidebarHost] = useState<HTMLDivElement | null>(
+		null
+	);
 	const [savedPresets, setSavedPresets] = useState(loadColorPresets);
 	const [selectedSavedPresetId, setSelectedSavedPresetId] = useState<string>();
 	const favorites = useAssetLibraryStore((state) => state.favorites);
@@ -189,6 +190,22 @@ export function FiltersView() {
 	const toggleFavorite = ({ presetId }: { presetId: string }) => {
 		toggleAssetFavorite({ kind: "filter", id: presetId });
 	};
+	const selectMode = ({ mode: nextMode }: { mode: FilterLibraryMode }) => {
+		setMode(nextMode);
+		if (nextMode === "favorites" && category === "mine") {
+			setCategory("all");
+		}
+	};
+	const selectSidebarCategory = ({
+		category: nextCategory,
+		mode: nextMode,
+	}: {
+		category: FilterCategoryId;
+		mode: Exclude<FilterLibraryMode, "lab">;
+	}) => {
+		setMode(nextMode);
+		setCategory(nextCategory);
+	};
 
 	const showNoneCard =
 		mode === "library" && category === "all" && query.trim().length === 0;
@@ -199,99 +216,35 @@ export function FiltersView() {
 			className="flex h-full min-h-0 flex-col bg-panel text-foreground"
 			data-testid="filters-view"
 		>
-			<div className="border-b border-border/50 p-3">
-				<div className="grid grid-cols-3 rounded-md bg-foreground/5 p-0.5">
-					{(["library", "favorites", "lab"] as const).map((item) => (
-						<button
-							key={item}
-							type="button"
-							className={cn(
-								"flex h-7 items-center justify-center gap-1.5 rounded text-[11px] font-medium transition-colors",
-								mode === item
-									? "bg-background text-foreground shadow-sm"
-									: "text-muted-foreground hover:text-foreground"
-							)}
-							onClick={() => {
-								setMode(item);
-								if (item === "favorites" && category === "mine")
-									setCategory("all");
-							}}
-							onKeyDown={(event) => {
-								if (event.key === "Enter" || event.key === " ") {
-									event.currentTarget.click();
-								}
-							}}
-							aria-pressed={mode === item}
-						>
-							{item === "favorites" && <Star className="size-3" />}
-							{item === "lab" && <FlaskConical className="size-3" />}
-							{item === "library"
-								? "Filter library"
-								: item === "favorites"
-									? "Favorites"
-									: "滤镜实验室"}
-						</button>
-					))}
-				</div>
-				{mode !== "lab" ? (
-					<div className="relative mt-2">
-						<Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-						<Input
-							value={query}
-							onChange={(event) => setQuery(event.target.value)}
-							placeholder="Search filters / 搜索滤镜"
-							className="h-8 pl-8 text-xs"
-							aria-label="Search filters"
-						/>
+			<div className="flex min-h-0 flex-1">
+				<FilterSidebar
+					category={category}
+					labSidebarRef={setLabSidebarHost}
+					mode={mode}
+					onSelectCategory={selectSidebarCategory}
+					onSelectMode={selectMode}
+				/>
+
+				{mode === "lab" ? (
+					<div className="min-h-0 min-w-0 flex-1 overflow-y-auto p-3">
+						<JianyingFilterLabShelf sidebarHost={labSidebarHost} />
 					</div>
-				) : null}
-			</div>
-
-			{mode === "lab" ? (
-				<div className="min-h-0 flex-1 overflow-y-auto p-3">
-					<JianyingFilterLabShelf />
-				</div>
-			) : (
-				<>
-					<div className="flex min-h-0 flex-1">
-						<aside className="w-[120px] shrink-0 overflow-y-auto border-r border-border/50 p-2">
-							<div className="space-y-0.5">
-								{FILTER_CATEGORIES.filter(
-									(item) => mode === "library" || item.id !== "mine"
-								).map((item) => {
-									const Icon = item.icon;
-									return (
-										<button
-											key={item.id}
-											type="button"
-											className={cn(
-												"flex h-8 w-full items-center gap-2 rounded px-2 text-left text-[10px] transition-colors",
-												category === item.id
-													? "bg-primary/15 text-primary"
-													: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-											)}
-											aria-pressed={category === item.id}
-											aria-label={`${item.label} / ${item.localizedLabel}`}
-											title={item.label}
-											data-testid={`filter-category-${item.id}`}
-											onClick={() => setCategory(item.id)}
-											onKeyDown={(event) => {
-												if (event.key === "Enter" || event.key === " ") {
-													event.currentTarget.click();
-												}
-											}}
-										>
-											<Icon className="size-3.5 shrink-0" />
-											<span className="whitespace-nowrap">
-												{item.localizedLabel}
-											</span>
-										</button>
-									);
-								})}
+				) : (
+					<div className="flex min-h-0 min-w-0 flex-1 flex-col">
+						<div className="shrink-0 border-b border-border/50 p-3">
+							<div className="relative">
+								<Search className="absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+								<Input
+									value={query}
+									onChange={(event) => setQuery(event.target.value)}
+									placeholder="Search filters / 搜索滤镜"
+									className="h-8 pl-8 text-xs"
+									aria-label="Search filters"
+								/>
 							</div>
-						</aside>
+						</div>
 
-						<section className="flex min-w-0 flex-1 flex-col">
+						<section className="flex min-h-0 min-w-0 flex-1 flex-col">
 							<div className="flex h-9 shrink-0 items-center justify-between border-b border-border/40 px-3 text-[10px] text-muted-foreground">
 								<div className="flex min-w-0 items-center gap-2">
 									<span className="truncate font-medium text-foreground">
@@ -363,51 +316,51 @@ export function FiltersView() {
 								)}
 							</div>
 						</section>
-					</div>
 
-					<div className="h-[68px] shrink-0 border-t border-border/50 px-3 py-2">
-						{activePreset ? (
-							<div className="flex h-full items-center gap-3">
-								<div className="w-[112px] min-w-0">
-									<div className="truncate text-xs font-medium">
-										{activePreset.name}
+						<div className="h-[68px] shrink-0 border-t border-border/50 px-3 py-2">
+							{activePreset ? (
+								<div className="flex h-full items-center gap-3">
+									<div className="w-[112px] min-w-0">
+										<div className="truncate text-xs font-medium">
+											{activePreset.name}
+										</div>
+										<div className="truncate text-[10px] text-muted-foreground">
+											{activePreset.localizedName}
+										</div>
 									</div>
-									<div className="truncate text-[10px] text-muted-foreground">
-										{activePreset.localizedName}
+									<div className="min-w-0 flex-1">
+										<div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
+											<span>Intensity</span>
+											<span className="tabular-nums">
+												{Math.round(activeFilter.intensity)}%
+											</span>
+										</div>
+										<Slider
+											value={[activeFilter.intensity]}
+											min={0}
+											max={100}
+											step={1}
+											disabled={!hasSelection}
+											aria-label="Filter intensity"
+											data-testid="filter-intensity-slider"
+											onValueChange={([value]) => updateIntensity({ value })}
+											onValueCommit={() => {
+												intensityInteractionActive.current = false;
+											}}
+										/>
 									</div>
 								</div>
-								<div className="min-w-0 flex-1">
-									<div className="mb-1 flex items-center justify-between text-[10px] text-muted-foreground">
-										<span>Intensity</span>
-										<span className="tabular-nums">
-											{Math.round(activeFilter.intensity)}%
-										</span>
-									</div>
-									<Slider
-										value={[activeFilter.intensity]}
-										min={0}
-										max={100}
-										step={1}
-										disabled={!hasSelection}
-										aria-label="Filter intensity"
-										data-testid="filter-intensity-slider"
-										onValueChange={([value]) => updateIntensity({ value })}
-										onValueCommit={() => {
-											intensityInteractionActive.current = false;
-										}}
-									/>
+							) : (
+								<div className="flex h-full items-center text-[11px] text-muted-foreground">
+									{hasSelection
+										? "Choose a filter to adjust its intensity."
+										: "Select one or more image or video clips to apply a filter."}
 								</div>
-							</div>
-						) : (
-							<div className="flex h-full items-center text-[11px] text-muted-foreground">
-								{hasSelection
-									? "Choose a filter to adjust its intensity."
-									: "Select one or more image or video clips to apply a filter."}
-							</div>
-						)}
+							)}
+						</div>
 					</div>
-				</>
-			)}
+				)}
+			</div>
 		</div>
 	);
 }
