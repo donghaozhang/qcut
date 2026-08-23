@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { JIANYING_FILTER_LOCAL_BRIDGE_FILE_NAME } from "../../electron/jianying-filter-local-runtime/bridge-resolver.js";
+import { JIANYING_PORTRAIT_ADJUSTMENT_HOST_FILE_NAME } from "../../electron/jianying-portrait-adjustment-runtime/bridge-resolver.js";
 import { JIANYING_TEXT_RUNTIME_BRIDGE_FILE_NAME } from "../../electron/jianying-text-runtime/bridge-resolver.js";
 import { JIANYING_TRANSITION_BRIDGE_FILE_NAME } from "../../electron/jianying-transition/bridge-resolver.js";
 import { verifyPackagedJianyingRuntimeBridges } from "../verify-packaged-jianying-runtime-bridges.js";
@@ -54,6 +55,10 @@ async function createFixture({
 			name: JIANYING_FILTER_LOCAL_BRIDGE_FILE_NAME,
 			contents: "#!/bin/sh\nexit 0\n",
 		},
+		{
+			name: JIANYING_PORTRAIT_ADJUSTMENT_HOST_FILE_NAME,
+			contents: "#!/bin/sh\nexit 0\n",
+		},
 	];
 	await Promise.all(
 		bridges.flatMap(({ name, contents }) => [
@@ -86,6 +91,9 @@ describe("packaged Jianying runtime bridge verification", () => {
 			),
 			filterBridge: expect.stringContaining(
 				JIANYING_FILTER_LOCAL_BRIDGE_FILE_NAME
+			),
+			portraitAdjustmentHost: expect.stringContaining(
+				JIANYING_PORTRAIT_ADJUSTMENT_HOST_FILE_NAME
 			),
 		});
 	});
