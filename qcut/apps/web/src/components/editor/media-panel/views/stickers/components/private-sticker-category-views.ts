@@ -72,14 +72,14 @@ export function buildPrivateStickerCategoryViews({
 	}
 
 	return [...categoriesById.values()].map(
-		({ batchCount, category, localBatchCount }) => ({
-			...category,
-			sourcePanel:
-				localBatchCount > 0
-					? `剪映贴纸面板 · ${localBatchCount} 批本地参照`
-					: batchCount > 1
-						? `剪映贴纸面板 · ${batchCount} 批参照`
-						: category.sourcePanel,
-		})
+		({ batchCount, category, localBatchCount }) => {
+			let sourcePanel = category.sourcePanel;
+			if (localBatchCount > 0) {
+				sourcePanel = `剪映贴纸面板 · ${localBatchCount} 批本地参照`;
+			} else if (batchCount > 1) {
+				sourcePanel = `剪映贴纸面板 · ${batchCount} 批参照`;
+			}
+			return { ...category, sourcePanel };
+		}
 	);
 }
