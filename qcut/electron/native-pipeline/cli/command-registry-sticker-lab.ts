@@ -26,7 +26,7 @@ function command({
 const ROOT_FLAG = flag(
 	"--root",
 	"string",
-	"Private local reference root (defaults to QCUT_STICKER_LAB_ROOT or the QCut Movies backup)"
+	"Private local reference root (defaults to QCUT_STICKER_LAB_ROOT, then ~/Movies/QCut Sticker Lab on macOS or ~/Videos/QCut Sticker Lab elsewhere)"
 );
 const BATCH_FLAG = flag(
 	"--batch-id",
