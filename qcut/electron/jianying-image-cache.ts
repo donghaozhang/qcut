@@ -245,28 +245,34 @@ async function loadJianyingCachedImage({
 	if (cached) return cached;
 	let sourceError: unknown;
 	let bytes: Buffer | undefined;
-	// Try every source the caller supplied, local first: a stale or missing
-	// local path must still fall back to the remote copy instead of failing.
+	// Try every source the caller supplied, local first: a stale, missing or
+	// corrupt local copy must still fall back to the remote one. Each candidate
+	// is validated here rather than only at the end, so an empty or malformed
+	// file fails over to the next source instead of failing the whole read.
 	if (source.sourcePath) {
 		try {
-			bytes = await readLocalImage({
+			const localBytes = await readLocalImage({
 				filePath: source.sourcePath,
 				label,
 				maximumBytes,
 			});
+			assertValidImage({ bytes: localBytes, label, maximumBytes });
+			bytes = localBytes;
 		} catch (error) {
 			sourceError = error;
 		}
 	}
 	if (!bytes && source.sourceUrl) {
 		try {
-			bytes = await fetchRemoteImage({
+			const remoteBytes = await fetchRemoteImage({
 				fetcher,
 				label,
 				maximumBytes,
 				timeoutMs,
 				url: source.sourceUrl,
 			});
+			assertValidImage({ bytes: remoteBytes, label, maximumBytes });
+			bytes = remoteBytes;
 		} catch (error) {
 			sourceError = error;
 		}
