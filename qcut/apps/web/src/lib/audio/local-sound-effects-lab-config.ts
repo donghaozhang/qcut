@@ -2,6 +2,14 @@ export type LocalSoundEffectsLabSource =
 	| { kind: "manifest"; manifestPath: string }
 	| { kind: "private-manifest" };
 
+export function isSoundEffectsLabEnabled({
+	configuredValue,
+}: {
+	configuredValue?: string;
+}): boolean {
+	return configuredValue?.trim().toLowerCase() !== "false";
+}
+
 export function buildLocalSoundEffectsLabSource({
 	isEnabled,
 	manifestPath,
@@ -19,7 +27,9 @@ export function buildLocalSoundEffectsLabSource({
 
 export function getLocalSoundEffectsLabSource(): LocalSoundEffectsLabSource | null {
 	return buildLocalSoundEffectsLabSource({
-		isEnabled: import.meta.env.VITE_QCUT_ENABLE_SOUND_EFFECTS_LAB === "true",
+		isEnabled: isSoundEffectsLabEnabled({
+			configuredValue: import.meta.env.VITE_QCUT_ENABLE_SOUND_EFFECTS_LAB,
+		}),
 		manifestPath: import.meta.env.VITE_QCUT_SOUND_EFFECTS_LAB_MANIFEST_PATH,
 	});
 }
