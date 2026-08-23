@@ -58,6 +58,8 @@ struct ProbeTextures {
   DeviceTextureProbe inputA;
   DeviceTextureProbe inputB;
   DeviceTextureProbe output;
+  std::vector<std::uint8_t> inputABgraBacking;
+  std::vector<std::uint8_t> inputBBgraBacking;
   CVPixelBufferRef inputANativeBuffer = nullptr;
   CVPixelBufferRef inputBNativeBuffer = nullptr;
 };
@@ -108,10 +110,8 @@ struct FrameDimensions {
   const void* inputBMipData[] = {inputBPixels.data()};
   ProbeTextures textures;
   if (useNativeInputs) {
-    std::vector<std::uint8_t> inputABgra(inputAPixels.begin(),
-                                         inputAPixels.end());
-    std::vector<std::uint8_t> inputBBgra(inputBPixels.begin(),
-                                         inputBPixels.end());
+    textures.inputABgraBacking.assign(inputAPixels.begin(), inputAPixels.end());
+    textures.inputBBgraBacking.assign(inputBPixels.begin(), inputBPixels.end());
     // Bound each buffer by its own size: a shared helper must not assume the
     // two inputs have equal length just because the current callers check it.
     const auto swapRedBlue = [](std::vector<std::uint8_t>& bgra) {
@@ -119,15 +119,15 @@ struct FrameDimensions {
         std::swap(bgra[offset], bgra[offset + 2]);
       }
     };
-    swapRedBlue(inputABgra);
-    swapRedBlue(inputBBgra);
+    swapRedBlue(textures.inputABgraBacking);
+    swapRedBlue(textures.inputBBgraBacking);
     const int bytesPerRow = dimensions.width * 4;
     textures.inputANativeBuffer = symbols.createCvPixelBuffer(
         dimensions.width, dimensions.height, bytesPerRow,
-        kCVPixelFormatType_32BGRA, inputABgra.data());
+        kCVPixelFormatType_32BGRA, textures.inputABgraBacking.data());
     textures.inputBNativeBuffer = symbols.createCvPixelBuffer(
         dimensions.width, dimensions.height, bytesPerRow,
-        kCVPixelFormatType_32BGRA, inputBBgra.data());
+        kCVPixelFormatType_32BGRA, textures.inputBBgraBacking.data());
     if (textures.inputANativeBuffer != nullptr) {
       textures.inputA = symbols.createTextureFromNativeBuffer(
           renderer, textures.inputANativeBuffer, nativeTextureFlags[0],
