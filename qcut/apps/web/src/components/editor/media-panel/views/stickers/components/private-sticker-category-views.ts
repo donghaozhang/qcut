@@ -21,8 +21,8 @@ export function buildPrivateStickerCategoryViews({
 		{
 			batchCount: number;
 			category: PrivateStickerCategoryView;
-			hasLocalReferences: boolean;
 			itemIndexesById: Map<string, number>;
+			localBatchCount: number;
 		}
 	>();
 
@@ -50,15 +50,17 @@ export function buildPrivateStickerCategoryViews({
 						existing.category.items[existingIndex] = item;
 					}
 				}
-				existing.hasLocalReferences ||= "batchId" in catalog;
+				if ("batchId" in catalog) {
+					existing.localBatchCount += 1;
+				}
 				continue;
 			}
 			categoriesById.set(category.id, {
 				batchCount: 1,
-				hasLocalReferences: "batchId" in catalog,
 				itemIndexesById: new Map(
 					category.items.map((item, index) => [item.id, index])
 				),
+				localBatchCount: "batchId" in catalog ? 1 : 0,
 				category: {
 					id: category.id,
 					items: [...category.items],
@@ -70,13 +72,14 @@ export function buildPrivateStickerCategoryViews({
 	}
 
 	return [...categoriesById.values()].map(
-		({ batchCount, category, hasLocalReferences }) => ({
+		({ batchCount, category, localBatchCount }) => ({
 			...category,
-			sourcePanel: hasLocalReferences
-				? `剪映贴纸面板 · ${batchCount} 批本地参照`
-				: batchCount > 1
-					? `剪映贴纸面板 · ${batchCount} 批参照`
-					: category.sourcePanel,
+			sourcePanel:
+				localBatchCount > 0
+					? `剪映贴纸面板 · ${localBatchCount} 批本地参照`
+					: batchCount > 1
+						? `剪映贴纸面板 · ${batchCount} 批参照`
+						: category.sourcePanel,
 		})
 	);
 }
