@@ -4,6 +4,7 @@ import {
 	PRIVATE_STICKER_CATALOG_IDS,
 } from "@qcut/editor-core/sticker-lab";
 import {
+	createLocalBridgeStickerCatalog,
 	createLocalStickerCatalog,
 	createPrivateStickerCatalog,
 	createPrivateStickerReference,
@@ -15,6 +16,7 @@ import {
 	loadPrivateStickerManifest,
 	loadRemoteStickerManifest,
 	parseLocalStickerManifest,
+	parseLocalBridgeStickerCatalog,
 } from "../local-sticker-manifest";
 
 describe("local sticker manifest", () => {
@@ -32,6 +34,32 @@ describe("local sticker manifest", () => {
 		expect(
 			parseLocalStickerManifest({ jsonText: JSON.stringify(catalog) })
 		).toEqual(catalog);
+	});
+
+	it("parses a local-only reference catalog without exposing asset files", () => {
+		const catalog = createLocalBridgeStickerCatalog();
+
+		expect(parseLocalBridgeStickerCatalog({ candidate: catalog })).toEqual(
+			catalog
+		);
+	});
+
+	it("rejects local reference identity mismatches", () => {
+		const stickerMismatch = createLocalBridgeStickerCatalog();
+		const sticker = stickerMismatch.categories[0]?.items[0];
+		if (!sticker) throw new Error("Expected a local bridge fixture");
+		sticker.asset.stickerId = "another-sticker";
+		expect(() =>
+			parseLocalBridgeStickerCatalog({ candidate: stickerMismatch })
+		).toThrow("stickerId must match");
+
+		const batchMismatch = createLocalBridgeStickerCatalog();
+		const batchSticker = batchMismatch.categories[0]?.items[0];
+		if (!batchSticker) throw new Error("Expected a local bridge fixture");
+		batchSticker.asset.batchId = "jianying-batch-17";
+		expect(() =>
+			parseLocalBridgeStickerCatalog({ candidate: batchMismatch })
+		).toThrow("batchId must match");
 	});
 
 	it("accepts an animated preview GIF as an explicit source kind", () => {
