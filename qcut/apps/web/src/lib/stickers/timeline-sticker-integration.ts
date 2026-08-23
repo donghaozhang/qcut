@@ -323,18 +323,21 @@ export class TimelineStickerIntegration {
 				});
 			}
 
-			// Add element to track (void function, doesn't return success)
+			// Add element to track; capture the inserted element id for rollback
 			if (!canMutateTimeline({ guard })) return projectChangedResult();
-			store.addElementToTrack(trackId, element);
+			const insertedElementId = store.addElementToTrack(trackId, element);
 
 			// Wait for state update to propagate
 			await new Promise((resolve) => setTimeout(resolve, 0));
 			if (!canMutateTimeline({ guard })) {
-				return {
-					success: true,
-					trackId,
-					elementId: sticker.id,
-				};
+				// Project changed after the insert: undo it so the element cannot
+				// leak into the newly active project's timeline.
+				if (insertedElementId) {
+					useTimelineStore
+						.getState()
+						.removeElementFromTrack(trackId, insertedElementId, false);
+				}
+				return projectChangedResult();
 			}
 
 			// Verify element was added by checking the track
