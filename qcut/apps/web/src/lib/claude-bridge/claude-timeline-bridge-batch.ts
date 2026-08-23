@@ -1,5 +1,4 @@
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import { useProjectStore } from "@/stores/project-store";
 import { validateElementTrackCompatibility } from "@/types/timeline";
 import type {
 	ClaudeBatchAddElementRequest,
@@ -21,6 +20,10 @@ import type {
 	ClaudeTimelineBridgeSharedUtils,
 } from "./claude-timeline-bridge";
 import { applyElementChanges } from "./claude-timeline-bridge-elements";
+import {
+	assertTimelineProjectActive,
+	readRequiredTimelineProjectId,
+} from "./claude-timeline-project-guard";
 
 const MAX_TIMELINE_BATCH_ITEMS = 50;
 
@@ -44,6 +47,10 @@ export function setupBatchHandlers({
 				failedCount: elements.length,
 			};
 			try {
+				const projectId = readRequiredTimelineProjectId({
+					candidate: data?.projectId,
+				});
+				assertTimelineProjectActive({ projectId });
 				if (elements.length > MAX_TIMELINE_BATCH_ITEMS) {
 					const message = `Batch add limit is ${MAX_TIMELINE_BATCH_ITEMS} elements`;
 					const failedResponse: ClaudeBatchAddResponse = {
@@ -70,16 +77,15 @@ export function setupBatchHandlers({
 				}
 
 				// Sync media from disk so newly-imported files are discoverable
-				const projectId = useProjectStore.getState().activeProject?.id;
-				if (projectId) {
-					await syncProjectMediaIfNeeded({ projectId });
-				}
+				await syncProjectMediaIfNeeded({ projectId });
+				assertTimelineProjectActive({ projectId });
 
 				const timelineStore = useTimelineStore.getState();
 				const tracksById = new Map(
 					timelineStore.tracks.map((track) => [track.id, track])
 				);
 
+				assertTimelineProjectActive({ projectId });
 				timelineStore.pushHistory();
 
 				const added: ClaudeBatchAddResponse["added"] = [];
@@ -146,6 +152,7 @@ export function setupBatchHandlers({
 						}
 
 						let createdElementId: string | null = null;
+						assertTimelineProjectActive({ projectId });
 
 						if (normalizedType === "media") {
 							const mediaId = sharedUtils.resolveMediaIdForBatchElement({
