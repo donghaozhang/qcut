@@ -13,6 +13,7 @@ import type {
 	MediaEntry,
 	ProjectSettings,
 } from "./project-json-types.js";
+import { parseStickerLabMediaMetadata } from "../../types/sticker-lab-media-metadata.js";
 
 interface NavigatorProject {
 	id: string;
@@ -178,17 +179,23 @@ export async function buildProjectJSON(
 			: settingsName;
 
 	const media: MediaEntry[] = Array.isArray(mediaList)
-		? mediaList.map((m) => ({
-				id: str(m.id, ""),
-				type: parseMediaType(m.type),
-				name: str(m.name, ""),
-				path: str(m.path, ""),
-				duration: m.duration != null ? num(m.duration, 0) : null,
-				width: m.width != null ? num(m.width, 0) : null,
-				height: m.height != null ? num(m.height, 0) : null,
-				fps: m.fps != null ? num(m.fps, 0) : null,
-				importedAt: str(m.importedAt ?? m.createdAt, now),
-			}))
+		? mediaList.map((m) => {
+				const metadata = parseRestrictedMediaMetadata({
+					candidate: m.metadata,
+				});
+				return {
+					id: str(m.id, ""),
+					type: parseMediaType(m.type),
+					name: str(m.name, ""),
+					path: str(m.path, ""),
+					duration: m.duration != null ? num(m.duration, 0) : null,
+					width: m.width != null ? num(m.width, 0) : null,
+					height: m.height != null ? num(m.height, 0) : null,
+					fps: m.fps != null ? num(m.fps, 0) : null,
+					importedAt: str(m.importedAt ?? m.createdAt, now),
+					...(metadata ? { metadata } : {}),
+				};
+			})
 		: [];
 
 	const projectSettings: ProjectSettings = {
@@ -258,6 +265,18 @@ async function safeGet<T>({
 /** Narrow unknown JSON payloads to plain record objects. */
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function parseRestrictedMediaMetadata({ candidate }: { candidate: unknown }) {
+	if (candidate === undefined) return;
+	try {
+		return parseStickerLabMediaMetadata({
+			candidate,
+			label: "Project media metadata",
+		});
+	} catch {
+		return;
+	}
 }
 
 /** Find the requested project inside the navigator payload when it is available. */
