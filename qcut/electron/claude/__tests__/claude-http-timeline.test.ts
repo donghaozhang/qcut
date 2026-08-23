@@ -57,7 +57,19 @@ vi.mock("../handlers/claude-media-handler.js", () => ({
 	renameMediaFile: vi.fn(async () => false),
 }));
 
+vi.mock("../handlers/claude-state-handler.js", () => ({
+	requestEditorStateSnapshotFromRenderer: vi.fn(async () => ({
+		version: 1,
+		timestamp: Date.now(),
+		state: {
+			project: { activeProject: { id: "proj_123" } },
+			media: { items: [] },
+		},
+	})),
+}));
+
 vi.mock("../handlers/claude-timeline-handler.js", () => ({
+	requestAddElementFromRenderer: vi.fn(async () => undefined),
 	requestTimelineFromRenderer: vi.fn(),
 	requestSplitFromRenderer: vi.fn(),
 	requestSelectionFromRenderer: vi.fn(),
@@ -245,6 +257,7 @@ import {
 	stopClaudeHTTPServer,
 } from "../http/claude-http-server";
 import { BrowserWindow } from "electron";
+import * as stateHandler from "../handlers/claude-state-handler.js";
 import * as timelineHandler from "../handlers/claude-timeline-handler.js";
 import * as rangeHandler from "../handlers/claude-range-handler.js";
 import { notificationBridge } from "../notification-bridge";
@@ -281,6 +294,28 @@ describe("Claude HTTP Server - Timeline", () => {
 		notificationBridge.resetForTests();
 		vi.mocked(BrowserWindow.getAllWindows).mockReset();
 		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([]);
+		vi.mocked(stateHandler.requestEditorStateSnapshotFromRenderer).mockReset();
+		vi.mocked(
+			stateHandler.requestEditorStateSnapshotFromRenderer
+		).mockResolvedValue({
+			version: 1,
+			timestamp: Date.now(),
+			state: {
+				project: { activeProject: { id: "proj_123" } },
+				media: { items: [] },
+			},
+		});
+		vi.mocked(timelineHandler.batchUpdateElements).mockClear();
+		vi.mocked(timelineHandler.batchDeleteElements).mockClear();
+		vi.mocked(timelineHandler.batchAddElements).mockReset();
+		vi.mocked(timelineHandler.batchAddElements).mockResolvedValue({
+			added: [],
+			failedCount: 0,
+		});
+		vi.mocked(timelineHandler.requestAddElementFromRenderer).mockReset();
+		vi.mocked(timelineHandler.requestAddElementFromRenderer).mockResolvedValue(
+			undefined
+		);
 	});
 
 	it("POST /api/claude/timeline/:projectId/elements/:elementId/split returns split result", async () => {
@@ -400,9 +435,90 @@ describe("Claude HTTP Server - Timeline", () => {
 		);
 	});
 
+	it("PATCH /api/claude/timeline/:projectId/elements/:elementId forwards flat changes", async () => {
+		const send = vi.fn();
+		const mockWindow = createMockWindow(send);
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
+		const changes = {
+			x: 120,
+			y: 240,
+			width: 320,
+			startTime: 2,
+			duration: 3,
+		};
+
+		const res = await fetch(
+			"/api/claude/timeline/proj_123/elements/element_1",
+			{
+				method: "PATCH",
+				body: JSON.stringify(changes),
+			}
+		);
+
+		expect(res.status).toBe(200);
+		expect(res.body.success).toBe(true);
+		expect(send).toHaveBeenCalledWith("claude:timeline:updateElement", {
+			correlationId: expect.any(String),
+			elementId: "element_1",
+			changes,
+		});
+		expect(send.mock.calls[0]?.[1].changes).not.toHaveProperty("changes");
+	});
+
+	it("POST /api/claude/timeline/:projectId/elements waits for a correlated renderer ACK", async () => {
+		const send = vi.fn();
+		const mockWindow = createMockWindow(send);
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
+
+		const res = await fetch("/api/claude/timeline/proj_123/elements", {
+			method: "POST",
+			body: JSON.stringify({
+				id: "element_1",
+				duration: 5,
+				startTime: 0,
+				type: "sticker",
+			}),
+		});
+
+		expect(res.status).toBe(200);
+		expect(res.body.data.elementId).toBe("element_1");
+		expect(timelineHandler.requestAddElementFromRenderer).toHaveBeenCalledWith({
+			correlationId: expect.any(String),
+			element: expect.objectContaining({
+				id: "element_1",
+				type: "sticker",
+			}),
+			win: mockWindow,
+		});
+		expect(send).not.toHaveBeenCalledWith(
+			"claude:timeline:addElement",
+			expect.anything()
+		);
+	});
+
+	it("POST /api/claude/timeline/:projectId/elements returns renderer NACK", async () => {
+		const mockWindow = createMockWindow();
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
+		vi.mocked(
+			timelineHandler.requestAddElementFromRenderer
+		).mockRejectedValueOnce(new Error("track span is occupied"));
+
+		const res = await fetch("/api/claude/timeline/proj_123/elements", {
+			method: "POST",
+			body: JSON.stringify({
+				duration: 5,
+				startTime: 0,
+				type: "sticker",
+			}),
+		});
+
+		expect(res.status).toBe(409);
+		expect(res.body.error).toContain("track span is occupied");
+	});
+
 	it("POST /api/claude/timeline/:projectId/elements/batch calls batch add handler", async () => {
 		const mockWindow = createMockWindow();
-		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
 		vi.mocked(timelineHandler.batchAddElements).mockResolvedValueOnce({
 			added: [{ index: 0, success: true, elementId: "el_1" }],
 			failedCount: 0,
@@ -436,7 +552,7 @@ describe("Claude HTTP Server - Timeline", () => {
 
 	it("PATCH /api/claude/timeline/:projectId/elements/batch calls batch update handler", async () => {
 		const mockWindow = createMockWindow();
-		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
 		vi.mocked(timelineHandler.batchUpdateElements).mockResolvedValueOnce({
 			updatedCount: 1,
 			failedCount: 0,
@@ -462,7 +578,7 @@ describe("Claude HTTP Server - Timeline", () => {
 
 	it("DELETE /api/claude/timeline/:projectId/elements/batch calls batch delete handler", async () => {
 		const mockWindow = createMockWindow();
-		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
 		vi.mocked(timelineHandler.batchDeleteElements).mockResolvedValueOnce({
 			deletedCount: 1,
 			failedCount: 0,
@@ -486,6 +602,82 @@ describe("Claude HTTP Server - Timeline", () => {
 			true,
 			expect.any(String)
 		);
+	});
+
+	it.each([
+		{
+			label: "single add",
+			method: "POST",
+			path: "/api/claude/timeline/proj_other/elements",
+			body: { duration: 1, startTime: 0, type: "sticker" },
+		},
+		{
+			label: "batch add",
+			method: "POST",
+			path: "/api/claude/timeline/proj_other/elements/batch",
+			body: {
+				elements: [{ duration: 1, startTime: 0, type: "sticker" }],
+			},
+		},
+		{
+			label: "single update",
+			method: "PATCH",
+			path: "/api/claude/timeline/proj_other/elements/el_1",
+			body: { x: 2 },
+		},
+		{
+			label: "single delete",
+			method: "DELETE",
+			path: "/api/claude/timeline/proj_other/elements/el_1",
+			body: {},
+		},
+		{
+			label: "batch update",
+			method: "PATCH",
+			path: "/api/claude/timeline/proj_other/elements/batch",
+			body: { updates: [{ elementId: "el_1", x: 2 }] },
+		},
+		{
+			label: "batch delete",
+			method: "DELETE",
+			path: "/api/claude/timeline/proj_other/elements/batch",
+			body: { elements: [{ trackId: "track_1", elementId: "el_1" }] },
+		},
+	])("refuses $label for a project that is not open", async ({
+		method,
+		path,
+		body,
+	}) => {
+		const send = vi.fn();
+		const mockWindow = createMockWindow(send);
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
+		vi.mocked(
+			stateHandler.requestEditorStateSnapshotFromRenderer
+		).mockResolvedValue({
+			version: 1,
+			timestamp: Date.now(),
+			state: {
+				project: { activeProject: { id: "proj_open" } },
+				media: { items: [] },
+			},
+		});
+
+		const res = await fetch(path, {
+			method,
+			body: JSON.stringify(body),
+		});
+
+		expect(res.status).toBe(409);
+		expect(res.body.success).toBe(false);
+		expect(res.body.error).toContain("proj_open");
+		expect(res.body.error).toContain("proj_other");
+		expect(send).not.toHaveBeenCalled();
+		expect(
+			timelineHandler.requestAddElementFromRenderer
+		).not.toHaveBeenCalled();
+		expect(timelineHandler.batchAddElements).not.toHaveBeenCalled();
+		expect(timelineHandler.batchUpdateElements).not.toHaveBeenCalled();
+		expect(timelineHandler.batchDeleteElements).not.toHaveBeenCalled();
 	});
 
 	it("DELETE /api/claude/timeline/:projectId/range forwards crossTrackRipple", async () => {
