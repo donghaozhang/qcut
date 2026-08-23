@@ -20,6 +20,7 @@ import type {
 	PlatformGitHubAPI,
 	PlatformMcpAPI,
 	PlatformProjectJsonAPI,
+	PlatformStickerLabAPI,
 } from "../index.js";
 import type { PlatformClaudeAPI } from "../types/claude-api.js";
 
@@ -57,7 +58,8 @@ describe("PlatformAPI type completeness", () => {
 		expect(caps).toContain("youtube");
 		expect(caps).toContain("filler-analysis");
 		expect(caps).toContain("file-path-resolution");
-		expect(caps.length).toBe(31);
+		expect(caps).toContain("sticker-lab-local-references");
+		expect(caps.length).toBe(32);
 	});
 
 	it("PlatformAPI has all expected namespace properties", () => {
@@ -96,9 +98,10 @@ describe("PlatformAPI type completeness", () => {
 			"remotionFolder",
 			"moyin",
 			"updates",
+			"stickerLab",
 			"claude",
 		];
-		expect(namespaceKeys.length).toBe(33);
+		expect(namespaceKeys.length).toBe(34);
 	});
 
 	it("all new namespace types are importable", () => {
@@ -122,6 +125,7 @@ describe("PlatformAPI type completeness", () => {
 			remotionFolder?: PlatformRemotionFolderAPI;
 			moyin?: PlatformMoyinAPI;
 			updates?: PlatformUpdatesAPI;
+			stickerLab?: PlatformStickerLabAPI;
 			claude?: PlatformClaudeAPI;
 		} = {};
 		expect(typeCheck).toBeDefined();
