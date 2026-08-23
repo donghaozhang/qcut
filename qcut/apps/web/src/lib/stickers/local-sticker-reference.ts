@@ -56,6 +56,115 @@ export interface StickerReferenceUsageMetadata {
 	checksumSha256: string;
 }
 
+export const LOCAL_STICKER_REFERENCE_FILE_CACHE_LIMITS = {
+	maxBytes: 16 * 1024 * 1024,
+	maxEntries: 24,
+} as const;
+
+interface LocalReferenceFileCacheEntry {
+	file: File;
+	byteSize: number;
+}
+
+const localReferenceFileCache = new Map<string, LocalReferenceFileCacheEntry>();
+const localReferenceFileLoads = new Map<string, Promise<File>>();
+const localReferenceFileReleaseVersions = new Map<string, number>();
+let localReferenceFileCacheBytes = 0;
+let localReferenceFileCacheGeneration = 0;
+
+function localReferenceFileCacheKey({
+	reference,
+}: {
+	reference: LocalBridgeStickerReference;
+}): string {
+	return [
+		reference.asset.checksumSha256,
+		reference.fileName,
+		reference.mimeType,
+	].join("\0");
+}
+
+function readCachedLocalReferenceFile({
+	cacheKey,
+}: {
+	cacheKey: string;
+}): File | null {
+	const entry = localReferenceFileCache.get(cacheKey);
+	if (!entry) return null;
+	localReferenceFileCache.delete(cacheKey);
+	localReferenceFileCache.set(cacheKey, entry);
+	return entry.file;
+}
+
+function cacheLocalReferenceFile({
+	cacheKey,
+	file,
+}: {
+	cacheKey: string;
+	file: File;
+}): void {
+	if (file.size > LOCAL_STICKER_REFERENCE_FILE_CACHE_LIMITS.maxBytes) return;
+	const existing = localReferenceFileCache.get(cacheKey);
+	if (existing) {
+		localReferenceFileCacheBytes -= existing.byteSize;
+		localReferenceFileCache.delete(cacheKey);
+	}
+	while (
+		localReferenceFileCache.size >=
+			LOCAL_STICKER_REFERENCE_FILE_CACHE_LIMITS.maxEntries ||
+		localReferenceFileCacheBytes + file.size >
+			LOCAL_STICKER_REFERENCE_FILE_CACHE_LIMITS.maxBytes
+	) {
+		const oldestKey = localReferenceFileCache.keys().next().value;
+		if (typeof oldestKey !== "string") break;
+		const oldest = localReferenceFileCache.get(oldestKey);
+		localReferenceFileCache.delete(oldestKey);
+		localReferenceFileCacheBytes -= oldest?.byteSize ?? 0;
+	}
+	localReferenceFileCache.set(cacheKey, { file, byteSize: file.size });
+	localReferenceFileCacheBytes += file.size;
+}
+
+export function clearLocalStickerReferenceFileCache(): void {
+	localReferenceFileCacheGeneration += 1;
+	localReferenceFileCache.clear();
+	localReferenceFileReleaseVersions.clear();
+	localReferenceFileCacheBytes = 0;
+}
+
+export function releaseLocalStickerReferenceFile({
+	reference,
+}: {
+	reference: LocalBridgeStickerReference;
+}): void {
+	const cacheKey = localReferenceFileCacheKey({ reference });
+	const cached = localReferenceFileCache.get(cacheKey);
+	if (cached) {
+		localReferenceFileCache.delete(cacheKey);
+		localReferenceFileCacheBytes -= cached.byteSize;
+	}
+	if (localReferenceFileLoads.has(cacheKey)) {
+		const releaseVersion = localReferenceFileReleaseVersions.get(cacheKey) ?? 0;
+		localReferenceFileReleaseVersions.set(cacheKey, releaseVersion + 1);
+	}
+}
+
+export function getLocalStickerReferenceFileCacheStatus(): {
+	entryCount: number;
+	inFlightCount: number;
+	maxBytes: number;
+	maxEntries: number;
+	totalBytes: number;
+} {
+	return {
+		entryCount: localReferenceFileCache.size,
+		inFlightCount: localReferenceFileLoads.size,
+		maxBytes: LOCAL_STICKER_REFERENCE_FILE_CACHE_LIMITS.maxBytes,
+		maxEntries: LOCAL_STICKER_REFERENCE_FILE_CACHE_LIMITS.maxEntries,
+		totalBytes: localReferenceFileCacheBytes,
+	};
+}
+
 function stickerLabBridge() {
 	try {
 		const currentPlatform = platform();
@@ -208,33 +317,60 @@ export async function loadLocalBridgeStickerReferenceFile({
 	signal?: AbortSignal;
 }): Promise<File> {
 	abortIfRequested({ signal });
-	const bridge = stickerLabBridge();
-	if (!bridge) {
-		throw new Error("Local sticker reference bridge is unavailable");
+	const cacheKey = localReferenceFileCacheKey({ reference });
+	const cached = readCachedLocalReferenceFile({ cacheKey });
+	if (cached) return cached;
+
+	let load = localReferenceFileLoads.get(cacheKey);
+	if (!load) {
+		const cacheGeneration = localReferenceFileCacheGeneration;
+		const releaseVersion = localReferenceFileReleaseVersions.get(cacheKey) ?? 0;
+		load = (async () => {
+			const bridge = stickerLabBridge();
+			if (!bridge) {
+				throw new Error("Local sticker reference bridge is unavailable");
+			}
+			const result = await bridge.readLocalReference({
+				rootPath: reference.asset.rootPath,
+				batchId: reference.asset.batchId,
+				stickerId: reference.asset.stickerId,
+			});
+			if (
+				result.batchId !== reference.asset.batchId ||
+				result.stickerId !== reference.asset.stickerId ||
+				result.checksumSha256 !== reference.asset.checksumSha256 ||
+				result.fileName !== reference.fileName ||
+				result.mimeType !== reference.mimeType ||
+				result.bytes.byteLength !== reference.asset.byteSize
+			) {
+				throw new Error(
+					`Local sticker reference verification failed: ${reference.id}`
+				);
+			}
+			const file = ownedFile({
+				bytes: result.bytes,
+				fileName: reference.fileName,
+				mimeType: reference.mimeType,
+			});
+			const canCache =
+				cacheGeneration === localReferenceFileCacheGeneration &&
+				releaseVersion ===
+					(localReferenceFileReleaseVersions.get(cacheKey) ?? 0);
+			if (canCache) cacheLocalReferenceFile({ cacheKey, file });
+			return file;
+		})();
+		localReferenceFileLoads.set(cacheKey, load);
 	}
-	const result = await bridge.readLocalReference({
-		rootPath: reference.asset.rootPath,
-		batchId: reference.asset.batchId,
-		stickerId: reference.asset.stickerId,
-	});
+	let file: File;
+	try {
+		file = await load;
+	} finally {
+		if (localReferenceFileLoads.get(cacheKey) === load) {
+			localReferenceFileLoads.delete(cacheKey);
+		}
+	}
 	abortIfRequested({ signal });
-	if (
-		result.batchId !== reference.asset.batchId ||
-		result.stickerId !== reference.asset.stickerId ||
-		result.checksumSha256 !== reference.asset.checksumSha256 ||
-		result.fileName !== reference.fileName ||
-		result.mimeType !== reference.mimeType ||
-		result.bytes.byteLength !== reference.asset.byteSize
-	) {
-		throw new Error(
-			`Local sticker reference verification failed: ${reference.id}`
-		);
-	}
-	return ownedFile({
-		bytes: result.bytes,
-		fileName: reference.fileName,
-		mimeType: reference.mimeType,
-	});
+	return file;
 }
 
 export function stickerLabAssetUrl({
