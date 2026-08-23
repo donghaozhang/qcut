@@ -21,6 +21,7 @@ import {
 	sanitizeProjectId,
 } from "../utils/helpers.js";
 import {
+	requestAddElementFromRenderer,
 	requestTimelineFromRenderer,
 	requestSplitFromRenderer,
 	requestSelectionFromRenderer,
@@ -58,6 +59,10 @@ import {
 } from "../handlers/claude-navigator-handler.js";
 import { registerStateRoutes } from "./claude-http-state-routes.js";
 import { requestEditorStateSnapshotFromRenderer } from "../handlers/claude-state-handler.js";
+import {
+	requestMediaDeleteFromRenderer,
+	requestMediaImportFromRenderer,
+} from "../handlers/claude-media-renderer-handler.js";
 import { registerQCutImportEvidenceRoutes } from "./claude-http-import-evidence-routes.js";
 import { requestQCutImportEvidenceFromRenderer } from "../handlers/qcut-import-evidence-handler.js";
 import { registerQCutSameProfileWritebackRoutes } from "./claude-http-same-profile-writeback-routes.js";
@@ -175,6 +180,13 @@ export function startClaudeHTTPServer(
 		/** Requests the current renderer selection. */
 		requestSelection: (correlationId) =>
 			requestSelectionFromRenderer(getWindow(), correlationId),
+		/** Adds one element and waits for its correlated renderer acknowledgement. */
+		requestAddElement: (element, correlationId) =>
+			requestAddElementFromRenderer({
+				correlationId,
+				element,
+				win: getWindow(),
+			}),
 		/** Sends a split request to the renderer timeline. */
 		requestSplit: (elementId, splitTime, mode, correlationId) =>
 			requestSplitFromRenderer(
@@ -234,6 +246,12 @@ export function startClaudeHTTPServer(
 		/** Requests an editor state snapshot from the renderer. */
 		requestStateSnapshot: (request) =>
 			requestEditorStateSnapshotFromRenderer(getWindow(), request),
+		/** Imports media into the renderer and waits for persistence. */
+		requestMediaImport: (payload) =>
+			requestMediaImportFromRenderer({ payload, win: getWindow() }),
+		/** Removes media from the renderer and waits for persistence. */
+		requestMediaDelete: (payload) =>
+			requestMediaDeleteFromRenderer({ payload, win: getWindow() }),
 		/** Starts an auto-edit job in the main process. */
 		startAutoEditJob: async (projectId, request) =>
 			startAutoEditJob(projectId, request, getWindow()),
