@@ -43,10 +43,7 @@ export function summarizeEntry({
 		textureLayerCount: entry.textureLayerCount,
 		capabilities: entry.capabilities,
 		diagnostics: entry.diagnostics,
-		hasCover:
-			entry.hasCover ||
-			Boolean(resourceMetadata?.coverUrl) ||
-			Boolean(entry.runtimeReference),
+		hasCover: entry.hasCover,
 		compatibility: entry.compatibility,
 		...(entry.approximation ? { approximation: entry.approximation } : {}),
 		...(entry.runtimeReference
