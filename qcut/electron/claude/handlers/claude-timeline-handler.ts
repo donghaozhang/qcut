@@ -154,9 +154,14 @@ export function setupClaudeTimelineIPC(): void {
 		): Promise<string> => {
 			claudeLog.info(HANDLER_NAME, `Adding element to project: ${projectId}`);
 			const elementId = element.id || generateId("element");
-			event.sender.send("claude:timeline:addElement", {
-				...element,
-				id: elementId,
+			const win = BrowserWindow.fromWebContents(event.sender);
+			if (!win) {
+				throw new Error("Window not found");
+			}
+			await requestAddElementFromRenderer({
+				element: { ...element, id: elementId },
+				projectId,
+				win,
 			});
 			return elementId;
 		}
