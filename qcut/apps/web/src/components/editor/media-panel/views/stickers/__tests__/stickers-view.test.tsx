@@ -344,12 +344,37 @@ describe("StickersView", () => {
 		expect(screen.getByTestId("sticker-shape-library")).toBeInTheDocument();
 	});
 
-	it("hides both lab sections when no local catalog is configured", () => {
+	it("keeps both lab sections hidden on unsupported platforms", () => {
 		localCatalogMock.current.isAvailable = false;
 		render(<StickersView />);
 
 		expect(screen.queryByRole("button", { name: "贴纸实验室" })).toBeNull();
 		expect(screen.queryByRole("button", { name: "QCut 原创" })).toBeNull();
+	});
+
+	it("shows an empty Sticker Lab entry by default on desktop", () => {
+		const privateCatalogs = localCatalogMock.current.privateCatalogs;
+		localCatalogMock.current.privateCatalogs = [];
+		try {
+			render(<StickersView />);
+
+			const labEntry = screen.getByTestId("sticker-reference-lab-entry");
+			const labButton = within(labEntry).getByRole("button", {
+				name: "贴纸实验室",
+			});
+			expect(within(labEntry).getByText("暂无")).toBeInTheDocument();
+
+			fireEvent.click(labButton);
+			expect(
+				screen.getByTestId("local-sticker-reference-panel")
+			).toBeInTheDocument();
+			expect(screen.getByText("暂无实验贴纸")).toBeInTheDocument();
+			expect(
+				screen.getByTestId("sticker-lab-reference-policy")
+			).toHaveTextContent("禁止二次分发");
+		} finally {
+			localCatalogMock.current.privateCatalogs = privateCatalogs;
+		}
 	});
 
 	it("surfaces a failed local reference upload as a retryable card error", async () => {
