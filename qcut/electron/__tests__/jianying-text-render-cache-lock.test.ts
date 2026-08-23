@@ -82,7 +82,9 @@ describe("Jianying text render cache lock", () => {
 			// Wait for the real critical-section entry rather than guessing with a
 			// wall clock: acquiring does open + write + fsync + fstat, which costs
 			// a few milliseconds here but roughly ten times that on Windows CI.
-			await firstIsRunning;
+			// Racing `first` means a failed acquisition reports its own error
+			// instead of hanging this barrier until the test times out.
+			await Promise.race([firstIsRunning, first]);
 			second = runLocked({
 				cacheRoot,
 				task: async () => {
