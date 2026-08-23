@@ -11,6 +11,7 @@ import {
 	searchStickerCatalog,
 	type StickerCategoryId,
 } from "@/lib/stickers/sticker-catalog";
+import type { StickerReferenceUsageMetadata } from "@/lib/stickers/local-sticker-reference";
 import { useStickersStore } from "@/stores/stickers-store";
 import { AIStickerGenerator } from "./components/ai-sticker-generator";
 import {
@@ -129,8 +130,14 @@ export function StickersView() {
 		currentTarget.value = "";
 		await Promise.all(files.map((file) => handleStickerUpload({ file })));
 	};
-	const handleLocalReferenceSelect = async ({ file }: { file: File }) => {
-		const mediaItemId = await handleStickerUpload({ file });
+	const handleLocalReferenceSelect = async ({
+		file,
+		metadata,
+	}: {
+		file: File;
+		metadata?: StickerReferenceUsageMetadata;
+	}) => {
+		const mediaItemId = await handleStickerUpload({ file, metadata });
 		if (!mediaItemId) {
 			throw new Error("Unable to add sticker lab asset");
 		}
@@ -267,6 +274,9 @@ export function StickersView() {
 							catalog={localStickerCatalog.catalog}
 							error={localStickerCatalog.error}
 							isLoading={localStickerCatalog.isLoading}
+							localReferenceWarningCount={
+								localStickerCatalog.localReferenceWarningCount
+							}
 							onSelect={handleLocalReferenceSelect}
 							privateCategories={privateLabCategories}
 							selection={resolvedLabSelection}

@@ -8,6 +8,17 @@
  */
 export const ALLOW_ANY_SIGNED_IN_USER = "*";
 
+function parseAllowedUserIds({
+	allowlist,
+}: {
+	allowlist: string | undefined;
+}): string[] {
+	return (allowlist ?? "")
+		.split(",")
+		.map((allowedUserId) => allowedUserId.trim())
+		.filter((allowedUserId) => allowedUserId.length > 0);
+}
+
 export function isUserIdAllowlisted({
 	allowlist,
 	userId,
@@ -19,10 +30,25 @@ export function isUserIdAllowlisted({
 	// an unauthenticated caller through.
 	if (!userId) return false;
 
-	const allowedUserIds = (allowlist ?? "")
-		.split(",")
-		.map((allowedUserId) => allowedUserId.trim())
-		.filter((allowedUserId) => allowedUserId.length > 0);
+	const allowedUserIds = parseAllowedUserIds({ allowlist });
 	if (allowedUserIds.includes(ALLOW_ANY_SIGNED_IN_USER)) return true;
+	return allowedUserIds.includes(userId);
+}
+
+/**
+ * Checks an explicit-ID-only gate. A wildcard token invalidates the entire
+ * configuration so a broad entitlement cannot be copied onto restricted data.
+ */
+export function isUserIdExplicitlyAllowlisted({
+	allowlist,
+	userId,
+}: {
+	allowlist: string | undefined;
+	userId: string | undefined;
+}): boolean {
+	if (!userId) return false;
+
+	const allowedUserIds = parseAllowedUserIds({ allowlist });
+	if (allowedUserIds.includes(ALLOW_ANY_SIGNED_IN_USER)) return false;
 	return allowedUserIds.includes(userId);
 }

@@ -55,8 +55,15 @@ import type {
 	MediaMaskStroke,
 	MediaMaskTracking,
 	MediaPerspective,
+	MediaPortraitAdjustments,
+	MediaPortraitFaceTarget,
+	MediaPortraitMakeupSelection,
 	MediaKeyframeProperty,
 	MediaPropertyKeyframe,
+} from "@qcut/editor-core";
+import {
+	MEDIA_PORTRAIT_ADJUSTMENT_KEYS,
+	MEDIA_PORTRAIT_MAKEUP_CATEGORIES,
 } from "@qcut/editor-core";
 import {
 	assertNoUnknownKeys,
@@ -131,6 +138,7 @@ const MEDIA_ELEMENT_KEYS = createAllowedKeySet<MediaElement>({
 		name: true,
 		opacity: true,
 		perspective: true,
+		portraitAdjustments: true,
 		playbackRate: true,
 		preservePitch: true,
 		reverse: true,
@@ -815,6 +823,24 @@ const MEDIA_ENHANCEMENT_KEYS = createAllowedKeySet<MediaEnhancements>({
 		upscale: true,
 	},
 });
+const MEDIA_PORTRAIT_ADJUSTMENT_CONTAINER_KEYS =
+	createAllowedKeySet<MediaPortraitAdjustments>({
+		keys: { enabled: true, faceTarget: true, makeup: true, values: true },
+	});
+const MEDIA_PORTRAIT_ADJUSTMENT_VALUE_KEYS = new Set<string>(
+	MEDIA_PORTRAIT_ADJUSTMENT_KEYS
+);
+const MEDIA_PORTRAIT_FACE_TARGET_KEYS =
+	createAllowedKeySet<MediaPortraitFaceTarget>({
+		keys: { faceId: true, mode: true },
+	});
+const MEDIA_PORTRAIT_MAKEUP_KEYS = new Set<string>(
+	MEDIA_PORTRAIT_MAKEUP_CATEGORIES
+);
+const MEDIA_PORTRAIT_MAKEUP_SELECTION_KEYS =
+	createAllowedKeySet<MediaPortraitMakeupSelection>({
+		keys: { cardId: true, intensity: true },
+	});
 const MEDIA_COMPOUND_KEYS = createAllowedKeySet<MediaCompound>({
 	keys: { activeClipId: true, clips: true, kind: true },
 });
@@ -855,6 +881,79 @@ function validateNumberRecord({
 		getFiniteNumber({ path: `${path}.${key}`, value: entry });
 	}
 	return record;
+}
+
+function validatePortraitFaceTarget({
+	path,
+	value,
+}: {
+	path: string;
+	value: JsonValue;
+}): void {
+	const target = getRecord({ path, value });
+	assertKeys({
+		allowed: MEDIA_PORTRAIT_FACE_TARGET_KEYS,
+		path,
+		record: target,
+	});
+	const mode = getString({ path: `${path}.mode`, value: target.mode });
+	if (mode !== "all" && mode !== "single") {
+		throw validationIssue({
+			message: "Expected all or single.",
+			path: `${path}.mode`,
+		});
+	}
+	if (mode === "all") return;
+	const faceId = getFiniteNumber({
+		path: `${path}.faceId`,
+		value: target.faceId,
+	});
+	if (!Number.isSafeInteger(faceId) || faceId < 0 || faceId > 9) {
+		throw validationIssue({
+			message: "Expected an integer from 0 through 9.",
+			path: `${path}.faceId`,
+		});
+	}
+}
+
+function validatePortraitMakeup({
+	path,
+	value,
+}: {
+	path: string;
+	value: JsonValue;
+}): void {
+	const makeup = getRecord({ path, value });
+	assertKeys({ allowed: MEDIA_PORTRAIT_MAKEUP_KEYS, path, record: makeup });
+	for (const [category, entry] of Object.entries(makeup)) {
+		const selectionPath = `${path}.${category}`;
+		const selection = getRecord({ path: selectionPath, value: entry });
+		assertKeys({
+			allowed: MEDIA_PORTRAIT_MAKEUP_SELECTION_KEYS,
+			path: selectionPath,
+			record: selection,
+		});
+		const cardId = getString({
+			path: `${selectionPath}.cardId`,
+			value: selection.cardId,
+		});
+		if (!/^[a-z0-9-]{1,80}$/.test(cardId)) {
+			throw validationIssue({
+				message: "Expected a supported card identifier.",
+				path: `${selectionPath}.cardId`,
+			});
+		}
+		const intensity = getFiniteNumber({
+			path: `${selectionPath}.intensity`,
+			value: selection.intensity,
+		});
+		if (intensity <= 0 || intensity > 100) {
+			throw validationIssue({
+				message: "Expected a number greater than 0 and at most 100.",
+				path: `${selectionPath}.intensity`,
+			});
+		}
+	}
 }
 
 function validateStringRecord({
@@ -1663,6 +1762,39 @@ export function validateMediaElement({
 			path: `${path}.enhancements`,
 			value: element.enhancements,
 		});
+	}
+	if (element.portraitAdjustments !== undefined) {
+		const portraitPath = `${path}.portraitAdjustments`;
+		const portraitAdjustments = getRecord({
+			path: portraitPath,
+			value: element.portraitAdjustments,
+		});
+		assertKeys({
+			allowed: MEDIA_PORTRAIT_ADJUSTMENT_CONTAINER_KEYS,
+			path: portraitPath,
+			record: portraitAdjustments,
+		});
+		getBoolean({
+			path: `${portraitPath}.enabled`,
+			value: portraitAdjustments.enabled,
+		});
+		validateNumberRecord({
+			allowed: MEDIA_PORTRAIT_ADJUSTMENT_VALUE_KEYS,
+			path: `${portraitPath}.values`,
+			value: portraitAdjustments.values,
+		});
+		if (portraitAdjustments.faceTarget !== undefined) {
+			validatePortraitFaceTarget({
+				path: `${portraitPath}.faceTarget`,
+				value: portraitAdjustments.faceTarget,
+			});
+		}
+		if (portraitAdjustments.makeup !== undefined) {
+			validatePortraitMakeup({
+				path: `${portraitPath}.makeup`,
+				value: portraitAdjustments.makeup,
+			});
+		}
 	}
 	if (element.compound !== undefined) {
 		validateMediaCompound({

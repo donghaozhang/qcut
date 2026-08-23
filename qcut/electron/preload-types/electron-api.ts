@@ -66,6 +66,7 @@ import type { JianyingDraftExportPreloadAPI } from "./api-types/jianying-draft-e
 import type { JianyingEffectPreloadAPI } from "./api-types/jianying-effect-api";
 import type { JianyingTransitionPreloadAPI } from "./api-types/jianying-transition-api";
 import type { JianyingFilterLabPreloadAPI } from "./api-types/jianying-filter-lab-api";
+import type { JianyingPortraitAdjustmentPreloadAPI } from "./api-types/jianying-portrait-adjustment-api";
 import type { JianyingFontLabPreloadAPI } from "./api-types/jianying-font-lab-api";
 import type { JianyingTextStyleLabPreloadAPI } from "./api-types/jianying-text-style-lab-api";
 import type { JianyingTextRuntimePreloadAPI } from "./api-types/jianying-text-runtime-api";
@@ -79,6 +80,7 @@ import type {
 	LicenseAPI,
 } from "./api-types/system-api";
 import type { YouTubeApi } from "./api-types/youtube-api";
+import type { StickerLabAPI } from "./api-types/sticker-lab-api";
 
 // ============================================================================
 // Master ElectronAPI interface
@@ -114,10 +116,12 @@ export interface ElectronAPI
 		UpdatesAPI,
 		LicenseAPI,
 		YouTubeApi,
+		StickerLabAPI,
 		JianyingDraftExportPreloadAPI,
 		JianyingTransitionPreloadAPI,
 		JianyingEffectPreloadAPI,
 		JianyingFilterLabPreloadAPI,
+		JianyingPortraitAdjustmentPreloadAPI,
 		JianyingFontLabPreloadAPI,
 		JianyingTextStyleLabPreloadAPI,
 		JianyingTextRuntimePreloadAPI,

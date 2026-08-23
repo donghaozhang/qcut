@@ -24,6 +24,7 @@ import type {
 	TransactionRequest,
 	MediaFile,
 	ClaudeTimeline,
+	ClaudeElement,
 	ClaudeSelectionItem,
 	ClaudeSplitResponse,
 	ProjectStats,
@@ -48,6 +49,14 @@ import type {
 	EditorStateRequest,
 	EditorStateSnapshot,
 } from "../../types/claude-state-api.js";
+import type {
+	ClaudeMediaDeletedEvent,
+	ClaudeMediaImportedEvent,
+} from "../../types/claude-media-bridge-api.js";
+import {
+	parseStickerLabMediaImportMetadata,
+	type StickerLabMediaImportMetadata,
+} from "./claude-media-import-metadata.js";
 
 import {
 	listMediaFiles,
@@ -59,6 +68,7 @@ import {
 	batchImportMedia,
 	extractFrame,
 } from "../handlers/claude-media-handler.js";
+import { persistMediaRestrictedMetadata } from "../handlers/claude-media-restricted-metadata.js";
 import {
 	timelineToMarkdown,
 	markdownToTimeline,
@@ -124,6 +134,12 @@ export interface WindowAccessor {
 	requestTimeline(): Promise<ClaudeTimeline>;
 	/** Request current selection from renderer */
 	requestSelection(correlationId?: string): Promise<ClaudeSelectionItem[]>;
+	/** Add one timeline element and wait for the renderer acknowledgement. */
+	requestAddElement?(
+		projectId: string,
+		element: Partial<ClaudeElement>,
+		correlationId?: string
+	): Promise<void>;
 	/** Request an element split from renderer */
 	requestSplit(
 		elementId: string,
@@ -201,6 +217,14 @@ export interface WindowAccessor {
 	requestStateSnapshot?(
 		request?: EditorStateRequest
 	): Promise<EditorStateSnapshot>;
+	/** Import media into the renderer and wait for persistent storage. */
+	requestMediaImport?(
+		payload: Omit<ClaudeMediaImportedEvent, "requestId">
+	): Promise<void>;
+	/** Remove media from the renderer store and persistent storage. */
+	requestMediaDelete?(
+		payload: Omit<ClaudeMediaDeletedEvent, "requestId">
+	): Promise<void>;
 	/** Execute batch timeline cuts (optional utility-process bridge hook) */
 	executeBatchCuts?(request: BatchCutRequest): Promise<BatchCutResponse>;
 	/** Execute range delete (optional utility-process bridge hook) */
@@ -378,8 +402,9 @@ function scheduleProjectJsonAutoSync({
  * applied a mutation to it. Refuse instead of answering about, or editing, a
  * project the caller did not name.
  *
- * Skipped when the renderer cannot report its state, since a guard that cannot
- * read the truth must not invent one.
+ * Accessors predating state snapshots are left compatible. Once an accessor
+ * advertises snapshot support, mutations fail closed if the renderer cannot
+ * prove which project is open.
  */
 const PROJECT_SCOPE_TIMEOUT_MS = 750;
 
@@ -390,14 +415,13 @@ export async function assertProjectIsOpen({
 	accessor: WindowAccessor;
 	projectId: string | undefined;
 }): Promise<void> {
-	if (!(projectId && accessor.requestStateSnapshot)) return;
+	if (!projectId) return;
+	const requestStateSnapshot = accessor.requestStateSnapshot;
+	if (!requestStateSnapshot) return;
 	let openProjectId: string | undefined;
 	try {
-		// Bounded: this guard runs before every timeline call, so a renderer that
-		// is slow to report state must degrade to the old behaviour rather than
-		// hang the mutation behind it.
 		const snapshot = await Promise.race([
-			accessor.requestStateSnapshot({ include: ["project"] }),
+			requestStateSnapshot({ include: ["project"] }),
 			new Promise<never>((_, reject) =>
 				setTimeout(
 					() => reject(new Error("state snapshot timed out")),
@@ -405,14 +429,21 @@ export async function assertProjectIsOpen({
 				)
 			),
 		]);
-		const project = (
-			snapshot as { project?: { activeProject?: { id?: string } } }
-		).project;
+		const project = snapshot.state?.project;
 		openProjectId = project?.activeProject?.id;
 	} catch {
-		return;
+		throw new HttpError(
+			503,
+			"No active editor project could be confirmed. Try again after QCut finishes loading."
+		);
 	}
-	if (!openProjectId || openProjectId === projectId) return;
+	if (!openProjectId) {
+		throw new HttpError(
+			409,
+			`The editor has no project open. Open ${projectId} first (editor:navigator:open --project-id ${projectId}) or pass --focus.`
+		);
+	}
+	if (openProjectId === projectId) return;
 	throw new HttpError(
 		409,
 		`The editor has ${openProjectId} open, not ${projectId}. Open it first (editor:navigator:open --project-id ${projectId}) or pass --focus.`
@@ -445,6 +476,27 @@ async function waitForTimelineMutationBarrier({
 	}
 }
 
+async function requireRendererMutation({
+	operation,
+	request,
+}: {
+	operation: string;
+	request: () => Promise<void>;
+}): Promise<void> {
+	try {
+		await request();
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		if (/timed out|timeout/i.test(message)) {
+			throw new HttpError(504, `${operation} timed out: ${message}`);
+		}
+		if (/unavailable|destroyed|no active window/i.test(message)) {
+			throw new HttpError(503, `${operation} is unavailable: ${message}`);
+		}
+		throw new HttpError(409, `${operation} was rejected: ${message}`);
+	}
+}
+
 /** Where an element currently sits, or null when it is not on the timeline. */
 function locateElement({
 	timeline,
@@ -461,13 +513,6 @@ function locateElement({
 		}
 	}
 	return null;
-}
-
-function countElements({ timeline }: { timeline: ClaudeTimeline }): number {
-	let total = 0;
-	for (const track of timeline.tracks ?? [])
-		total += track.elements?.length ?? 0;
-	return total;
 }
 
 /**
@@ -547,44 +592,120 @@ export function registerSharedRoutes(
 	router.post("/api/claude/media/:projectId/import", async (req) => {
 		if (!req.body?.source)
 			throw new HttpError(400, "Missing 'source' in request body");
+		let metadata: StickerLabMediaImportMetadata | undefined;
+		try {
+			metadata = parseStickerLabMediaImportMetadata({
+				candidate: req.body.metadata,
+			});
+		} catch (error) {
+			throw new HttpError(
+				400,
+				error instanceof Error ? error.message : "Invalid media import metadata"
+			);
+		}
+		await assertProjectIsOpen({ accessor, projectId: req.params.projectId });
 		const media = await importMediaFile(req.params.projectId, req.body.source);
-		logOperation({
-			stage: 1,
-			action: "import",
-			details: `Imported media from path: ${req.body.source}`,
-			timestamp: Date.now(),
-			projectId: req.params.projectId,
-		});
 		if (media) {
-			try {
-				const win = accessor.getWindow();
-				win.webContents.send("claude:media:imported", {
-					path: media.path,
-					name: media.name,
-					id: media.id,
-					type: media.type,
-					size: media.size,
-				});
-			} catch {
-				/* non-fatal */
+			const importedEvent = {
+				projectId: req.params.projectId,
+				path: media.path,
+				name: media.name,
+				id: media.id,
+				...(metadata ? { metadata } : {}),
+				type: media.type,
+				size: media.size,
+			};
+			if (metadata) {
+				let rendererImportAttempted = false;
+				try {
+					await persistMediaRestrictedMetadata({
+						mediaId: media.id,
+						metadata,
+						projectId: req.params.projectId,
+					});
+					if (!accessor.requestMediaImport) {
+						throw new HttpError(
+							503,
+							"Renderer media acknowledgement is unavailable"
+						);
+					}
+					rendererImportAttempted = true;
+					await accessor.requestMediaImport(importedEvent);
+				} catch (error) {
+					if (rendererImportAttempted) {
+						await accessor
+							.requestMediaDelete?.({
+								mediaId: media.id,
+								projectId: req.params.projectId,
+							})
+							.catch(() => undefined);
+					}
+					await deleteMediaFile(req.params.projectId, media.id).catch(
+						() => false
+					);
+					throw error;
+				}
+			} else {
+				try {
+					accessor
+						.getWindow()
+						.webContents.send("claude:media:imported", importedEvent);
+				} catch {
+					/* legacy imports do not require renderer acknowledgement */
+				}
 			}
+			logOperation({
+				stage: 1,
+				action: "import",
+				details: `Imported media from path: ${req.body.source}`,
+				timestamp: Date.now(),
+				projectId: req.params.projectId,
+			});
 		}
 		scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
 		return media;
 	});
 
 	router.delete("/api/claude/media/:projectId/:mediaId", async (req) => {
-		const result = await deleteMediaFile(
-			req.params.projectId,
-			req.params.mediaId
-		);
+		await assertProjectIsOpen({
+			accessor,
+			projectId: req.params.projectId,
+		});
+		const media = await getMediaInfo(req.params.projectId, req.params.mediaId);
+		if (!media) return false;
+		const requestMediaDelete = accessor.requestMediaDelete;
+		if (!requestMediaDelete) {
+			throw new HttpError(
+				503,
+				"Renderer media deletion acknowledgement is unavailable"
+			);
+		}
+		await requireRendererMutation({
+			operation: "Renderer media deletion",
+			request: () =>
+				requestMediaDelete({
+					mediaId: media.id,
+					projectId: req.params.projectId,
+				}),
+		});
+		const result = await deleteMediaFile(req.params.projectId, media.id);
+		if (!result) {
+			throw new HttpError(
+				500,
+				"The renderer removed the media, but its project file remains on disk. Retry the delete to reconcile the project."
+			);
+		}
 		scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
-		return result;
+		return true;
 	});
 
 	router.patch("/api/claude/media/:projectId/:mediaId/rename", async (req) => {
 		if (!req.body?.newName)
 			throw new HttpError(400, "Missing 'newName' in request body");
+		await assertProjectIsOpen({
+			accessor,
+			projectId: req.params.projectId,
+		});
 		const result = await renameMediaFile(
 			req.params.projectId,
 			req.params.mediaId,
@@ -798,40 +919,41 @@ export function registerSharedRoutes(
 	});
 
 	router.post("/api/claude/timeline/:projectId/elements", async (req) => {
+		await assertProjectIsOpen({ accessor, projectId: req.params.projectId });
 		if (!req.body)
 			throw new HttpError(400, "Missing element data in request body");
-		const win = accessor.getWindow();
 		const correlationId = getRequestCorrelationId({ req });
 		const elementId =
 			req.body.id ||
 			`element_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-
-		// The renderer mints its own element id, so the add can only be confirmed
-		// by the timeline growing. Without this the editor's refusal to stack two
-		// elements on one track would be reported to the caller as a success.
-		const before = await waitForTimelineMutationBarrier({ accessor });
-		win.webContents.send("claude:timeline:addElement", {
-			correlationId,
-			...req.body,
-			id: elementId,
-		});
-		const after = await waitForTimelineMutationBarrier({ accessor });
-		scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
-
-		if (
-			before &&
-			after &&
-			countElements({ timeline: after }) === countElements({ timeline: before })
-		) {
+		const requestAddElement = accessor.requestAddElement;
+		if (!requestAddElement) {
 			throw new HttpError(
-				409,
-				"The editor refused to add the element: a track plays one element at a time, and that span is already occupied. Choose a free start time, or omit trackId to let the editor pick a lane."
+				503,
+				"Renderer timeline element acknowledgement is unavailable"
 			);
 		}
+		await requireRendererMutation({
+			operation: "Timeline element placement",
+			request: () =>
+				requestAddElement(
+					req.params.projectId,
+					{
+						...req.body,
+						id: elementId,
+					},
+					correlationId
+				),
+		});
+		scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
 		return { elementId };
 	});
 
 	router.post("/api/claude/timeline/:projectId/elements/batch", async (req) => {
+		await assertProjectIsOpen({
+			accessor,
+			projectId: req.params.projectId,
+		});
 		if (!Array.isArray(req.body?.elements))
 			throw new HttpError(400, "Missing 'elements' array in request body");
 		try {
@@ -853,6 +975,10 @@ export function registerSharedRoutes(
 	router.patch(
 		"/api/claude/timeline/:projectId/elements/batch",
 		async (req) => {
+			await assertProjectIsOpen({
+				accessor,
+				projectId: req.params.projectId,
+			});
 			if (!Array.isArray(req.body?.updates))
 				throw new HttpError(400, "Missing 'updates' array in request body");
 			try {
@@ -874,6 +1000,10 @@ export function registerSharedRoutes(
 	router.patch(
 		"/api/claude/timeline/:projectId/elements/:elementId",
 		async (req) => {
+			await assertProjectIsOpen({
+				accessor,
+				projectId: req.params.projectId,
+			});
 			const win = accessor.getWindow();
 			const correlationId = getRequestCorrelationId({ req });
 			win.webContents.send("claude:timeline:updateElement", {
@@ -890,6 +1020,10 @@ export function registerSharedRoutes(
 	router.delete(
 		"/api/claude/timeline/:projectId/elements/batch",
 		async (req) => {
+			await assertProjectIsOpen({
+				accessor,
+				projectId: req.params.projectId,
+			});
 			if (!Array.isArray(req.body?.elements))
 				throw new HttpError(400, "Missing 'elements' array in request body");
 			try {
@@ -912,6 +1046,10 @@ export function registerSharedRoutes(
 	router.delete(
 		"/api/claude/timeline/:projectId/elements/:elementId",
 		async (req) => {
+			await assertProjectIsOpen({
+				accessor,
+				projectId: req.params.projectId,
+			});
 			const win = accessor.getWindow();
 			win.webContents.send(
 				"claude:timeline:removeElement",

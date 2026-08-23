@@ -189,7 +189,8 @@ export class CLIPipelineRunner {
 		if (
 			resolvedOptions.provider &&
 			!resolvedOptions.model &&
-			resolvedOptions.command !== "transcribe"
+			resolvedOptions.command !== "transcribe" &&
+			resolvedOptions.command !== "editor:sticker:add"
 		) {
 			const match = ModelRegistry.findByProvider(resolvedOptions.provider);
 			if (match) {

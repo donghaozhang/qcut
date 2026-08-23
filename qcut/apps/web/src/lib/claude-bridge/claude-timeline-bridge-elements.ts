@@ -1,5 +1,4 @@
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import { useProjectStore } from "@/stores/project-store";
 import type { ClaudeElement } from "../../../../../electron/types/claude-api";
 import { debugLog, debugWarn, debugError } from "@/lib/debug/debug-config";
 import {
@@ -17,6 +16,34 @@ import {
 	getClaudeMediaTimingProperties,
 } from "./claude-timeline-bridge-helpers";
 import type { ClaudeTimelineBridgeAPI } from "./claude-timeline-bridge";
+import {
+	assertTimelineProjectActive,
+	readRequiredTimelineProjectId,
+} from "./claude-timeline-project-guard";
+
+function timelineElementFromTransport({ candidate }: { candidate: unknown }): {
+	element: Partial<ClaudeElement>;
+	projectId: string;
+} {
+	if (
+		typeof candidate !== "object" ||
+		candidate === null ||
+		Array.isArray(candidate)
+	) {
+		throw new Error("Invalid timeline element payload");
+	}
+	const record = candidate as Record<string, unknown>;
+	const projectId = readRequiredTimelineProjectId({
+		candidate: record.projectId,
+	});
+	const element = Object.fromEntries(
+		Object.entries(candidate).filter(
+			([key]) =>
+				key !== "requestId" && key !== "correlationId" && key !== "projectId"
+		)
+	) as Partial<ClaudeElement>;
+	return { element, projectId };
+}
 
 export const applyElementChanges = ({
 	elementId,
@@ -224,80 +251,74 @@ export function setupElementHandlers({
 	claudeAPI: ClaudeTimelineBridgeAPI;
 }): void {
 	// Handle element addition from Claude
-	claudeAPI.onAddElement(async (element: any) => {
+	claudeAPI.onAddElement(async (candidate: unknown) => {
 		try {
+			const { element, projectId } = timelineElementFromTransport({
+				candidate,
+			});
+			assertTimelineProjectActive({ projectId });
+			const elementType = (element as Record<string, unknown>).type;
 			debugLog("[ClaudeTimelineBridge] Adding element:", element);
 
 			const timelineStore = useTimelineStore.getState();
-			const projectId = useProjectStore.getState().activeProject?.id;
+			let addedElementId: string;
 
 			if (isClaudeMediaElementType({ type: element.type })) {
-				await addClaudeMediaElement({
+				addedElementId = await addClaudeMediaElement({
 					element,
 					timelineStore,
 					projectId,
 				});
-				return;
-			}
-
-			if (element.type === "text") {
-				addClaudeTextElement({
+			} else if (element.type === "text") {
+				addedElementId = addClaudeTextElement({
 					element,
 					timelineStore,
 				});
-				return;
-			}
-
-			if (element.type === "adjustment") {
-				addClaudeAdjustmentElement({
+			} else if (element.type === "adjustment") {
+				addedElementId = addClaudeAdjustmentElement({
 					element,
 					timelineStore,
 				});
-				return;
-			}
-
-			if (element.type === "markdown") {
-				addClaudeMarkdownElement({
+			} else if (element.type === "markdown") {
+				addedElementId = addClaudeMarkdownElement({
 					element,
 					timelineStore,
 				});
-				return;
-			}
-
-			if (element.type === "sticker") {
-				await addClaudeStickerElement({
+			} else if (element.type === "sticker") {
+				addedElementId = await addClaudeStickerElement({
 					element,
+					projectId,
 					timelineStore,
 				});
-				return;
-			}
-
-			if (element.type === "remotion") {
-				await addClaudeRemotionElement({
+			} else if (element.type === "remotion") {
+				addedElementId = await addClaudeRemotionElement({
 					element,
+					projectId,
 					timelineStore,
 				});
-				return;
-			}
-
-			if (element.type === "captions" || element.type === "caption") {
+			} else if (element.type === "captions" || elementType === "caption") {
 				console.log(
 					"[CaptionDebug] onAddElement matched caption type:",
-					element.type
+					elementType
 				);
-				addClaudeCaptionElement({
-					element,
+				addedElementId = addClaudeCaptionElement({
+					element:
+						elementType === "caption"
+							? { ...element, type: "captions" }
+							: element,
 					timelineStore,
 				});
-				return;
+			} else {
+				throw new Error(`Unsupported element type: ${String(elementType)}`);
 			}
 
-			debugWarn(
-				"[ClaudeTimelineBridge] Unsupported element type:",
-				element.type
+			debugLog(
+				"[ClaudeTimelineBridge] Added element with renderer acknowledgement:",
+				addedElementId
 			);
 		} catch (error) {
 			debugError("[ClaudeTimelineBridge] Failed to add element:", error);
+			throw error instanceof Error ? error : new Error(String(error));
 		}
 	});
 

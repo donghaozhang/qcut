@@ -84,6 +84,20 @@ export type {
 	PlatformPiAgentAPI,
 } from "./types/integration-api.js";
 
+export type {
+	LocalStickerLabMimeType,
+	LocalStickerLabSourceKind,
+	LocalStickerLabPlayback,
+	LocalStickerLabAsset,
+	LocalStickerLabReference,
+	LocalStickerLabCategory,
+	LocalStickerLabCatalog,
+	LocalStickerLabWarning,
+	LocalStickerLabDiscovery,
+	LocalStickerLabReadResult,
+	PlatformStickerLabAPI,
+} from "./types/sticker-lab-api.js";
+
 // Claude API namespaces
 export type {
 	PlatformClaudeAPI,

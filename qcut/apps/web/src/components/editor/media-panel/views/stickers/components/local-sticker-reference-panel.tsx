@@ -1,7 +1,10 @@
 "use client";
 
 import { AlertCircle, Loader2 } from "lucide-react";
-import { PRIVATE_REFERENCE_PROVENANCE } from "@/lib/stickers/local-sticker-reference";
+import {
+	PRIVATE_REFERENCE_PROVENANCE,
+	type StickerReferenceUsageMetadata,
+} from "@/lib/stickers/local-sticker-reference";
 import {
 	isRemoteStickerCatalog,
 	type StickerLabCatalog,
@@ -52,6 +55,7 @@ export function LocalStickerReferencePanel({
 	catalog,
 	error,
 	isLoading,
+	localReferenceWarningCount = 0,
 	onSelect,
 	privateCategories = EMPTY_PRIVATE_CATEGORIES,
 	selection = null,
@@ -60,7 +64,14 @@ export function LocalStickerReferencePanel({
 	catalog: StickerLabCatalog | null;
 	error: string | null;
 	isLoading: boolean;
-	onSelect: ({ file }: { file: File }) => Promise<void>;
+	localReferenceWarningCount?: number;
+	onSelect: ({
+		file,
+		metadata,
+	}: {
+		file: File;
+		metadata?: StickerReferenceUsageMetadata;
+	}) => Promise<void>;
 	privateCategories?: readonly PrivateStickerCategoryView[];
 	selection?: StickerLabSelection | null;
 	unavailablePrivateCatalogIds?: readonly string[];
@@ -100,6 +111,22 @@ export function LocalStickerReferencePanel({
 			className="flex h-full min-h-0 flex-col"
 			data-testid="local-sticker-reference-panel"
 		>
+			{isPrivateSelection ? (
+				<div
+					className="mx-2 mt-2 shrink-0 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-medium leading-snug text-amber-100/90"
+					data-testid="sticker-lab-reference-policy"
+				>
+					仅限内部参照 · 禁止二次分发
+				</div>
+			) : null}
+			{localReferenceWarningCount > 0 ? (
+				<div
+					className="mx-2 mt-2 shrink-0 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] leading-snug text-amber-200/90"
+					data-testid="sticker-lab-local-reference-warning"
+				>
+					{localReferenceWarningCount} 个本地参照批次或条目未能载入
+				</div>
+			) : null}
 			{missingCatalogCount > 0 ? (
 				<div
 					className="m-2 shrink-0 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] leading-snug text-amber-200/90"

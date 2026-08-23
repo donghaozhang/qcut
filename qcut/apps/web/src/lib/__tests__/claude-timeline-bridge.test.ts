@@ -25,7 +25,13 @@ const storeMocks = vi.hoisted(() => {
 		pushHistory: vi.fn(),
 	};
 
-	const mediaStoreState: { mediaItems: MediaItem[] } = {
+	const mediaStoreState: {
+		addMediaItem: ReturnType<typeof vi.fn>;
+		removeMediaItem: ReturnType<typeof vi.fn>;
+		mediaItems: MediaItem[];
+	} = {
+		addMediaItem: vi.fn(),
+		removeMediaItem: vi.fn(async () => undefined),
 		mediaItems: [],
 	};
 
@@ -69,6 +75,11 @@ vi.mock("@/lib/project/project-folder-sync", () => ({
 	syncProjectFolder: syncProjectFolderMock,
 }));
 
+vi.mock("@/lib/media/blob-manager", () => ({
+	getOrCreateObjectURL: vi.fn(() => "blob:claude-media-import"),
+	releaseObjectURL: vi.fn(() => true),
+}));
+
 const debugMocks = vi.hoisted(() => ({
 	debugLog: vi.fn(),
 	debugWarn: vi.fn(),
@@ -82,8 +93,14 @@ vi.mock("@/types/timeline", () => ({
 }));
 
 type AddElementHandler = (
-	element: Partial<ClaudeElement>
+	element: Partial<ClaudeElement> & {
+		correlationId?: string;
+		projectId?: string;
+		requestId?: string;
+	}
 ) => void | Promise<void>;
+type MediaImportedHandler = (data: unknown) => void | Promise<void>;
+type MediaDeletedHandler = (data: unknown) => void | Promise<void>;
 
 function setupTimelineBridgeWithHandlers({
 	withProjectFolder = false,
@@ -91,6 +108,8 @@ function setupTimelineBridgeWithHandlers({
 	withProjectFolder?: boolean;
 } = {}): {
 	addElementHandler: AddElementHandler;
+	mediaDeletedHandler: MediaDeletedHandler;
+	mediaImportedHandler: MediaImportedHandler;
 	timelineApi: {
 		onRequest: ReturnType<typeof vi.fn>;
 		onApply: ReturnType<typeof vi.fn>;
@@ -102,6 +121,8 @@ function setupTimelineBridgeWithHandlers({
 	};
 } {
 	let addElementHandler: AddElementHandler | null = null;
+	let mediaDeletedHandler: MediaDeletedHandler | null = null;
+	let mediaImportedHandler: MediaImportedHandler | null = null;
 
 	const timelineApi = {
 		onRequest: vi.fn((_callback: () => void) => {}),
@@ -137,13 +158,27 @@ function setupTimelineBridgeWithHandlers({
 
 	const electronAPI: {
 		claude: {
+			media: {
+				onMediaDeleted: (callback: MediaDeletedHandler) => void;
+				onMediaImported: (callback: MediaImportedHandler) => void;
+			};
 			timeline: typeof timelineApi;
 		};
+		readFile: ReturnType<typeof vi.fn>;
 		projectFolder?: object;
 	} = {
 		claude: {
+			media: {
+				onMediaDeleted: (callback) => {
+					mediaDeletedHandler = callback;
+				},
+				onMediaImported: (callback) => {
+					mediaImportedHandler = callback;
+				},
+			},
 			timeline: timelineApi,
 		},
+		readFile: vi.fn(async () => new Uint8Array([1, 2, 3, 4])),
 	};
 	if (withProjectFolder) {
 		electronAPI.projectFolder = {};
@@ -153,8 +188,13 @@ function setupTimelineBridgeWithHandlers({
 		window as unknown as {
 			electronAPI?: {
 				claude?: {
+					media?: {
+						onMediaDeleted: (callback: MediaDeletedHandler) => void;
+						onMediaImported: (callback: MediaImportedHandler) => void;
+					};
 					timeline?: typeof timelineApi;
 				};
+				readFile?: ReturnType<typeof vi.fn>;
 				projectFolder?: object;
 			};
 		}
@@ -168,10 +208,22 @@ function setupTimelineBridgeWithHandlers({
 	if (!addElementHandler) {
 		throw new Error("addElement handler was not registered");
 	}
+	if (!mediaImportedHandler) {
+		throw new Error("media imported handler was not registered");
+	}
+	if (!mediaDeletedHandler) {
+		throw new Error("media deleted handler was not registered");
+	}
 	const registeredAddElementHandler: AddElementHandler = addElementHandler;
+	const registeredMediaDeletedHandler: MediaDeletedHandler =
+		mediaDeletedHandler;
+	const registeredMediaImportedHandler: MediaImportedHandler =
+		mediaImportedHandler;
 
 	return {
 		addElementHandler: registeredAddElementHandler,
+		mediaDeletedHandler: registeredMediaDeletedHandler,
+		mediaImportedHandler: registeredMediaImportedHandler,
 		timelineApi,
 	};
 }
@@ -189,18 +241,168 @@ describe("setupClaudeTimelineBridge - add element", () => {
 		storeMocks.timelineStoreState.addElementToTrack.mockReset();
 		storeMocks.timelineStoreState.updateAdjustmentElement.mockReset();
 		storeMocks.timelineStoreState.removeElementFromTrack.mockReset();
+		storeMocks.mediaStoreState.addMediaItem.mockReset();
+		storeMocks.mediaStoreState.addMediaItem.mockResolvedValue("media-imported");
 
 		storeMocks.timelineStoreState.findOrCreateTrack.mockImplementation(
 			(trackType: string) => `${trackType}-track`
 		);
+		storeMocks.timelineStoreState.addElementToTrack.mockReturnValue(
+			"element-added"
+		);
 		storeMocks.timelineStoreState.tracks = [];
 
 		storeMocks.mediaStoreState.mediaItems = [];
-		storeMocks.projectStoreState.activeProject = null;
+		storeMocks.projectStoreState.activeProject = { id: "project-1" };
+		storeMocks.mediaStoreState.removeMediaItem.mockResolvedValue(undefined);
 
 		vi.spyOn(console, "log").mockImplementation(() => {});
 		vi.spyOn(console, "warn").mockImplementation(() => {});
 		vi.spyOn(console, "error").mockImplementation(() => {});
+	});
+
+	it("preserves CLI provenance metadata and marks GIF imports as animated stickers", async () => {
+		storeMocks.projectStoreState.activeProject = { id: "project-1" };
+		const { mediaImportedHandler } = setupTimelineBridgeWithHandlers();
+
+		await mediaImportedHandler({
+			id: "media-sticker-1",
+			name: "reference.gif",
+			path: "/tmp/reference.gif",
+			projectId: "project-1",
+			type: "image",
+			size: 4,
+			metadata: {
+				source: "sticker-lab",
+				referenceOnly: true,
+				usage: "internal-reference-only",
+				redistribution: "prohibited",
+				batchId: "jianying-batch-18",
+				itemId: "reference-1",
+				checksumSha256: "a".repeat(64),
+				animatedSticker: false,
+			},
+		});
+
+		expect(storeMocks.mediaStoreState.addMediaItem).toHaveBeenCalledWith(
+			"project-1",
+			expect.objectContaining({
+				id: "media-sticker-1",
+				name: "reference.gif",
+				type: "image",
+				file: expect.any(File),
+				metadata: {
+					source: "sticker-lab",
+					referenceOnly: true,
+					usage: "internal-reference-only",
+					redistribution: "prohibited",
+					batchId: "jianying-batch-18",
+					itemId: "reference-1",
+					checksumSha256: "a".repeat(64),
+					animatedSticker: true,
+				},
+			})
+		);
+	});
+
+	it("rejects a media import event for a different project", async () => {
+		storeMocks.projectStoreState.activeProject = { id: "project-active" };
+		const { mediaImportedHandler } = setupTimelineBridgeWithHandlers();
+
+		await expect(
+			mediaImportedHandler({
+				id: "media-sticker-foreign",
+				name: "reference.gif",
+				path: "/tmp/reference.gif",
+				projectId: "project-other",
+				type: "image",
+				size: 4,
+			})
+		).rejects.toThrow("inactive project");
+
+		expect(storeMocks.mediaStoreState.addMediaItem).not.toHaveBeenCalled();
+	});
+
+	it("rejects an import when the active project changes during the file read", async () => {
+		storeMocks.projectStoreState.activeProject = { id: "project-1" };
+		const { mediaImportedHandler } = setupTimelineBridgeWithHandlers();
+		const readFile = (
+			window as unknown as {
+				electronAPI: { readFile: ReturnType<typeof vi.fn> };
+			}
+		).electronAPI.readFile;
+		readFile.mockImplementationOnce(async () => {
+			storeMocks.projectStoreState.activeProject = { id: "project-2" };
+			return new Uint8Array([1, 2, 3, 4]);
+		});
+
+		await expect(
+			mediaImportedHandler({
+				id: "media-sticker-1",
+				name: "reference.gif",
+				path: "/tmp/reference.gif",
+				projectId: "project-1",
+				type: "image",
+				size: 4,
+			})
+		).rejects.toThrow("inactive project project-1");
+
+		expect(storeMocks.mediaStoreState.addMediaItem).not.toHaveBeenCalled();
+		expect(storeMocks.mediaStoreState.removeMediaItem).not.toHaveBeenCalled();
+	});
+
+	it("rolls back imported media when the active project changes during persistence", async () => {
+		storeMocks.projectStoreState.activeProject = { id: "project-1" };
+		storeMocks.mediaStoreState.addMediaItem.mockImplementationOnce(async () => {
+			storeMocks.projectStoreState.activeProject = { id: "project-2" };
+			return "media-sticker-1";
+		});
+		const { mediaImportedHandler } = setupTimelineBridgeWithHandlers();
+
+		await expect(
+			mediaImportedHandler({
+				id: "media-sticker-1",
+				name: "reference.gif",
+				path: "/tmp/reference.gif",
+				projectId: "project-1",
+				type: "image",
+				size: 4,
+			})
+		).rejects.toThrow("inactive project project-1");
+
+		expect(storeMocks.mediaStoreState.removeMediaItem).toHaveBeenCalledWith(
+			"project-1",
+			"media-sticker-1"
+		);
+	});
+
+	it("durably removes media for the active project", async () => {
+		storeMocks.projectStoreState.activeProject = { id: "project-1" };
+		const { mediaDeletedHandler } = setupTimelineBridgeWithHandlers();
+
+		await mediaDeletedHandler({
+			mediaId: "media-sticker-1",
+			projectId: "project-1",
+		});
+
+		expect(storeMocks.mediaStoreState.removeMediaItem).toHaveBeenCalledWith(
+			"project-1",
+			"media-sticker-1"
+		);
+	});
+
+	it("rejects media deletion for an inactive project", async () => {
+		storeMocks.projectStoreState.activeProject = { id: "project-active" };
+		const { mediaDeletedHandler } = setupTimelineBridgeWithHandlers();
+
+		await expect(
+			mediaDeletedHandler({
+				mediaId: "media-sticker-foreign",
+				projectId: "project-other",
+			})
+		).rejects.toThrow("inactive project");
+
+		expect(storeMocks.mediaStoreState.removeMediaItem).not.toHaveBeenCalled();
 	});
 
 	it("adds a media element when sourceName matches imported media", async () => {
@@ -217,6 +419,7 @@ describe("setupClaudeTimelineBridge - add element", () => {
 		const { addElementHandler } = setupTimelineBridgeWithHandlers();
 
 		await addElementHandler({
+			projectId: "project-1",
 			type: "video",
 			sourceName: "clip-a.mp4",
 			startTime: 2,
@@ -264,6 +467,7 @@ describe("setupClaudeTimelineBridge - add element", () => {
 		const { addElementHandler } = setupTimelineBridgeWithHandlers();
 
 		await addElementHandler({
+			projectId: "project-1",
 			type: "media",
 			sourceId: "media-2",
 			startTime: 3,
@@ -297,6 +501,7 @@ describe("setupClaudeTimelineBridge - add element", () => {
 		const { addElementHandler } = setupTimelineBridgeWithHandlers();
 
 		await addElementHandler({
+			projectId: "project-1",
 			type: "media",
 			sourceId: "media-contain",
 			duration: 6,
@@ -332,6 +537,7 @@ describe("setupClaudeTimelineBridge - add element", () => {
 		const { addElementHandler } = setupTimelineBridgeWithHandlers();
 
 		await addElementHandler({
+			projectId: "project-1",
 			type: "video",
 			sourceId,
 			startTime: 0,
@@ -356,6 +562,7 @@ describe("setupClaudeTimelineBridge - add element", () => {
 		const { addElementHandler } = setupTimelineBridgeWithHandlers();
 
 		await addElementHandler({
+			projectId: "project-1",
 			type: "text",
 			startTime: 1,
 			endTime: 4,
@@ -389,6 +596,93 @@ describe("setupClaudeTimelineBridge - add element", () => {
 		});
 	});
 
+	it("preserves the requested id without storing transport correlation fields", async () => {
+		const { addElementHandler } = setupTimelineBridgeWithHandlers();
+
+		await addElementHandler({
+			id: "element-requested",
+			projectId: "project-1",
+			requestId: "request-transport-only",
+			correlationId: "correlation-transport-only",
+			type: "text",
+			content: "Requested identity",
+			startTime: 0,
+			duration: 2,
+		});
+
+		const storedElement = storeMocks.timelineStoreState.addElementToTrack.mock
+			.calls[0]?.[1] as Record<string, unknown>;
+		expect(storedElement.id).toBe("element-requested");
+		expect(storedElement).not.toHaveProperty("requestId");
+		expect(storedElement).not.toHaveProperty("correlationId");
+		expect(storedElement).not.toHaveProperty("projectId");
+	});
+
+	it("rejects a timeline element without a transport projectId", async () => {
+		const { addElementHandler } = setupTimelineBridgeWithHandlers();
+
+		await expect(
+			addElementHandler({
+				type: "text",
+				content: "Missing project scope",
+				startTime: 0,
+				duration: 2,
+			})
+		).rejects.toThrow("requires a non-empty projectId");
+		expect(
+			storeMocks.timelineStoreState.addElementToTrack
+		).not.toHaveBeenCalled();
+	});
+
+	it("rejects a timeline element for an inactive project", async () => {
+		const { addElementHandler } = setupTimelineBridgeWithHandlers();
+
+		await expect(
+			addElementHandler({
+				projectId: "project-other",
+				type: "text",
+				content: "Wrong project",
+				startTime: 0,
+				duration: 2,
+			})
+		).rejects.toThrow("inactive project project-other");
+		expect(
+			storeMocks.timelineStoreState.addElementToTrack
+		).not.toHaveBeenCalled();
+	});
+
+	it("rejects unsupported element types so the renderer sends a NACK", async () => {
+		const { addElementHandler } = setupTimelineBridgeWithHandlers();
+
+		await expect(
+			addElementHandler({
+				projectId: "project-1",
+				type: "effect",
+				startTime: 0,
+				duration: 2,
+			})
+		).rejects.toThrow("Unsupported element type: effect");
+
+		expect(
+			storeMocks.timelineStoreState.addElementToTrack
+		).not.toHaveBeenCalled();
+	});
+
+	it("rejects when the timeline store refuses the insertion", async () => {
+		storeMocks.timelineStoreState.addElementToTrack.mockReturnValueOnce(null);
+		const { addElementHandler } = setupTimelineBridgeWithHandlers();
+
+		await expect(
+			addElementHandler({
+				projectId: "project-1",
+				type: "text",
+				content: "Occupied span",
+				startTime: 0,
+				duration: 2,
+			})
+		).rejects.toThrow("Failed to add text element to the timeline");
+	});
+
 	it("syncs project folder once and retries media resolution", async () => {
 		storeMocks.projectStoreState.activeProject = { id: "proj-1" };
 		syncProjectFolderMock.mockImplementation(async () => {
@@ -415,6 +709,7 @@ describe("setupClaudeTimelineBridge - add element", () => {
 		});
 
 		await addElementHandler({
+			projectId: "proj-1",
 			type: "image",
 			sourceName: "missing-image.png",
 			startTime: 0,
@@ -437,15 +732,53 @@ describe("setupClaudeTimelineBridge - add element", () => {
 		});
 	});
 
-	it("does not add media when referenced source does not exist", async () => {
+	it("rejects media placement when the project changes during sync", async () => {
+		storeMocks.projectStoreState.activeProject = { id: "proj-1" };
+		syncProjectFolderMock.mockImplementation(async () => {
+			storeMocks.mediaStoreState.mediaItems = [
+				{
+					id: "synced-image-1",
+					name: "missing-image.png",
+					type: "image",
+					file: new File([""], "missing-image.png"),
+					duration: 3,
+				},
+			];
+			storeMocks.projectStoreState.activeProject = { id: "proj-2" };
+		});
+		const { addElementHandler } = setupTimelineBridgeWithHandlers({
+			withProjectFolder: true,
+		});
+
+		await expect(
+			addElementHandler({
+				projectId: "proj-1",
+				type: "image",
+				sourceName: "missing-image.png",
+				startTime: 0,
+				endTime: 3,
+			})
+		).rejects.toThrow("inactive project proj-1");
+		expect(
+			storeMocks.timelineStoreState.findOrCreateTrack
+		).not.toHaveBeenCalled();
+		expect(
+			storeMocks.timelineStoreState.addElementToTrack
+		).not.toHaveBeenCalled();
+	});
+
+	it("rejects media when the referenced source does not exist", async () => {
 		const { addElementHandler } = setupTimelineBridgeWithHandlers();
 
-		await addElementHandler({
-			type: "image",
-			sourceName: "missing-image.png",
-			startTime: 0,
-			endTime: 3,
-		});
+		await expect(
+			addElementHandler({
+				projectId: "project-1",
+				type: "image",
+				sourceName: "missing-image.png",
+				startTime: 0,
+				endTime: 3,
+			})
+		).rejects.toThrow("Media source could not be resolved: missing-image.png");
 
 		expect(
 			storeMocks.timelineStoreState.addElementToTrack
@@ -482,6 +815,7 @@ describe("setupClaudeTimelineBridge - add element", () => {
 		const { addElementHandler } = setupTimelineBridgeWithHandlers();
 
 		await addElementHandler({
+			projectId: "project-1",
 			type: "adjustment",
 			trackId: "adjustment-track",
 			name: "CLI 调节",
@@ -513,6 +847,7 @@ describe("setupClaudeTimelineBridge - add element", () => {
 
 type BatchAddHandler = (data: {
 	requestId: string;
+	projectId?: string;
 	elements: ClaudeBatchAddElementRequest[];
 }) => Promise<void>;
 
@@ -550,6 +885,7 @@ function setupBatchAddBridge({
 			(
 				callback: (data: {
 					requestId: string;
+					projectId?: string;
 					elements: ClaudeBatchAddElementRequest[];
 				}) => Promise<void>
 			) => {
@@ -621,11 +957,121 @@ describe("setupClaudeTimelineBridge - batch add elements", () => {
 		];
 
 		storeMocks.mediaStoreState.mediaItems = [];
-		storeMocks.projectStoreState.activeProject = null;
+		storeMocks.projectStoreState.activeProject = { id: "project-1" };
 
 		vi.spyOn(console, "log").mockImplementation(() => {});
 		vi.spyOn(console, "warn").mockImplementation(() => {});
 		vi.spyOn(console, "error").mockImplementation(() => {});
+	});
+
+	it("rejects a batch without a transport projectId", async () => {
+		const { batchAddHandler, sendBatchAddResponse } = setupBatchAddBridge();
+
+		await batchAddHandler({
+			requestId: "req-missing-project",
+			elements: [
+				{
+					type: "text",
+					trackId: "track-2",
+					startTime: 0,
+					duration: 2,
+					content: "Missing scope",
+				},
+			],
+		});
+
+		expect(sendBatchAddResponse).toHaveBeenCalledWith(
+			"req-missing-project",
+			expect.objectContaining({
+				failedCount: 1,
+				added: [
+					expect.objectContaining({
+						success: false,
+						error: expect.stringContaining("non-empty projectId"),
+					}),
+				],
+			})
+		);
+		expect(storeMocks.timelineStoreState.pushHistory).not.toHaveBeenCalled();
+		expect(
+			storeMocks.timelineStoreState.addElementToTrack
+		).not.toHaveBeenCalled();
+	});
+
+	it("rejects a batch for an inactive project", async () => {
+		const { batchAddHandler, sendBatchAddResponse } = setupBatchAddBridge();
+
+		await batchAddHandler({
+			requestId: "req-wrong-project",
+			projectId: "project-other",
+			elements: [
+				{
+					type: "text",
+					trackId: "track-2",
+					startTime: 0,
+					duration: 2,
+					content: "Wrong scope",
+				},
+			],
+		});
+
+		expect(sendBatchAddResponse).toHaveBeenCalledWith(
+			"req-wrong-project",
+			expect.objectContaining({
+				failedCount: 1,
+				added: [
+					expect.objectContaining({
+						success: false,
+						error: expect.stringContaining("inactive project project-other"),
+					}),
+				],
+			})
+		);
+		expect(storeMocks.timelineStoreState.pushHistory).not.toHaveBeenCalled();
+		expect(
+			storeMocks.timelineStoreState.addElementToTrack
+		).not.toHaveBeenCalled();
+	});
+
+	it("rejects a batch when the project changes during media sync", async () => {
+		storeMocks.projectStoreState.activeProject = { id: "proj-1" };
+		syncProjectFolderMock.mockImplementation(async () => {
+			storeMocks.projectStoreState.activeProject = { id: "proj-2" };
+		});
+		const { batchAddHandler, sendBatchAddResponse } = setupBatchAddBridge({
+			withProjectFolder: true,
+		});
+
+		await batchAddHandler({
+			requestId: "req-switched-project",
+			projectId: "proj-1",
+			elements: [
+				{
+					type: "text",
+					trackId: "track-2",
+					startTime: 0,
+					duration: 2,
+					content: "Changed scope",
+				},
+			],
+		});
+
+		expect(sendBatchAddResponse).toHaveBeenCalledWith(
+			"req-switched-project",
+			expect.objectContaining({
+				failedCount: 1,
+				added: [
+					expect.objectContaining({
+						success: false,
+						error: expect.stringContaining("inactive project proj-1"),
+					}),
+				],
+			})
+		);
+		expect(storeMocks.timelineStoreState.pushHistory).not.toHaveBeenCalled();
+		expect(
+			storeMocks.timelineStoreState.addElementToTrack
+		).not.toHaveBeenCalled();
 	});
 
 	it("batch adds media elements when media is already in store", async () => {
@@ -650,6 +1096,7 @@ describe("setupClaudeTimelineBridge - batch add elements", () => {
 
 		await batchAddHandler({
 			requestId: "req-1",
+			projectId: "project-1",
 			elements: [
 				{
 					type: "video",
@@ -703,6 +1150,7 @@ describe("setupClaudeTimelineBridge - batch add elements", () => {
 
 		await batchAddHandler({
 			requestId: "req-2",
+			projectId: "proj-1",
 			elements: [
 				{
 					type: "video",
@@ -727,6 +1175,7 @@ describe("setupClaudeTimelineBridge - batch add elements", () => {
 
 		await batchAddHandler({
 			requestId: "req-3",
+			projectId: "project-1",
 			elements: [
 				{
 					type: "video",
@@ -760,6 +1209,7 @@ describe("setupClaudeTimelineBridge - batch add elements", () => {
 
 		await batchAddHandler({
 			requestId: "req-4",
+			projectId: "project-1",
 			elements: [
 				{
 					type: "media",
@@ -803,6 +1253,7 @@ describe("setupClaudeTimelineBridge - batch add elements", () => {
 
 		await batchAddHandler({
 			requestId: "req-5",
+			projectId: "project-1",
 			elements: [
 				{
 					type: "video",
@@ -831,6 +1282,7 @@ describe("setupClaudeTimelineBridge - batch add elements", () => {
 
 		await batchAddHandler({
 			requestId: "req-6",
+			projectId: "project-1",
 			elements: [
 				{
 					type: "text",
@@ -884,6 +1336,7 @@ describe("setupClaudeTimelineBridge - batch add elements", () => {
 
 		await batchAddHandler({
 			requestId: "req-adjustment",
+			projectId: "project-1",
 			elements: [
 				{
 					type: "adjustment",
@@ -918,7 +1371,11 @@ describe("setupClaudeTimelineBridge - batch add elements", () => {
 
 		const { batchAddHandler, sendBatchAddResponse } = setupBatchAddBridge();
 
-		await batchAddHandler({ requestId: "req-7", elements });
+		await batchAddHandler({
+			requestId: "req-7",
+			projectId: "project-1",
+			elements,
+		});
 
 		const response: ClaudeBatchAddResponse =
 			sendBatchAddResponse.mock.calls[0][1];
@@ -929,7 +1386,11 @@ describe("setupClaudeTimelineBridge - batch add elements", () => {
 	it("handles empty batch gracefully", async () => {
 		const { batchAddHandler, sendBatchAddResponse } = setupBatchAddBridge();
 
-		await batchAddHandler({ requestId: "req-8", elements: [] });
+		await batchAddHandler({
+			requestId: "req-8",
+			projectId: "project-1",
+			elements: [],
+		});
 
 		const response: ClaudeBatchAddResponse =
 			sendBatchAddResponse.mock.calls[0][1];
@@ -952,6 +1413,7 @@ describe("setupClaudeTimelineBridge - batch add elements", () => {
 
 		await batchAddHandler({
 			requestId: "req-9",
+			projectId: "project-1",
 			elements: [
 				{
 					type: "video",
@@ -983,6 +1445,7 @@ describe("setupClaudeTimelineBridge - batch add elements", () => {
 
 		await batchAddHandler({
 			requestId: "req-10",
+			projectId: "project-1",
 			elements: [
 				{
 					type: "video",
@@ -1005,6 +1468,7 @@ describe("setupClaudeTimelineBridge - batch add elements", () => {
 
 		await batchAddHandler({
 			requestId: "req-11",
+			projectId: "project-1",
 			elements: [
 				{
 					type: "video",
@@ -1027,6 +1491,7 @@ describe("setupClaudeTimelineBridge - batch add elements", () => {
 
 		await batchAddHandler({
 			requestId: "req-12",
+			projectId: "project-1",
 			elements: [
 				{
 					type: "video",

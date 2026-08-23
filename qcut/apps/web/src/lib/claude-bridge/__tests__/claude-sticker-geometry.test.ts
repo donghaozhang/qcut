@@ -10,10 +10,14 @@ vi.mock("@/stores/timeline/timeline-store", () => ({
 	useTimelineStore: { getState: vi.fn(() => ({})) },
 }));
 vi.mock("@/stores/project-store", () => ({
-	useProjectStore: { getState: vi.fn(() => ({ activeProject: null })) },
+	useProjectStore: {
+		getState: vi.fn(() => ({ activeProject: { id: "project-1" } })),
+	},
 }));
 vi.mock("@/stores/media/media-store", () => ({
-	useMediaStore: { getState: vi.fn(() => ({ mediaItems: [] })) },
+	useMediaStore: {
+		getState: vi.fn(() => ({ mediaItems: [{ id: "m1" }] })),
+	},
 }));
 vi.mock("@qcut/platform-core", () => ({
 	platform: vi.fn(() => ({ projectFolder: undefined })),
@@ -35,7 +39,10 @@ vi.mock("@/stores/stickers-overlay-store", () => ({
 function makeTimelineStore() {
 	return {
 		findOrCreateTrack: vi.fn(() => "sticker-track"),
-		addElementToTrack: vi.fn(),
+		addElementToTrack: vi.fn(
+			(_trackId: string, _element: Record<string, unknown>) => "sticker-element"
+		),
+		removeElementFromTrack: vi.fn(),
 	};
 }
 
@@ -58,6 +65,7 @@ describe("Claude sticker geometry", () => {
 				width: 384,
 				height: 384,
 			},
+			projectId: "project-1",
 			timelineStore: timelineStore as never,
 		});
 

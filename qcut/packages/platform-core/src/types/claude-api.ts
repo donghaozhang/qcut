@@ -19,7 +19,8 @@ export interface PlatformClaudeMediaAPI {
 	import(projectId: string, source: unknown): Promise<unknown>;
 	delete(projectId: string, mediaId: string): Promise<boolean>;
 	rename(projectId: string, mediaId: string, newName: string): Promise<unknown>;
-	onMediaImported(callback: (data: unknown) => void): void;
+	onMediaImported(callback: (data: unknown) => void | Promise<void>): void;
+	onMediaDeleted(callback: (data: unknown) => void | Promise<void>): void;
 }
 
 // ---------------------------------------------------------------------------

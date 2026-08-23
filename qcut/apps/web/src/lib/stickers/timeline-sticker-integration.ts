@@ -33,6 +33,23 @@ export interface TimelineIntegrationConfig {
 	trackName?: string;
 }
 
+type TimelineMutationGuard = () => boolean;
+
+function projectChangedResult(): TimelineIntegrationResult {
+	return {
+		success: false,
+		error: "Active project changed while adding sticker",
+	};
+}
+
+function canMutateTimeline({
+	guard,
+}: {
+	guard?: TimelineMutationGuard;
+}): boolean {
+	return guard?.() ?? true;
+}
+
 const DEFAULT_CONFIG: TimelineIntegrationConfig = {
 	enableLogging: true,
 	autoCreateTrack: true,
@@ -56,9 +73,11 @@ export class TimelineStickerIntegration {
 	async addStickerToTimeline(
 		sticker: OverlaySticker,
 		startTime: number,
-		duration: number
+		duration: number,
+		guard?: TimelineMutationGuard
 	): Promise<TimelineIntegrationResult> {
 		try {
+			if (!canMutateTimeline({ guard })) return projectChangedResult();
 			// Validate input
 			if (!this.validateSticker(sticker)) {
 				return {
@@ -78,12 +97,17 @@ export class TimelineStickerIntegration {
 			const { useTimelineStore } = await import(
 				"@/stores/timeline/timeline-store"
 			);
+			if (!canMutateTimeline({ guard })) return projectChangedResult();
 
 			// Get or create sticker track
-			const trackResult = await this.ensureStickerTrack(useTimelineStore);
+			const trackResult = await this.ensureStickerTrack(
+				useTimelineStore,
+				guard
+			);
 			if (!trackResult.success || !trackResult.trackId) {
 				return trackResult;
 			}
+			if (!canMutateTimeline({ guard })) return projectChangedResult();
 
 			// Add sticker element to track
 			const elementResult = await this.addStickerElement(
@@ -91,7 +115,8 @@ export class TimelineStickerIntegration {
 				trackResult.trackId,
 				sticker,
 				startTime,
-				duration
+				duration,
+				guard
 			);
 
 			return elementResult;
@@ -129,9 +154,11 @@ export class TimelineStickerIntegration {
 	 * Ensures a sticker track exists in the timeline
 	 */
 	private async ensureStickerTrack(
-		useTimelineStore: any
+		useTimelineStore: any,
+		guard?: TimelineMutationGuard
 	): Promise<TimelineIntegrationResult> {
 		try {
+			if (!canMutateTimeline({ guard })) return projectChangedResult();
 			// Get current state
 			let store = useTimelineStore.getState();
 
@@ -163,6 +190,7 @@ export class TimelineStickerIntegration {
 			}
 
 			// Create the track
+			if (!canMutateTimeline({ guard })) return projectChangedResult();
 			const trackId = store.insertTrackAt("sticker", 0);
 
 			if (!trackId) {
@@ -174,6 +202,7 @@ export class TimelineStickerIntegration {
 
 			// Wait a tick for state to update (Zustand batching)
 			await new Promise((resolve) => setTimeout(resolve, 0));
+			if (!canMutateTimeline({ guard })) return projectChangedResult();
 
 			// Verify track was created by getting fresh state
 			store = useTimelineStore.getState();
@@ -182,6 +211,7 @@ export class TimelineStickerIntegration {
 			if (!stickerTrack) {
 				// Try one more time with a longer delay
 				await new Promise((resolve) => setTimeout(resolve, 100));
+				if (!canMutateTimeline({ guard })) return projectChangedResult();
 				store = useTimelineStore.getState();
 				stickerTrack = this.findStickerTrackById(store, trackId);
 			}
@@ -249,9 +279,11 @@ export class TimelineStickerIntegration {
 		trackId: string,
 		sticker: OverlaySticker,
 		startTime: number,
-		duration: number
+		duration: number,
+		guard?: TimelineMutationGuard
 	): Promise<TimelineIntegrationResult> {
 		try {
+			if (!canMutateTimeline({ guard })) return projectChangedResult();
 			const store = useTimelineStore.getState();
 
 			// Create timeline element from sticker
@@ -291,11 +323,22 @@ export class TimelineStickerIntegration {
 				});
 			}
 
-			// Add element to track (void function, doesn't return success)
-			store.addElementToTrack(trackId, element);
+			// Add element to track; capture the inserted element id for rollback
+			if (!canMutateTimeline({ guard })) return projectChangedResult();
+			const insertedElementId = store.addElementToTrack(trackId, element);
 
 			// Wait for state update to propagate
 			await new Promise((resolve) => setTimeout(resolve, 0));
+			if (!canMutateTimeline({ guard })) {
+				// Project changed after the insert: undo it so the element cannot
+				// leak into the newly active project's timeline.
+				if (insertedElementId) {
+					useTimelineStore
+						.getState()
+						.removeElementFromTrack(trackId, insertedElementId, false);
+				}
+				return projectChangedResult();
+			}
 
 			// Verify element was added by checking the track
 			const updatedStore = useTimelineStore.getState();
@@ -387,11 +430,13 @@ export const timelineStickerIntegration = new TimelineStickerIntegration();
 export async function addStickerToTimeline(
 	sticker: OverlaySticker,
 	startTime: number,
-	duration: number
+	duration: number,
+	guard?: TimelineMutationGuard
 ): Promise<TimelineIntegrationResult> {
 	return timelineStickerIntegration.addStickerToTimeline(
 		sticker,
 		startTime,
-		duration
+		duration,
+		guard
 	);
 }

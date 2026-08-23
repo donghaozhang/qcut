@@ -34,6 +34,7 @@ export {
 
 // Re-export operation functions
 export {
+	requestAddElementFromRenderer,
 	requestTimelineFromRenderer,
 	requestSplitFromRenderer,
 	requestSelectionFromRenderer,
@@ -58,6 +59,7 @@ import {
 } from "./claude-timeline-markdown.js";
 
 import {
+	requestAddElementFromRenderer,
 	requestTimelineFromRenderer,
 	requestSplitFromRenderer,
 	requestSelectionFromRenderer,
@@ -152,9 +154,14 @@ export function setupClaudeTimelineIPC(): void {
 		): Promise<string> => {
 			claudeLog.info(HANDLER_NAME, `Adding element to project: ${projectId}`);
 			const elementId = element.id || generateId("element");
-			event.sender.send("claude:timeline:addElement", {
-				...element,
-				id: elementId,
+			const win = BrowserWindow.fromWebContents(event.sender);
+			if (!win) {
+				throw new Error("Window not found");
+			}
+			await requestAddElementFromRenderer({
+				element: { ...element, id: elementId },
+				projectId,
+				win,
 			});
 			return elementId;
 		}
@@ -378,6 +385,7 @@ export function setupClaudeTimelineIPC(): void {
 // CommonJS export for main.ts compatibility
 module.exports = {
 	setupClaudeTimelineIPC,
+	requestAddElementFromRenderer,
 	requestTimelineFromRenderer,
 	requestSplitFromRenderer,
 	requestSelectionFromRenderer,

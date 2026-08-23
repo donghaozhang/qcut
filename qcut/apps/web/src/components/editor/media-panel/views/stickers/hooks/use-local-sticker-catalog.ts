@@ -8,11 +8,13 @@ import {
 	loadPrivateStickerManifest,
 	loadRemoteStickerManifest,
 	type PrivateStickerCatalog,
+	type StickerReferenceCatalog,
 	type StickerLabCatalog,
 } from "@/lib/stickers/local-sticker-manifest";
 import { validatePrivateStickerCatalogSet } from "@/lib/stickers/private-sticker-catalog-set";
 import {
 	createStickerLabAssetFetch,
+	discoverLocalStickerReferenceCatalogs,
 	stickerLabPrivateManifestUrl,
 } from "@/lib/stickers/local-sticker-reference";
 
@@ -25,7 +27,9 @@ export interface LocalStickerCatalogState {
 	 * Harvested reference catalogues accepted for this user's entitlement.
 	 * Everyone else gets an empty list and sees only the public catalogue.
 	 */
-	privateCatalogs: PrivateStickerCatalog[];
+	privateCatalogs: StickerReferenceCatalog[];
+	/** Invalid or unreadable local batches, reported without exposing file paths. */
+	localReferenceWarningCount: number;
 	/**
 	 * Reference catalogues that failed to load. Surfaced rather than swallowed:
 	 * every failure hides a slice of the catalogue, and dropping them silently
@@ -44,6 +48,7 @@ function initialCatalogState({
 		error: null,
 		isAvailable: hasSource,
 		isLoading: hasSource,
+		localReferenceWarningCount: 0,
 		privateCatalogs: [],
 		unavailablePrivateCatalogIds: [],
 	};
@@ -114,11 +119,23 @@ export function useLocalStickerCatalog(): LocalStickerCatalogState {
 	}, [source]);
 
 	useEffect(() => {
-		if (!source) return;
-
 		let disposed = false;
 		const abortController = new AbortController();
 		const loadPrivateCatalogs = async () => {
+			const localDiscovery = await discoverLocalStickerReferenceCatalogs();
+			if (disposed) return;
+			if (localDiscovery.catalogs.length > 0) {
+				setState((previous) => ({
+					...previous,
+					isAvailable: true,
+					localReferenceWarningCount: localDiscovery.warningCount,
+					privateCatalogs: localDiscovery.catalogs,
+					unavailablePrivateCatalogIds: [],
+				}));
+				return;
+			}
+			if (!source) return;
+
 			const fetchImpl = createStickerLabAssetFetch();
 			const results = await Promise.allSettled(
 				PRIVATE_STICKER_CATALOG_IDS.map((catalogId) =>
@@ -157,6 +174,7 @@ export function useLocalStickerCatalog(): LocalStickerCatalogState {
 				});
 				setState((previous) => ({
 					...previous,
+					localReferenceWarningCount: localDiscovery.warningCount,
 					privateCatalogs,
 					unavailablePrivateCatalogIds: unavailableCatalogIds,
 				}));
@@ -167,6 +185,7 @@ export function useLocalStickerCatalog(): LocalStickerCatalogState {
 				);
 				setState((previous) => ({
 					...previous,
+					localReferenceWarningCount: localDiscovery.warningCount,
 					privateCatalogs: [],
 					unavailablePrivateCatalogIds: [...PRIVATE_STICKER_CATALOG_IDS],
 				}));

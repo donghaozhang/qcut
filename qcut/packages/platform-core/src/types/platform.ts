@@ -43,6 +43,7 @@ import type {
 	PlatformPiAgentAPI,
 } from "./integration-api.js";
 import type { PlatformClaudeAPI } from "./claude-api.js";
+import type { PlatformStickerLabAPI } from "./sticker-lab-api.js";
 
 /**
  * The unified platform API contract.
@@ -101,6 +102,7 @@ export interface PlatformAPI extends PlatformFillerAnalysisAPI {
 	hyperframes: PlatformHyperframesAPI;
 	moyin: PlatformMoyinAPI;
 	updates: PlatformUpdatesAPI;
+	stickerLab: PlatformStickerLabAPI;
 
 	// -- Pi Agent (optional — desktop-only) --
 	piAgent?: PlatformPiAgentAPI;

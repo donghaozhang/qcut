@@ -5,6 +5,8 @@ import {
 	type PrivateStickerCatalogId,
 } from "@qcut/editor-core/sticker-lab";
 import type {
+	LocalBridgeStickerCatalog,
+	LocalBridgeStickerReference,
 	LocalStickerCatalog,
 	LocalStickerCategory,
 	LocalStickerReference,
@@ -13,6 +15,65 @@ import type {
 	RemoteStickerCatalog,
 	RemoteStickerReference,
 } from "../../local-sticker-manifest";
+
+export function createLocalBridgeStickerReference({
+	batchId = "jianying-batch-18",
+	checksumSha256 = "a".repeat(64),
+	id = "local-reference-1",
+	rootPath = "/Users/tester/Movies/QCut Sticker Lab",
+}: {
+	batchId?: string;
+	checksumSha256?: string;
+	id?: string;
+	rootPath?: string;
+} = {}): LocalBridgeStickerReference {
+	return {
+		id,
+		displayName: `本地参照 ${id}`,
+		fileName: `${id}.gif`,
+		mimeType: "image/gif",
+		sourceKind: "preview-gif",
+		playback: {
+			kind: "animated",
+			frameCount: 8,
+			frameRate: 5,
+			cycleDuration: 1.6,
+			loop: true,
+		},
+		asset: {
+			kind: "local-reference",
+			rootPath,
+			batchId,
+			stickerId: id,
+			byteSize: 4,
+			checksumSha256,
+		},
+	};
+}
+
+export function createLocalBridgeStickerCatalog({
+	batchId = "jianying-batch-18",
+	id = "local-reference-1",
+	rootPath = "/Users/tester/Movies/QCut Sticker Lab",
+}: {
+	batchId?: string;
+	id?: string;
+	rootPath?: string;
+} = {}): LocalBridgeStickerCatalog {
+	return {
+		version: 1,
+		batchId,
+		referenceOnly: true,
+		categories: [
+			{
+				id: "hot",
+				label: "热门",
+				sourcePanel: "剪映贴纸面板 / 热门",
+				items: [createLocalBridgeStickerReference({ batchId, id, rootPath })],
+			},
+		],
+	};
+}
 
 export function createLocalStickerReference({
 	id,

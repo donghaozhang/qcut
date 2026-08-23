@@ -2,13 +2,20 @@
 
 <!-- markdownlint-disable MD013 -->
 
-**状态：** 本地参照采集已冻结；第 17 批已验收；未启动第 18 批
+**状态：** 第 17 批历史收尾已完成；后续明确决定已完成第 18 批和本地 UI/CLI 接线
 
-**日期：** 2026-08-22
+**日期：** 2026-08-23
 
-**代码核验基线：** `275f42ad8`
+**本地库存核验基线：** `275f42ad8`
+
+**P0 实施起点：** `8290f3a13`
 
 **相关说明：** [Sticker Lab 私有剪映参照目录](./README.md)
+
+> 2026-08-23 后续更新：第 18 批已经本地验收，当前总库存为 18 批、43 个分类、
+> 2,924 项（2,275 GIF、649 PNG）、4,249,707,252 B；本地桌面 UI 与 CLI 的当前
+> 操作契约见 [Sticker Lab 本地 UI 与 CLI](./LOCAL-UI-CLI.md)。本文其余库存数字保留
+> 为第 17 批结束时的历史快照，不再代表当前总量。
 
 ## 1. 这份文档要解决什么
 
@@ -72,69 +79,69 @@
 
 后续所有 PR 和本地操作都必须遵守以下边界：
 
-1. 剪映 PNG、GIF、视频、字体、shader、包文件、提取帧、签名 URL 和原始 manifest/report 不进入 Git、安装包、公开对象存储、发布物或宣传物；
+1. 已冻结前三批维持现有私有对象；除此之外，剪映 PNG、GIF、视频、字体、shader、包文件、提取帧、签名 URL 和原始 manifest/report 不进入 Git、安装包、任何对象存储、发布物或宣传物；
 2. 参照目录只用于内部观察分类、动画、时间行为和交互，不等于获得素材再分发权；
 3. 产品素材必须是 QCut 原创，或具有可核验的再分发与商业使用授权；
 4. 分类归属只证明目录发现结果，不能证明实际运行时；动画等价性必须来自单贴纸、全画布、同一时间点的运行时取证；
 5. 后续若恢复采集，必须使用全部 17 个最终 manifest 作为去重基线，并传入完整本地拒绝台账；
 6. 任何 signed URL 只允许存在于一次下载所需的临时目录，成功或失败后都要删除；
-7. 未经新的明确决定，不启动第 18 批。
+7. 第 18 批已按后续明确决定完成；未经新的明确决定，不启动第 19 批。
 
-## 4. P0：先解决发布规则冲突
+## 4. P0：发布规则冲突已解决，技术收口继续
 
-当前存在一项必须先处理的治理冲突：
+2026-08-23 已统一政策：现有前三批保持运行时现状并冻结；第 4–18 批以及以后新采集的剪映参照只允许留在仓库外本地，不上传、不注册、不转成产品目录。README 是这项政策的唯一真相源，仓库中的历史 publisher 不构成上传授权。
 
-- 本目录现有 `README.md` 描述了把私有剪映参照上传到 private Supabase bucket 的流程；
-- 当前本地参照工作流要求这些参照批次保持本地私有，不得上传。
+当前必须继续执行以下边界：
 
-在规则统一前，默认执行更严格的边界：
-
-- 不发布第 4–17 批；
+- 不发布第 4–18 批；
 - 不扩展 `PRIVATE_STICKER_CATALOG_IDS`；
 - 不为这些批次生成远端 object key；
 - 不把本地 manifest 转换为产品 manifest；
 - 不以“只有白名单用户可见”替代素材授权判断。
 
-### 4.1 需要形成的决策记录
+### 4.1 已落地的决策与边界
 
-下一位执行者应先提交一份独立 ADR 或政策 PR，明确：
+1. 现有前三批保留并冻结，registry 不扩展；
+2. 冻结前三批是历史运行时例外；第 4–18 批及以后新增的第三方参照只允许本地观察，不能以 private bucket 或白名单替代再分发授权；
+3. QCut 原创完整素材与内部参照使用独立环境变量和 entitlement；
+4. 私有 entitlement 只接受显式 user ID，配置中出现任意 `*` token 都 fail-closed；
+5. 两个新变量只有在未定义时才回退旧变量；显式空值不能被旧配置绕过；
+6. Sticker Lab 路由的成功、重定向、参数错误、鉴权失败和上游失败响应统一 `Cache-Control: no-store`；
+7. 允许进入产品目录的下一批素材必须是 clean-room QCut 原创，或具有可核验证据的再分发与商业使用授权。
 
-1. 现有前三批私有参照是否继续保留、冻结还是下线；
-2. 第三方参照是否一律只允许本地使用；
-3. QCut 原创素材与内部参照是否使用完全分离的 entitlement、环境变量、存储 namespace 和缓存授权世代；
-4. `*` 通配符是否在任何第三方参照路径上被代码级拒绝；
-5. 撤权、注销和账号切换时，已缓存私有素材怎样失效和清除；
-6. 谁负责核验素材 provenance，以及什么证据允许进入产品目录；
-7. 私有参照是否仅能预览，还是允许加入时间线、保存到项目和导出；
-8. 撤权后，已经复制到 MediaStore、项目和时间线的私有参照如何阻断、隔离或清理。
+### 4.2 P0 剩余完成条件
 
-### 4.2 P0 完成条件
-
-- 仓库文档、运行时行为和本地工作流不再互相冲突；
-- 未作出明确授权决定时，代码 fail-closed；
-- 原创素材权限与第三方参照权限不再共用同一个宽泛开关；
+- 仓库文档、运行时行为和本地工作流继续保持一致；
+- 未配置明确 entitlement 时，代码 fail-closed；
 - 已加入项目的私有参照在保存、重开、撤权和导出时有明确且 fail-closed 的规则；
-- 决策记录明确迁移方案、回滚方案和当前三批的处理方式。
+- 注销、账号切换和撤权会使旧 IndexedDB、object URL、MediaStore 与时间线副本失效；
+- 签名接口限流和真实 Worker/private storage smoke test 完成。
 
-### 4.3 即使授权通过，现有发布器也不能直接接入后续批次
+### 4.3 后续批次接入路径已暂停
 
-当前 `scripts/sticker-lab-private-catalog/prepare.ts` 要求每一批的分类数量、顺序、ID 和标签与前序批次完全一致。真实本地目录已经发生分类新增、移除、耗尽和重排：早期批次为 42 类，后续批次逐步变为 41 类和 40 类，17 批的分类并集为 43 类。因此第 4–17 批不是“加 14 个 registry ID”就能安全接入，现有 prepare 会按设计拒绝它们。
+当前 `scripts/sticker-lab-private-catalog/prepare.ts` 要求每一批的分类数量、顺序、ID 和标签与前序批次完全一致。真实本地目录已经发生分类新增、移除、耗尽和重排：早期批次为 42 类，后续批次逐步变为 41 类、40 类和 39 类，18 批的分类并集为 43 类。因此第 4–18 批不是“加 15 个 registry ID”就能安全接入，现有 prepare 会按设计拒绝它们。
 
-如果未来的政策决策明确允许远端私有参照，仍需先单独设计并测试以下一种方案：
+当前政策下不要为解决该兼容问题而修改 publisher。如果未来出现新的明确授权和政策例外，仍需先单独设计并测试以下一种方案：
 
 1. 保留严格同拓扑，把不同分类世代拆成互不混合的 catalog family；或
 2. 改为稀疏分类兼容：同一 category ID 的标签必须一致，但允许分类新增、缺失和重排，并为客户端规定确定性的合并顺序。
 
-无论选哪种方案，跨批资源 ID、object key 和 SHA-256 重复仍必须 fail-closed，不能为了接入旧数据而放宽。该技术设计只有在 P0 授权结论允许上传后才执行；默认的本地私有路线不需要修改发布器。
+无论选哪种方案，跨批资源 ID、object key 和 SHA-256 重复仍必须 fail-closed，不能为了接入旧数据而放宽。该技术设计只有在新的明确决策允许上传后才执行；当前本地私有路线不需要修改发布器。
 
 ### 4.4 明确项目与时间线中的私有参照生命周期
 
-当前私有卡片可以还原为 `File`，随后进入 MediaStore、项目和时间线。清除 IndexedDB 只能删除下载缓存，不能删除已经复制进项目的数据，也不能自动阻止导出。因此 P0 必须明确以下一种产品策略：
+当前私有卡片可以还原为 `File`，随后进入 MediaStore、项目和时间线。清除 IndexedDB 只能删除下载缓存，不能删除已经复制进项目的数据，也不能自动阻止导出。后续明确决定选择了第二种内部测试策略：
 
-1. 私有参照只允许预览，不能加入时间线、保存或导出；或
-2. 允许内部测试加入时间线，但所有派生 MediaItem 和 timeline element 都携带不可丢失的 restricted-reference 标记，保存、重开和导出必须重新验证 entitlement。
+1. 允许内部测试从桌面 UI 或 CLI 加入时间线；
+2. 所有派生 MediaItem 携带 `referenceOnly: true`、`usage: "internal-reference-only"`、`redistribution: "prohibited"`、批次、资源 ID 和 SHA-256；
+3. metadata 不保存绝对本地路径；
+4. filesystem sidecar、renderer IndexedDB 和 `project.json` 都持久保留受限标记；重开
+   恢复和所有导出入口最终必须重新验证受限标记并 fail-closed。
 
-在策略确定前，默认按更严格的 preview-only 目标设计。若选择第二种，撤权后至少要做到：现有 object URL 失效、项目中的受限副本不可预览或导出、用户收到明确提示，并提供只删除受限副本而不损坏其他项目内容的恢复路径。
+UI/CLI 接线、限制 metadata durable round-trip，以及导入/时间线失败回滚已完成；导出
+拦截、撤权和重开恢复仍未完成。在这些入口全部 fail-closed 前，不得导出含本地参照的
+项目。撤权后至少要做到：现有 object URL 失效、项目中的受限副本不可预览或导出、
+用户收到明确提示，并提供只删除受限副本而不损坏其他项目内容的恢复路径。
 
 ## 5. P1：冻结并可重复审计本地证据
 
@@ -222,7 +229,7 @@
 
 ## 7. P3：在扩容前补齐安全和缓存生命周期
 
-### 7.1 拆分 entitlement
+### 7.1 Entitlement 与现有响应 no-store（已完成）
 
 主要文件：
 
@@ -230,18 +237,19 @@
 packages/license-server/src/routes/sticker-lab.ts
 packages/license-server/src/services/user-id-allowlist.ts
 packages/license-server/src/routes/sticker-lab.test.ts
-packages/editor-core/src/sticker-lab/private-catalogs.ts
+packages/license-server/src/services/user-id-allowlist.test.ts
+packages/license-server/.env.example
 ```
 
-任务：
+2026-08-23 已完成：
 
-1. 原创完整素材与内部第三方参照使用不同的 allowlist/entitlement，例如 `STICKER_LAB_ORIGINAL_ALLOWED_USER_IDS` 和 `STICKER_LAB_PRIVATE_REFERENCE_ALLOWED_USER_IDS`；
-2. 私有参照路径使用专用校验并显式拒绝 `*` 通配符，即使共享 helper 支持它；
-3. 未登录、未配置、非白名单、未知 catalog 全部 fail-closed；
-4. 鉴权失败时不泄露 catalog 是否存在；
-5. signed redirect、manifest，以及 400/401/403/429/502 等所有响应路径统一新增并测试 `no-store`，不能只覆盖成功响应。
+1. 原创完整素材与内部第三方参照分别使用 `STICKER_LAB_ORIGINAL_ALLOWED_USER_IDS` 和 `STICKER_LAB_PRIVATE_REFERENCE_ALLOWED_USER_IDS`；
+2. 私有参照使用显式 ID checker，任意 `*` token 使整份配置 fail-closed；
+3. 两个新变量只有在未定义时才回退 `STICKER_LAB_ALLOWED_USER_IDS`，显式空值保持 fail-closed；
+4. private asset/thumbnail 先按 `jianying/` namespace 分流并鉴权，再检查 registry；
+5. signed redirect、manifest，以及现有 200/302/400/401/403/404/502 路径统一由路由级 middleware 设置 `no-store`。
 
-测试必须证明：`*` 可以按产品决策放开原创素材，但 private manifest、private thumbnail 和 private original 三个接口仍返回 403，并且受拒请求不会调用 Supabase。
+测试已覆盖原创 wildcard、私有 wildcard 与混合 wildcard 拒绝、显式空值、旧配置迁移、三个私有入口、catalog oracle 和受拒请求不调用 Supabase。429 尚不存在；接入 7.3 的真实限流器后，必须补三条路由的 429、`Retry-After`、`no-store` 与 Supabase 零调用测试。
 
 ### 7.2 撤权和注销时清理缓存
 
@@ -430,8 +438,8 @@ License server 必须使用该 package 的独立 Vitest config；不能因为根
 
 按顺序只做下面三件事：
 
-1. 提交 P0 决策记录，统一“本地参照不得上传”与现有私有发布说明；
-2. 从 5 类 × 10 个开始写 clean-room 原创规格和 provenance 模板；
-3. 在原创 pilot 扩容前完成 entitlement 拆分、缓存撤权清理和 Sticker Lab 路由限流。
+1. 完成注销、账号切换、撤权和 403 时的私有缓存及项目副本失效；
+2. 给 Sticker Lab 签名接口增加独立限流，并补真实 Worker/private storage 只读 smoke；
+3. 从 5 类 × 10 个开始写 clean-room 原创规格和 provenance 模板。
 
-在这三项完成前，不启动第 18 批，也不把第 4–17 批接入产品。
+不启动第 19 批，也不把第 4–18 批接入产品；这两项不因上述工程任务完成而自动解禁。

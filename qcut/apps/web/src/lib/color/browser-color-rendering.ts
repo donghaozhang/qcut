@@ -1,4 +1,9 @@
-import type { MediaColorSettings, MediaMask } from "@/types/timeline";
+import type {
+	MediaColorSettings,
+	MediaMask,
+	MediaPortraitAdjustments,
+} from "@/types/timeline";
+import { hasMediaPortraitAdjustments } from "@qcut/editor-core";
 import { drawMediaSourceWithMasks } from "@/lib/video/media-mask-canvas";
 import { mediaMaskSvgUrl } from "@/lib/video/media-mask-svg";
 import { hasMediaColorEdits } from "./color-properties";
@@ -14,6 +19,7 @@ import {
 	canRenderJianyingLocalEffect,
 	renderJianyingLocalEffectPreview,
 } from "./jianying-local-effect-preview";
+import { renderJianyingPortraitAdjustmentPreview } from "@/lib/portrait/jianying-portrait-adjustment-preview";
 
 const GRADE_MASK_CACHE_LIMIT = 8;
 let cssFallbackWarned = false;
@@ -146,6 +152,49 @@ function drawCssFallback({
 	context.filter = "none";
 }
 
+async function portraitAdjustedSource({
+	source,
+	width,
+	height,
+	adjustments,
+	sourceKey,
+	timestampSeconds,
+}: {
+	source: CanvasImageSource;
+	width: number;
+	height: number;
+	adjustments?: MediaPortraitAdjustments;
+	sourceKey?: string;
+	timestampSeconds?: number;
+}): Promise<CanvasImageSource> {
+	if (!hasMediaPortraitAdjustments({ adjustments })) return source;
+	const canvas = document.createElement("canvas");
+	canvas.width = width;
+	canvas.height = height;
+	const context = canvas.getContext("2d", { willReadFrequently: true });
+	if (!context) throw new Error("Unable to create portrait adjustment canvas");
+	context.drawImage(source, 0, 0, width, height);
+	let sourceData: ImageData;
+	try {
+		sourceData = context.getImageData(0, 0, width, height);
+	} catch (cause) {
+		reportColorDegradation({
+			reason: "jianying-portrait-adjustment-fallback",
+			detail: cause instanceof Error ? cause.message : String(cause),
+		});
+		return source;
+	}
+	const rendered = await renderJianyingPortraitAdjustmentPreview({
+		source: sourceData,
+		adjustments,
+		sourceKey,
+		timestampSeconds,
+	});
+	if (!rendered) return source;
+	context.putImageData(rendered, 0, 0);
+	return canvas;
+}
+
 export async function drawColorGradedSourceWithMasks({
 	context,
 	source,
@@ -158,6 +207,7 @@ export async function drawColorGradedSourceWithMasks({
 	frameSeed = 0,
 	sourceKey,
 	timestampSeconds,
+	portraitAdjustments,
 }: {
 	context: CanvasRenderingContext2D;
 	source: CanvasImageSource;
@@ -170,12 +220,23 @@ export async function drawColorGradedSourceWithMasks({
 	frameSeed?: number;
 	sourceKey?: string;
 	timestampSeconds?: number;
+	portraitAdjustments?: MediaPortraitAdjustments;
 }): Promise<void> {
+	const pixelWidth = Math.max(1, Math.round(Math.abs(width)));
+	const pixelHeight = Math.max(1, Math.round(Math.abs(height)));
+	const adjustedSource = await portraitAdjustedSource({
+		source,
+		width: pixelWidth,
+		height: pixelHeight,
+		adjustments: portraitAdjustments,
+		sourceKey,
+		timestampSeconds,
+	});
 	const outputMasks = finalMediaMasks({ masks, settings });
 	if (!hasMediaColorEdits({ settings })) {
 		await drawMediaSourceWithMasks({
 			context,
-			source,
+			source: adjustedSource,
 			x,
 			y,
 			width,
@@ -184,8 +245,6 @@ export async function drawColorGradedSourceWithMasks({
 		});
 		return;
 	}
-	const pixelWidth = Math.max(1, Math.round(Math.abs(width)));
-	const pixelHeight = Math.max(1, Math.round(Math.abs(height)));
 	const usesLocalRuntime =
 		canRenderJianyingLocalEffect({ settings }) ||
 		canRenderJianyingLocalPortrait({ settings });
@@ -210,7 +269,7 @@ export async function drawColorGradedSourceWithMasks({
 		}
 		if (!maskUnavailable) {
 			const graded = gradeFrameOnGpu({
-				source,
+				source: adjustedSource,
 				width: pixelWidth,
 				height: pixelHeight,
 				settings,
@@ -237,7 +296,7 @@ export async function drawColorGradedSourceWithMasks({
 	frame.height = pixelHeight;
 	const frameContext = frame.getContext("2d", { willReadFrequently: true });
 	if (!frameContext) throw new Error("Unable to create color grading canvas");
-	frameContext.drawImage(source, 0, 0, pixelWidth, pixelHeight);
+	frameContext.drawImage(adjustedSource, 0, 0, pixelWidth, pixelHeight);
 	try {
 		const sourceData = frameContext.getImageData(0, 0, pixelWidth, pixelHeight);
 		const maskData = await gradeMaskPixels({
@@ -302,7 +361,7 @@ export async function drawColorGradedSourceWithMasks({
 		frameContext.clearRect(0, 0, pixelWidth, pixelHeight);
 		drawCssFallback({
 			context: frameContext,
-			source,
+			source: adjustedSource,
 			width: pixelWidth,
 			height: pixelHeight,
 			settings,
@@ -419,6 +478,7 @@ export async function drawColorGradedSourceStack({
 	frameSeed = 0,
 	sourceKey,
 	timestampSeconds,
+	portraitAdjustments,
 }: {
 	context: CanvasRenderingContext2D;
 	source: CanvasImageSource;
@@ -430,11 +490,20 @@ export async function drawColorGradedSourceStack({
 	frameSeed?: number;
 	sourceKey?: string;
 	timestampSeconds?: number;
+	portraitAdjustments?: MediaPortraitAdjustments;
 }): Promise<void> {
 	const pixelWidth = Math.max(1, Math.round(Math.abs(width)));
 	const pixelHeight = Math.max(1, Math.round(Math.abs(height)));
-	const output = await renderColorGradeLayers({
+	const adjustedSource = await portraitAdjustedSource({
 		source,
+		width: pixelWidth,
+		height: pixelHeight,
+		adjustments: portraitAdjustments,
+		sourceKey,
+		timestampSeconds,
+	});
+	const output = await renderColorGradeLayers({
+		source: adjustedSource,
 		layers,
 		index: 0,
 		width: pixelWidth,

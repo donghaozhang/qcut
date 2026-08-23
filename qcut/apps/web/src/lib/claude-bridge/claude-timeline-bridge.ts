@@ -6,7 +6,7 @@
 
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useProjectStore } from "@/stores/project-store";
-import { useMediaStore } from "@/stores/media/media-store";
+import { useMediaStore, type MediaType } from "@/stores/media/media-store";
 import { platform } from "@qcut/platform-core";
 import type {
 	ClaudeElement,
@@ -21,6 +21,155 @@ import { setupRequestHandlers } from "./claude-timeline-bridge-request";
 import { setupElementHandlers } from "./claude-timeline-bridge-elements";
 import { setupBatchHandlers } from "./claude-timeline-bridge-batch";
 import { setupTrackHandlers } from "./claude-timeline-bridge-tracks";
+
+interface ClaudeImportedMediaEvent {
+	id: string;
+	metadata?: Record<string, unknown>;
+	name: string;
+	path: string;
+	projectId: string;
+	type?: MediaType;
+}
+
+interface ClaudeDeletedMediaEvent {
+	mediaId: string;
+	projectId: string;
+}
+
+const MEDIA_MIME_TYPES: Record<string, string> = {
+	gif: "image/gif",
+	jpeg: "image/jpeg",
+	jpg: "image/jpeg",
+	mov: "video/quicktime",
+	mp3: "audio/mpeg",
+	mp4: "video/mp4",
+	png: "image/png",
+	svg: "image/svg+xml",
+	wav: "audio/wav",
+	webm: "video/webm",
+	webp: "image/webp",
+};
+
+const IMAGE_EXTENSIONS = new Set(["gif", "jpeg", "jpg", "png", "svg", "webp"]);
+const AUDIO_EXTENSIONS = new Set(["mp3", "wav"]);
+const UNSAFE_METADATA_KEYS = new Set(["__proto__", "constructor", "prototype"]);
+
+function readRecord({
+	value,
+}: {
+	value: unknown;
+}): Record<string, unknown> | null {
+	if (typeof value !== "object" || value === null || Array.isArray(value)) {
+		return null;
+	}
+	return value as Record<string, unknown>;
+}
+
+function safeImportedMetadata({
+	candidate,
+}: {
+	candidate: unknown;
+}): Record<string, unknown> | undefined {
+	const record = readRecord({ value: candidate });
+	if (!record) return;
+	const metadata: Record<string, unknown> = {};
+	for (const [key, value] of Object.entries(record)) {
+		if (UNSAFE_METADATA_KEYS.has(key)) continue;
+		metadata[key] = value;
+	}
+	return metadata;
+}
+
+function importedMediaType({
+	declaredType,
+	extension,
+}: {
+	declaredType: unknown;
+	extension: string;
+}): MediaType {
+	if (
+		declaredType === "audio" ||
+		declaredType === "image" ||
+		declaredType === "video"
+	) {
+		return declaredType;
+	}
+	if (IMAGE_EXTENSIONS.has(extension)) return "image";
+	if (AUDIO_EXTENSIONS.has(extension)) return "audio";
+	return "video";
+}
+
+export function parseClaudeImportedMediaEvent({
+	candidate,
+}: {
+	candidate: unknown;
+}): ClaudeImportedMediaEvent | null {
+	const record = readRecord({ value: candidate });
+	if (!record) return null;
+	if (
+		typeof record.id !== "string" ||
+		!record.id.trim() ||
+		typeof record.name !== "string" ||
+		!record.name.trim() ||
+		typeof record.path !== "string" ||
+		!record.path.trim() ||
+		typeof record.projectId !== "string" ||
+		!record.projectId.trim()
+	) {
+		return null;
+	}
+	const extension = record.name.split(".").pop()?.toLowerCase() ?? "";
+	return {
+		id: record.id,
+		metadata: safeImportedMetadata({ candidate: record.metadata }),
+		name: record.name,
+		path: record.path,
+		projectId: record.projectId,
+		type: importedMediaType({
+			declaredType: record.type,
+			extension,
+		}),
+	};
+}
+
+function parseClaudeDeletedMediaEvent({
+	candidate,
+}: {
+	candidate: unknown;
+}): ClaudeDeletedMediaEvent | null {
+	const record = readRecord({ value: candidate });
+	if (
+		!record ||
+		typeof record.mediaId !== "string" ||
+		!record.mediaId.trim() ||
+		typeof record.projectId !== "string" ||
+		!record.projectId.trim()
+	) {
+		return null;
+	}
+	return { mediaId: record.mediaId, projectId: record.projectId };
+}
+
+function assertMediaProjectIsActive({
+	projectId,
+}: {
+	projectId: string;
+}): void {
+	const activeProjectId = useProjectStore.getState().activeProject?.id;
+	if (activeProjectId === projectId) return;
+	throw new Error(`Cannot import media for inactive project ${projectId}`);
+}
+
+export function buildClaudeImportedMediaMetadata({
+	extension,
+	metadata,
+}: {
+	extension: string;
+	metadata?: Record<string, unknown>;
+}): Record<string, unknown> | undefined {
+	if (extension !== "gif") return metadata;
+	return { ...metadata, animatedSticker: true };
+}
 
 const CLAUDE_TRACK_ELEMENT_TYPES = {
 	media: "media",
@@ -167,14 +316,33 @@ export function setupClaudeTimelineBridge(): void {
 	}
 
 	const claudeAPI = claude.timeline;
+	const deletedMediaKeys = new Set<string>();
+	const mediaKey = ({
+		mediaId,
+		projectId,
+	}: {
+		mediaId: string;
+		projectId: string;
+	}): string => `${projectId}:${mediaId}`;
 	debugLog("[ClaudeTimelineBridge] Setting up bridge...");
 
 	// Listen for media imports so the renderer store gets the File object (needed for preview)
 	if (claude.media?.onMediaImported) {
-		claude.media.onMediaImported(async (data: any) => {
+		claude.media.onMediaImported(async (candidate: unknown) => {
 			try {
-				const projectId = useProjectStore.getState().activeProject?.id;
-				if (!projectId) return;
+				const data = parseClaudeImportedMediaEvent({ candidate });
+				if (!data) {
+					throw new Error("Invalid media import event");
+				}
+				const projectId = data.projectId;
+				assertMediaProjectIsActive({ projectId });
+				const importedMediaKey = mediaKey({
+					mediaId: data.id,
+					projectId,
+				});
+				if (deletedMediaKeys.has(importedMediaKey)) {
+					throw new Error("Media import was cancelled");
+				}
 
 				// Check if already in store by ID or path (avoid duplicates)
 				const existing = useMediaStore
@@ -192,39 +360,53 @@ export function setupClaudeTimelineBridge(): void {
 				);
 
 				const buffer = await platform().files.readFile(data.path);
-				if (!buffer) return;
+				assertMediaProjectIsActive({ projectId });
+				if (!buffer) throw new Error("Imported media could not be read");
 
 				const ext = data.name.split(".").pop()?.toLowerCase() || "";
-				const mimeMap: Record<string, string> = {
-					mp4: "video/mp4",
-					webm: "video/webm",
-					mov: "video/quicktime",
-					mp3: "audio/mpeg",
-					wav: "audio/wav",
-					png: "image/png",
-					jpg: "image/jpeg",
-					jpeg: "image/jpeg",
-				};
-				const mimeType = mimeMap[ext] || `${data.type || "application"}/${ext}`;
+				const mimeType = MEDIA_MIME_TYPES[ext] ?? "application/octet-stream";
+				const metadata = buildClaudeImportedMediaMetadata({
+					extension: ext,
+					metadata: data.metadata,
+				});
 
 				const uint8 = new Uint8Array(buffer);
 				const blob = new Blob([uint8], { type: mimeType });
 				const fileObj = new File([blob], data.name, { type: mimeType });
 
-				const { getOrCreateObjectURL } = await import(
+				const { getOrCreateObjectURL, releaseObjectURL } = await import(
 					"@/lib/media/blob-manager"
 				);
+				assertMediaProjectIsActive({ projectId });
 				const displayUrl = getOrCreateObjectURL(fileObj, "claude-media-import");
 
-				await useMediaStore.getState().addMediaItem(projectId, {
-					id: data.id,
-					name: data.name,
-					type: (data.type as "video" | "audio" | "image") || "video",
-					file: fileObj,
-					url: displayUrl,
-					localPath: data.path,
-					isLocalFile: true,
-				});
+				try {
+					await useMediaStore.getState().addMediaItem(projectId, {
+						id: data.id,
+						name: data.name,
+						type: data.type ?? "video",
+						file: fileObj,
+						url: displayUrl,
+						localPath: data.path,
+						isLocalFile: true,
+						metadata,
+					});
+					assertMediaProjectIsActive({ projectId });
+					if (deletedMediaKeys.has(importedMediaKey)) {
+						throw new Error("Media import was cancelled");
+					}
+				} catch (error) {
+					releaseObjectURL(displayUrl, "claude-media-import-failed");
+					try {
+						await useMediaStore.getState().removeMediaItem(projectId, data.id);
+					} catch (rollbackError) {
+						debugWarn(
+							"[ClaudeTimelineBridge] Failed to roll back imported media:",
+							rollbackError
+						);
+					}
+					throw error;
+				}
 
 				debugLog("[ClaudeTimelineBridge] Media loaded into store:", data.name);
 			} catch (error) {
@@ -232,7 +414,28 @@ export function setupClaudeTimelineBridge(): void {
 					"[ClaudeTimelineBridge] Failed to load imported media:",
 					error
 				);
+				throw error instanceof Error ? error : new Error(String(error));
 			}
+		});
+	}
+
+	if (claude.media?.onMediaDeleted) {
+		claude.media.onMediaDeleted(async (candidate: unknown) => {
+			const data = parseClaudeDeletedMediaEvent({ candidate });
+			if (!data) throw new Error("Invalid media deletion event");
+			const projectId = useProjectStore.getState().activeProject?.id;
+			if (!projectId || projectId !== data.projectId) {
+				throw new Error(
+					`Cannot delete media for inactive project ${data.projectId}`
+				);
+			}
+			const deletedMediaKey = mediaKey({
+				mediaId: data.mediaId,
+				projectId,
+			});
+			deletedMediaKeys.add(deletedMediaKey);
+			setTimeout(() => deletedMediaKeys.delete(deletedMediaKey), 60_000);
+			await useMediaStore.getState().removeMediaItem(projectId, data.mediaId);
 		});
 	}
 

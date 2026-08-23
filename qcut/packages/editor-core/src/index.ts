@@ -14,6 +14,21 @@
  */
 
 // Types
+export {
+	DEFAULT_MEDIA_PORTRAIT_ADJUSTMENTS,
+	hasMediaPortraitAdjustments,
+	MEDIA_PORTRAIT_ADJUSTMENT_KEYS,
+	MEDIA_PORTRAIT_MAKEUP_CATEGORIES,
+	normalizeMediaPortraitAdjustments,
+} from "./portrait-adjustments.js";
+export type {
+	MediaPortraitAdjustmentKey,
+	MediaPortraitAdjustments,
+	MediaPortraitFaceTarget,
+	MediaPortraitMakeupCategory,
+	MediaPortraitMakeupSelection,
+} from "./portrait-adjustments.js";
+
 export type {
 	BackgroundType,
 	CanvasSize,

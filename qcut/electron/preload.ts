@@ -54,6 +54,7 @@ import {
 	createSkillsAPI,
 	createAIPipelineAPI,
 	createMediaImportAPI,
+	createStickerLabAPI,
 	createProjectFolderAPI,
 	createClaudeAPI,
 	createRemotionFolderAPI,
@@ -93,6 +94,10 @@ import {
 	JIANYING_FILTER_LAB_THUMBNAIL_CHANNEL,
 	JIANYING_FILTER_LAB_DOWNLOAD_CHANNEL,
 } from "./jianying-filter-lab-contract.js";
+import {
+	JIANYING_PORTRAIT_ADJUSTMENT_INSPECT_CHANNEL,
+	JIANYING_PORTRAIT_ADJUSTMENT_RENDER_CHANNEL,
+} from "./jianying-portrait-adjustment-contract.js";
 import {
 	JIANYING_FONT_LAB_INSPECT_CHANNEL,
 	JIANYING_FONT_LAB_LIST_CHANNEL,
@@ -227,6 +232,12 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 				);
 			};
 		},
+	},
+	jianyingPortraitAdjustment: {
+		inspect: (request) =>
+			ipcRenderer.invoke(JIANYING_PORTRAIT_ADJUSTMENT_INSPECT_CHANNEL, request),
+		render: (request) =>
+			ipcRenderer.invoke(JIANYING_PORTRAIT_ADJUSTMENT_RENDER_CHANNEL, request),
 	},
 	jianyingFontLab: {
 		list: (request) =>
@@ -864,6 +875,7 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 	skills: createSkillsAPI(),
 	aiPipeline: createAIPipelineAPI(),
 	mediaImport: createMediaImportAPI(),
+	stickerLab: createStickerLabAPI(),
 	projectFolder: createProjectFolderAPI(),
 	projectJson: {
 		write: (projectId: string) =>

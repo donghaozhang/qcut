@@ -10,6 +10,7 @@
 import type { MediaColorSettings } from "./color.js";
 import type { EffectChain, EffectInstance } from "./effects.js";
 import type { TextAnimationsV1 } from "../text-animation/model.js";
+import type { MediaPortraitAdjustments } from "../portrait-adjustments.js";
 
 /** Media asset types */
 export type MediaType = "image" | "video" | "audio";
@@ -787,6 +788,7 @@ export interface MediaElement extends BaseTimelineElement {
 	customCutout?: MediaCustomCutout;
 	chromaKey?: MediaChromaKey;
 	enhancements?: MediaEnhancements;
+	portraitAdjustments?: MediaPortraitAdjustments;
 	/** Canonical non-destructive audio processing state. */
 	audio?: MediaAudioSettings;
 	/** Legacy audio fields retained while older projects migrate to `audio`. */

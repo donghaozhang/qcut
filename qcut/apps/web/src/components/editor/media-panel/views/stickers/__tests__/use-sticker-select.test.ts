@@ -1,0 +1,280 @@
+import { act, renderHook } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+	buildStickerUploadMetadata,
+	useStickerSelect,
+} from "../hooks/use-sticker-select";
+
+const mocks = vi.hoisted(() => ({
+	addMediaItem: vi.fn(),
+	addOverlaySticker: vi.fn(),
+	addRecentSticker: vi.fn(),
+	createStickerMediaUrl: vi.fn(),
+	isAnimatedStickerFile: vi.fn(),
+	mediaItems: [] as Array<{ thumbnailUrl?: string; url?: string }>,
+	overlayStickers: new Map<string, unknown>(),
+	projectState: {
+		activeProject: { id: "project-stickers" } as { id: string } | null,
+	},
+	removeMediaItem: vi.fn(),
+	removeOverlaySticker: vi.fn(),
+	timelineAddSticker: vi.fn(),
+	toastError: vi.fn(),
+	toastSuccess: vi.fn(),
+	updateRuntimeState: vi.fn(),
+}));
+
+vi.mock("sonner", () => ({
+	toast: { error: mocks.toastError, success: mocks.toastSuccess },
+}));
+
+vi.mock("@/lib/debug/debug-config", () => ({ debugError: vi.fn() }));
+
+vi.mock("@/lib/assets/qcut-asset-manifest", () => ({
+	resolveStickerAssetEntry: vi.fn(),
+}));
+
+vi.mock("@/lib/stickers/sticker-resource", () => ({
+	createStickerMediaUrl: mocks.createStickerMediaUrl,
+	downloadStickerResource: vi.fn(),
+}));
+
+vi.mock("@/lib/stickers/sticker-animation", () => ({
+	isAnimatedStickerAsset: vi.fn(),
+	isAnimatedStickerFile: mocks.isAnimatedStickerFile,
+}));
+
+vi.mock("@/lib/stickers/timeline-sticker-integration", () => ({
+	timelineStickerIntegration: {
+		addStickerToTimeline: mocks.timelineAddSticker,
+	},
+}));
+
+vi.mock("@/stores/editor/playback-store", () => ({
+	usePlaybackStore: { getState: () => ({ currentTime: 2 }) },
+}));
+
+vi.mock("@/stores/media/media-store", () => {
+	const mediaState = {
+		addMediaItem: mocks.addMediaItem,
+		mediaItems: mocks.mediaItems,
+		removeMediaItem: mocks.removeMediaItem,
+	};
+	return {
+		useMediaStore: Object.assign(
+			(selector: (state: typeof mediaState) => unknown) => selector(mediaState),
+			{ getState: () => mediaState }
+		),
+	};
+});
+
+vi.mock("@/stores/project-store", () => ({
+	useProjectStore: Object.assign(
+		(selector: (state: typeof mocks.projectState) => unknown) =>
+			selector(mocks.projectState),
+		{ getState: () => mocks.projectState }
+	),
+}));
+
+vi.mock("@/stores/asset-library-store", () => ({
+	useAssetLibraryStore: (
+		selector: (state: {
+			updateRuntimeState: typeof mocks.updateRuntimeState;
+		}) => unknown
+	) => selector({ updateRuntimeState: mocks.updateRuntimeState }),
+}));
+
+vi.mock("@/stores/stickers-store", () => ({
+	useStickersStore: (
+		selector: (state: {
+			addRecentSticker: typeof mocks.addRecentSticker;
+		}) => unknown
+	) => selector({ addRecentSticker: mocks.addRecentSticker }),
+}));
+
+vi.mock("@/stores/stickers-overlay-store", () => {
+	const overlayState = {
+		addOverlaySticker: mocks.addOverlaySticker,
+		overlayStickers: mocks.overlayStickers,
+		removeOverlaySticker: mocks.removeOverlaySticker,
+	};
+	return {
+		useStickersOverlayStore: Object.assign(
+			(selector: (state: typeof overlayState) => unknown) =>
+				selector(overlayState),
+			{ getState: () => overlayState }
+		),
+	};
+});
+
+class LoadedImage {
+	naturalHeight = 180;
+	naturalWidth = 320;
+	onerror: (() => void) | null = null;
+	onload: (() => void) | null = null;
+
+	set src(_value: string) {
+		queueMicrotask(() => this.onload?.());
+	}
+}
+
+beforeEach(() => {
+	mocks.projectState.activeProject = { id: "project-stickers" };
+	mocks.addMediaItem.mockReset().mockResolvedValue("media-sticker");
+	mocks.addOverlaySticker.mockReset().mockReturnValue("overlay-sticker");
+	mocks.addRecentSticker.mockReset();
+	mocks.createStickerMediaUrl.mockReset().mockResolvedValue({
+		revoke: true,
+		url: "blob:sticker-upload",
+	});
+	mocks.isAnimatedStickerFile.mockReset().mockResolvedValue(true);
+	mocks.mediaItems.splice(0);
+	mocks.overlayStickers.clear();
+	mocks.removeMediaItem.mockReset().mockResolvedValue(undefined);
+	mocks.removeOverlaySticker.mockReset();
+	mocks.timelineAddSticker.mockReset();
+	mocks.toastError.mockReset();
+	mocks.toastSuccess.mockReset();
+	mocks.updateRuntimeState.mockReset();
+	vi.stubGlobal("Image", LoadedImage);
+});
+
+afterEach(() => {
+	vi.unstubAllGlobals();
+});
+
+describe("sticker upload metadata", () => {
+	it("writes the internal-reference contract without a local path", () => {
+		const metadata = buildStickerUploadMetadata({
+			animatedSticker: true,
+			metadata: {
+				referenceOnly: true,
+				usage: "internal-reference-only",
+				redistribution: "prohibited",
+				batchId: "jianying-batch-18",
+				itemId: "reference-1",
+				checksumSha256: "a".repeat(64),
+			},
+		});
+
+		expect(metadata).toEqual({
+			source: "sticker-lab",
+			animatedSticker: true,
+			referenceOnly: true,
+			usage: "internal-reference-only",
+			redistribution: "prohibited",
+			batchId: "jianying-batch-18",
+			itemId: "reference-1",
+			checksumSha256: "a".repeat(64),
+		});
+		expect(metadata).not.toHaveProperty("rootPath");
+	});
+});
+
+describe("sticker upload timeline rollback", () => {
+	it("removes a restricted local reference when timeline placement throws", async () => {
+		mocks.overlayStickers.set("overlay-sticker", { id: "overlay-sticker" });
+		mocks.timelineAddSticker.mockResolvedValue({
+			error: "timeline rejected sticker",
+			success: false,
+		});
+		const metadata = {
+			referenceOnly: true as const,
+			usage: "internal-reference-only" as const,
+			redistribution: "prohibited" as const,
+			batchId: "jianying-batch-18",
+			itemId: "reference-18-1",
+			checksumSha256: "b".repeat(64),
+		};
+		const { result } = renderHook(() => useStickerSelect());
+		let mediaItemId: string | undefined;
+
+		await act(async () => {
+			mediaItemId = await result.current.handleStickerUpload({
+				file: new File([new Uint8Array([1, 2, 3])], "reference.gif", {
+					type: "image/gif",
+				}),
+				metadata,
+			});
+		});
+
+		expect(mediaItemId).toBeUndefined();
+		expect(mocks.addMediaItem).toHaveBeenCalledWith(
+			"project-stickers",
+			expect.objectContaining({
+				metadata: expect.objectContaining({
+					...metadata,
+					animatedSticker: true,
+					source: "sticker-lab",
+				}),
+			})
+		);
+		expect(mocks.removeMediaItem).toHaveBeenCalledWith(
+			"project-stickers",
+			"media-sticker"
+		);
+		expect(mocks.removeOverlaySticker).toHaveBeenCalledWith("overlay-sticker");
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		expect(mocks.toastError).toHaveBeenCalledWith("timeline rejected sticker");
+	});
+
+	it("removes an ordinary upload when placement returns false", async () => {
+		const { result } = renderHook(() => useStickerSelect());
+		let mediaItemId: string | undefined;
+
+		await act(async () => {
+			mediaItemId = await result.current.handleStickerUpload({
+				file: new File([new Uint8Array([1, 2, 3])], "ordinary.png", {
+					type: "image/png",
+				}),
+			});
+		});
+
+		expect(mediaItemId).toBeUndefined();
+		expect(mocks.addMediaItem).toHaveBeenCalledWith(
+			"project-stickers",
+			expect.objectContaining({
+				metadata: {
+					animatedSticker: true,
+					source: "sticker-upload",
+				},
+			})
+		);
+		expect(mocks.timelineAddSticker).not.toHaveBeenCalled();
+		expect(mocks.removeMediaItem).toHaveBeenCalledWith(
+			"project-stickers",
+			"media-sticker"
+		);
+		expect(mocks.removeOverlaySticker).toHaveBeenCalledWith("overlay-sticker");
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		expect(mocks.toastError).toHaveBeenCalledWith(
+			"Failed to add sticker to timeline"
+		);
+	});
+
+	it("rolls back the original project when the active project changes", async () => {
+		mocks.addMediaItem.mockImplementationOnce(async () => {
+			mocks.projectState.activeProject = { id: "project-other" };
+			return "media-sticker";
+		});
+		const { result } = renderHook(() => useStickerSelect());
+
+		await act(async () => {
+			await result.current.handleStickerUpload({
+				file: new File([new Uint8Array([1, 2, 3])], "ordinary.png", {
+					type: "image/png",
+				}),
+			});
+		});
+
+		expect(mocks.timelineAddSticker).not.toHaveBeenCalled();
+		expect(mocks.removeMediaItem).toHaveBeenCalledWith(
+			"project-stickers",
+			"media-sticker"
+		);
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+		expect(mocks.toastError).toHaveBeenCalledWith(
+			"Active project changed while adding sticker"
+		);
+	});
+});

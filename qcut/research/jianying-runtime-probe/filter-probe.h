@@ -41,7 +41,27 @@ struct FilterSequenceResult {
   std::size_t renderedFrames = 0;
 };
 
+struct FilterHostRequest {
+  std::filesystem::path runtimeRoot;
+  std::filesystem::path packagePath;
+  std::filesystem::path modelDirectory;
+  int width;
+  int height;
+  std::array<bool, 3> nativeTextureFlags{false, false, true};
+  int inputTextureDataCode = 0;
+  int outputTextureDataCode = 0;
+  int algorithmCacheFlag = 0;
+  bool exportMode = false;
+  bool enableSwingSimplify = true;
+  bool enableAdjustColorWithFloat = false;
+  bool enableImageQuality = false;
+  bool managerCreateOption = false;
+  bool useBefContextScope = true;
+};
+
 [[nodiscard]] FilterSequenceResult renderFilterSequence(
     const FilterSequenceRequest& request);
+
+int runFilterHost(const FilterHostRequest& request);
 
 }  // namespace jianying_probe

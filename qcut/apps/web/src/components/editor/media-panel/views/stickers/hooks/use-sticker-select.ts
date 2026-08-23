@@ -10,6 +10,7 @@ import {
 	isAnimatedStickerAsset,
 	isAnimatedStickerFile,
 } from "@/lib/stickers/sticker-animation";
+import type { StickerReferenceUsageMetadata } from "@/lib/stickers/local-sticker-reference";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useProjectStore } from "@/stores/project-store";
@@ -19,6 +20,16 @@ import { useStickersStore } from "@/stores/stickers-store";
 interface StickerIdentity {
 	collection: string;
 	icon: string;
+}
+
+function isProjectActive({ projectId }: { projectId: string }): boolean {
+	return useProjectStore.getState().activeProject?.id === projectId;
+}
+
+function assertProjectActive({ projectId }: { projectId: string }): void {
+	if (!isProjectActive({ projectId })) {
+		throw new Error("Active project changed while adding sticker");
+	}
 }
 
 function parseStickerIdentity({ iconId }: { iconId: string }): StickerIdentity {
@@ -46,8 +57,23 @@ function readImageDimensions({
 	});
 }
 
+export function buildStickerUploadMetadata({
+	animatedSticker,
+	metadata,
+}: {
+	animatedSticker: boolean;
+	metadata?: StickerReferenceUsageMetadata;
+}): Record<string, unknown> {
+	return {
+		source: metadata ? "sticker-lab" : "sticker-upload",
+		animatedSticker,
+		...metadata,
+	};
+}
+
 export function useStickerSelect() {
 	const addMediaItem = useMediaStore((state) => state.addMediaItem);
+	const removeMediaItem = useMediaStore((state) => state.removeMediaItem);
 	const activeProject = useProjectStore((state) => state.activeProject);
 	const addRecentSticker = useStickersStore((state) => state.addRecentSticker);
 	const addOverlaySticker = useStickersOverlayStore(
@@ -67,29 +93,62 @@ export function useStickerSelect() {
 		if (!mediaOwnsUrl) URL.revokeObjectURL(url);
 	}, []);
 
+	const rollbackMediaItem = useCallback(
+		async ({
+			mediaItemId,
+			projectId,
+		}: {
+			mediaItemId: string;
+			projectId: string;
+		}) => {
+			try {
+				await removeMediaItem(projectId, mediaItemId);
+			} catch (error) {
+				debugError("[StickerSelect] Failed to roll back media item", error);
+			}
+		},
+		[removeMediaItem]
+	);
+
 	const placeStickerOnTimeline = useCallback(
-		async ({ mediaItemId }: { mediaItemId: string }): Promise<boolean> => {
+		async ({
+			mediaItemId,
+			projectId,
+		}: {
+			mediaItemId: string;
+			projectId: string;
+		}): Promise<boolean> => {
+			assertProjectActive({ projectId });
 			const stickerId = addOverlaySticker(mediaItemId, {
 				position: { x: 50, y: 50 },
 			});
 			const sticker = useStickersOverlayStore
 				.getState()
 				.overlayStickers.get(stickerId);
-			if (!sticker) return false;
+			if (!sticker) {
+				removeOverlaySticker(stickerId);
+				return false;
+			}
 
-			const [{ timelineStickerIntegration }, { usePlaybackStore }] =
-				await Promise.all([
-					import("@/lib/stickers/timeline-sticker-integration"),
-					import("@/stores/editor/playback-store"),
-				]);
-			const result = await timelineStickerIntegration.addStickerToTimeline(
-				sticker,
-				usePlaybackStore.getState().currentTime,
-				5
-			);
-			if (result.success) return true;
-			removeOverlaySticker(stickerId);
-			throw new Error(result.error ?? "Failed to add sticker to timeline");
+			try {
+				const [{ timelineStickerIntegration }, { usePlaybackStore }] =
+					await Promise.all([
+						import("@/lib/stickers/timeline-sticker-integration"),
+						import("@/stores/editor/playback-store"),
+					]);
+				assertProjectActive({ projectId });
+				const result = await timelineStickerIntegration.addStickerToTimeline(
+					sticker,
+					usePlaybackStore.getState().currentTime,
+					5,
+					() => isProjectActive({ projectId })
+				);
+				if (result.success) return true;
+				throw new Error(result.error ?? "Failed to add sticker to timeline");
+			} catch (error) {
+				removeOverlaySticker(stickerId);
+				throw error;
+			}
 		},
 		[addOverlaySticker, removeOverlaySticker]
 	);
@@ -178,8 +237,10 @@ export function useStickerSelect() {
 				toast.error("No project selected");
 				return;
 			}
+			const projectId = activeProject.id;
 
 			let createdObjectUrl: string | null = null;
+			let mediaItemId: string | null = null;
 			try {
 				const downloaded = await prepareSticker({ iconId, name });
 				const animatedSticker =
@@ -188,7 +249,8 @@ export function useStickerSelect() {
 				const mediaUrl = await createStickerMediaUrl({ blob: downloaded.blob });
 				createdObjectUrl = mediaUrl.revoke ? mediaUrl.url : null;
 				const dimensions = await readImageDimensions({ url: mediaUrl.url });
-				const mediaItemId = await addMediaItem(activeProject.id, {
+				assertProjectActive({ projectId });
+				mediaItemId = await addMediaItem(projectId, {
 					name: downloaded.file.name,
 					type: "image",
 					file: downloaded.file,
@@ -204,13 +266,27 @@ export function useStickerSelect() {
 						animatedSticker,
 					},
 				});
-				await placeStickerOnTimeline({ mediaItemId });
+				assertProjectActive({ projectId });
+				const didPlaceSticker = await placeStickerOnTimeline({
+					mediaItemId,
+					projectId,
+				});
+				if (!didPlaceSticker) {
+					throw new Error("Failed to add sticker to timeline");
+				}
 				addRecentSticker(iconId, name);
 				toast.success(`Added ${name} to timeline`);
 				return mediaItemId;
 			} catch (error) {
 				debugError(`[StickerSelect] Error adding sticker ${iconId}:`, error);
-				if (createdObjectUrl) revokeUnownedMediaUrl({ url: createdObjectUrl });
+				if (mediaItemId) {
+					await rollbackMediaItem({
+						mediaItemId,
+						projectId,
+					});
+				} else if (createdObjectUrl) {
+					revokeUnownedMediaUrl({ url: createdObjectUrl });
+				}
 				toast.error("Failed to add sticker to project");
 				return;
 			}
@@ -222,15 +298,23 @@ export function useStickerSelect() {
 			placeStickerOnTimeline,
 			prepareSticker,
 			revokeUnownedMediaUrl,
+			rollbackMediaItem,
 		]
 	);
 
 	const handleStickerUpload = useCallback(
-		async ({ file }: { file: File }): Promise<string | undefined> => {
+		async ({
+			file,
+			metadata,
+		}: {
+			file: File;
+			metadata?: StickerReferenceUsageMetadata;
+		}): Promise<string | undefined> => {
 			if (!activeProject) {
 				toast.error("No project selected");
 				return;
 			}
+			const projectId = activeProject.id;
 			if (!file.type.startsWith("image/")) {
 				toast.error(`${file.name} is not an image file`);
 				return;
@@ -238,12 +322,14 @@ export function useStickerSelect() {
 
 			const mediaUrl = await createStickerMediaUrl({ blob: file });
 			const imageUrl = mediaUrl.url;
+			let mediaItemId: string | null = null;
 			try {
 				const [dimensions, animatedSticker] = await Promise.all([
 					readImageDimensions({ url: imageUrl }),
 					isAnimatedStickerFile({ file }),
 				]);
-				const mediaItemId = await addMediaItem(activeProject.id, {
+				assertProjectActive({ projectId });
+				mediaItemId = await addMediaItem(projectId, {
 					name: file.name,
 					type: "image",
 					file,
@@ -252,23 +338,43 @@ export function useStickerSelect() {
 					width: dimensions.width,
 					height: dimensions.height,
 					duration: 0,
-					metadata: {
-						source: "sticker-upload",
+					metadata: buildStickerUploadMetadata({
 						animatedSticker,
-					},
+						metadata,
+					}),
 				});
-				await placeStickerOnTimeline({ mediaItemId });
+				assertProjectActive({ projectId });
+				const didPlaceSticker = await placeStickerOnTimeline({
+					mediaItemId,
+					projectId,
+				});
+				if (!didPlaceSticker) {
+					throw new Error("Failed to add sticker to timeline");
+				}
 				toast.success(`Added ${file.name} to timeline`);
 				return mediaItemId;
 			} catch (error) {
-				if (mediaUrl.revoke) revokeUnownedMediaUrl({ url: imageUrl });
+				if (mediaItemId) {
+					await rollbackMediaItem({
+						mediaItemId,
+						projectId,
+					});
+				} else if (mediaUrl.revoke) {
+					revokeUnownedMediaUrl({ url: imageUrl });
+				}
 				toast.error(
 					error instanceof Error ? error.message : "Failed to upload sticker"
 				);
 				return;
 			}
 		},
-		[activeProject, addMediaItem, placeStickerOnTimeline, revokeUnownedMediaUrl]
+		[
+			activeProject,
+			addMediaItem,
+			placeStickerOnTimeline,
+			revokeUnownedMediaUrl,
+			rollbackMediaItem,
+		]
 	);
 
 	return {

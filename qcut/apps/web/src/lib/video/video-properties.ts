@@ -10,8 +10,14 @@ import type {
 	MediaEnhancements,
 	MediaKeyframeProperty,
 	MediaPerspective,
+	MediaPortraitAdjustments,
 	MediaPropertyKeyframe,
 } from "@/types/timeline";
+import {
+	DEFAULT_MEDIA_PORTRAIT_ADJUSTMENTS,
+	hasMediaPortraitAdjustments,
+	normalizeMediaPortraitAdjustments,
+} from "@qcut/editor-core";
 import {
 	hasMediaColorEdits,
 	normalizeMediaColorSettings,
@@ -30,6 +36,11 @@ import {
 import { normalizeMediaCustomCutout } from "./media-custom-cutout";
 
 export { DEFAULT_MEDIA_CHROMA_KEY } from "./media-chroma-key";
+export {
+	DEFAULT_MEDIA_PORTRAIT_ADJUSTMENTS,
+	hasMediaPortraitAdjustments,
+	normalizeMediaPortraitAdjustments,
+};
 
 export const DEFAULT_MEDIA_CROP: MediaCrop = {
 	top: 0,
@@ -139,6 +150,7 @@ export interface ResolvedMediaVisualProperties {
 	customCutout: MediaCustomCutout;
 	chromaKey: MediaChromaKey;
 	enhancements: MediaEnhancements;
+	portraitAdjustments: MediaPortraitAdjustments;
 }
 
 export const MEDIA_KEYFRAME_PROPERTIES: Array<{
@@ -390,6 +402,9 @@ export function resolveMediaVisualProperties(
 			...DEFAULT_MEDIA_ENHANCEMENTS,
 			...element.enhancements,
 		},
+		portraitAdjustments: normalizeMediaPortraitAdjustments({
+			adjustments: element.portraitAdjustments,
+		}),
 	};
 }
 

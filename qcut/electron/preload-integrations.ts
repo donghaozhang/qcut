@@ -47,6 +47,10 @@ import type {
 	QCutJianyingProjectExportRendererRequest,
 	QCutJianyingProjectExportResult,
 } from "./types/qcut-jianying-project-export-api.js";
+import type {
+	ClaudeMediaDeletedEvent,
+	ClaudeMediaImportedEvent,
+} from "./types/claude-media-bridge-api.js";
 
 // ============================================================================
 // PTY Terminal
@@ -182,6 +186,25 @@ export function createMediaImportAPI(): NonNullable<
 }
 
 // ============================================================================
+// Local Sticker Lab References
+// ============================================================================
+
+export function createStickerLabAPI(): NonNullable<ElectronAPI["stickerLab"]> {
+	return {
+		discoverLocalReferences: ({ rootPath }) =>
+			ipcRenderer.invoke("sticker-lab:discover-local-references", {
+				...(rootPath === undefined ? {} : { rootPath }),
+			}),
+		readLocalReference: ({ rootPath, batchId, stickerId }) =>
+			ipcRenderer.invoke("sticker-lab:read-local-reference", {
+				rootPath,
+				batchId,
+				stickerId,
+			}),
+	};
+}
+
+// ============================================================================
 // Project Folder
 // ============================================================================
 
@@ -207,6 +230,31 @@ export function createProjectFolderAPI(): NonNullable<
 
 /** Create the Claude code integration API for the renderer process. */
 export function createClaudeAPI(): NonNullable<ElectronAPI["claude"]> {
+	const sendRendererMutationResponse = ({
+		failure,
+		requestId,
+		responseChannel,
+		status,
+	}: {
+		failure?: unknown;
+		requestId: string | undefined;
+		responseChannel: string;
+		status: "ack" | "nack";
+	}): void => {
+		if (!requestId) return;
+		ipcRenderer.send(responseChannel, {
+			...(status === "nack"
+				? {
+						error:
+							failure instanceof Error
+								? failure.message
+								: "Renderer mutation failed",
+					}
+				: {}),
+			requestId,
+		});
+	};
+
 	return {
 		media: {
 			list: (projectId) => ipcRenderer.invoke("claude:media:list", projectId),
@@ -220,7 +268,49 @@ export function createClaudeAPI(): NonNullable<ElectronAPI["claude"]> {
 				ipcRenderer.invoke("claude:media:rename", projectId, mediaId, newName),
 			onMediaImported: (callback) => {
 				ipcRenderer.removeAllListeners("claude:media:imported");
-				ipcRenderer.on("claude:media:imported", (_, data) => callback(data));
+				ipcRenderer.on(
+					"claude:media:imported",
+					async (_: IpcRendererEvent, data: ClaudeMediaImportedEvent) => {
+						try {
+							await callback(data);
+							sendRendererMutationResponse({
+								requestId: data.requestId,
+								responseChannel: "claude:media:imported:response",
+								status: "ack",
+							});
+						} catch (error) {
+							sendRendererMutationResponse({
+								failure: error,
+								requestId: data.requestId,
+								responseChannel: "claude:media:imported:response",
+								status: "nack",
+							});
+						}
+					}
+				);
+			},
+			onMediaDeleted: (callback) => {
+				ipcRenderer.removeAllListeners("claude:media:deleted");
+				ipcRenderer.on(
+					"claude:media:deleted",
+					async (_: IpcRendererEvent, data: ClaudeMediaDeletedEvent) => {
+						try {
+							await callback(data);
+							sendRendererMutationResponse({
+								requestId: data.requestId,
+								responseChannel: "claude:media:deleted:response",
+								status: "ack",
+							});
+						} catch (error) {
+							sendRendererMutationResponse({
+								failure: error,
+								requestId: data.requestId,
+								responseChannel: "claude:media:deleted:response",
+								status: "nack",
+							});
+						}
+					}
+				);
 			},
 		},
 		search: {
@@ -327,8 +417,31 @@ export function createClaudeAPI(): NonNullable<ElectronAPI["claude"]> {
 			},
 			onAddElement: (callback) => {
 				ipcRenderer.removeAllListeners("claude:timeline:addElement");
-				ipcRenderer.on("claude:timeline:addElement", (_, element) =>
-					callback(element)
+				ipcRenderer.on(
+					"claude:timeline:addElement",
+					async (
+						_: IpcRendererEvent,
+						element: Partial<ClaudeElement> & {
+							projectId: string;
+							requestId?: string;
+						}
+					) => {
+						try {
+							await callback(element);
+							sendRendererMutationResponse({
+								requestId: element.requestId,
+								responseChannel: "claude:timeline:addElement:response",
+								status: "ack",
+							});
+						} catch (error) {
+							sendRendererMutationResponse({
+								failure: error,
+								requestId: element.requestId,
+								responseChannel: "claude:timeline:addElement:response",
+								status: "nack",
+							});
+						}
+					}
 				);
 			},
 			onBatchAddElements: (callback) => {

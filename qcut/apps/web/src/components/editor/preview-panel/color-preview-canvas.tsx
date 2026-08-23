@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { toast } from "sonner";
-import type { MediaColorSettings, MediaMask } from "@/types/timeline";
+import type {
+	MediaColorSettings,
+	MediaMask,
+	MediaPortraitAdjustments,
+} from "@/types/timeline";
 import {
 	drawColorGradedSourceStack,
 	type BrowserColorGradeLayer,
@@ -60,6 +64,7 @@ export function ColorPreviewCanvas({
 	frameSeed,
 	filter,
 	additionalLayers = [],
+	portraitAdjustments,
 }: {
 	sourceSelector: string;
 	settings: MediaColorSettings;
@@ -68,6 +73,7 @@ export function ColorPreviewCanvas({
 	frameSeed: number;
 	filter?: string;
 	additionalLayers?: BrowserColorGradeLayer[];
+	portraitAdjustments?: MediaPortraitAdjustments;
 }) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const colorPickerActive = useColorPickerStore((state) => state.active);
@@ -149,18 +155,24 @@ export function ColorPreviewCanvas({
 			const localPortraitFallback =
 				reason === "jianying-local-portrait-fallback";
 			const localEffectFallback = reason === "jianying-local-effect-fallback";
+			const portraitAdjustmentFallback =
+				reason === "jianying-portrait-adjustment-fallback";
 			toast.warning(
-				localPortraitFallback
-					? "本机剪映人像运行时不可用，已使用近似肤色蒙版"
-					: localEffectFallback
-						? "本机剪映滤镜运行时不可用，已使用结构近似效果"
-						: "调色预览已降级为近似效果（画面源受跨域限制）",
-				{
-					id: localPortraitFallback
-						? "jianying-local-portrait-fallback"
+				portraitAdjustmentFallback
+					? "本机剪映美颜美体运行时不可用，已显示原始画面"
+					: localPortraitFallback
+						? "本机剪映人像运行时不可用，已使用近似肤色蒙版"
 						: localEffectFallback
-							? "jianying-local-effect-fallback"
-							: "color-degradation-css-fallback",
+							? "本机剪映滤镜运行时不可用，已使用结构近似效果"
+							: "调色预览已降级为近似效果（画面源受跨域限制）",
+				{
+					id: portraitAdjustmentFallback
+						? "jianying-portrait-adjustment-fallback"
+						: localPortraitFallback
+							? "jianying-local-portrait-fallback"
+							: localEffectFallback
+								? "jianying-local-effect-fallback"
+								: "color-degradation-css-fallback",
 				}
 			);
 		});
@@ -229,6 +241,7 @@ export function ColorPreviewCanvas({
 					sourceKey,
 					timestampSeconds:
 						source instanceof HTMLVideoElement ? source.currentTime : 0,
+					portraitAdjustments,
 				});
 			} finally {
 				drawing = false;
@@ -263,7 +276,7 @@ export function ColorPreviewCanvas({
 			source.removeEventListener("seeked", redraw);
 			cancelAnimationFrame(animationFrame);
 		};
-	}, [fitMode, frameSeed, renderedLayers, sourceSelector]);
+	}, [fitMode, frameSeed, portraitAdjustments, renderedLayers, sourceSelector]);
 	return (
 		<canvas
 			ref={canvasRef}

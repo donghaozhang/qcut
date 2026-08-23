@@ -7,12 +7,14 @@
 
 import { ipcMain, BrowserWindow, IpcMainEvent } from "electron";
 import { generateId } from "../utils/helpers.js";
+import { requestRendererMutation } from "./claude-renderer-mutation-handler.js";
 import {
 	assertIpcMainReady,
 	assertRendererWindowReady,
 } from "../utils/renderer-ipc-guard.js";
 import type {
 	ClaudeTimeline,
+	ClaudeElement,
 	ClaudeBatchAddElementRequest,
 	ClaudeBatchAddResponse,
 	ClaudeBatchDeleteItemRequest,
@@ -31,6 +33,56 @@ import type {
 
 const MAX_TIMELINE_BATCH_ITEMS = 50;
 const TIMELINE_REQUEST_TIMEOUT_MS = 5000;
+
+interface RendererResultResponse<T> {
+	requestId: string;
+	result: T;
+}
+
+function isRendererResultResponse<T>(
+	candidate: unknown
+): candidate is RendererResultResponse<T> {
+	if (typeof candidate !== "object" || candidate === null) return false;
+	const response = candidate as Record<string, unknown>;
+	return typeof response.requestId === "string" && "result" in response;
+}
+
+function requireTimelineProjectId({
+	projectId,
+}: {
+	projectId: string;
+}): string {
+	if (typeof projectId !== "string" || projectId.trim().length === 0) {
+		throw new Error("Timeline mutation requires a projectId");
+	}
+	return projectId;
+}
+
+export async function requestAddElementFromRenderer({
+	correlationId,
+	element,
+	projectId,
+	win,
+}: {
+	correlationId?: string;
+	element: Partial<ClaudeElement>;
+	projectId: string;
+	win: BrowserWindow;
+}): Promise<void> {
+	await requestRendererMutation({
+		channel: "claude:timeline:addElement",
+		payload: {
+			...element,
+			...(correlationId ? { correlationId } : {}),
+			projectId: requireTimelineProjectId({ projectId }),
+		},
+		requestIdPrefix: "timeline-add",
+		responseChannel: "claude:timeline:addElement:response",
+		timeoutMessage: "Renderer timeline element mutation timed out.",
+		timeoutMs: TIMELINE_REQUEST_TIMEOUT_MS,
+		win,
+	});
+}
 
 /**
  * Request timeline data from renderer process
@@ -220,11 +272,14 @@ async function requestRendererResult<T>({
 			rejectOnce({ error: new Error(timeoutErrorMessage) });
 		}, TIMELINE_REQUEST_TIMEOUT_MS);
 
-		const responseHandler = (
-			_event: IpcMainEvent,
-			data: { requestId: string; result: T }
-		) => {
-			if (resolved || data.requestId !== requestId) {
+		const responseHandler = (event: IpcMainEvent, data: unknown) => {
+			if (
+				resolved ||
+				!isRendererResultResponse<T>(data) ||
+				data.requestId !== requestId ||
+				event.sender !== win.webContents ||
+				event.senderFrame !== win.webContents.mainFrame
+			) {
 				return;
 			}
 			resolved = true;
@@ -307,6 +362,7 @@ function isTrackCompatibleWithElementType({
 /** Handle request batch add elements from renderer. */
 export async function requestBatchAddElementsFromRenderer(
 	win: BrowserWindow,
+	projectId: string,
 	elements: ClaudeBatchAddElementRequest[],
 	correlationId?: string
 ): Promise<ClaudeBatchAddResponse> {
@@ -314,7 +370,10 @@ export async function requestBatchAddElementsFromRenderer(
 		win,
 		requestChannel: "claude:timeline:batchAddElements",
 		responseChannel: "claude:timeline:batchAddElements:response",
-		payload: { elements },
+		payload: {
+			elements,
+			projectId: requireTimelineProjectId({ projectId }),
+		},
 		timeoutErrorMessage: "Timeout waiting for batch add result",
 		correlationId,
 	});
@@ -404,7 +463,7 @@ export async function requestTrackOperationFromRenderer(
 /** Handle batch add elements. */
 export async function batchAddElements(
 	win: BrowserWindow,
-	_projectId: string,
+	projectId: string,
 	elements: ClaudeBatchAddElementRequest[],
 	correlationId?: string
 ): Promise<ClaudeBatchAddResponse> {
@@ -476,7 +535,12 @@ export async function batchAddElements(
 			}
 		}
 
-		return requestBatchAddElementsFromRenderer(win, elements, correlationId);
+		return requestBatchAddElementsFromRenderer(
+			win,
+			projectId,
+			elements,
+			correlationId
+		);
 	} catch (error) {
 		throw new Error(
 			error instanceof Error ? error.message : "Failed to batch add elements"

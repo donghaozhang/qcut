@@ -6,6 +6,7 @@ import {
 } from "@qcut/editor-core/sticker-lab";
 import {
 	createLocalStickerCatalog,
+	createLocalBridgeStickerCatalog,
 	createPrivateStickerCatalog,
 	createPrivateStickerCatalogs,
 	createRemoteStickerCatalog,
@@ -16,6 +17,7 @@ import { useLocalStickerCatalog } from "../hooks/use-local-sticker-catalog";
 const catalogMocks = vi.hoisted(() => ({
 	getSource: vi.fn<() => LocalStickerLabSource | null>(),
 	loadManifest: vi.fn(),
+	discoverLocal: vi.fn(),
 	loadPrivateManifest: vi.fn(),
 	loadRemoteManifest: vi.fn(),
 }));
@@ -44,10 +46,26 @@ vi.mock("@/lib/stickers/local-sticker-manifest", async (importOriginal) => {
 	};
 });
 
+vi.mock("@/lib/stickers/local-sticker-reference", async (importOriginal) => {
+	const actual =
+		await importOriginal<
+			typeof import("@/lib/stickers/local-sticker-reference")
+		>();
+	return {
+		...actual,
+		discoverLocalStickerReferenceCatalogs: catalogMocks.discoverLocal,
+	};
+});
+
 describe("useLocalStickerCatalog", () => {
 	beforeEach(() => {
 		catalogMocks.getSource.mockReset();
 		catalogMocks.loadManifest.mockReset();
+		catalogMocks.discoverLocal.mockReset();
+		catalogMocks.discoverLocal.mockResolvedValue({
+			catalogs: [],
+			warningCount: 0,
+		});
 		catalogMocks.loadPrivateManifest.mockReset();
 		catalogMocks.loadRemoteManifest.mockReset();
 		// Default: the viewer is not on the allow list.
@@ -56,21 +74,54 @@ describe("useLocalStickerCatalog", () => {
 		);
 	});
 
-	it("stays unavailable when the local lab is not configured", () => {
+	it("stays unavailable without a configured source or local references", async () => {
 		catalogMocks.getSource.mockReturnValue(null);
 
 		const { result } = renderHook(() => useLocalStickerCatalog());
 
+		await waitFor(() => expect(catalogMocks.discoverLocal).toHaveBeenCalled());
 		expect(result.current).toEqual({
 			catalog: null,
 			error: null,
 			isAvailable: false,
 			isLoading: false,
+			localReferenceWarningCount: 0,
 			privateCatalogs: [],
 			unavailablePrivateCatalogIds: [],
 		});
 		expect(catalogMocks.loadPrivateManifest).not.toHaveBeenCalled();
 		expect(catalogMocks.loadManifest).not.toHaveBeenCalled();
+	});
+
+	it("shows local desktop references even when the feature flag is off", async () => {
+		const localCatalogs = Array.from({ length: 18 }, (_, index) =>
+			createLocalBridgeStickerCatalog({
+				batchId: `jianying-batch-${index + 1}`,
+				id: `local-reference-${index + 1}`,
+			})
+		);
+		catalogMocks.getSource.mockReturnValue(null);
+		catalogMocks.discoverLocal.mockResolvedValue({
+			catalogs: localCatalogs,
+			warningCount: 0,
+		});
+
+		const { result } = renderHook(() => useLocalStickerCatalog());
+
+		await waitFor(() =>
+			expect(result.current.privateCatalogs).toHaveLength(18)
+		);
+		expect(result.current).toMatchObject({
+			catalog: null,
+			error: null,
+			isAvailable: true,
+			isLoading: false,
+			localReferenceWarningCount: 0,
+			unavailablePrivateCatalogIds: [],
+		});
+		expect(catalogMocks.loadPrivateManifest).not.toHaveBeenCalled();
+		expect(catalogMocks.loadManifest).not.toHaveBeenCalled();
+		expect(catalogMocks.loadRemoteManifest).not.toHaveBeenCalled();
 	});
 
 	it("loads a configured v1 manifest asynchronously", async () => {
@@ -146,6 +197,7 @@ describe("useLocalStickerCatalog", () => {
 			error: "Invalid local sticker manifest",
 			isAvailable: true,
 			isLoading: false,
+			localReferenceWarningCount: 0,
 			privateCatalogs: [],
 			// Nothing mocks the private manifests here, so all three legitimately
 			// fail — and the panel now says so instead of showing a short list.
@@ -186,6 +238,28 @@ describe("useLocalStickerCatalog", () => {
 				})
 			);
 		}
+	});
+
+	it("prefers local reference batches without requesting the remote private catalogs", async () => {
+		const localReferenceCatalog = createLocalBridgeStickerCatalog();
+		catalogMocks.getSource.mockReturnValue({
+			kind: "manifest",
+			manifestPath: "/tmp/sticker-manifest.json",
+		});
+		catalogMocks.loadManifest.mockResolvedValue(createLocalStickerCatalog());
+		catalogMocks.discoverLocal.mockResolvedValue({
+			catalogs: [localReferenceCatalog],
+			warningCount: 2,
+		});
+
+		const { result } = renderHook(() => useLocalStickerCatalog());
+
+		await waitFor(() =>
+			expect(result.current.privateCatalogs).toEqual([localReferenceCatalog])
+		);
+		expect(result.current.localReferenceWarningCount).toBe(2);
+		expect(result.current.unavailablePrivateCatalogIds).toEqual([]);
+		expect(catalogMocks.loadPrivateManifest).not.toHaveBeenCalled();
 	});
 
 	it("keeps private catalogs empty when the server denies access", async () => {
@@ -230,7 +304,9 @@ describe("useLocalStickerCatalog", () => {
 
 		await waitFor(() => expect(result.current.privateCatalogs).toHaveLength(2));
 		expect(
-			result.current.privateCatalogs.map(({ catalogId }) => catalogId)
+			result.current.privateCatalogs.map((privateCatalog) =>
+				"catalogId" in privateCatalog ? privateCatalog.catalogId : null
+			)
 		).toEqual(["jianying-2026-07-31", "jianying-2026-08-01-batch-3"]);
 	});
 
@@ -254,7 +330,9 @@ describe("useLocalStickerCatalog", () => {
 
 		const { result } = renderHook(() => useLocalStickerCatalog());
 
-		expect(catalogMocks.loadPrivateManifest).toHaveBeenCalledTimes(3);
+		await waitFor(() =>
+			expect(catalogMocks.loadPrivateManifest).toHaveBeenCalledTimes(3)
+		);
 		expect(resolvers.size).toBe(3);
 		await act(async () => {
 			const catalogId = PRIVATE_STICKER_CATALOG_IDS[0];
@@ -271,7 +349,7 @@ describe("useLocalStickerCatalog", () => {
 		await waitFor(() => expect(result.current.privateCatalogs).toHaveLength(3));
 	});
 
-	it("aborts all private catalog requests when the panel unmounts", () => {
+	it("aborts all private catalog requests when the panel unmounts", async () => {
 		catalogMocks.getSource.mockReturnValue({
 			kind: "manifest",
 			manifestPath: "/tmp/sticker-manifest.json",
@@ -280,6 +358,9 @@ describe("useLocalStickerCatalog", () => {
 		catalogMocks.loadPrivateManifest.mockReturnValue(new Promise(() => {}));
 
 		const { unmount } = renderHook(() => useLocalStickerCatalog());
+		await waitFor(() =>
+			expect(catalogMocks.loadPrivateManifest).toHaveBeenCalledTimes(3)
+		);
 		const signals = catalogMocks.loadPrivateManifest.mock.calls.map(
 			([options]) => options.signal as AbortSignal
 		);

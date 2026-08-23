@@ -282,6 +282,12 @@ export interface CLIRunOptions {
 	// search options
 	query?: string;
 	collection?: string;
+	/** Private local Sticker Lab reference root. */
+	root?: string;
+	/** Private local Sticker Lab batch selector. */
+	batchId?: string;
+	/** Number of matching Sticker Lab entries to skip. */
+	offset?: number;
 	caseSensitive?: boolean;
 	wholeWord?: boolean;
 	maxResults?: number;

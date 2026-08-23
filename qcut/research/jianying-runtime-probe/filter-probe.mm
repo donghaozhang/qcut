@@ -8,6 +8,7 @@
 
 #include <array>
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <cstdio>
@@ -27,12 +28,38 @@ namespace {
 
 constexpr int kVideoSegmentType = 7;
 constexpr int kAutomaticRendererType = 14;
-constexpr std::int64_t kTimelineDuration = 60'000'000;
-constexpr std::string_view kVerifiedFilterCoreUuid =
+constexpr std::int64_t kTimelineDuration = 86'400'000'000;
+constexpr std::string_view kLegacyFilterCoreUuid =
     "9A8A8F6B-31C0-3DDC-85AC-5F11087D7965";
-constexpr std::uintptr_t kAmazerContextScopeConstructorOffset = 0x3fb3cc;
-constexpr std::uintptr_t kAmazerContextScopeDestructorOffset = 0x3fb3f8;
+constexpr std::string_view kPrivateFilterCoreUuid =
+    "D6342ECD-5432-33F0-A2AD-0C28F5699994";
 constexpr std::size_t kVerifiedSwingManagerSize = 0x370;
+
+struct FilterRuntimeProfile {
+  std::string_view uuid;
+  std::uintptr_t contextConstructorOffset;
+  std::uintptr_t contextDestructorOffset;
+};
+
+[[nodiscard]] FilterRuntimeProfile filterRuntimeProfile(
+    const void* imageSymbol) {
+  const std::string uuid = runtimeImageUuid(imageSymbol);
+  if (uuid == kLegacyFilterCoreUuid) {
+    return {
+        .uuid = kLegacyFilterCoreUuid,
+        .contextConstructorOffset = 0x3fb3cc,
+        .contextDestructorOffset = 0x3fb3f8,
+    };
+  }
+  if (uuid == kPrivateFilterCoreUuid) {
+    return {
+        .uuid = kPrivateFilterCoreUuid,
+        .contextConstructorOffset = 0x3fb3bc,
+        .contextDestructorOffset = 0x3fb3e8,
+    };
+  }
+  throw std::runtime_error("unsupported libcccreator UUID " + uuid);
+}
 
 constexpr std::string_view kCreateSwingManager =
     "bef_swing_manager_create_with_gpdevice";
@@ -201,7 +228,7 @@ struct FilterSymbols {
     ResourceFinderMethod resourceFinder, bool algorithmAsync,
     void* graphicsDevice) {
   verifyRuntimeImage(reinterpret_cast<const void*>(symbols.constructManager),
-                     kVerifiedFilterCoreUuid);
+                     kLegacyFilterCoreUuid);
   void* instance = ::operator new(kVerifiedSwingManagerSize);
   symbols.constructManager(instance);
 
@@ -276,6 +303,14 @@ class FilterHostSession {
 
   FilterHostSession(const FilterHostSession&) = delete;
   FilterHostSession& operator=(const FilterHostSession&) = delete;
+
+  void setFeatureParameters(std::string featureParameters) {
+    if (featureParameters_ == featureParameters) {
+      return;
+    }
+    featureParameters_ = std::move(featureParameters);
+    featureParametersApplied_ = false;
+  }
 
   [[nodiscard]] bool render(const GraphicsFrameResources& resources,
                             std::span<const UpdateModePass> renderPasses,
@@ -402,13 +437,15 @@ class FilterHostSession {
     openGlContext_.makeCurrent();
     void* amazer = symbols_.getManagerAmazer(manager_);
     if (useBefContextScope_) {
+      const FilterRuntimeProfile profile = filterRuntimeProfile(
+          reinterpret_cast<const void*>(symbols_.getManagerAmazer));
       contextScope_ = std::make_unique<AmazerContextScope>(
           AmazerContextScopeRequest{
               .knownImageSymbol =
                   reinterpret_cast<const void*>(symbols_.getManagerAmazer),
-              .expectedImageUuid = kVerifiedFilterCoreUuid,
-              .constructorOffset = kAmazerContextScopeConstructorOffset,
-              .destructorOffset = kAmazerContextScopeDestructorOffset,
+              .expectedImageUuid = profile.uuid,
+              .constructorOffset = profile.contextConstructorOffset,
+              .destructorOffset = profile.contextDestructorOffset,
               .context = amazer,
           });
     }
@@ -556,6 +593,8 @@ bool renderFilterFrame(const GraphicsFrameResources& resources) {
         context->enableAdjustColorWithFloat, context->enableImageQuality,
         context->managerCreateOption, context->enableParallelAsyncSwing,
         context->useBefContextScope);
+  } else {
+    context->session->setFeatureParameters(context->featureParameters);
   }
   return context->session->render(
       resources, context->renderPasses, context->resetAction,
@@ -621,6 +660,64 @@ struct FilterFrameExecutionRequest {
   }
   writeRgbaFrame(request.outputPath, renderedPixels);
   return true;
+}
+
+struct FilterHostFrameCommand {
+  std::string requestId;
+  double timestampSeconds;
+  fs::path inputPath;
+  fs::path outputPath;
+  std::string featureParameters;
+};
+
+[[nodiscard]] std::vector<std::string> splitHostFields(
+    const std::string& line) {
+  std::vector<std::string> fields;
+  std::size_t start = 0;
+  while (start <= line.size()) {
+    const std::size_t separator = line.find('\t', start);
+    fields.push_back(line.substr(start, separator - start));
+    if (separator == std::string::npos) {
+      break;
+    }
+    start = separator + 1;
+  }
+  return fields;
+}
+
+[[nodiscard]] FilterHostFrameCommand parseHostFrameCommand(
+    const std::string& line) {
+  const std::vector<std::string> fields = splitHostFields(line);
+  if (fields.size() != 6 || fields[0] != "render" || fields[1].empty() ||
+      fields[2].empty() || fields[3].empty() || fields[4].empty() ||
+      fields[5].empty() || fields[5].size() > 64 * 1024) {
+    throw std::runtime_error(
+        "render command must be render<TAB>id<TAB>seconds<TAB>input<TAB>output<TAB>params");
+  }
+  std::size_t parsedLength = 0;
+  const double timestampSeconds = std::stod(fields[2], &parsedLength);
+  if (parsedLength != fields[2].size() || !std::isfinite(timestampSeconds) ||
+      timestampSeconds < 0.0 ||
+      timestampSeconds * 1'000'000.0 >=
+          static_cast<double>(kTimelineDuration)) {
+    throw std::runtime_error("render timestamp is outside the host timeline");
+  }
+  return {
+      .requestId = fields[1],
+      .timestampSeconds = timestampSeconds,
+      .inputPath = fields[3],
+      .outputPath = fields[4],
+      .featureParameters = fields[5],
+  };
+}
+
+[[nodiscard]] std::string protocolError(std::string message) {
+  for (char& character : message) {
+    if (character == '\t' || character == '\r' || character == '\n') {
+      character = ' ';
+    }
+  }
+  return message;
 }
 
 }  // namespace
@@ -754,6 +851,126 @@ FilterSequenceResult renderFilterSequence(
     }
   }
   return result;
+}
+
+int runFilterHost(const FilterHostRequest& request) {
+  const auto width = static_cast<std::size_t>(request.width);
+  const auto height = static_cast<std::size_t>(request.height);
+  if (request.width <= 0 || request.height <= 0 ||
+      width > std::numeric_limits<std::size_t>::max() / height / 4 ||
+      !fs::is_directory(request.runtimeRoot) ||
+      !fs::is_directory(request.packagePath) ||
+      !fs::is_directory(request.modelDirectory)) {
+    throw std::runtime_error("invalid filter host configuration");
+  }
+
+  OpenGlContext openGlContext;
+  const FilterSymbols symbols = loadFilterSymbols(request.runtimeRoot);
+  const bool disableAsyncLoad = false;
+  const bool enableMetalAlgorithmInput = true;
+  const bool disableParallelAsyncSwing = false;
+  const int asyncLoadResult = symbols.configureAbValue(
+      "enable_amazing_async_load", &disableAsyncLoad, 0);
+  const int metalInputResult = symbols.configureAbValue(
+      "effectab_enable_algorithm_mtltexture_input_opt",
+      &enableMetalAlgorithmInput, 0);
+  const int parallelResult = symbols.configureAbValue(
+      "enable_parallel_and_async_swing", &disableParallelAsyncSwing, 0);
+  if (asyncLoadResult != 0 || metalInputResult != 0 || parallelResult != 0) {
+    throw std::runtime_error("failed to configure filter host AB values");
+  }
+
+  const ModelCatalog models(request.modelDirectory);
+  GraphicsProbeSession graphics(request.runtimeRoot, request.width,
+                                request.height);
+  if (!graphics.ready()) {
+    throw std::runtime_error("graphics session failed to initialize");
+  }
+
+  const std::array<UpdateModePass, 1> renderPasses = {
+      UpdateModePass{.modes = {1}},
+  };
+  RenderContext context = {
+      .symbols = symbols,
+      .models = models,
+      .openGlContext = openGlContext,
+      .packagePath = request.packagePath,
+      .renderPasses = renderPasses,
+      .resetAction = "none",
+      .timestamp = 0,
+      .inputTextureDataCode = request.inputTextureDataCode,
+      .outputTextureDataCode = request.outputTextureDataCode,
+      .algorithmCacheFlag = request.algorithmCacheFlag,
+      .featureParameters = {},
+      .exportMode = request.exportMode,
+      .enableSwingSimplify = request.enableSwingSimplify,
+      .enableAdjustColorWithFloat = request.enableAdjustColorWithFloat,
+      .enableImageQuality = request.enableImageQuality,
+      .managerCreateOption = request.managerCreateOption,
+      .enableParallelAsyncSwing = false,
+      .useBefContextScope = request.useBefContextScope,
+      .stageDelayMilliseconds = 0,
+      .session = nullptr,
+  };
+  FilterSequenceRequest frameOptions = {
+      .runtimeRoot = request.runtimeRoot,
+      .packagePath = request.packagePath,
+      .modelDirectory = request.modelDirectory,
+      .width = request.width,
+      .height = request.height,
+      .frameRate = 30.0,
+      .nativeTextureFlags = request.nativeTextureFlags,
+      .inputTextureDataCode = request.inputTextureDataCode,
+      .outputTextureDataCode = request.outputTextureDataCode,
+      .algorithmCacheFlag = request.algorithmCacheFlag,
+      .exportMode = request.exportMode,
+      .enableSwingSimplify = request.enableSwingSimplify,
+      .enableAdjustColorWithFloat = request.enableAdjustColorWithFloat,
+      .enableImageQuality = request.enableImageQuality,
+      .managerCreateOption = request.managerCreateOption,
+      .enableParallelAsyncSwing = false,
+      .useBefContextScope = request.useBefContextScope,
+  };
+  const std::size_t frameBytes = width * height * 4;
+
+  std::cout << "QCUT\tREADY\t1\n" << std::flush;
+  std::string line;
+  while (std::getline(std::cin, line)) {
+    if (line == "exit") {
+      break;
+    }
+    std::string requestId = "-";
+    try {
+      const FilterHostFrameCommand command = parseHostFrameCommand(line);
+      requestId = command.requestId;
+      const std::vector<std::uint8_t> pixels =
+          readRgbaFrame(command.inputPath, frameBytes);
+      context.timestamp = static_cast<std::int64_t>(
+          std::llround(command.timestampSeconds * 1'000'000.0));
+      context.featureParameters = command.featureParameters;
+      const FilterFrameExecutionRequest execution = {
+          .graphics = graphics,
+          .context = context,
+          .sequenceRequest = frameOptions,
+          .pixels = pixels,
+          .frameBytes = frameBytes,
+          .outputPath = command.outputPath,
+          .label = requestId,
+      };
+      const bool warmRendered = renderAndWriteFilterFrame(execution);
+      const bool finalRendered =
+          warmRendered && renderAndWriteFilterFrame(execution);
+      if (!finalRendered) {
+        throw std::runtime_error("filter host did not produce a frame");
+      }
+      std::cout << "QCUT\tRESULT\t" << requestId << "\t0\n" << std::flush;
+    } catch (const std::exception& error) {
+      std::cout << "QCUT\tRESULT\t" << requestId << "\t1\t"
+                << protocolError(error.what()) << '\n'
+                << std::flush;
+    }
+  }
+  return 0;
 }
 
 }  // namespace jianying_probe

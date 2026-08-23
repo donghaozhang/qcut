@@ -26,6 +26,7 @@ import {
 	getProjectsRootPath,
 } from "../claude/utils/helpers.js";
 import {
+	requestAddElementFromRenderer,
 	requestTimelineFromRenderer,
 	requestSplitFromRenderer,
 	requestSelectionFromRenderer,
@@ -54,6 +55,14 @@ import {
 	getHistorySummary,
 } from "../claude/handlers/claude-transaction-handler.js";
 import { requestEditorStateSnapshotFromRenderer } from "../claude/handlers/claude-state-handler.js";
+import {
+	requestMediaDeleteFromRenderer,
+	requestMediaImportFromRenderer,
+} from "../claude/handlers/claude-media-renderer-handler.js";
+import type {
+	ClaudeMediaDeletedEvent,
+	ClaudeMediaImportedEvent,
+} from "../types/claude-media-bridge-api.js";
 import { requestQCutImportEvidenceFromRenderer } from "../claude/handlers/qcut-import-evidence-handler.js";
 import { requestQCutSameProfileWritebackFromRenderer } from "../claude/handlers/qcut-same-profile-writeback-handler.js";
 import { requestQCutJianyingProjectImportFromRenderer } from "../claude/handlers/qcut-jianying-project-import-handler.js";
@@ -87,6 +96,7 @@ import type {
 	BatchCutRequest,
 	ClaudeRangeDeleteRequest,
 	AutoEditRequest,
+	ClaudeElement,
 	ClaudeTrackOperationRequest,
 } from "../types/claude-api.js";
 import { getProjectStats } from "../claude/handlers/claude-project-handler.js";
@@ -137,6 +147,7 @@ import type {
 	UtilityToMainMessage,
 	WebContentsSendRequest,
 	SplitElementRequest,
+	TimelineAddElementRequest,
 	BatchAddElementsRequest,
 	BatchUpdateElementsRequest,
 	BatchDeleteElementsRequest,
@@ -470,9 +481,33 @@ async function handleMainRequest(
 			return requestSelectionFromRenderer(win);
 		}
 
+		case "timeline:add-element": {
+			const req = data as unknown as TimelineAddElementRequest;
+			return requestAddElementFromRenderer({
+				correlationId: req.correlationId,
+				element: req.element as Partial<ClaudeElement>,
+				projectId: req.projectId,
+				win,
+			});
+		}
+
 		case "get-editor-state-snapshot": {
 			const req = data as { request?: EditorStateRequest };
 			return requestEditorStateSnapshotFromRenderer(win, req.request);
+		}
+
+		case "media:import-renderer": {
+			const req = data as unknown as {
+				payload: Omit<ClaudeMediaImportedEvent, "requestId">;
+			};
+			return requestMediaImportFromRenderer({ payload: req.payload, win });
+		}
+
+		case "media:delete-renderer": {
+			const req = data as unknown as {
+				payload: Omit<ClaudeMediaDeletedEvent, "requestId">;
+			};
+			return requestMediaDeleteFromRenderer({ payload: req.payload, win });
 		}
 
 		case "get-qcut-import-evidence": {
@@ -672,7 +707,12 @@ async function handleMainRequest(
 		case "batch-add-elements": {
 			const req = data as unknown as BatchAddElementsRequest;
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any -- IPC boundary cast
-			return batchAddElements(win, req.projectId, req.elements as any);
+			return batchAddElements(
+				win,
+				req.projectId,
+				req.elements as any,
+				req.correlationId
+			);
 		}
 
 		case "batch-update-elements": {

@@ -13,7 +13,9 @@ function accessorWith({
 }): WindowAccessor {
 	const requestStateSnapshot = vi.fn(async () => {
 		if (fails) throw new Error("renderer unavailable");
-		return { project: { activeProject: { id: openProjectId } } };
+		return {
+			state: { project: { activeProject: { id: openProjectId } } },
+		};
 	});
 	return (omitSnapshot
 		? {}
@@ -59,13 +61,22 @@ describe("assertProjectIsOpen", () => {
 		).resolves.toBeUndefined();
 	});
 
-	it("does not block when the renderer cannot report its state", async () => {
+	it("fails closed when the renderer cannot report its state", async () => {
 		await expect(
 			assertProjectIsOpen({
 				accessor: accessorWith({ openProjectId: "a", fails: true }),
 				projectId: "b",
 			})
-		).resolves.toBeUndefined();
+		).rejects.toMatchObject({ status: 503 });
+	});
+
+	it("requires a project to be open", async () => {
+		await expect(
+			assertProjectIsOpen({
+				accessor: accessorWith({}),
+				projectId: "b",
+			})
+		).rejects.toMatchObject({ status: 409 });
 	});
 
 	it("does not block when the accessor cannot snapshot at all", async () => {

@@ -140,6 +140,17 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 		},
 	},
 	{
+		name: "sticker-lab",
+		label: "Sticker Lab",
+		description: "Browse private local sticker reference batches",
+		actions: {
+			catalogs: "sticker-lab-catalogs",
+			categories: "sticker-lab-categories",
+			items: "sticker-lab-items",
+			search: "sticker-lab-search",
+		},
+	},
+	{
 		name: "effect-lab",
 		label: "Effect Lab",
 		description: "Search and render QCut's locally cached video effects",

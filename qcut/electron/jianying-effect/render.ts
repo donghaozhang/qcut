@@ -136,12 +136,11 @@ export function bridgeEnvironment({
 	const appFrameworks = inspection.appBundlePath
 		? path.join(inspection.appBundlePath, "Contents", "Frameworks")
 		: undefined;
-	// The bridge switches into algorithm mode purely on JY_MODEL_DIRECTORY
-	// being present, and that mode also changes how frames are uploaded — so
-	// a value inherited from QCut's own environment must never reach a blit
-	// render. algorithmEnvironment() re-adds it via `extra` when the
-	// definition actually requires models.
-	const { JY_MODEL_DIRECTORY: _inherited, ...baseEnvironment } = process.env;
+	const {
+		JY_EFFECT_NATIVE_INPUT: _inheritedNativeInput,
+		JY_MODEL_DIRECTORY: _inheritedModelDirectory,
+		...baseEnvironment
+	} = process.env;
 	return {
 		...baseEnvironment,
 		DYLD_LIBRARY_PATH: [
@@ -158,20 +157,28 @@ export function bridgeEnvironment({
 /**
  * CV packages (matting, face, skeleton …) only render when the bridge can
  * resolve their models; supplying the directory is what switches the native
- * side into algorithm mode. Plain blit packages must NOT get it — that mode
- * also changes how frames are uploaded.
+ * side into algorithm mode. Native upload is controlled independently so a
+ * model-off isolation render uses the same input path as its model-on pair.
  */
 function algorithmEnvironment({
 	definition,
+	useNativeAlgorithmInput,
 }: {
 	definition: JianyingEffectDefinition;
+	useNativeAlgorithmInput: boolean;
 }): NodeJS.ProcessEnv {
-	if (!definition.requiresAlgorithm) return {};
+	const nativeInputEnvironment = useNativeAlgorithmInput
+		? { JY_EFFECT_NATIVE_INPUT: "1" }
+		: {};
+	if (!definition.requiresAlgorithm) return nativeInputEnvironment;
 	const modelDirectory = jianyingModelDirectory();
 	if (!modelDirectory) {
 		throw new Error(`未找到剪映算法模型目录：${definition.name}`);
 	}
-	return { JY_MODEL_DIRECTORY: modelDirectory };
+	return {
+		...nativeInputEnvironment,
+		JY_MODEL_DIRECTORY: modelDirectory,
+	};
 }
 
 export async function renderJianyingEffectClip({
@@ -185,6 +192,7 @@ export async function renderJianyingEffectClip({
 	startSeconds = 0,
 	durationSeconds,
 	adjustValues = [],
+	useNativeAlgorithmInput = definition.requiresAlgorithm,
 }: {
 	inspection: JianyingEffectRuntimeInspection;
 	definition: JianyingEffectDefinition;
@@ -196,6 +204,8 @@ export async function renderJianyingEffectClip({
 	startSeconds?: number;
 	durationSeconds?: number;
 	adjustValues?: JianyingEffectAdjustValue[];
+	/** Keeps the CVPixelBuffer upload path active for a model-off control. */
+	useNativeAlgorithmInput?: boolean;
 }): Promise<JianyingEffectFrameCounts> {
 	if (!inspection.runtimeRootPath || !inspection.bridgePath) {
 		throw new Error(inspection.status.message);
@@ -230,7 +240,10 @@ export async function renderJianyingEffectClip({
 			env: bridgeEnvironment({
 				inspection,
 				extra: {
-					...algorithmEnvironment({ definition }),
+					...algorithmEnvironment({
+						definition,
+						useNativeAlgorithmInput,
+					}),
 					JY_EFFECT_PACKAGE: definition.packagePath,
 					JY_RAW_INPUT: rawInput,
 					JY_RAW_OUTPUT: rawOutput,

@@ -50,12 +50,22 @@ export interface ElectronClaudeOps {
 			) => Promise<boolean>;
 			onMediaImported: (
 				callback: (data: {
+					projectId: string;
 					path: string;
 					name: string;
 					id: string;
+					metadata?: Record<string, unknown>;
 					type: string;
 					size: number;
-				}) => void
+					requestId?: string;
+				}) => void | Promise<void>
+			) => void;
+			onMediaDeleted: (
+				callback: (data: {
+					mediaId: string;
+					projectId: string;
+					requestId?: string;
+				}) => void | Promise<void>
 			) => void;
 		};
 		search: {
@@ -122,11 +132,14 @@ export interface ElectronClaudeOps {
 				callback: (timeline: ClaudeTimeline, replace?: boolean) => void
 			) => void;
 			onAddElement: (
-				callback: (element: Partial<ClaudeElement>) => void
+				callback: (
+					element: Partial<ClaudeElement> & { projectId: string }
+				) => void
 			) => void;
 			onBatchAddElements: (
 				callback: (data: {
 					requestId: string;
+					projectId: string;
 					elements: ClaudeBatchAddElementRequest[];
 				}) => void
 			) => void;

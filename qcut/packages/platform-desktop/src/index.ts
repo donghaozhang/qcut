@@ -17,6 +17,7 @@ import {
 	type PlatformVideoCompositionFramePreviewOptions,
 	type PlatformUpdatePreferences,
 	type PlatformUpdateState,
+	type PlatformStickerLabAPI,
 } from "@qcut/platform-core";
 
 /** Get the electronAPI from window, throwing if unavailable. */
@@ -267,6 +268,15 @@ const mediaImportAdapter = {
 	getMediaPath: (id: string) => api().mediaImport.getMediaPath(id),
 };
 
+const stickerLabAdapter: PlatformStickerLabAPI = {
+	discoverLocalReferences: ({ rootPath }) =>
+		api().stickerLab.discoverLocalReferences({
+			...(rootPath === undefined ? {} : { rootPath }),
+		}),
+	readLocalReference: ({ rootPath, batchId, stickerId }) =>
+		api().stickerLab.readLocalReference({ rootPath, batchId, stickerId }),
+};
+
 // These adapters use pass-through delegation with type casts because the
 // PlatformAPI interface uses simplified types that don't exactly match the
 // Electron preload types. The runtime behavior is identical — the adapter
@@ -455,6 +465,7 @@ export function createDesktopAdapter(): PlatformAPI {
 		skills: skillsAdapter,
 		aiPipeline: aiPipelineAdapter,
 		mediaImport: mediaImportAdapter,
+		stickerLab: stickerLabAdapter,
 		projectFolder: projectFolderAdapter,
 		projectJson: projectJsonAdapter,
 		remotionFolder: remotionFolderAdapter,

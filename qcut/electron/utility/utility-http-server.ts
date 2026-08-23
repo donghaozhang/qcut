@@ -49,7 +49,6 @@ import type {
 	ClaudeSelectionItem,
 	ClaudeSplitResponse,
 	ProjectStats,
-	ClaudeBatchAddResponse,
 	ClaudeBatchUpdateResponse,
 	ClaudeBatchDeleteResponse,
 	ClaudeArrangeResponse,
@@ -89,6 +88,10 @@ import type { QCutPersistedImportEvidenceSnapshot } from "../types/qcut-import-e
 import type { QCutSameProfileWritebackResult } from "../types/qcut-same-profile-writeback-api.js";
 import type { QCutJianyingProjectImportResult } from "../types/qcut-jianying-project-import-api.js";
 import type { QCutJianyingProjectExportResult } from "../types/qcut-jianying-project-export-api.js";
+import {
+	createUtilityTimelineMutationAccessor,
+	type UtilityRequestFromMain,
+} from "./utility-timeline-accessor.js";
 
 let server: Server | null = null;
 
@@ -105,13 +108,6 @@ const LONG_RUNNING_REQUEST_TIMEOUT_MS =
 		JIANYING_PROJECT_EXPORT_ROUTE_TIMEOUT_MS
 	) + 60_000;
 
-// Type for the requestFromMain function passed in from the utility process entry
-type RequestFromMainFn = (
-	channel: string,
-	data: Record<string, unknown>,
-	options?: { timeoutMs?: number }
-) => Promise<unknown>;
-
 /** Window proxy shape returned by createWindowProxy */
 interface WindowProxy {
 	webContents: {
@@ -120,7 +116,9 @@ interface WindowProxy {
 }
 
 /** Fake BrowserWindow-like object that proxies calls through main process */
-function createWindowProxy(requestFromMain: RequestFromMainFn): WindowProxy {
+function createWindowProxy(
+	requestFromMain: UtilityRequestFromMain
+): WindowProxy {
 	return {
 		webContents: {
 			/** Forwards renderer events through the main-process bridge. */
@@ -177,7 +175,7 @@ function readEnumBodyField({
 interface UtilityHttpConfig {
 	port: number;
 	appVersion: string;
-	requestFromMain: RequestFromMainFn;
+	requestFromMain: UtilityRequestFromMain;
 }
 
 /** Build skipped deep health check. */
@@ -247,9 +245,13 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 	}
 
 	const router = createRouter();
+	const timelineMutationAccessor = createUtilityTimelineMutationAccessor({
+		requestFromMain,
+	});
 
 	// Create WindowAccessor that proxies through main process
 	const accessor: WindowAccessor = {
+		...timelineMutationAccessor,
 		/** Creates a BrowserWindow-like proxy backed by main-process IPC. */
 		getWindow: () => createWindowProxy(requestFromMain),
 		/** Requests the current timeline through the main-process bridge. */
@@ -293,12 +295,6 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 		/** Returns recent notification bridge history entries. */
 		getNotificationsHistory: (limit) =>
 			requestFromMain("notifications:history", { limit }) as Promise<string[]>,
-		/** Adds multiple elements through the main-process bridge. */
-		batchAddElements: (projectId, elements) =>
-			requestFromMain("batch-add-elements", {
-				projectId,
-				elements,
-			}) as Promise<ClaudeBatchAddResponse>,
 		/** Applies a batch of element updates through the bridge. */
 		batchUpdateElements: (updates) =>
 			requestFromMain("batch-update-elements", {
@@ -357,6 +353,12 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 			requestFromMain("get-editor-state-snapshot", {
 				request,
 			}) as Promise<EditorStateSnapshot>,
+		/** Imports media into the renderer and waits for persistence. */
+		requestMediaImport: (payload) =>
+			requestFromMain("media:import-renderer", { payload }) as Promise<void>,
+		/** Removes media from the renderer and waits for persistence. */
+		requestMediaDelete: (payload) =>
+			requestFromMain("media:delete-renderer", { payload }) as Promise<void>,
 		/** Executes batched cut operations through the bridge. */
 		executeBatchCuts: async (request) =>
 			(await requestFromMain("timeline:batch-cuts", {

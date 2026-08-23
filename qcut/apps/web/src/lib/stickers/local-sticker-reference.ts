@@ -3,6 +3,7 @@ import {
 	type AssetManifestEntry,
 } from "@qcut/editor-core";
 import type { PrivateStickerCatalogId } from "@qcut/editor-core/sticker-lab";
+import { platform, PlatformCapability } from "@qcut/platform-core";
 import {
 	ensureAssetResources,
 	type ResolvedAssetResource,
@@ -12,11 +13,28 @@ import {
 	createLicenseServerAuthenticatedFetch,
 	type SessionTokenReader,
 } from "@/lib/assets/license-server-authenticated-fetch";
+import { debugError } from "@/lib/debug/debug-config";
 import {
 	readLocalStickerFile,
 	type LocalStickerFileReader,
 } from "./local-sticker-file-reader";
 import type {
+	LocalBridgeStickerCatalog,
+	LocalBridgeStickerReference,
+	LocalStickerReference,
+	PrivateStickerReference,
+	RemoteStickerProvenance,
+	RemoteStickerReference,
+	StickerLabReference,
+} from "./local-sticker-manifest";
+import {
+	isLocalBridgeStickerReference,
+	parseLocalBridgeStickerCatalog,
+} from "./local-sticker-manifest";
+
+export type {
+	LocalBridgeStickerCatalog,
+	LocalBridgeStickerReference,
 	LocalStickerReference,
 	PrivateStickerReference,
 	RemoteStickerProvenance,
@@ -24,13 +42,215 @@ import type {
 	StickerLabReference,
 } from "./local-sticker-manifest";
 
-export type {
-	LocalStickerReference,
-	PrivateStickerReference,
-	RemoteStickerProvenance,
-	RemoteStickerReference,
-	StickerLabReference,
-} from "./local-sticker-manifest";
+export interface LocalStickerReferenceDiscovery {
+	catalogs: LocalBridgeStickerCatalog[];
+	warningCount: number;
+}
+
+export interface StickerReferenceUsageMetadata {
+	referenceOnly: true;
+	usage: "internal-reference-only";
+	redistribution: "prohibited";
+	batchId: string;
+	itemId: string;
+	checksumSha256: string;
+}
+
+export const LOCAL_STICKER_REFERENCE_FILE_CACHE_LIMITS = {
+	maxBytes: 16 * 1024 * 1024,
+	maxEntries: 24,
+} as const;
+
+interface LocalReferenceFileCacheEntry {
+	file: File;
+	byteSize: number;
+}
+
+const localReferenceFileCache = new Map<string, LocalReferenceFileCacheEntry>();
+const localReferenceFileLoads = new Map<string, Promise<File>>();
+const localReferenceFileReleaseVersions = new Map<string, number>();
+let localReferenceFileCacheBytes = 0;
+let localReferenceFileCacheGeneration = 0;
+
+function localReferenceFileCacheKey({
+	reference,
+}: {
+	reference: LocalBridgeStickerReference;
+}): string {
+	return [
+		reference.asset.checksumSha256,
+		reference.fileName,
+		reference.mimeType,
+	].join("\0");
+}
+
+function readCachedLocalReferenceFile({
+	cacheKey,
+}: {
+	cacheKey: string;
+}): File | null {
+	const entry = localReferenceFileCache.get(cacheKey);
+	if (!entry) return null;
+	localReferenceFileCache.delete(cacheKey);
+	localReferenceFileCache.set(cacheKey, entry);
+	return entry.file;
+}
+
+function cacheLocalReferenceFile({
+	cacheKey,
+	file,
+}: {
+	cacheKey: string;
+	file: File;
+}): void {
+	if (file.size > LOCAL_STICKER_REFERENCE_FILE_CACHE_LIMITS.maxBytes) return;
+	const existing = localReferenceFileCache.get(cacheKey);
+	if (existing) {
+		localReferenceFileCacheBytes -= existing.byteSize;
+		localReferenceFileCache.delete(cacheKey);
+	}
+	while (
+		localReferenceFileCache.size >=
+			LOCAL_STICKER_REFERENCE_FILE_CACHE_LIMITS.maxEntries ||
+		localReferenceFileCacheBytes + file.size >
+			LOCAL_STICKER_REFERENCE_FILE_CACHE_LIMITS.maxBytes
+	) {
+		const oldestKey = localReferenceFileCache.keys().next().value;
+		if (typeof oldestKey !== "string") break;
+		const oldest = localReferenceFileCache.get(oldestKey);
+		localReferenceFileCache.delete(oldestKey);
+		localReferenceFileCacheBytes -= oldest?.byteSize ?? 0;
+	}
+	localReferenceFileCache.set(cacheKey, { file, byteSize: file.size });
+	localReferenceFileCacheBytes += file.size;
+}
+
+export function clearLocalStickerReferenceFileCache(): void {
+	localReferenceFileCacheGeneration += 1;
+	localReferenceFileCache.clear();
+	localReferenceFileReleaseVersions.clear();
+	localReferenceFileCacheBytes = 0;
+}
+
+export function releaseLocalStickerReferenceFile({
+	reference,
+}: {
+	reference: LocalBridgeStickerReference;
+}): void {
+	const cacheKey = localReferenceFileCacheKey({ reference });
+	const cached = localReferenceFileCache.get(cacheKey);
+	if (cached) {
+		localReferenceFileCache.delete(cacheKey);
+		localReferenceFileCacheBytes -= cached.byteSize;
+	}
+	if (localReferenceFileLoads.has(cacheKey)) {
+		const releaseVersion = localReferenceFileReleaseVersions.get(cacheKey) ?? 0;
+		localReferenceFileReleaseVersions.set(cacheKey, releaseVersion + 1);
+	}
+}
+
+export function getLocalStickerReferenceFileCacheStatus(): {
+	entryCount: number;
+	inFlightCount: number;
+	maxBytes: number;
+	maxEntries: number;
+	totalBytes: number;
+} {
+	return {
+		entryCount: localReferenceFileCache.size,
+		inFlightCount: localReferenceFileLoads.size,
+		maxBytes: LOCAL_STICKER_REFERENCE_FILE_CACHE_LIMITS.maxBytes,
+		maxEntries: LOCAL_STICKER_REFERENCE_FILE_CACHE_LIMITS.maxEntries,
+		totalBytes: localReferenceFileCacheBytes,
+	};
+}
+
+function stickerLabBridge() {
+	try {
+		const currentPlatform = platform();
+		if (
+			!currentPlatform.hasCapability(
+				PlatformCapability.StickerLabLocalReferences
+			)
+		) {
+			return null;
+		}
+		return currentPlatform.stickerLab;
+	} catch {
+		return null;
+	}
+}
+
+function abortIfRequested({ signal }: { signal?: AbortSignal }): void {
+	if (signal?.aborted) {
+		throw new DOMException("The operation was aborted", "AbortError");
+	}
+}
+
+export async function discoverLocalStickerReferenceCatalogs(): Promise<LocalStickerReferenceDiscovery> {
+	const bridge = stickerLabBridge();
+	if (!bridge) return { catalogs: [], warningCount: 0 };
+
+	try {
+		const discovery = await bridge.discoverLocalReferences({});
+		const catalogs: LocalBridgeStickerCatalog[] = [];
+		let warningCount = discovery.warnings.length;
+		for (const candidate of discovery.catalogs) {
+			try {
+				const catalog = parseLocalBridgeStickerCatalog({ candidate });
+				const hasMismatchedRoot = catalog.categories.some((category) =>
+					category.items.some(
+						(item) => item.asset.rootPath !== discovery.rootPath
+					)
+				);
+				if (hasMismatchedRoot) {
+					warningCount += 1;
+					continue;
+				}
+				catalogs.push(catalog);
+			} catch (error) {
+				warningCount += 1;
+				debugError("[StickerLab] Local reference catalog rejected", error);
+			}
+		}
+		return { catalogs, warningCount };
+	} catch (error) {
+		debugError("[StickerLab] Local reference discovery failed", error);
+		return { catalogs: [], warningCount: 1 };
+	}
+}
+
+export function buildStickerReferenceUsageMetadata({
+	reference,
+}: {
+	reference: StickerLabReference;
+}): StickerReferenceUsageMetadata | null {
+	if (isLocalBridgeStickerReference(reference)) {
+		return {
+			referenceOnly: true,
+			usage: "internal-reference-only",
+			redistribution: "prohibited",
+			batchId: reference.asset.batchId,
+			itemId: reference.id,
+			checksumSha256: reference.asset.checksumSha256,
+		};
+	}
+	if (!("asset" in reference) || reference.asset.kind !== "supabase-storage") {
+		return null;
+	}
+	const privateBatchMatch = /^jianying\/([^/]+)\/assets\//.exec(
+		reference.asset.objectKey
+	);
+	if (!privateBatchMatch?.[1]) return null;
+	return {
+		referenceOnly: true,
+		usage: "internal-reference-only",
+		redistribution: "prohibited",
+		batchId: privateBatchMatch[1],
+		itemId: reference.id,
+		checksumSha256: reference.asset.checksumSha256,
+	};
+}
 
 /** Any reference whose artwork lives in the private Supabase bucket. */
 export type RemoteCatalogStickerReference =
@@ -87,6 +307,70 @@ export async function loadLocalStickerReferenceFile({
 		fileName: reference.fileName,
 		mimeType: reference.mimeType,
 	});
+}
+
+export async function loadLocalBridgeStickerReferenceFile({
+	reference,
+	signal,
+}: {
+	reference: LocalBridgeStickerReference;
+	signal?: AbortSignal;
+}): Promise<File> {
+	abortIfRequested({ signal });
+	const cacheKey = localReferenceFileCacheKey({ reference });
+	const cached = readCachedLocalReferenceFile({ cacheKey });
+	if (cached) return cached;
+
+	let load = localReferenceFileLoads.get(cacheKey);
+	if (!load) {
+		const cacheGeneration = localReferenceFileCacheGeneration;
+		const releaseVersion = localReferenceFileReleaseVersions.get(cacheKey) ?? 0;
+		load = (async () => {
+			const bridge = stickerLabBridge();
+			if (!bridge) {
+				throw new Error("Local sticker reference bridge is unavailable");
+			}
+			const result = await bridge.readLocalReference({
+				rootPath: reference.asset.rootPath,
+				batchId: reference.asset.batchId,
+				stickerId: reference.asset.stickerId,
+			});
+			if (
+				result.batchId !== reference.asset.batchId ||
+				result.stickerId !== reference.asset.stickerId ||
+				result.checksumSha256 !== reference.asset.checksumSha256 ||
+				result.fileName !== reference.fileName ||
+				result.mimeType !== reference.mimeType ||
+				result.bytes.byteLength !== reference.asset.byteSize
+			) {
+				throw new Error(
+					`Local sticker reference verification failed: ${reference.id}`
+				);
+			}
+			const file = ownedFile({
+				bytes: result.bytes,
+				fileName: reference.fileName,
+				mimeType: reference.mimeType,
+			});
+			const canCache =
+				cacheGeneration === localReferenceFileCacheGeneration &&
+				releaseVersion ===
+					(localReferenceFileReleaseVersions.get(cacheKey) ?? 0);
+			if (canCache) cacheLocalReferenceFile({ cacheKey, file });
+			return file;
+		})();
+		localReferenceFileLoads.set(cacheKey, load);
+	}
+	let file: File;
+	try {
+		file = await load;
+	} finally {
+		if (localReferenceFileLoads.get(cacheKey) === load) {
+			localReferenceFileLoads.delete(cacheKey);
+		}
+	}
+	abortIfRequested({ signal });
+	return file;
 }
 
 export function stickerLabAssetUrl({
@@ -316,6 +600,9 @@ export async function loadStickerLabReferenceFile({
 	reference: StickerLabReference;
 	signal?: AbortSignal;
 }): Promise<File> {
+	if (isLocalBridgeStickerReference(reference)) {
+		return loadLocalBridgeStickerReferenceFile({ reference, signal });
+	}
 	if ("filePath" in reference) {
 		return loadLocalStickerReferenceFile({ readFile, reference });
 	}

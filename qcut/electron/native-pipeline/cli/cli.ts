@@ -83,6 +83,18 @@ function parseFiniteCliNumber({
 	return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function parseIntegerCliNumber({
+	value,
+}: {
+	value: unknown;
+}): number | undefined {
+	const parsed = parseFiniteCliNumber({ value });
+	// parseInt() would truncate "2.5" to 2 and "10items" to 10 — reject those.
+	return parsed !== undefined && Number.isSafeInteger(parsed)
+		? parsed
+		: undefined;
+}
+
 /** Parse process argv into CLIRunOptions, exiting on --help/--version. */
 export function parseCliArgs(argv: string[]): CLIRunOptions {
 	let command = argv[0];
@@ -248,6 +260,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			source: { type: "string" },
 			query: { type: "string" },
 			collection: { type: "string" },
+			root: { type: "string" },
+			"batch-id": { type: "string" },
+			offset: { type: "string" },
 			reveal: { type: "boolean", default: false },
 			"no-confirm": { type: "boolean", default: false },
 			"prompt-file": { type: "string" },
@@ -726,6 +741,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		source: values.source as string | undefined,
 		query: values.query as string | undefined,
 		collection: values.collection as string | undefined,
+		root: values.root as string | undefined,
+		batchId: values["batch-id"] as string | undefined,
+		offset: parseIntegerCliNumber({ value: values.offset }),
 		reveal: (values.reveal as boolean) ?? false,
 		noConfirm: (values["no-confirm"] as boolean) ?? false,
 		promptFile: values["prompt-file"] as string | undefined,
