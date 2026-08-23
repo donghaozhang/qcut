@@ -35,7 +35,9 @@ vi.mock("@/stores/stickers-overlay-store", () => ({
 function makeTimelineStore() {
 	return {
 		findOrCreateTrack: vi.fn(() => "sticker-track"),
-		addElementToTrack: vi.fn(),
+		addElementToTrack: vi.fn(
+			(_trackId: string, _element: Record<string, unknown>) => "sticker-element"
+		),
 	};
 }
 
