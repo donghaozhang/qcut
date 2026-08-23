@@ -248,6 +248,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			source: { type: "string" },
 			query: { type: "string" },
 			collection: { type: "string" },
+			root: { type: "string" },
+			"batch-id": { type: "string" },
+			offset: { type: "string" },
 			reveal: { type: "boolean", default: false },
 			"no-confirm": { type: "boolean", default: false },
 			"prompt-file": { type: "string" },
@@ -726,6 +729,13 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		source: values.source as string | undefined,
 		query: values.query as string | undefined,
 		collection: values.collection as string | undefined,
+		root: values.root as string | undefined,
+		batchId: values["batch-id"] as string | undefined,
+		offset: values.offset
+			? Number.isNaN(parseInt(values.offset as string, 10))
+				? undefined
+				: parseInt(values.offset as string, 10)
+			: undefined,
 		reveal: (values.reveal as boolean) ?? false,
 		noConfirm: (values["no-confirm"] as boolean) ?? false,
 		promptFile: values["prompt-file"] as string | undefined,
