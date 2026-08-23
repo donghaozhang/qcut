@@ -16,6 +16,11 @@ import {
 	sanitizeFilename,
 } from "../utils/helpers.js";
 import { claudeLog } from "../utils/logger.js";
+import {
+	deleteMediaRestrictedMetadata,
+	persistMediaRestrictedMetadata,
+	readMediaRestrictedMetadata,
+} from "./claude-media-restricted-metadata.js";
 import type {
 	MediaFile,
 	BatchImportItem,
@@ -23,6 +28,10 @@ import type {
 } from "../../types/claude-api";
 
 const HANDLER_NAME = "Media";
+
+function createMediaId({ fileName }: { fileName: string }): string {
+	return `media_${Buffer.from(fileName).toString("base64url")}`;
+}
 
 /**
  * Generate a unique filename if file already exists
@@ -56,7 +65,8 @@ async function getUniqueFilePath(
  */
 async function scanMediaDirectory(
 	dirPath: string,
-	files: MediaFile[]
+	files: MediaFile[],
+	projectId: string
 ): Promise<void> {
 	let dirEntries: import("fs").Dirent[];
 	try {
@@ -112,7 +122,16 @@ async function scanMediaDirectory(
 		const type = getMediaType(resolvedExt);
 		if (!type) continue;
 
-		const deterministicId = `media_${Buffer.from(entryName).toString("base64url")}`;
+		const deterministicId = createMediaId({ fileName: entryName });
+		let metadata: MediaFile["metadata"];
+		try {
+			metadata = await readMediaRestrictedMetadata({
+				mediaId: deterministicId,
+				projectId,
+			});
+		} catch {
+			continue;
+		}
 		files.push({
 			id: deterministicId,
 			name: displayName,
@@ -121,6 +140,7 @@ async function scanMediaDirectory(
 			size: stat.size,
 			createdAt: stat.birthtimeMs,
 			modifiedAt: stat.mtimeMs,
+			...(metadata ? { metadata } : {}),
 		});
 	}
 }
@@ -147,11 +167,11 @@ export async function listMediaFiles(projectId: string): Promise<MediaFile[]> {
 		}
 
 		// Scan top-level media directory
-		await scanMediaDirectory(mediaPath, files);
+		await scanMediaDirectory(mediaPath, files, projectId);
 
 		// Also scan media/imported/ — where the UI's media-import-handler stores files
 		const importedPath = path.join(mediaPath, "imported");
-		await scanMediaDirectory(importedPath, files);
+		await scanMediaDirectory(importedPath, files, projectId);
 
 		claudeLog.info(HANDLER_NAME, `Found ${files.length} media files`);
 		return files;
@@ -262,7 +282,7 @@ export async function importMediaFile(
 		const stat = await fs.stat(destPath);
 
 		const mediaFile: MediaFile = {
-			id: `media_${Buffer.from(actualFileName).toString("base64url")}`,
+			id: createMediaId({ fileName: actualFileName }),
 			name: actualFileName,
 			type,
 			path: destPath,
@@ -298,6 +318,15 @@ export async function deleteMediaFile(
 		}
 
 		await fs.unlink(mediaFile.path);
+		await deleteMediaRestrictedMetadata({
+			mediaId: mediaFile.id,
+			projectId,
+		}).catch((error) => {
+			claudeLog.warn(
+				HANDLER_NAME,
+				`Deleted media but could not remove its orphaned restricted metadata: ${String(error)}`
+			);
+		});
 		claudeLog.info(HANDLER_NAME, `Successfully deleted: ${mediaFile.name}`);
 		return true;
 	} catch (error) {
@@ -338,8 +367,41 @@ export async function renameMediaFile(
 
 		const mediaPath = getMediaPath(projectId);
 		const newPath = await getUniqueFilePath(mediaPath, newNameWithExt);
+		const newMediaId = createMediaId({ fileName: path.basename(newPath) });
+		const metadata = await readMediaRestrictedMetadata({
+			mediaId: mediaFile.id,
+			projectId,
+		});
+		if (metadata) {
+			await persistMediaRestrictedMetadata({
+				mediaId: newMediaId,
+				metadata,
+				projectId,
+			});
+		}
 
-		await fs.rename(mediaFile.path, newPath);
+		try {
+			await fs.rename(mediaFile.path, newPath);
+		} catch (error) {
+			if (metadata) {
+				await deleteMediaRestrictedMetadata({
+					mediaId: newMediaId,
+					projectId,
+				}).catch(() => undefined);
+			}
+			throw error;
+		}
+		if (metadata) {
+			await deleteMediaRestrictedMetadata({
+				mediaId: mediaFile.id,
+				projectId,
+			}).catch((error) => {
+				claudeLog.warn(
+					HANDLER_NAME,
+					`Renamed media but could not remove its old restricted metadata: ${String(error)}`
+				);
+			});
+		}
 		claudeLog.info(
 			HANDLER_NAME,
 			`Successfully renamed: ${mediaFile.name} -> ${path.basename(newPath)}`
