@@ -59,7 +59,28 @@ vi.mock("../handlers/claude-media-handler.js", () => ({
 	renameMediaFile: vi.fn(async () => false),
 }));
 
+vi.mock("../handlers/claude-state-handler.js", () => ({
+	requestEditorStateSnapshotFromRenderer: vi.fn(async () => ({
+		version: 1,
+		timestamp: Date.now(),
+		state: {
+			project: { activeProject: { id: "proj_123" } },
+			media: { items: [] },
+		},
+	})),
+}));
+
+vi.mock("../handlers/claude-media-renderer-handler.js", () => ({
+	requestMediaImportFromRenderer: vi.fn(async () => undefined),
+	requestMediaDeleteFromRenderer: vi.fn(async () => undefined),
+}));
+
+vi.mock("../handlers/claude-media-restricted-metadata.js", () => ({
+	persistMediaRestrictedMetadata: vi.fn(async () => undefined),
+}));
+
 vi.mock("../handlers/claude-timeline-handler.js", () => ({
+	requestAddElementFromRenderer: vi.fn(async () => undefined),
 	requestTimelineFromRenderer: vi.fn(),
 	requestSplitFromRenderer: vi.fn(),
 	requestSelectionFromRenderer: vi.fn(),
@@ -250,6 +271,9 @@ import * as timelineHandler from "../handlers/claude-timeline-handler.js";
 import * as transactionHandler from "../handlers/claude-transaction-handler.js";
 import * as projectHandler from "../handlers/claude-project-handler.js";
 import * as mediaHandler from "../handlers/claude-media-handler.js";
+import * as stateHandler from "../handlers/claude-state-handler.js";
+import * as mediaRendererHandler from "../handlers/claude-media-renderer-handler.js";
+import * as mediaRestrictedMetadata from "../handlers/claude-media-restricted-metadata.js";
 import { notificationBridge } from "../notification-bridge";
 import { createFetch, createMockWindow } from "./claude-http-test-helpers";
 import {
@@ -330,8 +354,38 @@ describe("Claude HTTP Server", () => {
 	beforeEach(() => {
 		notificationBridge.resetForTests();
 		resetConsoleCaptureForTests();
+		vi.mocked(mediaRendererHandler.requestMediaImportFromRenderer).mockReset();
+		vi.mocked(
+			mediaRendererHandler.requestMediaImportFromRenderer
+		).mockResolvedValue(undefined);
+		vi.mocked(mediaRendererHandler.requestMediaDeleteFromRenderer).mockReset();
+		vi.mocked(
+			mediaRendererHandler.requestMediaDeleteFromRenderer
+		).mockResolvedValue(undefined);
+		vi.mocked(
+			mediaRestrictedMetadata.persistMediaRestrictedMetadata
+		).mockReset();
+		vi.mocked(
+			mediaRestrictedMetadata.persistMediaRestrictedMetadata
+		).mockResolvedValue(undefined);
+		vi.mocked(mediaHandler.getMediaInfo).mockReset();
+		vi.mocked(mediaHandler.getMediaInfo).mockResolvedValue(null);
+		vi.mocked(mediaHandler.deleteMediaFile).mockReset();
+		vi.mocked(mediaHandler.deleteMediaFile).mockResolvedValue(false);
+		vi.mocked(mediaHandler.renameMediaFile).mockReset();
+		vi.mocked(mediaHandler.renameMediaFile).mockResolvedValue(false);
 		vi.mocked(BrowserWindow.getAllWindows).mockReset();
 		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([]);
+		vi.mocked(
+			stateHandler.requestEditorStateSnapshotFromRenderer
+		).mockResolvedValue({
+			version: 1,
+			timestamp: Date.now(),
+			state: {
+				project: { activeProject: { id: "proj_123" } },
+				media: { items: [] },
+			},
+		});
 	});
 
 	// -- Transactions -------------------------------------------------------
@@ -558,9 +612,8 @@ describe("Claude HTTP Server", () => {
 	});
 
 	it("POST /api/claude/media/:projectId/import forwards Sticker Lab metadata", async () => {
-		const send = vi.fn();
-		const mockWindow = createMockWindow(send);
-		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
+		const mockWindow = createMockWindow();
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
 		vi.mocked(mediaHandler.importMediaFile).mockResolvedValueOnce({
 			id: "media_sticker_1",
 			name: "7134619769205951784.gif",
@@ -580,21 +633,213 @@ describe("Claude HTTP Server", () => {
 			itemId: "7134619769205951784",
 			checksumSha256: "a".repeat(64),
 		};
-
 		const res = await fetch("/api/claude/media/proj_123/import", {
 			method: "POST",
 			body: JSON.stringify({ source: "/mock/sticker.gif", metadata }),
 		});
 
 		expect(res.status).toBe(200);
-		expect(send).toHaveBeenCalledWith("claude:media:imported", {
-			path: "/mock/project/media/7134619769205951784.gif",
-			name: "7134619769205951784.gif",
-			id: "media_sticker_1",
+		expect(
+			mediaRendererHandler.requestMediaImportFromRenderer
+		).toHaveBeenCalledWith({
+			payload: {
+				projectId: "proj_123",
+				path: "/mock/project/media/7134619769205951784.gif",
+				name: "7134619769205951784.gif",
+				id: "media_sticker_1",
+				metadata,
+				type: "image",
+				size: 512,
+			},
+			win: mockWindow,
+		});
+		expect(
+			mediaRestrictedMetadata.persistMediaRestrictedMetadata
+		).toHaveBeenCalledWith({
+			mediaId: "media_sticker_1",
 			metadata,
+			projectId: "proj_123",
+		});
+	});
+
+	it("rolls back renderer and disk media when renderer persistence fails", async () => {
+		const mockWindow = createMockWindow();
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
+		vi.mocked(mediaHandler.importMediaFile).mockResolvedValueOnce({
+			id: "media_sticker_failed",
+			name: "failed.gif",
+			type: "image",
+			path: "/mock/project/media/failed.gif",
+			size: 512,
+			createdAt: 1,
+			modifiedAt: 1,
+		});
+		vi.mocked(
+			mediaRendererHandler.requestMediaImportFromRenderer
+		).mockRejectedValueOnce(new Error("IndexedDB write failed"));
+		vi.mocked(mediaHandler.deleteMediaFile).mockResolvedValueOnce(true);
+
+		const res = await fetch("/api/claude/media/proj_123/import", {
+			method: "POST",
+			body: JSON.stringify({
+				source: "/mock/sticker.gif",
+				metadata: {
+					source: "sticker-lab",
+					animatedSticker: true,
+					referenceOnly: true,
+					usage: "internal-reference-only",
+					redistribution: "prohibited",
+					batchId: "jianying-2026-08-23-batch-18-v2",
+					itemId: "7134619769205951784",
+					checksumSha256: "a".repeat(64),
+				},
+			}),
+		});
+
+		expect(res.status).toBe(500);
+		expect(
+			mediaRendererHandler.requestMediaDeleteFromRenderer
+		).toHaveBeenCalledWith({
+			payload: {
+				mediaId: "media_sticker_failed",
+				projectId: "proj_123",
+			},
+			win: mockWindow,
+		});
+		expect(mediaHandler.deleteMediaFile).toHaveBeenCalledWith(
+			"proj_123",
+			"media_sticker_failed"
+		);
+	});
+
+	it("rolls back disk media when restricted metadata persistence fails", async () => {
+		const mockWindow = createMockWindow();
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
+		vi.mocked(mediaHandler.importMediaFile).mockResolvedValueOnce({
+			id: "media_sticker_metadata_failed",
+			name: "failed.gif",
+			type: "image",
+			path: "/mock/project/media/failed.gif",
+			size: 512,
+			createdAt: 1,
+			modifiedAt: 1,
+		});
+		vi.mocked(
+			mediaRestrictedMetadata.persistMediaRestrictedMetadata
+		).mockRejectedValueOnce(new Error("sidecar write failed"));
+		vi.mocked(mediaHandler.deleteMediaFile).mockResolvedValueOnce(true);
+
+		const res = await fetch("/api/claude/media/proj_123/import", {
+			method: "POST",
+			body: JSON.stringify({
+				source: "/mock/sticker.gif",
+				metadata: {
+					source: "sticker-lab",
+					animatedSticker: true,
+					referenceOnly: true,
+					usage: "internal-reference-only",
+					redistribution: "prohibited",
+					batchId: "jianying-2026-08-23-batch-18-v2",
+					itemId: "7134619769205951784",
+					checksumSha256: "a".repeat(64),
+				},
+			}),
+		});
+
+		expect(res.status).toBe(500);
+		expect(
+			mediaRendererHandler.requestMediaImportFromRenderer
+		).not.toHaveBeenCalled();
+		expect(mediaHandler.deleteMediaFile).toHaveBeenCalledWith(
+			"proj_123",
+			"media_sticker_metadata_failed"
+		);
+	});
+
+	it("DELETE /api/claude/media/:projectId/:mediaId removes renderer media", async () => {
+		const mockWindow = createMockWindow();
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
+		vi.mocked(mediaHandler.getMediaInfo).mockResolvedValueOnce({
+			id: "media_sticker_1",
+			name: "reference.gif",
+			path: "/mock/project/media/reference.gif",
 			type: "image",
 			size: 512,
+			createdAt: 1,
+			modifiedAt: 1,
 		});
+		vi.mocked(mediaHandler.deleteMediaFile).mockResolvedValueOnce(true);
+
+		const res = await fetch("/api/claude/media/proj_123/media_sticker_1", {
+			method: "DELETE",
+		});
+
+		expect(res.status).toBe(200);
+		expect(
+			mediaRendererHandler.requestMediaDeleteFromRenderer
+		).toHaveBeenCalledWith({
+			payload: {
+				mediaId: "media_sticker_1",
+				projectId: "proj_123",
+			},
+			win: mockWindow,
+		});
+		expect(
+			vi.mocked(mediaRendererHandler.requestMediaDeleteFromRenderer).mock
+				.invocationCallOrder[0]
+		).toBeLessThan(
+			vi.mocked(mediaHandler.deleteMediaFile).mock.invocationCallOrder[0] ?? 0
+		);
+	});
+
+	it("keeps the disk file when renderer media deletion is rejected", async () => {
+		const mockWindow = createMockWindow();
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
+		vi.mocked(mediaHandler.getMediaInfo).mockResolvedValueOnce({
+			id: "media_sticker_1",
+			name: "reference.gif",
+			path: "/mock/project/media/reference.gif",
+			type: "image",
+			size: 512,
+			createdAt: 1,
+			modifiedAt: 1,
+		});
+		vi.mocked(
+			mediaRendererHandler.requestMediaDeleteFromRenderer
+		).mockRejectedValueOnce(new Error("IndexedDB delete failed"));
+
+		const res = await fetch("/api/claude/media/proj_123/media_sticker_1", {
+			method: "DELETE",
+		});
+
+		expect(res.status).toBe(409);
+		expect(res.body.error).toContain("IndexedDB delete failed");
+		expect(mediaHandler.deleteMediaFile).not.toHaveBeenCalled();
+	});
+
+	it("reports a recoverable error when disk deletion fails after renderer ACK", async () => {
+		const mockWindow = createMockWindow();
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
+		vi.mocked(mediaHandler.getMediaInfo).mockResolvedValueOnce({
+			id: "media_sticker_1",
+			name: "reference.gif",
+			path: "/mock/project/media/reference.gif",
+			type: "image",
+			size: 512,
+			createdAt: 1,
+			modifiedAt: 1,
+		});
+
+		const res = await fetch("/api/claude/media/proj_123/media_sticker_1", {
+			method: "DELETE",
+		});
+
+		expect(res.status).toBe(500);
+		expect(res.body.error).toContain("remains on disk");
+		expect(
+			mediaRendererHandler.requestMediaDeleteFromRenderer
+		).toHaveBeenCalledOnce();
+		expect(mediaHandler.deleteMediaFile).toHaveBeenCalledOnce();
 	});
 
 	it("POST /api/claude/media/:projectId/import rejects incomplete metadata", async () => {
@@ -608,6 +853,48 @@ describe("Claude HTTP Server", () => {
 
 		expect(res.status).toBe(400);
 		expect(res.body.error).toContain("metadata");
+	});
+
+	it("POST /api/claude/media/:projectId/import rejects an inactive project", async () => {
+		vi.mocked(mediaHandler.importMediaFile).mockClear();
+		const mockWindow = createMockWindow();
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
+
+		const res = await fetch("/api/claude/media/project-other/import", {
+			method: "POST",
+			body: JSON.stringify({ source: "/mock/sticker.gif" }),
+		});
+
+		expect(res.status).toBe(409);
+		expect(res.body.error).toContain("proj_123");
+		expect(mediaHandler.importMediaFile).not.toHaveBeenCalled();
+	});
+
+	it("PATCH /api/claude/media/:projectId/:mediaId/rename rejects an inactive project", async () => {
+		const mockWindow = createMockWindow();
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
+		vi.mocked(
+			stateHandler.requestEditorStateSnapshotFromRenderer
+		).mockResolvedValueOnce({
+			version: 1,
+			timestamp: Date.now(),
+			state: {
+				project: { activeProject: { id: "proj_open" } },
+				media: { items: [] },
+			},
+		});
+
+		const res = await fetch(
+			"/api/claude/media/proj_other/media_sticker_1/rename",
+			{
+				method: "PATCH",
+				body: JSON.stringify({ newName: "renamed.gif" }),
+			}
+		);
+
+		expect(res.status).toBe(409);
+		expect(res.body.error).toContain("proj_open");
+		expect(mediaHandler.renameMediaFile).not.toHaveBeenCalled();
 	});
 
 	it("GET /api/claude/export/presets returns preset list", async () => {
