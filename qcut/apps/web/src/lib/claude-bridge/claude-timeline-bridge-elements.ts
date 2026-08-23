@@ -1,5 +1,4 @@
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import { useProjectStore } from "@/stores/project-store";
 import type { ClaudeElement } from "../../../../../electron/types/claude-api";
 import { debugLog, debugWarn, debugError } from "@/lib/debug/debug-config";
 import {
@@ -17,12 +16,15 @@ import {
 	getClaudeMediaTimingProperties,
 } from "./claude-timeline-bridge-helpers";
 import type { ClaudeTimelineBridgeAPI } from "./claude-timeline-bridge";
+import {
+	assertTimelineProjectActive,
+	readRequiredTimelineProjectId,
+} from "./claude-timeline-project-guard";
 
-function timelineElementFromTransport({
-	candidate,
-}: {
-	candidate: unknown;
-}): Partial<ClaudeElement> {
+function timelineElementFromTransport({ candidate }: { candidate: unknown }): {
+	element: Partial<ClaudeElement>;
+	projectId: string;
+} {
 	if (
 		typeof candidate !== "object" ||
 		candidate === null ||
@@ -30,11 +32,17 @@ function timelineElementFromTransport({
 	) {
 		throw new Error("Invalid timeline element payload");
 	}
-	return Object.fromEntries(
+	const record = candidate as Record<string, unknown>;
+	const projectId = readRequiredTimelineProjectId({
+		candidate: record.projectId,
+	});
+	const element = Object.fromEntries(
 		Object.entries(candidate).filter(
-			([key]) => key !== "requestId" && key !== "correlationId"
+			([key]) =>
+				key !== "requestId" && key !== "correlationId" && key !== "projectId"
 		)
 	) as Partial<ClaudeElement>;
+	return { element, projectId };
 }
 
 export const applyElementChanges = ({
@@ -245,12 +253,14 @@ export function setupElementHandlers({
 	// Handle element addition from Claude
 	claudeAPI.onAddElement(async (candidate: unknown) => {
 		try {
-			const element = timelineElementFromTransport({ candidate });
+			const { element, projectId } = timelineElementFromTransport({
+				candidate,
+			});
+			assertTimelineProjectActive({ projectId });
 			const elementType = (element as Record<string, unknown>).type;
 			debugLog("[ClaudeTimelineBridge] Adding element:", element);
 
 			const timelineStore = useTimelineStore.getState();
-			const projectId = useProjectStore.getState().activeProject?.id;
 			let addedElementId: string;
 
 			if (isClaudeMediaElementType({ type: element.type })) {
@@ -277,11 +287,13 @@ export function setupElementHandlers({
 			} else if (element.type === "sticker") {
 				addedElementId = await addClaudeStickerElement({
 					element,
+					projectId,
 					timelineStore,
 				});
 			} else if (element.type === "remotion") {
 				addedElementId = await addClaudeRemotionElement({
 					element,
+					projectId,
 					timelineStore,
 				});
 			} else if (element.type === "captions" || elementType === "caption") {
