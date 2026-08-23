@@ -245,24 +245,31 @@ async function loadJianyingCachedImage({
 	if (cached) return cached;
 	let sourceError: unknown;
 	let bytes: Buffer | undefined;
-	try {
-		bytes = source.sourcePath
-			? await readLocalImage({
-					filePath: source.sourcePath,
-					label,
-					maximumBytes,
-				})
-			: source.sourceUrl
-				? await fetchRemoteImage({
-						fetcher,
-						label,
-						maximumBytes,
-						timeoutMs,
-						url: source.sourceUrl,
-					})
-				: undefined;
-	} catch (error) {
-		sourceError = error;
+	// Try every source the caller supplied, local first: a stale or missing
+	// local path must still fall back to the remote copy instead of failing.
+	if (source.sourcePath) {
+		try {
+			bytes = await readLocalImage({
+				filePath: source.sourcePath,
+				label,
+				maximumBytes,
+			});
+		} catch (error) {
+			sourceError = error;
+		}
+	}
+	if (!bytes && source.sourceUrl) {
+		try {
+			bytes = await fetchRemoteImage({
+				fetcher,
+				label,
+				maximumBytes,
+				timeoutMs,
+				url: source.sourceUrl,
+			});
+		} catch (error) {
+			sourceError = error;
+		}
 	}
 	if (!bytes && source.produce) bytes = await source.produce();
 	if (!bytes && sourceError) throw sourceError;
