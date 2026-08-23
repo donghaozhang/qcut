@@ -1,5 +1,6 @@
 /** Shared type definitions for Claude Code Integration API. */
 import type { JianyingTextRuntimeReference } from "../jianying-text-runtime-contract.js";
+import type { StickerLabMediaMetadata } from "./sticker-lab-media-metadata.js";
 
 // Response Types
 
@@ -50,6 +51,7 @@ export interface MediaFile {
 	dimensions?: { width: number; height: number };
 	createdAt: number;
 	modifiedAt: number;
+	metadata?: StickerLabMediaMetadata;
 }
 
 export interface MediaMetadata {
