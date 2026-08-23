@@ -20,7 +20,10 @@ const electronMocks = vi.hoisted(() => {
 vi.mock("electron", () => ({ ipcMain: electronMocks.ipcMain }));
 
 import { requestRendererMutation } from "../handlers/claude-renderer-mutation-handler";
-import { requestAddElementFromRenderer } from "../handlers/claude-timeline-operations";
+import {
+	requestAddElementFromRenderer,
+	requestBatchAddElementsFromRenderer,
+} from "../handlers/claude-timeline-operations";
 
 function createWindow(): Electron.BrowserWindow {
 	const webContents = {
@@ -99,6 +102,7 @@ describe("renderer mutation acknowledgement", () => {
 				startTime: 0,
 				type: "sticker",
 			},
+			projectId: "project-1",
 			win,
 		});
 		const request = vi.mocked(win.webContents.send).mock.calls[0]?.[1] as {
@@ -114,6 +118,7 @@ describe("renderer mutation acknowledgement", () => {
 			expect.objectContaining({
 				correlationId: "correlation-1",
 				id: "element-1",
+				projectId: "project-1",
 				requestId: expect.any(String),
 			})
 		);
@@ -123,6 +128,56 @@ describe("renderer mutation acknowledgement", () => {
 		);
 
 		await expect(pending).resolves.toBeUndefined();
+	});
+
+	it("binds a batch placement request to its project", async () => {
+		const win = createWindow();
+		const pending = requestBatchAddElementsFromRenderer(
+			win,
+			"project-1",
+			[
+				{
+					duration: 5,
+					mediaId: "media-1",
+					startTime: 0,
+					trackId: "track-1",
+					type: "media",
+				},
+			],
+			"correlation-2"
+		);
+		const request = vi.mocked(win.webContents.send).mock.calls[0]?.[1] as {
+			requestId: string;
+		};
+		const listener = electronMocks.listeners.get(
+			"claude:timeline:batchAddElements:response"
+		);
+		if (!listener) throw new Error("response listener was not registered");
+
+		expect(win.webContents.send).toHaveBeenCalledWith(
+			"claude:timeline:batchAddElements",
+			expect.objectContaining({
+				correlationId: "correlation-2",
+				elements: [expect.objectContaining({ mediaId: "media-1" })],
+				projectId: "project-1",
+				requestId: expect.any(String),
+			})
+		);
+		listener(
+			{},
+			{
+				requestId: request.requestId,
+				result: {
+					added: [{ elementId: "element-1", index: 0, success: true }],
+					failedCount: 0,
+				},
+			}
+		);
+
+		await expect(pending).resolves.toEqual({
+			added: [{ elementId: "element-1", index: 0, success: true }],
+			failedCount: 0,
+		});
 	});
 
 	it("ignores ACKs from the wrong sender or frame", async () => {
