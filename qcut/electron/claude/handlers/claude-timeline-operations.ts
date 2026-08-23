@@ -7,12 +7,14 @@
 
 import { ipcMain, BrowserWindow, IpcMainEvent } from "electron";
 import { generateId } from "../utils/helpers.js";
+import { requestRendererMutation } from "./claude-renderer-mutation-handler.js";
 import {
 	assertIpcMainReady,
 	assertRendererWindowReady,
 } from "../utils/renderer-ipc-guard.js";
 import type {
 	ClaudeTimeline,
+	ClaudeElement,
 	ClaudeBatchAddElementRequest,
 	ClaudeBatchAddResponse,
 	ClaudeBatchDeleteItemRequest,
@@ -31,6 +33,29 @@ import type {
 
 const MAX_TIMELINE_BATCH_ITEMS = 50;
 const TIMELINE_REQUEST_TIMEOUT_MS = 5000;
+
+export async function requestAddElementFromRenderer({
+	correlationId,
+	element,
+	win,
+}: {
+	correlationId?: string;
+	element: Partial<ClaudeElement>;
+	win: BrowserWindow;
+}): Promise<void> {
+	await requestRendererMutation({
+		channel: "claude:timeline:addElement",
+		payload: {
+			...element,
+			...(correlationId ? { correlationId } : {}),
+		},
+		requestIdPrefix: "timeline-add",
+		responseChannel: "claude:timeline:addElement:response",
+		timeoutMessage: "Renderer timeline element mutation timed out.",
+		timeoutMs: TIMELINE_REQUEST_TIMEOUT_MS,
+		win,
+	});
+}
 
 /**
  * Request timeline data from renderer process
