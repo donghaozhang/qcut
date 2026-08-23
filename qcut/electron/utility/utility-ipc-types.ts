@@ -158,7 +158,14 @@ export interface SplitElementRequest {
 	mode: string;
 }
 
+export interface TimelineAddElementRequest {
+	correlationId?: string;
+	element: unknown;
+	projectId: string;
+}
+
 export interface BatchAddElementsRequest {
+	correlationId?: string;
 	projectId: string;
 	elements: unknown[];
 }
