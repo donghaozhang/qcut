@@ -43,6 +43,7 @@ import {
 	type PlatformHyperframesAPI,
 	type PlatformMoyinAPI,
 	type PlatformUpdatesAPI,
+	type PlatformStickerLabAPI,
 	type ThemeSource,
 	type LicenseInfo,
 } from "@qcut/platform-core";
@@ -457,6 +458,9 @@ const moyinStub = createUnsupportedNamespace<PlatformMoyinAPI>(
 const updatesStub = createUnsupportedNamespace<PlatformUpdatesAPI>(
 	PlatformCapability.Updates
 );
+const stickerLabStub = createUnsupportedNamespace<PlatformStickerLabAPI>(
+	PlatformCapability.StickerLabLocalReferences
+);
 
 // ---------------------------------------------------------------------------
 // Exported adapter
@@ -504,6 +508,7 @@ export function createWebAdapter(): PlatformAPI {
 		hyperframes: hyperframesStub,
 		moyin: moyinStub,
 		updates: updatesStub,
+		stickerLab: stickerLabStub,
 		piAgent: undefined,
 		claude: undefined,
 	};
