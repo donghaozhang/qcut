@@ -32,6 +32,7 @@ export * from "./api-jianying-draft-export";
 export * from "./api-jianying-effects";
 export * from "./api-jianying-transitions";
 export * from "./api-jianying-filter-lab";
+export * from "./api-jianying-portrait-adjustment";
 export * from "./api-jianying-font-lab";
 export * from "./api-jianying-text-style-lab";
 export * from "./api-jianying-text-runtime";
