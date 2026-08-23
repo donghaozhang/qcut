@@ -125,23 +125,28 @@ describe("Claude media preload acknowledgements", () => {
 	it("acks a timeline element only after the async callback resolves", async () => {
 		const claude = createClaudeAPI();
 		let finish: (() => void) | undefined;
-		claude.timeline.onAddElement(
+		const callback = vi.fn(
 			() =>
 				new Promise<void>((resolve) => {
 					finish = resolve;
 				})
 		);
+		claude.timeline.onAddElement(callback);
 
 		const pending = dispatch({
 			channel: "claude:timeline:addElement",
 			payload: {
 				id: "element-1",
+				projectId: "project-1",
 				requestId: "timeline-request-1",
 				type: "sticker",
 			},
 		});
 
 		expect(ipcMocks.send).not.toHaveBeenCalled();
+		expect(callback).toHaveBeenCalledWith(
+			expect.objectContaining({ projectId: "project-1" })
+		);
 		finish?.();
 		await pending;
 		expect(ipcMocks.send).toHaveBeenCalledWith(
@@ -160,6 +165,7 @@ describe("Claude media preload acknowledgements", () => {
 			channel: "claude:timeline:addElement",
 			payload: {
 				id: "element-1",
+				projectId: "project-1",
 				requestId: "timeline-request-2",
 				type: "sticker",
 			},
@@ -182,6 +188,7 @@ describe("Claude media preload acknowledgements", () => {
 			channel: "claude:timeline:addElement",
 			payload: {
 				id: "element-1",
+				projectId: "project-1",
 				requestId: "timeline-request-3",
 				type: "sticker",
 			},
