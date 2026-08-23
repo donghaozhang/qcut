@@ -88,9 +88,11 @@ export function PortraitPresetControls({
 					disabled={disabled || !selectedPresetId}
 					onClick={onApplyPreset}
 					onKeyDown={(event) => {
-						if (event.key === "Enter" || event.key === " ") {
-							event.currentTarget.click();
-						}
+						// Native buttons already click on Enter; only Space needs
+						// help, and preventDefault stops the native double-fire.
+						if (event.key !== " ") return;
+						event.preventDefault();
+						event.currentTarget.click();
 					}}
 				>
 					<Check className="size-3.5" />
@@ -107,9 +109,11 @@ export function PortraitPresetControls({
 					disabled={disabled || !selectedPresetId}
 					onClick={onDeletePreset}
 					onKeyDown={(event) => {
-						if (event.key === "Enter" || event.key === " ") {
-							event.currentTarget.click();
-						}
+						// Native buttons already click on Enter; only Space needs
+						// help, and preventDefault stops the native double-fire.
+						if (event.key !== " ") return;
+						event.preventDefault();
+						event.currentTarget.click();
 					}}
 				>
 					<Trash2 className="size-3.5" />
@@ -141,9 +145,11 @@ export function PortraitPresetControls({
 					disabled={disabled}
 					onClick={save}
 					onKeyDown={(event) => {
-						if (event.key === "Enter" || event.key === " ") {
-							event.currentTarget.click();
-						}
+						// Native buttons already click on Enter; only Space needs
+						// help, and preventDefault stops the native double-fire.
+						if (event.key !== " ") return;
+						event.preventDefault();
+						event.currentTarget.click();
 					}}
 				>
 					<Save className="size-3.5" />
