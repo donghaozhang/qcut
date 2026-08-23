@@ -111,7 +111,7 @@ export interface JianyingTextStyleLabCoverRequest {
 
 export interface JianyingTextStyleLabCoverResult {
 	styleId: string;
-	mimeType: "image/gif" | "image/jpeg" | "image/png" | "image/webp";
+	mimeType: "image/png";
 	bytes: Uint8Array;
 }
 
