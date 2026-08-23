@@ -74,6 +74,7 @@ describe("bridgeEnvironment", () => {
 	};
 
 	afterEach(() => {
+		delete process.env.JY_EFFECT_NATIVE_INPUT;
 		delete process.env.JY_MODEL_DIRECTORY;
 	});
 
@@ -81,10 +82,12 @@ describe("bridgeEnvironment", () => {
 	// present, so a value inherited from QCut's own environment must not
 	// leak into a blit render whose definition never asked for models.
 	it("drops an inherited JY_MODEL_DIRECTORY for blit renders", () => {
+		process.env.JY_EFFECT_NATIVE_INPUT = "1";
 		process.env.JY_MODEL_DIRECTORY = "/tmp/inherited-models";
 
 		const environment = bridgeEnvironment({ inspection, extra: {} });
 
+		expect(environment.JY_EFFECT_NATIVE_INPUT).toBeUndefined();
 		expect(environment.JY_MODEL_DIRECTORY).toBeUndefined();
 	});
 
@@ -93,9 +96,13 @@ describe("bridgeEnvironment", () => {
 
 		const environment = bridgeEnvironment({
 			inspection,
-			extra: { JY_MODEL_DIRECTORY: "/tmp/algorithm-models" },
+			extra: {
+				JY_EFFECT_NATIVE_INPUT: "1",
+				JY_MODEL_DIRECTORY: "/tmp/algorithm-models",
+			},
 		});
 
+		expect(environment.JY_EFFECT_NATIVE_INPUT).toBe("1");
 		expect(environment.JY_MODEL_DIRECTORY).toBe("/tmp/algorithm-models");
 	});
 });
