@@ -34,13 +34,26 @@ import type {
 const MAX_TIMELINE_BATCH_ITEMS = 50;
 const TIMELINE_REQUEST_TIMEOUT_MS = 5000;
 
+function requireTimelineProjectId({
+	projectId,
+}: {
+	projectId: string;
+}): string {
+	if (typeof projectId !== "string" || projectId.trim().length === 0) {
+		throw new Error("Timeline mutation requires a projectId");
+	}
+	return projectId;
+}
+
 export async function requestAddElementFromRenderer({
 	correlationId,
 	element,
+	projectId,
 	win,
 }: {
 	correlationId?: string;
 	element: Partial<ClaudeElement>;
+	projectId: string;
 	win: BrowserWindow;
 }): Promise<void> {
 	await requestRendererMutation({
@@ -48,6 +61,7 @@ export async function requestAddElementFromRenderer({
 		payload: {
 			...element,
 			...(correlationId ? { correlationId } : {}),
+			projectId: requireTimelineProjectId({ projectId }),
 		},
 		requestIdPrefix: "timeline-add",
 		responseChannel: "claude:timeline:addElement:response",
@@ -332,6 +346,7 @@ function isTrackCompatibleWithElementType({
 /** Handle request batch add elements from renderer. */
 export async function requestBatchAddElementsFromRenderer(
 	win: BrowserWindow,
+	projectId: string,
 	elements: ClaudeBatchAddElementRequest[],
 	correlationId?: string
 ): Promise<ClaudeBatchAddResponse> {
@@ -339,7 +354,10 @@ export async function requestBatchAddElementsFromRenderer(
 		win,
 		requestChannel: "claude:timeline:batchAddElements",
 		responseChannel: "claude:timeline:batchAddElements:response",
-		payload: { elements },
+		payload: {
+			elements,
+			projectId: requireTimelineProjectId({ projectId }),
+		},
 		timeoutErrorMessage: "Timeout waiting for batch add result",
 		correlationId,
 	});
@@ -429,7 +447,7 @@ export async function requestTrackOperationFromRenderer(
 /** Handle batch add elements. */
 export async function batchAddElements(
 	win: BrowserWindow,
-	_projectId: string,
+	projectId: string,
 	elements: ClaudeBatchAddElementRequest[],
 	correlationId?: string
 ): Promise<ClaudeBatchAddResponse> {
@@ -501,7 +519,12 @@ export async function batchAddElements(
 			}
 		}
 
-		return requestBatchAddElementsFromRenderer(win, elements, correlationId);
+		return requestBatchAddElementsFromRenderer(
+			win,
+			projectId,
+			elements,
+			correlationId
+		);
 	} catch (error) {
 		throw new Error(
 			error instanceof Error ? error.message : "Failed to batch add elements"
