@@ -942,7 +942,7 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 			f(
 				"--root",
 				"string",
-				"Private local reference root (used with --provider sticker-lab)"
+				"Private local reference root (defaults to QCUT_STICKER_LAB_ROOT, then the platform QCut Sticker Lab folder)"
 			),
 			f("--source", "string", "Path to custom image file (PNG/JPG/GIF/WebP)"),
 			f("--x", "number", "X position in pixels", { default: 0 }),
