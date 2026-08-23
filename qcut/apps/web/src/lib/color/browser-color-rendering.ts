@@ -174,8 +174,18 @@ async function portraitAdjustedSource({
 	const context = canvas.getContext("2d", { willReadFrequently: true });
 	if (!context) throw new Error("Unable to create portrait adjustment canvas");
 	context.drawImage(source, 0, 0, width, height);
+	let sourceData: ImageData;
+	try {
+		sourceData = context.getImageData(0, 0, width, height);
+	} catch (cause) {
+		reportColorDegradation({
+			reason: "jianying-portrait-adjustment-fallback",
+			detail: cause instanceof Error ? cause.message : String(cause),
+		});
+		return source;
+	}
 	const rendered = await renderJianyingPortraitAdjustmentPreview({
-		source: context.getImageData(0, 0, width, height),
+		source: sourceData,
 		adjustments,
 		sourceKey,
 		timestampSeconds,
