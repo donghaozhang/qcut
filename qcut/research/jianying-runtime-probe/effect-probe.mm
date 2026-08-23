@@ -22,6 +22,19 @@
 #include <string_view>
 #include <vector>
 
+@protocol QCutHTSGLContextFactory
++ (void)preloadGLContext;
++ (id)defaultImageProcessingContext;
++ (id)sharedImageProcessingContext;
++ (id)shareProcesingContext;
+@end
+
+@protocol QCutHTSGLContext
+- (void)bind:(BOOL)force;
+- (void)unbind;
+- (void*)getCppContext;
+@end
+
 namespace jianying_probe {
 namespace {
 
@@ -52,6 +65,8 @@ constexpr int kAutomaticRendererType = 14;
  * time range leaves the frame uncomposited, so this is only a floor.
  */
 constexpr std::int64_t kMinimumEffectDurationMicroseconds = 3'000'000;
+constexpr std::int64_t kAlgorithmPrerollMicroseconds = 200'000;
+constexpr int kAlgorithmPrerollFrames = 6;
 
 [[nodiscard]] std::int64_t segmentDurationMicroseconds(double durationSeconds) {
   if (!std::isfinite(durationSeconds) || durationSeconds <= 0.0) {
@@ -100,8 +115,8 @@ constexpr std::string_view kImageAnchorSymbol =
 /**
  * CV packages (matting, face, skeleton …) only render when the host both
  * resolves their models and hands the algorithm a native, CVPixelBuffer-backed
- * input texture. Both are keyed off JY_MODEL_DIRECTORY: with no model
- * directory the effect is a plain blit package and takes the original path.
+ * input texture. Production renders enable both; isolation controls keep the
+ * native upload while removing the model directory.
  */
 [[nodiscard]] const char* effectModelDirectory() {
   return std::getenv("JY_MODEL_DIRECTORY");
@@ -109,6 +124,15 @@ constexpr std::string_view kImageAnchorSymbol =
 
 [[nodiscard]] bool effectAlgorithmEnabled() {
   return effectModelDirectory() != nullptr;
+}
+
+[[nodiscard]] bool effectNativeInputEnabled() {
+  const char* value = std::getenv("JY_EFFECT_NATIVE_INPUT");
+  if (value == nullptr) return effectAlgorithmEnabled();
+  const std::string_view flag(value);
+  if (flag == "1") return true;
+  if (flag == "0") return false;
+  throw std::runtime_error("JY_EFFECT_NATIVE_INPUT must be 0 or 1");
 }
 
 /**
@@ -314,6 +338,54 @@ class AmazerContextScope {
   ObjectMethod destructor_;
 };
 
+class EngineGlContext {
+ public:
+  EngineGlContext() {
+    if (!effectNativeInputEnabled()) return;
+
+    [NSApplication sharedApplication];
+    Class<QCutHTSGLContextFactory> contextClass =
+        NSClassFromString(@"HTSGLContext");
+    if (contextClass == Nil) {
+      throw std::runtime_error("HTSGLContext is unavailable");
+    }
+
+    [contextClass preloadGLContext];
+    context_ = [contextClass sharedImageProcessingContext];
+    if (context_ == nil) {
+      context_ = [contextClass shareProcesingContext];
+    }
+    if (context_ == nil) {
+      context_ = [contextClass defaultImageProcessingContext];
+    }
+    if (context_ == nil || [context_ getCppContext] == nullptr) {
+      throw std::runtime_error("HTSGLContext initialization failed");
+    }
+
+    makeCurrent();
+    std::cerr << "[effect] HTSGLContext=" << (__bridge void*)context_
+              << " cpp=" << [context_ getCppContext] << '\n';
+  }
+
+  ~EngineGlContext() {
+    if (context_ != nil) {
+      [context_ unbind];
+    }
+  }
+
+  EngineGlContext(const EngineGlContext&) = delete;
+  EngineGlContext& operator=(const EngineGlContext&) = delete;
+
+  void makeCurrent() const {
+    if (context_ != nil) {
+      [context_ bind:YES];
+    }
+  }
+
+ private:
+  __strong id<QCutHTSGLContext> context_ = nil;
+};
+
 class SwingManagerHandle {
  public:
   SwingManagerHandle(const EffectSymbols& symbols, int width, int height,
@@ -402,8 +474,12 @@ class EffectRenderSession {
   EffectRenderSession(const EffectSymbols& symbols, const fs::path& packagePath,
                       double durationSeconds,
                       std::span<const EffectAdjustParameter> adjustParameters,
-                      const GraphicsFrameResources& resources)
-      : symbols_(symbols), graphicsDevice_(resources.graphicsDevice) {
+                      const GraphicsFrameResources& resources,
+                      EngineGlContext& engineGlContext)
+      : symbols_(symbols),
+        graphicsDevice_(resources.graphicsDevice),
+        engineGlContext_(engineGlContext) {
+    engineGlContext_.makeCurrent();
     manager_ = std::make_unique<SwingManagerHandle>(
         symbols, resources.width, resources.height, resources.graphicsDevice);
     if (manager_->get() == nullptr) {
@@ -438,10 +514,14 @@ class EffectRenderSession {
     applyAdjustParameters(adjustParameters);
 
     const std::int64_t span = segmentDurationMicroseconds(durationSeconds);
-    const int videoRange =
-        symbols.setSegmentTimeRange(videoSegment_->get(), 0, span);
-    const int effectRange =
-        symbols.setSegmentTimeRange(effectSegment_->get(), 0, span);
+    // Some package scripts latch their first detection result. Start the
+    // feature after a hidden warm-up so its local animation time remains zero.
+    timelineOffsetMicroseconds_ =
+        effectNativeInputEnabled() ? kAlgorithmPrerollMicroseconds : 0;
+    const int videoRange = symbols.setSegmentTimeRange(
+        videoSegment_->get(), 0, span + timelineOffsetMicroseconds_);
+    const int effectRange = symbols.setSegmentTimeRange(
+        effectSegment_->get(), timelineOffsetMicroseconds_, span);
     const int videoIndex = symbols.setSegmentRenderIndex(videoSegment_->get(), 0);
     static_cast<void>(symbols.featureSetOrder(effectSegment_->get(), 0));
     const int attachResult =
@@ -462,10 +542,27 @@ class EffectRenderSession {
       return false;
     }
 
+    if (!warmed_ && timelineOffsetMicroseconds_ > 0) {
+      for (int index = 0; index < kAlgorithmPrerollFrames; index += 1) {
+        const std::int64_t timestamp =
+            timelineOffsetMicroseconds_ * index / kAlgorithmPrerollFrames;
+        if (!renderAt(resources, timestamp)) return false;
+      }
+      warmed_ = true;
+    }
+
     // Rounded, not truncated: the ABI takes int64 microseconds and every
     // frame timestamp must be converted the same way segment spans are.
     const auto timestamp =
+        timelineOffsetMicroseconds_ +
         static_cast<std::int64_t>(std::llround(seconds * 1'000'000.0));
+    return renderAt(resources, timestamp);
+  }
+
+ private:
+  [[nodiscard]] bool renderAt(const GraphicsFrameResources& resources,
+                              std::int64_t timestamp) {
+    engineGlContext_.makeCurrent();
     const DeviceTextureProbe input =
         bridgeTexture(symbols_, manager_->get(), resources.inputA, timestamp);
     const DeviceTextureProbe output =
@@ -481,7 +578,6 @@ class EffectRenderSession {
                                              &output) == 0;
   }
 
- private:
   /** Sliders arrive as the package's own `effects_adjust_*` key/value pairs. */
   void applyAdjustParameters(
       std::span<const EffectAdjustParameter> adjustParameters) {
@@ -509,15 +605,19 @@ class EffectRenderSession {
 
   const EffectSymbols& symbols_;
   void* graphicsDevice_ = nullptr;
+  EngineGlContext& engineGlContext_;
   std::unique_ptr<SwingManagerHandle> manager_;
   std::unique_ptr<AmazerContextScope> contextScope_;
   std::unique_ptr<SegmentHandle> videoSegment_;
   std::unique_ptr<SegmentHandle> effectSegment_;
+  std::int64_t timelineOffsetMicroseconds_ = 0;
+  bool warmed_ = false;
   bool ready_ = false;
 };
 
 struct EffectRenderContext {
   const EffectSymbols& symbols;
+  EngineGlContext& engineGlContext;
   fs::path packagePath;
   std::vector<EffectAdjustParameter> adjustParameters;
   double durationSeconds = 3.0;
@@ -534,7 +634,7 @@ struct EffectRenderContext {
   if (context.session == nullptr) {
     context.session = std::make_unique<EffectRenderSession>(
         context.symbols, context.packagePath, context.durationSeconds,
-        context.adjustParameters, resources);
+        context.adjustParameters, resources, context.engineGlContext);
   }
   return context.session->render(resources, context.seconds);
 }
@@ -544,8 +644,7 @@ struct EffectRenderContext {
 namespace {
 /**
  * Owns the catalog for the process lifetime so the finder stays valid for as
- * long as the runtime might call back into it. The runtime segfaults if the
- * finder ever answers with nothing, so the catalog must outlive every render.
+ * long as the runtime might call back into it.
  */
 std::unique_ptr<jianying_probe::ModelCatalog> gEffectModelCatalog;
 std::unique_ptr<jianying_probe::CatalogRegistration> gEffectCatalogRegistration;
@@ -553,8 +652,9 @@ std::unique_ptr<jianying_probe::CatalogRegistration> gEffectCatalogRegistration;
 void activateEffectModelCatalog() {
   const char* directory = effectModelDirectory();
   if (directory == nullptr || gEffectModelCatalog != nullptr) return;
-  gEffectModelCatalog =
-      std::make_unique<jianying_probe::ModelCatalog>(fs::path(directory));
+  constexpr bool kPreferExactModelFilename = true;
+  gEffectModelCatalog = std::make_unique<jianying_probe::ModelCatalog>(
+      fs::path(directory), kPreferExactModelFilename);
   gEffectCatalogRegistration =
       std::make_unique<jianying_probe::CatalogRegistration>(
           *gEffectModelCatalog);
@@ -563,6 +663,7 @@ void activateEffectModelCatalog() {
 
 struct EffectPixelSession::Impl {
   EffectSymbols symbols;
+  EngineGlContext engineGlContext;
   GraphicsProbeSession graphics;
   EffectRenderContext context;
 
@@ -575,6 +676,7 @@ struct EffectPixelSession::Impl {
         graphics(runtimeRoot, width, height),
         context{
             .symbols = symbols,
+            .engineGlContext = engineGlContext,
             .packagePath = packagePath,
             .adjustParameters = {adjustParameters.begin(),
                                  adjustParameters.end()},
@@ -587,7 +689,7 @@ struct EffectPixelSession::Impl {
     // A plain 2D upload never reaches the algorithm graph — the runtime reports
     // "algorithm input buffer is null" and every frame passes through. The
     // algorithm reads from the native buffer instead, so CV renders need one.
-    static const bool useNativeTextures = effectAlgorithmEnabled();
+    static const bool useNativeTextures = effectNativeInputEnabled();
     static const std::array<bool, 3> nativeFlags = effectNativeTextureFlags();
     GraphicsFrameProbeResult result = graphics.renderFrame({
         .renderer = renderWithEffectHost,
