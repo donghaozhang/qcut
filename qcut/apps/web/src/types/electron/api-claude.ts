@@ -132,11 +132,14 @@ export interface ElectronClaudeOps {
 				callback: (timeline: ClaudeTimeline, replace?: boolean) => void
 			) => void;
 			onAddElement: (
-				callback: (element: Partial<ClaudeElement>) => void
+				callback: (
+					element: Partial<ClaudeElement> & { projectId: string }
+				) => void
 			) => void;
 			onBatchAddElements: (
 				callback: (data: {
 					requestId: string;
+					projectId: string;
 					elements: ClaudeBatchAddElementRequest[];
 				}) => void
 			) => void;
