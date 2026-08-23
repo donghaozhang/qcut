@@ -488,6 +488,7 @@ describe("Claude HTTP Server - Timeline", () => {
 				id: "element_1",
 				type: "sticker",
 			}),
+			projectId: "proj_123",
 			win: mockWindow,
 		});
 		expect(send).not.toHaveBeenCalledWith(
