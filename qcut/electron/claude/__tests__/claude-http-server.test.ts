@@ -249,6 +249,7 @@ import { BrowserWindow } from "electron";
 import * as timelineHandler from "../handlers/claude-timeline-handler.js";
 import * as transactionHandler from "../handlers/claude-transaction-handler.js";
 import * as projectHandler from "../handlers/claude-project-handler.js";
+import * as mediaHandler from "../handlers/claude-media-handler.js";
 import { notificationBridge } from "../notification-bridge";
 import { createFetch, createMockWindow } from "./claude-http-test-helpers";
 import {
@@ -554,6 +555,59 @@ describe("Claude HTTP Server", () => {
 		expect(res.status).toBe(400);
 		expect(res.body.success).toBe(false);
 		expect(res.body.error).toContain("source");
+	});
+
+	it("POST /api/claude/media/:projectId/import forwards Sticker Lab metadata", async () => {
+		const send = vi.fn();
+		const mockWindow = createMockWindow(send);
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValueOnce([mockWindow]);
+		vi.mocked(mediaHandler.importMediaFile).mockResolvedValueOnce({
+			id: "media_sticker_1",
+			name: "7134619769205951784.gif",
+			type: "image",
+			path: "/mock/project/media/7134619769205951784.gif",
+			size: 512,
+			createdAt: 1,
+			modifiedAt: 1,
+		});
+		const metadata = {
+			source: "sticker-lab",
+			animatedSticker: true,
+			referenceOnly: true,
+			usage: "internal-reference-only",
+			redistribution: "prohibited",
+			batchId: "jianying-2026-08-23-batch-18-v2",
+			itemId: "7134619769205951784",
+			checksumSha256: "a".repeat(64),
+		};
+
+		const res = await fetch("/api/claude/media/proj_123/import", {
+			method: "POST",
+			body: JSON.stringify({ source: "/mock/sticker.gif", metadata }),
+		});
+
+		expect(res.status).toBe(200);
+		expect(send).toHaveBeenCalledWith("claude:media:imported", {
+			path: "/mock/project/media/7134619769205951784.gif",
+			name: "7134619769205951784.gif",
+			id: "media_sticker_1",
+			metadata,
+			type: "image",
+			size: 512,
+		});
+	});
+
+	it("POST /api/claude/media/:projectId/import rejects incomplete metadata", async () => {
+		const res = await fetch("/api/claude/media/proj_123/import", {
+			method: "POST",
+			body: JSON.stringify({
+				source: "/mock/sticker.gif",
+				metadata: { source: "sticker-lab", referenceOnly: true },
+			}),
+		});
+
+		expect(res.status).toBe(400);
+		expect(res.body.error).toContain("metadata");
 	});
 
 	it("GET /api/claude/export/presets returns preset list", async () => {
