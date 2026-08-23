@@ -16,6 +16,7 @@ import {
 	createStickerLabAssetFetch,
 	discoverLocalStickerReferenceCatalogs,
 	stickerLabPrivateManifestUrl,
+	supportsLocalStickerReferences,
 } from "@/lib/stickers/local-sticker-reference";
 
 export interface LocalStickerCatalogState {
@@ -40,14 +41,17 @@ export interface LocalStickerCatalogState {
 
 function initialCatalogState({
 	hasSource,
+	hasLocalReferenceSupport,
 }: {
 	hasSource: boolean;
+	hasLocalReferenceSupport: boolean;
 }): LocalStickerCatalogState {
+	const isAvailable = hasSource || hasLocalReferenceSupport;
 	return {
 		catalog: null,
 		error: null,
-		isAvailable: hasSource,
-		isLoading: hasSource,
+		isAvailable,
+		isLoading: isAvailable,
 		localReferenceWarningCount: 0,
 		privateCatalogs: [],
 		unavailablePrivateCatalogIds: [],
@@ -56,8 +60,15 @@ function initialCatalogState({
 
 export function useLocalStickerCatalog(): LocalStickerCatalogState {
 	const source = useMemo(() => getLocalStickerLabSource(), []);
+	const hasLocalReferenceSupport = useMemo(
+		() => supportsLocalStickerReferences(),
+		[]
+	);
 	const [state, setState] = useState<LocalStickerCatalogState>(() =>
-		initialCatalogState({ hasSource: source !== null })
+		initialCatalogState({
+			hasLocalReferenceSupport,
+			hasSource: source !== null,
+		})
 	);
 
 	useEffect(() => {
@@ -128,13 +139,24 @@ export function useLocalStickerCatalog(): LocalStickerCatalogState {
 				setState((previous) => ({
 					...previous,
 					isAvailable: true,
+					isLoading: source ? previous.isLoading : false,
 					localReferenceWarningCount: localDiscovery.warningCount,
 					privateCatalogs: localDiscovery.catalogs,
 					unavailablePrivateCatalogIds: [],
 				}));
 				return;
 			}
-			if (!source) return;
+			if (!source) {
+				setState((previous) => ({
+					...previous,
+					isAvailable: hasLocalReferenceSupport,
+					isLoading: false,
+					localReferenceWarningCount: localDiscovery.warningCount,
+					privateCatalogs: [],
+					unavailablePrivateCatalogIds: [],
+				}));
+				return;
+			}
 
 			const fetchImpl = createStickerLabAssetFetch();
 			const results = await Promise.allSettled(
@@ -197,7 +219,7 @@ export function useLocalStickerCatalog(): LocalStickerCatalogState {
 			disposed = true;
 			abortController.abort();
 		};
-	}, [source]);
+	}, [hasLocalReferenceSupport, source]);
 
 	return state;
 }
