@@ -427,7 +427,17 @@ export function TransitionsView() {
 			className="flex h-full min-h-0 bg-panel text-foreground"
 			data-testid="transitions-view"
 		>
-			<TransitionSidebar category={category} onSelect={handleCategorySelect} />
+			<TransitionSidebar
+				category={category}
+				labGroup={jianyingGroup}
+				labSource={labSource}
+				onSelect={handleCategorySelect}
+				onSelectLabGroup={({ group }) => {
+					setCategory("lab");
+					setLabSource("jianying-local");
+					setJianyingGroup(group);
+				}}
+			/>
 			<section className="flex min-w-0 flex-1 flex-col">
 				<div className="border-b border-border/50 p-2">
 					<div className="relative">
@@ -449,7 +459,6 @@ export function TransitionsView() {
 					{category === "lab" ? (
 						<TransitionLabControls
 							source={labSource}
-							group={jianyingGroup}
 							checking={jianyingRuntime.checking}
 							status={jianyingRuntime.status}
 							error={jianyingRuntime.error}
@@ -457,7 +466,6 @@ export function TransitionsView() {
 								setLabSource(source);
 								setJianyingGroup("all");
 							}}
-							onGroupChange={({ group }) => setJianyingGroup(group)}
 							onRefresh={() => void jianyingRuntime.refresh()}
 						/>
 					) : null}
