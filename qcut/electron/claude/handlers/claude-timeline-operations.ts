@@ -34,6 +34,19 @@ import type {
 const MAX_TIMELINE_BATCH_ITEMS = 50;
 const TIMELINE_REQUEST_TIMEOUT_MS = 5000;
 
+interface RendererResultResponse<T> {
+	requestId: string;
+	result: T;
+}
+
+function isRendererResultResponse<T>(
+	candidate: unknown
+): candidate is RendererResultResponse<T> {
+	if (typeof candidate !== "object" || candidate === null) return false;
+	const response = candidate as Record<string, unknown>;
+	return typeof response.requestId === "string" && "result" in response;
+}
+
 function requireTimelineProjectId({
 	projectId,
 }: {
@@ -259,11 +272,14 @@ async function requestRendererResult<T>({
 			rejectOnce({ error: new Error(timeoutErrorMessage) });
 		}, TIMELINE_REQUEST_TIMEOUT_MS);
 
-		const responseHandler = (
-			_event: IpcMainEvent,
-			data: { requestId: string; result: T }
-		) => {
-			if (resolved || data.requestId !== requestId) {
+		const responseHandler = (event: IpcMainEvent, data: unknown) => {
+			if (
+				resolved ||
+				!isRendererResultResponse<T>(data) ||
+				data.requestId !== requestId ||
+				event.sender !== win.webContents ||
+				event.senderFrame !== win.webContents.mainFrame
+			) {
 				return;
 			}
 			resolved = true;
