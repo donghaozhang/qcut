@@ -18,6 +18,10 @@ import type {
 	ClaudeTrackOperationRequest,
 	ClaudeTrackOperationResponse,
 } from "../../types/claude-api";
+import type {
+	ClaudeMediaDeletedEvent,
+	ClaudeMediaImportedEvent,
+} from "../../types/claude-media-bridge-api";
 
 /** Claude search/transcription operations. */
 export interface ClaudeSearchAPI {
@@ -39,14 +43,10 @@ export interface ClaudeMediaAPI {
 			newName: string
 		) => Promise<boolean>;
 		onMediaImported: (
-			callback: (data: {
-				path: string;
-				name: string;
-				id: string;
-				metadata?: Record<string, unknown>;
-				type: string;
-				size: number;
-			}) => void
+			callback: (data: ClaudeMediaImportedEvent) => void | Promise<void>
+		) => void;
+		onMediaDeleted: (
+			callback: (data: ClaudeMediaDeletedEvent) => void | Promise<void>
 		) => void;
 	};
 }
@@ -118,7 +118,9 @@ export interface ClaudeTimelineAPI {
 		onApply: (
 			callback: (timeline: ClaudeTimeline, replace?: boolean) => void
 		) => void;
-		onAddElement: (callback: (element: Partial<ClaudeElement>) => void) => void;
+		onAddElement: (
+			callback: (element: Partial<ClaudeElement>) => void | Promise<void>
+		) => void;
 		onBatchAddElements: (
 			callback: (data: {
 				requestId: string;
