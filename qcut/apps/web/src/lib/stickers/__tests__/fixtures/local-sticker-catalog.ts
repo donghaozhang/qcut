@@ -20,7 +20,7 @@ export function createLocalBridgeStickerReference({
 	batchId = "jianying-batch-18",
 	checksumSha256 = "a".repeat(64),
 	id = "local-reference-1",
-	rootPath = "/Users/peter/Movies/QCut Sticker Lab",
+	rootPath = "/Users/tester/Movies/QCut Sticker Lab",
 }: {
 	batchId?: string;
 	checksumSha256?: string;
@@ -54,7 +54,7 @@ export function createLocalBridgeStickerReference({
 export function createLocalBridgeStickerCatalog({
 	batchId = "jianying-batch-18",
 	id = "local-reference-1",
-	rootPath = "/Users/peter/Movies/QCut Sticker Lab",
+	rootPath = "/Users/tester/Movies/QCut Sticker Lab",
 }: {
 	batchId?: string;
 	id?: string;
