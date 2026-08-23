@@ -141,6 +141,71 @@ describe("LocalStickerReferencePanel", () => {
 		);
 	});
 
+	it("releases an offscreen preview after hysteresis and reloads on re-entry", async () => {
+		const callbacks: IntersectionObserverCallback[] = [];
+		class ControlledIntersectionObserver {
+			constructor(callback: IntersectionObserverCallback) {
+				callbacks.push(callback);
+			}
+
+			disconnect = vi.fn();
+			observe = vi.fn();
+			unobserve = vi.fn();
+			takeRecords = () => [];
+			root = null;
+			rootMargin = "160px 0px";
+			thresholds = [0];
+		}
+		vi.stubGlobal("IntersectionObserver", ControlledIntersectionObserver);
+		vi.useFakeTimers();
+		try {
+			render(
+				<LocalStickerReferencePanel
+					catalog={createLocalStickerCatalog()}
+					error={null}
+					isLoading={false}
+					onSelect={async () => {}}
+				/>
+			);
+
+			await act(async () => {
+				callbacks[0]?.(
+					[{ isIntersecting: true } as IntersectionObserverEntry],
+					{} as IntersectionObserver
+				);
+				await Promise.resolve();
+				await Promise.resolve();
+			});
+			expect(referenceMocks.loadFile).toHaveBeenCalledTimes(1);
+			expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
+
+			act(() => {
+				callbacks[0]?.(
+					[{ isIntersecting: false } as IntersectionObserverEntry],
+					{} as IntersectionObserver
+				);
+				vi.advanceTimersByTime(749);
+			});
+			expect(URL.revokeObjectURL).not.toHaveBeenCalled();
+
+			act(() => vi.advanceTimersByTime(1));
+			expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1);
+
+			await act(async () => {
+				callbacks[0]?.(
+					[{ isIntersecting: true } as IntersectionObserverEntry],
+					{} as IntersectionObserver
+				);
+				await Promise.resolve();
+				await Promise.resolve();
+			});
+			expect(referenceMocks.loadFile).toHaveBeenCalledTimes(2);
+			expect(URL.createObjectURL).toHaveBeenCalledTimes(2);
+		} finally {
+			vi.useRealTimers();
+		}
+	});
+
 	it("lays stickers out in a responsive tile grid", () => {
 		render(
 			<LocalStickerReferencePanel
