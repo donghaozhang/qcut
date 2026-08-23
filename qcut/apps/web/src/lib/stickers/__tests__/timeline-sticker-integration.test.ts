@@ -67,4 +67,24 @@ describe("TimelineStickerIntegration", () => {
 			}),
 		]);
 	});
+
+	it("does not mutate a different project after an async boundary", async () => {
+		const integration = new TimelineStickerIntegration({
+			enableLogging: false,
+		});
+		let isExpectedProjectActive = true;
+		const placement = integration.addStickerToTimeline(
+			sticker(),
+			2,
+			5,
+			() => isExpectedProjectActive
+		);
+		isExpectedProjectActive = false;
+
+		await expect(placement).resolves.toEqual({
+			success: false,
+			error: "Active project changed while adding sticker",
+		});
+		expect(useTimelineStore.getState().tracks).toEqual([mainTrack()]);
+	});
 });
