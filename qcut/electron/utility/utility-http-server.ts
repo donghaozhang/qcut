@@ -258,6 +258,12 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 		/** Requests the current editor selection through the bridge. */
 		requestSelection: () =>
 			requestFromMain("get-selection", {}) as Promise<ClaudeSelectionItem[]>,
+		/** Adds one element and waits for its renderer acknowledgement. */
+		requestAddElement: (element, correlationId) =>
+			requestFromMain("timeline:add-element", {
+				correlationId,
+				element,
+			}) as Promise<void>,
 		/** Sends a split request through the bridge. */
 		requestSplit: (elementId, splitTime, mode) =>
 			requestFromMain("split-element", {
@@ -357,6 +363,12 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 			requestFromMain("get-editor-state-snapshot", {
 				request,
 			}) as Promise<EditorStateSnapshot>,
+		/** Imports media into the renderer and waits for persistence. */
+		requestMediaImport: (payload) =>
+			requestFromMain("media:import-renderer", { payload }) as Promise<void>,
+		/** Removes media from the renderer and waits for persistence. */
+		requestMediaDelete: (payload) =>
+			requestFromMain("media:delete-renderer", { payload }) as Promise<void>,
 		/** Executes batched cut operations through the bridge. */
 		executeBatchCuts: async (request) =>
 			(await requestFromMain("timeline:batch-cuts", {
