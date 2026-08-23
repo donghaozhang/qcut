@@ -111,6 +111,12 @@ import {
 	handleStickerOverlay,
 	handleStickerSearch,
 } from "../cli-handlers-stickers.js";
+import {
+	handleStickerLabCatalogs,
+	handleStickerLabCategories,
+	handleStickerLabItems,
+	handleStickerLabSearch,
+} from "../cli-handlers-sticker-lab.js";
 import { handleInstancesCommand } from "../instance-selection.js";
 import {
 	handleTransitionDoctor,
@@ -246,6 +252,10 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	"effect-lab-search": wrap(handleEffectLabSearch),
 	"effect-lab-doctor": wrap(handleEffectLabDoctor),
 	"effect-lab-render": wrapOP(handleEffectLabRender),
+	"sticker-lab-catalogs": wrap(handleStickerLabCatalogs),
+	"sticker-lab-categories": wrap(handleStickerLabCategories),
+	"sticker-lab-items": wrap(handleStickerLabItems),
+	"sticker-lab-search": wrap(handleStickerLabSearch),
 	"transition-list": wrap0(handleTransitionList),
 	"transition-doctor": wrap0(handleTransitionDoctor),
 	"transition-render": wrapOP(handleTransitionRender),
