@@ -18,6 +18,7 @@ import { getCurvedTextTransforms } from "@/lib/text/curved-text";
 import {
 	DEFAULT_MEDIA_ENHANCEMENTS,
 	hasMediaEnhancements,
+	hasMediaPortraitAdjustments,
 	resolveMediaKeyframes,
 } from "@/lib/video/video-properties";
 import { useMaskEditorStore } from "@/stores/editor/mask-editor-store";
@@ -853,6 +854,9 @@ export function PreviewElementRenderer({
 				});
 				const usesPixelColor =
 					hasMediaColorEdits({ settings: visual.color }) ||
+					hasMediaPortraitAdjustments({
+						adjustments: visual.portraitAdjustments,
+					}) ||
 					additionalColorLayers.length > 0;
 				const enhancementFilter = buildMediaEnhancementCssFilter(
 					visual.enhancements
@@ -1048,6 +1052,7 @@ export function PreviewElementRenderer({
 									)}
 									filter={combinedFilter || undefined}
 									additionalLayers={additionalColorLayers}
+									portraitAdjustments={visual.portraitAdjustments}
 								/>
 							) : null}
 							{renderCompositePreviewEffects ? (
@@ -1213,6 +1218,9 @@ export function PreviewElementRenderer({
 				});
 				const usesPixelColor =
 					hasMediaColorEdits({ settings: visual.color }) ||
+					hasMediaPortraitAdjustments({
+						adjustments: visual.portraitAdjustments,
+					}) ||
 					additionalColorLayers.length > 0;
 				const gradeMaskIds = visual.color.mask.enabled
 					? new Set(visual.color.mask.maskIds)
@@ -1347,6 +1355,7 @@ export function PreviewElementRenderer({
 											currentTime * (activeProject?.fps ?? 30)
 										)}
 										additionalLayers={additionalColorLayers}
+										portraitAdjustments={visual.portraitAdjustments}
 									/>
 								) : null}
 								{renderCompositePreviewEffects ? (
@@ -1454,6 +1463,7 @@ export function PreviewElementRenderer({
 										currentTime * (activeProject?.fps ?? 30)
 									)}
 									additionalLayers={additionalColorLayers}
+									portraitAdjustments={visual.portraitAdjustments}
 								/>
 							) : null}
 							{renderCompositePreviewEffects ? (
