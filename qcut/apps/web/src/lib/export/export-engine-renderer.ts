@@ -496,6 +496,7 @@ export async function renderImage(
 								height,
 								masks: visual.masks,
 								settings: visual.color,
+								portraitAdjustments: visual.portraitAdjustments,
 								frameSeed: Math.round(currentTime * context.fps),
 								sourceKey: `image:${element.id}:${mediaItem.id}`,
 								timestampSeconds: 0,
@@ -691,6 +692,7 @@ async function renderVideoAttempt(
 						height,
 						masks: visual.masks,
 						settings: visual.color,
+						portraitAdjustments: visual.portraitAdjustments,
 						frameSeed: Math.round(
 							(element.startTime + timeOffset) * context.fps
 						),
