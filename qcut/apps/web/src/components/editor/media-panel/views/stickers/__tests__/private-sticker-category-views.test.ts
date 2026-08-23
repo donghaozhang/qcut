@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createPrivateStickerCatalogs } from "@/lib/stickers/__tests__/fixtures/local-sticker-catalog";
+import {
+	createLocalBridgeStickerCatalog,
+	createPrivateStickerCatalog,
+	createPrivateStickerCatalogs,
+} from "@/lib/stickers/__tests__/fixtures/local-sticker-catalog";
 import { buildPrivateStickerCategoryViews } from "../components/private-sticker-category-views";
 
 describe("private sticker category views", () => {
@@ -54,5 +58,23 @@ describe("private sticker category views", () => {
 		expect(views[1]?.sourcePanel).toBe(
 			"剪映贴纸面板 / 情绪 / endpoint row 1490"
 		);
+	});
+
+	it("deduplicates matching items and prefers the local reference", () => {
+		const remoteCatalog = createPrivateStickerCatalog();
+		const duplicateId = remoteCatalog.categories[0]?.items[0]?.id;
+		if (!duplicateId) throw new Error("Expected a private sticker fixture");
+		const localCatalog = createLocalBridgeStickerCatalog({ id: duplicateId });
+
+		const [view] = buildPrivateStickerCategoryViews({
+			catalogs: [remoteCatalog, localCatalog],
+		});
+
+		expect(view?.items).toHaveLength(2);
+		expect(view?.items[0]).toMatchObject({
+			asset: { kind: "local-reference" },
+			id: duplicateId,
+		});
+		expect(view?.sourcePanel).toBe("剪映贴纸面板 · 2 批本地参照");
 	});
 });
