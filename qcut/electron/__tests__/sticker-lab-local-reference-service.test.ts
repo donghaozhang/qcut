@@ -1,7 +1,9 @@
 import { createHash } from "node:crypto";
 import {
+	appendFile,
 	mkdir,
 	mkdtemp,
+	open,
 	realpath,
 	rm,
 	symlink,
@@ -13,8 +15,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
 	clearLocalReferenceDiscoveryCache,
 	discoverLocalReferences,
+	LOCAL_REFERENCE_DISCOVERY_LIMITS,
 	readLocalReference,
+	resolveDefaultLocalReferenceRoot,
 } from "../native-pipeline/stickers/local-reference-catalog/index";
+import { readOpenedFileWithinLimit } from "../native-pipeline/stickers/local-reference-catalog/filesystem";
 
 const PNG_BYTES = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0]);
 const GIF_BYTES = new TextEncoder().encode("GIF89a-local-reference");
@@ -164,6 +169,30 @@ afterEach(async () => {
 });
 
 describe("local Sticker Lab reference service", () => {
+	it("uses platform-aware default local roots", () => {
+		expect(
+			resolveDefaultLocalReferenceRoot({
+				homeDirectory: "/Users/tester",
+				platform: "darwin",
+			})
+		).toBe("/Users/tester/Movies/QCut Sticker Lab");
+		expect(
+			resolveDefaultLocalReferenceRoot({
+				homeDirectory: "/home/tester",
+				platform: "linux",
+			})
+		).toBe("/home/tester/Videos/QCut Sticker Lab");
+	});
+
+	it("publishes bounded discovery limits", () => {
+		expect(LOCAL_REFERENCE_DISCOVERY_LIMITS).toEqual({
+			batchConcurrency: 4,
+			fileConcurrencyPerBatch: 16,
+			maxBatches: 64,
+			maxCachedRoots: 8,
+		});
+	});
+
 	it("normalizes the legacy first-batch manifest and report", async () => {
 		const fixture = await writeFixture({
 			reportFrameRate: 25,
@@ -225,6 +254,42 @@ describe("local Sticker Lab reference service", () => {
 		expect(png.mimeType).toBe("image/png");
 		expect(Array.from(gif.bytes)).toEqual(Array.from(GIF_BYTES));
 		expect(gif.mimeType).toBe("image/gif");
+	});
+
+	it("hard-caps a file that grows after its initial inspection", async () => {
+		const rootPath = await createTemporaryRoot();
+		const filePath = join(rootPath, "growing.png");
+		await writeFile(filePath, PNG_BYTES);
+		const handle = await open(filePath, "r");
+		try {
+			const initialStats = await handle.stat();
+			await appendFile(filePath, new Uint8Array(1024 * 1024));
+			let totalBytesRead = 0;
+			const trackingHandle = {
+				read: async (
+					buffer: Uint8Array,
+					offset: number,
+					length: number,
+					position: number
+				) => {
+					const result = await handle.read(buffer, offset, length, position);
+					totalBytesRead += result.bytesRead;
+					return result;
+				},
+			};
+
+			await expect(
+				readOpenedFileWithinLimit({
+					expectedByteSize: initialStats.size,
+					handle: trackingHandle,
+					label: "Growing sticker",
+					maxBytes: initialStats.size,
+				})
+			).rejects.toThrow("changed while reading");
+			expect(totalBytesRead).toBe(initialStats.size + 1);
+		} finally {
+			await handle.close();
+		}
 	});
 
 	it("does not hash asset content during discovery", async () => {
@@ -329,6 +394,58 @@ describe("local Sticker Lab reference service", () => {
 		);
 	});
 
+	it("selects the highest revision and warns for superseded batch directories", async () => {
+		const rootPath = await createTemporaryRoot();
+		const baseBatchId = "jianying-2026-08-23-batch-18";
+		const secondBatchId = `${baseBatchId}-v2`;
+		const latestBatchId = `${baseBatchId}-v3`;
+		await writeFixture({
+			batchId: baseBatchId,
+			bytes: new Uint8Array([...PNG_BYTES, 1]),
+			fixtureRootPath: rootPath,
+		});
+		await writeFixture({
+			batchId: secondBatchId,
+			bytes: new Uint8Array([...PNG_BYTES, 2]),
+			fixtureRootPath: rootPath,
+		});
+		const latestBytes = new Uint8Array([...PNG_BYTES, 3]);
+		await writeFixture({
+			batchId: latestBatchId,
+			bytes: latestBytes,
+			fixtureRootPath: rootPath,
+		});
+
+		const discovery = await discoverLocalReferences({ rootPath });
+
+		expect(discovery.catalogs.map(({ batchId }) => batchId)).toEqual([
+			latestBatchId,
+		]);
+		expect(discovery.warnings).toEqual([
+			{
+				batchId: baseBatchId,
+				message: `Superseded by newer batch revision ${latestBatchId}; older directory was not loaded`,
+			},
+			{
+				batchId: secondBatchId,
+				message: `Superseded by newer batch revision ${latestBatchId}; older directory was not loaded`,
+			},
+		]);
+		await expect(
+			readLocalReference({
+				rootPath,
+				batchId: baseBatchId,
+				stickerId: "123",
+			})
+		).rejects.toThrow("Local Sticker Lab reference not found");
+		const latest = await readLocalReference({
+			rootPath,
+			batchId: latestBatchId,
+			stickerId: "123",
+		});
+		expect(Array.from(latest.bytes)).toEqual(Array.from(latestBytes));
+	});
+
 	it("rejects an asset path outside its batch", async () => {
 		const outsideRoot = await createTemporaryRoot();
 		const outsidePath = join(outsideRoot, "123.png");
@@ -369,5 +486,89 @@ describe("local Sticker Lab reference service", () => {
 		expect(discovery.rootPath).toBe(rootPath);
 		expect(discovery.catalogs).toEqual([]);
 		expect(discovery.warnings).toHaveLength(1);
+	});
+
+	it("fails discovery when a root exceeds the batch limit", async () => {
+		const fixture = await writeFixture();
+		const initial = await discoverLocalReferences({
+			rootPath: fixture.rootPath,
+		});
+		expect(initial.summary.itemCount).toBe(1);
+		await Promise.all(
+			Array.from(
+				{ length: LOCAL_REFERENCE_DISCOVERY_LIMITS.maxBatches },
+				(_, index) =>
+					mkdir(
+						join(fixture.rootPath, `jianying-2026-08-23-batch-${index + 2}`),
+						{ recursive: true }
+					)
+			)
+		);
+
+		const discovery = await discoverLocalReferences({
+			rootPath: fixture.rootPath,
+		});
+
+		expect(discovery.catalogs).toEqual([]);
+		expect(discovery.warnings[0]?.message).toContain(
+			`${LOCAL_REFERENCE_DISCOVERY_LIMITS.maxBatches} batch limit`
+		);
+		await expect(
+			readLocalReference({
+				rootPath: fixture.rootPath,
+				batchId: fixture.batchId,
+				stickerId: "123",
+			})
+		).rejects.toThrow("Local Sticker Lab reference not found");
+	});
+
+	it("returns a warning for roots with dot path segments", async () => {
+		const rootPath = `${await createTemporaryRoot()}/../stickers`;
+
+		const discovery = await discoverLocalReferences({ rootPath });
+
+		expect(discovery.catalogs).toEqual([]);
+		expect(discovery.warnings[0]?.message).toContain("dot path segments");
+	});
+
+	it("does not retain empty discovery roots", async () => {
+		const rootPath = await createTemporaryRoot();
+		const emptyDiscovery = await discoverLocalReferences({ rootPath });
+		expect(emptyDiscovery.summary.itemCount).toBe(0);
+		const fixture = await writeFixture({ fixtureRootPath: rootPath });
+
+		const result = await readLocalReference({
+			rootPath,
+			batchId: fixture.batchId,
+			stickerId: "123",
+		});
+
+		expect(result.stickerId).toBe("123");
+	});
+
+	it("evicts the least recently used discovery root", async () => {
+		const fixtures = await Promise.all(
+			Array.from(
+				{ length: LOCAL_REFERENCE_DISCOVERY_LIMITS.maxCachedRoots + 1 },
+				(_, index) => writeFixture({ id: String(100 + index) })
+			)
+		);
+		const first = fixtures[0];
+		if (!first) throw new Error("First LRU fixture is missing");
+		await discoverLocalReferences({ rootPath: first.rootPath });
+		await Promise.all(
+			fixtures
+				.slice(1)
+				.map(({ rootPath }) => discoverLocalReferences({ rootPath }))
+		);
+		await rm(join(first.batchRoot, "manifest.json"));
+
+		await expect(
+			readLocalReference({
+				rootPath: first.rootPath,
+				batchId: first.batchId,
+				stickerId: "100",
+			})
+		).rejects.toThrow("Local Sticker Lab reference not found");
 	});
 });
