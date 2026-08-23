@@ -1,18 +1,22 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import type { ReferenceEffectVerdict } from "./catalog-parsing.js";
+import {
+	readDeclaredModelNames,
+	SUPPORTED_REQUIREMENTS,
+	type ReferenceEffectVerdict,
+} from "./catalog-parsing.js";
 import {
 	isKnownHiddenAlgorithmPackage,
 	isVerifiedAlgorithmPackage,
 } from "./verified-algorithm-packages.js";
 
-const PLAIN_NODE_TYPES = new Set(["blit", "texture_blit"]);
 const MAX_ALGORITHM_CONFIG_BYTES = 2 * 1024 * 1024;
 
 export interface EffectPackageAlgorithmInspection {
 	configurationFound: boolean;
 	valid: boolean;
 	nodeTypes: string[];
+	requiredModelNames: string[];
 	requiresAlgorithm: boolean;
 	remoteGeneration: boolean;
 }
@@ -82,6 +86,42 @@ function isRemoteGenerationPackage({
 	);
 }
 
+function readPackageModelNames({
+	algorithmConfig,
+	config,
+}: {
+	algorithmConfig: Record<string, unknown>;
+	config: unknown;
+}): string[] {
+	const packageConfig =
+		typeof config === "object" && config !== null
+			? (config as {
+					model_names?: unknown;
+					effect?: { model_names?: unknown };
+				})
+			: null;
+	const values: unknown[] = [
+		algorithmConfig.model_names,
+		packageConfig?.model_names,
+		packageConfig?.effect?.model_names,
+	];
+	const nodes = algorithmConfig.nodes;
+	if (Array.isArray(nodes)) {
+		for (const node of nodes) {
+			if (typeof node !== "object" || node === null) continue;
+			const config = (node as { config?: unknown }).config;
+			if (typeof config !== "object" || config === null) continue;
+			const keyMaps = (config as { keyMaps?: unknown }).keyMaps;
+			if (typeof keyMaps !== "object" || keyMaps === null) continue;
+			const stringParam = (keyMaps as { stringParam?: unknown }).stringParam;
+			if (typeof stringParam !== "object" || stringParam === null) continue;
+			const parameters = stringParam as Record<string, unknown>;
+			values.push(parameters.model_name);
+		}
+	}
+	return readDeclaredModelNames({ values });
+}
+
 export async function inspectEffectPackageAlgorithm({
 	packagePath,
 }: {
@@ -99,6 +139,7 @@ export async function inspectEffectPackageAlgorithm({
 				configurationFound: false,
 				valid: true,
 				nodeTypes: [],
+				requiredModelNames: [],
 				requiresAlgorithm: false,
 				remoteGeneration: false,
 			};
@@ -107,6 +148,7 @@ export async function inspectEffectPackageAlgorithm({
 			configurationFound: true,
 			valid: false,
 			nodeTypes: [],
+			requiredModelNames: [],
 			requiresAlgorithm: true,
 			remoteGeneration: false,
 		};
@@ -117,6 +159,7 @@ export async function inspectEffectPackageAlgorithm({
 			configurationFound: true,
 			valid: false,
 			nodeTypes: [],
+			requiredModelNames: [],
 			requiresAlgorithm: true,
 			remoteGeneration: false,
 		};
@@ -126,7 +169,8 @@ export async function inspectEffectPackageAlgorithm({
 		const parsed: unknown = JSON.parse(content);
 		if (!parsed || typeof parsed !== "object")
 			throw new Error("invalid config");
-		const nodes = (parsed as { nodes?: unknown }).nodes;
+		const algorithmConfig = parsed as Record<string, unknown>;
+		const nodes = algorithmConfig.nodes;
 		if (!Array.isArray(nodes)) throw new Error("invalid nodes");
 		const nodeTypes = [
 			...new Set(
@@ -147,7 +191,10 @@ export async function inspectEffectPackageAlgorithm({
 			configurationFound: true,
 			valid: true,
 			nodeTypes,
-			requiresAlgorithm: nodeTypes.some((type) => !PLAIN_NODE_TYPES.has(type)),
+			requiredModelNames: readPackageModelNames({ algorithmConfig, config }),
+			requiresAlgorithm: nodeTypes.some(
+				(type) => !SUPPORTED_REQUIREMENTS.has(type)
+			),
 			remoteGeneration: isRemoteGenerationPackage({
 				algorithmConfig: parsed,
 				config,
@@ -159,6 +206,7 @@ export async function inspectEffectPackageAlgorithm({
 			configurationFound: true,
 			valid: false,
 			nodeTypes: [],
+			requiredModelNames: [],
 			requiresAlgorithm: true,
 			remoteGeneration: false,
 		};
@@ -233,7 +281,7 @@ export function resolveEffectSupport({
 		...new Set([
 			...unsupportedRequirements,
 			...(packageInspection?.nodeTypes.filter(
-				(type) => !PLAIN_NODE_TYPES.has(type)
+				(type) => !SUPPORTED_REQUIREMENTS.has(type)
 			) ?? []),
 		]),
 	];
