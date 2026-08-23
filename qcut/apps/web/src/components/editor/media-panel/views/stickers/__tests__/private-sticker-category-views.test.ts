@@ -75,6 +75,6 @@ describe("private sticker category views", () => {
 			asset: { kind: "local-reference" },
 			id: duplicateId,
 		});
-		expect(view?.sourcePanel).toBe("剪映贴纸面板 · 2 批本地参照");
+		expect(view?.sourcePanel).toBe("剪映贴纸面板 · 1 批本地参照");
 	});
 });
