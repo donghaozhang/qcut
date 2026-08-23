@@ -16,6 +16,7 @@ import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import type { JianyingKnownFilter } from "../jianying-filter-metadata.js";
+import { JIANYING_PORTRAIT_MAKEUP_CARDS } from "../jianying-portrait-adjustment-runtime/makeup-catalog.js";
 import { mapWithConcurrency } from "../lib/map-with-concurrency.js";
 import {
 	inspectJianyingFilterPrivateRuntimeFiles,
@@ -31,6 +32,7 @@ import {
 	jianyingFilterPrivateRuntimeRoot,
 } from "./private-runtime.js";
 import type { JianyingFilterLocalRuntimeInspection } from "./runtime-discovery.js";
+import { JIANYING_PORTRAIT_PACKAGE_IDENTITIES } from "../jianying-portrait-adjustment-runtime/catalog.js";
 
 const execFileAsync = promisify(execFile);
 const COPY_CONCURRENCY = 3;
@@ -187,6 +189,38 @@ async function managedPackageTasks({
 	return inspected.flat();
 }
 
+async function portraitAdjustmentPackageTasks({
+	sourceCacheRoot,
+}: {
+	sourceCacheRoot: string;
+}): Promise<CopyTask[]> {
+	const packageIdentities = [
+		...Object.values(JIANYING_PORTRAIT_PACKAGE_IDENTITIES),
+		...JIANYING_PORTRAIT_MAKEUP_CARDS,
+	];
+	const candidates = [
+		...new Map(
+			packageIdentities.map(({ resourceId, version }) => [
+				`${resourceId}/${version}`,
+				{ resourceId, version },
+			])
+		).values(),
+	].map(({ resourceId, version }) => ({
+		sourcePath: path.join(sourceCacheRoot, "effect", resourceId, version),
+		destinationRelativePath: path.join("Cache", "effect", resourceId, version),
+		kind: "package" as const,
+	}));
+	const availability = await Promise.all(
+		candidates.map(async (task) => ({
+			task,
+			available: await pathExists({ filePath: task.sourcePath }),
+		}))
+	);
+	return availability
+		.filter(({ available }) => available)
+		.map(({ task }) => task);
+}
+
 function deduplicateCopyTasks({ tasks }: { tasks: CopyTask[] }): CopyTask[] {
 	const byDestination = new Map<string, CopyTask>();
 	for (const task of tasks) {
@@ -216,7 +250,12 @@ async function buildCopyTasks({
 		.filter(
 			(value) => SAFE_SEGMENT.test(value) && value !== "." && value !== ".."
 		);
-	const [artistPackages, effectPackages, managedPackages] = await Promise.all([
+	const [
+		artistPackages,
+		effectPackages,
+		managedPackages,
+		portraitAdjustmentPackages,
+	] = await Promise.all([
 		packageTasksForRoot({
 			container: "artistEffect",
 			identifiers,
@@ -228,6 +267,7 @@ async function buildCopyTasks({
 			root: sourceCacheRoot,
 		}),
 		managedPackageTasks({ managedPackageRoot, resourceIds }),
+		portraitAdjustmentPackageTasks({ sourceCacheRoot }),
 	]);
 	return deduplicateCopyTasks({
 		tasks: [
@@ -249,6 +289,7 @@ async function buildCopyTasks({
 			...artistPackages,
 			...effectPackages,
 			...managedPackages,
+			...portraitAdjustmentPackages,
 		],
 	});
 }
