@@ -48,11 +48,13 @@ function withMakeup({
 
 function MakeupCard({
 	card,
+	disabled,
 	selected,
 	locale,
 	onSelect,
 }: {
 	card: JianyingPortraitMakeupCardStatus;
+	disabled: boolean;
 	selected: boolean;
 	locale: string;
 	onSelect: () => void;
@@ -64,7 +66,7 @@ function MakeupCard({
 			className="group min-w-0 text-center disabled:cursor-not-allowed disabled:opacity-40"
 			aria-label={label}
 			aria-pressed={selected}
-			disabled={!card.ready}
+			disabled={disabled || !card.ready}
 			onClick={onSelect}
 			onKeyDown={(event) => event.stopPropagation()}
 			data-testid={`portrait-makeup-card-${card.id}`}
@@ -207,6 +209,7 @@ export function PortraitMakeupControls({
 					<MakeupCard
 						key={card.id}
 						card={card}
+						disabled={disabled}
 						selected={card.id === selection?.cardId}
 						locale={locale}
 						onSelect={() => selectCard({ card })}
