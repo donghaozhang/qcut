@@ -11,17 +11,38 @@ import fs, { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { searchIconifyStickers } from "../stickers/iconify-sticker-client.js";
+import {
+	discoverLocalReferences,
+	readLocalReference,
+	type LocalStickerLabAsset,
+	type LocalStickerLabReadResult,
+} from "../stickers/local-reference-catalog/index.js";
 import { materializeSticker } from "../stickers/sticker-asset-materializer.js";
 import { parseStickerOverlayPlan } from "../stickers/sticker-overlay-plan.js";
 import type { EditorApiClient } from "./editor-api-client.js";
 import type { CLIRunOptions, CLIResult } from "../cli/cli-runner/types.js";
+
+const STICKER_LAB_PROVIDER = "sticker-lab";
+const STICKER_LAB_WARNING =
+	"Private local reference only. Do not redistribute or upload this file.";
+
+export interface StickerHandlerDependencies {
+	discoverLocalReferences: typeof discoverLocalReferences;
+	readLocalReference: typeof readLocalReference;
+}
+
+const DEFAULT_DEPENDENCIES: StickerHandlerDependencies = {
+	discoverLocalReferences,
+	readLocalReference,
+};
 
 /**
  * Dispatch sticker sub-commands.
  */
 export async function handleStickerCommand(
 	client: EditorApiClient,
-	options: CLIRunOptions
+	options: CLIRunOptions,
+	dependencies: StickerHandlerDependencies = DEFAULT_DEPENDENCIES
 ): Promise<CLIResult> {
 	const parts = options.command.split(":");
 	const action = parts[2];
@@ -30,7 +51,7 @@ export async function handleStickerCommand(
 		case "search":
 			return stickerSearch(options);
 		case "add":
-			return stickerAdd(client, options);
+			return stickerAdd(client, options, dependencies);
 		case "update":
 			return stickerUpdate(client, options);
 		case "remove":
@@ -69,22 +90,80 @@ async function stickerSearch(opts: CLIRunOptions): Promise<CLIResult> {
 
 async function importStickerSource({
 	client,
+	metadata,
 	projectId,
 	source,
 }: {
 	client: EditorApiClient;
+	metadata?: StickerLabMediaMetadata;
 	projectId: string;
 	source: string;
 }): Promise<string> {
 	const importResult = await client.post<{ id?: string; mediaId?: string }>(
 		`/api/claude/media/${encodeURIComponent(projectId)}/import`,
-		{ source }
+		metadata ? { source, metadata } : { source }
 	);
 	const mediaId = importResult.id ?? importResult.mediaId;
 	if (!mediaId) {
 		throw new Error("Media import succeeded but no mediaId returned");
 	}
 	return mediaId;
+}
+
+interface StickerLabMediaMetadata {
+	source: "sticker-lab";
+	animatedSticker: boolean;
+	referenceOnly: true;
+	usage: "internal-reference-only";
+	redistribution: "prohibited";
+	batchId: string;
+	itemId: string;
+	checksumSha256: string;
+}
+
+function stickerLabMediaMetadata({
+	reference,
+}: {
+	reference: LocalStickerLabReadResult;
+}): StickerLabMediaMetadata {
+	return {
+		source: "sticker-lab",
+		animatedSticker: reference.mimeType === "image/gif",
+		referenceOnly: true,
+		usage: "internal-reference-only",
+		redistribution: "prohibited",
+		batchId: reference.batchId,
+		itemId: reference.stickerId,
+		checksumSha256: reference.checksumSha256,
+	};
+}
+
+function materializeLocalReference({
+	reference,
+}: {
+	reference: LocalStickerLabReadResult;
+}): { path: string; cleanup: () => void } {
+	const outputDirectory = mkdtempSync(
+		join(tmpdir(), "qcut-editor-sticker-lab-")
+	);
+	try {
+		const extension = reference.mimeType === "image/gif" ? "gif" : "png";
+		const outputPath = join(
+			outputDirectory,
+			`sticker-${reference.stickerId}.${extension}`
+		);
+		fs.writeFileSync(outputPath, reference.bytes, {
+			flag: "wx",
+			mode: 0o600,
+		});
+		return {
+			path: outputPath,
+			cleanup: () => rmSync(outputDirectory, { recursive: true, force: true }),
+		};
+	} catch (error) {
+		rmSync(outputDirectory, { recursive: true, force: true });
+		throw error;
+	}
 }
 
 async function materializeCatalogSticker({
@@ -136,11 +215,44 @@ async function materializeCatalogSticker({
 /** Add a sticker to the timeline (catalog sticker or custom image). */
 async function stickerAdd(
 	client: EditorApiClient,
-	opts: CLIRunOptions
+	opts: CLIRunOptions,
+	dependencies: StickerHandlerDependencies
 ): Promise<CLIResult> {
 	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
 	if (opts.endTime === undefined)
 		return { success: false, error: "Missing --end-time" };
+	if (opts.provider && opts.provider !== STICKER_LAB_PROVIDER) {
+		return {
+			success: false,
+			error: `Unknown sticker provider: ${opts.provider}. Available: ${STICKER_LAB_PROVIDER}`,
+		};
+	}
+	const usesStickerLab = opts.provider === STICKER_LAB_PROVIDER;
+	if (!usesStickerLab && opts.batchId) {
+		return {
+			success: false,
+			error: "--batch-id requires --provider sticker-lab",
+		};
+	}
+	if (!usesStickerLab && opts.stickerId?.startsWith("sticker-lab:")) {
+		return {
+			success: false,
+			error:
+				"Sticker Lab references require explicit --provider sticker-lab, --batch-id, and --sticker-id flags",
+		};
+	}
+	if (usesStickerLab && opts.source) {
+		return {
+			success: false,
+			error: "--source cannot be used with --provider sticker-lab",
+		};
+	}
+	if (usesStickerLab && !opts.batchId?.trim()) {
+		return { success: false, error: "Missing --batch-id" };
+	}
+	if (usesStickerLab && !opts.stickerId?.trim()) {
+		return { success: false, error: "Missing --sticker-id" };
+	}
 	if (!opts.stickerId && !opts.source)
 		return {
 			success: false,
@@ -148,10 +260,51 @@ async function stickerAdd(
 				"Missing --sticker-id or --source. Provide a catalog sticker ID or a path to a custom image.",
 		};
 
+	const startTime = opts.startTime ?? 0;
+	const duration = opts.endTime - startTime;
+	if (duration <= 0) {
+		return {
+			success: false,
+			error: "--end-time must be greater than --start-time",
+		};
+	}
+
 	let mediaId: string | undefined;
 	let stickerId = opts.stickerId;
+	let stickerLabProvenance: LocalStickerLabAsset | undefined;
 
-	if (opts.source) {
+	if (usesStickerLab) {
+		const batchId = opts.batchId?.trim() ?? "";
+		const itemId = opts.stickerId?.trim() ?? "";
+		const discovery = await dependencies.discoverLocalReferences({
+			rootPath: opts.root,
+		});
+		const reference = await dependencies.readLocalReference({
+			rootPath: discovery.rootPath,
+			batchId,
+			stickerId: itemId,
+		});
+		const materialized = materializeLocalReference({ reference });
+		try {
+			mediaId = await importStickerSource({
+				client,
+				metadata: stickerLabMediaMetadata({ reference }),
+				projectId: opts.projectId,
+				source: materialized.path,
+			});
+		} finally {
+			materialized.cleanup();
+		}
+		stickerId = `${STICKER_LAB_PROVIDER}:${batchId}:${itemId}`;
+		stickerLabProvenance = {
+			kind: "local-reference",
+			rootPath: discovery.rootPath,
+			batchId,
+			stickerId: itemId,
+			byteSize: reference.bytes.byteLength,
+			checksumSha256: reference.checksumSha256,
+		};
+	} else if (opts.source) {
 		if (!fs.existsSync(opts.source)) {
 			return { success: false, error: `File not found: ${opts.source}` };
 		}
@@ -179,15 +332,6 @@ async function stickerAdd(
 		}
 	}
 
-	const startTime = opts.startTime ?? 0;
-	const duration = opts.endTime - startTime;
-	if (duration <= 0) {
-		return {
-			success: false,
-			error: "--end-time must be greater than --start-time",
-		};
-	}
-
 	const element: Record<string, unknown> = {
 		type: "sticker",
 		stickerId,
@@ -207,6 +351,19 @@ async function stickerAdd(
 		`/api/claude/timeline/${encodeURIComponent(opts.projectId)}/elements`,
 		element
 	);
+	if (stickerLabProvenance) {
+		return {
+			success: true,
+			data: {
+				timeline: data,
+				referenceOnly: true,
+				usage: "internal-reference-only",
+				redistribution: "prohibited",
+				warning: STICKER_LAB_WARNING,
+				provenance: stickerLabProvenance,
+			},
+		};
+	}
 	return { success: true, data };
 }
 
