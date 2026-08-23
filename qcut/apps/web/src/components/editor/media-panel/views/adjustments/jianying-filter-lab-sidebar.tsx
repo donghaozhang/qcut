@@ -92,15 +92,20 @@ function SidebarGroup({
  */
 export function JianyingFilterLabSidebar({
 	groups,
+	nested = false,
 }: {
 	groups: FilterLabSidebarGroup[];
+	nested?: boolean;
 }) {
 	const [collapsedIds, setCollapsedIds] = useState<ReadonlySet<string>>(
 		() => new Set()
 	);
 	return (
 		<div
-			className="sticky top-0 flex w-[82px] shrink-0 flex-col gap-1.5 self-start"
+			className={cn(
+				"flex shrink-0 flex-col gap-1.5 self-start",
+				nested ? "w-full" : "sticky top-0 w-[82px]"
+			)}
 			data-testid="jianying-filter-lab-categories"
 		>
 			{groups.map((group) => (
