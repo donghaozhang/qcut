@@ -27,12 +27,15 @@ export interface TransitionCategoryItem {
 	icon: LucideIcon;
 }
 
-export const transitionCategories: TransitionCategoryItem[] = [
-	{ id: "all", label: "全部", icon: SparklesIcon },
+export const transitionStandaloneCategories: TransitionCategoryItem[] = [
 	{ id: "favorites", label: "收藏", icon: HeartIcon },
+	{ id: "lab", label: "转场实验室", icon: FlaskConicalIcon },
+];
+
+export const transitionEffectCategories: TransitionCategoryItem[] = [
+	{ id: "all", label: "全部", icon: SparklesIcon },
 	{ id: "popular", label: "热门", icon: FlameIcon },
 	{ id: "latest", label: "最新", icon: StarIcon },
-	{ id: "lab", label: "转场实验室", icon: FlaskConicalIcon },
 	{ id: "dissolve", label: "叠化", icon: BlendIcon },
 	{ id: "natural", label: "自然", icon: FocusIcon },
 	{ id: "slideshow", label: "幻灯片", icon: GalleryHorizontalIcon },
