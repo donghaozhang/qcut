@@ -146,6 +146,7 @@ function LabSection({
 	icon: Icon,
 	label,
 	mode,
+	notice,
 	selection,
 	testId,
 	onSelectCategory,
@@ -155,6 +156,7 @@ function LabSection({
 	icon: LucideIcon;
 	label: string;
 	mode: StickerPanelMode;
+	notice?: string;
 	selection: StickerLabSelection | null;
 	testId: string;
 	onSelectCategory: ({ selection }: { selection: StickerLabSelection }) => void;
@@ -205,6 +207,11 @@ function LabSection({
 					aria-hidden="true"
 				/>
 			</button>
+			{notice ? (
+				<p className="px-2 pb-1 text-[9px] leading-tight text-amber-300/80">
+					{notice}
+				</p>
+			) : null}
 			{expanded && (
 				<div className="mt-0.5 space-y-0.5">
 					{categories.map((category) => {
@@ -367,6 +374,7 @@ export function StickerSidebar({
 						icon={FlaskConical}
 						label="贴纸实验室"
 						mode={mode}
+						notice="内部参照 · 禁止二次分发"
 						selection={referenceLab.selection}
 						testId="sticker-reference-lab-entry"
 						onSelectCategory={referenceLab.onSelectCategory}
