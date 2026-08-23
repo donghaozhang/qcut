@@ -12,6 +12,7 @@ import {
 	buildStickerReferenceUsageMetadata,
 	loadStickerLabReferenceFile,
 	loadStickerLabThumbnail,
+	releaseLocalStickerReferenceFile,
 	type StickerLabReference,
 	type StickerReferenceUsageMetadata,
 } from "@/lib/stickers/local-sticker-reference";
@@ -27,6 +28,9 @@ interface LoadedReference {
 	loadKey: string;
 	previewUrl: string;
 }
+
+const PREVIEW_RELEASE_DELAY_MS = 750;
+const PREVIEW_ROOT_MARGIN = "160px 0px";
 
 function getReferenceKey({
 	reference,
@@ -121,16 +125,30 @@ export function LocalStickerReferenceItem({
 			return;
 		}
 
+		let releaseTimer: ReturnType<typeof setTimeout> | undefined;
 		const observer = new IntersectionObserver(
 			(entries) => {
-				if (!entries.some((entry) => entry.isIntersecting)) return;
-				setShouldLoad(true);
-				observer.disconnect();
+				const entry =
+					entries.find((candidate) => candidate.target === item) ?? entries[0];
+				if (entry?.isIntersecting) {
+					if (releaseTimer) clearTimeout(releaseTimer);
+					releaseTimer = undefined;
+					setShouldLoad(true);
+					return;
+				}
+				if (releaseTimer) clearTimeout(releaseTimer);
+				releaseTimer = setTimeout(() => {
+					setShouldLoad(false);
+					releaseTimer = undefined;
+				}, PREVIEW_RELEASE_DELAY_MS);
 			},
-			{ rootMargin: "240px" }
+			{ rootMargin: PREVIEW_ROOT_MARGIN }
 		);
 		observer.observe(item);
-		return () => observer.disconnect();
+		return () => {
+			if (releaseTimer) clearTimeout(releaseTimer);
+			observer.disconnect();
+		};
 	}, []);
 
 	useEffect(() => {
@@ -142,7 +160,16 @@ export function LocalStickerReferenceItem({
 
 		const abortController = new AbortController();
 		let disposed = false;
+		let publishedPreview = false;
 		let previewUrl: string | undefined;
+		const localBridgeReference = isLocalBridgeStickerReference(reference)
+			? reference
+			: null;
+		const releaseLocalFile = () => {
+			if (localBridgeReference) {
+				releaseLocalStickerReferenceFile({ reference: localBridgeReference });
+			}
+		};
 
 		const loadPreview = async () => {
 			try {
@@ -171,6 +198,7 @@ export function LocalStickerReferenceItem({
 					URL.revokeObjectURL(previewUrl);
 					return;
 				}
+				publishedPreview = true;
 				setLoaded({
 					file:
 						!usesUncachedThumbnail && blob instanceof File ? blob : undefined,
@@ -181,6 +209,8 @@ export function LocalStickerReferenceItem({
 				if (disposed || isAbortError({ error })) return;
 				debugError("[StickerLab] Failed to load reference", error);
 				setHasError(true);
+			} finally {
+				if (!publishedPreview) releaseLocalFile();
 			}
 		};
 
@@ -189,6 +219,7 @@ export function LocalStickerReferenceItem({
 			disposed = true;
 			abortController.abort();
 			if (previewUrl) URL.revokeObjectURL(previewUrl);
+			releaseLocalFile();
 		};
 	}, [loadKey, provenance, reference, shouldLoad]);
 
