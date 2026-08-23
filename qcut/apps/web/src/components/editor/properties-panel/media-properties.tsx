@@ -51,6 +51,7 @@ import {
 	DEFAULT_MEDIA_ENHANCEMENTS,
 	DEFAULT_MEDIA_MASK,
 	DEFAULT_MEDIA_PERSPECTIVE,
+	DEFAULT_MEDIA_PORTRAIT_ADJUSTMENTS,
 	MEDIA_KEYFRAME_PROPERTIES,
 	getMediaKeyframeValue,
 	getMediaPropertyValue,
@@ -82,6 +83,7 @@ import {
 } from "./color-properties-panel";
 import { MediaTrackingProperties } from "./media-tracking-properties";
 import { MediaAIProperties } from "./media-ai-properties";
+import { MediaPortraitProperties } from "./media-portrait-properties";
 import {
 	CLIP_ANIMATION_OPTIONS,
 	IconButton,
@@ -433,6 +435,10 @@ export function MediaProperties({
 			customCutout: { ...DEFAULT_MEDIA_CUSTOM_CUTOUT, strokes: [] },
 			chromaKey: { ...DEFAULT_MEDIA_CHROMA_KEY },
 			enhancements: { ...DEFAULT_MEDIA_ENHANCEMENTS },
+			portraitAdjustments: {
+				...DEFAULT_MEDIA_PORTRAIT_ADJUSTMENTS,
+				values: {},
+			},
 			...defaultAudioUpdates(),
 			playbackRate: 1,
 			speedKeyframes: [],
@@ -1341,39 +1347,18 @@ export function MediaProperties({
 				</TabsContent>
 
 				<TabsContent value="portrait" className="mt-4">
-					<PropertyGroup
-						title={t("mediaProperties.tab.portrait")}
-						defaultExpanded
-					>
-						<div className="space-y-4">
-							<NumberControl
-								label={t("mediaProperties.relight")}
-								value={visual.enhancements.relight}
-								min={-100}
-								max={100}
-								onChange={(relight) =>
-									updateLive({
-										enhancements: { ...visual.enhancements, relight },
-									})
-								}
-								onInteractionStart={beginInteraction}
-								onInteractionEnd={endInteraction}
-							/>
-							<NumberControl
-								label={t("mediaProperties.beauty")}
-								value={visual.enhancements.beauty}
-								min={0}
-								max={100}
-								onChange={(beauty) =>
-									updateLive({
-										enhancements: { ...visual.enhancements, beauty },
-									})
-								}
-								onInteractionStart={beginInteraction}
-								onInteractionEnd={endInteraction}
-							/>
-						</div>
-					</PropertyGroup>
+					<MediaPortraitProperties
+						enhancements={visual.enhancements}
+						adjustments={visual.portraitAdjustments}
+						onEnhancementsChange={(enhancements) =>
+							updateLive({ enhancements })
+						}
+						onAdjustmentsChange={(portraitAdjustments) =>
+							updateLive({ portraitAdjustments })
+						}
+						onInteractionStart={beginInteraction}
+						onInteractionEnd={endInteraction}
+					/>
 				</TabsContent>
 
 				<TabsContent value="ai" className="mt-4">
