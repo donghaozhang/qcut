@@ -68,6 +68,138 @@ const NEWLY_VERIFIED_PACKAGES = [
 		effectId: "7399499116490886434",
 		packageHash: "d4d13d3df37c9a9fb406827510c4174f",
 	},
+	{
+		effectId: "7399491817907014946",
+		packageHash: "4df2df27627c4d888c44a124a4d271dd",
+	},
+	{
+		effectId: "7399492066742455567",
+		packageHash: "ab8ff76e6e3f2917167aa8b46c72d7b5",
+	},
+	{
+		effectId: "7399492832089623808",
+		packageHash: "a801c360c14addf5d7792909311190e0",
+	},
+	{
+		effectId: "7399492922699205940",
+		packageHash: "1eca62ca4aa366754232b2250015c607",
+	},
+	{
+		effectId: "7399493469917433103",
+		packageHash: "3429986a54fc1d15cc29f7340103540d",
+	},
+	{
+		effectId: "7399493519930412340",
+		packageHash: "3ec3cd74c41f47a6e96720b8a96e17e3",
+	},
+	{
+		effectId: "7399494164552928552",
+		packageHash: "4d77c351eeea86bed84fe0f2e1b87991",
+	},
+	{
+		effectId: "7399494734030359808",
+		packageHash: "76492abc2d1e501cc370e167f5a5169a",
+	},
+	{
+		effectId: "7399494870265580840",
+		packageHash: "1ce9d544e68a0bb2569b6bf029ad7e71",
+	},
+	{
+		effectId: "7399495031087828239",
+		packageHash: "2cc42d4d6e7300bf7aa22f543efcec57",
+	},
+	{
+		effectId: "7399495847752240399",
+		packageHash: "08ea65d0c66e42df005ffc079778fd7c",
+	},
+	{
+		effectId: "7399496452466183476",
+		packageHash: "0913b628b7ae9ce209316d866a1be8d7",
+	},
+	{
+		effectId: "7399497286369250612",
+		packageHash: "9ad61644392439ab43db04e1961031ad",
+	},
+	{
+		effectId: "7399498722423508264",
+		packageHash: "e8cf7ff9c724ded3e75c1330c5e141cc",
+	},
+	{
+		effectId: "7395460782609173795",
+		packageHash: "e68975c8783884a379af71d8ebf809c7",
+	},
+	{
+		effectId: "7399491541821033768",
+		packageHash: "f8e7687cd2456e389b3e9f87d10f4c6d",
+	},
+	{
+		effectId: "7399494094050823464",
+		packageHash: "67cdf42290e1a549dddd71e9f7c04c1b",
+	},
+	{
+		effectId: "7399494738933533987",
+		packageHash: "fa10d2f4b9ea524f14fc99ff8328be42",
+	},
+	{
+		effectId: "7399494846475472168",
+		packageHash: "1cee833d647541e86d24bb2f7b7635ea",
+	},
+	{
+		effectId: "7399495041212779816",
+		packageHash: "3b8f6203dfedcd2ff5d17ff6ac6bef78",
+	},
+	{
+		effectId: "7399495261510257920",
+		packageHash: "fb764400bbf7df913392c701acfdd138",
+	},
+	{
+		effectId: "7399495628797021474",
+		packageHash: "8bc7fee5267274763f6b260c36c2a35b",
+	},
+	{
+		effectId: "7399495834502450467",
+		packageHash: "755d346ad79ff4b32ba5c7a984e76340",
+	},
+	{
+		effectId: "7399497077006339343",
+		packageHash: "fce07a1e1b2dbdb8675e35c4d0d1dd10",
+	},
+	{
+		effectId: "7399497589105642752",
+		packageHash: "097d27eab3b8c3c7c6477ca81cd07933",
+	},
+	{
+		effectId: "7399497885865233716",
+		packageHash: "0681150b3164f45ab6340f0a7e2fda1d",
+	},
+	{
+		effectId: "7399497918765436195",
+		packageHash: "501b309dac3169c8b938fa785878cf3d",
+	},
+	{
+		effectId: "7399498073325473024",
+		packageHash: "49e8da187049ffc5a822cf76e492a47c",
+	},
+	{
+		effectId: "7399498109098790179",
+		packageHash: "7ff35a01c3718ac3470ac12807f520be",
+	},
+	{
+		effectId: "7399498169383390516",
+		packageHash: "7e9e83271fa77c1cc2b96f3ad4296479",
+	},
+	{
+		effectId: "7399498685928721664",
+		packageHash: "5c24c94cc0557d8169c405adc0ec86d3",
+	},
+	{
+		effectId: "7399498939415760180",
+		packageHash: "798ddfa08fed0c3750febd157602f92b",
+	},
+	{
+		effectId: "7399499040922045711",
+		packageHash: "f73ba06cd32bb3354adf6008cb986515",
+	},
 ] as const;
 
 const temporaryRoots: string[] = [];
@@ -113,6 +245,28 @@ describe("effect package algorithm inspection", () => {
 			configurationFound: false,
 			valid: true,
 			nodeTypes: [],
+			requiredModelNames: [],
+			requiresAlgorithm: false,
+			remoteGeneration: false,
+		});
+	});
+
+	it("treats external texture producer graphs as plain local effects", async () => {
+		const packagePath = await temporaryPackage();
+		await writeAlgorithmConfig({
+			packagePath,
+			value: {
+				nodes: [{ type: "ext_texture_producer" }, { type: "texture_blit" }],
+			},
+		});
+
+		await expect(
+			inspectEffectPackageAlgorithm({ packagePath })
+		).resolves.toEqual({
+			configurationFound: true,
+			valid: true,
+			nodeTypes: ["ext_texture_producer", "texture_blit"],
+			requiredModelNames: [],
 			requiresAlgorithm: false,
 			remoteGeneration: false,
 		});
@@ -137,8 +291,57 @@ describe("effect package algorithm inspection", () => {
 			configurationFound: true,
 			valid: true,
 			nodeTypes: ["face", "matting", "texture_blit"],
+			requiredModelNames: [],
 			requiresAlgorithm: true,
 			remoteGeneration: false,
+		});
+	});
+
+	it("collects filesystem models and ignores logical idream keys", async () => {
+		const packagePath = await temporaryPackage();
+		await Promise.all([
+			writeAlgorithmConfig({
+				packagePath,
+				value: {
+					model_names: {
+						alg_model: ["tt_face", "js_cv_trackmotion"],
+					},
+					nodes: [
+						{
+							type: "script",
+							config: {
+								keyMaps: {
+									stringParam: {
+										idream_model_key: "idream/tt_goodlike",
+										model_name: "nh_depth_for_light_scanning",
+										packed_model_group_key: "script",
+									},
+								},
+							},
+						},
+					],
+				},
+			}),
+			writeFile(
+				path.join(packagePath, "config.json"),
+				JSON.stringify({
+					model_names: ["tt_skeleton"],
+					effect: { model_names: { alg_model: ["lens_smart_color3"] } },
+				}),
+				"utf8"
+			),
+		]);
+
+		await expect(
+			inspectEffectPackageAlgorithm({ packagePath })
+		).resolves.toMatchObject({
+			requiredModelNames: [
+				"js_cv_trackmotion",
+				"lens_smart_color3",
+				"nh_depth_for_light_scanning",
+				"tt_face",
+				"tt_skeleton",
+			],
 		});
 	});
 
@@ -168,6 +371,7 @@ describe("effect package algorithm inspection", () => {
 		expect(inspection).toMatchObject({
 			valid: true,
 			nodeTypes: ["face", "script"],
+			requiredModelNames: [],
 			requiresAlgorithm: true,
 			remoteGeneration: true,
 		});
@@ -199,6 +403,7 @@ describe("effect package algorithm inspection", () => {
 			configurationFound: true,
 			valid: false,
 			nodeTypes: [],
+			requiredModelNames: [],
 			requiresAlgorithm: true,
 			remoteGeneration: false,
 		});
@@ -207,7 +412,7 @@ describe("effect package algorithm inspection", () => {
 
 describe("effect algorithm support gate", () => {
 	it("ships the complete isolated CV verification set", () => {
-		expect(VERIFIED_ALGORITHM_PACKAGE_COUNT).toBe(365);
+		expect(VERIFIED_ALGORITHM_PACKAGE_COUNT).toBe(398);
 	});
 
 	it.each(NEWLY_VERIFIED_PACKAGES)("ships newly isolated package $effectId", ({
