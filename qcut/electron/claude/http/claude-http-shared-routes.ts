@@ -48,6 +48,10 @@ import type {
 	EditorStateRequest,
 	EditorStateSnapshot,
 } from "../../types/claude-state-api.js";
+import {
+	parseStickerLabMediaImportMetadata,
+	type StickerLabMediaImportMetadata,
+} from "./claude-media-import-metadata.js";
 
 import {
 	listMediaFiles,
@@ -547,6 +551,17 @@ export function registerSharedRoutes(
 	router.post("/api/claude/media/:projectId/import", async (req) => {
 		if (!req.body?.source)
 			throw new HttpError(400, "Missing 'source' in request body");
+		let metadata: StickerLabMediaImportMetadata | undefined;
+		try {
+			metadata = parseStickerLabMediaImportMetadata({
+				candidate: req.body.metadata,
+			});
+		} catch (error) {
+			throw new HttpError(
+				400,
+				error instanceof Error ? error.message : "Invalid media import metadata"
+			);
+		}
 		const media = await importMediaFile(req.params.projectId, req.body.source);
 		logOperation({
 			stage: 1,
@@ -562,6 +577,7 @@ export function registerSharedRoutes(
 					path: media.path,
 					name: media.name,
 					id: media.id,
+					...(metadata ? { metadata } : {}),
 					type: media.type,
 					size: media.size,
 				});
