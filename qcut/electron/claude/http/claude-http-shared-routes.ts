@@ -684,14 +684,11 @@ export function registerSharedRoutes(
 			operation: "Renderer media deletion",
 			request: () =>
 				requestMediaDelete({
-					mediaId: req.params.mediaId,
+					mediaId: media.id,
 					projectId: req.params.projectId,
 				}),
 		});
-		const result = await deleteMediaFile(
-			req.params.projectId,
-			req.params.mediaId
-		);
+		const result = await deleteMediaFile(req.params.projectId, media.id);
 		if (!result) {
 			throw new HttpError(
 				500,
