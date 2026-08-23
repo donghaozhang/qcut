@@ -23,9 +23,14 @@ const { inspectJianyingEffectRuntime } = require(
 const { renderJianyingEffectClip } = require(
 	path.join(DIST, "jianying-effect/render.js")
 );
-const { readAdjustParameters } = require(
-	path.join(DIST, "jianying-effect/catalog-parsing.js")
+const { inspectEffectPackageAlgorithm } = require(
+	path.join(DIST, "jianying-effect/algorithm-support.js")
 );
+const {
+	readAdjustParameters,
+	readDeclaredModelNames,
+	SUPPORTED_REQUIREMENTS,
+} = require(path.join(DIST, "jianying-effect/catalog-parsing.js"));
 const { jianyingModelDirectories, jianyingModelDirectory } = require(
 	path.join(DIST, "jianying-effect/model-directory.js")
 );
@@ -61,7 +66,6 @@ const WIDTH = 1280;
 const HEIGHT = 720;
 const FPS = 30;
 const SECONDS = 6;
-const SUPPORTED_REQUIREMENTS = new Set(["blit", "texture_blit"]);
 /** Above this SSIM vs the untouched baseline, flag for a manual time-sweep. */
 const IDENTITY_SSIM_THRESHOLD = 0.997;
 const DOWNLOAD_DELAY_MS = 500;
@@ -80,19 +84,20 @@ function parseArgs() {
 		only: null,
 		capability: null,
 		plate: null,
+		force: false,
 	};
 	const argv = process.argv.slice(2);
 	for (let i = 0; i < argv.length; i++) {
 		if (argv[i] === "--limit") args.limit = Number(argv[++i]);
 		else if (argv[i] === "--panel") args.panel = argv[++i];
 		else if (argv[i] === "--only") args.only = new Set(argv[++i].split(","));
-		// Capabilities are unlocked one at a time: only matting and face have
-		// been verified, and the 29 tokens do not behave alike.
+		// Explicit capabilities keep each model family independently testable.
 		else if (argv[i] === "--capability")
 			args.capability = new Set(argv[++i].split(","));
 		// Lets the same population be retried against another subject plate: an
 		// effect that needs limbs fails honestly on a head-and-shoulders plate.
 		else if (argv[i] === "--plate") args.plate = argv[++i];
+		else if (argv[i] === "--force") args.force = true;
 	}
 	return args;
 }
@@ -169,12 +174,11 @@ async function readFullCatalog() {
 							itemUrls: Array.isArray(attr.item_urls) ? attr.item_urls : [],
 							sdkExtra:
 								typeof attr.sdk_extra === "string" ? attr.sdk_extra : "",
-							// Declared CV models, used to skip effects whose weights
-							// this machine does not have — the runtime segfaults when
-							// the resource finder cannot answer.
-							modelNames: `${typeof attr.model_names === "string" ? attr.model_names : ""} ${(
-								Array.isArray(attr.sdk_model) ? attr.sdk_model : []
-							).join(" ")}`,
+							// Declared CV models let the batch report an unavailable
+							// dependency before spending time on a meaningless render.
+							modelNames: readDeclaredModelNames({
+								values: [attr.model_names, attr.sdk_model],
+							}),
 						});
 					}
 				}
@@ -310,7 +314,7 @@ function resolvePlate(capabilities, override) {
 	return { clip: REF_CLIP, baseline: REF_BASELINE };
 }
 
-/** Model stems this machine actually has, e.g. tt_matting, tt_face_extra. */
+/** Model stems this machine actually has, e.g. tt_matting, js_cv_trackmotion. */
 function installedModelStems() {
 	const stems = new Set();
 	// The app bundle nests weights one level down in per-family folders, so a
@@ -321,22 +325,26 @@ function installedModelStems() {
 			withFileTypes: true,
 		})) {
 			if (!entry.isFile()) continue;
-			const match = entry.name.match(/^(.+?)_v\d/);
-			if (match) stems.add(match[1]);
+			const basename = entry.name.replace(/\.model$/i, "");
+			stems.add(basename);
+			stems.add(basename.replace(/_v\d.*$/i, ""));
 		}
 	}
 	return stems;
 }
 
-/**
- * A resource finder that cannot answer crashes the render process, so an
- * effect whose declared weights are absent is skipped rather than attempted.
- */
-function missingModels(item, installed) {
-	const declared = new Set(
-		(item.modelNames ?? "").match(/tt_[a-z0-9_]+/g) ?? []
+function normalizedModelStem(modelName) {
+	return path
+		.basename(modelName)
+		.replace(/\.model$/i, "")
+		.replace(/_v\d.*$/i, "");
+}
+
+/** Effects with absent declared weights cannot produce a valid CV reference. */
+function missingModels({ declaredModelNames, installed }) {
+	return [...new Set(declaredModelNames.map(normalizedModelStem))].filter(
+		(stem) => !installed.has(stem)
 	);
-	return [...declared].filter((stem) => !installed.has(stem));
 }
 
 function loadDoneSet() {
@@ -396,7 +404,9 @@ async function main() {
 	}
 	if (args.panel) targets = targets.filter((t) => t.panel === args.panel);
 	if (args.only) targets = targets.filter((t) => args.only.has(t.effectId));
-	const pending = targets.filter((t) => !done.has(t.effectId));
+	const pending = args.force
+		? targets
+		: targets.filter((t) => !done.has(t.effectId));
 	const queue = pending.slice(0, args.limit);
 
 	const installedModels = args.capability ? installedModelStems() : new Set();
@@ -431,16 +441,29 @@ async function main() {
 			renderedAt: new Date().toISOString(),
 		};
 		try {
-			const absent = missingModels(item, installedModels);
-			if (absent.length > 0) {
-				throw new Error(`本机缺少算法模型:${absent.join("、")}`);
-			}
 			let packagePath = existingPackages.get(item.md5);
 			let downloaded = false;
 			if (!packagePath) {
 				packagePath = await downloadPackage(item);
 				existingPackages.set(item.md5, packagePath);
 				downloaded = true;
+			}
+			const packageAlgorithm = await inspectEffectPackageAlgorithm({
+				packagePath,
+			});
+			const declaredModelNames = [
+				...new Set([
+					...item.modelNames,
+					...packageAlgorithm.requiredModelNames,
+				]),
+			].sort();
+			entry.requiredModelNames = declaredModelNames;
+			const absent = missingModels({
+				declaredModelNames,
+				installed: installedModels,
+			});
+			if (absent.length > 0) {
+				throw new Error(`本机缺少算法模型:${absent.join("、")}`);
 			}
 
 			const extraPath = path.join(packagePath, "extra.json");
@@ -485,8 +508,10 @@ async function main() {
 				definition,
 				outputPath: outPath,
 			});
+			entry.frames = counts.outputFrames;
 
 			const ssim = ssimVsBaseline(ffmpeg, outPath, plate.baseline);
+			entry.ssim = ssim;
 
 			// The CV oracle: render the same package again with the algorithm
 			// switched off. Anything the algorithm truly contributed disappears,
@@ -499,6 +524,7 @@ async function main() {
 						...renderOptions,
 						definition: { ...definition, requiresAlgorithm: false },
 						outputPath: controlPath,
+						useNativeAlgorithmInput: true,
 					});
 					const controlSsim = ssimOf(ffmpeg, outPath, controlPath);
 					entry.controlSsim = controlSsim;
