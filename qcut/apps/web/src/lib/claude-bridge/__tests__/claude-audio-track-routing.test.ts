@@ -46,7 +46,7 @@ vi.mock("@/lib/debug/debug-config", () => ({
 function makeTimelineStore() {
 	return {
 		findOrCreateTrack: vi.fn(() => "track-x"),
-		addElementToTrack: vi.fn(),
+		addElementToTrack: vi.fn(() => "element-added"),
 	};
 }
 
