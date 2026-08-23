@@ -229,6 +229,42 @@ describe("editor sticker handlers", () => {
 		expect(metadata).toMatchObject({ animatedSticker: false });
 	});
 
+	test("sends flat sticker update fields to the timeline route", async () => {
+		let patchedPath = "";
+		let patchedBody: unknown;
+		const client = {
+			patch: async (path: string, body: unknown) => {
+				patchedPath = path;
+				patchedBody = body;
+				return { updated: true };
+			},
+		} as unknown as EditorApiClient;
+
+		const result = await handleStickerCommand(client, {
+			...baseOptions({ command: "editor:sticker:update" }),
+			projectId: "project/one",
+			elementId: "element/one",
+			x: 120,
+			y: 240,
+			width: 320,
+			startTime: 2,
+			endTime: 5,
+		});
+
+		expect(result.success).toBe(true);
+		expect(patchedPath).toBe(
+			"/api/claude/timeline/project%2Fone/elements/element%2Fone"
+		);
+		expect(patchedBody).toEqual({
+			x: 120,
+			y: 240,
+			width: 320,
+			startTime: 2,
+			duration: 3,
+		});
+		expect(patchedBody).not.toHaveProperty("changes");
+	});
+
 	test("cleans the temporary local reference when import fails", async () => {
 		let importedSource = "";
 		const client = {
@@ -254,6 +290,84 @@ describe("editor sticker handlers", () => {
 			)
 		).rejects.toThrow("import unavailable");
 		expect(existsSync(importedSource)).toBe(false);
+	});
+
+	test("removes imported local media when the timeline write fails", async () => {
+		const timelineError = new Error("timeline unavailable");
+		let importedSource = "";
+		let deletedPath = "";
+		const client = {
+			post: async (path: string, body: Record<string, unknown>) => {
+				if (path.includes("/media/")) {
+					importedSource = String(body.source);
+					return { id: "media/local" };
+				}
+				throw timelineError;
+			},
+			delete: async (path: string) => {
+				deletedPath = path;
+				return { deleted: true };
+			},
+		} as unknown as EditorApiClient;
+		let caught: unknown;
+		try {
+			await handleStickerCommand(
+				client,
+				{
+					...baseOptions({ command: "editor:sticker:add" }),
+					projectId: "project/one",
+					provider: "sticker-lab",
+					batchId: "jianying-2026-08-23-batch-18-v2",
+					stickerId: "18001",
+					endTime: 2,
+				},
+				stickerLabDependencies()
+			);
+		} catch (error) {
+			caught = error;
+		}
+
+		expect(caught).toBe(timelineError);
+		expect(deletedPath).toBe("/api/claude/media/project%2Fone/media%2Flocal");
+		expect(existsSync(importedSource)).toBe(false);
+	});
+
+	test("reports both timeline and imported media rollback failures", async () => {
+		const timelineError = new Error("timeline rejected element");
+		let rollbackAttempted = false;
+		const client = {
+			post: async (path: string) => {
+				if (path.includes("/media/")) return { id: "media-local" };
+				throw timelineError;
+			},
+			delete: async () => {
+				rollbackAttempted = true;
+				throw new Error("rollback unavailable");
+			},
+		} as unknown as EditorApiClient;
+		let caught: unknown;
+		try {
+			await handleStickerCommand(
+				client,
+				{
+					...baseOptions({ command: "editor:sticker:add" }),
+					projectId: "project-1",
+					provider: "sticker-lab",
+					batchId: "jianying-2026-08-23-batch-18-v2",
+					stickerId: "18001",
+					endTime: 2,
+				},
+				stickerLabDependencies()
+			);
+		} catch (error) {
+			caught = error;
+		}
+
+		expect(rollbackAttempted).toBe(true);
+		expect(caught).toBeInstanceOf(Error);
+		expect((caught as Error).message).toBe(
+			"Timeline placement failed: timeline rejected element. Imported media rollback also failed: rollback unavailable"
+		);
 	});
 
 	test("requires explicit sticker-lab provider selectors", async () => {
