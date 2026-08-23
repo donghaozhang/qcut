@@ -6,6 +6,12 @@ import {
 	transitionStandaloneCategories,
 	type TransitionCategoryItem,
 } from "./transition-categories";
+import {
+	getJianyingLocalGroupCount,
+	JIANYING_LOCAL_TRANSITION_GROUPS,
+	type TransitionLabGroup,
+	type TransitionLabSource,
+} from "./transition-lab-filters";
 import type { TransitionCategory } from "./transition-presets";
 
 function CategoryButton({
@@ -45,17 +51,79 @@ function CategoryButton({
 	);
 }
 
+function SectionHeader({
+	active,
+	controls,
+	expanded,
+	label,
+	onToggle,
+}: {
+	active: boolean;
+	controls: string;
+	expanded: boolean;
+	label: string;
+	onToggle: () => void;
+}) {
+	return (
+		<button
+			type="button"
+			className={cn(
+				"flex h-8 w-full min-w-0 items-center gap-1 rounded px-2 text-left text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary",
+				active
+					? "text-primary"
+					: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+			)}
+			aria-controls={controls}
+			aria-expanded={expanded}
+			onClick={onToggle}
+			onKeyDown={(event) => {
+				if (event.key === "Escape") event.currentTarget.blur();
+			}}
+		>
+			<span className="min-w-0 flex-1 truncate whitespace-nowrap">{label}</span>
+			<ChevronDownIcon
+				className={cn(
+					"size-3 shrink-0 transition-transform",
+					!expanded && "-rotate-90"
+				)}
+				aria-hidden="true"
+			/>
+		</button>
+	);
+}
+
 export function TransitionSidebar({
 	category,
+	labGroup,
+	labSource,
 	onSelect,
+	onSelectLabGroup,
 }: {
 	category: TransitionCategory;
+	labGroup: TransitionLabGroup;
+	labSource: TransitionLabSource;
 	onSelect: ({ category }: { category: TransitionCategory }) => void;
+	onSelectLabGroup: ({ group }: { group: TransitionLabGroup }) => void;
 }) {
-	const [effectsExpanded, setEffectsExpanded] = useState(true);
+	const [effectsExpanded, setEffectsExpanded] = useState(category !== "lab");
+	const [labExpanded, setLabExpanded] = useState(category === "lab");
 	const effectCategoryActive = transitionEffectCategories.some(
 		(item) => item.id === category
 	);
+	const toggleEffects = () => {
+		const expanding = !effectsExpanded;
+		setEffectsExpanded(expanding);
+		if (expanding) setLabExpanded(false);
+	};
+	const toggleLab = () => {
+		if (category !== "lab") {
+			onSelect({ category: "lab" });
+			setEffectsExpanded(false);
+			setLabExpanded(true);
+			return;
+		}
+		setLabExpanded((expanded) => !expanded);
+	};
 
 	return (
 		<aside
@@ -74,46 +142,79 @@ export function TransitionSidebar({
 				))}
 			</div>
 
-			<div className="pt-2">
-				<button
-					type="button"
-					className={cn(
-						"flex h-8 w-full min-w-0 items-center gap-1 rounded px-2 text-left text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary",
-						effectCategoryActive
-							? "text-primary"
-							: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-					)}
-					aria-controls="transition-effect-categories"
-					aria-expanded={effectsExpanded}
-					onClick={() => setEffectsExpanded((expanded) => !expanded)}
-					onKeyDown={(event) => {
-						if (event.key === "Escape") event.currentTarget.blur();
-					}}
-				>
-					<span className="min-w-0 flex-1 truncate whitespace-nowrap">
-						转场效果
-					</span>
-					<ChevronDownIcon
-						className={cn(
-							"size-3 shrink-0 transition-transform",
-							!effectsExpanded && "-rotate-90"
-						)}
-						aria-hidden="true"
+			<div className="space-y-1 pt-2">
+				<div>
+					<SectionHeader
+						active={effectCategoryActive}
+						controls="transition-effect-categories"
+						expanded={effectsExpanded}
+						label="转场效果"
+						onToggle={toggleEffects}
 					/>
-				</button>
-				{effectsExpanded ? (
-					<div id="transition-effect-categories" className="mt-0.5 space-y-0.5">
-						{transitionEffectCategories.map((item) => (
-							<CategoryButton
-								key={item.id}
-								category={category}
-								item={item}
-								showIcon={false}
-								onSelect={onSelect}
-							/>
-						))}
-					</div>
-				) : null}
+					{effectsExpanded ? (
+						<div
+							id="transition-effect-categories"
+							className="mt-0.5 space-y-0.5"
+						>
+							{transitionEffectCategories.map((item) => (
+								<CategoryButton
+									key={item.id}
+									category={category}
+									item={item}
+									showIcon={false}
+									onSelect={onSelect}
+								/>
+							))}
+						</div>
+					) : null}
+				</div>
+
+				<div>
+					<SectionHeader
+						active={category === "lab"}
+						controls="transition-lab-categories"
+						expanded={labExpanded}
+						label="转场实验室"
+						onToggle={toggleLab}
+					/>
+					{labExpanded ? (
+						<div
+							id="transition-lab-categories"
+							className="mt-0.5 space-y-0.5"
+							data-testid="transition-lab-categories"
+						>
+							{JIANYING_LOCAL_TRANSITION_GROUPS.map((group) => {
+								const count = getJianyingLocalGroupCount({ group: group.id });
+								const active =
+									category === "lab" &&
+									labSource === "jianying-local" &&
+									labGroup === group.id;
+								return (
+									<button
+										key={group.id}
+										type="button"
+										className={cn(
+											"flex h-8 w-full min-w-0 items-center rounded px-2 pl-5 text-left text-[11px] transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary",
+											active
+												? "bg-primary/15 font-medium text-primary"
+												: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
+										)}
+										aria-label={`${group.label} ${count} 个转场`}
+										aria-pressed={active}
+										onClick={() => onSelectLabGroup({ group: group.id })}
+										onKeyDown={(event) => {
+											if (event.key === "Escape") event.currentTarget.blur();
+										}}
+									>
+										<span className="min-w-0 truncate whitespace-nowrap">
+											{group.label}
+										</span>
+									</button>
+								);
+							})}
+						</div>
+					) : null}
+				</div>
 			</div>
 		</aside>
 	);
