@@ -8,6 +8,7 @@ import type {
 	JianyingFilterLabFilterSummary,
 	JianyingFilterLabLoadResult,
 	JianyingFilterLabLutSummary,
+	JianyingFilterLocalRuntimeStatus,
 } from "@/types/electron";
 import type { TimelineStore } from "@/stores/timeline/types";
 import type { TimelineTrack } from "@/types/timeline";
@@ -153,6 +154,16 @@ const localFilterSummary: JianyingFilterLabFilterSummary = {
 	luts: [localLutSummary],
 };
 
+const localRuntimeStatus: JianyingFilterLocalRuntimeStatus = {
+	state: "ready",
+	message: "QCut private runtime ready",
+	provider: "jianying-local-effect-v1",
+	platform: "darwin",
+	bridgeReady: true,
+	runtimeReady: true,
+	modelReady: true,
+};
+
 function installFilterLabApi({
 	available = true,
 }: {
@@ -168,16 +179,19 @@ function installFilterLabApi({
 	const load = vi.fn(async () => loadedLocalLut);
 	const thumbnail = vi.fn();
 	const onCatalogChanged = vi.fn(() => vi.fn());
+	// The lab mounts JianyingFilterRuntimeStatus, which inspects the runtime on
+	// mount; the mock has to carry that method or the effect never runs.
+	const inspectLocalRuntime = vi.fn(async () => localRuntimeStatus);
 	Object.defineProperty(window, "electronAPI", {
 		configurable: true,
 		value: {
 			...(window.electronAPI ?? {}),
 			jianyingFilterLab: available
-				? { list, load, thumbnail, onCatalogChanged }
+				? { list, load, thumbnail, onCatalogChanged, inspectLocalRuntime }
 				: undefined,
 		},
 	});
-	return { list, load, thumbnail, onCatalogChanged };
+	return { list, load, thumbnail, onCatalogChanged, inspectLocalRuntime };
 }
 
 describe("AdjustmentsView", () => {
