@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { assetManifestIdentity } from "@qcut/editor-core";
 import { FlaskConical, RefreshCw, Search } from "lucide-react";
 import { toast } from "sonner";
@@ -112,6 +113,7 @@ function filterMatchesCatalogView({
 export function JianyingFilterLab({
 	targetName,
 	activeEffect,
+	sidebarHost,
 	onApply,
 	onApplyMultiPass,
 	onEffectEnabledChange,
@@ -123,6 +125,7 @@ export function JianyingFilterLab({
 		| ColorLutSettings
 		| Pick<ColorMultiPassSettings, "enabled" | "name" | "intensity">
 		| null;
+	sidebarHost?: HTMLElement | null;
 	onApply: ({
 		name,
 		cube,
@@ -363,6 +366,10 @@ export function JianyingFilterLab({
 			setLoadingResourceId("");
 		}
 	};
+	const externalSidebar = sidebarHost !== undefined;
+	const sidebar = (
+		<JianyingFilterLabSidebar groups={sidebarGroups} nested={externalSidebar} />
+	);
 
 	return (
 		<div className="space-y-2.5" data-testid="jianying-filter-lab">
@@ -449,7 +456,11 @@ export function JianyingFilterLab({
 			) : null}
 
 			<div className="flex min-w-0 gap-2">
-				<JianyingFilterLabSidebar groups={sidebarGroups} />
+				{externalSidebar
+					? sidebarHost
+						? createPortal(sidebar, sidebarHost)
+						: null
+					: sidebar}
 
 				<div className="min-w-0 flex-1 space-y-2">
 					{!checking && !error && matchingFilters.length === 0 ? (

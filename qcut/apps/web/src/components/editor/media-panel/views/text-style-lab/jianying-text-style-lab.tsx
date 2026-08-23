@@ -31,8 +31,8 @@ export {
 	type LabView,
 } from "./jianying-text-style-lab-category-nav";
 
-const INITIAL_STYLE_BATCH = 24;
-const STYLE_BATCH_SIZE = 24;
+const INITIAL_STYLE_BATCH = 40;
+const STYLE_BATCH_SIZE = 40;
 type CoverState = "loading" | "ready" | "error" | "missing";
 
 function compatibilityLabel({
@@ -46,23 +46,17 @@ function compatibilityLabel({
 	return "仅参考预览";
 }
 
-function fillKindLabel({ style }: { style: JianyingTextStyleLabStyleSummary }) {
-	if (style.packageKind !== "TextStyle") return "运行时";
-	if (style.fillKind === "solid") return "纯色";
-	if (style.fillKind === "gradient") return "渐变";
-	if (style.fillKind === "texture") return "纹理";
-	return "未知";
-}
-
 function packageKindLabel({
 	style,
 }: {
 	style: JianyingTextStyleLabStyleSummary;
 }) {
-	if (style.packageKind === "TextStyle") return fillKindLabel({ style });
 	if (style.packageKind === "InfoSticker") return "动态组件";
 	if (style.packageKind === "ScriptInfoSticker") return "脚本组件";
 	if (style.packageKind === "AmazingFeature") return "引擎组件";
+	if (style.fillKind === "solid") return "纯色";
+	if (style.fillKind === "gradient") return "渐变";
+	if (style.fillKind === "texture") return "纹理";
 	return "运行时";
 }
 
@@ -127,24 +121,26 @@ function TextStyleLabCard({
 			aria-label={canApply ? `应用花字 ${title}` : `${title} 仅供预览`}
 			aria-pressed={selected}
 			className={cn(
-				"group min-w-0 rounded-md border bg-[#292929] p-1.5 text-left transition-colors",
+				"group relative aspect-square min-w-0 overflow-hidden rounded-md border bg-[#303030] p-0 text-left transition-colors",
 				selected
 					? "border-cyan-400 bg-cyan-400/10"
-					: "border-white/5 hover:border-white/20 hover:bg-[#303030]",
+					: "border-transparent hover:border-white/25 hover:bg-[#383838]",
 				!canApply && "cursor-not-allowed opacity-65"
 			)}
 			disabled={!canApply}
+			data-layout="compact"
 			data-testid="jianying-text-style-lab-card"
+			title={`${title} · ${compatibilityLabel({ style })}`}
 			onClick={() => onApply({ style })}
 			onKeyDown={(event) => {
 				if (event.key === "Escape") event.currentTarget.blur();
 			}}
 		>
-			<div className="relative aspect-square overflow-hidden rounded-sm bg-[#202020]">
+			<div className="relative h-full w-full overflow-hidden bg-[#262626]">
 				{cover.state === "ready" ? (
 					<img
 						alt=""
-						className="h-full w-full object-cover"
+						className="h-full w-full object-contain"
 						draggable={false}
 						src={cover.url}
 					/>
@@ -162,7 +158,7 @@ function TextStyleLabCard({
 				<div className="absolute left-1 top-1 flex items-center gap-1">
 					<span
 						className={cn(
-							"flex size-4 items-center justify-center rounded-sm bg-black/70",
+							"flex size-4 items-center justify-center rounded-full bg-black/75 shadow-sm",
 							style.compatibility === "flat-compatible"
 								? "text-emerald-300"
 								: style.compatibility === "approximated"
@@ -183,25 +179,10 @@ function TextStyleLabCard({
 					</span>
 				</div>
 				{selected ? (
-					<span className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-sm bg-cyan-400 text-black">
-						<Check className="size-3.5" />
+					<span className="absolute right-1 top-1 flex size-4 items-center justify-center rounded-full bg-cyan-400 text-black shadow-sm">
+						<Check className="size-3" />
 					</span>
 				) : null}
-			</div>
-			<div className="mt-1.5 truncate text-xs text-foreground" title={title}>
-				{title}
-			</div>
-			<div className="mt-0.5 flex min-w-0 items-center justify-between gap-1 text-[10px] text-muted-foreground">
-				<span className="truncate">{packageKindLabel({ style })}</span>
-				{style.packageKind === "TextStyle" ? (
-					<span className="shrink-0">
-						{style.strokeCount} 描边 · {style.shadowCount} 阴影
-					</span>
-				) : style.runtimeReference ? (
-					<span className="shrink-0">本机原版</span>
-				) : (
-					<span className="shrink-0">仅预览</span>
-				)}
 			</div>
 		</button>
 	);
@@ -395,8 +376,7 @@ export function JianyingTextStyleLabPanel({
 								(view === "trial" ? "五款预览" : "全部花字")}
 						</span>
 						<span className="text-[10px] text-muted-foreground">
-							{visibleStyles.length} / {filteredStyles.length} QCut 备份 ·{" "}
-							{result.packageCount} 包
+							{filteredStyles.length} 款
 						</span>
 					</div>
 					{error ? (
@@ -413,8 +393,9 @@ export function JianyingTextStyleLabPanel({
 					) : null}
 					{!error && (!checking || result.count > 0) ? (
 						<div
+							data-testid="jianying-text-style-lab-grid"
 							className={cn(
-								"mt-2 grid auto-rows-max content-start grid-cols-2 gap-2 overflow-y-auto pr-1",
+								"mt-2 grid auto-rows-max content-start grid-cols-[repeat(auto-fill,minmax(82px,1fr))] gap-2 overflow-y-auto pr-1",
 								animationPickerVisible ? "max-h-[16rem]" : "flex-1"
 							)}
 						>
@@ -429,7 +410,7 @@ export function JianyingTextStyleLabPanel({
 							{hasMore ? (
 								<div
 									ref={loadMoreRef}
-									className="col-span-2 flex h-10 items-center justify-center"
+									className="col-span-full flex h-10 items-center justify-center"
 								>
 									<Button
 										type="button"

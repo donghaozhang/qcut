@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
 import { ipcMain } from "electron";
 import {
@@ -12,6 +13,7 @@ import {
 	type JianyingTextStyleLabListResult,
 } from "./jianying-text-style-lab-contract.js";
 import { buildJianyingTextAnimationCatalog } from "./jianying-text-animation-lab-catalog.js";
+import type { JianyingCachedImage } from "./jianying-image-cache.js";
 import { ensureQCutJianyingTextPrivateArchive } from "./jianying-text-private-archive.js";
 import {
 	type JianyingFlowerCategoryDefinition,
@@ -34,6 +36,13 @@ import {
 	type JianyingTextPackageOwnership,
 } from "./jianying-text-package-ownership.js";
 import { isDiscoverableJianyingTextCatalogEntry } from "./jianying-text-style-discovery.js";
+import { readJianyingTextStyleCoverImage } from "./jianying-text-style-cover-cache.js";
+import {
+	attachJianyingTextStyleCoverUrls,
+	resolveJianyingTextStyleCoverUrls,
+} from "./jianying-text-style-cover-metadata.js";
+import { readJianyingTextStyleGeneratedCover } from "./jianying-text-style-generated-cover.js";
+import { classifyLocalJianyingTextStyles } from "./jianying-text-style-local-categories.js";
 import {
 	compareStyleSummaries,
 	normalizeResolvedMetadata,
@@ -85,11 +94,28 @@ export interface SetupJianyingTextStyleLabIPCOptions {
 	}: {
 		references: JianyingTextStyleCatalogEntry[];
 	}) => Promise<Map<string, JianyingTextPackageOwnership>>;
+	resolveCoverUrls?: ({
+		references,
+	}: {
+		references: JianyingTextStyleCatalogEntry[];
+	}) => Promise<Map<string, string>>;
 	readCover?: ({
 		entry,
 	}: {
 		entry: JianyingTextStyleCatalogEntry;
 	}) => Promise<Buffer>;
+	readCachedCover?: ({
+		entry,
+		sourceUrl,
+	}: {
+		entry: JianyingTextStyleCatalogEntry;
+		sourceUrl: string;
+	}) => Promise<JianyingCachedImage>;
+	readGeneratedCover?: ({
+		entry,
+	}: {
+		entry: JianyingTextStyleCatalogEntry;
+	}) => Promise<JianyingCachedImage>;
 	/** Enables the on-disk catalog snapshot when set; tests leave it unset. */
 	snapshotCacheFilePath?: string;
 	computeSnapshotFingerprint?: () => Promise<string>;
@@ -184,7 +210,36 @@ export function setupJianyingTextStyleLabIPC({
 			projectRoot: archive.projectEvidenceRoot,
 		});
 	},
+	resolveCoverUrls = async ({ references }) => {
+		const archive = await ensureQCutJianyingTextPrivateArchive();
+		return resolveJianyingTextStyleCoverUrls({
+			references,
+			databaseRoot: archive.databaseRoot,
+		});
+	},
 	readCover = readJianyingTextStyleCover,
+	readCachedCover = async ({ entry, sourceUrl }) => {
+		const archive = await ensureQCutJianyingTextPrivateArchive();
+		return readJianyingTextStyleCoverImage({
+			cacheRoot: path.join(archive.archiveRoot, "Covers"),
+			produceFallback: async () =>
+				(
+					await readJianyingTextStyleGeneratedCover({
+						cacheRoot: path.join(archive.archiveRoot, "Covers"),
+						entry,
+					})
+				).bytes,
+			sourceUrl,
+			styleId: entry.styleId,
+		});
+	},
+	readGeneratedCover = async ({ entry }) => {
+		const archive = await ensureQCutJianyingTextPrivateArchive();
+		return readJianyingTextStyleGeneratedCover({
+			cacheRoot: path.join(archive.archiveRoot, "Covers"),
+			entry,
+		});
+	},
 	snapshotCacheFilePath,
 	computeSnapshotFingerprint = async () => {
 		const archive = await ensureQCutJianyingTextPrivateArchive();
@@ -199,6 +254,42 @@ export function setupJianyingTextStyleLabIPC({
 		null;
 	let snapshotPromise: Promise<JianyingTextLabSnapshot | null> | null = null;
 	let snapshotWriteQueued = false;
+	const readRemoteCoverWithGeneratedFallback = async ({
+		entry,
+		sourceUrl,
+	}: {
+		entry: JianyingTextStyleCatalogEntry;
+		sourceUrl: string;
+	}) => {
+		try {
+			return await readCachedCover({ entry, sourceUrl });
+		} catch (error) {
+			if (!entry.runtimeReference) throw error;
+			return readGeneratedCover({ entry });
+		}
+	};
+	const selectCover = async ({
+		entry,
+		remoteCoverUrl,
+	}: {
+		entry: JianyingTextStyleCatalogEntry;
+		remoteCoverUrl: string | undefined;
+	}) => {
+		if (entry.coverPath) {
+			return {
+				bytes: await readCover({ entry }),
+				mimeType: "image/png" as const,
+			};
+		}
+		if (remoteCoverUrl) {
+			return readRemoteCoverWithGeneratedFallback({
+				entry,
+				sourceUrl: remoteCoverUrl,
+			});
+		}
+		if (entry.runtimeReference) return readGeneratedCover({ entry });
+		return null;
+	};
 	const loadSnapshot = () => {
 		if (!snapshotCacheFilePath) return Promise.resolve(null);
 		if (!snapshotPromise) {
@@ -248,26 +339,41 @@ export function setupJianyingTextStyleLabIPC({
 			const resolvedMetadata = normalizeResolvedMetadata({
 				resolved: await resolveMetadata({ references: catalog.entries }),
 			});
-			const { categories, categoryGroups, metadata } = resolvedMetadata;
 			const ownershipCandidates = catalog.entries.filter(
-				({ packageKind, styleId }) =>
-					!metadata.has(styleId) &&
-					(packageKind === "AmazingFeature" || packageKind === "InfoSticker")
+				({ styleId }) => !resolvedMetadata.metadata.has(styleId)
 			);
-			const ownership =
+			const coverUrlCandidates = catalog.entries.filter(
+				({ hasCover }) => !hasCover
+			);
+			const [ownership, coverUrls] = await Promise.all([
 				ownershipCandidates.length > 0
-					? await resolveOwnership({ references: ownershipCandidates })
-					: new Map<string, JianyingTextPackageOwnership>();
+					? resolveOwnership({ references: ownershipCandidates })
+					: Promise.resolve(new Map<string, JianyingTextPackageOwnership>()),
+				coverUrlCandidates.length > 0
+					? resolveCoverUrls({ references: coverUrlCandidates })
+					: Promise.resolve(new Map<string, string>()),
+			]);
+			const entries = catalog.entries.filter((entry) =>
+				isDiscoverableJianyingTextCatalogEntry({
+					entry,
+					metadata: resolvedMetadata.metadata,
+					ownership,
+				})
+			);
+			const classifiedMetadata = classifyLocalJianyingTextStyles({
+				entries,
+				ownership,
+				resolvedMetadata,
+			});
+			const metadata = attachJianyingTextStyleCoverUrls({
+				coverUrls,
+				metadata: classifiedMetadata.metadata,
+			});
+			const { categories, categoryGroups } = classifiedMetadata;
 			return {
 				catalog: {
 					...catalog,
-					entries: catalog.entries.filter((entry) =>
-						isDiscoverableJianyingTextCatalogEntry({
-							entry,
-							metadata,
-							ownership,
-						})
-					),
+					entries,
 				},
 				metadata,
 				ownership,
@@ -371,13 +477,17 @@ export function setupJianyingTextStyleLabIPC({
 		): Promise<JianyingTextStyleLabCoverResult> => {
 			assertTrustedMainFrame({ event, mainWindow: getMainWindow() });
 			const { styleId } = parseCoverRequest({ request });
-			const { catalog } = await readCatalog({ refresh: false });
+			const { catalog, metadata } = await readCatalog({ refresh: false });
 			const entry = requireCatalogEntry({ catalog, styleId });
-			const bytes = await readCover({ entry });
+			const cover = await selectCover({
+				entry,
+				remoteCoverUrl: metadata.get(styleId)?.coverUrl,
+			});
+			if (!cover) throw new Error("本机花字缓存没有缩略图");
 			return {
 				styleId,
-				mimeType: "image/png",
-				bytes: new Uint8Array(bytes),
+				mimeType: cover.mimeType,
+				bytes: new Uint8Array(cover.bytes),
 			};
 		}
 	);

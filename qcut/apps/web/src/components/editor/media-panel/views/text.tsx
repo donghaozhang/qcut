@@ -1660,9 +1660,7 @@ export function TextLibraryNav({
 	onOpenStyleLab,
 	styleLabView = "trial",
 	styleLabResult = EMPTY_TEXT_STYLE_LAB_RESULT,
-	styleLabExpandedGroups = {},
 	onSelectStyleLabView,
-	onToggleStyleLabGroup,
 }: {
 	activeCategoryId: TextTemplateCategoryId;
 	className?: string;
@@ -1678,9 +1676,7 @@ export function TextLibraryNav({
 	 */
 	styleLabView?: StyleLabView;
 	styleLabResult?: JianyingTextStyleLabListResult;
-	styleLabExpandedGroups?: Record<string, boolean>;
 	onSelectStyleLabView?: (view: StyleLabView) => void;
-	onToggleStyleLabGroup?: (groupId: string) => void;
 }) {
 	const { locale, t } = useTranslation();
 	return (
@@ -1802,11 +1798,9 @@ export function TextLibraryNav({
 			</button>
 			{styleLabOpen && (
 				<JianyingTextStyleLabCategoryNav
-					expandedGroups={styleLabExpandedGroups}
 					result={styleLabResult}
 					view={styleLabView}
 					onSelect={(next) => onSelectStyleLabView?.(next)}
-					onToggleGroup={(groupId) => onToggleStyleLabGroup?.(groupId)}
 				/>
 			)}
 		</nav>
@@ -2229,9 +2223,6 @@ export function TextView() {
 	// not the lab — owns the selection and the data.
 	const [styleLabOpen, setStyleLabOpen] = useState(false);
 	const [styleLabView, setStyleLabView] = useState<StyleLabView>("trial");
-	const [styleLabExpandedGroups, setStyleLabExpandedGroups] = useState<
-		Record<string, boolean>
-	>(() => ({ charts: true, styles: false, effects: false, colors: false }));
 	const styleLab = useJianyingTextStyleLab({ enabled: styleLabOpen });
 	const { locale, t } = useTranslation();
 	const tracks = useTimelineStore((state) => state.tracks);
@@ -2762,14 +2753,7 @@ export function TextView() {
 						onOpenStyleLab={() => setStyleLabOpen(true)}
 						styleLabView={styleLabView}
 						styleLabResult={styleLab.result}
-						styleLabExpandedGroups={styleLabExpandedGroups}
 						onSelectStyleLabView={setStyleLabView}
-						onToggleStyleLabGroup={(groupId) =>
-							setStyleLabExpandedGroups((current) => ({
-								...current,
-								[groupId]: !(current[groupId] ?? false),
-							}))
-						}
 					/>
 				</ResizablePanel>
 				<ResizableHandle />

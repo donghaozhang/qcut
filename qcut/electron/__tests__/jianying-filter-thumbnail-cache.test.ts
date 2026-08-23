@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -93,5 +93,39 @@ describe("Jianying filter thumbnail cache", () => {
 				fetcher,
 			})
 		).rejects.toThrow("格式不受支持");
+	});
+
+	it("falls back to the remote source when the local file is unusable", async () => {
+		for (const localContent of [Buffer.alloc(0), Buffer.from("not an image")]) {
+			const cacheRoot = await createCacheRoot();
+			const sourcePath = join(cacheRoot, "stale-thumbnail.png");
+			await writeFile(sourcePath, localContent);
+			const fetcher = vi.fn(
+				async () =>
+					new Response(PNG_BYTES, {
+						status: 200,
+						headers: {
+							"content-length": String(PNG_BYTES.length),
+							"content-type": "image/png",
+						},
+					})
+			) as unknown as typeof fetch;
+
+			const thumbnail = await readJianyingFilterThumbnail({
+				source: {
+					resourceId: "filter-1",
+					sourcePath,
+					sourceUrl: "https://p3-heycan-jy-sign.byteimg.com/filter.png",
+				},
+				cacheRoot,
+				fetcher,
+			});
+
+			expect(thumbnail).toMatchObject({
+				mimeType: "image/png",
+				fromCache: false,
+			});
+			expect(fetcher).toHaveBeenCalledOnce();
+		}
 	});
 });

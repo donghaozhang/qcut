@@ -26,6 +26,17 @@ vi.mock("electron", () => ({
 	ipcMain: { handle: mockHandle, removeHandler: mockRemoveHandler },
 }));
 
+// The private archive only exists on an authorized developer machine. Failing
+// here keeps these tests hermetic: every dependency that would reach it must be
+// injected, so the suite behaves the same on CI as it does locally.
+vi.mock("../jianying-text-private-archive.js", () => ({
+	ensureQCutJianyingTextPrivateArchive: vi.fn(async () => {
+		throw new Error(
+			"QCut 尚未建立花字私有备份，且没有找到可导入的剪映花字缓存。"
+		);
+	}),
+}));
+
 import { setupJianyingTextStyleLabIPC } from "../jianying-text-style-lab-handler.js";
 
 const STYLE_ID = `7405879107424111910/${"a".repeat(32)}`;
@@ -310,6 +321,119 @@ describe("Jianying text style lab IPC", () => {
 		);
 	});
 
+	it("serves a database cover through the QCut private cache", async () => {
+		const context = createWindowContext();
+		const entry = createRuntimeEntry();
+		const sourceUrl = "https://p3-heycan-jy-sign.byteimg.com/cover.png";
+		const readCachedCover = vi.fn(async () => ({
+			bytes: Buffer.from("cached-cover"),
+			mimeType: "image/png" as const,
+			fromCache: true,
+		}));
+		setupJianyingTextStyleLabIPC({
+			getMainWindow: () => context.mainWindow,
+			buildCatalog: async () => ({
+				entries: [entry],
+				packageCount: 1,
+				invalidPackageCount: 0,
+			}),
+			resolveMetadata: async () => new Map(),
+			resolveOwnership: async () => new Map(),
+			resolveCoverUrls: async () => new Map([[entry.styleId, sourceUrl]]),
+			readCachedCover,
+		});
+
+		const listed = (await getHandler({
+			channel: JIANYING_TEXT_STYLE_LAB_LIST_CHANNEL,
+		})(context.event)) as JianyingTextStyleLabListResult;
+		expect(listed.styles[0]).toMatchObject({
+			styleId: entry.styleId,
+			hasCover: true,
+		});
+		expect(JSON.stringify(listed)).not.toContain(sourceUrl);
+
+		const cover = (await getHandler({
+			channel: JIANYING_TEXT_STYLE_LAB_COVER_CHANNEL,
+		})(context.event, {
+			styleId: entry.styleId,
+		})) as JianyingTextStyleLabCoverResult;
+		expect(readCachedCover).toHaveBeenCalledWith({ entry, sourceUrl });
+		expect(Array.from(cover.bytes)).toEqual(
+			Array.from(Buffer.from("cached-cover"))
+		);
+	});
+
+	it("generates a cover when the catalog has no image", async () => {
+		const context = createWindowContext();
+		const entry = createRuntimeEntry();
+		const readGeneratedCover = vi.fn(async () => ({
+			bytes: Buffer.from("generated-cover"),
+			mimeType: "image/png" as const,
+			fromCache: false,
+		}));
+		setupJianyingTextStyleLabIPC({
+			getMainWindow: () => context.mainWindow,
+			buildCatalog: async () => ({
+				entries: [entry],
+				packageCount: 1,
+				invalidPackageCount: 0,
+			}),
+			resolveMetadata: async () => new Map(),
+			resolveOwnership: async () => new Map(),
+			resolveCoverUrls: async () => new Map(),
+			readGeneratedCover,
+		});
+
+		const listed = (await getHandler({
+			channel: JIANYING_TEXT_STYLE_LAB_LIST_CHANNEL,
+		})(context.event)) as JianyingTextStyleLabListResult;
+		expect(listed.styles[0]?.hasCover).toBe(true);
+
+		await getHandler({
+			channel: JIANYING_TEXT_STYLE_LAB_COVER_CHANNEL,
+		})(context.event, { styleId: entry.styleId });
+		expect(readGeneratedCover).toHaveBeenCalledWith({ entry });
+	});
+
+	it("generates a cover when the database cover cannot be cached", async () => {
+		const context = createWindowContext();
+		const entry = createRuntimeEntry();
+		const sourceUrl = "https://p3-heycan-jy-sign.byteimg.com/cover.png";
+		const readCachedCover = vi.fn(async () => {
+			throw new Error("remote cover timed out");
+		});
+		const readGeneratedCover = vi.fn(async () => ({
+			bytes: Buffer.from("generated-cover"),
+			mimeType: "image/png" as const,
+			fromCache: false,
+		}));
+		setupJianyingTextStyleLabIPC({
+			getMainWindow: () => context.mainWindow,
+			buildCatalog: async () => ({
+				entries: [entry],
+				packageCount: 1,
+				invalidPackageCount: 0,
+			}),
+			resolveMetadata: async () => new Map(),
+			resolveOwnership: async () => new Map(),
+			resolveCoverUrls: async () => new Map([[entry.styleId, sourceUrl]]),
+			readCachedCover,
+			readGeneratedCover,
+		});
+
+		const cover = (await getHandler({
+			channel: JIANYING_TEXT_STYLE_LAB_COVER_CHANNEL,
+		})(context.event, {
+			styleId: entry.styleId,
+		})) as JianyingTextStyleLabCoverResult;
+
+		expect(readCachedCover).toHaveBeenCalledWith({ entry, sourceUrl });
+		expect(readGeneratedCover).toHaveBeenCalledWith({ entry });
+		expect(Array.from(cover.bytes)).toEqual(
+			Array.from(Buffer.from("generated-cover"))
+		);
+	});
+
 	it("rejects iframe callers, malformed IDs, and unknown styles", async () => {
 		const context = createWindowContext();
 		setupJianyingTextStyleLabIPC({
@@ -401,6 +525,8 @@ describe("Jianying text style lab IPC", () => {
 						{ title: "黄色花字", categoryIds: ["yellow" as const] },
 					],
 				]),
+			resolveOwnership: async () => new Map(),
+			resolveCoverUrls: async () => new Map(),
 		});
 
 		const listed = (await getHandler({
@@ -414,8 +540,12 @@ describe("Jianying text style lab IPC", () => {
 		expect(listed.styles[1]).toMatchObject({
 			resourceId: runtimeEntry.resourceId,
 			packageKind: "ScriptInfoSticker",
-			categoryIds: [],
+			categoryIds: ["source-qcut-script-template"],
 			compatibility: "native-runtime",
+		});
+		expect(listed.categoryGroups?.at(-1)).toMatchObject({
+			id: "qcut-local",
+			count: 1,
 		});
 	});
 
@@ -503,6 +633,10 @@ describe("Jianying text style lab IPC", () => {
 			resourceId: "7000000000000000014",
 			version: "4".repeat(32),
 		});
+		const componentEntry = createInfoStickerEntry({
+			resourceId: "7000000000000000015",
+			version: "5".repeat(32),
+		});
 		const resolveOwnership = vi.fn(
 			async () =>
 				new Map([
@@ -531,13 +665,27 @@ describe("Jianying text style lab IPC", () => {
 							catalogFamilies: [],
 						},
 					],
+					[
+						componentEntry.styleId,
+						{
+							kind: "component" as const,
+							match: "catalog-dependency" as const,
+							catalogFamilies: ["flower" as const],
+						},
+					],
 				])
 		);
 		setupJianyingTextStyleLabIPC({
 			getMainWindow: () => context.mainWindow,
 			buildCatalog: async () => ({
-				entries: [catalogEntry, flowerEntry, filterEntry, unclassifiedEntry],
-				packageCount: 4,
+				entries: [
+					catalogEntry,
+					flowerEntry,
+					filterEntry,
+					unclassifiedEntry,
+					componentEntry,
+				],
+				packageCount: 5,
 				invalidPackageCount: 0,
 			}),
 			resolveMetadata: async () =>
@@ -548,6 +696,7 @@ describe("Jianying text style lab IPC", () => {
 					],
 				]),
 			resolveOwnership,
+			resolveCoverUrls: async () => new Map(),
 		});
 
 		const listed = (await getHandler({
@@ -563,7 +712,7 @@ describe("Jianying text style lab IPC", () => {
 				?.title
 		).toBe("项目恢复花字");
 		expect(resolveOwnership).toHaveBeenCalledWith({
-			references: [flowerEntry, filterEntry, unclassifiedEntry],
+			references: [flowerEntry, filterEntry, unclassifiedEntry, componentEntry],
 		});
 	});
 

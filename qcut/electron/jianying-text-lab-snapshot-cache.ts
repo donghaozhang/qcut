@@ -25,7 +25,7 @@ import { jianyingEffectCacheRoot } from "./native-pipeline/filters/filter-lab-lu
  * rp.db is deliberately ignored; the lab's refresh button forces a rebuild.
  * Everything stays on this machine — nothing is uploaded anywhere.
  */
-export const JIANYING_TEXT_LAB_SNAPSHOT_SCHEMA_VERSION = 3;
+export const JIANYING_TEXT_LAB_SNAPSHOT_SCHEMA_VERSION = 5;
 
 export interface JianyingTextLabSnapshot {
 	schemaVersion: typeof JIANYING_TEXT_LAB_SNAPSHOT_SCHEMA_VERSION;
