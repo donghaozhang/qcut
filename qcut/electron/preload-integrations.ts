@@ -421,7 +421,10 @@ export function createClaudeAPI(): NonNullable<ElectronAPI["claude"]> {
 					"claude:timeline:addElement",
 					async (
 						_: IpcRendererEvent,
-						element: Partial<ClaudeElement> & { requestId?: string }
+						element: Partial<ClaudeElement> & {
+							projectId: string;
+							requestId?: string;
+						}
 					) => {
 						try {
 							await callback(element);
