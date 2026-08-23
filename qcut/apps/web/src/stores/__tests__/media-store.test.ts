@@ -178,6 +178,32 @@ describe("MediaStore", () => {
 		expect(result.current.mediaItems).toHaveLength(0);
 	});
 
+	it("reports a persistent deletion failure to transactional callers", async () => {
+		const { result } = renderHook(() => useMediaStore());
+		const projectId = "test-project";
+		let mediaId = "";
+		await act(async () => {
+			mediaId = await result.current.addMediaItem(projectId, {
+				type: "image",
+				name: "rollback.png",
+				url: "blob:rollback",
+				file: new File([""], "rollback.png", { type: "image/png" }),
+				duration: 0,
+			});
+		});
+		const { storageService } = await import("@/lib/storage/storage-service");
+		vi.mocked(storageService.deleteMediaItem).mockRejectedValueOnce(
+			new Error("persistent delete failed")
+		);
+
+		await expect(
+			act(async () => {
+				await result.current.removeMediaItem(projectId, mediaId);
+			})
+		).rejects.toThrow("persistent delete failed");
+		expect(result.current.mediaItems).toHaveLength(0);
+	});
+
 	it("loads project media from storage", async () => {
 		const mockMediaItems: MediaItem[] = [
 			{
