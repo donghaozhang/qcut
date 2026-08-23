@@ -50,6 +50,7 @@ import {
 	updateTextAnimationPhaseTiming,
 } from "@/lib/text/text-animation-presets";
 import type { TextAnimationPhase } from "@/lib/text/text-animation-presets";
+import { assertTimelineProjectActive } from "./claude-timeline-project-guard";
 
 const CLAUDE_MEDIA_ELEMENT_TYPES = {
 	media: "media",
@@ -749,12 +750,14 @@ export async function addClaudeMediaElement({
 }: {
 	element: Partial<ClaudeElement>;
 	timelineStore: TimelineStoreState;
-	projectId: string | undefined;
+	projectId: string;
 }): Promise<string> {
+	assertTimelineProjectActive({ projectId });
 	const mediaItem = await resolveMediaItemForElement({
 		element,
 		projectId,
 	});
+	assertTimelineProjectActive({ projectId });
 
 	if (!mediaItem) {
 		const requestedMedia =
@@ -785,6 +788,7 @@ export async function addClaudeMediaElement({
 	const namedTrack = element.trackId
 		? timelineStore.tracks.find((track) => track.id === element.trackId)
 		: undefined;
+	assertTimelineProjectActive({ projectId });
 	const trackId =
 		namedTrack?.type === trackType
 			? namedTrack.id
@@ -926,6 +930,7 @@ const DEFAULT_STICKER_DURATION_SECONDS = 5;
 /** Add a Claude sticker element to the timeline store and overlay store. */
 export async function addClaudeStickerElement({
 	element,
+	projectId,
 	timelineStore,
 }: {
 	element: Partial<ClaudeElement> & {
@@ -938,22 +943,35 @@ export async function addClaudeStickerElement({
 		rotation?: number;
 		opacity?: number;
 	};
+	projectId: string;
 	timelineStore: TimelineStoreState;
 }): Promise<string> {
+	assertTimelineProjectActive({ projectId });
+	const { useStickersOverlayStore } = await import(
+		"@/stores/stickers-overlay-store"
+	);
+	assertTimelineProjectActive({ projectId });
+
 	const startTime = getElementStartTime({ element });
 	const duration = getElementDuration({
 		element,
 		fallbackDuration: DEFAULT_STICKER_DURATION_SECONDS,
 	});
+	const stickerId = element.stickerId ?? `sticker_${Date.now()}`;
+	const mediaId = element.mediaId ?? stickerId;
+	if (
+		!useMediaStore.getState().mediaItems.some((item) => item.id === mediaId)
+	) {
+		throw new Error(`Sticker media source could not be resolved: ${mediaId}`);
+	}
+
 	// One sticker track holds many stickers, one at a time; a sticker that
 	// overlaps an existing one gets its own lane instead of stacking.
+	assertTimelineProjectActive({ projectId });
 	const trackId = timelineStore.findOrCreateTrack("sticker", {
 		startTime,
 		duration,
 	});
-
-	const stickerId = element.stickerId ?? `sticker_${Date.now()}`;
-	const mediaId = element.mediaId ?? stickerId;
 
 	// The CLI passes top-left PIXEL geometry, but every sticker consumer —
 	// resolveStickerGeometry, the overlay store, and the export overlay
@@ -997,10 +1015,6 @@ export async function addClaudeStickerElement({
 
 	// Also add to sticker overlay store for canvas rendering + export.
 	try {
-		const { useStickersOverlayStore } = await import(
-			"@/stores/stickers-overlay-store"
-		);
-
 		debugLog(
 			`[ClaudeTimelineBridge] Sticker coords: px(${pxX},${pxY} ${pxW}x${pxH}) → pct(${pctX.toFixed(1)},${pctY.toFixed(1)} ${pctW.toFixed(1)}x${pctH.toFixed(1)})`
 		);
@@ -1021,8 +1035,9 @@ export async function addClaudeStickerElement({
 		debugLog(
 			`[ClaudeTimelineBridge] Overlay store now has ${afterCount} sticker(s)`
 		);
-	} catch (err) {
-		debugWarn("[ClaudeTimelineBridge] Failed to add sticker overlay:", err);
+	} catch (error) {
+		timelineStore.removeElementFromTrack(trackId, addedElementId, false);
+		throw error;
 	}
 
 	debugLog("[ClaudeTimelineBridge] Added sticker element:", stickerId);
@@ -1211,6 +1226,7 @@ async function bundleAndRegisterComponent({
 	componentPath,
 	componentId,
 	componentName,
+	projectId,
 	durationInFrames = 150,
 	fps = 30,
 	width = 1920,
@@ -1219,6 +1235,7 @@ async function bundleAndRegisterComponent({
 	componentPath: string;
 	componentId: string;
 	componentName: string;
+	projectId: string;
 	durationInFrames?: number;
 	fps?: number;
 	width?: number;
@@ -1235,6 +1252,7 @@ async function bundleAndRegisterComponent({
 
 		debugLog("[ClaudeTimelineBridge] Bundling component:", componentPath);
 		const bundleResult = await api.bundleFile(componentPath, componentId);
+		assertTimelineProjectActive({ projectId });
 
 		if (!bundleResult.success || !bundleResult.code) {
 			debugError("[ClaudeTimelineBridge] Bundle failed:", bundleResult.error);
@@ -1245,10 +1263,12 @@ async function bundleAndRegisterComponent({
 		const { loadBundledComponent } = await import(
 			"@/lib/remotion/dynamic-loader"
 		);
+		assertTimelineProjectActive({ projectId });
 		const loadResult = await loadBundledComponent(
 			bundleResult.code,
 			componentId
 		);
+		assertTimelineProjectActive({ projectId });
 
 		if (!loadResult.success || !loadResult.component) {
 			debugError(
@@ -1260,6 +1280,7 @@ async function bundleAndRegisterComponent({
 
 		debugLog("[ClaudeTimelineBridge] Registering component in store...");
 		const { useRemotionStore } = await import("@/stores/ai/remotion-store");
+		assertTimelineProjectActive({ projectId });
 		useRemotionStore.getState().registerComponent({
 			id: componentId,
 			name: componentName,
@@ -1294,8 +1315,10 @@ async function bundleAndRegisterComponent({
  */
 async function importRemotionFolder({
 	folderPath,
+	projectId,
 }: {
 	folderPath: string;
+	projectId: string;
 }): Promise<string[]> {
 	try {
 		const api = platform().remotionFolder;
@@ -1306,6 +1329,7 @@ async function importRemotionFolder({
 
 		debugLog("[ClaudeTimelineBridge] Importing folder:", folderPath);
 		const importResult = await api.import(folderPath);
+		assertTimelineProjectActive({ projectId });
 
 		if (
 			!importResult.success ||
@@ -1322,11 +1346,13 @@ async function importRemotionFolder({
 		const { loadComponentsFromFolder } = await import(
 			"@/lib/remotion/component-loader"
 		);
+		assertTimelineProjectActive({ projectId });
 		const loadResult = await loadComponentsFromFolder(
 			folderPath,
 			importResult.scan!.compositions as unknown as FolderCompositionInfo[],
 			importResult.bundle!.results as unknown as FolderBundleResult[]
 		);
+		assertTimelineProjectActive({ projectId });
 
 		if (!loadResult.success || loadResult.components.length === 0) {
 			debugError(
@@ -1337,6 +1363,7 @@ async function importRemotionFolder({
 		}
 
 		const { useRemotionStore } = await import("@/stores/ai/remotion-store");
+		assertTimelineProjectActive({ projectId });
 		const store = useRemotionStore.getState();
 		const registeredIds: string[] = [];
 
@@ -1356,18 +1383,23 @@ async function importRemotionFolder({
 /** Add a Claude remotion element to the timeline store. */
 export async function addClaudeRemotionElement({
 	element,
+	projectId,
 	timelineStore,
 }: {
 	element: Partial<ClaudeElement>;
+	projectId: string;
 	timelineStore: TimelineStoreState;
 }): Promise<string> {
+	assertTimelineProjectActive({ projectId });
 	const componentName = element.sourceName || "Remotion";
 
 	// Folder-based import: use the existing remotion-folder pipeline
 	if (element.folderPath) {
 		const registeredIds = await importRemotionFolder({
 			folderPath: element.folderPath,
+			projectId,
 		});
+		assertTimelineProjectActive({ projectId });
 
 		if (registeredIds.length === 0) {
 			throw new Error("No Remotion components were imported from the folder");
@@ -1378,6 +1410,7 @@ export async function addClaudeRemotionElement({
 			element,
 			fallbackDuration: DEFAULT_REMOTION_DURATION_SECONDS,
 		});
+		assertTimelineProjectActive({ projectId });
 		const trackId = timelineStore.findOrCreateTrack("remotion", {
 			startTime,
 			duration,
@@ -1432,9 +1465,11 @@ export async function addClaudeRemotionElement({
 			componentPath: element.componentPath,
 			componentId,
 			componentName,
+			projectId,
 			durationInFrames: Math.round(durationSec * fps),
 			fps,
 		});
+		assertTimelineProjectActive({ projectId });
 
 		if (!registeredId) {
 			debugWarn(
@@ -1448,6 +1483,7 @@ export async function addClaudeRemotionElement({
 		element,
 		fallbackDuration: DEFAULT_REMOTION_DURATION_SECONDS,
 	});
+	assertTimelineProjectActive({ projectId });
 	const trackId = timelineStore.findOrCreateTrack("remotion", {
 		startTime,
 		duration,
@@ -1673,17 +1709,21 @@ export async function applyTimelineToStore(
 	});
 
 	const projectId = useProjectStore.getState().activeProject?.id;
+	if (!projectId) {
+		throw new Error("Cannot apply timeline without an active project");
+	}
+	assertTimelineProjectActive({ projectId });
 
 	// Sync media from disk before resolving elements so newly-imported files are discoverable
-	if (projectId) {
-		await syncProjectMediaIfNeeded({ projectId });
-	}
+	await syncProjectMediaIfNeeded({ projectId });
+	assertTimelineProjectActive({ projectId });
 
 	let added = 0;
 
 	for (const track of timeline.tracks) {
 		for (const element of track.elements) {
 			try {
+				assertTimelineProjectActive({ projectId });
 				if (isClaudeMediaElementType({ type: element.type })) {
 					await addClaudeMediaElement({
 						element,
@@ -1712,12 +1752,14 @@ export async function applyTimelineToStore(
 				} else if (element.type === "remotion") {
 					await addClaudeRemotionElement({
 						element,
+						projectId,
 						timelineStore: useTimelineStore.getState(),
 					});
 					added++;
 				} else if (element.type === "sticker") {
 					await addClaudeStickerElement({
 						element,
+						projectId,
 						timelineStore: useTimelineStore.getState(),
 					});
 					added++;
@@ -1734,6 +1776,7 @@ export async function applyTimelineToStore(
 					);
 				}
 			} catch (error) {
+				assertTimelineProjectActive({ projectId });
 				debugError(
 					"[ClaudeTimelineBridge] Failed to add element during import:",
 					element.id,
