@@ -48,16 +48,16 @@ QCut 的 `画面 -> 美颜美体` 已补成可用面板，并接入真实剪映�
 
 本轮读取的是中文剪映专业版 `/Applications/VideoFusion-macOS.app`，不是 CapCut。
 
-| QCut 运行包 | 剪映 resource/version | 数量与用途 |
+| QCut 运行包 | 剪映 resource ID | 数量与用途 |
 |---|---|---|
-| `smooth` | `7408077820116667700/b000f31572be3e5f9fd195d7bba37968` | 1，磨皮 |
-| `eye-details` | `7408077446257331471/a5ff2cc5d18c0f1ba8803b2550be679d` | 3，亮眼、眼袋、法令纹 |
-| `skin-tone` | `7408757645705760000/c36221f2a2097535ce1a2f70cd9e0116` | 2，肤色、冷暖 |
-| `teeth` | `7408077691880049960/314c864e3cac447612ba24e8261eab31` | 1，美白牙齿 |
-| `face` | `7408077448513998114/aa4932200616e291a252039a3aac7232` | 18，基础脸型与五官 |
-| `features` | `7408077472211668276/f662ff9c955ee319f1ae03b2aa27df76` | 37，脸型补充和五官精修 |
-| `makeup` | `21769690/89ad943ef61e4509b877db7105e3216e` | 动态美妆宿主 |
-| `body` | `7408076932065152296/9c891b188dd6b523a30efa8bfb63602b` | 10，美体 |
+| `smooth` | `7408077820116667700` | 1，磨皮 |
+| `eye-details` | `7408077446257331471` | 3，亮眼、眼袋、法令纹 |
+| `skin-tone` | `7408757645705760000` | 2，肤色、冷暖 |
+| `teeth` | `7408077691880049960` | 1，美白牙齿 |
+| `face` | `7408077448513998114` | 18，基础脸型与五官 |
+| `features` | `7408077472211668276` | 37，脸型补充和五官精修 |
+| `makeup` | `21769690` | 动态美妆宿主 |
+| `body` | `7408076932065152296` | 10，美体 |
 
 15 张卡覆盖套装、口红、腮红、修容、卧蚕、眉毛、睫毛、眼线、眼影、美瞳、高光和雀斑。动态卡通过 `makeup.prefab` 挂载真实卡片路径；套装和流畅眉使用各自独立 `AmazingFeature/main.scene`。选择变化会改变阶段签名并销毁过期宿主，避免上一张卡残留在后续帧。
 
@@ -82,7 +82,7 @@ QCut 的 `画面 -> 美颜美体` 已补成可用面板，并接入真实剪映�
 }
 ```
 
-私有运行时位于 `~/Library/Application Support/QCut/PrivateRuntimes/JianyingFilter/current`。`current` 是指向不可变快照的符号链接，二进制、模型和资源不会被 Git 跟踪或上传。
+私有运行时解析自 QCut 应用数据目录内的本机私有快照，通过指向不可变快照的符号链接切换版本；二进制、模型和资源不会被 Git 跟踪或上传。
 
 最新清单：
 
@@ -126,7 +126,7 @@ QCut 的 `画面 -> 美颜美体` 已补成可用面板，并接入真实剪映�
 命令：
 
 ```bash
-QCUT_REAL_PORTRAIT_IMAGE_PATH='/Users/peter/Downloads/ChatGPT Image Jul 27, 2026, 03_11_53 PM.png' \
+QCUT_REAL_PORTRAIT_IMAGE_PATH='/path/to/full-body-portrait.png' \
   bunx playwright test \
   apps/web/src/test/e2e/jianying-portrait-adjustment.e2e.ts \
   --project=electron --reporter=line --timeout=300000
