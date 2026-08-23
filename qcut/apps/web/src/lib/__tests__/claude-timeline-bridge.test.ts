@@ -25,7 +25,11 @@ const storeMocks = vi.hoisted(() => {
 		pushHistory: vi.fn(),
 	};
 
-	const mediaStoreState: { mediaItems: MediaItem[] } = {
+	const mediaStoreState: {
+		addMediaItem: ReturnType<typeof vi.fn>;
+		mediaItems: MediaItem[];
+	} = {
+		addMediaItem: vi.fn(),
 		mediaItems: [],
 	};
 
@@ -69,6 +73,10 @@ vi.mock("@/lib/project/project-folder-sync", () => ({
 	syncProjectFolder: syncProjectFolderMock,
 }));
 
+vi.mock("@/lib/media/blob-manager", () => ({
+	getOrCreateObjectURL: vi.fn(() => "blob:claude-media-import"),
+}));
+
 const debugMocks = vi.hoisted(() => ({
 	debugLog: vi.fn(),
 	debugWarn: vi.fn(),
@@ -84,6 +92,7 @@ vi.mock("@/types/timeline", () => ({
 type AddElementHandler = (
 	element: Partial<ClaudeElement>
 ) => void | Promise<void>;
+type MediaImportedHandler = (data: unknown) => void | Promise<void>;
 
 function setupTimelineBridgeWithHandlers({
 	withProjectFolder = false,
@@ -91,6 +100,7 @@ function setupTimelineBridgeWithHandlers({
 	withProjectFolder?: boolean;
 } = {}): {
 	addElementHandler: AddElementHandler;
+	mediaImportedHandler: MediaImportedHandler;
 	timelineApi: {
 		onRequest: ReturnType<typeof vi.fn>;
 		onApply: ReturnType<typeof vi.fn>;
@@ -102,6 +112,7 @@ function setupTimelineBridgeWithHandlers({
 	};
 } {
 	let addElementHandler: AddElementHandler | null = null;
+	let mediaImportedHandler: MediaImportedHandler | null = null;
 
 	const timelineApi = {
 		onRequest: vi.fn((_callback: () => void) => {}),
@@ -137,13 +148,23 @@ function setupTimelineBridgeWithHandlers({
 
 	const electronAPI: {
 		claude: {
+			media: {
+				onMediaImported: (callback: MediaImportedHandler) => void;
+			};
 			timeline: typeof timelineApi;
 		};
+		readFile: ReturnType<typeof vi.fn>;
 		projectFolder?: object;
 	} = {
 		claude: {
+			media: {
+				onMediaImported: (callback) => {
+					mediaImportedHandler = callback;
+				},
+			},
 			timeline: timelineApi,
 		},
+		readFile: vi.fn(async () => new Uint8Array([1, 2, 3, 4])),
 	};
 	if (withProjectFolder) {
 		electronAPI.projectFolder = {};
@@ -153,8 +174,12 @@ function setupTimelineBridgeWithHandlers({
 		window as unknown as {
 			electronAPI?: {
 				claude?: {
+					media?: {
+						onMediaImported: (callback: MediaImportedHandler) => void;
+					};
 					timeline?: typeof timelineApi;
 				};
+				readFile?: ReturnType<typeof vi.fn>;
 				projectFolder?: object;
 			};
 		}
@@ -168,10 +193,16 @@ function setupTimelineBridgeWithHandlers({
 	if (!addElementHandler) {
 		throw new Error("addElement handler was not registered");
 	}
+	if (!mediaImportedHandler) {
+		throw new Error("media imported handler was not registered");
+	}
 	const registeredAddElementHandler: AddElementHandler = addElementHandler;
+	const registeredMediaImportedHandler: MediaImportedHandler =
+		mediaImportedHandler;
 
 	return {
 		addElementHandler: registeredAddElementHandler,
+		mediaImportedHandler: registeredMediaImportedHandler,
 		timelineApi,
 	};
 }
@@ -189,6 +220,8 @@ describe("setupClaudeTimelineBridge - add element", () => {
 		storeMocks.timelineStoreState.addElementToTrack.mockReset();
 		storeMocks.timelineStoreState.updateAdjustmentElement.mockReset();
 		storeMocks.timelineStoreState.removeElementFromTrack.mockReset();
+		storeMocks.mediaStoreState.addMediaItem.mockReset();
+		storeMocks.mediaStoreState.addMediaItem.mockResolvedValue("media-imported");
 
 		storeMocks.timelineStoreState.findOrCreateTrack.mockImplementation(
 			(trackType: string) => `${trackType}-track`
@@ -201,6 +234,49 @@ describe("setupClaudeTimelineBridge - add element", () => {
 		vi.spyOn(console, "log").mockImplementation(() => {});
 		vi.spyOn(console, "warn").mockImplementation(() => {});
 		vi.spyOn(console, "error").mockImplementation(() => {});
+	});
+
+	it("preserves CLI provenance metadata and marks GIF imports as animated stickers", async () => {
+		storeMocks.projectStoreState.activeProject = { id: "project-1" };
+		const { mediaImportedHandler } = setupTimelineBridgeWithHandlers();
+
+		await mediaImportedHandler({
+			id: "media-sticker-1",
+			name: "reference.gif",
+			path: "/tmp/reference.gif",
+			type: "image",
+			size: 4,
+			metadata: {
+				source: "sticker-lab",
+				referenceOnly: true,
+				usage: "internal-reference-only",
+				redistribution: "prohibited",
+				batchId: "jianying-batch-18",
+				itemId: "reference-1",
+				checksumSha256: "a".repeat(64),
+				animatedSticker: false,
+			},
+		});
+
+		expect(storeMocks.mediaStoreState.addMediaItem).toHaveBeenCalledWith(
+			"project-1",
+			expect.objectContaining({
+				id: "media-sticker-1",
+				name: "reference.gif",
+				type: "image",
+				file: expect.any(File),
+				metadata: {
+					source: "sticker-lab",
+					referenceOnly: true,
+					usage: "internal-reference-only",
+					redistribution: "prohibited",
+					batchId: "jianying-batch-18",
+					itemId: "reference-1",
+					checksumSha256: "a".repeat(64),
+					animatedSticker: true,
+				},
+			})
+		);
 	});
 
 	it("adds a media element when sourceName matches imported media", async () => {
