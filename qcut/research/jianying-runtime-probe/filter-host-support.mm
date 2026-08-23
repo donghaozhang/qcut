@@ -17,6 +17,14 @@ namespace fs = std::filesystem;
 
 std::atomic<const ModelCatalog*> activeModelCatalog = nullptr;
 
+char* copyResourceUrl(std::string_view resourceUrl) {
+  char* result = static_cast<char*>(std::malloc(resourceUrl.size() + 1));
+  if (result == nullptr) return nullptr;
+  std::memcpy(result, resourceUrl.data(), resourceUrl.size());
+  result[resourceUrl.size()] = '\0';
+  return result;
+}
+
 }  // namespace
 
 OpenGlContext::OpenGlContext() {
@@ -96,24 +104,27 @@ ModelCatalog::ModelCatalog(const fs::path& directory, bool preferExactFilename)
     fs::recursive_directory_iterator iterator(
         root, fs::directory_options::skip_permission_denied, rootError);
     if (rootError) continue;
+    std::vector<std::string> rootPaths;
     const fs::recursive_directory_iterator end;
     while (iterator != end) {
       const fs::directory_entry& entry = *iterator;
       std::error_code entryError;
       if (entry.is_regular_file(entryError) && !entryError) {
-        paths_.push_back(entry.path().string());
+        rootPaths.push_back(entry.path().string());
       }
       iterator.increment(entryError);
       if (entryError) break;
     }
+    std::sort(rootPaths.begin(), rootPaths.end());
+    paths_.insert(paths_.end(), rootPaths.begin(), rootPaths.end());
   }
   if (paths_.empty()) {
     throw std::runtime_error("model directory contains no files: " +
                              directory.string());
   }
-  // Directory iteration order is unspecified; sort so the family prefix match
-  // in resolve() picks the same model on every machine and run.
-  std::sort(paths_.begin(), paths_.end());
+  // Root order is the compatibility policy (private snapshot before app
+  // fallbacks); sorting only within each root keeps resolution deterministic
+  // without allowing /Applications to outrank the caller's first choice.
 }
 
 char* ModelCatalog::resolve(const char* directory, const char* name) const {
@@ -174,20 +185,17 @@ char* ModelCatalog::resolve(const char* directory, const char* name) const {
         });
   }
   if (match == paths_.end()) {
-    std::cerr << "[resource] unresolved request = " << request << '\n';
-    return nullptr;
+    constexpr std::string_view kEmptyModelUrl = "file:///dev/null";
+    std::cerr << "[resource] unresolved request = " << request
+              << "; returning empty model sentinel\n";
+    return copyResourceUrl(kEmptyModelUrl);
   }
 
   const std::string resourceUrl = "file://" + *match;
   std::cerr << "[resource] " << request << " -> " << resourceUrl << " ("
             << resolution << ")\n";
-  char* result = static_cast<char*>(std::malloc(resourceUrl.size() + 1));
-  if (result == nullptr) {
-    return nullptr;
-  }
   // Swing frees the callback result after copying the resolved path.
-  std::memcpy(result, resourceUrl.c_str(), resourceUrl.size() + 1);
-  return result;
+  return copyResourceUrl(resourceUrl);
 }
 
 std::string_view ModelCatalog::modelFamily(const std::string& request) {
