@@ -147,6 +147,7 @@ import type {
 	UtilityToMainMessage,
 	WebContentsSendRequest,
 	SplitElementRequest,
+	TimelineAddElementRequest,
 	BatchAddElementsRequest,
 	BatchUpdateElementsRequest,
 	BatchDeleteElementsRequest,
@@ -481,13 +482,11 @@ async function handleMainRequest(
 		}
 
 		case "timeline:add-element": {
-			const req = data as {
-				correlationId?: string;
-				element: Partial<ClaudeElement>;
-			};
+			const req = data as unknown as TimelineAddElementRequest;
 			return requestAddElementFromRenderer({
 				correlationId: req.correlationId,
-				element: req.element,
+				element: req.element as Partial<ClaudeElement>,
+				projectId: req.projectId,
 				win,
 			});
 		}
@@ -708,7 +707,12 @@ async function handleMainRequest(
 		case "batch-add-elements": {
 			const req = data as unknown as BatchAddElementsRequest;
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any -- IPC boundary cast
-			return batchAddElements(win, req.projectId, req.elements as any);
+			return batchAddElements(
+				win,
+				req.projectId,
+				req.elements as any,
+				req.correlationId
+			);
 		}
 
 		case "batch-update-elements": {
