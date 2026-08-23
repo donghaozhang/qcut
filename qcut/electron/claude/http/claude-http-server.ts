@@ -181,10 +181,11 @@ export function startClaudeHTTPServer(
 		requestSelection: (correlationId) =>
 			requestSelectionFromRenderer(getWindow(), correlationId),
 		/** Adds one element and waits for its correlated renderer acknowledgement. */
-		requestAddElement: (element, correlationId) =>
+		requestAddElement: (projectId, element, correlationId) =>
 			requestAddElementFromRenderer({
 				correlationId,
 				element,
+				projectId,
 				win: getWindow(),
 			}),
 		/** Sends a split request to the renderer timeline. */
