@@ -417,6 +417,14 @@ function createNormalizedSnapshot({
 							topRightX: 1,
 							topRightY: 0,
 						},
+						portraitAdjustments: {
+							enabled: true,
+							faceTarget: { faceId: 0, mode: "single" },
+							makeup: {
+								lip: { cardId: "lip-soft-pink", intensity: 80 },
+							},
+							values: { face_adjust_BrightEye: 30 },
+						},
 						playbackRate: 1,
 						reverse: false,
 						rotation: 0,
@@ -626,6 +634,74 @@ describe("snapshot runtime property allowlists", () => {
 						throw new Error("Expected normalized media element.");
 					}
 					element.keyframes = { opactiy: [] } as never;
+				},
+			},
+			{
+				expectedPath:
+					"$.snapshot.tracks[0].elements[0].portraitAdjustments.values",
+				mutate: (value) => {
+					const element = value.tracks[0]?.elements[0];
+					if (
+						!element ||
+						element.type !== "media" ||
+						!element.portraitAdjustments
+					) {
+						throw new Error("Expected portrait adjustments.");
+					}
+					Object.assign(element.portraitAdjustments.values, {
+						face_adjust_BrightEyes: 30,
+					});
+				},
+			},
+			{
+				expectedPath:
+					"$.snapshot.tracks[0].elements[0].portraitAdjustments.faceTarget",
+				mutate: (value) => {
+					const element = value.tracks[0]?.elements[0];
+					if (
+						!element ||
+						element.type !== "media" ||
+						!element.portraitAdjustments?.faceTarget
+					) {
+						throw new Error("Expected portrait face target.");
+					}
+					Object.assign(element.portraitAdjustments.faceTarget, {
+						trackId: 0,
+					});
+				},
+			},
+			{
+				expectedPath:
+					"$.snapshot.tracks[0].elements[0].portraitAdjustments.makeup",
+				mutate: (value) => {
+					const element = value.tracks[0]?.elements[0];
+					if (
+						!element ||
+						element.type !== "media" ||
+						!element.portraitAdjustments?.makeup
+					) {
+						throw new Error("Expected portrait makeup.");
+					}
+					Object.assign(element.portraitAdjustments.makeup, {
+						foundation: { cardId: "invalid", intensity: 50 },
+					});
+				},
+			},
+			{
+				expectedPath:
+					"$.snapshot.tracks[0].elements[0].portraitAdjustments.makeup.lip",
+				mutate: (value) => {
+					const element = value.tracks[0]?.elements[0];
+					if (
+						!element ||
+						element.type !== "media" ||
+						!element.portraitAdjustments?.makeup?.lip
+					) {
+						throw new Error("Expected portrait lip makeup.");
+					}
+					Object.assign(element.portraitAdjustments.makeup.lip, {
+						strength: 80,
+					});
 				},
 			},
 			{
