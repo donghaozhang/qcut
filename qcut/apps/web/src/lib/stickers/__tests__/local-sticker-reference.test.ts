@@ -1,13 +1,17 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PRIVATE_STICKER_CATALOG_IDS } from "@qcut/editor-core/sticker-lab";
 import {
+	createLocalBridgeStickerCatalog,
+	createLocalBridgeStickerReference,
 	createLocalStickerReference,
 	createRemoteStickerCatalog,
 	createRemoteStickerReference,
 } from "./fixtures/local-sticker-catalog";
 import {
+	buildStickerReferenceUsageMetadata,
 	buildStickerLabAssetEntry,
 	createStickerLabAssetFetch,
+	discoverLocalStickerReferenceCatalogs,
 	loadLocalStickerReferenceFile,
 	loadRemoteStickerReferenceFile,
 	loadStickerLabReferenceFile,
@@ -16,9 +20,90 @@ import {
 	stickerLabThumbnailUrl,
 } from "../local-sticker-reference";
 
+const platformMocks = vi.hoisted(() => ({
+	discoverLocalReferences: vi.fn(),
+	hasCapability: vi.fn(),
+	readLocalReference: vi.fn(),
+}));
+
+vi.mock("@qcut/platform-core", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("@qcut/platform-core")>();
+	return {
+		...actual,
+		platform: () => ({
+			hasCapability: platformMocks.hasCapability,
+			stickerLab: {
+				discoverLocalReferences: platformMocks.discoverLocalReferences,
+				readLocalReference: platformMocks.readLocalReference,
+			},
+		}),
+	};
+});
+
 const REMOTE_PROVENANCE = createRemoteStickerCatalog().provenance;
 
 describe("local sticker reference files", () => {
+	beforeEach(() => {
+		platformMocks.discoverLocalReferences.mockReset();
+		platformMocks.hasCapability.mockReset();
+		platformMocks.hasCapability.mockReturnValue(true);
+		platformMocks.readLocalReference.mockReset();
+	});
+
+	it("uses remote fallback silently when local references are unsupported", async () => {
+		platformMocks.hasCapability.mockReturnValue(false);
+
+		await expect(discoverLocalStickerReferenceCatalogs()).resolves.toEqual({
+			catalogs: [],
+			warningCount: 0,
+		});
+		expect(platformMocks.discoverLocalReferences).not.toHaveBeenCalled();
+	});
+
+	it("discovers and reads a verified repository-external reference", async () => {
+		const catalog = createLocalBridgeStickerCatalog();
+		const reference = createLocalBridgeStickerReference();
+		platformMocks.discoverLocalReferences.mockResolvedValue({
+			rootPath: reference.asset.rootPath,
+			catalogs: [catalog],
+			warnings: [{ message: "one ignored batch" }],
+			summary: {
+				batchCount: 1,
+				categoryCount: 1,
+				itemCount: 1,
+				totalBytes: 4,
+			},
+		});
+		platformMocks.readLocalReference.mockResolvedValue({
+			bytes: new Uint8Array([1, 2, 3, 4]),
+			fileName: reference.fileName,
+			mimeType: reference.mimeType,
+			batchId: reference.asset.batchId,
+			stickerId: reference.asset.stickerId,
+			checksumSha256: reference.asset.checksumSha256,
+		});
+
+		await expect(discoverLocalStickerReferenceCatalogs()).resolves.toEqual({
+			catalogs: [catalog],
+			warningCount: 1,
+		});
+		const file = await loadStickerLabReferenceFile({ reference });
+		expect(file.name).toBe(reference.fileName);
+		expect([...new Uint8Array(await file.arrayBuffer())]).toEqual([1, 2, 3, 4]);
+		expect(platformMocks.readLocalReference).toHaveBeenCalledWith({
+			rootPath: reference.asset.rootPath,
+			batchId: reference.asset.batchId,
+			stickerId: reference.asset.stickerId,
+		});
+		expect(buildStickerReferenceUsageMetadata({ reference })).toEqual({
+			referenceOnly: true,
+			usage: "internal-reference-only",
+			redistribution: "prohibited",
+			batchId: reference.asset.batchId,
+			itemId: reference.id,
+			checksumSha256: reference.asset.checksumSha256,
+		});
+	});
 	it("loads an owned image file through the injected desktop reader", async () => {
 		const reference = createLocalStickerReference({ id: "curved-arrow" });
 		const bytes = new Uint8Array([137, 80, 78, 71]);
