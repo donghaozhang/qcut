@@ -26,6 +26,17 @@ vi.mock("electron", () => ({
 	ipcMain: { handle: mockHandle, removeHandler: mockRemoveHandler },
 }));
 
+// The private archive only exists on an authorized developer machine. Failing
+// here keeps these tests hermetic: every dependency that would reach it must be
+// injected, so the suite behaves the same on CI as it does locally.
+vi.mock("../jianying-text-private-archive.js", () => ({
+	ensureQCutJianyingTextPrivateArchive: vi.fn(async () => {
+		throw new Error(
+			"QCut 尚未建立花字私有备份，且没有找到可导入的剪映花字缓存。"
+		);
+	}),
+}));
+
 import { setupJianyingTextStyleLabIPC } from "../jianying-text-style-lab-handler.js";
 
 const STYLE_ID = `7405879107424111910/${"a".repeat(32)}`;
@@ -514,6 +525,8 @@ describe("Jianying text style lab IPC", () => {
 						{ title: "黄色花字", categoryIds: ["yellow" as const] },
 					],
 				]),
+			resolveOwnership: async () => new Map(),
+			resolveCoverUrls: async () => new Map(),
 		});
 
 		const listed = (await getHandler({
@@ -683,6 +696,7 @@ describe("Jianying text style lab IPC", () => {
 					],
 				]),
 			resolveOwnership,
+			resolveCoverUrls: async () => new Map(),
 		});
 
 		const listed = (await getHandler({
