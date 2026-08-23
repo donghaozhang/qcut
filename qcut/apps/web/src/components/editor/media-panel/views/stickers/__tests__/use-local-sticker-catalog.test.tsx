@@ -20,6 +20,7 @@ const catalogMocks = vi.hoisted(() => ({
 	discoverLocal: vi.fn(),
 	loadPrivateManifest: vi.fn(),
 	loadRemoteManifest: vi.fn(),
+	supportsLocal: vi.fn(),
 }));
 
 vi.mock("@/lib/stickers/local-sticker-lab-config", async (importOriginal) => {
@@ -54,6 +55,7 @@ vi.mock("@/lib/stickers/local-sticker-reference", async (importOriginal) => {
 	return {
 		...actual,
 		discoverLocalStickerReferenceCatalogs: catalogMocks.discoverLocal,
+		supportsLocalStickerReferences: catalogMocks.supportsLocal,
 	};
 });
 
@@ -68,6 +70,8 @@ describe("useLocalStickerCatalog", () => {
 		});
 		catalogMocks.loadPrivateManifest.mockReset();
 		catalogMocks.loadRemoteManifest.mockReset();
+		catalogMocks.supportsLocal.mockReset();
+		catalogMocks.supportsLocal.mockReturnValue(false);
 		// Default: the viewer is not on the allow list.
 		catalogMocks.loadPrivateManifest.mockRejectedValue(
 			new Error("Unable to fetch sticker lab manifest (403)")
@@ -101,6 +105,7 @@ describe("useLocalStickerCatalog", () => {
 			})
 		);
 		catalogMocks.getSource.mockReturnValue(null);
+		catalogMocks.supportsLocal.mockReturnValue(true);
 		catalogMocks.discoverLocal.mockResolvedValue({
 			catalogs: localCatalogs,
 			warningCount: 0,
@@ -121,6 +126,30 @@ describe("useLocalStickerCatalog", () => {
 		});
 		expect(catalogMocks.loadPrivateManifest).not.toHaveBeenCalled();
 		expect(catalogMocks.loadManifest).not.toHaveBeenCalled();
+		expect(catalogMocks.loadRemoteManifest).not.toHaveBeenCalled();
+	});
+
+	it("keeps the desktop lab visible when its local directory is empty", async () => {
+		catalogMocks.getSource.mockReturnValue(null);
+		catalogMocks.supportsLocal.mockReturnValue(true);
+
+		const { result } = renderHook(() => useLocalStickerCatalog());
+
+		expect(result.current).toMatchObject({
+			isAvailable: true,
+			isLoading: true,
+		});
+		await waitFor(() => expect(result.current.isLoading).toBe(false));
+		expect(result.current).toEqual({
+			catalog: null,
+			error: null,
+			isAvailable: true,
+			isLoading: false,
+			localReferenceWarningCount: 0,
+			privateCatalogs: [],
+			unavailablePrivateCatalogIds: [],
+		});
+		expect(catalogMocks.loadPrivateManifest).not.toHaveBeenCalled();
 		expect(catalogMocks.loadRemoteManifest).not.toHaveBeenCalled();
 	});
 
