@@ -924,11 +924,27 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		[
 			PID,
 			f(
+				"--provider",
+				"string",
+				"Set to sticker-lab when resolving a private local reference",
+				{ enum: ["sticker-lab"] }
+			),
+			f(
 				"--sticker-id",
 				"string",
-				"Iconify sticker ID (collection:icon) or legacy catalog ID"
+				"Iconify sticker ID or local Sticker Lab resource ID"
 			),
-			f("--source", "string", "Path to custom image file (PNG/JPG/WebP)"),
+			f(
+				"--batch-id",
+				"string",
+				"Local Sticker Lab batch ID (required with --provider sticker-lab)"
+			),
+			f(
+				"--root",
+				"string",
+				"Private local reference root (used with --provider sticker-lab)"
+			),
+			f("--source", "string", "Path to custom image file (PNG/JPG/GIF/WebP)"),
 			f("--x", "number", "X position in pixels", { default: 0 }),
 			f("--y", "number", "Y position in pixels", { default: 0 }),
 			f("--start-time", "number", "Start time in seconds", { default: 0 }),
@@ -940,6 +956,7 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		],
 		[
 			"qcut-pipeline editor:sticker:add --project-id <id> --sticker-id fluent-emoji:fire --x 860 --y 440 --start-time 2 --end-time 5 --width 200 --json",
+			"qcut editor sticker add --project-id <id> --provider sticker-lab --batch-id jianying-2026-08-23-batch-18-v2 --sticker-id 7134619769205951784 --start-time 2 --end-time 5 --width 200 --json",
 			"qcut-pipeline editor:sticker:add --project-id <id> --source /tmp/logo.png --x 50 --y 50 --start-time 0 --end-time 10 --width 100 --json",
 		]
 	),
