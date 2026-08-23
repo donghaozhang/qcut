@@ -27,9 +27,11 @@ const storeMocks = vi.hoisted(() => {
 
 	const mediaStoreState: {
 		addMediaItem: ReturnType<typeof vi.fn>;
+		removeMediaItem: ReturnType<typeof vi.fn>;
 		mediaItems: MediaItem[];
 	} = {
 		addMediaItem: vi.fn(),
+		removeMediaItem: vi.fn(async () => undefined),
 		mediaItems: [],
 	};
 
@@ -75,6 +77,7 @@ vi.mock("@/lib/project/project-folder-sync", () => ({
 
 vi.mock("@/lib/media/blob-manager", () => ({
 	getOrCreateObjectURL: vi.fn(() => "blob:claude-media-import"),
+	releaseObjectURL: vi.fn(() => true),
 }));
 
 const debugMocks = vi.hoisted(() => ({
@@ -90,9 +93,13 @@ vi.mock("@/types/timeline", () => ({
 }));
 
 type AddElementHandler = (
-	element: Partial<ClaudeElement>
+	element: Partial<ClaudeElement> & {
+		correlationId?: string;
+		requestId?: string;
+	}
 ) => void | Promise<void>;
 type MediaImportedHandler = (data: unknown) => void | Promise<void>;
+type MediaDeletedHandler = (data: unknown) => void | Promise<void>;
 
 function setupTimelineBridgeWithHandlers({
 	withProjectFolder = false,
@@ -100,6 +107,7 @@ function setupTimelineBridgeWithHandlers({
 	withProjectFolder?: boolean;
 } = {}): {
 	addElementHandler: AddElementHandler;
+	mediaDeletedHandler: MediaDeletedHandler;
 	mediaImportedHandler: MediaImportedHandler;
 	timelineApi: {
 		onRequest: ReturnType<typeof vi.fn>;
@@ -112,6 +120,7 @@ function setupTimelineBridgeWithHandlers({
 	};
 } {
 	let addElementHandler: AddElementHandler | null = null;
+	let mediaDeletedHandler: MediaDeletedHandler | null = null;
 	let mediaImportedHandler: MediaImportedHandler | null = null;
 
 	const timelineApi = {
@@ -149,6 +158,7 @@ function setupTimelineBridgeWithHandlers({
 	const electronAPI: {
 		claude: {
 			media: {
+				onMediaDeleted: (callback: MediaDeletedHandler) => void;
 				onMediaImported: (callback: MediaImportedHandler) => void;
 			};
 			timeline: typeof timelineApi;
@@ -158,6 +168,9 @@ function setupTimelineBridgeWithHandlers({
 	} = {
 		claude: {
 			media: {
+				onMediaDeleted: (callback) => {
+					mediaDeletedHandler = callback;
+				},
 				onMediaImported: (callback) => {
 					mediaImportedHandler = callback;
 				},
@@ -175,6 +188,7 @@ function setupTimelineBridgeWithHandlers({
 			electronAPI?: {
 				claude?: {
 					media?: {
+						onMediaDeleted: (callback: MediaDeletedHandler) => void;
 						onMediaImported: (callback: MediaImportedHandler) => void;
 					};
 					timeline?: typeof timelineApi;
@@ -196,12 +210,18 @@ function setupTimelineBridgeWithHandlers({
 	if (!mediaImportedHandler) {
 		throw new Error("media imported handler was not registered");
 	}
+	if (!mediaDeletedHandler) {
+		throw new Error("media deleted handler was not registered");
+	}
 	const registeredAddElementHandler: AddElementHandler = addElementHandler;
+	const registeredMediaDeletedHandler: MediaDeletedHandler =
+		mediaDeletedHandler;
 	const registeredMediaImportedHandler: MediaImportedHandler =
 		mediaImportedHandler;
 
 	return {
 		addElementHandler: registeredAddElementHandler,
+		mediaDeletedHandler: registeredMediaDeletedHandler,
 		mediaImportedHandler: registeredMediaImportedHandler,
 		timelineApi,
 	};
@@ -226,10 +246,14 @@ describe("setupClaudeTimelineBridge - add element", () => {
 		storeMocks.timelineStoreState.findOrCreateTrack.mockImplementation(
 			(trackType: string) => `${trackType}-track`
 		);
+		storeMocks.timelineStoreState.addElementToTrack.mockReturnValue(
+			"element-added"
+		);
 		storeMocks.timelineStoreState.tracks = [];
 
 		storeMocks.mediaStoreState.mediaItems = [];
 		storeMocks.projectStoreState.activeProject = null;
+		storeMocks.mediaStoreState.removeMediaItem.mockResolvedValue(undefined);
 
 		vi.spyOn(console, "log").mockImplementation(() => {});
 		vi.spyOn(console, "warn").mockImplementation(() => {});
@@ -244,6 +268,7 @@ describe("setupClaudeTimelineBridge - add element", () => {
 			id: "media-sticker-1",
 			name: "reference.gif",
 			path: "/tmp/reference.gif",
+			projectId: "project-1",
 			type: "image",
 			size: 4,
 			metadata: {
@@ -277,6 +302,106 @@ describe("setupClaudeTimelineBridge - add element", () => {
 				},
 			})
 		);
+	});
+
+	it("rejects a media import event for a different project", async () => {
+		storeMocks.projectStoreState.activeProject = { id: "project-active" };
+		const { mediaImportedHandler } = setupTimelineBridgeWithHandlers();
+
+		await expect(
+			mediaImportedHandler({
+				id: "media-sticker-foreign",
+				name: "reference.gif",
+				path: "/tmp/reference.gif",
+				projectId: "project-other",
+				type: "image",
+				size: 4,
+			})
+		).rejects.toThrow("inactive project");
+
+		expect(storeMocks.mediaStoreState.addMediaItem).not.toHaveBeenCalled();
+	});
+
+	it("rejects an import when the active project changes during the file read", async () => {
+		storeMocks.projectStoreState.activeProject = { id: "project-1" };
+		const { mediaImportedHandler } = setupTimelineBridgeWithHandlers();
+		const readFile = (
+			window as unknown as {
+				electronAPI: { readFile: ReturnType<typeof vi.fn> };
+			}
+		).electronAPI.readFile;
+		readFile.mockImplementationOnce(async () => {
+			storeMocks.projectStoreState.activeProject = { id: "project-2" };
+			return new Uint8Array([1, 2, 3, 4]);
+		});
+
+		await expect(
+			mediaImportedHandler({
+				id: "media-sticker-1",
+				name: "reference.gif",
+				path: "/tmp/reference.gif",
+				projectId: "project-1",
+				type: "image",
+				size: 4,
+			})
+		).rejects.toThrow("inactive project project-1");
+
+		expect(storeMocks.mediaStoreState.addMediaItem).not.toHaveBeenCalled();
+		expect(storeMocks.mediaStoreState.removeMediaItem).not.toHaveBeenCalled();
+	});
+
+	it("rolls back imported media when the active project changes during persistence", async () => {
+		storeMocks.projectStoreState.activeProject = { id: "project-1" };
+		storeMocks.mediaStoreState.addMediaItem.mockImplementationOnce(async () => {
+			storeMocks.projectStoreState.activeProject = { id: "project-2" };
+			return "media-sticker-1";
+		});
+		const { mediaImportedHandler } = setupTimelineBridgeWithHandlers();
+
+		await expect(
+			mediaImportedHandler({
+				id: "media-sticker-1",
+				name: "reference.gif",
+				path: "/tmp/reference.gif",
+				projectId: "project-1",
+				type: "image",
+				size: 4,
+			})
+		).rejects.toThrow("inactive project project-1");
+
+		expect(storeMocks.mediaStoreState.removeMediaItem).toHaveBeenCalledWith(
+			"project-1",
+			"media-sticker-1"
+		);
+	});
+
+	it("durably removes media for the active project", async () => {
+		storeMocks.projectStoreState.activeProject = { id: "project-1" };
+		const { mediaDeletedHandler } = setupTimelineBridgeWithHandlers();
+
+		await mediaDeletedHandler({
+			mediaId: "media-sticker-1",
+			projectId: "project-1",
+		});
+
+		expect(storeMocks.mediaStoreState.removeMediaItem).toHaveBeenCalledWith(
+			"project-1",
+			"media-sticker-1"
+		);
+	});
+
+	it("rejects media deletion for an inactive project", async () => {
+		storeMocks.projectStoreState.activeProject = { id: "project-active" };
+		const { mediaDeletedHandler } = setupTimelineBridgeWithHandlers();
+
+		await expect(
+			mediaDeletedHandler({
+				mediaId: "media-sticker-foreign",
+				projectId: "project-other",
+			})
+		).rejects.toThrow("inactive project");
+
+		expect(storeMocks.mediaStoreState.removeMediaItem).not.toHaveBeenCalled();
 	});
 
 	it("adds a media element when sourceName matches imported media", async () => {
@@ -465,6 +590,56 @@ describe("setupClaudeTimelineBridge - add element", () => {
 		});
 	});
 
+	it("preserves the requested id without storing transport correlation fields", async () => {
+		const { addElementHandler } = setupTimelineBridgeWithHandlers();
+
+		await addElementHandler({
+			id: "element-requested",
+			requestId: "request-transport-only",
+			correlationId: "correlation-transport-only",
+			type: "text",
+			content: "Requested identity",
+			startTime: 0,
+			duration: 2,
+		});
+
+		const storedElement = storeMocks.timelineStoreState.addElementToTrack.mock
+			.calls[0]?.[1] as Record<string, unknown>;
+		expect(storedElement.id).toBe("element-requested");
+		expect(storedElement).not.toHaveProperty("requestId");
+		expect(storedElement).not.toHaveProperty("correlationId");
+	});
+
+	it("rejects unsupported element types so the renderer sends a NACK", async () => {
+		const { addElementHandler } = setupTimelineBridgeWithHandlers();
+
+		await expect(
+			addElementHandler({
+				type: "effect",
+				startTime: 0,
+				duration: 2,
+			})
+		).rejects.toThrow("Unsupported element type: effect");
+
+		expect(
+			storeMocks.timelineStoreState.addElementToTrack
+		).not.toHaveBeenCalled();
+	});
+
+	it("rejects when the timeline store refuses the insertion", async () => {
+		storeMocks.timelineStoreState.addElementToTrack.mockReturnValueOnce(null);
+		const { addElementHandler } = setupTimelineBridgeWithHandlers();
+
+		await expect(
+			addElementHandler({
+				type: "text",
+				content: "Occupied span",
+				startTime: 0,
+				duration: 2,
+			})
+		).rejects.toThrow("Failed to add text element to the timeline");
+	});
+
 	it("syncs project folder once and retries media resolution", async () => {
 		storeMocks.projectStoreState.activeProject = { id: "proj-1" };
 		syncProjectFolderMock.mockImplementation(async () => {
@@ -513,15 +688,17 @@ describe("setupClaudeTimelineBridge - add element", () => {
 		});
 	});
 
-	it("does not add media when referenced source does not exist", async () => {
+	it("rejects media when the referenced source does not exist", async () => {
 		const { addElementHandler } = setupTimelineBridgeWithHandlers();
 
-		await addElementHandler({
-			type: "image",
-			sourceName: "missing-image.png",
-			startTime: 0,
-			endTime: 3,
-		});
+		await expect(
+			addElementHandler({
+				type: "image",
+				sourceName: "missing-image.png",
+				startTime: 0,
+				endTime: 3,
+			})
+		).rejects.toThrow("Media source could not be resolved: missing-image.png");
 
 		expect(
 			storeMocks.timelineStoreState.addElementToTrack
