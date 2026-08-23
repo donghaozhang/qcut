@@ -10,12 +10,17 @@ import {
 import {
 	buildStickerReferenceUsageMetadata,
 	buildStickerLabAssetEntry,
+	clearLocalStickerReferenceFileCache,
 	createStickerLabAssetFetch,
 	discoverLocalStickerReferenceCatalogs,
+	getLocalStickerReferenceFileCacheStatus,
+	loadLocalBridgeStickerReferenceFile,
 	loadLocalStickerReferenceFile,
 	loadRemoteStickerReferenceFile,
 	loadStickerLabReferenceFile,
 	loadStickerLabThumbnail,
+	LOCAL_STICKER_REFERENCE_FILE_CACHE_LIMITS,
+	releaseLocalStickerReferenceFile,
 	stickerLabPrivateManifestUrl,
 	stickerLabThumbnailUrl,
 } from "../local-sticker-reference";
@@ -48,6 +53,7 @@ describe("local sticker reference files", () => {
 		platformMocks.hasCapability.mockReset();
 		platformMocks.hasCapability.mockReturnValue(true);
 		platformMocks.readLocalReference.mockReset();
+		clearLocalStickerReferenceFileCache();
 	});
 
 	it("uses remote fallback silently when local references are unsupported", async () => {
@@ -95,6 +101,10 @@ describe("local sticker reference files", () => {
 			batchId: reference.asset.batchId,
 			stickerId: reference.asset.stickerId,
 		});
+		await expect(loadStickerLabReferenceFile({ reference })).resolves.toBe(
+			file
+		);
+		expect(platformMocks.readLocalReference).toHaveBeenCalledTimes(1);
 		expect(buildStickerReferenceUsageMetadata({ reference })).toEqual({
 			referenceOnly: true,
 			usage: "internal-reference-only",
@@ -103,6 +113,135 @@ describe("local sticker reference files", () => {
 			itemId: reference.id,
 			checksumSha256: reference.asset.checksumSha256,
 		});
+	});
+
+	it("deduplicates concurrent reads of the same verified local reference", async () => {
+		const reference = createLocalBridgeStickerReference();
+		platformMocks.readLocalReference.mockResolvedValue({
+			bytes: new Uint8Array([1, 2, 3, 4]),
+			fileName: reference.fileName,
+			mimeType: reference.mimeType,
+			batchId: reference.asset.batchId,
+			stickerId: reference.asset.stickerId,
+			checksumSha256: reference.asset.checksumSha256,
+		});
+
+		const [left, right] = await Promise.all([
+			loadStickerLabReferenceFile({ reference }),
+			loadStickerLabReferenceFile({ reference }),
+		]);
+
+		expect(left).toBe(right);
+		expect(platformMocks.readLocalReference).toHaveBeenCalledTimes(1);
+	});
+
+	it("releases a cached local File and reads it again on demand", async () => {
+		const reference = createLocalBridgeStickerReference();
+		platformMocks.readLocalReference.mockResolvedValue({
+			bytes: new Uint8Array([1, 2, 3, 4]),
+			fileName: reference.fileName,
+			mimeType: reference.mimeType,
+			batchId: reference.asset.batchId,
+			stickerId: reference.asset.stickerId,
+			checksumSha256: reference.asset.checksumSha256,
+		});
+
+		await loadLocalBridgeStickerReferenceFile({ reference });
+		expect(getLocalStickerReferenceFileCacheStatus()).toMatchObject({
+			entryCount: 1,
+			totalBytes: 4,
+		});
+
+		releaseLocalStickerReferenceFile({ reference });
+		expect(getLocalStickerReferenceFileCacheStatus()).toMatchObject({
+			entryCount: 0,
+			totalBytes: 0,
+		});
+
+		await loadLocalBridgeStickerReferenceFile({ reference });
+		expect(platformMocks.readLocalReference).toHaveBeenCalledTimes(2);
+	});
+
+	it("does not let an in-flight read repopulate a cleared cache", async () => {
+		const reference = createLocalBridgeStickerReference();
+		let resolveRead!: (result: {
+			batchId: string;
+			bytes: Uint8Array;
+			checksumSha256: string;
+			fileName: string;
+			mimeType: string;
+			stickerId: string;
+		}) => void;
+		platformMocks.readLocalReference.mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					resolveRead = resolve;
+				})
+		);
+		const pending = loadLocalBridgeStickerReferenceFile({ reference });
+		expect(getLocalStickerReferenceFileCacheStatus().inFlightCount).toBe(1);
+
+		clearLocalStickerReferenceFileCache();
+		resolveRead({
+			bytes: new Uint8Array([1, 2, 3, 4]),
+			fileName: reference.fileName,
+			mimeType: reference.mimeType,
+			batchId: reference.asset.batchId,
+			stickerId: reference.asset.stickerId,
+			checksumSha256: reference.asset.checksumSha256,
+		});
+		await pending;
+
+		expect(getLocalStickerReferenceFileCacheStatus()).toMatchObject({
+			entryCount: 0,
+			inFlightCount: 0,
+			totalBytes: 0,
+		});
+	});
+
+	it("evicts the oldest local Files at the explicit entry cap", async () => {
+		const references = Array.from(
+			{ length: LOCAL_STICKER_REFERENCE_FILE_CACHE_LIMITS.maxEntries + 1 },
+			(_, index) =>
+				createLocalBridgeStickerReference({
+					checksumSha256: index.toString(16).padStart(64, "0"),
+					id: `cache-${index}`,
+				})
+		);
+		platformMocks.readLocalReference.mockImplementation(
+			async ({ stickerId }: { stickerId: string }) => {
+				const reference = references.find(
+					(candidate) => candidate.asset.stickerId === stickerId
+				);
+				if (!reference) throw new Error(`Unknown reference: ${stickerId}`);
+				return {
+					bytes: new Uint8Array([1, 2, 3, 4]),
+					fileName: reference.fileName,
+					mimeType: reference.mimeType,
+					batchId: reference.asset.batchId,
+					stickerId: reference.asset.stickerId,
+					checksumSha256: reference.asset.checksumSha256,
+				};
+			}
+		);
+
+		await Promise.all(
+			references.map((reference) =>
+				loadLocalBridgeStickerReferenceFile({ reference })
+			)
+		);
+		expect(getLocalStickerReferenceFileCacheStatus()).toMatchObject({
+			entryCount: LOCAL_STICKER_REFERENCE_FILE_CACHE_LIMITS.maxEntries,
+			maxEntries: LOCAL_STICKER_REFERENCE_FILE_CACHE_LIMITS.maxEntries,
+			totalBytes: LOCAL_STICKER_REFERENCE_FILE_CACHE_LIMITS.maxEntries * 4,
+		});
+
+		const firstReference = references[0];
+		if (!firstReference) throw new Error("Expected a cache fixture");
+		await loadLocalBridgeStickerReferenceFile({ reference: firstReference });
+		expect(platformMocks.readLocalReference).toHaveBeenCalledTimes(
+			LOCAL_STICKER_REFERENCE_FILE_CACHE_LIMITS.maxEntries + 2
+		);
 	});
 	it("loads an owned image file through the injected desktop reader", async () => {
 		const reference = createLocalStickerReference({ id: "curved-arrow" });
