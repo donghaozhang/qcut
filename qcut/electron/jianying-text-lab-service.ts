@@ -3,6 +3,11 @@ import { resolveJianyingFlowerCatalogMetadata } from "./jianying-flower-resource
 import { ensureQCutJianyingTextPrivateArchive } from "./jianying-text-private-archive.js";
 import { resolveJianyingTextPackageOwnership } from "./jianying-text-package-ownership.js";
 import { isDiscoverableJianyingTextCatalogEntry } from "./jianying-text-style-discovery.js";
+import {
+	attachJianyingTextStyleCoverUrls,
+	resolveJianyingTextStyleCoverUrls,
+} from "./jianying-text-style-cover-metadata.js";
+import { classifyLocalJianyingTextStyles } from "./jianying-text-style-local-categories.js";
 import { buildJianyingTextStyleCatalog } from "./jianying-text-style-lab-catalog.js";
 import type {
 	JianyingTextAnimationLabListResult,
@@ -36,24 +41,40 @@ export async function buildQCutJianyingTextLabCatalog(): Promise<QCutJianyingTex
 			databaseRoot: archive.databaseRoot,
 		}),
 	});
-	const { categories, categoryGroups, metadata } = resolvedMetadata;
 	const ownershipCandidates = catalog.entries.filter(
-		({ packageKind, styleId }) =>
-			!metadata.has(styleId) &&
-			(packageKind === "AmazingFeature" || packageKind === "InfoSticker")
+		({ styleId }) => !resolvedMetadata.metadata.has(styleId)
 	);
-	const ownership =
+	const [ownership, coverUrls] = await Promise.all([
 		ownershipCandidates.length > 0
-			? await resolveJianyingTextPackageOwnership({
+			? resolveJianyingTextPackageOwnership({
 					references: ownershipCandidates,
 					databaseRoot: archive.databaseRoot,
 					packageRoot: archive.packageRoot,
 					projectRoot: archive.projectEvidenceRoot,
 				})
-			: new Map();
+			: Promise.resolve(new Map()),
+		resolveJianyingTextStyleCoverUrls({
+			references: catalog.entries.filter(({ hasCover }) => !hasCover),
+			databaseRoot: archive.databaseRoot,
+		}),
+	]);
 	const entries = catalog.entries.filter((entry) =>
-		isDiscoverableJianyingTextCatalogEntry({ entry, metadata, ownership })
+		isDiscoverableJianyingTextCatalogEntry({
+			entry,
+			metadata: resolvedMetadata.metadata,
+			ownership,
+		})
 	);
+	const classifiedMetadata = classifyLocalJianyingTextStyles({
+		entries,
+		ownership,
+		resolvedMetadata,
+	});
+	const metadata = attachJianyingTextStyleCoverUrls({
+		coverUrls,
+		metadata: classifiedMetadata.metadata,
+	});
+	const { categories, categoryGroups } = classifiedMetadata;
 	const styles = entries
 		.map((entry) => summarizeEntry({ entry, metadata, ownership }))
 		.sort((left, right) => compareStyleSummaries({ left, right }));
