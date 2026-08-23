@@ -119,11 +119,14 @@ export interface ClaudeTimelineAPI {
 			callback: (timeline: ClaudeTimeline, replace?: boolean) => void
 		) => void;
 		onAddElement: (
-			callback: (element: Partial<ClaudeElement>) => void | Promise<void>
+			callback: (
+				element: Partial<ClaudeElement> & { projectId: string }
+			) => void | Promise<void>
 		) => void;
 		onBatchAddElements: (
 			callback: (data: {
 				requestId: string;
+				projectId: string;
 				elements: ClaudeBatchAddElementRequest[];
 			}) => void
 		) => void;
