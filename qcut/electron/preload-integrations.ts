@@ -182,6 +182,25 @@ export function createMediaImportAPI(): NonNullable<
 }
 
 // ============================================================================
+// Local Sticker Lab References
+// ============================================================================
+
+export function createStickerLabAPI(): NonNullable<ElectronAPI["stickerLab"]> {
+	return {
+		discoverLocalReferences: ({ rootPath }) =>
+			ipcRenderer.invoke("sticker-lab:discover-local-references", {
+				...(rootPath === undefined ? {} : { rootPath }),
+			}),
+		readLocalReference: ({ rootPath, batchId, stickerId }) =>
+			ipcRenderer.invoke("sticker-lab:read-local-reference", {
+				rootPath,
+				batchId,
+				stickerId,
+			}),
+	};
+}
+
+// ============================================================================
 // Project Folder
 // ============================================================================
 
