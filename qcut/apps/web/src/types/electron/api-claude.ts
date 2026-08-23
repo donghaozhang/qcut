@@ -53,6 +53,7 @@ export interface ElectronClaudeOps {
 					path: string;
 					name: string;
 					id: string;
+					metadata?: Record<string, unknown>;
 					type: string;
 					size: number;
 				}) => void
