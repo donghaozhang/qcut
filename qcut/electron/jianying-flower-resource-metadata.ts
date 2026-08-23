@@ -29,7 +29,6 @@ export interface JianyingFlowerResourceReference {
 export interface JianyingFlowerResourceMetadata {
 	title?: string;
 	categoryIds: JianyingTextStyleCategoryId[];
-	coverUrl?: string;
 }
 
 export interface JianyingFlowerCatalogPackageReference {
