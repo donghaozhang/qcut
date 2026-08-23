@@ -64,8 +64,10 @@ async function importFixture({ name = "reference.gif" } = {}) {
 	const sourcePath = path.join(testState.documentsRoot, name);
 	await fs.writeFile(sourcePath, "GIF89a", { mode: 0o600 });
 	const media = await importMediaFile(PROJECT_ID, sourcePath);
-	expect(media).not.toBeNull();
-	return media!;
+	if (!media) {
+		throw new Error(`importMediaFile returned null for ${name}`);
+	}
+	return media;
 }
 
 function getSidecarDirectory(): string {
