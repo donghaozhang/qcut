@@ -1,4 +1,5 @@
 import {
+	act,
 	fireEvent,
 	render,
 	screen,
@@ -7,6 +8,7 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+	createLocalBridgeStickerCatalog,
 	createLocalStickerCatalog,
 	createPrivateStickerCatalog,
 	createPrivateStickerCatalogs,
@@ -45,6 +47,26 @@ function privateCategoryViews({
 
 describe("LocalStickerReferencePanel", () => {
 	beforeEach(() => {
+		class ImmediateIntersectionObserver {
+			callback: IntersectionObserverCallback;
+
+			constructor(callback: IntersectionObserverCallback) {
+				this.callback = callback;
+			}
+
+			disconnect = vi.fn();
+			observe = (target: Element) =>
+				this.callback(
+					[{ isIntersecting: true, target } as IntersectionObserverEntry],
+					this as unknown as IntersectionObserver
+				);
+			unobserve = vi.fn();
+			takeRecords = () => [];
+			root = null;
+			rootMargin = "240px";
+			thresholds = [0];
+		}
+		vi.stubGlobal("IntersectionObserver", ImmediateIntersectionObserver);
 		referenceMocks.loadFile.mockReset();
 		referenceMocks.loadFile.mockImplementation(
 			async ({
@@ -75,8 +97,48 @@ describe("LocalStickerReferencePanel", () => {
 	});
 
 	afterEach(() => {
+		vi.unstubAllGlobals();
 		URL.createObjectURL = originalCreateObjectUrl;
 		URL.revokeObjectURL = originalRevokeObjectUrl;
+	});
+
+	it("loads only cards that enter the viewport", async () => {
+		const callbacks: IntersectionObserverCallback[] = [];
+		class LazyIntersectionObserver {
+			constructor(callback: IntersectionObserverCallback) {
+				callbacks.push(callback);
+			}
+
+			disconnect = vi.fn();
+			observe = vi.fn();
+			unobserve = vi.fn();
+			takeRecords = () => [];
+			root = null;
+			rootMargin = "240px";
+			thresholds = [0];
+		}
+		vi.stubGlobal("IntersectionObserver", LazyIntersectionObserver);
+
+		render(
+			<LocalStickerReferencePanel
+				catalog={createLocalStickerCatalog()}
+				error={null}
+				isLoading={false}
+				onSelect={async () => {}}
+			/>
+		);
+
+		expect(referenceMocks.loadFile).not.toHaveBeenCalled();
+		expect(callbacks).toHaveLength(4);
+		act(() => {
+			callbacks[0]?.(
+				[{ isIntersecting: true } as IntersectionObserverEntry],
+				{} as IntersectionObserver
+			);
+		});
+		await waitFor(() =>
+			expect(referenceMocks.loadFile).toHaveBeenCalledTimes(1)
+		);
 	});
 
 	it("lays stickers out in a responsive tile grid", () => {
@@ -542,6 +604,42 @@ describe("LocalStickerReferencePanel", () => {
 			).toHaveLength(12)
 		);
 		expect(screen.getByText("剪映贴纸面板 · 3 批参照")).toBeInTheDocument();
+	});
+
+	it("marks local lab placement as internal reference only", async () => {
+		const catalog = createLocalBridgeStickerCatalog();
+		const onSelect = vi.fn(async () => {});
+		render(
+			<LocalStickerReferencePanel
+				catalog={createRemoteStickerCatalog()}
+				error={null}
+				isLoading={false}
+				onSelect={onSelect}
+				privateCategories={privateCategoryViews({ catalogs: [catalog] })}
+				selection={{ catalogKey: "private", categoryId: "hot" }}
+			/>
+		);
+
+		expect(
+			screen.getByTestId("sticker-lab-reference-policy")
+		).toHaveTextContent("仅限内部参照 · 禁止二次分发");
+		const button = screen.getByRole("button", {
+			name: "添加本地参照 local-reference-1到时间线",
+		});
+		await waitFor(() => expect(button).toBeEnabled());
+		fireEvent.click(button);
+		await waitFor(() => expect(onSelect).toHaveBeenCalledTimes(1));
+		expect(onSelect).toHaveBeenCalledWith({
+			file: expect.any(File),
+			metadata: {
+				referenceOnly: true,
+				usage: "internal-reference-only",
+				redistribution: "prohibited",
+				batchId: "jianying-batch-18",
+				itemId: "local-reference-1",
+				checksumSha256: "a".repeat(64),
+			},
+		});
 	});
 
 	it("falls back to the private catalogue when the public manifest fails", async () => {
