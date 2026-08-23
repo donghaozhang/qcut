@@ -148,6 +148,7 @@ function LabSection({
 	mode,
 	notice,
 	selection,
+	showWhenEmpty = false,
 	testId,
 	onSelectCategory,
 }: {
@@ -158,13 +159,15 @@ function LabSection({
 	mode: StickerPanelMode;
 	notice?: string;
 	selection: StickerLabSelection | null;
+	showWhenEmpty?: boolean;
 	testId: string;
 	onSelectCategory: ({ selection }: { selection: StickerLabSelection }) => void;
 }) {
 	const [expanded, setExpanded] = useState(true);
-	if (!categories.length) return null;
 	const activeGroup =
 		mode === "reference-lab" && selection?.catalogKey === catalogKey;
+	const hasCategories = categories.length > 0;
+	if (!(hasCategories || showWhenEmpty)) return null;
 	return (
 		<div className="border-t border-border/50 pt-2" data-testid={testId}>
 			<button
@@ -173,7 +176,7 @@ function LabSection({
 					navigationButtonClass({ active: false }),
 					activeGroup && "font-semibold text-primary"
 				)}
-				aria-expanded={expanded}
+				aria-expanded={hasCategories ? expanded : undefined}
 				aria-label={label}
 				aria-pressed={activeGroup}
 				onClick={() => {
@@ -185,6 +188,13 @@ function LabSection({
 						setExpanded(true);
 						return;
 					}
+					if (!activeGroup) {
+						onSelectCategory({
+							selection: { catalogKey, categoryId: null },
+						});
+						return;
+					}
+					if (!hasCategories) return;
 					setExpanded((current) => !current);
 				}}
 				onKeyDown={(event) => {
@@ -199,20 +209,26 @@ function LabSection({
 				<span className="min-w-0 flex-1 truncate whitespace-nowrap">
 					{label}
 				</span>
-				<ChevronDown
-					className={cn(
-						"size-3 shrink-0 transition-transform",
-						!expanded && "-rotate-90"
-					)}
-					aria-hidden="true"
-				/>
+				{hasCategories ? (
+					<ChevronDown
+						className={cn(
+							"size-3 shrink-0 transition-transform",
+							!expanded && "-rotate-90"
+						)}
+						aria-hidden="true"
+					/>
+				) : (
+					<span className="shrink-0 text-[9px] text-muted-foreground">
+						暂无
+					</span>
+				)}
 			</button>
 			{notice ? (
 				<p className="px-2 pb-1 text-[9px] leading-tight text-amber-300/80">
 					{notice}
 				</p>
 			) : null}
-			{expanded && (
+			{hasCategories && expanded && (
 				<div className="mt-0.5 space-y-0.5">
 					{categories.map((category) => {
 						const active = activeGroup && selection?.categoryId === category.id;
@@ -376,6 +392,7 @@ export function StickerSidebar({
 						mode={mode}
 						notice="内部参照 · 禁止二次分发"
 						selection={referenceLab.selection}
+						showWhenEmpty
 						testId="sticker-reference-lab-entry"
 						onSelectCategory={referenceLab.onSelectCategory}
 					/>
