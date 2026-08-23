@@ -3,6 +3,7 @@ import {
 	type AssetManifestEntry,
 } from "@qcut/editor-core";
 import type { PrivateStickerCatalogId } from "@qcut/editor-core/sticker-lab";
+import { platform, PlatformCapability } from "@qcut/platform-core";
 import {
 	ensureAssetResources,
 	type ResolvedAssetResource,
@@ -12,11 +13,28 @@ import {
 	createLicenseServerAuthenticatedFetch,
 	type SessionTokenReader,
 } from "@/lib/assets/license-server-authenticated-fetch";
+import { debugError } from "@/lib/debug/debug-config";
 import {
 	readLocalStickerFile,
 	type LocalStickerFileReader,
 } from "./local-sticker-file-reader";
 import type {
+	LocalBridgeStickerCatalog,
+	LocalBridgeStickerReference,
+	LocalStickerReference,
+	PrivateStickerReference,
+	RemoteStickerProvenance,
+	RemoteStickerReference,
+	StickerLabReference,
+} from "./local-sticker-manifest";
+import {
+	isLocalBridgeStickerReference,
+	parseLocalBridgeStickerCatalog,
+} from "./local-sticker-manifest";
+
+export type {
+	LocalBridgeStickerCatalog,
+	LocalBridgeStickerReference,
 	LocalStickerReference,
 	PrivateStickerReference,
 	RemoteStickerProvenance,
@@ -24,13 +42,106 @@ import type {
 	StickerLabReference,
 } from "./local-sticker-manifest";
 
-export type {
-	LocalStickerReference,
-	PrivateStickerReference,
-	RemoteStickerProvenance,
-	RemoteStickerReference,
-	StickerLabReference,
-} from "./local-sticker-manifest";
+export interface LocalStickerReferenceDiscovery {
+	catalogs: LocalBridgeStickerCatalog[];
+	warningCount: number;
+}
+
+export interface StickerReferenceUsageMetadata {
+	referenceOnly: true;
+	usage: "internal-reference-only";
+	redistribution: "prohibited";
+	batchId: string;
+	itemId: string;
+	checksumSha256: string;
+}
+
+function stickerLabBridge() {
+	try {
+		const currentPlatform = platform();
+		if (
+			!currentPlatform.hasCapability(
+				PlatformCapability.StickerLabLocalReferences
+			)
+		) {
+			return null;
+		}
+		return currentPlatform.stickerLab;
+	} catch {
+		return null;
+	}
+}
+
+function abortIfRequested({ signal }: { signal?: AbortSignal }): void {
+	if (signal?.aborted) {
+		throw new DOMException("The operation was aborted", "AbortError");
+	}
+}
+
+export async function discoverLocalStickerReferenceCatalogs(): Promise<LocalStickerReferenceDiscovery> {
+	const bridge = stickerLabBridge();
+	if (!bridge) return { catalogs: [], warningCount: 0 };
+
+	try {
+		const discovery = await bridge.discoverLocalReferences({});
+		const catalogs: LocalBridgeStickerCatalog[] = [];
+		let warningCount = discovery.warnings.length;
+		for (const candidate of discovery.catalogs) {
+			try {
+				const catalog = parseLocalBridgeStickerCatalog({ candidate });
+				const hasMismatchedRoot = catalog.categories.some((category) =>
+					category.items.some(
+						(item) => item.asset.rootPath !== discovery.rootPath
+					)
+				);
+				if (hasMismatchedRoot) {
+					warningCount += 1;
+					continue;
+				}
+				catalogs.push(catalog);
+			} catch (error) {
+				warningCount += 1;
+				debugError("[StickerLab] Local reference catalog rejected", error);
+			}
+		}
+		return { catalogs, warningCount };
+	} catch (error) {
+		debugError("[StickerLab] Local reference discovery failed", error);
+		return { catalogs: [], warningCount: 1 };
+	}
+}
+
+export function buildStickerReferenceUsageMetadata({
+	reference,
+}: {
+	reference: StickerLabReference;
+}): StickerReferenceUsageMetadata | null {
+	if (isLocalBridgeStickerReference(reference)) {
+		return {
+			referenceOnly: true,
+			usage: "internal-reference-only",
+			redistribution: "prohibited",
+			batchId: reference.asset.batchId,
+			itemId: reference.id,
+			checksumSha256: reference.asset.checksumSha256,
+		};
+	}
+	if (!("asset" in reference) || reference.asset.kind !== "supabase-storage") {
+		return null;
+	}
+	const privateBatchMatch = /^jianying\/([^/]+)\/assets\//.exec(
+		reference.asset.objectKey
+	);
+	if (!privateBatchMatch?.[1]) return null;
+	return {
+		referenceOnly: true,
+		usage: "internal-reference-only",
+		redistribution: "prohibited",
+		batchId: privateBatchMatch[1],
+		itemId: reference.id,
+		checksumSha256: reference.asset.checksumSha256,
+	};
+}
 
 /** Any reference whose artwork lives in the private Supabase bucket. */
 export type RemoteCatalogStickerReference =
@@ -84,6 +195,43 @@ export async function loadLocalStickerReferenceFile({
 	}
 	return ownedFile({
 		bytes,
+		fileName: reference.fileName,
+		mimeType: reference.mimeType,
+	});
+}
+
+export async function loadLocalBridgeStickerReferenceFile({
+	reference,
+	signal,
+}: {
+	reference: LocalBridgeStickerReference;
+	signal?: AbortSignal;
+}): Promise<File> {
+	abortIfRequested({ signal });
+	const bridge = stickerLabBridge();
+	if (!bridge) {
+		throw new Error("Local sticker reference bridge is unavailable");
+	}
+	const result = await bridge.readLocalReference({
+		rootPath: reference.asset.rootPath,
+		batchId: reference.asset.batchId,
+		stickerId: reference.asset.stickerId,
+	});
+	abortIfRequested({ signal });
+	if (
+		result.batchId !== reference.asset.batchId ||
+		result.stickerId !== reference.asset.stickerId ||
+		result.checksumSha256 !== reference.asset.checksumSha256 ||
+		result.fileName !== reference.fileName ||
+		result.mimeType !== reference.mimeType ||
+		result.bytes.byteLength !== reference.asset.byteSize
+	) {
+		throw new Error(
+			`Local sticker reference verification failed: ${reference.id}`
+		);
+	}
+	return ownedFile({
+		bytes: result.bytes,
 		fileName: reference.fileName,
 		mimeType: reference.mimeType,
 	});
@@ -316,6 +464,9 @@ export async function loadStickerLabReferenceFile({
 	reference: StickerLabReference;
 	signal?: AbortSignal;
 }): Promise<File> {
+	if (isLocalBridgeStickerReference(reference)) {
+		return loadLocalBridgeStickerReferenceFile({ reference, signal });
+	}
 	if ("filePath" in reference) {
 		return loadLocalStickerReferenceFile({ readFile, reference });
 	}
