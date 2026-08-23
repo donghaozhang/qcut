@@ -79,6 +79,7 @@ import type {
 	LicenseAPI,
 } from "./api-types/system-api";
 import type { YouTubeApi } from "./api-types/youtube-api";
+import type { StickerLabAPI } from "./api-types/sticker-lab-api";
 
 // ============================================================================
 // Master ElectronAPI interface
@@ -114,6 +115,7 @@ export interface ElectronAPI
 		UpdatesAPI,
 		LicenseAPI,
 		YouTubeApi,
+		StickerLabAPI,
 		JianyingDraftExportPreloadAPI,
 		JianyingTransitionPreloadAPI,
 		JianyingEffectPreloadAPI,
