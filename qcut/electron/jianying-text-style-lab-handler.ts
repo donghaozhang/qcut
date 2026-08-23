@@ -320,13 +320,16 @@ export function setupJianyingTextStyleLabIPC({
 			const ownershipCandidates = catalog.entries.filter(
 				({ styleId }) => !resolvedMetadata.metadata.has(styleId)
 			);
+			const coverUrlCandidates = catalog.entries.filter(
+				({ hasCover }) => !hasCover
+			);
 			const [ownership, coverUrls] = await Promise.all([
 				ownershipCandidates.length > 0
 					? resolveOwnership({ references: ownershipCandidates })
 					: Promise.resolve(new Map<string, JianyingTextPackageOwnership>()),
-				resolveCoverUrls({
-					references: catalog.entries.filter(({ hasCover }) => !hasCover),
-				}),
+				coverUrlCandidates.length > 0
+					? resolveCoverUrls({ references: coverUrlCandidates })
+					: Promise.resolve(new Map<string, string>()),
 			]);
 			const entries = catalog.entries.filter((entry) =>
 				isDiscoverableJianyingTextCatalogEntry({
