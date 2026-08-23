@@ -268,6 +268,28 @@ export function setupJianyingTextStyleLabIPC({
 			return readGeneratedCover({ entry });
 		}
 	};
+	const selectCover = async ({
+		entry,
+		remoteCoverUrl,
+	}: {
+		entry: JianyingTextStyleCatalogEntry;
+		remoteCoverUrl: string | undefined;
+	}) => {
+		if (entry.coverPath) {
+			return {
+				bytes: await readCover({ entry }),
+				mimeType: "image/png" as const,
+			};
+		}
+		if (remoteCoverUrl) {
+			return readRemoteCoverWithGeneratedFallback({
+				entry,
+				sourceUrl: remoteCoverUrl,
+			});
+		}
+		if (entry.runtimeReference) return readGeneratedCover({ entry });
+		return null;
+	};
 	const loadSnapshot = () => {
 		if (!snapshotCacheFilePath) return Promise.resolve(null);
 		if (!snapshotPromise) {
@@ -457,20 +479,10 @@ export function setupJianyingTextStyleLabIPC({
 			const { styleId } = parseCoverRequest({ request });
 			const { catalog, metadata } = await readCatalog({ refresh: false });
 			const entry = requireCatalogEntry({ catalog, styleId });
-			const remoteCoverUrl = metadata.get(styleId)?.coverUrl;
-			const cover = entry.coverPath
-				? {
-						bytes: await readCover({ entry }),
-						mimeType: "image/png" as const,
-					}
-				: remoteCoverUrl
-					? await readRemoteCoverWithGeneratedFallback({
-							entry,
-							sourceUrl: remoteCoverUrl,
-						})
-					: entry.runtimeReference
-						? await readGeneratedCover({ entry })
-						: null;
+			const cover = await selectCover({
+				entry,
+				remoteCoverUrl: metadata.get(styleId)?.coverUrl,
+			});
 			if (!cover) throw new Error("本机花字缓存没有缩略图");
 			return {
 				styleId,
