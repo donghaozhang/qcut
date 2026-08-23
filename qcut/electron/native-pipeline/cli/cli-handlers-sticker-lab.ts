@@ -6,6 +6,7 @@ import {
 	type LocalStickerLabReference,
 } from "../stickers/local-reference-catalog/index.js";
 import type { CLIRunOptions, CLIResult } from "./cli-runner/types.js";
+import { resolveStickerLabRootOverride } from "./sticker-lab-root.js";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 500;
@@ -263,7 +264,20 @@ async function discover({
 	options: CLIRunOptions;
 	dependencies: StickerLabHandlerDependencies;
 }): Promise<LocalStickerLabDiscovery> {
-	return dependencies.discover({ rootPath: options.root });
+	const rootOverride = resolveStickerLabRootOverride({ root: options.root });
+	const discovery = await dependencies.discover({
+		rootPath: rootOverride,
+	});
+	if (rootOverride && discovery.catalogs.length === 0) {
+		const warningDetails = discovery.warnings
+			.map(({ message }) => message)
+			.filter(Boolean)
+			.join("; ");
+		throw new Error(
+			`Sticker Lab root override has no usable catalogs: ${rootOverride}${warningDetails ? `. ${warningDetails}` : ""}`
+		);
+	}
+	return discovery;
 }
 
 export async function handleStickerLabCatalogs(
