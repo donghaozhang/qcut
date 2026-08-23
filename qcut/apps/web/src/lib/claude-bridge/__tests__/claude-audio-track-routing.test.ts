@@ -24,7 +24,9 @@ vi.mock("@/stores/timeline/timeline-store", () => ({
 }));
 
 vi.mock("@/stores/project-store", () => ({
-	useProjectStore: { getState: vi.fn(() => ({ activeProject: null })) },
+	useProjectStore: {
+		getState: vi.fn(() => ({ activeProject: { id: "project-1" } })),
+	},
 }));
 
 vi.mock("@/stores/media/media-store", () => ({
@@ -61,7 +63,7 @@ describe("Claude media element track routing", () => {
 		await addClaudeMediaElement({
 			element: { type: "audio", sourceName: "song.mp3", startTime: 5 },
 			timelineStore: timelineStore as never,
-			projectId: undefined,
+			projectId: "project-1",
 		});
 
 		expect(timelineStore.findOrCreateTrack).toHaveBeenCalledWith("audio", {
@@ -87,7 +89,7 @@ describe("Claude media element track routing", () => {
 		await addClaudeMediaElement({
 			element: { type: "video", sourceName: "clip.mp4", startTime: 0 },
 			timelineStore: timelineStore as never,
-			projectId: undefined,
+			projectId: "project-1",
 		});
 
 		expect(timelineStore.findOrCreateTrack).toHaveBeenCalledWith("media", {
