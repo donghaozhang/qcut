@@ -1,9 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const electronMocks = vi.hoisted(() => {
+	const handlers = new Map<string, (...args: unknown[]) => unknown>();
 	const listeners = new Map<string, (...args: unknown[]) => void>();
 	return {
+		browserWindow: {
+			fromWebContents: vi.fn(),
+		},
+		handlers,
 		ipcMain: {
+			handle: vi.fn(
+				(channel: string, handler: (...args: unknown[]) => unknown) => {
+					handlers.set(channel, handler);
+				}
+			),
 			on: vi.fn((channel: string, listener: (...args: unknown[]) => void) => {
 				listeners.set(channel, listener);
 			}),
@@ -17,8 +27,12 @@ const electronMocks = vi.hoisted(() => {
 	};
 });
 
-vi.mock("electron", () => ({ ipcMain: electronMocks.ipcMain }));
+vi.mock("electron", () => ({
+	BrowserWindow: electronMocks.browserWindow,
+	ipcMain: electronMocks.ipcMain,
+}));
 
+import { setupClaudeTimelineIPC } from "../handlers/claude-timeline-handler";
 import { requestRendererMutation } from "../handlers/claude-renderer-mutation-handler";
 import {
 	requestAddElementFromRenderer,
@@ -58,6 +72,7 @@ function startRequest({
 describe("renderer mutation acknowledgement", () => {
 	beforeEach(() => {
 		vi.useRealTimers();
+		electronMocks.handlers.clear();
 		electronMocks.listeners.clear();
 		vi.clearAllMocks();
 	});
@@ -164,7 +179,7 @@ describe("renderer mutation acknowledgement", () => {
 			})
 		);
 		listener(
-			{},
+			{ sender: win.webContents, senderFrame: win.webContents.mainFrame },
 			{
 				requestId: request.requestId,
 				result: {
@@ -178,6 +193,106 @@ describe("renderer mutation acknowledgement", () => {
 			added: [{ elementId: "element-1", index: 0, success: true }],
 			failedCount: 0,
 		});
+	});
+
+	it("ignores malformed batch results and results from the wrong sender or frame", async () => {
+		const win = createWindow();
+		const pending = requestBatchAddElementsFromRenderer(win, "project-1", [
+			{
+				duration: 5,
+				mediaId: "media-1",
+				startTime: 0,
+				trackId: "track-1",
+				type: "media",
+			},
+		]);
+		const request = vi.mocked(win.webContents.send).mock.calls[0]?.[1] as {
+			requestId: string;
+		};
+		const listener = electronMocks.listeners.get(
+			"claude:timeline:batchAddElements:response"
+		);
+		if (!listener) throw new Error("response listener was not registered");
+		const result = {
+			added: [{ elementId: "element-1", index: 0, success: true as const }],
+			failedCount: 0,
+		};
+		let settled = false;
+		pending.then(
+			() => {
+				settled = true;
+			},
+			() => {
+				settled = true;
+			}
+		);
+
+		listener(
+			{ sender: {}, senderFrame: win.webContents.mainFrame },
+			{ requestId: request.requestId, result }
+		);
+		listener(
+			{ sender: win.webContents, senderFrame: {} },
+			{ requestId: request.requestId, result }
+		);
+		listener(
+			{ sender: win.webContents, senderFrame: win.webContents.mainFrame },
+			{ requestId: request.requestId }
+		);
+		await Promise.resolve();
+		expect(settled).toBe(false);
+
+		listener(
+			{ sender: win.webContents, senderFrame: win.webContents.mainFrame },
+			{ requestId: request.requestId, result }
+		);
+		await expect(pending).resolves.toEqual(result);
+	});
+
+	it("makes the public addElement IPC wait for and propagate renderer NACKs", async () => {
+		const win = createWindow();
+		electronMocks.browserWindow.fromWebContents.mockReturnValue(win);
+		setupClaudeTimelineIPC();
+		const handler = electronMocks.handlers.get("claude:timeline:addElement");
+		if (!handler) throw new Error("addElement IPC handler was not registered");
+
+		const pending = handler({ sender: win.webContents }, "project-1", {
+			id: "element-1",
+			type: "sticker",
+		}) as Promise<string>;
+		const request = vi.mocked(win.webContents.send).mock.calls[0]?.[1] as {
+			requestId: string;
+		};
+		const listener = electronMocks.listeners.get(
+			"claude:timeline:addElement:response"
+		);
+		if (!listener) throw new Error("response listener was not registered");
+		let settled = false;
+		pending.then(
+			() => {
+				settled = true;
+			},
+			() => {
+				settled = true;
+			}
+		);
+
+		expect(win.webContents.send).toHaveBeenCalledWith(
+			"claude:timeline:addElement",
+			expect.objectContaining({
+				id: "element-1",
+				projectId: "project-1",
+				requestId: expect.any(String),
+			})
+		);
+		await Promise.resolve();
+		expect(settled).toBe(false);
+
+		listener(
+			{ sender: win.webContents, senderFrame: win.webContents.mainFrame },
+			{ error: "inactive project project-1", requestId: request.requestId }
+		);
+		await expect(pending).rejects.toThrow("inactive project project-1");
 	});
 
 	it("ignores ACKs from the wrong sender or frame", async () => {
