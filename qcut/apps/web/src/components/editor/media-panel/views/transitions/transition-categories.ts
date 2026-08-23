@@ -4,7 +4,6 @@ import {
 	CameraIcon,
 	FlameIcon,
 	FocusIcon,
-	FlaskConicalIcon,
 	GalleryHorizontalIcon,
 	HeartIcon,
 	MoveIcon,
@@ -29,7 +28,6 @@ export interface TransitionCategoryItem {
 
 export const transitionStandaloneCategories: TransitionCategoryItem[] = [
 	{ id: "favorites", label: "收藏", icon: HeartIcon },
-	{ id: "lab", label: "转场实验室", icon: FlaskConicalIcon },
 ];
 
 export const transitionEffectCategories: TransitionCategoryItem[] = [
