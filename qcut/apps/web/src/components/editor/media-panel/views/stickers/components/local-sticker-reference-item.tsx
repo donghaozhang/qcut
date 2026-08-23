@@ -3,22 +3,27 @@
 import { AlertCircle, ImageIcon, Loader2, Lock, Play } from "lucide-react";
 import {
 	useEffect,
+	useRef,
 	useState,
 	type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { debugError } from "@/lib/debug/debug-config";
 import {
+	buildStickerReferenceUsageMetadata,
 	loadStickerLabReferenceFile,
 	loadStickerLabThumbnail,
 	type StickerLabReference,
+	type StickerReferenceUsageMetadata,
 } from "@/lib/stickers/local-sticker-reference";
 import type {
 	LocalStickerPlayback,
 	RemoteStickerProvenance,
 } from "@/lib/stickers/local-sticker-manifest";
+import { isLocalBridgeStickerReference } from "@/lib/stickers/local-sticker-manifest";
 import { cn } from "@/lib/utils";
 
 interface LoadedReference {
+	file?: File;
 	loadKey: string;
 	previewUrl: string;
 }
@@ -31,11 +36,19 @@ function getReferenceKey({
 	const resourceKey =
 		"filePath" in reference
 			? reference.filePath
-			: [
-					reference.asset.objectKey,
-					reference.asset.byteSize,
-					reference.asset.checksumSha256,
-				].join("\0");
+			: isLocalBridgeStickerReference(reference)
+				? [
+						reference.asset.rootPath,
+						reference.asset.batchId,
+						reference.asset.stickerId,
+						reference.asset.byteSize,
+						reference.asset.checksumSha256,
+					].join("\0")
+				: [
+						reference.asset.objectKey,
+						reference.asset.byteSize,
+						reference.asset.checksumSha256,
+					].join("\0");
 	return [
 		reference.id,
 		resourceKey,
@@ -76,15 +89,23 @@ export function LocalStickerReferenceItem({
 	provenance,
 	reference,
 }: {
-	onSelect: ({ file }: { file: File }) => Promise<void>;
+	onSelect: ({
+		file,
+		metadata,
+	}: {
+		file: File;
+		metadata?: StickerReferenceUsageMetadata;
+	}) => Promise<void>;
 	provenance?: RemoteStickerProvenance;
 	reference: StickerLabReference;
 }) {
+	const itemRef = useRef<HTMLDivElement>(null);
 	const [loaded, setLoaded] = useState<LoadedReference | null>(null);
 	const [hasError, setHasError] = useState(false);
 	const [isAdding, setIsAdding] = useState(false);
 	const [loadAttempt, setLoadAttempt] = useState(0);
 	const [selectError, setSelectError] = useState<string | null>(null);
+	const [shouldLoad, setShouldLoad] = useState(false);
 	// Not an error: the lab ships to everyone, but placing an original needs
 	// an entitlement most viewers do not have.
 	const [isLocked, setIsLocked] = useState(false);
@@ -94,13 +115,34 @@ export function LocalStickerReferenceItem({
 	const loadErrorId = `local-sticker-load-error-${reference.id}`;
 
 	useEffect(() => {
-		const abortController = new AbortController();
-		let disposed = false;
-		let previewUrl: string | undefined;
+		const item = itemRef.current;
+		if (!item || typeof IntersectionObserver === "undefined") {
+			setShouldLoad(true);
+			return;
+		}
+
+		const observer = new IntersectionObserver(
+			(entries) => {
+				if (!entries.some((entry) => entry.isIntersecting)) return;
+				setShouldLoad(true);
+				observer.disconnect();
+			},
+			{ rootMargin: "240px" }
+		);
+		observer.observe(item);
+		return () => observer.disconnect();
+	}, []);
+
+	useEffect(() => {
 		setLoaded(null);
 		setHasError(false);
 		setSelectError(null);
 		setIsLocked(false);
+		if (!shouldLoad) return;
+
+		const abortController = new AbortController();
+		let disposed = false;
+		let previewUrl: string | undefined;
 
 		const loadPreview = async () => {
 			try {
@@ -129,7 +171,12 @@ export function LocalStickerReferenceItem({
 					URL.revokeObjectURL(previewUrl);
 					return;
 				}
-				setLoaded({ loadKey, previewUrl });
+				setLoaded({
+					file:
+						!usesUncachedThumbnail && blob instanceof File ? blob : undefined,
+					loadKey,
+					previewUrl,
+				});
 			} catch (error) {
 				if (disposed || isAbortError({ error })) return;
 				debugError("[StickerLab] Failed to load reference", error);
@@ -143,18 +190,21 @@ export function LocalStickerReferenceItem({
 			abortController.abort();
 			if (previewUrl) URL.revokeObjectURL(previewUrl);
 		};
-	}, [loadKey, provenance, reference]);
+	}, [loadKey, provenance, reference, shouldLoad]);
 
 	const handleSelect = async () => {
 		if (!activeLoaded || isAdding) return;
 		setIsAdding(true);
 		setSelectError(null);
 		try {
-			const file = await loadStickerLabReferenceFile({
-				provenance,
-				reference,
-			});
-			await onSelect({ file });
+			const file =
+				activeLoaded.file ??
+				(await loadStickerLabReferenceFile({
+					provenance,
+					reference,
+				}));
+			const metadata = buildStickerReferenceUsageMetadata({ reference });
+			await onSelect(metadata ? { file, metadata } : { file });
 		} catch (error) {
 			debugError("[StickerLab] Failed to add local reference", error);
 			if (isForbiddenError({ error })) {
@@ -178,7 +228,7 @@ export function LocalStickerReferenceItem({
 	};
 
 	return (
-		<div className="min-w-0">
+		<div ref={itemRef} className="min-w-0">
 			<button
 				type="button"
 				className="relative flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg bg-foreground/[0.06] transition-colors hover:bg-foreground/[0.12] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:cursor-not-allowed"
@@ -197,10 +247,15 @@ export function LocalStickerReferenceItem({
 					}
 				}}
 			>
-				{!activeLoaded && !hasError && (
+				{shouldLoad && !activeLoaded && !hasError && (
 					<Loader2 className="size-6 animate-spin text-muted-foreground">
 						<title>正在载入实验贴纸</title>
 					</Loader2>
+				)}
+				{!shouldLoad && (
+					<ImageIcon className="size-6 text-muted-foreground/60">
+						<title>贴纸进入可视区域后载入</title>
+					</ImageIcon>
 				)}
 				{hasError && (
 					<AlertCircle className="size-6 text-destructive">
