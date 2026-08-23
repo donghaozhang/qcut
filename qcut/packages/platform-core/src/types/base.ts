@@ -99,4 +99,6 @@ export enum PlatformCapability {
 	FillerAnalysis = "filler-analysis",
 	/** File path resolution from File objects */
 	FilePathResolution = "file-path-resolution",
+	/** Private, local-only Sticker Lab reference discovery and verified reads */
+	StickerLabLocalReferences = "sticker-lab-local-references",
 }
