@@ -72,7 +72,7 @@ const localCatalogMock = vi.hoisted(() => ({
 								},
 								asset: {
 									kind: "local-reference" as const,
-									rootPath: "/Users/peter/Movies/QCut Sticker Lab",
+									rootPath: "/Users/tester/Movies/QCut Sticker Lab",
 									batchId: "jianying-batch-18",
 									stickerId: "private-1",
 									byteSize: 4,
