@@ -732,6 +732,7 @@ export interface TimelineStore {
 				| "customCutout"
 				| "chromaKey"
 				| "enhancements"
+				| "portraitAdjustments"
 				| "audio"
 				| "audioFadeIn"
 				| "audioFadeOut"
