@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import {
 	handleStickerLabCatalogs,
 	handleStickerLabCategories,
@@ -134,8 +134,13 @@ function dependencies({
 	return { discover };
 }
 
+afterEach(() => {
+	vi.unstubAllEnvs();
+});
+
 describe("sticker-lab CLI handlers", () => {
 	test("lists catalog summaries with reference-only policy and provenance", async () => {
+		vi.stubEnv("QCUT_STICKER_LAB_ROOT", "/configured/QCut Sticker Lab");
 		const discover = vi.fn(async () => discovery());
 		const result = await handleStickerLabCatalogs(
 			{
@@ -170,6 +175,87 @@ describe("sticker-lab CLI handlers", () => {
 			},
 		});
 		expect(JSON.stringify(result)).not.toMatch(/signed|https?:\/\//i);
+	});
+
+	test("uses QCUT_STICKER_LAB_ROOT when --root is absent", async () => {
+		vi.stubEnv("QCUT_STICKER_LAB_ROOT", "  /configured/QCut Sticker Lab  ");
+		const discover = vi.fn(async () => discovery());
+
+		const result = await handleStickerLabCatalogs(
+			baseOptions({ command: "sticker-lab-catalogs" }),
+			dependencies({ discover })
+		);
+
+		expect(result.success).toBe(true);
+		expect(discover).toHaveBeenCalledWith({
+			rootPath: "/configured/QCut Sticker Lab",
+		});
+	});
+
+	test("fails when an explicit or configured root has no usable catalogs", async () => {
+		const unavailableDiscovery: StickerLabHandlerDependencies["discover"] =
+			async ({ rootPath } = {}) => ({
+				rootPath: rootPath ?? "/platform/default",
+				catalogs: [],
+				warnings: [{ message: "ENOENT: Sticker Lab root is unavailable" }],
+				summary: {
+					batchCount: 0,
+					categoryCount: 0,
+					itemCount: 0,
+					totalBytes: 0,
+				},
+			});
+		const explicit = await handleStickerLabCatalogs(
+			{
+				...baseOptions({ command: "sticker-lab-catalogs" }),
+				root: "/missing/explicit-root",
+			},
+			dependencies({ discover: unavailableDiscovery })
+		);
+		vi.stubEnv("QCUT_STICKER_LAB_ROOT", "/missing/configured-root");
+		const configured = await handleStickerLabCatalogs(
+			baseOptions({ command: "sticker-lab-catalogs" }),
+			dependencies({ discover: unavailableDiscovery })
+		);
+
+		expect(explicit).toMatchObject({
+			success: false,
+			error: expect.stringContaining("/missing/explicit-root"),
+		});
+		expect(configured).toMatchObject({
+			success: false,
+			error: expect.stringContaining("/missing/configured-root"),
+		});
+		expect(explicit.error).toContain("ENOENT");
+	});
+
+	test("keeps a missing platform default as an unavailable empty result", async () => {
+		vi.stubEnv("QCUT_STICKER_LAB_ROOT", "  ");
+		const result = await handleStickerLabCatalogs(
+			baseOptions({ command: "sticker-lab-catalogs" }),
+			dependencies({
+				discover: async ({ rootPath }) => ({
+					rootPath: rootPath ?? "/home/tester/Videos/QCut Sticker Lab",
+					catalogs: [],
+					warnings: [{ message: "Sticker Lab root is unavailable" }],
+					summary: {
+						batchCount: 0,
+						categoryCount: 0,
+						itemCount: 0,
+						totalBytes: 0,
+					},
+				}),
+			})
+		);
+
+		expect(result).toMatchObject({
+			success: true,
+			data: {
+				total: 0,
+				catalogs: [],
+				warnings: [{ message: "Sticker Lab root is unavailable" }],
+			},
+		});
 	});
 
 	test("filters categories by exact label and reports aggregate bytes", async () => {
