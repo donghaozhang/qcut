@@ -5,7 +5,7 @@ import {
 	waitFor,
 	within,
 } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	STICKER_CATEGORIES,
 	STICKER_CATEGORY_MINIMUM_SIZE,
@@ -45,8 +45,12 @@ const localCatalogMock = vi.hoisted(() => ({
 		error: null as string | null,
 		isAvailable: true,
 		isLoading: false,
+		localReferenceWarningCount: 0,
 		privateCatalogs: [
 			{
+				version: 1 as const,
+				batchId: "jianying-batch-18",
+				referenceOnly: true as const,
 				categories: [
 					{
 						id: "trending",
@@ -57,7 +61,6 @@ const localCatalogMock = vi.hoisted(() => ({
 								id: "private-1",
 								displayName: "参照贴纸 甲",
 								fileName: "private-1.png",
-								filePath: "/tmp/private-1.png",
 								mimeType: "image/png" as const,
 								sourceKind: "atlas-animation" as const,
 								playback: {
@@ -66,6 +69,14 @@ const localCatalogMock = vi.hoisted(() => ({
 									frameRate: 5,
 									cycleDuration: 0.8,
 									loop: true,
+								},
+								asset: {
+									kind: "local-reference" as const,
+									rootPath: "/Users/peter/Movies/QCut Sticker Lab",
+									batchId: "jianying-batch-18",
+									stickerId: "private-1",
+									byteSize: 4,
+									checksumSha256: "a".repeat(64),
 								},
 							},
 						],
@@ -113,6 +124,26 @@ vi.mock("@/lib/stickers/local-sticker-reference", async (importOriginal) => {
 
 describe("StickersView", () => {
 	beforeEach(() => {
+		class ImmediateIntersectionObserver {
+			callback: IntersectionObserverCallback;
+
+			constructor(callback: IntersectionObserverCallback) {
+				this.callback = callback;
+			}
+
+			disconnect = vi.fn();
+			observe = (target: Element) =>
+				this.callback(
+					[{ isIntersecting: true, target } as IntersectionObserverEntry],
+					this as unknown as IntersectionObserver
+				);
+			unobserve = vi.fn();
+			takeRecords = () => [];
+			root = null;
+			rootMargin = "240px";
+			thresholds = [0];
+		}
+		vi.stubGlobal("IntersectionObserver", ImmediateIntersectionObserver);
 		localCatalogMock.current.isAvailable = true;
 		localCatalogMock.current.isLoading = false;
 		localCatalogMock.current.error = null;
@@ -128,6 +159,10 @@ describe("StickersView", () => {
 			error: null,
 			isLoading: false,
 		});
+	});
+
+	afterEach(() => {
+		vi.unstubAllGlobals();
 	});
 
 	it("opens the creator catalog on the popular category", () => {
@@ -332,5 +367,29 @@ describe("StickersView", () => {
 			await screen.findByText("无法添加到时间线，请重试")
 		).toBeInTheDocument();
 		expect(stickerSelectMocks.upload).toHaveBeenCalledTimes(1);
+	});
+
+	it("forwards local reference policy metadata to the media upload", async () => {
+		render(<StickersView />);
+		fireEvent.click(screen.getByRole("button", { name: "贴纸实验室" }));
+
+		const referenceButton = await screen.findByRole("button", {
+			name: "添加参照贴纸 甲到时间线",
+		});
+		await waitFor(() => expect(referenceButton).toBeEnabled());
+		fireEvent.click(referenceButton);
+
+		await waitFor(() => expect(stickerSelectMocks.upload).toHaveBeenCalled());
+		expect(stickerSelectMocks.upload).toHaveBeenCalledWith({
+			file: expect.any(File),
+			metadata: {
+				referenceOnly: true,
+				usage: "internal-reference-only",
+				redistribution: "prohibited",
+				batchId: "jianying-batch-18",
+				itemId: "private-1",
+				checksumSha256: "a".repeat(64),
+			},
+		});
 	});
 });
