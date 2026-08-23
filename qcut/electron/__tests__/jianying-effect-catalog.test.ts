@@ -5,7 +5,24 @@ import {
 	collectReferenceVerdicts,
 	findUnsafeZipEntries,
 	readAdjustParameters,
+	readDeclaredModelNames,
+	SUPPORTED_REQUIREMENTS,
 } from "../jianying-effect/catalog-parsing.js";
+
+it("supports local external texture producer requirements", () => {
+	expect(SUPPORTED_REQUIREMENTS.has("ext_texture_producer")).toBe(true);
+});
+
+it("parses prefixed and logical model names from catalog declarations", () => {
+	expect(
+		readDeclaredModelNames({
+			values: [
+				'{"alg_model":["tt_face","js_cv_trackmotion"]}',
+				["nh_depth_for_light_scanning", "tt_face"],
+			],
+		})
+	).toEqual(["js_cv_trackmotion", "nh_depth_for_light_scanning", "tt_face"]);
+});
 
 function catalogRow({ panel, items }: { panel: string; items: unknown[] }) {
 	return {
