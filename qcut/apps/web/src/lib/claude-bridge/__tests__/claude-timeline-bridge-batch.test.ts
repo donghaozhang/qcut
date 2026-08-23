@@ -42,8 +42,12 @@ vi.mock("@/stores/timeline/timeline-store", () => ({
 
 vi.mock("@/stores/project-store", () => ({
 	useProjectStore: {
-		getState: vi.fn(() => ({ activeProject: null })),
+		getState: vi.fn(() => ({ activeProject: { id: "project-1" } })),
 	},
+}));
+
+vi.mock("@/lib/project/project-folder-sync", () => ({
+	syncProjectFolder: vi.fn(async () => undefined),
 }));
 
 vi.mock("@/lib/debug/debug-config", () => ({
@@ -78,6 +82,7 @@ describe("Claude timeline batch bridge", () => {
 		let batchHandler:
 			| ((data: {
 					requestId: string;
+					projectId: string;
 					elements: Array<Record<string, unknown>>;
 			  }) => Promise<void>)
 			| undefined;
@@ -87,6 +92,7 @@ describe("Claude timeline batch bridge", () => {
 				(
 					handler: (data: {
 						requestId: string;
+						projectId: string;
 						elements: Array<Record<string, unknown>>;
 					}) => Promise<void>
 				) => {
@@ -104,6 +110,7 @@ describe("Claude timeline batch bridge", () => {
 		expect(batchHandler).toBeDefined();
 		await batchHandler?.({
 			requestId: "request-1",
+			projectId: "project-1",
 			elements: [
 				{
 					type: "media",
@@ -141,6 +148,7 @@ describe("Claude timeline batch bridge", () => {
 		storeMocks.state.addElementToTrack.mockClear();
 		await batchHandler?.({
 			requestId: "request-invalid-collision",
+			projectId: "project-1",
 			elements: [
 				{
 					type: "media",
