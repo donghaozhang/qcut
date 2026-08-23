@@ -32,6 +32,7 @@ interface NumberControlProps {
 	onInteractionStart: () => void;
 	onInteractionEnd: () => void;
 	allowInputOverflow?: boolean;
+	disabled?: boolean;
 }
 
 export function NumberControl({
@@ -47,6 +48,7 @@ export function NumberControl({
 	onInteractionStart,
 	onInteractionEnd,
 	allowInputOverflow = false,
+	disabled = false,
 }: NumberControlProps) {
 	const { t } = useTranslation();
 	const keyframeLabel = onToggleKeyframe
@@ -78,6 +80,7 @@ export function NumberControl({
 						</MaskIconButton>
 					) : null}
 					<Input
+						disabled={disabled}
 						type="number"
 						aria-label={t("mediaProperties.value", { label })}
 						value={Number(value.toFixed(step < 1 ? 2 : 0))}
@@ -106,6 +109,7 @@ export function NumberControl({
 					onPointerCancel={onInteractionEnd}
 				>
 					<Slider
+						disabled={disabled}
 						aria-label={label}
 						value={[Math.min(max, Math.max(min, value))]}
 						min={min}
