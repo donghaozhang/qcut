@@ -10,6 +10,7 @@ import {
 	isAnimatedStickerAsset,
 	isAnimatedStickerFile,
 } from "@/lib/stickers/sticker-animation";
+import type { StickerReferenceUsageMetadata } from "@/lib/stickers/local-sticker-reference";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useProjectStore } from "@/stores/project-store";
@@ -44,6 +45,20 @@ function readImageDimensions({
 		image.onerror = () => resolve({ width: 512, height: 512 });
 		image.src = url;
 	});
+}
+
+export function buildStickerUploadMetadata({
+	animatedSticker,
+	metadata,
+}: {
+	animatedSticker: boolean;
+	metadata?: StickerReferenceUsageMetadata;
+}): Record<string, unknown> {
+	return {
+		source: metadata ? "sticker-lab" : "sticker-upload",
+		animatedSticker,
+		...metadata,
+	};
 }
 
 export function useStickerSelect() {
@@ -226,7 +241,13 @@ export function useStickerSelect() {
 	);
 
 	const handleStickerUpload = useCallback(
-		async ({ file }: { file: File }): Promise<string | undefined> => {
+		async ({
+			file,
+			metadata,
+		}: {
+			file: File;
+			metadata?: StickerReferenceUsageMetadata;
+		}): Promise<string | undefined> => {
 			if (!activeProject) {
 				toast.error("No project selected");
 				return;
@@ -252,10 +273,10 @@ export function useStickerSelect() {
 					width: dimensions.width,
 					height: dimensions.height,
 					duration: 0,
-					metadata: {
-						source: "sticker-upload",
+					metadata: buildStickerUploadMetadata({
 						animatedSticker,
-					},
+						metadata,
+					}),
 				});
 				await placeStickerOnTimeline({ mediaItemId });
 				toast.success(`Added ${file.name} to timeline`);
