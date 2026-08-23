@@ -10,6 +10,7 @@
 
 import { EDITOR_COMMANDS } from "./command-registry-editor.js";
 import { EFFECT_LAB_COMMANDS } from "./command-registry-effect-lab.js";
+import { STICKER_LAB_COMMANDS } from "./command-registry-sticker-lab.js";
 import { TEXT_LAB_COMMANDS } from "./command-registry-text-lab.js";
 export type {
 	FlagDef,
@@ -150,6 +151,16 @@ export const CATEGORIES: CategoryDef[] = [
 		name: "text-lab",
 		label: "Text Lab",
 		commands: ["text-lab-list", "text-lab-animations", "text-lab-render"],
+	},
+	{
+		name: "sticker-lab",
+		label: "Sticker Lab",
+		commands: [
+			"sticker-lab-catalogs",
+			"sticker-lab-categories",
+			"sticker-lab-items",
+			"sticker-lab-search",
+		],
 	},
 	{
 		name: "effect-lab",
@@ -2502,6 +2513,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 export const COMMANDS_REGISTRY: Record<string, CommandDef> = {
 	...CORE_COMMANDS,
 	...EFFECT_LAB_COMMANDS,
+	...STICKER_LAB_COMMANDS,
 	...TEXT_LAB_COMMANDS,
 	...EDITOR_COMMANDS,
 };
