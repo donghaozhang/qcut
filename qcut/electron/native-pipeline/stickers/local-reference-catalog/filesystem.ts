@@ -16,6 +16,15 @@ interface FileIdentity {
 	size: number;
 }
 
+interface OpenedFileReader {
+	read(
+		buffer: Uint8Array,
+		offset: number,
+		length: number,
+		position: number
+	): Promise<{ bytesRead: number }>;
+}
+
 function fileIdentity({
 	stats,
 }: {
@@ -150,6 +159,61 @@ function openFlags(): number {
 	return constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0);
 }
 
+async function fillOpenedFileBuffer({
+	bytes,
+	handle,
+	offset,
+}: {
+	bytes: Uint8Array;
+	handle: OpenedFileReader;
+	offset: number;
+}): Promise<number> {
+	if (offset >= bytes.byteLength) return offset;
+	const { bytesRead } = await handle.read(
+		bytes,
+		offset,
+		bytes.byteLength - offset,
+		offset
+	);
+	if (bytesRead === 0) return offset;
+	return fillOpenedFileBuffer({ bytes, handle, offset: offset + bytesRead });
+}
+
+export async function readOpenedFileWithinLimit({
+	expectedByteSize,
+	handle,
+	label,
+	maxBytes,
+}: {
+	expectedByteSize: number;
+	handle: OpenedFileReader;
+	label: string;
+	maxBytes: number;
+}): Promise<Uint8Array> {
+	if (
+		!Number.isSafeInteger(expectedByteSize) ||
+		expectedByteSize <= 0 ||
+		expectedByteSize > maxBytes
+	) {
+		throw new Error(`${label} has an invalid byte size: ${expectedByteSize}`);
+	}
+
+	const bytes = new Uint8Array(expectedByteSize);
+	const offset = await fillOpenedFileBuffer({ bytes, handle, offset: 0 });
+
+	const overflowProbe = new Uint8Array(1);
+	const { bytesRead: overflowByteCount } = await handle.read(
+		overflowProbe,
+		0,
+		1,
+		offset
+	);
+	if (offset !== expectedByteSize || overflowByteCount > 0) {
+		throw new Error(`${label} changed while reading`);
+	}
+	return bytes;
+}
+
 async function readStableFile({
 	canonicalRoot,
 	filePath,
@@ -180,7 +244,12 @@ async function readStableFile({
 		) {
 			throw new Error(`${label} changed before reading`);
 		}
-		const bytes = new Uint8Array(await handle.readFile());
+		const bytes = await readOpenedFileWithinLimit({
+			expectedByteSize: handleIdentity.size,
+			handle,
+			label,
+			maxBytes,
+		});
 		const afterStats = await stat(inspected.canonicalPath);
 		if (
 			!sameFileIdentity({
