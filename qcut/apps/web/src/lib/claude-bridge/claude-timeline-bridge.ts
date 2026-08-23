@@ -396,8 +396,15 @@ export function setupClaudeTimelineBridge(): void {
 						throw new Error("Media import was cancelled");
 					}
 				} catch (error) {
-					await useMediaStore.getState().removeMediaItem(projectId, data.id);
 					releaseObjectURL(displayUrl, "claude-media-import-failed");
+					try {
+						await useMediaStore.getState().removeMediaItem(projectId, data.id);
+					} catch (rollbackError) {
+						debugWarn(
+							"[ClaudeTimelineBridge] Failed to roll back imported media:",
+							rollbackError
+						);
+					}
 					throw error;
 				}
 
