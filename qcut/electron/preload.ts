@@ -54,6 +54,7 @@ import {
 	createSkillsAPI,
 	createAIPipelineAPI,
 	createMediaImportAPI,
+	createStickerLabAPI,
 	createProjectFolderAPI,
 	createClaudeAPI,
 	createRemotionFolderAPI,
@@ -864,6 +865,7 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 	skills: createSkillsAPI(),
 	aiPipeline: createAIPipelineAPI(),
 	mediaImport: createMediaImportAPI(),
+	stickerLab: createStickerLabAPI(),
 	projectFolder: createProjectFolderAPI(),
 	projectJson: {
 		write: (projectId: string) =>
