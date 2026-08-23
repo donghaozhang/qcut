@@ -46,6 +46,15 @@ describe("createWebAdapter", () => {
 		expect(adapter.hasCapability(PlatformCapability.Skills)).toBe(false);
 	});
 
+	it("does not expose local Sticker Lab references", () => {
+		expect(
+			adapter.hasCapability(PlatformCapability.StickerLabLocalReferences)
+		).toBe(false);
+		expect(() => adapter.stickerLab.discoverLocalReferences({})).toThrow(
+			PlatformUnsupportedError
+		);
+	});
+
 	describe("storage interface", () => {
 		it("save returns boolean", async () => {
 			const result = await adapter.storage.save("test", { data: true });
