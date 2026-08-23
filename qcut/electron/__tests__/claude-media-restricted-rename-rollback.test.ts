@@ -1,3 +1,4 @@
+import path from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
@@ -78,7 +79,7 @@ describe("restricted metadata rename rollback", () => {
 			if (String(target).endsWith("renamed.gif")) throw new Error("ENOENT");
 		});
 		mockReaddir.mockImplementation(async (target: unknown) => {
-			if (String(target).endsWith("/media")) {
+			if (String(target).replaceAll("\\", "/").endsWith("/media")) {
 				return [
 					{
 						isFile: () => true,
@@ -128,7 +129,14 @@ describe("restricted metadata rename rollback", () => {
 		await expect(deleteMediaFile("project-1", OLD_ID)).resolves.toBe(true);
 
 		expect(mockUnlink).toHaveBeenCalledWith(
-			"/mock/Documents/QCut/Projects/project-1/media/reference.gif"
+			path.join(
+				"/mock/Documents",
+				"QCut",
+				"Projects",
+				"project-1",
+				"media",
+				"reference.gif"
+			)
 		);
 		expect(mockDeleteMetadata).toHaveBeenCalledWith({
 			mediaId: OLD_ID,
