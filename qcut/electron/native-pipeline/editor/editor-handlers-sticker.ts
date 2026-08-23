@@ -21,6 +21,7 @@ import { materializeSticker } from "../stickers/sticker-asset-materializer.js";
 import { parseStickerOverlayPlan } from "../stickers/sticker-overlay-plan.js";
 import type { EditorApiClient } from "./editor-api-client.js";
 import type { CLIRunOptions, CLIResult } from "../cli/cli-runner/types.js";
+import { resolveStickerLabRootOverride } from "../cli/sticker-lab-root.js";
 
 const STICKER_LAB_PROVIDER = "sticker-lab";
 const STICKER_LAB_WARNING =
@@ -166,6 +167,46 @@ function materializeLocalReference({
 	}
 }
 
+async function addTimelineSticker({
+	client,
+	element,
+	projectId,
+	rollbackMediaId,
+}: {
+	client: EditorApiClient;
+	element: Record<string, unknown>;
+	projectId: string;
+	rollbackMediaId?: string;
+}): Promise<unknown> {
+	try {
+		return await client.post(
+			`/api/claude/timeline/${encodeURIComponent(projectId)}/elements`,
+			element
+		);
+	} catch (timelineError) {
+		if (rollbackMediaId) {
+			try {
+				await client.delete(
+					`/api/claude/media/${encodeURIComponent(projectId)}/${encodeURIComponent(rollbackMediaId)}`
+				);
+			} catch (rollbackError) {
+				const timelineMessage =
+					timelineError instanceof Error
+						? timelineError.message
+						: String(timelineError);
+				const rollbackMessage =
+					rollbackError instanceof Error
+						? rollbackError.message
+						: String(rollbackError);
+				throw new Error(
+					`Timeline placement failed: ${timelineMessage}. Imported media rollback also failed: ${rollbackMessage}`
+				);
+			}
+		}
+		throw timelineError;
+	}
+}
+
 async function materializeCatalogSticker({
 	stickerId,
 	width,
@@ -277,7 +318,7 @@ async function stickerAdd(
 		const batchId = opts.batchId?.trim() ?? "";
 		const itemId = opts.stickerId?.trim() ?? "";
 		const discovery = await dependencies.discoverLocalReferences({
-			rootPath: opts.root,
+			rootPath: resolveStickerLabRootOverride({ root: opts.root }),
 		});
 		const reference = await dependencies.readLocalReference({
 			rootPath: discovery.rootPath,
@@ -347,10 +388,12 @@ async function stickerAdd(
 	if (opts.rotation !== undefined) element.rotation = opts.rotation;
 	if (opts.opacity !== undefined) element.opacity = opts.opacity;
 
-	const data = await client.post(
-		`/api/claude/timeline/${encodeURIComponent(opts.projectId)}/elements`,
-		element
-	);
+	const data = await addTimelineSticker({
+		client,
+		element,
+		projectId: opts.projectId,
+		rollbackMediaId: usesStickerLab ? mediaId : undefined,
+	});
 	if (stickerLabProvenance) {
 		return {
 			success: true,
@@ -430,7 +473,7 @@ async function stickerUpdate(
 
 	const data = await client.patch(
 		`/api/claude/timeline/${encodeURIComponent(opts.projectId)}/elements/${encodeURIComponent(opts.elementId)}`,
-		{ changes }
+		changes
 	);
 	return { success: true, data };
 }
