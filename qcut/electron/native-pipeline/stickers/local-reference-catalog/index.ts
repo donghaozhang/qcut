@@ -1,6 +1,6 @@
 import { basename, join, resolve } from "node:path";
 import { homedir } from "node:os";
-import { readdir } from "node:fs/promises";
+import { opendir } from "node:fs/promises";
 import type {
 	LocalStickerLabCatalog,
 	LocalStickerLabDiscovery,
@@ -30,7 +30,14 @@ const BATCH_DIRECTORY_PATTERN =
 	/^jianying-\d{4}-\d{2}-\d{2}(?:-batch-[1-9]\d*)?(?:-v[1-9]\d*)?$/;
 const MAX_LOCAL_REFERENCE_CATEGORY_BYTES = 128 * 1024 * 1024;
 const MAX_LOCAL_REFERENCE_CATALOG_BYTES = 512 * 1024 * 1024;
-const FILE_INSPECTION_CONCURRENCY = 32;
+
+/** Resource bounds for untrusted local discovery; asset bodies remain read-time only. */
+export const LOCAL_REFERENCE_DISCOVERY_LIMITS = Object.freeze({
+	batchConcurrency: 4,
+	fileConcurrencyPerBatch: 16,
+	maxBatches: 64,
+	maxCachedRoots: 8,
+});
 
 export interface DiscoverLocalReferencesOptions {
 	rootPath?: string;
@@ -55,7 +62,6 @@ interface InternalLocalReference {
 }
 
 interface DiscoveryState {
-	discovery: LocalStickerLabDiscovery;
 	references: Map<string, InternalLocalReference>;
 }
 
@@ -69,12 +75,69 @@ type SettledBatch =
 	| { batch: ReconciledBatch; batchId: string; ok: true }
 	| { batchId: string; error: string; ok: false };
 
+interface BatchCandidate {
+	batchId: string;
+	isDirectory: boolean;
+	isSymbolicLink: boolean;
+}
+
+interface BatchCandidateSelection {
+	candidates: BatchCandidate[];
+	warnings: LocalStickerLabWarning[];
+}
+
 const discoveryStateByRoot = new Map<string, DiscoveryState>();
+
+function cachedDiscoveryState({
+	rootPath,
+}: {
+	rootPath: string;
+}): DiscoveryState | undefined {
+	const state = discoveryStateByRoot.get(rootPath);
+	if (!state) return undefined;
+	discoveryStateByRoot.delete(rootPath);
+	discoveryStateByRoot.set(rootPath, state);
+	return state;
+}
+
+function cacheDiscoveryState({
+	rootPath,
+	state,
+}: {
+	rootPath: string;
+	state: DiscoveryState;
+}): void {
+	if (state.references.size === 0) return;
+	discoveryStateByRoot.delete(rootPath);
+	discoveryStateByRoot.set(rootPath, state);
+	while (
+		discoveryStateByRoot.size > LOCAL_REFERENCE_DISCOVERY_LIMITS.maxCachedRoots
+	) {
+		const oldestRoot = discoveryStateByRoot.keys().next().value;
+		if (oldestRoot === undefined) return;
+		discoveryStateByRoot.delete(oldestRoot);
+	}
+}
 
 function hasDotPathSegment({ filePath }: { filePath: string }): boolean {
 	return filePath
 		.split(/[\\/]/)
 		.some((segment) => segment === "." || segment === "..");
+}
+
+export function resolveDefaultLocalReferenceRoot({
+	homeDirectory = homedir(),
+	platform = process.platform,
+}: {
+	homeDirectory?: string;
+	platform?: NodeJS.Platform;
+} = {}): string {
+	const videosDirectoryName = platform === "darwin" ? "Movies" : "Videos";
+	return resolve(
+		homeDirectory,
+		videosDirectoryName,
+		LOCAL_REFERENCE_DIRECTORY_NAME
+	);
 }
 
 function resolveRequestedRoot({
@@ -88,7 +151,8 @@ function resolveRequestedRoot({
 		}
 		return resolve(requestedRoot);
 	}
-	const videosRoot = videosDirectory?.trim() || join(homedir(), "Movies");
+	const videosRoot = videosDirectory?.trim();
+	if (!videosRoot) return resolveDefaultLocalReferenceRoot();
 	if (hasDotPathSegment({ filePath: videosRoot })) {
 		throw new Error("Videos directory must not contain dot path segments");
 	}
@@ -323,7 +387,7 @@ async function reconcileBatch({
 		category.items.map((item, itemIndex) => ({ category, item, itemIndex }))
 	);
 	const reconciled = await mapWithConcurrency({
-		concurrency: FILE_INSPECTION_CONCURRENCY,
+		concurrency: LOCAL_REFERENCE_DISCOVERY_LIMITS.fileConcurrencyPerBatch,
 		inputs: validationInputs,
 		worker: async ({ input: { category, item, itemIndex } }) => {
 			const reportItem = indexedReport.get(item.id);
@@ -417,9 +481,18 @@ async function reconcileBatch({
 	};
 }
 
-function batchSequence({ batchId }: { batchId: string }): number {
+function batchSequence({ batchId }: { batchId: string }): bigint {
 	const match = /-batch-(\d+)/.exec(batchId);
-	return match ? Number(match[1]) : 1;
+	return BigInt(match?.[1] ?? "1");
+}
+
+function batchRevision({ batchId }: { batchId: string }): bigint {
+	const match = /-v(\d+)$/.exec(batchId);
+	return BigInt(match?.[1] ?? "0");
+}
+
+function logicalBatchId({ batchId }: { batchId: string }): string {
+	return batchId.replace(/-v\d+$/, "");
 }
 
 function sortBatchIds({
@@ -429,9 +502,76 @@ function sortBatchIds({
 	left: string;
 	right: string;
 }): number {
-	const sequenceDifference =
-		batchSequence({ batchId: left }) - batchSequence({ batchId: right });
-	return sequenceDifference || left.localeCompare(right);
+	const leftSequence = batchSequence({ batchId: left });
+	const rightSequence = batchSequence({ batchId: right });
+	if (leftSequence < rightSequence) return -1;
+	if (leftSequence > rightSequence) return 1;
+	return left.localeCompare(right);
+}
+
+function selectLatestBatchRevisions({
+	candidates,
+}: {
+	candidates: BatchCandidate[];
+}): BatchCandidateSelection {
+	const selectedByLogicalBatch = new Map<string, BatchCandidate>();
+	for (const candidate of candidates) {
+		const logicalId = logicalBatchId({ batchId: candidate.batchId });
+		const selected = selectedByLogicalBatch.get(logicalId);
+		if (
+			!selected ||
+			batchRevision({ batchId: candidate.batchId }) >
+				batchRevision({ batchId: selected.batchId })
+		) {
+			selectedByLogicalBatch.set(logicalId, candidate);
+		}
+	}
+
+	const warnings: LocalStickerLabWarning[] = [];
+	for (const candidate of candidates) {
+		const selected = selectedByLogicalBatch.get(
+			logicalBatchId({ batchId: candidate.batchId })
+		);
+		if (!selected || selected.batchId === candidate.batchId) continue;
+		warnings.push({
+			batchId: candidate.batchId,
+			message: `Superseded by newer batch revision ${selected.batchId}; older directory was not loaded`,
+		});
+	}
+
+	return {
+		candidates: [...selectedByLogicalBatch.values()].sort((left, right) =>
+			sortBatchIds({ left: left.batchId, right: right.batchId })
+		),
+		warnings,
+	};
+}
+
+async function collectBatchCandidates({
+	rootPath,
+}: {
+	rootPath: string;
+}): Promise<BatchCandidateSelection> {
+	const candidates: BatchCandidate[] = [];
+	const directory = await opendir(rootPath);
+	for await (const entry of directory) {
+		if (!BATCH_DIRECTORY_PATTERN.test(entry.name)) continue;
+		if (candidates.length >= LOCAL_REFERENCE_DISCOVERY_LIMITS.maxBatches) {
+			throw new Error(
+				`Sticker Lab root exceeds the ${LOCAL_REFERENCE_DISCOVERY_LIMITS.maxBatches} batch limit`
+			);
+		}
+		candidates.push({
+			batchId: entry.name,
+			isDirectory: entry.isDirectory(),
+			isSymbolicLink: entry.isSymbolicLink(),
+		});
+	}
+	return selectLatestBatchRevisions({
+		candidates: candidates.sort((left, right) =>
+			sortBatchIds({ left: left.batchId, right: right.batchId })
+		),
+	});
 }
 
 function referenceKey({
@@ -547,30 +687,37 @@ export async function discoverLocalReferences({
 			label: "Sticker Lab root",
 		});
 	} catch (error) {
-		const discovery = emptyDiscovery({
+		discoveryStateByRoot.delete(requestedRoot);
+		return emptyDiscovery({
 			rootPath: requestedRoot,
 			warning:
 				error instanceof Error
 					? error.message
 					: "Sticker Lab root is unavailable",
 		});
-		discoveryStateByRoot.set(requestedRoot, {
-			discovery,
-			references: new Map(),
-		});
-		return discovery;
 	}
-	const entries = await readdir(canonicalRoot, { withFileTypes: true });
-	const candidateNames = entries
-		.filter(({ name }) => BATCH_DIRECTORY_PATTERN.test(name))
-		.map(({ name }) => name)
-		.sort((left, right) => sortBatchIds({ left, right }));
-	const entryByName = new Map(entries.map((entry) => [entry.name, entry]));
-	const settledBatches = await Promise.all(
-		candidateNames.map(async (batchId): Promise<SettledBatch> => {
+	discoveryStateByRoot.delete(canonicalRoot);
+	let candidateSelection: BatchCandidateSelection;
+	try {
+		candidateSelection = await collectBatchCandidates({
+			rootPath: canonicalRoot,
+		});
+	} catch (error) {
+		return emptyDiscovery({
+			rootPath: canonicalRoot,
+			warning:
+				error instanceof Error
+					? error.message
+					: "Sticker Lab batches are unavailable",
+		});
+	}
+	const settledBatches = await mapWithConcurrency({
+		concurrency: LOCAL_REFERENCE_DISCOVERY_LIMITS.batchConcurrency,
+		inputs: candidateSelection.candidates,
+		worker: async ({ input: candidate }): Promise<SettledBatch> => {
+			const { batchId } = candidate;
 			try {
-				const entry = entryByName.get(batchId);
-				if (!entry?.isDirectory() || entry.isSymbolicLink()) {
+				if (!candidate.isDirectory || candidate.isSymbolicLink) {
 					throw new Error("Batch must be a regular non-symlink directory");
 				}
 				const batchRoot = await resolveRegularDirectory({
@@ -596,10 +743,10 @@ export async function discoverLocalReferences({
 					ok: false,
 				};
 			}
-		})
-	);
+		},
+	});
 	const catalogs: LocalStickerLabCatalog[] = [];
-	const warnings: LocalStickerLabWarning[] = [];
+	const warnings: LocalStickerLabWarning[] = [...candidateSelection.warnings];
 	const categoryLabels = new Map<string, string>();
 	const itemIds = new Set<string>();
 	const checksums = new Set<string>();
@@ -634,11 +781,8 @@ export async function discoverLocalReferences({
 		warnings,
 		summary: discoverySummary({ catalogs }),
 	};
-	const state = { discovery, references };
-	discoveryStateByRoot.set(canonicalRoot, state);
-	if (canonicalRoot !== requestedRoot) {
-		discoveryStateByRoot.set(requestedRoot, state);
-	}
+	const state = { references };
+	cacheDiscoveryState({ rootPath: canonicalRoot, state });
 	return discovery;
 }
 
@@ -648,12 +792,23 @@ async function resolveDiscoveryState({
 	rootPath: string;
 }): Promise<DiscoveryState> {
 	const requestedRoot = resolveRequestedRoot({ rootPath });
-	const cached = discoveryStateByRoot.get(requestedRoot);
+	let canonicalRoot: string;
+	try {
+		canonicalRoot = await resolveRegularDirectory({
+			directoryPath: requestedRoot,
+			label: "Sticker Lab root",
+		});
+	} catch {
+		await discoverLocalReferences({
+			rootPath: requestedRoot,
+		});
+		return { references: new Map() };
+	}
+	const cached = cachedDiscoveryState({ rootPath: canonicalRoot });
 	if (cached) return cached;
-	const discovery = await discoverLocalReferences({ rootPath: requestedRoot });
+	const discovery = await discoverLocalReferences({ rootPath: canonicalRoot });
 	return (
-		discoveryStateByRoot.get(discovery.rootPath) ?? {
-			discovery,
+		cachedDiscoveryState({ rootPath: discovery.rootPath }) ?? {
 			references: new Map(),
 		}
 	);
