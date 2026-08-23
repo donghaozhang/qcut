@@ -576,6 +576,7 @@ export const useMediaStore = create<MediaStore>((set, get) => ({
 				id,
 				error,
 			});
+			throw error;
 		}
 	},
 
