@@ -1,4 +1,4 @@
-import { basename, join, resolve } from "node:path";
+import { basename, join, posix, resolve, win32 } from "node:path";
 import { homedir } from "node:os";
 import { opendir } from "node:fs/promises";
 import type {
@@ -133,7 +133,10 @@ export function resolveDefaultLocalReferenceRoot({
 	platform?: NodeJS.Platform;
 } = {}): string {
 	const videosDirectoryName = platform === "darwin" ? "Movies" : "Videos";
-	return resolve(
+	// Follow the platform argument for separators too, so the darwin/linux
+	// defaults stay POSIX even when this runs on a Windows host.
+	const pathForPlatform = platform === "win32" ? win32 : posix;
+	return pathForPlatform.resolve(
 		homeDirectory,
 		videosDirectoryName,
 		LOCAL_REFERENCE_DIRECTORY_NAME
