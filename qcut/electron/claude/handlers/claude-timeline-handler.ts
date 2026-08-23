@@ -34,6 +34,7 @@ export {
 
 // Re-export operation functions
 export {
+	requestAddElementFromRenderer,
 	requestTimelineFromRenderer,
 	requestSplitFromRenderer,
 	requestSelectionFromRenderer,
@@ -58,6 +59,7 @@ import {
 } from "./claude-timeline-markdown.js";
 
 import {
+	requestAddElementFromRenderer,
 	requestTimelineFromRenderer,
 	requestSplitFromRenderer,
 	requestSelectionFromRenderer,
@@ -378,6 +380,7 @@ export function setupClaudeTimelineIPC(): void {
 // CommonJS export for main.ts compatibility
 module.exports = {
 	setupClaudeTimelineIPC,
+	requestAddElementFromRenderer,
 	requestTimelineFromRenderer,
 	requestSplitFromRenderer,
 	requestSelectionFromRenderer,
