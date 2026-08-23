@@ -236,9 +236,12 @@ export async function startJianyingPortraitHostProcess(
 			isDisposed = true;
 			rejectPending({ error: new Error("剪映美颜美体宿主已关闭") });
 			if (!exited && child.stdin.writable) child.stdin.end("exit\n");
-			const forceKill = setTimeout(() => child.kill(), 1000);
+			const terminate = setTimeout(() => child.kill(), 1000);
+			const forceKill = setTimeout(() => child.kill("SIGKILL"), 3000);
+			terminate.unref();
 			forceKill.unref();
 			await exitPromise;
+			clearTimeout(terminate);
 			clearTimeout(forceKill);
 		},
 	};
