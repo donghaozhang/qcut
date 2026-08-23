@@ -64,6 +64,25 @@ const DEFAULT_TEXT_DURATION_SECONDS = 5;
 const DEFAULT_TEXT_CONTENT = "Text";
 const CLAUDE_DETERMINISTIC_MEDIA_ID_PREFIX = "media_";
 
+function requestedElementId({ element }: { element: Partial<ClaudeElement> }): {
+	id?: string;
+} {
+	return typeof element.id === "string" && element.id.trim().length > 0
+		? { id: element.id }
+		: {};
+}
+
+function requireAddedElementId({
+	elementId,
+	elementType,
+}: {
+	elementId: string | null;
+	elementType: string;
+}): string {
+	if (elementId) return elementId;
+	throw new Error(`Failed to add ${elementType} element to the timeline`);
+}
+
 export const CLAUDE_TEXT_PROPERTY_KEYS = [
 	"jianyingTextStyle",
 	"fontSize",
@@ -731,24 +750,23 @@ export async function addClaudeMediaElement({
 	element: Partial<ClaudeElement>;
 	timelineStore: TimelineStoreState;
 	projectId: string | undefined;
-}): Promise<void> {
+}): Promise<string> {
 	const mediaItem = await resolveMediaItemForElement({
 		element,
 		projectId,
 	});
 
-	if (!mediaItem && !element.sourceId && !element.mediaId) {
-		debugWarn(
-			"[ClaudeTimelineBridge] Media not found:",
-			element.sourceName || element.sourceId || element.mediaId
-		);
-		return;
+	if (!mediaItem) {
+		const requestedMedia =
+			element.sourceName || element.sourceId || element.mediaId || "unknown";
+		debugWarn("[ClaudeTimelineBridge] Media not found:", requestedMedia);
+		throw new Error(`Media source could not be resolved: ${requestedMedia}`);
 	}
 
-	const resolvedId = mediaItem?.id ?? element.mediaId ?? element.sourceId!;
-	const resolvedName = mediaItem?.name ?? element.sourceName ?? "Media";
+	const resolvedId = mediaItem.id;
+	const resolvedName = mediaItem.name;
 	const fallbackDuration =
-		typeof mediaItem?.duration === "number" && mediaItem.duration > 0
+		typeof mediaItem.duration === "number" && mediaItem.duration > 0
 			? mediaItem.duration
 			: DEFAULT_MEDIA_DURATION_SECONDS;
 	const startTime = getElementStartTime({ element });
@@ -759,7 +777,7 @@ export async function addClaudeMediaElement({
 
 	// Route audio files to an audio track, matching the app's own drag-drop
 	// behavior (timeline-add-ops), instead of stacking them on the media track.
-	const trackType = mediaItem?.type === "audio" ? "audio" : "media";
+	const trackType = mediaItem.type === "audio" ? "audio" : "media";
 
 	// A caller that names a track has asked for that specific lane, so honor it
 	// and let the store refuse an occupied span. Only an unnamed request gets a
@@ -773,7 +791,8 @@ export async function addClaudeMediaElement({
 			: timelineStore.findOrCreateTrack(trackType, { startTime, duration });
 	const mediaTiming = getClaudeMediaTimingProperties({ element });
 
-	timelineStore.addElementToTrack(trackId, {
+	const elementId = timelineStore.addElementToTrack(trackId, {
+		...requestedElementId({ element }),
 		type: "media",
 		name: resolvedName,
 		mediaId: resolvedId,
@@ -791,7 +810,12 @@ export async function addClaudeMediaElement({
 		...mediaTiming,
 	});
 
+	const addedElementId = requireAddedElementId({
+		elementId,
+		elementType: "media",
+	});
 	debugLog("[ClaudeTimelineBridge] Added media element:", resolvedName);
+	return addedElementId;
 }
 
 /** Add a Claude text element to the timeline store. */
@@ -801,7 +825,7 @@ export function addClaudeTextElement({
 }: {
 	element: Partial<ClaudeElement>;
 	timelineStore: TimelineStoreState;
-}): void {
+}): string {
 	const trackId = timelineStore.findOrCreateTrack("text");
 	const startTime = getElementStartTime({ element });
 	const duration = getElementDuration({
@@ -816,7 +840,8 @@ export function addClaudeTextElement({
 		element: element as Partial<ClaudeElement> & Record<string, unknown>,
 	});
 
-	timelineStore.addElementToTrack(trackId, {
+	const elementId = timelineStore.addElementToTrack(trackId, {
+		...requestedElementId({ element }),
 		type: "text",
 		name: content,
 		content,
@@ -839,7 +864,12 @@ export function addClaudeTextElement({
 		...textProperties,
 	});
 
+	const addedElementId = requireAddedElementId({
+		elementId,
+		elementType: "text",
+	});
 	debugLog("[ClaudeTimelineBridge] Added text element:", content);
+	return addedElementId;
 }
 
 /** Add a Claude adjustment element to the timeline store. */
@@ -849,7 +879,7 @@ export function addClaudeAdjustmentElement({
 }: {
 	element: Partial<ClaudeElement> & { trackId?: string };
 	timelineStore: TimelineStoreState;
-}): string | null {
+}): string {
 	const existingTrack = element.trackId
 		? timelineStore.tracks.find((track) => track.id === element.trackId)
 		: null;
@@ -868,9 +898,7 @@ export function addClaudeAdjustmentElement({
 	});
 
 	const elementId = timelineStore.addElementToTrack(trackId, {
-		...(typeof element.id === "string" && element.id.trim().length > 0
-			? { id: element.id }
-			: {}),
+		...requestedElementId({ element }),
 		type: "adjustment",
 		name: adjustmentFields.name ?? "自定义调节",
 		startTime,
@@ -885,8 +913,12 @@ export function addClaudeAdjustmentElement({
 		...(adjustmentFields.masks ? { masks: adjustmentFields.masks } : {}),
 	});
 
-	debugLog("[ClaudeTimelineBridge] Added adjustment element:", elementId);
-	return elementId;
+	const addedElementId = requireAddedElementId({
+		elementId,
+		elementType: "adjustment",
+	});
+	debugLog("[ClaudeTimelineBridge] Added adjustment element:", addedElementId);
+	return addedElementId;
 }
 
 const DEFAULT_STICKER_DURATION_SECONDS = 5;
@@ -907,7 +939,7 @@ export async function addClaudeStickerElement({
 		opacity?: number;
 	};
 	timelineStore: TimelineStoreState;
-}): Promise<void> {
+}): Promise<string> {
 	const startTime = getElementStartTime({ element });
 	const duration = getElementDuration({
 		element,
@@ -941,7 +973,8 @@ export async function addClaudeStickerElement({
 	const pctW = (pxW / shortSide) * 100;
 	const pctH = (pxH / shortSide) * 100;
 
-	timelineStore.addElementToTrack(trackId, {
+	const elementId = timelineStore.addElementToTrack(trackId, {
+		...requestedElementId({ element }),
 		type: "sticker",
 		name: element.sourceName ?? "Sticker",
 		stickerId,
@@ -956,6 +989,10 @@ export async function addClaudeStickerElement({
 		height: pctH,
 		rotation: element.rotation ?? 0,
 		opacity: element.opacity ?? 1,
+	});
+	const addedElementId = requireAddedElementId({
+		elementId,
+		elementType: "sticker",
 	});
 
 	// Also add to sticker overlay store for canvas rendering + export.
@@ -989,6 +1026,7 @@ export async function addClaudeStickerElement({
 	}
 
 	debugLog("[ClaudeTimelineBridge] Added sticker element:", stickerId);
+	return addedElementId;
 }
 
 const DEFAULT_MARKDOWN_DURATION_SECONDS = 120;
@@ -1001,7 +1039,7 @@ export function addClaudeMarkdownElement({
 }: {
 	element: Partial<ClaudeElement>;
 	timelineStore: TimelineStoreState;
-}): void {
+}): string {
 	// Reuse existing markdown track instead of creating one per element
 	const existingTrack = timelineStore.tracks.find((t) => t.type === "markdown");
 	const trackId = existingTrack?.id ?? timelineStore.addTrack("markdown");
@@ -1041,7 +1079,8 @@ export function addClaudeMarkdownElement({
 	}
 
 	// Subtitle-style: positioned at bottom center, compact height
-	timelineStore.addElementToTrack(trackId, {
+	const elementId = timelineStore.addElementToTrack(trackId, {
+		...requestedElementId({ element }),
 		type: "markdown",
 		name: markdownContent.slice(0, 50),
 		markdownContent,
@@ -1065,10 +1104,15 @@ export function addClaudeMarkdownElement({
 		opacity: 1,
 	});
 
+	const addedElementId = requireAddedElementId({
+		elementId,
+		elementType: "markdown",
+	});
 	debugLog(
 		"[ClaudeTimelineBridge] Added markdown element:",
 		markdownContent.slice(0, 50)
 	);
+	return addedElementId;
 }
 
 const DEFAULT_CAPTION_DURATION_SECONDS = 5;
@@ -1080,7 +1124,7 @@ export function addClaudeCaptionElement({
 }: {
 	element: Partial<ClaudeElement>;
 	timelineStore: TimelineStoreState;
-}): void {
+}): string {
 	console.log(
 		"[CaptionDebug] addClaudeCaptionElement called, element:",
 		JSON.stringify(element, null, 2)
@@ -1119,6 +1163,7 @@ export function addClaudeCaptionElement({
 	);
 
 	const elementId = timelineStore.addElementToTrack(trackId, {
+		...requestedElementId({ element }),
 		type: "captions",
 		name: captionText.slice(0, 50),
 		text: captionText,
@@ -1133,24 +1178,19 @@ export function addClaudeCaptionElement({
 			undefined,
 	});
 
-	if (elementId) {
-		console.log(
-			"[CaptionDebug] Caption element created successfully, id:",
-			elementId
-		);
-		debugLog(
-			"[ClaudeTimelineBridge] Added caption element:",
-			captionText.slice(0, 50)
-		);
-	} else {
-		console.error(
-			"[CaptionDebug] addElementToTrack returned null — caption element NOT created"
-		);
-		debugError(
-			"[ClaudeTimelineBridge] Failed to add caption element to track:",
-			trackId
-		);
-	}
+	const addedElementId = requireAddedElementId({
+		elementId,
+		elementType: "caption",
+	});
+	console.log(
+		"[CaptionDebug] Caption element created successfully, id:",
+		addedElementId
+	);
+	debugLog(
+		"[ClaudeTimelineBridge] Added caption element:",
+		captionText.slice(0, 50)
+	);
+	return addedElementId;
 }
 
 const DEFAULT_REMOTION_DURATION_SECONDS = 5;
@@ -1320,7 +1360,7 @@ export async function addClaudeRemotionElement({
 }: {
 	element: Partial<ClaudeElement>;
 	timelineStore: TimelineStoreState;
-}): Promise<void> {
+}): Promise<string> {
 	const componentName = element.sourceName || "Remotion";
 
 	// Folder-based import: use the existing remotion-folder pipeline
@@ -1330,8 +1370,7 @@ export async function addClaudeRemotionElement({
 		});
 
 		if (registeredIds.length === 0) {
-			debugWarn("[ClaudeTimelineBridge] No components imported from folder");
-			return;
+			throw new Error("No Remotion components were imported from the folder");
 		}
 
 		const startTime = getElementStartTime({ element });
@@ -1346,8 +1385,10 @@ export async function addClaudeRemotionElement({
 
 		// Add a timeline element for each imported composition
 		let offset = startTime;
-		for (const compId of registeredIds) {
-			timelineStore.addElementToTrack(trackId, {
+		const createdElementIds: string[] = [];
+		for (const [index, compId] of registeredIds.entries()) {
+			const elementId = timelineStore.addElementToTrack(trackId, {
+				...(index === 0 ? requestedElementId({ element }) : {}),
 				type: "remotion",
 				name: compId,
 				componentId: compId,
@@ -1359,6 +1400,17 @@ export async function addClaudeRemotionElement({
 				trimEnd: 0,
 				opacity: 1,
 			});
+			if (!elementId) {
+				for (const createdElementId of createdElementIds) {
+					timelineStore.removeElementFromTrack(
+						trackId,
+						createdElementId,
+						false
+					);
+				}
+				throw new Error("Failed to add remotion element to the timeline");
+			}
+			createdElementIds.push(elementId);
 			offset += duration;
 		}
 
@@ -1367,7 +1419,7 @@ export async function addClaudeRemotionElement({
 			registeredIds.length,
 			"remotion elements from folder"
 		);
-		return;
+		return createdElementIds[0];
 	}
 
 	// Single-file fallback: bundle one .tsx file
@@ -1401,7 +1453,8 @@ export async function addClaudeRemotionElement({
 		duration,
 	});
 
-	timelineStore.addElementToTrack(trackId, {
+	const elementId = timelineStore.addElementToTrack(trackId, {
+		...requestedElementId({ element }),
 		type: "remotion",
 		name: componentName,
 		componentId,
@@ -1415,7 +1468,12 @@ export async function addClaudeRemotionElement({
 		opacity: 1,
 	});
 
+	const addedElementId = requireAddedElementId({
+		elementId,
+		elementType: "remotion",
+	});
 	debugLog("[ClaudeTimelineBridge] Added remotion element:", componentName);
+	return addedElementId;
 }
 
 /**
