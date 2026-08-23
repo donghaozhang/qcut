@@ -77,6 +77,10 @@ import {
 	setupJianyingFilterLabIPC,
 	type JianyingFilterLabIPCController,
 } from "./jianying-filter-lab-handler.js";
+import {
+	setupJianyingPortraitAdjustmentIPC,
+	type JianyingPortraitAdjustmentIPCController,
+} from "./jianying-portrait-adjustment-handler.js";
 import { watchJianyingFilterCaches } from "./jianying-filter-cache-watcher.js";
 import {
 	setupJianyingFontLabIPC,
@@ -147,6 +151,8 @@ let jianyingSameProfileWritebackController: JianyingSameProfileWritebackIPCContr
 let jianyingProjectExportController: JianyingProjectExportIPCController | null =
 	null;
 let jianyingFilterLabController: JianyingFilterLabIPCController | null = null;
+let jianyingPortraitAdjustmentController: JianyingPortraitAdjustmentIPCController | null =
+	null;
 let jianyingFontLabController: JianyingFontLabIPCController | null = null;
 let jianyingTextStyleLabController: JianyingTextStyleLabIPCController | null =
 	null;
@@ -1076,6 +1082,15 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 				},
 			],
 			[
+				"JianyingPortraitAdjustmentIPC",
+				() => {
+					jianyingPortraitAdjustmentController =
+						setupJianyingPortraitAdjustmentIPC({
+							getMainWindow: () => mainWindow,
+						});
+				},
+			],
+			[
 				"JianyingFontLabIPC",
 				() => {
 					jianyingFontLabController = setupJianyingFontLabIPC({
@@ -1243,6 +1258,8 @@ app.on("before-quit", () => {
 	jianyingDraftImportController = null;
 	jianyingFilterLabController?.dispose();
 	jianyingFilterLabController = null;
+	jianyingPortraitAdjustmentController?.dispose();
+	jianyingPortraitAdjustmentController = null;
 	jianyingFontLabController?.dispose();
 	jianyingFontLabController = null;
 	jianyingTextStyleLabController?.dispose();
