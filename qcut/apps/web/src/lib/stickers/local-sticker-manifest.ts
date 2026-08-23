@@ -165,6 +165,44 @@ const localStickerReferenceSchema = z
 		validateReferencePlayback({ context, reference });
 	});
 
+const localBridgeStickerAssetSchema = z
+	.object({
+		kind: z.literal("local-reference"),
+		rootPath: z
+			.string()
+			.trim()
+			.min(1)
+			.refine((filePath) => ABSOLUTE_LOCAL_PATH_PATTERN.test(filePath), {
+				message: "rootPath must be absolute",
+			})
+			.refine((filePath) => !hasDotPathSegment({ filePath }), {
+				message: "rootPath must not contain dot path segments",
+			}),
+		batchId: z.string().trim().regex(STICKER_ID_PATTERN),
+		stickerId: z.string().trim().regex(STICKER_ID_PATTERN),
+		byteSize: z.number().int().positive().max(MAX_REMOTE_ASSET_BYTES),
+		checksumSha256: z.string().regex(SHA256_PATTERN),
+	})
+	.strict();
+
+const localBridgeStickerReferenceSchema = z
+	.object({
+		...commonStickerReferenceShape,
+		mimeType: z.enum(["image/png", "image/gif"]),
+		asset: localBridgeStickerAssetSchema,
+	})
+	.strict()
+	.superRefine((reference, context) => {
+		validateReferencePlayback({ context, reference });
+		if (reference.asset.stickerId !== reference.id) {
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["asset", "stickerId"],
+				message: "Local reference stickerId must match the item id",
+			});
+		}
+	});
+
 const supabaseStickerAssetSchema = z
 	.object({
 		kind: z.literal("supabase-storage"),
@@ -308,6 +346,45 @@ const localStickerManifestV1Schema = z
 			categories: manifest.categories,
 			context,
 		});
+	});
+
+const localBridgeStickerCategorySchema = z
+	.object({
+		...commonCategoryShape,
+		items: z.array(localBridgeStickerReferenceSchema).min(1).max(100),
+	})
+	.strict();
+
+const localBridgeStickerCatalogSchema = z
+	.object({
+		version: z.literal(1),
+		batchId: z.string().trim().regex(STICKER_ID_PATTERN),
+		referenceOnly: z.literal(true),
+		generatedAt: z.string().datetime({ offset: true }).optional(),
+		itemCount: z.number().int().nonnegative().optional(),
+		totalBytes: z.number().int().nonnegative().optional(),
+		categories: z.array(localBridgeStickerCategorySchema).min(1).max(100),
+	})
+	.strict()
+	.superRefine((catalog, context) => {
+		validateUniqueManifestEntries({ categories: catalog.categories, context });
+		for (const [categoryIndex, category] of catalog.categories.entries()) {
+			for (const [itemIndex, item] of category.items.entries()) {
+				if (item.asset.batchId === catalog.batchId) continue;
+				context.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: [
+						"categories",
+						categoryIndex,
+						"items",
+						itemIndex,
+						"asset",
+						"batchId",
+					],
+					message: "Local reference batchId must match the catalog batchId",
+				});
+			}
+		}
 	});
 
 const stickerLabManifestV2Schema = z
@@ -466,6 +543,9 @@ export type LocalStickerPlayback =
 	| z.infer<typeof staticPlaybackSchema>
 	| z.infer<typeof animatedPlaybackSchema>;
 export type LocalStickerReference = z.infer<typeof localStickerReferenceSchema>;
+export type LocalBridgeStickerReference = z.infer<
+	typeof localBridgeStickerReferenceSchema
+>;
 export type RemoteStickerReference = z.infer<
 	typeof remoteStickerReferenceSchema
 >;
@@ -477,6 +557,7 @@ export type PrivateStickerReference = z.infer<
 >;
 export type StickerLabReference =
 	| LocalStickerReference
+	| LocalBridgeStickerReference
 	| RemoteStickerReference
 	| PrivateStickerReference;
 export type LocalStickerCategory = z.infer<typeof localStickerCategorySchema>;
@@ -485,12 +566,40 @@ export type PrivateStickerCategory = z.infer<
 	typeof privateStickerCategorySchema
 >;
 export type LocalStickerCatalog = z.infer<typeof localStickerManifestV1Schema>;
+export type LocalBridgeStickerCatalog = z.infer<
+	typeof localBridgeStickerCatalogSchema
+>;
 export type RemoteStickerCatalog = z.infer<typeof stickerLabManifestV2Schema>;
 export type PrivateStickerCatalog = z.infer<typeof privateStickerCatalogSchema>;
 export type StickerLabCatalog =
 	| LocalStickerCatalog
 	| RemoteStickerCatalog
 	| PrivateStickerCatalog;
+export type StickerReferenceCatalog =
+	| LocalBridgeStickerCatalog
+	| PrivateStickerCatalog;
+
+export function isLocalBridgeStickerReference(
+	reference: StickerLabReference
+): reference is LocalBridgeStickerReference {
+	return "asset" in reference && reference.asset.kind === "local-reference";
+}
+
+export function parseLocalBridgeStickerCatalog({
+	candidate,
+}: {
+	candidate: unknown;
+}): LocalBridgeStickerCatalog {
+	const result = localBridgeStickerCatalogSchema.safeParse(candidate);
+	if (!result.success) {
+		throw new Error(
+			`Invalid local sticker reference catalog: ${formatManifestIssues({
+				error: result.error,
+			})}`
+		);
+	}
+	return result.data;
+}
 
 export function isPrivateStickerCatalog(
 	catalog: StickerLabCatalog
