@@ -27,7 +27,13 @@ interface ClaudeImportedMediaEvent {
 	metadata?: Record<string, unknown>;
 	name: string;
 	path: string;
+	projectId: string;
 	type?: MediaType;
+}
+
+interface ClaudeDeletedMediaEvent {
+	mediaId: string;
+	projectId: string;
 }
 
 const MEDIA_MIME_TYPES: Record<string, string> = {
@@ -106,7 +112,9 @@ export function parseClaudeImportedMediaEvent({
 		typeof record.name !== "string" ||
 		!record.name.trim() ||
 		typeof record.path !== "string" ||
-		!record.path.trim()
+		!record.path.trim() ||
+		typeof record.projectId !== "string" ||
+		!record.projectId.trim()
 	) {
 		return null;
 	}
@@ -116,11 +124,40 @@ export function parseClaudeImportedMediaEvent({
 		metadata: safeImportedMetadata({ candidate: record.metadata }),
 		name: record.name,
 		path: record.path,
+		projectId: record.projectId,
 		type: importedMediaType({
 			declaredType: record.type,
 			extension,
 		}),
 	};
+}
+
+function parseClaudeDeletedMediaEvent({
+	candidate,
+}: {
+	candidate: unknown;
+}): ClaudeDeletedMediaEvent | null {
+	const record = readRecord({ value: candidate });
+	if (
+		!record ||
+		typeof record.mediaId !== "string" ||
+		!record.mediaId.trim() ||
+		typeof record.projectId !== "string" ||
+		!record.projectId.trim()
+	) {
+		return null;
+	}
+	return { mediaId: record.mediaId, projectId: record.projectId };
+}
+
+function assertMediaProjectIsActive({
+	projectId,
+}: {
+	projectId: string;
+}): void {
+	const activeProjectId = useProjectStore.getState().activeProject?.id;
+	if (activeProjectId === projectId) return;
+	throw new Error(`Cannot import media for inactive project ${projectId}`);
 }
 
 export function buildClaudeImportedMediaMetadata({
@@ -279,6 +316,14 @@ export function setupClaudeTimelineBridge(): void {
 	}
 
 	const claudeAPI = claude.timeline;
+	const deletedMediaKeys = new Set<string>();
+	const mediaKey = ({
+		mediaId,
+		projectId,
+	}: {
+		mediaId: string;
+		projectId: string;
+	}): string => `${projectId}:${mediaId}`;
 	debugLog("[ClaudeTimelineBridge] Setting up bridge...");
 
 	// Listen for media imports so the renderer store gets the File object (needed for preview)
@@ -287,13 +332,17 @@ export function setupClaudeTimelineBridge(): void {
 			try {
 				const data = parseClaudeImportedMediaEvent({ candidate });
 				if (!data) {
-					debugWarn(
-						"[ClaudeTimelineBridge] Ignoring invalid media import event"
-					);
-					return;
+					throw new Error("Invalid media import event");
 				}
-				const projectId = useProjectStore.getState().activeProject?.id;
-				if (!projectId) return;
+				const projectId = data.projectId;
+				assertMediaProjectIsActive({ projectId });
+				const importedMediaKey = mediaKey({
+					mediaId: data.id,
+					projectId,
+				});
+				if (deletedMediaKeys.has(importedMediaKey)) {
+					throw new Error("Media import was cancelled");
+				}
 
 				// Check if already in store by ID or path (avoid duplicates)
 				const existing = useMediaStore
@@ -311,7 +360,8 @@ export function setupClaudeTimelineBridge(): void {
 				);
 
 				const buffer = await platform().files.readFile(data.path);
-				if (!buffer) return;
+				assertMediaProjectIsActive({ projectId });
+				if (!buffer) throw new Error("Imported media could not be read");
 
 				const ext = data.name.split(".").pop()?.toLowerCase() || "";
 				const mimeType = MEDIA_MIME_TYPES[ext] ?? "application/octet-stream";
@@ -324,21 +374,32 @@ export function setupClaudeTimelineBridge(): void {
 				const blob = new Blob([uint8], { type: mimeType });
 				const fileObj = new File([blob], data.name, { type: mimeType });
 
-				const { getOrCreateObjectURL } = await import(
+				const { getOrCreateObjectURL, releaseObjectURL } = await import(
 					"@/lib/media/blob-manager"
 				);
+				assertMediaProjectIsActive({ projectId });
 				const displayUrl = getOrCreateObjectURL(fileObj, "claude-media-import");
 
-				await useMediaStore.getState().addMediaItem(projectId, {
-					id: data.id,
-					name: data.name,
-					type: data.type ?? "video",
-					file: fileObj,
-					url: displayUrl,
-					localPath: data.path,
-					isLocalFile: true,
-					metadata,
-				});
+				try {
+					await useMediaStore.getState().addMediaItem(projectId, {
+						id: data.id,
+						name: data.name,
+						type: data.type ?? "video",
+						file: fileObj,
+						url: displayUrl,
+						localPath: data.path,
+						isLocalFile: true,
+						metadata,
+					});
+					assertMediaProjectIsActive({ projectId });
+					if (deletedMediaKeys.has(importedMediaKey)) {
+						throw new Error("Media import was cancelled");
+					}
+				} catch (error) {
+					await useMediaStore.getState().removeMediaItem(projectId, data.id);
+					releaseObjectURL(displayUrl, "claude-media-import-failed");
+					throw error;
+				}
 
 				debugLog("[ClaudeTimelineBridge] Media loaded into store:", data.name);
 			} catch (error) {
@@ -346,7 +407,28 @@ export function setupClaudeTimelineBridge(): void {
 					"[ClaudeTimelineBridge] Failed to load imported media:",
 					error
 				);
+				throw error instanceof Error ? error : new Error(String(error));
 			}
+		});
+	}
+
+	if (claude.media?.onMediaDeleted) {
+		claude.media.onMediaDeleted(async (candidate: unknown) => {
+			const data = parseClaudeDeletedMediaEvent({ candidate });
+			if (!data) throw new Error("Invalid media deletion event");
+			const projectId = useProjectStore.getState().activeProject?.id;
+			if (!projectId || projectId !== data.projectId) {
+				throw new Error(
+					`Cannot delete media for inactive project ${data.projectId}`
+				);
+			}
+			const deletedMediaKey = mediaKey({
+				mediaId: data.mediaId,
+				projectId,
+			});
+			deletedMediaKeys.add(deletedMediaKey);
+			setTimeout(() => deletedMediaKeys.delete(deletedMediaKey), 60_000);
+			await useMediaStore.getState().removeMediaItem(projectId, data.mediaId);
 		});
 	}
 
