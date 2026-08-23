@@ -136,6 +136,7 @@ export interface WindowAccessor {
 	requestSelection(correlationId?: string): Promise<ClaudeSelectionItem[]>;
 	/** Add one timeline element and wait for the renderer acknowledgement. */
 	requestAddElement?(
+		projectId: string,
 		element: Partial<ClaudeElement>,
 		correlationId?: string
 	): Promise<void>;
@@ -939,6 +940,7 @@ export function registerSharedRoutes(
 			operation: "Timeline element placement",
 			request: () =>
 				requestAddElement(
+					req.params.projectId,
 					{
 						...req.body,
 						id: elementId,
