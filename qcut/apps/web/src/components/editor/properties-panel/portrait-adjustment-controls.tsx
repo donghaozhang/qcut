@@ -75,6 +75,7 @@ export function PortraitAdjustmentSection({
 	const resetLabel = locale === "zh" ? "重置本组" : "Reset group";
 	const reset = () => {
 		const sectionKeys = new Set<string>(controls.map(({ key }) => key));
+		onInteractionStart();
 		onChange({
 			...adjustments,
 			values: Object.fromEntries(
@@ -83,6 +84,7 @@ export function PortraitAdjustmentSection({
 				)
 			),
 		});
+		onInteractionEnd();
 	};
 
 	return (
