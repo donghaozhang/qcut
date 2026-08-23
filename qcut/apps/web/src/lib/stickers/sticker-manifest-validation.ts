@@ -30,7 +30,13 @@ export function validateUniqueManifestEntries({
 		items: readonly {
 			id: string;
 			filePath?: string;
-			asset?: { checksumSha256: string; objectKey: string };
+			asset?: {
+				checksumSha256: string;
+				objectKey?: string;
+				rootPath?: string;
+				batchId?: string;
+				stickerId?: string;
+			};
 			sourceAsset?: { checksumSha256: string; id: string; path: string };
 		}[];
 	}[];
@@ -64,10 +70,23 @@ export function validateUniqueManifestEntries({
 			}
 			itemIds.add(item.id);
 
-			const resourceIdentity = item.filePath ?? item.asset?.objectKey;
+			const localAssetIdentity =
+				item.asset?.rootPath && item.asset.batchId && item.asset.stickerId
+					? [
+							item.asset.rootPath,
+							item.asset.batchId,
+							item.asset.stickerId,
+						].join("\0")
+					: undefined;
+			const resourceIdentity =
+				item.filePath ?? item.asset?.objectKey ?? localAssetIdentity;
 			if (resourceIdentity) {
 				if (resourceIdentities.has(resourceIdentity)) {
-					const resourceField = item.filePath ? "filePath" : "asset.objectKey";
+					const resourceField = item.filePath
+						? "filePath"
+						: item.asset?.objectKey
+							? "asset.objectKey"
+							: "asset.stickerId";
 					context.addIssue({
 						code: "custom",
 						path: [
@@ -79,7 +98,9 @@ export function validateUniqueManifestEntries({
 						],
 						message: item.filePath
 							? `Duplicate sticker path: ${resourceIdentity}`
-							: `Duplicate sticker object key: ${resourceIdentity}`,
+							: item.asset?.objectKey
+								? `Duplicate sticker object key: ${resourceIdentity}`
+								: `Duplicate local sticker reference: ${item.asset?.stickerId ?? item.id}`,
 					});
 				}
 				resourceIdentities.add(resourceIdentity);
