@@ -36,14 +36,60 @@ export interface CatalogItem {
 const EFFECT_PANELS: readonly JianyingEffectPanel[] = ["effects2", "face-prop"];
 
 /**
- * Effects whose requirements go beyond a plain blit need Jianying's CV models
- * (matting, face landmarks) wired to a real frame source, which QCut does not
- * provide yet. They are catalogued but reported unsupported instead of
- * rendering something wrong.
+ * Effects whose requirements go beyond the locally verified runtime nodes need
+ * Jianying's CV models wired to a real frame source. They are catalogued but
+ * reported unsupported until their model-on/model-off render is isolated.
  */
-export const SUPPORTED_REQUIREMENTS = new Set(["blit", "texture_blit"]);
+export const SUPPORTED_REQUIREMENTS = new Set([
+	"blit",
+	"ext_texture_producer",
+	"texture_blit",
+]);
 
 const DEFAULT_EFFECT_DURATION_MS = 3000;
+
+const MODEL_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_./-]*$/;
+
+function collectModelNameValues({
+	value,
+	names,
+}: {
+	value: unknown;
+	names: Set<string>;
+}): void {
+	if (typeof value === "string") {
+		const trimmed = value.trim();
+		if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+			try {
+				collectModelNameValues({ value: JSON.parse(trimmed), names });
+				return;
+			} catch {
+				return;
+			}
+		}
+		if (MODEL_NAME_PATTERN.test(trimmed)) names.add(trimmed);
+		return;
+	}
+	if (Array.isArray(value)) {
+		for (const entry of value) collectModelNameValues({ value: entry, names });
+		return;
+	}
+	if (typeof value !== "object" || value === null) return;
+	for (const entry of Object.values(value)) {
+		collectModelNameValues({ value: entry, names });
+	}
+}
+
+/** Parses catalog/package model declarations without assuming a `tt_*` prefix. */
+export function readDeclaredModelNames({
+	values,
+}: {
+	values: unknown[];
+}): string[] {
+	const names = new Set<string>();
+	for (const value of values) collectModelNameValues({ value, names });
+	return [...names].sort();
+}
 
 function parseJsonObject({ text }: { text: string }): Record<string, unknown> {
 	try {
