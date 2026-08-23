@@ -3,6 +3,7 @@ import type {
 	MediaElement,
 	TimelineTrack,
 } from "@/types/timeline";
+import { hasMediaPortraitAdjustments } from "@qcut/editor-core";
 
 function requiresLocalColorRuntime({
 	color,
@@ -31,6 +32,13 @@ function mediaRequiresLocalColorRuntime({
 	element: MediaElement;
 }): boolean {
 	if (requiresLocalColorRuntime({ color: element.color })) return true;
+	if (
+		hasMediaPortraitAdjustments({
+			adjustments: element.portraitAdjustments,
+		})
+	) {
+		return true;
+	}
 	return Boolean(
 		element.compound?.clips.some((clip) =>
 			mediaRequiresLocalColorRuntime({ element: clip.element })
