@@ -50,13 +50,22 @@ export interface ElectronClaudeOps {
 			) => Promise<boolean>;
 			onMediaImported: (
 				callback: (data: {
+					projectId: string;
 					path: string;
 					name: string;
 					id: string;
 					metadata?: Record<string, unknown>;
 					type: string;
 					size: number;
-				}) => void
+					requestId?: string;
+				}) => void | Promise<void>
+			) => void;
+			onMediaDeleted: (
+				callback: (data: {
+					mediaId: string;
+					projectId: string;
+					requestId?: string;
+				}) => void | Promise<void>
 			) => void;
 		};
 		search: {
