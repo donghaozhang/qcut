@@ -1,5 +1,7 @@
 // QCut-owned interoperability probe; third-party libraries and assets are supplied at runtime.
 #include <OpenGL/OpenGL.h>
+#include <objc/message.h>
+#include <objc/runtime.h>
 #include <OpenGL/gl.h>
 
 #include <dlfcn.h>
@@ -338,6 +340,46 @@ struct ContextResult {
     CGLPixelFormatObj pixelFormat;
     CGLContextObj context;
 };
+
+/**
+ * The product host renders inside the runtime's own image-processing context
+ * (`HTSGLContext`, exported by the effect core) rather than a standalone CGL
+ * context. `--engine-gl-context` reproduces that arrangement so the face
+ * pipeline can be A/B'd across the two context regimes on identical frames.
+ */
+void* adoptEngineGlContext(const char* effectLibraryPath) {
+    // The class lives in the effect core, so it only resolves after that
+    // library is loaded — mirroring the product host's load-then-bind order.
+    if (dlopen(effectLibraryPath, RTLD_NOW | RTLD_GLOBAL) == nullptr) {
+        std::cerr << "engine context: dlopen failed: " << dlerror() << '\n';
+        return nullptr;
+    }
+    Class contextClass = objc_getClass("HTSGLContext");
+    if (contextClass == nullptr) {
+        std::cerr << "engine context: HTSGLContext is unavailable\n";
+        return nullptr;
+    }
+    const auto send = reinterpret_cast<id (*)(id, SEL)>(objc_msgSend);
+    send(reinterpret_cast<id>(contextClass), sel_registerName("preloadGLContext"));
+    id context =
+        send(reinterpret_cast<id>(contextClass),
+             sel_registerName("sharedImageProcessingContext"));
+    if (context == nullptr) {
+        context = send(reinterpret_cast<id>(contextClass),
+                       sel_registerName("shareProcesingContext"));
+    }
+    if (context == nullptr) {
+        context = send(reinterpret_cast<id>(contextClass),
+                       sel_registerName("defaultImageProcessingContext"));
+    }
+    if (context == nullptr) {
+        std::cerr << "engine context: no image processing context\n";
+        return nullptr;
+    }
+    reinterpret_cast<void (*)(id, SEL, BOOL)>(objc_msgSend)(
+        context, sel_registerName("bind:"), YES);
+    return context;
+}
 
 ContextResult createContext(bool useCoreProfile) {
     const CGLPixelFormatAttribute profile = static_cast<CGLPixelFormatAttribute>(
@@ -899,6 +941,7 @@ bool inspectFaceResult(const InspectFaceResultOptions& options) {
 
 struct ProbeOptions {
     bool useCoreProfile = false;
+    bool useEngineGlContext = false;
     bool usePipeline = false;
     bool server = false;
     bool skipAlgorithm = false;
@@ -950,6 +993,10 @@ ProbeOptions parseProbeOptions(int argc, char** argv) {
         }
         if (argument == "--server") {
             options.server = true;
+            continue;
+        }
+        if (argument == "--engine-gl-context") {
+            options.useEngineGlContext = true;
             continue;
         }
         if (argument == "--skip-algorithm") {
@@ -1261,7 +1308,15 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    const ContextResult contextResult = createContext(probeOptions.useCoreProfile);
+    ContextResult contextResult{};
+    if (probeOptions.useEngineGlContext) {
+        if (adoptEngineGlContext(argv[1]) == nullptr) return 4;
+        contextResult.context = CGLGetCurrentContext();
+        std::cout << "context_regime=engine\n";
+    } else {
+        contextResult = createContext(probeOptions.useCoreProfile);
+        std::cout << "context_regime=standalone\n";
+    }
     if (contextResult.context == nullptr) {
         return 4;
     }
