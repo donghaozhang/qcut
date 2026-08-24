@@ -11,6 +11,15 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useTranslation } from "@/lib/i18n";
 import {
+	detectJianyingPortraitFaces,
+	type PortraitFaceDetection,
+} from "@/lib/portrait/jianying-portrait-face-detection";
+import {
+	applyPortraitAdjustments,
+	projectPortraitAdjustments,
+	type PortraitEditScope,
+} from "@/lib/portrait/portrait-face-scope";
+import {
 	applyPortraitPreset,
 	createPortraitPreset,
 	hasPortraitPresetContent,
@@ -46,58 +55,104 @@ function runtimePackageForControl({
 	return control.runtimePackage ?? control.group;
 }
 
+/**
+ * Face picker. It lists the faces the native runtime is actually tracking,
+ * falling back to the historical fixed list when detection is unavailable so
+ * the control never becomes unusable on a machine without the runtime.
+ */
 function FaceTargetControl({
 	adjustments,
+	detection,
+	detectionError,
+	detecting,
+	scope,
 	disabled,
 	locale,
-	onChange,
-	onInteractionStart,
-	onInteractionEnd,
+	onScopeChange,
+	onDetect,
 }: {
 	adjustments: MediaPortraitAdjustments;
+	detection: PortraitFaceDetection | null;
+	detectionError: string | null;
+	detecting: boolean;
+	scope: PortraitEditScope;
 	disabled: boolean;
 	locale: string;
-	onChange: (adjustments: MediaPortraitAdjustments) => void;
-	onInteractionStart: () => void;
-	onInteractionEnd: () => void;
+	onScopeChange: (scope: PortraitEditScope) => void;
+	onDetect: () => void;
 }) {
-	const value =
-		adjustments.faceTarget?.mode === "single"
-			? `face-${adjustments.faceTarget.faceId ?? 0}`
-			: "all";
-	const setTarget = (nextValue: string) => {
-		onInteractionStart();
-		const faceId = Number(nextValue.slice(5));
-		onChange({
-			enabled: adjustments.enabled,
-			values: adjustments.values,
-			...(adjustments.makeup ? { makeup: adjustments.makeup } : {}),
-			...(adjustments.faces ? { faces: adjustments.faces } : {}),
-			...(nextValue === "all"
-				? {}
-				: { faceTarget: { mode: "single" as const, faceId } }),
-		});
-		onInteractionEnd();
-	};
+	const isZh = locale === "zh";
+	const value = scope.mode === "all" ? "all" : `face-${scope.trackId}`;
+	const configuredTrackIds = new Set(
+		(adjustments.faces ?? []).map((face) => face.trackId)
+	);
+	const detected = detection?.faces ?? [];
+	const appliedLimit = detection?.appliedFaceLimit ?? 5;
 	return (
-		<Select value={value} onValueChange={setTarget} disabled={disabled}>
-			<SelectTrigger
-				className="h-8 w-full text-xs"
-				aria-label={locale === "zh" ? "人脸选择" : "Face target"}
-			>
-				<SelectValue />
-			</SelectTrigger>
-			<SelectContent>
-				<SelectItem value="all">
-					{locale === "zh" ? "全部人脸" : "All faces"}
-				</SelectItem>
-				{Array.from({ length: 10 }, (_, faceId) => (
-					<SelectItem key={faceId} value={`face-${faceId}`}>
-						{locale === "zh" ? `人脸 ${faceId + 1}` : `Face ${faceId + 1}`}
-					</SelectItem>
-				))}
-			</SelectContent>
-		</Select>
+		<div className="space-y-1">
+			<div className="flex items-center gap-1">
+				<Select
+					value={value}
+					onValueChange={(next) =>
+						onScopeChange(
+							next === "all"
+								? { mode: "all" }
+								: { mode: "face", trackId: Number(next.slice(5)) }
+						)
+					}
+					disabled={disabled}
+				>
+					<SelectTrigger
+						className="h-8 w-full text-xs"
+						aria-label={isZh ? "人脸选择" : "Face target"}
+					>
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="all">
+							{isZh ? "全部人脸" : "All faces"}
+						</SelectItem>
+						{detected.map((face, index) => (
+							<SelectItem key={face.trackId} value={`face-${face.trackId}`}>
+								{`${isZh ? "人脸" : "Face"} ${index + 1}`}
+								{index >= appliedLimit
+									? isZh
+										? "（不生效）"
+										: " (inert)"
+									: ""}
+								{configuredTrackIds.has(face.trackId) ? " ●" : ""}
+							</SelectItem>
+						))}
+						{detected.length === 0
+							? Array.from({ length: 10 }, (_, faceId) => (
+									<SelectItem key={faceId} value={`face-${faceId}`}>
+										{`${isZh ? "人脸" : "Face"} ${faceId + 1}`}
+									</SelectItem>
+								))
+							: null}
+					</SelectContent>
+				</Select>
+				<button
+					type="button"
+					className="h-8 shrink-0 rounded border px-2 text-xs disabled:opacity-50"
+					onClick={onDetect}
+					disabled={disabled || detecting}
+					title={isZh ? "识别画面中的人脸" : "Detect faces in the frame"}
+				>
+					{detecting ? (isZh ? "识别中" : "…") : isZh ? "识别" : "Detect"}
+				</button>
+			</div>
+			{detectionError ? (
+				<p className="text-[10px] text-muted-foreground">{detectionError}</p>
+			) : null}
+			{detected.length > appliedLimit ? (
+				<p className="text-[10px] text-muted-foreground">
+					{isZh
+						? `本机运行时同时最多对 ${appliedLimit} 张人脸生效`
+						: `The runtime applies effects to at most ${appliedLimit} faces`}
+				</p>
+			) : null}
+		</div>
 	);
 }
 
@@ -125,6 +180,55 @@ export function MediaPortraitProperties({
 	const [loading, setLoading] = useState(true);
 	const [presets, setPresets] = useState(loadPortraitPresets);
 	const [selectedPresetId, setSelectedPresetId] = useState<string>();
+	// Face selection and detection are transient view state: they describe the
+	// current frame, never the project, so they are deliberately not persisted.
+	const [scope, setScope] = useState<PortraitEditScope>({ mode: "all" });
+	const [detection, setDetection] = useState<PortraitFaceDetection | null>(
+		null
+	);
+	const [detectionError, setDetectionError] = useState<string | null>(null);
+	const [detecting, setDetecting] = useState(false);
+	const detectFaces = useCallback(async () => {
+		setDetecting(true);
+		setDetectionError(null);
+		try {
+			const canvas = document.querySelector<HTMLCanvasElement>(
+				'[data-testid="color-preview-canvas"]'
+			);
+			const context = canvas?.getContext("2d", { willReadFrequently: true });
+			if (!canvas || !context || canvas.width === 0 || canvas.height === 0) {
+				throw new Error(
+					locale === "zh" ? "预览画面尚未就绪" : "The preview is not ready"
+				);
+			}
+			const next = await detectJianyingPortraitFaces({
+				source: context.getImageData(0, 0, canvas.width, canvas.height),
+			});
+			setDetection(next);
+			if (next.faces.length === 0) {
+				setDetectionError(
+					locale === "zh" ? "画面中未识别到人脸" : "No faces in this frame"
+				);
+			}
+		} catch (cause) {
+			setDetection(null);
+			setDetectionError(cause instanceof Error ? cause.message : String(cause));
+		} finally {
+			setDetecting(false);
+		}
+	}, [locale]);
+	const scopedAdjustments = useMemo(
+		() => projectPortraitAdjustments({ adjustments, scope }),
+		[adjustments, scope]
+	);
+	const onScopedAdjustmentsChange = useCallback(
+		(edited: MediaPortraitAdjustments) => {
+			onAdjustmentsChange(
+				applyPortraitAdjustments({ adjustments, scope, edited })
+			);
+		},
+		[adjustments, onAdjustmentsChange, scope]
+	);
 	const inspect = useCallback(async ({ refresh }: { refresh: boolean }) => {
 		setLoading(true);
 		try {
@@ -235,11 +339,11 @@ export function MediaPortraitProperties({
 	const sectionProps = (section: JianyingPortraitAdjustmentSection) => ({
 		section,
 		controls: controlsBySection.get(section) ?? [],
-		adjustments,
+		adjustments: scopedAdjustments,
 		disabled: nativeDisabled || !adjustments.enabled,
 		locale,
 		isControlReady,
-		onChange: onAdjustmentsChange,
+		onChange: onScopedAdjustmentsChange,
 		onInteractionStart,
 		onInteractionEnd,
 	});
@@ -291,11 +395,16 @@ export function MediaPortraitProperties({
 					<TabsContent value="face" className="mt-4 space-y-4">
 						<FaceTargetControl
 							adjustments={adjustments}
+							detection={detection}
+							detectionError={detectionError}
+							detecting={detecting}
+							scope={scope}
 							disabled={nativeDisabled || !adjustments.enabled}
 							locale={locale}
-							onChange={onAdjustmentsChange}
-							onInteractionStart={onInteractionStart}
-							onInteractionEnd={onInteractionEnd}
+							onScopeChange={setScope}
+							onDetect={() => {
+								void detectFaces();
+							}}
 						/>
 						<Tabs
 							value={activeFaceTab}
