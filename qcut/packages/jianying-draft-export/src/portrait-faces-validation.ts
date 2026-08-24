@@ -12,6 +12,13 @@ const PORTRAIT_FACE_ENTRY_KEYS: ReadonlySet<string> = new Set<
 >(["trackId", "values", "makeup"]);
 
 /**
+ * The native runtime tracks at most ten faces, and both editor normalization
+ * and the IPC parser cap entries there. Accepting more here would let a
+ * snapshot pass export validation and then lose face data downstream.
+ */
+const MAXIMUM_PORTRAIT_FACE_ENTRIES = 10;
+
+/**
  * Validates the optional per-face portrait adjustment entries. Value and
  * makeup payloads are checked by the callbacks so this module never
  * duplicates the container's field rules; it owns only the array structure:
@@ -32,6 +39,12 @@ export function validatePortraitFaceEntries({
 }): void {
 	if (!Array.isArray(value)) {
 		throw validationIssue({ message: "Expected an array.", path });
+	}
+	if (value.length > MAXIMUM_PORTRAIT_FACE_ENTRIES) {
+		throw validationIssue({
+			message: `Expected at most ${MAXIMUM_PORTRAIT_FACE_ENTRIES} entries.`,
+			path,
+		});
 	}
 	const seenTrackIds = new Set<number>();
 	for (const [index, entry] of value.entries()) {
