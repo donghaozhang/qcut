@@ -66,11 +66,29 @@ script 算法的逐帧调度**。这与「剪映 CV 特效解锁」时的两堵�
 （那次修的是模型回调与原生纹理输入；这次缺的是 face→freid→script GAN 的
 requirement 调度与结果发布）。输入方向（GL/显示两种朝向）已排除。
 
+## 产品适配器已接线（同日）
+
+美白、清晰已进产品目录：`face_adjust_Whiten` / `face_adjust_Clarity`
+（editor-core 键 + electron 契约 + runtime 包身份 + 标量强度分支，语义同 smooth；
+美白默认 1.0 的坑由「分支总是显式下发 intensity + 零值不建 stage」中和）。
+
+用 dist 构建里的真实 provider（产品宿主二进制 + stage 链）对同一显示方向帧渲染：
+
+| 用例 | activeGroups | 与输入差值 |
+| --- | --- | ---: |
+| `face_adjust_Whiten=100` | `face` | `2,548,174` |
+| `face_adjust_Whiten=50` | `face` | `1,273,875` |
+| `face_adjust_Clarity=100` | `face` | `4,830,507` |
+
+- 美白 100 与低层 CGL oracle 默认差值（`2,552,287`）收敛在 0.2% 内；50 恰为半程。
+- 产品差分图方向正确、严格局限人脸皮肤区、眼唇保护、背景零变化
+  （`product-whiten-diff-x8.png`）。
+- 包解析 `source=jianying-installation`；下一次私有运行时备份会按身份表自动收录。
+
 ## 下一步
 
-1. 美白、清晰按单卡模板继续第 7-8 步（中文剪映 UI 只开单项 100 采参照 +
-   固定 ROI PSNR/SSIM 邻域搜索），随后接产品适配器（新增 runtime 包身份 +
-   标量强度分支，语义同 smooth）。
+1. 美白、清晰按单卡模板补第 7-8 步（中文剪映 UI 只开单项 100 采参照 +
+   固定 ROI PSNR/SSIM 邻域搜索），补齐后才标 verified。
 2. GAN 三卡单独立项：在 Swing 宿主中打通 face/freid requirement 的逐帧调度，
    验收标准沿用「有模型 vs 无模型」隔离 + `gan0==1` 发布 + 零强度回退。
 3. 祛黑眼圈只需产品侧命名核对（很可能就是现有 `face_adjust_Pouch` 的 UI 名），
