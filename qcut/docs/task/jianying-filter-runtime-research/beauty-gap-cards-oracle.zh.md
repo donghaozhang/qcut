@@ -121,8 +121,39 @@
 | 丰盈 `100` | `859,109` | oracle `873,895` | 偏差 1.7% |
 | 祛斑祛痘 `100` | `94,744` | oracle `97,260` | 偏差 2.6% |
 
-已上线卡逐字节零漂移，证明换用引擎上下文没有改动任何既有渲染；GAN 三卡与低层 oracle
-的残差属于两个宿主的纹理与调度差异，量级与瘦脸单卡一致。三张卡的 UI 屏蔽已撤除。
+GAN 三卡与低层 oracle 的残差属于两个宿主的纹理与调度差异，量级与瘦脸单卡一致。
+三张卡的 UI 屏蔽已撤除。
+
+### 全包回归（修复前后两个二进制逐字节对拍）
+
+上表只覆盖了 12 个 runtime 包里的两个，而引擎上下文是**所有**人像渲染共用的，
+因此补做了全量对拍：`QCUT_JIANYING_PORTRAIT_ADJUSTMENT_HOST` 指向修复前后的
+两份 dev-cache 二进制（修复前 `d8141f2f13071bba`，`HTSGLContext` 命中 0；
+修复后 `f42152ec7e7b6c97`，命中 2），同一张帧、同一批用例各渲一遍：
+
+- smooth / whiten / clarity / eye-details / skin-tone（强度与冷暖两键）/ teeth /
+  face（正负两向）/ features（大眼与眉宽）/ body（瘦腰与长腿），每项 50 与 100 两档；
+- 另加两条美妆 stage（独立卡 look-oxygen、动态卡 lip-soft-pink），它们不在
+  `JIANYING_PORTRAIT_RUNTIME_PACKAGE_ORDER` 里但同样受上下文影响。
+
+**28 项输出 SHA-256 前后完全一致**，换上下文没有改动任何既有渲染。
+
+一个如实的口径限制：body 两项在 50/100 与输入三者哈希相同，即纯透传——
+这张素材是半身像，美体算法找不到可形变的身体。前后一致所以不是回归，但
+**美体包实际上没有被这张素材验证到**，需要换一张全身素材另行确认。
+
+### 发版缺陷：staged 宿主是修复前的旧二进制
+
+`resolveHost` 的候选顺序是 `QCUT_JIANYING_PORTRAIT_ADJUSTMENT_HOST` →
+`resourcesPath/bin` → 现场编译，**打包版只会走第二条**。而
+`electron/resources/bin/jianying-portrait-adjustment-host` 当时还是 8 月 23 日
+14:19 的产物，`HTSGLContext` 命中 0——也就是说，本轮所有验证都跑在现场编译的
+dev-cache 上，而打包版会带着修复前的宿主，让刚解禁的三张卡对用户静默渲染原图。
+
+已重新 stage，并给 `scripts/verify-packaged-jianying-runtime-bridges.ts` 加了
+能力断言：打包宿主里必须出现 `HTSGLContext` 引用，否则打包直接失败。
+原来的校验只比对 Mach-O 身份与 UUID，对「能启动、能渲染、但少一项能力」的
+陈旧产物完全无感。断言已用修复前后两份二进制验证过判别力（前 false、后 true）。
 
 ## 第一轮记录：未通过时的观察（保留）
 
