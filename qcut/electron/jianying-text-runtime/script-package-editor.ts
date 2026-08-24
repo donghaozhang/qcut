@@ -1,6 +1,8 @@
 import { createHash, randomUUID } from "node:crypto";
+import { constants } from "node:fs";
 import {
 	cp,
+	copyFile,
 	mkdir,
 	readFile,
 	rename,
@@ -18,10 +20,12 @@ import { injectJianyingCaptionTiming } from "./script-caption-timing.js";
 import { hydrateJianyingScriptContent } from "./script-content-hydrator.js";
 import { splitJianyingTextGraphemes } from "./graphemes.js";
 import { fitJianyingScriptTextWidget } from "./script-text-fit.js";
+import type { ResolvedJianyingScriptHost } from "./script-host-resolver.js";
 
-export const JIANYING_SCRIPT_PACKAGE_COPY_SCHEMA_VERSION = 11;
+export const JIANYING_SCRIPT_PACKAGE_COPY_SCHEMA_VERSION = 15;
 const packageCopies = new Map<string, Promise<string>>();
 const RICH_TEXT_SLOT_PATTERN = /\[[^\]]*\]/g;
+const PRIMARY_SCRIPT_TEXT_WIDGET_AREA_RATIO = 0.35;
 
 function sanitizeSlotText({ text }: { text: string }) {
 	return text.replace(/\[/g, "［").replace(/\]/g, "］");
@@ -112,6 +116,53 @@ interface EditableScriptTextWidget {
 	widget: Record<string, unknown>;
 }
 
+function scriptTextWidgetVisualArea({
+	widget,
+}: {
+	widget: Record<string, unknown>;
+}) {
+	const originalSize = widget.original_size;
+	const scale = widget.scale;
+	if (
+		!Array.isArray(originalSize) ||
+		!Array.isArray(scale) ||
+		typeof originalSize[0] !== "number" ||
+		!Number.isFinite(originalSize[0]) ||
+		typeof originalSize[1] !== "number" ||
+		!Number.isFinite(originalSize[1]) ||
+		typeof scale[0] !== "number" ||
+		!Number.isFinite(scale[0]) ||
+		typeof scale[1] !== "number" ||
+		!Number.isFinite(scale[1])
+	) {
+		return null;
+	}
+	const width = Math.abs(originalSize[0] * scale[0]);
+	const height = Math.abs(originalSize[1] * scale[1]);
+	const area = width * height;
+	return area > 0 ? area : null;
+}
+
+function primaryScriptTextWidgets({
+	widgets,
+}: {
+	widgets: EditableScriptTextWidget[];
+}) {
+	if (widgets.length <= 1) return widgets;
+	const measured = widgets.flatMap((widget) => {
+		const area = scriptTextWidgetVisualArea({ widget: widget.widget });
+		return area === null ? [] : [{ area, widget }];
+	});
+	if (measured.length !== widgets.length) return widgets;
+	const maximumArea = Math.max(...measured.map(({ area }) => area));
+	const primary = measured
+		.filter(
+			({ area }) => area >= maximumArea * PRIMARY_SCRIPT_TEXT_WIDGET_AREA_RATIO
+		)
+		.map(({ widget }) => widget);
+	return primary.length > 0 ? primary : widgets;
+}
+
 function collectEditableScriptTextWidgets({
 	children,
 	widgets,
@@ -175,29 +226,34 @@ export function editJianyingScriptContent({
 	if (widgets.length === 0) {
 		throw new Error("ScriptInfoSticker has no editable rich-text slots");
 	}
+	const editableWidgets = primaryScriptTextWidgets({ widgets });
 	const lines = content.replace(/\r\n?/g, "\n").split("\n");
 	const templateDuration =
 		asJianyingRecord(root.root)?.duration ??
 		DEFAULT_JIANYING_TEXT_TEMPLATE_DURATION;
 	let slotCount = 0;
-	for (let index = 0; index < widgets.length; index += 1) {
-		const richText = widgets[index].textParams.richText as string;
+	for (let index = 0; index < editableWidgets.length; index += 1) {
+		const richText = editableWidgets[index].textParams.richText as string;
 		const widgetText = sanitizeSlotText({
-			text: textForWidget({ lines, index, widgetCount: widgets.length }),
+			text: textForWidget({
+				lines,
+				index,
+				widgetCount: editableWidgets.length,
+			}),
 		});
-		slotCount += widgets[index].slotCount;
+		slotCount += editableWidgets[index].slotCount;
 		const editedRichText = replaceJianyingRichTextSlots({
 			richText,
 			text: widgetText,
 		});
 		fitJianyingScriptTextWidget({
-			widget: widgets[index].widget,
+			widget: editableWidgets[index].widget,
 			originalRichText: richText,
 			editedRichText,
 		});
-		widgets[index].textParams.richText = editedRichText;
+		editableWidgets[index].textParams.richText = editedRichText;
 		injectJianyingCaptionTiming({
-			widget: widgets[index].widget,
+			widget: editableWidgets[index].widget,
 			text: widgetText,
 			templateDuration:
 				typeof templateDuration === "number" &&
@@ -209,7 +265,7 @@ export function editJianyingScriptContent({
 	}
 	return {
 		value: root,
-		textWidgetCount: widgets.length,
+		textWidgetCount: editableWidgets.length,
 		slotCount,
 	};
 }
@@ -222,6 +278,7 @@ export function prepareJianyingScriptContent({
 	fallbackFontPath,
 	fontOverridePath,
 	degradedResourceIds,
+	supportsCustomContourShapes = false,
 }: {
 	value: unknown;
 	content?: string;
@@ -230,6 +287,7 @@ export function prepareJianyingScriptContent({
 	fallbackFontPath?: string;
 	fontOverridePath?: string;
 	degradedResourceIds?: ReadonlySet<string>;
+	supportsCustomContourShapes?: boolean;
 }) {
 	const editable =
 		content === undefined
@@ -242,6 +300,7 @@ export function prepareJianyingScriptContent({
 		fallbackFontPath,
 		fontOverridePath,
 		degradedResourceIds,
+		supportsCustomContourShapes,
 	});
 }
 
@@ -264,6 +323,46 @@ function copyCacheRoot() {
 	);
 }
 
+function localizedDependencyPath({
+	destination,
+	resourceId,
+}: {
+	destination: string;
+	resourceId: string;
+}) {
+	const dependencyHash = createHash("sha256").update(resourceId).digest("hex");
+	return path.join(destination, "dependencies", dependencyHash);
+}
+
+async function localizeJianyingScriptResourcePaths({
+	destination,
+	resourcePaths,
+	temporary,
+}: {
+	destination: string;
+	resourcePaths: Readonly<Record<string, string>>;
+	temporary: string;
+}) {
+	const localized = await Promise.all(
+		Object.entries(resourcePaths).map(async ([resourceId, sourcePath]) => {
+			const finalPath = localizedDependencyPath({ destination, resourceId });
+			const temporaryPath = localizedDependencyPath({
+				destination: temporary,
+				resourceId,
+			});
+			await mkdir(path.dirname(temporaryPath), { recursive: true });
+			await cp(sourcePath, temporaryPath, {
+				recursive: true,
+				errorOnExist: true,
+				force: false,
+				mode: constants.COPYFILE_FICLONE,
+			});
+			return [resourceId, finalPath] as const;
+		})
+	);
+	return Object.fromEntries(localized);
+}
+
 async function createScriptPackageCopy({
 	packagePath,
 	packageHash,
@@ -274,6 +373,7 @@ async function createScriptPackageCopy({
 	fallbackFontPath,
 	fontOverridePath,
 	degradedResourceIds,
+	scriptHost,
 }: {
 	packagePath: string;
 	packageHash: string;
@@ -284,6 +384,7 @@ async function createScriptPackageCopy({
 	fallbackFontPath: string;
 	fontOverridePath?: string;
 	degradedResourceIds: ReadonlySet<string>;
+	scriptHost?: ResolvedJianyingScriptHost;
 }) {
 	const copyHash = createHash("sha256")
 		.update(
@@ -295,6 +396,7 @@ async function createScriptPackageCopy({
 				fallbackFontPath,
 				fontOverridePath: fontOverridePath ?? null,
 				degradedResourceIds: [...degradedResourceIds].sort(),
+				scriptHostFingerprint: scriptHost?.fingerprint ?? null,
 			})
 		)
 		.digest("hex");
@@ -308,16 +410,36 @@ async function createScriptPackageCopy({
 			errorOnExist: true,
 			force: false,
 		});
+		if (scriptHost) {
+			await Promise.all([
+				copyFile(
+					scriptHost.mainScriptPath,
+					path.join(temporary, "js", "main.js"),
+					constants.COPYFILE_FICLONE
+				),
+				copyFile(
+					scriptHost.templateScriptPath,
+					path.join(temporary, "js", "template", "template.js"),
+					constants.COPYFILE_FICLONE
+				),
+			]);
+		}
+		const localizedResourcePaths = await localizeJianyingScriptResourcePaths({
+			destination,
+			resourcePaths,
+			temporary,
+		});
 		const contentPath = path.join(temporary, "content.json");
 		const source = JSON.parse(await readFile(contentPath, "utf8")) as unknown;
 		const prepared = prepareJianyingScriptContent({
 			value: source,
 			content,
-			resourcePaths,
+			resourcePaths: localizedResourcePaths,
 			templateFontPaths,
 			fallbackFontPath,
 			fontOverridePath,
 			degradedResourceIds,
+			supportsCustomContourShapes: Boolean(scriptHost),
 		});
 		const temporaryContentPath = `${contentPath}.tmp`;
 		await writeFile(
@@ -346,6 +468,7 @@ export function getEditedJianyingScriptPackage({
 	fallbackFontPath,
 	fontOverridePath,
 	degradedResourceIds = new Set<string>(),
+	scriptHost,
 }: {
 	packagePath: string;
 	packageHash: string;
@@ -356,6 +479,7 @@ export function getEditedJianyingScriptPackage({
 	fallbackFontPath: string;
 	fontOverridePath?: string;
 	degradedResourceIds?: ReadonlySet<string>;
+	scriptHost?: ResolvedJianyingScriptHost;
 }) {
 	const key = createHash("sha256")
 		.update(String(JIANYING_SCRIPT_PACKAGE_COPY_SCHEMA_VERSION))
@@ -366,6 +490,7 @@ export function getEditedJianyingScriptPackage({
 		.update(fallbackFontPath)
 		.update(fontOverridePath ?? "template-fonts")
 		.update([...degradedResourceIds].sort().join("\0"))
+		.update(scriptHost?.fingerprint ?? "source-script-host")
 		.digest("hex");
 	const pending = packageCopies.get(key);
 	if (pending) return pending;
@@ -379,6 +504,7 @@ export function getEditedJianyingScriptPackage({
 		fallbackFontPath,
 		fontOverridePath,
 		degradedResourceIds,
+		scriptHost,
 	}).finally(() => packageCopies.delete(key));
 	packageCopies.set(key, created);
 	return created;
@@ -393,6 +519,7 @@ export function getHydratedJianyingScriptPackage({
 	fallbackFontPath,
 	fontOverridePath,
 	degradedResourceIds = new Set<string>(),
+	scriptHost,
 }: {
 	packagePath: string;
 	packageHash: string;
@@ -402,6 +529,7 @@ export function getHydratedJianyingScriptPackage({
 	fallbackFontPath: string;
 	fontOverridePath?: string;
 	degradedResourceIds?: ReadonlySet<string>;
+	scriptHost?: ResolvedJianyingScriptHost;
 }) {
 	const key = createHash("sha256")
 		.update(String(JIANYING_SCRIPT_PACKAGE_COPY_SCHEMA_VERSION))
@@ -411,6 +539,7 @@ export function getHydratedJianyingScriptPackage({
 		.update(fallbackFontPath)
 		.update(fontOverridePath ?? "template-fonts")
 		.update([...degradedResourceIds].sort().join("\0"))
+		.update(scriptHost?.fingerprint ?? "source-script-host")
 		.update("hydrated")
 		.digest("hex");
 	const pending = packageCopies.get(key);
@@ -424,6 +553,7 @@ export function getHydratedJianyingScriptPackage({
 		fallbackFontPath,
 		fontOverridePath,
 		degradedResourceIds,
+		scriptHost,
 	}).finally(() => packageCopies.delete(key));
 	packageCopies.set(key, created);
 	return created;
