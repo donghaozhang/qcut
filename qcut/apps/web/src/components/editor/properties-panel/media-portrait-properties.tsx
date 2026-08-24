@@ -158,6 +158,7 @@ function FaceTargetControl({
 }
 
 export function MediaPortraitProperties({
+	elementId,
 	enhancements,
 	adjustments,
 	onEnhancementsChange,
@@ -165,6 +166,7 @@ export function MediaPortraitProperties({
 	onInteractionStart,
 	onInteractionEnd,
 }: {
+	elementId: string;
 	enhancements: MediaEnhancements;
 	adjustments: MediaPortraitAdjustments;
 	onEnhancementsChange: (enhancements: MediaEnhancements) => void;
@@ -183,12 +185,20 @@ export function MediaPortraitProperties({
 	const [selectedPresetId, setSelectedPresetId] = useState<string>();
 	// Face selection and detection are transient view state: they describe the
 	// current frame, never the project, so they are deliberately not persisted.
-	const [scope, setScope] = useState<PortraitEditScope>({ mode: "all" });
-	const [detection, setDetection] = useState<PortraitFaceDetection | null>(
-		null
-	);
+	const scope = usePortraitFaceStore((state) => state.scope);
+	const setScope = usePortraitFaceStore((state) => state.setScope);
+	const detection = usePortraitFaceStore((state) => state.detection);
+	const setDetection = usePortraitFaceStore((state) => state.setDetection);
 	const [detectionError, setDetectionError] = useState<string | null>(null);
 	const [detecting, setDetecting] = useState(false);
+	const resetFaceState = usePortraitFaceStore((state) => state.reset);
+	// Boxes describe one frame of one clip, so a different element must never
+	// inherit the previous selection or its stale boxes.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: elementId is the trigger, not a value the effect reads
+	useEffect(() => {
+		resetFaceState();
+		setDetectionError(null);
+	}, [elementId, resetFaceState]);
 	const detectFaces = useCallback(async () => {
 		setDetecting(true);
 		setDetectionError(null);
@@ -217,7 +227,7 @@ export function MediaPortraitProperties({
 		} finally {
 			setDetecting(false);
 		}
-	}, [locale]);
+	}, [locale, setDetection]);
 	const scopedAdjustments = useMemo(
 		() => projectPortraitAdjustments({ adjustments, scope }),
 		[adjustments, scope]
