@@ -590,15 +590,38 @@ export function jianyingPortraitControlsForRuntimePackage({
 	);
 }
 
+/**
+ * One face's worth of slider values for parameter emission. The id is the
+ * native vector-protocol face id: -1 means "any face", otherwise a freid
+ * trackid (package Lua getValue matches an id-equal entry before the -1
+ * fallback).
+ */
+export interface JianyingPortraitFaceParameterEntry {
+	id: number;
+	values: Partial<Record<MediaPortraitAdjustmentKey, number>>;
+}
+
 export function buildJianyingPortraitFeatureParameters({
 	runtimePackage,
 	values,
 	targetFaceId = -1,
+	faceEntries,
 }: {
 	runtimePackage: JianyingPortraitAdjustmentRuntimePackage;
 	values: Partial<Record<MediaPortraitAdjustmentKey, number>>;
 	targetFaceId?: number;
+	/**
+	 * Additional per-face entries appended after the base entry. Absent means
+	 * legacy single-face emission, byte-identical to the historical output.
+	 */
+	faceEntries?: readonly JianyingPortraitFaceParameterEntry[];
 }) {
+	const entries: readonly JianyingPortraitFaceParameterEntry[] = [
+		{ id: targetFaceId, values },
+		...(faceEntries ?? []),
+	];
+	// 三个标量包（磨皮/美白/清晰）的 Lua 只接受 {intensity} 标量事件，
+	// 向量形式未经探针验证前始终只从基础条目取值，逐脸数据在上游保留。
 	if (runtimePackage === "smooth") {
 		return JSON.stringify({
 			intensity: (values.face_adjust_Smooth ?? 0) / 100,
@@ -616,40 +639,23 @@ export function buildJianyingPortraitFeatureParameters({
 			intensity: (values.face_adjust_Clarity ?? 0) / 100,
 		});
 	}
+	const vectorFor = (key: MediaPortraitAdjustmentKey) =>
+		entries.map((entry) => ({
+			id: entry.id,
+			intensity: (entry.values[key] ?? 0) / 100,
+		}));
 	// 祛斑祛痘包内部的键就叫 `face_adjust`（与洁牙同名、不同包），
 	// 产品键单独命名以免两张卡互相覆盖。
 	if (runtimePackage === "spot-acne") {
-		return JSON.stringify({
-			face_adjust: [
-				{
-					id: targetFaceId,
-					intensity: (values.face_adjust_SpotAcne ?? 0) / 100,
-				},
-			],
-		});
+		return JSON.stringify({ face_adjust: vectorFor("face_adjust_SpotAcne") });
 	}
 	if (runtimePackage === "teeth") {
-		return JSON.stringify({
-			face_adjust: [
-				{
-					id: targetFaceId,
-					intensity: (values.face_adjust_WhiteTeeth ?? 0) / 100,
-				},
-			],
-		});
+		return JSON.stringify({ face_adjust: vectorFor("face_adjust_WhiteTeeth") });
 	}
 	return JSON.stringify(
 		Object.fromEntries(
 			jianyingPortraitControlsForRuntimePackage({ runtimePackage }).map(
-				(control) => [
-					control.key,
-					[
-						{
-							id: targetFaceId,
-							intensity: (values[control.key] ?? 0) / 100,
-						},
-					],
-				]
+				(control) => [control.key, vectorFor(control.key)]
 			)
 		)
 	);
