@@ -135,6 +135,20 @@ export interface MediaPortraitFaceTarget {
 	faceId?: number;
 }
 
+/** One person's adjustment set, identified by the native freid track id. */
+export interface MediaPortraitFaceAdjustments {
+	/**
+	 * freid trackid reported by the native runtime. Non-negative safe integer,
+	 * deliberately not capped at 9 — the id space is the tracker's, not the
+	 * legacy ordinal faceTarget's. faceTarget keeps its own 0..9 meaning.
+	 */
+	trackId: number;
+	values: Partial<Record<MediaPortraitAdjustmentKey, number>>;
+	makeup?: Partial<
+		Record<MediaPortraitMakeupCategory, MediaPortraitMakeupSelection>
+	>;
+}
+
 export interface MediaPortraitAdjustments {
 	enabled: boolean;
 	values: Partial<Record<MediaPortraitAdjustmentKey, number>>;
@@ -142,6 +156,13 @@ export interface MediaPortraitAdjustments {
 	makeup?: Partial<
 		Record<MediaPortraitMakeupCategory, MediaPortraitMakeupSelection>
 	>;
+	/**
+	 * Optional per-person adjustment sets. Absent on every legacy project and
+	 * omitted again by normalize whenever empty, so stored legacy shapes stay
+	 * byte-identical. Entries are deduped by trackId (first wins), sorted
+	 * ascending, and capped at the native 10-face tracking limit.
+	 */
+	faces?: MediaPortraitFaceAdjustments[];
 }
 
 export interface JianyingPortraitAdjustmentControl {
