@@ -350,6 +350,7 @@ async function inspectRuntimeParameterEditing({
 			fallbackFontPath,
 			fontOverridePath,
 			degradedResourceIds,
+			supportsCustomContourShapes: Boolean(packageInfo.scriptHost),
 		});
 		const hydratedPackagePath = await getHydratedJianyingScriptPackage({
 			packagePath: packageInfo.packagePath,
@@ -360,6 +361,7 @@ async function inspectRuntimeParameterEditing({
 			fallbackFontPath,
 			fontOverridePath,
 			degradedResourceIds,
+			scriptHost: packageInfo.scriptHost,
 		});
 		const preloadedPackagePath = await getEditedJianyingScriptPackage({
 			packagePath: packageInfo.packagePath,
@@ -371,6 +373,7 @@ async function inspectRuntimeParameterEditing({
 			fallbackFontPath,
 			fontOverridePath,
 			degradedResourceIds,
+			scriptHost: packageInfo.scriptHost,
 		});
 		const referencePath = path.join(temporary, "reference.rgba");
 		const candidatePath = path.join(temporary, "candidate.rgba");
@@ -519,6 +522,7 @@ export async function renderEditableJianyingScriptSequence({
 		fallbackFontPath,
 		fontOverridePath,
 		degradedResourceIds,
+		supportsCustomContourShapes: Boolean(packageInfo.scriptHost),
 	});
 	const hydratedPackagePath = await getHydratedJianyingScriptPackage({
 		packagePath: packageInfo.packagePath,
@@ -529,6 +533,7 @@ export async function renderEditableJianyingScriptSequence({
 		fallbackFontPath,
 		fontOverridePath,
 		degradedResourceIds,
+		scriptHost: packageInfo.scriptHost,
 	});
 	const strategy = await resolveJianyingScriptEditStrategy({
 		runtime,
@@ -563,6 +568,7 @@ export async function renderEditableJianyingScriptSequence({
 		fallbackFontPath,
 		fontOverridePath,
 		degradedResourceIds,
+		scriptHost: packageInfo.scriptHost,
 	});
 	await renderJianyingTextRawSequence({
 		runtime,
