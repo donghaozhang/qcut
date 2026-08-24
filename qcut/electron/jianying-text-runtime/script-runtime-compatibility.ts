@@ -10,10 +10,11 @@ function isUnsupportedCustomContourShape({ value }: { value: unknown }) {
 	const widget = asJianyingRecord(value);
 	if (widget?.type !== "shape") return false;
 	const shapeParameters = asJianyingRecord(widget.shape_params);
-	return (
-		shapeParameters?.shape_type === CUSTOM_CONTOUR_POLYGON_SHAPE_TYPE &&
-		asJianyingRecord(shapeParameters.custom_points) !== null
-	);
+	// Same predicate as script-host-resolver's hasCustomContourShape: any
+	// shape_type-4 shape counts, regardless of how custom_points is stored —
+	// otherwise a shape the resolver flagged as host-requiring would survive
+	// this filter when no compatible host is installed.
+	return shapeParameters?.shape_type === CUSTOM_CONTOUR_POLYGON_SHAPE_TYPE;
 }
 
 export function filterJianyingScriptRuntimeCompatibleChildren({
