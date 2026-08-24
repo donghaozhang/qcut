@@ -9,11 +9,18 @@ export function buildJianyingTextRawFrameFilter({
 	rotationRadians,
 	outputWidth,
 	outputHeight,
+	canvas,
 }: {
 	opacity: number;
 	rotationRadians: number;
 	outputWidth: number;
 	outputHeight: number;
+	canvas?: {
+		width: number;
+		height: number;
+		x: number;
+		y: number;
+	};
 }) {
 	const unpremultiply = (["r", "g", "b"] as const)
 		.map((channel) => `${channel}='${unpremultiplyExpression({ channel })}'`)
@@ -21,6 +28,11 @@ export function buildJianyingTextRawFrameFilter({
 		.join(":");
 	return [
 		"format=rgba",
+		...(canvas
+			? [
+					`pad=${canvas.width}:${canvas.height}:${canvas.x}:${canvas.y}:color=black@0`,
+				]
+			: []),
 		`rotate=${rotationRadians}:c=none:ow=${outputWidth}:oh=${outputHeight}`,
 		`geq=${unpremultiply}`,
 		`colorchannelmixer=aa=${opacity}`,
