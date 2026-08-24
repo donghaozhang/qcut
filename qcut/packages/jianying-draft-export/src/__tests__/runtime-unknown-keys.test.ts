@@ -749,6 +749,27 @@ describe("snapshot runtime property allowlists", () => {
 			},
 			{
 				expectedPath:
+					"$.snapshot.tracks[0].elements[0].portraitAdjustments.faces",
+				mutate: (value) => {
+					const element = value.tracks[0]?.elements[0];
+					if (
+						!element ||
+						element.type !== "media" ||
+						!element.portraitAdjustments?.faces
+					) {
+						throw new Error("Expected portrait face entries.");
+					}
+					element.portraitAdjustments.faces = Array.from(
+						{ length: 11 },
+						(_, index) => ({
+							trackId: index,
+							values: { face_adjust_Chin: 10 },
+						})
+					);
+				},
+			},
+			{
+				expectedPath:
 					"$.snapshot.tracks[0].elements[0].portraitAdjustments.faces[0].values",
 				mutate: (value) => {
 					const element = value.tracks[0]?.elements[0];
