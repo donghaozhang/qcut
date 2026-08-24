@@ -3,6 +3,9 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import type {
+	JianyingPortraitAdjustmentDetectRequest,
+	JianyingPortraitAdjustmentDetectResult,
+	JianyingPortraitDetectedFace,
 	JianyingPortraitAdjustmentGroup,
 	JianyingPortraitAdjustmentRenderRequest,
 	JianyingPortraitAdjustmentRenderResult,
@@ -40,7 +43,74 @@ export interface JianyingPortraitAdjustmentProvider {
 	render: (
 		request: JianyingPortraitAdjustmentRenderRequest
 	) => Promise<JianyingPortraitAdjustmentRenderResult>;
+	detect: (
+		request: JianyingPortraitAdjustmentDetectRequest
+	) => Promise<JianyingPortraitAdjustmentDetectResult>;
 	clear: () => Promise<void>;
+}
+
+/**
+ * Only the first five tracked faces receive effects — a package-level limit,
+ * not a product choice — so the UI can tell the user why a sixth face is
+ * listed but inert.
+ */
+const APPLIED_FACE_LIMIT = 5;
+
+/**
+ * Parses the host's detect payload. A malformed payload is an error rather
+ * than an empty face list: reporting "no faces" for a broken pipeline would
+ * read as a detection outcome.
+ */
+function parseDetectedFaces({
+	payload,
+}: {
+	payload: string;
+}): JianyingPortraitDetectedFace[] {
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(payload);
+	} catch {
+		throw new Error("剪映美颜美体人脸检测返回了无法解析的结果");
+	}
+	const faces = (parsed as { faces?: unknown })?.faces;
+	if (!Array.isArray(faces)) {
+		throw new Error("剪映美颜美体人脸检测结果缺少人脸列表");
+	}
+	return faces.map((value) => {
+		const face = value as Record<string, unknown>;
+		const rect = face.rect;
+		if (
+			typeof face.trackId !== "number" ||
+			!Number.isSafeInteger(face.trackId) ||
+			face.trackId < 0 ||
+			!Array.isArray(rect) ||
+			rect.length !== 4 ||
+			!rect.every(
+				(entry) => typeof entry === "number" && Number.isFinite(entry)
+			)
+		) {
+			throw new Error("剪映美颜美体人脸检测结果格式无效");
+		}
+		const numberField = (key: string) =>
+			typeof face[key] === "number" && Number.isFinite(face[key])
+				? (face[key] as number)
+				: 0;
+		return {
+			trackId: face.trackId,
+			rect: {
+				x: rect[0] as number,
+				y: rect[1] as number,
+				width: rect[2] as number,
+				height: rect[3] as number,
+			},
+			score: numberField("score"),
+			yaw: numberField("yaw"),
+			pitch: numberField("pitch"),
+			roll: numberField("roll"),
+			trackingCount: numberField("trackingCount"),
+			landmarkCount: numberField("landmarkCount"),
+		};
+	});
 }
 
 function requestedGroups({
@@ -393,8 +463,71 @@ export function createJianyingPortraitAdjustmentProvider(): JianyingPortraitAdju
 		}
 	};
 
+	const detectNow = async (
+		request: JianyingPortraitAdjustmentDetectRequest
+	): Promise<JianyingPortraitAdjustmentDetectResult> => {
+		const [runtime, hostPath, packages] = await Promise.all([
+			inspectJianyingFilterLocalRuntime({ refresh: false }),
+			resolveJianyingPortraitAdjustmentHost(),
+			resolveJianyingPortraitPackages(),
+		]);
+		const modelDirectory = runtime.modelDirectory;
+		const frameworkDirectory = runtime.frameworkDirectory;
+		// Detection needs a package that carries a face algorithm graph; the
+		// face-shape package is the one every install has when portrait is ready.
+		const packagePath = packages.find(
+			({ runtimePackage }) => runtimePackage === "face"
+		)?.packagePath;
+		if (!hostPath || !modelDirectory || !frameworkDirectory || !packagePath) {
+			throw new Error("剪映美颜美体人脸检测不可用");
+		}
+		if (!temporaryDirectoryPromise) {
+			temporaryDirectoryPromise = mkdtemp(
+				path.join(os.tmpdir(), "qcut-jianying-portrait-")
+			).catch((cause) => {
+				temporaryDirectoryPromise = null;
+				throw cause;
+			});
+		}
+		const directory = await temporaryDirectoryPromise;
+		const requestId = randomUUID();
+		const inputPath = path.join(directory, `${requestId}-detect.rgba`);
+		await writeFile(inputPath, request.rgba);
+		// Detection runs in its own short-lived host: it loads a second effect
+		// handle, and reusing a render session's process would disturb the
+		// tracker state those sessions depend on.
+		const process = await startJianyingPortraitHostProcess({
+			hostPath,
+			runtimeRoot: path.dirname(frameworkDirectory),
+			modelDirectory,
+			packagePath,
+			frameworkDirectory,
+			width: request.width,
+			height: request.height,
+		});
+		try {
+			const payload = await process.detect({ requestId, inputPath });
+			return {
+				provider: "jianying-local-swing-v1",
+				faces: parseDetectedFaces({ payload }),
+				appliedFaceLimit: APPLIED_FACE_LIMIT,
+			};
+		} finally {
+			await process.dispose();
+			await rm(inputPath, { force: true });
+		}
+	};
+
 	return {
 		inspect,
+		detect: (request) => {
+			const pending = queue.then(() => detectNow(request));
+			queue = pending.then(
+				() => undefined,
+				() => undefined
+			);
+			return pending;
+		},
 		render: (request) => {
 			const pending = queue.then(() => renderNow(request));
 			queue = pending.then(
