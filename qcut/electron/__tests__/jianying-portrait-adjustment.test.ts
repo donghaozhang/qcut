@@ -5,6 +5,7 @@ import {
 	JIANYING_PORTRAIT_ADJUSTMENT_CATALOG,
 	JIANYING_PORTRAIT_PACKAGE_IDENTITIES,
 	JIANYING_PORTRAIT_RUNTIME_PACKAGE_ORDER,
+	jianyingPortraitControlIsHostReady,
 	jianyingPortraitControlsForGroup,
 	jianyingPortraitControlsForRuntimePackage,
 } from "../jianying-portrait-adjustment-runtime/catalog.js";
@@ -39,6 +40,16 @@ describe("Jianying portrait adjustment contract", () => {
 				runtimePackage: "skin-gan",
 			}).map(({ key }) => key)
 		).toEqual(["face_adjust_yunfu", "face_adjust_fuling"]);
+		// GAN 三卡在产品宿主上仍渲染原图，接入前不得出现在 UI 目录里。
+		expect(
+			JIANYING_PORTRAIT_ADJUSTMENT_CATALOG.filter(
+				(control) => !jianyingPortraitControlIsHostReady({ control })
+			).map(({ key }) => key)
+		).toEqual([
+			"face_adjust_yunfu",
+			"face_adjust_fuling",
+			"face_adjust_SpotAcne",
+		]);
 	});
 
 	it("uses dedicated package parameter shapes and selected face IDs", () => {
