@@ -1,4 +1,5 @@
 import type { JianyingTextRuntimePackageKind } from "../jianying-text-runtime-contract.js";
+import { nextJianyingTextFitValue } from "./alpha-fit.js";
 
 export interface JianyingHostTextAlphaBounds {
 	minX: number;
@@ -8,10 +9,6 @@ export interface JianyingHostTextAlphaBounds {
 	width: number;
 	height: number;
 }
-
-const TARGET_MARGIN_RATIO = 0.04;
-const CLIPPED_RETRY_SCALE = 0.75;
-const MINIMUM_FONT_SIZE = 1;
 
 export function shouldFitJianyingHostText({
 	packageKind,
@@ -68,34 +65,17 @@ export function nextJianyingHostTextFontSize({
 	width: number;
 	height: number;
 }) {
-	if (!bounds) return null;
-	const marginX = Math.max(2, Math.round(width * TARGET_MARGIN_RATIO));
-	const marginY = Math.max(2, Math.round(height * TARGET_MARGIN_RATIO));
-	const fits =
-		bounds.minX >= marginX &&
-		bounds.maxX < width - marginX &&
-		bounds.minY >= marginY &&
-		bounds.maxY < height - marginY;
-	if (fits || fontSize <= MINIMUM_FONT_SIZE) return null;
-	const touchesFrame =
-		bounds.minX === 0 ||
-		bounds.maxX === width - 1 ||
-		bounds.minY === 0 ||
-		bounds.maxY === height - 1;
-	const availableWidth = Math.max(1, width - marginX * 2);
-	const availableHeight = Math.max(1, height - marginY * 2);
-	const measuredScale = Math.min(
-		availableWidth / bounds.width,
-		availableHeight / bounds.height,
-		0.95
-	);
-	// A clipped frame understates the real bounds, so use a conservative step.
-	const scale = touchesFrame
-		? Math.min(measuredScale, CLIPPED_RETRY_SCALE)
-		: measuredScale;
-	const next = Math.max(
-		MINIMUM_FONT_SIZE,
-		Math.floor(fontSize * Math.max(0.1, scale) * 1000) / 1000
-	);
-	return next < fontSize ? next : null;
+	return nextJianyingTextFitValue({
+		value: fontSize,
+		bounds: bounds
+			? {
+					x: bounds.minX,
+					y: bounds.minY,
+					width: bounds.width,
+					height: bounds.height,
+				}
+			: null,
+		frameWidth: width,
+		frameHeight: height,
+	});
 }
