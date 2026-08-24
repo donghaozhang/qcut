@@ -160,6 +160,77 @@ describe("Jianying script content hydration", () => {
 		});
 	});
 
+	it("drops unsupported custom contour decoration beside text", () => {
+		expect(
+			hydrateJianyingScriptContent({
+				value: {
+					children: [
+						{ type: "text", text_params: {} },
+						{
+							type: "shape",
+							shape_params: {
+								shape_type: 4,
+								custom_points: { points_number: 4 },
+							},
+						},
+						{
+							type: "shape",
+							shape_params: {
+								shape_type: 1,
+								custom_points: { points_number: 4 },
+							},
+						},
+					],
+				},
+				resourcePaths: {},
+			})
+		).toEqual({
+			children: [
+				{ type: "text", text_params: {} },
+				{
+					type: "shape",
+					shape_params: {
+						shape_type: 1,
+						custom_points: { points_number: 4 },
+					},
+				},
+			],
+		});
+	});
+
+	it("preserves a custom contour when no text sibling can replace it", () => {
+		const shape = {
+			type: "shape",
+			shape_params: {
+				shape_type: 4,
+				custom_points: { points_number: 4 },
+			},
+		};
+		expect(
+			hydrateJianyingScriptContent({
+				value: { children: [shape] },
+				resourcePaths: {},
+			})
+		).toEqual({ children: [shape] });
+	});
+
+	it("preserves a custom contour when a compatible script host is available", () => {
+		const shape = {
+			type: "shape",
+			shape_params: {
+				shape_type: 4,
+				custom_points: { points_number: 4 },
+			},
+		};
+		expect(
+			hydrateJianyingScriptContent({
+				value: { children: [{ type: "text" }, shape] },
+				resourcePaths: {},
+				supportsCustomContourShapes: true,
+			})
+		).toEqual({ children: [{ type: "text" }, shape] });
+	});
+
 	it("clears an unresolved effectStyle path while preserving editable text", () => {
 		expect(
 			hydrateJianyingScriptContent({
