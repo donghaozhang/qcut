@@ -14,6 +14,7 @@ import {
 	detectJianyingPortraitFaces,
 	type PortraitFaceDetection,
 } from "@/lib/portrait/jianying-portrait-face-detection";
+import { usePortraitFaceStore } from "@/stores/editor/portrait-face-store";
 import {
 	applyPortraitAdjustments,
 	projectPortraitAdjustments,
@@ -216,7 +217,7 @@ export function MediaPortraitProperties({
 		} finally {
 			setDetecting(false);
 		}
-	}, [locale]);
+	}, [locale, setDetection]);
 	const scopedAdjustments = useMemo(
 		() => projectPortraitAdjustments({ adjustments, scope }),
 		[adjustments, scope]
