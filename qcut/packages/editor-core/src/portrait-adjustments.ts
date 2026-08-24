@@ -109,6 +109,20 @@ export interface MediaPortraitFaceTarget {
 	faceId?: number;
 }
 
+/** One person's adjustment set, identified by the native freid track id. */
+export interface MediaPortraitFaceAdjustments {
+	/**
+	 * freid trackid reported by the native runtime. Non-negative safe integer,
+	 * deliberately not capped at 9 — the id space is the tracker's, not the
+	 * legacy ordinal faceTarget's. faceTarget keeps its own 0..9 meaning.
+	 */
+	trackId: number;
+	values: Partial<Record<MediaPortraitAdjustmentKey, number>>;
+	makeup?: Partial<
+		Record<MediaPortraitMakeupCategory, MediaPortraitMakeupSelection>
+	>;
+}
+
 export interface MediaPortraitAdjustments {
 	enabled: boolean;
 	values: Partial<Record<MediaPortraitAdjustmentKey, number>>;
@@ -116,6 +130,13 @@ export interface MediaPortraitAdjustments {
 	makeup?: Partial<
 		Record<MediaPortraitMakeupCategory, MediaPortraitMakeupSelection>
 	>;
+	/**
+	 * Optional per-person adjustment sets. Absent on every legacy project and
+	 * omitted again by normalize whenever empty, so stored legacy shapes stay
+	 * byte-identical. Entries are deduped by trackId (first wins), sorted
+	 * ascending, and capped at the native 10-face tracking limit.
+	 */
+	faces?: MediaPortraitFaceAdjustments[];
 }
 
 export const DEFAULT_MEDIA_PORTRAIT_ADJUSTMENTS: MediaPortraitAdjustments = {
@@ -137,12 +158,54 @@ export function normalizeMediaPortraitAdjustments({
 	}
 	const faceTarget = normalizeFaceTarget({ target: adjustments?.faceTarget });
 	const makeup = normalizeMakeupSelections({ selections: adjustments?.makeup });
+	const faces = normalizeFaceEntries({ entries: adjustments?.faces });
 	return {
 		enabled: adjustments?.enabled ?? false,
 		values,
 		...(faceTarget ? { faceTarget } : {}),
 		...(Object.keys(makeup).length > 0 ? { makeup } : {}),
+		...(faces.length > 0 ? { faces } : {}),
 	};
+}
+
+const MAXIMUM_PORTRAIT_FACE_ENTRIES = 10;
+
+function normalizeFaceEntries({
+	entries,
+}: {
+	entries?: readonly Partial<MediaPortraitFaceAdjustments>[];
+}): MediaPortraitFaceAdjustments[] {
+	if (!entries) return [];
+	const byTrackId = new Map<number, MediaPortraitFaceAdjustments>();
+	for (const entry of entries) {
+		const trackId = entry?.trackId;
+		if (
+			typeof trackId !== "number" ||
+			!Number.isSafeInteger(trackId) ||
+			trackId < 0 ||
+			byTrackId.has(trackId)
+		) {
+			continue;
+		}
+		const values: MediaPortraitAdjustments["values"] = {};
+		for (const key of MEDIA_PORTRAIT_ADJUSTMENT_KEYS) {
+			const value = entry.values?.[key];
+			if (typeof value === "number" && Number.isFinite(value) && value !== 0) {
+				values[key] = value;
+			}
+		}
+		const makeup = normalizeMakeupSelections({ selections: entry.makeup });
+		if (Object.keys(values).length === 0 && Object.keys(makeup).length === 0) {
+			continue;
+		}
+		byTrackId.set(trackId, {
+			trackId,
+			values,
+			...(Object.keys(makeup).length > 0 ? { makeup } : {}),
+		});
+		if (byTrackId.size >= MAXIMUM_PORTRAIT_FACE_ENTRIES) break;
+	}
+	return [...byTrackId.values()].sort((a, b) => a.trackId - b.trackId);
 }
 
 function normalizeFaceTarget({
@@ -205,7 +268,20 @@ export function hasMediaPortraitAdjustments({
 	) {
 		return true;
 	}
-	return MEDIA_PORTRAIT_MAKEUP_CATEGORIES.some(
-		(category) => (adjustments.makeup?.[category]?.intensity ?? 0) > 0
+	if (
+		MEDIA_PORTRAIT_MAKEUP_CATEGORIES.some(
+			(category) => (adjustments.makeup?.[category]?.intensity ?? 0) > 0
+		)
+	) {
+		return true;
+	}
+	return (adjustments.faces ?? []).some(
+		(face) =>
+			MEDIA_PORTRAIT_ADJUSTMENT_KEYS.some(
+				(key) => (face.values?.[key] ?? 0) !== 0
+			) ||
+			MEDIA_PORTRAIT_MAKEUP_CATEGORIES.some(
+				(category) => (face.makeup?.[category]?.intensity ?? 0) > 0
+			)
 	);
 }

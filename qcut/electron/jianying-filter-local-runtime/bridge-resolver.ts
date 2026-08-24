@@ -87,8 +87,13 @@ export async function compileJianyingFilterLocalBridge({
 			"-Werror",
 			"-Wno-deprecated-declarations",
 			source,
+			// The probe adopts the runtime's own image-processing context
+			// through the Objective-C runtime, so both are required to link.
+			"-framework",
+			"Foundation",
 			"-framework",
 			"OpenGL",
+			"-lobjc",
 			"-o",
 			outputPath,
 		],

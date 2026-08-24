@@ -204,21 +204,41 @@ export function jianyingPortraitMakeupCard({ id }: { id: string }) {
 	return MAKEUP_CARD_BY_ID.get(id);
 }
 
+/** One face's worth of makeup intensity for parameter emission. */
+export interface JianyingPortraitMakeupFaceEntry {
+	id: number;
+	intensity: number;
+}
+
+/**
+ * 逐脸美妆的向量语义尚未经探针验证（GAN/动态卡可能按 faceInfoBySize 的
+ * 几何序而非向量 id 取值）——发射管路先落地，探针走真实链路验证后
+ * 才在 UI 侧启用逐脸美妆。
+ */
 export function buildJianyingStandaloneMakeupParameters({
 	card,
 	intensity,
 	targetFaceId,
+	faceEntries,
 }: {
 	card: JianyingPortraitMakeupCardDefinition;
 	intensity: number;
 	targetFaceId: number;
+	faceEntries?: readonly JianyingPortraitMakeupFaceEntry[];
 }) {
-	const value = {
-		id: targetFaceId,
-		intensity: intensity / 100,
-		...(card.id === "look-oxygen" ? { disable_part: [] } : {}),
-	};
-	return JSON.stringify({ [card.parameterKey]: [value] });
+	const vector = [
+		{
+			id: targetFaceId,
+			intensity: intensity / 100,
+			...(card.id === "look-oxygen" ? { disable_part: [] } : {}),
+		},
+		...(faceEntries ?? []).map((entry) => ({
+			id: entry.id,
+			intensity: entry.intensity / 100,
+			...(card.id === "look-oxygen" ? { disable_part: [] } : {}),
+		})),
+	];
+	return JSON.stringify({ [card.parameterKey]: vector });
 }
 
 export function buildJianyingDynamicMakeupParameters({
@@ -229,12 +249,13 @@ export function buildJianyingDynamicMakeupParameters({
 		card: JianyingPortraitMakeupCardDefinition;
 		intensity: number;
 		packagePath: string;
+		faceEntries?: readonly JianyingPortraitMakeupFaceEntry[];
 	}>;
 	targetFaceId: number;
 }) {
 	return JSON.stringify(
 		Object.fromEntries(
-			selections.map(({ card, intensity, packagePath }) => [
+			selections.map(({ card, intensity, packagePath, faceEntries }) => [
 				card.parameterKey,
 				[
 					{
@@ -242,6 +263,11 @@ export function buildJianyingDynamicMakeupParameters({
 						intensity: intensity / 100,
 						path: packagePath,
 					},
+					...(faceEntries ?? []).map((entry) => ({
+						id: entry.id,
+						intensity: entry.intensity / 100,
+						path: packagePath,
+					})),
 				],
 			])
 		)

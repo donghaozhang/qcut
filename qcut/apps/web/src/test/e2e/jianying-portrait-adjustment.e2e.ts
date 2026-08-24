@@ -39,6 +39,10 @@ interface PortraitHarnessWindow extends Window {
 						values: Record<string, number>;
 						faceTarget?: { mode: "all" | "single"; faceId?: number };
 						makeup?: Record<string, { cardId: string; intensity: number }>;
+						faces?: Array<{
+							trackId: number;
+							values: Record<string, number>;
+						}>;
 					};
 				}>;
 			}>;
@@ -46,6 +50,12 @@ interface PortraitHarnessWindow extends Window {
 				trackId: string,
 				element: Record<string, unknown>
 			) => string | null;
+			updateMediaElement: (
+				trackId: string,
+				elementId: string,
+				updates: Record<string, unknown>,
+				pushHistory?: boolean
+			) => void;
 			setSelectedElements: (
 				selection: Array<{ trackId: string; elementId: string }>
 			) => void;
@@ -408,5 +418,71 @@ test.describe("Jianying binary portrait adjustment", () => {
 			)}\n`,
 			"utf8"
 		);
+	});
+	test("persists and renders per-face adjustment sets written via the store", async ({
+		page,
+	}) => {
+		test.setTimeout(240_000);
+		if (!sourcePath) throw new Error("Missing real portrait image path");
+		await createTestProject(page, "Jianying Per-Face Portrait E2E");
+		await uploadTestMedia(page, sourcePath);
+		const clip = await addImportedPortraitToTimeline({ page });
+
+		const previewCanvas = page.getByTestId("color-preview-canvas");
+		await expect(previewCanvas).toBeVisible({ timeout: 30_000 });
+		await expect
+			.poll(async () => (await canvasHash({ page })).opaque, {
+				timeout: 30_000,
+			})
+			.toBeGreaterThan(10_000);
+		const baseline = await canvasHash({ page });
+
+		// Phase-1 writer: no per-face UI exists yet, so the harness writes faces
+		// through the same store action the panel uses. TrackIds stay in the
+		// render-path-verified 0..9 range until the freid id-space probe
+		// resolves. The trackId-5 body entry records goal 4 (multi-person body
+		// adjust): on this single-person asset it must stay inert.
+		await page.evaluate(({ trackId, elementId }) => {
+			const harness = window as unknown as PortraitHarnessWindow;
+			harness.__timelineStore.getState().updateMediaElement(
+				trackId,
+				elementId,
+				{
+					portraitAdjustments: {
+						enabled: true,
+						values: {},
+						faces: [
+							{ trackId: 0, values: { face_adjust_TotalFace: 100 } },
+							{ trackId: 5, values: { body_adjust_SlimWaist: 40 } },
+						],
+					},
+				},
+				false
+			);
+		}, clip);
+
+		const state = await page.evaluate(({ trackId, elementId }) => {
+			const timeline = (
+				window as unknown as PortraitHarnessWindow
+			).__timelineStore.getState();
+			return timeline.tracks
+				.find((track) => track.id === trackId)
+				?.elements.find((element) => element.id === elementId)
+				?.portraitAdjustments;
+		}, clip);
+		expect(state).toMatchObject({
+			enabled: true,
+			faces: [
+				{ trackId: 0, values: { face_adjust_TotalFace: 100 } },
+				{ trackId: 5, values: { body_adjust_SlimWaist: 40 } },
+			],
+		});
+		expect(
+			state && "faceTarget" in state ? state.faceTarget : undefined
+		).toBeUndefined();
+
+		// A per-face-only element (base values empty) must still activate the
+		// native preview path: trackid 0 exists on the fixture, so pixels change.
+		await waitForCanvasChange({ page, previousHash: baseline.hash });
 	});
 });

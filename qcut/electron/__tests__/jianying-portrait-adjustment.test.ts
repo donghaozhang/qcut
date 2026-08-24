@@ -278,4 +278,226 @@ describe("Jianying portrait adjustment contract", () => {
 			'render\tframe-1\t2.5\t/tmp/input.rgba\t/tmp/output.rgba\t{"face_adjust_TotalFace":[{"id":-1,"intensity":1}]}'
 		);
 	});
+	it("keeps legacy parameter strings byte-identical without faces", () => {
+		// Golden fixtures pinned before the per-face upgrade — any drift here is
+		// a rendering regression for every shipped single-face project.
+		expect(
+			buildJianyingPortraitFeatureParameters({
+				runtimePackage: "teeth",
+				values: { face_adjust_WhiteTeeth: 70 },
+				targetFaceId: 2,
+			})
+		).toBe('{"face_adjust":[{"id":2,"intensity":0.7}]}');
+		expect(
+			buildJianyingPortraitFeatureParameters({
+				runtimePackage: "spot-acne",
+				values: { face_adjust_SpotAcne: 50 },
+			})
+		).toBe('{"face_adjust":[{"id":-1,"intensity":0.5}]}');
+		expect(
+			buildJianyingPortraitFeatureParameters({
+				runtimePackage: "smooth",
+				values: { face_adjust_Smooth: 65 },
+			})
+		).toBe('{"intensity":0.65}');
+		expect(
+			buildJianyingPortraitFeatureParameters({
+				runtimePackage: "whiten",
+				values: {},
+			})
+		).toBe('{"intensity":0}');
+	});
+
+	it("emits one vector element per face entry after the base entry", () => {
+		const parameters = JSON.parse(
+			buildJianyingPortraitFeatureParameters({
+				runtimePackage: "face",
+				values: { face_adjust_TotalFace: 80 },
+				targetFaceId: -1,
+				faceEntries: [
+					{ id: 0, values: { face_adjust_TotalFace: 20 } },
+					{ id: 3, values: { face_adjust_Chin: -30 } },
+				],
+			})
+		) as Record<string, Array<{ id: number; intensity: number }>>;
+		expect(parameters.face_adjust_TotalFace).toEqual([
+			{ id: -1, intensity: 0.8 },
+			{ id: 0, intensity: 0.2 },
+			{ id: 3, intensity: 0 },
+		]);
+		expect(parameters.face_adjust_Chin).toEqual([
+			{ id: -1, intensity: 0 },
+			{ id: 0, intensity: 0 },
+			{ id: 3, intensity: -0.3 },
+		]);
+	});
+
+	it("keeps the legacy layer on its faceTarget id and lets faces win collisions", () => {
+		const packages = JIANYING_PORTRAIT_RUNTIME_PACKAGE_ORDER.map(
+			(runtimePackage) => ({
+				runtimePackage,
+				group: JIANYING_PORTRAIT_PACKAGE_IDENTITIES[runtimePackage].group,
+				packagePath: `/runtime/${runtimePackage}`,
+				source: "qcut-private" as const,
+			})
+		);
+		const stages = buildJianyingPortraitRenderStages({
+			request: {
+				width: 2,
+				height: 1,
+				rgba: new Uint8Array(8),
+				adjustments: {
+					enabled: true,
+					values: { face_adjust_TotalFace: 50 },
+					faceTarget: { mode: "single", faceId: 2 },
+					faces: [
+						{ trackId: 2, values: { face_adjust_TotalFace: 90 } },
+						{ trackId: 5, values: { face_adjust_Chin: 40 } },
+					],
+				},
+			},
+			packages,
+			makeupCards: [],
+		});
+		const faceStage = stages.find(({ id }) => id === "package:face");
+		expect(faceStage).toBeDefined();
+		const parameters = JSON.parse(faceStage?.featureParameters ?? "{}") as {
+			face_adjust_TotalFace: Array<{ id: number; intensity: number }>;
+		};
+		// trackId 2 collides with faceTarget faceId 2: the faces entry wins and
+		// there is exactly one id-2 element, carrying the per-face value.
+		expect(parameters.face_adjust_TotalFace).toEqual([
+			{ id: 2, intensity: 0.9 },
+			{ id: 5, intensity: 0 },
+		]);
+	});
+
+	it("activates packages from per-face-only values", () => {
+		const packages = JIANYING_PORTRAIT_RUNTIME_PACKAGE_ORDER.map(
+			(runtimePackage) => ({
+				runtimePackage,
+				group: JIANYING_PORTRAIT_PACKAGE_IDENTITIES[runtimePackage].group,
+				packagePath: `/runtime/${runtimePackage}`,
+				source: "qcut-private" as const,
+			})
+		);
+		const stages = buildJianyingPortraitRenderStages({
+			request: {
+				width: 2,
+				height: 1,
+				rgba: new Uint8Array(8),
+				adjustments: {
+					enabled: true,
+					values: {},
+					faces: [{ trackId: 1, values: { body_adjust_SlimWaist: 40 } }],
+				},
+			},
+			packages,
+			makeupCards: [],
+		});
+		expect(stages.map(({ id }) => id)).toEqual(["package:body"]);
+	});
+
+	it("round-trips per-face entries through request parsing", () => {
+		const parsed = parseJianyingPortraitRenderRequest({
+			request: {
+				width: 2,
+				height: 1,
+				rgba: new Uint8Array(8),
+				adjustments: {
+					enabled: true,
+					values: {},
+					faces: [
+						{ trackId: 4, values: { face_adjust_Chin: -20 } },
+						{ trackId: 1, values: { face_adjust_VFace: 30 } },
+					],
+				},
+			},
+		});
+		expect(parsed.adjustments.faces).toEqual([
+			{ trackId: 1, values: { face_adjust_VFace: 30 } },
+			{ trackId: 4, values: { face_adjust_Chin: -20 } },
+		]);
+		expect(() =>
+			parseJianyingPortraitRenderRequest({
+				request: {
+					width: 2,
+					height: 1,
+					rgba: new Uint8Array(8),
+					adjustments: {
+						enabled: true,
+						values: {},
+						faces: [{ trackId: -1, values: {} }],
+					},
+				},
+			})
+		).toThrow("人脸跟踪编号无效");
+		expect(() =>
+			parseJianyingPortraitRenderRequest({
+				request: {
+					width: 2,
+					height: 1,
+					rgba: new Uint8Array(8),
+					adjustments: {
+						enabled: true,
+						values: {},
+						faces: [
+							{ trackId: 1, values: {} },
+							{ trackId: 1, values: {} },
+						],
+					},
+				},
+			})
+		).toThrow("人脸跟踪编号无效");
+	});
+	it("keeps per-face makeup when a face entry collides with faceTarget", () => {
+		const packages = JIANYING_PORTRAIT_RUNTIME_PACKAGE_ORDER.map(
+			(runtimePackage) => ({
+				runtimePackage,
+				group: JIANYING_PORTRAIT_PACKAGE_IDENTITIES[runtimePackage].group,
+				packagePath: `/runtime/${runtimePackage}`,
+				source: "qcut-private" as const,
+			})
+		);
+		const makeupCards = JIANYING_PORTRAIT_MAKEUP_CARDS.map((card) => ({
+			card,
+			packagePath: `/cards/${card.id}`,
+			source: "qcut-private" as const,
+		}));
+		const stages = buildJianyingPortraitRenderStages({
+			request: {
+				width: 2,
+				height: 1,
+				rgba: new Uint8Array(8),
+				adjustments: {
+					enabled: true,
+					values: {},
+					faceTarget: { mode: "single", faceId: 2 },
+					makeup: { lip: { cardId: "lip-soft-pink", intensity: 30 } },
+					faces: [
+						{
+							trackId: 2,
+							values: {},
+							makeup: { lip: { cardId: "lip-soft-pink", intensity: 90 } },
+						},
+					],
+				},
+			},
+			packages,
+			makeupCards,
+		});
+		// The faces entry wins the id-2 collision for makeup exactly as it does
+		// for numeric values, so the emitted intensity is the per-face 90 rather
+		// than the base layer's 30.
+		const stage = stages.find(({ id }) => id.startsWith("makeup-dynamic:"));
+		expect(stage).toBeDefined();
+		const parameters = JSON.parse(stage?.featureParameters ?? "{}") as Record<
+			string,
+			Array<{ id: number; intensity: number }>
+		>;
+		const vector = Object.values(parameters)[0];
+		expect(vector).toEqual([
+			{ id: 2, intensity: 0.9, path: "/cards/lip-soft-pink" },
+		]);
+	});
 });

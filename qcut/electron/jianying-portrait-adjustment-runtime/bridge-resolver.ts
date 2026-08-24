@@ -13,6 +13,7 @@ const SOURCE_RELATIVE_PATHS = [
 	"research/jianying-runtime-probe/filter-host-main.mm",
 	"research/jianying-runtime-probe/amazer-context-scope.mm",
 	"research/jianying-runtime-probe/filter-host-support.mm",
+	"research/jianying-runtime-probe/filter-face-inspect.mm",
 	"research/jianying-runtime-probe/filter-sequence-io.cpp",
 	"research/jianying-runtime-probe/graphics-runtime.mm",
 	"research/jianying-runtime-probe/graphics-probe.mm",

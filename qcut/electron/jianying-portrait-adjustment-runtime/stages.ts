@@ -26,14 +26,42 @@ export interface JianyingPortraitRenderStage {
 	featureParameters: string;
 }
 
-function targetFaceId({
+interface PortraitFacePlanEntry {
+	id: number;
+	values: JianyingPortraitAdjustmentRenderRequest["adjustments"]["values"];
+	makeup: JianyingPortraitAdjustmentRenderRequest["adjustments"]["makeup"];
+}
+
+/**
+ * The render plan is one entry per targeted face. The legacy values layer
+ * KEEPS its faceTarget-derived id even when per-face entries are present —
+ * a writer adding faces[] can never silently retarget a single-face project
+ * to all faces. On an id collision the faces entry wins, matching native
+ * getValue() where an id-matched vector element beats the -1 fallback.
+ */
+function buildPortraitFacePlan({
 	request,
 }: {
 	request: JianyingPortraitAdjustmentRenderRequest;
-}) {
-	return request.adjustments.faceTarget?.mode === "single"
-		? (request.adjustments.faceTarget.faceId ?? -1)
-		: -1;
+}): PortraitFacePlanEntry[] {
+	const baseId =
+		request.adjustments.faceTarget?.mode === "single"
+			? (request.adjustments.faceTarget.faceId ?? -1)
+			: -1;
+	const plan = new Map<number, PortraitFacePlanEntry>();
+	plan.set(baseId, {
+		id: baseId,
+		values: request.adjustments.values,
+		makeup: request.adjustments.makeup,
+	});
+	for (const face of request.adjustments.faces ?? []) {
+		plan.set(face.trackId, {
+			id: face.trackId,
+			values: face.values,
+			makeup: face.makeup,
+		});
+	}
+	return [...plan.values()];
 }
 
 function packagePathForRuntime({
@@ -52,14 +80,10 @@ function packagePathForRuntime({
 	return resolved.packagePath;
 }
 
-function activeNumericPackages({
-	request,
-}: {
-	request: JianyingPortraitAdjustmentRenderRequest;
-}) {
+function activeNumericPackages({ plan }: { plan: PortraitFacePlanEntry[] }) {
 	const active = new Set<JianyingPortraitAdjustmentRuntimePackage>();
 	for (const control of JIANYING_PORTRAIT_ADJUSTMENT_CATALOG) {
-		if ((request.adjustments.values[control.key] ?? 0) !== 0) {
+		if (plan.some((entry) => (entry.values[control.key] ?? 0) !== 0)) {
 			active.add(jianyingPortraitRuntimePackageForControl({ control }));
 		}
 	}
@@ -67,18 +91,31 @@ function activeNumericPackages({
 }
 
 function selectedMakeupCards({
-	request,
+	plan,
 	makeupCards,
 }: {
-	request: JianyingPortraitAdjustmentRenderRequest;
+	plan: PortraitFacePlanEntry[];
 	makeupCards: JianyingPortraitMakeupCardResolution[];
 }) {
 	const resolutionById = new Map(
 		makeupCards.map((resolution) => [resolution.card.id, resolution])
 	);
+	// Makeup follows exactly the plan the numeric path uses. Reading the base
+	// layer from the request instead would drop a faces[] entry that won an id
+	// collision with faceTarget — its values would apply while its makeup
+	// silently vanished.
+	const [baseEntry, ...faceEntriesInPlan] = plan;
 	return JIANYING_PORTRAIT_MAKEUP_CARDS.flatMap((card) => {
-		const selection = request.adjustments.makeup?.[card.category];
-		if (selection?.cardId !== card.id || selection.intensity <= 0) return [];
+		const selection = baseEntry?.makeup?.[card.category];
+		const baseSelected =
+			selection?.cardId === card.id && selection.intensity > 0;
+		const faceEntries = faceEntriesInPlan.flatMap((entry) => {
+			const faceSelection = entry.makeup?.[card.category];
+			return faceSelection?.cardId === card.id && faceSelection.intensity > 0
+				? [{ id: entry.id, intensity: faceSelection.intensity }]
+				: [];
+		});
+		if (!baseSelected && faceEntries.length === 0) return [];
 		const resolution = resolutionById.get(card.id);
 		if (!resolution?.packagePath) {
 			throw new Error(`剪映美妆卡片尚未缓存: ${card.titleZh}`);
@@ -86,8 +123,11 @@ function selectedMakeupCards({
 		return [
 			{
 				card,
-				intensity: selection.intensity,
+				// 基础层未选该卡而仅逐脸选中时，基础条目强度为 0（对 -1 生效面
+				// 保持无效果），真正的强度全部由逐脸条目携带。
+				intensity: baseSelected ? selection.intensity : 0,
 				packagePath: resolution.packagePath,
+				...(faceEntries.length > 0 ? { faceEntries } : {}),
 			},
 		];
 	});
@@ -97,13 +137,15 @@ function staticStage({
 	request,
 	packages,
 	runtimePackage,
-	faceId,
+	plan,
 }: {
 	request: JianyingPortraitAdjustmentRenderRequest;
 	packages: JianyingPortraitPackageResolution[];
 	runtimePackage: JianyingPortraitAdjustmentRuntimePackage;
-	faceId: number;
+	plan: PortraitFacePlanEntry[];
 }): JianyingPortraitRenderStage {
+	const [baseEntry, ...faceEntries] = plan;
+	if (!baseEntry) throw new Error("剪映美颜美体渲染计划为空");
 	return {
 		id: `package:${runtimePackage}`,
 		group: JIANYING_PORTRAIT_PACKAGE_IDENTITIES[runtimePackage].group,
@@ -111,8 +153,16 @@ function staticStage({
 		packagePath: packagePathForRuntime({ packages, runtimePackage }),
 		featureParameters: buildJianyingPortraitFeatureParameters({
 			runtimePackage,
-			values: request.adjustments.values,
-			targetFaceId: faceId,
+			values: baseEntry.values,
+			targetFaceId: baseEntry.id,
+			...(faceEntries.length > 0
+				? {
+						faceEntries: faceEntries.map((entry) => ({
+							id: entry.id,
+							values: entry.values,
+						})),
+					}
+				: {}),
 		}),
 	};
 }
@@ -126,9 +176,10 @@ export function buildJianyingPortraitRenderStages({
 	packages: JianyingPortraitPackageResolution[];
 	makeupCards: JianyingPortraitMakeupCardResolution[];
 }) {
-	const numericPackages = activeNumericPackages({ request });
-	const faceId = targetFaceId({ request });
-	const selectedCards = selectedMakeupCards({ request, makeupCards });
+	const plan = buildPortraitFacePlan({ request });
+	const numericPackages = activeNumericPackages({ plan });
+	const baseFaceId = plan[0]?.id ?? -1;
+	const selectedCards = selectedMakeupCards({ plan, makeupCards });
 	const standaloneCards = selectedCards.filter(
 		({ card }) => card.kind === "standalone"
 	);
@@ -143,7 +194,7 @@ export function buildJianyingPortraitRenderStages({
 					request,
 					packages,
 					runtimePackage,
-					faceId,
+					plan,
 				})
 			);
 		}
@@ -157,7 +208,10 @@ export function buildJianyingPortraitRenderStages({
 				featureParameters: buildJianyingStandaloneMakeupParameters({
 					card: selection.card,
 					intensity: selection.intensity,
-					targetFaceId: faceId,
+					targetFaceId: baseFaceId,
+					...(selection.faceEntries
+						? { faceEntries: selection.faceEntries }
+						: {}),
 				}),
 			});
 		}
@@ -176,7 +230,7 @@ export function buildJianyingPortraitRenderStages({
 				}),
 				featureParameters: buildJianyingDynamicMakeupParameters({
 					selections: dynamicCards,
-					targetFaceId: faceId,
+					targetFaceId: baseFaceId,
 				}),
 			});
 		}

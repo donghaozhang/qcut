@@ -419,6 +419,19 @@ function createNormalizedSnapshot({
 						},
 						portraitAdjustments: {
 							enabled: true,
+							faces: [
+								{
+									trackId: 1,
+									values: { face_adjust_Chin: -20 },
+								},
+								{
+									makeup: {
+										lip: { cardId: "lip-soft-pink", intensity: 60 },
+									},
+									trackId: 4,
+									values: {},
+								},
+							],
 							faceTarget: { faceId: 0, mode: "single" },
 							makeup: {
 								lip: { cardId: "lip-soft-pink", intensity: 80 },
@@ -684,6 +697,91 @@ describe("snapshot runtime property allowlists", () => {
 					}
 					Object.assign(element.portraitAdjustments.makeup, {
 						foundation: { cardId: "invalid", intensity: 50 },
+					});
+				},
+			},
+			{
+				expectedPath:
+					"$.snapshot.tracks[0].elements[0].portraitAdjustments.faces[0]",
+				mutate: (value) => {
+					const element = value.tracks[0]?.elements[0];
+					if (
+						!element ||
+						element.type !== "media" ||
+						!element.portraitAdjustments?.faces?.[0]
+					) {
+						throw new Error("Expected portrait face entries.");
+					}
+					Object.assign(element.portraitAdjustments.faces[0], {
+						faceId: 1,
+					});
+				},
+			},
+			{
+				expectedPath:
+					"$.snapshot.tracks[0].elements[0].portraitAdjustments.faces[0].trackId",
+				mutate: (value) => {
+					const element = value.tracks[0]?.elements[0];
+					if (
+						!element ||
+						element.type !== "media" ||
+						!element.portraitAdjustments?.faces?.[0]
+					) {
+						throw new Error("Expected portrait face entries.");
+					}
+					element.portraitAdjustments.faces[0].trackId = -3;
+				},
+			},
+			{
+				expectedPath:
+					"$.snapshot.tracks[0].elements[0].portraitAdjustments.faces[1].trackId",
+				mutate: (value) => {
+					const element = value.tracks[0]?.elements[0];
+					if (
+						!element ||
+						element.type !== "media" ||
+						!element.portraitAdjustments?.faces?.[1]
+					) {
+						throw new Error("Expected portrait face entries.");
+					}
+					element.portraitAdjustments.faces[1].trackId = 1;
+				},
+			},
+			{
+				expectedPath:
+					"$.snapshot.tracks[0].elements[0].portraitAdjustments.faces",
+				mutate: (value) => {
+					const element = value.tracks[0]?.elements[0];
+					if (
+						!element ||
+						element.type !== "media" ||
+						!element.portraitAdjustments?.faces
+					) {
+						throw new Error("Expected portrait face entries.");
+					}
+					element.portraitAdjustments.faces = Array.from(
+						{ length: 11 },
+						(_, index) => ({
+							trackId: index,
+							values: { face_adjust_Chin: 10 },
+						})
+					);
+				},
+			},
+			{
+				expectedPath:
+					"$.snapshot.tracks[0].elements[0].portraitAdjustments.faces[0].values",
+				mutate: (value) => {
+					const element = value.tracks[0]?.elements[0];
+					if (
+						!element ||
+						element.type !== "media" ||
+						!element.portraitAdjustments?.faces?.[0]
+					) {
+						throw new Error("Expected portrait face entries.");
+					}
+					Object.assign(element.portraitAdjustments.faces[0].values, {
+						face_adjust_Chins: 10,
 					});
 				},
 			},

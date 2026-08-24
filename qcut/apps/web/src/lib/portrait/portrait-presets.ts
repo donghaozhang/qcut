@@ -179,6 +179,9 @@ export function applyPortraitPreset({
 			values: mergedValues,
 			...(preset.faceTarget ? { faceTarget: preset.faceTarget } : {}),
 			...(preset.makeup ? { makeup: preset.makeup } : {}),
+			// Presets are per-face-agnostic today; applying one must not delete
+			// another writer's per-face adjustment sets.
+			...(adjustments.faces ? { faces: adjustments.faces } : {}),
 		};
 	}
 	return { ...adjustments, enabled: true, values: mergedValues };

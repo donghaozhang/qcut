@@ -1,6 +1,7 @@
 #include "filter-probe.h"
 
 #include "amazer-context-scope.h"
+#include "filter-face-inspect.h"
 #include "filter-host-support.h"
 #include "filter-sequence-io.h"
 #include "graphics-probe.h"
@@ -711,6 +712,22 @@ struct FilterHostFrameCommand {
   };
 }
 
+struct FilterHostDetectCommand {
+  std::string requestId;
+  fs::path inputPath;
+};
+
+[[nodiscard]] FilterHostDetectCommand parseHostDetectCommand(
+    const std::string& line) {
+  const std::vector<std::string> fields = splitHostFields(line);
+  if (fields.size() != 3 || fields[0] != "detect" || fields[1].empty() ||
+      fields[2].empty()) {
+    throw std::runtime_error(
+        "detect command must be detect<TAB>id<TAB>input");
+  }
+  return {.requestId = fields[1], .inputPath = fields[2]};
+}
+
 [[nodiscard]] std::string protocolError(std::string message) {
   for (char& character : message) {
     if (character == '\t' || character == '\r' || character == '\n') {
@@ -941,6 +958,26 @@ int runFilterHost(const FilterHostRequest& request) {
     }
     std::string requestId = "-";
     try {
+      if (line.rfind("detect\t", 0) == 0) {
+        const FilterHostDetectCommand detect = parseHostDetectCommand(line);
+        requestId = detect.requestId;
+        const std::vector<std::uint8_t> pixels =
+            readRgbaFrame(detect.inputPath, frameBytes);
+        // Detection runs in the host's already-current engine GL context;
+        // both context regimes were verified to produce identical results.
+        const std::vector<FaceObservationRecord> faces = inspectFaces({
+            .runtimeRoot = request.runtimeRoot,
+            .modelDirectory = request.modelDirectory,
+            .packagePath = request.packagePath,
+            .width = request.width,
+            .height = request.height,
+            .pixels = &pixels,
+        });
+        std::cout << "QCUT\tRESULT\t" << requestId << "\t0\t"
+                  << encodeFaceObservations(faces) << '\n'
+                  << std::flush;
+        continue;
+      }
       const FilterHostFrameCommand command = parseHostFrameCommand(line);
       requestId = command.requestId;
       const std::vector<std::uint8_t> pixels =

@@ -1,11 +1,13 @@
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
 import { ipcMain } from "electron";
 import {
+	JIANYING_PORTRAIT_ADJUSTMENT_DETECT_CHANNEL,
 	JIANYING_PORTRAIT_ADJUSTMENT_INSPECT_CHANNEL,
 	JIANYING_PORTRAIT_ADJUSTMENT_RENDER_CHANNEL,
 } from "./jianying-portrait-adjustment-contract.js";
 import { createJianyingPortraitAdjustmentProvider } from "./jianying-portrait-adjustment-runtime/provider.js";
 import {
+	parseJianyingPortraitDetectRequest,
 	parseJianyingPortraitInspectRequest,
 	parseJianyingPortraitRenderRequest,
 } from "./jianying-portrait-adjustment-runtime/request.js";
@@ -44,6 +46,7 @@ export function setupJianyingPortraitAdjustmentIPC({
 }: SetupJianyingPortraitAdjustmentIPCOptions): JianyingPortraitAdjustmentIPCController {
 	ipcMain.removeHandler(JIANYING_PORTRAIT_ADJUSTMENT_INSPECT_CHANNEL);
 	ipcMain.removeHandler(JIANYING_PORTRAIT_ADJUSTMENT_RENDER_CHANNEL);
+	ipcMain.removeHandler(JIANYING_PORTRAIT_ADJUSTMENT_DETECT_CHANNEL);
 	ipcMain.handle(
 		JIANYING_PORTRAIT_ADJUSTMENT_INSPECT_CHANNEL,
 		(event, request: unknown) => {
@@ -58,10 +61,18 @@ export function setupJianyingPortraitAdjustmentIPC({
 			return provider.render(parseJianyingPortraitRenderRequest({ request }));
 		}
 	);
+	ipcMain.handle(
+		JIANYING_PORTRAIT_ADJUSTMENT_DETECT_CHANNEL,
+		(event, request: unknown) => {
+			assertTrustedMainFrame({ event, mainWindow: getMainWindow() });
+			return provider.detect(parseJianyingPortraitDetectRequest({ request }));
+		}
+	);
 	return {
 		dispose: () => {
 			ipcMain.removeHandler(JIANYING_PORTRAIT_ADJUSTMENT_INSPECT_CHANNEL);
 			ipcMain.removeHandler(JIANYING_PORTRAIT_ADJUSTMENT_RENDER_CHANNEL);
+			ipcMain.removeHandler(JIANYING_PORTRAIT_ADJUSTMENT_DETECT_CHANNEL);
 			void provider.clear();
 		},
 	};

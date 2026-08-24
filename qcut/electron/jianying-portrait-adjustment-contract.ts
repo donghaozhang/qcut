@@ -135,6 +135,20 @@ export interface MediaPortraitFaceTarget {
 	faceId?: number;
 }
 
+/** One person's adjustment set, identified by the native freid track id. */
+export interface MediaPortraitFaceAdjustments {
+	/**
+	 * freid trackid reported by the native runtime. Non-negative safe integer,
+	 * deliberately not capped at 9 — the id space is the tracker's, not the
+	 * legacy ordinal faceTarget's. faceTarget keeps its own 0..9 meaning.
+	 */
+	trackId: number;
+	values: Partial<Record<MediaPortraitAdjustmentKey, number>>;
+	makeup?: Partial<
+		Record<MediaPortraitMakeupCategory, MediaPortraitMakeupSelection>
+	>;
+}
+
 export interface MediaPortraitAdjustments {
 	enabled: boolean;
 	values: Partial<Record<MediaPortraitAdjustmentKey, number>>;
@@ -142,6 +156,13 @@ export interface MediaPortraitAdjustments {
 	makeup?: Partial<
 		Record<MediaPortraitMakeupCategory, MediaPortraitMakeupSelection>
 	>;
+	/**
+	 * Optional per-person adjustment sets. Absent on every legacy project and
+	 * omitted again by normalize whenever empty, so stored legacy shapes stay
+	 * byte-identical. Entries are deduped by trackId (first wins), sorted
+	 * ascending, and capped at the native 10-face tracking limit.
+	 */
+	faces?: MediaPortraitFaceAdjustments[];
 }
 
 export interface JianyingPortraitAdjustmentControl {
@@ -216,6 +237,43 @@ export interface JianyingPortraitAdjustmentRenderResult {
 	activeGroups: JianyingPortraitAdjustmentGroup[];
 }
 
+export const JIANYING_PORTRAIT_ADJUSTMENT_DETECT_CHANNEL =
+	"jianying-portrait-adjustment:detect";
+
+/** One face the native runtime is currently tracking on a frame. */
+export interface JianyingPortraitDetectedFace {
+	/**
+	 * Native track id. This is the identity per-face adjustments bind to:
+	 * `MediaPortraitFaceAdjustments.trackId` carries the same value.
+	 */
+	trackId: number;
+	/** Centre-independent box in 0..1 of the frame: x, y, width, height. */
+	rect: { x: number; y: number; width: number; height: number };
+	score: number;
+	yaw: number;
+	pitch: number;
+	roll: number;
+	/** Frames this identity has been tracked for; 0 means freshly acquired. */
+	trackingCount: number;
+	landmarkCount: number;
+}
+
+export interface JianyingPortraitAdjustmentDetectRequest {
+	width: number;
+	height: number;
+	rgba: Uint8Array;
+}
+
+export interface JianyingPortraitAdjustmentDetectResult {
+	provider: "jianying-local-swing-v1";
+	faces: JianyingPortraitDetectedFace[];
+	/**
+	 * Only the first five tracked faces receive effects, so the UI must say so
+	 * rather than silently ignoring selections beyond the cap.
+	 */
+	appliedFaceLimit: number;
+}
+
 export interface JianyingPortraitAdjustmentAPI {
 	inspect: (
 		request?: JianyingPortraitAdjustmentInspectRequest
@@ -223,4 +281,7 @@ export interface JianyingPortraitAdjustmentAPI {
 	render: (
 		request: JianyingPortraitAdjustmentRenderRequest
 	) => Promise<JianyingPortraitAdjustmentRenderResult>;
+	detect: (
+		request: JianyingPortraitAdjustmentDetectRequest
+	) => Promise<JianyingPortraitAdjustmentDetectResult>;
 }
