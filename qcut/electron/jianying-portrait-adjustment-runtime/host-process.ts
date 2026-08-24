@@ -12,7 +12,8 @@ interface Deferred<T> {
 }
 
 interface PendingRender {
-	resolve: () => void;
+	/** Receives the protocol payload, which only detect commands populate. */
+	resolve: (payload: string) => void;
 	reject: (reason: Error) => void;
 	timeout: ReturnType<typeof setTimeout>;
 }
@@ -25,9 +26,16 @@ export interface JianyingPortraitHostRenderCommand {
 	featureParameters: string;
 }
 
+export interface JianyingPortraitHostDetectCommand {
+	requestId: string;
+	inputPath: string;
+}
+
 export interface JianyingPortraitHostProcess {
 	pid: number;
 	render: (command: JianyingPortraitHostRenderCommand) => Promise<void>;
+	/** Returns the raw detect payload; parsing belongs to the provider. */
+	detect: (command: JianyingPortraitHostDetectCommand) => Promise<string>;
 	dispose: () => Promise<void>;
 }
 
@@ -93,6 +101,19 @@ export function encodeJianyingPortraitHostRenderCommand({
 		outputPath,
 		featureParameters,
 	].join("\t");
+}
+
+export function encodeJianyingPortraitHostDetectCommand({
+	requestId,
+	inputPath,
+}: JianyingPortraitHostDetectCommand) {
+	for (const [label, field] of [
+		["requestId", requestId],
+		["inputPath", inputPath],
+	] as const) {
+		assertProtocolField({ field, label });
+	}
+	return ["detect", requestId, inputPath].join("\t");
 }
 
 export async function startJianyingPortraitHostProcess(
@@ -176,7 +197,7 @@ export async function startJianyingPortraitHostProcess(
 		pending.delete(requestId);
 		clearTimeout(render.timeout);
 		if (fields[2] === "0") {
-			render.resolve();
+			render.resolve(fields.slice(3).join("\t"));
 			return;
 		}
 		render.reject(
@@ -204,31 +225,52 @@ export async function startJianyingPortraitHostProcess(
 		clearTimeout(readyTimeout);
 	}
 
+	const submit = async ({
+		requestId,
+		encoded,
+		timeoutMessage,
+	}: {
+		requestId: string;
+		encoded: string;
+		timeoutMessage: string;
+	}) => {
+		if (isDisposed || exited || !child.stdin.writable) {
+			throw new Error("剪映美颜美体宿主不可用");
+		}
+		if (pending.has(requestId)) {
+			throw new Error("剪映美颜美体请求 ID 重复");
+		}
+		return new Promise<string>((resolve, reject) => {
+			const timeout = setTimeout(() => {
+				pending.delete(requestId);
+				reject(new Error(timeoutMessage));
+				child.kill();
+			}, HOST_RENDER_TIMEOUT_MS);
+			pending.set(requestId, { resolve, reject, timeout });
+			child.stdin.write(`${encoded}\n`, (error) => {
+				if (!error) return;
+				const command = pending.get(requestId);
+				if (!command) return;
+				pending.delete(requestId);
+				clearTimeout(command.timeout);
+				command.reject(error);
+			});
+		});
+	};
+
 	return {
 		pid: child.pid ?? -1,
+		detect: async (command) =>
+			submit({
+				requestId: command.requestId,
+				encoded: encodeJianyingPortraitHostDetectCommand(command),
+				timeoutMessage: "剪映美颜美体人脸检测超时",
+			}),
 		render: async (command) => {
-			if (isDisposed || exited || !child.stdin.writable) {
-				throw new Error("剪映美颜美体宿主不可用");
-			}
-			if (pending.has(command.requestId)) {
-				throw new Error("剪映美颜美体请求 ID 重复");
-			}
-			const encoded = encodeJianyingPortraitHostRenderCommand(command);
-			await new Promise<void>((resolve, reject) => {
-				const timeout = setTimeout(() => {
-					pending.delete(command.requestId);
-					reject(new Error("剪映美颜美体单帧渲染超时"));
-					child.kill();
-				}, HOST_RENDER_TIMEOUT_MS);
-				pending.set(command.requestId, { resolve, reject, timeout });
-				child.stdin.write(`${encoded}\n`, (error) => {
-					if (!error) return;
-					const render = pending.get(command.requestId);
-					if (!render) return;
-					pending.delete(command.requestId);
-					clearTimeout(render.timeout);
-					render.reject(error);
-				});
+			await submit({
+				requestId: command.requestId,
+				encoded: encodeJianyingPortraitHostRenderCommand(command),
+				timeoutMessage: "剪映美颜美体单帧渲染超时",
 			});
 		},
 		dispose: async () => {
