@@ -450,4 +450,54 @@ describe("Jianying portrait adjustment contract", () => {
 			})
 		).toThrow("人脸跟踪编号无效");
 	});
+it("keeps per-face makeup when a face entry collides with faceTarget", () => {
+		const packages = JIANYING_PORTRAIT_RUNTIME_PACKAGE_ORDER.map(
+			(runtimePackage) => ({
+				runtimePackage,
+				group: JIANYING_PORTRAIT_PACKAGE_IDENTITIES[runtimePackage].group,
+				packagePath: `/runtime/${runtimePackage}`,
+				source: "qcut-private" as const,
+			})
+		);
+		const makeupCards = JIANYING_PORTRAIT_MAKEUP_CARDS.map((card) => ({
+			card,
+			packagePath: `/cards/${card.id}`,
+			source: "qcut-private" as const,
+		}));
+		const stages = buildJianyingPortraitRenderStages({
+			request: {
+				width: 2,
+				height: 1,
+				rgba: new Uint8Array(8),
+				adjustments: {
+					enabled: true,
+					values: {},
+					faceTarget: { mode: "single", faceId: 2 },
+					makeup: { lip: { cardId: "lip-soft-pink", intensity: 30 } },
+					faces: [
+						{
+							trackId: 2,
+							values: {},
+							makeup: { lip: { cardId: "lip-soft-pink", intensity: 90 } },
+						},
+					],
+				},
+			},
+			packages,
+			makeupCards,
+		});
+		// The faces entry wins the id-2 collision for makeup exactly as it does
+		// for numeric values, so the emitted intensity is the per-face 90 rather
+		// than the base layer's 30.
+		const stage = stages.find(({ id }) =>
+			id.startsWith("makeup-dynamic:")
+		);
+		expect(stage).toBeDefined();
+		const parameters = JSON.parse(stage?.featureParameters ?? "{}") as Record<
+			string,
+			Array<{ id: number; intensity: number }>
+		>;
+		const vector = Object.values(parameters)[0];
+		expect(vector).toEqual([{ id: 2, intensity: 0.9, path: "/cards/lip-soft-pink" }]);
+	});
 });
