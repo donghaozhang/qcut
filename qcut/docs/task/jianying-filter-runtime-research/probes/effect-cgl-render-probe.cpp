@@ -1505,6 +1505,17 @@ int main(int argc, char** argv) {
 
     std::this_thread::sleep_for(std::chrono::milliseconds(250));
     if (probeOptions.featureType != nullptr) {
+        // Features are created during the first seek/render, so querying after
+        // a bare sleep can report a missing handle. Run one warm-up render
+        // before asking.
+        Result warmUpAlgorithmResult = -1;
+        if (!probeOptions.skipAlgorithm) {
+            warmUpAlgorithmResult = effectAlgorithmTexture(handle, inputTexture, 0.0);
+        }
+        const Result warmUpProcessResult =
+            effectProcessTexture(handle, inputTexture, outputTexture, 0.0);
+        std::cout << "get_feature_warm_up algorithm=" << warmUpAlgorithmResult
+                  << " process=" << warmUpProcessResult << '\n';
         EffectHandle feature = 0;
         const Result featureResult =
             effectGetFeature(handle, probeOptions.featureType, &feature);
@@ -1558,6 +1569,11 @@ int main(int argc, char** argv) {
                       << probeOptions.reshapeEyeIntensity
                       << " cheek=" << probeOptions.reshapeCheekIntensity
                       << " result=" << reshapeResult << '\n';
+            if (reshapeResult != 0) {
+                // A silently ignored parameter produces a fake reference frame,
+                // so a failed reshape update must fail the probe run.
+                processingSucceeded = false;
+            }
         }
         if (effectSendMessage != nullptr) {
             const Result messageResult = effectSendMessage(
