@@ -21,6 +21,8 @@ export const JIANYING_TRANSITION_BRIDGE_SOURCE_FILE_NAMES = [
 	"graphics-runtime.h",
 	"graphics-probe.mm",
 	"graphics-probe.h",
+	"filter-face-inspect.mm",
+	"filter-face-inspect.h",
 	"filter-probe.mm",
 	"filter-probe.h",
 	"transition-probe.mm",
