@@ -50,7 +50,47 @@
 - 单调且近似线性；重复帧有个位数至两位数的微小漂移（算法内部状态，
   与 skin-seg 首结果生命周期研究一致），不是逐字节确定。
 
-## 未通过：GAN 家族（匀肤、丰盈、祛斑祛痘）
+## GAN 家族已在 effect-video 宿主打通（同日第二轮）
+
+第一轮的“堵点在宿主调度”结论只对了一半。真正的原因有两条，都已定位：
+
+1. **参数形状**：`effect-video` 宿主原本只用四参数键值形式
+   `bef_swing_segment_set_params(seg, keys[], values[], count)` 下发滑杆；
+   美颜 GAN 包要的是同一导出符号的**两参数 JSON 形式**
+   `{"face_adjust_yunfu": [{"id": -1, "intensity": 1}]}`。键值形式永远到不了
+   `SetEffectIntensity`。probe 新增 `JY_EFFECT_FEATURE_PARAMS` 走 JSON 通道后，
+   Lua 立刻报告 `hitKey`。
+2. **宿主构造**：`filter-sequence` 用 `createVideoFeature`（视频子特征）且没有
+   原生 CVPixelBuffer 输入与算法预卷，人脸检测恒为 `faceCount=0`；
+   `effect-video` 用独立 `FeatureSegment` + `video_add_feature` + 原生输入 +
+   200ms 预卷，同一张帧上 `faceCount=1`、`id=0`（真实 freid trackid）。
+
+两条同时满足后，Lua 门 `gate valid=true`，GAN 纹理正常发布。以零强度输出为
+基线（零强度与输入逐字节一致，因果自洽）：
+
+| 卡片 | 强度键 | `0.5` | `1.0` |
+| --- | --- | ---: | ---: |
+| 匀肤 | `face_adjust_yunfu` | `123,996` | `199,634` |
+| 丰盈 | `face_adjust_fuling` | `450,275` | `873,895` |
+| 祛斑祛痘 | `face_adjust`（包内键） | `24,043` | `97,260` |
+
+差分图语义也对：匀肤/丰盈覆盖 GAN 人脸对齐区且眼嘴挖空保护，
+祛斑祛痘呈稀疏点状集中在瑕疵与纹理处，背景全部零变化。
+
+## 产品宿主仍未通（GAN 三卡）
+
+三卡已按标量/向量语义接进产品目录（`face_adjust_yunfu`、`face_adjust_fuling`、
+`face_adjust_SpotAcne`；匀肤与丰盈共用 `skin-gan` 包，祛斑祛痘包内键仍是
+`face_adjust` 故产品键独立命名）。但用 dist 里的真实 provider 渲染，三卡
+`absdiff` 全部为 `0`——产品宿主 `jianying-portrait-adjustment-host` 复用的是
+filter 路径，缺上面第 2 条的原生输入与预卷，因此人脸检测同样为 0。
+
+**这三张卡在产品 UI 中会显示但目前无效，接入宿主改造前不得对用户宣称可用。**
+下一步是把 `FeatureSegment + 原生 CVPixelBuffer 输入 + 算法预卷` 移植进
+产品宿主，验收标准：同一帧上 `faceCount=1`，且上表三组强度在产品 provider 下
+复现同样的单调差值。
+
+## 第一轮记录：未通过时的观察（保留）
 
 三张卡在 `filter-sequence` 与 `effect-video` 两个宿主中输出都与输入逐字节一致。
 调试副本（打开 Lua 日志）证明链路断点非常精确：
