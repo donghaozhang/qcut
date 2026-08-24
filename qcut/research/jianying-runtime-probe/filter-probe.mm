@@ -736,7 +736,7 @@ FilterSequenceResult renderFilterSequence(
 
   const std::vector<FilterSequenceStep> steps =
       readFilterManifest(request.manifestPath);
-  OpenGlContext openGlContext;
+  OpenGlContext openGlContext(request.runtimeRoot);
   const FilterSymbols symbols = loadFilterSymbols(request.runtimeRoot);
   const bool disableAsyncLoad = false;
   const int asyncLoadResult = symbols.configureAbValue(
@@ -864,7 +864,7 @@ int runFilterHost(const FilterHostRequest& request) {
     throw std::runtime_error("invalid filter host configuration");
   }
 
-  OpenGlContext openGlContext;
+  OpenGlContext openGlContext(request.runtimeRoot);
   const FilterSymbols symbols = loadFilterSymbols(request.runtimeRoot);
   const bool disableAsyncLoad = false;
   const bool enableMetalAlgorithmInput = true;

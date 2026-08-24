@@ -2,6 +2,7 @@ import path from "node:path";
 import { asJianyingRecord } from "../jianying-text-package-metadata.js";
 import { hydrateJianyingRichTextFontPaths } from "./rich-text-fonts.js";
 import { replaceJianyingRichTextEffectStylePaths } from "./rich-text-resources.js";
+import { filterJianyingScriptRuntimeCompatibleChildren } from "./script-runtime-compatibility.js";
 
 function requireResourcePath({
 	degradedResourceIds,
@@ -62,6 +63,7 @@ export function hydrateJianyingScriptContent({
 	fontOverridePath,
 	fontPaths = {},
 	degradedResourceIds = new Set<string>(),
+	supportsCustomContourShapes = false,
 }: {
 	value: unknown;
 	resourcePaths: Readonly<Record<string, string>>;
@@ -69,6 +71,7 @@ export function hydrateJianyingScriptContent({
 	fontOverridePath?: string;
 	fontPaths?: Readonly<Record<string, string>>;
 	degradedResourceIds?: ReadonlySet<string>;
+	supportsCustomContourShapes?: boolean;
 }) {
 	const hydrated = structuredClone(value);
 	const pending: unknown[] = [hydrated];
@@ -81,13 +84,18 @@ export function hydrateJianyingScriptContent({
 		const record = asJianyingRecord(current);
 		if (!record) continue;
 		if (Array.isArray(record.children)) {
-			record.children = record.children.filter(
+			const availableChildren = record.children.filter(
 				(child) =>
 					!hasDegradedAnimation({
 						value: child,
 						degradedResourceIds,
 					})
 			);
+			record.children = supportsCustomContourShapes
+				? availableChildren
+				: filterJianyingScriptRuntimeCompatibleChildren({
+						children: availableChildren,
+					});
 		}
 		if (Array.isArray(record.anims)) {
 			record.anims = record.anims.filter((animation) => {

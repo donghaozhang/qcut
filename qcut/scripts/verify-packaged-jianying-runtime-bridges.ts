@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { JIANYING_FILTER_LOCAL_BRIDGE_FILE_NAME } from "../electron/jianying-filter-local-runtime/bridge-resolver.js";
@@ -36,6 +37,28 @@ async function requireTransitionModes({ bridgePath }: { bridgePath: string }) {
 	}
 }
 
+/**
+ * Face-tracking beauty cards only render when the host binds the runtime's own
+ * image-processing context. A host built before that landed still starts, still
+ * renders, and silently returns the original frame for those cards — so a
+ * staged-but-stale artifact is invisible to a Mach-O identity check. This marker
+ * makes the capability itself a packaging gate.
+ */
+const PORTRAIT_ENGINE_CONTEXT_MARKER = "HTSGLContext";
+
+async function requirePortraitEngineGlContext({
+	hostPath,
+}: {
+	hostPath: string;
+}) {
+	const image = await readFile(hostPath);
+	if (!image.includes(PORTRAIT_ENGINE_CONTEXT_MARKER)) {
+		throw new Error(
+			`Packaged Jianying portrait adjustment host predates the engine GL context fix (no ${PORTRAIT_ENGINE_CONTEXT_MARKER} reference): ${hostPath}. Re-run \`bun run stage-jianying-filter-local-bridge\`.`
+		);
+	}
+}
+
 export async function verifyPackagedJianyingRuntimeBridges({
 	distRoot,
 	projectRoot,
@@ -67,6 +90,7 @@ export async function verifyPackagedJianyingRuntimeBridges({
 			}),
 		]);
 	await requireTransitionModes({ bridgePath: transitionBridge });
+	await requirePortraitEngineGlContext({ hostPath: portraitAdjustmentHost });
 	return {
 		transitionBridge,
 		textBridge,

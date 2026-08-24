@@ -31,6 +31,11 @@ const ANIMATION_SLOTS = [
 ] as const satisfies ReadonlyArray<
 	readonly [JianyingTextAnimationSlot, 1 | 2 | 3]
 >;
+const COMPONENT_ANIMATION_LINK_TYPES = new Set([
+	"AmazingFeature",
+	"InfoSticker",
+	"TextAnimation",
+]);
 
 export type JianyingTextAnimationManifest = JianyingTextComponentManifest;
 
@@ -206,8 +211,9 @@ async function resolveAnimation({
 		});
 	}
 	const linkTypes = animationLinkTypes({ config });
-	const isComponentPackage =
-		linkTypes.includes("InfoSticker") || linkTypes.includes("TextAnimation");
+	const isComponentPackage = linkTypes.some((type) =>
+		COMPONENT_ANIMATION_LINK_TYPES.has(type)
+	);
 	const isAnimationDocumentPackage = await isStudioAnimationDocumentPackage({
 		config,
 		packagePath,

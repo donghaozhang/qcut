@@ -20,19 +20,19 @@ const categories = [
 ] as const;
 
 async function assertCategory({
-	view,
+	sidebar,
 	index,
 }: {
-	view: Locator;
+	sidebar: Locator;
 	index: number;
 }): Promise<void> {
 	const category = categories[index];
 	if (!category) return;
-	const tab = view.getByRole("tab", {
-		name: new RegExp(`${category.label}\\s+${category.count}`),
+	const tab = sidebar.getByRole("button", {
+		name: new RegExp(`${category.label}\\s+${category.count} 个转场`),
 	});
 	await expect(tab).toBeVisible();
-	await assertCategory({ view, index: index + 1 });
+	await assertCategory({ sidebar, index: index + 1 });
 }
 
 test("indexes 520 local Jianying transitions with real lazy previews", async ({
@@ -44,7 +44,36 @@ test("indexes 520 local Jianying transitions with real lazy previews", async ({
 	await page.getByTestId("transitions-panel-tab").click();
 	const view = page.getByTestId("transitions-view");
 	await expect(view).toBeVisible();
-	await view.getByRole("button", { name: "转场实验室", exact: true }).click();
+	const sidebar = view.getByTestId("transition-sidebar");
+	const effectsToggle = sidebar.getByRole("button", {
+		name: "转场效果",
+		exact: true,
+	});
+	const labButton = sidebar.getByRole("button", {
+		name: "转场实验室",
+		exact: true,
+	});
+	const screenshotDirectory = path.resolve(
+		process.cwd(),
+		"output/playwright/transition-lab"
+	);
+	await mkdir(screenshotDirectory, { recursive: true });
+	await expect(effectsToggle).toHaveAttribute("aria-expanded", "true");
+	await page.screenshot({
+		path: path.join(screenshotDirectory, "transition-sidebar-expanded.png"),
+		animations: "disabled",
+	});
+	await effectsToggle.click();
+	await expect(effectsToggle).toHaveAttribute("aria-expanded", "false");
+	await expect(
+		sidebar.getByRole("button", { name: "热门", exact: true })
+	).toHaveCount(0);
+	await expect(labButton).toBeVisible();
+	await page.screenshot({
+		path: path.join(screenshotDirectory, "transition-sidebar-collapsed.png"),
+		animations: "disabled",
+	});
+	await labButton.click();
 
 	await expect(view.getByText("526 个转场", { exact: true })).toBeVisible();
 	await expect(view.getByRole("tab", { name: /全部\s+526/ })).toBeVisible();
@@ -57,10 +86,12 @@ test("indexes 520 local Jianying transitions with real lazy previews", async ({
 	await expect(localSourceTab).toBeVisible();
 	await localSourceTab.click();
 	await expect(view.getByText("520 个转场", { exact: true })).toBeVisible();
-	await expect(view.getByRole("tab", { name: /全部\s+520/ })).toBeVisible();
-	await assertCategory({ view, index: 0 });
+	await expect(
+		sidebar.getByRole("button", { name: /全部\s+520 个转场/ })
+	).toBeVisible();
+	await assertCategory({ sidebar, index: 0 });
 
-	await view.getByRole("tab", { name: /运镜\s+40/ }).click();
+	await sidebar.getByRole("button", { name: /运镜\s+40 个转场/ }).click();
 	const search = view.getByRole("textbox", { name: "搜索转场" });
 	await search.fill("7049979667406656014");
 	await expect(
@@ -71,11 +102,6 @@ test("indexes 520 local Jianying transitions with real lazy previews", async ({
 		view.locator('video[aria-label$="本机动画预览"]').first()
 	).toBeVisible({ timeout: 120_000 });
 
-	const screenshotDirectory = path.resolve(
-		process.cwd(),
-		"output/playwright/transition-lab"
-	);
-	await mkdir(screenshotDirectory, { recursive: true });
 	await page.screenshot({
 		path: path.join(screenshotDirectory, "jianying-categories.png"),
 		animations: "disabled",

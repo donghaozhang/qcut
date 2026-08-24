@@ -43,9 +43,11 @@ async function writeJson({
 
 async function writeSyntheticAnimationPackage({
 	cacheRoot,
+	linkType = "InfoSticker",
 	shaderSource = "uniform sampler2D lastTex; void main() {}",
 }: {
 	cacheRoot: string;
+	linkType?: "AmazingFeature" | "InfoSticker" | "TextAnimation";
 	shaderSource?: string;
 }) {
 	const packagePath = path.join(cacheRoot, "effect", RESOURCE_ID, PACKAGE_HASH);
@@ -55,7 +57,7 @@ async function writeSyntheticAnimationPackage({
 			filePath: path.join(packagePath, "config.json"),
 			value: {
 				version: "12.4.0",
-				effect: { Link: [{ type: "InfoSticker" }] },
+				effect: { Link: [{ type: linkType }] },
 			},
 		}),
 		writeFile(path.join(packagePath, "TextAnim.lua"), "Camera perspective"),
@@ -140,6 +142,36 @@ describe("Jianying text animation package resolver", () => {
 				cacheRoot: temporary,
 			});
 			expect(changed.fingerprint).not.toBe(first.fingerprint);
+		} finally {
+			await rm(temporary, { recursive: true, force: true });
+		}
+	});
+
+	it("resolves AmazingFeature component animations", async () => {
+		const temporary = await mkdtemp(
+			path.join(os.tmpdir(), "qcut-jianying-amazing-animation-")
+		);
+		try {
+			const packagePath = await writeSyntheticAnimationPackage({
+				cacheRoot: temporary,
+				linkType: "AmazingFeature",
+			});
+			const result = await resolveJianyingTextAnimations({
+				animations: animationReferences(),
+				cacheRoot: temporary,
+			});
+
+			expect(result.values[0]).toMatchObject({
+				loader: "component",
+				packagePath: await realpath(packagePath),
+				resourceId: RESOURCE_ID,
+				slot: "loop",
+			});
+			expect(result.capabilities).toMatchObject({
+				animationComponents: true,
+				shaderComponents: true,
+				threeDimensional: true,
+			});
 		} finally {
 			await rm(temporary, { recursive: true, force: true });
 		}

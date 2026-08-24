@@ -2,6 +2,8 @@
 
 #import <OpenGL/OpenGL.h>
 
+#include "probe-utils.h"
+
 #include <algorithm>
 #include <atomic>
 #include <cctype>
@@ -10,10 +12,57 @@
 #include <iostream>
 #include <stdexcept>
 
+@protocol QCutHostGlContextFactory
++ (void)preloadGLContext;
++ (id)defaultImageProcessingContext;
++ (id)sharedImageProcessingContext;
++ (id)shareProcesingContext;
+@end
+
+@protocol QCutHostGlContext
+- (void)bind:(BOOL)force;
+- (void)unbind;
+- (void*)getCppContext;
+@end
+
 namespace jianying_probe {
 namespace {
 
 namespace fs = std::filesystem;
+
+/**
+ * Isolation switch for the engine context. Unset means "use the engine context
+ * when the runtime exposes one", which is what a real render needs; setting it
+ * to 0 restores the previous standalone-context behaviour for A/B runs.
+ */
+[[nodiscard]] bool engineGlContextEnabled() {
+  const char* value = std::getenv("JY_FILTER_ENGINE_GL_CONTEXT");
+  if (value == nullptr) return true;
+  const std::string_view flag(value);
+  if (flag == "1") return true;
+  if (flag == "0") return false;
+  throw std::runtime_error("JY_FILTER_ENGINE_GL_CONTEXT must be 0 or 1");
+}
+
+/**
+ * Returns the runtime's shared image-processing context, or nil when this
+ * runtime does not publish one. A context whose C++ side is null is rejected:
+ * binding it would silently render without an algorithm input.
+ */
+[[nodiscard]] id resolveEngineGlContext() {
+  Class<QCutHostGlContextFactory> contextClass =
+      NSClassFromString(@"HTSGLContext");
+  if (contextClass == Nil) return nil;
+  [contextClass preloadGLContext];
+  id candidate = [contextClass sharedImageProcessingContext];
+  if (candidate == nil) candidate = [contextClass shareProcesingContext];
+  if (candidate == nil) candidate = [contextClass defaultImageProcessingContext];
+  if (candidate == nil) return nil;
+  if ([static_cast<id<QCutHostGlContext>>(candidate) getCppContext] == nullptr) {
+    return nil;
+  }
+  return candidate;
+}
 
 std::atomic<const ModelCatalog*> activeModelCatalog = nullptr;
 
@@ -27,7 +76,24 @@ char* copyResourceUrl(std::string_view resourceUrl) {
 
 }  // namespace
 
-OpenGlContext::OpenGlContext() {
+OpenGlContext::OpenGlContext(const fs::path& runtimeRoot) {
+  if (engineGlContextEnabled() && !runtimeRoot.empty()) {
+    // `HTSGLContext` ships inside the effect core, so the core is loaded first;
+    // the later symbol load reuses this same handle. A standalone context is
+    // never created in this branch — face tracking stays dark if the runtime
+    // has already bound its GL state to a foreign context.
+    static_cast<void>(
+        openLibrary(runtimeRoot / "Frameworks" / "libcccreator.dylib"));
+    [NSApplication sharedApplication];
+    engineContext_ = resolveEngineGlContext();
+    if (engineContext_ != nil) {
+      makeCurrent();
+      printCurrent("engine");
+      return;
+    }
+    std::cerr << "[filter] engine GL context unavailable; CV packages that "
+                 "need face tracking will not receive an algorithm input\n";
+  }
   const NSOpenGLPixelFormatAttribute attributes[] = {
       NSOpenGLPFAOpenGLProfile,
       NSOpenGLProfileVersion3_2Core,
@@ -54,6 +120,13 @@ OpenGlContext::OpenGlContext() {
 }
 
 OpenGlContext::~OpenGlContext() {
+  if (engineContext_ != nil) {
+    // The engine owns this context and may hand it to another consumer, so it
+    // is released rather than torn down.
+    [static_cast<id<QCutHostGlContext>>(engineContext_) unbind];
+    engineContext_ = nil;
+    return;
+  }
   if ([NSOpenGLContext currentContext] == context_) {
     [NSOpenGLContext clearCurrentContext];
   }
@@ -61,6 +134,10 @@ OpenGlContext::~OpenGlContext() {
 }
 
 void OpenGlContext::makeCurrent() const {
+  if (engineContext_ != nil) {
+    [static_cast<id<QCutHostGlContext>>(engineContext_) bind:YES];
+    return;
+  }
   [context_ makeCurrentContext];
   if ([NSOpenGLContext currentContext] != context_ ||
       CGLGetCurrentContext() != context_.CGLContextObj) {
@@ -69,8 +146,9 @@ void OpenGlContext::makeCurrent() const {
 }
 
 void OpenGlContext::printCurrent(std::string_view stage) const {
-  std::cerr << "[filter] " << stage << " NS context="
-            << (__bridge void*)[NSOpenGLContext currentContext]
+  std::cerr << "[filter] " << stage
+            << (engineContext_ != nil ? " engine" : " standalone")
+            << " NS context=" << (__bridge void*)[NSOpenGLContext currentContext]
             << " CGL context=" << CGLGetCurrentContext() << '\n';
 }
 

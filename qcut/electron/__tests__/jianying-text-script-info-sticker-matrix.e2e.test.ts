@@ -69,9 +69,21 @@ async function expectVisibleScriptRender({
 		},
 	});
 	expect(result.source.kind).toBe("image-sequence");
+	expect(result.contentBounds).toBeDefined();
 	if (result.source.kind !== "image-sequence") {
 		throw new Error("Expected an image-sequence render");
 	}
+	if (!result.contentBounds) {
+		throw new Error("Expected ScriptInfoSticker content bounds");
+	}
+	expect(result.contentBounds.x).toBeGreaterThan(0);
+	expect(result.contentBounds.y).toBeGreaterThan(0);
+	expect(result.contentBounds.x + result.contentBounds.width).toBeLessThan(
+		WIDTH
+	);
+	expect(result.contentBounds.y + result.contentBounds.height).toBeLessThan(
+		HEIGHT
+	);
 	const hashes = await hashImageSequenceFrames({
 		frameCount,
 		pattern: result.source.path,
@@ -119,6 +131,16 @@ const RICH_TEXT_CASES = [
 		packageHash: "ec066c208559c767bbe9bddf6eca3a97",
 		content: "第一行emoji😀\nSecond line é",
 	},
+	{
+		resourceId: "7410240535752903990",
+		packageHash: "39b4b7c4e070ede70ae25ab264c842d4",
+		content: [
+			"第一行超长文字用于验证自动缩放不会被左右裁切",
+			"Second line checks English words 2026 QCut Studio",
+			"第三行混合Emoji😀与组合字符é以及旗帜🇦🇺",
+			"第四行继续验证多行高度边界和透明留白",
+		].join("\n"),
+	},
 ] as const;
 
 describeRealMatrix("Jianying ScriptInfoSticker real video matrix", () => {
@@ -155,11 +177,12 @@ describeRealMatrix("Jianying ScriptInfoSticker real video matrix", () => {
 		packageHash,
 		resourceId,
 	}) => {
-		await expectVisibleScriptRender({
+		const render = await expectVisibleScriptRender({
 			content,
 			frameCount: RICH_TEXT_FRAME_COUNT,
 			packageHash,
 			resourceId,
 		});
+		expect(render.maximumEdgeVisible).toBe(0);
 	}, 240_000);
 });

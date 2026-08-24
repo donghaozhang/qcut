@@ -314,7 +314,12 @@ describe("TransitionsView", () => {
 			).toBeVisible();
 
 			fireEvent.click(screen.getByRole("tab", { name: /本机剪映\s+520/ }));
-			fireEvent.click(screen.getByRole("tab", { name: /幻灯片\s+40/ }));
+			fireEvent.click(
+				within(screen.getByTestId("transition-lab-categories")).getByRole(
+					"button",
+					{ name: /幻灯片\s+40 个转场/ }
+				)
+			);
 			expect(screen.getByText("40 个转场")).toBeVisible();
 			expect(
 				screen.getByTestId("transition-card-jianying-local-heart")

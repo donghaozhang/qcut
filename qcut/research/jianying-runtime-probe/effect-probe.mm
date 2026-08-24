@@ -136,6 +136,31 @@ constexpr std::string_view kImageAnchorSymbol =
 }
 
 /**
+ * Native input, the engine GL context and the algorithm preroll ship together,
+ * so a single switch cannot say which one a CV package actually depends on.
+ * These two isolation knobs split them apart; both default to the shipped
+ * behaviour, so an unset environment renders exactly as before.
+ */
+[[nodiscard]] bool optionalIsolationFlag(const char* name, bool fallback) {
+  const char* value = std::getenv(name);
+  if (value == nullptr) return fallback;
+  const std::string_view flag(value);
+  if (flag == "1") return true;
+  if (flag == "0") return false;
+  throw std::runtime_error(std::string(name) + " must be 0 or 1");
+}
+
+[[nodiscard]] bool effectEngineGlContextEnabled() {
+  return optionalIsolationFlag("JY_EFFECT_ENGINE_GL_CONTEXT",
+                               effectNativeInputEnabled());
+}
+
+[[nodiscard]] bool effectPrerollEnabled() {
+  return optionalIsolationFlag("JY_EFFECT_ALGORITHM_PREROLL",
+                               effectNativeInputEnabled());
+}
+
+/**
  * The third flag makes the effect sample the native buffer with the vertical
  * convention the algorithm uses; without it a delivered mask arrives mirrored.
  * Overridable for probing, but the default is the verified combination.
@@ -172,6 +197,10 @@ using SetSegmentTimeRangeApiMethod = int (*)(void*, std::int64_t, std::int64_t);
 using SetSegmentRenderIndexApiMethod = int (*)(void*, int);
 using SetSegmentParamsApiMethod = int (*)(void*, const char**, const char**,
                                           int);
+// The same export also serves a two-argument JSON form. Portrait beauty
+// packages read a `{key: [{id, intensity}]}` vector map through it, which the
+// key/value form cannot express.
+using SetSegmentParamsJsonMethod = int (*)(void*, const char*);
 using SetVideoDeviceTextureApiMethod = int (*)(void*,
                                                const DeviceTextureProbe*);
 using VideoAddFeatureApiMethod = int (*)(void*, void*);
@@ -195,6 +224,7 @@ struct EffectSymbols {
   SetSegmentTimeRangeApiMethod setSegmentTimeRange;
   SetSegmentRenderIndexApiMethod setSegmentRenderIndex;
   SetSegmentParamsApiMethod setSegmentParams;
+  SetSegmentParamsJsonMethod setSegmentParamsJson;
   SetVideoDeviceTextureApiMethod setVideoDeviceTexture;
   VideoAddFeatureApiMethod videoAddFeature;
   FeatureSetOrderApiMethod featureSetOrder;
@@ -292,6 +322,8 @@ template <typename Function>
           core, kSetSegmentRenderIndexApi),
       .setSegmentParams =
           resolveSymbol<SetSegmentParamsApiMethod>(core, kSetSegmentParamsApi),
+      .setSegmentParamsJson =
+          resolveSymbol<SetSegmentParamsJsonMethod>(core, kSetSegmentParamsApi),
       .setVideoDeviceTexture = resolveSymbol<SetVideoDeviceTextureApiMethod>(
           core, kSetVideoDeviceTextureApi),
       .videoAddFeature =
@@ -341,7 +373,7 @@ class AmazerContextScope {
 class EngineGlContext {
  public:
   EngineGlContext() {
-    if (!effectNativeInputEnabled()) return;
+    if (!effectEngineGlContextEnabled()) return;
 
     [NSApplication sharedApplication];
     Class<QCutHTSGLContextFactory> contextClass =
@@ -517,7 +549,7 @@ class EffectRenderSession {
     // Some package scripts latch their first detection result. Start the
     // feature after a hidden warm-up so its local animation time remains zero.
     timelineOffsetMicroseconds_ =
-        effectNativeInputEnabled() ? kAlgorithmPrerollMicroseconds : 0;
+        effectPrerollEnabled() ? kAlgorithmPrerollMicroseconds : 0;
     const int videoRange = symbols.setSegmentTimeRange(
         videoSegment_->get(), 0, span + timelineOffsetMicroseconds_);
     const int effectRange = symbols.setSegmentTimeRange(
@@ -581,6 +613,14 @@ class EffectRenderSession {
   /** Sliders arrive as the package's own `effects_adjust_*` key/value pairs. */
   void applyAdjustParameters(
       std::span<const EffectAdjustParameter> adjustParameters) {
+    // Portrait beauty packages need the vector-map JSON form instead; the
+    // key/value pairs never reach their `SetEffectIntensity` handler.
+    if (const char* json = std::getenv("JY_EFFECT_FEATURE_PARAMS")) {
+      const int result =
+          symbols_.setSegmentParamsJson(effectSegment_->get(), json);
+      std::cout << "[effect] feature params result = " << result << '\n';
+      return;
+    }
     if (adjustParameters.empty()) {
       return;
     }

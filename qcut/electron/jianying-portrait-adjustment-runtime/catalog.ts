@@ -12,6 +12,27 @@ export const JIANYING_PORTRAIT_PACKAGE_IDENTITIES = {
 		version: "b000f31572be3e5f9fd195d7bba37968",
 		group: "face",
 	},
+	whiten: {
+		resourceId: "7408028287785602319",
+		version: "8615dc8c263df7e22740b76b0ac497f8",
+		group: "face",
+	},
+	clarity: {
+		resourceId: "7598460431144963366",
+		version: "d8d3201fa6c77f369501cf4baae130ab",
+		group: "face",
+	},
+	// 匀肤与丰盈共用同一个 GAN 包，两个键各自独立。
+	"skin-gan": {
+		resourceId: "7408077026705280256",
+		version: "74ded1bf06987b66866e6c2fc72a9e24",
+		group: "face",
+	},
+	"spot-acne": {
+		resourceId: "7442228961163088434",
+		version: "e8b424917121b52fc69cba119274cc47",
+		group: "face",
+	},
 	face: {
 		resourceId: "7408077448513998114",
 		version: "aa4932200616e291a252039a3aac7232",
@@ -51,6 +72,10 @@ export const JIANYING_PORTRAIT_PACKAGE_IDENTITIES = {
 
 export const JIANYING_PORTRAIT_RUNTIME_PACKAGE_ORDER = [
 	"smooth",
+	"whiten",
+	"clarity",
+	"spot-acne",
+	"skin-gan",
 	"eye-details",
 	"skin-tone",
 	"teeth",
@@ -69,6 +94,66 @@ export const JIANYING_PORTRAIT_ADJUSTMENT_CATALOG = [
 		runtimePackage: "smooth",
 		titleZh: "磨皮",
 		titleEn: "Smooth",
+		min: 0,
+		max: 100,
+		step: 1,
+	},
+	{
+		key: "face_adjust_Whiten",
+		group: "face",
+		section: "skin",
+		category: "skin",
+		runtimePackage: "whiten",
+		titleZh: "美白",
+		titleEn: "Whiten",
+		min: 0,
+		max: 100,
+		step: 1,
+	},
+	{
+		key: "face_adjust_Clarity",
+		group: "face",
+		section: "skin",
+		category: "skin",
+		runtimePackage: "clarity",
+		titleZh: "清晰",
+		titleEn: "Clarity",
+		min: 0,
+		max: 100,
+		step: 1,
+	},
+	{
+		key: "face_adjust_yunfu",
+		group: "face",
+		section: "skin",
+		category: "skin",
+		runtimePackage: "skin-gan",
+		titleZh: "匀肤",
+		titleEn: "Even skin",
+		min: 0,
+		max: 100,
+		step: 1,
+	},
+	{
+		key: "face_adjust_fuling",
+		group: "face",
+		section: "skin",
+		category: "skin",
+		runtimePackage: "skin-gan",
+		titleZh: "丰盈",
+		titleEn: "Plump",
+		min: 0,
+		max: 100,
+		step: 1,
+	},
+	{
+		key: "face_adjust_SpotAcne",
+		group: "face",
+		section: "skin",
+		category: "skin",
+		runtimePackage: "spot-acne",
+		titleZh: "祛斑祛痘",
+		titleEn: "Remove blemishes",
 		min: 0,
 		max: 100,
 		step: 1,
@@ -517,6 +602,30 @@ export function buildJianyingPortraitFeatureParameters({
 	if (runtimePackage === "smooth") {
 		return JSON.stringify({
 			intensity: (values.face_adjust_Smooth ?? 0) / 100,
+		});
+	}
+	// 美白包的出厂默认强度是 1.0（不下发参数就是满强度），因此这里必须
+	// 总是显式携带 intensity；清晰包默认为 0，同一形状保持对称。
+	if (runtimePackage === "whiten") {
+		return JSON.stringify({
+			intensity: (values.face_adjust_Whiten ?? 0) / 100,
+		});
+	}
+	if (runtimePackage === "clarity") {
+		return JSON.stringify({
+			intensity: (values.face_adjust_Clarity ?? 0) / 100,
+		});
+	}
+	// 祛斑祛痘包内部的键就叫 `face_adjust`（与洁牙同名、不同包），
+	// 产品键单独命名以免两张卡互相覆盖。
+	if (runtimePackage === "spot-acne") {
+		return JSON.stringify({
+			face_adjust: [
+				{
+					id: targetFaceId,
+					intensity: (values.face_adjust_SpotAcne ?? 0) / 100,
+				},
+			],
 		});
 	}
 	if (runtimePackage === "teeth") {

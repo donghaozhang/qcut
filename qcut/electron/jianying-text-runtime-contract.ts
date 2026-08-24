@@ -93,7 +93,8 @@ export type JianyingTextRuntimeDiagnosticCode =
 	| "font-file-missing"
 	| "template-font-missing"
 	| "resource-recovery-unavailable"
-	| "runtime-dependency-unresolved";
+	| "runtime-dependency-unresolved"
+	| "script-host-compatible-package-missing";
 
 export interface JianyingTextRuntimeDiagnostic {
 	code: JianyingTextRuntimeDiagnosticCode;

@@ -6,12 +6,6 @@ argument-hint: <filter-name-or-family>
 
 # Jianying Filter Parity
 
-For QCut's Jianying parity work, the UI oracle is the Chinese Jianying
-Professional app at `/Applications/VideoFusion-macOS.app` with bundle ID
-`com.lemon.lvpro`. Do not substitute `/Applications/CapCut.app`, CapCut cache
-packages, or CapCut exports; they are a different product surface and do not
-validate Jianying parity.
-
 QCut filters ("System A", `apps/web/src/lib/filters/`) are procedurally
 generated 17³ LUTs: each preset is a `FilterLutRecipe` fed through the pure
 `transformFilterColor` function in `filter-lut.ts`. This model can closely fit
@@ -499,13 +493,9 @@ used by the Metal V2 renderer, so it is control-flow evidence only.
 - [x] Verify repeated frames within a continuous clip remain deterministic and
   do not require manager recreation. Ten repeated B frames are stable in both
   continuous and reset runs.
-- [x] Read face boxes/landmarks through an independent result API before making
-  any claim about face-keypoint parity. The fixed portrait returns one face and
-  106 landmarks; a private default-intensity injection proves that those
-  landmarks drive the original FaceReshape graph, while `--skip-algorithm`
-  restores byte-identical passthrough. The remaining gap is the unmodified
-  host's composer-to-Lua `SetEffectIntensity` event bridge, not face inference.
-  See `docs/task/jianying-filter-runtime-research/face-keypoint-binding.zh.md`.
+- [ ] Read face boxes/landmarks through an independent result API before making
+  any claim about face-keypoint parity; a working skin mask is not proof of
+  working landmarks.
 - [ ] Repeat short one-frame teardown runs before productizing. The proprietary
   runtime has shown one intermittent async teardown mutex failure.
 

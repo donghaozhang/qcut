@@ -14,7 +14,7 @@ import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
-import { transitionCategories } from "./transition-categories";
+import { TransitionSidebar } from "./transition-sidebar";
 import {
 	filterTransitionPresets,
 	getClipTransitionPresetConfig,
@@ -413,44 +413,31 @@ export function TransitionsView() {
 		);
 		event.dataTransfer.setData("text/plain", preset.name);
 	};
+	const handleCategorySelect = ({
+		category: nextCategory,
+	}: {
+		category: TransitionCategory;
+	}) => {
+		setCategory(nextCategory);
+		if (nextCategory !== "lab") setJianyingGroup("all");
+	};
 
 	return (
 		<div
 			className="flex h-full min-h-0 bg-panel text-foreground"
 			data-testid="transitions-view"
 		>
-			<aside className="w-[92px] shrink-0 overflow-y-auto border-r border-border/50 p-1.5">
-				<div className="space-y-1">
-					{transitionCategories.map((item) => {
-						const Icon = item.icon;
-						return (
-							<button
-								key={item.id}
-								type="button"
-								className={cn(
-									"flex h-7 w-full items-center gap-1.5 rounded px-1.5 text-left text-[10px] transition-colors",
-									category === item.id
-										? "bg-primary/15 text-primary"
-										: "text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-								)}
-								aria-pressed={category === item.id}
-								onClick={() => {
-									setCategory(item.id);
-									if (item.id !== "lab") {
-										setJianyingGroup("all");
-									}
-								}}
-								onKeyDown={(event) => {
-									if (event.key === "Escape") event.currentTarget.blur();
-								}}
-							>
-								<Icon className="size-3 shrink-0" />
-								<span className="whitespace-nowrap">{item.label}</span>
-							</button>
-						);
-					})}
-				</div>
-			</aside>
+			<TransitionSidebar
+				category={category}
+				labGroup={jianyingGroup}
+				labSource={labSource}
+				onSelect={handleCategorySelect}
+				onSelectLabGroup={({ group }) => {
+					setCategory("lab");
+					setLabSource("jianying-local");
+					setJianyingGroup(group);
+				}}
+			/>
 			<section className="flex min-w-0 flex-1 flex-col">
 				<div className="border-b border-border/50 p-2">
 					<div className="relative">
@@ -472,7 +459,6 @@ export function TransitionsView() {
 					{category === "lab" ? (
 						<TransitionLabControls
 							source={labSource}
-							group={jianyingGroup}
 							checking={jianyingRuntime.checking}
 							status={jianyingRuntime.status}
 							error={jianyingRuntime.error}
@@ -480,7 +466,6 @@ export function TransitionsView() {
 								setLabSource(source);
 								setJianyingGroup("all");
 							}}
-							onGroupChange={({ group }) => setJianyingGroup(group)}
 							onRefresh={() => void jianyingRuntime.refresh()}
 						/>
 					) : null}

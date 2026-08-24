@@ -17,7 +17,7 @@ const EMPTY_PRIVATE_CATEGORIES: readonly PrivateStickerCategoryView[] = [];
 
 export interface StickerLabSelection {
 	catalogKey: "public" | "private";
-	categoryId: string;
+	categoryId: string | null;
 }
 
 /**
@@ -38,9 +38,17 @@ export function resolveStickerLabSelection({
 	if (selection) {
 		const categories =
 			selection.catalogKey === "private" ? privateCategories : publicCategories;
-		if (categories.some((category) => category.id === selection.categoryId)) {
+		if (
+			selection.categoryId !== null &&
+			categories.some((category) => category.id === selection.categoryId)
+		) {
 			return selection;
 		}
+		const selectedCatalogFirst = categories[0];
+		return {
+			catalogKey: selection.catalogKey,
+			categoryId: selectedCatalogFirst?.id ?? null,
+		};
 	}
 	const publicFirst = publicCategories[0];
 	if (publicFirst) return { catalogKey: "public", categoryId: publicFirst.id };

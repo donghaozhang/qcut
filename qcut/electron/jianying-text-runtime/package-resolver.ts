@@ -40,6 +40,10 @@ import {
 import { jianyingTextRecoveryFailureMessage } from "./recovery-diagnostics.js";
 import { getJianyingTextRecoveryCacheRoot } from "./resource-recovery.js";
 import type { ResolvedJianyingScriptResources } from "./script-dependencies.js";
+import {
+	resolveJianyingScriptHost,
+	type ResolvedJianyingScriptHost,
+} from "./script-host-resolver.js";
 
 export type JianyingTextPackageErrorCode =
 	| "package-missing"
@@ -83,6 +87,7 @@ export interface ResolvedJianyingTextPackage {
 	componentManifest?: JianyingTextComponentManifest;
 	effectStyle?: JianyingEffectStyleManifest;
 	scriptResources?: ResolvedJianyingScriptResources;
+	scriptHost?: ResolvedJianyingScriptHost;
 }
 
 async function packageContext() {
@@ -284,6 +289,11 @@ export async function resolveJianyingTextPackage({
 					recoveryRoot,
 				})
 			: undefined;
+	const scriptHostResolution =
+		packageKind === "ScriptInfoSticker"
+			? await resolveJianyingScriptHost({ packagePath })
+			: { host: null, required: false };
+	const scriptHost = scriptHostResolution.host;
 	const effectStyleResolution =
 		packageKind === "TextStyle"
 			? await resolveJianyingEffectStyleWithRecovery({
@@ -375,8 +385,22 @@ export async function resolveJianyingTextPackage({
 			...(componentManifest ? [componentManifest.capabilities] : []),
 		],
 	});
-	const diagnostics =
-		scriptResources?.diagnostics ?? effectStyleInspection?.diagnostics ?? [];
+	const diagnostics: JianyingTextRuntimeDiagnostic[] = [
+		...(scriptResources?.diagnostics ??
+			effectStyleInspection?.diagnostics ??
+			[]),
+		...(scriptHostResolution.required && !scriptHost
+			? [
+					{
+						code: "script-host-compatible-package-missing" as const,
+						severity: "warning" as const,
+						message:
+							"当前运行时缺少此自定义轮廓所需的兼容脚本宿主；QCut 已保留文字与动画并省略该装饰层。",
+						resourceId: reference.resourceId,
+					},
+				]
+			: []),
+	];
 	const resourceFingerprint = createHash("sha256")
 		.update(
 			JSON.stringify({
@@ -387,6 +411,7 @@ export async function resolveJianyingTextPackage({
 					null,
 				animationFingerprint: animationResources.fingerprint,
 				componentFingerprint: componentManifest?.fingerprint ?? null,
+				scriptHostFingerprint: scriptHost?.fingerprint ?? null,
 			})
 		)
 		.digest("hex");
@@ -405,5 +430,6 @@ export async function resolveJianyingTextPackage({
 			? { effectStyle: effectStyleInspection.manifest }
 			: {}),
 		...(scriptResources ? { scriptResources } : {}),
+		...(scriptHost ? { scriptHost } : {}),
 	};
 }

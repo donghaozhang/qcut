@@ -23,6 +23,7 @@ import {
 	releaseLocalStickerReferenceFile,
 	stickerLabPrivateManifestUrl,
 	stickerLabThumbnailUrl,
+	supportsLocalStickerReferences,
 } from "../local-sticker-reference";
 
 const platformMocks = vi.hoisted(() => ({
@@ -58,12 +59,17 @@ describe("local sticker reference files", () => {
 
 	it("uses remote fallback silently when local references are unsupported", async () => {
 		platformMocks.hasCapability.mockReturnValue(false);
+		expect(supportsLocalStickerReferences()).toBe(false);
 
 		await expect(discoverLocalStickerReferenceCatalogs()).resolves.toEqual({
 			catalogs: [],
 			warningCount: 0,
 		});
 		expect(platformMocks.discoverLocalReferences).not.toHaveBeenCalled();
+	});
+
+	it("reports local reference support for desktop", () => {
+		expect(supportsLocalStickerReferences()).toBe(true);
 	});
 
 	it("discovers and reads a verified repository-external reference", async () => {
