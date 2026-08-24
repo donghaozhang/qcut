@@ -1,4 +1,5 @@
 import type {
+	JianyingPortraitAdjustmentDetectRequest,
 	JianyingPortraitAdjustmentInspectRequest,
 	JianyingPortraitAdjustmentRenderRequest,
 	MediaPortraitAdjustmentKey,
@@ -43,6 +44,44 @@ export function parseJianyingPortraitInspectRequest({
 		throw new Error("剪映美颜美体 refresh 参数无效");
 	}
 	return record.refresh === undefined ? {} : { refresh: record.refresh };
+}
+
+export function parseJianyingPortraitDetectRequest({
+	request,
+}: {
+	request: unknown;
+}): JianyingPortraitAdjustmentDetectRequest {
+	const record = recordValue({ value: request });
+	if (!record) throw new Error("剪映美颜美体人脸检测请求无效");
+	const width = record.width;
+	const height = record.height;
+	if (
+		typeof width !== "number" ||
+		typeof height !== "number" ||
+		!Number.isSafeInteger(width) ||
+		!Number.isSafeInteger(height) ||
+		width <= 0 ||
+		height <= 0 ||
+		width > MAX_FRAME_DIMENSION ||
+		height > MAX_FRAME_DIMENSION
+	) {
+		throw new Error("剪映美颜美体人脸检测尺寸无效");
+	}
+	if (
+		!(record.rgba instanceof Uint8Array) ||
+		record.rgba.byteLength !== width * height * 4
+	) {
+		throw new Error("剪映美颜美体人脸检测帧尺寸不匹配");
+	}
+	return {
+		width,
+		height,
+		rgba: new Uint8Array(
+			record.rgba.buffer,
+			record.rgba.byteOffset,
+			record.rgba.byteLength
+		),
+	};
 }
 
 function parseAdjustmentValues({ value }: { value: unknown }) {
