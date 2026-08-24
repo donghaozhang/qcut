@@ -81,6 +81,7 @@ import {
 	createAllowedKeySet,
 	validateRecordOfArrays,
 } from "./snapshot-runtime-helpers.js";
+import { validatePortraitFaceEntries } from "./portrait-faces-validation.js";
 import { validateColorLutRuntime } from "./snapshot-color-lut-runtime-validation.js";
 import { validateColorMultiPassRuntime } from "./snapshot-color-multi-pass-runtime-validation.js";
 
@@ -825,7 +826,13 @@ const MEDIA_ENHANCEMENT_KEYS = createAllowedKeySet<MediaEnhancements>({
 });
 const MEDIA_PORTRAIT_ADJUSTMENT_CONTAINER_KEYS =
 	createAllowedKeySet<MediaPortraitAdjustments>({
-		keys: { enabled: true, faceTarget: true, makeup: true, values: true },
+		keys: {
+			enabled: true,
+			faces: true,
+			faceTarget: true,
+			makeup: true,
+			values: true,
+		},
 	});
 const MEDIA_PORTRAIT_ADJUSTMENT_VALUE_KEYS = new Set<string>(
 	MEDIA_PORTRAIT_ADJUSTMENT_KEYS
@@ -1793,6 +1800,20 @@ export function validateMediaElement({
 			validatePortraitMakeup({
 				path: `${portraitPath}.makeup`,
 				value: portraitAdjustments.makeup,
+			});
+		}
+		if (portraitAdjustments.faces !== undefined) {
+			validatePortraitFaceEntries({
+				path: `${portraitPath}.faces`,
+				value: portraitAdjustments.faces,
+				validateValues: ({ path: valuesPath, value }) =>
+					validateNumberRecord({
+						allowed: MEDIA_PORTRAIT_ADJUSTMENT_VALUE_KEYS,
+						path: valuesPath,
+						value,
+					}),
+				validateMakeup: ({ path: makeupPath, value }) =>
+					validatePortraitMakeup({ path: makeupPath, value }),
 			});
 		}
 	}
