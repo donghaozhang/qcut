@@ -42,8 +42,10 @@ using EffectComposerUpdateNode =
     Result (*)(EffectHandle, const char*, const char*, float);
 using EffectComposerUpdateNodeWithJson =
     Result (*)(EffectHandle, const char*, const char*, const char*);
-using EffectGetFeature = Result (*)(EffectHandle, const char*, void**);
+using EffectGetFeature = Result (*)(EffectHandle, const char*, EffectHandle*);
 using EffectSetIntensity = Result (*)(EffectHandle, std::int32_t, float);
+using EffectUpdateReshapeFaceIntensity =
+    Result (*)(EffectHandle, float, float);
 using EffectSendMessage =
     Result (*)(EffectHandle, std::int32_t, std::int32_t, std::int32_t, const char*);
 using EffectSetParamWithKey = void (*)(const char*, const char*);
@@ -922,8 +924,11 @@ struct ProbeOptions {
     std::int32_t messageArgument1 = 0;
     std::int32_t messageArgument2 = 0;
     float intensity = 1.0F;
+    float reshapeEyeIntensity = 0.0F;
+    float reshapeCheekIntensity = 0.0F;
     float composerValue = 0.0F;
     bool hasComposerValue = false;
+    bool hasReshapeFaceIntensity = false;
     double framesPerSecond = 30.0;
 };
 
@@ -1093,6 +1098,21 @@ ProbeOptions parseProbeOptions(int argc, char** argv) {
             }
             continue;
         }
+        if (argument == "--reshape-face-intensity" && index + 2 < argc) {
+            const auto parseFiniteFloat = [&](const char* label) {
+                const std::string value = argv[++index];
+                std::size_t parsedCharacters = 0;
+                const float parsed = std::stof(value, &parsedCharacters);
+                if (parsedCharacters != value.size() || !std::isfinite(parsed)) {
+                    throw std::runtime_error(std::string(label) + " must be finite");
+                }
+                return parsed;
+            };
+            options.reshapeEyeIntensity = parseFiniteFloat("reshape eye intensity");
+            options.reshapeCheekIntensity = parseFiniteFloat("reshape cheek intensity");
+            options.hasReshapeFaceIntensity = true;
+            continue;
+        }
         throw std::runtime_error(std::string("unknown or incomplete argument: ") + argv[index]);
     }
     if (options.inputPath != nullptr && options.inputListPath != nullptr) {
@@ -1204,6 +1224,7 @@ int main(int argc, char** argv) {
                "[--inspect-feature type] "
                "[--send-message type arg1 arg2 text] "
                "[--intensity-type type --intensity value] "
+               "[--reshape-face-intensity eye cheek] "
                "[--skip-algorithm] [--inspect-skin-result] [--inspect-face-result] "
                "[--mask-output output.pgm] "
                "[--face-output output.json] "
@@ -1326,6 +1347,11 @@ int main(int argc, char** argv) {
         loadSymbol<EffectGetFeature>({effectLibrary, "bef_effect_get_feature"});
     const auto effectSetIntensity =
         loadSymbol<EffectSetIntensity>({effectLibrary, "bef_effect_set_intensity"});
+    EffectUpdateReshapeFaceIntensity effectUpdateReshapeFaceIntensity = nullptr;
+    if (probeOptions.hasReshapeFaceIntensity) {
+        effectUpdateReshapeFaceIntensity = loadSymbol<EffectUpdateReshapeFaceIntensity>(
+            {effectLibrary, "bef_effect_update_reshape_face_intensity"});
+    }
     EffectSendMessage effectSendMessage = nullptr;
     if (probeOptions.messageType >= 0) {
         effectSendMessage =
@@ -1466,24 +1492,6 @@ int main(int argc, char** argv) {
             return 16;
         }
     }
-    const auto inspectFeature = [&](const char* featureType) {
-        void* feature = nullptr;
-        const Result featureResult =
-            effectGetFeature(handle, featureType, &feature);
-        Dl_info featureVtableInfo{};
-        const void* featureVtable = feature == nullptr ? nullptr : *static_cast<void**>(feature);
-        const bool hasFeatureVtableSymbol =
-            featureVtable != nullptr && dladdr(featureVtable, &featureVtableInfo) != 0 &&
-            featureVtableInfo.dli_sname != nullptr;
-        std::cout << "get_feature type=" << featureType
-                  << " result=" << featureResult << " feature=" << feature
-                  << " vtable=" << featureVtable << " symbol="
-                  << (hasFeatureVtableSymbol ? featureVtableInfo.dli_sname : "<unknown>")
-                  << std::endl;
-    };
-    if (probeOptions.featureType != nullptr) {
-        inspectFeature(probeOptions.featureType);
-    }
     if (probeOptions.skinSegVideoMode >= 0) {
         constexpr std::int32_t integerAlgorithmParamType = 1;
         const Result setModeResult = effectSetAlgorithmParam(
@@ -1496,6 +1504,14 @@ int main(int argc, char** argv) {
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    if (probeOptions.featureType != nullptr) {
+        EffectHandle feature = 0;
+        const Result featureResult =
+            effectGetFeature(handle, probeOptions.featureType, &feature);
+        std::cout << "get_feature type=" << probeOptions.featureType
+                  << " result=" << featureResult << " handle=" << feature
+                  << std::endl;
+    }
     Result finalAlgorithmResult = -1;
     Result processResult = -1;
     DifferenceResult finalDifference{};
@@ -1532,6 +1548,16 @@ int main(int argc, char** argv) {
             std::cout << "set_intensity type=" << probeOptions.intensityType
                       << " value=" << probeOptions.intensity
                       << " result=" << intensityResult << '\n';
+        }
+        if (effectUpdateReshapeFaceIntensity != nullptr) {
+            const Result reshapeResult = effectUpdateReshapeFaceIntensity(
+                handle,
+                probeOptions.reshapeEyeIntensity,
+                probeOptions.reshapeCheekIntensity);
+            std::cout << "update_reshape_face_intensity eye="
+                      << probeOptions.reshapeEyeIntensity
+                      << " cheek=" << probeOptions.reshapeCheekIntensity
+                      << " result=" << reshapeResult << '\n';
         }
         if (effectSendMessage != nullptr) {
             const Result messageResult = effectSendMessage(
