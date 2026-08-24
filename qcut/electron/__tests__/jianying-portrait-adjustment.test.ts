@@ -15,9 +15,9 @@ import { buildJianyingPortraitRenderStages } from "../jianying-portrait-adjustme
 
 describe("Jianying portrait adjustment contract", () => {
 	it("covers base, advanced feature, skin, detail, and body controls", () => {
-		expect(JIANYING_PORTRAIT_ADJUSTMENT_CATALOG).toHaveLength(74);
+		expect(JIANYING_PORTRAIT_ADJUSTMENT_CATALOG).toHaveLength(77);
 		expect(jianyingPortraitControlsForGroup({ group: "face" })).toHaveLength(
-			64
+			67
 		);
 		expect(jianyingPortraitControlsForGroup({ group: "body" })).toHaveLength(
 			10
@@ -32,7 +32,13 @@ describe("Jianying portrait adjustment contract", () => {
 		).toHaveLength(3);
 		expect(
 			new Set(JIANYING_PORTRAIT_ADJUSTMENT_CATALOG.map(({ key }) => key)).size
-		).toBe(74);
+		).toBe(77);
+		// 匀肤与丰盈共用同一个 GAN 包。
+		expect(
+			jianyingPortraitControlsForRuntimePackage({
+				runtimePackage: "skin-gan",
+			}).map(({ key }) => key)
+		).toEqual(["face_adjust_yunfu", "face_adjust_fuling"]);
 	});
 
 	it("uses dedicated package parameter shapes and selected face IDs", () => {
@@ -79,6 +85,28 @@ describe("Jianying portrait adjustment contract", () => {
 				})
 			)
 		).toEqual({ intensity: 0.85 });
+		// 祛斑祛痘包内部的键是 `face_adjust`，产品键则独立命名。
+		expect(
+			JSON.parse(
+				buildJianyingPortraitFeatureParameters({
+					runtimePackage: "spot-acne",
+					values: { face_adjust_SpotAcne: 60 },
+					targetFaceId: 1,
+				})
+			)
+		).toEqual({ face_adjust: [{ id: 1, intensity: 0.6 }] });
+		// 匀肤与丰盈同包不同键，必须在一次调用里各自独立下发。
+		expect(
+			JSON.parse(
+				buildJianyingPortraitFeatureParameters({
+					runtimePackage: "skin-gan",
+					values: { face_adjust_yunfu: 30, face_adjust_fuling: 90 },
+				})
+			)
+		).toEqual({
+			face_adjust_yunfu: [{ id: -1, intensity: 0.3 }],
+			face_adjust_fuling: [{ id: -1, intensity: 0.9 }],
+		});
 	});
 
 	it("sends every group parameter and maps UI percent to SDK intensity", () => {
