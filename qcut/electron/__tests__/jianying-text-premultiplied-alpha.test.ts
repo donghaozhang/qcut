@@ -94,5 +94,49 @@ describe.skipIf(!existsSync(ffmpegPath))(
 
 			expectStraightPixels({ output, rgb: [255, 128, 64], alpha: 32 });
 		});
+
+		it("centers a fitted script canvas with transparent padding", () => {
+			const filter = buildJianyingTextRawFrameFilter({
+				opacity: 1,
+				rotationRadians: 0,
+				outputWidth: 4,
+				outputHeight: 1,
+				canvas: { width: 4, height: 1, x: 1, y: 0 },
+			});
+			const result = spawnSync(
+				ffmpegPath,
+				[
+					"-hide_banner",
+					"-loglevel",
+					"error",
+					"-f",
+					"rawvideo",
+					"-pixel_format",
+					"rgba",
+					"-video_size",
+					"2x1",
+					"-i",
+					"pipe:0",
+					"-vf",
+					filter,
+					"-frames:v",
+					"1",
+					"-f",
+					"rawvideo",
+					"-pix_fmt",
+					"rgba",
+					"pipe:1",
+				],
+				{
+					input: Buffer.from([64, 32, 16, 64, 0, 0, 0, 0]),
+					maxBuffer: 1024 * 1024,
+				}
+			);
+
+			if (result.status !== 0) throw new Error(result.stderr.toString());
+			expect([...result.stdout]).toEqual([
+				0, 0, 0, 0, 255, 128, 64, 64, 0, 0, 0, 0, 0, 0, 0, 0,
+			]);
+		});
 	}
 );
