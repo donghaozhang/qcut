@@ -12,6 +12,16 @@ export const JIANYING_PORTRAIT_PACKAGE_IDENTITIES = {
 		version: "b000f31572be3e5f9fd195d7bba37968",
 		group: "face",
 	},
+	whiten: {
+		resourceId: "7408028287785602319",
+		version: "8615dc8c263df7e22740b76b0ac497f8",
+		group: "face",
+	},
+	clarity: {
+		resourceId: "7598460431144963366",
+		version: "d8d3201fa6c77f369501cf4baae130ab",
+		group: "face",
+	},
 	face: {
 		resourceId: "7408077448513998114",
 		version: "aa4932200616e291a252039a3aac7232",
@@ -51,6 +61,8 @@ export const JIANYING_PORTRAIT_PACKAGE_IDENTITIES = {
 
 export const JIANYING_PORTRAIT_RUNTIME_PACKAGE_ORDER = [
 	"smooth",
+	"whiten",
+	"clarity",
 	"eye-details",
 	"skin-tone",
 	"teeth",
@@ -69,6 +81,30 @@ export const JIANYING_PORTRAIT_ADJUSTMENT_CATALOG = [
 		runtimePackage: "smooth",
 		titleZh: "磨皮",
 		titleEn: "Smooth",
+		min: 0,
+		max: 100,
+		step: 1,
+	},
+	{
+		key: "face_adjust_Whiten",
+		group: "face",
+		section: "skin",
+		category: "skin",
+		runtimePackage: "whiten",
+		titleZh: "美白",
+		titleEn: "Whiten",
+		min: 0,
+		max: 100,
+		step: 1,
+	},
+	{
+		key: "face_adjust_Clarity",
+		group: "face",
+		section: "skin",
+		category: "skin",
+		runtimePackage: "clarity",
+		titleZh: "清晰",
+		titleEn: "Clarity",
 		min: 0,
 		max: 100,
 		step: 1,
@@ -517,6 +553,18 @@ export function buildJianyingPortraitFeatureParameters({
 	if (runtimePackage === "smooth") {
 		return JSON.stringify({
 			intensity: (values.face_adjust_Smooth ?? 0) / 100,
+		});
+	}
+	// 美白包的出厂默认强度是 1.0（不下发参数就是满强度），因此这里必须
+	// 总是显式携带 intensity；清晰包默认为 0，同一形状保持对称。
+	if (runtimePackage === "whiten") {
+		return JSON.stringify({
+			intensity: (values.face_adjust_Whiten ?? 0) / 100,
+		});
+	}
+	if (runtimePackage === "clarity") {
+		return JSON.stringify({
+			intensity: (values.face_adjust_Clarity ?? 0) / 100,
 		});
 	}
 	if (runtimePackage === "teeth") {
