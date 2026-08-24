@@ -72,6 +72,7 @@ function FaceTargetControl({
 			enabled: adjustments.enabled,
 			values: adjustments.values,
 			...(adjustments.makeup ? { makeup: adjustments.makeup } : {}),
+			...(adjustments.faces ? { faces: adjustments.faces } : {}),
 			...(nextValue === "all"
 				? {}
 				: { faceTarget: { mode: "single" as const, faceId } }),
