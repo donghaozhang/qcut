@@ -144,7 +144,8 @@ vector 位于 `+0x38/+0x40`；每条 face record 可稳定读出归一化矩形�
 本机 oracle 以 `0.9 / 1.0 / 1.1` 做邻域搜索后确认 `1.0` 最优，面部 ROI 达到
 `34.037875 dB / 0.979148 SSIM`；跳过算法后重新逐像素 passthrough。未修改原包随后通过
 Swing `FeatureSegment` 接受 `{key: [{id, intensity}]}`，`0 / 0.5 / 1.0` 三档通过零强度、
-单调变化和重复帧确定性门禁。QCut 产品适配器尚未接入该参数协议，Swing 对中文剪映 UI 的
+单调变化和重复帧确定性门禁。QCut 产品适配器现已通过 `buildJianyingPortraitFeatureParameters`
+沿产品 Swing 路径发送 `face_adjust_TotalFace`，但 Swing 对中文剪映 UI 的
 面部 ROI 仍为 `32.489289 dB / 0.973951 SSIM`，因此继续标记 close，不能标记产品 verified。见
 [slim-face-single-card-parity.zh.md](slim-face-single-card-parity.zh.md)。
 
