@@ -42,7 +42,10 @@ export type {
 	JianyingPortraitAdjustmentRuntimeState,
 	JianyingPortraitAdjustmentRuntimePackage,
 	JianyingPortraitAdjustmentSection,
+	JianyingPortraitAdjustmentDetectRequest,
+	JianyingPortraitAdjustmentDetectResult,
 	JianyingPortraitAdjustmentStatus,
+	JianyingPortraitDetectedFace,
 	JianyingPortraitMakeupCardStatus,
 	MediaPortraitFaceAdjustments,
 } from "../../../../../electron/jianying-portrait-adjustment-contract";
