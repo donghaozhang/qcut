@@ -15,9 +15,9 @@ import { buildJianyingPortraitRenderStages } from "../jianying-portrait-adjustme
 
 describe("Jianying portrait adjustment contract", () => {
 	it("covers base, advanced feature, skin, detail, and body controls", () => {
-		expect(JIANYING_PORTRAIT_ADJUSTMENT_CATALOG).toHaveLength(72);
+		expect(JIANYING_PORTRAIT_ADJUSTMENT_CATALOG).toHaveLength(74);
 		expect(jianyingPortraitControlsForGroup({ group: "face" })).toHaveLength(
-			62
+			64
 		);
 		expect(jianyingPortraitControlsForGroup({ group: "body" })).toHaveLength(
 			10
@@ -32,7 +32,7 @@ describe("Jianying portrait adjustment contract", () => {
 		).toHaveLength(3);
 		expect(
 			new Set(JIANYING_PORTRAIT_ADJUSTMENT_CATALOG.map(({ key }) => key)).size
-		).toBe(72);
+		).toBe(74);
 	});
 
 	it("uses dedicated package parameter shapes and selected face IDs", () => {
@@ -53,6 +53,32 @@ describe("Jianying portrait adjustment contract", () => {
 				})
 			)
 		).toEqual({ face_adjust: [{ id: 2, intensity: 0.7 }] });
+		// 美白包出厂默认强度为 1.0，标量分支必须总是显式携带 intensity，
+		// 否则未调参的帧会以满强度渲染。
+		expect(
+			JSON.parse(
+				buildJianyingPortraitFeatureParameters({
+					runtimePackage: "whiten",
+					values: {},
+				})
+			)
+		).toEqual({ intensity: 0 });
+		expect(
+			JSON.parse(
+				buildJianyingPortraitFeatureParameters({
+					runtimePackage: "whiten",
+					values: { face_adjust_Whiten: 40 },
+				})
+			)
+		).toEqual({ intensity: 0.4 });
+		expect(
+			JSON.parse(
+				buildJianyingPortraitFeatureParameters({
+					runtimePackage: "clarity",
+					values: { face_adjust_Clarity: 85 },
+				})
+			)
+		).toEqual({ intensity: 0.85 });
 	});
 
 	it("sends every group parameter and maps UI percent to SDK intensity", () => {
