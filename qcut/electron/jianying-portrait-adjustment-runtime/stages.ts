@@ -80,11 +80,7 @@ function packagePathForRuntime({
 	return resolved.packagePath;
 }
 
-function activeNumericPackages({
-	plan,
-}: {
-	plan: PortraitFacePlanEntry[];
-}) {
+function activeNumericPackages({ plan }: { plan: PortraitFacePlanEntry[] }) {
 	const active = new Set<JianyingPortraitAdjustmentRuntimePackage>();
 	for (const control of JIANYING_PORTRAIT_ADJUSTMENT_CATALOG) {
 		if (plan.some((entry) => (entry.values[control.key] ?? 0) !== 0)) {
