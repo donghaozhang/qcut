@@ -52,6 +52,8 @@ export const MEDIA_PORTRAIT_ADJUSTMENT_KEYS = [
 	"face_adjust_Pouch",
 	"face_adjust_NasolabialFolds",
 	"face_adjust_Smooth",
+	"face_adjust_Whiten",
+	"face_adjust_Clarity",
 	"face_adjust_WhiteTeeth",
 	"face_adjust_temple",
 	"face_adjust_cheekbone",
