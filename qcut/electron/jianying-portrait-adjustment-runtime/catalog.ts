@@ -553,25 +553,6 @@ const CONTROL_BY_KEY = new Map(
 	JIANYING_PORTRAIT_ADJUSTMENT_CATALOG.map((control) => [control.key, control])
 );
 
-/**
- * GAN 家族（匀肤、丰盈、祛斑祛痘）的包与强度协议都已验证，但产品宿主复用的
- * filter 路径缺少原生 CVPixelBuffer 输入与算法预卷，人脸检测恒为 0，因此这三
- * 张卡在产品里渲染出的是原图。宿主改造落地前不向 UI 暴露，避免用户拖了没反应。
- * 见 docs/task/jianying-filter-runtime-research/beauty-gap-cards-oracle.zh.md
- */
-const HOST_BLOCKED_RUNTIME_PACKAGES =
-	new Set<JianyingPortraitAdjustmentRuntimePackage>(["skin-gan", "spot-acne"]);
-
-export function jianyingPortraitControlIsHostReady({
-	control,
-}: {
-	control: JianyingPortraitAdjustmentControl;
-}) {
-	return !HOST_BLOCKED_RUNTIME_PACKAGES.has(
-		jianyingPortraitRuntimePackageForControl({ control })
-	);
-}
-
 export function jianyingPortraitControl({
 	key,
 }: {
