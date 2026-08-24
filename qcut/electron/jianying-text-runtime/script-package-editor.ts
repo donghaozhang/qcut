@@ -411,6 +411,12 @@ async function createScriptPackageCopy({
 			force: false,
 		});
 		if (scriptHost) {
+			// The donor host layout is validated, but the package being edited may
+			// not ship a js/template tree of its own — create it so the copies
+			// cannot fail with ENOENT.
+			await mkdir(path.join(temporary, "js", "template"), {
+				recursive: true,
+			});
 			await Promise.all([
 				copyFile(
 					scriptHost.mainScriptPath,
