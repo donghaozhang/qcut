@@ -95,6 +95,7 @@ import {
 	JIANYING_FILTER_LAB_DOWNLOAD_CHANNEL,
 } from "./jianying-filter-lab-contract.js";
 import {
+	JIANYING_PORTRAIT_ADJUSTMENT_DETECT_CHANNEL,
 	JIANYING_PORTRAIT_ADJUSTMENT_INSPECT_CHANNEL,
 	JIANYING_PORTRAIT_ADJUSTMENT_RENDER_CHANNEL,
 } from "./jianying-portrait-adjustment-contract.js";
@@ -238,6 +239,8 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke(JIANYING_PORTRAIT_ADJUSTMENT_INSPECT_CHANNEL, request),
 		render: (request) =>
 			ipcRenderer.invoke(JIANYING_PORTRAIT_ADJUSTMENT_RENDER_CHANNEL, request),
+		detect: (request) =>
+			ipcRenderer.invoke(JIANYING_PORTRAIT_ADJUSTMENT_DETECT_CHANNEL, request),
 	},
 	jianyingFontLab: {
 		list: (request) =>
