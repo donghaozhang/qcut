@@ -321,7 +321,7 @@ std::string encodeFaceObservations(
 	payload << "{\"faces\":[";
 	for (std::size_t index = 0; index < faces.size(); ++index) {
 		const FaceObservationRecord& face = faces[index];
-		payload << (index == 0 ? "" : ",") << "{\"id\":" << face.id
+		payload << (index == 0 ? "" : ",") << "{\"trackId\":" << face.id
 				<< ",\"rect\":[" << face.rect[0] << ',' << face.rect[1] << ','
 				<< face.rect[2] << ',' << face.rect[3] << "],\"score\":"
 				<< face.score << ",\"yaw\":" << face.yaw
