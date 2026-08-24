@@ -10,10 +10,7 @@ import type {
 } from "../jianying-portrait-adjustment-contract.js";
 import { inspectJianyingFilterLocalRuntime } from "../jianying-filter-local-runtime/runtime-discovery.js";
 import { resolveJianyingPortraitAdjustmentHost } from "./bridge-resolver.js";
-import {
-	JIANYING_PORTRAIT_ADJUSTMENT_CATALOG,
-	jianyingPortraitControlIsHostReady,
-} from "./catalog.js";
+import { JIANYING_PORTRAIT_ADJUSTMENT_CATALOG } from "./catalog.js";
 import {
 	startJianyingPortraitHostProcess,
 	type JianyingPortraitHostProcess,
@@ -156,9 +153,7 @@ export function createJianyingPortraitAdjustmentProvider(): JianyingPortraitAdju
 		);
 		const baseStatus = {
 			provider: "jianying-local-swing-v1" as const,
-			catalog: JIANYING_PORTRAIT_ADJUSTMENT_CATALOG.filter((control) =>
-				jianyingPortraitControlIsHostReady({ control })
-			),
+			catalog: [...JIANYING_PORTRAIT_ADJUSTMENT_CATALOG],
 			packages: packageStatuses,
 			makeupCards: makeupCardStatuses,
 		};
