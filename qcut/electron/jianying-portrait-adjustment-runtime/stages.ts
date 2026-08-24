@@ -91,33 +91,30 @@ function activeNumericPackages({ plan }: { plan: PortraitFacePlanEntry[] }) {
 }
 
 function selectedMakeupCards({
-	request,
 	plan,
 	makeupCards,
 }: {
-	request: JianyingPortraitAdjustmentRenderRequest;
 	plan: PortraitFacePlanEntry[];
 	makeupCards: JianyingPortraitMakeupCardResolution[];
 }) {
 	const resolutionById = new Map(
 		makeupCards.map((resolution) => [resolution.card.id, resolution])
 	);
-	const baseId =
-		request.adjustments.faceTarget?.mode === "single"
-			? (request.adjustments.faceTarget.faceId ?? -1)
-			: -1;
+	// Makeup follows exactly the plan the numeric path uses. Reading the base
+	// layer from the request instead would drop a faces[] entry that won an id
+	// collision with faceTarget — its values would apply while its makeup
+	// silently vanished.
+	const [baseEntry, ...faceEntriesInPlan] = plan;
 	return JIANYING_PORTRAIT_MAKEUP_CARDS.flatMap((card) => {
-		const selection = request.adjustments.makeup?.[card.category];
+		const selection = baseEntry?.makeup?.[card.category];
 		const baseSelected =
 			selection?.cardId === card.id && selection.intensity > 0;
-		const faceEntries = plan
-			.filter((entry) => entry.id !== baseId)
-			.flatMap((entry) => {
-				const faceSelection = entry.makeup?.[card.category];
-				return faceSelection?.cardId === card.id && faceSelection.intensity > 0
-					? [{ id: entry.id, intensity: faceSelection.intensity }]
-					: [];
-			});
+		const faceEntries = faceEntriesInPlan.flatMap((entry) => {
+			const faceSelection = entry.makeup?.[card.category];
+			return faceSelection?.cardId === card.id && faceSelection.intensity > 0
+				? [{ id: entry.id, intensity: faceSelection.intensity }]
+				: [];
+		});
 		if (!baseSelected && faceEntries.length === 0) return [];
 		const resolution = resolutionById.get(card.id);
 		if (!resolution?.packagePath) {
@@ -182,7 +179,7 @@ export function buildJianyingPortraitRenderStages({
 	const plan = buildPortraitFacePlan({ request });
 	const numericPackages = activeNumericPackages({ plan });
 	const baseFaceId = plan[0]?.id ?? -1;
-	const selectedCards = selectedMakeupCards({ request, plan, makeupCards });
+	const selectedCards = selectedMakeupCards({ plan, makeupCards });
 	const standaloneCards = selectedCards.filter(
 		({ card }) => card.kind === "standalone"
 	);
