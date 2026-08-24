@@ -7,11 +7,9 @@ import {
 	validationIssue,
 } from "./runtime-json.js";
 
-const PORTRAIT_FACE_ENTRY_KEYS = new Set<keyof MediaPortraitFaceAdjustments>([
-	"trackId",
-	"values",
-	"makeup",
-]);
+const PORTRAIT_FACE_ENTRY_KEYS: ReadonlySet<string> = new Set<
+	keyof MediaPortraitFaceAdjustments
+>(["trackId", "values", "makeup"]);
 
 /**
  * Validates the optional per-face portrait adjustment entries. Value and
