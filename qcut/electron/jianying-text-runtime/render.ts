@@ -386,21 +386,53 @@ async function renderFittedScriptSequence({
 	fallbackFontPath: string;
 	fontOverridePath?: string;
 }) {
-	let canvasWidth = request.width;
-	for (let attempt = 0; ; attempt += 1) {
-		const strategy = await renderEditableJianyingScriptSequence({
+	const render = async ({
+		canvasWidth,
+		outputPath,
+		singleFrame,
+	}: {
+		canvasWidth: number;
+		outputPath: string;
+		singleFrame: boolean;
+	}) =>
+		renderEditableJianyingScriptSequence({
 			runtime,
-			request: { ...request, width: canvasWidth },
+			request: {
+				...request,
+				width: canvasWidth,
+				outputPath,
+				// The width probe samples one mid-sequence frame — same shape as
+				// fitHostTextRequest — so long sequences are not rendered in full
+				// for every fit attempt.
+				...(singleFrame
+					? {
+							frameCount: 1,
+							startTimestamp:
+								request.startTimestamp +
+								request.timestampStep * Math.floor(request.frameCount / 2),
+							timestampStep: 0,
+						}
+					: {}),
+			},
 			packageInfo,
 			content,
 			fallbackFontPath,
 			...(fontOverridePath ? { fontOverridePath } : {}),
 		});
+	const probePath = `${request.outputPath}.fit-probe.rgba`;
+	const probeWidth = async ({
+		canvasWidth,
+		attempt,
+	}: {
+		canvasWidth: number;
+		attempt: number;
+	}): Promise<number> => {
+		await render({ canvasWidth, outputPath: probePath, singleFrame: true });
 		const bounds = await measureJianyingTextRawSequenceAlphaBounds({
-			rawPath: request.outputPath,
+			rawPath: probePath,
 			width: canvasWidth,
 			height: request.height,
-			frameCount: request.frameCount,
+			frameCount: 1,
 		});
 		const nextWidth = nextJianyingScriptCanvasWidth({
 			canvasWidth,
@@ -412,9 +444,29 @@ async function renderFittedScriptSequence({
 			nextWidth === null ||
 			attempt + 1 >= MAXIMUM_SCRIPT_CANVAS_FIT_ATTEMPTS
 		) {
-			return { bounds, canvasWidth, strategy };
+			return canvasWidth;
 		}
-		canvasWidth = nextWidth;
+		return probeWidth({ canvasWidth: nextWidth, attempt: attempt + 1 });
+	};
+	try {
+		const canvasWidth = await probeWidth({
+			canvasWidth: request.width,
+			attempt: 0,
+		});
+		const strategy = await render({
+			canvasWidth,
+			outputPath: request.outputPath,
+			singleFrame: false,
+		});
+		const bounds = await measureJianyingTextRawSequenceAlphaBounds({
+			rawPath: request.outputPath,
+			width: canvasWidth,
+			height: request.height,
+			frameCount: request.frameCount,
+		});
+		return { bounds, canvasWidth, strategy };
+	} finally {
+		await rm(probePath, { force: true });
 	}
 }
 
