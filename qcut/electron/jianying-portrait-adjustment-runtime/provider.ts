@@ -493,27 +493,33 @@ export function createJianyingPortraitAdjustmentProvider(): JianyingPortraitAdju
 		const requestId = randomUUID();
 		const inputPath = path.join(directory, `${requestId}-detect.rgba`);
 		await writeFile(inputPath, request.rgba);
-		// Detection runs in its own short-lived host: it loads a second effect
-		// handle, and reusing a render session's process would disturb the
-		// tracker state those sessions depend on.
-		const process = await startJianyingPortraitHostProcess({
-			hostPath,
-			runtimeRoot: path.dirname(frameworkDirectory),
-			modelDirectory,
-			packagePath,
-			frameworkDirectory,
-			width: request.width,
-			height: request.height,
-		});
+		// The frame is several megabytes, so it is removed even when the host
+		// never starts — a spawn failure the user can retry many times must not
+		// accumulate files in the temporary directory.
 		try {
-			const payload = await process.detect({ requestId, inputPath });
-			return {
-				provider: "jianying-local-swing-v1",
-				faces: parseDetectedFaces({ payload }),
-				appliedFaceLimit: APPLIED_FACE_LIMIT,
-			};
+			// Detection runs in its own short-lived host: it loads a second effect
+			// handle, and reusing a render session's host would disturb the tracker
+			// state those sessions depend on.
+			const host = await startJianyingPortraitHostProcess({
+				hostPath,
+				runtimeRoot: path.dirname(frameworkDirectory),
+				modelDirectory,
+				packagePath,
+				frameworkDirectory,
+				width: request.width,
+				height: request.height,
+			});
+			try {
+				const payload = await host.detect({ requestId, inputPath });
+				return {
+					provider: "jianying-local-swing-v1",
+					faces: parseDetectedFaces({ payload }),
+					appliedFaceLimit: APPLIED_FACE_LIMIT,
+				};
+			} finally {
+				await host.dispose();
+			}
 		} finally {
-			await process.dispose();
 			await rm(inputPath, { force: true });
 		}
 	};
