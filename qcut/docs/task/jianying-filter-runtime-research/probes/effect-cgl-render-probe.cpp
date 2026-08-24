@@ -339,6 +339,12 @@ struct PpmOptions {
 struct ContextResult {
     CGLPixelFormatObj pixelFormat;
     CGLContextObj context;
+    /**
+     * False when the context belongs to the runtime (engine mode). Destroying
+     * a context we do not own crashes at teardown and discards the computed
+     * exit code, turning a successful A/B run into a reported failure.
+     */
+    bool owned;
 };
 
 /**
@@ -419,7 +425,7 @@ ContextResult createContext(bool useCoreProfile) {
         CGLDestroyPixelFormat(pixelFormat);
         return {};
     }
-    return {.pixelFormat = pixelFormat, .context = context};
+    return {.pixelFormat = pixelFormat, .context = context, .owned = true};
 }
 
 const char* glString(GLenum name) {
@@ -1312,6 +1318,7 @@ int main(int argc, char** argv) {
     if (probeOptions.useEngineGlContext) {
         if (adoptEngineGlContext(argv[1]) == nullptr) return 4;
         contextResult.context = CGLGetCurrentContext();
+        contextResult.owned = false;
         std::cout << "context_regime=engine\n";
     } else {
         contextResult = createContext(probeOptions.useCoreProfile);
@@ -2013,8 +2020,10 @@ int main(int argc, char** argv) {
     };
     glDeleteTextures(static_cast<GLsizei>(textures.size()), textures.data());
     CGLSetCurrentContext(nullptr);
-    CGLDestroyContext(contextResult.context);
-    CGLDestroyPixelFormat(contextResult.pixelFormat);
+    if (contextResult.owned) {
+        CGLDestroyContext(contextResult.context);
+        CGLDestroyPixelFormat(contextResult.pixelFormat);
+    }
     dlclose(effectLibrary);
 
     return processingSucceeded ? 0 : 14;
