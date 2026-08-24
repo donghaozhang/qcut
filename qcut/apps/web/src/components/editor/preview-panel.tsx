@@ -47,6 +47,7 @@ import {
 } from "./preview-panel/media-transform-overlay";
 import { usePreviewMedia } from "./preview-panel/use-preview-media";
 import { usePreviewSizing } from "./preview-panel/use-preview-sizing";
+import { PortraitFaceOverlay } from "./preview-panel/portrait-face-overlay";
 import { PreviewGuidesLayer } from "./preview-panel/preview-guides-layer";
 import { PreviewViewOptionsMenu } from "./preview-panel/preview-view-options-menu";
 import { PreviewScopeDock } from "./preview-panel/preview-scope-dock";
@@ -1279,6 +1280,8 @@ export function PreviewPanel() {
 								previewRef={previewRef}
 								cssScale={previewScale === "fit" ? 1 : previewScale / 100}
 							/>
+
+							{isPlaying ? null : <PortraitFaceOverlay />}
 
 							{isPlaying ? null : (
 								<MediaTransformOverlay
