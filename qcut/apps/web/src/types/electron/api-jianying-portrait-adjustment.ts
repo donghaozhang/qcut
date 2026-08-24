@@ -44,4 +44,5 @@ export type {
 	JianyingPortraitAdjustmentSection,
 	JianyingPortraitAdjustmentStatus,
 	JianyingPortraitMakeupCardStatus,
+	MediaPortraitFaceAdjustments,
 } from "../../../../../electron/jianying-portrait-adjustment-contract";
