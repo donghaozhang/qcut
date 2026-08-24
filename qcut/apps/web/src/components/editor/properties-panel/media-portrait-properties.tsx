@@ -217,7 +217,7 @@ export function MediaPortraitProperties({
 		} finally {
 			setDetecting(false);
 		}
-	}, [locale, setDetection]);
+	}, [locale]);
 	const scopedAdjustments = useMemo(
 		() => projectPortraitAdjustments({ adjustments, scope }),
 		[adjustments, scope]
