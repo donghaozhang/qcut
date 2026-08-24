@@ -32,7 +32,6 @@ const RESULT: JianyingTextStyleLabListResult = {
 
 function renderNav({ styleLabOpen }: { styleLabOpen: boolean }) {
 	const onSelectStyleLabView = vi.fn();
-	const onToggleStyleLabGroup = vi.fn();
 	render(
 		<TextLibraryNav
 			activeCategoryId={DEFAULT_TEXT_TEMPLATE_CATEGORY_ID}
@@ -41,14 +40,12 @@ function renderNav({ styleLabOpen }: { styleLabOpen: boolean }) {
 			onSelectGroup={vi.fn()}
 			onOpenStyleLab={vi.fn()}
 			onSelectStyleLabView={onSelectStyleLabView}
-			onToggleStyleLabGroup={onToggleStyleLabGroup}
-			styleLabExpandedGroups={{ charts: true }}
 			styleLabOpen={styleLabOpen}
 			styleLabResult={RESULT}
 			styleLabView="trial"
 		/>
 	);
-	return { onSelectStyleLabView, onToggleStyleLabGroup };
+	return { onSelectStyleLabView };
 }
 
 describe("TextLibraryNav", () => {
@@ -61,17 +58,14 @@ describe("TextLibraryNav", () => {
 		expect(screen.queryByRole("button", { name: /热门/ })).toBeNull();
 	});
 
-	it("nests the lab categories under the lab entry once it opens", () => {
-		const { onSelectStyleLabView, onToggleStyleLabGroup } = renderNav({
+	it("shows every lab category directly under the lab entry", () => {
+		const { onSelectStyleLabView } = renderNav({
 			styleLabOpen: true,
 		});
 		const labEntry = screen.getByRole("button", { name: "花字实验室" });
 		const category = screen.getByRole("button", {
 			name: "热门，7 个本地花字",
 		});
-		expect(screen.getByRole("button", { name: /榜单/ })).toHaveTextContent(
-			"11"
-		);
 		// The categories belong to the lab, so they must follow its rail entry
 		// rather than sitting beside the template groups above it.
 		expect(
@@ -82,9 +76,13 @@ describe("TextLibraryNav", () => {
 		fireEvent.click(category);
 		expect(onSelectStyleLabView).toHaveBeenCalledWith("popular");
 
-		// 颜色 is folded by default, so 紫色 only exists after the group opens.
-		expect(screen.queryByRole("button", { name: /紫色/ })).toBeNull();
-		fireEvent.click(screen.getByRole("button", { name: /颜色/ }));
-		expect(onToggleStyleLabGroup).toHaveBeenCalledWith("colors");
+		const purple = screen.getByRole("button", {
+			name: "紫色，1 个本地花字",
+		});
+		expect(
+			category.compareDocumentPosition(purple) &
+				Node.DOCUMENT_POSITION_FOLLOWING
+		).toBeTruthy();
+		expect(screen.queryByRole("button", { name: /榜单/ })).toBeNull();
 	});
 });

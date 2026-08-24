@@ -61,28 +61,45 @@ describe("Jianying text render cache lock", () => {
 		const cacheRoot = await createCacheRoot();
 		const events: string[] = [];
 		let releaseFirst: (() => void) | undefined;
+		let firstStarted: (() => void) | undefined;
 		const firstMayFinish = new Promise<void>((resolve) => {
 			releaseFirst = resolve;
+		});
+		const firstIsRunning = new Promise<void>((resolve) => {
+			firstStarted = resolve;
 		});
 		const first = runLocked({
 			cacheRoot,
 			task: async () => {
 				events.push("first:start");
+				firstStarted?.();
 				await firstMayFinish;
 				events.push("first:end");
 			},
 		});
-		await delay(20);
-		const second = runLocked({
-			cacheRoot,
-			task: async () => {
-				events.push("second:start");
-			},
-		});
-		await delay(20);
-		expect(events).toEqual(["first:start"]);
-		releaseFirst?.();
-		await Promise.all([first, second]);
+		let second: Promise<void> | undefined;
+		try {
+			// Wait for the real critical-section entry rather than guessing with a
+			// wall clock: acquiring does open + write + fsync + fstat, which costs
+			// a few milliseconds here but roughly ten times that on Windows CI.
+			// Racing `first` means a failed acquisition reports its own error
+			// instead of hanging this barrier until the test times out.
+			await Promise.race([firstIsRunning, first]);
+			second = runLocked({
+				cacheRoot,
+				task: async () => {
+					events.push("second:start");
+				},
+			});
+			await delay(20);
+			expect(events).toEqual(["first:start"]);
+		} finally {
+			// Settle both writers before afterEach removes cacheRoot; otherwise a
+			// failed assertion leaves the second writer retrying open() against a
+			// deleted directory, which surfaces as an unrelated ENOENT.
+			releaseFirst?.();
+			await Promise.allSettled([first, second]);
+		}
 		expect(events).toEqual(["first:start", "first:end", "second:start"]);
 	});
 

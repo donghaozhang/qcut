@@ -40,7 +40,9 @@ export function JianyingFilterRuntimeStatus() {
 	useEffect(() => {
 		let active = true;
 		const api = window.electronAPI?.jianyingFilterLab;
-		if (!api) {
+		// A bridge without this method must not throw out of the effect and take
+		// the panel down with it — same guard the lab view uses before calling it.
+		if (typeof api?.inspectLocalRuntime !== "function") {
 			setChecking(false);
 			return;
 		}

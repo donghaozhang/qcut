@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -186,6 +186,62 @@ describe("FiltersView", () => {
 
 		fireEvent.click(screen.getByRole("button", { name: "Filter library" }));
 		expect(screen.getByLabelText("Search filters")).toBeInTheDocument();
+	});
+
+	it("uses one collapsible sidebar for library, favorites, and filter lab", async () => {
+		render(<FiltersView />);
+
+		const sidebar = screen.getByTestId("filter-sidebar");
+		const libraryButton = within(sidebar).getByRole("button", {
+			name: "Filter library",
+		});
+		const favoritesButton = within(sidebar).getByRole("button", {
+			name: "Favorites",
+		});
+		const labButton = within(sidebar).getByRole("button", {
+			name: "滤镜实验室",
+		});
+
+		expect(libraryButton).toHaveAttribute("aria-expanded", "true");
+		expect(favoritesButton).toHaveAttribute("aria-expanded", "false");
+		expect(labButton).toHaveAttribute("aria-expanded", "false");
+
+		fireEvent.click(libraryButton);
+		expect(libraryButton).toHaveAttribute("aria-expanded", "false");
+		expect(
+			within(sidebar).queryByTestId("filter-category-summer")
+		).not.toBeInTheDocument();
+		expect(screen.getByTestId("filter-card-vivid")).toBeInTheDocument();
+
+		fireEvent.click(favoritesButton);
+		expect(favoritesButton).toHaveAttribute("aria-expanded", "true");
+		expect(libraryButton).toHaveAttribute("aria-expanded", "false");
+		expect(
+			within(sidebar).queryByTestId("filter-category-mine")
+		).not.toBeInTheDocument();
+
+		fireEvent.click(labButton);
+		expect(labButton).toHaveAttribute("aria-expanded", "true");
+		expect(favoritesButton).toHaveAttribute("aria-expanded", "false");
+		const labCategories = await within(sidebar).findByTestId(
+			"jianying-filter-lab-categories"
+		);
+		const libraryGroup = within(labCategories).getByRole("button", {
+			name: "滤镜库",
+		});
+		expect(libraryGroup).toHaveAttribute("aria-expanded", "true");
+
+		fireEvent.click(libraryGroup);
+		expect(libraryGroup).toHaveAttribute("aria-expanded", "false");
+		expect(
+			within(labCategories).queryByRole("tablist", { name: "滤镜库" })
+		).not.toBeInTheDocument();
+
+		fireEvent.click(labButton);
+		expect(labButton).toHaveAttribute("aria-expanded", "false");
+		expect(
+			within(sidebar).queryByTestId("jianying-filter-lab-categories")
+		).not.toBeInTheDocument();
 	});
 
 	it("renders the library with the None card and full result count", () => {

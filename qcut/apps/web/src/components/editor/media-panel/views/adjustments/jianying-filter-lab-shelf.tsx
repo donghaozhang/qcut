@@ -9,7 +9,11 @@ import { useAdjustmentLut } from "./use-adjustment-lut";
  * writes an adjustment layer — this shelf owns that binding so the host
  * panel does not have to know about adjustment semantics.
  */
-export function JianyingFilterLabShelf() {
+export function JianyingFilterLabShelf({
+	sidebarHost,
+}: {
+	sidebarHost?: HTMLElement | null;
+}) {
 	const {
 		activeLut,
 		activeMultiPass,
@@ -77,6 +81,7 @@ export function JianyingFilterLabShelf() {
 		<JianyingFilterLab
 			targetName={target?.element.name}
 			activeEffect={activeMultiPass ?? activeLut}
+			sidebarHost={sidebarHost}
 			onApply={applyJianyingLut}
 			onApplyMultiPass={({ settings }) => applyMultiPass({ settings })}
 			onEffectEnabledChange={setActiveEffectEnabled}

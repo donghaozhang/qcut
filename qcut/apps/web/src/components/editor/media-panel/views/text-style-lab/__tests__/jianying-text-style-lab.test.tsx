@@ -31,22 +31,12 @@ function LabHarness({
 }) {
 	const lab = useJianyingTextStyleLab({ enabled: true });
 	const [view, setView] = useState<LabView>("trial");
-	const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
-		() => ({ charts: true, styles: false, effects: false, colors: false })
-	);
 	return (
 		<>
 			<JianyingTextStyleLabCategoryNav
-				expandedGroups={expandedGroups}
 				result={lab.result}
 				view={view}
 				onSelect={setView}
-				onToggleGroup={(groupId) =>
-					setExpandedGroups((current) => ({
-						...current,
-						[groupId]: !(current[groupId] ?? false),
-					}))
-				}
 			/>
 			<JianyingTextStyleLabPanel
 				lab={lab}
@@ -270,6 +260,11 @@ describe("JianyingTextStyleLabPanel", () => {
 		);
 		const cards = await screen.findAllByTestId("jianying-text-style-lab-card");
 		expect(cards).toHaveLength(5);
+		expect(cards[0]).toHaveAttribute("data-layout", "compact");
+		expect(screen.getByTestId("jianying-text-style-lab-grid")).toHaveClass(
+			"grid-cols-[repeat(auto-fill,minmax(82px,1fr))]"
+		);
+		expect(screen.queryByText("测试花字 1")).toBeNull();
 		await waitFor(() => expect(api.cover).toHaveBeenCalledTimes(5));
 
 		fireEvent.click(cards[0]);
@@ -289,7 +284,7 @@ describe("JianyingTextStyleLabPanel", () => {
 			await screen.findAllByTestId("jianying-text-style-lab-card")
 		).toHaveLength(5);
 
-		fireEvent.click(screen.getByRole("button", { name: "全部 8" }));
+		fireEvent.click(screen.getByRole("button", { name: "全部，8 个本地花字" }));
 		await waitFor(() =>
 			expect(
 				screen.getAllByTestId("jianying-text-style-lab-card")
@@ -300,8 +295,8 @@ describe("JianyingTextStyleLabPanel", () => {
 		).toBeDisabled();
 	});
 
-	it("pages beyond the first 24 cached flowers instead of truncating a category", async () => {
-		const styles = Array.from({ length: 30 }, (_, index) =>
+	it("pages beyond the first 40 cached flowers instead of truncating a category", async () => {
+		const styles = Array.from({ length: 50 }, (_, index) =>
 			createStyle({ index: index + 1 })
 		);
 		window.electronAPI = {
@@ -327,17 +322,19 @@ describe("JianyingTextStyleLabPanel", () => {
 		} as never;
 		render(<LabHarness onApply={vi.fn()} onClose={vi.fn()} />);
 
-		fireEvent.click(await screen.findByRole("button", { name: "全部 30" }));
+		fireEvent.click(
+			await screen.findByRole("button", { name: "全部，50 个本地花字" })
+		);
 		await waitFor(() =>
 			expect(
 				screen.getAllByTestId("jianying-text-style-lab-card")
-			).toHaveLength(24)
+			).toHaveLength(40)
 		);
 		fireEvent.click(screen.getByRole("button", { name: "加载更多" }));
 		await waitFor(() =>
 			expect(
 				screen.getAllByTestId("jianying-text-style-lab-card")
-			).toHaveLength(30)
+			).toHaveLength(50)
 		);
 		expect(screen.queryByRole("button", { name: "加载更多" })).toBeNull();
 	});
@@ -367,7 +364,9 @@ describe("JianyingTextStyleLabPanel", () => {
 		const onApply = vi.fn();
 		render(<LabHarness onApply={onApply} onClose={vi.fn()} />);
 
-		fireEvent.click(await screen.findByRole("button", { name: "全部 1" }));
+		fireEvent.click(
+			await screen.findByRole("button", { name: "全部，1 个本地花字" })
+		);
 		const card = await screen.findByRole("button", {
 			name: "应用花字 动态脚本花字",
 		});
@@ -501,12 +500,7 @@ describe("JianyingTextStyleLabPanel", () => {
 			7
 		);
 
-		// 颜色 starts folded, so its members are not in the tree until it opens —
-		// which is the collapse behaviour itself.
-		expect(
-			screen.queryByRole("button", { name: "紫色，1 个本地花字" })
-		).toBeNull();
-		fireEvent.click(screen.getByRole("button", { name: /颜色/ }));
+		// Jianying keeps every category in one scan-friendly list.
 		fireEvent.click(screen.getByRole("button", { name: "紫色，1 个本地花字" }));
 		expect(screen.getAllByTestId("jianying-text-style-lab-card")).toHaveLength(
 			1

@@ -90,6 +90,12 @@ test.describe("Filter library", () => {
 		await openFilters({ page });
 
 		const filters = page.getByTestId("filters-view");
+		const sidebar = filters.getByTestId("filter-sidebar");
+		const libraryMode = sidebar.getByRole("button", {
+			name: "Filter library",
+		});
+		await expect(sidebar).toBeVisible();
+		await expect(libraryMode).toHaveAttribute("aria-expanded", "true");
 		await expect(filters.locator('[data-testid^="filter-card-"]')).toHaveCount(
 			allCardCount
 		);
@@ -106,10 +112,37 @@ test.describe("Filter library", () => {
 					)
 			)
 			.toBe(true);
+
+		await libraryMode.click();
+		await expect(libraryMode).toHaveAttribute("aria-expanded", "false");
+		await expect(sidebar.getByTestId("filter-category-all")).toHaveCount(0);
+		await expect(filters.locator('[data-testid^="filter-card-"]')).toHaveCount(
+			allCardCount
+		);
+		await filters.screenshot({
+			path: path.join(outputDirectory, "00-library-collapsed.png"),
+			animations: "disabled",
+		});
+		await libraryMode.click();
+		await expect(sidebar.getByTestId("filter-category-all")).toBeVisible();
 		await filters.screenshot({
 			path: path.join(outputDirectory, "00-library.png"),
 			animations: "disabled",
 		});
+
+		const labMode = sidebar.getByRole("button", { name: "滤镜实验室" });
+		await labMode.click();
+		await expect(labMode).toHaveAttribute("aria-expanded", "true");
+		await expect(
+			sidebar.getByTestId("jianying-filter-lab-categories")
+		).toBeVisible();
+		await filters.screenshot({
+			path: path.join(outputDirectory, "00-filter-lab.png"),
+			animations: "disabled",
+		});
+		await libraryMode.click();
+		await expect(filters.getByLabel("Search filters")).toBeVisible();
+
 		for (const categoryCase of categoryCases) {
 			await filters.getByTestId(`filter-category-${categoryCase.id}`).click();
 			const categoryCards = filters.locator('[data-testid^="filter-card-"]');
