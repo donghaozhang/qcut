@@ -284,18 +284,21 @@ std::vector<FaceObservationRecord> inspectFaces(
 	// reports a failure. Pumping the pipeline is what drives that load to
 	// completion — an early pass returning non-zero is expected, not fatal.
 	// Only never succeeding at all is a real failure.
-	bool algorithmSucceeded = false;
+	// Success means one pass where BOTH calls returned zero: a detection read
+	// after a failed process step would describe a frame the pipeline never
+	// finished.
+	bool pipelineSucceeded = false;
 	for (int pass = 0; pass < kWarmUpPasses; ++pass) {
 		const Result algorithmResult =
 			symbols.algorithmTexture(handle.get(), input.get(), 0.0);
-		static_cast<void>(
-			symbols.processTexture(handle.get(), input.get(), output.get(), 0.0));
-		if (algorithmResult == 0) algorithmSucceeded = true;
+		const Result processResult =
+			symbols.processTexture(handle.get(), input.get(), output.get(), 0.0);
+		if (algorithmResult == 0 && processResult == 0) pipelineSucceeded = true;
 	}
-	if (!algorithmSucceeded) {
+	if (!pipelineSucceeded) {
 		throw std::runtime_error(
-			"the face algorithm never ran across " +
-			std::to_string(kWarmUpPasses) + " passes");
+			"the face pipeline never completed a pass across " +
+			std::to_string(kWarmUpPasses) + " attempts");
 	}
 	void* resultObject = nullptr;
 	Result result =
