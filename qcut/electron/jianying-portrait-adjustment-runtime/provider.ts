@@ -57,6 +57,16 @@ function requestedGroups({
 	if (Object.keys(request.adjustments.makeup ?? {}).length > 0) {
 		groups.add("face");
 	}
+	for (const face of request.adjustments.faces ?? []) {
+		for (const control of JIANYING_PORTRAIT_ADJUSTMENT_CATALOG) {
+			if ((face.values[control.key] ?? 0) !== 0) {
+				groups.add(control.group);
+			}
+		}
+		if (Object.keys(face.makeup ?? {}).length > 0) {
+			groups.add("face");
+		}
+	}
 	return (["face", "body"] as const).filter((group) => groups.has(group));
 }
 
@@ -81,6 +91,24 @@ function frameCacheKey({
 		([left], [right]) => left.localeCompare(right)
 	);
 	hash.update(`\0makeup:${JSON.stringify(makeupEntries)}`);
+	// Per-face entries arrive normalized (deduped, ascending trackId) but the
+	// serialization sorts anyway so the key never depends on writer order.
+	// Legacy requests carry no faces and hash exactly as before.
+	for (const face of [...(request.adjustments.faces ?? [])].sort(
+		(left, right) => left.trackId - right.trackId
+	)) {
+		hash.update(`\0face:${face.trackId}`);
+		for (const control of JIANYING_PORTRAIT_ADJUSTMENT_CATALOG) {
+			const value = face.values[control.key] ?? 0;
+			if (value !== 0) hash.update(`\0${control.key}:${value}`);
+		}
+		const faceMakeup = Object.entries(face.makeup ?? {}).sort(
+			([left], [right]) => left.localeCompare(right)
+		);
+		if (faceMakeup.length > 0) {
+			hash.update(`\0facemakeup:${JSON.stringify(faceMakeup)}`);
+		}
+	}
 	hash.update(request.rgba);
 	return hash.digest("hex");
 }
