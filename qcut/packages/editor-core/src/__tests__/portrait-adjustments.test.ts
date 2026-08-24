@@ -82,7 +82,7 @@ describe("media portrait adjustments", () => {
 			},
 		});
 	});
-it("keeps legacy shapes byte-identical with no faces key", () => {
+	it("keeps legacy shapes byte-identical with no faces key", () => {
 		const legacy = normalizeMediaPortraitAdjustments({
 			adjustments: {
 				enabled: true,
