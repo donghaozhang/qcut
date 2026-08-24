@@ -87,6 +87,45 @@ function parseFaceTarget({
 	return { mode: "single", faceId: record.faceId };
 }
 
+const MAXIMUM_PORTRAIT_FACE_ENTRIES = 10;
+
+function parseFaceEntries({
+	value,
+}: {
+	value: unknown;
+}): MediaPortraitAdjustments["faces"] {
+	if (value === undefined) return undefined;
+	if (!Array.isArray(value)) throw new Error("剪映美颜美体人脸列表无效");
+	const entries: NonNullable<MediaPortraitAdjustments["faces"]> = [];
+	const seenTrackIds = new Set<number>();
+	for (const rawEntry of value) {
+		const record = recordValue({ value: rawEntry });
+		if (!record) throw new Error("剪映美颜美体人脸条目无效");
+		const trackId = record.trackId;
+		if (
+			typeof trackId !== "number" ||
+			!Number.isSafeInteger(trackId) ||
+			trackId < 0 ||
+			seenTrackIds.has(trackId)
+		) {
+			throw new Error("剪映美颜美体人脸跟踪编号无效");
+		}
+		seenTrackIds.add(trackId);
+		const makeup = parseMakeupSelections({ value: record.makeup });
+		entries.push({
+			trackId,
+			values: parseAdjustmentValues({ value: record.values }),
+			...(makeup ? { makeup } : {}),
+		});
+	}
+	if (entries.length > MAXIMUM_PORTRAIT_FACE_ENTRIES) {
+		throw new Error("剪映美颜美体人脸条目超出上限");
+	}
+	return entries.length > 0
+		? entries.sort((left, right) => left.trackId - right.trackId)
+		: undefined;
+}
+
 function parseMakeupSelections({
 	value,
 }: {
@@ -165,6 +204,7 @@ export function parseJianyingPortraitRenderRequest({
 	}
 	const faceTarget = parseFaceTarget({ value: adjustments.faceTarget });
 	const makeup = parseMakeupSelections({ value: adjustments.makeup });
+	const faces = parseFaceEntries({ value: adjustments.faces });
 	return {
 		width,
 		height,
@@ -178,6 +218,7 @@ export function parseJianyingPortraitRenderRequest({
 			values: parseAdjustmentValues({ value: adjustments.values }),
 			...(faceTarget ? { faceTarget } : {}),
 			...(makeup ? { makeup } : {}),
+			...(faces ? { faces } : {}),
 		},
 		...(sourceKey === undefined ? {} : { sourceKey }),
 		...(timestampSeconds === undefined ? {} : { timestampSeconds }),
