@@ -1,6 +1,11 @@
+import { randomUUID } from "node:crypto";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
 	editJianyingScriptContent,
+	getEditedJianyingScriptPackage,
 	replaceJianyingRichTextSlots,
 } from "../jianying-text-runtime/script-package-editor.js";
 
@@ -139,6 +144,44 @@ describe("Jianying script text package editing", () => {
 		});
 	});
 
+	it("edits the dominant template text while preserving smaller decorations", () => {
+		const result = editJianyingScriptContent({
+			content: "脚本花字",
+			value: {
+				children: [
+					{
+						type: "text",
+						original_size: [159, 243],
+						scale: [0.258, 0.258, 1],
+						text_params: { richText: "[DE\\nDI\\nFANG]" },
+					},
+					{
+						type: "text",
+						original_size: [201, 330],
+						scale: [1.664, 1.664, 1],
+						text_params: { richText: "<b>[去有风\\n的地方]</b>" },
+					},
+					{
+						type: "text",
+						original_size: [323, 104],
+						scale: [1, 1, 1],
+						text_params: { richText: "[spring]" },
+					},
+				],
+			},
+		});
+
+		expect(result.textWidgetCount).toBe(1);
+		expect(result.slotCount).toBe(1);
+		expect(result.value).toMatchObject({
+			children: [
+				{ text_params: { richText: "[DE\\nDI\\nFANG]" } },
+				{ text_params: { richText: "<b>[脚本花字]</b>" } },
+				{ text_params: { richText: "[spring]" } },
+			],
+		});
+	});
+
 	it("fits longer text without moving or scaling sibling decorations", () => {
 		const result = editJianyingScriptContent({
 			content: "签名通过",
@@ -186,5 +229,73 @@ describe("Jianying script text package editing", () => {
 				},
 			})
 		).toThrow("no editable rich-text slots");
+	});
+
+	it("copies runtime dependencies inside the editable script package", async () => {
+		const root = await mkdtemp(path.join(os.tmpdir(), "qcut-script-package-"));
+		const sourcePackage = path.join(root, "package");
+		const sourceDependency = path.join(root, "animation");
+		const packageHash = `test-${randomUUID()}`;
+		let copiedPackage: string | undefined;
+		try {
+			await Promise.all([
+				mkdir(sourcePackage, { recursive: true }),
+				mkdir(sourceDependency, { recursive: true }),
+			]);
+			await Promise.all([
+				writeFile(
+					path.join(sourcePackage, "content.json"),
+					JSON.stringify({
+						children: [
+							{
+								anims: [
+									{
+										anim_resource_id: "animation-1",
+										anim_resource_path: "",
+									},
+								],
+								text_params: { richText: "[old]" },
+								type: "text",
+							},
+						],
+						root: { duration: 3 },
+					}),
+					"utf8"
+				),
+				writeFile(
+					path.join(sourceDependency, "extra.json"),
+					'{"animation":true}\n',
+					"utf8"
+				),
+			]);
+
+			copiedPackage = await getEditedJianyingScriptPackage({
+				packagePath: sourcePackage,
+				packageHash,
+				content: "new",
+				resourcePaths: { "animation-1": sourceDependency },
+				resourceFingerprint: "test-fingerprint",
+				templateFontPaths: {},
+				fallbackFontPath: path.join(root, "fallback.ttf"),
+			});
+			const content = JSON.parse(
+				await readFile(path.join(copiedPackage, "content.json"), "utf8")
+			) as {
+				children: Array<{ anims: Array<{ anim_resource_path: string }> }>;
+			};
+			const localizedPath = content.children[0].anims[0].anim_resource_path;
+			expect(path.relative(copiedPackage, localizedPath)).not.toMatch(/^\.\./);
+			expect(
+				await readFile(path.join(localizedPath, "extra.json"), "utf8")
+			).toBe('{"animation":true}\n');
+		} finally {
+			await rm(root, { recursive: true, force: true });
+			if (copiedPackage) {
+				await rm(path.dirname(copiedPackage), {
+					recursive: true,
+					force: true,
+				});
+			}
+		}
 	});
 });
