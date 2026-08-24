@@ -101,11 +101,12 @@ struct PrimitiveVectorView {
 [[nodiscard]] bool readPrimitiveVectorView(
 	const void* object, std::size_t elementSize, PrimitiveVectorView* view) {
 	if (object == nullptr || elementSize == 0) return false;
+	// The landmark container stores its span at +0x10/+0x18, not at offset zero.
 	const auto* bytes = static_cast<const std::uint8_t*>(object);
 	const std::uint8_t* begin = nullptr;
 	const std::uint8_t* end = nullptr;
-	std::memcpy(&begin, bytes, sizeof(begin));
-	std::memcpy(&end, bytes + sizeof(begin), sizeof(end));
+	std::memcpy(&begin, bytes + 0x10, sizeof(begin));
+	std::memcpy(&end, bytes + 0x18, sizeof(end));
 	if ((begin == nullptr) != (end == nullptr)) return false;
 	if (begin == nullptr) {
 		*view = {};
@@ -174,11 +175,12 @@ class ScopedEffectHandle {
 	void* const vtable = *static_cast<void**>(resultObject);
 	Dl_info symbolInfo{};
 	if (dladdr(vtable, &symbolInfo) == 0 || symbolInfo.dli_sname == nullptr) {
-		return false;
+		throw std::runtime_error("face result vtable has no symbol");
 	}
 	if (std::string_view(symbolInfo.dli_sname).find("FaceBuffer") ==
 		std::string_view::npos) {
-		return false;
+		throw std::runtime_error(
+			std::string("face result is not a FaceBuffer: ") + symbolInfo.dli_sname);
 	}
 	// The primary face vector occupies +0x38/+0x40 and owns pointers to
 	// 0x50-byte face records.
@@ -187,15 +189,18 @@ class ScopedEffectHandle {
 	const void* const* end = nullptr;
 	std::memcpy(&begin, objectBytes + 0x38, sizeof(begin));
 	std::memcpy(&end, objectBytes + 0x40, sizeof(end));
-	if ((begin == nullptr) != (end == nullptr)) return false;
+	if ((begin == nullptr) != (end == nullptr)) {
+		throw std::runtime_error("face vector endpoints disagree");
+	}
 	if (begin == nullptr) return true;
-	if (end < begin) return false;
+	if (end < begin) throw std::runtime_error("face vector endpoints inverted");
 	const auto byteCount = static_cast<std::size_t>(
 		reinterpret_cast<const std::uint8_t*>(end) -
 		reinterpret_cast<const std::uint8_t*>(begin));
 	if (byteCount % sizeof(void*) != 0 ||
 		byteCount / sizeof(void*) > kMaximumFaces) {
-		return false;
+		throw std::runtime_error("face vector span is implausible: " +
+								 std::to_string(byteCount) + " bytes");
 	}
 	for (std::size_t index = 0; index < byteCount / sizeof(void*); ++index) {
 		const void* faceObject = begin[index];
@@ -215,12 +220,12 @@ class ScopedEffectHandle {
 						[](float value) { return std::isfinite(value); }) &&
 			std::isfinite(face.score) && std::isfinite(face.yaw) &&
 			std::isfinite(face.pitch) && std::isfinite(face.roll);
-		if (!finite) return false;
+		if (!finite) throw std::runtime_error("face record has non-finite fields");
 		const void* pointsObject = nullptr;
 		std::memcpy(&pointsObject, faceBytes + 0x20, sizeof(pointsObject));
 		PrimitiveVectorView points{};
 		if (!readPrimitiveVectorView(pointsObject, sizeof(float) * 2, &points)) {
-			return false;
+			throw std::runtime_error("face landmark vector is unreadable");
 		}
 		face.landmarkCount = points.size;
 		faces->push_back(face);
@@ -274,17 +279,23 @@ std::vector<FaceObservationRecord> inspectFaces(
 	// detect rather than merely reporting no faces.
 	std::this_thread::sleep_for(std::chrono::milliseconds(250));
 	std::vector<FaceObservationRecord> faces;
+	// Package resources load asynchronously (`enable_resource_load_synchronously`
+	// is off), so the algorithm graph does not exist yet on the first passes and
+	// reports a failure. Pumping the pipeline is what drives that load to
+	// completion — an early pass returning non-zero is expected, not fatal.
+	// Only never succeeding at all is a real failure.
+	bool algorithmSucceeded = false;
 	for (int pass = 0; pass < kWarmUpPasses; ++pass) {
 		const Result algorithmResult =
 			symbols.algorithmTexture(handle.get(), input.get(), 0.0);
-		const Result processResult =
-			symbols.processTexture(handle.get(), input.get(), output.get(), 0.0);
-		if (algorithmResult != 0 || processResult != 0) {
-			throw std::runtime_error(
-				"the face algorithm failed to run: pass " + std::to_string(pass) +
-				" algorithm=" + std::to_string(algorithmResult) +
-				" process=" + std::to_string(processResult));
-		}
+		static_cast<void>(
+			symbols.processTexture(handle.get(), input.get(), output.get(), 0.0));
+		if (algorithmResult == 0) algorithmSucceeded = true;
+	}
+	if (!algorithmSucceeded) {
+		throw std::runtime_error(
+			"the face algorithm never ran across " +
+			std::to_string(kWarmUpPasses) + " passes");
 	}
 	void* resultObject = nullptr;
 	Result result =
