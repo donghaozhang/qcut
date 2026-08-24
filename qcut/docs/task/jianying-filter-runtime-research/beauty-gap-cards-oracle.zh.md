@@ -60,10 +60,9 @@
    `{"face_adjust_yunfu": [{"id": -1, "intensity": 1}]}`。键值形式永远到不了
    `SetEffectIntensity`。probe 新增 `JY_EFFECT_FEATURE_PARAMS` 走 JSON 通道后，
    Lua 立刻报告 `hitKey`。
-2. **宿主构造**：`filter-sequence` 用 `createVideoFeature`（视频子特征）且没有
-   原生 CVPixelBuffer 输入与算法预卷，人脸检测恒为 `faceCount=0`；
-   `effect-video` 用独立 `FeatureSegment` + `video_add_feature` + 原生输入 +
-   200ms 预卷，同一张帧上 `faceCount=1`、`id=0`（真实 freid trackid）。
+2. **宿主构造**：换到 `effect-video` 宿主后，同一张帧上 `faceCount=1`、`id=0`
+   （真实 freid trackid）。当时把原因归给了 FeatureSegment 形状与算法预卷，
+   这个归因是错的——真正的变量见下一节的三次隔离。
 
 两条同时满足后，Lua 门 `gate valid=true`，GAN 纹理正常发布。以零强度输出为
 基线（零强度与输入逐字节一致，因果自洽）：
@@ -77,18 +76,53 @@
 差分图语义也对：匀肤/丰盈覆盖 GAN 人脸对齐区且眼嘴挖空保护，
 祛斑祛痘呈稀疏点状集中在瑕疵与纹理处，背景全部零变化。
 
-## 产品宿主仍未通（GAN 三卡）
+## 根因：渲染必须发生在运行时自己的 GL 上下文里
 
-三卡已按标量/向量语义接进产品目录（`face_adjust_yunfu`、`face_adjust_fuling`、
-`face_adjust_SpotAcne`；匀肤与丰盈共用 `skin-gan` 包，祛斑祛痘包内键仍是
-`face_adjust` 故产品键独立命名）。但用 dist 里的真实 provider 渲染，三卡
-`absdiff` 全部为 `0`——产品宿主 `jianying-portrait-adjustment-host` 复用的是
-filter 路径，缺上面第 2 条的原生输入与预卷，因此人脸检测同样为 0。
+第二轮把「宿主构造」记成了 FeatureSegment 形状，这一条也是错的。三次单变量隔离
+（`effect-video` 宿主，其余条件完全不变）给出了决定性结论：
 
-**这三张卡在产品 UI 中会显示但目前无效，接入宿主改造前不得对用户宣称可用。**
-下一步是把 `FeatureSegment + 原生 CVPixelBuffer 输入 + 算法预卷` 移植进
-产品宿主，验收标准：同一帧上 `faceCount=1`，且上表三组强度在产品 provider 下
-复现同样的单调差值。
+| 变量 | faceCount | GAN 门 |
+| --- | ---: | --- |
+| 对照 | `1` | `true` ×10 |
+| 关闭引擎 GL 上下文 | `0` | 全 `false` |
+| 关闭 200ms 算法预卷 | `1` | `true` ×10 |
+
+也就是说：FeatureSegment 形状、算法预卷、原生 CVPixelBuffer 输入都不是原因
+（filter 路径本来就有 `.useNativeInputTextures = true`，见
+`research/jianying-runtime-probe/filter-probe.mm`）。真正的原因是——
+
+**人脸算法只在运行时自己的 `HTSGLContext`（`sharedImageProcessingContext`）里才拿得到
+输入。** 产品宿主原本用 `NSOpenGLContext ... shareContext:nil` 自建了一个独立上下文，
+于是模型照常加载、算法照常初始化，但人脸检测永远返回 0 张脸。
+
+为此隔离出来的两个诊断开关（`JY_EFFECT_ENGINE_GL_CONTEXT`、
+`JY_EFFECT_ALGORITHM_PREROLL`）默认保持出厂行为，只用于 A/B。
+
+### 修复
+
+`OpenGlContext` 现在接受运行时根目录：先 `dlopen` 效果核心（`HTSGLContext` 就在
+`libcccreator.dylib` 里，早于加载时 `NSClassFromString` 只会返回 nil），再取运行时的
+共享图像处理上下文并绑定，**完全不创建独立上下文**。运行时没有发布该上下文时才回退到
+原来的独立上下文，并打印一行明确的警告。`JY_FILTER_ENGINE_GL_CONTEXT=0` 可强制回退。
+
+> 曾经试过「先建独立上下文，加载后再接管」，引擎上下文确实接管成功但人脸仍为 0——
+> 运行时会针对首次出现的上下文初始化 GL 状态，所以独立上下文一次都不能创建。
+
+## 产品宿主门禁结果
+
+同一张显示方向帧，走 dist 构建里的真实 provider：
+
+| 用例 | 产品宿主 | 基线 | 结论 |
+| --- | ---: | ---: | --- |
+| 美白 `100` | `2,548,174` | `2,548,174` | 逐字节不变 |
+| 美白 `50` | `1,273,875` | `1,273,875` | 逐字节不变 |
+| 清晰 `100` | `4,830,507` | `4,830,507` | 逐字节不变 |
+| 匀肤 `0 / 50 / 100` | `0 / 126,127 / 203,404` | oracle `0 / 123,996 / 199,634` | 单调，偏差 ~2% |
+| 丰盈 `100` | `859,109` | oracle `873,895` | 偏差 1.7% |
+| 祛斑祛痘 `100` | `94,744` | oracle `97,260` | 偏差 2.6% |
+
+已上线卡逐字节零漂移，证明换用引擎上下文没有改动任何既有渲染；GAN 三卡与低层 oracle
+的残差属于两个宿主的纹理与调度差异，量级与瘦脸单卡一致。三张卡的 UI 屏蔽已撤除。
 
 ## 第一轮记录：未通过时的观察（保留）
 
@@ -127,10 +161,12 @@ requirement 调度与结果发布）。输入方向（GL/显示两种朝向）�
 
 ## 下一步
 
-1. 美白、清晰按单卡模板补第 7-8 步（中文剪映 UI 只开单项 100 采参照 +
-   固定 ROI PSNR/SSIM 邻域搜索），补齐后才标 verified。
-2. GAN 三卡单独立项：在 Swing 宿主中打通 face/freid requirement 的逐帧调度，
-   验收标准沿用「有模型 vs 无模型」隔离 + `gan0==1` 发布 + 零强度回退。
+1. 五张卡（美白、清晰、匀肤、丰盈、祛斑祛痘）按单卡模板补第 7-8 步
+   （中文剪映 UI 只开单项 100 采参照 + 固定 ROI PSNR/SSIM 邻域搜索），
+   补齐后才能标 verified；当前状态是「产品可用且有数值门禁」，不是逐像素平价。
+2. 引擎上下文现在是所有人像渲染的前提。运行时若不发布 `HTSGLContext`，宿主会回退
+   到独立上下文并打印警告，此时依赖人脸跟踪的卡会静默渲染原图——值得在
+   provider 侧把这个状态透出来，而不是只留在 stderr。
 3. 祛黑眼圈只需产品侧命名核对（很可能就是现有 `face_adjust_Pouch` 的 UI 名），
    不需要新包。
 
