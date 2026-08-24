@@ -26,6 +26,8 @@ export type JianyingPortraitAdjustmentRuntimePackage =
 	| "smooth"
 	| "whiten"
 	| "clarity"
+	| "skin-gan"
+	| "spot-acne"
 	| "teeth"
 	| "makeup"
 	| "body";
@@ -86,6 +88,9 @@ export type MediaPortraitAdjustmentKey =
 	| "face_adjust_Smooth"
 	| "face_adjust_Whiten"
 	| "face_adjust_Clarity"
+	| "face_adjust_yunfu"
+	| "face_adjust_fuling"
+	| "face_adjust_SpotAcne"
 	| "face_adjust_WhiteTeeth"
 	| "face_adjust_temple"
 	| "face_adjust_cheekbone"
