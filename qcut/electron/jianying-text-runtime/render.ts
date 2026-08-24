@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type {
+	JianyingTextRuntimeContentBounds,
 	JianyingTextRuntimeRenderRequest,
 	JianyingTextRuntimeRenderResult,
 	JianyingTextRuntimeRenderStrategy,
@@ -45,13 +46,18 @@ import {
 } from "./render-process.js";
 import { inspectJianyingTextRuntime } from "./runtime-discovery.js";
 import { JIANYING_SCRIPT_PACKAGE_COPY_SCHEMA_VERSION } from "./script-package-editor.js";
+import {
+	centerJianyingScriptContentBounds,
+	nextJianyingScriptCanvasWidth,
+} from "./script-canvas-fit.js";
 import { resolveJianyingTextTemplateTiming } from "./timing.js";
 
 const REQUEST_ID_PATTERN = /^[A-Za-z0-9._:-]{1,160}$/;
 const MAXIMUM_CONTENT_CODE_POINTS = 4096;
 const MAXIMUM_DIMENSION = 4096;
 const MAXIMUM_FRAME_COUNT = 18_000;
-const MAXIMUM_HOST_TEXT_FIT_ATTEMPTS = 4;
+const MAXIMUM_HOST_TEXT_FIT_ATTEMPTS = 10;
+const MAXIMUM_SCRIPT_CANVAS_FIT_ATTEMPTS = 10;
 
 interface ValidatedRenderRequest
 	extends Omit<JianyingTextRuntimeRenderRequest, "reference"> {
@@ -298,12 +304,16 @@ async function convertRawSequence({
 	directory,
 	width,
 	height,
+	sourceWidth,
+	sourceHeight,
 }: {
 	request: ValidatedRenderRequest;
 	rawPath: string;
 	directory: string;
 	width: number;
 	height: number;
+	sourceWidth: number;
+	sourceHeight: number;
 }) {
 	const ffmpegPath = await getFFmpegPath();
 	const rotated = rotatedDimensions({
@@ -316,6 +326,16 @@ async function convertRawSequence({
 		rotationRadians: rotated.radians,
 		outputWidth: rotated.width,
 		outputHeight: rotated.height,
+		...(sourceWidth !== width || sourceHeight !== height
+			? {
+					canvas: {
+						width,
+						height,
+						x: Math.floor((width - sourceWidth) / 2),
+						y: Math.floor((height - sourceHeight) / 2),
+					},
+				}
+			: {}),
 	});
 	await runJianyingTextProcess({
 		requestId: request.requestId,
@@ -331,7 +351,7 @@ async function convertRawSequence({
 			"-pixel_format",
 			"rgba",
 			"-video_size",
-			`${width}x${height}`,
+			`${sourceWidth}x${sourceHeight}`,
 			"-framerate",
 			String(request.fps),
 			"-i",
@@ -346,6 +366,56 @@ async function convertRawSequence({
 		],
 	});
 	return rotated;
+}
+
+async function renderFittedScriptSequence({
+	runtime,
+	request,
+	packageInfo,
+	content,
+	fallbackFontPath,
+	fontOverridePath,
+}: {
+	runtime: JianyingTextBridgeRuntime;
+	request: Omit<
+		JianyingTextRawSequenceRequest,
+		"packagePath" | "packageKind" | "scriptParameters"
+	>;
+	packageInfo: Awaited<ReturnType<typeof resolveJianyingTextPackage>>;
+	content: string;
+	fallbackFontPath: string;
+	fontOverridePath?: string;
+}) {
+	let canvasWidth = request.width;
+	for (let attempt = 0; ; attempt += 1) {
+		const strategy = await renderEditableJianyingScriptSequence({
+			runtime,
+			request: { ...request, width: canvasWidth },
+			packageInfo,
+			content,
+			fallbackFontPath,
+			...(fontOverridePath ? { fontOverridePath } : {}),
+		});
+		const bounds = await measureJianyingTextRawSequenceAlphaBounds({
+			rawPath: request.outputPath,
+			width: canvasWidth,
+			height: request.height,
+			frameCount: request.frameCount,
+		});
+		const nextWidth = nextJianyingScriptCanvasWidth({
+			canvasWidth,
+			canvasHeight: request.height,
+			targetWidth: request.width,
+			bounds,
+		});
+		if (
+			nextWidth === null ||
+			attempt + 1 >= MAXIMUM_SCRIPT_CANVAS_FIT_ATTEMPTS
+		) {
+			return { bounds, canvasWidth, strategy };
+		}
+		canvasWidth = nextWidth;
+	}
 }
 
 function responseForRender({
@@ -556,14 +626,24 @@ async function renderUncached({
 		...(animations.length > 0 ? { animations } : {}),
 	};
 	let strategy: JianyingTextRuntimeRenderStrategy;
+	let sourceWidth = width;
+	const sourceHeight = height;
+	let contentBounds: JianyingTextRuntimeContentBounds | null;
 	if (packageInfo.packageKind === "ScriptInfoSticker") {
-		strategy = await renderEditableJianyingScriptSequence({
+		const scriptRender = await renderFittedScriptSequence({
 			runtime,
 			request: rawRequest,
 			packageInfo,
 			content: request.content,
 			fallbackFontPath: fontPath,
 			...(request.fontAssetId ? { fontOverridePath: fontPath } : {}),
+		});
+		strategy = scriptRender.strategy;
+		sourceWidth = scriptRender.canvasWidth;
+		contentBounds = centerJianyingScriptContentBounds({
+			bounds: scriptRender.bounds,
+			sourceWidth,
+			targetWidth: width,
 		});
 	} else {
 		const hostTextRequest = await fitHostTextRequest({
@@ -604,14 +684,22 @@ async function renderUncached({
 				throwIfJianyingTextRenderCancelled({ requestId: request.requestId }),
 		});
 		strategy = "host-text";
+		contentBounds = await measureJianyingTextRawSequenceAlphaBounds({
+			rawPath,
+			width,
+			height,
+			frameCount: request.frameCount,
+		});
 	}
-	const contentBounds = await measureJianyingTextRawSequenceAlphaBounds({
+	await convertRawSequence({
+		request,
 		rawPath,
+		directory,
 		width,
 		height,
-		frameCount: request.frameCount,
+		sourceWidth,
+		sourceHeight,
 	});
-	await convertRawSequence({ request, rawPath, directory, width, height });
 	await rm(rawPath, { force: true });
 	const manifest: JianyingTextCachedRenderManifest = {
 		schemaVersion: JIANYING_TEXT_RENDER_CACHE_SCHEMA_VERSION,
