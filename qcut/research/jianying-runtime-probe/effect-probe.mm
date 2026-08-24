@@ -172,6 +172,10 @@ using SetSegmentTimeRangeApiMethod = int (*)(void*, std::int64_t, std::int64_t);
 using SetSegmentRenderIndexApiMethod = int (*)(void*, int);
 using SetSegmentParamsApiMethod = int (*)(void*, const char**, const char**,
                                           int);
+// The same export also serves a two-argument JSON form. Portrait beauty
+// packages read a `{key: [{id, intensity}]}` vector map through it, which the
+// key/value form cannot express.
+using SetSegmentParamsJsonMethod = int (*)(void*, const char*);
 using SetVideoDeviceTextureApiMethod = int (*)(void*,
                                                const DeviceTextureProbe*);
 using VideoAddFeatureApiMethod = int (*)(void*, void*);
@@ -195,6 +199,7 @@ struct EffectSymbols {
   SetSegmentTimeRangeApiMethod setSegmentTimeRange;
   SetSegmentRenderIndexApiMethod setSegmentRenderIndex;
   SetSegmentParamsApiMethod setSegmentParams;
+  SetSegmentParamsJsonMethod setSegmentParamsJson;
   SetVideoDeviceTextureApiMethod setVideoDeviceTexture;
   VideoAddFeatureApiMethod videoAddFeature;
   FeatureSetOrderApiMethod featureSetOrder;
@@ -292,6 +297,8 @@ template <typename Function>
           core, kSetSegmentRenderIndexApi),
       .setSegmentParams =
           resolveSymbol<SetSegmentParamsApiMethod>(core, kSetSegmentParamsApi),
+      .setSegmentParamsJson =
+          resolveSymbol<SetSegmentParamsJsonMethod>(core, kSetSegmentParamsApi),
       .setVideoDeviceTexture = resolveSymbol<SetVideoDeviceTextureApiMethod>(
           core, kSetVideoDeviceTextureApi),
       .videoAddFeature =
@@ -581,6 +588,14 @@ class EffectRenderSession {
   /** Sliders arrive as the package's own `effects_adjust_*` key/value pairs. */
   void applyAdjustParameters(
       std::span<const EffectAdjustParameter> adjustParameters) {
+    // Portrait beauty packages need the vector-map JSON form instead; the
+    // key/value pairs never reach their `SetEffectIntensity` handler.
+    if (const char* json = std::getenv("JY_EFFECT_FEATURE_PARAMS")) {
+      const int result =
+          symbols_.setSegmentParamsJson(effectSegment_->get(), json);
+      std::cout << "[effect] feature params result = " << result << '\n';
+      return;
+    }
     if (adjustParameters.empty()) {
       return;
     }
