@@ -50,13 +50,16 @@ function createProject(): TProject {
 }
 
 function createStorage({
+	mediaItems = [],
 	project = createProject(),
 	tracks = [],
 }: {
+	mediaItems?: ReadonlyArray<{ id: string; metadata?: unknown }>;
 	project?: TProject | null;
 	tracks?: TimelineTrack[] | null;
 } = {}) {
 	return {
+		loadAllMediaExportPolicyRecords: vi.fn(async () => mediaItems),
 		loadProject: vi.fn(async () => project),
 		loadTimeline: vi.fn(async () => tracks),
 	};
@@ -117,6 +120,33 @@ describe("persisted QCut same-profile writeback", () => {
 		expect(JSON.stringify(result)).not.toContain("/private/");
 		expect(storage.loadProject).toHaveBeenCalledTimes(2);
 		expect(storage.loadTimeline).toHaveBeenCalledTimes(2);
+		expect(storage.loadAllMediaExportPolicyRecords).toHaveBeenCalledTimes(2);
+	});
+
+	it("blocks restricted project media before same-profile writeback", async () => {
+		const runWriteback = vi.fn();
+		const result = await executePersistedQCutSameProfileWriteback({
+			request: { action: "writeback", projectId: "project-1" },
+			runWriteback,
+			storage: createStorage({
+				mediaItems: [
+					{
+						id: "restricted-sticker",
+						metadata: { redistribution: "prohibited" },
+					},
+				],
+			}),
+		});
+
+		expect(result).toMatchObject({
+			message: expect.stringContaining(
+				"Sticker Lab reference-only media cannot be exported or redistributed."
+			),
+			operation: "writeback",
+			outcome: "failed",
+			reason: "unexpected",
+		});
+		expect(runWriteback).not.toHaveBeenCalled();
 	});
 
 	it("detects persisted timeline changes before mapping a client block", async () => {
