@@ -119,6 +119,11 @@ import { EditorApiClient } from "../../native-pipeline/editor/editor-api-client.
 import { resolveQCutRuntimeEndpoint } from "../runtime-endpoint.js";
 import { buildProjectJSON } from "../../native-pipeline/cli/project-json-builder.js";
 import { claudeLog } from "../utils/logger.js";
+import {
+	isRestrictedStickerLabMetadata,
+	RestrictedMediaExportError,
+} from "../../types/restricted-media-export-policy.js";
+import { parseStickerLabMediaMetadata } from "../../types/sticker-lab-media-metadata.js";
 
 export interface WindowProxy {
 	webContents: {
@@ -257,21 +262,37 @@ async function listMediaFilesWithRendererFallback({
 	accessor: WindowAccessor;
 }): Promise<MediaFile[]> {
 	const diskMedia = await listMediaFiles(projectId);
-	if (!accessor.requestStateSnapshot) return diskMedia;
+	if (!accessor.requestStateSnapshot) {
+		throw new RestrictedMediaExportError({
+			mediaIds: [],
+			operation: "video",
+		});
+	}
 
 	let snapshot: EditorStateSnapshot | null = null;
 	try {
 		snapshot = await accessor.requestStateSnapshot({ include: ["media"] });
 	} catch {
-		return diskMedia;
+		throw new RestrictedMediaExportError({
+			mediaIds: [],
+			operation: "video",
+		});
 	}
 
 	const mediaItems = snapshot?.state?.media?.items;
-	if (!Array.isArray(mediaItems) || mediaItems.length === 0) return diskMedia;
+	if (!Array.isArray(mediaItems)) {
+		throw new RestrictedMediaExportError({
+			mediaIds: [],
+			operation: "video",
+		});
+	}
+	if (mediaItems.length === 0) return diskMedia;
 
 	const merged = new Map<string, MediaFile>();
+	const diskMediaByName = new Map<string, MediaFile>();
 	for (const media of diskMedia) {
 		merged.set(media.id, media);
+		diskMediaByName.set(media.name, media);
 	}
 
 	for (const item of mediaItems) {
@@ -279,6 +300,46 @@ async function listMediaFilesWithRendererFallback({
 			!(item.type === "video" || item.type === "image" || item.type === "audio")
 		) {
 			continue;
+		}
+		let restrictedMetadata: MediaFile["metadata"];
+		if (isRestrictedStickerLabMetadata({ metadata: item.metadata })) {
+			try {
+				restrictedMetadata = parseStickerLabMediaMetadata({
+					candidate: item.metadata,
+					label: `Renderer media ${item.id} restricted metadata`,
+				});
+			} catch {
+				throw new RestrictedMediaExportError({
+					mediaIds: [item.id],
+					operation: "video",
+				});
+			}
+		}
+		if (restrictedMetadata) {
+			const existing = merged.get(item.id) ?? diskMediaByName.get(item.name);
+			const restrictedRecord: MediaFile = {
+				createdAt: existing?.createdAt ?? 0,
+				duration: item.duration ?? existing?.duration,
+				id: item.id,
+				metadata: restrictedMetadata,
+				modifiedAt: existing?.modifiedAt ?? 0,
+				name: item.name,
+				path: existing?.path ?? "",
+				size: existing?.size ?? 0,
+				type: item.type,
+				...(typeof item.width === "number" && typeof item.height === "number"
+					? { dimensions: { width: item.width, height: item.height } }
+					: existing?.dimensions
+						? { dimensions: existing.dimensions }
+						: {}),
+			};
+			if (existing && existing.id !== item.id) {
+				merged.set(existing.id, {
+					...existing,
+					metadata: restrictedMetadata,
+				});
+			}
+			merged.set(item.id, restrictedRecord);
 		}
 		if (typeof item.localPath !== "string" || !item.localPath.trim()) {
 			continue;
@@ -290,6 +351,7 @@ async function listMediaFilesWithRendererFallback({
 		}
 		try {
 			const stat = await fsPromises.stat(localPath);
+			const existing = merged.get(item.id);
 			merged.set(item.id, {
 				id: item.id,
 				name: item.name,
@@ -303,6 +365,9 @@ async function listMediaFilesWithRendererFallback({
 						: undefined,
 				createdAt: stat.birthtimeMs,
 				modifiedAt: stat.mtimeMs,
+				...((restrictedMetadata ?? existing?.metadata)
+					? { metadata: restrictedMetadata ?? existing?.metadata }
+					: {}),
 			});
 		} catch {
 			// Ignore stale localPath entries
