@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { TimelineTrack } from "@/types/timeline";
+import type { StickerElement, TimelineTrack } from "@/types/timeline";
 import { applyElementChanges } from "../claude-timeline-bridge-elements";
 import {
 	calculateTimelineDuration,
@@ -96,6 +96,47 @@ describe("Claude media timing bridge", () => {
 				{ id: "fast", frame: 120, value: 10, easing: "easeOut" },
 			],
 		});
+	});
+
+	it("preserves sticker runtime in the main-process export snapshot", () => {
+		const sticker: StickerElement = {
+			duration: 2,
+			id: "runtime-sticker",
+			mediaId: "runtime-media",
+			name: "Runtime sticker",
+			startTime: 0,
+			stickerId: "runtime-sticker",
+			stickerRuntime: {
+				kind: "png-sequence",
+				completion: "freeze-last",
+				cycleDurationSeconds: 1,
+				frames: [
+					{
+						durationSeconds: 1,
+						source: "frame-1.png",
+						startSeconds: 0,
+					},
+				],
+				repeat: { kind: "infinite" },
+			},
+			trimEnd: 0,
+			trimStart: 0,
+			type: "sticker",
+		};
+		const tracks: TimelineTrack[] = [
+			{
+				id: "runtime-stickers",
+				name: "Runtime stickers",
+				type: "sticker",
+				elements: [sticker],
+			},
+		];
+
+		const exported = formatTracksForExport({ tracks, fps: 30 });
+
+		expect(exported[0].elements[0].stickerRuntime).toEqual(
+			sticker.stickerRuntime
+		);
 	});
 
 	it("drops an invalid speed curve as one atomic value", () => {
