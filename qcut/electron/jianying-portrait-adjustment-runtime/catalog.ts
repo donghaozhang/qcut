@@ -639,11 +639,29 @@ export function buildJianyingPortraitFeatureParameters({
 			intensity: (values.face_adjust_Clarity ?? 0) / 100,
 		});
 	}
-	const vectorFor = (key: MediaPortraitAdjustmentKey) =>
-		entries.map((entry) => ({
+	// The body package reads only the FIRST vector element and never looks at
+	// its id (`slimbody.lua` handleIntensityEvent: `inputValue:get(0)` then
+	// `inputMap:get("intensity")`). Body adjustments are therefore whole-frame
+	// and cannot target one person — and emitting a multi-entry vector would
+	// break them outright, because a zero-valued base entry would shadow every
+	// per-face value behind it.
+	const isWholeFrameVectorPackage = runtimePackage === "body";
+	const vectorFor = (key: MediaPortraitAdjustmentKey) => {
+		if (isWholeFrameVectorPackage) {
+			const effective =
+				entries.find((entry) => (entry.values[key] ?? 0) !== 0) ?? entries[0];
+			return [
+				{
+					id: -1,
+					intensity: (effective?.values[key] ?? 0) / 100,
+				},
+			];
+		}
+		return entries.map((entry) => ({
 			id: entry.id,
 			intensity: (entry.values[key] ?? 0) / 100,
 		}));
+	};
 	// 祛斑祛痘包内部的键就叫 `face_adjust`（与洁牙同名、不同包），
 	// 产品键单独命名以免两张卡互相覆盖。
 	if (runtimePackage === "spot-acne") {
