@@ -46,19 +46,21 @@ export function PortraitPresetControls({
 	onApplyPreset: () => void;
 	onDeletePreset: () => void;
 	onSavePreset: (name?: string) => void;
-	onRenamePreset: (name: string) => void;
+	onRenamePreset: (params: { id: string; name: string }) => void;
 	onOverwritePreset: () => void;
 	onExportPresets: () => void;
 	onImportPresets: (file: File) => void;
 }) {
 	const [name, setName] = useState("");
-	const [renaming, setRenaming] = useState(false);
+	const [renameTargetId, setRenameTargetId] = useState<string>();
 	const [renameValue, setRenameValue] = useState("");
 	const importInputRef = useRef<HTMLInputElement>(null);
 	const selected = presets.find((preset) => preset.id === selectedPresetId);
 	const commitRename = () => {
-		onRenamePreset(renameValue);
-		setRenaming(false);
+		if (renameTargetId) {
+			onRenamePreset({ id: renameTargetId, name: renameValue });
+		}
+		setRenameTargetId(undefined);
 	};
 	const isZh = locale === "zh";
 	const scopeName = isZh
@@ -152,14 +154,14 @@ export function PortraitPresetControls({
 					<Trash2 className="size-3.5" />
 				</Button>
 			</div>
-			{renaming ? (
+			{renameTargetId ? (
 				<div className="flex items-center gap-1">
 					<Input
 						value={renameValue}
 						onChange={(event) => setRenameValue(event.target.value)}
 						onKeyDown={(event) => {
 							if (event.key === "Enter") commitRename();
-							if (event.key === "Escape") setRenaming(false);
+							if (event.key === "Escape") setRenameTargetId(undefined);
 						}}
 						aria-label={isZh ? "重命名预设" : "Rename preset"}
 						className="h-8 min-w-0 flex-1 text-xs"
@@ -187,8 +189,9 @@ export function PortraitPresetControls({
 						title={isZh ? "重命名预设" : "Rename preset"}
 						disabled={disabled || !selected}
 						onClick={() => {
-							setRenameValue(selected?.name ?? "");
-							setRenaming(true);
+							if (!selected) return;
+							setRenameValue(selected.name);
+							setRenameTargetId(selected.id);
 						}}
 					>
 						<Pencil className="size-3.5" />
