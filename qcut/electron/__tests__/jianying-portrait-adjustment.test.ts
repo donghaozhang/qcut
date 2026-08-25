@@ -500,4 +500,44 @@ describe("Jianying portrait adjustment contract", () => {
 			{ id: 2, intensity: 0.9, path: "/cards/lip-soft-pink" },
 		]);
 	});
+	it("collapses body parameters to a single whole-frame entry", () => {
+		// slimbody.lua reads only vec:get(0) and never looks at the id, so body
+		// is whole-frame. A multi-entry vector would let a zero-valued base entry
+		// shadow every per-face value behind it and silently disable the card.
+		expect(
+			JSON.parse(
+				buildJianyingPortraitFeatureParameters({
+					runtimePackage: "body",
+					values: {},
+					faceEntries: [
+						{ id: 0, values: { body_adjust_StretchLeg: 100 } },
+						{ id: 3, values: {} },
+					],
+				})
+			)
+		).toEqual({
+			body_adjust_SmallHead: [{ id: -1, intensity: 0 }],
+			body_adjust_SwanNeck: [{ id: -1, intensity: 0 }],
+			body_adjust_SlimArm: [{ id: -1, intensity: 0 }],
+			body_adjust_OrthoShoulder: [{ id: -1, intensity: 0 }],
+			body_adjust_WidenShoulderTest: [{ id: -1, intensity: 0 }],
+			body_adjust_SlimBody: [{ id: -1, intensity: 0 }],
+			body_adjust_SlimWaist: [{ id: -1, intensity: 0 }],
+			body_adjust_StretchLeg: [{ id: -1, intensity: 1 }],
+			body_adjust_SlimBreast: [{ id: -1, intensity: 0 }],
+			body_adjust_SlimHip: [{ id: -1, intensity: 0 }],
+		});
+		// The base layer still wins when it carries the value.
+		const baseWins = JSON.parse(
+			buildJianyingPortraitFeatureParameters({
+				runtimePackage: "body",
+				values: { body_adjust_SlimWaist: 60 },
+				targetFaceId: 2,
+				faceEntries: [{ id: 0, values: { body_adjust_SlimWaist: 10 } }],
+			})
+		) as Record<string, Array<{ id: number; intensity: number }>>;
+		expect(baseWins.body_adjust_SlimWaist).toEqual([
+			{ id: -1, intensity: 0.6 },
+		]);
+	});
 });
