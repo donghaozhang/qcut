@@ -86,14 +86,17 @@ export const usePortraitManualBodyStore = create<PortraitManualBodyState>(
 		future: [],
 		interactionStartValue: null,
 		bindings: null,
-		setActive: ({ active }) =>
-			set({ active, ...(active ? {} : { interactionStartValue: null }) }),
+		setActive: ({ active }) => {
+			if (!active) get().finishInteraction();
+			set({ active });
+		},
 		setTool: ({ tool }) => set({ tool }),
 		setBindings: ({ bindings }) => set({ bindings }),
 		syncValue: ({ elementId, manualBody }) => {
 			const state = get();
 			const next = copyManualBody({ manualBody: manualBody ?? {} });
 			if (state.elementId !== elementId) {
+				get().finishInteraction();
 				set({
 					elementId,
 					manualBody: next,
