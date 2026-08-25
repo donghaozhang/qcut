@@ -7,7 +7,9 @@ import { expandCompoundMediaTracks } from "@/lib/timeline/compound-media";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useMediaStore } from "@/stores/media-store";
 import { useProjectStore } from "@/stores/project-store";
+import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import { assertRestrictedMediaExportAllowed } from "../../../../../electron/types/restricted-media-export-policy";
 
 export type StillFrameExportResult =
 	| { ok: true; fileName: string; filePath?: string }
@@ -36,6 +38,24 @@ export async function exportStillFrame(): Promise<StillFrameExportResult> {
 	}
 	const { tracks } = useTimelineStore.getState();
 	const mediaItems = useMediaStore.getState().mediaItems;
+	try {
+		const overlayMediaIds = useStickersOverlayStore
+			.getState()
+			.getStickersForExport()
+			.map((sticker) => sticker.mediaItemId);
+		assertRestrictedMediaExportAllowed({
+			additionalMediaIds: overlayMediaIds,
+			mediaItems,
+			operation: "still-frame",
+			scope: "timeline",
+			tracks,
+		});
+	} catch (error) {
+		return {
+			ok: false,
+			error: error instanceof Error ? error.message : String(error),
+		};
+	}
 	const currentTime = usePlaybackStore.getState().currentTime;
 	const fps = project.fps ?? 30;
 	const { width, height } = project.canvasSize;
