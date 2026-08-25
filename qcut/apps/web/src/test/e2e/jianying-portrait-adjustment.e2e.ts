@@ -509,7 +509,7 @@ test.describe("Jianying binary portrait adjustment", () => {
 			).toHaveAttribute("aria-expanded", "false");
 		}
 		await page.screenshot({
-			path: path.join(outputDirectory, "01a-collapsible-groups.png"),
+			path: path.join(outputDirectory, "01a-independent-collapsed-groups.png"),
 			animations: "disabled",
 		});
 
