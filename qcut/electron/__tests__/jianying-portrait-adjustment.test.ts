@@ -10,7 +10,10 @@ import {
 } from "../jianying-portrait-adjustment-runtime/catalog.js";
 import { encodeJianyingPortraitHostRenderCommand } from "../jianying-portrait-adjustment-runtime/host-process.js";
 import { JIANYING_PORTRAIT_MAKEUP_CARDS } from "../jianying-portrait-adjustment-runtime/makeup-catalog.js";
-import { parseJianyingPortraitRenderRequest } from "../jianying-portrait-adjustment-runtime/request.js";
+import {
+	parseJianyingPortraitDetectRequest,
+	parseJianyingPortraitRenderRequest,
+} from "../jianying-portrait-adjustment-runtime/request.js";
 import { buildJianyingPortraitRenderStages } from "../jianying-portrait-adjustment-runtime/stages.js";
 
 describe("Jianying portrait adjustment contract", () => {
@@ -139,11 +142,13 @@ describe("Jianying portrait adjustment contract", () => {
 					enabled: true,
 					values: { face_adjust_CutFace: -50 },
 				},
+				frameNumber: 30,
 				sourceKey: "image:portrait",
 				timestampSeconds: 1.25,
 			},
 		});
 		expect(parsed.adjustments.values.face_adjust_CutFace).toBe(-50);
+		expect(parsed.frameNumber).toBe(30);
 		expect(() =>
 			parseJianyingPortraitRenderRequest({
 				request: {
@@ -167,6 +172,39 @@ describe("Jianying portrait adjustment contract", () => {
 				},
 			})
 		).toThrow("尺寸不匹配");
+	});
+
+	it("preserves source identity on face detection requests", () => {
+		const parsed = parseJianyingPortraitDetectRequest({
+			request: {
+				width: 2,
+				height: 1,
+				rgba: new Uint8Array(8),
+				sourceKey: "preview:element=clip-1:media=image-1",
+				frameNumber: 12,
+				personBindings: [
+					{
+						personBindingId: "portrait-person:alice",
+						anchor: {
+							rect: { x: 0.1, y: 0.2, width: 0.3, height: 0.4 },
+							frameNumber: 12,
+						},
+					},
+				],
+			},
+		});
+
+		expect(parsed.sourceKey).toBe("preview:element=clip-1:media=image-1");
+		expect(parsed.frameNumber).toBe(12);
+		expect(parsed.personBindings).toEqual([
+			{
+				personBindingId: "portrait-person:alice",
+				anchor: {
+					rect: { x: 0.1, y: 0.2, width: 0.3, height: 0.4 },
+					frameNumber: 12,
+				},
+			},
+		]);
 	});
 
 	it("validates face targeting and category-bound makeup cards", () => {
@@ -262,6 +300,9 @@ describe("Jianying portrait adjustment contract", () => {
 			JSON.parse(stages[3]?.featureParameters ?? "{}")
 				.face_adjust_lip_yunranColorRHF
 		).toEqual([{ id: 1, intensity: 0.8, path: "/cards/lip-soft-pink" }]);
+		expect(
+			stages.every(({ targetFaceIds }) => targetFaceIds.length === 0)
+		).toBe(true);
 	});
 
 	it("encodes dynamic feature parameters in the persistent host protocol", () => {
@@ -396,6 +437,54 @@ describe("Jianying portrait adjustment contract", () => {
 			makeupCards: [],
 		});
 		expect(stages.map(({ id }) => id)).toEqual(["package:body"]);
+		expect(stages[0]?.targetFaceIds).toEqual([]);
+	});
+
+	it("maps only stages that carry active per-face vectors", () => {
+		const packages = JIANYING_PORTRAIT_RUNTIME_PACKAGE_ORDER.map(
+			(runtimePackage) => ({
+				runtimePackage,
+				group: JIANYING_PORTRAIT_PACKAGE_IDENTITIES[runtimePackage].group,
+				packagePath: `/runtime/${runtimePackage}`,
+				source: "qcut-private" as const,
+			})
+		);
+		const makeupCards = JIANYING_PORTRAIT_MAKEUP_CARDS.map((card) => ({
+			card,
+			packagePath: `/cards/${card.id}`,
+			source: "qcut-private" as const,
+		}));
+		const stages = buildJianyingPortraitRenderStages({
+			request: {
+				width: 2,
+				height: 1,
+				rgba: new Uint8Array(8),
+				adjustments: {
+					enabled: true,
+					values: { body_adjust_SlimWaist: 70 },
+					faces: [
+						{
+							trackId: 4,
+							values: { face_adjust_TotalFace: 90 },
+							makeup: {
+								lip: { cardId: "lip-soft-pink", intensity: 80 },
+							},
+						},
+					],
+				},
+			},
+			packages,
+			makeupCards,
+		});
+		expect(
+			Object.fromEntries(
+				stages.map(({ id, targetFaceIds }) => [id, targetFaceIds])
+			)
+		).toEqual({
+			"package:face": [4],
+			"makeup-dynamic:lip-soft-pink": [4],
+			"package:body": [],
+		});
 	});
 
 	it("round-trips per-face entries through request parsing", () => {
