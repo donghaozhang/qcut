@@ -215,7 +215,7 @@ export function PortraitManualRetouchControls({
 				</div>
 				<div className="flex items-center gap-1">
 					<RetouchIconButton
-						disabled={strokes.length === 0}
+						disabled={disabled || strokes.length === 0}
 						label={isZh ? "撤销" : "Undo"}
 						onClick={undo}
 					>
@@ -224,7 +224,7 @@ export function PortraitManualRetouchControls({
 						</Undo2>
 					</RetouchIconButton>
 					<RetouchIconButton
-						disabled={redoStrokes.length === 0}
+						disabled={disabled || redoStrokes.length === 0}
 						label={isZh ? "重做" : "Redo"}
 						onClick={redo}
 					>
@@ -233,7 +233,7 @@ export function PortraitManualRetouchControls({
 						</Redo2>
 					</RetouchIconButton>
 					<RetouchIconButton
-						disabled={strokes.length === 0}
+						disabled={disabled || strokes.length === 0}
 						label={isZh ? "清空" : "Clear"}
 						onClick={clear}
 					>
