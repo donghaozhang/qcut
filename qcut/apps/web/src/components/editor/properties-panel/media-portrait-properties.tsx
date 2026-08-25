@@ -462,9 +462,8 @@ export function MediaPortraitProperties({
 			locale === "zh" ? `已应用 ${preset.name}` : `Applied ${preset.name}`
 		);
 	};
-	const renameSelectedPreset = (name: string) => {
-		if (!selectedPresetId) return;
-		const next = renamePortraitPreset({ presets, id: selectedPresetId, name });
+	const renamePresetById = ({ id, name }: { id: string; name: string }) => {
+		const next = renamePortraitPreset({ presets, id, name });
 		if (next === presets) return;
 		persistPortraitPresets({ presets: next });
 		setPresets(next);
@@ -752,7 +751,7 @@ export function MediaPortraitProperties({
 								onApplyPreset={applySelectedPreset}
 								onDeletePreset={deleteSelectedPreset}
 								onSavePreset={savePreset}
-								onRenamePreset={renameSelectedPreset}
+								onRenamePreset={renamePresetById}
 								onOverwritePreset={overwriteSelectedPreset}
 								onExportPresets={exportPresets}
 								onImportPresets={(file) => {
