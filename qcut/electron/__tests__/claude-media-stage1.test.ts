@@ -18,6 +18,7 @@ const {
 	mockReaddir,
 	mockPipeline,
 	mockFetch,
+	mockReadRestrictedMetadata,
 } = vi.hoisted(() => ({
 	mockMkdir: vi.fn().mockResolvedValue(undefined),
 	mockStat: vi.fn(),
@@ -27,7 +28,17 @@ const {
 	mockReaddir: vi.fn().mockResolvedValue([]),
 	mockPipeline: vi.fn().mockResolvedValue(undefined),
 	mockFetch: vi.fn(),
+	mockReadRestrictedMetadata: vi.fn(async () => undefined),
 }));
+
+vi.mock(
+	"../claude/handlers/claude-media-restricted-metadata.js",
+	async (importOriginal) => ({
+		...(await importOriginal<Record<string, unknown>>()),
+		readMediaRestrictedMetadata: (...args: unknown[]) =>
+			mockReadRestrictedMetadata(...args),
+	})
+);
 
 vi.mock("fs/promises", () => ({
 	mkdir: (...args: unknown[]) => mockMkdir(...args),
@@ -141,6 +152,7 @@ function createMockResponse(options: {
 describe("importMediaFromUrl", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
+		mockReadRestrictedMetadata.mockResolvedValue(undefined);
 		// Default: file doesn't exist (for getUniqueFilePath)
 		mockAccess.mockRejectedValue(new Error("ENOENT"));
 		// Default: valid stat after download
@@ -513,5 +525,25 @@ describe("extractFrame", () => {
 		await expect(
 			extractFrame("proj_1", "media_nonexistent", 5.0)
 		).rejects.toThrow("Media not found");
+	});
+
+	it("refuses frame extraction from restricted reference media", async () => {
+		mockReadRestrictedMetadata.mockResolvedValue({
+			animatedSticker: true,
+			batchId: "jianying-2026-08-23-batch-18-v2",
+			checksumSha256: "a".repeat(64),
+			itemId: "18001",
+			redistribution: "prohibited",
+			referenceOnly: true,
+			source: "sticker-lab",
+			usage: "internal-reference-only",
+		});
+
+		await expect(extractFrame("proj_1", videoMediaId, 1)).rejects.toMatchObject(
+			{
+				code: "QCUT_RESTRICTED_MEDIA_EXPORT",
+				operation: "extract-frame",
+			}
+		);
 	});
 });
