@@ -1,5 +1,13 @@
-import { Check, Save, Trash2 } from "lucide-react";
-import { useState } from "react";
+import {
+	Check,
+	Download,
+	Pencil,
+	RefreshCw,
+	Save,
+	Trash2,
+	Upload,
+} from "lucide-react";
+import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -24,6 +32,10 @@ export function PortraitPresetControls({
 	onApplyPreset,
 	onDeletePreset,
 	onSavePreset,
+	onRenamePreset,
+	onOverwritePreset,
+	onExportPresets,
+	onImportPresets,
 }: {
 	scope: PortraitPresetScope;
 	presets: SavedPortraitPreset[];
@@ -34,8 +46,20 @@ export function PortraitPresetControls({
 	onApplyPreset: () => void;
 	onDeletePreset: () => void;
 	onSavePreset: (name?: string) => void;
+	onRenamePreset: (name: string) => void;
+	onOverwritePreset: () => void;
+	onExportPresets: () => void;
+	onImportPresets: (file: File) => void;
 }) {
 	const [name, setName] = useState("");
+	const [renaming, setRenaming] = useState(false);
+	const [renameValue, setRenameValue] = useState("");
+	const importInputRef = useRef<HTMLInputElement>(null);
+	const selected = presets.find((preset) => preset.id === selectedPresetId);
+	const commitRename = () => {
+		onRenamePreset(renameValue);
+		setRenaming(false);
+	};
 	const isZh = locale === "zh";
 	const scopeName = isZh
 		? scope === "face"
@@ -71,7 +95,16 @@ export function PortraitPresetControls({
 					<SelectContent>
 						{presets.map((preset) => (
 							<SelectItem key={preset.id} value={preset.id}>
-								{preset.name}
+								<span className="flex items-center gap-2">
+									{preset.thumbnailDataUrl ? (
+										<img
+											src={preset.thumbnailDataUrl}
+											alt=""
+											className="size-6 shrink-0 rounded-sm object-cover"
+										/>
+									) : null}
+									{preset.name}
+								</span>
 							</SelectItem>
 						))}
 					</SelectContent>
@@ -118,6 +151,105 @@ export function PortraitPresetControls({
 				>
 					<Trash2 className="size-3.5" />
 				</Button>
+			</div>
+			{renaming ? (
+				<div className="flex items-center gap-1">
+					<Input
+						value={renameValue}
+						onChange={(event) => setRenameValue(event.target.value)}
+						onKeyDown={(event) => {
+							if (event.key === "Enter") commitRename();
+							if (event.key === "Escape") setRenaming(false);
+						}}
+						aria-label={isZh ? "重命名预设" : "Rename preset"}
+						className="h-8 min-w-0 flex-1 text-xs"
+						ref={(node) => node?.focus()}
+					/>
+					<Button
+						type="button"
+						variant="outline"
+						size="icon"
+						className="size-8"
+						aria-label={isZh ? "确认重命名" : "Confirm rename"}
+						onClick={commitRename}
+					>
+						<Check className="size-3.5" />
+					</Button>
+				</div>
+			) : (
+				<div className="flex items-center gap-1">
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						className="h-8 min-w-0 flex-1 gap-1 px-2 text-xs"
+						aria-label={isZh ? "重命名预设" : "Rename preset"}
+						title={isZh ? "重命名预设" : "Rename preset"}
+						disabled={disabled || !selected}
+						onClick={() => {
+							setRenameValue(selected?.name ?? "");
+							setRenaming(true);
+						}}
+					>
+						<Pencil className="size-3.5" />
+						{isZh ? "重命名" : "Rename"}
+					</Button>
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						className="h-8 min-w-0 flex-1 gap-1 px-2 text-xs"
+						aria-label={isZh ? "覆盖保存预设" : "Overwrite preset"}
+						title={
+							isZh ? "用当前参数覆盖所选预设" : "Overwrite with current values"
+						}
+						disabled={disabled || !selected}
+						onClick={onOverwritePreset}
+					>
+						<RefreshCw className="size-3.5" />
+						{isZh ? "覆盖" : "Update"}
+					</Button>
+				</div>
+			)}
+			<div className="flex items-center gap-1">
+				<Button
+					type="button"
+					variant="text"
+					size="sm"
+					className="h-8 min-w-0 flex-1 gap-1 px-2 text-xs"
+					aria-label={isZh ? "导出预设" : "Export presets"}
+					title={isZh ? "导出预设" : "Export presets"}
+					disabled={disabled}
+					onClick={onExportPresets}
+				>
+					<Download className="size-3.5" />
+					{isZh ? "导出" : "Export"}
+				</Button>
+				<Button
+					type="button"
+					variant="text"
+					size="sm"
+					className="h-8 min-w-0 flex-1 gap-1 px-2 text-xs"
+					aria-label={isZh ? "导入预设" : "Import presets"}
+					title={isZh ? "导入预设" : "Import presets"}
+					disabled={disabled}
+					onClick={() => importInputRef.current?.click()}
+				>
+					<Upload className="size-3.5" />
+					{isZh ? "导入" : "Import"}
+				</Button>
+				<input
+					ref={importInputRef}
+					type="file"
+					accept="application/json,.json"
+					className="hidden"
+					onChange={(event) => {
+						const file = event.target.files?.[0];
+						// Reset first so picking the same file twice still fires.
+						event.target.value = "";
+						if (file) onImportPresets(file);
+					}}
+				/>
 			</div>
 			<div className="flex items-center gap-1">
 				<Input
