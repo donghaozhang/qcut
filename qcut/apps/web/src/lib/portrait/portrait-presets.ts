@@ -9,6 +9,7 @@ import type {
 	MediaPortraitFaceTarget,
 	MediaPortraitMakeupCategory,
 	MediaPortraitMakeupSelection,
+	MediaPortraitManualBody,
 } from "@/types/timeline";
 
 export const PORTRAIT_PRESET_STORAGE_KEY = "qcut-portrait-presets-v1";
@@ -35,6 +36,7 @@ export interface SavedPortraitPreset {
 	makeup?: Partial<
 		Record<MediaPortraitMakeupCategory, MediaPortraitMakeupSelection>
 	>;
+	manualBody?: MediaPortraitManualBody;
 }
 
 export function portraitAdjustmentKeyScope({
@@ -86,6 +88,7 @@ export function parsePortraitPreset({
 			values: {},
 			faceTarget: candidate.faceTarget,
 			makeup: candidate.makeup,
+			manualBody: candidate.manualBody,
 		},
 	});
 	return {
@@ -105,6 +108,9 @@ export function parsePortraitPreset({
 			: {}),
 		...(candidate.scope === "face" && normalized.makeup
 			? { makeup: normalized.makeup }
+			: {}),
+		...(candidate.scope === "body" && normalized.manualBody
+			? { manualBody: normalized.manualBody }
 			: {}),
 	};
 }
@@ -162,6 +168,9 @@ export function createPortraitPreset({
 		...(scope === "face" && adjustments.makeup
 			? { makeup: adjustments.makeup }
 			: {}),
+		...(scope === "body" && adjustments.manualBody
+			? { manualBody: adjustments.manualBody }
+			: {}),
 	};
 }
 
@@ -172,7 +181,10 @@ export function hasPortraitPresetContent({
 }) {
 	return (
 		Object.keys(preset.values).length > 0 ||
-		Object.keys(preset.makeup ?? {}).length > 0
+		Object.keys(preset.makeup ?? {}).length > 0 ||
+		(preset.manualBody?.stretch?.intensity ?? 0) !== 0 ||
+		(preset.manualBody?.slim?.intensity ?? 0) !== 0 ||
+		(preset.manualBody?.zoom?.intensity ?? 0) !== 0
 	);
 }
 
@@ -199,9 +211,18 @@ export function applyPortraitPreset({
 			// Presets are per-face-agnostic today; applying one must not delete
 			// another writer's per-face adjustment sets.
 			...(adjustments.faces ? { faces: adjustments.faces } : {}),
+			...(adjustments.manualRetouch
+				? { manualRetouch: adjustments.manualRetouch }
+				: {}),
+			...(adjustments.manualBody ? { manualBody: adjustments.manualBody } : {}),
 		};
 	}
-	return { ...adjustments, enabled: true, values: mergedValues };
+	return {
+		...adjustments,
+		enabled: true,
+		values: mergedValues,
+		...(preset.manualBody ? { manualBody: preset.manualBody } : {}),
+	};
 }
 
 /**
