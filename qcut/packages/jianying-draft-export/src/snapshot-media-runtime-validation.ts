@@ -58,6 +58,13 @@ import type {
 	MediaPortraitAdjustments,
 	MediaPortraitFaceTarget,
 	MediaPortraitMakeupSelection,
+	MediaPortraitManualBody,
+	MediaPortraitManualBodySlim,
+	MediaPortraitManualBodyStretch,
+	MediaPortraitManualBodyZoom,
+	MediaPortraitManualRetouch,
+	MediaPortraitManualRetouchPoint,
+	MediaPortraitManualRetouchStroke,
 	MediaKeyframeProperty,
 	MediaPropertyKeyframe,
 } from "@qcut/editor-core";
@@ -831,6 +838,8 @@ const MEDIA_PORTRAIT_ADJUSTMENT_CONTAINER_KEYS =
 			faces: true,
 			faceTarget: true,
 			makeup: true,
+			manualBody: true,
+			manualRetouch: true,
 			values: true,
 		},
 	});
@@ -847,6 +856,49 @@ const MEDIA_PORTRAIT_MAKEUP_KEYS = new Set<string>(
 const MEDIA_PORTRAIT_MAKEUP_SELECTION_KEYS =
 	createAllowedKeySet<MediaPortraitMakeupSelection>({
 		keys: { cardId: true, intensity: true },
+	});
+const MEDIA_PORTRAIT_MANUAL_RETOUCH_KEYS =
+	createAllowedKeySet<MediaPortraitManualRetouch>({
+		keys: { strokes: true },
+	});
+const MEDIA_PORTRAIT_MANUAL_RETOUCH_STROKE_KEYS =
+	createAllowedKeySet<MediaPortraitManualRetouchStroke>({
+		keys: {
+			faceTrackId: true,
+			id: true,
+			intensity: true,
+			mode: true,
+			points: true,
+			size: true,
+			tool: true,
+		},
+	});
+const MEDIA_PORTRAIT_MANUAL_RETOUCH_POINT_KEYS =
+	createAllowedKeySet<MediaPortraitManualRetouchPoint>({
+		keys: { x: true, y: true },
+	});
+const MEDIA_PORTRAIT_MANUAL_BODY_KEYS =
+	createAllowedKeySet<MediaPortraitManualBody>({
+		keys: { slim: true, stretch: true, zoom: true },
+	});
+const MEDIA_PORTRAIT_MANUAL_BODY_STRETCH_KEYS =
+	createAllowedKeySet<MediaPortraitManualBodyStretch>({
+		keys: { bottom: true, intensity: true, upper: true },
+	});
+const MEDIA_PORTRAIT_MANUAL_BODY_SLIM_KEYS =
+	createAllowedKeySet<MediaPortraitManualBodySlim>({
+		keys: {
+			height: true,
+			intensity: true,
+			rotation: true,
+			width: true,
+			x: true,
+			y: true,
+		},
+	});
+const MEDIA_PORTRAIT_MANUAL_BODY_ZOOM_KEYS =
+	createAllowedKeySet<MediaPortraitManualBodyZoom>({
+		keys: { intensity: true, radius: true, x: true, y: true },
 	});
 const MEDIA_COMPOUND_KEYS = createAllowedKeySet<MediaCompound>({
 	keys: { activeClipId: true, clips: true, kind: true },
@@ -958,6 +1010,241 @@ function validatePortraitMakeup({
 			throw validationIssue({
 				message: "Expected a number greater than 0 and at most 100.",
 				path: `${selectionPath}.intensity`,
+			});
+		}
+	}
+}
+
+function validatePortraitManualRetouch({
+	path,
+	value,
+}: {
+	path: string;
+	value: JsonValue;
+}): void {
+	const manualRetouch = getRecord({ path, value });
+	assertKeys({
+		allowed: MEDIA_PORTRAIT_MANUAL_RETOUCH_KEYS,
+		path,
+		record: manualRetouch,
+	});
+	const strokes = getArray({
+		path: `${path}.strokes`,
+		value: manualRetouch.strokes,
+	});
+	if (strokes.length > 256) {
+		throw validationIssue({
+			message: "Expected at most 256 manual retouch strokes.",
+			path: `${path}.strokes`,
+		});
+	}
+	const ids = new Set<string>();
+	for (const [index, value] of strokes.entries()) {
+		const strokePath = `${path}.strokes[${index}]`;
+		const stroke = getRecord({ path: strokePath, value });
+		assertKeys({
+			allowed: MEDIA_PORTRAIT_MANUAL_RETOUCH_STROKE_KEYS,
+			path: strokePath,
+			record: stroke,
+		});
+		const id = getString({ path: `${strokePath}.id`, value: stroke.id });
+		if (!/^[A-Za-z0-9_-]{1,80}$/.test(id) || ids.has(id)) {
+			throw validationIssue({
+				message: "Expected a unique manual stroke identifier.",
+				path: `${strokePath}.id`,
+			});
+		}
+		ids.add(id);
+		const tool = getString({ path: `${strokePath}.tool`, value: stroke.tool });
+		if (tool !== "smooth" && tool !== "acne") {
+			throw validationIssue({
+				message: "Expected smooth or acne.",
+				path: `${strokePath}.tool`,
+			});
+		}
+		const mode = getString({ path: `${strokePath}.mode`, value: stroke.mode });
+		if (mode !== "paint" && mode !== "erase") {
+			throw validationIssue({
+				message: "Expected paint or erase.",
+				path: `${strokePath}.mode`,
+			});
+		}
+		const size = getFiniteNumber({
+			path: `${strokePath}.size`,
+			value: stroke.size,
+		});
+		if (size < 1 || size > 100) {
+			throw validationIssue({
+				message: "Expected a number from 1 through 100.",
+				path: `${strokePath}.size`,
+			});
+		}
+		const intensity = getFiniteNumber({
+			path: `${strokePath}.intensity`,
+			value: stroke.intensity,
+		});
+		if (intensity < 0 || intensity > 100) {
+			throw validationIssue({
+				message: "Expected a number from 0 through 100.",
+				path: `${strokePath}.intensity`,
+			});
+		}
+		if (stroke.faceTrackId !== undefined) {
+			const trackId = getFiniteNumber({
+				path: `${strokePath}.faceTrackId`,
+				value: stroke.faceTrackId,
+			});
+			if (!Number.isSafeInteger(trackId) || trackId < 0) {
+				throw validationIssue({
+					message: "Expected a non-negative tracking integer.",
+					path: `${strokePath}.faceTrackId`,
+				});
+			}
+		}
+		const points = getArray({
+			path: `${strokePath}.points`,
+			value: stroke.points,
+		});
+		if (points.length < 2 || points.length > 512) {
+			throw validationIssue({
+				message: "Expected between 2 and 512 manual stroke points.",
+				path: `${strokePath}.points`,
+			});
+		}
+		for (const [pointIndex, value] of points.entries()) {
+			const pointPath = `${strokePath}.points[${pointIndex}]`;
+			const point = getRecord({ path: pointPath, value });
+			assertKeys({
+				allowed: MEDIA_PORTRAIT_MANUAL_RETOUCH_POINT_KEYS,
+				path: pointPath,
+				record: point,
+			});
+			for (const key of ["x", "y"] as const) {
+				const coordinate = getFiniteNumber({
+					path: `${pointPath}.${key}`,
+					value: point[key],
+				});
+				if (coordinate < 0 || coordinate > 1) {
+					throw validationIssue({
+						message: "Expected a normalized coordinate.",
+						path: `${pointPath}.${key}`,
+					});
+				}
+			}
+		}
+	}
+}
+
+function validateManualBodyNumber({
+	max,
+	min,
+	path,
+	value,
+}: {
+	max: number;
+	min: number;
+	path: string;
+	value: JsonValue | undefined;
+}) {
+	const number = getFiniteNumber({ path, value });
+	if (number < min || number > max) {
+		throw validationIssue({
+			message: `Expected a number from ${min} through ${max}.`,
+			path,
+		});
+	}
+	return number;
+}
+
+function validatePortraitManualBody({
+	path,
+	value,
+}: {
+	path: string;
+	value: JsonValue;
+}) {
+	const manualBody = getRecord({ path, value });
+	assertKeys({
+		allowed: MEDIA_PORTRAIT_MANUAL_BODY_KEYS,
+		path,
+		record: manualBody,
+	});
+	if (manualBody.stretch !== undefined) {
+		const stretchPath = `${path}.stretch`;
+		const stretch = getRecord({ path: stretchPath, value: manualBody.stretch });
+		assertKeys({
+			allowed: MEDIA_PORTRAIT_MANUAL_BODY_STRETCH_KEYS,
+			path: stretchPath,
+			record: stretch,
+		});
+		validateManualBodyNumber({
+			path: `${stretchPath}.intensity`,
+			value: stretch.intensity,
+			min: -50,
+			max: 50,
+		});
+		const upper = validateManualBodyNumber({
+			path: `${stretchPath}.upper`,
+			value: stretch.upper,
+			min: 0.02,
+			max: 1,
+		});
+		const bottom = validateManualBodyNumber({
+			path: `${stretchPath}.bottom`,
+			value: stretch.bottom,
+			min: 0,
+			max: 0.98,
+		});
+		if (upper - bottom < 0.02) {
+			throw validationIssue({
+				message: "Expected at least 0.02 between the stretch lines.",
+				path: stretchPath,
+			});
+		}
+	}
+	if (manualBody.slim !== undefined) {
+		const slimPath = `${path}.slim`;
+		const slim = getRecord({ path: slimPath, value: manualBody.slim });
+		assertKeys({
+			allowed: MEDIA_PORTRAIT_MANUAL_BODY_SLIM_KEYS,
+			path: slimPath,
+			record: slim,
+		});
+		for (const [key, min, max] of [
+			["intensity", -50, 50],
+			["x", 0, 1],
+			["y", 0, 1],
+			["width", 0.02, 1],
+			["height", 0.02, 1],
+			["rotation", -180, 180],
+		] as const) {
+			validateManualBodyNumber({
+				path: `${slimPath}.${key}`,
+				value: slim[key],
+				min,
+				max,
+			});
+		}
+	}
+	if (manualBody.zoom !== undefined) {
+		const zoomPath = `${path}.zoom`;
+		const zoom = getRecord({ path: zoomPath, value: manualBody.zoom });
+		assertKeys({
+			allowed: MEDIA_PORTRAIT_MANUAL_BODY_ZOOM_KEYS,
+			path: zoomPath,
+			record: zoom,
+		});
+		for (const [key, min, max] of [
+			["intensity", -50, 50],
+			["x", 0, 1],
+			["y", 0, 1],
+			["radius", 0.01, 0.5],
+		] as const) {
+			validateManualBodyNumber({
+				path: `${zoomPath}.${key}`,
+				value: zoom[key],
+				min,
+				max,
 			});
 		}
 	}
@@ -1814,6 +2101,18 @@ export function validateMediaElement({
 					}),
 				validateMakeup: ({ path: makeupPath, value }) =>
 					validatePortraitMakeup({ path: makeupPath, value }),
+			});
+		}
+		if (portraitAdjustments.manualRetouch !== undefined) {
+			validatePortraitManualRetouch({
+				path: `${portraitPath}.manualRetouch`,
+				value: portraitAdjustments.manualRetouch,
+			});
+		}
+		if (portraitAdjustments.manualBody !== undefined) {
+			validatePortraitManualBody({
+				path: `${portraitPath}.manualBody`,
+				value: portraitAdjustments.manualBody,
 			});
 		}
 	}
