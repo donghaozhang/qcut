@@ -20,12 +20,17 @@ import {
 	projectPortraitAdjustments,
 	type PortraitEditScope,
 } from "@/lib/portrait/portrait-face-scope";
+import { capturePortraitPresetThumbnail } from "@/lib/portrait/portrait-preset-thumbnail";
 import {
 	applyPortraitPreset,
 	createPortraitPreset,
 	hasPortraitPresetContent,
 	loadPortraitPresets,
+	overwritePortraitPreset,
+	parsePortraitPresetExport,
 	persistPortraitPresets,
+	renamePortraitPreset,
+	serializePortraitPresets,
 	type PortraitPresetScope,
 } from "@/lib/portrait/portrait-presets";
 import type {
@@ -310,10 +315,12 @@ export function MediaPortraitProperties({
 	}, [scopedPresets, selectedPresetId]);
 
 	const savePreset = (name?: string) => {
+		const thumbnailDataUrl = capturePortraitPresetThumbnail();
 		const preset = createPortraitPreset({
 			adjustments,
 			name,
 			scope: presetScope,
+			...(thumbnailDataUrl ? { thumbnailDataUrl } : {}),
 		});
 		if (!hasPortraitPresetContent({ preset })) {
 			toast.error(
@@ -340,6 +347,59 @@ export function MediaPortraitProperties({
 		toast.success(
 			locale === "zh" ? `已应用 ${preset.name}` : `Applied ${preset.name}`
 		);
+	};
+	const renameSelectedPreset = (name: string) => {
+		if (!selectedPresetId) return;
+		const next = renamePortraitPreset({ presets, id: selectedPresetId, name });
+		if (next === presets) return;
+		persistPortraitPresets({ presets: next });
+		setPresets(next);
+	};
+	const overwriteSelectedPreset = () => {
+		if (!selectedPresetId) return;
+		const thumbnailDataUrl = capturePortraitPresetThumbnail();
+		const next = overwritePortraitPreset({
+			presets,
+			id: selectedPresetId,
+			adjustments,
+			...(thumbnailDataUrl ? { thumbnailDataUrl } : {}),
+		});
+		persistPortraitPresets({ presets: next });
+		setPresets(next);
+		toast.success(locale === "zh" ? "已覆盖保存" : "Preset updated");
+	};
+	const exportPresets = () => {
+		const scoped = presets.filter((preset) => preset.scope === presetScope);
+		if (scoped.length === 0) {
+			toast.error(locale === "zh" ? "当前没有可导出的预设" : "No presets yet");
+			return;
+		}
+		const blob = new Blob([serializePortraitPresets({ presets: scoped })], {
+			type: "application/json",
+		});
+		const url = URL.createObjectURL(blob);
+		const link = document.createElement("a");
+		link.href = url;
+		link.download = `qcut-portrait-presets-${presetScope}.json`;
+		link.click();
+		URL.revokeObjectURL(url);
+	};
+	const importPresets = async (file: File) => {
+		try {
+			const imported = parsePortraitPresetExport({
+				value: JSON.parse(await file.text()),
+			});
+			const next = [...imported, ...presets];
+			persistPortraitPresets({ presets: next });
+			setPresets(next);
+			toast.success(
+				locale === "zh"
+					? `已导入 ${imported.length} 个预设`
+					: `Imported ${imported.length} presets`
+			);
+		} catch (cause) {
+			toast.error(cause instanceof Error ? cause.message : String(cause));
+		}
 	};
 	const deleteSelectedPreset = () => {
 		const next = presets.filter((preset) => preset.id !== selectedPresetId);
@@ -496,6 +556,12 @@ export function MediaPortraitProperties({
 								onApplyPreset={applySelectedPreset}
 								onDeletePreset={deleteSelectedPreset}
 								onSavePreset={savePreset}
+								onRenamePreset={renameSelectedPreset}
+								onOverwritePreset={overwriteSelectedPreset}
+								onExportPresets={exportPresets}
+								onImportPresets={(file) => {
+									void importPresets(file);
+								}}
 							/>
 						</TabsContent>
 					))}
