@@ -95,6 +95,33 @@ describe("portrait face scope", () => {
 		).toEqual(base);
 	});
 
+	it("adopts a legacy track entry when the scope carries a binding", () => {
+		const legacy = {
+			enabled: true,
+			values: {},
+			faces: [{ trackId: 3, values: { face_adjust_Chin: -20 } }],
+		};
+		const scope = faceScope({ trackId: 3 });
+		const projected = projectPortraitAdjustments({
+			adjustments: legacy,
+			scope,
+		});
+		expect(projected.values).toEqual({ face_adjust_Chin: -20 });
+		const next = applyPortraitAdjustments({
+			adjustments: legacy,
+			scope,
+			edited: projected,
+		});
+		expect(next.faces).toEqual([
+			{
+				trackId: 3,
+				personBindingId: "portrait-person:3",
+				bindingAnchor,
+				values: { face_adjust_Chin: -20 },
+			},
+		]);
+	});
+
 	it("preserves per-face data when global makeup changes", () => {
 		expect(
 			applyPortraitMakeup({
