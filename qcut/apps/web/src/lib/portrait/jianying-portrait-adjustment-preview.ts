@@ -5,11 +5,13 @@ import { reportColorDegradation } from "@/lib/color/color-degradation";
 export async function renderJianyingPortraitAdjustmentPreview({
 	source,
 	adjustments,
+	frameNumber,
 	sourceKey,
 	timestampSeconds,
 }: {
 	source: ImageData;
 	adjustments?: MediaPortraitAdjustments;
+	frameNumber?: number;
 	sourceKey?: string;
 	timestampSeconds?: number;
 }): Promise<ImageData | null> {
@@ -28,6 +30,7 @@ export async function renderJianyingPortraitAdjustmentPreview({
 				source.data.byteLength
 			),
 			adjustments,
+			...(frameNumber === undefined ? {} : { frameNumber }),
 			...(sourceKey ? { sourceKey } : {}),
 			...(timestampSeconds === undefined ? {} : { timestampSeconds }),
 		});
