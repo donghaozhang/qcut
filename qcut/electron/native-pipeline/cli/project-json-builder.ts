@@ -14,6 +14,10 @@ import type {
 	ProjectSettings,
 } from "./project-json-types.js";
 import { parseStickerLabMediaMetadata } from "../../types/sticker-lab-media-metadata.js";
+import {
+	isRestrictedStickerLabMetadata,
+	RestrictedMediaExportError,
+} from "../../types/restricted-media-export-policy.js";
 
 interface NavigatorProject {
 	id: string;
@@ -180,11 +184,13 @@ export async function buildProjectJSON(
 
 	const media: MediaEntry[] = Array.isArray(mediaList)
 		? mediaList.map((m) => {
+				const mediaId = str(m.id, "[unknown-restricted-media]");
 				const metadata = parseRestrictedMediaMetadata({
 					candidate: m.metadata,
+					mediaId,
 				});
 				return {
-					id: str(m.id, ""),
+					id: mediaId,
 					type: parseMediaType(m.type),
 					name: str(m.name, ""),
 					path: str(m.path, ""),
@@ -267,15 +273,24 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
-function parseRestrictedMediaMetadata({ candidate }: { candidate: unknown }) {
-	if (candidate === undefined) return;
+function parseRestrictedMediaMetadata({
+	candidate,
+	mediaId,
+}: {
+	candidate: unknown;
+	mediaId: string;
+}) {
+	if (!isRestrictedStickerLabMetadata({ metadata: candidate })) return;
 	try {
 		return parseStickerLabMediaMetadata({
 			candidate,
 			label: "Project media metadata",
 		});
 	} catch {
-		return;
+		throw new RestrictedMediaExportError({
+			mediaIds: [mediaId],
+			operation: "project-state",
+		});
 	}
 }
 
