@@ -1,4 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
+import {
+	ASSET_MANIFEST_SCHEMA_VERSION,
+	type AssetManifestEntry,
+} from "@qcut/editor-core";
+import { createPngSequenceRuntimeDescriptor } from "@qcut/editor-core/sticker-lab";
 import type {
 	AssetResourceCacheStorage,
 	CachedAssetResource,
@@ -6,6 +11,7 @@ import type {
 import {
 	createCachedStickerPreviewUrl,
 	createStickerMediaUrl,
+	downloadStickerAssetResource,
 	downloadStickerResource,
 } from "../sticker-resource";
 
@@ -75,6 +81,75 @@ describe("sticker resources", () => {
 
 		expect(downloaded.blob.type).toBe("image/svg+xml");
 		expect(downloaded.file.type).toBe("image/svg+xml");
+	});
+
+	it("downloads and prepares every file in a production runtime package", async () => {
+		const descriptor = createPngSequenceRuntimeDescriptor({
+			frames: [
+				{ durationSeconds: 0.1, source: "frames/one.png" },
+				{ durationSeconds: 0.1, source: "frames/two.png" },
+			],
+		});
+		const asset: AssetManifestEntry = {
+			category: "runtime",
+			delivery: "bundled",
+			files: [
+				{
+					mimeType: "image/png",
+					role: "source",
+					url: "/runtime/preview.png",
+				},
+				{
+					mimeType: "image/png",
+					role: "package",
+					url: "/runtime/frames/one.png",
+				},
+				{
+					mimeType: "image/png",
+					role: "package",
+					url: "/runtime/frames/two.png",
+				},
+			],
+			id: "runtime-sequence",
+			kind: "sticker",
+			license: {
+				attributionRequired: false,
+				commercialUse: "allowed",
+				name: "QCut",
+			},
+			metadata: { animated: true, stickerRuntime: descriptor },
+			name: "Runtime sequence",
+			schemaVersion: ASSET_MANIFEST_SCHEMA_VERSION,
+			tags: ["runtime"],
+			version: 1,
+		};
+		const fetchImpl = vi.fn<typeof fetch>(async (input) =>
+			Promise.resolve(
+				new Response(String(input), {
+					headers: { "content-type": "image/png" },
+					status: 200,
+				})
+			)
+		);
+
+		const downloaded = await downloadStickerAssetResource({
+			asset,
+			fetchImpl,
+			icon: "runtime-sequence",
+			name: "Runtime sequence",
+		});
+
+		expect(fetchImpl).toHaveBeenCalledTimes(3);
+		expect(downloaded.runtimePackage?.descriptor).toMatchObject({
+			kind: "png-sequence",
+			frames: [
+				{ source: "$resource:asset_0001" },
+				{ source: "$resource:asset_0002" },
+			],
+		});
+		expect(
+			downloaded.runtimePackage?.resources.map((resource) => resource.file.name)
+		).toEqual(["one.png", "two.png"]);
 	});
 
 	it("uses a correctly typed data URL for SVG media", async () => {
