@@ -1,13 +1,17 @@
+import { createHash } from "node:crypto";
 import type {
 	JianyingPortraitAdjustmentGroup,
 	JianyingPortraitAdjustmentRenderRequest,
 	JianyingPortraitAdjustmentRuntimePackage,
+	MediaPortraitManualBodyTool,
+	MediaPortraitManualRetouchStroke,
 } from "../jianying-portrait-adjustment-contract.js";
 import {
 	buildJianyingPortraitFeatureParameters,
 	JIANYING_PORTRAIT_PACKAGE_IDENTITIES,
 	JIANYING_PORTRAIT_RUNTIME_PACKAGE_ORDER,
 	jianyingPortraitRuntimePackageForControl,
+	jianyingPortraitControlsForRuntimePackage,
 	JIANYING_PORTRAIT_ADJUSTMENT_CATALOG,
 } from "./catalog.js";
 import {
@@ -17,6 +21,11 @@ import {
 } from "./makeup-catalog.js";
 import type { JianyingPortraitMakeupCardResolution } from "./makeup-resolver.js";
 import type { JianyingPortraitPackageResolution } from "./package-resolver.js";
+import {
+	activeJianyingManualBodyTools,
+	buildJianyingManualBodyFeatureParameters,
+	JIANYING_MANUAL_BODY_RUNTIME_PACKAGE,
+} from "./manual-body.js";
 
 export interface JianyingPortraitRenderStage {
 	id: string;
@@ -24,6 +33,9 @@ export interface JianyingPortraitRenderStage {
 	runtimePackage: JianyingPortraitAdjustmentRuntimePackage;
 	packagePath: string;
 	featureParameters: string;
+	targetFaceIds: number[];
+	manualTool?: "smooth" | "acne";
+	manualStrokes?: MediaPortraitManualRetouchStroke[];
 }
 
 interface PortraitFacePlanEntry {
@@ -146,18 +158,30 @@ function staticStage({
 }): JianyingPortraitRenderStage {
 	const [baseEntry, ...faceEntries] = plan;
 	if (!baseEntry) throw new Error("剪映美颜美体渲染计划为空");
+	const runtimeControls = jianyingPortraitControlsForRuntimePackage({
+		runtimePackage,
+	});
+	const activeFaceEntries = faceEntries.filter((entry) =>
+		runtimeControls.some((control) => (entry.values[control.key] ?? 0) !== 0)
+	);
+	const usesPerFaceVector = !["body", "smooth", "whiten", "clarity"].includes(
+		runtimePackage
+	);
 	return {
 		id: `package:${runtimePackage}`,
 		group: JIANYING_PORTRAIT_PACKAGE_IDENTITIES[runtimePackage].group,
 		runtimePackage,
 		packagePath: packagePathForRuntime({ packages, runtimePackage }),
+		targetFaceIds: usesPerFaceVector
+			? activeFaceEntries.map(({ id }) => id)
+			: [],
 		featureParameters: buildJianyingPortraitFeatureParameters({
 			runtimePackage,
 			values: baseEntry.values,
 			targetFaceId: baseEntry.id,
-			...(faceEntries.length > 0
+			...(activeFaceEntries.length > 0
 				? {
-						faceEntries: faceEntries.map((entry) => ({
+						faceEntries: activeFaceEntries.map((entry) => ({
 							id: entry.id,
 							values: entry.values,
 						})),
@@ -186,8 +210,64 @@ export function buildJianyingPortraitRenderStages({
 	const dynamicCards = selectedCards.filter(
 		({ card }) => card.kind === "dynamic"
 	);
+	const manualStrokes = request.adjustments.manualRetouch?.strokes ?? [];
+	const manualBody = request.adjustments.manualBody;
+	const activeManualBodyTools = new Set(
+		activeJianyingManualBodyTools({ manualBody })
+	);
 	const stages: JianyingPortraitRenderStage[] = [];
 	for (const runtimePackage of JIANYING_PORTRAIT_RUNTIME_PACKAGE_ORDER) {
+		const manualBodyTool = (
+			Object.entries(JIANYING_MANUAL_BODY_RUNTIME_PACKAGE) as [
+				MediaPortraitManualBodyTool,
+				JianyingPortraitAdjustmentRuntimePackage,
+			][]
+		).find(([, candidate]) => candidate === runtimePackage)?.[0];
+		if (manualBodyTool) {
+			if (manualBody && activeManualBodyTools.has(manualBodyTool)) {
+				stages.push({
+					id: `manual-body:${manualBodyTool}`,
+					group: "body",
+					runtimePackage,
+					packagePath: packagePathForRuntime({ packages, runtimePackage }),
+					targetFaceIds: [],
+					featureParameters: buildJianyingManualBodyFeatureParameters({
+						manualBody,
+						tool: manualBodyTool,
+					}),
+				});
+			}
+			continue;
+		}
+		const manualTool =
+			runtimePackage === "manual-smooth"
+				? "smooth"
+				: runtimePackage === "manual-acne"
+					? "acne"
+					: null;
+		if (manualTool) {
+			const strokes = manualStrokes.filter(
+				(stroke) => stroke.tool === manualTool
+			);
+			if (strokes.length > 0) {
+				const signature = createHash("sha256")
+					.update(JSON.stringify(strokes))
+					.digest("hex")
+					.slice(0, 16);
+				stages.push({
+					id: `manual:${manualTool}:${signature}`,
+					group: "face",
+					runtimePackage,
+					packagePath: packagePathForRuntime({ packages, runtimePackage }),
+					featureParameters: "{}",
+					targetFaceIds: [],
+					manualTool,
+					manualStrokes: strokes,
+				});
+			}
+			continue;
+		}
+		if (runtimePackage === "manual-deformation") continue;
 		if (runtimePackage !== "makeup" && numericPackages.has(runtimePackage)) {
 			stages.push(
 				staticStage({
@@ -205,6 +285,7 @@ export function buildJianyingPortraitRenderStages({
 				group: "face",
 				runtimePackage: "makeup",
 				packagePath: selection.packagePath,
+				targetFaceIds: selection.faceEntries?.map(({ id }) => id) ?? [],
 				featureParameters: buildJianyingStandaloneMakeupParameters({
 					card: selection.card,
 					intensity: selection.intensity,
@@ -228,6 +309,13 @@ export function buildJianyingPortraitRenderStages({
 					packages,
 					runtimePackage: "makeup",
 				}),
+				targetFaceIds: [
+					...new Set(
+						dynamicCards.flatMap(
+							({ faceEntries }) => faceEntries?.map(({ id }) => id) ?? []
+						)
+					),
+				],
 				featureParameters: buildJianyingDynamicMakeupParameters({
 					selections: dynamicCards,
 					targetFaceId: baseFaceId,
