@@ -15,6 +15,7 @@ import {
 } from "@/lib/video/video-properties";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useMaskEditorStore } from "@/stores/editor/mask-editor-store";
+import { usePortraitManualBodyStore } from "@/stores/editor/portrait-manual-body-store";
 import {
 	cropFromLocalDelta,
 	getSelectionBounds,
@@ -265,6 +266,9 @@ export function MediaTransformOverlay({
 	fps,
 }: MediaTransformOverlayProps) {
 	const isEditingMask = useMaskEditorStore((state) => state.isEditing);
+	const isEditingManualBody = usePortraitManualBodyStore(
+		(state) => state.active
+	);
 	const snappingEnabled = useTimelineStore((state) => state.snappingEnabled);
 	const [cropMode, setCropMode] = useState(false);
 	const [activeInteraction, setActiveInteraction] =
@@ -667,7 +671,8 @@ export function MediaTransformOverlay({
 		});
 	}, [applySnapshotChange, singleItem]);
 
-	if (snapshots.length === 0 || isEditingMask) return null;
+	if (snapshots.length === 0 || isEditingMask || isEditingManualBody)
+		return null;
 
 	const frameStyle: CSSProperties = singleItem
 		? {
