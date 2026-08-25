@@ -1,4 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import type { MediaItem } from "@/stores/media/media-store-types";
+import type { MediaElement, TimelineTrack } from "@/types/timeline";
+import type { ExportSettingsWithAudio } from "@/types/export";
+import type { StickerRuntimeDescriptor } from "@qcut/editor-core/sticker-lab";
+
+const overlayMocks = vi.hoisted(() => ({
+	stickers: [] as Array<{ mediaItemId: string }>,
+}));
 
 // Mock platform
 const mockPlatform = {
@@ -26,7 +34,7 @@ vi.mock("@/stores/ai/effects-store", () => ({
 vi.mock("@/stores/stickers-overlay-store", () => ({
 	useStickersOverlayStore: {
 		getState: () => ({
-			getStickersForExport: () => [],
+			getStickersForExport: () => overlayMocks.stickers,
 			getVisibleStickersAtTime: () => [],
 		}),
 	},
@@ -63,6 +71,7 @@ describe("ExportEngineFactory", () => {
 
 	beforeEach(async () => {
 		vi.clearAllMocks();
+		overlayMocks.stickers = [];
 		mockPlatform.isElectron = false;
 		mockPlatform.ffmpeg.exportVideoCLI = undefined;
 
@@ -366,13 +375,129 @@ describe("ExportEngineFactory", () => {
 			return canvas;
 		}
 
-		const defaultSettings = {
+		const defaultSettings: ExportSettingsWithAudio = {
 			format: "mp4" as const,
 			quality: "720p",
 			filename: "test.mp4",
 			width: 1280,
 			height: 720,
 		};
+		const stickerRuntime: StickerRuntimeDescriptor = {
+			kind: "png-sequence",
+			completion: "freeze-last",
+			cycleDurationSeconds: 1,
+			frames: [
+				{
+					durationSeconds: 1,
+					source: "frame-1.png",
+					startSeconds: 0,
+				},
+			],
+			repeat: { kind: "infinite" },
+		};
+
+		function createRuntimeFixture({
+			descriptorLocation,
+		}: {
+			descriptorLocation: "element" | "media";
+		}): { mediaItems: MediaItem[]; tracks: TimelineTrack[] } {
+			const mediaItem: MediaItem = {
+				file: new File([], "runtime.png", { type: "image/png" }),
+				id: "runtime-sticker-media",
+				metadata:
+					descriptorLocation === "media" ? { stickerRuntime } : undefined,
+				name: "runtime.png",
+				type: "image",
+			};
+			return {
+				mediaItems: [mediaItem],
+				tracks: [
+					{
+						id: "runtime-sticker-track",
+						name: "Runtime stickers",
+						type: "sticker",
+						elements: [
+							{
+								duration: 1,
+								id: "runtime-sticker-element",
+								mediaId: mediaItem.id,
+								name: "Runtime sticker",
+								startTime: 0,
+								stickerId: "runtime-sticker",
+								stickerRuntime:
+									descriptorLocation === "element" ? stickerRuntime : undefined,
+								trimEnd: 0,
+								trimStart: 0,
+								type: "sticker",
+							},
+						],
+					},
+				],
+			};
+		}
+
+		function createCompoundRuntimeFixture(): {
+			mediaItems: MediaItem[];
+			tracks: TimelineTrack[];
+		} {
+			const child: MediaElement = {
+				duration: 1,
+				id: "compound-runtime-child",
+				mediaId: "compound-runtime-media",
+				name: "Runtime child",
+				startTime: 0,
+				trimEnd: 0,
+				trimStart: 0,
+				type: "media",
+			};
+			const container: MediaElement = {
+				compound: {
+					clips: [
+						{
+							element: child,
+							id: "compound-clip",
+							layer: 0,
+							offset: 0,
+							sourceTrackId: "source-track",
+						},
+					],
+					kind: "compound",
+				},
+				duration: 1,
+				id: "compound-container",
+				mediaId: "compound-container-media",
+				name: "Compound",
+				startTime: 0,
+				trimEnd: 0,
+				trimStart: 0,
+				type: "media",
+			};
+			return {
+				mediaItems: [
+					{
+						file: new File([], "container.mp4", { type: "video/mp4" }),
+						id: "compound-container-media",
+						name: "container.mp4",
+						type: "video",
+					},
+					{
+						file: new File([], "runtime-child.gif", { type: "image/gif" }),
+						id: "compound-runtime-media",
+						metadata: { stickerRuntime },
+						name: "runtime-child.gif",
+						type: "image",
+					},
+				],
+				tracks: [
+					{
+						elements: [container],
+						id: "compound-track",
+						name: "Compound",
+						type: "media",
+					},
+				],
+			};
+		}
 
 		it("creates standard engine for STANDARD type", async () => {
 			const factory = ExportEngineFactory.getInstance();
@@ -387,6 +512,164 @@ describe("ExportEngineFactory", () => {
 			);
 
 			expect(engine).toBeDefined();
+		});
+
+		it("refuses restricted Sticker Lab media for every video engine", async () => {
+			const factory = ExportEngineFactory.getInstance();
+			const canvas = createMockCanvas();
+			const tracks: TimelineTrack[] = [
+				{
+					id: "stickers",
+					name: "Stickers",
+					type: "sticker",
+					elements: [
+						{
+							duration: 1,
+							id: "sticker-element",
+							mediaId: "restricted-sticker",
+							name: "Restricted sticker",
+							startTime: 0,
+							stickerId: "sticker-lab:jianying-2026-08-23-batch-18-v2:18001",
+							trimEnd: 0,
+							trimStart: 0,
+							type: "sticker",
+						},
+					],
+				},
+			];
+			const mediaItems: MediaItem[] = [
+				{
+					file: new File([], "restricted.gif", { type: "image/gif" }),
+					id: "restricted-sticker",
+					metadata: { redistribution: "prohibited" },
+					name: "restricted.gif",
+					type: "image",
+				},
+			];
+
+			await expect(
+				factory.createEngine(
+					canvas,
+					defaultSettings,
+					tracks,
+					mediaItems,
+					1,
+					ExportEngineType.STANDARD
+				)
+			).rejects.toMatchObject({
+				code: "QCUT_RESTRICTED_MEDIA_EXPORT",
+			});
+		});
+
+		it("refuses restricted overlay-only media for a video engine", async () => {
+			const factory = ExportEngineFactory.getInstance();
+			const canvas = createMockCanvas();
+			const mediaItems: MediaItem[] = [
+				{
+					file: new File([], "restricted-overlay.gif", {
+						type: "image/gif",
+					}),
+					id: "restricted-overlay-media",
+					metadata: { redistribution: "prohibited" },
+					name: "restricted-overlay.gif",
+					type: "image",
+				},
+			];
+			overlayMocks.stickers = [{ mediaItemId: "restricted-overlay-media" }];
+
+			await expect(
+				factory.createEngine(
+					canvas,
+					defaultSettings,
+					[],
+					mediaItems,
+					1,
+					ExportEngineType.STANDARD
+				)
+			).rejects.toMatchObject({
+				code: "QCUT_RESTRICTED_MEDIA_EXPORT",
+			});
+		});
+
+		it("forces overlay-only runtime metadata through the muxer", async () => {
+			const factory = ExportEngineFactory.getInstance();
+			const canvas = createMockCanvas();
+			const mediaItems: MediaItem[] = [
+				{
+					file: new File([], "runtime-overlay.png", { type: "image/png" }),
+					id: "runtime-overlay-media",
+					metadata: { stickerRuntime },
+					name: "runtime-overlay.png",
+					type: "image",
+				},
+			];
+			overlayMocks.stickers = [{ mediaItemId: "runtime-overlay-media" }];
+
+			const engine = await factory.createEngine(
+				canvas,
+				defaultSettings,
+				[],
+				mediaItems,
+				1,
+				ExportEngineType.STANDARD
+			);
+
+			expect(engine.constructor.name).toBe("ExportEngineMuxer");
+		});
+
+		it("preserves the restricted code ahead of overlay runtime format errors", async () => {
+			const factory = ExportEngineFactory.getInstance();
+			const canvas = createMockCanvas();
+			const mediaItems: MediaItem[] = [
+				{
+					file: new File([], "restricted-runtime.gif", {
+						type: "image/gif",
+					}),
+					id: "restricted-runtime-overlay",
+					metadata: {
+						redistribution: "prohibited",
+						stickerRuntime,
+					},
+					name: "restricted-runtime.gif",
+					type: "image",
+				},
+			];
+			overlayMocks.stickers = [{ mediaItemId: "restricted-runtime-overlay" }];
+
+			await expect(
+				factory.createEngine(
+					canvas,
+					{ ...defaultSettings, filename: "restricted.gif", format: "gif" },
+					[],
+					mediaItems,
+					1,
+					ExportEngineType.STANDARD
+				)
+			).rejects.toMatchObject({
+				code: "QCUT_RESTRICTED_MEDIA_EXPORT",
+			});
+		});
+
+		it("preserves the restricted error when a runtime project selects muxer", async () => {
+			const factory = ExportEngineFactory.getInstance();
+			const canvas = createMockCanvas();
+			const { mediaItems, tracks } = createRuntimeFixture({
+				descriptorLocation: "element",
+			});
+			mediaItems[0].metadata = { redistribution: "prohibited" };
+
+			await expect(
+				factory.createEngine(
+					canvas,
+					defaultSettings,
+					tracks,
+					mediaItems,
+					1,
+					ExportEngineType.CLI
+				)
+			).rejects.toMatchObject({
+				code: "QCUT_RESTRICTED_MEDIA_EXPORT",
+			});
 		});
 
 		it("creates standard engine for FFMPEG type (removed)", async () => {
@@ -418,6 +701,119 @@ describe("ExportEngineFactory", () => {
 
 			expect(engine).toBeDefined();
 			expect(engine.constructor.name).toBe("ExportEngineMuxer");
+		});
+
+		it("forces runtime stickers through muxer even when CLI is explicit", async () => {
+			mockPlatform.isElectron = true;
+			mockPlatform.ffmpeg.exportVideoCLI = vi.fn();
+			const factory = ExportEngineFactory.getInstance();
+			const canvas = createMockCanvas();
+			const { mediaItems, tracks } = createRuntimeFixture({
+				descriptorLocation: "element",
+			});
+
+			const engine = await factory.createEngine(
+				canvas,
+				defaultSettings,
+				tracks,
+				mediaItems,
+				1,
+				ExportEngineType.CLI
+			);
+
+			expect(engine.constructor.name).toBe("ExportEngineMuxer");
+		});
+
+		it("fails closed when runtime stickers and Remotion share a timeline", async () => {
+			const factory = ExportEngineFactory.getInstance();
+			const canvas = createMockCanvas();
+			const { mediaItems, tracks } = createRuntimeFixture({
+				descriptorLocation: "element",
+			});
+			tracks.push({
+				id: "remotion-track",
+				name: "Remotion",
+				type: "remotion",
+				elements: [
+					{
+						componentId: "test-composition",
+						duration: 1,
+						id: "remotion-element",
+						name: "Remotion element",
+						props: {},
+						renderMode: "live",
+						startTime: 0,
+						trimEnd: 0,
+						trimStart: 0,
+						type: "remotion",
+					},
+				],
+			});
+
+			await expect(
+				factory.createEngine(canvas, defaultSettings, tracks, mediaItems, 1)
+			).rejects.toMatchObject({
+				code: "QCUT_STICKER_RUNTIME_EXPORT_UNSUPPORTED",
+				reason: "remotion-composition",
+			});
+		});
+
+		it("forces referenced runtime metadata through muxer over optimized", async () => {
+			const factory = ExportEngineFactory.getInstance();
+			const canvas = createMockCanvas();
+			const { mediaItems, tracks } = createRuntimeFixture({
+				descriptorLocation: "media",
+			});
+
+			const engine = await factory.createEngine(
+				canvas,
+				defaultSettings,
+				tracks,
+				mediaItems,
+				1,
+				ExportEngineType.OPTIMIZED
+			);
+
+			expect(engine.constructor.name).toBe("ExportEngineMuxer");
+		});
+
+		it("forces a compound child runtime through muxer before expansion", async () => {
+			const factory = ExportEngineFactory.getInstance();
+			const canvas = createMockCanvas();
+			const { mediaItems, tracks } = createCompoundRuntimeFixture();
+
+			const engine = await factory.createEngine(
+				canvas,
+				defaultSettings,
+				tracks,
+				mediaItems,
+				1,
+				ExportEngineType.CLI
+			);
+
+			expect(engine.constructor.name).toBe("ExportEngineMuxer");
+		});
+
+		it("fails closed for runtime stickers in non-MP4 exports", async () => {
+			const factory = ExportEngineFactory.getInstance();
+			const canvas = createMockCanvas();
+			const { mediaItems, tracks } = createRuntimeFixture({
+				descriptorLocation: "element",
+			});
+
+			await expect(
+				factory.createEngine(
+					canvas,
+					{ ...defaultSettings, format: "gif", filename: "runtime.gif" },
+					tracks,
+					mediaItems,
+					1,
+					ExportEngineType.CLI
+				)
+			).rejects.toMatchObject({
+				code: "QCUT_STICKER_RUNTIME_EXPORT_UNSUPPORTED",
+				reason: "unsupported-format",
+			});
 		});
 
 		it("creates muxer engine for WEBCODECS type (legacy redirect)", async () => {
@@ -503,6 +899,39 @@ describe("ExportEngineFactory", () => {
 			);
 
 			expect(engine).toBeDefined();
+		});
+
+		it("fails closed when the required runtime muxer cannot load", async () => {
+			vi.resetModules();
+			vi.doMock("../export-engine-muxer", () => {
+				throw new Error("muxer unavailable for test");
+			});
+
+			try {
+				const factoryModule = await import("../export-engine-factory");
+				const factory = factoryModule.ExportEngineFactory.getInstance();
+				const canvas = createMockCanvas();
+				const { mediaItems, tracks } = createRuntimeFixture({
+					descriptorLocation: "element",
+				});
+
+				await expect(
+					factory.createEngine(
+						canvas,
+						defaultSettings,
+						tracks,
+						mediaItems,
+						1,
+						factoryModule.ExportEngineType.CLI
+					)
+				).rejects.toMatchObject({
+					code: "QCUT_STICKER_RUNTIME_EXPORT_UNSUPPORTED",
+					reason: "muxer-unavailable",
+				});
+			} finally {
+				vi.doUnmock("../export-engine-muxer");
+				vi.resetModules();
+			}
 		});
 	});
 });
