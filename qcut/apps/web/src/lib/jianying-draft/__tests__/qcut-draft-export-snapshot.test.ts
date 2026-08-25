@@ -91,6 +91,7 @@ function createMediaItem({
 	id,
 	importOriginalPath,
 	localPath,
+	metadata,
 	type,
 	width,
 }: {
@@ -99,6 +100,7 @@ function createMediaItem({
 	id: string;
 	importOriginalPath?: string;
 	localPath?: string;
+	metadata?: MediaItem["metadata"];
 	type: MediaItem["type"];
 	width?: number;
 }): MediaItem {
@@ -110,6 +112,7 @@ function createMediaItem({
 		duration,
 		height,
 		localPath,
+		metadata,
 		width,
 		importMetadata: importOriginalPath
 			? {
@@ -538,5 +541,27 @@ describe("createQCutDraftExportSnapshot", () => {
 			],
 		});
 		expect("snapshot" in result).toBe(false);
+	});
+
+	it("refuses restricted media before resolving CapCut source paths", async () => {
+		const getPathForFile = vi.fn(() => "/private/reference.gif");
+
+		await expect(
+			createQCutDraftExportSnapshot({
+				project: createProject(),
+				tracks: [],
+				mediaItems: [
+					createMediaItem({
+						id: "restricted-sticker",
+						metadata: { redistribution: "prohibited" },
+						type: "image",
+					}),
+				],
+				getPathForFile,
+			})
+		).rejects.toMatchObject({
+			code: "QCUT_RESTRICTED_MEDIA_EXPORT",
+		});
+		expect(getPathForFile).not.toHaveBeenCalled();
 	});
 });
