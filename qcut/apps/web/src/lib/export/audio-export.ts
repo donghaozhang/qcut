@@ -4,6 +4,7 @@ import { platform } from "@qcut/platform-core";
 import { extractAudioFileInputs } from "../export-cli/sources";
 import { fileExists, invokeIfAvailable } from "./export-engine-cli-utils";
 import { resolveAudioPreparationInputs } from "./export-engine-cli-audio";
+import { assertRestrictedMediaExportAllowed } from "../../../../../electron/types/restricted-media-export-policy";
 
 export const AUDIO_EXPORT_BITRATES = [128, 192, 256, 320] as const;
 export type AudioExportBitrate = (typeof AUDIO_EXPORT_BITRATES)[number];
@@ -35,8 +36,20 @@ export async function exportTimelineAudio({
 	if (!platform().isElectron) {
 		throw new Error("Standalone audio export requires the desktop app");
 	}
+	assertRestrictedMediaExportAllowed({
+		mediaItems,
+		operation: "standalone-audio",
+		scope: "timeline",
+		tracks,
+	});
 
 	const hydrated = await resolveAudioPreparationInputs({ tracks, mediaItems });
+	assertRestrictedMediaExportAllowed({
+		mediaItems: hydrated.mediaItems,
+		operation: "standalone-audio",
+		scope: "timeline",
+		tracks: hydrated.tracks,
+	});
 	const audioFiles = await extractAudioFileInputs(
 		hydrated.tracks,
 		hydrated.mediaItems,
