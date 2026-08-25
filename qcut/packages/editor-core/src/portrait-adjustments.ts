@@ -488,6 +488,10 @@ function normalizeFaceEntries({
 		const bindingAnchor = personBindingId
 			? normalizePersonBindingAnchor({ anchor: entry.bindingAnchor })
 			: undefined;
+		// Export validation and the native render parser both require an anchor
+		// whenever a person binding id is present, and an unanchored binding can
+		// never rebind, so drop the entry instead of emitting an invalid shape.
+		if (personBindingId && !bindingAnchor) continue;
 		byBinding.set(dedupeKey, {
 			trackId,
 			...(personBindingId ? { personBindingId } : {}),
