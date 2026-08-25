@@ -7,7 +7,11 @@
  */
 
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import { sortTracksByOrder, type StickerElement } from "@/types/timeline";
+import {
+	sortTracksByOrder,
+	type StickerElement,
+	type TimelineTrack,
+} from "@/types/timeline";
 import { getTimelineElementDuration } from "@/lib/timeline";
 
 export interface StickerTiming {
@@ -23,13 +27,16 @@ export interface StickerTiming {
  * Build a Map of stickerId → timing from all sticker elements in the timeline.
  * Accounts for trimStart/trimEnd when calculating effective timing.
  */
-export function getStickerTimingMap(): Map<string, StickerTiming> {
+export function buildStickerTimingMap({
+	tracks,
+}: {
+	tracks: TimelineTrack[];
+}): Map<string, StickerTiming> {
 	const timingMap = new Map<string, StickerTiming>();
-	const store = useTimelineStore.getState();
-	const tracks = sortTracksByOrder(store._tracks);
+	const sortedTracks = sortTracksByOrder(tracks);
 
-	for (let trackOrder = 0; trackOrder < tracks.length; trackOrder++) {
-		const track = tracks[trackOrder];
+	for (let trackOrder = 0; trackOrder < sortedTracks.length; trackOrder++) {
+		const track = sortedTracks[trackOrder];
 		if (track.hidden || track.type !== "sticker") continue;
 
 		for (
@@ -57,6 +64,10 @@ export function getStickerTimingMap(): Map<string, StickerTiming> {
 	}
 
 	return timingMap;
+}
+
+export function getStickerTimingMap(): Map<string, StickerTiming> {
+	return buildStickerTimingMap({ tracks: useTimelineStore.getState()._tracks });
 }
 
 /**
