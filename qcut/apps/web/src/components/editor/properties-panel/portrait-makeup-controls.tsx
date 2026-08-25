@@ -6,6 +6,7 @@ import type {
 	MediaPortraitAdjustments,
 	MediaPortraitMakeupCategory,
 } from "@/types/timeline";
+import { applyPortraitMakeup } from "@/lib/portrait/portrait-face-scope";
 import { cn } from "@/lib/utils";
 import { NumberControl } from "./visual-property-controls";
 
@@ -30,21 +31,6 @@ const MAKEUP_CATEGORY_LABELS: Record<
 const MAKEUP_CATEGORIES = Object.keys(
 	MAKEUP_CATEGORY_LABELS
 ) as MediaPortraitMakeupCategory[];
-
-function withMakeup({
-	adjustments,
-	makeup,
-}: {
-	adjustments: MediaPortraitAdjustments;
-	makeup: NonNullable<MediaPortraitAdjustments["makeup"]>;
-}): MediaPortraitAdjustments {
-	return {
-		enabled: true,
-		values: adjustments.values,
-		...(adjustments.faceTarget ? { faceTarget: adjustments.faceTarget } : {}),
-		...(Object.keys(makeup).length > 0 ? { makeup } : {}),
-	};
-}
 
 function MakeupCard({
 	card,
@@ -136,7 +122,7 @@ export function PortraitMakeupControls({
 	const selectCard = ({ card }: { card: JianyingPortraitMakeupCardStatus }) => {
 		onInteractionStart();
 		onChange(
-			withMakeup({
+			applyPortraitMakeup({
 				adjustments,
 				makeup: {
 					...adjustments.makeup,
@@ -156,7 +142,7 @@ export function PortraitMakeupControls({
 				([currentCategory]) => currentCategory !== category
 			)
 		);
-		onChange(withMakeup({ adjustments, makeup }));
+		onChange(applyPortraitMakeup({ adjustments, makeup }));
 		onInteractionEnd();
 	};
 
@@ -226,7 +212,7 @@ export function PortraitMakeupControls({
 					disabled={disabled || !selectedCard.ready}
 					onChange={(intensity) =>
 						onChange(
-							withMakeup({
+							applyPortraitMakeup({
 								adjustments,
 								makeup: {
 									...adjustments.makeup,

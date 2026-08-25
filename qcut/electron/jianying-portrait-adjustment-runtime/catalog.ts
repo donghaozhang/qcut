@@ -33,6 +33,36 @@ export const JIANYING_PORTRAIT_PACKAGE_IDENTITIES = {
 		version: "e8b424917121b52fc69cba119274cc47",
 		group: "face",
 	},
+	"manual-smooth": {
+		resourceId: "7447725847449965107",
+		version: "cdadab3125d2a44f561cca947057977f",
+		group: "face",
+	},
+	"manual-acne": {
+		resourceId: "7456626609332687397",
+		version: "4375341231235e0656e15dcc64c49b39",
+		group: "face",
+	},
+	"manual-deformation": {
+		resourceId: "7408028088627465524",
+		version: "e607793158bce9c274fe73722ec983fb",
+		group: "face",
+	},
+	"manual-stretch": {
+		resourceId: "7406180541361392896",
+		version: "842ae3d2c0e00271729129fc90f59712",
+		group: "body",
+	},
+	"manual-slim": {
+		resourceId: "7406017234474175796",
+		version: "08af2313acd311315abf352ff737264e",
+		group: "body",
+	},
+	"manual-zoom": {
+		resourceId: "7406174489727339791",
+		version: "f21ee9174404341a6b01d792db7366db",
+		group: "body",
+	},
 	face: {
 		resourceId: "7408077448513998114",
 		version: "aa4932200616e291a252039a3aac7232",
@@ -76,6 +106,12 @@ export const JIANYING_PORTRAIT_RUNTIME_PACKAGE_ORDER = [
 	"clarity",
 	"spot-acne",
 	"skin-gan",
+	"manual-smooth",
+	"manual-acne",
+	"manual-deformation",
+	"manual-stretch",
+	"manual-slim",
+	"manual-zoom",
 	"eye-details",
 	"skin-tone",
 	"teeth",
@@ -639,11 +675,29 @@ export function buildJianyingPortraitFeatureParameters({
 			intensity: (values.face_adjust_Clarity ?? 0) / 100,
 		});
 	}
-	const vectorFor = (key: MediaPortraitAdjustmentKey) =>
-		entries.map((entry) => ({
+	// The body package reads only the FIRST vector element and never looks at
+	// its id (`slimbody.lua` handleIntensityEvent: `inputValue:get(0)` then
+	// `inputMap:get("intensity")`). Body adjustments are therefore whole-frame
+	// and cannot target one person — and emitting a multi-entry vector would
+	// break them outright, because a zero-valued base entry would shadow every
+	// per-face value behind it.
+	const isWholeFrameVectorPackage = runtimePackage === "body";
+	const vectorFor = (key: MediaPortraitAdjustmentKey) => {
+		if (isWholeFrameVectorPackage) {
+			const effective =
+				entries.find((entry) => (entry.values[key] ?? 0) !== 0) ?? entries[0];
+			return [
+				{
+					id: -1,
+					intensity: (effective?.values[key] ?? 0) / 100,
+				},
+			];
+		}
+		return entries.map((entry) => ({
 			id: entry.id,
 			intensity: (entry.values[key] ?? 0) / 100,
 		}));
+	};
 	// 祛斑祛痘包内部的键就叫 `face_adjust`（与洁牙同名、不同包），
 	// 产品键单独命名以免两张卡互相覆盖。
 	if (runtimePackage === "spot-acne") {

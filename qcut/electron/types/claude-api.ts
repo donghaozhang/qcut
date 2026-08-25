@@ -269,6 +269,8 @@ export interface ClaudeElement
 	 * from `color`, which is the text color string.
 	 */
 	colorSettings?: Record<string, unknown>;
+	/** Untrusted portrait adjustment JSON; normalized by the renderer bridge. */
+	portraitAdjustments?: unknown;
 	masks?: Record<string, unknown>[];
 	backgroundColor?: string;
 	textColor?: string;

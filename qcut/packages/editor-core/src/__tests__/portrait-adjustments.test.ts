@@ -134,6 +134,70 @@ describe("media portrait adjustments", () => {
 		expect(normalized.faces).toHaveLength(10);
 	});
 
+	it("preserves project person bindings independently of session track ids", () => {
+		const anchor = {
+			rect: { x: 0.1, y: 0.2, width: 0.25, height: 0.3 },
+			frameNumber: 24,
+		};
+		const normalized = normalizeMediaPortraitAdjustments({
+			adjustments: {
+				enabled: true,
+				values: {},
+				faces: [
+					{
+						trackId: 0,
+						personBindingId: "portrait-person:first",
+						bindingAnchor: anchor,
+						values: { face_adjust_Chin: 10 },
+					},
+					{
+						trackId: 0,
+						personBindingId: "portrait-person:second",
+						bindingAnchor: anchor,
+						values: { face_adjust_VFace: 20 },
+					},
+				],
+			},
+		});
+
+		expect(normalized.faces).toHaveLength(2);
+		expect(normalized.faces?.map((face) => face.personBindingId)).toEqual([
+			"portrait-person:first",
+			"portrait-person:second",
+		]);
+		expect(normalized.faces?.[0]?.bindingAnchor).toEqual(anchor);
+	});
+
+	it("drops person-bound entries without a usable binding anchor", () => {
+		const normalized = normalizeMediaPortraitAdjustments({
+			adjustments: {
+				enabled: true,
+				values: {},
+				faces: [
+					{
+						trackId: 0,
+						personBindingId: "portrait-person:first",
+						values: { face_adjust_Chin: 10 },
+					},
+					{
+						trackId: 1,
+						personBindingId: "portrait-person:second",
+						bindingAnchor: {
+							rect: { x: 0.5, y: 0.5, width: 0.6, height: 0.2 },
+						},
+						values: { face_adjust_VFace: 20 },
+					},
+					{ trackId: 2, values: { face_adjust_Chin: 5 } },
+				],
+			},
+		});
+		expect(normalized.faces).toHaveLength(1);
+		expect(normalized.faces?.[0]).toEqual({
+			trackId: 2,
+			values: { face_adjust_Chin: 5 },
+		});
+	});
+
 	it("activates on per-face-only values or makeup", () => {
 		expect(
 			hasMediaPortraitAdjustments({

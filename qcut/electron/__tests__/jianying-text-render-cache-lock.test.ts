@@ -78,6 +78,7 @@ describe("Jianying text render cache lock", () => {
 			},
 		});
 		let second: Promise<void> | undefined;
+		let settlements: PromiseSettledResult<unknown>[] = [];
 		try {
 			// Wait for the real critical-section entry rather than guessing with a
 			// wall clock: acquiring does open + write + fsync + fstat, which costs
@@ -98,8 +99,15 @@ describe("Jianying text render cache lock", () => {
 			// failed assertion leaves the second writer retrying open() against a
 			// deleted directory, which surfaces as an unrelated ENOENT.
 			releaseFirst?.();
-			await Promise.allSettled([first, second]);
+			settlements = await Promise.allSettled([first, second]);
 		}
+		// A writer that failed after its task ran (e.g. releasing the lock) must
+		// fail the test too; surfacing the reasons keeps the failure debuggable.
+		expect(
+			settlements.flatMap((entry) =>
+				entry.status === "rejected" ? [entry.reason] : []
+			)
+		).toEqual([]);
 		expect(events).toEqual(["first:start", "first:end", "second:start"]);
 	});
 
@@ -164,31 +172,54 @@ describe("Jianying text render cache lock", () => {
 		const cacheRoot = await createCacheRoot();
 		const events: string[] = [];
 		let releaseFirst: (() => void) | undefined;
+		let firstStarted: (() => void) | undefined;
 		const firstMayFinish = new Promise<void>((resolve) => {
 			releaseFirst = resolve;
 		});
-		const options = { retryMs: 5, staleMs: 80, timeoutMs: 1_000 };
+		const firstIsRunning = new Promise<void>((resolve) => {
+			firstStarted = resolve;
+		});
+		// The lease refreshes every staleMs/3; a stale window of 80ms let a
+		// single event-loop stall on a loaded CI runner starve the refresh and
+		// hand the live lock to the waiter. 400ms keeps three refresh chances
+		// ahead of any realistic stall while the test still spans 3+ windows.
+		const options = { retryMs: 5, staleMs: 400, timeoutMs: 5_000 };
 		const first = runLocked({
 			cacheRoot,
 			options,
 			task: async () => {
 				events.push("first:start");
+				firstStarted?.();
 				await firstMayFinish;
 				events.push("first:end");
 			},
 		});
-		await delay(240);
-		const second = runLocked({
-			cacheRoot,
-			options,
-			task: async () => {
-				events.push("second:start");
-			},
-		});
-		await delay(40);
-		expect(events).toEqual(["first:start"]);
-		releaseFirst?.();
-		await Promise.all([first, second]);
+		let second: Promise<void> | undefined;
+		let settlements: PromiseSettledResult<unknown>[] = [];
+		try {
+			await Promise.race([firstIsRunning, first]);
+			await delay(1_200);
+			second = runLocked({
+				cacheRoot,
+				options,
+				task: async () => {
+					events.push("second:start");
+				},
+			});
+			await delay(40);
+			expect(events).toEqual(["first:start"]);
+		} finally {
+			// Settle both writers before afterEach removes cacheRoot; otherwise a
+			// failed assertion leaves the waiter retrying open() on a deleted
+			// directory, which surfaces as an unrelated ENOENT.
+			releaseFirst?.();
+			settlements = await Promise.allSettled([first, second]);
+		}
+		expect(
+			settlements.flatMap((entry) =>
+				entry.status === "rejected" ? [entry.reason] : []
+			)
+		).toEqual([]);
 		expect(events).toEqual(["first:start", "first:end", "second:start"]);
 	});
 

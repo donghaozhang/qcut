@@ -1004,14 +1004,25 @@ export function registerSharedRoutes(
 				accessor,
 				projectId: req.params.projectId,
 			});
-			const win = accessor.getWindow();
 			const correlationId = getRequestCorrelationId({ req });
-			win.webContents.send("claude:timeline:updateElement", {
-				correlationId,
-				elementId: req.params.elementId,
-				changes: req.body || {},
+			await requireRendererMutation({
+				operation: "Timeline element update",
+				request: async () => {
+					const result = await accessor.batchUpdateElements(
+						[
+							{
+								...(req.body || {}),
+								elementId: req.params.elementId,
+							},
+						],
+						correlationId
+					);
+					const item = result.results[0];
+					if (result.updatedCount !== 1 || item?.success !== true) {
+						throw new Error(item?.error || "Renderer did not apply the update");
+					}
+				},
 			});
-			await waitForTimelineMutationBarrier({ accessor });
 			scheduleProjectJsonAutoSync({ projectId: req.params.projectId });
 			return { updated: true };
 		}

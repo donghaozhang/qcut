@@ -210,11 +210,7 @@ export interface JianyingPortraitMakeupFaceEntry {
 	intensity: number;
 }
 
-/**
- * 逐脸美妆的向量语义尚未经探针验证（GAN/动态卡可能按 faceInfoBySize 的
- * 几何序而非向量 id 取值）——发射管路先落地，探针走真实链路验证后
- * 才在 UI 侧启用逐脸美妆。
- */
+/** Standalone and dynamic makeup both match this id to the freid track id. */
 export function buildJianyingStandaloneMakeupParameters({
 	card,
 	intensity,

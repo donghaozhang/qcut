@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useId, useMemo } from "react";
 import { AudioPlayer } from "@/components/ui/audio-player";
 import { VideoPlayer } from "@/components/ui/video-player";
 import { TEST_MEDIA_ID } from "@/constants/timeline-constants";
@@ -46,6 +46,7 @@ import {
 	selectMediaAudioSources,
 } from "@/lib/audio/audio-source-selection";
 import { ColorPreviewCanvas } from "./color-preview-canvas";
+import { PortraitManualBodyOverlay } from "./portrait-manual-body-overlay";
 import { CustomCutoutOverlay } from "./custom-cutout-overlay";
 import {
 	selectAudioPreviewBypassed,
@@ -275,6 +276,7 @@ export function PreviewElementRenderer({
 	onElementSelect,
 	onElementResize,
 }: PreviewElementRendererProps): React.ReactNode {
+	const portraitSourceSessionId = useId();
 	const selectedMaskElementId = useMaskEditorStore(
 		(state) => state.selectedElementId
 	);
@@ -308,6 +310,8 @@ export function PreviewElementRenderer({
 					fps: activeProject?.fps ?? 30,
 				})
 			: undefined;
+	const isCurrentMediaElement =
+		elementData.element.id === currentMediaElement?.element.id;
 	const generatedPreviewMask = previewMediaVisual?.masks.find(
 		(mask) => mask.enabled !== false && Boolean(mask.sourceMediaId)
 	);
@@ -915,6 +919,8 @@ export function PreviewElementRenderer({
 					<div
 						key={elementKey}
 						className="absolute cursor-grab"
+						data-preview-element-id={element.id}
+						data-portrait-source-session={portraitSourceSessionId}
 						onClick={(event) =>
 							onElementSelect({
 								elementId: element.id,
@@ -1055,6 +1061,7 @@ export function PreviewElementRenderer({
 									portraitAdjustments={visual.portraitAdjustments}
 								/>
 							) : null}
+							<PortraitManualBodyOverlay elementId={element.id} />
 							{renderCompositePreviewEffects ? (
 								<EffectCompositeCanvas
 									program={effectRendering.renderProgram}
@@ -1263,6 +1270,8 @@ export function PreviewElementRenderer({
 						<div
 							key={elementKey}
 							className="absolute cursor-grab"
+							data-preview-element-id={element.id}
+							data-portrait-source-session={portraitSourceSessionId}
 							onClick={(event) =>
 								onElementSelect({
 									elementId: element.id,
@@ -1342,6 +1351,7 @@ export function PreviewElementRenderer({
 										opacity: usesPixelColor ? 0 : undefined,
 									}}
 									data-color-source="true"
+									data-color-source-key={mediaItem.id}
 									draggable={false}
 								/>
 								{usesPixelColor || isColorPickerTarget ? (
@@ -1358,6 +1368,7 @@ export function PreviewElementRenderer({
 										portraitAdjustments={visual.portraitAdjustments}
 									/>
 								) : null}
+								<PortraitManualBodyOverlay elementId={element.id} />
 								{renderCompositePreviewEffects ? (
 									<EffectCompositeCanvas
 										program={effectRendering.renderProgram}
@@ -1411,6 +1422,8 @@ export function PreviewElementRenderer({
 					<div
 						key={elementKey}
 						className="absolute inset-0 flex items-center justify-center"
+						data-preview-element-id={element.id}
+						data-portrait-source-session={portraitSourceSessionId}
 						style={{
 							zIndex: index + 1,
 							opacity: transitionPresentation.opacity * effectMotion.opacity,
@@ -1450,6 +1463,7 @@ export function PreviewElementRenderer({
 									opacity: usesPixelColor ? 0 : undefined,
 								}}
 								data-color-source="true"
+								data-color-source-key={mediaItem.id}
 								draggable={false}
 							/>
 							{usesPixelColor || isColorPickerTarget ? (
@@ -1466,6 +1480,7 @@ export function PreviewElementRenderer({
 									portraitAdjustments={visual.portraitAdjustments}
 								/>
 							) : null}
+							<PortraitManualBodyOverlay elementId={element.id} />
 							{renderCompositePreviewEffects ? (
 								<EffectCompositeCanvas
 									program={effectRendering.renderProgram}

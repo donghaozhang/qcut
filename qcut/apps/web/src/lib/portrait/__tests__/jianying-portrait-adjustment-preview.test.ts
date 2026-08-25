@@ -48,6 +48,7 @@ describe("Jianying portrait adjustment preview", () => {
 		const result = await renderJianyingPortraitAdjustmentPreview({
 			source: imageData({ data: [10, 20, 30, 255] }),
 			adjustments,
+			frameNumber: 30,
 			sourceKey: "video:portrait",
 			timestampSeconds: 1.25,
 		});
@@ -56,6 +57,7 @@ describe("Jianying portrait adjustment preview", () => {
 			height: 1,
 			rgba: expect.any(Uint8Array),
 			adjustments,
+			frameNumber: 30,
 			sourceKey: "video:portrait",
 			timestampSeconds: 1.25,
 		});

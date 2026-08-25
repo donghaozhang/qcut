@@ -10,6 +10,17 @@ export type {
 	MediaPortraitFaceTarget,
 	MediaPortraitMakeupCategory,
 	MediaPortraitMakeupSelection,
+	MediaPortraitPersonBindingAnchor,
+	MediaPortraitManualBody,
+	MediaPortraitManualBodySlim,
+	MediaPortraitManualBodyStretch,
+	MediaPortraitManualBodyTool,
+	MediaPortraitManualBodyZoom,
+	MediaPortraitManualRetouch,
+	MediaPortraitManualRetouchMode,
+	MediaPortraitManualRetouchPoint,
+	MediaPortraitManualRetouchStroke,
+	MediaPortraitManualRetouchTool,
 } from "../portrait-adjustments.js";
 
 export type {

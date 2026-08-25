@@ -1349,6 +1349,7 @@ export function MediaProperties({
 				<TabsContent value="portrait" className="mt-4">
 					<MediaPortraitProperties
 						elementId={element.id}
+						currentFrame={currentFrame}
 						enhancements={visual.enhancements}
 						adjustments={visual.portraitAdjustments}
 						onEnhancementsChange={(enhancements) =>

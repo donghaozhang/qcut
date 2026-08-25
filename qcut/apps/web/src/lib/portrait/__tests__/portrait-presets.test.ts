@@ -75,6 +75,32 @@ describe("portrait presets", () => {
 		expect(body).not.toHaveProperty("makeup");
 	});
 
+	it("stores and reapplies manual body geometry in body presets", () => {
+		const manualBody = {
+			slim: {
+				intensity: 45,
+				x: 0.45,
+				y: 0.55,
+				width: 0.3,
+				height: 0.5,
+				rotation: 20,
+			},
+		};
+		const preset = createPortraitPreset({
+			adjustments: { enabled: true, values: {}, manualBody },
+			name: "Manual body",
+			scope: "body",
+		});
+
+		expect(preset.manualBody).toEqual(manualBody);
+		expect(
+			applyPortraitPreset({
+				adjustments: { enabled: false, values: {} },
+				preset,
+			}).manualBody
+		).toEqual(manualBody);
+	});
+
 	it("applies one scope without erasing the other", () => {
 		const preset = createPortraitPreset({
 			adjustments: {

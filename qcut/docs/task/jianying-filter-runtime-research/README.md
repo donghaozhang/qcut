@@ -1,6 +1,6 @@
 # 剪映滤镜运行时互操作性研究
 
-记录时间：2026-08-09，2026-08-10 追加中文剪映逐帧、ProRes 和无缩放对照，2026-08-12 追加产品批处理、固定时间基和长尾 Pass E2E，2026-08-13 追加 7 张双 LUT 真实视频门禁，2026-08-22 追加 QCut 私有运行时备份与首批目录扩充，2026-08-23 追加“瘦脸”单卡复刻模板
+记录时间：2026-08-09，2026-08-10 追加中文剪映逐帧、ProRes 和无缩放对照，2026-08-12 追加产品批处理、固定时间基和长尾 Pass E2E，2026-08-13 追加 7 张双 LUT 真实视频门禁，2026-08-22 追加 QCut 私有运行时备份与首批目录扩充，2026-08-23 追加“瘦脸”单卡复刻模板，2026-08-25 追加手动美体私有运行时与产品 E2E
 
 ## 范围
 
@@ -15,6 +15,28 @@
 - 本地编译产物、PPM/PNG 输出和其他二进制证据。
 
 需要复现实验时，应由研究者在仓库之外提供自己有权使用的 SDK、模型和素材。不得从本目录推导出重新分发第三方运行时的许可。
+
+中文剪映专业版美颜美体的 UI、资源目录、效果包、模型和 Swing 调用链见
+[jianying-professional-retouch-architecture.zh.md](jianying-professional-retouch-architecture.zh.md)。在该基线之上，
+QCut 当前 77 个控件、15 张美妆卡、多人/CLI E2E、离线状态和剩余产品缺口见
+[qcut-retouch-gap-vs-jianying.zh.md](qcut-retouch-gap-vs-jianying.zh.md)。两份文档分别记录“剪映怎样做”与
+“QCut 已有什么、还差什么”，避免用 QCut 的实现反推剪映行为。
+
+剪映专业版 `face.id`、`freid.trackid`、隐藏人脸框包，以及 QCut 项目级 `personBindingId`、
+同帧安全重绑定和真实双人 Electron/CLI 证据见
+[jianying-multi-person-detection-selection-track-id.zh.md](jianying-multi-person-detection-selection-track-id.zh.md)。
+
+中文剪映手动磨皮/祛痘的逐事件画笔协议、原生 mask 缓存格式、QCut 私有运行时接入、大小/强度
+A/B 和真实 Electron 鼠标 E2E 见
+[manual-retouch-private-runtime-e2e.zh.md](manual-retouch-private-runtime-e2e.zh.md)。手动美体的拉长、
+瘦身瘦腿和放大缩小协议、私有包、画布控制柄、变换坐标、撤销/重做、预览、导出与项目重开见
+[manual-body-private-runtime-e2e.zh.md](manual-body-private-runtime-e2e.zh.md)。两份报告都把功能可用、
+严格离线和剪映 UI 像素平价分开裁决；前两项已通过，平价仍未完成。
+
+92 项 UI 控件的真人极值逐项审计、祛斑祛痘异步就绪修复、天鹅颈素材误判和最终 Electron
+原图/效果截图门禁见
+[portrait-control-extreme-audit.zh.md](portrait-control-extreme-audit.zh.md)。该报告把“当前素材零输出”、
+“真实产品缺陷”和“与剪映 UI 像素平价”分开记录。
 
 最新产品批处理、7 张双 LUT、1 秒固定时间基导出和五类 QCut 自有长尾 Pass 结果见
 [product-batches-and-long-tail-e2e.zh.md](product-batches-and-long-tail-e2e.zh.md)。这些结果把“产品能力可运行”

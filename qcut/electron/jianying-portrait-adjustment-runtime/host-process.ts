@@ -31,9 +31,19 @@ export interface JianyingPortraitHostDetectCommand {
 	inputPath: string;
 }
 
+export interface JianyingPortraitHostStrokeCommand {
+	requestId: string;
+	timestampSeconds: number;
+	inputPath: string;
+	outputPath: string;
+	featureParameters: string;
+	points: readonly { x: number; y: number }[];
+}
+
 export interface JianyingPortraitHostProcess {
 	pid: number;
 	render: (command: JianyingPortraitHostRenderCommand) => Promise<void>;
+	stroke: (command: JianyingPortraitHostStrokeCommand) => Promise<void>;
 	/** Returns the raw detect payload; parsing belongs to the provider. */
 	detect: (command: JianyingPortraitHostDetectCommand) => Promise<string>;
 	dispose: () => Promise<void>;
@@ -114,6 +124,52 @@ export function encodeJianyingPortraitHostDetectCommand({
 		assertProtocolField({ field, label });
 	}
 	return ["detect", requestId, inputPath].join("\t");
+}
+
+export function encodeJianyingPortraitHostStrokeCommand({
+	requestId,
+	timestampSeconds,
+	inputPath,
+	outputPath,
+	featureParameters,
+	points,
+}: JianyingPortraitHostStrokeCommand) {
+	for (const [label, field] of [
+		["requestId", requestId],
+		["inputPath", inputPath],
+		["outputPath", outputPath],
+		["featureParameters", featureParameters],
+	] as const) {
+		assertProtocolField({ field, label });
+	}
+	if (!Number.isFinite(timestampSeconds) || timestampSeconds < 0) {
+		throw new Error("timestampSeconds must be a non-negative finite number");
+	}
+	if (points.length < 2 || points.length > 512) {
+		throw new Error("stroke points must contain between 2 and 512 entries");
+	}
+	const coordinates = points.flatMap(({ x, y }) => {
+		if (
+			!Number.isFinite(x) ||
+			!Number.isFinite(y) ||
+			x < 0 ||
+			x > 1 ||
+			y < 0 ||
+			y > 1
+		) {
+			throw new Error("stroke coordinates must be between zero and one");
+		}
+		return [String(x), String(y)];
+	});
+	return [
+		"stroke",
+		requestId,
+		String(timestampSeconds),
+		inputPath,
+		outputPath,
+		featureParameters,
+		...coordinates,
+	].join("\t");
 }
 
 export async function startJianyingPortraitHostProcess(
@@ -271,6 +327,13 @@ export async function startJianyingPortraitHostProcess(
 				requestId: command.requestId,
 				encoded: encodeJianyingPortraitHostRenderCommand(command),
 				timeoutMessage: "剪映美颜美体单帧渲染超时",
+			});
+		},
+		stroke: async (command) => {
+			await submit({
+				requestId: command.requestId,
+				encoded: encodeJianyingPortraitHostStrokeCommand(command),
+				timeoutMessage: "剪映手动美颜笔画处理超时",
 			});
 		},
 		dispose: async () => {

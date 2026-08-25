@@ -296,6 +296,14 @@ class FilterHostSession {
     // registration_ owns catalog activation: if createHost() throws, this
     // destructor never runs, but the member's does.
     createHost();
+    if (ready_ &&
+        featureParameters_.find("\"draft_path\"") != std::string::npos) {
+      const int result =
+          symbols_.setSegmentParams(feature_, featureParameters_.c_str());
+      featureParametersApplied_ = result == 0;
+      std::cout << "[filter] pre-frame manual cache params result = "
+                << result << '\n';
+    }
   }
 
   ~FilterHostSession() {
@@ -311,6 +319,23 @@ class FilterHostSession {
     }
     featureParameters_ = std::move(featureParameters);
     featureParametersApplied_ = false;
+  }
+
+  [[nodiscard]] bool setFeatureParametersNow(
+      std::string_view featureParameters) {
+    if (!ready_) {
+      return false;
+    }
+    openGlContext_.makeCurrent();
+    featureParameters_ = featureParameters;
+    const int parameterResult = symbols_.setSegmentParams(
+        feature_, featureParameters_.c_str());
+    featureParametersApplied_ = parameterResult == 0;
+    if (parameterResult != 0) {
+      std::cout << "[filter] immediate feature params result = "
+                << parameterResult << '\n';
+    }
+    return parameterResult == 0;
   }
 
   [[nodiscard]] bool render(const GraphicsFrameResources& resources,
@@ -717,6 +742,80 @@ struct FilterHostDetectCommand {
   fs::path inputPath;
 };
 
+struct FilterHostStrokeCommand {
+  std::string requestId;
+  double timestampSeconds;
+  fs::path inputPath;
+  fs::path outputPath;
+  std::string featureParameters;
+  std::vector<std::array<float, 2>> points;
+};
+
+[[nodiscard]] double parseHostTimestamp(const std::string& value) {
+  std::size_t parsedLength = 0;
+  const double timestampSeconds = std::stod(value, &parsedLength);
+  if (parsedLength != value.size() || !std::isfinite(timestampSeconds) ||
+      timestampSeconds < 0.0 ||
+      timestampSeconds * 1'000'000.0 >=
+          static_cast<double>(kTimelineDuration)) {
+    throw std::runtime_error("render timestamp is outside the host timeline");
+  }
+  return timestampSeconds;
+}
+
+[[nodiscard]] float parseNormalizedCoordinate(
+    const std::string& value, std::string_view label) {
+  std::size_t parsedLength = 0;
+  const float coordinate = std::stof(value, &parsedLength);
+  if (parsedLength != value.size() || !std::isfinite(coordinate) ||
+      coordinate < 0.0F || coordinate > 1.0F) {
+    throw std::runtime_error(std::string(label) +
+                             " must be between zero and one");
+  }
+  return coordinate;
+}
+
+[[nodiscard]] FilterHostStrokeCommand parseHostStrokeCommand(
+    const std::string& line) {
+  const std::vector<std::string> fields = splitHostFields(line);
+  if (fields.size() < 10 || fields[0] != "stroke" || fields[1].empty() ||
+      fields[2].empty() || fields[3].empty() || fields[4].empty() ||
+      fields[5].empty() || fields[5].size() > 64 * 1024 ||
+      (fields.size() - 6) % 2 != 0 || fields.size() > 1030) {
+    throw std::runtime_error(
+        "stroke command must contain frame, params and two to 512 x/y points");
+  }
+  std::vector<std::array<float, 2>> points;
+  points.reserve((fields.size() - 6) / 2);
+  for (std::size_t index = 6; index < fields.size(); index += 2) {
+    points.push_back({
+        parseNormalizedCoordinate(fields[index], "stroke x"),
+        parseNormalizedCoordinate(fields[index + 1], "stroke y"),
+    });
+  }
+  return {
+      .requestId = fields[1],
+      .timestampSeconds = parseHostTimestamp(fields[2]),
+      .inputPath = fields[3],
+      .outputPath = fields[4],
+      .featureParameters = fields[5],
+      .points = std::move(points),
+  };
+}
+
+[[nodiscard]] std::string touchFeatureParameters(
+    std::string_view key, const std::array<float, 2>& point) {
+  std::array<char, 256> payload{};
+  const int length = std::snprintf(
+      payload.data(), payload.size(),
+      "{\"%.*s\":\"{\\\"x\\\":%.9g,\\\"y\\\":%.9g}\"}",
+      static_cast<int>(key.size()), key.data(), point[0], point[1]);
+  if (length <= 0 || static_cast<std::size_t>(length) >= payload.size()) {
+    throw std::runtime_error("manual touch payload is too long");
+  }
+  return std::string(payload.data(), static_cast<std::size_t>(length));
+}
+
 [[nodiscard]] FilterHostDetectCommand parseHostDetectCommand(
     const std::string& line) {
   const std::vector<std::string> fields = splitHostFields(line);
@@ -976,6 +1075,53 @@ int runFilterHost(const FilterHostRequest& request) {
         std::cout << "QCUT\tRESULT\t" << requestId << "\t0\t"
                   << encodeFaceObservations(faces) << '\n'
                   << std::flush;
+        continue;
+      }
+      if (line.rfind("stroke\t", 0) == 0) {
+        const FilterHostStrokeCommand stroke = parseHostStrokeCommand(line);
+        requestId = stroke.requestId;
+        if (context.session == nullptr) {
+          throw std::runtime_error("manual stroke requires an initialized frame");
+        }
+        const std::vector<std::uint8_t> pixels =
+            readRgbaFrame(stroke.inputPath, frameBytes);
+        context.timestamp = static_cast<std::int64_t>(
+            std::llround(stroke.timestampSeconds * 1'000'000.0));
+        context.featureParameters = stroke.featureParameters;
+        if (!context.session->setFeatureParametersNow(
+                stroke.featureParameters)) {
+          throw std::runtime_error("manual stroke configuration failed");
+        }
+        const FilterFrameExecutionRequest execution = {
+            .graphics = graphics,
+            .context = context,
+            .sequenceRequest = frameOptions,
+            .pixels = pixels,
+            .frameBytes = frameBytes,
+            .outputPath = stroke.outputPath,
+            .label = requestId,
+        };
+        for (std::size_t index = 0; index < stroke.points.size(); index += 1) {
+          const std::string_view event =
+              index == 0
+                  ? "touch_begin"
+                  : (index + 1 == stroke.points.size() ? "touch_end"
+                                                       : "touch_move");
+          context.featureParameters =
+              touchFeatureParameters(event, stroke.points[index]);
+          if (!context.session->setFeatureParametersNow(
+                  context.featureParameters) ||
+              !renderAndWriteFilterFrame(execution)) {
+            throw std::runtime_error("manual stroke event failed");
+          }
+        }
+        context.featureParameters = stroke.featureParameters;
+        if (!context.session->setFeatureParametersNow(
+                stroke.featureParameters) ||
+            !renderAndWriteFilterFrame(execution)) {
+          throw std::runtime_error("manual stroke cache flush failed");
+        }
+        std::cout << "QCUT\tRESULT\t" << requestId << "\t0\n" << std::flush;
         continue;
       }
       const FilterHostFrameCommand command = parseHostFrameCommand(line);

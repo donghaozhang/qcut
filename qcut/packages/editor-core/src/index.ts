@@ -16,9 +16,11 @@
 // Types
 export {
 	DEFAULT_MEDIA_PORTRAIT_ADJUSTMENTS,
+	DEFAULT_MEDIA_PORTRAIT_MANUAL_BODY,
 	hasMediaPortraitAdjustments,
 	MEDIA_PORTRAIT_ADJUSTMENT_KEYS,
 	MEDIA_PORTRAIT_MAKEUP_CATEGORIES,
+	MEDIA_PORTRAIT_MANUAL_RETOUCH_TOOLS,
 	normalizeMediaPortraitAdjustments,
 } from "./portrait-adjustments.js";
 export type {
@@ -28,6 +30,17 @@ export type {
 	MediaPortraitFaceTarget,
 	MediaPortraitMakeupCategory,
 	MediaPortraitMakeupSelection,
+	MediaPortraitPersonBindingAnchor,
+	MediaPortraitManualBody,
+	MediaPortraitManualBodySlim,
+	MediaPortraitManualBodyStretch,
+	MediaPortraitManualBodyTool,
+	MediaPortraitManualBodyZoom,
+	MediaPortraitManualRetouch,
+	MediaPortraitManualRetouchMode,
+	MediaPortraitManualRetouchPoint,
+	MediaPortraitManualRetouchStroke,
+	MediaPortraitManualRetouchTool,
 } from "./portrait-adjustments.js";
 
 export type {
