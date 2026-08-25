@@ -10,6 +10,7 @@ import { useAdjustmentStore } from "@/stores/ai/adjustment-store";
 import { useText2ImageStore } from "@/stores/ai/text2image-store";
 import { useMediaPanelStore } from "../../store";
 import { useTranslation } from "@/lib/i18n";
+import { assertRestrictedMediaExportAllowed } from "../../../../../../../../electron/types/restricted-media-export-policy";
 
 interface UseMediaActionsParams {
 	mediaItems: MediaItem[];
@@ -27,6 +28,26 @@ interface UseMediaActionsParams {
 	mediaStoreHasInitialized: boolean | undefined;
 	selectedIds: Set<string>;
 	setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
+}
+
+export function downloadSelectedMediaItems({
+	items,
+}: {
+	items: readonly MediaItem[];
+}): void {
+	assertRestrictedMediaExportAllowed({
+		mediaItems: items,
+		operation: "raw-media-download",
+		scope: "all-media",
+	});
+	for (const item of items) {
+		const url = item.url || item.thumbnailUrl;
+		if (!url) continue;
+		const link = document.createElement("a");
+		link.href = url;
+		link.download = item.name;
+		link.click();
+	}
 }
 
 /**
@@ -231,18 +252,15 @@ export function useMediaActions({
 	const handleDownloadSelected = useCallback(async () => {
 		const items = mediaItems.filter((m) => selectedIds.has(m.id));
 		try {
-			for (const item of items) {
-				const url = item.url || item.thumbnailUrl;
-				if (!url) continue;
-				const a = document.createElement("a");
-				a.href = url;
-				a.download = item.name;
-				a.click();
-			}
+			downloadSelectedMediaItems({ items });
 			toast.success(`Downloading ${items.length} item(s)`);
 		} catch (error) {
 			debugError("[MediaActions] Download failed:", error);
-			toast.error("Failed to download selected items");
+			toast.error(
+				error instanceof Error
+					? error.message
+					: "Failed to download selected items"
+			);
 		}
 	}, [selectedIds, mediaItems]);
 
