@@ -157,6 +157,7 @@ async function portraitAdjustedSource({
 	width,
 	height,
 	adjustments,
+	frameNumber,
 	sourceKey,
 	timestampSeconds,
 }: {
@@ -164,6 +165,7 @@ async function portraitAdjustedSource({
 	width: number;
 	height: number;
 	adjustments?: MediaPortraitAdjustments;
+	frameNumber?: number;
 	sourceKey?: string;
 	timestampSeconds?: number;
 }): Promise<CanvasImageSource> {
@@ -187,6 +189,7 @@ async function portraitAdjustedSource({
 	const rendered = await renderJianyingPortraitAdjustmentPreview({
 		source: sourceData,
 		adjustments,
+		frameNumber,
 		sourceKey,
 		timestampSeconds,
 	});
@@ -229,6 +232,7 @@ export async function drawColorGradedSourceWithMasks({
 		width: pixelWidth,
 		height: pixelHeight,
 		adjustments: portraitAdjustments,
+		frameNumber: frameSeed,
 		sourceKey,
 		timestampSeconds,
 	});
@@ -499,6 +503,7 @@ export async function drawColorGradedSourceStack({
 		width: pixelWidth,
 		height: pixelHeight,
 		adjustments: portraitAdjustments,
+		frameNumber: frameSeed,
 		sourceKey,
 		timestampSeconds,
 	});
