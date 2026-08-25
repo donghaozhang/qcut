@@ -16,11 +16,20 @@ export const PORTRAIT_PRESETS_CHANGED_EVENT = "qcut:portrait-presets-changed";
 
 export type PortraitPresetScope = "face" | "body";
 
+/** Preset payload version, so an import can reject a shape it cannot read. */
+export const PORTRAIT_PRESET_EXPORT_VERSION = 1;
+
 export interface SavedPortraitPreset {
 	id: string;
 	name: string;
 	scope: PortraitPresetScope;
 	createdAt: string;
+	/**
+	 * Small data-URL preview of the frame the preset was saved from. Optional
+	 * because presets saved before thumbnails, or saved with no preview
+	 * available, must keep working.
+	 */
+	thumbnailDataUrl?: string;
 	values: Partial<Record<MediaPortraitAdjustmentKey, number>>;
 	faceTarget?: MediaPortraitFaceTarget;
 	makeup?: Partial<
@@ -84,6 +93,9 @@ export function parsePortraitPreset({
 		name: candidate.name,
 		createdAt: candidate.createdAt,
 		scope: candidate.scope,
+		...(isPortraitPresetThumbnail(candidate.thumbnailDataUrl)
+			? { thumbnailDataUrl: candidate.thumbnailDataUrl }
+			: {}),
 		values: valuesForScope({
 			scope: candidate.scope,
 			values: candidate.values,
@@ -125,10 +137,12 @@ export function createPortraitPreset({
 	adjustments,
 	name,
 	scope,
+	thumbnailDataUrl,
 }: {
 	adjustments: MediaPortraitAdjustments;
 	name?: string;
 	scope: PortraitPresetScope;
+	thumbnailDataUrl?: string;
 }): SavedPortraitPreset {
 	const createdAt = new Date().toISOString();
 	return {
@@ -138,6 +152,9 @@ export function createPortraitPreset({
 			`${scope === "face" ? "美颜" : "美体"}预设 ${new Date(createdAt).toLocaleString()}`,
 		scope,
 		createdAt,
+		...(isPortraitPresetThumbnail(thumbnailDataUrl)
+			? { thumbnailDataUrl }
+			: {}),
 		values: valuesForScope({ scope, values: adjustments.values }),
 		...(scope === "face" && adjustments.faceTarget
 			? { faceTarget: adjustments.faceTarget }
@@ -185,4 +202,126 @@ export function applyPortraitPreset({
 		};
 	}
 	return { ...adjustments, enabled: true, values: mergedValues };
+}
+
+/**
+ * Thumbnails are stored inline, so an untrusted value is bounded on both shape
+ * and size — a preset file must not be able to smuggle in a huge or non-image
+ * payload that later lands in an `img` tag.
+ */
+const MAXIMUM_THUMBNAIL_LENGTH = 64_000;
+
+export function isPortraitPresetThumbnail(value: unknown): value is string {
+	return (
+		typeof value === "string" &&
+		value.length <= MAXIMUM_THUMBNAIL_LENGTH &&
+		/^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/=]+$/.test(value)
+	);
+}
+
+export function renamePortraitPreset({
+	presets,
+	id,
+	name,
+}: {
+	presets: SavedPortraitPreset[];
+	id: string;
+	name: string;
+}): SavedPortraitPreset[] {
+	const trimmed = name.trim();
+	if (!trimmed) return presets;
+	return presets.map((preset) =>
+		preset.id === id ? { ...preset, name: trimmed } : preset
+	);
+}
+
+/**
+ * Replaces a preset's captured values in place, keeping its id and name so a
+ * preset the user already applied elsewhere stays the same preset.
+ */
+export function overwritePortraitPreset({
+	presets,
+	id,
+	adjustments,
+	thumbnailDataUrl,
+}: {
+	presets: SavedPortraitPreset[];
+	id: string;
+	adjustments: MediaPortraitAdjustments;
+	thumbnailDataUrl?: string;
+}): SavedPortraitPreset[] {
+	return presets.map((preset) => {
+		if (preset.id !== id) return preset;
+		const replacement = createPortraitPreset({
+			adjustments,
+			name: preset.name,
+			scope: preset.scope,
+			...(thumbnailDataUrl ? { thumbnailDataUrl } : {}),
+		});
+		return {
+			...replacement,
+			id: preset.id,
+			createdAt: preset.createdAt,
+			...(replacement.thumbnailDataUrl
+				? { thumbnailDataUrl: replacement.thumbnailDataUrl }
+				: preset.thumbnailDataUrl
+					? { thumbnailDataUrl: preset.thumbnailDataUrl }
+					: {}),
+		};
+	});
+}
+
+export interface PortraitPresetExport {
+	kind: "qcut-portrait-presets";
+	version: number;
+	presets: SavedPortraitPreset[];
+}
+
+export function serializePortraitPresets({
+	presets,
+}: {
+	presets: SavedPortraitPreset[];
+}): string {
+	return JSON.stringify(
+		{
+			kind: "qcut-portrait-presets",
+			version: PORTRAIT_PRESET_EXPORT_VERSION,
+			presets,
+		} satisfies PortraitPresetExport,
+		null,
+		2
+	);
+}
+
+/**
+ * Reads an exported preset file. Every entry goes through the same parser the
+ * stored presets use, so an imported file can never widen what a preset may
+ * contain. Ids are regenerated to avoid colliding with existing presets.
+ */
+export function parsePortraitPresetExport({
+	value,
+}: {
+	value: unknown;
+}): SavedPortraitPreset[] {
+	if (typeof value !== "object" || value === null) {
+		throw new Error("预设文件格式无效");
+	}
+	const candidate = value as Partial<PortraitPresetExport>;
+	if (candidate.kind !== "qcut-portrait-presets") {
+		throw new Error("这不是 QCut 美颜预设文件");
+	}
+	if (candidate.version !== PORTRAIT_PRESET_EXPORT_VERSION) {
+		throw new Error("预设文件版本不受支持");
+	}
+	if (!Array.isArray(candidate.presets)) {
+		throw new Error("预设文件缺少预设列表");
+	}
+	const imported = candidate.presets
+		.map((entry) => parsePortraitPreset({ value: entry }))
+		.filter((preset): preset is SavedPortraitPreset => preset !== null)
+		.map((preset) => ({ ...preset, id: `portrait-preset-${generateUUID()}` }));
+	if (imported.length === 0) {
+		throw new Error("预设文件里没有可用的预设");
+	}
+	return imported;
 }
