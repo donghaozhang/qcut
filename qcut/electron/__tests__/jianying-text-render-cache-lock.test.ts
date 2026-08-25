@@ -78,6 +78,7 @@ describe("Jianying text render cache lock", () => {
 			},
 		});
 		let second: Promise<void> | undefined;
+		let settlements: PromiseSettledResult<unknown>[] = [];
 		try {
 			// Wait for the real critical-section entry rather than guessing with a
 			// wall clock: acquiring does open + write + fsync + fstat, which costs
@@ -98,8 +99,15 @@ describe("Jianying text render cache lock", () => {
 			// failed assertion leaves the second writer retrying open() against a
 			// deleted directory, which surfaces as an unrelated ENOENT.
 			releaseFirst?.();
-			await Promise.allSettled([first, second]);
+			settlements = await Promise.allSettled([first, second]);
 		}
+		// A writer that failed after its task ran (e.g. releasing the lock) must
+		// fail the test too; surfacing the reasons keeps the failure debuggable.
+		expect(
+			settlements.flatMap((entry) =>
+				entry.status === "rejected" ? [entry.reason] : []
+			)
+		).toEqual([]);
 		expect(events).toEqual(["first:start", "first:end", "second:start"]);
 	});
 
@@ -187,6 +195,7 @@ describe("Jianying text render cache lock", () => {
 			},
 		});
 		let second: Promise<void> | undefined;
+		let settlements: PromiseSettledResult<unknown>[] = [];
 		try {
 			await Promise.race([firstIsRunning, first]);
 			await delay(1_200);
@@ -204,8 +213,13 @@ describe("Jianying text render cache lock", () => {
 			// failed assertion leaves the waiter retrying open() on a deleted
 			// directory, which surfaces as an unrelated ENOENT.
 			releaseFirst?.();
-			await Promise.allSettled([first, second]);
+			settlements = await Promise.allSettled([first, second]);
 		}
+		expect(
+			settlements.flatMap((entry) =>
+				entry.status === "rejected" ? [entry.reason] : []
+			)
+		).toEqual([]);
 		expect(events).toEqual(["first:start", "first:end", "second:start"]);
 	});
 
