@@ -435,10 +435,15 @@ describe("Claude HTTP Server - Timeline", () => {
 		);
 	});
 
-	it("PATCH /api/claude/timeline/:projectId/elements/:elementId forwards flat changes", async () => {
+	it("PATCH /api/claude/timeline/:projectId/elements/:elementId waits for renderer acknowledgement", async () => {
 		const send = vi.fn();
 		const mockWindow = createMockWindow(send);
 		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
+		vi.mocked(timelineHandler.batchUpdateElements).mockResolvedValueOnce({
+			updatedCount: 1,
+			failedCount: 0,
+			results: [{ index: 0, success: true }],
+		});
 		const changes = {
 			x: 120,
 			y: 240,
@@ -457,12 +462,34 @@ describe("Claude HTTP Server - Timeline", () => {
 
 		expect(res.status).toBe(200);
 		expect(res.body.success).toBe(true);
-		expect(send).toHaveBeenCalledWith("claude:timeline:updateElement", {
-			correlationId: expect.any(String),
-			elementId: "element_1",
-			changes,
+		expect(res.body.data).toEqual({ updated: true });
+		expect(timelineHandler.batchUpdateElements).toHaveBeenCalledWith(
+			mockWindow,
+			[{ ...changes, elementId: "element_1" }],
+			expect.any(String)
+		);
+		expect(send).not.toHaveBeenCalledWith(
+			"claude:timeline:updateElement",
+			expect.anything()
+		);
+	});
+
+	it("PATCH /api/claude/timeline/:projectId/elements/:elementId returns renderer rejection", async () => {
+		const mockWindow = createMockWindow();
+		vi.mocked(BrowserWindow.getAllWindows).mockReturnValue([mockWindow]);
+		vi.mocked(timelineHandler.batchUpdateElements).mockResolvedValueOnce({
+			updatedCount: 0,
+			failedCount: 1,
+			results: [{ index: 0, success: false, error: "Element not found" }],
 		});
-		expect(send.mock.calls[0]?.[1].changes).not.toHaveProperty("changes");
+
+		const res = await fetch("/api/claude/timeline/proj_123/elements/missing", {
+			method: "PATCH",
+			body: JSON.stringify({ opacity: 0.5 }),
+		});
+
+		expect(res.status).toBe(409);
+		expect(res.body.error).toContain("Element not found");
 	});
 
 	it("POST /api/claude/timeline/:projectId/elements waits for a correlated renderer ACK", async () => {
