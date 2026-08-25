@@ -16,12 +16,10 @@ struct FaceObservationRecord {
 	float yaw = 0.0F;
 	float pitch = 0.0F;
 	float roll = 0.0F;
-	/**
-	 * The runtime's face id. Package Lua matches parameter-vector entries by
-	 * the freid trackid derived from this id, so it is the identity the
-	 * product binds per-face adjustments to.
-	 */
-	std::int32_t id = 0;
+	/** Base detector id from face_0; it can change after a short occlusion. */
+	std::int32_t faceId = 0;
+	/** Session-local person track id from freid_0. */
+	std::int32_t freidTrackId = -1;
 	std::int32_t trackingCount = 0;
 	std::size_t landmarkCount = 0;
 };
