@@ -70,6 +70,12 @@ export function rebindPortraitAdjustments({
 	return changed ? { ...adjustments, faces: rebound } : adjustments;
 }
 
+/**
+ * Finds the scope's entry, preferring the stable person binding and falling
+ * back to a legacy trackId-only entry so pre-binding projects surface their
+ * saved values. applyPortraitAdjustments rewrites the matched entry with the
+ * scope's binding, which completes the legacy migration on the next edit.
+ */
 export function portraitFaceEntry({
 	adjustments,
 	personBindingId,
@@ -79,10 +85,16 @@ export function portraitFaceEntry({
 	personBindingId: string;
 	trackId: number;
 }): MediaPortraitFaceAdjustments | undefined {
-	return adjustments.faces?.find((face) =>
-		personBindingId
-			? face.personBindingId === personBindingId
-			: !face.personBindingId && face.trackId === trackId
+	const faces = adjustments.faces;
+	if (!faces) return undefined;
+	if (personBindingId) {
+		const bound = faces.find(
+			(face) => face.personBindingId === personBindingId
+		);
+		if (bound) return bound;
+	}
+	return faces.find(
+		(face) => !face.personBindingId && face.trackId === trackId
 	);
 }
 
