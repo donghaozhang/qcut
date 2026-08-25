@@ -1,11 +1,19 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { StickerRuntimeDescriptor } from "@qcut/editor-core/sticker-lab";
+import type { MediaItem } from "@/stores/media/media-store-types";
+import type { TimelineTrack } from "@/types/timeline";
 import type { ExportSettingsWithAudio } from "@/types/export";
 import { ExportFormat, ExportQuality } from "@/types/export";
+
+const platformMocks = vi.hoisted(() => ({
+	exportVideoCLI: vi.fn(),
+	overlayMediaIds: [] as string[],
+}));
 
 vi.mock("@qcut/platform-core", () => ({
 	platform: () => ({
 		ffmpeg: {
-			exportVideoCLI: vi.fn(),
+			exportVideoCLI: platformMocks.exportVideoCLI,
 		},
 	}),
 }));
@@ -13,6 +21,18 @@ vi.mock("@qcut/platform-core", () => ({
 vi.mock("@/lib/ffmpeg/ffmpeg-video-recorder", () => ({
 	FFmpegVideoRecorder: class {},
 	isFFmpegExportEnabled: () => false,
+}));
+
+vi.mock("@/stores/stickers-overlay-store", () => ({
+	useStickersOverlayStore: {
+		getState: () => ({
+			getStickersForExport: () =>
+				platformMocks.overlayMediaIds.map((mediaItemId, index) => ({
+					id: `overlay-${index}`,
+					mediaItemId,
+				})),
+		}),
+	},
 }));
 
 import { CLIExportEngine } from "../export-engine-cli";
@@ -54,6 +74,11 @@ function createSettings(): ExportSettingsWithAudio {
 }
 
 describe("CLIExportEngine lifecycle", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		platformMocks.overlayMediaIds = [];
+	});
+
 	it("keeps cancellation live, rejects re-entry, and resets state after settling", async () => {
 		const engine = new InspectableCLIExportEngine(
 			createCanvas(),
@@ -98,5 +123,103 @@ describe("CLIExportEngine lifecycle", () => {
 		});
 		await expect(engine.export()).resolves.toBeInstanceOf(Blob);
 		expect(engine.lifecycle.isExporting).toBe(false);
+	});
+
+	it("rejects sticker runtime before invoking native FFmpeg", async () => {
+		const stickerRuntime: StickerRuntimeDescriptor = {
+			kind: "png-sequence",
+			completion: "freeze-last",
+			cycleDurationSeconds: 1,
+			frames: [
+				{
+					durationSeconds: 1,
+					source: "frame-1.png",
+					startSeconds: 0,
+				},
+			],
+			repeat: { kind: "infinite" },
+		};
+		const tracks: TimelineTrack[] = [
+			{
+				id: "runtime-track",
+				name: "Runtime stickers",
+				type: "sticker",
+				elements: [
+					{
+						duration: 1,
+						id: "runtime-sticker",
+						mediaId: "runtime-media",
+						name: "Runtime sticker",
+						startTime: 0,
+						stickerId: "runtime-sticker",
+						stickerRuntime,
+						trimEnd: 0,
+						trimStart: 0,
+						type: "sticker",
+					},
+				],
+			},
+		];
+		const mediaItems: MediaItem[] = [
+			{
+				file: new File([], "runtime.png", { type: "image/png" }),
+				id: "runtime-media",
+				name: "runtime.png",
+				type: "image",
+			},
+		];
+		const engine = new CLIExportEngine(
+			createCanvas(),
+			createSettings(),
+			tracks,
+			mediaItems,
+			1
+		);
+
+		await expect(engine.export()).rejects.toMatchObject({
+			code: "QCUT_STICKER_RUNTIME_EXPORT_UNSUPPORTED",
+			reason: "native-engine",
+		});
+		expect(platformMocks.exportVideoCLI).not.toHaveBeenCalled();
+	});
+
+	it("rejects overlay-only runtime before invoking native FFmpeg", async () => {
+		platformMocks.overlayMediaIds = ["runtime-overlay-media"];
+		const mediaItems: MediaItem[] = [
+			{
+				file: new File([], "runtime-overlay.gif", { type: "image/gif" }),
+				id: "runtime-overlay-media",
+				metadata: {
+					stickerRuntime: {
+						kind: "png-sequence",
+						completion: "freeze-last",
+						cycleDurationSeconds: 1,
+						frames: [
+							{
+								durationSeconds: 1,
+								source: "frame-1.png",
+								startSeconds: 0,
+							},
+						],
+						repeat: { kind: "infinite" },
+					},
+				},
+				name: "runtime-overlay.gif",
+				type: "image",
+			},
+		];
+		const engine = new CLIExportEngine(
+			createCanvas(),
+			createSettings(),
+			[],
+			mediaItems,
+			1
+		);
+
+		await expect(engine.export()).rejects.toMatchObject({
+			code: "QCUT_STICKER_RUNTIME_EXPORT_UNSUPPORTED",
+			reason: "native-engine",
+		});
+		expect(platformMocks.exportVideoCLI).not.toHaveBeenCalled();
 	});
 });
