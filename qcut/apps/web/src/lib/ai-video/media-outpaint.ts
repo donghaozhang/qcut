@@ -1,4 +1,5 @@
 import { platform } from "@qcut/platform-core";
+import { assertRestrictedMediaExportAllowed } from "../../../../../electron/types/restricted-media-export-policy";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { MediaElement } from "@/types/timeline";
 
@@ -43,6 +44,18 @@ type OutpaintFFmpegAPI = Pick<
 	ReturnType<typeof platform>["ffmpeg"],
 	"createExportSession" | "exportVideoCLI" | "cleanupExportSession"
 >;
+
+function assertMediaOutpaintExportAllowed({
+	mediaItem,
+}: {
+	mediaItem: MediaItem;
+}): void {
+	assertRestrictedMediaExportAllowed({
+		mediaItems: [mediaItem],
+		operation: "media-outpaint",
+		scope: "all-media",
+	});
+}
 
 export function getMediaOutpaintSourceRange({
 	element,
@@ -176,6 +189,7 @@ export async function ensureMediaOutpaintLocalSource({
 }: {
 	mediaItem: MediaItem;
 }): Promise<string> {
+	assertMediaOutpaintExportAllowed({ mediaItem });
 	if (mediaItem.localPath) return mediaItem.localPath;
 	const fileData = new Uint8Array(await mediaItem.file.arrayBuffer());
 	const localPath = await platform().video.saveTemp(
@@ -199,6 +213,7 @@ export async function prepareMediaOutpaintSource({
 	fps: number;
 	ffmpeg?: OutpaintFFmpegAPI;
 }): Promise<PreparedMediaOutpaintSource> {
+	assertMediaOutpaintExportAllowed({ mediaItem });
 	const api = ffmpeg ?? platform().ffmpeg;
 	const range = getMediaOutpaintSourceRange({ element });
 	const session = await api.createExportSession();
