@@ -30,6 +30,12 @@ export type JianyingPortraitAdjustmentRuntimePackage =
 	| "spot-acne"
 	| "teeth"
 	| "makeup"
+	| "manual-smooth"
+	| "manual-acne"
+	| "manual-deformation"
+	| "manual-stretch"
+	| "manual-slim"
+	| "manual-zoom"
 	| "body";
 
 export type MediaPortraitAdjustmentKey =
@@ -135,18 +141,67 @@ export interface MediaPortraitFaceTarget {
 	faceId?: number;
 }
 
-/** One person's adjustment set, identified by the native freid track id. */
+export interface MediaPortraitPersonBindingAnchor {
+	rect: { x: number; y: number; width: number; height: number };
+	frameNumber?: number;
+}
+
+/** One person's project-level adjustment set. */
 export interface MediaPortraitFaceAdjustments {
 	/**
-	 * freid trackid reported by the native runtime. Non-negative safe integer,
-	 * deliberately not capped at 9 — the id space is the tracker's, not the
-	 * legacy ordinal faceTarget's. faceTarget keeps its own 0..9 meaning.
+	 * Last confirmed freid trackid. It is valid only in the current tracking
+	 * session and is never the persisted person identity by itself.
 	 */
 	trackId: number;
+	personBindingId?: string;
+	bindingAnchor?: MediaPortraitPersonBindingAnchor;
 	values: Partial<Record<MediaPortraitAdjustmentKey, number>>;
 	makeup?: Partial<
 		Record<MediaPortraitMakeupCategory, MediaPortraitMakeupSelection>
 	>;
+}
+
+export type MediaPortraitManualRetouchTool = "smooth" | "acne";
+export type MediaPortraitManualRetouchMode = "paint" | "erase";
+
+export interface MediaPortraitManualRetouchStroke {
+	id: string;
+	tool: MediaPortraitManualRetouchTool;
+	mode: MediaPortraitManualRetouchMode;
+	size: number;
+	intensity: number;
+	points: { x: number; y: number }[];
+	faceTrackId?: number;
+}
+
+export type MediaPortraitManualBodyTool = "stretch" | "slim" | "zoom";
+
+export interface MediaPortraitManualBodyStretch {
+	intensity: number;
+	upper: number;
+	bottom: number;
+}
+
+export interface MediaPortraitManualBodySlim {
+	intensity: number;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	rotation: number;
+}
+
+export interface MediaPortraitManualBodyZoom {
+	intensity: number;
+	x: number;
+	y: number;
+	radius: number;
+}
+
+export interface MediaPortraitManualBody {
+	stretch?: MediaPortraitManualBodyStretch;
+	slim?: MediaPortraitManualBodySlim;
+	zoom?: MediaPortraitManualBodyZoom;
 }
 
 export interface MediaPortraitAdjustments {
@@ -163,6 +218,8 @@ export interface MediaPortraitAdjustments {
 	 * ascending, and capped at the native 10-face tracking limit.
 	 */
 	faces?: MediaPortraitFaceAdjustments[];
+	manualRetouch?: { strokes: MediaPortraitManualRetouchStroke[] };
+	manualBody?: MediaPortraitManualBody;
 }
 
 export interface JianyingPortraitAdjustmentControl {
@@ -226,6 +283,7 @@ export interface JianyingPortraitAdjustmentRenderRequest {
 	rgba: Uint8Array;
 	adjustments: MediaPortraitAdjustments;
 	sourceKey?: string;
+	frameNumber?: number;
 	timestampSeconds?: number;
 }
 
@@ -243,10 +301,16 @@ export const JIANYING_PORTRAIT_ADJUSTMENT_DETECT_CHANNEL =
 /** One face the native runtime is currently tracking on a frame. */
 export interface JianyingPortraitDetectedFace {
 	/**
-	 * Native track id. This is the identity per-face adjustments bind to:
-	 * `MediaPortraitFaceAdjustments.trackId` carries the same value.
+	 * Compatibility alias for `freidTrackId`. It is never the base face id.
 	 */
 	trackId: number;
+	/** Base face_0 detector id; useful only to join one frame's algorithm data. */
+	faceId: number;
+	/** Session-local freid_0 identity used by native parameter vectors. */
+	freidTrackId: number;
+	/** Project identity assigned after confidence-gated geometry matching. */
+	personBindingId: string;
+	bindingStatus: "matched" | "new";
 	/** Centre-independent box in 0..1 of the frame: x, y, width, height. */
 	rect: { x: number; y: number; width: number; height: number };
 	score: number;
@@ -262,6 +326,13 @@ export interface JianyingPortraitAdjustmentDetectRequest {
 	width: number;
 	height: number;
 	rgba: Uint8Array;
+	/** Same preview source identity used by render requests when available. */
+	sourceKey?: string;
+	frameNumber?: number;
+	personBindings?: {
+		personBindingId: string;
+		anchor: MediaPortraitPersonBindingAnchor;
+	}[];
 }
 
 export interface JianyingPortraitAdjustmentDetectResult {
@@ -272,6 +343,8 @@ export interface JianyingPortraitAdjustmentDetectResult {
 	 * rather than silently ignoring selections beyond the cap.
 	 */
 	appliedFaceLimit: number;
+	/** Existing project identities that could not be bound without ambiguity. */
+	unmatchedPersonBindingIds: string[];
 }
 
 export interface JianyingPortraitAdjustmentAPI {
