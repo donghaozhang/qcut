@@ -105,6 +105,16 @@ export const applyElementChanges = ({
 					}
 				: null;
 
+		if (
+			element.type === "media" &&
+			changes.portraitAdjustments !== undefined &&
+			(typeof changes.portraitAdjustments !== "object" ||
+				changes.portraitAdjustments === null ||
+				Array.isArray(changes.portraitAdjustments))
+		) {
+			throw new Error("portraitAdjustments must be an object");
+		}
+
 		if (pushHistory) {
 			timelineStore.pushHistory();
 		}
@@ -214,13 +224,6 @@ export const applyElementChanges = ({
 				mediaUpdates.volume = changes.style.volume;
 			}
 			if (changes.portraitAdjustments !== undefined) {
-				if (
-					typeof changes.portraitAdjustments !== "object" ||
-					changes.portraitAdjustments === null ||
-					Array.isArray(changes.portraitAdjustments)
-				) {
-					throw new Error("portraitAdjustments must be an object");
-				}
 				mediaUpdates.portraitAdjustments = normalizeMediaPortraitAdjustments({
 					adjustments:
 						changes.portraitAdjustments as Partial<MediaPortraitAdjustments>,
