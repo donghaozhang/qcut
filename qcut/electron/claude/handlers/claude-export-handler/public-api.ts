@@ -42,6 +42,8 @@ import {
 } from "./export-engine.js";
 import { collectJianyingTextOverlays } from "./jianying-text-overlay.js";
 import { collectTextOverlays } from "./text-overlay.js";
+import { assertRestrictedMediaExportAllowed } from "../../../types/restricted-media-export-policy.js";
+import { assertNativeStickerRuntimeExportAllowed } from "../../../types/sticker-runtime-export-policy.js";
 
 function isTimelineEmpty({ timeline }: { timeline: ClaudeTimeline }): boolean {
 	try {
@@ -145,6 +147,17 @@ export async function startExportJob({
 	mediaFiles: MediaFile[];
 }): Promise<{ jobId: string; status: ExportJobStatus["status"] }> {
 	try {
+		assertRestrictedMediaExportAllowed({
+			mediaItems: mediaFiles,
+			operation: "video",
+			scope: "timeline",
+			tracks: timeline.tracks,
+		});
+		assertNativeStickerRuntimeExportAllowed({
+			mediaItems: mediaFiles,
+			operation: "Claude native video export",
+			tracks: timeline.tracks,
+		});
 		if (isTimelineEmpty({ timeline })) {
 			throw new Error("Cannot export an empty timeline");
 		}
@@ -157,10 +170,12 @@ export async function startExportJob({
 		}
 
 		const settings = resolveExportSettings({ request });
+		const resolvedMediaFiles: MediaFile[] = [];
 		const segments = await collectExportSegments({
 			timeline,
 			mediaFiles,
 			projectId,
+			resolvedMediaFiles,
 		});
 
 		if (segments.length === 0) {
@@ -181,6 +196,7 @@ export async function startExportJob({
 			timeline,
 			mediaFiles,
 			projectId,
+			resolvedMediaFiles,
 			settings,
 		});
 		if (stickerOverlays.length > 0) {
@@ -207,6 +223,14 @@ export async function startExportJob({
 			timeline,
 			mediaFiles,
 			projectId,
+			resolvedMediaFiles,
+		});
+		assertRestrictedMediaExportAllowed({
+			additionalMediaIds: resolvedMediaFiles.map((mediaFile) => mediaFile.id),
+			mediaItems: resolvedMediaFiles,
+			operation: "video",
+			scope: "timeline",
+			tracks: timeline.tracks,
 		});
 		if (audioFiles.length > 0) {
 			claudeLog.info(
