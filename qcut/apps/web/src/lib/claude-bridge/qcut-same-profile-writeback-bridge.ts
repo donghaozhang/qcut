@@ -17,8 +17,12 @@ import {
 	type QCutSameProfileWritebackRequest,
 	type QCutSameProfileWritebackResult,
 } from "../../../../../electron/types/qcut-same-profile-writeback-api";
+import { assertRestrictedMediaExportAllowed } from "../../../../../electron/types/restricted-media-export-policy";
 
 interface QCutSameProfileWritebackStorage {
+	loadAllMediaExportPolicyRecords: (
+		projectId: string
+	) => Promise<ReadonlyArray<{ id: string; metadata?: unknown }>>;
 	loadProject: ({ id }: { id: string }) => Promise<TProject | null>;
 	loadTimeline: ({
 		projectId,
@@ -248,6 +252,15 @@ export async function executePersistedQCutSameProfileWriteback({
 				reason: "timeline-not-found",
 			});
 		}
+		const mediaItems = await storage.loadAllMediaExportPolicyRecords(
+			project.id
+		);
+		assertRestrictedMediaExportAllowed({
+			mediaItems,
+			operation: "same-profile-writeback",
+			scope: "all-media",
+			tracks,
+		});
 		const snapshot = createCapCut81WritebackTimingSnapshot({
 			fps: project.fps ?? 30,
 			tracks,
@@ -265,6 +278,14 @@ export async function executePersistedQCutSameProfileWriteback({
 						sceneId: currentProject.currentSceneId,
 					});
 					if (currentTracks === null) return false;
+					const currentMediaItems =
+						await storage.loadAllMediaExportPolicyRecords(currentProject.id);
+					assertRestrictedMediaExportAllowed({
+						mediaItems: currentMediaItems,
+						operation: "same-profile-writeback",
+						scope: "all-media",
+						tracks: currentTracks,
+					});
 					return isCapCutWritebackSnapshotCurrent({
 						capturedProject,
 						capturedSnapshot,
