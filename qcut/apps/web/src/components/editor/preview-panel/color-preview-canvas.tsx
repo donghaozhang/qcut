@@ -10,6 +10,8 @@ import {
 	type BrowserColorGradeLayer,
 } from "@/lib/color/browser-color-rendering";
 import { subscribeColorDegradation } from "@/lib/color/color-degradation";
+import { colorPreviewCanvasSize } from "@/lib/color/color-preview-resolution";
+import { portraitPreviewSourceKey } from "@/lib/portrait/portrait-preview-source-key";
 import { cn } from "@/lib/utils";
 import { useColorPickerStore } from "@/stores/editor/color-picker-store";
 import { useColorPreviewStore } from "@/stores/editor/color-preview-store";
@@ -151,7 +153,7 @@ export function ColorPreviewCanvas({
 		};
 	}, [colorPickerActive, samplePreviewColor]);
 	useEffect(() => {
-		return subscribeColorDegradation(({ reason }) => {
+		return subscribeColorDegradation(({ detail, reason }) => {
 			const localPortraitFallback =
 				reason === "jianying-local-portrait-fallback";
 			const localEffectFallback = reason === "jianying-local-effect-fallback";
@@ -166,6 +168,7 @@ export function ColorPreviewCanvas({
 							? "本机剪映滤镜运行时不可用，已使用结构近似效果"
 							: "调色预览已降级为近似效果（画面源受跨域限制）",
 				{
+					description: detail,
 					id: portraitAdjustmentFallback
 						? "jianying-portrait-adjustment-fallback"
 						: localPortraitFallback
@@ -186,20 +189,30 @@ export function ColorPreviewCanvas({
 		);
 		if (!source) return;
 		const sourceLocation = source.currentSrc || source.src || sourceSelector;
-		const sourceKey = `preview:${sourceSelector}:${sourceLocation}`.slice(
-			0,
-			512
-		);
+		const elementId = parent.closest<HTMLElement>("[data-preview-element-id]")
+			?.dataset.previewElementId;
+		const sourceKey = portraitPreviewSourceKey({
+			elementId,
+			mediaId: source.dataset.colorSourceKey,
+			sourceSessionId: parent.closest<HTMLElement>(
+				"[data-portrait-source-session]"
+			)?.dataset.portraitSourceSession,
+			sourceLocation,
+			sourceSelector,
+		});
 		let cancelled = false;
 		let animationFrame = 0;
 		let lastVideoTime = -1;
 		let drawing = false;
 		const resize = () => {
-			const width = Math.max(1, parent.clientWidth);
-			const height = Math.max(1, parent.clientHeight);
-			const scale = Math.min(1, 480 / width);
-			canvas.width = Math.max(1, Math.round(width * scale));
-			canvas.height = Math.max(1, Math.round(height * scale));
+			const size = colorPreviewCanvasSize({
+				width: parent.clientWidth,
+				height: parent.clientHeight,
+			});
+			const width = Math.max(1, size.width);
+			const height = Math.max(1, size.height);
+			if (canvas.width !== width) canvas.width = width;
+			if (canvas.height !== height) canvas.height = height;
 		};
 		const draw = async () => {
 			if (drawing || cancelled || canvas.width <= 0 || canvas.height <= 0)
@@ -213,11 +226,17 @@ export function ColorPreviewCanvas({
 				const fitted = document.createElement("canvas");
 				fitted.width = canvas.width;
 				fitted.height = canvas.height;
+				const rendered = document.createElement("canvas");
+				rendered.width = canvas.width;
+				rendered.height = canvas.height;
 				const fittedContext = fitted.getContext("2d");
+				const renderedContext = rendered.getContext("2d", {
+					willReadFrequently: true,
+				});
 				const outputContext = canvas.getContext("2d", {
 					willReadFrequently: true,
 				});
-				if (!fittedContext || !outputContext) return;
+				if (!fittedContext || !renderedContext || !outputContext) return;
 				if (
 					!drawObjectFit({
 						context: fittedContext,
@@ -228,9 +247,8 @@ export function ColorPreviewCanvas({
 					})
 				)
 					return;
-				outputContext.clearRect(0, 0, canvas.width, canvas.height);
 				await drawColorGradedSourceStack({
-					context: outputContext,
+					context: renderedContext,
 					source: fitted,
 					x: 0,
 					y: 0,
@@ -243,6 +261,9 @@ export function ColorPreviewCanvas({
 						source instanceof HTMLVideoElement ? source.currentTime : 0,
 					portraitAdjustments,
 				});
+				if (cancelled) return;
+				outputContext.clearRect(0, 0, canvas.width, canvas.height);
+				outputContext.drawImage(rendered, 0, 0);
 			} finally {
 				drawing = false;
 			}
