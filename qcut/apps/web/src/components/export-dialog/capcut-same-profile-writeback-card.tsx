@@ -27,7 +27,7 @@ import { useEffect } from "react";
 interface CapCutSameProfileWritebackCardProps
 	extends Pick<
 		UseCapCutSameProfileWritebackOptions,
-		"bridgeAvailable" | "recoverWriteback" | "runWriteback"
+		"bridgeAvailable" | "mediaItems" | "recoverWriteback" | "runWriteback"
 	> {
 	disabled?: boolean;
 	onBusyChange?: (isBusy: boolean) => void;
@@ -49,6 +49,7 @@ const AVAILABILITY_KEYS: Record<
 export function CapCutSameProfileWritebackCard({
 	bridgeAvailable,
 	disabled = false,
+	mediaItems,
 	onBusyChange,
 	project,
 	recoverWriteback,
@@ -58,6 +59,7 @@ export function CapCutSameProfileWritebackCard({
 	const { t } = useTranslation();
 	const controller = useCapCutSameProfileWriteback({
 		bridgeAvailable,
+		mediaItems,
 		project,
 		recoverWriteback,
 		runWriteback,
