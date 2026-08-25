@@ -84,20 +84,24 @@ export async function resolveJianyingPortraitMakeupCard({
 	card: JianyingPortraitMakeupCardDefinition;
 }): Promise<JianyingPortraitMakeupCardResolution> {
 	const relativePath = path.join(card.resourceId, card.version);
+	const privateCandidate = {
+		packagePath: path.join(
+			jianyingFilterPrivateRuntimeCurrent(),
+			"Cache",
+			"effect",
+			relativePath
+		),
+		source: "qcut-private" as const,
+	};
+	const installedCandidate = {
+		packagePath: path.join(installedEffectRoot(), relativePath),
+		source: "jianying-installation" as const,
+	};
 	const candidates = [
-		{
-			packagePath: path.join(
-				jianyingFilterPrivateRuntimeCurrent(),
-				"Cache",
-				"effect",
-				relativePath
-			),
-			source: "qcut-private" as const,
-		},
-		{
-			packagePath: path.join(installedEffectRoot(), relativePath),
-			source: "jianying-installation" as const,
-		},
+		privateCandidate,
+		...(process.env.QCUT_JIANYING_DISABLE_USER_CACHE === "1"
+			? []
+			: [installedCandidate]),
 	];
 	for (const candidate of candidates) {
 		if (
