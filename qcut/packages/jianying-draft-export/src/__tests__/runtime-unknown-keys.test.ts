@@ -436,6 +436,16 @@ function createNormalizedSnapshot({
 							makeup: {
 								lip: { cardId: "lip-soft-pink", intensity: 80 },
 							},
+							manualBody: {
+								slim: {
+									intensity: 40,
+									x: 0.5,
+									y: 0.5,
+									width: 0.3,
+									height: 0.4,
+									rotation: 15,
+								},
+							},
 							values: { face_adjust_BrightEye: 30 },
 						},
 						playbackRate: 1,
@@ -799,6 +809,23 @@ describe("snapshot runtime property allowlists", () => {
 					}
 					Object.assign(element.portraitAdjustments.makeup.lip, {
 						strength: 80,
+					});
+				},
+			},
+			{
+				expectedPath:
+					"$.snapshot.tracks[0].elements[0].portraitAdjustments.manualBody.slim",
+				mutate: (value) => {
+					const element = value.tracks[0]?.elements[0];
+					if (
+						!element ||
+						element.type !== "media" ||
+						!element.portraitAdjustments?.manualBody?.slim
+					) {
+						throw new Error("Expected portrait manual body settings.");
+					}
+					Object.assign(element.portraitAdjustments.manualBody.slim, {
+						angle: 15,
 					});
 				},
 			},
