@@ -13,6 +13,7 @@
 #include <sstream>
 #include <thread>
 #include <string_view>
+#include <unordered_map>
 
 namespace jianying_probe {
 namespace {
@@ -212,7 +213,7 @@ class ScopedEffectHandle {
 		std::memcpy(&face.yaw, faceBytes + 0x30, sizeof(face.yaw));
 		std::memcpy(&face.pitch, faceBytes + 0x34, sizeof(face.pitch));
 		std::memcpy(&face.roll, faceBytes + 0x38, sizeof(face.roll));
-		std::memcpy(&face.id, faceBytes + 0x40, sizeof(face.id));
+		std::memcpy(&face.faceId, faceBytes + 0x40, sizeof(face.faceId));
 		std::memcpy(&face.trackingCount, faceBytes + 0x48,
 					sizeof(face.trackingCount));
 		const bool finite =
@@ -231,6 +232,59 @@ class ScopedEffectHandle {
 		faces->push_back(face);
 	}
 	return true;
+}
+
+[[nodiscard]] std::unordered_map<std::int32_t, std::int32_t>
+readFreidTrackIds(void* resultObject) {
+	void* const vtable = *static_cast<void**>(resultObject);
+	Dl_info symbolInfo{};
+	if (dladdr(vtable, &symbolInfo) == 0 || symbolInfo.dli_sname == nullptr) {
+		throw std::runtime_error("freid result vtable has no symbol");
+	}
+	if (std::string_view(symbolInfo.dli_sname).find("FreidBuffer") ==
+		std::string_view::npos) {
+		throw std::runtime_error(
+			std::string("freid result is not a FreidBuffer: ") +
+			symbolInfo.dli_sname);
+	}
+
+	// FreidBuffer stores a vector of FreidInfo pointers at +0x38/+0x40.
+	// FreidBuffer::toMapBuffer reads faceid at +0x0c and trackid at +0x10.
+	const auto* objectBytes = static_cast<const std::uint8_t*>(resultObject);
+	const void* const* begin = nullptr;
+	const void* const* end = nullptr;
+	std::memcpy(&begin, objectBytes + 0x38, sizeof(begin));
+	std::memcpy(&end, objectBytes + 0x40, sizeof(end));
+	if ((begin == nullptr) != (end == nullptr)) {
+		throw std::runtime_error("freid vector endpoints disagree");
+	}
+	if (begin == nullptr) return {};
+	if (end < begin) throw std::runtime_error("freid vector endpoints inverted");
+	const auto byteCount = static_cast<std::size_t>(
+		reinterpret_cast<const std::uint8_t*>(end) -
+		reinterpret_cast<const std::uint8_t*>(begin));
+	if (byteCount % sizeof(void*) != 0 ||
+		byteCount / sizeof(void*) > kMaximumFaces) {
+		throw std::runtime_error("freid vector span is implausible: " +
+								 std::to_string(byteCount) + " bytes");
+	}
+
+	std::unordered_map<std::int32_t, std::int32_t> trackIds;
+	for (std::size_t index = 0; index < byteCount / sizeof(void*); ++index) {
+		const void* infoObject = begin[index];
+		if (infoObject == nullptr) {
+			throw std::runtime_error("freid record pointer is null");
+		}
+		const auto* infoBytes = static_cast<const std::uint8_t*>(infoObject);
+		std::int32_t faceId = -1;
+		std::int32_t trackId = -1;
+		std::memcpy(&faceId, infoBytes + 0x0c, sizeof(faceId));
+		std::memcpy(&trackId, infoBytes + 0x10, sizeof(trackId));
+		if (faceId < 0 || trackId < 0 || !trackIds.emplace(faceId, trackId).second) {
+			throw std::runtime_error("freid record has invalid or duplicate ids");
+		}
+	}
+	return trackIds;
 }
 
 }  // namespace
@@ -315,6 +369,30 @@ std::vector<FaceObservationRecord> inspectFaces(
 	if (!readFaces(resultObject, &faces)) {
 		throw std::runtime_error("the face result buffer had an unexpected shape");
 	}
+	if (!faces.empty()) {
+		void* freidResultObject = nullptr;
+		Result freidResult = symbols.resultByNodeName(
+			handle.get(), "freid_0", &freidResultObject);
+		if (freidResult != 0 || freidResultObject == nullptr) {
+			constexpr std::int32_t kFreidAlgorithmType = 131;
+			freidResultObject = nullptr;
+			freidResult = symbols.resultByType(
+				handle.get(), &freidResultObject, kFreidAlgorithmType);
+		}
+		if (freidResult != 0 || freidResultObject == nullptr) {
+			throw std::runtime_error("the freid algorithm published no result");
+		}
+		const auto trackIds = readFreidTrackIds(freidResultObject);
+		for (FaceObservationRecord& face : faces) {
+			const auto trackId = trackIds.find(face.faceId);
+			if (trackId == trackIds.end()) {
+				throw std::runtime_error(
+					"freid result did not contain detected face " +
+					std::to_string(face.faceId));
+			}
+			face.freidTrackId = trackId->second;
+		}
+	}
 	return faces;
 }
 
@@ -324,7 +402,9 @@ std::string encodeFaceObservations(
 	payload << "{\"faces\":[";
 	for (std::size_t index = 0; index < faces.size(); ++index) {
 		const FaceObservationRecord& face = faces[index];
-		payload << (index == 0 ? "" : ",") << "{\"trackId\":" << face.id
+		payload << (index == 0 ? "" : ",") << "{\"trackId\":"
+				<< face.freidTrackId << ",\"faceId\":" << face.faceId
+				<< ",\"freidTrackId\":" << face.freidTrackId
 				<< ",\"rect\":[" << face.rect[0] << ',' << face.rect[1] << ','
 				<< face.rect[2] << ',' << face.rect[3] << "],\"score\":"
 				<< face.score << ",\"yaw\":" << face.yaw
