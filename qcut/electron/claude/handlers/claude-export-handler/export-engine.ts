@@ -73,6 +73,11 @@ import {
 import { buildTextAss } from "./text-overlay.js";
 import { renderJianyingTextRasterLayers } from "./jianying-text-raster.js";
 import { buildTextRasterOverlayPassArgs } from "./text-raster-overlay-pass.js";
+import { readMediaRestrictedMetadata } from "../claude-media-restricted-metadata.js";
+import {
+	isRestrictedMediaExportError,
+	RestrictedMediaExportError,
+} from "../../../types/restricted-media-export-policy.js";
 
 export function resolveExportSettings({
 	request,
@@ -221,10 +226,12 @@ export async function collectTimelineAudioFiles({
 	timeline,
 	mediaFiles,
 	projectId,
+	resolvedMediaFiles,
 }: {
 	timeline: ClaudeTimeline;
 	mediaFiles: MediaFile[];
 	projectId?: string;
+	resolvedMediaFiles?: MediaFile[];
 }): Promise<AudioFile[]> {
 	const mediaById = new Map<string, MediaFile>();
 	const mediaByName = new Map<string, MediaFile>();
@@ -280,6 +287,7 @@ export async function collectTimelineAudioFiles({
 			// itself. Without converting back, a trimmed clip collapses to silence.
 			const duration = visibleDuration + trimStart + trimEnd;
 
+			resolvedMediaFiles?.push(media);
 			audioFiles.push({
 				elementId: element.id,
 				trackId: track.id ?? `track-${trackIndex}`,
@@ -352,23 +360,40 @@ async function resolveMediaFromDisk({
 			if (!matched) continue;
 
 			// Validate file exists (follows symlinks)
+			let stat: import("fs").Stats;
 			try {
-				const stat = await fsPromises.stat(filePath);
-				// Use sourceName extension as fallback for extensionless symlinks
-				const ext = path.extname(entryName) || path.extname(sourceName);
-				const type = getMediaType(ext);
-				if (!type) continue;
+				stat = await fsPromises.stat(filePath);
+			} catch {
+				continue;
+			}
+			// Use sourceName extension as fallback for extensionless symlinks
+			const ext = path.extname(entryName) || path.extname(sourceName);
+			const type = getMediaType(ext);
+			if (!type) continue;
+			const mediaId = `media_${Buffer.from(entryName).toString("base64url")}`;
+			let metadata: MediaFile["metadata"];
+			try {
+				metadata = await readMediaRestrictedMetadata({
+					mediaId,
+					projectId,
+				});
+			} catch {
+				throw new RestrictedMediaExportError({
+					mediaIds: [mediaId],
+					operation: "video",
+				});
+			}
 
-				return {
-					id: `media_${Buffer.from(entryName).toString("base64url")}`,
-					name: sourceName,
-					type,
-					path: filePath,
-					size: stat.size,
-					createdAt: stat.birthtimeMs,
-					modifiedAt: stat.mtimeMs,
-				};
-			} catch {}
+			return {
+				id: mediaId,
+				name: sourceName,
+				type,
+				path: filePath,
+				size: stat.size,
+				createdAt: stat.birthtimeMs,
+				modifiedAt: stat.mtimeMs,
+				...(metadata ? { metadata } : {}),
+			};
 		}
 	}
 
@@ -380,10 +405,12 @@ export async function collectExportSegments({
 	timeline,
 	mediaFiles,
 	projectId,
+	resolvedMediaFiles,
 }: {
 	timeline: ClaudeTimeline;
 	mediaFiles: MediaFile[];
 	projectId?: string;
+	resolvedMediaFiles?: MediaFile[];
 }): Promise<ExportSegment[]> {
 	try {
 		const mediaById = new Map<string, MediaFile>();
@@ -472,6 +499,7 @@ export async function collectExportSegments({
 					fps: timeline.fps || 30,
 				});
 				const color = readElementColorSettings({ element });
+				resolvedMediaFiles?.push(media);
 				segments.push({
 					elementId: element.id,
 					trackId,
@@ -497,6 +525,7 @@ export async function collectExportSegments({
 		segments.sort((a, b) => a.startTime - b.startTime);
 		return segments;
 	} catch (error) {
+		if (isRestrictedMediaExportError({ error })) throw error;
 		claudeLog.error(HANDLER_NAME, "Failed to collect export segments:", error);
 		return [];
 	}
@@ -664,11 +693,13 @@ export async function collectStickerOverlays({
 	timeline,
 	mediaFiles,
 	projectId,
+	resolvedMediaFiles,
 	settings,
 }: {
 	timeline: ClaudeTimeline;
 	mediaFiles: MediaFile[];
 	projectId?: string;
+	resolvedMediaFiles?: MediaFile[];
 	/** Export canvas, for percent → pixel conversion; falls back to timeline. */
 	settings?: Pick<ResolvedExportSettings, "width" | "height">;
 }): Promise<StickerOverlay[]> {
@@ -756,6 +787,7 @@ export async function collectStickerOverlays({
 				const pixelWidth = (widthPercent / 100) * shortSide;
 				const pixelHeight = (heightPercent / 100) * shortSide;
 
+				resolvedMediaFiles?.push(media);
 				overlays.push({
 					sourcePath: media.path,
 					startTime: element.startTime,
@@ -781,6 +813,7 @@ export async function collectStickerOverlays({
 
 		return overlays;
 	} catch (error) {
+		if (isRestrictedMediaExportError({ error })) throw error;
 		claudeLog.error(HANDLER_NAME, "Failed to collect sticker overlays:", error);
 		return [];
 	}
