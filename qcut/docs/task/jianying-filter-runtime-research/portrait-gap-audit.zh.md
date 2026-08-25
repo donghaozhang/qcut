@@ -139,12 +139,8 @@ landmarks=106  trackingCount=19
 
 ### 美体无法按人定向
 
-`slimbody.lua` 的 `handleIntensityEvent` 只读向量的**第一个元素**且**从不读 id**：
-
-```lua
-local inputMap = inputValue:get(0)
-local inputIntensity = inputMap:get(BODY_ADJUST_INTENSITY)
-```
+`slimbody.lua` 的 `handleIntensityEvent` 只从强度向量的**第 0 个条目**取强度值，
+**从不读 id 字段**（行为结论来自对该包强度事件处理逻辑的核对；包内源码不入库）。
 
 因此逐人美体在这套包上不可实现——这不是"没接"，是包的参数协议里没有这个维度。
 顺带一提，这张帧上人脸检测返回 `0`（远景全身，脸在 640×360 的算法输入里太小），
