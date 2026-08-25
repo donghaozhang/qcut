@@ -639,6 +639,25 @@ class StorageService {
 		return mediaItems;
 	}
 
+	/** Read export-policy metadata without loading media blobs into memory. */
+	async loadAllMediaExportPolicyRecords(
+		projectId: string
+	): Promise<Array<Pick<MediaItem, "id" | "metadata">>> {
+		const { mediaMetadataAdapter } = this.getProjectMediaAdapters(projectId);
+		const mediaIds = await mediaMetadataAdapter.list();
+		const records = await Promise.all(
+			mediaIds.map(async (mediaId) => {
+				const media = await mediaMetadataAdapter.get(mediaId);
+				if (!media) return null;
+				return {
+					id: media.id,
+					...(media.metadata ? { metadata: media.metadata } : {}),
+				};
+			})
+		);
+		return records.flatMap((record) => (record ? [record] : []));
+	}
+
 	/** Fast thumbnail lookup — reads only metadata (no file blobs from OPFS). */
 	async findProjectThumbnail(
 		projectId: string,
