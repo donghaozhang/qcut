@@ -45,26 +45,30 @@ export async function resolveJianyingPortraitPackage({
 	runtimePackage: JianyingPortraitAdjustmentRuntimePackage;
 }): Promise<JianyingPortraitPackageResolution> {
 	const identity = JIANYING_PORTRAIT_PACKAGE_IDENTITIES[runtimePackage];
+	const privateCandidate = {
+		packagePath: path.join(
+			jianyingFilterPrivateRuntimeCurrent(),
+			"Cache",
+			"effect",
+			identity.resourceId,
+			identity.version
+		),
+		source: "qcut-private" as const,
+	};
+	const installedCandidate = {
+		packagePath: path.join(
+			installedCacheRoot(),
+			"effect",
+			identity.resourceId,
+			identity.version
+		),
+		source: "jianying-installation" as const,
+	};
 	const candidates = [
-		{
-			packagePath: path.join(
-				jianyingFilterPrivateRuntimeCurrent(),
-				"Cache",
-				"effect",
-				identity.resourceId,
-				identity.version
-			),
-			source: "qcut-private" as const,
-		},
-		{
-			packagePath: path.join(
-				installedCacheRoot(),
-				"effect",
-				identity.resourceId,
-				identity.version
-			),
-			source: "jianying-installation" as const,
-		},
+		privateCandidate,
+		...(process.env.QCUT_JIANYING_DISABLE_USER_CACHE === "1"
+			? []
+			: [installedCandidate]),
 	];
 	for (const candidate of candidates) {
 		if (await isReadableDirectory({ directory: candidate.packagePath })) {
