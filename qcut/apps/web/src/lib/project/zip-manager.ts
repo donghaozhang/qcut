@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 import type { MediaItem } from "@/stores/media/media-store";
 import { platform } from "@qcut/platform-core";
+import { assertRestrictedMediaExportAllowed } from "../../../../../electron/types/restricted-media-export-policy";
 
 // Debug flag - set to true to enable console logging
 const DEBUG_ZIP_MANAGER = import.meta.env.DEV && false;
@@ -36,6 +37,11 @@ export class ZipManager {
 		items: MediaItem[],
 		onProgress?: (progress: number) => void
 	): Promise<void> {
+		assertRestrictedMediaExportAllowed({
+			mediaItems: items,
+			operation: "media-archive",
+			scope: "all-media",
+		});
 		const total = items.length;
 		let completed = 0;
 
