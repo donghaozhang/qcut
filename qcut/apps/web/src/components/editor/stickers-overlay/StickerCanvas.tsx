@@ -5,7 +5,15 @@
  * Uses absolute positioning to avoid affecting the video/timeline layout.
  */
 
-import React, { useRef, useEffect, memo } from "react";
+import {
+	memo,
+	useEffect,
+	useMemo,
+	useRef,
+	type DragEvent,
+	type FC,
+	type MouseEvent,
+} from "react";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { useAsyncMediaStore } from "@/hooks/media/use-async-media-store";
 import { cn } from "@/lib/utils";
@@ -16,11 +24,13 @@ import { StickerOverlayAutoSave } from "./AutoSave";
 import { useProjectStore } from "@/stores/project-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { Button } from "@/components/ui/button";
+import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import { buildStickerTimingMap } from "@/lib/stickers/sticker-timeline-query";
 
 /**
  * Main canvas component that manages all overlay stickers
  */
-export const StickerCanvas: React.FC<{
+export const StickerCanvas: FC<{
 	className?: string;
 	disabled?: boolean;
 }> = memo(({ className, disabled = false }) => {
@@ -45,6 +55,11 @@ export const StickerCanvas: React.FC<{
 	const mediaStoreInitialized = mediaStore?.hasInitialized || false;
 	const { activeProject } = useProjectStore();
 	const { currentTime } = usePlaybackStore();
+	const timelineTracks = useTimelineStore((state) => state._tracks);
+	const stickerTimingMap = useMemo(
+		() => buildStickerTimingMap({ tracks: timelineTracks }),
+		[timelineTracks]
+	);
 	const customCutoutEditing = useCustomCutoutEditorStore(
 		(state) => state.editing
 	);
@@ -110,19 +125,19 @@ export const StickerCanvas: React.FC<{
 	}, [mediaItems]);
 
 	// Handle clicking on canvas (deselect)
-	const handleCanvasClick = (e: React.MouseEvent) => {
+	const handleCanvasClick = (e: MouseEvent) => {
 		if (e.target === canvasRef.current) {
 			selectSticker(null);
 		}
 	};
 
 	// Handle drag and drop from media panel
-	const handleDragOver = (e: React.DragEvent) => {
+	const handleDragOver = (e: DragEvent) => {
 		e.preventDefault();
 		e.dataTransfer.dropEffect = "copy";
 	};
 
-	const handleDrop = async (e: React.DragEvent) => {
+	const handleDrop = async (e: DragEvent) => {
 		e.preventDefault();
 
 		const mediaItemData = e.dataTransfer.getData("application/x-media-item");
@@ -361,6 +376,7 @@ export const StickerCanvas: React.FC<{
 					const mediaItem = mediaItems.find(
 						(item) => item.id === sticker.mediaItemId
 					);
+					const animationElement = stickerTimingMap.get(sticker.id)?.element;
 
 					// Show placeholder if media item not found (it might still be loading)
 					if (!mediaItem) {
@@ -399,10 +415,12 @@ export const StickerCanvas: React.FC<{
 
 					return (
 						<StickerElement
+							animationElement={animationElement}
 							key={sticker.id}
 							sticker={sticker}
 							mediaItem={mediaItem}
 							canvasRef={canvasRef}
+							currentTime={currentTime}
 						/>
 					);
 				})}
