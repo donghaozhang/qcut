@@ -26,6 +26,7 @@ import type {
 	BatchImportItem,
 	BatchImportResult,
 } from "../../types/claude-api";
+import { assertRestrictedMediaExportAllowed } from "../../types/restricted-media-export-policy.js";
 
 const HANDLER_NAME = "Media";
 
@@ -698,6 +699,11 @@ export async function extractFrame(
 	if (mediaFile.type !== "video") {
 		throw new Error("Frame extraction is only supported for video files");
 	}
+	assertRestrictedMediaExportAllowed({
+		mediaItems: [mediaFile],
+		operation: "extract-frame",
+		scope: "all-media",
+	});
 
 	if (timestamp < 0) {
 		throw new Error("Timestamp must be non-negative");
