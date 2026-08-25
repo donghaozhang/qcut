@@ -1,4 +1,6 @@
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import { normalizeMediaPortraitAdjustments } from "@qcut/editor-core";
+import type { MediaPortraitAdjustments } from "@/types/timeline";
 import type { ClaudeElement } from "../../../../../electron/types/claude-api";
 import { debugLog, debugWarn, debugError } from "@/lib/debug/debug-config";
 import {
@@ -210,6 +212,19 @@ export const applyElementChanges = ({
 			const mediaUpdates: Record<string, unknown> = {};
 			if (typeof changes.style?.volume === "number") {
 				mediaUpdates.volume = changes.style.volume;
+			}
+			if (changes.portraitAdjustments !== undefined) {
+				if (
+					typeof changes.portraitAdjustments !== "object" ||
+					changes.portraitAdjustments === null ||
+					Array.isArray(changes.portraitAdjustments)
+				) {
+					throw new Error("portraitAdjustments must be an object");
+				}
+				mediaUpdates.portraitAdjustments = normalizeMediaPortraitAdjustments({
+					adjustments:
+						changes.portraitAdjustments as Partial<MediaPortraitAdjustments>,
+				});
 			}
 			if (Object.keys(mediaUpdates).length > 0) {
 				timelineStore.updateMediaElement(
