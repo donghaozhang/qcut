@@ -50,13 +50,16 @@ function createProject(): TProject {
 }
 
 function createStorage({
+	mediaItems = [],
 	project = createProject(),
 	tracks = [],
 }: {
+	mediaItems?: ReadonlyArray<{ id: string; metadata?: unknown }>;
 	project?: TProject | null;
 	tracks?: TimelineTrack[] | null;
 } = {}) {
 	return {
+		loadAllMediaExportPolicyRecords: vi.fn(async () => mediaItems),
 		loadProject: vi.fn(async () => project),
 		loadTimeline: vi.fn(async () => tracks),
 	};
@@ -119,6 +122,34 @@ describe("persisted QCut Jianying project export", () => {
 		});
 		expect(storage.loadProject).toHaveBeenCalledTimes(2);
 		expect(storage.loadTimeline).toHaveBeenCalledTimes(2);
+		expect(storage.loadAllMediaExportPolicyRecords).toHaveBeenCalledTimes(2);
+	});
+
+	it("blocks persisted Jianying export before reading or writing the draft", async () => {
+		const runExport = vi.fn();
+		const result = await executePersistedQCutJianyingProjectExport({
+			request: { projectId: "project-1" },
+			runExport,
+			storage: createStorage({
+				mediaItems: [
+					{
+						id: "restricted-sticker",
+						metadata: {
+							redistribution: "prohibited",
+						},
+					},
+				],
+			}),
+		});
+
+		expect(result).toMatchObject({
+			message: expect.stringContaining(
+				"Sticker Lab reference-only media cannot be exported or redistributed."
+			),
+			outcome: "failed",
+			reason: "unexpected",
+		});
+		expect(runExport).not.toHaveBeenCalled();
 	});
 
 	it("detects persisted timeline changes before export commit", async () => {
