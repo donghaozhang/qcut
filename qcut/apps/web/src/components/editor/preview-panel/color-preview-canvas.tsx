@@ -204,6 +204,7 @@ export function ColorPreviewCanvas({
 		let animationFrame = 0;
 		let lastVideoTime = -1;
 		let drawing = false;
+		let queuedDraw = false;
 		const resize = () => {
 			const size = colorPreviewCanvasSize({
 				width: parent.clientWidth,
@@ -215,8 +216,11 @@ export function ColorPreviewCanvas({
 			if (canvas.height !== height) canvas.height = height;
 		};
 		const draw = async () => {
-			if (drawing || cancelled || canvas.width <= 0 || canvas.height <= 0)
+			if (cancelled || canvas.width <= 0 || canvas.height <= 0) return;
+			if (drawing) {
+				queuedDraw = true;
 				return;
+			}
 			if (source instanceof HTMLVideoElement && source.readyState < 2) return;
 			if (source instanceof HTMLImageElement && !source.complete) return;
 			drawing = true;
@@ -262,10 +266,20 @@ export function ColorPreviewCanvas({
 					portraitAdjustments,
 				});
 				if (cancelled) return;
+				if (
+					rendered.width !== canvas.width ||
+					rendered.height !== canvas.height
+				) {
+					return;
+				}
 				outputContext.clearRect(0, 0, canvas.width, canvas.height);
 				outputContext.drawImage(rendered, 0, 0);
 			} finally {
 				drawing = false;
+				if (queuedDraw && !cancelled) {
+					queuedDraw = false;
+					void draw();
+				}
 			}
 		};
 		const loop = () => {
