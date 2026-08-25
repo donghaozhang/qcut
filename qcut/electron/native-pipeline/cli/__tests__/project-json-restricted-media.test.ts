@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { EditorApiClient } from "../../editor/editor-api-client.js";
+import { RESTRICTED_MEDIA_EXPORT_ERROR_CODE } from "../../../types/restricted-media-export-policy.js";
 import { buildProjectJSON } from "../project-json-builder.js";
 
 const METADATA = {
@@ -62,11 +63,23 @@ describe("project.json restricted media provenance", () => {
 		);
 	});
 
-	it("drops unknown metadata fields while retaining ordinary media", async () => {
+	it("fails closed when restricted metadata is malformed", async () => {
+		await expect(
+			buildProjectJSON(
+				createClient({
+					metadata: { ...METADATA, rootPath: "/private/reference-root" },
+				}),
+				"project-1"
+			)
+		).rejects.toMatchObject({
+			code: RESTRICTED_MEDIA_EXPORT_ERROR_CODE,
+			mediaIds: ["media-reference"],
+		});
+	});
+
+	it("does not reinterpret ordinary media metadata as restricted", async () => {
 		const project = await buildProjectJSON(
-			createClient({
-				metadata: { ...METADATA, rootPath: "/private/reference-root" },
-			}),
+			createClient({ metadata: { camera: "phone" } }),
 			"project-1"
 		);
 
