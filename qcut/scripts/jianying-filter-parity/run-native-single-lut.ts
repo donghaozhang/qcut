@@ -436,7 +436,11 @@ async function saveResults({
 }): Promise<void> {
 	const result = results[index];
 	if (!result) return;
-	if (result.status === "ok") {
+	// Package-default runs render the oracle at an unpinned intensity while the
+	// QCut candidate uses intensity 100, so only injected-intensity results
+	// qualify as persisted native-oracle evidence; package-default results stay
+	// visible in report.json/report.md.
+	if (result.status === "ok" && result.bootstrap === "injected-intensity") {
 		await saveJianyingFilterVerification({
 			record: {
 				resourceId: result.resourceId,
