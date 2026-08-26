@@ -79,6 +79,7 @@ describe("sticker runtime resource map", () => {
 	});
 
 	it.each([
+		"",
 		"blob:session-only",
 		"https://example.com/unstable.png",
 		"frames/001.png",
