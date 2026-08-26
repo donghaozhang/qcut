@@ -48,7 +48,7 @@ type RecoverWriteback = typeof recoverCapCut81SameProfileWriteback;
 
 export interface UseCapCutSameProfileWritebackOptions {
 	bridgeAvailable?: boolean;
-	mediaItems?: readonly MediaItem[];
+	mediaItems: readonly MediaItem[];
 	project: TProject | null;
 	recoverWriteback?: RecoverWriteback;
 	runWriteback?: RunWriteback;
@@ -102,7 +102,7 @@ function unexpectedFailure({ error }: { error: unknown }) {
 
 export function useCapCutSameProfileWriteback({
 	bridgeAvailable = hasDefaultBridge(),
-	mediaItems = [],
+	mediaItems,
 	project,
 	recoverWriteback = recoverCapCut81SameProfileWriteback,
 	runWriteback = runCapCut81SameProfileWriteback,
