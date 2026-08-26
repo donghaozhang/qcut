@@ -226,6 +226,9 @@ export interface CLIRunOptions {
 	resourceIds?: string[];
 	/** filter-lab: Jianying resource ID to score QCut presets against. */
 	resourceId?: string;
+	/** filter-lab coverage: evidence source and optional per-card checklist. */
+	referenceKind?: string;
+	details?: boolean;
 	/** filter-lab: exact versioned LUT identity from filter-lab list. */
 	lutId?: string;
 	/** filter-lab: how many worst matches to report. */

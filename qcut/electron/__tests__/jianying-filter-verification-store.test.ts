@@ -101,6 +101,21 @@ describe("Jianying Filter Lab verification store", () => {
 		]);
 	});
 
+	it("preserves evidence provenance for coverage filtering", async () => {
+		const storePath = await createStorePath();
+		await saveJianyingFilterVerification({
+			storePath,
+			record: {
+				...record({ resourceId: "one", rgbRmse: 1 }),
+				referenceKind: "native-oracle",
+			},
+		});
+		const records = await readJianyingFilterVerificationRecords({ storePath });
+		expect(records).toEqual([
+			expect.objectContaining({ referenceKind: "native-oracle" }),
+		]);
+	});
+
 	it("keeps concurrent saves instead of losing read-modify-write updates", async () => {
 		const storePath = await createStorePath();
 		const records = Array.from({ length: 20 }, (_, index) => ({

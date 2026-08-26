@@ -26,6 +26,11 @@ import {
 } from "../filters/filter-lab-coverage.js";
 import { strataKeyFor } from "../filters/filter-lab-sampling.js";
 import {
+	FILTER_LAB_REFERENCE_KINDS,
+	normalizeFilterLabReferenceKind,
+	parseFilterLabReferenceKind,
+} from "../filters/filter-lab-verification-reference.js";
+import {
 	verifyFilterLabParity,
 	type FilterLabVerificationInput,
 	type FilterLabVerificationReport,
@@ -36,6 +41,7 @@ import type { CLIResult } from "./cli-runner/types.js";
 export interface FilterLabBatchEntry {
 	resourceId: string;
 	filterVersion: string;
+	referenceKind: "jianying-ui" | "native-oracle";
 	referenceFrame: string;
 	candidateFrame: string;
 	referenceMask?: string;
@@ -73,17 +79,22 @@ function parseManifest(text: string): FilterLabBatchManifest {
 		);
 	}
 	for (const [index, entry] of entries.entries()) {
-		const candidate = entry as Partial<FilterLabBatchEntry>;
+		const candidate = entry as Record<string, unknown>;
+		const referenceKind = parseFilterLabReferenceKind({
+			value: candidate.referenceKind,
+		});
 		if (
 			!(
 				candidate.resourceId &&
 				candidate.filterVersion &&
+				referenceKind &&
+				referenceKind !== "unknown" &&
 				candidate.referenceFrame &&
 				candidate.candidateFrame
 			)
 		) {
 			throw new Error(
-				`Manifest entry ${index} needs resourceId, filterVersion, referenceFrame, and candidateFrame.`
+				`Manifest entry ${index} needs resourceId, filterVersion, referenceKind (jianying-ui or native-oracle), referenceFrame, and candidateFrame.`
 			);
 		}
 	}
@@ -116,13 +127,20 @@ export async function handleFilterLabVerifyBatch(
 		| {
 				resourceId: string;
 				filterVersion: string;
+				referenceKind: FilterLabBatchEntry["referenceKind"];
 				ok: true;
 				status: string;
 				rgbRmse?: number;
 				ssim?: number;
 				deltaE?: number;
 		  }
-		| { resourceId: string; filterVersion: string; ok: false; error: string }
+		| {
+				resourceId: string;
+				filterVersion: string;
+				referenceKind: FilterLabBatchEntry["referenceKind"];
+				ok: false;
+				error: string;
+		  }
 	> = [];
 	// Sequential on purpose: each verification decodes frames through
 	// FFmpeg; parallel batches thrash the machine without saving wall time.
@@ -150,12 +168,14 @@ export async function handleFilterLabVerifyBatch(
 				record: {
 					resourceId: entry.resourceId,
 					version: entry.filterVersion,
+					referenceKind: entry.referenceKind,
 					...report,
 				},
 			});
 			results.push({
 				resourceId: entry.resourceId,
 				filterVersion: entry.filterVersion,
+				referenceKind: entry.referenceKind,
 				ok: true,
 				status: report.status,
 				...(report.rgbRmse !== undefined ? { rgbRmse: report.rgbRmse } : {}),
@@ -166,6 +186,7 @@ export async function handleFilterLabVerifyBatch(
 			results.push({
 				resourceId: entry.resourceId,
 				filterVersion: entry.filterVersion,
+				referenceKind: entry.referenceKind,
 				ok: false,
 				error: error instanceof Error ? error.message : String(error),
 			});
@@ -208,9 +229,23 @@ const COVERAGE_STRATIFY_FIELDS = new Set([
 
 /** Stratified verified/close/unverified counts over the whole catalog. */
 export async function handleFilterLabCoverage(
-	{ stratify }: { stratify?: string } = {},
+	{
+		stratify,
+		referenceKind = "all",
+		details = false,
+	}: { stratify?: string; referenceKind?: string; details?: boolean } = {},
 	deps: Partial<FilterLabCoverageDeps> = {}
 ): Promise<CLIResult> {
+	const parsedReferenceKind =
+		referenceKind === "all"
+			? "all"
+			: parseFilterLabReferenceKind({ value: referenceKind });
+	if (!parsedReferenceKind) {
+		return {
+			success: false,
+			error: `Unknown reference kind: ${referenceKind}. Supported: all, ${FILTER_LAB_REFERENCE_KINDS.join(", ")}.`,
+		};
+	}
 	const fields = (stratify ?? "implementation")
 		.split(",")
 		.map((field) => field.trim())
@@ -237,17 +272,32 @@ export async function handleFilterLabCoverage(
 		exportCatalog(),
 		readRecords(),
 	]);
+	const selectedRecords =
+		parsedReferenceKind === "all"
+			? records
+			: records.filter(
+					(record) =>
+						normalizeFilterLabReferenceKind({
+							value: record.referenceKind,
+						}) === parsedReferenceKind
+				);
 	const report = buildFilterLabCoverageReport({
 		cards: catalog.cards,
-		records: records as FilterLabCoverageRecord[],
+		records: selectedRecords as FilterLabCoverageRecord[],
 		strataOf: (card) =>
 			strataKeyFor({
 				card: card as unknown as Record<string, unknown>,
 				fields,
 			}),
+		includeDetails: details,
 	});
 	return {
 		success: true,
-		data: { stratify: fields, ...report },
+		data: {
+			referenceKind: parsedReferenceKind,
+			allRecordedRuns: records.length,
+			stratify: fields,
+			...report,
+		},
 	};
 }

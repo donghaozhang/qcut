@@ -204,6 +204,7 @@ async function recordUiMaskVerification({
 		record: {
 			resourceId: target.resourceId,
 			version: target.version,
+			referenceKind: "jianying-ui",
 			status: uiMaskStatus,
 			width: uiReference.width,
 			height: uiReference.height,
@@ -345,7 +346,11 @@ export async function runNativeDualLutParity({
 			outputPath: join(outputDirectory, "real-video-export.mp4"),
 		});
 		const uiReference = manifest
-			? await loadUiMaskReference({ manifest, packagePath })
+			? await loadUiMaskReference({
+					manifest,
+					packagePath,
+					resourceId: target.resourceId,
+				})
 			: null;
 		const uiMask = uiReference
 			? await compareUiMaskSequence({

@@ -9,14 +9,15 @@ interface NativeMaskFrame {
 	bytes: Uint8Array;
 }
 
-interface UiMaskGroupDefinition {
+export interface UiMaskGroupDefinition {
 	algorithmGraphSha256: string;
 	label: string;
 	maskPath: string;
+	resourceId?: string;
 }
 
 interface UiMaskManifestDefinition {
-	schemaVersion: 1;
+	schemaVersion: 1 | 2;
 	sourceSha256: string;
 	width: number;
 	height: number;
@@ -37,6 +38,7 @@ export interface UiMaskReference {
 	width: number;
 	height: number;
 	measurementStartFrame: number;
+	resourceId: string;
 	frames: Uint8Array[];
 }
 
@@ -77,7 +79,13 @@ function assertPositiveInteger({
 	return value;
 }
 
-function parseGroup({ value }: { value: unknown }): UiMaskGroupDefinition {
+function parseGroup({
+	value,
+	requireResourceId,
+}: {
+	value: unknown;
+	requireResourceId: boolean;
+}): UiMaskGroupDefinition {
 	if (!(value && typeof value === "object")) {
 		throw new Error("UI mask group must be an object");
 	}
@@ -87,11 +95,41 @@ function parseGroup({ value }: { value: unknown }): UiMaskGroupDefinition {
 			throw new Error(`UI mask group ${field} must be a non-empty string`);
 		}
 	}
+	if (
+		(requireResourceId || group.resourceId !== undefined) &&
+		!(typeof group.resourceId === "string" && group.resourceId.length > 0)
+	) {
+		throw new Error("UI mask group resourceId must be a non-empty string");
+	}
 	return {
 		algorithmGraphSha256: group.algorithmGraphSha256 as string,
 		label: group.label as string,
 		maskPath: group.maskPath as string,
+		...(typeof group.resourceId === "string"
+			? { resourceId: group.resourceId }
+			: {}),
 	};
+}
+
+function legacyResourceIdFromMaskPath({ maskPath }: { maskPath: string }) {
+	return /(?:^|\/)([0-9]{16,20})(?:[-/])/.exec(maskPath)?.[1];
+}
+
+function uiMaskGroupResourceId({ group }: { group: UiMaskGroupDefinition }) {
+	return (
+		group.resourceId ??
+		legacyResourceIdFromMaskPath({ maskPath: group.maskPath })
+	);
+}
+
+export function isUiMaskGroupBoundToResource({
+	group,
+	resourceId,
+}: {
+	group: UiMaskGroupDefinition;
+	resourceId: string;
+}) {
+	return uiMaskGroupResourceId({ group }) === resourceId;
 }
 
 export async function loadUiMaskManifest({
@@ -112,7 +150,7 @@ export async function loadUiMaskManifest({
 		throw new Error("UI mask manifest must be an object");
 	}
 	const manifest = value as Record<string, unknown>;
-	if (manifest.schemaVersion !== 1) {
+	if (manifest.schemaVersion !== 1 && manifest.schemaVersion !== 2) {
 		throw new Error("Unsupported UI mask manifest schema");
 	}
 	if (manifest.sourceSha256 !== sourceSha256) {
@@ -147,15 +185,24 @@ export async function loadUiMaskManifest({
 	if (!(Array.isArray(manifest.groups) && manifest.groups.length > 0)) {
 		throw new Error("UI mask manifest must define at least one graph group");
 	}
-	const groups = manifest.groups.map((group) => parseGroup({ value: group }));
-	if (
-		new Set(groups.map((group) => group.algorithmGraphSha256)).size !==
-		groups.length
-	) {
-		throw new Error("UI mask manifest has duplicate graph groups");
+	const groups = manifest.groups.map((group) =>
+		parseGroup({
+			value: group,
+			requireResourceId: manifest.schemaVersion === 2,
+		})
+	);
+	const groupKeys = groups.map((group) => {
+		const resourceId = uiMaskGroupResourceId({ group });
+		if (!resourceId) {
+			throw new Error("UI mask group is not bound to a resource ID");
+		}
+		return `${group.algorithmGraphSha256}\0${resourceId}`;
+	});
+	if (new Set(groupKeys).size !== groups.length) {
+		throw new Error("UI mask manifest has duplicate graph and resource groups");
 	}
 	return {
-		schemaVersion: 1,
+		schemaVersion: manifest.schemaVersion,
 		sourceSha256,
 		width,
 		height,
@@ -169,19 +216,25 @@ export async function loadUiMaskManifest({
 export async function loadUiMaskReference({
 	manifest,
 	packagePath,
+	resourceId,
 }: {
 	manifest: UiMaskManifest;
 	packagePath: string;
+	resourceId: string;
 }): Promise<UiMaskReference> {
 	const graph = JSON.parse(
 		await readFile(resolve(packagePath, "algorithmConfig.json"), "utf8")
 	) as unknown;
 	const graphSha256 = algorithmGraphSha256({ graph });
 	const group = manifest.groups.find(
-		(candidate) => candidate.algorithmGraphSha256 === graphSha256
+		(candidate) =>
+			candidate.algorithmGraphSha256 === graphSha256 &&
+			isUiMaskGroupBoundToResource({ group: candidate, resourceId })
 	);
 	if (!group) {
-		throw new Error(`No UI mask evidence for algorithm graph ${graphSha256}`);
+		throw new Error(
+			`No UI mask evidence for resource ${resourceId} and algorithm graph ${graphSha256}`
+		);
 	}
 	const maskPath = resolve(dirname(manifest.manifestPath), group.maskPath);
 	const bytes = new Uint8Array(await readFile(maskPath));
@@ -197,6 +250,7 @@ export async function loadUiMaskReference({
 		width: manifest.width,
 		height: manifest.height,
 		measurementStartFrame: manifest.measurementStartFrame,
+		resourceId,
 		frames: Array.from({ length: manifest.frameCount }, (_, index) =>
 			bytes.slice(index * bytesPerFrame, (index + 1) * bytesPerFrame)
 		),
