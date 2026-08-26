@@ -385,6 +385,11 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		flags: [
 			f("--resource-id", "string", "Exact Jianying filter resource ID"),
 			f("--filter-version", "string", "Exact cached filter version"),
+			f(
+				"--reference-kind",
+				"string",
+				"Evidence source: jianying-ui or native-oracle"
+			),
 			f("--reference-frame", "string", "Lossless PNG exported by Jianying"),
 			f(
 				"--candidate-frame",
@@ -397,7 +402,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--candidate-video", "string", "Optional QCut comparison video"),
 		],
 		examples: [
-			"qcut filter-lab verify --resource-id 7429744855724641545 --filter-version f4d46cb5bca43ef171199ea673d53b00 --reference-frame jianying.png --candidate-frame qcut.png --json",
+			"qcut filter-lab verify --resource-id 7429744855724641545 --filter-version f4d46cb5bca43ef171199ea673d53b00 --reference-kind jianying-ui --reference-frame jianying.png --candidate-frame qcut.png --json",
 		],
 	},
 	"filter-lab-verify-batch": {
@@ -421,9 +426,17 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 				"string",
 				"Comma-separated fields to stratify by (default: implementation)"
 			),
+			f(
+				"--reference-kind",
+				"string",
+				"Only count all, jianying-ui, native-oracle, or unknown evidence"
+			),
+			f("--details", "boolean", "Include the per-card gap checklist"),
 		],
 		examples: [
 			"qcut filter-lab coverage --json",
+			"qcut filter-lab coverage --reference-kind jianying-ui --json",
+			"qcut filter-lab coverage --reference-kind jianying-ui --details --json",
 			"qcut filter-lab coverage --stratify implementation,requirements --json",
 		],
 	},
