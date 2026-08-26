@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
 import { createHash } from "node:crypto";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
-import { homedir, tmpdir } from "node:os";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { promisify } from "node:util";
@@ -33,6 +33,9 @@ const MATERIAL_ASSIGNMENT_PATTERN =
 
 interface NativeSingleLutOptions {
 	concurrency: number;
+	limit?: number;
+	persist: boolean;
+	resourceIds?: string[];
 	runDirectory: string;
 	sourcePath: string;
 }
@@ -43,7 +46,8 @@ interface NativeSingleLutSuccess {
 	version: string;
 	title: string;
 	categories: string[];
-	scriptSha256: string;
+	bootstrap: "injected-intensity" | "package-default";
+	scriptSha256?: string;
 	processId: number;
 	initializedMs: number;
 	firstFrameMs: number;
@@ -75,13 +79,26 @@ function requiredValue({
 
 export function parseNativeSingleLutArgs({ argv }: { argv: string[] }) {
 	let concurrency = DEFAULT_CONCURRENCY;
+	let limit: number | undefined;
+	let persist = true;
+	let resourceIds: string[] | undefined;
 	let runDirectory = "";
 	let sourcePath = "";
 	for (let index = 0; index < argv.length; index += 1) {
 		const argument = argv[index];
+		if (argument === "--no-persist") {
+			persist = false;
+			continue;
+		}
 		const value = requiredValue({ argument, value: argv[index + 1] });
 		if (argument === "--concurrency") concurrency = Number(value);
-		else if (argument === "--run-dir") runDirectory = path.resolve(value);
+		else if (argument === "--limit") limit = Number(value);
+		else if (argument === "--resource-ids") {
+			resourceIds = value
+				.split(",")
+				.map((resourceId) => resourceId.trim())
+				.filter(Boolean);
+		} else if (argument === "--run-dir") runDirectory = path.resolve(value);
 		else if (argument === "--source") sourcePath = path.resolve(value);
 		else throw new Error(`Unknown native single-LUT option: ${argument}`);
 		index += 1;
@@ -96,7 +113,24 @@ export function parseNativeSingleLutArgs({ argv }: { argv: string[] }) {
 	) {
 		throw new Error("Native single-LUT concurrency must be from 1 to 6");
 	}
-	return { concurrency, runDirectory, sourcePath };
+	if (limit !== undefined && (!Number.isSafeInteger(limit) || limit < 1)) {
+		throw new Error("Native single-LUT limit must be a positive integer");
+	}
+	if (
+		resourceIds !== undefined &&
+		(resourceIds.length === 0 ||
+			new Set(resourceIds).size !== resourceIds.length)
+	) {
+		throw new Error("Native single-LUT resource IDs must be unique");
+	}
+	return {
+		concurrency,
+		...(limit !== undefined ? { limit } : {}),
+		persist,
+		...(resourceIds ? { resourceIds } : {}),
+		runDirectory,
+		sourcePath,
+	};
 }
 
 export function bootstrapSingleLutIntensity({ source }: { source: string }) {
@@ -158,6 +192,32 @@ async function renderPng({
 	);
 }
 
+async function renderNativeSource({
+	inputPath,
+	outputPath,
+}: {
+	inputPath: string;
+	outputPath: string;
+}) {
+	await execFileAsync(
+		getFFmpegPath(),
+		[
+			"-hide_banner",
+			"-loglevel",
+			"error",
+			"-y",
+			"-i",
+			inputPath,
+			"-frames:v",
+			"1",
+			"-pix_fmt",
+			"rgb24",
+			outputPath,
+		],
+		{ maxBuffer: 16 * 1024 * 1024 }
+	);
+}
+
 async function renderQcutLut({
 	card,
 	outputPath,
@@ -203,22 +263,25 @@ async function renderQcutLut({
 
 async function prepareOraclePackage({
 	card,
+	reference,
 	temporaryDirectory,
 }: {
 	card: JianyingFilterCatalogCard;
+	reference: Awaited<ReturnType<typeof listJianyingLutReferences>>[number];
 	temporaryDirectory: string;
 }) {
 	const version = cardVersion({ card });
-	const sourcePath = path.join(
-		homedir(),
-		"Movies",
-		"JianyingPro",
-		"User Data",
-		"Cache",
-		"artistEffect",
-		card.resourceId,
-		version
-	);
+	let sourcePath = path.dirname(reference.filePath);
+	const filesystemRoot = path.parse(sourcePath).root;
+	while (
+		path.basename(sourcePath) !== version &&
+		sourcePath !== filesystemRoot
+	) {
+		sourcePath = path.dirname(sourcePath);
+	}
+	if (path.basename(sourcePath) !== version) {
+		throw new Error("Single-LUT package root cannot be resolved");
+	}
 	const packagePath = path.join(temporaryDirectory, "effect");
 	await cp(sourcePath, packagePath, {
 		recursive: true,
@@ -226,14 +289,26 @@ async function prepareOraclePackage({
 		force: false,
 	});
 	const scriptPath = path.join(packagePath, SCRIPT_RELATIVE_PATH);
-	const script = await readFile(scriptPath);
+	let script: Buffer;
+	try {
+		script = await readFile(scriptPath);
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+			return { packagePath, bootstrap: "package-default" as const };
+		}
+		throw error;
+	}
 	const scriptSha256 = createHash("sha256").update(script).digest("hex");
 	await writeFile(
 		scriptPath,
 		bootstrapSingleLutIntensity({ source: script.toString("utf8") }),
 		{ mode: 0o600 }
 	);
-	return { packagePath, scriptSha256 };
+	return {
+		packagePath,
+		bootstrap: "injected-intensity" as const,
+		scriptSha256,
+	};
 }
 
 async function runCard({
@@ -266,10 +341,13 @@ async function runCard({
 		) {
 			throw new Error(runtime.status.message);
 		}
-		const { packagePath, scriptSha256 } = await prepareOraclePackage({
-			card,
-			temporaryDirectory,
-		});
+		const { bootstrap, packagePath, scriptSha256 } = await prepareOraclePackage(
+			{
+				card,
+				reference,
+				temporaryDirectory,
+			}
+		);
 		const firstPpm = path.join(temporaryDirectory, "first.ppm");
 		const secondPpm = path.join(temporaryDirectory, "second.ppm");
 		const bootstrapOutputPath = path.join(temporaryDirectory, "bootstrap.ppm");
@@ -326,7 +404,8 @@ async function runCard({
 			version,
 			title: card.title,
 			categories: card.categories,
-			scriptSha256,
+			bootstrap,
+			...(scriptSha256 ? { scriptSha256 } : {}),
 			processId: host.pid,
 			initializedMs,
 			firstFrameMs,
@@ -362,6 +441,7 @@ async function saveResults({
 			record: {
 				resourceId: result.resourceId,
 				version: result.version,
+				referenceKind: "native-oracle",
 				...result.verification,
 			},
 		});
@@ -401,17 +481,24 @@ export async function runNativeSingleLutParity({
 }: {
 	options: NativeSingleLutOptions;
 }) {
+	const fixtureDirectory = path.join(options.runDirectory, "fixture");
+	const nativeSourcePath = path.join(fixtureDirectory, "source.ppm");
 	await Promise.all([
 		readFile(options.sourcePath),
 		mkdir(path.join(options.runDirectory, "oracle"), { recursive: true }),
 		mkdir(path.join(options.runDirectory, "qcut"), { recursive: true }),
+		mkdir(fixtureDirectory, { recursive: true }),
 	]);
+	await renderNativeSource({
+		inputPath: options.sourcePath,
+		outputPath: nativeSourcePath,
+	});
 	const [catalog, references, runtime] = await Promise.all([
 		exportCatalogDefault(),
 		listJianyingLutReferences(),
 		inspectJianyingFilterLocalRuntime({ refresh: true }),
 	]);
-	const cards = catalog.cards
+	const availableCards = catalog.cards
 		.filter(
 			(card) =>
 				card.implementation === "single-lut" &&
@@ -420,6 +507,27 @@ export async function runNativeSingleLutParity({
 				Boolean(card.version)
 		)
 		.sort((left, right) => left.resourceId.localeCompare(right.resourceId));
+	if (options.resourceIds) {
+		const availableIds = new Set(
+			availableCards.map(({ resourceId }) => resourceId)
+		);
+		const missing = options.resourceIds.filter(
+			(resourceId) => !availableIds.has(resourceId)
+		);
+		if (missing.length > 0) {
+			throw new Error(
+				`Requested single-LUT cards are unavailable: ${missing.join(", ")}`
+			);
+		}
+	}
+	const selectedCards = options.resourceIds
+		? availableCards.filter(({ resourceId }) =>
+				options.resourceIds?.includes(resourceId)
+			)
+		: availableCards;
+	const cards = options.limit
+		? selectedCards.slice(0, options.limit)
+		: selectedCards;
 	const referenceByCard = new Map(
 		references.map((reference) => [
 			`${reference.resourceId}/${reference.version}`,
@@ -444,7 +552,7 @@ export async function runNativeSingleLutParity({
 			const result = await runCard({
 				card,
 				index,
-				options,
+				options: { ...options, sourcePath: nativeSourcePath },
 				reference,
 				runtime,
 			});
@@ -454,11 +562,12 @@ export async function runNativeSingleLutParity({
 			return result;
 		},
 	});
-	await saveResults({ index: 0, results });
+	if (options.persist) await saveResults({ index: 0, results });
 	const report = {
 		generatedAt: new Date().toISOString(),
 		provider: "jianying-local-effect-v1",
 		concurrency: options.concurrency,
+		persisted: options.persist,
 		runtime: runtime.status,
 		results,
 	};
