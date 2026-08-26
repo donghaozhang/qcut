@@ -293,7 +293,12 @@ async function writeManifest({
 	source: RealVideoSequence;
 	maskSourcePath: string;
 	maskName: string;
-	group: { algorithmGraphSha256: string; label: string; maskPath: string };
+	group: {
+		algorithmGraphSha256: string;
+		label: string;
+		maskPath: string;
+		resourceId: string;
+	};
 	report: Record<string, unknown>;
 }) {
 	await mkdir(options.outputDirectory, { recursive: true });
@@ -303,7 +308,7 @@ async function writeManifest({
 	}
 	const manifestPath = join(options.outputDirectory, "ui-mask-manifest.json");
 	const manifest = {
-		schemaVersion: 1 as const,
+		schemaVersion: 2 as const,
 		sourceSha256: source.sourceSha256,
 		width: source.width,
 		height: source.height,
@@ -369,6 +374,7 @@ export async function buildDualLutUiMaskManifest({
 				algorithmGraphSha256: groupGraph,
 				label: "direct-jianying-ui-mask",
 				maskPath: maskName,
+				resourceId: options.resourceId,
 			},
 			report: {
 				mode: "direct-ui-mask",
@@ -465,6 +471,7 @@ export async function buildDualLutUiMaskManifest({
 			algorithmGraphSha256: groupGraph,
 			label: "calibrated-jianying-ui-inferred-mask",
 			maskPath: maskName,
+			resourceId: options.resourceId,
 		},
 		report: {
 			mode: "calibrated-ui-inference",

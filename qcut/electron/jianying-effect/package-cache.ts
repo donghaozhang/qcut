@@ -47,7 +47,10 @@ async function clonePackageEntry({
 	if (metadata.isDirectory()) {
 		await mkdir(destinationPath, { recursive: true });
 		const entries = await readdir(sourcePath, { withFileTypes: true });
-		await Promise.all(
+		// Settle every child before propagating a failure: Promise.all rejects
+		// while sibling copies are still in flight, and those stragglers race the
+		// caller's cleanup rm into ENOTEMPTY, masking the real error.
+		const results = await Promise.allSettled(
 			entries.map((entry) =>
 				clonePackageEntry({
 					sourcePath: path.join(sourcePath, entry.name),
@@ -56,6 +59,9 @@ async function clonePackageEntry({
 				})
 			)
 		);
+		for (const result of results) {
+			if (result.status === "rejected") throw result.reason;
+		}
 		return;
 	}
 	if (!metadata.isFile()) {
@@ -115,7 +121,14 @@ async function cachePackage({
 		await rename(pendingPath, finalPath);
 		return finalPath;
 	} finally {
-		await rm(pendingPath, { recursive: true, force: true });
+		// Best-effort cleanup: retry transient races, and never let a cleanup
+		// failure replace the primary error (e.g. the symlink rejection).
+		await rm(pendingPath, {
+			recursive: true,
+			force: true,
+			maxRetries: 3,
+			retryDelay: 50,
+		}).catch(() => undefined);
 	}
 }
 

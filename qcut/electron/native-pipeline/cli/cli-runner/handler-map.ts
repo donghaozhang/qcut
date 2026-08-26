@@ -217,6 +217,10 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	"filter-lab-coverage": wrap((options) =>
 		handleFilterLabCoverage({
 			stratify: options.stratify ? String(options.stratify) : undefined,
+			referenceKind: options.referenceKind
+				? String(options.referenceKind)
+				: undefined,
+			details: options.details,
 		})
 	),
 	"filter-lab-compare": wrap((options) =>
@@ -237,6 +241,7 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 		handleFilterLabVerify({
 			resourceId: options.resourceId,
 			filterVersion: options.filterVersion,
+			referenceKind: options.referenceKind,
 			referenceFrame: options.referenceFrame,
 			candidateFrame: options.candidateFrame,
 			referenceMask: options.referenceMask,

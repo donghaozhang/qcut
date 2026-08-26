@@ -33,12 +33,14 @@ const manifest = JSON.stringify({
 		{
 			resourceId: "one",
 			filterVersion: "v1",
+			referenceKind: "jianying-ui",
 			referenceFrame: "/evidence/one-ref.png",
 			candidateFrame: "/evidence/one-cand.png",
 		},
 		{
 			resourceId: "two",
 			filterVersion: "v1",
+			referenceKind: "native-oracle",
 			referenceFrame: "/evidence/two-ref.png",
 			candidateFrame: "/evidence/two-cand.png",
 		},
@@ -75,7 +77,11 @@ describe("filter-lab verify-batch", () => {
 		});
 		expect(save).toHaveBeenCalledTimes(1);
 		expect(save).toHaveBeenCalledWith({
-			record: expect.objectContaining({ resourceId: "one", version: "v1" }),
+			record: expect.objectContaining({
+				referenceKind: "jianying-ui",
+				resourceId: "one",
+				version: "v1",
+			}),
 		});
 	});
 
@@ -97,6 +103,29 @@ describe("filter-lab verify-batch", () => {
 		const result = await handleFilterLabVerifyBatch({});
 		expect(result.success).toBe(false);
 		expect(result.error).toContain("--manifest");
+	});
+
+	it("rejects an entry without explicit evidence provenance", async () => {
+		const result = await handleFilterLabVerifyBatch(
+			{ manifest: "runs.json" },
+			{
+				readManifest: async () =>
+					JSON.stringify({
+						entries: [
+							{
+								resourceId: "one",
+								filterVersion: "v1",
+								referenceFrame: "reference.png",
+								candidateFrame: "candidate.png",
+							},
+						],
+					}),
+				verify: vi.fn(),
+				save: vi.fn(),
+			}
+		);
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("referenceKind");
 	});
 });
 
@@ -157,5 +186,89 @@ describe("filter-lab coverage", () => {
 		const result = await handleFilterLabCoverage({ stratify: "bogus" });
 		expect(result.success).toBe(false);
 		expect(result.error).toContain("bogus");
+	});
+
+	it("reports UI-only coverage without counting native oracle runs", async () => {
+		const result = await handleFilterLabCoverage(
+			{ referenceKind: "jianying-ui" },
+			{
+				exportCatalog: async () => ({
+					count: 1,
+					cards: [
+						{
+							resourceId: "one",
+							title: "一",
+							categories: [],
+							version: "v1",
+							implementation: "single-lut" as const,
+							cacheStatus: "cached" as const,
+							available: true,
+							verification: "unverified" as const,
+							lutCount: 1,
+						},
+					],
+				}),
+				readRecords: async () => [
+					{
+						resourceId: "one",
+						version: "v1",
+						referenceKind: "native-oracle" as const,
+						status: "verified" as const,
+						width: 16,
+						height: 9,
+						referenceSha256: "a".repeat(64),
+						candidateSha256: "b".repeat(64),
+						verifiedAt: "2026-08-12T00:00:00.000Z",
+					},
+				],
+			}
+		);
+		expect(result.success).toBe(true);
+		expect(result.data).toMatchObject({
+			referenceKind: "jianying-ui",
+			allRecordedRuns: 1,
+			totals: { recordedRuns: 0, unverified: 1 },
+		});
+	});
+
+	it("includes the per-card checklist only when requested", async () => {
+		const result = await handleFilterLabCoverage(
+			{ referenceKind: "jianying-ui", details: true },
+			{
+				exportCatalog: async () => ({
+					count: 1,
+					cards: [
+						{
+							resourceId: "one",
+							title: "一",
+							categories: [],
+							version: "v1",
+							implementation: "single-lut" as const,
+							cacheStatus: "cached" as const,
+							available: true,
+							verification: "unverified" as const,
+							lutCount: 1,
+						},
+					],
+				}),
+				readRecords: async () => [],
+			}
+		);
+
+		expect(result.data).toMatchObject({
+			gaps: { "missing-reference": 1 },
+			details: [
+				{
+					resourceId: "one",
+					title: "一",
+					version: "v1",
+					implementation: "single-lut",
+					cacheStatus: "cached",
+					available: true,
+					status: "unverified",
+					gap: "missing-reference",
+				},
+			],
+		});
 	});
 });

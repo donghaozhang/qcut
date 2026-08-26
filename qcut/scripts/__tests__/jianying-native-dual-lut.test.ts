@@ -1,3 +1,6 @@
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parseBuildUiMaskArgs } from "../jianying-filter-parity/build-dual-lut-ui-mask-manifest";
 import { parseNativeDualLutArgs } from "../jianying-filter-parity/run-native-dual-lut";
@@ -7,6 +10,9 @@ import {
 } from "../jianying-filter-parity/dual-lut-evidence";
 import {
 	algorithmGraphSha256,
+	isUiMaskGroupBoundToResource,
+	loadUiMaskManifest,
+	loadUiMaskReference,
 	resizeMaskHalfPixel,
 } from "../jianying-filter-parity/dual-lut-ui-mask";
 import { inferDualLutMaskFrame } from "../jianying-filter-parity/dual-lut-mask-inference";
@@ -156,6 +162,168 @@ describe("Jianying native dual-LUT batch", () => {
 		).toBe(
 			algorithmGraphSha256({ graph: { nodes: [{ x: 1, y: 2 }], name: "skin" } })
 		);
+	});
+
+	it("binds legacy and current UI mask groups to one filter card", () => {
+		const legacyGroup = {
+			algorithmGraphSha256: "graph",
+			label: "legacy",
+			maskPath: "7127671508264078599-inferred-ui-mask.gray",
+		};
+		expect(
+			isUiMaskGroupBoundToResource({
+				group: legacyGroup,
+				resourceId: "7127671508264078599",
+			})
+		).toBe(true);
+		expect(
+			isUiMaskGroupBoundToResource({
+				group: legacyGroup,
+				resourceId: "7281165355353951543",
+			})
+		).toBe(false);
+		expect(
+			isUiMaskGroupBoundToResource({
+				group: { ...legacyGroup, resourceId: "7281165355353951543" },
+				resourceId: "7281165355353951543",
+			})
+		).toBe(true);
+	});
+
+	it("rejects a legacy UI mask manifest reused for another filter card", async () => {
+		const directory = await mkdtemp(join(tmpdir(), "qcut-ui-mask-binding-"));
+		try {
+			const packagePath = join(directory, "effect");
+			await mkdir(packagePath);
+			const graph = { nodes: [{ type: "skin-seg" }] };
+			const graphSha256 = algorithmGraphSha256({ graph });
+			await Promise.all([
+				writeFile(
+					join(packagePath, "algorithmConfig.json"),
+					JSON.stringify(graph)
+				),
+				writeFile(
+					join(directory, "7127671508264078599-mask.gray"),
+					new Uint8Array([0, 64, 128, 255])
+				),
+			]);
+			const manifestPath = join(directory, "ui-mask-manifest.json");
+			await writeFile(
+				manifestPath,
+				JSON.stringify({
+					schemaVersion: 1,
+					sourceSha256: "source",
+					width: 2,
+					height: 1,
+					frameCount: 2,
+					measurementStartFrame: 1,
+					groups: [
+						{
+							algorithmGraphSha256: graphSha256,
+							label: "legacy",
+							maskPath: "7127671508264078599-mask.gray",
+						},
+					],
+				})
+			);
+			const manifest = await loadUiMaskManifest({
+				manifestPath,
+				sourceSha256: "source",
+				width: 2,
+				height: 1,
+				frameCount: 2,
+			});
+			await expect(
+				loadUiMaskReference({
+					manifest,
+					packagePath,
+					resourceId: "7281165355353951543",
+				})
+			).rejects.toThrow("No UI mask evidence for resource");
+			await expect(
+				loadUiMaskReference({
+					manifest,
+					packagePath,
+					resourceId: "7127671508264078599",
+				})
+			).resolves.toMatchObject({
+				resourceId: "7127671508264078599",
+			});
+		} finally {
+			await rm(directory, { recursive: true, force: true });
+		}
+	});
+
+	it("scopes UI mask manifest duplicate checks to each filter card", async () => {
+		const directory = await mkdtemp(join(tmpdir(), "qcut-ui-mask-groups-"));
+		try {
+			const manifestPath = join(directory, "ui-mask-manifest.json");
+			const manifest = {
+				schemaVersion: 1,
+				sourceSha256: "source",
+				width: 2,
+				height: 1,
+				frameCount: 2,
+				measurementStartFrame: 1,
+				groups: [
+					{
+						algorithmGraphSha256: "shared-graph",
+						label: "first",
+						maskPath: "7127671508264078599-mask.gray",
+					},
+					{
+						algorithmGraphSha256: "shared-graph",
+						label: "second",
+						maskPath: "7281165355353951543-mask.gray",
+					},
+				],
+			};
+			await writeFile(manifestPath, JSON.stringify(manifest));
+			await expect(
+				loadUiMaskManifest({
+					manifestPath,
+					sourceSha256: "source",
+					width: 2,
+					height: 1,
+					frameCount: 2,
+				})
+			).resolves.toMatchObject({ groups: manifest.groups });
+
+			manifest.groups[1] = {
+				...manifest.groups[1],
+				maskPath: "7127671508264078599-other-mask.gray",
+			};
+			await writeFile(manifestPath, JSON.stringify(manifest));
+			await expect(
+				loadUiMaskManifest({
+					manifestPath,
+					sourceSha256: "source",
+					width: 2,
+					height: 1,
+					frameCount: 2,
+				})
+			).rejects.toThrow("duplicate graph and resource groups");
+
+			manifest.groups = [
+				{
+					algorithmGraphSha256: "shared-graph",
+					label: "unbound",
+					maskPath: "mask.gray",
+				},
+			];
+			await writeFile(manifestPath, JSON.stringify(manifest));
+			await expect(
+				loadUiMaskManifest({
+					manifestPath,
+					sourceSha256: "source",
+					width: 2,
+					height: 1,
+					frameCount: 2,
+				})
+			).rejects.toThrow("not bound to a resource ID");
+		} finally {
+			await rm(directory, { recursive: true, force: true });
+		}
 	});
 
 	it("resizes native masks using half-pixel bilinear sampling", () => {

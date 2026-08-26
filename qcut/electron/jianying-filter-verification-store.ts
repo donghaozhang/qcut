@@ -14,6 +14,7 @@ import { dirname, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import type {
 	JianyingFilterVerification,
+	JianyingFilterVerificationReferenceKind,
 	JianyingFilterVerificationStatus,
 } from "./jianying-filter-lab-contract.js";
 
@@ -38,6 +39,11 @@ const STATUS_VALUES = new Set<JianyingFilterVerificationStatus>([
 	"unverified",
 	"close",
 	"verified",
+]);
+const REFERENCE_KIND_VALUES = new Set<JianyingFilterVerificationReferenceKind>([
+	"jianying-ui",
+	"native-oracle",
+	"unknown",
 ]);
 
 export interface JianyingFilterVerificationRecord
@@ -93,6 +99,15 @@ function isRecord({ value }: { value: unknown }): boolean {
 	if (
 		record.inputDigest !== undefined &&
 		(typeof record.inputDigest !== "string" || record.inputDigest.length === 0)
+	) {
+		return false;
+	}
+	if (
+		record.referenceKind !== undefined &&
+		(typeof record.referenceKind !== "string" ||
+			!REFERENCE_KIND_VALUES.has(
+				record.referenceKind as JianyingFilterVerificationReferenceKind
+			))
 	) {
 		return false;
 	}

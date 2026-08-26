@@ -16,6 +16,8 @@ describe("Filter Lab verification CLI registration", () => {
 			"verify",
 			"--resource-id",
 			"filter-1",
+			"--reference-kind",
+			"jianying-ui",
 			"--filter-version",
 			"v2",
 			"--reference-frame",
@@ -30,10 +32,12 @@ describe("Filter Lab verification CLI registration", () => {
 			"jianying.mov",
 			"--candidate-video",
 			"qcut.mov",
+			"--details",
 		]);
 		expect(options).toMatchObject({
 			command: "filter-lab-verify",
 			resourceId: "filter-1",
+			referenceKind: "jianying-ui",
 			filterVersion: "v2",
 			referenceFrame: "jianying.png",
 			candidateFrame: "qcut.png",
@@ -41,6 +45,7 @@ describe("Filter Lab verification CLI registration", () => {
 			candidateMask: "qcut-mask.png",
 			referenceVideo: "jianying.mov",
 			candidateVideo: "qcut.mov",
+			details: true,
 		});
 	});
 });

@@ -135,4 +135,60 @@ describe("buildFilterLabCoverageReport", () => {
 		expect(report.totals.cards).toBe(0);
 		expect(report.strata).toEqual([]);
 	});
+
+	it("classifies actionable per-card gaps when details are requested", () => {
+		const report = buildFilterLabCoverageReport({
+			cards: [
+				{
+					resourceId: "missing-ui",
+					title: "Missing UI",
+					version: "v1",
+					implementation: "single-lut",
+					available: true,
+				},
+				{
+					resourceId: "offline",
+					version: "v1",
+					implementation: "single-lut",
+					available: false,
+				},
+				{
+					resourceId: "portrait",
+					version: "v1",
+					implementation: "dual-lut",
+					available: true,
+				},
+			],
+			records: [
+				{
+					resourceId: "portrait",
+					version: "v1",
+					status: "verified",
+					verifiedAt: "2026-08-12T00:00:00Z",
+				},
+			],
+			strataOf,
+			includeDetails: true,
+		});
+
+		expect(report.gaps).toMatchObject({
+			"missing-reference": 1,
+			"offline-resource-missing": 1,
+			"missing-mask-evidence": 1,
+		});
+		expect(report.details).toEqual([
+			expect.objectContaining({
+				resourceId: "missing-ui",
+				gap: "missing-reference",
+			}),
+			expect.objectContaining({
+				resourceId: "offline",
+				gap: "offline-resource-missing",
+			}),
+			expect.objectContaining({
+				resourceId: "portrait",
+				gap: "missing-mask-evidence",
+			}),
+		]);
+	});
 });

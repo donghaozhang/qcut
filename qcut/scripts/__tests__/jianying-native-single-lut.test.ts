@@ -41,4 +41,25 @@ describe("native single-LUT parity runner", () => {
 			})
 		).toThrow(/from 1 to 6/);
 	});
+
+	it("parses bounded resumable runs without persisting", () => {
+		const options = parseNativeSingleLutArgs({
+			argv: [
+				"--source",
+				"source.ppm",
+				"--run-dir",
+				"run",
+				"--limit",
+				"6",
+				"--resource-ids",
+				"one,two",
+				"--no-persist",
+			],
+		});
+		expect(options).toMatchObject({
+			limit: 6,
+			persist: false,
+			resourceIds: ["one", "two"],
+		});
+	});
 });

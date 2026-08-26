@@ -559,6 +559,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			path: { type: "string" },
 			"resource-id": { type: "string", multiple: true },
 			// filter-lab
+			"reference-kind": { type: "string" },
+			details: { type: "boolean", default: false },
 			"lut-id": { type: "string" },
 			worst: { type: "string" },
 			sample: { type: "string" },
@@ -915,6 +917,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		packagePath: values.path as string | undefined,
 		resourceIds: values["resource-id"] as string[] | undefined,
 		resourceId: (values["resource-id"] as string[] | undefined)?.[0],
+		referenceKind: values["reference-kind"] as string | undefined,
+		details: (values.details as boolean) ?? false,
 		lutId: values["lut-id"] as string | undefined,
 		worst: values.worst ? Number(values.worst) : undefined,
 		sample: values.sample as string | undefined,
