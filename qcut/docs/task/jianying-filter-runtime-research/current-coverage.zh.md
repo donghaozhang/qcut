@@ -17,7 +17,7 @@
 
 | 领域 | 当前状态 | 已证明 | 仍缺少 |
 | --- | --- | --- | --- |
-| 单 LUT / 纯调色 | 执行框架已掌握 | 596 张严格离线 native-oracle 全量执行成功，18 verified / 559 close / 19 unverified | 597 张卡仍缺逐卡剪映 UI 无损 reference；产品侧需自有或获授权实现 |
+| 单 LUT / 纯调色 | 执行框架已掌握 | 596 张严格离线 native-oracle 全量执行成功，18 verified / 559 close / 19 unverified | 887 张目录中的 597 张 single-LUT 卡（596 张已执行 + 1 张离线缺资源）全部仍缺逐卡剪映 UI 无损 reference；产品侧需自有或获授权实现 |
 | 普通多 Pass | 核心语义与产品门禁已掌握 | 清透美食、暗角旧影、迷雾在显式 `intensity=1` 后 RGB 完全一致并进入产品门禁；迷雾覆盖四段 blur/mask/screen/LUT graph | 真实剪映半分辨率、浮点/HDR 和动画纹理代表样本 |
 | QCut 长尾 Pass | 结构化实现已完成 | grain、动态漏光、Bloom、色差、镜头畸变均有浏览器与 FFmpeg 实现；Bloom 覆盖 0.5x、浮点和多级 blur | 与剪映同卡的参数、UI 帧和逐像素门禁 |
 | 外部纹理与 sampler | 已掌握代表样本 | 暗角旧影的 `src1.png` 绑定、坐标、Y 翻转、Alpha 与 pass 链可完全一致 | 其他纹理用途，如噪声、光泄漏、位移和动画纹理 |
