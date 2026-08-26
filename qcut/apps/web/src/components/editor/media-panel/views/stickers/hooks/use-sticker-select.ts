@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import {
 	parseDirectGifRuntimeDescriptor,
 	type StickerRuntimeDescriptor,
+	StickerRuntimeError,
 } from "@qcut/editor-core/sticker-lab";
 import { resolveStickerAssetEntry } from "@/lib/assets/qcut-asset-manifest";
 import { debugError } from "@/lib/debug/debug-config";
@@ -118,9 +119,19 @@ export async function parseStickerFileRuntime({
 	const isGif =
 		file.type === "image/gif" || file.name.toLocaleLowerCase().endsWith(".gif");
 	if (!animatedSticker || !isGif) return;
-	return parseDirectGifRuntimeDescriptor({
-		bytes: new Uint8Array(await file.arrayBuffer()),
-	});
+	const bytes = new Uint8Array(await file.arrayBuffer());
+	try {
+		return parseDirectGifRuntimeDescriptor({ bytes });
+	} catch (error) {
+		if (error instanceof StickerRuntimeError) {
+			debugError(
+				`[StickerSelect] Skipping GIF runtime metadata for ${file.name}:`,
+				error
+			);
+			return;
+		}
+		throw error;
+	}
 }
 
 export function useStickerSelect() {
