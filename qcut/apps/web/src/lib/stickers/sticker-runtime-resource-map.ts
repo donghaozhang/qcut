@@ -56,7 +56,9 @@ export function resolveStickerRuntimeSourceMediaItem({
 	mediaItemsById: ReadonlyMap<string, MediaItem>;
 	source?: string;
 }): MediaItem {
-	if (!source || source === STICKER_RUNTIME_PRIMARY_SOURCE) return mediaItem;
+	if (source === undefined || source === STICKER_RUNTIME_PRIMARY_SOURCE) {
+		return mediaItem;
+	}
 	const resourceName = requiredResourceName({ source });
 	const mediaId = requiredResourceMediaId({ mediaItem, resourceName });
 	const resource = mediaItemsById.get(mediaId);
