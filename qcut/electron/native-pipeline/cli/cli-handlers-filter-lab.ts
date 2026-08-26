@@ -29,6 +29,7 @@ import {
 	type FilterLabVerificationInput,
 	type FilterLabVerificationReport,
 } from "../filters/filter-lab-verification.js";
+import { parseFilterLabReferenceKind } from "../filters/filter-lab-verification-reference.js";
 import type { CLIResult } from "./cli-runner/types.js";
 
 function summariseLut(entry: JianyingLutEntry) {
@@ -444,6 +445,7 @@ export async function handleFilterLabVerify(
 	{
 		resourceId,
 		filterVersion,
+		referenceKind,
 		referenceFrame,
 		candidateFrame,
 		referenceMask,
@@ -453,6 +455,7 @@ export async function handleFilterLabVerify(
 	}: {
 		resourceId?: string;
 		filterVersion?: string;
+		referenceKind?: string;
 		referenceFrame?: string;
 		candidateFrame?: string;
 		referenceMask?: string;
@@ -465,11 +468,23 @@ export async function handleFilterLabVerify(
 		save: saveJianyingFilterVerification,
 	}
 ): Promise<CLIResult> {
-	if (!(resourceId && filterVersion && referenceFrame && candidateFrame)) {
+	const parsedReferenceKind = parseFilterLabReferenceKind({
+		value: referenceKind,
+	});
+	if (
+		!(
+			resourceId &&
+			filterVersion &&
+			parsedReferenceKind &&
+			parsedReferenceKind !== "unknown" &&
+			referenceFrame &&
+			candidateFrame
+		)
+	) {
 		return {
 			success: false,
 			error:
-				"filter-lab verify requires --resource-id, --filter-version, --reference-frame, and --candidate-frame",
+				"filter-lab verify requires --resource-id, --filter-version, --reference-kind (jianying-ui or native-oracle), --reference-frame, and --candidate-frame",
 		};
 	}
 	const report = await deps.verify({
@@ -485,6 +500,7 @@ export async function handleFilterLabVerify(
 	const verification = {
 		resourceId,
 		version: filterVersion,
+		referenceKind: parsedReferenceKind,
 		...report,
 	};
 	const storePath = await deps.save({ record: verification });
