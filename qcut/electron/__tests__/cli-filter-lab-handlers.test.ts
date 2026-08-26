@@ -145,6 +145,7 @@ describe("handleFilterLabVerify", () => {
 			{
 				resourceId: "filter-1",
 				filterVersion: "v2",
+				referenceKind: "jianying-ui",
 				referenceFrame: "jianying.png",
 				candidateFrame: "qcut.png",
 				referenceMask: "jianying-mask.png",
@@ -183,6 +184,7 @@ describe("handleFilterLabVerify", () => {
 			{
 				resourceId: "filter-1",
 				version: "v2",
+				referenceKind: "jianying-ui",
 				status: "verified",
 			},
 		]);
