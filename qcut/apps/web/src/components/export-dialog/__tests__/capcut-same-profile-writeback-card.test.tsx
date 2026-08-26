@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@/test/test-utils";
 import type { UseCapCutSameProfileWritebackOptions } from "@/hooks/export/use-capcut-same-profile-writeback";
 import { useLocaleStore } from "@/stores/locale-store";
+import type { MediaItem } from "@/stores/media/media-store-types";
 import type { TProject } from "@/types/project";
 import type { TimelineTrack } from "@/types/timeline";
 import { CAPCUT_8_1_PROFILE_ID } from "@qcut/editor-core/jianying-draft";
@@ -16,6 +17,7 @@ type WritebackRequest = Parameters<
 
 const createdAt = new Date("2026-08-05T00:00:00.000Z");
 const tracks: TimelineTrack[] = [];
+const mediaItems: MediaItem[] = [];
 
 function createProject({
 	ready = true,
@@ -68,6 +70,7 @@ describe("CapCut same-profile writeback card", () => {
 		render(
 			<CapCutSameProfileWritebackCard
 				bridgeAvailable
+				mediaItems={mediaItems}
 				project={createProject({ profileId: "another-profile" })}
 				tracks={tracks}
 			/>
@@ -83,6 +86,7 @@ describe("CapCut same-profile writeback card", () => {
 		render(
 			<CapCutSameProfileWritebackCard
 				bridgeAvailable
+				mediaItems={mediaItems}
 				project={createProject({ ready: false })}
 				runWriteback={runWriteback}
 				tracks={tracks}
@@ -112,6 +116,7 @@ describe("CapCut same-profile writeback card", () => {
 		render(
 			<CapCutSameProfileWritebackCard
 				bridgeAvailable
+				mediaItems={mediaItems}
 				onBusyChange={onBusyChange}
 				project={createProject()}
 				runWriteback={runWriteback}
@@ -144,6 +149,7 @@ describe("CapCut same-profile writeback card", () => {
 		const view = render(
 			<CapCutSameProfileWritebackCard
 				bridgeAvailable
+				mediaItems={mediaItems}
 				project={importedProject}
 				runWriteback={runWriteback}
 				tracks={tracks}
@@ -166,6 +172,7 @@ describe("CapCut same-profile writeback card", () => {
 		view.rerender(
 			<CapCutSameProfileWritebackCard
 				bridgeAvailable
+				mediaItems={mediaItems}
 				project={importedProject}
 				runWriteback={runWriteback}
 				tracks={[
@@ -202,6 +209,7 @@ describe("CapCut same-profile writeback card", () => {
 		render(
 			<CapCutSameProfileWritebackCard
 				bridgeAvailable
+				mediaItems={mediaItems}
 				project={createProject()}
 				runWriteback={runWriteback}
 				tracks={tracks}
@@ -234,6 +242,7 @@ describe("CapCut same-profile writeback card", () => {
 		render(
 			<CapCutSameProfileWritebackCard
 				bridgeAvailable
+				mediaItems={mediaItems}
 				project={createProject()}
 				recoverWriteback={recoverWriteback}
 				runWriteback={runWriteback}
