@@ -2,7 +2,7 @@
 
 <!-- markdownlint-disable MD013 -->
 
-**状态：** 可执行计划
+**状态：** FLP-004 已完成全量 strict-offline 基线，其余按下述任务继续
 **日期：** 2026-08-12
 **分支：** `lut-v2`
 **代码核验基线：** `c503cc0832ea20d99f359b63306460f78b3d3a7f`（v2026.08.12.1，PR #407 已合并）
@@ -82,7 +82,7 @@
 | FLP-001 目录导出与抽样 | ✅ | `filter-lab catalog` 实测 883 卡；确定性抽样验证通过 |
 | FLP-002 schema 扩展 | ✅ | traits 贯通 contract / electron / editor-core / 快照校验；既有配方逐字节不变 |
 | FLP-003 长尾采集 ×7 | ⬜ | 依赖真实运行时探针 |
-| FLP-004 批量对照 | 🔶 | v2 存储（复合主键 + v1 迁移）、`verify-batch`、`coverage` 已上线并实测；「30 卡实跑」等 FLP-003 产出参照帧 |
+| FLP-004 批量对照 | ✅ | v2 存储、证据来源分层、逐卡 gap 清单已上线；596 张 single-LUT strict-offline native-oracle 全量完成，8 张 UI 真值复跑；见 [2026-08-26 逐卡报告](long-tail-per-card-parity-2026-08-26.zh.md) |
 | FLP-005 ready 后 re-seek | ✅ | 静态恢复至 48.888 dB / IoU 0.9626；动态历史证明 discontinuity 必须重建 manager |
 | FLP-006 人脸关键点绑定 | 🔶 | 单人 FaceBuffer 已由产品链路交付 106 点且通过无脸/隔离 A/B；效果绑定、多人分配和 UI parity 未完成 |
 | FLP-007 导出链路捕获 | ⬜ | 依赖 FLP-005/006 |
