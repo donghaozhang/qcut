@@ -253,6 +253,22 @@ export interface SharedRouteOptions {
 	runDeepHealthChecks?: () => Promise<DeepHealthReport>;
 }
 
+/**
+ * Fail closed: without a renderer media snapshot, restricted Sticker Lab
+ * media cannot be verified, so the export is refused with a capability error.
+ */
+function buildSnapshotUnavailableError({
+	reason,
+}: {
+	reason: string;
+}): HttpError {
+	return new HttpError(
+		503,
+		`Renderer state snapshot ${reason}; export blocked because ` +
+			"restricted media cannot be verified."
+	);
+}
+
 /** Handle list media files with renderer fallback. */
 async function listMediaFilesWithRendererFallback({
 	projectId,
@@ -263,9 +279,8 @@ async function listMediaFilesWithRendererFallback({
 }): Promise<MediaFile[]> {
 	const diskMedia = await listMediaFiles(projectId);
 	if (!accessor.requestStateSnapshot) {
-		throw new RestrictedMediaExportError({
-			mediaIds: [],
-			operation: "video",
+		throw buildSnapshotUnavailableError({
+			reason: "capability is unavailable",
 		});
 	}
 
@@ -273,17 +288,13 @@ async function listMediaFilesWithRendererFallback({
 	try {
 		snapshot = await accessor.requestStateSnapshot({ include: ["media"] });
 	} catch {
-		throw new RestrictedMediaExportError({
-			mediaIds: [],
-			operation: "video",
-		});
+		throw buildSnapshotUnavailableError({ reason: "request failed" });
 	}
 
 	const mediaItems = snapshot?.state?.media?.items;
 	if (!Array.isArray(mediaItems)) {
-		throw new RestrictedMediaExportError({
-			mediaIds: [],
-			operation: "video",
+		throw buildSnapshotUnavailableError({
+			reason: "did not include a media list",
 		});
 	}
 	if (mediaItems.length === 0) return diskMedia;
