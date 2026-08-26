@@ -33,8 +33,14 @@ export type JianyingFilterVerificationStatus =
 	| "close"
 	| "verified";
 
+export type JianyingFilterVerificationReferenceKind =
+	| "jianying-ui"
+	| "native-oracle"
+	| "unknown";
+
 export interface JianyingFilterVerification {
 	status: JianyingFilterVerificationStatus;
+	referenceKind?: JianyingFilterVerificationReferenceKind;
 	version?: string;
 	rgbRmse?: number;
 	psnr?: number;
