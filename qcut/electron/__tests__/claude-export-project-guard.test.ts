@@ -204,8 +204,8 @@ describe("export start project guard", () => {
 				body: {},
 			})
 		).rejects.toMatchObject({
-			status: 500,
-			message: expect.stringContaining("QCUT_RESTRICTED_MEDIA_EXPORT"),
+			status: 503,
+			message: expect.stringContaining("restricted media cannot be verified"),
 		});
 		expect(startExportJob).not.toHaveBeenCalled();
 	});
