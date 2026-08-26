@@ -263,6 +263,7 @@ async function saveRecords({
 		record: {
 			resourceId: result.case.resourceId,
 			version: result.case.version,
+			referenceKind: "jianying-ui",
 			...result.verification,
 		},
 	});
