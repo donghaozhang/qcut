@@ -1,13 +1,14 @@
 # 剪映滤镜运行时：当前覆盖与剩余边界
 
-更新日期：2026-08-22
+更新日期：2026-08-26
 
 ## 先说结论
 
 把已列出的八组问题全部搞懂，确实能解决剪映滤镜运行时的绝大多数技术问题，但要按滤镜类型区分：
 
-- 普通 LUT 与多 Pass 滤镜：核心执行语义已经跑通，产品门禁现有 `净白 + 清透美食 + 暗角旧影 + 迷雾`
-  共 4 张 verified；60 张单 LUT 已完成批处理。不能从这些样本外推成 883 个卡片全部完成。
+- 普通 LUT 与多 Pass 滤镜：核心执行语义已经跑通；596 张 single-LUT 已在严格离线私有 runtime 下完成
+  native-oracle 对照（18 verified / 559 close / 19 unverified）。剪映 UI 真值层必须单独统计，当前 8 张为
+  2 verified / 3 close / 3 unverified，不能把 native-oracle 覆盖外推成 887 张 UI parity。
 - 人像与区域滤镜：主要链路已定位，仍受私有人像模型、宿主配置和许可边界限制，尚不能宣称完美复刻。
 - QCut 预览与导出：本机 provider 已持久化，并在 source 变化或时间回跳时重建 session；预览与固定时间戳
   muxer 共用同一 provider。真实剪映导出子进程的外围调用序列仍未直接捕获。
@@ -16,7 +17,7 @@
 
 | 领域 | 当前状态 | 已证明 | 仍缺少 |
 | --- | --- | --- | --- |
-| 单 LUT / 纯调色 | 已掌握 | 本机二进制重放与 UI 可做到逐像素一致 | 批量验证更多卡片；产品侧需自有或获授权实现 |
+| 单 LUT / 纯调色 | 执行框架已掌握 | 596 张严格离线 native-oracle 全量执行成功，18 verified / 559 close / 19 unverified | 597 张卡仍缺逐卡剪映 UI 无损 reference；产品侧需自有或获授权实现 |
 | 普通多 Pass | 核心语义与产品门禁已掌握 | 清透美食、暗角旧影、迷雾在显式 `intensity=1` 后 RGB 完全一致并进入产品门禁；迷雾覆盖四段 blur/mask/screen/LUT graph | 真实剪映半分辨率、浮点/HDR 和动画纹理代表样本 |
 | QCut 长尾 Pass | 结构化实现已完成 | grain、动态漏光、Bloom、色差、镜头畸变均有浏览器与 FFmpeg 实现；Bloom 覆盖 0.5x、浮点和多级 blur | 与剪映同卡的参数、UI 帧和逐像素门禁 |
 | 外部纹理与 sampler | 已掌握代表样本 | 暗角旧影的 `src1.png` 绑定、坐标、Y 翻转、Alpha 与 pass 链可完全一致 | 其他纹理用途，如噪声、光泄漏、位移和动画纹理 |
@@ -57,6 +58,10 @@ ready 后的恢复动作随后已经完成：同 timestamp re-seek 能恢复静�
 也不能作为产品已经复刻的证明。
 
 ## 下一优先级
+
+长尾逐卡流水线、证据来源分层和跨卡 reference 防误用门禁见
+[滤镜长尾逐卡对标与证据分层](long-tail-per-card-parity-2026-08-26.zh.md)。当前先拆唯一非确定且误差最大的
+“古罗马”，再处理其余 18 张 native-oracle unverified 卡；剪映 UI 层按实现类型分层补 30 张无损 reference。
 
 `support_external_model_name` 已在真实 UI 和独立 V2 的 Swing 初始化处读到相同值 `3`；physical v5.1
 也确认会实质改变完整 mask 与 RGBA。SIMD 单变量已完成：两组 runtime 确实读取 `false/true`，在 CoreML
