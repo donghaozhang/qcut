@@ -17,6 +17,16 @@ import {
 } from "./sticker-clip-animation";
 import { drawStickerWithPerspective } from "./sticker-canvas-perspective";
 import { resolveTimelineStickerVisualAtTime } from "./timeline-sticker-visual";
+import {
+	createBrowserStickerRuntimeAssetResolver,
+	createBrowserStickerRuntimeCanvas,
+} from "./sticker-runtime-browser-assets";
+import { renderStickerRuntimeFrame } from "./sticker-runtime-renderer";
+import {
+	getStickerRuntimeTimelineWindow,
+	resolveStickerRuntimeDescriptor,
+} from "./sticker-runtime-timeline";
+import { StickerRuntimeExportUnsupportedError } from "../../../../../electron/types/sticker-runtime-export-policy";
 
 /**
  * Interface for sticker render options
@@ -59,7 +69,7 @@ export class StickerExportHelper {
 		options: StickerRenderOptions
 	): Promise<StickerRenderResult> {
 		const { canvasWidth, canvasHeight } = options;
-		const timelineElement =
+		const requestedTimelineElement =
 			stickers.length === 1 ? options.timelineElement : undefined;
 
 		const result: StickerRenderResult = {
@@ -74,8 +84,15 @@ export class StickerExportHelper {
 
 		// Render each sticker
 		for (const sticker of sortedStickers) {
+			const timelineElement =
+				requestedTimelineElement ?? getStickerTiming(sticker.id)?.element;
 			const mediaItem = mediaItems.get(sticker.mediaItemId);
 			if (!mediaItem) {
+				if (timelineElement?.stickerRuntime) {
+					throw new Error(
+						`Sticker runtime media item not found: ${sticker.mediaItemId}`
+					);
+				}
 				result.failed.push({
 					stickerId: sticker.id,
 					error: `Media item not found: ${sticker.mediaItemId}`,
@@ -90,6 +107,7 @@ export class StickerExportHelper {
 					ctx,
 					sticker,
 					mediaItem,
+					mediaItems,
 					canvasWidth,
 					canvasHeight,
 					options.currentTime ?? 0,
@@ -101,6 +119,11 @@ export class StickerExportHelper {
 			} catch (error) {
 				const errorMessage =
 					error instanceof Error ? error.message : String(error);
+				const stickerRuntime = resolveStickerRuntimeDescriptor({
+					element: timelineElement,
+					mediaItem,
+				});
+				if (stickerRuntime) throw error;
 				result.failed.push({
 					stickerId: sticker.id,
 					error: errorMessage,
@@ -138,6 +161,7 @@ export class StickerExportHelper {
 		ctx: CanvasRenderingContext2D,
 		sticker: OverlaySticker,
 		mediaItem: MediaItem,
+		mediaItemsById: ReadonlyMap<string, MediaItem>,
 		canvasWidth: number,
 		canvasHeight: number,
 		currentTime: number,
@@ -145,16 +169,47 @@ export class StickerExportHelper {
 		timelineElement?: StickerElement,
 		tracks?: TimelineTrack[]
 	): Promise<void> {
-		// Skip if no URL
-		if (!mediaItem.url) {
-			return;
-		}
-
-		// Load image from cache or create new
-		const img = await this.loadImage(mediaItem.url);
-
 		const animationElement =
 			timelineElement ?? getStickerTiming(sticker.id)?.element;
+		const stickerRuntime = resolveStickerRuntimeDescriptor({
+			element: animationElement,
+			mediaItem,
+		});
+		if (!mediaItem.url && !stickerRuntime) return;
+		let runtimeFrame: Awaited<
+			ReturnType<typeof renderStickerRuntimeFrame>
+		> | null = null;
+		if (stickerRuntime) {
+			const runtimeElement = animationElement;
+			if (!runtimeElement) {
+				throw new StickerRuntimeExportUnsupportedError({
+					operation: "overlay sticker export",
+					reason: "missing-timeline-context",
+				});
+			}
+			runtimeFrame = await renderStickerRuntimeFrame({
+				assets: createBrowserStickerRuntimeAssetResolver({
+					mediaItem,
+					mediaItemsById,
+				}),
+				createCanvas: createBrowserStickerRuntimeCanvas,
+				descriptor: stickerRuntime,
+				timeline: getStickerRuntimeTimelineWindow({
+					element: runtimeElement,
+				}),
+				timelineTimeSeconds: currentTime,
+			});
+		}
+		if (runtimeFrame && !runtimeFrame.active) return;
+		let staticImage: HTMLImageElement | null = null;
+		if (!runtimeFrame) {
+			if (!mediaItem.url) return;
+			staticImage = await this.loadImage(mediaItem.url);
+		}
+		const image = runtimeFrame?.image ?? staticImage;
+		if (!image) return;
+		const sourceWidth = runtimeFrame?.width ?? staticImage?.naturalWidth;
+		const sourceHeight = runtimeFrame?.height ?? staticImage?.naturalHeight;
 		const resolvedSticker = animationElement
 			? resolveTimelineStickerVisualAtTime({
 					element: animationElement,
@@ -209,9 +264,9 @@ export class StickerExportHelper {
 		try {
 			drawStickerWithPerspective({
 				ctx,
-				image: img,
-				sourceWidth: img.naturalWidth || geometry.pixelWidth,
-				sourceHeight: img.naturalHeight || geometry.pixelHeight,
+				image,
+				sourceWidth: sourceWidth || geometry.pixelWidth,
+				sourceHeight: sourceHeight || geometry.pixelHeight,
 				width: geometry.pixelWidth,
 				height: geometry.pixelHeight,
 				perspective: resolvedSticker.perspective ?? DEFAULT_STICKER_PERSPECTIVE,

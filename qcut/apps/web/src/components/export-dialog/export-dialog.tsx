@@ -65,6 +65,7 @@ import { CaptionExportCard, AudioExportCard } from "./export-media-cards";
 import { ExportWarnings } from "./export-warnings";
 import { CapCutDraftExportCard } from "./capcut-draft-export-card";
 import { CapCutSameProfileWritebackCard } from "./capcut-same-profile-writeback-card";
+import { assertRestrictedMediaExportAllowed } from "../../../../../electron/types/restricted-media-export-policy";
 
 /** Modal dialog for configuring and triggering project export. */
 export function ExportDialog() {
@@ -215,6 +216,23 @@ export function ExportDialog() {
 				timelineDuration: exportSettings.timelineDuration,
 				hasValidFilename: exportValidation.hasValidFilename,
 			});
+			return;
+		}
+		try {
+			assertRestrictedMediaExportAllowed({
+				mediaItems,
+				operation: "export-dialog",
+				scope: "timeline",
+				tracks,
+			});
+		} catch (policyError) {
+			useExportStore
+				.getState()
+				.setError(
+					policyError instanceof Error
+						? policyError.message
+						: String(policyError)
+				);
 			return;
 		}
 
@@ -472,6 +490,7 @@ export function ExportDialog() {
 			{/* Settings Section - Scrollable Content */}
 			<div className="flex-1 overflow-auto p-4 space-y-2">
 				<CapCutSameProfileWritebackCard
+					mediaItems={mediaItems}
 					disabled={isExporting || capCutDraftExportBusy}
 					onBusyChange={setCapCutWritebackBusy}
 					project={activeProject}

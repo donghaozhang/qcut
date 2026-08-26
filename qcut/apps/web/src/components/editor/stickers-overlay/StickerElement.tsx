@@ -34,6 +34,9 @@ import {
 import { getStickerClipAnimationState } from "@/lib/stickers/sticker-clip-animation";
 import { buildCssPerspectiveTransform } from "@/lib/video/video-perspective";
 import { DEFAULT_MEDIA_PERSPECTIVE } from "@/lib/video/video-properties";
+import { resolveStickerRuntimeDescriptor } from "@/lib/stickers/sticker-runtime-timeline";
+import { StickerRuntimeCanvas } from "./StickerRuntimeCanvas";
+import { STICKER_RUNTIME_EXPORT_ERROR_CODE } from "../../../../../../electron/types/sticker-runtime-export-policy";
 
 interface StickerElementProps {
 	sticker: OverlaySticker;
@@ -42,6 +45,28 @@ interface StickerElementProps {
 	renderMode?: "full" | "interaction" | "visual";
 	animationElement?: TimelineStickerElement;
 	currentTime?: number;
+}
+
+function StickerRuntimeTimelineError({
+	className,
+	mediaName,
+}: {
+	className: string;
+	mediaName: string;
+}) {
+	return (
+		<div
+			aria-label={mediaName}
+			className={cn(
+				"flex size-full select-none items-center justify-center bg-destructive/10 px-2 text-center text-xs text-destructive",
+				className
+			)}
+			data-sticker-runtime-error={STICKER_RUNTIME_EXPORT_ERROR_CODE}
+			role="img"
+		>
+			Runtime preview requires a timeline clip
+		</div>
+	);
 }
 
 /**
@@ -227,7 +252,31 @@ export const StickerElement = memo<StickerElementProps>(
 		const mediaFitClass = sticker.maintainAspectRatio
 			? "object-contain"
 			: "object-fill";
+		const stickerRuntime = resolveStickerRuntimeDescriptor({
+			element: animationElement,
+			mediaItem,
+		});
 		const renderMediaContent = () => {
+			if (stickerRuntime) {
+				const runtimeElement = animationElement;
+				if (!runtimeElement) {
+					return (
+						<StickerRuntimeTimelineError
+							className={mediaFitClass}
+							mediaName={mediaItem.name}
+						/>
+					);
+				}
+				return (
+					<StickerRuntimeCanvas
+						className={mediaFitClass}
+						currentTime={currentTime}
+						descriptor={stickerRuntime}
+						element={runtimeElement}
+						mediaItem={mediaItem}
+					/>
+				);
+			}
 			switch (mediaItem.type) {
 				case "image":
 					return (

@@ -11,6 +11,7 @@ import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useEffectsStore } from "@/stores/ai/effects-store";
 import { expandCompoundMediaTracks } from "@/lib/timeline/compound-media";
+import { assertRestrictedMediaExportAllowed } from "../../../../../electron/types/restricted-media-export-policy";
 
 // Extracted modules
 import {
@@ -92,6 +93,17 @@ export class ExportEngine {
 		this.mediaItems = mediaItems;
 		this.totalDuration = totalDuration;
 		this.fps = settings.frameRate ?? 30;
+		const overlayMediaIds = useStickersOverlayStore
+			.getState()
+			.getStickersForExport()
+			.map((sticker) => sticker.mediaItemId);
+		assertRestrictedMediaExportAllowed({
+			additionalMediaIds: overlayMediaIds,
+			mediaItems: this.mediaItems,
+			operation: "video",
+			scope: "timeline",
+			tracks: this.tracks,
+		});
 
 		// Check if we should use FFmpeg WASM export
 		this.useFFmpegExport = isFFmpegExportEnabled();

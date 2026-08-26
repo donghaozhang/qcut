@@ -17,6 +17,7 @@ import {
 	buildProjectJSONMinimal,
 } from "../cli/project-json-builder.js";
 import { ensureEditorProjectReady } from "./editor-project-readiness.js";
+import { assertRestrictedMediaExportAllowed } from "../../types/restricted-media-export-policy.js";
 
 type ProgressFn = (progress: {
 	stage: string;
@@ -581,6 +582,11 @@ async function projectExportState(
 	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
 
 	const fullState = await buildProjectJSON(client, opts.projectId);
+	assertRestrictedMediaExportAllowed({
+		mediaItems: fullState.media,
+		operation: "project-state",
+		scope: "all-media",
+	});
 	const json = JSON.stringify(fullState, null, 2);
 
 	const outputPath =

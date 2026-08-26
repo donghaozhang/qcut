@@ -1,7 +1,13 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
+import {
+	parseDirectGifRuntimeDescriptor,
+	type StickerRuntimeDescriptor,
+	StickerRuntimeError,
+} from "@qcut/editor-core/sticker-lab";
 import { resolveStickerAssetEntry } from "@/lib/assets/qcut-asset-manifest";
 import { debugError } from "@/lib/debug/debug-config";
+import { extractVideoMetadataFromUrl } from "@/lib/media/video-metadata";
 import {
 	createStickerMediaUrl,
 	downloadStickerResource,
@@ -11,8 +17,13 @@ import {
 	isAnimatedStickerFile,
 } from "@/lib/stickers/sticker-animation";
 import type { StickerReferenceUsageMetadata } from "@/lib/stickers/local-sticker-reference";
+import {
+	registerStickerRuntimePackageResources,
+	rollbackStickerRuntimePackageResources,
+} from "@/lib/stickers/sticker-runtime-project-import";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { useMediaStore } from "@/stores/media/media-store";
+import type { MediaType } from "@/stores/media/media-store-types";
 import { useProjectStore } from "@/stores/project-store";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { useStickersStore } from "@/stores/stickers-store";
@@ -57,18 +68,70 @@ function readImageDimensions({
 	});
 }
 
+async function readStickerMediaMetadata({
+	mediaType,
+	url,
+}: {
+	mediaType: Exclude<MediaType, "audio">;
+	url: string;
+}): Promise<{ duration: number; height: number; width: number }> {
+	if (mediaType === "image") {
+		return { ...(await readImageDimensions({ url })), duration: 0 };
+	}
+	const metadata = await extractVideoMetadataFromUrl(url);
+	return {
+		duration: metadata.duration ?? 0,
+		height: metadata.height,
+		width: metadata.width,
+	};
+}
+
 export function buildStickerUploadMetadata({
 	animatedSticker,
 	metadata,
+	stickerRuntime,
+	stickerRuntimeResources,
 }: {
 	animatedSticker: boolean;
 	metadata?: StickerReferenceUsageMetadata;
+	stickerRuntime?: StickerRuntimeDescriptor;
+	stickerRuntimeResources?: Record<string, string>;
 }): Record<string, unknown> {
 	return {
 		source: metadata ? "sticker-lab" : "sticker-upload",
 		animatedSticker,
+		...(stickerRuntime ? { stickerRuntime } : {}),
+		...(stickerRuntimeResources &&
+		Object.keys(stickerRuntimeResources).length > 0
+			? { stickerRuntimeResources }
+			: {}),
 		...metadata,
 	};
+}
+
+export async function parseStickerFileRuntime({
+	animatedSticker,
+	file,
+}: {
+	animatedSticker: boolean;
+	file: File;
+}): Promise<StickerRuntimeDescriptor | undefined> {
+	const isGif =
+		file.type === "image/gif" || file.name.toLocaleLowerCase().endsWith(".gif");
+	if (!animatedSticker || !isGif) return;
+	const bytes = new Uint8Array(await file.arrayBuffer());
+	try {
+		return parseDirectGifRuntimeDescriptor({ bytes });
+	} catch (error) {
+		if (error instanceof StickerRuntimeError) {
+			debugError(
+				`[StickerSelect] Skipping GIF runtime metadata for ${file.name}:`,
+				error
+			);
+			return;
+		}
+		throw error;
+	}
 }
 
 export function useStickerSelect() {
@@ -114,9 +177,11 @@ export function useStickerSelect() {
 		async ({
 			mediaItemId,
 			projectId,
+			stickerRuntime,
 		}: {
 			mediaItemId: string;
 			projectId: string;
+			stickerRuntime?: StickerRuntimeDescriptor;
 		}): Promise<boolean> => {
 			assertProjectActive({ projectId });
 			const stickerId = addOverlaySticker(mediaItemId, {
@@ -141,7 +206,8 @@ export function useStickerSelect() {
 					sticker,
 					usePlaybackStore.getState().currentTime,
 					5,
-					() => isProjectActive({ projectId })
+					() => isProjectActive({ projectId }),
+					stickerRuntime
 				);
 				if (result.success) return true;
 				throw new Error(result.error ?? "Failed to add sticker to timeline");
@@ -241,35 +307,68 @@ export function useStickerSelect() {
 
 			let createdObjectUrl: string | null = null;
 			let mediaItemId: string | null = null;
+			let createdRuntimeResourceIds: string[] = [];
 			try {
 				const downloaded = await prepareSticker({ iconId, name });
+				assertProjectActive({ projectId });
+				const runtimeRegistration = downloaded.runtimePackage
+					? await registerStickerRuntimePackageResources({
+							addMediaItem,
+							asset: downloaded.asset,
+							existingMediaItems: useMediaStore.getState().mediaItems,
+							projectId,
+							removeMediaItem,
+							runtimePackage: downloaded.runtimePackage,
+						})
+					: undefined;
+				createdRuntimeResourceIds = runtimeRegistration?.createdMediaIds ?? [];
 				const animatedSticker =
-					isAnimatedStickerAsset({ asset: downloaded.asset }) &&
-					(await isAnimatedStickerFile({ file: downloaded.file }));
+					downloaded.runtimePackage !== undefined ||
+					(isAnimatedStickerAsset({ asset: downloaded.asset }) &&
+						(await isAnimatedStickerFile({ file: downloaded.file })));
+				const stickerRuntime =
+					downloaded.runtimePackage?.descriptor ??
+					(await parseStickerFileRuntime({
+						animatedSticker,
+						file: downloaded.file,
+					}));
+				const mediaType =
+					downloaded.runtimePackage?.primaryMediaType ?? "image";
 				const mediaUrl = await createStickerMediaUrl({ blob: downloaded.blob });
 				createdObjectUrl = mediaUrl.revoke ? mediaUrl.url : null;
-				const dimensions = await readImageDimensions({ url: mediaUrl.url });
+				const mediaMetadata = await readStickerMediaMetadata({
+					mediaType,
+					url: mediaUrl.url,
+				});
 				assertProjectActive({ projectId });
 				mediaItemId = await addMediaItem(projectId, {
 					name: downloaded.file.name,
-					type: "image",
+					type: mediaType,
 					file: downloaded.file,
 					url: mediaUrl.url,
-					thumbnailUrl: mediaUrl.url,
-					width: dimensions.width,
-					height: dimensions.height,
-					duration: 0,
+					...(mediaType === "image" ? { thumbnailUrl: mediaUrl.url } : {}),
+					width: mediaMetadata.width,
+					height: mediaMetadata.height,
+					duration: mediaMetadata.duration,
 					metadata: {
 						source: "sticker-library",
 						stickerAssetId: downloaded.asset.id,
 						stickerAssetVersion: downloaded.asset.version,
 						animatedSticker,
+						...(stickerRuntime ? { stickerRuntime } : {}),
+						...(runtimeRegistration &&
+						Object.keys(runtimeRegistration.resourceMediaIds).length > 0
+							? {
+									stickerRuntimeResources: runtimeRegistration.resourceMediaIds,
+								}
+							: {}),
 					},
 				});
 				assertProjectActive({ projectId });
 				const didPlaceSticker = await placeStickerOnTimeline({
 					mediaItemId,
 					projectId,
+					stickerRuntime,
 				});
 				if (!didPlaceSticker) {
 					throw new Error("Failed to add sticker to timeline");
@@ -287,6 +386,11 @@ export function useStickerSelect() {
 				} else if (createdObjectUrl) {
 					revokeUnownedMediaUrl({ url: createdObjectUrl });
 				}
+				await rollbackStickerRuntimePackageResources({
+					mediaIds: createdRuntimeResourceIds,
+					projectId,
+					removeMediaItem,
+				});
 				toast.error("Failed to add sticker to project");
 				return;
 			}
@@ -297,6 +401,7 @@ export function useStickerSelect() {
 			addRecentSticker,
 			placeStickerOnTimeline,
 			prepareSticker,
+			removeMediaItem,
 			revokeUnownedMediaUrl,
 			rollbackMediaItem,
 		]
@@ -328,6 +433,10 @@ export function useStickerSelect() {
 					readImageDimensions({ url: imageUrl }),
 					isAnimatedStickerFile({ file }),
 				]);
+				const stickerRuntime = await parseStickerFileRuntime({
+					animatedSticker,
+					file,
+				});
 				assertProjectActive({ projectId });
 				mediaItemId = await addMediaItem(projectId, {
 					name: file.name,
@@ -341,12 +450,14 @@ export function useStickerSelect() {
 					metadata: buildStickerUploadMetadata({
 						animatedSticker,
 						metadata,
+						stickerRuntime,
 					}),
 				});
 				assertProjectActive({ projectId });
 				const didPlaceSticker = await placeStickerOnTimeline({
 					mediaItemId,
 					projectId,
+					stickerRuntime,
 				});
 				if (!didPlaceSticker) {
 					throw new Error("Failed to add sticker to timeline");

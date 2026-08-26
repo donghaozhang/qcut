@@ -4,6 +4,7 @@ import type { OverlaySticker } from "@/types/sticker-overlay";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { StickerRenderOptions } from "../stickers/sticker-export-helper";
 import type { StickerElement } from "@/types/timeline";
+import * as stickerRuntimeRenderer from "../stickers/sticker-runtime-renderer";
 
 // ---------------------------------------------------------------------------
 // Factories
@@ -314,6 +315,169 @@ describe("StickerExportHelper", () => {
 	// -----------------------------------------------------------------------
 
 	describe("renderSticker positioning", () => {
+		it("fails closed instead of using a static overlay fallback without timeline timing", async () => {
+			const runtimeSpy = vi.spyOn(
+				stickerRuntimeRenderer,
+				"renderStickerRuntimeFrame"
+			);
+			const runtimeMedia = createMockMediaItem({
+				metadata: {
+					stickerRuntime: {
+						kind: "png-sequence",
+						completion: "freeze-last",
+						cycleDurationSeconds: 1,
+						frames: [
+							{
+								durationSeconds: 1,
+								source: "frame.png",
+								startSeconds: 0,
+							},
+						],
+						repeat: { kind: "infinite" },
+					},
+				},
+			});
+
+			await expect(
+				helper.renderStickersToCanvas(
+					ctx,
+					[createMockSticker()],
+					new Map([["media-1", runtimeMedia]]),
+					defaultOptions
+				)
+			).rejects.toMatchObject({
+				code: "QCUT_STICKER_RUNTIME_EXPORT_UNSUPPORTED",
+				reason: "missing-timeline-context",
+			});
+			expect(runtimeSpy).not.toHaveBeenCalled();
+			expect(ctx.drawImage).not.toHaveBeenCalled();
+		});
+
+		it("fails closed when an exact runtime frame cannot render", async () => {
+			vi.spyOn(
+				stickerRuntimeRenderer,
+				"renderStickerRuntimeFrame"
+			).mockRejectedValue(new Error("runtime frame decode failed"));
+			const timelineElement: StickerElement = {
+				id: "timeline-runtime-failure",
+				type: "sticker",
+				name: "Runtime sticker",
+				stickerId: "sticker-1",
+				mediaId: "media-1",
+				startTime: 0,
+				duration: 1,
+				trimStart: 0,
+				trimEnd: 0,
+				stickerRuntime: {
+					kind: "png-sequence",
+					cycleDurationSeconds: 1,
+					frames: [
+						{
+							source: "missing-frame.png",
+							startSeconds: 0,
+							durationSeconds: 1,
+						},
+					],
+					repeat: { kind: "infinite" },
+					completion: "freeze-last",
+				},
+			};
+
+			await expect(
+				helper.renderStickersToCanvas(
+					ctx,
+					[createMockSticker()],
+					new Map([["media-1", createMockMediaItem()]]),
+					{ ...defaultOptions, currentTime: 0, timelineElement }
+				)
+			).rejects.toThrow("runtime frame decode failed");
+		});
+
+		it("uses the timeline-selected runtime frame for canvas export", async () => {
+			const runtimeImage = {} as CanvasImageSource;
+			const runtimeSpy = vi
+				.spyOn(stickerRuntimeRenderer, "renderStickerRuntimeFrame")
+				.mockResolvedValue({
+					active: true,
+					image: runtimeImage,
+					width: 2,
+					height: 1,
+					state: {
+						active: true,
+						kind: "png-sequence",
+						cycleTimeSeconds: 0.2,
+						iterationIndex: 0,
+						sourceTimeSeconds: 0.2,
+						frozen: false,
+						frame: {
+							source: "frame-blue.png",
+							startSeconds: 0.1,
+							durationSeconds: 0.3,
+						},
+						frameElapsedSeconds: 0.1,
+						frameIndex: 1,
+					},
+				});
+			const timelineElement: StickerElement = {
+				id: "timeline-runtime",
+				type: "sticker",
+				name: "Runtime sticker",
+				stickerId: "sticker-1",
+				mediaId: "media-1",
+				startTime: 5,
+				duration: 3,
+				trimStart: 0.1,
+				trimEnd: 0,
+				stickerRuntime: {
+					kind: "png-sequence",
+					cycleDurationSeconds: 0.4,
+					frames: [
+						{
+							source: "frame-red.png",
+							startSeconds: 0,
+							durationSeconds: 0.1,
+						},
+						{
+							source: "frame-blue.png",
+							startSeconds: 0.1,
+							durationSeconds: 0.3,
+						},
+					],
+					repeat: { kind: "infinite" },
+					completion: "freeze-last",
+				},
+			};
+
+			await helper.renderStickersToCanvas(
+				ctx,
+				[createMockSticker()],
+				new Map([["media-1", createMockMediaItem()]]),
+				{
+					...defaultOptions,
+					currentTime: 5.1,
+					timelineElement,
+				}
+			);
+
+			expect(runtimeSpy).toHaveBeenCalledWith(
+				expect.objectContaining({
+					timeline: {
+						timelineStartSeconds: 5,
+						timelineDurationSeconds: 2.9,
+						sourceOffsetSeconds: 0.1,
+					},
+					timelineTimeSeconds: 5.1,
+				})
+			);
+			expect(ctx.drawImage).toHaveBeenCalledWith(
+				runtimeImage,
+				-108,
+				-54,
+				216,
+				108
+			);
+		});
+
 		it("should convert percentage position to center-based pixel coordinates", async () => {
 			// Sticker at center (50%, 50%) on 1920x1080
 			const stickers = [

@@ -1,6 +1,7 @@
 // Define types directly to avoid static imports from media-store
 
 import type { MediaImportMetadata } from "@/types/electron.d";
+import type { StickerRuntimeDescriptor } from "@qcut/editor-core/sticker-lab";
 
 export type MediaType = "image" | "video" | "audio";
 
@@ -65,6 +66,10 @@ export interface MediaItem {
 	// Metadata for various sources (AI generated, etc.)
 	metadata?: {
 		source?: string; // e.g., 'text2image', 'upload', etc.
+		/** Persisted source timing/packing for deterministic sticker rendering. */
+		stickerRuntime?: StickerRuntimeDescriptor;
+		/** Maps durable runtime resource names to project-owned media item IDs. */
+		stickerRuntimeResources?: Record<string, string>;
 		[key: string]: any; // Allow other metadata
 	};
 	// Virtual folder membership (can be in multiple folders like tags)

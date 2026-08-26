@@ -143,6 +143,42 @@ describe("StickerElement interaction modes", () => {
 		);
 	});
 
+	it("shows a typed runtime error without a static fallback when timing is missing", () => {
+		const runtimeMedia: MediaItem = {
+			...mediaItem,
+			metadata: {
+				stickerRuntime: {
+					kind: "png-sequence",
+					completion: "freeze-last",
+					cycleDurationSeconds: 1,
+					frames: [
+						{
+							durationSeconds: 1,
+							source: "frame.png",
+							startSeconds: 0,
+						},
+					],
+					repeat: { kind: "infinite" },
+				},
+			},
+		};
+
+		const { container } = render(
+			<StickerElement
+				sticker={sticker}
+				mediaItem={runtimeMedia}
+				canvasRef={{ current: null }}
+				renderMode="visual"
+			/>
+		);
+
+		expect(screen.getByRole("img", { name: "Badge" })).toHaveAttribute(
+			"data-sticker-runtime-error",
+			"QCUT_STICKER_RUNTIME_EXPORT_UNSUPPORTED"
+		);
+		expect(container.querySelector("img")).toBeNull();
+	});
+
 	it("uses the full interaction box to select the sticker before dragging", () => {
 		render(
 			<StickerElement

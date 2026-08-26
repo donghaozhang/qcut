@@ -15,6 +15,9 @@ const mocks = vi.hoisted(() => ({
 		backgroundColor: "#123456",
 		backgroundType: "color",
 	} as Record<string, unknown> | null,
+	mediaItems: [] as Array<Record<string, unknown>>,
+	overlayStickers: [] as Array<{ mediaItemId: string }>,
+	tracks: [] as Array<Record<string, unknown>>,
 }));
 
 vi.mock("@/lib/export/export-engine-renderer", () => ({
@@ -30,10 +33,15 @@ vi.mock("@/stores/project-store", () => ({
 	useProjectStore: { getState: () => ({ activeProject: mocks.project }) },
 }));
 vi.mock("@/stores/timeline/timeline-store", () => ({
-	useTimelineStore: { getState: () => ({ tracks: [] }) },
+	useTimelineStore: { getState: () => ({ tracks: mocks.tracks }) },
 }));
 vi.mock("@/stores/media-store", () => ({
-	useMediaStore: { getState: () => ({ mediaItems: [] }) },
+	useMediaStore: { getState: () => ({ mediaItems: mocks.mediaItems }) },
+}));
+vi.mock("@/stores/stickers-overlay-store", () => ({
+	useStickersOverlayStore: {
+		getState: () => ({ getStickersForExport: () => mocks.overlayStickers }),
+	},
 }));
 vi.mock("@/stores/editor/playback-store", () => ({
 	usePlaybackStore: { getState: () => ({ currentTime: 2.5 }) },
@@ -50,6 +58,9 @@ describe("exportStillFrame", () => {
 			backgroundColor: "#123456",
 			backgroundType: "color",
 		};
+		mocks.mediaItems = [];
+		mocks.overlayStickers = [];
+		mocks.tracks = [];
 		HTMLCanvasElement.prototype.toBlob = function toBlob(callback) {
 			callback(new Blob(["png"], { type: "image/png" }));
 		};
@@ -94,6 +105,93 @@ describe("exportStillFrame", () => {
 		mocks.renderFrame.mockRejectedValueOnce(new Error("boom"));
 		const result = await exportStillFrame();
 		expect(result).toEqual({ ok: false, error: "boom" });
+		expect(mocks.saveExportedFile).not.toHaveBeenCalled();
+	});
+
+	it("refuses a restricted Sticker Lab frame before rendering", async () => {
+		mocks.mediaItems = [
+			{
+				id: "restricted-sticker",
+				metadata: { redistribution: "prohibited" },
+			},
+		];
+		mocks.tracks = [
+			{
+				elements: [{ mediaId: "restricted-sticker", type: "sticker" }],
+				id: "stickers",
+				type: "sticker",
+			},
+		];
+
+		const result = await exportStillFrame();
+
+		expect(result).toMatchObject({
+			ok: false,
+			error: expect.stringContaining(
+				"Sticker Lab reference-only media cannot be exported or redistributed."
+			),
+		});
+		expect(mocks.renderFrame).not.toHaveBeenCalled();
+		expect(mocks.saveExportedFile).not.toHaveBeenCalled();
+	});
+
+	it("refuses a restricted compound child before rendering", async () => {
+		mocks.mediaItems = [
+			{
+				id: "restricted-compound-child",
+				metadata: { redistribution: "prohibited" },
+			},
+		];
+		mocks.tracks = [
+			{
+				elements: [
+					{
+						compound: {
+							clips: [
+								{
+									element: {
+										mediaId: "restricted-compound-child",
+										type: "media",
+									},
+								},
+							],
+							kind: "compound",
+						},
+						mediaId: "public-container",
+						type: "media",
+					},
+				],
+				id: "media",
+				type: "media",
+			},
+		];
+
+		const result = await exportStillFrame();
+
+		expect(result).toMatchObject({
+			ok: false,
+			error: expect.stringContaining("QCUT_RESTRICTED_MEDIA_EXPORT"),
+		});
+		expect(mocks.renderFrame).not.toHaveBeenCalled();
+		expect(mocks.saveExportedFile).not.toHaveBeenCalled();
+	});
+
+	it("refuses a restricted overlay-only sticker before rendering", async () => {
+		mocks.mediaItems = [
+			{
+				id: "restricted-overlay-media",
+				metadata: { redistribution: "prohibited" },
+			},
+		];
+		mocks.overlayStickers = [{ mediaItemId: "restricted-overlay-media" }];
+
+		const result = await exportStillFrame();
+
+		expect(result).toMatchObject({
+			ok: false,
+			error: expect.stringContaining("QCUT_RESTRICTED_MEDIA_EXPORT"),
+		});
+		expect(mocks.renderFrame).not.toHaveBeenCalled();
 		expect(mocks.saveExportedFile).not.toHaveBeenCalled();
 	});
 });

@@ -47,6 +47,10 @@ import {
 	createAllowedKeySet,
 	validateRecordOfArrays,
 } from "./snapshot-runtime-helpers.js";
+import {
+	evaluateStickerRuntime,
+	type StickerRuntimeDescriptor,
+} from "@qcut/editor-core/sticker-lab";
 
 const ELEMENT_TYPES = new Set([
 	"media",
@@ -162,6 +166,7 @@ const STICKER_ELEMENT_KEYS = createElementAllowedKeySet<StickerElement>({
 		mediaId: true,
 		opacity: true,
 		perspective: true,
+		stickerRuntime: true,
 		stickerId: true,
 		tracking: true,
 		zIndex: true,
@@ -995,6 +1000,29 @@ function validateStickerElement({
 	assertKeys({ allowed: STICKER_ELEMENT_KEYS, path, record: element });
 	getString({ path: `${path}.stickerId`, value: element.stickerId });
 	getString({ path: `${path}.mediaId`, value: element.mediaId });
+	if (element.stickerRuntime !== undefined) {
+		const runtimePath = `${path}.stickerRuntime`;
+		getRecord({ path: runtimePath, value: element.stickerRuntime });
+		try {
+			evaluateStickerRuntime({
+				descriptor:
+					element.stickerRuntime as unknown as StickerRuntimeDescriptor,
+				timeline: {
+					timelineStartSeconds: 0,
+					timelineDurationSeconds: 1,
+				},
+				timelineTimeSeconds: 0,
+			});
+		} catch (error) {
+			throw validationIssue({
+				message:
+					error instanceof Error
+						? error.message
+						: "Invalid sticker runtime descriptor.",
+				path: runtimePath,
+			});
+		}
+	}
 	for (const key of [
 		"x",
 		"y",

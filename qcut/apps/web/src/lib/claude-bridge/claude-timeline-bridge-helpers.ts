@@ -1653,6 +1653,7 @@ function formatElementForExport({
 				sourceId: element.stickerId,
 				stickerId: element.stickerId,
 				mediaId: element.mediaId,
+				stickerRuntime: element.stickerRuntime,
 				x: element.x,
 				y: element.y,
 				width: element.width,

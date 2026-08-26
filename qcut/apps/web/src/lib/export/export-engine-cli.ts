@@ -87,6 +87,8 @@ import {
 	applyJianyingTimelineEffects,
 	collectJianyingEffectRequests,
 } from "./export-engine-cli-jianying-effects";
+import { assertNativeStickerRuntimeExportAllowed } from "../../../../../electron/types/sticker-runtime-export-policy";
+import { assertRestrictedMediaExportAllowed } from "../../../../../electron/types/restricted-media-export-policy";
 
 // Re-export types for backward compatibility (using export from)
 export type {
@@ -228,6 +230,16 @@ export class CLIExportEngine extends ExportEngine {
 	}: {
 		progressCallback?: ProgressCallback;
 	}): Promise<Blob> {
+		const overlayMediaIds = useStickersOverlayStore
+			.getState()
+			.getStickersForExport()
+			.map((sticker) => sticker.mediaItemId);
+		assertNativeStickerRuntimeExportAllowed({
+			additionalMediaIds: overlayMediaIds,
+			mediaItems: this.mediaItems,
+			operation: "native CLI video export",
+			tracks: this.tracks,
+		});
 		debugLog("[CLIExportEngine] Starting CLI export...");
 		debugLog(
 			`[CLIExportEngine] 📏 Original timeline duration: ${this.totalDuration.toFixed(3)}s`
@@ -415,6 +427,12 @@ export class CLIExportEngine extends ExportEngine {
 			const { tracks, mediaItems } = await resolveAudioPreparationInputs({
 				mediaItems: this.mediaItems,
 				tracks: this.tracks,
+			});
+			assertRestrictedMediaExportAllowed({
+				mediaItems,
+				operation: "video",
+				scope: "timeline",
+				tracks,
 			});
 			const preparedAudioFiles = await prepareAudioFilesForExport({
 				fileExists: ({ filePath }) => fileExistsUtil({ filePath }),

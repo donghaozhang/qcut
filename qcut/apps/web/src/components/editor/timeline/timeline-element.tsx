@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { handleMediaProcessingError } from "@/lib/debug/error-handler";
 import { platform } from "@qcut/platform-core";
+import { assertRestrictedMediaExportAllowed } from "../../../../../../electron/types/restricted-media-export-policy";
 import { Button } from "../../ui/button";
 import {
 	MoreVertical,
@@ -1056,6 +1057,16 @@ function TimelineElementComponent({
 		}
 		if (!mediaItem?.localPath) {
 			toast.error("Export selected clip needs a local video file");
+			return;
+		}
+		try {
+			assertRestrictedMediaExportAllowed({
+				mediaItems: [mediaItem],
+				operation: "selected-clip",
+				scope: "all-media",
+			});
+		} catch (error) {
+			toast.error(error instanceof Error ? error.message : String(error));
 			return;
 		}
 		if (

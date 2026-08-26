@@ -8,6 +8,7 @@ import {
 	mediaOutpaintReplacementUpdates,
 	mediaOutpaintRequestFromPayload,
 	mediaOutpaintValidationError,
+	ensureMediaOutpaintLocalSource,
 	prepareMediaOutpaintSource,
 } from "../media-outpaint";
 
@@ -42,6 +43,13 @@ function createMediaItem(): MediaItem {
 		width: 1080,
 		height: 1920,
 		fps: 30,
+	};
+}
+
+function createRestrictedMediaItem(): MediaItem {
+	return {
+		...createMediaItem(),
+		metadata: { redistribution: "prohibited" },
 	};
 }
 
@@ -206,5 +214,33 @@ describe("media outpaint", () => {
 			})
 		).rejects.toThrow("ffmpeg failed");
 		expect(cleanupExportSession).toHaveBeenCalledWith("failed-session");
+	});
+
+	it("blocks restricted media before reading or rendering an outpaint source", async () => {
+		const restricted = createRestrictedMediaItem();
+		const arrayBuffer = vi.spyOn(restricted.file, "arrayBuffer");
+		const createExportSession = vi.fn();
+
+		await expect(
+			ensureMediaOutpaintLocalSource({
+				mediaItem: { ...restricted, localPath: undefined },
+			})
+		).rejects.toMatchObject({ code: "QCUT_RESTRICTED_MEDIA_EXPORT" });
+		expect(arrayBuffer).not.toHaveBeenCalled();
+
+		await expect(
+			prepareMediaOutpaintSource({
+				element: createElement(),
+				mediaItem: restricted,
+				sourcePath: "/project/source.mp4",
+				fps: 30,
+				ffmpeg: {
+					createExportSession,
+					exportVideoCLI: vi.fn(),
+					cleanupExportSession: vi.fn(),
+				},
+			})
+		).rejects.toMatchObject({ code: "QCUT_RESTRICTED_MEDIA_EXPORT" });
+		expect(createExportSession).not.toHaveBeenCalled();
 	});
 });

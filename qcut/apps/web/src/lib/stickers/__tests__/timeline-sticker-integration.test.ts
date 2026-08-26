@@ -4,6 +4,17 @@ import type { TimelineTrack } from "@/types/timeline";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { clearAutoSaveTimer } from "@/stores/timeline/timeline-store-autosave";
 import { TimelineStickerIntegration } from "../timeline-sticker-integration";
+import type { StickerRuntimeDescriptor } from "@qcut/editor-core/sticker-lab";
+
+const runtimeDescriptor: StickerRuntimeDescriptor = {
+	kind: "png-sequence",
+	cycleDurationSeconds: 1,
+	frames: [
+		{ source: "original-frame.png", startSeconds: 0, durationSeconds: 1 },
+	],
+	repeat: { kind: "infinite" },
+	completion: "freeze-last",
+};
 
 function mainTrack(): TimelineTrack {
 	return {
@@ -52,7 +63,13 @@ describe("TimelineStickerIntegration", () => {
 		const integration = new TimelineStickerIntegration({
 			enableLogging: false,
 		});
-		const result = await integration.addStickerToTimeline(sticker(), 2, 5);
+		const result = await integration.addStickerToTimeline(
+			sticker(),
+			2,
+			5,
+			undefined,
+			runtimeDescriptor
+		);
 
 		expect(result.success).toBe(true);
 		const tracks = useTimelineStore.getState().tracks;
@@ -64,6 +81,7 @@ describe("TimelineStickerIntegration", () => {
 				startTime: 2,
 				duration: 5,
 				keyframes: {},
+				stickerRuntime: runtimeDescriptor,
 			}),
 		]);
 	});

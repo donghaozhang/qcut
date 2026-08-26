@@ -16,6 +16,7 @@
 
 import { debugLog, debugError } from "@/lib/debug/debug-config";
 import type { OverlaySticker } from "@/types/sticker-overlay";
+import type { StickerRuntimeDescriptor } from "@qcut/editor-core/sticker-lab";
 
 export interface TimelineIntegrationResult {
 	success: boolean;
@@ -74,7 +75,8 @@ export class TimelineStickerIntegration {
 		sticker: OverlaySticker,
 		startTime: number,
 		duration: number,
-		guard?: TimelineMutationGuard
+		guard?: TimelineMutationGuard,
+		stickerRuntime?: StickerRuntimeDescriptor
 	): Promise<TimelineIntegrationResult> {
 		try {
 			if (!canMutateTimeline({ guard })) return projectChangedResult();
@@ -116,7 +118,8 @@ export class TimelineStickerIntegration {
 				sticker,
 				startTime,
 				duration,
-				guard
+				guard,
+				stickerRuntime
 			);
 
 			return elementResult;
@@ -280,7 +283,8 @@ export class TimelineStickerIntegration {
 		sticker: OverlaySticker,
 		startTime: number,
 		duration: number,
-		guard?: TimelineMutationGuard
+		guard?: TimelineMutationGuard,
+		stickerRuntime?: StickerRuntimeDescriptor
 	): Promise<TimelineIntegrationResult> {
 		try {
 			if (!canMutateTimeline({ guard })) return projectChangedResult();
@@ -291,6 +295,7 @@ export class TimelineStickerIntegration {
 				type: "sticker" as const,
 				stickerId: sticker.id,
 				mediaId: sticker.mediaItemId,
+				...(stickerRuntime ? { stickerRuntime } : {}),
 				name: `Sticker ${Date.now()}`,
 				duration,
 				startTime,

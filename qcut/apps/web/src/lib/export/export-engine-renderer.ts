@@ -59,6 +59,11 @@ import { resolveTimelineStickerVisualAtTime } from "@/lib/stickers/timeline-stic
 import { resolveTimelineElementEffects } from "@/lib/effects/adjustment-layer";
 import { canvasFontFamily } from "@/lib/text/canvas-font";
 import { drawMediaSourceWithMasks } from "@/lib/video/media-mask-canvas";
+import {
+	assertRestrictedMediaExportAllowed,
+	isRestrictedMediaExportError,
+} from "../../../../../electron/types/restricted-media-export-policy";
+import { isStickerRuntimeExportError } from "../../../../../electron/types/sticker-runtime-export-policy";
 
 let exportCompositor: ScreenRecordingExportCompositor | null = null;
 let compositorFrameCanvas: HTMLCanvasElement | null = null;
@@ -800,6 +805,13 @@ export async function renderOverlayStickers(
 		);
 
 		const mediaStore = useMediaStore.getState();
+		assertRestrictedMediaExportAllowed({
+			additionalMediaIds: visibleStickers.map((sticker) => sticker.mediaItemId),
+			mediaItems: mediaStore.mediaItems,
+			operation: "rendered-overlay",
+			scope: "timeline",
+			tracks: context.tracks,
+		});
 		const mediaItemsMap = new Map(
 			mediaStore.mediaItems.map((item) => [item.id, item])
 		);
@@ -828,6 +840,8 @@ export async function renderOverlayStickers(
 			);
 		}
 	} catch (error) {
+		if (isRestrictedMediaExportError({ error })) throw error;
+		if (isStickerRuntimeExportError({ error })) throw error;
 		debugError("[ExportEngine] Failed to render overlay stickers:", error);
 		debugError(
 			`[ExportEngine] Failed at time ${currentTime} with ${visibleStickers?.length || 0} stickers`

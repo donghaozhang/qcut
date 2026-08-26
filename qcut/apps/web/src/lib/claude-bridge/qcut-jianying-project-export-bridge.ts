@@ -16,8 +16,12 @@ import {
 	type QCutJianyingProjectExportRequest,
 	type QCutJianyingProjectExportResult,
 } from "../../../../../electron/types/qcut-jianying-project-export-api";
+import { assertRestrictedMediaExportAllowed } from "../../../../../electron/types/restricted-media-export-policy";
 
 interface QCutJianyingProjectExportStorage {
+	loadAllMediaExportPolicyRecords: (
+		projectId: string
+	) => Promise<ReadonlyArray<{ id: string; metadata?: unknown }>>;
 	loadProject: ({ id }: { id: string }) => Promise<TProject | null>;
 	loadTimeline: ({
 		projectId,
@@ -183,6 +187,15 @@ export async function executePersistedQCutJianyingProjectExport({
 				reason: "timeline-not-found",
 			});
 		}
+		const mediaItems = await storage.loadAllMediaExportPolicyRecords(
+			project.id
+		);
+		assertRestrictedMediaExportAllowed({
+			mediaItems,
+			operation: "jianying-project",
+			scope: "all-media",
+			tracks,
+		});
 		const snapshot = createSameProfileWritebackTimingSnapshot({
 			fps: project.fps ?? 30,
 			tracks,
@@ -205,6 +218,14 @@ export async function executePersistedQCutJianyingProjectExport({
 						sceneId: currentProject.currentSceneId,
 					});
 					if (currentTracks === null) return false;
+					const currentMediaItems =
+						await storage.loadAllMediaExportPolicyRecords(currentProject.id);
+					assertRestrictedMediaExportAllowed({
+						mediaItems: currentMediaItems,
+						operation: "jianying-project",
+						scope: "all-media",
+						tracks: currentTracks,
+					});
 					return isSameProfileWritebackSnapshotCurrent({
 						capturedProject,
 						capturedSnapshot,

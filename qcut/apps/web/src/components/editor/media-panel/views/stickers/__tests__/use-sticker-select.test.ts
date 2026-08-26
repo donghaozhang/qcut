@@ -2,14 +2,22 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
 	buildStickerUploadMetadata,
+	parseStickerFileRuntime,
 	useStickerSelect,
 } from "../hooks/use-sticker-select";
+
+const MINIMAL_GIF_BYTES = new Uint8Array([
+	71, 73, 70, 56, 57, 97, 1, 0, 1, 0, 128, 0, 0, 0, 0, 0, 255, 255, 255, 44, 0,
+	0, 0, 0, 1, 0, 1, 0, 0, 2, 1, 76, 0, 59,
+]);
 
 const mocks = vi.hoisted(() => ({
 	addMediaItem: vi.fn(),
 	addOverlaySticker: vi.fn(),
 	addRecentSticker: vi.fn(),
 	createStickerMediaUrl: vi.fn(),
+	downloadStickerResource: vi.fn(),
+	isAnimatedStickerAsset: vi.fn(),
 	isAnimatedStickerFile: vi.fn(),
 	mediaItems: [] as Array<{ thumbnailUrl?: string; url?: string }>,
 	overlayStickers: new Map<string, unknown>(),
@@ -18,6 +26,7 @@ const mocks = vi.hoisted(() => ({
 	},
 	removeMediaItem: vi.fn(),
 	removeOverlaySticker: vi.fn(),
+	resolveStickerAssetEntry: vi.fn(),
 	timelineAddSticker: vi.fn(),
 	toastError: vi.fn(),
 	toastSuccess: vi.fn(),
@@ -31,16 +40,16 @@ vi.mock("sonner", () => ({
 vi.mock("@/lib/debug/debug-config", () => ({ debugError: vi.fn() }));
 
 vi.mock("@/lib/assets/qcut-asset-manifest", () => ({
-	resolveStickerAssetEntry: vi.fn(),
+	resolveStickerAssetEntry: mocks.resolveStickerAssetEntry,
 }));
 
 vi.mock("@/lib/stickers/sticker-resource", () => ({
 	createStickerMediaUrl: mocks.createStickerMediaUrl,
-	downloadStickerResource: vi.fn(),
+	downloadStickerResource: mocks.downloadStickerResource,
 }));
 
 vi.mock("@/lib/stickers/sticker-animation", () => ({
-	isAnimatedStickerAsset: vi.fn(),
+	isAnimatedStickerAsset: mocks.isAnimatedStickerAsset,
 	isAnimatedStickerFile: mocks.isAnimatedStickerFile,
 }));
 
@@ -128,10 +137,13 @@ beforeEach(() => {
 		url: "blob:sticker-upload",
 	});
 	mocks.isAnimatedStickerFile.mockReset().mockResolvedValue(true);
+	mocks.isAnimatedStickerAsset.mockReset().mockReturnValue(false);
+	mocks.downloadStickerResource.mockReset();
 	mocks.mediaItems.splice(0);
 	mocks.overlayStickers.clear();
 	mocks.removeMediaItem.mockReset().mockResolvedValue(undefined);
 	mocks.removeOverlaySticker.mockReset();
+	mocks.resolveStickerAssetEntry.mockReset();
 	mocks.timelineAddSticker.mockReset();
 	mocks.toastError.mockReset();
 	mocks.toastSuccess.mockReset();
@@ -144,6 +156,22 @@ afterEach(() => {
 });
 
 describe("sticker upload metadata", () => {
+	it("parses GIF container timing before persisting the media item", async () => {
+		const runtime = await parseStickerFileRuntime({
+			animatedSticker: true,
+			file: new File([MINIMAL_GIF_BYTES], "runtime.gif", {
+				type: "image/gif",
+			}),
+		});
+
+		expect(runtime).toMatchObject({
+			kind: "direct-gif",
+			canvasSize: { width: 1, height: 1 },
+			cycleDurationSeconds: 0.1,
+			frames: [{ delayCentiseconds: 0, durationSeconds: 0.1 }],
+		});
+	});
+
 	it("writes the internal-reference contract without a local path", () => {
 		const metadata = buildStickerUploadMetadata({
 			animatedSticker: true,
@@ -171,6 +199,100 @@ describe("sticker upload metadata", () => {
 	});
 });
 
+describe("sticker runtime package placement", () => {
+	it("persists package resources and links their IDs from the primary media", async () => {
+		const descriptor = {
+			completion: "freeze-last" as const,
+			cycleDurationSeconds: 0.1,
+			frames: [
+				{
+					durationSeconds: 0.1,
+					source: "$resource:asset_0001",
+					startSeconds: 0,
+				},
+			],
+			kind: "png-sequence" as const,
+			repeat: { kind: "infinite" as const },
+		};
+		const asset = {
+			delivery: "bundled",
+			id: "runtime-sequence",
+			version: 2,
+		};
+		mocks.resolveStickerAssetEntry.mockReturnValue(asset);
+		mocks.downloadStickerResource.mockResolvedValue({
+			asset,
+			blob: new Blob([new Uint8Array([9])], { type: "image/png" }),
+			cacheKey: "runtime-sequence-source",
+			file: new File([new Uint8Array([9])], "preview.png", {
+				type: "image/png",
+			}),
+			resource: {},
+			runtimePackage: {
+				descriptor,
+				primaryMediaType: "image",
+				resources: [
+					{
+						file: new File([new Uint8Array([1])], "frame.png", {
+							type: "image/png",
+						}),
+						mediaType: "image",
+						resourceName: "asset_0001",
+						sourceUrl: "/runtime/frame.png",
+					},
+				],
+			},
+		});
+		mocks.addMediaItem.mockImplementation(
+			async (_projectId, item: { id?: string }) => item.id ?? "media-sticker"
+		);
+		mocks.overlayStickers.set("overlay-sticker", { id: "overlay-sticker" });
+		mocks.timelineAddSticker.mockResolvedValue({ success: true });
+		const { result } = renderHook(() => useStickerSelect());
+
+		let mediaItemId: string | undefined;
+		await act(async () => {
+			mediaItemId = await result.current.handleStickerSelect(
+				"runtime:sequence",
+				"Runtime sequence"
+			);
+		});
+
+		expect(mediaItemId).toBe("media-sticker");
+		expect(mocks.addMediaItem).toHaveBeenNthCalledWith(
+			1,
+			"project-stickers",
+			expect.objectContaining({
+				id: "sticker-runtime:runtime-sequence@2:asset_0001",
+				metadata: expect.objectContaining({
+					source: "sticker-runtime-resource",
+					stickerRuntimeResourceName: "asset_0001",
+				}),
+			})
+		);
+		expect(mocks.addMediaItem).toHaveBeenNthCalledWith(
+			2,
+			"project-stickers",
+			expect.objectContaining({
+				metadata: expect.objectContaining({
+					stickerRuntime: descriptor,
+					stickerRuntimeResources: {
+						asset_0001: "sticker-runtime:runtime-sequence@2:asset_0001",
+					},
+				}),
+			})
+		);
+		expect(mocks.timelineAddSticker).toHaveBeenCalledWith(
+			expect.anything(),
+			2,
+			5,
+			expect.any(Function),
+			descriptor
+		);
+		expect(mocks.removeMediaItem).not.toHaveBeenCalled();
+	});
+});
+
 describe("sticker upload timeline rollback", () => {
 	it("removes a restricted local reference when timeline placement throws", async () => {
 		mocks.overlayStickers.set("overlay-sticker", { id: "overlay-sticker" });
@@ -191,7 +313,7 @@ describe("sticker upload timeline rollback", () => {
 
 		await act(async () => {
 			mediaItemId = await result.current.handleStickerUpload({
-				file: new File([new Uint8Array([1, 2, 3])], "reference.gif", {
+				file: new File([MINIMAL_GIF_BYTES], "reference.gif", {
 					type: "image/gif",
 				}),
 				metadata,

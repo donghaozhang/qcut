@@ -12,6 +12,7 @@ const {
 	const mockParseProgress = vi.fn(() => null);
 
 	const mockFsPromises = {
+		access: vi.fn(async () => {}),
 		mkdir: vi.fn(async () => {}),
 		mkdtemp: vi.fn(async () => "/tmp/qcut-claude-export-test"),
 		writeFile: vi.fn(async () => {}),
@@ -132,6 +133,17 @@ const testMediaFiles = [
 	},
 ];
 
+const restrictedMetadata = {
+	animatedSticker: true,
+	batchId: "jianying-2026-08-23-batch-18-v2",
+	checksumSha256: "a".repeat(64),
+	itemId: "18001",
+	redistribution: "prohibited" as const,
+	referenceOnly: true as const,
+	source: "sticker-lab" as const,
+	usage: "internal-reference-only" as const,
+};
+
 function createMockProcess({
 	shouldClose,
 }: {
@@ -177,6 +189,210 @@ describe("Claude export trigger", () => {
 
 		expect(result.jobId).toMatch(/^export_/);
 		expect(result.status).toBe("queued");
+	});
+
+	it("refuses a restricted Sticker Lab source before queuing FFmpeg", async () => {
+		await expect(
+			startExportJob({
+				projectId: "project_restricted",
+				request: {
+					preset: "youtube-1080p",
+					outputPath: "/tmp/must-not-exist.mp4",
+				},
+				timeline: testTimeline,
+				mediaFiles: [
+					{
+						...testMediaFiles[0],
+						metadata: restrictedMetadata,
+					},
+				],
+			})
+		).rejects.toMatchObject({
+			code: "QCUT_RESTRICTED_MEDIA_EXPORT",
+		});
+		expect(mockSpawn).not.toHaveBeenCalled();
+	});
+
+	it("refuses a restricted video resolved by filename after the initial policy check", async () => {
+		await expect(
+			startExportJob({
+				projectId: "project_restricted_resolved_video",
+				request: {
+					preset: "youtube-1080p",
+					outputPath: "/tmp/must-not-exist.mp4",
+				},
+				timeline: {
+					...testTimeline,
+					tracks: [
+						{
+							...testTimeline.tracks[0],
+							elements: [
+								{
+									...testTimeline.tracks[0].elements[0],
+									sourceId: "stale-video-id",
+									sourceName: "restricted-video.mp4",
+								},
+							],
+						},
+					],
+				},
+				mediaFiles: [
+					{
+						...testMediaFiles[0],
+						id: "actual-restricted-video",
+						metadata: restrictedMetadata,
+						name: "restricted-video.mp4",
+					},
+				],
+			})
+		).rejects.toMatchObject({
+			code: "QCUT_RESTRICTED_MEDIA_EXPORT",
+			mediaIds: ["actual-restricted-video"],
+		});
+		expect(mockSpawn).not.toHaveBeenCalled();
+	});
+
+	it("refuses a restricted sticker resolved by filename after the initial policy check", async () => {
+		await expect(
+			startExportJob({
+				projectId: "project_restricted_resolved_sticker",
+				request: {
+					preset: "youtube-1080p",
+					outputPath: "/tmp/must-not-exist.mp4",
+				},
+				timeline: {
+					...testTimeline,
+					tracks: [
+						...testTimeline.tracks,
+						{
+							index: 1,
+							name: "Stickers",
+							type: "sticker",
+							elements: [
+								{
+									duration: 5,
+									endTime: 5,
+									id: "sticker-element",
+									mediaId: "stale-sticker-id",
+									sourceName: "restricted-sticker.png",
+									startTime: 0,
+									stickerId: "legacy-overlay-sticker",
+									trackIndex: 1,
+									type: "sticker" as const,
+								},
+							],
+						},
+					],
+				},
+				mediaFiles: [
+					...testMediaFiles,
+					{
+						...testMediaFiles[0],
+						id: "actual-restricted-sticker",
+						metadata: restrictedMetadata,
+						name: "restricted-sticker.png",
+						path: "/tmp/restricted-sticker.png",
+						type: "image" as const,
+					},
+				],
+			})
+		).rejects.toMatchObject({
+			code: "QCUT_RESTRICTED_MEDIA_EXPORT",
+			mediaIds: ["actual-restricted-sticker"],
+		});
+		expect(mockSpawn).not.toHaveBeenCalled();
+	});
+
+	it("refuses restricted audio resolved by filename after the initial policy check", async () => {
+		await expect(
+			startExportJob({
+				projectId: "project_restricted_resolved_audio",
+				request: {
+					preset: "youtube-1080p",
+					outputPath: "/tmp/must-not-exist.mp4",
+				},
+				timeline: {
+					...testTimeline,
+					tracks: [
+						...testTimeline.tracks,
+						{
+							id: "audio-track",
+							index: 1,
+							name: "Audio",
+							type: "audio",
+							elements: [
+								{
+									duration: 5,
+									endTime: 5,
+									id: "audio-element",
+									sourceId: "stale-audio-id",
+									sourceName: "restricted-audio.wav",
+									startTime: 0,
+									trackIndex: 1,
+									type: "audio" as const,
+								},
+							],
+						},
+					],
+				},
+				mediaFiles: [
+					...testMediaFiles,
+					{
+						...testMediaFiles[0],
+						id: "actual-restricted-audio",
+						metadata: restrictedMetadata,
+						name: "restricted-audio.wav",
+						path: "/tmp/restricted-audio.wav",
+						type: "audio" as const,
+					},
+				],
+			})
+		).rejects.toMatchObject({
+			code: "QCUT_RESTRICTED_MEDIA_EXPORT",
+			mediaIds: ["actual-restricted-audio"],
+		});
+		expect(mockSpawn).not.toHaveBeenCalled();
+	});
+
+	it("refuses deterministic sticker runtime before queuing FFmpeg", async () => {
+		await expect(
+			startExportJob({
+				projectId: "project_runtime",
+				request: {
+					preset: "youtube-1080p",
+					outputPath: "/tmp/runtime-must-not-export.mp4",
+				},
+				timeline: {
+					...testTimeline,
+					tracks: [
+						...testTimeline.tracks,
+						{
+							index: 1,
+							name: "Runtime stickers",
+							type: "sticker",
+							elements: [
+								{
+									duration: 5,
+									endTime: 5,
+									id: "runtime-sticker",
+									mediaId: "runtime-media",
+									startTime: 0,
+									stickerId: "runtime-sticker",
+									stickerRuntime: { kind: "direct-gif" },
+									trackIndex: 1,
+									type: "sticker" as const,
+								},
+							],
+						},
+					],
+				},
+				mediaFiles: testMediaFiles,
+			})
+		).rejects.toMatchObject({
+			code: "QCUT_STICKER_RUNTIME_EXPORT_UNSUPPORTED",
+			reason: "native-engine",
+		});
+		expect(mockSpawn).not.toHaveBeenCalled();
 	});
 
 	it("uses the timeline fit mode when scaling export segments", async () => {

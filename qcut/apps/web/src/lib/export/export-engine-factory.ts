@@ -4,8 +4,17 @@ import { TimelineTrack } from "@/types/timeline";
 import { MediaItem } from "@/stores/media/media-store";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
 import { useEffectsStore } from "@/stores/ai/effects-store";
+import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { platform } from "@qcut/platform-core";
 import { requiresJianyingLocalColorExport } from "./jianying-local-color-export";
+import {
+	hasStickerRuntimeForExport,
+	StickerRuntimeExportUnsupportedError,
+} from "../../../../../electron/types/sticker-runtime-export-policy";
+import {
+	assertRestrictedMediaExportAllowed,
+	isRestrictedMediaExportError,
+} from "../../../../../electron/types/restricted-media-export-policy";
 
 // Engine types available
 export const ExportEngineType = {
@@ -20,6 +29,16 @@ export const ExportEngineType = {
 
 export type ExportEngineType =
 	(typeof ExportEngineType)[keyof typeof ExportEngineType];
+
+function hasRemotionElements({
+	tracks,
+}: {
+	tracks: readonly TimelineTrack[];
+}): boolean {
+	return tracks.some(
+		(track) => track.type === "remotion" && track.elements.length > 0
+	);
+}
 
 // Browser capability detection results
 export interface BrowserCapabilities {
@@ -88,10 +107,7 @@ export class ExportEngineFactory {
 		// Auto-select Remotion engine when timeline contains Remotion elements
 		// Check before detectCapabilities() to avoid unnecessary browser API calls
 		if (tracks) {
-			const hasRemotionElements = tracks.some(
-				(t) => t.type === "remotion" && t.elements.length > 0
-			);
-			if (hasRemotionElements) {
+			if (hasRemotionElements({ tracks })) {
 				debugLog(
 					"[ExportEngineFactory] 🎬 Remotion engine auto-selected (timeline has Remotion elements)"
 				);
@@ -236,9 +252,42 @@ export class ExportEngineFactory {
 		console.log("  - Export settings:", settings);
 
 		let selectedEngineType = engineType;
+		const overlayMediaIds = useStickersOverlayStore
+			.getState()
+			.getStickersForExport()
+			.map((sticker) => sticker.mediaItemId);
+		assertRestrictedMediaExportAllowed({
+			additionalMediaIds: overlayMediaIds,
+			mediaItems,
+			operation: "video",
+			scope: "timeline",
+			tracks,
+		});
 		const requiresLocalColorExport = requiresJianyingLocalColorExport({
 			tracks,
 		});
+		const requiresStickerRuntimeExport = hasStickerRuntimeForExport({
+			additionalMediaIds: overlayMediaIds,
+			mediaItems,
+			tracks,
+		});
+		if (requiresStickerRuntimeExport && hasRemotionElements({ tracks })) {
+			throw new StickerRuntimeExportUnsupportedError({
+				format: settings.format,
+				operation: "video export with Remotion composition",
+				reason: "remotion-composition",
+			});
+		}
+		if (requiresStickerRuntimeExport && settings.format !== "mp4") {
+			throw new StickerRuntimeExportUnsupportedError({
+				format: settings.format,
+				operation: "video export",
+				reason: "unsupported-format",
+			});
+		}
+		if (requiresStickerRuntimeExport) {
+			selectedEngineType = ExportEngineType.MUXER;
+		}
 		if (
 			requiresLocalColorExport &&
 			selectedEngineType !== ExportEngineType.REMOTION
@@ -407,6 +456,14 @@ export class ExportEngineFactory {
 					// The muxer engine is the only path that renders local
 					// Jianying color parity — a silent standard-engine fallback
 					// would export wrong colors with no user-visible signal.
+					if (isRestrictedMediaExportError({ error })) throw error;
+					if (requiresStickerRuntimeExport) {
+						throw new StickerRuntimeExportUnsupportedError({
+							format: settings.format,
+							operation: "video export",
+							reason: "muxer-unavailable",
+						});
+					}
 					if (requiresLocalColorExport) {
 						throw new Error(
 							"导出需要剪映本机色彩引擎(muxer),但引擎加载失败;已中止导出以避免导出颜色与预览不一致。",

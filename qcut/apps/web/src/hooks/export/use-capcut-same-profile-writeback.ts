@@ -9,6 +9,8 @@ import { createCapCut81WritebackTimingSnapshot } from "@/lib/jianying-draft/capc
 import type { TProject } from "@/types/project";
 import type { TimelineTrack } from "@/types/timeline";
 import { CAPCUT_8_1_PROFILE_ID } from "@qcut/editor-core/jianying-draft";
+import { assertRestrictedMediaExportAllowed } from "../../../../../electron/types/restricted-media-export-policy";
+import type { MediaItem } from "@/stores/media/media-store-types";
 
 export type CapCutWritebackAvailabilityReason =
 	| "baseline-document-missing"
@@ -46,6 +48,7 @@ type RecoverWriteback = typeof recoverCapCut81SameProfileWriteback;
 
 export interface UseCapCutSameProfileWritebackOptions {
 	bridgeAvailable?: boolean;
+	mediaItems: readonly MediaItem[];
 	project: TProject | null;
 	recoverWriteback?: RecoverWriteback;
 	runWriteback?: RunWriteback;
@@ -99,6 +102,7 @@ function unexpectedFailure({ error }: { error: unknown }) {
 
 export function useCapCutSameProfileWriteback({
 	bridgeAvailable = hasDefaultBridge(),
+	mediaItems,
 	project,
 	recoverWriteback = recoverCapCut81SameProfileWriteback,
 	runWriteback = runCapCut81SameProfileWriteback,
@@ -108,8 +112,8 @@ export function useCapCutSameProfileWriteback({
 		phase: "idle",
 	});
 	const operationIdRef = useRef(0);
-	const latestInputRef = useRef({ project, tracks });
-	latestInputRef.current = { project, tracks };
+	const latestInputRef = useRef({ mediaItems, project, tracks });
+	latestInputRef.current = { mediaItems, project, tracks };
 	const isVisible = project?.draftInterop?.profileId === CAPCUT_8_1_PROFILE_ID;
 	const availabilityReason = useMemo(
 		() => getCapCutWritebackAvailability({ bridgeAvailable, project }),
@@ -127,6 +131,12 @@ export function useCapCutSameProfileWriteback({
 		operationIdRef.current = operationId;
 		setState({ phase: "writing" });
 		try {
+			assertRestrictedMediaExportAllowed({
+				mediaItems,
+				operation: "same-profile-writeback",
+				scope: "all-media",
+				tracks,
+			});
 			const capturedSnapshot = createCapCut81WritebackTimingSnapshot({
 				fps: project.fps ?? 30,
 				tracks,
@@ -135,6 +145,12 @@ export function useCapCutSameProfileWriteback({
 				deps: {
 					verifySnapshotCurrent: ({ project: capturedProject, snapshot }) => {
 						const current = latestInputRef.current;
+						assertRestrictedMediaExportAllowed({
+							mediaItems: current.mediaItems,
+							operation: "same-profile-writeback",
+							scope: "all-media",
+							tracks: current.tracks,
+						});
 						return Promise.resolve(
 							isCapCutWritebackSnapshotCurrent({
 								capturedProject,
@@ -158,7 +174,7 @@ export function useCapCutSameProfileWriteback({
 			if (operationIdRef.current !== operationId) return;
 			setState({ phase: "error", failure: unexpectedFailure({ error }) });
 		}
-	}, [availabilityReason, project, runWriteback, tracks]);
+	}, [availabilityReason, mediaItems, project, runWriteback, tracks]);
 
 	const recover = useCallback(async () => {
 		if (state.phase !== "error" || !("selectionToken" in state.failure)) return;

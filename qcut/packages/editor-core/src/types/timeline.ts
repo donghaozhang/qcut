@@ -11,6 +11,7 @@ import type { MediaColorSettings } from "./color.js";
 import type { EffectChain, EffectInstance } from "./effects.js";
 import type { TextAnimationsV1 } from "../text-animation/model.js";
 import type { MediaPortraitAdjustments } from "../portrait-adjustments.js";
+import type { StickerRuntimeDescriptor } from "../sticker-lab/runtime-model.js";
 
 /** Media asset types */
 export type MediaType = "image" | "video" | "audio";
@@ -918,6 +919,8 @@ export interface StickerElement extends BaseTimelineElement {
 	type: "sticker";
 	stickerId: string;
 	mediaId: string;
+	/** Deterministic source-runtime state persisted with the timeline element. */
+	stickerRuntime?: StickerRuntimeDescriptor;
 	/** Center position as a percentage of the project canvas. */
 	x?: number;
 	y?: number;

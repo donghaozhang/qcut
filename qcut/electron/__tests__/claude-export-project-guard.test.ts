@@ -5,7 +5,7 @@
  * exporting the wrong timeline.
  */
 
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { tmpdir } from "node:os";
 
 vi.mock("electron", () => ({
@@ -45,6 +45,18 @@ import {
 import type { Router } from "../claude/utils/http-router";
 import type { ClaudeTimeline } from "../types/claude-api";
 import { startExportJob } from "../claude/handlers/claude-export-handler.js";
+import { listMediaFiles } from "../claude/handlers/claude-media-handler.js";
+
+const restrictedMetadata = {
+	animatedSticker: true,
+	batchId: "jianying-2026-08-23-batch-18-v2",
+	checksumSha256: "a".repeat(64),
+	itemId: "18001",
+	redistribution: "prohibited" as const,
+	referenceOnly: true as const,
+	source: "sticker-lab" as const,
+	usage: "internal-reference-only" as const,
+};
 
 type RouteHandler = (req: {
 	params: Record<string, string>;
@@ -79,9 +91,18 @@ function buildRouterHarness(): {
 
 function buildAccessor(timeline: ClaudeTimeline): WindowAccessor {
 	return new Proxy({} as WindowAccessor, {
-		get(_target, property) {
+		get(target, property) {
+			const override = Reflect.get(target, property);
+			if (override !== undefined) return override;
 			if (property === "requestTimeline") {
 				return async () => timeline;
+			}
+			if (property === "requestStateSnapshot") {
+				return async () => ({
+					version: 1,
+					timestamp: Date.now(),
+					state: { media: { items: [] } },
+				});
 			}
 			if (property === "getAppVersion") {
 				return () => "0.0.1-test";
@@ -109,6 +130,11 @@ function buildTimeline(projectId?: string): ClaudeTimeline {
 const EXPORT_START = "POST /api/claude/export/:projectId/start";
 
 describe("export start project guard", () => {
+	beforeEach(() => {
+		vi.mocked(startExportJob).mockClear();
+		vi.mocked(listMediaFiles).mockReset().mockResolvedValue([]);
+	});
+
 	it("rejects a projectId that is not the open project with 409", async () => {
 		const { router, getHandler } = buildRouterHarness();
 		registerSharedRoutes(router, buildAccessor(buildTimeline("project-a")));
@@ -157,5 +183,116 @@ describe("export start project guard", () => {
 			body: {},
 		});
 		expect(result).toMatchObject({ jobId: "test-job" });
+	});
+
+	it("fails closed when renderer media metadata cannot be verified", async () => {
+		const { router, getHandler } = buildRouterHarness();
+		const accessor = buildAccessor(buildTimeline("project-a"));
+		accessor.requestStateSnapshot = vi.fn(async () => {
+			throw new Error("renderer unavailable");
+		});
+		registerSharedRoutes(router, accessor);
+		const [method, path] = EXPORT_START.split(" ");
+
+		await expect(
+			getHandler(
+				method,
+				path
+			)({
+				params: { projectId: "project-a" },
+				query: {},
+				body: {},
+			})
+		).rejects.toMatchObject({
+			status: 503,
+			message: expect.stringContaining("restricted media cannot be verified"),
+		});
+		expect(startExportJob).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		{ label: "empty", localPath: "" },
+		{ label: "stale", localPath: "stale-relative-path.png" },
+	])("preserves restricted metadata when the renderer localPath is $label", async ({
+		localPath,
+	}) => {
+		const diskMedia = {
+			createdAt: 1,
+			id: "disk-sticker",
+			modifiedAt: 2,
+			name: "restricted-sticker.png",
+			path: "/tmp/restricted-sticker.png",
+			size: 100,
+			type: "image" as const,
+		};
+		vi.mocked(listMediaFiles).mockResolvedValue([diskMedia]);
+		const timeline: ClaudeTimeline = {
+			...buildTimeline("project-a"),
+			duration: 5,
+			tracks: [
+				{
+					elements: [
+						{
+							duration: 5,
+							endTime: 5,
+							id: "sticker-element",
+							mediaId: "renderer-sticker",
+							sourceName: "restricted-sticker.png",
+							startTime: 0,
+							trackIndex: 0,
+							type: "sticker",
+						},
+					],
+					index: 0,
+					name: "Stickers",
+					type: "sticker",
+				},
+			],
+		};
+		const accessor = buildAccessor(timeline);
+		accessor.requestStateSnapshot = vi.fn(async () => ({
+			state: {
+				media: {
+					items: [
+						{
+							id: "renderer-sticker",
+							localPath,
+							metadata: restrictedMetadata,
+							name: "restricted-sticker.png",
+							type: "image" as const,
+						},
+					],
+				},
+			},
+			timestamp: Date.now(),
+			version: 1,
+		}));
+		const { router, getHandler } = buildRouterHarness();
+		registerSharedRoutes(router, accessor);
+		const [method, path] = EXPORT_START.split(" ");
+
+		await getHandler(
+			method,
+			path
+		)({
+			params: { projectId: "project-a" },
+			query: {},
+			body: {},
+		});
+
+		const [{ mediaFiles }] = vi.mocked(startExportJob).mock.calls[0];
+		expect(mediaFiles).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					id: "renderer-sticker",
+					metadata: restrictedMetadata,
+					path: diskMedia.path,
+				}),
+				expect.objectContaining({
+					id: "disk-sticker",
+					metadata: restrictedMetadata,
+				}),
+			])
+		);
 	});
 });

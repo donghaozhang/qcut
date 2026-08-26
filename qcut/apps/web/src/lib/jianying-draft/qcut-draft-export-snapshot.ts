@@ -9,6 +9,7 @@ import type { MediaItem } from "@/stores/media/media-store-types";
 import type { TProject } from "@/types/project";
 import type { MediaElement, TimelineTrack } from "@/types/timeline";
 import { buildTimelineDurationByElementId } from "./same-profile-writeback-snapshot";
+import { assertRestrictedMediaExportAllowed } from "../../../../../electron/types/restricted-media-export-policy";
 
 const DEFAULT_PROJECT_FPS = 30;
 const DEFAULT_PROJECT_BACKGROUND_COLOR = "#000000";
@@ -356,6 +357,12 @@ export async function createQCutDraftExportSnapshot({
 	sourcePathExists,
 	tracks,
 }: CreateQCutDraftExportSnapshotOptions): Promise<QCutDraftExportSnapshotAdapterResult> {
+	assertRestrictedMediaExportAllowed({
+		mediaItems,
+		operation: "capcut-draft",
+		scope: "all-media",
+		tracks,
+	});
 	const mediaById = new Map(
 		mediaItems.map((mediaItem) => [mediaItem.id, mediaItem])
 	);
