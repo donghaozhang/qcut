@@ -14,6 +14,11 @@ import { createObjectURL, revokeObjectURL } from "@/lib/media/blob-manager";
 import { createAudioLibraryAssetEntry } from "@/lib/assets/freesound-asset";
 import { reportAudioTrackDownload } from "@/lib/audio/audio-download-metrics";
 import { ensureAssetResources } from "@/lib/assets/asset-resource-cache";
+import { createSoundEffectsLabAssetFetch } from "@/lib/audio/local-sound-effect-reference";
+import {
+	isPersistableSoundEffectsLabSound,
+	isRestrictedSoundEffectsLabSound,
+} from "@/lib/audio/sound-effects-lab-rights";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { translate, type TranslationKey } from "@/lib/i18n";
 import { useLocaleStore } from "@/stores/locale-store";
@@ -194,14 +199,14 @@ function soundToSavedSound({
 		kind,
 		name: sound.name,
 		username: sound.username,
-		previewUrl: sound.previewUrl,
+		previewUrl: sound.soundEffectsLab?.asset ? undefined : sound.previewUrl,
 		downloadUrl: sound.downloadUrl,
 		duration: sound.duration,
 		tags: sound.tags,
 		license: sound.license,
 		savedAt: timestamp,
 		description: sound.description,
-		source: sound.source === "sound-effects-lab" ? undefined : sound.source,
+		source: sound.source,
 		mediaId: sound.mediaId,
 		localizedName: sound.localizedName,
 		localizedDescription: sound.localizedDescription,
@@ -212,6 +217,7 @@ function soundToSavedSound({
 		moods: sound.moods,
 		scenes: sound.scenes,
 		loopable: sound.loopable,
+		soundEffectsLab: sound.soundEffectsLab,
 	};
 }
 
@@ -389,7 +395,12 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 		soundEffect: SoundEffect,
 		kind: AudioAssetKind = "sound-effect"
 	) => {
-		if (soundEffect.source === "sound-effects-lab") return;
+		if (
+			soundEffect.source === "sound-effects-lab" &&
+			!isPersistableSoundEffectsLabSound({ sound: soundEffect })
+		) {
+			return;
+		}
 		try {
 			const savedSound = soundToSavedSound({
 				sound: soundEffect,
@@ -518,7 +529,13 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 	},
 
 	markSoundRecent: (sound, kind: AudioAssetKind = "sound-effect") => {
-		if (sound.source === "sound-effects-lab") return;
+		if (isRestrictedSoundEffectsLabSound({ sound })) return;
+		if (
+			sound.source === "sound-effects-lab" &&
+			!isPersistableSoundEffectsLabSound({ sound })
+		) {
+			return;
+		}
 		const recentSound = soundToSavedSound({
 			sound,
 			kind,
@@ -784,6 +801,7 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 
 		let objectUrl: string | null = null;
 		const asset = createAudioLibraryAssetEntry({ sound, kind });
+		const soundEffectsLabAsset = sound.soundEffectsLab?.asset;
 		const updateRuntimeState =
 			useAssetLibraryStore.getState().updateRuntimeState;
 
@@ -800,12 +818,15 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 			const [resource] = await ensureAssetResources({
 				asset,
 				cacheBundledResources: true,
+				...(soundEffectsLabAsset
+					? { fetchImpl: createSoundEffectsLabAssetFetch() }
+					: {}),
 				onProgress: ({ progress }) =>
 					updateRuntimeState({
 						asset,
 						patch: { progress: 0.1 + progress * 0.8 },
 					}),
-				roles: ["preview"],
+				roles: [soundEffectsLabAsset ? "source" : "preview"],
 			});
 			const blob = resource?.blob;
 			if (!blob) {
