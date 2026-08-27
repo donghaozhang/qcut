@@ -82,6 +82,31 @@ function sound(): SoundEffect {
 	};
 }
 
+function reusableLabSound(): SoundEffect {
+	return {
+		...sound(),
+		id: -900_001_108,
+		name: "Crowd laugh",
+		kind: "sound-effect",
+		source: "sound-effects-lab",
+		previewUrl: "blob:lab-preview",
+		license: "https://creativecommons.org/publicdomain/zero/1.0/",
+		soundEffectsLab: {
+			provider: "freesound",
+			redistribution: "allowed",
+			resourceId: "8800000000000324894",
+			asset: {
+				objectKey:
+					"qcut/2026-08-22/assets/a3bb18a41c76abd0d1af22b05072655e.mp3",
+				byteSize: 100,
+				checksumSha256:
+					"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+				mimeType: "audio/mpeg",
+			},
+		},
+	};
+}
+
 describe("sounds store asset identity", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
@@ -133,6 +158,26 @@ describe("sounds store asset identity", () => {
 		expect(useSoundsStore.getState().recentSounds).toEqual([]);
 	});
 
+	it("persists reusable lab sounds with a restart-safe resource locator", async () => {
+		const labSound = reusableLabSound();
+
+		await useSoundsStore.getState().saveSoundEffect(labSound, "sound-effect");
+		useSoundsStore.getState().markSoundRecent(labSound, "sound-effect");
+
+		expect(useSoundsStore.getState().savedSounds[0]).toMatchObject({
+			id: labSound.id,
+			previewUrl: undefined,
+			source: "sound-effects-lab",
+			soundEffectsLab: expect.objectContaining({
+				redistribution: "allowed",
+				asset: expect.objectContaining({
+					objectKey: labSound.soundEffectsLab?.asset?.objectKey,
+				}),
+			}),
+		});
+		expect(useSoundsStore.getState().recentSounds).toHaveLength(1);
+	});
+
 	it("keeps music and sound-effect favorites distinct", async () => {
 		await useSoundsStore.getState().saveSoundEffect(sound(), "music");
 		expect(useSoundsStore.getState().isSoundSaved(91, "music")).toBe(true);
@@ -178,6 +223,21 @@ describe("sounds store asset identity", () => {
 			id: 91,
 			kind: "music",
 		});
+	});
+
+	it("materializes a reusable lab sound through the authenticated source", async () => {
+		const added = await useSoundsStore.getState().addSoundToTimeline({
+			sound: reusableLabSound(),
+			kind: "sound-effect",
+		});
+
+		expect(added).toBe(true);
+		expect(mocks.ensureAssetResources).toHaveBeenCalledWith(
+			expect.objectContaining({
+				fetchImpl: expect.any(Function),
+				roles: ["source"],
+			})
+		);
 	});
 
 	it("reuses project audio without downloading or duplicating media", async () => {
