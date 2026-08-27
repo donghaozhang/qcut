@@ -69,6 +69,15 @@ export function soundEffectsLabPrivateManifestUrl({
 	licenseServerUrl?: string;
 } = {}): string {
 	const serverUrl = licenseServerUrl.replace(/\/+$/, "");
+	return `${serverUrl}/api/sound-effects-lab/private-manifest/enriched?includeAliases=1`;
+}
+
+export function soundEffectsLabLegacyPrivateManifestUrl({
+	licenseServerUrl = LICENSE_SERVER_URL,
+}: {
+	licenseServerUrl?: string;
+} = {}): string {
+	const serverUrl = licenseServerUrl.replace(/\/+$/, "");
 	return `${serverUrl}/api/sound-effects-lab/private-manifest`;
 }
 
@@ -112,6 +121,7 @@ function soundEffectRights({
 			soundLicense: reference.source.licenseUrl,
 		};
 	}
+	const authorName = reference.source?.author?.name;
 	return {
 		assetLicense: {
 			name: "Third-party reference - internal use only",
@@ -122,7 +132,7 @@ function soundEffectRights({
 		localizedDescriptionPrefix: "剪映内部参照",
 		metadataSource: "jianying-reference",
 		tags: ["sound-effects-lab", "internal-reference"],
-		username: "Jianying reference",
+		username: authorName || "Jianying reference",
 		soundLicense: "Third-party reference - redistribution prohibited",
 	};
 }
@@ -267,6 +277,24 @@ export function soundEffectReferenceToSound({
 		.map((categoryId) => labelsById.get(categoryId))
 		.filter((label): label is string => Boolean(label));
 	const rights = soundEffectRights({ reference });
+	const source: NonNullable<SoundEffectsLabReference["source"]> =
+		reference.source ??
+		({
+			provider: "jianying-reference",
+			redistribution: "prohibited",
+		} as const);
+	const jianyingMetadata =
+		source.provider === "jianying-reference"
+			? {
+					isVip: source.access?.isVip,
+					paidType: source.access?.paidType,
+					businessScope: source.access?.businessScope,
+					publishSource: source.publishSource,
+					authorSource: source.author?.source,
+					copyrightText: source.copyright?.text,
+					copyrightArtist: source.copyright?.artist,
+				}
+			: {};
 	return {
 		id: reference.numericId,
 		name: reference.title,
@@ -292,5 +320,21 @@ export function soundEffectReferenceToSound({
 		source: "sound-effects-lab",
 		kind: "sound-effect",
 		checksumSha256: reference.contentSha256,
+		soundEffectsLab: {
+			provider: source.provider,
+			redistribution: source.redistribution,
+			resourceId: reference.resourceId,
+			...jianyingMetadata,
+			...("asset" in reference
+				? {
+						asset: {
+							objectKey: reference.asset.objectKey,
+							byteSize: reference.asset.byteSize,
+							checksumSha256: reference.asset.checksumSha256,
+							mimeType: reference.mimeType,
+						},
+					}
+				: {}),
+		},
 	};
 }
