@@ -8,6 +8,7 @@ import {
 } from "@/lib/audio/local-sound-effects-manifest";
 import {
 	createSoundEffectsLabAssetFetch,
+	soundEffectsLabLegacyPrivateManifestUrl,
 	soundEffectsLabPrivateManifestUrl,
 } from "@/lib/audio/local-sound-effect-reference";
 import {
@@ -16,6 +17,7 @@ import {
 } from "@/lib/audio/sound-effects-lab-offline-pack";
 import { getSessionToken } from "@/lib/ai-video/core/license-relay";
 import { debugError } from "@/lib/debug/debug-config";
+import { useTranslation } from "@/lib/i18n";
 import { useLicenseStore } from "@/stores/license-store";
 
 export interface LocalSoundEffectsLabState {
@@ -26,7 +28,35 @@ export interface LocalSoundEffectsLabState {
 	isOffline: boolean;
 }
 
+async function loadPrivateCatalog({
+	signal,
+}: {
+	signal: AbortSignal;
+}): Promise<SoundEffectsLabManifest> {
+	const fetchImpl = createSoundEffectsLabAssetFetch();
+	try {
+		return await loadPrivateSoundEffectsLabManifest({
+			fetchImpl,
+			manifestUrl: soundEffectsLabPrivateManifestUrl(),
+			signal,
+		});
+	} catch (error) {
+		if (
+			!(error instanceof SoundEffectsLabManifestHttpError) ||
+			error.status !== 404
+		) {
+			throw error;
+		}
+		return loadPrivateSoundEffectsLabManifest({
+			fetchImpl,
+			manifestUrl: soundEffectsLabLegacyPrivateManifestUrl(),
+			signal,
+		});
+	}
+}
+
 export function useLocalSoundEffectsLab(): LocalSoundEffectsLabState {
+	const { t } = useTranslation();
 	const source = useMemo(() => getLocalSoundEffectsLabSource(), []);
 	const ownerEmail = useLicenseStore(
 		(state) => state.license?.user?.email ?? null
@@ -34,7 +64,7 @@ export function useLocalSoundEffectsLab(): LocalSoundEffectsLabState {
 	const [state, setState] = useState<LocalSoundEffectsLabState>({
 		catalog: null,
 		error: null,
-		isAvailable: source?.kind === "manifest",
+		isAvailable: source !== null,
 		isLoading: source !== null,
 		isOffline: false,
 	});
@@ -50,11 +80,7 @@ export function useLocalSoundEffectsLab(): LocalSoundEffectsLabState {
 						? await loadLocalSoundEffectsLabManifest({
 								manifestPath: source.manifestPath,
 							})
-						: await loadPrivateSoundEffectsLabManifest({
-								fetchImpl: createSoundEffectsLabAssetFetch(),
-								manifestUrl: soundEffectsLabPrivateManifestUrl(),
-								signal: abortController.signal,
-							});
+						: await loadPrivateCatalog({ signal: abortController.signal });
 				if (disposed) return;
 				setState({
 					catalog,
@@ -87,8 +113,8 @@ export function useLocalSoundEffectsLab(): LocalSoundEffectsLabState {
 						if (disposed) return;
 						setState({
 							catalog: null,
-							error: null,
-							isAvailable: false,
+							error: t("audioLibrary.soundEffectsLab.accessRequired"),
+							isAvailable: true,
 							isLoading: false,
 							isOffline: false,
 						});
@@ -122,8 +148,8 @@ export function useLocalSoundEffectsLab(): LocalSoundEffectsLabState {
 					}
 					setState({
 						catalog: null,
-						error: null,
-						isAvailable: false,
+						error: t("audioLibrary.soundEffectsLab.unavailable"),
+						isAvailable: true,
 						isLoading: false,
 						isOffline: false,
 					});
@@ -146,7 +172,7 @@ export function useLocalSoundEffectsLab(): LocalSoundEffectsLabState {
 			disposed = true;
 			abortController.abort();
 		};
-	}, [ownerEmail, source]);
+	}, [ownerEmail, source, t]);
 
 	return state;
 }
