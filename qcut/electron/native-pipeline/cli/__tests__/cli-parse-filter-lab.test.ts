@@ -3,6 +3,37 @@ import { parseCliArgs } from "../cli.js";
 import { getCommand, getCommandFlag } from "../command-registry.js";
 
 describe("Filter Lab verification CLI registration", () => {
+	it.each(["render", "apply"])("registers and parses %s", (action) => {
+		const options = parseCliArgs([
+			"filter-lab",
+			action,
+			"--resource-id",
+			"123",
+			"-i",
+			"input.mp4",
+			"--output",
+			"output.mp4",
+			"--filter-intensity",
+			"75",
+			"--duration",
+			"1",
+			"--fps",
+			"24",
+			"--force",
+		]);
+		expect(options).toMatchObject({
+			command: "filter-lab-render",
+			resourceId: "123",
+			input: "input.mp4",
+			output: "output.mp4",
+			filterIntensity: 75,
+			duration: "1",
+			fps: 24,
+			force: true,
+		});
+		expect(getCommand("filter-lab-render")?.category).toBe("filter-lab");
+	});
+
 	it("registers rendered parity verification", () => {
 		expect(getCommand("filter-lab-verify")?.category).toBe("filter-lab");
 		expect(getCommandFlag("filter-lab-verify", "--reference-frame")?.type).toBe(
