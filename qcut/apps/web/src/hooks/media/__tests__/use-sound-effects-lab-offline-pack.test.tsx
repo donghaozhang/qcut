@@ -12,11 +12,21 @@ const packMocks = vi.hoisted(() => ({
 	remove: vi.fn(),
 }));
 
-vi.mock("@/lib/audio/sound-effects-lab-offline-pack", () => ({
-	getSoundEffectsLabOfflinePackStatus: packMocks.getStatus,
-	installSoundEffectsLabOfflinePack: packMocks.install,
-	removeSoundEffectsLabOfflinePack: packMocks.remove,
-}));
+vi.mock(
+	"@/lib/audio/sound-effects-lab-offline-pack",
+	async (importOriginal) => {
+		const actual =
+			await importOriginal<
+				typeof import("@/lib/audio/sound-effects-lab-offline-pack")
+			>();
+		return {
+			...actual,
+			getSoundEffectsLabOfflinePackStatus: packMocks.getStatus,
+			installSoundEffectsLabOfflinePack: packMocks.install,
+			removeSoundEffectsLabOfflinePack: packMocks.remove,
+		};
+	}
+);
 
 const catalog: PrivateSoundEffectsLabManifest = {
 	catalogId: "jianying-sfx-reference-2026-08-01",
@@ -157,5 +167,43 @@ describe("useSoundEffectsLabOfflinePack", () => {
 		);
 		expect(localResult.current.state).toBe("unavailable");
 		expect(packMocks.getStatus).not.toHaveBeenCalled();
+	});
+
+	it("reports unique downloads instead of double-counting alias cards", async () => {
+		const aliasedCatalog = structuredClone(catalog);
+		aliasedCatalog.items.push({
+			...aliasedCatalog.items[0],
+			id: "6896679799100690",
+			resourceId: "6896679799100690",
+			numericId: -900_000_001,
+		});
+		const { result } = renderHook(() =>
+			useSoundEffectsLabOfflinePack({
+				catalog: aliasedCatalog,
+				ownerEmail: "qcutlove@qcut.app",
+			})
+		);
+		await waitFor(() => expect(result.current.state).toBe("not-installed"));
+		expect(result.current.totalItems).toBe(1);
+		await act(async () => {
+			await result.current.install();
+		});
+		expect(result.current).toMatchObject({
+			completedItems: 1,
+			totalItems: 1,
+			totalBytes: 4,
+			cachedBytes: 4,
+			state: "installed",
+		});
+		await act(async () => {
+			await expect(result.current.remove()).resolves.toBe(true);
+		});
+		expect(result.current).toMatchObject({
+			completedItems: 0,
+			totalItems: 1,
+			totalBytes: 4,
+			cachedBytes: 0,
+			state: "not-installed",
+		});
 	});
 });
