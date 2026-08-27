@@ -1,5 +1,6 @@
 import type { TranslationKey } from "@/lib/i18n";
 import type { SavedSound, SoundEffect } from "@/types/sounds";
+import { soundEffectsLabAssetUrl } from "./local-sound-effect-reference";
 
 export type AudioLibraryKind = "sound-effect" | "music";
 export type AudioLibrarySort = "downloads" | "rating" | "created" | "score";
@@ -1062,7 +1063,11 @@ export function restoreSavedAudio({
 }): SoundEffect {
 	// Download-only saved sounds must stay playable, so fall back to the
 	// download URL when no preview URL was persisted.
-	const audioUrl = savedSound.previewUrl ?? savedSound.downloadUrl ?? "";
+	const audioUrl = savedSound.soundEffectsLab?.asset
+		? soundEffectsLabAssetUrl({
+				objectKey: savedSound.soundEffectsLab.asset.objectKey,
+			})
+		: (savedSound.previewUrl ?? savedSound.downloadUrl ?? "");
 	return {
 		id: savedSound.id,
 		name: savedSound.name,
@@ -1071,7 +1076,7 @@ export function restoreSavedAudio({
 		previewUrl: audioUrl || undefined,
 		downloadUrl: savedSound.downloadUrl,
 		duration: savedSound.duration,
-		filesize: 0,
+		filesize: savedSound.soundEffectsLab?.asset?.byteSize ?? 0,
 		type: audioUrl.endsWith(".ogg") ? "audio/ogg" : "audio/mpeg",
 		channels: 0,
 		bitrate: 0,
@@ -1096,5 +1101,7 @@ export function restoreSavedAudio({
 		moods: savedSound.moods,
 		scenes: savedSound.scenes,
 		loopable: savedSound.loopable,
+		checksumSha256: savedSound.soundEffectsLab?.asset?.checksumSha256,
+		soundEffectsLab: savedSound.soundEffectsLab,
 	};
 }
