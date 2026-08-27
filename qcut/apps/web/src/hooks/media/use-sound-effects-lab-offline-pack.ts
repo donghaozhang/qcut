@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+	getSoundEffectsLabOfflinePackMetrics,
 	getSoundEffectsLabOfflinePackStatus,
 	installSoundEffectsLabOfflinePack,
 	removeSoundEffectsLabOfflinePack,
@@ -96,10 +97,13 @@ export function useSoundEffectsLabOfflinePack({
 			return;
 		}
 		let disposed = false;
+		const { resourceCount } = getSoundEffectsLabOfflinePackMetrics({
+			catalog: privateManifest,
+		});
 		setState({
 			...UNAVAILABLE_STATE,
 			state: "checking",
-			totalItems: privateManifest.items.length,
+			totalItems: resourceCount,
 		});
 		void getSoundEffectsLabOfflinePackStatus({
 			catalog: privateManifest,
@@ -109,8 +113,7 @@ export function useSoundEffectsLabOfflinePack({
 				if (disposed) return;
 				setState({
 					cachedBytes: status.cachedBytes,
-					completedItems:
-						status.state === "installed" ? privateManifest.items.length : 0,
+					completedItems: status.state === "installed" ? resourceCount : 0,
 					error: null,
 					installedAt: status.installedAt,
 					persistentStorage: status.persistentStorage,
@@ -122,7 +125,7 @@ export function useSoundEffectsLabOfflinePack({
 								? "update-available"
 								: "not-installed",
 					totalBytes: status.totalBytes,
-					totalItems: privateManifest.items.length,
+					totalItems: resourceCount,
 				});
 			})
 			.catch((error) => {
@@ -131,7 +134,7 @@ export function useSoundEffectsLabOfflinePack({
 					...UNAVAILABLE_STATE,
 					error: errorMessage({ error }),
 					state: "failed",
-					totalItems: privateManifest.items.length,
+					totalItems: resourceCount,
 				});
 			});
 		return () => {
@@ -142,10 +145,9 @@ export function useSoundEffectsLabOfflinePack({
 	const install = useCallback(async (): Promise<boolean> => {
 		if (!privateManifest || !ownerEmail || busyRef.current) return false;
 		busyRef.current = true;
-		const totalBytes = privateManifest.items.reduce(
-			(total, item) => total + item.byteSize,
-			0
-		);
+		const { resourceCount, totalBytes } = getSoundEffectsLabOfflinePackMetrics({
+			catalog: privateManifest,
+		});
 		setState({
 			cachedBytes: 0,
 			completedItems: 0,
@@ -154,7 +156,7 @@ export function useSoundEffectsLabOfflinePack({
 			progress: 0,
 			state: "installing",
 			totalBytes,
-			totalItems: privateManifest.items.length,
+			totalItems: resourceCount,
 		});
 		try {
 			const result = await installSoundEffectsLabOfflinePack({
@@ -174,14 +176,14 @@ export function useSoundEffectsLabOfflinePack({
 			if (mountedRef.current) {
 				setState({
 					cachedBytes: result.cachedBytes,
-					completedItems: privateManifest.items.length,
+					completedItems: result.resourceCount,
 					error: null,
 					installedAt: result.installedAt,
 					persistentStorage: result.persistentStorage,
 					progress: 1,
 					state: "installed",
 					totalBytes,
-					totalItems: privateManifest.items.length,
+					totalItems: resourceCount,
 				});
 			}
 			return true;
@@ -223,15 +225,14 @@ export function useSoundEffectsLabOfflinePack({
 				ownerEmail,
 			});
 			if (mountedRef.current) {
+				const { resourceCount, totalBytes } = privateManifest
+					? getSoundEffectsLabOfflinePackMetrics({ catalog: privateManifest })
+					: { resourceCount: 0, totalBytes: 0 };
 				setState({
 					...UNAVAILABLE_STATE,
 					state: privateManifest ? "not-installed" : "unavailable",
-					totalBytes:
-						privateManifest?.items.reduce(
-							(total, item) => total + item.byteSize,
-							0
-						) ?? 0,
-					totalItems: privateManifest?.items.length ?? 0,
+					totalBytes,
+					totalItems: resourceCount,
 				});
 			}
 			return true;
