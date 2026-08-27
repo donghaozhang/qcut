@@ -5,6 +5,7 @@ import type {
 } from "@/lib/assets/asset-resource-cache";
 import type { PrivateSoundEffectsLabManifest } from "../local-sound-effects-manifest";
 import {
+	getSoundEffectsLabOfflinePackMetrics,
 	getSoundEffectsLabOfflinePackStatus,
 	installSoundEffectsLabOfflinePack,
 	loadSoundEffectsLabOfflinePack,
@@ -158,6 +159,54 @@ const storageManager = {
 };
 
 describe("Sound Effects Lab offline pack", () => {
+	it("downloads a shared payload once while retaining every catalog alias", async () => {
+		const { bytesByMd5, catalog } = await privateCatalog();
+		catalog.items.push({
+			...catalog.items[0],
+			id: "6896679799100691",
+			resourceId: "6896679799100691",
+			numericId: -900_000_002,
+			title: "Shared audio alias",
+		});
+		const assetStorage = new MemoryAssetCache();
+		const offlineStorage = new MemoryOfflinePackStorage();
+		const fetchImpl = audioFetch({ bytesByMd5 });
+		expect(getSoundEffectsLabOfflinePackMetrics({ catalog })).toEqual({
+			resourceCount: 2,
+			totalBytes: 7,
+		});
+
+		await expect(
+			installSoundEffectsLabOfflinePack({
+				assetStorage,
+				catalog,
+				fetchImpl,
+				getToken: async () => "session-token",
+				offlineStorage,
+				ownerEmail: "qcutlove@qcut.app",
+				storageManager,
+			})
+		).resolves.toMatchObject({ resourceCount: 2, cachedBytes: 7 });
+		expect(fetchImpl).toHaveBeenCalledTimes(2);
+		expect(assetStorage.resources.size).toBe(2);
+		expect(offlineStorage.records.get("qcutlove@qcut.app")?.itemCount).toBe(3);
+		await expect(
+			loadSoundEffectsLabOfflinePack({
+				assetStorage,
+				offlineStorage,
+				ownerEmail: "qcutlove@qcut.app",
+			})
+		).resolves.toMatchObject({ cachedBytes: 7, totalBytes: 7, catalog });
+		await expect(
+			removeSoundEffectsLabOfflinePack({
+				assetStorage,
+				offlineStorage,
+				ownerEmail: "qcutlove@qcut.app",
+			})
+		).resolves.toEqual({ removedResourceCount: 2 });
+		expect(assetStorage.resources.size).toBe(0);
+	});
+
 	it("downloads, verifies, reuses, and removes the complete account-bound pack", async () => {
 		const { bytesByMd5, catalog } = await privateCatalog();
 		const assetStorage = new MemoryAssetCache();
