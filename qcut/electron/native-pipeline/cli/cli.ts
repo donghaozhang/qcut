@@ -1361,7 +1361,8 @@ export async function main(
 			duration_ms: durationMs,
 		});
 		if (!result.success) {
-			process.exit(1);
+			// Let stdout drain when a failed result contains large partial data.
+			process.exitCode = 1;
 		}
 	} else if (result.success) {
 		if (result.outputPath) {
