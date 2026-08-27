@@ -4,7 +4,10 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { buildPrivateManifest } from "../build-local-sound-effects-lab-manifest";
-import { buildUploadEntries } from "../upload-private-sound-effects-lab";
+import {
+	buildUploadEntries,
+	resolveManifestObjectKey,
+} from "../upload-private-sound-effects-lab";
 
 const FILE_NAME = "5bb4c18515e6059da16432af0db0f1dc.mp3";
 const OBJECT_KEY = `jianying/2026-08-01/assets/${FILE_NAME}`;
@@ -170,5 +173,98 @@ describe("private Sound Effects Lab publishing", () => {
 		).toThrow(
 			"Existing private asset integrity changed for 6896679799100689672"
 		);
+	});
+
+	it("reuses the previous object for a new resource ID with identical content", async () => {
+		const bytes = new TextEncoder().encode("audio-payload");
+		const filePath = join(testDirectory, FILE_NAME);
+		await writeFile(filePath, bytes);
+		const localManifest = buildLocalManifest({
+			byteSize: bytes.byteLength,
+			contentSha256: sha256({ bytes }),
+			filePath,
+		});
+		const previousPrivateManifest = buildPrivateManifest({
+			catalogDate: "2026-08-01",
+			localManifest,
+		});
+		localManifest.items.push({
+			...localManifest.items[0],
+			id: "6896679799100689673",
+			resourceId: "6896679799100689673",
+			numericId: -900_000_001,
+			title: "Same audio, different card",
+		});
+		const privateManifest = buildPrivateManifest({
+			catalogDate: "2026-08-27",
+			localManifest,
+			previousPrivateManifest,
+		});
+
+		expect(privateManifest.items).toHaveLength(2);
+		expect(privateManifest.items[1].asset.objectKey).toBe(OBJECT_KEY);
+		expect(buildUploadEntries({ localManifest, privateManifest })).toHaveLength(
+			1
+		);
+	});
+
+	it("uses a QCut staging namespace for mixed-library manifests", () => {
+		expect(
+			resolveManifestObjectKey({
+				catalogId: "qcut-sfx-library-2026-08-26",
+			})
+		).toBe("qcut/2026-08-26/manifest.json");
+		expect(
+			resolveManifestObjectKey({
+				catalogId: "qcut-sfx-library-2026-08-26",
+				manifestObjectKey: "qcut/2026-08-26/manifest.metadata-candidate.json",
+			})
+		).toBe("qcut/2026-08-26/manifest.metadata-candidate.json");
+	});
+
+	it("rejects conflicting payloads mapped to the same upload object", async () => {
+		const firstBytes = new TextEncoder().encode("first-audio");
+		const secondBytes = new TextEncoder().encode("other-audio");
+		const firstPath = join(testDirectory, FILE_NAME);
+		const secondName = "1291b72047769e085e7595ce5d65dbd3.mp3";
+		const secondPath = join(testDirectory, secondName);
+		await Promise.all([
+			writeFile(firstPath, firstBytes),
+			writeFile(secondPath, secondBytes),
+		]);
+		const localManifest = buildLocalManifest({
+			byteSize: firstBytes.byteLength,
+			contentSha256: sha256({ bytes: firstBytes }),
+			filePath: firstPath,
+		});
+		localManifest.items.push({
+			...localManifest.items[0],
+			id: "6896679799100689673",
+			resourceId: "6896679799100689673",
+			numericId: -900_000_001,
+			contentMd5: secondName.slice(0, -4),
+			contentSha256: sha256({ bytes: secondBytes }),
+			fileName: secondName,
+			filePath: secondPath,
+			byteSize: secondBytes.byteLength,
+		});
+		const privateManifest = buildPrivateManifest({
+			catalogDate: "2026-08-01",
+			localManifest,
+		});
+		privateManifest.items[1].asset.objectKey = OBJECT_KEY;
+
+		expect(() =>
+			buildUploadEntries({ localManifest, privateManifest })
+		).toThrow("Conflicting shared storage object");
+	});
+
+	it("rejects a manifest key outside the private library namespace", () => {
+		expect(() =>
+			resolveManifestObjectKey({
+				catalogId: "qcut-sfx-library-2026-08-26",
+				manifestObjectKey: "../production.json",
+			})
+		).toThrow("Invalid manifest object key");
 	});
 });
