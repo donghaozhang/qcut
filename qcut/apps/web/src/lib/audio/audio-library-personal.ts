@@ -1,9 +1,10 @@
-import type { SavedSound } from "@/types/sounds";
+import type { SavedSound, SoundEffectsLabSoundMetadata } from "@/types/sounds";
 import {
 	notifyUserLibraryChanged,
 	USER_LIBRARY_NAMESPACES,
 } from "@/lib/user-library/user-library-events";
 import type { UserLibraryItem } from "@/lib/user-library/user-library-contract";
+import { hasValidSoundEffectsLabRights } from "./sound-effects-lab-rights";
 
 export const AUDIO_LIBRARY_FAVORITES_STORAGE_KEY = "qcut-saved-sounds";
 export const AUDIO_LIBRARY_RECENTS_STORAGE_KEY = "qcut-recent-sounds";
@@ -76,6 +77,62 @@ function parseArtworkColors({
 		: undefined;
 }
 
+function parseSoundEffectsLabMetadata({
+	value,
+}: {
+	value: unknown;
+}): SoundEffectsLabSoundMetadata | undefined {
+	const record = asRecord({ value });
+	const provider = record?.provider;
+	const redistribution = record?.redistribution;
+	if (
+		!record ||
+		(provider !== "jianying-reference" && provider !== "freesound") ||
+		(redistribution !== "allowed" && redistribution !== "prohibited") ||
+		!hasValidSoundEffectsLabRights({ provider, redistribution }) ||
+		typeof record.resourceId !== "string" ||
+		!/^\d{16,20}$/.test(record.resourceId)
+	) {
+		return undefined;
+	}
+	const assetRecord = asRecord({ value: record.asset });
+	const asset =
+		assetRecord &&
+		typeof assetRecord.objectKey === "string" &&
+		/^(?:jianying|qcut)\/\d{4}-\d{2}-\d{2}\/assets\/[a-f0-9]{32}\.mp3$/.test(
+			assetRecord.objectKey
+		) &&
+		typeof assetRecord.byteSize === "number" &&
+		Number.isFinite(assetRecord.byteSize) &&
+		assetRecord.byteSize > 0 &&
+		typeof assetRecord.checksumSha256 === "string" &&
+		/^[a-f0-9]{64}$/.test(assetRecord.checksumSha256) &&
+		assetRecord.mimeType === "audio/mpeg"
+			? {
+					objectKey: assetRecord.objectKey,
+					byteSize: assetRecord.byteSize,
+					checksumSha256: assetRecord.checksumSha256,
+					mimeType: "audio/mpeg" as const,
+				}
+			: undefined;
+	return {
+		provider,
+		redistribution,
+		resourceId: record.resourceId,
+		asset,
+		isVip:
+			typeof record.isVip === "boolean" || record.isVip === null
+				? record.isVip
+				: undefined,
+		paidType: optionalString({ value: record.paidType }),
+		businessScope: stringArray({ value: record.businessScope }),
+		publishSource: optionalString({ value: record.publishSource }),
+		authorSource: optionalString({ value: record.authorSource }),
+		copyrightText: optionalString({ value: record.copyrightText }),
+		copyrightArtist: optionalString({ value: record.copyrightArtist }),
+	};
+}
+
 export function audioLibraryAssetKey({
 	kind,
 	id,
@@ -114,7 +171,8 @@ export function parseSavedAudio({
 	const source =
 		record.source === "freesound" ||
 		record.source === "qcut" ||
-		record.source === "project"
+		record.source === "project" ||
+		record.source === "sound-effects-lab"
 			? record.source
 			: undefined;
 	return {
@@ -143,6 +201,9 @@ export function parseSavedAudio({
 		scenes: stringArray({ value: record.scenes }),
 		loopable:
 			typeof record.loopable === "boolean" ? record.loopable : undefined,
+		soundEffectsLab: parseSoundEffectsLabMetadata({
+			value: record.soundEffectsLab,
+		}),
 	};
 }
 
