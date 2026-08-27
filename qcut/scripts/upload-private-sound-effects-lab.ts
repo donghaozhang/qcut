@@ -15,7 +15,9 @@ const localItemSchema = z
 const localManifestSchema = z
 	.object({
 		schemaVersion: z.literal(1),
-		catalogId: z.string().regex(/^jianying-sfx-reference-\d{4}-\d{2}-\d{2}$/),
+		catalogId: z
+			.string()
+			.regex(/^(?:jianying-sfx-reference|qcut-sfx-library)-\d{4}-\d{2}-\d{2}$/),
 		items: z.array(localItemSchema).min(1),
 	})
 	.passthrough();
@@ -30,7 +32,9 @@ const privateItemSchema = z
 				kind: z.literal("supabase-storage"),
 				objectKey: z
 					.string()
-					.regex(/^jianying\/\d{4}-\d{2}-\d{2}\/assets\/[a-f0-9]{32}\.mp3$/),
+					.regex(
+						/^(?:jianying|qcut)\/\d{4}-\d{2}-\d{2}\/assets\/[a-f0-9]{32}\.mp3$/
+					),
 				byteSize: z.number().int().positive(),
 				checksumSha256: z.string().regex(/^[a-f0-9]{64}$/),
 			})
@@ -41,7 +45,9 @@ const privateItemSchema = z
 const privateManifestSchema = z
 	.object({
 		schemaVersion: z.literal(2),
-		catalogId: z.string().regex(/^jianying-sfx-reference-\d{4}-\d{2}-\d{2}$/),
+		catalogId: z
+			.string()
+			.regex(/^(?:jianying-sfx-reference|qcut-sfx-library)-\d{4}-\d{2}-\d{2}$/),
 		items: z.array(privateItemSchema).min(1),
 	})
 	.passthrough();
@@ -50,6 +56,8 @@ interface CliOptions {
 	bucket: string;
 	concurrency: number;
 	localManifestPath: string;
+	manifestObjectKey?: string;
+	manifestOnly: boolean;
 	privateManifestPath: string;
 }
 
@@ -84,7 +92,7 @@ export function parseCliOptions({
 	});
 	if (!localManifestPath || !privateManifestPath) {
 		throw new Error(
-			"Usage: bun scripts/upload-private-sound-effects-lab.ts --local-manifest <local.json> --private-manifest <private.json> [--bucket sound-effects-lab] [--concurrency 8]"
+			"Usage: bun scripts/upload-private-sound-effects-lab.ts --local-manifest <local.json> --private-manifest <private.json> [--manifest-object-key qcut/YYYY-MM-DD/manifest.staging.json] [--manifest-only] [--bucket sound-effects-lab] [--concurrency 8]"
 		);
 	}
 	const concurrency = Number(
@@ -97,8 +105,33 @@ export function parseCliOptions({
 		bucket: argumentValue({ args, name: "--bucket" }) ?? "sound-effects-lab",
 		concurrency,
 		localManifestPath: resolve(localManifestPath),
+		manifestObjectKey: argumentValue({ args, name: "--manifest-object-key" }),
+		manifestOnly: args.includes("--manifest-only"),
 		privateManifestPath: resolve(privateManifestPath),
 	};
+}
+
+export function resolveManifestObjectKey({
+	catalogId,
+	manifestObjectKey,
+}: {
+	catalogId: string;
+	manifestObjectKey?: string;
+}): string {
+	const catalogDate = catalogId.slice(-10);
+	const namespace = catalogId.startsWith("qcut-sfx-library-")
+		? "qcut"
+		: "jianying";
+	const objectKey =
+		manifestObjectKey ?? `${namespace}/${catalogDate}/manifest.json`;
+	if (
+		!/^(?:jianying|qcut)\/\d{4}-\d{2}-\d{2}\/manifest(?:[.][a-zA-Z0-9_-]+)*[.]json$/.test(
+			objectKey
+		)
+	) {
+		throw new Error(`Invalid manifest object key: ${objectKey}`);
+	}
+	return objectKey;
 }
 
 export function buildUploadEntries({
@@ -119,7 +152,9 @@ export function buildUploadEntries({
 	const localItemsByFileName = new Map(
 		localManifest.items.map((item) => [item.fileName, item])
 	);
-	return privateManifest.items.map((privateItem) => {
+	const entriesByObjectKey = new Map<string, UploadEntry>();
+	const integrityByObjectKey = new Map<string, string>();
+	for (const privateItem of privateManifest.items) {
 		const localItem = localItemsByFileName.get(privateItem.fileName);
 		if (!localItem) {
 			throw new Error(`Missing local source for ${privateItem.fileName}`);
@@ -145,13 +180,24 @@ export function buildUploadEntries({
 				`Local file SHA-256 mismatch for ${privateItem.fileName}`
 			);
 		}
-		return {
+		const integrity = `${privateItem.byteSize}:${privateItem.contentSha256}`;
+		const previousIntegrity = integrityByObjectKey.get(
+			privateItem.asset.objectKey
+		);
+		if (previousIntegrity && previousIntegrity !== integrity) {
+			throw new Error(
+				`Conflicting shared storage object: ${privateItem.asset.objectKey}`
+			);
+		}
+		integrityByObjectKey.set(privateItem.asset.objectKey, integrity);
+		entriesByObjectKey.set(privateItem.asset.objectKey, {
 			byteSize: localItem.byteSize,
 			contentType: "audio/mpeg",
 			filePath: localItem.filePath,
 			objectKey: privateItem.asset.objectKey,
-		};
-	});
+		});
+	}
+	return [...entriesByObjectKey.values()];
 }
 
 function encodedObjectKey({ objectKey }: { objectKey: string }): string {
@@ -234,9 +280,13 @@ async function uploadEntries({
 
 export async function run({ options }: { options: CliOptions }): Promise<void> {
 	const supabaseUrl = process.env.SUPABASE_URL?.trim();
-	const apiKey = process.env.SUPABASE_SERVICE_KEY?.trim();
+	const apiKey =
+		process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ??
+		process.env.SUPABASE_SERVICE_KEY?.trim();
 	if (!supabaseUrl || !apiKey) {
-		throw new Error("SUPABASE_URL and SUPABASE_SERVICE_KEY are required");
+		throw new Error(
+			"SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SERVICE_KEY) are required"
+		);
 	}
 	const localText = readFileSync(options.localManifestPath, "utf8");
 	const privateText = readFileSync(options.privateManifestPath, "utf8");
@@ -246,15 +296,19 @@ export async function run({ options }: { options: CliOptions }): Promise<void> {
 	const localManifest = localManifestSchema.parse(JSON.parse(localText));
 	const privateManifest = privateManifestSchema.parse(JSON.parse(privateText));
 	const entries = buildUploadEntries({ localManifest, privateManifest });
-	await uploadEntries({
-		apiKey,
-		bucket: options.bucket,
-		concurrency: options.concurrency,
-		entries,
-		supabaseUrl,
+	if (!options.manifestOnly) {
+		await uploadEntries({
+			apiKey,
+			bucket: options.bucket,
+			concurrency: options.concurrency,
+			entries,
+			supabaseUrl,
+		});
+	}
+	const manifestObjectKey = resolveManifestObjectKey({
+		catalogId: privateManifest.catalogId,
+		manifestObjectKey: options.manifestObjectKey,
 	});
-	const catalogDate = privateManifest.catalogId.slice(-10);
-	const manifestObjectKey = `jianying/${catalogDate}/manifest.json`;
 	await uploadObject({
 		apiKey,
 		body: new Blob([privateText], { type: "application/json" }),
@@ -268,6 +322,7 @@ export async function run({ options }: { options: CliOptions }): Promise<void> {
 			{
 				status: "ok",
 				bucket: options.bucket,
+				manifestOnly: options.manifestOnly,
 				manifestObjectKey,
 				items: entries.length,
 			},
