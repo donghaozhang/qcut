@@ -29,6 +29,9 @@ function expectedResourceMetadata({
 }): Record<string, unknown> {
 	return {
 		...metadata,
+		...(resource.checksumSha256
+			? { checksumSha256: resource.checksumSha256 }
+			: {}),
 		source: "sticker-runtime-resource",
 		stickerAssetId: asset.id,
 		stickerAssetVersion: asset.version,
