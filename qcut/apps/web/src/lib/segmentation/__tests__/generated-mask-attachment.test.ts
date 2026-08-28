@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { useSegmentationStore } from "@/stores/ai/segmentation-store";
 import { useMaskEditorStore } from "@/stores/editor/mask-editor-store";
 import { createMediaMask } from "@/lib/video/media-mask-stack";
@@ -11,6 +11,12 @@ import {
 	pauseGeneratedMaskTracking,
 	updateGeneratedMaskTrackingProgress,
 } from "../generated-mask-attachment";
+
+const toastInfo = vi.hoisted(() => vi.fn());
+
+vi.mock("sonner", () => ({
+	toast: { info: toastInfo },
+}));
 
 function mediaElement(overrides: Partial<MediaElement> = {}): MediaElement {
 	return {
@@ -28,6 +34,7 @@ function mediaElement(overrides: Partial<MediaElement> = {}): MediaElement {
 
 describe("generated mask attachment", () => {
 	afterEach(() => {
+		toastInfo.mockReset();
 		useTimelineStore.setState({
 			_tracks: [],
 			tracks: [],
@@ -36,6 +43,20 @@ describe("generated mask attachment", () => {
 		});
 		useSegmentationStore.setState({ trackingRequest: null });
 		useMaskEditorStore.getState().clearSelection();
+	});
+
+	it("explains an unattached result in Chinese", () => {
+		expect(
+			attachGeneratedMask({
+				sourceMediaId: "person-alpha",
+				type: "person",
+				source: "qcut-person-matting",
+				name: "人物抠像",
+			})
+		).toBe(false);
+		expect(toastInfo).toHaveBeenCalledWith(
+			"人物抠像结果已添加到素材库，但尚未选择时间线片段"
+		);
 	});
 
 	it("prepends a generated mask without disturbing the existing stack", () => {
@@ -116,7 +137,10 @@ describe("generated mask attachment", () => {
 		});
 	});
 
-	it("keeps the Jianying GRU result out of geometry edit mode", () => {
+	it.each([
+		"qcut-person-matting",
+		"jianying-gru",
+	] as const)("keeps a %s result out of geometry edit mode", (source) => {
 		const track: TimelineTrack = {
 			id: "track-1",
 			name: "Main Track",
@@ -137,7 +161,7 @@ describe("generated mask attachment", () => {
 			attachGeneratedMask({
 				sourceMediaId: "person-alpha",
 				type: "person",
-				source: "jianying-gru",
+				source,
 				name: "人物抠像",
 			})
 		).toBe(true);
