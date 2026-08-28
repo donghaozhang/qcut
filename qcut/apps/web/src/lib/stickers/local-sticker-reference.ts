@@ -441,6 +441,7 @@ export async function loadStickerLabReferenceRuntimePackage({
 	}
 	const resources = await Promise.all(
 		reference.runtimePackage.resources.map(async (resource) => ({
+			checksumSha256: resource.asset.checksumSha256,
 			file: await loadLocalBridgeStickerRuntimeResource({
 				reference,
 				resource,
