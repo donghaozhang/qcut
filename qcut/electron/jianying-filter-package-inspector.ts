@@ -25,6 +25,14 @@ import {
 	inspectJianyingNativePortraitRenderer,
 	type JianyingNativePortraitRenderer,
 } from "./native-pipeline/filters/filter-lab-native-portrait.js";
+import {
+	inspectJianyingNativeFaceRegionRenderer,
+	type JianyingNativeFaceRegionRenderer,
+} from "./native-pipeline/filters/filter-lab-native-face-region.js";
+import {
+	inspectJianyingNativeSwingRenderer,
+	type JianyingNativeSwingRenderer,
+} from "./native-pipeline/filters/filter-lab-native-swing.js";
 
 const PACKAGE_CONTAINERS = ["artistEffect", "effect"] as const;
 const MAX_PACKAGE_FILES = 5000;
@@ -53,6 +61,8 @@ export interface JianyingFilterPackageSummary {
 	renderer?: JianyingTiledLutRenderer;
 	dualRenderer?: JianyingDualTiledLutRenderer;
 	nativePortraitRenderer?: JianyingNativePortraitRenderer;
+	nativeFaceRegionRenderer?: JianyingNativeFaceRegionRenderer;
+	nativeSwingRenderer?: JianyingNativeSwingRenderer;
 	multiPassRenderer?: JianyingFilterMultiPassRenderer;
 }
 
@@ -318,6 +328,8 @@ export async function inspectJianyingFilterPackages({
 				rendererCandidates,
 				dualRendererCandidates,
 				nativePortraitRendererCandidates,
+				nativeFaceRegionRendererCandidates,
+				nativeSwingRendererCandidates,
 				multiPassCandidates,
 			] = await Promise.all([
 				Promise.all(
@@ -349,6 +361,28 @@ export async function inspectJianyingFilterPackages({
 				),
 				Promise.all(
 					locations.map((location) =>
+						inspectJianyingNativeFaceRegionRenderer({
+							container: location.container,
+							packageIdentifier: location.identifier,
+							paths: pathsByRoot.get(location.root) ?? [],
+							root: location.root,
+							version: location.version,
+						})
+					)
+				),
+				Promise.all(
+					locations.map((location) =>
+						inspectJianyingNativeSwingRenderer({
+							container: location.container,
+							packageIdentifier: location.identifier,
+							paths: pathsByRoot.get(location.root) ?? [],
+							root: location.root,
+							version: location.version,
+						})
+					)
+				),
+				Promise.all(
+					locations.map((location) =>
 						inspectJianyingMultiPassRenderer({
 							...location,
 							paths: pathsByRoot.get(location.root) ?? [],
@@ -367,6 +401,14 @@ export async function inspectJianyingFilterPackages({
 				(candidate): candidate is JianyingNativePortraitRenderer =>
 					candidate !== null
 			);
+			const nativeFaceRegionRenderer = nativeFaceRegionRendererCandidates.find(
+				(candidate): candidate is JianyingNativeFaceRegionRenderer =>
+					candidate !== null
+			);
+			const nativeSwingRenderer = nativeSwingRendererCandidates.find(
+				(candidate): candidate is JianyingNativeSwingRenderer =>
+					candidate !== null
+			);
 			const multiPassRenderer = multiPassCandidates.find(
 				(candidate): candidate is JianyingFilterMultiPassRenderer =>
 					candidate !== null
@@ -379,11 +421,13 @@ export async function inspectJianyingFilterPackages({
 						references: filterReferences,
 						issues,
 					}),
-					implementation: classifyImplementation({
-						filter,
-						references: filterReferences,
-						paths,
-					}),
+					implementation: nativeFaceRegionRenderer
+						? "face-region-lut"
+						: classifyImplementation({
+								filter,
+								references: filterReferences,
+								paths,
+							}),
 					versions: [
 						...new Set([
 							...locations.map(({ version }) => version),
@@ -395,6 +439,8 @@ export async function inspectJianyingFilterPackages({
 					...(renderer ? { renderer } : {}),
 					...(dualRenderer ? { dualRenderer } : {}),
 					...(nativePortraitRenderer ? { nativePortraitRenderer } : {}),
+					...(nativeFaceRegionRenderer ? { nativeFaceRegionRenderer } : {}),
+					...(nativeSwingRenderer ? { nativeSwingRenderer } : {}),
 					...(multiPassRenderer ? { multiPassRenderer } : {}),
 					issues,
 				} satisfies JianyingFilterPackageSummary,
