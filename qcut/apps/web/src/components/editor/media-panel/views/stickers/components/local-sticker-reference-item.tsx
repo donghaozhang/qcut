@@ -11,11 +11,13 @@ import { debugError } from "@/lib/debug/debug-config";
 import {
 	buildStickerReferenceUsageMetadata,
 	loadStickerLabReferenceFile,
+	loadStickerLabReferenceRuntimePackage,
 	loadStickerLabThumbnail,
 	releaseLocalStickerReferenceFile,
 	type StickerLabReference,
 	type StickerReferenceUsageMetadata,
 } from "@/lib/stickers/local-sticker-reference";
+import type { PreparedStickerRuntimePackage } from "@/lib/stickers/sticker-runtime-package";
 import type {
 	LocalStickerPlayback,
 	RemoteStickerProvenance,
@@ -99,6 +101,7 @@ export function LocalStickerReferenceItem({
 	}: {
 		file: File;
 		metadata?: StickerReferenceUsageMetadata;
+		runtimePackage?: PreparedStickerRuntimePackage;
 	}) => Promise<void>;
 	provenance?: RemoteStickerProvenance;
 	reference: StickerLabReference;
@@ -235,7 +238,15 @@ export function LocalStickerReferenceItem({
 					reference,
 				}));
 			const metadata = buildStickerReferenceUsageMetadata({ reference });
-			await onSelect(metadata ? { file, metadata } : { file });
+			const runtimePackage = await loadStickerLabReferenceRuntimePackage({
+				primaryFile: file,
+				reference,
+			});
+			await onSelect({
+				file,
+				...(metadata ? { metadata } : {}),
+				...(runtimePackage ? { runtimePackage } : {}),
+			});
 		} catch (error) {
 			debugError("[StickerLab] Failed to add local reference", error);
 			if (isForbiddenError({ error })) {
@@ -270,6 +281,7 @@ export function LocalStickerReferenceItem({
 				aria-label={`添加${reference.displayName}到时间线`}
 				aria-describedby={hasError ? loadErrorId : undefined}
 				data-testid="local-sticker-reference-item"
+				data-sticker-reference-id={reference.id}
 				onClick={handleSelect}
 				onKeyDown={(event) => {
 					if (event.key === " ") {
