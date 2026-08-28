@@ -9,8 +9,14 @@ import {
 	alphaMaskTrackingSample,
 	type MediaMaskTrackingSample,
 } from "@/lib/video/media-mask-tracking";
-import { exportJianyingPersonCutout } from "./jianying-person-cutout-client";
-import type { TemattingBlendImplementation } from "@/types/electron/api-jianying-person-cutout";
+import {
+	exportJianyingPersonCutout,
+	type PersonCutoutExecutionMetadata,
+} from "./jianying-person-cutout-client";
+import type {
+	JianyingPersonCutoutRenderResult,
+	TemattingOutputBlendImplementation,
+} from "@/types/electron/api-jianying-person-cutout";
 
 export type PersonCutoutExportSettings = PersonCutoutMaskOptions;
 export type PersonCutoutQuality = "basic" | "fine";
@@ -20,8 +26,9 @@ export interface PersonCutoutExportProgress {
 	status: string;
 }
 
-export interface PersonCutoutExportResult {
-	blendImplementation?: TemattingBlendImplementation;
+export interface PersonCutoutExportResult
+	extends Partial<PersonCutoutExecutionMetadata> {
+	blendImplementation?: TemattingOutputBlendImplementation;
 	blob: Blob;
 	duration: number;
 	width: number;
@@ -29,6 +36,7 @@ export interface PersonCutoutExportResult {
 	frameRate: number;
 	frameCount: number;
 	hasAudio: boolean;
+	nativeMetalCanary?: JianyingPersonCutoutRenderResult["nativeMetalCanary"];
 	codec: "vp9" | "vp8";
 	trackingSamples: MediaMaskTrackingSample[];
 }
