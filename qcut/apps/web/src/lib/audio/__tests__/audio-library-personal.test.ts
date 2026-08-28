@@ -150,6 +150,24 @@ describe("audio library personal data", () => {
 		expect(parsed?.soundEffectsLab).toBeUndefined();
 	});
 
+	it("rejects a lab asset whose namespace contradicts its provider", () => {
+		const parsed = parseSavedAudio({
+			value: {
+				...labFavorite,
+				soundEffectsLab: {
+					...labFavorite.soundEffectsLab,
+					asset: {
+						...labFavorite.soundEffectsLab?.asset,
+						objectKey:
+							"jianying/2026-08-22/assets/a3bb18a41c76abd0d1af22b05072655e.mp3",
+					},
+				},
+			},
+		});
+
+		expect(parsed?.soundEffectsLab).toBeUndefined();
+	});
+
 	it("applies merged cloud items and announces an immediate refresh", () => {
 		const listener = vi.fn();
 		window.addEventListener(AUDIO_LIBRARY_PERSONAL_CHANGED_EVENT, listener);
