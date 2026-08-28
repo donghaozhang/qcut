@@ -4,6 +4,11 @@ function powerOfTen({ exponent }: { exponent: number }): bigint {
 	return 10n ** BigInt(exponent);
 }
 
+/**
+ * Converts finite seconds to 1e-15-second integer ticks for exact comparisons.
+ * Positive sub-tick remainders truncate toward zero; negative values floor,
+ * so a negative sub-tick remainder rounds away from zero.
+ */
 export function localStickerMediaTimeToTicks({
 	seconds,
 }: {
