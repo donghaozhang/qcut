@@ -174,7 +174,11 @@ export function attachGeneratedMask({
 		elementId: targetElementId ?? matchingRequest?.elementId,
 	});
 	if (!target) {
-		toast.info("人物抠像结果已添加到素材库，但尚未选择时间线片段");
+		toast.info(
+			type === "person"
+				? "人物抠像结果已添加到素材库，但尚未选择时间线片段"
+				: "分割结果已添加到素材库，但尚未选择时间线片段"
+		);
 		return false;
 	}
 
