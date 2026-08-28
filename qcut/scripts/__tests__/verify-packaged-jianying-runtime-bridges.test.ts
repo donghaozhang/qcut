@@ -5,6 +5,8 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { JIANYING_FILTER_LOCAL_BRIDGE_FILE_NAME } from "../../electron/jianying-filter-local-runtime/bridge-resolver.js";
 import { JIANYING_PORTRAIT_ADJUSTMENT_HOST_FILE_NAME } from "../../electron/jianying-portrait-adjustment-runtime/bridge-resolver.js";
+import { JIANYING_PERSON_CUTOUT_BRIDGE_FILE_NAME } from "../../electron/jianying-person-cutout/bridge-resolver.js";
+import { JIANYING_SALIENCY_BRIDGE_FILE_NAME } from "../../electron/jianying-person-cutout/saliency-bridge-resolver.js";
 import { JIANYING_TEXT_RUNTIME_BRIDGE_FILE_NAME } from "../../electron/jianying-text-runtime/bridge-resolver.js";
 import { JIANYING_TRANSITION_BRIDGE_FILE_NAME } from "../../electron/jianying-transition/bridge-resolver.js";
 import { verifyPackagedJianyingRuntimeBridges } from "../verify-packaged-jianying-runtime-bridges.js";
@@ -57,7 +59,16 @@ async function createFixture({
 		},
 		{
 			name: JIANYING_PORTRAIT_ADJUSTMENT_HOST_FILE_NAME,
-			contents: "#!/bin/sh\nexit 0\n",
+			contents: "#!/bin/sh\n# HTSGLContext\nexit 0\n",
+		},
+		{
+			name: JIANYING_PERSON_CUTOUT_BRIDGE_FILE_NAME,
+			contents:
+				"#!/bin/sh\n# TEMattingBlendEffectV2-native-metal Vision-person-fusion-v1\nexit 0\n",
+		},
+		{
+			name: JIANYING_SALIENCY_BRIDGE_FILE_NAME,
+			contents: "#!/bin/sh\n# video-object-general-seg-v1\nexit 0\n",
 		},
 	];
 	await Promise.all(
@@ -94,6 +105,12 @@ describe("packaged Jianying runtime bridge verification", () => {
 			),
 			portraitAdjustmentHost: expect.stringContaining(
 				JIANYING_PORTRAIT_ADJUSTMENT_HOST_FILE_NAME
+			),
+			personCutoutBridge: expect.stringContaining(
+				JIANYING_PERSON_CUTOUT_BRIDGE_FILE_NAME
+			),
+			saliencyBridge: expect.stringContaining(
+				JIANYING_SALIENCY_BRIDGE_FILE_NAME
 			),
 		});
 	});
