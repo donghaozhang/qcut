@@ -62,6 +62,76 @@ describe("local sticker manifest", () => {
 		).toThrow("batchId must match");
 	});
 
+	it("accepts a verified multi-resource runtime package from the local bridge", () => {
+		const catalog = createLocalBridgeStickerCatalog();
+		const reference = catalog.categories[0]?.items[0];
+		if (!reference) throw new Error("Expected a local bridge fixture");
+		reference.fileName = "sequence-preview.png";
+		reference.mimeType = "image/png";
+		reference.sourceKind = "png-sequence";
+		reference.runtimePackage = {
+			descriptor: {
+				kind: "png-sequence",
+				cycleDurationSeconds: 1,
+				frames: [
+					{ source: "$primary", startSeconds: 0, durationSeconds: 0.5 },
+					{ source: "frame-blue.png", startSeconds: 0.5, durationSeconds: 0.5 },
+				],
+				repeat: { kind: "infinite" },
+				completion: "freeze-last",
+			},
+			resources: [
+				{
+					resourceName: "frame-blue.png",
+					fileName: "frame-blue.png",
+					mimeType: "image/png",
+					asset: {
+						kind: "local-reference-runtime-resource",
+						rootPath: reference.asset.rootPath,
+						batchId: reference.asset.batchId,
+						stickerId: reference.asset.stickerId,
+						resourceName: "frame-blue.png",
+						byteSize: 4,
+						checksumSha256: "b".repeat(64),
+					},
+				},
+			],
+		};
+
+		expect(parseLocalBridgeStickerCatalog({ candidate: catalog })).toEqual(
+			catalog
+		);
+	});
+
+	it("rejects runtime package sources and resources that are not self-contained", () => {
+		const catalog = createLocalBridgeStickerCatalog();
+		const reference = catalog.categories[0]?.items[0];
+		if (!reference) throw new Error("Expected a local bridge fixture");
+		reference.fileName = "sequence-preview.png";
+		reference.mimeType = "image/png";
+		reference.sourceKind = "png-sequence";
+		reference.runtimePackage = {
+			descriptor: {
+				kind: "png-sequence",
+				cycleDurationSeconds: 1,
+				frames: [
+					{
+						source: "$resource:frame-blue.png",
+						startSeconds: 0,
+						durationSeconds: 1,
+					},
+				],
+				repeat: { kind: "infinite" },
+				completion: "freeze-last",
+			},
+			resources: [],
+		};
+
+		expect(() =>
+			parseLocalBridgeStickerCatalog({ candidate: catalog })
+		).toThrow("must not contain persisted resources");
+	});
+
 	it("accepts an animated preview GIF as an explicit source kind", () => {
 		const catalog = createLocalStickerCatalog();
 		const firstItem = catalog.categories[0]?.items[0];
