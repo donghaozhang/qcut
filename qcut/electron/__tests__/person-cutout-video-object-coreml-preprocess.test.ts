@@ -11,39 +11,39 @@ const describeOnMac = process.platform === "darwin" ? describe : describe.skip;
 let temporaryDirectory = "";
 
 describeOnMac("video-object CoreML tensor preprocessing", () => {
-  beforeAll(async () => {
-    temporaryDirectory = await mkdtemp(
-      path.join(os.tmpdir(), "qcut-video-object-coreml-preprocess-test-"),
-    );
-  });
+	beforeAll(async () => {
+		temporaryDirectory = await mkdtemp(
+			path.join(os.tmpdir(), "qcut-video-object-coreml-preprocess-test-")
+		);
+	});
 
-  afterAll(async () => {
-    if (!temporaryDirectory) return;
-    await rm(temporaryDirectory, { force: true, recursive: true });
-  });
+	afterAll(async () => {
+		if (!temporaryDirectory) return;
+		await rm(temporaryDirectory, { force: true, recursive: true });
+	});
 
-  it("compiles and verifies color, temporal-state, reset, and raw Alpha contracts", async () => {
-    const nativeDirectory = path.resolve(
-      "electron",
-      "jianying-person-cutout",
-      "native",
-    );
-    const executablePath = path.join(
-      temporaryDirectory,
-      "video-object-coreml-preprocess-test",
-    );
-    await execFileAsync("xcrun", [
-      "clang++",
-      "-std=c++20",
-      "-Wall",
-      "-Wextra",
-      "-Werror",
-      path.join(nativeDirectory, "alpha-resize.cpp"),
-      path.join(nativeDirectory, "video-object-coreml-preprocess.cpp"),
-      path.join(nativeDirectory, "video-object-coreml-preprocess.test.cpp"),
-      "-o",
-      executablePath,
-    ]);
-    await expect(execFileAsync(executablePath)).resolves.toBeDefined();
-  });
+	it("compiles and verifies color, temporal-state, reset, and raw Alpha contracts", async () => {
+		const nativeDirectory = path.resolve(
+			"electron",
+			"jianying-person-cutout",
+			"native"
+		);
+		const executablePath = path.join(
+			temporaryDirectory,
+			"video-object-coreml-preprocess-test"
+		);
+		await execFileAsync("xcrun", [
+			"clang++",
+			"-std=c++20",
+			"-Wall",
+			"-Wextra",
+			"-Werror",
+			path.join(nativeDirectory, "alpha-resize.cpp"),
+			path.join(nativeDirectory, "video-object-coreml-preprocess.cpp"),
+			path.join(nativeDirectory, "video-object-coreml-preprocess.test.cpp"),
+			"-o",
+			executablePath,
+		]);
+		await expect(execFileAsync(executablePath)).resolves.toBeDefined();
+	});
 });

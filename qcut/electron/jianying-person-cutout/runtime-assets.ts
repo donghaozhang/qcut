@@ -28,7 +28,9 @@ export async function directoryMatches({
 	files: ReadonlyArray<HashedRuntimeFile>;
 }) {
 	const hashes = await Promise.all(
-		files.map(({ name }) => sha256File({ filePath: path.join(directory, name) }))
+		files.map(({ name }) =>
+			sha256File({ filePath: path.join(directory, name) })
+		)
 	);
 	return hashes.every((hash, index) => hash === files[index].sha256);
 }
@@ -54,7 +56,8 @@ export async function firstMatchingFile({
 	sha256: string;
 }) {
 	for (const candidate of candidates) {
-		if ((await sha256File({ filePath: candidate })) === sha256) return candidate;
+		if ((await sha256File({ filePath: candidate })) === sha256)
+			return candidate;
 	}
 	return null;
 }

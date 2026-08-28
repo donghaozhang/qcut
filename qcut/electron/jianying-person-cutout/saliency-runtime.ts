@@ -11,30 +11,25 @@ import {
 const MODEL_FILES = [
 	{
 		name: "saliency_matting_v1.0_size0_md55882cbfb5e9c1f205cd599d3c5d0833a.model",
-		sha256:
-			"ac2ae6badafc6a94641dc59b5844762676eee71b218785bfad37169eea380341",
+		sha256: "ac2ae6badafc6a94641dc59b5844762676eee71b218785bfad37169eea380341",
 	},
 	{
 		name: "saliency_script_for_cc_v1.2_size0_md57b5c3cdeb513b9e4d65f0e3fd5909100.model",
-		sha256:
-			"4d7fbc2ec820f28f3d0c8531a63d53a338d091a989109f20ee67377c4f594c01",
+		sha256: "4d7fbc2ec820f28f3d0c8531a63d53a338d091a989109f20ee67377c4f594c01",
 	},
 	{
 		name: "video_saliency_seg_bce_v1.0_size100_md57b601afc96d910a40a4dd17c0c43c96a.model",
-		sha256:
-			"346b64693e02775faff84b6506e6aa8fb399d1060ab7eb3448157eef741849ef",
+		sha256: "346b64693e02775faff84b6506e6aa8fb399d1060ab7eb3448157eef741849ef",
 	},
 ] as const;
 const EFFECT_FILES = [
 	{
 		name: "algorithmConfig.json",
-		sha256:
-			"58ae549c87d82c487e546732ab4e4f91de6b7db8773b3048bf1753b4871788ef",
+		sha256: "58ae549c87d82c487e546732ab4e4f91de6b7db8773b3048bf1753b4871788ef",
 	},
 	{
 		name: "config.json",
-		sha256:
-			"652ad89364eeaf614d6e98c180ad3403420ff641e8f8b8e9d9209c07880453f0",
+		sha256: "652ad89364eeaf614d6e98c180ad3403420ff641e8f8b8e9d9209c07880453f0",
 	},
 ] as const;
 

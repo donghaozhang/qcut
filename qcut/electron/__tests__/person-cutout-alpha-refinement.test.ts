@@ -27,7 +27,10 @@ describeOnMac("person cutout alpha refinement", () => {
 			"jianying-person-cutout",
 			"native"
 		);
-		const executablePath = path.join(temporaryDirectory, "alpha-refinement-test");
+		const executablePath = path.join(
+			temporaryDirectory,
+			"alpha-refinement-test"
+		);
 		await execFileAsync("xcrun", [
 			"clang++",
 			"-std=c++20",
