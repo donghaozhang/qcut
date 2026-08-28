@@ -288,6 +288,12 @@ int main(int argc, char **argv) {
         (expectedFrameCount > 0 && frameCount != expectedFrameCount)) {
       throw std::runtime_error("video-object input did not contain complete frames");
     }
+    if (outputFile) {
+      outputFile->flush();
+      if (!*outputFile) {
+        throw std::runtime_error("cannot flush video-object Alpha output");
+      }
+    }
     if (outputDescriptor >= 0) {
       ::close(outputDescriptor);
     }
