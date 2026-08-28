@@ -292,4 +292,74 @@ describe("Jianying filter package inspector", () => {
 			managedCacheRoot
 		);
 	});
+
+	it("attaches a strict native Swing renderer to a complete Shader graph", async () => {
+		const cacheRoot = await temporaryCache();
+		const resourceId = "native-swing-shader";
+		await Promise.all([
+			packageFile({
+				cacheRoot,
+				resourceId,
+				version: "v1",
+				relativePath: "algorithmConfig.json",
+				content: JSON.stringify({
+					nodes: [{ type: "blit" }, { type: "kira" }],
+				}),
+			}),
+			packageFile({
+				cacheRoot,
+				resourceId,
+				version: "v1",
+				relativePath: "AmazingFeature/main.scene",
+			}),
+			packageFile({
+				cacheRoot,
+				resourceId,
+				version: "v1",
+				relativePath: "AmazingFeature/lua/main.lua",
+			}),
+			packageFile({
+				cacheRoot,
+				resourceId,
+				version: "v1",
+				relativePath: "AmazingFeature/material/pass.material",
+			}),
+			packageFile({
+				cacheRoot,
+				resourceId,
+				version: "v1",
+				relativePath: "AmazingFeature/shader/pass.xshader",
+			}),
+			packageFile({
+				cacheRoot,
+				resourceId,
+				version: "v1",
+				relativePath: "AmazingFeature/shader/gles2/pass.frag",
+			}),
+			packageFile({
+				cacheRoot,
+				resourceId,
+				version: "v1",
+				relativePath: "AmazingFeature/shader/gles2/pass.vert",
+			}),
+		]);
+
+		const result = await inspectJianyingFilterPackages({
+			filters: [filter({ resourceId })],
+			references: [],
+			cacheRoot,
+		});
+		expect(result.get(resourceId)).toMatchObject({
+			cacheStatus: "cached",
+			implementation: "shader",
+			nativeSwingRenderer: {
+				kind: "native-swing-shader",
+				packageIdentifier: resourceId,
+				version: "v1",
+				passCount: 1,
+				algorithmTypes: ["blit", "kira"],
+			},
+		});
+		expect(JSON.stringify(result.get(resourceId))).not.toContain(cacheRoot);
+	});
 });
