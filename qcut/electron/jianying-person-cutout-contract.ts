@@ -1,4 +1,13 @@
-import type { TemattingBlendImplementation } from "./jianying-person-cutout/tematting-blend.js";
+import type {
+	TemattingNativeMetalCanaryStatus,
+	TemattingOutputBlendImplementation,
+} from "./jianying-person-cutout/tematting-blend.js";
+import type {
+	PersonCutoutModelRoute,
+	PersonCutoutPipelineId,
+	PersonCutoutProviderId,
+	PersonCutoutRefinementProvider,
+} from "./jianying-person-cutout/pipeline-descriptor.js";
 
 export const JIANYING_PERSON_CUTOUT_INSPECT_CHANNEL =
 	"jianying-person-cutout:inspect";
@@ -13,10 +22,22 @@ export const JIANYING_PERSON_CUTOUT_RELEASE_CHANNEL =
 
 export interface JianyingPersonCutoutStatus {
 	available: boolean;
-	blendImplementation: TemattingBlendImplementation;
+	blendImplementation: TemattingOutputBlendImplementation;
 	message: string;
-	provider: "jianying-gru-local-v1";
+	nativeMetalCanaryEnabled?: boolean;
+	pipelineId: PersonCutoutPipelineId;
+	provider: PersonCutoutProviderId;
+	refinementProvider: PersonCutoutRefinementProvider;
 	offlineReady: boolean;
+}
+
+export interface PersonCutoutExecutionMetadata {
+	didModelRouteFallback: boolean;
+	modelRoute: PersonCutoutModelRoute;
+	pipelineId: PersonCutoutPipelineId;
+	provider: PersonCutoutProviderId;
+	refinementProvider: PersonCutoutRefinementProvider;
+	requestedModelRoute: PersonCutoutModelRoute | "auto";
 }
 
 export interface JianyingPersonCutoutRenderRequest {
@@ -40,9 +61,10 @@ export interface JianyingPersonCutoutProgress {
 	status: string;
 }
 
-export interface JianyingPersonCutoutRenderResult {
-	blendImplementation: TemattingBlendImplementation;
-	provider: "jianying-gru-local-v1";
+export interface JianyingPersonCutoutRenderResult
+	extends PersonCutoutExecutionMetadata {
+	blendImplementation: TemattingOutputBlendImplementation;
+	nativeMetalCanary?: TemattingNativeMetalCanaryStatus;
 	outputPath: string;
 	width: number;
 	height: number;
@@ -69,4 +91,7 @@ export interface JianyingPersonCutoutAPI {
 	release: (request: JianyingPersonCutoutReleaseRequest) => Promise<void>;
 }
 
-export type { TemattingBlendImplementation } from "./jianying-person-cutout/tematting-blend.js";
+export type {
+	TemattingBlendImplementation,
+	TemattingOutputBlendImplementation,
+} from "./jianying-person-cutout/tematting-blend.js";
