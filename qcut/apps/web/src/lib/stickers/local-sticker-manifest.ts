@@ -1,8 +1,10 @@
 import { z } from "zod";
 import {
+	assertStickerRuntimeDescriptor,
 	getPrivateStickerCatalogDefinition,
 	MAX_PRIVATE_STICKER_CATALOG_BYTES,
 	type PrivateStickerCatalogId,
+	type StickerRuntimeDescriptor,
 } from "@qcut/editor-core/sticker-lab";
 import {
 	readLocalStickerFile,
@@ -68,6 +70,207 @@ const playbackSchema = z.discriminatedUnion("kind", [
 	staticPlaybackSchema,
 	animatedPlaybackSchema,
 ]);
+
+const stickerRuntimeDescriptorSchema = z.custom<StickerRuntimeDescriptor>(
+	(candidate) => {
+		try {
+			assertStickerRuntimeDescriptor({ descriptor: candidate });
+			return true;
+		} catch {
+			return false;
+		}
+	},
+	{ message: "Invalid Sticker Lab runtime descriptor" }
+);
+
+const runtimeResourceNameSchema = repositoryPathSchema.refine(
+	(resourceName) => !resourceName.startsWith("$"),
+	"Runtime resource names must not use reserved runtime sources"
+);
+
+const localBridgeRuntimeResourceAssetSchema = z
+	.object({
+		kind: z.literal("local-reference-runtime-resource"),
+		rootPath: z
+			.string()
+			.trim()
+			.min(1)
+			.refine((filePath) => ABSOLUTE_LOCAL_PATH_PATTERN.test(filePath), {
+				message: "rootPath must be absolute",
+			})
+			.refine((filePath) => !hasDotPathSegment({ filePath }), {
+				message: "rootPath must not contain dot path segments",
+			}),
+		batchId: z.string().trim().regex(STICKER_ID_PATTERN),
+		stickerId: z.string().trim().regex(STICKER_ID_PATTERN),
+		resourceName: runtimeResourceNameSchema,
+		byteSize: z.number().int().positive().max(MAX_REMOTE_ASSET_BYTES),
+		checksumSha256: z.string().regex(SHA256_PATTERN),
+	})
+	.strict();
+
+const localBridgeRuntimeResourceSchema = z
+	.object({
+		resourceName: runtimeResourceNameSchema,
+		fileName: z
+			.string()
+			.trim()
+			.min(1)
+			.max(180)
+			.refine((fileName) => !/[\\/]/.test(fileName), {
+				message: "fileName must not contain path separators",
+			}),
+		mimeType: z.enum(["image/png", "video/webm"]),
+		asset: localBridgeRuntimeResourceAssetSchema,
+	})
+	.strict()
+	.superRefine((resource, context) => {
+		if (resource.asset.resourceName !== resource.resourceName) {
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["asset", "resourceName"],
+				message: "Runtime resource asset name must match its package name",
+			});
+		}
+	});
+
+const localBridgeRuntimePackageSchema = z
+	.object({
+		descriptor: stickerRuntimeDescriptorSchema,
+		resources: z.array(localBridgeRuntimeResourceSchema).max(100),
+	})
+	.strict();
+
+function runtimeDescriptorRequirements({
+	descriptor,
+}: {
+	descriptor: StickerRuntimeDescriptor;
+}): Array<{ expectedMimePrefix: "image/" | "video/"; source: string }> {
+	switch (descriptor.kind) {
+		case "direct-gif":
+			return [{ expectedMimePrefix: "image/", source: "$primary" }];
+		case "atlas-animation":
+			return [
+				{
+					expectedMimePrefix: "image/",
+					source: descriptor.atlasSource ?? "$primary",
+				},
+			];
+		case "png-sequence":
+			return descriptor.frames.map((frame) => ({
+				expectedMimePrefix: "image/" as const,
+				source: frame.source,
+			}));
+		case "alpha-video":
+			return [
+				{ expectedMimePrefix: "video/", source: descriptor.source },
+				...(descriptor.layout.kind === "separate-mask"
+					? [
+							{
+								expectedMimePrefix: "video/" as const,
+								source: descriptor.layout.maskSource,
+							},
+						]
+					: []),
+			];
+		default: {
+			const unsupported: never = descriptor;
+			throw new Error(`Unsupported runtime descriptor: ${String(unsupported)}`);
+		}
+	}
+}
+
+function validateLocalBridgeRuntimePackage({
+	context,
+	reference,
+}: {
+	context: z.RefinementCtx;
+	reference: {
+		fileName: string;
+		mimeType: string;
+		sourceKind: LocalStickerSourceKind;
+		runtimePackage?: z.infer<typeof localBridgeRuntimePackageSchema>;
+	};
+}): void {
+	const runtimePackage = reference.runtimePackage;
+	if (!runtimePackage) return;
+	if (runtimePackage.descriptor.kind !== reference.sourceKind) {
+		context.addIssue({
+			code: z.ZodIssueCode.custom,
+			path: ["runtimePackage", "descriptor", "kind"],
+			message: "Runtime descriptor kind must match the Sticker Lab source kind",
+		});
+	}
+	if (runtimePackage.descriptor.kind === "direct-gif") {
+		context.addIssue({
+			code: z.ZodIssueCode.custom,
+			path: ["runtimePackage"],
+			message: "Direct GIF references must not declare a runtime package",
+		});
+	}
+	const requirements = runtimeDescriptorRequirements({
+		descriptor: runtimePackage.descriptor,
+	});
+	if (requirements.some(({ source }) => source.startsWith("$resource:"))) {
+		context.addIssue({
+			code: z.ZodIssueCode.custom,
+			path: ["runtimePackage", "descriptor"],
+			message: "Local runtime descriptors must not contain persisted resources",
+		});
+	}
+	const requiredResources = new Set(
+		requirements
+			.map(({ source }) => source)
+			.filter(
+				(source) => source !== "$primary" && source !== reference.fileName
+			)
+	);
+	const declaredResources = runtimePackage.resources.map(
+		(resource) => resource.resourceName
+	);
+	if (new Set(declaredResources).size !== declaredResources.length) {
+		context.addIssue({
+			code: z.ZodIssueCode.custom,
+			path: ["runtimePackage", "resources"],
+			message: "Runtime resource names must be unique",
+		});
+	}
+	if (
+		requiredResources.size !== declaredResources.length ||
+		declaredResources.some(
+			(resourceName) => !requiredResources.has(resourceName)
+		)
+	) {
+		context.addIssue({
+			code: z.ZodIssueCode.custom,
+			path: ["runtimePackage", "resources"],
+			message:
+				"Runtime package resources must exactly match descriptor sources",
+		});
+	}
+	const resourcesByName = new Map(
+		runtimePackage.resources.map((resource) => [
+			resource.resourceName,
+			resource,
+		])
+	);
+	for (const requirement of requirements) {
+		const isPrimary =
+			requirement.source === "$primary" ||
+			requirement.source === reference.fileName;
+		const mimeType = isPrimary
+			? reference.mimeType
+			: resourcesByName.get(requirement.source)?.mimeType;
+		if (!mimeType || mimeType.startsWith(requirement.expectedMimePrefix)) {
+			continue;
+		}
+		context.addIssue({
+			code: z.ZodIssueCode.custom,
+			path: ["runtimePackage", "descriptor"],
+			message: `Runtime source ${requirement.source} requires ${requirement.expectedMimePrefix}`,
+		});
+	}
+}
 
 const commonStickerReferenceShape = {
 	id: z.string().trim().regex(STICKER_ID_PATTERN),
@@ -190,15 +393,32 @@ const localBridgeStickerReferenceSchema = z
 		...commonStickerReferenceShape,
 		mimeType: z.enum(["image/png", "image/gif"]),
 		asset: localBridgeStickerAssetSchema,
+		runtimePackage: localBridgeRuntimePackageSchema.optional(),
 	})
 	.strict()
 	.superRefine((reference, context) => {
 		validateReferencePlayback({ context, reference });
+		validateLocalBridgeRuntimePackage({ context, reference });
 		if (reference.asset.stickerId !== reference.id) {
 			context.addIssue({
 				code: z.ZodIssueCode.custom,
 				path: ["asset", "stickerId"],
 				message: "Local reference stickerId must match the item id",
+			});
+		}
+		for (const [resourceIndex, resource] of (
+			reference.runtimePackage?.resources ?? []
+		).entries()) {
+			const asset = resource.asset;
+			const mismatchedIdentity =
+				asset.rootPath !== reference.asset.rootPath ||
+				asset.batchId !== reference.asset.batchId ||
+				asset.stickerId !== reference.asset.stickerId;
+			if (!mismatchedIdentity) continue;
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["runtimePackage", "resources", resourceIndex, "asset"],
+				message: "Runtime resource identity must match its Sticker Lab item",
 			});
 		}
 	});
@@ -545,6 +765,12 @@ export type LocalStickerPlayback =
 export type LocalStickerReference = z.infer<typeof localStickerReferenceSchema>;
 export type LocalBridgeStickerReference = z.infer<
 	typeof localBridgeStickerReferenceSchema
+>;
+export type LocalBridgeStickerRuntimePackage = z.infer<
+	typeof localBridgeRuntimePackageSchema
+>;
+export type LocalBridgeStickerRuntimeResource = z.infer<
+	typeof localBridgeRuntimeResourceSchema
 >;
 export type RemoteStickerReference = z.infer<
 	typeof remoteStickerReferenceSchema
