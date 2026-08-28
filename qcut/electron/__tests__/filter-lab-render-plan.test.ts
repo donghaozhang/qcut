@@ -191,6 +191,163 @@ describe("Filter Lab render plan", () => {
 		).rejects.toThrow("could not be decoded");
 	});
 
+	it("routes face-region LUTs through the engine GL round-trip host", async () => {
+		vi.mocked(listJianyingLutReferences).mockResolvedValue([]);
+		vi.mocked(inspectJianyingFilterPackages).mockResolvedValue(
+			new Map([
+				[
+					"123",
+					{
+						...packageSummary,
+						implementation: "face-region-lut",
+						nativeFaceRegionRenderer: {
+							kind: "native-face-region-effect",
+							container: "artistEffect",
+							packageIdentifier: "123",
+							version: "v1",
+							region: "lips",
+							backgroundLutRelativePath: "texture/filter_bg.3dl.vf",
+							regionLutRelativePath: "texture/filter_lips.3dl.vf",
+							maskRelativePath: "texture/lipsMask.png",
+							requiresFlippedInputRoundTrip: true,
+						},
+					},
+				],
+			])
+		);
+		const result = await resolveFilterLabRenderPlan({
+			card: { ...card, implementation: "face-region-lut", lutCount: 0 },
+			intensity: 65,
+		});
+		expect(result).toMatchObject({
+			kind: "native",
+			mode: "face-region",
+			captureFace: false,
+			packagePath: join("/private/Cache/artistEffect", "123", "v1"),
+			evidence: {
+				backend: "jianying-native-face-region",
+				fidelity: "native-local",
+				intensity: 65,
+			},
+		});
+	});
+
+	it("routes a complex dual LUT through the native Swing host", async () => {
+		vi.mocked(listJianyingLutReferences).mockResolvedValue([]);
+		vi.mocked(inspectJianyingFilterPackages).mockResolvedValue(
+			new Map([
+				[
+					"123",
+					{
+						...packageSummary,
+						implementation: "dual-lut",
+						nativeSwingRenderer: {
+							kind: "native-swing-dual-lut",
+							container: "artistEffect",
+							packageIdentifier: "123",
+							version: "v1",
+							passCount: 38,
+							algorithmTypes: ["blit", "skin_seg"],
+						},
+					},
+				],
+			])
+		);
+		const result = await resolveFilterLabRenderPlan({
+			card: { ...card, implementation: "dual-lut", lutCount: 0 },
+			intensity: 80,
+		});
+		expect(result).toMatchObject({
+			kind: "native",
+			mode: "swing",
+			captureFace: false,
+			packagePath: join("/private/Cache/artistEffect", "123", "v1"),
+			evidence: {
+				backend: "jianying-native-swing",
+				fidelity: "native-local",
+				intensity: 80,
+			},
+		});
+	});
+
+	it("routes a complete Shader graph through the native Swing host", async () => {
+		vi.mocked(listJianyingLutReferences).mockResolvedValue([]);
+		vi.mocked(inspectJianyingFilterPackages).mockResolvedValue(
+			new Map([
+				[
+					"123",
+					{
+						...packageSummary,
+						implementation: "shader",
+						nativeSwingRenderer: {
+							kind: "native-swing-shader",
+							container: "artistEffect",
+							packageIdentifier: "123",
+							version: "v1",
+							passCount: 30,
+							algorithmTypes: ["blit", "face", "kira"],
+						},
+					},
+				],
+			])
+		);
+		const result = await resolveFilterLabRenderPlan({
+			card: { ...card, implementation: "shader", lutCount: 0 },
+			intensity: 65,
+		});
+		expect(result).toMatchObject({
+			kind: "native",
+			mode: "swing",
+			captureFace: false,
+			packagePath: join("/private/Cache/artistEffect", "123", "v1"),
+			evidence: {
+				backend: "jianying-native-swing",
+				fidelity: "native-local",
+				implementation: "shader",
+				intensity: 65,
+			},
+		});
+	});
+
+	it("routes an available Face AI graph through the native Swing host", async () => {
+		vi.mocked(listJianyingLutReferences).mockResolvedValue([]);
+		vi.mocked(inspectJianyingFilterPackages).mockResolvedValue(
+			new Map([
+				[
+					"123",
+					{
+						...packageSummary,
+						implementation: "face-ai",
+						nativeSwingRenderer: {
+							kind: "native-swing-shader",
+							container: "artistEffect",
+							packageIdentifier: "123",
+							version: "v1",
+							passCount: 7,
+							algorithmTypes: ["blit", "face", "skin_seg", "structxt"],
+						},
+					},
+				],
+			])
+		);
+		const result = await resolveFilterLabRenderPlan({
+			card: { ...card, implementation: "face-ai", lutCount: 0 },
+			intensity: 75,
+		});
+		expect(result).toMatchObject({
+			kind: "native",
+			mode: "swing",
+			captureFace: false,
+			packagePath: join("/private/Cache/artistEffect", "123", "v1"),
+			evidence: {
+				backend: "jianying-native-swing",
+				fidelity: "native-local",
+				implementation: "face-ai",
+				intensity: 75,
+			},
+		});
+	});
+
 	it("requires real native skin segmentation for a dual LUT", async () => {
 		vi.mocked(listJianyingLutReferences).mockResolvedValue([]);
 		vi.mocked(inspectJianyingFilterPackages).mockResolvedValue(
