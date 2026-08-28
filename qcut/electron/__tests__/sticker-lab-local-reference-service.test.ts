@@ -603,6 +603,7 @@ describe("local Sticker Lab reference service", () => {
 		expect(Array.from(primary.bytes)).toEqual(Array.from(PNG_BYTES));
 		expect(runtimeResource).toMatchObject({
 			batchId: fixture.batchId,
+			checksumSha256: checksum({ bytes: WEBM_BYTES }),
 			stickerId: "990103",
 			resourceName: "alpha.webm",
 			fileName: "990103-alpha.webm",
