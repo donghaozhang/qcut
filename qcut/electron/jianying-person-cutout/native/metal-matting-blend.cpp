@@ -135,6 +135,15 @@ public:
     }
     if (CGLCreateContext(pixelFormat_, nullptr, &context_) != kCGLNoError ||
         !context_ || !makeCurrent()) {
+      if (context_) {
+        if (CGLGetCurrentContext() == context_) {
+          CGLSetCurrentContext(nullptr);
+        }
+        CGLDestroyContext(context_);
+        context_ = nullptr;
+      }
+      CGLDestroyPixelFormat(pixelFormat_);
+      pixelFormat_ = nullptr;
       throw std::runtime_error("cannot create native blend GL context");
     }
   }
@@ -423,9 +432,6 @@ public:
         blend_(requireSymbol<BlendDeviceTextureWithData>(
             config.library,
             "bef_portrait_matting_v2_blend_device_texture_with_data")) {
-    if (!config.library || width_ <= 0 || height_ <= 0) {
-      throw std::runtime_error("invalid native blend configuration");
-    }
     void *renderDevice = rlContext_.renderDevice();
     inputTexture_ = createTexture(renderDevice, width_, height_,
                                   "qcut matting input");
@@ -534,6 +540,9 @@ private:
 
 MetalMattingBlend::MetalMattingBlend(const MetalMattingBlendConfig &config)
     : impl_(nullptr) {
+  if (!config.library || config.width <= 0 || config.height <= 0) {
+    throw std::runtime_error("invalid native blend configuration");
+  }
   setBooleanConfig(config.library, "ConfigID_EnableAGFXMetal", 372);
   setBooleanConfig(config.library, "ConfigID_VeabtestEnableMetalV2", 377);
   setBooleanConfig(config.library, "ConfigID_EnablePortraitMattingBlendV2",
