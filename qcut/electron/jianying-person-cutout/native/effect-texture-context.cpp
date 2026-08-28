@@ -10,8 +10,16 @@ namespace qcut::matting {
 struct EffectTextureContext::Implementation {
   CGLPixelFormatObj pixelFormat = nullptr;
   CGLContextObj context = nullptr;
+  bool ownsContext = false;
 
-  Implementation() {
+  explicit Implementation(EffectTextureContextMode mode) {
+    if (mode == EffectTextureContextMode::AdoptCurrent) {
+      context = CGLGetCurrentContext();
+      if (context == nullptr) {
+        throw std::runtime_error("cannot adopt the current OpenGL context");
+      }
+      return;
+    }
     const CGLPixelFormatAttribute attributes[] = {
         kCGLPFAOpenGLProfile,
         static_cast<CGLPixelFormatAttribute>(kCGLOGLPVersion_Legacy),
@@ -35,9 +43,13 @@ struct EffectTextureContext::Implementation {
     if (CGLSetCurrentContext(context) != kCGLNoError) {
       throw std::runtime_error("cannot activate the OpenGL context");
     }
+    ownsContext = true;
   }
 
   ~Implementation() {
+    if (!ownsContext) {
+      return;
+    }
     CGLSetCurrentContext(nullptr);
     if (context != nullptr) {
       CGLDestroyContext(context);
@@ -46,15 +58,27 @@ struct EffectTextureContext::Implementation {
       CGLDestroyPixelFormat(pixelFormat);
     }
   }
+
+  void activate() const {
+    if (CGLGetCurrentContext() != context &&
+        CGLSetCurrentContext(context) != kCGLNoError) {
+      throw std::runtime_error("cannot reactivate the OpenGL context");
+    }
+    // Vendor effect calls can switch contexts and leave their GL errors behind.
+    for (int attempt = 0; attempt < 16 && glGetError() != GL_NO_ERROR;
+         ++attempt) {
+    }
+  }
 };
 
-EffectTextureContext::EffectTextureContext()
-    : implementation_(std::make_unique<Implementation>()) {}
+EffectTextureContext::EffectTextureContext(EffectTextureContextMode mode)
+    : implementation_(std::make_unique<Implementation>(mode)) {}
 
 EffectTextureContext::~EffectTextureContext() = default;
 
 std::uint32_t EffectTextureContext::createTexture(
     int width, int height, const std::vector<std::uint8_t> &pixels) {
+  implementation_->activate();
   GLuint texture = 0;
   glGenTextures(1, &texture);
   glBindTexture(GL_TEXTURE_2D, texture);
@@ -75,16 +99,19 @@ std::uint32_t EffectTextureContext::createTexture(
 
 void EffectTextureContext::deleteTextures(
     const std::vector<std::uint32_t> &textures) {
+  implementation_->activate();
   glDeleteTextures(static_cast<GLsizei>(textures.size()), textures.data());
 }
 
 void EffectTextureContext::setUnpackAlignment(int alignment) {
+  implementation_->activate();
   glPixelStorei(GL_UNPACK_ALIGNMENT, alignment);
 }
 
 void EffectTextureContext::updateTexture(
     std::uint32_t texture, int width, int height,
     const std::vector<std::uint8_t> &pixels) {
+  implementation_->activate();
   glBindTexture(GL_TEXTURE_2D, texture);
   glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA,
                   GL_UNSIGNED_BYTE, pixels.data());
