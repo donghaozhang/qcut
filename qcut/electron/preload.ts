@@ -100,6 +100,13 @@ import {
 	JIANYING_PORTRAIT_ADJUSTMENT_RENDER_CHANNEL,
 } from "./jianying-portrait-adjustment-contract.js";
 import {
+	JIANYING_PERSON_CUTOUT_INSPECT_CHANNEL,
+	JIANYING_PERSON_CUTOUT_CANCEL_CHANNEL,
+	JIANYING_PERSON_CUTOUT_PROGRESS_CHANNEL,
+	JIANYING_PERSON_CUTOUT_RELEASE_CHANNEL,
+	JIANYING_PERSON_CUTOUT_RENDER_CHANNEL,
+} from "./jianying-person-cutout-contract.js";
+import {
 	JIANYING_FONT_LAB_INSPECT_CHANNEL,
 	JIANYING_FONT_LAB_LIST_CHANNEL,
 	JIANYING_FONT_LAB_LOAD_CHANNEL,
@@ -241,6 +248,28 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke(JIANYING_PORTRAIT_ADJUSTMENT_RENDER_CHANNEL, request),
 		detect: (request) =>
 			ipcRenderer.invoke(JIANYING_PORTRAIT_ADJUSTMENT_DETECT_CHANNEL, request),
+	},
+	jianyingPersonCutout: {
+		inspect: () => ipcRenderer.invoke(JIANYING_PERSON_CUTOUT_INSPECT_CHANNEL),
+		render: (request) =>
+			ipcRenderer.invoke(JIANYING_PERSON_CUTOUT_RENDER_CHANNEL, request),
+		cancel: (request) =>
+			ipcRenderer.invoke(JIANYING_PERSON_CUTOUT_CANCEL_CHANNEL, request),
+		onProgress: (callback) => {
+			const listener = (
+				_event: IpcRendererEvent,
+				progress: Parameters<typeof callback>[0]
+			) => callback(progress);
+			ipcRenderer.on(JIANYING_PERSON_CUTOUT_PROGRESS_CHANNEL, listener);
+			return () => {
+				ipcRenderer.removeListener(
+					JIANYING_PERSON_CUTOUT_PROGRESS_CHANNEL,
+					listener
+				);
+			};
+		},
+		release: (request) =>
+			ipcRenderer.invoke(JIANYING_PERSON_CUTOUT_RELEASE_CHANNEL, request),
 	},
 	jianyingFontLab: {
 		list: (request) =>
