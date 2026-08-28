@@ -10,6 +10,8 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <exception>
+#include <limits>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -132,13 +134,15 @@ public:
       throw std::runtime_error("cannot choose native blend pixel format");
     }
     if (CGLCreateContext(pixelFormat_, nullptr, &context_) != kCGLNoError ||
-        !context_ || CGLSetCurrentContext(context_) != kCGLNoError) {
+        !context_ || !makeCurrent()) {
       throw std::runtime_error("cannot create native blend GL context");
     }
   }
 
   ~GlContext() {
-    CGLSetCurrentContext(nullptr);
+    if (CGLGetCurrentContext() == context_) {
+      CGLSetCurrentContext(nullptr);
+    }
     if (context_) {
       CGLDestroyContext(context_);
     }
@@ -149,6 +153,12 @@ public:
 
   GlContext(const GlContext &) = delete;
   GlContext &operator=(const GlContext &) = delete;
+
+  bool makeCurrent() const noexcept {
+    return context_ != nullptr &&
+           CGLSetCurrentContext(context_) == kCGLNoError &&
+           CGLGetCurrentContext() == context_;
+  }
 
 private:
   CGLPixelFormatObj pixelFormat_ = nullptr;
@@ -313,7 +323,81 @@ private:
   DeviceTexture texture_;
 };
 
+std::size_t checkedPixelCount(int width, int height, const char *label) {
+  if (width <= 0 || height <= 0) {
+    throw std::runtime_error(std::string(label) + " dimensions are invalid");
+  }
+  const auto pixelCount =
+      static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+  if (pixelCount > std::numeric_limits<std::size_t>::max() / 4U) {
+    throw std::runtime_error(std::string(label) + " dimensions overflow");
+  }
+  return pixelCount;
+}
+
 } // namespace
+
+namespace detail {
+
+void validateMetalMattingBlendFrame(const MetalMattingBlendFrame &frame,
+                                    int width, int height) {
+  const std::size_t sourcePixelCount =
+      checkedPixelCount(width, height, "native blend source");
+  const std::size_t alphaPixelCount = checkedPixelCount(
+      frame.alphaWidth, frame.alphaHeight, "native blend Alpha");
+  if (frame.rgba.size() != sourcePixelCount * 4U ||
+      frame.alpha.size() != alphaPixelCount) {
+    throw std::runtime_error("native blend frame dimensions do not match");
+  }
+}
+
+std::vector<std::uint8_t> extractMetalMattingBlendAlpha(
+    const MetalMattingBlendFrame &frame,
+    const std::vector<std::uint8_t> &blendedRgba, int width, int height) {
+  validateMetalMattingBlendFrame(frame, width, height);
+  const std::size_t pixelCount = checkedPixelCount(
+      width, height, "native blend output");
+  if (blendedRgba.size() != pixelCount * 4U) {
+    throw std::runtime_error("native blend output dimensions do not match");
+  }
+  const bool alphaMatchesSource =
+      frame.alphaWidth == width && frame.alphaHeight == height;
+  std::vector<std::uint8_t> blendedAlpha(pixelCount);
+  for (std::size_t index = 0; index < pixelCount; ++index) {
+    const std::size_t rgbaOffset = index * 4U;
+    const std::uint8_t sourceAlpha = frame.rgba[rgbaOffset + 3U];
+    const std::uint8_t outputAlpha = blendedRgba[rgbaOffset + 3U];
+    blendedAlpha[index] = outputAlpha;
+    if (alphaMatchesSource) {
+      const auto expected = static_cast<std::uint8_t>(
+          (static_cast<unsigned int>(sourceAlpha) * frame.alpha[index] +
+           127U) /
+          255U);
+      if (outputAlpha != expected) {
+        throw std::runtime_error("native blend alpha verification failed");
+      }
+      continue;
+    }
+    if (outputAlpha > sourceAlpha) {
+      throw std::runtime_error("native blend source alpha bound failed");
+    }
+  }
+  return blendedAlpha;
+}
+
+void clampMetalMattingBlendAlphaToSource(
+    const std::vector<std::uint8_t> &rgba,
+    std::vector<std::uint8_t> &alpha) {
+  if (alpha.size() > std::numeric_limits<std::size_t>::max() / 4U ||
+      rgba.size() != alpha.size() * 4U) {
+    throw std::runtime_error("native blend source alpha dimensions do not match");
+  }
+  for (std::size_t index = 0; index < alpha.size(); ++index) {
+    alpha[index] = std::min(alpha[index], rgba[index * 4U + 3U]);
+  }
+}
+
+} // namespace detail
 
 class MetalMattingBlend::Impl {
 public:
@@ -343,8 +427,8 @@ public:
       throw std::runtime_error("invalid native blend configuration");
     }
     void *renderDevice = rlContext_.renderDevice();
-    inputTexture_ = createReusableTexture(renderDevice, "qcut matting input");
-    alphaTexture_ = createReusableTexture(renderDevice, "qcut matting alpha");
+    inputTexture_ = createTexture(renderDevice, width_, height_,
+                                  "qcut matting input");
     outputTexture_ = std::make_unique<OwnedTexture>(
         renderDevice, destroyTexture_,
         createTexture_(renderDevice, width_, height_, nullptr,
@@ -353,16 +437,30 @@ public:
                        "qcut matting output", false, false));
   }
 
-  std::vector<std::uint8_t>
-  blendAlpha(const MetalMattingBlendFrame &frame) const {
-    const std::size_t pixelCount =
-        static_cast<std::size_t>(width_) * height_;
-    if (frame.rgba.size() != pixelCount * 4U || frame.alphaWidth != width_ ||
-        frame.alphaHeight != height_ || frame.alpha.size() != pixelCount) {
-      throw std::runtime_error("native blend frame dimensions do not match");
+  ~Impl() noexcept {
+    if (!glContext_.makeCurrent()) {
+      std::terminate();
     }
-    std::vector<std::uint8_t> alphaRgba(pixelCount * 4U);
-    for (std::size_t index = 0; index < pixelCount; ++index) {
+  }
+
+  std::vector<std::uint8_t>
+  blendAlpha(const MetalMattingBlendFrame &frame) {
+    detail::validateMetalMattingBlendFrame(frame, width_, height_);
+    if (!glContext_.makeCurrent()) {
+      throw std::runtime_error("cannot restore native blend GL context");
+    }
+    const std::size_t alphaPixelCount =
+        static_cast<std::size_t>(frame.alphaWidth) * frame.alphaHeight;
+    if (!alphaTexture_ || alphaWidth_ != frame.alphaWidth ||
+        alphaHeight_ != frame.alphaHeight) {
+      alphaTexture_ = createTexture(rlContext_.renderDevice(),
+                                    frame.alphaWidth, frame.alphaHeight,
+                                    "qcut matting alpha");
+      alphaWidth_ = frame.alphaWidth;
+      alphaHeight_ = frame.alphaHeight;
+    }
+    std::vector<std::uint8_t> alphaRgba(alphaPixelCount * 4U);
+    for (std::size_t index = 0; index < alphaPixelCount; ++index) {
       const std::uint8_t value = frame.alpha[index];
       const std::size_t offset = index * 4U;
       alphaRgba[offset] = value;
@@ -386,8 +484,8 @@ public:
     };
     const MattingImage alphaImage = {
         .data = &alphaTexture_->value(),
-        .width = static_cast<std::uint32_t>(width_),
-        .height = static_cast<std::uint32_t>(height_),
+        .width = static_cast<std::uint32_t>(frame.alphaWidth),
+        .height = static_cast<std::uint32_t>(frame.alphaHeight),
     };
     const std::array<float, 4> fullFrame = {0.0F, 0.0F, 1.0F, 1.0F};
     const std::array<std::uint8_t, 4> transparent = {0, 0, 0, 0};
@@ -402,28 +500,17 @@ public:
     std::vector<std::uint8_t> blendedRgba(frame.rgba.size());
     readImage_(renderDevice, outputTexture_->value(), width_, height_,
                blendedRgba.data(), 0, 0, kLinearFilter, kRgba8PixelFormat);
-    std::vector<std::uint8_t> blendedAlpha(pixelCount);
-    for (std::size_t index = 0; index < pixelCount; ++index) {
-      const std::size_t rgbaOffset = index * 4U;
-      const auto expected = static_cast<std::uint8_t>(
-          (static_cast<unsigned int>(frame.rgba[rgbaOffset + 3U]) *
-               frame.alpha[index] +
-           127U) /
-          255U);
-      blendedAlpha[index] = blendedRgba[rgbaOffset + 3U];
-      if (blendedAlpha[index] != expected) {
-        throw std::runtime_error("native blend alpha verification failed");
-      }
-    }
-    return blendedAlpha;
+    return detail::extractMetalMattingBlendAlpha(frame, blendedRgba, width_,
+                                                  height_);
   }
 
 private:
-  std::unique_ptr<OwnedTexture> createReusableTexture(void *renderDevice,
-                                                       const char *label) {
+  std::unique_ptr<OwnedTexture> createTexture(void *renderDevice, int width,
+                                              int height,
+                                              const char *label) {
     return std::make_unique<OwnedTexture>(
         renderDevice, destroyTexture_,
-        createTexture_(renderDevice, width_, height_, nullptr,
+        createTexture_(renderDevice, width, height, nullptr,
                        kRgba8PixelFormat, kLinearFilter, kLinearFilter,
                        kClampWrap, kClampWrap, nullptr, label, false, false));
   }
@@ -441,6 +528,8 @@ private:
   std::unique_ptr<OwnedTexture> inputTexture_;
   std::unique_ptr<OwnedTexture> alphaTexture_;
   std::unique_ptr<OwnedTexture> outputTexture_;
+  int alphaWidth_ = 0;
+  int alphaHeight_ = 0;
 };
 
 MetalMattingBlend::MetalMattingBlend(const MetalMattingBlendConfig &config)
@@ -455,7 +544,7 @@ MetalMattingBlend::MetalMattingBlend(const MetalMattingBlendConfig &config)
 MetalMattingBlend::~MetalMattingBlend() = default;
 
 std::vector<std::uint8_t>
-MetalMattingBlend::blendAlpha(const MetalMattingBlendFrame &frame) const {
+MetalMattingBlend::blendAlpha(const MetalMattingBlendFrame &frame) {
   return impl_->blendAlpha(frame);
 }
 
