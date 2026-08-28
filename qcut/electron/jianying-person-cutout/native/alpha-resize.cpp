@@ -14,6 +14,9 @@ resizeAlphaBilinear(const std::vector<std::uint8_t> &source, int sourceWidth,
       source.size() != static_cast<std::size_t>(sourceWidth) * sourceHeight) {
     throw std::invalid_argument("invalid alpha resize dimensions");
   }
+  if (sourceWidth == targetWidth && sourceHeight == targetHeight) {
+    return source;
+  }
   std::vector<std::uint8_t> target(static_cast<std::size_t>(targetWidth) *
                                    targetHeight);
   for (int targetY = 0; targetY < targetHeight; ++targetY) {
