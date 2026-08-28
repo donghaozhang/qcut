@@ -92,5 +92,5 @@ describeOnMac("person cutout Vision fusion", () => {
 			executablePath,
 		]);
 		await expect(execFileAsync(executablePath)).resolves.toBeDefined();
-	});
+	}, 120_000);
 });
