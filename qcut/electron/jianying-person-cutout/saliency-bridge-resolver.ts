@@ -26,6 +26,12 @@ const SOURCE_RELATIVE_PATHS = [
 		"electron",
 		"jianying-person-cutout",
 		"native",
+		"effect-input-probe.cpp"
+	),
+	path.join(
+		"electron",
+		"jianying-person-cutout",
+		"native",
 		"effect-texture-context.cpp"
 	),
 	path.join(
@@ -48,6 +54,12 @@ const FINGERPRINT_RELATIVE_PATHS = [
 		"jianying-person-cutout",
 		"native",
 		"alpha-resize.hpp"
+	),
+	path.join(
+		"electron",
+		"jianying-person-cutout",
+		"native",
+		"effect-input-probe.hpp"
 	),
 	path.join(
 		"electron",
