@@ -26,10 +26,6 @@ vi.mock("@/stores/ai/segmentation-store", () => ({
 	}),
 }));
 
-vi.mock("../PersonCutoutPreview", () => ({
-	PersonCutoutPreview: () => <div data-testid="person-cutout-preview" />,
-}));
-
 vi.mock("../PersonCutoutSettings", () => ({
 	PersonCutoutSettings: () => <div data-testid="person-cutout-settings" />,
 }));
@@ -70,6 +66,7 @@ function renderPanel({
 describe("LocalPersonCutoutPanel", () => {
 	beforeEach(() => {
 		exportMock.mockReset();
+		segmentationState.updatePersonCutoutSettings.mockReset();
 		segmentationState.setProcessingState.mockReset();
 		segmentationState.setSegmentedVideo.mockReset();
 		useCloudTaskStore.getState().resetTasks();
@@ -88,7 +85,7 @@ describe("LocalPersonCutoutPanel", () => {
 		});
 		const { onMaskError } = renderPanel();
 
-		fireEvent.click(screen.getByRole("button", { name: "生成透明 WebM" }));
+		fireEvent.click(screen.getByRole("button", { name: "开始人物抠像" }));
 		fireEvent.click(await screen.findByRole("button", { name: "取消" }));
 
 		expect(await screen.findByText("已取消")).toBeVisible();
@@ -98,18 +95,40 @@ describe("LocalPersonCutoutPanel", () => {
 	});
 
 	it("shows the terminal error and starts a fresh retry", async () => {
-		exportMock.mockRejectedValue(new Error("WebCodecs encoder unavailable"));
+		exportMock.mockRejectedValue(new Error("本机暂时无法生成透明视频"));
 		const { onMaskError } = renderPanel();
 
-		fireEvent.click(screen.getByRole("button", { name: "生成透明 WebM" }));
+		fireEvent.click(screen.getByRole("button", { name: "开始人物抠像" }));
 
-		expect(
-			await screen.findByText("WebCodecs encoder unavailable")
-		).toBeVisible();
-		expect(onMaskError).toHaveBeenCalledWith("WebCodecs encoder unavailable");
+		expect(await screen.findByText("本机暂时无法生成透明视频")).toBeVisible();
+		expect(onMaskError).toHaveBeenCalledWith("本机暂时无法生成透明视频");
 
 		fireEvent.click(screen.getByRole("button", { name: "重试" }));
 		await waitFor(() => expect(exportMock).toHaveBeenCalledTimes(2));
+	});
+
+	it("uses the selected fine quality without showing a preview player", async () => {
+		exportMock.mockRejectedValue(new Error("测试结束"));
+		renderPanel();
+
+		expect(document.querySelector("video")).toBeNull();
+		expect(
+			screen.getByText("基础处理速度较快，精细效果更佳，但耗时较长")
+		).toBeVisible();
+		fireEvent.click(screen.getByTestId("person-cutout-quality-fine"));
+		expect(segmentationState.updatePersonCutoutSettings).toHaveBeenCalledWith({
+			threshold: 0.5,
+			temporalSmoothing: 0,
+			edgeShift: 0,
+			feather: 0,
+		});
+		fireEvent.click(screen.getByRole("button", { name: "开始人物抠像" }));
+
+		await waitFor(() =>
+			expect(exportMock).toHaveBeenCalledWith(
+				expect.objectContaining({ quality: "fine" })
+			)
+		);
 	});
 
 	it("automatically starts each tracking request only once", async () => {
