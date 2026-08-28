@@ -385,12 +385,15 @@ function buildWebApp(): void {
 	}
 }
 
-function getDistCommand(): string {
+export function getReleaseDistributionCommand({
+	platform,
+}: {
+	platform: NodeJS.Platform;
+}): string {
+	if (platform === "darwin") return "bun run dist:mac";
 	const stageCmd =
 		"bun run stage-ffmpeg-binaries && bun run stage-aicp-binaries";
-	switch (process.platform) {
-		case "darwin":
-			return `${stageCmd} && npx electron-builder --mac --publish never`;
+	switch (platform) {
 		case "linux":
 			return `${stageCmd} && npx electron-builder --linux --publish never`;
 		case "win32":
@@ -414,19 +417,23 @@ function getInstallerPattern(): RegExp {
 }
 
 function buildElectronApp(): void {
-	try {
-		execSync("bun run compile-afterpack", { stdio: "inherit" });
-	} catch {
-		process.stdout.write("⚠️  afterPack compilation skipped (non-fatal)\n");
+	const macDistributionOwnsPackagingChecks = process.platform === "darwin";
+	if (!macDistributionOwnsPackagingChecks) {
+		try {
+			execSync("bun run compile-afterpack", { stdio: "inherit" });
+		} catch {
+			process.stdout.write("⚠️  afterPack compilation skipped (non-fatal)\n");
+		}
 	}
 
-	const cmd = getDistCommand();
+	const cmd = getReleaseDistributionCommand({ platform: process.platform });
 	try {
 		execSync(cmd, { stdio: "inherit" });
 		process.stdout.write("✅ Electron application built successfully\n");
 	} catch (error: any) {
 		throw new Error("Failed to build Electron application");
 	}
+	if (macDistributionOwnsPackagingChecks) return;
 
 	try {
 		execSync("bun run verify:packaged-ffmpeg", { stdio: "inherit" });
@@ -633,7 +640,7 @@ function getPreviousVersion(): string {
 	}
 }
 
-main();
+if (import.meta.main) main();
 
 export { main, bumpVersion, generateChecksums, parseVersion };
 export type { ReleaseType, PackageJson, ParsedVersion, PrereleaseChannel };
