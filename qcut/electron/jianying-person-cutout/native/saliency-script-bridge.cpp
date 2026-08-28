@@ -1,6 +1,7 @@
 // QCut-owned interoperability bridge; proprietary libraries and assets are supplied at runtime.
 #include "alpha-refinement.hpp"
 #include "alpha-resize.hpp"
+#include "effect-input-probe.hpp"
 #include "effect-texture-context.hpp"
 #include "video-object-alpha-quality.hpp"
 
@@ -41,6 +42,16 @@ using EffectSetOrientation = Result (*)(EffectHandle, std::int32_t);
 using EffectSet = Result (*)(EffectHandle, const char *);
 using EffectAlgorithmTexture =
     Result (*)(EffectHandle, std::uint32_t, double);
+using EffectAlgorithmBuffer = Result (*)(EffectHandle, std::int32_t,
+                                         std::int32_t, const std::uint8_t *,
+                                         std::int32_t, double);
+struct EffectRequirement {
+  std::uint64_t low;
+  std::uint64_t high;
+};
+using EffectGetNewRequirement = EffectRequirement (*)(EffectHandle);
+using EffectRefreshNewAlgorithm = Result (*)(EffectHandle, std::uint64_t,
+                                             std::uint64_t, std::int32_t);
 using EffectProcessTexture =
     Result (*)(EffectHandle, std::uint32_t, std::uint32_t, double);
 using EffectGetBachResult = Result (*)(EffectHandle, void **, std::int32_t);
@@ -407,8 +418,24 @@ int main(int argc, char **argv) {
         libraryInfo.dli_fbase == nullptr) {
       throw std::runtime_error("cannot resolve saliency runtime base address");
     }
+    const bool usesEngineContext =
+        route == SegmentationRoute::VideoObject &&
+        qcut::matting::engineImageProcessingContextProbeEnabled() &&
+        qcut::matting::bindEngineImageProcessingContext();
+    const bool usesBufferInput =
+        route == SegmentationRoute::VideoObject &&
+        qcut::matting::bufferInputProbeEnabled();
+    const auto contextMode =
+        usesEngineContext
+            ? qcut::matting::EffectTextureContextMode::AdoptCurrent
+            : qcut::matting::EffectTextureContextMode::CreateStandalone;
     auto textureContext =
-        std::make_unique<qcut::matting::EffectTextureContext>();
+        std::make_unique<qcut::matting::EffectTextureContext>(contextMode);
+    std::cerr << "texture_context="
+              << (usesEngineContext ? "engine-shared" : "standalone")
+              << " input_transport="
+              << (usesBufferInput ? "cpu-buffer-canary" : "gl-texture")
+              << '\n';
     textureContext->setUnpackAlignment(1);
     std::vector<std::uint8_t> outputSeed(frameBytes);
     for (std::size_t offset = 0; offset < outputSeed.size(); offset += 4) {
@@ -439,6 +466,21 @@ int main(int argc, char **argv) {
         requireSymbol<EffectSet>(library, "bef_effect_set_effect");
     const auto effectAlgorithmTexture = requireSymbol<EffectAlgorithmTexture>(
         library, "bef_effect_algorithm_texture");
+    const auto effectAlgorithmBuffer =
+        usesBufferInput
+            ? requireSymbol<EffectAlgorithmBuffer>(
+                  library, "bef_effect_algorithm_buffer")
+            : nullptr;
+    const auto effectGetNewRequirement =
+        usesBufferInput
+            ? requireSymbol<EffectGetNewRequirement>(
+                  library, "bef_effect_get_new_requirment")
+            : nullptr;
+    const auto effectRefreshNewAlgorithm =
+        usesBufferInput
+            ? requireSymbol<EffectRefreshNewAlgorithm>(
+                  library, "bef_effect_refresh_new_algorithm")
+            : nullptr;
     const auto effectProcessTexture = requireSymbol<EffectProcessTexture>(
         library, "bef_effect_process_texture");
     const auto effectGetBachResult = requireSymbol<EffectGetBachResult>(
@@ -456,26 +498,73 @@ int main(int argc, char **argv) {
     const auto releaseReference = requireSymbol<ReleaseReference>(
         library, "_ZNK13AmazingEngine7RefBase7releaseEv");
 
-    EffectHandle handle = 0;
-    Result status = effectCreate(&handle);
-    if (status != 0 || handle == 0) {
+    EffectHandle standaloneHandle = 0;
+    const auto destroyStandaloneHandle = [&]() {
+      if (standaloneHandle != 0) {
+        effectDestroy(standaloneHandle);
+        standaloneHandle = 0;
+      }
+    };
+    Result status = effectCreate(&standaloneHandle);
+    if (status != 0 || standaloneHandle == 0) {
       throw std::runtime_error("cannot create saliency effect handle: " +
                                std::to_string(status));
     }
-    const Result renderApiStatus = effectSetRenderApi(handle, 1);
-    const Result pipelineStatus =
-        effectUsePipeline(handle, route == SegmentationRoute::VideoObject);
-    const Result initStatus = effectInit(handle, width, height, argv[2], "");
+    const Result renderApiStatus = effectSetRenderApi(standaloneHandle, 1);
+    const Result pipelineStatus = effectUsePipeline(
+        standaloneHandle, route == SegmentationRoute::VideoObject);
+    const Result initStatus =
+        effectInit(standaloneHandle, width, height, argv[2], "");
     if (renderApiStatus != 0 || pipelineStatus != 0 || initStatus != 0 ||
-        effectSetWidthHeight(handle, width, height) != 0 ||
-        effectSetOrientation(handle, 0) != 0 || effectSet(handle, argv[3]) != 0) {
-      effectDestroy(handle);
+        effectSetWidthHeight(standaloneHandle, width, height) != 0 ||
+        effectSetOrientation(standaloneHandle, 0) != 0 ||
+        effectSet(standaloneHandle, argv[3]) != 0) {
+      destroyStandaloneHandle();
       throw std::runtime_error("cannot initialize the saliency effect graph");
     }
-    std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    if (usesBufferInput) {
+      if (effectAlgorithmTexture(standaloneHandle, inputTexture, 0.0) != 0) {
+        destroyStandaloneHandle();
+        throw std::runtime_error("cannot activate the buffer-input effect graph");
+      }
+      EffectRequirement requirement{};
+      for (int attempt = 0; attempt < 60 && requirement.low == 0; ++attempt) {
+        requirement = effectGetNewRequirement(standaloneHandle);
+        if (requirement.low == 0) {
+          std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
+      }
+      std::cerr << "buffer_requirement_low=" << requirement.low
+                << " high=" << requirement.high << '\n';
+      if (requirement.low == 0 ||
+          effectRefreshNewAlgorithm(standaloneHandle, requirement.low,
+                                    requirement.high, 1) != 0) {
+        destroyStandaloneHandle();
+        throw std::runtime_error("cannot refresh the buffer-input requirement");
+      }
+      if (effectUsePipeline(standaloneHandle, false) != 0) {
+        destroyStandaloneHandle();
+        throw std::runtime_error("cannot select synchronous buffer input");
+      }
+    } else {
+      std::this_thread::sleep_for(std::chrono::milliseconds(250));
+    }
 
     std::size_t frameCount = 0;
     std::vector<float> temporalState;
+    qcut::matting::VideoObjectAlphaQualityGate videoObjectAlphaQuality;
+    auto lastProgressReportAt = std::chrono::steady_clock::now();
+    const auto reportProgress = [&](bool force) {
+      const auto now = std::chrono::steady_clock::now();
+      const auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(
+          now - lastProgressReportAt);
+      if (!force && elapsed.count() < 250) {
+        return;
+      }
+      std::cerr << "progress frame=" << frameCount
+                << " total=" << expectedFrameCount << '\n';
+      lastProgressReportAt = now;
+    };
     while (true) {
       std::size_t bytesRead = 0;
       if (streamInput) {
@@ -489,7 +578,7 @@ int main(int argc, char **argv) {
         break;
       }
       if (bytesRead != source.size()) {
-        effectDestroy(handle);
+        destroyStandaloneHandle();
         throw std::runtime_error("input ended with an incomplete RGBA frame");
       }
       flipRows(source, flipped, width, height);
@@ -505,20 +594,28 @@ int main(int argc, char **argv) {
               : (route == SegmentationRoute::VideoObject ? 2 : 1);
       for (int attempt = 0; attempt < maximumAttempts; ++attempt) {
         const double timestamp = static_cast<double>(frameCount) / 30.0;
-        algorithmStatus =
-            effectAlgorithmTexture(handle, inputTexture, timestamp);
-        processStatus = effectProcessTexture(handle, inputTexture,
-                                             outputTexture, timestamp);
+        if (effectAlgorithmBuffer != nullptr) {
+          constexpr std::int32_t rgbaBufferFormat = 0;
+          algorithmStatus = effectAlgorithmBuffer(
+              standaloneHandle, width, height, source.data(), rgbaBufferFormat,
+              timestamp);
+          processStatus = 0;
+        } else {
+          algorithmStatus = effectAlgorithmTexture(standaloneHandle,
+                                                   inputTexture, timestamp);
+          processStatus = effectProcessTexture(
+              standaloneHandle, inputTexture, outputTexture, timestamp);
+        }
         if (algorithmStatus == 0 && processStatus == 0) {
           try {
             rawAlpha = route == SegmentationRoute::VideoObject
                            ? extractVideoObjectMask(
-                                 handle, effectGetBachResult, bachObjectToMap,
-                                 bachTextureData, bachTextureWidth,
-                                 bachTextureHeight, releaseReference, width,
-                                 height)
+                                 standaloneHandle, effectGetBachResult,
+                                 bachObjectToMap, bachTextureData,
+                                 bachTextureWidth, bachTextureHeight,
+                                 releaseReference, width, height)
                            : extractScriptMask(
-                                 handle, effectGetBachResult,
+                                 standaloneHandle, effectGetBachResult,
                                  bachObjectToVector4f, libraryInfo.dli_fbase,
                                  width, height);
             if (attempt + 1 >= maximumAttempts || frameCount == 0) {
@@ -532,7 +629,7 @@ int main(int argc, char **argv) {
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
       }
       if (algorithmStatus != 0 || processStatus != 0 || !rawAlpha) {
-        effectDestroy(handle);
+        destroyStandaloneHandle();
         throw std::runtime_error(
             "segmentation graph processing failed: algorithm=" +
             std::to_string(algorithmStatus) +
@@ -540,7 +637,7 @@ int main(int argc, char **argv) {
             (extractionError.empty() ? "" : " result=" + extractionError));
       }
       if (route == SegmentationRoute::VideoObject) {
-        qcut::matting::requireCalibratedVideoObjectAlpha(*rawAlpha);
+        videoObjectAlphaQuality.observe(*rawAlpha);
       }
       const auto alpha = qcut::matting::refineAlpha(
           *rawAlpha, temporalState, width, height, threshold,
@@ -551,20 +648,21 @@ int main(int argc, char **argv) {
         outputFile->write(reinterpret_cast<const char *>(alpha.data()),
                           static_cast<std::streamsize>(alpha.size()));
         if (!*outputFile) {
-          effectDestroy(handle);
+          destroyStandaloneHandle();
           throw std::runtime_error("cannot write saliency alpha frame");
         }
       }
       frameCount += 1;
-      std::cerr << "progress frame=" << frameCount
-                << " total=" << expectedFrameCount << '\n';
+      reportProgress(false);
     }
 
     if (frameCount == 0 ||
         (expectedFrameCount > 0 && expectedFrameCount != frameCount)) {
       throw std::runtime_error("segmentation input did not contain complete frames");
     }
+    reportProgress(true);
     if (route == SegmentationRoute::VideoObject) {
+      videoObjectAlphaQuality.finalize();
       if (outputFile) {
         outputFile->flush();
         if (!*outputFile) {
@@ -576,7 +674,9 @@ int main(int argc, char **argv) {
       }
       std::cerr << "ok width=" << width << " height=" << height
                 << " frames=" << frameCount
-                << " route=video-object-general-seg-v1\n"
+                << " route=video-object-general-seg-v1"
+                << " alpha_quality="
+                << qcut::matting::videoObjectAlphaQualityCapability() << '\n'
                 << std::flush;
       // The verified type-198 pipeline crashes in vendor teardown outside its
       // host. This helper owns no persistent state, so process isolation is the
@@ -584,7 +684,7 @@ int main(int argc, char **argv) {
       ::_exit(0);
     }
 
-    effectDestroy(handle);
+    destroyStandaloneHandle();
     textureContext->deleteTextures({inputTexture, outputTexture});
     if (alphaOutputDescriptor >= 0) {
       ::close(alphaOutputDescriptor);
