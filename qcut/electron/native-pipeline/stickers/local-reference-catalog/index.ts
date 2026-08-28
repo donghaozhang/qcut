@@ -4,9 +4,10 @@ import { opendir } from "node:fs/promises";
 import type {
 	LocalStickerLabCatalog,
 	LocalStickerLabDiscovery,
-	LocalStickerLabMimeType,
+	LocalStickerLabReadableMimeType,
 	LocalStickerLabReadResult,
 	LocalStickerLabReference,
+	LocalStickerLabRuntimeResource,
 	LocalStickerLabWarning,
 } from "../../../preload-types/api-types/sticker-lab-api.js";
 import {
@@ -16,6 +17,7 @@ import {
 	readVerifiedLocalStickerFile,
 	resolveRegularDirectory,
 } from "./filesystem.js";
+import { localStickerMediaTimeToTicks } from "./media-time.js";
 import {
 	parseLocalReferenceManifest,
 	parseLocalReferenceReport,
@@ -48,6 +50,7 @@ export interface ReadLocalReferenceOptions {
 	rootPath: string;
 	batchId: string;
 	stickerId: string;
+	resourceName?: string;
 }
 
 interface InternalLocalReference {
@@ -57,7 +60,8 @@ interface InternalLocalReference {
 	checksumSha256: string;
 	fileName: string;
 	filePath: string;
-	mimeType: LocalStickerLabMimeType;
+	mimeType: LocalStickerLabReadableMimeType;
+	resourceName?: string;
 	stickerId: string;
 }
 
@@ -67,8 +71,8 @@ interface DiscoveryState {
 
 interface ReconciledBatch {
 	catalog: LocalStickerLabCatalog;
+	primaryReferences: InternalLocalReference[];
 	references: InternalLocalReference[];
-	canonicalPaths: string[];
 }
 
 type SettledBatch =
@@ -85,6 +89,20 @@ interface BatchCandidateSelection {
 	candidates: BatchCandidate[];
 	warnings: LocalStickerLabWarning[];
 }
+
+interface LocalReferenceInspection {
+	expectedByteSize: number;
+	filePath: string;
+	key: string;
+	stickerId: string;
+}
+
+type ManifestRuntimeResource = NonNullable<
+	LocalReferenceManifestItem["runtimePackage"]
+>["resources"][number];
+type ReportRuntimeResource = NonNullable<
+	LocalReferenceReportItem["runtimeResources"]
+>[number];
 
 const discoveryStateByRoot = new Map<string, DiscoveryState>();
 
@@ -225,6 +243,53 @@ function assertPlaybackMatches({
 	reportVersion: LocalReferenceReport["version"];
 	reportItem: LocalReferenceReportItem;
 }): void {
+	if (item.runtimePackage) {
+		if (item.playback.kind !== "animated") {
+			throw new Error(`Runtime package requires animated playback: ${item.id}`);
+		}
+		const { descriptor } = item.runtimePackage;
+		const expectedFrameCount =
+			descriptor.kind === "atlas-animation" ||
+			descriptor.kind === "png-sequence"
+				? descriptor.frames.length
+				: null;
+		const cycleDurationMatches =
+			localStickerMediaTimeToTicks({
+				seconds: item.playback.cycleDuration,
+			}) ===
+			localStickerMediaTimeToTicks({
+				seconds: descriptor.cycleDurationSeconds,
+			});
+		const loopMatches =
+			item.playback.loop === (descriptor.repeat.kind === "infinite");
+		if (
+			!cycleDurationMatches ||
+			!loopMatches ||
+			(expectedFrameCount !== null &&
+				item.playback.frameCount !== expectedFrameCount)
+		) {
+			throw new Error(`Runtime playback metadata mismatch: ${item.id}`);
+		}
+		if (item.mimeType === "image/png") {
+			if (
+				reportItem.codec !== "png" ||
+				reportItem.frameCount !== 1 ||
+				reportItem.frameRate !== null ||
+				reportItem.durationSeconds !== null
+			) {
+				throw new Error(`Runtime preview metadata mismatch: ${item.id}`);
+			}
+			return;
+		}
+		if (
+			reportItem.codec !== "gif" ||
+			reportItem.frameRate === null ||
+			reportItem.durationSeconds === null
+		) {
+			throw new Error(`Runtime preview metadata mismatch: ${item.id}`);
+		}
+		return;
+	}
 	if (item.mimeType === "image/png") {
 		if (
 			item.sourceKind !== "static-image" ||
@@ -252,9 +317,82 @@ function assertPlaybackMatches({
 		item.playback.frameRate === undefined ||
 		Math.abs(item.playback.frameRate - reportItem.frameRate) <= 1e-9;
 	const durationMatches =
-		Math.abs(item.playback.cycleDuration - reportItem.durationSeconds) <= 1e-9;
+		localStickerMediaTimeToTicks({
+			seconds: item.playback.cycleDuration,
+		}) ===
+		localStickerMediaTimeToTicks({ seconds: reportItem.durationSeconds });
 	if (!frameRateMatches || !durationMatches) {
 		throw new Error(`Animated timing mismatch: ${item.id}`);
+	}
+}
+
+function assertRuntimeResourceMatchesReport({
+	itemId,
+	manifestResource,
+	reportResource,
+}: {
+	itemId: string;
+	manifestResource: ManifestRuntimeResource;
+	reportResource: ReportRuntimeResource;
+}): void {
+	if (
+		reportResource.resourceName !== manifestResource.resourceName ||
+		reportResource.fileName !== manifestResource.fileName ||
+		reportResource.filePath !== manifestResource.filePath ||
+		reportResource.mimeType !== manifestResource.mimeType
+	) {
+		throw new Error(
+			`Runtime manifest/report metadata mismatch: ${itemId}/${manifestResource.resourceName}`
+		);
+	}
+	if (basename(manifestResource.filePath) !== manifestResource.fileName) {
+		throw new Error(
+			`Runtime resource fileName does not match its path: ${itemId}/${manifestResource.resourceName}`
+		);
+	}
+	const expectedExtension =
+		manifestResource.mimeType === "image/png" ? ".png" : ".webm";
+	if (
+		!manifestResource.fileName.toLocaleLowerCase().endsWith(expectedExtension)
+	) {
+		throw new Error(
+			`Runtime resource extension does not match MIME type: ${itemId}/${manifestResource.resourceName}`
+		);
+	}
+}
+
+function assertAlphaVideoDurationMatchesReport({
+	item,
+	reportResourceByName,
+}: {
+	item: LocalReferenceManifestItem;
+	reportResourceByName: ReadonlyMap<string, ReportRuntimeResource>;
+}): void {
+	const descriptor = item.runtimePackage?.descriptor;
+	if (descriptor?.kind !== "alpha-video") return;
+	const expectedDurationTicks = localStickerMediaTimeToTicks({
+		seconds: descriptor.sourceDurationSeconds,
+	});
+	const sourceNames = [
+		descriptor.source,
+		...(descriptor.layout.kind === "separate-mask"
+			? [descriptor.layout.maskSource]
+			: []),
+	];
+	for (const sourceName of sourceNames) {
+		const reportResource = reportResourceByName.get(sourceName);
+		if (
+			reportResource?.mimeType === "video/webm" &&
+			reportResource.durationSeconds !== null &&
+			localStickerMediaTimeToTicks({
+				seconds: reportResource.durationSeconds,
+			}) === expectedDurationTicks
+		) {
+			continue;
+		}
+		throw new Error(
+			`Alpha-video source duration mismatch: ${item.id}/${sourceName}`
+		);
 	}
 }
 
@@ -290,6 +428,36 @@ function assertItemMatchesReport({
 		throw new Error(`Sticker extension does not match MIME type: ${item.id}`);
 	}
 	assertPlaybackMatches({ item, reportVersion, reportItem });
+	const manifestResources = item.runtimePackage?.resources ?? [];
+	const reportResources = reportItem.runtimeResources ?? [];
+	if (manifestResources.length !== reportResources.length) {
+		throw new Error(`Runtime resource count mismatch: ${item.id}`);
+	}
+	const reportResourceByName = new Map(
+		reportResources.map((resource) => [resource.resourceName, resource])
+	);
+	if (reportResourceByName.size !== reportResources.length) {
+		throw new Error(`Duplicate runtime report resource name: ${item.id}`);
+	}
+	for (const manifestResource of manifestResources) {
+		const reportResource = reportResourceByName.get(
+			manifestResource.resourceName
+		);
+		if (!reportResource) {
+			throw new Error(
+				`Runtime report resource is missing: ${item.id}/${manifestResource.resourceName}`
+			);
+		}
+		assertRuntimeResourceMatchesReport({
+			itemId: item.id,
+			manifestResource,
+			reportResource,
+		});
+	}
+	assertAlphaVideoDurationMatchesReport({
+		item,
+		reportResourceByName,
+	});
 }
 
 function assertLegacyReportOrdering({
@@ -312,7 +480,7 @@ function assertLegacyReportOrdering({
 	}
 }
 
-async function mapWithConcurrency<TInput, TOutput>({
+export async function mapWithConcurrency<TInput, TOutput>({
 	concurrency,
 	inputs,
 	worker,
@@ -336,6 +504,30 @@ async function mapWithConcurrency<TInput, TOutput>({
 		)
 	);
 	return outputs;
+}
+
+function inspectionKey({
+	resourceName,
+	stickerId,
+}: {
+	resourceName?: string;
+	stickerId: string;
+}): string {
+	return `${stickerId}\0${resourceName ?? ""}`;
+}
+
+function requiredInspectedPath({
+	canonicalPathByKey,
+	key,
+}: {
+	canonicalPathByKey: ReadonlyMap<string, string>;
+	key: string;
+}): string {
+	const canonicalPath = canonicalPathByKey.get(key);
+	if (!canonicalPath) {
+		throw new Error(`Validated sticker path is missing: ${key}`);
+	}
+	return canonicalPath;
 }
 
 async function reconcileBatch({
@@ -389,12 +581,12 @@ async function reconcileBatch({
 	const validationInputs = manifest.categories.flatMap((category) =>
 		category.items.map((item, itemIndex) => ({ category, item, itemIndex }))
 	);
-	const reconciled = await mapWithConcurrency({
-		concurrency: LOCAL_REFERENCE_DISCOVERY_LIMITS.fileConcurrencyPerBatch,
-		inputs: validationInputs,
-		worker: async ({ input: { category, item, itemIndex } }) => {
+	const validatedItems = validationInputs.map(
+		({ category, item, itemIndex }) => {
 			const reportItem = indexedReport.get(item.id);
-			if (!reportItem) throw new Error(`Report is missing sticker: ${item.id}`);
+			if (!reportItem) {
+				throw new Error(`Report is missing sticker: ${item.id}`);
+			}
 			assertItemMatchesReport({
 				category,
 				item,
@@ -402,12 +594,111 @@ async function reconcileBatch({
 				reportVersion: report.version,
 				reportItem,
 			});
-			const canonicalPath = await inspectLocalStickerFile({
-				batchRoot,
+			const reportRuntimeResourceByName = new Map(
+				(reportItem.runtimeResources ?? []).map((resource) => [
+					resource.resourceName,
+					resource,
+				])
+			);
+			return { item, reportItem, reportRuntimeResourceByName };
+		}
+	);
+	const inspectionInputs: LocalReferenceInspection[] = validatedItems.flatMap(
+		({ item, reportItem, reportRuntimeResourceByName }) => [
+			{
 				expectedByteSize: reportItem.byteSize,
 				filePath: item.filePath,
+				key: inspectionKey({ stickerId: item.id }),
 				stickerId: item.id,
+			},
+			...(item.runtimePackage?.resources.map((resource) => {
+				const reportResource = reportRuntimeResourceByName.get(
+					resource.resourceName
+				);
+				if (!reportResource) {
+					throw new Error(
+						`Runtime report resource is missing: ${item.id}/${resource.resourceName}`
+					);
+				}
+				return {
+					expectedByteSize: reportResource.byteSize,
+					filePath: resource.filePath,
+					key: inspectionKey({
+						resourceName: resource.resourceName,
+						stickerId: item.id,
+					}),
+					stickerId: `${item.id}/${resource.resourceName}`,
+				};
+			}) ?? []),
+		]
+	);
+	const inspectedFiles = await mapWithConcurrency({
+		concurrency: LOCAL_REFERENCE_DISCOVERY_LIMITS.fileConcurrencyPerBatch,
+		inputs: inspectionInputs,
+		worker: async ({ input }) => ({
+			canonicalPath: await inspectLocalStickerFile({
+				batchRoot,
+				expectedByteSize: input.expectedByteSize,
+				filePath: input.filePath,
+				stickerId: input.stickerId,
+			}),
+			key: input.key,
+		}),
+	});
+	const canonicalPathByKey = new Map(
+		inspectedFiles.map(({ canonicalPath, key }) => [key, canonicalPath])
+	);
+	const reconciled = validatedItems.map(
+		({ item, reportItem, reportRuntimeResourceByName }) => {
+			const canonicalPath = requiredInspectedPath({
+				canonicalPathByKey,
+				key: inspectionKey({ stickerId: item.id }),
 			});
+			const runtimeResources = (item.runtimePackage?.resources ?? []).map(
+				(resource) => {
+					const reportResource = reportRuntimeResourceByName.get(
+						resource.resourceName
+					);
+					if (!reportResource) {
+						throw new Error(
+							`Runtime report resource is missing: ${item.id}/${resource.resourceName}`
+						);
+					}
+					const resourcePath = requiredInspectedPath({
+						canonicalPathByKey,
+						key: inspectionKey({
+							resourceName: resource.resourceName,
+							stickerId: item.id,
+						}),
+					});
+					const internal: InternalLocalReference = {
+						batchId,
+						batchRoot,
+						byteSize: reportResource.byteSize,
+						checksumSha256: reportResource.sha256,
+						fileName: resource.fileName,
+						filePath: resourcePath,
+						mimeType: resource.mimeType,
+						resourceName: resource.resourceName,
+						stickerId: item.id,
+					};
+					const reference: LocalStickerLabRuntimeResource = {
+						resourceName: resource.resourceName,
+						fileName: resource.fileName,
+						mimeType: resource.mimeType,
+						asset: {
+							kind: "local-reference-runtime-resource",
+							rootPath,
+							batchId,
+							stickerId: item.id,
+							resourceName: resource.resourceName,
+							byteSize: reportResource.byteSize,
+							checksumSha256: reportResource.sha256,
+						},
+					};
+					return { internal, reference };
+				}
+			);
 			const reference: LocalStickerLabReference = {
 				id: item.id,
 				displayName: item.displayName,
@@ -423,23 +714,37 @@ async function reconcileBatch({
 					byteSize: reportItem.byteSize,
 					checksumSha256: reportItem.sha256,
 				},
+				...(item.runtimePackage
+					? {
+							runtimePackage: {
+								descriptor: item.runtimePackage.descriptor,
+								resources: runtimeResources.map(
+									({ reference: runtimeReference }) => runtimeReference
+								),
+							},
+						}
+					: {}),
+			};
+			const primaryInternal: InternalLocalReference = {
+				batchId,
+				batchRoot,
+				byteSize: reportItem.byteSize,
+				checksumSha256: reportItem.sha256,
+				fileName: item.fileName,
+				filePath: canonicalPath,
+				mimeType: item.mimeType,
+				stickerId: item.id,
 			};
 			return {
-				canonicalPath,
-				internal: {
-					batchId,
-					batchRoot,
-					byteSize: reportItem.byteSize,
-					checksumSha256: reportItem.sha256,
-					fileName: item.fileName,
-					filePath: canonicalPath,
-					mimeType: item.mimeType,
-					stickerId: item.id,
-				},
+				internals: [
+					primaryInternal,
+					...runtimeResources.map(({ internal }) => internal),
+				],
+				primaryInternal,
 				reference,
 			};
-		},
-	});
+		}
+	);
 	const referenceById = new Map(
 		reconciled.map(({ reference }) => [reference.id, reference])
 	);
@@ -452,7 +757,13 @@ async function reconcileBatch({
 			return reference;
 		});
 		const categoryBytes = items.reduce(
-			(total, item) => total + item.asset.byteSize,
+			(total, item) =>
+				total +
+				item.asset.byteSize +
+				(item.runtimePackage?.resources.reduce(
+					(resourceTotal, resource) => resourceTotal + resource.asset.byteSize,
+					0
+				) ?? 0),
 			0
 		);
 		if (categoryBytes > MAX_LOCAL_REFERENCE_CATEGORY_BYTES) {
@@ -479,8 +790,8 @@ async function reconcileBatch({
 			itemCount: manifestItems.length,
 			totalBytes,
 		},
-		references: reconciled.map(({ internal }) => internal),
-		canonicalPaths: reconciled.map(({ canonicalPath }) => canonicalPath),
+		primaryReferences: reconciled.map(({ primaryInternal }) => primaryInternal),
+		references: reconciled.flatMap(({ internals }) => internals),
 	};
 }
 
@@ -579,12 +890,14 @@ async function collectBatchCandidates({
 
 function referenceKey({
 	batchId,
+	resourceName,
 	stickerId,
 }: {
 	batchId: string;
+	resourceName?: string;
 	stickerId: string;
 }): string {
-	return `${batchId}\0${stickerId}`;
+	return `${batchId}\0${stickerId}\0${resourceName ?? ""}`;
 }
 
 function validateAndAppendBatch({
@@ -611,34 +924,38 @@ function validateAndAppendBatch({
 			throw new Error(`Conflicting category label: ${category.id}`);
 		}
 	}
-	for (const [index, item] of batchItems.entries()) {
+	for (const item of batchItems) {
 		if (itemIds.has(item.id)) {
 			throw new Error(`Duplicate sticker id across batches: ${item.id}`);
 		}
-		if (checksums.has(item.asset.checksumSha256)) {
+	}
+	for (const reference of batch.primaryReferences) {
+		if (checksums.has(reference.checksumSha256)) {
 			throw new Error(
-				`Duplicate sticker checksum across batches: ${item.asset.checksumSha256}`
+				`Duplicate sticker checksum across batches: ${reference.checksumSha256}`
 			);
 		}
-		const canonicalPath = batch.canonicalPaths[index];
-		if (!canonicalPath || canonicalPaths.has(canonicalPath)) {
+		if (canonicalPaths.has(reference.filePath)) {
 			throw new Error(
-				`Duplicate sticker path across batches: ${canonicalPath}`
+				`Duplicate sticker path across batches: ${reference.filePath}`
 			);
 		}
 	}
 	for (const category of batch.catalog.categories) {
 		categoryLabels.set(category.id, category.label);
 	}
-	for (const [index, item] of batchItems.entries()) {
+	for (const item of batchItems) {
 		itemIds.add(item.id);
-		checksums.add(item.asset.checksumSha256);
-		canonicalPaths.add(batch.canonicalPaths[index] as string);
+	}
+	for (const primaryReference of batch.primaryReferences) {
+		checksums.add(primaryReference.checksumSha256);
+		canonicalPaths.add(primaryReference.filePath);
 	}
 	for (const internal of batch.references) {
 		references.set(
 			referenceKey({
 				batchId: internal.batchId,
+				resourceName: internal.resourceName,
 				stickerId: internal.stickerId,
 			}),
 			internal
@@ -820,6 +1137,7 @@ async function resolveDiscoveryState({
 export async function readLocalReference({
 	rootPath,
 	batchId,
+	resourceName,
 	stickerId,
 }: ReadLocalReferenceOptions): Promise<LocalStickerLabReadResult> {
 	if (!BATCH_DIRECTORY_PATTERN.test(batchId)) {
@@ -828,11 +1146,25 @@ export async function readLocalReference({
 	if (!/^\d+$/.test(stickerId)) {
 		throw new Error(`Invalid local Sticker Lab sticker id: ${stickerId}`);
 	}
+	if (
+		resourceName !== undefined &&
+		(!resourceName.trim() ||
+			resourceName.startsWith("/") ||
+			resourceName.includes("\\") ||
+			resourceName.startsWith("$") ||
+			resourceName
+				.split("/")
+				.some((segment) => segment === "." || segment === ".."))
+	) {
+		throw new Error(`Invalid local Sticker Lab resource name: ${resourceName}`);
+	}
 	const state = await resolveDiscoveryState({ rootPath });
-	const internal = state.references.get(referenceKey({ batchId, stickerId }));
+	const internal = state.references.get(
+		referenceKey({ batchId, resourceName, stickerId })
+	);
 	if (!internal) {
 		throw new Error(
-			`Local Sticker Lab reference not found: ${batchId}/${stickerId}`
+			`Local Sticker Lab reference not found: ${batchId}/${stickerId}${resourceName ? `/${resourceName}` : ""}`
 		);
 	}
 	const bytes = await readVerifiedLocalStickerFile({
@@ -841,7 +1173,9 @@ export async function readLocalReference({
 		expectedChecksumSha256: internal.checksumSha256,
 		filePath: internal.filePath,
 		mimeType: internal.mimeType,
-		stickerId,
+		stickerId: internal.resourceName
+			? `${stickerId}/${internal.resourceName}`
+			: stickerId,
 	});
 	return {
 		bytes,
@@ -850,6 +1184,7 @@ export async function readLocalReference({
 		batchId,
 		stickerId,
 		checksumSha256: internal.checksumSha256,
+		...(internal.resourceName ? { resourceName: internal.resourceName } : {}),
 	};
 }
 
@@ -863,9 +1198,12 @@ export type {
 	LocalStickerLabCategory,
 	LocalStickerLabDiscovery,
 	LocalStickerLabMimeType,
+	LocalStickerLabReadableMimeType,
 	LocalStickerLabPlayback,
 	LocalStickerLabReadResult,
 	LocalStickerLabReference,
+	LocalStickerLabRuntimeResource,
+	LocalStickerLabRuntimeResourceMimeType,
 	LocalStickerLabSourceKind,
 	LocalStickerLabWarning,
 	StickerLabRendererAPI,
