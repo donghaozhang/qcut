@@ -22,6 +22,7 @@ export const JIANYING_FILTER_LAB_CHANGED_CHANNEL =
 export type JianyingFilterImplementation =
 	| "single-lut"
 	| "dual-lut"
+	| "face-region-lut"
 	| "shader"
 	| "face-ai"
 	| "unknown";
@@ -80,10 +81,14 @@ export type JianyingFilterMultiPassKind =
 	| "fog-lut"
 	| "bloom-lut";
 
+export type JianyingFilterLabRendererKind =
+	| JianyingFilterMultiPassKind
+	| "native-swing-effect";
+
 export interface JianyingFilterLabRendererSummary {
-	kind: JianyingFilterMultiPassKind;
+	kind: JianyingFilterLabRendererKind;
 	passCount: number;
-	fidelity: "structural";
+	fidelity: "structural" | "native-local";
 }
 
 /** One unique filter card, with local cache and implementation state. */
