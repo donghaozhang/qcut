@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { createReadStream } from "node:fs";
 import {
 	mkdir,
+	readdir,
 	readFile,
 	realpath,
 	rename,
@@ -31,6 +32,7 @@ const CACHE_ROOT = path.join(
 	"person-cutout",
 	`v${CACHE_VERSION}`
 );
+const MAX_CACHE_BYTES = 20 * 1024 * 1024 * 1024;
 
 export interface PersonCutoutCacheSettings {
 	edgeShift: number;
@@ -273,6 +275,52 @@ export async function createPersonCutoutMaskCacheBuild({
 	};
 }
 
+async function prunePersonCutoutMaskCache({
+	keepBytes,
+	keepCacheKey,
+}: {
+	keepBytes: number;
+	keepCacheKey: string;
+}) {
+	const cacheRoot = getCacheRoot();
+	let names: string[];
+	try {
+		names = await readdir(cacheRoot);
+	} catch {
+		return;
+	}
+	const entries: Array<{
+		bytes: number;
+		createdAt: number;
+		directory: string;
+	}> = [];
+	for (const name of names) {
+		if (name === keepCacheKey || name.startsWith(".")) continue;
+		const directory = path.join(cacheRoot, name);
+		try {
+			const manifestValue: unknown = JSON.parse(
+				await readFile(path.join(directory, "manifest.json"), "utf8")
+			);
+			if (!isManifest({ value: manifestValue })) continue;
+			const manifest = manifestValue as PersonCutoutMaskCacheManifest;
+			entries.push({
+				bytes: manifest.alphaBytes,
+				createdAt: Date.parse(manifest.createdAt) || 0,
+				directory,
+			});
+		} catch {
+			// 读不出 manifest 的目录交给 inspect 当缓存未命中处理。
+		}
+	}
+	entries.sort((a, b) => a.createdAt - b.createdAt);
+	let totalBytes = entries.reduce((sum, entry) => sum + entry.bytes, keepBytes);
+	for (const entry of entries) {
+		if (totalBytes <= MAX_CACHE_BYTES) return;
+		await rm(entry.directory, { force: true, recursive: true });
+		totalBytes -= entry.bytes;
+	}
+}
+
 export async function commitPersonCutoutMaskCache({
 	buildDirectory,
 	frameCount,
@@ -306,6 +354,14 @@ export async function commitPersonCutoutMaskCache({
 	const target = cachePaths({ cacheKey });
 	await rm(target.directory, { force: true, recursive: true });
 	await rename(buildDirectory, target.directory);
+	try {
+		await prunePersonCutoutMaskCache({
+			keepBytes: alphaBytes,
+			keepCacheKey: cacheKey,
+		});
+	} catch {
+		// 清理是尽力而为，失败不影响本次缓存提交。
+	}
 	return {
 		alphaPath: target.alphaPath,
 		cacheKey,
