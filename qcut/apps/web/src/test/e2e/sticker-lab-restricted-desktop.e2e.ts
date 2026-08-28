@@ -50,6 +50,12 @@ interface HarnessTimelineTrack {
 	type: string;
 }
 
+interface RuntimePlaybackSample {
+	frame: string | null;
+	pixel: number[];
+	time: number;
+}
+
 interface StickerLabHarnessWindow extends Window {
 	__exportStore: {
 		getState: () => { error: string | null };
@@ -58,7 +64,11 @@ interface StickerLabHarnessWindow extends Window {
 		getState: () => { mediaItems: HarnessMediaItem[] };
 	};
 	__playbackStore: {
-		getState: () => { currentTime: number; seek: (time: number) => void };
+		getState: () => {
+			currentTime: number;
+			isPlaying: boolean;
+			seek: (time: number) => void;
+		};
 	};
 	__projectStore: {
 		getState: () => {
@@ -68,6 +78,15 @@ interface StickerLabHarnessWindow extends Window {
 	};
 	__timelineStore: {
 		getState: () => { tracks: HarnessTimelineTrack[] };
+	};
+	__stickerRuntimePlaybackProbe?: {
+		animatedFrame: RuntimePlaybackSample | null;
+		cleanup: () => void;
+		done: Promise<RuntimePlaybackSample | null>;
+		firstUpdateTime: number | null;
+		lastUpdateTime: number | null;
+		seekCount: number;
+		updateCount: number;
 	};
 }
 
@@ -290,6 +309,142 @@ async function expectRuntimeMaskIfNeeded({
 }): Promise<void> {
 	if (runtimeCase.kind !== "alpha-video") return;
 	await expectAlphaVideoMask({ canvas });
+}
+
+async function expectContinuousRuntimePlayback({
+	canvas,
+	page,
+	runtimeCase,
+}: {
+	canvas: Locator;
+	page: Page;
+	runtimeCase: StickerLabRuntimeFixtureCase;
+}): Promise<void> {
+	const startTime = 0.1;
+	await expectRuntimeFrameAt({
+		canvas,
+		color: "red",
+		frameTimeSeconds: startTime,
+		page,
+		runtimeCase,
+		timelineTimeSeconds: startTime,
+	});
+	await canvas.evaluate((element, kind) => {
+		const harness = window as StickerLabHarnessWindow;
+		harness.__stickerRuntimePlaybackProbe?.cleanup();
+		if (!(element instanceof HTMLCanvasElement)) {
+			throw new Error(`Sticker runtime canvas ${kind} is missing`);
+		}
+		const runtimeCanvas = element;
+		let resolveDone: (sample: RuntimePlaybackSample | null) => void = () =>
+			undefined;
+		const done = new Promise<RuntimePlaybackSample | null>((resolve) => {
+			resolveDone = resolve;
+		});
+		const timeout = window.setTimeout(() => resolveDone(null), 10_000);
+		const probe = {
+			animatedFrame: null as RuntimePlaybackSample | null,
+			cleanup: () => undefined,
+			done,
+			firstUpdateTime: null as number | null,
+			lastUpdateTime: null as number | null,
+			seekCount: 0,
+			updateCount: 0,
+		};
+		const handleUpdate = (event: Event) => {
+			const time = (event as CustomEvent<{ time: number }>).detail.time;
+			probe.firstUpdateTime ??= time;
+			probe.lastUpdateTime = time;
+			probe.updateCount += 1;
+			if (probe.animatedFrame || time < 0.65 || time >= 2.5) return;
+			const frame = runtimeCanvas.getAttribute("data-sticker-runtime-frame");
+			const frameIsBlue =
+				kind === "alpha-video" ? Number(frame) >= 0.5 : frame === "1";
+			if (!frameIsBlue) return;
+			const context = runtimeCanvas.getContext("2d", {
+				willReadFrequently: true,
+			});
+			if (!context) return;
+			const pixel = Array.from(context.getImageData(4, 4, 1, 1).data);
+			const sample = { frame, pixel, time };
+			probe.animatedFrame = sample;
+			resolveDone(sample);
+		};
+		const handleSeek = () => {
+			probe.seekCount += 1;
+		};
+		probe.cleanup = () => {
+			window.clearTimeout(timeout);
+			window.removeEventListener("playback-update", handleUpdate);
+			window.removeEventListener("playback-seek", handleSeek);
+		};
+		window.addEventListener("playback-update", handleUpdate);
+		window.addEventListener("playback-seek", handleSeek);
+		harness.__stickerRuntimePlaybackProbe = probe;
+	}, runtimeCase.kind);
+
+	await page.getByTestId("preview-play-button").click();
+	await expect(page.getByTestId("preview-pause-button")).toBeVisible();
+	await expect(page.getByTestId("preview-capture-surface")).toHaveAttribute(
+		"data-smooth-time-reason",
+		"none"
+	);
+	const playbackProof = await page.evaluate(async () => {
+		const harness = window as StickerLabHarnessWindow;
+		const probe = harness.__stickerRuntimePlaybackProbe;
+		if (!probe) throw new Error("Sticker runtime playback probe is missing");
+		const animatedFrame = await probe.done;
+		return {
+			animatedFrame,
+			isPlaying: harness.__playbackStore.getState().isPlaying,
+			lastUpdateTime: probe.lastUpdateTime,
+		};
+	});
+	if (!playbackProof.animatedFrame) {
+		throw new Error(
+			`Sticker runtime did not animate during playback: ${JSON.stringify(playbackProof)}`
+		);
+	}
+	expect(playbackProof.isPlaying).toBe(true);
+	expect(playbackProof.animatedFrame.time).toBeGreaterThanOrEqual(0.65);
+	expect(playbackProof.animatedFrame.time).toBeLessThan(2.5);
+	expect(
+		isExpectedColor({
+			color: "blue",
+			pixel: playbackProof.animatedFrame.pixel,
+		})
+	).toBe(true);
+	await expectRuntimeMaskIfNeeded({ canvas, runtimeCase });
+	await page.getByTestId("preview-pause-button").click({ timeout: 2_000 });
+	await expect(page.getByTestId("preview-play-button")).toBeVisible();
+
+	const result = await page.evaluate(() => {
+		const harness = window as StickerLabHarnessWindow;
+		const probe = harness.__stickerRuntimePlaybackProbe;
+		if (!probe) throw new Error("Sticker runtime playback probe is missing");
+		probe.cleanup();
+		const state = harness.__playbackStore.getState();
+		const snapshot = {
+			currentTime: state.currentTime,
+			firstUpdateTime: probe.firstUpdateTime,
+			isPlaying: state.isPlaying,
+			lastUpdateTime: probe.lastUpdateTime,
+			seekCount: probe.seekCount,
+			updateCount: probe.updateCount,
+		};
+		harness.__stickerRuntimePlaybackProbe = undefined;
+		return snapshot;
+	});
+	expect(result.isPlaying).toBe(false);
+	expect(result.seekCount).toBe(0);
+	expect(result.updateCount).toBeGreaterThan(2);
+	expect(result.firstUpdateTime).not.toBeNull();
+	expect(result.lastUpdateTime).not.toBeNull();
+	expect(
+		(result.lastUpdateTime ?? 0) - (result.firstUpdateTime ?? 0)
+	).toBeGreaterThan(0.4);
+	expect(result.currentTime).toBeGreaterThanOrEqual(0.65);
+	expect(await canvas.getAttribute("data-sticker-runtime-error")).toBeNull();
 }
 
 function normalizedRuntimeDescriptor({
@@ -571,6 +726,15 @@ async function runRestrictedStickerLifecycle({
 		const runtimeCanvas = firstPage.locator(
 			`canvas[data-sticker-runtime-kind="${runtimeCase.kind}"]:visible`
 		);
+		await expectContinuousRuntimePlayback({
+			canvas: runtimeCanvas,
+			page: firstPage,
+			runtimeCase,
+		});
+		await firstPage.screenshot({
+			animations: "allow",
+			path: testInfo.outputPath(`00-${testSlug}-continuous-playback-blue.png`),
+		});
 		const redSampleTime = runtimeCase.kind === "direct-gif" ? 0.1 : 0.25;
 		const blueSampleTime = 0.75;
 		await expectRuntimeFrameAt({
