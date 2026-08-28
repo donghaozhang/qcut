@@ -188,9 +188,10 @@ PR #424 已于 2026-08-22 合并。此前未完成清单中的以下项目已经
 - 新版 manifest 保留作者和 554 个 VIP 标记，并通过兼容双端点上线。
 
 当前未完成项只剩公开发行替换、199 个 QA 警告的人工抽听、11 个历史 ID 的
-元数据恢复、正式签名 `app://.` 冷安装验证，以及离线包异常恢复 UX。完整证据和
-最新优先级见
-[2026-08-26 收尾报告](./FINALIZATION-2026-08-26.md)。
+元数据恢复、正式签名 `app://.` 冷安装验证，以及离线包异常恢复 UX。完整证据见
+[2026-08-26 收尾报告](./FINALIZATION-2026-08-26.md)。Batch-09 之后新增 314 个
+剪映受限原始参照，公开发行前的替换范围扩大为 1422 项，最新清单见
+[Batch-09 记录](./BATCH-09-RECORD.md)。
 
 ### 2026-08-22 历史未完成事项
 
@@ -294,12 +295,15 @@ production build.
 The 2026-08-26 follow-up completed the mixed-license UI, per-item reuse actions,
 committed opt-in production E2E, automated full-catalog audio QA, CC0 timeline/
 restart/export flow, and enriched VIP/author manifest rollout. PR #424 is merged.
-P0 now remains replacing all 1,108 restricted references before public release.
+P0 then remained replacing all 1,108 restricted references before public release.
 P1 is manual review of 199 QA-warning items, metadata recovery for 11 historical
 IDs, and a signed packaged `app://.` cold-install/offline/delete test. P2 remains
 delta and recovery UX, title localization, provenance rechecks, and a real
 two-account cache-sharing smoke test. See
-[`FINALIZATION-2026-08-26.md`](./FINALIZATION-2026-08-26.md) for current evidence.
+[`FINALIZATION-2026-08-26.md`](./FINALIZATION-2026-08-26.md) for that evidence.
 
-The 2026-08-26 finalization report is the authoritative current checklist; the
-older Batch-08 list above remains as historical context.
+Batch-09 (2026-08-27) then added 314 restricted Jianying originals, so the
+current replacement scope is 1,422 restricted references. The
+[`BATCH-09-RECORD.md`](./BATCH-09-RECORD.md) record is the authoritative
+current checklist; the 2026-08-26 finalization report and the older Batch-08
+list above remain as historical context.
