@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <chrono>
 #include <cstddef>
 #include <cmath>
 #include <cstdint>
@@ -24,6 +25,45 @@
 #include <vector>
 
 namespace {
+
+using SteadyClock = std::chrono::steady_clock;
+
+std::uint64_t elapsedMicros(SteadyClock::time_point startedAt) {
+  return static_cast<std::uint64_t>(
+      std::chrono::duration_cast<std::chrono::microseconds>(
+          SteadyClock::now() - startedAt)
+          .count());
+}
+
+struct BridgeTiming {
+  std::uint64_t inputReadMicros = 0;
+  std::uint64_t rgbaToBgrMicros = 0;
+  std::uint64_t gruInferenceMicros = 0;
+  std::uint64_t alphaResizeMicros = 0;
+  std::uint64_t visionInferenceMicros = 0;
+  std::uint64_t postprocessMicros = 0;
+  std::uint64_t nativeValidationMicros = 0;
+  std::uint64_t cacheWriteMicros = 0;
+  std::uint64_t outputFlushMicros = 0;
+};
+
+struct DlCloser {
+  void operator()(void *library) const {
+    if (library != nullptr) {
+      dlclose(library);
+    }
+  }
+};
+
+void flushFile(std::unique_ptr<std::ofstream> &file, const char *label) {
+  if (!file) {
+    return;
+  }
+  file->flush();
+  if (!*file) {
+    throw std::runtime_error(std::string("cannot flush ") + label);
+  }
+}
 
 struct MattingInput {
   const std::uint8_t *data;
@@ -105,8 +145,9 @@ std::size_t readAll(int fileDescriptor, std::uint8_t *data, std::size_t size) {
 } // namespace
 
 int main(int argc, char **argv) {
-  bool useNativeMetal = false;
+  bool validateNativeMetalCanary = false;
   bool useVisionPersonFusion = false;
+  bool emitTimingJson = false;
   bool validOptions = argc >= 12;
   for (int optionIndex = 12; validOptions && optionIndex < argc;
        ++optionIndex) {
@@ -115,9 +156,17 @@ int main(int argc, char **argv) {
       useVisionPersonFusion = true;
       continue;
     }
+    if (option == "--timing-json") {
+      emitTimingJson = true;
+      continue;
+    }
+    if (option == "--native-metal-canary") {
+      validateNativeMetalCanary = true;
+      continue;
+    }
     if (option == "--blend" && optionIndex + 1 < argc &&
         std::string(argv[optionIndex + 1]) == "native-metal") {
-      useNativeMetal = true;
+      validateNativeMetalCanary = true;
       optionIndex += 1;
       continue;
     }
@@ -127,11 +176,14 @@ int main(int argc, char **argv) {
     std::cerr << "usage: portrait-matting-gru-bridge <libcccreator> <model> "
                  "<model-type> <input.rgba> <width> <height> <output.gray> "
                  "<threshold> <temporal-smoothing> <edge-shift> <feather> "
-                 "[--vision-person-fusion] [--blend native-metal]\n";
+                 "[--vision-person-fusion] [--timing-json] "
+                 "[--native-metal-canary]\n";
     return 2;
   }
 
   try {
+    const auto programStartedAt = SteadyClock::now();
+    BridgeTiming timing;
     const int modelType = std::stoi(argv[3]);
     const int width = parsePositiveInteger(argv[5], "width");
     const int height = parsePositiveInteger(argv[6], "height");
@@ -208,8 +260,11 @@ int main(int argc, char **argv) {
 
     std::vector<std::uint8_t> rgba(frameBytes);
     std::vector<std::uint8_t> bgr(frameBytes / 4 * 3);
-    void *library = dlopen(
-        argv[1], RTLD_NOW | (useNativeMetal ? RTLD_GLOBAL : RTLD_LOCAL));
+    std::unique_ptr<void, DlCloser> libraryOwner(
+        dlopen(argv[1],
+               RTLD_NOW |
+                   (validateNativeMetalCanary ? RTLD_GLOBAL : RTLD_LOCAL)));
+    void *library = libraryOwner.get();
     if (!library) {
       throw std::runtime_error(std::string("cannot load runtime: ") +
                                dlerror());
@@ -288,14 +343,16 @@ int main(int argc, char **argv) {
       };
     };
     const auto initializedHandle = initializeHandle();
-    void *handle = initializedHandle.handle;
+    std::unique_ptr<void, ReleaseHandle> handleOwner(initializedHandle.handle,
+                                                     releaseHandle);
+    void *handle = handleOwner.get();
     const int alphaWidth = initializedHandle.alphaWidth;
     const int alphaHeight = initializedHandle.alphaHeight;
     const int internalModelType = initializedHandle.internalModelType;
     std::vector<std::uint8_t> alpha(static_cast<std::size_t>(alphaWidth) *
                                     alphaHeight);
     std::unique_ptr<qcut::matting::MetalMattingBlend> metalBlend;
-    if (useNativeMetal) {
+    if (validateNativeMetalCanary) {
       metalBlend = std::make_unique<qcut::matting::MetalMattingBlend>(
           qcut::matting::MetalMattingBlendConfig{
               .library = library,
@@ -305,18 +362,15 @@ int main(int argc, char **argv) {
     }
     std::unique_ptr<qcut::matting::VisionPersonSegmentation>
         visionSegmentation;
+    const char *visionDisableValue =
+        std::getenv("QCUT_DISABLE_VISION_PERSON_FUSION");
     const bool visionFusionEnabled =
         useVisionPersonFusion &&
-        std::getenv("QCUT_DISABLE_VISION_PERSON_FUSION") == nullptr;
+        (!visionDisableValue || std::string(visionDisableValue) != "1");
     if (visionFusionEnabled) {
-      try {
-        visionSegmentation =
-            std::make_unique<qcut::matting::VisionPersonSegmentation>(width,
-                                                                     height);
-      } catch (const std::exception &error) {
-        std::cerr << "Vision-person-fusion-v1 unavailable: " << error.what()
-                  << '\n';
-      }
+      visionSegmentation =
+          std::make_unique<qcut::matting::VisionPersonSegmentation>(width,
+                                                                   height);
     }
 
     MattingInput input{
@@ -346,6 +400,8 @@ int main(int argc, char **argv) {
     std::vector<float> temporalState;
     std::size_t frameCount = 0;
     std::size_t nextOutputFrame = 0;
+    bool nativeMetalCanaryPassed = false;
+    std::size_t nativeMetalCanaryFrames = 0;
     const auto writeAlpha = [&](const std::vector<std::uint8_t> &finalAlpha) {
       if (streamOutput) {
         writeAll(alphaOutputDescriptor, finalAlpha.data(), finalAlpha.size());
@@ -369,7 +425,9 @@ int main(int argc, char **argv) {
         if (target == temporalWindow.end()) {
           throw std::runtime_error("temporal window lost an output frame");
         }
+        const auto postprocessStartedAt = SteadyClock::now();
         std::vector<qcut::matting::TemporalForegroundFrameView> frameViews;
+        frameViews.reserve(temporalRadius * 2U + 1U);
         for (const auto &frame : temporalWindow) {
           const auto distance = static_cast<long long>(frame.index) -
                                 static_cast<long long>(nextOutputFrame);
@@ -404,20 +462,37 @@ int main(int argc, char **argv) {
         const auto borderProcessedAlpha =
             qcut::matting::applyJianyingPortraitBorderLut(
                 fusedAlpha);
-        const auto refinedAlpha = qcut::matting::refineAlpha(
+        auto refinedAlpha = qcut::matting::refineAlpha(
             borderProcessedAlpha, temporalState, width, height, threshold,
             temporalSmoothing, edgeShift, feather);
-        const auto finalAlpha =
-            metalBlend
-                ? metalBlend->blendAlpha(
-                      qcut::matting::MetalMattingBlendFrame{
-                          .rgba = target->rgba,
-                          .alpha = refinedAlpha,
-                          .alphaWidth = width,
-                          .alphaHeight = height,
-                      })
-                : refinedAlpha;
-        writeAlpha(finalAlpha);
+        timing.postprocessMicros += elapsedMicros(postprocessStartedAt);
+        std::vector<std::uint8_t> nativeAlpha;
+        if (metalBlend && !nativeMetalCanaryPassed) {
+          const auto nativeValidationStartedAt = SteadyClock::now();
+          nativeAlpha = metalBlend->blendAlpha(
+              qcut::matting::MetalMattingBlendFrame{
+                  .rgba = target->rgba,
+                  .alpha = refinedAlpha,
+                  .alphaWidth = width,
+                  .alphaHeight = height,
+              });
+          timing.nativeValidationMicros +=
+              elapsedMicros(nativeValidationStartedAt);
+          nativeMetalCanaryFrames += 1U;
+        }
+        const auto sourceAlphaStartedAt = SteadyClock::now();
+        qcut::matting::composeSourceAlphaInPlace(target->rgba, refinedAlpha);
+        timing.postprocessMicros += elapsedMicros(sourceAlphaStartedAt);
+        if (!nativeAlpha.empty()) {
+          if (nativeAlpha != refinedAlpha) {
+            throw std::runtime_error(
+                "native blend canary does not match verified alpha formula");
+          }
+          nativeMetalCanaryPassed = true;
+        }
+        const auto cacheWriteStartedAt = SteadyClock::now();
+        writeAlpha(refinedAlpha);
+        timing.cacheWriteMicros += elapsedMicros(cacheWriteStartedAt);
         nextOutputFrame += 1;
         while (!temporalWindow.empty() &&
                temporalWindow.front().index + temporalRadius <
@@ -426,7 +501,23 @@ int main(int argc, char **argv) {
         }
       }
     };
+    const auto setupMicros = elapsedMicros(programStartedAt);
+    const auto processingStartedAt = SteadyClock::now();
+    auto lastProgressReportAt = processingStartedAt;
+    const auto reportProgress = [&](bool force) {
+      const auto now = SteadyClock::now();
+      const auto sinceLastReport =
+          std::chrono::duration_cast<std::chrono::milliseconds>(
+              now - lastProgressReportAt);
+      if (!force && sinceLastReport.count() < 250) {
+        return;
+      }
+      std::cerr << "progress frame=" << frameCount
+                << " total=" << expectedFrameCount << '\n';
+      lastProgressReportAt = now;
+    };
     while (true) {
+      const auto inputReadStartedAt = SteadyClock::now();
       std::size_t bytesRead = 0;
       if (streamInput) {
         bytesRead = readAll(STDIN_FILENO, rgba.data(), rgba.size());
@@ -435,27 +526,29 @@ int main(int argc, char **argv) {
                         static_cast<std::streamsize>(rgba.size()));
         bytesRead = static_cast<std::size_t>(rgbaInput->gcount());
       }
+      timing.inputReadMicros += elapsedMicros(inputReadStartedAt);
       if (bytesRead == 0) {
         break;
       }
       if (bytesRead != rgba.size()) {
-        releaseHandle(handle);
         throw std::runtime_error("input ended with an incomplete RGBA frame");
       }
+      const auto rgbaToBgrStartedAt = SteadyClock::now();
       for (std::size_t source = 0, target = 0; source < rgba.size();
            source += 4, target += 3) {
         bgr[target] = rgba[source + 2];
         bgr[target + 1] = rgba[source + 1];
         bgr[target + 2] = rgba[source];
       }
+      timing.rgbaToBgrMicros += elapsedMicros(rgbaToBgrStartedAt);
+      const auto gruInferenceStartedAt = SteadyClock::now();
       const int processStatus = processFrame(handle, &input, &output);
+      timing.gruInferenceMicros += elapsedMicros(gruInferenceStartedAt);
       if (processStatus != 0) {
-        releaseHandle(handle);
         throw std::runtime_error("cannot process matting frame: " +
                                  std::to_string(processStatus));
       }
       if (output.width != alphaWidth || output.height != alphaHeight) {
-        releaseHandle(handle);
         throw std::runtime_error(
             "matting output dimensions changed unexpectedly");
       }
@@ -463,21 +556,23 @@ int main(int argc, char **argv) {
         rawAlphaFile->write(reinterpret_cast<const char *>(alpha.data()),
                             static_cast<std::streamsize>(alpha.size()));
         if (!*rawAlphaFile) {
-          releaseHandle(handle);
           throw std::runtime_error("cannot write raw alpha diagnostic frame");
         }
       }
+      const auto alphaResizeStartedAt = SteadyClock::now();
       const auto fullSizeAlpha = qcut::matting::resizeAlphaBilinear(
           alpha, alphaWidth, alphaHeight, width, height);
+      timing.alphaResizeMicros += elapsedMicros(alphaResizeStartedAt);
+      const auto visionInferenceStartedAt = SteadyClock::now();
       const auto visionAlpha = visionSegmentation
                                    ? visionSegmentation->segment(rgba)
                                    : std::vector<std::uint8_t>{};
+      timing.visionInferenceMicros += elapsedMicros(visionInferenceStartedAt);
       if (preTemporalAlphaFile) {
         preTemporalAlphaFile->write(
             reinterpret_cast<const char *>(fullSizeAlpha.data()),
             static_cast<std::streamsize>(fullSizeAlpha.size()));
         if (!*preTemporalAlphaFile) {
-          releaseHandle(handle);
           throw std::runtime_error(
               "cannot write pre-temporal alpha diagnostic frame");
         }
@@ -490,34 +585,82 @@ int main(int argc, char **argv) {
       });
       frameCount += 1;
       flushTemporalWindow(false);
-      std::cerr << "progress frame=" << frameCount
-                << " total=" << expectedFrameCount << '\n';
+      reportProgress(false);
     }
     if (frameCount == 0 ||
         (expectedFrameCount > 0 && frameCount != expectedFrameCount)) {
-      releaseHandle(handle);
       throw std::runtime_error("input does not contain complete RGBA frames");
     }
     flushTemporalWindow(true);
+    reportProgress(true);
     if (nextOutputFrame != frameCount) {
-      releaseHandle(handle);
       throw std::runtime_error("temporal window did not emit every frame");
     }
-    releaseHandle(handle);
+    if (metalBlend && !nativeMetalCanaryPassed) {
+      throw std::runtime_error("native blend canary did not run");
+    }
+    const auto processingMicros = elapsedMicros(processingStartedAt);
+    const auto teardownStartedAt = SteadyClock::now();
+    const auto outputFlushStartedAt = SteadyClock::now();
+    flushFile(outputFile, "alpha output");
+    timing.outputFlushMicros += elapsedMicros(outputFlushStartedAt);
+    flushFile(rawAlphaFile, "raw alpha diagnostic output");
+    flushFile(preTemporalAlphaFile, "pre-temporal alpha diagnostic output");
+    flushFile(preBorderTemporalAlphaFile,
+              "pre-border temporal alpha diagnostic output");
+    outputFile.reset();
+    rawAlphaFile.reset();
+    preTemporalAlphaFile.reset();
+    preBorderTemporalAlphaFile.reset();
+    inputFile.reset();
     if (alphaOutputDescriptor >= 0) {
       ::close(alphaOutputDescriptor);
+      alphaOutputDescriptor = -1;
     }
+    const bool visionPersonFusionRan = visionSegmentation != nullptr;
+    visionSegmentation.reset();
+    metalBlend.reset();
+    handleOwner.reset();
+    libraryOwner.reset();
+    const auto teardownMicros = elapsedMicros(teardownStartedAt);
+    const auto wallMicros = elapsedMicros(programStartedAt);
     std::cerr << "ok width=" << width << " height=" << height
               << " alphaWidth=" << alphaWidth << " alphaHeight=" << alphaHeight
               << " frames=" << frameCount << " modelType=" << modelType
               << " internalModelType=" << internalModelType
-              << " blend="
-              << (useNativeMetal ? "TEMattingBlendEffectV2-native-metal"
-                                 : "TEMattingBlendEffectV2-compatible")
+              << " blend=TEMattingBlendEffectV2-compatible"
+              << " nativeMetalCanary="
+              << (nativeMetalCanaryPassed
+                      ? "TEMattingBlendEffectV2-native-metal-canary"
+                      : "not-run")
               << " visionFusion="
-              << (visionSegmentation ? "Vision-person-fusion-v1" : "disabled")
+              << (visionPersonFusionRan ? "Vision-person-fusion-v1" : "disabled")
+              << " nativeMetalCanaryFrames=" << nativeMetalCanaryFrames
               << '\n';
-    dlclose(library);
+    if (emitTimingJson) {
+      std::cerr
+          << "qcut-person-cutout-timing {\"schema\":1,\"frames\":"
+          << frameCount << ",\"total_us\":" << wallMicros
+          << ",\"wall_us\":" << wallMicros
+          << ",\"setup_us\":" << setupMicros
+          << ",\"processing_us\":" << processingMicros
+          << ",\"teardown_us\":" << teardownMicros
+          << ",\"input_read_us\":" << timing.inputReadMicros
+          << ",\"rgba_to_bgr_us\":" << timing.rgbaToBgrMicros
+          << ",\"gru_infer_us\":" << timing.gruInferenceMicros
+          << ",\"alpha_resize_us\":" << timing.alphaResizeMicros
+          << ",\"vision_infer_us\":" << timing.visionInferenceMicros
+          << ",\"postprocess_us\":" << timing.postprocessMicros
+          << ",\"native_validation_us\":"
+          << timing.nativeValidationMicros
+          << ",\"native_canary_us\":" << timing.nativeValidationMicros
+          << ",\"cache_write_us\":" << timing.cacheWriteMicros
+          << ",\"output_flush_us\":" << timing.outputFlushMicros
+          << ",\"native_validation_frames\":"
+          << nativeMetalCanaryFrames
+          << ",\"native_canary_frames\":" << nativeMetalCanaryFrames
+          << "}\n";
+    }
     return 0;
   } catch (const std::exception &error) {
     std::cerr << error.what() << '\n';
