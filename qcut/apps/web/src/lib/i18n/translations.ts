@@ -338,6 +338,10 @@ const EN_TRANSLATIONS = {
 	"audioLibrary.soundEffectsLab.category": "Sound effect category",
 	"audioLibrary.soundEffectsLab.allCategories": "All categories",
 	"audioLibrary.soundEffectsLab.loading": "Loading local reference catalog...",
+	"audioLibrary.soundEffectsLab.accessRequired":
+		"Sign in with an authorized QCut account to open this catalog.",
+	"audioLibrary.soundEffectsLab.unavailable":
+		"Sound Effects Lab is unavailable. Check the network and try again.",
 	"audioLibrary.soundEffectsLab.loadingItem": "Loading local sound effect",
 	"audioLibrary.soundEffectsLab.itemLoadFailed":
 		"Local sound effect could not be loaded",
@@ -359,6 +363,10 @@ const EN_TRANSLATIONS = {
 		"Offline pack removal failed",
 	"audioLibrary.soundEffectsLab.offlinePackRetry": "Retry download",
 	"audioLibrary.soundEffectsLab.offlinePackUpdate": "Update offline pack",
+	"audioLibrary.soundEffectsLab.vip": "VIP reference",
+	"audioLibrary.soundEffectsLab.reusableCount": "{{count}} reusable",
+	"audioLibrary.soundEffectsLab.restrictedCount": "{{count}} restricted",
+	"audioLibrary.soundEffectsLab.vipCount": "{{count}} VIP",
 	"audioLibrary.folders.title": "Folders",
 	"audioLibrary.folders.create": "Create folder",
 	"audioLibrary.folders.createTitle": "New audio folder",
@@ -2274,6 +2282,10 @@ const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
 	"audioLibrary.soundEffectsLab.category": "音效分类",
 	"audioLibrary.soundEffectsLab.allCategories": "全部分类",
 	"audioLibrary.soundEffectsLab.loading": "正在加载本地参照目录…",
+	"audioLibrary.soundEffectsLab.accessRequired":
+		"请登录已获授权的 QCut 账号后打开此目录。",
+	"audioLibrary.soundEffectsLab.unavailable":
+		"音效实验室暂时不可用，请检查网络后重试。",
 	"audioLibrary.soundEffectsLab.loadingItem": "正在加载本地音效",
 	"audioLibrary.soundEffectsLab.itemLoadFailed": "本地音效无法载入",
 	"audioLibrary.soundEffectsLab.retry": "重试",
@@ -2291,6 +2303,10 @@ const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
 	"audioLibrary.soundEffectsLab.offlinePackRemoveFailed": "离线包删除失败",
 	"audioLibrary.soundEffectsLab.offlinePackRetry": "重试下载",
 	"audioLibrary.soundEffectsLab.offlinePackUpdate": "更新离线包",
+	"audioLibrary.soundEffectsLab.vip": "VIP 参照",
+	"audioLibrary.soundEffectsLab.reusableCount": "{{count}} 个可复用",
+	"audioLibrary.soundEffectsLab.restrictedCount": "{{count}} 个受限",
+	"audioLibrary.soundEffectsLab.vipCount": "{{count}} 个 VIP",
 	"audioLibrary.folders.title": "收藏夹",
 	"audioLibrary.folders.create": "新建收藏夹",
 	"audioLibrary.folders.createTitle": "新建音频收藏夹",

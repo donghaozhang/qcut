@@ -6,6 +6,9 @@ import {
 	handleError,
 } from "@/lib/debug/error-handler";
 import type { SoundEffect } from "@/types/sounds";
+import { createAudioLibraryAssetEntry } from "@/lib/assets/freesound-asset";
+import { ensureAssetResources } from "@/lib/assets/asset-resource-cache";
+import { createSoundEffectsLabAssetFetch } from "@/lib/audio/local-sound-effect-reference";
 
 const REMOTE_AUDIO_URL_PATTERN = /^https?:\/\//i;
 
@@ -21,6 +24,7 @@ export function useAudioPreview({
 	const [duration, setDuration] = useState(0);
 	const [volume, setVolumeState] = useState(0.8);
 	const audioRef = useRef<HTMLAudioElement | undefined>(undefined);
+	const objectUrlRef = useRef<string | undefined>(undefined);
 	// Bumped on every stop/switch so in-flight download/play chains from an
 	// older preview cannot update state after a newer selection or unmount.
 	const generationRef = useRef(0);
@@ -31,6 +35,10 @@ export function useAudioPreview({
 		generationRef.current += 1;
 		audioRef.current?.pause();
 		audioRef.current = undefined;
+		if (objectUrlRef.current) {
+			URL.revokeObjectURL(objectUrlRef.current);
+			objectUrlRef.current = undefined;
+		}
 		setPlayingId(null);
 		setPlayingSound(undefined);
 		setIsPlaying(false);
@@ -71,7 +79,27 @@ export function useAudioPreview({
 
 			try {
 				let audioUrl = sound.previewUrl;
-				if (
+				if (sound.soundEffectsLab?.asset) {
+					const asset = createAudioLibraryAssetEntry({
+						sound,
+						kind: sound.kind ?? "sound-effect",
+					});
+					const [resource] = await ensureAssetResources({
+						asset,
+						fetchImpl: createSoundEffectsLabAssetFetch(),
+						roles: ["source"],
+					});
+					if (!resource?.blob) {
+						throw new Error("Sound Effects Lab preview is unavailable");
+					}
+					const objectUrl = URL.createObjectURL(resource.blob);
+					if (generationRef.current !== generation) {
+						URL.revokeObjectURL(objectUrl);
+						return;
+					}
+					objectUrlRef.current = objectUrl;
+					audioUrl = objectUrl;
+				} else if (
 					REMOTE_AUDIO_URL_PATTERN.test(sound.previewUrl) &&
 					sound.source !== "qcut" &&
 					platform().sounds

@@ -6,6 +6,7 @@ import {
 	type AssetManifestFile,
 } from "@qcut/editor-core";
 import type { SoundEffect } from "@/types/sounds";
+import { soundEffectsLabAssetUrl } from "@/lib/audio/local-sound-effect-reference";
 import { QCUT_BUILT_IN_LICENSE } from "./qcut-built-in-license";
 
 function uniqueSoundTags({ tags }: { tags: readonly string[] }): string[] {
@@ -135,8 +136,19 @@ export function createAudioLibraryAssetEntry({
 	category?: string;
 }): AssetManifestEntry {
 	const isSoundEffectsLabReference = sound.source === "sound-effects-lab";
+	const soundEffectsLabAsset = sound.soundEffectsLab?.asset;
 	const files: AssetManifestFile[] = [];
-	if (sound.previewUrl) {
+	if (soundEffectsLabAsset) {
+		files.push({
+			role: "source",
+			url: soundEffectsLabAssetUrl({
+				objectKey: soundEffectsLabAsset.objectKey,
+			}),
+			mimeType: soundEffectsLabAsset.mimeType,
+			byteSize: soundEffectsLabAsset.byteSize,
+			checksumSha256: soundEffectsLabAsset.checksumSha256,
+		});
+	} else if (sound.previewUrl) {
 		files.push({
 			role: "preview",
 			url: sound.previewUrl,
@@ -166,7 +178,9 @@ export function createAudioLibraryAssetEntry({
 	const carriesOwnLicense = hasLicenseUrl({ license: sound.license ?? "" });
 	return {
 		schemaVersion: ASSET_MANIFEST_SCHEMA_VERSION,
-		id: String(sound.id),
+		id: soundEffectsLabAsset
+			? `sound-effects-lab:${soundEffectsLabAsset.objectKey}`
+			: String(sound.id),
 		kind,
 		version: 1,
 		name: sound.name,
@@ -198,6 +212,9 @@ export function createAudioLibraryAssetEntry({
 			moods: sound.moods,
 			scenes: sound.scenes,
 			loopable: sound.loopable,
+			soundEffectsLabProvider: sound.soundEffectsLab?.provider,
+			soundEffectsLabResourceId: sound.soundEffectsLab?.resourceId,
+			soundEffectsLabVip: sound.soundEffectsLab?.isVip,
 		},
 	};
 }

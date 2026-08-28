@@ -1,3 +1,24 @@
+export interface SoundEffectsLabPrivateAsset {
+	objectKey: string;
+	byteSize: number;
+	checksumSha256: string;
+	mimeType: "audio/mpeg";
+}
+
+export interface SoundEffectsLabSoundMetadata {
+	provider: "jianying-reference" | "freesound";
+	redistribution: "allowed" | "prohibited";
+	resourceId: string;
+	asset?: SoundEffectsLabPrivateAsset;
+	isVip?: boolean | null;
+	paidType?: string;
+	businessScope?: string[];
+	publishSource?: string;
+	authorSource?: string;
+	copyrightText?: string;
+	copyrightArtist?: string;
+}
+
 export type SoundEffect = {
 	id: number;
 	name: string;
@@ -33,6 +54,7 @@ export type SoundEffect = {
 	loopable?: boolean;
 	featured?: boolean;
 	checksumSha256?: string;
+	soundEffectsLab?: SoundEffectsLabSoundMetadata;
 };
 
 export type SavedSound = {
@@ -47,7 +69,7 @@ export type SavedSound = {
 	license: string;
 	savedAt: string; // iso date string
 	description?: string;
-	source?: "freesound" | "qcut" | "project";
+	source?: "freesound" | "qcut" | "project" | "sound-effects-lab";
 	mediaId?: string;
 	localizedName?: string;
 	localizedDescription?: string;
@@ -58,6 +80,7 @@ export type SavedSound = {
 	moods?: string[];
 	scenes?: string[];
 	loopable?: boolean;
+	soundEffectsLab?: SoundEffectsLabSoundMetadata;
 };
 
 export type SavedSoundsData = {

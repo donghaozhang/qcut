@@ -9,11 +9,38 @@ import {
 import { dirname, isAbsolute, resolve } from "node:path";
 import { z } from "zod";
 
+const jianyingAuthorSchema = z
+	.object({
+		name: z.string().trim().min(1).max(160),
+		source: z.string().trim().min(1).max(160).optional(),
+	})
+	.strict();
+
+const jianyingAccessSchema = z
+	.object({
+		isVip: z.boolean().nullable(),
+		paidType: z.string().trim().min(1).max(80).optional(),
+		businessScope: z.array(z.string().trim().min(1).max(80)).max(20).optional(),
+	})
+	.strict();
+
+const jianyingCopyrightSchema = z
+	.object({
+		text: z.string().trim().min(1).max(320).optional(),
+		artist: z.string().trim().min(1).max(160).optional(),
+	})
+	.strict();
+
 const soundEffectSourceSchema = z.discriminatedUnion("provider", [
 	z
 		.object({
 			provider: z.literal("jianying-reference"),
 			redistribution: z.literal("prohibited"),
+			publishSource: z.string().trim().min(1).max(160).optional(),
+			author: jianyingAuthorSchema.optional(),
+			access: jianyingAccessSchema.optional(),
+			copyright: jianyingCopyrightSchema.optional(),
+			status: z.number().int().nullable().optional(),
 		})
 		.strict(),
 	z
@@ -317,6 +344,12 @@ export function buildPrivateManifest({
 			"Previous private manifest contains duplicate resource IDs"
 		);
 	}
+	const previousItemsByContent = new Map(
+		(previousPrivateManifest?.items ?? []).map((item) => [
+			`${item.asset.objectKey.split("/")[0]}:${item.contentSha256}`,
+			item,
+		])
+	);
 	return {
 		schemaVersion: 2 as const,
 		catalogId: localManifest.catalogId,
@@ -324,7 +357,11 @@ export function buildPrivateManifest({
 		provenance: localManifest.provenance,
 		categories: localManifest.categories,
 		items: localManifest.items.map((item) => {
-			const previousItem = previousItemsByResourceId.get(item.resourceId);
+			const namespace =
+				item.source.provider === "freesound" ? "qcut" : "jianying";
+			const previousItem =
+				previousItemsByResourceId.get(item.resourceId) ??
+				previousItemsByContent.get(`${namespace}:${item.contentSha256}`);
 			if (
 				previousItem &&
 				(previousItem.byteSize !== item.byteSize ||
@@ -355,9 +392,7 @@ export function buildPrivateManifest({
 					kind: "supabase-storage" as const,
 					objectKey:
 						previousItem?.asset.objectKey ??
-						`${
-							item.source.provider === "freesound" ? "qcut" : "jianying"
-						}/${catalogDate}/assets/${item.fileName}`,
+						`${namespace}/${catalogDate}/assets/${item.fileName}`,
 					byteSize: item.byteSize,
 					checksumSha256: item.contentSha256,
 				},

@@ -5,7 +5,12 @@ import { isUserIdAllowlisted } from "../services/user-id-allowlist";
 
 const SOUND_EFFECTS_BUCKET = "sound-effects-lab";
 const SIGNED_URL_TTL_SECONDS = 600;
-const PRIVATE_MANIFEST_OBJECT_KEY = "qcut/2026-08-22/manifest.batch-08.json";
+const PRIVATE_MANIFEST_OBJECT_KEY =
+	"qcut/2026-08-27/manifest.batch-09.legacy.json";
+const ENRICHED_PRIVATE_MANIFEST_OBJECT_KEY =
+	"qcut/2026-08-27/manifest.batch-09.enriched.json";
+const ALIASED_PRIVATE_MANIFEST_OBJECT_KEY =
+	"qcut/2026-08-27/manifest.batch-09.json";
 const PRIVATE_AUDIO_OBJECT_KEY_PATTERN =
 	/^(?:jianying|qcut)\/\d{4}-\d{2}-\d{2}\/assets\/[a-f0-9]{32}\.mp3$/;
 
@@ -43,10 +48,35 @@ soundEffectsLabRoutes.get("/private-manifest", async (c) => {
 		return c.json({ error: "Forbidden" }, 403);
 	}
 
+	return servePrivateManifest({ c, objectKey: PRIVATE_MANIFEST_OBJECT_KEY });
+});
+
+soundEffectsLabRoutes.get("/private-manifest/enriched", async (c) => {
+	const userId = c.get("userId") as string | undefined;
+	if (!isSoundEffectsLabUserAllowed({ userId })) {
+		return c.json({ error: "Forbidden" }, 403);
+	}
+
+	return servePrivateManifest({
+		c,
+		objectKey:
+			c.req.query("includeAliases") === "1"
+				? ALIASED_PRIVATE_MANIFEST_OBJECT_KEY
+				: ENRICHED_PRIVATE_MANIFEST_OBJECT_KEY,
+	});
+});
+
+async function servePrivateManifest({
+	c,
+	objectKey,
+}: {
+	c: Context;
+	objectKey: string;
+}): Promise<Response> {
 	try {
 		const { data, error } = await getSupabase()
 			.storage.from(SOUND_EFFECTS_BUCKET)
-			.download(PRIVATE_MANIFEST_OBJECT_KEY);
+			.download(objectKey);
 		if (error || !data) {
 			return c.json(
 				{ error: "Private sound effects manifest unavailable" },
@@ -62,7 +92,7 @@ soundEffectsLabRoutes.get("/private-manifest", async (c) => {
 	} catch {
 		return c.json({ error: "Private sound effects manifest unavailable" }, 502);
 	}
-});
+}
 
 async function signSoundEffectObject({
 	c,

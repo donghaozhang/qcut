@@ -1,6 +1,7 @@
 import {
 	AlertCircle,
 	CloudDownload,
+	CircleCheck,
 	FlaskConical,
 	HardDrive,
 	Loader2,
@@ -29,6 +30,7 @@ import { debugError } from "@/lib/debug/debug-config";
 import { useTranslation } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 import type { SoundEffect } from "@/types/sounds";
+import type { AudioLibraryFolder } from "@/lib/audio/audio-library-personal";
 import { AudioLibraryItem } from "./sounds-audio-item";
 
 const ALL_CATEGORIES = "all";
@@ -189,6 +191,15 @@ function referenceMatches({
 	const normalizedQuery = query.trim().toLocaleLowerCase();
 	if (!normalizedQuery) return true;
 	return [reference.title, reference.resourceId, ...categoryLabels]
+		.concat(
+			reference.source?.provider === "jianying-reference"
+				? [
+						reference.source.author?.name ?? "",
+						reference.source.publishSource ?? "",
+						reference.source.copyright?.artist ?? "",
+					]
+				: [reference.source?.creator ?? ""]
+		)
 		.join(" ")
 		.toLocaleLowerCase()
 		.includes(normalizedQuery);
@@ -196,13 +207,25 @@ function referenceMatches({
 
 function SoundEffectReferenceItem({
 	categories,
+	folders,
 	isPlaying,
 	onPlay,
+	onToggleFolder,
+	onToggleSaved,
 	reference,
 }: {
 	categories: readonly LocalSoundEffectsCategory[];
+	folders: readonly AudioLibraryFolder[];
 	isPlaying: boolean;
 	onPlay: ({ sound }: { sound: SoundEffect }) => void;
+	onToggleFolder: ({
+		folderId,
+		sound,
+	}: {
+		folderId: string;
+		sound: SoundEffect;
+	}) => void;
+	onToggleSaved: ({ sound }: { sound: SoundEffect }) => void;
 	reference: SoundEffectsLabReference;
 }) {
 	const { t } = useTranslation();
@@ -261,11 +284,11 @@ function SoundEffectReferenceItem({
 			<AudioLibraryItem
 				sound={sound}
 				assetKind="sound-effect"
-				folders={[]}
+				folders={folders}
 				isPlaying={isPlaying}
 				onPlay={() => onPlay({ sound })}
-				onToggleSaved={() => undefined}
-				onToggleFolder={() => undefined}
+				onToggleSaved={() => onToggleSaved({ sound })}
+				onToggleFolder={({ folderId }) => onToggleFolder({ folderId, sound })}
 			/>
 		);
 	}
@@ -350,20 +373,32 @@ function LabCategoryButton({
 export function SoundEffectsLabPanel({
 	catalog,
 	error,
+	folders,
 	isLoading,
 	isOffline,
 	offlinePack,
 	onPlay,
 	onStop,
+	onToggleFolder,
+	onToggleSaved,
 	playingId,
 }: {
 	catalog: SoundEffectsLabManifest | null;
 	error: string | null;
+	folders: readonly AudioLibraryFolder[];
 	isLoading: boolean;
 	isOffline: boolean;
 	offlinePack: SoundEffectsLabOfflinePackController;
 	onPlay: ({ sound }: { sound: SoundEffect }) => void;
 	onStop: () => void;
+	onToggleFolder: ({
+		folderId,
+		sound,
+	}: {
+		folderId: string;
+		sound: SoundEffect;
+	}) => void;
+	onToggleSaved: ({ sound }: { sound: SoundEffect }) => void;
 	playingId: number | null;
 }) {
 	const { t } = useTranslation();
@@ -402,6 +437,22 @@ export function SoundEffectsLabPanel({
 		[catalog, categoryId, categoryLabelsById, query]
 	);
 	const visibleItems = matchingItems.slice(0, visibleCount);
+	const rightsSummary = useMemo(() => {
+		let reusable = 0;
+		let restricted = 0;
+		let vip = 0;
+		for (const reference of catalog?.items ?? []) {
+			if (reference.source?.redistribution === "allowed") reusable += 1;
+			else restricted += 1;
+			if (
+				reference.source?.provider === "jianying-reference" &&
+				reference.source.access?.isVip === true
+			) {
+				vip += 1;
+			}
+		}
+		return { reusable, restricted, vip };
+	}, [catalog]);
 
 	const changeCategory = ({ nextCategoryId }: { nextCategoryId: string }) => {
 		setCategoryId(nextCategoryId);
@@ -420,7 +471,7 @@ export function SoundEffectsLabPanel({
 			data-testid="sound-effects-lab"
 		>
 			<div className="shrink-0 border-b border-border/60 p-3">
-				<div className="flex items-start justify-between gap-3">
+				<div className="flex min-w-0 flex-col gap-2">
 					<div className="flex min-w-0 items-center gap-2">
 						<span className="flex size-7 shrink-0 items-center justify-center rounded border border-cyan-400/30 bg-cyan-400/10 text-cyan-300">
 							<FlaskConical className="size-3.5">
@@ -428,10 +479,10 @@ export function SoundEffectsLabPanel({
 							</FlaskConical>
 						</span>
 						<div className="min-w-0">
-							<h2 className="truncate text-xs font-semibold">
+							<h2 className="break-words text-xs font-semibold">
 								{t("audioLibrary.section.soundEffectsLab")}
 							</h2>
-							<p className="truncate text-[9px] text-muted-foreground">
+							<p className="text-[9px] text-muted-foreground">
 								{catalog
 									? t("audioLibrary.soundEffectsLab.summary", {
 											categories: catalog.categories.length,
@@ -441,15 +492,30 @@ export function SoundEffectsLabPanel({
 							</p>
 						</div>
 					</div>
-					<div className="flex shrink-0 items-start gap-2">
-						<span className="mt-1 flex shrink-0 items-center gap-1 text-[9px] text-amber-300">
-							<Lock className="size-3">
-								<title>
-									{t("audioLibrary.soundEffectsLab.internalReference")}
-								</title>
-							</Lock>
-							{t("audioLibrary.soundEffectsLab.restricted")}
-						</span>
+					<div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
+						{catalog ? (
+							<div className="mt-1 flex min-w-0 flex-wrap items-center gap-2 text-[9px]">
+								<span className="flex items-center gap-1 text-emerald-400">
+									<CircleCheck className="size-3" />
+									{t("audioLibrary.soundEffectsLab.reusableCount", {
+										count: rightsSummary.reusable,
+									})}
+								</span>
+								<span className="flex items-center gap-1 text-amber-300">
+									<Lock className="size-3" />
+									{t("audioLibrary.soundEffectsLab.restrictedCount", {
+										count: rightsSummary.restricted,
+									})}
+								</span>
+								{rightsSummary.vip > 0 ? (
+									<span className="text-cyan-300">
+										{t("audioLibrary.soundEffectsLab.vipCount", {
+											count: rightsSummary.vip,
+										})}
+									</span>
+								) : null}
+							</div>
+						) : null}
 						{catalog?.schemaVersion === 2 ? (
 							<OfflinePackControls
 								isOffline={isOffline}
@@ -526,8 +592,11 @@ export function SoundEffectsLabPanel({
 										<SoundEffectReferenceItem
 											key={reference.id}
 											categories={catalog.categories}
+											folders={folders}
 											isPlaying={playingId === reference.numericId}
 											onPlay={onPlay}
+											onToggleFolder={onToggleFolder}
+											onToggleSaved={onToggleSaved}
 											reference={reference}
 										/>
 									))}

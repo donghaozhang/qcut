@@ -584,9 +584,16 @@ export async function createTestProject(
 /**
  * Starts an Electron application instance for testing.
  */
-export async function startElectronApp() {
+export async function startElectronApp({
+	userDataDirectory,
+}: {
+	userDataDirectory?: string;
+} = {}) {
 	return await electron.launch({
-		args: ["dist/electron/main.js"],
+		args: [
+			"dist/electron/main.js",
+			...(userDataDirectory ? [`--user-data-dir=${userDataDirectory}`] : []),
+		],
 		env: {
 			...process.env,
 			NODE_ENV: "test",

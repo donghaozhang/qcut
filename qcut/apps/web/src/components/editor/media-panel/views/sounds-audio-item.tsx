@@ -10,6 +10,7 @@ import {
 	Download,
 	Flame,
 	FolderPlus,
+	Gem,
 	Heart,
 	Loader2,
 	MoreHorizontal,
@@ -55,6 +56,10 @@ import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { useSoundsStore } from "@/stores/media/sounds-store";
 import type { AudioTimelineAddMode } from "@/stores/media/sounds-store";
 import type { SoundEffect } from "@/types/sounds";
+import {
+	isPersistableSoundEffectsLabSound,
+	isReusableSoundEffectsLabSound,
+} from "@/lib/audio/sound-effects-lab-rights";
 import type { AudioBeatAlignment } from "@/lib/audio/audio-library-placement";
 import {
 	audioLibraryAssetKey,
@@ -131,7 +136,10 @@ export function AudioLibraryItem({
 		() => createAudioLibraryAssetEntry({ sound, kind: assetKind }),
 		[assetKind, sound]
 	);
-	const identity = assetManifestIdentity({ kind: asset.kind, id: asset.id });
+	const identity = assetManifestIdentity({
+		kind: asset.kind,
+		id: String(sound.id),
+	});
 	const assetKey = assetManifestVersionKey({
 		kind: asset.kind,
 		id: asset.id,
@@ -194,6 +202,11 @@ export function AudioLibraryItem({
 		id: sound.id,
 	});
 	const isSoundEffectsLabReference = sound.source === "sound-effects-lab";
+	const isReusableLabSound = isReusableSoundEffectsLabSound({ sound });
+	const isPersistableLabSound = isPersistableSoundEffectsLabSound({ sound });
+	const canManagePersonalLibrary =
+		!isSoundEffectsLabReference || isPersistableLabSound;
+	const canDrag = !isSoundEffectsLabReference || isReusableLabSound;
 
 	const handleAdd = async ({
 		mode = "single",
@@ -225,9 +238,9 @@ export function AudioLibraryItem({
 				isDragging && "border-primary/70 opacity-55"
 			)}
 			data-testid={`audio-library-item-${assetKind}-${sound.id}`}
-			draggable={!isSoundEffectsLabReference}
+			draggable={canDrag}
 			onDragStart={(event) => {
-				if (isSoundEffectsLabReference) return;
+				if (!canDrag) return;
 				cancelHoverPlay();
 				setIsDragging(true);
 				event.dataTransfer.effectAllowed = "copy";
@@ -333,8 +346,18 @@ export function AudioLibraryItem({
 			<div className="flex min-w-0 flex-1 flex-col py-0.5">
 				<div className="flex min-w-0 items-start gap-1">
 					<div className="min-w-0 flex-1">
-						<div className="truncate text-[11px] font-medium" title={name}>
-							{name}
+						<div className="flex min-w-0 items-center gap-1">
+							<div className="truncate text-[11px] font-medium" title={name}>
+								{name}
+							</div>
+							{sound.soundEffectsLab?.isVip === true ? (
+								<Gem
+									className="size-3 shrink-0 text-cyan-300"
+									aria-label={t("audioLibrary.soundEffectsLab.vip")}
+								>
+									<title>{t("audioLibrary.soundEffectsLab.vip")}</title>
+								</Gem>
+							) : null}
 						</div>
 						<div
 							className="mt-0.5 truncate text-[9px] text-muted-foreground"
@@ -343,7 +366,7 @@ export function AudioLibraryItem({
 							{description || sound.username}
 						</div>
 					</div>
-					{isSoundEffectsLabReference ? null : (
+					{canManagePersonalLibrary ? (
 						<Button
 							type="button"
 							variant="text"
@@ -372,7 +395,7 @@ export function AudioLibraryItem({
 						>
 							<Heart className={cn("size-3.5", favorite && "fill-current")} />
 						</Button>
-					)}
+					) : null}
 				</div>
 				{sound.musicalKey ||
 				localizedMoods.length > 0 ||
@@ -457,7 +480,7 @@ export function AudioLibraryItem({
 								<Download className="size-3.5" />
 							)}
 						</Button>
-						{(!isSoundEffectsLabReference && folders.length > 0) ||
+						{(canManagePersonalLibrary && folders.length > 0) ||
 						needsAttribution ||
 						(assetKind === "music" && (sound.bpm || sound.loopable)) ? (
 							<DropdownMenu>
@@ -477,7 +500,7 @@ export function AudioLibraryItem({
 									</Button>
 								</DropdownMenuTrigger>
 								<DropdownMenuContent align="end" className="w-48">
-									{folders.length > 0 ? (
+									{canManagePersonalLibrary && folders.length > 0 ? (
 										<DropdownMenuSub>
 											<DropdownMenuSubTrigger>
 												<FolderPlus />
@@ -499,7 +522,8 @@ export function AudioLibraryItem({
 											</DropdownMenuSubContent>
 										</DropdownMenuSub>
 									) : null}
-									{folders.length > 0 &&
+									{canManagePersonalLibrary &&
+									folders.length > 0 &&
 									(needsAttribution ||
 										(assetKind === "music" &&
 											(sound.bpm || sound.loopable))) ? (

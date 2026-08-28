@@ -50,6 +50,7 @@ describe("sound effects lab routes", () => {
 	const objectKey =
 		"jianying/2026-08-01/assets/5bb4c18515e6059da16432af0db0f1dc.mp3";
 	const manifestUrl = "/api/sound-effects-lab/private-manifest";
+	const enrichedManifestUrl = `${manifestUrl}/enriched`;
 
 	it("requires authentication", async () => {
 		vi.stubEnv("MOCK_MODE", "false");
@@ -174,21 +175,85 @@ describe("sound effects lab routes", () => {
 		expect(response.headers.get("Cache-Control")).toBe("no-store");
 		await expect(response.text()).resolves.toBe(manifestJson);
 		expect(storageMocks.download).toHaveBeenCalledWith(
-			"qcut/2026-08-22/manifest.batch-08.json"
+			"qcut/2026-08-27/manifest.batch-09.legacy.json"
 		);
 	});
 
-	it("forbids the private manifest outside the allowlist", async () => {
-		const response = await buildApp().request(manifestUrl);
+	it("serves the enriched private manifest without changing the legacy route", async () => {
+		allowMockUser();
+		const manifestJson = JSON.stringify({
+			schemaVersion: 2,
+			catalogId: "qcut-sfx-library-2026-08-26",
+		});
+		storageMocks.download.mockResolvedValue({
+			data: new Blob([manifestJson], { type: "application/json" }),
+			error: null,
+		});
+
+		const response = await buildApp().request(enrichedManifestUrl);
+
+		expect(response.status).toBe(200);
+		await expect(response.text()).resolves.toBe(manifestJson);
+		expect(storageMocks.download).toHaveBeenCalledWith(
+			"qcut/2026-08-27/manifest.batch-09.enriched.json"
+		);
+	});
+
+	it("includes shared-payload aliases only when explicitly requested", async () => {
+		allowMockUser();
+		storageMocks.download.mockResolvedValue({
+			data: new Blob(["{}"], { type: "application/json" }),
+			error: null,
+		});
+
+		const response = await buildApp().request(
+			`${enrichedManifestUrl}?includeAliases=1`
+		);
+
+		expect(response.status).toBe(200);
+		expect(storageMocks.download).toHaveBeenCalledWith(
+			"qcut/2026-08-27/manifest.batch-09.json"
+		);
+	});
+
+	it.each([
+		"0",
+		"true",
+		"",
+	])("keeps the compatibility manifest for includeAliases=%s", async (value) => {
+		allowMockUser();
+		storageMocks.download.mockResolvedValue({
+			data: new Blob(["{}"], { type: "application/json" }),
+			error: null,
+		});
+		const response = await buildApp().request(
+			`${enrichedManifestUrl}?includeAliases=${value}`
+		);
+		expect(response.status).toBe(200);
+		expect(storageMocks.download).toHaveBeenCalledWith(
+			"qcut/2026-08-27/manifest.batch-09.enriched.json"
+		);
+	});
+
+	it.each([
+		manifestUrl,
+		enrichedManifestUrl,
+		`${enrichedManifestUrl}?includeAliases=1`,
+	])("forbids %s outside the allowlist", async (url) => {
+		const response = await buildApp().request(url);
 
 		expect(response.status).toBe(403);
 		expect(storageMocks.download).not.toHaveBeenCalled();
 	});
 
-	it("requires authentication for the private manifest", async () => {
+	it.each([
+		manifestUrl,
+		enrichedManifestUrl,
+		`${enrichedManifestUrl}?includeAliases=1`,
+	])("requires authentication for %s", async (url) => {
 		vi.stubEnv("MOCK_MODE", "false");
 
-		const response = await buildApp().request(manifestUrl);
+		const response = await buildApp().request(url);
 
 		expect(response.status).toBe(401);
 		expect(storageMocks.download).not.toHaveBeenCalled();

@@ -11,8 +11,10 @@ import type {
 	LocalSoundEffectsLabManifest,
 	PrivateSoundEffectsLabManifest,
 } from "@/lib/audio/local-sound-effects-manifest";
+import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { useLocaleStore } from "@/stores/locale-store";
 import { useSoundsStore } from "@/stores/media/sounds-store";
+import type { SoundEffect } from "@/types/sounds";
 import { SoundEffectsLabPanel } from "../sound-effects-lab";
 
 vi.mock("@/components/editor/audio-waveform", () => ({
@@ -116,6 +118,61 @@ const privateCatalog: PrivateSoundEffectsLabManifest = {
 	schemaVersion: 2,
 };
 
+const cc0Reference: PrivateSoundEffectsLabManifest["items"][number] = {
+	...privateCatalog.items[0],
+	id: "8800000000000324894",
+	numericId: -900_000_001,
+	title: "CC0 提示音",
+	fileName: "a3bb18a41c76abd0d1af22b05072655e.mp3",
+	contentMd5: "a3bb18a41c76abd0d1af22b05072655e",
+	contentSha256:
+		"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+	resourceId: "8800000000000324894",
+	batch: "08",
+	mappingStrategy: "freesound-cc0",
+	source: {
+		provider: "freesound",
+		sourceId: "324894",
+		creator: "CC0 Creator",
+		sourceUrl: "https://freesound.org/s/324894/",
+		license: "CC0-1.0",
+		licenseUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
+		redistribution: "allowed",
+	},
+	asset: {
+		kind: "supabase-storage",
+		objectKey: "qcut/2026-08-22/assets/a3bb18a41c76abd0d1af22b05072655e.mp3",
+		byteSize: 4,
+		checksumSha256:
+			"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+	},
+};
+
+const mixedPrivateCatalog: PrivateSoundEffectsLabManifest = {
+	...privateCatalog,
+	provenance: {
+		sourceApp: "QCut",
+		purpose: "mixed-private-library",
+		redistribution: "per-item-license",
+	},
+	items: [
+		{
+			...privateCatalog.items[0],
+			source: {
+				provider: "jianying-reference",
+				redistribution: "prohibited",
+				author: { name: "剪映小助手", source: "jianying" },
+				access: {
+					isVip: true,
+					paidType: "vip",
+					businessScope: ["video_edit"],
+				},
+			},
+		},
+		cc0Reference,
+	],
+};
+
 describe("SoundEffectsLabPanel", () => {
 	beforeEach(() => {
 		useLocaleStore.getState().setLocale({ locale: "zh" });
@@ -131,11 +188,14 @@ describe("SoundEffectsLabPanel", () => {
 			<SoundEffectsLabPanel
 				catalog={catalog}
 				error={null}
+				folders={[]}
 				isLoading={false}
 				isOffline={false}
 				offlinePack={offlinePack}
 				onPlay={onPlay}
 				onStop={vi.fn()}
+				onToggleFolder={vi.fn()}
+				onToggleSaved={vi.fn()}
 				playingId={null}
 			/>
 		);
@@ -179,11 +239,14 @@ describe("SoundEffectsLabPanel", () => {
 			<SoundEffectsLabPanel
 				catalog={catalog}
 				error={null}
+				folders={[]}
 				isLoading={false}
 				isOffline={false}
 				offlinePack={offlinePack}
 				onPlay={vi.fn()}
 				onStop={vi.fn()}
+				onToggleFolder={vi.fn()}
+				onToggleSaved={vi.fn()}
 				playingId={null}
 			/>
 		);
@@ -214,6 +277,7 @@ describe("SoundEffectsLabPanel", () => {
 			<SoundEffectsLabPanel
 				catalog={privateCatalog}
 				error={null}
+				folders={[]}
 				isLoading={false}
 				isOffline={false}
 				offlinePack={{
@@ -226,6 +290,8 @@ describe("SoundEffectsLabPanel", () => {
 				}}
 				onPlay={vi.fn()}
 				onStop={vi.fn()}
+				onToggleFolder={vi.fn()}
+				onToggleSaved={vi.fn()}
 				playingId={null}
 			/>
 		);
@@ -237,6 +303,7 @@ describe("SoundEffectsLabPanel", () => {
 			<SoundEffectsLabPanel
 				catalog={privateCatalog}
 				error={null}
+				folders={[]}
 				isLoading={false}
 				isOffline={true}
 				offlinePack={{
@@ -252,6 +319,8 @@ describe("SoundEffectsLabPanel", () => {
 				}}
 				onPlay={vi.fn()}
 				onStop={vi.fn()}
+				onToggleFolder={vi.fn()}
+				onToggleSaved={vi.fn()}
 				playingId={null}
 			/>
 		);
@@ -259,5 +328,64 @@ describe("SoundEffectsLabPanel", () => {
 		expect(screen.getByText(/已离线/)).toBeVisible();
 		fireEvent.click(screen.getByRole("button", { name: "删除离线包" }));
 		await waitFor(() => expect(remove).toHaveBeenCalledTimes(1));
+	});
+
+	it("keeps Jianying references locked while enabling CC0 personal actions", async () => {
+		const onToggleFolder = vi.fn();
+		useSoundsStore.setState({ savedSounds: [] });
+		useAssetLibraryStore.setState({ favorites: {} });
+		const onToggleSaved = vi.fn(({ sound }: { sound: SoundEffect }) => {
+			void useSoundsStore.getState().toggleSavedSound(sound, "sound-effect");
+		});
+		render(
+			<SoundEffectsLabPanel
+				catalog={mixedPrivateCatalog}
+				error={null}
+				folders={[
+					{
+						id: "folder-1",
+						name: "常用音效",
+						assetKeys: [],
+						createdAt: 1,
+						updatedAt: 1,
+					},
+				]}
+				isLoading={false}
+				isOffline={false}
+				offlinePack={offlinePack}
+				onPlay={vi.fn()}
+				onStop={vi.fn()}
+				onToggleFolder={onToggleFolder}
+				onToggleSaved={onToggleSaved}
+				playingId={null}
+			/>
+		);
+
+		const restrictedCard = await screen.findByTestId(
+			"audio-library-item-sound-effect--900000000"
+		);
+		const cc0Card = await screen.findByTestId(
+			"audio-library-item-sound-effect--900000001"
+		);
+		expect(restrictedCard).toHaveAttribute("draggable", "false");
+		expect(within(restrictedCard).queryByLabelText("收藏测试音效")).toBeNull();
+		expect(within(restrictedCard).getByLabelText("VIP 参照")).toBeVisible();
+		expect(cc0Card).toHaveAttribute("draggable", "true");
+
+		fireEvent.click(within(cc0Card).getByLabelText("收藏CC0 提示音"));
+		expect(onToggleSaved).toHaveBeenCalledWith({
+			sound: expect.objectContaining({
+				name: "CC0 提示音",
+				soundEffectsLab: expect.objectContaining({
+					redistribution: "allowed",
+				}),
+			}),
+		});
+		expect(
+			await within(cc0Card).findByLabelText("取消收藏CC0 提示音")
+		).toBeVisible();
+		expect(screen.getByText("1 个可复用")).toBeVisible();
+		expect(screen.getByText("1 个受限")).toBeVisible();
+		expect(screen.getByText("1 个 VIP")).toBeVisible();
 	});
 });

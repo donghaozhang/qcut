@@ -60,11 +60,38 @@ const localSoundEffectsCategorySchema = z
 	})
 	.strict();
 
+const jianyingAuthorSchema = z
+	.object({
+		name: z.string().trim().min(1).max(160),
+		source: z.string().trim().min(1).max(160).optional(),
+	})
+	.strict();
+
+const jianyingAccessSchema = z
+	.object({
+		isVip: z.boolean().nullable(),
+		paidType: z.string().trim().min(1).max(80).optional(),
+		businessScope: z.array(z.string().trim().min(1).max(80)).max(20).optional(),
+	})
+	.strict();
+
+const jianyingCopyrightSchema = z
+	.object({
+		text: z.string().trim().min(1).max(320).optional(),
+		artist: z.string().trim().min(1).max(160).optional(),
+	})
+	.strict();
+
 const soundEffectSourceSchema = z.discriminatedUnion("provider", [
 	z
 		.object({
 			provider: z.literal("jianying-reference"),
 			redistribution: z.literal("prohibited"),
+			publishSource: z.string().trim().min(1).max(160).optional(),
+			author: jianyingAuthorSchema.optional(),
+			access: jianyingAccessSchema.optional(),
+			copyright: jianyingCopyrightSchema.optional(),
+			status: z.number().int().nullable().optional(),
 		})
 		.strict(),
 	z
@@ -275,10 +302,18 @@ function validateManifestEntries({
 
 	const itemIds = new Set<string>();
 	const numericIds = new Set<number>();
-	const storageLocations = new Set<string>();
-	const contentMd5s = new Set<string>();
-	const contentSha256s = new Set<string>();
+	const storageLocations = new Map<string, string>();
+	const contentMd5s = new Map<string, string>();
+	const contentSha256s = new Map<string, string>();
 	for (const [index, item] of items.entries()) {
+		if (itemIds.has(item.id)) {
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["items", index, "id"],
+				message: `Duplicate resource id: ${item.id}`,
+			});
+		}
+		itemIds.add(item.id);
 		if (numericIds.has(item.numericId)) {
 			context.addIssue({
 				code: z.ZodIssueCode.custom,
@@ -289,8 +324,16 @@ function validateManifestEntries({
 		numericIds.add(item.numericId);
 		const storageLocation =
 			"filePath" in item ? item.filePath : item.asset.objectKey;
-		const duplicateChecks = [
-			{ seen: itemIds, value: item.id, field: "id", label: "resource id" },
+		// Distinct catalog cards may share bytes, but not conflicting integrity or rights.
+		const contentSignature = JSON.stringify([
+			item.contentMd5,
+			item.contentSha256,
+			item.byteSize,
+			item.mimeType,
+			item.source?.provider ?? "jianying-reference",
+			item.source?.redistribution ?? "prohibited",
+		]);
+		const sharedContentChecks = [
 			{
 				seen: storageLocations,
 				value: storageLocation,
@@ -310,15 +353,16 @@ function validateManifestEntries({
 				label: "SHA-256",
 			},
 		];
-		for (const { seen, value, field, label } of duplicateChecks) {
-			if (seen.has(value)) {
+		for (const { seen, value, field, label } of sharedContentChecks) {
+			const previousSignature = seen.get(value);
+			if (previousSignature && previousSignature !== contentSignature) {
 				context.addIssue({
 					code: z.ZodIssueCode.custom,
 					path: ["items", index, field],
-					message: `Duplicate ${label}: ${value}`,
+					message: `Conflicting shared ${label}: ${value}`,
 				});
 			}
-			seen.add(value);
+			seen.set(value, contentSignature);
 		}
 		for (const categoryId of item.categoryIds) {
 			if (categoryIds.has(categoryId)) continue;

@@ -169,7 +169,7 @@ describe("local Sound Effects Lab manifest", () => {
 		).toThrow(message);
 	});
 
-	it("rejects duplicate resource and content identities", () => {
+	it("rejects duplicate resource and numeric identities", () => {
 		const candidate = structuredClone(manifestFixture());
 		candidate.items.push(structuredClone(candidate.items[0]));
 		expect(() =>
@@ -181,7 +181,22 @@ describe("local Sound Effects Lab manifest", () => {
 			parseLocalSoundEffectsLabManifest({
 				jsonText: JSON.stringify(candidate),
 			})
-		).toThrow("Duplicate SHA-256");
+		).toThrow("Duplicate numeric id");
+	});
+
+	it("keeps distinct local resource IDs that share the same audio", () => {
+		const candidate = manifestFixture();
+		candidate.items.push({
+			...candidate.items[0],
+			id: "6896679799100689673",
+			resourceId: "6896679799100689673",
+			numericId: -900_000_001,
+			title: "Another card for the same audio",
+		});
+
+		expect(
+			parseLocalSoundEffectsLabManifest({ jsonText: JSON.stringify(candidate) })
+		).toEqual(candidate);
 	});
 
 	it("loads UTF-8 JSON through the desktop file reader", async () => {
@@ -213,6 +228,65 @@ describe("local Sound Effects Lab manifest", () => {
 });
 
 describe("private Sound Effects Lab manifest", () => {
+	it("accepts resource aliases with one immutable storage object", () => {
+		const candidate = privateManifestFixture();
+		candidate.items.push({
+			...candidate.items[0],
+			id: "6896679799100689673",
+			resourceId: "6896679799100689673",
+			numericId: -900_000_001,
+			title: "Another card for the same audio",
+		});
+
+		expect(
+			parsePrivateSoundEffectsLabManifest({
+				jsonText: JSON.stringify(candidate),
+			})
+		).toEqual(candidate);
+	});
+
+	it("rejects conflicting integrity for shared content", () => {
+		const candidate = privateManifestFixture();
+		const original = candidate.items[0];
+		candidate.items.push({
+			...original,
+			id: "6896679799100689673",
+			resourceId: "6896679799100689673",
+			numericId: -900_000_001,
+			byteSize: original.byteSize + 1,
+			asset: { ...original.asset, byteSize: original.byteSize + 1 },
+		});
+
+		expect(() =>
+			parsePrivateSoundEffectsLabManifest({
+				jsonText: JSON.stringify(candidate),
+			})
+		).toThrow("Conflicting shared SHA-256");
+	});
+
+	it("does not share a restricted payload with a CC0 declaration", () => {
+		const restricted = privateManifestFixture().items[0];
+		const cc0Manifest = qcutPrivateManifestFixture();
+		const candidate = {
+			...cc0Manifest,
+			items: [
+				restricted,
+				{
+					...cc0Manifest.items[0],
+					id: "6896679799100689673",
+					resourceId: "6896679799100689673",
+					numericId: -900_000_001,
+				},
+			],
+		};
+
+		expect(() =>
+			parsePrivateSoundEffectsLabManifest({
+				jsonText: JSON.stringify(candidate),
+			})
+		).toThrow("Conflicting shared SHA-256");
+	});
+
 	it("parses a strict Supabase catalog without local paths", () => {
 		const manifest = privateManifestFixture();
 		const jsonText = JSON.stringify(manifest);

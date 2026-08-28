@@ -72,6 +72,19 @@ describe("local reference audio asset", () => {
 			kind: "sound-effect",
 			checksumSha256:
 				"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+			soundEffectsLab: {
+				provider: "freesound",
+				redistribution: "allowed",
+				resourceId: "8800000000000324894",
+				asset: {
+					objectKey:
+						"qcut/2026-08-22/assets/a3bb18a41c76abd0d1af22b05072655e.mp3",
+					byteSize: 4,
+					checksumSha256:
+						"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+					mimeType: "audio/mpeg",
+				},
+			},
 		};
 
 		const asset = createAudioLibraryAssetEntry({
@@ -87,8 +100,13 @@ describe("local reference audio asset", () => {
 			sourceUrl: "https://creativecommons.org/publicdomain/zero/1.0/",
 		});
 		expect(asset.files[0]).toMatchObject({
+			role: "source",
+			url: expect.stringContaining(
+				"/api/sound-effects-lab/assets?objectKey=qcut%2F2026-08-22%2Fassets%2F"
+			),
 			byteSize: 4,
 			checksumSha256: sound.checksumSha256,
 		});
+		expect(asset.id).toContain("sound-effects-lab:qcut/2026-08-22/assets/");
 	});
 });

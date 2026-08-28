@@ -38,6 +38,30 @@ const folder: AudioLibraryFolder = {
 	updatedAt: 20,
 };
 
+const labFavorite: SavedSound = {
+	id: -900_001_108,
+	kind: "sound-effect",
+	name: "Crowd laugh",
+	username: "CC0 Creator",
+	duration: 3.3,
+	tags: ["sound-effects-lab", "cc0"],
+	license: "https://creativecommons.org/publicdomain/zero/1.0/",
+	savedAt: "2026-08-22T00:00:00.000Z",
+	source: "sound-effects-lab",
+	soundEffectsLab: {
+		provider: "freesound",
+		redistribution: "allowed",
+		resourceId: "8800000000000324894",
+		asset: {
+			objectKey: "qcut/2026-08-22/assets/a3bb18a41c76abd0d1af22b05072655e.mp3",
+			byteSize: 29_493,
+			checksumSha256:
+				"abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+			mimeType: "audio/mpeg",
+		},
+	},
+};
+
 describe("audio library personal data", () => {
 	const storage = new Map<string, string>();
 
@@ -102,6 +126,46 @@ describe("audio library personal data", () => {
 			}),
 			expect.objectContaining({ id: "folder:folder-1", type: "folder" }),
 		]);
+	});
+
+	it("round-trips a reusable lab favorite without persisting a blob URL", () => {
+		persistAudioLibraryFavorites({ sounds: [labFavorite] });
+
+		expect(loadAudioLibraryFavorites()[0]).toMatchObject(labFavorite);
+		expect(loadAudioLibraryFavorites()[0]?.previewUrl).toBeUndefined();
+	});
+
+	it("rejects an inconsistent Sound Effects Lab rights combination", () => {
+		const parsed = parseSavedAudio({
+			value: {
+				...labFavorite,
+				soundEffectsLab: {
+					...labFavorite.soundEffectsLab,
+					provider: "jianying-reference",
+					redistribution: "allowed",
+				},
+			},
+		});
+
+		expect(parsed?.soundEffectsLab).toBeUndefined();
+	});
+
+	it("rejects a lab asset whose namespace contradicts its provider", () => {
+		const parsed = parseSavedAudio({
+			value: {
+				...labFavorite,
+				soundEffectsLab: {
+					...labFavorite.soundEffectsLab,
+					asset: {
+						...labFavorite.soundEffectsLab?.asset,
+						objectKey:
+							"jianying/2026-08-22/assets/a3bb18a41c76abd0d1af22b05072655e.mp3",
+					},
+				},
+			},
+		});
+
+		expect(parsed?.soundEffectsLab).toBeUndefined();
 	});
 
 	it("applies merged cloud items and announces an immediate refresh", () => {

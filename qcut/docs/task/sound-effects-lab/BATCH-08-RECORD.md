@@ -175,9 +175,27 @@ Freesound CC0，不是复制剪映受限音频。生产私有 manifest 当前包
 - license-server `tsc --noEmit` 通过;
 - 生产 API、Supabase 回读和 Electron 离线播放均为真实环境验证。
 
-### 未完成事项
+### 2026-08-26 收尾更新
 
-以下项目没有隐藏在“已完成”结论里，后续应按优先级处理。
+PR #424 已于 2026-08-22 合并。此前未完成清单中的以下项目已经完成:
+
+- 入口默认可见，并有加载、无权限、网络不可用和离线状态;
+- 顶部改为混合许可证计数，314 个 CC0 条目开放收藏、收藏夹和拖拽，1108 个
+  剪映参照继续限制这些个人复用动作;
+- 真实生产 smoke test 已提交为显式 opt-in Electron E2E;
+- 1422 个音频已完成自动化全库 QA，1422 通过、0 失败、0 内容哈希重复;
+- CC0 加入时间线、保存、退出重启恢复和带声音 MP4 导出已完成;
+- 新版 manifest 保留作者和 554 个 VIP 标记，并通过兼容双端点上线。
+
+当前未完成项只剩公开发行替换、199 个 QA 警告的人工抽听、11 个历史 ID 的
+元数据恢复、正式签名 `app://.` 冷安装验证，以及离线包异常恢复 UX。完整证据见
+[2026-08-26 收尾报告](./FINALIZATION-2026-08-26.md)。Batch-09 之后新增 314 个
+剪映受限原始参照，公开发行前的替换范围扩大为 1422 项，最新清单见
+[Batch-09 记录](./BATCH-09-RECORD.md)。
+
+### 2026-08-22 历史未完成事项
+
+以下内容保留为 Batch-08 当日快照，已被上面的 2026-08-26 更新取代。
 
 #### P0:公开发行边界
 
@@ -274,16 +292,18 @@ production build.
 
 ### Remaining work
 
-P0 remains replacing all 1,108 restricted references before any public release,
-keeping the distinction between 314 category substitutes and 314 exact missing
-Jianying payloads, changing the global restricted banner to mixed-license copy,
-and merging/releasing PR #424. P1 is a packaged `app://.` cold-install/restart/
-offline/delete test, a committed opt-in production E2E, manual semantic and
-audio-quality QA, and a full CC0 timeline/save/restart/export flow. P2 is richer
-delta UX, recovery tests for cancellation/quota/corruption, title localization,
-periodic provenance checks, and a real two-account cache-sharing smoke test.
-Non-blocking observations left for separate work are one corrupt old-project
-JSON fixture, a missing legacy sound-search default-key module in source-tree
-production runs, and the repository's existing Vite route/chunk warnings.
+The 2026-08-26 follow-up completed the mixed-license UI, per-item reuse actions,
+committed opt-in production E2E, automated full-catalog audio QA, CC0 timeline/
+restart/export flow, and enriched VIP/author manifest rollout. PR #424 is merged.
+P0 then remained replacing all 1,108 restricted references before public release.
+P1 is manual review of 199 QA-warning items, metadata recovery for 11 historical
+IDs, and a signed packaged `app://.` cold-install/offline/delete test. P2 remains
+delta and recovery UX, title localization, provenance rechecks, and a real
+two-account cache-sharing smoke test. See
+[`FINALIZATION-2026-08-26.md`](./FINALIZATION-2026-08-26.md) for that evidence.
 
-The Chinese section above is the authoritative detailed checklist.
+Batch-09 (2026-08-27) then added 314 restricted Jianying originals, so the
+current replacement scope is 1,422 restricted references. The
+[`BATCH-09-RECORD.md`](./BATCH-09-RECORD.md) record is the authoritative
+current checklist; the 2026-08-26 finalization report and the older Batch-08
+list above remain as historical context.

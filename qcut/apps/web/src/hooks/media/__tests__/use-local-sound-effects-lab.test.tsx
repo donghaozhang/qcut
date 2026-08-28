@@ -6,6 +6,7 @@ import {
 	type PrivateSoundEffectsLabManifest,
 } from "@/lib/audio/local-sound-effects-manifest";
 import { useLicenseStore } from "@/stores/license-store";
+import { useLocaleStore } from "@/stores/locale-store";
 import { useLocalSoundEffectsLab } from "../use-local-sound-effects-lab";
 
 const labMocks = vi.hoisted(() => ({
@@ -123,6 +124,7 @@ describe("useLocalSoundEffectsLab", () => {
 		labMocks.removeOfflinePack.mockReset();
 		labMocks.removeOfflinePack.mockResolvedValue({ removedResourceCount: 0 });
 		useLicenseStore.setState({ license: null });
+		useLocaleStore.getState().setLocale({ locale: "en" });
 	});
 
 	it("stays unavailable when the lab is disabled", () => {
@@ -147,23 +149,46 @@ describe("useLocalSoundEffectsLab", () => {
 
 		expect(result.current).toMatchObject({
 			catalog: null,
-			isAvailable: false,
+			isAvailable: true,
 			isLoading: true,
 		});
-		await waitFor(() => expect(result.current.isAvailable).toBe(true));
+		await waitFor(() => expect(result.current.catalog).toEqual(privateCatalog));
 		expect(result.current.catalog).toEqual(privateCatalog);
 		expect(result.current.isOffline).toBe(false);
 		expect(labMocks.loadPrivateManifest).toHaveBeenCalledWith(
 			expect.objectContaining({
 				manifestUrl: expect.stringContaining(
-					"/api/sound-effects-lab/private-manifest"
+					"/api/sound-effects-lab/private-manifest/enriched?includeAliases=1"
 				),
 				signal: expect.any(AbortSignal),
 			})
 		);
 	});
 
-	it("keeps the private lab hidden when the server denies access", async () => {
+	it("falls back to the legacy manifest only when the enriched route is absent", async () => {
+		labMocks.getSource.mockReturnValue({ kind: "private-manifest" });
+		labMocks.loadPrivateManifest
+			.mockRejectedValueOnce(
+				new SoundEffectsLabManifestHttpError({
+					manifestUrl: "https://license.example/private-manifest/enriched",
+					status: 404,
+				})
+			)
+			.mockResolvedValueOnce(privateCatalog);
+
+		const { result } = renderHook(() => useLocalSoundEffectsLab());
+
+		await waitFor(() => expect(result.current.catalog).toEqual(privateCatalog));
+		expect(labMocks.loadPrivateManifest).toHaveBeenCalledTimes(2);
+		expect(labMocks.loadPrivateManifest.mock.calls[0]?.[0].manifestUrl).toMatch(
+			/\/api\/sound-effects-lab\/private-manifest\/enriched\?includeAliases=1$/
+		);
+		expect(labMocks.loadPrivateManifest.mock.calls[1]?.[0].manifestUrl).toMatch(
+			/\/api\/sound-effects-lab\/private-manifest$/
+		);
+	});
+
+	it("keeps the private lab visible when loading fails", async () => {
 		labMocks.getSource.mockReturnValue({ kind: "private-manifest" });
 		labMocks.loadPrivateManifest.mockRejectedValue(
 			new Error("Unable to fetch Sound Effects Lab manifest (403)")
@@ -174,8 +199,9 @@ describe("useLocalSoundEffectsLab", () => {
 		await waitFor(() => expect(result.current.isLoading).toBe(false));
 		expect(result.current).toEqual({
 			catalog: null,
-			error: null,
-			isAvailable: false,
+			error:
+				"Sound Effects Lab is unavailable. Check the network and try again.",
+			isAvailable: true,
 			isLoading: false,
 			isOffline: false,
 		});
@@ -216,7 +242,10 @@ describe("useLocalSoundEffectsLab", () => {
 		const { result } = renderHook(() => useLocalSoundEffectsLab());
 
 		await waitFor(() => expect(result.current.isLoading).toBe(false));
-		expect(result.current.isAvailable).toBe(false);
+		expect(result.current.isAvailable).toBe(true);
+		expect(result.current.error).toBe(
+			"Sign in with an authorized QCut account to open this catalog."
+		);
 		expect(labMocks.removeOfflinePack).toHaveBeenCalledWith({
 			ownerEmail: "qcutlove@qcut.app",
 		});
@@ -239,7 +268,10 @@ describe("useLocalSoundEffectsLab", () => {
 		const { result } = renderHook(() => useLocalSoundEffectsLab());
 
 		await waitFor(() => expect(result.current.isLoading).toBe(false));
-		expect(result.current.isAvailable).toBe(false);
+		expect(result.current.isAvailable).toBe(true);
+		expect(result.current.error).toBe(
+			"Sound Effects Lab is unavailable. Check the network and try again."
+		);
 		expect(labMocks.loadOfflinePack).not.toHaveBeenCalled();
 	});
 

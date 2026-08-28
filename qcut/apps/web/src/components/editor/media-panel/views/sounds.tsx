@@ -708,11 +708,22 @@ export function SoundsView() {
 				<SoundEffectsLabPanel
 					catalog={soundEffectsLab.catalog}
 					error={soundEffectsLab.error}
+					folders={audioFolders}
 					isLoading={soundEffectsLab.isLoading}
 					isOffline={soundEffectsLab.isOffline}
 					offlinePack={soundEffectsLabOfflinePack}
-					onPlay={({ sound }) => void preview.togglePreview({ sound })}
+					onPlay={({ sound }) => playSound({ sound, kind: "sound-effect" })}
 					onStop={preview.stop}
+					onToggleSaved={({ sound }) =>
+						void toggleSavedSound(sound, "sound-effect")
+					}
+					onToggleFolder={({ folderId, sound }) =>
+						void toggleSoundInFolder({
+							folderId,
+							sound,
+							kind: "sound-effect",
+						})
+					}
 					playingId={preview.playingId}
 				/>
 			) : activeSection === "ai-music" ? (

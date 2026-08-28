@@ -69,17 +69,33 @@ function catalogAssets({
 }: {
 	catalog: PrivateSoundEffectsLabManifest;
 }): AssetManifestEntry[] {
-	return catalog.items.map((reference) =>
+	return uniqueCatalogReferences({ catalog }).map((reference) =>
 		buildSoundEffectsLabAssetEntry({ reference })
 	);
 }
 
-function catalogTotalBytes({
+function uniqueCatalogReferences({
 	catalog,
 }: {
 	catalog: PrivateSoundEffectsLabManifest;
-}): number {
-	return catalog.items.reduce((total, item) => total + item.byteSize, 0);
+}) {
+	return [
+		...new Map(
+			catalog.items.map((reference) => [reference.asset.objectKey, reference])
+		).values(),
+	];
+}
+
+export function getSoundEffectsLabOfflinePackMetrics({
+	catalog,
+}: {
+	catalog: PrivateSoundEffectsLabManifest;
+}): { resourceCount: number; totalBytes: number } {
+	const resources = uniqueCatalogReferences({ catalog });
+	return {
+		resourceCount: resources.length,
+		totalBytes: resources.reduce((total, item) => total + item.byteSize, 0),
+	};
 }
 
 function serializeCatalog({
@@ -106,7 +122,8 @@ function parseOfflineRecord({
 			record.catalogId === catalog.catalogId &&
 			record.generatedAt === catalog.generatedAt &&
 			record.itemCount === catalog.items.length &&
-			record.totalBytes === catalogTotalBytes({ catalog });
+			record.totalBytes ===
+				getSoundEffectsLabOfflinePackMetrics({ catalog }).totalBytes;
 		return validMetadata ? catalog : null;
 	} catch {
 		return null;
@@ -251,7 +268,7 @@ export async function getSoundEffectsLabOfflinePackStatus({
 	offlineStorage?: SoundEffectsLabOfflinePackStorage;
 	ownerEmail: string;
 }): Promise<SoundEffectsLabOfflinePackStatus> {
-	const totalBytes = catalogTotalBytes({ catalog });
+	const { totalBytes } = getSoundEffectsLabOfflinePackMetrics({ catalog });
 	const offline = await readOfflineRecord({ offlineStorage, ownerEmail });
 	if (!offline) {
 		return {
@@ -320,7 +337,7 @@ export async function installSoundEffectsLabOfflinePack({
 		packId: PACK_ID,
 		storage: assetStorage,
 	});
-	const totalBytes = catalogTotalBytes({ catalog });
+	const { totalBytes } = getSoundEffectsLabOfflinePackMetrics({ catalog });
 	await assertStorageCapacity({
 		requiredBytes: Math.max(0, totalBytes - before.cachedBytes),
 		storageManager,
