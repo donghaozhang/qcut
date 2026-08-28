@@ -408,6 +408,7 @@ function assertRuntimeResources({
 		if (runtimeCase.resourceNames.length === 0) return;
 		throw new Error("Sticker runtime resource map is missing");
 	}
+	// asset_XXXX order is shared by descriptor normalization and persistence.
 	for (const [index, resourceName] of runtimeCase.resourceNames.entries()) {
 		const persistedName = `asset_${String(index + 1).padStart(4, "0")}`;
 		const resource = state.runtimeResources[index];
