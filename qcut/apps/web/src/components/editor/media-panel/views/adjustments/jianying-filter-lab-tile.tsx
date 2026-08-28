@@ -93,7 +93,8 @@ export function JianyingFilterLabTile({
 						<LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
 					) : filter.cacheStatus === "uncached" ? (
 						<CloudOff className="size-4" aria-hidden="true" />
-					) : filter.implementation === "dual-lut" ? (
+					) : filter.implementation === "dual-lut" ||
+						filter.implementation === "face-region-lut" ? (
 						<Layers3 className="size-4" aria-hidden="true" />
 					) : filter.verification.status === "verified" ? (
 						<ShieldCheck className="size-4" aria-hidden="true" />
