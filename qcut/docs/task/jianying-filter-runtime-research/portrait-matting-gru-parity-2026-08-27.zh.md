@@ -518,8 +518,10 @@ Effect C handle 的 render-api setter 注入，而是由宿主私有对象图创
 CGL、EGL/GLES、Metal DeviceTexture 和相关 Effect AB 开关，输入仍呈现零纹理特征，输出只包含
 `0/1/2`。因此不能把“函数返回成功”当成 object provider 成功。
 
-QCut 现在对 `video-object` Alpha 做写缓存前质量门禁：最大值不超过 2 时立即拒绝，并自动回退
-`portrait-gru`；AbortError 和 GRU 自身失败不会被错误吞掉。生成图的 texture-blit 尺寸按源画幅动态
+QCut 现在对 `video-object` Alpha 做写缓存前质量门禁：完整视频流中任意长度的全零片头都允许，
+整段全零也视为合法空蒙版；仅当整段从未观察到大于 `2` 的有效 Alpha、同时确实出现 `1/2`
+量化噪声时，才确认 `0/1/2` hostless 特征并自动回退 `portrait-gru`。一旦观察到有效 Alpha，
+前后合法空背景帧都不会触发误回退；AbortError 和 GRU 自身失败不会被错误吞掉。生成图的 texture-blit 尺寸按源画幅动态
 计算，最长边为 512，360×640 对应 288×512。该路由仍是高级实验能力，不再冒充已复刻的剪映宿主。
 
 ### 精细模式采用 GRU + 系统人物蒙版融合
@@ -578,3 +580,10 @@ source RGBA
 4. QCut 仍把 Alpha 回读 CPU 后写缓存和编码，不是端到端 GPU 零拷贝。
 5. 变速曲线、倒放和源范围变化的剪映缓存失效协议仍没有全部动态覆盖；QCut 自有缓存已把内容、
    路由、模型、处理器、系统版本、画幅、帧率、Blend 和参数纳入身份。
+
+## 2026-08-28：自动路由、缓存身份与 GPU 往返收敛
+
+本节之后的最新产品状态单独记录在
+[QCut 人物抠像差距收敛记录](person-cutout-gap-reduction-2026-08-28.zh.md)。它取代本文较早章节中“自动路由仍直接保留 GRU”“Blend 实现参与 Alpha 缓存键”以及“native 每帧回读完整 RGBA”的当前状态描述；早期数字保留为历史证据。
+
+最新真人桌面 E2E 已实际走通 `auto -> video-object -> Alpha 质量门禁 -> portrait-gru + Vision`，并明确返回请求路线、实际路线和回退状态。native Metal 现在只做单帧 ABI/公式校验，生产缓存默认不再为相同语义 Alpha 执行逐帧 GPU 往返。
