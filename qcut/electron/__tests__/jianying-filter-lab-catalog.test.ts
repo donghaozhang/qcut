@@ -429,6 +429,299 @@ describe("Jianying filter lab catalog", () => {
 		expect(JSON.stringify(result)).not.toContain("/cache");
 	});
 
+	it("exposes only exact native face-region packages", () => {
+		const resourceId = "face-region";
+		const version = "v1";
+		const nativeFaceRegionRenderer = {
+			kind: "native-face-region-effect" as const,
+			container: "artistEffect" as const,
+			packageIdentifier: resourceId,
+			version,
+			region: "lips" as const,
+			backgroundLutRelativePath: "FaceMakeup/texture/filter_bg.3dl.vf",
+			regionLutRelativePath: "FaceMakeup/texture/filter_lips.3dl.vf",
+			maskRelativePath: "FaceMakeup/texture/lipsMask.png",
+			requiresFlippedInputRoundTrip: true as const,
+		};
+		const catalog = {
+			order: ["人像"],
+			filters: [
+				{
+					resourceId,
+					title: "焕肤",
+					categories: ["人像"],
+					version,
+				},
+			],
+		};
+		const exact = buildJianyingFilterLabCatalog({
+			catalog,
+			references: [],
+			packages: new Map([
+				[
+					resourceId,
+					{
+						...packageSummary({ implementation: "face-region-lut" }),
+						nativeFaceRegionRenderer,
+					},
+				],
+			]),
+		});
+		expect(exact).toMatchObject({
+			availableCount: 1,
+			filters: [
+				{
+					implementation: "face-region-lut",
+					available: true,
+					version,
+				},
+			],
+		});
+
+		const stale = buildJianyingFilterLabCatalog({
+			catalog,
+			references: [],
+			packages: new Map([
+				[
+					resourceId,
+					{
+						...packageSummary({ implementation: "face-region-lut" }),
+						nativeFaceRegionRenderer: {
+							...nativeFaceRegionRenderer,
+							version: "old",
+						},
+					},
+				],
+			]),
+		});
+		expect(stale.filters[0]).toMatchObject({
+			implementation: "face-region-lut",
+			available: false,
+			version,
+		});
+	});
+
+	it("exposes an exact complex dual LUT through the native Swing renderer", () => {
+		const resourceId = "complex-dual";
+		const version = "v1";
+		const nativeSwingRenderer = {
+			kind: "native-swing-dual-lut" as const,
+			container: "artistEffect" as const,
+			packageIdentifier: resourceId,
+			version,
+			passCount: 38,
+			algorithmTypes: ["blit", "skin_seg"],
+		};
+		const catalog = {
+			order: ["人像"],
+			filters: [
+				{
+					resourceId,
+					title: "智能光线",
+					categories: ["人像"],
+					version,
+				},
+			],
+		};
+		const exact = buildJianyingFilterLabCatalog({
+			catalog,
+			references: [],
+			packages: new Map([
+				[
+					resourceId,
+					{
+						...packageSummary({ implementation: "dual-lut" }),
+						nativeSwingRenderer,
+					},
+				],
+			]),
+		});
+		expect(exact).toMatchObject({
+			availableCount: 1,
+			filters: [
+				{
+					implementation: "dual-lut",
+					available: true,
+					luts: [],
+					renderer: {
+						kind: "native-swing-effect",
+						passCount: 38,
+						fidelity: "native-local",
+					},
+				},
+			],
+		});
+
+		const stale = buildJianyingFilterLabCatalog({
+			catalog,
+			references: [],
+			packages: new Map([
+				[
+					resourceId,
+					{
+						...packageSummary({ implementation: "dual-lut" }),
+						nativeSwingRenderer: {
+							...nativeSwingRenderer,
+							version: "old",
+						},
+					},
+				],
+			]),
+		});
+		expect(stale.filters[0]).toMatchObject({
+			implementation: "dual-lut",
+			available: false,
+			version,
+		});
+	});
+
+	it("exposes a complete Shader graph only as a native Swing fallback", () => {
+		const nativeSwingRenderer = {
+			kind: "native-swing-shader" as const,
+			container: "artistEffect" as const,
+			packageIdentifier: "shader-swing",
+			version: "v1",
+			passCount: 30,
+			algorithmTypes: ["blit", "face", "kira"],
+		};
+		const result = buildJianyingFilterLabCatalog({
+			catalog: {
+				order: ["夜景"],
+				filters: [
+					{
+						resourceId: "shader-swing",
+						title: "璀璨",
+						categories: ["夜景"],
+						version: "v1",
+					},
+				],
+			},
+			references: [],
+			packages: new Map([
+				[
+					"shader-swing",
+					{
+						...packageSummary({ implementation: "shader" }),
+						nativeSwingRenderer,
+					},
+				],
+			]),
+		});
+		expect(result).toMatchObject({
+			availableCount: 1,
+			filters: [
+				{
+					implementation: "shader",
+					available: true,
+					luts: [],
+					renderer: {
+						kind: "native-swing-effect",
+						passCount: 30,
+						fidelity: "native-local",
+					},
+				},
+			],
+		});
+
+		const existingRecipe = buildJianyingFilterLabCatalog({
+			catalog: {
+				order: ["美食"],
+				filters: [
+					{
+						resourceId: "shader-swing",
+						title: "清透美食",
+						categories: ["美食"],
+						version: "v1",
+					},
+				],
+			},
+			references: [],
+			packages: new Map([
+				[
+					"shader-swing",
+					{
+						...packageSummary({ implementation: "shader" }),
+						nativeSwingRenderer,
+						multiPassRenderer: {
+							kind: "sharpen-lut" as const,
+							container: "artistEffect" as const,
+							packageIdentifier: "shader-swing",
+							version: "v1",
+							lutRelativePath: "image/filter.png",
+							passCount: 2,
+							fidelity: "structural" as const,
+						},
+					},
+				],
+			]),
+		});
+		expect(existingRecipe.filters[0]?.renderer?.kind).toBe("sharpen-lut");
+	});
+
+	it("exposes an exercised Face AI graph and selects its sole cached package version", () => {
+		const nativeSwingRenderer = {
+			kind: "native-swing-shader" as const,
+			container: "artistEffect" as const,
+			packageIdentifier: "face-ai-swing",
+			version: "package-v1",
+			passCount: 7,
+			algorithmTypes: ["blit", "face", "skin_seg", "structxt"],
+		};
+		const catalog: JianyingFilterKnownCatalog = {
+			order: ["人像"],
+			filters: [
+				{
+					resourceId: "face-ai-swing",
+					title: "丝滑皮肤",
+					categories: ["人像"],
+					version: "metadata-v2",
+				},
+			],
+		};
+		const facePackage = {
+			...packageSummary({ implementation: "face-ai" }),
+			versions: ["package-v1"],
+			nativeSwingRenderer,
+		};
+
+		const result = buildJianyingFilterLabCatalog({
+			catalog,
+			references: [],
+			packages: new Map([["face-ai-swing", facePackage]]),
+		});
+		expect(result).toMatchObject({
+			availableCount: 1,
+			filters: [
+				{
+					implementation: "face-ai",
+					available: true,
+					version: "package-v1",
+					renderer: {
+						kind: "native-swing-effect",
+						passCount: 7,
+						fidelity: "native-local",
+					},
+				},
+			],
+		});
+
+		const ambiguous = buildJianyingFilterLabCatalog({
+			catalog,
+			references: [],
+			packages: new Map([
+				[
+					"face-ai-swing",
+					{ ...facePackage, versions: ["package-v1", "package-v0"] },
+				],
+			]),
+		});
+		expect(ambiguous.filters[0]).toMatchObject({
+			implementation: "face-ai",
+			available: false,
+			version: "metadata-v2",
+		});
+	});
+
 	it("exposes a recognized multi-pass shader without pretending it is a LUT", () => {
 		const result = buildJianyingFilterLabCatalog({
 			catalog: {
