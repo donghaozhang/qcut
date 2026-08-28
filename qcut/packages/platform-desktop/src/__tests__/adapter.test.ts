@@ -53,4 +53,42 @@ describe("desktop Sticker Lab adapter", () => {
 		expect(discoverLocalReferences).toHaveBeenCalledOnce();
 		expect(readLocalReference).toHaveBeenCalledOnce();
 	});
+
+	it("forwards a runtime resource name unchanged to the preload API", async () => {
+		const resourceName = "runtime/atlas-sheet";
+		const readResult = {
+			bytes: new Uint8Array([137, 80, 78, 71]),
+			fileName: "atlas-sheet.png",
+			mimeType: "image/png" as const,
+			batchId: "jianying-2026-08-26-batch-99",
+			stickerId: "990002",
+			resourceName,
+			checksumSha256: "b".repeat(64),
+		};
+		const readLocalReference = vi.fn().mockResolvedValue(readResult);
+		Object.defineProperty(window, "electronAPI", {
+			configurable: true,
+			value: {
+				stickerLab: {
+					discoverLocalReferences: vi.fn(),
+					readLocalReference,
+				},
+			},
+		});
+
+		await expect(
+			createDesktopAdapter().stickerLab.readLocalReference({
+				rootPath: "/private/stickers",
+				batchId: readResult.batchId,
+				stickerId: readResult.stickerId,
+				resourceName,
+			})
+		).resolves.toBe(readResult);
+		expect(readLocalReference).toHaveBeenCalledWith({
+			rootPath: "/private/stickers",
+			batchId: readResult.batchId,
+			stickerId: readResult.stickerId,
+			resourceName,
+		});
+	});
 });
