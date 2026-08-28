@@ -19,6 +19,7 @@ import { resolveMediaMasks } from "@/lib/video/video-properties";
 import { getMediaTimelineDuration } from "@/lib/video/video-timing";
 
 type TrackingRequest = SegmentationState["trackingRequest"];
+export type GeneratedMaskSource = "mediapipe" | "jianying-gru" | "sam3";
 
 interface TimelineMediaTarget {
 	trackId: string;
@@ -30,7 +31,7 @@ interface BuildGeneratedMaskStackOptions {
 	existingMasks: MediaMask[];
 	sourceMediaId: string;
 	type: "person" | "object";
-	source: "mediapipe" | "sam3";
+	source: GeneratedMaskSource;
 	name: string;
 	trackingSamples?: MediaMaskTrackingSample[];
 	trackingRequest?: TrackingRequest;
@@ -66,8 +67,11 @@ export function buildGeneratedMaskStack({
 		trackingRequest?.anchorFrame ??
 		Math.max(0, Math.round((currentTime - element.startTime) * fps));
 	let mask: MediaMask = {
-		...(existingMask ??
-			createMediaMask({ id: selectedMaskId, type, index: 0, name })),
+		...(existingMask ?? {
+			...createMediaMask({ id: selectedMaskId, type, index: 0, name }),
+			width: 1,
+			height: 1,
+		}),
 		sourceMediaId,
 		tracking: {
 			direction,
@@ -142,7 +146,7 @@ export function attachGeneratedMask({
 }: {
 	sourceMediaId: string;
 	type: "person" | "object";
-	source: "mediapipe" | "sam3";
+	source: GeneratedMaskSource;
 	name: string;
 	trackingSamples?: MediaMaskTrackingSample[];
 	targetElementId?: string;
@@ -190,7 +194,7 @@ export function attachGeneratedMask({
 	useMaskEditorStore
 		.getState()
 		.selectMask(target.element.id, result.selectedMaskId);
-	useMaskEditorStore.getState().setEditing(true);
+	useMaskEditorStore.getState().setEditing(source !== "jianying-gru");
 	if (matchingRequest) segmentationState.clearTrackingRequest();
 	return true;
 }
@@ -304,7 +308,7 @@ export function updateGeneratedMaskTrackingProgress({
 	source,
 }: {
 	progress: number;
-	source?: "mediapipe" | "sam3";
+	source?: GeneratedMaskSource;
 }) {
 	const segmentationState = useSegmentationStore.getState();
 	const request = segmentationState.trackingRequest;
