@@ -274,6 +274,38 @@ function summarizeMultiPassRenderer({
 	} as const;
 }
 
+function summarizeNativeSwingRenderer({
+	filter,
+	packageSummary,
+}: {
+	filter: JianyingKnownFilter;
+	packageSummary: JianyingFilterPackageSummary;
+}) {
+	const renderer = packageSummary.nativeSwingRenderer;
+	if (!renderer) {
+		return;
+	}
+	const exactVersion = !filter.version || renderer.version === filter.version;
+	const onlyCachedVersion =
+		packageSummary.versions.length === 1 &&
+		packageSummary.versions[0] === renderer.version;
+	if (!exactVersion && !onlyCachedVersion) return;
+	const nativePortrait = packageSummary.nativePortraitRenderer;
+	const hasExistingRenderer = Boolean(
+		packageSummary.renderer ||
+			packageSummary.multiPassRenderer ||
+			packageSummary.dualRenderer ||
+			(nativePortrait?.backgroundLutRelativePath &&
+				nativePortrait.skinLutRelativePath)
+	);
+	if (hasExistingRenderer) return;
+	return {
+		kind: "native-swing-effect" as const,
+		passCount: renderer.passCount,
+		fidelity: "native-local" as const,
+	};
+}
+
 function verificationForFilter({
 	resourceId,
 	version,
@@ -380,9 +412,19 @@ export function buildJianyingFilterLabCatalog({
 			filter,
 			packageSummary,
 		});
+		const nativeSwingRenderer = summarizeNativeSwingRenderer({
+			filter,
+			packageSummary,
+		});
+		const nativeFaceRegionRenderer = packageSummary.nativeFaceRegionRenderer;
+		const exactFaceRegionRenderer = Boolean(
+			nativeFaceRegionRenderer &&
+				(!filter.version || nativeFaceRegionRenderer.version === filter.version)
+		);
 		const luts = [...referenceLuts, ...tiledLuts];
-		const implementation =
-			packageSummary.renderer || packageSummary.multiPassRenderer
+		const implementation = nativeFaceRegionRenderer
+			? ("face-region-lut" as const)
+			: packageSummary.renderer || packageSummary.multiPassRenderer
 				? ("shader" as const)
 				: implementationFromLuts({
 						luts,
@@ -397,14 +439,35 @@ export function buildJianyingFilterLabCatalog({
 			(implementation === "single-lut" &&
 				isSingleLutAvailable(availabilityInput)) ||
 			(implementation === "dual-lut" &&
-				isDualLutAvailable(availabilityInput)) ||
+				(isDualLutAvailable(availabilityInput) ||
+					(packageSummary.cacheStatus === "cached" &&
+						Boolean(nativeSwingRenderer)))) ||
+			(implementation === "face-region-lut" &&
+				packageSummary.cacheStatus === "cached" &&
+				exactFaceRegionRenderer) ||
+			(implementation === "face-ai" &&
+				packageSummary.cacheStatus === "cached" &&
+				Boolean(nativeSwingRenderer)) ||
 			(implementation === "shader" &&
 				packageSummary.cacheStatus === "cached" &&
-				Boolean(packageSummary.renderer || multiPassRenderer));
+				Boolean(
+					packageSummary.renderer || multiPassRenderer || nativeSwingRenderer
+				));
+		const activePackageRendererVersion =
+			(exactFaceRegionRenderer
+				? nativeFaceRegionRenderer?.version
+				: undefined) ??
+			(nativeSwingRenderer
+				? packageSummary.nativeSwingRenderer?.version
+				: undefined) ??
+			(multiPassRenderer
+				? packageSummary.multiPassRenderer?.version
+				: undefined);
 		const version =
+			activePackageRendererVersion ??
 			selected.version ??
 			tiledLuts[0]?.version ??
-			packageSummary.multiPassRenderer?.version;
+			packageSummary.nativeSwingRenderer?.version;
 		return {
 			resourceId: filter.resourceId,
 			title: filter.title,
@@ -428,7 +491,9 @@ export function buildJianyingFilterLabCatalog({
 				verifications,
 			}),
 			luts,
-			...(multiPassRenderer ? { renderer: multiPassRenderer } : {}),
+			...(multiPassRenderer || nativeSwingRenderer
+				? { renderer: multiPassRenderer ?? nativeSwingRenderer }
+				: {}),
 		} satisfies JianyingFilterLabFilterSummary;
 	});
 	return {
