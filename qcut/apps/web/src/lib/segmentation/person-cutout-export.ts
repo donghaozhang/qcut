@@ -9,8 +9,11 @@ import {
 	alphaMaskTrackingSample,
 	type MediaMaskTrackingSample,
 } from "@/lib/video/media-mask-tracking";
+import { exportJianyingPersonCutout } from "./jianying-person-cutout-client";
+import type { TemattingBlendImplementation } from "@/types/electron/api-jianying-person-cutout";
 
 export type PersonCutoutExportSettings = PersonCutoutMaskOptions;
+export type PersonCutoutQuality = "basic" | "fine";
 
 export interface PersonCutoutExportProgress {
 	progress: number;
@@ -18,6 +21,7 @@ export interface PersonCutoutExportProgress {
 }
 
 export interface PersonCutoutExportResult {
+	blendImplementation?: TemattingBlendImplementation;
 	blob: Blob;
 	duration: number;
 	width: number;
@@ -31,7 +35,9 @@ export interface PersonCutoutExportResult {
 
 interface ExportPersonCutoutVideoOptions {
 	file: File;
+	sourcePath?: string;
 	settings: PersonCutoutExportSettings;
+	quality?: PersonCutoutQuality;
 	includeAudio?: boolean;
 	absentPersonMode?: PersonCutoutAbsentMode;
 	onProgress?: (progress: PersonCutoutExportProgress) => void;
@@ -111,14 +117,25 @@ export function getPersonCutoutVideoBitrate({
 
 export async function exportPersonCutoutVideo({
 	file,
+	sourcePath,
 	settings,
+	quality = "basic",
 	includeAudio = true,
 	absentPersonMode = "transparent",
 	onProgress,
 	signal,
 }: ExportPersonCutoutVideoOptions): Promise<PersonCutoutExportResult> {
+	if (quality === "fine") {
+		return exportJianyingPersonCutout({
+			file,
+			sourcePath,
+			settings,
+			onProgress,
+			signal,
+		});
+	}
 	throwIfAborted(signal);
-	onProgress?.({ progress: 0, status: "Reading source video..." });
+	onProgress?.({ progress: 0, status: "正在读取视频..." });
 
 	const {
 		ALL_FORMATS,
@@ -141,9 +158,9 @@ export async function exportPersonCutoutVideo({
 
 	try {
 		const videoTrack = await input.getPrimaryVideoTrack();
-		if (!videoTrack) throw new Error("The selected file has no video track");
+		if (!videoTrack) throw new Error("所选文件没有视频画面");
 		if (!(await videoTrack.canDecode())) {
-			throw new Error("This video's codec cannot be decoded on this device");
+			throw new Error("这段视频暂时无法在本机解码");
 		}
 
 		const width = videoTrack.displayWidth;
@@ -179,7 +196,7 @@ export async function exportPersonCutoutVideo({
 			}
 		}
 		if (!codec) {
-			throw new Error("This device cannot encode VP9 or VP8 transparent video");
+			throw new Error("本机暂时无法生成透明视频");
 		}
 
 		const outputCanvas = document.createElement("canvas");
@@ -189,7 +206,7 @@ export async function exportPersonCutoutVideo({
 		sourceCanvas.width = width;
 		sourceCanvas.height = height;
 		const sourceContext = sourceCanvas.getContext("2d");
-		if (!sourceContext) throw new Error("Unable to create video frame canvas");
+		if (!sourceContext) throw new Error("无法准备视频画面");
 		const maskCanvas = document.createElement("canvas");
 
 		const target = new BufferTarget();
@@ -259,28 +276,28 @@ export async function exportPersonCutoutVideo({
 			);
 			throw new Error(
 				videoFailure
-					? `Transparent video setup failed: ${videoFailure.reason}`
-					: "Transparent video setup is not supported on this device"
+					? `透明视频准备失败：${videoFailure.reason}`
+					: "本机暂不支持透明视频"
 			);
 		}
 
 		conversion.onProgress = (progress) => {
 			onProgress?.({
 				progress: Math.round(Math.min(0.98, progress) * 100),
-				status: `Removing background... ${Math.round(progress * 100)}%`,
+				status: `正在抠除背景... ${Math.round(progress * 100)}%`,
 			});
 		};
 		abortHandler = () => void conversion?.cancel();
 		signal?.addEventListener("abort", abortHandler, { once: true });
 
-		onProgress?.({ progress: 1, status: "Loading local person model..." });
+		onProgress?.({ progress: 1, status: "正在加载人物抠像..." });
 		await conversion.execute();
 		throwIfAborted(signal);
 
 		if (!target.buffer) {
-			throw new Error("Transparent video encoder returned no output");
+			throw new Error("透明视频没有生成结果");
 		}
-		onProgress?.({ progress: 100, status: "Transparent video ready" });
+		onProgress?.({ progress: 100, status: "人物抠像已完成" });
 
 		return {
 			blob: new Blob([target.buffer], { type: "video/webm" }),
