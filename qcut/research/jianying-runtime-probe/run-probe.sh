@@ -47,6 +47,7 @@ xcrun clang++ \
   "$SCRIPT_DIR/probe.mm" \
   "$SCRIPT_DIR/amazer-context-scope.mm" \
   "$SCRIPT_DIR/filter-host-support.mm" \
+  "$SCRIPT_DIR/filter-face-inspect.mm" \
   "$SCRIPT_DIR/filter-sequence-io.cpp" \
   "$SCRIPT_DIR/graphics-runtime.mm" \
   "$SCRIPT_DIR/graphics-probe.mm" \

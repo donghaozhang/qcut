@@ -1,9 +1,10 @@
 import type { MediaMaskTrackingDirection } from "@/types/timeline";
+import type { GeneratedMaskSource } from "./generated-mask-attachment";
 
 export interface ActiveMaskTrackingRuntime {
 	elementId: string;
 	maskId: string;
-	source: "mediapipe" | "sam3";
+	source: GeneratedMaskSource;
 	direction: MediaMaskTrackingDirection;
 	cancel: () => void | Promise<void>;
 	resume?: () => void | Promise<void>;

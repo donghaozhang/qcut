@@ -81,6 +81,7 @@ import {
 	setupJianyingPortraitAdjustmentIPC,
 	type JianyingPortraitAdjustmentIPCController,
 } from "./jianying-portrait-adjustment-handler.js";
+import { setupJianyingPersonCutoutIPC } from "./jianying-person-cutout-handler.js";
 import { watchJianyingFilterCaches } from "./jianying-filter-cache-watcher.js";
 import {
 	setupJianyingFontLabIPC,
@@ -1090,6 +1091,7 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 						});
 				},
 			],
+			["JianyingPersonCutoutIPC", setupJianyingPersonCutoutIPC],
 			[
 				"JianyingFontLabIPC",
 				() => {

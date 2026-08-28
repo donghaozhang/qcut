@@ -195,10 +195,34 @@ test.describe("Jianying manual body product flow", () => {
 		).toContainText("离线就绪", { timeout: 30_000 });
 		await panel.getByRole("switch", { name: "启用原版美颜美体" }).click();
 		await panel.getByRole("tab", { name: "美体", exact: true }).click();
-		await panel.getByRole("tab", { name: "手动美体", exact: true }).click();
+		const smartBodyGroup = page.getByTestId("portrait-group-smart-body");
+		const manualBodyGroup = page.getByTestId("portrait-group-manual-body");
+		const smartBodyTrigger = smartBodyGroup.getByRole("button", {
+			name: "智能美体",
+			exact: true,
+		});
+		const manualBodyTrigger = manualBodyGroup.getByRole("button", {
+			name: "手动美体",
+			exact: true,
+		});
+		await expect(smartBodyTrigger).toHaveAttribute("aria-expanded", "true");
+		await smartBodyTrigger.click();
+		await expect(smartBodyTrigger).toHaveAttribute("aria-expanded", "false");
+		await page.screenshot({
+			path: path.join(outputDirectory, "00-collapsible-body-groups.png"),
+			animations: "disabled",
+		});
+		await smartBodyTrigger.click();
+		await manualBodyTrigger.click();
+		await expect(manualBodyTrigger).toHaveAttribute("aria-expanded", "true");
+		await expect(smartBodyTrigger).toHaveAttribute("aria-expanded", "true");
 		const controls = page.getByTestId("portrait-manual-body-controls");
 		await expect(controls).toBeVisible();
 		const overlay = page.getByTestId("portrait-manual-body-overlay");
+		await expect(overlay).toBeVisible();
+		await manualBodyTrigger.click();
+		await expect(overlay).toBeHidden();
+		await manualBodyTrigger.click();
 		await expect(overlay).toBeVisible();
 		await expect
 			.poll(async () => (await overlay.boundingBox())?.width ?? 0)
@@ -392,7 +416,7 @@ test.describe("Jianying manual body product flow", () => {
 			.click();
 		await page
 			.getByTestId("jianying-portrait-adjustments")
-			.getByRole("tab", { name: "手动美体", exact: true })
+			.getByRole("button", { name: "手动美体", exact: true })
 			.click();
 		await expect(
 			page.getByTestId("portrait-manual-body-overlay")

@@ -3,6 +3,7 @@
 #include <objc/message.h>
 #include <objc/runtime.h>
 #include <OpenGL/gl.h>
+#include <mach/mach.h>
 
 #include <dlfcn.h>
 
@@ -18,6 +19,7 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <numeric>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -61,6 +63,27 @@ using EffectGetBachResultByGraphAndNodeName =
     Result (*)(EffectHandle, const char*, const char*, void**);
 using EffectConfigAbValue = Result (*)(const char*, const void*, std::int32_t);
 using SkinSegTextureId = GLuint (*)(void*);
+using MattingTextureId = GLuint (*)(void*);
+
+struct Vector4f {
+    float x;
+    float y;
+    float z;
+    float w;
+};
+
+struct ReturnedPrimitiveVector {
+    void* value = nullptr;
+    ~ReturnedPrimitiveVector() {}
+};
+
+using BachObjectToVector4f = Vector4f (*)(const void*);
+using FindScriptValue = void* (*)(
+    void*,
+    const std::string*,
+    const void*,
+    const std::string**,
+    bool*);
 
 template <typename Function>
 Function loadSymbol(const struct SymbolOptions& options);
@@ -450,6 +473,401 @@ struct InspectFaceResultOptions {
     const char* coordinateSpace;
 };
 
+struct InspectMattingResultOptions {
+    EffectHandle handle;
+    void* library;
+    EffectGetBachResult getResultByType;
+    EffectGetBachResultByNodeName getResult;
+    EffectGetBachResultByGraphAndNodeName getResultByGraphAndNode;
+    MattingTextureId getTextureId;
+    BachObjectToVector4f toVector4f;
+    const char* graphName;
+    const char* nodeName;
+    const char* maskOutputPath;
+};
+
+[[maybe_unused]] void inspectTextureInfoMap(void* library, const void* map) {
+    using Constructor = void (*)(void*);
+    using Destructor = void (*)(void*);
+    using CastTo = void (*)(void*, void*);
+    using IntegerGetter = std::int32_t (*)(void*);
+    using PointerGetter = void* (*)(void*);
+    using TextureGetter = GLuint (*)(void*);
+    const auto constructor = reinterpret_cast<Constructor>(
+        dlsym(library, "_ZN4Bach15BachTextureInfoC1Ev"));
+    const auto destructor = reinterpret_cast<Destructor>(
+        dlsym(library, "_ZN4Bach15BachTextureInfoD1Ev"));
+    const auto castTo = reinterpret_cast<CastTo>(
+        dlsym(library, "_ZN4Bach15BachTextureInfo6castToEPNS_7BachMapE"));
+    const auto width = reinterpret_cast<IntegerGetter>(
+        dlsym(library, "_ZN4Bach15BachTextureInfo5widthEv"));
+    const auto height = reinterpret_cast<IntegerGetter>(
+        dlsym(library, "_ZN4Bach15BachTextureInfo6heightEv"));
+    const auto dataPtr = reinterpret_cast<PointerGetter>(
+        dlsym(library, "_ZN4Bach15BachTextureInfo7dataPtrEv"));
+    const auto textureId = reinterpret_cast<TextureGetter>(
+        dlsym(library, "_ZN4Bach15BachTextureInfo9textureIdEv"));
+    const bool hasVector4Conversion = dlsym(
+        library, "_ZNK4Bach10BachObjectcvN13AmazingEngine8Vector4fEEv") != nullptr;
+    if (!constructor || !destructor || !castTo || !width || !height ||
+        !dataPtr || !textureId) {
+        std::cout << "texture_info_symbols=missing constructor="
+                  << static_cast<bool>(constructor)
+                  << " destructor=" << static_cast<bool>(destructor)
+                  << " cast=" << static_cast<bool>(castTo)
+                  << " width=" << static_cast<bool>(width)
+                  << " height=" << static_cast<bool>(height)
+                  << " data=" << static_cast<bool>(dataPtr)
+                  << " texture=" << static_cast<bool>(textureId)
+                  << " vector4=" << hasVector4Conversion
+                  << " library=" << library << '\n';
+        return;
+    }
+    alignas(std::max_align_t) std::array<std::uint8_t, 1024> storage{};
+    constructor(storage.data());
+    castTo(storage.data(), const_cast<void*>(map));
+    std::cout << "texture_info_map width=" << width(storage.data())
+              << " height=" << height(storage.data())
+              << " data=" << dataPtr(storage.data())
+              << " texture=" << textureId(storage.data()) << '\n';
+    destructor(storage.data());
+}
+
+[[maybe_unused]] void inspectTextureInfo(void* library, void* textureInfo) {
+    using IntegerGetter = std::int32_t (*)(void*);
+    using SizeGetter = std::size_t (*)(void*);
+    const auto width = reinterpret_cast<IntegerGetter>(
+        dlsym(library, "_ZN4Bach15BachTextureInfo5widthEv"));
+    const auto height = reinterpret_cast<IntegerGetter>(
+        dlsym(library, "_ZN4Bach15BachTextureInfo6heightEv"));
+    const auto imageWidth = reinterpret_cast<IntegerGetter>(
+        dlsym(library, "_ZN4Bach15BachTextureInfo10imageWidthEv"));
+    const auto imageHeight = reinterpret_cast<IntegerGetter>(
+        dlsym(library, "_ZN4Bach15BachTextureInfo11imageHeightEv"));
+    const auto byteSize = reinterpret_cast<SizeGetter>(
+        dlsym(library, "_ZN4Bach15BachTextureInfo11GetByteSizeEv"));
+    const auto dataCount = reinterpret_cast<SizeGetter>(
+        dlsym(library, "_ZN4Bach15BachTextureInfo12GetDataCountEv"));
+    const auto dataFormat = reinterpret_cast<IntegerGetter>(
+        dlsym(library, "_ZN4Bach15BachTextureInfo10dataFormatEv"));
+    const auto dataType = reinterpret_cast<IntegerGetter>(
+        dlsym(library, "_ZN4Bach15BachTextureInfo8dataTypeEv"));
+    if (!width || !height || !imageWidth || !imageHeight || !byteSize ||
+        !dataCount || !dataFormat || !dataType ||
+        textureInfo == nullptr) {
+        return;
+    }
+    std::cout << "texture_info_direct width=" << width(textureInfo)
+              << " height=" << height(textureInfo)
+              << " image_width=" << imageWidth(textureInfo)
+              << " image_height=" << imageHeight(textureInfo)
+              << " byte_size=" << byteSize(textureInfo)
+              << " data_count=" << dataCount(textureInfo)
+              << " data_format=" << dataFormat(textureInfo)
+              << " data_type=" << dataType(textureInfo) << '\n';
+}
+
+struct ReadProcessMemoryOptions {
+    const void* address;
+    void* output;
+    std::size_t size;
+};
+
+bool readProcessMemory(const ReadProcessMemoryOptions& options) {
+    vm_size_t bytesRead = 0;
+    const kern_return_t result = vm_read_overwrite(
+        mach_task_self(),
+        reinterpret_cast<vm_address_t>(options.address),
+        static_cast<vm_size_t>(options.size),
+        reinterpret_cast<vm_address_t>(options.output),
+        &bytesRead);
+    return result == KERN_SUCCESS && bytesRead == options.size;
+}
+
+void inspectVtable(const void* object, const char* label) {
+    const void* vtable = nullptr;
+    if (!readProcessMemory({
+            .address = object,
+            .output = &vtable,
+            .size = sizeof(vtable),
+        }) || vtable == nullptr) {
+        return;
+    }
+    for (std::size_t index = 0; index < 32; ++index) {
+        const void* function = nullptr;
+        if (!readProcessMemory({
+                .address = static_cast<const std::uint8_t*>(vtable) +
+                    index * sizeof(function),
+                .output = &function,
+                .size = sizeof(function),
+            }) || function == nullptr) {
+            continue;
+        }
+        Dl_info info{};
+        std::cout << label << "_vtable[" << index << "]=" << function;
+        if (dladdr(function, &info) != 0 && info.dli_sname != nullptr) {
+            std::cout << " symbol=" << info.dli_sname;
+        }
+        std::cout << '\n';
+    }
+}
+
+void inspectAsciiMemory(const void* address, const char* label) {
+    std::array<std::uint8_t, 512> bytes{};
+    if (!readProcessMemory({
+            .address = address,
+            .output = bytes.data(),
+            .size = bytes.size(),
+        })) {
+        return;
+    }
+    for (std::size_t start = 0; start < bytes.size();) {
+        if (bytes[start] < 0x20 || bytes[start] > 0x7e) {
+            start += 1;
+            continue;
+        }
+        std::size_t end = start;
+        while (end < bytes.size() && bytes[end] >= 0x20 && bytes[end] <= 0x7e) {
+            end += 1;
+        }
+        if (end - start >= 3) {
+            std::cout << label << "_ascii[0x" << std::hex << start << std::dec
+                      << "]="
+                      << std::string(reinterpret_cast<const char*>(bytes.data() + start),
+                                     end - start)
+                      << '\n';
+        }
+        start = end;
+    }
+}
+
+std::string readRttiName(const void* object) {
+    std::uintptr_t vtable = 0;
+    if (!readProcessMemory({
+            .address = object,
+            .output = &vtable,
+            .size = sizeof(vtable),
+        }) || vtable < sizeof(std::uintptr_t)) {
+        return {};
+    }
+
+    std::uintptr_t typeInfo = 0;
+    if (!readProcessMemory({
+            .address = reinterpret_cast<const void*>(vtable - sizeof(std::uintptr_t)),
+            .output = &typeInfo,
+            .size = sizeof(typeInfo),
+        }) || typeInfo == 0) {
+        return {};
+    }
+
+    std::uintptr_t name = 0;
+    if (!readProcessMemory({
+            .address = reinterpret_cast<const std::uint8_t*>(
+                reinterpret_cast<const void*>(typeInfo)) + sizeof(std::uintptr_t),
+            .output = &name,
+            .size = sizeof(name),
+        }) || name == 0) {
+        return {};
+    }
+    name &= 0x0000ffffffffffffULL;
+
+    std::string result;
+    result.reserve(160);
+    for (std::size_t index = 0; index < 160; ++index) {
+        char character = '\0';
+        if (!readProcessMemory({
+                .address = reinterpret_cast<const char*>(
+                    reinterpret_cast<const void*>(name)) + index,
+                .output = &character,
+                .size = sizeof(character),
+            })) {
+            return {};
+        }
+        if (character == '\0') {
+            return result;
+        }
+        result.push_back(character);
+    }
+    return {};
+}
+
+void inspectResultPointers(const void* resultObject) {
+    constexpr std::size_t wordCount = 32;
+    std::array<std::uintptr_t, wordCount> words{};
+    if (!readProcessMemory({
+            .address = resultObject,
+            .output = words.data(),
+            .size = sizeof(words),
+        })) {
+        std::cout << "matting_result_pointer_scan=unreadable\n";
+        return;
+    }
+
+    for (std::size_t index = 0; index < words.size(); ++index) {
+        const std::uintptr_t value = words[index];
+        Dl_info directSymbol{};
+        const bool hasDirectSymbol =
+            dladdr(reinterpret_cast<const void*>(value), &directSymbol) != 0 &&
+            directSymbol.dli_sname != nullptr;
+
+        std::uintptr_t nestedValue = 0;
+        const bool hasNestedValue = value != 0 && readProcessMemory({
+            .address = reinterpret_cast<const void*>(value),
+            .output = &nestedValue,
+            .size = sizeof(nestedValue),
+        });
+        Dl_info nestedSymbol{};
+        const bool hasNestedSymbol = hasNestedValue &&
+            dladdr(reinterpret_cast<const void*>(nestedValue), &nestedSymbol) != 0 &&
+            nestedSymbol.dli_sname != nullptr;
+        if (value == 0) {
+            continue;
+        }
+
+        std::cout << "matting_result_word[0x" << std::hex << index * sizeof(value)
+                  << "]=0x" << value << std::dec;
+        if (hasDirectSymbol) {
+            std::cout << " symbol=" << directSymbol.dli_sname;
+        }
+        if (hasNestedSymbol) {
+            std::cout << " nested_symbol=" << nestedSymbol.dli_sname;
+        } else if (hasNestedValue) {
+            std::cout << " nested=0x" << std::hex << nestedValue << std::dec;
+            const std::string nestedRtti =
+                readRttiName(reinterpret_cast<const void*>(nestedValue));
+            if (!nestedRtti.empty()) {
+                std::cout << " nested_rtti=" << nestedRtti;
+            }
+            std::uintptr_t secondNestedValue = 0;
+            const bool hasSecondNestedValue = nestedValue != 0 && readProcessMemory({
+                .address = reinterpret_cast<const void*>(nestedValue),
+                .output = &secondNestedValue,
+                .size = sizeof(secondNestedValue),
+            });
+            Dl_info secondNestedSymbol{};
+            const bool hasSecondNestedSymbol = hasSecondNestedValue &&
+                dladdr(reinterpret_cast<const void*>(secondNestedValue), &secondNestedSymbol) != 0 &&
+                secondNestedSymbol.dli_sname != nullptr;
+            if (hasSecondNestedSymbol) {
+                std::cout << " second_nested_symbol=" << secondNestedSymbol.dli_sname;
+            } else if (hasSecondNestedValue) {
+                std::cout << " second_nested=0x" << std::hex << secondNestedValue << std::dec;
+                std::uintptr_t typeInfo = 0;
+                std::uintptr_t typeName = 0;
+                const bool hasTypeInfo = secondNestedValue >= sizeof(std::uintptr_t) &&
+                    readProcessMemory({
+                        .address = reinterpret_cast<const void*>(
+                            secondNestedValue - sizeof(std::uintptr_t)),
+                        .output = &typeInfo,
+                        .size = sizeof(typeInfo),
+                    });
+                const bool hasTypeName = hasTypeInfo && typeInfo != 0 && readProcessMemory({
+                    .address = reinterpret_cast<const std::uint8_t*>(
+                        reinterpret_cast<const void*>(typeInfo)) + sizeof(std::uintptr_t),
+                    .output = &typeName,
+                    .size = sizeof(typeName),
+                });
+                if (hasTypeName) {
+                    std::cout << " type_info=0x" << std::hex << typeInfo
+                              << " type_name=0x" << typeName << std::dec;
+                }
+            }
+        }
+        std::cout << '\n';
+    }
+}
+
+struct FindScriptValueOptions {
+    const void* scriptInfo;
+    const char* key;
+    const void* libraryBase;
+};
+
+void* findScriptValue(const FindScriptValueOptions& options) {
+    // Pinned to VideoFusion 11.3.0. These are the same map lookup and static
+    // comparator addresses used by TEBachMattingAlgorithm::getMaskAndBoundingBox.
+    constexpr std::uintptr_t findValueOffset = 0x0b86aa4;
+    constexpr std::uintptr_t comparatorOffset = 0x2d03ee0;
+    const auto base = reinterpret_cast<std::uintptr_t>(options.libraryBase);
+    const auto findValue = reinterpret_cast<FindScriptValue>(base + findValueOffset);
+    const auto* comparator = reinterpret_cast<const void*>(base + comparatorOffset);
+    const std::string key(options.key);
+    const std::string* matchedKey = &key;
+    bool didInsert = false;
+    auto* map = const_cast<std::uint8_t*>(
+        static_cast<const std::uint8_t*>(options.scriptInfo)) + 0x10;
+    return findValue(map, &key, comparator, &matchedKey, &didInsert);
+}
+
+struct WriteScriptMaskOptions {
+    const void* scriptInfo;
+    BachObjectToVector4f toVector4f;
+    const void* libraryBase;
+    const char* outputPath;
+};
+
+bool writePgmMask(
+    const char* outputPath,
+    const std::uint8_t* pixels,
+    std::int32_t width,
+    std::int32_t height);
+
+bool writeScriptMask(const WriteScriptMaskOptions& options) {
+    const void* maskEntry = findScriptValue({
+        .scriptInfo = options.scriptInfo,
+        .key = "mask",
+        .libraryBase = options.libraryBase,
+    });
+    const void* boundsEntry = findScriptValue({
+        .scriptInfo = options.scriptInfo,
+        .key = "ltwh",
+        .libraryBase = options.libraryBase,
+    });
+    std::cout << "script_mask_entry=" << maskEntry
+              << " bounds_entry=" << boundsEntry << '\n';
+    if (maskEntry == nullptr || boundsEntry == nullptr) {
+        return false;
+    }
+
+    const Vector4f bounds = options.toVector4f(
+        static_cast<const std::uint8_t*>(boundsEntry) + 0x28);
+    const auto width = static_cast<std::int32_t>(std::lround(bounds.z));
+    const auto height = static_cast<std::int32_t>(std::lround(bounds.w));
+    const void* textureInfo = nullptr;
+    if (!readProcessMemory({
+            .address = static_cast<const std::uint8_t*>(maskEntry) + 0x88,
+            .output = &textureInfo,
+            .size = sizeof(textureInfo),
+        }) || textureInfo == nullptr) {
+        return false;
+    }
+
+    const std::uint8_t* begin = nullptr;
+    const std::uint8_t* end = nullptr;
+    if (!readProcessMemory({
+            .address = static_cast<const std::uint8_t*>(textureInfo) + 0x10,
+            .output = &begin,
+            .size = sizeof(begin),
+        }) || !readProcessMemory({
+            .address = static_cast<const std::uint8_t*>(textureInfo) + 0x18,
+            .output = &end,
+            .size = sizeof(end),
+        }) || begin == nullptr || end < begin) {
+        return false;
+    }
+
+    const std::size_t byteCount = static_cast<std::size_t>(end - begin);
+    const std::size_t expectedByteCount =
+        static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+    std::cout << "script_mask_bounds=" << bounds.x << ',' << bounds.y << ','
+              << bounds.z << ',' << bounds.w << " bytes=" << byteCount << '\n';
+    if (width <= 0 || height <= 0 || width > 4096 || height > 4096 ||
+        byteCount != expectedByteCount) {
+        return false;
+    }
+    return writePgmMask(options.outputPath, begin, width, height);
+}
+
 struct InspectTextureOptions {
     GLint expectedWidth;
     GLint expectedHeight;
@@ -570,6 +988,322 @@ bool writePgmMask(
     std::cout << "skin_mask_output=" << outputPath << " size=" << width << 'x'
               << height << '\n';
     return true;
+}
+
+bool inspectMattingResult(const InspectMattingResultOptions& options) {
+    void* resultObject = nullptr;
+    Result result = options.getResult(options.handle, options.nodeName, &resultObject);
+    std::cout << "matting_result_by_node_status=" << result
+              << " node=" << options.nodeName << " object=" << resultObject << '\n';
+    if (result != 0 || resultObject == nullptr) {
+        resultObject = nullptr;
+        result = options.getResultByGraphAndNode(
+            options.handle, options.graphName, options.nodeName, &resultObject);
+        std::cout << "matting_result_by_graph_status=" << result
+                  << " graph=" << options.graphName << " node=" << options.nodeName
+                  << " object=" << resultObject << '\n';
+    }
+    if (result != 0 || resultObject == nullptr) {
+        resultObject = nullptr;
+        constexpr std::int32_t scriptAlgorithmType = 141;
+        result = options.getResultByType(
+            options.handle, &resultObject, scriptAlgorithmType);
+        std::cout << "matting_result_by_type_status=" << result
+                  << " type=" << scriptAlgorithmType << " object=" << resultObject << '\n';
+    }
+    if (result != 0 || resultObject == nullptr) {
+        resultObject = nullptr;
+        constexpr std::int32_t generalSegAlgorithmType = 198;
+        result = options.getResultByType(
+            options.handle, &resultObject, generalSegAlgorithmType);
+        std::cout << "matting_result_by_type_status=" << result
+                  << " type=" << generalSegAlgorithmType
+                  << " object=" << resultObject << '\n';
+    }
+    if (result != 0 || resultObject == nullptr) {
+        for (std::int32_t algorithmType = 0; algorithmType <= 255; ++algorithmType) {
+            void* candidate = nullptr;
+            const Result candidateResult = options.getResultByType(
+                options.handle, &candidate, algorithmType);
+            if (candidateResult != 0 || candidate == nullptr) {
+                continue;
+            }
+            const auto* candidateBytes = static_cast<const std::uint8_t*>(candidate);
+            const void* infoVector = nullptr;
+            const void* algorithmInfo = nullptr;
+            if (readProcessMemory({
+                    .address = candidateBytes + 0x18,
+                    .output = &infoVector,
+                    .size = sizeof(infoVector),
+                }) && infoVector != nullptr) {
+                readProcessMemory({
+                    .address = infoVector,
+                    .output = &algorithmInfo,
+                    .size = sizeof(algorithmInfo),
+                });
+            }
+            std::cout << "matting_result_scan type=" << algorithmType
+                      << " object=" << candidate
+                      << " wrapper_rtti=" << readRttiName(candidate)
+                      << " info=" << algorithmInfo
+                      << " info_rtti=" << readRttiName(algorithmInfo) << '\n';
+        }
+    }
+    if (result != 0 || resultObject == nullptr) {
+        return false;
+    }
+
+    void* const vtable = *static_cast<void**>(resultObject);
+    Dl_info symbolInfo{};
+    const bool hasSymbol = dladdr(vtable, &symbolInfo) != 0 && symbolInfo.dli_sname != nullptr;
+    const std::string_view symbolName = hasSymbol ? symbolInfo.dli_sname : "<unknown>";
+    std::cout << "matting_result_vtable=" << vtable << " symbol=" << symbolName << '\n';
+    inspectResultPointers(resultObject);
+    const auto* resultBytes = static_cast<const std::uint8_t*>(resultObject);
+    const void* infoVector = nullptr;
+    if (readProcessMemory({
+            .address = resultBytes + 0x18,
+            .output = &infoVector,
+            .size = sizeof(infoVector),
+        }) && infoVector != nullptr) {
+        const void* algorithmInfo = nullptr;
+        if (readProcessMemory({
+                .address = infoVector,
+                .output = &algorithmInfo,
+                .size = sizeof(algorithmInfo),
+            }) && algorithmInfo != nullptr) {
+            std::cout << "matting_result_algorithm_info=" << algorithmInfo
+                      << " rtti=" << readRttiName(algorithmInfo) << '\n';
+            inspectResultPointers(algorithmInfo);
+            if (readRttiName(algorithmInfo) == "N4Bach7BachMapE") {
+                inspectVtable(algorithmInfo, "bach_map");
+                const void* firstNode = nullptr;
+                readProcessMemory({
+                    .address = static_cast<const std::uint8_t*>(algorithmInfo) + 0x20,
+                    .output = &firstNode,
+                    .size = sizeof(firstNode),
+                });
+                inspectAsciiMemory(firstNode, "bach_map_node");
+                if (firstNode != nullptr) {
+                    using BachObjectToMap = void* (*)(const void*);
+                    const auto toMap = reinterpret_cast<BachObjectToMap>(dlsym(
+                        options.library,
+                        "_ZNK4Bach10BachObjectcvPNS_7BachMapEEv"));
+                    constexpr std::size_t valueOffset = 0x28;
+                    constexpr std::size_t typeOffset = 0x80;
+                    const auto* value = static_cast<const std::uint8_t*>(firstNode) +
+                        valueOffset;
+                    std::uint32_t valueType = 0;
+                    if (toMap != nullptr && readProcessMemory({
+                            .address = value + typeOffset,
+                            .output = &valueType,
+                            .size = sizeof(valueType),
+                        }) && valueType == 0x1d) {
+                        void* nestedMap = toMap(value);
+                        std::cout << "bach_map_entry_type=0x" << std::hex
+                                  << valueType << std::dec
+                                  << " nested_map=" << nestedMap
+                                  << " rtti=" << readRttiName(nestedMap) << '\n';
+                        inspectResultPointers(nestedMap);
+                        void* implementation = nullptr;
+                        void* textureWrapper = nullptr;
+                        void* dataObject = nullptr;
+                        const bool readImplementation = readProcessMemory({
+                            .address = static_cast<const std::uint8_t*>(nestedMap) + 0x38,
+                            .output = &implementation,
+                            .size = sizeof(implementation),
+                        });
+                        bool readTextureWrapper = false;
+                        if (implementation != nullptr) {
+                            readTextureWrapper = readProcessMemory({
+                                .address = static_cast<const std::uint8_t*>(implementation) + 0x8,
+                                .output = &textureWrapper,
+                                .size = sizeof(textureWrapper),
+                            });
+                        }
+                        std::cout << "general_seg_layout implementation="
+                                  << implementation
+                                  << " read_implementation=" << readImplementation
+                                  << " texture_wrapper=" << textureWrapper
+                                  << " read_texture_wrapper=" << readTextureWrapper << '\n';
+                        if (implementation != nullptr) {
+                            for (const std::size_t offset : {0x8U, 0x10U, 0x18U, 0x28U,
+                                                             0x38U, 0x40U, 0x50U}) {
+                                void* candidate = nullptr;
+                                const bool didRead = readProcessMemory({
+                                    .address = static_cast<const std::uint8_t*>(
+                                        implementation) + offset,
+                                    .output = &candidate,
+                                    .size = sizeof(candidate),
+                                });
+                                std::cout << "general_seg_impl[0x" << std::hex
+                                          << offset << std::dec << "]=" << candidate
+                                          << " read=" << didRead
+                                          << " rtti=" << readRttiName(candidate) << '\n';
+                            }
+                        }
+                        if (textureWrapper != nullptr) {
+                            std::int32_t textureWidth = 0;
+                            std::int32_t textureHeight = 0;
+                            std::int32_t textureFormat = 0;
+                            GLuint texture = 0;
+                            readProcessMemory({
+                                .address = static_cast<const std::uint8_t*>(textureWrapper) + 0x14,
+                                .output = &textureWidth,
+                                .size = sizeof(textureWidth),
+                            });
+                            readProcessMemory({
+                                .address = static_cast<const std::uint8_t*>(textureWrapper) + 0x18,
+                                .output = &textureHeight,
+                                .size = sizeof(textureHeight),
+                            });
+                            readProcessMemory({
+                                .address = static_cast<const std::uint8_t*>(textureWrapper) + 0x60,
+                                .output = &dataObject,
+                                .size = sizeof(dataObject),
+                            });
+                            readProcessMemory({
+                                .address = static_cast<const std::uint8_t*>(textureWrapper) + 0x68,
+                                .output = &textureFormat,
+                                .size = sizeof(textureFormat),
+                            });
+                            readProcessMemory({
+                                .address = static_cast<const std::uint8_t*>(textureWrapper) + 0x70,
+                                .output = &texture,
+                                .size = sizeof(texture),
+                            });
+                            std::cout << "general_seg_texture_wrapper=" << textureWrapper
+                                      << " rtti=" << readRttiName(textureWrapper)
+                                      << " size=" << textureWidth << 'x' << textureHeight
+                                      << " format=" << textureFormat
+                                      << " texture=" << texture
+                                      << " valid=" << static_cast<int>(glIsTexture(texture))
+                                      << " data=" << dataObject
+                                      << " data_rtti=" << readRttiName(dataObject) << '\n';
+                        }
+                        if (dataObject == nullptr && implementation != nullptr) {
+                            readProcessMemory({
+                                .address = static_cast<const std::uint8_t*>(implementation) + 0x50,
+                                .output = &dataObject,
+                                .size = sizeof(dataObject),
+                            });
+                        }
+                        using BachTextureInfoData = ReturnedPrimitiveVector (*)(void*);
+                        const auto getData = reinterpret_cast<BachTextureInfoData>(dlsym(
+                            options.library,
+                            "_ZN4Bach15BachTextureInfo4dataEv"));
+                        const auto release = reinterpret_cast<void (*)(const void*)>(dlsym(
+                            options.library,
+                            "_ZNK13AmazingEngine7RefBase7releaseEv"));
+                        ReturnedPrimitiveVector returnedData;
+                        if (getData != nullptr) {
+                            returnedData = getData(nestedMap);
+                            dataObject = returnedData.value;
+                            std::cout << "general_seg_materialized_data=" << dataObject
+                                      << " rtti=" << readRttiName(dataObject) << '\n';
+                        }
+                        if (dataObject != nullptr) {
+                            inspectResultPointers(dataObject);
+                            const std::uint8_t* begin = nullptr;
+                            const std::uint8_t* end = nullptr;
+                            readProcessMemory({
+                                .address = static_cast<const std::uint8_t*>(dataObject) + 0x10,
+                                .output = &begin,
+                                .size = sizeof(begin),
+                            });
+                            readProcessMemory({
+                                .address = static_cast<const std::uint8_t*>(dataObject) + 0x18,
+                                .output = &end,
+                                .size = sizeof(end),
+                            });
+                            const auto byteCount = begin != nullptr && end >= begin
+                                ? static_cast<std::size_t>(end - begin)
+                                : 0;
+                            std::cout << "general_seg_data begin="
+                                      << static_cast<const void*>(begin)
+                                      << " end=" << static_cast<const void*>(end)
+                                      << " bytes=" << byteCount << '\n';
+                            if (options.maskOutputPath != nullptr &&
+                                byteCount == 256U * 256U) {
+                                std::cout << "general_seg_mask_written="
+                                          << writePgmMask(
+                                                 options.maskOutputPath,
+                                                 begin,
+                                                 256,
+                                                 256)
+                                          << '\n';
+                            }
+                        }
+                        if (returnedData.value != nullptr && release != nullptr) {
+                            release(returnedData.value);
+                            returnedData.value = nullptr;
+                        }
+                    } else {
+                        std::cout << "bach_map_entry_type=0x" << std::hex
+                                  << valueType << std::dec
+                                  << " to_map=" << static_cast<bool>(toMap) << '\n';
+                    }
+                }
+            }
+            Dl_info libraryInfo{};
+            const bool hasLibraryInfo = dladdr(
+                reinterpret_cast<const void*>(options.getTextureId), &libraryInfo) != 0 &&
+                libraryInfo.dli_fbase != nullptr;
+            if (readRttiName(algorithmInfo) == "N4Bach10ScriptInfoE" && hasLibraryInfo) {
+                return writeScriptMask({
+                    .scriptInfo = algorithmInfo,
+                    .toVector4f = options.toVector4f,
+                    .libraryBase = libraryInfo.dli_fbase,
+                    .outputPath = options.maskOutputPath,
+                });
+            }
+        }
+    }
+    if (symbolName.find("MattingResult") == std::string_view::npos) {
+        return false;
+    }
+
+    const GLuint texture = options.getTextureId(resultObject);
+    std::cout << "matting_result_texture=" << texture
+              << " valid=" << static_cast<int>(glIsTexture(texture)) << '\n';
+    if (texture == 0 || glIsTexture(texture) == GL_FALSE) {
+        return false;
+    }
+
+    GLint previousTexture = 0;
+    GLint width = 0;
+    GLint height = 0;
+    GLint internalFormat = 0;
+    glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousTexture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &width);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &height);
+    glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_INTERNAL_FORMAT, &internalFormat);
+    if (width <= 0 || height <= 0 || width > 4096 || height > 4096) {
+        glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(previousTexture));
+        return false;
+    }
+
+    const std::size_t pixelCount = static_cast<std::size_t>(width) * height;
+    std::vector<std::uint8_t> mask(pixelCount);
+    glGetTexImage(GL_TEXTURE_2D, 0, GL_RED, GL_UNSIGNED_BYTE, mask.data());
+    const GLenum readError = glGetError();
+    glBindTexture(GL_TEXTURE_2D, static_cast<GLuint>(previousTexture));
+    if (readError != GL_NO_ERROR) {
+        std::cout << "matting_result_texture_size=" << width << 'x' << height
+                  << " internal_format=0x" << std::hex << internalFormat
+                  << " read_error=0x" << readError << std::dec << '\n';
+        return false;
+    }
+
+    const auto [minimum, maximum] = std::minmax_element(mask.begin(), mask.end());
+    const std::uint64_t sum = std::accumulate(mask.begin(), mask.end(), std::uint64_t{0});
+    std::cout << "matting_result_texture_size=" << width << 'x' << height
+              << " internal_format=0x" << std::hex << internalFormat << std::dec
+              << " min=" << static_cast<int>(*minimum)
+              << " max=" << static_cast<int>(*maximum)
+              << " mean=" << static_cast<double>(sum) / pixelCount << '\n';
+    return writePgmMask(options.maskOutputPath, mask.data(), width, height);
 }
 
 struct WriteSkinSegInfoCpuMaskOptions {
@@ -953,6 +1687,8 @@ struct ProbeOptions {
     bool skipAlgorithm = false;
     bool inspectSkinResult = false;
     bool inspectFaceResult = false;
+    const char* mattingResultNode = nullptr;
+    const char* mattingResultGraph = "ai_matting_saliency";
     bool forceSkinSegPictureMode = false;
     bool enableComposerNodeEvent = false;
     std::int32_t skinSegVideoMode = -1;
@@ -1017,6 +1753,14 @@ ProbeOptions parseProbeOptions(int argc, char** argv) {
             options.inspectFaceResult = true;
             continue;
         }
+        if (argument == "--inspect-matting-result" && index + 1 < argc) {
+            options.mattingResultNode = argv[++index];
+            continue;
+        }
+        if (argument == "--matting-graph" && index + 1 < argc) {
+            options.mattingResultGraph = argv[++index];
+            continue;
+        }
         if (argument == "--force-skin-seg-picture-mode") {
             options.forceSkinSegPictureMode = true;
             continue;
@@ -1039,7 +1783,6 @@ ProbeOptions parseProbeOptions(int argc, char** argv) {
         }
         if (argument == "--mask-output" && index + 1 < argc) {
             options.maskOutputPath = argv[++index];
-            options.inspectSkinResult = true;
             continue;
         }
         if (argument == "--orientation" && index + 1 < argc) {
@@ -1189,6 +1932,9 @@ ProbeOptions parseProbeOptions(int argc, char** argv) {
         throw std::runtime_error(
             "--composer-key requires either --composer-value or --composer-json");
     }
+    if (options.maskOutputPath != nullptr && options.mattingResultNode == nullptr) {
+        options.inspectSkinResult = true;
+    }
     return options;
 }
 
@@ -1279,6 +2025,7 @@ int main(int argc, char** argv) {
                "[--intensity-type type --intensity value] "
                "[--reshape-face-intensity eye cheek] "
                "[--skip-algorithm] [--inspect-skin-result] [--inspect-face-result] "
+               "[--inspect-matting-result node-name] [--matting-graph graph-name] "
                "[--mask-output output.pgm] "
                "[--face-output output.json] "
                "[--orientation 0|90|180|270] "
@@ -1431,7 +2178,10 @@ int main(int argc, char** argv) {
     EffectGetBachResult effectGetBachResult = nullptr;
     EffectGetBachResultByGraphAndNodeName effectGetBachResultByGraphAndNodeName = nullptr;
     SkinSegTextureId skinSegTextureId = nullptr;
-    if (probeOptions.inspectSkinResult || probeOptions.inspectFaceResult) {
+    MattingTextureId mattingTextureId = nullptr;
+    BachObjectToVector4f bachObjectToVector4f = nullptr;
+    if (probeOptions.inspectSkinResult || probeOptions.inspectFaceResult ||
+        probeOptions.mattingResultNode != nullptr) {
         effectGetBachResult = loadSymbol<EffectGetBachResult>(
             {effectLibrary, "bef_effect_get_bach_result"});
         effectGetBachResultByNodeName = loadSymbol<EffectGetBachResultByNodeName>(
@@ -1442,6 +2192,14 @@ int main(int argc, char** argv) {
         if (probeOptions.inspectSkinResult) {
             skinSegTextureId = loadSymbol<SkinSegTextureId>(
                 {effectLibrary, "_ZN4Bach11SkinSegInfo9textureIdEv"});
+        }
+        if (probeOptions.mattingResultNode != nullptr) {
+            mattingTextureId = loadSymbol<MattingTextureId>(
+                {effectLibrary, "_ZN4Bach13MattingResult9textureIDEv"});
+            bachObjectToVector4f = loadSymbol<BachObjectToVector4f>({
+                effectLibrary,
+                "_ZNK4Bach10BachObjectcvN13AmazingEngine8Vector4fEEv",
+            });
         }
     }
     if (probeOptions.skinSegVideoMode >= 0) {
@@ -1861,6 +2619,20 @@ int main(int argc, char** argv) {
                 .coordinateSpace = "algorithm-input",
             }) && processingSucceeded;
         }
+        if (probeOptions.mattingResultNode != nullptr) {
+            processingSucceeded = inspectMattingResult({
+                .handle = handle,
+                .library = effectLibrary,
+                .getResultByType = effectGetBachResult,
+                .getResult = effectGetBachResultByNodeName,
+                .getResultByGraphAndNode = effectGetBachResultByGraphAndNodeName,
+                .getTextureId = mattingTextureId,
+                .toVector4f = bachObjectToVector4f,
+                .graphName = probeOptions.mattingResultGraph,
+                .nodeName = probeOptions.mattingResultNode,
+                .maskOutputPath = probeOptions.maskOutputPath,
+            }) && processingSucceeded;
+        }
 
         const std::filesystem::path outputDirectory(argv[4]);
         for (std::size_t frameIndex = 0; frameIndex < inputPaths.size(); ++frameIndex) {
@@ -1979,6 +2751,20 @@ int main(int argc, char** argv) {
                 .getResult = effectGetBachResultByNodeName,
                 .outputPath = probeOptions.faceOutputPath,
                 .coordinateSpace = "algorithm-input",
+            }) && processingSucceeded;
+        }
+        if (probeOptions.mattingResultNode != nullptr) {
+            processingSucceeded = inspectMattingResult({
+                .handle = handle,
+                .library = effectLibrary,
+                .getResultByType = effectGetBachResult,
+                .getResult = effectGetBachResultByNodeName,
+                .getResultByGraphAndNode = effectGetBachResultByGraphAndNodeName,
+                .getTextureId = mattingTextureId,
+                .toVector4f = bachObjectToVector4f,
+                .graphName = probeOptions.mattingResultGraph,
+                .nodeName = probeOptions.mattingResultNode,
+                .maskOutputPath = probeOptions.maskOutputPath,
             }) && processingSucceeded;
         }
         glFinish();

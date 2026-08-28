@@ -349,7 +349,13 @@ export type MediaMaskTrackingDirection = "forward" | "backward" | "both";
 export interface MediaMaskTracking {
 	direction: MediaMaskTrackingDirection;
 	status?: "idle" | "processing" | "paused" | "ready" | "error";
-	source?: "manual" | "optical-flow" | "mediapipe" | "sam3";
+	source?:
+		| "manual"
+		| "optical-flow"
+		| "mediapipe"
+		| "qcut-person-matting"
+		| "jianying-gru"
+		| "sam3";
 	progress?: number;
 	anchorFrame?: number;
 	trackedFrames?: number;

@@ -6,6 +6,8 @@
 执行分支：`lutv6`  
 证据目录：`~/Library/Application Support/QCut/Research/JianyingFilter/`
 
+后续缓存更新：同日 `lutv7` 已补齐 162 张缺包并修复 1 张版本不匹配，当前 887 张全部 `cached`；788 张 `available=true`，99 张已缓存但仍不可用。下文 coverage 保留补包前的历史快照，`offline-resource-missing=166` 当时归并了所有不可用卡，并非 166 张都缺包。详见 [缺包补齐与严格离线复查](cache-gap-162-2026-08-26.zh.md)；本轮补包没有增加 UI parity 证据。
+
 ## 结论
 
 本轮把“滤镜能加载”和“滤镜已与剪映一致”彻底拆开，并完成了第一轮可重复的逐卡流水线：

@@ -16,6 +16,7 @@ import type {
 	Sam3SegmentationMode,
 } from "@/types/sam3";
 import type { PersonCutoutMaskOptions } from "@/lib/segmentation/person-cutout-mask";
+import { BASIC_PERSON_CUTOUT_SETTINGS } from "@/lib/segmentation/person-cutout-presets";
 import type { MediaMaskTrackingDirection } from "@/types/timeline";
 
 // ============================================
@@ -221,12 +222,7 @@ const initialState: SegmentationState = {
 	showBoundingBoxes: false,
 
 	videoBackend: "local-person",
-	personCutoutSettings: {
-		threshold: 0.5,
-		temporalSmoothing: 0.65,
-		edgeShift: 0,
-		feather: 2,
-	},
+	personCutoutSettings: { ...BASIC_PERSON_CUTOUT_SETTINGS },
 	currentFrame: 0,
 	totalFrames: 0,
 	segmentedVideoUrl: null,

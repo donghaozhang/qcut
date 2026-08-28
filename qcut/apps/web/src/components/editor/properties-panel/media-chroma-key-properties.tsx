@@ -1,5 +1,5 @@
-import { Pipette } from "lucide-react";
-import { useRef } from "react";
+import { ChevronDown, Pipette } from "lucide-react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
@@ -59,6 +59,7 @@ export function MediaChromaKeyProperties({
 	const seek = usePlaybackStore((state) => state.seek);
 	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
 	const interactionActive = useRef(false);
+	const [advancedOpen, setAdvancedOpen] = useState(false);
 	const settings = normalizeMediaChromaKey(element.chromaKey);
 	const resolved = resolveMediaChromaKeyAtTime({
 		chromaKey: settings,
@@ -167,6 +168,62 @@ export function MediaChromaKeyProperties({
 			},
 		});
 	};
+	const renderControl = ({
+		property,
+		label,
+		withKeyframes,
+	}: {
+		property: MediaChromaKeyKeyframeProperty;
+		label: string;
+		withKeyframes: boolean;
+	}) => {
+		const frames = keyframeFrames({ settings, property });
+		const previousFrame = [...frames]
+			.reverse()
+			.find((frame) => frame < currentFrame);
+		const nextFrame = frames.find((frame) => frame > currentFrame);
+		return (
+			<ColorNumberControl
+				key={property}
+				label={label}
+				value={resolved[property] * 100}
+				min={property === "similarity" ? 1 : 0}
+				max={100}
+				step={1}
+				suffix="%"
+				keyframedHere={withKeyframes && frames.includes(currentFrame)}
+				hasPreviousKeyframe={withKeyframes && previousFrame !== undefined}
+				hasNextKeyframe={withKeyframes && nextFrame !== undefined}
+				onChange={(value) => updateProperty({ property, value: value / 100 })}
+				onToggleKeyframe={
+					withKeyframes ? () => toggleKeyframe({ property }) : undefined
+				}
+				onPreviousKeyframe={
+					withKeyframes
+						? () => {
+								if (previousFrame !== undefined) {
+									seek(element.startTime + previousFrame / fps);
+								}
+							}
+						: undefined
+				}
+				onNextKeyframe={
+					withKeyframes
+						? () => {
+								if (nextFrame !== undefined) {
+									seek(element.startTime + nextFrame / fps);
+								}
+							}
+						: undefined
+				}
+				onInteractionStart={beginInteraction}
+				onInteractionEnd={endInteraction}
+			/>
+		);
+	};
+	const basicProperties = MEDIA_CHROMA_KEY_KEYFRAME_PROPERTIES.filter(
+		({ value }) => value !== "spill"
+	);
 
 	return (
 		<ColorModuleSection
@@ -195,45 +252,37 @@ export function MediaChromaKeyProperties({
 				</ColorIconButton>
 			</div>
 
-			{MEDIA_CHROMA_KEY_KEYFRAME_PROPERTIES.map(
-				({ value: property, label }) => {
-					const frames = keyframeFrames({ settings, property });
-					const previousFrame = [...frames]
-						.reverse()
-						.find((frame) => frame < currentFrame);
-					const nextFrame = frames.find((frame) => frame > currentFrame);
-					return (
-						<ColorNumberControl
-							key={property}
-							label={label}
-							value={resolved[property] * 100}
-							min={property === "similarity" ? 1 : 0}
-							max={100}
-							step={1}
-							suffix="%"
-							keyframedHere={frames.includes(currentFrame)}
-							hasPreviousKeyframe={previousFrame !== undefined}
-							hasNextKeyframe={nextFrame !== undefined}
-							onChange={(value) =>
-								updateProperty({ property, value: value / 100 })
-							}
-							onToggleKeyframe={() => toggleKeyframe({ property })}
-							onPreviousKeyframe={() => {
-								if (previousFrame !== undefined) {
-									seek(element.startTime + previousFrame / fps);
-								}
-							}}
-							onNextKeyframe={() => {
-								if (nextFrame !== undefined) {
-									seek(element.startTime + nextFrame / fps);
-								}
-							}}
-							onInteractionStart={beginInteraction}
-							onInteractionEnd={endInteraction}
-						/>
-					);
-				}
-			)}
+			{advancedOpen
+				? null
+				: basicProperties.map(({ value, label }) =>
+						renderControl({
+							property: value,
+							label,
+							withKeyframes: false,
+						})
+					)}
+			<details
+				open={advancedOpen}
+				onToggle={(event) => setAdvancedOpen(event.currentTarget.open)}
+				className="group rounded-sm border px-3 py-2"
+			>
+				<summary className="flex cursor-pointer list-none items-center justify-between text-xs font-medium">
+					高级
+					<ChevronDown className="size-3.5 transition-transform group-open:rotate-180" />
+				</summary>
+				<div className="mt-3 space-y-3">
+					<p className="text-[11px] text-muted-foreground">
+						可为每项参数添加关键帧，并用溢色抑制清理人物边缘的背景色
+					</p>
+					{MEDIA_CHROMA_KEY_KEYFRAME_PROPERTIES.map(({ value, label }) =>
+						renderControl({
+							property: value,
+							label,
+							withKeyframes: true,
+						})
+					)}
+				</div>
+			</details>
 		</ColorModuleSection>
 	);
 }
