@@ -10,4 +10,5 @@ export type {
 	JianyingPersonCutoutRenderResult,
 	JianyingPersonCutoutStatus,
 	TemattingBlendImplementation,
+	TemattingOutputBlendImplementation,
 } from "../../../../../electron/jianying-person-cutout-contract";
