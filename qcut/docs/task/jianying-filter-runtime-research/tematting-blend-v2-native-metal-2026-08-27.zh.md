@@ -258,3 +258,12 @@ ok width=360 height=640 alphaWidth=360 alphaHeight=640
 | 连续真人视频原生 V2 稳定性 | 已确认，60 帧 + 桌面 E2E |
 | 连续真人视频原生 V2速度 | 已测：流式整链 4.91 秒，兼容链 4.11 秒；原生仍慢 0.80 秒 |
 | QCut 与剪映导出逐像素平价 | 未验证 |
+
+## 2026-08-28 产品路径更新
+
+上文保留了原始接入的历史链路和基准。当前 Alpha 缓存链已停止把 native Metal 当作默认逐帧 fast path：缓存需要的是合成前语义 Alpha，而旧实现上传并回读完整 RGBA 后仍只提取 Alpha，无法为 CPU `libvpx-vp9` 编码形成零拷贝。
+
+现在仅在显式诊断开关下用首帧执行原生 V2 canary，逐字节验证 `sourceAlpha × matte / 255`，其余帧直接写相同语义 Alpha。产出路径与 metadata 始终标记 `TEMattingBlendEffectV2-compatible`，canary 状态另写 `qcut_matting_native_canary=passed`，不再把单帧验证冒充整段 native Metal 输出。修正后的 `total_us` 已包含 flush、对象释放与 `dlclose`：三次 60 帧真人基准中，compatible 中位数为 `6533.095 ms`，native canary 中位数为 `6526.306 ms`，只差约 `0.10%`，应视为性能持平；六份 Alpha SHA-256 均为 `7f36016c92476d48e6ef50376b1ae46955feb2c0d6e7f23dfbd0d4b215b1fbe3`。
+
+完整实现、分阶段计时、桌面 E2E 和剩余边界见
+[QCut 人物抠像差距收敛记录](person-cutout-gap-reduction-2026-08-28.zh.md)。
