@@ -28,6 +28,7 @@ export interface JianyingFilterLocalRenderRequest {
 export interface JianyingFilterLocalEffectRenderRequest
 	extends JianyingFilterLocalRenderRequest {
 	intensity: number;
+	mode?: Extract<JianyingFilterLocalRenderMode, "face-region" | "multi-pass">;
 }
 
 interface ProfiledRenderRequest extends JianyingFilterLocalRenderRequest {
@@ -228,7 +229,7 @@ export function createJianyingFilterLocalProvider(): JianyingFilterLocalProvider
 		},
 		renderEffect: (request) =>
 			renderWithProfile({
-				request: { ...request, mode: "multi-pass" },
+				request: { ...request, mode: request.mode ?? "multi-pass" },
 			}),
 		clear: () => {
 			cacheGeneration += 1;
