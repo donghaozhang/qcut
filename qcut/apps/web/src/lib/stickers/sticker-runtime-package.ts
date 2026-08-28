@@ -9,6 +9,7 @@ const PRIMARY_SOURCE = "$primary" as const;
 const RESOURCE_PREFIX = "$resource:" as const;
 
 interface RuntimePackageFile {
+	checksumSha256?: string;
 	file: File;
 	sourceUrl: string;
 }
@@ -354,6 +355,9 @@ export function prepareStickerRuntimePackage({
 		resources: [...resolvedSources.entries()]
 			.sort((left, right) => left[1].index - right[1].index)
 			.map(([resourceName, resource]) => ({
+				...(resource.checksumSha256
+					? { checksumSha256: resource.checksumSha256 }
+					: {}),
 				file: resource.file,
 				mediaType: resource.mediaType,
 				resourceName,
