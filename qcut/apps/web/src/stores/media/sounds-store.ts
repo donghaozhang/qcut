@@ -699,6 +699,16 @@ export const useSoundsStore = create<SoundsStore>((set, get) => ({
 		autoDucking?: boolean;
 		beatAlignment?: AudioBeatAlignment;
 	}) => {
+		// Restricted Sound Effects Lab references are preview-only: never
+		// materialize them into project media, storage, or export flows.
+		if (isRestrictedSoundEffectsLabSound({ sound })) {
+			toast.error(
+				localizedAudioMessage({
+					key: "audioLibrary.soundEffectsLab.internalReference",
+				})
+			);
+			return false;
+		}
 		// Dynamic imports to avoid circular dependencies and improve code splitting
 		const [
 			{ useProjectStore },
