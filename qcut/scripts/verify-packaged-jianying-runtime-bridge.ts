@@ -1,4 +1,4 @@
-import { execFile } from "node:child_process";
+import { execFile, execFileSync } from "node:child_process";
 import { constants } from "node:fs";
 import { access, readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
@@ -8,6 +8,11 @@ const execFileAsync = promisify(execFile);
 const MACH_O_MAGICS = new Set([
 	0xfeedface, 0xfeedfacf, 0xcefaedfe, 0xcffaedfe, 0xcafebabe, 0xcafebabf,
 	0xbebafeca, 0xbfbafeca,
+]);
+const DYLD_RUNTIME_BRIDGES = new Set([
+	"jianying-person-cutout-bridge",
+	"jianying-saliency-script-bridge",
+	"jianying-transition-bridge",
 ]);
 
 async function newestPackagedBridge({
@@ -78,6 +83,37 @@ async function requireValidCodeSignature({ filePath }: { filePath: string }) {
 	}
 }
 
+export async function requireTransitionBridgeEntitlements({
+	filePath,
+}: {
+	filePath: string;
+}) {
+	const { stdout } = await execFileAsync("/usr/bin/codesign", [
+		"--display",
+		"--entitlements",
+		"-",
+		"--xml",
+		filePath,
+	]);
+	const entitlements: Record<string, unknown> = JSON.parse(
+		execFileSync("/usr/bin/plutil", ["-convert", "json", "-o", "-", "-"], {
+			input: stdout,
+			encoding: "utf8",
+			timeout: 10_000,
+		})
+	);
+	for (const key of [
+		"com.apple.security.cs.allow-dyld-environment-variables",
+		"com.apple.security.cs.disable-library-validation",
+	]) {
+		if (entitlements[key] !== true) {
+			throw new Error(
+				`Packaged Jianying runtime bridge is missing required entitlement ${key}: ${filePath}`
+			);
+		}
+	}
+}
+
 async function requireMatchingBridge({
 	packaged,
 	packagedPath,
@@ -102,6 +138,9 @@ async function requireMatchingBridge({
 			);
 		}
 		await requireValidCodeSignature({ filePath: packagedPath });
+		if (DYLD_RUNTIME_BRIDGES.has(path.basename(packagedPath))) {
+			await requireTransitionBridgeEntitlements({ filePath: packagedPath });
+		}
 		return;
 	}
 	if (stagedIsMachO !== packagedIsMachO || !staged.equals(packaged)) {
