@@ -1019,4 +1019,251 @@ describe("Jianying filter lab IPC", () => {
 			rgba,
 		});
 	});
+
+	it("routes a native face-region filter without exposing its package path", async () => {
+		const context = createWindowContext();
+		const resourceId = "7127674287238008078";
+		const version = "a7157c69db22c874fe86e736a02e12b2";
+		const renderEffect = vi.fn(async ({ rgba }: { rgba: Uint8Array }) => ({
+			provider: "jianying-local-effect-v1" as const,
+			resourceId,
+			width: 1,
+			height: 1,
+			rgba,
+		}));
+		setupJianyingFilterLabIPC({
+			getMainWindow: () => context.mainWindow,
+			readVerifications: async () => new Map(),
+			listReferences: async () => [],
+			filterCacheRoot: "/cache",
+			resolveTitles: async () => new Map(),
+			resolveCategories: async () => ({
+				order: ["人像"],
+				byResourceId: new Map(),
+			}),
+			resolveKnownFilters: async () => ({
+				order: ["人像"],
+				filters: [
+					{
+						resourceId,
+						title: "焕肤",
+						categories: ["人像"],
+						version,
+					},
+				],
+			}),
+			inspectPackages: async () =>
+				new Map([
+					[
+						resourceId,
+						{
+							...cachedPackage({ implementation: "face-region-lut" }),
+							nativeFaceRegionRenderer: {
+								kind: "native-face-region-effect" as const,
+								container: "artistEffect" as const,
+								packageIdentifier: resourceId,
+								version,
+								region: "lips" as const,
+								backgroundLutRelativePath: "texture/filter_bg.3dl.vf",
+								regionLutRelativePath: "texture/filter_lips.3dl.vf",
+								maskRelativePath: "texture/lipsMask.png",
+								requiresFlippedInputRoundTrip: true as const,
+							},
+						},
+					],
+				]),
+			localProvider: {
+				inspect: vi.fn(),
+				render: vi.fn(),
+				renderEffect,
+				clear: vi.fn(),
+			},
+		});
+
+		const rgba = new Uint8Array([10, 20, 30, 255]);
+		await expect(
+			getHandler({ channel: JIANYING_FILTER_LAB_RENDER_LOCAL_EFFECT_CHANNEL })(
+				context.event,
+				{
+					resourceId,
+					width: 1,
+					height: 1,
+					intensity: 80,
+					rgba,
+				}
+			)
+		).resolves.toMatchObject({ resourceId, width: 1, height: 1 });
+		expect(renderEffect).toHaveBeenCalledWith({
+			resourceId,
+			packagePath: join("/cache", "artistEffect", resourceId, version),
+			width: 1,
+			height: 1,
+			intensity: 80,
+			mode: "face-region",
+			rgba,
+		});
+		expect(
+			JSON.stringify(await renderEffect.mock.results[0]?.value)
+		).not.toContain("/cache");
+	});
+
+	it.each([
+		{
+			caseName: "complex dual LUT",
+			resourceId: "7451897248885099795",
+			title: "智能光线",
+			version: "5e99c97612aaee8e1e0b3567beb8567c",
+			implementation: "dual-lut" as const,
+			nativeKind: "native-swing-dual-lut" as const,
+			algorithmTypes: ["blit", "skin_seg"],
+			passCount: 38,
+		},
+		{
+			caseName: "Shader package",
+			resourceId: "7468943213143821587",
+			title: "璀璨",
+			version: "da0d70b6d9194b356f971b8fcdaad992",
+			implementation: "shader" as const,
+			nativeKind: "native-swing-shader" as const,
+			algorithmTypes: ["blit", "face", "kira", "texture_blit"],
+			passCount: 30,
+		},
+		{
+			caseName: "Face AI package",
+			resourceId: "7495673180904885516",
+			title: "丝滑皮肤",
+			version: "c88f3eddf7620d4e0644075efcafd101",
+			implementation: "face-ai" as const,
+			nativeKind: "native-swing-shader" as const,
+			algorithmTypes: ["blit", "face", "skin_seg", "structxt"],
+			passCount: 7,
+		},
+	])("loads and renders a $caseName through the Swing provider", async ({
+		resourceId,
+		title,
+		version,
+		implementation,
+		nativeKind,
+		algorithmTypes,
+		passCount,
+	}) => {
+		const context = createWindowContext();
+		const renderEffect = vi.fn(async ({ rgba }: { rgba: Uint8Array }) => ({
+			provider: "jianying-local-effect-v1" as const,
+			resourceId,
+			width: 1,
+			height: 1,
+			rgba,
+		}));
+		const swingClear = vi.fn();
+		const controller = setupJianyingFilterLabIPC({
+			getMainWindow: () => context.mainWindow,
+			readVerifications: async () => new Map(),
+			listReferences: async () => [],
+			filterCacheRoot: "/cache",
+			resolveTitles: async () => new Map(),
+			resolveCategories: async () => ({
+				order: ["人像"],
+				byResourceId: new Map(),
+			}),
+			resolveKnownFilters: async () => ({
+				order: ["人像"],
+				filters: [
+					{
+						resourceId,
+						title,
+						categories: ["人像"],
+						version,
+					},
+				],
+			}),
+			inspectPackages: async () =>
+				new Map([
+					[
+						resourceId,
+						{
+							...cachedPackage({ implementation }),
+							nativeSwingRenderer: {
+								kind: nativeKind,
+								container: "artistEffect" as const,
+								packageIdentifier: resourceId,
+								version,
+								passCount,
+								algorithmTypes,
+							},
+						},
+					],
+				]),
+			localProvider: {
+				inspect: vi.fn(),
+				render: vi.fn(),
+				renderEffect: vi.fn(),
+				clear: vi.fn(),
+			},
+			swingProvider: {
+				inspect: vi.fn(),
+				renderEffect,
+				clear: swingClear,
+			},
+		});
+
+		const listed = (await getHandler({
+			channel: JIANYING_FILTER_LAB_LIST_CHANNEL,
+		})(context.event)) as JianyingFilterLabListResult;
+		expect(listed.filters[0]).toMatchObject({
+			resourceId,
+			implementation,
+			available: true,
+			renderer: {
+				kind: "native-swing-effect",
+				passCount,
+				fidelity: "native-local",
+			},
+		});
+
+		const loaded = (await getHandler({
+			channel: JIANYING_FILTER_LAB_LOAD_RENDERER_CHANNEL,
+		})(context.event, { resourceId })) as JianyingFilterLabLoadRendererResult;
+		expect(loaded).toMatchObject({
+			resourceId,
+			version,
+			name: title,
+			fidelity: "native-local",
+			nativeEffect: {
+				provider: "jianying-local-effect-v1",
+				resourceId,
+				version,
+			},
+			passes: [],
+		});
+		expect(JSON.stringify(loaded)).not.toContain("/cache");
+
+		const rgba = new Uint8Array([10, 20, 30, 255]);
+		await expect(
+			getHandler({ channel: JIANYING_FILTER_LAB_RENDER_LOCAL_EFFECT_CHANNEL })(
+				context.event,
+				{
+					resourceId,
+					width: 1,
+					height: 1,
+					intensity: 80,
+					sourceKey: "video:swing",
+					timestampSeconds: 0.5,
+					rgba,
+				}
+			)
+		).resolves.toMatchObject({ resourceId, width: 1, height: 1 });
+		expect(renderEffect).toHaveBeenCalledWith({
+			resourceId,
+			packagePath: join("/cache", "artistEffect", resourceId, version),
+			width: 1,
+			height: 1,
+			intensity: 80,
+			sourceKey: "video:swing",
+			timestampSeconds: 0.5,
+			rgba,
+		});
+		controller.dispose();
+		expect(swingClear).toHaveBeenCalledOnce();
+	});
 });
