@@ -189,10 +189,42 @@ export function supportsLocalStickerReferences(): boolean {
 	return stickerLabBridge() !== null;
 }
 
+function stickerLabAbortError(): DOMException {
+	return new DOMException("The operation was aborted", "AbortError");
+}
+
 function abortIfRequested({ signal }: { signal?: AbortSignal }): void {
 	if (signal?.aborted) {
-		throw new DOMException("The operation was aborted", "AbortError");
+		throw stickerLabAbortError();
 	}
+}
+
+function raceStickerLabReadWithAbort<TResult>({
+	read,
+	signal,
+}: {
+	read: Promise<TResult>;
+	signal?: AbortSignal;
+}): Promise<TResult> {
+	if (!signal) return read;
+	return new Promise((resolve, reject) => {
+		const onAbort = () => {
+			signal.removeEventListener("abort", onAbort);
+			reject(stickerLabAbortError());
+		};
+		signal.addEventListener("abort", onAbort, { once: true });
+		read.then(
+			(result) => {
+				signal.removeEventListener("abort", onAbort);
+				resolve(result);
+			},
+			(error: unknown) => {
+				signal.removeEventListener("abort", onAbort);
+				reject(error);
+			}
+		);
+		if (signal.aborted) onAbort();
+	});
 }
 
 export async function discoverLocalStickerReferenceCatalogs(): Promise<LocalStickerReferenceDiscovery> {
@@ -397,11 +429,14 @@ async function loadLocalBridgeStickerRuntimeResource({
 	if (!bridge) {
 		throw new Error("Local sticker reference bridge is unavailable");
 	}
-	const result = await bridge.readLocalReference({
-		rootPath: resource.asset.rootPath,
-		batchId: resource.asset.batchId,
-		stickerId: resource.asset.stickerId,
-		resourceName: resource.asset.resourceName,
+	const result = await raceStickerLabReadWithAbort({
+		read: bridge.readLocalReference({
+			rootPath: resource.asset.rootPath,
+			batchId: resource.asset.batchId,
+			stickerId: resource.asset.stickerId,
+			resourceName: resource.asset.resourceName,
+		}),
+		signal,
 	});
 	const mismatchedFields = [
 		result.batchId === reference.asset.batchId ? null : "batchId",
