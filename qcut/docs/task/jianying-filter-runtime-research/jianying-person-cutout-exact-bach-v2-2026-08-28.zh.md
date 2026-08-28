@@ -77,7 +77,7 @@ recall `0.999400073951`、MAE `1.965280598958/255`。这些数字同时包含剪
 证据目录：
 
 ```text
-/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/qcut-jianying-bach-v2-exact-2026-08-28/
+<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/qcut-jianying-bach-v2-exact-2026-08-28/
 ```
 
 ## 产品边界

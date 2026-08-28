@@ -337,9 +337,9 @@ frame 59 是该历史链的最弱帧，尾部差异可能同时包含错误的�
 证据目录：
 
 ```text
-/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/qcut-parity-gap-reduction-2026-08-28/desktop-near-route-gl-context/
-/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/qcut-parity-gap-reduction-2026-08-28/desktop-wide-route-final/
-/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/qcut-parity-gap-reduction-2026-08-28/desktop-auto-post-context-gate/
+<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/qcut-parity-gap-reduction-2026-08-28/desktop-near-route-gl-context/
+<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/qcut-parity-gap-reduction-2026-08-28/desktop-wide-route-final/
+<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/qcut-parity-gap-reduction-2026-08-28/desktop-auto-post-context-gate/
 ```
 
 每个目录都包含 `desktop-person-cutout.webm`、三张桌面截图、`e2e-evidence.json` 和本地 `electron-runtime.log`；运行时日志只作为私有证据，不进入仓库。

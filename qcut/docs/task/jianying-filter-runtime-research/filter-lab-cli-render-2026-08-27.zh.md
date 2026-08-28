@@ -92,7 +92,7 @@ bun --silent run qcut -- filter-lab render \
 
 每次 CLI 渲染都在 macOS `sandbox-exec` 内执行：禁止联网、读取剪映安装目录、剪映用户缓存以及 QCut 下载目录。只允许使用 QCut 私有快照，并设置禁用 App bundle / 用户缓存的环境变量。
 
-使用快照 `D6342ECD-5432-33F0-A2AD-0C28F5699994-c092f19c71af1397`。这不是 Daytona/Linux 验证；原生路径依赖本机 macOS 运行库。
+使用与缓存补齐记录相同的最新私有快照（快照标识不入库）。这不是 Daytona/Linux 验证；原生路径依赖本机 macOS 运行库。
 
 图片为已有真人素材，854 x 480。视频为已有真人视频截出的 1280 x 720、1 秒、30 帧片段；原视频没有声音，测试夹具另加 440 Hz 音轨用于检查音频是否丢失。
 
@@ -134,11 +134,7 @@ bun --silent run qcut -- filter-lab render \
 - `bunx tsc -p electron/tsconfig.json --noEmit --pretty false` 通过。
 - 15 个修改/新增 TypeScript 文件的 Biome 检查通过；`git diff --check` 通过。
 
-本机证据目录：
-
-```text
-/Users/peter/Downloads/QCut-FilterLab-2026-08-27/
-```
+证据保存在本机的 `QCut-FilterLab-2026-08-27/` 目录（绝对路径不入库）：
 
 | 文件 | 内容 |
 | --- | --- |

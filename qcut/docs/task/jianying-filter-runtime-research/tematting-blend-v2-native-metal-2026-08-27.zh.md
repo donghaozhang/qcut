@@ -60,7 +60,7 @@ RGBA -> BGR888 GRU -> 全尺寸 Alpha -> AGFX input/mask/output textures
 本机证据：
 
 ```text
-/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/
+<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/
   qcut-native-metal-person-cutout-2s.webm
   qcut-native-metal-e2e-compare-frame0-alpha.png
   qcut-desktop-e2e-native-metal/

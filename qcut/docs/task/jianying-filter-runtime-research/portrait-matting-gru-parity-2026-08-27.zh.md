@@ -58,7 +58,7 @@ QCut 与剪映现在使用同一份本地 `tt_matting_video_gru_v1.0.model`，�
 
 状态重置验证：同一真人首帧分别交给两个全新桥进程，两个 `256×448` Alpha 输出均为 230400 字节，SHA-256 同为 `ef731a1767e2c4f345d1afa0cf2cc7fced96a8983433a42e5a6820dfa6c08d0b`，字节比较相同。这证明新任务会从干净的 GRU 状态开始，不会继承上一个片段的时序状态。
 
-本机证据目录：`/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/`
+本机证据目录：`<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/`
 
 - `real-person-cutout-gru-parity-v2-2s.webm`
 - `alpha-old-vs-parity-v2-2s.mp4`
@@ -108,7 +108,7 @@ GRU Alpha stdout   -> FFmpeg alpha stdin -> VP9 WebM
 桌面证据目录：
 
 ```text
-/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/qcut-desktop-e2e-streaming-native-metal/
+<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/qcut-desktop-e2e-streaming-native-metal/
 ```
 
 ### 剪映黑/白底 Alpha 反推（2026-08-27）
@@ -134,7 +134,7 @@ GRU Alpha stdout   -> FFmpeg alpha stdin -> VP9 WebM
 有效对照证据目录：
 
 ```text
-/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/jianying-alpha-reconstruction-2026-08-27/
+<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/jianying-alpha-reconstruction-2026-08-27/
 ```
 
 - `jianying-wide-cutout-black-ui.png`、`jianying-wide-cutout-white-ui.png`：真实剪映 UI 状态。
@@ -150,7 +150,7 @@ GRU Alpha stdout   -> FFmpeg alpha stdin -> VP9 WebM
 最新真人桌面 E2E：1/1 通过，精细模式生成并挂载全帧 `1×1` Alpha 蒙版，预览播放器成功解码 360×640 VP9 Alpha；自动生成完成后不再默认进入几何蒙版编辑态，结果截图不再覆盖 80% 尺寸的误导性编辑框。证据目录：
 
 ```text
-/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/qcut-desktop-e2e-wide-native-metal/
+<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/qcut-desktop-e2e-wide-native-metal/
 ```
 
 ## 老人脸部闪烁修复：QCut 双向窗口与人物内部保持
@@ -189,10 +189,10 @@ QCut 新增的是不依赖私有宿主的自主修复，不再称为剪映 `exte
 
 最终证据：
 
-- `/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/qcut-desktop-e2e-wide-temporal-window/e2e-evidence.json`
-- `/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/jianying-alpha-reconstruction-2026-08-27/qcut-temporal-window-e2e-parity-metrics.json`
-- `/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/jianying-alpha-reconstruction-2026-08-27/same-video-white-bg-jianying-left-qcut-right-temporal-window-2s.mp4`
-- `/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/jianying-alpha-reconstruction-2026-08-27/same-video-white-bg-jianying-left-qcut-right-temporal-window-slow-4s.mp4`
+- `<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/qcut-desktop-e2e-wide-temporal-window/e2e-evidence.json`
+- `<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/jianying-alpha-reconstruction-2026-08-27/qcut-temporal-window-e2e-parity-metrics.json`
+- `<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/jianying-alpha-reconstruction-2026-08-27/same-video-white-bg-jianying-left-qcut-right-temporal-window-2s.mp4`
+- `<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/jianying-alpha-reconstruction-2026-08-27/same-video-white-bg-jianying-left-qcut-right-temporal-window-slow-4s.mp4`
 
 ## 六项宿主问题的追踪结论（2026-08-27）
 
@@ -271,7 +271,7 @@ UI 羽化从 0 改到 50、边缘硬度从 0 改到 19 时，没有调用推理�
 接入后使用全新缓存根完成真人 Electron E2E，`1/1` 通过，用时 23.3 秒。旧软 Alpha 与新剪映 LUT Alpha 的 60 帧 PSNR 为 `9.447 dB`；零值比例从 `24.82%` 提升到 `37.28%`，255 比例从 `20.65%` 提升到 `35.37%`。白底图显示灰边明显减少，但模型原本低置信度的手臂/衣物也会被压掉；这说明剩余主观画质问题已从“边缘公式未知”收窄为“GRU 原始置信度不足”，不能再靠猜测腐蚀半径解决。证据保存在：
 
 ```text
-/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/qcut-border-lut-e2e-2026-08-27/
+<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/qcut-border-lut-e2e-2026-08-27/
 ```
 
 ### 5. 预览、缓存与导出
@@ -339,7 +339,7 @@ QCut 已实际调用相同 `TEMattingBlendEffectV2` 并命中 `FastBlend`。本�
 整段 60 帧真人调用成功，输出 cache key 为 `b46c0dd4b05a75294bfb66af7e4da30e0d858aa1d42258e762b9d8f618642de1`，Alpha 严格为 `13,824,000 = 360×640×60` 字节。冷运行约 4.1 秒，缓存命中复跑约 2.2 秒；透明输出 metadata 为 `saliency_script_for_cc_v1.2`、`saliency-script` 和 `TEMattingBlendEffectV2-compatible`。完整证据在：
 
 ```text
-/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/qcut-saliency-provider-e2e-2026-08-27/
+<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/qcut-saliency-provider-e2e-2026-08-27/
 ```
 
 这次真人反例也明确了 provider 的适用范围：强制把整段有脸镜头交给 saliency 时，它会优先保留手、衣服、地图等显著物，而不是完整两个人；因此不能取代 GRU。后续无缓存动态任务已直接读取 `MattingTaskParam(+0x180)`：两次 `handleFaceDetect` 的原始位模式都是 `0x3f000000`，即阈值 **0.5**。QCut 的实验性自动路由因此也改成“有脸样本数 / 有效样本数低于 50% 才切 saliency”。
@@ -351,8 +351,8 @@ GRU 与 saliency 现在共用同一套 Alpha 后处理实现：阈值、时序�
 两条自动路由均在共享后处理接入后通过真实 Electron E2E：有脸 2 秒素材走 GRU + native Metal，23.5 秒完成；无脸 0.5 秒素材自动走 saliency + compatible Blend，14.9 秒完成。两次均完成导入、属性面板、任务进度、添加透明媒体、绑定人物蒙版与播放器解码，截图和输出分别位于：
 
 ```text
-/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/qcut-auto-route-refined-e2e-2026-08-27/
-/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/qcut-auto-saliency-refined-e2e-2026-08-27/
+<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/qcut-auto-route-refined-e2e-2026-08-27/
+<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/qcut-auto-saliency-refined-e2e-2026-08-27/
 ```
 
 ### Mask 缓存格式与完成协议
@@ -403,7 +403,7 @@ GRU 与 saliency 现在共用同一套 Alpha 后处理实现：阈值、时序�
 `setPreviewModel(tt_matting_video_preview.model)` 仍存在，但这轮完整缓存运行没有动态命中；不能把它描述成每次预览必走的固定模型。导出 E2E 及原始动态证据保存在：
 
 ```text
-/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/dynamic-host-trace-2026-08-27/
+<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/dynamic-host-trace-2026-08-27/
 ```
 
 其中 `jianying-host-trace-export.mov` 的 SHA-256 为 `5f2a3e083309f56ec3835b99f9995938d8b000b368b9e8b8f6c548704dd73a4c`；同状态的缺帧/恢复缓存导出分别为 `af000972d99fb1a8f5dcae674490a3b89abfb0ef8e106a0af16db7b79e9ed30e` 和 `f0be9c58505e380e2029c5c567a4906fb5fcbf8098caf236314ab864d9b4b814`。实验结束后已经把草稿恢复为原来的未抠像顶层片段、撤销测试切分、把羽化和边缘硬度恢复为 0，并恢复实验前的 `matting/` 缓存。
@@ -421,7 +421,7 @@ GRU bridge 现在按已动态确认的效果包序列设置 `5=1, 6=-1, 7=1, 8=1
 真人桌面 E2E 连续运行两次均通过。第二次运行前后同一缓存的 manifest 与 Alpha mtime 完全不变，证明导出命中缓存而非重新推理；缓存 manifest 为 60 帧、13,824,000 字节，模型路由为 `portrait-gru`，Blend 为 `TEMattingBlendEffectV2-native-metal`。QCut UI 完成态、时间线蒙版和实际播放器截图保存在：
 
 ```text
-/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/qcut-cache-integrity-e2e-2026-08-27/
+<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/qcut-cache-integrity-e2e-2026-08-27/
 ```
 
 剪映应用内的 `saliency_matting.v1.0`、`saliency_script_for_cc.v1.2` 和 `video_saliency_seg_bce.v1.0` 已完成分层资源验证；`saliency_matting` Bach script graph 已接入 QCut 并通过强制 route、缓存命中、无脸实验 route 和真实 Electron E2E。`modelRoute`、模型/graph/processor 哈希均进入缓存身份，透明视频 metadata 会按实际路径写 `portrait-gru` 或 `saliency-script`。剪映自动选择的 `ai_matting_video_object -> video_saliency_seg_bce` 尚未作为独立 QCut provider 接入。
@@ -429,7 +429,7 @@ GRU bridge 现在按已动态确认的效果包序列设置 `5=1, 6=-1, 7=1, 8=1
 最新真人桌面 E2E 在删除硬切 reset、启动 `MP_IgnorePrevious` 和默认自动路由后，使用全新缓存根冷运行 `1/1` 通过。生成 60 帧、`13,824,000` 字节 Alpha；输出为 2 秒、360×640、30 fps VP9 Alpha，metadata 同时包含 `TEMattingBlendEffectV2-native-metal`、GRU v1.0 和 `portrait-gru`。浏览器实际解码中心 Alpha 均值 `248.72`、顶部背景 `0`。证据目录：
 
 ```text
-/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/raw-alpha-context-parity-2026-08-27/qcut-default-gru-e2e/
+<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/raw-alpha-context-parity-2026-08-27/qcut-default-gru-e2e/
 ```
 
 ## 老人近景的最终模型路由与 Border 前 Alpha
@@ -466,7 +466,7 @@ GRU bridge 现在按已动态确认的效果包序列设置 `5=1, 6=-1, 7=1, 8=1
 原始 trace、两次新生成的缓存和 480 份 Border Alpha 均保存在仓库外：
 
 ```text
-/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/closeup-model-route-preborder-2026-08-27/
+<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/closeup-model-route-preborder-2026-08-27/
 ```
 
 实验结束后，测试草稿原来的 244 个 `matting/` 文件已按两个原 cache ID 完整恢复。
@@ -485,15 +485,15 @@ GRU bridge 现在按已动态确认的效果包序列设置 `5=1, 6=-1, 7=1, 8=1
 本轮阈值与 reset 原始证据：
 
 ```text
-/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/raw-alpha-context-parity-2026-08-27/jianying-threshold-reset-trace/
+<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/raw-alpha-context-parity-2026-08-27/jianying-threshold-reset-trace/
 ```
 
 本轮 QCut 真人桌面 E2E、量化与左剪映/右 QCut 白底对比：
 
 ```text
-/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/raw-alpha-context-parity-2026-08-27/qcut-default-gru-e2e/
-/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/raw-alpha-context-parity-2026-08-27/jianying-left-qcut-right-white.mp4
-/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/raw-alpha-context-parity-2026-08-27/jianying-left-qcut-right-frame-55-white.png
+<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/raw-alpha-context-parity-2026-08-27/qcut-default-gru-e2e/
+<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/raw-alpha-context-parity-2026-08-27/jianying-left-qcut-right-white.mp4
+<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/raw-alpha-context-parity-2026-08-27/jianying-left-qcut-right-frame-55-white.png
 ```
 
 ## 2026-08-28：object graph 宿主边界与精细模式最终补洞
@@ -563,7 +563,7 @@ source RGBA
 最终证据位于：
 
 ```text
-/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/qcut-motion-reset-parity-2026-08-28/
+<仓库外 improve_voice 证据目录>/qcut-gru-real-person-test-2026-08-26/qcut-motion-reset-parity-2026-08-28/
 ```
 
 重点文件为 `findings.md`、`vision-fusion-final-metrics.json`、
