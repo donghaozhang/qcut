@@ -19,6 +19,21 @@ struct MetalMattingBlendFrame {
   int alphaHeight;
 };
 
+namespace detail {
+
+void validateMetalMattingBlendFrame(const MetalMattingBlendFrame &frame,
+                                    int width, int height);
+
+std::vector<std::uint8_t> extractMetalMattingBlendAlpha(
+    const MetalMattingBlendFrame &frame,
+    const std::vector<std::uint8_t> &blendedRgba, int width, int height);
+
+void clampMetalMattingBlendAlphaToSource(
+    const std::vector<std::uint8_t> &rgba,
+    std::vector<std::uint8_t> &alpha);
+
+} // namespace detail
+
 class MetalMattingBlend {
 public:
   explicit MetalMattingBlend(const MetalMattingBlendConfig &config);
@@ -28,7 +43,7 @@ public:
   MetalMattingBlend &operator=(const MetalMattingBlend &) = delete;
 
   std::vector<std::uint8_t>
-  blendAlpha(const MetalMattingBlendFrame &frame) const;
+  blendAlpha(const MetalMattingBlendFrame &frame);
 
 private:
   class Impl;
