@@ -33,6 +33,7 @@ const restrictionMetadata = {
 
 const reusableResourceMetadata = {
 	...restrictionMetadata,
+	checksumSha256: "a".repeat(64),
 	source: "sticker-runtime-resource",
 	stickerAssetId: asset.id,
 	stickerAssetVersion: asset.version,
@@ -58,6 +59,7 @@ function runtimePackage(): PreparedStickerRuntimePackage {
 		primaryMediaType: "image",
 		resources: [
 			{
+				checksumSha256: "a".repeat(64),
 				file: new File([new Uint8Array([1, 2])], "frame.png", {
 					type: "image/png",
 				}),
@@ -99,6 +101,7 @@ describe("sticker runtime project import", () => {
 			expect.objectContaining({
 				id: "sticker-runtime:public-runtime@3:asset_0001",
 				metadata: {
+					checksumSha256: "a".repeat(64),
 					source: "sticker-runtime-resource",
 					stickerAssetId: "public-runtime",
 					stickerAssetVersion: 3,
@@ -203,6 +206,14 @@ describe("sticker runtime project import", () => {
 			},
 		},
 		{
+			name: "the wrong runtime checksum",
+			mismatchedField: "checksumSha256",
+			metadata: {
+				...reusableResourceMetadata,
+				checksumSha256: "b".repeat(64),
+			},
+		},
+		{
 			name: "the wrong runtime source URL",
 			mismatchedField: "stickerRuntimeSourceUrl",
 			metadata: {
@@ -262,6 +273,7 @@ describe("sticker runtime project import", () => {
 	it("waits for concurrent writes before rolling back every attempted resource", async () => {
 		const packageWithTwoResources = runtimePackage();
 		packageWithTwoResources.resources.push({
+			checksumSha256: "b".repeat(64),
 			file: new File([new Uint8Array([3, 4])], "frame-2.png", {
 				type: "image/png",
 			}),
