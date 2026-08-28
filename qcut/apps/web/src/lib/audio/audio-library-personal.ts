@@ -96,6 +96,18 @@ function parseSoundEffectsLabMetadata({
 		return undefined;
 	}
 	const assetRecord = asRecord({ value: record.asset });
+	// Mirror the manifest invariant: the asset namespace must match the
+	// provider, so forged "freesound"/"allowed" rights can never keep a
+	// restricted jianying/... payload (see local-sound-effects-manifest.ts).
+	if (
+		assetRecord &&
+		typeof assetRecord.objectKey === "string" &&
+		!assetRecord.objectKey.startsWith(
+			provider === "freesound" ? "qcut/" : "jianying/"
+		)
+	) {
+		return undefined;
+	}
 	const asset =
 		assetRecord &&
 		typeof assetRecord.objectKey === "string" &&
