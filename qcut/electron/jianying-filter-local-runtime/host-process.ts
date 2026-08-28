@@ -43,6 +43,9 @@ export interface StartJianyingFilterHostProcessOptions {
 	skipAlgorithm?: boolean;
 	captureMask?: boolean;
 	captureFace?: boolean;
+	useEngineGlContext?: boolean;
+	flipAlgorithmInputY?: boolean;
+	flipProcessInputY?: boolean;
 }
 
 function createDeferred<T>(): Deferred<T> {
@@ -120,19 +123,20 @@ function hostFailureMessage({
 	return detail ? `${message}: ${detail}` : message;
 }
 
-function spawnHost({
-	bridgePath,
+function buildHostArguments({
 	effectLibraryPath,
 	modelDirectory,
 	packagePath,
 	bootstrapInputPath,
 	bootstrapOutputPath,
-	frameworkDirectory,
 	skipAlgorithm = false,
 	captureMask = true,
 	captureFace = false,
-}: StartJianyingFilterHostProcessOptions): ChildProcessWithoutNullStreams {
-	const argumentsList = [
+	useEngineGlContext = false,
+	flipAlgorithmInputY = false,
+	flipProcessInputY = false,
+}: StartJianyingFilterHostProcessOptions): string[] {
+	return [
 		effectLibraryPath,
 		modelDirectory,
 		packagePath,
@@ -140,11 +144,26 @@ function spawnHost({
 		"core32",
 		"--input",
 		bootstrapInputPath,
+		...(useEngineGlContext ? ["--engine-gl-context"] : []),
 		...(skipAlgorithm ? ["--skip-algorithm"] : []),
+		...(flipAlgorithmInputY ? ["--flip-algorithm-input-y"] : []),
+		...(flipProcessInputY ? ["--flip-process-input-y"] : []),
 		...(captureMask ? ["--inspect-skin-result"] : []),
 		...(captureFace ? ["--inspect-face-result"] : []),
 		"--server",
 	];
+}
+
+function spawnHost({
+	bridgePath,
+	frameworkDirectory,
+	...options
+}: StartJianyingFilterHostProcessOptions): ChildProcessWithoutNullStreams {
+	const argumentsList = buildHostArguments({
+		bridgePath,
+		frameworkDirectory,
+		...options,
+	});
 	return spawn(bridgePath, argumentsList, {
 		env: {
 			...process.env,
@@ -299,4 +318,5 @@ export async function startJianyingFilterHostProcess(
 
 export const jianyingFilterHostProcessTestUtils = {
 	appendStderrTail,
+	buildHostArguments,
 };
