@@ -19,7 +19,11 @@ import { resolveMediaMasks } from "@/lib/video/video-properties";
 import { getMediaTimelineDuration } from "@/lib/video/video-timing";
 
 type TrackingRequest = SegmentationState["trackingRequest"];
-export type GeneratedMaskSource = "mediapipe" | "jianying-gru" | "sam3";
+export type GeneratedMaskSource =
+	| "mediapipe"
+	| "qcut-person-matting"
+	| "jianying-gru"
+	| "sam3";
 
 interface TimelineMediaTarget {
 	trackId: string;
@@ -170,7 +174,7 @@ export function attachGeneratedMask({
 		elementId: targetElementId ?? matchingRequest?.elementId,
 	});
 	if (!target) {
-		toast.info("Mask media was added, but no timeline clip is selected");
+		toast.info("人物抠像结果已添加到素材库，但尚未选择时间线片段");
 		return false;
 	}
 
@@ -194,7 +198,9 @@ export function attachGeneratedMask({
 	useMaskEditorStore
 		.getState()
 		.selectMask(target.element.id, result.selectedMaskId);
-	useMaskEditorStore.getState().setEditing(source !== "jianying-gru");
+	const usesPrecomputedPersonMatting =
+		source === "qcut-person-matting" || source === "jianying-gru";
+	useMaskEditorStore.getState().setEditing(!usesPrecomputedPersonMatting);
 	if (matchingRequest) segmentationState.clearTrackingRequest();
 	return true;
 }
