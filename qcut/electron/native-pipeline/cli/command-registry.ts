@@ -140,6 +140,7 @@ export const CATEGORIES: CategoryDef[] = [
 		commands: [
 			"filter-lab-list",
 			"filter-lab-catalog",
+			"filter-lab-render",
 			"filter-lab-compare",
 			"filter-lab-match",
 			"filter-lab-verify",
@@ -337,6 +338,47 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		examples: [
 			"qcut filter-lab catalog --json",
 			"qcut filter-lab catalog --sample 30 --seed 7 --stratify implementation,requirements --json",
+		],
+	},
+	"filter-lab-render": {
+		name: "filter-lab-render",
+		description:
+			"Apply an available Filter Lab card to a local image or video using the editor's LUT, native portrait, or multi-pass renderer; apply is an alias",
+		category: "filter-lab",
+		flags: [
+			f(
+				"--resource-id",
+				"string",
+				"Exact filter resource ID from filter-lab catalog",
+				{ required: true }
+			),
+			f("--input", "string", "Local image or video path", {
+				short: "-i",
+				required: true,
+			}),
+			f("--output", "string", "Output PNG for an image, or MP4 for a video"),
+			f("--filter-version", "string", "Require this exact cached version"),
+			f(
+				"--filter-intensity",
+				"number",
+				"Filter intensity from 0 to 100 (default: 100)"
+			),
+			f("--duration", "string", "Render at most this many seconds of video"),
+			f("--fps", "number", "Video output frame rate (default: source average)"),
+			f(
+				"--dry-run",
+				"boolean",
+				"Validate the card, runtime, and input without rendering"
+			),
+			f(
+				"--force",
+				"boolean",
+				"Replace an existing output after a successful render"
+			),
+		],
+		examples: [
+			"qcut filter-lab render --resource-id 7524288987129810214 -i portrait.jpg --output filtered.png --json",
+			"qcut filter-lab apply --resource-id 7392898023505792319 -i clip.mp4 --output filtered.mp4 --duration 2 --json",
 		],
 	},
 	"filter-lab-compare": {

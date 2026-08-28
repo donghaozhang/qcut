@@ -5,6 +5,13 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { JIANYING_FILTER_LOCAL_BRIDGE_FILE_NAME } from "../../electron/jianying-filter-local-runtime/bridge-resolver.js";
 import { JIANYING_PORTRAIT_ADJUSTMENT_HOST_FILE_NAME } from "../../electron/jianying-portrait-adjustment-runtime/bridge-resolver.js";
+import { JIANYING_PERSON_CUTOUT_BRIDGE_FILE_NAME } from "../../electron/jianying-person-cutout/bridge-resolver.js";
+import { JIANYING_SALIENCY_BRIDGE_FILE_NAME } from "../../electron/jianying-person-cutout/saliency-bridge-resolver.js";
+import {
+	VIDEO_OBJECT_BACH_BRIDGE_FILE_NAME,
+	VIDEO_OBJECT_BACH_BRIDGE_REQUIRED_MARKERS,
+} from "../../electron/jianying-person-cutout/video-object-bach-bridge-resolver.js";
+import { VIDEO_OBJECT_COREML_BRIDGE_FILE_NAME } from "../../electron/jianying-person-cutout/video-object-coreml-bridge-resolver.js";
 import { JIANYING_TEXT_RUNTIME_BRIDGE_FILE_NAME } from "../../electron/jianying-text-runtime/bridge-resolver.js";
 import { JIANYING_TRANSITION_BRIDGE_FILE_NAME } from "../../electron/jianying-transition/bridge-resolver.js";
 import { verifyPackagedJianyingRuntimeBridges } from "../verify-packaged-jianying-runtime-bridges.js";
@@ -24,8 +31,18 @@ async function writeBridge({
 }
 
 async function createFixture({
+	personCutoutCapabilities = "TEMattingBlendEffectV2-native-metal-canary Vision-person-fusion-v1",
+	saliencyCapabilities = "video-object-general-seg-v1 video-object-alpha-quality-v1",
+	videoObjectBachCapabilities = VIDEO_OBJECT_BACH_BRIDGE_REQUIRED_MARKERS.join(
+		" "
+	),
+	videoObjectCoreMLCapabilities = "video-object-same-model-coreml-v1",
 	transitionUsage = "transition-video|effect-video",
 }: {
+	personCutoutCapabilities?: string;
+	saliencyCapabilities?: string;
+	videoObjectBachCapabilities?: string;
+	videoObjectCoreMLCapabilities?: string;
 	transitionUsage?: string;
 } = {}) {
 	const projectRoot = await mkdtemp(
@@ -57,7 +74,23 @@ async function createFixture({
 		},
 		{
 			name: JIANYING_PORTRAIT_ADJUSTMENT_HOST_FILE_NAME,
-			contents: "#!/bin/sh\nexit 0\n",
+			contents: "#!/bin/sh\n# HTSGLContext\nexit 0\n",
+		},
+		{
+			name: JIANYING_PERSON_CUTOUT_BRIDGE_FILE_NAME,
+			contents: `#!/bin/sh\n# ${personCutoutCapabilities}\nexit 0\n`,
+		},
+		{
+			name: JIANYING_SALIENCY_BRIDGE_FILE_NAME,
+			contents: `#!/bin/sh\n# ${saliencyCapabilities}\nexit 0\n`,
+		},
+		{
+			name: VIDEO_OBJECT_BACH_BRIDGE_FILE_NAME,
+			contents: `#!/bin/sh\n# ${videoObjectBachCapabilities}\nexit 0\n`,
+		},
+		{
+			name: VIDEO_OBJECT_COREML_BRIDGE_FILE_NAME,
+			contents: `#!/bin/sh\n# ${videoObjectCoreMLCapabilities}\nexit 0\n`,
 		},
 	];
 	await Promise.all(
@@ -95,6 +128,18 @@ describe("packaged Jianying runtime bridge verification", () => {
 			portraitAdjustmentHost: expect.stringContaining(
 				JIANYING_PORTRAIT_ADJUSTMENT_HOST_FILE_NAME
 			),
+			personCutoutBridge: expect.stringContaining(
+				JIANYING_PERSON_CUTOUT_BRIDGE_FILE_NAME
+			),
+			saliencyBridge: expect.stringContaining(
+				JIANYING_SALIENCY_BRIDGE_FILE_NAME
+			),
+			videoObjectBachBridge: expect.stringContaining(
+				VIDEO_OBJECT_BACH_BRIDGE_FILE_NAME
+			),
+			videoObjectCoreMLBridge: expect.stringContaining(
+				VIDEO_OBJECT_COREML_BRIDGE_FILE_NAME
+			),
 		});
 	});
 
@@ -104,6 +149,56 @@ describe("packaged Jianying runtime bridge verification", () => {
 		});
 		await expect(verifyPackagedJianyingRuntimeBridges(fixture)).rejects.toThrow(
 			"required mode: effect-video"
+		);
+	});
+
+	it("rejects a video-object bridge without the Alpha quality gate", async () => {
+		const fixture = await createFixture({
+			saliencyCapabilities: "video-object-general-seg-v1",
+		});
+		await expect(verifyPackagedJianyingRuntimeBridges(fixture)).rejects.toThrow(
+			"video-object Alpha quality gate"
+		);
+	});
+
+	it("rejects a stale same-model CoreML bridge", async () => {
+		const fixture = await createFixture({
+			videoObjectCoreMLCapabilities: "video-object-alpha-quality-v1",
+		});
+		await expect(verifyPackagedJianyingRuntimeBridges(fixture)).rejects.toThrow(
+			"same-model CoreML bridge is stale"
+		);
+	});
+
+	it("rejects a Bach bridge without every audited runtime pin", async () => {
+		const fixture = await createFixture({
+			videoObjectBachCapabilities:
+				"video-object-jianying-bach-v2-exact-d634-v1 TEMattingBlendEffectV2-vendor-exact D6342ECD-5432-33F0-A2AD-0C28F5699994",
+		});
+		await expect(verifyPackagedJianyingRuntimeBridges(fixture)).rejects.toThrow(
+			"missing audited capability"
+		);
+	});
+
+	it("rejects a Bach bridge without the pinned dependency closure", async () => {
+		const fixture = await createFixture({
+			videoObjectBachCapabilities:
+				VIDEO_OBJECT_BACH_BRIDGE_REQUIRED_MARKERS.filter(
+					(marker) => !marker.startsWith("jianying-runtime-framework-closure-")
+				).join(" "),
+		});
+		await expect(verifyPackagedJianyingRuntimeBridges(fixture)).rejects.toThrow(
+			"missing audited capability"
+		);
+	});
+
+	it("rejects a person bridge that still claims full native Metal blending", async () => {
+		const fixture = await createFixture({
+			personCutoutCapabilities:
+				"TEMattingBlendEffectV2-native-metal Vision-person-fusion-v1",
+		});
+		await expect(verifyPackagedJianyingRuntimeBridges(fixture)).rejects.toThrow(
+			"native Metal canary validation"
 		);
 	});
 });

@@ -95,7 +95,7 @@ export function CutoutTaskStatus({
 					<span>{PHASE_LABELS[phase]}</span>
 				</div>
 				<span className="shrink-0 text-muted-foreground">
-					{Math.max(0, Math.floor(elapsedTime))}s
+					{Math.max(0, Math.floor(elapsedTime))} 秒
 				</span>
 			</div>
 

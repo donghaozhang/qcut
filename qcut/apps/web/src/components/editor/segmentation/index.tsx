@@ -401,7 +401,6 @@ export function SegmentationPanel() {
 
 	return (
 		<div className="h-full flex flex-col gap-4 p-4">
-			{/* Mode Tabs */}
 			<Tabs value={mode} onValueChange={(v) => setMode(v as "image" | "video")}>
 				<TabsList className="grid w-full grid-cols-2">
 					<TabsTrigger value="image" className="flex items-center gap-2">
@@ -428,17 +427,16 @@ export function SegmentationPanel() {
 							className="flex items-center gap-2"
 						>
 							<UserRound className="size-4" />
-							本地人物
+							人物抠像
 						</TabsTrigger>
 						<TabsTrigger value="sam3" className="flex items-center gap-2">
 							<ScanSearch className="size-4" />
-							云端物体
+							物体抠像
 						</TabsTrigger>
 					</TabsList>
 				</Tabs>
 			)}
 
-			{/* Segment Button */}
 			{!isLocalPersonVideo && (
 				<div className="flex-shrink-0">
 					<Button
@@ -456,12 +454,12 @@ export function SegmentationPanel() {
 						{isProcessing || segmentationTaskRunning ? (
 							<>
 								<Loader2 className="w-4 h-4 mr-2 animate-spin" />
-								正在分割...
+								正在抠像...
 							</>
 						) : (
 							<>
 								<Wand2 className="w-4 h-4 mr-2" />
-								分割对象
+								开始物体抠像
 							</>
 						)}
 					</Button>
@@ -504,13 +502,14 @@ export function SegmentationPanel() {
 					sourceUrl={sourceVideoUrl}
 					autoStartRequestId={trackingRequest?.requestId}
 					addMediaItem={addMediaItem}
-					onProgress={({ progress }) =>
+					onProgress={({ progress, source }) =>
 						updateGeneratedMaskTrackingProgress({
 							progress,
-							source: "mediapipe",
+							source,
 						})
 					}
 					onMaskReady={({
+						source,
 						sourceMediaId,
 						trackingSamples,
 						targetElementId,
@@ -519,7 +518,7 @@ export function SegmentationPanel() {
 						attachGeneratedMask({
 							sourceMediaId,
 							type: "person",
-							source: "mediapipe",
+							source,
 							name: "MediaPipe person",
 							trackingSamples,
 							targetElementId,

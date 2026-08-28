@@ -374,7 +374,7 @@ export function MediaAutomaticCutoutProperties({
 	const sourceReady = Boolean(projectId && mediaItem && sourceUrl);
 
 	return (
-		<PropertyGroup title="智能抠像" defaultExpanded>
+		<PropertyGroup title="抠像" defaultExpanded>
 			<Tabs
 				value={mode}
 				onValueChange={(value) => setMode(value as AutomaticCutoutMode)}
@@ -382,11 +382,11 @@ export function MediaAutomaticCutoutProperties({
 				<TabsList className="grid h-8 w-full grid-cols-2 rounded-sm p-0.5">
 					<TabsTrigger value="person" className="gap-1.5 text-xs">
 						<UserRound className="size-3.5" />
-						本地人物
+						人物抠像
 					</TabsTrigger>
 					<TabsTrigger value="object" className="gap-1.5 text-xs">
 						<ScanSearch className="size-3.5" />
-						云端物体
+						物体抠像
 					</TabsTrigger>
 				</TabsList>
 
@@ -395,20 +395,23 @@ export function MediaAutomaticCutoutProperties({
 						<LocalPersonCutoutPanel
 							projectId={projectId}
 							sourceFile={mediaItem.file}
+							sourcePath={
+								mediaItem.localPath ?? mediaItem.importMetadata?.originalPath
+							}
 							sourceUrl={sourceUrl}
 							addMediaItem={addMediaItem}
-							onProgress={({ progress }) =>
+							onProgress={({ progress, source }) =>
 								updateGeneratedMaskTrackingProgress({
 									progress,
-									source: "mediapipe",
+									source,
 								})
 							}
-							onMaskReady={({ sourceMediaId, trackingSamples }) =>
+							onMaskReady={({ source, sourceMediaId, trackingSamples }) =>
 								attachGeneratedMask({
 									sourceMediaId,
 									type: "person",
-									source: "mediapipe",
-									name: "MediaPipe 人物",
+									source,
+									name: "人物抠像",
 									trackingSamples,
 									targetElementId: element.id,
 								})
@@ -464,12 +467,9 @@ export function MediaAutomaticCutoutProperties({
 						onRetry={retryObjectCutout}
 					/>
 					{objectResultUrl ? (
-						<video
-							controls
-							playsInline
-							src={objectResultUrl}
-							className="max-h-56 w-full rounded-sm border bg-black object-contain"
-						/>
+						<p className="rounded-sm border bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+							物体抠像结果已生成并应用
+						</p>
 					) : null}
 				</TabsContent>
 			</Tabs>

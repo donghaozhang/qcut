@@ -1,10 +1,11 @@
 // @vitest-environment node
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
 	decodeTiledLutPixels,
+	inspectDualTiledLutRenderer,
 	isSupportedDualTiledLutShader,
 	isSupportedTiledLutImage,
 	isSupportedTiledLutShader,
@@ -14,6 +15,36 @@ import { sampleCube } from "../native-pipeline/filters/filter-lab-lut.js";
 
 const IMAGE_SIZE = 512;
 const CUBE_SIZE = 64;
+
+const NATIVE_SKIN_SEG_DUAL_LUT_SHADER = `
+	precision highp float;
+	varying vec2 uv0;
+	uniform sampler2D inputImageTexture;
+	uniform sampler2D filterBgTexture;
+	uniform sampler2D filterSkinTexture;
+	uniform sampler2D maskTexture;
+	uniform float intensity;
+	vec4 lm_take_effect_filter(sampler2D filterTex, vec4 inputColor, float uniAlpha) {
+		vec4 textureColor = inputColor;
+		float blueColor = textureColor.b * 63.;
+		vec2 texPos1;
+		vec2 texPos2;
+		vec4 newColor1 = texture2D(filterTex, texPos1);
+		vec4 newColor2 = texture2D(filterTex, texPos2);
+		vec4 newColor = mix(newColor1, newColor2, fract(blueColor));
+		return mix(textureColor, vec4(newColor.rgb, textureColor.w), uniAlpha);
+	}
+	void main() {
+		vec2 maskCoord = vec2(uv0.x, 1.0 - uv0.y);
+		float mask = texture2D(maskTexture, maskCoord).a;
+		vec4 color = texture2D(inputImageTexture, uv0);
+		float bgBaseIntensity = 0.8;
+		float skinBaseIntensity = 0.6;
+		vec4 bgResultColor = lm_take_effect_filter(filterBgTexture, color, intensity * bgBaseIntensity);
+		vec4 skinResultColor = lm_take_effect_filter(filterSkinTexture, color, intensity * skinBaseIntensity);
+		gl_FragColor = mix(bgResultColor, skinResultColor, mask);
+	}
+`;
 
 function createIdentityTiledPixels(): Uint8Array {
 	const pixels = new Uint8Array(IMAGE_SIZE * IMAGE_SIZE * 3);
@@ -75,6 +106,78 @@ describe("Jianying tiled LUT renderer", () => {
 				source: source.replace("mask.a", "0.5"),
 			})
 		).toBe(false);
+	});
+
+	it("recognizes the native skin-seg dual LUT shader without accepting a global mix", () => {
+		expect(
+			isSupportedDualTiledLutShader({
+				source: NATIVE_SKIN_SEG_DUAL_LUT_SHADER,
+			})
+		).toBe(true);
+		expect(
+			isSupportedDualTiledLutShader({
+				source: NATIVE_SKIN_SEG_DUAL_LUT_SHADER.replace(
+					"texture2D(maskTexture, maskCoord).a",
+					"0.5"
+				),
+			})
+		).toBe(false);
+	});
+
+	it("requires a skin-seg graph and Lua mask binding for the native shader family", async () => {
+		const directory = await mkdtemp(join(tmpdir(), "qcut-dual-skin-seg-"));
+		try {
+			const imageDirectory = join(directory, "AmazingFeature", "image");
+			const shaderDirectory = join(directory, "AmazingFeature", "xshader");
+			const luaDirectory = join(directory, "AmazingFeature", "lua");
+			await Promise.all([
+				mkdir(imageDirectory, { recursive: true }),
+				mkdir(shaderDirectory, { recursive: true }),
+				mkdir(luaDirectory, { recursive: true }),
+			]);
+			const paths = [
+				"algorithmConfig.json",
+				"AmazingFeature/image/filter_bg.png",
+				"AmazingFeature/image/filter_skin.png",
+				"AmazingFeature/xshader/quad.frag",
+				"AmazingFeature/lua/TempScriptLua.lua",
+			];
+			await Promise.all([
+				writeFile(
+					join(directory, paths[0]),
+					JSON.stringify({ nodes: [{ type: "skin_seg" }] })
+				),
+				writeFile(join(directory, paths[1]), createPngHeader()),
+				writeFile(join(directory, paths[2]), createPngHeader()),
+				writeFile(join(directory, paths[3]), NATIVE_SKIN_SEG_DUAL_LUT_SHADER),
+				writeFile(
+					join(directory, paths[4]),
+					`local segInfo = result:getSkinSegInfo()
+					local mask = segInfo.data
+					local tex = material:getTex("maskTexture")
+					tex:storage(mask)
+					material:setFloat("intensity", intensity)`
+				),
+			]);
+			const inspect = () =>
+				inspectDualTiledLutRenderer({
+					container: "artistEffect",
+					identifier: "dual-filter",
+					version: "v1",
+					root: directory,
+					paths,
+				});
+			await expect(inspect()).resolves.toMatchObject({
+				kind: "dual-tiled-lut-8x8",
+			});
+			await writeFile(
+				join(directory, paths[4]),
+				'material:setFloat("intensity", intensity)'
+			);
+			await expect(inspect()).resolves.toBeNull();
+		} finally {
+			await rm(directory, { recursive: true, force: true });
+		}
 	});
 
 	it("decodes red-fastest cube values from the 8x8 tile layout", () => {

@@ -9,16 +9,10 @@ import type { PersonCutoutExportSettings } from "@/lib/segmentation/person-cutou
 
 interface PersonCutoutSettingsProps {
 	settings: PersonCutoutExportSettings;
+	defaults: PersonCutoutExportSettings;
 	onChange: (settings: Partial<PersonCutoutExportSettings>) => void;
 	disabled?: boolean;
 }
-
-const DEFAULT_SETTINGS: PersonCutoutExportSettings = {
-	threshold: 0.5,
-	temporalSmoothing: 0.65,
-	edgeShift: 0,
-	feather: 2,
-};
 
 function clamp(value: number, min: number, max: number) {
 	return Math.min(max, Math.max(min, value));
@@ -86,32 +80,32 @@ function SettingRow({
 
 export function PersonCutoutSettings({
 	settings,
+	defaults,
 	onChange,
 	disabled,
 }: PersonCutoutSettingsProps) {
 	return (
-		<section
-			className="space-y-3 border-y py-3"
-			data-testid="person-cutout-settings"
-		>
+		<section className="space-y-3 py-1" data-testid="person-cutout-settings">
 			<div className="flex items-center justify-between">
-				<h3 className="text-sm font-medium">Person mask</h3>
+				<h3 className="text-sm font-medium">边缘调整</h3>
 				<Button
 					type="button"
 					variant="text"
 					size="icon"
 					className="size-7"
 					disabled={disabled}
-					onClick={() => onChange(DEFAULT_SETTINGS)}
-					aria-label="Reset person mask settings"
-					title="Reset settings"
+					onClick={() => onChange(defaults)}
+					aria-label="重置边缘调整"
+					title="重置"
 				>
-					<RotateCcw className="size-3.5" />
+					<RotateCcw className="size-3.5" aria-hidden="true">
+						<title>重置边缘调整</title>
+					</RotateCcw>
 				</Button>
 			</div>
 			<SettingRow
 				id="person-confidence"
-				label="Confidence"
+				label="识别强度"
 				value={settings.threshold}
 				min={0.1}
 				max={0.9}
@@ -121,7 +115,7 @@ export function PersonCutoutSettings({
 			/>
 			<SettingRow
 				id="person-smoothing"
-				label="Stability"
+				label="画面稳定"
 				value={settings.temporalSmoothing}
 				min={0}
 				max={0.95}
@@ -131,18 +125,18 @@ export function PersonCutoutSettings({
 			/>
 			<SettingRow
 				id="person-feather"
-				label="Feather"
+				label="边缘羽化"
 				value={settings.feather}
 				min={0}
 				max={16}
 				step={0.5}
-				suffix="px"
+				suffix="像素"
 				disabled={disabled}
 				onChange={(feather) => onChange({ feather })}
 			/>
 			<SettingRow
 				id="person-edge"
-				label="Edge"
+				label="边缘收缩"
 				value={settings.edgeShift}
 				min={-12}
 				max={12}

@@ -65,13 +65,18 @@ type FacePanelSection =
 	| "features"
 	| "makeup"
 	| "manual";
-type BodyPanelTab = "automatic" | "manual";
+type BodyPanelSection = "smart" | "manual";
 
 const INITIAL_FACE_SECTION_VISIBILITY: Record<FacePanelSection, boolean> = {
 	skin: false,
 	"face-shape": false,
 	features: false,
 	makeup: false,
+	manual: false,
+};
+
+const INITIAL_BODY_SECTION_VISIBILITY: Record<BodyPanelSection, boolean> = {
+	smart: true,
 	manual: false,
 };
 
@@ -216,7 +221,9 @@ export function MediaPortraitProperties({
 	const [openFaceSections, setOpenFaceSections] = useState(() => ({
 		...INITIAL_FACE_SECTION_VISIBILITY,
 	}));
-	const [activeBodyTab, setActiveBodyTab] = useState<BodyPanelTab>("automatic");
+	const [openBodySections, setOpenBodySections] = useState(() => ({
+		...INITIAL_BODY_SECTION_VISIBILITY,
+	}));
 	const [status, setStatus] = useState<JianyingPortraitAdjustmentStatus | null>(
 		null
 	);
@@ -390,6 +397,14 @@ export function MediaPortraitProperties({
 		makeup: Object.values(scopedAdjustments.makeup ?? {}).some(Boolean),
 		manual: (adjustments.manualRetouch?.strokes.length ?? 0) > 0,
 	};
+	const bodySectionActivity: Record<BodyPanelSection, boolean> = {
+		smart: (controlsBySection.get("body") ?? []).some(
+			({ key }) => (adjustments.values[key] ?? 0) !== 0
+		),
+		manual: Object.values(adjustments.manualBody ?? {}).some(
+			(value) => (value?.intensity ?? 0) !== 0
+		),
+	};
 	const setFaceSectionOpen = ({
 		open,
 		section,
@@ -401,6 +416,15 @@ export function MediaPortraitProperties({
 		if (section === "manual" && open && !detection && !detecting) {
 			void detectFaces();
 		}
+	};
+	const setBodySectionOpen = ({
+		open,
+		section,
+	}: {
+		open: boolean;
+		section: BodyPanelSection;
+	}) => {
+		setOpenBodySections((current) => ({ ...current, [section]: open }));
 	};
 	const presetScope: PortraitPresetScope = activeTab.startsWith("body")
 		? "body"
@@ -709,24 +733,29 @@ export function MediaPortraitProperties({
 								{locale === "zh" ? "全部人物" : "All people"}
 							</span>
 						</div>
-						<Tabs
-							value={activeBodyTab}
-							onValueChange={(value) => setActiveBodyTab(value as BodyPanelTab)}
-						>
-							<TabsList className="grid h-8 w-full grid-cols-2 gap-0.5 rounded-sm p-0.5">
-								<TabsTrigger value="automatic" className="px-1 text-[10px]">
-									{locale === "zh" ? "自动美体" : "Auto body"}
-								</TabsTrigger>
-								<TabsTrigger value="manual" className="px-1 text-[10px]">
-									{locale === "zh" ? "手动美体" : "Manual body"}
-								</TabsTrigger>
-							</TabsList>
-							<TabsContent value="automatic" className="mt-4">
+						<div className="border-t border-border/70">
+							<PortraitCollapsibleGroup
+								active={bodySectionActivity.smart}
+								label={locale === "zh" ? "智能美体" : "Smart body"}
+								open={openBodySections.smart}
+								onOpenChange={(open) =>
+									setBodySectionOpen({ open, section: "smart" })
+								}
+								testId="portrait-group-smart-body"
+							>
 								<PortraitAdjustmentSection {...sectionProps("body")} />
-							</TabsContent>
-							<TabsContent value="manual" className="mt-4">
+							</PortraitCollapsibleGroup>
+							<PortraitCollapsibleGroup
+								active={bodySectionActivity.manual}
+								label={locale === "zh" ? "手动美体" : "Manual body"}
+								open={openBodySections.manual}
+								onOpenChange={(open) =>
+									setBodySectionOpen({ open, section: "manual" })
+								}
+								testId="portrait-group-manual-body"
+							>
 								<PortraitManualBodyControls
-									active={activeTab === "body" && activeBodyTab === "manual"}
+									active={activeTab === "body" && openBodySections.manual}
 									adjustments={adjustments}
 									disabled={nativeDisabled || !adjustments.enabled}
 									elementId={elementId}
@@ -736,8 +765,8 @@ export function MediaPortraitProperties({
 									onInteractionStart={onInteractionStart}
 									onInteractionEnd={onInteractionEnd}
 								/>
-							</TabsContent>
-						</Tabs>
+							</PortraitCollapsibleGroup>
+						</div>
 					</TabsContent>
 					{(["face-presets", "body-presets"] as const).map((tab) => (
 						<TabsContent key={tab} value={tab} className="mt-4">

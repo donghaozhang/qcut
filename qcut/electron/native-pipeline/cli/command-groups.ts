@@ -117,11 +117,12 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 	{
 		name: "filter-lab",
 		label: "Filter Lab",
-		description:
-			"Score QCut filter recipes against locally cached Jianying LUTs",
+		description: "Browse, render, and verify locally cached Jianying filters",
 		actions: {
 			list: "filter-lab-list",
 			catalog: "filter-lab-catalog",
+			render: "filter-lab-render",
+			apply: "filter-lab-render",
 			compare: "filter-lab-compare",
 			match: "filter-lab-match",
 			verify: "filter-lab-verify",

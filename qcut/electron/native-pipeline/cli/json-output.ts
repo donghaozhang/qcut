@@ -46,7 +46,7 @@ export function jsonOk(
 	const envelope: JsonOkEnvelope = { status: "ok", data };
 	if (commandId) envelope.command_id = commandId;
 	if (durationMs !== undefined) envelope.duration_ms = durationMs;
-	console.log(JSON.stringify(envelope, null, 2));
+	process.stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
 }
 
 /** Print a JSON error to stdout with optional partial-result data. */
@@ -63,13 +63,13 @@ export function jsonError(
 	if (data && Object.keys(data).length > 0) {
 		envelope.data = data;
 	}
-	console.log(JSON.stringify(envelope, null, 2));
+	process.stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
 }
 
 /** Print a pending/async job JSON result to stdout. */
 export function jsonPending(jobId: string): void {
 	const envelope: JsonPendingEnvelope = { status: "pending", jobId };
-	console.log(JSON.stringify(envelope, null, 2));
+	process.stdout.write(`${JSON.stringify(envelope, null, 2)}\n`);
 }
 
 /** Options for enriching JSON output with correlation and timing metadata. */

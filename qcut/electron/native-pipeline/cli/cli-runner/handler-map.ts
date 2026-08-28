@@ -131,6 +131,7 @@ import {
 	handleFilterLabVerify,
 } from "../cli-handlers-filter-lab.js";
 import { handleFilterLabCatalog } from "../cli-handlers-filter-lab-catalog.js";
+import { handleFilterLabRender } from "../cli-handlers-filter-lab-render.js";
 import {
 	handleFilterLabCoverage,
 	handleFilterLabVerifyBatch,
@@ -200,6 +201,9 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	"instances-use": wrap(handleInstancesCommand),
 	"filter-lab-list": wrap((options) =>
 		handleFilterLabList({ json: options.json })
+	),
+	"filter-lab-render": wrapOPS((options, onProgress, signal) =>
+		handleFilterLabRender({ options, onProgress, signal })
 	),
 	"filter-lab-catalog": wrap((options) =>
 		handleFilterLabCatalog({

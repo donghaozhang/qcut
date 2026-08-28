@@ -19,6 +19,7 @@
 !/build/*.ico
 !/build/icon.png
 !/build/entitlements.mac.plist
+!/build/entitlements.transition-bridge.mac.plist
 !/build/aicp/
 !/build/aicp/aicp.spec
 !/build/aicp/entry.py
