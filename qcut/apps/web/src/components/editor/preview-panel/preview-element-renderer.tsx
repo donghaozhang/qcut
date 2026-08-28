@@ -58,6 +58,7 @@ import {
 	resolveEffectivePreviewQualityOption,
 	resolvePreviewEffectRenderMode,
 } from "@/lib/preview/preview-quality";
+import { usesOriginalAudioFallbackForGeneratedMask } from "@/lib/preview/generated-mask-audio-preview";
 import { resolvePreviewVideoSource } from "@/lib/preview/preview-video-source";
 import type { ClipTransitionPreviewState } from "@/lib/transitions/clip-transition-preview";
 import {
@@ -881,6 +882,18 @@ export function PreviewElementRenderer({
 				const generatedMaskSource = generatedMask?.sourceMediaId
 					? videoSourcesById.get(generatedMask.sourceMediaId)
 					: undefined;
+				const generatedMaskMediaItem = generatedMask?.sourceMediaId
+					? mediaItems.find((item) => item.id === generatedMask.sourceMediaId)
+					: undefined;
+				const usesOriginalMaskAudioFallback =
+					usesOriginalAudioFallbackForGeneratedMask({
+						generatedMaskHasAudio:
+							typeof generatedMaskMediaItem?.metadata?.hasAudio === "boolean"
+								? generatedMaskMediaItem.metadata.hasAudio
+								: undefined,
+						hasDerivedAudio,
+						hasGeneratedMaskSource: Boolean(generatedMaskSource),
+					});
 				const geometricMasks = generatedMaskSource
 					? visual.masks.filter((mask) => !mask.sourceMediaId)
 					: visual.masks;
@@ -1137,7 +1150,7 @@ export function PreviewElementRenderer({
 									</TriangleAlert>
 								</div>
 							) : null}
-							{generatedMaskSource && !hasDerivedAudio ? (
+							{usesOriginalMaskAudioFallback ? (
 								<VideoPlayer
 									videoSource={source}
 									clipStartTime={previewAudioElement.startTime}
