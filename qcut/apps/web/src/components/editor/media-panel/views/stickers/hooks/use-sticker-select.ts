@@ -21,6 +21,7 @@ import {
 	registerStickerRuntimePackageResources,
 	rollbackStickerRuntimePackageResources,
 } from "@/lib/stickers/sticker-runtime-project-import";
+import type { PreparedStickerRuntimePackage } from "@/lib/stickers/sticker-runtime-package";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import type { MediaType } from "@/stores/media/media-store-types";
@@ -106,6 +107,35 @@ export function buildStickerUploadMetadata({
 			? { stickerRuntimeResources }
 			: {}),
 		...metadata,
+	};
+}
+
+function buildRuntimeResourceRestrictionMetadata({
+	metadata,
+}: {
+	metadata?: StickerReferenceUsageMetadata;
+}): Record<string, unknown> | undefined {
+	if (!metadata) return;
+	return {
+		referenceOnly: metadata.referenceOnly,
+		usage: metadata.usage,
+		redistribution: metadata.redistribution,
+		batchId: metadata.batchId,
+		itemId: metadata.itemId,
+	};
+}
+
+function localRuntimeAssetIdentity({
+	metadata,
+}: {
+	metadata?: StickerReferenceUsageMetadata;
+}): { id: string; version: number } {
+	if (!metadata) {
+		throw new Error("Sticker Lab runtime packages require reference metadata");
+	}
+	return {
+		id: `sticker-lab:${metadata.batchId}:${metadata.itemId}`,
+		version: 1,
 	};
 }
 
@@ -411,46 +441,70 @@ export function useStickerSelect() {
 		async ({
 			file,
 			metadata,
+			runtimePackage,
 		}: {
 			file: File;
 			metadata?: StickerReferenceUsageMetadata;
+			runtimePackage?: PreparedStickerRuntimePackage;
 		}): Promise<string | undefined> => {
 			if (!activeProject) {
 				toast.error("No project selected");
 				return;
 			}
 			const projectId = activeProject.id;
-			if (!file.type.startsWith("image/")) {
-				toast.error(`${file.name} is not an image file`);
+			const primaryMediaType = runtimePackage?.primaryMediaType ?? "image";
+			if (!file.type.startsWith(`${primaryMediaType}/`)) {
+				toast.error(`${file.name} is not a ${primaryMediaType} file`);
 				return;
 			}
 
 			const mediaUrl = await createStickerMediaUrl({ blob: file });
-			const imageUrl = mediaUrl.url;
+			const primaryUrl = mediaUrl.url;
 			let mediaItemId: string | null = null;
+			let createdRuntimeResourceIds: string[] = [];
 			try {
-				const [dimensions, animatedSticker] = await Promise.all([
-					readImageDimensions({ url: imageUrl }),
-					isAnimatedStickerFile({ file }),
+				const [mediaMetadata, detectedAnimatedSticker] = await Promise.all([
+					readStickerMediaMetadata({
+						mediaType: primaryMediaType,
+						url: primaryUrl,
+					}),
+					primaryMediaType === "image"
+						? isAnimatedStickerFile({ file })
+						: Promise.resolve(true),
 				]);
-				const stickerRuntime = await parseStickerFileRuntime({
-					animatedSticker,
-					file,
-				});
+				const animatedSticker =
+					runtimePackage !== undefined || detectedAnimatedSticker;
+				const stickerRuntime =
+					runtimePackage?.descriptor ??
+					(await parseStickerFileRuntime({ animatedSticker, file }));
+				assertProjectActive({ projectId });
+				const runtimeRegistration = runtimePackage
+					? await registerStickerRuntimePackageResources({
+							addMediaItem,
+							asset: localRuntimeAssetIdentity({ metadata }),
+							existingMediaItems: useMediaStore.getState().mediaItems,
+							metadata: buildRuntimeResourceRestrictionMetadata({ metadata }),
+							projectId,
+							removeMediaItem,
+							runtimePackage,
+						})
+					: undefined;
+				createdRuntimeResourceIds = runtimeRegistration?.createdMediaIds ?? [];
 				assertProjectActive({ projectId });
 				mediaItemId = await addMediaItem(projectId, {
 					name: file.name,
-					type: "image",
+					type: primaryMediaType,
 					file,
-					url: imageUrl,
-					thumbnailUrl: imageUrl,
-					width: dimensions.width,
-					height: dimensions.height,
-					duration: 0,
+					url: primaryUrl,
+					...(primaryMediaType === "image" ? { thumbnailUrl: primaryUrl } : {}),
+					width: mediaMetadata.width,
+					height: mediaMetadata.height,
+					duration: mediaMetadata.duration,
 					metadata: buildStickerUploadMetadata({
 						animatedSticker,
 						metadata,
 						stickerRuntime,
+						stickerRuntimeResources: runtimeRegistration?.resourceMediaIds,
 					}),
 				});
 				assertProjectActive({ projectId });
@@ -471,8 +525,13 @@ export function useStickerSelect() {
 						projectId,
 					});
 				} else if (mediaUrl.revoke) {
-					revokeUnownedMediaUrl({ url: imageUrl });
+					revokeUnownedMediaUrl({ url: primaryUrl });
 				}
+				await rollbackStickerRuntimePackageResources({
+					mediaIds: createdRuntimeResourceIds,
+					projectId,
+					removeMediaItem,
+				});
 				toast.error(
 					error instanceof Error ? error.message : "Failed to upload sticker"
 				);
@@ -483,6 +542,7 @@ export function useStickerSelect() {
 			activeProject,
 			addMediaItem,
 			placeStickerOnTimeline,
+			removeMediaItem,
 			revokeUnownedMediaUrl,
 			rollbackMediaItem,
 		]
