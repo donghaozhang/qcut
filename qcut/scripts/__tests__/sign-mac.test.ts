@@ -24,6 +24,10 @@ const videoObjectBachBridgePath = path.join(
 	app,
 	"Contents/Resources/bin/jianying-video-object-bach-bridge"
 );
+const transitionEntitlementsSuffix = path.join(
+	"build",
+	"entitlements.transition-bridge.mac.plist"
+);
 const original = {
 	entitlements: "build/entitlements.mac.plist",
 	hardenedRuntime: true,
@@ -40,27 +44,19 @@ describe("macOS transition bridge signing", () => {
 		});
 		expect(options.optionsForFile?.(bridgePath)).toEqual({
 			...original,
-			entitlements: expect.stringContaining(
-				"build/entitlements.transition-bridge.mac.plist"
-			),
+			entitlements: expect.stringContaining(transitionEntitlementsSuffix),
 		});
 		expect(options.optionsForFile?.(personCutoutBridgePath)).toEqual({
 			...original,
-			entitlements: expect.stringContaining(
-				"build/entitlements.transition-bridge.mac.plist"
-			),
+			entitlements: expect.stringContaining(transitionEntitlementsSuffix),
 		});
 		expect(options.optionsForFile?.(saliencyBridgePath)).toEqual({
 			...original,
-			entitlements: expect.stringContaining(
-				"build/entitlements.transition-bridge.mac.plist"
-			),
+			entitlements: expect.stringContaining(transitionEntitlementsSuffix),
 		});
 		expect(options.optionsForFile?.(videoObjectBachBridgePath)).toEqual({
 			...original,
-			entitlements: expect.stringContaining(
-				"build/entitlements.transition-bridge.mac.plist"
-			),
+			entitlements: expect.stringContaining(transitionEntitlementsSuffix),
 		});
 		for (const filePath of [
 			app,
