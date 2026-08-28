@@ -96,6 +96,7 @@ export function LocalPersonCutoutPanel({
 	const sourceFileRef = useRef(sourceFile);
 	const [taskPhase, setTaskPhase] = useState<CutoutTaskPhase>("idle");
 	const [taskError, setTaskError] = useState<string>();
+	const [resultApplied, setResultApplied] = useState(false);
 	const [quality, setQuality] = useState<PersonCutoutQuality>("basic");
 	const qualitySettingsRef = useRef({
 		basic: { ...personCutoutSettings },
@@ -129,6 +130,7 @@ export function LocalPersonCutoutPanel({
 		if (sourceChanged) {
 			setTaskPhase("idle");
 			setTaskError(undefined);
+			setResultApplied(false);
 		}
 
 		return () => {
@@ -171,7 +173,7 @@ export function LocalPersonCutoutPanel({
 		abortControllerRef.current = controller;
 		const trackingRequest = useSegmentationStore.getState().trackingRequest;
 		const cutoutSource: GeneratedMaskSource =
-			quality === "fine" ? "jianying-gru" : "mediapipe";
+			quality === "fine" ? "qcut-person-matting" : "mediapipe";
 		let unregisterMaskTrackingRuntime = () => {};
 		const cancel = () => {
 			controller.abort();
@@ -247,7 +249,7 @@ export function LocalPersonCutoutPanel({
 			});
 			const source =
 				quality === "fine"
-					? "jianying-gru-person-cutout"
+					? "qcut-local-person-cutout"
 					: "mediapipe-person-cutout";
 			const url = createObjectURL(file, source);
 			const sourceMediaId = await addMediaItem(projectId, {
@@ -261,6 +263,13 @@ export function LocalPersonCutoutPanel({
 				fps: result.frameRate,
 				metadata: {
 					blendImplementation: result.blendImplementation,
+					didModelRouteFallback: result.didModelRouteFallback,
+					modelRoute: result.modelRoute,
+					nativeMetalCanary: result.nativeMetalCanary,
+					pipelineId: result.pipelineId,
+					provider: result.provider,
+					refinementProvider: result.refinementProvider,
+					requestedModelRoute: result.requestedModelRoute,
 					source,
 					quality,
 					hasAlpha: true,
@@ -283,6 +292,7 @@ export function LocalPersonCutoutPanel({
 					targetElementId: trackingRequest?.elementId,
 					trackingRequestId: trackingRequest?.requestId,
 				}) ?? false;
+			setResultApplied(attached);
 			setSegmentedVideo(url);
 			setTaskPhase("completed");
 			setProcessingState({
@@ -307,6 +317,7 @@ export function LocalPersonCutoutPanel({
 					.getState()
 					.removeMediaItem(projectId, sourceMediaId);
 				setSegmentedVideo(null);
+				setResultApplied(false);
 				registerCloudTaskRuntimeActions({
 					taskId,
 					actions: { open, retry },
@@ -442,7 +453,9 @@ export function LocalPersonCutoutPanel({
 						className="rounded-sm border bg-muted/30 px-3 py-2 text-xs text-muted-foreground"
 						data-testid="person-cutout-result"
 					>
-						人物抠像结果已生成并应用
+						{resultApplied
+							? "人物抠像结果已生成并应用"
+							: "人物抠像结果已生成，已添加到素材库"}
 					</p>
 				)}
 				<CutoutTaskStatus
