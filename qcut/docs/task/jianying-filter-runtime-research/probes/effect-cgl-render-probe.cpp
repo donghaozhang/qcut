@@ -1685,6 +1685,8 @@ struct ProbeOptions {
     bool usePipeline = false;
     bool server = false;
     bool skipAlgorithm = false;
+    bool flipAlgorithmInputY = false;
+    bool flipProcessInputY = false;
     bool inspectSkinResult = false;
     bool inspectFaceResult = false;
     const char* mattingResultNode = nullptr;
@@ -1743,6 +1745,14 @@ ProbeOptions parseProbeOptions(int argc, char** argv) {
         }
         if (argument == "--skip-algorithm") {
             options.skipAlgorithm = true;
+            continue;
+        }
+        if (argument == "--flip-algorithm-input-y") {
+            options.flipAlgorithmInputY = true;
+            continue;
+        }
+        if (argument == "--flip-process-input-y") {
+            options.flipProcessInputY = true;
             continue;
         }
         if (argument == "--inspect-skin-result") {
@@ -2024,7 +2034,9 @@ int main(int argc, char** argv) {
                "[--send-message type arg1 arg2 text] "
                "[--intensity-type type --intensity value] "
                "[--reshape-face-intensity eye cheek] "
-               "[--skip-algorithm] [--inspect-skin-result] [--inspect-face-result] "
+               "[--skip-algorithm] [--flip-algorithm-input-y] "
+               "[--flip-process-input-y] "
+               "[--inspect-skin-result] [--inspect-face-result] "
                "[--inspect-matting-result node-name] [--matting-graph graph-name] "
                "[--mask-output output.pgm] "
                "[--face-output output.json] "
@@ -2092,6 +2104,22 @@ int main(int argc, char** argv) {
     }
     const GLuint inputTexture = createTexture({.pixels = inputPixels, .size = size});
     const GLuint outputTexture = createTexture({.pixels = outputSeed, .size = size});
+    const bool useFlippedInputTexture =
+        (probeOptions.flipAlgorithmInputY && !probeOptions.skipAlgorithm) ||
+        probeOptions.flipProcessInputY;
+    std::vector<std::uint8_t> flippedInputPixels =
+        useFlippedInputTexture ? flipImageRows(inputPixels, size)
+                               : std::vector<std::uint8_t>{};
+    const GLuint flippedInputTexture =
+        useFlippedInputTexture
+            ? createTexture({.pixels = flippedInputPixels, .size = size})
+            : 0;
+    const GLuint mainAlgorithmTexture =
+        probeOptions.flipAlgorithmInputY && !probeOptions.skipAlgorithm
+            ? flippedInputTexture
+            : inputTexture;
+    const GLuint mainProcessTexture =
+        probeOptions.flipProcessInputY ? flippedInputTexture : inputTexture;
     const bool useFaceAnalyzer =
         probeOptions.server && probeOptions.inspectFaceResult && !probeOptions.skipAlgorithm;
     std::vector<std::uint8_t> faceInputPixels =
@@ -2106,6 +2134,16 @@ int main(int argc, char** argv) {
               << " valid=" << static_cast<int>(glIsTexture(inputTexture)) << '\n';
     std::cout << "output_texture=" << outputTexture
               << " valid=" << static_cast<int>(glIsTexture(outputTexture)) << '\n';
+    if (probeOptions.flipAlgorithmInputY && !probeOptions.skipAlgorithm) {
+        std::cout << "algorithm_input_texture=" << mainAlgorithmTexture
+                  << " flipped_y=1 valid="
+                  << static_cast<int>(glIsTexture(mainAlgorithmTexture)) << '\n';
+    }
+    if (probeOptions.flipProcessInputY) {
+        std::cout << "process_input_texture=" << mainProcessTexture
+                  << " flipped_y=1 restore_output_y=1 valid="
+                  << static_cast<int>(glIsTexture(mainProcessTexture)) << '\n';
+    }
     if (useFaceAnalyzer) {
         std::cout << "face_input_texture=" << faceInputTexture
                   << " valid=" << static_cast<int>(glIsTexture(faceInputTexture)) << '\n';
@@ -2330,10 +2368,10 @@ int main(int argc, char** argv) {
         // before asking.
         Result warmUpAlgorithmResult = -1;
         if (!probeOptions.skipAlgorithm) {
-            warmUpAlgorithmResult = effectAlgorithmTexture(handle, inputTexture, 0.0);
+            warmUpAlgorithmResult = effectAlgorithmTexture(handle, mainAlgorithmTexture, 0.0);
         }
         const Result warmUpProcessResult =
-            effectProcessTexture(handle, inputTexture, outputTexture, 0.0);
+            effectProcessTexture(handle, mainProcessTexture, outputTexture, 0.0);
         std::cout << "get_feature_warm_up algorithm=" << warmUpAlgorithmResult
                   << " process=" << warmUpProcessResult << '\n';
         EffectHandle feature = 0;
@@ -2414,9 +2452,10 @@ int main(int argc, char** argv) {
         for (int attempt = 0; attempt < 20; ++attempt) {
             Result algorithmResult = -1;
             if (!probeOptions.skipAlgorithm) {
-                algorithmResult = effectAlgorithmTexture(handle, inputTexture, 0.0);
+                algorithmResult = effectAlgorithmTexture(handle, mainAlgorithmTexture, 0.0);
             }
-            processResult = effectProcessTexture(handle, inputTexture, outputTexture, 0.0);
+            processResult =
+                effectProcessTexture(handle, mainProcessTexture, outputTexture, 0.0);
             Result faceAlgorithmResult = -1;
             Result faceProcessResult = -1;
             if (faceHandle != 0) {
@@ -2468,15 +2507,23 @@ int main(int argc, char** argv) {
                 }
                 inputPixels = std::move(frame.rgba);
                 updateTexture({.texture = inputTexture, .pixels = inputPixels, .size = size});
+                if (useFlippedInputTexture) {
+                    flippedInputPixels = flipImageRows(inputPixels, size);
+                    updateTexture({
+                        .texture = flippedInputTexture,
+                        .pixels = flippedInputPixels,
+                        .size = size,
+                    });
+                }
 
                 Result algorithmResult = -1;
                 if (!probeOptions.skipAlgorithm) {
                     algorithmResult =
-                        effectAlgorithmTexture(handle, inputTexture, command.timestamp);
+                        effectAlgorithmTexture(handle, mainAlgorithmTexture, command.timestamp);
                 }
                 updateTexture({.texture = outputTexture, .pixels = outputSeed, .size = size});
                 processResult = effectProcessTexture(
-                    handle, inputTexture, outputTexture, command.timestamp);
+                    handle, mainProcessTexture, outputTexture, command.timestamp);
                 glFinish();
 
                 const bool algorithmSucceeded =
@@ -2504,8 +2551,11 @@ int main(int argc, char** argv) {
                     }
                 }
 
-                const std::vector<std::uint8_t> outputPixels =
+                std::vector<std::uint8_t> outputPixels =
                     readTexture({.texture = outputTexture, .size = size});
+                if (probeOptions.flipProcessInputY) {
+                    outputPixels = flipImageRows(outputPixels, size);
+                }
                 if (outputPixels.empty()) {
                     throw std::runtime_error("native effect returned an empty texture");
                 }
@@ -2581,9 +2631,10 @@ int main(int argc, char** argv) {
         for (int attempt = 0; attempt < 20; ++attempt) {
             Result algorithmResult = -1;
             if (!probeOptions.skipAlgorithm) {
-                algorithmResult = effectAlgorithmTexture(handle, inputTexture, 0.0);
+                algorithmResult = effectAlgorithmTexture(handle, mainAlgorithmTexture, 0.0);
             }
-            processResult = effectProcessTexture(handle, inputTexture, outputTexture, 0.0);
+            processResult =
+                effectProcessTexture(handle, mainProcessTexture, outputTexture, 0.0);
             const bool algorithmReady = probeOptions.skipAlgorithm || algorithmResult == 0;
             if (!probeParametersApplied && algorithmReady && processResult == 0) {
                 applyProbeParameters();
@@ -2649,21 +2700,34 @@ int main(int argc, char** argv) {
                     break;
                 }
                 updateTexture({.texture = inputTexture, .pixels = inputPixels, .size = size});
+                if (useFlippedInputTexture) {
+                    flippedInputPixels = flipImageRows(inputPixels, size);
+                    updateTexture({
+                        .texture = flippedInputTexture,
+                        .pixels = flippedInputPixels,
+                        .size = size,
+                    });
+                }
             }
 
             const double timestamp =
                 static_cast<double>(frameIndex) / probeOptions.framesPerSecond;
             Result algorithmResult = -1;
             if (!probeOptions.skipAlgorithm) {
-                algorithmResult = effectAlgorithmTexture(handle, inputTexture, timestamp);
+                algorithmResult =
+                    effectAlgorithmTexture(handle, mainAlgorithmTexture, timestamp);
             }
             updateTexture({.texture = outputTexture, .pixels = outputSeed, .size = size});
-            processResult = effectProcessTexture(handle, inputTexture, outputTexture, timestamp);
+            processResult =
+                effectProcessTexture(handle, mainProcessTexture, outputTexture, timestamp);
             finalAlgorithmResult = algorithmResult;
             glFinish();
 
-            const std::vector<std::uint8_t> outputPixels =
+            std::vector<std::uint8_t> outputPixels =
                 readTexture({.texture = outputTexture, .size = size});
+            if (probeOptions.flipProcessInputY) {
+                outputPixels = flipImageRows(outputPixels, size);
+            }
             if (outputPixels.empty()) {
                 processingSucceeded = false;
                 break;
@@ -2711,10 +2775,12 @@ int main(int argc, char** argv) {
             const double timestamp = attempt / probeOptions.framesPerSecond;
             Result algorithmResult = -1;
             if (!probeOptions.skipAlgorithm) {
-                algorithmResult = effectAlgorithmTexture(handle, inputTexture, timestamp);
+                algorithmResult =
+                    effectAlgorithmTexture(handle, mainAlgorithmTexture, timestamp);
             }
             updateTexture({.texture = outputTexture, .pixels = outputSeed, .size = size});
-            processResult = effectProcessTexture(handle, inputTexture, outputTexture, timestamp);
+            processResult =
+                effectProcessTexture(handle, mainProcessTexture, outputTexture, timestamp);
             const bool algorithmReady = probeOptions.skipAlgorithm || algorithmResult == 0;
             if (!probeParametersApplied && algorithmReady && processResult == 0) {
                 applyProbeParameters();
@@ -2769,8 +2835,11 @@ int main(int argc, char** argv) {
         }
         glFinish();
 
-        const std::vector<std::uint8_t> outputPixels =
+        std::vector<std::uint8_t> outputPixels =
             readTexture({.texture = outputTexture, .size = size});
+        if (probeOptions.flipProcessInputY) {
+            outputPixels = flipImageRows(outputPixels, size);
+        }
         if (outputPixels.empty()) {
             processingSucceeded = false;
         } else {
@@ -2801,6 +2870,7 @@ int main(int argc, char** argv) {
     const std::array textures = {
         inputTexture,
         outputTexture,
+        flippedInputTexture,
         faceInputTexture,
         faceOutputTexture,
     };
