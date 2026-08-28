@@ -6,6 +6,16 @@ import {
 } from "../jianying-filter-local-runtime/host-process.js";
 
 describe("Jianying filter local host protocol", () => {
+	const hostOptions = {
+		bridgePath: "/private/bridge",
+		effectLibraryPath: "/private/effect",
+		modelDirectory: "/private/models",
+		packagePath: "/private/package",
+		bootstrapInputPath: "/tmp/input.ppm",
+		bootstrapOutputPath: "/tmp/output.ppm",
+		frameworkDirectory: "/private/frameworks",
+	};
+
 	it("encodes one deterministic render command", () => {
 		expect(
 			encodeJianyingFilterHostRenderCommand({
@@ -79,5 +89,31 @@ describe("Jianying filter local host protocol", () => {
 		});
 		expect(tail).toHaveLength(16 * 1024);
 		expect(tail).not.toContain("first");
+	});
+
+	it("enables the engine GL coordinate round trip only for face regions", () => {
+		const faceRegion = jianyingFilterHostProcessTestUtils.buildHostArguments({
+			...hostOptions,
+			captureMask: false,
+			useEngineGlContext: true,
+			flipAlgorithmInputY: true,
+			flipProcessInputY: true,
+		});
+		expect(faceRegion).toEqual(
+			expect.arrayContaining([
+				"--engine-gl-context",
+				"--flip-algorithm-input-y",
+				"--flip-process-input-y",
+			])
+		);
+		expect(faceRegion).not.toContain("--inspect-skin-result");
+
+		const portrait = jianyingFilterHostProcessTestUtils.buildHostArguments({
+			...hostOptions,
+		});
+		expect(portrait).toContain("--inspect-skin-result");
+		expect(portrait).not.toContain("--engine-gl-context");
+		expect(portrait).not.toContain("--flip-algorithm-input-y");
+		expect(portrait).not.toContain("--flip-process-input-y");
 	});
 });
