@@ -4,6 +4,8 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { JIANYING_FILTER_LOCAL_BRIDGE_FILE_NAME } from "../electron/jianying-filter-local-runtime/bridge-resolver.js";
 import { JIANYING_PORTRAIT_ADJUSTMENT_HOST_FILE_NAME } from "../electron/jianying-portrait-adjustment-runtime/bridge-resolver.js";
+import { JIANYING_PERSON_CUTOUT_BRIDGE_FILE_NAME } from "../electron/jianying-person-cutout/bridge-resolver.js";
+import { JIANYING_SALIENCY_BRIDGE_FILE_NAME } from "../electron/jianying-person-cutout/saliency-bridge-resolver.js";
 import { JIANYING_TEXT_RUNTIME_BRIDGE_FILE_NAME } from "../electron/jianying-text-runtime/bridge-resolver.js";
 import { JIANYING_TRANSITION_BRIDGE_FILE_NAME } from "../electron/jianying-transition/bridge-resolver.js";
 import { verifyPackagedJianyingRuntimeBridge } from "./verify-packaged-jianying-runtime-bridge.js";
@@ -45,6 +47,9 @@ async function requireTransitionModes({ bridgePath }: { bridgePath: string }) {
  * makes the capability itself a packaging gate.
  */
 const PORTRAIT_ENGINE_CONTEXT_MARKER = "HTSGLContext";
+const PERSON_CUTOUT_NATIVE_METAL_MARKER = "TEMattingBlendEffectV2-native-metal";
+const PERSON_CUTOUT_VISION_FUSION_MARKER = "Vision-person-fusion-v1";
+const VIDEO_OBJECT_ROUTE_MARKER = "video-object-general-seg-v1";
 
 async function requirePortraitEngineGlContext({
 	hostPath,
@@ -59,6 +64,33 @@ async function requirePortraitEngineGlContext({
 	}
 }
 
+async function requirePersonCutoutNativeMetal({
+	bridgePath,
+}: {
+	bridgePath: string;
+}) {
+	const image = await readFile(bridgePath);
+	if (!image.includes(PERSON_CUTOUT_NATIVE_METAL_MARKER)) {
+		throw new Error(
+			`Packaged Jianying person cutout bridge predates native Metal blending: ${bridgePath}. Re-run \`bun run stage-jianying-filter-local-bridge\`.`
+		);
+	}
+	if (!image.includes(PERSON_CUTOUT_VISION_FUSION_MARKER)) {
+		throw new Error(
+			`Packaged Jianying person cutout bridge predates Vision fusion: ${bridgePath}. Re-run \`bun run stage-jianying-filter-local-bridge\`.`
+		);
+	}
+}
+
+async function requireVideoObjectRoute({ bridgePath }: { bridgePath: string }) {
+	const image = await readFile(bridgePath);
+	if (!image.includes(VIDEO_OBJECT_ROUTE_MARKER)) {
+		throw new Error(
+			`Packaged Jianying segmentation bridge predates the video-object route: ${bridgePath}. Re-run \`bun run stage-jianying-filter-local-bridge\`.`
+		);
+	}
+}
+
 export async function verifyPackagedJianyingRuntimeBridges({
 	distRoot,
 	projectRoot,
@@ -66,36 +98,58 @@ export async function verifyPackagedJianyingRuntimeBridges({
 	distRoot: string;
 	projectRoot: string;
 }) {
-	const [transitionBridge, textBridge, filterBridge, portraitAdjustmentHost] =
-		await Promise.all([
-			verifyPackagedJianyingRuntimeBridge({
-				bridgeFileName: JIANYING_TRANSITION_BRIDGE_FILE_NAME,
-				distRoot,
-				projectRoot,
-			}),
-			verifyPackagedJianyingRuntimeBridge({
-				bridgeFileName: JIANYING_TEXT_RUNTIME_BRIDGE_FILE_NAME,
-				distRoot,
-				projectRoot,
-			}),
-			verifyPackagedJianyingRuntimeBridge({
-				bridgeFileName: JIANYING_FILTER_LOCAL_BRIDGE_FILE_NAME,
-				distRoot,
-				projectRoot,
-			}),
-			verifyPackagedJianyingRuntimeBridge({
-				bridgeFileName: JIANYING_PORTRAIT_ADJUSTMENT_HOST_FILE_NAME,
-				distRoot,
-				projectRoot,
-			}),
-		]);
+	const [
+		transitionBridge,
+		textBridge,
+		filterBridge,
+		portraitAdjustmentHost,
+		personCutoutBridge,
+		saliencyBridge,
+	] = await Promise.all([
+		verifyPackagedJianyingRuntimeBridge({
+			bridgeFileName: JIANYING_TRANSITION_BRIDGE_FILE_NAME,
+			distRoot,
+			projectRoot,
+		}),
+		verifyPackagedJianyingRuntimeBridge({
+			bridgeFileName: JIANYING_TEXT_RUNTIME_BRIDGE_FILE_NAME,
+			distRoot,
+			projectRoot,
+		}),
+		verifyPackagedJianyingRuntimeBridge({
+			bridgeFileName: JIANYING_FILTER_LOCAL_BRIDGE_FILE_NAME,
+			distRoot,
+			projectRoot,
+		}),
+		verifyPackagedJianyingRuntimeBridge({
+			bridgeFileName: JIANYING_PORTRAIT_ADJUSTMENT_HOST_FILE_NAME,
+			distRoot,
+			projectRoot,
+		}),
+		verifyPackagedJianyingRuntimeBridge({
+			bridgeFileName: JIANYING_PERSON_CUTOUT_BRIDGE_FILE_NAME,
+			distRoot,
+			projectRoot,
+		}),
+		verifyPackagedJianyingRuntimeBridge({
+			bridgeFileName: JIANYING_SALIENCY_BRIDGE_FILE_NAME,
+			distRoot,
+			projectRoot,
+		}),
+	]);
 	await requireTransitionModes({ bridgePath: transitionBridge });
-	await requirePortraitEngineGlContext({ hostPath: portraitAdjustmentHost });
+	await Promise.all([
+		requirePortraitEngineGlContext({ hostPath: portraitAdjustmentHost }),
+		requirePersonCutoutNativeMetal({ bridgePath: personCutoutBridge }),
+		requireVideoObjectRoute({ bridgePath: saliencyBridge }),
+	]);
 	return {
 		transitionBridge,
 		textBridge,
 		filterBridge,
 		portraitAdjustmentHost,
+		personCutoutBridge,
+		saliencyBridge,
 	};
 }
 
