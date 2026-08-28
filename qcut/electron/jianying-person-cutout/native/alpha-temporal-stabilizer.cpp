@@ -23,6 +23,7 @@ struct ForegroundCentroid {
 struct RegisteredFrame {
   const TemporalForegroundFrameView *frame;
   MotionTranslation translation;
+  float alphaDecay;
 };
 
 int colorDistance(const std::vector<std::uint8_t> &first,
@@ -125,6 +126,9 @@ MotionTranslation estimateTranslation(
     const TemporalForegroundFrameView &target,
     const TemporalForegroundFrameView &candidate, int width, int height,
     const TemporalForegroundConfig &config) {
+  if (config.maximumMotionPixels == 0) {
+    return {};
+  }
   const auto targetCentroid =
       foregroundCentroid(*target.alpha, width, height, config);
   const auto candidateCentroid =
@@ -260,6 +264,9 @@ std::vector<std::uint8_t> stabilizeTemporalForeground(
         .frame = &candidate,
         .translation =
             estimateTranslation(target, candidate, width, height, config),
+        .alphaDecay = std::pow(
+            config.decayPerFrame,
+            static_cast<float>(std::abs(candidate.frameOffset))),
     });
   }
   auto stabilized = *target.alpha;
@@ -309,8 +316,7 @@ std::vector<std::uint8_t> stabilizeTemporalForeground(
       }
       referenceCount += 1;
       const auto carried = static_cast<std::uint8_t>(std::round(
-          static_cast<float>(candidateAlpha) *
-          std::pow(config.decayPerFrame, static_cast<float>(frameDistance))));
+          static_cast<float>(candidateAlpha) * registered.alphaDecay));
       bestCarriedAlpha = std::max(bestCarriedAlpha, carried);
     }
     if (currentAlpha < config.minimumCurrentAlpha &&
