@@ -1,4 +1,5 @@
 // @vitest-environment node
+import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { JianyingFilterCatalogCard } from "../jianying-filter-catalog-export.js";
 import { inspectJianyingFilterPackages } from "../jianying-filter-package-inspector.js";
@@ -178,7 +179,7 @@ describe("Filter Lab render plan", () => {
 		});
 		expect(result.evidence.backend).toBe("ffmpeg-lut");
 		expect(loadTiledLutCube).toHaveBeenCalledWith({
-			filePath: "/private/Cache/artistEffect/123/v1/filter.png",
+			filePath: join("/private/Cache/artistEffect", "123", "v1", "filter.png"),
 		});
 		expect(loadJianyingLut).not.toHaveBeenCalled();
 	});
@@ -215,7 +216,7 @@ describe("Filter Lab render plan", () => {
 		expect(result).toMatchObject({
 			kind: "native",
 			mode: "portrait",
-			packagePath: "/private/Cache/artistEffect/123/v1",
+			packagePath: join("/private/Cache/artistEffect", "123", "v1"),
 			evidence: { backend: "jianying-native-portrait", intensity: 50 },
 		});
 		vi.mocked(inspectJianyingFilterLocalRuntime).mockResolvedValue({
