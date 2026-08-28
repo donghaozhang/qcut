@@ -49,6 +49,7 @@ const IMPLEMENTATION_OPTIONS: Array<{
 	{ id: "all", label: "全部类型" },
 	{ id: "single-lut", label: "单 LUT" },
 	{ id: "dual-lut", label: "双 LUT" },
+	{ id: "face-region-lut", label: "面部区域 LUT" },
 	{ id: "shader", label: "Shader" },
 	{ id: "face-ai", label: "人脸 AI" },
 	{ id: "unknown", label: "待识别" },
@@ -69,6 +70,9 @@ function unavailableMessage({
 	}
 	if (filter.implementation === "dual-lut") {
 		return `「${filter.title}」需要背景、肤色 LUT 与 skin mask 一起渲染`;
+	}
+	if (filter.implementation === "face-region-lut") {
+		return `「${filter.title}」需要人脸关键点、区域蒙版与双 LUT 一起渲染`;
 	}
 	if (filter.implementation === "face-ai") {
 		return `「${filter.title}」依赖人脸或皮肤算法，不能作为普通 LUT 应用`;
@@ -141,8 +145,12 @@ export function JianyingFilterLab({
 	}) => void;
 	onApplyMultiPass?: ({
 		settings,
+		layerName,
+		successMessage,
 	}: {
 		settings: ColorMultiPassSettings;
+		layerName?: string;
+		successMessage?: string;
 	}) => void;
 	onEffectEnabledChange?: ({ enabled }: { enabled: boolean }) => void;
 	onEffectIntensityChange?: ({ value }: { value: number }) => void;
@@ -303,6 +311,37 @@ export function JianyingFilterLab({
 	}) => {
 		if (!filter.available) {
 			toast.info(unavailableMessage({ filter }));
+			return;
+		}
+		if (filter.implementation === "face-region-lut") {
+			if (!filter.version) {
+				toast.error("该滤镜缺少可验证的本机版本");
+				return;
+			}
+			if (!onApplyMultiPass) {
+				toast.error("本机面部区域滤镜应用接口不可用");
+				return;
+			}
+			onApplyMultiPass({
+				settings: {
+					enabled: true,
+					presetId: `jianying-face-region-${filter.resourceId}`,
+					name: filter.title,
+					intensity: 100,
+					fidelity: "native-local",
+					nativeEffect: {
+						provider: "jianying-local-effect-v1",
+						resourceId: filter.resourceId,
+						version: filter.version,
+					},
+					passes: [],
+				},
+				layerName: `剪映面部区域 - ${filter.title}`,
+				successMessage: `已应用 ${filter.title} 本机面部区域滤镜`,
+			});
+			setRecentIds((current) =>
+				rememberJianyingFilter({ resourceId: filter.resourceId, current })
+			);
 			return;
 		}
 		const reference = filter.luts.find(({ role }) =>
