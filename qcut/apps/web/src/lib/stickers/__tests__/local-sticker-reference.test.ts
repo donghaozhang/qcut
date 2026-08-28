@@ -207,6 +207,7 @@ describe("local sticker reference files", () => {
 			},
 			resources: [
 				{
+					checksumSha256: "b".repeat(64),
 					mediaType: "image",
 					resourceName: "asset_0001",
 					sourceUrl: "blue.png",
