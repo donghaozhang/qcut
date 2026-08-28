@@ -23,6 +23,7 @@ function parseReadOptions({ value }: { value: unknown }): {
 	rootPath: string;
 	batchId: string;
 	stickerId: string;
+	resourceName?: string;
 } {
 	if (typeof value !== "object" || value === null || Array.isArray(value)) {
 		throw new Error("Sticker Lab read options must be an object");
@@ -30,6 +31,7 @@ function parseReadOptions({ value }: { value: unknown }): {
 	const rootPath = Reflect.get(value, "rootPath");
 	const batchId = Reflect.get(value, "batchId");
 	const stickerId = Reflect.get(value, "stickerId");
+	const resourceName = Reflect.get(value, "resourceName");
 	if (typeof rootPath !== "string" || !rootPath.trim()) {
 		throw new Error("Sticker Lab rootPath must be a non-empty string");
 	}
@@ -39,7 +41,18 @@ function parseReadOptions({ value }: { value: unknown }): {
 	if (typeof stickerId !== "string" || !stickerId.trim()) {
 		throw new Error("Sticker Lab stickerId must be a non-empty string");
 	}
-	return { rootPath, batchId, stickerId };
+	if (
+		resourceName !== undefined &&
+		(typeof resourceName !== "string" || !resourceName.trim())
+	) {
+		throw new Error("Sticker Lab resourceName must be a non-empty string");
+	}
+	return {
+		rootPath,
+		batchId,
+		stickerId,
+		...(resourceName === undefined ? {} : { resourceName }),
+	};
 }
 
 export function registerStickerLabHandlers(): void {
