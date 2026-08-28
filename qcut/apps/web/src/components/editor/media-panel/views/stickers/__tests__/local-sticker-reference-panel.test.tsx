@@ -19,6 +19,7 @@ import { buildPrivateStickerCategoryViews } from "../components/private-sticker-
 
 const referenceMocks = vi.hoisted(() => ({
 	loadFile: vi.fn(),
+	loadRuntimePackage: vi.fn(),
 	loadThumbnail: vi.fn(),
 }));
 
@@ -30,6 +31,7 @@ vi.mock("@/lib/stickers/local-sticker-reference", async (importOriginal) => {
 	return {
 		...actual,
 		loadStickerLabReferenceFile: referenceMocks.loadFile,
+		loadStickerLabReferenceRuntimePackage: referenceMocks.loadRuntimePackage,
 		loadStickerLabThumbnail: referenceMocks.loadThumbnail,
 	};
 });
@@ -78,6 +80,7 @@ describe("LocalStickerReferencePanel", () => {
 					type: reference.mimeType,
 				})
 		);
+		referenceMocks.loadRuntimePackage.mockReset().mockResolvedValue(undefined);
 		referenceMocks.loadThumbnail.mockReset();
 		// Remote references preview through the ungated thumbnail tier.
 		referenceMocks.loadThumbnail.mockImplementation(
@@ -347,12 +350,61 @@ describe("LocalStickerReferencePanel", () => {
 			name: "添加贴纸 popular-1到时间线",
 		});
 		await waitFor(() => expect(button).toBeEnabled());
+		expect(button).toHaveAttribute("data-sticker-reference-id", "popular-1");
 		fireEvent.click(button);
 		fireEvent.click(button);
 
 		await waitFor(() => expect(onSelect).toHaveBeenCalledTimes(1));
 		expect(onSelect.mock.calls[0]?.[0].file).toBeInstanceOf(File);
 		expect(onSelect.mock.calls[0]?.[0].file.name).toBe("popular-1.png");
+	});
+
+	it("loads a runtime package on click and forwards it with the preview file", async () => {
+		const runtimePackage = {
+			descriptor: {
+				kind: "png-sequence" as const,
+				cycleDurationSeconds: 1,
+				frames: [
+					{
+						source: "$resource:asset_0001",
+						startSeconds: 0,
+						durationSeconds: 1,
+					},
+				],
+				repeat: { kind: "infinite" as const },
+				completion: "freeze-last" as const,
+			},
+			primaryMediaType: "image" as const,
+			resources: [],
+		};
+		referenceMocks.loadRuntimePackage.mockResolvedValue(runtimePackage);
+		const onSelect = vi.fn(async () => {});
+		render(
+			<LocalStickerReferencePanel
+				catalog={createLocalStickerCatalog()}
+				error={null}
+				isLoading={false}
+				onSelect={onSelect}
+			/>
+		);
+		const button = await screen.findByRole("button", {
+			name: "添加贴纸 popular-1到时间线",
+		});
+		await waitFor(() => expect(button).toBeEnabled());
+
+		fireEvent.click(button);
+
+		await waitFor(() => expect(onSelect).toHaveBeenCalledTimes(1));
+		expect(referenceMocks.loadRuntimePackage).toHaveBeenCalledWith({
+			primaryFile: expect.any(File),
+			reference: expect.objectContaining({ id: "popular-1" }),
+		});
+		expect(onSelect).toHaveBeenCalledWith(
+			expect.objectContaining({
+				file: expect.any(File),
+				runtimePackage,
+			})
+		);
 	});
 
 	it("contains selection failures and allows the user to retry", async () => {
