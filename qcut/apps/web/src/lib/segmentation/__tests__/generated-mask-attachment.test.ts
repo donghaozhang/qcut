@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { useSegmentationStore } from "@/stores/ai/segmentation-store";
+import { useMaskEditorStore } from "@/stores/editor/mask-editor-store";
 import { createMediaMask } from "@/lib/video/media-mask-stack";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { MediaElement, TimelineTrack } from "@/types/timeline";
@@ -34,6 +35,7 @@ describe("generated mask attachment", () => {
 			redoStack: [],
 		});
 		useSegmentationStore.setState({ trackingRequest: null });
+		useMaskEditorStore.getState().clearSelection();
 	});
 
 	it("prepends a generated mask without disturbing the existing stack", () => {
@@ -60,6 +62,8 @@ describe("generated mask attachment", () => {
 			"existing",
 		]);
 		expect(result.masks[0]).toMatchObject({
+			width: 1,
+			height: 1,
 			sourceMediaId: "person-alpha",
 			type: "person",
 			tracking: {
@@ -109,6 +113,37 @@ describe("generated mask attachment", () => {
 				status: "ready",
 				source: "sam3",
 			},
+		});
+	});
+
+	it("keeps the Jianying GRU result out of geometry edit mode", () => {
+		const track: TimelineTrack = {
+			id: "track-1",
+			name: "Main Track",
+			type: "media",
+			isMain: true,
+			elements: [mediaElement()],
+		};
+		useTimelineStore.setState({
+			_tracks: [track],
+			tracks: [track],
+			selectedElements: [{ trackId: "track-1", elementId: "clip-1" }],
+			history: [],
+			redoStack: [],
+		});
+		useMaskEditorStore.getState().setEditing(true);
+
+		expect(
+			attachGeneratedMask({
+				sourceMediaId: "person-alpha",
+				type: "person",
+				source: "jianying-gru",
+				name: "人物抠像",
+			})
+		).toBe(true);
+		expect(useMaskEditorStore.getState()).toMatchObject({
+			selectedElementId: "clip-1",
+			isEditing: false,
 		});
 	});
 
