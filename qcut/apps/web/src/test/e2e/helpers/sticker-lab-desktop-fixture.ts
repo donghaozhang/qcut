@@ -57,6 +57,8 @@ export interface OriginalStickerLabFixture {
 
 interface FixtureDefinition extends StickerLabRuntimeFixtureCase {
 	categoryLabel: string;
+	playbackFrameCount: number;
+	playbackFrameRate: number;
 	primary: FixtureAsset;
 	primaryCodec: "gif" | "png";
 	primaryDurationSeconds: number | null;
@@ -144,8 +146,8 @@ function animatedItem({
 		sourceKind: definition.kind,
 		playback: {
 			kind: "animated",
-			frameCount: 2,
-			frameRate: 2,
+			frameCount: definition.playbackFrameCount,
+			frameRate: definition.playbackFrameRate,
 			cycleDuration: 1,
 			loop: true,
 		},
@@ -460,6 +462,8 @@ export async function createOriginalStickerLabFixture(): Promise<OriginalSticker
 			categoryLabel: "QCut E2E Direct GIF",
 			displayName: "QCut E2E Direct GIF Pulse",
 			kind: "direct-gif",
+			playbackFrameCount: 2,
+			playbackFrameRate: 2,
 			previewHeight: 64,
 			previewWidth: 64,
 			primary: assets.directGif,
@@ -479,6 +483,8 @@ export async function createOriginalStickerLabFixture(): Promise<OriginalSticker
 			categoryLabel: "QCut E2E Atlas",
 			displayName: "QCut E2E Atlas Pulse",
 			kind: "atlas-animation",
+			playbackFrameCount: 2,
+			playbackFrameRate: 2,
 			previewHeight: 64,
 			previewWidth: 64,
 			primary: assets.atlasPreview,
@@ -510,6 +516,8 @@ export async function createOriginalStickerLabFixture(): Promise<OriginalSticker
 			categoryLabel: "QCut E2E PNG Sequence",
 			displayName: "QCut E2E PNG Sequence Pulse",
 			kind: "png-sequence",
+			playbackFrameCount: 2,
+			playbackFrameRate: 2,
 			previewHeight: 64,
 			previewWidth: 64,
 			primary: assets.sequencePreview,
@@ -552,6 +560,8 @@ export async function createOriginalStickerLabFixture(): Promise<OriginalSticker
 			categoryLabel: "QCut E2E Alpha Video",
 			displayName: "QCut E2E Alpha Video Pulse",
 			kind: "alpha-video",
+			playbackFrameCount: 10,
+			playbackFrameRate: 10,
 			previewHeight: 64,
 			previewWidth: 64,
 			primary: assets.alphaPreview,
