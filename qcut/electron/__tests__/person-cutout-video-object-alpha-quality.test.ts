@@ -22,7 +22,7 @@ describeOnMac("video-object alpha quality gate", () => {
 		await rm(temporaryDirectory, { force: true, recursive: true });
 	});
 
-	it("rejects the zero-texture 0/1/2 fingerprint before cache commit", async () => {
+	it("checks complete streams without rejecting empty prefixes or all-zero masks", async () => {
 		const nativeDirectory = path.resolve(
 			"electron",
 			"jianying-person-cutout",
