@@ -228,8 +228,10 @@ struct FilterSymbols {
     const FilterSymbols& symbols, void** manager, int width, int height,
     ResourceFinderMethod resourceFinder, bool algorithmAsync,
     void* graphicsDevice) {
+  const FilterRuntimeProfile profile = filterRuntimeProfile(
+      reinterpret_cast<const void*>(symbols.constructManager));
   verifyRuntimeImage(reinterpret_cast<const void*>(symbols.constructManager),
-                     kLegacyFilterCoreUuid);
+                     profile.uuid);
   void* instance = ::operator new(kVerifiedSwingManagerSize);
   symbols.constructManager(instance);
 
