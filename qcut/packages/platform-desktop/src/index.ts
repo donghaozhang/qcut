@@ -273,8 +273,13 @@ const stickerLabAdapter: PlatformStickerLabAPI = {
 		api().stickerLab.discoverLocalReferences({
 			...(rootPath === undefined ? {} : { rootPath }),
 		}),
-	readLocalReference: ({ rootPath, batchId, stickerId }) =>
-		api().stickerLab.readLocalReference({ rootPath, batchId, stickerId }),
+	readLocalReference: ({ rootPath, batchId, stickerId, resourceName }) =>
+		api().stickerLab.readLocalReference({
+			rootPath,
+			batchId,
+			stickerId,
+			...(resourceName === undefined ? {} : { resourceName }),
+		}),
 };
 
 // These adapters use pass-through delegation with type casts because the
