@@ -98,7 +98,9 @@ export function PersonCutoutSettings({
 					aria-label="重置边缘调整"
 					title="重置"
 				>
-					<RotateCcw className="size-3.5" />
+					<RotateCcw className="size-3.5" aria-hidden="true">
+						<title>重置边缘调整</title>
+					</RotateCcw>
 				</Button>
 			</div>
 			<SettingRow
