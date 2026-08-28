@@ -16,7 +16,7 @@ describe("CutoutTaskStatus", () => {
 		);
 
 		expect(screen.getByText("处理中")).toBeVisible();
-		expect(screen.getByText("12s")).toBeVisible();
+		expect(screen.getByText("12 秒")).toBeVisible();
 		expect(screen.getByText("Tracking object...")).toBeVisible();
 		fireEvent.click(screen.getByRole("button", { name: "取消" }));
 		expect(onCancel).toHaveBeenCalledOnce();
