@@ -11,9 +11,18 @@ import {
 } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { createPersonCutoutAbortError } from "./abort.js";
+import {
+	defaultPersonCutoutPipelineDescriptor,
+	type PersonCutoutModelRoute,
+	type PersonCutoutPipelineDescriptor,
+	type PersonCutoutPipelineId,
+	type PersonCutoutProviderId,
+	type PersonCutoutRefinementProvider,
+} from "./pipeline-descriptor.js";
 import type { TemattingBlendImplementation } from "./tematting-blend.js";
 
-const CACHE_VERSION = 3;
+const CACHE_VERSION = 4;
 const CACHE_ROOT = path.join(
 	os.homedir(),
 	"Library",
@@ -37,7 +46,10 @@ export interface PersonCutoutCacheIdentity {
 	modelName: string;
 	modelRoute: PersonCutoutModelRoute;
 	modelSha256: string;
+	pipelineId: PersonCutoutPipelineId;
 	processorSha256: string;
+	providerId: PersonCutoutProviderId;
+	refinementProvider: PersonCutoutRefinementProvider;
 	settings: PersonCutoutCacheSettings;
 	sourceMtimeMs: number;
 	sourcePath: string;
@@ -45,11 +57,6 @@ export interface PersonCutoutCacheIdentity {
 	sourceSize: number;
 	width: number;
 }
-
-export type PersonCutoutModelRoute =
-	| "portrait-gru"
-	| "video-object"
-	| "saliency-script";
 
 export interface PersonCutoutMaskCacheEntry {
 	alphaPath: string;
@@ -60,6 +67,7 @@ export interface PersonCutoutMaskCacheEntry {
 
 interface PersonCutoutMaskCacheManifest {
 	alphaBytes: number;
+	alphaSha256: string;
 	cacheKey: string;
 	createdAt: string;
 	frameCount: number;
@@ -74,13 +82,15 @@ function getCacheRoot() {
 function stableIdentity({ identity }: { identity: PersonCutoutCacheIdentity }) {
 	return JSON.stringify({
 		version: CACHE_VERSION,
-		blendImplementation: identity.blendImplementation,
 		frameRate: identity.frameRate,
 		height: identity.height,
 		modelName: identity.modelName,
 		modelRoute: identity.modelRoute,
 		modelSha256: identity.modelSha256,
+		pipelineId: identity.pipelineId,
 		processorSha256: identity.processorSha256,
+		providerId: identity.providerId,
+		refinementProvider: identity.refinementProvider,
 		settings: identity.settings,
 		sourceContentSha256: identity.sourceContentSha256,
 		sourceSize: identity.sourceSize,
@@ -98,10 +108,16 @@ export function createPersonCutoutCacheKey({
 		.digest("hex");
 }
 
-function hashSourceContent({ filePath }: { filePath: string }) {
+function hashFileContents({
+	filePath,
+	signal,
+}: {
+	filePath: string;
+	signal?: AbortSignal;
+}) {
 	return new Promise<string>((resolve, reject) => {
 		const hash = createHash("sha256");
-		const input = createReadStream(filePath);
+		const input = createReadStream(filePath, { signal });
 		input.on("data", (chunk) => hash.update(chunk));
 		input.once("error", reject);
 		input.once("end", () => resolve(hash.digest("hex")));
@@ -115,8 +131,10 @@ export async function createPersonCutoutCacheIdentity({
 	modelName,
 	modelRoute,
 	modelSha256,
+	pipelineDescriptor,
 	processorSha256,
 	settings,
+	signal,
 	sourcePath,
 	width,
 }: {
@@ -126,26 +144,40 @@ export async function createPersonCutoutCacheIdentity({
 	modelName: string;
 	modelRoute?: PersonCutoutModelRoute;
 	modelSha256: string;
+	pipelineDescriptor?: PersonCutoutPipelineDescriptor;
 	processorSha256: string;
 	settings: PersonCutoutCacheSettings;
+	signal?: AbortSignal;
 	sourcePath: string;
 	width: number;
 }): Promise<PersonCutoutCacheIdentity> {
 	const resolvedSourcePath = await realpath(sourcePath);
 	const sourceStat = await stat(resolvedSourcePath);
+	const resolvedModelRoute =
+		modelRoute ?? pipelineDescriptor?.modelRoute ?? "portrait-gru";
+	const resolvedPipelineDescriptor =
+		pipelineDescriptor ??
+		defaultPersonCutoutPipelineDescriptor({ modelRoute: resolvedModelRoute });
+	if (resolvedPipelineDescriptor.modelRoute !== resolvedModelRoute) {
+		throw new Error("人物抠像管线与模型路线不一致");
+	}
 	return {
 		blendImplementation,
 		frameRate,
 		height,
 		modelName,
-		modelRoute: modelRoute ?? "portrait-gru",
+		modelRoute: resolvedModelRoute,
 		modelSha256,
+		pipelineId: resolvedPipelineDescriptor.pipelineId,
 		processorSha256,
+		providerId: resolvedPipelineDescriptor.providerId,
+		refinementProvider: resolvedPipelineDescriptor.refinementProvider,
 		settings,
 		sourceMtimeMs: sourceStat.mtimeMs,
 		sourcePath: resolvedSourcePath,
-		sourceContentSha256: await hashSourceContent({
+		sourceContentSha256: await hashFileContents({
 			filePath: resolvedSourcePath,
+			signal,
 		}),
 		sourceSize: sourceStat.size,
 		width,
@@ -168,6 +200,7 @@ function isManifest({ value }: { value: unknown }) {
 		manifest.version === CACHE_VERSION &&
 		typeof manifest.cacheKey === "string" &&
 		typeof manifest.alphaBytes === "number" &&
+		typeof manifest.alphaSha256 === "string" &&
 		typeof manifest.frameCount === "number" &&
 		manifest.frameCount > 0 &&
 		Boolean(manifest.identity)
@@ -176,8 +209,10 @@ function isManifest({ value }: { value: unknown }) {
 
 export async function inspectPersonCutoutMaskCache({
 	identity,
+	signal,
 }: {
 	identity: PersonCutoutCacheIdentity;
+	signal?: AbortSignal;
 }): Promise<PersonCutoutMaskCacheEntry | null> {
 	const cacheKey = createPersonCutoutCacheKey({ identity });
 	const paths = cachePaths({ cacheKey });
@@ -200,6 +235,12 @@ export async function inspectPersonCutoutMaskCache({
 		) {
 			return null;
 		}
+		if (
+			manifest.alphaSha256 !==
+			(await hashFileContents({ filePath: paths.alphaPath, signal }))
+		) {
+			return null;
+		}
 		return {
 			alphaPath: paths.alphaPath,
 			cacheKey,
@@ -207,6 +248,7 @@ export async function inspectPersonCutoutMaskCache({
 			frameCount: manifest.frameCount,
 		};
 	} catch {
+		if (signal?.aborted) throw createPersonCutoutAbortError();
 		return null;
 	}
 }
@@ -249,6 +291,7 @@ export async function commitPersonCutoutMaskCache({
 	}
 	const manifest: PersonCutoutMaskCacheManifest = {
 		alphaBytes,
+		alphaSha256: await hashFileContents({ filePath: alphaPath }),
 		cacheKey,
 		createdAt: new Date().toISOString(),
 		frameCount,
@@ -270,6 +313,14 @@ export async function commitPersonCutoutMaskCache({
 		frameCount,
 	};
 }
+
+export type {
+	PersonCutoutModelRoute,
+	PersonCutoutPipelineDescriptor,
+	PersonCutoutPipelineId,
+	PersonCutoutProviderId,
+	PersonCutoutRefinementProvider,
+} from "./pipeline-descriptor.js";
 
 export async function discardPersonCutoutMaskCacheBuild({
 	buildDirectory,
