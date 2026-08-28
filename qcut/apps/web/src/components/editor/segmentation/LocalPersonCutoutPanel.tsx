@@ -1,16 +1,24 @@
 "use client";
 
-import { Download, Loader2 } from "lucide-react";
+import { ChevronDown, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { createObjectURL } from "@/lib/media/blob-manager";
 import { registerCloudTaskRuntimeActions } from "@/lib/cloud-tasks/task-runtime-actions";
-import { exportPersonCutoutVideo } from "@/lib/segmentation/person-cutout-export";
+import {
+	exportPersonCutoutVideo,
+	type PersonCutoutQuality,
+} from "@/lib/segmentation/person-cutout-export";
+import {
+	BASIC_PERSON_CUTOUT_SETTINGS,
+	FINE_PERSON_CUTOUT_SETTINGS,
+} from "@/lib/segmentation/person-cutout-presets";
 import {
 	detachGeneratedMask,
 	pauseGeneratedMaskTracking,
 } from "@/lib/segmentation/generated-mask-attachment";
+import type { GeneratedMaskSource } from "@/lib/segmentation/generated-mask-attachment";
 import { registerActiveMaskTrackingRuntime } from "@/lib/segmentation/mask-tracking-runtime";
 import { useSegmentationStore } from "@/stores/ai/segmentation-store";
 import { useCloudTaskStore } from "@/stores/cloud-task-store";
@@ -19,21 +27,23 @@ import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 import type { MediaStore } from "@/stores/media/media-store-types";
 import type { MediaMaskTrackingSample } from "@/lib/video/media-mask-tracking";
 import { CutoutTaskStatus, type CutoutTaskPhase } from "./CutoutTaskStatus";
-import { PersonCutoutPreview } from "./PersonCutoutPreview";
 import { PersonCutoutSettings } from "./PersonCutoutSettings";
 
 interface LocalPersonCutoutPanelProps {
 	projectId: string;
 	sourceFile: File;
+	sourcePath?: string;
 	sourceUrl: string;
 	autoStartRequestId?: string;
 	addMediaItem?: MediaStore["addMediaItem"];
 	onMaskReady?: ({
+		source,
 		sourceMediaId,
 		trackingSamples,
 		targetElementId,
 		trackingRequestId,
 	}: {
+		source: GeneratedMaskSource;
 		sourceMediaId: string;
 		trackingSamples: MediaMaskTrackingSample[];
 		targetElementId?: string;
@@ -42,9 +52,11 @@ interface LocalPersonCutoutPanelProps {
 	onMaskError?: (message: string) => void;
 	onProgress?: ({
 		progress,
+		source,
 		status,
 	}: {
 		progress: number;
+		source: GeneratedMaskSource;
 		status: string;
 	}) => void;
 }
@@ -54,18 +66,10 @@ function cutoutFilename(sourceName: string): string {
 	return `${base}-person-cutout.webm`;
 }
 
-const checkerBackground = {
-	backgroundColor: "#202020",
-	backgroundImage:
-		"linear-gradient(45deg, #303030 25%, transparent 25%), linear-gradient(-45deg, #303030 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #303030 75%), linear-gradient(-45deg, transparent 75%, #303030 75%)",
-	backgroundPosition: "0 0, 0 8px, 8px -8px, -8px 0px",
-	backgroundSize: "16px 16px",
-};
-
 export function LocalPersonCutoutPanel({
 	projectId,
 	sourceFile,
-	sourceUrl,
+	sourcePath,
 	autoStartRequestId,
 	addMediaItem,
 	onMaskReady,
@@ -92,6 +96,27 @@ export function LocalPersonCutoutPanel({
 	const sourceFileRef = useRef(sourceFile);
 	const [taskPhase, setTaskPhase] = useState<CutoutTaskPhase>("idle");
 	const [taskError, setTaskError] = useState<string>();
+	const [quality, setQuality] = useState<PersonCutoutQuality>("basic");
+	const qualitySettingsRef = useRef({
+		basic: { ...personCutoutSettings },
+		fine: { ...FINE_PERSON_CUTOUT_SETTINGS },
+	});
+	const [fineStatus, setFineStatus] = useState<string>();
+
+	useEffect(() => {
+		let active = true;
+		void window.electronAPI?.jianyingPersonCutout
+			?.inspect()
+			.then((status) => {
+				if (active) setFineStatus(status.message);
+			})
+			.catch(() => {
+				if (active) setFineStatus("精细抠像暂不可用");
+			});
+		return () => {
+			active = false;
+		};
+	}, []);
 
 	useEffect(() => {
 		const sourceChanged = sourceFileRef.current !== sourceFile;
@@ -133,7 +158,7 @@ export function LocalPersonCutoutPanel({
 				kind: "cutout",
 				label: `人物抠像：${sourceFile.name}`,
 				payload: { projectId, sourceName: sourceFile.name },
-				message: "正在准备本地人物抠像",
+				message: "正在准备人物抠像",
 			});
 		const existingTask = cloudTasks.tasks.find(
 			(candidate) => candidate.id === taskId
@@ -145,6 +170,8 @@ export function LocalPersonCutoutPanel({
 		const controller = new AbortController();
 		abortControllerRef.current = controller;
 		const trackingRequest = useSegmentationStore.getState().trackingRequest;
+		const cutoutSource: GeneratedMaskSource =
+			quality === "fine" ? "jianying-gru" : "mediapipe";
 		let unregisterMaskTrackingRuntime = () => {};
 		const cancel = () => {
 			controller.abort();
@@ -156,7 +183,7 @@ export function LocalPersonCutoutPanel({
 				runtime: {
 					elementId: trackingRequest.elementId,
 					maskId: trackingRequest.maskId,
-					source: "mediapipe",
+					source: cutoutSource,
 					direction: trackingRequest.direction,
 					cancel,
 					resume: retry,
@@ -169,21 +196,23 @@ export function LocalPersonCutoutPanel({
 			taskId,
 			actions: { cancel, retry, open },
 		});
-		cloudTasks.startTask({ id: taskId, message: "正在准备本地人物抠像" });
+		cloudTasks.startTask({ id: taskId, message: "正在准备人物抠像" });
 		const startedAt = Date.now();
 		setTaskPhase("processing");
 		setTaskError(undefined);
 		setProcessingState({
 			isProcessing: true,
 			progress: 0,
-			statusMessage: "正在准备本地人物抠像...",
+			statusMessage: "正在准备人物抠像...",
 			elapsedTime: 0,
 		});
 
 		try {
 			const result = await exportPersonCutoutVideo({
 				file: sourceFile,
+				sourcePath,
 				settings: personCutoutSettings,
+				quality,
 				signal: controller.signal,
 				onProgress: ({ progress: nextProgress, status }) => {
 					if (controller.signal.aborted) return;
@@ -193,7 +222,11 @@ export function LocalPersonCutoutPanel({
 						statusMessage: status,
 						elapsedTime: (Date.now() - startedAt) / 1000,
 					});
-					onProgress?.({ progress: nextProgress, status });
+					onProgress?.({
+						progress: nextProgress,
+						source: cutoutSource,
+						status,
+					});
 					useCloudTaskStore.getState().updateProgress({
 						id: taskId,
 						progress: nextProgress,
@@ -212,7 +245,11 @@ export function LocalPersonCutoutPanel({
 				type: "video/webm",
 				lastModified: Date.now(),
 			});
-			const url = createObjectURL(file, "mediapipe-person-cutout");
+			const source =
+				quality === "fine"
+					? "jianying-gru-person-cutout"
+					: "mediapipe-person-cutout";
+			const url = createObjectURL(file, source);
 			const sourceMediaId = await addMediaItem(projectId, {
 				name: filename,
 				type: "video",
@@ -223,7 +260,9 @@ export function LocalPersonCutoutPanel({
 				height: result.height,
 				fps: result.frameRate,
 				metadata: {
-					source: "mediapipe-person-cutout",
+					blendImplementation: result.blendImplementation,
+					source,
+					quality,
 					hasAlpha: true,
 					codec: result.codec,
 					frameCount: result.frameCount,
@@ -238,6 +277,7 @@ export function LocalPersonCutoutPanel({
 			}
 			const attached =
 				onMaskReady?.({
+					source: cutoutSource,
 					sourceMediaId,
 					trackingSamples: result.trackingSamples,
 					targetElementId: trackingRequest?.elementId,
@@ -324,6 +364,21 @@ export function LocalPersonCutoutPanel({
 	};
 	renderTransparentVideoRef.current = renderTransparentVideo;
 
+	const selectQuality = (nextQuality: PersonCutoutQuality) => {
+		if (nextQuality === quality) return;
+		qualitySettingsRef.current[quality] = { ...personCutoutSettings };
+		setQuality(nextQuality);
+		updatePersonCutoutSettings(qualitySettingsRef.current[nextQuality]);
+	};
+
+	const updateQualitySettings = (
+		updates: Partial<typeof personCutoutSettings>
+	) => {
+		const nextSettings = { ...personCutoutSettings, ...updates };
+		qualitySettingsRef.current[quality] = nextSettings;
+		updatePersonCutoutSettings(nextSettings);
+	};
+
 	useEffect(() => {
 		if (
 			!autoStartRequestId ||
@@ -339,33 +394,56 @@ export function LocalPersonCutoutPanel({
 	return (
 		<div className="flex min-h-0 flex-1 flex-col">
 			<div className="min-h-0 flex-1 space-y-3 overflow-y-auto pb-3 pr-1">
-				<PersonCutoutPreview
-					key={sourceUrl}
-					sourceUrl={sourceUrl}
-					settings={personCutoutSettings}
-				/>
-				<PersonCutoutSettings
-					settings={personCutoutSettings}
-					onChange={updatePersonCutoutSettings}
-					disabled={isProcessing}
-				/>
-				{segmentedVideoUrl && (
-					<div className="space-y-2" data-testid="person-cutout-result">
-						<div className="text-xs font-medium text-muted-foreground">
-							上次透明视频结果
-						</div>
-						<div
-							className="flex min-h-32 items-center justify-center overflow-hidden rounded-sm border"
-							style={checkerBackground}
-						>
-							<video
-								controls
-								playsInline
-								src={segmentedVideoUrl}
-								className="max-h-64 max-w-full"
-							/>
-						</div>
+				<div className="space-y-2" data-testid="person-cutout-quality">
+					<div className="grid grid-cols-2 rounded-sm bg-muted p-0.5">
+						{(["basic", "fine"] as const).map((value) => (
+							<Button
+								type="button"
+								key={value}
+								variant={quality === value ? "secondary" : "text"}
+								size="sm"
+								className="h-7 text-xs"
+								aria-pressed={quality === value}
+								disabled={isProcessing}
+								onClick={() => selectQuality(value)}
+								data-testid={`person-cutout-quality-${value}`}
+							>
+								{value === "basic" ? "基础" : "精细"}
+							</Button>
+						))}
 					</div>
+					<p className="text-xs leading-5 text-muted-foreground">
+						基础处理速度较快，精细效果更佳，但耗时较长
+					</p>
+				</div>
+				<details className="group rounded-sm border px-3 py-2">
+					<summary className="flex cursor-pointer list-none items-center justify-between text-xs font-medium">
+						高级
+						<ChevronDown className="size-3.5 transition-transform group-open:rotate-180" />
+					</summary>
+					<div className="mt-3 space-y-3">
+						<PersonCutoutSettings
+							settings={personCutoutSettings}
+							defaults={
+								quality === "fine"
+									? FINE_PERSON_CUTOUT_SETTINGS
+									: BASIC_PERSON_CUTOUT_SETTINGS
+							}
+							onChange={updateQualitySettings}
+							disabled={isProcessing}
+						/>
+						{quality === "fine" && fineStatus ? (
+							<p className="text-xs text-muted-foreground">{fineStatus}</p>
+						) : null}
+					</div>
+				</details>
+				{segmentedVideoUrl && (
+					<p
+						className="rounded-sm border bg-muted/30 px-3 py-2 text-xs text-muted-foreground"
+						data-testid="person-cutout-result"
+					>
+						人物抠像结果已生成并应用
+					</p>
 				)}
 				<CutoutTaskStatus
 					phase={isProcessing ? "processing" : taskPhase}
@@ -402,12 +480,8 @@ export function LocalPersonCutoutPanel({
 					onClick={() => void renderTransparentVideo({})}
 					data-testid="person-cutout-export"
 				>
-					{isProcessing ? (
-						<Loader2 className="size-4 animate-spin" />
-					) : (
-						<Download className="size-4" />
-					)}
-					{onMaskReady ? "生成并应用人物蒙版" : "生成透明 WebM"}
+					{isProcessing ? <Loader2 className="size-4 animate-spin" /> : null}
+					{onMaskReady ? "开始并应用" : "开始人物抠像"}
 				</Button>
 			</div>
 		</div>
