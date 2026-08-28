@@ -1,7 +1,7 @@
 import { execFile } from "node:child_process";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { constants, existsSync } from "node:fs";
-import { access, mkdir, readFile } from "node:fs/promises";
+import { access, mkdir, readFile, rename, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -10,12 +10,7 @@ const execFileAsync = promisify(execFile);
 export const JIANYING_PERSON_CUTOUT_BRIDGE_FILE_NAME =
 	"jianying-person-cutout-bridge";
 const SOURCE_RELATIVE_PATHS = [
-	path.join(
-		"electron",
-		"jianying-person-cutout",
-		"native",
-		"alpha-resize.cpp"
-	),
+	path.join("electron", "jianying-person-cutout", "native", "alpha-resize.cpp"),
 	path.join(
 		"electron",
 		"jianying-person-cutout",
@@ -55,12 +50,7 @@ const SOURCE_RELATIVE_PATHS = [
 ] as const;
 const FINGERPRINT_RELATIVE_PATHS = [
 	...SOURCE_RELATIVE_PATHS,
-	path.join(
-		"electron",
-		"jianying-person-cutout",
-		"native",
-		"alpha-resize.hpp"
-	),
+	path.join("electron", "jianying-person-cutout", "native", "alpha-resize.hpp"),
 	path.join(
 		"electron",
 		"jianying-person-cutout",
@@ -173,6 +163,7 @@ export async function compileJianyingPersonCutoutBridge({
 	);
 	if (await isExecutable({ filePath: outputPath })) return outputPath;
 	await mkdir(path.dirname(outputPath), { recursive: true });
+	const stagingPath = `${outputPath}.${randomUUID()}.tmp`;
 	await execFileAsync(
 		"xcrun",
 		[
@@ -194,12 +185,14 @@ export async function compileJianyingPersonCutoutBridge({
 			"ImageIO",
 			"-ldl",
 			"-o",
-			outputPath,
+			stagingPath,
 		],
 		{ maxBuffer: 16 * 1024 * 1024 }
 	);
-	if (!(await isExecutable({ filePath: outputPath }))) {
+	if (!(await isExecutable({ filePath: stagingPath }))) {
+		await rm(stagingPath, { force: true });
 		throw new Error("精细抠像本机桥构建后不可执行");
 	}
+	await rename(stagingPath, outputPath);
 	return outputPath;
 }
