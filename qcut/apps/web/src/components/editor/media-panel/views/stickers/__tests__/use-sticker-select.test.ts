@@ -291,9 +291,167 @@ describe("sticker runtime package placement", () => {
 		);
 		expect(mocks.removeMediaItem).not.toHaveBeenCalled();
 	});
+
+	it("places a restricted local runtime package through the upload path", async () => {
+		const descriptor = {
+			kind: "png-sequence" as const,
+			cycleDurationSeconds: 1,
+			frames: [
+				{
+					source: "$resource:asset_0001",
+					startSeconds: 0,
+					durationSeconds: 1,
+				},
+			],
+			repeat: { kind: "infinite" as const },
+			completion: "freeze-last" as const,
+		};
+		const runtimePackage = {
+			descriptor,
+			primaryMediaType: "image" as const,
+			resources: [
+				{
+					file: new File([new Uint8Array([2])], "blue.png", {
+						type: "image/png",
+					}),
+					mediaType: "image" as const,
+					resourceName: "asset_0001",
+					sourceUrl: "blue.png",
+				},
+			],
+		};
+		const metadata = {
+			referenceOnly: true as const,
+			usage: "internal-reference-only" as const,
+			redistribution: "prohibited" as const,
+			batchId: "jianying-2026-08-26-batch-99",
+			itemId: "990001",
+			checksumSha256: "c".repeat(64),
+		};
+		mocks.addMediaItem.mockImplementation(
+			async (_projectId, item: { id?: string }) => item.id ?? "media-sticker"
+		);
+		mocks.overlayStickers.set("overlay-sticker", { id: "overlay-sticker" });
+		mocks.timelineAddSticker.mockResolvedValue({ success: true });
+		const { result } = renderHook(() => useStickerSelect());
+
+		let mediaItemId: string | undefined;
+		await act(async () => {
+			mediaItemId = await result.current.handleStickerUpload({
+				file: new File([new Uint8Array([1])], "preview.png", {
+					type: "image/png",
+				}),
+				metadata,
+				runtimePackage,
+			});
+		});
+
+		expect(mediaItemId).toBe("media-sticker");
+		expect(mocks.addMediaItem).toHaveBeenNthCalledWith(
+			1,
+			"project-stickers",
+			expect.objectContaining({
+				id: "sticker-runtime:sticker-lab:jianying-2026-08-26-batch-99:990001@1:asset_0001",
+				metadata: expect.objectContaining({
+					source: "sticker-runtime-resource",
+					referenceOnly: true,
+					usage: "internal-reference-only",
+					redistribution: "prohibited",
+					batchId: metadata.batchId,
+					itemId: metadata.itemId,
+				}),
+			})
+		);
+		expect(mocks.addMediaItem).toHaveBeenNthCalledWith(
+			2,
+			"project-stickers",
+			expect.objectContaining({
+				metadata: expect.objectContaining({
+					...metadata,
+					source: "sticker-lab",
+					stickerRuntime: descriptor,
+					stickerRuntimeResources: {
+						asset_0001:
+							"sticker-runtime:sticker-lab:jianying-2026-08-26-batch-99:990001@1:asset_0001",
+					},
+				}),
+			})
+		);
+		expect(mocks.timelineAddSticker).toHaveBeenCalledWith(
+			expect.anything(),
+			2,
+			5,
+			expect.any(Function),
+			descriptor
+		);
+	});
 });
 
 describe("sticker upload timeline rollback", () => {
+	it("rolls back primary and package resources when local runtime placement fails", async () => {
+		mocks.addMediaItem.mockImplementation(
+			async (_projectId, item: { id?: string }) => item.id ?? "media-sticker"
+		);
+		mocks.overlayStickers.set("overlay-sticker", { id: "overlay-sticker" });
+		mocks.timelineAddSticker.mockResolvedValue({
+			error: "timeline rejected runtime sticker",
+			success: false,
+		});
+		const { result } = renderHook(() => useStickerSelect());
+
+		await act(async () => {
+			await result.current.handleStickerUpload({
+				file: new File([new Uint8Array([1])], "preview.png", {
+					type: "image/png",
+				}),
+				metadata: {
+					referenceOnly: true,
+					usage: "internal-reference-only",
+					redistribution: "prohibited",
+					batchId: "jianying-2026-08-26-batch-99",
+					itemId: "990002",
+					checksumSha256: "d".repeat(64),
+				},
+				runtimePackage: {
+					descriptor: {
+						kind: "png-sequence",
+						cycleDurationSeconds: 1,
+						frames: [
+							{
+								source: "$resource:asset_0001",
+								startSeconds: 0,
+								durationSeconds: 1,
+							},
+						],
+						repeat: { kind: "infinite" },
+						completion: "freeze-last",
+					},
+					primaryMediaType: "image",
+					resources: [
+						{
+							file: new File([new Uint8Array([2])], "frame.png", {
+								type: "image/png",
+							}),
+							mediaType: "image",
+							resourceName: "asset_0001",
+							sourceUrl: "frame.png",
+						},
+					],
+				},
+			});
+		});
+
+		expect(mocks.removeMediaItem).toHaveBeenCalledWith(
+			"project-stickers",
+			"media-sticker"
+		);
+		expect(mocks.removeMediaItem).toHaveBeenCalledWith(
+			"project-stickers",
+			"sticker-runtime:sticker-lab:jianying-2026-08-26-batch-99:990002@1:asset_0001"
+		);
+		expect(mocks.toastSuccess).not.toHaveBeenCalled();
+	});
+
 	it("removes a restricted local reference when timeline placement throws", async () => {
 		mocks.overlayStickers.set("overlay-sticker", { id: "overlay-sticker" });
 		mocks.timelineAddSticker.mockResolvedValue({
