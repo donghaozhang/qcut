@@ -23,6 +23,23 @@ const asset = { id: "public-runtime", version: 3 } satisfies Pick<
 	"id" | "version"
 >;
 
+const restrictionMetadata = {
+	referenceOnly: true,
+	usage: "internal-reference-only",
+	redistribution: "prohibited",
+	batchId: "jianying-batch-18",
+	itemId: "reference-1",
+} as const;
+
+const reusableResourceMetadata = {
+	...restrictionMetadata,
+	source: "sticker-runtime-resource",
+	stickerAssetId: asset.id,
+	stickerAssetVersion: asset.version,
+	stickerRuntimeResourceName: "asset_0001",
+	stickerRuntimeSourceUrl: "/runtime/frame.png",
+} as const;
+
 function runtimePackage(): PreparedStickerRuntimePackage {
 	return {
 		descriptor: {
@@ -94,13 +111,43 @@ describe("sticker runtime project import", () => {
 		expect(removeMediaItem).not.toHaveBeenCalled();
 	});
 
+	it("copies restricted Sticker Lab policy onto every package resource", async () => {
+		const addMediaItem = vi.fn<MediaStore["addMediaItem"]>(
+			async (_projectId, item) => item.id ?? "unexpected"
+		);
+
+		await registerStickerRuntimePackageResources({
+			addMediaItem,
+			asset,
+			existingMediaItems: [],
+			metadata: restrictionMetadata,
+			projectId: "project-1",
+			removeMediaItem: vi.fn<MediaStore["removeMediaItem"]>(),
+			runtimePackage: runtimePackage(),
+		});
+
+		expect(addMediaItem).toHaveBeenCalledWith(
+			"project-1",
+			expect.objectContaining({
+				metadata: expect.objectContaining({
+					source: "sticker-runtime-resource",
+					referenceOnly: true,
+					usage: "internal-reference-only",
+					redistribution: "prohibited",
+					batchId: "jianying-batch-18",
+					itemId: "reference-1",
+				}),
+			})
+		);
+	});
+
 	it("reuses a matching resource and does not claim it for rollback", async () => {
 		const existing = {
 			file: new File([new Uint8Array([1])], "frame.png", {
 				type: "image/png",
 			}),
 			id: "sticker-runtime:public-runtime@3:asset_0001",
-			metadata: { stickerRuntimeResourceName: "asset_0001" },
+			metadata: reusableResourceMetadata,
 			name: "frame.png",
 			type: "image",
 		} satisfies MediaItem;
@@ -110,6 +157,7 @@ describe("sticker runtime project import", () => {
 			addMediaItem,
 			asset,
 			existingMediaItems: [existing],
+			metadata: restrictionMetadata,
 			projectId: "project-1",
 			removeMediaItem: vi.fn<MediaStore["removeMediaItem"]>(),
 			runtimePackage: runtimePackage(),
@@ -120,6 +168,73 @@ describe("sticker runtime project import", () => {
 			resourceMediaIds: { asset_0001: existing.id },
 		});
 		expect(addMediaItem).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		{
+			name: "a missing prohibited redistribution policy",
+			mismatchedField: "redistribution",
+			metadata: {
+				referenceOnly: true,
+				usage: "internal-reference-only",
+				batchId: "jianying-batch-18",
+				itemId: "reference-1",
+				source: "sticker-runtime-resource",
+				stickerAssetId: asset.id,
+				stickerAssetVersion: asset.version,
+				stickerRuntimeResourceName: "asset_0001",
+				stickerRuntimeSourceUrl: "/runtime/frame.png",
+			},
+		},
+		{
+			name: "the wrong asset ID",
+			mismatchedField: "stickerAssetId",
+			metadata: {
+				...reusableResourceMetadata,
+				stickerAssetId: "different-runtime",
+			},
+		},
+		{
+			name: "the wrong asset version",
+			mismatchedField: "stickerAssetVersion",
+			metadata: {
+				...reusableResourceMetadata,
+				stickerAssetVersion: 2,
+			},
+		},
+		{
+			name: "the wrong runtime source URL",
+			mismatchedField: "stickerRuntimeSourceUrl",
+			metadata: {
+				...reusableResourceMetadata,
+				stickerRuntimeSourceUrl: "/runtime/other-frame.png",
+			},
+		},
+	])("rejects a reusable resource with $name", async ({
+		metadata,
+		mismatchedField,
+	}) => {
+		const existing = {
+			file: new File([new Uint8Array([1])], "frame.png", {
+				type: "image/png",
+			}),
+			id: "sticker-runtime:public-runtime@3:asset_0001",
+			metadata,
+			name: "frame.png",
+			type: "image",
+		} satisfies MediaItem;
+
+		await expect(
+			registerStickerRuntimePackageResources({
+				addMediaItem: vi.fn<MediaStore["addMediaItem"]>(),
+				asset,
+				existingMediaItems: [existing],
+				metadata: restrictionMetadata,
+				projectId: "project-1",
+				removeMediaItem: vi.fn<MediaStore["removeMediaItem"]>(),
+				runtimePackage: runtimePackage(),
+			})
+		).rejects.toThrow(mismatchedField);
 	});
 
 	it("removes every attempted deterministic ID when persistence fails", async () => {
