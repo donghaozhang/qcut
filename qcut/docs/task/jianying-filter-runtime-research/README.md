@@ -22,6 +22,18 @@ QCut 当前 77 个控件、15 张美妆卡、多人/CLI E2E、离线状态和剩
 [qcut-retouch-gap-vs-jianying.zh.md](qcut-retouch-gap-vs-jianying.zh.md)。两份文档分别记录“剪映怎样做”与
 “QCut 已有什么、还差什么”，避免用 QCut 的实现反推剪映行为。
 
+剪映人物抠像的 GRU 输入、Alpha 后处理、真人 E2E，以及 GRU reset、人脸模型路由、未来帧预取、
+preview 模型与导出 mask cache 的宿主追踪见
+[portrait-matting-gru-parity-2026-08-27.zh.md](portrait-matting-gru-parity-2026-08-27.zh.md)；原生
+`TEMattingBlendEffectV2` 的 RLDevice 所有权、Metal renderer、三张设备纹理、四种执行计划和真人首帧
+逐通道验证见
+[tematting-blend-v2-native-metal-2026-08-27.zh.md](tematting-blend-v2-native-metal-2026-08-27.zh.md)。
+前一份报告现已补充当前剪映 11.3.0 的动态挂载证据：无缓存 face 路由、逐帧 mask 完成协议、缓存命中的
+seek/跟踪/切分，以及 7 秒真实导出期间只读 mask 后 Blend 的调用计数。可复现的自有动态探针源码位于
+[`probes/jianying-matting-runtime-trace.mm`](probes/jianying-matting-runtime-trace.mm)，原始日志继续只保存在仓库外。
+该人物抠像报告已追加 2026-08-28 的 object graph 宿主边界、失败输出门禁，以及真人验证后的
+`GRU + macOS Vision` 精细模式融合和最终左右白底对照。
+
 剪映专业版 `face.id`、`freid.trackid`、隐藏人脸框包，以及 QCut 项目级 `personBindingId`、
 同帧安全重绑定和真实双人 Electron/CLI 证据见
 [jianying-multi-person-detection-selection-track-id.zh.md](jianying-multi-person-detection-selection-track-id.zh.md)。
