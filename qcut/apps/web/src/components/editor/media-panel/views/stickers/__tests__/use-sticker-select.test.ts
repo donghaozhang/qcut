@@ -311,6 +311,7 @@ describe("sticker runtime package placement", () => {
 			primaryMediaType: "image" as const,
 			resources: [
 				{
+					checksumSha256: "e".repeat(64),
 					file: new File([new Uint8Array([2])], "blue.png", {
 						type: "image/png",
 					}),
@@ -353,6 +354,7 @@ describe("sticker runtime package placement", () => {
 			expect.objectContaining({
 				id: "sticker-runtime:sticker-lab:jianying-2026-08-26-batch-99:990001@1:asset_0001",
 				metadata: expect.objectContaining({
+					checksumSha256: "e".repeat(64),
 					source: "sticker-runtime-resource",
 					referenceOnly: true,
 					usage: "internal-reference-only",
