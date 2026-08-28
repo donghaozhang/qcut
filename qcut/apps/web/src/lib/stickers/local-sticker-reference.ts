@@ -31,6 +31,10 @@ import {
 	isLocalBridgeStickerReference,
 	parseLocalBridgeStickerCatalog,
 } from "./local-sticker-manifest";
+import {
+	prepareStickerRuntimePackage,
+	type PreparedStickerRuntimePackage,
+} from "./sticker-runtime-package";
 
 export type {
 	LocalBridgeStickerCatalog,
@@ -375,6 +379,82 @@ export async function loadLocalBridgeStickerReferenceFile({
 	}
 	abortIfRequested({ signal });
 	return file;
+}
+
+async function loadLocalBridgeStickerRuntimeResource({
+	reference,
+	resource,
+	signal,
+}: {
+	reference: LocalBridgeStickerReference;
+	resource: NonNullable<
+		LocalBridgeStickerReference["runtimePackage"]
+	>["resources"][number];
+	signal?: AbortSignal;
+}): Promise<File> {
+	abortIfRequested({ signal });
+	const bridge = stickerLabBridge();
+	if (!bridge) {
+		throw new Error("Local sticker reference bridge is unavailable");
+	}
+	const result = await bridge.readLocalReference({
+		rootPath: resource.asset.rootPath,
+		batchId: resource.asset.batchId,
+		stickerId: resource.asset.stickerId,
+		resourceName: resource.asset.resourceName,
+	});
+	const mismatchedFields = [
+		result.batchId === reference.asset.batchId ? null : "batchId",
+		result.stickerId === reference.asset.stickerId ? null : "stickerId",
+		result.resourceName === resource.resourceName ? null : "resourceName",
+		result.checksumSha256 === resource.asset.checksumSha256
+			? null
+			: "checksumSha256",
+		result.fileName === resource.fileName ? null : "fileName",
+		result.mimeType === resource.mimeType ? null : "mimeType",
+		result.bytes.byteLength === resource.asset.byteSize ? null : "byteSize",
+	].filter((field): field is string => field !== null);
+	if (mismatchedFields.length > 0) {
+		throw new Error(
+			`Local sticker runtime resource verification failed: ${reference.id}/${resource.resourceName} (${mismatchedFields.join(", ")})`
+		);
+	}
+	abortIfRequested({ signal });
+	return ownedFile({
+		bytes: result.bytes,
+		fileName: resource.fileName,
+		mimeType: resource.mimeType,
+	});
+}
+
+export async function loadStickerLabReferenceRuntimePackage({
+	primaryFile,
+	reference,
+	signal,
+}: {
+	primaryFile: File;
+	reference: StickerLabReference;
+	signal?: AbortSignal;
+}): Promise<PreparedStickerRuntimePackage | undefined> {
+	if (!isLocalBridgeStickerReference(reference) || !reference.runtimePackage) {
+		return;
+	}
+	const resources = await Promise.all(
+		reference.runtimePackage.resources.map(async (resource) => ({
+			file: await loadLocalBridgeStickerRuntimeResource({
+				reference,
+				resource,
+				signal,
+			}),
+			sourceUrl: resource.resourceName,
+		}))
+	);
+	abortIfRequested({ signal });
+	return prepareStickerRuntimePackage({
+		descriptor: reference.runtimePackage.descriptor,
+		primary: { file: primaryFile, sourceUrl: reference.fileName },
+		resources,
+	});
 }
 
 export function stickerLabAssetUrl({
