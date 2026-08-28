@@ -6,9 +6,16 @@
 
 namespace qcut::matting {
 
+enum class EffectTextureContextMode {
+  CreateStandalone,
+  AdoptCurrent,
+};
+
 class EffectTextureContext {
 public:
-  EffectTextureContext();
+  explicit EffectTextureContext(
+      EffectTextureContextMode mode =
+          EffectTextureContextMode::CreateStandalone);
   ~EffectTextureContext();
 
   EffectTextureContext(const EffectTextureContext &) = delete;
