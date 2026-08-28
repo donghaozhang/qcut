@@ -26,6 +26,8 @@ export interface JianyingDualTiledLutRenderer {
 	skin: JianyingTiledLutRenderer;
 }
 
+type DualTiledLutShaderProfile = "legacy-mask" | "native-skin-seg-mask";
+
 export function createTiledLutId({
 	resourceId,
 	renderer,
@@ -104,18 +106,112 @@ export function isSupportedTiledLutShader({
 	);
 }
 
-export function isSupportedDualTiledLutShader({
+function dualTiledLutShaderProfile({
 	source,
 }: {
 	source: string;
-}): boolean {
-	return (
+}): DualTiledLutShaderProfile | null {
+	const legacyMask =
 		/uniform\s+sampler2D\s+u_mask\s*;/.test(source) &&
 		/uniform\s+sampler2D\s+u_lut0\s*;/.test(source) &&
 		/uniform\s+sampler2D\s+u_lut1\s*;/.test(source) &&
 		/src\s*\*=\s*63\.?0*\s*;/.test(source) &&
 		/texture2D\s*\(\s*lut\s*,/.test(source) &&
-		/mix\s*\(\s*res0\s*,\s*res1\s*,\s*mask\.a\s*\)/.test(source)
+		/mix\s*\(\s*res0\s*,\s*res1\s*,\s*mask\.a\s*\)/.test(source);
+	if (legacyMask) return "legacy-mask";
+
+	const nativeSkinSegMask =
+		/uniform\s+sampler2D\s+inputImageTexture\s*;/.test(source) &&
+		/uniform\s+sampler2D\s+filterBgTexture\s*;/.test(source) &&
+		/uniform\s+sampler2D\s+filterSkinTexture\s*;/.test(source) &&
+		/uniform\s+sampler2D\s+maskTexture\s*;/.test(source) &&
+		/uniform\s+float\s+intensity\s*;/.test(source) &&
+		isSupportedTiledLutShader({ source }) &&
+		/vec2\s+maskCoord\s*=\s*vec2\s*\(\s*uv0\.x\s*,\s*1\.?0*\s*-\s*uv0\.y\s*\)\s*;/.test(
+			source
+		) &&
+		/texture2D\s*\(\s*maskTexture\s*,\s*maskCoord\s*\)\.a/.test(source) &&
+		/lm_take_effect_filter\s*\(\s*filterBgTexture\s*,\s*color\s*,\s*intensity(?:\s*\*\s*bgBaseIntensity)?\s*\)/.test(
+			source
+		) &&
+		/lm_take_effect_filter\s*\(\s*filterSkinTexture\s*,\s*color\s*,\s*intensity(?:\s*\*\s*skinBaseIntensity)?\s*\)/.test(
+			source
+		) &&
+		/mix\s*\(\s*bgResultColor\s*,\s*skinResultColor\s*,\s*mask\s*\)/.test(
+			source
+		);
+	return nativeSkinSegMask ? "native-skin-seg-mask" : null;
+}
+
+export function isSupportedDualTiledLutShader({
+	source,
+}: {
+	source: string;
+}): boolean {
+	return dualTiledLutShaderProfile({ source }) !== null;
+}
+
+async function hasNativeSkinSegBindings({
+	paths,
+	root,
+}: {
+	paths: string[];
+	root: string;
+}): Promise<boolean> {
+	const algorithmPaths = paths.filter((filePath) =>
+		filePath.toLowerCase().endsWith("algorithmconfig.json")
+	);
+	const luaPaths = paths.filter((filePath) =>
+		filePath.toLowerCase().endsWith(".lua")
+	);
+	const materialPaths = paths.filter((filePath) =>
+		filePath.toLowerCase().endsWith(".material")
+	);
+	const [algorithmSources, luaSources, materialSources] = await Promise.all([
+		Promise.all(
+			algorithmPaths.map((filePath) =>
+				readFile(join(root, filePath), "utf8").catch(() => "")
+			)
+		),
+		Promise.all(
+			luaPaths.map((filePath) =>
+				readFile(join(root, filePath), "utf8").catch(() => "")
+			)
+		),
+		Promise.all(
+			materialPaths.map((filePath) =>
+				readFile(join(root, filePath))
+					.then((value) => value.toString("latin1"))
+					.catch(() => "")
+			)
+		),
+	]);
+	const hasSkinSegNode = algorithmSources.some((source) => {
+		try {
+			const value = JSON.parse(source) as { nodes?: Array<{ type?: unknown }> };
+			return value.nodes?.some((node) => node.type === "skin_seg") === true;
+		} catch {
+			return false;
+		}
+	});
+	const hasDynamicMaskBinding = luaSources.some(
+		(source) =>
+			/getSkinSegInfo\s*\(\s*\)/.test(source) &&
+			/getTex\s*\(\s*["']maskTexture["']\s*\)/.test(source) &&
+			/[.:]storage\s*\(\s*mask\s*\)/.test(source)
+	);
+	const hasStaticMaskBinding = materialSources.some(
+		(source) =>
+			source.includes("maskTexture") &&
+			source.includes("share://skinsegmask.texture")
+	);
+	const hasIntensityBinding = luaSources.some((source) =>
+		/setFloat\s*\(\s*["']intensity["']\s*,\s*intensity\s*\)/.test(source)
+	);
+	return (
+		hasSkinSegNode &&
+		hasIntensityBinding &&
+		(hasDynamicMaskBinding || hasStaticMaskBinding)
 	);
 }
 
@@ -215,10 +311,18 @@ export async function inspectDualTiledLutRenderer({
 			)
 		),
 	]);
+	const profiles = shaderSources
+		.map((source) => dualTiledLutShaderProfile({ source }))
+		.filter(
+			(profile): profile is DualTiledLutShaderProfile => profile !== null
+		);
+	if (!validBackground || !validSkin || profiles.length === 0) {
+		return null;
+	}
 	if (
-		!validBackground ||
-		!validSkin ||
-		!shaderSources.some((source) => isSupportedDualTiledLutShader({ source }))
+		!profiles.includes("legacy-mask") &&
+		profiles.includes("native-skin-seg-mask") &&
+		!(await hasNativeSkinSegBindings({ paths, root }))
 	) {
 		return null;
 	}
