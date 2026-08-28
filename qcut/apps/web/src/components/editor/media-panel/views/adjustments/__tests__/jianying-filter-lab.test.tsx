@@ -112,6 +112,77 @@ const shaderFood: JianyingFilterLabFilterSummary = {
 	},
 };
 
+const faceRegionLips: JianyingFilterLabFilterSummary = {
+	resourceId: "7127674287238008078",
+	title: "焕肤",
+	version: "a7157c69db22c874fe86e736a02e12b2",
+	categories: ["人像"],
+	cacheStatus: "cached",
+	implementation: "face-region-lut",
+	available: true,
+	hasThumbnail: false,
+	downloadable: false,
+	verification: { status: "unverified" },
+	luts: [],
+};
+
+const nativeSwingDual: JianyingFilterLabFilterSummary = {
+	resourceId: "7451897248885099795",
+	title: "智能光线",
+	version: "5e99c97612aaee8e1e0b3567beb8567c",
+	categories: ["人像"],
+	cacheStatus: "cached",
+	implementation: "dual-lut",
+	available: true,
+	hasThumbnail: false,
+	downloadable: false,
+	verification: { status: "unverified" },
+	luts: [],
+	renderer: {
+		kind: "native-swing-effect",
+		passCount: 38,
+		fidelity: "native-local",
+	},
+};
+
+const nativeSwingShader: JianyingFilterLabFilterSummary = {
+	resourceId: "7468943213143821587",
+	title: "璀璨",
+	version: "da0d70b6d9194b356f971b8fcdaad992",
+	categories: ["人像"],
+	cacheStatus: "cached",
+	implementation: "shader",
+	available: true,
+	hasThumbnail: false,
+	downloadable: false,
+	verification: { status: "unverified" },
+	luts: [],
+	renderer: {
+		kind: "native-swing-effect",
+		passCount: 30,
+		fidelity: "native-local",
+	},
+};
+
+const nativeSwingFaceAi: JianyingFilterLabFilterSummary = {
+	resourceId: "7495673180904885516",
+	title: "丝滑皮肤",
+	version: "c88f3eddf7620d4e0644075efcafd101",
+	categories: ["人像"],
+	cacheStatus: "cached",
+	implementation: "face-ai",
+	available: true,
+	hasThumbnail: false,
+	downloadable: false,
+	verification: { status: "unverified" },
+	luts: [],
+	renderer: {
+		kind: "native-swing-effect",
+		passCount: 7,
+		fidelity: "native-local",
+	},
+};
+
 const catalogResult: JianyingFilterLabListResult = {
 	count: 3,
 	cachedCount: 2,
@@ -160,8 +231,30 @@ function installFilterLabApi({
 		};
 	});
 	const thumbnail = vi.fn();
-	const loadRenderer = vi.fn(
-		async ({ resourceId }: { resourceId: string }) => ({
+	const loadRenderer = vi.fn(async ({ resourceId }: { resourceId: string }) => {
+		const nativeSwingFilter = [
+			nativeSwingDual,
+			nativeSwingShader,
+			nativeSwingFaceAi,
+		].find((filter) => filter.resourceId === resourceId);
+		if (nativeSwingFilter) {
+			return {
+				resourceId,
+				version: nativeSwingFilter.version!,
+				name: nativeSwingFilter.title,
+				enabled: true as const,
+				presetId: `jianying:${resourceId}:${nativeSwingFilter.version}`,
+				intensity: 100,
+				fidelity: "native-local" as const,
+				nativeEffect: {
+					provider: "jianying-local-effect-v1" as const,
+					resourceId,
+					version: nativeSwingFilter.version!,
+				},
+				passes: [],
+			};
+		}
+		return {
 			resourceId,
 			version: "shader-version",
 			name: "清透美食",
@@ -182,8 +275,8 @@ function installFilterLabApi({
 					},
 				},
 			],
-		})
-	);
+		};
+	});
 	const download = vi.fn(async ({ resourceId }: { resourceId: string }) => ({
 		resourceId,
 		version: "remote-version",
@@ -417,6 +510,141 @@ describe("JianyingFilterLab catalog", () => {
 				passes: expect.arrayContaining([
 					expect.objectContaining({ kind: "sharpen" }),
 				]),
+			}),
+		});
+	});
+
+	it("applies a face-region package as a native local effect", async () => {
+		const api = installFilterLabApi({
+			result: {
+				count: 1,
+				cachedCount: 1,
+				availableCount: 1,
+				filters: [faceRegionLips],
+				categories: [{ name: "人像", total: 1, cached: 1, available: 1 }],
+			},
+		});
+		const onApplyMultiPass = vi.fn();
+		render(
+			<JianyingFilterLab
+				onApply={vi.fn()}
+				onApplyMultiPass={onApplyMultiPass}
+			/>
+		);
+
+		const row = await screen.findByRole("button", { name: "应用 焕肤" });
+		expect(within(row).getByText("面部区域 LUT")).toBeInTheDocument();
+		fireEvent.click(row);
+
+		expect(api.load).not.toHaveBeenCalled();
+		expect(api.loadRenderer).not.toHaveBeenCalled();
+		expect(onApplyMultiPass).toHaveBeenCalledWith({
+			settings: {
+				enabled: true,
+				presetId: "jianying-face-region-7127674287238008078",
+				name: "焕肤",
+				intensity: 100,
+				fidelity: "native-local",
+				nativeEffect: {
+					provider: "jianying-local-effect-v1",
+					resourceId: "7127674287238008078",
+					version: "a7157c69db22c874fe86e736a02e12b2",
+				},
+				passes: [],
+			},
+			layerName: "剪映面部区域 - 焕肤",
+			successMessage: "已应用 焕肤 本机面部区域滤镜",
+		});
+	});
+
+	it("loads a complex dual LUT as a native Swing effect", async () => {
+		const api = installFilterLabApi({
+			result: {
+				count: 1,
+				cachedCount: 1,
+				availableCount: 1,
+				filters: [nativeSwingDual],
+				categories: [{ name: "人像", total: 1, cached: 1, available: 1 }],
+			},
+		});
+		const onApplyMultiPass = vi.fn();
+		render(
+			<JianyingFilterLab
+				onApply={vi.fn()}
+				onApplyMultiPass={onApplyMultiPass}
+			/>
+		);
+
+		const row = await screen.findByRole("button", { name: "应用 智能光线" });
+		expect(within(row).getByText("38 Pass")).toBeInTheDocument();
+		fireEvent.click(row);
+
+		await vi.waitFor(() =>
+			expect(api.loadRenderer).toHaveBeenCalledWith({
+				resourceId: nativeSwingDual.resourceId,
+			})
+		);
+		expect(api.load).not.toHaveBeenCalled();
+		expect(onApplyMultiPass).toHaveBeenCalledWith({
+			settings: expect.objectContaining({
+				name: "智能光线",
+				fidelity: "native-local",
+				nativeEffect: {
+					provider: "jianying-local-effect-v1",
+					resourceId: nativeSwingDual.resourceId,
+					version: nativeSwingDual.version,
+				},
+				passes: [],
+			}),
+		});
+	});
+
+	it.each([
+		{ filter: nativeSwingShader, passLabel: "30 Pass" },
+		{ filter: nativeSwingFaceAi, passLabel: "7 Pass" },
+	])("loads $filter.title as a native Swing effect", async ({
+		filter,
+		passLabel,
+	}) => {
+		const api = installFilterLabApi({
+			result: {
+				count: 1,
+				cachedCount: 1,
+				availableCount: 1,
+				filters: [filter],
+				categories: [{ name: "人像", total: 1, cached: 1, available: 1 }],
+			},
+		});
+		const onApplyMultiPass = vi.fn();
+		render(
+			<JianyingFilterLab
+				onApply={vi.fn()}
+				onApplyMultiPass={onApplyMultiPass}
+			/>
+		);
+
+		const row = await screen.findByRole("button", {
+			name: `应用 ${filter.title}`,
+		});
+		expect(within(row).getByText(passLabel)).toBeInTheDocument();
+		fireEvent.click(row);
+
+		await vi.waitFor(() =>
+			expect(api.loadRenderer).toHaveBeenCalledWith({
+				resourceId: filter.resourceId,
+			})
+		);
+		expect(api.load).not.toHaveBeenCalled();
+		expect(onApplyMultiPass).toHaveBeenCalledWith({
+			settings: expect.objectContaining({
+				name: filter.title,
+				fidelity: "native-local",
+				nativeEffect: {
+					provider: "jianying-local-effect-v1",
+					resourceId: filter.resourceId,
+					version: filter.version,
+				},
+				passes: [],
 			}),
 		});
 	});
