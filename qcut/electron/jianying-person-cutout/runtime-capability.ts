@@ -1,6 +1,6 @@
 import {
 	TEMATTING_COMPATIBLE_BLEND,
-	TEMATTING_NATIVE_METAL_BLEND,
+	TEMATTING_NATIVE_METAL_CANARY,
 	type TemattingBlendImplementation,
 } from "./tematting-blend.js";
 
@@ -24,7 +24,7 @@ export function selectTemattingBlendImplementation({
 		!disabled &&
 		librarySha256 === NATIVE_METAL_LIBRARY_SHA256
 	) {
-		return TEMATTING_NATIVE_METAL_BLEND;
+		return TEMATTING_NATIVE_METAL_CANARY;
 	}
 	return TEMATTING_COMPATIBLE_BLEND;
 }
@@ -43,7 +43,7 @@ export async function executeTemattingWithFallback({
 		return preferred;
 	} catch (error) {
 		if (
-			preferred !== TEMATTING_NATIVE_METAL_BLEND ||
+			preferred !== TEMATTING_NATIVE_METAL_CANARY ||
 			(error instanceof Error && error.name === "AbortError")
 		) {
 			throw error;
