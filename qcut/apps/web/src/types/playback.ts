@@ -21,6 +21,12 @@ export interface PreviewQualityDiagnostic {
 export interface PlaybackState {
 	isPlaying: boolean;
 	currentTime: number;
+	/**
+	 * Transient hover-scrub time from the timeline preview axis. While set and
+	 * playback is paused, the preview renders this frame instead of
+	 * currentTime; the playhead itself never moves.
+	 */
+	previewScrubTime: number | null;
 	duration: number;
 	volume: number;
 	speed: number;
@@ -35,6 +41,7 @@ export interface PlaybackControls {
 	play: () => void;
 	pause: () => void;
 	seek: (time: number) => void;
+	setPreviewScrubTime: (time: number | null) => void;
 	setVolume: (volume: number) => void;
 	setSpeed: (speed: number) => void;
 	toggle: () => void;

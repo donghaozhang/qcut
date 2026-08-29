@@ -158,6 +158,7 @@ const exposeStore = (store: any) => {
 export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 	isPlaying: false,
 	currentTime: 0,
+	previewScrubTime: null,
 	duration: 0,
 	volume: 1,
 	muted: false,
@@ -171,6 +172,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 		_mutableCurrentTime = get().currentTime;
 		set({
 			isPlaying: true,
+			previewScrubTime: null,
 			runtimePreviewQuality: null,
 			runtimePreviewQualityDiagnostic: null,
 		});
@@ -244,6 +246,13 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 		set({ duration });
 	},
 	setCurrentTime: (time: number) => set({ currentTime: time }),
+
+	setPreviewScrubTime: (time: number | null) => {
+		const { duration, previewScrubTime } = get();
+		const next = time === null ? null : Math.max(0, Math.min(duration, time));
+		if (previewScrubTime === next) return;
+		set({ previewScrubTime: next });
+	},
 
 	mute: () => {
 		const { volume, previousVolume } = get();
