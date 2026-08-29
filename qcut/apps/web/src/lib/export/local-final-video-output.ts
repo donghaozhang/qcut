@@ -12,6 +12,9 @@ interface ExportMediaRecord {
 
 export const LOCAL_MP4_ENGINE_REQUIRED_ERROR_CODE =
 	"QCUT_LOCAL_MP4_ENGINE_REQUIRED" as const;
+const WINDOWS_DRIVE_PATH_PATTERN = /^[a-z]:[\\/]/i;
+const MP4_EXTENSION_PATTERN = /\.mp4$/i;
+const POSIX_LOCAL_PATH_PATTERN = /^\/(?!\/)/;
 
 export class LocalMp4EngineRequiredError extends Error {
 	readonly code = LOCAL_MP4_ENGINE_REQUIRED_ERROR_CODE;
@@ -31,11 +34,10 @@ function isAbsoluteLocalMp4OutputPath({
 }): boolean {
 	if (!outputPath) return false;
 	const normalizedPath = outputPath.trim();
-	const isAbsolutePath =
-		normalizedPath.startsWith("/") ||
-		normalizedPath.startsWith("\\\\") ||
-		/^[a-z]:[\\/]/i.test(normalizedPath);
-	return isAbsolutePath && /\.mp4$/i.test(normalizedPath);
+	const isLocalAbsolutePath =
+		POSIX_LOCAL_PATH_PATTERN.test(normalizedPath) ||
+		WINDOWS_DRIVE_PATH_PATTERN.test(normalizedPath);
+	return isLocalAbsolutePath && MP4_EXTENSION_PATTERN.test(normalizedPath);
 }
 
 export function resolveLocalFinalVideoExportOutput({
