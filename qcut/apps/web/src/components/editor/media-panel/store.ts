@@ -226,7 +226,13 @@ export type StandardEditorTab = (typeof STANDARD_EDITOR_TABS)[number];
 export type SoundsPanelTab = AudioLibrarySectionId;
 
 /** Collapsible groups in the sounds panel sidebar (Jianying-style). */
-export type AudioSidebarGroupId = "my" | "folders" | "music" | "sfx" | "lab";
+export type AudioSidebarGroupId =
+	| "my"
+	| "folders"
+	| "music"
+	| "music-lab"
+	| "sfx"
+	| "lab";
 
 export const tabGroups: { [key in TabGroup]: TabGroupDef } = {
 	"ai-create": {
@@ -360,6 +366,7 @@ export const useMediaPanelStore = create<MediaPanelStore>((set) => ({
 		my: false,
 		folders: false,
 		music: false,
+		"music-lab": false,
 		sfx: true,
 		lab: false,
 	},
