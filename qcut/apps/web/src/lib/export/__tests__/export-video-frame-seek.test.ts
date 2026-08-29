@@ -9,6 +9,7 @@ interface MockVideoState {
 function createMockVideo({
 	currentTime = 0,
 	dispatchSeeked = true,
+	duration = 5,
 	readyState = 4,
 	seeking = false,
 	videoHeight = 720,
@@ -16,6 +17,7 @@ function createMockVideo({
 }: {
 	currentTime?: number;
 	dispatchSeeked?: boolean;
+	duration?: number;
 	readyState?: number;
 	seeking?: boolean;
 	videoHeight?: number;
@@ -33,7 +35,7 @@ function createMockVideo({
 			if (type === "seeked") seekListenerCount += 1;
 			eventTarget.addEventListener(type, listener);
 		},
-		duration: 5,
+		duration,
 		get currentTime() {
 			return resolvedCurrentTime;
 		},
@@ -82,6 +84,15 @@ describe("seekExportVideoFrame", () => {
 		await seekExportVideoFrame({ frameRate: 30, timeSeconds: 1, video });
 
 		expect(state.assignedTimes).toEqual([1]);
+	});
+
+	it("normalizes a seek beyond the media duration", async () => {
+		const { state, video } = createMockVideo({ currentTime: 4, duration: 5 });
+
+		await seekExportVideoFrame({ frameRate: 30, timeSeconds: 6, video });
+
+		expect(state.assignedTimes).toEqual([5]);
+		expect(video.currentTime).toBe(5);
 	});
 
 	it("installs the seek listener before assigning currentTime", async () => {
