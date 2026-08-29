@@ -264,7 +264,7 @@ describe("StickersView", () => {
 
 		const sidebar = screen.getByTestId("sticker-sidebar");
 		expect(screen.getByTestId("sticker-reference-lab-entry")).toHaveTextContent(
-			"本地成片可用 · 素材禁止二次分发"
+			"可导出本地成片 · 原素材及工程包禁止导出、禁止二次分发"
 		);
 		fireEvent.click(within(sidebar).getByRole("button", { name: "QCut 原创" }));
 		expect(
