@@ -88,6 +88,10 @@ import {
 	type JianyingFontLabIPCController,
 } from "./jianying-font-lab-handler.js";
 import {
+	setupJianyingMusicLabIPC,
+	type JianyingMusicLabIPCController,
+} from "./jianying-music-lab-handler.js";
+import {
 	setupJianyingTextStyleLabIPC,
 	type JianyingTextStyleLabIPCController,
 } from "./jianying-text-style-lab-handler.js";
@@ -155,6 +159,7 @@ let jianyingFilterLabController: JianyingFilterLabIPCController | null = null;
 let jianyingPortraitAdjustmentController: JianyingPortraitAdjustmentIPCController | null =
 	null;
 let jianyingFontLabController: JianyingFontLabIPCController | null = null;
+let jianyingMusicLabController: JianyingMusicLabIPCController | null = null;
 let jianyingTextStyleLabController: JianyingTextStyleLabIPCController | null =
 	null;
 let jianyingTextRuntimeController: JianyingTextRuntimeIPCController | null =
@@ -1101,6 +1106,15 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 				},
 			],
 			[
+				"JianyingMusicLabIPC",
+				() => {
+					jianyingMusicLabController = setupJianyingMusicLabIPC({
+						getMainWindow: () => mainWindow,
+						getUserDataDirectory: () => app.getPath("userData"),
+					});
+				},
+			],
+			[
 				"JianyingTextStyleLabIPC",
 				() => {
 					jianyingTextStyleLabController = setupJianyingTextStyleLabIPC({
@@ -1264,6 +1278,8 @@ app.on("before-quit", () => {
 	jianyingPortraitAdjustmentController = null;
 	jianyingFontLabController?.dispose();
 	jianyingFontLabController = null;
+	jianyingMusicLabController?.dispose();
+	jianyingMusicLabController = null;
 	jianyingTextStyleLabController?.dispose();
 	jianyingTextStyleLabController = null;
 	jianyingTextRuntimeController?.dispose();
