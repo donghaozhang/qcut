@@ -5,6 +5,7 @@
 
 import { claudeLog } from "../../utils/logger.js";
 import * as path from "node:path";
+import * as fsPromises from "node:fs/promises";
 import { logOperation } from "../../claude-operation-log.js";
 import { emitClaudeEvent } from "../claude-events-handler.js";
 import type {
@@ -42,8 +43,59 @@ import {
 } from "./export-engine.js";
 import { collectJianyingTextOverlays } from "./jianying-text-overlay.js";
 import { collectTextOverlays } from "./text-overlay.js";
-import { assertRestrictedMediaExportAllowed } from "../../../types/restricted-media-export-policy.js";
+import { assertLocalFinalVideoExportAllowed } from "../../../types/restricted-media-export-policy.js";
 import { assertNativeStickerRuntimeExportAllowed } from "../../../types/sticker-runtime-export-policy.js";
+import type { ClaudeLocalVideoExportRequest } from "../../../types/claude-local-video-export-api.js";
+
+const RENDERER_EXPORT_FRAME_RATES = [24, 25, 30, 50, 60] as const;
+
+function rendererExportQuality({
+	height,
+	width,
+}: {
+	height: number;
+	width: number;
+}): ClaudeLocalVideoExportRequest["quality"] {
+	const longestEdge = Math.max(height, width);
+	if (longestEdge >= 1920) return "1080p";
+	if (longestEdge >= 1280) return "720p";
+	return "480p";
+}
+
+function rendererExportFrameRate({
+	fps,
+}: {
+	fps: number;
+}): ClaudeLocalVideoExportRequest["frameRate"] {
+	const supported = RENDERER_EXPORT_FRAME_RATES.find(
+		(frameRate) => frameRate === fps
+	);
+	if (!supported) {
+		throw new Error(`Renderer MP4 export does not support ${fps} fps.`);
+	}
+	return supported;
+}
+
+function isImplicitCliAudioConfig({
+	audioConfig,
+}: {
+	audioConfig: unknown;
+}): boolean {
+	if (
+		typeof audioConfig !== "object" ||
+		audioConfig === null ||
+		Array.isArray(audioConfig)
+	) {
+		return false;
+	}
+	const record = audioConfig as Record<string, unknown>;
+	// CLI parsing materializes these defaults even when no audio flags were supplied.
+	return (
+		Object.keys(record).length === 2 &&
+		record.mic === false &&
+		record.systemAudio === true
+	);
+}
 
 function isTimelineEmpty({ timeline }: { timeline: ClaudeTimeline }): boolean {
 	try {
@@ -56,6 +108,48 @@ function isTimelineEmpty({ timeline }: { timeline: ClaudeTimeline }): boolean {
 	} catch {
 		return true;
 	}
+}
+
+function assertRendererExportRequestCompatible({
+	request,
+}: {
+	request: ExportJobRequest;
+}): void {
+	const topLevel = request as Record<string, unknown>;
+	const unsupportedOptions: string[] = [];
+	if (request.engine && request.engine !== "auto") {
+		unsupportedOptions.push("engine");
+	}
+	if (request.cursorConfig !== undefined) {
+		unsupportedOptions.push("cursorConfig");
+	}
+	if (request.zoomConfig !== undefined) {
+		unsupportedOptions.push("zoomConfig");
+	}
+	if (
+		request.audioConfig !== undefined &&
+		!isImplicitCliAudioConfig({ audioConfig: request.audioConfig })
+	) {
+		unsupportedOptions.push("audioConfig");
+	}
+	if (request.audioExportConfig !== undefined) {
+		unsupportedOptions.push("audioExportConfig");
+	}
+	if (
+		request.settings?.bitrate !== undefined ||
+		topLevel.bitrate !== undefined
+	) {
+		unsupportedOptions.push("bitrate");
+	}
+	if (request.settings?.codec !== undefined || topLevel.codec !== undefined) {
+		unsupportedOptions.push("codec");
+	}
+	if (unsupportedOptions.length === 0) return;
+	throw new Error(
+		`Renderer Sticker Lab export does not support these CLI overrides: ${unsupportedOptions.join(
+			", "
+		)}.`
+	);
 }
 
 /**
@@ -135,6 +229,105 @@ export function getExportRecommendation({
 	return { preset, warnings, suggestions };
 }
 
+export async function startRendererExportJob({
+	dispatch,
+	mediaFiles,
+	projectId,
+	request,
+	timeline,
+}: {
+	dispatch: (request: ClaudeLocalVideoExportRequest) => Promise<void>;
+	mediaFiles: MediaFile[];
+	projectId: string;
+	request: ExportJobRequest;
+	timeline: ClaudeTimeline;
+}): Promise<{ jobId: string; status: ExportJobStatus["status"] }> {
+	if (isTimelineEmpty({ timeline })) {
+		throw new Error("Cannot export an empty timeline");
+	}
+	const activeJob = getActiveJobForProject({ projectId });
+	if (activeJob) {
+		throw new Error(
+			`Export already in progress for project ${projectId} (job: ${activeJob.jobId})`
+		);
+	}
+	assertRendererExportRequestCompatible({ request });
+
+	const settings = resolveExportSettings({ request });
+	const outputPath = request.outputPath?.trim()
+		? path.resolve(request.outputPath.trim())
+		: getDefaultOutputPath({ projectId, format: settings.format });
+	const isLocalMp4 =
+		settings.format === "mp4" &&
+		path.isAbsolute(outputPath) &&
+		path.extname(outputPath).toLowerCase() === ".mp4";
+	assertLocalFinalVideoExportAllowed({
+		mediaItems: mediaFiles,
+		operation: "qcut editor:export:start renderer export",
+		output: {
+			container: settings.format === "mp4" ? "mp4" : "webm",
+			destination: isLocalMp4 ? "local-file" : "external",
+			kind: "final-video",
+		},
+		tracks: timeline.tracks,
+	});
+	if (!isLocalMp4) {
+		throw new Error(
+			"Sticker runtime export requires an absolute local .mp4 output path."
+		);
+	}
+
+	const frameRate = rendererExportFrameRate({ fps: settings.fps });
+	const jobId = `export_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+	const now = Date.now();
+	const newJob: ExportJobInternal = {
+		engine: "renderer-muxer",
+		jobId,
+		outputPath,
+		presetId: settings.presetId,
+		progress: 0,
+		projectId,
+		settings,
+		startedAt: now,
+		status: EXPORT_JOB_STATUS.queued,
+	};
+	exportJobs.set(jobId, newJob);
+	pruneOldJobs(exportJobs);
+
+	void (async () => {
+		try {
+			updateJobProgress({ jobId, progress: 0.01 });
+			await dispatch({
+				filename: path.basename(outputPath),
+				format: "mp4",
+				frameRate,
+				height: settings.height,
+				outputPath,
+				projectId,
+				quality: rendererExportQuality({
+					height: settings.height,
+					width: settings.width,
+				}),
+				width: settings.width,
+			});
+			const outputStats = await fsPromises.stat(outputPath);
+			if (!outputStats.isFile() || outputStats.size <= 0) {
+				throw new Error(
+					"Renderer MP4 export did not produce a non-empty file."
+				);
+			}
+			newJob.fileSize = outputStats.size;
+			updateJobProgress({ jobId, progress: 1 });
+		} catch (error) {
+			newJob.completedAt = Date.now();
+			newJob.error = error instanceof Error ? error.message : String(error);
+			newJob.status = EXPORT_JOB_STATUS.failed;
+		}
+	})();
+
+	return { jobId, status: EXPORT_JOB_STATUS.queued };
+}
+
 export async function startExportJob({
 	projectId,
 	request,
@@ -147,17 +340,6 @@ export async function startExportJob({
 	mediaFiles: MediaFile[];
 }): Promise<{ jobId: string; status: ExportJobStatus["status"] }> {
 	try {
-		assertRestrictedMediaExportAllowed({
-			mediaItems: mediaFiles,
-			operation: "video",
-			scope: "timeline",
-			tracks: timeline.tracks,
-		});
-		assertNativeStickerRuntimeExportAllowed({
-			mediaItems: mediaFiles,
-			operation: "Claude native video export",
-			tracks: timeline.tracks,
-		});
 		if (isTimelineEmpty({ timeline })) {
 			throw new Error("Cannot export an empty timeline");
 		}
@@ -170,12 +352,34 @@ export async function startExportJob({
 		}
 
 		const settings = resolveExportSettings({ request });
-		const resolvedMediaFiles: MediaFile[] = [];
+		const outputPath = request.outputPath?.trim()
+			? path.resolve(request.outputPath.trim())
+			: getDefaultOutputPath({
+					projectId,
+					format: settings.format,
+				});
+		const isLocalMp4 =
+			settings.format === "mp4" &&
+			path.extname(outputPath).toLowerCase() === ".mp4";
+		const localVideoOutput = {
+			container:
+				settings.format === "mp4" ? ("mp4" as const) : ("webm" as const),
+			destination: isLocalMp4 ? ("local-file" as const) : ("external" as const),
+			kind: "final-video" as const,
+		};
+		assertLocalFinalVideoExportAllowed({
+			mediaItems: mediaFiles,
+			operation: "qcut editor:export:start native export",
+			output: localVideoOutput,
+			tracks: timeline.tracks,
+		});
+		const nonStickerResolvedMediaFiles: MediaFile[] = [];
+		const stickerResolvedMediaFiles: MediaFile[] = [];
 		const segments = await collectExportSegments({
 			timeline,
 			mediaFiles,
 			projectId,
-			resolvedMediaFiles,
+			resolvedMediaFiles: nonStickerResolvedMediaFiles,
 		});
 
 		if (segments.length === 0) {
@@ -196,7 +400,7 @@ export async function startExportJob({
 			timeline,
 			mediaFiles,
 			projectId,
-			resolvedMediaFiles,
+			resolvedMediaFiles: stickerResolvedMediaFiles,
 			settings,
 		});
 		if (stickerOverlays.length > 0) {
@@ -223,13 +427,35 @@ export async function startExportJob({
 			timeline,
 			mediaFiles,
 			projectId,
-			resolvedMediaFiles,
+			resolvedMediaFiles: nonStickerResolvedMediaFiles,
 		});
-		assertRestrictedMediaExportAllowed({
-			additionalMediaIds: resolvedMediaFiles.map((mediaFile) => mediaFile.id),
-			mediaItems: resolvedMediaFiles,
-			operation: "video",
-			scope: "timeline",
+		const stickerOverlayMediaIds = stickerOverlays.map(
+			(stickerOverlay) => stickerOverlay.mediaId
+		);
+		const additionalNonStickerMediaIds = nonStickerResolvedMediaFiles.map(
+			(mediaFile) => mediaFile.id
+		);
+		const combinedMediaFiles = [
+			...new Map(
+				[
+					...mediaFiles,
+					...nonStickerResolvedMediaFiles,
+					...stickerResolvedMediaFiles,
+				].map((mediaFile) => [mediaFile.id, mediaFile])
+			).values(),
+		];
+		assertLocalFinalVideoExportAllowed({
+			additionalNonStickerMediaIds,
+			mediaItems: combinedMediaFiles,
+			operation: "qcut editor:export:start hydrated native export",
+			output: localVideoOutput,
+			stickerOverlayMediaIds,
+			tracks: timeline.tracks,
+		});
+		assertNativeStickerRuntimeExportAllowed({
+			additionalMediaIds: stickerOverlayMediaIds,
+			mediaItems: combinedMediaFiles,
+			operation: "Claude native video export",
 			tracks: timeline.tracks,
 		});
 		if (audioFiles.length > 0) {
@@ -238,13 +464,6 @@ export async function startExportJob({
 				`Found ${audioFiles.length} independent audio clip(s) to mix`
 			);
 		}
-
-		const outputPath = request.outputPath?.trim()
-			? path.resolve(request.outputPath.trim())
-			: getDefaultOutputPath({
-					projectId,
-					format: settings.format,
-				});
 
 		const jobId = `export_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 		const now = Date.now();
