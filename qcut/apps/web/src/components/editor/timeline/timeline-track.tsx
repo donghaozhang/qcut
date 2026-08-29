@@ -194,10 +194,19 @@ function TimelineTrackContentComponent({
 
 			// A move without the primary button held means the mouseup was
 			// missed (e.g. released outside the window on another display).
-			// Commit the drop exactly like a release instead of letting the
-			// clip keep following a button-less pointer.
+			// The pointer now sits wherever it re-entered the window, not
+			// where the release happened, so never resolve a drop target
+			// from it. Only the source track commits, at the last dragged
+			// time, exactly as if the release had landed on its own lane.
 			if ((e.buttons & 1) === 0) {
-				handleMouseUp(e);
+				if (dragState.trackId !== track.id) return;
+				const laneRect = timelineRef.current.getBoundingClientRect();
+				handleMouseUp(
+					new MouseEvent("mouseup", {
+						clientX: e.clientX,
+						clientY: (laneRect.top + laneRect.bottom) / 2,
+					})
+				);
 				return;
 			}
 
