@@ -6,7 +6,10 @@ import type {
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { OverlaySticker } from "@/types/sticker-overlay";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
-import { renderStickersToCanvas } from "@/lib/stickers/sticker-export-helper";
+import {
+	renderStickersToCanvas,
+	StickerRenderFailureError,
+} from "@/lib/stickers/sticker-export-helper";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useEffectsStore } from "@/stores/ai/effects-store";
@@ -60,8 +63,10 @@ import { resolveTimelineElementEffects } from "@/lib/effects/adjustment-layer";
 import { canvasFontFamily } from "@/lib/text/canvas-font";
 import { drawMediaSourceWithMasks } from "@/lib/video/media-mask-canvas";
 import {
+	assertLocalFinalVideoExportAllowed,
 	assertRestrictedMediaExportAllowed,
 	isRestrictedMediaExportError,
+	type LocalFinalVideoExportOutput,
 } from "../../../../../electron/types/restricted-media-export-policy";
 import { isStickerRuntimeExportError } from "../../../../../electron/types/sticker-runtime-export-policy";
 
@@ -133,6 +138,7 @@ export interface RenderContext {
 	fps: number;
 	/** Canvas fill behind the composition; defaults to black. */
 	backgroundColor?: string;
+	finalVideoOutput?: LocalFinalVideoExportOutput;
 }
 
 /** Render a single frame at the specified time */
@@ -414,6 +420,7 @@ async function renderTimelineStickerElement({
 		canvasWidth: context.canvas.width,
 		canvasHeight: context.canvas.height,
 		currentTime,
+		failOnError: true,
 		fps: context.fps,
 		timelineElement: element,
 		tracks: context.tracks,
@@ -805,13 +812,26 @@ export async function renderOverlayStickers(
 		);
 
 		const mediaStore = useMediaStore.getState();
-		assertRestrictedMediaExportAllowed({
-			additionalMediaIds: visibleStickers.map((sticker) => sticker.mediaItemId),
-			mediaItems: mediaStore.mediaItems,
-			operation: "rendered-overlay",
-			scope: "timeline",
-			tracks: context.tracks,
-		});
+		const visibleStickerMediaIds = visibleStickers.map(
+			(sticker) => sticker.mediaItemId
+		);
+		if (context.finalVideoOutput) {
+			assertLocalFinalVideoExportAllowed({
+				mediaItems: mediaStore.mediaItems,
+				operation: "rendered-overlay",
+				output: context.finalVideoOutput,
+				stickerOverlayMediaIds: visibleStickerMediaIds,
+				tracks: context.tracks,
+			});
+		} else {
+			assertRestrictedMediaExportAllowed({
+				additionalMediaIds: visibleStickerMediaIds,
+				mediaItems: mediaStore.mediaItems,
+				operation: "rendered-overlay",
+				scope: "timeline",
+				tracks: context.tracks,
+			});
+		}
 		const mediaItemsMap = new Map(
 			mediaStore.mediaItems.map((item) => [item.id, item])
 		);
@@ -824,6 +844,7 @@ export async function renderOverlayStickers(
 				canvasWidth: context.canvas.width,
 				canvasHeight: context.canvas.height,
 				currentTime,
+				failOnError: true,
 			}
 		);
 
@@ -842,6 +863,7 @@ export async function renderOverlayStickers(
 	} catch (error) {
 		if (isRestrictedMediaExportError({ error })) throw error;
 		if (isStickerRuntimeExportError({ error })) throw error;
+		if (error instanceof StickerRenderFailureError) throw error;
 		debugError("[ExportEngine] Failed to render overlay stickers:", error);
 		debugError(
 			`[ExportEngine] Failed at time ${currentTime} with ${visibleStickers?.length || 0} stickers`
@@ -853,6 +875,7 @@ export async function renderOverlayStickers(
 				mediaItemId: s.mediaItemId,
 			})) || []
 		);
+		throw error;
 	}
 }
 
