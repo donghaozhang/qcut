@@ -561,6 +561,174 @@ describe("ExportEngineFactory", () => {
 			});
 		});
 
+		it("bakes a complete Sticker Lab reference only into a local MP4 engine", async () => {
+			const factory = ExportEngineFactory.getInstance();
+			const canvas = createMockCanvas();
+			mockPlatform.isElectron = true;
+			const localMp4Settings = {
+				...defaultSettings,
+				outputPath: "/tmp/local-sticker.mp4",
+			};
+			const tracks: TimelineTrack[] = [
+				{
+					id: "stickers",
+					name: "Stickers",
+					type: "sticker",
+					elements: [
+						{
+							duration: 1,
+							id: "sticker-element",
+							mediaId: "local-sticker",
+							name: "Local sticker",
+							startTime: 0,
+							stickerId: "sticker-lab:jianying-2026-08-23-batch-18-v2:18001",
+							trimEnd: 0,
+							trimStart: 0,
+							type: "sticker",
+						},
+					],
+				},
+			];
+			const mediaItems: MediaItem[] = [
+				{
+					file: new File([], "local.gif", { type: "image/gif" }),
+					id: "local-sticker",
+					metadata: {
+						animatedSticker: true,
+						batchId: "jianying-2026-08-23-batch-18-v2",
+						checksumSha256: "a".repeat(64),
+						itemId: "18001",
+						redistribution: "prohibited",
+						referenceOnly: true,
+						source: "sticker-lab",
+						usage: "internal-reference-only",
+					},
+					name: "local.gif",
+					type: "image",
+				},
+			];
+
+			const localMp4Engine = await factory.createEngine(
+				canvas,
+				localMp4Settings,
+				tracks,
+				mediaItems,
+				1,
+				ExportEngineType.STANDARD
+			);
+			expect(localMp4Engine.constructor.name).toBe("ExportEngineMuxer");
+			await expect(
+				factory.createEngine(
+					canvas,
+					{ ...localMp4Settings, format: "gif" },
+					tracks,
+					mediaItems,
+					1,
+					ExportEngineType.STANDARD
+				)
+			).rejects.toMatchObject({ code: "QCUT_RESTRICTED_MEDIA_EXPORT" });
+			await expect(
+				factory.createEngine(
+					canvas,
+					{ ...localMp4Settings, outputPath: "/tmp/local-sticker.webm" },
+					tracks,
+					mediaItems,
+					1,
+					ExportEngineType.STANDARD
+				)
+			).rejects.toMatchObject({ code: "QCUT_RESTRICTED_MEDIA_EXPORT" });
+
+			mockPlatform.isElectron = false;
+			await expect(
+				factory.createEngine(
+					canvas,
+					defaultSettings,
+					tracks,
+					mediaItems,
+					1,
+					ExportEngineType.STANDARD
+				)
+			).rejects.toMatchObject({ code: "QCUT_RESTRICTED_MEDIA_EXPORT" });
+		});
+
+		it("fails closed when restricted static stickers share a Remotion timeline", async () => {
+			const factory = ExportEngineFactory.getInstance();
+			const canvas = createMockCanvas();
+			mockPlatform.isElectron = true;
+			mockPlatform.ffmpeg.exportVideoCLI = vi.fn();
+			const tracks: TimelineTrack[] = [
+				{
+					elements: [
+						{
+							duration: 1,
+							id: "restricted-static-element",
+							mediaId: "restricted-static-media",
+							name: "Restricted static sticker",
+							startTime: 0,
+							stickerId: "sticker-lab:jianying-2026-08-23-batch-18-v2:18001",
+							trimEnd: 0,
+							trimStart: 0,
+							type: "sticker",
+						},
+					],
+					id: "restricted-static-track",
+					name: "Stickers",
+					type: "sticker",
+				},
+				{
+					elements: [
+						{
+							componentId: "test-composition",
+							duration: 1,
+							id: "remotion-element",
+							name: "Remotion element",
+							props: {},
+							renderMode: "live",
+							startTime: 0,
+							trimEnd: 0,
+							trimStart: 0,
+							type: "remotion",
+						},
+					],
+					id: "remotion-track",
+					name: "Remotion",
+					type: "remotion",
+				},
+			];
+			const mediaItems: MediaItem[] = [
+				{
+					file: new File([], "restricted-static.png", {
+						type: "image/png",
+					}),
+					id: "restricted-static-media",
+					metadata: {
+						animatedSticker: false,
+						batchId: "jianying-2026-08-23-batch-18-v2",
+						checksumSha256: "a".repeat(64),
+						itemId: "18001",
+						redistribution: "prohibited",
+						referenceOnly: true,
+						source: "sticker-lab",
+						usage: "internal-reference-only",
+					},
+					name: "restricted-static.png",
+					type: "image",
+				},
+			];
+
+			await expect(
+				factory.createEngine(
+					canvas,
+					{ ...defaultSettings, outputPath: "/tmp/local-remotion.mp4" },
+					tracks,
+					mediaItems,
+					1
+				)
+			).rejects.toMatchObject({
+				code: "QCUT_LOCAL_MP4_ENGINE_REQUIRED",
+			});
+		});
+
 		it("refuses restricted overlay-only media for a video engine", async () => {
 			const factory = ExportEngineFactory.getInstance();
 			const canvas = createMockCanvas();
