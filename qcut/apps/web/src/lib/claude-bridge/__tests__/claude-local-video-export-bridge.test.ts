@@ -19,7 +19,7 @@ vi.mock("@/lib/debug/debug-config", () => ({
 
 interface ExportAutomationWindow extends Window {
 	__exportActions?: {
-		export: (request: ClaudeLocalVideoExportRequest) => Promise<void>;
+		exportLocalVideo: (request: ClaudeLocalVideoExportRequest) => Promise<void>;
 	};
 }
 
@@ -114,7 +114,7 @@ describe("Claude local video export bridge", () => {
 			activeProject: createProject({ id: "project-b" }),
 		});
 		const exportAction = vi.fn(async () => {});
-		automationWindow.__exportActions = { export: exportAction };
+		automationWindow.__exportActions = { exportLocalVideo: exportAction };
 		const api = installExportApi();
 		setupClaudeLocalVideoExportBridge();
 
@@ -132,7 +132,7 @@ describe("Claude local video export bridge", () => {
 	it("rejects a request while another UI export is running", async () => {
 		useExportStore.getState().updateProgress({ isExporting: true });
 		const exportAction = vi.fn(async () => {});
-		automationWindow.__exportActions = { export: exportAction };
+		automationWindow.__exportActions = { exportLocalVideo: exportAction };
 		const api = installExportApi();
 		setupClaudeLocalVideoExportBridge();
 
@@ -147,6 +147,40 @@ describe("Claude local video export bridge", () => {
 		expect(exportAction).not.toHaveBeenCalled();
 	});
 
+	it("rejects overlapping bridge requests before the export store becomes busy", async () => {
+		let finishExport: (() => void) | undefined;
+		const exportAction = vi.fn(
+			() =>
+				new Promise<void>((resolve) => {
+					finishExport = resolve;
+				})
+		);
+		automationWindow.__exportActions = { exportLocalVideo: exportAction };
+		const api = installExportApi();
+		setupClaudeLocalVideoExportBridge();
+
+		api.emitRequest({ request, requestId: "first" });
+		await vi.waitFor(() => expect(exportAction).toHaveBeenCalledTimes(1));
+		api.emitRequest({ request, requestId: "overlapping" });
+
+		await vi.waitFor(() =>
+			expectErrorResponse({
+				requestId: "overlapping",
+				sendResponse: api.sendResponse,
+			})
+		);
+		expect(exportAction).toHaveBeenCalledTimes(1);
+
+		if (!finishExport) throw new Error("Export completion callback missing.");
+		finishExport();
+		await vi.waitFor(() =>
+			expect(api.sendResponse).toHaveBeenCalledWith({
+				requestId: "first",
+				success: true,
+			})
+		);
+	});
+
 	it("rechecks the active project after waiting for the export panel", async () => {
 		const api = installExportApi();
 		setupClaudeLocalVideoExportBridge();
@@ -155,7 +189,7 @@ describe("Claude local video export bridge", () => {
 			activeProject: createProject({ id: "project-b" }),
 		});
 		const exportAction = vi.fn(async () => {});
-		automationWindow.__exportActions = { export: exportAction };
+		automationWindow.__exportActions = { exportLocalVideo: exportAction };
 
 		await vi.waitFor(() =>
 			expectErrorResponse({
@@ -174,7 +208,7 @@ describe("Claude local video export bridge", () => {
 					finishExport = resolve;
 				})
 		);
-		automationWindow.__exportActions = { export: exportAction };
+		automationWindow.__exportActions = { exportLocalVideo: exportAction };
 		const api = installExportApi();
 		setupClaudeLocalVideoExportBridge();
 
