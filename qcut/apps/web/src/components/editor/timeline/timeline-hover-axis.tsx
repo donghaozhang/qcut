@@ -36,6 +36,31 @@ export function TimelineHoverAxis({
 	const lastPointRef = useRef<{ x: number; y: number } | null>(null);
 	const visibleRef = useRef(false);
 	const [visible, setVisible] = useState(false);
+	// Publish at most one scrub time per animation frame: the line itself moves
+	// imperatively per mousemove, but each store write re-renders the preview,
+	// so fast pointer sweeps are coalesced to the latest hovered frame.
+	const pendingScrubRef = useRef<number | null | undefined>(undefined);
+	const scrubFrameRef = useRef<number | null>(null);
+
+	const cancelScheduledScrub = useCallback(() => {
+		pendingScrubRef.current = undefined;
+		if (scrubFrameRef.current !== null) {
+			cancelAnimationFrame(scrubFrameRef.current);
+			scrubFrameRef.current = null;
+		}
+	}, []);
+
+	const scheduleScrub = useCallback((value: number | null) => {
+		pendingScrubRef.current = value;
+		if (scrubFrameRef.current !== null) return;
+		scrubFrameRef.current = requestAnimationFrame(() => {
+			scrubFrameRef.current = null;
+			const pending = pendingScrubRef.current;
+			pendingScrubRef.current = undefined;
+			if (pending === undefined) return;
+			usePlaybackStore.getState().setPreviewScrubTime(pending);
+		});
+	}, []);
 
 	const hide = useCallback(() => {
 		lastPointRef.current = null;
@@ -43,8 +68,11 @@ export function TimelineHoverAxis({
 			visibleRef.current = false;
 			setVisible(false);
 		}
+		// Hiding accompanies gesture starts, so clear synchronously instead of
+		// waiting a frame.
+		cancelScheduledScrub();
 		usePlaybackStore.getState().setPreviewScrubTime(null);
-	}, []);
+	}, [cancelScheduledScrub]);
 
 	const update = useCallback(
 		(clientX: number, clientY: number) => {
@@ -88,9 +116,9 @@ export function TimelineHoverAxis({
 			}
 			// During playback the axis stays visual-only: the advancing frame
 			// keeps the preview, so no scrub override is published.
-			playback.setPreviewScrubTime(playback.isPlaying ? null : time);
+			scheduleScrub(playback.isPlaying ? null : time);
 		},
-		[hide, timelineRef, tracksScrollRef, trackLabelsRef, zoomLevel]
+		[hide, scheduleScrub, timelineRef, tracksScrollRef, trackLabelsRef, zoomLevel]
 	);
 
 	useEffect(() => {
@@ -119,9 +147,10 @@ export function TimelineHoverAxis({
 				"mouseleave",
 				handleDocumentLeave
 			);
+			cancelScheduledScrub();
 			usePlaybackStore.getState().setPreviewScrubTime(null);
 		};
-	}, [hide, update]);
+	}, [cancelScheduledScrub, hide, update]);
 
 	// Keep the line honest when the tracks scroll or the zoom level changes
 	// under a stationary pointer.
