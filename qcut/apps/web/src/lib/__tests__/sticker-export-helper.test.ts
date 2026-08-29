@@ -63,37 +63,38 @@ function createMockContext() {
 let imageLoadBehaviour: "success" | "error" = "success";
 
 function createMockImageClass() {
-	return function MockImage(this: any) {
-		this.crossOrigin = "";
-		this._src = "";
-		this.onload = null;
-		this.onerror = null;
+	class MockImage {
+		crossOrigin = "";
+		onerror: ((error: Error) => void) | null = null;
+		onload: (() => void) | null = null;
+		private source = "";
 
-		Object.defineProperty(this, "src", {
-			get() {
-				return this._src;
-			},
-			set(value: string) {
-				this._src = value;
-				if (value) {
-					queueMicrotask(() => {
-						if (imageLoadBehaviour === "success") {
-							this.onload?.();
-						} else {
-							this.onerror?.(new Error("load failed"));
-						}
-					});
-				}
-			},
-		});
-	} as unknown as typeof Image;
+		get src(): string {
+			return this.source;
+		}
+
+		set src(value: string) {
+			this.source = value;
+			if (value) {
+				queueMicrotask(() => {
+					if (imageLoadBehaviour === "success") {
+						this.onload?.();
+					} else {
+						this.onerror?.(new Error("load failed"));
+					}
+				});
+			}
+		}
+	}
+
+	return MockImage as unknown as typeof Image;
 }
 
 function installImageMock() {
 	const originalImage = globalThis.Image;
-	(globalThis as any).Image = createMockImageClass();
+	globalThis.Image = createMockImageClass();
 	return () => {
-		(globalThis as any).Image = originalImage;
+		globalThis.Image = originalImage;
 	};
 }
 
@@ -241,7 +242,11 @@ describe("StickerExportHelper", () => {
 			const drawOrder: string[] = [];
 			const mockCtx = createMockContext();
 			(mockCtx.drawImage as ReturnType<typeof vi.fn>).mockImplementation(
-				(img: any, _x: number, _y: number) => {
+				(
+					img: CanvasImageSource & { _stickerId?: string },
+					_x: number,
+					_y: number
+				) => {
 					drawOrder.push(img._stickerId ?? "unknown");
 				}
 			);
