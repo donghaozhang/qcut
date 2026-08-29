@@ -39,6 +39,7 @@ export interface StickerRenderOptions {
 	opacity?: number;
 	timelineElement?: StickerElement;
 	tracks?: TimelineTrack[];
+	failOnError?: boolean;
 }
 
 /**
@@ -48,6 +49,20 @@ export interface StickerRenderResult {
 	attempted: number;
 	successful: number;
 	failed: Array<{ stickerId: string; error: string }>;
+}
+
+export class StickerRenderFailureError extends Error {
+	readonly failures: StickerRenderResult["failed"];
+
+	constructor({ failures }: { failures: StickerRenderResult["failed"] }) {
+		super(
+			`Sticker export frame failed: ${failures
+				.map(({ error, stickerId }) => `${stickerId}: ${error}`)
+				.join(", ")}`
+		);
+		this.name = "StickerRenderFailureError";
+		this.failures = failures;
+	}
 }
 
 /**
@@ -143,6 +158,9 @@ export class StickerExportHelper {
 				`[StickerExportHelper] Render summary: ${result.successful}/${result.attempted} stickers rendered successfully`
 			);
 		}
+		if (options.failOnError && result.failed.length > 0) {
+			throw new StickerRenderFailureError({ failures: result.failed });
+		}
 
 		return result;
 	}
@@ -175,7 +193,9 @@ export class StickerExportHelper {
 			element: animationElement,
 			mediaItem,
 		});
-		if (!mediaItem.url && !stickerRuntime) return;
+		if (!mediaItem.url && !stickerRuntime) {
+			throw new Error(`Static sticker media URL not found: ${mediaItem.id}`);
+		}
 		let runtimeFrame: Awaited<
 			ReturnType<typeof renderStickerRuntimeFrame>
 		> | null = null;
@@ -203,11 +223,15 @@ export class StickerExportHelper {
 		if (runtimeFrame && !runtimeFrame.active) return;
 		let staticImage: HTMLImageElement | null = null;
 		if (!runtimeFrame) {
-			if (!mediaItem.url) return;
+			if (!mediaItem.url) {
+				throw new Error(`Static sticker media URL not found: ${mediaItem.id}`);
+			}
 			staticImage = await this.loadImage(mediaItem.url);
 		}
 		const image = runtimeFrame?.image ?? staticImage;
-		if (!image) return;
+		if (!image) {
+			throw new Error(`Sticker frame image not found: ${mediaItem.id}`);
+		}
 		const sourceWidth = runtimeFrame?.width ?? staticImage?.naturalWidth;
 		const sourceHeight = runtimeFrame?.height ?? staticImage?.naturalHeight;
 		const resolvedSticker = animationElement
