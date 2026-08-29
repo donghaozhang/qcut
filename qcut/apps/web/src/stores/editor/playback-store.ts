@@ -248,10 +248,18 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 	setCurrentTime: (time: number) => set({ currentTime: time }),
 
 	setPreviewScrubTime: (time: number | null) => {
-		const { duration, previewScrubTime } = get();
+		const { duration, previewScrubTime, currentTime } = get();
 		const next = time === null ? null : Math.max(0, Math.min(duration, time));
 		if (previewScrubTime === next) return;
 		set({ previewScrubTime: next });
+		// Reuse the seek event channel so video/audio elements reposition
+		// synchronously and the cached-frame overlay masks decoder latency —
+		// the same fast path live ruler scrubbing goes through.
+		window.dispatchEvent(
+			new CustomEvent("playback-seek", {
+				detail: { time: next ?? currentTime },
+			})
+		);
 	},
 
 	mute: () => {
