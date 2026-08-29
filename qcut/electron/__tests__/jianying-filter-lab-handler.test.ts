@@ -1081,18 +1081,16 @@ describe("Jianying filter lab IPC", () => {
 		});
 
 		const rgba = new Uint8Array([10, 20, 30, 255]);
-		await expect(
-			getHandler({ channel: JIANYING_FILTER_LAB_RENDER_LOCAL_EFFECT_CHANNEL })(
-				context.event,
-				{
-					resourceId,
-					width: 1,
-					height: 1,
-					intensity: 80,
-					rgba,
-				}
-			)
-		).resolves.toMatchObject({ resourceId, width: 1, height: 1 });
+		const rendered = await getHandler({
+			channel: JIANYING_FILTER_LAB_RENDER_LOCAL_EFFECT_CHANNEL,
+		})(context.event, {
+			resourceId,
+			width: 1,
+			height: 1,
+			intensity: 80,
+			rgba,
+		});
+		expect(rendered).toMatchObject({ resourceId, width: 1, height: 1 });
 		expect(renderEffect).toHaveBeenCalledWith({
 			resourceId,
 			packagePath: join("/cache", "artistEffect", resourceId, version),
@@ -1102,9 +1100,7 @@ describe("Jianying filter lab IPC", () => {
 			mode: "face-region",
 			rgba,
 		});
-		expect(
-			JSON.stringify(await renderEffect.mock.results[0]?.value)
-		).not.toContain("/cache");
+		expect(JSON.stringify(rendered)).not.toContain("/cache");
 	});
 
 	it.each([
