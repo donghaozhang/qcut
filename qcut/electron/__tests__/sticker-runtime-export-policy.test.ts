@@ -62,6 +62,30 @@ describe("sticker runtime export policy", () => {
 		).toBe(false);
 	});
 
+	it("detects runtime metadata after a stale media ID resolves by filename", () => {
+		expect(
+			hasStickerRuntimeForExport({
+				mediaItems: [
+					{
+						id: "actual-runtime-id",
+						metadata: { stickerRuntime: runtime },
+						name: "cached-runtime.gif",
+					},
+				],
+				tracks: [
+					{
+						elements: [
+							{
+								mediaId: "stale-runtime-id",
+								sourceName: "cached-runtime.gif",
+							},
+						],
+					},
+				],
+			})
+		).toBe(true);
+	});
+
 	it("detects runtime media nested in a compound without following cycles", () => {
 		const nestedChild: Record<string, unknown> = {
 			mediaId: "compound-runtime",
