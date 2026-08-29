@@ -92,6 +92,7 @@ import {
 	createUtilityTimelineMutationAccessor,
 	type UtilityRequestFromMain,
 } from "./utility-timeline-accessor.js";
+import { createUtilityLocalVideoExportAccessor } from "./utility-local-video-export-bridge.js";
 
 let server: Server | null = null;
 
@@ -248,10 +249,14 @@ export function startUtilityHttpServer(config: UtilityHttpConfig): void {
 	const timelineMutationAccessor = createUtilityTimelineMutationAccessor({
 		requestFromMain,
 	});
+	const localVideoExportAccessor = createUtilityLocalVideoExportAccessor({
+		requestFromMain,
+	});
 
 	// Create WindowAccessor that proxies through main process
 	const accessor: WindowAccessor = {
 		...timelineMutationAccessor,
+		...localVideoExportAccessor,
 		/** Creates a BrowserWindow-like proxy backed by main-process IPC. */
 		getWindow: () => createWindowProxy(requestFromMain),
 		/** Requests the current timeline through the main-process bridge. */
