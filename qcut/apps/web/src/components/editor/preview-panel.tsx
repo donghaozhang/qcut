@@ -1347,7 +1347,7 @@ export function PreviewPanel() {
 						hasAnyElements={hasAnyElements}
 						onToggleExpanded={toggleExpanded}
 						isExpanded={isExpanded}
-						currentTime={currentTime}
+						currentTime={displayTime}
 						setCurrentTime={setCurrentTime}
 						toggle={toggle}
 						getTotalDuration={getTotalDuration}
