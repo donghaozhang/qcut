@@ -254,11 +254,19 @@ function TimelineElementComponent({
 	// Use the media item URL directly - it's already been converted to blob if needed
 	const mediaItemUrl = mediaItem?.url;
 
-	const isAudio = mediaItem?.type === "audio";
-	const isVideoClip = element.type === "media" && mediaItem?.type === "video";
+	// Detached audio (分离音频) still references its video media item, so lane
+	// type decides the presentation: anything on an audio lane is an audio clip
+	// (waveform, no filmstrip, audio actions).
+	const isOnAudioLane = track.type === "audio";
+	const isAudio =
+		mediaItem?.type === "audio" || (element.type === "media" && isOnAudioLane);
+	const isVideoClip =
+		element.type === "media" && mediaItem?.type === "video" && !isOnAudioLane;
 	const isMediaClip = element.type === "media";
 	const canShowVideoClipActions =
-		element.type === "media" && (!mediaItem || mediaItem.type === "video");
+		element.type === "media" &&
+		!isOnAudioLane &&
+		(!mediaItem || mediaItem.type === "video");
 	const {
 		canRollLeft,
 		canRollRight,
@@ -1451,7 +1459,7 @@ function TimelineElementComponent({
 			);
 		}
 
-		if (mediaItem.type === "video") {
+		if (mediaItem.type === "video" && !isOnAudioLane) {
 			return (
 				<VideoTimelineClip
 					clipWidthPx={elementWidth}
@@ -1473,7 +1481,7 @@ function TimelineElementComponent({
 		}
 
 		// Render audio element ->
-		if (mediaItem.type === "audio") {
+		if (mediaItem.type === "audio" || isOnAudioLane) {
 			const audioHeaderHeight = getVideoClipLaneHeights({
 				trackHeight: getTrackHeight(track.type, track.height),
 			}).headerHeight;
