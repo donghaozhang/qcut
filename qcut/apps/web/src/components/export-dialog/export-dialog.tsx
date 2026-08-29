@@ -17,12 +17,7 @@ import {
 } from "@/lib/captions/caption-export";
 
 // Custom hook imports
-import type {
-	ExportFormat,
-	ExportQuality,
-	GifFrameRate,
-	GifSizePreset,
-} from "@/types/export";
+import type { GifFrameRate, GifSizePreset } from "@/types/export";
 import {
 	DEFAULT_GIF_CONFIG,
 	calculateGifDimensions,
@@ -69,16 +64,14 @@ import { assertLocalFinalVideoExportAllowed } from "../../../../../electron/type
 import { resolveLocalFinalVideoExportOutput } from "@/lib/export/local-final-video-output";
 import type { ClaudeLocalVideoExportRequest } from "../../../../../electron/types/claude-local-video-export-api";
 
-type ExportAutomationRequest = Pick<
+type LegacyExportAutomationRequest = Pick<
 	ClaudeLocalVideoExportRequest,
 	"filename" | "format" | "quality"
-> &
-	Partial<
-		Pick<
-			ClaudeLocalVideoExportRequest,
-			"frameRate" | "height" | "outputPath" | "projectId" | "width"
-		>
-	>;
+>;
+
+type ExportAutomationCommand =
+	| { kind: "legacy"; request: LegacyExportAutomationRequest }
+	| { kind: "local-video"; request: ClaudeLocalVideoExportRequest };
 
 /** Modal dialog for configuring and triggering project export. */
 export function ExportDialog() {
@@ -152,59 +145,106 @@ export function ExportDialog() {
 
 	// Expose export actions for iPad CLI automation (qcut://export)
 	useEffect(() => {
+		const runAutomatedExport = async ({
+			command,
+		}: {
+			command: ExportAutomationCommand;
+		}) => {
+			const { request } = command;
+			const projectId =
+				command.kind === "local-video" ? command.request.projectId : undefined;
+			if (
+				projectId &&
+				useProjectStore.getState().activeProject?.id !== projectId
+			) {
+				throw new Error(`Project ${projectId} is not open in the QCut editor.`);
+			}
+			if (useExportStore.getState().progress.isExporting) {
+				throw new Error("Another QCut export is already in progress.");
+			}
+			const canvas = canvasRef.current?.getCanvas();
+			if (!canvas) throw new Error("No canvas available for export");
+			canvasRef.current?.updateDimensions();
+
+			const audioCodec = getCodecForFormat(request.format);
+			setAudioExportConfig({
+				enabled: hasAudio,
+				codec: audioCodec,
+				bitrate: 128,
+			});
+
+			const resolution =
+				command.kind === "local-video"
+					? {
+							height: command.request.height,
+							width: command.request.width,
+						}
+					: resolveExportResolution({
+							aspectRatio: exportSettings.aspectRatio,
+							quality: request.quality,
+						});
+			return exportProgress.handleExport(
+				canvas,
+				exportSettings.timelineDuration,
+				{
+					quality: request.quality,
+					format: request.format,
+					filename: getExportFilename({
+						filename: request.filename,
+						format: request.format,
+					}),
+					engineType: "auto",
+					resolution,
+					frameRate:
+						command.kind === "local-video" ? command.request.frameRate : 30,
+					outputPath:
+						command.kind === "local-video"
+							? command.request.outputPath
+							: undefined,
+					includeAudio: hasAudio,
+					audioCodec,
+					audioBitrate: 128,
+					propagateErrors: command.kind === "local-video",
+				}
+			);
+		};
 		const exportActions = {
-			export: async (settings: ExportAutomationRequest) => {
-				if (
-					settings.projectId &&
-					useProjectStore.getState().activeProject?.id !== settings.projectId
-				) {
-					throw new Error(
-						`Project ${settings.projectId} is not open in the QCut editor.`
-					);
-				}
-				if (useExportStore.getState().progress.isExporting) {
-					throw new Error("Another QCut export is already in progress.");
-				}
-				const canvas = canvasRef.current?.getCanvas();
-				if (!canvas) throw new Error("No canvas available for export");
-				canvasRef.current?.updateDimensions();
-
-				const audioCodec = getCodecForFormat(settings.format as ExportFormat);
-				setAudioExportConfig({
-					enabled: hasAudio,
-					codec: audioCodec,
-					bitrate: 128,
-				});
-
-				const resolution =
-					typeof settings.width === "number" &&
-					typeof settings.height === "number"
-						? { height: settings.height, width: settings.width }
-						: resolveExportResolution({
-								aspectRatio: exportSettings.aspectRatio,
-								quality: settings.quality as ExportQuality,
-							});
-				return exportProgress.handleExport(
-					canvas,
-					exportSettings.timelineDuration,
-					{
-						quality: settings.quality as ExportQuality,
-						format: settings.format as ExportFormat,
-						filename: getExportFilename({
-							filename: settings.filename,
-							format: settings.format as ExportFormat,
-						}),
-						engineType: "auto",
-						resolution,
-						frameRate: settings.frameRate ?? 30,
-						outputPath: settings.outputPath,
-						includeAudio: hasAudio,
-						audioCodec,
-						audioBitrate: 128,
-						propagateErrors: Boolean(settings.outputPath),
-					}
-				);
-			},
+			export: async ({
+				filename,
+				format,
+				quality,
+			}: LegacyExportAutomationRequest) =>
+				runAutomatedExport({
+					command: {
+						kind: "legacy",
+						request: { filename, format, quality },
+					},
+				}),
+			exportLocalVideo: async ({
+				filename,
+				format,
+				frameRate,
+				height,
+				outputPath,
+				projectId,
+				quality,
+				width,
+			}: ClaudeLocalVideoExportRequest) =>
+				runAutomatedExport({
+					command: {
+						kind: "local-video",
+						request: {
+							filename,
+							format,
+							frameRate,
+							height,
+							outputPath,
+							projectId,
+							quality,
+							width,
+						},
+					},
+				}),
 		};
 		const automationWindow = window as Window & {
 			__exportActions?: typeof exportActions;
