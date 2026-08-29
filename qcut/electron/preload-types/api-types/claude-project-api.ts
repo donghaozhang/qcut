@@ -6,6 +6,10 @@ import type {
 	ErrorReport,
 	DiagnosticResult,
 } from "../../types/claude-api";
+import type {
+	ClaudeLocalVideoExportRendererRequest,
+	ClaudeLocalVideoExportRendererResponse,
+} from "../../types/claude-local-video-export-api";
 
 /** Claude transaction operations (begin, commit, rollback, undo, redo, history). */
 export interface ClaudeTransactionAPI {
@@ -123,6 +127,13 @@ export interface ClaudeProjectAPI {
 			projectId: string,
 			target: string
 		) => Promise<ExportRecommendation>;
+		onLocalVideoExportRequest: (
+			callback: (request: ClaudeLocalVideoExportRendererRequest) => void
+		) => void;
+		removeLocalVideoExportListener: () => void;
+		sendLocalVideoExportResponse: (
+			response: ClaudeLocalVideoExportRendererResponse
+		) => void;
 	};
 	diagnostics: {
 		analyze: (error: ErrorReport) => Promise<DiagnosticResult>;
