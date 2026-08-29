@@ -770,8 +770,13 @@ export function PreviewPanel() {
 		}
 	}, [currentTime]);
 
-	// Warm cache during idle time
+	// Warm cache during idle time. The generation token invalidates in-flight
+	// idle captures when displayTime (or any other capture input) changes, so
+	// a newer preview surface is never stored under a stale cache key.
+	const warmCacheGenerationRef = useRef(0);
 	useEffect(() => {
+		warmCacheGenerationRef.current += 1;
+		const generation = warmCacheGenerationRef.current;
 		const hasDrawablePreview = hasDrawableCaptureArea({
 			width: previewDimensions.width,
 			height: previewDimensions.height,
@@ -781,6 +786,9 @@ export function PreviewPanel() {
 				preRenderNearbyFrames(
 					displayTime,
 					async (time) => {
+						if (generation !== warmCacheGenerationRef.current) {
+							throw new Error("Stale warm-cache capture generation");
+						}
 						if (!previewCaptureRef.current) {
 							throw new Error("No preview capture surface");
 						}
@@ -813,6 +821,9 @@ export function PreviewPanel() {
 							}
 						);
 						if (!imageData) throw new Error("Failed to capture frame");
+						if (generation !== warmCacheGenerationRef.current) {
+							throw new Error("Stale warm-cache capture generation");
+						}
 						return imageData;
 					},
 					3,
