@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { TProject } from "@/types/project";
 import type { TimelineTrack } from "@/types/timeline";
 import { CAPCUT_8_1_PROFILE_ID } from "@qcut/editor-core/jianying-draft";
+import { RESTRICTED_MEDIA_EXPORT_MESSAGE } from "../../../../../../electron/types/restricted-media-export-policy";
 import { executePersistedQCutSameProfileWriteback } from "../qcut-same-profile-writeback-bridge";
 
 type ExecuteOptions = Parameters<
@@ -139,9 +140,7 @@ describe("persisted QCut same-profile writeback", () => {
 		});
 
 		expect(result).toMatchObject({
-			message: expect.stringContaining(
-				"Sticker Lab reference-only media cannot be exported or redistributed."
-			),
+			message: expect.stringContaining(RESTRICTED_MEDIA_EXPORT_MESSAGE),
 			operation: "writeback",
 			outcome: "failed",
 			reason: "unexpected",
