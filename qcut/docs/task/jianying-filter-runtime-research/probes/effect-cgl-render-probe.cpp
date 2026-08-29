@@ -266,6 +266,9 @@ void updateTexture(const UpdateTextureOptions& options) {
 std::vector<std::uint8_t> flipImageRows(
     const std::vector<std::uint8_t>& pixels,
     const ImageSize& size) {
+    if (pixels.empty()) {
+        return {};
+    }
     const std::size_t rowBytes = static_cast<std::size_t>(size.width) * 4;
     std::vector<std::uint8_t> flipped(pixels.size());
     for (int y = 0; y < size.height; ++y) {
