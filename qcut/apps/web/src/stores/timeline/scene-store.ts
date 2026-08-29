@@ -99,6 +99,7 @@ interface SceneStore {
 	}) => Promise<void>;
 	clearScenes: () => void;
 	initializeProjectScenes: (project: {
+		id: string;
 		scenes: Scene[];
 		currentSceneId: string;
 	}) => Promise<void>;
@@ -220,10 +221,14 @@ export const useSceneStore = create<SceneStore>((set, get) => ({
 	},
 
 	renameScene: async ({ sceneId, name }: { sceneId: string; name: string }) => {
-		const { scenes } = get();
+		const { scenes, currentScene } = get();
 		const updatedScenes = scenes.map((scene) =>
 			scene.id === sceneId ? { ...scene, name, updatedAt: new Date() } : scene
 		);
+		const updatedCurrentScene =
+			currentScene?.id === sceneId
+				? (updatedScenes.find((scene) => scene.id === sceneId) ?? null)
+				: currentScene;
 
 		// Update project
 		const useProjectStore = await getProjectStore();
@@ -245,7 +250,7 @@ export const useSceneStore = create<SceneStore>((set, get) => ({
 			useProjectStore.setState({ activeProject: updatedProject });
 			set({
 				scenes: updatedScenes,
-				currentScene: updatedScenes.find((s) => s.id === sceneId) || null,
+				currentScene: updatedCurrentScene,
 			});
 		} catch (error) {
 			console.error("Failed to rename scene:", error);
@@ -403,19 +408,46 @@ export const useSceneStore = create<SceneStore>((set, get) => ({
 	},
 
 	initializeProjectScenes: async (project: {
+		id: string;
 		scenes: Scene[];
 		currentSceneId: string;
 	}) => {
-		const ensuredScenes = ensureMainScene(project.scenes || []);
+		const projectScenes = project.scenes || [];
+		const ensuredScenes = ensureMainScene(projectScenes);
+		const sceneListWasRepaired = ensuredScenes.length !== projectScenes.length;
 		const currentScene = project.currentSceneId
 			? ensuredScenes.find((s) => s.id === project.currentSceneId)
 			: null;
 
 		const fallbackScene = getMainScene({ scenes: ensuredScenes });
+		const selectedScene = currentScene || fallbackScene;
+		const currentSceneWasRepaired =
+			selectedScene?.id !== project.currentSceneId;
+		const useProjectStore = await getProjectStore();
+		const activeProject = useProjectStore.getState().activeProject;
+		if (!activeProject || activeProject.id !== project.id) return;
 
 		set({
 			scenes: ensuredScenes,
-			currentScene: currentScene || fallbackScene,
+			currentScene: selectedScene,
 		});
+
+		if (!selectedScene || !(sceneListWasRepaired || currentSceneWasRepaired)) {
+			return;
+		}
+
+		const updatedProject = {
+			...activeProject,
+			currentSceneId: selectedScene.id,
+			scenes: ensuredScenes,
+			updatedAt: new Date(),
+		};
+		try {
+			await storageService.saveProject({ project: updatedProject });
+		} catch (error) {
+			console.error("Failed to persist corrected currentSceneId:", error);
+		}
+		if (useProjectStore.getState().activeProject?.id !== project.id) return;
+		useProjectStore.setState({ activeProject: updatedProject });
 	},
 }));

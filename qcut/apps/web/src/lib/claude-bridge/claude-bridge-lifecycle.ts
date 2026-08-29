@@ -53,6 +53,10 @@ import {
 	cleanupQCutJianyingProjectExportBridge,
 	setupQCutJianyingProjectExportBridge,
 } from "@/lib/claude-bridge/qcut-jianying-project-export-bridge";
+import {
+	cleanupClaudeLocalVideoExportBridge,
+	setupClaudeLocalVideoExportBridge,
+} from "@/lib/claude-bridge/claude-local-video-export-bridge";
 
 type ClaudeBridgeErrorHandler = (message: string, error: unknown) => void;
 
@@ -145,6 +149,11 @@ export function setupClaudeBridgeLifecycle({
 		onError,
 	});
 	runBridgeStep({
+		message: "[ClaudeBridge] Failed to setup local video export bridge",
+		step: setupClaudeLocalVideoExportBridge,
+		onError,
+	});
+	runBridgeStep({
 		message: "[ClaudeBridge] Failed to setup events bridge",
 		step: setupClaudeEventsBridge,
 		onError,
@@ -154,6 +163,11 @@ export function setupClaudeBridgeLifecycle({
 		runBridgeStep({
 			message: "[ClaudeBridge] Failed to cleanup transaction bridge",
 			step: cleanupClaudeTransactionBridge,
+			onError,
+		});
+		runBridgeStep({
+			message: "[ClaudeBridge] Failed to cleanup local video export bridge",
+			step: cleanupClaudeLocalVideoExportBridge,
 			onError,
 		});
 		runBridgeStep({

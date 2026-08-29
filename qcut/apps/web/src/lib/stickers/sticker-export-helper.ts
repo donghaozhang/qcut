@@ -39,6 +39,7 @@ export interface StickerRenderOptions {
 	opacity?: number;
 	timelineElement?: StickerElement;
 	tracks?: TimelineTrack[];
+	failOnError?: boolean;
 }
 
 /**
@@ -48,6 +49,20 @@ export interface StickerRenderResult {
 	attempted: number;
 	successful: number;
 	failed: Array<{ stickerId: string; error: string }>;
+}
+
+export class StickerRenderFailureError extends Error {
+	readonly failures: StickerRenderResult["failed"];
+
+	constructor({ failures }: { failures: StickerRenderResult["failed"] }) {
+		super(
+			`Sticker export frame failed: ${failures
+				.map(({ error, stickerId }) => `${stickerId}: ${error}`)
+				.join(", ")}`
+		);
+		this.name = "StickerRenderFailureError";
+		this.failures = failures;
+	}
 }
 
 /**
@@ -143,6 +158,9 @@ export class StickerExportHelper {
 				`[StickerExportHelper] Render summary: ${result.successful}/${result.attempted} stickers rendered successfully`
 			);
 		}
+		if (options.failOnError && result.failed.length > 0) {
+			throw new StickerRenderFailureError({ failures: result.failed });
+		}
 
 		return result;
 	}
@@ -175,10 +193,9 @@ export class StickerExportHelper {
 			element: animationElement,
 			mediaItem,
 		});
-		if (!mediaItem.url && !stickerRuntime) return;
-		let runtimeFrame: Awaited<
-			ReturnType<typeof renderStickerRuntimeFrame>
-		> | null = null;
+		let image: CanvasImageSource;
+		let sourceWidth: number | undefined;
+		let sourceHeight: number | undefined;
 		if (stickerRuntime) {
 			const runtimeElement = animationElement;
 			if (!runtimeElement) {
@@ -187,7 +204,7 @@ export class StickerExportHelper {
 					reason: "missing-timeline-context",
 				});
 			}
-			runtimeFrame = await renderStickerRuntimeFrame({
+			const runtimeFrame = await renderStickerRuntimeFrame({
 				assets: createBrowserStickerRuntimeAssetResolver({
 					mediaItem,
 					mediaItemsById,
@@ -199,17 +216,19 @@ export class StickerExportHelper {
 				}),
 				timelineTimeSeconds: currentTime,
 			});
+			if (!runtimeFrame.active) return;
+			image = runtimeFrame.image;
+			sourceWidth = runtimeFrame.width;
+			sourceHeight = runtimeFrame.height;
+		} else {
+			if (!mediaItem.url) {
+				throw new Error(`Static sticker media URL not found: ${mediaItem.id}`);
+			}
+			const staticImage = await this.loadImage(mediaItem.url);
+			image = staticImage;
+			sourceWidth = staticImage.naturalWidth;
+			sourceHeight = staticImage.naturalHeight;
 		}
-		if (runtimeFrame && !runtimeFrame.active) return;
-		let staticImage: HTMLImageElement | null = null;
-		if (!runtimeFrame) {
-			if (!mediaItem.url) return;
-			staticImage = await this.loadImage(mediaItem.url);
-		}
-		const image = runtimeFrame?.image ?? staticImage;
-		if (!image) return;
-		const sourceWidth = runtimeFrame?.width ?? staticImage?.naturalWidth;
-		const sourceHeight = runtimeFrame?.height ?? staticImage?.naturalHeight;
 		const resolvedSticker = animationElement
 			? resolveTimelineStickerVisualAtTime({
 					element: animationElement,

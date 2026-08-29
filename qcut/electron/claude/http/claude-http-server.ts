@@ -79,6 +79,7 @@ import {
 	registerQCutJianyingProjectExportRoutes,
 } from "./claude-http-jianying-project-export-routes.js";
 import { requestQCutJianyingProjectExportFromRenderer } from "../handlers/qcut-jianying-project-export-handler.js";
+import { requestClaudeLocalVideoExportFromRenderer } from "../handlers/claude-local-video-export-handler.js";
 import { registerSnapshotRoutes } from "./claude-http-snapshot-routes.js";
 import {
 	pullPlaybackDiagnosticsFromRenderer,
@@ -177,6 +178,12 @@ export function startClaudeHTTPServer(
 		getWindow,
 		/** Requests the current timeline from the renderer. */
 		requestTimeline: () => requestTimelineFromRenderer(getWindow()),
+		/** Delegates exact sticker runtime rendering to the live editor. */
+		requestLocalVideoExport: (request) =>
+			requestClaudeLocalVideoExportFromRenderer({
+				request,
+				win: getWindow(),
+			}),
 		/** Requests the current renderer selection. */
 		requestSelection: (correlationId) =>
 			requestSelectionFromRenderer(getWindow(), correlationId),

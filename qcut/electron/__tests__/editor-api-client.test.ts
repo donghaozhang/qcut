@@ -531,6 +531,55 @@ describe("EditorApiClient", () => {
 			installFetchMock(BASE_URL);
 		});
 
+		it("surfaces an export job error when message is absent", async () => {
+			const origFetch = globalThis.fetch;
+			globalThis.fetch = async () => {
+				return new Response(
+					JSON.stringify({
+						success: true,
+						data: {
+							status: "failed",
+							error: "Renderer rejected the export",
+						},
+					}),
+					{ headers: { "Content-Type": "application/json" } }
+				);
+			};
+
+			await expect(
+				client.pollJob("/api/claude/jobs/export-failed", { interval: 10 })
+			).rejects.toThrow("Renderer rejected the export");
+
+			globalThis.fetch = origFetch;
+			installFetchMock(BASE_URL);
+		});
+
+		it("prefers a specific job error over a generic message", async () => {
+			const origFetch = globalThis.fetch;
+			globalThis.fetch = async () => {
+				return new Response(
+					JSON.stringify({
+						success: true,
+						data: {
+							status: "failed",
+							error: "Renderer audio decode failed",
+							message: "Job failed",
+						},
+					}),
+					{ headers: { "Content-Type": "application/json" } }
+				);
+			};
+
+			await expect(
+				client.pollJob("/api/claude/jobs/specific-export-error", {
+					interval: 10,
+				})
+			).rejects.toThrow("Renderer audio decode failed");
+
+			globalThis.fetch = origFetch;
+			installFetchMock(BASE_URL);
+		});
+
 		it("includes structured failure context when available", async () => {
 			const origFetch = globalThis.fetch;
 			globalThis.fetch = async () => {

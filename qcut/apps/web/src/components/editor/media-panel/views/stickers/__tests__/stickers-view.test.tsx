@@ -263,6 +263,9 @@ describe("StickersView", () => {
 		expect(screen.getByTestId("ai-sticker-generator")).toBeInTheDocument();
 
 		const sidebar = screen.getByTestId("sticker-sidebar");
+		expect(screen.getByTestId("sticker-reference-lab-entry")).toHaveTextContent(
+			"可导出本地成片 · 原素材及工程包禁止导出、禁止二次分发"
+		);
 		fireEvent.click(within(sidebar).getByRole("button", { name: "QCut 原创" }));
 		expect(
 			screen.getByTestId("local-sticker-reference-panel")
@@ -371,7 +374,7 @@ describe("StickersView", () => {
 			expect(screen.getByText("暂无实验贴纸")).toBeInTheDocument();
 			expect(
 				screen.getByTestId("sticker-lab-reference-policy")
-			).toHaveTextContent("禁止二次分发");
+			).toHaveTextContent("原素材及工程包禁止导出、禁止二次分发");
 		} finally {
 			localCatalogMock.current.privateCatalogs = privateCatalogs;
 		}

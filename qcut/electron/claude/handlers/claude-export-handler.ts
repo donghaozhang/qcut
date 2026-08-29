@@ -9,6 +9,7 @@ export {
 	getExportPresets,
 	getExportRecommendation,
 	startExportJob,
+	startRendererExportJob,
 	getExportJobStatus,
 	listExportJobs,
 	applyProgressEvent,

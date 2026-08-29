@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { RESTRICTED_MEDIA_EXPORT_MESSAGE } from "../../../../../../electron/types/restricted-media-export-policy";
 import { exportStillFrame } from "../export-still-frame";
 
 const mocks = vi.hoisted(() => ({
@@ -127,9 +128,7 @@ describe("exportStillFrame", () => {
 
 		expect(result).toMatchObject({
 			ok: false,
-			error: expect.stringContaining(
-				"Sticker Lab reference-only media cannot be exported or redistributed."
-			),
+			error: expect.stringContaining(RESTRICTED_MEDIA_EXPORT_MESSAGE),
 		});
 		expect(mocks.renderFrame).not.toHaveBeenCalled();
 		expect(mocks.saveExportedFile).not.toHaveBeenCalled();

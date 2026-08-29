@@ -7,6 +7,7 @@ import type { StoreGet, StoreSet } from "../timeline-store-operations";
 const storageMocks = vi.hoisted(() => ({
 	loadProject: vi.fn(),
 	loadTimeline: vi.fn(),
+	saveProjectTimeline: vi.fn(),
 }));
 
 vi.mock("@/lib/storage/storage-service", () => ({
@@ -17,6 +18,23 @@ vi.mock("@/lib/debug/error-handler", () => ({
 	handleError: vi.fn(),
 	ErrorCategory: { STORAGE: "storage", MEDIA_PROCESSING: "media_processing" },
 	ErrorSeverity: { LOW: "low" },
+}));
+
+vi.mock("@/stores/project-store", () => ({
+	useProjectStore: {
+		getState: () => ({
+			activeProject: {
+				currentSceneId: "project-scene",
+				id: "project-1",
+			},
+		}),
+	},
+}));
+
+vi.mock("@/stores/timeline/scene-store", () => ({
+	useSceneStore: {
+		getState: () => ({ currentScene: { id: "stale-scene" } }),
+	},
 }));
 
 function createProject({ sceneIds }: { sceneIds: string[] }): TProject {
@@ -140,6 +158,18 @@ describe("timeline project duration persistence", () => {
 		).resolves.toBe(5);
 		expect(storageMocks.loadTimeline).toHaveBeenLastCalledWith({
 			projectId: "project-1",
+		});
+	});
+
+	it("saves immediately to the scene selected by the active project", async () => {
+		storageMocks.saveProjectTimeline.mockResolvedValue(undefined);
+
+		await createOperations().saveImmediate?.();
+
+		expect(storageMocks.saveProjectTimeline).toHaveBeenCalledWith({
+			projectId: "project-1",
+			sceneId: "project-scene",
+			tracks: [],
 		});
 	});
 });

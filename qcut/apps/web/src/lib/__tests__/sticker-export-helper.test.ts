@@ -63,37 +63,38 @@ function createMockContext() {
 let imageLoadBehaviour: "success" | "error" = "success";
 
 function createMockImageClass() {
-	return function MockImage(this: any) {
-		this.crossOrigin = "";
-		this._src = "";
-		this.onload = null;
-		this.onerror = null;
+	class MockImage {
+		crossOrigin = "";
+		onerror: ((error: Error) => void) | null = null;
+		onload: (() => void) | null = null;
+		private source = "";
 
-		Object.defineProperty(this, "src", {
-			get() {
-				return this._src;
-			},
-			set(value: string) {
-				this._src = value;
-				if (value) {
-					queueMicrotask(() => {
-						if (imageLoadBehaviour === "success") {
-							this.onload?.();
-						} else {
-							this.onerror?.(new Error("load failed"));
-						}
-					});
-				}
-			},
-		});
-	} as unknown as typeof Image;
+		get src(): string {
+			return this.source;
+		}
+
+		set src(value: string) {
+			this.source = value;
+			if (value) {
+				queueMicrotask(() => {
+					if (imageLoadBehaviour === "success") {
+						this.onload?.();
+					} else {
+						this.onerror?.(new Error("load failed"));
+					}
+				});
+			}
+		}
+	}
+
+	return MockImage as unknown as typeof Image;
 }
 
 function installImageMock() {
 	const originalImage = globalThis.Image;
-	(globalThis as any).Image = createMockImageClass();
+	globalThis.Image = createMockImageClass();
 	return () => {
-		(globalThis as any).Image = originalImage;
+		globalThis.Image = originalImage;
 	};
 }
 
@@ -159,6 +160,30 @@ describe("StickerExportHelper", () => {
 			expect(result.failed[0].error).toContain("Media item not found");
 		});
 
+		it("fails closed when an export frame is missing a requested static sticker", async () => {
+			await expect(
+				helper.renderStickersToCanvas(
+					ctx,
+					[createMockSticker()],
+					new Map<string, MediaItem>(),
+					{ ...defaultOptions, failOnError: true }
+				)
+			).rejects.toThrow("Media item not found");
+		});
+
+		it("fails closed when a requested static sticker cannot decode", async () => {
+			imageLoadBehaviour = "error";
+
+			await expect(
+				helper.renderStickersToCanvas(
+					ctx,
+					[createMockSticker()],
+					new Map([["media-1", createMockMediaItem()]]),
+					{ ...defaultOptions, failOnError: true }
+				)
+			).rejects.toThrow("Failed to load image");
+		});
+
 		it("should log warning when sticker rendering fails", async () => {
 			const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
@@ -217,7 +242,11 @@ describe("StickerExportHelper", () => {
 			const drawOrder: string[] = [];
 			const mockCtx = createMockContext();
 			(mockCtx.drawImage as ReturnType<typeof vi.fn>).mockImplementation(
-				(img: any, _x: number, _y: number) => {
+				(
+					img: CanvasImageSource & { _stickerId?: string },
+					_x: number,
+					_y: number
+				) => {
 					drawOrder.push(img._stickerId ?? "unknown");
 				}
 			);
@@ -272,7 +301,7 @@ describe("StickerExportHelper", () => {
 			expect(result.failed).toHaveLength(1);
 		});
 
-		it("should skip stickers whose mediaItem has no URL", async () => {
+		it("records a failure when a static sticker media item has no URL", async () => {
 			const stickers = [createMockSticker()];
 			const mediaItems = new Map<string, MediaItem>([
 				["media-1", createMockMediaItem({ url: undefined })],
@@ -285,9 +314,14 @@ describe("StickerExportHelper", () => {
 				defaultOptions
 			);
 
-			// attempted=1 (media found), successful=1 (early return counts as success)
 			expect(result.attempted).toBe(1);
-			expect(result.successful).toBe(1);
+			expect(result.successful).toBe(0);
+			expect(result.failed).toEqual([
+				{
+					error: "Static sticker media URL not found: media-1",
+					stickerId: "sticker-1",
+				},
+			]);
 			expect(ctx.drawImage).not.toHaveBeenCalled();
 		});
 

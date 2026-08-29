@@ -126,7 +126,7 @@ export function LocalStickerReferencePanel({
 					className="mx-2 mt-2 shrink-0 rounded border border-amber-500/40 bg-amber-500/10 px-2 py-1 text-[10px] font-medium leading-snug text-amber-100/90"
 					data-testid="sticker-lab-reference-policy"
 				>
-					仅限内部参照 · 禁止二次分发
+					可导出本地成片 · 原素材及工程包禁止导出、禁止二次分发
 				</div>
 			) : null}
 			{localReferenceWarningCount > 0 ? (

@@ -29,6 +29,10 @@ import type {
 	EditorEvent,
 	AgentPointerVisualState,
 } from "../../../../../electron/types/claude-api";
+import type {
+	ClaudeLocalVideoExportRendererRequest,
+	ClaudeLocalVideoExportRendererResponse,
+} from "../../../../../electron/types/claude-local-video-export-api";
 
 type EmitPayload = Omit<EditorEvent, "eventId" | "timestamp"> &
 	Partial<Pick<EditorEvent, "eventId" | "timestamp">>;
@@ -369,6 +373,13 @@ export interface ElectronClaudeOps {
 				projectId: string,
 				target: string
 			) => Promise<ExportRecommendation>;
+			onLocalVideoExportRequest: (
+				callback: (request: ClaudeLocalVideoExportRendererRequest) => void
+			) => void;
+			removeLocalVideoExportListener: () => void;
+			sendLocalVideoExportResponse: (
+				response: ClaudeLocalVideoExportRendererResponse
+			) => void;
 		};
 		diagnostics: {
 			analyze: (error: ErrorReport) => Promise<DiagnosticResult>;

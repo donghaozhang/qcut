@@ -51,6 +51,10 @@ import type {
 	ClaudeMediaDeletedEvent,
 	ClaudeMediaImportedEvent,
 } from "./types/claude-media-bridge-api.js";
+import {
+	CLAUDE_LOCAL_VIDEO_EXPORT_REQUEST_CHANNEL,
+	CLAUDE_LOCAL_VIDEO_EXPORT_RESPONSE_CHANNEL,
+} from "./types/claude-local-video-export-api.js";
 
 // ============================================================================
 // PTY Terminal
@@ -730,6 +734,23 @@ export function createClaudeAPI(): NonNullable<ElectronAPI["claude"]> {
 			getPresets: () => ipcRenderer.invoke("claude:export:getPresets"),
 			recommend: (projectId, target) =>
 				ipcRenderer.invoke("claude:export:recommend", projectId, target),
+			onLocalVideoExportRequest: (callback) => {
+				ipcRenderer.removeAllListeners(
+					CLAUDE_LOCAL_VIDEO_EXPORT_REQUEST_CHANNEL
+				);
+				ipcRenderer.on(
+					CLAUDE_LOCAL_VIDEO_EXPORT_REQUEST_CHANNEL,
+					(_event, request) => callback(request)
+				);
+			},
+			removeLocalVideoExportListener: () => {
+				ipcRenderer.removeAllListeners(
+					CLAUDE_LOCAL_VIDEO_EXPORT_REQUEST_CHANNEL
+				);
+			},
+			sendLocalVideoExportResponse: (response) => {
+				ipcRenderer.send(CLAUDE_LOCAL_VIDEO_EXPORT_RESPONSE_CHANNEL, response);
+			},
 		},
 		diagnostics: {
 			analyze: (error) =>

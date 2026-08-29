@@ -93,6 +93,7 @@ export function useExportProgress() {
 			audioCodec?: AudioCodec;
 			audioBitrate?: number;
 			gifConfig?: GifExportConfig;
+			propagateErrors?: boolean;
 		}
 	) => {
 		// Reset any previous errors
@@ -221,6 +222,7 @@ export function useExportProgress() {
 					height: exportSettings.resolution.height,
 					filename: exportSettings.filename,
 					frameRate: exportSettings.frameRate,
+					outputPath: exportSettings.outputPath,
 					includeAudio: exportSettings.includeAudio,
 					audioCodec: exportSettings.audioCodec,
 					audioBitrate: exportSettings.audioBitrate,
@@ -356,6 +358,7 @@ export function useExportProgress() {
 				if (currentEngineRef.current === exportEngineForRun) {
 					currentEngineRef.current = null;
 				}
+				if (exportSettings.propagateErrors) throw error;
 				return;
 			}
 			debugError("[ExportPanel] Export failed:", message);
@@ -403,6 +406,7 @@ export function useExportProgress() {
 			if (useAppSettingsStore.getState().exportCompletionSound) {
 				playCompletionChime({ kind: "error" });
 			}
+			if (exportSettings.propagateErrors) throw error;
 		} finally {
 			await hyperframesController?.cleanup();
 			if (hyperframesControllerRef.current === hyperframesController) {

@@ -86,7 +86,7 @@ export interface ExportJobInternal {
 	progress: number;
 	startedAt: number;
 	presetId: string;
-	engine: "native-cli";
+	engine: "native-cli" | "renderer-muxer";
 	settings: ResolvedExportSettings;
 	outputPath?: string;
 	duration?: number;
@@ -100,6 +100,8 @@ export interface ExportJobInternal {
 }
 
 export interface StickerOverlay {
+	/** Media library identifier used for export-policy role checks. */
+	mediaId: string;
 	/** Absolute path to the sticker image file */
 	sourcePath: string;
 	/** Start time in seconds (relative to the exported video timeline) */

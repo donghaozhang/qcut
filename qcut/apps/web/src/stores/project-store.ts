@@ -397,7 +397,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 			const stickersStore = useStickersOverlayStore.getState();
 			await Promise.all([
 				storageService.saveProject({ project: activeProject }),
-				timelineStore.saveProjectTimeline({ projectId: activeProject.id }),
+				timelineStore.saveProjectTimeline({
+					projectId: activeProject.id,
+					sceneId: activeProject.currentSceneId,
+				}),
 				stickersStore.saveToProject(activeProject.id),
 			]);
 			await get().loadAllProjects(); // Refresh the list

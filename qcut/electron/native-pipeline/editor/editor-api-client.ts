@@ -50,6 +50,7 @@ interface JobStatus {
 	status: "queued" | "running" | "completed" | "failed" | "cancelled";
 	progress?: number;
 	message?: string;
+	error?: string;
 	result?: unknown;
 	correlationId?: string;
 	errorDetails?: {
@@ -546,14 +547,15 @@ export class EditorApiClient {
 				return job as T;
 			}
 			if (job.status === "failed") {
+				const failureMessage = job.error ?? job.message ?? "Job failed";
 				const context = this.buildJobFailureContext({
 					job,
 					debugTrace: options.debugTrace === true,
 				});
 				const message = context
-					? `${job.message ?? "Job failed"} [${context}]`
-					: (job.message ?? "Job failed");
-				throw new EditorApiError(message, undefined, context ?? job.message);
+					? `${failureMessage} [${context}]`
+					: failureMessage;
+				throw new EditorApiError(message, undefined, context ?? failureMessage);
 			}
 			if (job.status === "cancelled") {
 				throw new EditorApiError("Job was cancelled");

@@ -739,7 +739,9 @@ describe("LocalStickerReferencePanel", () => {
 
 		expect(
 			screen.getByTestId("sticker-lab-reference-policy")
-		).toHaveTextContent("仅限内部参照 · 禁止二次分发");
+		).toHaveTextContent(
+			"可导出本地成片 · 原素材及工程包禁止导出、禁止二次分发"
+		);
 		const button = screen.getByRole("button", {
 			name: "添加本地参照 local-reference-1到时间线",
 		});
