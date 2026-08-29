@@ -242,15 +242,10 @@ export function createPersistenceOperations(
 				const { useProjectStore } = await import("../project-store");
 				const activeProject = useProjectStore.getState().activeProject;
 				if (activeProject) {
-					const { useSceneStore } = await import("./scene-store");
-					const sceneId =
-						useSceneStore.getState().currentScene?.id ??
-						activeProject.currentSceneId;
-
 					await storageService.saveProjectTimeline({
 						projectId: activeProject.id,
 						tracks: get()._tracks,
-						sceneId,
+						sceneId: activeProject.currentSceneId,
 					});
 
 					set({
