@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { TProject } from "@/types/project";
 import type { TimelineTrack } from "@/types/timeline";
 import { JIANYING_11_3_BETA2_PROFILE_ID } from "@qcut/editor-core/jianying-draft";
+import { RESTRICTED_MEDIA_EXPORT_MESSAGE } from "../../../../../../electron/types/restricted-media-export-policy";
 import { executePersistedQCutJianyingProjectExport } from "../qcut-jianying-project-export-bridge";
 
 type ExecuteOptions = Parameters<
@@ -143,9 +144,7 @@ describe("persisted QCut Jianying project export", () => {
 		});
 
 		expect(result).toMatchObject({
-			message: expect.stringContaining(
-				"Sticker Lab reference-only media cannot be exported or redistributed."
-			),
+			message: expect.stringContaining(RESTRICTED_MEDIA_EXPORT_MESSAGE),
 			outcome: "failed",
 			reason: "unexpected",
 		});
