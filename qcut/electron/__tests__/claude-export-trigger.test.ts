@@ -15,8 +15,9 @@ const {
 		access: vi.fn(async () => {}),
 		mkdir: vi.fn(async () => {}),
 		mkdtemp: vi.fn(async () => "/tmp/qcut-claude-export-test"),
+		rename: vi.fn(async () => {}),
 		writeFile: vi.fn(async () => {}),
-		stat: vi.fn(async () => ({ size: 4096 })),
+		stat: vi.fn(async () => ({ isFile: () => true, size: 4096 })),
 		rm: vi.fn(async () => {}),
 	};
 
@@ -81,6 +82,7 @@ vi.mock("electron-log", () => ({
 
 import {
 	startExportJob,
+	startRendererExportJob,
 	getExportJobStatus,
 	clearExportJobsForTests,
 } from "../claude/handlers/claude-export-handler";
@@ -142,6 +144,11 @@ const restrictedMetadata = {
 	referenceOnly: true as const,
 	source: "sticker-lab" as const,
 	usage: "internal-reference-only" as const,
+};
+
+const staticRestrictedMetadata = {
+	...restrictedMetadata,
+	animatedSticker: false,
 };
 
 function createMockProcess({
@@ -252,13 +259,66 @@ describe("Claude export trigger", () => {
 		expect(mockSpawn).not.toHaveBeenCalled();
 	});
 
-	it("refuses a restricted sticker resolved by filename after the initial policy check", async () => {
+	it("allows a complete static Sticker Lab overlay resolved by filename only in a local MP4", async () => {
+		const result = await startExportJob({
+			projectId: "project_restricted_resolved_sticker",
+			request: {
+				preset: "youtube-1080p",
+				outputPath: "/tmp/must-not-exist.mp4",
+			},
+			timeline: {
+				...testTimeline,
+				tracks: [
+					...testTimeline.tracks,
+					{
+						index: 1,
+						name: "Stickers",
+						type: "sticker",
+						elements: [
+							{
+								duration: 5,
+								endTime: 5,
+								id: "sticker-element",
+								mediaId: "stale-sticker-id",
+								sourceName: "restricted-sticker.png",
+								startTime: 0,
+								stickerId: "legacy-overlay-sticker",
+								trackIndex: 1,
+								type: "sticker" as const,
+							},
+						],
+					},
+				],
+			},
+			mediaFiles: [
+				...testMediaFiles,
+				{
+					...testMediaFiles[0],
+					id: "actual-restricted-sticker",
+					metadata: staticRestrictedMetadata,
+					name: "restricted-sticker.png",
+					path: "/tmp/restricted-sticker.png",
+					type: "image" as const,
+				},
+			],
+		});
+
+		expect(result).toMatchObject({ status: "queued" });
+		await vi.waitFor(() => {
+			expect(mockSpawn).toHaveBeenCalled();
+			expect(getExportJobStatus(result.jobId)).toMatchObject({
+				status: "completed",
+			});
+		});
+	});
+
+	it("fails closed when a restricted static overlay has no native file path", async () => {
 		await expect(
 			startExportJob({
-				projectId: "project_restricted_resolved_sticker",
+				projectId: "project_pathless_restricted_sticker",
 				request: {
 					preset: "youtube-1080p",
-					outputPath: "/tmp/must-not-exist.mp4",
+					outputPath: "/tmp/pathless-restricted.mp4",
 				},
 				timeline: {
 					...testTimeline,
@@ -272,11 +332,9 @@ describe("Claude export trigger", () => {
 								{
 									duration: 5,
 									endTime: 5,
-									id: "sticker-element",
-									mediaId: "stale-sticker-id",
-									sourceName: "restricted-sticker.png",
+									id: "pathless-sticker-element",
+									mediaId: "pathless-restricted-sticker",
 									startTime: 0,
-									stickerId: "legacy-overlay-sticker",
 									trackIndex: 1,
 									type: "sticker" as const,
 								},
@@ -288,17 +346,116 @@ describe("Claude export trigger", () => {
 					...testMediaFiles,
 					{
 						...testMediaFiles[0],
-						id: "actual-restricted-sticker",
-						metadata: restrictedMetadata,
-						name: "restricted-sticker.png",
-						path: "/tmp/restricted-sticker.png",
+						id: "pathless-restricted-sticker",
+						metadata: staticRestrictedMetadata,
+						name: "pathless-restricted-sticker.png",
+						path: "",
 						type: "image" as const,
 					},
 				],
 			})
 		).rejects.toMatchObject({
 			code: "QCUT_RESTRICTED_MEDIA_EXPORT",
-			mediaIds: ["actual-restricted-sticker"],
+			mediaIds: ["pathless-restricted-sticker"],
+		});
+		expect(mockSpawn).not.toHaveBeenCalled();
+	});
+
+	it("keeps a dual-role restricted file blocked when both roles resolve by filename", async () => {
+		await expect(
+			startExportJob({
+				projectId: "project_restricted_dual_role",
+				request: {
+					preset: "youtube-1080p",
+					outputPath: "/tmp/must-not-exist.mp4",
+				},
+				timeline: {
+					...testTimeline,
+					tracks: [
+						{
+							...testTimeline.tracks[0],
+							elements: [
+								{
+									...testTimeline.tracks[0].elements[0],
+									sourceId: "stale-shared-media-id",
+									sourceName: "shared-restricted.png",
+									type: "image" as const,
+								},
+							],
+						},
+						{
+							index: 1,
+							name: "Stickers",
+							type: "sticker",
+							elements: [
+								{
+									duration: 5,
+									endTime: 5,
+									id: "shared-sticker-element",
+									mediaId: "stale-shared-sticker-id",
+									sourceName: "shared-restricted.png",
+									startTime: 0,
+									stickerId: "legacy-overlay-sticker",
+									trackIndex: 1,
+									type: "sticker" as const,
+								},
+							],
+						},
+					],
+				},
+				mediaFiles: [
+					{
+						...testMediaFiles[0],
+						id: "actual-shared-restricted-media",
+						metadata: staticRestrictedMetadata,
+						name: "shared-restricted.png",
+						path: "/tmp/shared-restricted.png",
+						type: "image" as const,
+					},
+				],
+			})
+		).rejects.toMatchObject({
+			code: "QCUT_RESTRICTED_MEDIA_EXPORT",
+			mediaIds: ["actual-shared-restricted-media"],
+		});
+		expect(mockSpawn).not.toHaveBeenCalled();
+	});
+
+	it("keeps post-hydration restricted media blocked for non-MP4 output", async () => {
+		await expect(
+			startExportJob({
+				projectId: "project_restricted_resolved_gif",
+				request: {
+					format: "gif",
+					outputPath: "/tmp/must-not-exist.gif",
+				},
+				timeline: {
+					...testTimeline,
+					tracks: [
+						{
+							...testTimeline.tracks[0],
+							elements: [
+								{
+									...testTimeline.tracks[0].elements[0],
+									sourceId: "stale-video-id",
+									sourceName: "restricted-gif-source.mp4",
+								},
+							],
+						},
+					],
+				},
+				mediaFiles: [
+					{
+						...testMediaFiles[0],
+						id: "actual-restricted-gif-source",
+						metadata: restrictedMetadata,
+						name: "restricted-gif-source.mp4",
+					},
+				],
+			})
+		).rejects.toMatchObject({
+			code: "QCUT_RESTRICTED_MEDIA_EXPORT",
+			mediaIds: ["actual-restricted-gif-source"],
 		});
 		expect(mockSpawn).not.toHaveBeenCalled();
 	});
@@ -393,6 +550,131 @@ describe("Claude export trigger", () => {
 			reason: "native-engine",
 		});
 		expect(mockSpawn).not.toHaveBeenCalled();
+	});
+
+	it("completes deterministic sticker runtime through the renderer MP4 job", async () => {
+		const dispatch = vi.fn(async () => {});
+		const runtimeMedia = {
+			...testMediaFiles[0],
+			id: "runtime-media",
+			metadata: {
+				...restrictedMetadata,
+				stickerRuntime: { kind: "direct-gif" },
+			},
+			name: "runtime.gif",
+			path: "/tmp/runtime.gif",
+			type: "image" as const,
+		};
+		const runtimeTimeline = {
+			...testTimeline,
+			tracks: [
+				...testTimeline.tracks,
+				{
+					index: 1,
+					name: "Runtime stickers",
+					type: "sticker",
+					elements: [
+						{
+							duration: 5,
+							endTime: 5,
+							id: "runtime-sticker",
+							mediaId: runtimeMedia.id,
+							startTime: 0,
+							stickerId: "sticker-lab:jianying-2026-08-23-batch-18-v2:18001",
+							stickerRuntime: { kind: "direct-gif" },
+							trackIndex: 1,
+							type: "sticker" as const,
+						},
+					],
+				},
+			],
+		};
+
+		const result = await startRendererExportJob({
+			dispatch,
+			mediaFiles: [...testMediaFiles, runtimeMedia],
+			projectId: "project_renderer_runtime",
+			request: {
+				audioConfig: { mic: false, systemAudio: true },
+				preset: "youtube-1080p",
+				outputPath: "/tmp/runtime-output.mp4",
+			},
+			timeline: runtimeTimeline,
+		});
+
+		expect(result.status).toBe("queued");
+		await vi.waitFor(() => {
+			expect(dispatch).toHaveBeenCalledWith(
+				expect.objectContaining({
+					format: "mp4",
+					outputPath: "/tmp/runtime-output.mp4",
+					projectId: "project_renderer_runtime",
+				})
+			);
+			expect(getExportJobStatus(result.jobId)).toMatchObject({
+				engine: "renderer-muxer",
+				fileSize: 4096,
+				status: "completed",
+			});
+		});
+	});
+
+	it("rejects native-only CLI overrides instead of silently changing renderer output", async () => {
+		const dispatch = vi.fn(async () => {});
+
+		await expect(
+			startRendererExportJob({
+				dispatch,
+				mediaFiles: testMediaFiles,
+				projectId: "project_renderer_overrides",
+				request: {
+					audioConfig: { mic: true, systemAudio: false },
+					audioExportConfig: { bitrate: 320 },
+					cursorConfig: { sway: 1 },
+					engine: "native",
+					outputPath: "/tmp/renderer-overrides.mp4",
+					settings: { bitrate: "20M", codec: "hevc" },
+					zoomConfig: { autoZoom: true },
+				},
+				timeline: testTimeline,
+			})
+		).rejects.toThrow(
+			"engine, cursorConfig, zoomConfig, audioConfig, audioExportConfig, bitrate, codec"
+		);
+		expect(dispatch).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		{
+			label: "a directory",
+			statResult: { isFile: () => false, size: 4096 },
+		},
+		{
+			label: "an empty file",
+			statResult: { isFile: () => true, size: 0 },
+		},
+	])("fails the renderer job when its output is $label", async ({
+		statResult,
+	}) => {
+		mockFsPromises.stat.mockResolvedValueOnce(statResult);
+		const dispatch = vi.fn(async () => {});
+		const result = await startRendererExportJob({
+			dispatch,
+			mediaFiles: testMediaFiles,
+			projectId: "project_renderer_invalid_output",
+			request: {
+				outputPath: "/tmp/renderer-invalid-output.mp4",
+			},
+			timeline: testTimeline,
+		});
+
+		await vi.waitFor(() => {
+			expect(getExportJobStatus(result.jobId)).toMatchObject({
+				error: "Renderer MP4 export did not produce a non-empty file.",
+				status: "failed",
+			});
+		});
+		expect(dispatch).toHaveBeenCalledOnce();
 	});
 
 	it("uses the timeline fit mode when scaling export segments", async () => {
