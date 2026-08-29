@@ -48,6 +48,7 @@ import type { ElectronJianyingFilterLabOps } from "./api-jianying-filter-lab";
 import type { ElectronJianyingPortraitAdjustmentOps } from "./api-jianying-portrait-adjustment";
 import type { ElectronJianyingPersonCutoutOps } from "./api-jianying-person-cutout";
 import type { ElectronJianyingFontLabOps } from "./api-jianying-font-lab";
+import type { ElectronJianyingMusicLabOps } from "./api-jianying-music-lab";
 import type { ElectronJianyingTextStyleLabOps } from "./api-jianying-text-style-lab";
 import type { ElectronJianyingTextRuntimeOps } from "./api-jianying-text-runtime";
 import type { ElectronJianyingEnvelopeOps } from "./api-jianying-envelope";
@@ -103,6 +104,7 @@ export interface ElectronAPI
 		ElectronJianyingPortraitAdjustmentOps,
 		ElectronJianyingPersonCutoutOps,
 		ElectronJianyingFontLabOps,
+		ElectronJianyingMusicLabOps,
 		ElectronJianyingTextStyleLabOps,
 		ElectronJianyingTextRuntimeOps,
 		ElectronJianyingEnvelopeOps,
