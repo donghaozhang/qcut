@@ -11,6 +11,19 @@ function hasDecodedVideoFrame({ video }: { video: HTMLVideoElement }): boolean {
 	);
 }
 
+function normalizeSeekTime({
+	timeSeconds,
+	videoDurationSeconds,
+}: {
+	timeSeconds: number;
+	videoDurationSeconds: number;
+}): number {
+	if (!(Number.isFinite(videoDurationSeconds) && videoDurationSeconds >= 0)) {
+		return timeSeconds;
+	}
+	return Math.min(timeSeconds, videoDurationSeconds);
+}
+
 function isAtRequestedFrame({
 	timeSeconds,
 	video,
@@ -64,10 +77,14 @@ export function seekExportVideoFrame({
 			new Error("Video export frame rate must be positive")
 		);
 	}
+	const normalizedTimeSeconds = normalizeSeekTime({
+		timeSeconds,
+		videoDurationSeconds: video.duration,
+	});
 	if (
 		!video.seeking &&
 		hasDecodedVideoFrame({ video }) &&
-		isAtRequestedFrame({ timeSeconds, video })
+		isAtRequestedFrame({ timeSeconds: normalizedTimeSeconds, video })
 	) {
 		return Promise.resolve();
 	}
@@ -75,7 +92,7 @@ export function seekExportVideoFrame({
 	const fromSeconds = video.currentTime;
 	const timeoutMs = seekTimeoutMs({
 		fromSeconds,
-		timeSeconds,
+		timeSeconds: normalizedTimeSeconds,
 		videoDurationSeconds: video.duration,
 	});
 	return new Promise((resolve, reject) => {
@@ -101,7 +118,7 @@ export function seekExportVideoFrame({
 				finish(new Error("Video seek completed without a decoded frame"));
 				return;
 			}
-			if (!isAtRequestedFrame({ timeSeconds, video })) {
+			if (!isAtRequestedFrame({ timeSeconds: normalizedTimeSeconds, video })) {
 				finish(new Error("Video seek completed at the wrong frame"));
 				return;
 			}
@@ -117,11 +134,11 @@ export function seekExportVideoFrame({
 
 		video.addEventListener("error", onError);
 		video.addEventListener("seeked", onSeeked);
-		video.currentTime = timeSeconds;
+		video.currentTime = normalizedTimeSeconds;
 		if (
 			!video.seeking &&
 			hasDecodedVideoFrame({ video }) &&
-			isAtRequestedFrame({ timeSeconds, video })
+			isAtRequestedFrame({ timeSeconds: normalizedTimeSeconds, video })
 		) {
 			queueMicrotask(onSeeked);
 		}
