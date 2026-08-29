@@ -99,6 +99,7 @@ interface SceneStore {
 	}) => Promise<void>;
 	clearScenes: () => void;
 	initializeProjectScenes: (project: {
+		id: string;
 		scenes: Scene[];
 		currentSceneId: string;
 	}) => Promise<void>;
@@ -407,27 +408,33 @@ export const useSceneStore = create<SceneStore>((set, get) => ({
 	},
 
 	initializeProjectScenes: async (project: {
+		id: string;
 		scenes: Scene[];
 		currentSceneId: string;
 	}) => {
-		const ensuredScenes = ensureMainScene(project.scenes || []);
+		const projectScenes = project.scenes || [];
+		const ensuredScenes = ensureMainScene(projectScenes);
+		const sceneListWasRepaired = ensuredScenes.length !== projectScenes.length;
 		const currentScene = project.currentSceneId
 			? ensuredScenes.find((s) => s.id === project.currentSceneId)
 			: null;
 
 		const fallbackScene = getMainScene({ scenes: ensuredScenes });
 		const selectedScene = currentScene || fallbackScene;
+		const currentSceneWasRepaired =
+			selectedScene?.id !== project.currentSceneId;
+		const useProjectStore = await getProjectStore();
+		const activeProject = useProjectStore.getState().activeProject;
+		if (!activeProject || activeProject.id !== project.id) return;
 
 		set({
 			scenes: ensuredScenes,
 			currentScene: selectedScene,
 		});
 
-		if (!selectedScene || selectedScene.id === project.currentSceneId) return;
-
-		const useProjectStore = await getProjectStore();
-		const activeProject = useProjectStore.getState().activeProject;
-		if (!activeProject) return;
+		if (!selectedScene || !(sceneListWasRepaired || currentSceneWasRepaired)) {
+			return;
+		}
 
 		const updatedProject = {
 			...activeProject,
@@ -440,6 +447,7 @@ export const useSceneStore = create<SceneStore>((set, get) => ({
 		} catch (error) {
 			console.error("Failed to persist corrected currentSceneId:", error);
 		}
+		if (useProjectStore.getState().activeProject?.id !== project.id) return;
 		useProjectStore.setState({ activeProject: updatedProject });
 	},
 }));
