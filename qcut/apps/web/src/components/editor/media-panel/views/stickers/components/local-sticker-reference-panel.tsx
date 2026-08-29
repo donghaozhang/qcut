@@ -11,6 +11,7 @@ import {
 } from "@/lib/stickers/local-sticker-manifest";
 import { LocalStickerReferenceItem } from "./local-sticker-reference-item";
 import type { PrivateStickerCategoryView } from "./private-sticker-category-views";
+import type { PreparedStickerRuntimePackage } from "@/lib/stickers/sticker-runtime-package";
 
 const EMPTY_UNAVAILABLE_CATALOG_IDS: readonly string[] = [];
 const EMPTY_PRIVATE_CATEGORIES: readonly PrivateStickerCategoryView[] = [];
@@ -79,6 +80,7 @@ export function LocalStickerReferencePanel({
 	}: {
 		file: File;
 		metadata?: StickerReferenceUsageMetadata;
+		runtimePackage?: PreparedStickerRuntimePackage;
 	}) => Promise<void>;
 	privateCategories?: readonly PrivateStickerCategoryView[];
 	selection?: StickerLabSelection | null;

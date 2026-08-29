@@ -18,6 +18,7 @@ import {
 	loadLocalStickerReferenceFile,
 	loadRemoteStickerReferenceFile,
 	loadStickerLabReferenceFile,
+	loadStickerLabReferenceRuntimePackage,
 	loadStickerLabThumbnail,
 	LOCAL_STICKER_REFERENCE_FILE_CACHE_LIMITS,
 	releaseLocalStickerReferenceFile,
@@ -47,6 +48,42 @@ vi.mock("@qcut/platform-core", async (importOriginal) => {
 });
 
 const REMOTE_PROVENANCE = createRemoteStickerCatalog().provenance;
+
+function createLocalRuntimeReference() {
+	const reference = createLocalBridgeStickerReference();
+	reference.fileName = "sequence-preview.png";
+	reference.mimeType = "image/png";
+	reference.sourceKind = "png-sequence";
+	reference.runtimePackage = {
+		descriptor: {
+			kind: "png-sequence",
+			cycleDurationSeconds: 1,
+			frames: [
+				{ source: "$primary", startSeconds: 0, durationSeconds: 0.25 },
+				{ source: "blue.png", startSeconds: 0.25, durationSeconds: 0.75 },
+			],
+			repeat: { kind: "infinite" },
+			completion: "freeze-last",
+		},
+		resources: [
+			{
+				resourceName: "blue.png",
+				fileName: "blue.png",
+				mimeType: "image/png",
+				asset: {
+					kind: "local-reference-runtime-resource",
+					rootPath: reference.asset.rootPath,
+					batchId: reference.asset.batchId,
+					stickerId: reference.asset.stickerId,
+					resourceName: "blue.png",
+					byteSize: 4,
+					checksumSha256: "b".repeat(64),
+				},
+			},
+		],
+	};
+	return reference;
+}
 
 describe("local sticker reference files", () => {
 	beforeEach(() => {
@@ -139,6 +176,86 @@ describe("local sticker reference files", () => {
 
 		expect(left).toBe(right);
 		expect(platformMocks.readLocalReference).toHaveBeenCalledTimes(1);
+	});
+
+	it("loads and prepares local runtime package resources through the bridge", async () => {
+		const reference = createLocalRuntimeReference();
+		platformMocks.readLocalReference.mockResolvedValue({
+			bytes: new Uint8Array([5, 6, 7, 8]),
+			fileName: "blue.png",
+			mimeType: "image/png",
+			batchId: reference.asset.batchId,
+			stickerId: reference.asset.stickerId,
+			resourceName: "blue.png",
+			checksumSha256: "b".repeat(64),
+		});
+		const primaryFile = new File([new Uint8Array([1])], reference.fileName, {
+			type: reference.mimeType,
+		});
+
+		const runtimePackage = await loadStickerLabReferenceRuntimePackage({
+			primaryFile,
+			reference,
+		});
+
+		expect(platformMocks.readLocalReference).toHaveBeenCalledWith({
+			rootPath: reference.asset.rootPath,
+			batchId: reference.asset.batchId,
+			stickerId: reference.asset.stickerId,
+			resourceName: "blue.png",
+		});
+		expect(runtimePackage).toMatchObject({
+			primaryMediaType: "image",
+			descriptor: {
+				kind: "png-sequence",
+				frames: [{ source: "$primary" }, { source: "$resource:asset_0001" }],
+			},
+			resources: [
+				{
+					checksumSha256: "b".repeat(64),
+					mediaType: "image",
+					resourceName: "asset_0001",
+					sourceUrl: "blue.png",
+				},
+			],
+		});
+		expect(runtimePackage?.resources[0]?.file.name).toBe("blue.png");
+	});
+
+	it("aborts while a runtime resource bridge read is pending", async () => {
+		const reference = createLocalRuntimeReference();
+		const readResult = {
+			bytes: new Uint8Array([5, 6, 7, 8]),
+			fileName: "blue.png",
+			mimeType: "image/png",
+			batchId: reference.asset.batchId,
+			stickerId: reference.asset.stickerId,
+			resourceName: "blue.png",
+			checksumSha256: "b".repeat(64),
+		};
+		let resolveRead!: ({ result }: { result: typeof readResult }) => void;
+		platformMocks.readLocalReference.mockImplementation(
+			() =>
+				new Promise((resolve) => {
+					resolveRead = ({ result }) => resolve(result);
+				})
+		);
+		const abortController = new AbortController();
+		const pending = loadStickerLabReferenceRuntimePackage({
+			primaryFile: new File([new Uint8Array([1])], reference.fileName, {
+				type: reference.mimeType,
+			}),
+			reference,
+			signal: abortController.signal,
+		});
+		await vi.waitFor(() => {
+			expect(platformMocks.readLocalReference).toHaveBeenCalledTimes(1);
+		});
+
+		abortController.abort();
+		await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+		resolveRead({ result: readResult });
+		await Promise.resolve();
 	});
 
 	it("releases a cached local File and reads it again on demand", async () => {

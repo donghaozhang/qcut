@@ -71,6 +71,11 @@ import {
 	resolveJianyingNativePortraitPackagePath,
 } from "./native-pipeline/filters/filter-lab-native-portrait.js";
 import {
+	JIANYING_NATIVE_FACE_REGION_PROFILES,
+	resolveJianyingNativeFaceRegionPackagePath,
+} from "./native-pipeline/filters/filter-lab-native-face-region.js";
+import { resolveJianyingNativeSwingPackagePath } from "./native-pipeline/filters/filter-lab-native-swing.js";
+import {
 	loadJianyingMultiPassRecipe,
 	resolveMultiPassPackagePath,
 	type FilterLabMultiPassRecipe,
@@ -87,10 +92,15 @@ import {
 	parseFilterLabDownloadRequest,
 } from "./jianying-filter-lab-request.js";
 import { loadJianyingFilterLabRenderer } from "./jianying-filter-multi-pass-loader.js";
+import { loadJianyingFilterNativeSwingRenderer } from "./jianying-filter-native-swing-loader.js";
 import {
 	createJianyingFilterLocalProvider,
 	type JianyingFilterLocalProvider,
 } from "./jianying-filter-local-runtime/provider.js";
+import {
+	createJianyingFilterSwingProvider,
+	type JianyingFilterSwingProvider,
+} from "./jianying-filter-swing-runtime/provider.js";
 import { backupJianyingFilterRuntime } from "./jianying-filter-local-runtime/runtime-backup.js";
 import { inspectJianyingFilterLocalRuntime } from "./jianying-filter-local-runtime/runtime-discovery.js";
 
@@ -179,6 +189,7 @@ export interface SetupJianyingFilterLabIPCOptions {
 		onChange: () => void;
 	}) => JianyingFilterCacheWatcher;
 	localProvider?: JianyingFilterLocalProvider;
+	swingProvider?: JianyingFilterSwingProvider;
 	backupRuntime?: ({
 		filters,
 	}: {
@@ -245,10 +256,10 @@ function titlesByResource({
 	titles: ReadonlyMap<string, string>;
 }): Map<string, string> {
 	const byResource = new Map<string, string>(
-		JIANYING_NATIVE_PORTRAIT_PROFILES.map(({ resourceId, title }) => [
-			resourceId,
-			title,
-		])
+		[
+			...JIANYING_NATIVE_PORTRAIT_PROFILES,
+			...JIANYING_NATIVE_FACE_REGION_PROFILES,
+		].map(({ resourceId, title }) => [resourceId, title])
 	);
 	for (const reference of references) {
 		const title = findJianyingFilterTitle({ reference, titles });
@@ -334,6 +345,7 @@ export function setupJianyingFilterLabIPC(
 		),
 		watchCache,
 		localProvider = createJianyingFilterLocalProvider(),
+		swingProvider = createJianyingFilterSwingProvider(),
 		backupRuntime = async ({ filters }) =>
 			backupJianyingFilterRuntime({
 				filters,
@@ -467,6 +479,7 @@ export function setupJianyingFilterLabIPC(
 		catalogPromise = null;
 		thumbnailPromises.clear();
 		localProvider.clear();
+		swingProvider.clear();
 		const mainWindow = getMainWindow();
 		if (
 			mainWindow &&
@@ -517,6 +530,7 @@ export function setupJianyingFilterLabIPC(
 					)
 					.then(async (result) => {
 						localProvider.clear();
+						swingProvider.clear();
 						return {
 							...result,
 							status: await localProvider.inspect({ refresh: true }),
@@ -539,15 +553,44 @@ export function setupJianyingFilterLabIPC(
 			assertTrustedMainFrame({ event, mainWindow: getMainWindow() });
 			const parsed = parseFilterLabRenderLocalEffectRequest({ request });
 			const catalog = await readCatalog({ refresh: false });
-			const renderer = catalog.multiPassRenderers.get(parsed.resourceId);
-			if (!renderer) {
-				throw new Error("该滤镜不是可用的本机多 Pass 滤镜");
+			const multiPassRenderer = catalog.multiPassRenderers.get(
+				parsed.resourceId
+			);
+			if (multiPassRenderer) {
+				return localProvider.renderEffect({
+					...parsed,
+					packagePath: resolveMultiPassPackagePath({
+						cacheRoot: cacheRootForRenderer({ renderer: multiPassRenderer }),
+						renderer: multiPassRenderer,
+					}),
+				});
 			}
-			return localProvider.renderEffect({
+			const faceRegionRenderer = catalog.packages.get(
+				parsed.resourceId
+			)?.nativeFaceRegionRenderer;
+			if (faceRegionRenderer) {
+				return localProvider.renderEffect({
+					...parsed,
+					mode: "face-region",
+					packagePath: resolveJianyingNativeFaceRegionPackagePath({
+						cacheRoot: cacheRootForRenderer({
+							renderer: faceRegionRenderer,
+						}),
+						renderer: faceRegionRenderer,
+					}),
+				});
+			}
+			const swingRenderer = catalog.packages.get(
+				parsed.resourceId
+			)?.nativeSwingRenderer;
+			if (!swingRenderer) {
+				throw new Error("该滤镜不是可用的本机 Shader、双 LUT 或面部区域滤镜");
+			}
+			return swingProvider.renderEffect({
 				...parsed,
-				packagePath: resolveMultiPassPackagePath({
-					cacheRoot: cacheRootForRenderer({ renderer }),
-					renderer,
+				packagePath: resolveJianyingNativeSwingPackagePath({
+					cacheRoot: cacheRootForRenderer({ renderer: swingRenderer }),
+					renderer: swingRenderer,
 				}),
 			});
 		}
@@ -674,9 +717,18 @@ export function setupJianyingFilterLabIPC(
 			const { resourceId } = parseFilterLabRendererRequest({ request });
 			const catalog = await readCatalog({ refresh: false });
 			const renderer = catalog.multiPassRenderers.get(resourceId);
+			const swingRenderer =
+				catalog.packages.get(resourceId)?.nativeSwingRenderer;
 			const filter = catalog.result.filters.find(
 				(candidate) => candidate.resourceId === resourceId
 			);
+			if (swingRenderer && filter?.renderer?.kind === "native-swing-effect") {
+				return loadJianyingFilterNativeSwingRenderer({
+					filterTitle: filter.title,
+					renderer: swingRenderer,
+					resourceId,
+				});
+			}
 			if (!renderer || !filter?.renderer) {
 				throw new Error("该剪映 Shader 尚无可用的多 Pass 渲染器");
 			}
@@ -697,6 +749,7 @@ export function setupJianyingFilterLabIPC(
 			runtimeBackupPromise = null;
 			thumbnailPromises.clear();
 			localProvider.clear();
+			swingProvider.clear();
 			ipcMain.removeHandler(JIANYING_FILTER_LAB_LIST_CHANNEL);
 			ipcMain.removeHandler(JIANYING_FILTER_LAB_LOAD_CHANNEL);
 			ipcMain.removeHandler(JIANYING_FILTER_LAB_LOAD_RENDERER_CHANNEL);

@@ -100,11 +100,15 @@ describe("sticker resources", () => {
 					url: "/runtime/preview.png",
 				},
 				{
+					checksumSha256:
+						"2071f387c30c3af131c4c1ace4e1f32f5f2434ba70661da92005d98e4b16e0e5",
 					mimeType: "image/png",
 					role: "package",
 					url: "/runtime/frames/one.png",
 				},
 				{
+					checksumSha256:
+						"a9991f9d05e322471be3df2f6b537344efd961915ee0ac184a4dbfa86032e6dd",
 					mimeType: "image/png",
 					role: "package",
 					url: "/runtime/frames/two.png",
@@ -150,6 +154,14 @@ describe("sticker resources", () => {
 		expect(
 			downloaded.runtimePackage?.resources.map((resource) => resource.file.name)
 		).toEqual(["one.png", "two.png"]);
+		expect(
+			downloaded.runtimePackage?.resources.map(
+				(resource) => resource.checksumSha256
+			)
+		).toEqual([
+			"2071f387c30c3af131c4c1ace4e1f32f5f2434ba70661da92005d98e4b16e0e5",
+			"a9991f9d05e322471be3df2f6b537344efd961915ee0ac184a4dbfa86032e6dd",
+		]);
 	});
 
 	it("uses a correctly typed data URL for SVG media", async () => {

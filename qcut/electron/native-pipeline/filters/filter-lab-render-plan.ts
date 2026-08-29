@@ -24,7 +24,9 @@ import {
 	loadJianyingMultiPassRecipe,
 	resolveMultiPassPackagePath,
 } from "./filter-lab-multi-pass.js";
+import { resolveJianyingNativeFaceRegionPackagePath } from "./filter-lab-native-face-region.js";
 import { resolveJianyingNativePortraitPackagePath } from "./filter-lab-native-portrait.js";
+import { resolveJianyingNativeSwingPackagePath } from "./filter-lab-native-swing.js";
 import { selectJianyingFilterCacheRoot } from "./filter-lab-package-path.js";
 import {
 	loadTiledLutCube,
@@ -41,7 +43,9 @@ export interface FilterLabRenderEvidence {
 	backend:
 		| "ffmpeg-lut"
 		| "ffmpeg-multi-pass"
+		| "jianying-native-face-region"
 		| "jianying-native-portrait"
+		| "jianying-native-swing"
 		| "jianying-native-multi-pass";
 	fidelity: "lut" | "structural" | "native-local";
 }
@@ -52,7 +56,7 @@ export type FilterLabRenderPlan = {
 	| { kind: "ffmpeg"; filterGraph: string; outputLabel: string }
 	| {
 			kind: "native";
-			mode: "portrait" | "multi-pass";
+			mode: "portrait" | "face-region" | "multi-pass" | "swing";
 			packagePath: string;
 			runtime: JianyingFilterLocalRuntimeInspection;
 			captureFace: boolean;
@@ -163,6 +167,65 @@ export async function resolveFilterLabRenderPlan({
 				...evidence,
 				backend: "ffmpeg-multi-pass",
 				fidelity: "structural",
+			},
+		};
+	}
+
+	if (filter.implementation === "face-region-lut") {
+		const renderer = packageSummary.nativeFaceRegionRenderer;
+		if (!renderer || renderer.version !== card.version) {
+			throw new Error(
+				"This face-region LUT has no supported native face package."
+			);
+		}
+		const cacheRoot = selectJianyingFilterCacheRoot({
+			cacheRoots,
+			identity: renderer,
+		});
+		return {
+			kind: "native",
+			mode: "face-region",
+			packagePath: resolveJianyingNativeFaceRegionPackagePath({
+				cacheRoot,
+				renderer,
+			}),
+			captureFace: false,
+			runtime: await requireNativeRuntime(),
+			evidence: {
+				...evidence,
+				backend: "jianying-native-face-region",
+				fidelity: "native-local",
+			},
+		};
+	}
+
+	if (
+		(filter.implementation === "dual-lut" ||
+			filter.implementation === "shader" ||
+			filter.implementation === "face-ai") &&
+		filter.renderer?.kind === "native-swing-effect"
+	) {
+		const renderer = packageSummary.nativeSwingRenderer;
+		if (!renderer || renderer.version !== card.version) {
+			throw new Error("This filter has no supported native Swing package.");
+		}
+		const cacheRoot = selectJianyingFilterCacheRoot({
+			cacheRoots,
+			identity: renderer,
+		});
+		return {
+			kind: "native",
+			mode: "swing",
+			packagePath: resolveJianyingNativeSwingPackagePath({
+				cacheRoot,
+				renderer,
+			}),
+			captureFace: false,
+			runtime: await requireNativeRuntime(),
+			evidence: {
+				...evidence,
+				backend: "jianying-native-swing",
+				fidelity: "native-local",
 			},
 		};
 	}

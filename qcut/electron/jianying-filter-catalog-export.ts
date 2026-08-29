@@ -27,6 +27,7 @@ import {
 	type JianyingFilterMetadataScan,
 } from "./jianying-filter-metadata.js";
 import { JIANYING_NATIVE_PORTRAIT_PROFILES } from "./native-pipeline/filters/filter-lab-native-portrait.js";
+import { JIANYING_NATIVE_FACE_REGION_PROFILES } from "./native-pipeline/filters/filter-lab-native-face-region.js";
 import {
 	inspectJianyingFilterPackages,
 	type JianyingFilterPackageSummary,
@@ -106,10 +107,10 @@ function titlesByResource({
 	titles: ReadonlyMap<string, string>;
 }): Map<string, string> {
 	const byResource = new Map<string, string>(
-		JIANYING_NATIVE_PORTRAIT_PROFILES.map(({ resourceId, title }) => [
-			resourceId,
-			title,
-		])
+		[
+			...JIANYING_NATIVE_PORTRAIT_PROFILES,
+			...JIANYING_NATIVE_FACE_REGION_PROFILES,
+		].map(({ resourceId, title }) => [resourceId, title])
 	);
 	for (const reference of references) {
 		const title = findJianyingFilterTitle({ reference, titles });

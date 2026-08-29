@@ -1,35 +1,30 @@
-import { basename, join, posix, resolve, win32 } from "node:path";
+import { join, posix, resolve, win32 } from "node:path";
 import { homedir } from "node:os";
 import { opendir } from "node:fs/promises";
 import type {
 	LocalStickerLabCatalog,
 	LocalStickerLabDiscovery,
-	LocalStickerLabMimeType,
+	LocalStickerLabReadableMimeType,
 	LocalStickerLabReadResult,
-	LocalStickerLabReference,
 	LocalStickerLabWarning,
 } from "../../../preload-types/api-types/sticker-lab-api.js";
 import {
-	inspectLocalStickerFile,
 	isPathInside,
-	readSecureJson,
 	readVerifiedLocalStickerFile,
 	resolveRegularDirectory,
 } from "./filesystem.js";
 import {
-	parseLocalReferenceManifest,
-	parseLocalReferenceReport,
-	type LocalReferenceManifestCategory,
-	type LocalReferenceManifestItem,
-	type LocalReferenceReport,
-	type LocalReferenceReportItem,
-} from "./schemas.js";
+	type InternalLocalReference,
+	mapWithConcurrency,
+	reconcileBatch,
+	type ReconciledBatch,
+} from "./batch-reconciler.js";
+
+export { mapWithConcurrency } from "./batch-reconciler.js";
 
 const LOCAL_REFERENCE_DIRECTORY_NAME = "QCut Sticker Lab";
 const BATCH_DIRECTORY_PATTERN =
 	/^jianying-\d{4}-\d{2}-\d{2}(?:-batch-[1-9]\d*)?(?:-v[1-9]\d*)?$/;
-const MAX_LOCAL_REFERENCE_CATEGORY_BYTES = 128 * 1024 * 1024;
-const MAX_LOCAL_REFERENCE_CATALOG_BYTES = 512 * 1024 * 1024;
 
 /** Resource bounds for untrusted local discovery; asset bodies remain read-time only. */
 export const LOCAL_REFERENCE_DISCOVERY_LIMITS = Object.freeze({
@@ -48,27 +43,11 @@ export interface ReadLocalReferenceOptions {
 	rootPath: string;
 	batchId: string;
 	stickerId: string;
-}
-
-interface InternalLocalReference {
-	batchId: string;
-	batchRoot: string;
-	byteSize: number;
-	checksumSha256: string;
-	fileName: string;
-	filePath: string;
-	mimeType: LocalStickerLabMimeType;
-	stickerId: string;
+	resourceName?: string;
 }
 
 interface DiscoveryState {
 	references: Map<string, InternalLocalReference>;
-}
-
-interface ReconciledBatch {
-	catalog: LocalStickerLabCatalog;
-	references: InternalLocalReference[];
-	canonicalPaths: string[];
 }
 
 type SettledBatch =
@@ -182,308 +161,6 @@ function emptyDiscovery({
 	};
 }
 
-function assertUniqueValues({
-	label,
-	values,
-}: {
-	label: string;
-	values: readonly string[];
-}): void {
-	const seen = new Set<string>();
-	for (const value of values) {
-		if (seen.has(value)) throw new Error(`Duplicate ${label}: ${value}`);
-		seen.add(value);
-	}
-}
-
-function reportById({
-	report,
-}: {
-	report: LocalReferenceReport;
-}): Map<string, LocalReferenceReportItem> {
-	assertUniqueValues({
-		label: "report sticker id",
-		values: report.success.map(({ id }) => id),
-	});
-	assertUniqueValues({
-		label: "report sticker path",
-		values: report.success.map(({ filePath }) => filePath),
-	});
-	assertUniqueValues({
-		label: "report sticker checksum",
-		values: report.success.map(({ sha256 }) => sha256),
-	});
-	return new Map(report.success.map((item) => [item.id, item]));
-}
-
-function assertPlaybackMatches({
-	item,
-	reportVersion,
-	reportItem,
-}: {
-	item: LocalReferenceManifestItem;
-	reportVersion: LocalReferenceReport["version"];
-	reportItem: LocalReferenceReportItem;
-}): void {
-	if (item.mimeType === "image/png") {
-		if (
-			item.sourceKind !== "static-image" ||
-			item.playback.kind !== "static" ||
-			reportItem.frameCount !== 1 ||
-			(reportVersion === 2 && reportItem.frameRate !== null) ||
-			reportItem.durationSeconds !== null ||
-			reportItem.codec !== "png"
-		) {
-			throw new Error(`Static playback metadata mismatch: ${item.id}`);
-		}
-		return;
-	}
-	if (
-		!["direct-gif", "preview-gif"].includes(item.sourceKind) ||
-		item.playback.kind !== "animated" ||
-		reportItem.codec !== "gif" ||
-		reportItem.frameRate === null ||
-		reportItem.durationSeconds === null ||
-		reportItem.frameCount !== item.playback.frameCount
-	) {
-		throw new Error(`Animated playback metadata mismatch: ${item.id}`);
-	}
-	const frameRateMatches =
-		item.playback.frameRate === undefined ||
-		Math.abs(item.playback.frameRate - reportItem.frameRate) <= 1e-9;
-	const durationMatches =
-		Math.abs(item.playback.cycleDuration - reportItem.durationSeconds) <= 1e-9;
-	if (!frameRateMatches || !durationMatches) {
-		throw new Error(`Animated timing mismatch: ${item.id}`);
-	}
-}
-
-function assertItemMatchesReport({
-	category,
-	item,
-	itemIndex,
-	reportVersion,
-	reportItem,
-}: {
-	category: LocalReferenceManifestCategory;
-	item: LocalReferenceManifestItem;
-	itemIndex: number;
-	reportVersion: LocalReferenceReport["version"];
-	reportItem: LocalReferenceReportItem;
-}): void {
-	if (
-		reportItem.categoryId !== category.id ||
-		reportItem.category !== category.label ||
-		(reportVersion === 2 && reportItem.position !== itemIndex) ||
-		reportItem.title !== item.displayName ||
-		reportItem.sourceKind !== item.sourceKind ||
-		reportItem.mimeType !== item.mimeType ||
-		reportItem.filePath !== item.filePath
-	) {
-		throw new Error(`Manifest/report metadata mismatch: ${item.id}`);
-	}
-	if (basename(item.filePath) !== item.fileName) {
-		throw new Error(`Sticker fileName does not match its path: ${item.id}`);
-	}
-	const extension = item.mimeType === "image/gif" ? ".gif" : ".png";
-	if (!item.fileName.toLocaleLowerCase().endsWith(extension)) {
-		throw new Error(`Sticker extension does not match MIME type: ${item.id}`);
-	}
-	assertPlaybackMatches({ item, reportVersion, reportItem });
-}
-
-function assertLegacyReportOrdering({
-	manifestCategories,
-	reportItems,
-}: {
-	manifestCategories: readonly LocalReferenceManifestCategory[];
-	reportItems: ReadonlyMap<string, LocalReferenceReportItem>;
-}): void {
-	for (const category of manifestCategories) {
-		let previousPosition = -1;
-		for (const item of category.items) {
-			const reportItem = reportItems.get(item.id);
-			if (!reportItem) throw new Error(`Report is missing sticker: ${item.id}`);
-			if (reportItem.position <= previousPosition) {
-				throw new Error(`Legacy report order mismatch: ${item.id}`);
-			}
-			previousPosition = reportItem.position;
-		}
-	}
-}
-
-async function mapWithConcurrency<TInput, TOutput>({
-	concurrency,
-	inputs,
-	worker,
-}: {
-	concurrency: number;
-	inputs: readonly TInput[];
-	worker: ({ input }: { input: TInput }) => Promise<TOutput>;
-}): Promise<TOutput[]> {
-	const outputs = new Array<TOutput>(inputs.length);
-	let nextIndex = 0;
-	const runNext = async (): Promise<void> => {
-		const index = nextIndex;
-		nextIndex += 1;
-		if (index >= inputs.length) return;
-		outputs[index] = await worker({ input: inputs[index] as TInput });
-		return runNext();
-	};
-	await Promise.all(
-		Array.from({ length: Math.min(concurrency, inputs.length) }, () =>
-			runNext()
-		)
-	);
-	return outputs;
-}
-
-async function reconcileBatch({
-	batchId,
-	batchRoot,
-	rootPath,
-}: {
-	batchId: string;
-	batchRoot: string;
-	rootPath: string;
-}): Promise<ReconciledBatch> {
-	const [manifestCandidate, reportCandidate] = await Promise.all([
-		readSecureJson({
-			batchRoot,
-			filePath: join(batchRoot, "manifest.json"),
-			label: `${batchId} manifest`,
-		}),
-		readSecureJson({
-			batchRoot,
-			filePath: join(batchRoot, "report.json"),
-			label: `${batchId} report`,
-		}),
-	]);
-	const manifest = parseLocalReferenceManifest({
-		candidate: manifestCandidate,
-	});
-	const report = parseLocalReferenceReport({ candidate: reportCandidate });
-	assertUniqueValues({
-		label: "category id within batch",
-		values: manifest.categories.map(({ id }) => id),
-	});
-	const manifestItems = manifest.categories.flatMap(({ items }) => items);
-	assertUniqueValues({
-		label: "sticker id within batch",
-		values: manifestItems.map(({ id }) => id),
-	});
-	assertUniqueValues({
-		label: "sticker path within batch",
-		values: manifestItems.map(({ filePath }) => filePath),
-	});
-	if (manifestItems.length !== report.success.length) {
-		throw new Error("Manifest/report item counts do not match");
-	}
-	const indexedReport = reportById({ report });
-	if (report.version === 1) {
-		assertLegacyReportOrdering({
-			manifestCategories: manifest.categories,
-			reportItems: indexedReport,
-		});
-	}
-	const validationInputs = manifest.categories.flatMap((category) =>
-		category.items.map((item, itemIndex) => ({ category, item, itemIndex }))
-	);
-	const reconciled = await mapWithConcurrency({
-		concurrency: LOCAL_REFERENCE_DISCOVERY_LIMITS.fileConcurrencyPerBatch,
-		inputs: validationInputs,
-		worker: async ({ input: { category, item, itemIndex } }) => {
-			const reportItem = indexedReport.get(item.id);
-			if (!reportItem) throw new Error(`Report is missing sticker: ${item.id}`);
-			assertItemMatchesReport({
-				category,
-				item,
-				itemIndex,
-				reportVersion: report.version,
-				reportItem,
-			});
-			const canonicalPath = await inspectLocalStickerFile({
-				batchRoot,
-				expectedByteSize: reportItem.byteSize,
-				filePath: item.filePath,
-				stickerId: item.id,
-			});
-			const reference: LocalStickerLabReference = {
-				id: item.id,
-				displayName: item.displayName,
-				fileName: item.fileName,
-				mimeType: item.mimeType,
-				sourceKind: item.sourceKind,
-				playback: item.playback,
-				asset: {
-					kind: "local-reference",
-					rootPath,
-					batchId,
-					stickerId: item.id,
-					byteSize: reportItem.byteSize,
-					checksumSha256: reportItem.sha256,
-				},
-			};
-			return {
-				canonicalPath,
-				internal: {
-					batchId,
-					batchRoot,
-					byteSize: reportItem.byteSize,
-					checksumSha256: reportItem.sha256,
-					fileName: item.fileName,
-					filePath: canonicalPath,
-					mimeType: item.mimeType,
-					stickerId: item.id,
-				},
-				reference,
-			};
-		},
-	});
-	const referenceById = new Map(
-		reconciled.map(({ reference }) => [reference.id, reference])
-	);
-	let totalBytes = 0;
-	const categories = manifest.categories.map((category) => {
-		const items = category.items.map((item) => {
-			const reference = referenceById.get(item.id);
-			if (!reference)
-				throw new Error(`Validated sticker is missing: ${item.id}`);
-			return reference;
-		});
-		const categoryBytes = items.reduce(
-			(total, item) => total + item.asset.byteSize,
-			0
-		);
-		if (categoryBytes > MAX_LOCAL_REFERENCE_CATEGORY_BYTES) {
-			throw new Error(`Category ${category.id} exceeds its byte limit`);
-		}
-		totalBytes += categoryBytes;
-		return {
-			id: category.id,
-			label: category.label,
-			sourcePanel: category.sourcePanel,
-			items,
-		};
-	});
-	if (totalBytes > MAX_LOCAL_REFERENCE_CATALOG_BYTES) {
-		throw new Error(`${batchId} exceeds its catalog byte limit`);
-	}
-	return {
-		catalog: {
-			version: 1,
-			batchId,
-			referenceOnly: true,
-			...(manifest.generatedAt ? { generatedAt: manifest.generatedAt } : {}),
-			categories,
-			itemCount: manifestItems.length,
-			totalBytes,
-		},
-		references: reconciled.map(({ internal }) => internal),
-		canonicalPaths: reconciled.map(({ canonicalPath }) => canonicalPath),
-	};
-}
-
 function batchSequence({ batchId }: { batchId: string }): bigint {
 	const match = /-batch-(\d+)/.exec(batchId);
 	return BigInt(match?.[1] ?? "1");
@@ -579,12 +256,14 @@ async function collectBatchCandidates({
 
 function referenceKey({
 	batchId,
+	resourceName,
 	stickerId,
 }: {
 	batchId: string;
+	resourceName?: string;
 	stickerId: string;
 }): string {
-	return `${batchId}\0${stickerId}`;
+	return `${batchId}\0${stickerId}\0${resourceName ?? ""}`;
 }
 
 function validateAndAppendBatch({
@@ -611,34 +290,38 @@ function validateAndAppendBatch({
 			throw new Error(`Conflicting category label: ${category.id}`);
 		}
 	}
-	for (const [index, item] of batchItems.entries()) {
+	for (const item of batchItems) {
 		if (itemIds.has(item.id)) {
 			throw new Error(`Duplicate sticker id across batches: ${item.id}`);
 		}
-		if (checksums.has(item.asset.checksumSha256)) {
+	}
+	for (const reference of batch.primaryReferences) {
+		if (checksums.has(reference.checksumSha256)) {
 			throw new Error(
-				`Duplicate sticker checksum across batches: ${item.asset.checksumSha256}`
+				`Duplicate sticker checksum across batches: ${reference.checksumSha256}`
 			);
 		}
-		const canonicalPath = batch.canonicalPaths[index];
-		if (!canonicalPath || canonicalPaths.has(canonicalPath)) {
+		if (canonicalPaths.has(reference.filePath)) {
 			throw new Error(
-				`Duplicate sticker path across batches: ${canonicalPath}`
+				`Duplicate sticker path across batches: ${reference.filePath}`
 			);
 		}
 	}
 	for (const category of batch.catalog.categories) {
 		categoryLabels.set(category.id, category.label);
 	}
-	for (const [index, item] of batchItems.entries()) {
+	for (const item of batchItems) {
 		itemIds.add(item.id);
-		checksums.add(item.asset.checksumSha256);
-		canonicalPaths.add(batch.canonicalPaths[index] as string);
+	}
+	for (const primaryReference of batch.primaryReferences) {
+		checksums.add(primaryReference.checksumSha256);
+		canonicalPaths.add(primaryReference.filePath);
 	}
 	for (const internal of batch.references) {
 		references.set(
 			referenceKey({
 				batchId: internal.batchId,
+				resourceName: internal.resourceName,
 				stickerId: internal.stickerId,
 			}),
 			internal
@@ -735,6 +418,8 @@ export async function discoverLocalReferences({
 					batch: await reconcileBatch({
 						batchId,
 						batchRoot,
+						fileConcurrency:
+							LOCAL_REFERENCE_DISCOVERY_LIMITS.fileConcurrencyPerBatch,
 						rootPath: canonicalRoot,
 					}),
 					ok: true,
@@ -820,6 +505,7 @@ async function resolveDiscoveryState({
 export async function readLocalReference({
 	rootPath,
 	batchId,
+	resourceName,
 	stickerId,
 }: ReadLocalReferenceOptions): Promise<LocalStickerLabReadResult> {
 	if (!BATCH_DIRECTORY_PATTERN.test(batchId)) {
@@ -828,11 +514,25 @@ export async function readLocalReference({
 	if (!/^\d+$/.test(stickerId)) {
 		throw new Error(`Invalid local Sticker Lab sticker id: ${stickerId}`);
 	}
+	if (
+		resourceName !== undefined &&
+		(!resourceName.trim() ||
+			resourceName.startsWith("/") ||
+			resourceName.includes("\\") ||
+			resourceName.startsWith("$") ||
+			resourceName
+				.split("/")
+				.some((segment) => segment === "." || segment === ".."))
+	) {
+		throw new Error(`Invalid local Sticker Lab resource name: ${resourceName}`);
+	}
 	const state = await resolveDiscoveryState({ rootPath });
-	const internal = state.references.get(referenceKey({ batchId, stickerId }));
+	const internal = state.references.get(
+		referenceKey({ batchId, resourceName, stickerId })
+	);
 	if (!internal) {
 		throw new Error(
-			`Local Sticker Lab reference not found: ${batchId}/${stickerId}`
+			`Local Sticker Lab reference not found: ${batchId}/${stickerId}${resourceName ? `/${resourceName}` : ""}`
 		);
 	}
 	const bytes = await readVerifiedLocalStickerFile({
@@ -841,7 +541,9 @@ export async function readLocalReference({
 		expectedChecksumSha256: internal.checksumSha256,
 		filePath: internal.filePath,
 		mimeType: internal.mimeType,
-		stickerId,
+		stickerId: internal.resourceName
+			? `${stickerId}/${internal.resourceName}`
+			: stickerId,
 	});
 	return {
 		bytes,
@@ -850,6 +552,7 @@ export async function readLocalReference({
 		batchId,
 		stickerId,
 		checksumSha256: internal.checksumSha256,
+		...(internal.resourceName ? { resourceName: internal.resourceName } : {}),
 	};
 }
 
@@ -863,9 +566,12 @@ export type {
 	LocalStickerLabCategory,
 	LocalStickerLabDiscovery,
 	LocalStickerLabMimeType,
+	LocalStickerLabReadableMimeType,
 	LocalStickerLabPlayback,
 	LocalStickerLabReadResult,
 	LocalStickerLabReference,
+	LocalStickerLabRuntimeResource,
+	LocalStickerLabRuntimeResourceMimeType,
 	LocalStickerLabSourceKind,
 	LocalStickerLabWarning,
 	StickerLabRendererAPI,

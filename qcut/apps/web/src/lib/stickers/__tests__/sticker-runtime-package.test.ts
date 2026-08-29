@@ -72,6 +72,7 @@ describe("sticker runtime packages", () => {
 			},
 			resources: [
 				{
+					checksumSha256: "a".repeat(64),
 					file: mediaFile({ name: "atlas.png", type: "image/png" }),
 					sourceUrl: "/stickers/runtime/atlas.png",
 				},
@@ -84,6 +85,7 @@ describe("sticker runtime packages", () => {
 		});
 		expect(prepared.resources).toMatchObject([
 			{
+				checksumSha256: "a".repeat(64),
 				mediaType: "image",
 				resourceName: "asset_0001",
 				sourceUrl: "/stickers/runtime/atlas.png",

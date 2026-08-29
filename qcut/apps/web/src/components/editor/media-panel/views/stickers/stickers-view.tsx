@@ -12,6 +12,7 @@ import {
 	type StickerCategoryId,
 } from "@/lib/stickers/sticker-catalog";
 import type { StickerReferenceUsageMetadata } from "@/lib/stickers/local-sticker-reference";
+import type { PreparedStickerRuntimePackage } from "@/lib/stickers/sticker-runtime-package";
 import { useStickersStore } from "@/stores/stickers-store";
 import { AIStickerGenerator } from "./components/ai-sticker-generator";
 import {
@@ -133,11 +134,17 @@ export function StickersView() {
 	const handleLocalReferenceSelect = async ({
 		file,
 		metadata,
+		runtimePackage,
 	}: {
 		file: File;
 		metadata?: StickerReferenceUsageMetadata;
+		runtimePackage?: PreparedStickerRuntimePackage;
 	}) => {
-		const mediaItemId = await handleStickerUpload({ file, metadata });
+		const mediaItemId = await handleStickerUpload({
+			file,
+			metadata,
+			...(runtimePackage ? { runtimePackage } : {}),
+		});
 		if (!mediaItemId) {
 			throw new Error("Unable to add sticker lab asset");
 		}

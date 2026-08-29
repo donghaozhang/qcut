@@ -83,7 +83,9 @@ export function JianyingFilterLabShelf({
 			activeEffect={activeMultiPass ?? activeLut}
 			sidebarHost={sidebarHost}
 			onApply={applyJianyingLut}
-			onApplyMultiPass={({ settings }) => applyMultiPass({ settings })}
+			onApplyMultiPass={({ settings, layerName, successMessage }) =>
+				applyMultiPass({ settings, layerName, successMessage })
+			}
 			onEffectEnabledChange={setActiveEffectEnabled}
 			onEffectIntensityChange={updateActiveEffectIntensity}
 			onEffectIntensityCommit={completeLutIntensityInteraction}

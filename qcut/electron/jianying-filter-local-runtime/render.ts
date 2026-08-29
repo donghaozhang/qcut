@@ -15,7 +15,10 @@ import { decodePgm, decodePpm, encodePpm } from "./portable-image.js";
 import { prepareJianyingNativeMultiPassPackage } from "./package-preparer.js";
 import type { JianyingFilterLocalRuntimeInspection } from "./runtime-discovery.js";
 
-export type JianyingFilterLocalRenderMode = "portrait" | "multi-pass";
+export type JianyingFilterLocalRenderMode =
+	| "portrait"
+	| "face-region"
+	| "multi-pass";
 
 export interface JianyingFilterLocalRenderResult
 	extends JianyingFilterLabRenderLocalEffectResult {
@@ -369,6 +372,9 @@ export async function createJianyingFilterLocalRenderSession({
 			skipAlgorithm: mode === "multi-pass",
 			captureMask: mode === "portrait",
 			captureFace: shouldCaptureFace,
+			useEngineGlContext: mode === "face-region",
+			flipAlgorithmInputY: mode === "face-region",
+			flipProcessInputY: mode === "face-region",
 		});
 	} catch (cause) {
 		await rm(temporaryDirectory, { recursive: true, force: true });

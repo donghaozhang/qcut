@@ -81,6 +81,20 @@ describe("Sticker Lab IPC handlers", () => {
 		expect(mocks.readLocalReference).toHaveBeenCalledWith(options);
 	});
 
+	it("forwards an optional runtime resource name", async () => {
+		const read = getHandler({ channel: "sticker-lab:read-local-reference" });
+		const options = {
+			rootPath: "/private/stickers",
+			batchId: "jianying-2026-08-28-batch-99",
+			stickerId: "990103",
+			resourceName: "runtime/alpha.webm",
+		};
+
+		await read({}, options);
+
+		expect(mocks.readLocalReference).toHaveBeenCalledWith(options);
+	});
+
 	it("rejects incomplete IPC payloads", async () => {
 		const discover = getHandler({
 			channel: "sticker-lab:discover-local-references",
@@ -93,5 +107,16 @@ describe("Sticker Lab IPC handlers", () => {
 		await expect(
 			read({}, { rootPath: "/private/stickers", batchId: "batch" })
 		).rejects.toThrow("stickerId must be a non-empty string");
+		await expect(
+			read(
+				{},
+				{
+					rootPath: "/private/stickers",
+					batchId: "batch",
+					stickerId: "123",
+					resourceName: "",
+				}
+			)
+		).rejects.toThrow("resourceName must be a non-empty string");
 	});
 });

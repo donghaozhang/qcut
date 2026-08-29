@@ -226,6 +226,9 @@ export async function downloadStickerAssetResource({
 	const packageFiles = normalizedBlobs
 		.filter((candidate) => candidate.resource.role === "package")
 		.map(({ blob, resource: packageResource }, index) => ({
+			...(packageResource.checksumSha256
+				? { checksumSha256: packageResource.checksumSha256 }
+				: {}),
 			file: new File(
 				[blob],
 				sourceUrlFileName({

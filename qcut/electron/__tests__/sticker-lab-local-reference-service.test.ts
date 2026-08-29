@@ -4,6 +4,7 @@ import {
 	mkdir,
 	mkdtemp,
 	open,
+	readFile,
 	realpath,
 	rm,
 	symlink,
@@ -12,17 +13,23 @@ import {
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
+import { assertStickerRuntimeDescriptor } from "@qcut/editor-core/sticker-lab";
 import {
 	clearLocalReferenceDiscoveryCache,
 	discoverLocalReferences,
 	LOCAL_REFERENCE_DISCOVERY_LIMITS,
+	mapWithConcurrency,
 	readLocalReference,
 	resolveDefaultLocalReferenceRoot,
 } from "../native-pipeline/stickers/local-reference-catalog/index";
 import { readOpenedFileWithinLimit } from "../native-pipeline/stickers/local-reference-catalog/filesystem";
+import { parseLocalReferenceManifest } from "../native-pipeline/stickers/local-reference-catalog/schemas";
 
 const PNG_BYTES = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 0]);
 const GIF_BYTES = new TextEncoder().encode("GIF89a-local-reference");
+const WEBM_BYTES = new Uint8Array([
+	0x1a, 0x45, 0xdf, 0xa3, 0x87, 0x42, 0x82, 0x84, 0x77, 0x65, 0x62, 0x6d,
+]);
 const temporaryRoots: string[] = [];
 
 interface FixtureOptions {
@@ -162,6 +169,205 @@ async function writeFixture({
 	return { assetPath, batchId, batchRoot, rootPath };
 }
 
+async function writeRuntimePackageFixture({
+	batchId = "jianying-2026-08-28-batch-99",
+	fixtureRootPath,
+	id = "990103",
+	primaryBytes = PNG_BYTES,
+	resourceBytes = WEBM_BYTES,
+	resourceFilePath,
+	resourceDurationSeconds = 1,
+	resourceName = "alpha.webm",
+	resourceSha256,
+	separateMaskDurationSeconds,
+	shareSeparateMaskFile = false,
+	sourceDurationSeconds = 1,
+}: {
+	batchId?: string;
+	fixtureRootPath?: string;
+	id?: string;
+	primaryBytes?: Uint8Array;
+	resourceBytes?: Uint8Array;
+	resourceDurationSeconds?: number;
+	resourceFilePath?: string;
+	resourceName?: string;
+	resourceSha256?: string;
+	separateMaskDurationSeconds?: number;
+	shareSeparateMaskFile?: boolean;
+	sourceDurationSeconds?: number;
+} = {}): Promise<{
+	batchId: string;
+	batchRoot: string;
+	primaryPath: string;
+	resourcePath: string;
+	rootPath: string;
+}> {
+	const rootPath = fixtureRootPath ?? (await createTemporaryRoot());
+	const batchRoot = join(rootPath, batchId);
+	const primaryPath = join(batchRoot, "assets", `${id}-preview.png`);
+	const resourcePath =
+		resourceFilePath ?? join(batchRoot, "assets", `${id}-alpha.webm`);
+	const maskResourceName = "mask.webm";
+	const maskPath = shareSeparateMaskFile
+		? resourcePath
+		: join(batchRoot, "assets", `${id}-mask.webm`);
+	const maskFileName = shareSeparateMaskFile
+		? `${id}-alpha.webm`
+		: `${id}-mask.webm`;
+	await Promise.all([
+		mkdir(dirname(primaryPath), { recursive: true }),
+		mkdir(dirname(resourcePath), { recursive: true }),
+		...(separateMaskDurationSeconds === undefined || shareSeparateMaskFile
+			? []
+			: [mkdir(dirname(maskPath), { recursive: true })]),
+	]);
+	await Promise.all([
+		writeFile(primaryPath, primaryBytes),
+		writeFile(resourcePath, resourceBytes),
+		...(separateMaskDurationSeconds === undefined || shareSeparateMaskFile
+			? []
+			: [writeFile(maskPath, resourceBytes)]),
+	]);
+	const descriptor = {
+		kind: "alpha-video",
+		source: resourceName,
+		sourceDurationSeconds,
+		cycleDurationSeconds: 1,
+		layout:
+			separateMaskDurationSeconds === undefined
+				? {
+						kind: "side-by-side",
+						colorRect: { x: 0, y: 0, width: 0.5, height: 1 },
+						maskRect: { x: 0.5, y: 0, width: 0.5, height: 1 },
+						mask: { channel: "luma", inverted: false },
+					}
+				: {
+						kind: "separate-mask",
+						maskSource: maskResourceName,
+						mask: { channel: "luma", inverted: false },
+					},
+		progressKeyframes: [
+			{ atSeconds: 0, sourceProgress: 0, interpolation: "linear" },
+			{ atSeconds: 1, sourceProgress: 1, interpolation: "hold" },
+		],
+		repeat: { kind: "infinite" },
+		completion: "freeze-last",
+	};
+	const manifest = {
+		version: 1,
+		referenceOnly: true,
+		categories: [
+			{
+				id: "99001",
+				label: "QCut E2E runtime",
+				sourcePanel: "fixture",
+				items: [
+					{
+						id,
+						displayName: `Runtime sticker ${id}`,
+						fileName: `${id}-preview.png`,
+						filePath: primaryPath,
+						mimeType: "image/png",
+						sourceKind: "alpha-video",
+						playback: {
+							kind: "animated",
+							frameCount: 10,
+							frameRate: 10,
+							cycleDuration: 1,
+							loop: true,
+						},
+						runtimePackage: {
+							descriptor,
+							resources: [
+								{
+									resourceName,
+									fileName: `${id}-alpha.webm`,
+									filePath: resourcePath,
+									mimeType: "video/webm",
+								},
+								...(separateMaskDurationSeconds === undefined
+									? []
+									: [
+											{
+												resourceName: maskResourceName,
+												fileName: maskFileName,
+												filePath: maskPath,
+												mimeType: "video/webm",
+											},
+										]),
+							],
+						},
+					},
+				],
+			},
+		],
+	};
+	const report = {
+		version: 2,
+		referenceOnly: true,
+		success: [
+			{
+				categoryId: "99001",
+				category: "QCut E2E runtime",
+				endpointRow: null,
+				position: 0,
+				id,
+				title: `Runtime sticker ${id}`,
+				sourceKind: "alpha-video",
+				mimeType: "image/png",
+				filePath: primaryPath,
+				codec: "png",
+				width: 64,
+				height: 64,
+				frameCount: 1,
+				frameRate: null,
+				durationSeconds: null,
+				byteSize: primaryBytes.byteLength,
+				sha256: checksum({ bytes: primaryBytes }),
+				runtimeResources: [
+					{
+						resourceName,
+						fileName: `${id}-alpha.webm`,
+						filePath: resourcePath,
+						mimeType: "video/webm",
+						codec: "vp9",
+						width: 128,
+						height: 64,
+						frameCount: 10,
+						frameRate: 10,
+						durationSeconds: resourceDurationSeconds,
+						byteSize: resourceBytes.byteLength,
+						sha256: resourceSha256 ?? checksum({ bytes: resourceBytes }),
+					},
+					...(separateMaskDurationSeconds === undefined
+						? []
+						: [
+								{
+									resourceName: maskResourceName,
+									fileName: maskFileName,
+									filePath: maskPath,
+									mimeType: "video/webm",
+									codec: "vp9",
+									width: 64,
+									height: 64,
+									frameCount: 10,
+									frameRate: 10,
+									durationSeconds: separateMaskDurationSeconds,
+									byteSize: resourceBytes.byteLength,
+									sha256: checksum({ bytes: resourceBytes }),
+								},
+							]),
+				],
+			},
+		],
+	};
+	await Promise.all([
+		writeFile(join(batchRoot, "manifest.json"), JSON.stringify(manifest)),
+		writeFile(join(batchRoot, "report.json"), JSON.stringify(report)),
+	]);
+	return { batchId, batchRoot, primaryPath, resourcePath, rootPath };
+}
+
 afterEach(async () => {
 	clearLocalReferenceDiscoveryCache();
 	const roots = temporaryRoots.splice(0);
@@ -191,6 +397,92 @@ describe("local Sticker Lab reference service", () => {
 			maxBatches: 64,
 			maxCachedRoots: 8,
 		});
+	});
+
+	it("caps the shared file inspection queue at the published limit", async () => {
+		let activeWorkers = 0;
+		let maximumActiveWorkers = 0;
+		await mapWithConcurrency({
+			concurrency: LOCAL_REFERENCE_DISCOVERY_LIMITS.fileConcurrencyPerBatch,
+			inputs: Array.from({ length: 48 }, (_, index) => index),
+			worker: async ({ input }) => {
+				activeWorkers += 1;
+				maximumActiveWorkers = Math.max(maximumActiveWorkers, activeWorkers);
+				await new Promise((resolve) => setTimeout(resolve, 1));
+				activeWorkers -= 1;
+				return input;
+			},
+		});
+
+		expect(maximumActiveWorkers).toBe(
+			LOCAL_REFERENCE_DISCOVERY_LIMITS.fileConcurrencyPerBatch
+		);
+	});
+
+	it("uses the renderer femtosecond timing boundary for local descriptors", () => {
+		const descriptor = {
+			kind: "png-sequence",
+			cycleDurationSeconds: 1,
+			frames: [
+				{
+					source: "frame-1.png",
+					startSeconds: 0,
+					durationSeconds: 0.5,
+				},
+				{
+					source: "frame-2.png",
+					startSeconds: 0.500_000_000_5,
+					durationSeconds: 0.499_999_999_5,
+				},
+			],
+			repeat: { kind: "infinite" },
+			completion: "freeze-last",
+		};
+		const candidate = {
+			version: 1,
+			referenceOnly: true,
+			categories: [
+				{
+					id: "99001",
+					label: "QCut timing fixture",
+					sourcePanel: "fixture",
+					items: [
+						{
+							id: "990103",
+							displayName: "Timing boundary",
+							fileName: "preview.png",
+							filePath: "/tmp/preview.png",
+							mimeType: "image/png",
+							sourceKind: "png-sequence",
+							playback: {
+								kind: "animated",
+								frameCount: 2,
+								cycleDuration: 1,
+								loop: true,
+							},
+							runtimePackage: {
+								descriptor,
+								resources: ["frame-1.png", "frame-2.png"].map(
+									(resourceName) => ({
+										resourceName,
+										fileName: resourceName,
+										filePath: `/tmp/${resourceName}`,
+										mimeType: "image/png",
+									})
+								),
+							},
+						},
+					],
+				},
+			],
+		};
+
+		expect(() => assertStickerRuntimeDescriptor({ descriptor })).toThrow(
+			"Frame timing table must be positive, ordered, and contiguous"
+		);
+		expect(() => parseLocalReferenceManifest({ candidate })).toThrow(
+			"runtime frames must be contiguous and start at zero"
+		);
 	});
 
 	it("normalizes the legacy first-batch manifest and report", async () => {
@@ -254,6 +546,257 @@ describe("local Sticker Lab reference service", () => {
 		expect(png.mimeType).toBe("image/png");
 		expect(Array.from(gif.bytes)).toEqual(Array.from(GIF_BYTES));
 		expect(gif.mimeType).toBe("image/gif");
+	});
+
+	it("discovers, totals, and verifies a multi-resource runtime package", async () => {
+		const fixture = await writeRuntimePackageFixture();
+
+		const discovery = await discoverLocalReferences({
+			rootPath: fixture.rootPath,
+		});
+
+		expect(discovery.warnings).toEqual([]);
+		expect(discovery.summary).toEqual({
+			batchCount: 1,
+			categoryCount: 1,
+			itemCount: 1,
+			totalBytes: PNG_BYTES.byteLength + WEBM_BYTES.byteLength,
+		});
+		const reference = discovery.catalogs[0]?.categories[0]?.items[0];
+		expect(reference?.runtimePackage?.descriptor).toMatchObject({
+			kind: "alpha-video",
+			source: "alpha.webm",
+		});
+		expect(reference?.runtimePackage?.resources).toEqual([
+			{
+				resourceName: "alpha.webm",
+				fileName: "990103-alpha.webm",
+				mimeType: "video/webm",
+				asset: {
+					kind: "local-reference-runtime-resource",
+					rootPath: fixture.rootPath,
+					batchId: fixture.batchId,
+					stickerId: "990103",
+					resourceName: "alpha.webm",
+					byteSize: WEBM_BYTES.byteLength,
+					checksumSha256: checksum({ bytes: WEBM_BYTES }),
+				},
+			},
+		]);
+		expect(reference?.runtimePackage?.resources[0]).not.toHaveProperty(
+			"filePath"
+		);
+
+		const [primary, runtimeResource] = await Promise.all([
+			readLocalReference({
+				rootPath: fixture.rootPath,
+				batchId: fixture.batchId,
+				stickerId: "990103",
+			}),
+			readLocalReference({
+				rootPath: fixture.rootPath,
+				batchId: fixture.batchId,
+				stickerId: "990103",
+				resourceName: "alpha.webm",
+			}),
+		]);
+		expect(Array.from(primary.bytes)).toEqual(Array.from(PNG_BYTES));
+		expect(runtimeResource).toMatchObject({
+			batchId: fixture.batchId,
+			checksumSha256: checksum({ bytes: WEBM_BYTES }),
+			stickerId: "990103",
+			resourceName: "alpha.webm",
+			fileName: "990103-alpha.webm",
+			mimeType: "video/webm",
+		});
+		expect(Array.from(runtimeResource.bytes)).toEqual(Array.from(WEBM_BYTES));
+	});
+
+	it("requires alpha source and separate mask reports to match source duration", async () => {
+		const sourceMismatch = await writeRuntimePackageFixture({
+			resourceDurationSeconds: 1,
+			sourceDurationSeconds: 2,
+		});
+		const maskMismatch = await writeRuntimePackageFixture({
+			batchId: "jianying-2026-08-28-batch-100",
+			resourceDurationSeconds: 1,
+			separateMaskDurationSeconds: 0.5,
+			sourceDurationSeconds: 1,
+		});
+
+		const [sourceDiscovery, maskDiscovery] = await Promise.all([
+			discoverLocalReferences({ rootPath: sourceMismatch.rootPath }),
+			discoverLocalReferences({ rootPath: maskMismatch.rootPath }),
+		]);
+
+		expect(sourceDiscovery.summary.itemCount).toBe(0);
+		expect(sourceDiscovery.warnings[0]?.message).toContain(
+			"Alpha-video source duration mismatch: 990103/alpha.webm"
+		);
+		expect(maskDiscovery.summary.itemCount).toBe(0);
+		expect(maskDiscovery.warnings[0]?.message).toContain(
+			"Alpha-video source duration mismatch: 990103/mask.webm"
+		);
+	});
+
+	it("allows separate alpha resources to share a verified path and hash", async () => {
+		const fixture = await writeRuntimePackageFixture({
+			separateMaskDurationSeconds: 1,
+			shareSeparateMaskFile: true,
+		});
+
+		const discovery = await discoverLocalReferences({
+			rootPath: fixture.rootPath,
+		});
+
+		expect(discovery.warnings).toEqual([]);
+		expect(discovery.summary.itemCount).toBe(1);
+		const resources =
+			discovery.catalogs[0]?.categories[0]?.items[0]?.runtimePackage
+				?.resources ?? [];
+		expect(resources).toHaveLength(2);
+		expect(resources[0]?.asset.checksumSha256).toBe(
+			resources[1]?.asset.checksumSha256
+		);
+		const [source, mask] = await Promise.all([
+			readLocalReference({
+				rootPath: fixture.rootPath,
+				batchId: fixture.batchId,
+				stickerId: "990103",
+				resourceName: "alpha.webm",
+			}),
+			readLocalReference({
+				rootPath: fixture.rootPath,
+				batchId: fixture.batchId,
+				stickerId: "990103",
+				resourceName: "mask.webm",
+			}),
+		]);
+		expect(source.bytes).toEqual(mask.bytes);
+	});
+
+	it("fails a runtime resource read when its hash or WebM magic changes", async () => {
+		const wrongHash = await writeRuntimePackageFixture({
+			resourceSha256: "a".repeat(64),
+		});
+		await discoverLocalReferences({ rootPath: wrongHash.rootPath });
+		await expect(
+			readLocalReference({
+				rootPath: wrongHash.rootPath,
+				batchId: wrongHash.batchId,
+				stickerId: "990103",
+				resourceName: "alpha.webm",
+			})
+		).rejects.toThrow("SHA-256 mismatch");
+
+		const invalidMagicBytes = new TextEncoder().encode("not-webm");
+		const invalidMagic = await writeRuntimePackageFixture({
+			batchId: "jianying-2026-08-28-batch-100",
+			resourceBytes: invalidMagicBytes,
+		});
+		await discoverLocalReferences({ rootPath: invalidMagic.rootPath });
+		await expect(
+			readLocalReference({
+				rootPath: invalidMagic.rootPath,
+				batchId: invalidMagic.batchId,
+				stickerId: "990103",
+				resourceName: "alpha.webm",
+			})
+		).rejects.toThrow("magic does not match MIME type");
+
+		const matroskaBytes = new Uint8Array([
+			0x1a, 0x45, 0xdf, 0xa3, 0x8b, 0x42, 0x82, 0x88, 0x6d, 0x61, 0x74, 0x72,
+			0x6f, 0x73, 0x6b, 0x61,
+		]);
+		const matroska = await writeRuntimePackageFixture({
+			batchId: "jianying-2026-08-28-batch-101",
+			resourceBytes: matroskaBytes,
+		});
+		await discoverLocalReferences({ rootPath: matroska.rootPath });
+		await expect(
+			readLocalReference({
+				rootPath: matroska.rootPath,
+				batchId: matroska.batchId,
+				stickerId: "990103",
+				resourceName: "alpha.webm",
+			})
+		).rejects.toThrow("magic does not match MIME type");
+
+		const embeddedWebmSignatureBytes = new Uint8Array([
+			0x1a, 0x45, 0xdf, 0xa3, 0x94, 0x42, 0x82, 0x88, 0x6d, 0x61, 0x74, 0x72,
+			0x6f, 0x73, 0x6b, 0x61, 0xec, 0x87, 0x42, 0x82, 0x84, 0x77, 0x65, 0x62,
+			0x6d,
+		]);
+		const embeddedSignature = await writeRuntimePackageFixture({
+			batchId: "jianying-2026-08-28-batch-102",
+			resourceBytes: embeddedWebmSignatureBytes,
+		});
+		await discoverLocalReferences({ rootPath: embeddedSignature.rootPath });
+		await expect(
+			readLocalReference({
+				rootPath: embeddedSignature.rootPath,
+				batchId: embeddedSignature.batchId,
+				stickerId: "990103",
+				resourceName: "alpha.webm",
+			})
+		).rejects.toThrow("magic does not match MIME type");
+	});
+
+	it("rejects missing, unreferenced, and path-escaping runtime resources", async () => {
+		const missingSource = await writeRuntimePackageFixture();
+		const manifestPath = join(missingSource.batchRoot, "manifest.json");
+		const manifest = JSON.parse(await readFile(manifestPath, "utf8")) as {
+			categories: Array<{
+				items: Array<{
+					runtimePackage: {
+						descriptor: { source: string };
+						resources: Array<{ resourceName: string }>;
+					};
+				}>;
+			}>;
+		};
+		const runtimePackage = manifest.categories[0]?.items[0]?.runtimePackage;
+		if (!runtimePackage) throw new Error("Runtime fixture package is missing");
+		runtimePackage.descriptor.source = "missing.webm";
+		await writeFile(manifestPath, JSON.stringify(manifest));
+		const missingDiscovery = await discoverLocalReferences({
+			rootPath: missingSource.rootPath,
+		});
+		expect(missingDiscovery.summary.itemCount).toBe(0);
+		expect(missingDiscovery.warnings[0]?.message).toContain(
+			"runtime source is missing"
+		);
+
+		const outsideRoot = await createTemporaryRoot();
+		const outsideResource = join(outsideRoot, "990103-alpha.webm");
+		const escaping = await writeRuntimePackageFixture({
+			batchId: "jianying-2026-08-28-batch-100",
+			resourceFilePath: outsideResource,
+		});
+		const escapingDiscovery = await discoverLocalReferences({
+			rootPath: escaping.rootPath,
+		});
+		expect(escapingDiscovery.summary.itemCount).toBe(0);
+		expect(escapingDiscovery.warnings[0]?.message).toContain(
+			"escapes its batch"
+		);
+	});
+
+	it("allows runtime resource hashes to be shared across batches", async () => {
+		const rootPath = await createTemporaryRoot();
+		await writeRuntimePackageFixture({ fixtureRootPath: rootPath });
+		await writeRuntimePackageFixture({
+			batchId: "jianying-2026-08-28-batch-100",
+			fixtureRootPath: rootPath,
+			id: "990104",
+			primaryBytes: new Uint8Array([...PNG_BYTES, 4]),
+		});
+
+		const discovery = await discoverLocalReferences({ rootPath });
+
+		expect(discovery.summary.batchCount).toBe(2);
+		expect(discovery.summary.itemCount).toBe(2);
+		expect(discovery.warnings).toEqual([]);
 	});
 
 	it("hard-caps a file that grows after its initial inspection", async () => {

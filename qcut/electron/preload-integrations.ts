@@ -195,11 +195,12 @@ export function createStickerLabAPI(): NonNullable<ElectronAPI["stickerLab"]> {
 			ipcRenderer.invoke("sticker-lab:discover-local-references", {
 				...(rootPath === undefined ? {} : { rootPath }),
 			}),
-		readLocalReference: ({ rootPath, batchId, stickerId }) =>
+		readLocalReference: ({ rootPath, batchId, stickerId, resourceName }) =>
 			ipcRenderer.invoke("sticker-lab:read-local-reference", {
 				rootPath,
 				batchId,
 				stickerId,
+				...(resourceName === undefined ? {} : { resourceName }),
 			}),
 	};
 }

@@ -22,6 +22,12 @@ describe("Sticker Lab preload API", () => {
 			batchId: "jianying-2026-08-23-batch-18-v2",
 			stickerId: "123",
 		});
+		await stickerLab.readLocalReference({
+			rootPath: "/private/stickers",
+			batchId: "jianying-2026-08-28-batch-99",
+			stickerId: "990103",
+			resourceName: "runtime/alpha.webm",
+		});
 
 		expect(invoke.mock.calls).toEqual([
 			["sticker-lab:discover-local-references", {}],
@@ -35,6 +41,15 @@ describe("Sticker Lab preload API", () => {
 					rootPath: "/private/stickers",
 					batchId: "jianying-2026-08-23-batch-18-v2",
 					stickerId: "123",
+				},
+			],
+			[
+				"sticker-lab:read-local-reference",
+				{
+					rootPath: "/private/stickers",
+					batchId: "jianying-2026-08-28-batch-99",
+					stickerId: "990103",
+					resourceName: "runtime/alpha.webm",
 				},
 			],
 		]);

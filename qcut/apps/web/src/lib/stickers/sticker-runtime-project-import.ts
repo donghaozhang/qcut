@@ -18,20 +18,49 @@ function resourceMediaId({
 	return `sticker-runtime:${asset.id}@${asset.version}:${resourceName}`;
 }
 
+function expectedResourceMetadata({
+	asset,
+	metadata,
+	resource,
+}: {
+	asset: Pick<AssetManifestEntry, "id" | "version">;
+	metadata?: Record<string, unknown>;
+	resource: PreparedStickerRuntimePackage["resources"][number];
+}): Record<string, unknown> {
+	return {
+		...metadata,
+		...(resource.checksumSha256
+			? { checksumSha256: resource.checksumSha256 }
+			: {}),
+		source: "sticker-runtime-resource",
+		stickerAssetId: asset.id,
+		stickerAssetVersion: asset.version,
+		stickerRuntimeResourceName: resource.resourceName,
+		stickerRuntimeSourceUrl: resource.sourceUrl,
+	};
+}
+
 function assertReusableResource({
 	existing,
+	expectedMetadata,
 	mediaType,
-	resourceName,
 }: {
 	existing: MediaItem;
+	expectedMetadata: Record<string, unknown>;
 	mediaType: MediaItem["type"];
-	resourceName: string;
 }): void {
-	if (
-		existing.type !== mediaType ||
-		existing.metadata?.stickerRuntimeResourceName !== resourceName
-	) {
-		throw new Error(`Sticker runtime resource ID collision: ${existing.id}`);
+	if (existing.type !== mediaType) {
+		throw new Error(
+			`Sticker runtime resource ID collision: ${existing.id} has unexpected type`
+		);
+	}
+	const mismatchedMetadata = Object.entries(expectedMetadata).find(
+		([key, value]) => !Object.is(existing.metadata?.[key], value)
+	);
+	if (mismatchedMetadata) {
+		throw new Error(
+			`Sticker runtime resource ID collision: ${existing.id} has unexpected metadata ${mismatchedMetadata[0]}`
+		);
 	}
 }
 
@@ -53,6 +82,7 @@ export async function registerStickerRuntimePackageResources({
 	addMediaItem,
 	asset,
 	existingMediaItems,
+	metadata,
 	projectId,
 	removeMediaItem,
 	runtimePackage,
@@ -60,6 +90,7 @@ export async function registerStickerRuntimePackageResources({
 	addMediaItem: MediaStore["addMediaItem"];
 	asset: Pick<AssetManifestEntry, "id" | "version">;
 	existingMediaItems: readonly MediaItem[];
+	metadata?: Record<string, unknown>;
 	projectId: string;
 	removeMediaItem: MediaStore["removeMediaItem"];
 	runtimePackage: PreparedStickerRuntimePackage;
@@ -76,8 +107,12 @@ export async function registerStickerRuntimePackageResources({
 		if (existing) {
 			assertReusableResource({
 				existing,
+				expectedMetadata: expectedResourceMetadata({
+					asset,
+					metadata,
+					resource,
+				}),
 				mediaType: resource.mediaType,
-				resourceName: resource.resourceName,
 			});
 			return [];
 		}
@@ -89,19 +124,18 @@ export async function registerStickerRuntimePackageResources({
 		newResources.map(async ({ id, resource }) => {
 			const mediaUrl = await createStickerMediaUrl({ blob: resource.file });
 			if (mediaUrl.revoke) createdObjectUrls.push(mediaUrl.url);
+			const resourceMetadata = expectedResourceMetadata({
+				asset,
+				metadata,
+				resource,
+			});
 			const createdId = await addMediaItem(projectId, {
 				id,
 				file: resource.file,
 				name: resource.file.name,
 				type: resource.mediaType,
 				url: mediaUrl.url,
-				metadata: {
-					source: "sticker-runtime-resource",
-					stickerAssetId: asset.id,
-					stickerAssetVersion: asset.version,
-					stickerRuntimeResourceName: resource.resourceName,
-					stickerRuntimeSourceUrl: resource.sourceUrl,
-				},
+				metadata: resourceMetadata,
 			});
 			return {
 				createdId,

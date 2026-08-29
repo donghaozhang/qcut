@@ -3,6 +3,10 @@ import {
 	createJianyingFilterLocalRenderSession,
 	type JianyingFilterLocalRenderSession,
 } from "../../jianying-filter-local-runtime/render.js";
+import {
+	createJianyingFilterSwingRenderSession,
+	type JianyingFilterSwingRenderSession,
+} from "../../jianying-filter-swing-runtime/render.js";
 import { createFilterLabFrameStream } from "./filter-lab-frame-stream.js";
 import {
 	filterLabEncodeArgs,
@@ -55,7 +59,10 @@ async function renderNativeMedia({
 }: FilterLabRenderMediaOptions & {
 	plan: Extract<FilterLabRenderPlan, { kind: "native" }>;
 }): Promise<void> {
-	let session: JianyingFilterLocalRenderSession | undefined;
+	let session:
+		| JianyingFilterLocalRenderSession
+		| JianyingFilterSwingRenderSession
+		| undefined;
 	const decode = startFilterLabFfmpeg({
 		args: [
 			"-i",
@@ -101,29 +108,42 @@ async function renderNativeMedia({
 		renderFrame: async ({ rgba, index }) => {
 			signal.throwIfAborted();
 			if (!session) {
-				session = await createJianyingFilterLocalRenderSession({
-					resourceId: plan.evidence.resourceId,
-					packagePath: plan.packagePath,
-					width: media.width,
-					height: media.height,
-					bootstrapRgba: rgba,
-					runtime: plan.runtime,
-					mode: plan.mode,
-					intensity: plan.evidence.intensity,
-					captureFace: plan.captureFace,
-				});
+				session =
+					plan.mode === "swing"
+						? await createJianyingFilterSwingRenderSession({
+								resourceId: plan.evidence.resourceId,
+								packagePath: plan.packagePath,
+								width: media.width,
+								height: media.height,
+								runtime: plan.runtime,
+								intensity: plan.evidence.intensity,
+							})
+						: await createJianyingFilterLocalRenderSession({
+								resourceId: plan.evidence.resourceId,
+								packagePath: plan.packagePath,
+								width: media.width,
+								height: media.height,
+								bootstrapRgba: rgba,
+								runtime: plan.runtime,
+								mode: plan.mode,
+								intensity: plan.evidence.intensity,
+								captureFace: plan.captureFace,
+							});
 			}
 			signal.throwIfAborted();
 			const result = await session.render({
 				rgba,
 				timestampSeconds: isImage ? 0 : index / media.frameRate,
 			});
-			if (plan.mode === "portrait" && !result.mask)
+			if (plan.mode === "portrait" && !("mask" in result && result.mask))
 				throw new Error("Native skin segmentation did not return a mask.");
 			return restoreAlphaAndIntensity({
 				source: rgba,
 				rendered: result.rgba,
-				intensity: plan.mode === "portrait" ? plan.evidence.intensity : 100,
+				intensity:
+					plan.mode === "multi-pass" || plan.mode === "swing"
+						? 100
+						: plan.evidence.intensity,
 			});
 		},
 	});

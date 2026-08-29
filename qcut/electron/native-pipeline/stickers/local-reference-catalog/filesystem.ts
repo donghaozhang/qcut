@@ -349,23 +349,135 @@ export async function inspectLocalStickerFile({
 	return inspected.canonicalPath;
 }
 
+const EBML_HEADER_ID = 0x1a45dfa3n;
+const EBML_DOC_TYPE_ID = 0x4282n;
+const MAX_EBML_HEADER_BYTES = 4096;
+
+interface EbmlVint {
+	length: number;
+	value: bigint;
+}
+
+function ebmlVintLength({
+	firstByte,
+	maximumLength,
+}: {
+	firstByte: number;
+	maximumLength: number;
+}): { length: number; marker: number } | null {
+	if (firstByte === 0) return null;
+	let length = 1;
+	let marker = 0x80;
+	while (length <= maximumLength && (firstByte & marker) === 0) {
+		length += 1;
+		marker >>= 1;
+	}
+	return length <= maximumLength ? { length, marker } : null;
+}
+
+function readEbmlElementId({
+	bytes,
+	offset,
+}: {
+	bytes: Uint8Array;
+	offset: number;
+}): EbmlVint | null {
+	const firstByte = bytes[offset];
+	if (firstByte === undefined) return null;
+	const encoding = ebmlVintLength({ firstByte, maximumLength: 4 });
+	if (!encoding || offset + encoding.length > bytes.byteLength) return null;
+	let value = 0n;
+	for (let index = 0; index < encoding.length; index += 1) {
+		value = (value << 8n) | BigInt(bytes[offset + index] ?? 0);
+	}
+	return { length: encoding.length, value };
+}
+
+function readEbmlElementSize({
+	bytes,
+	offset,
+}: {
+	bytes: Uint8Array;
+	offset: number;
+}): EbmlVint | null {
+	const firstByte = bytes[offset];
+	if (firstByte === undefined) return null;
+	const encoding = ebmlVintLength({ firstByte, maximumLength: 8 });
+	if (!encoding || offset + encoding.length > bytes.byteLength) return null;
+	let value = BigInt(firstByte & (encoding.marker - 1));
+	for (let index = 1; index < encoding.length; index += 1) {
+		value = (value << 8n) | BigInt(bytes[offset + index] ?? 0);
+	}
+	const unknownSize = (1n << BigInt(encoding.length * 7)) - 1n;
+	if (value === unknownSize) return null;
+	return { length: encoding.length, value };
+}
+
+function isCanonicalWebmHeader({ bytes }: { bytes: Uint8Array }): boolean {
+	const headerId = readEbmlElementId({ bytes, offset: 0 });
+	if (!headerId || headerId.value !== EBML_HEADER_ID) return false;
+	const headerSize = readEbmlElementSize({
+		bytes,
+		offset: headerId.length,
+	});
+	if (!headerSize || headerSize.value > BigInt(MAX_EBML_HEADER_BYTES)) {
+		return false;
+	}
+	const payloadStart = headerId.length + headerSize.length;
+	const payloadEnd = payloadStart + Number(headerSize.value);
+	if (payloadEnd > bytes.byteLength) return false;
+
+	let docTypeFound = false;
+	let offset = payloadStart;
+	while (offset < payloadEnd) {
+		const elementId = readEbmlElementId({ bytes, offset });
+		if (!elementId) return false;
+		const sizeOffset = offset + elementId.length;
+		const elementSize = readEbmlElementSize({ bytes, offset: sizeOffset });
+		if (!elementSize || elementSize.value > BigInt(MAX_EBML_HEADER_BYTES)) {
+			return false;
+		}
+		const dataStart = sizeOffset + elementSize.length;
+		const dataEnd = dataStart + Number(elementSize.value);
+		if (dataEnd > payloadEnd) return false;
+		if (elementId.value === EBML_DOC_TYPE_ID) {
+			if (
+				docTypeFound ||
+				elementSize.value !== 4n ||
+				bytes[dataStart] !== 0x77 ||
+				bytes[dataStart + 1] !== 0x65 ||
+				bytes[dataStart + 2] !== 0x62 ||
+				bytes[dataStart + 3] !== 0x6d
+			) {
+				return false;
+			}
+			docTypeFound = true;
+		}
+		offset = dataEnd;
+	}
+	return offset === payloadEnd && docTypeFound;
+}
+
 function hasExpectedMagic({
 	bytes,
 	mimeType,
 }: {
 	bytes: Uint8Array;
-	mimeType: "image/gif" | "image/png";
+	mimeType: "image/gif" | "image/png" | "video/webm";
 }): boolean {
 	if (mimeType === "image/gif") {
 		if (bytes.byteLength < 6) return false;
 		const signature = new TextDecoder("ascii").decode(bytes.slice(0, 6));
 		return signature === "GIF87a" || signature === "GIF89a";
 	}
-	const pngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
-	return (
-		bytes.byteLength >= pngSignature.length &&
-		pngSignature.every((value, index) => bytes[index] === value)
-	);
+	if (mimeType === "image/png") {
+		const pngSignature = [137, 80, 78, 71, 13, 10, 26, 10];
+		return (
+			bytes.byteLength >= pngSignature.length &&
+			pngSignature.every((value, index) => bytes[index] === value)
+		);
+	}
+	return isCanonicalWebmHeader({ bytes });
 }
 
 export async function readVerifiedLocalStickerFile({
@@ -380,7 +492,7 @@ export async function readVerifiedLocalStickerFile({
 	expectedByteSize: number;
 	expectedChecksumSha256: string;
 	filePath: string;
-	mimeType: "image/gif" | "image/png";
+	mimeType: "image/gif" | "image/png" | "video/webm";
 	stickerId: string;
 }): Promise<Uint8Array> {
 	const bytes = await readStableFile({

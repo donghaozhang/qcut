@@ -9,6 +9,10 @@
  */
 
 export type LocalStickerLabMimeType = "image/gif" | "image/png";
+export type LocalStickerLabRuntimeResourceMimeType = "image/png" | "video/webm";
+export type LocalStickerLabReadableMimeType =
+	| LocalStickerLabMimeType
+	| LocalStickerLabRuntimeResourceMimeType;
 
 export type LocalStickerLabSourceKind =
 	| "static-image"
@@ -39,6 +43,29 @@ export interface LocalStickerLabAsset {
 	checksumSha256: string;
 }
 
+export interface LocalStickerLabRuntimeResourceAsset {
+	kind: "local-reference-runtime-resource";
+	rootPath: string;
+	batchId: string;
+	stickerId: string;
+	resourceName: string;
+	byteSize: number;
+	checksumSha256: string;
+}
+
+export interface LocalStickerLabRuntimeResource {
+	resourceName: string;
+	fileName: string;
+	mimeType: LocalStickerLabRuntimeResourceMimeType;
+	asset: LocalStickerLabRuntimeResourceAsset;
+}
+
+export interface LocalStickerLabRuntimePackage {
+	/** The renderer validates this untrusted IPC value before using it. */
+	descriptor: unknown;
+	resources: LocalStickerLabRuntimeResource[];
+}
+
 export interface LocalStickerLabReference {
 	id: string;
 	displayName: string;
@@ -47,6 +74,7 @@ export interface LocalStickerLabReference {
 	sourceKind: LocalStickerLabSourceKind;
 	playback: LocalStickerLabPlayback;
 	asset: LocalStickerLabAsset;
+	runtimePackage?: LocalStickerLabRuntimePackage;
 }
 
 export interface LocalStickerLabCategory {
@@ -86,10 +114,11 @@ export interface LocalStickerLabDiscovery {
 export interface LocalStickerLabReadResult {
 	bytes: Uint8Array;
 	fileName: string;
-	mimeType: LocalStickerLabMimeType;
+	mimeType: LocalStickerLabReadableMimeType;
 	batchId: string;
 	stickerId: string;
 	checksumSha256: string;
+	resourceName?: string;
 }
 
 export interface PlatformStickerLabAPI {
@@ -100,5 +129,6 @@ export interface PlatformStickerLabAPI {
 		rootPath: string;
 		batchId: string;
 		stickerId: string;
+		resourceName?: string;
 	}): Promise<LocalStickerLabReadResult>;
 }

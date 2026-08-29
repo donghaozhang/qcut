@@ -9,6 +9,7 @@ export const JIANYING_FILTER_IMPLEMENTATION_LABELS: Record<
 > = {
 	"single-lut": "单 LUT",
 	"dual-lut": "双 LUT",
+	"face-region-lut": "面部区域 LUT",
 	shader: "Shader",
 	"face-ai": "人脸 AI",
 	unknown: "待识别",

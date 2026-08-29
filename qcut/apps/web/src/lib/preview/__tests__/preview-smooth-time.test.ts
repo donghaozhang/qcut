@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type {
 	MediaElement,
+	StickerElement,
 	TextElement,
 	TimelineTrack,
 } from "@/types/timeline";
@@ -49,6 +50,23 @@ function makeTextElement(overrides: Partial<TextElement> = {}): TextElement {
 		opacity: 1,
 		...overrides,
 	} as TextElement;
+}
+
+function makeStickerElement(
+	overrides: Partial<StickerElement> = {}
+): StickerElement {
+	return {
+		id: "sticker-1",
+		name: "sticker",
+		type: "sticker",
+		stickerId: "overlay-1",
+		mediaId: "item-1",
+		startTime: 0,
+		duration: 10,
+		trimStart: 0,
+		trimEnd: 0,
+		...overrides,
+	};
 }
 
 function makeMediaTrack(overrides: Partial<TimelineTrack> = {}): TimelineTrack {
@@ -163,6 +181,31 @@ describe("timelineElementNeedsSmoothTime", () => {
 				element: makeTextElement({ trackingTargetId: "media-1" }),
 			})
 		).toBe(true);
+	});
+
+	it("keeps self-synced runtime stickers out of the global smooth-time tree", () => {
+		expect(
+			timelineElementNeedsSmoothTime({ element: makeStickerElement() })
+		).toBe(false);
+		expect(
+			timelineElementNeedsSmoothTime({
+				element: makeStickerElement({
+					stickerRuntime: {
+						kind: "png-sequence",
+						cycleDurationSeconds: 1,
+						frames: [
+							{
+								source: "frame.png",
+								startSeconds: 0,
+								durationSeconds: 1,
+							},
+						],
+						repeat: { kind: "infinite" },
+						completion: "freeze-last",
+					},
+				}),
+			})
+		).toBe(false);
 	});
 });
 
