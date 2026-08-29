@@ -8,6 +8,7 @@ export {
 	getExportPresets,
 	getExportRecommendation,
 	startExportJob,
+	startRendererExportJob,
 	applyProgressEvent,
 } from "./public-api.js";
 export {
