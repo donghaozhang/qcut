@@ -779,14 +779,15 @@ export function PreviewPanel() {
 		if (!isPlaying && previewCaptureRef.current && hasDrawablePreview) {
 			const warmCache = () => {
 				preRenderNearbyFrames(
-					currentTime,
+					displayTime,
 					async (time) => {
 						if (!previewCaptureRef.current) {
 							throw new Error("No preview capture surface");
 						}
-						// Safety: only capture current-time frame to avoid mismatched cache
+						// Safety: only capture the displayed frame (playhead or the
+						// hover-scrubbed time) to avoid mismatched cache entries.
 						const tolerance = 1 / 30;
-						if (Math.abs(time - currentTime) > tolerance) {
+						if (Math.abs(time - displayTime) > tolerance) {
 							throw new Error("Cannot capture non-current time safely");
 						}
 						const containsVideo =
@@ -825,7 +826,7 @@ export function PreviewPanel() {
 			return () => clearTimeout(timeoutId);
 		}
 	}, [
-		currentTime,
+		displayTime,
 		isPlaying,
 		preRenderNearbyFrames,
 		presentedFrameRevision,
