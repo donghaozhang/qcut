@@ -1,0 +1,26 @@
+export const CLAUDE_LOCAL_VIDEO_EXPORT_REQUEST_CHANNEL =
+	"claude:export:local-video:request" as const;
+export const CLAUDE_LOCAL_VIDEO_EXPORT_RESPONSE_CHANNEL =
+	"claude:export:local-video:response" as const;
+
+export interface ClaudeLocalVideoExportRequest {
+	filename: string;
+	format: "mp4";
+	frameRate: 24 | 25 | 30 | 50 | 60;
+	height: number;
+	outputPath: string;
+	projectId: string;
+	quality: "1080p" | "720p" | "480p";
+	width: number;
+}
+
+export interface ClaudeLocalVideoExportRendererRequest {
+	request: ClaudeLocalVideoExportRequest;
+	requestId: string;
+}
+
+export interface ClaudeLocalVideoExportRendererResponse {
+	error?: string;
+	requestId: string;
+	success?: true;
+}
