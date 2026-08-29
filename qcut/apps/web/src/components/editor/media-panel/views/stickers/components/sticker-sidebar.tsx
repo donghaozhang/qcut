@@ -390,7 +390,7 @@ export function StickerSidebar({
 						icon={FlaskConical}
 						label="贴纸实验室"
 						mode={mode}
-						notice="内部参照 · 禁止二次分发"
+						notice="本地成片可用 · 素材禁止二次分发"
 						selection={referenceLab.selection}
 						showWhenEmpty
 						testId="sticker-reference-lab-entry"
