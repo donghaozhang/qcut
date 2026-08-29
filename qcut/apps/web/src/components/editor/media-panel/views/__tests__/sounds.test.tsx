@@ -33,6 +33,36 @@ const audioSearchMock = vi.hoisted(() => ({
 	} as AudioSearchMockResult,
 }));
 
+const musicLabMock = vi.hoisted(() => ({
+	result: {
+		refreshedAt: "",
+		cacheDirectory: "",
+		tracks: [],
+		stats: {
+			sourceAvailable: true,
+			databaseCount: 1,
+			metadataSongCount: 3,
+			downloadRecordCount: 532,
+			matchedTrackCount: 0,
+			cachedTrackCount: 0,
+			unmatchedDownloadCount: 532,
+			invalidDownloadRecordCount: 0,
+			copiedTrackCount: 0,
+			reusedTrackCount: 0,
+		},
+		batchCount: 0,
+		latestBatch: null,
+	},
+	isLoading: false,
+	isBatchCaching: false,
+	error: null,
+	isAvailable: true,
+	cacheNextBatch: vi.fn(),
+	loadTrack: vi.fn(),
+	refresh: vi.fn(async () => undefined),
+	revealCache: vi.fn(async () => true),
+}));
+
 vi.mock("@/hooks/media/use-audio-library-search", () => ({
 	useAudioLibrarySearch: () => audioSearchMock.current,
 }));
@@ -50,6 +80,10 @@ vi.mock("@/hooks/media/use-audio-preview", () => ({
 		setVolume: vi.fn(),
 		stop: vi.fn(),
 	}),
+}));
+
+vi.mock("@/hooks/media/use-jianying-music-lab", () => ({
+	useJianyingMusicLab: () => musicLabMock,
 }));
 
 vi.mock("@/lib/audio/audio-artwork", () => ({
@@ -143,6 +177,7 @@ describe("SoundsView", () => {
 				my: false,
 				folders: false,
 				music: false,
+				"music-lab": false,
 				sfx: true,
 				lab: false,
 			},
@@ -169,6 +204,18 @@ describe("SoundsView", () => {
 		expect(screen.getAllByText("1.3万").length).toBeGreaterThan(0);
 		expect(screen.getAllByTitle("调性 E").length).toBeGreaterThan(0);
 		expect(screen.getAllByTestId(/^audio-library-item-music-/)).toHaveLength(9);
+	});
+
+	it("keeps the ordinary library intact and opens Music Lab separately", () => {
+		render(<SoundsView />);
+
+		expect(screen.getAllByTestId(/^audio-library-item-music-/)).toHaveLength(9);
+		fireEvent.click(screen.getByRole("button", { name: "剪映本地缓存" }));
+		expect(screen.getByTestId("music-lab")).toBeVisible();
+		expect(
+			screen.getByText("请先在剪映中下载音乐，然后刷新这里的本地缓存。")
+		).toBeVisible();
+		expect(screen.queryByText("静谧流光")).not.toBeInTheDocument();
 	});
 
 	it("collapses and expands sidebar groups from their headers", () => {
