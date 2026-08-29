@@ -30,7 +30,7 @@ import {
 	calculateElementBounds,
 	drawWithMediaTransform,
 } from "./export-engine-utils";
-import { validateRenderedFrame } from "./export-engine-debug";
+import { seekExportVideoFrame } from "./export-video-frame-seek";
 import { stripMarkdownSyntax } from "@/lib/markdown";
 import {
 	getCaptionAnimationState,
@@ -649,32 +649,10 @@ async function renderVideoAttempt(
 			localTimelineTime: timeOffset,
 			fps: context.fps,
 		});
-		video.currentTime = seekTime;
-
-		await new Promise<void>((resolve, reject) => {
-			const baseTimeout = 500;
-			const maxTimeout = 2000;
-			const adaptiveTimeout = Math.max(
-				baseTimeout,
-				Math.min(maxTimeout, video.duration * 30)
-			);
-			const seekDistanceFactor =
-				Math.abs(video.currentTime - seekTime) / video.duration;
-			const finalTimeout = adaptiveTimeout * (1 + seekDistanceFactor * 2);
-
-			const timeout = setTimeout(() => {
-				debugWarn(
-					`[ExportEngine] Video seek timeout after ${finalTimeout.toFixed(0)}ms (extended for frame quality)`
-				);
-				reject(new Error("Video seek timeout"));
-			}, finalTimeout);
-
-			video.onseeked = () => {
-				clearTimeout(timeout);
-				setTimeout(() => {
-					resolve();
-				}, 150);
-			};
+		await seekExportVideoFrame({
+			frameRate: context.fps,
+			timeSeconds: seekTime,
+			video,
 		});
 
 		const { x, y, width, height } = calculateElementBounds(
@@ -762,18 +740,6 @@ async function renderVideoAttempt(
 			}
 		} else {
 			await drawVideo();
-		}
-
-		const frameValidation = validateRenderedFrame(
-			ctx,
-			x,
-			y,
-			width,
-			height,
-			attempt
-		);
-		if (!frameValidation.isValid) {
-			throw new Error(`Frame validation failed: ${frameValidation.reason}`);
 		}
 	} catch (error) {
 		debugError(
