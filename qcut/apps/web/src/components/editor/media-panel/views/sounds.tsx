@@ -2,6 +2,7 @@ import { assetManifestVersionKey } from "@qcut/editor-core";
 import { platform } from "@qcut/platform-core";
 import {
 	Clock3,
+	Disc3,
 	Download,
 	FileMusic,
 	FlaskConical,
@@ -33,6 +34,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAudioLibrarySearch } from "@/hooks/media/use-audio-library-search";
 import { useExtendedAudioCatalog } from "@/hooks/media/use-extended-audio-catalog";
 import { useAudioPreview } from "@/hooks/media/use-audio-preview";
+import { useJianyingMusicLab } from "@/hooks/media/use-jianying-music-lab";
 import { useLocalSoundEffectsLab } from "@/hooks/media/use-local-sound-effects-lab";
 import { useSoundEffectsLabOfflinePack } from "@/hooks/media/use-sound-effects-lab-offline-pack";
 import {
@@ -82,6 +84,7 @@ import { AudioFoldersSidebar } from "./sounds-folders-sidebar";
 import { SidebarGroupHeader } from "./sounds-sidebar-group";
 import { ProjectAudioRecommendationSummary } from "./sounds-project-recommendations";
 import { SoundEffectsLabPanel } from "./sound-effects-lab";
+import { MusicLabPanel } from "./music-lab";
 
 interface SidebarItem {
 	id: AudioLibrarySectionId;
@@ -300,6 +303,7 @@ export function SoundsView() {
 		onEnded: ({ sound }) => playNextRef.current?.({ sound }),
 	});
 	const soundEffectsLab = useLocalSoundEffectsLab();
+	const musicLab = useJianyingMusicLab();
 	const soundEffectsLabOwnerEmail = useLicenseStore(
 		(state) => state.license?.user?.email ?? null
 	);
@@ -673,6 +677,23 @@ export function SoundsView() {
 							onSelect={selectSection}
 							onToggle={() => toggleGroup("music")}
 						/>
+						{musicLab.isAvailable ? (
+							<div className="mt-3">
+								<SidebarGroupHeader
+									title={t("audioLibrary.section.musicLab")}
+									collapsed={collapsedGroups["music-lab"]}
+									onToggle={() => toggleGroup("music-lab")}
+								/>
+								{collapsedGroups["music-lab"] ? null : (
+									<SidebarButton
+										active={activeSection === "music-lab"}
+										icon={<Disc3 className="size-3" />}
+										label={t("audioLibrary.musicLab.localCache")}
+										onSelect={() => selectSection({ section: "music-lab" })}
+									/>
+								)}
+							</div>
+						) : null}
 						<CategoryList
 							title={t("audioLibrary.soundEffects")}
 							categories={SOUND_EFFECT_CATEGORIES}
@@ -704,7 +725,19 @@ export function SoundsView() {
 				</ScrollArea>
 			</aside>
 
-			{activeSection === "sound-effects-lab" ? (
+			{activeSection === "music-lab" ? (
+				<MusicLabPanel
+					error={musicLab.error}
+					isBatchCaching={musicLab.isBatchCaching}
+					isLoading={musicLab.isLoading}
+					loadTrack={musicLab.loadTrack}
+					onBeforePlay={preview.stop}
+					onCacheNextBatch={musicLab.cacheNextBatch}
+					onRefresh={musicLab.refresh}
+					onRevealCache={musicLab.revealCache}
+					result={musicLab.result}
+				/>
+			) : activeSection === "sound-effects-lab" ? (
 				<SoundEffectsLabPanel
 					catalog={soundEffectsLab.catalog}
 					error={soundEffectsLab.error}
