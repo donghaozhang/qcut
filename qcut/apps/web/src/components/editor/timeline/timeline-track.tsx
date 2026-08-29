@@ -192,6 +192,15 @@ function TimelineTrackContentComponent({
 		const handleMouseMove = (e: MouseEvent) => {
 			if (!timelineRef.current) return;
 
+			// A move without the primary button held means the mouseup was
+			// missed (e.g. released outside the window on another display).
+			// Commit the drop exactly like a release instead of letting the
+			// clip keep following a button-less pointer.
+			if ((e.buttons & 1) === 0) {
+				handleMouseUp(e);
+				return;
+			}
+
 			// On first mouse move during drag, ensure the element is selected
 			if (dragState.elementId && dragState.trackId) {
 				const isSelected = selectedElements.some(
@@ -700,6 +709,13 @@ function TimelineTrackContentComponent({
 
 		const onPendingMove = (moveEvent: MouseEvent) => {
 			if (!pendingDragRef.current) return;
+			// The press already ended (mouseup missed outside the window):
+			// abandon the pending drag instead of promoting a button-less one.
+			if ((moveEvent.buttons & 1) === 0) {
+				pendingDragRef.current = null;
+				cleanup();
+				return;
+			}
 			const dx = Math.abs(moveEvent.clientX - startMouseX);
 			const dy = Math.abs(moveEvent.clientY - startMouseY);
 			if (dx > DRAG_THRESHOLD_PX || dy > DRAG_THRESHOLD_PX) {
