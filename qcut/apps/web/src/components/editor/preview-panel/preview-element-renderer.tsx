@@ -798,6 +798,36 @@ export function PreviewElementRenderer({
 						})
 					: [];
 
+			if (elementData.track.type === "audio") {
+				// Detached audio (分离音频) keeps referencing its video media item,
+				// but an audio lane must never composite a picture — mount the
+				// file's audio stream only.
+				if (!mediaItem.url && !mediaItem.originalUrl && !hasDerivedAudio) {
+					return null;
+				}
+				return (
+					<div key={elementKey} className="absolute inset-0">
+						{hasDerivedAudio ? (
+							derivedAudioPlayers
+						) : (
+							<AudioPlayer
+								src={mediaItem.url || mediaItem.originalUrl || ""}
+								timelineTime={currentTime}
+								clipStartTime={previewAudioElement.startTime}
+								trimStart={previewAudioElement.trimStart}
+								trimEnd={previewAudioElement.trimEnd}
+								clipDuration={previewAudioElement.duration}
+								trackMuted={elementData.track.muted}
+								trackId={elementData.track.id}
+								previewGain={previewAudioGain}
+								playbackWindow={audioPlaybackWindow}
+								element={previewAudioElement}
+							/>
+						)}
+					</div>
+				);
+			}
+
 			if (mediaItem.type === "video") {
 				const source = videoSourcesById.get(mediaItem.id) ?? null;
 				if (!source) {
