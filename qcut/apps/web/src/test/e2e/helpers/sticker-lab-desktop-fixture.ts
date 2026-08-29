@@ -112,9 +112,13 @@ async function resolveFixtureFfmpegPath(): Promise<string> {
 }
 
 export async function createStickerLabExportBaseVideo({
+	durationSeconds = 5,
 	filePath,
+	frameRate = 30,
 }: {
+	durationSeconds?: number;
 	filePath: string;
+	frameRate?: number;
 }): Promise<void> {
 	await runProcess({
 		binaryPath: await resolveFixtureFfmpegPath(),
@@ -126,13 +130,13 @@ export async function createStickerLabExportBaseVideo({
 			"-f",
 			"lavfi",
 			"-i",
-			"color=c=black:s=360x640:r=30:d=5",
+			`color=c=black:s=360x640:r=${frameRate}:d=${durationSeconds}`,
 			"-f",
 			"lavfi",
 			"-i",
 			"anullsrc=channel_layout=stereo:sample_rate=48000",
 			"-t",
-			"5",
+			String(durationSeconds),
 			"-c:v",
 			"libx264",
 			"-pix_fmt",
