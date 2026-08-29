@@ -65,7 +65,20 @@ import { CaptionExportCard, AudioExportCard } from "./export-media-cards";
 import { ExportWarnings } from "./export-warnings";
 import { CapCutDraftExportCard } from "./capcut-draft-export-card";
 import { CapCutSameProfileWritebackCard } from "./capcut-same-profile-writeback-card";
-import { assertRestrictedMediaExportAllowed } from "../../../../../electron/types/restricted-media-export-policy";
+import { assertLocalFinalVideoExportAllowed } from "../../../../../electron/types/restricted-media-export-policy";
+import { resolveLocalFinalVideoExportOutput } from "@/lib/export/local-final-video-output";
+import type { ClaudeLocalVideoExportRequest } from "../../../../../electron/types/claude-local-video-export-api";
+
+type ExportAutomationRequest = Pick<
+	ClaudeLocalVideoExportRequest,
+	"filename" | "format" | "quality"
+> &
+	Partial<
+		Pick<
+			ClaudeLocalVideoExportRequest,
+			"frameRate" | "height" | "outputPath" | "projectId" | "width"
+		>
+	>;
 
 /** Modal dialog for configuring and triggering project export. */
 export function ExportDialog() {
@@ -140,11 +153,18 @@ export function ExportDialog() {
 	// Expose export actions for iPad CLI automation (qcut://export)
 	useEffect(() => {
 		const exportActions = {
-			export: async (settings: {
-				quality: string;
-				format: string;
-				filename: string;
-			}) => {
+			export: async (settings: ExportAutomationRequest) => {
+				if (
+					settings.projectId &&
+					useProjectStore.getState().activeProject?.id !== settings.projectId
+				) {
+					throw new Error(
+						`Project ${settings.projectId} is not open in the QCut editor.`
+					);
+				}
+				if (useExportStore.getState().progress.isExporting) {
+					throw new Error("Another QCut export is already in progress.");
+				}
 				const canvas = canvasRef.current?.getCanvas();
 				if (!canvas) throw new Error("No canvas available for export");
 				canvasRef.current?.updateDimensions();
@@ -156,11 +176,14 @@ export function ExportDialog() {
 					bitrate: 128,
 				});
 
-				const resolution = resolveExportResolution({
-					quality: settings.quality as ExportQuality,
-					aspectRatio: exportSettings.aspectRatio,
-				});
-
+				const resolution =
+					typeof settings.width === "number" &&
+					typeof settings.height === "number"
+						? { height: settings.height, width: settings.width }
+						: resolveExportResolution({
+								aspectRatio: exportSettings.aspectRatio,
+								quality: settings.quality as ExportQuality,
+							});
 				return exportProgress.handleExport(
 					canvas,
 					exportSettings.timelineDuration,
@@ -173,17 +196,22 @@ export function ExportDialog() {
 						}),
 						engineType: "auto",
 						resolution,
-						frameRate: 30,
+						frameRate: settings.frameRate ?? 30,
+						outputPath: settings.outputPath,
 						includeAudio: hasAudio,
 						audioCodec,
 						audioBitrate: 128,
+						propagateErrors: Boolean(settings.outputPath),
 					}
 				);
 			},
 		};
-		(window as any).__exportActions = exportActions;
+		const automationWindow = window as Window & {
+			__exportActions?: typeof exportActions;
+		};
+		automationWindow.__exportActions = exportActions;
 		return () => {
-			delete (window as any).__exportActions;
+			Reflect.deleteProperty(automationWindow, "__exportActions");
 		};
 	}, [
 		exportProgress.handleExport,
@@ -218,24 +246,6 @@ export function ExportDialog() {
 			});
 			return;
 		}
-		try {
-			assertRestrictedMediaExportAllowed({
-				mediaItems,
-				operation: "export-dialog",
-				scope: "timeline",
-				tracks,
-			});
-		} catch (policyError) {
-			useExportStore
-				.getState()
-				.setError(
-					policyError instanceof Error
-						? policyError.message
-						: String(policyError)
-				);
-			return;
-		}
-
 		const canvas = canvasRef.current?.getCanvas();
 		if (!canvas) {
 			debugWarn("[ExportPanel] canvas not available for export");
@@ -248,6 +258,27 @@ export function ExportDialog() {
 		if (isElectron() && !outputPath) {
 			outputPath = (await exportSettings.chooseOutputPath()) ?? "";
 			if (!outputPath) return;
+		}
+		try {
+			assertLocalFinalVideoExportAllowed({
+				mediaItems,
+				operation: "export-dialog",
+				output: resolveLocalFinalVideoExportOutput({
+					format: exportSettings.format,
+					isElectron: isElectron(),
+					outputPath,
+				}),
+				tracks,
+			});
+		} catch (policyError) {
+			useExportStore
+				.getState()
+				.setError(
+					policyError instanceof Error
+						? policyError.message
+						: String(policyError)
+				);
+			return;
 		}
 
 		const exportFilename = getExportFilename({
