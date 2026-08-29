@@ -95,6 +95,78 @@ describe("timeline track drag requires a held primary button", () => {
 		expect(useTimelineStore.getState().dragState.isDragging).toBe(false);
 	});
 
+	it("commits a missed release on the source track even over another lane", () => {
+		const source = seedTextTrack();
+		if (!source) throw new Error("source track not seeded");
+		const secondId = useTimelineStore.getState().insertTrackAt("text", 1);
+		const second = useTimelineStore
+			.getState()
+			.tracks.find((t) => t.id === secondId);
+		if (!second) throw new Error("second track not seeded");
+		const { container } = render(
+			<>
+				<TimelineTrackContent track={source} zoomLevel={1} />
+				<TimelineTrackContent track={second} zoomLevel={1} />
+			</>
+		);
+		const lanes = container.querySelectorAll('[data-testid="timeline-track"]');
+		expect(lanes).toHaveLength(2);
+		const laneRect = (top: number, bottom: number) =>
+			({
+				top,
+				bottom,
+				left: 0,
+				right: 800,
+				width: 800,
+				height: bottom - top,
+				x: 0,
+				y: top,
+				toJSON: () => ({}),
+			}) as DOMRect;
+		(lanes[0] as HTMLElement).getBoundingClientRect = () => laneRect(0, 40);
+		(lanes[1] as HTMLElement).getBoundingClientRect = () => laneRect(44, 84);
+
+		fireEvent.mouseDown(screen.getByTestId("timeline-element-interaction"), {
+			button: 0,
+			buttons: 1,
+			clientX: 100,
+			clientY: 10,
+		});
+		act(() => {
+			document.dispatchEvent(
+				new MouseEvent("mousemove", {
+					clientX: 140,
+					clientY: 10,
+					buttons: 1,
+					bubbles: true,
+				})
+			);
+		});
+		expect(useTimelineStore.getState().dragState.isDragging).toBe(true);
+		const trackCountBefore = useTimelineStore.getState().tracks.length;
+
+		// The missed release re-enters over the SECOND lane. The commit must
+		// stay on the source track: no cross-track move, no drag-out lane.
+		act(() => {
+			document.dispatchEvent(
+				new MouseEvent("mousemove", {
+					clientX: 300,
+					clientY: 60,
+					buttons: 0,
+					bubbles: true,
+				})
+			);
+		});
+
+		const state = useTimelineStore.getState();
+		expect(state.dragState.isDragging).toBe(false);
+		const sourceAfter = state.tracks.find((t) => t.id === source.id);
+		const secondAfter = state.tracks.find((t) => t.id === secondId);
+		expect(sourceAfter?.elements).toHaveLength(1);
+		expect(secondAfter?.elements).toHaveLength(0);
+		expect(state.tracks).toHaveLength(trackCountBefore);
+	});
+
 	it("ends an active drag when a move arrives without the primary button", () => {
 		const track = seedTextTrack();
 		if (!track) throw new Error("track not seeded");
