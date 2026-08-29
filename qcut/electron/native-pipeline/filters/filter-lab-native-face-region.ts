@@ -4,6 +4,10 @@ import { basename, join, posix } from "node:path";
 const SAFE_SEGMENT = /^[A-Za-z0-9._-]+$/;
 const MAX_INSPECTED_TEXT_BYTES = 1024 * 1024;
 
+function isSafeSegment({ value }: { value: string }): boolean {
+	return SAFE_SEGMENT.test(value) && value !== "." && value !== "..";
+}
+
 export const JIANYING_NATIVE_FACE_REGION_PROFILES = [
 	{ resourceId: "7127674287238008078", title: "焕肤" },
 	{ resourceId: "7127671519450303775", title: "裸粉" },
@@ -213,8 +217,8 @@ export function resolveJianyingNativeFaceRegionPackagePath({
 	renderer: JianyingNativeFaceRegionRenderer;
 }): string {
 	if (
-		!SAFE_SEGMENT.test(renderer.packageIdentifier) ||
-		!SAFE_SEGMENT.test(renderer.version)
+		!isSafeSegment({ value: renderer.packageIdentifier }) ||
+		!isSafeSegment({ value: renderer.version })
 	) {
 		throw new Error("Invalid local face-region renderer identity");
 	}
