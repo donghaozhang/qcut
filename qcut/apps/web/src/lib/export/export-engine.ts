@@ -1,4 +1,5 @@
 import { ExportSettings, FORMAT_INFO, ExportPurpose } from "@/types/export";
+import { platform } from "@qcut/platform-core";
 import { TimelineElement, TimelineTrack } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import {
@@ -11,7 +12,12 @@ import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useEffectsStore } from "@/stores/ai/effects-store";
 import { expandCompoundMediaTracks } from "@/lib/timeline/compound-media";
-import { assertRestrictedMediaExportAllowed } from "../../../../../electron/types/restricted-media-export-policy";
+import { assertLocalFinalVideoExportAllowed } from "../../../../../electron/types/restricted-media-export-policy";
+import {
+	assertLocalMp4EngineNotRequired,
+	requiresRestrictedMediaLocalVideoAllowance,
+	resolveLocalFinalVideoExportOutput,
+} from "./local-final-video-output";
 
 // Extracted modules
 import {
@@ -63,6 +69,7 @@ export class ExportEngine {
 	protected mediaItems: MediaItem[];
 	protected totalDuration: number;
 	protected fps: number;
+	protected readonly requiresGuaranteedLocalMp4Engine: boolean;
 
 	// MediaRecorder properties
 	private mediaRecorder: MediaRecorder | null = null;
@@ -97,11 +104,21 @@ export class ExportEngine {
 			.getState()
 			.getStickersForExport()
 			.map((sticker) => sticker.mediaItemId);
-		assertRestrictedMediaExportAllowed({
-			additionalMediaIds: overlayMediaIds,
+		this.requiresGuaranteedLocalMp4Engine =
+			requiresRestrictedMediaLocalVideoAllowance({
+				mediaItems: this.mediaItems,
+				stickerOverlayMediaIds: overlayMediaIds,
+				tracks: this.tracks,
+			});
+		assertLocalFinalVideoExportAllowed({
 			mediaItems: this.mediaItems,
 			operation: "video",
-			scope: "timeline",
+			output: resolveLocalFinalVideoExportOutput({
+				format: settings.format,
+				isElectron: platform().isElectron,
+				outputPath: settings.outputPath,
+			}),
+			stickerOverlayMediaIds: overlayMediaIds,
 			tracks: this.tracks,
 		});
 
@@ -190,6 +207,11 @@ export class ExportEngine {
 			videoCache: this.videoCache,
 			usedImages: this.usedImages,
 			fps: this.fps,
+			finalVideoOutput: resolveLocalFinalVideoExportOutput({
+				format: this.settings.format,
+				isElectron: platform().isElectron,
+				outputPath: this.settings.outputPath,
+			}),
 		};
 	}
 
@@ -230,6 +252,10 @@ export class ExportEngine {
 
 	// Main export method - renders timeline and captures video
 	async export(progressCallback?: ProgressCallback): Promise<Blob> {
+		assertLocalMp4EngineNotRequired({
+			operation: this.constructor.name,
+			requiresRestrictedAllowance: this.requiresGuaranteedLocalMp4Engine,
+		});
 		console.log("🎬 STANDARD EXPORT ENGINE: Export method called");
 		console.log(
 			`🎬 STANDARD EXPORT ENGINE: Will use ${this.useFFmpegExport ? "FFmpeg WASM" : "MediaRecorder"} export path`
