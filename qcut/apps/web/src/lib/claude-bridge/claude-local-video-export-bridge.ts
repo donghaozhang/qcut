@@ -5,33 +5,54 @@ import { PanelView } from "@/types/panel";
 import type { ClaudeLocalVideoExportRequest } from "../../../../../electron/types/claude-local-video-export-api";
 
 interface LocalVideoExportActions {
-	export: (request: ClaudeLocalVideoExportRequest) => Promise<void>;
+	exportLocalVideo: (request: ClaudeLocalVideoExportRequest) => Promise<void>;
 }
+
+const EXPORT_ACTION_READY_TIMEOUT_MS = 10_000;
+const EXPORT_ACTION_POLL_INTERVAL_MS = 25;
+let localVideoExportInFlight = false;
 
 function readLocalVideoExportActions(): LocalVideoExportActions | null {
 	const actions = (window as Window & { __exportActions?: unknown })
 		.__exportActions;
 	if (typeof actions !== "object" || actions === null) return null;
-	const candidate = actions as { export?: unknown };
-	return typeof candidate.export === "function"
+	const candidate = actions as { exportLocalVideo?: unknown };
+	return typeof candidate.exportLocalVideo === "function"
 		? (candidate as LocalVideoExportActions)
 		: null;
 }
 
-async function waitForLocalVideoExportActions(): Promise<LocalVideoExportActions> {
-	const deadline = Date.now() + 10_000;
-	while (Date.now() < deadline) {
-		const actions = readLocalVideoExportActions();
-		if (actions) return actions;
-		await new Promise((resolve) => setTimeout(resolve, 25));
-	}
-	throw new Error("QCut export panel did not become ready.");
+function waitForLocalVideoExportActions(): Promise<LocalVideoExportActions> {
+	const deadline = Date.now() + EXPORT_ACTION_READY_TIMEOUT_MS;
+	return new Promise((resolve, reject) => {
+		const pollForActions = () => {
+			const actions = readLocalVideoExportActions();
+			if (actions) {
+				resolve(actions);
+				return;
+			}
+			if (Date.now() >= deadline) {
+				reject(new Error("QCut export panel did not become ready."));
+				return;
+			}
+			setTimeout(pollForActions, EXPORT_ACTION_POLL_INTERVAL_MS);
+		};
+		pollForActions();
+	});
 }
 
 export function setupClaudeLocalVideoExportBridge(): void {
 	const exportApi = window.electronAPI?.claude?.export;
 	if (!exportApi?.onLocalVideoExportRequest) return;
 	exportApi.onLocalVideoExportRequest(({ request, requestId }) => {
+		if (localVideoExportInFlight) {
+			exportApi.sendLocalVideoExportResponse({
+				error: "Another QCut export is already in progress.",
+				requestId,
+			});
+			return;
+		}
+		localVideoExportInFlight = true;
 		void (async () => {
 			try {
 				if (useExportStore.getState().progress.isExporting) {
@@ -52,7 +73,7 @@ export function setupClaudeLocalVideoExportBridge(): void {
 						`Project ${request.projectId} is no longer open in the QCut editor.`
 					);
 				}
-				await actions.export(request);
+				await actions.exportLocalVideo(request);
 				exportApi.sendLocalVideoExportResponse({ requestId, success: true });
 			} catch (error) {
 				debugError("[ClaudeLocalVideoExportBridge] Export failed", error);
@@ -60,6 +81,8 @@ export function setupClaudeLocalVideoExportBridge(): void {
 					error: error instanceof Error ? error.message : String(error),
 					requestId,
 				});
+			} finally {
+				localVideoExportInFlight = false;
 			}
 		})();
 	});
