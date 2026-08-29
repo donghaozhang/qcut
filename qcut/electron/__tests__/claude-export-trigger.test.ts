@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { EventEmitter } from "node:events";
+import { resolve } from "node:path";
 
 const {
 	mockSpawn,
@@ -607,7 +608,7 @@ describe("Claude export trigger", () => {
 			expect(dispatch).toHaveBeenCalledWith(
 				expect.objectContaining({
 					format: "mp4",
-					outputPath: "/tmp/runtime-output.mp4",
+					outputPath: resolve("/tmp/runtime-output.mp4"),
 					projectId: "project_renderer_runtime",
 				})
 			);
