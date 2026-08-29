@@ -96,6 +96,57 @@ function runProcess({
 	});
 }
 
+async function resolveFixtureFfmpegPath(): Promise<string> {
+	const ffmpegBinaryName =
+		process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
+	return realpath(
+		path.join(
+			process.cwd(),
+			"electron",
+			"resources",
+			"ffmpeg",
+			`${process.platform}-${process.arch}`,
+			ffmpegBinaryName
+		)
+	);
+}
+
+export async function createStickerLabExportBaseVideo({
+	filePath,
+}: {
+	filePath: string;
+}): Promise<void> {
+	await runProcess({
+		binaryPath: await resolveFixtureFfmpegPath(),
+		args: [
+			"-y",
+			"-hide_banner",
+			"-loglevel",
+			"error",
+			"-f",
+			"lavfi",
+			"-i",
+			"color=c=black:s=360x640:r=30:d=5",
+			"-f",
+			"lavfi",
+			"-i",
+			"anullsrc=channel_layout=stereo:sample_rate=48000",
+			"-t",
+			"5",
+			"-c:v",
+			"libx264",
+			"-pix_fmt",
+			"yuv420p",
+			"-c:a",
+			"aac",
+			"-b:a",
+			"128k",
+			"-shortest",
+			filePath,
+		],
+	});
+}
+
 async function inspectFixtureAsset({
 	filePath,
 }: {
@@ -212,18 +263,7 @@ function reportItem({
 }
 
 export async function createOriginalStickerLabFixture(): Promise<OriginalStickerLabFixture> {
-	const ffmpegBinaryName =
-		process.platform === "win32" ? "ffmpeg.exe" : "ffmpeg";
-	const ffmpegPath = await realpath(
-		path.join(
-			process.cwd(),
-			"electron",
-			"resources",
-			"ffmpeg",
-			`${process.platform}-${process.arch}`,
-			ffmpegBinaryName
-		)
-	);
+	const ffmpegPath = await resolveFixtureFfmpegPath();
 	const cleanupRoot = await realpath(
 		await mkdtemp(path.join(tmpdir(), "qcut-sticker-lab-desktop-e2e-"))
 	);
