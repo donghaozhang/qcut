@@ -51,7 +51,7 @@ export interface MediaFile {
 	dimensions?: { width: number; height: number };
 	createdAt: number;
 	modifiedAt: number;
-	metadata?: StickerLabMediaMetadata;
+	metadata?: StickerLabMediaMetadata | Record<string, unknown>;
 }
 
 export interface MediaMetadata {
