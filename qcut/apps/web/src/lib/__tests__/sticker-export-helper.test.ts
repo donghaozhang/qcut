@@ -159,6 +159,30 @@ describe("StickerExportHelper", () => {
 			expect(result.failed[0].error).toContain("Media item not found");
 		});
 
+		it("fails closed when an export frame is missing a requested static sticker", async () => {
+			await expect(
+				helper.renderStickersToCanvas(
+					ctx,
+					[createMockSticker()],
+					new Map<string, MediaItem>(),
+					{ ...defaultOptions, failOnError: true }
+				)
+			).rejects.toThrow("Media item not found");
+		});
+
+		it("fails closed when a requested static sticker cannot decode", async () => {
+			imageLoadBehaviour = "error";
+
+			await expect(
+				helper.renderStickersToCanvas(
+					ctx,
+					[createMockSticker()],
+					new Map([["media-1", createMockMediaItem()]]),
+					{ ...defaultOptions, failOnError: true }
+				)
+			).rejects.toThrow("Failed to load image");
+		});
+
 		it("should log warning when sticker rendering fails", async () => {
 			const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
@@ -272,7 +296,7 @@ describe("StickerExportHelper", () => {
 			expect(result.failed).toHaveLength(1);
 		});
 
-		it("should skip stickers whose mediaItem has no URL", async () => {
+		it("records a failure when a static sticker media item has no URL", async () => {
 			const stickers = [createMockSticker()];
 			const mediaItems = new Map<string, MediaItem>([
 				["media-1", createMockMediaItem({ url: undefined })],
@@ -285,9 +309,14 @@ describe("StickerExportHelper", () => {
 				defaultOptions
 			);
 
-			// attempted=1 (media found), successful=1 (early return counts as success)
 			expect(result.attempted).toBe(1);
-			expect(result.successful).toBe(1);
+			expect(result.successful).toBe(0);
+			expect(result.failed).toEqual([
+				{
+					error: "Static sticker media URL not found: media-1",
+					stickerId: "sticker-1",
+				},
+			]);
 			expect(ctx.drawImage).not.toHaveBeenCalled();
 		});
 
