@@ -45,6 +45,7 @@ vi.mock("@/lib/debug/debug-config", () => ({
 
 vi.mock("@/lib/stickers/sticker-export-helper", () => ({
 	renderStickersToCanvas: mocks.renderStickersToCanvas,
+	StickerRenderFailureError: class extends Error {},
 }));
 
 vi.mock("@/lib/markdown", () => ({
@@ -131,15 +132,30 @@ describe("overlay sticker export restriction", () => {
 		);
 	});
 
-	it("keeps ordinary static overlay failures best-effort", async () => {
+	it("fails closed on ordinary static overlay failures", async () => {
 		mocks.mediaItems = [{ id: "static-overlay-media" }];
 		showOverlay({ mediaItemId: "static-overlay-media" });
-		mocks.renderStickersToCanvas.mockRejectedValue(
-			new Error("static image decode failed")
-		);
+		const renderError = new Error("static image decode failed");
+		mocks.renderStickersToCanvas.mockRejectedValue(renderError);
 
-		await expect(
-			renderOverlayStickers(createRenderContext(), 0)
-		).resolves.toBeUndefined();
+		await expect(renderOverlayStickers(createRenderContext(), 0)).rejects.toBe(
+			renderError
+		);
+	});
+
+	it("fails closed on ordinary runtime asset failures", async () => {
+		mocks.mediaItems = [
+			{
+				id: "runtime-asset-overlay-media",
+				metadata: { stickerRuntime: { kind: "direct-gif" } },
+			},
+		];
+		showOverlay({ mediaItemId: "runtime-asset-overlay-media" });
+		const renderError = new Error("runtime asset decode failed");
+		mocks.renderStickersToCanvas.mockRejectedValue(renderError);
+
+		await expect(renderOverlayStickers(createRenderContext(), 0)).rejects.toBe(
+			renderError
+		);
 	});
 });
