@@ -3,6 +3,7 @@ import { ExportSettings } from "@/types/export";
 import { TimelineElement, TimelineTrack } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store";
 import { WebCodecsDetector, CodecSupport } from "./webcodecs-detector";
+import { assertLocalMp4EngineNotRequired } from "./local-final-video-output";
 
 // Progress callback type
 type ProgressCallback = (progress: number, status: string) => void;
@@ -170,6 +171,10 @@ export class WebCodecsExportEngine extends ExportEngine {
 
 	// Override main export method
 	async export(progressCallback?: ProgressCallback): Promise<Blob> {
+		assertLocalMp4EngineNotRequired({
+			operation: this.constructor.name,
+			requiresRestrictedAllowance: this.requiresGuaranteedLocalMp4Engine,
+		});
 		if (this.isExporting) {
 			throw new Error("Export already in progress");
 		}
