@@ -35,16 +35,20 @@ describe("playback store preview scrub time", () => {
 	it("mirrors scrub changes onto the playback-seek event channel", () => {
 		const store = usePlaybackStore.getState();
 		store.setDuration(10);
-		const seen: number[] = [];
+		const seen: Array<{ time: number; scrub: boolean }> = [];
 		const listener = (event: Event) => {
-			seen.push((event as CustomEvent).detail.time);
+			const detail = (event as CustomEvent).detail;
+			seen.push({ time: detail.time, scrub: detail.scrub });
 		};
 		window.addEventListener("playback-seek", listener);
 		store.setPreviewScrubTime(3);
 		store.setPreviewScrubTime(3);
 		store.setPreviewScrubTime(null);
 		window.removeEventListener("playback-seek", listener);
-		expect(seen).toEqual([3, 0]);
+		expect(seen).toEqual([
+			{ time: 3, scrub: true },
+			{ time: 0, scrub: false },
+		]);
 	});
 
 	it("clears the scrub override when playback starts", () => {
