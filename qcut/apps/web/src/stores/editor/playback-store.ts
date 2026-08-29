@@ -257,7 +257,7 @@ export const usePlaybackStore = create<PlaybackStore>((set, get) => ({
 		// the same fast path live ruler scrubbing goes through.
 		window.dispatchEvent(
 			new CustomEvent("playback-seek", {
-				detail: { time: next ?? currentTime },
+				detail: { time: next ?? currentTime, scrub: next !== null },
 			})
 		);
 	},
