@@ -193,12 +193,9 @@ export class StickerExportHelper {
 			element: animationElement,
 			mediaItem,
 		});
-		if (!mediaItem.url && !stickerRuntime) {
-			throw new Error(`Static sticker media URL not found: ${mediaItem.id}`);
-		}
-		let runtimeFrame: Awaited<
-			ReturnType<typeof renderStickerRuntimeFrame>
-		> | null = null;
+		let image: CanvasImageSource;
+		let sourceWidth: number | undefined;
+		let sourceHeight: number | undefined;
 		if (stickerRuntime) {
 			const runtimeElement = animationElement;
 			if (!runtimeElement) {
@@ -207,7 +204,7 @@ export class StickerExportHelper {
 					reason: "missing-timeline-context",
 				});
 			}
-			runtimeFrame = await renderStickerRuntimeFrame({
+			const runtimeFrame = await renderStickerRuntimeFrame({
 				assets: createBrowserStickerRuntimeAssetResolver({
 					mediaItem,
 					mediaItemsById,
@@ -219,21 +216,19 @@ export class StickerExportHelper {
 				}),
 				timelineTimeSeconds: currentTime,
 			});
-		}
-		if (runtimeFrame && !runtimeFrame.active) return;
-		let staticImage: HTMLImageElement | null = null;
-		if (!runtimeFrame) {
+			if (!runtimeFrame.active) return;
+			image = runtimeFrame.image;
+			sourceWidth = runtimeFrame.width;
+			sourceHeight = runtimeFrame.height;
+		} else {
 			if (!mediaItem.url) {
 				throw new Error(`Static sticker media URL not found: ${mediaItem.id}`);
 			}
-			staticImage = await this.loadImage(mediaItem.url);
+			const staticImage = await this.loadImage(mediaItem.url);
+			image = staticImage;
+			sourceWidth = staticImage.naturalWidth;
+			sourceHeight = staticImage.naturalHeight;
 		}
-		const image = runtimeFrame?.image ?? staticImage;
-		if (!image) {
-			throw new Error(`Sticker frame image not found: ${mediaItem.id}`);
-		}
-		const sourceWidth = runtimeFrame?.width ?? staticImage?.naturalWidth;
-		const sourceHeight = runtimeFrame?.height ?? staticImage?.naturalHeight;
 		const resolvedSticker = animationElement
 			? resolveTimelineStickerVisualAtTime({
 					element: animationElement,
