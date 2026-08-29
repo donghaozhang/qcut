@@ -83,9 +83,12 @@ import {
 	getExportPresets,
 	getExportRecommendation,
 	startExportJob,
+	startRendererExportJob,
 	getExportJobStatus,
 	listExportJobs,
 } from "../handlers/claude-export-handler.js";
+import { hasStickerRuntimeForExport } from "../../types/sticker-runtime-export-policy.js";
+import type { ClaudeLocalVideoExportRequest } from "../../types/claude-local-video-export-api.js";
 import {
 	analyzeError,
 	getSystemInfo,
@@ -120,6 +123,7 @@ import { resolveQCutRuntimeEndpoint } from "../runtime-endpoint.js";
 import { buildProjectJSON } from "../../native-pipeline/cli/project-json-builder.js";
 import { claudeLog } from "../utils/logger.js";
 import {
+	findRestrictedMediaForExport,
 	isRestrictedStickerLabMetadata,
 	RestrictedMediaExportError,
 } from "../../types/restricted-media-export-policy.js";
@@ -137,6 +141,10 @@ export interface WindowAccessor {
 	getWindow(): WindowProxy;
 	/** Request full timeline data from renderer */
 	requestTimeline(): Promise<ClaudeTimeline>;
+	/** Render a local MP4 through the live editor canvas and MP4 muxer. */
+	requestLocalVideoExport?(
+		request: ClaudeLocalVideoExportRequest
+	): Promise<void>;
 	/** Request current selection from renderer */
 	requestSelection(correlationId?: string): Promise<ClaudeSelectionItem[]>;
 	/** Add one timeline element and wait for the renderer acknowledgement. */
@@ -269,6 +277,73 @@ function buildSnapshotUnavailableError({
 	);
 }
 
+function metadataRecord({
+	metadata,
+}: {
+	metadata: unknown;
+}): Record<string, unknown> {
+	if (
+		typeof metadata !== "object" ||
+		metadata === null ||
+		Array.isArray(metadata)
+	) {
+		throw new Error("Restricted renderer metadata must be an object.");
+	}
+	return metadata as Record<string, unknown>;
+}
+
+function parseRendererRestrictedMetadata({
+	mediaId,
+	metadata,
+}: {
+	mediaId: string;
+	metadata: unknown;
+}): NonNullable<MediaFile["metadata"]> {
+	const record = metadataRecord({ metadata });
+	const isPrimary = record.source === "sticker-lab";
+	const isRuntimeResource = record.source === "sticker-runtime-resource";
+	if (!(isPrimary || isRuntimeResource)) {
+		throw new Error("Restricted renderer metadata has an invalid source.");
+	}
+	const provenance = parseStickerLabMediaMetadata({
+		candidate: {
+			animatedSticker: isPrimary ? record.animatedSticker : true,
+			batchId: record.batchId,
+			checksumSha256: record.checksumSha256,
+			itemId: record.itemId,
+			redistribution: record.redistribution,
+			referenceOnly: record.referenceOnly,
+			source: "sticker-lab",
+			usage: record.usage,
+		},
+		label: `Renderer media ${mediaId} restricted provenance`,
+	});
+	if (isPrimary) return { ...record, ...provenance };
+
+	if (
+		record.stickerAssetId !==
+			`sticker-lab:${provenance.batchId}:${provenance.itemId}` ||
+		record.stickerAssetVersion !== 1 ||
+		typeof record.stickerRuntimeResourceName !== "string" ||
+		record.stickerRuntimeResourceName.length === 0 ||
+		record.stickerRuntimeResourceName.length > 256
+	) {
+		throw new Error(
+			"Restricted renderer runtime resource metadata is invalid."
+		);
+	}
+	return {
+		...record,
+		batchId: provenance.batchId,
+		checksumSha256: provenance.checksumSha256,
+		itemId: provenance.itemId,
+		redistribution: provenance.redistribution,
+		referenceOnly: provenance.referenceOnly,
+		source: "sticker-runtime-resource",
+		usage: provenance.usage,
+	};
+}
+
 /** Handle list media files with renderer fallback. */
 async function listMediaFilesWithRendererFallback({
 	projectId,
@@ -315,9 +390,9 @@ async function listMediaFilesWithRendererFallback({
 		let restrictedMetadata: MediaFile["metadata"];
 		if (isRestrictedStickerLabMetadata({ metadata: item.metadata })) {
 			try {
-				restrictedMetadata = parseStickerLabMediaMetadata({
-					candidate: item.metadata,
-					label: `Renderer media ${item.id} restricted metadata`,
+				restrictedMetadata = parseRendererRestrictedMetadata({
+					mediaId: item.id,
+					metadata: item.metadata,
 				});
 			} catch {
 				throw new RestrictedMediaExportError({
@@ -1449,7 +1524,14 @@ export function registerSharedRoutes(
 			]);
 			// The renderer can only snapshot the currently open project. Refuse a
 			// mismatched target instead of silently exporting the wrong timeline.
-			if (timeline.projectId && timeline.projectId !== req.params.projectId) {
+			if (!timeline.projectId) {
+				throw new HttpError(
+					409,
+					"The open editor timeline did not identify its project. Reopen the " +
+						"target project, then retry the export."
+				);
+			}
+			if (timeline.projectId !== req.params.projectId) {
 				throw new HttpError(
 					409,
 					`Project ${req.params.projectId} is not open in the editor ` +
@@ -1461,6 +1543,31 @@ export function registerSharedRoutes(
 				projectId: req.params.projectId,
 				accessor,
 			});
+			const requiresRendererExport =
+				hasStickerRuntimeForExport({
+					mediaItems: mediaFiles,
+					tracks: timeline.tracks,
+				}) ||
+				findRestrictedMediaForExport({
+					mediaItems: mediaFiles,
+					scope: "timeline",
+					tracks: timeline.tracks,
+				}).length > 0;
+			if (requiresRendererExport) {
+				if (!accessor.requestLocalVideoExport) {
+					throw new HttpError(
+						503,
+						"The live QCut renderer is unavailable for Sticker Lab export."
+					);
+				}
+				return await startRendererExportJob({
+					dispatch: accessor.requestLocalVideoExport,
+					mediaFiles,
+					projectId: req.params.projectId,
+					request: req.body || {},
+					timeline,
+				});
+			}
 			return await startExportJob({
 				projectId: req.params.projectId,
 				request: req.body || {},
