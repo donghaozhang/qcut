@@ -151,5 +151,17 @@ describe("Jianying native face-region renderer", () => {
 				renderer: { ...renderer, version: "../escape" },
 			})
 		).toThrow("Invalid local face-region renderer identity");
+		expect(() =>
+			resolveJianyingNativeFaceRegionPackagePath({
+				cacheRoot: "/cache",
+				renderer: { ...renderer, version: ".." },
+			})
+		).toThrow("Invalid local face-region renderer identity");
+		expect(() =>
+			resolveJianyingNativeFaceRegionPackagePath({
+				cacheRoot: "/cache",
+				renderer: { ...renderer, packageIdentifier: "." },
+			})
+		).toThrow("Invalid local face-region renderer identity");
 	});
 });
