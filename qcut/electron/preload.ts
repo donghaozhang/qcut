@@ -112,6 +112,12 @@ import {
 	JIANYING_FONT_LAB_LOAD_CHANNEL,
 } from "./jianying-font-lab-contract.js";
 import {
+	JIANYING_MUSIC_LAB_CACHE_BATCH_CHANNEL,
+	JIANYING_MUSIC_LAB_LIST_CHANNEL,
+	JIANYING_MUSIC_LAB_LOAD_CHANNEL,
+	JIANYING_MUSIC_LAB_REVEAL_CHANNEL,
+} from "./jianying-music-lab-contract.js";
+import {
 	JIANYING_TEXT_ANIMATION_LAB_LIST_CHANNEL,
 	JIANYING_TEXT_STYLE_LAB_COVER_CHANNEL,
 	JIANYING_TEXT_STYLE_LAB_LIST_CHANNEL,
@@ -278,6 +284,15 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke(JIANYING_FONT_LAB_LOAD_CHANNEL, request),
 		inspect: (request) =>
 			ipcRenderer.invoke(JIANYING_FONT_LAB_INSPECT_CHANNEL, request),
+	},
+	jianyingMusicLab: {
+		list: (request) =>
+			ipcRenderer.invoke(JIANYING_MUSIC_LAB_LIST_CHANNEL, request),
+		cacheNextBatch: (request) =>
+			ipcRenderer.invoke(JIANYING_MUSIC_LAB_CACHE_BATCH_CHANNEL, request),
+		load: (request) =>
+			ipcRenderer.invoke(JIANYING_MUSIC_LAB_LOAD_CHANNEL, request),
+		revealCache: () => ipcRenderer.invoke(JIANYING_MUSIC_LAB_REVEAL_CHANNEL),
 	},
 	jianyingTextStyleLab: {
 		list: (request) =>
