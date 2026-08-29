@@ -43,6 +43,14 @@ function createRefs() {
 	};
 }
 
+async function flushScrubFrame() {
+	await act(async () => {
+		await new Promise<void>((resolve) => {
+			requestAnimationFrame(() => resolve());
+		});
+	});
+}
+
 function movePointer({
 	clientX,
 	clientY,
@@ -74,7 +82,7 @@ describe("TimelineHoverAxis", () => {
 		resetPlaybackStore();
 	});
 
-	it("follows a buttonless hover and publishes the frame-snapped scrub time", () => {
+	it("follows a buttonless hover and publishes the frame-snapped scrub time", async () => {
 		render(<TimelineHoverAxis {...createRefs()} zoomLevel={1} />);
 		const axis = screen.getByTestId("timeline-hover-axis");
 		expect(axis.style.display).toBe("none");
@@ -84,6 +92,7 @@ describe("TimelineHoverAxis", () => {
 		expect(axis.style.display).toBe("");
 		// contentX = 324 - 224 = 100px -> 2s at 50px/s, on the frame grid.
 		expect(axis.style.left).toBe("324px");
+		await flushScrubFrame();
 		expect(usePlaybackStore.getState().previewScrubTime).toBe(2);
 	});
 
@@ -129,7 +138,7 @@ describe("TimelineHoverAxis", () => {
 		expect(usePlaybackStore.getState().previewScrubTime).toBeNull();
 	});
 
-	it("stays visual-only during playback", () => {
+	it("stays visual-only during playback", async () => {
 		usePlaybackStore.setState({ isPlaying: true });
 		render(<TimelineHoverAxis {...createRefs()} zoomLevel={1} />);
 		const axis = screen.getByTestId("timeline-hover-axis");
@@ -137,14 +146,16 @@ describe("TimelineHoverAxis", () => {
 		movePointer({ clientX: 324, clientY: 100 });
 
 		expect(axis.style.display).toBe("");
+		await flushScrubFrame();
 		expect(usePlaybackStore.getState().previewScrubTime).toBeNull();
 	});
 
-	it("clears the scrub override on unmount", () => {
+	it("clears the scrub override on unmount", async () => {
 		const { unmount } = render(
 			<TimelineHoverAxis {...createRefs()} zoomLevel={1} />
 		);
 		movePointer({ clientX: 324, clientY: 100 });
+		await flushScrubFrame();
 		expect(usePlaybackStore.getState().previewScrubTime).toBe(2);
 
 		unmount();
