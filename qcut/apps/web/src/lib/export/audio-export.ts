@@ -1,6 +1,7 @@
 import type { MediaItem } from "@/stores/media/media-store";
 import type { TimelineTrack } from "@/types/timeline";
 import { platform } from "@qcut/platform-core";
+import { selectMediaAudioSources } from "@/lib/audio/audio-source-selection";
 import { extractAudioFileInputs } from "../export-cli/sources";
 import { fileExists, invokeIfAvailable } from "./export-engine-cli-utils";
 import { resolveAudioPreparationInputs } from "./export-engine-cli-audio";
@@ -21,6 +22,44 @@ export interface StandaloneAudioExportOptions {
 	sampleRate: AudioExportSampleRate;
 }
 
+function buildStandaloneAudioPolicyTracks({
+	mediaItems,
+	tracks,
+}: {
+	mediaItems: MediaItem[];
+	tracks: TimelineTrack[];
+}): TimelineTrack[] {
+	const mediaById = new Map(mediaItems.map((item) => [item.id, item]));
+
+	return tracks.flatMap((track) => {
+		if (track.type !== "audio" && track.type !== "media") return [];
+
+		const elements = track.elements.flatMap((element) => {
+			if (element.type !== "media" || element.hidden) return [];
+
+			return selectMediaAudioSources({ element }).flatMap((source, index) => {
+				const mediaItem = mediaById.get(source.mediaId);
+				if (mediaItem?.type === "image") return [];
+
+				return [
+					{
+						duration: element.duration,
+						id: `${element.id}-audio-policy-${index}`,
+						mediaId: source.mediaId,
+						name: element.name,
+						startTime: element.startTime,
+						trimEnd: element.trimEnd,
+						trimStart: element.trimStart,
+						type: "media" as const,
+					},
+				];
+			});
+		});
+
+		return elements.length > 0 ? [{ ...track, elements }] : [];
+	});
+}
+
 /** Mix all audible timeline sources into a standalone MP3 file. */
 export async function exportTimelineAudio({
 	tracks,
@@ -36,19 +75,27 @@ export async function exportTimelineAudio({
 	if (!platform().isElectron) {
 		throw new Error("Standalone audio export requires the desktop app");
 	}
+	const audioPolicyTracks = buildStandaloneAudioPolicyTracks({
+		mediaItems,
+		tracks,
+	});
 	assertRestrictedMediaExportAllowed({
 		mediaItems,
 		operation: "standalone-audio",
 		scope: "timeline",
-		tracks,
+		tracks: audioPolicyTracks,
 	});
 
 	const hydrated = await resolveAudioPreparationInputs({ tracks, mediaItems });
+	const hydratedAudioPolicyTracks = buildStandaloneAudioPolicyTracks({
+		mediaItems: hydrated.mediaItems,
+		tracks: hydrated.tracks,
+	});
 	assertRestrictedMediaExportAllowed({
 		mediaItems: hydrated.mediaItems,
 		operation: "standalone-audio",
 		scope: "timeline",
-		tracks: hydrated.tracks,
+		tracks: hydratedAudioPolicyTracks,
 	});
 	const audioFiles = await extractAudioFileInputs(
 		hydrated.tracks,
