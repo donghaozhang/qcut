@@ -118,7 +118,14 @@ export function TimelineHoverAxis({
 			// keeps the preview, so no scrub override is published.
 			scheduleScrub(playback.isPlaying ? null : time);
 		},
-		[hide, scheduleScrub, timelineRef, tracksScrollRef, trackLabelsRef, zoomLevel]
+		[
+			hide,
+			scheduleScrub,
+			timelineRef,
+			tracksScrollRef,
+			trackLabelsRef,
+			zoomLevel,
+		]
 	);
 
 	useEffect(() => {
