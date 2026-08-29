@@ -22,6 +22,52 @@ export const STICKER_VIDEO_EVIDENCE_TIMES = {
 	nearEnd: 4.8,
 } as const;
 
+export interface StickerVideoEvidenceProfile {
+	durationSeconds: number;
+	frameHashFrames: number[];
+	frameRate: number;
+	maxDimension: number;
+	minDimension: number;
+	postSplitFrameHashFrames: number[];
+	times: {
+		animated: number;
+		early: number;
+		nearEnd: number;
+		postSplit: number;
+		splitLeft: number;
+		splitRight: number;
+	};
+}
+
+export const DEFAULT_STICKER_VIDEO_EVIDENCE_PROFILE: StickerVideoEvidenceProfile =
+	{
+		durationSeconds: 5,
+		frameHashFrames: [3, 9, 15, 21, 27],
+		frameRate: 30,
+		maxDimension: 1280,
+		minDimension: 720,
+		postSplitFrameHashFrames: [93, 99, 105, 111, 117],
+		times: STICKER_VIDEO_EVIDENCE_TIMES,
+	};
+
+export const REAL_CACHE_STICKER_VIDEO_EVIDENCE_PROFILE: StickerVideoEvidenceProfile =
+	{
+		durationSeconds: 5,
+		frameHashFrames: [2, 6, 10, 14, 18],
+		frameRate: 24,
+		maxDimension: 854,
+		minDimension: 480,
+		postSplitFrameHashFrames: [75, 78, 81, 84, 87],
+		times: {
+			animated: 0.7,
+			early: 0.1,
+			nearEnd: 4.8,
+			postSplit: 3.1,
+			splitLeft: 1.18,
+			splitRight: 1.2,
+		},
+	};
+
 interface FfprobeOutput {
 	format?: { duration?: string };
 	streams?: Array<{
@@ -240,8 +286,10 @@ async function preserveDecodedFrame({
 
 async function inspectVideo({
 	filePath,
+	profile = DEFAULT_STICKER_VIDEO_EVIDENCE_PROFILE,
 }: {
 	filePath: string;
+	profile?: StickerVideoEvidenceProfile;
 }): Promise<ExportedStickerVideoEvidence> {
 	const ffprobePath = await getFFprobePath();
 	const { stdout } = await execFileAsync(ffprobePath, [
@@ -261,40 +309,40 @@ async function inspectVideo({
 	return {
 		blueFrame: await readFrameEvidence({
 			filePath,
-			timeSeconds: STICKER_VIDEO_EVIDENCE_TIMES.animated,
+			timeSeconds: profile.times.animated,
 		}),
 		codecName: stream.codec_name ?? "",
 		durationSeconds: Number(probe.format?.duration ?? 0),
 		frameHashes: await readFrameHashes({
 			filePath,
-			frames: [3, 9, 15, 21, 27],
+			frames: profile.frameHashFrames,
 		}),
 		frameRate: parseFrameRate({ value: stream.avg_frame_rate }),
 		height: stream.height ?? 0,
 		nearEndFrame: await readFrameEvidence({
 			filePath,
-			timeSeconds: STICKER_VIDEO_EVIDENCE_TIMES.nearEnd,
+			timeSeconds: profile.times.nearEnd,
 		}),
 		postSplitFrame: await readFrameEvidence({
 			filePath,
-			timeSeconds: STICKER_VIDEO_EVIDENCE_TIMES.postSplit,
+			timeSeconds: profile.times.postSplit,
 		}),
 		postSplitFrameHashes: await readFrameHashes({
 			filePath,
-			frames: [93, 99, 105, 111, 117],
+			frames: profile.postSplitFrameHashFrames,
 		}),
 		redFrame: await readFrameEvidence({
 			filePath,
-			timeSeconds: STICKER_VIDEO_EVIDENCE_TIMES.early,
+			timeSeconds: profile.times.early,
 		}),
 		sizeBytes: (await stat(filePath)).size,
 		splitLeftFrame: await readFrameEvidence({
 			filePath,
-			timeSeconds: STICKER_VIDEO_EVIDENCE_TIMES.splitLeft,
+			timeSeconds: profile.times.splitLeft,
 		}),
 		splitRightFrame: await readFrameEvidence({
 			filePath,
-			timeSeconds: STICKER_VIDEO_EVIDENCE_TIMES.splitRight,
+			timeSeconds: profile.times.splitRight,
 		}),
 		width: stream.width ?? 0,
 	};
@@ -401,18 +449,31 @@ export async function exportLocalStickerVideo({
 	electronApp,
 	filePath,
 	page,
+	profile = DEFAULT_STICKER_VIDEO_EVIDENCE_PROFILE,
 }: {
 	artifacts?: StickerVideoEvidenceArtifacts;
 	electronApp: ElectronApplication;
 	filePath: string;
 	page: Page;
+	profile?: StickerVideoEvidenceProfile;
 }): Promise<ExportedStickerVideoEvidence> {
 	await rm(filePath, { force: true });
 	await stubExportSaveDialog({ electronApp, outputPath: filePath });
 	await page.getByTestId("export-button").click();
 	await expect(page.getByTestId("export-dialog")).toBeVisible();
 	await page.getByTestId("export-quality-select").locator("button").click();
-	await page.getByRole("radio", { name: /^(?:1280×720|720×1280)/ }).click();
+	await page
+		.getByRole("radio", {
+			name: new RegExp(
+				`^(?:${profile.maxDimension}×${profile.minDimension}|${profile.minDimension}×${profile.maxDimension})`
+			),
+		})
+		.click();
+	await page.getByTestId("export-frame-rate-select").locator("button").click();
+	await page
+		.getByRole("radio", { name: `${profile.frameRate} fps`, exact: true })
+		.locator("..")
+		.click();
 	const includeAudio = page.getByRole("checkbox", {
 		name: "Include audio in export",
 	});
@@ -448,23 +509,27 @@ export async function exportLocalStickerVideo({
 		)
 		.toEqual({ error: null, isExporting: false });
 
-	return inspectAndPreserveLocalStickerVideo({ artifacts, filePath });
+	return inspectAndPreserveLocalStickerVideo({ artifacts, filePath, profile });
 }
 
 export async function inspectAndPreserveLocalStickerVideo({
 	artifacts,
 	filePath,
+	profile = DEFAULT_STICKER_VIDEO_EVIDENCE_PROFILE,
 }: {
 	artifacts?: StickerVideoEvidenceArtifacts;
 	filePath: string;
+	profile?: StickerVideoEvidenceProfile;
 }): Promise<ExportedStickerVideoEvidence> {
-	const evidence = await inspectVideo({ filePath });
+	const evidence = await inspectVideo({ filePath, profile });
 	await preserveVideoEvidenceArtifacts({ artifacts, evidence, filePath });
 	expect(evidence.codecName).toBe("h264");
-	expect(Math.min(evidence.width, evidence.height)).toBe(720);
-	expect(Math.max(evidence.width, evidence.height)).toBe(1280);
-	expect(evidence.frameRate).toBeCloseTo(30, 1);
-	expect(Math.abs(evidence.durationSeconds - 5)).toBeLessThanOrEqual(0.1);
+	expect(Math.min(evidence.width, evidence.height)).toBe(profile.minDimension);
+	expect(Math.max(evidence.width, evidence.height)).toBe(profile.maxDimension);
+	expect(evidence.frameRate).toBeCloseTo(profile.frameRate, 1);
+	expect(
+		Math.abs(evidence.durationSeconds - profile.durationSeconds)
+	).toBeLessThanOrEqual(0.1);
 	expect(evidence.frameHashes).toHaveLength(5);
 	expect(evidence.postSplitFrameHashes).toHaveLength(5);
 	return evidence;
@@ -493,14 +558,17 @@ export async function inspectAndVerifyRealCachedStickerVideo({
 	animated,
 	artifacts,
 	filePath,
+	profile,
 }: {
 	animated: boolean;
 	artifacts?: StickerVideoEvidenceArtifacts;
 	filePath: string;
+	profile: StickerVideoEvidenceProfile;
 }): Promise<ExportedStickerVideoEvidence> {
 	const evidence = await inspectAndPreserveLocalStickerVideo({
 		artifacts,
 		filePath,
+		profile,
 	});
 	verifyRealCachedStickerFrames({ animated, evidence });
 	return evidence;
@@ -562,18 +630,21 @@ export async function exportAndVerifyRealCachedStickerVideo({
 	electronApp,
 	filePath,
 	page,
+	profile,
 }: {
 	animated: boolean;
 	artifacts?: StickerVideoEvidenceArtifacts;
 	electronApp: ElectronApplication;
 	filePath: string;
 	page: Page;
+	profile: StickerVideoEvidenceProfile;
 }): Promise<ExportedStickerVideoEvidence> {
 	const evidence = await exportLocalStickerVideo({
 		artifacts,
 		electronApp,
 		filePath,
 		page,
+		profile,
 	});
 	verifyRealCachedStickerFrames({ animated, evidence });
 	return evidence;
@@ -581,12 +652,14 @@ export async function exportAndVerifyRealCachedStickerVideo({
 
 export async function verifyBlackStickerBaseVideo({
 	filePath,
+	profile = DEFAULT_STICKER_VIDEO_EVIDENCE_PROFILE,
 }: {
 	filePath: string;
+	profile?: StickerVideoEvidenceProfile;
 }): Promise<void> {
-	const evidence = await inspectVideo({ filePath });
+	const evidence = await inspectVideo({ filePath, profile });
 	expect(evidence.codecName).toBe("h264");
-	expect(evidence.durationSeconds).toBeCloseTo(5, 1);
+	expect(evidence.durationSeconds).toBeCloseTo(profile.durationSeconds, 1);
 	expect(evidence.redFrame.darkRatio).toBeGreaterThan(0.999);
 	expect(evidence.blueFrame.darkRatio).toBeGreaterThan(0.999);
 	expect(evidence.postSplitFrame.darkRatio).toBeGreaterThan(0.999);
