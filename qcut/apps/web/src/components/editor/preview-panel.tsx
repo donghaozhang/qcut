@@ -141,12 +141,18 @@ export function PreviewPanel() {
 	} = useAsyncMediaItems();
 	const {
 		currentTime,
+		previewScrubTime,
 		toggle,
 		setCurrentTime,
 		isPlaying,
 		previewQuality,
 		runtimePreviewQuality,
 	} = usePlaybackStore();
+	// Paused scene time: the timeline hover axis publishes a transient scrub
+	// time so the preview quick-previews the hovered frame without moving the
+	// playhead. While playing this is always currentTime.
+	const displayTime =
+		!isPlaying && previewScrubTime !== null ? previewScrubTime : currentTime;
 	const { activeProject } = useProjectStore();
 	const { canvasSize } = useEditorStore();
 	const maskEditorActive = useMaskEditorStore((state) => state.isEditing);
@@ -304,7 +310,7 @@ export function PreviewPanel() {
 	const smoothTime = useSmoothPlaybackTime({
 		isPlaying,
 		enabled: smoothTimeNeed.needsSmoothTime,
-		fallbackTime: isPlaying ? playbackTime : currentTime,
+		fallbackTime: isPlaying ? playbackTime : displayTime,
 	});
 	const previewScale = usePreviewViewStore((state) => state.previewScale);
 	const setPreviewScale = usePreviewViewStore((state) => state.setPreviewScale);
@@ -355,7 +361,7 @@ export function PreviewPanel() {
 		recordingBackground,
 	} = useScreenRecordingPreview({
 		isPlaying,
-		currentTime,
+		currentTime: displayTime,
 		smoothTime,
 		previewWidth: previewDimensions.width || canvasSize.width,
 		previewHeight: previewDimensions.height || canvasSize.height,
@@ -500,7 +506,7 @@ export function PreviewPanel() {
 			);
 	}, []);
 
-	const transitionPreviewTime = isPlaying ? smoothTime : currentTime;
+	const transitionPreviewTime = isPlaying ? smoothTime : displayTime;
 	const activeTransitionPreview = useMemo(
 		() =>
 			resolveActiveClipTransitionPreview({
@@ -551,7 +557,7 @@ export function PreviewPanel() {
 	);
 	const getActiveElements = useCallback((): ActiveElement[] => {
 		try {
-			const effectiveTime = isPlaying ? playbackTime : currentTime;
+			const effectiveTime = isPlaying ? playbackTime : displayTime;
 			const plan = buildCompositionPlan({
 				tracks: renderTracks,
 				currentTime: effectiveTime,
@@ -603,7 +609,7 @@ export function PreviewPanel() {
 		forcedActiveElementIds,
 		activeTransitionPreview.activeTransitionIds,
 		renderTracks,
-		currentTime,
+		displayTime,
 		playbackTime,
 		isPlaying,
 		mediaItems,
@@ -720,7 +726,7 @@ export function PreviewPanel() {
 		enabled: compositionPreviewEnabled,
 		tracks: renderTracks,
 		mediaItems,
-		currentTime,
+		currentTime: displayTime,
 		totalDuration,
 		width: canvasSize.width,
 		height: canvasSize.height,
@@ -915,7 +921,7 @@ export function PreviewPanel() {
 				blurBackgroundElements={blurBackgroundElements}
 				blurBackgroundSource={blurBackgroundSource}
 				effectsRenderingByElementId={effectsRenderingByElementId}
-				timelineTime={isPlaying ? playbackTime : currentTime}
+				timelineTime={isPlaying ? playbackTime : displayTime}
 			/>
 		),
 		[
@@ -925,7 +931,7 @@ export function PreviewPanel() {
 			effectsRenderingByElementId,
 			isPlaying,
 			playbackTime,
-			currentTime,
+			displayTime,
 		]
 	);
 
@@ -953,14 +959,14 @@ export function PreviewPanel() {
 						element={elementData.element}
 						trackId={elementData.track.id}
 						trackMuted={elementData.track.muted}
-						timelineTime={isPlaying ? smoothTime : currentTime}
+						timelineTime={isPlaying ? smoothTime : displayTime}
 					/>
 					<PreviewElementRenderer
 						elementData={elementData}
 						index={index}
 						previewDimensions={previewDimensions}
 						canvasSize={canvasSize}
-						currentTime={isPlaying ? smoothTime : currentTime}
+						currentTime={isPlaying ? smoothTime : displayTime}
 						effectRendering={effectRendering}
 						videoSourcesById={videoSourcesById}
 						currentMediaElement={currentMediaElement}
@@ -997,7 +1003,7 @@ export function PreviewPanel() {
 			canvasSize,
 			compositionPreviewEnabled,
 			currentMediaElement,
-			currentTime,
+			displayTime,
 			dragState,
 			effectsRenderingByElementId,
 			handleElementResize,
@@ -1163,7 +1169,7 @@ export function PreviewPanel() {
 												canvasWidth={cursorW}
 												canvasHeight={cursorH}
 												currentTimeMs={
-													(isPlaying ? smoothTime : currentTime) * 1000
+													(isPlaying ? smoothTime : displayTime) * 1000
 												}
 												telemetry={cursorTelemetry}
 												config={cursorConfig}
@@ -1181,7 +1187,7 @@ export function PreviewPanel() {
 											) : (
 												<AdjustmentLayerStack
 													activeElements={activeElements}
-													currentTime={currentTime}
+													currentTime={displayTime}
 													fps={activeProject?.fps ?? 30}
 													renderElement={renderElement}
 												/>
@@ -1288,7 +1294,7 @@ export function PreviewPanel() {
 									targets={selectedMediaTargets}
 									canvasSize={canvasSize}
 									previewRef={previewRef}
-									currentTime={currentTime}
+									currentTime={displayTime}
 									fps={activeProject?.fps ?? 30}
 								/>
 							)}
