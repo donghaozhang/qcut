@@ -637,6 +637,19 @@ describe("ExportEngineFactory", () => {
 					ExportEngineType.STANDARD
 				)
 			).rejects.toMatchObject({ code: "QCUT_RESTRICTED_MEDIA_EXPORT" });
+			await expect(
+				factory.createEngine(
+					canvas,
+					{
+						...localMp4Settings,
+						outputPath: "\\\\server\\share\\local-sticker.mp4",
+					},
+					tracks,
+					mediaItems,
+					1,
+					ExportEngineType.STANDARD
+				)
+			).rejects.toMatchObject({ code: "QCUT_RESTRICTED_MEDIA_EXPORT" });
 
 			mockPlatform.isElectron = false;
 			await expect(
