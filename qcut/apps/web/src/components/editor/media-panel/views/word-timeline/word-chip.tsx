@@ -9,15 +9,18 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { WordItem } from "@/types/word-timeline";
+import type { WordDisplayGroup } from "./word-display-groups";
 import { formatTime, getChipColor, getChipHelpText } from "./helpers";
 
+type WordChipItem = WordItem | WordDisplayGroup;
+
 export interface WordChipProps {
-	word: WordItem;
+	word: WordChipItem;
 	isSelected: boolean;
 	isSearchMatch?: boolean;
 	isActiveMatch?: boolean;
-	onPrimaryAction: (word: WordItem) => void;
-	onQuickRemove: (word: WordItem) => void;
+	onPrimaryAction: (word: WordChipItem) => void;
+	onQuickRemove: (word: WordChipItem) => void;
 }
 
 /** Individual word chip with click/right-click actions and keyboard support. */
@@ -30,6 +33,7 @@ export function WordChip({
 	onQuickRemove,
 }: WordChipProps) {
 	const buttonRef = useRef<HTMLButtonElement>(null);
+	const wordIds = "wordIds" in word ? word.wordIds : [word.id];
 
 	const handleClick = useCallback(() => {
 		onPrimaryAction(word);
@@ -75,6 +79,9 @@ export function WordChip({
 					<button
 						ref={buttonRef}
 						type="button"
+						data-testid="word-display-chip"
+						data-word-id={word.id}
+						data-word-ids={wordIds.join(",")}
 						onClick={handleClick}
 						onContextMenu={handleRightClick}
 						onKeyDown={handleKeyDown}

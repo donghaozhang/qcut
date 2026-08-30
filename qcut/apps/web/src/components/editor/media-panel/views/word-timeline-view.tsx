@@ -48,6 +48,11 @@ import {
 } from "./word-timeline/helpers";
 import { WordChip } from "./word-timeline/word-chip";
 import { DropZone } from "./word-timeline/drop-zone";
+import {
+	buildWordDisplayGroups,
+	getDisplayGroupWordIds,
+	type WordDisplayGroup,
+} from "./word-timeline/word-display-groups";
 
 interface TranscriptionRequestDetail {
 	filePath: string;
@@ -122,6 +127,10 @@ export function WordTimelineView() {
 	const words = useMemo(
 		() => allWords.filter((word) => word.type === "word"),
 		[allWords]
+	);
+	const displayWords = useMemo(
+		() => buildWordDisplayGroups({ words }),
+		[words]
 	);
 
 	// Auto-select word based on current playback time (karaoke-style sync)
@@ -476,8 +485,9 @@ export function WordTimelineView() {
 	}, [handleMediaSelect]);
 
 	const handleWordPrimaryAction = useCallback(
-		(word: WordItem) => {
+		(word: WordItem | WordDisplayGroup) => {
 			try {
+				const wordIds = getDisplayGroupWordIds({ word });
 				selectWord(word.id);
 				if (word.filterState === WORD_FILTER_STATE.NONE) {
 					seek(word.start);
@@ -489,29 +499,32 @@ export function WordTimelineView() {
 					word.filterState === WORD_FILTER_STATE.AI ||
 					word.filterState === WORD_FILTER_STATE.USER_REMOVE
 				) {
-					setFilterState(word.id, WORD_FILTER_STATE.USER_KEEP);
+					setMultipleFilterStates(wordIds, WORD_FILTER_STATE.USER_KEEP);
 					return;
 				}
 
 				if (word.filterState === WORD_FILTER_STATE.USER_KEEP) {
-					setFilterState(word.id, WORD_FILTER_STATE.USER_REMOVE);
+					setMultipleFilterStates(wordIds, WORD_FILTER_STATE.USER_REMOVE);
 				}
 			} catch {
 				return;
 			}
 		},
-		[seek, selectWord, setFilterState]
+		[seek, selectWord, setMultipleFilterStates]
 	);
 
 	const handleWordQuickRemove = useCallback(
-		(word: WordItem) => {
+		(word: WordItem | WordDisplayGroup) => {
 			try {
-				setFilterState(word.id, WORD_FILTER_STATE.USER_REMOVE);
+				setMultipleFilterStates(
+					getDisplayGroupWordIds({ word }),
+					WORD_FILTER_STATE.USER_REMOVE
+				);
 			} catch {
 				return;
 			}
 		},
-		[setFilterState]
+		[setMultipleFilterStates]
 	);
 
 	const handleAcceptAllAi = useCallback(() => {
@@ -581,7 +594,7 @@ export function WordTimelineView() {
 	);
 
 	const handleSearchSeek = useCallback(
-		(word: WordItem) => {
+		(word: WordItem | WordDisplayGroup) => {
 			selectWord(word.id);
 			seek(word.start);
 		},
@@ -792,7 +805,7 @@ export function WordTimelineView() {
 			{/* Search bar */}
 			{showSearch && (
 				<WordSearch
-					words={words}
+					words={displayWords}
 					onSeekToWord={handleSearchSeek}
 					onHighlightedWordsChange={setSearchHighlightedWords}
 					onActiveMatchChange={setSearchActiveWordId}
@@ -804,17 +817,29 @@ export function WordTimelineView() {
 			<ScrollArea className="flex-1">
 				<div className="p-3">
 					<div className="flex flex-wrap gap-1.5">
-						{words.map((word) => (
-							<WordChip
-								key={word.id}
-								word={word}
-								isSelected={selectedWordId === word.id}
-								isSearchMatch={searchHighlightedWords.has(word.id)}
-								isActiveMatch={searchActiveWordId === word.id}
-								onPrimaryAction={handleWordPrimaryAction}
-								onQuickRemove={handleWordQuickRemove}
-							/>
-						))}
+						{displayWords.map((word) => {
+							const wordIds = getDisplayGroupWordIds({ word });
+							const isSelected = selectedWordId
+								? wordIds.includes(selectedWordId)
+								: false;
+							const isSearchMatch = wordIds.some((wordId) =>
+								searchHighlightedWords.has(wordId)
+							);
+							const isActiveMatch = searchActiveWordId
+								? wordIds.includes(searchActiveWordId)
+								: false;
+							return (
+								<WordChip
+									key={word.id}
+									word={word}
+									isSelected={isSelected}
+									isSearchMatch={isSearchMatch}
+									isActiveMatch={isActiveMatch}
+									onPrimaryAction={handleWordPrimaryAction}
+									onQuickRemove={handleWordQuickRemove}
+								/>
+							);
+						})}
 					</div>
 				</div>
 			</ScrollArea>
