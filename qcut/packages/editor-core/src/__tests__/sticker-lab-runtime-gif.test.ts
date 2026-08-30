@@ -5,6 +5,7 @@ import {
 	type DirectGifRuntimeDescriptor,
 	type DirectGifRuntimeState,
 } from "../sticker-lab/index.js";
+import { mediaTimeToTicks } from "../sticker-lab/runtime-media-time.js";
 
 function asciiBytes({ value }: { value: string }): number[] {
 	const bytes: number[] = [];
@@ -90,7 +91,7 @@ function gifFixture({
 				delayCentiseconds: delaysCentiseconds[index] ?? 0,
 				disposalMethod: index + 1,
 				hasTransparency: index === 1,
-				x: index,
+				x: index % 3,
 			})
 		);
 	}
@@ -199,6 +200,48 @@ describe("Sticker Lab direct GIF runtime", () => {
 			iterationIndex: 1,
 		});
 		expect(arbitrarySeek.frameElapsedSeconds).toBeCloseTo(0.11);
+	});
+
+	it("preserves centisecond timing across a long GIF cycle", () => {
+		const frameCount = 225;
+		const frameDurationSeconds = 0.06;
+		const frameDurationTicks = 60_000_000_000_000n;
+		const descriptor = parseDirectGifRuntimeDescriptor({
+			bytes: gifFixture({
+				delaysCentiseconds: Array.from(
+					{ length: frameCount },
+					() => frameDurationSeconds * 100
+				),
+				repeatCount: 0,
+			}),
+		});
+
+		expect(descriptor.frames).toHaveLength(frameCount);
+		let expectedStartTicks = 0n;
+		for (const [index, frame] of descriptor.frames.entries()) {
+			expect(frame.startSeconds).toBeCloseTo(index * frameDurationSeconds, 12);
+			expect(mediaTimeToTicks({ seconds: frame.startSeconds })).toBe(
+				expectedStartTicks
+			);
+			expect(mediaTimeToTicks({ seconds: frame.durationSeconds })).toBe(
+				frameDurationTicks
+			);
+			expectedStartTicks += frameDurationTicks;
+		}
+		expect(descriptor.frames[31]?.startSeconds).toBe(1.86);
+		expect(descriptor.cycleDurationSeconds).toBe(13.5);
+		expect(
+			mediaTimeToTicks({
+				seconds: descriptor.cycleDurationSeconds,
+			})
+		).toBe(expectedStartTicks);
+		expect(
+			activeGifState({
+				descriptor,
+				timelineTimeSeconds: descriptor.cycleDurationSeconds - 0.001,
+				timelineDurationSeconds: descriptor.cycleDurationSeconds,
+			}).frameIndex
+		).toBe(frameCount - 1);
 	});
 
 	it("preserves animation phase after a timeline split", () => {
