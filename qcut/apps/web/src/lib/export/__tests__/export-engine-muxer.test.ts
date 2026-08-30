@@ -54,15 +54,20 @@ vi.mock("../export-canvas-yuv", () => ({
 		fullRange: false,
 	},
 	createCanvasYuvConverter: vi.fn(
-		({ width, height }: { width: number; height: number }) => ({
-			kind: "cpu" as const,
-			convert: () => ({
+		({ width, height }: { width: number; height: number }) => {
+			const frame = () => ({
 				data: new Uint8Array((width * height * 3) / 2),
 				codedWidth: width,
 				codedHeight: height,
-			}),
-			dispose: vi.fn(),
-		})
+			});
+			return {
+				kind: "cpu" as const,
+				begin: vi.fn(),
+				finish: frame,
+				convert: frame,
+				dispose: vi.fn(),
+			};
+		}
 	),
 }));
 
