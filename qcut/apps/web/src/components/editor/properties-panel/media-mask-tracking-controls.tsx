@@ -59,6 +59,17 @@ export function MediaMaskTrackingControls({
 		)
 	).size;
 	const correctedFrameCount = mask.tracking?.correctedFrames?.length ?? 0;
+	const trackedFrameCount = mask.tracking?.trackedFrames ?? 0;
+	const totalFrameCount = mask.tracking?.totalFrames;
+	const trackingSummary = [
+		trackedFrameCount > 0
+			? `已跟踪 ${trackedFrameCount}${totalFrameCount ? `/${totalFrameCount}` : ""} 帧`
+			: null,
+		keyframeCount > 0 ? `${keyframeCount} 个关键帧` : null,
+		correctedFrameCount > 0 ? `修正 ${correctedFrameCount} 帧` : null,
+	]
+		.filter(Boolean)
+		.join(" · ");
 	const progress = Math.min(100, Math.max(0, mask.tracking?.progress ?? 0));
 	const lastDirection = mask.tracking?.direction ?? "both";
 
@@ -140,10 +151,9 @@ export function MediaMaskTrackingControls({
 					<Wrench className="size-4" />
 				</MaskIconButton>
 			</div>
-			{keyframeCount > 0 ? (
+			{trackingSummary ? (
 				<div className="text-[10px] text-muted-foreground">
-					已跟踪 {keyframeCount} 帧
-					{correctedFrameCount > 0 ? ` · 修正 ${correctedFrameCount} 帧` : ""}
+					{trackingSummary}
 				</div>
 			) : null}
 		</div>
