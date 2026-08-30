@@ -186,9 +186,9 @@ describe("export renderer clip transitions", () => {
 		await renderFrame(context, 1.75);
 
 		expect(requests).toEqual([
-			{ lane: undefined, mediaId: "m1", time: expect.closeTo(1.75 + 1 / 60) },
+			{ lane: "a", mediaId: "m1", time: expect.closeTo(1.75 + 1 / 60) },
 			{
-				lane: "transition-incoming",
+				lane: "b",
 				mediaId: "m2",
 				time: expect.closeTo(1 / 60),
 			},
@@ -212,9 +212,9 @@ describe("export renderer clip transitions", () => {
 		await renderFrame(context, 2.25);
 
 		expect(requests).toEqual([
-			{ lane: undefined, mediaId: "m1", time: 2 },
+			{ lane: "a", mediaId: "m1", time: 2 },
 			{
-				lane: "transition-incoming",
+				lane: "b",
 				mediaId: "m2",
 				time: expect.closeTo(0.25 + 1 / 60),
 			},
@@ -233,8 +233,8 @@ describe("export renderer clip transitions", () => {
 		await renderFrame(context, 2.5);
 
 		expect(requests).toEqual([
-			{ lane: undefined, mediaId: "m1", time: expect.closeTo(1 + 1 / 60) },
-			{ lane: undefined, mediaId: "m2", time: expect.closeTo(0.5 + 1 / 60) },
+			{ lane: "a", mediaId: "m1", time: expect.closeTo(1 + 1 / 60) },
+			{ lane: "b", mediaId: "m2", time: expect.closeTo(0.5 + 1 / 60) },
 		]);
 		expect(ctx.draws.map((draw) => draw.alpha)).toEqual([1, 1]);
 		expect(groupContexts.every((group) => group.draws.length === 0)).toBe(true);
@@ -250,7 +250,7 @@ describe("export renderer clip transitions", () => {
 		await renderFrame(context, 1.75);
 
 		expect(requests).toEqual([
-			{ lane: undefined, mediaId: "m1", time: expect.closeTo(1.75 + 1 / 60) },
+			{ lane: "a", mediaId: "m1", time: expect.closeTo(1.75 + 1 / 60) },
 		]);
 		expect(ctx.draws).toHaveLength(1);
 	});
