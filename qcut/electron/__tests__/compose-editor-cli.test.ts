@@ -217,6 +217,8 @@ describe("compose apply handler", () => {
 			createClient: vi.fn(() => ({}) as never),
 			capture: vi.fn(),
 			applyManifest,
+			resolveAssets: vi.fn(async () => ({ reports: [], issues: [] })),
+			materializeAssets: vi.fn(async ({ patch }: { patch: unknown }) => patch),
 		} as unknown as ComposeEditorDependencies;
 		const result = await handleComposeApply(
 			options({ snapshot: snapshotPath, patch: patchPath }),
@@ -247,6 +249,8 @@ describe("compose apply handler", () => {
 			createClient: vi.fn(() => ({}) as never),
 			capture: vi.fn(),
 			applyManifest,
+			resolveAssets: vi.fn(async () => ({ reports: [], issues: [] })),
+			materializeAssets: vi.fn(async ({ patch }: { patch: unknown }) => patch),
 		} as unknown as ComposeEditorDependencies;
 		const result = await handleComposeApply(
 			options({ snapshot: snapshotPath, patch: brokenPath }),
