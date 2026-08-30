@@ -76,6 +76,7 @@ import { buildTextRasterOverlayPassArgs } from "./text-raster-overlay-pass.js";
 import { readMediaRestrictedMetadata } from "../claude-media-restricted-metadata.js";
 import {
 	isRestrictedMediaExportError,
+	isRestrictedStickerLabMetadata,
 	RestrictedMediaExportError,
 } from "../../../types/restricted-media-export-policy.js";
 
@@ -742,6 +743,15 @@ export async function collectStickerOverlays({
 				}
 
 				if (!media || !media.path) {
+					if (
+						media &&
+						isRestrictedStickerLabMetadata({ metadata: media.metadata })
+					) {
+						throw new RestrictedMediaExportError({
+							mediaIds: [media.id],
+							operation: "native sticker overlay path resolution",
+						});
+					}
 					claudeLog.warn(
 						HANDLER_NAME,
 						"Sticker element skipped — could not resolve media file. " +
@@ -754,6 +764,12 @@ export async function collectStickerOverlays({
 				try {
 					await fsPromises.access(media.path);
 				} catch {
+					if (isRestrictedStickerLabMetadata({ metadata: media.metadata })) {
+						throw new RestrictedMediaExportError({
+							mediaIds: [media.id],
+							operation: "native sticker overlay file access",
+						});
+					}
 					claudeLog.warn(
 						HANDLER_NAME,
 						`Sticker image file not found on disk: ${media.path}`
@@ -789,6 +805,7 @@ export async function collectStickerOverlays({
 
 				resolvedMediaFiles?.push(media);
 				overlays.push({
+					mediaId: media.id,
 					sourcePath: media.path,
 					startTime: element.startTime,
 					endTime: element.startTime + duration,

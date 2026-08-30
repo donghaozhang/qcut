@@ -12,9 +12,14 @@ import {
 	StickerRuntimeExportUnsupportedError,
 } from "../../../../../electron/types/sticker-runtime-export-policy";
 import {
-	assertRestrictedMediaExportAllowed,
+	assertLocalFinalVideoExportAllowed,
 	isRestrictedMediaExportError,
 } from "../../../../../electron/types/restricted-media-export-policy";
+import {
+	LocalMp4EngineRequiredError,
+	requiresRestrictedMediaLocalVideoAllowance,
+	resolveLocalFinalVideoExportOutput,
+} from "./local-final-video-output";
 
 // Engine types available
 export const ExportEngineType = {
@@ -256,11 +261,21 @@ export class ExportEngineFactory {
 			.getState()
 			.getStickersForExport()
 			.map((sticker) => sticker.mediaItemId);
-		assertRestrictedMediaExportAllowed({
-			additionalMediaIds: overlayMediaIds,
+		const requiresRestrictedLocalMp4Engine =
+			requiresRestrictedMediaLocalVideoAllowance({
+				mediaItems,
+				stickerOverlayMediaIds: overlayMediaIds,
+				tracks,
+			});
+		assertLocalFinalVideoExportAllowed({
 			mediaItems,
 			operation: "video",
-			scope: "timeline",
+			output: resolveLocalFinalVideoExportOutput({
+				format: settings.format,
+				isElectron: this.isElectron(),
+				outputPath: settings.outputPath,
+			}),
+			stickerOverlayMediaIds: overlayMediaIds,
 			tracks,
 		});
 		const requiresLocalColorExport = requiresJianyingLocalColorExport({
@@ -278,6 +293,15 @@ export class ExportEngineFactory {
 				reason: "remotion-composition",
 			});
 		}
+		if (
+			requiresRestrictedLocalMp4Engine &&
+			!requiresStickerRuntimeExport &&
+			hasRemotionElements({ tracks })
+		) {
+			throw new LocalMp4EngineRequiredError({
+				operation: "Sticker Lab export with Remotion composition",
+			});
+		}
 		if (requiresStickerRuntimeExport && settings.format !== "mp4") {
 			throw new StickerRuntimeExportUnsupportedError({
 				format: settings.format,
@@ -285,7 +309,7 @@ export class ExportEngineFactory {
 				reason: "unsupported-format",
 			});
 		}
-		if (requiresStickerRuntimeExport) {
+		if (requiresStickerRuntimeExport || requiresRestrictedLocalMp4Engine) {
 			selectedEngineType = ExportEngineType.MUXER;
 		}
 		if (
@@ -392,6 +416,12 @@ export class ExportEngineFactory {
 						);
 						return cliEngine;
 					} catch (error) {
+						if (requiresRestrictedLocalMp4Engine) {
+							if (isRestrictedMediaExportError({ error })) throw error;
+							throw new LocalMp4EngineRequiredError({
+								operation: "Sticker Lab local final video export",
+							});
+						}
 						debugError(
 							"[ExportEngineFactory] ❌ Failed to load CLI engine:",
 							error
@@ -420,6 +450,11 @@ export class ExportEngineFactory {
 						);
 					}
 				} else {
+					if (requiresRestrictedLocalMp4Engine) {
+						throw new LocalMp4EngineRequiredError({
+							operation: "Sticker Lab local final video export",
+						});
+					}
 					console.log(
 						"🌐 BROWSER ENVIRONMENT: Using Standard Canvas engine (CLI not available in browser)"
 					);
@@ -462,6 +497,11 @@ export class ExportEngineFactory {
 							format: settings.format,
 							operation: "video export",
 							reason: "muxer-unavailable",
+						});
+					}
+					if (requiresRestrictedLocalMp4Engine) {
+						throw new LocalMp4EngineRequiredError({
+							operation: "Sticker Lab local final video export",
 						});
 					}
 					if (requiresLocalColorExport) {

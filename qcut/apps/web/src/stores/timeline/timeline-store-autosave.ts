@@ -88,15 +88,10 @@ export function createAutoSaveHelpers(get: StoreGet, set: StoreSet) {
 			}
 
 			try {
-				// Include current scene ID to avoid desync
-				const { useSceneStore } = await import("./scene-store");
-				const sceneId =
-					useSceneStore.getState().currentScene?.id ??
-					activeProject.currentSceneId;
 				await storageService.saveProjectTimeline({
 					projectId: activeProject.id,
 					tracks: get()._tracks,
-					sceneId,
+					sceneId: activeProject.currentSceneId,
 				});
 				set({
 					isAutoSaving: false,

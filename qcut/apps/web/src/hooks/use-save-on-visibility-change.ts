@@ -26,20 +26,15 @@ export function useSaveOnVisibilityChange() {
 					const { useTimelineStore } = await import(
 						"@/stores/timeline/timeline-store"
 					);
-					const { useSceneStore } = await import(
-						"@/stores/timeline/scene-store"
-					);
-
 					const activeProject = useProjectStore.getState().activeProject;
 					const tracks = useTimelineStore.getState()._tracks;
-					const currentScene = useSceneStore.getState().currentScene;
 
 					if (activeProject && tracks.length > 0) {
 						// Save timeline immediately (no debounce)
 						await storageService.saveProjectTimeline({
 							projectId: activeProject.id,
 							tracks,
-							sceneId: currentScene?.id ?? activeProject.currentSceneId,
+							sceneId: activeProject.currentSceneId,
 						});
 
 						// Also save project metadata

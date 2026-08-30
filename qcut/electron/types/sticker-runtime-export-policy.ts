@@ -13,6 +13,7 @@ export type StickerRuntimeExportUnsupportedReason =
 interface StickerRuntimeMediaRecord {
 	id?: unknown;
 	metadata?: unknown;
+	name?: unknown;
 }
 
 export interface StickerRuntimeExportCheck {
@@ -46,10 +47,12 @@ function collectTimelineRuntimeState({
 }): {
 	hasElementRuntime: boolean;
 	mediaIds: Set<string>;
+	mediaNames: Set<string>;
 } {
 	const mediaIds = new Set(
 		additionalMediaIds.filter((mediaId) => mediaId.length > 0)
 	);
+	const mediaNames = new Set<string>();
 	const visitedElements = new WeakSet<object>();
 	const pendingElements: { depth: number; value: unknown }[] = [];
 	for (const trackValue of tracks) {
@@ -65,19 +68,25 @@ function collectTimelineRuntimeState({
 		if (!element || visitedElements.has(element)) continue;
 		visitedElements.add(element);
 		if (hasStickerRuntime({ value: element })) {
-			return { hasElementRuntime: true, mediaIds };
+			return { hasElementRuntime: true, mediaIds, mediaNames };
 		}
 		for (const candidate of [element.mediaId, element.sourceId]) {
 			if (typeof candidate === "string" && candidate.length > 0) {
 				mediaIds.add(candidate);
 			}
 		}
+		if (
+			typeof element.sourceName === "string" &&
+			element.sourceName.length > 0
+		) {
+			mediaNames.add(element.sourceName);
+		}
 
 		const compound = toRecord({ value: element.compound });
 		if (!compound || !Array.isArray(compound.clips)) continue;
 		if (depth >= MAX_COMPOUND_RUNTIME_DEPTH) {
 			if (compound.clips.length > 0) {
-				return { hasElementRuntime: true, mediaIds };
+				return { hasElementRuntime: true, mediaIds, mediaNames };
 			}
 			continue;
 		}
@@ -87,7 +96,7 @@ function collectTimelineRuntimeState({
 			pendingElements.push({ depth: depth + 1, value: clip.element });
 		}
 	}
-	return { hasElementRuntime: false, mediaIds };
+	return { hasElementRuntime: false, mediaIds, mediaNames };
 }
 
 export function hasStickerRuntimeForExport({
@@ -95,14 +104,19 @@ export function hasStickerRuntimeForExport({
 	mediaItems,
 	tracks,
 }: StickerRuntimeExportCheck): boolean {
-	const { hasElementRuntime, mediaIds } = collectTimelineRuntimeState({
-		additionalMediaIds,
-		tracks,
-	});
+	const { hasElementRuntime, mediaIds, mediaNames } =
+		collectTimelineRuntimeState({
+			additionalMediaIds,
+			tracks,
+		});
 	if (hasElementRuntime) return true;
 
 	for (const mediaItem of mediaItems) {
-		if (typeof mediaItem.id !== "string" || !mediaIds.has(mediaItem.id)) {
+		const matchesId =
+			typeof mediaItem.id === "string" && mediaIds.has(mediaItem.id);
+		const matchesName =
+			typeof mediaItem.name === "string" && mediaNames.has(mediaItem.name);
+		if (!(matchesId || matchesName)) {
 			continue;
 		}
 		if (hasStickerRuntime({ value: mediaItem.metadata })) return true;

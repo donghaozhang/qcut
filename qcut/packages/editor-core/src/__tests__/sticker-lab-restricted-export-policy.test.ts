@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+	assertLocalFinalVideoExportAllowed as assertLocalFinalVideoPolicyAllowed,
 	assertRestrictedMediaExportAllowed,
 	findRestrictedMediaForExport,
 	isRestrictedMediaExportError,
+	type LocalFinalVideoExportCheck,
 	RESTRICTED_MEDIA_EXPORT_ERROR_CODE,
 	RESTRICTED_MEDIA_EXPORT_MESSAGE,
 } from "../../../../electron/types/restricted-media-export-policy";
@@ -18,7 +20,441 @@ const restrictedMetadata = {
 	usage: "internal-reference-only",
 } as const;
 
+const noncanonicalPrimaryMetadataCases = [
+	{
+		label: "missing animatedSticker",
+		metadata: {
+			batchId: restrictedMetadata.batchId,
+			checksumSha256: restrictedMetadata.checksumSha256,
+			itemId: restrictedMetadata.itemId,
+			redistribution: restrictedMetadata.redistribution,
+			referenceOnly: restrictedMetadata.referenceOnly,
+			source: restrictedMetadata.source,
+			usage: restrictedMetadata.usage,
+		},
+	},
+	{
+		label: "itemId longer than 32 characters",
+		metadata: { ...restrictedMetadata, itemId: "1".repeat(33) },
+	},
+	{
+		label: "uppercase checksum",
+		metadata: { ...restrictedMetadata, checksumSha256: "A".repeat(64) },
+	},
+] as const;
+
+function createRestrictedRuntimeMetadata({
+	checksumSha256 = "a".repeat(64),
+	itemId = "18001",
+	resourceName = "atlas.png",
+}: {
+	checksumSha256?: string;
+	itemId?: string;
+	resourceName?: string;
+} = {}) {
+	return {
+		...restrictedMetadata,
+		checksumSha256,
+		itemId,
+		source: "sticker-runtime-resource" as const,
+		stickerAssetId: `sticker-lab:${restrictedMetadata.batchId}:${itemId}`,
+		stickerAssetVersion: 1,
+		stickerRuntimeResourceName: resourceName,
+	};
+}
+
+function assertLocalFinalVideoExportAllowed({
+	mediaItems,
+	operation,
+	stickerOverlayMediaIds,
+	tracks,
+}: Omit<LocalFinalVideoExportCheck, "output">): void {
+	assertLocalFinalVideoPolicyAllowed({
+		mediaItems,
+		operation,
+		output: {
+			container: "mp4",
+			destination: "local-file",
+			kind: "final-video",
+		},
+		...(stickerOverlayMediaIds ? { stickerOverlayMediaIds } : {}),
+		tracks,
+	});
+}
+
 describe("Sticker Lab restricted export policy", () => {
+	it("accepts canonical primary provenance for a local final video", () => {
+		expect(() =>
+			assertLocalFinalVideoExportAllowed({
+				mediaItems: [{ id: "restricted-media", metadata: restrictedMetadata }],
+				operation: "video",
+				tracks: [
+					{
+						elements: [
+							{
+								mediaId: "restricted-media",
+								stickerId: "sticker-lab:jianying-2026-08-23-batch-18-v2:18001",
+								type: "sticker",
+							},
+						],
+					},
+				],
+			})
+		).not.toThrow();
+	});
+
+	it("resolves canonical local sticker provenance by sourceName after an ID change", () => {
+		expect(() =>
+			assertLocalFinalVideoExportAllowed({
+				mediaItems: [
+					{
+						id: "actual-restricted-media",
+						metadata: restrictedMetadata,
+						name: "cached-sticker.gif",
+					},
+				],
+				operation: "video",
+				tracks: [
+					{
+						elements: [
+							{
+								mediaId: "stale-restricted-media",
+								sourceName: "cached-sticker.gif",
+								stickerId: "sticker-lab:jianying-2026-08-23-batch-18-v2:18001",
+								type: "sticker",
+							},
+						],
+					},
+				],
+			})
+		).not.toThrow();
+	});
+
+	it.each(
+		noncanonicalPrimaryMetadataCases
+	)("rejects noncanonical primary provenance: $label", ({ metadata }) => {
+		expect(() =>
+			assertLocalFinalVideoExportAllowed({
+				mediaItems: [{ id: "restricted-media", metadata }],
+				operation: "video",
+				tracks: [
+					{
+						elements: [
+							{
+								mediaId: "restricted-media",
+								type: "sticker",
+							},
+						],
+					},
+				],
+			})
+		).toThrow(RESTRICTED_MEDIA_EXPORT_MESSAGE);
+	});
+
+	it("allows a restricted overlay sticker to be baked into a final video", () => {
+		expect(() =>
+			assertLocalFinalVideoExportAllowed({
+				mediaItems: [{ id: "restricted-media", metadata: restrictedMetadata }],
+				operation: "video",
+				stickerOverlayMediaIds: ["restricted-media"],
+				tracks: [],
+			})
+		).not.toThrow();
+	});
+
+	it("keeps GIF and external video destinations restricted", () => {
+		const check = {
+			mediaItems: [{ id: "restricted-media", metadata: restrictedMetadata }],
+			operation: "video",
+			tracks: [
+				{
+					elements: [{ mediaId: "restricted-media", type: "sticker" }],
+				},
+			],
+		};
+		expect(() =>
+			assertLocalFinalVideoPolicyAllowed({
+				...check,
+				output: {
+					container: "gif",
+					destination: "local-file",
+					kind: "final-video",
+				},
+			})
+		).toThrow(RESTRICTED_MEDIA_EXPORT_MESSAGE);
+		expect(() =>
+			assertLocalFinalVideoPolicyAllowed({
+				...check,
+				output: {
+					container: "mp4",
+					destination: "external",
+					kind: "final-video",
+				},
+			})
+		).toThrow(RESTRICTED_MEDIA_EXPORT_MESSAGE);
+	});
+
+	it("blocks restricted media used outside the sticker render path", () => {
+		expect(() =>
+			assertLocalFinalVideoExportAllowed({
+				mediaItems: [{ id: "restricted-media", metadata: restrictedMetadata }],
+				operation: "video",
+				tracks: [
+					{
+						elements: [
+							{ mediaId: "restricted-media", type: "sticker" },
+							{ mediaId: "restricted-media", type: "media" },
+						],
+					},
+				],
+			})
+		).toThrow(RESTRICTED_MEDIA_EXPORT_MESSAGE);
+	});
+
+	it("allows local runtime resources only through their sticker closure", () => {
+		const mediaItems = [
+			{
+				id: "restricted-primary",
+				metadata: {
+					...restrictedMetadata,
+					stickerRuntimeResources: { atlas: "restricted-atlas" },
+				},
+			},
+			{
+				id: "restricted-atlas",
+				metadata: createRestrictedRuntimeMetadata({}),
+			},
+		];
+
+		expect(() =>
+			assertLocalFinalVideoExportAllowed({
+				mediaItems,
+				operation: "video",
+				tracks: [
+					{
+						elements: [{ mediaId: "restricted-primary", type: "sticker" }],
+					},
+				],
+			})
+		).not.toThrow();
+		expect(() =>
+			assertLocalFinalVideoExportAllowed({
+				mediaItems,
+				operation: "video",
+				tracks: [
+					{
+						elements: [
+							{ mediaId: "restricted-primary", type: "sticker" },
+							{ mediaId: "restricted-atlas", type: "media" },
+						],
+					},
+				],
+			})
+		).toThrow(RESTRICTED_MEDIA_EXPORT_MESSAGE);
+	});
+
+	it("rejects restricted runtime resources hidden behind a public primary", () => {
+		let thrown: unknown;
+		try {
+			assertLocalFinalVideoExportAllowed({
+				mediaItems: [
+					{
+						id: "public-primary",
+						metadata: {
+							source: "upload",
+							stickerRuntimeResources: { atlas: "restricted-atlas" },
+						},
+					},
+					{
+						id: "restricted-atlas",
+						metadata: createRestrictedRuntimeMetadata({}),
+					},
+				],
+				operation: "video",
+				tracks: [
+					{
+						elements: [{ mediaId: "public-primary", type: "sticker" }],
+					},
+				],
+			});
+		} catch (error) {
+			thrown = error;
+		}
+
+		expect(thrown).toMatchObject({
+			code: RESTRICTED_MEDIA_EXPORT_ERROR_CODE,
+			mediaIds: ["public-primary", "restricted-atlas"],
+		});
+	});
+
+	it("does not treat a generic prohibited asset as a local sticker", () => {
+		expect(() =>
+			assertLocalFinalVideoExportAllowed({
+				mediaItems: [
+					{
+						id: "generic-prohibited",
+						metadata: { redistribution: "prohibited" },
+					},
+				],
+				operation: "video",
+				tracks: [
+					{
+						elements: [{ mediaId: "generic-prohibited", type: "sticker" }],
+					},
+				],
+			})
+		).toThrow(RESTRICTED_MEDIA_EXPORT_MESSAGE);
+	});
+
+	it("fails closed for malformed local Sticker Lab provenance", () => {
+		expect(() =>
+			assertLocalFinalVideoExportAllowed({
+				mediaItems: [
+					{
+						id: "malformed-local-sticker",
+						metadata: {
+							...restrictedMetadata,
+							checksumSha256: "not-a-checksum",
+						},
+					},
+				],
+				operation: "video",
+				tracks: [
+					{
+						elements: [{ mediaId: "malformed-local-sticker", type: "sticker" }],
+					},
+				],
+			})
+		).toThrow(RESTRICTED_MEDIA_EXPORT_MESSAGE);
+	});
+
+	it("fails closed when a durable Sticker Lab ID has no media record", () => {
+		expect(() =>
+			assertLocalFinalVideoExportAllowed({
+				mediaItems: [],
+				operation: "video",
+				tracks: [
+					{
+						elements: [
+							{
+								mediaId: "missing-primary",
+								stickerId: "sticker-lab:jianying-2026-08-23-batch-18-v2:18001",
+								type: "sticker",
+							},
+						],
+					},
+				],
+			})
+		).toThrow(RESTRICTED_MEDIA_EXPORT_MESSAGE);
+	});
+
+	it("fails closed when durable Sticker Lab provenance was stripped", () => {
+		expect(() =>
+			assertLocalFinalVideoExportAllowed({
+				mediaItems: [
+					{ id: "stripped-primary", metadata: { source: "upload" } },
+				],
+				operation: "video",
+				tracks: [
+					{
+						elements: [
+							{
+								mediaId: "stripped-primary",
+								stickerId: "sticker-lab:jianying-2026-08-23-batch-18-v2:18001",
+								type: "sticker",
+							},
+						],
+					},
+				],
+			})
+		).toThrow(RESTRICTED_MEDIA_EXPORT_MESSAGE);
+	});
+
+	it("fails closed when a declared runtime resource is missing", () => {
+		expect(() =>
+			assertLocalFinalVideoExportAllowed({
+				mediaItems: [
+					{
+						id: "restricted-primary",
+						metadata: {
+							...restrictedMetadata,
+							stickerRuntimeResources: { atlas: "missing-atlas" },
+						},
+					},
+				],
+				operation: "video",
+				tracks: [
+					{
+						elements: [{ mediaId: "restricted-primary", type: "sticker" }],
+					},
+				],
+			})
+		).toThrow(RESTRICTED_MEDIA_EXPORT_MESSAGE);
+	});
+
+	it("fails closed for malformed or mismatched runtime provenance", () => {
+		const primary = {
+			id: "restricted-primary",
+			metadata: {
+				...restrictedMetadata,
+				stickerRuntimeResources: { atlas: "restricted-atlas" },
+			},
+		};
+		const tracks = [
+			{
+				elements: [{ mediaId: "restricted-primary", type: "sticker" }],
+			},
+		];
+
+		expect(() =>
+			assertLocalFinalVideoExportAllowed({
+				mediaItems: [
+					primary,
+					{
+						id: "restricted-atlas",
+						metadata: createRestrictedRuntimeMetadata({
+							checksumSha256: "invalid",
+						}),
+					},
+				],
+				operation: "video",
+				tracks,
+			})
+		).toThrow(RESTRICTED_MEDIA_EXPORT_MESSAGE);
+		expect(() =>
+			assertLocalFinalVideoExportAllowed({
+				mediaItems: [
+					primary,
+					{
+						id: "restricted-atlas",
+						metadata: createRestrictedRuntimeMetadata({ itemId: "18002" }),
+					},
+				],
+				operation: "video",
+				tracks,
+			})
+		).toThrow(RESTRICTED_MEDIA_EXPORT_MESSAGE);
+	});
+
+	it("blocks a runtime resource used directly as a sticker primary", () => {
+		expect(() =>
+			assertLocalFinalVideoExportAllowed({
+				mediaItems: [
+					{
+						id: "restricted-atlas",
+						metadata: createRestrictedRuntimeMetadata({}),
+					},
+				],
+				operation: "video",
+				tracks: [
+					{
+						elements: [{ mediaId: "restricted-atlas", type: "sticker" }],
+					},
+				],
+			})
+		).toThrow(RESTRICTED_MEDIA_EXPORT_MESSAGE);
+	});
+
 	it("blocks restricted media referenced by the timeline with a stable error", () => {
 		let thrown: unknown;
 		try {

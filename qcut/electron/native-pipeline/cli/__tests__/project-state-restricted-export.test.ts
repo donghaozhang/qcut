@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { RESTRICTED_MEDIA_EXPORT_MESSAGE } from "../../../types/restricted-media-export-policy.js";
 import type { EditorApiClient } from "../../editor/editor-api-client.js";
 import type { CLIRunOptions } from "../cli-runner/types.js";
 
@@ -61,9 +62,7 @@ describe("project state restricted export policy", () => {
 		);
 
 		expect(result).toMatchObject({
-			error: expect.stringContaining(
-				"Sticker Lab reference-only media cannot be exported or redistributed."
-			),
+			error: expect.stringContaining(RESTRICTED_MEDIA_EXPORT_MESSAGE),
 			success: false,
 		});
 		expect(writeFileSync).not.toHaveBeenCalled();

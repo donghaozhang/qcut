@@ -158,6 +158,10 @@ import type {
 	PtySpawnOptions,
 	PtySpawnResult,
 } from "./utility-ipc-types.js";
+import {
+	handleUtilityLocalVideoExportRequest,
+	UTILITY_LOCAL_VIDEO_EXPORT_CHANNEL,
+} from "./utility-local-video-export-bridge.js";
 
 // Use electron-log when available, fall back to console
 let logger: {
@@ -467,6 +471,10 @@ async function handleMainRequest(
 	});
 
 	switch (channel) {
+		case UTILITY_LOCAL_VIDEO_EXPORT_CHANNEL: {
+			return handleUtilityLocalVideoExportRequest({ data, win });
+		}
+
 		case "webcontents-send": {
 			const req = data as unknown as WebContentsSendRequest;
 			win.webContents.send(req.channel, ...req.args);

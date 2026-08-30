@@ -88,7 +88,8 @@ import {
 	collectJianyingEffectRequests,
 } from "./export-engine-cli-jianying-effects";
 import { assertNativeStickerRuntimeExportAllowed } from "../../../../../electron/types/sticker-runtime-export-policy";
-import { assertRestrictedMediaExportAllowed } from "../../../../../electron/types/restricted-media-export-policy";
+import { assertLocalFinalVideoExportAllowed } from "../../../../../electron/types/restricted-media-export-policy";
+import { resolveLocalFinalVideoExportOutput } from "./local-final-video-output";
 
 // Re-export types for backward compatibility (using export from)
 export type {
@@ -428,10 +429,14 @@ export class CLIExportEngine extends ExportEngine {
 				mediaItems: this.mediaItems,
 				tracks: this.tracks,
 			});
-			assertRestrictedMediaExportAllowed({
+			assertLocalFinalVideoExportAllowed({
 				mediaItems,
 				operation: "video",
-				scope: "timeline",
+				output: resolveLocalFinalVideoExportOutput({
+					format: this.settings.format,
+					isElectron: platform().isElectron,
+					outputPath: this.settings.outputPath,
+				}),
 				tracks,
 			});
 			const preparedAudioFiles = await prepareAudioFilesForExport({
