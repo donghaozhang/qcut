@@ -26,6 +26,8 @@ export interface ElectronAudioOps {
 		processLocal: (
 			request: QcutAudioProcessRequest
 		) => Promise<QcutAudioProcessResult>;
+		/** Optional so a newer renderer can feature-check an older preload. */
+		cancelLocal?: (requestId: string) => Promise<boolean>;
 		getLocalCacheStats: () => Promise<QcutAudioCacheStats>;
 		clearLocalCache: () => Promise<QcutAudioCacheClearResult>;
 	};
