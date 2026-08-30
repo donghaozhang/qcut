@@ -672,43 +672,59 @@ type TrackingBinding = {
 
 ### 18.1 结论
 
-路线可行，但“缓存模型文件”和“本地可调用”是两个不同里程碑。`bingo_objectTracking_v1.0.dat` 和 `single_object_tracking_v1.0.model` 都没有公开的独立入口；只复制模型文件，或只证明 `dlopen(libcccreator.dylib)` 成功，都不等于已经能输入视频和初始框并取得轨迹。
+路线可行，并且前两个阶段已经完成：
 
-建议分成三个阶段：
+1. 已固定剪映专业版 11.3.0 的私有 runtime、动态库依赖闭包和两份跟踪模型；
+2. 已恢复 `libcccreator.dylib` 导出的 `Bingo_ObjectTracking_*` 低层调用合同，能在剪映全部进程退出后，从普通视频和初始矩形产出双向逐帧轨迹；
+3. QCut 自研 tracker 与产品接入仍是下一阶段，不能把私有 Bingo oracle 当作可发布实现。
 
-1. 固定 11.3.0 的最小私有 runtime 和模型依赖闭包；
-2. 做一个剪映进程完全退出后仍能运行的隔离桥接进程，把它当本机研究 oracle；
-3. 保持相同输入输出合同，逐步换成 QCut 自研 tracker，并用 oracle/旁车做回归对照。
+因此现在得到的是“脱离剪映进程可调用”，不是“脱离剪映二进制可调用”。缓存的二进制和模型只能留在本机仓库外，用于研究与回归对照；QCut 不能分发它们，也不能把它们作为用户功能的运行时依赖。
 
 ### 18.2 阶段 A：缓存精确版本，不缓存一个孤立模型
 
-建议的仓库外目录：
+已建立的仓库外目录：
 
 ```text
 ~/Library/Application Support/QCut/PrivateRuntimes/JianyingTracking/
-  <libcccreator-uuid>-<sha256-prefix>/
+  11.3.0-100726E3-FCB0-31BC-98EE-1B196A1714A3-b09c395d9341/
+    Frameworks/
+    Resources/models/
     manifest.json
-    lib/
-    models/
-  current -> <audited-version>
+  current -> 11.3.0-...
 ```
 
-`manifest.json` 至少记录：
+当前快照包含 23 个动态库和 2 个模型，共 `294,090,115` 字节。`libcccreator.dylib` 的 arm64 UUID 为 `100726E3-FCB0-31BC-98EE-1B196A1714A3`，SHA-256 为 `b09c395d934169cb20ec865dd1d4032ca68023b287a7264e1b06ff4d71fd1be4`。`manifest.json` 记录：
 
 - 剪映版本和 bundle id；
-- 架构、每个 Mach-O UUID、字节数和 SHA-256；
+- 架构、核心 Mach-O UUID、每个文件的字节数和 SHA-256；
 - 模型相对路径、字节数和 SHA-256；
-- 完整动态库依赖闭包及装载顺序；
+- 动态库依赖闭包；
 - `localOnly: true` 与 `cloudUpload: false`；
-- 生成时间、来源应用路径和验证命令。
+- 生成时间和用途标识。
 
-仓库已有 `research/jianying-runtime-probe/backup-private-runtime.ts` 的私有备份模式可复用；`.local/jianying-runtime/` 已被忽略。新缓存仍应放在 Application Support 的私有目录，仓库只保存不含私有内容的 manifest schema、探针和测试。
+缓存脚本先在 staging 目录复制，再复算所有文件的字节数和 SHA-256，收紧权限后原子发布，并维护 `current` 符号链接：
+
+```bash
+bun research/jianying-tracking-probe/cache-private-runtime.ts
+bun research/jianying-tracking-probe/cache-private-runtime.ts --verify-only
+```
+
+私有文件始终位于 Application Support；仓库只保存缓存工具、桥接源码、合同测试和不含私有内容的文档。
 
 ### 18.3 阶段 B：脱离剪映进程的调用桥
 
-桥接应是独立 Objective-C++/C++ 子进程，通过 `dlopen` 装载已锁定版本，并从低层 `TEBachObjectTrackingAlgorithm` / Bach algorithm system 开始验证。不要从 `StickerClient` 开始，因为它依赖剪映编辑器的 IPC 服务端。
+静态分析和运行探针确认，这个版本不需要从 `StickerClient`、`TEBachObjectTrackingAlgorithm` 或编辑器 IPC 进入。`libcccreator.dylib` 直接导出以下低层自由函数入口；它们具有简单的 C 形状参数，但符号仍使用 C++ name mangling：
 
-建议固定一个与供应商 ABI 隔离的公开合同：
+```text
+Bingo_ObjectTracking_getDefaultParam
+Bingo_ObjectTracking_createHandle
+Bingo_ObjectTracking_init
+Bingo_ObjectTracking_setInitialBBox
+Bingo_ObjectTracking_trackFrame
+Bingo_ObjectTracking_releaseHandle
+```
+
+独立 C++ 子进程只在内部持有供应商 handle。TypeScript CLI 与它之间使用自有、与供应商 ABI 隔离的合同：
 
 ```text
 input:
@@ -720,27 +736,46 @@ input:
 output:
   frameIndex, sourceTimeUs
   rectNormalized
-  rotationRad?
-  confidence?
-  status: tracked | lost | invalid
+  rotationDegrees, rawRotationCentidegrees
+  status, rawStatus
 ```
 
-桥接进程必须具备：
+普通视频调用入口：
 
-- UUID 和 SHA-256 不匹配即拒绝启动；
-- 崩溃隔离、超时、取消和最大内存限制；
-- 不访问网络，不连接或启动剪映进程；
+```bash
+bun research/jianying-tracking-probe/track-motion.ts \
+  --video /path/to/input.mp4 \
+  --rect 0.30,0.25,0.62,0.70 \
+  --anchor-frame 45 \
+  --direction both
+```
+
+默认结果原子写到 `/path/to/input.jianying-motion-track.json`。CLI 和桥接进程已经具备：
+
+- manifest 全文件 hash、核心库 arm64 UUID 和模型 hash 不匹配即拒绝启动；
+- 私有 C++ 对象和崩溃都隔离在子进程；
+- 默认检测剪映主进程、helper 和 `lvve-service`，发现任一进程仍在运行即拒绝执行；
+- 原生求解器在 macOS `sandbox-exec` 的 `deny network*` 策略中运行；
 - 输入使用普通视频或解码帧，输出使用自有 JSON/二进制 schema；
 - 不向 TypeScript 暴露私有 C++ 对象、指针或 mangled symbol；
-- 用真实旁车校准时间、坐标、status、丢失和插值语义。
+- `forward`、`backward` 各自从锚点建立 session，`both` 按帧号无重复合并；
+- 原始角度以百分之一度表示并在 `36000` 回绕，输出同时保留原值和普通角度。
 
-仓库中的 `electron/jianying-person-cutout/native/video-object-bach-bridge.mm` 已证明“按 UUID/hash 锁定私有 `libcccreator` 并隔离装载”的工程模式，但 object tracking 的类布局、初始化参数、模型注册和依赖闭包仍需单独恢复，不能假设可直接复用人物抠像入口。
+验收在剪映进程数运行前后都为 `0` 的条件下生成 60 帧已知运动视频，从第 30 帧向前、向后跟踪并独立运行两次。11.3.0 的结果为：
 
-“脱离剪映可调用”的验收条件是：剪映完全退出后，从全新桥接进程输入普通视频和初始矩形，稳定产出逐帧结果；运行期间没有连接剪映 IPC、没有读取应用用户草稿、没有网络请求，并能在固定样例上重复得到相同结果。只完成库装载、对象构造或单帧 init 都不算通过。
+- tracked `60/60`；
+- 两次逐帧 sample 数组完全相同；
+- 平均 IoU `0.940269`，最低单帧 IoU `0.879379`；
+- 平均中心误差 `1.6225 px`，最大中心误差 `3.4910 px`；
+- 两次结果 SHA-256 都是 `80fbba4b0bab9934b8239a905fcda74f61a8992f56a8548dce59832d32250113`。
+
+验收命令为 `bun research/jianying-tracking-probe/run-private-runtime-acceptance.ts`，证据写到仓库外的 `~/Library/Application Support/QCut/ResearchEvidence/JianyingTracking/<run-id>/`。这些数字证明固定版本和当前合成样例已经闭环，不证明复杂真人、遮挡、运动模糊、其他剪映版本或最终贴纸插值层的 parity。
+
+当前 `sourceTimeUs` 由帧号和平均 FPS 计算，所以可靠合同暂时只覆盖恒定帧率视频。VFR 输入需要增加逐帧 PTS sidecar 后才能进入 parity corpus。
 
 ### 18.4 阶段 C：替换为 QCut 自研实现
 
-私有桥与自研 tracker 必须实现同一个 `MotionSolverAdapter`，这样 UI、任务调度、缓存和贴纸渲染不依赖具体求解器。迁移顺序建议为：
+这一阶段尚未完成。私有桥与自研 tracker 应实现同一个 `MotionSolverAdapter`，这样 UI、任务调度、缓存和贴纸渲染不依赖具体求解器。迁移顺序建议为：
 
 1. 先固定矩形、时间、方向、validity 和 lost/reacquire 合同；
 2. 选成熟开源 tracker 做可运行基线，不从零手写数值核心；
@@ -753,7 +788,7 @@ output:
 
 ## 19. 独立探针
 
-同目录提供两层可脱离剪映调用的探针：
+同目录提供三组探针：
 
 - `tracking-probe-core.mjs`：可嵌入 Node/QCut worker 的纯数据分析层；
 - `tracking-probe-planar.mjs` / `tracking-probe-motion.mjs`：独立的四角与矩形审计模块；
@@ -764,8 +799,13 @@ output:
 - `probe_planar_video.py`：直接从普通视频运行 LK 光流 + RANSAC homography 四角跟踪；
 - `video_probe_common.py`：独立视频、时间、坐标和结果写出公共层；
 - `test_video_probes.py`：使用已知透视 ground truth 的视频回归测试；
+- `cache-private-runtime.ts`：建立并校验仓库外的版本锁定私有 runtime；
+- `bingo-tracking-bridge.cpp`：直接调用 `Bingo_ObjectTracking_*` 的隔离原生桥；
+- `track-motion.ts`：普通视频、FFmpeg 解码、进程与网络隔离及结果发布入口；
+- `track-motion.test.ts`：不依赖私有 runtime 的 CLI 合同测试；
+- `run-private-runtime-acceptance.ts`：脱离剪映的确定性与 ground truth 验收；
 - `PROBES.zh-CN.md`：完整调用方式和退出码。
 
-Node 层零第三方依赖；Python 视频层只依赖 NumPy 和 OpenCV contrib。探针不要求剪映运行或安装，不调用剪映二进制，不使用默认剪映路径，也不会修改输入文件。
+Node 旁车层零第三方依赖；Python 视频层只依赖 NumPy 和 OpenCV contrib。这两组是 QCut 可拥有和分发的透明实现，不要求剪映运行或安装，也不调用剪映二进制。第三组是本机私有 Bingo oracle：不要求剪映进程、账号、草稿或网络，但明确依赖仓库外缓存的 11.3.0 私有二进制和模型，不能打包或发布。
 
-当前验证结果：Node 10 项测试通过，Python 8 项测试通过；在 90 帧受控校准视频上，独立运动和平面探针均得到 90/90 有效样例，输出再次通过 Node 严格几何检查。这个结果证明独立调用链闭环可用，不代表 OpenCV 轨迹与剪映私有 solver 已达到逐帧 parity。
+当前验证结果：Node 10 项测试通过，Python 8 项测试通过，Bingo CLI 合同 16 项测试通过；在 90 帧受控校准视频上，独立运动和平面探针均得到 90/90 有效样例，私有 Bingo oracle 在 60 帧样例上得到 60/60 tracked 且两次结果完全一致。这些结果分别证明透明参考实现和私有 oracle 都可独立调用，不代表二者已经达到逐帧 parity。
