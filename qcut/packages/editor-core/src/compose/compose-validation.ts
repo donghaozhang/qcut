@@ -35,6 +35,7 @@ export interface ComposeValidationIssue {
 }
 
 const OUT_OF_BOUNDS_TOLERANCE_SECONDS = 0.05;
+const SOURCE_BOUNDS_TOLERANCE_SECONDS = 0.001;
 
 function isFinitePositiveRange({
 	startTime,
@@ -315,6 +316,39 @@ function validateSoundSettings({
 			operationId: operation.id,
 			message: "Sound-effect playbackRate must be between 0.25 and 4.",
 		});
+	}
+	// Timeline duration consumes source seconds at playbackRate speed, so the
+	// source must cover trims plus duration × rate — a 2× clip needs twice the
+	// source footage its timeline span suggests.
+	const sourceDuration = operation.asset?.duration;
+	if (
+		sourceDuration !== undefined &&
+		Number.isFinite(sourceDuration) &&
+		Number.isFinite(operation.duration)
+	) {
+		const playbackRate =
+			operation.playbackRate !== undefined &&
+			Number.isFinite(operation.playbackRate) &&
+			operation.playbackRate > 0
+				? operation.playbackRate
+				: 1;
+		const consumedSourceSeconds =
+			(operation.trimStart ?? 0) +
+			(operation.trimEnd ?? 0) +
+			operation.duration * playbackRate;
+		if (
+			consumedSourceSeconds >
+			sourceDuration + SOURCE_BOUNDS_TOLERANCE_SECONDS
+		) {
+			issues.push({
+				severity: "error",
+				code: "invalid-range",
+				path: `${path}.duration`,
+				operationId: operation.id,
+				message:
+					"Sound-effect trims plus duration × playbackRate exceed the source duration.",
+			});
+		}
 	}
 }
 
