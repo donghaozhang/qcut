@@ -558,7 +558,11 @@ function scheduleProjectJsonAutoSync({
  * advertises snapshot support, mutations fail closed if the renderer cannot
  * prove which project is open.
  */
-const PROJECT_SCOPE_TIMEOUT_MS = 750;
+// Generous on purpose: right after a media batch-import the renderer can
+// be busy generating thumbnails/waveforms for seconds, and a too-tight
+// window makes every mutation guard flake with 503s. The guard still
+// fails closed when the snapshot never arrives.
+const PROJECT_SCOPE_TIMEOUT_MS = 5000;
 
 export async function assertProjectIsOpen({
 	accessor,
