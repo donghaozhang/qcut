@@ -15,6 +15,9 @@ import { renderBrowserTimelineAudio } from "@/lib/audio/browser-audio-export";
 import { calculateFrameTime } from "./export-engine-utils";
 import { exportProfiler } from "./export-profiler";
 import { reportExportFrameProgress } from "./export-progress-reporter";
+import { assertCanvasClipTransitionsRenderable } from "./export-clip-transitions";
+import { isJianyingTimelineRendererAvailable } from "./export-engine-cli-jianying";
+import { applyJianyingTransitionsToRenderedVideo } from "./export-muxer-jianying-pass";
 
 // Progress callback type
 type ProgressCallback = (progress: number, status: string) => void;
@@ -69,6 +72,24 @@ export class ExportEngineMuxer extends ExportEngine {
 
 		try {
 			progressCallback?.(0, "Initializing WebCodecs encoder...");
+
+			// Transitions are decided before any frame is encoded: canvas renders
+			// the ones it can express exactly, jianying-local seams go through the
+			// native pass after muxing, and anything else fails closed here rather
+			// than exporting a silent hard cut.
+			const clipTransitions = this.getExportRenderIndex().clipTransitions;
+			assertCanvasClipTransitionsRenderable({
+				plan: clipTransitions,
+				engineLabel: "muxer",
+			});
+			if (
+				clipTransitions.jianyingTransitions.length > 0 &&
+				!isJianyingTimelineRendererAvailable()
+			) {
+				throw new Error(
+					"本机剪映转场需要 QCut 桌面版的剪映引擎；当前环境无法渲染这些转场，已中止导出以避免静默硬切。"
+				);
+			}
 
 			// Dynamic import to avoid loading mediabunny on desktop
 			const {
@@ -208,7 +229,24 @@ export class ExportEngineMuxer extends ExportEngine {
 			if (!target.buffer) {
 				throw new Error("Export finalization failed — no output buffer");
 			}
-			const blob = new Blob([target.buffer], { type: "video/mp4" });
+			let blob = new Blob([target.buffer], { type: "video/mp4" });
+			if (clipTransitions.jianyingTransitions.length > 0) {
+				if (this.isExportCancelled()) {
+					throw new Error("Export cancelled by user");
+				}
+				progressCallback?.(97, "正在用本机剪映引擎渲染转场…");
+				blob = await exportProfiler.time("jianying-transition-pass", () =>
+					applyJianyingTransitionsToRenderedVideo({
+						blob,
+						transitions: clipTransitions.jianyingTransitions,
+						tracks: this.tracks,
+						fps,
+						width: this.canvas.width,
+						height: this.canvas.height,
+						onProgress: progressCallback,
+					})
+				);
+			}
 			progressCallback?.(100, "Export complete!");
 
 			await exportProfiler.finishAndSave({
