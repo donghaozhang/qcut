@@ -273,6 +273,8 @@ export interface ClaudeElement
 	colorSettings?: Record<string, unknown>;
 	/** Untrusted portrait adjustment JSON; normalized by the renderer bridge. */
 	portraitAdjustments?: unknown;
+	/** Untrusted local video enhancement JSON; normalized by the renderer bridge. */
+	enhancements?: unknown;
 	masks?: Record<string, unknown>[];
 	backgroundColor?: string;
 	textColor?: string;
@@ -283,6 +285,8 @@ export interface ClaudeElement
 	trimStart?: number;
 	trimEnd?: number;
 	hidden?: boolean;
+	/** Timeline-only organizational color; null clears the current label. */
+	colorLabel?: string | null;
 	fitMode?: "cover" | "contain" | "fill";
 }
 // Project Types
