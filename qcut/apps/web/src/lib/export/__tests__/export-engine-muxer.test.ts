@@ -6,7 +6,8 @@ const mockFinalize = vi.fn().mockResolvedValue(undefined);
 const mockStart = vi.fn().mockResolvedValue(undefined);
 const mockAddVideoTrack = vi.fn();
 const mockAddAudioTrack = vi.fn();
-const mockCanvasSourceCtor = vi.fn();
+const mockVideoSourceCtor = vi.fn();
+const mockVideoSampleCtor = vi.fn();
 
 vi.mock("mediabunny", () => {
 	class MockOutput {
@@ -19,11 +20,17 @@ vi.mock("mediabunny", () => {
 	class MockBufferTarget {
 		buffer = new ArrayBuffer(100);
 	}
-	class MockCanvasSource {
+	class MockVideoSampleSource {
 		constructor(...args: any[]) {
-			mockCanvasSourceCtor(...args);
+			mockVideoSourceCtor(...args);
 		}
 		add = mockAdd;
+	}
+	class MockVideoSample {
+		close = vi.fn();
+		constructor(...args: any[]) {
+			mockVideoSampleCtor(...args);
+		}
 	}
 	class MockAudioBufferSource {
 		add = mockAdd;
@@ -32,10 +39,32 @@ vi.mock("mediabunny", () => {
 		Output: MockOutput,
 		Mp4OutputFormat: MockMp4OutputFormat,
 		BufferTarget: MockBufferTarget,
-		CanvasSource: MockCanvasSource,
+		VideoSampleSource: MockVideoSampleSource,
+		VideoSample: MockVideoSample,
 		AudioBufferSource: MockAudioBufferSource,
 	};
 });
+
+// The engine converts frames itself; keep the converter out of jsdom's way.
+vi.mock("../export-canvas-yuv", () => ({
+	EXPORT_VIDEO_COLOR_SPACE: {
+		primaries: "bt709",
+		transfer: "bt709",
+		matrix: "bt709",
+		fullRange: false,
+	},
+	createCanvasYuvConverter: vi.fn(
+		({ width, height }: { width: number; height: number }) => ({
+			kind: "cpu" as const,
+			convert: () => ({
+				data: new Uint8Array((width * height * 3) / 2),
+				codedWidth: width,
+				codedHeight: height,
+			}),
+			dispose: vi.fn(),
+		})
+	),
+}));
 
 // The engine constructor resolves the local-mp4 policy through platform().
 vi.mock("@qcut/platform-core", () => ({
@@ -228,7 +257,12 @@ describe("ExportEngineMuxer", () => {
 
 		await engine.export();
 
-		expect(mockAdd.mock.calls).toEqual([
+		expect(
+			mockVideoSampleCtor.mock.calls.map(([, init]) => [
+				init.timestamp,
+				init.duration,
+			])
+		).toEqual([
 			[0, 1 / 30],
 			[1 / 30, 1 / 30],
 			[2 / 30, 1 / 30],
@@ -280,9 +314,8 @@ describe("ExportEngineMuxer", () => {
 
 		await engine.export();
 
-		// CanvasSource constructor should have been called with 8 Mbps for 1080p
-		expect(mockCanvasSourceCtor).toHaveBeenCalledWith(
-			canvas,
+		// VideoSampleSource should have been configured with 8 Mbps for 1080p
+		expect(mockVideoSourceCtor).toHaveBeenCalledWith(
 			expect.objectContaining({
 				codec: "avc",
 				bitrate: 8_000_000,
@@ -309,8 +342,7 @@ describe("ExportEngineMuxer", () => {
 
 		await engine.export();
 
-		expect(mockCanvasSourceCtor).toHaveBeenCalledWith(
-			canvas,
+		expect(mockVideoSourceCtor).toHaveBeenCalledWith(
 			expect.objectContaining({
 				codec: "avc",
 				bitrate: 2_500_000,
@@ -338,8 +370,7 @@ describe("ExportEngineMuxer", () => {
 		await engine.export();
 
 		// Unknown quality falls back to 5_000_000
-		expect(mockCanvasSourceCtor).toHaveBeenCalledWith(
-			canvas,
+		expect(mockVideoSourceCtor).toHaveBeenCalledWith(
 			expect.objectContaining({
 				bitrate: 5_000_000,
 			})
