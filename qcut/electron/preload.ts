@@ -149,6 +149,13 @@ import {
 	JIANYING_11_3_PROJECT_EXPORT_CHOOSE_CHANNEL,
 	JIANYING_11_3_PROJECT_EXPORT_COMMIT_CHANNEL,
 } from "./jianying-project-export-contract.js";
+import {
+	QCUT_AUDIO_RUNTIME_CACHE_STATS_CHANNEL,
+	QCUT_AUDIO_RUNTIME_CLEAR_CACHE_CHANNEL,
+	QCUT_AUDIO_RUNTIME_PROCESS_CHANNEL,
+	QCUT_AUDIO_RUNTIME_STATUS_CHANNEL,
+	type QcutAudioProcessRequest,
+} from "./qcut-audio-runtime-contract.js";
 
 function resolveNativeFilePath({ file }: { file: File }): string {
 	const filePath = webUtils.getPathForFile(file);
@@ -430,6 +437,14 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 	audio: {
 		saveTemp: (audioData: Uint8Array, filename: string): Promise<string> =>
 			ipcRenderer.invoke("audio:save-temp", audioData, filename),
+		inspectLocalRuntime: () =>
+			ipcRenderer.invoke(QCUT_AUDIO_RUNTIME_STATUS_CHANNEL),
+		processLocal: (request: QcutAudioProcessRequest) =>
+			ipcRenderer.invoke(QCUT_AUDIO_RUNTIME_PROCESS_CHANNEL, request),
+		getLocalCacheStats: () =>
+			ipcRenderer.invoke(QCUT_AUDIO_RUNTIME_CACHE_STATS_CHANNEL),
+		clearLocalCache: () =>
+			ipcRenderer.invoke(QCUT_AUDIO_RUNTIME_CLEAR_CACHE_CHANNEL),
 	},
 
 	// Video operations
