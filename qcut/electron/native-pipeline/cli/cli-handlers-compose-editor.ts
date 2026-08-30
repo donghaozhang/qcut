@@ -144,11 +144,13 @@ const ELEMENT_CREATING_KINDS = new Set<ComposePatchOperation["kind"]>([
 	"add-text-overlay",
 	"add-sticker",
 	"add-sound-effect",
+	"insert-media-clip",
 ]);
 
-interface LiveTimelineState {
+export interface LiveTimelineState {
 	elementIds: Set<string>;
 	transitionFingerprints: Set<string>;
+	mainTrackId?: string;
 }
 
 function transitionFingerprint({
@@ -188,7 +190,7 @@ function transitionFingerprint({
  * operations: additive elements carry their operation id as the element id,
  * and transitions are matched against their complete editable identity.
  */
-async function readLiveTimelineState({
+export async function readLiveTimelineState({
 	client,
 	projectId,
 }: {
@@ -198,6 +200,7 @@ async function readLiveTimelineState({
 	const timeline = await client.get<{
 		tracks?: Array<{
 			id?: string;
+			isMain?: boolean;
 			elements?: Array<{ id?: string }>;
 			transitions?: Array<{
 				duration?: number;
@@ -209,7 +212,11 @@ async function readLiveTimelineState({
 	}>(`/api/claude/timeline/${encodeURIComponent(projectId)}`);
 	const elementIds = new Set<string>();
 	const transitionFingerprints = new Set<string>();
+	let mainTrackId: string | undefined;
 	for (const track of timeline.tracks ?? []) {
+		if (track.isMain && typeof track.id === "string") {
+			mainTrackId = track.id;
+		}
 		for (const element of track.elements ?? []) {
 			if (typeof element.id === "string") elementIds.add(element.id);
 		}
@@ -224,7 +231,7 @@ async function readLiveTimelineState({
 			if (fingerprint) transitionFingerprints.add(fingerprint);
 		}
 	}
-	return { elementIds, transitionFingerprints };
+	return { elementIds, transitionFingerprints, mainTrackId };
 }
 
 function splitAlreadyApplied({
@@ -355,6 +362,7 @@ export async function handleComposeApply(
 			projectId,
 			snapshot,
 			bindings: prepared.bindings,
+			mainVideoTrackId: live.mainTrackId,
 		});
 		if (
 			plan.plannedOperationIds.length === 0 &&
