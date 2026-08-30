@@ -4,6 +4,18 @@ import {
 	type ComposePatchOperation,
 } from "./compose-types.js";
 
+function compareCodeUnits({
+	left,
+	right,
+}: {
+	left: string;
+	right: string;
+}): number {
+	if (left < right) return -1;
+	if (left > right) return 1;
+	return 0;
+}
+
 function sortOperations({
 	operations,
 }: {
@@ -13,7 +25,7 @@ function sortOperations({
 		(left, right) =>
 			left.startTime - right.startTime ||
 			left.duration - right.duration ||
-			left.id.localeCompare(right.id)
+			compareCodeUnits({ left: left.id, right: right.id })
 	);
 }
 
