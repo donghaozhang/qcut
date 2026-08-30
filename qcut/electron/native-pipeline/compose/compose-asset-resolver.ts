@@ -126,7 +126,7 @@ function localFileDigest({ path }: { path: string }): {
 	};
 }
 
-function parseStickerLabAssetId({ assetId }: { assetId: string }): {
+export function parseStickerLabAssetId({ assetId }: { assetId: string }): {
 	batchId: string;
 	stickerId: string;
 } | null {
