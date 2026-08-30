@@ -71,6 +71,8 @@ export type {
 	ColorWheelSettings,
 	ColorWheelsSettings,
 	MediaColorSettings,
+	MediaFilterEffect,
+	MediaFilterStack,
 } from "./color.js";
 
 export type {
