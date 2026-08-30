@@ -451,6 +451,14 @@ export interface MediaEnhancements {
 	upscale: 1 | 2 | 4;
 	relight: number;
 	beauty: number;
+	/** Experimental local temporal luminance smoothing. */
+	labDeflicker?: number;
+	/** Experimental motion-compensated temporal blur. */
+	labOpticalFlowMotionBlur?: number;
+	/** Experimental eye-detail correction through the local portrait runtime. */
+	labEyeCorrection?: number;
+	/** Experimental local detail reconstruction; 0 disables it. */
+	labLocalSuperResolution?: 0 | 2 | 4;
 }
 
 export type AudioKeyframeProperty =

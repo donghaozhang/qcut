@@ -6,16 +6,28 @@ import {
 	parseFilterResponse,
 } from "../ai-filler-handler";
 import { getDecryptedApiKeys } from "../api-key-handler";
+import {
+	isProxyAvailable,
+	proxyRequest,
+} from "../native-pipeline/infra/proxy-client";
 
 vi.mock("../api-key-handler", () => ({
 	getDecryptedApiKeys: vi.fn(),
 }));
 
+vi.mock("../native-pipeline/infra/proxy-client", () => ({
+	isProxyAvailable: vi.fn(),
+	proxyRequest: vi.fn(),
+}));
+
 const getDecryptedApiKeysMock = vi.mocked(getDecryptedApiKeys);
+const isProxyAvailableMock = vi.mocked(isProxyAvailable);
+const proxyRequestMock = vi.mocked(proxyRequest);
 
 describe("ai-filler-handler helpers", () => {
 	beforeEach(() => {
 		vi.resetAllMocks();
+		isProxyAvailableMock.mockResolvedValue(false);
 	});
 
 	it("pattern fallback marks filler words and long silence spacing", () => {
@@ -42,6 +54,24 @@ describe("ai-filler-handler helpers", () => {
 		});
 
 		expect(result.filteredWordIds).toEqual([]);
+	});
+
+	it("pattern fallback marks common Chinese speech fillers", () => {
+		const result = analyzeWithPatternMatch({
+			words: [
+				{ id: "word-0", text: "嗯", start: 0, end: 0.2, type: "word" },
+				{ id: "word-1", text: "那个", start: 0.21, end: 0.45, type: "word" },
+				{ id: "word-2", text: "就是", start: 0.46, end: 0.7, type: "word" },
+				{ id: "word-3", text: "重点", start: 0.71, end: 1.0, type: "word" },
+			],
+		});
+
+		expect(result.provider).toBe("pattern");
+		expect(result.filteredWordIds.map((item) => item.id)).toEqual([
+			"word-0",
+			"word-1",
+			"word-2",
+		]);
 	});
 
 	it("buildFilterPrompt includes sentences and word list sections", () => {
@@ -101,5 +131,137 @@ describe("ai-filler-handler helpers", () => {
 
 		expect(result.provider).toBe("pattern");
 		expect(result.filteredWordIds.map((item) => item.id)).toEqual(["word-0"]);
+	});
+
+	it("uses QCut proxy OpenRouter before local keys when available", async () => {
+		isProxyAvailableMock.mockResolvedValue(true);
+		proxyRequestMock.mockResolvedValue({
+			ok: true,
+			status: 200,
+			data: {
+				choices: [
+					{
+						message: {
+							content:
+								'[{"id":"word-0","reason":"speech filler","scope":"word"}]',
+						},
+					},
+				],
+			},
+		});
+
+		const result = await analyzeFillersWithPriority({
+			request: {
+				languageCode: "zh",
+				words: [{ id: "word-0", text: "嗯", start: 0, end: 0.2, type: "word" }],
+			},
+		});
+
+		expect(result.provider).toBe("openrouter");
+		expect(result.filteredWordIds).toEqual([
+			{ id: "word-0", reason: "speech filler", scope: "word" },
+		]);
+		expect(getDecryptedApiKeysMock).not.toHaveBeenCalled();
+		expect(proxyRequestMock).toHaveBeenCalledWith(
+			expect.objectContaining({
+				provider: "openrouter",
+				endpoint: "https://openrouter.ai/api/v1/chat/completions",
+				method: "POST",
+				timeoutMs: 30_000,
+			})
+		);
+	});
+
+	it("falls back to QCut proxy Gemini when OpenRouter proxy fails", async () => {
+		isProxyAvailableMock.mockResolvedValue(true);
+		proxyRequestMock
+			.mockResolvedValueOnce({
+				ok: false,
+				status: 503,
+				data: { error: "API key not configured for provider: openrouter" },
+			})
+			.mockResolvedValueOnce({
+				ok: true,
+				status: 200,
+				data: {
+					candidates: [
+						{
+							content: {
+								parts: [
+									{
+										text: '[{"id":"word-0","reason":"speech filler","scope":"word"}]',
+									},
+								],
+							},
+						},
+					],
+				},
+			});
+
+		const result = await analyzeFillersWithPriority({
+			request: {
+				languageCode: "zh",
+				words: [{ id: "word-0", text: "嗯", start: 0, end: 0.2, type: "word" }],
+			},
+		});
+
+		expect(result.provider).toBe("gemini");
+		expect(result.filteredWordIds).toEqual([
+			{ id: "word-0", reason: "speech filler", scope: "word" },
+		]);
+		expect(getDecryptedApiKeysMock).not.toHaveBeenCalled();
+		expect(proxyRequestMock).toHaveBeenNthCalledWith(
+			1,
+			expect.objectContaining({
+				provider: "openrouter",
+				endpoint: "https://openrouter.ai/api/v1/chat/completions",
+			})
+		);
+		expect(proxyRequestMock).toHaveBeenNthCalledWith(
+			2,
+			expect.objectContaining({
+				provider: "gemini",
+				endpoint:
+					"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent",
+			})
+		);
+	});
+
+	it("falls back to pattern when every QCut proxy LLM chunk fails", async () => {
+		isProxyAvailableMock.mockResolvedValue(true);
+		proxyRequestMock
+			.mockResolvedValueOnce({
+				ok: false,
+				status: 503,
+				data: { error: "API key not configured for provider: openrouter" },
+			})
+			.mockResolvedValueOnce({
+				ok: false,
+				status: 503,
+				data: { error: "API key not configured for provider: gemini" },
+			});
+		getDecryptedApiKeysMock.mockResolvedValue({
+			falApiKey: "",
+			freesoundApiKey: "",
+			geminiApiKey: "",
+			openRouterApiKey: "",
+			anthropicApiKey: "",
+		});
+
+		const result = await analyzeFillersWithPriority({
+			request: {
+				languageCode: "eng",
+				words: [
+					{ id: "word-0", text: "um", start: 0, end: 0.2, type: "word" },
+					{ id: "word-1", text: "today", start: 0.3, end: 0.6, type: "word" },
+				],
+			},
+		});
+
+		expect(result.provider).toBe("pattern");
+		expect(result.filteredWordIds).toEqual([
+			{ id: "word-0", reason: "common filler word", scope: "word" },
+		]);
+		expect(getDecryptedApiKeysMock).toHaveBeenCalled();
 	});
 });

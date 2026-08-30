@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { MediaElement } from "@/types/timeline";
 import {
 	DEFAULT_MEDIA_MASK,
+	DEFAULT_MEDIA_ENHANCEMENTS,
 	DEFAULT_MEDIA_PERSPECTIVE,
 	clampMediaCrop,
 	hasMediaVisualEdits,
@@ -74,9 +75,32 @@ describe("video visual properties", () => {
 				upscale: 1,
 				relight: 0,
 				beauty: 0,
+				labDeflicker: 0,
+				labOpticalFlowMotionBlur: 0,
+				labEyeCorrection: 0,
+				labLocalSuperResolution: 0,
 			},
 			crop: { top: 0, right: 0, bottom: 0, left: 0 },
 			perspective: DEFAULT_MEDIA_PERSPECTIVE,
+		});
+	});
+
+	it("maps experimental eye correction into the local portrait runtime", () => {
+		const resolved = resolveMediaVisualProperties(
+			mediaElement({
+				enhancements: {
+					...DEFAULT_MEDIA_ENHANCEMENTS,
+					labEyeCorrection: 50,
+				},
+			})
+		);
+
+		expect(resolved.portraitAdjustments).toMatchObject({
+			enabled: true,
+			values: {
+				face_adjust_BrightEye: 12,
+				face_adjust_Pouch: 9,
+			},
 		});
 	});
 

@@ -1,6 +1,10 @@
 import { ipcMain } from "electron";
 import path from "node:path";
 import { getDecryptedApiKeys } from "./api-key-handler.js";
+import {
+	isProxyAvailable,
+	proxyRequest,
+} from "./native-pipeline/infra/proxy-client.js";
 
 interface Logger {
 	info(...args: unknown[]): void;
@@ -19,7 +23,7 @@ import("electron-log")
 		// Keep no-op logger when electron-log is unavailable
 	});
 
-type AIProvider = "gemini" | "anthropic" | "pattern";
+type AIProvider = "openrouter" | "gemini" | "anthropic" | "pattern";
 
 interface AnalyzeWordItem {
 	id: string;
@@ -69,6 +73,11 @@ const CHUNK_WORD_LIMIT = 300;
 const CHUNK_WORD_OVERLAP = 40;
 const LONG_SILENCE_SECONDS = 1.5;
 const REQUEST_TIMEOUT_MS = 30_000;
+const GEMINI_FLASH_MODEL = "gemini-3.7-flash";
+const GEMINI_FLASH_PROXY_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_FLASH_MODEL}:generateContent`;
+const OPENROUTER_FILLER_MODEL = "google/gemini-3.7-flash";
+const OPENROUTER_CHAT_COMPLETIONS_URL =
+	"https://openrouter.ai/api/v1/chat/completions";
 
 /** Register the IPC handler for AI-based filler word analysis. */
 export function setupAIFillerIPC(): void {
@@ -104,6 +113,26 @@ export async function analyzeFillersWithPriority({
 	request: AnalyzeFillersRequest;
 }): Promise<AnalyzeFillersResult> {
 	try {
+		if (await isProxyAvailable()) {
+			try {
+				return await analyzeWithOpenRouterProxy({
+					words: request.words,
+					languageCode: request.languageCode,
+				});
+			} catch (error) {
+				log.warn("[AI Filler] OpenRouter proxy analysis failed:", error);
+			}
+
+			try {
+				return await analyzeWithGeminiProxy({
+					words: request.words,
+					languageCode: request.languageCode,
+				});
+			} catch (error) {
+				log.warn("[AI Filler] Gemini proxy analysis failed:", error);
+			}
+		}
+
 		const apiKeys = await getDecryptedApiKeys();
 		if (apiKeys.geminiApiKey) {
 			try {
@@ -136,6 +165,119 @@ export async function analyzeFillersWithPriority({
 	}
 }
 
+async function analyzeWithOpenRouterProxy({
+	words,
+	languageCode,
+}: {
+	words: AnalyzeWordItem[];
+	languageCode: string;
+}): Promise<AnalyzeFillersResult> {
+	return analyzeWithProxyLLM({
+		words,
+		languageCode,
+		provider: "openrouter",
+		endpoint: OPENROUTER_CHAT_COMPLETIONS_URL,
+		buildBody: ({ prompt }) => ({
+			model: OPENROUTER_FILLER_MODEL,
+			messages: [
+				{
+					role: "system",
+					content: "Return only a JSON array matching the user's instructions.",
+				},
+				{ role: "user", content: prompt },
+			],
+			temperature: 0,
+			max_tokens: 4096,
+		}),
+		extractText: extractOpenRouterProxyText,
+		logLabel: "OpenRouter",
+	});
+}
+
+async function analyzeWithGeminiProxy({
+	words,
+	languageCode,
+}: {
+	words: AnalyzeWordItem[];
+	languageCode: string;
+}): Promise<AnalyzeFillersResult> {
+	return analyzeWithProxyLLM({
+		words,
+		languageCode,
+		provider: "gemini",
+		endpoint: GEMINI_FLASH_PROXY_URL,
+		buildBody: ({ prompt }) => ({
+			contents: [{ role: "user", parts: [{ text: prompt }] }],
+			generationConfig: { responseMimeType: "application/json" },
+		}),
+		extractText: extractGeminiProxyText,
+		logLabel: "Gemini",
+	});
+}
+
+async function analyzeWithProxyLLM({
+	words,
+	languageCode,
+	provider,
+	endpoint,
+	buildBody,
+	extractText,
+	logLabel,
+}: {
+	words: AnalyzeWordItem[];
+	languageCode: string;
+	provider: "openrouter" | "gemini";
+	endpoint: string;
+	buildBody: ({ prompt }: { prompt: string }) => unknown;
+	extractText: ({ data }: { data: unknown }) => string;
+	logLabel: string;
+}): Promise<AnalyzeFillersResult> {
+	try {
+		const chunks = splitWordChunks({ words });
+		const chunkResults = await Promise.all(
+			chunks.map(async (chunk) => {
+				try {
+					const prompt = buildFilterPrompt({ words: chunk, languageCode });
+					const response = await proxyRequest({
+						provider,
+						endpoint,
+						method: "POST",
+						body: buildBody({ prompt }),
+						timeoutMs: REQUEST_TIMEOUT_MS,
+					});
+					if (!response.ok) {
+						throw new Error(
+							`${logLabel} proxy error ${response.status}: ${JSON.stringify(response.data).slice(0, 300)}`
+						);
+					}
+					return parseFilterResponse({
+						rawText: extractText({ data: response.data }),
+					});
+				} catch (error) {
+					log.warn(`[AI Filler] ${logLabel} proxy chunk failed:`, error);
+					return null;
+				}
+			})
+		);
+		const successfulChunkResults = chunkResults.filter(
+			(result): result is FilterDecision[] => result !== null
+		);
+		if (successfulChunkResults.length === 0) {
+			throw new Error(`${logLabel} proxy analysis failed for every chunk`);
+		}
+
+		return {
+			filteredWordIds: mergeDecisions({
+				decisions: successfulChunkResults.flat(),
+			}),
+			provider,
+		};
+	} catch (error) {
+		log.error(`[AI Filler] ${logLabel} proxy provider failed:`, error);
+		throw error;
+	}
+}
+
 /** Analyze filler words using the Google Gemini API. */
 async function analyzeWithGemini({
 	words,
@@ -150,7 +292,7 @@ async function analyzeWithGemini({
 		const GoogleGenerativeAI = await loadGeminiSdk();
 		const client = new GoogleGenerativeAI(apiKey);
 		const model = client.getGenerativeModel({
-			model: "gemini-2.0-flash",
+			model: GEMINI_FLASH_MODEL,
 			generationConfig: {
 				responseMimeType: "application/json",
 			},
@@ -180,7 +322,9 @@ async function analyzeWithGemini({
 		);
 
 		return {
-			filteredWordIds: mergeDecisions({ decisions: chunkResults.flat() }),
+			filteredWordIds: mergeDecisions({
+				decisions: chunkResults.flat(),
+			}),
 			provider: "gemini",
 		};
 	} catch (error) {
@@ -248,7 +392,9 @@ async function analyzeWithAnthropic({
 		);
 
 		return {
-			filteredWordIds: mergeDecisions({ decisions: chunkResults.flat() }),
+			filteredWordIds: mergeDecisions({
+				decisions: chunkResults.flat(),
+			}),
 			provider: "anthropic",
 		};
 	} catch (error) {
@@ -274,6 +420,15 @@ export function analyzeWithPatternMatch({
 			"mmm",
 			"uhh",
 			"umm",
+			"嗯",
+			"呃",
+			"额",
+			"呃呃",
+			"那个",
+			"就是",
+			"然后",
+			"对吧",
+			"你知道吧",
 		]);
 
 		const decisions: FilterDecision[] = [];
@@ -332,6 +487,41 @@ export function analyzeWithPatternMatch({
 			filteredWordIds: [],
 			provider: "pattern",
 		};
+	}
+}
+
+function extractGeminiProxyText({ data }: { data: unknown }): string {
+	try {
+		const response = data as {
+			candidates?: Array<{
+				content?: { parts?: Array<{ text?: string }> };
+			}>;
+		};
+		return response.candidates?.[0]?.content?.parts?.[0]?.text ?? "";
+	} catch {
+		return "";
+	}
+}
+
+function extractOpenRouterProxyText({ data }: { data: unknown }): string {
+	try {
+		const response = data as {
+			choices?: Array<{
+				message?: {
+					content?: string | Array<{ type?: string; text?: string }>;
+				};
+			}>;
+		};
+		const content = response.choices?.[0]?.message?.content;
+		if (typeof content === "string") return content;
+		if (Array.isArray(content)) {
+			return content
+				.map((part) => (part.type === "text" ? part.text || "" : ""))
+				.join("\n");
+		}
+		return "";
+	} catch {
+		return "";
 	}
 }
 

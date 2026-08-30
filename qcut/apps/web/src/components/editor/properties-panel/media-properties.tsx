@@ -83,7 +83,13 @@ import {
 } from "./color-properties-panel";
 import { MediaTrackingProperties } from "./media-tracking-properties";
 import { MediaAIProperties } from "./media-ai-properties";
+import { MediaLabProperties } from "./media-lab-properties";
 import { MediaPortraitProperties } from "./media-portrait-properties";
+import {
+	planExperimentalCameraTracking,
+	planExperimentalSmartCrop,
+	planExperimentalSmartMotion,
+} from "@/lib/video/media-lab-smart-tools";
 import {
 	CLIP_ANIMATION_OPTIONS,
 	IconButton,
@@ -197,6 +203,15 @@ export function MediaProperties({
 	const panelRef = useRef<HTMLDivElement>(null);
 	const visual = resolveMediaVisualProperties(element);
 	const timelineDuration = getMediaTimelineDuration(element, fps);
+	const localTrackingMask = visual.masks.find((mask) => {
+		const source = mask.tracking?.source;
+		return (
+			(source === "mediapipe" || source === "optical-flow") &&
+			mask.tracking?.status === "ready" &&
+			(mask.keyframes?.centerX?.length ?? 0) > 0 &&
+			(mask.keyframes?.centerY?.length ?? 0) > 0
+		);
+	});
 
 	useEffect(() => {
 		const handleOpenPropertiesTab = (event: Event) => {
@@ -540,6 +555,42 @@ export function MediaProperties({
 			backend: mask.type === "person" ? "local-person" : "sam3",
 			prompt: mask.type === "person" ? "" : (mask.name ?? "object"),
 		});
+	};
+	const applySmartLabAction = ({
+		action,
+	}: {
+		action: "smart-motion" | "smart-crop" | "camera-tracking";
+	}) => {
+		if (!localTrackingMask) {
+			setActivePropertiesTab("tracking");
+			return;
+		}
+		const params = {
+			mask: localTrackingMask,
+			canvasWidth: canvasSize.width,
+			canvasHeight: canvasSize.height,
+			clipDuration: timelineDuration,
+			fps,
+		};
+		const plan =
+			action === "smart-motion"
+				? planExperimentalSmartMotion(params)
+				: action === "smart-crop"
+					? planExperimentalSmartCrop(params)
+					: planExperimentalCameraTracking(params);
+		if (Object.keys(plan.keyframes).length === 0) return;
+		update({
+			...plan.baseTransformUpdates,
+			...(action === "camera-tracking"
+				? {}
+				: { maintainAspectRatio: true, fitMode: "cover" as const }),
+			keyframes: {
+				...element.keyframes,
+				...plan.keyframes,
+			},
+		});
+		setKeyframeProperty("x");
+		setKeyframesExpanded(true);
 	};
 	const isVisualTab = VISUAL_PROPERTY_TABS.includes(
 		activePropertiesTab as VisualPropertyTab
@@ -1174,6 +1225,19 @@ export function MediaProperties({
 							</PropertyItem>
 						</div>
 					</PropertyGroup>
+
+					{mediaItem?.type === "video" ? (
+						<MediaLabProperties
+							enhancements={visual.enhancements}
+							hasLocalTracking={Boolean(localTrackingMask)}
+							onChange={(enhancements, history = true) =>
+								update({ enhancements }, history)
+							}
+							onApplySmartAction={applySmartLabAction}
+							onInteractionStart={beginInteraction}
+							onInteractionEnd={endInteraction}
+						/>
+					) : null}
 				</TabsContent>
 
 				<TabsContent value="animation" className="mt-4 space-y-4">

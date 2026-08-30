@@ -1,0 +1,1154 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-30T07:31:09.801Z",
+  "methodology": {
+    "sameSourceWithinEachFeature": true,
+    "pixelFeaturesSource": "02-real-person-challenge-noisy-3s.mp4",
+    "smartFeaturesSource": "04-real-person-small-clean-3s.mp4",
+    "comparisonNormalization": "30 fps, 540x960 letterboxed, first 2.8 seconds",
+    "visualProbe": "30 fps, 90x160 grayscale, first 3 seconds; translation is sampled block matching",
+    "interpretationBoundary": "These metrics prove exported pixels and measured direction of change; they do not prove model equivalence or subjective quality parity."
+  },
+  "videos": [
+    {
+      "id": "source-clean-person",
+      "fileName": "04-real-person-small-clean-3s.mp4",
+      "editor": "source",
+      "sourceTrack": "clean-person",
+      "sha256": "ca09cecb05289e27f71f32b939050876e6cd91b0ac9ad20a3e981501e331f8c3",
+      "bytes": 193246,
+      "codec": "h264",
+      "width": 360,
+      "height": 640,
+      "sampleAspectRatio": "1:1",
+      "displayAspectRatio": "9:16",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "24/1",
+      "frameCount": 72,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 41.805071,
+        "minimumFrameMeanLuma": 41.171111,
+        "maximumFrameMeanLuma": 42.410278,
+        "frameLumaStandardDeviation": 0.32221,
+        "spatialDetail": 1.951267,
+        "temporalDifference": 0.510016,
+        "adjacentExactDuplicateFrames": 18,
+        "estimatedGlobalTranslationPixels": 0
+      }
+    },
+    {
+      "id": "source-noisy-person",
+      "fileName": "02-real-person-challenge-noisy-3s.mp4",
+      "editor": "source",
+      "sourceTrack": "noisy-person",
+      "sha256": "407a4d6409c2a4418245ebbe609fdc841aea88316b34a4b81adfcc3f23254d27",
+      "bytes": 2790631,
+      "codec": "h264",
+      "width": 360,
+      "height": 640,
+      "sampleAspectRatio": "171:176",
+      "displayAspectRatio": "1539:2816",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "24/1",
+      "frameCount": 72,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 83.927459,
+        "minimumFrameMeanLuma": 64.113958,
+        "maximumFrameMeanLuma": 103.953194,
+        "frameLumaStandardDeviation": 11.546536,
+        "spatialDetail": 6.745503,
+        "temporalDifference": 27.222285,
+        "adjacentExactDuplicateFrames": 18,
+        "estimatedGlobalTranslationPixels": 4.185872
+      }
+    },
+    {
+      "id": "qcut-pixel-baseline",
+      "fileName": "10-qcut-baseline.mp4",
+      "editor": "qcut",
+      "sourceTrack": "noisy-person",
+      "sha256": "ddf7c9480f6574c6c724d75a3e4c8fa54e650a3f87b9385e80730ef79a851640",
+      "bytes": 2767530,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1920,
+      "sampleAspectRatio": "1:1",
+      "displayAspectRatio": "9:16",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 83.952504,
+        "minimumFrameMeanLuma": 64.142083,
+        "maximumFrameMeanLuma": 103.967361,
+        "frameLumaStandardDeviation": 11.537247,
+        "spatialDetail": 6.723457,
+        "temporalDifference": 27.213805,
+        "adjacentExactDuplicateFrames": 1,
+        "estimatedGlobalTranslationPixels": 4.185872
+      }
+    },
+    {
+      "id": "jianying-pixel-baseline",
+      "fileName": "jianying-baseline.mp4",
+      "editor": "jianying",
+      "sourceTrack": "noisy-person",
+      "sha256": "62bfa647509ac459fcd993b660b2e6baef2b5d9ba6773a2a081ca62006e7540f",
+      "bytes": 6048323,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1980,
+      "sampleAspectRatio": "unknown",
+      "displayAspectRatio": "unknown",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 82.427755,
+        "minimumFrameMeanLuma": 63.087361,
+        "maximumFrameMeanLuma": 102.157847,
+        "frameLumaStandardDeviation": 11.07356,
+        "spatialDetail": 6.760465,
+        "temporalDifference": 27.086323,
+        "adjacentExactDuplicateFrames": 0,
+        "estimatedGlobalTranslationPixels": 4.163222
+      }
+    },
+    {
+      "id": "qcut-smart-baseline",
+      "fileName": "qcut-smart-baseline.mp4",
+      "editor": "qcut",
+      "sourceTrack": "clean-person",
+      "sha256": "edd701fcda6961cde7dd07cf208e6b239efd218db8b8ff4497d343215103f9a1",
+      "bytes": 1755957,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1920,
+      "sampleAspectRatio": "1:1",
+      "displayAspectRatio": "9:16",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 41.806973,
+        "minimumFrameMeanLuma": 41.171111,
+        "maximumFrameMeanLuma": 42.409375,
+        "frameLumaStandardDeviation": 0.32197,
+        "spatialDetail": 1.966185,
+        "temporalDifference": 0.513552,
+        "adjacentExactDuplicateFrames": 2,
+        "estimatedGlobalTranslationPixels": 0
+      }
+    },
+    {
+      "id": "jianying-smart-baseline",
+      "fileName": "jianying-smart-baseline.mp4",
+      "editor": "jianying",
+      "sourceTrack": "clean-person",
+      "sha256": "a5e93202845ed5f547156b2a0fb1eba993a1ad839dac480e1ae42ab5bf993e51",
+      "bytes": 1048128,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1920,
+      "sampleAspectRatio": "unknown",
+      "displayAspectRatio": "unknown",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 39.123177,
+        "minimumFrameMeanLuma": 38.490694,
+        "maximumFrameMeanLuma": 39.704583,
+        "frameLumaStandardDeviation": 0.308346,
+        "spatialDetail": 1.94612,
+        "temporalDifference": 0.522241,
+        "adjacentExactDuplicateFrames": 0,
+        "estimatedGlobalTranslationPixels": 0
+      }
+    },
+    {
+      "id": "qcut-stabilization",
+      "fileName": "qcut-stabilization.mp4",
+      "editor": "qcut",
+      "sourceTrack": "noisy-person",
+      "sha256": "8a06256187dee3400365b6e5ea0c7d6fac0812f107a2cc2d2115de5aa4f3fb1d",
+      "bytes": 2806437,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1920,
+      "sampleAspectRatio": "1:1",
+      "displayAspectRatio": "9:16",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 84.276412,
+        "minimumFrameMeanLuma": 63.153542,
+        "maximumFrameMeanLuma": 103.90375,
+        "frameLumaStandardDeviation": 11.855791,
+        "spatialDetail": 6.558681,
+        "temporalDifference": 25.247906,
+        "adjacentExactDuplicateFrames": 1,
+        "estimatedGlobalTranslationPixels": 3.937014
+      }
+    },
+    {
+      "id": "jianying-stabilization",
+      "fileName": "jianying-stabilization.mp4",
+      "editor": "jianying",
+      "sourceTrack": "noisy-person",
+      "sha256": "126a012f4f7d7bd4f34343e95992bc6288d5524d901d25850ac4d29d54b7a803",
+      "bytes": 6064918,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1980,
+      "sampleAspectRatio": "unknown",
+      "displayAspectRatio": "unknown",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 82.470681,
+        "minimumFrameMeanLuma": 63.042639,
+        "maximumFrameMeanLuma": 102.303958,
+        "frameLumaStandardDeviation": 11.082331,
+        "spatialDetail": 6.683762,
+        "temporalDifference": 27.047344,
+        "adjacentExactDuplicateFrames": 0,
+        "estimatedGlobalTranslationPixels": 4.163222
+      }
+    },
+    {
+      "id": "qcut-denoise",
+      "fileName": "qcut-denoise.mp4",
+      "editor": "qcut",
+      "sourceTrack": "noisy-person",
+      "sha256": "32562e7eb72bcf4abae4d8bb8a3f409cb7af11060f49fd06d5cd77376f82ff04",
+      "bytes": 2730694,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1920,
+      "sampleAspectRatio": "1:1",
+      "displayAspectRatio": "9:16",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 83.936053,
+        "minimumFrameMeanLuma": 64.179583,
+        "maximumFrameMeanLuma": 103.632847,
+        "frameLumaStandardDeviation": 11.408403,
+        "spatialDetail": 6.613073,
+        "temporalDifference": 26.85093,
+        "adjacentExactDuplicateFrames": 1,
+        "estimatedGlobalTranslationPixels": 4.204074
+      }
+    },
+    {
+      "id": "jianying-denoise",
+      "fileName": "jianying-denoise-local.mp4",
+      "editor": "jianying",
+      "sourceTrack": "noisy-person",
+      "sha256": "9dc2c429b107cfce987a9a797e9e99ee050456499a167d1a99e23fc1e20cd2e5",
+      "bytes": 5662480,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1980,
+      "sampleAspectRatio": "unknown",
+      "displayAspectRatio": "unknown",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 82.814002,
+        "minimumFrameMeanLuma": 63.400347,
+        "maximumFrameMeanLuma": 102.657778,
+        "frameLumaStandardDeviation": 11.077678,
+        "spatialDetail": 6.237921,
+        "temporalDifference": 27.061305,
+        "adjacentExactDuplicateFrames": 0,
+        "estimatedGlobalTranslationPixels": 4.163222
+      }
+    },
+    {
+      "id": "qcut-deflicker",
+      "fileName": "qcut-deflicker.mp4",
+      "editor": "qcut",
+      "sourceTrack": "noisy-person",
+      "sha256": "473e92021f741bc12b8a19bc510b245d02e7a545a2fd834881c667afe082af12",
+      "bytes": 2741155,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1920,
+      "sampleAspectRatio": "1:1",
+      "displayAspectRatio": "9:16",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 81.249042,
+        "minimumFrameMeanLuma": 67.51125,
+        "maximumFrameMeanLuma": 85.161458,
+        "frameLumaStandardDeviation": 4.648784,
+        "spatialDetail": 6.644622,
+        "temporalDifference": 25.556395,
+        "adjacentExactDuplicateFrames": 0,
+        "estimatedGlobalTranslationPixels": 4.185872
+      }
+    },
+    {
+      "id": "jianying-deflicker",
+      "fileName": "jianying-deflicker.mp4",
+      "editor": "jianying",
+      "sourceTrack": "noisy-person",
+      "sha256": "5c86a343257f196d4074df85661d94e94c87b551bbda8995d9adbed2027f2684",
+      "bytes": 6053452,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1980,
+      "sampleAspectRatio": "unknown",
+      "displayAspectRatio": "unknown",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 82.981965,
+        "minimumFrameMeanLuma": 63.429375,
+        "maximumFrameMeanLuma": 102.680556,
+        "frameLumaStandardDeviation": 10.943831,
+        "spatialDetail": 6.43185,
+        "temporalDifference": 27.120315,
+        "adjacentExactDuplicateFrames": 0,
+        "estimatedGlobalTranslationPixels": 4.163222
+      }
+    },
+    {
+      "id": "qcut-motion-blur",
+      "fileName": "qcut-motion-blur.mp4",
+      "editor": "qcut",
+      "sourceTrack": "noisy-person",
+      "sha256": "e2e3bf53f3a3719efef2ba1fa86b6f11bc95131b032dbbd48ae4c6f440675ac4",
+      "bytes": 2478954,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1920,
+      "sampleAspectRatio": "1:1",
+      "displayAspectRatio": "9:16",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 84.153302,
+        "minimumFrameMeanLuma": 65.591389,
+        "maximumFrameMeanLuma": 101.306042,
+        "frameLumaStandardDeviation": 9.819886,
+        "spatialDetail": 3.708804,
+        "temporalDifference": 18.338558,
+        "adjacentExactDuplicateFrames": 0,
+        "estimatedGlobalTranslationPixels": 4.739363
+      }
+    },
+    {
+      "id": "jianying-motion-blur",
+      "fileName": "jianying-motion-blur.mp4",
+      "editor": "jianying",
+      "sourceTrack": "noisy-person",
+      "sha256": "786dc661e3f3b4c92b7655ba865e25d2d08b8daca63f9dbd9a37d1bfc254b913",
+      "bytes": 1837578,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1980,
+      "sampleAspectRatio": "unknown",
+      "displayAspectRatio": "unknown",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 82.939592,
+        "minimumFrameMeanLuma": 64.189653,
+        "maximumFrameMeanLuma": 100.36875,
+        "frameLumaStandardDeviation": 10.906506,
+        "spatialDetail": 2.611907,
+        "temporalDifference": 12.911389,
+        "adjacentExactDuplicateFrames": 0,
+        "estimatedGlobalTranslationPixels": 3.659931
+      }
+    },
+    {
+      "id": "qcut-eye-detail",
+      "fileName": "qcut-eye-detail.mp4",
+      "editor": "qcut",
+      "sourceTrack": "noisy-person",
+      "sha256": "cfd601b80c9f580defc9d5efb0012671d2aaa3e708d0bd3e1af3cd6bd321b18f",
+      "bytes": 3210475,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1920,
+      "sampleAspectRatio": "unknown",
+      "displayAspectRatio": "unknown",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 85.591248,
+        "minimumFrameMeanLuma": 64.025972,
+        "maximumFrameMeanLuma": 104.787639,
+        "frameLumaStandardDeviation": 10.707866,
+        "spatialDetail": 6.542512,
+        "temporalDifference": 27.180009,
+        "adjacentExactDuplicateFrames": 0,
+        "estimatedGlobalTranslationPixels": 4.16767
+      }
+    },
+    {
+      "id": "jianying-eye-detail",
+      "fileName": "jianying-eye-correction.mp4",
+      "editor": "jianying",
+      "sourceTrack": "noisy-person",
+      "sha256": "f9ee9e5b4cd6add9a850223d5256a23013c513a79443bc4f1ecd50c732a2ac07",
+      "bytes": 5810455,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1980,
+      "sampleAspectRatio": "unknown",
+      "displayAspectRatio": "unknown",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 82.491404,
+        "minimumFrameMeanLuma": 63.192361,
+        "maximumFrameMeanLuma": 102.165556,
+        "frameLumaStandardDeviation": 11.064984,
+        "spatialDetail": 6.789333,
+        "temporalDifference": 27.079042,
+        "adjacentExactDuplicateFrames": 0,
+        "estimatedGlobalTranslationPixels": 4.163222
+      }
+    },
+    {
+      "id": "qcut-local-super-resolution",
+      "fileName": "qcut-local-super-resolution.mp4",
+      "editor": "qcut",
+      "sourceTrack": "noisy-person",
+      "sha256": "8890d01d3c73dff851e99028d81292391b220863ff19e5995d2c356db7ebd9db",
+      "bytes": 2852480,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1920,
+      "sampleAspectRatio": "1:1",
+      "displayAspectRatio": "9:16",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 83.708338,
+        "minimumFrameMeanLuma": 63.900764,
+        "maximumFrameMeanLuma": 103.723264,
+        "frameLumaStandardDeviation": 11.527661,
+        "spatialDetail": 6.755855,
+        "temporalDifference": 27.225977,
+        "adjacentExactDuplicateFrames": 1,
+        "estimatedGlobalTranslationPixels": 4.185872
+      }
+    },
+    {
+      "id": "jianying-local-super-resolution",
+      "fileName": "jianying-super-resolution.mp4",
+      "editor": "jianying",
+      "sourceTrack": "noisy-person",
+      "sha256": "bee2cd947d37826da162135a5ea0010528a6f61034eeaf2d7eb5217d4e45d30a",
+      "bytes": 6054966,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1980,
+      "sampleAspectRatio": "unknown",
+      "displayAspectRatio": "unknown",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 82.116291,
+        "minimumFrameMeanLuma": 62.753472,
+        "maximumFrameMeanLuma": 101.852361,
+        "frameLumaStandardDeviation": 11.080838,
+        "spatialDetail": 6.766015,
+        "temporalDifference": 27.17819,
+        "adjacentExactDuplicateFrames": 0,
+        "estimatedGlobalTranslationPixels": 4.163222
+      }
+    },
+    {
+      "id": "qcut-frame-interpolation",
+      "fileName": "qcut-frame-interpolation.mp4",
+      "editor": "qcut",
+      "sourceTrack": "noisy-person",
+      "sha256": "c069541975323d17a1227ec8e353cfe3f08ed3c9e255114275a2f9baa1bff58f",
+      "bytes": 2653265,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1920,
+      "sampleAspectRatio": "1:1",
+      "displayAspectRatio": "9:16",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 83.972201,
+        "minimumFrameMeanLuma": 64.616111,
+        "maximumFrameMeanLuma": 103.160764,
+        "frameLumaStandardDeviation": 10.447287,
+        "spatialDetail": 5.245023,
+        "temporalDifference": 23.489204,
+        "adjacentExactDuplicateFrames": 0,
+        "estimatedGlobalTranslationPixels": 4.328365
+      }
+    },
+    {
+      "id": "jianying-frame-interpolation",
+      "fileName": "jianying-frame-interpolation.mp4",
+      "editor": "jianying",
+      "sourceTrack": "noisy-person",
+      "sha256": "445e73987cad92f2a7e989073860c597e03df5704b51f7496bf14d7602dc95f1",
+      "bytes": 5811300,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1980,
+      "sampleAspectRatio": "unknown",
+      "displayAspectRatio": "unknown",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 83.468894,
+        "minimumFrameMeanLuma": 63.569931,
+        "maximumFrameMeanLuma": 100.029583,
+        "frameLumaStandardDeviation": 10.721563,
+        "spatialDetail": 6.450759,
+        "temporalDifference": 22.754195,
+        "adjacentExactDuplicateFrames": 0,
+        "estimatedGlobalTranslationPixels": 2.783025
+      }
+    },
+    {
+      "id": "qcut-smart-motion",
+      "fileName": "qcut-smart-motion.mp4",
+      "editor": "qcut",
+      "sourceTrack": "clean-person",
+      "sha256": "a37eabbad3bb67aa0bd874df84347cb21bf71fa36ca81a1c0ce5314496f48331",
+      "bytes": 1790894,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1920,
+      "sampleAspectRatio": "8991:8992",
+      "displayAspectRatio": "80919:143872",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 42.537324,
+        "minimumFrameMeanLuma": 41.850903,
+        "maximumFrameMeanLuma": 43.190625,
+        "frameLumaStandardDeviation": 0.348416,
+        "spatialDetail": 2.075546,
+        "temporalDifference": 0.565365,
+        "adjacentExactDuplicateFrames": 2,
+        "estimatedGlobalTranslationPixels": 0
+      }
+    },
+    {
+      "id": "jianying-smart-motion",
+      "fileName": "jianying-smart-motion.mp4",
+      "editor": "jianying",
+      "sourceTrack": "clean-person",
+      "sha256": "edec8ca01b1ba1bbbf12cabb14b6d10586078c2e2349d653c84e459b91acbdcc",
+      "bytes": 1524411,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1920,
+      "sampleAspectRatio": "unknown",
+      "displayAspectRatio": "unknown",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 44.77714,
+        "minimumFrameMeanLuma": 43.7825,
+        "maximumFrameMeanLuma": 45.591667,
+        "frameLumaStandardDeviation": 0.431216,
+        "spatialDetail": 2.882346,
+        "temporalDifference": 0.960961,
+        "adjacentExactDuplicateFrames": 0,
+        "estimatedGlobalTranslationPixels": 0
+      }
+    },
+    {
+      "id": "qcut-smart-crop",
+      "fileName": "qcut-smart-crop.mp4",
+      "editor": "qcut",
+      "sourceTrack": "clean-person",
+      "sha256": "ddd8930f49b0ec44f5b02d98b9747454dc51d99e0addecab9f6f289aa19918dd",
+      "bytes": 1920798,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1920,
+      "sampleAspectRatio": "6939:6944",
+      "displayAspectRatio": "62451:111104",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 54.905754,
+        "minimumFrameMeanLuma": 53.230347,
+        "maximumFrameMeanLuma": 56.603681,
+        "frameLumaStandardDeviation": 0.875682,
+        "spatialDetail": 3.841764,
+        "temporalDifference": 1.558386,
+        "adjacentExactDuplicateFrames": 0,
+        "estimatedGlobalTranslationPixels": 0
+      }
+    },
+    {
+      "id": "jianying-smart-crop",
+      "fileName": "jianying-smart-crop-16x9.mp4",
+      "editor": "jianying",
+      "sourceTrack": "clean-person",
+      "sha256": "def6429423a505534b95fd3bead226716292caf14bf05b2311f507bd486bd734",
+      "bytes": 804973,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1920,
+      "sampleAspectRatio": "unknown",
+      "displayAspectRatio": "unknown",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 15.324016,
+        "minimumFrameMeanLuma": 14.775417,
+        "maximumFrameMeanLuma": 15.910556,
+        "frameLumaStandardDeviation": 0.31661,
+        "spatialDetail": 1.905076,
+        "temporalDifference": 0.363439,
+        "adjacentExactDuplicateFrames": 0,
+        "estimatedGlobalTranslationPixels": 0
+      }
+    },
+    {
+      "id": "qcut-camera-tracking",
+      "fileName": "qcut-camera-tracking.mp4",
+      "editor": "qcut",
+      "sourceTrack": "clean-person",
+      "sha256": "b7daa06f9ee1888d144d5ed10c48bf637792bf2929fccbd7f5095b8f00128f47",
+      "bytes": 1765418,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1920,
+      "sampleAspectRatio": "1:1",
+      "displayAspectRatio": "9:16",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 39.491191,
+        "minimumFrameMeanLuma": 38.855556,
+        "maximumFrameMeanLuma": 40.098958,
+        "frameLumaStandardDeviation": 0.322196,
+        "spatialDetail": 2.240798,
+        "temporalDifference": 0.506898,
+        "adjacentExactDuplicateFrames": 1,
+        "estimatedGlobalTranslationPixels": 0
+      }
+    },
+    {
+      "id": "jianying-camera-tracking",
+      "fileName": "jianying-face-tracking.mp4",
+      "editor": "jianying",
+      "sourceTrack": "clean-person",
+      "sha256": "739eb8e62c2cc58480aac23bb559bc118e86cf160c875beb2a20973cf79be775",
+      "bytes": 1166660,
+      "codec": "h264",
+      "width": 1080,
+      "height": 1920,
+      "sampleAspectRatio": "unknown",
+      "displayAspectRatio": "unknown",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "30/1",
+      "frameCount": 90,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 39.151431,
+        "minimumFrameMeanLuma": 38.490556,
+        "maximumFrameMeanLuma": 39.77125,
+        "frameLumaStandardDeviation": 0.324575,
+        "spatialDetail": 1.956119,
+        "temporalDifference": 0.758449,
+        "adjacentExactDuplicateFrames": 0,
+        "estimatedGlobalTranslationPixels": 0.068966
+      }
+    }
+  ],
+  "features": [
+    {
+      "id": "stabilization",
+      "localizedName": "视频防抖",
+      "sourceTrack": "noisy-person",
+      "qcut": {
+        "implementation": "FFmpeg deshake at strength 70",
+        "baselineId": "qcut-pixel-baseline",
+        "candidateId": "qcut-stabilization",
+        "similarity": {
+          "ssim": 0.680675,
+          "psnrDb": 19.269443
+        },
+        "deltaPercent": {
+          "frameLumaStandardDeviation": 2.761,
+          "spatialDetail": -2.451,
+          "temporalDifference": -7.224,
+          "estimatedGlobalTranslationPixels": -5.945
+        },
+        "candidateFrameCount": 90,
+        "candidateDurationSeconds": 3,
+        "candidateSha256": "8a06256187dee3400365b6e5ea0c7d6fac0812f107a2cc2d2115de5aa4f3fb1d"
+      },
+      "jianying": {
+        "implementation": "Jianying video stabilization UI",
+        "baselineId": "jianying-pixel-baseline",
+        "candidateId": "jianying-stabilization",
+        "similarity": {
+          "ssim": 0.991019,
+          "psnrDb": 42.847111
+        },
+        "deltaPercent": {
+          "frameLumaStandardDeviation": 0.079,
+          "spatialDetail": -1.135,
+          "temporalDifference": -0.144,
+          "estimatedGlobalTranslationPixels": 0
+        },
+        "candidateFrameCount": 90,
+        "candidateDurationSeconds": 3,
+        "candidateSha256": "126a012f4f7d7bd4f34343e95992bc6288d5524d901d25850ac4d29d54b7a803"
+      }
+    },
+    {
+      "id": "denoise",
+      "localizedName": "画面降噪",
+      "sourceTrack": "noisy-person",
+      "qcut": {
+        "implementation": "FFmpeg hqdn3d at strength 70",
+        "baselineId": "qcut-pixel-baseline",
+        "candidateId": "qcut-denoise",
+        "similarity": {
+          "ssim": 0.985015,
+          "psnrDb": 43.812515
+        },
+        "deltaPercent": {
+          "frameLumaStandardDeviation": -1.117,
+          "spatialDetail": -1.642,
+          "temporalDifference": -1.333,
+          "estimatedGlobalTranslationPixels": 0.435
+        },
+        "candidateFrameCount": 90,
+        "candidateDurationSeconds": 3,
+        "candidateSha256": "32562e7eb72bcf4abae4d8bb8a3f409cb7af11060f49fd06d5cd77376f82ff04"
+      },
+      "jianying": {
+        "implementation": "Jianying denoise with the UI model set to Local",
+        "baselineId": "jianying-pixel-baseline",
+        "candidateId": "jianying-denoise",
+        "similarity": {
+          "ssim": 0.974823,
+          "psnrDb": 34.90647
+        },
+        "deltaPercent": {
+          "frameLumaStandardDeviation": 0.037,
+          "spatialDetail": -7.729,
+          "temporalDifference": -0.092,
+          "estimatedGlobalTranslationPixels": 0
+        },
+        "candidateFrameCount": 90,
+        "candidateDurationSeconds": 3,
+        "candidateSha256": "9dc2c429b107cfce987a9a797e9e99ee050456499a167d1a99e23fc1e20cd2e5"
+      }
+    },
+    {
+      "id": "deflicker",
+      "localizedName": "防闪烁",
+      "sourceTrack": "noisy-person",
+      "qcut": {
+        "implementation": "FFmpeg deflicker at strength 70",
+        "baselineId": "qcut-pixel-baseline",
+        "candidateId": "qcut-deflicker",
+        "similarity": {
+          "ssim": 0.981486,
+          "psnrDb": 28.490049
+        },
+        "deltaPercent": {
+          "frameLumaStandardDeviation": -59.706,
+          "spatialDetail": -1.173,
+          "temporalDifference": -6.09,
+          "estimatedGlobalTranslationPixels": 0
+        },
+        "candidateFrameCount": 90,
+        "candidateDurationSeconds": 3,
+        "candidateSha256": "473e92021f741bc12b8a19bc510b245d02e7a545a2fd834881c667afe082af12"
+      },
+      "jianying": {
+        "implementation": "Jianying deflicker UI defaults",
+        "baselineId": "jianying-pixel-baseline",
+        "candidateId": "jianying-deflicker",
+        "similarity": {
+          "ssim": 0.976897,
+          "psnrDb": 34.729107
+        },
+        "deltaPercent": {
+          "frameLumaStandardDeviation": -1.172,
+          "spatialDetail": -4.861,
+          "temporalDifference": 0.125,
+          "estimatedGlobalTranslationPixels": 0
+        },
+        "candidateFrameCount": 90,
+        "candidateDurationSeconds": 3,
+        "candidateSha256": "5c86a343257f196d4074df85661d94e94c87b551bbda8995d9adbed2027f2684"
+      }
+    },
+    {
+      "id": "motion-blur",
+      "localizedName": "光流运动模糊",
+      "sourceTrack": "noisy-person",
+      "qcut": {
+        "implementation": "FFmpeg minterpolate, tmix, then fps",
+        "baselineId": "qcut-pixel-baseline",
+        "candidateId": "qcut-motion-blur",
+        "similarity": {
+          "ssim": 0.859843,
+          "psnrDb": 25.044686
+        },
+        "deltaPercent": {
+          "frameLumaStandardDeviation": -14.885,
+          "spatialDetail": -44.838,
+          "temporalDifference": -32.613,
+          "estimatedGlobalTranslationPixels": 13.223
+        },
+        "candidateFrameCount": 90,
+        "candidateDurationSeconds": 3,
+        "candidateSha256": "e2e3bf53f3a3719efef2ba1fa86b6f11bc95131b032dbbd48ae4c6f440675ac4"
+      },
+      "jianying": {
+        "implementation": "Jianying motion blur UI defaults",
+        "baselineId": "jianying-pixel-baseline",
+        "candidateId": "jianying-motion-blur",
+        "similarity": {
+          "ssim": 0.76784,
+          "psnrDb": 19.757637
+        },
+        "deltaPercent": {
+          "frameLumaStandardDeviation": -1.509,
+          "spatialDetail": -61.365,
+          "temporalDifference": -52.332,
+          "estimatedGlobalTranslationPixels": -12.089
+        },
+        "candidateFrameCount": 90,
+        "candidateDurationSeconds": 3,
+        "candidateSha256": "786dc661e3f3b4c92b7655ba865e25d2d08b8daca63f9dbd9a37d1bfc254b913"
+      }
+    },
+    {
+      "id": "eye-correction",
+      "localizedName": "眼神修正",
+      "sourceTrack": "noisy-person",
+      "qcut": {
+        "implementation": "Local portrait eye-detail and bright-eye adjustment",
+        "baselineId": "qcut-pixel-baseline",
+        "candidateId": "qcut-eye-detail",
+        "similarity": {
+          "ssim": 0.828571,
+          "psnrDb": 24.198902
+        },
+        "deltaPercent": {
+          "frameLumaStandardDeviation": -7.189,
+          "spatialDetail": -2.691,
+          "temporalDifference": -0.124,
+          "estimatedGlobalTranslationPixels": -0.435
+        },
+        "candidateFrameCount": 90,
+        "candidateDurationSeconds": 3,
+        "candidateSha256": "cfd601b80c9f580defc9d5efb0012671d2aaa3e708d0bd3e1af3cd6bd321b18f"
+      },
+      "jianying": {
+        "implementation": "Jianying eye-correction UI",
+        "baselineId": "jianying-pixel-baseline",
+        "candidateId": "jianying-eye-detail",
+        "similarity": {
+          "ssim": 0.993849,
+          "psnrDb": 41.226075
+        },
+        "deltaPercent": {
+          "frameLumaStandardDeviation": -0.077,
+          "spatialDetail": 0.427,
+          "temporalDifference": -0.027,
+          "estimatedGlobalTranslationPixels": 0
+        },
+        "candidateFrameCount": 90,
+        "candidateDurationSeconds": 3,
+        "candidateSha256": "f9ee9e5b4cd6add9a850223d5256a23013c513a79443bc4f1ecd50c732a2ac07"
+      }
+    },
+    {
+      "id": "super-resolution",
+      "localizedName": "超分辨率",
+      "sourceTrack": "noisy-person",
+      "qcut": {
+        "implementation": "Local Lanczos 2x plus unsharp",
+        "baselineId": "qcut-pixel-baseline",
+        "candidateId": "qcut-local-super-resolution",
+        "similarity": {
+          "ssim": 0.987425,
+          "psnrDb": 44.581605
+        },
+        "deltaPercent": {
+          "frameLumaStandardDeviation": -0.083,
+          "spatialDetail": 0.482,
+          "temporalDifference": 0.045,
+          "estimatedGlobalTranslationPixels": 0
+        },
+        "candidateFrameCount": 90,
+        "candidateDurationSeconds": 3,
+        "candidateSha256": "8890d01d3c73dff851e99028d81292391b220863ff19e5995d2c356db7ebd9db"
+      },
+      "jianying": {
+        "implementation": "Jianying asynchronous super-resolution task",
+        "baselineId": "jianying-pixel-baseline",
+        "candidateId": "jianying-local-super-resolution",
+        "similarity": {
+          "ssim": 0.970704,
+          "psnrDb": 37.197012
+        },
+        "deltaPercent": {
+          "frameLumaStandardDeviation": 0.066,
+          "spatialDetail": 0.082,
+          "temporalDifference": 0.339,
+          "estimatedGlobalTranslationPixels": 0
+        },
+        "candidateFrameCount": 90,
+        "candidateDurationSeconds": 3,
+        "candidateSha256": "bee2cd947d37826da162135a5ea0010528a6f61034eeaf2d7eb5217d4e45d30a"
+      }
+    },
+    {
+      "id": "frame-interpolation",
+      "localizedName": "补帧",
+      "sourceTrack": "noisy-person",
+      "qcut": {
+        "implementation": "FFmpeg minterpolate motion-compensated mode",
+        "baselineId": "qcut-pixel-baseline",
+        "candidateId": "qcut-frame-interpolation",
+        "similarity": {
+          "ssim": 0.818902,
+          "psnrDb": 23.478952
+        },
+        "deltaPercent": {
+          "frameLumaStandardDeviation": -9.447,
+          "spatialDetail": -21.989,
+          "temporalDifference": -13.686,
+          "estimatedGlobalTranslationPixels": 3.404
+        },
+        "candidateFrameCount": 90,
+        "candidateDurationSeconds": 3,
+        "candidateSha256": "c069541975323d17a1227ec8e353cfe3f08ed3c9e255114275a2f9baa1bff58f"
+      },
+      "jianying": {
+        "implementation": "Jianying frame-interpolation UI",
+        "baselineId": "jianying-pixel-baseline",
+        "candidateId": "jianying-frame-interpolation",
+        "similarity": {
+          "ssim": 0.822099,
+          "psnrDb": 20.406912
+        },
+        "deltaPercent": {
+          "frameLumaStandardDeviation": -3.179,
+          "spatialDetail": -4.581,
+          "temporalDifference": -15.994,
+          "estimatedGlobalTranslationPixels": -33.152
+        },
+        "candidateFrameCount": 90,
+        "candidateDurationSeconds": 3,
+        "candidateSha256": "445e73987cad92f2a7e989073860c597e03df5704b51f7496bf14d7602dc95f1"
+      }
+    },
+    {
+      "id": "smart-motion",
+      "localizedName": "智能运镜",
+      "sourceTrack": "clean-person",
+      "qcut": {
+        "implementation": "Local MediaPipe person tracking to transform keyframes",
+        "baselineId": "qcut-smart-baseline",
+        "candidateId": "qcut-smart-motion",
+        "similarity": {
+          "ssim": 0.902837,
+          "psnrDb": 26.756372
+        },
+        "deltaPercent": {
+          "frameLumaStandardDeviation": 8.214,
+          "spatialDetail": 5.562,
+          "temporalDifference": 10.089,
+          "estimatedGlobalTranslationPixels": null
+        },
+        "candidateFrameCount": 90,
+        "candidateDurationSeconds": 3,
+        "candidateSha256": "a37eabbad3bb67aa0bd874df84347cb21bf71fa36ca81a1c0ce5314496f48331"
+      },
+      "jianying": {
+        "implementation": "Jianying smart-motion preset",
+        "baselineId": "jianying-smart-baseline",
+        "candidateId": "jianying-smart-motion",
+        "similarity": {
+          "ssim": 0.861345,
+          "psnrDb": 22.106756
+        },
+        "deltaPercent": {
+          "frameLumaStandardDeviation": 39.848,
+          "spatialDetail": 48.107,
+          "temporalDifference": 84.007,
+          "estimatedGlobalTranslationPixels": null
+        },
+        "candidateFrameCount": 90,
+        "candidateDurationSeconds": 3,
+        "candidateSha256": "edec8ca01b1ba1bbbf12cabb14b6d10586078c2e2349d653c84e459b91acbdcc"
+      }
+    },
+    {
+      "id": "smart-crop",
+      "localizedName": "智能裁剪",
+      "sourceTrack": "clean-person",
+      "qcut": {
+        "implementation": "Local MediaPipe person tracking to crop keyframes",
+        "baselineId": "qcut-smart-baseline",
+        "candidateId": "qcut-smart-crop",
+        "similarity": {
+          "ssim": 0.799535,
+          "psnrDb": 19.183149
+        },
+        "deltaPercent": {
+          "frameLumaStandardDeviation": 171.976,
+          "spatialDetail": 95.392,
+          "temporalDifference": 203.452,
+          "estimatedGlobalTranslationPixels": null
+        },
+        "candidateFrameCount": 90,
+        "candidateDurationSeconds": 3,
+        "candidateSha256": "ddd8930f49b0ec44f5b02d98b9747454dc51d99e0addecab9f6f289aa19918dd"
+      },
+      "jianying": {
+        "implementation": "Jianying smart crop with 16:9 target ratio",
+        "baselineId": "jianying-smart-baseline",
+        "candidateId": "jianying-smart-crop",
+        "similarity": {
+          "ssim": 0.742241,
+          "psnrDb": 19.534646
+        },
+        "deltaPercent": {
+          "frameLumaStandardDeviation": 2.68,
+          "spatialDetail": -2.109,
+          "temporalDifference": -30.408,
+          "estimatedGlobalTranslationPixels": null
+        },
+        "candidateFrameCount": 90,
+        "candidateDurationSeconds": 3,
+        "candidateSha256": "def6429423a505534b95fd3bead226716292caf14bf05b2311f507bd486bd734"
+      }
+    },
+    {
+      "id": "camera-tracking",
+      "localizedName": "镜头追踪",
+      "sourceTrack": "clean-person",
+      "qcut": {
+        "implementation": "Local MediaPipe person tracking to position keyframes",
+        "baselineId": "qcut-smart-baseline",
+        "candidateId": "qcut-camera-tracking",
+        "similarity": {
+          "ssim": 0.857374,
+          "psnrDb": 22.342583
+        },
+        "deltaPercent": {
+          "frameLumaStandardDeviation": 0.07,
+          "spatialDetail": 13.967,
+          "temporalDifference": -1.296,
+          "estimatedGlobalTranslationPixels": null
+        },
+        "candidateFrameCount": 90,
+        "candidateDurationSeconds": 3,
+        "candidateSha256": "b7daa06f9ee1888d144d5ed10c48bf637792bf2929fccbd7f5095b8f00128f47"
+      },
+      "jianying": {
+        "implementation": "Jianying head tracking",
+        "baselineId": "jianying-smart-baseline",
+        "candidateId": "jianying-camera-tracking",
+        "similarity": {
+          "ssim": 0.898793,
+          "psnrDb": 24.403853
+        },
+        "deltaPercent": {
+          "frameLumaStandardDeviation": 5.263,
+          "spatialDetail": 0.514,
+          "temporalDifference": 45.23,
+          "estimatedGlobalTranslationPixels": null
+        },
+        "candidateFrameCount": 90,
+        "candidateDurationSeconds": 3,
+        "candidateSha256": "739eb8e62c2cc58480aac23bb559bc118e86cf160c875beb2a20973cf79be775"
+      }
+    }
+  ]
+}

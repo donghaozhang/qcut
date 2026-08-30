@@ -187,6 +187,56 @@ describe("Claude media timing bridge", () => {
 		expect(calculateTimelineDuration({ tracks, fps: 30 })).toBe(4);
 	});
 
+	it("preserves enhancement and portrait state in the export snapshot", () => {
+		const tracks: TimelineTrack[] = [
+			{
+				id: "track",
+				name: "Media",
+				type: "media",
+				elements: [
+					{
+						id: "clip",
+						type: "media",
+						mediaId: "media",
+						name: "Clip",
+						startTime: 0,
+						duration: 8,
+						trimStart: 0,
+						trimEnd: 0,
+						enhancements: {
+							stabilization: 70,
+							denoise: 0,
+							clarity: 0,
+							upscale: 1,
+							relight: 0,
+							beauty: 0,
+							labDeflicker: 60,
+							labOpticalFlowMotionBlur: 40,
+							labEyeCorrection: 50,
+							labLocalSuperResolution: 2,
+						},
+						portraitAdjustments: {
+							enabled: true,
+							values: { face_adjust_BrightEye: 12 },
+						},
+					},
+				],
+			},
+		];
+
+		const [element] = formatTracksForExport({ tracks, fps: 30 })[0].elements;
+
+		expect(element.enhancements).toMatchObject({
+			stabilization: 70,
+			labDeflicker: 60,
+			labLocalSuperResolution: 2,
+		});
+		expect(element.portraitAdjustments).toMatchObject({
+			enabled: true,
+			values: { face_adjust_BrightEye: 12 },
+		});
+	});
+
 	it("routes media timing updates through the ripple-aware store action", () => {
 		const updated = applyElementChanges({
 			elementId: "clip",

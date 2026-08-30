@@ -97,11 +97,7 @@ import {
 	ContextMenuItem,
 	ContextMenuSeparator,
 	ContextMenuTrigger,
-	ContextMenuSub,
-	ContextMenuSubTrigger,
-	ContextMenuSubContent,
 } from "../../ui/context-menu";
-import { COLOR_LABELS } from "@/types/generation";
 import { getOrCreateObjectURL } from "@/lib/media/blob-manager";
 import {
 	DEFAULT_MEDIA_COLOR_SETTINGS,
@@ -130,6 +126,11 @@ import { useTranslation } from "@/lib/i18n";
 import { localizeTimelineElementName } from "@/lib/i18n/timeline-names";
 import { getVideoClipLaneHeights } from "./video-timeline-clip-layout";
 import { VideoTimelineClip } from "./video-timeline-clip";
+import {
+	resolveTimelineColorLabel,
+	type TimelineColorLabel,
+} from "@/lib/timeline/timeline-color-labels";
+import { TimelineColorLabelMenu } from "./timeline-color-label-menu";
 
 function shellQuote({ value }: { value: string }): string {
 	return `'${value.replace(/'/g, "'\\''")}'`;
@@ -257,6 +258,7 @@ function TimelineElementComponent({
 	const isAudio = mediaItem?.type === "audio";
 	const isVideoClip = element.type === "media" && mediaItem?.type === "video";
 	const isMediaClip = element.type === "media";
+	const colorLabel = resolveTimelineColorLabel({ value: element.colorLabel });
 	const canShowVideoClipActions =
 		element.type === "media" && (!mediaItem || mediaItem.type === "video");
 	const {
@@ -637,6 +639,36 @@ function TimelineElementComponent({
 		e.stopPropagation();
 		selectElement(track.id, element.id, false);
 		useMediaPanelStore.getState().setActiveTab("effects");
+	};
+
+	const getColorLabelTargets = () => {
+		const state = useTimelineStore.getState();
+		const includesCurrentElement = state.selectedElements.some(
+			(selection) =>
+				selection.trackId === track.id && selection.elementId === element.id
+		);
+		return includesCurrentElement
+			? state.selectedElements
+			: [{ trackId: track.id, elementId: element.id }];
+	};
+
+	const handleSetColorLabel = ({
+		colorLabel: nextColorLabel,
+	}: {
+		colorLabel?: TimelineColorLabel;
+	}) => {
+		useTimelineStore.getState().setColorLabelForElements({
+			elements: getColorLabelTargets(),
+			colorLabel: nextColorLabel,
+		});
+	};
+
+	const handleSelectSameColor = () => {
+		if (!colorLabel) return;
+		// Let the context-menu pointer event finish before replacing the selection.
+		setTimeout(() => {
+			useTimelineStore.getState().selectElementsByColorLabel({ colorLabel });
+		}, 0);
 	};
 
 	const handleToggleGroup = (e: React.MouseEvent) => {
@@ -1455,6 +1487,7 @@ function TimelineElementComponent({
 			return (
 				<VideoTimelineClip
 					clipWidthPx={elementWidth}
+					colorLabel={colorLabel}
 					displayName={displayName}
 					duration={element.duration}
 					mediaId={mediaItem.id}
@@ -1724,17 +1757,6 @@ function TimelineElementComponent({
 								/>
 							</>
 						)}
-						{/* Color label dot */}
-						{element.colorLabel && (
-							<div
-								className="absolute top-0.5 right-1 h-2 w-2 rounded-full pointer-events-none z-20"
-								style={{
-									backgroundColor:
-										COLOR_LABELS.find((c) => c.value === element.colorLabel)
-											?.color || "transparent",
-								}}
-							/>
-						)}
 						<TimelineElementTaskBadge
 							element={element}
 							showLabel={elementWidth >= 120}
@@ -1756,6 +1778,7 @@ function TimelineElementComponent({
 					}
 					canLinkMedia={selectedElements.length >= 2 && !element.groupId}
 					compoundKind={element.compound?.kind}
+					currentColorLabel={colorLabel}
 					multicamClips={
 						element.compound?.kind === "multicam"
 							? element.compound.clips.map((clip) => ({
@@ -1810,6 +1833,8 @@ function TimelineElementComponent({
 						breakApart: handleBreakApartMediaContainer,
 						linkMedia: handleLinkMedia,
 						selectMulticamClip: handleSelectMulticamClip,
+						setColorLabel: handleSetColorLabel,
+						selectSameColor: handleSelectSameColor,
 					}}
 				/>
 			) : (
@@ -2019,66 +2044,11 @@ function TimelineElementComponent({
 						<Copy className="h-4 w-4 mr-2" />
 						Copy Element ID
 					</ContextMenuItem>
-					{/* Color Labels */}
-					<ContextMenuSub>
-						<ContextMenuSubTrigger>
-							<div className="flex items-center gap-2">
-								{element.colorLabel && (
-									<div
-										className="h-3 w-3 rounded-full"
-										style={{
-											backgroundColor:
-												COLOR_LABELS.find((c) => c.value === element.colorLabel)
-													?.color || "transparent",
-										}}
-									/>
-								)}
-								<span>Color Label</span>
-							</div>
-						</ContextMenuSubTrigger>
-						<ContextMenuSubContent>
-							<ContextMenuItem
-								onClick={() => {
-									const store = useTimelineStore.getState();
-									store.pushHistory();
-									const newTracks = store._tracks.map((t) => ({
-										...t,
-										elements: t.elements.map((el) =>
-											el.id === element.id
-												? { ...el, colorLabel: undefined }
-												: el
-										),
-									}));
-									store.restoreTracks(newTracks);
-								}}
-							>
-								No Label
-							</ContextMenuItem>
-							{COLOR_LABELS.map(({ value, color }) => (
-								<ContextMenuItem
-									key={value}
-									onClick={() => {
-										const store = useTimelineStore.getState();
-										store.pushHistory();
-										const newTracks = store._tracks.map((t) => ({
-											...t,
-											elements: t.elements.map((el) =>
-												el.id === element.id ? { ...el, colorLabel: value } : el
-											),
-										}));
-										store.restoreTracks(newTracks);
-									}}
-								>
-									<div
-										className="h-3 w-3 rounded-full mr-2"
-										style={{ backgroundColor: color }}
-									/>
-									<span className="capitalize">{value}</span>
-								</ContextMenuItem>
-							))}
-						</ContextMenuSubContent>
-					</ContextMenuSub>
-					<ContextMenuSeparator />
+					<TimelineColorLabelMenu
+						currentColorLabel={colorLabel}
+						onColorLabelChange={handleSetColorLabel}
+						onSelectSameColor={handleSelectSameColor}
+					/>
 					<ContextMenuItem
 						onClick={handleElementDeleteContext}
 						className="text-destructive focus:text-destructive"

@@ -381,7 +381,7 @@ Word-level transcription and timeline editing with AI-powered filler word detect
 
 ### Features
 - **Drag & drop import:** Import JSON transcription files
-- **Media transcription:** Transcribe video/audio using ElevenLabs Scribe v2 or Gemini 2.5 Pro
+- **Media transcription:** Smart Speech transcribes video/audio using ElevenLabs Scribe v2 through QCut's cloud proxy; the standalone Gemini transcription path uses Gemini 3.7 Flash
 - **Word-level timestamps:** Click any word to seek to that position
 - **Word deletion:** Mark words for removal (strikethrough)
 - **AI filler word analysis:** Detect and suggest removal of filler words

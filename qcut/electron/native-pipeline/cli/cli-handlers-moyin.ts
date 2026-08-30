@@ -47,7 +47,8 @@ const MODEL_ALIASES: Record<string, string> = {
 	"minimax-m2.5": "minimax/minimax-m2.5",
 	gemini: "google/gemini-2.5-flash",
 	"gemini-flash": "google/gemini-2.5-flash",
-	"gemini-pro": "google/gemini-2.5-pro",
+	"gemini-pro": "google/gemini-3.7-flash",
+	"gemini-3.7-flash": "google/gemini-3.7-flash",
 };
 
 /**

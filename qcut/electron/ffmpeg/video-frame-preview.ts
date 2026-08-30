@@ -16,6 +16,7 @@ import {
 	buildVideoEnhancementFilter,
 	normalizeVideoEnhancements,
 } from "./video-enhancement-filter.js";
+import { getVideoLabTemporalContextSeconds } from "./video-lab-filter.js";
 import { prepareFFmpegFilterComplexScripts } from "./filter-complex-script.js";
 import { removeTemporaryDirectory } from "./temporary-files.js";
 import { buildVideoFitFilter } from "./video-fit-filter.js";
@@ -151,7 +152,9 @@ function hasTemporalEnhancement({
 	return (
 		options.enhancements.stabilization > 0 ||
 		options.enhancements.denoise > 0 ||
-		options.enhancements.beauty > 0
+		options.enhancements.beauty > 0 ||
+		(options.enhancements.labDeflicker ?? 0) > 0 ||
+		(options.enhancements.labOpticalFlowMotionBlur ?? 0) > 0
 	);
 }
 
@@ -165,11 +168,25 @@ export function buildVideoFramePreviewCommand({
 		enhancements: options.enhancements,
 	});
 	const sourceTime = Math.round(options.sourceTime * options.fps) / options.fps;
-	const preroll = hasTemporalEnhancement({ options })
-		? Math.min(sourceTime, TEMPORAL_PREROLL_SECONDS)
+	const labTemporalContext = getVideoLabTemporalContextSeconds({
+		settings: {
+			deflicker: enhancements.labDeflicker,
+			opticalFlowMotionBlur: enhancements.labOpticalFlowMotionBlur,
+		},
+		fps: options.fps,
+	});
+	const requestedPreroll = hasTemporalEnhancement({ options })
+		? Math.max(TEMPORAL_PREROLL_SECONDS, labTemporalContext)
 		: 0;
+	const preroll = Math.min(sourceTime, requestedPreroll);
 	const frameDuration = 1 / options.fps;
 	const filters = [
+		buildVideoEnhancementFilter({
+			enhancements,
+			width: options.width,
+			height: options.height,
+			fps: options.fps,
+		}),
 		buildVideoFitFilter({
 			fitMode: options.fitMode,
 			width: options.width,
@@ -177,11 +194,6 @@ export function buildVideoFramePreviewCommand({
 		}),
 		"setsar=1",
 		"format=rgba",
-		buildVideoEnhancementFilter({
-			enhancements,
-			width: options.width,
-			height: options.height,
-		}),
 		`trim=start=${preroll}:duration=${frameDuration}`,
 		"setpts=PTS-STARTPTS",
 	].filter(Boolean);
@@ -195,7 +207,7 @@ export function buildVideoFramePreviewCommand({
 			"-i",
 			options.sourcePath,
 			"-t",
-			String(preroll + frameDuration),
+			String(preroll + frameDuration + labTemporalContext),
 			"-vf",
 			filters.join(","),
 			"-frames:v",

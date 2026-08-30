@@ -45,6 +45,10 @@ export function isIdentitySegmentTransform({
 	);
 }
 
+function chromaAlignedDimension({ value }: { value: number }): number {
+	return Math.max(2, Math.ceil(value / 2) * 2);
+}
+
 /**
  * Piecewise-linear track value as an ffmpeg expression over `t` (source
  * seconds). Keyframe times are timeline seconds; at playback rate r the
@@ -101,8 +105,10 @@ export function buildSegmentTransformFilter({
 	let currentHeight = height;
 
 	if (transform.scaleX !== 1 || transform.scaleY !== 1) {
-		currentWidth = Math.max(2, Math.round(width * transform.scaleX));
-		currentHeight = Math.max(2, Math.round(height * transform.scaleY));
+		currentWidth = chromaAlignedDimension({ value: width * transform.scaleX });
+		currentHeight = chromaAlignedDimension({
+			value: height * transform.scaleY,
+		});
 		stages.push(`scale=${currentWidth}:${currentHeight}`);
 	}
 

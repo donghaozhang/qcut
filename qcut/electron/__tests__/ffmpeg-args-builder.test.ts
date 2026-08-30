@@ -242,7 +242,9 @@ describe("buildFFmpegArgs", () => {
 			);
 			const filter = args[args.indexOf("-filter_complex") + 1];
 
-			expect(filter).toContain("minterpolate=fps=30");
+			expect(filter).toContain(
+				"tpad=stop_mode=clone:stop_duration=0.066667,minterpolate=fps=30"
+			);
 			expect(filter).toContain("mi_mode=mci");
 			expect(filter).toContain("me_mode=bidir");
 		});

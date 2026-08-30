@@ -235,11 +235,19 @@ export function useVideoEnhancementProxy({
 			upscale: enhancements.upscale,
 			relight: enhancements.relight,
 			beauty: enhancements.beauty,
+			labDeflicker: enhancements.labDeflicker ?? 0,
+			labOpticalFlowMotionBlur: enhancements.labOpticalFlowMotionBlur ?? 0,
+			labEyeCorrection: enhancements.labEyeCorrection ?? 0,
+			labLocalSuperResolution: enhancements.labLocalSuperResolution ?? 0,
 		}),
 		[
 			enhancements.beauty,
 			enhancements.clarity,
 			enhancements.denoise,
+			enhancements.labDeflicker,
+			enhancements.labEyeCorrection,
+			enhancements.labLocalSuperResolution,
+			enhancements.labOpticalFlowMotionBlur,
 			enhancements.relight,
 			enhancements.stabilization,
 			enhancements.upscale,
@@ -261,7 +269,7 @@ export function useVideoEnhancementProxy({
 		}
 
 		let cancelled = false;
-		const requestId = `video-proxy-${elementId}-${++proxyRequestSequence}`;
+		const requestId = `video-proxy-${elementId}-${retrySequence}-${++proxyRequestSequence}`;
 		const dimensions = videoEnhancementProxyDimensions({
 			width: sourceWidth,
 			height: sourceHeight,

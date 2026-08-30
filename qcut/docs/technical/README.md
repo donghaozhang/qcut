@@ -47,7 +47,7 @@ docs/technical/
 | Text-to-Video | [ai/models/text-to-video/](ai/models/text-to-video/) | 18 models: Sora 2, Veo 3/3.1, Kling v2-v3, Hailuo, Seedance, LTX, WAN, Vidu |
 | Image-to-Video | [ai/models/image-to-video/](ai/models/image-to-video/) | 22 models: Sora 2, Veo 3.1, Kling v2-v3, Hailuo, Seedance, LTX, WAN, Vidu |
 | Avatar | [ai/models/avatar/](ai/models/avatar/) | 14 models: Kling, OmniHuman, Hailuo, WAN, Sora 2 |
-| Transcription | [ai/models/transcription/](ai/models/transcription/) | Gemini 2.5 Pro |
+| Transcription | [ai/models/transcription/](ai/models/transcription/) | Gemini 3.7 Flash |
 | Text-to-Image | [ai/models/text-to-image/](ai/models/text-to-image/) | 13 models: Gemini 3, GPT Image, SeedDream, FLUX, Imagen4, WAN |
 | Image Upscale | [ai/models/image-upscale/](ai/models/image-upscale/) | 3 models: ByteDance, FlashVSR, Topaz |
 | Segmentation | [ai/models/segmentation/](ai/models/segmentation/) | SAM-3 |
