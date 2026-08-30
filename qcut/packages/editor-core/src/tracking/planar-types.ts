@@ -10,6 +10,18 @@ export interface PlanarQuad {
 	bottomLeft: NormalizedPoint;
 }
 
+export type PlanarMatrix3 = readonly [
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+	number,
+];
+
 export type PlanarTrackingDirection = "forward" | "backward" | "both";
 
 export type PlanarSampleStatus = "tracked" | "lost" | "corrected";

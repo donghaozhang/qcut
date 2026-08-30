@@ -248,6 +248,7 @@ export type {
 
 export type {
 	NormalizedPoint,
+	PlanarMatrix3,
 	PlanarQuad,
 	PlanarSampleStatus,
 	PlanarTrackingDiagnostics,
@@ -260,6 +261,25 @@ export type {
 	PlanarTrackingSidecarV1,
 	StickerPlanarTracking,
 } from "./tracking/planar-types.js";
+
+export {
+	buildPlanarHomography,
+	buildRelativePlanarHomography,
+	hasClockwisePlanarQuadWinding,
+	invertPlanarHomography,
+	isConvexPlanarQuad,
+	isFinitePlanarPoint,
+	isSelfIntersectingPlanarQuad,
+	isValidPlanarQuad,
+	MIN_PLANAR_QUAD_AREA,
+	multiplyPlanarHomographies,
+	planarQuadArea,
+	planarQuadPoints,
+	planarQuadSignedArea,
+	projectPlanarPoint,
+	projectPlanarQuad,
+	UNIT_PLANAR_QUAD,
+} from "./tracking/planar-geometry.js";
 
 export {
 	DEFAULT_PROJECT_TIMELINE_SETTINGS,

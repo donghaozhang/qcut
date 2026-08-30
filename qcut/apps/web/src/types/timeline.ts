@@ -20,6 +20,7 @@ export type {
 	StickerTrackingAnchor,
 	StickerPlanarTracking,
 	NormalizedPoint,
+	PlanarMatrix3,
 	PlanarQuad,
 	PlanarSampleStatus,
 	PlanarTrackingDiagnostics,

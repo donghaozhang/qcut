@@ -113,6 +113,7 @@ export type {
 
 export type {
 	NormalizedPoint,
+	PlanarMatrix3,
 	PlanarQuad,
 	PlanarSampleStatus,
 	PlanarTrackingDiagnostics,
