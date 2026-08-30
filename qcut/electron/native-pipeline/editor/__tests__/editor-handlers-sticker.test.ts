@@ -3,10 +3,8 @@ import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, test } from "vitest";
 import type { CLIRunOptions } from "../../cli/cli-runner/types";
 import type { EditorApiClient } from "../editor-api-client";
-import {
-	handleStickerCommand,
-	type StickerHandlerDependencies,
-} from "../editor-handlers-sticker";
+import { handleStickerCommand } from "../editor-handlers-sticker";
+import { stickerLabDependencies } from "./helpers/editor-sticker-test-fixtures";
 
 const originalFetch = globalThis.fetch;
 
@@ -22,41 +20,6 @@ function baseOptions({ command }: { command: string }): CLIRunOptions {
 		json: true,
 		verbose: false,
 		quiet: true,
-	};
-}
-
-function stickerLabDependencies({
-	bytes,
-	mimeType = "image/gif",
-}: {
-	bytes?: Uint8Array;
-	mimeType?: "image/gif" | "image/png";
-} = {}): StickerHandlerDependencies {
-	const stickerId = mimeType === "image/gif" ? "18001" : "18002";
-	return {
-		discoverLocalReferences: async () => ({
-			rootPath: "/private/QCut Sticker Lab",
-			catalogs: [],
-			warnings: [],
-			summary: {
-				batchCount: 0,
-				categoryCount: 0,
-				itemCount: 0,
-				totalBytes: 0,
-			},
-		}),
-		readLocalReference: async ({ batchId }) => ({
-			bytes:
-				bytes ??
-				(mimeType === "image/gif"
-					? new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61])
-					: new Uint8Array([0x89, 0x50, 0x4e, 0x47])),
-			fileName: `${stickerId}.${mimeType === "image/gif" ? "gif" : "png"}`,
-			mimeType,
-			batchId,
-			stickerId,
-			checksumSha256: "a".repeat(64),
-		}),
 	};
 }
 
