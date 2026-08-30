@@ -157,6 +157,7 @@ import {
 	handleComposeApply,
 	handleComposeSnapshot,
 } from "../cli-handlers-compose-editor.js";
+import { handleComposePlan } from "../cli-handlers-compose-plan.js";
 
 /**
  * Unified handler signature.
@@ -207,6 +208,7 @@ function wrapOPS(
  */
 export const HANDLER_MAP: Record<string, CommandHandler> = {
 	update: wrapOPS(handleAppUpdate),
+	"compose-plan": wrapOPS(handleComposePlan),
 	"compose-snapshot": wrapOPS(handleComposeSnapshot),
 	"compose-apply": wrapOPS(handleComposeApply),
 	"compose-validate": wrapOPS(handleComposeValidate),
