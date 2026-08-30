@@ -366,7 +366,8 @@ export async function handleComposeApply(
 		});
 		if (
 			plan.plannedOperationIds.length === 0 &&
-			plan.plannedTransitionOperationIds.length === 0
+			plan.plannedTransitionOperationIds.length === 0 &&
+			plan.plannedUpdateOperationIds.length === 0
 		) {
 			// Nothing will reach the timeline, so prepared-but-unused imports
 			// must not linger in the project's media library.
@@ -458,6 +459,7 @@ export async function handleComposeApply(
 				applied,
 				alreadyAppliedOperationIds: alreadyApplied,
 				importedMediaCount: prepared.importedMediaIds.length,
+				appliedUpdateOperationIds: plan.plannedUpdateOperationIds,
 				transitionOperationIds: plan.plannedTransitionOperationIds,
 				transitionIds:
 					(applyResult.data as { transitionIds?: string[] } | undefined)
