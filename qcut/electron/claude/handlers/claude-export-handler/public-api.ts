@@ -117,7 +117,11 @@ function assertRendererExportRequestCompatible({
 }): void {
 	const topLevel = request as Record<string, unknown>;
 	const unsupportedOptions: string[] = [];
-	if (request.engine && request.engine !== "auto") {
+	if (
+		request.engine &&
+		request.engine !== "auto" &&
+		request.engine !== "muxer"
+	) {
 		unsupportedOptions.push("engine");
 	}
 	if (request.cursorConfig !== undefined) {
@@ -298,6 +302,7 @@ export async function startRendererExportJob({
 		try {
 			updateJobProgress({ jobId, progress: 0.01 });
 			await dispatch({
+				...(request.engine === "muxer" ? { engine: "muxer" as const } : {}),
 				filename: path.basename(outputPath),
 				format: "mp4",
 				frameRate,
