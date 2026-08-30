@@ -4,7 +4,10 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { AudioSettings } from "../ffmpeg/audio-settings";
-import { processQcutAudio } from "../qcut-audio-runtime/process";
+import {
+	cancelQcutAudioProcess,
+	processQcutAudio,
+} from "../qcut-audio-runtime/process";
 
 const ffmpegTarget = `${process.platform}-${process.arch}`;
 const executableSuffix = process.platform === "win32" ? ".exe" : "";
@@ -175,6 +178,68 @@ describe.skipIf(!hasRealFfmpeg)(
 			const manifest = fs.readFileSync(first.manifestPath, "utf8");
 			expect(manifest).not.toContain(sourcePath);
 			expect(manifest).not.toContain("Jianying");
+		});
+
+		it("kills an in-flight render when its request is cancelled", async () => {
+			const longSourcePath = path.join(directory, "long-source.wav");
+			const generated = spawnSync(
+				ffmpegPath,
+				[
+					"-y",
+					"-v",
+					"error",
+					"-f",
+					"lavfi",
+					"-i",
+					"sine=frequency=440:duration=120:sample_rate=48000",
+					"-f",
+					"lavfi",
+					"-i",
+					"sine=frequency=880:duration=120:sample_rate=48000",
+					"-filter_complex",
+					"[0:a][1:a]amerge=inputs=2[stereo]",
+					"-map",
+					"[stereo]",
+					"-c:a",
+					"pcm_s16le",
+					longSourcePath,
+				],
+				{ encoding: "utf8", timeout: 30_000 }
+			);
+			expect(generated.status, generated.stderr).toBe(0);
+
+			const cancelCacheDirectory = path.join(directory, "cancel-cache");
+			const pending = processQcutAudio({
+				request: {
+					requestId: "cancel-me",
+					sourcePath: longSourcePath,
+					audio: localSettings(),
+				},
+				cacheDirectory: cancelCacheDirectory,
+				ffmpegPath,
+			});
+			pending.catch(() => {});
+
+			// Registration happens after the source hash, so poll until the
+			// request is known, then the cancel must kill the FFmpeg child.
+			let cancelled = false;
+			for (let attempt = 0; attempt < 400 && !cancelled; attempt += 1) {
+				cancelled = cancelQcutAudioProcess({ requestId: "cancel-me" });
+				if (!cancelled) {
+					await new Promise((resolve) => setTimeout(resolve, 25));
+				}
+			}
+			expect(cancelled).toBe(true);
+			await expect(pending).rejects.toThrow(/cancelled/);
+			expect(cancelQcutAudioProcess({ requestId: "cancel-me" })).toBe(false);
+
+			const completedEntries = fs
+				.readdirSync(cancelCacheDirectory)
+				.filter(
+					(filename) =>
+						filename.endsWith(".flac") && !filename.endsWith(".partial.flac")
+				);
+			expect(completedEntries).toEqual([]);
 		});
 	}
 );
