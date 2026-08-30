@@ -41,6 +41,15 @@ export interface CanvasYuvFrame {
 export interface CanvasYuvConverter {
 	/** Active implementation; the WebGL path degrades to "cpu" if the context is lost. */
 	readonly kind: "webgl" | "cpu";
+	/**
+	 * Issues this frame's conversion. On the WebGL path the GPU work and
+	 * readback proceed asynchronously, so the caller can overlap other
+	 * waits (encoder backpressure) before collecting the bytes.
+	 */
+	begin(source: HTMLCanvasElement | OffscreenCanvas): void;
+	/** Completes the conversion begun by `begin` and returns the frame. */
+	finish(source: HTMLCanvasElement | OffscreenCanvas): CanvasYuvFrame;
+	/** begin + finish in one blocking step. */
 	convert(source: HTMLCanvasElement | OffscreenCanvas): CanvasYuvFrame;
 	dispose(): void;
 }
@@ -106,6 +115,8 @@ class WebglYuvConverter {
 	private readonly readBuffer: Uint8Array;
 	private readonly texHeight: number;
 	private readonly total: number;
+	private readonly packBuffer: WebGLBuffer;
+	private pendingReadback = false;
 
 	constructor(
 		private readonly width: number,
@@ -167,16 +178,32 @@ class WebglYuvConverter {
 		);
 		gl.viewport(0, 0, PACKED_TEXTURE_WIDTH, this.texHeight);
 		this.readBuffer = new Uint8Array(PACKED_TEXTURE_WIDTH * this.texHeight * 4);
+		const packBuffer = gl.createBuffer();
+		if (!packBuffer) throw new Error("Could not create the pixel pack buffer");
+		this.packBuffer = packBuffer;
+		gl.bindBuffer(gl.PIXEL_PACK_BUFFER, packBuffer);
+		gl.bufferData(
+			gl.PIXEL_PACK_BUFFER,
+			this.readBuffer.byteLength,
+			gl.STREAM_READ
+		);
+		gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
 	}
 
 	isLost(): boolean {
 		return this.gl.isContextLost();
 	}
 
-	convert(source: HTMLCanvasElement | OffscreenCanvas): CanvasYuvFrame {
+	/**
+	 * Uploads the source and issues draw + readback into the pixel pack
+	 * buffer without blocking; the GPU converts while the caller waits on
+	 * other work (encoder backpressure).
+	 */
+	begin(source: HTMLCanvasElement | OffscreenCanvas): void {
 		const gl = this.gl;
 		gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
 		gl.drawArrays(gl.TRIANGLES, 0, 3);
+		gl.bindBuffer(gl.PIXEL_PACK_BUFFER, this.packBuffer);
 		gl.readPixels(
 			0,
 			0,
@@ -184,8 +211,26 @@ class WebglYuvConverter {
 			this.texHeight,
 			gl.RGBA,
 			gl.UNSIGNED_BYTE,
-			this.readBuffer
+			0
 		);
+		gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
+		gl.flush();
+		if (gl.isContextLost()) {
+			throw new Error("WebGL context lost during export color conversion");
+		}
+		this.pendingReadback = true;
+	}
+
+	/** Collects the bytes of the conversion issued by `begin`. */
+	finish(): CanvasYuvFrame {
+		const gl = this.gl;
+		if (!this.pendingReadback) {
+			throw new Error("finish() called without a pending begin()");
+		}
+		this.pendingReadback = false;
+		gl.bindBuffer(gl.PIXEL_PACK_BUFFER, this.packBuffer);
+		gl.getBufferSubData(gl.PIXEL_PACK_BUFFER, 0, this.readBuffer);
+		gl.bindBuffer(gl.PIXEL_PACK_BUFFER, null);
 		if (gl.isContextLost()) {
 			throw new Error("WebGL context lost during export color conversion");
 		}
@@ -321,6 +366,7 @@ export function createCanvasYuvConverter({
 	}
 	const cpu = new CpuYuvConverter(width, height);
 	let webgl: WebglYuvConverter | null = null;
+	let pendingCpuFrame: CanvasYuvFrame | null = null;
 	try {
 		webgl = new WebglYuvConverter(width, height);
 	} catch (error) {
@@ -329,15 +375,16 @@ export function createCanvasYuvConverter({
 			error
 		);
 	}
-	return {
+	const converter: CanvasYuvConverter = {
 		get kind() {
 			return webgl ? ("webgl" as const) : ("cpu" as const);
 		},
-		convert(source) {
+		begin(source) {
 			if (webgl) {
 				if (!webgl.isLost()) {
 					try {
-						return webgl.convert(source);
+						webgl.begin(source);
+						return;
 					} catch (error) {
 						debugWarn(
 							"[ExportCanvasYuv] WebGL conversion failed; falling back to scalar",
@@ -347,11 +394,38 @@ export function createCanvasYuvConverter({
 				}
 				webgl = null;
 			}
+			pendingCpuFrame = cpu.convert(source);
+		},
+		finish(source) {
+			if (pendingCpuFrame) {
+				const frame = pendingCpuFrame;
+				pendingCpuFrame = null;
+				return frame;
+			}
+			if (webgl) {
+				try {
+					return webgl.finish();
+				} catch (error) {
+					debugWarn(
+						"[ExportCanvasYuv] WebGL readback failed; falling back to scalar",
+						error
+					);
+					webgl = null;
+				}
+			}
+			// The source still holds this frame, so the scalar path can
+			// recover the conversion the lost WebGL context dropped.
 			return cpu.convert(source);
+		},
+		convert(source) {
+			converter.begin(source);
+			return converter.finish(source);
 		},
 		dispose() {
 			webgl?.dispose();
 			webgl = null;
+			pendingCpuFrame = null;
 		},
 	};
+	return converter;
 }
