@@ -141,6 +141,7 @@ export const CATEGORIES: CategoryDef[] = [
 			"filter-lab-list",
 			"filter-lab-catalog",
 			"filter-lab-render",
+			"filter-lab-pipeline",
 			"filter-lab-compare",
 			"filter-lab-match",
 			"filter-lab-verify",
@@ -379,6 +380,50 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		examples: [
 			"qcut filter-lab render --resource-id 7524288987129810214 -i portrait.jpg --output filtered.png --json",
 			"qcut filter-lab apply --resource-id 7392898023505792319 -i clip.mp4 --output filtered.mp4 --duration 2 --json",
+		],
+	},
+	"filter-lab-pipeline": {
+		name: "filter-lab-pipeline",
+		description:
+			"Apply 2 to 16 ordered Filter Lab cards with one media decode and one final encode; FFmpeg and native filter backends may be mixed",
+		category: "filter-lab",
+		flags: [
+			f(
+				"--filter-step",
+				"string[]",
+				'Ordered "resource-id[:intensity]" step; repeat for each filter'
+			),
+			f(
+				"--resource-id",
+				"string[]",
+				"Ordered resource ID using the shared --filter-intensity; repeatable"
+			),
+			f("--input", "string", "Local image or video path", {
+				short: "-i",
+				required: true,
+			}),
+			f("--output", "string", "Output PNG for an image, or MP4 for a video"),
+			f(
+				"--filter-intensity",
+				"number",
+				"Shared intensity for repeated --resource-id steps (default: 100)"
+			),
+			f("--duration", "string", "Render at most this many seconds of video"),
+			f("--fps", "number", "Video output frame rate (default: source average)"),
+			f(
+				"--dry-run",
+				"boolean",
+				"Resolve every card and backend without rendering"
+			),
+			f(
+				"--force",
+				"boolean",
+				"Replace an existing output after a successful render"
+			),
+		],
+		examples: [
+			"qcut filter-lab pipeline --filter-step 7524288987129810214:70 --filter-step 7392898023505792319:35 -i portrait.jpg --output layered.png --json",
+			"qcut filter-lab pipeline --resource-id 7524288987129810214 --resource-id 7392898023505792319 --filter-intensity 60 -i clip.mp4 --output layered.mp4 --json",
 		],
 	},
 	"filter-lab-compare": {
