@@ -151,6 +151,7 @@ import {
 } from "./jianying-project-export-contract.js";
 import {
 	QCUT_AUDIO_RUNTIME_CACHE_STATS_CHANNEL,
+	QCUT_AUDIO_RUNTIME_CANCEL_CHANNEL,
 	QCUT_AUDIO_RUNTIME_CLEAR_CACHE_CHANNEL,
 	QCUT_AUDIO_RUNTIME_PROCESS_CHANNEL,
 	QCUT_AUDIO_RUNTIME_STATUS_CHANNEL,
@@ -441,6 +442,8 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke(QCUT_AUDIO_RUNTIME_STATUS_CHANNEL),
 		processLocal: (request: QcutAudioProcessRequest) =>
 			ipcRenderer.invoke(QCUT_AUDIO_RUNTIME_PROCESS_CHANNEL, request),
+		cancelLocal: (requestId: string): Promise<boolean> =>
+			ipcRenderer.invoke(QCUT_AUDIO_RUNTIME_CANCEL_CHANNEL, requestId),
 		getLocalCacheStats: () =>
 			ipcRenderer.invoke(QCUT_AUDIO_RUNTIME_CACHE_STATS_CHANNEL),
 		clearLocalCache: () =>
