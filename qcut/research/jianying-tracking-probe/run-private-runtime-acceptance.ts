@@ -4,7 +4,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import { sha256File } from "./cache-private-runtime";
+import { sha256File } from "../../electron/jianying-motion-tracking/runtime-assets";
 import {
 	runBoundedProcess,
 	type BoundedProcessResult,
