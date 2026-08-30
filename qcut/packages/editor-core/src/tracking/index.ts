@@ -11,6 +11,9 @@ export type {
 	PlanarTrackingReferenceStatus,
 	PlanarTrackingSample,
 	PlanarTrackingSidecarV1,
+	PlanarTrackingValidationIssue,
+	PlanarTrackingValidationIssueCode,
+	PlanarTrackingValidationResult,
 	StickerPlanarTracking,
 } from "./planar-types.js";
 
@@ -32,5 +35,11 @@ export {
 	projectPlanarQuad,
 	UNIT_PLANAR_QUAD,
 } from "./planar-geometry.js";
+
+export {
+	MAX_PLANAR_TRACKING_SAMPLES,
+	validatePlanarTrackingReference,
+	validatePlanarTrackingSidecar,
+} from "./planar-result-validation.js";
 
 export type { StickerTracking } from "../types/timeline.js";

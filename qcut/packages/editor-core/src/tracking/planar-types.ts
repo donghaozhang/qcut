@@ -117,3 +117,34 @@ export interface PlanarTrackingSidecarV1 {
 	direction: PlanarTrackingDirection;
 	samples: PlanarTrackingSample[];
 }
+
+export type PlanarTrackingValidationIssueCode =
+	| "invalid-shape"
+	| "invalid-literal"
+	| "invalid-string"
+	| "invalid-number"
+	| "invalid-hash"
+	| "invalid-quad"
+	| "invalid-sample-order"
+	| "invalid-seed-sample"
+	| "invalid-diagnostics"
+	| "invalid-reference-state"
+	| "unsafe-result-uri"
+	| "sample-limit-exceeded";
+
+export interface PlanarTrackingValidationIssue {
+	code: PlanarTrackingValidationIssueCode;
+	path: string;
+	message: string;
+}
+
+export type PlanarTrackingValidationResult<T> =
+	| {
+			valid: true;
+			value: T;
+			issues: [];
+	  }
+	| {
+			valid: false;
+			issues: PlanarTrackingValidationIssue[];
+	  };

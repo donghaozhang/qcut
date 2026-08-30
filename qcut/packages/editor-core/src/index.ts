@@ -259,6 +259,9 @@ export type {
 	PlanarTrackingReferenceStatus,
 	PlanarTrackingSample,
 	PlanarTrackingSidecarV1,
+	PlanarTrackingValidationIssue,
+	PlanarTrackingValidationIssueCode,
+	PlanarTrackingValidationResult,
 	StickerPlanarTracking,
 } from "./tracking/planar-types.js";
 
@@ -280,6 +283,12 @@ export {
 	projectPlanarQuad,
 	UNIT_PLANAR_QUAD,
 } from "./tracking/planar-geometry.js";
+
+export {
+	MAX_PLANAR_TRACKING_SAMPLES,
+	validatePlanarTrackingReference,
+	validatePlanarTrackingSidecar,
+} from "./tracking/planar-result-validation.js";
 
 export {
 	DEFAULT_PROJECT_TIMELINE_SETTINGS,

@@ -124,6 +124,9 @@ export type {
 	PlanarTrackingReferenceStatus,
 	PlanarTrackingSample,
 	PlanarTrackingSidecarV1,
+	PlanarTrackingValidationIssue,
+	PlanarTrackingValidationIssueCode,
+	PlanarTrackingValidationResult,
 	StickerPlanarTracking,
 } from "../tracking/planar-types.js";
 
