@@ -234,6 +234,20 @@ function nonEmptyArray({ value }: { value: unknown }): boolean {
 	return Array.isArray(value) && value.length > 0;
 }
 
+function hasNonDefaultValue({ value }: { value: unknown }): boolean {
+	if (value === true) return true;
+	if (typeof value === "number") return value !== 0;
+	if (nonEmptyString({ value })) return true;
+	if (Array.isArray(value)) {
+		return value.some((entry) => hasNonDefaultValue({ value: entry }));
+	}
+	const record = recordValue({ value });
+	if (!record) return false;
+	return Object.values(record).some((entry) =>
+		hasNonDefaultValue({ value: entry })
+	);
+}
+
 export function isActiveAudioMaterial({
 	capabilityId,
 	collection,
@@ -265,7 +279,7 @@ export function isActiveAudioMaterial({
 					defaultValue: 0,
 					value: material.target_loudness,
 				}) ||
-				recordValue({ value: material.loudness_param }) !== null
+				hasNonDefaultValue({ value: material.loudness_param })
 			);
 		case "realtime-denoise":
 			return material.is_denoise === true;
