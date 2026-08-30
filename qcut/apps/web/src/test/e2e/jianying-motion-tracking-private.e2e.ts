@@ -81,6 +81,7 @@ async function seedTrackingMask({ page }: { page: Page }) {
 			track.id,
 			element.id,
 			{
+				trimStart: 0.2,
 				masks: [
 					{
 						id: "bingo-e2e-mask",
@@ -100,7 +101,7 @@ async function seedTrackingMask({ page }: { page: Page }) {
 			},
 			false
 		);
-		stores.__playbackStore.getState().seek(element.startTime + 1);
+		stores.__playbackStore.getState().seek(element.startTime + 0.8);
 	});
 }
 
@@ -176,14 +177,15 @@ test.describe("Jianying motion tracking private desktop runtime", () => {
 		expect(state.tracking).toMatchObject({
 			status: "ready",
 			source: "jianying-bingo",
-			trackedFrames: 60,
-			totalFrames: 60,
+			anchorFrame: 24,
+			trackedFrames: 54,
+			totalFrames: 54,
 		});
 		expect(state.centerXKeyframes).toBeGreaterThanOrEqual(2);
 		expect(state.centerYKeyframes).toBeGreaterThanOrEqual(2);
 		expect(state.widthKeyframes).toBeGreaterThanOrEqual(2);
 		expect(state.heightKeyframes).toBeGreaterThanOrEqual(2);
-		expect(state.rotationKeyframes).toBe(60);
+		expect(state.rotationKeyframes).toBe(2);
 
 		const runtime = await page.evaluate(() =>
 			window.electronAPI?.jianyingMotionTracking?.inspect()
