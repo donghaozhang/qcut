@@ -393,6 +393,8 @@ export interface ExportJobRequest {
 	 * profile (stage timings, counters) to this absolute path. Off otherwise.
 	 */
 	profilePath?: string;
+	/** Debug: force the renderer's per-frame seek path (baseline profiling). */
+	disableSequentialDecode?: boolean;
 
 	/** GIF-specific export options */
 	gifConfig?: {
