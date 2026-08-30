@@ -27,10 +27,30 @@ export type ComposeAssetType =
 	| "transition"
 	| "generated-media";
 
+export type ComposeAssetAvailability =
+	| "ready"
+	| "downloadable"
+	| "reference-only"
+	| "unavailable";
+
+export interface ComposeAssetCapabilities {
+	preview: boolean;
+	editorApply: boolean;
+	editorExport: boolean;
+	headlessRender: boolean;
+	requiresAuth?: boolean;
+	requiresLocalRuntime?: boolean;
+}
+
 export interface ComposeAssetReference {
 	provider: ComposeProvider;
 	assetType: ComposeAssetType;
 	assetId: string;
+	displayName?: string;
+	tags?: string[];
+	duration?: number;
+	availability?: ComposeAssetAvailability;
+	capabilities?: ComposeAssetCapabilities;
 	cacheKey?: string;
 	localPath?: string;
 	license?: "commercial-ok" | "personal-only" | "unknown";
@@ -91,7 +111,14 @@ export interface ComposeSnapshot {
 	beats: ComposeSnapshotBeat[];
 	shots: ComposeSnapshotShot[];
 	availableResources: ComposeAssetReference[];
-	capabilities: { headlessRender: boolean; editorApply: boolean };
+	resourceWarnings?: string[];
+	capabilities: {
+		headlessRender: boolean;
+		editorApply: boolean;
+		editorExport?: boolean;
+		resourceBroker?: boolean;
+		jianyingLocalTransitions?: boolean;
+	};
 }
 
 export interface ComposeBasePatchOperation {
@@ -128,6 +155,15 @@ export interface ComposeAddStickerOperation extends ComposeBasePatchOperation {
 	/** Size normalized to the shorter project-canvas dimension (0..1). */
 	width?: number;
 	height?: number;
+	rotation?: number;
+	opacity?: number;
+	maintainAspectRatio?: boolean;
+	animationInType?: "none" | "fade" | "slide" | "scale" | "bounce";
+	animationInDuration?: number;
+	animationOutType?: "none" | "fade" | "slide" | "scale";
+	animationOutDuration?: number;
+	animationLoopType?: "none" | "pulse" | "float" | "spin" | "bounce";
+	animationLoopIntensity?: number;
 }
 
 export interface ComposeAddSoundEffectOperation
@@ -135,6 +171,11 @@ export interface ComposeAddSoundEffectOperation
 	kind: "add-sound-effect";
 	asset: ComposeAssetReference;
 	volume: number;
+	trimStart?: number;
+	trimEnd?: number;
+	fadeIn?: number;
+	fadeOut?: number;
+	playbackRate?: number;
 }
 
 export interface ComposeUpdateMediaZoomOperation
@@ -487,6 +528,117 @@ function validateStickerGeometry({
 			});
 		}
 	}
+	if (
+		operation.rotation !== undefined &&
+		!Number.isFinite(operation.rotation)
+	) {
+		issues.push({
+			severity: "error",
+			code: "invalid-sticker-geometry",
+			path: `${path}.rotation`,
+			operationId: operation.id,
+			message: "Sticker rotation must be finite.",
+		});
+	}
+	if (
+		operation.opacity !== undefined &&
+		(!Number.isFinite(operation.opacity) ||
+			operation.opacity < 0 ||
+			operation.opacity > 1)
+	) {
+		issues.push({
+			severity: "error",
+			code: "invalid-sticker-geometry",
+			path: `${path}.opacity`,
+			operationId: operation.id,
+			message: "Sticker opacity must be between 0 and 1.",
+		});
+	}
+	for (const key of ["animationInDuration", "animationOutDuration"] as const) {
+		const value = operation[key];
+		if (
+			value !== undefined &&
+			(!Number.isFinite(value) || value < 0 || value > operation.duration)
+		) {
+			issues.push({
+				severity: "error",
+				code: "invalid-sticker-geometry",
+				path: `${path}.${key}`,
+				operationId: operation.id,
+				message: "Sticker animation timing must fit inside the operation.",
+			});
+		}
+	}
+	if (
+		operation.animationLoopIntensity !== undefined &&
+		(!Number.isFinite(operation.animationLoopIntensity) ||
+			operation.animationLoopIntensity < 0 ||
+			operation.animationLoopIntensity > 2)
+	) {
+		issues.push({
+			severity: "error",
+			code: "invalid-sticker-geometry",
+			path: `${path}.animationLoopIntensity`,
+			operationId: operation.id,
+			message: "Sticker loop intensity must be between 0 and 2.",
+		});
+	}
+}
+
+function validateSoundSettings({
+	operation,
+	path,
+	issues,
+}: {
+	operation: Extract<ComposePatchOperation, { kind: "add-sound-effect" }>;
+	path: string;
+	issues: ComposeValidationIssue[];
+}): void {
+	if (
+		!Number.isFinite(operation.volume) ||
+		operation.volume < 0 ||
+		operation.volume > 1
+	) {
+		issues.push({
+			severity: "error",
+			code: "invalid-range",
+			path: `${path}.volume`,
+			operationId: operation.id,
+			message: "Sound-effect volume must be between 0 and 1.",
+		});
+	}
+	for (const key of ["trimStart", "trimEnd", "fadeIn", "fadeOut"] as const) {
+		const value = operation[key];
+		if (
+			value !== undefined &&
+			(!Number.isFinite(value) ||
+				value < 0 ||
+				((key === "fadeIn" || key === "fadeOut") && value > operation.duration))
+		) {
+			issues.push({
+				severity: "error",
+				code: "invalid-range",
+				path: `${path}.${key}`,
+				operationId: operation.id,
+				message:
+					"Sound trims must be non-negative and fades must fit inside the operation.",
+			});
+		}
+	}
+	if (
+		operation.playbackRate !== undefined &&
+		(!Number.isFinite(operation.playbackRate) ||
+			operation.playbackRate < 0.25 ||
+			operation.playbackRate > 4)
+	) {
+		issues.push({
+			severity: "error",
+			code: "invalid-range",
+			path: `${path}.playbackRate`,
+			operationId: operation.id,
+			message: "Sound-effect playbackRate must be between 0.25 and 4.",
+		});
+	}
 }
 
 function requireTargetElement({
@@ -643,6 +795,9 @@ export function validateComposePatch({
 		}
 		if (operation.kind === "add-sticker") {
 			validateStickerGeometry({ operation, path, issues });
+		}
+		if (operation.kind === "add-sound-effect") {
+			validateSoundSettings({ operation, path, issues });
 		}
 		if (operation.kind === "add-text-overlay" && operation.asset) {
 			validateAssetReference({
