@@ -1,11 +1,14 @@
 import {
 	COMPOSE_PROTOCOL_VERSION,
 	type ComposeAssetReference,
+	type ComposeFilterStep,
+	type ComposeInsertMediaClipOperation,
 	type ComposeJob,
 	type ComposePatch,
 	type ComposePatchOperation,
 	type ComposeSnapshot,
 	type ComposeSnapshotMedia,
+	type ComposeUpsertTransitionOperation,
 } from "./compose-types.js";
 
 export type ComposeValidationSeverity = "error" | "warning" | "info";
@@ -22,6 +25,7 @@ export type ComposeValidationIssueCode =
 	| "unknown-target-element"
 	| "invalid-asset-reference"
 	| "invalid-sticker-geometry"
+	| "invalid-filter-stack"
 	| "operation-conflict"
 	| "operation-out-of-bounds";
 
@@ -454,6 +458,303 @@ function requireTargetElement({
 	}
 }
 
+const FILTER_STACK_MAX_STEPS = 16;
+const INSERT_CLIP_DURATION_TOLERANCE_SECONDS = 0.05;
+
+/** Marker used as a transition trackId when both endpoints are pending clips. */
+export const COMPOSE_MAIN_VIDEO_TRACK_ROLE = "main-video";
+
+function pendingInsertsById({
+	operations,
+}: {
+	operations: readonly ComposePatchOperation[];
+}): Map<string, ComposeInsertMediaClipOperation> {
+	const pending = new Map<string, ComposeInsertMediaClipOperation>();
+	for (const operation of operations) {
+		if (operation.kind === "insert-media-clip") {
+			pending.set(operation.id, operation);
+		}
+	}
+	return pending;
+}
+
+function validateInsertMediaClip({
+	operation,
+	path,
+	issues,
+}: {
+	operation: ComposeInsertMediaClipOperation;
+	path: string;
+	issues: ComposeValidationIssue[];
+}): void {
+	if (operation.asset.assetType !== "media") {
+		issues.push({
+			severity: "error",
+			code: "invalid-asset-reference",
+			path: `${path}.asset`,
+			operationId: operation.id,
+			message: "insert-media-clip requires an asset of type media.",
+		});
+	}
+	if (operation.mediaKind !== "video" && operation.mediaKind !== "image") {
+		issues.push({
+			severity: "error",
+			code: "invalid-range",
+			path: `${path}.mediaKind`,
+			operationId: operation.id,
+			message: "insert-media-clip mediaKind must be video or image.",
+		});
+	}
+	if (
+		operation.trackRole !== "main-video" &&
+		operation.trackRole !== "overlay-video"
+	) {
+		issues.push({
+			severity: "error",
+			code: "invalid-range",
+			path: `${path}.trackRole`,
+			operationId: operation.id,
+			message:
+				"insert-media-clip trackRole must be main-video or overlay-video.",
+		});
+	}
+	for (const key of ["trimStart", "trimEnd"] as const) {
+		const value = operation[key];
+		if (!Number.isFinite(value) || value < 0) {
+			issues.push({
+				severity: "error",
+				code: "invalid-range",
+				path: `${path}.${key}`,
+				operationId: operation.id,
+				message: "Clip trims must be finite and non-negative.",
+			});
+		}
+	}
+	if (
+		!Number.isFinite(operation.sourceDuration) ||
+		operation.sourceDuration <= 0
+	) {
+		issues.push({
+			severity: "error",
+			code: "invalid-range",
+			path: `${path}.sourceDuration`,
+			operationId: operation.id,
+			message: "insert-media-clip needs a positive sourceDuration.",
+		});
+		return;
+	}
+	if (
+		operation.playbackRate !== undefined &&
+		(!Number.isFinite(operation.playbackRate) ||
+			operation.playbackRate < 0.25 ||
+			operation.playbackRate > 4)
+	) {
+		issues.push({
+			severity: "error",
+			code: "invalid-range",
+			path: `${path}.playbackRate`,
+			operationId: operation.id,
+			message: "Clip playbackRate must be between 0.25 and 4.",
+		});
+	}
+	if (
+		operation.volume !== undefined &&
+		(!Number.isFinite(operation.volume) ||
+			operation.volume < 0 ||
+			operation.volume > 4)
+	) {
+		issues.push({
+			severity: "error",
+			code: "invalid-range",
+			path: `${path}.volume`,
+			operationId: operation.id,
+			message: "Clip volume must be between 0 and 4.",
+		});
+	}
+	const trimStart = Number.isFinite(operation.trimStart)
+		? operation.trimStart
+		: 0;
+	const trimEnd = Number.isFinite(operation.trimEnd) ? operation.trimEnd : 0;
+	if (trimStart + trimEnd >= operation.sourceDuration) {
+		issues.push({
+			severity: "error",
+			code: "invalid-range",
+			path: `${path}.trimEnd`,
+			operationId: operation.id,
+			message: "Clip trims consume the entire source.",
+		});
+		return;
+	}
+	const playbackRate =
+		operation.playbackRate !== undefined &&
+		Number.isFinite(operation.playbackRate) &&
+		operation.playbackRate > 0
+			? operation.playbackRate
+			: 1;
+	const expectedTimelineDuration =
+		(operation.sourceDuration - trimStart - trimEnd) / playbackRate;
+	if (
+		Math.abs(operation.duration - expectedTimelineDuration) >
+		INSERT_CLIP_DURATION_TOLERANCE_SECONDS
+	) {
+		issues.push({
+			severity: "error",
+			code: "invalid-range",
+			path: `${path}.duration`,
+			operationId: operation.id,
+			message:
+				"Clip timeline duration must equal (sourceDuration − trims) ÷ playbackRate.",
+		});
+	}
+}
+
+function validateFilterStack({
+	filters,
+	path,
+	operationId,
+	issues,
+}: {
+	filters: readonly ComposeFilterStep[];
+	path: string;
+	operationId: string;
+	issues: ComposeValidationIssue[];
+}): void {
+	if (!Array.isArray(filters) || filters.length < 1) {
+		issues.push({
+			severity: "error",
+			code: "invalid-filter-stack",
+			path,
+			operationId,
+			message: "A filter stack needs at least one step.",
+		});
+		return;
+	}
+	if (filters.length > FILTER_STACK_MAX_STEPS) {
+		issues.push({
+			severity: "error",
+			code: "invalid-filter-stack",
+			path,
+			operationId,
+			message: `A filter stack allows at most ${FILTER_STACK_MAX_STEPS} steps.`,
+		});
+	}
+	const stepIds = new Set<string>();
+	for (const [index, step] of filters.entries()) {
+		const stepPath = `${path}.${index}`;
+		if (typeof step.id !== "string" || step.id.trim().length === 0) {
+			issues.push({
+				severity: "error",
+				code: "invalid-filter-stack",
+				path: `${stepPath}.id`,
+				operationId,
+				message: "Filter steps need a non-empty id.",
+			});
+		} else if (stepIds.has(step.id)) {
+			issues.push({
+				severity: "error",
+				code: "invalid-filter-stack",
+				path: `${stepPath}.id`,
+				operationId,
+				message: `Filter step id ${step.id} repeats inside the stack.`,
+			});
+		} else {
+			stepIds.add(step.id);
+		}
+		if (
+			!Number.isFinite(step.intensity) ||
+			step.intensity < 0 ||
+			step.intensity > 100
+		) {
+			issues.push({
+				severity: "error",
+				code: "invalid-filter-stack",
+				path: `${stepPath}.intensity`,
+				operationId,
+				message: "Filter intensity must be between 0 and 100.",
+			});
+		}
+		if (typeof step.enabled !== "boolean") {
+			issues.push({
+				severity: "error",
+				code: "invalid-filter-stack",
+				path: `${stepPath}.enabled`,
+				operationId,
+				message: "Filter steps need an explicit enabled flag.",
+			});
+		}
+		validateAssetReference({
+			asset: step.asset,
+			path: `${stepPath}.asset`,
+			operationId,
+			issues,
+		});
+		if (step.asset && step.asset.assetType !== "filter") {
+			issues.push({
+				severity: "error",
+				code: "invalid-filter-stack",
+				path: `${stepPath}.asset`,
+				operationId,
+				message: "Filter steps must reference filter assets.",
+			});
+		}
+	}
+}
+
+function validatePendingTransitionTargets({
+	operation,
+	fromPending,
+	toPending,
+	pendingClips,
+	path,
+	issues,
+}: {
+	operation: ComposeUpsertTransitionOperation;
+	fromPending: boolean;
+	toPending: boolean;
+	pendingClips: ReadonlyMap<string, ComposeInsertMediaClipOperation>;
+	path: string;
+	issues: ComposeValidationIssue[];
+}): void {
+	if (!(fromPending && toPending)) {
+		issues.push({
+			severity: "error",
+			code: "unknown-target-element",
+			path,
+			operationId: operation.id,
+			message: "A transition may not mix pending clips with snapshot elements.",
+			fixHint:
+				"Reference two pending insert-media-clip operations or two snapshot elements.",
+		});
+		return;
+	}
+	if (operation.trackId !== COMPOSE_MAIN_VIDEO_TRACK_ROLE) {
+		issues.push({
+			severity: "error",
+			code: "unknown-target-element",
+			path: `${path}.trackId`,
+			operationId: operation.id,
+			message:
+				'Transitions between pending clips must use trackId "main-video".',
+		});
+	}
+	const endpoints = [
+		["fromElementId", operation.fromElementId],
+		["toElementId", operation.toElementId],
+	] as const;
+	for (const [key, endpointId] of endpoints) {
+		const clip = pendingClips.get(endpointId);
+		if (clip && clip.trackRole !== "main-video") {
+			issues.push({
+				severity: "error",
+				code: "unknown-target-element",
+				path: `${path}.${key}`,
+				operationId: operation.id,
+				message: `Pending clip ${endpointId} is not on the main video track.`,
+			});
+		}
+	}
+}
+
 function validateOperationConflicts({
 	operations,
 	issues,
@@ -463,6 +764,8 @@ function validateOperationConflicts({
 }): void {
 	const zoomsByElement = new Map<string, ComposePatchOperation[]>();
 	const transitionCuts = new Map<string, string>();
+	const mainVideoClipsByLane = new Map<string, ComposePatchOperation[]>();
+	const filterStackTargets = new Map<string, string>();
 	for (const operation of operations) {
 		if (operation.kind === "update-media-zoom") {
 			const existing = zoomsByElement.get(operation.elementId) ?? [];
@@ -493,6 +796,41 @@ function validateOperationConflicts({
 				});
 			} else {
 				transitionCuts.set(cutKey, operation.id);
+			}
+		}
+		if (
+			operation.kind === "insert-media-clip" &&
+			operation.trackRole === "main-video"
+		) {
+			const laneKey = operation.trackId ?? COMPOSE_MAIN_VIDEO_TRACK_ROLE;
+			const existing = mainVideoClipsByLane.get(laneKey) ?? [];
+			for (const other of existing) {
+				if (rangesOverlap({ left: operation, right: other })) {
+					issues.push({
+						severity: "error",
+						code: "operation-conflict",
+						path: `operations.${operation.id}`,
+						operationId: operation.id,
+						message: `Clips ${other.id} and ${operation.id} overlap on the main video track.`,
+					});
+				}
+			}
+			existing.push(operation);
+			mainVideoClipsByLane.set(laneKey, existing);
+		}
+		if (operation.kind === "set-media-filter-stack") {
+			const stackKey = `${operation.trackId}:${operation.elementId}`;
+			const existingId = filterStackTargets.get(stackKey);
+			if (existingId) {
+				issues.push({
+					severity: "error",
+					code: "operation-conflict",
+					path: `operations.${operation.id}`,
+					operationId: operation.id,
+					message: `Filter stacks ${existingId} and ${operation.id} target the same element.`,
+				});
+			} else {
+				filterStackTargets.set(stackKey, operation.id);
 			}
 		}
 	}
@@ -529,6 +867,14 @@ export function validateComposePatch({
 	}
 
 	const targets = mediaByElementId({ snapshot });
+	const pendingClips = pendingInsertsById({ operations: patch.operations });
+	let effectiveProjectDuration = snapshot.project.duration;
+	for (const pending of pendingClips.values()) {
+		effectiveProjectDuration = Math.max(
+			effectiveProjectDuration,
+			pending.startTime + pending.duration
+		);
+	}
 	const seenIds = new Set<string>();
 	for (const [index, operation] of patch.operations.entries()) {
 		const path = `operations.${index}`;
@@ -554,7 +900,7 @@ export function validateComposePatch({
 		}
 		if (
 			operation.startTime + operation.duration >
-			snapshot.project.duration + OUT_OF_BOUNDS_TOLERANCE_SECONDS
+			effectiveProjectDuration + OUT_OF_BOUNDS_TOLERANCE_SECONDS
 		) {
 			issues.push({
 				severity: "warning",
@@ -600,19 +946,72 @@ export function validateComposePatch({
 			});
 		}
 		if (operation.kind === "upsert-transition") {
-			requireTargetElement({
-				elementId: operation.fromElementId,
-				trackId: operation.trackId,
-				targets,
-				path: `${path}.fromElementId`,
+			const fromPending = pendingClips.has(operation.fromElementId);
+			const toPending = pendingClips.has(operation.toElementId);
+			if (fromPending || toPending) {
+				validatePendingTransitionTargets({
+					operation,
+					fromPending,
+					toPending,
+					pendingClips,
+					path,
+					issues,
+				});
+			} else {
+				requireTargetElement({
+					elementId: operation.fromElementId,
+					trackId: operation.trackId,
+					targets,
+					path: `${path}.fromElementId`,
+					operationId: operation.id,
+					issues,
+				});
+				requireTargetElement({
+					elementId: operation.toElementId,
+					trackId: operation.trackId,
+					targets,
+					path: `${path}.toElementId`,
+					operationId: operation.id,
+					issues,
+				});
+			}
+		}
+		if (operation.kind === "insert-media-clip") {
+			validateInsertMediaClip({ operation, path, issues });
+		}
+		if (operation.kind === "set-media-filter-stack") {
+			validateFilterStack({
+				filters: operation.filters,
+				path: `${path}.filters`,
 				operationId: operation.id,
 				issues,
 			});
-			requireTargetElement({
-				elementId: operation.toElementId,
-				trackId: operation.trackId,
-				targets,
-				path: `${path}.toElementId`,
+			if (pendingClips.has(operation.elementId)) {
+				if (operation.trackId !== operation.elementId) {
+					issues.push({
+						severity: "error",
+						code: "unknown-target-element",
+						path: `${path}.trackId`,
+						operationId: operation.id,
+						message:
+							"A filter stack for a pending clip must repeat the insert operation id as trackId.",
+					});
+				}
+			} else {
+				requireTargetElement({
+					elementId: operation.elementId,
+					trackId: operation.trackId,
+					targets,
+					path,
+					operationId: operation.id,
+					issues,
+				});
+			}
+		}
+		if (operation.kind === "add-filter-layer") {
+			validateFilterStack({
+				filters: operation.filters,
+				path: `${path}.filters`,
 				operationId: operation.id,
 				issues,
 			});
