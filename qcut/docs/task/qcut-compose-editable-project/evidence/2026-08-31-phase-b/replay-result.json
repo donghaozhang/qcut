@@ -1,0 +1,70 @@
+{
+  "status": "ok",
+  "data": {
+    "schema_version": "1",
+    "command": "compose-project",
+    "outputPaths": [
+      "/Users/peter/Desktop/QCut-Compose-Labs-E2E-2026-08-31/editable-phase-b/out/compose-project-editor/070b7303-4cf7-4c9e-bb27-122084ec73b8.snapshot.json",
+      "/Users/peter/Desktop/QCut-Compose-Labs-E2E-2026-08-31/editable-phase-b/out/compose-project-editor/cmp-bcb7ed0fa9f1e1a640317ec9.patch.json"
+    ],
+    "data": {
+      "projectId": "1a515458-931e-4ece-a6fe-c0102fbe7c3a",
+      "createdProject": false,
+      "manifestSha256": "b75a7e650aef86867fb24ce96b18a2a045e2059f09d3486295edcf8f3a16640f",
+      "timelineDuration": 29,
+      "snapshotId": "070b7303-4cf7-4c9e-bb27-122084ec73b8",
+      "patchId": "cmp-bcb7ed0fa9f1e1a640317ec9",
+      "operationCount": 5,
+      "apply": {
+        "projectId": "1a515458-931e-4ece-a6fe-c0102fbe7c3a",
+        "snapshotId": "070b7303-4cf7-4c9e-bb27-122084ec73b8",
+        "patchId": "cmp-bcb7ed0fa9f1e1a640317ec9",
+        "issues": [],
+        "assets": [
+          {
+            "operationId": "cmp-71f88bb78c59441c38c3541a",
+            "provider": "local",
+            "assetType": "transition",
+            "assetId": "crossfade",
+            "status": "cached",
+            "evidence": {
+              "backend": "editor-preset",
+              "cacheStatus": "builtin",
+              "verification": "unverified"
+            }
+          },
+          {
+            "operationId": "cmp-769272e6be41c6d58988332b",
+            "provider": "local",
+            "assetType": "transition",
+            "assetId": "crossfade",
+            "status": "cached",
+            "evidence": {
+              "backend": "editor-preset",
+              "cacheStatus": "builtin",
+              "verification": "unverified"
+            }
+          }
+        ],
+        "applied": {},
+        "alreadyAppliedOperationIds": [
+          "cmp-d04c4cfc5c91c3624a3a9dfc",
+          "cmp-7cd50d36fae76165c95f0c2b",
+          "cmp-2ad8e9a9549d3a91e99756d0",
+          "cmp-71f88bb78c59441c38c3541a",
+          "cmp-769272e6be41c6d58988332b"
+        ],
+        "transitionIds": [],
+        "skipped": [],
+        "importedMediaCount": 0
+      },
+      "reopen": {
+        "navigatedAway": true,
+        "missingElementIds": []
+      }
+    },
+    "duration": 1.708
+  },
+  "command_id": "cmd-1788112054393-yapqke",
+  "duration_ms": 1709
+}
