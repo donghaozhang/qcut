@@ -302,7 +302,12 @@ export async function startRendererExportJob({
 				format: "mp4",
 				frameRate,
 				height: settings.height,
+				// The renderer streams real frame progress back against this id.
+				jobId,
 				outputPath,
+				...(request.profilePath?.trim()
+					? { profilePath: path.resolve(request.profilePath.trim()) }
+					: {}),
 				projectId,
 				quality: rendererExportQuality({
 					height: settings.height,
