@@ -180,6 +180,7 @@ export function useAudioAiActions({
 						model: "qcut-spectral-denoise-v1",
 						sourceMediaId: element.mediaId,
 					},
+					signal: operation.controller.signal,
 				});
 			} else {
 				const audioUrl = await mediaItemToFalAudioUrl({
