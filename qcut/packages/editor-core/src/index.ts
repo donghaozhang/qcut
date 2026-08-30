@@ -291,6 +291,21 @@ export {
 	validateStickerPlanarTracking,
 } from "./tracking/planar-result-validation.js";
 
+export type {
+	PlanarTrackingResultStore,
+	StoredPlanarTrackingResult,
+} from "./tracking/planar-result-storage.js";
+export {
+	createPlanarTrackingResultUri,
+	isPlanarTrackingStorageId,
+	parsePlanarTrackingResultUri,
+} from "./tracking/planar-result-storage.js";
+export {
+	parsePlanarTrackingSidecar,
+	PlanarTrackingSidecarValidationError,
+	serializePlanarTrackingSidecar,
+} from "./tracking/planar-sidecar-serialization.js";
+
 export {
 	DEFAULT_PROJECT_TIMELINE_SETTINGS,
 	resolveProjectTimelineSettings,

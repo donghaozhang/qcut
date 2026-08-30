@@ -43,4 +43,19 @@ export {
 	validateStickerPlanarTracking,
 } from "./planar-result-validation.js";
 
+export type {
+	PlanarTrackingResultStore,
+	StoredPlanarTrackingResult,
+} from "./planar-result-storage.js";
+export {
+	createPlanarTrackingResultUri,
+	isPlanarTrackingStorageId,
+	parsePlanarTrackingResultUri,
+} from "./planar-result-storage.js";
+export {
+	parsePlanarTrackingSidecar,
+	PlanarTrackingSidecarValidationError,
+	serializePlanarTrackingSidecar,
+} from "./planar-sidecar-serialization.js";
+
 export type { StickerTracking } from "../types/timeline.js";
