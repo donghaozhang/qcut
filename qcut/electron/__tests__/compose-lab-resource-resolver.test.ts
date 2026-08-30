@@ -57,15 +57,13 @@ describe("Sound Effects Lab resolution", () => {
 
 	it("materializes reusable audio and computes evidence from written bytes", async () => {
 		const resolveSound = vi.fn(async () => reusableSound);
-		const materializeSound = vi.fn(async ({
-			destinationPath,
-		}: {
-			destinationPath: string;
-		}) => {
-			fs.mkdirSync(path.dirname(destinationPath), { recursive: true });
-			fs.writeFileSync(destinationPath, Buffer.from([1, 2, 3, 4]));
-			return destinationPath;
-		});
+		const materializeSound = vi.fn(
+			async ({ destinationPath }: { destinationPath: string }) => {
+				fs.mkdirSync(path.dirname(destinationPath), { recursive: true });
+				fs.writeFileSync(destinationPath, Buffer.from([1, 2, 3, 4]));
+				return destinationPath;
+			}
+		);
 		const materialized = await materializeComposeSoundLabReference({
 			reference: soundReference,
 			scratchDirectory: directory,
@@ -126,7 +124,7 @@ describe("transition runtime admission", () => {
 						presetId: recipe.id,
 					})
 				)
-		)
+			)
 		);
 	});
 
