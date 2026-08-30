@@ -219,6 +219,18 @@ export async function resolveFilterLabRenderPlan({
 			resourceId: card.resourceId,
 			version: renderer.version,
 		});
+		if (compatibility) {
+			return {
+				kind: "ffmpeg",
+				filterGraph: "[0:v:0]null[filter_output]",
+				outputLabel: "filter_output",
+				evidence: {
+					...evidence,
+					backend: "qcut-safe-passthrough",
+					fidelity: "safe-passthrough",
+				},
+			};
+		}
 		return {
 			kind: "native",
 			mode: "swing",
@@ -230,10 +242,8 @@ export async function resolveFilterLabRenderPlan({
 			runtime: await requireNativeRuntime(),
 			evidence: {
 				...evidence,
-				backend: compatibility
-					? "qcut-safe-passthrough"
-					: "jianying-native-swing",
-				fidelity: compatibility ? "safe-passthrough" : "native-local",
+				backend: "jianying-native-swing",
+				fidelity: "native-local",
 			},
 		};
 	}
