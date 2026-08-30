@@ -163,7 +163,11 @@ function safeFileComponent({ value }: { value: string }): string {
 	return value.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "");
 }
 
-function soundExtension({ asset }: { asset: ResolvedSoundEffectsLabAsset }): string {
+function soundExtension({
+	asset,
+}: {
+	asset: ResolvedSoundEffectsLabAsset;
+}): string {
 	const fileExtension = asset.fileName ? extname(asset.fileName) : "";
 	if (fileExtension) return fileExtension.toLocaleLowerCase();
 	const mimeExtensions: Record<string, string> = {
@@ -176,7 +180,9 @@ function soundExtension({ asset }: { asset: ResolvedSoundEffectsLabAsset }): str
 		"audio/wav": ".wav",
 		"audio/x-wav": ".wav",
 	};
-	return asset.mimeType ? (mimeExtensions[asset.mimeType] ?? ".audio") : ".audio";
+	return asset.mimeType
+		? (mimeExtensions[asset.mimeType] ?? ".audio")
+		: ".audio";
 }
 
 export async function materializeComposeSoundLabReference({
@@ -199,7 +205,10 @@ export async function materializeComposeSoundLabReference({
 		dependencies,
 	});
 	if (!resolution) return null;
-	if (resolution.status === "missing" || resolution.status === "reference-only") {
+	if (
+		resolution.status === "missing" ||
+		resolution.status === "reference-only"
+	) {
 		throw new Error(resolution.detail);
 	}
 	const resolvedDependencies = dependenciesWithDefaults({ dependencies });
@@ -213,7 +222,10 @@ export async function materializeComposeSoundLabReference({
 		source,
 		signal,
 	});
-	const [bytes, file] = await Promise.all([readFile(localPath), stat(localPath)]);
+	const [bytes, file] = await Promise.all([
+		readFile(localPath),
+		stat(localPath),
+	]);
 	return {
 		localPath,
 		sha256: createHash("sha256").update(bytes).digest("hex"),
@@ -243,9 +255,9 @@ function verifiedJianyingPackage({
 	const packagePath = inspection.packagePaths.get(definition.id);
 	return Boolean(
 		status?.available &&
-		packagePath &&
-		basename(packagePath).toLocaleLowerCase() ===
-			definition.metadataMd5.toLocaleLowerCase()
+			packagePath &&
+			basename(packagePath).toLocaleLowerCase() ===
+				definition.metadataMd5.toLocaleLowerCase()
 	);
 }
 
