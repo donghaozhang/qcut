@@ -1610,6 +1610,7 @@ export function registerSharedRoutes(
 				accessor,
 			});
 			const requiresRendererExport =
+				(req.body as { engine?: string } | undefined)?.engine === "muxer" ||
 				hasStickerRuntimeForExport({
 					mediaItems: mediaFiles,
 					tracks: timeline.tracks,
