@@ -361,6 +361,7 @@ const AUDIO_LYRICS_WORD_KEYS = createAllowedKeySet<AudioLyricsWord>({
 const STICKER_TRACKING_KEYS = createAllowedKeySet<StickerMotionTracking>({
 	keys: {
 		anchor: true,
+		followRotation: true,
 		followScale: true,
 		mode: true,
 		targetElementId: true,
@@ -373,6 +374,7 @@ const STICKER_TRACKING_ANCHOR_KEYS = createAllowedKeySet<StickerTrackingAnchor>(
 			centerX: true,
 			centerY: true,
 			height: true,
+			rotation: true,
 			width: true,
 		},
 	}
