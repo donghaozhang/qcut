@@ -10,8 +10,15 @@ import type { AudioSettingsEditorBindings } from "./audio-properties-types";
 import { Activity, LoaderCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
-import type { AudioDenoiseSettings } from "@/types/timeline";
+import type { AudioChannelMode, AudioDenoiseSettings } from "@/types/timeline";
 import { AudioSeparationSettings } from "./audio-ai-voice-settings";
 import {
 	AudioPitchSettings,
@@ -32,6 +39,19 @@ function denoiseStatusText({
 		return denoise.error || t("audioProperties.denoise.failed");
 	}
 	return t("audioProperties.denoise.description");
+}
+
+function audioChannelMode({
+	value,
+}: {
+	value: string;
+}): AudioChannelMode | null {
+	if (value === "stereo") return value;
+	if (value === "mono") return value;
+	if (value === "left") return value;
+	if (value === "right") return value;
+	if (value === "swap") return value;
+	return null;
 }
 
 export function AudioBasicSettings({
@@ -324,6 +344,50 @@ export function AudioBasicSettings({
 				testId="audio-module-pan"
 			>
 				<AudioKeyframedControl property="pan" {...keyframedProps} />
+			</AudioModuleSection>
+
+			<AudioModuleSection
+				title={t("audioProperties.section.channel")}
+				enabled={settings.channelMode !== "stereo"}
+				onEnabledChange={(enabled) => {
+					let channelMode = settings.channelMode;
+					if (!enabled) channelMode = "stereo";
+					if (enabled && channelMode === "stereo") channelMode = "mono";
+					onSettingsChange({ ...settings, channelMode });
+				}}
+				onReset={() => onSettingsChange({ ...settings, channelMode: "stereo" })}
+				testId="audio-module-channel"
+				disableChildrenWhenOff={false}
+			>
+				<Select
+					value={settings.channelMode}
+					onValueChange={(value) => {
+						const channelMode = audioChannelMode({ value });
+						if (!channelMode) return;
+						onSettingsChange({ ...settings, channelMode });
+					}}
+				>
+					<SelectTrigger aria-label={t("audioProperties.section.channel")}>
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="stereo">
+							{t("audioProperties.channel.stereo")}
+						</SelectItem>
+						<SelectItem value="mono">
+							{t("audioProperties.channel.mono")}
+						</SelectItem>
+						<SelectItem value="left">
+							{t("audioProperties.channel.left")}
+						</SelectItem>
+						<SelectItem value="right">
+							{t("audioProperties.channel.right")}
+						</SelectItem>
+						<SelectItem value="swap">
+							{t("audioProperties.channel.swap")}
+						</SelectItem>
+					</SelectContent>
+				</Select>
 			</AudioModuleSection>
 		</div>
 	);
