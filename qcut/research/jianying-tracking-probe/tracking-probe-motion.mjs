@@ -45,7 +45,7 @@ function validateMotionSample({ sample, epsilon }) {
 			y: (sample.top + sample.bottom) / 2,
 		},
 		outsideNormalizedRange: values.some(
-			(value) => value < -epsilon || value > 1 + epsilon,
+			(value) => value < -epsilon || value > 1 + epsilon
 		),
 	};
 }
@@ -104,7 +104,7 @@ function summarizeMotionCache({ cache, epsilon, issues }) {
 				code: "motion-cache-invalid-boxes",
 				message: `${invalidIndices.length}/${boxes.length} dense cache boxes are invalid`,
 				sampleIndices: invalidIndices,
-			}),
+			})
 		);
 	}
 
@@ -117,7 +117,7 @@ function summarizeMotionCache({ cache, epsilon, issues }) {
 			: null,
 		lockonBox: Array.isArray(cache.lockon_box)
 			? cache.lockon_box.map((value) =>
-					isFiniteNumber({ value }) ? round({ value }) : value,
+					isFiniteNumber({ value }) ? round({ value }) : value
 				)
 			: null,
 		total: boxes.length,
@@ -138,7 +138,7 @@ export function summarizeMotion({ samples, baseline, cache, epsilon, issues }) {
 
 	for (const [index, sample] of samples.entries()) {
 		const mirrorsBaseline = baseline.some((baselineSample) =>
-			motionSamplesEquivalent({ left: sample, right: baselineSample }),
+			motionSamplesEquivalent({ left: sample, right: baselineSample })
 		);
 		if (mirrorsBaseline) {
 			controlSamples.push({
@@ -175,7 +175,7 @@ export function summarizeMotion({ samples, baseline, cache, epsilon, issues }) {
 				code: "motion-invalid-samples",
 				message: `${invalidSamples.length}/${samples.length} motion samples have invalid rectangles`,
 				sampleIndices: invalidSamples.map(({ index }) => index),
-			}),
+			})
 		);
 	}
 
@@ -186,7 +186,7 @@ export function summarizeMotion({ samples, baseline, cache, epsilon, issues }) {
 				code: "motion-outside-normalized-range",
 				message: `${outOfRangeIndices.length} valid rectangles contain coordinates outside [0, 1]`,
 				sampleIndices: outOfRangeIndices,
-			}),
+			})
 		);
 	}
 
@@ -197,7 +197,7 @@ export function summarizeMotion({ samples, baseline, cache, epsilon, issues }) {
 				code: "motion-baseline-mirror",
 				message: `${controlSamples.length} data samples mirror baseline records and were excluded from rectangle validation`,
 				sampleIndices: controlSamples.map(({ index }) => index),
-			}),
+			})
 		);
 	}
 
@@ -222,7 +222,7 @@ export function summarizeMotion({ samples, baseline, cache, epsilon, issues }) {
 	const nonZeroAngles = samples.filter(
 		(sample) =>
 			isFiniteNumber({ value: sample?.angle }) &&
-			Math.abs(sample.angle) > epsilon,
+			Math.abs(sample.angle) > epsilon
 	).length;
 
 	return {
