@@ -167,6 +167,8 @@ export interface StickerTrackingAnchor {
 	/** Target bounds as percentages of the project-canvas shorter edge. */
 	width: number;
 	height: number;
+	/** Project-canvas angle of the tracked target's top edge. */
+	rotation?: number;
 }
 
 export interface StickerMotionTracking {
@@ -175,6 +177,7 @@ export interface StickerMotionTracking {
 	targetMaskId: string;
 	anchor: StickerTrackingAnchor;
 	followScale: boolean;
+	followRotation?: boolean;
 }
 
 export type ClipTransitionType =
@@ -355,6 +358,7 @@ export interface MediaMaskTracking {
 		| "mediapipe"
 		| "qcut-person-matting"
 		| "jianying-gru"
+		| "jianying-bingo"
 		| "sam3";
 	progress?: number;
 	anchorFrame?: number;
