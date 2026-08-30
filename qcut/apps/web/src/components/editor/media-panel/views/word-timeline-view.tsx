@@ -628,7 +628,18 @@ export function WordTimelineView() {
 			}
 
 			const timeline = useTimelineStore.getState();
-			const trackId = timeline.findOrCreateTrack("captions");
+			const captionStartTime = Math.min(
+				...captionElements.map((captionElement) => captionElement.startTime)
+			);
+			const captionEndTime = Math.max(
+				...captionElements.map(
+					(captionElement) => captionElement.startTime + captionElement.duration
+				)
+			);
+			const trackId = timeline.findOrCreateTrack("captions", {
+				startTime: captionStartTime,
+				duration: Math.max(0.1, captionEndTime - captionStartTime),
+			});
 			for (const captionElement of captionElements) {
 				timeline.addElementToTrack(trackId, captionElement);
 			}

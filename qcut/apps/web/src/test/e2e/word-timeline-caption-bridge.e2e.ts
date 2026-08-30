@@ -1,5 +1,6 @@
 import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
+import type { Page } from "@playwright/test";
 import { createTestProject, expect, test } from "./helpers/electron-helpers";
 
 const outputDir = path.join(
@@ -60,6 +61,19 @@ interface HarnessWindow extends Window {
 			loadFromData: (data: RawWordTimelineJson, fileName?: string) => void;
 		};
 	};
+}
+
+async function readCaptionTracks({
+	page,
+}: {
+	page: Page;
+}): Promise<TimelineTrackSnapshot[]> {
+	return page.evaluate(() => {
+		const harness = window as unknown as HarnessWindow;
+		return harness.__timelineStore
+			.getState()
+			.tracks.filter((track) => track.type === "captions");
+	});
 }
 
 const transcriptData: RawWordTimelineJson = {
@@ -146,13 +160,9 @@ test.describe("Smart Speech caption bridge", () => {
 		await page.getByRole("option", { name: "知识高亮" }).click();
 		await page.getByTestId("word-timeline-add-captions").click();
 
-		const captions = await page.evaluate(() => {
-			const harness = window as unknown as HarnessWindow;
-			const captionsTrack = harness.__timelineStore
-				.getState()
-				.tracks.find((track) => track.type === "captions");
-			return captionsTrack?.elements ?? [];
-		});
+		const captions = (await readCaptionTracks({ page })).flatMap(
+			(track) => track.elements
+		);
 
 		expect(captions).toHaveLength(2);
 		expect(captions.map((caption) => caption.text)).toEqual([
@@ -170,6 +180,20 @@ test.describe("Smart Speech caption bridge", () => {
 			highlightColor: "#22d3ee",
 			karaokeMode: "word-highlight",
 		});
+
+		await page.evaluate(
+			({ data }) => {
+				const harness = window as unknown as HarnessWindow;
+				harness.__wordTimelineStore
+					.getState()
+					.loadFromData(data, "second-short-smart-speech.json");
+			},
+			{ data: transcriptData }
+		);
+		await page.getByTestId("word-timeline-add-captions").click();
+		const captionTracks = await readCaptionTracks({ page });
+		expect(captionTracks).toHaveLength(2);
+		expect(captionTracks.flatMap((track) => track.elements)).toHaveLength(4);
 
 		await page.screenshot({
 			path: path.join(outputDir, "01-styled-captions-added.png"),
