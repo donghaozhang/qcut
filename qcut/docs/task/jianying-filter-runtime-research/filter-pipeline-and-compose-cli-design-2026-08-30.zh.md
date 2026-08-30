@@ -6,7 +6,9 @@
 
 `qcut filter-lab pipeline` 已实现，用于把 2 到 16 张滤镜按命令顺序作用于同一张图片或同一段视频。它不生成剪映草稿，也不要求启动 QCut 编辑器：视频只解码一次、最终只编码一次；连续 FFmpeg 滤镜会融合成一个 graph，连续原生滤镜会共享一个有状态逐帧循环，两类后端可以交错。
 
-滤镜、转场、音效和贴纸不能继续塞进纯滤镜命令。滤镜属于 clip，转场属于两个相邻 clip 的边界，贴纸属于视频 overlay track，音效属于 audio track。它们应由更高层的 `qcut compose` timeline recipe 描述，再选择无头直接导出或生成可继续编辑的 QCut 项目。
+`qcut compose validate/render/project` MVP 也已实现。滤镜属于 clip，转场属于两个相邻 clip 的边界，贴纸属于视频 overlay track，音效属于 audio track；四类资源由同一个 timeline manifest 描述。`render` 无头导出 MP4，`project` 复制用户媒体并生成可搬运、可重渲染的 compose 包。
+
+当前边界：转场只支持 `crossfade`；贴纸和音效使用本地文件路径；`compose project` 还不能导入 QCut 编辑器时间线，含滤镜的包仍要求目标机器有对应的本地 Filter Lab 缓存。
 
 ## 已实现命令
 
@@ -98,7 +100,7 @@ filter-pipeline-two-lut-audio.mp4
 | Sticker | overlay track | start、duration、位置、缩放、旋转、透明度 |
 | Sound effect | audio track | start、trim、duration、音量、fade、ducking |
 
-所以推荐的新命令不是继续扩展 `filter-lab pipeline`，而是：
+因此已增加更高层命令：
 
 ```bash
 qcut compose validate --config edit.qcut-compose.json --json
@@ -106,11 +108,11 @@ qcut compose render --config edit.qcut-compose.json --output final.mp4 --json
 qcut compose project --config edit.qcut-compose.json --project-dir ./editable-project --json
 ```
 
-- `validate`：只解析资源、版本、时间线和 runtime 能力。
-- `render`：无头直接导出，不创建草稿。
-- `project`：生成 QCut 自己的可编辑项目，不生成剪映草稿。
+- `validate`：解析素材、滤镜精确版本、时间线和 runtime 能力；可选写出 lock。
+- `render`：无头直接导出，不创建草稿；同时写出 lock 和 render report。
+- `project`：复制用户媒体，改写相对路径，并生成 portable compose 包；当前不生成编辑器时间线或剪映草稿。
 
-## 建议 Manifest
+## Compose Manifest v1
 
 ```json
 {
@@ -136,14 +138,14 @@ qcut compose project --config edit.qcut-compose.json --project-dir ./editable-pr
   "transitions": [
     {
       "between": ["clip-a", "clip-b"],
-      "preset": "jianying-local-traverse-3",
+      "preset": "crossfade",
       "duration": 0.5
     }
   ],
   "overlays": [
     {
       "type": "sticker",
-      "resourceId": "sticker-resource-id",
+      "source": "./badge.svg",
       "start": 1.2,
       "duration": 2.5,
       "transform": { "x": 0.8, "y": 0.2, "scale": 0.35, "rotation": 0 },
@@ -153,7 +155,7 @@ qcut compose project --config edit.qcut-compose.json --project-dir ./editable-pr
   "audio": [
     {
       "type": "sound-effect",
-      "resourceId": "sound-resource-id",
+      "source": "./impact.wav",
       "start": 4.6,
       "trim": { "in": 0, "out": 1.5 },
       "volume": 0.8,
@@ -164,32 +166,91 @@ qcut compose project --config edit.qcut-compose.json --project-dir ./editable-pr
 }
 ```
 
+MVP 约束：1 到 8 个 clips；每个 clip 最多 16 张滤镜；最多 7 个转场、50 个贴纸和 50 个音效。贴纸支持 PNG、JPEG、WebP 和 SVG。验证阶段会检查 trim、相邻 clip、转场时长、时间线边界、素材可读性和滤镜本地 runtime。
+
 ## Compose Compiler 分层
 
 1. **Normalize**：解析相对路径、timebase、trim、默认 canvas 和轨道顺序。
 2. **Resolve**：把 resource ID 固定到精确版本、私有缓存路径、backend 和内容 digest。
 3. **Validate**：检查 clip 邻接、转场长度、overlay 边界、音频范围、runtime readiness 和离线可用性。
-4. **Compile video**：每个 clip 编译滤镜 pipeline，转场连接相邻 clip，贴纸进入 overlay graph。
-5. **Compile audio**：源音频、音效、fade、音量与 ducking 编译成独立 audio graph。
-6. **Render**：每个输入只按需要解码，最终视频和音频各编码一次并 mux。
-7. **Verify**：验证时长、帧率、帧数、音轨、黑帧/静帧异常和资源执行证据。
+4. **Prepare clips**：不同 clips 并发标准化；每个 clip 的 Filter Lab pipeline 保持内部顺序。
+5. **Compile timeline**：视频 xfade/concat 与音频 acrossfade/concat 分成两个 FFmpeg graph 并发执行，再 stream-copy mux。
+6. **Finish**：贴纸进入 overlay graph，音效按采样时间 trim、fade、delay 和 mix。
+7. **Verify**：发布前验证分辨率、帧率、时长和音轨，并保留资源执行证据。
 8. **Publish**：原子发布输出，并写出可复现的 `compose-lock.json` 与 `render-report.json`。
+
+视频和音频时间线必须分开编译。本项目捆绑的 `ffmpeg-static` 在同一个 `filter_complex` 同时运行 `xfade` 与 `acrossfade` 时，视频会退化为硬切；拆分后逐帧证明确认为渐变，并且 mux 不再重编码。
+
+## Compose 真实 E2E
+
+证据目录：
+
+```text
+/Users/peter/Downloads/QCut-Compose-E2E-2026-08-30
+```
+
+测试 manifest 同时包含：2 个 clips、3 次 Filter Lab 应用、1 个 crossfade、1 个 SVG 贴纸和 1 个 WAV 音效。使用的滤镜锁定为：
+
+| Clip | 滤镜 | Resource ID | 强度 | Backend | Verification |
+|---|---|---:|---:|---|---|
+| landscape | 晴朗增蓝 | `7644886476886478116` | 65 | `ffmpeg-lut` | `close` |
+| landscape | 情绪大片 | `7650536865895894282` | 25 | `ffmpeg-lut` | `close` |
+| portrait | 情绪大片 | `7650536865895894282` | 55 | `ffmpeg-lut` | `close` |
+
+真实执行：
+
+```bash
+qcut compose validate \
+  --config /Users/peter/Downloads/QCut-Compose-E2E-2026-08-30/edit.qcut-compose.json \
+  --output /Users/peter/Downloads/QCut-Compose-E2E-2026-08-30/validate-lock.json \
+  --json
+
+qcut compose render \
+  --config /Users/peter/Downloads/QCut-Compose-E2E-2026-08-30/edit.qcut-compose.json \
+  --output /Users/peter/Downloads/QCut-Compose-E2E-2026-08-30/final-compose.mp4 \
+  --json --force
+
+qcut compose project \
+  --config /Users/peter/Downloads/QCut-Compose-E2E-2026-08-30/edit.qcut-compose.json \
+  --project-dir /Users/peter/Downloads/QCut-Compose-E2E-2026-08-30/portable-project \
+  --json --force
+
+qcut compose render \
+  --config /Users/peter/Downloads/QCut-Compose-E2E-2026-08-30/portable-project/compose.json \
+  --output /Users/peter/Downloads/QCut-Compose-E2E-2026-08-30/portable-rerender.mp4 \
+  --json --force
+```
+
+结果：
+
+| 检查 | 结果 |
+|---|---|
+| 最终视频 | H.264、640x360、24 fps、3.750 s、90 帧、AAC 音轨 |
+| 四类资源 | 滤镜、crossfade、SVG 贴纸、WAV 音效均进入最终输出 |
+| clip 准备 | 2 个 clips 并发执行 |
+| crossfade | 5 张连续帧显示从 A 到 B 的渐进混合，不是硬切 |
+| 滤镜像素变化 | PSNR `27.258164`、SSIM `0.941487`，确认不是旁路 |
+| portable project | 4 个用户素材复制到 `assets/`，manifest 只使用相对路径 |
+| 重渲染一致性 | 原输出与 portable 重渲染 SHA-256 均为 `9e0db416e0c0a0853a011b67534e9a851a449c2902ccab67f65004367ae02027` |
+
+主要证据：`final-compose.mp4`、`fixed-transition-sequence.png`、`filter-before-after.png`、`audio-spectrogram.png`、`final-compose.compose-lock.json`、`final-compose.render-report.json` 和 `portable-project/`。
 
 ## 关键产品决定
 
 - 默认直接导出，不生成任何草稿。
-- 需要继续编辑时显式使用 `compose project`，只生成 QCut 项目。
+- 需要搬运或稳定重渲染时显式使用 `compose project`；`project.json` 明示 `editorTimelineImportSupported: false`。
 - 所有资源必须锁定 ID、版本和 digest，避免同名卡或缓存更新导致结果漂移。
 - 不把 `cached` 当作 `verified`；报告必须分别保留 cacheStatus、backend、fidelity 和 verification。
 - 转场持续时间必须从两侧 clip 的可用帧中扣除，不能简单作为第三段视频追加。
 - 贴纸坐标应使用标准化 canvas 坐标，项目生成和无头导出共享同一套变换语义。
 - 音效以采样时间为准，最后再对齐视频 timebase，避免 29.97/30 fps 累积漂移。
 
-## 推荐实现顺序
+## 当前状态与下一步
 
 1. 已完成：多滤镜一次解码、一次编码 pipeline。
-2. Compose MVP：本地 clip、现有 Transition Lab preset、本地 PNG/WebM 贴纸、本地音频文件。
-3. 接入 Sticker Lab 与 Sound Effects Lab 的 resource ID resolver 和私有离线缓存。
-4. 增加 `compose-lock.json`、dry-run 执行计划和失败恢复。
-5. 增加 `compose project`，让同一 manifest 可以生成可编辑 QCut 项目。
-6. 最后接入依赖剪映原生 runtime 的转场和贴纸，并分别保留兼容性门禁。
+2. 已完成：本地 clips、Filter Lab cards、crossfade、本地静态贴纸、本地音效统一渲染。
+3. 已完成：`compose-lock.json`、render report、dry-run、原子输出和 portable project。
+4. 待完成：Sticker Lab 与 Sound Effects Lab 的 resource ID resolver 和私有离线缓存。
+5. 待完成：Transition Lab/Jianying-local preset 接入；当前仅支持 crossfade。
+6. 待完成：从 portable compose manifest 创建可在 QCut UI 继续编辑的 timeline state。
+7. 待优化：减少 normalize、Filter Lab 和 finishing 间的中间编码 pass；现阶段优先保证资源语义与可复现性。
