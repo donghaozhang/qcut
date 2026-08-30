@@ -40,6 +40,7 @@ export async function runMotionTrackingProcess({
 		});
 		let stderr = "";
 		let stdout = "";
+		let aborted = false;
 		let settled = false;
 		let timedOut = false;
 		const terminate = () => {
@@ -62,8 +63,8 @@ export async function runMotionTrackingProcess({
 			reject(error);
 		};
 		const handleAbort = () => {
+			aborted = true;
 			terminate();
-			fail(motionTrackingAbortError());
 		};
 		signal?.addEventListener("abort", handleAbort, { once: true });
 		child.stdout?.on("data", (chunk: Buffer) => {
@@ -72,7 +73,9 @@ export async function runMotionTrackingProcess({
 		child.stderr?.on("data", (chunk: Buffer) => {
 			stderr = appendBounded({ current: stderr, chunk });
 		});
-		child.on("error", (error) => fail(error));
+		child.on("error", (error) =>
+			fail(aborted ? motionTrackingAbortError() : error)
+		);
 		child.on("close", (code, exitSignal) => {
 			if (settled) return;
 			if (timedOut) {
@@ -81,6 +84,10 @@ export async function runMotionTrackingProcess({
 						`${path.basename(command)} 超过 ${Math.round(timeoutMs / 1000)} 秒未完成`
 					)
 				);
+				return;
+			}
+			if (aborted) {
+				fail(motionTrackingAbortError());
 				return;
 			}
 			if (code === null || !acceptedExitCodes.includes(code)) {
