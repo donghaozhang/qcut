@@ -15,6 +15,8 @@ export interface ClaudeLocalVideoExportRequest {
 	outputPath: string;
 	/** When set, the renderer writes a structured export profile here. */
 	profilePath?: string;
+	/** Debug: force the per-frame seek path (for baseline profiling). */
+	disableSequentialDecode?: boolean;
 	projectId: string;
 	quality: "1080p" | "720p" | "480p";
 	width: number;
