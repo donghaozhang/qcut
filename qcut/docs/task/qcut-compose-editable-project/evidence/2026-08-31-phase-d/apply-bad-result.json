@@ -1,0 +1,22 @@
+{
+ "status": "error",
+ "error": "Compose patch failed validation; nothing was applied.",
+ "code": "compose-apply:failed",
+ "command_id": "cmd-1788116725430-scg1oo",
+ "duration_ms": 1691,
+ "data": {
+  "data": {
+   "issues": [
+    {
+     "severity": "error",
+     "code": "invalid-asset-reference",
+     "path": "operations.7.asset",
+     "operationId": "phd-sound-missing",
+     "message": "Asset sound-effects-lab:0000000000000000000 (sound-effect) is not available: Sound Effects Lab asset 0000000000000000000 is not in the authenticated catalog.",
+     "fixHint": "Sign in if required, then cache or download the asset before applying."
+    }
+   ]
+  },
+  "duration": 1.69
+ }
+}

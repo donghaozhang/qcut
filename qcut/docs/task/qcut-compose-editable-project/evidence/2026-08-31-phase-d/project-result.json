@@ -1,0 +1,81 @@
+{
+ "status": "ok",
+ "data": {
+  "schema_version": "1",
+  "command": "compose-project",
+  "outputPaths": [
+   "/Users/peter/Desktop/QCut-Compose-Labs-E2E-2026-08-31/editable-phase-d/out/compose-project-editor/a28ef796-cbb0-452d-bbca-860ec7332bc2.snapshot.json",
+   "/Users/peter/Desktop/QCut-Compose-Labs-E2E-2026-08-31/editable-phase-d/out/compose-project-editor/cmp-4ca48094ded55b84e9435221.patch.json"
+  ],
+  "data": {
+   "projectId": "90563237-da3d-469c-82e6-0ca6fa1ab6e0",
+   "createdProject": true,
+   "manifestSha256": "68c9320336511299afd8af760c9c0041473defcf7ab51b11fe6ad7ca9a92083a",
+   "timelineDuration": 29,
+   "snapshotId": "a28ef796-cbb0-452d-bbca-860ec7332bc2",
+   "patchId": "cmp-4ca48094ded55b84e9435221",
+   "operationCount": 8,
+   "apply": {
+    "projectId": "90563237-da3d-469c-82e6-0ca6fa1ab6e0",
+    "snapshotId": "a28ef796-cbb0-452d-bbca-860ec7332bc2",
+    "patchId": "cmp-4ca48094ded55b84e9435221",
+    "issues": [],
+    "assets": [
+     {
+      "operationId": "cmp-5b7c93d1504a649027dce7ab",
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "crossfade",
+      "status": "cached",
+      "evidence": {
+       "backend": "editor-preset",
+       "cacheStatus": "builtin",
+       "verification": "unverified"
+      }
+     },
+     {
+      "operationId": "cmp-4738e683653478a28ace6127",
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "crossfade",
+      "status": "cached",
+      "evidence": {
+       "backend": "editor-preset",
+       "cacheStatus": "builtin",
+       "verification": "unverified"
+      }
+     }
+    ],
+    "applied": {
+     "cmp-75a4307bb3d4518f7885b292": "cmp-75a4307bb3d4518f7885b292",
+     "cmp-535cc8182206930c9bbf6d65": "cmp-535cc8182206930c9bbf6d65",
+     "cmp-ee5383da21bd2996947ac6cb": "cmp-ee5383da21bd2996947ac6cb"
+    },
+    "alreadyAppliedOperationIds": [],
+    "importedMediaCount": 0,
+    "appliedUpdateOperationIds": [
+     "cmp-ae848622c163f809c7c1e4e2",
+     "cmp-c52bb58d4e1690054cd0d5ba",
+     "cmp-f686b91f005df50e7cb8b68d"
+    ],
+    "transitionOperationIds": [
+     "cmp-5b7c93d1504a649027dce7ab",
+     "cmp-4738e683653478a28ace6127"
+    ],
+    "transitionIds": [
+     "ef0a7ea8-1f91-4f33-9a9b-9791bc0d2831",
+     "9dd5db86-33d0-4f2e-91ea-3094749e55e2"
+    ],
+    "skipped": [],
+    "verified": true
+   },
+   "reopen": {
+    "navigatedAway": true,
+    "missingElementIds": []
+   }
+  },
+  "duration": 9.096
+ },
+ "command_id": "cmd-1788116013326-xxqlrd",
+ "duration_ms": 9097
+}
