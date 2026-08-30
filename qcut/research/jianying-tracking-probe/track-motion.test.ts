@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { expectedSampleCount, parseFrameRate, parseRect } from "./track-motion";
+import { requireBoundedRawDecode } from "../../electron/jianying-motion-tracking/video-input";
+import {
+	expectedSampleCount,
+	parseFrameRate,
+	parseRect,
+	parseVideoDuration,
+} from "./track-motion";
 
 describe("Jianying motion tracking CLI contract", () => {
 	test("parses a normalized rectangle", () => {
@@ -15,6 +21,8 @@ describe("Jianying motion tracking CLI contract", () => {
 		"0.1,0.2,1.1,0.8",
 		"0.1,0.2,0.5",
 		"0.1,wat,0.5,0.8",
+		"0.1,,0.5,0.8",
+		",0.2,0.5,0.8",
 	])("rejects an invalid rectangle: %s", (value) => {
 		expect(() => parseRect({ value })).toThrow();
 	});
@@ -31,6 +39,26 @@ describe("Jianying motion tracking CLI contract", () => {
 		null,
 	])("rejects an invalid frame rate: %p", (value) => {
 		expect(() => parseFrameRate({ value })).toThrow();
+	});
+
+	test("uses container duration when the video stream omits it", () => {
+		expect(
+			parseVideoDuration({
+				formatDuration: "12.5",
+				streamDuration: "N/A",
+			})
+		).toBe(12.5);
+	});
+
+	test("rejects raw decodes estimated above two GiB", () => {
+		expect(() =>
+			requireBoundedRawDecode({
+				durationSeconds: 600,
+				fps: 60,
+				height: 2160,
+				width: 3840,
+			})
+		).toThrow(/2 GiB/);
 	});
 
 	test("counts a forward branch from its anchor", () => {
