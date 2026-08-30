@@ -188,8 +188,14 @@ export class ExportEngineMuxer extends ExportEngine {
 					this.renderFrame(currentTime)
 				);
 
-				// Respect encoder backpressure from the previous frame before
-				// capturing this one.
+				// Issue this frame's BT.709 I420 conversion, let the GPU work
+				// while the encoder finishes the previous frame, then collect
+				// the bytes: the readback overlaps the backpressure wait.
+				const converter = yuvConverter;
+				if (!converter) throw new Error("YUV converter was disposed");
+				exportProfiler.timeSync("yuv-begin", () =>
+					converter.begin(this.canvas)
+				);
 				if (pendingEncode) {
 					const settled = pendingEncode;
 					pendingEncode = null;
@@ -200,10 +206,8 @@ export class ExportEngineMuxer extends ExportEngine {
 				// the bytes, so the converter's buffer can be reused) and feed
 				// it to mediabunny with a timeout (WebCodecs encoders can stall
 				// on simulator or unsupported platforms).
-				const converter = yuvConverter;
-				if (!converter) throw new Error("YUV converter was disposed");
-				const yuvFrame = exportProfiler.timeSync("yuv-convert", () =>
-					converter.convert(this.canvas)
+				const yuvFrame = exportProfiler.timeSync("yuv-finish", () =>
+					converter.finish(this.canvas)
 				);
 				const sample = new VideoSample(yuvFrame.data, {
 					format: "I420",
