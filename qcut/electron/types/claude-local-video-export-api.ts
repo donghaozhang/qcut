@@ -8,7 +8,11 @@ export interface ClaudeLocalVideoExportRequest {
 	format: "mp4";
 	frameRate: 24 | 25 | 30 | 50 | 60;
 	height: number;
+	/** Export job id, so the renderer can stream real progress back. */
+	jobId?: string;
 	outputPath: string;
+	/** When set, the renderer writes a structured export profile here. */
+	profilePath?: string;
 	projectId: string;
 	quality: "1080p" | "720p" | "480p";
 	width: number;
