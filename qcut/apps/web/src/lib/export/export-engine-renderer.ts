@@ -25,6 +25,7 @@ import {
 	particleStages,
 } from "@/lib/effects/effect-procedural-draw";
 import { EFFECTS_ENABLED } from "@/config/features";
+import { exportProfiler } from "./export-profiler";
 import {
 	getActiveElements,
 	calculateElementBounds,
@@ -158,11 +159,13 @@ export async function renderFrame(
 	ctx.fillStyle = context.backgroundColor ?? "#000000";
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-	const activeElements = getActiveElements(
-		context.tracks,
-		context.mediaItems,
-		currentTime,
-		context.fps
+	const activeElements = exportProfiler.timeSync("active-elements", () =>
+		getActiveElements(
+			context.tracks,
+			context.mediaItems,
+			currentTime,
+			context.fps
+		)
 	);
 
 	// Log frame rendering details for first frame and every 30th frame
@@ -183,7 +186,9 @@ export async function renderFrame(
 			)
 		)
 	);
-	await renderOverlayStickers(context, currentTime, timelineStickerIds);
+	await exportProfiler.time("sticker-overlay", () =>
+		renderOverlayStickers(context, currentTime, timelineStickerIds)
+	);
 
 	// Apply screen recording enhancement compositing (cursor, zoom, background)
 	const compositor = getExportCompositor(canvas);
@@ -243,11 +248,13 @@ async function renderElement(
 			currentTime,
 		});
 	} else if (element.type === "sticker") {
-		await renderTimelineStickerElement({
-			context,
-			element,
-			currentTime,
-		});
+		await exportProfiler.time("sticker-timeline", () =>
+			renderTimelineStickerElement({
+				context,
+				element,
+				currentTime,
+			})
+		);
 	} else if (element.type === "adjustment") {
 		await applyCanvasAdjustment({ context, element, currentTime });
 	} else if (element.type === "effect") {
@@ -656,11 +663,13 @@ async function renderVideoAttempt(
 			localTimelineTime: sampleTime,
 			fps: context.fps,
 		});
-		await seekExportVideoFrame({
-			frameRate: context.fps,
-			timeSeconds: seekTime,
-			video,
-		});
+		await exportProfiler.time("video-seek", () =>
+			seekExportVideoFrame({
+				frameRate: context.fps,
+				timeSeconds: seekTime,
+				video,
+			})
+		);
 
 		const { x, y, width, height } = calculateElementBounds(
 			element,
@@ -675,28 +684,30 @@ async function renderVideoAttempt(
 			fps: context.fps,
 		});
 		const drawVideo = () =>
-			drawWithMediaTransform({
-				ctx,
-				visual,
-				bounds: { x, y, width, height },
-				draw: () =>
-					drawColorGradedSourceWithMasks({
-						context: ctx,
-						source: video,
-						x,
-						y,
-						width,
-						height,
-						masks: visual.masks,
-						settings: visual.color,
-						portraitAdjustments: visual.portraitAdjustments,
-						frameSeed: Math.round(
-							(element.startTime + timeOffset) * context.fps
-						),
-						sourceKey: `video:${element.id}:${mediaItem.id}`,
-						timestampSeconds: video.currentTime,
-					}),
-			});
+			exportProfiler.time("video-draw", async () =>
+				drawWithMediaTransform({
+					ctx,
+					visual,
+					bounds: { x, y, width, height },
+					draw: () =>
+						drawColorGradedSourceWithMasks({
+							context: ctx,
+							source: video,
+							x,
+							y,
+							width,
+							height,
+							masks: visual.masks,
+							settings: visual.color,
+							portraitAdjustments: visual.portraitAdjustments,
+							frameSeed: Math.round(
+								(element.startTime + timeOffset) * context.fps
+							),
+							sourceKey: `video:${element.id}:${mediaItem.id}`,
+							timestampSeconds: video.currentTime,
+						}),
+				})
+			);
 
 		if (EFFECTS_ENABLED) {
 			try {
