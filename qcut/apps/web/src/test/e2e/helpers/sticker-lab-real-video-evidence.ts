@@ -11,7 +11,12 @@ import {
 const FRAME_WIDTH = 320;
 const FRAME_HEIGHT = 180;
 
-interface ProbedStream {
+export const STICKER_VIDEO_EVIDENCE_FRAME_SIZE = {
+	height: FRAME_HEIGHT,
+	width: FRAME_WIDTH,
+} as const;
+
+export interface ProbedStream {
 	avg_frame_rate?: string;
 	channels?: number;
 	codec_name?: string;
@@ -22,7 +27,7 @@ interface ProbedStream {
 	width?: number;
 }
 
-interface VideoProbe {
+export interface VideoProbe {
 	format?: { duration?: string };
 	streams?: ProbedStream[];
 }
@@ -56,7 +61,7 @@ export interface RealVideoExportEvidence {
 	reportPath: string;
 }
 
-function runBinary({
+export function runStickerVideoEvidenceBinary({
 	args,
 	binaryPath,
 }: {
@@ -86,12 +91,12 @@ function runBinary({
 	});
 }
 
-async function probeVideo({
+export async function probeStickerVideo({
 	filePath,
 }: {
 	filePath: string;
 }): Promise<VideoProbe> {
-	const output = await runBinary({
+	const output = await runStickerVideoEvidenceBinary({
 		binaryPath: await getFFprobePath(),
 		args: [
 			"-v",
@@ -113,7 +118,7 @@ async function decodeFrame({
 	filePath: string;
 	timeSeconds: number;
 }): Promise<Buffer> {
-	const pixels = await runBinary({
+	const pixels = await runStickerVideoEvidenceBinary({
 		binaryPath: getFFmpegPath(),
 		args: [
 			"-v",
@@ -142,7 +147,7 @@ async function decodeFrame({
 	return pixels;
 }
 
-function calculateFrameDifference({
+export function calculateFrameDifference({
 	baseline,
 	output,
 	stickerRegion,
@@ -329,9 +334,9 @@ export async function verifyAndPreserveRealVideoExports({
 
 	const [inputProbe, baselineProbe, outputProbe, frameDifferences] =
 		await Promise.all([
-			probeVideo({ filePath: inputPath }),
-			probeVideo({ filePath: baselinePath }),
-			probeVideo({ filePath: outputPath }),
+			probeStickerVideo({ filePath: inputPath }),
+			probeStickerVideo({ filePath: baselinePath }),
+			probeStickerVideo({ filePath: outputPath }),
 			compareExports({ baselinePath, outputPath, stickerRegion, times }),
 		]);
 	const report = {
