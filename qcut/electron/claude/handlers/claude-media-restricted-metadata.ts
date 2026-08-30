@@ -2,8 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import { constants as fileSystemConstants } from "node:fs";
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import type { StickerLabMediaMetadata } from "../../types/sticker-lab-media-metadata.js";
-import { parseStickerLabMediaMetadata } from "../../types/sticker-lab-media-metadata.js";
+import type { StickerLabRestrictedMediaMetadata } from "../../types/sticker-lab-media-metadata.js";
+import { parseStickerLabRestrictedMediaMetadata } from "../../types/sticker-lab-media-metadata.js";
 import {
 	requireExactKeys,
 	requireRecord,
@@ -14,12 +14,12 @@ import { claudeLog } from "../utils/logger.js";
 
 const HANDLER_NAME = "Media";
 const SIDECAR_DIRECTORY_NAME = ".qcut-restricted-media";
-const SIDECAR_MAX_BYTES = 8192;
+const SIDECAR_MAX_BYTES = 16 * 1024 * 1024;
 const SIDECAR_VERSION = 1;
 
 interface RestrictedMediaSidecar {
 	mediaId: string;
-	metadata: StickerLabMediaMetadata;
+	metadata: StickerLabRestrictedMediaMetadata;
 	version: typeof SIDECAR_VERSION;
 }
 
@@ -137,7 +137,7 @@ function parseSidecar({
 	}
 	return {
 		mediaId,
-		metadata: parseStickerLabMediaMetadata({
+		metadata: parseStickerLabRestrictedMediaMetadata({
 			candidate: record.metadata,
 			label: "Restricted media sidecar metadata",
 		}),
@@ -151,14 +151,23 @@ export async function persistMediaRestrictedMetadata({
 	projectId,
 }: {
 	mediaId: string;
-	metadata: StickerLabMediaMetadata;
+	metadata: StickerLabRestrictedMediaMetadata;
 	projectId: string;
 }): Promise<void> {
 	const normalizedMediaId = requireMediaId({ mediaId });
-	const normalizedMetadata = parseStickerLabMediaMetadata({
+	const normalizedMetadata = parseStickerLabRestrictedMediaMetadata({
 		candidate: metadata,
 		label: "Restricted media metadata",
 	});
+	const sidecar: RestrictedMediaSidecar = {
+		mediaId: normalizedMediaId,
+		metadata: normalizedMetadata,
+		version: SIDECAR_VERSION,
+	};
+	const serializedSidecar = `${JSON.stringify(sidecar)}\n`;
+	if (Buffer.byteLength(serializedSidecar, "utf8") > SIDECAR_MAX_BYTES) {
+		throw new Error("Restricted media sidecar exceeds its storage limit.");
+	}
 	const directory = await ensureSidecarDirectory({ projectId });
 	const destinationPath = getSidecarPath({
 		mediaId: normalizedMediaId,
@@ -168,15 +177,10 @@ export async function persistMediaRestrictedMetadata({
 		directory,
 		`.${path.basename(destinationPath)}.${randomUUID()}.tmp`
 	);
-	const sidecar: RestrictedMediaSidecar = {
-		mediaId: normalizedMediaId,
-		metadata: normalizedMetadata,
-		version: SIDECAR_VERSION,
-	};
 	let handle: fs.FileHandle | undefined;
 	try {
 		handle = await fs.open(temporaryPath, "wx", 0o600);
-		await handle.writeFile(`${JSON.stringify(sidecar, null, 2)}\n`, "utf8");
+		await handle.writeFile(serializedSidecar, "utf8");
 		await handle.chmod(0o600);
 		await handle.sync();
 		await handle.close();
@@ -195,7 +199,7 @@ export async function readMediaRestrictedMetadata({
 }: {
 	mediaId: string;
 	projectId: string;
-}): Promise<StickerLabMediaMetadata | undefined> {
+}): Promise<StickerLabRestrictedMediaMetadata | undefined> {
 	let normalizedMediaId: string;
 	let sidecarPath: string;
 	let handle: fs.FileHandle | undefined;
@@ -213,7 +217,7 @@ export async function readMediaRestrictedMetadata({
 				"Restricted media sidecar is not a bounded regular file."
 			);
 		}
-		const buffer = Buffer.alloc(SIDECAR_MAX_BYTES + 1);
+		const buffer = Buffer.alloc(stat.size);
 		const { bytesRead } = await handle.read(buffer, 0, buffer.length, 0);
 		const verifiedStat = await handle.stat();
 		if (
