@@ -79,6 +79,7 @@ export interface ResolvedSoundEffectsLabAsset {
 	byteSize?: number;
 	checksumSha256?: string;
 	mimeType?: string;
+	license?: string;
 	provider: "freesound" | "jianying-reference" | "unknown";
 	redistribution: "allowed" | "prohibited" | "unknown";
 	reusable: boolean;
@@ -173,6 +174,7 @@ function resolvedAsset({
 			finitePositiveNumber({ value: entry.asset?.byteSize }),
 		checksumSha256,
 		mimeType: stringValue({ value: entry.mimeType }),
+		license: stringValue({ value: entry.source?.license }),
 		provider,
 		redistribution: normalizedRedistribution,
 		reusable:
@@ -319,7 +321,7 @@ export async function materializeSoundEffectsLabAsset({
 		await writeFile(destinationPath, bytes);
 		return destinationPath;
 	}
-	if (!(asset.objectKey && asset.fileName)) {
+	if (!asset.objectKey) {
 		throw new Error(
 			`Sound Effects Lab asset has no readable source: ${asset.id}`
 		);
@@ -376,7 +378,9 @@ export async function searchSoundEffectsLab({
 			categoryIds: asset.categoryIds,
 			fileName: asset.fileName,
 			objectKey: asset.objectKey,
-			license: asset.reusable ? "CC0-1.0" : "reference-only",
+			license: asset.reusable
+				? (asset.license ?? "CC0-1.0")
+				: "reference-only",
 		});
 		if (results.length >= limit) break;
 	}
