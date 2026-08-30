@@ -14,6 +14,10 @@ import type {
 const DEFAULT_MAX_BODY_SIZE = 1024 * 1024;
 const MEDIA_IMPORT_MAX_BODY_SIZE = 16 * 1024 * 1024;
 const MEDIA_IMPORT_PATH = /^\/api\/claude\/media\/[^/]+\/import$/;
+// Element batches legitimately carry MB-scale payloads: a media filter
+// stack ships raw LUT cubes (a 33³ cube is ~1MB of JSON, a 65³ several).
+const TIMELINE_BATCH_MAX_BODY_SIZE = 64 * 1024 * 1024;
+const TIMELINE_BATCH_PATH = /^\/api\/claude\/timeline\/[^/]+\/elements\/batch$/;
 
 export class HttpError extends Error {
 	status: number;
@@ -71,6 +75,12 @@ function getMaxBodySize({
 }): number {
 	if (method === "POST" && MEDIA_IMPORT_PATH.test(pathname)) {
 		return MEDIA_IMPORT_MAX_BODY_SIZE;
+	}
+	if (
+		(method === "POST" || method === "PATCH") &&
+		TIMELINE_BATCH_PATH.test(pathname)
+	) {
+		return TIMELINE_BATCH_MAX_BODY_SIZE;
 	}
 	return DEFAULT_MAX_BODY_SIZE;
 }
