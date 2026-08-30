@@ -224,6 +224,8 @@ export interface CLIRunOptions {
 	acceptedWarningFingerprints?: string[];
 	packagePath?: string;
 	resourceIds?: string[];
+	/** filter-lab pipeline: ordered "resource-id[:intensity]" steps. */
+	filterSteps?: string[];
 	/** filter-lab: Jianying resource ID to score QCut presets against. */
 	resourceId?: string;
 	/** filter-lab coverage: evidence source and optional per-card checklist. */
