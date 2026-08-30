@@ -318,7 +318,8 @@ export interface MediaFilterEffect {
 	intensity: number;
 	implementation: string;
 	fidelity: "lut" | "structural" | "native-local" | "safe-passthrough";
-	color: Pick<MediaColorSettings, "lut" | "multiPass">;
+	/** Both slots optional: safe-passthrough effects carry no payload. */
+	color: Partial<Pick<MediaColorSettings, "lut" | "multiPass">>;
 }
 
 /**
