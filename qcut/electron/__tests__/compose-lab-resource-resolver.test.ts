@@ -81,6 +81,51 @@ describe("Sound Effects Lab resolution", () => {
 		expect(materialized?.localPath).toContain(directory);
 	});
 
+	it("accepts an object-key-only remote sound", async () => {
+		const resolveSound = vi.fn(async () => ({
+			...reusableSound,
+			fileName: undefined,
+		}));
+
+		await expect(
+			resolveComposeSoundLabReference({
+				reference: soundReference,
+				dependencies: { resolveSound },
+			})
+		).resolves.toMatchObject({ status: "downloadable" });
+	});
+
+	it("keeps colliding readable asset ids in distinct cache files", async () => {
+		const resolveSound = vi.fn(async ({ assetId }: { assetId: string }) => ({
+			...reusableSound,
+			id: assetId,
+		}));
+		const materializeSound = vi.fn(
+			async ({ destinationPath }: { destinationPath: string }) => {
+				fs.mkdirSync(path.dirname(destinationPath), { recursive: true });
+				fs.writeFileSync(destinationPath, Buffer.from([1, 2, 3, 4]));
+				return destinationPath;
+			}
+		);
+		const references = ["alert", "alert!"].map((assetId) => ({
+			...soundReference,
+			assetId: `sound-effects-lab:${assetId}`,
+		}));
+
+		const materialized = await Promise.all(
+			references.map((reference) =>
+				materializeComposeSoundLabReference({
+					reference,
+					scratchDirectory: directory,
+					dependencies: { resolveSound, materializeSound },
+				})
+			)
+		);
+
+		expect(materialized[0]?.localPath).not.toBe(materialized[1]?.localPath);
+		expect(materialized.map((entry) => entry?.bytes)).toEqual([4, 4]);
+	});
+
 	it("keeps Jianying references out of reusable projects", async () => {
 		const restricted = {
 			...reusableSound,
