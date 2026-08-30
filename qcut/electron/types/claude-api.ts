@@ -98,6 +98,8 @@ export interface ClaudeTransition {
 	fromElementId: string;
 	toElementId: string;
 	presetId: string;
+	engine?: "qcut" | "jianying-local";
+	packageHash?: string;
 	type: string;
 	duration: number;
 	direction?: "left" | "right" | "up" | "down";
@@ -260,6 +262,36 @@ export interface ClaudeElement
 	stickerGeometrySpace?: "canvas-percent";
 	/** Untrusted deterministic sticker source descriptor from the renderer. */
 	stickerRuntime?: unknown;
+	maintainAspectRatio?: boolean;
+	animationInType?:
+		| "none"
+		| "fade"
+		| "slide-left"
+		| "slide-right"
+		| "slide-up"
+		| "slide-down"
+		| "zoom-in"
+		| "zoom-out";
+	animationInDuration?: number;
+	animationOutType?:
+		| "none"
+		| "fade"
+		| "slide-left"
+		| "slide-right"
+		| "slide-up"
+		| "slide-down"
+		| "zoom-in"
+		| "zoom-out";
+	animationOutDuration?: number;
+	animationLoopType?:
+		| "none"
+		| "pulse"
+		| "drift"
+		| "spin"
+		| "wobble"
+		| "bounce"
+		| "blink";
+	animationLoopIntensity?: number;
 	zIndex?: number;
 	content?: string;
 	language?: string;
@@ -268,6 +300,8 @@ export interface ClaudeElement
 	name?: string;
 	opacity?: number;
 	volume?: number;
+	audioFadeIn?: number;
+	audioFadeOut?: number;
 	adjustments?: Record<string, unknown>;
 	/**
 	 * Resolved media color grade (MediaColorSettings with any filter preset
