@@ -72,6 +72,30 @@ describe("media mask tracking", () => {
 		expect(tracked.keyframes?.width).toHaveLength(2);
 	});
 
+	it("keeps dense rotation samples while simplifying linear box geometry", () => {
+		const mask = createMediaMask({ id: "subject", type: "object", index: 0 });
+		const samples = [0, 1, 2].map((frame) => ({
+			frame,
+			centerX: 0.4 + frame * 0.1,
+			centerY: 0.5,
+			width: 0.3,
+			height: 0.7,
+			rotation: frame * frame,
+		}));
+		const tracked = applyMaskTrackingSamples({
+			mask,
+			samples,
+			direction: "both",
+			anchorFrame: 1,
+			source: "jianying-bingo",
+		});
+
+		expect(tracked.keyframes?.centerX).toHaveLength(2);
+		expect(tracked.keyframes?.rotation?.map(({ value }) => value)).toEqual([
+			0, 1, 4,
+		]);
+	});
+
 	it("filters invalid engine samples before marking a track ready", () => {
 		const mask = createMediaMask({ id: "subject", type: "person", index: 0 });
 		const tracked = applyMaskTrackingSamples({
