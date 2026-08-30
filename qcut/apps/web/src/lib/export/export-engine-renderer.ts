@@ -129,13 +129,17 @@ function getExportCompositor(
 			zoomMotionBlur: state.zoomMotionBlur,
 		};
 		exportCompositor = new ScreenRecordingExportCompositor(config);
+		exportProfiler.count("compositor-create");
 	}
 	return exportCompositor;
 }
 
 /** Clean up the export compositor (call after export finishes). */
 export function destroyExportCompositor(): void {
-	exportCompositor?.destroy();
+	if (exportCompositor) {
+		exportCompositor.destroy();
+		exportProfiler.count("compositor-destroy");
+	}
 	exportCompositor = null;
 	compositorFrameCanvas = null;
 	compositorFrameCtx = null;
