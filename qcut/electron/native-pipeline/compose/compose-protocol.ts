@@ -501,6 +501,35 @@ function validateAssetReference({
 	}
 }
 
+function validateStickerAnimationType({
+	allowedValues,
+	issues,
+	key,
+	operation,
+	path,
+}: {
+	allowedValues: readonly string[];
+	issues: ComposeValidationIssue[];
+	key: "animationInType" | "animationOutType" | "animationLoopType";
+	operation: Extract<ComposePatchOperation, { kind: "add-sticker" }>;
+	path: string;
+}): void {
+	const value: unknown = operation[key];
+	if (
+		value === undefined ||
+		(typeof value === "string" && allowedValues.includes(value))
+	) {
+		return;
+	}
+	issues.push({
+		severity: "error",
+		code: "invalid-sticker-geometry",
+		path: `${path}.${key}`,
+		operationId: operation.id,
+		message: `Sticker ${key} must be one of ${allowedValues.join(", ")}.`,
+	});
+}
+
 function validateStickerGeometry({
 	operation,
 	path,
@@ -510,6 +539,39 @@ function validateStickerGeometry({
 	path: string;
 	issues: ComposeValidationIssue[];
 }): void {
+	if (
+		operation.maintainAspectRatio !== undefined &&
+		typeof operation.maintainAspectRatio !== "boolean"
+	) {
+		issues.push({
+			severity: "error",
+			code: "invalid-sticker-geometry",
+			path: `${path}.maintainAspectRatio`,
+			operationId: operation.id,
+			message: "Sticker maintainAspectRatio must be a boolean.",
+		});
+	}
+	validateStickerAnimationType({
+		allowedValues: ["none", "fade", "slide", "scale", "bounce"],
+		issues,
+		key: "animationInType",
+		operation,
+		path,
+	});
+	validateStickerAnimationType({
+		allowedValues: ["none", "fade", "slide", "scale"],
+		issues,
+		key: "animationOutType",
+		operation,
+		path,
+	});
+	validateStickerAnimationType({
+		allowedValues: ["none", "pulse", "float", "spin", "bounce"],
+		issues,
+		key: "animationLoopType",
+		operation,
+		path,
+	});
 	for (const key of ["x", "y", "width", "height"] as const) {
 		const value = operation[key];
 		if (value === undefined) continue;
