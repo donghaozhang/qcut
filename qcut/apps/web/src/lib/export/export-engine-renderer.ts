@@ -26,6 +26,8 @@ import {
 } from "@/lib/effects/effect-procedural-draw";
 import { EFFECTS_ENABLED } from "@/config/features";
 import { exportProfiler } from "./export-profiler";
+import type { ExportRenderIndex } from "./export-render-index";
+import type { SequentialVideoRegistry } from "./export-sequential-video-source";
 import {
 	getActiveElements,
 	calculateElementBounds,
@@ -143,6 +145,10 @@ export interface RenderContext {
 	/** Canvas fill behind the composition; defaults to black. */
 	backgroundColor?: string;
 	finalVideoOutput?: LocalFinalVideoExportOutput;
+	/** Static per-export lookups; rebuilt per frame when absent. */
+	renderIndex?: ExportRenderIndex;
+	/** Sequential decoders that replace per-frame video element seeks. */
+	sequentialVideo?: SequentialVideoRegistry;
 }
 
 /** Render a single frame at the specified time */
@@ -179,13 +185,15 @@ export async function renderFrame(
 		await renderElement(context, element, mediaItem, currentTime);
 	}
 
-	const timelineStickerIds = new Set(
-		context.tracks.flatMap((track) =>
-			track.elements.flatMap((element) =>
-				element.type === "sticker" ? [element.stickerId] : []
+	const timelineStickerIds =
+		context.renderIndex?.timelineStickerIds ??
+		new Set(
+			context.tracks.flatMap((track) =>
+				track.elements.flatMap((element) =>
+					element.type === "sticker" ? [element.stickerId] : []
+				)
 			)
-		)
-	);
+		);
 	await exportProfiler.time("sticker-overlay", () =>
 		renderOverlayStickers(context, currentTime, timelineStickerIds)
 	);
@@ -423,9 +431,9 @@ async function renderTimelineStickerElement({
 		canvasWidth: context.canvas.width,
 		canvasHeight: context.canvas.height,
 	});
-	const mediaItems = new Map(
-		context.mediaItems.map((item) => [item.id, item] as const)
-	);
+	const mediaItems =
+		context.renderIndex?.mediaItemsById ??
+		new Map(context.mediaItems.map((item) => [item.id, item] as const));
 	await renderStickersToCanvas(context.ctx, [sticker], mediaItems, {
 		canvasWidth: context.canvas.width,
 		canvasHeight: context.canvas.height,
@@ -639,20 +647,6 @@ async function renderVideoAttempt(
 	const url = mediaItem.url as string; // Guaranteed non-null by renderVideo guard
 
 	try {
-		let video = videoCache.get(url);
-		if (!video) {
-			video = document.createElement("video");
-			video.src = url;
-			video.crossOrigin = "anonymous";
-
-			await new Promise<void>((resolve, reject) => {
-				video!.onloadeddata = () => resolve();
-				video!.onerror = () => reject(new Error("Failed to load video"));
-			});
-
-			videoCache.set(url, video);
-		}
-
 		const mediaElement = element as MediaElement;
 		const sampleTime = getExportFrameSampleTime({
 			frameRate: context.fps,
@@ -663,18 +657,63 @@ async function renderVideoAttempt(
 			localTimelineTime: sampleTime,
 			fps: context.fps,
 		});
-		await exportProfiler.time("video-seek", () =>
-			seekExportVideoFrame({
-				frameRate: context.fps,
-				timeSeconds: seekTime,
-				video,
-			})
-		);
 
+		// Prefer sequential decoding: exports advance source time monotonically
+		// (even with trims, speed keyframes, and freeze frames), so a decoder
+		// walking forward beats a per-frame random-access seek. Reversed clips
+		// and undecodable sources keep the seek-based path — same pixels, same
+		// file, just slower.
+		let source: CanvasImageSource | null = null;
+		let sourceWidth = 0;
+		let sourceHeight = 0;
+		let sourceTimestamp = seekTime;
+		if (context.sequentialVideo && mediaElement.reverse !== true) {
+			const provider = await context.sequentialVideo.getOrOpen(mediaItem);
+			if (provider) {
+				const frame = await exportProfiler.time("video-decode", () =>
+					provider.frameAt(seekTime)
+				);
+				if (frame && frame.canvas.width > 0 && frame.canvas.height > 0) {
+					source = frame.canvas as CanvasImageSource;
+					sourceWidth = frame.canvas.width;
+					sourceHeight = frame.canvas.height;
+					sourceTimestamp = frame.timestamp;
+				}
+			}
+		}
+
+		if (!source) {
+			let video = videoCache.get(url);
+			if (!video) {
+				video = document.createElement("video");
+				video.src = url;
+				video.crossOrigin = "anonymous";
+
+				await new Promise<void>((resolve, reject) => {
+					video!.onloadeddata = () => resolve();
+					video!.onerror = () => reject(new Error("Failed to load video"));
+				});
+
+				videoCache.set(url, video);
+			}
+			await exportProfiler.time("video-seek", () =>
+				seekExportVideoFrame({
+					frameRate: context.fps,
+					timeSeconds: seekTime,
+					video,
+				})
+			);
+			source = video;
+			sourceWidth = video.videoWidth;
+			sourceHeight = video.videoHeight;
+			sourceTimestamp = video.currentTime;
+		}
+
+		const resolvedSource = source;
 		const { x, y, width, height } = calculateElementBounds(
 			element,
-			video.videoWidth,
-			video.videoHeight,
+			sourceWidth,
+			sourceHeight,
 			canvas.width,
 			canvas.height
 		);
@@ -692,7 +731,7 @@ async function renderVideoAttempt(
 					draw: () =>
 						drawColorGradedSourceWithMasks({
 							context: ctx,
-							source: video,
+							source: resolvedSource,
 							x,
 							y,
 							width,
@@ -704,7 +743,7 @@ async function renderVideoAttempt(
 								(element.startTime + timeOffset) * context.fps
 							),
 							sourceKey: `video:${element.id}:${mediaItem.id}`,
-							timestampSeconds: video.currentTime,
+							timestampSeconds: sourceTimestamp,
 						}),
 				})
 			);
@@ -768,6 +807,20 @@ async function renderVideoAttempt(
 	}
 }
 
+let overlayMediaItemsCacheSource: readonly MediaItem[] | null = null;
+let overlayMediaItemsCache: Map<string, MediaItem> = new Map();
+
+/** Media lookup for overlay stickers, rebuilt only when the store array changes. */
+function overlayMediaItemsMap(
+	mediaItems: readonly MediaItem[]
+): Map<string, MediaItem> {
+	if (overlayMediaItemsCacheSource !== mediaItems) {
+		overlayMediaItemsCacheSource = mediaItems;
+		overlayMediaItemsCache = new Map(mediaItems.map((item) => [item.id, item]));
+	}
+	return overlayMediaItemsCache;
+}
+
 /** Render overlay stickers on top of video */
 export async function renderOverlayStickers(
 	context: RenderContext,
@@ -816,9 +869,7 @@ export async function renderOverlayStickers(
 				tracks: context.tracks,
 			});
 		}
-		const mediaItemsMap = new Map(
-			mediaStore.mediaItems.map((item) => [item.id, item])
-		);
+		const mediaItemsMap = overlayMediaItemsMap(mediaStore.mediaItems);
 
 		const renderResult = await renderStickersToCanvas(
 			context.ctx,
