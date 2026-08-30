@@ -106,6 +106,11 @@ function makeDependencies({
 		get: vi.fn(async (path: string) => {
 			calls.push({ method: "get", path });
 			if (path === "/api/claude/navigator/projects") return projects;
+			if (path.startsWith("/api/claude/state")) {
+				return {
+					state: { project: { activeProject: { id: "project-created" } } },
+				};
+			}
 			return {};
 		}),
 	};
