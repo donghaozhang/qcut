@@ -13,7 +13,10 @@ import {
 	validateComposeSnapshot,
 } from "../compose/compose-protocol.js";
 import { resolveComposePatchAssets } from "../compose/compose-asset-resolver.js";
-import { loadComposeSnapshotAndPatch } from "./cli-handlers-compose-editor.js";
+import {
+	handleComposeRenderPatch,
+	loadComposeSnapshotAndPatch,
+} from "./cli-handlers-compose-editor.js";
 import type {
 	CLIResult,
 	CLIRunOptions,
@@ -202,6 +205,15 @@ export async function handleComposeRender(
 ): Promise<CLIResult> {
 	const startedAt = Date.now();
 	try {
+		const hasPatchInputs = Boolean(options.snapshot || options.patch);
+		if (options.config && hasPatchInputs) {
+			throw new Error(
+				"--config selects manifest mode and --snapshot/--patch select patch mode; pass one set, not both."
+			);
+		}
+		if (hasPatchInputs) {
+			return await handleComposeRenderPatch(options, onProgress, signal);
+		}
 		onProgress({
 			stage: "validating",
 			percent: 5,
