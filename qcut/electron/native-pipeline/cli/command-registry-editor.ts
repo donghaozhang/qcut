@@ -691,6 +691,11 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 			"string",
 			"Write a structured export profile JSON to this path (renderer exports)"
 		),
+		f(
+			"--no-sequential-decode",
+			"boolean",
+			"Debug: force the per-frame seek path in renderer exports"
+		),
 		// GIF options
 		f("--gif-fps", "number", "GIF frame rate (15|20|25|30)"),
 		f("--gif-loop", "boolean", "GIF loop (true=infinite)"),
