@@ -4,6 +4,11 @@ import type {
 	ComposeSnapshot,
 } from "./compose-protocol.js";
 import type { ComposeEditorAssetBindings } from "./compose-editor-asset-preparer.js";
+import {
+	lanedComposeTracks,
+	type LanedElement,
+} from "./compose-timeline-lanes.js";
+import { planComposeMediaClips } from "./compose-timeline-media.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -26,51 +31,6 @@ const TEXT_TRACK_ALIAS = "compose-text";
 const CAPTION_TRACK_ALIAS = "compose-captions";
 const STICKER_TRACK_ALIAS = "compose-stickers";
 const AUDIO_TRACK_ALIAS = "compose-audio";
-
-/** A manifest element together with the timeline span it will occupy. */
-interface LanedElement {
-	element: JsonRecord;
-	start: number;
-	end: number;
-}
-
-/**
- * Partitions elements into non-overlapping lanes and emits one track per
- * lane. QCut tracks refuse overlapping elements, but overlapping compose
- * operations (layered sound effects, simultaneous stickers) are legitimate —
- * they belong on parallel tracks, the way an editor would lay them out.
- */
-function lanedComposeTracks({
-	alias,
-	type,
-	name,
-	entries,
-}: {
-	alias: string;
-	type: string;
-	name: string;
-	entries: LanedElement[];
-}): JsonRecord[] {
-	const sorted = [...entries].sort(
-		(left, right) => left.start - right.start || left.end - right.end
-	);
-	const lanes: Array<{ end: number; elements: JsonRecord[] }> = [];
-	for (const entry of sorted) {
-		const lane = lanes.find((candidate) => candidate.end <= entry.start);
-		if (lane) {
-			lane.end = entry.end;
-			lane.elements.push(entry.element);
-		} else {
-			lanes.push({ end: entry.end, elements: [entry.element] });
-		}
-	}
-	return lanes.map((lane, index) => ({
-		alias: index === 0 ? alias : `${alias}-${index + 1}`,
-		type,
-		name: index === 0 ? name : `${name} ${index + 1}`,
-		elements: lane.elements,
-	}));
-}
 
 function editorTransitionPreset({ presetId }: { presetId: string }): string {
 	return presetId === "crossfade" ? "dissolve" : presetId;
@@ -203,11 +163,14 @@ export function timelineManifestFromComposePatch({
 	projectId,
 	snapshot,
 	bindings = {},
+	mainVideoTrackId,
 }: {
 	patch: ComposePatch;
 	projectId?: string;
 	snapshot?: ComposeSnapshot;
 	bindings?: ComposeEditorAssetBindings;
+	/** Existing main track id so media clips land on QCut's main track. */
+	mainVideoTrackId?: string;
 }): ComposeTimelineManifestPlan {
 	const textElements: LanedElement[] = [];
 	const captionElements: LanedElement[] = [];
@@ -216,14 +179,20 @@ export function timelineManifestFromComposePatch({
 	const media: JsonRecord[] = [];
 	const updates: JsonRecord[] = [];
 	const transitions: JsonRecord[] = [];
-	const plannedOperationIds: string[] = [];
+	const mediaPlan = planComposeMediaClips({
+		operations: patch.operations,
+		bindings,
+		mainVideoTrackId,
+	});
+	const plannedOperationIds: string[] = [...mediaPlan.plannedOperationIds];
 	const plannedTransitionOperationIds: string[] = [];
-	const skipped: ComposeSkippedOperation[] = [];
+	const skipped: ComposeSkippedOperation[] = [...mediaPlan.skipped];
 	const pendingClipIds = new Set(
 		patch.operations
 			.filter((operation) => operation.kind === "insert-media-clip")
 			.map((operation) => operation.id)
 	);
+	const plannedClipIds = new Set(mediaPlan.plannedOperationIds);
 
 	for (const operation of patch.operations) {
 		switch (operation.kind) {
@@ -387,15 +356,21 @@ export function timelineManifestFromComposePatch({
 				break;
 			}
 			case "upsert-transition": {
-				if (
+				const touchesPending =
 					pendingClipIds.has(operation.fromElementId) ||
-					pendingClipIds.has(operation.toElementId)
+					pendingClipIds.has(operation.toElementId);
+				if (
+					touchesPending &&
+					!(
+						plannedClipIds.has(operation.fromElementId) &&
+						plannedClipIds.has(operation.toElementId)
+					)
 				) {
 					skipped.push({
 						operationId: operation.id,
 						kind: operation.kind,
 						reason:
-							"Transitions between pending clips are not applied by the v1 timeline bridge yet.",
+							"Transition endpoints reference pending clips that were not planned.",
 					});
 					break;
 				}
@@ -427,13 +402,15 @@ export function timelineManifestFromComposePatch({
 				break;
 			}
 			case "insert-media-clip":
+				// Planned separately by planComposeMediaClips above.
+				break;
 			case "set-media-filter-stack":
 			case "add-filter-layer":
 				skipped.push({
 					operationId: operation.id,
 					kind: operation.kind,
 					reason:
-						"Editable-project operations are not applied by the v1 timeline bridge yet.",
+						"Filter operations are not applied by the v1 timeline bridge yet.",
 				});
 				break;
 			default:
@@ -447,6 +424,7 @@ export function timelineManifestFromComposePatch({
 	}
 
 	const tracks: JsonRecord[] = [
+		...mediaPlan.tracks,
 		...lanedComposeTracks({
 			alias: TEXT_TRACK_ALIAS,
 			type: "text",
@@ -473,10 +451,11 @@ export function timelineManifestFromComposePatch({
 		}),
 	];
 
+	const allMedia = [...mediaPlan.media, ...media];
 	return {
 		manifest: {
 			...(projectId ? { projectId } : {}),
-			...(media.length > 0 ? { media } : {}),
+			...(allMedia.length > 0 ? { media: allMedia } : {}),
 			tracks,
 			...(updates.length > 0 ? { updates } : {}),
 			...(transitions.length > 0 ? { transitions } : {}),
