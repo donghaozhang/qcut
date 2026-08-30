@@ -497,6 +497,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"gif-fps": { type: "string" },
 			"gif-loop": { type: "boolean", default: false },
 			"gif-quality": { type: "string" },
+			"profile-path": { type: "string" },
 			mic: { type: "boolean", default: false },
 			// Default true matches the command-registry advertisement and user
 			// docs — capturing system audio is the intended out-of-box
@@ -1197,6 +1198,9 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		...(values["gif-quality"] &&
 		!Number.isNaN(parseInt(values["gif-quality"] as string, 10))
 			? { "gif-quality": parseInt(values["gif-quality"] as string, 10) }
+			: {}),
+		...(values["profile-path"]
+			? { "profile-path": values["profile-path"] as string }
 			: {}),
 		...(values.mic ? { mic: true } : {}),
 		...(values["system-audio"] ? { "system-audio": true } : {}),
