@@ -3,7 +3,10 @@ import { dirname, join, resolve } from "node:path";
 import { loadComposeManifest } from "../compose/compose-manifest.js";
 import { createComposeProject } from "../compose/compose-project.js";
 import { renderResolvedComposeProject } from "../compose/compose-render.js";
-import { resolveComposeProject } from "../compose/compose-resolver.js";
+import {
+	resolveComposeProject,
+	type ResolvedComposeProject,
+} from "../compose/compose-resolver.js";
 import type {
 	CLIResult,
 	CLIRunOptions,
@@ -32,6 +35,26 @@ function requireConfig({ options }: { options: CLIRunOptions }): string {
 	const config = options.config?.trim();
 	if (!config) throw new Error("Missing --config compose manifest path.");
 	return config;
+}
+
+function assertOutputDoesNotOverwriteInputs({
+	outputPath,
+	resolved,
+}: {
+	outputPath: string;
+	resolved: ResolvedComposeProject;
+}): void {
+	const inputPaths = new Set([
+		resolved.loaded.configPath,
+		...resolved.clips.map(({ sourcePath }) => sourcePath),
+		...resolved.overlays.map(({ sourcePath }) => sourcePath),
+		...resolved.audio.map(({ sourcePath }) => sourcePath),
+	]);
+	if (inputPaths.has(outputPath)) {
+		throw new Error(
+			`--output must not overwrite the compose config or a resolved input asset: ${outputPath}`
+		);
+	}
 }
 
 async function loadAndResolve({
@@ -66,6 +89,7 @@ export async function handleComposeValidate(
 		let lockPath: string | undefined;
 		if (options.output) {
 			lockPath = resolve(options.output);
+			assertOutputDoesNotOverwriteInputs({ outputPath: lockPath, resolved });
 			await mkdir(dirname(lockPath), { recursive: true });
 			await writeFile(lockPath, `${JSON.stringify(resolved.lock, null, 2)}\n`);
 		}
@@ -129,6 +153,7 @@ export async function handleComposeRender(
 		const outputPath = options.output
 			? resolve(options.output)
 			: join(resolve(options.outputDir), "compose.mp4");
+		assertOutputDoesNotOverwriteInputs({ outputPath, resolved });
 		const result = await dependencies.render({
 			resolved,
 			outputPath,
