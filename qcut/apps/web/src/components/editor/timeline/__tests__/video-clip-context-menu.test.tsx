@@ -44,15 +44,19 @@ function createActions() {
 		breakApart: vi.fn(),
 		linkMedia: vi.fn(),
 		selectMulticamClip: vi.fn(),
+		setColorLabel: vi.fn(),
+		selectSameColor: vi.fn(),
 	};
 }
 
 function renderMenu({
 	actions,
 	compoundKind,
+	currentColorLabel,
 }: {
 	actions: ReturnType<typeof createActions>;
 	compoundKind?: "compound" | "multicam";
+	currentColorLabel?: "rose" | "green";
 }) {
 	render(
 		<ContextMenu>
@@ -68,6 +72,7 @@ function renderMenu({
 				canAlignAudioVideo={true}
 				canLinkMedia={true}
 				compoundKind={compoundKind}
+				currentColorLabel={currentColorLabel}
 				multicamClips={[]}
 				actions={actions}
 			/>
@@ -115,6 +120,27 @@ describe("video clip context menu", () => {
 
 		expect(actions.breakApart).toHaveBeenCalledTimes(1);
 		expect(screen.queryByText("新建复合片段")).not.toBeInTheDocument();
+	});
+
+	it("applies a clip color and selects clips with the current color", async () => {
+		const actions = createActions();
+		renderMenu({ actions, currentColorLabel: "rose" });
+
+		fireEvent.click(await screen.findByRole("menuitemradio", { name: "绿色" }));
+		expect(actions.setColorLabel).toHaveBeenCalledWith({ colorLabel: "green" });
+
+		fireEvent.contextMenu(screen.getByTestId("clip"));
+		fireEvent.click(await screen.findByText("选中同色片段"));
+		expect(actions.selectSameColor).toHaveBeenCalledTimes(1);
+	});
+
+	it("disables same-color selection when the clip has no label", async () => {
+		const actions = createActions();
+		renderMenu({ actions });
+
+		expect(
+			(await screen.findByText("选中同色片段")).closest("[role=menuitem]")
+		).toHaveAttribute("data-disabled");
 	});
 
 	it("renders the same actions in English after a live locale switch", async () => {
