@@ -594,4 +594,225 @@ describe("compose manifest lane partitioning", () => {
 			duration: 0.5,
 		});
 	});
+
+	function lutEffect({
+		id,
+		intensity = 70,
+	}: {
+		id: string;
+		intensity?: number;
+	}) {
+		return {
+			id,
+			enabled: true,
+			resourceId: "111",
+			version: "cafe0123",
+			intensity,
+			implementation: "lut",
+			fidelity: "lut" as const,
+			color: {
+				lut: {
+					enabled: true,
+					presetId: "filter-lab:111:cafe0123",
+					name: "Filter 111",
+					intensity,
+					skinProtection: 0,
+					cube: { size: 2, values: [0, 0, 0] },
+				},
+			},
+		};
+	}
+
+	it("applies bound filter stacks as media element updates", () => {
+		const plan = timelineManifestFromComposePatch({
+			projectId: "project-1",
+			bindings: {
+				"stack:a": {
+					filterStack: { effects: [lutEffect({ id: "s1" })], warnings: [] },
+				},
+			},
+			patch: makePatch({
+				operations: [
+					{
+						kind: "set-media-filter-stack",
+						id: "stack:a",
+						startTime: 0,
+						duration: 10,
+						trackId: "track-video",
+						elementId: "element-1",
+						filters: [
+							{
+								id: "s1",
+								asset: {
+									provider: "local",
+									assetType: "filter",
+									assetId: "111",
+								},
+								intensity: 70,
+								enabled: true,
+							},
+						],
+					},
+				],
+			}),
+		});
+		expect(plan.skipped).toEqual([]);
+		expect(plan.plannedUpdateOperationIds).toEqual(["stack:a"]);
+		const updates = plan.manifest.updates as Array<Record<string, unknown>>;
+		expect(updates).toHaveLength(1);
+		expect(updates[0]).toMatchObject({
+			elementId: "element-1",
+			type: "media",
+			filterStack: { enabled: true },
+		});
+		const stack = updates[0].filterStack as {
+			effects: Array<Record<string, unknown>>;
+		};
+		expect(stack.effects[0]).toMatchObject({
+			id: "s1",
+			resourceId: "111",
+			fidelity: "lut",
+		});
+	});
+
+	it("skips unbound filter stacks instead of dropping them", () => {
+		const plan = timelineManifestFromComposePatch({
+			projectId: "project-1",
+			patch: makePatch({
+				operations: [
+					{
+						kind: "set-media-filter-stack",
+						id: "stack:a",
+						startTime: 0,
+						duration: 10,
+						trackId: "track-video",
+						elementId: "element-1",
+						filters: [
+							{
+								id: "s1",
+								asset: {
+									provider: "local",
+									assetType: "filter",
+									assetId: "111",
+								},
+								intensity: 70,
+								enabled: true,
+							},
+						],
+					},
+				],
+			}),
+		});
+		expect(plan.plannedUpdateOperationIds).toEqual([]);
+		expect(plan.skipped[0]).toMatchObject({
+			operationId: "stack:a",
+			reason: expect.stringMatching(/No resolved filter stack/),
+		});
+	});
+
+	it("plans filter layers as adjustment elements", () => {
+		const layerOperation = (id: string) => ({
+			kind: "add-filter-layer" as const,
+			id,
+			startTime: 2,
+			duration: 6,
+			trackRole: "adjustment" as const,
+			name: "Warm Look",
+			filters: [
+				{
+					id: `${id}-s1`,
+					asset: {
+						provider: "local" as const,
+						assetType: "filter" as const,
+						assetId: "111",
+					},
+					intensity: 70,
+					enabled: true,
+				},
+			],
+		});
+		const single = timelineManifestFromComposePatch({
+			projectId: "project-1",
+			bindings: {
+				"layer:1": {
+					filterStack: { effects: [lutEffect({ id: "e1" })], warnings: [] },
+				},
+			},
+			patch: makePatch({ operations: [layerOperation("layer:1")] }),
+		});
+		expect(single.skipped).toEqual([]);
+		expect(single.plannedOperationIds).toEqual(["layer:1"]);
+		const tracks = single.manifest.tracks as Array<{
+			alias: string;
+			type: string;
+			elements: Array<Record<string, unknown>>;
+		}>;
+		const adjustmentTrack = tracks.find(
+			(track) => track.alias === "compose-adjustments"
+		);
+		expect(adjustmentTrack?.type).toBe("adjustment");
+		expect(adjustmentTrack?.elements[0]).toMatchObject({
+			id: "layer:1",
+			type: "adjustment",
+			name: "Warm Look",
+			startTime: 2,
+			duration: 6,
+		});
+		const color = adjustmentTrack?.elements[0].color as Record<string, unknown>;
+		expect(color.enabled).toBe(true);
+		expect(color.lut).toBeDefined();
+
+		const chained = timelineManifestFromComposePatch({
+			projectId: "project-1",
+			bindings: {
+				"layer:2": {
+					filterStack: {
+						effects: [
+							lutEffect({ id: "e1", intensity: 70 }),
+							lutEffect({ id: "e2", intensity: 30 }),
+						],
+						warnings: [],
+					},
+				},
+			},
+			patch: makePatch({ operations: [layerOperation("layer:2")] }),
+		});
+		const chainedTracks = chained.manifest.tracks as Array<{
+			alias: string;
+			elements: Array<Record<string, unknown>>;
+		}>;
+		const chainedColor = chainedTracks.find(
+			(track) => track.alias === "compose-adjustments"
+		)?.elements[0].color as {
+			multiPass: { passes: Array<{ intensity: number }> };
+		};
+		expect(
+			chainedColor.multiPass.passes.map(({ intensity }) => intensity)
+		).toEqual([70, 30]);
+
+		const mixed = timelineManifestFromComposePatch({
+			projectId: "project-1",
+			bindings: {
+				"layer:3": {
+					filterStack: {
+						effects: [
+							lutEffect({ id: "e1" }),
+							{
+								...lutEffect({ id: "e2" }),
+								color: {
+									multiPass: { enabled: true, passes: [] },
+								},
+							},
+						],
+						warnings: [],
+					},
+				},
+			},
+			patch: makePatch({ operations: [layerOperation("layer:3")] }),
+		});
+		expect(mixed.skipped[0]).toMatchObject({
+			operationId: "layer:3",
+			reason: expect.stringMatching(/LUT chains only/),
+		});
+	});
 });
