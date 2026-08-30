@@ -191,10 +191,11 @@ describe("compose render patch mode", () => {
 			if (route.includes("/export/")) return { jobId: "export-1" };
 			throw new Error(`unexpected post: ${route}`);
 		});
+		const get = vi.fn(async () => ({ tracks: [] }));
 		return {
 			pollJob,
 			dependencies: {
-				createClient: vi.fn(() => ({ post, pollJob }) as never),
+				createClient: vi.fn(() => ({ get, post, pollJob }) as never),
 				capture: vi.fn(),
 				applyManifest: vi.fn(async () => ({
 					success: true,
@@ -205,9 +206,12 @@ describe("compose render patch mode", () => {
 					},
 				})),
 				resolveAssets: vi.fn(async () => ({ reports: [], issues: [] })),
-				materializeAssets: vi.fn(
-					async ({ patch }: { patch: unknown }) => patch
-				),
+				prepareAssets: vi.fn(async ({ patch }: { patch: unknown }) => ({
+					patch,
+					bindings: {},
+					importedMediaIds: [],
+				})),
+				rollbackStickerMedia: vi.fn(async () => undefined),
 				probeOutput: vi.fn(async () => ({
 					duration: 20,
 					width: 1920,
