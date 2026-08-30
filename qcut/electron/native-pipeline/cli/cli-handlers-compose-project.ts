@@ -66,6 +66,50 @@ function optionError({ message }: { message: string }): CLIResult {
 	return { success: false, error: message };
 }
 
+async function activeEditorProjectId({
+	client,
+}: {
+	client: EditorApiClient;
+}): Promise<string | undefined> {
+	const state = await client.get<{
+		state?: { project?: { activeProject?: { id?: string } } };
+	}>("/api/claude/state?include=project");
+	const id = state.state?.project?.activeProject?.id;
+	return typeof id === "string" ? id : undefined;
+}
+
+/**
+ * Readiness alone is not enough: right after opening a freshly created
+ * project the renderer can still be tearing down the previous one, and
+ * mutation routes fail closed when its state snapshot stalls. Require two
+ * consecutive confirmations that the target is the active project.
+ */
+async function waitForActiveProject({
+	client,
+	projectId,
+	timeoutMs,
+}: {
+	client: EditorApiClient;
+	projectId: string;
+	timeoutMs?: number;
+}): Promise<void> {
+	const deadline = Date.now() + Math.min(timeoutMs ?? 30_000, 120_000);
+	let confirmations = 0;
+	for (;;) {
+		const active = await activeEditorProjectId({ client }).catch(
+			() => undefined
+		);
+		confirmations = active === projectId ? confirmations + 1 : 0;
+		if (confirmations >= 2) return;
+		if (Date.now() >= deadline) {
+			throw new Error(
+				`Project ${projectId} did not become the active editor project in time.`
+			);
+		}
+		await new Promise((resolveDelay) => setTimeout(resolveDelay, 1000));
+	}
+}
+
 async function createEditorProject({
 	client,
 	name,
@@ -187,6 +231,12 @@ export async function handleComposeEditorProject(
 
 	const client = dependencies.createClient(options);
 	let createdProjectId: string | undefined;
+	let previousProjectId: string | undefined;
+	try {
+		previousProjectId = await activeEditorProjectId({ client });
+	} catch {
+		// Best effort: cleanup just skips the navigate-away step.
+	}
 	try {
 		onProgress({
 			stage: "validating",
@@ -205,6 +255,11 @@ export async function handleComposeEditorProject(
 			client,
 			projectId,
 			open: true,
+			timeoutMs: options.timeoutMs,
+		});
+		await waitForActiveProject({
+			client,
+			projectId,
 			timeoutMs: options.timeoutMs,
 		});
 
@@ -310,6 +365,24 @@ export async function handleComposeEditorProject(
 		let cleanup: string | undefined;
 		if (createdProjectId) {
 			try {
+				// Deleting the project the editor still has open leaves the
+				// renderer on a dead project and poisons later runs — navigate
+				// away first (best effort).
+				if (previousProjectId && previousProjectId !== createdProjectId) {
+					await client
+						.post("/api/claude/navigator/open", {
+							projectId: previousProjectId,
+						})
+						.catch(() => undefined);
+					await dependencies
+						.ensureReady({
+							client,
+							projectId: previousProjectId,
+							open: false,
+							timeoutMs: options.timeoutMs,
+						})
+						.catch(() => undefined);
+				}
 				await client.post("/api/claude/project/delete", {
 					projectId: createdProjectId,
 				});
