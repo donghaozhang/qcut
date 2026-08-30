@@ -375,3 +375,71 @@ describe("timelineManifestFromComposePatch", () => {
 		]);
 	});
 });
+
+describe("compose manifest lane partitioning", () => {
+	it("splits overlapping sounds and stickers onto parallel tracks", () => {
+		const plan = timelineManifestFromComposePatch({
+			patch: makePatch({
+				operations: [
+					{
+						kind: "add-sound-effect",
+						id: "sfx:a",
+						startTime: 39.5,
+						duration: 3,
+						volume: 0.8,
+						asset: {
+							provider: "qcut",
+							assetType: "sound-effect",
+							assetId: "sound-effects-lab:a",
+							localPath: "/assets/a.wav",
+						},
+					},
+					{
+						kind: "add-sound-effect",
+						id: "sfx:b",
+						startTime: 41,
+						duration: 2.5,
+						volume: 0.8,
+						asset: {
+							provider: "qcut",
+							assetType: "sound-effect",
+							assetId: "sound-effects-lab:b",
+							localPath: "/assets/b.wav",
+						},
+					},
+					{
+						kind: "add-sound-effect",
+						id: "sfx:c",
+						startTime: 44,
+						duration: 1,
+						volume: 0.8,
+						asset: {
+							provider: "qcut",
+							assetType: "sound-effect",
+							assetId: "sound-effects-lab:c",
+							localPath: "/assets/c.wav",
+						},
+					},
+				],
+			}),
+		});
+		const tracks = (
+			plan.manifest.tracks as Array<{
+				alias: string;
+				elements: Array<{ alias: string }>;
+			}>
+		).filter((track) => track.alias.startsWith("compose-audio"));
+		// sfx:a (39.5–42.5) and sfx:b (41–43.5) overlap; sfx:c (44–45)
+		// reuses the first lane after it frees up.
+		expect(tracks.map((track) => track.alias)).toEqual([
+			"compose-audio",
+			"compose-audio-2",
+		]);
+		expect(tracks[0].elements.map(({ alias }) => alias)).toEqual([
+			"sfx:a",
+			"sfx:c",
+		]);
+		expect(tracks[1].elements.map(({ alias }) => alias)).toEqual(["sfx:b"]);
+		expect(plan.plannedOperationIds).toEqual(["sfx:a", "sfx:b", "sfx:c"]);
+	});
+});
