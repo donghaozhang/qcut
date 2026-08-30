@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+import { promises as fs } from "node:fs";
+import { basename, isAbsolute } from "node:path";
 import { resolveStickerLabRootOverride } from "../cli/sticker-lab-root.js";
 import {
 	importStickerLabReference,
@@ -47,9 +50,15 @@ export interface ComposeTransitionEditorBinding {
 	maskShape?: string;
 }
 
+export interface ComposeMediaClipEditorBinding {
+	path: string;
+	filename?: string;
+}
+
 export interface ComposeEditorAssetBinding {
 	sticker?: ComposeStickerEditorBinding;
 	transition?: ComposeTransitionEditorBinding;
+	mediaClip?: ComposeMediaClipEditorBinding;
 }
 
 export type ComposeEditorAssetBindings = Record<
@@ -209,6 +218,37 @@ function transitionResolutionPromise({
 	return pending;
 }
 
+async function resolveMediaClipBinding({
+	operation,
+}: {
+	operation: Extract<ComposePatchOperation, { kind: "insert-media-clip" }>;
+}): Promise<ComposeMediaClipEditorBinding> {
+	const localPath = operation.asset.localPath;
+	if (!localPath || !isAbsolute(localPath)) {
+		throw new Error(
+			`Media clip ${operation.id} needs an absolute localPath on its asset.`
+		);
+	}
+	const stats = await fs.stat(localPath).catch(() => null);
+	if (!stats?.isFile() || stats.size === 0) {
+		throw new Error(
+			`Media clip ${operation.id} source is missing or empty: ${localPath}`
+		);
+	}
+	const expectedSha = operation.asset.provenance?.sha256;
+	if (typeof expectedSha === "string" && expectedSha.length === 64) {
+		const digest = createHash("sha256")
+			.update(await fs.readFile(localPath))
+			.digest("hex");
+		if (digest !== expectedSha) {
+			throw new Error(
+				`Media clip ${operation.id} failed its checksum: expected ${expectedSha}, got ${digest}.`
+			);
+		}
+	}
+	return { path: localPath, filename: basename(localPath) };
+}
+
 async function prepareOperation({
 	operation,
 	client,
@@ -276,6 +316,13 @@ async function prepareOperation({
 					cacheKey: materialized.sha256,
 				},
 			},
+			importedMediaIds: [],
+		};
+	}
+	if (operation.kind === "insert-media-clip") {
+		return {
+			operation,
+			binding: { mediaClip: await resolveMediaClipBinding({ operation }) },
 			importedMediaIds: [],
 		};
 	}
