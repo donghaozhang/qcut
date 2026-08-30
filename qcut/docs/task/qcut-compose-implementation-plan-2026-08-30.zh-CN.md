@@ -459,10 +459,6 @@ QCut 工程内应保存：
 - 不把云端模型返回值直接写 timeline；必须先变成 patch，再 validate，再 apply。
 - 不保存 API key、用户隐私路径或不可公开的私有缓存路径到 portable project。
 - 不把本地 cache 命中当作渲染 verified。
-- 不在 native pipeline 的静态 import 链里引入 `node:sqlite`（会杀死全部 `bun run pipeline`
-  命令）；job/patch 持久化保持文件化。
-- 不把剪映衍生资源身份（resource id、缓存结构、签名下载地址）写入 portable project 或
-  asset provenance。
 
 ## 当前判断
 
