@@ -131,6 +131,7 @@ import {
 	handleFilterLabVerify,
 } from "../cli-handlers-filter-lab.js";
 import { handleFilterLabCatalog } from "../cli-handlers-filter-lab-catalog.js";
+import { handleFilterLabPipeline } from "../cli-handlers-filter-lab-pipeline.js";
 import { handleFilterLabRender } from "../cli-handlers-filter-lab-render.js";
 import {
 	handleFilterLabCoverage,
@@ -204,6 +205,9 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	),
 	"filter-lab-render": wrapOPS((options, onProgress, signal) =>
 		handleFilterLabRender({ options, onProgress, signal })
+	),
+	"filter-lab-pipeline": wrapOPS((options, onProgress, signal) =>
+		handleFilterLabPipeline({ options, onProgress, signal })
 	),
 	"filter-lab-catalog": wrap((options) =>
 		handleFilterLabCatalog({
