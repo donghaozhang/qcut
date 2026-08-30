@@ -158,7 +158,7 @@ function validatePlanarSample({ sample, epsilon, minimumArea }) {
 	if (
 		points.some(
 			({ x, y }) =>
-				!isFiniteNumber({ value: x }) || !isFiniteNumber({ value: y }),
+				!isFiniteNumber({ value: x }) || !isFiniteNumber({ value: y })
 		)
 	) {
 		return { valid: false, reasons: ["non-finite"], points, area: null };
@@ -166,7 +166,7 @@ function validatePlanarSample({ sample, epsilon, minimumArea }) {
 
 	const reasons = [];
 	const allZero = points.every(
-		({ x, y }) => Math.abs(x) <= epsilon && Math.abs(y) <= epsilon,
+		({ x, y }) => Math.abs(x) <= epsilon && Math.abs(y) <= epsilon
 	);
 	if (allZero) {
 		reasons.push("zero-sentinel");
@@ -181,7 +181,7 @@ function validatePlanarSample({ sample, epsilon, minimumArea }) {
 	}
 
 	const edgeLengths = points.map((point, index) =>
-		pointDistance({ left: point, right: points[(index + 1) % points.length] }),
+		pointDistance({ left: point, right: points[(index + 1) % points.length] })
 	);
 	if (edgeLengths.some((length) => length <= epsilon)) {
 		reasons.push("collapsed-edge");
@@ -195,7 +195,7 @@ function validatePlanarSample({ sample, epsilon, minimumArea }) {
 		edgeLengths,
 		outsideNormalizedRange: points.some(
 			({ x, y }) =>
-				x < -epsilon || x > 1 + epsilon || y < -epsilon || y > 1 + epsilon,
+				x < -epsilon || x > 1 + epsilon || y < -epsilon || y > 1 + epsilon
 		),
 	};
 }
@@ -249,7 +249,7 @@ export function summarizePlanar({ samples, epsilon, minimumArea, issues }) {
 				code: "planar-invalid-samples",
 				message: `${invalidSamples.length}/${samples.length} planar samples have invalid geometry`,
 				sampleIndices: invalidSamples.map(({ index }) => index),
-			}),
+			})
 		);
 	}
 
@@ -262,7 +262,7 @@ export function summarizePlanar({ samples, epsilon, minimumArea, issues }) {
 				sampleIndices: invalidSamples
 					.filter(({ reasons }) => reasons.includes("zero-sentinel"))
 					.map(({ index }) => index),
-			}),
+			})
 		);
 	}
 
@@ -273,7 +273,7 @@ export function summarizePlanar({ samples, epsilon, minimumArea, issues }) {
 				code: "planar-outside-normalized-range",
 				message: `${outOfRangeIndices.length} valid quads contain coordinates outside [0, 1]`,
 				sampleIndices: outOfRangeIndices,
-			}),
+			})
 		);
 	}
 
@@ -292,8 +292,8 @@ export function summarizePlanar({ samples, epsilon, minimumArea, issues }) {
 		const current = validSamples[index];
 		const jump = Math.max(
 			...current.points.map((point, pointIndex) =>
-				pointDistance({ left: previous.points[pointIndex], right: point }),
-			),
+				pointDistance({ left: previous.points[pointIndex], right: point })
+			)
 		);
 		if (!maximumCornerJump || jump > maximumCornerJump.distance) {
 			maximumCornerJump = {
@@ -321,7 +321,7 @@ export function summarizePlanar({ samples, epsilon, minimumArea, issues }) {
 					severity: "warning",
 					code: "status-does-not-determine-validity",
 					message: `status=${status} appears on both valid and invalid planar samples`,
-				}),
+				})
 			);
 		}
 	}
