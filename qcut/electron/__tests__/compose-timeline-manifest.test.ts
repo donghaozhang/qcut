@@ -443,7 +443,7 @@ describe("compose manifest lane partitioning", () => {
 		expect(plan.plannedOperationIds).toEqual(["sfx:a", "sfx:b", "sfx:c"]);
 	});
 
-	it("reports editable-project operations as skipped instead of dropping them", () => {
+	it("skips unbound clips and filter operations instead of dropping them", () => {
 		const plan = timelineManifestFromComposePatch({
 			projectId: "project-1",
 			patch: makePatch({
@@ -463,22 +463,6 @@ describe("compose manifest lane partitioning", () => {
 						trimStart: 1,
 						trimEnd: 1,
 						sourceDuration: 12,
-					},
-					{
-						kind: "insert-media-clip",
-						id: "clip:b",
-						startTime: 10,
-						duration: 5,
-						asset: {
-							provider: "local",
-							assetType: "media",
-							assetId: "manifest:b.mp4",
-						},
-						mediaKind: "video",
-						trackRole: "main-video",
-						trimStart: 0,
-						trimEnd: 0,
-						sourceDuration: 5,
 					},
 					{
 						kind: "set-media-filter-stack",
@@ -517,12 +501,96 @@ describe("compose manifest lane partitioning", () => {
 		expect(plan.plannedTransitionOperationIds).toEqual([]);
 		expect(plan.skipped.map(({ operationId }) => operationId)).toEqual([
 			"clip:a",
-			"clip:b",
 			"stack:a",
 			"transition:a-b",
 		]);
-		for (const entry of plan.skipped) {
-			expect(entry.reason).toMatch(/not applied by the v1 timeline bridge/);
-		}
+	});
+
+	it("plans bound media clips onto the main track with pending transitions", () => {
+		const clipAsset = (source: string) => ({
+			provider: "local" as const,
+			assetType: "media" as const,
+			assetId: `manifest:${source}`,
+			localPath: `/abs/${source}`,
+		});
+		const plan = timelineManifestFromComposePatch({
+			projectId: "project-1",
+			mainVideoTrackId: "track-main",
+			patch: makePatch({
+				operations: [
+					{
+						kind: "insert-media-clip",
+						id: "clip:a",
+						startTime: 0,
+						duration: 9.75,
+						asset: clipAsset("a.mp4"),
+						mediaKind: "video",
+						trackRole: "main-video",
+						trimStart: 1,
+						trimEnd: 1.25,
+						sourceDuration: 12,
+					},
+					{
+						kind: "insert-media-clip",
+						id: "clip:b",
+						startTime: 9.75,
+						duration: 4.75,
+						asset: clipAsset("b.mp4"),
+						mediaKind: "video",
+						trackRole: "main-video",
+						trimStart: 0.25,
+						trimEnd: 0,
+						sourceDuration: 5,
+					},
+					{
+						kind: "upsert-transition",
+						id: "transition:a-b",
+						startTime: 9.5,
+						duration: 0.5,
+						trackId: "main-video",
+						fromElementId: "clip:a",
+						toElementId: "clip:b",
+						presetId: "crossfade",
+					},
+				],
+			}),
+		});
+		expect(plan.skipped).toEqual([]);
+		expect(plan.plannedOperationIds).toEqual(["clip:a", "clip:b"]);
+		expect(plan.plannedTransitionOperationIds).toEqual(["transition:a-b"]);
+		expect(plan.manifest.media).toEqual([
+			{ alias: "media:clip:a", path: "/abs/a.mp4" },
+			{ alias: "media:clip:b", path: "/abs/b.mp4" },
+		]);
+		const tracks = plan.manifest.tracks as Array<{
+			alias: string;
+			trackId?: string;
+			elements: Array<Record<string, unknown>>;
+		}>;
+		const mainTrack = tracks.find((track) => track.alias === "main-video");
+		expect(mainTrack?.trackId).toBe("track-main");
+		expect(mainTrack?.elements.map((element) => element.alias)).toEqual([
+			"clip:a",
+			"clip:b",
+		]);
+		expect(mainTrack?.elements[0]).toMatchObject({
+			type: "media",
+			media: "media:clip:a",
+			trimStart: 1,
+			trimEnd: 1.25,
+			startTime: 0,
+			duration: 9.75,
+		});
+		const transitions = plan.manifest.transitions as Array<
+			Record<string, unknown>
+		>;
+		expect(transitions).toHaveLength(1);
+		expect(transitions[0]).toMatchObject({
+			track: "main-video",
+			from: "clip:a",
+			to: "clip:b",
+			presetId: "dissolve",
+			duration: 0.5,
+		});
 	});
 });
