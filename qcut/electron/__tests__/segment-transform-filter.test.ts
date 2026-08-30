@@ -53,6 +53,15 @@ describe("buildSegmentTransformFilter", () => {
 		);
 	});
 
+	it("aligns fractional portrait scaling to even chroma dimensions", () => {
+		const chain = buildSegmentTransformFilter({
+			transform: { ...IDENTITY, scaleX: 1.04, scaleY: 1.04 },
+			width: 1080,
+			height: 1920,
+		});
+		expect(chain).toBe("scale=1124:1998,crop=1080:1920:22:39");
+	});
+
 	it("translates by shifting the crop window against the offset", () => {
 		const chain = buildSegmentTransformFilter({
 			transform: { ...IDENTITY, x: 80 },
