@@ -21,16 +21,32 @@ function makeOptions(manifest: object): CLIRunOptions {
 	} as CLIRunOptions;
 }
 
+function fixtureSourceDuration(
+	element: Record<string, unknown>
+): number | undefined {
+	if (typeof element.duration !== "number") return undefined;
+	const trimStart =
+		typeof element.trimStart === "number" && element.trimStart > 0
+			? element.trimStart
+			: 0;
+	const trimEnd =
+		typeof element.trimEnd === "number" && element.trimEnd > 0
+			? element.trimEnd
+			: 0;
+	return Math.max(0, element.duration - trimStart - trimEnd);
+}
+
 /** Mirror of the live bridge's constant-rate timelineDuration read-back. */
 function fixtureTimelineDuration(
 	element: Record<string, unknown>
 ): number | undefined {
-	if (typeof element.duration !== "number") return undefined;
+	const sourceDuration = fixtureSourceDuration(element);
+	if (sourceDuration === undefined) return undefined;
 	const playbackRate =
 		typeof element.playbackRate === "number" && element.playbackRate > 0
 			? element.playbackRate
 			: 1;
-	return element.duration / playbackRate;
+	return sourceDuration / playbackRate;
 }
 
 function makeClient({
@@ -85,8 +101,12 @@ function makeClient({
 				elements: [
 					{
 						id: "video-1",
-						timelineDuration: fixtureTimelineDuration(videoElement),
 						...videoElement,
+						duration: fixtureSourceDuration(videoElement),
+						timelineDuration:
+							typeof videoElement.timelineDuration === "number"
+								? videoElement.timelineDuration
+								: fixtureTimelineDuration(videoElement),
 					},
 				],
 				transitions: mediaTransitions,
@@ -574,7 +594,7 @@ describe("editor timeline apply", () => {
 		const { client } = makeClient({
 			videoElement: {
 				startTime: 0,
-				duration: 6,
+				duration: 20,
 				trimStart: 2.4,
 				trimEnd: 11.6,
 			},
@@ -699,7 +719,7 @@ describe("editor timeline apply", () => {
 		const { client } = makeClient({
 			videoElement: {
 				startTime: 0,
-				duration: 6,
+				duration: 20,
 				trimStart: 2.5,
 				trimEnd: 11.5,
 			},
