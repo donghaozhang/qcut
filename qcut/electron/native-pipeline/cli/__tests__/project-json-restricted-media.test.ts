@@ -15,6 +15,11 @@ const METADATA = {
 	usage: "internal-reference-only",
 } as const;
 
+const STRIPPED_PRIVATE_RUNTIME_METADATA = {
+	source: "sticker-runtime-resource",
+	stickerAssetId: `sticker-lab:${METADATA.batchId}:${METADATA.itemId}`,
+} as const;
+
 function createClient({ metadata }: { metadata: unknown }): EditorApiClient {
 	return {
 		get: vi.fn(async (requestPath: string) => {
@@ -63,12 +68,51 @@ describe("project.json restricted media provenance", () => {
 		);
 	});
 
+	it("preserves normalized runtime descriptors and resource IDs", async () => {
+		const metadata = {
+			...METADATA,
+			animatedSticker: true,
+			stickerRuntime: {
+				kind: "png-sequence",
+				completion: "freeze-last",
+				cycleDurationSeconds: 1,
+				frames: [
+					{
+						durationSeconds: 1,
+						startSeconds: 0,
+						source: "$resource:asset_0001",
+					},
+				],
+				repeat: { kind: "infinite" },
+			},
+			stickerRuntimeResources: { asset_0001: "runtime-frame-1" },
+		} as const;
+		const project = await buildProjectJSON(
+			createClient({ metadata }),
+			"project-1"
+		);
+
+		expect(project.media[0]?.metadata).toEqual(metadata);
+	});
+
 	it("fails closed when restricted metadata is malformed", async () => {
 		await expect(
 			buildProjectJSON(
 				createClient({
 					metadata: { ...METADATA, rootPath: "/private/reference-root" },
 				}),
+				"project-1"
+			)
+		).rejects.toMatchObject({
+			code: RESTRICTED_MEDIA_EXPORT_ERROR_CODE,
+			mediaIds: ["media-reference"],
+		});
+	});
+
+	it("fails closed when private runtime metadata has its policy flags stripped", async () => {
+		await expect(
+			buildProjectJSON(
+				createClient({ metadata: STRIPPED_PRIVATE_RUNTIME_METADATA }),
 				"project-1"
 			)
 		).rejects.toMatchObject({
