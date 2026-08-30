@@ -659,6 +659,48 @@ describe("Sticker Lab restricted export policy", () => {
 		).toEqual([]);
 	});
 
+	it("blocks an exact private asset identity when the instance ID is unique", () => {
+		expect(
+			findRestrictedMediaForExport({
+				mediaItems: [],
+				scope: "timeline",
+				tracks: [
+					{
+						elements: [
+							{
+								stickerAssetId:
+									"sticker-lab:jianying-2026-08-23-batch-18-v2:18001",
+								stickerId: "sticker-instance-1",
+								type: "sticker",
+							},
+						],
+					},
+				],
+			})
+		).toEqual(["sticker-lab:jianying-2026-08-23-batch-18-v2:18001"]);
+	});
+
+	it("does not broaden the private asset identity pattern", () => {
+		expect(
+			findRestrictedMediaForExport({
+				mediaItems: [],
+				scope: "timeline",
+				tracks: [
+					{
+						elements: [
+							{
+								stickerAssetId:
+									"sticker-lab:jianying-2026-08-23-batch-18-v2:18001:instance",
+								stickerId: "sticker-instance-1",
+								type: "sticker",
+							},
+						],
+					},
+				],
+			})
+		).toEqual([]);
+	});
+
 	it("fails closed when any durable restriction marker remains", () => {
 		for (const metadata of [
 			{ source: "sticker-lab" },
