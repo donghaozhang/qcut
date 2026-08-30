@@ -93,6 +93,15 @@ export function buildJianyingOutputPath({
 	return `${inputPath.slice(0, extensionIndex)}-jianying${inputPath.slice(extensionIndex)}`;
 }
 
+/** The native timeline renderer only exists behind the desktop preload bridge. */
+export function isJianyingTimelineRendererAvailable(): boolean {
+	return (
+		typeof window !== "undefined" &&
+		typeof window.electronAPI?.jianyingTransitions?.renderTimeline ===
+			"function"
+	);
+}
+
 export async function applyJianyingTimelineTransitions({
 	inputPath,
 	transitions,
