@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AudioSettings } from "../ffmpeg/audio-settings";
 import {
+	buildAudioChannelModeTransforms,
 	buildAudioEffectTransforms,
 	buildAudioEnvelopeFilter,
 } from "../ffmpeg-audio-effects";
@@ -45,6 +46,24 @@ function audio({
 }
 
 describe("FFmpeg audio effects", () => {
+	it("maps saved channel modes to concrete stereo routing filters", () => {
+		expect(buildAudioChannelModeTransforms({ channelMode: "stereo" })).toEqual(
+			[]
+		);
+		expect(
+			buildAudioChannelModeTransforms({ channelMode: "left" }).join(",")
+		).toContain("pan=stereo|c0=c0|c1=c0");
+		expect(
+			buildAudioChannelModeTransforms({ channelMode: "right" }).join(",")
+		).toContain("pan=stereo|c0=c1|c1=c1");
+		expect(
+			buildAudioChannelModeTransforms({ channelMode: "swap" }).join(",")
+		).toContain("pan=stereo|c0=c1|c1=c0");
+		expect(
+			buildAudioChannelModeTransforms({ channelMode: "mono" }).join(",")
+		).toContain("c0=0.5*c0+0.5*c1");
+	});
+
 	it("keeps a neutral canonical clip on the direct audio path", () => {
 		expect(
 			buildAudioEnvelopeFilter({
