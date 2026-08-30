@@ -13,10 +13,11 @@
  * initialization is never raced.
  */
 
-import type { exportJianyingFilterCatalog } from "../../jianying-filter-catalog-export.js";
-import type {
-	FilterLabRenderPlan,
+import type { JianyingFilterCatalogExport } from "../../jianying-filter-catalog-export.js";
+import { exportCatalogDefault } from "../cli/cli-handlers-filter-lab-catalog.js";
+import {
 	resolveFilterLabRenderPlan,
+	type FilterLabRenderPlan,
 } from "../filters/filter-lab-render-plan.js";
 import type { ComposeFilterStep } from "./compose-protocol.js";
 
@@ -66,41 +67,29 @@ export interface ResolvedComposeFilterStack {
 }
 
 export interface ComposeFilterStackResolverDependencies {
-	exportCatalog: typeof exportJianyingFilterCatalog;
+	exportCatalog: () => Promise<JianyingFilterCatalogExport>;
 	resolvePlan: typeof resolveFilterLabRenderPlan;
 }
 
-let defaultDependencies:
-	| Promise<ComposeFilterStackResolverDependencies>
-	| undefined;
-
-/**
- * The catalog/render-plan chain statically reaches `node:sqlite`
- * (jianying-filter-metadata), which kills every `bun run pipeline` command
- * and vitest bundling — so the real modules load lazily through variable
- * import specifiers, exactly like cli-handlers-filter-lab.ts.
- */
-function loadDefaultDependencies(): Promise<ComposeFilterStackResolverDependencies> {
-	if (!defaultDependencies) {
-		defaultDependencies = (async () => {
-			const catalogSpecifier = "../../jianying-filter-catalog-export.js";
-			const planSpecifier = "../filters/filter-lab-render-plan.js";
-			const [catalogModule, planModule] = await Promise.all([
-				import(catalogSpecifier) as Promise<
-					typeof import("../../jianying-filter-catalog-export.js")
-				>,
-				import(planSpecifier) as Promise<
-					typeof import("../filters/filter-lab-render-plan.js")
-				>,
-			]);
-			return {
-				exportCatalog: catalogModule.exportJianyingFilterCatalog,
-				resolvePlan: planModule.resolveFilterLabRenderPlan,
-			};
-		})();
+// The catalog export statically reaches `node:sqlite`
+// (jianying-filter-metadata), which bun cannot import inside the CLI's
+// entry graph — `exportCatalogDefault` falls back to the bun-child shim.
+// The default is memoized process-wide: CONCURRENT failed dynamic imports
+// of the same module hang bun's module registry (the second import never
+// settles, the event loop drains, and the CLI dies silently with exit 0),
+// so the failing import must run exactly once.
+let defaultCatalogPromise: Promise<JianyingFilterCatalogExport> | undefined;
+function exportCatalogOnce(): Promise<JianyingFilterCatalogExport> {
+	if (!defaultCatalogPromise) {
+		defaultCatalogPromise = exportCatalogDefault();
 	}
-	return defaultDependencies;
+	return defaultCatalogPromise;
 }
+
+const DEFAULT_DEPENDENCIES: ComposeFilterStackResolverDependencies = {
+	exportCatalog: exportCatalogOnce,
+	resolvePlan: resolveFilterLabRenderPlan,
+};
 
 const RESOLVE_CONCURRENCY = 4;
 
@@ -203,8 +192,7 @@ export async function resolveComposeFilterStack({
 	dependencies?: ComposeFilterStackResolverDependencies;
 }): Promise<ResolvedComposeFilterStack> {
 	if (steps.length === 0) return { effects: [], warnings: [] };
-	const resolvedDependencies =
-		dependencies ?? (await loadDefaultDependencies());
+	const resolvedDependencies = dependencies ?? DEFAULT_DEPENDENCIES;
 	const catalog = await resolvedDependencies.exportCatalog();
 	const cardsById = new Map(
 		catalog.cards.map((card) => [card.resourceId, card])
