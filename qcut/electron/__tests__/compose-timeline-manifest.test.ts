@@ -99,11 +99,18 @@ describe("timelineManifestFromComposePatch", () => {
 		]);
 		const [textTrack, captionTrack, overlayTrack, audioTrack] = tracks;
 		expect(textTrack.elements).toMatchObject([
-			{ alias: "title:1", type: "text", content: "Opening title" },
+			{
+				alias: "title:1",
+				// The operation id doubles as the requested element id for replays.
+				id: "title:1",
+				type: "text",
+				content: "Opening title",
+			},
 		]);
 		expect(captionTrack.elements).toMatchObject([
 			{
 				alias: "caption:1",
+				id: "caption:1",
 				type: "captions",
 				content: "hello",
 				language: "en",
@@ -112,6 +119,7 @@ describe("timelineManifestFromComposePatch", () => {
 		expect(overlayTrack.elements).toMatchObject([
 			{
 				alias: "sticker:1",
+				id: "sticker:1",
 				type: "sticker",
 				mediaId: "media:sticker:1",
 				stickerId: "sticker:1",
@@ -123,7 +131,12 @@ describe("timelineManifestFromComposePatch", () => {
 			},
 		]);
 		expect(audioTrack.elements).toMatchObject([
-			{ alias: "sound:1", media: "media:sound:1", volume: 0.82 },
+			{
+				alias: "sound:1",
+				id: "sound:1",
+				media: "media:sound:1",
+				volume: 0.82,
+			},
 		]);
 		expect(plan.manifest.media).toMatchObject([
 			{ alias: "media:sticker:1", path: "/assets/sticker.webp" },
