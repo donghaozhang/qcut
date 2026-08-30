@@ -148,13 +148,45 @@ const ELEMENT_CREATING_KINDS = new Set<ComposePatchOperation["kind"]>([
 
 interface LiveTimelineState {
 	elementIds: Set<string>;
-	transitionCuts: Set<string>;
+	transitionFingerprints: Set<string>;
+}
+
+function transitionFingerprint({
+	duration,
+	fromElementId,
+	presetId,
+	toElementId,
+	trackId,
+}: {
+	duration: unknown;
+	fromElementId: unknown;
+	presetId: unknown;
+	toElementId: unknown;
+	trackId: unknown;
+}): string | null {
+	if (
+		typeof trackId !== "string" ||
+		typeof fromElementId !== "string" ||
+		typeof toElementId !== "string" ||
+		typeof presetId !== "string" ||
+		typeof duration !== "number" ||
+		!Number.isFinite(duration)
+	) {
+		return null;
+	}
+	return JSON.stringify([
+		trackId,
+		fromElementId,
+		toElementId,
+		presetId,
+		duration,
+	]);
 }
 
 /**
  * Reads the live timeline so a replayed patch can recognize already-applied
  * operations: additive elements carry their operation id as the element id,
- * and transitions are keyed by their from→to cut.
+ * and transitions are matched against their complete editable identity.
  */
 async function readLiveTimelineState({
 	client,
@@ -165,25 +197,34 @@ async function readLiveTimelineState({
 }): Promise<LiveTimelineState> {
 	const timeline = await client.get<{
 		tracks?: Array<{
+			id?: string;
 			elements?: Array<{ id?: string }>;
-			transitions?: Array<{ fromElementId?: string; toElementId?: string }>;
+			transitions?: Array<{
+				duration?: number;
+				fromElementId?: string;
+				presetId?: string;
+				toElementId?: string;
+			}>;
 		}>;
 	}>(`/api/claude/timeline/${encodeURIComponent(projectId)}`);
 	const elementIds = new Set<string>();
-	const transitionCuts = new Set<string>();
+	const transitionFingerprints = new Set<string>();
 	for (const track of timeline.tracks ?? []) {
 		for (const element of track.elements ?? []) {
 			if (typeof element.id === "string") elementIds.add(element.id);
 		}
 		for (const transition of track.transitions ?? []) {
-			if (transition.fromElementId && transition.toElementId) {
-				transitionCuts.add(
-					`${transition.fromElementId}->${transition.toElementId}`
-				);
-			}
+			const fingerprint = transitionFingerprint({
+				duration: transition.duration,
+				fromElementId: transition.fromElementId,
+				presetId: transition.presetId,
+				toElementId: transition.toElementId,
+				trackId: track.id,
+			});
+			if (fingerprint) transitionFingerprints.add(fingerprint);
 		}
 	}
-	return { elementIds, transitionCuts };
+	return { elementIds, transitionFingerprints };
 }
 
 function splitAlreadyApplied({
@@ -196,13 +237,21 @@ function splitAlreadyApplied({
 	const operations: ComposePatchOperation[] = [];
 	const alreadyApplied: string[] = [];
 	for (const operation of patch.operations) {
+		const transitionIdentity =
+			operation.kind === "upsert-transition"
+				? transitionFingerprint({
+						duration: operation.duration,
+						fromElementId: operation.fromElementId,
+						presetId: operation.presetId,
+						toElementId: operation.toElementId,
+						trackId: operation.trackId,
+					})
+				: null;
 		const replayed =
 			(ELEMENT_CREATING_KINDS.has(operation.kind) &&
 				live.elementIds.has(operation.id)) ||
-			(operation.kind === "upsert-transition" &&
-				live.transitionCuts.has(
-					`${operation.fromElementId}->${operation.toElementId}`
-				));
+			(transitionIdentity !== null &&
+				live.transitionFingerprints.has(transitionIdentity));
 		if (replayed) alreadyApplied.push(operation.id);
 		else operations.push(operation);
 	}
