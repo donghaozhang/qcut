@@ -156,6 +156,26 @@ describe("HTTP Router", () => {
 		expect(JSON.parse(res._body).data).toBe(MEBIBYTE);
 	});
 
+	it("accepts element batches larger than 1 MiB (filter stack cubes)", async () => {
+		const router = createRouter();
+		const handler = vi.fn(async (req) => req.body.padding.length);
+		router.patch("/api/claude/timeline/:projectId/elements/batch", handler);
+
+		const padding = "x".repeat(2 * MEBIBYTE);
+		const req = createMockReq(
+			"PATCH",
+			"/api/claude/timeline/proj_1/elements/batch",
+			JSON.stringify({ padding })
+		);
+		const res = createMockRes();
+
+		await router.handle(req, res);
+
+		expect(handler).toHaveBeenCalledOnce();
+		expect(res._status).toBe(200);
+		expect(JSON.parse(res._body).data).toBe(2 * MEBIBYTE);
+	});
+
 	it("returns 404 for unknown routes", async () => {
 		const router = createRouter();
 		router.get("/api/claude/health", async () => ({ status: "ok" }));
