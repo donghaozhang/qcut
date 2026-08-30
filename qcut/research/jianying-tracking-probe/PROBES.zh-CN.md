@@ -1,11 +1,14 @@
 # 独立跟踪探针
 
-同目录有两组可以脱离剪映调用的工具：
+同目录有三组工具：
 
 1. Node 旁车探针：读取和审计已有运动/平面跟踪 JSON；
 2. Python 视频探针：直接读取普通视频，自行计算运动框或平面四角轨迹。
+3. 私有 Bingo oracle：从普通视频调用本机缓存的剪映 11.3.0 运动跟踪 runtime。
 
-它们都不启动剪映、不调用剪映二进制、不读取剪映默认目录，也不需要剪映账号或网络。Python 探针是透明的 OpenCV 参考实现，用于 POC、回归测试和 QCut 接入验证；其结果不能单独证明与剪映逐帧一致。
+前两组不启动剪映、不调用剪映二进制、不读取剪映默认目录，也不需要剪映账号或网络。Python 探针是透明的 OpenCV 参考实现，用于 POC、回归测试和 QCut 接入验证；其结果不能单独证明与剪映逐帧一致。
+
+第三组不需要剪映进程、账号、草稿或网络，但会加载仓库外的本机私有剪映二进制和 Bingo 模型。它只能作为不可分发的研究 oracle，不能打包进 QCut，也不算 QCut 自研实现。
 
 ## 1. Node 旁车探针
 
@@ -253,7 +256,135 @@ node ./tracking-probe.mjs --fail-on-invalid /path/to/motion-result
 
 测试会在系统临时目录生成视频，覆盖已知透视变形、CSRT 矩形跟踪、双向帧范围、描述符实际覆盖区间、四边形自交、失跟后空点集、显式覆盖和写出失败时保留旧结果。测试不读取用户视频或剪映草稿。
 
-## 3. 不做什么
+## 3. 私有 Bingo 运动跟踪 oracle
+
+文件：
+
+- `cache-private-runtime.ts`：创建或校验 11.3.0 私有 runtime 快照；
+- `bingo-tracking-bridge.cpp`：隔离的原生 Bingo API 桥；
+- `track-motion.ts`：普通视频入口、FFmpeg 解码、manifest 校验和 JSON 发布；
+- `track-motion.test.ts`：不依赖私有文件的 CLI 合同单元测试；
+- `run-private-runtime-acceptance.ts`：生成 ground truth 视频并完成两次脱离剪映验收。
+
+### 3.1 缓存私有 runtime
+
+先确认安装的是国内剪映专业版 `com.lemon.lvpro`。在仓库根目录运行：
+
+```bash
+bun research/jianying-tracking-probe/cache-private-runtime.ts
+```
+
+缓存默认写到：
+
+```text
+~/Library/Application Support/QCut/PrivateRuntimes/JianyingTracking/
+  11.3.0-<arm64-uuid>-<sha256-prefix>/
+    Frameworks/
+    Resources/models/
+    manifest.json
+  current -> 11.3.0-...
+```
+
+它会递归解析 `libcccreator.dylib` 的非系统依赖，使用 staging 目录复制，校验所有字节数和 SHA-256，收紧目录权限后再原子发布。当前 11.3.0 快照包含 23 个动态库和两份跟踪模型，共 `294,090,115` 字节。私有文件不会进入 Git。
+
+重新校验现有快照：
+
+```bash
+bun research/jianying-tracking-probe/cache-private-runtime.ts --verify-only
+```
+
+### 3.2 从普通视频跟踪
+
+输入框使用归一化 `left,top,right,bottom`：
+
+```bash
+bun research/jianying-tracking-probe/track-motion.ts \
+  --video /path/to/input.mp4 \
+  --rect 0.30,0.25,0.62,0.70 \
+  --anchor-frame 45 \
+  --direction both
+```
+
+默认输出到视频旁边：
+
+```text
+/path/to/input.jianying-motion-track.json
+```
+
+可用参数：
+
+- `--direction forward|backward|both`：分别从锚点建立独立 session，双向结果按帧号合并；
+- `--output /path/to/result.json`：指定结果文件；
+- `--runtime-root /path/to/private/runtime`：覆盖默认 `current`；
+- `--force`：允许替换已有结果；
+- `--allow-jianying-running`：跳过“剪映必须退出”这一研究验收门，仅用于诊断。
+
+CLI 默认执行以下保护：
+
+- 对 manifest 中 23 个动态库和 2 个模型逐一复算 SHA-256；
+- 核对 `libcccreator` arm64 UUID 和已审计模型 hash；
+- 按原生源码 hash 构建桥，桥自身固定私有 runtime `LC_RPATH`；
+- 剪映主进程、helper 或 `lvve-service` 存在时拒绝运行；
+- 原生求解器在 macOS `sandbox-exec` 的 `deny network*` 配置中执行；
+- 私有 C++ 对象只存在于子进程，TypeScript 只接收自有 JSON；
+- 先写临时文件，再原子发布最终结果。
+
+结果中的每帧包含：
+
+```text
+frameIndex, sourceTimeUs, anchor
+status, rawStatus
+rect.left/top/right/bottom
+rotationDegrees, rawRotationCentidegrees
+```
+
+Bingo 原始角度以百分之一度表示并在 `36000` 回绕。桥保留原值，同时把 `rotationDegrees` 归一化到普通角度。当前 `sourceTimeUs` 使用视频平均 FPS 和帧号计算，因此这个版本只把恒定帧率视频作为可靠输入；VFR 需要后续增加逐帧 PTS sidecar。
+
+### 3.3 脱离剪映验收
+
+先完全退出剪映，然后运行：
+
+```bash
+bun research/jianying-tracking-probe/run-private-runtime-acceptance.ts
+```
+
+验收会在仓库外生成 60 帧已知运动视频，从中间帧做双向跟踪并重复两次。证据默认写到：
+
+```text
+~/Library/Application Support/QCut/ResearchEvidence/JianyingTracking/<run-id>/
+```
+
+11.3.0 当前实测结果：
+
+- 剪映进程数：运行前 `0`，运行后 `0`；
+- 网络策略：`deny`；
+- tracked：`60/60`；
+- 两次 sample 数组：完全相同；
+- 平均 IoU：`0.940269`；
+- 最低单帧 IoU：`0.879379`；
+- 平均中心误差：`1.6225 px`；
+- 最大中心误差：`3.4910 px`。
+
+这些数字证明 11.3.0 Bingo tracker 已经能在剪映完全退出后由普通视频调用。它只证明当前合成样例和固定版本，不证明复杂真人、遮挡、模糊、版本升级或与剪映最终贴纸插值层完全一致。
+
+### 3.4 测试
+
+不依赖私有 runtime 的合同测试：
+
+```bash
+bun test research/jianying-tracking-probe/track-motion.test.ts
+```
+
+原生桥严格编译：
+
+```bash
+xcrun clang++ -std=c++20 -Wall -Wextra -Werror \
+  -Wno-deprecated-declarations \
+  research/jianying-tracking-probe/bingo-tracking-bridge.cpp \
+  -o /tmp/qcut-bingo-tracking-bridge
+```
+
+## 4. 不做什么
 
 - 不启动或控制剪映。
 - 不解密草稿。
@@ -261,3 +392,5 @@ node ./tracking-probe.mjs --fail-on-invalid /path/to/motion-result
 - 不修改输入文件。
 - 不上传数据。
 - 不把 `status` 单独当成成功判据。
+- 不提交、上传或分发私有 runtime、模型和跟踪证据。
+- 不把 Bingo oracle 描述成 QCut 自研 tracker。
