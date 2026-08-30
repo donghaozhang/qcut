@@ -1,6 +1,11 @@
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import { useProjectStore } from "@/stores/project-store";
+import { useMediaStore } from "@/stores/media/media-store";
 import { normalizeMediaPortraitAdjustments } from "@qcut/editor-core";
-import type { MediaPortraitAdjustments } from "@/types/timeline";
+import type {
+	MediaPortraitAdjustments,
+	StickerElement,
+} from "@/types/timeline";
 import type { ClaudeElement } from "../../../../../electron/types/claude-api";
 import { debugLog, debugWarn, debugError } from "@/lib/debug/debug-config";
 import {
@@ -16,12 +21,14 @@ import {
 	getClaudeAdjustmentFields,
 	getClaudeTextProperties,
 	getClaudeMediaTimingProperties,
+	resolveClaudeStickerRuntime,
 } from "./claude-timeline-bridge-helpers";
 import type { ClaudeTimelineBridgeAPI } from "./claude-timeline-bridge";
 import {
 	assertTimelineProjectActive,
 	readRequiredTimelineProjectId,
 } from "./claude-timeline-project-guard";
+import { resolveClaudeStickerGeometry } from "./claude-sticker-geometry";
 
 function timelineElementFromTransport({ candidate }: { candidate: unknown }): {
 	element: Partial<ClaudeElement>;
@@ -248,6 +255,77 @@ export const applyElementChanges = ({
 					track.id,
 					elementId,
 					adjustmentUpdates,
+					false
+				);
+			}
+		}
+
+		if (element.type === "sticker") {
+			const stickerUpdates: Partial<StickerElement> = {};
+			const replacesMedia = typeof changes.mediaId === "string";
+			const replacementMedia = replacesMedia
+				? useMediaStore
+						.getState()
+						.mediaItems.find((item) => item.id === changes.mediaId)
+				: undefined;
+			if (replacesMedia && !replacementMedia) {
+				throw new Error(
+					`Sticker replacement media could not be resolved: ${changes.mediaId}`
+				);
+			}
+			const updatesGeometry =
+				changes.x !== undefined ||
+				changes.y !== undefined ||
+				changes.width !== undefined ||
+				changes.height !== undefined;
+			if (updatesGeometry) {
+				const canvasSize = useProjectStore.getState().activeProject
+					?.canvasSize ?? {
+					width: 1920,
+					height: 1080,
+				};
+				Object.assign(
+					stickerUpdates,
+					resolveClaudeStickerGeometry({
+						canvasSize,
+						current: element,
+						patch: changes,
+					})
+				);
+			}
+			if (replacesMedia) {
+				stickerUpdates.mediaId = changes.mediaId;
+			}
+			if (typeof changes.stickerId === "string") {
+				stickerUpdates.stickerId = changes.stickerId;
+			}
+			if (typeof changes.stickerAssetId === "string") {
+				stickerUpdates.stickerAssetId = changes.stickerAssetId;
+			}
+			const hasRuntimePatch = Object.hasOwn(changes, "stickerRuntime");
+			if (hasRuntimePatch || replacesMedia) {
+				const runtimeCandidate =
+					!hasRuntimePatch || changes.stickerRuntime === null
+						? replacementMedia?.metadata?.stickerRuntime
+						: changes.stickerRuntime;
+				stickerUpdates.stickerRuntime =
+					runtimeCandidate === undefined
+						? undefined
+						: resolveClaudeStickerRuntime({
+								candidate: runtimeCandidate,
+							});
+			}
+			if (typeof changes.rotation === "number") {
+				stickerUpdates.rotation = changes.rotation;
+			}
+			if (typeof changes.opacity === "number") {
+				stickerUpdates.opacity = changes.opacity;
+			}
+			if (Object.keys(stickerUpdates).length > 0) {
+				timelineStore.updateStickerElement(
+					track.id,
+					elementId,
+					stickerUpdates,
 					false
 				);
 			}
