@@ -1,4 +1,5 @@
 import type { VideoVisual } from "./types.js";
+import { buildVideoLabFilter } from "./video-lab-filter.js";
 
 export type VideoEnhancements = NonNullable<VideoVisual["enhancements"]>;
 
@@ -9,6 +10,10 @@ export const DEFAULT_VIDEO_ENHANCEMENTS: VideoEnhancements = {
 	upscale: 1,
 	relight: 0,
 	beauty: 0,
+	labDeflicker: 0,
+	labOpticalFlowMotionBlur: 0,
+	labEyeCorrection: 0,
+	labLocalSuperResolution: 0,
 };
 
 function clamp({
@@ -42,6 +47,26 @@ export function normalizeVideoEnhancements({
 		upscale,
 		relight: clamp({ value: values.relight, min: -100, max: 100 }),
 		beauty: clamp({ value: values.beauty, min: 0, max: 100 }),
+		labDeflicker: clamp({
+			value: values.labDeflicker ?? 0,
+			min: 0,
+			max: 100,
+		}),
+		labOpticalFlowMotionBlur: clamp({
+			value: values.labOpticalFlowMotionBlur ?? 0,
+			min: 0,
+			max: 100,
+		}),
+		labEyeCorrection: clamp({
+			value: values.labEyeCorrection ?? 0,
+			min: 0,
+			max: 100,
+		}),
+		labLocalSuperResolution:
+			values.labLocalSuperResolution === 2 ||
+			values.labLocalSuperResolution === 4
+				? values.labLocalSuperResolution
+				: 0,
 	};
 }
 
@@ -57,7 +82,11 @@ export function hasVideoEnhancements({
 		values.clarity > 0 ||
 		values.upscale > 1 ||
 		values.relight !== 0 ||
-		values.beauty > 0
+		values.beauty > 0 ||
+		(values.labDeflicker ?? 0) > 0 ||
+		(values.labOpticalFlowMotionBlur ?? 0) > 0 ||
+		(values.labEyeCorrection ?? 0) > 0 ||
+		(values.labLocalSuperResolution ?? 0) > 0
 	);
 }
 
@@ -65,10 +94,12 @@ export function buildVideoEnhancementFilter({
 	enhancements,
 	width,
 	height,
+	fps = 30,
 }: {
 	enhancements?: Partial<VideoEnhancements>;
 	width: number;
 	height: number;
+	fps?: number;
 }): string {
 	const values = normalizeVideoEnhancements({ enhancements });
 	const filters: string[] = [];
@@ -102,5 +133,20 @@ export function buildVideoEnhancementFilter({
 			`eq=brightness=${formatFilterNumber({ value: values.relight / 500 + values.beauty / 2000 })}:gamma=${formatFilterNumber({ value: clamp({ value: 1 + values.relight / 250, min: 0.5, max: 2 }) })}:saturation=${formatFilterNumber({ value: 1 + values.beauty / 1000 })}`
 		);
 	}
+	const labFilter = buildVideoLabFilter({
+		settings: {
+			deflicker: values.labDeflicker ?? 0,
+			opticalFlowMotionBlur: values.labOpticalFlowMotionBlur ?? 0,
+			localSuperResolution:
+				values.labLocalSuperResolution === 2 ||
+				values.labLocalSuperResolution === 4
+					? values.labLocalSuperResolution
+					: 1,
+		},
+		width,
+		height,
+		fps,
+	});
+	if (labFilter) filters.push(labFilter);
 	return filters.join(",");
 }
