@@ -36,6 +36,7 @@ export interface AudioAPI {
 		processLocal: (
 			request: QcutAudioProcessRequest
 		) => Promise<QcutAudioProcessResult>;
+		cancelLocal: (requestId: string) => Promise<boolean>;
 		getLocalCacheStats: () => Promise<QcutAudioCacheStats>;
 		clearLocalCache: () => Promise<QcutAudioCacheClearResult>;
 	};
