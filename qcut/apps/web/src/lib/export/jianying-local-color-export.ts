@@ -19,8 +19,11 @@ function requiresLocalColorRuntime({
 	) {
 		return true;
 	}
+	// This walker runs on raw store state (unlike render-time consumers,
+	// which normalize first), so a programmatically added element with a
+	// partial color object must not crash the export factory.
 	return Boolean(
-		color.lut.enabled &&
+		color.lut?.enabled &&
 			color.lut.dual?.maskKind === "skin-segmentation-v1" &&
 			color.lut.dual.resourceId
 	);
