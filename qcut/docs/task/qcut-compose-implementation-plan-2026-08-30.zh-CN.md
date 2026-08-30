@@ -371,7 +371,16 @@ QCut 工程内应保存：
 - snapshot mismatch 拒绝。
 - SmartPackaging patch 能转换成 ComposePatch。
 
-### 阶段 2：CLI snapshot/validate/apply
+### 阶段 2：CLI snapshot/validate/apply（已完成 2026-08-30）
+
+状态：`qcut compose snapshot`（HTTP 桥读活动编辑器 + 指纹）、`compose validate` patch 模式
+（`--snapshot --patch`，与 `--config` manifest 模式互斥判定）、`compose apply`（validate 先行 →
+`ComposePatch -> TimelineManifest` 纯函数转换 → 复用 `editor timeline apply` 事务/read-back）
+已落地。协议在 `electron/native-pipeline/compose/compose-protocol.ts` 按仓库惯例镜像，
+`compose-protocol-mirror.test.ts` 钉死与 editor-core 的行为等价。两个已知留待项：
+`update-media-zoom` 走 manifest 传输尚不可表达（apply 以 skipped 显式报告）；未解析
+localPath 的贴纸/音效同样进 skipped，等阶段 3 resolver。`@file` 引用沿用 editor 命令
+既有的 `resolveJsonInput` 惯例，裸路径也接受。
 
 目标：让 ComposePatch 能从 CLI 进入真实编辑器 timeline。
 
