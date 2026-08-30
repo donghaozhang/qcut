@@ -1,7 +1,7 @@
 # QCut 可编辑 Compose 工程实施任务书
 
 日期：2026-08-31  
-状态：Phase A、Phase B 完成（真实桌面 E2E 门禁通过），Phase C 未开始  
+状态：Phase A–C 完成（滤镜栈真实桌面门禁通过），Phase D 未开始  
 依赖：PR #441 `feat: complete Compose resource labs` 及其性能/CI 收尾  
 建议执行者：Claude（完成当前 Compose Export Performance Hardening 后开始）
 
@@ -772,6 +772,17 @@ apps/web/src/lib/export/*
 - 单 LUT、多 Pass、native-local 各至少一个真实测试。
 
 门禁：夸张强度帧与 neutral 帧有可量化差异，reopen 后仍一致。
+
+**状态：✅ 完成（2026-08-31，分支 `codex/compose-editable-project-v2`）**
+
+- 类型：`MediaFilterEffect`/`MediaFilterStack`（editor-core color.ts，`filterStack?` 上 `MediaElement`），UI/preview/export/持久化共享；旧工程无栈行为不变（归一化守卫 + 快照 key 白名单）。
+- 渲染：`color-filter-stack.ts` 把栈解析为有序 `BrowserColorGradeLayer`；preview 3 个挂点 + canvas export 换用 `drawColorGradedSourceStack` —— 两端共用同一层链，顺序即渲染顺序，强度复用既有 lut/multiPass 语义。
+- 引擎策略双保险：renderer factory + 服务端 `timelineRequiresRendererFilterStackExport` 都把含栈时间线强制到 canvas muxer（CLI FFmpeg 路径不渲染栈，绝不静默丢滤镜）。
+- 解析：`compose-filter-stack-resolver.ts`（catalog+render-plan 同源，锁 id/version/implementation/fidelity；单 LUT 带原始 cube、多 Pass 直传 renderer 结果、native 系合成 nativeEffect；safe-passthrough 只出 warning；错误分类 filter-not-catalogued/-package-missing/-version-changed/-runtime-unavailable；并发≤4 + 去重 + bun 安全目录加载）。
+- 桥接：`parseClaudeMediaFilterStack` 严格校验（畸形栈抛错不静默丢）、update 通道、读回序列化、`MEDIA_VERIFY_KEYS` 读回校验；HTTP 批量路由 body 上限 64MiB。
+- 编排：`set-media-filter-stack`（含 pending 目标）→ 元素更新；`add-filter-layer` → adjustment 元素（单效果原样、纯 LUT 链合成 multiPass、混合多效果显式 skipped）。
+- 真实门禁通过：单 LUT / native multi-pass / native-local dual-lut 各一，有序 2 效果栈；夸张 vs neutral SSIM 0.80–0.89（B 通道最低 0.686，native 空 passes 反证原生真实渲染）；reopen 后栈 sha256 逐字节一致；replay 幂等；坏资源回滚。证据：`evidence/2026-08-31-phase-c/`。
+- 修复三个真实缺陷：bun 并发失败 import 挂死（catalog memo 化）、1MiB body 上限 destroy socket（413 都发不出）、服务端 auto 引擎丢滤镜。
 
 ### Phase D：全实验室组合
 
