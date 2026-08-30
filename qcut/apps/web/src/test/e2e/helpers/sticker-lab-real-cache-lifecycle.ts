@@ -45,7 +45,10 @@ import { redactStickerLabEvidence } from "./sticker-lab-evidence-redaction";
 import { verifyAndPreserveRealVideoExports } from "./sticker-lab-real-video-evidence";
 
 type CliExportEvidence = QCutPipelineCliEvidence;
-const EVIDENCE_DIRECTORY = "/private/tmp/qcut-sticker-lab-export-evidence";
+const EVIDENCE_DIRECTORY = path.join(
+	tmpdir(),
+	"qcut-sticker-lab-export-evidence"
+);
 
 function realCacheEvidenceProfile({
 	exportTrigger,
