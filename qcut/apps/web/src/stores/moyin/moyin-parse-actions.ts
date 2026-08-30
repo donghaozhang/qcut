@@ -18,7 +18,7 @@ import type { PipelineStep, PipelineStepStatus } from "./moyin-store";
 export const MODEL_OPTIONS = [
 	{ value: "minimax", label: "MiniMax M2.5" },
 	{ value: "gemini", label: "Gemini Flash" },
-	{ value: "gemini-pro", label: "Gemini Pro" },
+	{ value: "gemini-3.7-flash", label: "Gemini 3.7 Flash" },
 	{ value: "kimi", label: "Kimi K2.5" },
 	{ value: "claude", label: "Claude (no key)" },
 	// GMI Cloud models — route through api.gmi-serving.com (BYOK) or via

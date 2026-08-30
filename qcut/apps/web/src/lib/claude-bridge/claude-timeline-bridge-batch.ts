@@ -24,6 +24,7 @@ import {
 	assertTimelineProjectActive,
 	readRequiredTimelineProjectId,
 } from "./claude-timeline-project-guard";
+import { parseTimelineColorLabel } from "@/lib/timeline/timeline-color-labels";
 
 const MAX_TIMELINE_BATCH_ITEMS = 50;
 
@@ -162,6 +163,9 @@ export function setupBatchHandlers({
 								throw new Error("Media source could not be resolved");
 							}
 
+							const colorLabel = parseTimelineColorLabel({
+								value: element.colorLabel,
+							});
 							createdElementId = timelineStore.addElementToTrack(
 								element.trackId,
 								{
@@ -176,6 +180,7 @@ export function setupBatchHandlers({
 											: 0,
 									trimEnd:
 										typeof element.trimEnd === "number" ? element.trimEnd : 0,
+									...(colorLabel ? { colorLabel } : {}),
 									...getClaudeMediaTimingProperties({ element }),
 								},
 								addOptions
@@ -367,7 +372,7 @@ export function setupBatchHandlers({
 		typeof claudeAPI.onBatchUpdateElements === "function" &&
 		typeof claudeAPI.sendBatchUpdateElementsResponse === "function"
 	) {
-		claudeAPI.onBatchUpdateElements((data: any) => {
+		claudeAPI.onBatchUpdateElements(async (data: any) => {
 			const updates: any[] = Array.isArray(data?.updates) ? data.updates : [];
 			try {
 				if (updates.length > MAX_TIMELINE_BATCH_ITEMS) {
@@ -431,6 +436,7 @@ export function setupBatchHandlers({
 					});
 				}
 
+				await useTimelineStore.getState().saveImmediate();
 				claudeAPI.sendBatchUpdateElementsResponse(data.requestId, {
 					updatedCount,
 					failedCount,

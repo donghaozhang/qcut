@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MediaElement, TimelineTrack } from "@/types/timeline";
+import { DEFAULT_MEDIA_ENHANCEMENTS } from "@/lib/video/video-properties";
 import { requiresJianyingLocalColorExport } from "../jianying-local-color-export";
 
 function mediaElement({
@@ -48,5 +49,17 @@ describe("Jianying local export selection", () => {
 				tracks: tracks({ element: mediaElement({ portraitEnabled: false }) }),
 			})
 		).toBe(false);
+	});
+
+	it("keeps experimental eye correction on the fixed-timestamp renderer path", () => {
+		const element = mediaElement({ portraitEnabled: false });
+		element.enhancements = {
+			...DEFAULT_MEDIA_ENHANCEMENTS,
+			labEyeCorrection: 40,
+		};
+
+		expect(
+			requiresJianyingLocalColorExport({ tracks: tracks({ element }) })
+		).toBe(true);
 	});
 });

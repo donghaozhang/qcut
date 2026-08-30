@@ -211,6 +211,7 @@ apps/web/public/sticker-lab/*
 /.local/jianying-runtime/
 /.local/jianying-effect-references/
 /.local/jianying-parity/
+/.local/jianying-basic-video-probe/
 /research/jianying-runtime-probe/build/
 
 # Filter lab cube bake — regenerate with scripts/generate-filter-lab-cubes.ts

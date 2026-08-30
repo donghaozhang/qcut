@@ -313,6 +313,9 @@ export async function renderBrowserTimelineAudio({
 	);
 	const decodedClips = await decodeBrowserAudioExportClips({ context, clips });
 	if (decodedClips.length === 0) {
+		if (clips.every(({ mediaItem }) => mediaItem.type === "video")) {
+			return null;
+		}
 		throw new Error("None of the timeline audio sources could be decoded");
 	}
 	const needsPitch = decodedClips.some((clip) =>

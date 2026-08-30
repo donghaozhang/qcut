@@ -35,6 +35,8 @@ import {
 	type NativeDetectedPortraitFace,
 } from "./person-binding.js";
 import {
+	isUnexpectedlyBlankPortraitFrame,
+	PORTRAIT_FRAME_MAX_RENDER_ATTEMPTS,
 	renderUntilOutputChanges,
 	SPOT_ACNE_MAX_RENDER_ATTEMPTS,
 } from "./render-readiness.js";
@@ -846,7 +848,22 @@ export function createJianyingPortraitAdjustmentProvider(): JianyingPortraitAdju
 						maxAttempts: SPOT_ACNE_MAX_RENDER_ATTEMPTS,
 					});
 				} else {
-					await renderAttempt({ attempt: 1 });
+					const inputPixels = await readFile(inputPath);
+					const outputIsUsable = async () => {
+						const outputPixels = await readFile(outputPath);
+						return !isUnexpectedlyBlankPortraitFrame({
+							input: inputPixels,
+							output: outputPixels,
+						});
+					};
+					await renderUntilOutputChanges({
+						renderAttempt,
+						isOutputChanged: outputIsUsable,
+						maxAttempts: PORTRAIT_FRAME_MAX_RENDER_ATTEMPTS,
+					});
+					if (!(await outputIsUsable())) {
+						throw new Error("剪映美颜美体返回了空画面");
+					}
 				}
 			} catch (cause) {
 				sessions.delete(stage.id);

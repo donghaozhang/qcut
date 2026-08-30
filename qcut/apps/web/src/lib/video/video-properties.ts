@@ -24,6 +24,7 @@ import {
 	resolveMediaColorAtTime,
 } from "@/lib/color/color-properties";
 import { resolveColorFilterSettings } from "@/lib/filters/filter-resolver";
+import { applyMediaLabEyeCorrection } from "@/lib/portrait/media-lab-eye-correction";
 import {
 	interpolateNumber,
 	type Keyframe,
@@ -106,6 +107,10 @@ export const DEFAULT_MEDIA_ENHANCEMENTS: MediaEnhancements = {
 	upscale: 1,
 	relight: 0,
 	beauty: 0,
+	labDeflicker: 0,
+	labOpticalFlowMotionBlur: 0,
+	labEyeCorrection: 0,
+	labLocalSuperResolution: 0,
 };
 
 export function hasMediaEnhancements({
@@ -119,7 +124,11 @@ export function hasMediaEnhancements({
 		enhancements.clarity > 0 ||
 		enhancements.upscale > 1 ||
 		enhancements.relight !== 0 ||
-		enhancements.beauty > 0
+		enhancements.beauty > 0 ||
+		(enhancements.labDeflicker ?? 0) > 0 ||
+		(enhancements.labOpticalFlowMotionBlur ?? 0) > 0 ||
+		(enhancements.labEyeCorrection ?? 0) > 0 ||
+		(enhancements.labLocalSuperResolution ?? 0) > 0
 	);
 }
 
@@ -356,6 +365,17 @@ export function resolveMediaVisualProperties(
 	element: MediaElement
 ): ResolvedMediaVisualProperties {
 	const masks = resolveMediaMasks(element);
+	const enhancements = {
+		...DEFAULT_MEDIA_ENHANCEMENTS,
+		...element.enhancements,
+	};
+	const portraitAdjustments = applyMediaLabEyeCorrection({
+		adjustments: element.portraitAdjustments ?? {
+			enabled: false,
+			values: {},
+		},
+		strength: enhancements.labEyeCorrection ?? 0,
+	});
 	return {
 		x: finiteOr(element.x, 0),
 		y: finiteOr(element.y, 0),
@@ -398,13 +418,8 @@ export function resolveMediaVisualProperties(
 		masks,
 		customCutout: normalizeMediaCustomCutout(element.customCutout),
 		chromaKey: normalizeMediaChromaKey(element.chromaKey),
-		enhancements: {
-			...DEFAULT_MEDIA_ENHANCEMENTS,
-			...element.enhancements,
-		},
-		portraitAdjustments: normalizeMediaPortraitAdjustments({
-			adjustments: element.portraitAdjustments,
-		}),
+		enhancements,
+		portraitAdjustments,
 	};
 }
 

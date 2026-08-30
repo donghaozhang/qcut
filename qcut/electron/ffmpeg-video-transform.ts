@@ -43,6 +43,7 @@ import type {
 } from "./ffmpeg/effect-render-types";
 import { effectWindowExpression } from "./ffmpeg/effect-render-window";
 import { clampMediaPlaybackRate } from "./ffmpeg/media-speed-constants";
+import { buildDurationPreservingFrameInterpolationFilter } from "./ffmpeg/frame-interpolation-filter";
 
 const DEFAULT_ADJUSTMENTS: NonNullable<VideoVisual["adjustments"]> = {
 	brightness: 0,
@@ -1160,10 +1161,10 @@ function buildTimedVideoInput({
 		source.frameInterpolation === "motion-compensated"
 	) {
 		const interpolated = `${prefix}_interpolated`;
-		const interpolation =
-			source.frameInterpolation === "motion-compensated"
-				? `minterpolate=fps=${Math.max(1, fps)}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1`
-				: `minterpolate=fps=${Math.max(1, fps)}:mi_mode=blend`;
+		const interpolation = buildDurationPreservingFrameInterpolationFilter({
+			mode: source.frameInterpolation,
+			fps,
+		});
 		filterSteps.push(`[${outputLabel}]${interpolation}[${interpolated}]`);
 		outputLabel = interpolated;
 	}
@@ -1557,21 +1558,22 @@ function buildSegmentFilters({
 	steps.push(...timedSource.filterSteps);
 	let current = timedSource.outputLabel;
 
-	const fitted = `video_${segmentIndex}_fitted`;
-	steps.push(
-		`[${current}]${buildVideoFitFilter({ fitMode: visual.fitMode, width, height })},setsar=1,format=rgba[${fitted}]`
-	);
-	current = fitted;
 	const enhancementFilter = buildVideoEnhancementFilter({
 		enhancements: visual.enhancements,
 		width,
 		height,
+		fps,
 	});
 	if (enhancementFilter) {
 		const enhanced = `video_${segmentIndex}_enhanced`;
 		steps.push(`[${current}]${enhancementFilter}[${enhanced}]`);
 		current = enhanced;
 	}
+	const fitted = `video_${segmentIndex}_fitted`;
+	steps.push(
+		`[${current}]${buildVideoFitFilter({ fitMode: visual.fitMode, width, height })},setsar=1,format=rgba[${fitted}]`
+	);
+	current = fitted;
 	const chromaGraph = buildChromaKeyFilterGraph({
 		inputLabel: current,
 		labelPrefix: `video_${segmentIndex}_chroma`,

@@ -1,11 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { useFilmstripThumbnails } from "@/hooks/timeline/use-filmstrip-thumbnails";
+import {
+	getTimelineColorLabelColor,
+	type TimelineColorLabel,
+} from "@/lib/timeline/timeline-color-labels";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import AudioWaveform from "../audio-waveform";
 import { getVideoClipLaneHeights } from "./video-timeline-clip-layout";
 
 interface VideoTimelineClipProps {
 	clipWidthPx: number;
+	colorLabel?: TimelineColorLabel;
 	displayName: string;
 	duration: number;
 	mediaId: string;
@@ -23,6 +28,7 @@ interface VideoTimelineClipProps {
 
 export function VideoTimelineClip({
 	clipWidthPx,
+	colorLabel,
 	displayName,
 	duration,
 	mediaId,
@@ -87,12 +93,15 @@ export function VideoTimelineClip({
 	const hasFilmstrip = frames.length > 0;
 	const sourceDuration =
 		mediaDuration && mediaDuration > 0 ? mediaDuration : duration;
+	const colorLabelBackground = getTimelineColorLabelColor({ colorLabel });
 
 	return (
 		<div
 			ref={clipRef}
 			className="relative h-full w-full overflow-hidden bg-[var(--color-timeline-video-clip)]"
+			data-color-label={colorLabel}
 			data-testid="timeline-video-clip"
+			style={{ backgroundColor: colorLabelBackground }}
 		>
 			<div
 				className="absolute inset-x-0 top-0 z-10 flex items-center bg-black/25 px-1.5"

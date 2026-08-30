@@ -105,6 +105,16 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 		},
 	},
 	{
+		name: "compose",
+		label: "Timeline Composition",
+		description: "Validate, render, and package multi-resource edits",
+		actions: {
+			validate: "compose-validate",
+			render: "compose-render",
+			project: "compose-project",
+		},
+	},
+	{
 		name: "transition",
 		label: "Local Transitions",
 		description: "Inspect and render local Jianying transitions",
@@ -123,6 +133,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 			catalog: "filter-lab-catalog",
 			render: "filter-lab-render",
 			apply: "filter-lab-render",
+			pipeline: "filter-lab-pipeline",
 			compare: "filter-lab-compare",
 			match: "filter-lab-match",
 			verify: "filter-lab-verify",

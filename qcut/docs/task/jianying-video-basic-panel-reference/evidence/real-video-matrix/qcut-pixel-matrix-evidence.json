@@ -1,0 +1,1168 @@
+{
+  "apiPort": "61113",
+  "challengeSourcePath": "/Users/peter/Desktop/code/qcut/qcut/docs/task/jianying-video-basic-panel-reference/evidence/real-video-matrix/02-real-person-challenge-noisy-3s.mp4",
+  "projectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+  "baseline": {
+    "bytes": 2767530,
+    "envelopes": [
+      {
+        "status": "pending",
+        "jobId": "export_1788074877098_ian09i"
+      },
+      {
+        "status": "ok",
+        "data": {
+          "schema_version": "1",
+          "command": "editor:export:start",
+          "data": {
+            "jobId": "export_1788074877098_ian09i",
+            "projectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+            "status": "completed",
+            "progress": 1,
+            "startedAt": 1788074877098,
+            "presetId": "tiktok",
+            "engine": "native-cli",
+            "settings": {
+              "engine": "native-cli",
+              "presetId": "tiktok",
+              "width": 1080,
+              "height": 1920,
+              "fps": 30,
+              "format": "mp4",
+              "codec": "libx264",
+              "bitrate": "6Mbps",
+              "audioBitrate": 192,
+              "audioSampleRate": 44100,
+              "audioChannels": 2,
+              "audioConfig": {
+                "mic": false,
+                "systemAudio": true
+              }
+            },
+            "outputPath": "/Users/peter/Desktop/code/qcut/qcut/docs/task/jianying-video-basic-panel-reference/evidence/real-video-matrix/10-qcut-baseline.mp4",
+            "duration": 3,
+            "fileSize": 2767530,
+            "completedAt": 1788074878049,
+            "view": {
+              "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "matchesTarget": true
+            }
+          }
+        },
+        "command_id": "cmd-1788074876702-bbd714",
+        "duration_ms": 3405
+      }
+    ],
+    "probe": {
+      "durationSeconds": 3,
+      "frameCount": 90
+    },
+    "sha256": "ddf7c9480f6574c6c724d75a3e4c8fa54e650a3f87b9385e80730ef79a851640"
+  },
+  "stabilization": {
+    "exported": {
+      "bytes": 2806437,
+      "envelopes": [
+        {
+          "status": "pending",
+          "jobId": "export_1788074882208_kxb1ap"
+        },
+        {
+          "status": "ok",
+          "data": {
+            "schema_version": "1",
+            "command": "editor:export:start",
+            "data": {
+              "jobId": "export_1788074882208_kxb1ap",
+              "projectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "status": "completed",
+              "progress": 1,
+              "startedAt": 1788074882208,
+              "presetId": "tiktok",
+              "engine": "native-cli",
+              "settings": {
+                "engine": "native-cli",
+                "presetId": "tiktok",
+                "width": 1080,
+                "height": 1920,
+                "fps": 30,
+                "format": "mp4",
+                "codec": "libx264",
+                "bitrate": "6Mbps",
+                "audioBitrate": 192,
+                "audioSampleRate": 44100,
+                "audioChannels": 2,
+                "audioConfig": {
+                  "mic": false,
+                  "systemAudio": true
+                }
+              },
+              "outputPath": "/Users/peter/Desktop/code/qcut/qcut/docs/task/jianying-video-basic-panel-reference/evidence/real-video-matrix/qcut-stabilization.mp4",
+              "duration": 3,
+              "fileSize": 2806437,
+              "completedAt": 1788074883176,
+              "view": {
+                "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+                "matchesTarget": true
+              }
+            }
+          },
+          "command_id": "cmd-1788074882198-cy0sqz",
+          "duration_ms": 3015
+        }
+      ],
+      "probe": {
+        "durationSeconds": 3,
+        "frameCount": 90
+      },
+      "sha256": "8a06256187dee3400365b6e5ea0c7d6fac0812f107a2cc2d2115de5aa4f3fb1d"
+    },
+    "patch": [
+      {
+        "status": "ok",
+        "data": {
+          "schema_version": "1",
+          "command": "editor:element:patch",
+          "data": {
+            "updated": true,
+            "view": {
+              "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "matchesTarget": true
+            }
+          }
+        },
+        "command_id": "cmd-1788074880798-x6ucr4",
+        "duration_ms": 92
+      }
+    ],
+    "snapshot": {
+      "enhancements": {
+        "stabilization": 70,
+        "denoise": 0,
+        "clarity": 0,
+        "upscale": 1,
+        "relight": 0,
+        "beauty": 0,
+        "labDeflicker": 0,
+        "labOpticalFlowMotionBlur": 0,
+        "labEyeCorrection": 0,
+        "labLocalSuperResolution": 0
+      },
+      "frameInterpolation": "none",
+      "keyframes": {},
+      "tracking": null
+    },
+    "timelineReadback": [
+      {
+        "status": "ok",
+        "data": {
+          "schema_version": "1",
+          "command": "editor:timeline:export",
+          "data": {
+            "name": "Untitled Project",
+            "duration": 3,
+            "width": 360,
+            "height": 640,
+            "fps": 30,
+            "tracks": [
+              {
+                "id": "f4df10fc-5b09-4dff-9027-6c5e09e9e4d3",
+                "index": 0,
+                "name": "主轨道",
+                "type": "media",
+                "isMain": true,
+                "hidden": false,
+                "elements": [
+                  {
+                    "id": "210c5036-ade3-4634-b23c-fd8dc21f2456",
+                    "trackIndex": 0,
+                    "startTime": 0,
+                    "endTime": 3,
+                    "duration": 3,
+                    "type": "media",
+                    "sourceId": "c158dd25-4dcd-5986-8ef3-97a398e9cc67",
+                    "sourceName": "02-real-person-challenge-noisy-3s.mp4",
+                    "trimStart": 0,
+                    "trimEnd": 0,
+                    "frameInterpolation": "none",
+                    "enhancements": {
+                      "stabilization": 70,
+                      "denoise": 0,
+                      "clarity": 0,
+                      "upscale": 1,
+                      "relight": 0,
+                      "beauty": 0,
+                      "labDeflicker": 0,
+                      "labOpticalFlowMotionBlur": 0,
+                      "labEyeCorrection": 0,
+                      "labLocalSuperResolution": 0
+                    },
+                    "timelineDuration": 3
+                  }
+                ]
+              }
+            ],
+            "projectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+            "view": {
+              "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "matchesTarget": true
+            }
+          }
+        },
+        "command_id": "cmd-1788074881015-hka8vx",
+        "duration_ms": 568
+      }
+    ]
+  },
+  "denoise": {
+    "exported": {
+      "bytes": 2730694,
+      "envelopes": [
+        {
+          "status": "pending",
+          "jobId": "export_1788074888023_exdxgq"
+        },
+        {
+          "status": "ok",
+          "data": {
+            "schema_version": "1",
+            "command": "editor:export:start",
+            "data": {
+              "jobId": "export_1788074888023_exdxgq",
+              "projectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "status": "completed",
+              "progress": 1,
+              "startedAt": 1788074888023,
+              "presetId": "tiktok",
+              "engine": "native-cli",
+              "settings": {
+                "engine": "native-cli",
+                "presetId": "tiktok",
+                "width": 1080,
+                "height": 1920,
+                "fps": 30,
+                "format": "mp4",
+                "codec": "libx264",
+                "bitrate": "6Mbps",
+                "audioBitrate": 192,
+                "audioSampleRate": 44100,
+                "audioChannels": 2,
+                "audioConfig": {
+                  "mic": false,
+                  "systemAudio": true
+                }
+              },
+              "outputPath": "/Users/peter/Desktop/code/qcut/qcut/docs/task/jianying-video-basic-panel-reference/evidence/real-video-matrix/qcut-denoise.mp4",
+              "duration": 3,
+              "fileSize": 2730694,
+              "completedAt": 1788074888887,
+              "view": {
+                "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+                "matchesTarget": true
+              }
+            }
+          },
+          "command_id": "cmd-1788074888013-s7b3ej",
+          "duration_ms": 3016
+        }
+      ],
+      "probe": {
+        "durationSeconds": 3,
+        "frameCount": 90
+      },
+      "sha256": "32562e7eb72bcf4abae4d8bb8a3f409cb7af11060f49fd06d5cd77376f82ff04"
+    },
+    "patch": [
+      {
+        "status": "ok",
+        "data": {
+          "schema_version": "1",
+          "command": "editor:element:patch",
+          "data": {
+            "updated": true,
+            "view": {
+              "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "matchesTarget": true
+            }
+          }
+        },
+        "command_id": "cmd-1788074885941-z1rwkt",
+        "duration_ms": 728
+      }
+    ],
+    "snapshot": {
+      "enhancements": {
+        "stabilization": 0,
+        "denoise": 70,
+        "clarity": 0,
+        "upscale": 1,
+        "relight": 0,
+        "beauty": 0,
+        "labDeflicker": 0,
+        "labOpticalFlowMotionBlur": 0,
+        "labEyeCorrection": 0,
+        "labLocalSuperResolution": 0
+      },
+      "frameInterpolation": "none",
+      "keyframes": {},
+      "tracking": null
+    },
+    "timelineReadback": [
+      {
+        "status": "ok",
+        "data": {
+          "schema_version": "1",
+          "command": "editor:timeline:export",
+          "data": {
+            "name": "Untitled Project",
+            "duration": 3,
+            "width": 360,
+            "height": 640,
+            "fps": 30,
+            "tracks": [
+              {
+                "id": "f4df10fc-5b09-4dff-9027-6c5e09e9e4d3",
+                "index": 0,
+                "name": "主轨道",
+                "type": "media",
+                "isMain": true,
+                "hidden": false,
+                "elements": [
+                  {
+                    "id": "210c5036-ade3-4634-b23c-fd8dc21f2456",
+                    "trackIndex": 0,
+                    "startTime": 0,
+                    "endTime": 3,
+                    "duration": 3,
+                    "type": "media",
+                    "sourceId": "c158dd25-4dcd-5986-8ef3-97a398e9cc67",
+                    "sourceName": "02-real-person-challenge-noisy-3s.mp4",
+                    "trimStart": 0,
+                    "trimEnd": 0,
+                    "frameInterpolation": "none",
+                    "enhancements": {
+                      "stabilization": 0,
+                      "denoise": 70,
+                      "clarity": 0,
+                      "upscale": 1,
+                      "relight": 0,
+                      "beauty": 0,
+                      "labDeflicker": 0,
+                      "labOpticalFlowMotionBlur": 0,
+                      "labEyeCorrection": 0,
+                      "labLocalSuperResolution": 0
+                    },
+                    "timelineDuration": 3
+                  }
+                ]
+              }
+            ],
+            "projectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+            "view": {
+              "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "matchesTarget": true
+            }
+          }
+        },
+        "command_id": "cmd-1788074886869-hbtvo6",
+        "duration_ms": 620
+      }
+    ]
+  },
+  "deflicker": {
+    "exported": {
+      "bytes": 2741155,
+      "envelopes": [
+        {
+          "status": "pending",
+          "jobId": "export_1788074894005_no7tfc"
+        },
+        {
+          "status": "ok",
+          "data": {
+            "schema_version": "1",
+            "command": "editor:export:start",
+            "data": {
+              "jobId": "export_1788074894005_no7tfc",
+              "projectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "status": "completed",
+              "progress": 1,
+              "startedAt": 1788074894005,
+              "presetId": "tiktok",
+              "engine": "native-cli",
+              "settings": {
+                "engine": "native-cli",
+                "presetId": "tiktok",
+                "width": 1080,
+                "height": 1920,
+                "fps": 30,
+                "format": "mp4",
+                "codec": "libx264",
+                "bitrate": "6Mbps",
+                "audioBitrate": 192,
+                "audioSampleRate": 44100,
+                "audioChannels": 2,
+                "audioConfig": {
+                  "mic": false,
+                  "systemAudio": true
+                }
+              },
+              "outputPath": "/Users/peter/Desktop/code/qcut/qcut/docs/task/jianying-video-basic-panel-reference/evidence/real-video-matrix/qcut-deflicker.mp4",
+              "duration": 3,
+              "fileSize": 2741155,
+              "completedAt": 1788074894877,
+              "view": {
+                "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+                "matchesTarget": true
+              }
+            }
+          },
+          "command_id": "cmd-1788074893994-hjy39p",
+          "duration_ms": 3015
+        }
+      ],
+      "probe": {
+        "durationSeconds": 3,
+        "frameCount": 90
+      },
+      "sha256": "473e92021f741bc12b8a19bc510b245d02e7a545a2fd834881c667afe082af12"
+    },
+    "patch": [
+      {
+        "status": "ok",
+        "data": {
+          "schema_version": "1",
+          "command": "editor:element:patch",
+          "data": {
+            "updated": true,
+            "view": {
+              "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "matchesTarget": true
+            }
+          }
+        },
+        "command_id": "cmd-1788074891820-b319no",
+        "duration_ms": 818
+      }
+    ],
+    "snapshot": {
+      "enhancements": {
+        "stabilization": 0,
+        "denoise": 0,
+        "clarity": 0,
+        "upscale": 1,
+        "relight": 0,
+        "beauty": 0,
+        "labDeflicker": 70,
+        "labOpticalFlowMotionBlur": 0,
+        "labEyeCorrection": 0,
+        "labLocalSuperResolution": 0
+      },
+      "frameInterpolation": "none",
+      "keyframes": {},
+      "tracking": null
+    },
+    "timelineReadback": [
+      {
+        "status": "ok",
+        "data": {
+          "schema_version": "1",
+          "command": "editor:timeline:export",
+          "data": {
+            "name": "Untitled Project",
+            "duration": 3,
+            "width": 360,
+            "height": 640,
+            "fps": 30,
+            "tracks": [
+              {
+                "id": "f4df10fc-5b09-4dff-9027-6c5e09e9e4d3",
+                "index": 0,
+                "name": "主轨道",
+                "type": "media",
+                "isMain": true,
+                "hidden": false,
+                "elements": [
+                  {
+                    "id": "210c5036-ade3-4634-b23c-fd8dc21f2456",
+                    "trackIndex": 0,
+                    "startTime": 0,
+                    "endTime": 3,
+                    "duration": 3,
+                    "type": "media",
+                    "sourceId": "c158dd25-4dcd-5986-8ef3-97a398e9cc67",
+                    "sourceName": "02-real-person-challenge-noisy-3s.mp4",
+                    "trimStart": 0,
+                    "trimEnd": 0,
+                    "frameInterpolation": "none",
+                    "enhancements": {
+                      "stabilization": 0,
+                      "denoise": 0,
+                      "clarity": 0,
+                      "upscale": 1,
+                      "relight": 0,
+                      "beauty": 0,
+                      "labDeflicker": 70,
+                      "labOpticalFlowMotionBlur": 0,
+                      "labEyeCorrection": 0,
+                      "labLocalSuperResolution": 0
+                    },
+                    "timelineDuration": 3
+                  }
+                ]
+              }
+            ],
+            "projectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+            "view": {
+              "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "matchesTarget": true
+            }
+          }
+        },
+        "command_id": "cmd-1788074892831-1dv3yt",
+        "duration_ms": 671
+      }
+    ]
+  },
+  "motion-blur": {
+    "exported": {
+      "bytes": 2478954,
+      "envelopes": [
+        {
+          "status": "pending",
+          "jobId": "export_1788074899792_rio0vu"
+        },
+        {
+          "status": "ok",
+          "data": {
+            "schema_version": "1",
+            "command": "editor:export:start",
+            "data": {
+              "jobId": "export_1788074899792_rio0vu",
+              "projectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "status": "completed",
+              "progress": 1,
+              "startedAt": 1788074899792,
+              "presetId": "tiktok",
+              "engine": "native-cli",
+              "settings": {
+                "engine": "native-cli",
+                "presetId": "tiktok",
+                "width": 1080,
+                "height": 1920,
+                "fps": 30,
+                "format": "mp4",
+                "codec": "libx264",
+                "bitrate": "6Mbps",
+                "audioBitrate": 192,
+                "audioSampleRate": 44100,
+                "audioChannels": 2,
+                "audioConfig": {
+                  "mic": false,
+                  "systemAudio": true
+                }
+              },
+              "outputPath": "/Users/peter/Desktop/code/qcut/qcut/docs/task/jianying-video-basic-panel-reference/evidence/real-video-matrix/qcut-motion-blur.mp4",
+              "duration": 3,
+              "fileSize": 2478954,
+              "completedAt": 1788074906677,
+              "view": {
+                "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+                "matchesTarget": true
+              }
+            }
+          },
+          "command_id": "cmd-1788074899780-5b2b8t",
+          "duration_ms": 9024
+        }
+      ],
+      "probe": {
+        "durationSeconds": 3,
+        "frameCount": 90
+      },
+      "sha256": "e2e3bf53f3a3719efef2ba1fa86b6f11bc95131b032dbbd48ae4c6f440675ac4"
+    },
+    "patch": [
+      {
+        "status": "ok",
+        "data": {
+          "schema_version": "1",
+          "command": "editor:element:patch",
+          "data": {
+            "updated": true,
+            "view": {
+              "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "matchesTarget": true
+            }
+          }
+        },
+        "command_id": "cmd-1788074897818-1hhrn5",
+        "duration_ms": 730
+      }
+    ],
+    "snapshot": {
+      "enhancements": {
+        "stabilization": 0,
+        "denoise": 0,
+        "clarity": 0,
+        "upscale": 1,
+        "relight": 0,
+        "beauty": 0,
+        "labDeflicker": 0,
+        "labOpticalFlowMotionBlur": 50,
+        "labEyeCorrection": 0,
+        "labLocalSuperResolution": 0
+      },
+      "frameInterpolation": "none",
+      "keyframes": {},
+      "tracking": null
+    },
+    "timelineReadback": [
+      {
+        "status": "ok",
+        "data": {
+          "schema_version": "1",
+          "command": "editor:timeline:export",
+          "data": {
+            "name": "Untitled Project",
+            "duration": 3,
+            "width": 360,
+            "height": 640,
+            "fps": 30,
+            "tracks": [
+              {
+                "id": "f4df10fc-5b09-4dff-9027-6c5e09e9e4d3",
+                "index": 0,
+                "name": "主轨道",
+                "type": "media",
+                "isMain": true,
+                "hidden": false,
+                "elements": [
+                  {
+                    "id": "210c5036-ade3-4634-b23c-fd8dc21f2456",
+                    "trackIndex": 0,
+                    "startTime": 0,
+                    "endTime": 3,
+                    "duration": 3,
+                    "type": "media",
+                    "sourceId": "c158dd25-4dcd-5986-8ef3-97a398e9cc67",
+                    "sourceName": "02-real-person-challenge-noisy-3s.mp4",
+                    "trimStart": 0,
+                    "trimEnd": 0,
+                    "frameInterpolation": "none",
+                    "enhancements": {
+                      "stabilization": 0,
+                      "denoise": 0,
+                      "clarity": 0,
+                      "upscale": 1,
+                      "relight": 0,
+                      "beauty": 0,
+                      "labDeflicker": 0,
+                      "labOpticalFlowMotionBlur": 50,
+                      "labEyeCorrection": 0,
+                      "labLocalSuperResolution": 0
+                    },
+                    "timelineDuration": 3
+                  }
+                ]
+              }
+            ],
+            "projectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+            "view": {
+              "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "matchesTarget": true
+            }
+          }
+        },
+        "command_id": "cmd-1788074898706-b1w9pc",
+        "duration_ms": 638
+      }
+    ]
+  },
+  "eye-detail": {
+    "exported": {
+      "bytes": 3210475,
+      "envelopes": [
+        {
+          "status": "pending",
+          "jobId": "export_1788074911744_zw4old"
+        },
+        {
+          "status": "ok",
+          "data": {
+            "schema_version": "1",
+            "command": "editor:export:start",
+            "data": {
+              "engine": "renderer-muxer",
+              "jobId": "export_1788074911744_zw4old",
+              "outputPath": "/Users/peter/Desktop/code/qcut/qcut/docs/task/jianying-video-basic-panel-reference/evidence/real-video-matrix/qcut-eye-detail.mp4",
+              "presetId": "tiktok",
+              "progress": 1,
+              "projectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "settings": {
+                "engine": "native-cli",
+                "presetId": "tiktok",
+                "width": 1080,
+                "height": 1920,
+                "fps": 30,
+                "format": "mp4",
+                "codec": "libx264",
+                "bitrate": "6Mbps",
+                "audioBitrate": 192,
+                "audioSampleRate": 44100,
+                "audioChannels": 2,
+                "audioConfig": {
+                  "mic": false,
+                  "systemAudio": true
+                }
+              },
+              "startedAt": 1788074911744,
+              "status": "completed",
+              "fileSize": 3210475,
+              "completedAt": 1788074951260,
+              "view": {
+                "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+                "matchesTarget": true
+              }
+            }
+          },
+          "command_id": "cmd-1788074911734-s2fi47",
+          "duration_ms": 42047
+        }
+      ],
+      "probe": {
+        "durationSeconds": 3,
+        "frameCount": 90
+      },
+      "sha256": "cfd601b80c9f580defc9d5efb0012671d2aaa3e708d0bd3e1af3cd6bd321b18f"
+    },
+    "patch": [
+      {
+        "status": "ok",
+        "data": {
+          "schema_version": "1",
+          "command": "editor:element:patch",
+          "data": {
+            "updated": true,
+            "view": {
+              "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "matchesTarget": true
+            }
+          }
+        },
+        "command_id": "cmd-1788074909592-iymoit",
+        "duration_ms": 790
+      }
+    ],
+    "snapshot": {
+      "enhancements": {
+        "stabilization": 0,
+        "denoise": 0,
+        "clarity": 0,
+        "upscale": 1,
+        "relight": 0,
+        "beauty": 0,
+        "labDeflicker": 0,
+        "labOpticalFlowMotionBlur": 0,
+        "labEyeCorrection": 60,
+        "labLocalSuperResolution": 0
+      },
+      "frameInterpolation": "none",
+      "keyframes": {},
+      "tracking": null
+    },
+    "timelineReadback": [
+      {
+        "status": "ok",
+        "data": {
+          "schema_version": "1",
+          "command": "editor:timeline:export",
+          "data": {
+            "name": "Untitled Project",
+            "duration": 3,
+            "width": 360,
+            "height": 640,
+            "fps": 30,
+            "tracks": [
+              {
+                "id": "f4df10fc-5b09-4dff-9027-6c5e09e9e4d3",
+                "index": 0,
+                "name": "主轨道",
+                "type": "media",
+                "isMain": true,
+                "hidden": false,
+                "elements": [
+                  {
+                    "id": "210c5036-ade3-4634-b23c-fd8dc21f2456",
+                    "trackIndex": 0,
+                    "startTime": 0,
+                    "endTime": 3,
+                    "duration": 3,
+                    "type": "media",
+                    "sourceId": "c158dd25-4dcd-5986-8ef3-97a398e9cc67",
+                    "sourceName": "02-real-person-challenge-noisy-3s.mp4",
+                    "trimStart": 0,
+                    "trimEnd": 0,
+                    "frameInterpolation": "none",
+                    "enhancements": {
+                      "stabilization": 0,
+                      "denoise": 0,
+                      "clarity": 0,
+                      "upscale": 1,
+                      "relight": 0,
+                      "beauty": 0,
+                      "labDeflicker": 0,
+                      "labOpticalFlowMotionBlur": 0,
+                      "labEyeCorrection": 60,
+                      "labLocalSuperResolution": 0
+                    },
+                    "timelineDuration": 3
+                  }
+                ]
+              }
+            ],
+            "projectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+            "view": {
+              "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "matchesTarget": true
+            }
+          }
+        },
+        "command_id": "cmd-1788074910605-uis6hi",
+        "duration_ms": 728
+      }
+    ]
+  },
+  "local-super-resolution": {
+    "exported": {
+      "bytes": 2852480,
+      "envelopes": [
+        {
+          "status": "pending",
+          "jobId": "export_1788074956695_11bs3q"
+        },
+        {
+          "status": "ok",
+          "data": {
+            "schema_version": "1",
+            "command": "editor:export:start",
+            "data": {
+              "jobId": "export_1788074956695_11bs3q",
+              "projectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "status": "completed",
+              "progress": 1,
+              "startedAt": 1788074956695,
+              "presetId": "tiktok",
+              "engine": "native-cli",
+              "settings": {
+                "engine": "native-cli",
+                "presetId": "tiktok",
+                "width": 1080,
+                "height": 1920,
+                "fps": 30,
+                "format": "mp4",
+                "codec": "libx264",
+                "bitrate": "6Mbps",
+                "audioBitrate": 192,
+                "audioSampleRate": 44100,
+                "audioChannels": 2,
+                "audioConfig": {
+                  "mic": false,
+                  "systemAudio": true
+                }
+              },
+              "outputPath": "/Users/peter/Desktop/code/qcut/qcut/docs/task/jianying-video-basic-panel-reference/evidence/real-video-matrix/qcut-local-super-resolution.mp4",
+              "duration": 3,
+              "fileSize": 2852480,
+              "completedAt": 1788074957669,
+              "view": {
+                "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+                "matchesTarget": true
+              }
+            }
+          },
+          "command_id": "cmd-1788074956685-jjxw2f",
+          "duration_ms": 3022
+        }
+      ],
+      "probe": {
+        "durationSeconds": 3,
+        "frameCount": 90
+      },
+      "sha256": "8890d01d3c73dff851e99028d81292391b220863ff19e5995d2c356db7ebd9db"
+    },
+    "patch": [
+      {
+        "status": "ok",
+        "data": {
+          "schema_version": "1",
+          "command": "editor:element:patch",
+          "data": {
+            "updated": true,
+            "view": {
+              "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "matchesTarget": true
+            }
+          }
+        },
+        "command_id": "cmd-1788074954685-7a8dse",
+        "duration_ms": 754
+      }
+    ],
+    "snapshot": {
+      "enhancements": {
+        "stabilization": 0,
+        "denoise": 0,
+        "clarity": 0,
+        "upscale": 1,
+        "relight": 0,
+        "beauty": 0,
+        "labDeflicker": 0,
+        "labOpticalFlowMotionBlur": 0,
+        "labEyeCorrection": 0,
+        "labLocalSuperResolution": 2
+      },
+      "frameInterpolation": "none",
+      "keyframes": {},
+      "tracking": null
+    },
+    "timelineReadback": [
+      {
+        "status": "ok",
+        "data": {
+          "schema_version": "1",
+          "command": "editor:timeline:export",
+          "data": {
+            "name": "Untitled Project",
+            "duration": 3,
+            "width": 360,
+            "height": 640,
+            "fps": 30,
+            "tracks": [
+              {
+                "id": "f4df10fc-5b09-4dff-9027-6c5e09e9e4d3",
+                "index": 0,
+                "name": "主轨道",
+                "type": "media",
+                "isMain": true,
+                "hidden": false,
+                "elements": [
+                  {
+                    "id": "210c5036-ade3-4634-b23c-fd8dc21f2456",
+                    "trackIndex": 0,
+                    "startTime": 0,
+                    "endTime": 3,
+                    "duration": 3,
+                    "type": "media",
+                    "sourceId": "c158dd25-4dcd-5986-8ef3-97a398e9cc67",
+                    "sourceName": "02-real-person-challenge-noisy-3s.mp4",
+                    "trimStart": 0,
+                    "trimEnd": 0,
+                    "frameInterpolation": "none",
+                    "enhancements": {
+                      "stabilization": 0,
+                      "denoise": 0,
+                      "clarity": 0,
+                      "upscale": 1,
+                      "relight": 0,
+                      "beauty": 0,
+                      "labDeflicker": 0,
+                      "labOpticalFlowMotionBlur": 0,
+                      "labEyeCorrection": 0,
+                      "labLocalSuperResolution": 2
+                    },
+                    "timelineDuration": 3
+                  }
+                ]
+              }
+            ],
+            "projectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+            "view": {
+              "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "matchesTarget": true
+            }
+          }
+        },
+        "command_id": "cmd-1788074955637-kvqbi4",
+        "duration_ms": 719
+      }
+    ]
+  },
+  "frame-interpolation": {
+    "exported": {
+      "bytes": 2653265,
+      "envelopes": [
+        {
+          "status": "pending",
+          "jobId": "export_1788074962544_6enycj"
+        },
+        {
+          "status": "ok",
+          "data": {
+            "schema_version": "1",
+            "command": "editor:export:start",
+            "data": {
+              "jobId": "export_1788074962544_6enycj",
+              "projectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "status": "completed",
+              "progress": 1,
+              "startedAt": 1788074962544,
+              "presetId": "tiktok",
+              "engine": "native-cli",
+              "settings": {
+                "engine": "native-cli",
+                "presetId": "tiktok",
+                "width": 1080,
+                "height": 1920,
+                "fps": 30,
+                "format": "mp4",
+                "codec": "libx264",
+                "bitrate": "6Mbps",
+                "audioBitrate": 192,
+                "audioSampleRate": 44100,
+                "audioChannels": 2,
+                "audioConfig": {
+                  "mic": false,
+                  "systemAudio": true
+                }
+              },
+              "outputPath": "/Users/peter/Desktop/code/qcut/qcut/docs/task/jianying-video-basic-panel-reference/evidence/real-video-matrix/qcut-frame-interpolation.mp4",
+              "duration": 3,
+              "fileSize": 2653265,
+              "completedAt": 1788074965404,
+              "view": {
+                "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+                "matchesTarget": true
+              }
+            }
+          },
+          "command_id": "cmd-1788074962531-jdxm8x",
+          "duration_ms": 3018
+        }
+      ],
+      "probe": {
+        "durationSeconds": 3,
+        "frameCount": 90
+      },
+      "sha256": "c069541975323d17a1227ec8e353cfe3f08ed3c9e255114275a2f9baa1bff58f"
+    },
+    "patch": [
+      {
+        "status": "ok",
+        "data": {
+          "schema_version": "1",
+          "command": "editor:element:patch",
+          "data": {
+            "updated": true,
+            "view": {
+              "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "matchesTarget": true
+            }
+          }
+        },
+        "command_id": "cmd-1788074960458-z04btu",
+        "duration_ms": 867
+      }
+    ],
+    "snapshot": {
+      "enhancements": {
+        "stabilization": 0,
+        "denoise": 0,
+        "clarity": 0,
+        "upscale": 1,
+        "relight": 0,
+        "beauty": 0,
+        "labDeflicker": 0,
+        "labOpticalFlowMotionBlur": 0,
+        "labEyeCorrection": 0,
+        "labLocalSuperResolution": 0
+      },
+      "frameInterpolation": "motion-compensated",
+      "keyframes": {},
+      "tracking": null
+    },
+    "timelineReadback": [
+      {
+        "status": "ok",
+        "data": {
+          "schema_version": "1",
+          "command": "editor:timeline:export",
+          "data": {
+            "name": "Untitled Project",
+            "duration": 3,
+            "width": 360,
+            "height": 640,
+            "fps": 30,
+            "tracks": [
+              {
+                "id": "f4df10fc-5b09-4dff-9027-6c5e09e9e4d3",
+                "index": 0,
+                "name": "主轨道",
+                "type": "media",
+                "isMain": true,
+                "hidden": false,
+                "elements": [
+                  {
+                    "id": "210c5036-ade3-4634-b23c-fd8dc21f2456",
+                    "trackIndex": 0,
+                    "startTime": 0,
+                    "endTime": 3,
+                    "duration": 3,
+                    "type": "media",
+                    "sourceId": "c158dd25-4dcd-5986-8ef3-97a398e9cc67",
+                    "sourceName": "02-real-person-challenge-noisy-3s.mp4",
+                    "trimStart": 0,
+                    "trimEnd": 0,
+                    "frameInterpolation": "motion-compensated",
+                    "enhancements": {
+                      "stabilization": 0,
+                      "denoise": 0,
+                      "clarity": 0,
+                      "upscale": 1,
+                      "relight": 0,
+                      "beauty": 0,
+                      "labDeflicker": 0,
+                      "labOpticalFlowMotionBlur": 0,
+                      "labEyeCorrection": 0,
+                      "labLocalSuperResolution": 0
+                    },
+                    "timelineDuration": 3
+                  }
+                ]
+              }
+            ],
+            "projectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+            "view": {
+              "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+              "matchesTarget": true
+            }
+          }
+        },
+        "command_id": "cmd-1788074961462-hb82hn",
+        "duration_ms": 495
+      }
+    ]
+  },
+  "uiCombined": {
+    "exported": {
+      "bytes": 3205225
+    },
+    "snapshot": {
+      "enhancements": {
+        "stabilization": 45,
+        "denoise": 45,
+        "clarity": 0,
+        "upscale": 1,
+        "relight": 0,
+        "beauty": 0,
+        "labDeflicker": 45,
+        "labOpticalFlowMotionBlur": 35,
+        "labEyeCorrection": 40,
+        "labLocalSuperResolution": 2
+      },
+      "frameInterpolation": "motion-compensated",
+      "keyframes": {},
+      "tracking": null
+    }
+  }
+}

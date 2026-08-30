@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { MediaElement, TimelineTrack } from "@/types/timeline";
 import { DEFAULT_MEDIA_AUDIO_SETTINGS } from "../audio-properties";
@@ -6,6 +6,7 @@ import {
 	buildBrowserAudioAutomation,
 	MAX_BROWSER_AUDIO_AUTOMATION_POINTS,
 } from "../browser-audio-automation";
+import { renderBrowserTimelineAudio } from "../browser-audio-export";
 import { collectBrowserAudioExportClips } from "../browser-audio-export-clips";
 
 function mediaElement({
@@ -37,7 +38,9 @@ function mediaItem({
 		id,
 		name: `${id}.wav`,
 		type,
-		file: new File([], `${id}.wav`, { type: "audio/wav" }),
+		file: new File([new Uint8Array([0])], `${id}.wav`, {
+			type: "audio/wav",
+		}),
 	};
 }
 
@@ -58,6 +61,10 @@ function track({
 }
 
 describe("browser audio export", () => {
+	afterEach(() => {
+		vi.unstubAllGlobals();
+	});
+
 	it("resolves separated stems with their non-destructive gains", () => {
 		const element = mediaElement({
 			audio: {
@@ -100,6 +107,28 @@ describe("browser audio export", () => {
 				mediaItems: [mediaItem({ id: "original" })],
 			})
 		).toEqual([]);
+	});
+
+	it("treats a video without decodable audio as a silent timeline", async () => {
+		const decodeAudioData = vi.fn(async () => {
+			throw new DOMException("Unable to decode audio data", "EncodingError");
+		});
+		vi.stubGlobal(
+			"OfflineAudioContext",
+			class {
+				decodeAudioData = decodeAudioData;
+			}
+		);
+
+		const result = await renderBrowserTimelineAudio({
+			tracks: [track({ element: mediaElement() })],
+			mediaItems: [mediaItem({ id: "original", type: "video" })],
+			totalDuration: 2,
+			fps: 30,
+		});
+
+		expect(result).toBeNull();
+		expect(decodeAudioData).toHaveBeenCalledOnce();
 	});
 
 	it("turns dB, fades, balance, and effect keyframes into automation", () => {

@@ -1,0 +1,118 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-30T15:07:36+10:00",
+  "feature": {
+    "qcutLabel": "实验室眼神修正",
+    "strength": 60,
+    "implementation": {
+      "face_adjust_BrightEye": 14.4,
+      "face_adjust_Pouch": 10.8
+    },
+    "isGazeCorrection": false
+  },
+  "assets": {
+    "source": {
+      "path": "/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/real-person-input-2s.mp4",
+      "width": 360,
+      "height": 640,
+      "fps": 30,
+      "durationSeconds": 2,
+      "frames": 60,
+      "videoCodec": "h264",
+      "videoBitRate": 1434404,
+      "sizeBytes": 360160,
+      "hasAudio": false
+    },
+    "jianyingBaseline": {
+      "path": "docs/task/jianying-video-basic-panel-reference/evidence/real-person/04-jianying-same-source-baseline.mov",
+      "width": 360,
+      "height": 640,
+      "fps": 30,
+      "durationSeconds": 2,
+      "frames": 60,
+      "videoCodec": "h264",
+      "videoBitRate": 6045628,
+      "sizeBytes": 1515444,
+      "audio": {
+        "codec": "aac",
+        "channels": 2,
+        "sampleRate": 44100,
+        "bitRate": 2067,
+        "effectivelySilent": true
+      },
+      "effectApplied": false
+    },
+    "qcutCli": {
+      "path": "docs/task/jianying-video-basic-panel-reference/evidence/real-person/qcut-cli-eye-detail-60.mp4",
+      "width": 1080,
+      "height": 1920,
+      "fps": 30,
+      "durationSeconds": 2,
+      "frames": 60,
+      "videoCodec": "h264",
+      "videoBitRate": 5262184,
+      "sizeBytes": 1317146,
+      "hasAudio": false,
+      "engine": "native-cli"
+    },
+    "qcutUi": {
+      "path": "docs/task/jianying-video-basic-panel-reference/evidence/real-person/qcut-ui-eye-detail-60.mp4",
+      "width": 1080,
+      "height": 1920,
+      "fps": 30,
+      "durationSeconds": 2,
+      "frames": 60,
+      "videoCodec": "h264",
+      "videoBitRate": 7240020,
+      "sizeBytes": 1810952,
+      "hasAudio": false,
+      "engine": "mediabunny-muxer"
+    }
+  },
+  "qualityMethod": {
+    "normalization": "fps=30,scale=360:640:flags=lanczos,setpts=PTS-STARTPTS",
+    "wholeVideoMetrics": ["ssim", "psnr"],
+    "perFrameGate": {
+      "metric": "ssim",
+      "minimumAllowed": 0.95,
+      "expectedFrames": 60
+    }
+  },
+  "wholeVideoMetrics": {
+    "sourceVsJianyingBaseline": { "ssim": 0.98213, "psnrDb": 31.098197 },
+    "sourceVsQcutCli": { "ssim": 0.996338, "psnrDb": 49.07646 },
+    "sourceVsQcutUi": { "ssim": 0.994685, "psnrDb": 45.131295 },
+    "qcutCliVsQcutUi": { "ssim": 0.994808, "psnrDb": 46.737786 },
+    "jianyingBaselineVsQcutCli": { "ssim": 0.980888, "psnrDb": 31.532653 },
+    "jianyingBaselineVsQcutUi": { "ssim": 0.980107, "psnrDb": 31.393883 }
+  },
+  "perFrameGate": {
+    "qcutCli": { "frames": 60, "minimumSsim": 0.995289, "passed": true },
+    "qcutUi": { "frames": 60, "minimumSsim": 0.991745, "passed": true }
+  },
+  "e2e": {
+    "file": "apps/web/src/test/e2e/media-lab-real-person.e2e.ts",
+    "result": "passed",
+    "tests": 1,
+    "durationSeconds": 44.7,
+    "usesRealCli": true,
+    "usesVisibleUi": true,
+    "usesPlaywrightMouseAndKeyboard": true,
+    "requiresNonBlackPreviewBeforeScreenshot": true
+  },
+  "comparisonLayout": {
+    "topLeft": "source",
+    "topRight": "jianyingBaseline",
+    "bottomLeft": "qcutCli",
+    "bottomRight": "qcutUi",
+    "video": "docs/task/jianying-video-basic-panel-reference/evidence/real-person/06-real-person-comparison.mp4",
+    "still": "docs/task/jianying-video-basic-panel-reference/evidence/real-person/05-real-person-contact-sheet.png"
+  },
+  "limitations": [
+    "The Jianying export is a same-source baseline without Bright Eye applied.",
+    "The Jianying screenshot proves the control exists but does not prove exported effect output.",
+    "Whole-frame metrics primarily detect continuity and quality failures, not local eye-effect strength.",
+    "QCut Lab eye detail does not estimate or redirect gaze.",
+    "The source has no audio stream, so this run does not compare audio."
+  ]
+}

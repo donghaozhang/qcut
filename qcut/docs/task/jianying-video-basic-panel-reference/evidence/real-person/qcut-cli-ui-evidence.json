@@ -1,0 +1,101 @@
+{
+  "apiPort": "59908",
+  "cliExport": [
+    {
+      "status": "pending",
+      "jobId": "export_1788066703952_w9g10v"
+    },
+    {
+      "status": "ok",
+      "data": {
+        "schema_version": "1",
+        "command": "editor:export:start",
+        "data": {
+          "jobId": "export_1788066703952_w9g10v",
+          "projectId": "d759ef0a-2f47-4b5c-a00b-0b4eb7fcdfba",
+          "status": "completed",
+          "progress": 1,
+          "startedAt": 1788066703952,
+          "presetId": "tiktok",
+          "engine": "native-cli",
+          "settings": {
+            "engine": "native-cli",
+            "presetId": "tiktok",
+            "width": 1080,
+            "height": 1920,
+            "fps": 30,
+            "format": "mp4",
+            "codec": "libx264",
+            "bitrate": "6Mbps",
+            "audioBitrate": 192,
+            "audioSampleRate": 44100,
+            "audioChannels": 2,
+            "audioConfig": {
+              "mic": false,
+              "systemAudio": true
+            }
+          },
+          "outputPath": "/Users/peter/Desktop/code/qcut/qcut/docs/task/jianying-video-basic-panel-reference/evidence/real-person/qcut-cli-eye-detail-60.mp4",
+          "duration": 2,
+          "fileSize": 1317146,
+          "completedAt": 1788066704611,
+          "view": {
+            "activeProjectId": "d759ef0a-2f47-4b5c-a00b-0b4eb7fcdfba",
+            "matchesTarget": true
+          }
+        }
+      },
+      "command_id": "cmd-1788066703940-td76ks",
+      "duration_ms": 3016
+    }
+  ],
+  "cliExportBytes": 1317146,
+  "cliFrameQuality": {
+    "frameCount": 60,
+    "minimumSsim": 0.995289
+  },
+  "cliPatch": [
+    {
+      "status": "ok",
+      "data": {
+        "schema_version": "1",
+        "command": "editor:element:patch",
+        "data": {
+          "updated": true,
+          "view": {
+            "activeProjectId": "d759ef0a-2f47-4b5c-a00b-0b4eb7fcdfba",
+            "matchesTarget": true
+          }
+        }
+      },
+      "command_id": "cmd-1788066701718-6cvb49",
+      "duration_ms": 771
+    }
+  ],
+  "finalState": 60,
+  "projectId": "d759ef0a-2f47-4b5c-a00b-0b4eb7fcdfba",
+  "projectSettings": [
+    {
+      "status": "ok",
+      "data": {
+        "schema_version": "1",
+        "command": "editor:project:update-settings",
+        "data": {
+          "updated": true,
+          "view": {
+            "activeProjectId": "d759ef0a-2f47-4b5c-a00b-0b4eb7fcdfba",
+            "matchesTarget": true
+          }
+        }
+      },
+      "command_id": "cmd-1788066699830-dw3dkz",
+      "duration_ms": 41
+    }
+  ],
+  "sourcePath": "/Users/peter/Desktop/improve_voice/qcut-gru-real-person-test-2026-08-26/real-person-input-2s.mp4",
+  "uiExportBytes": 1810952,
+  "uiFrameQuality": {
+    "frameCount": 60,
+    "minimumSsim": 0.991745
+  }
+}

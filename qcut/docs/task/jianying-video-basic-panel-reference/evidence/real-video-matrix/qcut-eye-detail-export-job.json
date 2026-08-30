@@ -1,0 +1,56 @@
+{
+  "bytes": 3210475,
+  "envelopes": [
+    {
+      "status": "pending",
+      "jobId": "export_1788074911744_zw4old"
+    },
+    {
+      "status": "ok",
+      "data": {
+        "schema_version": "1",
+        "command": "editor:export:start",
+        "data": {
+          "engine": "renderer-muxer",
+          "jobId": "export_1788074911744_zw4old",
+          "outputPath": "/Users/peter/Desktop/code/qcut/qcut/docs/task/jianying-video-basic-panel-reference/evidence/real-video-matrix/qcut-eye-detail.mp4",
+          "presetId": "tiktok",
+          "progress": 1,
+          "projectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+          "settings": {
+            "engine": "native-cli",
+            "presetId": "tiktok",
+            "width": 1080,
+            "height": 1920,
+            "fps": 30,
+            "format": "mp4",
+            "codec": "libx264",
+            "bitrate": "6Mbps",
+            "audioBitrate": 192,
+            "audioSampleRate": 44100,
+            "audioChannels": 2,
+            "audioConfig": {
+              "mic": false,
+              "systemAudio": true
+            }
+          },
+          "startedAt": 1788074911744,
+          "status": "completed",
+          "fileSize": 3210475,
+          "completedAt": 1788074951260,
+          "view": {
+            "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+            "matchesTarget": true
+          }
+        }
+      },
+      "command_id": "cmd-1788074911734-s2fi47",
+      "duration_ms": 42047
+    }
+  ],
+  "probe": {
+    "durationSeconds": 3,
+    "frameCount": 90
+  },
+  "sha256": "cfd601b80c9f580defc9d5efb0012671d2aaa3e708d0bd3e1af3cd6bd321b18f"
+}

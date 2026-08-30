@@ -496,7 +496,7 @@ function AISettingsPanel() {
   const models = {
     anthropic: ['claude-sonnet-4-20250514', 'claude-haiku-4-20250414'],
     openai: ['gpt-4o', 'gpt-4o-mini'],
-    google: ['gemini-2.5-pro', 'gemini-2.5-flash']
+    google: ['gemini-3.7-flash', 'gemini-2.5-flash']
   };
 
   return (
@@ -779,7 +779,7 @@ Pi Agent runs inside the existing Terminal tab with a provider switcher. No new 
 **Step 15 — Extend chat component (`apps/web/src/components/editor/media-panel/views/gemini-terminal.tsx`)**
 - Add provider selector in the header area (next to existing title/clear button):
   - Toggle or segmented control: "Gemini" | "Pi Agent"
-  - When Pi Agent is selected, show model selector dropdown (provider groups: Anthropic, OpenAI, Google; models per provider: `{ anthropic: ['claude-sonnet-4-20250514', 'claude-haiku-4-20250414'], openai: ['gpt-4o', 'gpt-4o-mini'], google: ['gemini-2.5-pro', 'gemini-2.5-flash'] }`)
+  - When Pi Agent is selected, show model selector dropdown (provider groups: Anthropic, OpenAI, Google; models per provider: `{ anthropic: ['claude-sonnet-4-20250514', 'claude-haiku-4-20250414'], openai: ['gpt-4o', 'gpt-4o-mini'], google: ['gemini-3.7-flash', 'gemini-2.5-flash'] }`)
   - Use existing `Select` from `@/components/ui/select` for the model dropdown
 - Add tool execution indicator (shown between message list and input when `activeProvider === 'pi-agent'` and `activeToolCalls` is non-empty):
   - Shows active tool calls with spinner

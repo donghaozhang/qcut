@@ -11,10 +11,25 @@ import type {
 	ScreenRecordingStatus,
 } from "./screen-recording";
 import type { CursorTelemetryData } from "./cursor-telemetry";
+import type {
+	QcutAudioCacheClearResult,
+	QcutAudioCacheStats,
+	QcutAudioProcessRequest,
+	QcutAudioProcessResult,
+	QcutAudioRuntimeStatus,
+} from "../../../../../electron/qcut-audio-runtime-contract";
 
 export interface ElectronAudioOps {
 	audio: {
 		saveTemp: (audioData: Uint8Array, filename: string) => Promise<string>;
+		inspectLocalRuntime: () => Promise<QcutAudioRuntimeStatus>;
+		processLocal: (
+			request: QcutAudioProcessRequest
+		) => Promise<QcutAudioProcessResult>;
+		/** Optional so a newer renderer can feature-check an older preload. */
+		cancelLocal?: (requestId: string) => Promise<boolean>;
+		getLocalCacheStats: () => Promise<QcutAudioCacheStats>;
+		clearLocalCache: () => Promise<QcutAudioCacheClearResult>;
 	};
 }
 

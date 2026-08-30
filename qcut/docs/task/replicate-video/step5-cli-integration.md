@@ -67,7 +67,7 @@ Add command definitions:
   category: "replicate",
   flags: [
     f("--source", "string", "Source video file path", { required: true }),
-    f("--model", "string", "Vision model", { default: "gemini-2.5-pro" }),
+    f("--model", "string", "Vision model", { default: "gemini-3.7-flash" }),
   ],
 },
 ```

@@ -34,6 +34,36 @@ describe("Filter Lab verification CLI registration", () => {
 		expect(getCommand("filter-lab-render")?.category).toBe("filter-lab");
 	});
 
+	it("registers and parses an ordered filter pipeline", () => {
+		const options = parseCliArgs([
+			"filter-lab",
+			"pipeline",
+			"--filter-step",
+			"123:70",
+			"--filter-step",
+			"456:35",
+			"-i",
+			"input.mp4",
+			"--output",
+			"output.mp4",
+			"--duration",
+			"2",
+			"--fps",
+			"24",
+		]);
+		expect(options).toMatchObject({
+			command: "filter-lab-pipeline",
+			filterSteps: ["123:70", "456:35"],
+			input: "input.mp4",
+			output: "output.mp4",
+			duration: "2",
+			fps: 24,
+		});
+		expect(getCommandFlag("filter-lab-pipeline", "--filter-step")?.type).toBe(
+			"string[]"
+		);
+	});
+
 	it("registers rendered parity verification", () => {
 		expect(getCommand("filter-lab-verify")?.category).toBe("filter-lab");
 		expect(getCommandFlag("filter-lab-verify", "--reference-frame")?.type).toBe(

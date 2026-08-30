@@ -182,7 +182,7 @@ describe("listAnalyzeModels", () => {
 		const { models } = listAnalyzeModels();
 		const keys = models.map((m) => m.key);
 		expect(keys).toContain("gemini-2.5-flash");
-		expect(keys).toContain("gemini-2.5-pro");
+		expect(keys).toContain("gemini-3.7-flash");
 		expect(keys).toContain("gemini-3-pro");
 		expect(keys).toContain("gemini-direct");
 	});

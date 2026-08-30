@@ -35,6 +35,10 @@ describe("video enhancement filter", () => {
 			upscale: 1,
 			relight: -100,
 			beauty: 100,
+			labDeflicker: 0,
+			labOpticalFlowMotionBlur: 0,
+			labEyeCorrection: 0,
+			labLocalSuperResolution: 0,
 		});
 	});
 

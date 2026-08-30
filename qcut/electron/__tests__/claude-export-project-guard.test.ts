@@ -180,6 +180,53 @@ describe("export start project guard", () => {
 		expect(startRendererExportJob).not.toHaveBeenCalled();
 	});
 
+	it("routes local eye correction through the live portrait renderer", async () => {
+		const timeline: ClaudeTimeline = {
+			...buildTimeline("project-a"),
+			tracks: [
+				{
+					index: 0,
+					name: "Media",
+					type: "media",
+					elements: [
+						{
+							id: "portrait",
+							trackIndex: 0,
+							startTime: 0,
+							endTime: 1,
+							duration: 1,
+							type: "media",
+							enhancements: { labEyeCorrection: 60 },
+						},
+					],
+				},
+			],
+		};
+		const accessor = buildAccessor(timeline);
+		accessor.requestLocalVideoExport = vi.fn(async () => {});
+		const { router, getHandler } = buildRouterHarness();
+		registerSharedRoutes(router, accessor);
+		const [method, path] = EXPORT_START.split(" ");
+
+		const result = await getHandler(
+			method,
+			path
+		)({
+			params: { projectId: "project-a" },
+			query: {},
+			body: { outputPath: "/tmp/eye-detail.mp4" },
+		});
+
+		expect(result).toMatchObject({ jobId: "renderer-test-job" });
+		expect(startRendererExportJob).toHaveBeenCalledWith(
+			expect.objectContaining({
+				dispatch: accessor.requestLocalVideoExport,
+				projectId: "project-a",
+			})
+		);
+		expect(startExportJob).not.toHaveBeenCalled();
+	});
+
 	it("routes runtime stickers through the live renderer instead of native FFmpeg", async () => {
 		vi.mocked(listMediaFiles).mockResolvedValue([
 			{

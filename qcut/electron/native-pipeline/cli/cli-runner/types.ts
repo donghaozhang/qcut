@@ -23,6 +23,8 @@ export interface CLIRunOptions {
 	/** True when the user explicitly passed --output-dir / -o */
 	outputDirExplicit?: boolean;
 	config?: string;
+	/** Portable QCut compose project destination. */
+	projectDir?: string;
 	input?: string;
 	/** Video before a local transition cut. */
 	inputA?: string;
@@ -224,6 +226,8 @@ export interface CLIRunOptions {
 	acceptedWarningFingerprints?: string[];
 	packagePath?: string;
 	resourceIds?: string[];
+	/** filter-lab pipeline: ordered "resource-id[:intensity]" steps. */
+	filterSteps?: string[];
 	/** filter-lab: Jianying resource ID to score QCut presets against. */
 	resourceId?: string;
 	/** filter-lab coverage: evidence source and optional per-card checklist. */
