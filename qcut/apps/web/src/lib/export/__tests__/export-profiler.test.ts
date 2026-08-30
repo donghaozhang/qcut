@@ -22,7 +22,13 @@ describe("buildExportRenderIndex", () => {
 			},
 		] as unknown as TimelineTrack[];
 		const mediaItems = [{ id: "m1" }, { id: "m2" }] as MediaItem[];
-		const index = buildExportRenderIndex({ tracks, mediaItems });
+		const index = buildExportRenderIndex({
+			tracks,
+			mediaItems,
+			fps: 30,
+			canvasWidth: 1280,
+			canvasHeight: 720,
+		});
 		expect([...index.timelineStickerIds].sort()).toEqual(["s1", "s2"]);
 		expect(index.mediaItemsById.get("m2")).toBe(mediaItems[1]);
 		expect(index.mediaItemsById.size).toBe(2);
