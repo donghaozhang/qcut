@@ -5,6 +5,7 @@ import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
 	materializeSoundEffectsLabAsset,
+	searchSoundEffectsLab,
 	type ResolvedSoundEffectsLabAsset,
 } from "../native-pipeline/sounds/sound-effects-lab-client.js";
 
@@ -17,8 +18,10 @@ function asset(
 ): ResolvedSoundEffectsLabAsset {
 	return {
 		id: "sound-effects-lab:whoosh",
-		title: "Whoosh",
-		labels: [],
+		name: "Whoosh",
+		durationSeconds: 1,
+		tags: [],
+		categoryIds: [],
 		provider: "freesound",
 		redistribution: "allowed",
 		reusable: true,
@@ -26,7 +29,7 @@ function asset(
 		byteSize: AUDIO_BYTES.byteLength,
 		checksumSha256: createHash("sha256").update(AUDIO_BYTES).digest("hex"),
 		...overrides,
-	} as ResolvedSoundEffectsLabAsset;
+	};
 }
 
 beforeAll(() => {
@@ -83,5 +86,55 @@ describe("materializeSoundEffectsLabAsset integrity", () => {
 			})
 		).rejects.toThrow(/reference-only/);
 		expect(fs.existsSync(destinationPath)).toBe(false);
+	});
+
+	it("downloads a reusable remote asset without a display file name", async () => {
+		const destinationPath = path.join(directory, "out", "remote.audio");
+		const fetchImpl = (async () =>
+			new Response(AUDIO_BYTES, { status: 200 })) as typeof fetch;
+
+		await expect(
+			materializeSoundEffectsLabAsset({
+				asset: asset({
+					fileName: undefined,
+					localPath: undefined,
+					objectKey: "private/whoosh",
+				}),
+				destinationPath,
+				fetchImpl,
+			})
+		).resolves.toBe(destinationPath);
+		expect(fs.readFileSync(destinationPath)).toEqual(AUDIO_BYTES);
+	});
+
+	it("returns the reusable license declared by the manifest", async () => {
+		const manifestPath = path.join(directory, "licensed-manifest.json");
+		fs.writeFileSync(
+			manifestPath,
+			JSON.stringify({
+				categories: [{ id: "hits", label: "Hits" }],
+				items: [
+					{
+						id: "licensed-impact",
+						title: "Licensed impact",
+						duration: 1,
+						categoryIds: ["hits"],
+						source: {
+							provider: "freesound",
+							redistribution: "allowed",
+							license: "CC-BY-4.0",
+						},
+					},
+				],
+			})
+		);
+
+		await expect(
+			searchSoundEffectsLab({
+				query: "impact",
+				limit: 1,
+				source: { manifestPath },
+			})
+		).resolves.toMatchObject([{ license: "CC-BY-4.0" }]);
 	});
 });
