@@ -4,6 +4,7 @@ import path from "node:path";
 import { expect, type Page, type TestInfo } from "@playwright/test";
 import type { ElectronApplication } from "playwright";
 import { readLocalReference } from "../../../../../../electron/native-pipeline/stickers/local-reference-catalog/index";
+import { resolveStickerGeometry } from "../../../lib/stickers/sticker-geometry";
 import { createTestProject } from "./electron-helpers";
 import {
 	exportLocalStickerVideo,
@@ -48,6 +49,7 @@ import {
 	waitForEditorApiHealth,
 } from "./sticker-lab-real-cache-lifecycle";
 import { addStickerLabUiBatch } from "./sticker-lab-stratified-ui-batch";
+import { waitForStickerCount } from "./sticker-lab-restricted-state-wait";
 import { readStratifiedTimelineItem } from "./sticker-lab-stratified-timeline-evidence";
 import {
 	type ExpectedStratifiedMedia,
@@ -128,17 +130,16 @@ function assertOffCanvasBaselineSticker({
 }): void {
 	const sticker = state.stickers.find(({ id }) => id === elementId);
 	if (!sticker) throw new Error("Off-canvas baseline sticker is missing");
-	const { opacity, width, x } = sticker;
+	const { height, opacity, width, x, y } = sticker;
 	if (typeof width !== "number" || typeof x !== "number") {
 		throw new Error("Off-canvas baseline sticker geometry is incomplete");
 	}
-	const shortSide = Math.min(
-		STICKER_BATCH_CANVAS_SIZE.width,
-		STICKER_BATCH_CANVAS_SIZE.height
-	);
-	const left =
-		(x / 100) * STICKER_BATCH_CANVAS_SIZE.width -
-		((width / 100) * shortSide) / 2;
+	const { left } = resolveStickerGeometry({
+		canvasHeight: STICKER_BATCH_CANVAS_SIZE.height,
+		canvasWidth: STICKER_BATCH_CANVAS_SIZE.width,
+		position: { x, y: y ?? 0 },
+		size: { height: height ?? width, width },
+	});
 	if (opacity !== 1 || left < STICKER_BATCH_CANVAS_SIZE.width) {
 		throw new Error("Baseline sticker intersects the exported video canvas");
 	}
@@ -146,21 +147,6 @@ function assertOffCanvasBaselineSticker({
 
 function runDirectoryName(): string {
 	return `run-${new Date().toISOString().replace(/[:.]/g, "-")}`;
-}
-
-async function waitForStickerCount({
-	count,
-	page,
-}: {
-	count: number;
-	page: Page;
-}): Promise<void> {
-	await expect
-		.poll(async () => (await readRestrictedState({ page })).stickers.length, {
-			intervals: [100, 250, 500],
-			timeout: 30_000,
-		})
-		.toBe(count);
 }
 
 async function removeAddedStickers({
