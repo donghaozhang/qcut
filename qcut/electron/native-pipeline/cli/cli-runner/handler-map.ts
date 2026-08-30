@@ -131,6 +131,7 @@ import {
 	handleFilterLabVerify,
 } from "../cli-handlers-filter-lab.js";
 import { handleFilterLabCatalog } from "../cli-handlers-filter-lab-catalog.js";
+import { handleFilterLabPipeline } from "../cli-handlers-filter-lab-pipeline.js";
 import { handleFilterLabRender } from "../cli-handlers-filter-lab-render.js";
 import {
 	handleFilterLabCoverage,
@@ -147,6 +148,11 @@ import {
 	handleEffectLabRender,
 	handleEffectLabSearch,
 } from "../cli-handlers-effect-lab.js";
+import {
+	handleComposeProject,
+	handleComposeRender,
+	handleComposeValidate,
+} from "../cli-handlers-compose.js";
 
 /**
  * Unified handler signature.
@@ -197,6 +203,9 @@ function wrapOPS(
  */
 export const HANDLER_MAP: Record<string, CommandHandler> = {
 	update: wrapOPS(handleAppUpdate),
+	"compose-validate": wrapOPS(handleComposeValidate),
+	"compose-render": wrapOPS(handleComposeRender),
+	"compose-project": wrapOPS(handleComposeProject),
 	"instances-list": wrap(handleInstancesCommand),
 	"instances-use": wrap(handleInstancesCommand),
 	"filter-lab-list": wrap((options) =>
@@ -204,6 +213,9 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	),
 	"filter-lab-render": wrapOPS((options, onProgress, signal) =>
 		handleFilterLabRender({ options, onProgress, signal })
+	),
+	"filter-lab-pipeline": wrapOPS((options, onProgress, signal) =>
+		handleFilterLabPipeline({ options, onProgress, signal })
 	),
 	"filter-lab-catalog": wrap((options) =>
 		handleFilterLabCatalog({

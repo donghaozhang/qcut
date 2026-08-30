@@ -15,6 +15,11 @@ import { ipcMain, app, safeStorage } from "electron";
 import * as fs from "fs/promises";
 import * as fsSync from "fs";
 import * as path from "path";
+import {
+	isProxyAvailable,
+	proxyRequest,
+	proxyUploadUrl,
+} from "./native-pipeline/infra/proxy-client.js";
 
 // ============================================================================
 // Types
@@ -94,8 +99,8 @@ try {
 
 const FAL_STORAGE_INITIATE_URL =
 	"https://rest.alpha.fal.ai/storage/upload/initiate?storage_type=fal-cdn-v3";
-const FAL_ELEVENLABS_URL =
-	"https://fal.run/fal-ai/elevenlabs/speech-to-text/scribe-v2";
+const FAL_ELEVENLABS_ENDPOINT = "fal-ai/elevenlabs/speech-to-text/scribe-v2";
+const FAL_ELEVENLABS_URL = `https://fal.run/${FAL_ELEVENLABS_ENDPOINT}`;
 const LOG_PREFIX = "[ElevenLabs]";
 
 // ============================================================================
@@ -155,34 +160,7 @@ async function getFalApiKey(): Promise<string> {
 	);
 }
 
-/**
- * Uploads a file to FAL storage using the two-step process.
- * Step 1: Initiate upload to get signed URL
- * Step 2: Upload file to signed URL
- *
- * @param filePath - Path to the file to upload
- * @param apiKey - FAL API key
- * @returns URL of the uploaded file
- */
-async function uploadToFalStorage(
-	filePath: string,
-	apiKey: string
-): Promise<string> {
-	log.info(`${LOG_PREFIX} Uploading file to FAL storage...`);
-	log.info(`${LOG_PREFIX} Uploading file to FAL storage...`);
-
-	const fileBuffer = await fs.readFile(filePath);
-	const fileName = path.basename(filePath);
-	const fileSize = fileBuffer.length;
-
-	log.info(
-		`${LOG_PREFIX} File: ${fileName} (${(fileSize / 1024 / 1024).toFixed(2)} MB)`
-	);
-	log.info(
-		`${LOG_PREFIX} File: ${fileName} (${(fileSize / 1024 / 1024).toFixed(2)} MB)`
-	);
-
-	// Determine content type based on file extension
+function getContentTypeForFile({ fileName }: { fileName: string }): string {
 	const ext = fileName.split(".").pop()?.toLowerCase();
 	const contentTypeMap: Record<string, string> = {
 		mp3: "audio/mpeg",
@@ -192,10 +170,74 @@ async function uploadToFalStorage(
 		ogg: "audio/ogg",
 		flac: "audio/flac",
 	};
-	const contentType = contentTypeMap[ext ?? ""] ?? "audio/mpeg";
+	return contentTypeMap[ext ?? ""] ?? "audio/mpeg";
+}
 
-	// Step 1: Initiate upload to get signed URL
-	log.info(`${LOG_PREFIX} Step 1: Initiating upload...`);
+async function uploadWithSignedUrl({
+	contentType,
+	fileBuffer,
+	uploadUrl,
+}: {
+	contentType: string;
+	fileBuffer: Buffer;
+	uploadUrl: string;
+}): Promise<void> {
+	const uploadResponse = await fetch(uploadUrl, {
+		method: "PUT",
+		headers: { "Content-Type": contentType },
+		body: new Uint8Array(fileBuffer),
+	});
+
+	if (!uploadResponse.ok) {
+		const errorText = await uploadResponse.text();
+		log.error(
+			`${LOG_PREFIX} Upload failed: ${uploadResponse.status} - ${errorText}`
+		);
+		throw new Error(
+			`FAL storage upload failed: ${uploadResponse.status} ${errorText}`
+		);
+	}
+}
+
+async function uploadToFalStorageViaProxy({
+	contentType,
+	fileBuffer,
+	fileName,
+	fileSize,
+}: {
+	contentType: string;
+	fileBuffer: Buffer;
+	fileName: string;
+	fileSize: number;
+}): Promise<string> {
+	const signedUpload = await proxyUploadUrl({
+		fileName,
+		contentType,
+		fileSize,
+	});
+
+	await uploadWithSignedUrl({
+		contentType,
+		fileBuffer,
+		uploadUrl: signedUpload.uploadUrl,
+	});
+
+	return signedUpload.fileUrl;
+}
+
+async function uploadToFalStorageDirect({
+	apiKey,
+	contentType,
+	fileBuffer,
+	fileName,
+}: {
+	apiKey: string;
+	contentType: string;
+	fileBuffer: Buffer;
+	fileName: string;
+}): Promise<string> {
+	log.info(`${LOG_PREFIX} Initiating direct FAL upload...`);
+
 	const initResponse = await fetch(FAL_STORAGE_INITIATE_URL, {
 		method: "POST",
 		headers: {
@@ -229,62 +271,131 @@ async function uploadToFalStorage(
 		throw new Error("FAL storage did not return upload URLs");
 	}
 
-	log.info(`${LOG_PREFIX} Step 2: Uploading to signed URL...`);
-
-	// Step 2: Upload file to the signed URL
-	const uploadResponse = await fetch(upload_url, {
-		method: "PUT",
-		headers: { "Content-Type": contentType },
-		body: new Uint8Array(fileBuffer),
+	await uploadWithSignedUrl({
+		contentType,
+		fileBuffer,
+		uploadUrl: upload_url,
 	});
 
-	if (!uploadResponse.ok) {
-		const errorText = await uploadResponse.text();
-		log.error(
-			`${LOG_PREFIX} Upload failed: ${uploadResponse.status} - ${errorText}`
-		);
-		throw new Error(
-			`FAL storage upload failed: ${uploadResponse.status} ${errorText}`
-		);
-	}
-
-	log.info(`${LOG_PREFIX} File uploaded successfully: ${file_url}`);
 	log.info(`${LOG_PREFIX} File uploaded successfully: ${file_url}`);
 	return file_url;
 }
 
-/**
- * Calls the ElevenLabs Scribe v2 API via FAL.
- *
- * @param audioUrl - URL of the audio file (from FAL storage)
- * @param options - Transcription options
- * @param apiKey - FAL API key
- * @returns Transcription result
- */
-async function callElevenLabsApi(
-	audioUrl: string,
-	options: ElevenLabsTranscribeOptions,
-	apiKey: string
-): Promise<ElevenLabsTranscribeResult> {
-	log.info(`${LOG_PREFIX} Calling ElevenLabs Scribe v2 API...`);
+async function uploadToFalStorage(filePath: string): Promise<string> {
+	log.info(`${LOG_PREFIX} Uploading file to FAL storage...`);
+
+	const fileBuffer = await fs.readFile(filePath);
+	const fileName = path.basename(filePath);
+	const fileSize = fileBuffer.length;
+	const contentType = getContentTypeForFile({ fileName });
+
 	log.info(
-		`${LOG_PREFIX} Options: diarize=${options.diarize ?? true}, tagAudioEvents=${options.tagAudioEvents ?? true}`
+		`${LOG_PREFIX} File: ${fileName} (${(fileSize / 1024 / 1024).toFixed(2)} MB)`
 	);
 
+	let proxyError: unknown = null;
+	if (await isProxyAvailable()) {
+		try {
+			log.info(`${LOG_PREFIX} Uploading via QCut license-server proxy...`);
+			return await uploadToFalStorageViaProxy({
+				contentType,
+				fileBuffer,
+				fileName,
+				fileSize,
+			});
+		} catch (error) {
+			proxyError = error;
+			log.warn(
+				`${LOG_PREFIX} Proxy upload failed, trying BYOK fallback:`,
+				error
+			);
+		}
+	}
+
+	try {
+		const apiKey = await getFalApiKey();
+		return await uploadToFalStorageDirect({
+			apiKey,
+			contentType,
+			fileBuffer,
+			fileName,
+		});
+	} catch (error) {
+		if (proxyError) {
+			throw new Error(
+				`QCut cloud upload failed and no local FAL fallback succeeded: ${error instanceof Error ? error.message : String(error)}`
+			);
+		}
+		throw error;
+	}
+}
+
+function buildElevenLabsRequestBody({
+	audioUrl,
+	options,
+}: {
+	audioUrl: string;
+	options: ElevenLabsTranscribeOptions;
+}): Record<string, unknown> {
 	const requestBody: Record<string, unknown> = {
 		audio_url: audioUrl,
 		diarize: options.diarize ?? true,
 		tag_audio_events: options.tagAudioEvents ?? true,
 	};
 
-	// Add optional parameters
 	if (options.language) {
 		requestBody.language_code = options.language;
-		log.info(`${LOG_PREFIX} Language: ${options.language}`);
 	}
 
 	if (options.keyterms && options.keyterms.length > 0) {
 		requestBody.keyterms = options.keyterms;
+	}
+
+	return requestBody;
+}
+
+async function callElevenLabsApiViaProxy({
+	audioUrl,
+	options,
+}: {
+	audioUrl: string;
+	options: ElevenLabsTranscribeOptions;
+}): Promise<ElevenLabsTranscribeResult> {
+	const response = await proxyRequest({
+		provider: "fal",
+		endpoint: FAL_ELEVENLABS_URL,
+		method: "POST",
+		body: buildElevenLabsRequestBody({ audioUrl, options }),
+		timeoutMs: 120_000,
+	});
+
+	if (!response.ok) {
+		const preview =
+			typeof response.data === "string"
+				? response.data.slice(0, 300)
+				: JSON.stringify(response.data).slice(0, 300);
+		throw new Error(
+			`Proxy ElevenLabs API error: ${response.status} ${preview}`
+		);
+	}
+
+	return response.data as ElevenLabsTranscribeResult;
+}
+
+async function callElevenLabsApiDirect({
+	apiKey,
+	audioUrl,
+	options,
+}: {
+	apiKey: string;
+	audioUrl: string;
+	options: ElevenLabsTranscribeOptions;
+}): Promise<ElevenLabsTranscribeResult> {
+	if (options.language) {
+		log.info(`${LOG_PREFIX} Language: ${options.language}`);
+	}
+
+	if (options.keyterms && options.keyterms.length > 0) {
 		log.info(
 			`${LOG_PREFIX} Keyterms: ${options.keyterms.length} terms (+30% cost)`
 		);
@@ -296,7 +407,7 @@ async function callElevenLabsApi(
 			Authorization: `Key ${apiKey}`,
 			"Content-Type": "application/json",
 		},
-		body: JSON.stringify(requestBody),
+		body: JSON.stringify(buildElevenLabsRequestBody({ audioUrl, options })),
 	});
 
 	if (!response.ok) {
@@ -304,16 +415,70 @@ async function callElevenLabsApi(
 		throw new Error(`ElevenLabs API error: ${response.status} ${errorText}`);
 	}
 
-	const result = (await response.json()) as ElevenLabsTranscribeResult;
+	return (await response.json()) as ElevenLabsTranscribeResult;
+}
 
+function logTranscriptionResult({
+	result,
+}: {
+	result: ElevenLabsTranscribeResult;
+}): void {
 	log.info(`${LOG_PREFIX} Transcription complete`);
 	log.info(
 		`${LOG_PREFIX} Language: ${result.language_code} (confidence: ${(result.language_probability * 100).toFixed(1)}%)`
 	);
 	log.info(`${LOG_PREFIX} Words: ${result.words?.length || 0}`);
 	log.info(`${LOG_PREFIX} Text length: ${result.text?.length || 0} characters`);
+}
 
-	return result;
+/**
+ * Calls the ElevenLabs Scribe v2 API through QCut cloud, with BYOK fallback.
+ *
+ * @param audioUrl - URL of the audio file (from FAL storage)
+ * @param options - Transcription options
+ * @returns Transcription result
+ */
+async function callElevenLabsApi({
+	audioUrl,
+	options,
+}: {
+	audioUrl: string;
+	options: ElevenLabsTranscribeOptions;
+}): Promise<ElevenLabsTranscribeResult> {
+	log.info(`${LOG_PREFIX} Calling ElevenLabs Scribe v2 API...`);
+	log.info(
+		`${LOG_PREFIX} Options: diarize=${options.diarize ?? true}, tagAudioEvents=${options.tagAudioEvents ?? true}`
+	);
+
+	let proxyError: unknown = null;
+	if (await isProxyAvailable()) {
+		try {
+			log.info(`${LOG_PREFIX} Transcribing via QCut license-server proxy...`);
+			const result = await callElevenLabsApiViaProxy({ audioUrl, options });
+			logTranscriptionResult({ result });
+			return result;
+		} catch (error) {
+			proxyError = error;
+			log.warn(
+				`${LOG_PREFIX} Proxy transcription failed, trying BYOK fallback:`,
+				error
+			);
+		}
+	}
+
+	try {
+		const apiKey = await getFalApiKey();
+		const result = await callElevenLabsApiDirect({ apiKey, audioUrl, options });
+		logTranscriptionResult({ result });
+		return result;
+	} catch (error) {
+		if (proxyError) {
+			throw new Error(
+				`QCut cloud transcription failed and no local FAL fallback succeeded: ${error instanceof Error ? error.message : String(error)}`
+			);
+		}
+		throw error;
+	}
 }
 
 // ============================================================================
@@ -366,19 +531,14 @@ export function registerElevenLabsTranscribeHandler(): void {
 					throw new Error(`Audio file not found: ${options.audioPath}`);
 				}
 
-				// Get API key
-				log.info(`${LOG_PREFIX} Getting FAL API key...`);
-				const apiKey = await getFalApiKey();
-				log.info(`${LOG_PREFIX} Got API key (length: ${apiKey?.length || 0})`);
-
 				// Upload to FAL storage
 				log.info(`${LOG_PREFIX} Uploading to FAL storage...`);
-				const audioUrl = await uploadToFalStorage(options.audioPath, apiKey);
+				const audioUrl = await uploadToFalStorage(options.audioPath);
 				log.info(`${LOG_PREFIX} Uploaded! URL: ${audioUrl}`);
 
 				// Call ElevenLabs API
 				log.info(`${LOG_PREFIX} Calling ElevenLabs API...`);
-				const result = await callElevenLabsApi(audioUrl, options, apiKey);
+				const result = await callElevenLabsApi({ audioUrl, options });
 				log.info(`${LOG_PREFIX} API call complete!`);
 				log.info(`${LOG_PREFIX} Result text length: ${result.text?.length}`);
 				log.info(`${LOG_PREFIX} Result words count: ${result.words?.length}`);
@@ -408,8 +568,7 @@ export function registerElevenLabsTranscribeHandler(): void {
 			log.info(`${LOG_PREFIX} Upload request received: ${filePath}`);
 
 			try {
-				const apiKey = await getFalApiKey();
-				const url = await uploadToFalStorage(filePath, apiKey);
+				const url = await uploadToFalStorage(filePath);
 				log.info(`${LOG_PREFIX} Upload complete! URL: ${url}`);
 				return { url };
 			} catch (error) {
@@ -429,7 +588,11 @@ export function registerElevenLabsTranscribeHandler(): void {
 // ============================================================================
 
 // CommonJS export for backward compatibility
-module.exports = { registerElevenLabsTranscribeHandler };
+try {
+	module.exports = { registerElevenLabsTranscribeHandler };
+} catch {
+	// Vitest imports this module as ESM; production Electron still uses CJS.
+}
 
 // ES6 exports
 export default { registerElevenLabsTranscribeHandler };

@@ -14,6 +14,7 @@ import {
 	buildVideoEnhancementFilter,
 	normalizeVideoEnhancements,
 } from "./video-enhancement-filter.js";
+import { getVideoLabTemporalContextSeconds } from "./video-lab-filter.js";
 import {
 	getVideoPreviewProxyCacheDir,
 	getVideoPreviewProxyPath,
@@ -123,7 +124,9 @@ function hasTemporalEnhancement({
 	return (
 		options.enhancements.stabilization > 0 ||
 		options.enhancements.denoise > 0 ||
-		options.enhancements.beauty > 0
+		options.enhancements.beauty > 0 ||
+		(options.enhancements.labDeflicker ?? 0) > 0 ||
+		(options.enhancements.labOpticalFlowMotionBlur ?? 0) > 0
 	);
 }
 
@@ -135,18 +138,29 @@ export function buildVideoPreviewProxyCommand({
 	outputPath: string;
 }): VideoPreviewProxyCommand {
 	const normalized = normalizeProxyOptions({ options });
+	const labTemporalContext = getVideoLabTemporalContextSeconds({
+		settings: {
+			deflicker: normalized.enhancements.labDeflicker,
+			opticalFlowMotionBlur: normalized.enhancements.labOpticalFlowMotionBlur,
+		},
+		fps: normalized.fps,
+	});
 	const preroll = hasTemporalEnhancement({ options: normalized })
-		? Math.min(normalized.sourceStart, TEMPORAL_PREROLL_SECONDS)
+		? Math.min(
+				normalized.sourceStart,
+				Math.max(TEMPORAL_PREROLL_SECONDS, labTemporalContext)
+			)
 		: 0;
 	const inputStart = Math.max(0, normalized.sourceStart - preroll);
 	const filters = [
-		`scale=${normalized.width}:${normalized.height}:flags=lanczos`,
-		"setsar=1",
 		buildVideoEnhancementFilter({
 			enhancements: normalized.enhancements,
 			width: normalized.width,
 			height: normalized.height,
+			fps: normalized.fps,
 		}),
+		`scale=${normalized.width}:${normalized.height}:flags=lanczos`,
+		"setsar=1",
 		`fps=${normalized.fps}`,
 		"format=yuv420p",
 	].filter(Boolean);

@@ -14,6 +14,10 @@ import {
 	getVideoPreviewProxyCacheStats,
 } from "../ffmpeg/video-preview-proxy.js";
 import { getRecordingsDir } from "../screen-recording-handler/path-utils.js";
+import {
+	clearQcutAudioCache,
+	getQcutAudioCacheStats,
+} from "../qcut-audio-runtime/cache.js";
 
 export interface AppStorageInfo {
 	drafts: string;
@@ -91,11 +95,19 @@ export function getAppStorageInfo(): AppStorageInfo {
 
 export async function collectAppCacheStats(): Promise<AppCacheStats> {
 	const entries: AppCacheEntry[] = [];
-	const proxyStats = await getVideoPreviewProxyCacheStats();
+	const [proxyStats, audioStats] = await Promise.all([
+		getVideoPreviewProxyCacheStats(),
+		getQcutAudioCacheStats(),
+	]);
 	entries.push({
 		id: "preview-proxies",
 		path: proxyStats.cacheDir,
 		bytes: proxyStats.totalBytes,
+	});
+	entries.push({
+		id: "qcut-audio-derived",
+		path: audioStats.cacheDirectory,
+		bytes: audioStats.totalBytes,
 	});
 	for (const name of TEMP_CACHE_DIR_NAMES) {
 		const dir = path.join(os.tmpdir(), name);
@@ -109,7 +121,7 @@ export async function collectAppCacheStats(): Promise<AppCacheStats> {
 
 export async function clearAppCaches(): Promise<{ freedBytes: number }> {
 	const before = await collectAppCacheStats();
-	await clearVideoPreviewProxyCache();
+	await Promise.all([clearVideoPreviewProxyCache(), clearQcutAudioCache()]);
 	for (const name of TEMP_CACHE_DIR_NAMES) {
 		await clearDirectoryContents(path.join(os.tmpdir(), name));
 	}

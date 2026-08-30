@@ -64,6 +64,9 @@ describe("app maintenance handlers", () => {
 		expect(stats.entries.some((entry) => entry.id === "preview-proxies")).toBe(
 			true
 		);
+		expect(
+			stats.entries.some((entry) => entry.id === "qcut-audio-derived")
+		).toBe(true);
 	});
 
 	it("clears temp caches and reports freed bytes", async () => {

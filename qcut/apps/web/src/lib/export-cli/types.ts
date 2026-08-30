@@ -167,6 +167,10 @@ export interface VideoVisualInput {
 		upscale: 1 | 2 | 4;
 		relight: number;
 		beauty: number;
+		labDeflicker?: number;
+		labOpticalFlowMotionBlur?: number;
+		labEyeCorrection?: number;
+		labLocalSuperResolution?: 0 | 2 | 4;
 	};
 	keyframes?: Partial<
 		Record<

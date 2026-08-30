@@ -120,6 +120,10 @@ export function normalizeMediaElement({
 			upscale: 1,
 			relight: 0,
 			beauty: 0,
+			labDeflicker: 0,
+			labOpticalFlowMotionBlur: 0,
+			labEyeCorrection: 0,
+			labLocalSuperResolution: 0,
 		},
 		portraitAdjustments: normalizeMediaPortraitAdjustments({
 			adjustments: element.portraitAdjustments,

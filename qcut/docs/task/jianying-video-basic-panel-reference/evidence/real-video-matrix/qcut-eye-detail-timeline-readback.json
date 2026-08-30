@@ -1,0 +1,61 @@
+[
+  {
+    "status": "ok",
+    "data": {
+      "schema_version": "1",
+      "command": "editor:timeline:export",
+      "data": {
+        "name": "Untitled Project",
+        "duration": 3,
+        "width": 360,
+        "height": 640,
+        "fps": 30,
+        "tracks": [
+          {
+            "id": "f4df10fc-5b09-4dff-9027-6c5e09e9e4d3",
+            "index": 0,
+            "name": "主轨道",
+            "type": "media",
+            "isMain": true,
+            "hidden": false,
+            "elements": [
+              {
+                "id": "210c5036-ade3-4634-b23c-fd8dc21f2456",
+                "trackIndex": 0,
+                "startTime": 0,
+                "endTime": 3,
+                "duration": 3,
+                "type": "media",
+                "sourceId": "c158dd25-4dcd-5986-8ef3-97a398e9cc67",
+                "sourceName": "02-real-person-challenge-noisy-3s.mp4",
+                "trimStart": 0,
+                "trimEnd": 0,
+                "frameInterpolation": "none",
+                "enhancements": {
+                  "stabilization": 0,
+                  "denoise": 0,
+                  "clarity": 0,
+                  "upscale": 1,
+                  "relight": 0,
+                  "beauty": 0,
+                  "labDeflicker": 0,
+                  "labOpticalFlowMotionBlur": 0,
+                  "labEyeCorrection": 60,
+                  "labLocalSuperResolution": 0
+                },
+                "timelineDuration": 3
+              }
+            ]
+          }
+        ],
+        "projectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+        "view": {
+          "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+          "matchesTarget": true
+        }
+      }
+    },
+    "command_id": "cmd-1788074910605-uis6hi",
+    "duration_ms": 728
+  }
+]

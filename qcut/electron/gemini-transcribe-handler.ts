@@ -1,6 +1,10 @@
 import { ipcMain, app } from "electron";
 import fs from "node:fs/promises";
 import path from "node:path";
+import {
+	isProxyAvailable,
+	proxyRequest,
+} from "./native-pipeline/infra/proxy-client.js";
 
 // Dynamic import for @google/generative-ai to support packaged app
 let GoogleGenerativeAI: any;
@@ -17,6 +21,9 @@ try {
 }
 import fsSync from "node:fs";
 import { safeStorage } from "electron";
+
+const GEMINI_TRANSCRIPTION_MODEL = "gemini-3.7-flash";
+const GEMINI_TRANSCRIPTION_ENDPOINT = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TRANSCRIPTION_MODEL}:generateContent`;
 
 interface GeminiTranscriptionRequest {
 	audioPath: string;
@@ -82,6 +89,220 @@ function parseTimestamp(parts: string[]): number {
 	return h * 3600 + m * 60 + s + ms / 1000;
 }
 
+function getAudioMimeType({ audioPath }: { audioPath: string }): string {
+	const ext = path.extname(audioPath).toLowerCase();
+	const mimeTypeMap: Record<string, string> = {
+		".wav": "audio/wav",
+		".mp3": "audio/mp3",
+		".webm": "audio/webm",
+		".m4a": "audio/mp4",
+		".aac": "audio/aac",
+		".ogg": "audio/ogg",
+		".flac": "audio/flac",
+	};
+	return mimeTypeMap[ext] || "audio/wav";
+}
+
+function buildSrtPrompt({ language }: { language?: string }): string {
+	return `Transcribe this audio into SRT subtitle format with precise timestamps.
+
+Format requirements:
+1. Number each subtitle block sequentially (1, 2, 3...)
+2. Use timestamp format: HH:MM:SS,mmm --> HH:MM:SS,mmm
+3. Each subtitle should be 1-2 sentences maximum
+4. Add blank line between blocks
+5. Language: ${language || "auto-detect"}
+
+Example format:
+1
+00:00:00,000 --> 00:00:03,500
+Hello, welcome to the video.
+
+2
+00:00:03,500 --> 00:00:07,200
+Today we'll learn about captions.
+
+Provide ONLY the SRT content, no additional text.`;
+}
+
+function extractGeminiText({ data }: { data: unknown }): string {
+	if (!data || typeof data !== "object") return "";
+	const record = data as {
+		candidates?: Array<{
+			content?: {
+				parts?: Array<{ text?: string }>;
+			};
+		}>;
+	};
+	return record.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "";
+}
+
+async function transcribeViaProxy({
+	audioBase64,
+	mimeType,
+	prompt,
+}: {
+	audioBase64: string;
+	mimeType: string;
+	prompt: string;
+}): Promise<string> {
+	const response = await proxyRequest({
+		provider: "gemini",
+		endpoint: GEMINI_TRANSCRIPTION_ENDPOINT,
+		method: "POST",
+		body: {
+			contents: [
+				{
+					role: "user",
+					parts: [
+						{ text: prompt },
+						{
+							inlineData: {
+								mimeType,
+								data: audioBase64,
+							},
+						},
+					],
+				},
+			],
+			generationConfig: {
+				temperature: 0.1,
+			},
+		},
+		timeoutMs: 120_000,
+	});
+
+	if (!response.ok) {
+		throw new Error(`Gemini proxy request failed (${response.status})`);
+	}
+
+	const text = extractGeminiText({ data: response.data });
+	if (!text) {
+		throw new Error("Gemini proxy returned no transcription text");
+	}
+
+	return text;
+}
+
+function getLocalGeminiApiKey(): string {
+	console.log("[Gemini Handler] 🔍 Checking API key...");
+	const userDataPath = app.getPath("userData");
+	const apiKeysFilePath = path.join(userDataPath, "api-keys.json");
+	console.log(`[Gemini Handler] 📁 API keys file: ${apiKeysFilePath}`);
+
+	let geminiApiKey = "";
+	const fileExists = fsSync.existsSync(apiKeysFilePath);
+	console.log(`[Gemini Handler] ✅ File exists: ${fileExists}`);
+
+	if (fileExists) {
+		const fileContent = fsSync.readFileSync(apiKeysFilePath, "utf8");
+		console.log(
+			`[Gemini Handler] 📄 File content length: ${fileContent.length} bytes`
+		);
+
+		const encryptedData = JSON.parse(fileContent);
+		console.log(
+			`[Gemini Handler] 📦 Keys in file: ${Object.keys(encryptedData).join(", ")}`
+		);
+		console.log(
+			`[Gemini Handler] 🔑 geminiApiKey field exists: ${!!encryptedData.geminiApiKey}`
+		);
+
+		if (encryptedData.geminiApiKey) {
+			const encryptionAvailable = safeStorage.isEncryptionAvailable();
+			console.log(
+				`[Gemini Handler] 🔒 Encryption available: ${encryptionAvailable}`
+			);
+
+			if (encryptionAvailable) {
+				try {
+					console.log("[Gemini Handler] 🔓 Attempting decryption...");
+					geminiApiKey = safeStorage.decryptString(
+						Buffer.from(encryptedData.geminiApiKey, "base64")
+					);
+					console.log(
+						`[Gemini Handler] ✅ Decryption successful (key length: ${geminiApiKey.length})`
+					);
+				} catch (decryptError: any) {
+					console.error(
+						"[Gemini Handler] ❌ Decryption failed:",
+						decryptError.message
+					);
+					console.log("[Gemini Handler] 🔄 Falling back to plain text...");
+					geminiApiKey = encryptedData.geminiApiKey || "";
+				}
+			} else {
+				console.log(
+					"[Gemini Handler] 📝 Using plain text (encryption not available)"
+				);
+				geminiApiKey = encryptedData.geminiApiKey || "";
+			}
+		} else {
+			console.error(
+				"[Gemini Handler] ❌ geminiApiKey field is missing in encrypted data"
+			);
+		}
+	} else {
+		console.error(
+			`[Gemini Handler] ❌ API keys file not found at: ${apiKeysFilePath}`
+		);
+	}
+
+	if (!geminiApiKey && process.env.VITE_GEMINI_API_KEY) {
+		geminiApiKey = process.env.VITE_GEMINI_API_KEY;
+		console.log(
+			"[Gemini Handler] 🔄 Using API key from environment variable (development mode)"
+		);
+	}
+
+	if (!geminiApiKey) {
+		console.error(
+			"[Gemini Handler] ❌ GEMINI_API_KEY not found in secure storage or environment"
+		);
+		console.error("[Gemini Handler] 💡 File exists:", fileExists);
+		console.error(
+			"[Gemini Handler] 💡 Please configure your API key in Settings → API Keys"
+		);
+		throw new Error(
+			"GEMINI_API_KEY not found. Please configure your API key in Settings. Get your API key from: https://aistudio.google.com/app/apikey"
+		);
+	}
+
+	console.log(
+		`[Gemini Handler] ✅ API key loaded (length: ${geminiApiKey.length})`
+	);
+	return geminiApiKey;
+}
+
+async function transcribeDirect({
+	audioBase64,
+	mimeType,
+	prompt,
+}: {
+	audioBase64: string;
+	mimeType: string;
+	prompt: string;
+}): Promise<string> {
+	const geminiApiKey = getLocalGeminiApiKey();
+	console.log("[Gemini Handler] Initializing Gemini API client...");
+	const genAI = new GoogleGenerativeAI(geminiApiKey);
+	const model = genAI.getGenerativeModel({ model: GEMINI_TRANSCRIPTION_MODEL });
+	console.log(`[Gemini Handler] Using model: ${GEMINI_TRANSCRIPTION_MODEL}`);
+
+	const result = await model.generateContent([
+		prompt,
+		{
+			inlineData: {
+				mimeType,
+				data: audioBase64,
+			},
+		},
+	]);
+
+	const response = await result.response;
+	return response.text();
+}
+
 export function setupGeminiHandlers() {
 	ipcMain.handle(
 		"transcribe:audio",
@@ -97,100 +318,6 @@ export function setupGeminiHandlers() {
 			);
 
 			try {
-				// Get API key from secure storage
-				console.log("[Gemini Handler] 🔍 Checking API key...");
-				const userDataPath = app.getPath("userData");
-				const apiKeysFilePath = path.join(userDataPath, "api-keys.json");
-				console.log(`[Gemini Handler] 📁 API keys file: ${apiKeysFilePath}`);
-
-				let geminiApiKey = "";
-
-				const fileExists = fsSync.existsSync(apiKeysFilePath);
-				console.log(`[Gemini Handler] ✅ File exists: ${fileExists}`);
-
-				if (fileExists) {
-					const fileContent = fsSync.readFileSync(apiKeysFilePath, "utf8");
-					console.log(
-						`[Gemini Handler] 📄 File content length: ${fileContent.length} bytes`
-					);
-
-					const encryptedData = JSON.parse(fileContent);
-					console.log(
-						`[Gemini Handler] 📦 Keys in file: ${Object.keys(encryptedData).join(", ")}`
-					);
-					console.log(
-						`[Gemini Handler] 🔑 geminiApiKey field exists: ${!!encryptedData.geminiApiKey}`
-					);
-
-					if (encryptedData.geminiApiKey) {
-						const encryptionAvailable = safeStorage.isEncryptionAvailable();
-						console.log(
-							`[Gemini Handler] 🔒 Encryption available: ${encryptionAvailable}`
-						);
-
-						if (encryptionAvailable) {
-							try {
-								console.log("[Gemini Handler] 🔓 Attempting decryption...");
-								geminiApiKey = safeStorage.decryptString(
-									Buffer.from(encryptedData.geminiApiKey, "base64")
-								);
-								console.log(
-									`[Gemini Handler] ✅ Decryption successful (key length: ${geminiApiKey.length})`
-								);
-							} catch (decryptError: any) {
-								console.error(
-									"[Gemini Handler] ❌ Decryption failed:",
-									decryptError.message
-								);
-								console.log(
-									"[Gemini Handler] 🔄 Falling back to plain text..."
-								);
-								// Fallback to plain text if decryption fails
-								geminiApiKey = encryptedData.geminiApiKey || "";
-							}
-						} else {
-							console.log(
-								"[Gemini Handler] 📝 Using plain text (encryption not available)"
-							);
-							geminiApiKey = encryptedData.geminiApiKey || "";
-						}
-					} else {
-						console.error(
-							"[Gemini Handler] ❌ geminiApiKey field is missing in encrypted data"
-						);
-					}
-				} else {
-					console.error(
-						`[Gemini Handler] ❌ API keys file not found at: ${apiKeysFilePath}`
-					);
-				}
-
-				// Fallback to environment variable if no encrypted key found (development only)
-				if (!geminiApiKey && process.env.VITE_GEMINI_API_KEY) {
-					geminiApiKey = process.env.VITE_GEMINI_API_KEY;
-					console.log(
-						"[Gemini Handler] 🔄 Using API key from environment variable (development mode)"
-					);
-				}
-
-				// Check for API key
-				if (!geminiApiKey) {
-					console.error(
-						"[Gemini Handler] ❌ GEMINI_API_KEY not found in secure storage or environment"
-					);
-					console.error("[Gemini Handler] 💡 File exists:", fileExists);
-					console.error(
-						"[Gemini Handler] 💡 Please configure your API key in Settings → API Keys"
-					);
-					throw new Error(
-						"GEMINI_API_KEY not found. Please configure your API key in Settings. Get your API key from: https://aistudio.google.com/app/apikey"
-					);
-				}
-				console.log(
-					`[Gemini Handler] ✅ API key loaded (length: ${geminiApiKey.length})`
-				);
-
-				// Read audio file
 				console.log("[Gemini Handler] Reading audio file...");
 				const audioBuffer = await fs.readFile(request.audioPath);
 				console.log(
@@ -205,61 +332,54 @@ export function setupGeminiHandlers() {
 					audioBase64.length
 				);
 
-				// Determine MIME type from extension
-				const ext = path.extname(request.audioPath).toLowerCase();
-				const mimeTypeMap: Record<string, string> = {
-					".wav": "audio/wav",
-					".mp3": "audio/mp3",
-					".webm": "audio/webm",
-					".m4a": "audio/mp4",
-					".aac": "audio/aac",
-					".ogg": "audio/ogg",
-					".flac": "audio/flac",
-				};
-				const mimeType = mimeTypeMap[ext] || "audio/wav";
+				const mimeType = getAudioMimeType({ audioPath: request.audioPath });
+				const prompt = buildSrtPrompt({ language: request.language });
+				let srtContent = "";
+				let proxyError: unknown;
 
-				// Initialize Gemini API
-				console.log("[Gemini Handler] Initializing Gemini API client...");
-				const genAI = new GoogleGenerativeAI(geminiApiKey);
-				const model = genAI.getGenerativeModel({ model: "gemini-2.5-pro" });
-				console.log("[Gemini Handler] Using model: gemini-2.5-pro");
-
-				// Generate SRT transcription
-				console.log(
-					"[Gemini Handler] Sending transcription request to Gemini..."
-				);
-				const prompt = `Transcribe this audio into SRT subtitle format with precise timestamps.
-
-Format requirements:
-1. Number each subtitle block sequentially (1, 2, 3...)
-2. Use timestamp format: HH:MM:SS,mmm --> HH:MM:SS,mmm
-3. Each subtitle should be 1-2 sentences maximum
-4. Add blank line between blocks
-5. Language: ${request.language || "auto-detect"}
-
-Example format:
-1
-00:00:00,000 --> 00:00:03,500
-Hello, welcome to the video.
-
-2
-00:00:03,500 --> 00:00:07,200
-Today we'll learn about captions.
-
-Provide ONLY the SRT content, no additional text.`;
-
-				const result = await model.generateContent([
-					prompt,
-					{
-						inlineData: {
+				if (await isProxyAvailable()) {
+					try {
+						console.log(
+							`[Gemini Handler] Sending transcription request through QCut proxy (${GEMINI_TRANSCRIPTION_MODEL})...`
+						);
+						srtContent = await transcribeViaProxy({
+							audioBase64,
 							mimeType,
-							data: audioBase64,
-						},
-					},
-				]);
+							prompt,
+						});
+					} catch (error) {
+						proxyError = error;
+						console.error(
+							"[Gemini Handler] Proxy transcription failed:",
+							error
+						);
+					}
+				}
 
-				const response = await result.response;
-				const srtContent = response.text();
+				if (!srtContent) {
+					console.log(
+						`[Gemini Handler] Sending direct transcription request to Gemini (${GEMINI_TRANSCRIPTION_MODEL})...`
+					);
+					try {
+						srtContent = await transcribeDirect({
+							audioBase64,
+							mimeType,
+							prompt,
+						});
+					} catch (directError: any) {
+						if (proxyError) {
+							const proxyMessage =
+								proxyError instanceof Error
+									? proxyError.message
+									: String(proxyError);
+							throw new Error(
+								`${directError.message || "Direct Gemini request failed"}; proxy fallback reason: ${proxyMessage}`
+							);
+						}
+						throw directError;
+					}
+				}
+
 				console.log("[Gemini Handler] ✅ Received response from Gemini");
 				console.log(
 					"[Gemini Handler] SRT content length:",

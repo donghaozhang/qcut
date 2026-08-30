@@ -2,7 +2,7 @@
  * System prompts for Gemini Vision video analysis.
  *
  * Used by the replicate-analyzer to extract a VideoRecipe
- * from a source video via Gemini 2.5 Pro/Flash.
+ * from a source video via Gemini Flash.
  *
  * @module electron/native-pipeline/replicate/replicate-prompts
  */

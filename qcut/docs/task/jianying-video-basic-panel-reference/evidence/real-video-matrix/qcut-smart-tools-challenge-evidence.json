@@ -1,0 +1,412 @@
+{
+  "apiPort": "56082",
+  "cleanSourcePath": "/Users/peter/Desktop/code/qcut/qcut/docs/task/jianying-video-basic-panel-reference/evidence/real-video-matrix/02-real-person-challenge-noisy-3s.mp4",
+  "projectId": "9169ffba-650b-4ac2-8da3-3b070a8242b7",
+  "tracking": {
+    "keyframeCount": 2,
+    "progress": 100,
+    "source": "mediapipe",
+    "status": "ready"
+  },
+  "smart-motion": {
+    "exported": {
+      "bytes": 2751806,
+      "envelopes": [
+        {
+          "status": "pending",
+          "jobId": "export_1788071485415_3if75n"
+        },
+        {
+          "status": "ok",
+          "data": {
+            "schema_version": "1",
+            "command": "editor:export:start",
+            "data": {
+              "jobId": "export_1788071485415_3if75n",
+              "projectId": "9169ffba-650b-4ac2-8da3-3b070a8242b7",
+              "status": "completed",
+              "progress": 1,
+              "startedAt": 1788071485415,
+              "presetId": "tiktok",
+              "engine": "native-cli",
+              "settings": {
+                "engine": "native-cli",
+                "presetId": "tiktok",
+                "width": 1080,
+                "height": 1920,
+                "fps": 30,
+                "format": "mp4",
+                "codec": "libx264",
+                "bitrate": "6Mbps",
+                "audioBitrate": 192,
+                "audioSampleRate": 44100,
+                "audioChannels": 2,
+                "audioConfig": {
+                  "mic": false,
+                  "systemAudio": true
+                }
+              },
+              "outputPath": "/Users/peter/Desktop/code/qcut/qcut/docs/task/jianying-video-basic-panel-reference/evidence/real-video-matrix/qcut-smart-motion.mp4",
+              "duration": 3,
+              "fileSize": 2751806,
+              "completedAt": 1788071486462,
+              "view": {
+                "activeProjectId": "9169ffba-650b-4ac2-8da3-3b070a8242b7",
+                "matchesTarget": true
+              }
+            }
+          },
+          "command_id": "cmd-1788071485363-23kjvi",
+          "duration_ms": 3058
+        }
+      ],
+      "sha256": "baeaafee94a29f97a79e0bc4849b3a6ca28fe510a67a3d2d451fbe4bf190fb92"
+    },
+    "snapshot": {
+      "enhancements": null,
+      "frameInterpolation": "none",
+      "keyframes": {
+        "x": [
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-motion-x-0",
+            "frame": 0,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-motion-x-71",
+            "frame": 71,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-motion-x-90",
+            "frame": 90,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "y": [
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-motion-y-0",
+            "frame": 0,
+            "value": -9.984,
+            "easing": "easeInOut"
+          },
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-motion-y-71",
+            "frame": 71,
+            "value": -10.741333,
+            "easing": "easeInOut"
+          },
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-motion-y-90",
+            "frame": 90,
+            "value": -10.944,
+            "easing": "easeInOut"
+          }
+        ],
+        "scaleX": [
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-motion-scaleX-0",
+            "frame": 0,
+            "value": 1.04,
+            "easing": "easeInOut"
+          },
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-motion-scaleX-71",
+            "frame": 71,
+            "value": 1.118889,
+            "easing": "easeInOut"
+          },
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-motion-scaleX-90",
+            "frame": 90,
+            "value": 1.14,
+            "easing": "easeInOut"
+          }
+        ],
+        "scaleY": [
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-motion-scaleY-0",
+            "frame": 0,
+            "value": 1.04,
+            "easing": "easeInOut"
+          },
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-motion-scaleY-71",
+            "frame": 71,
+            "value": 1.118889,
+            "easing": "easeInOut"
+          },
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-motion-scaleY-90",
+            "frame": 90,
+            "value": 1.14,
+            "easing": "easeInOut"
+          }
+        ]
+      },
+      "tracking": {
+        "keyframeCount": 2,
+        "progress": 100,
+        "source": "mediapipe",
+        "status": "ready"
+      }
+    }
+  },
+  "smart-crop": {
+    "exported": {
+      "bytes": 2767530,
+      "envelopes": [
+        {
+          "status": "pending",
+          "jobId": "export_1788071492408_tbzbyl"
+        },
+        {
+          "status": "ok",
+          "data": {
+            "schema_version": "1",
+            "command": "editor:export:start",
+            "data": {
+              "jobId": "export_1788071492408_tbzbyl",
+              "projectId": "9169ffba-650b-4ac2-8da3-3b070a8242b7",
+              "status": "completed",
+              "progress": 1,
+              "startedAt": 1788071492408,
+              "presetId": "tiktok",
+              "engine": "native-cli",
+              "settings": {
+                "engine": "native-cli",
+                "presetId": "tiktok",
+                "width": 1080,
+                "height": 1920,
+                "fps": 30,
+                "format": "mp4",
+                "codec": "libx264",
+                "bitrate": "6Mbps",
+                "audioBitrate": 192,
+                "audioSampleRate": 44100,
+                "audioChannels": 2,
+                "audioConfig": {
+                  "mic": false,
+                  "systemAudio": true
+                }
+              },
+              "outputPath": "/Users/peter/Desktop/code/qcut/qcut/docs/task/jianying-video-basic-panel-reference/evidence/real-video-matrix/qcut-smart-crop.mp4",
+              "duration": 3,
+              "fileSize": 2767530,
+              "completedAt": 1788071493373,
+              "view": {
+                "activeProjectId": "9169ffba-650b-4ac2-8da3-3b070a8242b7",
+                "matchesTarget": true
+              }
+            }
+          },
+          "command_id": "cmd-1788071492398-qxfeip",
+          "duration_ms": 3015
+        }
+      ],
+      "sha256": "ddf7c9480f6574c6c724d75a3e4c8fa54e650a3f87b9385e80730ef79a851640"
+    },
+    "snapshot": {
+      "enhancements": null,
+      "frameInterpolation": "none",
+      "keyframes": {
+        "x": [
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-crop-x-0",
+            "frame": 0,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-crop-x-71",
+            "frame": 71,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-crop-x-90",
+            "frame": 90,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "y": [
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-crop-y-0",
+            "frame": 0,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-crop-y-71",
+            "frame": 71,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-crop-y-90",
+            "frame": 90,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "scaleX": [
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-crop-scaleX-0",
+            "frame": 0,
+            "value": 1,
+            "easing": "easeInOut"
+          },
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-crop-scaleX-71",
+            "frame": 71,
+            "value": 1,
+            "easing": "easeInOut"
+          },
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-crop-scaleX-90",
+            "frame": 90,
+            "value": 1,
+            "easing": "easeInOut"
+          }
+        ],
+        "scaleY": [
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-crop-scaleY-0",
+            "frame": 0,
+            "value": 1,
+            "easing": "easeInOut"
+          },
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-crop-scaleY-71",
+            "frame": 71,
+            "value": 1,
+            "easing": "easeInOut"
+          },
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-smart-crop-scaleY-90",
+            "frame": 90,
+            "value": 1,
+            "easing": "easeInOut"
+          }
+        ]
+      },
+      "tracking": {
+        "keyframeCount": 2,
+        "progress": 100,
+        "source": "mediapipe",
+        "status": "ready"
+      }
+    }
+  },
+  "camera-tracking": {
+    "exported": {
+      "bytes": 2767530,
+      "envelopes": [
+        {
+          "status": "pending",
+          "jobId": "export_1788071498006_wtban0"
+        },
+        {
+          "status": "ok",
+          "data": {
+            "schema_version": "1",
+            "command": "editor:export:start",
+            "data": {
+              "jobId": "export_1788071498006_wtban0",
+              "projectId": "9169ffba-650b-4ac2-8da3-3b070a8242b7",
+              "status": "completed",
+              "progress": 1,
+              "startedAt": 1788071498006,
+              "presetId": "tiktok",
+              "engine": "native-cli",
+              "settings": {
+                "engine": "native-cli",
+                "presetId": "tiktok",
+                "width": 1080,
+                "height": 1920,
+                "fps": 30,
+                "format": "mp4",
+                "codec": "libx264",
+                "bitrate": "6Mbps",
+                "audioBitrate": 192,
+                "audioSampleRate": 44100,
+                "audioChannels": 2,
+                "audioConfig": {
+                  "mic": false,
+                  "systemAudio": true
+                }
+              },
+              "outputPath": "/Users/peter/Desktop/code/qcut/qcut/docs/task/jianying-video-basic-panel-reference/evidence/real-video-matrix/qcut-camera-tracking.mp4",
+              "duration": 3,
+              "fileSize": 2767530,
+              "completedAt": 1788071498969,
+              "view": {
+                "activeProjectId": "9169ffba-650b-4ac2-8da3-3b070a8242b7",
+                "matchesTarget": true
+              }
+            }
+          },
+          "command_id": "cmd-1788071497994-g4hngt",
+          "duration_ms": 3016
+        }
+      ],
+      "sha256": "ddf7c9480f6574c6c724d75a3e4c8fa54e650a3f87b9385e80730ef79a851640"
+    },
+    "snapshot": {
+      "enhancements": null,
+      "frameInterpolation": "none",
+      "keyframes": {
+        "x": [
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-camera-tracking-x-0",
+            "frame": 0,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-camera-tracking-x-71",
+            "frame": 71,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-camera-tracking-x-90",
+            "frame": 90,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ],
+        "y": [
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-camera-tracking-y-0",
+            "frame": 0,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-camera-tracking-y-71",
+            "frame": 71,
+            "value": 0,
+            "easing": "easeInOut"
+          },
+          {
+            "id": "mask-7c04d2cc-3f67-4f4e-b8cc-af2c8e9637fb-media-lab-camera-tracking-y-90",
+            "frame": 90,
+            "value": 0,
+            "easing": "easeInOut"
+          }
+        ]
+      },
+      "tracking": {
+        "keyframeCount": 2,
+        "progress": 100,
+        "source": "mediapipe",
+        "status": "ready"
+      }
+    }
+  }
+}

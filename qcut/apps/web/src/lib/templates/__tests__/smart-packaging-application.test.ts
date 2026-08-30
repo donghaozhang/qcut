@@ -9,6 +9,7 @@ import type {
 } from "@/types/timeline";
 import {
 	buildSmartPackagedTimeline,
+	buildSmartPackagedTimelineFromPatch,
 	collectSmartPackagingSources,
 	previewSmartPackagingPlan,
 } from "../smart-packaging-application";
@@ -180,11 +181,19 @@ describe("Smart Packaging application", () => {
 		});
 
 		expect(result.appliedCounts).toEqual({
+			captions: 0,
 			text: 2,
 			stickers: 3,
 			soundEffects: 3,
 			zooms: 2,
 			transitions: 1,
+		});
+		expect(result.patch.diagnostics.operationCounts).toMatchObject({
+			"add-text-overlay": 2,
+			"add-sticker": 3,
+			"add-sound-effect": 3,
+			"update-media-zoom": 2,
+			"upsert-transition": 1,
 		});
 		const mainTrack = result.tracks.find((track) => track.id === "main-media");
 		const firstShot = mainTrack?.elements.find(
@@ -329,5 +338,83 @@ describe("Smart Packaging application", () => {
 		).toBeGreaterThanOrEqual(
 			((repositionedText.height ?? 0) + (generatedText.height ?? 0)) / 2
 		);
+	});
+
+	it("merges provider timeline patches through the same generated lanes", () => {
+		const { tracks } = buildTimeline();
+		const result = buildSmartPackagedTimelineFromPatch({
+			tracks,
+			fps: 30,
+			videoMediaIds: VIDEO_MEDIA_IDS,
+			assetIds: {
+				stickerMediaId: "spark-media",
+				soundMediaId: "pop-media",
+			},
+			patch: {
+				schemaVersion: 1,
+				id: "cloud-patch",
+				source: "cloud",
+				snapshotId: "snapshot-1",
+				sourceFingerprint: "fingerprint-1",
+				createdAt: "2026-08-30T00:00:00.000Z",
+				provider: "qcut",
+				operations: [
+					{
+						kind: "add-caption",
+						id: "caption:generated:1",
+						text: "云端生成字幕",
+						language: "zh",
+						startTime: 0.4,
+						duration: 1.6,
+					},
+					{
+						kind: "add-text-overlay",
+						id: "text:generated:1",
+						text: "云端生成字幕",
+						textTemplateId: "social-hook",
+						startTime: 0.4,
+						duration: 1.6,
+					},
+					{
+						kind: "add-sound-effect",
+						id: "sound:generated:1",
+						startTime: 0.5,
+						duration: 0.7,
+						volume: 0.7,
+						asset: {
+							provider: "qcut",
+							assetId: "accent-pop",
+							assetType: "sound-effect",
+						},
+					},
+				],
+				warnings: [],
+				diagnostics: {
+					sourceCounts: { captions: 0, beats: 0, shots: 0 },
+					operationCounts: {
+						"add-caption": 1,
+						"add-text-overlay": 1,
+						"add-sticker": 0,
+						"add-sound-effect": 1,
+						"update-media-zoom": 0,
+						"upsert-transition": 0,
+					},
+				},
+			},
+		});
+
+		expect(result.appliedCounts).toMatchObject({
+			captions: 1,
+			text: 1,
+			soundEffects: 1,
+		});
+		expect(
+			result.tracks
+				.flatMap((track) => track.elements)
+				.some(
+					(element) =>
+						element.type === "captions" && element.text === "云端生成字幕"
+				)
+		).toBe(true);
 	});
 });

@@ -348,6 +348,52 @@ describe("Filter Lab render plan", () => {
 		});
 	});
 
+	it("reports the measured structxt fallback instead of native fidelity", async () => {
+		const resourceId = "7495673180904885516";
+		const version = "c88f3eddf7620d4e0644075efcafd101";
+		vi.mocked(listJianyingLutReferences).mockResolvedValue([]);
+		vi.mocked(inspectJianyingFilterPackages).mockResolvedValue(
+			new Map([
+				[
+					resourceId,
+					{
+						...packageSummary,
+						implementation: "face-ai",
+						versions: [version],
+						nativeSwingRenderer: {
+							kind: "native-swing-shader",
+							container: "artistEffect",
+							packageIdentifier: resourceId,
+							version,
+							passCount: 7,
+							algorithmTypes: ["blit", "face", "skin_seg", "structxt"],
+						},
+					},
+				],
+			])
+		);
+
+		const result = await resolveFilterLabRenderPlan({
+			card: {
+				...card,
+				resourceId,
+				version,
+				implementation: "face-ai",
+				lutCount: 0,
+			},
+			intensity: 100,
+		});
+
+		expect(result).toMatchObject({
+			kind: "ffmpeg",
+			filterGraph: "[0:v:0]null[filter_output]",
+			evidence: {
+				backend: "qcut-safe-passthrough",
+				fidelity: "safe-passthrough",
+			},
+		});
+	});
+
 	it("requires real native skin segmentation for a dual LUT", async () => {
 		vi.mocked(listJianyingLutReferences).mockResolvedValue([]);
 		vi.mocked(inspectJianyingFilterPackages).mockResolvedValue(

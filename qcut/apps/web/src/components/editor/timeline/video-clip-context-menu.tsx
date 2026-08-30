@@ -37,6 +37,8 @@ import {
 } from "@/components/ui/context-menu";
 import type { ClipAttributePreset } from "@/lib/timeline/clip-attribute-presets";
 import { useTranslation } from "@/lib/i18n";
+import type { TimelineColorLabel } from "@/lib/timeline/timeline-color-labels";
+import { TimelineColorLabelMenu } from "./timeline-color-label-menu";
 
 interface VideoClipMenuActions {
 	copy: MouseEventHandler<HTMLDivElement>;
@@ -76,6 +78,8 @@ interface VideoClipMenuActions {
 	breakApart: MouseEventHandler<HTMLDivElement>;
 	linkMedia: MouseEventHandler<HTMLDivElement>;
 	selectMulticamClip: (clipId: string) => void;
+	setColorLabel: (input: { colorLabel?: TimelineColorLabel }) => void;
+	selectSameColor: () => void;
 }
 
 interface MulticamClipOption {
@@ -106,6 +110,7 @@ export function VideoClipContextMenu({
 	canLinkMedia,
 	compoundKind,
 	multicamClips,
+	currentColorLabel,
 	actions,
 }: {
 	isDisabled: boolean;
@@ -119,6 +124,7 @@ export function VideoClipContextMenu({
 	canLinkMedia: boolean;
 	compoundKind?: "compound" | "multicam";
 	multicamClips: MulticamClipOption[];
+	currentColorLabel?: TimelineColorLabel;
 	actions: VideoClipMenuActions;
 }) {
 	const { t } = useTranslation();
@@ -188,6 +194,11 @@ export function VideoClipContextMenu({
 			</ContextMenuItem>
 
 			<ContextMenuSeparator />
+			<TimelineColorLabelMenu
+				currentColorLabel={currentColorLabel}
+				onColorLabelChange={actions.setColorLabel}
+				onSelectSameColor={actions.selectSameColor}
+			/>
 			<ContextMenuSub>
 				<ContextMenuSubTrigger>
 					<WandSparkles />

@@ -1,4 +1,4 @@
-import type { AudioSettings } from "./ffmpeg/audio-settings";
+import type { AudioChannelMode, AudioSettings } from "./ffmpeg/audio-settings";
 import { calculateReverbDecay } from "./ffmpeg/audio-effect-values";
 import {
 	appendAutomatedAudioFilter,
@@ -95,6 +95,13 @@ export function buildAudioEffectTransforms({
 	const includesDynamics = stage === "all" || stage === "dynamics";
 	const includesOutput = stage === "all" || stage === "output";
 	const includesGraphManaged = stage === "all";
+	if (includesPrePitch) {
+		transforms.push(
+			...buildAudioChannelModeTransforms({
+				channelMode: audio.channelMode ?? "stereo",
+			})
+		);
+	}
 	if (
 		includesPrePitch &&
 		audio.denoise.enabled &&
@@ -294,4 +301,19 @@ export function buildAudioEffectTransforms({
 		);
 	}
 	return transforms;
+}
+
+export function buildAudioChannelModeTransforms({
+	channelMode,
+}: {
+	channelMode: AudioChannelMode;
+}): string[] {
+	if (channelMode === "stereo") return [];
+	const channelMap = {
+		mono: "pan=stereo|c0=0.5*c0+0.5*c1|c1=0.5*c0+0.5*c1",
+		left: "pan=stereo|c0=c0|c1=c0",
+		right: "pan=stereo|c0=c1|c1=c1",
+		swap: "pan=stereo|c0=c1|c1=c0",
+	} satisfies Record<Exclude<AudioChannelMode, "stereo">, string>;
+	return ["aformat=channel_layouts=stereo", channelMap[channelMode]];
 }

@@ -136,6 +136,7 @@ const TEXT_VERIFY_KEYS = [
 ] as const;
 
 const MEDIA_VERIFY_KEYS = [
+	"colorLabel",
 	"playbackRate",
 	"speedKeyframes",
 	"reverse",

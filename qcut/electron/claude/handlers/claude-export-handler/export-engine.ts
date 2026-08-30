@@ -23,6 +23,12 @@ import type {
 	VideoTransition,
 } from "../../../ffmpeg/types.js";
 import { buildVideoFitFilter } from "../../../ffmpeg/video-fit-filter.js";
+import { buildDurationPreservingFrameInterpolationFilter } from "../../../ffmpeg/frame-interpolation-filter.js";
+import {
+	buildVideoEnhancementFilter,
+	hasVideoEnhancements,
+	normalizeVideoEnhancements,
+} from "../../../ffmpeg/video-enhancement-filter.js";
 import {
 	buildAtempoChain,
 	buildSegmentTransformFilter,
@@ -500,6 +506,12 @@ export async function collectExportSegments({
 					fps: timeline.fps || 30,
 				});
 				const color = readElementColorSettings({ element });
+				const enhancements = readElementEnhancements({ element });
+				const frameInterpolation =
+					element.frameInterpolation === "blend" ||
+					element.frameInterpolation === "motion-compensated"
+						? element.frameInterpolation
+						: undefined;
 				resolvedMediaFiles?.push(media);
 				segments.push({
 					elementId: element.id,
@@ -519,6 +531,8 @@ export async function collectExportSegments({
 					...(transform === undefined ? {} : { transform }),
 					...(color === undefined ? {} : { color }),
 					...(playbackRate === 1 ? {} : { playbackRate }),
+					...(frameInterpolation === undefined ? {} : { frameInterpolation }),
+					...(enhancements === undefined ? {} : { enhancements }),
 				});
 			}
 		}
@@ -1060,6 +1074,24 @@ function readElementColorSettings({
 	return raw as unknown as VideoColorSettings;
 }
 
+function readElementEnhancements({
+	element,
+}: {
+	element: ClaudeElement;
+}): ExportSegment["enhancements"] {
+	if (
+		typeof element.enhancements !== "object" ||
+		element.enhancements === null ||
+		Array.isArray(element.enhancements)
+	) {
+		return undefined;
+	}
+	const enhancements = normalizeVideoEnhancements({
+		enhancements: element.enhancements as ExportSegment["enhancements"],
+	});
+	return hasVideoEnhancements({ enhancements }) ? enhancements : undefined;
+}
+
 /** Build the same cover/contain/fill scaling used by the editor preview. */
 export function buildExportSegmentScaleFilter({
 	segment,
@@ -1073,6 +1105,17 @@ export function buildExportSegmentScaleFilter({
 		width: settings.width,
 		height: settings.height,
 	})},setsar=1`;
+	const frameInterpolationFilter =
+		buildDurationPreservingFrameInterpolationFilter({
+			mode: segment.frameInterpolation,
+			fps: settings.fps,
+		});
+	const enhancementFilter = buildVideoEnhancementFilter({
+		enhancements: segment.enhancements,
+		width: settings.width,
+		height: settings.height,
+		fps: settings.fps,
+	});
 	// Color grades the media pixels before the geometric transform: padding
 	// introduced by rotation/position must stay untouched black, not get
 	// lifted by brightness or vignetted.
@@ -1098,7 +1141,14 @@ export function buildExportSegmentScaleFilter({
 	// 2× mapping.
 	const rateFilter =
 		rate === 1 ? "" : `setpts=(PTS-STARTPTS)/${rate},fps=${settings.fps}`;
-	return [fit, colorFilter, transformFilter, rateFilter]
+	return [
+		frameInterpolationFilter,
+		enhancementFilter,
+		fit,
+		colorFilter,
+		transformFilter,
+		rateFilter,
+	]
 		.filter((stage) => stage !== "")
 		.join(",");
 }
@@ -1332,6 +1382,10 @@ export async function executeExportJob({
 				segment,
 				settings,
 			});
+			claudeLog.debug(
+				HANDLER_NAME,
+				`Segment ${segment.elementId} video filter: ${scaleFilter}`
+			);
 
 			await runFFmpegCommand({
 				args: [

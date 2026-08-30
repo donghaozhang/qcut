@@ -3,6 +3,22 @@ const MAX_SEEK_TIMEOUT_MS = 2_000;
 const HAVE_CURRENT_DATA_READY_STATE = 2;
 const SEEK_TIME_EPSILON_SECONDS = 0.000_001;
 
+export function getExportFrameSampleTime({
+	frameRate,
+	frameStartTime,
+}: {
+	frameRate: number;
+	frameStartTime: number;
+}): number {
+	if (!(Number.isFinite(frameRate) && frameRate > 0)) {
+		throw new Error("Video export frame rate must be positive");
+	}
+	if (!(Number.isFinite(frameStartTime) && frameStartTime >= 0)) {
+		throw new Error("Video frame start time must be finite and non-negative");
+	}
+	return frameStartTime + 0.5 / frameRate;
+}
+
 function hasDecodedVideoFrame({ video }: { video: HTMLVideoElement }): boolean {
 	return (
 		video.readyState >= HAVE_CURRENT_DATA_READY_STATE &&
@@ -32,6 +48,22 @@ function isAtRequestedFrame({
 	video: HTMLVideoElement;
 }): boolean {
 	return Math.abs(video.currentTime - timeSeconds) <= SEEK_TIME_EPSILON_SECONDS;
+}
+
+function isWithinRequestedFrameInterval({
+	frameRate,
+	timeSeconds,
+	video,
+}: {
+	frameRate: number;
+	timeSeconds: number;
+	video: HTMLVideoElement;
+}): boolean {
+	const halfFrameSeconds = 0.5 / frameRate;
+	return (
+		Math.abs(video.currentTime - timeSeconds) <=
+		halfFrameSeconds + SEEK_TIME_EPSILON_SECONDS
+	);
 }
 
 function seekTimeoutMs({
@@ -97,10 +129,20 @@ export function seekExportVideoFrame({
 	});
 	return new Promise((resolve, reject) => {
 		let settled = false;
+		let seekCompleted = false;
+		let presentationCompleted =
+			typeof video.requestVideoFrameCallback !== "function";
+		let callbackId: number | undefined;
 		const cleanup = () => {
 			clearTimeout(timeoutId);
 			video.removeEventListener("error", onError);
 			video.removeEventListener("seeked", onSeeked);
+			if (
+				callbackId !== undefined &&
+				typeof video.cancelVideoFrameCallback === "function"
+			) {
+				video.cancelVideoFrameCallback(callbackId);
+			}
 		};
 		const finish = (error?: Error) => {
 			if (settled) return;
@@ -112,17 +154,32 @@ export function seekExportVideoFrame({
 			}
 			resolve();
 		};
+		const finishWhenReady = () => {
+			if (seekCompleted && presentationCompleted) finish();
+		};
 		const onError = () => finish(new Error("Failed to seek video frame"));
 		const onSeeked = () => {
+			if (seekCompleted) return;
 			if (!hasDecodedVideoFrame({ video })) {
 				finish(new Error("Video seek completed without a decoded frame"));
 				return;
 			}
-			if (!isAtRequestedFrame({ timeSeconds: normalizedTimeSeconds, video })) {
-				finish(new Error("Video seek completed at the wrong frame"));
+			if (
+				!isWithinRequestedFrameInterval({
+					frameRate,
+					timeSeconds: normalizedTimeSeconds,
+					video,
+				})
+			) {
+				finish(
+					new Error(
+						`Video seek completed at ${video.currentTime}s instead of ${normalizedTimeSeconds}s`
+					)
+				);
 				return;
 			}
-			finish();
+			seekCompleted = true;
+			finishWhenReady();
 		};
 		const timeoutId = setTimeout(
 			() =>
@@ -135,6 +192,13 @@ export function seekExportVideoFrame({
 		video.addEventListener("error", onError);
 		video.addEventListener("seeked", onSeeked);
 		video.currentTime = normalizedTimeSeconds;
+		if (typeof video.requestVideoFrameCallback === "function") {
+			callbackId = video.requestVideoFrameCallback(() => {
+				callbackId = undefined;
+				presentationCompleted = true;
+				finishWhenReady();
+			});
+		}
 		if (
 			!video.seeking &&
 			hasDecodedVideoFrame({ video }) &&

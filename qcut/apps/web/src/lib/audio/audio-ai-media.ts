@@ -3,6 +3,7 @@ import type { MediaItem } from "@/stores/media/media-store-types";
 import { useMediaStore } from "@/stores/media/media-store";
 import { falAIClient } from "@/lib/ai-clients/fal-ai-client";
 import type { RemoteAudioFile } from "./audio-ai-service";
+import type { QcutAudioProcessResult } from "../../../../../electron/qcut-audio-runtime-contract";
 
 const MAX_INLINE_AUDIO_BYTES = 6 * 1024 * 1024;
 
@@ -181,5 +182,46 @@ export async function addRemoteAudioMedia({
 		originalUrl: remote.url,
 		duration: remote.duration ?? duration,
 		metadata,
+	});
+}
+
+export async function addQcutLocalAudioMedia({
+	projectId,
+	result,
+	name,
+	duration,
+	metadata,
+	signal,
+}: {
+	projectId: string;
+	result: QcutAudioProcessResult;
+	name: string;
+	duration: number;
+	metadata: Record<string, unknown>;
+	signal?: AbortSignal;
+}): Promise<string> {
+	const data = await platform().files.readFile(result.outputPath);
+	if (signal?.aborted) throw new Error("Audio processing was cancelled");
+	if (!data) throw new Error("Unable to read QCut local audio result");
+	const fileName = safeFileName({ name, contentType: "audio/flac" });
+	const file = new File([new Uint8Array(data)], fileName, {
+		type: "audio/flac",
+	});
+	return useMediaStore.getState().addMediaItem(projectId, {
+		name: fileName,
+		type: "audio",
+		file,
+		url: URL.createObjectURL(file),
+		localPath: result.outputPath,
+		isLocalFile: true,
+		duration,
+		metadata: {
+			...metadata,
+			provider: result.provider,
+			engine: result.engine,
+			cacheKey: result.cacheKey,
+			cacheHit: result.cacheHit,
+			sha256: result.sha256,
+		},
 	});
 }

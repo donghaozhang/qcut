@@ -627,6 +627,67 @@ async function waitForTimelineMutationBarrier({
 	}
 }
 
+function hasActivePortraitAdjustments({
+	candidate,
+}: {
+	candidate: unknown;
+}): boolean {
+	if (
+		typeof candidate !== "object" ||
+		candidate === null ||
+		Array.isArray(candidate)
+	) {
+		return false;
+	}
+	const adjustments = candidate as Record<string, unknown>;
+	if (adjustments.enabled !== true) return false;
+	if (
+		typeof adjustments.values !== "object" ||
+		adjustments.values === null ||
+		Array.isArray(adjustments.values)
+	) {
+		return false;
+	}
+	return Object.values(adjustments.values).some(
+		(value) =>
+			typeof value === "number" && Number.isFinite(value) && value !== 0
+	);
+}
+
+export function timelineRequiresRendererPortraitExport({
+	timeline,
+}: {
+	timeline: ClaudeTimeline;
+}): boolean {
+	for (const track of timeline.tracks) {
+		for (const element of track.elements) {
+			if (element.type !== "media" && element.type !== "video") continue;
+			const enhancements =
+				typeof element.enhancements === "object" &&
+				element.enhancements !== null &&
+				!Array.isArray(element.enhancements)
+					? (element.enhancements as Record<string, unknown>)
+					: null;
+			const eyeCorrection = enhancements?.labEyeCorrection;
+			if (
+				typeof eyeCorrection === "number" &&
+				Number.isFinite(eyeCorrection) &&
+				eyeCorrection > 0
+			) {
+				return true;
+			}
+			if (
+				hasActivePortraitAdjustments({
+					candidate: element.portraitAdjustments,
+				})
+			) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 async function requireRendererMutation({
 	operation,
 	request,
@@ -1552,7 +1613,8 @@ export function registerSharedRoutes(
 					mediaItems: mediaFiles,
 					scope: "timeline",
 					tracks: timeline.tracks,
-				}).length > 0;
+				}).length > 0 ||
+				timelineRequiresRendererPortraitExport({ timeline });
 			if (requiresRendererExport) {
 				if (!accessor.requestLocalVideoExport) {
 					throw new HttpError(

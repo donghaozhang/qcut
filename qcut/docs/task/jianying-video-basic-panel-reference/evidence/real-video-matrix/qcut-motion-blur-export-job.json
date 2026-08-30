@@ -1,0 +1,57 @@
+{
+  "bytes": 2478954,
+  "envelopes": [
+    {
+      "status": "pending",
+      "jobId": "export_1788074899792_rio0vu"
+    },
+    {
+      "status": "ok",
+      "data": {
+        "schema_version": "1",
+        "command": "editor:export:start",
+        "data": {
+          "jobId": "export_1788074899792_rio0vu",
+          "projectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+          "status": "completed",
+          "progress": 1,
+          "startedAt": 1788074899792,
+          "presetId": "tiktok",
+          "engine": "native-cli",
+          "settings": {
+            "engine": "native-cli",
+            "presetId": "tiktok",
+            "width": 1080,
+            "height": 1920,
+            "fps": 30,
+            "format": "mp4",
+            "codec": "libx264",
+            "bitrate": "6Mbps",
+            "audioBitrate": 192,
+            "audioSampleRate": 44100,
+            "audioChannels": 2,
+            "audioConfig": {
+              "mic": false,
+              "systemAudio": true
+            }
+          },
+          "outputPath": "/Users/peter/Desktop/code/qcut/qcut/docs/task/jianying-video-basic-panel-reference/evidence/real-video-matrix/qcut-motion-blur.mp4",
+          "duration": 3,
+          "fileSize": 2478954,
+          "completedAt": 1788074906677,
+          "view": {
+            "activeProjectId": "080b978a-288d-414b-a218-489f6e6bacc5",
+            "matchesTarget": true
+          }
+        }
+      },
+      "command_id": "cmd-1788074899780-5b2b8t",
+      "duration_ms": 9024
+    }
+  ],
+  "probe": {
+    "durationSeconds": 3,
+    "frameCount": 90
+  },
+  "sha256": "e2e3bf53f3a3719efef2ba1fa86b6f11bc95131b032dbbd48ae4c6f440675ac4"
+}

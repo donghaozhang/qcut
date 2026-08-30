@@ -73,11 +73,11 @@ export function resolveLlmProvider(modelAlias?: string): {
 			};
 		case "gmi-gemini-3.1-pro":
 			return { provider: "gmi-llm", model: "google/gemini-3.1-pro-preview" };
+		case "gemini-3.7-flash":
+			return { provider: "openrouter", model: "google/gemini-3.7-flash" };
 		case "gemini":
 		case "gemini-pro":
-			// Future: route directly to Gemini. Today: fall through to openrouter
-			// so existing behavior is unchanged when these aliases are passed.
-			return { provider: "openrouter", model: "google/gemini-3-flash-preview" };
+			return { provider: "openrouter", model: "google/gemini-3.7-flash" };
 		default:
 			return { provider: "openrouter", model: "google/gemini-3-flash-preview" };
 	}

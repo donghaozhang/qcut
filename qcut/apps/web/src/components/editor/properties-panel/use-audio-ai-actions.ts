@@ -14,11 +14,14 @@ import {
 } from "@/lib/audio/audio-ai-service";
 import type { RemoteAudioFile } from "@/lib/audio/audio-ai-service";
 import {
+	addQcutLocalAudioMedia,
 	addRemoteAudioMedia,
 	audioFileToFalUrl,
 	mediaItemToFalAudioUrl,
 } from "@/lib/audio/audio-ai-media";
 import { normalizeMediaAudioSettings } from "@/lib/audio/audio-properties";
+import { processQcutLocalDenoise } from "@/lib/audio/qcut-local-audio";
+import { platform } from "@qcut/platform-core";
 
 type PersistSettings = ({
 	next,
@@ -158,27 +161,50 @@ export function useAudioAiActions({
 			history: false,
 		});
 		try {
-			const audioUrl = await mediaItemToFalAudioUrl({
-				mediaItem: operation.mediaItem,
-			});
-			const remote = await enhanceSpeechAudio({
-				audioUrl,
-				signal: operation.controller.signal,
-			});
-			if (!isCurrentOperation(operation)) return;
-			const processedMediaId = await addRemoteAudioMedia({
-				projectId: operation.projectId,
-				remote,
-				name: `${element.name}-ai-denoised.wav`,
-				duration,
-				metadata: {
-					source: "audio-ai-denoise",
-					provider: "fal",
-					model: "fal-ai/deepfilternet3",
-					sourceMediaId: element.mediaId,
-				},
-				signal: operation.controller.signal,
-			});
+			let processedMediaId: string;
+			if (platform().isElectron) {
+				const result = await processQcutLocalDenoise({
+					mediaItem: operation.mediaItem,
+					settings: current,
+					requestId: crypto.randomUUID(),
+					signal: operation.controller.signal,
+				});
+				if (!isCurrentOperation(operation)) return;
+				processedMediaId = await addQcutLocalAudioMedia({
+					projectId: operation.projectId,
+					result,
+					name: `${element.name}-qcut-denoised.flac`,
+					duration,
+					metadata: {
+						source: "audio-qcut-local-denoise",
+						model: "qcut-spectral-denoise-v1",
+						sourceMediaId: element.mediaId,
+					},
+					signal: operation.controller.signal,
+				});
+			} else {
+				const audioUrl = await mediaItemToFalAudioUrl({
+					mediaItem: operation.mediaItem,
+				});
+				const remote = await enhanceSpeechAudio({
+					audioUrl,
+					signal: operation.controller.signal,
+				});
+				if (!isCurrentOperation(operation)) return;
+				processedMediaId = await addRemoteAudioMedia({
+					projectId: operation.projectId,
+					remote,
+					name: `${element.name}-ai-denoised.wav`,
+					duration,
+					metadata: {
+						source: "audio-ai-denoise",
+						provider: "fal",
+						model: "fal-ai/deepfilternet3",
+						sourceMediaId: element.mediaId,
+					},
+					signal: operation.controller.signal,
+				});
+			}
 			if (!isCurrentOperation(operation)) return;
 			const latest = latestSettings();
 			persistSettings({

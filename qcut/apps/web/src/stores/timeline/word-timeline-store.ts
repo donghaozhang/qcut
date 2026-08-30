@@ -25,7 +25,7 @@ interface AnalyzeFillersResponse {
 		reason: string;
 		scope?: "word" | "sentence";
 	}>;
-	provider?: "gemini" | "anthropic" | "pattern";
+	provider?: "openrouter" | "gemini" | "anthropic" | "pattern";
 }
 
 interface FilterHistoryChange {
@@ -720,3 +720,12 @@ export const useWordTimelineStore = create<WordTimelineStore>((set, get) => ({
 		}
 	},
 }));
+
+declare global {
+	interface Window {
+		__wordTimelineStore?: typeof useWordTimelineStore;
+	}
+}
+
+// Expose for E2E/debug parity with timeline and media stores.
+window.__wordTimelineStore = useWordTimelineStore;
