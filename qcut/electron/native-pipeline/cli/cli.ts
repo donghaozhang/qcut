@@ -521,6 +521,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			manifest: { type: "string" },
 			snapshot: { type: "string" },
 			patch: { type: "string" },
+			intent: { type: "string" },
 			atomic: { type: "boolean", default: true },
 			verify: { type: "boolean", default: true },
 			// Opt-out flags for the true-by-default booleans above
@@ -1223,6 +1224,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		manifest: values.manifest as string | undefined,
 		snapshot: values.snapshot as string | undefined,
 		patch: values.patch as string | undefined,
+		intent: values.intent as string | undefined,
 		atomic: values["no-atomic"] ? false : ((values.atomic as boolean) ?? true),
 		verify: values["no-verify"] ? false : ((values.verify as boolean) ?? true),
 		// state snapshot flags
