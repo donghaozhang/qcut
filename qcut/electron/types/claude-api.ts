@@ -254,6 +254,7 @@ export interface ClaudeElement
 	sourceId?: string;
 	sourceName?: string;
 	mediaId?: string;
+	stickerAssetId?: string;
 	stickerId?: string;
 	/** Untrusted deterministic sticker source descriptor from the renderer. */
 	stickerRuntime?: unknown;
