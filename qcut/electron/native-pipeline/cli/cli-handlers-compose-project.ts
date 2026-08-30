@@ -22,6 +22,7 @@ import {
 } from "../editor/editor-api-client.js";
 import { ensureEditorProjectReady } from "../editor/editor-project-readiness.js";
 import {
+	ELEMENT_CREATING_KINDS,
 	handleComposeApply,
 	readLiveTimelineState,
 } from "./cli-handlers-compose-editor.js";
@@ -138,12 +139,21 @@ async function reopenAndVerify({
 	}
 	await client.post("/api/claude/navigator/open", { projectId });
 	await dependencies.ensureReady({ client, projectId, open: true, timeoutMs });
-	const live = await dependencies.readTimeline({ client, projectId });
+	// A freshly reopened project hydrates its timeline asynchronously, so a
+	// single read can race an empty store; poll until the elements settle.
+	const deadline = Date.now() + Math.min(timeoutMs ?? 15_000, 60_000);
+	let missingElementIds = [...expectedElementIds];
+	for (;;) {
+		const live = await dependencies.readTimeline({ client, projectId });
+		missingElementIds = expectedElementIds.filter(
+			(elementId) => !live.elementIds.has(elementId)
+		);
+		if (missingElementIds.length === 0 || Date.now() >= deadline) break;
+		await new Promise((resolveDelay) => setTimeout(resolveDelay, 500));
+	}
 	return {
 		navigatedAway: Boolean(otherProjectId),
-		missingElementIds: expectedElementIds.filter(
-			(elementId) => !live.elementIds.has(elementId)
-		),
+		missingElementIds,
 	};
 }
 
@@ -241,10 +251,17 @@ export async function handleComposeEditorProject(
 					.join("; ")}`
 			);
 		}
+		// Only element-creating operations leave their id on the timeline;
+		// transition operations produce separate transition ids.
+		const elementOperationIds = new Set(
+			build.patch.operations
+				.filter((operation) => ELEMENT_CREATING_KINDS.has(operation.kind))
+				.map((operation) => operation.id)
+		);
 		const appliedElementIds = [
 			...Object.keys(applyData.applied ?? {}),
 			...(applyData.alreadyAppliedOperationIds ?? []),
-		];
+		].filter((operationId) => elementOperationIds.has(operationId));
 
 		let reopen: Awaited<ReturnType<typeof reopenAndVerify>> | undefined;
 		if (options.verify !== false) {
