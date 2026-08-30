@@ -54,6 +54,7 @@ import type {
 } from "@/types/timeline";
 import type { MediaItem } from "../media/media-store";
 import type { EffectChain, EffectInstance } from "@/types/effects";
+import type { TimelineColorLabel } from "@/lib/timeline/timeline-color-labels";
 
 /**
  * Selected element reference for multi-selection
@@ -207,6 +208,16 @@ export interface TimelineStore {
 	clearSelectedElements: () => void;
 	/** Set the entire selection to the provided elements array */
 	setSelectedElements: (elements: SelectedElement[]) => void;
+	/** Apply one visual label color to a clip selection. */
+	setColorLabelForElements: (input: {
+		elements: SelectedElement[];
+		colorLabel?: TimelineColorLabel;
+		pushHistory?: boolean;
+	}) => number;
+	/** Replace the selection with every clip carrying the requested label. */
+	selectElementsByColorLabel: (input: {
+		colorLabel: TimelineColorLabel;
+	}) => number;
 	selectTransition: (selection: SelectedTransition) => void;
 	clearSelectedTransition: () => void;
 

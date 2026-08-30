@@ -157,7 +157,7 @@ interface ShotRecipe {
 
 ## Key Design Decisions
 
-1. **Gemini Vision over frame-by-frame** — Upload video directly to Gemini 2.5 Pro for holistic analysis (cheaper, faster, better context than frame extraction + individual analysis)
+1. **Gemini Vision over frame-by-frame** — Upload video directly to Gemini 3.7 Flash for holistic analysis (cheaper, faster, better context than frame extraction + individual analysis)
 2. **Recipe as intermediate format** — JSON recipe enables: save/edit/share/replay without re-analyzing
 3. **Parallel shot generation** — Generate all shots concurrently with progress tracking
 4. **Graceful degradation** — If AI generation fails for a shot, fall back to placeholder or skip

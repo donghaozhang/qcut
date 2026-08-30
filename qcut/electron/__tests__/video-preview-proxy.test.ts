@@ -75,6 +75,7 @@ describe("video preview proxy", () => {
 		expect(filter).toContain("deshake=");
 		expect(filter).toContain("hqdn3d=");
 		expect(filter).toContain("unsharp=");
+		expect(filter.indexOf("deshake=")).toBeLessThan(filter.indexOf("scale="));
 		expect(command.args).toContain("libx264");
 		expect(command.args).toContain("0:a?");
 		expect(command.args.at(-1)).toBe(outputPath);

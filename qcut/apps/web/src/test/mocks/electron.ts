@@ -49,6 +49,32 @@ export const mockElectronAPI: ElectronAPI = {
 	// Audio operations
 	audio: {
 		saveTemp: vi.fn().mockResolvedValue("/tmp/audio-temp.mp3"),
+		inspectLocalRuntime: vi.fn().mockResolvedValue({
+			runtimeId: "qcut-ffmpeg-audio-v1",
+			version: 1,
+			provider: "qcut",
+			independentFromJianying: true,
+			cacheDirectory: "/tmp/qcut-audio-derived-v1",
+			modelCacheDirectory: "/tmp/qcut-audio-models-v1",
+			features: [],
+		}),
+		processLocal: vi.fn(),
+		getLocalCacheStats: vi.fn().mockResolvedValue({
+			cacheDirectory: "/tmp/qcut-audio-derived-v1",
+			entryCount: 0,
+			totalBytes: 0,
+			maxBytes: 0,
+			maxEntries: 0,
+		}),
+		clearLocalCache: vi.fn().mockResolvedValue({
+			cacheDirectory: "/tmp/qcut-audio-derived-v1",
+			entryCount: 0,
+			totalBytes: 0,
+			maxBytes: 0,
+			maxEntries: 0,
+			removedEntries: 0,
+			removedBytes: 0,
+		}),
 	},
 
 	// Generic IPC invoke method

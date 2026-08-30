@@ -10,10 +10,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SearchIcon, XIcon, ChevronUp, ChevronDown } from "lucide-react";
 import type { WordItem } from "@/types/word-timeline";
+import {
+	getDisplayGroupWordIds,
+	type WordDisplayGroup,
+} from "./word-display-groups";
 
 interface WordSearchProps {
-	words: WordItem[];
-	onSeekToWord: (word: WordItem) => void;
+	words: Array<WordItem | WordDisplayGroup>;
+	onSeekToWord: (word: WordItem | WordDisplayGroup) => void;
 	onHighlightedWordsChange: (wordIds: Set<string>) => void;
 	onActiveMatchChange: (wordId: string | null) => void;
 	onClose: () => void;
@@ -41,7 +45,9 @@ export function WordSearch({
 
 	// Notify parent of highlighted word IDs
 	useEffect(() => {
-		const ids = new Set(matchedWords.map((w) => w.id));
+		const ids = new Set(
+			matchedWords.flatMap((word) => getDisplayGroupWordIds({ word }))
+		);
 		onHighlightedWordsChange(ids);
 		return () => onHighlightedWordsChange(new Set());
 	}, [matchedWords, onHighlightedWordsChange]);

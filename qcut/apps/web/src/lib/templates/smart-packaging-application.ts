@@ -1,13 +1,15 @@
 import {
 	buildSmartPackagingPlan,
 	normalizeTrackOrder,
+	timelinePatchFromSmartPackagingPlan,
 	type BeatDetectionResult,
-	type SmartPackagingAction,
 	type SmartPackagingBeat,
 	type SmartPackagingCaption,
 	type SmartPackagingOptions,
 	type SmartPackagingPlan,
 	type SmartPackagingShot,
+	type SmartPackagingTimelinePatch,
+	type SmartPackagingTimelinePatchOperation,
 } from "@qcut/editor-core";
 import { getTimelineElementDuration } from "@/lib/timeline";
 import { TEXT_TEMPLATES } from "@/lib/text/text-template-registry";
@@ -26,6 +28,7 @@ import {
 	clampClipTransitionDuration,
 	getTransitionMaxDuration,
 	type ClipTransition,
+	type CaptionElement,
 	type MediaElement,
 	type StickerElement,
 	type TextElement,
@@ -45,6 +48,7 @@ export interface SmartPackagingSources {
 }
 
 export interface SmartPackagingAppliedCounts {
+	captions: number;
 	text: number;
 	stickers: number;
 	soundEffects: number;
@@ -54,6 +58,7 @@ export interface SmartPackagingAppliedCounts {
 
 export interface SmartPackagingTimelineResult {
 	tracks: TimelineTrack[];
+	patch: SmartPackagingTimelinePatch;
 	appliedCounts: SmartPackagingAppliedCounts;
 	createdTrackIds: string[];
 }
@@ -69,6 +74,7 @@ interface SmartPackagingCanvasSize {
 }
 
 const EMPTY_APPLIED_COUNTS: SmartPackagingAppliedCounts = {
+	captions: 0,
 	text: 0,
 	stickers: 0,
 	soundEffects: 0,
@@ -161,7 +167,10 @@ function createSmartTextElement({
 	canvasSize,
 	occupiedTextElements,
 }: {
-	action: Extract<SmartPackagingAction, { kind: "text" }>;
+	action: Extract<
+		SmartPackagingTimelinePatchOperation,
+		{ kind: "add-text-overlay" }
+	>;
 	canvasSize: SmartPackagingCanvasSize;
 	occupiedTextElements: readonly TextElement[];
 }): TextElement {
@@ -169,7 +178,7 @@ function createSmartTextElement({
 		TEXT_TEMPLATES.find(
 			(candidate) => candidate.id === action.textTemplateId
 		) ?? TEXT_TEMPLATES[0];
-	const characterCount = Array.from(action.content).length;
+	const characterCount = Array.from(action.text).length;
 	const usesCompactLayout = characterCount > 24;
 	const templateWidth = template.width ?? FALLBACK_TEXT_SIZE.width;
 	const fittedWidth = usesCompactLayout
@@ -182,7 +191,7 @@ function createSmartTextElement({
 		...template,
 		id: generateUUID(),
 		name: `Smart · ${template.name}`,
-		content: action.content,
+		content: action.text,
 		fontSize: usesCompactLayout
 			? Math.min(template.fontSize, 56)
 			: template.fontSize,
@@ -293,7 +302,10 @@ function createSmartStickerElement({
 	assetIds,
 	index,
 }: {
-	action: Extract<SmartPackagingAction, { kind: "sticker" }>;
+	action: Extract<
+		SmartPackagingTimelinePatchOperation,
+		{ kind: "add-sticker" }
+	>;
 	assetIds: SmartPackagingAssetIds;
 	index: number;
 }): StickerElement {
@@ -302,17 +314,17 @@ function createSmartStickerElement({
 	return {
 		id,
 		type: "sticker",
-		name: "Smart Spark Burst",
+		name: `Smart ${action.asset.assetId}`,
 		stickerId: `smart-${id}`,
 		mediaId: assetIds.stickerMediaId,
 		startTime: action.startTime,
 		duration: action.duration,
 		trimStart: 0,
 		trimEnd: 0,
-		x: leftSide ? 18 : 82,
-		y: index % 3 === 2 ? 74 : 23,
-		width: 22,
-		height: 22,
+		x: action.x ?? (leftSide ? 18 : 82),
+		y: action.y ?? (index % 3 === 2 ? 74 : 23),
+		width: action.width ?? 22,
+		height: action.height ?? 22,
 		rotation: leftSide ? -8 : 8,
 		opacity: 1,
 		maintainAspectRatio: true,
@@ -323,40 +335,73 @@ function createSmartSoundElement({
 	action,
 	assetIds,
 }: {
-	action: Extract<SmartPackagingAction, { kind: "sound-effect" }>;
+	action: Extract<
+		SmartPackagingTimelinePatchOperation,
+		{ kind: "add-sound-effect" }
+	>;
 	assetIds: SmartPackagingAssetIds;
 }): MediaElement {
 	return {
 		id: generateUUID(),
 		type: "media",
 		mediaId: assetIds.soundMediaId,
-		name: "Smart Accent Pop",
+		name: `Smart ${action.asset.assetId}`,
 		startTime: action.startTime,
 		duration: action.duration,
 		trimStart: 0,
 		trimEnd: 0,
-		volume: 0.82,
+		volume: action.volume,
 	};
 }
 
-function applyZoomActions({
+function createSmartCaptionElement({
+	action,
+}: {
+	action: Extract<
+		SmartPackagingTimelinePatchOperation,
+		{ kind: "add-caption" }
+	>;
+}): CaptionElement {
+	return {
+		id: generateUUID(),
+		type: "captions",
+		name: "Smart Caption",
+		text: action.text,
+		language: action.language,
+		confidence: action.confidence,
+		source: "transcription",
+		startTime: action.startTime,
+		duration: action.duration,
+		trimStart: 0,
+		trimEnd: 0,
+	};
+}
+
+function applyZoomOperations({
 	tracks,
-	actions,
+	operations,
 	fps,
 }: {
 	tracks: TimelineTrack[];
-	actions: readonly Extract<SmartPackagingAction, { kind: "zoom" }>[];
+	operations: readonly Extract<
+		SmartPackagingTimelinePatchOperation,
+		{ kind: "update-media-zoom" }
+	>[];
 	fps: number;
 }): { tracks: TimelineTrack[]; appliedCount: number } {
-	const actionsByElement = new Map(
-		actions.map((action) => [action.elementId, action])
+	const operationsByElement = new Map(
+		operations.map((operation) => [operation.elementId, operation])
 	);
 	let appliedCount = 0;
 	const nextTracks = tracks.map((track) => ({
 		...track,
 		elements: track.elements.map((element) => {
-			const action = actionsByElement.get(element.id);
-			if (!action || track.id !== action.trackId || element.type !== "media") {
+			const operation = operationsByElement.get(element.id);
+			if (
+				!operation ||
+				track.id !== operation.trackId ||
+				element.type !== "media"
+			) {
 				return element;
 			}
 			const lastFrame = Math.max(
@@ -372,13 +417,13 @@ function applyZoomActions({
 						{
 							id: generateUUID(),
 							frame: 0,
-							value: action.fromScale,
+							value: operation.fromScale,
 							easing: "easeInOut" as const,
 						},
 						{
 							id: generateUUID(),
 							frame: lastFrame,
-							value: action.toScale,
+							value: operation.toScale,
 							easing: "easeInOut" as const,
 						},
 					],
@@ -386,13 +431,13 @@ function applyZoomActions({
 						{
 							id: generateUUID(),
 							frame: 0,
-							value: action.fromScale,
+							value: operation.fromScale,
 							easing: "easeInOut" as const,
 						},
 						{
 							id: generateUUID(),
 							frame: lastFrame,
-							value: action.toScale,
+							value: operation.toScale,
 							easing: "easeInOut" as const,
 						},
 					],
@@ -403,21 +448,24 @@ function applyZoomActions({
 	return { tracks: nextTracks, appliedCount };
 }
 
-function transitionFromAction({
-	action,
+function transitionFromOperation({
+	operation,
 	id,
 	duration,
 }: {
-	action: Extract<SmartPackagingAction, { kind: "transition" }>;
+	operation: Extract<
+		SmartPackagingTimelinePatchOperation,
+		{ kind: "upsert-transition" }
+	>;
 	id: string;
 	duration: number;
 }): ClipTransition {
-	const isWhipPan = action.presetId === "whip-pan-right";
+	const isWhipPan = operation.presetId === "whip-pan-right";
 	return {
 		id,
-		fromElementId: action.fromElementId,
-		toElementId: action.toElementId,
-		presetId: action.presetId,
+		fromElementId: operation.fromElementId,
+		toElementId: operation.toElementId,
+		presetId: operation.presetId,
 		type: isWhipPan ? "whip-pan" : "dissolve",
 		duration,
 		direction: isWhipPan ? "right" : undefined,
@@ -425,34 +473,37 @@ function transitionFromAction({
 	};
 }
 
-function applyTransitionActions({
+function applyTransitionOperations({
 	tracks,
-	actions,
+	operations,
 	fps,
 	videoMediaIds,
 }: {
 	tracks: TimelineTrack[];
-	actions: readonly Extract<SmartPackagingAction, { kind: "transition" }>[];
+	operations: readonly Extract<
+		SmartPackagingTimelinePatchOperation,
+		{ kind: "upsert-transition" }
+	>[];
 	fps: number;
 	videoMediaIds: ReadonlySet<string>;
 }): { tracks: TimelineTrack[]; appliedCount: number } {
 	let appliedCount = 0;
-	const actionsByTrack = new Map<string, typeof actions>();
-	for (const action of actions) {
-		const trackActions = actionsByTrack.get(action.trackId) ?? [];
-		actionsByTrack.set(action.trackId, [...trackActions, action]);
+	const operationsByTrack = new Map<string, typeof operations>();
+	for (const operation of operations) {
+		const trackOperations = operationsByTrack.get(operation.trackId) ?? [];
+		operationsByTrack.set(operation.trackId, [...trackOperations, operation]);
 	}
 
 	const nextTracks = tracks.map((track) => {
-		const trackActions = actionsByTrack.get(track.id);
-		if (!trackActions || track.type !== "media") return track;
+		const trackOperations = operationsByTrack.get(track.id);
+		if (!trackOperations || track.type !== "media") return track;
 		let transitions = [...(track.transitions ?? [])];
-		for (const action of trackActions) {
+		for (const operation of trackOperations) {
 			if (
 				!resolveVideoTransitionPair({
 					track,
-					fromElementId: action.fromElementId,
-					toElementId: action.toElementId,
+					fromElementId: operation.fromElementId,
+					toElementId: operation.toElementId,
 					videoMediaIds,
 				})
 			) {
@@ -460,8 +511,8 @@ function applyTransitionActions({
 			}
 			const existing = transitions.find(
 				(candidate) =>
-					candidate.fromElementId === action.fromElementId &&
-					candidate.toElementId === action.toElementId
+					candidate.fromElementId === operation.fromElementId &&
+					candidate.toElementId === operation.toElementId
 			);
 			const transitionId = existing?.id ?? generateUUID();
 			const withoutExisting = transitions.filter(
@@ -469,20 +520,20 @@ function applyTransitionActions({
 			);
 			const maxDuration = getTransitionMaxDuration({
 				track: { ...track, transitions: withoutExisting },
-				fromElementId: action.fromElementId,
-				toElementId: action.toElementId,
+				fromElementId: operation.fromElementId,
+				toElementId: operation.toElementId,
 				transitions: withoutExisting,
 				getElementDuration: ({ element }) =>
 					getTimelineElementDuration({ element, fps }),
 			});
 			const duration = clampClipTransitionDuration({
-				duration: action.duration,
+				duration: operation.duration,
 				maxDuration,
 			});
 			if (duration === null) continue;
 			transitions = [
 				...withoutExisting,
-				transitionFromAction({ action, id: transitionId, duration }),
+				transitionFromOperation({ operation, id: transitionId, duration }),
 			];
 			appliedCount++;
 		}
@@ -573,6 +624,10 @@ export function buildSmartPackagedTimeline({
 	fps = 30,
 	canvasSize = DEFAULT_CANVAS_SIZE,
 	videoMediaIds,
+	snapshotId = "local-smart-packaging-snapshot",
+	sourceFingerprint = "local-smart-packaging",
+	patchId = generateUUID(),
+	createdAt = new Date().toISOString(),
 }: {
 	tracks: readonly TimelineTrack[];
 	plan: SmartPackagingPlan;
@@ -580,8 +635,45 @@ export function buildSmartPackagedTimeline({
 	fps?: number;
 	canvasSize?: SmartPackagingCanvasSize;
 	videoMediaIds: ReadonlySet<string>;
+	snapshotId?: string;
+	sourceFingerprint?: string;
+	patchId?: string;
+	createdAt?: string;
+}): SmartPackagingTimelineResult {
+	const patch = timelinePatchFromSmartPackagingPlan({
+		plan,
+		patchId,
+		snapshotId,
+		sourceFingerprint,
+		createdAt,
+	});
+	return buildSmartPackagedTimelineFromPatch({
+		tracks,
+		patch,
+		assetIds,
+		fps,
+		canvasSize,
+		videoMediaIds,
+	});
+}
+
+export function buildSmartPackagedTimelineFromPatch({
+	tracks,
+	patch,
+	assetIds,
+	fps = 30,
+	canvasSize = DEFAULT_CANVAS_SIZE,
+	videoMediaIds,
+}: {
+	tracks: readonly TimelineTrack[];
+	patch: SmartPackagingTimelinePatch;
+	assetIds: SmartPackagingAssetIds;
+	fps?: number;
+	canvasSize?: SmartPackagingCanvasSize;
+	videoMediaIds: ReadonlySet<string>;
 }): SmartPackagingTimelineResult {
 	const appliedCounts = { ...EMPTY_APPLIED_COUNTS };
+	const captionLanes: TimelineTrack[] = [];
 	const textLanes: TimelineTrack[] = [];
 	const stickerLanes: TimelineTrack[] = [];
 	const soundLanes: TimelineTrack[] = [];
@@ -591,17 +683,35 @@ export function buildSmartPackagedTimeline({
 				element.type === "text" && !element.hidden
 		)
 	);
-	const zoomActions = plan.actions.filter(
-		(action): action is Extract<SmartPackagingAction, { kind: "zoom" }> =>
-			action.kind === "zoom"
+	const zoomOperations = patch.operations.filter(
+		(
+			operation
+		): operation is Extract<
+			SmartPackagingTimelinePatchOperation,
+			{ kind: "update-media-zoom" }
+		> => operation.kind === "update-media-zoom"
 	);
-	const transitionActions = plan.actions.filter(
-		(action): action is Extract<SmartPackagingAction, { kind: "transition" }> =>
-			action.kind === "transition"
+	const transitionOperations = patch.operations.filter(
+		(
+			operation
+		): operation is Extract<
+			SmartPackagingTimelinePatchOperation,
+			{ kind: "upsert-transition" }
+		> => operation.kind === "upsert-transition"
 	);
 
-	for (const action of plan.actions) {
-		if (action.kind === "text") {
+	for (const action of patch.operations) {
+		if (action.kind === "add-caption") {
+			placeOnGeneratedLane({
+				lanes: captionLanes,
+				trackType: "captions",
+				trackName: "Smart Captions",
+				element: createSmartCaptionElement({ action }),
+				fps,
+			});
+			appliedCounts.captions++;
+		}
+		if (action.kind === "add-text-overlay") {
 			const element = createSmartTextElement({
 				action,
 				canvasSize,
@@ -617,7 +727,7 @@ export function buildSmartPackagedTimeline({
 			occupiedTextElements.push(element);
 			appliedCounts.text++;
 		}
-		if (action.kind === "sticker") {
+		if (action.kind === "add-sticker") {
 			placeOnGeneratedLane({
 				lanes: stickerLanes,
 				trackType: "sticker",
@@ -631,7 +741,7 @@ export function buildSmartPackagedTimeline({
 			});
 			appliedCounts.stickers++;
 		}
-		if (action.kind === "sound-effect") {
+		if (action.kind === "add-sound-effect") {
 			placeOnGeneratedLane({
 				lanes: soundLanes,
 				trackType: "audio",
@@ -643,27 +753,33 @@ export function buildSmartPackagedTimeline({
 		}
 	}
 
-	const zoomed = applyZoomActions({
+	const zoomed = applyZoomOperations({
 		tracks: tracks.map((track) => ({
 			...track,
 			elements: [...track.elements],
 			transitions: track.transitions ? [...track.transitions] : undefined,
 		})),
-		actions: zoomActions,
+		operations: zoomOperations,
 		fps,
 	});
 	appliedCounts.zooms = zoomed.appliedCount;
-	const transitioned = applyTransitionActions({
+	const transitioned = applyTransitionOperations({
 		tracks: zoomed.tracks,
-		actions: transitionActions,
+		operations: transitionOperations,
 		fps,
 		videoMediaIds,
 	});
 	appliedCounts.transitions = transitioned.appliedCount;
 
-	const createdTracks = [...textLanes, ...stickerLanes, ...soundLanes];
+	const createdTracks = [
+		...captionLanes,
+		...textLanes,
+		...stickerLanes,
+		...soundLanes,
+	];
 	const orderedTracks = normalizeTrackOrder({
 		tracks: [
+			...captionLanes,
 			...textLanes,
 			...stickerLanes,
 			...transitioned.tracks,
@@ -672,6 +788,7 @@ export function buildSmartPackagedTimeline({
 	});
 	return {
 		tracks: orderedTracks,
+		patch,
 		appliedCounts,
 		createdTrackIds: createdTracks.map((track) => track.id),
 	};

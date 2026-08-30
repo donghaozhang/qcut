@@ -9,9 +9,10 @@ import {
 	startJianyingPortraitHostProcess,
 	type JianyingPortraitHostProcess,
 } from "../jianying-portrait-adjustment-runtime/host-process.js";
+import { resolveJianyingFilterSwingCompatibility } from "./compatibility.js";
 
 export interface JianyingFilterSwingRenderSession {
-	processId: number;
+	processId: number | null;
 	render: ({
 		rgba,
 		timestampSeconds,
@@ -48,6 +49,39 @@ function intensityParameters({ intensity }: { intensity: number }) {
 	return JSON.stringify({ intensity: Number((intensity / 100).toFixed(6)) });
 }
 
+function createPassthroughSession({
+	resourceId,
+	width,
+	height,
+	frameBytes,
+}: {
+	resourceId: string;
+	width: number;
+	height: number;
+	frameBytes: number;
+}): JianyingFilterSwingRenderSession {
+	let disposed = false;
+	return {
+		processId: null,
+		render: async ({ rgba }) => {
+			if (disposed) throw new Error("Native Swing filter session is closed");
+			if (rgba.byteLength !== frameBytes) {
+				throw new Error("Native Swing filter frame dimensions changed");
+			}
+			return {
+				provider: "jianying-local-effect-v1",
+				resourceId,
+				width,
+				height,
+				rgba: new Uint8Array(rgba),
+			};
+		},
+		dispose: async () => {
+			disposed = true;
+		},
+	};
+}
+
 export async function createJianyingFilterSwingRenderSession({
 	resourceId,
 	packagePath,
@@ -69,6 +103,18 @@ export async function createJianyingFilterSwingRenderSession({
 	}
 	const featureParameters = intensityParameters({ intensity });
 	const runtimePaths = readyRuntimePaths({ runtime });
+	const compatibility = resolveJianyingFilterSwingCompatibility({
+		resourceId,
+		version: path.basename(packagePath),
+	});
+	if (intensity === 0 || compatibility?.mode === "passthrough") {
+		return createPassthroughSession({
+			resourceId,
+			width,
+			height,
+			frameBytes,
+		});
+	}
 	const hostPath = await resolveJianyingPortraitAdjustmentHost();
 	if (!hostPath)
 		throw new Error("QCut native Swing filter host is unavailable");
@@ -97,15 +143,6 @@ export async function createJianyingFilterSwingRenderSession({
 			if (disposed) throw new Error("Native Swing filter session is closed");
 			if (rgba.byteLength !== frameBytes) {
 				throw new Error("Native Swing filter frame dimensions changed");
-			}
-			if (intensity === 0) {
-				return {
-					provider: "jianying-local-effect-v1",
-					resourceId,
-					width,
-					height,
-					rgba: new Uint8Array(rgba),
-				};
 			}
 			const requestId = randomUUID();
 			const inputPath = path.join(

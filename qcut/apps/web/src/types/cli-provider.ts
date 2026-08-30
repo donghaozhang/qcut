@@ -143,11 +143,11 @@ export const DEFAULT_OPENROUTER_MODELS: OpenRouterModel[] = [
 		pricing: { prompt: 0.005, completion: 0.015 },
 	},
 	{
-		id: "google/gemini-2.5-pro",
-		name: "Gemini 2.5 Pro",
+		id: "google/gemini-3.7-flash",
+		name: "Gemini 3.7 Flash",
 		provider: "Google",
 		contextLength: 1_000_000,
-		pricing: { prompt: 0.001_25, completion: 0.005 },
+		pricing: { prompt: 0.000_75, completion: 0.003_75 },
 	},
 	{
 		id: "deepseek/deepseek-chat",

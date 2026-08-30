@@ -4,15 +4,15 @@ This document details the AI models supported for audio transcription in QCut.
 
 ## Overview
 
-The Transcription feature supports **Gemini 2.5 Pro** from Google AI for high-quality audio transcription with automatic SRT (SubRip Subtitle) format generation.
+The standalone Gemini transcription feature supports **Gemini 3.7 Flash** from Google AI for high-quality audio transcription with automatic SRT (SubRip Subtitle) format generation. Smart Speech uses ElevenLabs Scribe v2 through QCut's cloud proxy for word-level timestamps.
 
 ---
 
 ## Supported Model
 
-### Gemini 2.5 Pro
+### Gemini 3.7 Flash
 - **Provider:** Google AI
-- **Model ID:** gemini-2.5-pro
+- **Model ID:** gemini-3.7-flash
 - **Quality Rating:** 5/5
 - **Speed Rating:** 4/5
 - **Description:** Google's advanced multimodal AI model with exceptional audio transcription capabilities and automatic subtitle timing
@@ -91,7 +91,7 @@ Convert spoken audio to text with precise timestamps:
 ## Strengths
 
 ### Quality
-- **High Accuracy** - Gemini 2.5 Pro's advanced language understanding
+- **High Accuracy** - Gemini 3.7 Flash's advanced language understanding
 - **Context Awareness** - Better handling of technical terms, names
 - **Punctuation** - Automatic punctuation and capitalization
 - **Natural Segmentation** - Logical sentence breaks
@@ -375,7 +375,7 @@ VITE_GEMINI_API_KEY=your_gemini_api_key_here
 
 ### For Video Captions
 1. **Extract audio** from video file
-2. **Transcribe** using Gemini 2.5 Pro
+2. **Transcribe** using Gemini 3.7 Flash
 3. **Review segments** for accuracy
 4. **Edit if needed** using caption editor
 5. **Export to SRT** or burn into video
@@ -430,7 +430,7 @@ const result = await window.electronAPI.transcribe.audio({
 
 ## Comparison: Gemini vs Other Transcription Services
 
-| Feature | Gemini 2.5 Pro | Whisper | Assembly AI | Rev.ai |
+| Feature | Gemini 3.7 Flash | Whisper | Assembly AI | Rev.ai |
 |---------|----------------|---------|-------------|--------|
 | **Accuracy** | Excellent | Excellent | Very Good | Good |
 | **Speed** | Fast | Fast | Medium | Medium |

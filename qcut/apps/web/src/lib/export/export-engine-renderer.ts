@@ -30,7 +30,10 @@ import {
 	calculateElementBounds,
 	drawWithMediaTransform,
 } from "./export-engine-utils";
-import { seekExportVideoFrame } from "./export-video-frame-seek";
+import {
+	getExportFrameSampleTime,
+	seekExportVideoFrame,
+} from "./export-video-frame-seek";
 import { stripMarkdownSyntax } from "@/lib/markdown";
 import {
 	getCaptionAnimationState,
@@ -644,9 +647,13 @@ async function renderVideoAttempt(
 		}
 
 		const mediaElement = element as MediaElement;
+		const sampleTime = getExportFrameSampleTime({
+			frameRate: context.fps,
+			frameStartTime: timeOffset,
+		});
 		const seekTime = getMediaSourcePlaybackTime({
 			element: mediaElement,
-			localTimelineTime: timeOffset,
+			localTimelineTime: sampleTime,
 			fps: context.fps,
 		});
 		await seekExportVideoFrame({

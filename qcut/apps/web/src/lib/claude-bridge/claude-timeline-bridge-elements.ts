@@ -6,6 +6,7 @@ import type {
 	MediaPortraitAdjustments,
 	StickerElement,
 } from "@/types/timeline";
+import { DEFAULT_MEDIA_ENHANCEMENTS } from "@/lib/video/video-properties";
 import type { ClaudeElement } from "../../../../../electron/types/claude-api";
 import { debugLog, debugWarn, debugError } from "@/lib/debug/debug-config";
 import {
@@ -29,6 +30,7 @@ import {
 	readRequiredTimelineProjectId,
 } from "./claude-timeline-project-guard";
 import { resolveClaudeStickerGeometry } from "./claude-sticker-geometry";
+import { parseTimelineColorLabel } from "@/lib/timeline/timeline-color-labels";
 
 function timelineElementFromTransport({ candidate }: { candidate: unknown }): {
 	element: Partial<ClaudeElement>;
@@ -84,6 +86,10 @@ export const applyElementChanges = ({
 			);
 			return false;
 		}
+		const updatesColorLabel = Object.hasOwn(changes, "colorLabel");
+		const colorLabel = updatesColorLabel
+			? parseTimelineColorLabel({ value: changes.colorLabel })
+			: undefined;
 
 		const styleChanges =
 			typeof changes.style === "object" &&
@@ -122,8 +128,26 @@ export const applyElementChanges = ({
 			throw new Error("portraitAdjustments must be an object");
 		}
 
+		if (
+			element.type === "media" &&
+			changes.enhancements !== undefined &&
+			(typeof changes.enhancements !== "object" ||
+				changes.enhancements === null ||
+				Array.isArray(changes.enhancements))
+		) {
+			throw new Error("enhancements must be an object");
+		}
+
 		if (pushHistory) {
 			timelineStore.pushHistory();
+		}
+
+		if (updatesColorLabel) {
+			timelineStore.setColorLabelForElements({
+				elements: [{ trackId: track.id, elementId }],
+				colorLabel,
+				pushHistory: false,
+			});
 		}
 
 		if (typeof changes.startTime === "number") {
@@ -235,6 +259,15 @@ export const applyElementChanges = ({
 					adjustments:
 						changes.portraitAdjustments as Partial<MediaPortraitAdjustments>,
 				});
+			}
+			if (changes.enhancements !== undefined) {
+				mediaUpdates.enhancements = {
+					...DEFAULT_MEDIA_ENHANCEMENTS,
+					...element.enhancements,
+					...(changes.enhancements as Partial<
+						typeof DEFAULT_MEDIA_ENHANCEMENTS
+					>),
+				};
 			}
 			if (Object.keys(mediaUpdates).length > 0) {
 				timelineStore.updateMediaElement(

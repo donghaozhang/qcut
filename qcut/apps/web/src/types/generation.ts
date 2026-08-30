@@ -36,15 +36,3 @@ export const CAMERA_MOTION_PRESETS = [
 	{ value: "jib_up", label: "Jib Up" },
 	{ value: "jib_down", label: "Jib Down" },
 ] as const;
-
-/** 8-color label palette for visual clip organization */
-export const COLOR_LABELS = [
-	{ value: "violet", color: "#8b5cf6" },
-	{ value: "blue", color: "#3b82f6" },
-	{ value: "green", color: "#22c55e" },
-	{ value: "yellow", color: "#eab308" },
-	{ value: "red", color: "#ef4444" },
-	{ value: "rose", color: "#f43f5e" },
-	{ value: "orange", color: "#f97316" },
-	{ value: "mango", color: "#fb923c" },
-] as const;

@@ -17,6 +17,7 @@ const storeMocks = vi.hoisted(() => {
 			duration: number;
 			trimStart: number;
 			trimEnd: number;
+			enhancements?: Record<string, number>;
 		}>,
 	};
 	const state = {
@@ -30,6 +31,8 @@ const storeMocks = vi.hoisted(() => {
 		updateTextElement: vi.fn(),
 		updateMediaElement: vi.fn(),
 		updateMediaTiming: vi.fn(),
+		setColorLabelForElements: vi.fn(),
+		saveImmediate: vi.fn(async () => undefined),
 	};
 	return { state, track };
 });
@@ -123,6 +126,7 @@ describe("Claude timeline batch bridge", () => {
 					trimEnd: 11.9,
 					playbackRate: 1.5,
 					reverse: true,
+					colorLabel: "blue",
 				},
 			],
 		});
@@ -134,6 +138,7 @@ describe("Claude timeline batch bridge", () => {
 				trimEnd: 11.9,
 				playbackRate: 1.5,
 				reverse: true,
+				colorLabel: "blue",
 			}),
 			{
 				pushHistory: false,
@@ -174,7 +179,7 @@ describe("Claude timeline batch bridge", () => {
 		});
 	});
 
-	it("applies batch updates in both nested-changes and flat shapes", () => {
+	it("persists batch updates before acknowledging nested and flat shapes", async () => {
 		storeMocks.track.elements = [
 			{
 				id: "clip",
@@ -190,7 +195,7 @@ describe("Claude timeline batch bridge", () => {
 			| ((data: {
 					requestId: string;
 					updates: Array<Record<string, unknown>>;
-			  }) => void)
+			  }) => Promise<void>)
 			| undefined;
 		const sendResponse = vi.fn();
 		const claudeAPI = {
@@ -199,7 +204,7 @@ describe("Claude timeline batch bridge", () => {
 					handler: (data: {
 						requestId: string;
 						updates: Array<Record<string, unknown>>;
-					}) => void
+					}) => Promise<void>
 				) => {
 					updateHandler = handler;
 				}
@@ -212,13 +217,18 @@ describe("Claude timeline batch bridge", () => {
 			sharedUtils: {} as ClaudeTimelineBridgeSharedUtils,
 		});
 		expect(updateHandler).toBeDefined();
-		updateHandler?.({
+		await updateHandler?.({
 			requestId: "request-2",
 			updates: [
 				// Documented nested shape — previously silently ignored
 				{ elementId: "clip", changes: { startTime: 7 } },
 				// Legacy flat shape — must keep working
 				{ elementId: "clip", startTime: 9 },
+				{ elementId: "clip", changes: { colorLabel: "rose" } },
+				{
+					elementId: "clip",
+					changes: { enhancements: { labEyeCorrection: 60 } },
+				},
 			],
 		});
 
@@ -236,12 +246,35 @@ describe("Claude timeline batch bridge", () => {
 			9,
 			false
 		);
+		expect(storeMocks.state.setColorLabelForElements).toHaveBeenCalledWith({
+			elements: [{ trackId: "track-1", elementId: "clip" }],
+			colorLabel: "rose",
+			pushHistory: false,
+		});
+		expect(storeMocks.state.updateMediaElement).toHaveBeenCalledWith(
+			"track-1",
+			"clip",
+			{
+				enhancements: expect.objectContaining({
+					labEyeCorrection: 60,
+					stabilization: 0,
+					upscale: 1,
+				}),
+			},
+			false
+		);
+		expect(storeMocks.state.saveImmediate).toHaveBeenCalledOnce();
+		expect(
+			storeMocks.state.saveImmediate.mock.invocationCallOrder[0]
+		).toBeLessThan(sendResponse.mock.invocationCallOrder[0]);
 		expect(sendResponse).toHaveBeenCalledWith("request-2", {
-			updatedCount: 2,
+			updatedCount: 4,
 			failedCount: 0,
 			results: [
 				{ index: 0, success: true },
 				{ index: 1, success: true },
+				{ index: 2, success: true },
+				{ index: 3, success: true },
 			],
 		});
 	});

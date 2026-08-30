@@ -56,6 +56,10 @@ import {
 import type { TextAnimationPhase } from "@/lib/text/text-animation-presets";
 import { assertTimelineProjectActive } from "./claude-timeline-project-guard";
 import { resolveClaudeStickerGeometry } from "./claude-sticker-geometry";
+import {
+	parseTimelineColorLabel,
+	resolveTimelineColorLabel,
+} from "@/lib/timeline/timeline-color-labels";
 
 const CLAUDE_MEDIA_ELEMENT_TYPES = {
 	media: "media",
@@ -799,6 +803,7 @@ export async function addClaudeMediaElement({
 			? namedTrack.id
 			: timelineStore.findOrCreateTrack(trackType, { startTime, duration });
 	const mediaTiming = getClaudeMediaTimingProperties({ element });
+	const colorLabel = parseTimelineColorLabel({ value: element.colorLabel });
 
 	const elementId = timelineStore.addElementToTrack(trackId, {
 		...requestedElementId({ element }),
@@ -816,6 +821,7 @@ export async function addClaudeMediaElement({
 				? element.trimEnd
 				: 0,
 		fitMode: element.fitMode ?? "cover",
+		...(colorLabel ? { colorLabel } : {}),
 		...mediaTiming,
 	});
 
@@ -1641,6 +1647,7 @@ function formatElementForExport({
 }): ClaudeElement {
 	const sourceDuration = getEffectiveDuration(element);
 	const timelineDuration = getTimelineElementDuration({ element, fps });
+	const colorLabel = resolveTimelineColorLabel({ value: element.colorLabel });
 
 	const baseElement: ClaudeElement = {
 		id: element.id,
@@ -1650,6 +1657,7 @@ function formatElementForExport({
 		duration: sourceDuration,
 		type: element.type === "markdown" ? "text" : element.type,
 		hidden: element.hidden,
+		...(colorLabel ? { colorLabel } : {}),
 	};
 
 	// Add type-specific fields
@@ -1679,6 +1687,8 @@ function formatElementForExport({
 				freezeFrameDuration: element.freezeFrameDuration,
 				preservePitch: element.preservePitch,
 				frameInterpolation: element.frameInterpolation,
+				enhancements: element.enhancements,
+				portraitAdjustments: element.portraitAdjustments,
 				x: element.x,
 				y: element.y,
 				rotation: element.rotation,

@@ -81,16 +81,7 @@ export function getActiveElements(
 	return activeElements;
 }
 
-/**
- * Calculate element bounds with smart resolution adjustment.
- *
- * Scaling rules:
- * 1. If media is SMALLER than canvas in BOTH dimensions:
- *    - Keep original size, center with black padding
- * 2. If media is LARGER than canvas in ANY dimension:
- *    - Scale down to fit while maintaining aspect ratio
- * 3. Always center the result
- */
+/** Calculate element bounds using the same object-fit semantics as preview. */
 export function calculateElementBounds(
 	element: TimelineElement,
 	mediaWidth: number,
@@ -100,30 +91,37 @@ export function calculateElementBounds(
 ): { x: number; y: number; width: number; height: number } {
 	const canvasAspect = canvasWidth / canvasHeight;
 	const mediaAspect = mediaWidth / mediaHeight;
+	const isMedia = element.type === "media";
 
 	let width: number;
 	let height: number;
 
-	const isSmaller = mediaWidth <= canvasWidth && mediaHeight <= canvasHeight;
-
-	if (isSmaller) {
-		width = mediaWidth;
-		height = mediaHeight;
-		debugLog(
-			`[ExportEngine] Video smaller than canvas (${mediaWidth}x${mediaHeight} vs ${canvasWidth}x${canvasHeight}), keeping original size with padding`
-		);
+	if (isMedia && element.fitMode === "fill") {
+		width = canvasWidth;
+		height = canvasHeight;
+	} else if (isMedia) {
+		const scale =
+			(element.fitMode ?? "cover") === "cover"
+				? Math.max(canvasWidth / mediaWidth, canvasHeight / mediaHeight)
+				: Math.min(canvasWidth / mediaWidth, canvasHeight / mediaHeight);
+		width = mediaWidth * scale;
+		height = mediaHeight * scale;
 	} else {
-		if (mediaAspect > canvasAspect) {
+		const isSmaller = mediaWidth <= canvasWidth && mediaHeight <= canvasHeight;
+		if (isSmaller) {
+			width = mediaWidth;
+			height = mediaHeight;
+		} else if (mediaAspect > canvasAspect) {
 			width = canvasWidth;
 			height = width / mediaAspect;
 		} else {
 			width = canvasHeight * mediaAspect;
 			height = canvasHeight;
 		}
-		debugLog(
-			`[ExportEngine] Video larger than canvas, scaling down from ${mediaWidth}x${mediaHeight} to ${Math.round(width)}x${Math.round(height)}`
-		);
 	}
+	debugLog(
+		`[ExportEngine] Resolved ${mediaWidth}x${mediaHeight} media to ${Math.round(width)}x${Math.round(height)} on ${canvasWidth}x${canvasHeight}`
+	);
 
 	const x = (canvasWidth - width) / 2;
 	const y = (canvasHeight - height) / 2;

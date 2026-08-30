@@ -23,11 +23,14 @@ export interface AudioPropertyKeyframe {
 	easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
 }
 
+export type AudioChannelMode = "stereo" | "mono" | "left" | "right" | "swap";
+
 export interface AudioSettings {
 	enabled: boolean;
 	volumeDb: number;
 	fadeIn: number;
 	fadeOut: number;
+	channelMode?: AudioChannelMode;
 	panEnabled: boolean;
 	pan: number;
 	loudness: {

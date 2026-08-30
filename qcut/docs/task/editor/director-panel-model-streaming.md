@@ -13,7 +13,7 @@ The Director panel's Import tab now has a **Parse Model** dropdown with:
 | Option | Provider | Notes |
 |--------|----------|-------|
 | Gemini Flash | OpenRouter (`google/gemini-2.5-flash`) | Default, fastest, cheapest |
-| Gemini Pro | OpenRouter (`google/gemini-2.5-pro`) | Higher quality, slower |
+| Gemini Flash 3.7 | OpenRouter (`google/gemini-3.7-flash`) | Current Flash workhorse |
 | Kimi K2.5 | OpenRouter (`moonshotai/kimi-k2.5`) | Best for Chinese scripts |
 | MiniMax M2.5 | OpenRouter (`minimax/minimax-m2.5`) | Fast, good structured output |
 | Claude (no key) | Claude CLI fallback | Zero-config, no API key needed |
