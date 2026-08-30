@@ -1,18 +1,13 @@
 #!/usr/bin/env bun
 
-import { createHash } from "node:crypto";
-import { createReadStream } from "node:fs";
 import {
 	access,
 	copyFile,
 	lstat,
 	mkdir,
-	readdir,
-	readFile,
 	realpath,
 	rename,
 	rm,
-	stat,
 	symlink,
 	writeFile,
 } from "node:fs/promises";
@@ -24,8 +19,15 @@ import {
 	runBoundedProcess,
 	type BoundedProcessResult,
 } from "../jianying-runtime-probe/bounded-process";
+import {
+	EXPECTED_JIANYING_BUNDLE_ID,
+	inspectRuntimeFiles,
+	privateRuntimeBase,
+	sha256File,
+	type TrackingRuntimeManifest,
+	verifyTrackingRuntimeSnapshot,
+} from "../../electron/jianying-motion-tracking/runtime-assets";
 
-const EXPECTED_BUNDLE_ID = "com.lemon.lvpro";
 const CORE_LIBRARY = "libcccreator.dylib";
 const COPY_CONCURRENCY = 4;
 const MODEL_PATHS = [
@@ -43,44 +45,6 @@ interface Options {
 interface RuntimeSource {
 	relativePath: string;
 	sourcePath: string;
-}
-
-interface ManifestFile {
-	bytes: number;
-	path: string;
-	sha256: string;
-}
-
-interface TrackingRuntimeManifest {
-	app: {
-		bundleId: string;
-		version: string;
-	};
-	architecture: "arm64";
-	cloudUpload: false;
-	core: {
-		path: string;
-		sha256: string;
-		uuid: string;
-	};
-	createdAt: string;
-	files: ManifestFile[];
-	localOnly: true;
-	modelPaths: string[];
-	purpose: "jianying-motion-tracking-research-oracle";
-	runtimeLibraryCount: number;
-	schemaVersion: 1;
-	totalBytes: number;
-}
-
-function privateRuntimeBase() {
-	return path.join(
-		os.homedir(),
-		"Library",
-		"Application Support",
-		"QCut",
-		"PrivateRuntimes"
-	);
 }
 
 function parseOptions(): Options {
@@ -250,58 +214,6 @@ async function resolveRuntimeClosure({
 	);
 }
 
-export function sha256File({ filePath }: { filePath: string }) {
-	return new Promise<string>((resolve, reject) => {
-		const hash = createHash("sha256");
-		const stream = createReadStream(filePath);
-		stream.on("data", (chunk) => hash.update(chunk));
-		stream.on("error", reject);
-		stream.on("end", () => resolve(hash.digest("hex")));
-	});
-}
-
-async function listFiles({
-	baseDirectory,
-	directory = baseDirectory,
-}: {
-	baseDirectory: string;
-	directory?: string;
-}): Promise<string[]> {
-	const entries = await readdir(directory, { withFileTypes: true });
-	const nested = await Promise.all(
-		entries.map(async (entry) => {
-			const entryPath = path.join(directory, entry.name);
-			if (entry.isDirectory()) {
-				return listFiles({ baseDirectory, directory: entryPath });
-			}
-			if (!entry.isFile()) return [];
-			return [path.relative(baseDirectory, entryPath)];
-		})
-	);
-	return nested.flat().sort();
-}
-
-async function inspectFiles({
-	relativePaths,
-	runtimeRoot,
-}: {
-	relativePaths: string[];
-	runtimeRoot: string;
-}) {
-	return mapWithConcurrency({
-		items: relativePaths,
-		limit: COPY_CONCURRENCY,
-		task: async ({ item: relativePath }) => {
-			const filePath = path.join(runtimeRoot, relativePath);
-			const [metadata, sha256] = await Promise.all([
-				stat(filePath),
-				sha256File({ filePath }),
-			]);
-			return { bytes: metadata.size, path: relativePath, sha256 };
-		},
-	});
-}
-
 async function requirePrivateDestination({
 	destinationRoot,
 }: {
@@ -333,57 +245,6 @@ async function requirePrivateDestination({
 	) {
 		throw new Error("Private runtime cannot be stored in a cloud directory");
 	}
-}
-
-function isManifest(value: unknown): value is TrackingRuntimeManifest {
-	if (!value || typeof value !== "object") return false;
-	const manifest = value as Partial<TrackingRuntimeManifest>;
-	return (
-		manifest.schemaVersion === 1 &&
-		manifest.localOnly === true &&
-		manifest.cloudUpload === false &&
-		manifest.architecture === "arm64" &&
-		manifest.purpose === "jianying-motion-tracking-research-oracle" &&
-		manifest.app?.bundleId === EXPECTED_BUNDLE_ID &&
-		Array.isArray(manifest.files)
-	);
-}
-
-export async function verifyTrackingRuntimeSnapshot({
-	snapshotPath,
-}: {
-	snapshotPath: string;
-}) {
-	const manifest = JSON.parse(
-		await readFile(path.join(snapshotPath, "manifest.json"), "utf8")
-	) as unknown;
-	if (!isManifest(manifest)) {
-		throw new Error(`Invalid tracking runtime manifest: ${snapshotPath}`);
-	}
-	const actualPaths = (await listFiles({ baseDirectory: snapshotPath })).filter(
-		(relativePath) => relativePath !== "manifest.json"
-	);
-	const expectedPaths = manifest.files.map((file) => file.path).sort();
-	if (JSON.stringify(actualPaths) !== JSON.stringify(expectedPaths)) {
-		throw new Error(
-			"Private tracking runtime file list does not match manifest"
-		);
-	}
-	const inspected = await inspectFiles({
-		relativePaths: expectedPaths,
-		runtimeRoot: snapshotPath,
-	});
-	for (const actual of inspected) {
-		const expected = manifest.files.find((file) => file.path === actual.path);
-		if (
-			!expected ||
-			expected.bytes !== actual.bytes ||
-			expected.sha256 !== actual.sha256
-		) {
-			throw new Error(`Private runtime checksum mismatch: ${actual.path}`);
-		}
-	}
-	return manifest;
 }
 
 async function pointCurrentAt({
@@ -480,9 +341,9 @@ async function run() {
 			key: "CFBundleShortVersionString",
 		}),
 	]);
-	if (bundleId !== EXPECTED_BUNDLE_ID) {
+	if (bundleId !== EXPECTED_JIANYING_BUNDLE_ID) {
 		throw new Error(
-			`Expected domestic Jianying ${EXPECTED_BUNDLE_ID}, received ${bundleId}`
+			`Expected domestic Jianying ${EXPECTED_JIANYING_BUNDLE_ID}, received ${bundleId}`
 		);
 	}
 	const appFrameworks = path.join(
@@ -527,8 +388,11 @@ async function run() {
 		runtimeFiles,
 		stagingPath,
 	});
-	const relativePaths = await listFiles({ baseDirectory: stagingPath });
-	const files = await inspectFiles({
+	const relativePaths = [
+		...runtimeFiles.map((file) => path.join("Frameworks", file.relativePath)),
+		...MODEL_PATHS.map((modelPath) => path.join("Resources", modelPath)),
+	].sort();
+	const files = await inspectRuntimeFiles({
 		relativePaths,
 		runtimeRoot: stagingPath,
 	});
