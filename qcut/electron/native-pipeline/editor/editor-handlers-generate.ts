@@ -308,6 +308,10 @@ async function exportStart(
 
 	// GIF config from CLI flags
 	const raw = opts as unknown as Record<string, unknown>;
+	const profilePath = raw["profile-path"] ?? raw.profilePath;
+	if (typeof profilePath === "string" && profilePath.trim()) {
+		body.profilePath = profilePath.trim();
+	}
 	if (exportFormat === "mp3") {
 		body.audioExportConfig = {
 			bitrate: opts.bitrate ?? 192,
