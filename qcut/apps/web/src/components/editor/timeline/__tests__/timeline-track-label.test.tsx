@@ -7,7 +7,10 @@ import { useLocaleStore } from "@/stores/locale-store";
 function renderAudioTrack({
 	locked = false,
 	solo = false,
-}: { locked?: boolean; solo?: boolean } = {}) {
+}: {
+	locked?: boolean;
+	solo?: boolean;
+} = {}) {
 	const onToggleSolo = vi.fn();
 	const track: TimelineTrack = {
 		id: "audio-track",
