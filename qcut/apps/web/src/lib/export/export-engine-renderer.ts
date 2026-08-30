@@ -758,7 +758,11 @@ async function renderVideoAttempt(
 		// (even with trims, speed keyframes, and freeze frames), so a decoder
 		// walking forward beats a per-frame random-access seek. Reversed clips
 		// and undecodable sources keep the seek-based path — same pixels, same
-		// file, just slower.
+		// file, just slower. The element id is the decoder lane: each element's
+		// source time is monotonic on its own, while overlapping elements cut
+		// from the same file (a PiP over its source clip, a transition's
+		// incoming side) read far-apart timestamps in the same frame and would
+		// force a shared decoder into a keyframe-seek restart every frame.
 		let source: CanvasImageSource | null = null;
 		let sourceWidth = 0;
 		let sourceHeight = 0;
@@ -766,7 +770,7 @@ async function renderVideoAttempt(
 		if (context.sequentialVideo && mediaElement.reverse !== true) {
 			const provider = await context.sequentialVideo.getOrOpen(
 				mediaItem,
-				transitionState?.role === "to" ? "transition-incoming" : undefined
+				element.id
 			);
 			if (provider) {
 				const frame = await exportProfiler.time("video-decode", () =>
