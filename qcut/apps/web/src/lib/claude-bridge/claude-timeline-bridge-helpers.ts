@@ -12,6 +12,10 @@ import {
 	normalizeJianyingTextStyleReference,
 	normalizeTextAnimations,
 } from "@qcut/editor-core";
+import {
+	assertStickerRuntimeDescriptor,
+	type StickerRuntimeDescriptor,
+} from "@qcut/editor-core/sticker-lab";
 import type {
 	AdjustmentElement,
 	MediaAdjustments,
@@ -51,6 +55,7 @@ import {
 } from "@/lib/text/text-animation-presets";
 import type { TextAnimationPhase } from "@/lib/text/text-animation-presets";
 import { assertTimelineProjectActive } from "./claude-timeline-project-guard";
+import { resolveClaudeStickerGeometry } from "./claude-sticker-geometry";
 
 const CLAUDE_MEDIA_ELEMENT_TYPES = {
 	media: "media",
@@ -927,6 +932,50 @@ export function addClaudeAdjustmentElement({
 
 const DEFAULT_STICKER_DURATION_SECONDS = 5;
 
+export function resolveClaudeStickerRuntime({
+	candidate,
+}: {
+	candidate: unknown;
+}): StickerRuntimeDescriptor | undefined {
+	if (candidate === undefined) return;
+	assertStickerRuntimeDescriptor({ descriptor: candidate });
+	return candidate as StickerRuntimeDescriptor;
+}
+
+function findOrCreateClaudeStickerTrack({
+	duration,
+	startTime,
+	timelineStore,
+}: {
+	duration: number;
+	startTime: number;
+	timelineStore: TimelineStoreState;
+}): string {
+	const existingStickerTrackIds = new Set(
+		timelineStore.tracks
+			.filter((track) => track.type === "sticker")
+			.map((track) => track.id)
+	);
+	const trackId = timelineStore.findOrCreateTrack("sticker", {
+		startTime,
+		duration,
+	});
+	if (!existingStickerTrackIds.has(trackId)) {
+		timelineStore.moveTrack(trackId, 0);
+		return trackId;
+	}
+	const reusedTrackIndex = timelineStore.tracks.findIndex(
+		(track) => track.id === trackId
+	);
+	const firstMediaTrackIndex = timelineStore.tracks.findIndex(
+		(track) => track.type === "media"
+	);
+	if (firstMediaTrackIndex >= 0 && reusedTrackIndex > firstMediaTrackIndex) {
+		timelineStore.moveTrack(trackId, firstMediaTrackIndex);
+	}
+	return trackId;
+}
+
 /** Add a Claude sticker element to the timeline store and overlay store. */
 export async function addClaudeStickerElement({
 	element,
@@ -959,52 +1008,52 @@ export async function addClaudeStickerElement({
 	});
 	const stickerId = element.stickerId ?? `sticker_${Date.now()}`;
 	const mediaId = element.mediaId ?? stickerId;
-	if (
-		!useMediaStore.getState().mediaItems.some((item) => item.id === mediaId)
-	) {
+	const mediaItem = useMediaStore
+		.getState()
+		.mediaItems.find((item) => item.id === mediaId);
+	if (!mediaItem) {
 		throw new Error(`Sticker media source could not be resolved: ${mediaId}`);
+	}
+	const stickerRuntime = resolveClaudeStickerRuntime({
+		candidate: element.stickerRuntime ?? mediaItem.metadata?.stickerRuntime,
+	});
+	if (useStickersOverlayStore.getState().overlayStickers.has(stickerId)) {
+		throw new Error(`Sticker instance ID already exists: ${stickerId}`);
 	}
 
 	// One sticker track holds many stickers, one at a time; a sticker that
 	// overlaps an existing one gets its own lane instead of stacking.
 	assertTimelineProjectActive({ projectId });
-	const trackId = timelineStore.findOrCreateTrack("sticker", {
+	const trackId = findOrCreateClaudeStickerTrack({
+		timelineStore,
 		startTime,
 		duration,
 	});
 
-	// The CLI passes top-left PIXEL geometry, but every sticker consumer —
-	// resolveStickerGeometry, the overlay store, and the export overlay
-	// collector — reads the canonical contract: center-based position as a
-	// canvas percentage, and size as a percentage of the shorter canvas
-	// dimension. Convert once here so the timeline element and the overlay
-	// store agree (storing raw pixels made exports place/scale wrong).
-	const canvasWidth = 1920;
-	const canvasHeight = 1080;
-	const shortSide = Math.min(canvasWidth, canvasHeight);
-	const pxX = element.x ?? 0;
-	const pxY = element.y ?? 0;
-	const pxW = element.width ?? 200;
-	const pxH = element.height ?? 200;
-	const pctX = ((pxX + pxW / 2) / canvasWidth) * 100;
-	const pctY = ((pxY + pxH / 2) / canvasHeight) * 100;
-	const pctW = (pxW / shortSide) * 100;
-	const pctH = (pxH / shortSide) * 100;
+	const canvasSize = useProjectStore.getState().activeProject?.canvasSize ?? {
+		width: 1920,
+		height: 1080,
+	};
+	const geometry = resolveClaudeStickerGeometry({
+		canvasSize,
+		patch: element,
+	});
 
 	const elementId = timelineStore.addElementToTrack(trackId, {
 		...requestedElementId({ element }),
 		type: "sticker",
 		name: element.sourceName ?? "Sticker",
+		...(element.stickerAssetId
+			? { stickerAssetId: element.stickerAssetId }
+			: {}),
 		stickerId,
 		mediaId,
+		...(stickerRuntime ? { stickerRuntime } : {}),
 		startTime,
 		duration,
 		trimStart: 0,
 		trimEnd: 0,
-		x: pctX,
-		y: pctY,
-		width: pctW,
-		height: pctH,
+		...geometry,
 		rotation: element.rotation ?? 0,
 		opacity: element.opacity ?? 1,
 	});
@@ -1016,18 +1065,29 @@ export async function addClaudeStickerElement({
 	// Also add to sticker overlay store for canvas rendering + export.
 	try {
 		debugLog(
-			`[ClaudeTimelineBridge] Sticker coords: px(${pxX},${pxY} ${pxW}x${pxH}) → pct(${pctX.toFixed(1)},${pctY.toFixed(1)} ${pctW.toFixed(1)}x${pctH.toFixed(1)})`
+			`[ClaudeTimelineBridge] Sticker geometry: ${geometry.x.toFixed(1)}%,${geometry.y.toFixed(1)}% ${geometry.width.toFixed(1)}%x${geometry.height.toFixed(1)}%`
 		);
 
 		debugLog(
-			`[ClaudeTimelineBridge] Adding sticker to overlay store: mediaId=${mediaId}, pos=(${pctX.toFixed(1)}%,${pctY.toFixed(1)}%), size=(${pctW.toFixed(1)}%x${pctH.toFixed(1)}%)`
+			`[ClaudeTimelineBridge] Adding sticker to overlay store: mediaId=${mediaId}`
 		);
-		useStickersOverlayStore.getState().addOverlaySticker(mediaId, {
-			position: { x: pctX, y: pctY },
-			size: { width: pctW, height: pctH },
-			rotation: element.rotation ?? 0,
-			opacity: element.opacity ?? 1,
-		});
+		const projectedSticker = useStickersOverlayStore
+			.getState()
+			.overlayStickers.get(stickerId);
+		if (projectedSticker && projectedSticker.mediaItemId !== mediaId) {
+			throw new Error(
+				`Projected sticker ${stickerId} resolved to the wrong media source`
+			);
+		}
+		if (!projectedSticker) {
+			useStickersOverlayStore.getState().addOverlaySticker(mediaId, {
+				id: stickerId,
+				position: { x: geometry.x, y: geometry.y },
+				size: { width: geometry.width, height: geometry.height },
+				rotation: element.rotation ?? 0,
+				opacity: element.opacity ?? 1,
+			});
+		}
 		// Verify it was added
 		const afterCount = useStickersOverlayStore
 			.getState()
@@ -1650,7 +1710,8 @@ function formatElementForExport({
 		case "sticker":
 			return {
 				...baseElement,
-				sourceId: element.stickerId,
+				sourceId: element.stickerAssetId ?? element.stickerId,
+				stickerAssetId: element.stickerAssetId,
 				stickerId: element.stickerId,
 				mediaId: element.mediaId,
 				stickerRuntime: element.stickerRuntime,
