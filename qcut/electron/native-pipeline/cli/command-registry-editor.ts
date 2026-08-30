@@ -686,6 +686,11 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		f("--export-format", "string", "Export format"),
 		f("--format", "string", "Export format (alias)"),
 		f("--fps", "number", "Video frame rate (24|25|30|50|60)"),
+		f(
+			"--profile-path",
+			"string",
+			"Write a structured export profile JSON to this path (renderer exports)"
+		),
 		// GIF options
 		f("--gif-fps", "number", "GIF frame rate (15|20|25|30)"),
 		f("--gif-loop", "boolean", "GIF loop (true=infinite)"),
