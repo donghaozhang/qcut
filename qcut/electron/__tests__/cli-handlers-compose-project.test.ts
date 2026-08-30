@@ -55,7 +55,23 @@ function fixtureBuild() {
 			snapshotId: snapshot.id,
 			sourceFingerprint: snapshot.sourceFingerprint,
 			createdAt: "2026-08-31T00:00:00.000Z",
-			operations: [],
+			operations: (["clip:a", "clip:b"] as const).map((id, index) => ({
+				kind: "insert-media-clip" as const,
+				id,
+				startTime: index * 10,
+				duration: 10,
+				asset: {
+					provider: "local" as const,
+					assetType: "media" as const,
+					assetId: `manifest:${id}.mp4`,
+					localPath: `/abs/${id}.mp4`,
+				},
+				mediaKind: "video" as const,
+				trackRole: "main-video" as const,
+				trimStart: 1,
+				trimEnd: 1,
+				sourceDuration: 12,
+			})),
 			warnings: [],
 		},
 		timelineDuration: 14.5,
@@ -126,6 +142,8 @@ async function baseOptions(): Promise<CLIRunOptions> {
 		name: "Compose Demo",
 		outputDir,
 		json: true,
+		// Keeps the reopen poll loop short so the vanish test stays fast.
+		timeoutMs: 1200,
 	} as CLIRunOptions;
 }
 
