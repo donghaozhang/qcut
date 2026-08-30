@@ -76,9 +76,18 @@ export function normalizeMediaElement({
 	const legacyAudio = buildLegacyAudioFields({ settings: audio });
 	const color = normalizeMediaColorSettings({ element });
 	const legacyColor = buildLegacyColorAdjustments({ settings: color });
+	// A malformed persisted stack must not crash renderers; legacy projects
+	// without one keep `undefined` and behave exactly as before.
+	const filterStack =
+		element.filterStack &&
+		typeof element.filterStack.enabled === "boolean" &&
+		Array.isArray(element.filterStack.effects)
+			? element.filterStack
+			: undefined;
 
 	return {
 		...element,
+		filterStack,
 		x: element.x ?? 0,
 		y: element.y ?? 0,
 		rotation: element.rotation ?? 0,
