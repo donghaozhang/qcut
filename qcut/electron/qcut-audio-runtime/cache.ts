@@ -9,6 +9,15 @@ import type {
 
 export const MAX_QCUT_AUDIO_CACHE_BYTES = 8 * 1024 * 1024 * 1024;
 export const MAX_QCUT_AUDIO_CACHE_ENTRIES = 1_024;
+/**
+ * Renders write `<cacheKey>.<pid>-<timestamp>.partial.flac` and time out after
+ * 30 minutes, so a partial older than this can only be an abandoned leftover.
+ */
+export const STALE_PARTIAL_MAX_AGE_MS = 60 * 60 * 1_000;
+
+function isPartialArtifact({ filename }: { filename: string }): boolean {
+	return filename.endsWith(".partial.flac");
+}
 
 interface QcutAudioCacheEntry {
 	cacheKey: string;
@@ -87,8 +96,9 @@ async function readQcutAudioCacheEntries({
 } = {}): Promise<QcutAudioCacheEntry[]> {
 	let filenames: string[];
 	try {
-		filenames = (await fs.promises.readdir(cacheDirectory)).filter((filename) =>
-			filename.endsWith(".flac")
+		filenames = (await fs.promises.readdir(cacheDirectory)).filter(
+			(filename) =>
+				filename.endsWith(".flac") && !isPartialArtifact({ filename })
 		);
 	} catch {
 		return [];
@@ -183,10 +193,26 @@ export async function clearQcutAudioCache({
 	await removeQcutAudioCacheEntries({ entries });
 	let leftovers: string[] = [];
 	try {
-		leftovers = (await fs.promises.readdir(cacheDirectory)).filter(
-			(filename) =>
-				filename.endsWith(".partial.flac") || filename.endsWith(".json")
+		const now = Date.now();
+		const candidates = await Promise.all(
+			(await fs.promises.readdir(cacheDirectory)).map(async (filename) => {
+				if (filename.endsWith(".json")) return filename;
+				// A fresh partial belongs to a render in flight; deleting it would
+				// fail that render at its stat/rename step.
+				if (!isPartialArtifact({ filename })) return null;
+				try {
+					const stat = await fs.promises.stat(
+						path.join(cacheDirectory, filename)
+					);
+					return now - stat.mtimeMs >= STALE_PARTIAL_MAX_AGE_MS
+						? filename
+						: null;
+				} catch {
+					return null;
+				}
+			})
 		);
+		leftovers = candidates.filter((filename) => filename !== null);
 	} catch {}
 	await Promise.all(
 		leftovers.map((filename) =>
