@@ -55,7 +55,10 @@ interface FfprobeStream {
 /**
  * Renders a synthetic clip with a sine tone so seams have unmistakable
  * content. `pattern` is a lavfi video source such as `testsrc2` or
- * `color=c=0x2060ff`; size, rate, and duration are appended.
+ * `color=c=0x2060ff`; size, rate, and duration are appended. The video is
+ * explicitly coded and tagged BT.709 limited range: untagged files are
+ * interpreted as BT.601 by FFmpeg but BT.709 by Chromium's decoder, which
+ * would skew any cross-engine color comparison.
  */
 export async function generateToneClip({
 	filePath,
@@ -87,12 +90,22 @@ export async function generateToneClip({
 		"lavfi",
 		"-i",
 		`sine=frequency=${toneHz}:sample_rate=48000:duration=${seconds}`,
+		"-vf",
+		"scale=out_color_matrix=bt709:out_range=tv,format=yuv420p,setparams=range=tv:color_primaries=bt709:color_trc=bt709:colorspace=bt709",
 		"-c:v",
 		"libx264",
 		"-pix_fmt",
 		"yuv420p",
 		"-g",
 		"15",
+		"-colorspace",
+		"bt709",
+		"-color_primaries",
+		"bt709",
+		"-color_trc",
+		"bt709",
+		"-color_range",
+		"tv",
 		"-c:a",
 		"aac",
 		"-b:a",
