@@ -27,4 +27,25 @@ describe("Sticker Lab evidence redaction", () => {
 			inputs: ["<real-test-video>"],
 		});
 	});
+
+	it.each([
+		{ platform: "macOS", privatePath: "/Users/alice/cache/report.json" },
+		{ platform: "Linux", privatePath: "/home/alice/cache/report.json" },
+		{
+			platform: "Windows",
+			privatePath: "C:\\Users\\alice\\cache\\report.json",
+		},
+		{
+			platform: "Windows with forward slashes",
+			privatePath: "C:/Users/alice/cache/report.json",
+		},
+	])("rejects $platform user paths", ({ privatePath }) => {
+		expect(() =>
+			redactStickerLabEvidence({
+				cacheRootPath: "",
+				inputVideoPath: "",
+				value: { leakedPath: privatePath },
+			})
+		).toThrow("Sticker Lab evidence contains a private user path");
+	});
 });
