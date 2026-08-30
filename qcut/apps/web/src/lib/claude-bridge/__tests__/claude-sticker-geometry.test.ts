@@ -3,6 +3,7 @@ import { buildCompositionPlan } from "@qcut/editor-core";
 import type { TimelineElement, TimelineTrack } from "@/types/timeline";
 import { addClaudeStickerElement } from "../claude-timeline-bridge-helpers";
 import { applyElementChanges } from "../claude-timeline-bridge-elements";
+import { resolveClaudeStickerGeometry } from "../claude-sticker-geometry";
 
 const overlayMocks = vi.hoisted(() => ({
 	addOverlaySticker: vi.fn(),
@@ -171,6 +172,20 @@ describe("Claude sticker geometry", () => {
 		timelineBridgeMocks.getState.mockReturnValue({});
 		mediaMocks.mediaItems = [{ id: "m1" }];
 		overlayMocks.overlayStickers.clear();
+	});
+
+	it("converts the 200 pixel default to canonical percentages", () => {
+		expect(
+			resolveClaudeStickerGeometry({
+				canvasSize: { height: 1080, width: 1920 },
+				patch: {},
+			})
+		).toEqual({
+			height: expect.closeTo((200 / 1080) * 100, 5),
+			width: expect.closeTo((200 / 1080) * 100, 5),
+			x: expect.closeTo((100 / 1920) * 100, 5),
+			y: expect.closeTo((100 / 1080) * 100, 5),
+		});
 	});
 
 	it("moves a newly created sticker lane above the media composition", async () => {
