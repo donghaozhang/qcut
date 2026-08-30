@@ -29,12 +29,29 @@ function requiresLocalColorRuntime({
 	);
 }
 
+function filterStackRequiresLocalColorRuntime({
+	element,
+}: {
+	element: MediaElement;
+}): boolean {
+	if (!element.filterStack?.enabled) return false;
+	return element.filterStack.effects.some(
+		(effect) =>
+			effect.enabled &&
+			effect.color.multiPass?.enabled &&
+			effect.color.multiPass.fidelity === "native-local" &&
+			effect.color.multiPass.nativeEffect?.provider ===
+				"jianying-local-effect-v1"
+	);
+}
+
 function mediaRequiresLocalColorRuntime({
 	element,
 }: {
 	element: MediaElement;
 }): boolean {
 	if (requiresLocalColorRuntime({ color: element.color })) return true;
+	if (filterStackRequiresLocalColorRuntime({ element })) return true;
 	if ((element.enhancements?.labEyeCorrection ?? 0) > 0) return true;
 	if (
 		hasMediaPortraitAdjustments({
