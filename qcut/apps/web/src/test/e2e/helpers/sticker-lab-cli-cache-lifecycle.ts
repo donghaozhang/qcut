@@ -43,7 +43,10 @@ type AnimatedRealStickerCacheCase = Extract<
 	RealStickerCacheCase,
 	{ animated: true }
 >;
-const EVIDENCE_DIRECTORY = "/private/tmp/qcut-sticker-lab-export-evidence";
+const EVIDENCE_DIRECTORY = path.join(
+	tmpdir(),
+	"qcut-sticker-lab-export-evidence"
+);
 const STICKER_GEOMETRY = {
 	height: 500,
 	width: 500,
