@@ -367,9 +367,12 @@ function sanitizeSound({
 		min: 0.25,
 		max: 4,
 	});
+	// Timeline duration consumes source seconds at playbackRate speed: a 2×
+	// clip needs twice the source footage its timeline span suggests.
 	if (
 		asset.duration !== undefined &&
-		(trimStart ?? 0) + (trimEnd ?? 0) + base.duration > asset.duration + 0.001
+		(trimStart ?? 0) + (trimEnd ?? 0) + base.duration * (playbackRate ?? 1) >
+			asset.duration + 0.001
 	) {
 		return;
 	}
