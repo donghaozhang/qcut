@@ -132,9 +132,13 @@ export function TimelineTrackLabel({
 				}
 			>
 				{track.locked ? (
-					<Lock className="size-3.5" />
+					<Lock className="size-3.5">
+						<title>{t("timeline.unlockTrack")}</title>
+					</Lock>
 				) : (
-					<Unlock className="size-3.5" />
+					<Unlock className="size-3.5">
+						<title>{t("timeline.lockTrack")}</title>
+					</Unlock>
 				)}
 			</button>
 
