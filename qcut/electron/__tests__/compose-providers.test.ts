@@ -271,3 +271,117 @@ describe("openrouter compose provider", () => {
 		});
 	});
 });
+
+describe("cloud sound-effect sanitization", () => {
+	function soundSnapshot(): ComposeSnapshot {
+		const snapshot = fixtureSnapshot();
+		return {
+			...snapshot,
+			availableResources: [
+				{
+					provider: "qcut",
+					assetType: "sound-effect",
+					assetId: "sound-effects-lab:whoosh",
+					displayName: "Whoosh",
+					duration: 10,
+					availability: "cached",
+					license: "commercial-ok",
+				},
+			],
+		};
+	}
+
+	function soundResponseAdapter({
+		operations,
+	}: {
+		operations: Array<Record<string, unknown>>;
+	}) {
+		return createOpenRouterComposeProvider({
+			fetchImpl: (async () =>
+				new Response(
+					JSON.stringify({
+						choices: [{ message: { content: JSON.stringify({ operations }) } }],
+					}),
+					{ status: 200 }
+				)) as unknown as typeof fetch,
+			apiKey: "test-key",
+		});
+	}
+
+	const baseSound = {
+		kind: "add-sound-effect",
+		assetId: "sound-effects-lab:whoosh",
+		volume: 0.8,
+		startTime: 0,
+		duration: 6,
+	};
+
+	it("drops sounds whose duration × playbackRate overruns the source", async () => {
+		const snapshot = soundSnapshot();
+		const adapter = soundResponseAdapter({
+			operations: [
+				// 6s × 2 = 12s of source against a 10s asset — must be dropped.
+				{ ...baseSound, playbackRate: 2 },
+				// 6s × 0.5 + 1s + 2s trims = 6s ≤ 10s — must survive.
+				{ ...baseSound, playbackRate: 0.5, trimStart: 1, trimEnd: 2 },
+			],
+		});
+		const job = await runLifecycle({ adapter, snapshot });
+		expect(job.status).toBe("completed");
+		const patch = await adapter.downloadPatch({ job });
+		expect(patch.operations).toHaveLength(1);
+		expect(patch.operations[0]).toMatchObject({
+			kind: "add-sound-effect",
+			playbackRate: 0.5,
+			trimStart: 1,
+			trimEnd: 2,
+		});
+		expect(validateComposePatch({ snapshot, patch })).toEqual([]);
+	});
+
+	it("refuses invented asset ids and strips model-supplied local paths", async () => {
+		const snapshot = soundSnapshot();
+		const adapter = soundResponseAdapter({
+			operations: [
+				{ ...baseSound, assetId: "sound-effects-lab:not-in-snapshot" },
+				{
+					...baseSound,
+					asset: {
+						provider: "qcut",
+						assetType: "sound-effect",
+						assetId: "sound-effects-lab:whoosh",
+						localPath: "/tmp/evil.mp3",
+						cacheKey: "spoofed",
+						provenance: { injected: true },
+					},
+				},
+			],
+		});
+		const job = await runLifecycle({ adapter, snapshot });
+		expect(job.status).toBe("completed");
+		const patch = await adapter.downloadPatch({ job });
+		expect(patch.operations).toHaveLength(1);
+		const [operation] = patch.operations;
+		expect(operation).toMatchObject({
+			kind: "add-sound-effect",
+			asset: { assetId: "sound-effects-lab:whoosh" },
+		});
+		const asset = (operation as { asset: Record<string, unknown> }).asset;
+		expect(asset.localPath).toBeUndefined();
+		expect(asset.cacheKey).toBeUndefined();
+		expect(asset.provenance).toBeUndefined();
+	});
+
+	it("strips fades that overrun the operation instead of keeping them", async () => {
+		const snapshot = soundSnapshot();
+		const adapter = soundResponseAdapter({
+			operations: [{ ...baseSound, fadeIn: 7, fadeOut: 2 }],
+		});
+		const job = await runLifecycle({ adapter, snapshot });
+		const patch = await adapter.downloadPatch({ job });
+		expect(patch.operations).toHaveLength(1);
+		const [operation] = patch.operations as Array<Record<string, unknown>>;
+		expect(operation.fadeIn).toBeUndefined();
+		expect(operation.fadeOut).toBe(2);
+	});
+});
