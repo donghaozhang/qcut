@@ -93,10 +93,17 @@ export class SequentialVideoFrameSource {
 		exportProfiler.count("sequential-video-restart");
 	}
 
+	/**
+	 * Coverage is half-open with the epsilon on the *newer* side:
+	 * [start - ε, start + duration - ε). A request landing exactly on a frame
+	 * boundary (a 2x clip with a frame-aligned trim hits one every frame)
+	 * resolves to the frame that starts there — the frame an HTMLVideoElement
+	 * seek displays — instead of holding the previous frame one frame stale.
+	 */
 	private frameCovers(frame: WrappedCanvasFrame, timeSeconds: number): boolean {
 		return (
 			timeSeconds >= frame.timestamp - TIME_EPSILON_SECONDS &&
-			timeSeconds < frame.timestamp + frame.duration + TIME_EPSILON_SECONDS
+			timeSeconds < frame.timestamp + frame.duration - TIME_EPSILON_SECONDS
 		);
 	}
 
