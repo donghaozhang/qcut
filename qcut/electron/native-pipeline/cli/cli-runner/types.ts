@@ -23,6 +23,8 @@ export interface CLIRunOptions {
 	/** True when the user explicitly passed --output-dir / -o */
 	outputDirExplicit?: boolean;
 	config?: string;
+	/** Portable QCut compose project destination. */
+	projectDir?: string;
 	input?: string;
 	/** Video before a local transition cut. */
 	inputA?: string;
