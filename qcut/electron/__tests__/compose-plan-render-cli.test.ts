@@ -14,6 +14,7 @@ import {
 	type ComposeSnapshot,
 } from "../native-pipeline/compose/compose-protocol.js";
 import type { CLIRunOptions } from "../native-pipeline/cli/cli-runner/types.js";
+import { CLIPipelineRunner } from "../native-pipeline/cli/cli-runner/runner.js";
 
 let directory = "";
 let snapshotPath = "";
@@ -80,6 +81,23 @@ afterAll(() => {
 });
 
 describe("compose plan handler", () => {
+	it("passes compose providers through the full CLI runner", async () => {
+		const outputPath = path.join(directory, "runner", "patch.json");
+		const runner = new CLIPipelineRunner();
+		const result = await runner.run(
+			options({
+				command: "compose-plan",
+				snapshot: snapshotPath,
+				provider: "local",
+				output: outputPath,
+			}),
+			noProgress
+		);
+
+		expect(result.success).toBe(true);
+		expect(fs.existsSync(outputPath)).toBe(true);
+	});
+
 	it("plans with the local provider and persists a secret-free job record", async () => {
 		const outputPath = path.join(directory, "plans", "patch.json");
 		const result = await handleComposePlan(
@@ -110,7 +128,7 @@ describe("compose plan handler", () => {
 
 	it("surfaces the structured error for unavailable providers", async () => {
 		const result = await handleComposePlan(
-			options({ snapshot: snapshotPath, provider: "qcut" }),
+			options({ snapshot: snapshotPath, provider: "fal" }),
 			noProgress,
 			signal
 		);

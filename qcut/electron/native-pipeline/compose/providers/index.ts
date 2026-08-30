@@ -34,10 +34,9 @@ export function createComposeProviderAdapter({
 		case "openrouter":
 			return createOpenRouterComposeProvider(openRouter);
 		case "qcut":
-			return unsupportedComposeProvider({
-				provider: "qcut",
-				detail:
-					"The QCut cloud compose endpoint is not available yet; use --provider local or openrouter.",
+			return createOpenRouterComposeProvider({
+				...openRouter,
+				jobProvider: "qcut",
 			});
 		case "fal":
 			return unsupportedComposeProvider({

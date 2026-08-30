@@ -1,6 +1,7 @@
 import type {
 	ComposePatch,
 	ComposePatchOperation,
+	ComposeSnapshot,
 } from "./compose-protocol.js";
 
 type JsonRecord = Record<string, unknown>;
@@ -21,8 +22,40 @@ export interface ComposeTimelineManifestPlan {
 }
 
 const TEXT_TRACK_ALIAS = "compose-text";
-const OVERLAY_TRACK_ALIAS = "compose-overlay";
+const CAPTION_TRACK_ALIAS = "compose-captions";
+const STICKER_TRACK_ALIAS = "compose-stickers";
 const AUDIO_TRACK_ALIAS = "compose-audio";
+
+function editorTransitionPreset({ presetId }: { presetId: string }): string {
+	return presetId === "crossfade" ? "dissolve" : presetId;
+}
+
+function zoomFrameRange({
+	operation,
+	snapshot,
+}: {
+	operation: Extract<ComposePatchOperation, { kind: "update-media-zoom" }>;
+	snapshot?: ComposeSnapshot;
+}): { startFrame: number; endFrame: number } {
+	const fps = snapshot?.project.fps ?? 30;
+	const targetStart =
+		snapshot?.media.find(
+			(media) =>
+				media.trackId === operation.trackId &&
+				media.elementId === operation.elementId
+		)?.startTime ?? operation.startTime;
+	const startFrame = Math.max(
+		0,
+		Math.round((operation.startTime - targetStart) * fps)
+	);
+	return {
+		startFrame,
+		endFrame: Math.max(
+			startFrame + 1,
+			Math.round((operation.startTime + operation.duration - targetStart) * fps)
+		),
+	};
+}
 
 function mediaAliasFor({
 	operation,
@@ -30,6 +63,24 @@ function mediaAliasFor({
 	operation: ComposePatchOperation;
 }): string {
 	return `media:${operation.id}`;
+}
+
+function stickerGeometryForEditor({
+	operation,
+}: {
+	operation: Extract<ComposePatchOperation, { kind: "add-sticker" }>;
+}): JsonRecord {
+	const geometry = {
+		...(operation.x !== undefined ? { x: operation.x * 100 } : {}),
+		...(operation.y !== undefined ? { y: operation.y * 100 } : {}),
+		...(operation.width !== undefined ? { width: operation.width * 100 } : {}),
+		...(operation.height !== undefined
+			? { height: operation.height * 100 }
+			: {}),
+	};
+	return Object.keys(geometry).length > 0
+		? { ...geometry, stickerGeometrySpace: "canvas-percent" }
+		: {};
 }
 
 /**
@@ -42,14 +93,18 @@ function mediaAliasFor({
 export function timelineManifestFromComposePatch({
 	patch,
 	projectId,
+	snapshot,
 }: {
 	patch: ComposePatch;
 	projectId?: string;
+	snapshot?: ComposeSnapshot;
 }): ComposeTimelineManifestPlan {
 	const textElements: JsonRecord[] = [];
-	const overlayElements: JsonRecord[] = [];
+	const captionElements: JsonRecord[] = [];
+	const stickerElements: JsonRecord[] = [];
 	const audioElements: JsonRecord[] = [];
 	const media: JsonRecord[] = [];
+	const updates: JsonRecord[] = [];
 	const transitions: JsonRecord[] = [];
 	const plannedOperationIds: string[] = [];
 	const plannedTransitionOperationIds: string[] = [];
@@ -58,10 +113,11 @@ export function timelineManifestFromComposePatch({
 	for (const operation of patch.operations) {
 		switch (operation.kind) {
 			case "add-caption":
-				textElements.push({
+				captionElements.push({
 					alias: operation.id,
-					type: "text",
+					type: "captions",
 					content: operation.text,
+					language: operation.language,
 					startTime: operation.startTime,
 					duration: operation.duration,
 				});
@@ -89,18 +145,14 @@ export function timelineManifestFromComposePatch({
 					break;
 				}
 				media.push({ alias: mediaAliasFor({ operation }), path: localPath });
-				overlayElements.push({
+				stickerElements.push({
 					alias: operation.id,
-					type: "media",
-					media: mediaAliasFor({ operation }),
+					type: "sticker",
+					mediaId: mediaAliasFor({ operation }),
+					stickerId: operation.id,
 					startTime: operation.startTime,
 					duration: operation.duration,
-					...(operation.x !== undefined ? { x: operation.x } : {}),
-					...(operation.y !== undefined ? { y: operation.y } : {}),
-					...(operation.width !== undefined ? { width: operation.width } : {}),
-					...(operation.height !== undefined
-						? { height: operation.height }
-						: {}),
+					...stickerGeometryForEditor({ operation }),
 				});
 				plannedOperationIds.push(operation.id);
 				break;
@@ -128,25 +180,64 @@ export function timelineManifestFromComposePatch({
 				plannedOperationIds.push(operation.id);
 				break;
 			}
-			case "update-media-zoom":
-				skipped.push({
-					operationId: operation.id,
-					kind: operation.kind,
-					reason:
-						"Media zoom updates existing elements, which the timeline manifest transport cannot express yet.",
+			case "update-media-zoom": {
+				const { startFrame, endFrame } = zoomFrameRange({
+					operation,
+					snapshot,
 				});
+				updates.push({
+					alias: operation.id,
+					elementId: operation.elementId,
+					trackId: operation.trackId,
+					keyframes: {
+						scaleX: [
+							{
+								id: `${operation.id}:scale-x:start`,
+								frame: startFrame,
+								value: operation.fromScale,
+								easing: "easeInOut",
+							},
+							{
+								id: `${operation.id}:scale-x:end`,
+								frame: endFrame,
+								value: operation.toScale,
+								easing: "easeInOut",
+							},
+						],
+						scaleY: [
+							{
+								id: `${operation.id}:scale-y:start`,
+								frame: startFrame,
+								value: operation.fromScale,
+								easing: "easeInOut",
+							},
+							{
+								id: `${operation.id}:scale-y:end`,
+								frame: endFrame,
+								value: operation.toScale,
+								easing: "easeInOut",
+							},
+						],
+					},
+				});
+				plannedOperationIds.push(operation.id);
 				break;
-			case "upsert-transition":
+			}
+			case "upsert-transition": {
+				const presetId = editorTransitionPreset({
+					presetId: operation.presetId,
+				});
 				transitions.push({
 					track: operation.trackId,
 					from: operation.fromElementId,
 					to: operation.toElementId,
-					type: operation.presetId,
-					presetId: operation.presetId,
+					type: presetId,
+					presetId,
 					duration: operation.duration,
 				});
 				plannedTransitionOperationIds.push(operation.id);
 				break;
+			}
 		}
 	}
 
@@ -159,12 +250,20 @@ export function timelineManifestFromComposePatch({
 			elements: textElements,
 		});
 	}
-	if (overlayElements.length > 0) {
+	if (captionElements.length > 0) {
 		tracks.push({
-			alias: OVERLAY_TRACK_ALIAS,
-			type: "media",
+			alias: CAPTION_TRACK_ALIAS,
+			type: "captions",
+			name: "Compose Captions",
+			elements: captionElements,
+		});
+	}
+	if (stickerElements.length > 0) {
+		tracks.push({
+			alias: STICKER_TRACK_ALIAS,
+			type: "sticker",
 			name: "Compose Stickers",
-			elements: overlayElements,
+			elements: stickerElements,
 		});
 	}
 	if (audioElements.length > 0) {
@@ -181,6 +280,7 @@ export function timelineManifestFromComposePatch({
 			...(projectId ? { projectId } : {}),
 			...(media.length > 0 ? { media } : {}),
 			tracks,
+			...(updates.length > 0 ? { updates } : {}),
 			...(transitions.length > 0 ? { transitions } : {}),
 		},
 		plannedOperationIds,

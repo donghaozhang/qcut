@@ -122,8 +122,10 @@ export interface ComposeAddTextOverlayOperation
 export interface ComposeAddStickerOperation extends ComposeBasePatchOperation {
 	kind: "add-sticker";
 	asset: ComposeAssetReference;
+	/** Center position normalized to the project canvas (0..1). */
 	x?: number;
 	y?: number;
+	/** Size normalized to the shorter project-canvas dimension (0..1). */
 	width?: number;
 	height?: number;
 }
@@ -237,6 +239,7 @@ export type ComposeValidationIssueCode =
 	| "duplicate-operation-id"
 	| "unknown-target-element"
 	| "invalid-asset-reference"
+	| "invalid-sticker-geometry"
 	| "operation-conflict"
 	| "operation-out-of-bounds";
 
@@ -456,6 +459,36 @@ function validateAssetReference({
 	}
 }
 
+function validateStickerGeometry({
+	operation,
+	path,
+	issues,
+}: {
+	operation: Extract<ComposePatchOperation, { kind: "add-sticker" }>;
+	path: string;
+	issues: ComposeValidationIssue[];
+}): void {
+	for (const key of ["x", "y", "width", "height"] as const) {
+		const value = operation[key];
+		if (value === undefined) continue;
+		const positiveSize = key === "width" || key === "height";
+		if (
+			!Number.isFinite(value) ||
+			value > 1 ||
+			(positiveSize ? value <= 0 : value < 0)
+		) {
+			issues.push({
+				severity: "error",
+				code: "invalid-sticker-geometry",
+				path: `${path}.${key}`,
+				operationId: operation.id,
+				message:
+					"Sticker x/y must be normalized to 0..1 and width/height to 0..1 exclusive of zero.",
+			});
+		}
+	}
+}
+
 function requireTargetElement({
 	elementId,
 	trackId,
@@ -607,6 +640,9 @@ export function validateComposePatch({
 				operationId: operation.id,
 				issues,
 			});
+		}
+		if (operation.kind === "add-sticker") {
+			validateStickerGeometry({ operation, path, issues });
 		}
 		if (operation.kind === "add-text-overlay" && operation.asset) {
 			validateAssetReference({

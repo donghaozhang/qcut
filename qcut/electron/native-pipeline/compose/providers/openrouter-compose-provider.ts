@@ -3,9 +3,11 @@ import type {
 	ComposeJobError,
 	ComposePatch,
 	ComposePatchOperation,
+	ComposeProvider,
 	ComposeSnapshot,
 } from "../compose-protocol.js";
 import { COMPOSE_PROTOCOL_VERSION } from "../compose-protocol.js";
+import { callModelApi } from "../../infra/api-caller.js";
 import {
 	createComposeJobRecord,
 	transitionComposeJob,
@@ -14,7 +16,7 @@ import {
 
 const OPENROUTER_COMPLETIONS_URL =
 	"https://openrouter.ai/api/v1/chat/completions";
-const DEFAULT_MODEL = "google/gemini-3.5-flash";
+const DEFAULT_MODEL = "google/gemini-3.7-flash";
 const KNOWN_OPERATION_KINDS = new Set([
 	"add-caption",
 	"add-text-overlay",
@@ -28,6 +30,8 @@ export interface OpenRouterComposeProviderDependencies {
 	fetchImpl?: typeof fetch;
 	apiKey?: string;
 	model?: string;
+	modelApiCallImpl?: typeof callModelApi;
+	jobProvider?: Extract<ComposeProvider, "openrouter" | "qcut">;
 }
 
 function systemPrompt(): string {
@@ -94,6 +98,15 @@ function categorizedError({
 	};
 }
 
+function statusFromApiError({
+	message,
+}: {
+	message: string;
+}): number | undefined {
+	const match = /API error (\d{3})/.exec(message);
+	return match ? Number(match[1]) : undefined;
+}
+
 function extractJson({ content }: { content: string }): unknown {
 	const trimmed = content.trim();
 	const unfenced = trimmed.startsWith("```")
@@ -139,61 +152,98 @@ function sanitizeOperations({
  * and never lands in the job record or the patch.
  */
 export function createOpenRouterComposeProvider({
-	fetchImpl = fetch,
+	fetchImpl,
 	apiKey = process.env.OPENROUTER_API_KEY ?? "",
 	model = DEFAULT_MODEL,
+	modelApiCallImpl = callModelApi,
+	jobProvider = "openrouter",
 }: OpenRouterComposeProviderDependencies = {}): ComposeProviderAdapter {
 	const patchesByJobId = new Map<string, ComposePatch>();
 	return {
-		provider: "openrouter",
+		provider: jobProvider,
 		createJob: async ({ snapshot, intent }) =>
-			createComposeJobRecord({ provider: "openrouter", snapshot, intent }),
+			createComposeJobRecord({ provider: jobProvider, snapshot, intent }),
 		uploadAssets: async ({ job }) =>
 			transitionComposeJob({ job, status: "uploading", progress: 0.2 }),
 		pollJob: async ({ job, snapshot, intent, signal }) => {
-			if (!apiKey) {
-				return transitionComposeJob({
-					job,
-					status: "failed",
-					error: {
-						code: "openrouter-missing-key",
-						message: "OPENROUTER_API_KEY is not configured.",
-						category: "auth",
-						retryable: false,
-					},
-				});
-			}
 			let content: string;
 			try {
-				const response = await fetchImpl(OPENROUTER_COMPLETIONS_URL, {
-					method: "POST",
-					signal,
-					headers: {
-						Authorization: `Bearer ${apiKey}`,
-						"Content-Type": "application/json",
-					},
-					body: JSON.stringify({
-						model,
-						messages: [
-							{ role: "system", content: systemPrompt() },
-							{
-								role: "user",
-								content: `Intent: ${intent.kind}. Snapshot: ${snapshotSummary({ snapshot })}`,
+				const requestPayload = {
+					model,
+					messages: [
+						{ role: "system", content: systemPrompt() },
+						{
+							role: "user",
+							content: `Intent: ${intent.kind}. Snapshot: ${snapshotSummary({ snapshot })}`,
+						},
+					],
+				};
+				let responsePayload: unknown;
+				if (fetchImpl) {
+					if (!apiKey) {
+						return transitionComposeJob({
+							job,
+							status: "failed",
+							error: {
+								code: "openrouter-missing-key",
+								message: "OPENROUTER_API_KEY is not configured.",
+								category: "auth",
+								retryable: false,
 							},
-						],
-					}),
-				});
-				if (!response.ok) {
-					return transitionComposeJob({
-						job,
-						status: "failed",
-						error: categorizedError({
-							status: response.status,
-							message: `OpenRouter request failed (${response.status})`,
-						}),
+						});
+					}
+					const response = await fetchImpl(OPENROUTER_COMPLETIONS_URL, {
+						method: "POST",
+						signal,
+						headers: {
+							Authorization: `Bearer ${apiKey}`,
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify(requestPayload),
 					});
+					if (!response.ok) {
+						return transitionComposeJob({
+							job,
+							status: "failed",
+							error: categorizedError({
+								status: response.status,
+								message: `OpenRouter request failed (${response.status})`,
+							}),
+						});
+					}
+					responsePayload = await response.json();
+				} else {
+					const result = await modelApiCallImpl({
+						provider: "openrouter",
+						endpoint: "chat/completions",
+						payload: requestPayload,
+						signal,
+						timeoutMs: 120_000,
+					});
+					if (!result.success) {
+						const message = result.error ?? "OpenRouter request failed.";
+						const missingCredentials = message.includes(
+							"No API key configured"
+						);
+						return transitionComposeJob({
+							job,
+							status: "failed",
+							error: missingCredentials
+								? {
+										code: "openrouter-missing-key",
+										message,
+										category: "auth",
+										retryable: false,
+									}
+								: categorizedError({
+										status: statusFromApiError({ message }),
+										message,
+									}),
+						});
+					}
+					responsePayload = result.data;
 				}
-				const payload = (await response.json()) as {
+				const payload = responsePayload as {
 					choices?: Array<{ message?: { content?: string } }>;
 				};
 				content = payload.choices?.[0]?.message?.content ?? "";
@@ -232,7 +282,7 @@ export function createOpenRouterComposeProvider({
 				snapshotId: snapshot.id,
 				sourceFingerprint: snapshot.sourceFingerprint,
 				createdAt: job.createdAt,
-				provider: "openrouter",
+				provider: jobProvider,
 				operations,
 				warnings: [],
 			};

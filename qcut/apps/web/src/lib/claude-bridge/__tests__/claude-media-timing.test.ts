@@ -193,6 +193,33 @@ describe("Claude media timing bridge", () => {
 		expect(calculateTimelineDuration({ tracks, fps: 30 })).toBe(4);
 	});
 
+	it("preserves audio volume in the export snapshot", () => {
+		const tracks: TimelineTrack[] = [
+			{
+				id: "audio-track",
+				name: "Audio",
+				type: "audio",
+				elements: [
+					{
+						id: "audio",
+						type: "media",
+						mediaId: "sound",
+						name: "Sound",
+						startTime: 0,
+						duration: 1,
+						trimStart: 0,
+						trimEnd: 0,
+						volume: 0.65,
+					},
+				],
+			},
+		];
+
+		const [element] = formatTracksForExport({ tracks, fps: 30 })[0].elements;
+
+		expect(element.volume).toBe(0.65);
+	});
+
 	it("preserves enhancement and portrait state in the export snapshot", () => {
 		const tracks: TimelineTrack[] = [
 			{
@@ -266,6 +293,32 @@ describe("Claude media timing bridge", () => {
 				freezeFrameTime: 1,
 				freezeFrameDuration: 0.5,
 			},
+			false
+		);
+	});
+
+	it("routes media transform keyframes through the media update action", () => {
+		const keyframes = {
+			scaleX: [
+				{ id: "zoom-x-start", frame: 0, value: 1, easing: "easeInOut" },
+				{ id: "zoom-x-end", frame: 150, value: 1.08, easing: "easeInOut" },
+			],
+			scaleY: [
+				{ id: "zoom-y-start", frame: 0, value: 1, easing: "easeInOut" },
+				{ id: "zoom-y-end", frame: 150, value: 1.08, easing: "easeInOut" },
+			],
+		};
+		const updated = applyElementChanges({
+			elementId: "clip",
+			changes: { keyframes },
+			pushHistory: false,
+		});
+
+		expect(updated).toBe(true);
+		expect(storeMocks.state.updateMediaElement).toHaveBeenCalledWith(
+			"track",
+			"clip",
+			{ keyframes },
 			false
 		);
 	});

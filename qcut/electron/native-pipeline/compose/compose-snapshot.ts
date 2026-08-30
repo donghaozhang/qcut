@@ -14,6 +14,7 @@ interface TimelineElementRecord extends JsonRecord {
 	id?: string;
 	type?: string;
 	mediaId?: string;
+	sourceId?: string;
 	content?: string;
 	startTime?: number;
 	duration?: number;
@@ -145,18 +146,36 @@ export async function captureComposeSnapshot({
 			});
 			const shown = visibleDuration({ element });
 			timelineEnd = Math.max(timelineEnd, startTime + shown);
-			if (trackType === "text" || element.type === "text") {
+			if (
+				trackType === "text" ||
+				trackType === "captions" ||
+				element.type === "text" ||
+				element.type === "captions"
+			) {
+				const text =
+					typeof element.content === "string"
+						? element.content
+						: typeof element.text === "string"
+							? element.text
+							: "";
 				captions.push({
 					id: elementId,
-					text: typeof element.content === "string" ? element.content : "",
+					text,
 					startTime,
 					duration: shown,
+					...(typeof element.language === "string"
+						? { language: element.language }
+						: {}),
 				});
 				continue;
 			}
-			if (typeof element.mediaId !== "string") continue;
+			const mediaId =
+				typeof element.mediaId === "string"
+					? element.mediaId
+					: element.sourceId;
+			if (typeof mediaId !== "string") continue;
 			media.push({
-				id: element.mediaId,
+				id: mediaId,
 				kind: mediaKindFor({ element, trackType }),
 				trackId,
 				elementId,

@@ -148,6 +148,9 @@ export interface TextOverlay {
 	shadowOpacity: number;
 	shadowOffsetX: number;
 	shadowOffsetY: number;
+	positioning: "canvas-offset" | "caption-anchor";
+	verticalAlign: "top" | "center" | "bottom";
+	marginV: number;
 	animationType: "none" | "fade" | "slide-up" | "slide-left";
 	animationDuration: number;
 	animationDelay: number;

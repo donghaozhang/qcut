@@ -181,8 +181,10 @@ export interface ComposeAddTextOverlayOperation
 export interface ComposeAddStickerOperation extends ComposeBasePatchOperation {
 	kind: "add-sticker";
 	asset: ComposeAssetReference;
+	/** Center position normalized to the project canvas (0..1). */
 	x?: number;
 	y?: number;
+	/** Size normalized to the shorter project-canvas dimension (0..1). */
 	width?: number;
 	height?: number;
 }

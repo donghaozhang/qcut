@@ -172,6 +172,7 @@ export async function handleComposeApply(
 		const plan = timelineManifestFromComposePatch({
 			patch: materialized,
 			projectId,
+			snapshot,
 		});
 		if (
 			plan.plannedOperationIds.length === 0 &&

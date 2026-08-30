@@ -128,7 +128,7 @@ describe("local compose provider", () => {
 
 describe("unavailable providers", () => {
 	it("fails with a structured unsupported error", async () => {
-		for (const provider of ["qcut", "fal"] as const) {
+		for (const provider of ["fal"] as const) {
 			const adapter = createComposeProviderAdapter({ provider });
 			const job = await adapter.createJob({
 				snapshot: fixtureSnapshot(),
@@ -140,6 +140,39 @@ describe("unavailable providers", () => {
 				retryable: false,
 			});
 		}
+	});
+});
+
+describe("qcut cloud compose provider", () => {
+	it("routes planning through the shared proxy-first model caller", async () => {
+		const modelApiCallImpl = vi.fn(async () => ({
+			success: true,
+			data: {
+				choices: [
+					{
+						message: {
+							content: JSON.stringify({ operations: [] }),
+						},
+					},
+				],
+			},
+			duration: 0.01,
+		}));
+		const adapter = createComposeProviderAdapter({
+			provider: "qcut",
+			openRouter: { modelApiCallImpl },
+		});
+		const job = await runLifecycle({ adapter, snapshot: fixtureSnapshot() });
+
+		expect(job).toMatchObject({ provider: "qcut", status: "completed" });
+		const patch = await adapter.downloadPatch({ job });
+		expect(patch.provider).toBe("qcut");
+		expect(modelApiCallImpl).toHaveBeenCalledWith(
+			expect.objectContaining({
+				provider: "openrouter",
+				endpoint: "chat/completions",
+			})
+		);
 	});
 });
 
@@ -190,6 +223,9 @@ describe("openrouter compose provider", () => {
 		];
 		expect(request.headers.Authorization).toBe("Bearer test-key");
 		expect(request.body).not.toContain("/Users/");
+		expect(JSON.parse(request.body)).toMatchObject({
+			model: "google/gemini-3.7-flash",
+		});
 	});
 
 	it("categorizes auth, quota, and missing-key failures", async () => {

@@ -204,10 +204,25 @@ describe("compose apply handler", () => {
 		const applyManifest = vi.fn(async (_client, opts: CLIRunOptions) => {
 			const manifest = JSON.parse(opts.manifest ?? "{}");
 			expect(manifest.projectId).toBe("project-1");
+			expect(manifest.updates).toMatchObject([
+				{
+					alias: "zoom:1",
+					elementId: "element-1",
+					keyframes: {
+						scaleX: [
+							{ frame: 120, value: 1 },
+							{ frame: 180, value: 1.2 },
+						],
+					},
+				},
+			]);
 			return {
 				success: true,
 				data: {
-					elements: { "caption:1": "created-element-1" },
+					elements: {
+						"caption:1": "created-element-1",
+						"zoom:1": "element-1",
+					},
 					transitionIds: [],
 					verified: true,
 				},
@@ -228,12 +243,15 @@ describe("compose apply handler", () => {
 		);
 		expect(result.success).toBe(true);
 		expect(result.data).toMatchObject({
-			applied: { "caption:1": "created-element-1" },
+			applied: {
+				"caption:1": "created-element-1",
+				"zoom:1": "element-1",
+			},
 			verified: true,
 		});
 		const skipped = (result.data as { skipped: Array<{ operationId: string }> })
 			.skipped;
-		expect(skipped.map(({ operationId }) => operationId)).toEqual(["zoom:1"]);
+		expect(skipped).toEqual([]);
 	});
 
 	it("refuses to apply a patch that fails validation", async () => {

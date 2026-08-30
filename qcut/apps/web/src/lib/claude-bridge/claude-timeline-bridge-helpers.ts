@@ -823,6 +823,7 @@ export async function addClaudeMediaElement({
 		fitMode: element.fitMode ?? "cover",
 		...(colorLabel ? { colorLabel } : {}),
 		...mediaTiming,
+		...(typeof element.volume === "number" ? { volume: element.volume } : {}),
 	});
 
 	const addedElementId = requireAddedElementId({
@@ -1043,6 +1044,7 @@ export async function addClaudeStickerElement({
 	const geometry = resolveClaudeStickerGeometry({
 		canvasSize,
 		patch: element,
+		space: element.stickerGeometrySpace,
 	});
 
 	const elementId = timelineStore.addElementToTrack(trackId, {
@@ -1695,6 +1697,7 @@ function formatElementForExport({
 				scaleX: element.scaleX,
 				scaleY: element.scaleY,
 				opacity: element.opacity,
+				volume: element.volume,
 				keyframes: element.keyframes as ClaudeElement["keyframes"],
 				colorSettings: resolveExportElementColorSettings({ element }),
 				timelineDuration,
@@ -1716,6 +1719,7 @@ function formatElementForExport({
 			return {
 				...baseElement,
 				content: element.text,
+				language: element.language,
 			};
 		case "sticker":
 			return {

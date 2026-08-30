@@ -1,25 +1,371 @@
-import type { ClaudeTimeline } from "../../../types/claude-api.js";
+import type {
+	ClaudeElement,
+	ClaudeTimeline,
+} from "../../../types/claude-api.js";
 import { hasJianyingTextStyleCandidate } from "./jianying-text-overlay.js";
 import type { TextOverlay } from "./types.js";
 
-function numberValue(
-	element: Record<string, unknown>,
-	style: Record<string, unknown>,
-	key: string,
-	fallback: number
-): number {
+// Electron's tsc root cannot import editor-core; mirror DEFAULT_SUBTITLE_STYLE.
+const NATIVE_CAPTION_DEFAULTS = {
+	fontFamily: "Arial",
+	fontSize: 48,
+	fontColor: "#ffffff",
+	fontOpacity: 1,
+	textAlign: "center",
+	outlineColor: "#000000",
+	outlineWidth: 2,
+	backgroundColor: "#000000",
+	backgroundOpacity: 0.8,
+	shadowColor: "#000000",
+	shadowOffsetX: 1,
+	shadowOffsetY: 1,
+	verticalAlign: "bottom",
+	marginV: 90,
+	animationDuration: 0.6,
+} as const;
+
+function numberValue({
+	element,
+	style,
+	key,
+	fallback,
+}: {
+	element: Record<string, unknown>;
+	style: Record<string, unknown>;
+	key: string;
+	fallback: number;
+}): number {
 	const value = element[key] ?? style[key];
 	return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
-function stringValue(
-	element: Record<string, unknown>,
-	style: Record<string, unknown>,
-	key: string,
-	fallback: string
-): string {
+function stringValue({
+	element,
+	style,
+	key,
+	fallback,
+}: {
+	element: Record<string, unknown>;
+	style: Record<string, unknown>;
+	key: string;
+	fallback: string;
+}): string {
 	const value = element[key] ?? style[key];
 	return typeof value === "string" ? value : fallback;
+}
+
+function recordValue({ value }: { value: unknown }): Record<string, unknown> {
+	return typeof value === "object" && value !== null && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: {};
+}
+
+function booleanValue({
+	record,
+	key,
+	fallback,
+}: {
+	record: Record<string, unknown>;
+	key: string;
+	fallback: boolean;
+}): boolean {
+	return typeof record[key] === "boolean" ? record[key] : fallback;
+}
+
+function textAlignValue({
+	value,
+}: {
+	value: unknown;
+}): TextOverlay["textAlign"] {
+	return value === "left" || value === "right" ? value : "center";
+}
+
+function verticalAlignValue({
+	value,
+}: {
+	value: unknown;
+}): TextOverlay["verticalAlign"] {
+	return value === "top" || value === "center" ? value : "bottom";
+}
+
+function animationTypeValue({
+	value,
+}: {
+	value: unknown;
+}): TextOverlay["animationType"] {
+	return value === "fade" || value === "slide-up" || value === "slide-left"
+		? value
+		: "none";
+}
+
+function collectCaptionOverlay({
+	source,
+	element,
+	style,
+	content,
+	duration,
+}: {
+	source: ClaudeElement;
+	element: Record<string, unknown>;
+	style: Record<string, unknown>;
+	content: string;
+	duration: number;
+}): TextOverlay {
+	const position = recordValue({ value: style.position });
+	const shadowOffset = recordValue({ value: style.shadowOffset });
+	const shadowOffsetX = numberValue({
+		element: {},
+		style: shadowOffset,
+		key: "x",
+		fallback: NATIVE_CAPTION_DEFAULTS.shadowOffsetX,
+	});
+	const shadowOffsetY = numberValue({
+		element: {},
+		style: shadowOffset,
+		key: "y",
+		fallback: NATIVE_CAPTION_DEFAULTS.shadowOffsetY,
+	});
+
+	return {
+		id: source.id,
+		content,
+		startTime: source.startTime,
+		endTime: source.startTime + duration,
+		fontSize: numberValue({
+			element,
+			style,
+			key: "fontSize",
+			fallback: NATIVE_CAPTION_DEFAULTS.fontSize,
+		}),
+		fontFamily: stringValue({
+			element,
+			style,
+			key: "fontFamily",
+			fallback: NATIVE_CAPTION_DEFAULTS.fontFamily,
+		}),
+		color: stringValue({
+			element,
+			style,
+			key: "fontColor",
+			fallback: NATIVE_CAPTION_DEFAULTS.fontColor,
+		}),
+		backgroundColor: stringValue({
+			element,
+			style,
+			key: "backgroundColor",
+			fallback: NATIVE_CAPTION_DEFAULTS.backgroundColor,
+		}),
+		textAlign: textAlignValue({ value: style.textAlign }),
+		fontWeight: booleanValue({ record: style, key: "bold", fallback: false })
+			? "bold"
+			: "normal",
+		fontStyle: booleanValue({ record: style, key: "italic", fallback: false })
+			? "italic"
+			: "normal",
+		x: 0,
+		y: 0,
+		rotation: 0,
+		opacity: numberValue({
+			element: {},
+			style,
+			key: "fontOpacity",
+			fallback: NATIVE_CAPTION_DEFAULTS.fontOpacity,
+		}),
+		strokeColor: stringValue({
+			element: {},
+			style,
+			key: "outlineColor",
+			fallback: NATIVE_CAPTION_DEFAULTS.outlineColor,
+		}),
+		strokeWidth: numberValue({
+			element: {},
+			style,
+			key: "outlineWidth",
+			fallback: NATIVE_CAPTION_DEFAULTS.outlineWidth,
+		}),
+		strokeOpacity: 1,
+		backgroundOpacity: numberValue({
+			element: {},
+			style,
+			key: "bgOpacity",
+			fallback: NATIVE_CAPTION_DEFAULTS.backgroundOpacity,
+		}),
+		shadowColor: stringValue({
+			element: {},
+			style,
+			key: "shadowColor",
+			fallback: NATIVE_CAPTION_DEFAULTS.shadowColor,
+		}),
+		shadowOpacity: shadowOffsetX !== 0 || shadowOffsetY !== 0 ? 1 : 0,
+		shadowOffsetX,
+		shadowOffsetY,
+		positioning: "caption-anchor",
+		verticalAlign: verticalAlignValue({ value: position.align }),
+		marginV: numberValue({
+			element: {},
+			style: position,
+			key: "y",
+			fallback: NATIVE_CAPTION_DEFAULTS.marginV,
+		}),
+		animationType: animationTypeValue({
+			value: stringValue({
+				element,
+				style,
+				key: "animationType",
+				fallback: "none",
+			}),
+		}),
+		animationDuration: numberValue({
+			element: {},
+			style,
+			key: "animationDuration",
+			fallback: NATIVE_CAPTION_DEFAULTS.animationDuration,
+		}),
+		animationDelay: numberValue({
+			element: {},
+			style,
+			key: "animationDelay",
+			fallback: 0,
+		}),
+	};
+}
+
+function collectCanvasTextOverlay({
+	source,
+	element,
+	style,
+	content,
+	duration,
+}: {
+	source: ClaudeElement;
+	element: Record<string, unknown>;
+	style: Record<string, unknown>;
+	content: string;
+	duration: number;
+}): TextOverlay {
+	const textAlign = stringValue({
+		element,
+		style,
+		key: "textAlign",
+		fallback: "center",
+	});
+	const fontWeight = stringValue({
+		element,
+		style,
+		key: "fontWeight",
+		fallback: "normal",
+	});
+	const fontStyle = stringValue({
+		element,
+		style,
+		key: "fontStyle",
+		fallback: "normal",
+	});
+	const backgroundColor = stringValue({
+		element,
+		style,
+		key: "backgroundColor",
+		fallback: "transparent",
+	});
+
+	return {
+		id: source.id,
+		content,
+		startTime: source.startTime,
+		endTime: source.startTime + duration,
+		fontSize: numberValue({ element, style, key: "fontSize", fallback: 48 }),
+		fontFamily: stringValue({
+			element,
+			style,
+			key: "fontFamily",
+			fallback: "Arial",
+		}),
+		color: stringValue({
+			element,
+			style,
+			key: "color",
+			fallback: "#ffffff",
+		}),
+		backgroundColor,
+		textAlign: textAlignValue({ value: textAlign }),
+		fontWeight: fontWeight === "bold" ? "bold" : "normal",
+		fontStyle: fontStyle === "italic" ? "italic" : "normal",
+		x: numberValue({ element, style, key: "x", fallback: 0 }),
+		y: numberValue({ element, style, key: "y", fallback: 0 }),
+		rotation: numberValue({ element, style, key: "rotation", fallback: 0 }),
+		opacity: numberValue({ element, style, key: "opacity", fallback: 1 }),
+		strokeColor: stringValue({
+			element,
+			style,
+			key: "strokeColor",
+			fallback: "#000000",
+		}),
+		strokeWidth: numberValue({
+			element,
+			style,
+			key: "strokeWidth",
+			fallback: 0,
+		}),
+		strokeOpacity: numberValue({
+			element,
+			style,
+			key: "strokeOpacity",
+			fallback: 1,
+		}),
+		backgroundOpacity: numberValue({
+			element,
+			style,
+			key: "backgroundOpacity",
+			fallback: backgroundColor === "transparent" ? 0 : 1,
+		}),
+		shadowColor: stringValue({
+			element,
+			style,
+			key: "shadowColor",
+			fallback: "#000000",
+		}),
+		shadowOpacity: numberValue({
+			element,
+			style,
+			key: "shadowOpacity",
+			fallback: 0,
+		}),
+		shadowOffsetX: numberValue({
+			element,
+			style,
+			key: "shadowOffsetX",
+			fallback: 0,
+		}),
+		shadowOffsetY: numberValue({
+			element,
+			style,
+			key: "shadowOffsetY",
+			fallback: 0,
+		}),
+		positioning: "canvas-offset",
+		verticalAlign: "center",
+		marginV: 0,
+		animationType: animationTypeValue({
+			value: stringValue({
+				element,
+				style,
+				key: "animationType",
+				fallback: "none",
+			}),
+		}),
+		animationDuration: numberValue({
+			element,
+			style,
+			key: "animationDuration",
+			fallback: 0.5,
+		}),
+		animationDelay: numberValue({
+			element,
+			style,
+			key: "animationDelay",
+			fallback: 0,
+		}),
+	};
 }
 
 /** Collect text-like timeline elements for the native FFmpeg overlay pass. */
@@ -40,7 +386,9 @@ export function collectTextOverlays(timeline: ClaudeTimeline): TextOverlay[] {
 			const content =
 				typeof source.content === "string"
 					? source.content
-					: source.markdownContent;
+					: typeof element.text === "string"
+						? element.text
+						: source.markdownContent;
 			if (!content?.trim()) continue;
 			const duration =
 				typeof source.duration === "number" && source.duration > 0
@@ -48,64 +396,23 @@ export function collectTextOverlays(timeline: ClaudeTimeline): TextOverlay[] {
 					: source.endTime - source.startTime;
 			if (!Number.isFinite(duration) || duration <= 0) continue;
 
-			const textAlign = stringValue(element, style, "textAlign", "center");
-			const fontWeight = stringValue(element, style, "fontWeight", "normal");
-			const fontStyle = stringValue(element, style, "fontStyle", "normal");
-			const animationType = stringValue(
-				element,
-				style,
-				"animationType",
-				"none"
+			overlays.push(
+				source.type === "captions"
+					? collectCaptionOverlay({
+							source,
+							element,
+							style,
+							content,
+							duration,
+						})
+					: collectCanvasTextOverlay({
+							source,
+							element,
+							style,
+							content,
+							duration,
+						})
 			);
-			overlays.push({
-				id: source.id,
-				content,
-				startTime: source.startTime,
-				endTime: source.startTime + duration,
-				fontSize: numberValue(element, style, "fontSize", 48),
-				fontFamily: stringValue(element, style, "fontFamily", "Arial"),
-				color: stringValue(element, style, "color", "#ffffff"),
-				backgroundColor: stringValue(
-					element,
-					style,
-					"backgroundColor",
-					"transparent"
-				),
-				textAlign:
-					textAlign === "left" || textAlign === "right" ? textAlign : "center",
-				fontWeight: fontWeight === "bold" ? "bold" : "normal",
-				fontStyle: fontStyle === "italic" ? "italic" : "normal",
-				x: numberValue(element, style, "x", 0),
-				y: numberValue(element, style, "y", 0),
-				rotation: numberValue(element, style, "rotation", 0),
-				opacity: numberValue(element, style, "opacity", 1),
-				strokeColor: stringValue(element, style, "strokeColor", "#000000"),
-				strokeWidth: numberValue(element, style, "strokeWidth", 0),
-				strokeOpacity: numberValue(element, style, "strokeOpacity", 1),
-				backgroundOpacity: numberValue(
-					element,
-					style,
-					"backgroundOpacity",
-					source.backgroundColor === "transparent" ? 0 : 1
-				),
-				shadowColor: stringValue(element, style, "shadowColor", "#000000"),
-				shadowOpacity: numberValue(element, style, "shadowOpacity", 0),
-				shadowOffsetX: numberValue(element, style, "shadowOffsetX", 0),
-				shadowOffsetY: numberValue(element, style, "shadowOffsetY", 0),
-				animationType:
-					animationType === "fade" ||
-					animationType === "slide-up" ||
-					animationType === "slide-left"
-						? animationType
-						: "none",
-				animationDuration: numberValue(
-					element,
-					style,
-					"animationDuration",
-					0.5
-				),
-				animationDelay: numberValue(element, style, "animationDelay", 0),
-			});
 		}
 	}
 	return overlays.sort((left, right) => left.startTime - right.startTime);
@@ -140,8 +447,11 @@ function escapeAssText(text: string): string {
 		.replace(/\r?\n/g, "\\N");
 }
 
-/** ASS \an alignment codes for middle-row left/center/right text. */
-const ASS_MIDDLE_ALIGNMENTS = { left: 4, center: 5, right: 6 } as const;
+const ASS_ALIGNMENTS = {
+	top: { left: 7, center: 8, right: 9 },
+	center: { left: 4, center: 5, right: 6 },
+	bottom: { left: 1, center: 2, right: 3 },
+} as const;
 
 /** CJK ideographs/kana/hangul plus full-width forms. */
 const CJK_PATTERN = /[\u2E80-\u9FFF\uAC00-\uD7AF\uF900-\uFAFF\uFF00-\uFFEF]/;
@@ -163,6 +473,33 @@ function assFontFamily(overlay: TextOverlay): string {
 	return "Noto Sans CJK SC";
 }
 
+function overlayAnchor({
+	overlay,
+	width,
+	height,
+}: {
+	overlay: TextOverlay;
+	width: number;
+	height: number;
+}): { x: number; y: number } {
+	if (overlay.positioning === "canvas-offset") {
+		return { x: width / 2 + overlay.x, y: height / 2 + overlay.y };
+	}
+	const x =
+		overlay.textAlign === "left"
+			? width * 0.1
+			: overlay.textAlign === "right"
+				? width * 0.9
+				: width / 2;
+	const y =
+		overlay.verticalAlign === "top"
+			? overlay.marginV
+			: overlay.verticalAlign === "center"
+				? height / 2
+				: height - overlay.marginV;
+	return { x, y };
+}
+
 /** Build an ASS subtitle document that preserves core QCut text styling. */
 export function buildTextAss({
 	overlays,
@@ -177,7 +514,12 @@ export function buildTextAss({
 	const events: string[] = [];
 	for (const [index, overlay] of overlays.entries()) {
 		const styleName = `QCutText${index}`;
-		const alignment = ASS_MIDDLE_ALIGNMENTS[overlay.textAlign];
+		const alignment =
+			ASS_ALIGNMENTS[
+				overlay.positioning === "caption-anchor"
+					? overlay.verticalAlign
+					: "center"
+			][overlay.textAlign];
 		const backgroundEnabled =
 			overlay.backgroundColor !== "transparent" &&
 			overlay.backgroundOpacity > 0;
@@ -212,19 +554,23 @@ export function buildTextAss({
 				alignment,
 				0,
 				0,
-				0,
+				overlay.positioning === "caption-anchor"
+					? Math.max(0, Math.round(overlay.marginV))
+					: 0,
 				1,
 			].join(",")
 		);
 
-		const x = width / 2 + overlay.x;
-		const y = height / 2 + overlay.y;
+		const { x, y } = overlayAnchor({ overlay, width, height });
 		const animationStart = Math.max(0, overlay.animationDelay * 1000);
 		const animationEnd = Math.max(
 			animationStart,
 			(overlay.animationDelay + overlay.animationDuration) * 1000
 		);
-		let motion = `\\pos(${x.toFixed(2)},${y.toFixed(2)})`;
+		let motion =
+			overlay.positioning === "canvas-offset"
+				? `\\pos(${x.toFixed(2)},${y.toFixed(2)})`
+				: "";
 		if (overlay.animationType === "slide-up") {
 			motion = `\\move(${x.toFixed(2)},${(y + 80).toFixed(2)},${x.toFixed(2)},${y.toFixed(2)},${animationStart.toFixed(0)},${animationEnd.toFixed(0)})`;
 		} else if (overlay.animationType === "slide-left") {

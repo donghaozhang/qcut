@@ -77,6 +77,7 @@ import {
 	compositeCursorOnSegments,
 } from "./cursor-composite.js";
 import { buildTextAss } from "./text-overlay.js";
+import { buildStickerOverlayPass } from "./sticker-overlay.js";
 import { renderJianyingTextRasterLayers } from "./jianying-text-raster.js";
 import { buildTextRasterOverlayPassArgs } from "./text-raster-overlay-pass.js";
 import { readMediaRestrictedMetadata } from "../claude-media-restricted-metadata.js";
@@ -1537,102 +1538,22 @@ export async function executeExportJob({
 			await fsPromises.rename(videoOutputPath, concatOutputPath);
 
 			try {
-				// Build FFmpeg filter_complex for sticker overlays
-				const inputArgs: string[] = ["-y", "-i", concatOutputPath];
-
-				// Add each sticker as an input
-				for (const sticker of stickerOverlays) {
-					inputArgs.push(
-						"-loop",
-						"1",
-						"-t",
-						String(sticker.endTime),
-						"-i",
-						sticker.sourcePath
-					);
-				}
-
-				// Build filter_complex chain
-				const filterSteps: string[] = [];
-				let currentLabel = "0:v";
-
-				for (const [i, sticker] of stickerOverlays.entries()) {
-					const inputIdx = i + 1;
-					const scaledLabel = `stk_s${i}`;
-					let preparedLabel = scaledLabel;
-
-					// Scale sticker to target size
-					filterSteps.push(
-						`[${inputIdx}:v]scale=${sticker.width}:${sticker.height}[${scaledLabel}]`
-					);
-
-					// Apply rotation if needed
-					if (sticker.rotation !== 0) {
-						const rotLabel = `stk_r${i}`;
-						filterSteps.push(
-							`[${preparedLabel}]rotate=${sticker.rotation}*PI/180:c=none[${rotLabel}]`
-						);
-						preparedLabel = rotLabel;
-					}
-
-					// Apply opacity if < 1
-					if (sticker.opacity < 1) {
-						const alphaLabel = `stk_a${i}`;
-						filterSteps.push(
-							`[${preparedLabel}]format=rgba,geq=r='r(X,Y)':g='g(X,Y)':b='b(X,Y)':a='${sticker.opacity}*alpha(X,Y)'[${alphaLabel}]`
-						);
-						preparedLabel = alphaLabel;
-					}
-
-					// Overlay onto current video
-					const outLabel = `stk_o${i}`;
-					const overlayParams = [
-						`x=${sticker.x}`,
-						`y=${sticker.y}`,
-						`enable='between(t,${sticker.startTime},${sticker.endTime})'`,
-					].join(":");
-
-					filterSteps.push(
-						`[${currentLabel}][${preparedLabel}]overlay=${overlayParams}[${outLabel}]`
-					);
-					currentLabel = outLabel;
-				}
-
-				// The last filter output needs to be mapped
-				const lastLabel = currentLabel;
-				const filterComplex = filterSteps.join(";");
-
-				const stickerArgs: string[] = [
-					...inputArgs,
-					"-filter_complex",
-					filterComplex,
-					"-map",
-					`[${lastLabel}]`,
-					"-map",
-					"0:a?",
-					"-c:v",
-					settings.codec,
-					"-preset",
-					"medium",
-					"-b:v",
-					parseBitrateForKbps({ bitrate: settings.bitrate }),
-					"-pix_fmt",
-					"yuv420p",
-					"-c:a",
-					"copy",
-					"-movflags",
-					"+faststart",
-					videoOutputPath,
-				];
+				const stickerPass = buildStickerOverlayPass({
+					inputPath: concatOutputPath,
+					outputPath: videoOutputPath,
+					stickerOverlays,
+					codec: settings.codec,
+					bitrate: parseBitrateForKbps({ bitrate: settings.bitrate }),
+				});
 
 				claudeLog.info(
 					HANDLER_NAME,
-					`Sticker overlay filter_complex: ${filterComplex}`
+					`Sticker overlay filter_complex: ${stickerPass.filterComplex}`
 				);
 
 				const totalDuration = segments.reduce((sum, s) => sum + s.duration, 0);
 				await runFFmpegCommand({
-					args: stickerArgs,
+					args: stickerPass.args,
 					estimatedDuration: Math.max(0, totalDuration),
 					onProgress: ({ normalizedProgress }) => {
 						updateJobProgress({
@@ -1655,8 +1576,11 @@ export async function executeExportJob({
 				} catch {
 					/* may not exist */
 				}
-				// Restore the pre-sticker output so the export isn't lost
+				// Restore first so failed jobs never leave a partial output behind.
 				await fsPromises.rename(concatOutputPath, videoOutputPath);
+				throw new Error(
+					`Sticker overlay export failed: ${stickerError instanceof Error ? stickerError.message : String(stickerError)}`
+				);
 			}
 		}
 

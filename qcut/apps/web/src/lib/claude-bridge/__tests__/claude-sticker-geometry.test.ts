@@ -188,6 +188,16 @@ describe("Claude sticker geometry", () => {
 		});
 	});
 
+	it("accepts already canonical percentage geometry from Compose", () => {
+		expect(
+			resolveClaudeStickerGeometry({
+				canvasSize: { height: 1080, width: 1920 },
+				patch: { x: 82, y: 23, width: 18, height: 18 },
+				space: "canvas-percent",
+			})
+		).toEqual({ x: 82, y: 23, width: 18, height: 18 });
+	});
+
 	it("moves a newly created sticker lane above the media composition", async () => {
 		const timelineStore = makeTimelineStore({
 			tracks: [

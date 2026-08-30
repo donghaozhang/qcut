@@ -44,6 +44,10 @@ function isLowRiskSemanticPointerAction(options: CLIRunOptions): boolean {
 	);
 }
 
+function usesCommandScopedProvider({ command }: { command: string }): boolean {
+	return command === "compose-plan";
+}
+
 async function enforceActionPolicy({
 	options,
 }: {
@@ -190,7 +194,8 @@ export class CLIPipelineRunner {
 			resolvedOptions.provider &&
 			!resolvedOptions.model &&
 			resolvedOptions.command !== "transcribe" &&
-			resolvedOptions.command !== "editor:sticker:add"
+			resolvedOptions.command !== "editor:sticker:add" &&
+			!usesCommandScopedProvider({ command: resolvedOptions.command })
 		) {
 			const match = ModelRegistry.findByProvider(resolvedOptions.provider);
 			if (match) {

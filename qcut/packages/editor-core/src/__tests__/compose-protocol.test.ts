@@ -223,6 +223,35 @@ describe("compose validation", () => {
 		expect(issues).toEqual([]);
 	});
 
+	it("rejects sticker geometry outside the normalized canvas contract", () => {
+		const snapshot = makeSnapshot();
+		const patch = makePatch({
+			snapshot,
+			overrides: {
+				operations: [
+					{
+						kind: "add-sticker",
+						id: "sticker:bad-geometry",
+						startTime: 2,
+						duration: 3,
+						x: 82,
+						width: 0,
+						asset: {
+							provider: "local",
+							assetType: "sticker",
+							assetId: "sticker-asset",
+						},
+					},
+				],
+			},
+		});
+
+		expect(validateComposePatch({ snapshot, patch })).toMatchObject([
+			{ code: "invalid-sticker-geometry", path: "operations.0.x" },
+			{ code: "invalid-sticker-geometry", path: "operations.0.width" },
+		]);
+	});
+
 	it("rejects a patch whose snapshot fingerprint is stale", () => {
 		const snapshot = makeSnapshot();
 		const patch = makePatch({

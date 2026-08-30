@@ -31,6 +31,14 @@ describe("timelineManifestFromComposePatch", () => {
 			patch: makePatch({
 				operations: [
 					{
+						kind: "add-text-overlay",
+						id: "title:1",
+						text: "Opening title",
+						textTemplateId: "plain",
+						startTime: 1,
+						duration: 2,
+					},
+					{
 						kind: "add-caption",
 						id: "caption:1",
 						text: "hello",
@@ -45,6 +53,8 @@ describe("timelineManifestFromComposePatch", () => {
 						duration: 3,
 						x: 0.7,
 						y: 0.2,
+						width: 0.18,
+						height: 0.18,
 						asset: {
 							provider: "local",
 							assetType: "sticker",
@@ -83,15 +93,34 @@ describe("timelineManifestFromComposePatch", () => {
 		const tracks = plan.manifest.tracks as Array<Record<string, unknown>>;
 		expect(tracks.map((track) => track.type)).toEqual([
 			"text",
-			"media",
+			"captions",
+			"sticker",
 			"audio",
 		]);
-		const [textTrack, overlayTrack, audioTrack] = tracks;
+		const [textTrack, captionTrack, overlayTrack, audioTrack] = tracks;
 		expect(textTrack.elements).toMatchObject([
-			{ alias: "caption:1", type: "text", content: "hello" },
+			{ alias: "title:1", type: "text", content: "Opening title" },
+		]);
+		expect(captionTrack.elements).toMatchObject([
+			{
+				alias: "caption:1",
+				type: "captions",
+				content: "hello",
+				language: "en",
+			},
 		]);
 		expect(overlayTrack.elements).toMatchObject([
-			{ alias: "sticker:1", media: "media:sticker:1", x: 0.7, y: 0.2 },
+			{
+				alias: "sticker:1",
+				type: "sticker",
+				mediaId: "media:sticker:1",
+				stickerId: "sticker:1",
+				x: 70,
+				y: 20,
+				width: 18,
+				height: 18,
+				stickerGeometrySpace: "canvas-percent",
+			},
 		]);
 		expect(audioTrack.elements).toMatchObject([
 			{ alias: "sound:1", media: "media:sound:1", volume: 0.82 },
@@ -110,6 +139,7 @@ describe("timelineManifestFromComposePatch", () => {
 			},
 		]);
 		expect(plan.plannedOperationIds).toEqual([
+			"title:1",
 			"caption:1",
 			"sticker:1",
 			"sound:1",
@@ -118,7 +148,7 @@ describe("timelineManifestFromComposePatch", () => {
 		expect(plan.skipped).toEqual([]);
 	});
 
-	it("reports zoom and unresolved assets as skipped instead of dropping them", () => {
+	it("plans zoom updates and reports unresolved assets as skipped", () => {
 		const plan = timelineManifestFromComposePatch({
 			patch: makePatch({
 				operations: [
@@ -146,13 +176,52 @@ describe("timelineManifestFromComposePatch", () => {
 				],
 			}),
 		});
-		expect(plan.plannedOperationIds).toEqual([]);
+		expect(plan.plannedOperationIds).toEqual(["zoom:1"]);
 		expect(plan.plannedTransitionOperationIds).toEqual([]);
 		expect(plan.skipped.map(({ operationId }) => operationId)).toEqual([
-			"zoom:1",
 			"sticker:unresolved",
+		]);
+		expect(plan.manifest.updates).toMatchObject([
+			{
+				alias: "zoom:1",
+				elementId: "element-1",
+				trackId: "track-video",
+				keyframes: {
+					scaleX: [
+						{ frame: 0, value: 1 },
+						{ frame: 60, value: 1.2 },
+					],
+					scaleY: [
+						{ frame: 0, value: 1 },
+						{ frame: 60, value: 1.2 },
+					],
+				},
+			},
 		]);
 		expect(plan.manifest.tracks).toEqual([]);
 		expect(plan.manifest.media).toBeUndefined();
+	});
+
+	it("normalizes the compose crossfade alias for the editor runtime", () => {
+		const plan = timelineManifestFromComposePatch({
+			patch: makePatch({
+				operations: [
+					{
+						kind: "upsert-transition",
+						id: "transition:crossfade",
+						trackId: "track-video",
+						fromElementId: "element-1",
+						toElementId: "element-2",
+						startTime: 4.5,
+						duration: 1,
+						presetId: "crossfade",
+					},
+				],
+			}),
+		});
+
+		expect(plan.manifest.transitions).toMatchObject([
+			{ type: "dissolve", presetId: "dissolve" },
+		]);
 	});
 });

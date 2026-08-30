@@ -19,6 +19,7 @@ interface ManifestMedia extends JsonRecord {
 interface ManifestElement extends JsonRecord {
 	alias?: string;
 	id?: string;
+	elementId?: string;
 	track?: string;
 	trackId?: string;
 	media?: string;
@@ -59,6 +60,7 @@ interface TimelineManifest extends JsonRecord {
 	media?: ManifestMedia[];
 	tracks?: ManifestTrack[];
 	elements?: ManifestElement[];
+	updates?: ManifestElement[];
 	transitions?: ManifestTransition[];
 	export?: JsonRecord;
 }
@@ -90,6 +92,8 @@ interface ImportResult {
 
 const TEXT_VERIFY_KEYS = [
 	"content",
+	"text",
+	"language",
 	"fontSize",
 	"fontFamily",
 	"color",
@@ -137,6 +141,15 @@ const TEXT_VERIFY_KEYS = [
 
 const MEDIA_VERIFY_KEYS = [
 	"colorLabel",
+	"volume",
+	"fitMode",
+	"x",
+	"y",
+	"rotation",
+	"scaleX",
+	"scaleY",
+	"opacity",
+	"keyframes",
 	"playbackRate",
 	"speedKeyframes",
 	"reverse",
@@ -144,6 +157,18 @@ const MEDIA_VERIFY_KEYS = [
 	"freezeFrameDuration",
 	"preservePitch",
 	"frameInterpolation",
+] as const;
+
+const STICKER_VERIFY_KEYS = [
+	"stickerId",
+	"mediaId",
+	"stickerRuntime",
+	"x",
+	"y",
+	"width",
+	"height",
+	"rotation",
+	"opacity",
 ] as const;
 
 const TRANSITION_VERIFY_KEYS = [
@@ -518,7 +543,11 @@ async function addManifestElements({
 			if (typeof element.sourceId === "string") {
 				body.sourceId = mapReference(mediaIds, element.sourceId);
 			}
-			expectedElements.set(alias, { ...element, duration });
+			expectedElements.set(alias, {
+				...element,
+				duration,
+				...(typeof body.mediaId === "string" ? { mediaId: body.mediaId } : {}),
+			});
 			return body;
 		});
 
@@ -536,7 +565,13 @@ async function addManifestElements({
 		if (result.failedCount > 0) {
 			const failures = result.added
 				.filter((item) => !item.success)
-				.map((item) => item.error)
+				.map((item) => {
+					const source = chunk[item.index]?.element;
+					const alias = source
+						? aliasFor(source, `element-${offset + item.index}`)
+						: `element-${offset + item.index}`;
+					return `Element '${alias}' failed: ${item.error || "unknown error"}`;
+				})
 				.join("; ");
 			throw new Error(`Element batch failed: ${failures}`);
 		}
@@ -547,6 +582,50 @@ async function addManifestElements({
 			elementIds.set(alias, added.elementId);
 			if (source.id) elementIds.set(source.id, added.elementId);
 		}
+	}
+}
+
+async function updateManifestElements({
+	client,
+	projectId,
+	manifest,
+	elementIds,
+	expectedElements,
+}: {
+	client: EditorApiClient;
+	projectId: string;
+	manifest: TimelineManifest;
+	elementIds: Map<string, string>;
+	expectedElements: Map<string, ManifestElement>;
+}): Promise<void> {
+	const updates = manifest.updates ?? [];
+	if (updates.length === 0) return;
+	const payload = updates.map((update, index) => {
+		const elementId = update.elementId;
+		if (!elementId) throw new Error(`Update ${index} is missing elementId`);
+		const alias = aliasFor(update, `update-${index}`);
+		const body: JsonRecord = { ...update };
+		delete body.alias;
+		delete body.id;
+		delete body.elementId;
+		delete body.track;
+		delete body.trackId;
+		elementIds.set(alias, elementId);
+		expectedElements.set(alias, body);
+		return { elementId, ...body };
+	});
+	const result = await client.patch<{
+		results: Array<{ index: number; success: boolean; error?: string }>;
+		failedCount: number;
+	}>(`/api/claude/timeline/${encodeURIComponent(projectId)}/elements/batch`, {
+		updates: payload,
+	});
+	if (result.failedCount > 0) {
+		const failures = result.results
+			.filter((item) => !item.success)
+			.map((item) => item.error)
+			.join("; ");
+		throw new Error(`Element update batch failed: ${failures}`);
 	}
 }
 
@@ -654,14 +733,23 @@ function verifyManifest({
 			issues.push(`element '${alias}' is missing`);
 			continue;
 		}
-		for (const key of [
+		const verifiesText =
+			expected.type === "text" || expected.type === "captions";
+		const verifiesMedia =
+			expected.type === "media" ||
+			expected.type === "video" ||
+			expected.type === "audio" ||
+			expected.type === "image";
+		const verificationKeys = [
 			"startTime",
 			"duration",
 			"trimStart",
 			"trimEnd",
-			...TEXT_VERIFY_KEYS,
-			...MEDIA_VERIFY_KEYS,
-		]) {
+			...(verifiesText ? TEXT_VERIFY_KEYS : []),
+			...(verifiesMedia ? MEDIA_VERIFY_KEYS : []),
+			...(expected.type === "sticker" ? STICKER_VERIFY_KEYS : []),
+		] as const;
+		for (const key of verificationKeys) {
 			const expectedValue = expectedReadBackValue({ expected, key });
 			if (expectedValue === undefined) continue;
 			const actualValue = actualReadBackValue({
@@ -812,6 +900,13 @@ export async function timelineApplyManifest(
 			manifest,
 			trackIds,
 			mediaIds,
+			elementIds,
+			expectedElements,
+		});
+		await updateManifestElements({
+			client,
+			projectId,
+			manifest,
 			elementIds,
 			expectedElements,
 		});

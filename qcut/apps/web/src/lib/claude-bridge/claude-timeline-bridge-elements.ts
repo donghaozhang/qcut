@@ -3,6 +3,7 @@ import { useProjectStore } from "@/stores/project-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { normalizeMediaPortraitAdjustments } from "@qcut/editor-core";
 import type {
+	MediaElement,
 	MediaPortraitAdjustments,
 	StickerElement,
 } from "@/types/timeline";
@@ -269,6 +270,16 @@ export const applyElementChanges = ({
 					>),
 				};
 			}
+			if (changes.keyframes !== undefined) {
+				if (
+					typeof changes.keyframes !== "object" ||
+					changes.keyframes === null ||
+					Array.isArray(changes.keyframes)
+				) {
+					throw new Error("keyframes must be an object");
+				}
+				mediaUpdates.keyframes = changes.keyframes as MediaElement["keyframes"];
+			}
 			if (Object.keys(mediaUpdates).length > 0) {
 				timelineStore.updateMediaElement(
 					track.id,
@@ -323,6 +334,7 @@ export const applyElementChanges = ({
 						canvasSize,
 						current: element,
 						patch: changes,
+						space: changes.stickerGeometrySpace,
 					})
 				);
 			}
