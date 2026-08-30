@@ -17,6 +17,7 @@ import {
 	handleComposeRenderPatch,
 	loadComposeSnapshotAndPatch,
 } from "./cli-handlers-compose-editor.js";
+import { handleComposeEditorProject } from "./cli-handlers-compose-project.js";
 import type {
 	CLIResult,
 	CLIRunOptions,
@@ -265,6 +266,22 @@ export async function handleComposeProject(
 	signal: AbortSignal,
 	dependencies: ComposeHandlerDependencies = DEFAULT_DEPENDENCIES
 ): Promise<CLIResult> {
+	if (options.target === "editor") {
+		return handleComposeEditorProject(options, onProgress, signal);
+	}
+	if (options.target !== undefined) {
+		return {
+			success: false,
+			error: `Unknown compose project target: ${options.target}. Use --target editor or omit it for a portable bundle.`,
+		};
+	}
+	if (options.name || options.open) {
+		return {
+			success: false,
+			error:
+				"--name and --open belong to --target editor; portable bundles use --project-dir.",
+		};
+	}
 	const startedAt = Date.now();
 	try {
 		onProgress({
