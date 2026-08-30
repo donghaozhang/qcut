@@ -8,7 +8,9 @@ import { fileURLToPath } from "node:url";
 
 import { analyzeTrackingBundle } from "./tracking-probe-core.mjs";
 
-const CLI_PATH = fileURLToPath(new URL("./tracking-probe.mjs", import.meta.url));
+const CLI_PATH = fileURLToPath(
+	new URL("./tracking-probe.mjs", import.meta.url)
+);
 
 function makePlanarSample({
 	pts = 0,
@@ -239,13 +241,9 @@ test("CLI runs against a synthetic bundle without Jianying", async (context) => 
 		),
 	]);
 
-	const result = spawnSync(
-		process.execPath,
-		[CLI_PATH, "--json", root],
-		{
-			encoding: "utf8",
-		}
-	);
+	const result = spawnSync(process.execPath, [CLI_PATH, "--json", root], {
+		encoding: "utf8",
+	});
 	const output = JSON.parse(result.stdout);
 
 	assert.equal(result.status, 0, result.stderr);
