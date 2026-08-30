@@ -96,6 +96,17 @@ export function StickerTrackingProperties({
 				maskId: mask.id ?? "",
 			}) === selectedTargetValue
 	);
+	const selectedTarget = targets.find(
+		({ element: media, mask }) =>
+			targetValue({
+				elementId: media.id,
+				maskId: mask.id ?? "",
+			}) === selectedTargetValue
+	);
+	const rotationTrackingAvailable = Boolean(
+		selectedTarget?.mask.tracking?.source === "jianying-bingo" &&
+			selectedTarget.mask.keyframes?.rotation?.length
+	);
 
 	const applyTracking = ({ value }: { value: string }) => {
 		if (value === NONE_TARGET) {
@@ -211,19 +222,26 @@ export function StickerTrackingProperties({
 									aria-label={t("stickerProperties.tracking.followScale")}
 								/>
 							</div>
-							<div className="flex items-center justify-between gap-3 opacity-55">
+							<div
+								className={`flex items-center justify-between gap-3 ${rotationTrackingAvailable ? "" : "opacity-55"}`}
+							>
 								<PropertyItemLabel>
 									{t("stickerProperties.tracking.followRotation")}
 								</PropertyItemLabel>
 								<Switch
-									checked={false}
-									disabled
+									checked={Boolean(element.tracking.followRotation)}
+									disabled={!rotationTrackingAvailable}
+									onCheckedChange={(followRotation) =>
+										updateTracking({ updates: { followRotation } })
+									}
 									aria-label={t("stickerProperties.tracking.followRotation")}
 								/>
 							</div>
-							<p className="text-[10px] text-muted-foreground">
-								{t("stickerProperties.tracking.rotationUnavailable")}
-							</p>
+							{rotationTrackingAvailable ? null : (
+								<p className="text-[10px] text-muted-foreground">
+									{t("stickerProperties.tracking.rotationUnavailable")}
+								</p>
+							)}
 							<Button
 								type="button"
 								variant="outline"
