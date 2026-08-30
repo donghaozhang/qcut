@@ -7,6 +7,7 @@ import {
 	trackingDimensions,
 } from "../jianying-motion-tracking/video-input.js";
 import { trackingRuntimeFilesFingerprint } from "../jianying-motion-tracking/runtime-assets.js";
+import { runMotionTrackingProcess } from "../jianying-motion-tracking/process-runner.js";
 
 describe("Jianying motion tracking runtime helpers", () => {
 	it("parses rational frame rates and rejects invalid values", () => {
@@ -37,6 +38,8 @@ describe("Jianying motion tracking runtime helpers", () => {
 				"rgb24",
 			])
 		);
+		expect(args.indexOf("-ss")).toBeLessThan(args.indexOf("-i"));
+		expect(args).toContain("-accurate_seek");
 		expect(args.at(-1)).toBe("/tmp/frames.rgb24");
 	});
 
@@ -75,13 +78,29 @@ describe("Jianying motion tracking runtime helpers", () => {
 			{ bytes: 2, path: "b", sha256: "b".repeat(64) },
 			{ bytes: 1, path: "a", sha256: "a".repeat(64) },
 		];
-		expect(trackingRuntimeFilesFingerprint({ files })).toBe(
+		const fingerprint = trackingRuntimeFilesFingerprint({ files });
+		expect(fingerprint).toBe(
+			"6b67eb962c5de446d5b62b040b2edde15551e36a9814b90925a03f0e212930e9"
+		);
+		expect(fingerprint).toBe(
 			trackingRuntimeFilesFingerprint({ files: [...files].reverse() })
 		);
 		expect(
 			trackingRuntimeFilesFingerprint({
 				files: [{ ...files[0], bytes: 3 }, files[1]],
 			})
-		).not.toBe(trackingRuntimeFilesFingerprint({ files }));
+		).not.toBe(fingerprint);
+	});
+
+	it("waits for a cancelled child process to close", async () => {
+		const controller = new AbortController();
+		const process = runMotionTrackingProcess({
+			command: "/bin/sleep",
+			args: ["5"],
+			signal: controller.signal,
+		});
+		controller.abort();
+
+		await expect(process).rejects.toMatchObject({ name: "AbortError" });
 	});
 });
