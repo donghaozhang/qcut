@@ -318,7 +318,13 @@ def write_bundle(
     cache: dict[str, object] | None,
     overwrite: bool,
 ) -> None:
-    resolved_output = output_directory.expanduser().absolute()
+    expanded_output = output_directory.expanduser()
+    if ".." in expanded_output.parts:
+        raise ValueError(
+            f"Output cannot contain parent traversal: {expanded_output}"
+        )
+    absolute_output = expanded_output.absolute()
+    resolved_output = absolute_output.parent.resolve() / absolute_output.name
     if resolved_output == resolved_output.parent:
         raise ValueError("Output cannot be a filesystem root")
     if resolved_output.is_symlink():
