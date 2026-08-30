@@ -378,9 +378,7 @@ export async function searchSoundEffectsLab({
 			categoryIds: asset.categoryIds,
 			fileName: asset.fileName,
 			objectKey: asset.objectKey,
-			license: asset.reusable
-				? (asset.license ?? "CC0-1.0")
-				: "reference-only",
+			license: asset.reusable ? (asset.license ?? "CC0-1.0") : "reference-only",
 		});
 		if (results.length >= limit) break;
 	}
