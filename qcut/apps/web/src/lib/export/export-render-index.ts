@@ -9,20 +9,32 @@
 
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { TimelineTrack } from "@/types/timeline";
+import {
+	buildExportClipTransitionPlan,
+	type ExportClipTransitionPlan,
+} from "./export-clip-transitions";
 
 export interface ExportRenderIndex {
 	/** Sticker ids owned by timeline sticker elements (overlay excludes them). */
 	timelineStickerIds: ReadonlySet<string>;
 	/** Media item lookup by id (consumers require the mutable Map type). */
 	mediaItemsById: Map<string, MediaItem>;
+	/** Which clip transitions render on canvas, natively, or not at all. */
+	clipTransitions: ExportClipTransitionPlan;
 }
 
 export function buildExportRenderIndex({
 	tracks,
 	mediaItems,
+	fps,
+	canvasWidth,
+	canvasHeight,
 }: {
 	tracks: readonly TimelineTrack[];
 	mediaItems: readonly MediaItem[];
+	fps: number;
+	canvasWidth: number;
+	canvasHeight: number;
 }): ExportRenderIndex {
 	const timelineStickerIds = new Set<string>();
 	for (const track of tracks) {
@@ -36,5 +48,12 @@ export function buildExportRenderIndex({
 	for (const item of mediaItems) {
 		mediaItemsById.set(item.id, item);
 	}
-	return { timelineStickerIds, mediaItemsById };
+	const clipTransitions = buildExportClipTransitionPlan({
+		tracks,
+		mediaItems,
+		fps,
+		canvasWidth,
+		canvasHeight,
+	});
+	return { timelineStickerIds, mediaItemsById, clipTransitions };
 }
