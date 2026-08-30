@@ -177,12 +177,20 @@ class ExportProfiler {
 		this.disarm();
 		if (!targetPath) return;
 		try {
-			await window.electronAPI?.writeFile?.(
+			const written = await window.electronAPI?.writeFile?.(
 				targetPath,
 				`${JSON.stringify(report, null, 2)}\n`
 			);
-		} catch {
+			if (written) {
+				console.log(`[ExportProfiler] Profile written to ${targetPath}`);
+			} else {
+				console.warn(
+					`[ExportProfiler] Profile write refused for ${targetPath}`
+				);
+			}
+		} catch (error) {
 			// A failed profile write must never fail the export itself.
+			console.warn("[ExportProfiler] Profile write failed:", error);
 		}
 	}
 }
