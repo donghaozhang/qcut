@@ -160,6 +160,7 @@ const MEDIA_VERIFY_KEYS = [
 	"preservePitch",
 	"frameInterpolation",
 	"timelineDuration",
+	"filterStack",
 ] as const;
 
 const STICKER_VERIFY_KEYS = [
