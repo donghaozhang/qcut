@@ -110,7 +110,7 @@ async function discoverBundleDirectories({ rootDirectory, recursive }) {
 			directories.map(async (child) => ({
 				child,
 				containsData: await directoryContainsData({ directory: child }),
-			})),
+			}))
 		);
 	};
 
@@ -123,7 +123,7 @@ async function discoverBundleDirectories({ rootDirectory, recursive }) {
 			.filter(({ containsData }) => !containsData)
 			.map(({ child }) => child);
 		const nestedBundles = await Promise.all(
-			nestedRoots.map((child) => walk(child)),
+			nestedRoots.map((child) => walk(child))
 		);
 		return [...directBundles, ...nestedBundles.flat()];
 	};
@@ -140,7 +140,7 @@ async function discoverBundleDirectories({ rootDirectory, recursive }) {
 		.filter(({ containsData }) => !containsData)
 		.map(({ child }) => child);
 	const nestedBundles = await Promise.all(
-		nestedRoots.map((child) => walk(child)),
+		nestedRoots.map((child) => walk(child))
 	);
 	return [...immediateBundles, ...nestedBundles.flat()];
 }
@@ -179,7 +179,7 @@ async function resolveSingleInput({ input, recursive }) {
 
 async function resolveInputs({ inputs, recursive }) {
 	const groups = await Promise.all(
-		inputs.map((input) => resolveSingleInput({ input, recursive })),
+		inputs.map((input) => resolveSingleInput({ input, recursive }))
 	);
 	const resolved = groups.flat();
 
@@ -262,12 +262,12 @@ function summarizeReports({ reports }) {
 		motion: reports.filter((report) => report.classification.kind === "motion")
 			.length,
 		unknown: reports.filter(
-			(report) => report.classification.kind === "unknown",
+			(report) => report.classification.kind === "unknown"
 		).length,
 		errors: reports.reduce((total, report) => total + report.outcome.errors, 0),
 		warnings: reports.reduce(
 			(total, report) => total + report.outcome.warnings,
-			0,
+			0
 		),
 	};
 }
@@ -293,7 +293,7 @@ export async function runCli({ argv }) {
 	try {
 		const resolvedInputs = await resolveInputs(options);
 		const loadedInputs = await Promise.all(
-			resolvedInputs.map((input) => loadResolvedInput({ input })),
+			resolvedInputs.map((input) => loadResolvedInput({ input }))
 		);
 		const reports = loadedInputs.map((loaded) =>
 			analyzeTrackingBundle({
@@ -304,20 +304,20 @@ export async function runCli({ argv }) {
 					inputPath: loaded.inputPath,
 					showPaths: options.showPaths,
 				}),
-			}),
+			})
 		);
 
 		const summary = summarizeReports({ reports });
 		if (options.emitJson) {
 			process.stdout.write(
-				`${JSON.stringify({ probeVersion: 1, reports, summary }, null, 2)}\n`,
+				`${JSON.stringify({ probeVersion: 1, reports, summary }, null, 2)}\n`
 			);
 		} else {
 			process.stdout.write(
-				`${reports.map((report) => formatHumanReport({ report })).join("\n\n")}\n\n`,
+				`${reports.map((report) => formatHumanReport({ report })).join("\n\n")}\n\n`
 			);
 			process.stdout.write(
-				`Scanned ${summary.total}: ${summary.valid} valid, ${summary.invalid} invalid; ${summary.errors} errors, ${summary.warnings} warnings\n`,
+				`Scanned ${summary.total}: ${summary.valid} valid, ${summary.invalid} invalid; ${summary.errors} errors, ${summary.warnings} warnings\n`
 			);
 		}
 
