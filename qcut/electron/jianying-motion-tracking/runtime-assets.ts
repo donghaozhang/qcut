@@ -4,8 +4,20 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { mapWithConcurrency } from "../lib/map-with-concurrency.js";
+import { runtimeSnapshotIdentity } from "./runtime-snapshot-identity.js";
 
 const HASH_CONCURRENCY = 4;
+
+interface VerifiedRuntimeCacheEntry {
+	manifestSha256: string;
+	snapshotIdentity: string;
+}
+
+const verifiedRuntimeCache = new Map<string, VerifiedRuntimeCacheEntry>();
+const runtimeVerificationTasks = new Map<
+	string,
+	Promise<TrackingRuntimeManifest>
+>();
 
 export const JIANYING_MOTION_TRACKING_ROUTE =
 	"jianying-bingo-object-tracking-11.3.0" as const;
@@ -18,7 +30,7 @@ export const EXPECTED_TRACKING_CORE_SHA256 =
 export const EXPECTED_BINGO_MODEL_SHA256 =
 	"b2f10c3c1ccc68afb7f5f61c587a29de029b8eff9590755f3b554db4aa04834f";
 export const EXPECTED_TRACKING_FILESET_SHA256 =
-	"7999e9cd22a0534f8db0cac9f7429f1bf441db0d3b356e01f4f9907d13a929b0";
+	"bf40530df76b80276f717d69e2efeb21d61a0134bf3667af569b891ad096dfaa";
 export const EXPECTED_TRACKING_RUNTIME_LIBRARY_COUNT = 23;
 export const EXPECTED_TRACKING_RUNTIME_BYTES = 294_090_115;
 export const TRACKING_CORE_RELATIVE_PATH = "Frameworks/libcccreator.dylib";
@@ -98,7 +110,9 @@ export function trackingRuntimeFilesFingerprint({
 	files: TrackingRuntimeManifestFile[];
 }) {
 	const canonical = [...files]
-		.sort((first, second) => first.path.localeCompare(second.path))
+		.sort((first, second) =>
+			first.path < second.path ? -1 : first.path > second.path ? 1 : 0
+		)
 		.map(({ bytes, path: relativePath, sha256 }) =>
 			[relativePath, bytes, sha256].join("\0")
 		)
@@ -206,14 +220,16 @@ export async function inspectRuntimeFiles({
 	});
 }
 
-export async function verifyTrackingRuntimeSnapshot({
+async function verifyTrackingRuntimeSnapshotTask({
 	snapshotPath,
 }: {
 	snapshotPath: string;
 }) {
-	const manifestValue = JSON.parse(
-		await readFile(path.join(snapshotPath, "manifest.json"), "utf8")
-	) as unknown;
+	const manifestText = await readFile(
+		path.join(snapshotPath, "manifest.json"),
+		"utf8"
+	);
+	const manifestValue = JSON.parse(manifestText) as unknown;
 	if (!isManifest(manifestValue)) {
 		throw new Error(`Invalid tracking runtime manifest: ${snapshotPath}`);
 	}
@@ -226,6 +242,21 @@ export async function verifyTrackingRuntimeSnapshot({
 		throw new Error(
 			"Private tracking runtime file list does not match manifest"
 		);
+	}
+	const cacheKey = path.resolve(snapshotPath);
+	const manifestSha256 = createHash("sha256")
+		.update(manifestText)
+		.digest("hex");
+	const identityBeforeHashing = await runtimeSnapshotIdentity({
+		relativePaths: expectedPaths,
+		snapshotPath,
+	});
+	const cached = verifiedRuntimeCache.get(cacheKey);
+	if (
+		cached?.manifestSha256 === manifestSha256 &&
+		cached.snapshotIdentity === identityBeforeHashing
+	) {
+		return manifest;
 	}
 	const inspected = await inspectRuntimeFiles({
 		relativePaths: expectedPaths,
@@ -250,5 +281,39 @@ export async function verifyTrackingRuntimeSnapshot({
 			"Private tracking runtime byte total does not match manifest"
 		);
 	}
+	const identityAfterHashing = await runtimeSnapshotIdentity({
+		relativePaths: expectedPaths,
+		snapshotPath,
+	});
+	if (identityAfterHashing !== identityBeforeHashing) {
+		throw new Error("Private tracking runtime changed during verification");
+	}
+	verifiedRuntimeCache.set(cacheKey, {
+		manifestSha256,
+		snapshotIdentity: identityAfterHashing,
+	});
 	return manifest;
+}
+
+export function clearTrackingRuntimeVerificationCache() {
+	verifiedRuntimeCache.clear();
+}
+
+export async function verifyTrackingRuntimeSnapshot({
+	snapshotPath,
+}: {
+	snapshotPath: string;
+}) {
+	const cacheKey = path.resolve(snapshotPath);
+	const activeVerification = runtimeVerificationTasks.get(cacheKey);
+	if (activeVerification) return activeVerification;
+	const verification = verifyTrackingRuntimeSnapshotTask({ snapshotPath });
+	runtimeVerificationTasks.set(cacheKey, verification);
+	try {
+		return await verification;
+	} finally {
+		if (runtimeVerificationTasks.get(cacheKey) === verification) {
+			runtimeVerificationTasks.delete(cacheKey);
+		}
+	}
 }
