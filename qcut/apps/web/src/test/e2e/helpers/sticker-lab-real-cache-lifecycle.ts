@@ -1,10 +1,10 @@
-import { execFile } from "node:child_process";
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { expect, type TestInfo } from "@playwright/test";
 import type { ElectronApplication, Page } from "playwright";
+import { evaluateStickerRuntime } from "@qcut/editor-core/sticker-lab";
 import { createTestProject, ensureStickersTabActive } from "./electron-helpers";
 import {
 	DEFAULT_STICKER_VIDEO_EVIDENCE_PROFILE,
@@ -33,18 +33,19 @@ import {
 	REAL_STICKER_CACHE_VIDEOS_DIRECTORY,
 	type RealStickerCacheCase,
 } from "./sticker-lab-real-cache-cases";
+import {
+	type QCutPipelineCliEvidence,
+	runQCutPipelineCli,
+} from "./qcut-pipeline-cli";
+import {
+	installStickerExportRuntimeTrace,
+	readStickerExportRuntimeTrace,
+} from "./sticker-lab-export-runtime-trace";
+import { redactStickerLabEvidence } from "./sticker-lab-evidence-redaction";
+import { verifyAndPreserveRealVideoExports } from "./sticker-lab-real-video-evidence";
 
-interface CliJsonEnvelope extends Record<string, unknown> {
-	data?: Record<string, unknown>;
-	jobId?: string;
-	status?: string;
-}
-
-interface CliExportEvidence {
-	apiPort: number;
-	envelopes: CliJsonEnvelope[];
-	stderr: string;
-}
+type CliExportEvidence = QCutPipelineCliEvidence;
+const EVIDENCE_DIRECTORY = "/private/tmp/qcut-sticker-lab-export-evidence";
 
 function realCacheEvidenceProfile({
 	exportTrigger,
@@ -64,7 +65,32 @@ function realCacheEvidenceProfile({
 	};
 }
 
-async function findAvailableEditorApiPort({
+function normalizedStickerRegion({ state }: { state: RestrictedState }): {
+	height: number;
+	width: number;
+	x: number;
+	y: number;
+} {
+	const sticker = state.stickers[0];
+	if (!sticker) throw new Error("Sticker evidence element is missing");
+	const { height, width, x, y } = sticker;
+	if (
+		typeof height !== "number" ||
+		typeof width !== "number" ||
+		typeof x !== "number" ||
+		typeof y !== "number"
+	) {
+		throw new Error("Sticker evidence geometry is incomplete");
+	}
+	return {
+		height: height / 100,
+		width: width / 100,
+		x: (x - width / 2) / 100,
+		y: (y - height / 2) / 100,
+	};
+}
+
+export async function findAvailableEditorApiPort({
 	host,
 }: {
 	host: string;
@@ -84,7 +110,7 @@ async function findAvailableEditorApiPort({
 	return address.port;
 }
 
-async function waitForEditorApiHealth({
+export async function waitForEditorApiHealth({
 	apiPort,
 }: {
 	apiPort: number;
@@ -106,29 +132,7 @@ async function waitForEditorApiHealth({
 		.toBe(true);
 }
 
-function parseCliJsonEnvelopes({
-	stdout,
-}: {
-	stdout: string;
-}): CliJsonEnvelope[] {
-	const documents = stdout
-		.trim()
-		.split(/(?=^\{)/m)
-		.map((document) => document.trim())
-		.filter(Boolean);
-	if (documents.length === 0) {
-		throw new Error(`QCut CLI produced no JSON envelopes: ${stdout}`);
-	}
-	return documents.map((document) => {
-		const parsed: unknown = JSON.parse(document);
-		if (!(parsed && typeof parsed === "object" && !Array.isArray(parsed))) {
-			throw new Error(`QCut CLI emitted a non-object JSON value: ${document}`);
-		}
-		return parsed as CliJsonEnvelope;
-	});
-}
-
-function runStickerExportCli({
+export function runStickerExportCli({
 	apiPort,
 	frameRate,
 	outputPath,
@@ -139,61 +143,33 @@ function runStickerExportCli({
 	outputPath: string;
 	projectId: string;
 }): Promise<CliExportEvidence> {
-	return new Promise((resolve, reject) => {
-		execFile(
-			"bun",
-			[
-				"--silent",
-				"run",
-				"pipeline",
-				"--",
-				"editor:export:start",
-				"--port",
-				String(apiPort),
-				"--project-id",
-				projectId,
-				"--preset",
-				"youtube-720p",
-				"--format",
-				"mp4",
-				"--fps",
-				String(frameRate),
-				"--output",
-				outputPath,
-				"--poll",
-				"--json",
-			],
-			{
-				cwd: process.cwd(),
-				env: { ...process.env, QCUT_API_PORT: String(apiPort) },
-				maxBuffer: 4 * 1024 * 1024,
-				timeout: 240_000,
-			},
-			(error, stdout, stderr) => {
-				if (error) {
-					reject(
-						new Error(
-							`QCut CLI Sticker Lab export failed: ${stderr || stdout || error.message}`
-						)
-					);
-					return;
-				}
-				resolve({
-					apiPort,
-					envelopes: parseCliJsonEnvelopes({ stdout }),
-					stderr,
-				});
-			}
-		);
+	return runQCutPipelineCli({
+		apiPort,
+		args: [
+			"editor:export:start",
+			"--project-id",
+			projectId,
+			"--preset",
+			"youtube-720p",
+			"--format",
+			"mp4",
+			"--fps",
+			String(frameRate),
+			"--output",
+			outputPath,
+			"--poll",
+		],
 	});
 }
 
-function assertCompletedCliExport({
+export function assertCompletedCliExport({
 	evidence,
+	expectedEngine = "renderer-muxer",
 	outputPath,
 	projectId,
 }: {
 	evidence: CliExportEvidence;
+	expectedEngine?: "native-cli" | "renderer-muxer";
 	outputPath: string;
 	projectId: string;
 }): void {
@@ -210,7 +186,7 @@ function assertCompletedCliExport({
 		data: {
 			command: "editor:export:start",
 			data: {
-				engine: "renderer-muxer",
+				engine: expectedEngine,
 				jobId: pending?.jobId,
 				outputPath,
 				projectId,
@@ -220,7 +196,7 @@ function assertCompletedCliExport({
 	});
 }
 
-function assertRealCachedMedia({
+export function assertRealCachedMedia({
 	cacheCase,
 	expectFileMime,
 	state,
@@ -260,7 +236,7 @@ function assertRealCachedMedia({
 	);
 }
 
-async function verifyRealCachedPreviewRuntime({
+export async function verifyRealCachedPreviewRuntime({
 	cacheCase,
 	page,
 }: {
@@ -320,12 +296,18 @@ async function verifyRealCachedPreviewRuntime({
 }
 
 export async function runRealCachedStickerExport({
+	artifactStem,
 	cacheCase,
 	fullRenderBenchmark = false,
+	inputVideoPath,
+	profileOverride,
 	testInfo,
 }: {
+	artifactStem?: string;
 	cacheCase: RealStickerCacheCase;
 	fullRenderBenchmark?: boolean;
+	inputVideoPath?: string;
+	profileOverride?: StickerVideoEvidenceProfile;
 	testInfo: TestInfo;
 }): Promise<void> {
 	if (!REAL_STICKER_CACHE_VIDEOS_DIRECTORY) {
@@ -339,12 +321,20 @@ export async function runRealCachedStickerExport({
 		cleanupRoot,
 		`${cacheCase.itemId}-real-cache-export.mp4`
 	);
-	const baseVideoPath = path.join(cleanupRoot, "sticker-lab-export-base.mp4");
+	const generatedBaseVideoPath = path.join(
+		cleanupRoot,
+		"sticker-lab-export-base.mp4"
+	);
+	const baseVideoPath = inputVideoPath ?? generatedBaseVideoPath;
+	const baselinePath =
+		inputVideoPath ?? path.join(cleanupRoot, "real-video-baseline.mp4");
 	const evidenceProfile = realCacheEvidenceProfile({
 		exportTrigger: cacheCase.exportTrigger,
-		profileOverride: fullRenderBenchmark
-			? DEFAULT_STICKER_VIDEO_EVIDENCE_PROFILE
-			: undefined,
+		profileOverride:
+			profileOverride ??
+			(fullRenderBenchmark
+				? DEFAULT_STICKER_VIDEO_EVIDENCE_PROFILE
+				: undefined),
 	});
 	const splitLeftSampleSeconds = evidenceProfile.times.splitLeft;
 	const splitRightSampleSeconds = evidenceProfile.times.splitRight;
@@ -354,15 +344,17 @@ export async function runRealCachedStickerExport({
 
 	try {
 		await mkdir(profileDirectory, { recursive: true });
-		await createStickerLabExportBaseVideo({
-			durationSeconds: evidenceProfile.durationSeconds,
-			filePath: baseVideoPath,
-			frameRate: evidenceProfile.frameRate,
-		});
-		await verifyBlackStickerBaseVideo({
-			filePath: baseVideoPath,
-			profile: evidenceProfile,
-		});
+		if (!inputVideoPath) {
+			await createStickerLabExportBaseVideo({
+				durationSeconds: evidenceProfile.durationSeconds,
+				filePath: baseVideoPath,
+				frameRate: evidenceProfile.frameRate,
+			});
+			await verifyBlackStickerBaseVideo({
+				filePath: baseVideoPath,
+				profile: evidenceProfile,
+			});
+		}
 		const firstRun = await launchIsolatedQCut({
 			profileDirectory,
 			videosDirectory: REAL_STICKER_CACHE_VIDEOS_DIRECTORY,
@@ -467,12 +459,28 @@ export async function runRealCachedStickerExport({
 		await firstPage.getByTestId("split-clip-button").click();
 		await expect(timelineSticker).toHaveCount(2);
 		if (cacheCase.runtime) {
-			const expectedSplitLeftFrame = fullRenderBenchmark
-				? cacheCase.runtimeSeek.fullSplitLeftFrame
-				: cacheCase.runtimeSeek.splitLeftFrame;
-			const expectedSplitRightFrame = fullRenderBenchmark
-				? cacheCase.runtimeSeek.fullSplitRightFrame
-				: cacheCase.runtimeSeek.splitRightFrame;
+			const splitLeftState = evaluateStickerRuntime({
+				descriptor: cacheCase.runtime,
+				timeline: {
+					sourceOffsetSeconds: 0,
+					timelineDurationSeconds: splitTimeSeconds,
+					timelineStartSeconds: 0,
+				},
+				timelineTimeSeconds: splitLeftSampleSeconds,
+			});
+			const splitRightState = evaluateStickerRuntime({
+				descriptor: cacheCase.runtime,
+				timeline: {
+					sourceOffsetSeconds: splitTimeSeconds,
+					timelineDurationSeconds:
+						evidenceProfile.durationSeconds - splitTimeSeconds,
+					timelineStartSeconds: splitTimeSeconds,
+				},
+				timelineTimeSeconds: splitRightSampleSeconds,
+			});
+			if (!(splitLeftState.active && splitRightState.active)) {
+				throw new Error("Sticker runtime is inactive around the split point");
+			}
 			const splitRuntimeCanvas = firstPage
 				.locator('canvas[data-sticker-runtime-kind="direct-gif"]:visible')
 				.first();
@@ -482,7 +490,7 @@ export async function runRealCachedStickerExport({
 			});
 			await expect(splitRuntimeCanvas).toHaveAttribute(
 				"data-sticker-runtime-frame",
-				expectedSplitLeftFrame
+				String(splitLeftState.frameIndex)
 			);
 			await seekTimeline({
 				page: firstPage,
@@ -490,7 +498,7 @@ export async function runRealCachedStickerExport({
 			});
 			await expect(splitRuntimeCanvas).toHaveAttribute(
 				"data-sticker-runtime-frame",
-				expectedSplitRightFrame
+				String(splitRightState.frameIndex)
 			);
 		}
 		const savedState = await readRestrictedState({ page: firstPage });
@@ -579,17 +587,26 @@ export async function runRealCachedStickerExport({
 		expect(reopenedState.mediaElements).toHaveLength(1);
 		expect(reopenedState.mediaElements[0]?.mediaId).toBe(reopenedBaseMedia?.id);
 
-		const reportContext = {
-			cacheDiscoveryEvidence,
-			expectedCacheRecord: cacheCase,
-			exportTrigger: cacheCase.exportTrigger,
-			previewEvidence,
-			reopenedStickerCount: reopenedState.stickers.length,
-			runtimeEvidence,
-			scenario: "real-local-cache",
-			evidenceProfile,
-			splitTimeSeconds,
-		};
+		const reportContext = redactStickerLabEvidence({
+			cacheRootPath: cacheDiscoveryEvidence.rootPath,
+			inputVideoPath: baseVideoPath,
+			value: {
+				cacheDiscoveryEvidence,
+				evidenceProfile,
+				expectedCacheRecord: cacheCase,
+				exportTrigger: cacheCase.exportTrigger,
+				previewEvidence,
+				reopenedStickerCount: reopenedState.stickers.length,
+				runtimeEvidence,
+				scenario: inputVideoPath
+					? "ui-add-real-cache-hevc-aac"
+					: "real-local-cache",
+				splitTimeSeconds,
+			},
+		}) as Record<string, unknown>;
+		if (inputVideoPath && cacheCase.runtime) {
+			await installStickerExportRuntimeTrace({ page: reopenedPage });
+		}
 		let evidence: ExportedStickerVideoEvidence;
 		if (cacheCase.exportTrigger === "cli") {
 			if (!apiPort) {
@@ -630,11 +647,46 @@ export async function runRealCachedStickerExport({
 				}),
 				electronApp: activeApp,
 				filePath: outputPath,
+				includeAudio: Boolean(inputVideoPath),
 				page: reopenedPage,
 				profile: evidenceProfile,
 			});
 		}
 		expect(evidence.sizeBytes).toBeGreaterThan(1_000);
+		if (inputVideoPath) {
+			if (cacheCase.runtime) {
+				await readStickerExportRuntimeTrace({
+					descriptor: cacheCase.runtime,
+					evidencePath: path.join(
+						EVIDENCE_DIRECTORY,
+						`${artifactStem ?? `real-cache-${cacheCase.itemId}-ui-real`}-runtime-trace.json`
+					),
+					expectedFrameCount: Math.ceil(
+						originalStickerDuration * evidenceProfile.frameRate
+					),
+					expectedSourceHeight: cacheCase.height,
+					expectedSourceWidth: cacheCase.width,
+					frameRate: evidenceProfile.frameRate,
+					page: reopenedPage,
+					testInfo,
+					timelineDurationSeconds: originalStickerDuration,
+				});
+			}
+			await verifyAndPreserveRealVideoExports({
+				artifactStem: artifactStem ?? `real-cache-${cacheCase.itemId}-ui-real`,
+				baselinePath,
+				baselineVideoCodec: "hevc",
+				evidenceDirectory: EVIDENCE_DIRECTORY,
+				expectedDurationSeconds: evidenceProfile.durationSeconds,
+				inputPath: inputVideoPath,
+				outputPath,
+				stickerRegion: normalizedStickerRegion({ state: reopenedState }),
+				testInfo,
+				times: [...new Set(Object.values(evidenceProfile.times))].filter(
+					(timeSeconds) => timeSeconds < originalStickerDuration
+				),
+			});
+		}
 		await reopenedPage.screenshot({
 			animations: "disabled",
 			path: testInfo.outputPath(
