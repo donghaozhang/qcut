@@ -399,7 +399,15 @@ localPath 的贴纸/音效同样进 skipped，等阶段 3 resolver。`@file` 引
 - apply conversion unit tests。
 - editor timeline apply 集成测试。
 
-### 阶段 3：资源 Resolver
+### 阶段 3：资源 Resolver（部分完成 2026-08-30）
+
+状态：统一 resolver 已落地（`electron/native-pipeline/compose/compose-asset-resolver.ts`）——
+每个 asset 分类为 cached / downloadable / cloud-only / missing / unsupported，`compose
+validate` patch 模式与 `compose apply` 都输出逐资产报告并把 missing/不支持的转场升为
+blocking issue；便携报告只含 QCut 侧 identity + digest，绝不带本地路径。Sticker Lab
+缓存项在 apply 时实体化进 scratch 目录注入 localPath。仍开放：iconify 贴纸的 apply 期
+下载实体化、Sound Effects Lab 的鉴权下载路径（现分类为 cloud-only）、Text Lab 字体/模板
+样式解析（现为 unsupported，文字按纯文本应用）。
 
 目标：把贴纸、音效、转场、文字资产从本地路径升级成 QCut resource identity。
 
