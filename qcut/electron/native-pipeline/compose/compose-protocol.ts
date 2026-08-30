@@ -177,6 +177,53 @@ export interface ComposePatch {
 	warnings: string[];
 }
 
+export interface ComposeIntent {
+	schemaVersion: typeof COMPOSE_PROTOCOL_VERSION;
+	kind: ComposeIntentKind;
+	options: Record<string, unknown>;
+}
+
+export type ComposeJobStatus =
+	| "queued"
+	| "uploading"
+	| "running"
+	| "completed"
+	| "failed"
+	| "canceled";
+
+export type ComposeJobErrorCategory =
+	| "retryable"
+	| "quota"
+	| "auth"
+	| "unsupported"
+	| "unsafe-content"
+	| "unknown";
+
+export interface ComposeJobError {
+	code: string;
+	message: string;
+	category: ComposeJobErrorCategory;
+	retryable: boolean;
+}
+
+export interface ComposeJob {
+	schemaVersion: typeof COMPOSE_PROTOCOL_VERSION;
+	id: string;
+	provider: ComposeProvider;
+	intentKind: ComposeIntentKind;
+	snapshotId: string;
+	snapshotFingerprint: string;
+	status: ComposeJobStatus;
+	progress: number;
+	createdAt: string;
+	updatedAt: string;
+	attempt: number;
+	remoteTaskId?: string;
+	uploadObjectIds?: string[];
+	resultPatchId?: string;
+	error?: ComposeJobError;
+}
+
 export type ComposeValidationSeverity = "error" | "warning" | "info";
 
 export type ComposeValidationIssueCode =
@@ -599,6 +646,53 @@ export function validateComposePatch({
 		}
 	}
 	validateOperationConflicts({ operations: patch.operations, issues });
+	return issues;
+}
+
+export function validateComposeJob({
+	job,
+	snapshot,
+}: {
+	job: ComposeJob;
+	snapshot?: ComposeSnapshot;
+}): ComposeValidationIssue[] {
+	const issues: ComposeValidationIssue[] = [];
+	if (job.schemaVersion !== COMPOSE_PROTOCOL_VERSION) {
+		issues.push({
+			severity: "error",
+			code: "schema-version-mismatch",
+			path: "schemaVersion",
+			message: `Compose job schema version ${job.schemaVersion} is not supported.`,
+		});
+	}
+	if (job.progress < 0 || job.progress > 1 || !Number.isFinite(job.progress)) {
+		issues.push({
+			severity: "error",
+			code: "invalid-progress",
+			path: "progress",
+			message: "Compose job progress must be between 0 and 1.",
+		});
+	}
+	if (
+		snapshot &&
+		(job.snapshotId !== snapshot.id ||
+			job.snapshotFingerprint !== snapshot.sourceFingerprint)
+	) {
+		issues.push({
+			severity: "error",
+			code: "snapshot-mismatch",
+			path: "snapshot",
+			message: "Compose job does not match the active snapshot.",
+		});
+	}
+	if (job.status === "completed" && !job.resultPatchId) {
+		issues.push({
+			severity: "error",
+			code: "terminal-job-without-result",
+			path: "resultPatchId",
+			message: "Completed compose jobs must reference a result patch.",
+		});
+	}
 	return issues;
 }
 
