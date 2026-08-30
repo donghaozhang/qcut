@@ -171,18 +171,30 @@ export function setSequentialDecodeDisabled(disabled: boolean): void {
 	sequentialDecodeDisabled = disabled;
 }
 
-/** Per-export registry: one sequential source per media item (and lane), or null. */
+/**
+ * Concurrently open decoders are capped; opening beyond the cap disposes the
+ * least recently used lane. Exports touch every active element's lane every
+ * frame, so eviction naturally retires elements whose window has passed and
+ * bounds decoder + canvas-pool memory on long many-clip timelines.
+ */
+const MAX_OPEN_SOURCES = 8;
+
+/** Per-export registry: one sequential source per decoder lane, or null. */
 export class SequentialVideoRegistry {
 	private readonly sources = new Map<
 		string,
 		Promise<SequentialVideoFrameSource | null>
 	>();
+	private readonly lastUse = new Map<string, number>();
+	private useTick = 0;
 
 	/**
-	 * Opens (once) the sequential source for a media item. A lane keeps a
-	 * second decoder for the same file so two clips reading far-apart
-	 * timestamps in the same frame (a transition's incoming clip) don't
-	 * restart the outgoing clip's decoder every frame.
+	 * Opens (once) the sequential source for a media item's decoder lane.
+	 * Callers pass the timeline element id as the lane: each element walks
+	 * its own source time monotonically, so a per-element decoder advances
+	 * O(1) per frame, while two elements sharing one decoder (overlapping
+	 * clips cut from the same file) would restart it — a keyframe-accurate
+	 * seek — on every alternating read.
 	 */
 	getOrOpen(
 		mediaItem: MediaItem,
@@ -190,8 +202,11 @@ export class SequentialVideoRegistry {
 	): Promise<SequentialVideoFrameSource | null> {
 		if (sequentialDecodeDisabled) return Promise.resolve(null);
 		const key = lane ? `${mediaItem.id}#${lane}` : mediaItem.id;
+		this.useTick += 1;
+		this.lastUse.set(key, this.useTick);
 		const existing = this.sources.get(key);
 		if (existing) return existing;
+		this.evictBeyondCapacity();
 		const opened = (async () => {
 			const blob = await resolveMediaBlob(mediaItem);
 			if (!blob) return null;
@@ -205,9 +220,37 @@ export class SequentialVideoRegistry {
 		return opened;
 	}
 
+	/** Disposes least-recently-used lanes until a new one fits the cap. */
+	private evictBeyondCapacity(): void {
+		while (this.sources.size >= MAX_OPEN_SOURCES) {
+			let oldestKey: string | null = null;
+			let oldestTick = Number.POSITIVE_INFINITY;
+			for (const key of this.sources.keys()) {
+				const tick = this.lastUse.get(key) ?? 0;
+				if (tick < oldestTick) {
+					oldestTick = tick;
+					oldestKey = key;
+				}
+			}
+			if (oldestKey === null) return;
+			const evicted = this.sources.get(oldestKey);
+			this.sources.delete(oldestKey);
+			this.lastUse.delete(oldestKey);
+			exportProfiler.count("sequential-video-evict");
+			void (async () => {
+				try {
+					await (await evicted)?.dispose();
+				} catch {
+					// Disposal is best-effort.
+				}
+			})();
+		}
+	}
+
 	async disposeAll(): Promise<void> {
 		const pending = [...this.sources.values()];
 		this.sources.clear();
+		this.lastUse.clear();
 		await Promise.all(
 			pending.map(async (promise) => {
 				try {
