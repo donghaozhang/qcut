@@ -13,7 +13,10 @@ import {
 	type ComposePatchOperation,
 	type ComposeSnapshot,
 } from "./compose-types.js";
-import type { ComposeValidationIssue } from "./compose-validation.js";
+import type {
+	ComposeValidationIssue,
+	ComposeValidationSeverity,
+} from "./compose-validation.js";
 
 const SMART_PACKAGING_ASSET_TYPE_MAP: Record<
 	SmartPackagingAssetReference["assetType"],
@@ -120,13 +123,27 @@ export function composePatchFromSmartPackaging({
 	};
 }
 
+// Kept aligned with validateComposeSnapshot, which treats a missing video
+// track as advisory rather than blocking.
+const SMART_PACKAGING_ISSUE_SEVERITY: Record<
+	SmartPackagingProtocolIssue["code"],
+	ComposeValidationSeverity
+> = {
+	"empty-snapshot": "error",
+	"invalid-range": "error",
+	"missing-main-media": "warning",
+	"snapshot-mismatch": "error",
+	"invalid-progress": "error",
+	"terminal-job-without-result": "error",
+};
+
 export function composeIssueFromSmartPackaging({
 	issue,
 }: {
 	issue: SmartPackagingProtocolIssue;
 }): ComposeValidationIssue {
 	return {
-		severity: "error",
+		severity: SMART_PACKAGING_ISSUE_SEVERITY[issue.code],
 		code: issue.code,
 		path: issue.path,
 		message: issue.message,
