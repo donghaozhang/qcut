@@ -4,6 +4,8 @@ export const CLAUDE_LOCAL_VIDEO_EXPORT_RESPONSE_CHANNEL =
 	"claude:export:local-video:response" as const;
 
 export interface ClaudeLocalVideoExportRequest {
+	/** Renderer engine override; "muxer" pins the canvas/WebCodecs engine. */
+	engine?: "auto" | "muxer";
 	filename: string;
 	format: "mp4";
 	frameRate: 24 | 25 | 30 | 50 | 60;
