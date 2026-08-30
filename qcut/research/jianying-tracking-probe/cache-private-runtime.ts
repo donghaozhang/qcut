@@ -409,9 +409,7 @@ async function run() {
 				...runtimeFiles.map((file) =>
 					path.join("Frameworks", file.relativePath)
 				),
-				...MODEL_PATHS.map((modelPath) =>
-					path.join("Resources", modelPath)
-				),
+				...MODEL_PATHS.map((modelPath) => path.join("Resources", modelPath)),
 			].sort();
 			const files = await inspectRuntimeFiles({
 				relativePaths,
