@@ -11,7 +11,9 @@ import type {
 	CorrelationId,
 } from "../../types/claude-api.js";
 
-const MAX_BODY_SIZE = 1024 * 1024; // 1MB
+const DEFAULT_MAX_BODY_SIZE = 1024 * 1024;
+const MEDIA_IMPORT_MAX_BODY_SIZE = 16 * 1024 * 1024;
+const MEDIA_IMPORT_PATH = /^\/api\/claude\/media\/[^/]+\/import$/;
 
 export class HttpError extends Error {
 	status: number;
@@ -60,14 +62,33 @@ function pathToRegex(path: string): { pattern: RegExp; paramNames: string[] } {
 	return { pattern: new RegExp(`^${regexStr}$`), paramNames };
 }
 
-/** Parse the request body as JSON, enforcing a 1MB size limit. */
-function parseBody(req: IncomingMessage): Promise<unknown> {
+function getMaxBodySize({
+	method,
+	pathname,
+}: {
+	method: string;
+	pathname: string;
+}): number {
+	if (method === "POST" && MEDIA_IMPORT_PATH.test(pathname)) {
+		return MEDIA_IMPORT_MAX_BODY_SIZE;
+	}
+	return DEFAULT_MAX_BODY_SIZE;
+}
+
+/** Parse the request body as JSON, enforcing the route's size limit. */
+function parseBody({
+	maxBodySize,
+	req,
+}: {
+	maxBodySize: number;
+	req: IncomingMessage;
+}): Promise<unknown> {
 	return new Promise((resolve, reject) => {
 		let body = "";
 		let size = 0;
 		req.on("data", (chunk: Buffer) => {
 			size += chunk.length;
-			if (size > MAX_BODY_SIZE) {
+			if (size > maxBodySize) {
 				req.destroy();
 				reject(new HttpError(413, "Payload too large"));
 				return;
@@ -173,7 +194,10 @@ export function createRouter(): Router {
 					method === "PUT" ||
 					method === "DELETE"
 				) {
-					body = await parseBody(req);
+					body = await parseBody({
+						maxBodySize: getMaxBodySize({ method, pathname }),
+						req,
+					});
 				}
 				const result = await route.handler({
 					params,
