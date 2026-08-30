@@ -720,3 +720,12 @@ export const useWordTimelineStore = create<WordTimelineStore>((set, get) => ({
 		}
 	},
 }));
+
+declare global {
+	interface Window {
+		__wordTimelineStore?: typeof useWordTimelineStore;
+	}
+}
+
+// Expose for E2E/debug parity with timeline and media stores.
+window.__wordTimelineStore = useWordTimelineStore;

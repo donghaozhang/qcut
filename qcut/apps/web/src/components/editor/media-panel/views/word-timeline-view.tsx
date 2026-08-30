@@ -19,6 +19,13 @@ import { platform } from "@qcut/platform-core";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select";
 import { useWordTimelineStore } from "@/stores/timeline/word-timeline-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
 import { useMediaStore } from "@/stores/media/media-store";
@@ -26,11 +33,13 @@ import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { useProjectStore } from "@/stores/project-store";
 import { useMediaPanelStore } from "@/components/editor/media-panel/store";
 import { useElevenLabsTranscription } from "@/hooks/media/use-elevenlabs-transcription";
-import { X, Loader2, AlertCircle, SearchIcon } from "lucide-react";
+import { X, Loader2, AlertCircle, SearchIcon, Captions } from "lucide-react";
 import { WORD_FILTER_STATE, type WordItem } from "@/types/word-timeline";
 import { toast } from "sonner";
 import { useCloudTaskStore } from "@/stores/cloud-task-store";
 import { registerCloudTaskRuntimeActions } from "@/lib/cloud-tasks/task-runtime-actions";
+import { CAPTION_STYLE_PRESETS } from "@/lib/captions/caption-style-presets";
+import { buildWordTimelineCaptionElements } from "@/lib/captions/word-timeline-captions";
 import { WordSearch } from "./word-timeline/word-search";
 import {
 	formatTime,
@@ -97,6 +106,8 @@ export function WordTimelineView() {
 	const { seek, currentTime, isPlaying } = usePlaybackStore();
 	const [previewSkipFiltered, setPreviewSkipFiltered] = useState(true);
 	const [showSearch, setShowSearch] = useState(false);
+	const [selectedCaptionPresetId, setSelectedCaptionPresetId] =
+		useState("talking-head-bold");
 
 	// Transcription hook
 	const {
@@ -596,6 +607,46 @@ export function WordTimelineView() {
 	const totalDuration = lastWord?.end || 0;
 	const removedPercent =
 		totalDuration > 0 ? (removedDuration / totalDuration) * 100 : 0;
+	const selectedCaptionPreset =
+		CAPTION_STYLE_PRESETS.find(
+			(preset) => preset.id === selectedCaptionPresetId
+		) ?? CAPTION_STYLE_PRESETS[0];
+
+	const handleAddStyledCaptions = useCallback(() => {
+		try {
+			if (!data) {
+				return;
+			}
+
+			const captionElements = buildWordTimelineCaptionElements({
+				data,
+				style: selectedCaptionPreset.style,
+			});
+			if (captionElements.length === 0) {
+				toast.warning("No caption words available");
+				return;
+			}
+
+			const timeline = useTimelineStore.getState();
+			const trackId = timeline.findOrCreateTrack("captions");
+			for (const captionElement of captionElements) {
+				timeline.addElementToTrack(trackId, captionElement);
+			}
+			toast.success(`Added ${captionElements.length} styled captions`);
+		} catch (err) {
+			const message = err instanceof Error ? err.message : "Unknown error";
+			toast.error(`Failed to add captions: ${message}`);
+		}
+	}, [data, selectedCaptionPreset]);
+
+	const handleAddStyledCaptionsKeyDown = useCallback(
+		(event: React.KeyboardEvent<HTMLButtonElement>) => {
+			if (event.key !== "Enter" && event.key !== " ") return;
+			event.preventDefault();
+			handleAddStyledCaptions();
+		},
+		[handleAddStyledCaptions]
+	);
 
 	// Combined error state
 	const displayError = error || transcriptionError || analysisError;
@@ -776,6 +827,36 @@ export function WordTimelineView() {
 						%)
 					</span>
 					<div className="flex items-center gap-1">
+						<Select
+							value={selectedCaptionPreset.id}
+							onValueChange={setSelectedCaptionPresetId}
+						>
+							<SelectTrigger
+								data-testid="word-timeline-caption-preset-select"
+								className="h-6 w-[120px] px-2 text-[10px]"
+							>
+								<SelectValue />
+							</SelectTrigger>
+							<SelectContent>
+								{CAPTION_STYLE_PRESETS.map((preset) => (
+									<SelectItem key={preset.id} value={preset.id}>
+										{preset.name}
+									</SelectItem>
+								))}
+							</SelectContent>
+						</Select>
+						<Button
+							type="button"
+							variant="outline"
+							size="sm"
+							className="h-6 text-[10px] px-2"
+							onClick={handleAddStyledCaptions}
+							onKeyDown={handleAddStyledCaptionsKeyDown}
+							data-testid="word-timeline-add-captions"
+						>
+							<Captions className="mr-1 size-3" />
+							Captions
+						</Button>
 						<Button
 							type="button"
 							variant="outline"
