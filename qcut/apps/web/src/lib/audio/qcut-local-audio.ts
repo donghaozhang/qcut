@@ -2,7 +2,10 @@ import { platform } from "@qcut/platform-core";
 import type { MediaAudioSettings } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import { createDefaultMediaAudioSettings } from "./audio-properties";
-import type { QcutAudioProcessResult } from "../../../../../electron/qcut-audio-runtime-contract";
+import type {
+	QcutAudioProcessRequest,
+	QcutAudioProcessResult,
+} from "../../../../../electron/qcut-audio-runtime-contract";
 
 async function resolveQcutAudioSourcePath({
 	mediaItem,
@@ -26,6 +29,42 @@ async function resolveQcutAudioSourcePath({
 	throw new Error(
 		`Unable to read ${mediaItem.name} for local audio processing`
 	);
+}
+
+/**
+ * Runs processLocal while honoring the caller's AbortSignal: an abort asks the
+ * main process to kill the FFmpeg job for this requestId and rejects
+ * immediately instead of waiting for the orphaned render.
+ */
+async function invokeProcessLocal({
+	api,
+	request,
+	signal,
+}: {
+	api: {
+		processLocal: (
+			request: QcutAudioProcessRequest
+		) => Promise<QcutAudioProcessResult>;
+		cancelLocal?: (requestId: string) => Promise<boolean>;
+	};
+	request: QcutAudioProcessRequest;
+	signal?: AbortSignal;
+}): Promise<QcutAudioProcessResult> {
+	if (!signal) return api.processLocal(request);
+	let removeAbortListener = () => {};
+	const cancelled = new Promise<never>((_, reject) => {
+		const onAbort = () => {
+			void api.cancelLocal?.(request.requestId).catch(() => {});
+			reject(new DOMException("Audio processing cancelled", "AbortError"));
+		};
+		signal.addEventListener("abort", onAbort, { once: true });
+		removeAbortListener = () => signal.removeEventListener("abort", onAbort);
+	});
+	try {
+		return await Promise.race([api.processLocal(request), cancelled]);
+	} finally {
+		removeAbortListener();
+	}
 }
 
 export function localDenoiseSettings({
@@ -73,10 +112,14 @@ export async function processQcutLocalDenoise({
 	const sourcePath = await resolveQcutAudioSourcePath({ mediaItem });
 	if (signal?.aborted)
 		throw new DOMException("Audio processing cancelled", "AbortError");
-	const result = await api.processLocal({
-		requestId,
-		sourcePath,
-		audio: localDenoiseSettings({ settings }),
+	const result = await invokeProcessLocal({
+		api,
+		request: {
+			requestId,
+			sourcePath,
+			audio: localDenoiseSettings({ settings }),
+		},
+		signal,
 	});
 	if (signal?.aborted)
 		throw new DOMException("Audio processing cancelled", "AbortError");
