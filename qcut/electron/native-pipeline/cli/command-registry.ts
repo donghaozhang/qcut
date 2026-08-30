@@ -112,6 +112,11 @@ export const CATEGORIES: CategoryDef[] = [
 		commands: ["run-pipeline", "pipeline:status"],
 	},
 	{
+		name: "composition",
+		label: "Timeline Composition",
+		commands: ["compose-validate", "compose-render", "compose-project"],
+	},
+	{
 		name: "analysis",
 		label: "Analysis Commands",
 		commands: [
@@ -277,6 +282,58 @@ export const CATEGORIES: CategoryDef[] = [
 // ─── Non-Editor Commands ─────────────────────────────────────────────
 
 const CORE_COMMANDS: Record<string, CommandDef> = {
+	"compose-validate": {
+		name: "compose-validate",
+		description:
+			"Resolve clips, filters, transitions, stickers, and sound effects without rendering",
+		category: "composition",
+		flags: [
+			f("--config", "string", "QCut compose manifest JSON path", {
+				short: "-c",
+				required: true,
+			}),
+			f("--output", "string", "Optional compose-lock JSON output path"),
+		],
+		examples: [
+			"qcut compose validate --config edit.qcut-compose.json --json",
+			"qcut compose validate -c edit.qcut-compose.json --output compose-lock.json --json",
+		],
+	},
+	"compose-render": {
+		name: "compose-render",
+		description:
+			"Render a multi-clip edit with Filter Lab cards, crossfades, stickers, and sound effects",
+		category: "composition",
+		flags: [
+			f("--config", "string", "QCut compose manifest JSON path", {
+				short: "-c",
+				required: true,
+			}),
+			f("--output", "string", "Output MP4 path"),
+			f("--dry-run", "boolean", "Resolve and lock resources without rendering"),
+			f("--force", "boolean", "Replace an existing output after verification"),
+		],
+		examples: [
+			"qcut compose render --config edit.qcut-compose.json --output final.mp4 --json",
+		],
+	},
+	"compose-project": {
+		name: "compose-project",
+		description:
+			"Package a portable QCut compose project with copied user media and locked local-resource identities",
+		category: "composition",
+		flags: [
+			f("--config", "string", "QCut compose manifest JSON path", {
+				short: "-c",
+				required: true,
+			}),
+			f("--project-dir", "string", "Portable compose project directory"),
+			f("--force", "boolean", "Replace an existing project directory"),
+		],
+		examples: [
+			"qcut compose project --config edit.qcut-compose.json --project-dir ./qcut-compose-project --json",
+		],
+	},
 	"transition-list": {
 		name: "transition-list",
 		description:
