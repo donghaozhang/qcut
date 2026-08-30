@@ -283,7 +283,8 @@ export async function resolveComposeAssetReference({
 							backend: "sound-effects-lab",
 							cacheStatus: "none",
 							verification: "unverified",
-							detail: "The asset identity is not a Sound Effects Lab reference.",
+							detail:
+								"The asset identity is not a Sound Effects Lab reference.",
 						},
 					});
 				}
@@ -316,8 +317,7 @@ export async function resolveComposeAssetReference({
 				return report({
 					operationId,
 					reference,
-					status:
-						resolution.status === "ready" ? "cached" : "downloadable",
+					status: resolution.status === "ready" ? "cached" : "downloadable",
 					bytes: resolution.asset.byteSize,
 					evidence: {
 						backend: "sound-effects-lab",
