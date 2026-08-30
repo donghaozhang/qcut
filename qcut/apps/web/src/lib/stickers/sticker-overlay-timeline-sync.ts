@@ -80,6 +80,10 @@ function trackingAdjustedVisualUpdates({
 			visualUpdates.height === undefined
 				? undefined
 				: visualUpdates.height / transform.scale,
+		rotation:
+			visualUpdates.rotation === undefined
+				? undefined
+				: visualUpdates.rotation - transform.rotation,
 	};
 }
 
