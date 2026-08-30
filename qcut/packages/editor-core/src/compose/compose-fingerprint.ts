@@ -19,7 +19,22 @@ function bytesToHex({ bytes }: { bytes: Uint8Array }): string {
 	return hex;
 }
 
+function compareCodeUnits({
+	left,
+	right,
+}: {
+	left: string;
+	right: string;
+}): number {
+	if (left < right) return -1;
+	if (left > right) return 1;
+	return 0;
+}
+
 function canonicalize({ value }: { value: unknown }): unknown {
+	if (typeof value === "number" && !Number.isFinite(value)) {
+		return `non-finite:${String(value)}`;
+	}
 	if (Array.isArray(value)) {
 		return value.map((entry) => canonicalize({ value: entry }));
 	}
@@ -35,15 +50,17 @@ function canonicalize({ value }: { value: unknown }): unknown {
 	return value;
 }
 
-function sortedByIdentity<T extends { id: string; startTime?: number }>({
-	items,
-}: {
-	items: readonly T[];
-}): T[] {
+function sortedByIdentity<
+	T extends { id: string; startTime?: number; elementId?: string },
+>({ items }: { items: readonly T[] }): T[] {
 	return [...items].sort(
 		(left, right) =>
 			(left.startTime ?? 0) - (right.startTime ?? 0) ||
-			left.id.localeCompare(right.id)
+			compareCodeUnits({ left: left.id, right: right.id }) ||
+			compareCodeUnits({
+				left: left.elementId ?? "",
+				right: right.elementId ?? "",
+			})
 	);
 }
 
