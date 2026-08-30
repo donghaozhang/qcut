@@ -361,7 +361,7 @@ describe("Claude timeline batch audio fades", () => {
 			failedCount: 0,
 		});
 		const storedElements = storeMocks.state.addElementToTrack.mock.calls.map(
-			([, element]: [string, Record<string, unknown>]) => element
+			(call) => call[1] as Record<string, unknown>
 		);
 		expect(storedElements[0]).toMatchObject({
 			audioFadeIn: 3,
