@@ -700,7 +700,7 @@ describe("Claude export trigger", () => {
 				settings: { width: 1080, height: 1920 },
 			})
 		).toBe(
-			"scale=1080:1920:force_original_aspect_ratio=decrease,pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1"
+			"scale=1080:1920:force_original_aspect_ratio=decrease,crop=min(iw\\,1080):min(ih\\,1920),pad=1080:1920:(ow-iw)/2:(oh-ih)/2:color=black@0,setsar=1"
 		);
 	});
 
@@ -760,6 +760,60 @@ describe("Claude export trigger", () => {
 				settings: { width: 1920, height: 1080, fps: 30 },
 			})
 		).not.toContain("eq=");
+	});
+
+	it("carries local enhancements and interpolation into the native filter chain", async () => {
+		const timeline = {
+			...testTimeline,
+			tracks: [
+				{
+					...testTimeline.tracks[0],
+					elements: [
+						{
+							...testTimeline.tracks[0].elements[0],
+							frameInterpolation: "motion-compensated" as const,
+							enhancements: {
+								stabilization: 70,
+								denoise: 65,
+								clarity: 0,
+								upscale: 1 as const,
+								relight: 0,
+								beauty: 0,
+								labDeflicker: 60,
+								labOpticalFlowMotionBlur: 40,
+								labEyeCorrection: 0,
+								labLocalSuperResolution: 2 as const,
+							},
+						},
+					],
+				},
+			],
+		};
+		const [segment] = await collectExportSegments({
+			timeline,
+			mediaFiles: testMediaFiles,
+			projectId: "project_enhancements",
+		});
+		const filter = buildExportSegmentScaleFilter({
+			segment,
+			settings: { width: 1080, height: 1920, fps: 30 },
+		});
+
+		expect(segment.frameInterpolation).toBe("motion-compensated");
+		expect(segment.enhancements).toMatchObject({
+			stabilization: 70,
+			denoise: 65,
+			labDeflicker: 60,
+		});
+		expect(filter).toContain(
+			"tpad=stop_mode=clone:stop_duration=0.066667,minterpolate=fps=30"
+		);
+		expect(filter).toContain("deshake=");
+		expect(filter).toContain("hqdn3d=");
+		expect(filter).toContain("deflicker=");
+		expect(filter).toContain("tmix=");
+		expect(filter).toContain("unsharp=");
+		expect(filter.indexOf("deshake=")).toBeLessThan(filter.indexOf("scale="));
 	});
 
 	it("omits media clips from hidden tracks", async () => {
