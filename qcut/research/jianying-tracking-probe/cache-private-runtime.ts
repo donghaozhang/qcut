@@ -315,6 +315,22 @@ async function copySnapshotFiles({
 	});
 }
 
+export async function withCleanStagingDirectory<T>({
+	build,
+	stagingPath,
+}: {
+	build: () => Promise<T>;
+	stagingPath: string;
+}): Promise<T> {
+	await rm(stagingPath, { force: true, recursive: true });
+	await mkdir(stagingPath, { mode: 0o700, recursive: true });
+	try {
+		return await build();
+	} finally {
+		await rm(stagingPath, { force: true, recursive: true });
+	}
+}
+
 async function run() {
 	const options = parseOptions();
 	await requirePrivateDestination({
@@ -381,62 +397,70 @@ async function run() {
 		options.destinationRoot,
 		`.staging-${backupName}-${process.pid}`
 	);
-	await rm(stagingPath, { force: true, recursive: true });
-	await mkdir(stagingPath, { mode: 0o700, recursive: true });
-	await copySnapshotFiles({
-		appBundlePath: options.appBundlePath,
-		runtimeFiles,
+	const manifest = await withCleanStagingDirectory({
 		stagingPath,
-	});
-	const relativePaths = [
-		...runtimeFiles.map((file) => path.join("Frameworks", file.relativePath)),
-		...MODEL_PATHS.map((modelPath) => path.join("Resources", modelPath)),
-	].sort();
-	const files = await inspectRuntimeFiles({
-		relativePaths,
-		runtimeRoot: stagingPath,
-	});
-	const coreRelativePath = path.join("Frameworks", CORE_LIBRARY);
-	const coreFile = files.find((file) => file.path === coreRelativePath);
-	if (!coreFile || coreFile.sha256 !== coreSha256) {
-		throw new Error("Copied libcccreator does not match its source hash");
-	}
-	const manifest: TrackingRuntimeManifest = {
-		app: { bundleId, version },
-		architecture: "arm64",
-		cloudUpload: false,
-		core: {
-			path: coreRelativePath,
-			sha256: coreSha256,
-			uuid: coreUuid,
+		build: async (): Promise<TrackingRuntimeManifest> => {
+			await copySnapshotFiles({
+				appBundlePath: options.appBundlePath,
+				runtimeFiles,
+				stagingPath,
+			});
+			const relativePaths = [
+				...runtimeFiles.map((file) =>
+					path.join("Frameworks", file.relativePath)
+				),
+				...MODEL_PATHS.map((modelPath) =>
+					path.join("Resources", modelPath)
+				),
+			].sort();
+			const files = await inspectRuntimeFiles({
+				relativePaths,
+				runtimeRoot: stagingPath,
+			});
+			const coreRelativePath = path.join("Frameworks", CORE_LIBRARY);
+			const coreFile = files.find((file) => file.path === coreRelativePath);
+			if (!coreFile || coreFile.sha256 !== coreSha256) {
+				throw new Error("Copied libcccreator does not match its source hash");
+			}
+			const stagedManifest: TrackingRuntimeManifest = {
+				app: { bundleId, version },
+				architecture: "arm64",
+				cloudUpload: false,
+				core: {
+					path: coreRelativePath,
+					sha256: coreSha256,
+					uuid: coreUuid,
+				},
+				createdAt: new Date().toISOString(),
+				files,
+				localOnly: true,
+				modelPaths: MODEL_PATHS.map((modelPath) =>
+					path.join("Resources", modelPath)
+				),
+				purpose: "jianying-motion-tracking-research-oracle",
+				runtimeLibraryCount: runtimeFiles.length,
+				schemaVersion: 1,
+				totalBytes: files.reduce((sum, file) => sum + file.bytes, 0),
+			};
+			await writeFile(
+				path.join(stagingPath, "manifest.json"),
+				`${JSON.stringify(stagedManifest, null, 2)}\n`,
+				{ mode: 0o600 }
+			);
+			const permissions = await runBoundedProcess({
+				command: "chmod",
+				args: ["-R", "go-rwx", stagingPath],
+				cwd: projectRoot,
+				timeoutMs: 5 * 60_000,
+			});
+			requireSuccessfulProcess({
+				label: "Cannot protect private runtime",
+				result: permissions,
+			});
+			await rename(stagingPath, destinationPath);
+			return stagedManifest;
 		},
-		createdAt: new Date().toISOString(),
-		files,
-		localOnly: true,
-		modelPaths: MODEL_PATHS.map((modelPath) =>
-			path.join("Resources", modelPath)
-		),
-		purpose: "jianying-motion-tracking-research-oracle",
-		runtimeLibraryCount: runtimeFiles.length,
-		schemaVersion: 1,
-		totalBytes: files.reduce((sum, file) => sum + file.bytes, 0),
-	};
-	await writeFile(
-		path.join(stagingPath, "manifest.json"),
-		`${JSON.stringify(manifest, null, 2)}\n`,
-		{ mode: 0o600 }
-	);
-	const permissions = await runBoundedProcess({
-		command: "chmod",
-		args: ["-R", "go-rwx", stagingPath],
-		cwd: projectRoot,
-		timeoutMs: 5 * 60_000,
 	});
-	requireSuccessfulProcess({
-		label: "Cannot protect private runtime",
-		result: permissions,
-	});
-	await rename(stagingPath, destinationPath);
 	await verifyTrackingRuntimeSnapshot({ snapshotPath: destinationPath });
 	await pointCurrentAt({
 		backupName,
