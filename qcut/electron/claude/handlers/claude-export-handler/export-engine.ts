@@ -102,9 +102,11 @@ export function resolveExportSettings({
 		const s = request.settings;
 		const top = request as Record<string, unknown>;
 		const requestedEngine = request.engine ?? "auto";
-		if (!["auto", "native", "cli"].includes(requestedEngine)) {
+		// "muxer" pins the renderer's canvas/WebCodecs engine; the renderer
+		// route validates it separately, and the native path still rejects it.
+		if (!["auto", "native", "cli", "muxer"].includes(requestedEngine)) {
 			throw new Error(
-				`Export engine '${requestedEngine}' is not available through the CLI API. Use auto, native, or cli.`
+				`Export engine '${requestedEngine}' is not available through the CLI API. Use auto, native, cli, or muxer.`
 			);
 		}
 
