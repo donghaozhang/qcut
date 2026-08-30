@@ -512,6 +512,125 @@ describe("StickerExportHelper", () => {
 			);
 		});
 
+		it("reuses one direct GIF resolver throughout an export", async () => {
+			const stickerRuntime = {
+				kind: "direct-gif",
+				canvasSize: { width: 2, height: 2 },
+				cycleDurationSeconds: 0.1,
+				frames: [
+					{
+						startSeconds: 0,
+						durationSeconds: 0.1,
+						delayCentiseconds: 10,
+						disposalMethod: 1,
+						frameRect: { x: 0, y: 0, width: 2, height: 2 },
+						hasTransparency: true,
+					},
+				],
+				repeat: { kind: "infinite" },
+				completion: "freeze-last",
+			} as const;
+			const runtimeImage = {} as CanvasImageSource;
+			const runtimeSpy = vi
+				.spyOn(stickerRuntimeRenderer, "renderStickerRuntimeFrame")
+				.mockResolvedValue({
+					active: true,
+					image: runtimeImage,
+					width: 2,
+					height: 2,
+					state: {
+						active: true,
+						kind: "direct-gif",
+						cycleTimeSeconds: 0,
+						iterationIndex: 0,
+						sourceTimeSeconds: 0,
+						frozen: false,
+						frame: stickerRuntime.frames[0],
+						frameElapsedSeconds: 0,
+						frameIndex: 0,
+					},
+				});
+			const timelineElement: StickerElement = {
+				id: "timeline-direct-gif",
+				type: "sticker",
+				name: "Direct GIF",
+				stickerId: "sticker-1",
+				mediaId: "media-1",
+				startTime: 0,
+				duration: 1,
+				trimStart: 0,
+				trimEnd: 0,
+				stickerRuntime,
+			};
+			const runtimeMedia = createMockMediaItem({
+				file: new File([], "sticker.gif", { type: "image/gif" }),
+				metadata: { stickerRuntime },
+				name: "sticker.gif",
+			});
+			const mediaItems = new Map([["media-1", runtimeMedia]]);
+			const renderAt = (currentTime: number) =>
+				helper.renderStickersToCanvas(ctx, [createMockSticker()], mediaItems, {
+					...defaultOptions,
+					currentTime,
+					timelineElement,
+				});
+
+			await renderAt(0);
+			await renderAt(0.05);
+
+			expect(runtimeSpy).toHaveBeenCalledTimes(2);
+			const firstResolver = runtimeSpy.mock.calls[0]?.[0].assets;
+			const secondResolver = runtimeSpy.mock.calls[1]?.[0].assets;
+			expect(secondResolver).toBe(firstResolver);
+
+			helper.clearCache();
+			await renderAt(0.09);
+			expect(runtimeSpy.mock.calls[2]?.[0].assets).not.toBe(firstResolver);
+		});
+
+		it("skips invisible runtime decoding", async () => {
+			const runtimeSpy = vi.spyOn(
+				stickerRuntimeRenderer,
+				"renderStickerRuntimeFrame"
+			);
+			const timelineElement: StickerElement = {
+				id: "timeline-invisible-runtime",
+				type: "sticker",
+				name: "Invisible runtime",
+				stickerId: "sticker-1",
+				mediaId: "media-1",
+				startTime: 0,
+				duration: 1,
+				trimStart: 0,
+				trimEnd: 0,
+				opacity: 0,
+				stickerRuntime: {
+					kind: "png-sequence",
+					cycleDurationSeconds: 1,
+					frames: [
+						{
+							source: "frame.png",
+							startSeconds: 0,
+							durationSeconds: 1,
+						},
+					],
+					repeat: { kind: "infinite" },
+					completion: "freeze-last",
+				},
+			};
+
+			const result = await helper.renderStickersToCanvas(
+				ctx,
+				[createMockSticker()],
+				new Map([["media-1", createMockMediaItem()]]),
+				{ ...defaultOptions, currentTime: 0, timelineElement }
+			);
+
+			expect(result).toMatchObject({ attempted: 1, successful: 1, failed: [] });
+			expect(runtimeSpy).not.toHaveBeenCalled();
+			expect(ctx.drawImage).not.toHaveBeenCalled();
+		});
+
 		it("should convert percentage position to center-based pixel coordinates", async () => {
 			// Sticker at center (50%, 50%) on 1920x1080
 			const stickers = [
