@@ -1,4 +1,6 @@
 import { debugError } from "@/lib/debug/debug-config";
+import { exportProfiler } from "@/lib/export/export-profiler";
+import { setActiveExportJob } from "@/lib/export/export-progress-reporter";
 import { useExportStore } from "@/stores/export-store";
 import { useProjectStore } from "@/stores/project-store";
 import { PanelView } from "@/types/panel";
@@ -73,6 +75,12 @@ export function setupClaudeLocalVideoExportBridge(): void {
 						`Project ${request.projectId} is no longer open in the QCut editor.`
 					);
 				}
+				// Stream real frame progress into the main-process job, and arm
+				// the structured profiler when the caller asked for a profile.
+				if (request.jobId) setActiveExportJob({ jobId: request.jobId });
+				if (request.profilePath) {
+					exportProfiler.arm({ targetPath: request.profilePath });
+				}
 				await actions.exportLocalVideo(request);
 				exportApi.sendLocalVideoExportResponse({ requestId, success: true });
 			} catch (error) {
@@ -82,6 +90,8 @@ export function setupClaudeLocalVideoExportBridge(): void {
 					requestId,
 				});
 			} finally {
+				setActiveExportJob({ jobId: null });
+				exportProfiler.disarm();
 				localVideoExportInFlight = false;
 			}
 		})();
