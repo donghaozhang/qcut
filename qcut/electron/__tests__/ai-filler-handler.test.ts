@@ -133,20 +133,17 @@ describe("ai-filler-handler helpers", () => {
 		expect(result.filteredWordIds.map((item) => item.id)).toEqual(["word-0"]);
 	});
 
-	it("uses QCut proxy Gemini before local keys when available", async () => {
+	it("uses QCut proxy OpenRouter before local keys when available", async () => {
 		isProxyAvailableMock.mockResolvedValue(true);
 		proxyRequestMock.mockResolvedValue({
 			ok: true,
 			status: 200,
 			data: {
-				candidates: [
+				choices: [
 					{
-						content: {
-							parts: [
-								{
-									text: '[{"id":"word-0","reason":"speech filler","scope":"word"}]',
-								},
-							],
+						message: {
+							content:
+								'[{"id":"word-0","reason":"speech filler","scope":"word"}]',
 						},
 					},
 				],
@@ -160,29 +157,89 @@ describe("ai-filler-handler helpers", () => {
 			},
 		});
 
-		expect(result.provider).toBe("gemini");
+		expect(result.provider).toBe("openrouter");
 		expect(result.filteredWordIds).toEqual([
 			{ id: "word-0", reason: "speech filler", scope: "word" },
 		]);
 		expect(getDecryptedApiKeysMock).not.toHaveBeenCalled();
 		expect(proxyRequestMock).toHaveBeenCalledWith(
 			expect.objectContaining({
-				provider: "gemini",
-				endpoint:
-					"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent",
+				provider: "openrouter",
+				endpoint: "https://openrouter.ai/api/v1/chat/completions",
 				method: "POST",
 				timeoutMs: 30_000,
 			})
 		);
 	});
 
-	it("falls back to pattern when every QCut proxy Gemini chunk fails", async () => {
+	it("falls back to QCut proxy Gemini when OpenRouter proxy fails", async () => {
 		isProxyAvailableMock.mockResolvedValue(true);
-		proxyRequestMock.mockResolvedValue({
-			ok: false,
-			status: 503,
-			data: { error: "API key not configured for provider: gemini" },
+		proxyRequestMock
+			.mockResolvedValueOnce({
+				ok: false,
+				status: 503,
+				data: { error: "API key not configured for provider: openrouter" },
+			})
+			.mockResolvedValueOnce({
+				ok: true,
+				status: 200,
+				data: {
+					candidates: [
+						{
+							content: {
+								parts: [
+									{
+										text: '[{"id":"word-0","reason":"speech filler","scope":"word"}]',
+									},
+								],
+							},
+						},
+					],
+				},
+			});
+
+		const result = await analyzeFillersWithPriority({
+			request: {
+				languageCode: "zh",
+				words: [{ id: "word-0", text: "嗯", start: 0, end: 0.2, type: "word" }],
+			},
 		});
+
+		expect(result.provider).toBe("gemini");
+		expect(result.filteredWordIds).toEqual([
+			{ id: "word-0", reason: "speech filler", scope: "word" },
+		]);
+		expect(getDecryptedApiKeysMock).not.toHaveBeenCalled();
+		expect(proxyRequestMock).toHaveBeenNthCalledWith(
+			1,
+			expect.objectContaining({
+				provider: "openrouter",
+				endpoint: "https://openrouter.ai/api/v1/chat/completions",
+			})
+		);
+		expect(proxyRequestMock).toHaveBeenNthCalledWith(
+			2,
+			expect.objectContaining({
+				provider: "gemini",
+				endpoint:
+					"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent",
+			})
+		);
+	});
+
+	it("falls back to pattern when every QCut proxy LLM chunk fails", async () => {
+		isProxyAvailableMock.mockResolvedValue(true);
+		proxyRequestMock
+			.mockResolvedValueOnce({
+				ok: false,
+				status: 503,
+				data: { error: "API key not configured for provider: openrouter" },
+			})
+			.mockResolvedValueOnce({
+				ok: false,
+				status: 503,
+				data: { error: "API key not configured for provider: gemini" },
+			});
 		getDecryptedApiKeysMock.mockResolvedValue({
 			falApiKey: "",
 			freesoundApiKey: "",

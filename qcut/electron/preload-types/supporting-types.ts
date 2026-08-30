@@ -87,7 +87,7 @@ export interface AnalyzeFillersResult {
 		reason: string;
 		scope?: "word" | "sentence";
 	}>;
-	provider?: "gemini" | "anthropic" | "pattern";
+	provider?: "openrouter" | "gemini" | "anthropic" | "pattern";
 }
 
 /** Result from a cancellation operation */

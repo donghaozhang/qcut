@@ -58,6 +58,6 @@ export interface ElectronTranscriptionOps {
 			reason: string;
 			scope?: "word" | "sentence";
 		}>;
-		provider?: "gemini" | "anthropic" | "pattern";
+		provider?: "openrouter" | "gemini" | "anthropic" | "pattern";
 	}>;
 }

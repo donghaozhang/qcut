@@ -25,7 +25,7 @@ interface AnalyzeFillersResponse {
 		reason: string;
 		scope?: "word" | "sentence";
 	}>;
-	provider?: "gemini" | "anthropic" | "pattern";
+	provider?: "openrouter" | "gemini" | "anthropic" | "pattern";
 }
 
 interface FilterHistoryChange {

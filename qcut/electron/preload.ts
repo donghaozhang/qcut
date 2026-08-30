@@ -584,7 +584,7 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			reason: string;
 			scope?: "word" | "sentence";
 		}>;
-		provider?: "gemini" | "anthropic" | "pattern";
+		provider?: "openrouter" | "gemini" | "anthropic" | "pattern";
 	}> => ipcRenderer.invoke("ai:analyze-fillers", options),
 
 	// FFmpeg export operations
