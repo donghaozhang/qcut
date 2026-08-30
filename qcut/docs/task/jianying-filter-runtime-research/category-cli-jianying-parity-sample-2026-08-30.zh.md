@@ -89,7 +89,7 @@ qcut filter-lab render \
 本机完整证据位于：
 
 ```text
-/Users/peter/Downloads/QCut-Filter-Category-Parity-2026-08-30
+~/Downloads/QCut-Filter-Category-Parity-2026-08-30
 ```
 
 其中包括：
