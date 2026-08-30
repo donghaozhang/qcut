@@ -20,6 +20,10 @@ import {
 	type ComposeTransitionResolution,
 	type MaterializedComposeSound,
 } from "./compose-lab-resource-resolver.js";
+import {
+	resolveComposeFilterStack,
+	type ResolvedComposeFilterEffect,
+} from "./compose-filter-stack-resolver.js";
 import type {
 	ComposePatch,
 	ComposePatchOperation,
@@ -55,10 +59,16 @@ export interface ComposeMediaClipEditorBinding {
 	filename?: string;
 }
 
+export interface ComposeFilterStackEditorBinding {
+	effects: ResolvedComposeFilterEffect[];
+	warnings: string[];
+}
+
 export interface ComposeEditorAssetBinding {
 	sticker?: ComposeStickerEditorBinding;
 	transition?: ComposeTransitionEditorBinding;
 	mediaClip?: ComposeMediaClipEditorBinding;
+	filterStack?: ComposeFilterStackEditorBinding;
 }
 
 export type ComposeEditorAssetBindings = Record<
@@ -79,6 +89,7 @@ export interface ComposeEditorAssetPreparerDependencies {
 	rollbackStickerMedia: typeof rollbackStickerLabMedia;
 	materializeSound: typeof materializeComposeSoundLabReference;
 	resolveTransition: typeof resolveComposeTransitionReference;
+	resolveFilterStack: typeof resolveComposeFilterStack;
 }
 
 const DEFAULT_DEPENDENCIES: ComposeEditorAssetPreparerDependencies = {
@@ -88,6 +99,7 @@ const DEFAULT_DEPENDENCIES: ComposeEditorAssetPreparerDependencies = {
 	rollbackStickerMedia: rollbackStickerLabMedia,
 	materializeSound: materializeComposeSoundLabReference,
 	resolveTransition: resolveComposeTransitionReference,
+	resolveFilterStack: resolveComposeFilterStack,
 };
 
 interface PreparedOperation {
@@ -323,6 +335,24 @@ async function prepareOperation({
 		return {
 			operation,
 			binding: { mediaClip: await resolveMediaClipBinding({ operation }) },
+			importedMediaIds: [],
+		};
+	}
+	if (
+		operation.kind === "set-media-filter-stack" ||
+		operation.kind === "add-filter-layer"
+	) {
+		const resolved = await dependencies.resolveFilterStack({
+			steps: operation.filters,
+		});
+		return {
+			operation,
+			binding: {
+				filterStack: {
+					effects: resolved.effects,
+					warnings: resolved.warnings,
+				},
+			},
 			importedMediaIds: [],
 		};
 	}
