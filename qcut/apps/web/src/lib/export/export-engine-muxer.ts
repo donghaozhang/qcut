@@ -23,6 +23,7 @@ import {
 } from "./export-canvas-yuv";
 import { isJianyingTimelineRendererAvailable } from "./export-engine-cli-jianying";
 import { applyJianyingTransitionsToRenderedVideo } from "./export-muxer-jianying-pass";
+import { destroyExportCompositor } from "./export-engine-renderer";
 
 // Progress callback type
 type ProgressCallback = (progress: number, status: string) => void;
@@ -308,6 +309,7 @@ export class ExportEngineMuxer extends ExportEngine {
 			yuvConverter = null;
 			this.activeOutput = null;
 			this.isExporting = false;
+			destroyExportCompositor();
 			await this.disposeSequentialVideo();
 		}
 	}
