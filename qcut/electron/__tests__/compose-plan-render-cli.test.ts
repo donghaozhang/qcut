@@ -13,6 +13,7 @@ import {
 	type ComposePatch,
 	type ComposeSnapshot,
 } from "../native-pipeline/compose/compose-protocol.js";
+import { createLocalComposeProvider } from "../native-pipeline/compose/providers/local-compose-provider.js";
 import type { CLIRunOptions } from "../native-pipeline/cli/cli-runner/types.js";
 import { CLIPipelineRunner } from "../native-pipeline/cli/cli-runner/runner.js";
 
@@ -153,6 +154,43 @@ describe("compose plan handler", () => {
 		);
 		expect(badProvider.success).toBe(false);
 		expect(badProvider.error).toContain("provider");
+	});
+
+	it("discovers resources for snapshots created before the resource catalog", async () => {
+		const legacySnapshot = {
+			...fixtureSnapshot(),
+			availableResources: undefined,
+		};
+		const legacySnapshotPath = path.join(directory, "legacy-snapshot.json");
+		const outputPath = path.join(directory, "legacy-patch.json");
+		fs.writeFileSync(legacySnapshotPath, JSON.stringify(legacySnapshot));
+		const discoverResources = vi.fn(async () => ({
+			resources: [],
+			warnings: [],
+			capabilities: {
+				resourceBroker: true as const,
+				jianyingLocalTransitions: false,
+			},
+		}));
+
+		const result = await handleComposePlan(
+			options({
+				snapshot: legacySnapshotPath,
+				provider: "qcut",
+				output: outputPath,
+			}),
+			noProgress,
+			signal,
+			{
+				createAdapter: () => createLocalComposeProvider(),
+				discoverResources,
+				pollDelayMs: 0,
+			}
+		);
+
+		expect(result.success).toBe(true);
+		expect(discoverResources).toHaveBeenCalledOnce();
+		expect(fs.existsSync(outputPath)).toBe(true);
 	});
 });
 
