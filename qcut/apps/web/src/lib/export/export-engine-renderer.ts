@@ -29,6 +29,16 @@ import { exportProfiler } from "./export-profiler";
 import type { ExportRenderIndex } from "./export-render-index";
 import type { SequentialVideoRegistry } from "./export-sequential-video-source";
 import {
+	beginClipTransitionLayer,
+	destroyClipTransitionLayer,
+	type ClipTransitionLayer,
+} from "./export-clip-transitions";
+import {
+	resolveActiveClipTransitionPreview,
+	type ClipTransitionPreviewState,
+} from "@/lib/transitions/clip-transition-preview";
+import { getClipTransitionLayerPresentation } from "@/lib/transitions/clip-transition-presentation";
+import {
 	getActiveElements,
 	calculateElementBounds,
 	drawWithMediaTransform,
@@ -131,6 +141,40 @@ export function destroyExportCompositor(): void {
 	compositorFrameCtx = null;
 	adjustmentFrameCanvas = null;
 	adjustmentFrameCtx = null;
+	destroyClipTransitionLayer();
+}
+
+/**
+ * Routes a clip through the transition group layer when it sits inside an
+ * active transition window; otherwise draws straight onto the export canvas.
+ */
+function beginMediaTransitionLayer({
+	context,
+	transitionState,
+	visual,
+}: {
+	context: RenderContext;
+	transitionState: ClipTransitionPreviewState | undefined;
+	visual: { x: number; y: number; opacity: number };
+}): ClipTransitionLayer {
+	if (!transitionState) {
+		return { ctx: context.ctx, active: false, finish: () => undefined };
+	}
+	const presentation = getClipTransitionLayerPresentation({
+		transition: transitionState.transition,
+		role: transitionState.role,
+		progress: transitionState.progress,
+		canvasWidth: context.canvas.width,
+		canvasHeight: context.canvas.height,
+	});
+	return beginClipTransitionLayer({
+		ctx: context.ctx,
+		width: context.canvas.width,
+		height: context.canvas.height,
+		presentation,
+		anchor: { x: visual.x, y: visual.y },
+		layerOpacity: visual.opacity,
+	});
 }
 
 /** Context passed to renderer functions */
@@ -165,12 +209,24 @@ export async function renderFrame(
 	ctx.fillStyle = context.backgroundColor ?? "#000000";
 	ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+	// Canvas-rendered clip transitions keep both clips of a seam active
+	// inside the window; the plan is empty for transition-free exports.
+	const transitionTracks =
+		context.renderIndex?.clipTransitions.canvasTracks ?? null;
+	const transitions = transitionTracks
+		? resolveActiveClipTransitionPreview({
+				tracks: transitionTracks,
+				currentTime,
+				fps: context.fps,
+			})
+		: null;
 	const activeElements = exportProfiler.timeSync("active-elements", () =>
 		getActiveElements(
 			context.tracks,
 			context.mediaItems,
 			currentTime,
-			context.fps
+			context.fps,
+			transitions ?? undefined
 		)
 	);
 
@@ -182,7 +238,13 @@ export async function renderFrame(
 	}
 
 	for (const { element, mediaItem } of activeElements) {
-		await renderElement(context, element, mediaItem, currentTime);
+		await renderElement(
+			context,
+			element,
+			mediaItem,
+			currentTime,
+			transitions?.statesByElementId.get(element.id)
+		);
 	}
 
 	const timelineStickerIds =
@@ -226,12 +288,19 @@ async function renderElement(
 	context: RenderContext,
 	element: TimelineElement,
 	mediaItem: MediaItem | null,
-	currentTime: number
+	currentTime: number,
+	transitionState?: ClipTransitionPreviewState
 ): Promise<void> {
 	const elementTimeOffset = currentTime - element.startTime;
 
 	if (element.type === "media" && mediaItem) {
-		await renderMediaElement(context, element, mediaItem, elementTimeOffset);
+		await renderMediaElement(
+			context,
+			element,
+			mediaItem,
+			elementTimeOffset,
+			transitionState
+		);
 	} else if (element.type === "text") {
 		renderTextElement({
 			ctx: context.ctx,
@@ -450,7 +519,8 @@ async function renderMediaElement(
 	context: RenderContext,
 	element: TimelineElement,
 	mediaItem: MediaItem,
-	timeOffset: number
+	timeOffset: number,
+	transitionState?: ClipTransitionPreviewState
 ): Promise<void> {
 	if (!mediaItem.url) {
 		debugWarn(`[ExportEngine] No URL for media item ${mediaItem.id}`);
@@ -463,10 +533,17 @@ async function renderMediaElement(
 				context,
 				element,
 				mediaItem,
-				element.startTime + timeOffset
+				element.startTime + timeOffset,
+				transitionState
 			);
 		} else if (mediaItem.type === "video") {
-			await renderVideo(context, element, mediaItem, timeOffset);
+			await renderVideo(
+				context,
+				element,
+				mediaItem,
+				timeOffset,
+				transitionState
+			);
 		}
 	} catch (error) {
 		debugError(`[ExportEngine] Failed to render ${element.id}:`, error);
@@ -478,9 +555,10 @@ export async function renderImage(
 	context: RenderContext,
 	element: TimelineElement,
 	mediaItem: MediaItem,
-	currentTime = element.startTime
+	currentTime = element.startTime,
+	transitionState?: ClipTransitionPreviewState
 ): Promise<void> {
-	const { ctx, canvas } = context;
+	const { canvas } = context;
 
 	// Track which image is being used
 	context.usedImages.add(mediaItem.id);
@@ -511,10 +589,18 @@ export async function renderImage(
 					currentTime,
 					fps: context.fps,
 				});
+				const layer = beginMediaTransitionLayer({
+					context,
+					transitionState,
+					visual,
+				});
+				const ctx = layer.ctx;
+				// The group layer owns the element opacity when a transition is active.
+				const drawVisual = layer.active ? { ...visual, opacity: 1 } : visual;
 				const drawImage = () =>
 					drawWithMediaTransform({
 						ctx,
-						visual,
+						visual: drawVisual,
 						bounds: { x, y, width, height },
 						draw: () =>
 							drawColorGradedSourceWithMasks({
@@ -533,48 +619,52 @@ export async function renderImage(
 							}),
 					});
 
-				if (EFFECTS_ENABLED) {
-					try {
-						const effects = useEffectsStore
-							.getState()
-							.getElementEffects(element.id);
-						debugLog(
-							`🎨 EXPORT ENGINE: Retrieved ${effects.length} effects for image element ${element.id}`
-						);
-						const enabledEffects = effects.filter((e) => e.enabled);
-						debugLog(
-							`✨ EXPORT ENGINE: ${enabledEffects.length} enabled effects for image element ${element.id}`
-						);
+				try {
+					if (EFFECTS_ENABLED) {
+						try {
+							const effects = useEffectsStore
+								.getState()
+								.getElementEffects(element.id);
+							debugLog(
+								`🎨 EXPORT ENGINE: Retrieved ${effects.length} effects for image element ${element.id}`
+							);
+							const enabledEffects = effects.filter((e) => e.enabled);
+							debugLog(
+								`✨ EXPORT ENGINE: ${enabledEffects.length} enabled effects for image element ${element.id}`
+							);
 
-						if (enabledEffects.length > 0) {
-							ctx.save();
-							const mergedParams = mergeEffectParameters(
-								...enabledEffects.map((e) => e.parameters)
+							if (enabledEffects.length > 0) {
+								ctx.save();
+								const mergedParams = mergeEffectParameters(
+									...enabledEffects.map((e) => e.parameters)
+								);
+								debugLog(
+									"🔨 EXPORT ENGINE: Applying effects to image canvas:",
+									mergedParams
+								);
+								applyEffectsToCanvas(ctx, mergedParams);
+								await drawImage();
+								applyAdvancedCanvasEffects(ctx, mergedParams);
+								ctx.restore();
+							} else {
+								debugLog(
+									`🚫 EXPORT ENGINE: No enabled effects for image element ${element.id}, drawing normally`
+								);
+								await drawImage();
+							}
+						} catch (error) {
+							debugError(
+								`❌ EXPORT ENGINE: Effects failed for image element ${element.id}:`,
+								error
 							);
-							debugLog(
-								"🔨 EXPORT ENGINE: Applying effects to image canvas:",
-								mergedParams
-							);
-							applyEffectsToCanvas(ctx, mergedParams);
-							await drawImage();
-							applyAdvancedCanvasEffects(ctx, mergedParams);
-							ctx.restore();
-						} else {
-							debugLog(
-								`🚫 EXPORT ENGINE: No enabled effects for image element ${element.id}, drawing normally`
-							);
+							debugWarn(`[Export] Effects failed for ${element.id}:`, error);
 							await drawImage();
 						}
-					} catch (error) {
-						debugError(
-							`❌ EXPORT ENGINE: Effects failed for image element ${element.id}:`,
-							error
-						);
-						debugWarn(`[Export] Effects failed for ${element.id}:`, error);
+					} else {
 						await drawImage();
 					}
-				} else {
-					await drawImage();
+				} finally {
+					layer.finish();
 				}
 
 				resolve();
@@ -597,7 +687,8 @@ export async function renderVideo(
 	context: RenderContext,
 	element: TimelineElement,
 	mediaItem: MediaItem,
-	timeOffset: number
+	timeOffset: number,
+	transitionState?: ClipTransitionPreviewState
 ): Promise<void> {
 	if (!mediaItem.url) {
 		debugWarn(`[ExportEngine] No URL for video element ${element.id}`);
@@ -614,7 +705,8 @@ export async function renderVideo(
 				element,
 				mediaItem,
 				timeOffset,
-				attempt
+				attempt,
+				transitionState
 			);
 			return;
 		} catch (error) {
@@ -640,17 +732,21 @@ async function renderVideoAttempt(
 	element: TimelineElement,
 	mediaItem: MediaItem,
 	timeOffset: number,
-	attempt: number
+	attempt: number,
+	transitionState?: ClipTransitionPreviewState
 ): Promise<void> {
-	const { ctx, canvas, videoCache } = context;
+	const { canvas, videoCache } = context;
 
 	const url = mediaItem.url as string; // Guaranteed non-null by renderVideo guard
 
 	try {
 		const mediaElement = element as MediaElement;
+		// Inside a transition window the incoming clip is sampled before its
+		// start and the outgoing clip past its end; the source-time mapping
+		// clamps both to the clip's first/last frame, like the preview.
 		const sampleTime = getExportFrameSampleTime({
 			frameRate: context.fps,
-			frameStartTime: timeOffset,
+			frameStartTime: Math.max(0, timeOffset),
 		});
 		const seekTime = getMediaSourcePlaybackTime({
 			element: mediaElement,
@@ -668,7 +764,10 @@ async function renderVideoAttempt(
 		let sourceHeight = 0;
 		let sourceTimestamp = seekTime;
 		if (context.sequentialVideo && mediaElement.reverse !== true) {
-			const provider = await context.sequentialVideo.getOrOpen(mediaItem);
+			const provider = await context.sequentialVideo.getOrOpen(
+				mediaItem,
+				transitionState?.role === "to" ? "transition-incoming" : undefined
+			);
 			if (provider) {
 				const frame = await exportProfiler.time("video-decode", () =>
 					provider.frameAt(seekTime)
@@ -722,11 +821,19 @@ async function renderVideoAttempt(
 			currentTime: element.startTime + timeOffset,
 			fps: context.fps,
 		});
+		const layer = beginMediaTransitionLayer({
+			context,
+			transitionState,
+			visual,
+		});
+		const ctx = layer.ctx;
+		// The group layer owns the element opacity when a transition is active.
+		const drawVisual = layer.active ? { ...visual, opacity: 1 } : visual;
 		const drawVideo = () =>
 			exportProfiler.time("video-draw", async () =>
 				drawWithMediaTransform({
 					ctx,
-					visual,
+					visual: drawVisual,
 					bounds: { x, y, width, height },
 					draw: () =>
 						drawColorGradedSourceWithMasks({
@@ -748,55 +855,59 @@ async function renderVideoAttempt(
 				})
 			);
 
-		if (EFFECTS_ENABLED) {
-			try {
-				const effects = useEffectsStore
-					.getState()
-					.getElementEffects(element.id);
-				debugLog(
-					`🎨 EXPORT ENGINE: Retrieved ${effects?.length || 0} effects for video element ${element.id}`
-				);
-				if (effects && effects.length > 0) {
-					const activeEffects = effects.filter((e) => e.enabled);
+		try {
+			if (EFFECTS_ENABLED) {
+				try {
+					const effects = useEffectsStore
+						.getState()
+						.getElementEffects(element.id);
 					debugLog(
-						`✨ EXPORT ENGINE: ${activeEffects.length} enabled effects for video element ${element.id}`
+						`🎨 EXPORT ENGINE: Retrieved ${effects?.length || 0} effects for video element ${element.id}`
 					);
-					if (activeEffects.length === 0) {
+					if (effects && effects.length > 0) {
+						const activeEffects = effects.filter((e) => e.enabled);
 						debugLog(
-							`🚫 EXPORT ENGINE: No enabled effects for video element ${element.id}, drawing normally`
+							`✨ EXPORT ENGINE: ${activeEffects.length} enabled effects for video element ${element.id}`
+						);
+						if (activeEffects.length === 0) {
+							debugLog(
+								`🚫 EXPORT ENGINE: No enabled effects for video element ${element.id}, drawing normally`
+							);
+							await drawVideo();
+							return;
+						}
+
+						ctx.save();
+						const mergedParams = mergeEffectParameters(
+							...activeEffects.map((e) => e.parameters)
+						);
+						debugLog(
+							"🔨 EXPORT ENGINE: Applying effects to video canvas:",
+							mergedParams
+						);
+						applyEffectsToCanvas(ctx, mergedParams);
+						await drawVideo();
+						applyAdvancedCanvasEffects(ctx, mergedParams);
+						ctx.restore();
+					} else {
+						debugLog(
+							`🚫 EXPORT ENGINE: No effects found for video element ${element.id}, drawing normally`
 						);
 						await drawVideo();
-						return;
 					}
-
-					ctx.save();
-					const mergedParams = mergeEffectParameters(
-						...activeEffects.map((e) => e.parameters)
+				} catch (error) {
+					debugError(
+						`❌ EXPORT ENGINE: Video effects failed for element ${element.id}:`,
+						error
 					);
-					debugLog(
-						"🔨 EXPORT ENGINE: Applying effects to video canvas:",
-						mergedParams
-					);
-					applyEffectsToCanvas(ctx, mergedParams);
-					await drawVideo();
-					applyAdvancedCanvasEffects(ctx, mergedParams);
-					ctx.restore();
-				} else {
-					debugLog(
-						`🚫 EXPORT ENGINE: No effects found for video element ${element.id}, drawing normally`
-					);
+					debugWarn(`[Export] Video effects failed for ${element.id}:`, error);
 					await drawVideo();
 				}
-			} catch (error) {
-				debugError(
-					`❌ EXPORT ENGINE: Video effects failed for element ${element.id}:`,
-					error
-				);
-				debugWarn(`[Export] Video effects failed for ${element.id}:`, error);
+			} else {
 				await drawVideo();
 			}
-		} else {
-			await drawVideo();
+		} finally {
+			layer.finish();
 		}
 	} catch (error) {
 		debugError(
