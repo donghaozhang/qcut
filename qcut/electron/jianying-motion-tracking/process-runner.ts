@@ -45,7 +45,12 @@ export async function runMotionTrackingProcess({
 		let timedOut = false;
 		const terminate = () => {
 			if (child.exitCode !== null || child.signalCode !== null) return;
-			child.kill("SIGKILL");
+			try {
+				child.kill("SIGKILL");
+			} catch {
+				// Windows throws EINVAL when the process died in this window;
+				// termination is best-effort and `close` still settles the run.
+			}
 		};
 		const timeout = setTimeout(() => {
 			timedOut = true;
