@@ -680,6 +680,26 @@ describe("Sticker Lab restricted export policy", () => {
 		).toEqual(["sticker-lab:jianying-2026-08-23-batch-18-v2:18001"]);
 	});
 
+	it("blocks a private asset identity outside the sticker render path", () => {
+		expect(
+			findRestrictedMediaForExport({
+				mediaItems: [],
+				scope: "timeline",
+				tracks: [
+					{
+						elements: [
+							{
+								stickerAssetId:
+									"sticker-lab:jianying-2026-08-23-batch-18-v2:18001",
+								type: "media",
+							},
+						],
+					},
+				],
+			})
+		).toEqual(["sticker-lab:jianying-2026-08-23-batch-18-v2:18001"]);
+	});
+
 	it("does not broaden the private asset identity pattern", () => {
 		expect(
 			findRestrictedMediaForExport({
