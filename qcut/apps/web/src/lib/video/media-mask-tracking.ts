@@ -161,6 +161,40 @@ function trackedKeyframes({
 	);
 }
 
+function trackedRotationKeyframes({
+	mask,
+	samples,
+}: {
+	mask: MediaMask;
+	samples: MediaMaskTrackingSample[];
+}): MediaPropertyKeyframe[] {
+	const rotations = [...samples]
+		.filter(
+			(sample): sample is MediaMaskTrackingSample & { rotation: number } =>
+				Number.isFinite(sample.rotation)
+		)
+		.sort((first, second) => first.frame - second.frame)
+		.filter(
+			(sample, index, list) =>
+				index === 0 || sample.frame !== list[index - 1].frame
+		);
+	if (rotations.length === 0) return mask.keyframes?.rotation ?? [];
+	const firstFrame = rotations[0].frame;
+	const lastFrame = rotations[rotations.length - 1].frame;
+	const outsideRange = (mask.keyframes?.rotation ?? []).filter(
+		(keyframe) => keyframe.frame < firstFrame || keyframe.frame > lastFrame
+	);
+	const tracked = rotations.map((sample) => ({
+		id: `${mask.id ?? "mask"}-tracking-rotation-${sample.frame}`,
+		frame: sample.frame,
+		value: sample.rotation,
+		easing: "linear" as const,
+	}));
+	return [...outsideRange, ...tracked].sort(
+		(first, second) => first.frame - second.frame
+	);
+}
+
 export function applyMaskTrackingSamples({
 	mask,
 	samples,
@@ -208,6 +242,7 @@ export function applyMaskTrackingSamples({
 		return {
 			...mask,
 			tracking: {
+				...mask.tracking,
 				direction,
 				source,
 				status: "error",
@@ -223,10 +258,15 @@ export function applyMaskTrackingSamples({
 			samples: simplified,
 		});
 	}
+	keyframes.rotation = trackedRotationKeyframes({
+		mask,
+		samples: localSamples,
+	});
 	return {
 		...mask,
 		keyframes,
 		tracking: {
+			...mask.tracking,
 			direction,
 			source,
 			status: "ready",
