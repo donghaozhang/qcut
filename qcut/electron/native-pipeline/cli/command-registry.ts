@@ -389,7 +389,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 	"compose-project": {
 		name: "compose-project",
 		description:
-			"Package a portable QCut compose project with copied user media and locked local-resource identities",
+			"Package a portable compose bundle, or build an editable QCut project through the running editor (--target editor)",
 		category: "composition",
 		flags: [
 			f("--config", "string", "QCut compose manifest JSON path", {
@@ -398,9 +398,14 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			}),
 			f("--project-dir", "string", "Portable compose project directory"),
 			f("--force", "boolean", "Replace an existing project directory"),
+			f("--target", "string", "editor: build a real project in QCut Desktop"),
+			f("--name", "string", "editor target: create a new project by name"),
+			f("--project-id", "string", "editor target: write into this project"),
+			f("--no-verify", "boolean", "editor target: skip the reopen check"),
 		],
 		examples: [
 			"qcut compose project --config edit.qcut-compose.json --project-dir ./qcut-compose-project --json",
+			'qcut compose project --config edit.qcut-compose.json --target editor --name "Compose Demo" --json',
 		],
 	},
 	"transition-list": {
