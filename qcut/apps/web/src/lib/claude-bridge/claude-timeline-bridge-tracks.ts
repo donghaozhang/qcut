@@ -8,6 +8,9 @@ import type {
 import { debugError } from "@/lib/debug/debug-config";
 import type { ClaudeTimelineBridgeAPI } from "./claude-timeline-bridge";
 
+/** Mirrors the timeline store's jianying-local package-hash contract. */
+const LOCAL_PACKAGE_HASH_PATTERN = /^[a-f0-9]{32,64}$/;
+
 const TRACK_TYPES = new Set<TrackType>([
 	"media",
 	"effect",
@@ -110,6 +113,29 @@ function applyTrackOperation(
 	if (request.action === "add-transition") {
 		const transition = request.transition;
 		if (!transition) throw new Error("transition is required");
+		if (
+			transition.engine !== undefined &&
+			transition.engine !== "qcut" &&
+			transition.engine !== "jianying-local"
+		) {
+			throw new Error(
+				`Unsupported transition engine: ${String(transition.engine)}`
+			);
+		}
+		if (transition.engine === "jianying-local") {
+			if (
+				typeof transition.packageHash !== "string" ||
+				!LOCAL_PACKAGE_HASH_PATTERN.test(transition.packageHash)
+			) {
+				throw new Error(
+					"jianying-local transitions need a 32-64 character lowercase hex packageHash"
+				);
+			}
+		} else if (transition.packageHash !== undefined) {
+			throw new Error(
+				"packageHash is only valid with the jianying-local engine"
+			);
+		}
 		const videoMediaIds = new Set(
 			useMediaStore
 				.getState()
@@ -122,6 +148,8 @@ function applyTrackOperation(
 			toElementId: transition.toElementId,
 			videoMediaIds,
 			presetId: transition.presetId,
+			engine: transition.engine,
+			packageHash: transition.packageHash,
 			type: transition.type as ClipTransition["type"],
 			duration: transition.duration,
 			direction: transition.direction,
