@@ -237,19 +237,21 @@ describe("Export Engine Utils", () => {
 			expect(bounds.y).toBe(0);
 		});
 
-		it("keeps original size for smaller media", () => {
+		it("upscales smaller media using the default cover fit", () => {
 			const element = createMediaElement("e1", "m1", 0, 5);
 			const bounds = calculateElementBounds(element, 640, 480, 1920, 1080);
 
-			expect(bounds.width).toBe(640);
-			expect(bounds.height).toBe(480);
-			// Should be centered
-			expect(bounds.x).toBe((1920 - 640) / 2);
-			expect(bounds.y).toBe((1080 - 480) / 2);
+			expect(bounds.width).toBe(1920);
+			expect(bounds.height).toBe(1440);
+			expect(bounds.x).toBe(0);
+			expect(bounds.y).toBe(-180);
 		});
 
-		it("maintains aspect ratio when scaling wider media", () => {
-			const element = createMediaElement("e1", "m1", 0, 5);
+		it("maintains aspect ratio when containing wider media", () => {
+			const element = {
+				...createMediaElement("e1", "m1", 0, 5),
+				fitMode: "contain" as const,
+			};
 			// Ultra-wide media: 2560x720 (aspect 3.55)
 			const bounds = calculateElementBounds(element, 2560, 720, 1920, 1080);
 
@@ -257,6 +259,16 @@ describe("Export Engine Utils", () => {
 			expect(bounds.width).toBe(1920);
 			// Height should maintain aspect ratio
 			expect(bounds.height).toBeCloseTo(1920 / (2560 / 720), 0);
+		});
+
+		it("stretches media to the canvas in fill mode", () => {
+			const element = {
+				...createMediaElement("e1", "m1", 0, 5),
+				fitMode: "fill" as const,
+			};
+			const bounds = calculateElementBounds(element, 640, 480, 1920, 1080);
+
+			expect(bounds).toEqual({ x: 0, y: 0, width: 1920, height: 1080 });
 		});
 
 		it("uses element position for text elements", () => {
