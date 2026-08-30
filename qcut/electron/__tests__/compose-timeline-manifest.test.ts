@@ -224,4 +224,141 @@ describe("timelineManifestFromComposePatch", () => {
 			{ type: "dissolve", presetId: "dissolve" },
 		]);
 	});
+
+	it("preserves prepared Sticker, Sound, and Jianying runtime controls", () => {
+		const stickerRuntime = {
+			kind: "png-sequence" as const,
+			cycleDurationSeconds: 1,
+			frames: [
+				{
+					startSeconds: 0,
+					durationSeconds: 1,
+					source: "$primary",
+				},
+			],
+			repeat: { kind: "infinite" as const },
+			completion: "freeze-last" as const,
+		};
+		const plan = timelineManifestFromComposePatch({
+			projectId: "project-1",
+			patch: makePatch({
+				operations: [
+					{
+						kind: "add-sticker",
+						id: "sticker:runtime",
+						startTime: 1,
+						duration: 3,
+						x: 0.25,
+						y: 0.75,
+						rotation: 12,
+						opacity: 0.7,
+						maintainAspectRatio: true,
+						animationInType: "slide",
+						animationInDuration: 0.25,
+						animationOutType: "scale",
+						animationOutDuration: 0.4,
+						animationLoopType: "float",
+						animationLoopIntensity: 0.6,
+						asset: {
+							provider: "local",
+							assetType: "sticker",
+							assetId: "sticker-lab:batch-01:18001",
+						},
+					},
+					{
+						kind: "add-sound-effect",
+						id: "sound:trimmed",
+						startTime: 2,
+						duration: 2,
+						volume: 0.65,
+						trimStart: 0.5,
+						trimEnd: 0.25,
+						fadeIn: 0.2,
+						fadeOut: 0.3,
+						playbackRate: 1.5,
+						asset: {
+							provider: "qcut",
+							assetType: "sound-effect",
+							assetId: "sound-effects-lab:impact-1",
+							localPath: "/assets/impact.wav",
+						},
+					},
+					{
+						kind: "upsert-transition",
+						id: "transition:jianying",
+						trackId: "track-video",
+						fromElementId: "element-1",
+						toElementId: "element-2",
+						startTime: 3.5,
+						duration: 1,
+						presetId: "jianying-local-white-flash",
+					},
+				],
+			}),
+			bindings: {
+				"sticker:runtime": {
+					sticker: {
+						mediaId: "imported-sticker-media",
+						stickerAssetId: "sticker-lab:batch-01:18001",
+						stickerRuntime,
+					},
+				},
+				"transition:jianying": {
+					transition: {
+						presetId: "jianying-local-white-flash",
+						engine: "jianying-local",
+						packageHash: "a".repeat(32),
+						type: "fade-white",
+						easing: "easeInOut",
+						tuning: { intensity: 0.8 },
+					},
+				},
+			},
+		});
+
+		const tracks = plan.manifest.tracks as Array<Record<string, unknown>>;
+		const stickerTrack = tracks.find((track) => track.type === "sticker");
+		const audioTrack = tracks.find((track) => track.type === "audio");
+		expect(stickerTrack?.elements).toMatchObject([
+			{
+				mediaId: "imported-sticker-media",
+				stickerAssetId: "sticker-lab:batch-01:18001",
+				stickerRuntime,
+				x: 25,
+				y: 75,
+				rotation: 12,
+				opacity: 0.7,
+				maintainAspectRatio: true,
+				animationInType: "slide-up",
+				animationInDuration: 0.25,
+				animationOutType: "zoom-out",
+				animationOutDuration: 0.4,
+				animationLoopType: "drift",
+				animationLoopIntensity: 0.6,
+			},
+		]);
+		expect(audioTrack?.elements).toMatchObject([
+			{
+				duration: 3.75,
+				trimStart: 0.5,
+				trimEnd: 0.25,
+				audioFadeIn: 0.2,
+				audioFadeOut: 0.3,
+				playbackRate: 1.5,
+			},
+		]);
+		expect(plan.manifest.media).toEqual([
+			{ alias: "media:sound:trimmed", path: "/assets/impact.wav" },
+		]);
+		expect(plan.manifest.transitions).toMatchObject([
+			{
+				presetId: "jianying-local-white-flash",
+				engine: "jianying-local",
+				packageHash: "a".repeat(32),
+				type: "fade-white",
+				easing: "easeInOut",
+				tuning: { intensity: 0.8 },
+			},
+		]);
+	});
 });
