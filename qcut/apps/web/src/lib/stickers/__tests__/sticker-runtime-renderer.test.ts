@@ -313,6 +313,62 @@ describe("sticker runtime renderer", () => {
 		expect(counts.canvases).toBe(1);
 	});
 
+	it("rebuilds GIF composition after a frame draw fails", async () => {
+		const descriptor = disposalGifDescriptor({ middleDisposalMethod: 2 });
+		const frames = [
+			canvasAsset({ canvas: solidCanvas({ color: "#ff0000", width: 3 }) }),
+			canvasAsset({ canvas: solidCanvas({ color: "#00ff00" }) }),
+			canvasAsset({ canvas: solidCanvas({ color: "#0000ff" }) }),
+		];
+		const resolvedFrameIndices: number[] = [];
+		const assets = resolver({
+			resolve: (request) => {
+				if (request.kind !== "direct-gif-frame") {
+					throw new Error("Unexpected asset request");
+				}
+				resolvedFrameIndices.push(request.frameIndex);
+				const frame = frames[request.frameIndex];
+				if (!frame) throw new Error("Missing GIF frame");
+				return frame;
+			},
+		});
+		let failBlueDraw = true;
+		const createCanvas = countingTestCanvas({
+			counts: { canvases: 0, draws: 0 },
+			onDrawSource: ({ image }) => {
+				if (image !== frames[2]?.image || !failBlueDraw) return;
+				failBlueDraw = false;
+				throw new Error("Injected frame draw failure");
+			},
+		});
+		const renderAt = ({
+			timelineTimeSeconds,
+		}: {
+			timelineTimeSeconds: number;
+		}) =>
+			renderStickerRuntimeFrame({
+				assets,
+				createCanvas,
+				descriptor,
+				timeline: { timelineStartSeconds: 0, timelineDurationSeconds: 1 },
+				timelineTimeSeconds,
+			});
+
+		const beforeFailure = await renderAt({ timelineTimeSeconds: 0.21 });
+		if (!beforeFailure.active) throw new Error("Expected an active GIF frame");
+		expect(pixel({ image: beforeFailure.image, x: 1 })).toEqual([
+			0, 255, 0, 255,
+		]);
+
+		await expect(renderAt({ timelineTimeSeconds: 0.41 })).rejects.toThrow(
+			"Injected frame draw failure"
+		);
+		const recovered = await renderAt({ timelineTimeSeconds: 0.21 });
+		if (!recovered.active) throw new Error("Expected a recovered GIF frame");
+		expect(pixel({ image: recovered.image, x: 1 })).toEqual([0, 255, 0, 255]);
+		expect(resolvedFrameIndices).toEqual([0, 1, 2, 0, 1]);
+	});
+
 	it("draws each decoded GIF frame before resolving beyond the raw-frame LRU", async () => {
 		const frameCount = 100;
 		const resolvedFrameIndices: number[] = [];
