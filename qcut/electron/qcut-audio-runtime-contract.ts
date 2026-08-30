@@ -9,6 +9,7 @@ export const QCUT_AUDIO_RUNTIME_CACHE_STATS_CHANNEL =
 	"qcut-audio-runtime:cache-stats";
 export const QCUT_AUDIO_RUNTIME_CLEAR_CACHE_CHANNEL =
 	"qcut-audio-runtime:clear-cache";
+export const QCUT_AUDIO_RUNTIME_CANCEL_CHANNEL = "qcut-audio-runtime:cancel";
 
 export type QcutAudioRuntimeFeatureId =
 	| "basic-processing"
