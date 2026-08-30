@@ -11,6 +11,17 @@ const RESTRICTED_STICKER_LAB_ID_PATTERN =
 const MAX_COMPOUND_MEDIA_DEPTH = 32;
 const COMPOUND_MEDIA_DEPTH_LIMIT_ID = "[compound-media-depth-limit]";
 
+function restrictedStickerLabIds({
+	element,
+}: {
+	element: Record<string, unknown>;
+}): string[] {
+	return [element.stickerId, element.stickerAssetId].filter(
+		(value): value is string =>
+			typeof value === "string" && RESTRICTED_STICKER_LAB_ID_PATTERN.test(value)
+	);
+}
+
 type RestrictedMediaExportScope = "all-media" | "timeline";
 
 interface ExportMediaRecord {
@@ -225,12 +236,7 @@ function collectTimelineMediaIds({
 				mediaIds,
 				mediaIdsByName,
 			});
-			if (
-				typeof element.stickerId === "string" &&
-				RESTRICTED_STICKER_LAB_ID_PATTERN.test(element.stickerId)
-			) {
-				restrictedTimelineIds.push(element.stickerId);
-			}
+			restrictedTimelineIds.push(...restrictedStickerLabIds({ element }));
 		},
 		tracks,
 	});
@@ -415,10 +421,8 @@ function collectBakedVideoMediaUsage({
 					mediaIds: primaryStickerMediaIds,
 					mediaIdsByName,
 				});
-				if (
-					typeof element.stickerId === "string" &&
-					RESTRICTED_STICKER_LAB_ID_PATTERN.test(element.stickerId)
-				) {
+				const restrictedStickerIds = restrictedStickerLabIds({ element });
+				if (restrictedStickerIds.length > 0) {
 					if (sourceNameMediaIds.length > 0) {
 						for (const mediaId of sourceNameMediaIds) {
 							requiredLocalStickerMediaIds.add(mediaId);
@@ -429,7 +433,7 @@ function collectBakedVideoMediaUsage({
 					) {
 						requiredLocalStickerMediaIds.add(element.mediaId);
 					} else {
-						restrictedTimelineIds.push(element.stickerId);
+						restrictedTimelineIds.push(...restrictedStickerIds);
 					}
 				}
 			} else {
@@ -441,12 +445,8 @@ function collectBakedVideoMediaUsage({
 				});
 			}
 
-			if (
-				typeof element.stickerId === "string" &&
-				RESTRICTED_STICKER_LAB_ID_PATTERN.test(element.stickerId) &&
-				element.type !== "sticker"
-			) {
-				restrictedTimelineIds.push(element.stickerId);
+			if (element.type !== "sticker") {
+				restrictedTimelineIds.push(...restrictedStickerLabIds({ element }));
 			}
 		},
 		tracks,
