@@ -385,8 +385,8 @@ describe("Filter Lab render plan", () => {
 		});
 
 		expect(result).toMatchObject({
-			kind: "native",
-			mode: "swing",
+			kind: "ffmpeg",
+			filterGraph: "[0:v:0]null[filter_output]",
 			evidence: {
 				backend: "qcut-safe-passthrough",
 				fidelity: "safe-passthrough",
