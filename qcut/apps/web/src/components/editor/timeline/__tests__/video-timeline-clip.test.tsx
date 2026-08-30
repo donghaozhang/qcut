@@ -33,15 +33,19 @@ vi.mock("../../audio-waveform", () => ({
 
 import { VideoTimelineClip } from "../video-timeline-clip";
 import { getVideoClipLaneHeights } from "../video-timeline-clip-layout";
+import type { TimelineColorLabel } from "@/lib/timeline/timeline-color-labels";
 
 function renderVideoClip({
+	colorLabel,
 	thumbnailUrl = "blob:thumbnail",
 }: {
+	colorLabel?: TimelineColorLabel;
 	thumbnailUrl?: string;
 } = {}) {
 	return render(
 		<VideoTimelineClip
 			clipWidthPx={240}
+			colorLabel={colorLabel}
 			displayName="interview-camera-a.mp4"
 			duration={12}
 			mediaId="video-1"
@@ -115,6 +119,17 @@ describe("VideoTimelineClip", () => {
 			screen.getByLabelText("Filmstrip thumbnails of interview-camera-a.mp4")
 				.children
 		).toHaveLength(2);
+	});
+
+	it("replaces the default yellow clip body with the selected label color", () => {
+		renderVideoClip({ colorLabel: "rose" });
+
+		const clip = screen.getByTestId("timeline-video-clip");
+		expect(clip).toHaveAttribute("data-color-label", "rose");
+		expect(clip.style.backgroundColor).toBe("rgb(244, 63, 94)");
+		expect(
+			screen.queryByTestId("timeline-color-label-overlay")
+		).not.toBeInTheDocument();
 	});
 
 	it("keeps all three lanes within compact and expanded track heights", () => {
