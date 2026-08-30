@@ -312,6 +312,9 @@ async function exportStart(
 	if (typeof profilePath === "string" && profilePath.trim()) {
 		body.profilePath = profilePath.trim();
 	}
+	if (raw["no-sequential-decode"] === true) {
+		body.disableSequentialDecode = true;
+	}
 	if (exportFormat === "mp3") {
 		body.audioExportConfig = {
 			bitrate: opts.bitrate ?? 192,
