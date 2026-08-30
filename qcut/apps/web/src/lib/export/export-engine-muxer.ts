@@ -13,6 +13,8 @@ import type { MediaItem } from "@/stores/media/media-store-types";
 import { shouldIncludeAudio } from "@/types/export";
 import { renderBrowserTimelineAudio } from "@/lib/audio/browser-audio-export";
 import { calculateFrameTime } from "./export-engine-utils";
+import { exportProfiler } from "./export-profiler";
+import { reportExportFrameProgress } from "./export-progress-reporter";
 
 // Progress callback type
 type ProgressCallback = (progress: number, status: string) => void;
@@ -101,12 +103,14 @@ export class ExportEngineMuxer extends ExportEngine {
 
 			// Prepare audio if timeline has audio elements
 			const audioData = shouldIncludeAudio(this.settings)
-				? await renderBrowserTimelineAudio({
-						tracks: this.tracks,
-						mediaItems: this.mediaItems,
-						totalDuration: this.totalDuration,
-						fps,
-					})
+				? await exportProfiler.time("audio-render", () =>
+						renderBrowserTimelineAudio({
+							tracks: this.tracks,
+							mediaItems: this.mediaItems,
+							totalDuration: this.totalDuration,
+							fps,
+						})
+					)
 				: null;
 			let audioSource: InstanceType<typeof AudioBufferSource> | null = null;
 
@@ -136,16 +140,24 @@ export class ExportEngineMuxer extends ExportEngine {
 					frameRate: fps,
 				});
 
+				exportProfiler.frameStart(frame);
+
 				// Render frame to canvas using existing renderer
-				await this.renderFrame(currentTime);
+				await exportProfiler.time("render-frame", () =>
+					this.renderFrame(currentTime)
+				);
 
 				// Feed canvas to mediabunny's CanvasSource with timeout
 				// (WebCodecs encoder can stall on simulator or unsupported platforms)
-				await withTimeout(
-					videoSource.add(currentTime, frameDuration),
-					10_000,
-					`Encoder stalled at frame ${frame + 1}/${totalFrames}`
+				await exportProfiler.time("encode-wait", () =>
+					withTimeout(
+						videoSource.add(currentTime, frameDuration),
+						10_000,
+						`Encoder stalled at frame ${frame + 1}/${totalFrames}`
+					)
 				);
+
+				exportProfiler.frameEnd();
 
 				// Progress (reserve 5% for finalization)
 				const progress = 2 + (frame / totalFrames) * 90;
@@ -153,6 +165,11 @@ export class ExportEngineMuxer extends ExportEngine {
 					progress,
 					`Encoding frame ${frame + 1}/${totalFrames}`
 				);
+				reportExportFrameProgress({
+					progressPercent: progress,
+					currentFrame: frame + 1,
+					totalFrames,
+				});
 
 				// Yield to UI every 10 frames
 				if (frame % 10 === 0) {
@@ -167,13 +184,22 @@ export class ExportEngineMuxer extends ExportEngine {
 			}
 
 			progressCallback?.(96, "Finalizing MP4...");
-			await output.finalize();
+			await exportProfiler.time("mp4-finalize", () => output.finalize());
 
 			if (!target.buffer) {
 				throw new Error("Export finalization failed — no output buffer");
 			}
 			const blob = new Blob([target.buffer], { type: "video/mp4" });
 			progressCallback?.(100, "Export complete!");
+
+			await exportProfiler.finishAndSave({
+				engine: "muxer",
+				totalFrames,
+				fps,
+				width: this.canvas.width,
+				height: this.canvas.height,
+				quality,
+			});
 
 			return blob;
 		} catch (error) {
