@@ -1,6 +1,6 @@
 # 剪映运动跟踪与平面跟踪研究
 
-> 研究日期：2026-08-30
+> 研究日期：2026-08-30；11.3.0 模型与调用链补充：2026-08-31
 >
 > 实测版本：剪映专业版 macOS 11.3.0（`com.lemon.lvpro`）
 >
@@ -155,6 +155,88 @@ position(t) = anchorPosition + (Ct - C0)
 
 这就是平面跟踪必须拥有独立结果类型的原因。
 
+### 4.5 贴纸运动跟踪的 11.3.0 调用路线
+
+下面这条路线来自国内剪映专业版 `VideoFusion-macOS.app` 11.3.0，不是 CapCut。它是把 UI 文案、客户端接口、二进制符号、内嵌算法图和已生成旁车拼成的最短证据链，不是一条已经用运行时调用栈逐层抓到的 trace：
+
+```text
+贴纸属性面板 / 运动跟踪
+  -> StickerClient::startVideoTrackingV3(...)             editor IPC 客户端
+  -> 编辑器服务端的范围、方向、进度与取消调度
+  -> VEInfoStickerPinControlImpl / VEVideoTrackingAlgorithm
+  -> TEVideoTrackingUnit / TEBachSmartObjectTrackingAlgorithm
+  -> 内嵌 Bach graph: static_object_tracking
+  -> node: object_tracking_0
+  -> object_tracking/bingo_objectTracking_v1.0.dat
+  -> Bach ObjectTracking buffer / 逐帧目标框
+  -> videoTracking 旁车 cache.json / data.json
+  -> SwingObjectTracker / Pin control 插值
+  -> 贴纸 position / scale / rotation
+  -> 预览与导出
+```
+
+各段证据边界：
+
+| 路线段 | 证据 | 当前判断 |
+| --- | --- | --- |
+| UI 到 `StickerClient::startVideoTrackingV3` | 同产品 UI 文案与专用导出接口 | 静态强证据；尚缺一次点击时的调用栈 |
+| `StickerClient` 到编辑器服务端 | 反汇编显示请求被打包后交给 `lyra::Server::invokeAsync/invokeSync` | 已确认它是 IPC 包装层，不是求解器 |
+| Sticker Pin 到 Bingo tracker | `INFO_STICKER_PIN`、`beginPin`、`setPinSelectedArea` 与 Bingo 模型路径相邻；内嵌图明确引用该模型 | 静态强证据 |
+| 求解器到矩形轨迹 | `getAlgoResult`、bbox/status/score、丢失与左右插值路径 | 静态强证据 |
+| 轨迹到旁车 | 旧成功草稿含 90 个稠密框和 18 个处理后记录 | 运行生成实证 |
+| 旁车到贴纸 TRS | `getTrackingBaseLineTRS` 及 position/scale/rotation 消费符号 | 静态强证据 |
+
+这里最重要的修正是：`StickerClient` 只负责跨进程发起任务，真正的视觉跟踪实现主要落在 `libcccreator.dylib` 的 Bach/VE 路径中。只调用 `startVideoTrackingV3` 而不复现剪映编辑器服务端环境，不会自然得到一个可独立使用的 tracker。
+
+### 4.6 两套单目标模型不能混成一条路线
+
+11.3.0 同时带有两套可见的单目标跟踪资源：
+
+| 资源 | 大小 | SHA-256 | 能确认的用途 |
+| --- | ---: | --- | --- |
+| `models/object_tracking/bingo_objectTracking_v1.0.dat` | 163,884 B | `b2f10c3c1ccc68afb7f5f61c587a29de029b8eff9590755f3b554db4aa04834f` | `static_object_tracking` 图中的 `object_tracking_0`；当前贴纸 Pin 路线的最强候选 |
+| `models/single_object_tracking_v1.0.model` | 627,511 B | `7951eba5af0daa1f78e3962073b938169171d102107ed1585a5c6851adf3aab2` | `custom_lockon` / `custom_region` 规则中的 `SINGLE_OBJECT_TRACKING` |
+
+用户缓存中的 `single_object_tracking_v1.0_size0_md5d0b0e377347d69bacef2473f5bae4799.model` 与安装包内第二个文件具有完全相同的 SHA-256，证明它是该版本模型的精确缓存副本。
+
+另一条规则驱动路线是：
+
+```text
+rule_adjust_mask/algorithm_custom_lockon.json
+  -> custom_lockon / custom_region 脚本
+  -> internal algorithm type 188: SINGLE_OBJECT_TRACKING
+  -> single_object_tracking_v1.0.model
+  -> track bbox + score
+```
+
+`algorithm_custom_lockon.json` 提供 `initial_bbox`、`object_tracking_model_name = single_object_tracking`、`enable_region_track` 和 reset 配置；缓存脚本还设置平滑与 penalty。它证明剪映还有一个自定义区域/锁定目标的单目标跟踪器，但不足以证明截图中的贴纸运动跟踪使用这一个模型。当前针对 Sticker Pin 的直接静态证据更偏向 Bingo 路线。
+
+### 4.7 能把模型识别到什么程度
+
+`single_object_tracking_v1.0.model` 内可见 `backbone`、`kernel_convs`、`search_convs`、`anchors` 和 `windows`。这与模板/kernel 分支加搜索分支的 Siamese/RPN 类跟踪器一致，但不能据此给它贴上某个公开论文模型的确切名字。
+
+Bingo 路线周围可见 `bboxPredLayerNames`、`clsScoreLayerNames`、`centernessLayerNames`、NMS、阈值、重检测、角度/尺度搜索和网格参数。它明显不是文档中独立探针所用的 CSRT/KCF/MOSSE，但现有证据仍不能断言它就是 SiamCAR、SiamFC++ 或其他具体公开架构，也无法确认训练数据。
+
+因此当前可靠表述是：
+
+- 剪映 11.3.0 不是只用一个“运动跟踪模型”；
+- 贴纸 Pin 路线强指向 Bingo 单目标跟踪运行时；
+- 自定义区域/锁定路线使用另一份 Siamese/RPN 类模型；
+- 精确网络拓扑、公开模型身份和训练数据仍未决。
+
+### 4.8 二进制归属与版本指纹
+
+本次检查固定到以下 arm64 版本，后续本地桥接不能只按文件名猜兼容性：
+
+| 文件 | arm64 UUID | SHA-256 | 角色 |
+| --- | --- | --- | --- |
+| `libcccreator.dylib` | `100726E3-FCB0-31BC-98EE-1B196A1714A3` | `b09c395d934169cb20ec865dd1d4032ca68023b287a7264e1b06ff4d71fd1be4` | Bach/VE 算法、Pin 控制、轨迹消费 |
+| `libvideoeditor.dylib` | `22337058-B217-3CAF-9979-CFECA7302CF7` | `ee33e4e68ecf3dc05501d04c4415a3a52ce60c6a6ed3615330963e78be4c25ab` | 编辑器 schema、服务与 IPC 客户端 |
+
+`libcccreator.dylib` 还保留 `BachAlgorithmObjectTracking.cpp`、`BachObjectTrackingBuffer.cpp`、`Bingo_ObjectTracking_createHandle`、`ObjectTracker` 和 `TrackingState.cpp` 等归属线索。相反，名字很像视觉算法的 `libTracking.dylib` 实际导出 `startTracking`、`postTrackingEvent`、`TrackingUploadNew` 和 `table_tracking_event` 等埋点上传能力；它是遥测库，不是目标跟踪求解器。
+
+本次没有取得“点击开始跟踪时打开哪个模型文件”的特权文件访问 trace，因此不能把静态强证据写成运行时模型打开实证。这个缺口不影响旁车已经由剪映真实生成的结论，但会影响最小依赖闭包的最终裁剪。
+
 ## 5. 平面跟踪到底在算什么
 
 ### 5.1 输入是一个“可追踪平面”，不是一个物体框
@@ -274,7 +356,7 @@ UI 的失败提示与算法条件一致：平面缺少明显纹理、平面包�
 - 从时间轴向右跟踪；
 - 从时间轴向左跟踪。
 
-这不是“只跟横向 / 纵向位移”，而是从当前时间轴锚点向未来、过去或两边传播。CapCut 官方公开说明同样把运动跟踪方向描述为 forward、backward 或 both。[CapCut Motion Tracking](https://www.capcut.com/resource/motion-tracking-after-effects)
+这不是“只跟横向 / 纵向位移”，而是从当前时间轴锚点向未来、过去或两边传播。CapCut 官方公开说明同样把运动跟踪方向描述为 forward、backward 或 both，但这里只把它当作同厂产品的公开交互语义参照，不用于证明国内剪映的内部实现。[CapCut Motion Tracking](https://www.capcut.com/resource/motion-tracking-after-effects)
 
 正确的数据合同应明确区分：
 
@@ -542,6 +624,12 @@ type TrackingBinding = {
 | 结论 | 等级 | 说明 |
 | --- | --- | --- |
 | 运动跟踪与平面跟踪使用不同算法类 | 静态强证据 | 独立 video/surface algorithm、object/planar tracker 符号 |
+| 贴纸 Pin 路线使用 Bingo object tracker | 静态强证据 | 内嵌 `static_object_tracking` 图、模型路径及相邻 Pin 符号相互印证 |
+| `single_object_tracking` 是另一条 custom lock-on/region 路线 | 静态强证据 | 规则、脚本、算法 type 188 和模型名闭环 |
+| `StickerClient` 本身就是求解器 | 已证伪 | 反汇编显示它通过 Lyra IPC 发起编辑器服务请求 |
+| `libTracking.dylib` 是视觉跟踪库 | 已证伪 | 导出与字符串均指向埋点、数据库和上传 |
+| Bingo 与 single-object 模型的确切公开架构 | 未决 | 只能识别结构家族线索，不能可靠命名具体论文模型 |
+| 点击“开始跟踪”时实际打开的模型文件 | 未决 | 尚无成功的特权文件访问 trace |
 | 平面跟踪使用 homography 和四点结果 | 运行实证 + 静态强证据 | 成功旁车四点随帧变化；二进制存在 homography/inlier/refine 链路 |
 | 成功平面四点顺序为 TL、BL、BR、TR | 运行实证 | 11.3.0 受控样例锚点确认 |
 | 全零四点表示无效结果 | 运行实证 + 静态强证据 | 模糊真人样例 + zero-result 错误分支 |
@@ -566,6 +654,8 @@ type TrackingBinding = {
 
 ## 16. 外部公开资料
 
+下面的 CapCut 页面只用于补充同厂产品公开的交互概念。本文关于模型、二进制和调用链的结论全部来自国内剪映专业版 `com.lemon.lvpro` 11.3.0，不把 CapCut 安装包或网页当作实现证据。
+
 - [CapCut 官方：Motion Tracking](https://www.capcut.com/tools/motion-tracking)
 - [CapCut 官方：桌面端运动跟踪方向与 Scale/Distance](https://www.capcut.com/resource/motion-tracking-after-effects)
 - [CapCut 官方：AI Movement 与对象运动跟踪的区别](https://www.capcut.com/tools/ai-movement-tracking)
@@ -576,7 +666,92 @@ type TrackingBinding = {
 
 本文只记录结构化结论、字段形状、实验统计和可公开复现的算法知识。没有收录或分发剪映二进制、模型、反编译源码、原始字符串转储、私有缓存素材或用户草稿。受控视频由本地 FFmpeg 生成，并通过剪映 UI 在隔离实验草稿中运行；生成的跟踪旁车只做只读检查。
 
-## 18. 独立探针
+后续允许在本机建立仅供研究的私有 runtime 备份，但必须位于 Git 仓库之外，禁止提交、上传、打包发布或成为 QCut 面向用户的强依赖。QCut 最终实现应是原创代码；私有 runtime 只作为本机 oracle 和迁移期对照。
+
+## 18. 本地私有运行时与自研迁移路线
+
+### 18.1 结论
+
+路线可行，但“缓存模型文件”和“本地可调用”是两个不同里程碑。`bingo_objectTracking_v1.0.dat` 和 `single_object_tracking_v1.0.model` 都没有公开的独立入口；只复制模型文件，或只证明 `dlopen(libcccreator.dylib)` 成功，都不等于已经能输入视频和初始框并取得轨迹。
+
+建议分成三个阶段：
+
+1. 固定 11.3.0 的最小私有 runtime 和模型依赖闭包；
+2. 做一个剪映进程完全退出后仍能运行的隔离桥接进程，把它当本机研究 oracle；
+3. 保持相同输入输出合同，逐步换成 QCut 自研 tracker，并用 oracle/旁车做回归对照。
+
+### 18.2 阶段 A：缓存精确版本，不缓存一个孤立模型
+
+建议的仓库外目录：
+
+```text
+~/Library/Application Support/QCut/PrivateRuntimes/JianyingTracking/
+  <libcccreator-uuid>-<sha256-prefix>/
+    manifest.json
+    lib/
+    models/
+  current -> <audited-version>
+```
+
+`manifest.json` 至少记录：
+
+- 剪映版本和 bundle id；
+- 架构、每个 Mach-O UUID、字节数和 SHA-256；
+- 模型相对路径、字节数和 SHA-256；
+- 完整动态库依赖闭包及装载顺序；
+- `localOnly: true` 与 `cloudUpload: false`；
+- 生成时间、来源应用路径和验证命令。
+
+仓库已有 `research/jianying-runtime-probe/backup-private-runtime.ts` 的私有备份模式可复用；`.local/jianying-runtime/` 已被忽略。新缓存仍应放在 Application Support 的私有目录，仓库只保存不含私有内容的 manifest schema、探针和测试。
+
+### 18.3 阶段 B：脱离剪映进程的调用桥
+
+桥接应是独立 Objective-C++/C++ 子进程，通过 `dlopen` 装载已锁定版本，并从低层 `TEBachObjectTrackingAlgorithm` / Bach algorithm system 开始验证。不要从 `StickerClient` 开始，因为它依赖剪映编辑器的 IPC 服务端。
+
+建议固定一个与供应商 ABI 隔离的公开合同：
+
+```text
+input:
+  videoPath | decodedFrameStream
+  anchorFrameIndex
+  initialRectNormalized
+  direction: forward | backward | both
+
+output:
+  frameIndex, sourceTimeUs
+  rectNormalized
+  rotationRad?
+  confidence?
+  status: tracked | lost | invalid
+```
+
+桥接进程必须具备：
+
+- UUID 和 SHA-256 不匹配即拒绝启动；
+- 崩溃隔离、超时、取消和最大内存限制；
+- 不访问网络，不连接或启动剪映进程；
+- 输入使用普通视频或解码帧，输出使用自有 JSON/二进制 schema；
+- 不向 TypeScript 暴露私有 C++ 对象、指针或 mangled symbol；
+- 用真实旁车校准时间、坐标、status、丢失和插值语义。
+
+仓库中的 `electron/jianying-person-cutout/native/video-object-bach-bridge.mm` 已证明“按 UUID/hash 锁定私有 `libcccreator` 并隔离装载”的工程模式，但 object tracking 的类布局、初始化参数、模型注册和依赖闭包仍需单独恢复，不能假设可直接复用人物抠像入口。
+
+“脱离剪映可调用”的验收条件是：剪映完全退出后，从全新桥接进程输入普通视频和初始矩形，稳定产出逐帧结果；运行期间没有连接剪映 IPC、没有读取应用用户草稿、没有网络请求，并能在固定样例上重复得到相同结果。只完成库装载、对象构造或单帧 init 都不算通过。
+
+### 18.4 阶段 C：替换为 QCut 自研实现
+
+私有桥与自研 tracker 必须实现同一个 `MotionSolverAdapter`，这样 UI、任务调度、缓存和贴纸渲染不依赖具体求解器。迁移顺序建议为：
+
+1. 先固定矩形、时间、方向、validity 和 lost/reacquire 合同；
+2. 选成熟开源 tracker 做可运行基线，不从零手写数值核心；
+3. 用合成 ground truth、剪映旁车和私有 oracle 建 golden corpus；
+4. 分别比较中心误差、IoU、有效帧率、漂移、遮挡恢复和耗时；
+5. 达到阈值后让 QCut 自研实现成为默认，私有 oracle 留在本地研究测试中；
+6. 最终移除产品运行时对剪映文件、ABI 和安装状态的依赖。
+
+平面跟踪继续走独立的 `surface_tracker` / homography 路线。不要因为两者共享任务 UI，就让 Bingo 矩形 tracker 承担四角透视问题。
+
+## 19. 独立探针
 
 同目录提供两层可脱离剪映调用的探针：
 
