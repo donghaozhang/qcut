@@ -117,6 +117,32 @@ export function TimelineTrackLabel({
 				className={controlClassName}
 				onClick={(event) => {
 					event.stopPropagation();
+					onToggleLocked();
+				}}
+				onKeyDown={(event) =>
+					handleKeyboardActivation({ event, action: onToggleLocked })
+				}
+				aria-label={
+					track.locked
+						? t("timeline.unlock", { name: displayName })
+						: t("timeline.lock", { name: displayName })
+				}
+				title={
+					track.locked ? t("timeline.unlockTrack") : t("timeline.lockTrack")
+				}
+			>
+				{track.locked ? (
+					<Lock className="size-3.5" />
+				) : (
+					<Unlock className="size-3.5" />
+				)}
+			</button>
+
+			<button
+				type="button"
+				className={controlClassName}
+				onClick={(event) => {
+					event.stopPropagation();
 					onToggleHidden();
 				}}
 				onKeyDown={(event) =>
@@ -192,32 +218,6 @@ export function TimelineTrackLabel({
 					</button>
 				</>
 			) : null}
-
-			<button
-				type="button"
-				className={controlClassName}
-				onClick={(event) => {
-					event.stopPropagation();
-					onToggleLocked();
-				}}
-				onKeyDown={(event) =>
-					handleKeyboardActivation({ event, action: onToggleLocked })
-				}
-				aria-label={
-					track.locked
-						? t("timeline.unlock", { name: displayName })
-						: t("timeline.lock", { name: displayName })
-				}
-				title={
-					track.locked ? t("timeline.unlockTrack") : t("timeline.lockTrack")
-				}
-			>
-				{track.locked ? (
-					<Lock className="size-3.5" />
-				) : (
-					<Unlock className="size-3.5" />
-				)}
-			</button>
 
 			<div
 				role="separator"
