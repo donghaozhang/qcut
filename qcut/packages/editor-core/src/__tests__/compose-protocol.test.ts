@@ -252,6 +252,51 @@ describe("compose validation", () => {
 		]);
 	});
 
+	it("rejects invalid sticker aspect and animation options", () => {
+		const snapshot = makeSnapshot();
+		const patch = makePatch({
+			snapshot,
+			overrides: {
+				operations: [
+					{
+						kind: "add-sticker",
+						id: "sticker:bad-options",
+						startTime: 2,
+						duration: 3,
+						maintainAspectRatio: "yes",
+						animationInType: "wipe",
+						animationOutType: "bounce",
+						animationLoopType: "flash",
+						asset: {
+							provider: "local",
+							assetType: "sticker",
+							assetId: "sticker-asset",
+						},
+					} as unknown as ComposePatch["operations"][number],
+				],
+			},
+		});
+
+		expect(validateComposePatch({ snapshot, patch })).toMatchObject([
+			{
+				code: "invalid-sticker-geometry",
+				path: "operations.0.maintainAspectRatio",
+			},
+			{
+				code: "invalid-sticker-geometry",
+				path: "operations.0.animationInType",
+			},
+			{
+				code: "invalid-sticker-geometry",
+				path: "operations.0.animationOutType",
+			},
+			{
+				code: "invalid-sticker-geometry",
+				path: "operations.0.animationLoopType",
+			},
+		]);
+	});
+
 	it("rejects a patch whose snapshot fingerprint is stale", () => {
 		const snapshot = makeSnapshot();
 		const patch = makePatch({
