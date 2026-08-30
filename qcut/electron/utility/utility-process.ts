@@ -17,6 +17,7 @@ import { UtilityPtyManager } from "./utility-pty-manager.js";
 import type { MainToUtilityMessage } from "./utility-ipc-types.js";
 import { setSessionTokenProvider } from "../native-pipeline/infra/proxy-client.js";
 import { getKey } from "../native-pipeline/infra/key-manager.js";
+import { applyProgressEvent } from "../claude/handlers/claude-export-handler/public-api.js";
 
 // Use electron-log when available, fall back to console
 let logger: {
@@ -184,6 +185,12 @@ parentPort.on(
 				break;
 			case "pty:kill-all":
 				ptyManager.killAll();
+				break;
+
+			case "export-progress":
+				// Renderer export progress relayed by main: the export job for a
+				// utility-served request lives in THIS process's job map.
+				applyProgressEvent(msg.payload);
 				break;
 
 			case "ping":
