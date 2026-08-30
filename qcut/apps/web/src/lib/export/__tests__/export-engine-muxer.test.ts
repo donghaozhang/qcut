@@ -37,6 +37,11 @@ vi.mock("mediabunny", () => {
 	};
 });
 
+// The engine constructor resolves the local-mp4 policy through platform().
+vi.mock("@qcut/platform-core", () => ({
+	platform: () => ({ isElectron: false }),
+}));
+
 // Mock export-engine dependencies
 vi.mock("@/lib/ffmpeg/ffmpeg-video-recorder", () => ({
 	FFmpegVideoRecorder: class {},
