@@ -12,21 +12,7 @@ import {
 	readRestrictedState,
 	seekTimeline,
 } from "./sticker-lab-lifecycle-harness";
-
-async function waitForStickerCount({
-	count,
-	page,
-}: {
-	count: number;
-	page: Page;
-}): Promise<void> {
-	await expect
-		.poll(async () => (await readRestrictedState({ page })).stickers.length, {
-			intervals: [100, 250, 500],
-			timeout: 30_000,
-		})
-		.toBe(count);
-}
+import { waitForStickerCount } from "./sticker-lab-restricted-state-wait";
 
 async function ensureStickerLabOpen({ page }: { page: Page }): Promise<void> {
 	await ensureStickersTabActive(page);
