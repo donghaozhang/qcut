@@ -7,7 +7,7 @@ export {
 	PRIVATE_STICKER_CATALOG_IDS,
 	type PrivateStickerCatalogDefinition,
 	type PrivateStickerCatalogId,
-} from "./private-catalogs";
+} from "./private-catalogs.js";
 export { createAlphaVideoRuntimeDescriptor } from "./runtime-alpha-video.js";
 export { parseAtlasRuntimeDescriptor } from "./runtime-atlas.js";
 export { evaluateStickerRuntime } from "./runtime-evaluate.js";
