@@ -27,6 +27,51 @@ const CAPTION_TRACK_ALIAS = "compose-captions";
 const STICKER_TRACK_ALIAS = "compose-stickers";
 const AUDIO_TRACK_ALIAS = "compose-audio";
 
+/** A manifest element together with the timeline span it will occupy. */
+interface LanedElement {
+	element: JsonRecord;
+	start: number;
+	end: number;
+}
+
+/**
+ * Partitions elements into non-overlapping lanes and emits one track per
+ * lane. QCut tracks refuse overlapping elements, but overlapping compose
+ * operations (layered sound effects, simultaneous stickers) are legitimate —
+ * they belong on parallel tracks, the way an editor would lay them out.
+ */
+function lanedComposeTracks({
+	alias,
+	type,
+	name,
+	entries,
+}: {
+	alias: string;
+	type: string;
+	name: string;
+	entries: LanedElement[];
+}): JsonRecord[] {
+	const sorted = [...entries].sort(
+		(left, right) => left.start - right.start || left.end - right.end
+	);
+	const lanes: Array<{ end: number; elements: JsonRecord[] }> = [];
+	for (const entry of sorted) {
+		const lane = lanes.find((candidate) => candidate.end <= entry.start);
+		if (lane) {
+			lane.end = entry.end;
+			lane.elements.push(entry.element);
+		} else {
+			lanes.push({ end: entry.end, elements: [entry.element] });
+		}
+	}
+	return lanes.map((lane, index) => ({
+		alias: index === 0 ? alias : `${alias}-${index + 1}`,
+		type,
+		name: index === 0 ? name : `${name} ${index + 1}`,
+		elements: lane.elements,
+	}));
+}
+
 function editorTransitionPreset({ presetId }: { presetId: string }): string {
 	return presetId === "crossfade" ? "dissolve" : presetId;
 }
@@ -164,10 +209,10 @@ export function timelineManifestFromComposePatch({
 	snapshot?: ComposeSnapshot;
 	bindings?: ComposeEditorAssetBindings;
 }): ComposeTimelineManifestPlan {
-	const textElements: JsonRecord[] = [];
-	const captionElements: JsonRecord[] = [];
-	const stickerElements: JsonRecord[] = [];
-	const audioElements: JsonRecord[] = [];
+	const textElements: LanedElement[] = [];
+	const captionElements: LanedElement[] = [];
+	const stickerElements: LanedElement[] = [];
+	const audioElements: LanedElement[] = [];
 	const media: JsonRecord[] = [];
 	const updates: JsonRecord[] = [];
 	const transitions: JsonRecord[] = [];
@@ -179,24 +224,32 @@ export function timelineManifestFromComposePatch({
 		switch (operation.kind) {
 			case "add-caption":
 				captionElements.push({
-					alias: operation.id,
-					id: operation.id,
-					type: "captions",
-					content: operation.text,
-					language: operation.language,
-					startTime: operation.startTime,
-					duration: operation.duration,
+					start: operation.startTime,
+					end: operation.startTime + operation.duration,
+					element: {
+						alias: operation.id,
+						id: operation.id,
+						type: "captions",
+						content: operation.text,
+						language: operation.language,
+						startTime: operation.startTime,
+						duration: operation.duration,
+					},
 				});
 				plannedOperationIds.push(operation.id);
 				break;
 			case "add-text-overlay":
 				textElements.push({
-					alias: operation.id,
-					id: operation.id,
-					type: "text",
-					content: operation.text,
-					startTime: operation.startTime,
-					duration: operation.duration,
+					start: operation.startTime,
+					end: operation.startTime + operation.duration,
+					element: {
+						alias: operation.id,
+						id: operation.id,
+						type: "text",
+						content: operation.text,
+						startTime: operation.startTime,
+						duration: operation.duration,
+					},
 				});
 				plannedOperationIds.push(operation.id);
 				break;
@@ -216,28 +269,32 @@ export function timelineManifestFromComposePatch({
 					media.push({ alias: mediaAliasFor({ operation }), path: localPath });
 				}
 				stickerElements.push({
-					alias: operation.id,
-					id: operation.id,
-					type: "sticker",
-					mediaId: binding?.mediaId ?? mediaAliasFor({ operation }),
-					stickerAssetId: binding?.stickerAssetId ?? operation.asset.assetId,
-					stickerId: operation.id,
-					startTime: operation.startTime,
-					duration: operation.duration,
-					...(binding?.stickerRuntime
-						? { stickerRuntime: binding.stickerRuntime }
-						: {}),
-					...stickerGeometryForEditor({ operation }),
-					...(operation.rotation !== undefined
-						? { rotation: operation.rotation }
-						: {}),
-					...(operation.opacity !== undefined
-						? { opacity: operation.opacity }
-						: {}),
-					...(operation.maintainAspectRatio !== undefined
-						? { maintainAspectRatio: operation.maintainAspectRatio }
-						: {}),
-					...stickerAnimationFields({ operation }),
+					start: operation.startTime,
+					end: operation.startTime + operation.duration,
+					element: {
+						alias: operation.id,
+						id: operation.id,
+						type: "sticker",
+						mediaId: binding?.mediaId ?? mediaAliasFor({ operation }),
+						stickerAssetId: binding?.stickerAssetId ?? operation.asset.assetId,
+						stickerId: operation.id,
+						startTime: operation.startTime,
+						duration: operation.duration,
+						...(binding?.stickerRuntime
+							? { stickerRuntime: binding.stickerRuntime }
+							: {}),
+						...stickerGeometryForEditor({ operation }),
+						...(operation.rotation !== undefined
+							? { rotation: operation.rotation }
+							: {}),
+						...(operation.opacity !== undefined
+							? { opacity: operation.opacity }
+							: {}),
+						...(operation.maintainAspectRatio !== undefined
+							? { maintainAspectRatio: operation.maintainAspectRatio }
+							: {}),
+						...stickerAnimationFields({ operation }),
+					},
 				});
 				plannedOperationIds.push(operation.id);
 				break;
@@ -255,24 +312,28 @@ export function timelineManifestFromComposePatch({
 				}
 				media.push({ alias: mediaAliasFor({ operation }), path: localPath });
 				audioElements.push({
-					alias: operation.id,
-					id: operation.id,
-					type: "audio",
-					media: mediaAliasFor({ operation }),
-					startTime: operation.startTime,
-					duration: soundSourceDuration({ operation }),
-					volume: operation.volume,
-					trimStart: operation.trimStart ?? 0,
-					trimEnd: operation.trimEnd ?? 0,
-					...(operation.fadeIn !== undefined
-						? { audioFadeIn: operation.fadeIn }
-						: {}),
-					...(operation.fadeOut !== undefined
-						? { audioFadeOut: operation.fadeOut }
-						: {}),
-					...(operation.playbackRate !== undefined
-						? { playbackRate: operation.playbackRate }
-						: {}),
+					start: operation.startTime,
+					end: operation.startTime + operation.duration,
+					element: {
+						alias: operation.id,
+						id: operation.id,
+						type: "audio",
+						media: mediaAliasFor({ operation }),
+						startTime: operation.startTime,
+						duration: soundSourceDuration({ operation }),
+						volume: operation.volume,
+						trimStart: operation.trimStart ?? 0,
+						trimEnd: operation.trimEnd ?? 0,
+						...(operation.fadeIn !== undefined
+							? { audioFadeIn: operation.fadeIn }
+							: {}),
+						...(operation.fadeOut !== undefined
+							? { audioFadeOut: operation.fadeOut }
+							: {}),
+						...(operation.playbackRate !== undefined
+							? { playbackRate: operation.playbackRate }
+							: {}),
+					},
 				});
 				plannedOperationIds.push(operation.id);
 				break;
@@ -351,39 +412,32 @@ export function timelineManifestFromComposePatch({
 		}
 	}
 
-	const tracks: JsonRecord[] = [];
-	if (textElements.length > 0) {
-		tracks.push({
+	const tracks: JsonRecord[] = [
+		...lanedComposeTracks({
 			alias: TEXT_TRACK_ALIAS,
 			type: "text",
 			name: "Compose Text",
-			elements: textElements,
-		});
-	}
-	if (captionElements.length > 0) {
-		tracks.push({
+			entries: textElements,
+		}),
+		...lanedComposeTracks({
 			alias: CAPTION_TRACK_ALIAS,
 			type: "captions",
 			name: "Compose Captions",
-			elements: captionElements,
-		});
-	}
-	if (stickerElements.length > 0) {
-		tracks.push({
+			entries: captionElements,
+		}),
+		...lanedComposeTracks({
 			alias: STICKER_TRACK_ALIAS,
 			type: "sticker",
 			name: "Compose Stickers",
-			elements: stickerElements,
-		});
-	}
-	if (audioElements.length > 0) {
-		tracks.push({
+			entries: stickerElements,
+		}),
+		...lanedComposeTracks({
 			alias: AUDIO_TRACK_ALIAS,
 			type: "audio",
 			name: "Compose Sound Effects",
-			elements: audioElements,
-		});
-	}
+			entries: audioElements,
+		}),
+	];
 
 	return {
 		manifest: {
