@@ -219,6 +219,11 @@ export function timelineManifestFromComposePatch({
 	const plannedOperationIds: string[] = [];
 	const plannedTransitionOperationIds: string[] = [];
 	const skipped: ComposeSkippedOperation[] = [];
+	const pendingClipIds = new Set(
+		patch.operations
+			.filter((operation) => operation.kind === "insert-media-clip")
+			.map((operation) => operation.id)
+	);
 
 	for (const operation of patch.operations) {
 		switch (operation.kind) {
@@ -382,6 +387,18 @@ export function timelineManifestFromComposePatch({
 				break;
 			}
 			case "upsert-transition": {
+				if (
+					pendingClipIds.has(operation.fromElementId) ||
+					pendingClipIds.has(operation.toElementId)
+				) {
+					skipped.push({
+						operationId: operation.id,
+						kind: operation.kind,
+						reason:
+							"Transitions between pending clips are not applied by the v1 timeline bridge yet.",
+					});
+					break;
+				}
 				const binding = bindings[operation.id]?.transition;
 				const presetId = editorTransitionPreset({
 					presetId: binding?.presetId ?? operation.presetId,
@@ -409,6 +426,23 @@ export function timelineManifestFromComposePatch({
 				plannedTransitionOperationIds.push(operation.id);
 				break;
 			}
+			case "insert-media-clip":
+			case "set-media-filter-stack":
+			case "add-filter-layer":
+				skipped.push({
+					operationId: operation.id,
+					kind: operation.kind,
+					reason:
+						"Editable-project operations are not applied by the v1 timeline bridge yet.",
+				});
+				break;
+			default:
+				skipped.push({
+					operationId: (operation as ComposePatchOperation).id,
+					kind: (operation as ComposePatchOperation).kind,
+					reason: "Unknown compose operation kind.",
+				});
+				break;
 		}
 	}
 
