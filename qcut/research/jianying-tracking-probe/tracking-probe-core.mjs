@@ -36,10 +36,10 @@ function extractPayloadArrays({ dataPayload }) {
 
 function classifyTracking({ desc, samples }) {
 	const planarSamples = samples.filter((sample) =>
-		hasFields({ value: sample, fields: PLANAR_FIELDS }),
+		hasFields({ value: sample, fields: PLANAR_FIELDS })
 	).length;
 	const motionSamples = samples.filter((sample) =>
-		hasFields({ value: sample, fields: MOTION_FIELDS }),
+		hasFields({ value: sample, fields: MOTION_FIELDS })
 	).length;
 	const total = samples.length;
 	const descHint =
@@ -51,12 +51,12 @@ function classifyTracking({ desc, samples }) {
 	}
 	if (motionSamples > 0) {
 		evidence.push(
-			`${motionSamples}/${total} samples expose left/top/right/bottom`,
+			`${motionSamples}/${total} samples expose left/top/right/bottom`
 		);
 	}
 	if (descHint) {
 		evidence.push(
-			`desc.resType=${desc.resType} hints ${descHint} for the observed profile`,
+			`desc.resType=${desc.resType} hints ${descHint} for the observed profile`
 		);
 	}
 
@@ -131,7 +131,7 @@ function analyzePts({ samples }) {
 		nonIncreasing: nonIncreasingIndices.length,
 		nonIncreasingIndices: nonIncreasingIndices.slice(
 			0,
-			MAX_REPORTED_SAMPLE_INDICES,
+			MAX_REPORTED_SAMPLE_INDICES
 		),
 	};
 }
@@ -162,7 +162,7 @@ function addCrossChecks({ classification, desc, pts, samples, issues }) {
 				severity: "warning",
 				code: "descriptor-schema-conflict",
 				message: `desc.resType hints ${classification.descHint}, but sample fields classify as ${classification.kind}`,
-			}),
+			})
 		);
 	}
 
@@ -172,7 +172,7 @@ function addCrossChecks({ classification, desc, pts, samples, issues }) {
 				severity: "error",
 				code: "empty-track",
 				message: "tracking payload contains no data samples",
-			}),
+			})
 		);
 	}
 
@@ -183,7 +183,7 @@ function addCrossChecks({ classification, desc, pts, samples, issues }) {
 				code: "invalid-pts",
 				message: `${pts.missingOrInvalid}/${samples.length} samples have missing or non-finite pts`,
 				sampleIndices: pts.invalidIndices,
-			}),
+			})
 		);
 	}
 
@@ -194,7 +194,7 @@ function addCrossChecks({ classification, desc, pts, samples, issues }) {
 				code: "non-increasing-pts",
 				message: `${pts.nonIncreasing} samples do not advance monotonically in input order`,
 				sampleIndices: pts.nonIncreasingIndices,
-			}),
+			})
 		);
 	}
 
@@ -215,7 +215,7 @@ function addCrossChecks({ classification, desc, pts, samples, issues }) {
 					code: "descriptor-pts-range-differs",
 					message:
 						"desc start/end do not exactly match sample PTS coverage; preserve both until the profile time contract is known",
-				}),
+				})
 			);
 		}
 	}
@@ -255,7 +255,7 @@ export function analyzeTrackingBundle({
 				code: "unknown-track-schema",
 				message:
 					"sample fields do not match the known planar or motion tracking shapes",
-			}),
+			})
 		);
 	}
 
@@ -301,14 +301,14 @@ export function formatHumanReport({ report }) {
 			report.analysis.control > 0 ? `; ${report.analysis.control} control` : "";
 		lines.push(
 			`Geometry validity: ${report.analysis.valid}/${report.analysis.evaluated} evaluated samples valid; ${report.analysis.invalid} invalid${control}`,
-			`Statuses: ${formatHistogram({ histogram: report.analysis.statusHistogram })}`,
+			`Statuses: ${formatHistogram({ histogram: report.analysis.statusHistogram })}`
 		);
 	}
 
 	if (report.classification.kind === "planar" && report.analysis) {
 		lines.push(
 			`Planar area: min=${report.analysis.geometry.area.minimum ?? "n/a"}, median=${report.analysis.geometry.area.median ?? "n/a"}, max=${report.analysis.geometry.area.maximum ?? "n/a"}`,
-			`Maximum corner jump: ${report.analysis.geometry.maximumCornerJump?.distance ?? "n/a"}`,
+			`Maximum corner jump: ${report.analysis.geometry.maximumCornerJump?.distance ?? "n/a"}`
 		);
 	}
 
@@ -316,12 +316,12 @@ export function formatHumanReport({ report }) {
 		lines.push(
 			`Motion area: min=${report.analysis.geometry.area.minimum ?? "n/a"}, median=${report.analysis.geometry.area.median ?? "n/a"}, max=${report.analysis.geometry.area.maximum ?? "n/a"}`,
 			`Maximum center jump: ${report.analysis.geometry.maximumCenterJump?.distance ?? "n/a"}`,
-			`Dense cache: ${report.analysis.denseCache ? `${report.analysis.denseCache.valid}/${report.analysis.denseCache.total} valid` : "none"}`,
+			`Dense cache: ${report.analysis.denseCache ? `${report.analysis.denseCache.valid}/${report.analysis.denseCache.total} valid` : "none"}`
 		);
 	}
 
 	lines.push(
-		`Outcome: ${report.outcome.valid ? "VALID" : "INVALID"}; errors=${report.outcome.errors}, warnings=${report.outcome.warnings}, info=${report.outcome.information}`,
+		`Outcome: ${report.outcome.valid ? "VALID" : "INVALID"}; errors=${report.outcome.errors}, warnings=${report.outcome.warnings}, info=${report.outcome.information}`
 	);
 
 	if (report.issues.length > 0) {
@@ -332,7 +332,7 @@ export function formatHumanReport({ report }) {
 					? ` [samples ${issue.sampleIndices.join(", ")}]`
 					: "";
 			lines.push(
-				`  ${issue.severity.toUpperCase()} ${issue.code}: ${issue.message}${indices}`,
+				`  ${issue.severity.toUpperCase()} ${issue.code}: ${issue.message}${indices}`
 			);
 		}
 	}
