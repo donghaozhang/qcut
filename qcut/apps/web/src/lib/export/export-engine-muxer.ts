@@ -16,6 +16,11 @@ import { calculateFrameTime } from "./export-engine-utils";
 import { exportProfiler } from "./export-profiler";
 import { reportExportFrameProgress } from "./export-progress-reporter";
 import { assertCanvasClipTransitionsRenderable } from "./export-clip-transitions";
+import {
+	type CanvasYuvConverter,
+	createCanvasYuvConverter,
+	EXPORT_VIDEO_COLOR_SPACE,
+} from "./export-canvas-yuv";
 import { isJianyingTimelineRendererAvailable } from "./export-engine-cli-jianying";
 import { applyJianyingTransitionsToRenderedVideo } from "./export-muxer-jianying-pass";
 
@@ -69,6 +74,7 @@ export class ExportEngineMuxer extends ExportEngine {
 
 		this.isExporting = true;
 		this.abortController = new AbortController();
+		let yuvConverter: CanvasYuvConverter | null = null;
 
 		try {
 			progressCallback?.(0, "Initializing WebCodecs encoder...");
@@ -96,7 +102,8 @@ export class ExportEngineMuxer extends ExportEngine {
 				Output,
 				Mp4OutputFormat,
 				BufferTarget,
-				CanvasSource,
+				VideoSample,
+				VideoSampleSource,
 				AudioBufferSource,
 			} = await import("mediabunny");
 
@@ -113,14 +120,23 @@ export class ExportEngineMuxer extends ExportEngine {
 				target,
 			});
 
-			// Create video source from canvas
-			// Use "no-preference" so it works on both real hardware (GPU) and simulator (software)
-			const videoSource = new CanvasSource(this.canvas, {
+			// Every frame is converted to BT.709 limited-range I420 on our
+			// side before it reaches the encoder. Chromium fixes the stream's
+			// color tags when the encoder is configured but chooses the
+			// RGB→Y'CbCr matrix per frame from mutable canvas state, so raw
+			// canvas frames can mix BT.601- and BT.709-coded frames under one
+			// tag; pre-converted I420 keeps the tags truthful for the whole
+			// stream. "no-preference" works on real hardware and simulators.
+			const videoSource = new VideoSampleSource({
 				codec: "avc",
 				bitrate: videoBitrate,
 				hardwareAcceleration: "no-preference",
 			});
 			output.addVideoTrack(videoSource, { frameRate: fps });
+			yuvConverter = createCanvasYuvConverter({
+				width: this.canvas.width,
+				height: this.canvas.height,
+			});
 
 			// Prepare audio if timeline has audio elements
 			const audioData = shouldIncludeAudio(this.settings)
@@ -180,10 +196,25 @@ export class ExportEngineMuxer extends ExportEngine {
 					await exportProfiler.time("encode-wait", () => settled);
 				}
 
-				// Feed canvas to mediabunny's CanvasSource with timeout
-				// (WebCodecs encoder can stall on simulator or unsupported platforms)
+				// Capture the canvas as a BT.709 I420 sample (the sample copies
+				// the bytes, so the converter's buffer can be reused) and feed
+				// it to mediabunny with a timeout (WebCodecs encoders can stall
+				// on simulator or unsupported platforms).
+				const converter = yuvConverter;
+				if (!converter) throw new Error("YUV converter was disposed");
+				const yuvFrame = exportProfiler.timeSync("yuv-convert", () =>
+					converter.convert(this.canvas)
+				);
+				const sample = new VideoSample(yuvFrame.data, {
+					format: "I420",
+					codedWidth: yuvFrame.codedWidth,
+					codedHeight: yuvFrame.codedHeight,
+					timestamp: currentTime,
+					duration: frameDuration,
+					colorSpace: EXPORT_VIDEO_COLOR_SPACE,
+				});
 				const encodePromise = withTimeout(
-					videoSource.add(currentTime, frameDuration),
+					videoSource.add(sample).then(() => sample.close()),
 					10_000,
 					`Encoder stalled at frame ${frame + 1}/${totalFrames}`
 				);
@@ -269,6 +300,8 @@ export class ExportEngineMuxer extends ExportEngine {
 			console.error("[ExportEngineMuxer] Export failed:", error);
 			throw error;
 		} finally {
+			yuvConverter?.dispose();
+			yuvConverter = null;
 			this.activeOutput = null;
 			this.isExporting = false;
 			await this.disposeSequentialVideo();
