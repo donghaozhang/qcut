@@ -10,18 +10,13 @@
 
 import { existsSync } from "node:fs";
 import { copyFile, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
-import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import type { Page } from "@playwright/test";
-import { _electron as electron } from "playwright";
 import { resolveJianyingTransition } from "../../../../../electron/jianying-transition-catalog";
 import { uploadTestMedia } from "./helpers/e2e-panel-helpers";
-import {
-	createTestProject,
-	expect,
-	test as qcutTest,
-} from "./helpers/electron-helpers";
+import { createTestProject, expect } from "./helpers/electron-helpers";
+import { isolatedElectronTest as test } from "./helpers/isolated-electron-fixture";
 import {
 	audioRmsDb,
 	blendFrames,
@@ -118,46 +113,6 @@ interface ExposedWindow extends Window {
 		};
 	};
 }
-
-async function findAvailablePort(): Promise<number> {
-	const server = createServer();
-	await new Promise<void>((resolve, reject) => {
-		server.once("error", reject);
-		server.listen(0, "127.0.0.1", () => resolve());
-	});
-	const address = server.address();
-	if (!address || typeof address === "string") {
-		throw new Error("Could not allocate an API port");
-	}
-	await new Promise<void>((resolve, reject) => {
-		server.close((error) => (error ? reject(error) : resolve()));
-	});
-	return address.port;
-}
-
-const test = qcutTest.extend<{ apiPort: number }>({
-	// biome-ignore lint/correctness/noEmptyPattern: Playwright fixtures require empty destructuring
-	apiPort: async ({}, use) => {
-		await use(await findAvailablePort());
-	},
-	electronApp: async ({ apiPort }, use) => {
-		const userDataDirectory = await mkdtemp(
-			path.join(tmpdir(), "qcut-muxer-transition-")
-		);
-		const electronApp = await electron.launch({
-			args: ["dist/electron/main.js", `--user-data-dir=${userDataDirectory}`],
-			env: {
-				...process.env,
-				ELECTRON_DISABLE_GPU: "1",
-				NODE_ENV: "test",
-				QCUT_API_PORT: String(apiPort),
-			},
-		});
-		await use(electronApp);
-		await electronApp.close();
-		await rm(userDataDirectory, { force: true, recursive: true });
-	},
-});
 
 async function buildSeamTimeline({
 	page,
