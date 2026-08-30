@@ -660,14 +660,24 @@ describe("compose apply handler", () => {
 		// which the replay's timeline read then reports back.
 		const timeline: {
 			tracks: Array<{
+				id: string;
 				elements: Array<{ id: string }>;
-				transitions: Array<{ fromElementId: string; toElementId: string }>;
+				transitions: Array<{
+					duration: number;
+					fromElementId: string;
+					presetId: string;
+					toElementId: string;
+				}>;
 			}>;
-		} = { tracks: [{ elements: [], transitions: [] }] };
+		} = {
+			tracks: [{ id: "track-video", elements: [], transitions: [] }],
+		};
 		const applyManifest = vi.fn(async () => {
 			timeline.tracks[0].elements.push({ id: "caption:1" });
 			timeline.tracks[0].transitions.push({
+				duration: 1,
 				fromElementId: "element-1",
+				presetId: "crossfade",
 				toElementId: "element-2",
 			});
 			return {
@@ -721,5 +731,31 @@ describe("compose apply handler", () => {
 			patch: ComposePatch;
 		};
 		expect(replayPrepareCall.patch.operations).toEqual([]);
+
+		const changedPatch: ComposePatch = {
+			...replayPatch,
+			id: "patch-transition-changed",
+			operations: replayPatch.operations.map((operation) =>
+				operation.kind === "upsert-transition"
+					? { ...operation, duration: 0.5, presetId: "dissolve" }
+					: operation
+			),
+		};
+		fs.writeFileSync(replayPatchPath, JSON.stringify(changedPatch));
+		const changed = await handleComposeApply(
+			runOptions,
+			noProgress,
+			signal,
+			dependencies
+		);
+
+		expect(changed.success).toBe(true);
+		expect(applyManifest).toHaveBeenCalledTimes(2);
+		const changedPrepareCall = prepareAssets.mock.calls.at(-1)?.[0] as {
+			patch: ComposePatch;
+		};
+		expect(changedPrepareCall.patch.operations).toMatchObject([
+			{ kind: "upsert-transition", duration: 0.5, presetId: "dissolve" },
+		]);
 	});
 });
