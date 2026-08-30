@@ -1,12 +1,14 @@
 import { existsSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import {
 	createEditorClient,
 	type EditorApiClient,
 } from "../editor/editor-api-client.js";
 import { resolveJsonInput } from "../editor/editor-api-types.js";
+import { verifyExportFrames } from "../editor/editor-export-verification.js";
 import { timelineApplyManifest } from "../editor/editor-timeline-apply.js";
+import { probeComposeMedia } from "../compose/compose-resolver.js";
 import {
 	materializeComposePatchAssets,
 	resolveComposePatchAssets,
@@ -32,6 +34,8 @@ export interface ComposeEditorDependencies {
 	applyManifest: typeof timelineApplyManifest;
 	resolveAssets: typeof resolveComposePatchAssets;
 	materializeAssets: typeof materializeComposePatchAssets;
+	probeOutput: typeof probeComposeMedia;
+	verifyFrames: typeof verifyExportFrames;
 }
 
 const DEFAULT_DEPENDENCIES: ComposeEditorDependencies = {
@@ -40,6 +44,8 @@ const DEFAULT_DEPENDENCIES: ComposeEditorDependencies = {
 	applyManifest: timelineApplyManifest,
 	resolveAssets: resolveComposePatchAssets,
 	materializeAssets: materializeComposePatchAssets,
+	probeOutput: probeComposeMedia,
+	verifyFrames: verifyExportFrames,
 };
 
 function errorMessage({ error }: { error: unknown }): string {
@@ -245,6 +251,129 @@ export async function handleComposeApply(
 		return {
 			success: false,
 			error: `Compose apply failed: ${errorMessage({ error })}`,
+			duration: (Date.now() - startedAt) / 1000,
+		};
+	}
+}
+
+interface ComposeApplyData {
+	projectId: string;
+	snapshotId: string;
+	patchId: string;
+	issues: unknown[];
+	assets: unknown[];
+	applied: Record<string, string>;
+	skipped: unknown[];
+}
+
+/**
+ * Renders a compose patch through the real editor: apply, export over the
+ * Claude bridge, probe the output, and write a render report that ties the
+ * result back to its snapshot, patch, and export job.
+ */
+export async function handleComposeRenderPatch(
+	options: CLIRunOptions,
+	onProgress: ProgressFn,
+	signal: AbortSignal,
+	dependencies: ComposeEditorDependencies = DEFAULT_DEPENDENCIES
+): Promise<CLIResult> {
+	const startedAt = Date.now();
+	try {
+		const target = options.target ?? "editor";
+		if (target !== "editor") {
+			throw new Error(
+				"Patch mode renders through the editor (--target editor); headless rendering takes --config."
+			);
+		}
+		const applyResult = await handleComposeApply(
+			options,
+			onProgress,
+			signal,
+			dependencies
+		);
+		if (!applyResult.success) return applyResult;
+		const applyData = applyResult.data as ComposeApplyData;
+
+		const outputPath = resolve(
+			options.output ??
+				join(options.outputDir, `compose-render-${Date.now()}.mp4`)
+		);
+		onProgress({
+			stage: "processing",
+			percent: 60,
+			message: "Exporting the composed timeline...",
+		});
+		const client = dependencies.createClient(options);
+		const exportBase = `/api/claude/export/${encodeURIComponent(applyData.projectId)}`;
+		const started = await client.post<{ jobId: string }>(
+			`${exportBase}/start`,
+			{ outputPath }
+		);
+		await client.pollJob(`${exportBase}/jobs/${started.jobId}`, {
+			interval: (options.pollInterval ?? 3) * 1000,
+			timeout: (options.timeout ?? 600) * 1000,
+			onProgress: (job) => {
+				onProgress({
+					stage: "polling",
+					percent: 60 + Math.round(((job.progress as number) ?? 0) * 0.3),
+					message: (job.message as string) ?? `Export: ${job.status}`,
+				});
+			},
+		});
+
+		const probe = await dependencies.probeOutput({
+			filePath: outputPath,
+			signal,
+		});
+		let frames: Awaited<ReturnType<typeof verifyExportFrames>> | undefined;
+		if (options.verifyFrames) {
+			const timestamps = options.verifyFrames
+				.split(",")
+				.map((value) => Number(value.trim()));
+			if (timestamps.some((value) => !Number.isFinite(value))) {
+				throw new Error(
+					`Invalid --verify-frames values: ${options.verifyFrames}`
+				);
+			}
+			frames = await dependencies.verifyFrames(outputPath, timestamps);
+		}
+
+		const report = {
+			schemaVersion: 1,
+			kind: "qcut-compose-render-report-v1",
+			target: "editor",
+			projectId: applyData.projectId,
+			snapshotId: applyData.snapshotId,
+			patchId: applyData.patchId,
+			appliedOperationIds: Object.keys(applyData.applied),
+			skipped: applyData.skipped,
+			issues: applyData.issues,
+			assets: applyData.assets,
+			export: { jobId: started.jobId, outputPath },
+			probe,
+			...(frames ? { frames: frames.frames } : {}),
+		};
+		const reportPath = resolve(
+			join(options.outputDir, `compose-render-report-${started.jobId}.json`)
+		);
+		await mkdir(dirname(reportPath), { recursive: true });
+		await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+		onProgress({
+			stage: "complete",
+			percent: 100,
+			message: "Compose render verified",
+		});
+		return {
+			success: true,
+			outputPath,
+			outputPaths: [outputPath, reportPath],
+			data: { ...report, reportPath },
+			duration: (Date.now() - startedAt) / 1000,
+		};
+	} catch (error) {
+		return {
+			success: false,
+			error: `Compose render failed: ${errorMessage({ error })}`,
 			duration: (Date.now() - startedAt) / 1000,
 		};
 	}
