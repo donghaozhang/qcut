@@ -35,12 +35,7 @@ const STICKER_ANIMATION_LOOP_TYPES = new Set([
 	"bounce",
 ] as const);
 
-type StickerAnimationIn =
-	| "none"
-	| "fade"
-	| "slide"
-	| "scale"
-	| "bounce";
+type StickerAnimationIn = "none" | "fade" | "slide" | "scale" | "bounce";
 type StickerAnimationOut = "none" | "fade" | "slide" | "scale";
 type StickerAnimationLoop = "none" | "pulse" | "float" | "spin" | "bounce";
 
@@ -73,7 +68,9 @@ function finiteField({
 	key: string;
 }): number | undefined {
 	const value = record[key];
-	return typeof value === "number" && Number.isFinite(value) ? value : undefined;
+	return typeof value === "number" && Number.isFinite(value)
+		? value
+		: undefined;
 }
 
 function boundedField({
@@ -310,9 +307,7 @@ function sanitizeSticker({
 		...(animationOutType ? { animationOutType } : {}),
 		...(animationOutDuration !== undefined ? { animationOutDuration } : {}),
 		...(animationLoopType ? { animationLoopType } : {}),
-		...(animationLoopIntensity !== undefined
-			? { animationLoopIntensity }
-			: {}),
+		...(animationLoopIntensity !== undefined ? { animationLoopIntensity } : {}),
 	};
 }
 
@@ -502,7 +497,11 @@ export function sanitizeComposeModelOperations({
 	const operations: ComposePatchOperation[] = [];
 	for (const [index, candidate] of value.operations.entries()) {
 		if (!isRecord(candidate)) continue;
-		const operation = sanitizeOperation({ operation: candidate, index, context });
+		const operation = sanitizeOperation({
+			operation: candidate,
+			index,
+			context,
+		});
 		if (operation) operations.push(operation);
 	}
 	return operations;
