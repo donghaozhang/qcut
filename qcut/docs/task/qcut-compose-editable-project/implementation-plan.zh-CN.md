@@ -1,7 +1,7 @@
 # QCut 可编辑 Compose 工程实施任务书
 
 日期：2026-08-31  
-状态：Phase A–C 完成（滤镜栈真实桌面门禁通过），Phase D 未开始  
+状态：Phase A–D 完成（全实验室组合门禁通过），Phase E 收尾中  
 依赖：PR #441 `feat: complete Compose resource labs` 及其性能/CI 收尾  
 建议执行者：Claude（完成当前 Compose Export Performance Hardening 后开始）
 
@@ -791,6 +791,14 @@ apps/web/src/lib/export/*
 - 完整组合 E2E、headless/editor 对照和 rollback。
 
 门禁：本文 14.3 的完整配方通过。
+
+**状态：✅ 完成（2026-08-31，分支 `codex/compose-editable-project-v2`，证据 `evidence/2026-08-31-phase-d/`）**
+
+- 单一时间线同时承载：3 真实片段（逐片段滤镜栈三后端）+ 2 dissolve + 2 同时贴纸（1 动画）+ 3 音效（trim/fade/2×变速/重叠分轨）+ caption + text，10 元素 / 2 转场 / 3 滤镜栈，apply verified、replay 幂等。
+- **整机重启持久化**：kill/重启/重开后 canonical 摘要逐字节一致（§10.2）；UI 截图入档。
+- Headless/editor 对照（§14.4）：无覆盖点 SSIM 0.964–0.975（三滤镜后端全覆盖）；转场中点 0.772 = muxer parity gap 的量化记录。
+- 音频能量、双贴纸帧、caption/text 帧证据入档；坏资源 patch 校验拒绝且零副作用。
+- 修复：补偿清理先导航离开再删项目；active-project 双确认 + project-scope 守卫窗口 5s。
 
 ### Phase E：性能和 CI
 
