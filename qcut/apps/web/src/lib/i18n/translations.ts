@@ -1768,10 +1768,10 @@ const EN_TRANSLATIONS = {
 		"The current tracker does not produce rotation data.",
 	"stickerProperties.tracking.unlink": "Unlink tracking",
 	"stickerProperties.tracking.empty":
-		"No ready MediaPipe, SAM3, or optical-flow mask track overlaps this sticker.",
+		"No ready Bingo, MediaPipe, SAM3, or optical-flow mask track overlaps this sticker.",
 	"stickerProperties.tracking.create": "Track on {{name}}",
 	"stickerProperties.tracking.realData":
-		"Position follows real mask-tracking keyframes. Direction is configured on the source mask.",
+		"Position and optional scale follow real mask keyframes. Bingo tracks can also drive rotation.",
 	"stickerProperties.tracking.planar": "Planar tracking",
 	"stickerProperties.tracking.planarUnavailable":
 		"Unavailable: the current tracking engine has no homography or planar-surface solver.",
@@ -3684,10 +3684,10 @@ const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
 		"当前跟踪器不生成旋转数据，因此不能安全开启。",
 	"stickerProperties.tracking.unlink": "解除跟踪",
 	"stickerProperties.tracking.empty":
-		"当前贴纸范围内没有已完成的 MediaPipe、SAM3 或光流蒙版轨迹。",
+		"当前贴纸范围内没有已完成的 Bingo、MediaPipe、SAM3 或光流蒙版轨迹。",
 	"stickerProperties.tracking.create": "在{{name}}上创建跟踪",
 	"stickerProperties.tracking.realData":
-		"位置读取真实蒙版跟踪关键帧；跟踪方向在源蒙版中设置。",
+		"位置和可选缩放读取真实蒙版关键帧；Bingo 轨迹还可驱动旋转。",
 	"stickerProperties.tracking.planar": "平面跟踪",
 	"stickerProperties.tracking.planarUnavailable":
 		"暂不可用：当前跟踪引擎没有单应性或平面表面求解器。",
