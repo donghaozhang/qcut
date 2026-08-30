@@ -1,5 +1,10 @@
 const PRIVATE_CACHE_MARKER = "<private-sticker-cache>";
 const REAL_VIDEO_MARKER = "<real-test-video>";
+const PRIVATE_USER_PATH_PATTERNS = [
+	/\/Users\/[^/"\\]+/,
+	/\/home\/[^/"\\]+/,
+	/[A-Za-z]:(?:\\\\|\/)Users(?:\\\\|\/)[^/"\\]+/,
+];
 
 interface EvidenceReplacement {
 	replacement: string;
@@ -51,7 +56,8 @@ export function redactStickerLabEvidence({
 		],
 		value,
 	});
-	if (JSON.stringify(redacted).includes("/Users/")) {
+	const serialized = JSON.stringify(redacted);
+	if (PRIVATE_USER_PATH_PATTERNS.some((pattern) => pattern.test(serialized))) {
 		throw new Error("Sticker Lab evidence contains a private user path");
 	}
 	return redacted;
