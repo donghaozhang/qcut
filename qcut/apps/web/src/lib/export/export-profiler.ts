@@ -196,3 +196,13 @@ class ExportProfiler {
 }
 
 export const exportProfiler = new ExportProfiler();
+
+// Expose for E2E automation that drives exports directly through
+// window.__exportActions (bypassing the Claude IPC bridge that normally
+// arms/disarms this profiler), matching the unconditional exposure used by
+// useExportStore/useTimelineStore.
+if (typeof window !== "undefined") {
+	(
+		window as Window & { __exportProfiler?: typeof exportProfiler }
+	).__exportProfiler = exportProfiler;
+}
