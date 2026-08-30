@@ -230,11 +230,11 @@ test("CLI runs against a synthetic bundle without Jianying", async (context) => 
 				startTime: 0,
 				endTime: 33_333,
 				baselinePts: [],
-			}),
+			})
 		),
 		writeFile(
 			path.join(bundle, "data.json"),
-			JSON.stringify(makePayload({ samples: [makePlanarSample({ pts: 0 })] })),
+			JSON.stringify(makePayload({ samples: [makePlanarSample({ pts: 0 })] }))
 		),
 	]);
 
@@ -243,7 +243,7 @@ test("CLI runs against a synthetic bundle without Jianying", async (context) => 
 		[CLI_PATH.pathname, "--json", root],
 		{
 			encoding: "utf8",
-		},
+		}
 	);
 	const output = JSON.parse(result.stdout);
 
@@ -271,8 +271,8 @@ test("CLI returns exit 2 for invalid geometry only when requested", async (conte
 						],
 					}),
 				],
-			}),
-		),
+			})
+		)
 	);
 
 	const permissive = spawnSync(process.execPath, [CLI_PATH.pathname, bundle], {
@@ -281,7 +281,7 @@ test("CLI returns exit 2 for invalid geometry only when requested", async (conte
 	const strict = spawnSync(
 		process.execPath,
 		[CLI_PATH.pathname, "--fail-on-invalid", bundle],
-		{ encoding: "utf8" },
+		{ encoding: "utf8" }
 	);
 
 	assert.equal(permissive.status, 0, permissive.stderr);
