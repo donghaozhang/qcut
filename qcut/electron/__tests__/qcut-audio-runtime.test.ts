@@ -132,7 +132,11 @@ describe("QCut local audio runtime", () => {
 			cacheDirectory,
 			"cccc.123-2.partial.flac"
 		);
-		for (const filePath of [completedPath, freshPartialPath, stalePartialPath]) {
+		for (const filePath of [
+			completedPath,
+			freshPartialPath,
+			stalePartialPath,
+		]) {
 			fs.writeFileSync(filePath, Buffer.alloc(64, 1));
 		}
 		const staleTime = new Date(Date.now() - 2 * 60 * 60 * 1_000);
