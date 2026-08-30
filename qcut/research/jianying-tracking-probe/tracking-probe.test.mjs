@@ -4,10 +4,11 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { analyzeTrackingBundle } from "./tracking-probe-core.mjs";
 
-const CLI_PATH = new URL("./tracking-probe.mjs", import.meta.url);
+const CLI_PATH = fileURLToPath(new URL("./tracking-probe.mjs", import.meta.url));
 
 function makePlanarSample({
 	pts = 0,
@@ -240,7 +241,7 @@ test("CLI runs against a synthetic bundle without Jianying", async (context) => 
 
 	const result = spawnSync(
 		process.execPath,
-		[CLI_PATH.pathname, "--json", root],
+		[CLI_PATH, "--json", root],
 		{
 			encoding: "utf8",
 		}
@@ -275,12 +276,12 @@ test("CLI returns exit 2 for invalid geometry only when requested", async (conte
 		)
 	);
 
-	const permissive = spawnSync(process.execPath, [CLI_PATH.pathname, bundle], {
+	const permissive = spawnSync(process.execPath, [CLI_PATH, bundle], {
 		encoding: "utf8",
 	});
 	const strict = spawnSync(
 		process.execPath,
-		[CLI_PATH.pathname, "--fail-on-invalid", bundle],
+		[CLI_PATH, "--fail-on-invalid", bundle],
 		{ encoding: "utf8" }
 	);
 
