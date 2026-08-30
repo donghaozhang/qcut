@@ -32,6 +32,7 @@ function mediaRequiresLocalColorRuntime({
 	element: MediaElement;
 }): boolean {
 	if (requiresLocalColorRuntime({ color: element.color })) return true;
+	if ((element.enhancements?.labEyeCorrection ?? 0) > 0) return true;
 	if (
 		hasMediaPortraitAdjustments({
 			adjustments: element.portraitAdjustments,
