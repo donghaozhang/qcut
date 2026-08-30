@@ -191,14 +191,17 @@ export async function addQcutLocalAudioMedia({
 	name,
 	duration,
 	metadata,
+	signal,
 }: {
 	projectId: string;
 	result: QcutAudioProcessResult;
 	name: string;
 	duration: number;
 	metadata: Record<string, unknown>;
+	signal?: AbortSignal;
 }): Promise<string> {
 	const data = await platform().files.readFile(result.outputPath);
+	if (signal?.aborted) throw new Error("Audio processing was cancelled");
 	if (!data) throw new Error("Unable to read QCut local audio result");
 	const fileName = safeFileName({ name, contentType: "audio/flac" });
 	const file = new File([new Uint8Array(data)], fileName, {
