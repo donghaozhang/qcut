@@ -157,6 +157,13 @@ export class SequentialVideoFrameSource {
 	}
 }
 
+let sequentialDecodeDisabled = false;
+
+/** Debug switch: force the seek fallback (used for baseline profiling). */
+export function setSequentialDecodeDisabled(disabled: boolean): void {
+	sequentialDecodeDisabled = disabled;
+}
+
 /** Per-export registry: one sequential source per media item, or null. */
 export class SequentialVideoRegistry {
 	private readonly sources = new Map<
@@ -166,6 +173,7 @@ export class SequentialVideoRegistry {
 
 	/** Opens (once) the sequential source for a media item. */
 	getOrOpen(mediaItem: MediaItem): Promise<SequentialVideoFrameSource | null> {
+		if (sequentialDecodeDisabled) return Promise.resolve(null);
 		const existing = this.sources.get(mediaItem.id);
 		if (existing) return existing;
 		const opened = (async () => {
