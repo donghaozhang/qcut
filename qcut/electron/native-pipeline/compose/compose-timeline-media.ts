@@ -60,7 +60,9 @@ function mediaClipElement({
 		type: "media",
 		media: mediaAlias,
 		startTime: operation.startTime,
-		duration: operation.duration,
+		// QCut media elements carry the SOURCE duration; the visible timeline
+		// length is duration − trims (÷ playbackRate), matching the audio lane.
+		duration: operation.sourceDuration,
 		trimStart: operation.trimStart,
 		trimEnd: operation.trimEnd,
 		...(operation.volume !== undefined ? { volume: operation.volume } : {}),
