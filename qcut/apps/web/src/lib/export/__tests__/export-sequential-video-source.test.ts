@@ -113,6 +113,38 @@ describe("SequentialVideoFrameSource", () => {
 		expect(mediabunnyMocks.iteratorStarts).toHaveLength(3);
 	});
 
+	it("resolves an exact frame boundary to the frame that starts there", async () => {
+		// A 2x clip with a frame-aligned trim samples exactly on source frame
+		// boundaries every frame. An HTMLVideoElement seek displays the frame
+		// whose [pts, pts+duration) interval contains the time — the newer
+		// frame — so the sequential source must not hold the previous one.
+		const source = await SequentialVideoFrameSource.open({
+			blob: new Blob(["x"]),
+		});
+		const d = 1 / 30;
+		for (let k = 0; k < 10; k++) {
+			const boundary = (2 * k + 1) * d;
+			const frame = await source!.frameAt(boundary);
+			expect(frameIndex(frame), `boundary ${2 * k + 1}`).toBe(2 * k + 1);
+		}
+		// Still sequential: one iterator, no restarts.
+		expect(mediabunnyMocks.iteratorStarts).toHaveLength(1);
+	});
+
+	it("prefers the newer frame within epsilon below a boundary", async () => {
+		const source = await SequentialVideoFrameSource.open({
+			blob: new Blob(["x"]),
+		});
+		const d = 1 / 30;
+		// 0.5ms below frame 6's start — inside the epsilon window where float
+		// noise around an intended boundary landing must resolve stably.
+		const frame = await source!.frameAt(6 * d - 0.0005);
+		expect(frameIndex(frame)).toBe(6);
+		// Mid-frame requests are untouched by the boundary bias.
+		const mid = await source!.frameAt(6 * d + d / 2);
+		expect(frameIndex(mid)).toBe(6);
+	});
+
 	it("holds the final frame past the end of the stream", async () => {
 		const source = await SequentialVideoFrameSource.open({
 			blob: new Blob(["x"]),
