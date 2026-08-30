@@ -442,4 +442,87 @@ describe("compose manifest lane partitioning", () => {
 		expect(tracks[1].elements.map(({ alias }) => alias)).toEqual(["sfx:b"]);
 		expect(plan.plannedOperationIds).toEqual(["sfx:a", "sfx:b", "sfx:c"]);
 	});
+
+	it("reports editable-project operations as skipped instead of dropping them", () => {
+		const plan = timelineManifestFromComposePatch({
+			projectId: "project-1",
+			patch: makePatch({
+				operations: [
+					{
+						kind: "insert-media-clip",
+						id: "clip:a",
+						startTime: 0,
+						duration: 10,
+						asset: {
+							provider: "local",
+							assetType: "media",
+							assetId: "manifest:a.mp4",
+						},
+						mediaKind: "video",
+						trackRole: "main-video",
+						trimStart: 1,
+						trimEnd: 1,
+						sourceDuration: 12,
+					},
+					{
+						kind: "insert-media-clip",
+						id: "clip:b",
+						startTime: 10,
+						duration: 5,
+						asset: {
+							provider: "local",
+							assetType: "media",
+							assetId: "manifest:b.mp4",
+						},
+						mediaKind: "video",
+						trackRole: "main-video",
+						trimStart: 0,
+						trimEnd: 0,
+						sourceDuration: 5,
+					},
+					{
+						kind: "set-media-filter-stack",
+						id: "stack:a",
+						startTime: 0,
+						duration: 10,
+						trackId: "clip:a",
+						elementId: "clip:a",
+						filters: [
+							{
+								id: "step-1",
+								asset: {
+									provider: "local",
+									assetType: "filter",
+									assetId: "123",
+								},
+								intensity: 60,
+								enabled: true,
+							},
+						],
+					},
+					{
+						kind: "upsert-transition",
+						id: "transition:a-b",
+						startTime: 9.75,
+						duration: 0.5,
+						trackId: "main-video",
+						fromElementId: "clip:a",
+						toElementId: "clip:b",
+						presetId: "crossfade",
+					},
+				],
+			}),
+		});
+		expect(plan.plannedOperationIds).toEqual([]);
+		expect(plan.plannedTransitionOperationIds).toEqual([]);
+		expect(plan.skipped.map(({ operationId }) => operationId)).toEqual([
+			"clip:a",
+			"clip:b",
+			"stack:a",
+			"transition:a-b",
+		]);
+		for (const entry of plan.skipped) {
+			expect(entry.reason).toMatch(/not applied by the v1 timeline bridge/);
+		}
+	});
 });
