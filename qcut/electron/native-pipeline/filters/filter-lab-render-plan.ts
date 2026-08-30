@@ -1,5 +1,6 @@
 import { dirname } from "node:path";
 import type { JianyingFilterCatalogCard } from "../../jianying-filter-catalog-export.js";
+import { resolveJianyingFilterSwingCompatibility } from "../../jianying-filter-swing-runtime/compatibility.js";
 import {
 	buildJianyingFilterLabCatalog,
 	tiledReferencesFromPackages,
@@ -43,11 +44,12 @@ export interface FilterLabRenderEvidence {
 	backend:
 		| "ffmpeg-lut"
 		| "ffmpeg-multi-pass"
+		| "qcut-safe-passthrough"
 		| "jianying-native-face-region"
 		| "jianying-native-portrait"
 		| "jianying-native-swing"
 		| "jianying-native-multi-pass";
-	fidelity: "lut" | "structural" | "native-local";
+	fidelity: "lut" | "structural" | "native-local" | "safe-passthrough";
 }
 
 export type FilterLabRenderPlan = {
@@ -213,6 +215,10 @@ export async function resolveFilterLabRenderPlan({
 			cacheRoots,
 			identity: renderer,
 		});
+		const compatibility = resolveJianyingFilterSwingCompatibility({
+			resourceId: card.resourceId,
+			version: renderer.version,
+		});
 		return {
 			kind: "native",
 			mode: "swing",
@@ -224,8 +230,10 @@ export async function resolveFilterLabRenderPlan({
 			runtime: await requireNativeRuntime(),
 			evidence: {
 				...evidence,
-				backend: "jianying-native-swing",
-				fidelity: "native-local",
+				backend: compatibility
+					? "qcut-safe-passthrough"
+					: "jianying-native-swing",
+				fidelity: compatibility ? "safe-passthrough" : "native-local",
 			},
 		};
 	}
