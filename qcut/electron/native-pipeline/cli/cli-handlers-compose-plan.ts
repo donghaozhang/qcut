@@ -140,7 +140,9 @@ export async function handleComposePlan(
 			snapshot = {
 				...snapshot,
 				availableResources: mergeResourceCandidates({
-					existing: snapshot.availableResources,
+					existing: Array.isArray(snapshot.availableResources)
+						? snapshot.availableResources
+						: [],
 					discovered: broker.resources,
 				}),
 				resourceWarnings: [
