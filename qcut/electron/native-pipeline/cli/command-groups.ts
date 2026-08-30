@@ -110,6 +110,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 		description: "Validate, render, and package multi-resource edits",
 		actions: {
 			snapshot: "compose-snapshot",
+			plan: "compose-plan",
 			validate: "compose-validate",
 			apply: "compose-apply",
 			render: "compose-render",
