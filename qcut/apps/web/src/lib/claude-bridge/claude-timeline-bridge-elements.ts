@@ -24,6 +24,7 @@ import {
 	getClaudeTextProperties,
 	getClaudeMediaTimingProperties,
 	resolveClaudeStickerRuntime,
+	parseClaudeMediaFilterStack,
 } from "./claude-timeline-bridge-helpers";
 import type { ClaudeTimelineBridgeAPI } from "./claude-timeline-bridge";
 import {
@@ -279,6 +280,11 @@ export const applyElementChanges = ({
 					throw new Error("keyframes must be an object");
 				}
 				mediaUpdates.keyframes = changes.keyframes as MediaElement["keyframes"];
+			}
+			if (changes.filterStack !== undefined) {
+				mediaUpdates.filterStack = parseClaudeMediaFilterStack({
+					value: changes.filterStack,
+				});
 			}
 			if (Object.keys(mediaUpdates).length > 0) {
 				timelineStore.updateMediaElement(
