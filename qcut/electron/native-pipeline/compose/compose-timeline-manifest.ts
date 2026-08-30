@@ -147,8 +147,11 @@ function soundSourceDuration({
  * Converts an already-validated ComposePatch into the declarative manifest
  * accepted by `editor timeline apply`. Additive operations land on dedicated
  * compose tracks; transitions target the snapshot's existing elements.
- * Operations the manifest transport cannot express yet are reported in
- * `skipped` instead of being dropped silently.
+ * Each additive element carries its operation id as the requested element id,
+ * so a replayed patch can recognize already-applied operations on the live
+ * timeline instead of duplicating them. Operations the manifest transport
+ * cannot express yet are reported in `skipped` instead of being dropped
+ * silently.
  */
 export function timelineManifestFromComposePatch({
 	patch,
@@ -177,6 +180,7 @@ export function timelineManifestFromComposePatch({
 			case "add-caption":
 				captionElements.push({
 					alias: operation.id,
+					id: operation.id,
 					type: "captions",
 					content: operation.text,
 					language: operation.language,
@@ -188,6 +192,7 @@ export function timelineManifestFromComposePatch({
 			case "add-text-overlay":
 				textElements.push({
 					alias: operation.id,
+					id: operation.id,
 					type: "text",
 					content: operation.text,
 					startTime: operation.startTime,
@@ -212,10 +217,10 @@ export function timelineManifestFromComposePatch({
 				}
 				stickerElements.push({
 					alias: operation.id,
+					id: operation.id,
 					type: "sticker",
 					mediaId: binding?.mediaId ?? mediaAliasFor({ operation }),
-					stickerAssetId:
-						binding?.stickerAssetId ?? operation.asset.assetId,
+					stickerAssetId: binding?.stickerAssetId ?? operation.asset.assetId,
 					stickerId: operation.id,
 					startTime: operation.startTime,
 					duration: operation.duration,
@@ -251,6 +256,7 @@ export function timelineManifestFromComposePatch({
 				media.push({ alias: mediaAliasFor({ operation }), path: localPath });
 				audioElements.push({
 					alias: operation.id,
+					id: operation.id,
 					type: "audio",
 					media: mediaAliasFor({ operation }),
 					startTime: operation.startTime,
@@ -333,13 +339,9 @@ export function timelineManifestFromComposePatch({
 								...(binding.packageHash
 									? { packageHash: binding.packageHash }
 									: {}),
-								...(binding.direction
-									? { direction: binding.direction }
-									: {}),
+								...(binding.direction ? { direction: binding.direction } : {}),
 								...(binding.tuning ? { tuning: binding.tuning } : {}),
-								...(binding.maskShape
-									? { maskShape: binding.maskShape }
-									: {}),
+								...(binding.maskShape ? { maskShape: binding.maskShape } : {}),
 							}
 						: {}),
 				});
