@@ -313,6 +313,9 @@ export async function startRendererExportJob({
 				...(request.profilePath?.trim()
 					? { profilePath: path.resolve(request.profilePath.trim()) }
 					: {}),
+				...(request.disableSequentialDecode === true
+					? { disableSequentialDecode: true }
+					: {}),
 				projectId,
 				quality: rendererExportQuality({
 					height: settings.height,
@@ -350,6 +353,12 @@ export async function startExportJob({
 	mediaFiles: MediaFile[];
 }): Promise<{ jobId: string; status: ExportJobStatus["status"] }> {
 	try {
+		if (request.engine === "muxer") {
+			throw new Error(
+				"The muxer engine runs in the renderer; this timeline resolved to " +
+					"the native export path. Use --engine auto or cli here."
+			);
+		}
 		if (isTimelineEmpty({ timeline })) {
 			throw new Error("Cannot export an empty timeline");
 		}
