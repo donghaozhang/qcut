@@ -17,6 +17,7 @@ import {
 	sha256File,
 	verifyTrackingRuntimeSnapshot,
 } from "../../electron/jianying-motion-tracking/runtime-assets";
+import { requireBoundedRawDecode } from "../../electron/jianying-motion-tracking/video-input";
 import {
 	runBoundedProcess,
 	type BoundedProcessResult,
@@ -39,6 +40,7 @@ interface Options {
 }
 
 interface VideoMetadata {
+	durationSeconds: number;
 	fps: number;
 	height: number;
 	width: number;
@@ -84,9 +86,11 @@ function parseNonNegativeInteger({
 }
 
 export function parseRect({ value }: { value: string }) {
-	const values = value.split(",").map((part) => Number(part.trim()));
+	const parts = value.split(",").map((part) => part.trim());
+	const values = parts.map(Number);
 	if (
 		values.length !== 4 ||
+		parts.some((part) => part.length === 0) ||
 		values.some((coordinate) => !Number.isFinite(coordinate))
 	) {
 		throw new Error(
@@ -249,6 +253,22 @@ export function parseFrameRate({ value }: { value: unknown }) {
 	return fps;
 }
 
+export function parseVideoDuration({
+	formatDuration,
+	streamDuration,
+}: {
+	formatDuration: unknown;
+	streamDuration: unknown;
+}) {
+	for (const value of [streamDuration, formatDuration]) {
+		const durationSeconds = Number(value);
+		if (Number.isFinite(durationSeconds) && durationSeconds > 0) {
+			return durationSeconds;
+		}
+	}
+	throw new Error("ffprobe did not report a valid video duration");
+}
+
 async function inspectVideo({
 	ffprobe,
 	videoPath,
@@ -264,7 +284,7 @@ async function inspectVideo({
 			"-select_streams",
 			"v:0",
 			"-show_entries",
-			"stream=width,height,avg_frame_rate",
+			"stream=width,height,avg_frame_rate,duration:format=duration",
 			"-of",
 			"json",
 			videoPath,
@@ -273,8 +293,10 @@ async function inspectVideo({
 	});
 	const output = successfulOutput({ label: "ffprobe failed", result });
 	const parsed = JSON.parse(output) as {
+		format?: { duration?: unknown };
 		streams?: Array<{
 			avg_frame_rate?: unknown;
+			duration?: unknown;
 			height?: unknown;
 			width?: unknown;
 		}>;
@@ -292,6 +314,10 @@ async function inspectVideo({
 		throw new Error("ffprobe did not report valid video dimensions");
 	}
 	return {
+		durationSeconds: parseVideoDuration({
+			formatDuration: parsed.format?.duration,
+			streamDuration: stream.duration,
+		}),
 		fps: parseFrameRate({ value: stream.avg_frame_rate }),
 		height: stream.height,
 		width: stream.width,
@@ -497,6 +523,12 @@ async function run() {
 		inspectVideo({ ffprobe, videoPath: options.videoPath }),
 		sha256File({ filePath: options.videoPath }),
 	]);
+	requireBoundedRawDecode({
+		durationSeconds: metadata.durationSeconds,
+		fps: metadata.fps,
+		height: metadata.height,
+		width: metadata.width,
+	});
 	const workDirectory = await mkdtemp(
 		path.join(os.tmpdir(), "qcut-jianying-tracking-")
 	);
