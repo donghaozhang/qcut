@@ -3,6 +3,7 @@ import type {
 	ComposePatchOperation,
 	ComposeSnapshot,
 } from "./compose-protocol.js";
+import type { ComposeEditorAssetBindings } from "./compose-editor-asset-preparer.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -83,6 +84,65 @@ function stickerGeometryForEditor({
 		: {};
 }
 
+function stickerAnimationFields({
+	operation,
+}: {
+	operation: Extract<ComposePatchOperation, { kind: "add-sticker" }>;
+}): JsonRecord {
+	const animationInTypes = {
+		none: "none",
+		fade: "fade",
+		slide: "slide-up",
+		scale: "zoom-in",
+		bounce: "zoom-in",
+	} as const;
+	const animationOutTypes = {
+		none: "none",
+		fade: "fade",
+		slide: "slide-down",
+		scale: "zoom-out",
+	} as const;
+	const animationLoopTypes = {
+		none: "none",
+		pulse: "pulse",
+		float: "drift",
+		spin: "spin",
+		bounce: "bounce",
+	} as const;
+	return {
+		...(operation.animationInType
+			? { animationInType: animationInTypes[operation.animationInType] }
+			: {}),
+		...(operation.animationInDuration !== undefined
+			? { animationInDuration: operation.animationInDuration }
+			: {}),
+		...(operation.animationOutType
+			? { animationOutType: animationOutTypes[operation.animationOutType] }
+			: {}),
+		...(operation.animationOutDuration !== undefined
+			? { animationOutDuration: operation.animationOutDuration }
+			: {}),
+		...(operation.animationLoopType
+			? { animationLoopType: animationLoopTypes[operation.animationLoopType] }
+			: {}),
+		...(operation.animationLoopIntensity !== undefined
+			? { animationLoopIntensity: operation.animationLoopIntensity }
+			: {}),
+	};
+}
+
+function soundSourceDuration({
+	operation,
+}: {
+	operation: Extract<ComposePatchOperation, { kind: "add-sound-effect" }>;
+}): number {
+	return (
+		(operation.trimStart ?? 0) +
+		(operation.trimEnd ?? 0) +
+		operation.duration * (operation.playbackRate ?? 1)
+	);
+}
+
 /**
  * Converts an already-validated ComposePatch into the declarative manifest
  * accepted by `editor timeline apply`. Additive operations land on dedicated
@@ -94,10 +154,12 @@ export function timelineManifestFromComposePatch({
 	patch,
 	projectId,
 	snapshot,
+	bindings = {},
 }: {
 	patch: ComposePatch;
 	projectId?: string;
 	snapshot?: ComposeSnapshot;
+	bindings?: ComposeEditorAssetBindings;
 }): ComposeTimelineManifestPlan {
 	const textElements: JsonRecord[] = [];
 	const captionElements: JsonRecord[] = [];
@@ -134,25 +196,43 @@ export function timelineManifestFromComposePatch({
 				plannedOperationIds.push(operation.id);
 				break;
 			case "add-sticker": {
+				const binding = bindings[operation.id]?.sticker;
 				const localPath = operation.asset.localPath;
-				if (!localPath) {
+				if (!(binding || localPath)) {
 					skipped.push({
 						operationId: operation.id,
 						kind: operation.kind,
 						reason:
-							"Sticker assets need a resolved localPath until the stage-3 resource resolver lands.",
+							"Sticker assets need an imported Sticker Lab binding or a resolved localPath.",
 					});
 					break;
 				}
-				media.push({ alias: mediaAliasFor({ operation }), path: localPath });
+				if (localPath && !binding) {
+					media.push({ alias: mediaAliasFor({ operation }), path: localPath });
+				}
 				stickerElements.push({
 					alias: operation.id,
 					type: "sticker",
-					mediaId: mediaAliasFor({ operation }),
+					mediaId: binding?.mediaId ?? mediaAliasFor({ operation }),
+					stickerAssetId:
+						binding?.stickerAssetId ?? operation.asset.assetId,
 					stickerId: operation.id,
 					startTime: operation.startTime,
 					duration: operation.duration,
+					...(binding?.stickerRuntime
+						? { stickerRuntime: binding.stickerRuntime }
+						: {}),
 					...stickerGeometryForEditor({ operation }),
+					...(operation.rotation !== undefined
+						? { rotation: operation.rotation }
+						: {}),
+					...(operation.opacity !== undefined
+						? { opacity: operation.opacity }
+						: {}),
+					...(operation.maintainAspectRatio !== undefined
+						? { maintainAspectRatio: operation.maintainAspectRatio }
+						: {}),
+					...stickerAnimationFields({ operation }),
 				});
 				plannedOperationIds.push(operation.id);
 				break;
@@ -174,8 +254,19 @@ export function timelineManifestFromComposePatch({
 					type: "audio",
 					media: mediaAliasFor({ operation }),
 					startTime: operation.startTime,
-					duration: operation.duration,
+					duration: soundSourceDuration({ operation }),
 					volume: operation.volume,
+					trimStart: operation.trimStart ?? 0,
+					trimEnd: operation.trimEnd ?? 0,
+					...(operation.fadeIn !== undefined
+						? { audioFadeIn: operation.fadeIn }
+						: {}),
+					...(operation.fadeOut !== undefined
+						? { audioFadeOut: operation.fadeOut }
+						: {}),
+					...(operation.playbackRate !== undefined
+						? { playbackRate: operation.playbackRate }
+						: {}),
 				});
 				plannedOperationIds.push(operation.id);
 				break;
@@ -224,16 +315,33 @@ export function timelineManifestFromComposePatch({
 				break;
 			}
 			case "upsert-transition": {
+				const binding = bindings[operation.id]?.transition;
 				const presetId = editorTransitionPreset({
-					presetId: operation.presetId,
+					presetId: binding?.presetId ?? operation.presetId,
 				});
 				transitions.push({
 					track: operation.trackId,
 					from: operation.fromElementId,
 					to: operation.toElementId,
-					type: presetId,
+					type: binding?.type ?? presetId,
 					presetId,
 					duration: operation.duration,
+					...(binding
+						? {
+								engine: binding.engine,
+								easing: binding.easing,
+								...(binding.packageHash
+									? { packageHash: binding.packageHash }
+									: {}),
+								...(binding.direction
+									? { direction: binding.direction }
+									: {}),
+								...(binding.tuning ? { tuning: binding.tuning } : {}),
+								...(binding.maskShape
+									? { maskShape: binding.maskShape }
+									: {}),
+							}
+						: {}),
 				});
 				plannedTransitionOperationIds.push(operation.id);
 				break;
