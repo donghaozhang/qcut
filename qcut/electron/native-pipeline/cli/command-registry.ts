@@ -296,6 +296,30 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"qcut compose snapshot --project-id my-project --json",
 		],
 	},
+	"compose-plan": {
+		name: "compose-plan",
+		description:
+			"Plan a ComposePatch from a snapshot with a local or cloud provider",
+		category: "composition",
+		flags: [
+			f("--snapshot", "string", "ComposeSnapshot JSON (path or @file)", {
+				required: true,
+			}),
+			f(
+				"--intent",
+				"string",
+				"Intent kind (smart-packaging, subtitle-style, resource-match, full-compose) or intent JSON"
+			),
+			f("--provider", "string", "qcut | openrouter | fal | local", {
+				default: "local",
+			}),
+			f("--output", "string", "Patch JSON output path"),
+		],
+		examples: [
+			"qcut compose plan --snapshot snapshot.json --provider local --output patch.json --json",
+			"qcut compose plan --snapshot snapshot.json --provider openrouter --intent smart-packaging --json",
+		],
+	},
 	"compose-validate": {
 		name: "compose-validate",
 		description:
@@ -340,14 +364,26 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		flags: [
 			f("--config", "string", "QCut compose manifest JSON path", {
 				short: "-c",
-				required: true,
 			}),
 			f("--output", "string", "Output MP4 path"),
 			f("--dry-run", "boolean", "Resolve and lock resources without rendering"),
 			f("--force", "boolean", "Replace an existing output after verification"),
+			f(
+				"--snapshot",
+				"string",
+				"ComposeSnapshot JSON for editor-target renders"
+			),
+			f("--patch", "string", "ComposePatch JSON for editor-target renders"),
+			f("--target", "string", "editor (patch mode); manifests render headless"),
+			f(
+				"--verify-frames",
+				"string",
+				"Comma-separated timestamps to screenshot"
+			),
 		],
 		examples: [
 			"qcut compose render --config edit.qcut-compose.json --output final.mp4 --json",
+			"qcut compose render --snapshot snapshot.json --patch patch.json --target editor --verify-frames 0,3 --json",
 		],
 	},
 	"compose-project": {
