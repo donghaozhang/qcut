@@ -123,6 +123,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 			catalog: "filter-lab-catalog",
 			render: "filter-lab-render",
 			apply: "filter-lab-render",
+			pipeline: "filter-lab-pipeline",
 			compare: "filter-lab-compare",
 			match: "filter-lab-match",
 			verify: "filter-lab-verify",
