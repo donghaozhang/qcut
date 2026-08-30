@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
 
-import { confidenceFor } from "./probe";
+import {
+	collectMaterialCounts,
+	confidenceFor,
+	parseIniValues,
+	sanitizeStorageUri,
+} from "./probe";
 
 const requiredPathEvidence = {
 	kind: "path" as const,
@@ -64,5 +69,65 @@ describe("confidenceFor", () => {
 				evidence: [requiredPathEvidence, textEvidence, symbolEvidence],
 			})
 		).toBe("confirmed");
+	});
+});
+
+describe("parseIniValues", () => {
+	test("keeps key/value pairs and ignores section headers", () => {
+		expect(
+			parseIniValues({
+				text: [
+					"[General]",
+					"authorized=false",
+					"packagingStyle=1",
+					"; ignored",
+					"[Other]",
+					"clearCurrentSubtitles=true",
+				].join("\n"),
+			})
+		).toEqual({
+			authorized: "false",
+			clearCurrentSubtitles: "true",
+			packagingStyle: "1",
+		});
+	});
+});
+
+describe("sanitizeStorageUri", () => {
+	test("redacts object storage keys while preserving bucket type", () => {
+		expect(
+			sanitizeStorageUri({
+				value: "tos-cn-v-0000c2242/private/object/key",
+			})
+		).toBe("tos-cn-v-0000c2242/[redacted]");
+	});
+
+	test("redacts signed urls while preserving host", () => {
+		expect(
+			sanitizeStorageUri({
+				value:
+					"https://lf26-faceu-file-sign.bytecdn.com/private?Signature=secret",
+			})
+		).toBe("https://lf26-faceu-file-sign.bytecdn.com/[redacted]");
+	});
+});
+
+describe("collectMaterialCounts", () => {
+	test("counts only string material fields", () => {
+		expect(
+			collectMaterialCounts({
+				key: "type",
+				materials: [
+					{ type: "text_templates" },
+					{ type: "sound_effects" },
+					{ type: "text_templates" },
+					{ type: 3 },
+					null,
+				],
+			})
+		).toEqual([
+			{ name: "sound_effects", count: 1 },
+			{ name: "text_templates", count: 2 },
+		]);
 	});
 });
