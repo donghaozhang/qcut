@@ -679,8 +679,8 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		POLL,
 		f("--filename", "string", "Output filename"),
 		f("--output", "string", "Exact output path (absolute or relative)"),
-		f("--engine", "string", "Export engine (auto|native|cli)", {
-			enum: ["auto", "native", "cli"],
+		f("--engine", "string", "Export engine (auto|native|cli|muxer)", {
+			enum: ["auto", "native", "cli", "muxer"],
 		}),
 		f("--verify-frames", "string", "Extract frames at comma-separated seconds"),
 		f("--export-format", "string", "Export format"),
