@@ -39,6 +39,11 @@ describe("Jianying basic audio probe", () => {
 							{ fade_in_duration: 0, fade_out_duration: 0 },
 							{ fade_in_duration: 500_000, fade_out_duration: 0 },
 						],
+						loudnesses: [
+							{ loudness_param: {} },
+							{ loudness_param: { enable: false, target_loudness: 0 } },
+							{ loudness_param: { target_loudness: -16 } },
+						],
 						sound_channel_mappings: [
 							{ audio_channel_mapping: 0, is_config_open: false, type: "" },
 						],
@@ -70,6 +75,10 @@ describe("Jianying basic audio probe", () => {
 		expect(samples["channel-mapping"]).toMatchObject({
 			activeMaterialObjects: 0,
 			materialObjects: 1,
+		});
+		expect(samples.loudness).toMatchObject({
+			activeMaterialObjects: 1,
+			materialObjects: 3,
 		});
 		expect(samples["vocal-separation"]).toMatchObject({
 			activeMaterialObjects: 1,
