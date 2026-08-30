@@ -579,7 +579,8 @@ describe("compose manifest lane partitioning", () => {
 			trimStart: 1,
 			trimEnd: 1.25,
 			startTime: 0,
-			duration: 9.75,
+			// Source duration; the visible length is 12 − 1 − 1.25 = 9.75.
+			duration: 12,
 		});
 		const transitions = plan.manifest.transitions as Array<
 			Record<string, unknown>
