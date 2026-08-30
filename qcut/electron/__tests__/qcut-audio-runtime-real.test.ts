@@ -6,14 +6,17 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { AudioSettings } from "../ffmpeg/audio-settings";
 import { processQcutAudio } from "../qcut-audio-runtime/process";
 
+const ffmpegTarget = `${process.platform}-${process.arch}`;
+const executableSuffix = process.platform === "win32" ? ".exe" : "";
 const ffmpegPath = path.resolve(
 	__dirname,
-	"../resources/ffmpeg/darwin-arm64/ffmpeg"
+	`../resources/ffmpeg/${ffmpegTarget}/ffmpeg${executableSuffix}`
 );
 const ffprobePath = path.resolve(
 	__dirname,
-	"../resources/ffmpeg/darwin-arm64/ffprobe"
+	`../resources/ffmpeg/${ffmpegTarget}/ffprobe${executableSuffix}`
 );
+const hasRealFfmpeg = fs.existsSync(ffmpegPath) && fs.existsSync(ffprobePath);
 let directory = "";
 let sourcePath = "";
 let cacheDirectory = "";
@@ -52,7 +55,17 @@ function localSettings(): AudioSettings {
 	};
 }
 
-describe.skipIf(!fs.existsSync(ffmpegPath) || !fs.existsSync(ffprobePath))(
+// CI stages the current target's binaries during the build step, so a missing
+// binary there is a staging regression, not a reason to silently skip.
+it.runIf(Boolean(process.env.CI))(
+	"stages real FFmpeg binaries for the current target",
+	() => {
+		expect(fs.existsSync(ffmpegPath), ffmpegPath).toBe(true);
+		expect(fs.existsSync(ffprobePath), ffprobePath).toBe(true);
+	}
+);
+
+describe.skipIf(!hasRealFfmpeg)(
 	"QCut local audio runtime - real FFmpeg",
 	{ timeout: 60_000 },
 	() => {
