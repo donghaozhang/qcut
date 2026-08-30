@@ -7,6 +7,10 @@ import {
 } from "../editor/editor-api-client.js";
 import { resolveJsonInput } from "../editor/editor-api-types.js";
 import { timelineApplyManifest } from "../editor/editor-timeline-apply.js";
+import {
+	materializeComposePatchAssets,
+	resolveComposePatchAssets,
+} from "../compose/compose-asset-resolver.js";
 import { captureComposeSnapshot } from "../compose/compose-snapshot.js";
 import { timelineManifestFromComposePatch } from "../compose/compose-timeline-manifest.js";
 import {
@@ -26,12 +30,16 @@ export interface ComposeEditorDependencies {
 	createClient: typeof createEditorClient;
 	capture: typeof captureComposeSnapshot;
 	applyManifest: typeof timelineApplyManifest;
+	resolveAssets: typeof resolveComposePatchAssets;
+	materializeAssets: typeof materializeComposePatchAssets;
 }
 
 const DEFAULT_DEPENDENCIES: ComposeEditorDependencies = {
 	createClient: createEditorClient,
 	capture: captureComposeSnapshot,
 	applyManifest: timelineApplyManifest,
+	resolveAssets: resolveComposePatchAssets,
+	materializeAssets: materializeComposePatchAssets,
 };
 
 function errorMessage({ error }: { error: unknown }): string {
@@ -136,7 +144,11 @@ export async function handleComposeApply(
 			percent: 10,
 			message: "Validating the patch against its snapshot...",
 		});
-		const issues = validateComposePatch({ snapshot, patch });
+		const assets = await dependencies.resolveAssets({ patch });
+		const issues = [
+			...validateComposePatch({ snapshot, patch }),
+			...assets.issues,
+		];
 		if (hasComposeValidationErrors({ issues })) {
 			return {
 				success: false,
@@ -147,7 +159,14 @@ export async function handleComposeApply(
 		}
 
 		const projectId = options.projectId ?? snapshot.project.id;
-		const plan = timelineManifestFromComposePatch({ patch, projectId });
+		const materialized = await dependencies.materializeAssets({
+			patch,
+			scratchDirectory: resolve(options.outputDir, "compose-assets"),
+		});
+		const plan = timelineManifestFromComposePatch({
+			patch: materialized,
+			projectId,
+		});
 		if (
 			plan.plannedOperationIds.length === 0 &&
 			plan.plannedTransitionOperationIds.length === 0
@@ -159,6 +178,7 @@ export async function handleComposeApply(
 					snapshotId: snapshot.id,
 					patchId: patch.id,
 					issues,
+					assets: assets.reports,
 					applied: {},
 					transitionIds: [],
 					skipped: plan.skipped,
@@ -208,6 +228,7 @@ export async function handleComposeApply(
 				snapshotId: snapshot.id,
 				patchId: patch.id,
 				issues,
+				assets: assets.reports,
 				applied,
 				transitionOperationIds: plan.plannedTransitionOperationIds,
 				transitionIds:
