@@ -4,6 +4,7 @@ import { TimelineElement, TimelineTrack } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store";
 import { WebCodecsDetector, CodecSupport } from "./webcodecs-detector";
 import { assertLocalMp4EngineNotRequired } from "./local-final-video-output";
+import { calculateFrameTime } from "./export-engine-utils";
 
 // Progress callback type
 type ProgressCallback = (progress: number, status: string) => void;
@@ -187,8 +188,6 @@ export class WebCodecsExportEngine extends ExportEngine {
 			await this.setupVideoEncoder();
 
 			const totalFrames = this.calculateTotalFrames();
-			const frameTime = 1 / this.getFrameRate();
-
 			progressCallback?.(0, "Starting WebCodecs export...");
 
 			// Reset processing state
@@ -203,7 +202,10 @@ export class WebCodecsExportEngine extends ExportEngine {
 					throw new Error("Export cancelled by user");
 				}
 
-				const currentTime = frame * frameTime;
+				const currentTime = calculateFrameTime({
+					frameIndex: frame,
+					frameRate: this.getFrameRate(),
+				});
 
 				// Render frame to canvas/offscreen canvas
 				await this.renderFrame(currentTime);
