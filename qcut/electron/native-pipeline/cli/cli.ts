@@ -519,6 +519,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			engine: { type: "string" },
 			"verify-frames": { type: "string" },
 			manifest: { type: "string" },
+			snapshot: { type: "string" },
+			patch: { type: "string" },
 			atomic: { type: "boolean", default: true },
 			verify: { type: "boolean", default: true },
 			// Opt-out flags for the true-by-default booleans above
@@ -1219,6 +1221,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		verifyFrames: values["verify-frames"] as string | undefined,
 		trackName: values.name as string | undefined,
 		manifest: values.manifest as string | undefined,
+		snapshot: values.snapshot as string | undefined,
+		patch: values.patch as string | undefined,
 		atomic: values["no-atomic"] ? false : ((values.atomic as boolean) ?? true),
 		verify: values["no-verify"] ? false : ((values.verify as boolean) ?? true),
 		// state snapshot flags
