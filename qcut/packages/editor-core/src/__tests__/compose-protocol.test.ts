@@ -8,6 +8,7 @@ import {
 	countComposeOperations,
 	hasComposeValidationErrors,
 	mergeComposePatches,
+	validateComposeJob,
 	validateComposePatch,
 	validateComposeSnapshot,
 	type ComposePatch,
@@ -450,5 +451,271 @@ describe("smart packaging adapter", () => {
 			path: "snapshot",
 			message: "mismatch",
 		});
+	});
+});
+
+describe("compose fingerprint identity ties", () => {
+	it("is order-insensitive when items share startTime and id", () => {
+		const snapshot = makeSnapshot();
+		const shared = {
+			id: "media-shared",
+			kind: "video" as const,
+			startTime: 0,
+			duration: 5,
+			trimStart: 0,
+		};
+		const onTrackOne = { ...shared, trackId: "t1", elementId: "e1" };
+		const onTrackTwo = { ...shared, trackId: "t2", elementId: "e2" };
+		const forward = computeComposeSourceFingerprint({
+			project: snapshot.project,
+			media: [onTrackOne, onTrackTwo],
+			captions: [],
+		});
+		const reversed = computeComposeSourceFingerprint({
+			project: snapshot.project,
+			media: [onTrackTwo, onTrackOne],
+			captions: [],
+		});
+		expect(reversed).toBe(forward);
+	});
+
+	it("keeps distinct non-finite values from colliding", () => {
+		const snapshot = makeSnapshot();
+		const withNan = computeComposeSourceFingerprint({
+			project: snapshot.project,
+			media: [{ ...snapshot.media[0], duration: Number.NaN }],
+			captions: [],
+		});
+		const withInfinity = computeComposeSourceFingerprint({
+			project: snapshot.project,
+			media: [{ ...snapshot.media[0], duration: Number.POSITIVE_INFINITY }],
+			captions: [],
+		});
+		expect(withNan).not.toBe(withInfinity);
+	});
+});
+
+describe("compose job validation", () => {
+	function makeJob({
+		overrides = {},
+	}: {
+		overrides?: Partial<import("../compose/index.js").ComposeJob>;
+	} = {}): import("../compose/index.js").ComposeJob {
+		return {
+			schemaVersion: COMPOSE_PROTOCOL_VERSION,
+			id: "job-1",
+			provider: "local",
+			intentKind: "smart-packaging",
+			snapshotId: "snapshot-1",
+			snapshotFingerprint: makeSnapshot().sourceFingerprint,
+			status: "running",
+			progress: 0.5,
+			createdAt: "2026-08-30T00:00:00.000Z",
+			updatedAt: "2026-08-30T00:01:00.000Z",
+			attempt: 1,
+			...overrides,
+		};
+	}
+
+	it("accepts a well-formed job against its snapshot", () => {
+		const snapshot = makeSnapshot();
+		expect(validateComposeJob({ job: makeJob(), snapshot })).toEqual([]);
+	});
+
+	it("flags bad progress, stale snapshots, missing results, and versions", () => {
+		const snapshot = makeSnapshot();
+		expect(
+			validateComposeJob({ job: makeJob({ overrides: { progress: 2 } }) }).map(
+				(issue) => issue.code
+			)
+		).toEqual(["invalid-progress"]);
+		expect(
+			validateComposeJob({
+				job: makeJob({ overrides: { snapshotFingerprint: "0".repeat(64) } }),
+				snapshot,
+			}).map((issue) => issue.code)
+		).toEqual(["snapshot-mismatch"]);
+		expect(
+			validateComposeJob({
+				job: makeJob({ overrides: { status: "completed", progress: 1 } }),
+			}).map((issue) => issue.code)
+		).toEqual(["terminal-job-without-result"]);
+		expect(
+			validateComposeJob({
+				job: makeJob({
+					overrides: {
+						schemaVersion: 999 as unknown as typeof COMPOSE_PROTOCOL_VERSION,
+					},
+				}),
+			}).map((issue) => issue.code)
+		).toEqual(["schema-version-mismatch"]);
+	});
+});
+
+describe("compose validation edge cases", () => {
+	it("warns without blocking when an operation overruns the timeline", () => {
+		const snapshot = makeSnapshot();
+		const patch = makePatch({
+			snapshot,
+			overrides: {
+				operations: [
+					{
+						kind: "add-sticker",
+						id: "sticker:late",
+						startTime: 28,
+						duration: 5,
+						asset: {
+							provider: "local",
+							assetType: "sticker",
+							assetId: "sticker-asset",
+						},
+					},
+				],
+			},
+		});
+		const issues = validateComposePatch({ snapshot, patch });
+		expect(issues).toMatchObject([
+			{ severity: "warning", code: "operation-out-of-bounds" },
+		]);
+		expect(hasComposeValidationErrors({ issues })).toBe(false);
+	});
+
+	it("rejects empty asset ids, bad schema versions, and empty ranges", () => {
+		const snapshot = makeSnapshot();
+		const badAsset = validateComposePatch({
+			snapshot,
+			patch: makePatch({
+				snapshot,
+				overrides: {
+					operations: [
+						{
+							kind: "add-sound-effect",
+							id: "sound:1",
+							startTime: 1,
+							duration: 1,
+							volume: 0.8,
+							asset: {
+								provider: "local",
+								assetType: "sound-effect",
+								assetId: "  ",
+							},
+						},
+					],
+				},
+			}),
+		}).map((issue) => issue.code);
+		expect(badAsset).toEqual(["invalid-asset-reference"]);
+
+		const badVersion = validateComposePatch({
+			snapshot,
+			patch: makePatch({
+				snapshot,
+				overrides: {
+					schemaVersion: 999 as unknown as typeof COMPOSE_PROTOCOL_VERSION,
+				},
+			}),
+		}).map((issue) => issue.code);
+		expect(badVersion).toContain("schema-version-mismatch");
+
+		const badRange = validateComposePatch({
+			snapshot,
+			patch: makePatch({
+				snapshot,
+				overrides: {
+					operations: [
+						{
+							kind: "add-caption",
+							id: "caption:1",
+							text: "hi",
+							language: "en",
+							startTime: 1,
+							duration: 0,
+						},
+					],
+				},
+			}),
+		}).map((issue) => issue.code);
+		expect(badRange).toEqual(["invalid-range"]);
+	});
+
+	it("rejects invalid beats, shots, and project settings in snapshots", () => {
+		const snapshot = makeSnapshot({
+			overrides: {
+				beats: [{ id: "beat:0", timestamp: Number.NaN }],
+				shots: [{ id: "shot-1", startTime: 0, duration: 0 }],
+				project: {
+					id: "project-1",
+					fps: 0,
+					canvasSize: { width: 1920, height: 1080 },
+					duration: 30,
+				},
+			},
+		});
+		const codes = validateComposeSnapshot({ snapshot }).map(
+			(issue) => `${issue.code}:${issue.path}`
+		);
+		expect(codes).toContain("invalid-range:beats.0");
+		expect(codes).toContain("invalid-range:shots.0");
+		expect(codes).toContain("invalid-range:project");
+	});
+
+	it("sorts merged operations by start, duration, then id", () => {
+		const snapshot = makeSnapshot();
+		const scrambled = makePatch({
+			snapshot,
+			overrides: {
+				operations: [
+					{
+						kind: "add-caption",
+						id: "b",
+						text: "later",
+						language: "en",
+						startTime: 5,
+						duration: 1,
+					},
+					{
+						kind: "add-caption",
+						id: "a",
+						text: "tie",
+						language: "en",
+						startTime: 5,
+						duration: 1,
+					},
+					{
+						kind: "add-caption",
+						id: "c",
+						text: "first",
+						language: "en",
+						startTime: 1,
+						duration: 1,
+					},
+				],
+			},
+		});
+		const merged = mergeComposePatches({
+			base: makePatch({ snapshot, overrides: { operations: [] } }),
+			incoming: scrambled,
+			patchId: "patch-sorted",
+			createdAt: "2026-08-30T00:05:00.000Z",
+		});
+		expect(merged.operations.map((operation) => operation.id)).toEqual([
+			"c",
+			"a",
+			"b",
+		]);
+	});
+});
+
+describe("smart packaging issue severities", () => {
+	it("keeps missing-main-media advisory through the adapter", () => {
+		const issue = composeIssueFromSmartPackaging({
+			issue: {
+				code: "missing-main-media",
+				path: "media",
+				message: "no video",
+			},
+		});
+		expect(issue.severity).toBe("warning");
+		expect(hasComposeValidationErrors({ issues: [issue] })).toBe(false);
 	});
 });
