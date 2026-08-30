@@ -43,6 +43,7 @@ import {
 	validationIssue,
 } from "./runtime-json.js";
 import { validateMediaElement } from "./snapshot-media-runtime-validation.js";
+import { validateStickerPlanarTrackingRuntime } from "./snapshot-planar-tracking-runtime-validation.js";
 import {
 	createAllowedKeySet,
 	validateRecordOfArrays,
@@ -358,15 +359,18 @@ const AUDIO_LYRICS_WORD_KEYS = createAllowedKeySet<AudioLyricsWord>({
 		type: true,
 	},
 });
-const STICKER_TRACKING_KEYS = createAllowedKeySet<StickerMotionTracking>({
-	keys: {
-		anchor: true,
-		followScale: true,
-		mode: true,
-		targetElementId: true,
-		targetMaskId: true,
-	},
-});
+const STICKER_MOTION_TRACKING_KEYS = createAllowedKeySet<StickerMotionTracking>(
+	{
+		keys: {
+			anchor: true,
+			followScale: true,
+			mode: true,
+			targetElementId: true,
+			targetMaskId: true,
+		},
+	}
+);
+const STICKER_TRACKING_MODES = new Set(["motion", "planar"]);
 const STICKER_TRACKING_ANCHOR_KEYS = createAllowedKeySet<StickerTrackingAnchor>(
 	{
 		keys: {
@@ -1066,10 +1070,36 @@ function validateStickerElement({
 			path: trackingPath,
 			value: element.tracking,
 		});
+		const mode = assertStringLiteral({
+			allowed: STICKER_TRACKING_MODES,
+			path: `${trackingPath}.mode`,
+			value: tracking.mode,
+		});
+		if (mode === "planar") {
+			validateStickerPlanarTrackingRuntime({
+				path: trackingPath,
+				value: tracking,
+			});
+			return;
+		}
 		assertKeys({
-			allowed: STICKER_TRACKING_KEYS,
+			allowed: STICKER_MOTION_TRACKING_KEYS,
 			path: trackingPath,
 			record: tracking,
+		});
+		getString({
+			path: `${trackingPath}.targetElementId`,
+			value: tracking.targetElementId,
+		});
+		if (tracking.targetMaskId !== undefined) {
+			getString({
+				path: `${trackingPath}.targetMaskId`,
+				value: tracking.targetMaskId,
+			});
+		}
+		assertOptionalBoolean({
+			path: `${trackingPath}.followScale`,
+			value: tracking.followScale,
 		});
 		const anchorPath = `${trackingPath}.anchor`;
 		const anchor = getRecord({
@@ -1081,6 +1111,12 @@ function validateStickerElement({
 			path: anchorPath,
 			record: anchor,
 		});
+		for (const key of ["centerX", "centerY", "width", "height"]) {
+			getFiniteNumber({
+				path: `${anchorPath}.${key}`,
+				value: anchor[key],
+			});
+		}
 	}
 }
 

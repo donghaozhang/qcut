@@ -288,6 +288,7 @@ export {
 	MAX_PLANAR_TRACKING_SAMPLES,
 	validatePlanarTrackingReference,
 	validatePlanarTrackingSidecar,
+	validateStickerPlanarTracking,
 } from "./tracking/planar-result-validation.js";
 
 export {

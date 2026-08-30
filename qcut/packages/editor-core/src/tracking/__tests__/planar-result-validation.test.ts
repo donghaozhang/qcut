@@ -2,10 +2,12 @@ import { describe, expect, it } from "vitest";
 import type {
 	PlanarTrackingReference,
 	PlanarTrackingSidecarV1,
+	StickerPlanarTracking,
 } from "../planar-types.js";
 import {
 	validatePlanarTrackingReference,
 	validatePlanarTrackingSidecar,
+	validateStickerPlanarTracking,
 } from "../planar-result-validation.js";
 
 const HASH_A = "a".repeat(64);
@@ -81,6 +83,17 @@ function validReference(): PlanarTrackingReference {
 		status: "ready",
 		sampleCount: 2,
 		trackedRange: { startPtsUs: 966_667, endPtsUs: 1_000_000 },
+	};
+}
+
+function validStickerBinding(): StickerPlanarTracking {
+	return {
+		mode: "planar",
+		sourceElementId: "clip-1",
+		surfaceTrackingId: "surface-1",
+		seedPtsUs: 1_000_000,
+		seedTargetQuad: validSidecar().seed.quad,
+		lostBehavior: "hold",
 	};
 }
 
@@ -287,6 +300,63 @@ describe("planar tracking reference validation", () => {
 					code: "invalid-reference-state",
 					message: "Tracked range must contain the seed PTS.",
 				}),
+			])
+		);
+	});
+});
+
+describe("sticker planar tracking validation", () => {
+	it("accepts a complete planar sticker binding", () => {
+		const binding = validStickerBinding();
+		const result = validateStickerPlanarTracking({ value: binding });
+		expect(result.valid).toBe(true);
+		if (!result.valid) return;
+		expect(result.value).toBe(binding);
+	});
+
+	it("rejects missing identities, unsafe PTS values, and invalid quads", () => {
+		const binding = validStickerBinding();
+		const result = validateStickerPlanarTracking({
+			value: {
+				...binding,
+				sourceElementId: " ",
+				surfaceTrackingId: null,
+				seedPtsUs: Number.MAX_SAFE_INTEGER + 1,
+				seedTargetQuad: {
+					topLeft: { x: 0, y: 0 },
+					topRight: { x: 1, y: 1 },
+					bottomRight: { x: 1, y: 0 },
+					bottomLeft: { x: 0, y: 1 },
+				},
+			},
+		});
+
+		expect(result.valid).toBe(false);
+		expect(result.issues.map((issue) => issue.path)).toEqual(
+			expect.arrayContaining([
+				"sourceElementId",
+				"surfaceTrackingId",
+				"seedPtsUs",
+				"seedTargetQuad",
+			])
+		);
+	});
+
+	it("rejects unsupported modes and lost behaviors", () => {
+		const binding = validStickerBinding();
+		const result = validateStickerPlanarTracking({
+			value: {
+				...binding,
+				mode: "motion",
+				lostBehavior: "drift",
+			},
+		});
+
+		expect(result.valid).toBe(false);
+		expect(result.issues).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ path: "mode" }),
+				expect.objectContaining({ path: "lostBehavior" }),
 			])
 		);
 	});

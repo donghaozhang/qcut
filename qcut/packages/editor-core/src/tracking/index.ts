@@ -40,6 +40,7 @@ export {
 	MAX_PLANAR_TRACKING_SAMPLES,
 	validatePlanarTrackingReference,
 	validatePlanarTrackingSidecar,
+	validateStickerPlanarTracking,
 } from "./planar-result-validation.js";
 
 export type { StickerTracking } from "../types/timeline.js";
