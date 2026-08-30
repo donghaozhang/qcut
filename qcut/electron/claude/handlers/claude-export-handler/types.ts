@@ -42,6 +42,8 @@ export interface ExportSegment {
 	 * seconds — the source read length is duration × playbackRate.
 	 */
 	playbackRate?: number;
+	frameInterpolation?: import("../../../ffmpeg/types.js").VideoSource["frameInterpolation"];
+	enhancements?: import("../../../ffmpeg/types.js").VideoVisual["enhancements"];
 }
 
 export interface ResolvedExportSettings {
