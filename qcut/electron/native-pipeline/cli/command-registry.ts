@@ -282,21 +282,54 @@ export const CATEGORIES: CategoryDef[] = [
 // ─── Non-Editor Commands ─────────────────────────────────────────────
 
 const CORE_COMMANDS: Record<string, CommandDef> = {
+	"compose-snapshot": {
+		name: "compose-snapshot",
+		description:
+			"Capture a ComposeSnapshot of the running editor's active timeline",
+		category: "composition",
+		flags: [
+			f("--project-id", "string", "Project to snapshot (defaults to active)"),
+			f("--output", "string", "Snapshot JSON output path"),
+		],
+		examples: [
+			"qcut compose snapshot --output snapshot.json --json",
+			"qcut compose snapshot --project-id my-project --json",
+		],
+	},
 	"compose-validate": {
 		name: "compose-validate",
 		description:
-			"Resolve clips, filters, transitions, stickers, and sound effects without rendering",
+			"Manifest mode (--config) resolves local resources; patch mode (--snapshot --patch) checks a ComposePatch against its snapshot",
 		category: "composition",
 		flags: [
 			f("--config", "string", "QCut compose manifest JSON path", {
 				short: "-c",
-				required: true,
 			}),
 			f("--output", "string", "Optional compose-lock JSON output path"),
+			f("--snapshot", "string", "ComposeSnapshot JSON (path or @file)"),
+			f("--patch", "string", "ComposePatch JSON (path or @file)"),
 		],
 		examples: [
 			"qcut compose validate --config edit.qcut-compose.json --json",
-			"qcut compose validate -c edit.qcut-compose.json --output compose-lock.json --json",
+			"qcut compose validate --snapshot snapshot.json --patch patch.json --json",
+		],
+	},
+	"compose-apply": {
+		name: "compose-apply",
+		description:
+			"Validate a ComposePatch and apply it to the running editor timeline atomically",
+		category: "composition",
+		flags: [
+			f("--snapshot", "string", "ComposeSnapshot JSON (path or @file)", {
+				required: true,
+			}),
+			f("--patch", "string", "ComposePatch JSON (path or @file)", {
+				required: true,
+			}),
+			f("--project-id", "string", "Target project (defaults to snapshot's)"),
+		],
+		examples: [
+			"qcut compose apply --snapshot snapshot.json --patch patch.json --json",
 		],
 	},
 	"compose-render": {
