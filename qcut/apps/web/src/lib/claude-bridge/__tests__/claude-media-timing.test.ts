@@ -105,6 +105,7 @@ describe("Claude media timing bridge", () => {
 			mediaId: "runtime-media",
 			name: "Runtime sticker",
 			startTime: 0,
+			stickerAssetId: "sticker-lab:jianying-2026-08-23-batch-18-v2:18001",
 			stickerId: "runtime-sticker",
 			stickerRuntime: {
 				kind: "png-sequence",
@@ -137,6 +138,11 @@ describe("Claude media timing bridge", () => {
 		expect(exported[0].elements[0].stickerRuntime).toEqual(
 			sticker.stickerRuntime
 		);
+		expect(exported[0].elements[0]).toMatchObject({
+			sourceId: sticker.stickerAssetId,
+			stickerAssetId: sticker.stickerAssetId,
+			stickerId: sticker.stickerId,
+		});
 	});
 
 	it("drops an invalid speed curve as one atomic value", () => {
