@@ -474,6 +474,8 @@ export interface CLIRunOptions {
 	snapshot?: string;
 	/** ComposePatch JSON for compose patch commands (path, @file, or stdin). */
 	patch?: string;
+	/** ComposeIntent for compose plan: a kind name, inline JSON, or @file. */
+	intent?: string;
 	manifestUrl?: string;
 	focus?: boolean;
 	downloadDir?: string;
