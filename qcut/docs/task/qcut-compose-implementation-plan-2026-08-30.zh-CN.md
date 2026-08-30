@@ -31,7 +31,13 @@ Editor Snapshot
 
 ## 现在差什么
 
-### 1. 缺通用 Compose Core
+### 1. 缺通用 Compose Core（已完成 2026-08-30）
+
+状态：已在 `packages/editor-core/src/compose/` 落地——`compose-types.ts`、
+`compose-fingerprint.ts`（免 locale 的确定性 sha256）、`compose-validation.ts`（结构化
+issue，收编 smart-packaging 错误码）、`compose-patch-merge.ts`（按 operation id 幂等）、
+`smart-packaging-adapter.ts`（snapshot/patch/issue 三个转换器），入口已接进包导出，
+19 个单测覆盖阶段 1 全部验收项。以下为当时的设计记录。
 
 `SmartPackagingTimelinePatch` 已经能表达字幕、文字、贴纸、音效、转场和 zoom，但它的命名和入口仍绑定 Smart Packaging。`ComposeManifest v1` 能渲染本地多资源编辑，但它不理解当前编辑器工程、snapshot fingerprint、cloud job、provider provenance、patch merge。
 
@@ -342,7 +348,7 @@ QCut 工程内应保存：
 
 这份文档描述的是一个连续实现路线，不要求按文档章节拆成多个文档 PR。文档、调研和方案记录可以合并在一个较大的 docs PR 里；真正进入代码实现时，再按功能边界、风险和可验证性拆小。
 
-### 阶段 1：Compose Core 类型与验证
+### 阶段 1：Compose Core 类型与验证（已完成 2026-08-30）
 
 目标：把协议落在 `packages/editor-core/src/compose/`。
 
@@ -440,7 +446,7 @@ QCut 工程内应保存：
 - portable project rerender。
 - apply -> export -> probe -> screenshot artifact。
 
-## 最小可做版本
+## 最小可做版本（已被阶段 1 实现覆盖）
 
 如果先做一小步，建议只做：
 
