@@ -127,4 +127,53 @@ describe("QCut local audio preparation", () => {
 			})
 		);
 	});
+
+	it("cancels the in-flight local render when the caller aborts", async () => {
+		platformMocks.getFileInfo.mockResolvedValue({
+			name: "voice.wav",
+			path: "/media/voice.wav",
+			size: 1_024,
+			isDirectory: false,
+			modifiedAt: 1,
+			createdAt: 1,
+		});
+		const inspectLocalRuntime = vi.fn().mockResolvedValue({
+			runtimeId: "qcut-ffmpeg-audio-v1",
+			version: 1,
+			provider: "qcut",
+			independentFromJianying: true,
+			cacheDirectory: "/qcut/cache",
+			modelCacheDirectory: "/qcut/models",
+			features: [{ id: "spectral-denoise", status: "ready" }],
+		});
+		const processLocal = vi.fn().mockReturnValue(new Promise(() => {}));
+		const cancelLocal = vi.fn().mockResolvedValue(true);
+		window.electronAPI = {
+			audio: {
+				inspectLocalRuntime,
+				processLocal,
+				cancelLocal,
+			},
+		} as unknown as Window["electronAPI"];
+		const mediaItem = {
+			id: "media-1",
+			name: "voice.wav",
+			type: "audio",
+			file: new File([new Uint8Array([1])], "voice.wav"),
+			localPath: "/media/voice.wav",
+		} satisfies MediaItem;
+
+		const controller = new AbortController();
+		const pending = processQcutLocalDenoise({
+			mediaItem,
+			settings: createDefaultMediaAudioSettings(),
+			requestId: "request-2",
+			signal: controller.signal,
+		});
+		await vi.waitFor(() => expect(processLocal).toHaveBeenCalledOnce());
+		controller.abort();
+
+		await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+		expect(cancelLocal).toHaveBeenCalledWith("request-2");
+	});
 });
