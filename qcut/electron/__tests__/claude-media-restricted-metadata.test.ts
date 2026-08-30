@@ -2,7 +2,10 @@ import * as fs from "node:fs/promises";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { StickerLabMediaMetadata } from "../types/sticker-lab-media-metadata.js";
+import type {
+	StickerLabMediaMetadata,
+	StickerLabRestrictedMediaMetadata,
+} from "../types/sticker-lab-media-metadata.js";
 
 const testState = vi.hoisted(() => ({ documentsRoot: "" }));
 
@@ -117,6 +120,130 @@ describe("restricted Sticker Lab media metadata", () => {
 			const stat = await fs.stat(sidecarPath);
 			expect(stat.mode & 0o777).toBe(0o600);
 		}
+	});
+
+	it("round-trips a bounded multi-frame runtime descriptor larger than 8 KiB", async () => {
+		const frameCount = 100;
+		const stickerRuntimeResources = Object.fromEntries(
+			Array.from({ length: frameCount }, (_, index) => [
+				`asset_${String(index + 1).padStart(4, "0")}`,
+				`runtime-media-${index + 1}`,
+			])
+		);
+		const metadata: StickerLabRestrictedMediaMetadata = {
+			...METADATA,
+			stickerRuntime: {
+				kind: "png-sequence",
+				completion: "freeze-last",
+				cycleDurationSeconds: frameCount,
+				frames: Array.from({ length: frameCount }, (_, index) => ({
+					durationSeconds: 1,
+					startSeconds: index,
+					source: `$resource:asset_${String(index + 1).padStart(4, "0")}`,
+				})),
+				repeat: { kind: "infinite" },
+			},
+			stickerRuntimeResources,
+		};
+		expect(Buffer.byteLength(JSON.stringify(metadata), "utf8")).toBeGreaterThan(
+			8192
+		);
+		const media = await importFixture({ name: "runtime-preview.png" });
+
+		await persistMediaRestrictedMetadata({
+			mediaId: media.id,
+			metadata,
+			projectId: PROJECT_ID,
+		});
+
+		await expect(getMediaInfo(PROJECT_ID, media.id)).resolves.toMatchObject({
+			metadata,
+		});
+	});
+
+	it("keeps the largest legal atlas sidecar within its persisted byte limit", async () => {
+		const frameCount = 10_000;
+		const frameIdLength = 300;
+		const metadata: StickerLabRestrictedMediaMetadata = {
+			...METADATA,
+			stickerRuntime: {
+				atlasSize: { height: 1, width: 1 },
+				completion: "freeze-last",
+				cycleDurationSeconds: frameCount,
+				frames: Array.from({ length: frameCount }, (_, index) => {
+					const indexText = String(index);
+					return {
+						durationSeconds: 1,
+						frameRect: { height: 1, width: 1, x: 0, y: 0 },
+						id: `${indexText}${"界".repeat(frameIdLength - indexText.length)}`,
+						rotated: false,
+						sourceSize: { height: 1, width: 1 },
+						spriteSourceRect: {
+							height: 1,
+							width: 1,
+							x: 0,
+							y: 0,
+						},
+						startSeconds: index,
+						trimmed: false,
+					};
+				}),
+				kind: "atlas-animation",
+				repeat: { kind: "infinite" },
+			},
+		};
+		const importBodyBytes = Buffer.byteLength(
+			JSON.stringify({ metadata, source: "/private/maximum-atlas.png" }),
+			"utf8"
+		);
+		expect(importBodyBytes).toBeLessThanOrEqual(16 * 1024 * 1024);
+		const media = await importFixture({ name: "maximum-atlas.png" });
+
+		await persistMediaRestrictedMetadata({
+			mediaId: media.id,
+			metadata,
+			projectId: PROJECT_ID,
+		});
+
+		const [sidecarName] = await listSidecars();
+		const stat = await fs.stat(getSidecarPath({ sidecarName }));
+		expect(stat.size).toBeLessThanOrEqual(16 * 1024 * 1024);
+		await expect(getMediaInfo(PROJECT_ID, media.id)).resolves.toMatchObject({
+			metadata,
+		});
+	}, 30_000);
+
+	it("rejects atlas frame IDs whose JSON escaping defeats byte bounds", async () => {
+		const metadata: StickerLabRestrictedMediaMetadata = {
+			...METADATA,
+			stickerRuntime: {
+				atlasSize: { height: 1, width: 1 },
+				completion: "freeze-last",
+				cycleDurationSeconds: 1,
+				frames: [
+					{
+						durationSeconds: 1,
+						frameRect: { height: 1, width: 1, x: 0, y: 0 },
+						id: "frame\u0001id",
+						rotated: false,
+						sourceSize: { height: 1, width: 1 },
+						spriteSourceRect: { height: 1, width: 1, x: 0, y: 0 },
+						startSeconds: 0,
+						trimmed: false,
+					},
+				],
+				kind: "atlas-animation",
+				repeat: { kind: "infinite" },
+			},
+		};
+
+		await expect(
+			persistMediaRestrictedMetadata({
+				mediaId: "control-frame-id",
+				metadata,
+				projectId: PROJECT_ID,
+			})
+		).rejects.toThrow("must not contain control characters");
 	});
 
 	it("hides restricted media with a corrupt sidecar without hiding ordinary media", async () => {
