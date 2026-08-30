@@ -140,15 +140,21 @@ function makeClient({
 		if (url.endsWith("/rollback")) return { rolledBack: true };
 		throw new Error(`Unexpected POST ${url}`);
 	});
+	const patch = vi.fn(async () => ({
+		updatedCount: 1,
+		failedCount: 0,
+		results: [{ index: 0, success: true }],
+	}));
 	return {
 		client: {
 			get,
 			post,
-			patch: vi.fn(),
+			patch,
 			delete: vi.fn(),
 		} as unknown as EditorApiClient,
 		get,
 		post,
+		patch,
 	};
 }
 
@@ -290,6 +296,42 @@ const mixedMediaManifest = {
 };
 
 describe("editor timeline apply", () => {
+	it("updates existing media keyframes inside the atomic manifest", async () => {
+		const keyframes = {
+			scaleX: [
+				{ id: "zoom-x-start", frame: 0, value: 1, easing: "easeInOut" },
+				{ id: "zoom-x-end", frame: 60, value: 1.2, easing: "easeInOut" },
+			],
+			scaleY: [
+				{ id: "zoom-y-start", frame: 0, value: 1, easing: "easeInOut" },
+				{ id: "zoom-y-end", frame: 60, value: 1.2, easing: "easeInOut" },
+			],
+		};
+		const { client, patch } = makeClient({
+			videoElement: { startTime: 0, duration: 2, keyframes },
+		});
+		const result = await timelineApplyManifest(
+			client,
+			makeOptions({
+				tracks: [],
+				updates: [
+					{
+						alias: "zoom:1",
+						elementId: "video-1",
+						trackId: "main-track",
+						keyframes,
+					},
+				],
+			})
+		);
+
+		expect(result.success).toBe(true);
+		expect(patch).toHaveBeenCalledWith(
+			"/api/claude/timeline/project-1/elements/batch",
+			{ updates: [{ elementId: "video-1", keyframes }] }
+		);
+	});
+
 	it("creates named tracks and full text atomically, then verifies read-back", async () => {
 		const { client, post } = makeClient();
 		const result = await timelineApplyManifest(client, makeOptions(manifest));

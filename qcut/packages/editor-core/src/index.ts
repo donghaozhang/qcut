@@ -609,3 +609,5 @@ export { generateUUID } from "./utils.js";
 
 export { computeShatterTiles, shatterNoise } from "./text-animation/shatter.js";
 export type { ShatterTile } from "./text-animation/shatter.js";
+
+export * from "./compose/index.js";

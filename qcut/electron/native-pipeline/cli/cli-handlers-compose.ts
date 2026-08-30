@@ -7,6 +7,16 @@ import {
 	resolveComposeProject,
 	type ResolvedComposeProject,
 } from "../compose/compose-resolver.js";
+import {
+	hasComposeValidationErrors,
+	validateComposePatch,
+	validateComposeSnapshot,
+} from "../compose/compose-protocol.js";
+import { resolveComposePatchAssets } from "../compose/compose-asset-resolver.js";
+import {
+	handleComposeRenderPatch,
+	loadComposeSnapshotAndPatch,
+} from "./cli-handlers-compose-editor.js";
 import type {
 	CLIResult,
 	CLIRunOptions,
@@ -18,6 +28,7 @@ export interface ComposeHandlerDependencies {
 	resolve: typeof resolveComposeProject;
 	render: typeof renderResolvedComposeProject;
 	createProject: typeof createComposeProject;
+	resolvePatchAssets: typeof resolveComposePatchAssets;
 }
 
 const DEFAULT_DEPENDENCIES: ComposeHandlerDependencies = {
@@ -25,6 +36,7 @@ const DEFAULT_DEPENDENCIES: ComposeHandlerDependencies = {
 	resolve: resolveComposeProject,
 	render: renderResolvedComposeProject,
 	createProject: createComposeProject,
+	resolvePatchAssets: resolveComposePatchAssets,
 };
 
 function errorMessage({ error }: { error: unknown }): string {
@@ -72,6 +84,53 @@ async function loadAndResolve({
 	return dependencies.resolve({ loaded, signal });
 }
 
+async function validatePatchMode({
+	options,
+	onProgress,
+	startedAt,
+	dependencies,
+}: {
+	options: CLIRunOptions;
+	onProgress: ProgressFn;
+	startedAt: number;
+	dependencies: ComposeHandlerDependencies;
+}): Promise<CLIResult> {
+	const { snapshot, patch } = await loadComposeSnapshotAndPatch({ options });
+	onProgress({
+		stage: "validating",
+		percent: 30,
+		message: "Validating the compose patch against its snapshot...",
+	});
+	const assets = await dependencies.resolvePatchAssets({ patch });
+	const issues = [
+		...validateComposeSnapshot({ snapshot }),
+		...validateComposePatch({ snapshot, patch }),
+		...assets.issues,
+	];
+	const valid = !hasComposeValidationErrors({ issues });
+	onProgress({
+		stage: "complete",
+		percent: 100,
+		message: valid
+			? "Compose patch is applicable"
+			: "Compose patch failed validation",
+	});
+	return {
+		success: valid,
+		...(valid ? {} : { error: "Compose patch failed validation." }),
+		data: {
+			mode: "patch",
+			valid,
+			snapshotId: snapshot.id,
+			patchId: patch.id,
+			operationCount: patch.operations.length,
+			issues,
+			assets: assets.reports,
+		},
+		duration: (Date.now() - startedAt) / 1000,
+	};
+}
+
 export async function handleComposeValidate(
 	options: CLIRunOptions,
 	onProgress: ProgressFn,
@@ -80,6 +139,20 @@ export async function handleComposeValidate(
 ): Promise<CLIResult> {
 	const startedAt = Date.now();
 	try {
+		const hasPatchInputs = Boolean(options.snapshot || options.patch);
+		if (options.config && hasPatchInputs) {
+			throw new Error(
+				"--config selects manifest mode and --snapshot/--patch select patch mode; pass one set, not both."
+			);
+		}
+		if (hasPatchInputs) {
+			return await validatePatchMode({
+				options,
+				onProgress,
+				startedAt,
+				dependencies,
+			});
+		}
 		onProgress({
 			stage: "validating",
 			percent: 10,
@@ -132,6 +205,15 @@ export async function handleComposeRender(
 ): Promise<CLIResult> {
 	const startedAt = Date.now();
 	try {
+		const hasPatchInputs = Boolean(options.snapshot || options.patch);
+		if (options.config && hasPatchInputs) {
+			throw new Error(
+				"--config selects manifest mode and --snapshot/--patch select patch mode; pass one set, not both."
+			);
+		}
+		if (hasPatchInputs) {
+			return await handleComposeRenderPatch(options, onProgress, signal);
+		}
 		onProgress({
 			stage: "validating",
 			percent: 5,

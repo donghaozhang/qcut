@@ -11,6 +11,7 @@ import { debugError } from "@/lib/debug/debug-config";
 import { getTimelineElementDuration } from "@/lib/timeline";
 import {
 	addClaudeAdjustmentElement,
+	addClaudeStickerElement,
 	getClaudeTextProperties,
 	getClaudeMediaTimingProperties,
 	syncProjectMediaIfNeeded,
@@ -181,10 +182,19 @@ export function setupBatchHandlers({
 									trimEnd:
 										typeof element.trimEnd === "number" ? element.trimEnd : 0,
 									...(colorLabel ? { colorLabel } : {}),
+									...(typeof element.volume === "number"
+										? { volume: element.volume }
+										: {}),
 									...getClaudeMediaTimingProperties({ element }),
 								},
 								addOptions
 							);
+						} else if (normalizedType === "sticker") {
+							createdElementId = await addClaudeStickerElement({
+								element,
+								projectId,
+								timelineStore,
+							});
 						} else if (normalizedType === "adjustment") {
 							createdElementId = addClaudeAdjustmentElement({
 								element,

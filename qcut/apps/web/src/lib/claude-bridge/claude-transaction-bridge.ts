@@ -7,6 +7,9 @@ import {
 } from "@/stores/timeline/timeline-history";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { TimelineStore } from "@/stores/timeline/types";
+import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
+import { useProjectStore } from "@/stores/project-store";
+import type { OverlaySticker } from "@/types/sticker-overlay";
 
 type ClaudeTransactionAPI = NonNullable<
 	NonNullable<ReturnType<typeof platform>["claude"]>["transaction"]
@@ -25,6 +28,20 @@ type ActiveTransactionContext = {
 	expiresAt: number;
 	/** Full editing context at Begin — becomes the one history entry. */
 	preSnapshot: TimelineHistorySnapshot;
+	preStickerSnapshot: StickerOverlayTransactionSnapshot;
+	projectId?: string;
+};
+
+type StickerOverlayTransactionSnapshot = {
+	overlays: OverlaySticker[];
+	selectedStickerId: string | null;
+	isDragging: boolean;
+	isResizing: boolean;
+	isRotating: boolean;
+	history: {
+		past: OverlaySticker[][];
+		future: OverlaySticker[][];
+	};
 };
 
 type TimelineHistoryPatches = Pick<
@@ -53,6 +70,37 @@ let isHistoryPatched = false;
 
 function cloneJson<T>({ value }: { value: T }): T {
 	return JSON.parse(JSON.stringify(value)) as T;
+}
+
+function captureStickerOverlaySnapshot(): StickerOverlayTransactionSnapshot {
+	const state = useStickersOverlayStore.getState();
+	return cloneJson({
+		value: {
+			overlays: Array.from(state.overlayStickers.values()),
+			selectedStickerId: state.selectedStickerId,
+			isDragging: state.isDragging,
+			isResizing: state.isResizing,
+			isRotating: state.isRotating,
+			history: state.history,
+		},
+	});
+}
+
+function restoreStickerOverlaySnapshot({
+	snapshot,
+}: {
+	snapshot: StickerOverlayTransactionSnapshot;
+}): void {
+	useStickersOverlayStore.setState({
+		overlayStickers: new Map(
+			snapshot.overlays.map((sticker) => [sticker.id, sticker])
+		),
+		selectedStickerId: snapshot.selectedStickerId,
+		isDragging: snapshot.isDragging,
+		isResizing: snapshot.isResizing,
+		isRotating: snapshot.isRotating,
+		history: cloneJson({ value: snapshot.history }),
+	});
 }
 
 function createHistoryEntry({
@@ -424,6 +472,8 @@ export function setupClaudeTransactionBridge(): void {
 						selectedElements: store.selectedElements,
 						selectedTransition: store.selectedTransition,
 					}),
+					preStickerSnapshot: captureStickerOverlaySnapshot(),
+					projectId: useProjectStore.getState().activeProject?.id,
 				};
 
 				debugLog(
@@ -501,7 +551,7 @@ export function setupClaudeTransactionBridge(): void {
 			}
 		});
 
-		api.onRollback((data) => {
+		api.onRollback(async (data) => {
 			try {
 				if (!activeTransaction) {
 					sendRollbackResponse({
@@ -538,6 +588,15 @@ export function setupClaudeTransactionBridge(): void {
 					}),
 				});
 				restoreTimelinePlayhead({ snapshot: current.preSnapshot });
+				restoreStickerOverlaySnapshot({
+					snapshot: current.preStickerSnapshot,
+				});
+				await useTimelineStore.getState().saveImmediate();
+				if (current.projectId) {
+					await useStickersOverlayStore
+						.getState()
+						.saveToProject(current.projectId);
+				}
 				activeTransaction = null;
 
 				debugLog(

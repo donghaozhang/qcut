@@ -251,6 +251,12 @@ export function VideoPlayer({
 	useEffect(() => {
 		const video = videoRef.current;
 		if (!video || !isInClipRange) return;
+		// While the hover axis is scrubbing, the playback-seek fast path owns
+		// the element; re-assigning currentTime here would cancel the seek that
+		// event just started and restart keyframe decode on every hover step.
+		if (typeof usePlaybackStore.getState().previewScrubTime === "number") {
+			return;
+		}
 		syncVideoTiming({
 			video,
 			timelineTime: effectiveTimelineTime,
@@ -277,13 +283,31 @@ export function VideoPlayer({
 		// at the animation frame rate.
 		let resumeBlockedUntil = 0;
 
+		// Scrub seeks stream instead of thrash: reassigning currentTime while a
+		// seek is in flight cancels it and restarts keyframe decode, so a fast
+		// hover sweep would present nothing until the pointer stops. Hold the
+		// newest scrub target and apply it once the current seek settles.
+		let pendingScrubVideoTime: number | null = null;
+
 		const handleSeekEvent = (e: CustomEvent) => {
 			// Always update video time, even if outside clip range
 			const timelineTime = e.detail.time;
 			timelineTimeRef.current = timelineTime;
 			lastPresentedFrameCallbackAtRef.current = null;
 			const videoTime = getVideoTime(timelineTime);
+			if (e.detail.scrub === true && video.seeking) {
+				pendingScrubVideoTime = videoTime;
+				return;
+			}
+			pendingScrubVideoTime = null;
 			video.currentTime = videoTime;
+		};
+
+		const handleSeeked = () => {
+			if (pendingScrubVideoTime === null) return;
+			const nextTime = pendingScrubVideoTime;
+			pendingScrubVideoTime = null;
+			video.currentTime = nextTime;
 		};
 
 		const handleUpdateEvent = (e: CustomEvent) => {
@@ -359,6 +383,7 @@ export function VideoPlayer({
 			});
 		};
 
+		video.addEventListener("seeked", handleSeeked);
 		window.addEventListener("playback-seek", handleSeekEvent as EventListener);
 		window.addEventListener(
 			"playback-update",
@@ -367,6 +392,7 @@ export function VideoPlayer({
 		window.addEventListener("playback-speed", handleSpeed as EventListener);
 
 		return () => {
+			video.removeEventListener("seeked", handleSeeked);
 			window.removeEventListener(
 				"playback-seek",
 				handleSeekEvent as EventListener

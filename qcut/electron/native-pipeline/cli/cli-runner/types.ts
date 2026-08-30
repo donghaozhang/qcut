@@ -470,6 +470,12 @@ export interface CLIRunOptions {
 	trackName?: string;
 	/** Declarative editor timeline manifest (inline JSON, @file, or stdin). */
 	manifest?: string;
+	/** ComposeSnapshot JSON for compose patch commands (path, @file, or stdin). */
+	snapshot?: string;
+	/** ComposePatch JSON for compose patch commands (path, @file, or stdin). */
+	patch?: string;
+	/** ComposeIntent for compose plan: a kind name, inline JSON, or @file. */
+	intent?: string;
 	manifestUrl?: string;
 	focus?: boolean;
 	downloadDir?: string;

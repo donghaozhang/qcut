@@ -109,7 +109,10 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 		label: "Timeline Composition",
 		description: "Validate, render, and package multi-resource edits",
 		actions: {
+			snapshot: "compose-snapshot",
+			plan: "compose-plan",
 			validate: "compose-validate",
+			apply: "compose-apply",
 			render: "compose-render",
 			project: "compose-project",
 		},

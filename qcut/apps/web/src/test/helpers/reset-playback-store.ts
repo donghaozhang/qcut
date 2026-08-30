@@ -8,6 +8,7 @@ export function resetPlaybackStore(): void {
 	usePlaybackStore.setState({
 		isPlaying: false,
 		currentTime: 0,
+		previewScrubTime: null,
 		duration: 0,
 		speed: 1,
 		volume: 1,

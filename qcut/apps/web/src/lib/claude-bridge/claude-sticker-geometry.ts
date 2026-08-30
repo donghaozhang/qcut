@@ -12,6 +12,8 @@ export interface CanonicalStickerGeometry {
 	y: number;
 }
 
+export type ClaudeStickerGeometrySpace = "pixels" | "canvas-percent";
+
 const DEFAULT_STICKER_SIZE_PIXELS = 200;
 
 function requireFinite({
@@ -27,19 +29,20 @@ function requireFinite({
 }
 
 /**
- * Resolves pixel geometry from Claude into QCut's canonical percentages.
- * `patch` uses canvas pixels with a top-left x/y origin. `current` and the
- * result use center-based x/y percentages of the canvas, while width/height
- * are percentages of its short side. Missing dimensions default to 200 px.
+ * Resolves external sticker geometry into QCut's canonical percentages.
+ * Pixel patches use a top-left x/y origin; canvas-percent patches already use
+ * center-based x/y percentages. Width/height are percentages of the short side.
  */
 export function resolveClaudeStickerGeometry({
 	canvasSize,
 	current,
 	patch,
+	space = "pixels",
 }: {
 	canvasSize: { height: number; width: number };
 	current?: Partial<CanonicalStickerGeometry>;
 	patch: ClaudeStickerGeometryPatch;
+	space?: ClaudeStickerGeometrySpace;
 }): CanonicalStickerGeometry {
 	requireFinite({ label: "Canvas width", value: canvasSize.width });
 	requireFinite({ label: "Canvas height", value: canvasSize.height });
@@ -48,6 +51,33 @@ export function resolveClaudeStickerGeometry({
 	}
 
 	const shortSide = Math.min(canvasSize.width, canvasSize.height);
+	if (space === "canvas-percent") {
+		const defaultSize = (DEFAULT_STICKER_SIZE_PIXELS / shortSide) * 100;
+		const width = patch.width ?? current?.width ?? defaultSize;
+		const height = patch.height ?? current?.height ?? defaultSize;
+		const x =
+			patch.x ??
+			current?.x ??
+			(DEFAULT_STICKER_SIZE_PIXELS / 2 / canvasSize.width) * 100;
+		const y =
+			patch.y ??
+			current?.y ??
+			(DEFAULT_STICKER_SIZE_PIXELS / 2 / canvasSize.height) * 100;
+
+		for (const [label, value] of [
+			["Sticker x", x],
+			["Sticker y", y],
+			["Sticker width", width],
+			["Sticker height", height],
+		] as const) {
+			requireFinite({ label, value });
+		}
+		if (width <= 0 || height <= 0) {
+			throw new Error("Sticker dimensions must be positive");
+		}
+		return { x, y, width, height };
+	}
+
 	const currentWidthPixels =
 		current?.width === undefined
 			? DEFAULT_STICKER_SIZE_PIXELS

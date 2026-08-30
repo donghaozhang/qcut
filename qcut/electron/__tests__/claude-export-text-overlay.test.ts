@@ -213,6 +213,59 @@ describe("native export text overlays", () => {
 		expect(ass).toContain("\\pos(960.00,940.00)");
 	});
 
+	it("renders unstyled captions at the bottom instead of the text center", () => {
+		const timeline: ClaudeTimeline = {
+			name: "Caption placement",
+			duration: 4,
+			width: 1920,
+			height: 1080,
+			fps: 30,
+			tracks: [
+				{
+					id: "captions",
+					index: 0,
+					name: "Captions",
+					type: "captions",
+					elements: [
+						{
+							id: "caption-1",
+							trackIndex: 0,
+							startTime: 0.5,
+							endTime: 3.5,
+							duration: 3,
+							type: "captions",
+							content: "Grace in motion and rhythm",
+							language: "en",
+						},
+					],
+				},
+			],
+		};
+
+		const overlays = collectTextOverlays(timeline);
+		expect(overlays).toEqual([
+			expect.objectContaining({
+				positioning: "caption-anchor",
+				verticalAlign: "bottom",
+				marginV: 90,
+				backgroundColor: "#000000",
+				backgroundOpacity: 0.8,
+				strokeWidth: 2,
+			}),
+		]);
+
+		const ass = buildTextAss({ overlays, width: 1920, height: 1080 });
+		const captionStyle = ass
+			.split("\n")
+			.find((line) => line.startsWith("Style: QCutText0"));
+		const captionEvent = ass
+			.split("\n")
+			.find((line) => line.startsWith("Dialogue:"));
+		expect(captionStyle).toContain(",2,0,0,90,1");
+		expect(captionEvent).toContain("Grace in motion and rhythm");
+		expect(captionEvent).not.toContain("\\pos(");
+	});
+
 	it("substitutes an openable CJK family for CJK content", () => {
 		const timeline: ClaudeTimeline = {
 			name: "CJK",

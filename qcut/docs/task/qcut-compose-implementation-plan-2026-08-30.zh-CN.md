@@ -31,7 +31,13 @@ Editor Snapshot
 
 ## 现在差什么
 
-### 1. 缺通用 Compose Core
+### 1. 缺通用 Compose Core（已完成 2026-08-30）
+
+状态：已在 `packages/editor-core/src/compose/` 落地——`compose-types.ts`、
+`compose-fingerprint.ts`（免 locale 的确定性 sha256）、`compose-validation.ts`（结构化
+issue，收编 smart-packaging 错误码）、`compose-patch-merge.ts`（按 operation id 幂等）、
+`smart-packaging-adapter.ts`（snapshot/patch/issue 三个转换器），入口已接进包导出，
+19 个单测覆盖阶段 1 全部验收项。以下为当时的设计记录。
 
 `SmartPackagingTimelinePatch` 已经能表达字幕、文字、贴纸、音效、转场和 zoom，但它的命名和入口仍绑定 Smart Packaging。`ComposeManifest v1` 能渲染本地多资源编辑，但它不理解当前编辑器工程、snapshot fingerprint、cloud job、provider provenance、patch merge。
 
@@ -57,6 +63,10 @@ packages/editor-core/src/compose/
 
 Smart Packaging 应成为 `ComposeIntent.kind = "smart-packaging"` 的一个调用方，而不是继续扩成所有智能编辑能力的总入口。
 
+`smart-packaging-protocol.ts` 已有 `"empty-snapshot"`、`"snapshot-mismatch"` 等失败枚举；
+`ComposeValidationIssue.code` 必须收编这套枚举（由 adapter 负责映射），不允许长出两套平行的
+错误分类。
+
 ### 2. 缺 snapshot
 
 现在 `qcut compose validate/render/project` 读的是用户手写或外部生成的 `compose.json`，不是从 QCut 当前项目抓取状态。
@@ -74,6 +84,12 @@ qcut compose snapshot --project-id <id> --output snapshot.json --json
 3. 为每个可引用对象生成稳定 `sourceFingerprint`，至少包含 project id、timeline element ids、media source identity、duration、trim、fps、canvas。
 4. 输出 `ComposeSnapshot`，供本地 heuristic 和云端模型共同使用。
 
+运行时前提：现有 editor API 是 `127.0.0.1:8765` 的 `/api/claude/*` HTTP 桥（见
+`editor-timeline-apply.ts`），要求 QCut 正在运行；QCut 有单实例锁，CLI 不能自行拉起第二个
+实例。因此 snapshot/apply 第一版明确为"驱动运行中的编辑器"，app 未运行时返回结构化错误，
+而不是回退去解析磁盘工程。新增 `/api/claude` 路由必须同时注册进 `claude-http-server.ts`
+与 `utility-http-server.ts`，否则 CLI 探活可用但新路由 404。
+
 验收：
 
 - 空项目返回结构化错误。
@@ -89,8 +105,8 @@ qcut compose snapshot --project-id <id> --output snapshot.json --json
 
 ```bash
 qcut compose plan \
-  --snapshot @snapshot.json \
-  --intent @intent.json \
+  --snapshot snapshot.json \
+  --intent intent.json \
   --provider qcut \
   --output patch.json \
   --json
@@ -138,10 +154,16 @@ electron/native-pipeline/compose/providers/
 
 ```bash
 qcut compose validate \
-  --snapshot @snapshot.json \
-  --patch @patch.json \
+  --snapshot snapshot.json \
+  --patch patch.json \
   --json
 ```
+
+注意：`compose validate --config`（manifest 校验）已随 v2026.08.30.1 发布，patch 校验不得改变已发布语义：
+
+- 模式判定：出现 `--config` 走 manifest 模式；出现 `--snapshot` 与 `--patch` 走 patch 模式；两组参数同时出现时直接报错。
+- `--config` 形态保持向后兼容，`--output` 继续受"禁止覆盖输入"防护约束。
+- 第 7 节的 `compose render --target` 与第 8 节的 `compose project --project-id` 同理：实现时先落模式判定与冲突报错，再加新参数。
 
 必须检查：
 
@@ -203,6 +225,8 @@ electron/native-pipeline/compose/compose-timeline-manifest.ts
 - transition 转为现有 timeline transition payload。
 - media zoom、filter、enhancement 转为现有 media element 字段或 keyframes。
 - asset reference 先通过 resolver 转成 editor 可导入 media id 或已存在 asset id。
+- 幂等重放依赖确定性 id：converter 必须从 `operationId` 确定性推导 element/track id
+  （沿用 claude-bridge 确定性 `media_` 前缀的做法），否则 read-back verify 无法识别重复应用。
 - apply 前必须跑 `compose validate`。
 - apply 后复用 `editor-timeline-apply.ts` 的 read-back verify。
 - 失败时复用 transaction rollback。
@@ -259,6 +283,8 @@ interface ComposeAssetReference {
 - `compose validate` 能解释每个 asset 是 cached、downloadable、cloud-only、missing、unsupported。
 - portable project 能保留 asset digest 和 resolver evidence。
 - 不把 cached 当 verified；lock/report 中要区分 cache status、backend、fidelity、verification。
+- Transition Lab / Jianying-local preset 的 resolver 输出必须遵守"不做什么"的剪映红线：
+  portable project 只保留 QCut 侧 identity 与 digest。
 
 ### 7. 缺 Render 与 Apply 的统一验证
 
@@ -322,7 +348,7 @@ QCut 工程内应保存：
 
 这份文档描述的是一个连续实现路线，不要求按文档章节拆成多个文档 PR。文档、调研和方案记录可以合并在一个较大的 docs PR 里；真正进入代码实现时，再按功能边界、风险和可验证性拆小。
 
-### 阶段 1：Compose Core 类型与验证
+### 阶段 1：Compose Core 类型与验证（已完成 2026-08-30）
 
 目标：把协议落在 `packages/editor-core/src/compose/`。
 
@@ -345,7 +371,16 @@ QCut 工程内应保存：
 - snapshot mismatch 拒绝。
 - SmartPackaging patch 能转换成 ComposePatch。
 
-### 阶段 2：CLI snapshot/validate/apply
+### 阶段 2：CLI snapshot/validate/apply（已完成 2026-08-30）
+
+状态：`qcut compose snapshot`（HTTP 桥读活动编辑器 + 指纹）、`compose validate` patch 模式
+（`--snapshot --patch`，与 `--config` manifest 模式互斥判定）、`compose apply`（validate 先行 →
+`ComposePatch -> TimelineManifest` 纯函数转换 → 复用 `editor timeline apply` 事务/read-back）
+已落地。协议在 `electron/native-pipeline/compose/compose-protocol.ts` 按仓库惯例镜像，
+`compose-protocol-mirror.test.ts` 钉死与 editor-core 的行为等价。两个已知留待项：
+`update-media-zoom` 走 manifest 传输尚不可表达（apply 以 skipped 显式报告）；未解析
+localPath 的贴纸/音效同样进 skipped，等阶段 3 resolver。`@file` 引用沿用 editor 命令
+既有的 `resolveJsonInput` 惯例，裸路径也接受。
 
 目标：让 ComposePatch 能从 CLI 进入真实编辑器 timeline。
 
@@ -364,7 +399,15 @@ QCut 工程内应保存：
 - apply conversion unit tests。
 - editor timeline apply 集成测试。
 
-### 阶段 3：资源 Resolver
+### 阶段 3：资源 Resolver（部分完成 2026-08-30）
+
+状态：统一 resolver 已落地（`electron/native-pipeline/compose/compose-asset-resolver.ts`）——
+每个 asset 分类为 cached / downloadable / cloud-only / missing / unsupported，`compose
+validate` patch 模式与 `compose apply` 都输出逐资产报告并把 missing/不支持的转场升为
+blocking issue；便携报告只含 QCut 侧 identity + digest，绝不带本地路径。Sticker Lab
+缓存项在 apply 时实体化进 scratch 目录注入 localPath。仍开放：iconify 贴纸的 apply 期
+下载实体化、Sound Effects Lab 的鉴权下载路径（现分类为 cloud-only）、Text Lab 字体/模板
+样式解析（现为 unsupported，文字按纯文本应用）。
 
 目标：把贴纸、音效、转场、文字资产从本地路径升级成 QCut resource identity。
 
@@ -382,7 +425,15 @@ QCut 工程内应保存：
 - license policy。
 - portable project asset digest。
 
-### 阶段 4：Cloud Job Adapter
+### 阶段 4：Cloud Job Adapter（部分完成 2026-08-30）
+
+状态：provider 生命周期契约（createJob/uploadAssets/pollJob/downloadPatch/cancelJob）、
+`qcut compose plan --snapshot --intent --provider --output`、job 文件化持久化
+（`<output-dir>/compose/jobs/<job-id>.json`，测试断言不含任何 key 材料）已落地。
+`local` provider 是确定性启发式（字幕高亮 + 相邻切点 crossfade，operation id 由时间线
+身份推导，重试幂等）；`openrouter` provider 走真实 API（快照摘要不含本地路径，
+401/403→auth、402/429→quota、网络/畸形输出→retryable）。`qcut` 与 `fal` provider 返回
+结构化 `unsupported` 错误——QCut 云端 compose 端点尚不存在，不假装。
 
 目标：打通真实云端调用。
 
@@ -402,7 +453,15 @@ QCut 工程内应保存：
 - retry/cancel/idempotency。
 - secret redaction。
 
-### 阶段 5：Render/Export 验证闭环
+### 阶段 5：Render/Export 验证闭环（部分完成 2026-08-30）
+
+状态：`compose render --snapshot --patch --target editor [--verify-frames]` 已落地：
+apply（事务 + read-back）→ 编辑器 export（start + poll）→ ffprobe 探测
+（width/height/fps/duration/hasAudio）→ 可选帧截图亮度统计（复用
+`verifyExportFrames`）→ 写 `qcut-compose-render-report-v1` 报告，串联
+snapshot/patch/export job id 与逐资产 evidence。headless 目标继续由 `--config`
+manifest 模式承担；headless 与 editor 渲染的差异记录在各自 report 中，不强行对齐。
+真机 E2E（开着 QCut 全链路跑通）仍待做。
 
 目标：把 patch apply 后的真实编辑器导出纳入 compose 验收。
 
@@ -420,7 +479,7 @@ QCut 工程内应保存：
 - portable project rerender。
 - apply -> export -> probe -> screenshot artifact。
 
-## 最小可做版本
+## 最小可做版本（已被阶段 1 实现覆盖）
 
 如果先做一小步，建议只做：
 

@@ -61,7 +61,12 @@ describe("Claude media element track routing", () => {
 		const timelineStore = makeTimelineStore();
 
 		await addClaudeMediaElement({
-			element: { type: "audio", sourceName: "song.mp3", startTime: 5 },
+			element: {
+				type: "audio",
+				sourceName: "song.mp3",
+				startTime: 5,
+				volume: 0.65,
+			},
 			timelineStore: timelineStore as never,
 			projectId: "project-1",
 		});
@@ -75,6 +80,7 @@ describe("Claude media element track routing", () => {
 			expect.objectContaining({
 				type: "media",
 				mediaId: "m-audio",
+				volume: 0.65,
 				startTime: 5,
 				// Element duration falls back to the media item's real duration,
 				// not the 10s default.

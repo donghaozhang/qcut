@@ -282,21 +282,78 @@ export const CATEGORIES: CategoryDef[] = [
 // ─── Non-Editor Commands ─────────────────────────────────────────────
 
 const CORE_COMMANDS: Record<string, CommandDef> = {
+	"compose-snapshot": {
+		name: "compose-snapshot",
+		description:
+			"Capture a ComposeSnapshot of the running editor's active timeline",
+		category: "composition",
+		flags: [
+			f("--project-id", "string", "Project to snapshot (defaults to active)"),
+			f("--output", "string", "Snapshot JSON output path"),
+		],
+		examples: [
+			"qcut compose snapshot --output snapshot.json --json",
+			"qcut compose snapshot --project-id my-project --json",
+		],
+	},
+	"compose-plan": {
+		name: "compose-plan",
+		description:
+			"Plan a ComposePatch from a snapshot with a local or cloud provider",
+		category: "composition",
+		flags: [
+			f("--snapshot", "string", "ComposeSnapshot JSON (path or @file)", {
+				required: true,
+			}),
+			f(
+				"--intent",
+				"string",
+				"Intent kind (smart-packaging, subtitle-style, resource-match, full-compose) or intent JSON"
+			),
+			f("--provider", "string", "qcut | openrouter | fal | local", {
+				default: "local",
+			}),
+			f("--output", "string", "Patch JSON output path"),
+		],
+		examples: [
+			"qcut compose plan --snapshot snapshot.json --provider local --output patch.json --json",
+			"qcut compose plan --snapshot snapshot.json --provider openrouter --intent smart-packaging --json",
+		],
+	},
 	"compose-validate": {
 		name: "compose-validate",
 		description:
-			"Resolve clips, filters, transitions, stickers, and sound effects without rendering",
+			"Manifest mode (--config) resolves local resources; patch mode (--snapshot --patch) checks a ComposePatch against its snapshot",
 		category: "composition",
 		flags: [
 			f("--config", "string", "QCut compose manifest JSON path", {
 				short: "-c",
-				required: true,
 			}),
 			f("--output", "string", "Optional compose-lock JSON output path"),
+			f("--snapshot", "string", "ComposeSnapshot JSON (path or @file)"),
+			f("--patch", "string", "ComposePatch JSON (path or @file)"),
 		],
 		examples: [
 			"qcut compose validate --config edit.qcut-compose.json --json",
-			"qcut compose validate -c edit.qcut-compose.json --output compose-lock.json --json",
+			"qcut compose validate --snapshot snapshot.json --patch patch.json --json",
+		],
+	},
+	"compose-apply": {
+		name: "compose-apply",
+		description:
+			"Validate a ComposePatch and apply it to the running editor timeline atomically",
+		category: "composition",
+		flags: [
+			f("--snapshot", "string", "ComposeSnapshot JSON (path or @file)", {
+				required: true,
+			}),
+			f("--patch", "string", "ComposePatch JSON (path or @file)", {
+				required: true,
+			}),
+			f("--project-id", "string", "Target project (defaults to snapshot's)"),
+		],
+		examples: [
+			"qcut compose apply --snapshot snapshot.json --patch patch.json --json",
 		],
 	},
 	"compose-render": {
@@ -307,14 +364,26 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		flags: [
 			f("--config", "string", "QCut compose manifest JSON path", {
 				short: "-c",
-				required: true,
 			}),
 			f("--output", "string", "Output MP4 path"),
 			f("--dry-run", "boolean", "Resolve and lock resources without rendering"),
 			f("--force", "boolean", "Replace an existing output after verification"),
+			f(
+				"--snapshot",
+				"string",
+				"ComposeSnapshot JSON for editor-target renders"
+			),
+			f("--patch", "string", "ComposePatch JSON for editor-target renders"),
+			f("--target", "string", "editor (patch mode); manifests render headless"),
+			f(
+				"--verify-frames",
+				"string",
+				"Comma-separated timestamps to screenshot"
+			),
 		],
 		examples: [
 			"qcut compose render --config edit.qcut-compose.json --output final.mp4 --json",
+			"qcut compose render --snapshot snapshot.json --patch patch.json --target editor --verify-frames 0,3 --json",
 		],
 	},
 	"compose-project": {

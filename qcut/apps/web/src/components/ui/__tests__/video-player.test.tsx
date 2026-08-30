@@ -156,6 +156,64 @@ describe("VideoPlayer", () => {
 		expect(Number(video.dataset.qcutPresentedAt)).toBeGreaterThan(0);
 	});
 
+	it("streams scrub seeks by holding the newest target until the seek settles", () => {
+		const element = media();
+		const { container } = render(
+			<VideoPlayer
+				videoSource={{ type: "remote", src: "https://fal.media/video.mp4" }}
+				clipStartTime={element.startTime}
+				trimStart={element.trimStart}
+				trimEnd={element.trimEnd}
+				clipDuration={element.duration}
+				clipPlaybackRate={element.playbackRate}
+				timingElement={element}
+			/>
+		);
+		const video = container.querySelector("video");
+		expect(video).not.toBeNull();
+		if (!video) return;
+
+		const scrubSeek = (time: number, scrub = true) =>
+			act(() => {
+				window.dispatchEvent(
+					new CustomEvent("playback-seek", { detail: { time, scrub } })
+				);
+			});
+
+		// No seek in flight: a scrub seek applies immediately.
+		scrubSeek(11);
+		expect(video.currentTime).toBeCloseTo(2, 4);
+
+		// While the decoder is still seeking, newer scrub targets are held
+		// (latest wins) instead of cancelling the in-flight seek.
+		Object.defineProperty(video, "seeking", {
+			configurable: true,
+			get: () => true,
+		});
+		scrubSeek(12);
+		scrubSeek(12.5);
+		expect(video.currentTime).toBeCloseTo(2, 4);
+
+		Object.defineProperty(video, "seeking", {
+			configurable: true,
+			get: () => false,
+		});
+		fireEvent(video, new Event("seeked"));
+		expect(video.currentTime).toBeCloseTo(5, 4);
+
+		// A non-scrub seek (ruler/playhead) always applies immediately and
+		// clears any held scrub target.
+		Object.defineProperty(video, "seeking", {
+			configurable: true,
+			get: () => true,
+		});
+		scrubSeek(12);
+		scrubSeek(11.5, false);
+		expect(video.currentTime).toBeCloseTo(3, 4);
+		fireEvent(video, new Event("seeked"));
+		expect(video.currentTime).toBeCloseTo(3, 4);
+	});
+
 	it("resets frame timing across pause and resume", () => {
 		const callbacks: VideoFrameRequestCallback[] = [];
 		const requestDescriptor = Object.getOwnPropertyDescriptor(

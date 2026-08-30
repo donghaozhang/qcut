@@ -256,14 +256,18 @@ export interface ClaudeElement
 	mediaId?: string;
 	stickerAssetId?: string;
 	stickerId?: string;
+	/** Input geometry is already in QCut's canonical canvas percentages. */
+	stickerGeometrySpace?: "canvas-percent";
 	/** Untrusted deterministic sticker source descriptor from the renderer. */
 	stickerRuntime?: unknown;
 	zIndex?: number;
 	content?: string;
+	language?: string;
 	markdownContent?: string;
 	style?: Record<string, unknown>;
 	name?: string;
 	opacity?: number;
+	volume?: number;
 	adjustments?: Record<string, unknown>;
 	/**
 	 * Resolved media color grade (MediaColorSettings with any filter preset

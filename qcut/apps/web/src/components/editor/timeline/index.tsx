@@ -13,6 +13,7 @@ import {
 } from "./timeline-playhead";
 import { useSelectionBox } from "@/hooks/timeline/use-selection-box";
 import { SnapIndicator } from "../snap-indicator";
+import { TimelineHoverAxis } from "./timeline-hover-axis";
 import type { SnapPoint } from "@/hooks/timeline/use-timeline-snapping";
 import { calculateMinimumTimelineDuration } from "@/constants/timeline-constants";
 import { useWordTimelineStore } from "@/stores/timeline/word-timeline-store";
@@ -235,6 +236,12 @@ export function Timeline() {
 					trackLabelsRef={trackLabelsRef}
 					tracksScrollRef={tracksScrollRef}
 					isVisible={showSnapIndicator}
+				/>
+				<TimelineHoverAxis
+					timelineRef={timelineRef}
+					tracksScrollRef={tracksScrollRef}
+					trackLabelsRef={trackLabelsRef}
+					zoomLevel={zoomLevel}
 				/>
 				{/* Timeline Header with Ruler */}
 				<div className="flex bg-panel sticky top-0 z-10">
