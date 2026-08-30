@@ -374,10 +374,14 @@ export function setupClaudeTimelineBridge(): void {
 				const uint8 = new Uint8Array(buffer);
 				const blob = new Blob([uint8], { type: mimeType });
 				const fileObj = new File([blob], data.name, { type: mimeType });
-				const stickerRuntime = await parseStickerFileRuntime({
-					animatedSticker: metadata?.animatedSticker === true,
-					file: fileObj,
-				});
+				const hasImportedStickerRuntime =
+					metadata !== undefined && Object.hasOwn(metadata, "stickerRuntime");
+				const stickerRuntime = hasImportedStickerRuntime
+					? undefined
+					: await parseStickerFileRuntime({
+							animatedSticker: metadata?.animatedSticker === true,
+							file: fileObj,
+						});
 				const runtimeMetadata = stickerRuntime
 					? { ...metadata, stickerRuntime }
 					: metadata;
