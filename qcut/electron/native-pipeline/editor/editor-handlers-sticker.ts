@@ -8,6 +8,7 @@
  */
 
 import fs, { mkdtempSync, rmSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { searchIconifyStickers } from "../stickers/iconify-sticker-client.js";
@@ -311,7 +312,8 @@ async function stickerAdd(
 	}
 
 	let mediaId: string | undefined;
-	let stickerId = opts.stickerId;
+	const stickerId = `sticker-${randomUUID()}`;
+	let stickerAssetId = opts.stickerId;
 	let stickerLabProvenance: LocalStickerLabAsset | undefined;
 
 	if (usesStickerLab) {
@@ -336,7 +338,7 @@ async function stickerAdd(
 		} finally {
 			materialized.cleanup();
 		}
-		stickerId = `${STICKER_LAB_PROVIDER}:${batchId}:${itemId}`;
+		stickerAssetId = `${STICKER_LAB_PROVIDER}:${batchId}:${itemId}`;
 		stickerLabProvenance = {
 			kind: "local-reference",
 			rootPath: discovery.rootPath,
@@ -354,12 +356,12 @@ async function stickerAdd(
 			projectId: opts.projectId,
 			source: opts.source,
 		});
-		if (!stickerId) {
-			stickerId = `custom_${mediaId}`;
+		if (!stickerAssetId) {
+			stickerAssetId = `custom_${mediaId}`;
 		}
-	} else if (stickerId?.includes(":")) {
+	} else if (stickerAssetId?.includes(":")) {
 		const materialized = await materializeCatalogSticker({
-			stickerId,
+			stickerId: stickerAssetId,
 			width: opts.width ?? 512,
 		});
 		try {
@@ -375,6 +377,7 @@ async function stickerAdd(
 
 	const element: Record<string, unknown> = {
 		type: "sticker",
+		stickerAssetId,
 		stickerId,
 		startTime,
 		duration,
@@ -441,7 +444,8 @@ async function stickerUpdate(
 			};
 		}
 		changes.mediaId = newMediaId;
-		changes.stickerId = opts.stickerId ?? `custom_${newMediaId}`;
+		changes.stickerAssetId = opts.stickerId ?? `custom_${newMediaId}`;
+		changes.stickerRuntime = null;
 	}
 
 	if (opts.x !== undefined) changes.x = opts.x;
