@@ -10,6 +10,13 @@ import type {
 	StopScreenRecordingResult,
 	ScreenRecordingStatus,
 } from "../supporting-types";
+import type {
+	QcutAudioCacheClearResult,
+	QcutAudioCacheStats,
+	QcutAudioProcessRequest,
+	QcutAudioProcessResult,
+	QcutAudioRuntimeStatus,
+} from "../../qcut-audio-runtime-contract";
 
 /** Sound library search and download. */
 export interface SoundAPI {
@@ -25,6 +32,12 @@ export interface SoundAPI {
 export interface AudioAPI {
 	audio: {
 		saveTemp: (audioData: Uint8Array, filename: string) => Promise<string>;
+		inspectLocalRuntime: () => Promise<QcutAudioRuntimeStatus>;
+		processLocal: (
+			request: QcutAudioProcessRequest
+		) => Promise<QcutAudioProcessResult>;
+		getLocalCacheStats: () => Promise<QcutAudioCacheStats>;
+		clearLocalCache: () => Promise<QcutAudioCacheClearResult>;
 	};
 }
 
