@@ -21,6 +21,7 @@ import { setupRequestHandlers } from "./claude-timeline-bridge-request";
 import { setupElementHandlers } from "./claude-timeline-bridge-elements";
 import { setupBatchHandlers } from "./claude-timeline-bridge-batch";
 import { setupTrackHandlers } from "./claude-timeline-bridge-tracks";
+import { parseStickerFileRuntime } from "@/lib/stickers/sticker-file-runtime";
 
 interface ClaudeImportedMediaEvent {
 	id: string;
@@ -373,6 +374,13 @@ export function setupClaudeTimelineBridge(): void {
 				const uint8 = new Uint8Array(buffer);
 				const blob = new Blob([uint8], { type: mimeType });
 				const fileObj = new File([blob], data.name, { type: mimeType });
+				const stickerRuntime = await parseStickerFileRuntime({
+					animatedSticker: metadata?.animatedSticker === true,
+					file: fileObj,
+				});
+				const runtimeMetadata = stickerRuntime
+					? { ...metadata, stickerRuntime }
+					: metadata;
 
 				const { getOrCreateObjectURL, releaseObjectURL } = await import(
 					"@/lib/media/blob-manager"
@@ -389,7 +397,7 @@ export function setupClaudeTimelineBridge(): void {
 						url: displayUrl,
 						localPath: data.path,
 						isLocalFile: true,
-						metadata,
+						metadata: runtimeMetadata,
 					});
 					assertMediaProjectIsActive({ projectId });
 					if (deletedMediaKeys.has(importedMediaKey)) {
