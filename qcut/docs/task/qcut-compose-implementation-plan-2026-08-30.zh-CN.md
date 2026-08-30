@@ -57,6 +57,10 @@ packages/editor-core/src/compose/
 
 Smart Packaging 应成为 `ComposeIntent.kind = "smart-packaging"` 的一个调用方，而不是继续扩成所有智能编辑能力的总入口。
 
+`smart-packaging-protocol.ts` 已有 `"empty-snapshot"`、`"snapshot-mismatch"` 等失败枚举；
+`ComposeValidationIssue.code` 必须收编这套枚举（由 adapter 负责映射），不允许长出两套平行的
+错误分类。
+
 ### 2. 缺 snapshot
 
 现在 `qcut compose validate/render/project` 读的是用户手写或外部生成的 `compose.json`，不是从 QCut 当前项目抓取状态。
@@ -74,6 +78,12 @@ qcut compose snapshot --project-id <id> --output snapshot.json --json
 3. 为每个可引用对象生成稳定 `sourceFingerprint`，至少包含 project id、timeline element ids、media source identity、duration、trim、fps、canvas。
 4. 输出 `ComposeSnapshot`，供本地 heuristic 和云端模型共同使用。
 
+运行时前提：现有 editor API 是 `127.0.0.1:8765` 的 `/api/claude/*` HTTP 桥（见
+`editor-timeline-apply.ts`），要求 QCut 正在运行；QCut 有单实例锁，CLI 不能自行拉起第二个
+实例。因此 snapshot/apply 第一版明确为"驱动运行中的编辑器"，app 未运行时返回结构化错误，
+而不是回退去解析磁盘工程。新增 `/api/claude` 路由必须同时注册进 `claude-http-server.ts`
+与 `utility-http-server.ts`，否则 CLI 探活可用但新路由 404。
+
 验收：
 
 - 空项目返回结构化错误。
@@ -89,8 +99,8 @@ qcut compose snapshot --project-id <id> --output snapshot.json --json
 
 ```bash
 qcut compose plan \
-  --snapshot @snapshot.json \
-  --intent @intent.json \
+  --snapshot snapshot.json \
+  --intent intent.json \
   --provider qcut \
   --output patch.json \
   --json
@@ -138,10 +148,16 @@ electron/native-pipeline/compose/providers/
 
 ```bash
 qcut compose validate \
-  --snapshot @snapshot.json \
-  --patch @patch.json \
+  --snapshot snapshot.json \
+  --patch patch.json \
   --json
 ```
+
+注意：`compose validate --config`（manifest 校验）已随 v2026.08.30.1 发布，patch 校验不得改变已发布语义：
+
+- 模式判定：出现 `--config` 走 manifest 模式；出现 `--snapshot` 与 `--patch` 走 patch 模式；两组参数同时出现时直接报错。
+- `--config` 形态保持向后兼容，`--output` 继续受"禁止覆盖输入"防护约束。
+- 第 7 节的 `compose render --target` 与第 8 节的 `compose project --project-id` 同理：实现时先落模式判定与冲突报错，再加新参数。
 
 必须检查：
 
@@ -203,6 +219,8 @@ electron/native-pipeline/compose/compose-timeline-manifest.ts
 - transition 转为现有 timeline transition payload。
 - media zoom、filter、enhancement 转为现有 media element 字段或 keyframes。
 - asset reference 先通过 resolver 转成 editor 可导入 media id 或已存在 asset id。
+- 幂等重放依赖确定性 id：converter 必须从 `operationId` 确定性推导 element/track id
+  （沿用 claude-bridge 确定性 `media_` 前缀的做法），否则 read-back verify 无法识别重复应用。
 - apply 前必须跑 `compose validate`。
 - apply 后复用 `editor-timeline-apply.ts` 的 read-back verify。
 - 失败时复用 transaction rollback。
@@ -259,6 +277,8 @@ interface ComposeAssetReference {
 - `compose validate` 能解释每个 asset 是 cached、downloadable、cloud-only、missing、unsupported。
 - portable project 能保留 asset digest 和 resolver evidence。
 - 不把 cached 当 verified；lock/report 中要区分 cache status、backend、fidelity、verification。
+- Transition Lab / Jianying-local preset 的 resolver 输出必须遵守"不做什么"的剪映红线：
+  portable project 只保留 QCut 侧 identity 与 digest。
 
 ### 7. 缺 Render 与 Apply 的统一验证
 
@@ -439,6 +459,10 @@ QCut 工程内应保存：
 - 不把云端模型返回值直接写 timeline；必须先变成 patch，再 validate，再 apply。
 - 不保存 API key、用户隐私路径或不可公开的私有缓存路径到 portable project。
 - 不把本地 cache 命中当作渲染 verified。
+- 不在 native pipeline 的静态 import 链里引入 `node:sqlite`（会杀死全部 `bun run pipeline`
+  命令）；job/patch 持久化保持文件化。
+- 不把剪映衍生资源身份（resource id、缓存结构、签名下载地址）写入 portable project 或
+  asset provenance。
 
 ## 当前判断
 
