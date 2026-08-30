@@ -16,7 +16,7 @@ import { parseArgs } from "node:util";
 import {
 	sha256File,
 	verifyTrackingRuntimeSnapshot,
-} from "./cache-private-runtime";
+} from "../../electron/jianying-motion-tracking/runtime-assets";
 import {
 	runBoundedProcess,
 	type BoundedProcessResult,
