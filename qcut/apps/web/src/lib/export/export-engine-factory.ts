@@ -7,6 +7,7 @@ import { useEffectsStore } from "@/stores/ai/effects-store";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { platform } from "@qcut/platform-core";
 import { requiresJianyingLocalColorExport } from "./jianying-local-color-export";
+import { timelineHasEnabledFilterStack } from "./export-filter-stack-policy";
 import {
 	hasStickerRuntimeForExport,
 	StickerRuntimeExportUnsupportedError,
@@ -135,6 +136,15 @@ export class ExportEngineFactory {
 				engineType: ExportEngineType.MUXER,
 				reason:
 					"Timeline uses a local Jianying color provider; fixed-timestamp canvas muxing preserves preview parity and timeline duration",
+				capabilities,
+				estimatedPerformance: "medium",
+			};
+		}
+		if (tracks && timelineHasEnabledFilterStack({ tracks })) {
+			return {
+				engineType: ExportEngineType.MUXER,
+				reason:
+					"Timeline uses per-clip Filter Lab stacks; the canvas muxer shares the preview's ordered layer chain",
 				capabilities,
 				estimatedPerformance: "medium",
 			};
@@ -314,6 +324,12 @@ export class ExportEngineFactory {
 		}
 		if (
 			requiresLocalColorExport &&
+			selectedEngineType !== ExportEngineType.REMOTION
+		) {
+			selectedEngineType = ExportEngineType.MUXER;
+		}
+		if (
+			timelineHasEnabledFilterStack({ tracks }) &&
 			selectedEngineType !== ExportEngineType.REMOTION
 		) {
 			selectedEngineType = ExportEngineType.MUXER;
