@@ -45,7 +45,14 @@ interface RenderedArtifact {
 	manifest: QcutAudioArtifactManifest;
 }
 
-const activeJobs = new Map<string, Promise<RenderedArtifact>>();
+interface ActiveQcutAudioJob {
+	promise: Promise<RenderedArtifact>;
+	owners: Set<string>;
+	cancel: () => void;
+}
+
+const activeJobs = new Map<string, ActiveQcutAudioJob>();
+const jobKeysByRequestId = new Map<string, string>();
 
 function stableKeyframes({
 	keyframes,
@@ -331,9 +338,11 @@ export function buildQcutAudioProcessCommand({
 async function runFfmpeg({
 	ffmpegPath,
 	args,
+	signal,
 }: {
 	ffmpegPath: string;
 	args: string[];
+	signal?: AbortSignal;
 }): Promise<void> {
 	await new Promise<void>((resolve, reject) => {
 		const child = spawn(ffmpegPath, args, {
@@ -342,10 +351,17 @@ async function runFfmpeg({
 		});
 		let stderr = "";
 		let settled = false;
+		const onAbort = () => {
+			child.kill();
+			finish({
+				error: new Error("QCut local audio processing was cancelled"),
+			});
+		};
 		const finish = ({ error }: { error?: Error }) => {
 			if (settled) return;
 			settled = true;
 			clearTimeout(timer);
+			signal?.removeEventListener("abort", onAbort);
 			if (error) reject(error);
 			else resolve();
 		};
@@ -353,6 +369,11 @@ async function runFfmpeg({
 			child.kill();
 			finish({ error: new Error("QCut local audio processing timed out") });
 		}, PROCESS_TIMEOUT_MS);
+		if (signal?.aborted) {
+			onAbort();
+			return;
+		}
+		signal?.addEventListener("abort", onAbort, { once: true });
 		child.stderr?.on("data", (chunk: Buffer) => {
 			stderr = `${stderr}${chunk.toString()}`.slice(-MAX_STDERR_BYTES);
 		});
@@ -397,10 +418,12 @@ async function renderPreparedRequest({
 	prepared,
 	cacheDirectory,
 	ffmpegPath,
+	signal,
 }: {
 	prepared: PreparedQcutAudioRequest;
 	cacheDirectory: string;
 	ffmpegPath: string;
+	signal?: AbortSignal;
 }): Promise<RenderedArtifact> {
 	const { outputPath, manifestPath } = qcutAudioArtifactPaths({
 		cacheKey: prepared.cacheKey,
@@ -416,7 +439,7 @@ async function renderPreparedRequest({
 			request: prepared.request,
 			outputPath: partialPath,
 		});
-		await runFfmpeg({ ffmpegPath, args: command.args });
+		await runFfmpeg({ ffmpegPath, args: command.args, signal });
 		const stat = await fs.promises.stat(partialPath);
 		if (!stat.isFile() || stat.size <= 0) {
 			throw new Error("QCut local audio processing returned an empty file");
@@ -492,14 +515,50 @@ export async function processQcutAudio({
 	const activeKey = `${path.resolve(cacheDirectory)}\u0000${prepared.cacheKey}`;
 	let job = activeJobs.get(activeKey);
 	if (!job) {
-		job = renderPreparedRequest({ prepared, cacheDirectory, ffmpegPath });
+		const controller = new AbortController();
+		const promise = renderPreparedRequest({
+			prepared,
+			cacheDirectory,
+			ffmpegPath,
+			signal: controller.signal,
+		});
+		job = { promise, owners: new Set(), cancel: () => controller.abort() };
 		activeJobs.set(activeKey, job);
-		void job.finally(() => activeJobs.delete(activeKey)).catch(() => {});
+		void promise.finally(() => activeJobs.delete(activeKey)).catch(() => {});
 	}
-	const artifact = await job;
-	return processResult({
-		requestId: request.requestId,
-		artifact,
-		cacheHit: false,
-	});
+	job.owners.add(request.requestId);
+	jobKeysByRequestId.set(request.requestId, activeKey);
+	try {
+		const artifact = await job.promise;
+		return processResult({
+			requestId: request.requestId,
+			artifact,
+			cacheHit: false,
+		});
+	} finally {
+		job.owners.delete(request.requestId);
+		if (jobKeysByRequestId.get(request.requestId) === activeKey) {
+			jobKeysByRequestId.delete(request.requestId);
+		}
+	}
+}
+
+/**
+ * Cancels the render behind a requestId. The underlying FFmpeg job is shared
+ * between identical concurrent requests, so it is only killed once its last
+ * owner cancels. Returns false when the request is unknown or already settled.
+ */
+export function cancelQcutAudioProcess({
+	requestId,
+}: {
+	requestId: string;
+}): boolean {
+	const activeKey = jobKeysByRequestId.get(requestId);
+	if (!activeKey) return false;
+	jobKeysByRequestId.delete(requestId);
+	const job = activeJobs.get(activeKey);
+	if (!job) return false;
+	job.owners.delete(requestId);
+	if (job.owners.size === 0) job.cancel();
+	return true;
 }
