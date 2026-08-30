@@ -162,6 +162,21 @@ describe("createCanvasYuvConverter", () => {
 		expect(frame.data[0]).toBeGreaterThan(165);
 		converter.dispose();
 	});
+
+	it("supports the two-phase begin/finish capture on the scalar path", () => {
+		const converter = createCanvasYuvConverter({ width: 2, height: 2 });
+		const rgba = solidRgba({ width: 2, height: 2, color: [0, 255, 0] });
+		const fakeCanvas = {
+			getContext: () => ({ getImageData: () => ({ data: rgba }) }),
+		} as unknown as HTMLCanvasElement;
+		converter.begin(fakeCanvas);
+		const staged = converter.finish(fakeCanvas);
+		expect(staged.data[0]).toBeGreaterThan(165);
+		// finish without a pending begin still converts from the source.
+		const direct = converter.finish(fakeCanvas);
+		expect(direct.data[0]).toBeGreaterThan(165);
+		converter.dispose();
+	});
 });
 
 describe("EXPORT_VIDEO_COLOR_SPACE", () => {
