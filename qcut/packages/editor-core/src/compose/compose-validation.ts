@@ -112,6 +112,45 @@ export function validateComposeSnapshot({
 			});
 		}
 	}
+	for (const [index, beat] of snapshot.beats.entries()) {
+		if (!Number.isFinite(beat.timestamp) || beat.timestamp < 0) {
+			issues.push({
+				severity: "error",
+				code: "invalid-range",
+				path: `beats.${index}`,
+				message: "Beat timestamps must be finite and non-negative.",
+			});
+		}
+	}
+	for (const [index, shot] of snapshot.shots.entries()) {
+		if (!isFinitePositiveRange(shot)) {
+			issues.push({
+				severity: "error",
+				code: "invalid-range",
+				path: `shots.${index}`,
+				message: "Shot snapshot ranges must be finite positive ranges.",
+			});
+		}
+	}
+	const { project } = snapshot;
+	if (
+		!Number.isFinite(project.duration) ||
+		project.duration <= 0 ||
+		!Number.isFinite(project.fps) ||
+		project.fps <= 0 ||
+		!Number.isFinite(project.canvasSize.width) ||
+		project.canvasSize.width <= 0 ||
+		!Number.isFinite(project.canvasSize.height) ||
+		project.canvasSize.height <= 0
+	) {
+		issues.push({
+			severity: "error",
+			code: "invalid-range",
+			path: "project",
+			message:
+				"Project duration, fps, and canvas size must be finite positive numbers.",
+		});
+	}
 	return issues;
 }
 
@@ -347,6 +386,14 @@ export function validateComposeJob({
 	snapshot?: ComposeSnapshot;
 }): ComposeValidationIssue[] {
 	const issues: ComposeValidationIssue[] = [];
+	if (job.schemaVersion !== COMPOSE_PROTOCOL_VERSION) {
+		issues.push({
+			severity: "error",
+			code: "schema-version-mismatch",
+			path: "schemaVersion",
+			message: `Compose job schema version ${job.schemaVersion} is not supported.`,
+		});
+	}
 	if (job.progress < 0 || job.progress > 1 || !Number.isFinite(job.progress)) {
 		issues.push({
 			severity: "error",
