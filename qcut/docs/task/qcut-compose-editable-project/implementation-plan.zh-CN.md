@@ -1,7 +1,7 @@
 # QCut 可编辑 Compose 工程实施任务书
 
 日期：2026-08-31  
-状态：Phase A–D 完成（全实验室组合门禁通过），Phase E 收尾中  
+状态：Phase A–E 完成（三平台 CI 等待 #441 合并后 retarget 触发）  
 依赖：PR #441 `feat: complete Compose resource labs` 及其性能/CI 收尾  
 建议执行者：Claude（完成当前 Compose Export Performance Hardening 后开始）
 
@@ -806,6 +806,13 @@ apps/web/src/lib/export/*
 - 80 秒 benchmark。
 - 三平台 CI。
 - PR comments 全部 triage；合理意见修复，不合理意见带证据 resolve。
+
+**状态：✅ 本机部分完成（2026-08-31，证据 `evidence/2026-08-31-phase-e/`）；CI/评论两项结构性等待 #441 合并**
+
+- 30s 功能门禁 = Phase D 的 29s 全组合配方（全链路 + 帧/音频证据）。
+- 80s benchmark（`--engine muxer`，与 #441 优化基线同引擎同规格）：**12.42–12.69s（≈192fps，6.3–6.4× realtime）**，与基线 12.47–12.50s 持平——可编辑工程管线零性能回归。
+- 三平台 CI：`ci.yml` 只在 base=master 的 PR 触发；PR #443 stacked 在 #441 上故矩阵未跑。本地全量（electron 3401 / editor-core 842 / web 相关 352+、四处 tsc 0 错、biome 干净）作为过渡证据。**#441 合并后：retarget #443 → master、rebase、跑矩阵、triage 全部评论。**
+- 顺手修复：显式 `--engine muxer` 请求现在正确路由到 renderer。
 
 ## 18. Git 与 PR 约束
 
