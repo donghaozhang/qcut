@@ -92,7 +92,6 @@ export function WordTimelineView() {
 		resetAllFilters,
 		undoLastFilterChange,
 		selectWord,
-		getVisibleWords,
 	} = useWordTimelineStore();
 
 	const { seek, currentTime, isPlaying } = usePlaybackStore();
@@ -108,9 +107,11 @@ export function WordTimelineView() {
 		clearError: clearTranscriptionError,
 	} = useElevenLabsTranscription();
 
-	// Get only words (not spacing)
-	const words = getVisibleWords();
 	const allWords = data?.words || [];
+	const words = useMemo(
+		() => allWords.filter((word) => word.type === "word"),
+		[allWords]
+	);
 
 	// Auto-select word based on current playback time (karaoke-style sync)
 	useEffect(() => {
