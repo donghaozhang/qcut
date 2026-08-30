@@ -77,6 +77,10 @@ export function setupClaudeLocalVideoExportBridge(): void {
 				}
 				// Stream real frame progress into the main-process job, and arm
 				// the structured profiler when the caller asked for a profile.
+				console.log(
+					`[ClaudeLocalVideoExportBridge] jobId=${request.jobId ?? "-"} ` +
+						`profilePath=${request.profilePath ?? "-"}`
+				);
 				if (request.jobId) setActiveExportJob({ jobId: request.jobId });
 				if (request.profilePath) {
 					exportProfiler.arm({ targetPath: request.profilePath });
