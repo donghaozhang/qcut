@@ -16,6 +16,7 @@ function replaceEvidenceStrings({
 	if (typeof value === "string") {
 		let redacted = value;
 		for (const { replacement, source } of replacements) {
+			if (source.length === 0) continue;
 			redacted = redacted.split(source).join(replacement);
 		}
 		return redacted;
