@@ -12,6 +12,10 @@ import type { EffectChain, EffectInstance } from "./effects.js";
 import type { TextAnimationsV1 } from "../text-animation/model.js";
 import type { MediaPortraitAdjustments } from "../portrait-adjustments.js";
 import type { StickerRuntimeDescriptor } from "../sticker-lab/runtime-model.js";
+import type {
+	PlanarTrackingReference,
+	StickerPlanarTracking,
+} from "../tracking/planar-types.js";
 
 /** Media asset types */
 export type MediaType = "image" | "video" | "audio";
@@ -176,6 +180,8 @@ export interface StickerMotionTracking {
 	anchor: StickerTrackingAnchor;
 	followScale: boolean;
 }
+
+export type StickerTracking = StickerMotionTracking | StickerPlanarTracking;
 
 export type ClipTransitionType =
 	| "dissolve"
@@ -775,6 +781,8 @@ export interface MediaCompound {
 export interface MediaElement extends BaseTimelineElement {
 	type: "media";
 	mediaId: string;
+	/** Reusable planar analysis results owned by this source media element. */
+	surfaceTrackings?: PlanarTrackingReference[];
 	volume?: number;
 	scaleX?: number;
 	scaleY?: number;
@@ -956,8 +964,8 @@ export interface StickerElement extends BaseTimelineElement {
 	keyframes?: Partial<
 		Record<StickerKeyframeProperty, StickerPropertyKeyframe[]>
 	>;
-	/** Binds the sticker to an existing real media-mask tracking result. */
-	tracking?: StickerMotionTracking;
+	/** Binds the sticker to an existing motion or planar tracking result. */
+	tracking?: StickerTracking;
 	/** Legacy intra-track order. New projects use element order on the track. */
 	zIndex?: number;
 }

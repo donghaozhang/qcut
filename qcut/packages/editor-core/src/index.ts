@@ -101,6 +101,7 @@ export type {
 	MediaComboAnimationType,
 	StickerAnimationLoopType,
 	StickerMotionTracking,
+	StickerTracking,
 	StickerTrackingAnchor,
 	ClipTransition,
 	ClipTransitionDirection,
@@ -244,6 +245,21 @@ export type {
 	EffectRenderStage,
 	EffectRenderStageKind,
 } from "./types/index.js";
+
+export type {
+	NormalizedPoint,
+	PlanarQuad,
+	PlanarSampleStatus,
+	PlanarTrackingDiagnostics,
+	PlanarTrackingDirection,
+	PlanarTrackingErrorCode,
+	PlanarTrackingRange,
+	PlanarTrackingReference,
+	PlanarTrackingReferenceStatus,
+	PlanarTrackingSample,
+	PlanarTrackingSidecarV1,
+	StickerPlanarTracking,
+} from "./tracking/planar-types.js";
 
 export {
 	DEFAULT_PROJECT_TIMELINE_SETTINGS,

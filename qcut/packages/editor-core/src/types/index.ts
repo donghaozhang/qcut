@@ -112,6 +112,21 @@ export type {
 } from "./effects.js";
 
 export type {
+	NormalizedPoint,
+	PlanarQuad,
+	PlanarSampleStatus,
+	PlanarTrackingDiagnostics,
+	PlanarTrackingDirection,
+	PlanarTrackingErrorCode,
+	PlanarTrackingRange,
+	PlanarTrackingReference,
+	PlanarTrackingReferenceStatus,
+	PlanarTrackingSample,
+	PlanarTrackingSidecarV1,
+	StickerPlanarTracking,
+} from "../tracking/planar-types.js";
+
+export type {
 	MediaType,
 	TrackType,
 	MediaElement,
@@ -128,6 +143,7 @@ export type {
 	MediaComboAnimationType,
 	StickerAnimationLoopType,
 	StickerMotionTracking,
+	StickerTracking,
 	StickerTrackingAnchor,
 	ClipTransition,
 	ClipTransitionDirection,
