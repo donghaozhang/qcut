@@ -148,6 +148,11 @@ import {
 	handleEffectLabRender,
 	handleEffectLabSearch,
 } from "../cli-handlers-effect-lab.js";
+import {
+	handleComposeProject,
+	handleComposeRender,
+	handleComposeValidate,
+} from "../cli-handlers-compose.js";
 
 /**
  * Unified handler signature.
@@ -198,6 +203,9 @@ function wrapOPS(
  */
 export const HANDLER_MAP: Record<string, CommandHandler> = {
 	update: wrapOPS(handleAppUpdate),
+	"compose-validate": wrapOPS(handleComposeValidate),
+	"compose-render": wrapOPS(handleComposeRender),
+	"compose-project": wrapOPS(handleComposeProject),
 	"instances-list": wrap(handleInstancesCommand),
 	"instances-use": wrap(handleInstancesCommand),
 	"filter-lab-list": wrap((options) =>
