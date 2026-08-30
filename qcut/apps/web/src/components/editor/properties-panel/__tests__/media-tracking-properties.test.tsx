@@ -78,6 +78,45 @@ describe("MediaTrackingProperties", () => {
 		);
 	});
 
+	it("distinguishes tracked frames from compressed keyframes", () => {
+		const mask = {
+			...createMediaMask({
+				id: "object-mask",
+				type: "object",
+				index: 0,
+			}),
+			keyframes: {
+				centerX: [0, 17].map((frame) => ({
+					id: `center-x-${frame}`,
+					frame,
+					value: frame / 100,
+					easing: "linear" as const,
+				})),
+			},
+			tracking: {
+				direction: "both" as const,
+				status: "ready" as const,
+				source: "jianying-bingo" as const,
+				trackedFrames: 18,
+				totalFrames: 20,
+			},
+		};
+		render(
+			<MediaTrackingProperties
+				elementId="clip-1"
+				masks={[mask]}
+				currentFrame={0}
+				onChange={vi.fn()}
+				onTrack={vi.fn()}
+				onOpenMasks={vi.fn()}
+			/>
+		);
+
+		expect(
+			screen.getByText("已跟踪 18/20 帧 · 2 个关键帧")
+		).toBeInTheDocument();
+	});
+
 	it("routes a ready desktop motion task to the Bingo runtime", () => {
 		const mask = createMediaMask({
 			id: "object-mask",
