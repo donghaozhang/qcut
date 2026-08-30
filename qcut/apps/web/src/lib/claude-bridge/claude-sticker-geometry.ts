@@ -12,6 +12,8 @@ export interface CanonicalStickerGeometry {
 	y: number;
 }
 
+const DEFAULT_STICKER_SIZE_PIXELS = 200;
+
 function requireFinite({
 	label,
 	value,
@@ -24,6 +26,12 @@ function requireFinite({
 	}
 }
 
+/**
+ * Resolves pixel geometry from Claude into QCut's canonical percentages.
+ * `patch` uses canvas pixels with a top-left x/y origin. `current` and the
+ * result use center-based x/y percentages of the canvas, while width/height
+ * are percentages of its short side. Missing dimensions default to 200 px.
+ */
 export function resolveClaudeStickerGeometry({
 	canvasSize,
 	current,
@@ -41,9 +49,13 @@ export function resolveClaudeStickerGeometry({
 
 	const shortSide = Math.min(canvasSize.width, canvasSize.height);
 	const currentWidthPixels =
-		current?.width === undefined ? 200 : (current.width / 100) * shortSide;
+		current?.width === undefined
+			? DEFAULT_STICKER_SIZE_PIXELS
+			: (current.width / 100) * shortSide;
 	const currentHeightPixels =
-		current?.height === undefined ? 200 : (current.height / 100) * shortSide;
+		current?.height === undefined
+			? DEFAULT_STICKER_SIZE_PIXELS
+			: (current.height / 100) * shortSide;
 	const currentCenterXPixels =
 		current?.x === undefined
 			? currentWidthPixels / 2
