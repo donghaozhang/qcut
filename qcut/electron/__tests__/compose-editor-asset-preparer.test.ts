@@ -1,3 +1,7 @@
+import { createHash } from "node:crypto";
+import { mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import {
 	prepareComposeEditorAssets,
@@ -239,5 +243,108 @@ describe("prepareComposeEditorAssets", () => {
 				projectId: "project-1",
 			})
 		);
+	});
+});
+
+describe("media clip bindings", () => {
+	function clipOperation({
+		id,
+		localPath,
+		sha256,
+	}: {
+		id: string;
+		localPath?: string;
+		sha256?: string;
+	}) {
+		return {
+			kind: "insert-media-clip" as const,
+			id,
+			startTime: 0,
+			duration: 10,
+			asset: {
+				provider: "local" as const,
+				assetType: "media" as const,
+				assetId: "manifest:a.mp4",
+				...(localPath ? { localPath } : {}),
+				...(sha256 ? { provenance: { sha256 } } : {}),
+			},
+			mediaKind: "video" as const,
+			trackRole: "main-video" as const,
+			trimStart: 1,
+			trimEnd: 1,
+			sourceDuration: 12,
+		};
+	}
+
+	it("binds an existing file and verifies a declared checksum", async () => {
+		const directory = await mkdtemp(join(tmpdir(), "compose-clip-"));
+		const filePath = join(directory, "a.mp4");
+		await writeFile(filePath, "fake video bytes");
+		const sha256 = createHash("sha256")
+			.update("fake video bytes")
+			.digest("hex");
+		const prepared = await prepareComposeEditorAssets({
+			patch: makePatch({
+				operations: [
+					clipOperation({ id: "clip:a", localPath: filePath, sha256 }),
+				],
+			}),
+			client,
+			projectId: "project-1",
+			scratchDirectory: directory,
+			dependencies: baseDependencies(),
+		});
+		expect(prepared.bindings["clip:a"]?.mediaClip).toEqual({
+			path: filePath,
+			filename: "a.mp4",
+		});
+	});
+
+	it("fails on checksum mismatches and missing files", async () => {
+		const directory = await mkdtemp(join(tmpdir(), "compose-clip-"));
+		const filePath = join(directory, "a.mp4");
+		await writeFile(filePath, "fake video bytes");
+		await expect(
+			prepareComposeEditorAssets({
+				patch: makePatch({
+					operations: [
+						clipOperation({
+							id: "clip:bad",
+							localPath: filePath,
+							sha256: "0".repeat(64),
+						}),
+					],
+				}),
+				client,
+				projectId: "project-1",
+				scratchDirectory: directory,
+				dependencies: baseDependencies(),
+			})
+		).rejects.toThrow(/failed its checksum/);
+		await expect(
+			prepareComposeEditorAssets({
+				patch: makePatch({
+					operations: [
+						clipOperation({
+							id: "clip:gone",
+							localPath: join(directory, "missing.mp4"),
+						}),
+					],
+				}),
+				client,
+				projectId: "project-1",
+				scratchDirectory: directory,
+				dependencies: baseDependencies(),
+			})
+		).rejects.toThrow(/missing or empty/);
+		await expect(
+			prepareComposeEditorAssets({
+				patch: makePatch({ operations: [clipOperation({ id: "clip:none" })] }),
+				client,
+				projectId: "project-1",
+				scratchDirectory: directory,
+				dependencies: baseDependencies(),
+			})
+		).rejects.toThrow(/absolute localPath/);
 	});
 });
