@@ -77,7 +77,7 @@ export function alphaMaskTrackingSample({
 	};
 }
 
-function interpolationError({
+function geometryInterpolationError({
 	from,
 	to,
 	sample,
@@ -99,13 +99,19 @@ function interpolationError({
 	);
 }
 
-export function simplifyMaskTrackingSamples({
+function simplifyPiecewiseLinearSamples<Sample extends { frame: number }>({
 	samples,
-	tolerance = 0.003,
+	tolerance,
+	interpolationError,
 }: {
-	samples: MediaMaskTrackingSample[];
-	tolerance?: number;
-}): MediaMaskTrackingSample[] {
+	samples: Sample[];
+	tolerance: number;
+	interpolationError: (input: {
+		from: Sample;
+		to: Sample;
+		sample: Sample;
+	}) => number;
+}) {
 	const sorted = [...samples]
 		.sort((first, second) => first.frame - second.frame)
 		.filter(
@@ -136,6 +142,20 @@ export function simplifyMaskTrackingSamples({
 	return sorted.filter((_, index) => keep.has(index));
 }
 
+export function simplifyMaskTrackingSamples({
+	samples,
+	tolerance = 0.003,
+}: {
+	samples: MediaMaskTrackingSample[];
+	tolerance?: number;
+}): MediaMaskTrackingSample[] {
+	return simplifyPiecewiseLinearSamples({
+		samples,
+		tolerance,
+		interpolationError: geometryInterpolationError,
+	});
+}
+
 function trackedKeyframes({
 	mask,
 	property,
@@ -164,27 +184,35 @@ function trackedKeyframes({
 function trackedRotationKeyframes({
 	mask,
 	samples,
+	toleranceDegrees,
 }: {
 	mask: MediaMask;
 	samples: MediaMaskTrackingSample[];
+	toleranceDegrees: number;
 }): MediaPropertyKeyframe[] {
-	const rotations = [...samples]
-		.filter(
-			(sample): sample is MediaMaskTrackingSample & { rotation: number } =>
-				Number.isFinite(sample.rotation)
-		)
-		.sort((first, second) => first.frame - second.frame)
-		.filter(
-			(sample, index, list) =>
-				index === 0 || sample.frame !== list[index - 1].frame
-		);
+	const rotations = samples.filter(
+		(sample): sample is MediaMaskTrackingSample & { rotation: number } =>
+			Number.isFinite(sample.rotation)
+	);
 	if (rotations.length === 0) return mask.keyframes?.rotation ?? [];
-	const firstFrame = rotations[0].frame;
-	const lastFrame = rotations[rotations.length - 1].frame;
+	const simplified = simplifyPiecewiseLinearSamples({
+		samples: rotations,
+		tolerance: toleranceDegrees,
+		interpolationError: ({ from, sample, to }) => {
+			const progress =
+				to.frame === from.frame
+					? 0
+					: (sample.frame - from.frame) / (to.frame - from.frame);
+			const expected = from.rotation + (to.rotation - from.rotation) * progress;
+			return Math.abs(sample.rotation - expected);
+		},
+	});
+	const firstFrame = simplified[0].frame;
+	const lastFrame = simplified[simplified.length - 1].frame;
 	const outsideRange = (mask.keyframes?.rotation ?? []).filter(
 		(keyframe) => keyframe.frame < firstFrame || keyframe.frame > lastFrame
 	);
-	const tracked = rotations.map((sample) => ({
+	const tracked = simplified.map((sample) => ({
 		id: `${mask.id ?? "mask"}-tracking-rotation-${sample.frame}`,
 		frame: sample.frame,
 		value: sample.rotation,
@@ -203,6 +231,7 @@ export function applyMaskTrackingSamples({
 	source,
 	sourceFrameOffset = 0,
 	maxFrame = Number.POSITIVE_INFINITY,
+	rotationToleranceDegrees = 0.25,
 	tolerance = 0.003,
 }: {
 	mask: MediaMask;
@@ -212,6 +241,7 @@ export function applyMaskTrackingSamples({
 	source: NonNullable<MediaMaskTracking["source"]>;
 	sourceFrameOffset?: number;
 	maxFrame?: number;
+	rotationToleranceDegrees?: number;
 	tolerance?: number;
 }): MediaMask {
 	const localSamples = samples
@@ -261,6 +291,7 @@ export function applyMaskTrackingSamples({
 	keyframes.rotation = trackedRotationKeyframes({
 		mask,
 		samples: localSamples,
+		toleranceDegrees: rotationToleranceDegrees,
 	});
 	return {
 		...mask,
