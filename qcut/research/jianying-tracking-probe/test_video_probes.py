@@ -321,6 +321,21 @@ class VideoProbeTests(unittest.TestCase):
 
         self.assertEqual(marker.read_text(encoding="utf-8"), "keep")
 
+    def test_bundle_writer_rejects_parent_traversal(self) -> None:
+        marker = self.root / "marker.txt"
+        marker.write_text("keep", encoding="utf-8")
+
+        with self.assertRaisesRegex(ValueError, "parent traversal"):
+            write_bundle(
+                output_directory=self.root / "nested" / "..",
+                descriptor={"kind": "motion"},
+                data={"baseline": None, "data": []},
+                cache=None,
+                overwrite=True,
+            )
+
+        self.assertEqual(marker.read_text(encoding="utf-8"), "keep")
+
 
 if __name__ == "__main__":
     unittest.main()
