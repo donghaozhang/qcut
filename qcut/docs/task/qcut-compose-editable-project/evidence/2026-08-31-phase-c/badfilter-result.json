@@ -1,0 +1,13 @@
+{
+ "status": "error",
+ "error": "Compose editor project failed: Compose asset preparation failed: Filter 9999999999999999999 is not in the local catalog. (cleanup: created project 1a8fd5c7-3569-48ed-88ae-34f951421fb9 was deleted again)",
+ "code": "compose-project:failed",
+ "command_id": "cmd-1788115427232-slhefp",
+ "duration_ms": 4191,
+ "data": {
+  "data": {
+   "createdProjectId": "1a8fd5c7-3569-48ed-88ae-34f951421fb9"
+  },
+  "duration": 4.189
+ }
+}

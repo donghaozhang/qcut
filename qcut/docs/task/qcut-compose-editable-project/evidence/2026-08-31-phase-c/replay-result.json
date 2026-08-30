@@ -1,0 +1,77 @@
+{
+ "status": "ok",
+ "data": {
+  "schema_version": "1",
+  "command": "compose-project",
+  "outputPaths": [
+   "/Users/peter/Desktop/QCut-Compose-Labs-E2E-2026-08-31/editable-phase-c/out/compose-project-editor/ea29bfe8-80c6-4f65-bdd3-1ab8e741e042.snapshot.json",
+   "/Users/peter/Desktop/QCut-Compose-Labs-E2E-2026-08-31/editable-phase-c/out/compose-project-editor/cmp-23ff4dd4343ee570660d8bb3.patch.json"
+  ],
+  "data": {
+   "projectId": "fb89bcb0-00b2-45da-babf-0db9d7e7eb01",
+   "createdProject": false,
+   "manifestSha256": "68c9320336511299afd8af760c9c0041473defcf7ab51b11fe6ad7ca9a92083a",
+   "timelineDuration": 29,
+   "snapshotId": "ea29bfe8-80c6-4f65-bdd3-1ab8e741e042",
+   "patchId": "cmp-23ff4dd4343ee570660d8bb3",
+   "operationCount": 8,
+   "apply": {
+    "projectId": "fb89bcb0-00b2-45da-babf-0db9d7e7eb01",
+    "snapshotId": "ea29bfe8-80c6-4f65-bdd3-1ab8e741e042",
+    "patchId": "cmp-23ff4dd4343ee570660d8bb3",
+    "issues": [],
+    "assets": [
+     {
+      "operationId": "cmp-b92bc74c79716da100fc5731",
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "crossfade",
+      "status": "cached",
+      "evidence": {
+       "backend": "editor-preset",
+       "cacheStatus": "builtin",
+       "verification": "unverified"
+      }
+     },
+     {
+      "operationId": "cmp-b95a8f8327c622d0ac35de69",
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "crossfade",
+      "status": "cached",
+      "evidence": {
+       "backend": "editor-preset",
+       "cacheStatus": "builtin",
+       "verification": "unverified"
+      }
+     }
+    ],
+    "applied": {},
+    "alreadyAppliedOperationIds": [
+     "cmp-9d0177861394aaae31e92bb1",
+     "cmp-4c043e333708de766eda83fe",
+     "cmp-d6b89e962f57b4a2b66fac4c",
+     "cmp-b92bc74c79716da100fc5731",
+     "cmp-b95a8f8327c622d0ac35de69"
+    ],
+    "importedMediaCount": 0,
+    "appliedUpdateOperationIds": [
+     "cmp-efd058161c90d7e3969f3cf6",
+     "cmp-9e3dbdee509f44651e7681f2",
+     "cmp-b1665333ec66da37471151a9"
+    ],
+    "transitionOperationIds": [],
+    "transitionIds": [],
+    "skipped": [],
+    "verified": true
+   },
+   "reopen": {
+    "navigatedAway": true,
+    "missingElementIds": []
+   }
+  },
+  "duration": 10.315
+ },
+ "command_id": "cmd-1788115403852-96sm25",
+ "duration_ms": 10316
+}
