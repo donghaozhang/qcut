@@ -186,14 +186,20 @@ async function analyzeWithGeminiProxy({
 					});
 				} catch (error) {
 					log.warn("[AI Filler] Gemini proxy chunk failed:", error);
-					return [];
+					return null;
 				}
 			})
 		);
+		const successfulChunkResults = chunkResults.filter(
+			(result): result is FilterDecision[] => result !== null
+		);
+		if (successfulChunkResults.length === 0) {
+			throw new Error("Gemini proxy analysis failed for every chunk");
+		}
 
 		return {
 			filteredWordIds: mergeDecisions({
-				decisions: chunkResults.flat(),
+				decisions: successfulChunkResults.flat(),
 			}),
 			provider: "gemini",
 		};

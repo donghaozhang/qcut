@@ -175,4 +175,36 @@ describe("ai-filler-handler helpers", () => {
 			})
 		);
 	});
+
+	it("falls back to pattern when every QCut proxy Gemini chunk fails", async () => {
+		isProxyAvailableMock.mockResolvedValue(true);
+		proxyRequestMock.mockResolvedValue({
+			ok: false,
+			status: 503,
+			data: { error: "API key not configured for provider: gemini" },
+		});
+		getDecryptedApiKeysMock.mockResolvedValue({
+			falApiKey: "",
+			freesoundApiKey: "",
+			geminiApiKey: "",
+			openRouterApiKey: "",
+			anthropicApiKey: "",
+		});
+
+		const result = await analyzeFillersWithPriority({
+			request: {
+				languageCode: "eng",
+				words: [
+					{ id: "word-0", text: "um", start: 0, end: 0.2, type: "word" },
+					{ id: "word-1", text: "today", start: 0.3, end: 0.6, type: "word" },
+				],
+			},
+		});
+
+		expect(result.provider).toBe("pattern");
+		expect(result.filteredWordIds).toEqual([
+			{ id: "word-0", reason: "common filler word", scope: "word" },
+		]);
+		expect(getDecryptedApiKeysMock).toHaveBeenCalled();
+	});
 });
