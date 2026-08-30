@@ -47,6 +47,7 @@ vi.mock("sonner", () => ({
 	toast: {
 		success: vi.fn(),
 		error: vi.fn(),
+		warning: vi.fn(),
 	},
 }));
 
@@ -163,7 +164,7 @@ describe("Timeline Store Operations", () => {
 		expect(result.current.history).toHaveLength(previousHistoryLength + 1);
 	});
 
-	it("preserves a caller-provided element id", () => {
+	it("preserves a caller-provided element id and rejects duplicates", () => {
 		const { result } = renderHook(() => useTimelineStore());
 		const trackId = result.current.tracks[0].id;
 		const element = {
@@ -186,6 +187,17 @@ describe("Timeline Store Operations", () => {
 		expect(result.current.tracks[0].elements[0]?.id).toBe(
 			"cli-returned-element"
 		);
+
+		let duplicateId: string | null = "not-called";
+		act(() => {
+			duplicateId = result.current.addElementToTrack(trackId, {
+				...element,
+				startTime: 6,
+			});
+		});
+
+		expect(duplicateId).toBeNull();
+		expect(result.current.tracks[0].elements).toHaveLength(1);
 	});
 
 	it("stacks audio onto a free or new track instead of rejecting overlaps", () => {
