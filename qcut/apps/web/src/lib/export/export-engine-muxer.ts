@@ -129,7 +129,11 @@ export class ExportEngineMuxer extends ExportEngine {
 
 			const frameDuration = 1 / fps;
 
-			// Render and encode each frame
+			// Render and encode each frame. `CanvasSource.add` captures the
+			// canvas synchronously and returns a backpressure promise, so the
+			// encoder chews on frame N while frame N+1 renders — a bounded
+			// one-frame pipeline that respects WebCodecs backpressure.
+			let pendingEncode: Promise<void> | null = null;
 			for (let frame = 0; frame < totalFrames; frame++) {
 				if (this.isExportCancelled()) {
 					throw new Error("Export cancelled by user");
@@ -147,15 +151,25 @@ export class ExportEngineMuxer extends ExportEngine {
 					this.renderFrame(currentTime)
 				);
 
+				// Respect encoder backpressure from the previous frame before
+				// capturing this one.
+				if (pendingEncode) {
+					const settled = pendingEncode;
+					pendingEncode = null;
+					await exportProfiler.time("encode-wait", () => settled);
+				}
+
 				// Feed canvas to mediabunny's CanvasSource with timeout
 				// (WebCodecs encoder can stall on simulator or unsupported platforms)
-				await exportProfiler.time("encode-wait", () =>
-					withTimeout(
-						videoSource.add(currentTime, frameDuration),
-						10_000,
-						`Encoder stalled at frame ${frame + 1}/${totalFrames}`
-					)
+				const encodePromise = withTimeout(
+					videoSource.add(currentTime, frameDuration),
+					10_000,
+					`Encoder stalled at frame ${frame + 1}/${totalFrames}`
 				);
+				// Keep an exception between add() and the next await from
+				// surfacing as an unhandled rejection.
+				encodePromise.catch(() => {});
+				pendingEncode = encodePromise;
 
 				exportProfiler.frameEnd();
 
@@ -175,6 +189,11 @@ export class ExportEngineMuxer extends ExportEngine {
 				if (frame % 10 === 0) {
 					await new Promise((resolve) => setTimeout(resolve, 0));
 				}
+			}
+			if (pendingEncode) {
+				const settled = pendingEncode;
+				pendingEncode = null;
+				await exportProfiler.time("encode-wait", () => settled);
 			}
 
 			// Add audio data if present
@@ -214,6 +233,7 @@ export class ExportEngineMuxer extends ExportEngine {
 		} finally {
 			this.activeOutput = null;
 			this.isExporting = false;
+			await this.disposeSequentialVideo();
 		}
 	}
 
