@@ -149,7 +149,7 @@ export async function resolveComposeSoundLabReference({
 		};
 	}
 	if (asset.localPath) return { status: "ready", asset };
-	if (asset.objectKey && asset.fileName) {
+	if (asset.objectKey) {
 		return { status: "downloadable", asset };
 	}
 	return {
@@ -185,6 +185,21 @@ function soundExtension({
 		: ".audio";
 }
 
+function soundCacheFileName({
+	asset,
+	assetId,
+}: {
+	asset: ResolvedSoundEffectsLabAsset;
+	assetId: string;
+}): string {
+	const readableId = safeFileComponent({ value: assetId }) || "sound";
+	const identityHash = createHash("sha256")
+		.update(assetId)
+		.digest("hex")
+		.slice(0, 12);
+	return `${readableId}-${identityHash}${soundExtension({ asset })}`;
+}
+
 export async function materializeComposeSoundLabReference({
 	reference,
 	scratchDirectory,
@@ -214,7 +229,10 @@ export async function materializeComposeSoundLabReference({
 	const resolvedDependencies = dependenciesWithDefaults({ dependencies });
 	const destinationPath = join(
 		scratchDirectory,
-		`${safeFileComponent({ value: reference.assetId })}${soundExtension({ asset: resolution.asset })}`
+		soundCacheFileName({
+			asset: resolution.asset,
+			assetId: reference.assetId,
+		})
 	);
 	const localPath = await resolvedDependencies.materializeSound({
 		asset: resolution.asset,
