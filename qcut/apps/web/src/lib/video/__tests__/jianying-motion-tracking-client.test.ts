@@ -59,7 +59,6 @@ function result({
 			sourceTimeUs: frameIndex * 1_000_000,
 			status: "tracked" as const,
 		})),
-		sourceSha256: "b".repeat(64),
 		width: 100,
 	};
 }
@@ -128,7 +127,7 @@ describe("Jianying motion tracking client", () => {
 		expect(samples[1].height).toBeCloseTo(resolvedMask.height);
 	});
 
-	it("writes tracked rectangles and dense rotation keyframes into the mask", async () => {
+	it("writes tracked rectangles and simplified rotation into the mask", async () => {
 		const nativeResult = result({ rotations: [0, 2, 4] });
 		const track = vi.fn().mockResolvedValue(nativeResult);
 		const api: JianyingMotionTrackingAPI = {
@@ -166,7 +165,7 @@ describe("Jianying motion tracking client", () => {
 			0, 2,
 		]);
 		expect(tracked.keyframes?.rotation?.map(({ value }) => value)).toEqual([
-			-2, 0, 2,
+			-2, 2,
 		]);
 	});
 
