@@ -209,12 +209,21 @@ export class ExportEngine {
 
 	// --- Delegated render methods ---
 
-	/** Build the render context from current class state */
-	private buildRenderContext(): RenderContext {
+	/** Static per-export lookups, built on first use. */
+	protected getExportRenderIndex(): ExportRenderIndex {
 		this.renderIndex ??= buildExportRenderIndex({
 			tracks: this.tracks,
 			mediaItems: this.mediaItems,
+			fps: this.fps,
+			canvasWidth: this.canvas.width,
+			canvasHeight: this.canvas.height,
 		});
+		return this.renderIndex;
+	}
+
+	/** Build the render context from current class state */
+	private buildRenderContext(): RenderContext {
+		const renderIndex = this.getExportRenderIndex();
 		return {
 			ctx: this.ctx,
 			canvas: this.canvas,
@@ -228,7 +237,7 @@ export class ExportEngine {
 				isElectron: platform().isElectron,
 				outputPath: this.settings.outputPath,
 			}),
-			renderIndex: this.renderIndex,
+			renderIndex,
 			sequentialVideo: this.sequentialVideo,
 		};
 	}
