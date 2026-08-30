@@ -21,6 +21,7 @@ import {
 
 // Extracted modules
 import {
+	calculateFrameTime,
 	calculateTotalFrames as calculateTotalFramesImpl,
 	calculateElementBounds as calculateElementBoundsImpl,
 } from "./export-engine-utils";
@@ -339,7 +340,6 @@ export class ExportEngine {
 			this.syncRecorderContext(recorderCtx);
 
 			const totalFrames = this.calculateTotalFrames();
-			const frameTime = 1 / this.fps;
 			const startTime = Date.now();
 
 			progressCallback?.(0, "Starting export...");
@@ -360,7 +360,10 @@ export class ExportEngine {
 					throw new Error("Export cancelled by user");
 				}
 
-				const currentTime = frame * frameTime;
+				const currentTime = calculateFrameTime({
+					frameIndex: frame,
+					frameRate: this.fps,
+				});
 
 				debugLog(
 					`[FRAME_DEBUG] Frame ${frame + 1}/${totalFrames} at time ${currentTime.toFixed(3)}s`

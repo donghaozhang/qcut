@@ -485,6 +485,60 @@ describe("local Sticker Lab reference service", () => {
 		);
 	});
 
+	it("rejects direct GIF runtime packages with a controlled schema error", () => {
+		const candidate = {
+			version: 1,
+			referenceOnly: true,
+			categories: [
+				{
+					id: "99001",
+					label: "QCut direct GIF fixture",
+					sourcePanel: "fixture",
+					items: [
+						{
+							id: "990104",
+							displayName: "Direct GIF",
+							fileName: "preview.gif",
+							filePath: "/tmp/preview.gif",
+							mimeType: "image/gif",
+							sourceKind: "direct-gif",
+							playback: {
+								kind: "animated",
+								frameCount: 1,
+								cycleDuration: 1,
+								loop: true,
+							},
+							runtimePackage: {
+								descriptor: {
+									kind: "direct-gif",
+									canvasSize: { height: 1, width: 1 },
+									cycleDurationSeconds: 1,
+									frames: [
+										{
+											delayCentiseconds: 100,
+											disposalMethod: 0,
+											durationSeconds: 1,
+											frameRect: { height: 1, width: 1, x: 0, y: 0 },
+											hasTransparency: true,
+											startSeconds: 0,
+										},
+									],
+									repeat: { kind: "infinite" },
+									completion: "freeze-last",
+								},
+								resources: [],
+							},
+						},
+					],
+				},
+			],
+		};
+
+		expect(() => parseLocalReferenceManifest({ candidate })).toThrow(
+			"direct GIF runtimes are derived from the primary GIF"
+		);
+	});
+
 	it("normalizes the legacy first-batch manifest and report", async () => {
 		const fixture = await writeFixture({
 			reportFrameRate: 25,

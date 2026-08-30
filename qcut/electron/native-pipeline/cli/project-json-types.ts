@@ -8,7 +8,7 @@
  * @module electron/native-pipeline/cli/project-json-types
  */
 
-import type { StickerLabMediaMetadata } from "../../types/sticker-lab-media-metadata.js";
+import type { StickerLabRestrictedMediaMetadata } from "../../types/sticker-lab-media-metadata.js";
 
 // ---------------------------------------------------------------------------
 // Full Schema
@@ -89,7 +89,7 @@ export interface MediaEntry {
 	height: number | null;
 	fps: number | null;
 	importedAt: string;
-	metadata?: StickerLabMediaMetadata;
+	metadata?: StickerLabRestrictedMediaMetadata;
 }
 
 export interface SubtitleEntry {

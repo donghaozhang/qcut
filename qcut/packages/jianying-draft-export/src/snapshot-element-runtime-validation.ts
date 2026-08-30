@@ -166,6 +166,7 @@ const STICKER_ELEMENT_KEYS = createElementAllowedKeySet<StickerElement>({
 		mediaId: true,
 		opacity: true,
 		perspective: true,
+		stickerAssetId: true,
 		stickerRuntime: true,
 		stickerId: true,
 		tracking: true,
@@ -999,6 +1000,12 @@ function validateStickerElement({
 }): void {
 	assertKeys({ allowed: STICKER_ELEMENT_KEYS, path, record: element });
 	getString({ path: `${path}.stickerId`, value: element.stickerId });
+	if (element.stickerAssetId !== undefined) {
+		getString({
+			path: `${path}.stickerAssetId`,
+			value: element.stickerAssetId,
+		});
+	}
 	getString({ path: `${path}.mediaId`, value: element.mediaId });
 	if (element.stickerRuntime !== undefined) {
 		const runtimePath = `${path}.stickerRuntime`;

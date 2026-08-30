@@ -555,12 +555,29 @@ describe("Claude export trigger", () => {
 
 	it("completes deterministic sticker runtime through the renderer MP4 job", async () => {
 		const dispatch = vi.fn(async () => {});
+		const stickerRuntime = {
+			canvasSize: { height: 1, width: 1 },
+			completion: "freeze-last",
+			cycleDurationSeconds: 1,
+			frames: [
+				{
+					delayCentiseconds: 100,
+					disposalMethod: 0,
+					durationSeconds: 1,
+					frameRect: { height: 1, width: 1, x: 0, y: 0 },
+					hasTransparency: true,
+					startSeconds: 0,
+				},
+			],
+			kind: "direct-gif",
+			repeat: { kind: "infinite" },
+		} as const;
 		const runtimeMedia = {
 			...testMediaFiles[0],
 			id: "runtime-media",
 			metadata: {
 				...restrictedMetadata,
-				stickerRuntime: { kind: "direct-gif" },
+				stickerRuntime,
 			},
 			name: "runtime.gif",
 			path: "/tmp/runtime.gif",
@@ -582,7 +599,7 @@ describe("Claude export trigger", () => {
 							mediaId: runtimeMedia.id,
 							startTime: 0,
 							stickerId: "sticker-lab:jianying-2026-08-23-batch-18-v2:18001",
-							stickerRuntime: { kind: "direct-gif" },
+							stickerRuntime,
 							trackIndex: 1,
 							type: "sticker" as const,
 						},

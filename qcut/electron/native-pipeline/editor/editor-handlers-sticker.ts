@@ -8,6 +8,7 @@
  */
 
 import fs, { mkdtempSync, rmSync } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { searchIconifyStickers } from "../stickers/iconify-sticker-client.js";
@@ -15,13 +16,18 @@ import {
 	discoverLocalReferences,
 	readLocalReference,
 	type LocalStickerLabAsset,
-	type LocalStickerLabReadResult,
 } from "../stickers/local-reference-catalog/index.js";
 import { materializeSticker } from "../stickers/sticker-asset-materializer.js";
 import { parseStickerOverlayPlan } from "../stickers/sticker-overlay-plan.js";
 import type { EditorApiClient } from "./editor-api-client.js";
 import type { CLIRunOptions, CLIResult } from "../cli/cli-runner/types.js";
 import { resolveStickerLabRootOverride } from "../cli/sticker-lab-root.js";
+import {
+	importStickerLabReference,
+	importStickerSource,
+	rollbackStickerLabMedia,
+	type StickerLabRuntimeDescriptor,
+} from "./editor-sticker-runtime-import.js";
 
 const STICKER_LAB_PROVIDER = "sticker-lab";
 const STICKER_LAB_WARNING =
@@ -89,94 +95,16 @@ async function stickerSearch(opts: CLIRunOptions): Promise<CLIResult> {
 	}
 }
 
-async function importStickerSource({
-	client,
-	metadata,
-	projectId,
-	source,
-}: {
-	client: EditorApiClient;
-	metadata?: StickerLabMediaMetadata;
-	projectId: string;
-	source: string;
-}): Promise<string> {
-	const importResult = await client.post<{ id?: string; mediaId?: string }>(
-		`/api/claude/media/${encodeURIComponent(projectId)}/import`,
-		metadata ? { source, metadata } : { source }
-	);
-	const mediaId = importResult.id ?? importResult.mediaId;
-	if (!mediaId) {
-		throw new Error("Media import succeeded but no mediaId returned");
-	}
-	return mediaId;
-}
-
-interface StickerLabMediaMetadata {
-	source: "sticker-lab";
-	animatedSticker: boolean;
-	referenceOnly: true;
-	usage: "internal-reference-only";
-	redistribution: "prohibited";
-	batchId: string;
-	itemId: string;
-	checksumSha256: string;
-}
-
-function stickerLabMediaMetadata({
-	reference,
-}: {
-	reference: LocalStickerLabReadResult;
-}): StickerLabMediaMetadata {
-	return {
-		source: "sticker-lab",
-		animatedSticker: reference.mimeType === "image/gif",
-		referenceOnly: true,
-		usage: "internal-reference-only",
-		redistribution: "prohibited",
-		batchId: reference.batchId,
-		itemId: reference.stickerId,
-		checksumSha256: reference.checksumSha256,
-	};
-}
-
-function materializeLocalReference({
-	reference,
-}: {
-	reference: LocalStickerLabReadResult;
-}): { path: string; cleanup: () => void } {
-	const outputDirectory = mkdtempSync(
-		join(tmpdir(), "qcut-editor-sticker-lab-")
-	);
-	try {
-		const extension = reference.mimeType === "image/gif" ? "gif" : "png";
-		const outputPath = join(
-			outputDirectory,
-			`sticker-${reference.stickerId}.${extension}`
-		);
-		fs.writeFileSync(outputPath, reference.bytes, {
-			flag: "wx",
-			mode: 0o600,
-		});
-		return {
-			path: outputPath,
-			cleanup: () => rmSync(outputDirectory, { recursive: true, force: true }),
-		};
-	} catch (error) {
-		rmSync(outputDirectory, { recursive: true, force: true });
-		throw error;
-	}
-}
-
 async function addTimelineSticker({
 	client,
 	element,
 	projectId,
-	rollbackMediaId,
+	rollbackMediaIds,
 }: {
 	client: EditorApiClient;
 	element: Record<string, unknown>;
 	projectId: string;
-	rollbackMediaId?: string;
+	rollbackMediaIds?: readonly string[];
 }): Promise<unknown> {
 	try {
 		return await client.post(
@@ -184,24 +112,14 @@ async function addTimelineSticker({
 			element
 		);
 	} catch (timelineError) {
-		if (rollbackMediaId) {
-			try {
-				await client.delete(
-					`/api/claude/media/${encodeURIComponent(projectId)}/${encodeURIComponent(rollbackMediaId)}`
-				);
-			} catch (rollbackError) {
-				const timelineMessage =
-					timelineError instanceof Error
-						? timelineError.message
-						: String(timelineError);
-				const rollbackMessage =
-					rollbackError instanceof Error
-						? rollbackError.message
-						: String(rollbackError);
-				throw new Error(
-					`Timeline placement failed: ${timelineMessage}. Imported media rollback also failed: ${rollbackMessage}`
-				);
-			}
+		if (rollbackMediaIds && rollbackMediaIds.length > 0) {
+			await rollbackStickerLabMedia({
+				cause: timelineError,
+				client,
+				context: "Timeline placement failed",
+				mediaIds: rollbackMediaIds,
+				projectId,
+			});
 		}
 		throw timelineError;
 	}
@@ -311,8 +229,11 @@ async function stickerAdd(
 	}
 
 	let mediaId: string | undefined;
-	let stickerId = opts.stickerId;
+	const stickerId = `sticker-${randomUUID()}`;
+	let stickerAssetId = opts.stickerId;
 	let stickerLabProvenance: LocalStickerLabAsset | undefined;
+	let stickerRuntime: StickerLabRuntimeDescriptor | undefined;
+	const importedStickerLabMediaIds: string[] = [];
 
 	if (usesStickerLab) {
 		const batchId = opts.batchId?.trim() ?? "";
@@ -320,23 +241,19 @@ async function stickerAdd(
 		const discovery = await dependencies.discoverLocalReferences({
 			rootPath: resolveStickerLabRootOverride({ root: opts.root }),
 		});
-		const reference = await dependencies.readLocalReference({
-			rootPath: discovery.rootPath,
+		const imported = await importStickerLabReference({
 			batchId,
+			client,
+			dependencies,
+			discovery,
+			projectId: opts.projectId,
 			stickerId: itemId,
 		});
-		const materialized = materializeLocalReference({ reference });
-		try {
-			mediaId = await importStickerSource({
-				client,
-				metadata: stickerLabMediaMetadata({ reference }),
-				projectId: opts.projectId,
-				source: materialized.path,
-			});
-		} finally {
-			materialized.cleanup();
-		}
-		stickerId = `${STICKER_LAB_PROVIDER}:${batchId}:${itemId}`;
+		mediaId = imported.mediaId;
+		stickerRuntime = imported.stickerRuntime;
+		importedStickerLabMediaIds.push(...imported.importedMediaIds);
+		const { reference } = imported;
+		stickerAssetId = `${STICKER_LAB_PROVIDER}:${batchId}:${itemId}`;
 		stickerLabProvenance = {
 			kind: "local-reference",
 			rootPath: discovery.rootPath,
@@ -354,12 +271,12 @@ async function stickerAdd(
 			projectId: opts.projectId,
 			source: opts.source,
 		});
-		if (!stickerId) {
-			stickerId = `custom_${mediaId}`;
+		if (!stickerAssetId) {
+			stickerAssetId = `custom_${mediaId}`;
 		}
-	} else if (stickerId?.includes(":")) {
+	} else if (stickerAssetId?.includes(":")) {
 		const materialized = await materializeCatalogSticker({
-			stickerId,
+			stickerId: stickerAssetId,
 			width: opts.width ?? 512,
 		});
 		try {
@@ -375,6 +292,7 @@ async function stickerAdd(
 
 	const element: Record<string, unknown> = {
 		type: "sticker",
+		stickerAssetId,
 		stickerId,
 		startTime,
 		duration,
@@ -383,6 +301,7 @@ async function stickerAdd(
 	};
 
 	if (mediaId) element.mediaId = mediaId;
+	if (stickerRuntime) element.stickerRuntime = stickerRuntime;
 	if (opts.width !== undefined) element.width = opts.width;
 	if (opts.height !== undefined) element.height = opts.height;
 	if (opts.rotation !== undefined) element.rotation = opts.rotation;
@@ -392,7 +311,7 @@ async function stickerAdd(
 		client,
 		element,
 		projectId: opts.projectId,
-		rollbackMediaId: usesStickerLab ? mediaId : undefined,
+		rollbackMediaIds: usesStickerLab ? importedStickerLabMediaIds : undefined,
 	});
 	if (stickerLabProvenance) {
 		return {
@@ -441,7 +360,8 @@ async function stickerUpdate(
 			};
 		}
 		changes.mediaId = newMediaId;
-		changes.stickerId = opts.stickerId ?? `custom_${newMediaId}`;
+		changes.stickerAssetId = opts.stickerId ?? `custom_${newMediaId}`;
+		changes.stickerRuntime = null;
 	}
 
 	if (opts.x !== undefined) changes.x = opts.x;

@@ -9,6 +9,7 @@ import type { OverlaySticker } from "@/types/sticker-overlay";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { StickerElement } from "@/types/timeline";
 import type { TimelineTrack } from "@/types/timeline";
+import type { StickerRuntimeDescriptor } from "@qcut/editor-core/sticker-lab";
 import { getStickerTiming } from "./sticker-timeline-query";
 import { resolveStickerGeometry } from "./sticker-geometry";
 import {
@@ -21,7 +22,10 @@ import {
 	createBrowserStickerRuntimeAssetResolver,
 	createBrowserStickerRuntimeCanvas,
 } from "./sticker-runtime-browser-assets";
-import { renderStickerRuntimeFrame } from "./sticker-runtime-renderer";
+import {
+	renderStickerRuntimeFrame,
+	type StickerRuntimeAssetResolver,
+} from "./sticker-runtime-renderer";
 import {
 	getStickerRuntimeTimelineWindow,
 	resolveStickerRuntimeDescriptor,
@@ -65,13 +69,54 @@ export class StickerRenderFailureError extends Error {
 	}
 }
 
+function requireRuntimeTimelineElement({
+	element,
+}: {
+	element?: StickerElement;
+}): StickerElement {
+	if (element) return element;
+	throw new StickerRuntimeExportUnsupportedError({
+		operation: "overlay sticker export",
+		reason: "missing-timeline-context",
+	});
+}
+
 /**
  * Helper class for rendering stickers during export
  */
 export class StickerExportHelper {
 	private imageCache = new Map<string, HTMLImageElement>();
 	private preloadedImages = new Map<string, HTMLImageElement>();
+	private directGifAssetResolvers = new WeakMap<
+		MediaItem,
+		StickerRuntimeAssetResolver
+	>();
 	private lastRenderResult: StickerRenderResult | null = null;
+
+	private runtimeAssetResolver({
+		mediaItem,
+		mediaItemsById,
+		stickerRuntime,
+	}: {
+		mediaItem: MediaItem;
+		mediaItemsById: ReadonlyMap<string, MediaItem>;
+		stickerRuntime: StickerRuntimeDescriptor;
+	}): StickerRuntimeAssetResolver {
+		if (stickerRuntime.kind !== "direct-gif") {
+			return createBrowserStickerRuntimeAssetResolver({
+				mediaItem,
+				mediaItemsById,
+			});
+		}
+		const cached = this.directGifAssetResolvers.get(mediaItem);
+		if (cached) return cached;
+		const resolver = createBrowserStickerRuntimeAssetResolver({
+			mediaItem,
+			mediaItemsById,
+		});
+		this.directGifAssetResolvers.set(mediaItem, resolver);
+		return resolver;
+	}
 
 	/**
 	 * Render stickers to canvas at specified time
@@ -193,21 +238,46 @@ export class StickerExportHelper {
 			element: animationElement,
 			mediaItem,
 		});
+		const runtimeElement = stickerRuntime
+			? requireRuntimeTimelineElement({ element: animationElement })
+			: undefined;
+		const resolvedSticker = animationElement
+			? resolveTimelineStickerVisualAtTime({
+					element: animationElement,
+					fallback: sticker,
+					currentTime,
+					fps,
+					tracks,
+					canvasWidth,
+					canvasHeight,
+				})
+			: sticker;
+		const animation = animationElement
+			? getStickerClipAnimationState({
+					element: animationElement,
+					currentTime,
+					canvasWidth,
+					canvasHeight,
+				})
+			: {
+					opacity: 1,
+					scale: 1,
+					offsetX: 0,
+					offsetY: 0,
+					rotation: 0,
+				};
+		const effectiveOpacity = resolvedSticker.opacity * animation.opacity;
+		if (effectiveOpacity <= 0) return;
+
 		let image: CanvasImageSource;
 		let sourceWidth: number | undefined;
 		let sourceHeight: number | undefined;
-		if (stickerRuntime) {
-			const runtimeElement = animationElement;
-			if (!runtimeElement) {
-				throw new StickerRuntimeExportUnsupportedError({
-					operation: "overlay sticker export",
-					reason: "missing-timeline-context",
-				});
-			}
+		if (stickerRuntime && runtimeElement) {
 			const runtimeFrame = await renderStickerRuntimeFrame({
-				assets: createBrowserStickerRuntimeAssetResolver({
+				assets: this.runtimeAssetResolver({
 					mediaItem,
 					mediaItemsById,
+					stickerRuntime,
 				}),
 				createCanvas: createBrowserStickerRuntimeCanvas,
 				descriptor: stickerRuntime,
@@ -229,43 +299,17 @@ export class StickerExportHelper {
 			sourceWidth = staticImage.naturalWidth;
 			sourceHeight = staticImage.naturalHeight;
 		}
-		const resolvedSticker = animationElement
-			? resolveTimelineStickerVisualAtTime({
-					element: animationElement,
-					fallback: sticker,
-					currentTime,
-					fps,
-					tracks,
-					canvasWidth,
-					canvasHeight,
-				})
-			: sticker;
 		const geometry = resolveStickerGeometry({
 			position: resolvedSticker.position,
 			size: resolvedSticker.size,
 			canvasWidth,
 			canvasHeight,
 		});
-		const animation = animationElement
-			? getStickerClipAnimationState({
-					element: animationElement,
-					currentTime,
-					canvasWidth,
-					canvasHeight,
-				})
-			: {
-					opacity: 1,
-					scale: 1,
-					offsetX: 0,
-					offsetY: 0,
-					rotation: 0,
-				};
-
 		// Save context state
 		ctx.save();
 
 		// Apply transformations
-		ctx.globalAlpha = resolvedSticker.opacity * animation.opacity;
+		ctx.globalAlpha = effectiveOpacity;
 
 		ctx.translate(
 			geometry.centerX + animation.offsetX,
@@ -336,6 +380,7 @@ export class StickerExportHelper {
 	 */
 	clearCache(): void {
 		this.imageCache.clear();
+		this.directGifAssetResolvers = new WeakMap();
 	}
 
 	/**

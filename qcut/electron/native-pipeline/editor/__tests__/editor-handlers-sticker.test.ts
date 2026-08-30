@@ -1,11 +1,10 @@
 import { existsSync, readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, test } from "vitest";
 import type { CLIRunOptions } from "../../cli/cli-runner/types";
 import type { EditorApiClient } from "../editor-api-client";
-import {
-	handleStickerCommand,
-	type StickerHandlerDependencies,
-} from "../editor-handlers-sticker";
+import { handleStickerCommand } from "../editor-handlers-sticker";
+import { stickerLabDependencies } from "./helpers/editor-sticker-test-fixtures";
 
 const originalFetch = globalThis.fetch;
 
@@ -21,38 +20,6 @@ function baseOptions({ command }: { command: string }): CLIRunOptions {
 		json: true,
 		verbose: false,
 		quiet: true,
-	};
-}
-
-function stickerLabDependencies({
-	mimeType = "image/gif",
-}: {
-	mimeType?: "image/gif" | "image/png";
-} = {}): StickerHandlerDependencies {
-	const stickerId = mimeType === "image/gif" ? "18001" : "18002";
-	return {
-		discoverLocalReferences: async () => ({
-			rootPath: "/private/QCut Sticker Lab",
-			catalogs: [],
-			warnings: [],
-			summary: {
-				batchCount: 0,
-				categoryCount: 0,
-				itemCount: 0,
-				totalBytes: 0,
-			},
-		}),
-		readLocalReference: async ({ batchId }) => ({
-			bytes:
-				mimeType === "image/gif"
-					? new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61])
-					: new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
-			fileName: `${stickerId}.${mimeType === "image/gif" ? "gif" : "png"}`,
-			mimeType,
-			batchId,
-			stickerId,
-			checksumSha256: "a".repeat(64),
-		}),
 	};
 }
 
@@ -114,7 +81,8 @@ describe("editor sticker handlers", () => {
 		expect(existsSync(importedSource)).toBe(false);
 		expect(elementPayload).toMatchObject({
 			type: "sticker",
-			stickerId: "fluent-emoji-flat:warning",
+			stickerAssetId: "fluent-emoji-flat:warning",
+			stickerId: expect.stringMatching(/^sticker-/),
 			mediaId: "media-sticker",
 			startTime: 2,
 			duration: 2,
@@ -176,7 +144,8 @@ describe("editor sticker handlers", () => {
 		expect(JSON.stringify(importPayload?.metadata)).not.toContain("rootPath");
 		expect(elementPayload).toMatchObject({
 			type: "sticker",
-			stickerId: "sticker-lab:jianying-2026-08-23-batch-18-v2:18001",
+			stickerAssetId: "sticker-lab:jianying-2026-08-23-batch-18-v2:18001",
+			stickerId: expect.stringMatching(/^sticker-/),
 			mediaId: "media-local-gif",
 			startTime: 1,
 			duration: 3,
@@ -229,6 +198,41 @@ describe("editor sticker handlers", () => {
 		expect(metadata).toMatchObject({ animatedSticker: false });
 	});
 
+	test("creates a unique instance each time the same local sticker is added", async () => {
+		const elements: Record<string, unknown>[] = [];
+		let mediaCount = 0;
+		const client = {
+			post: async (path: string, body: Record<string, unknown>) => {
+				if (path.includes("/media/")) {
+					mediaCount += 1;
+					return { id: `media-local-${mediaCount}` };
+				}
+				elements.push(body);
+				return { id: `element-local-${elements.length}` };
+			},
+		} as unknown as EditorApiClient;
+		const options = {
+			...baseOptions({ command: "editor:sticker:add" }),
+			projectId: "project-1",
+			provider: "sticker-lab",
+			batchId: "jianying-2026-08-23-batch-18-v2",
+			stickerId: "18001",
+			endTime: 2,
+		} satisfies CLIRunOptions;
+
+		await handleStickerCommand(client, options, stickerLabDependencies());
+		await handleStickerCommand(client, options, stickerLabDependencies());
+
+		expect(elements).toHaveLength(2);
+		expect(elements[0].stickerAssetId).toBe(
+			"sticker-lab:jianying-2026-08-23-batch-18-v2:18001"
+		);
+		expect(elements[1].stickerAssetId).toBe(elements[0].stickerAssetId);
+		expect(elements[0].stickerId).toMatch(/^sticker-/);
+		expect(elements[1].stickerId).toMatch(/^sticker-/);
+		expect(elements[1].stickerId).not.toBe(elements[0].stickerId);
+	});
+
 	test("sends flat sticker update fields to the timeline route", async () => {
 		let patchedPath = "";
 		let patchedBody: unknown;
@@ -263,6 +267,32 @@ describe("editor sticker handlers", () => {
 			duration: 3,
 		});
 		expect(patchedBody).not.toHaveProperty("changes");
+	});
+
+	test("clears the old runtime when replacing a sticker source", async () => {
+		let patchedBody: Record<string, unknown> | undefined;
+		const client = {
+			post: async () => ({ id: "media-replacement" }),
+			patch: async (_path: string, body: Record<string, unknown>) => {
+				patchedBody = body;
+				return { updated: true };
+			},
+		} as unknown as EditorApiClient;
+
+		const result = await handleStickerCommand(client, {
+			...baseOptions({ command: "editor:sticker:update" }),
+			projectId: "project-1",
+			elementId: "sticker-element-1",
+			source: fileURLToPath(import.meta.url),
+		});
+
+		expect(result.success).toBe(true);
+		expect(patchedBody).toEqual({
+			mediaId: "media-replacement",
+			stickerAssetId: "custom_media-replacement",
+			stickerRuntime: null,
+		});
+		expect(patchedBody).not.toHaveProperty("stickerId");
 	});
 
 	test("cleans the temporary local reference when import fails", async () => {

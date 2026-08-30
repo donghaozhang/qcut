@@ -2,6 +2,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import {
+	calculateFrameTime,
 	calculateTotalFrames,
 	getActiveElements,
 	calculateElementBounds,
@@ -74,6 +75,14 @@ const createTextElement = (
 });
 
 describe("Export Engine Utils", () => {
+	describe("calculateFrameTime", () => {
+		it("derives nominal frame boundaries without reciprocal drift", () => {
+			expect(calculateFrameTime({ frameIndex: 207, frameRate: 30 })).toBe(6.9);
+			expect(calculateFrameTime({ frameIndex: 414, frameRate: 30 })).toBe(13.8);
+			expect(207 * (1 / 30)).not.toBe(6.9);
+		});
+	});
+
 	describe("calculateTotalFrames", () => {
 		it("returns correct count for 10s at 30fps", () => {
 			expect(calculateTotalFrames(10, 30)).toBe(300);

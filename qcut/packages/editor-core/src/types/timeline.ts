@@ -931,6 +931,8 @@ export interface TextElement extends BaseTimelineElement {
 
 export interface StickerElement extends BaseTimelineElement {
 	type: "sticker";
+	/** Stable catalog or private-reference identity shared by sticker instances. */
+	stickerAssetId?: string;
 	stickerId: string;
 	mediaId: string;
 	/** Deterministic source-runtime state persisted with the timeline element. */

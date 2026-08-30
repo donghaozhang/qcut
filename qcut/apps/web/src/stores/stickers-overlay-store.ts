@@ -218,8 +218,11 @@ export const useStickersOverlayStore = create<StickerOverlayStore>()(
 					options,
 				});
 
-				const id = generateStickerId();
 				const state = get();
+				const id = options.id ?? generateStickerId();
+				if (state.overlayStickers.has(id)) {
+					throw new Error(`Sticker instance ID already exists: ${id}`);
+				}
 
 				const newSticker: OverlaySticker = {
 					id,
