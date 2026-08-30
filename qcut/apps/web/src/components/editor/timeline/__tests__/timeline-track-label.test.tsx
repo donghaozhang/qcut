@@ -4,13 +4,17 @@ import type { TimelineTrack } from "@/types/timeline";
 import { TimelineTrackLabel } from "../timeline-track-label";
 import { useLocaleStore } from "@/stores/locale-store";
 
-function renderAudioTrack({ solo = false }: { solo?: boolean } = {}) {
+function renderAudioTrack({
+	locked = false,
+	solo = false,
+}: { locked?: boolean; solo?: boolean } = {}) {
 	const onToggleSolo = vi.fn();
 	const track: TimelineTrack = {
 		id: "audio-track",
 		name: "Dialogue",
 		type: "audio",
 		elements: [],
+		locked,
 		audio: { solo } as TimelineTrack["audio"],
 	};
 	render(
@@ -52,6 +56,24 @@ describe("TimelineTrackLabel", () => {
 		fireEvent.click(screen.getByRole("button", { name: "Solo Dialogue" }));
 
 		expect(onToggleSolo).toHaveBeenCalledOnce();
+	});
+
+	it.each([
+		{ accessibleName: "Lock Dialogue", iconTitle: "Lock track", locked: false },
+		{
+			accessibleName: "Unlock Dialogue",
+			iconTitle: "Unlock track",
+			locked: true,
+		},
+	])("titles the lock-state icon for $accessibleName", (testCase) => {
+		renderAudioTrack({ locked: testCase.locked });
+
+		const button = screen.getByRole("button", {
+			name: testCase.accessibleName,
+		});
+		expect(button.querySelector("svg title")).toHaveTextContent(
+			testCase.iconTitle
+		);
 	});
 
 	it("exposes an accessible keyboard track-height control", () => {
