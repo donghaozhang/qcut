@@ -425,7 +425,15 @@ blocking issue；便携报告只含 QCut 侧 identity + digest，绝不带本地
 - license policy。
 - portable project asset digest。
 
-### 阶段 4：Cloud Job Adapter
+### 阶段 4：Cloud Job Adapter（部分完成 2026-08-30）
+
+状态：provider 生命周期契约（createJob/uploadAssets/pollJob/downloadPatch/cancelJob）、
+`qcut compose plan --snapshot --intent --provider --output`、job 文件化持久化
+（`<output-dir>/compose/jobs/<job-id>.json`，测试断言不含任何 key 材料）已落地。
+`local` provider 是确定性启发式（字幕高亮 + 相邻切点 crossfade，operation id 由时间线
+身份推导，重试幂等）；`openrouter` provider 走真实 API（快照摘要不含本地路径，
+401/403→auth、402/429→quota、网络/畸形输出→retryable）。`qcut` 与 `fal` provider 返回
+结构化 `unsupported` 错误——QCut 云端 compose 端点尚不存在，不假装。
 
 目标：打通真实云端调用。
 
@@ -445,7 +453,15 @@ blocking issue；便携报告只含 QCut 侧 identity + digest，绝不带本地
 - retry/cancel/idempotency。
 - secret redaction。
 
-### 阶段 5：Render/Export 验证闭环
+### 阶段 5：Render/Export 验证闭环（部分完成 2026-08-30）
+
+状态：`compose render --snapshot --patch --target editor [--verify-frames]` 已落地：
+apply（事务 + read-back）→ 编辑器 export（start + poll）→ ffprobe 探测
+（width/height/fps/duration/hasAudio）→ 可选帧截图亮度统计（复用
+`verifyExportFrames`）→ 写 `qcut-compose-render-report-v1` 报告，串联
+snapshot/patch/export job id 与逐资产 evidence。headless 目标继续由 `--config`
+manifest 模式承担；headless 与 editor 渲染的差异记录在各自 report 中，不强行对齐。
+真机 E2E（开着 QCut 全链路跑通）仍待做。
 
 目标：把 patch apply 后的真实编辑器导出纳入 compose 验收。
 
