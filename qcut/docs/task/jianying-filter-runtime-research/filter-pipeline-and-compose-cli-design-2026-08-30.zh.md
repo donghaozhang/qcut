@@ -65,7 +65,7 @@ source media
 证据目录：
 
 ```text
-/Users/peter/Downloads/QCut-Filter-Category-Parity-2026-08-30/diagnostics
+~/Downloads/QCut-Filter-Category-Parity-2026-08-30/diagnostics
 ```
 
 结果：
@@ -186,7 +186,7 @@ MVP 约束：1 到 8 个 clips；每个 clip 最多 16 张滤镜；最多 7 个�
 证据目录：
 
 ```text
-/Users/peter/Downloads/QCut-Compose-E2E-2026-08-30
+~/Downloads/QCut-Compose-E2E-2026-08-30
 ```
 
 测试 manifest 同时包含：2 个 clips、3 次 Filter Lab 应用、1 个 crossfade、1 个 SVG 贴纸和 1 个 WAV 音效。使用的滤镜锁定为：
@@ -201,23 +201,23 @@ MVP 约束：1 到 8 个 clips；每个 clip 最多 16 张滤镜；最多 7 个�
 
 ```bash
 qcut compose validate \
-  --config /Users/peter/Downloads/QCut-Compose-E2E-2026-08-30/edit.qcut-compose.json \
-  --output /Users/peter/Downloads/QCut-Compose-E2E-2026-08-30/validate-lock.json \
+  --config ~/Downloads/QCut-Compose-E2E-2026-08-30/edit.qcut-compose.json \
+  --output ~/Downloads/QCut-Compose-E2E-2026-08-30/validate-lock.json \
   --json
 
 qcut compose render \
-  --config /Users/peter/Downloads/QCut-Compose-E2E-2026-08-30/edit.qcut-compose.json \
-  --output /Users/peter/Downloads/QCut-Compose-E2E-2026-08-30/final-compose.mp4 \
+  --config ~/Downloads/QCut-Compose-E2E-2026-08-30/edit.qcut-compose.json \
+  --output ~/Downloads/QCut-Compose-E2E-2026-08-30/final-compose.mp4 \
   --json --force
 
 qcut compose project \
-  --config /Users/peter/Downloads/QCut-Compose-E2E-2026-08-30/edit.qcut-compose.json \
-  --project-dir /Users/peter/Downloads/QCut-Compose-E2E-2026-08-30/portable-project \
+  --config ~/Downloads/QCut-Compose-E2E-2026-08-30/edit.qcut-compose.json \
+  --project-dir ~/Downloads/QCut-Compose-E2E-2026-08-30/portable-project \
   --json --force
 
 qcut compose render \
-  --config /Users/peter/Downloads/QCut-Compose-E2E-2026-08-30/portable-project/compose.json \
-  --output /Users/peter/Downloads/QCut-Compose-E2E-2026-08-30/portable-rerender.mp4 \
+  --config ~/Downloads/QCut-Compose-E2E-2026-08-30/portable-project/compose.json \
+  --output ~/Downloads/QCut-Compose-E2E-2026-08-30/portable-rerender.mp4 \
   --json --force
 ```
 
