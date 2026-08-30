@@ -131,7 +131,8 @@ function transitionBinding({
 	return {
 		presetId: resolution.presetId,
 		engine: "qcut",
-		type: resolution.presetId === "crossfade" ? "dissolve" : resolution.presetId,
+		type:
+			resolution.presetId === "crossfade" ? "dissolve" : resolution.presetId,
 		easing: "easeInOut",
 	};
 }
