@@ -202,6 +202,41 @@ describe("SequentialVideoRegistry", () => {
 		expect(mediabunnyMocks.disposed).toBe(disposedBefore + 2);
 	});
 
+	it("keeps one decoder per lane so overlapping clips never share", async () => {
+		// Two elements cut from the same file read far-apart source times in
+		// the same exported frame; separate lanes keep both monotonic instead
+		// of restarting a shared decoder every alternating read.
+		const registry = new SequentialVideoRegistry();
+		const item = mediaItem("m1");
+		const laneA = await registry.getOrOpen(item, "element-a");
+		const laneB = await registry.getOrOpen(item, "element-b");
+		expect(laneA).not.toBeNull();
+		expect(laneB).not.toBeNull();
+		expect(laneB).not.toBe(laneA);
+		expect(await registry.getOrOpen(item, "element-a")).toBe(laneA);
+		expect(mediabunnyMocks.openCalls).toBe(2);
+		await registry.disposeAll();
+	});
+
+	it("evicts the least recently used lane beyond the open-decoder cap", async () => {
+		mediabunnyMocks.disposed = 0;
+		const registry = new SequentialVideoRegistry();
+		const opened: unknown[] = [];
+		for (let index = 0; index < 8; index++) {
+			opened.push(await registry.getOrOpen(mediaItem(`m${index}`), "e"));
+		}
+		expect(mediabunnyMocks.disposed).toBe(0);
+		// Touch lane 0 so lane 1 becomes the least recently used.
+		await registry.getOrOpen(mediaItem("m0"), "e");
+		await registry.getOrOpen(mediaItem("m8"), "e");
+		await vi.waitFor(() => expect(mediabunnyMocks.disposed).toBe(1));
+		// The touched lane survived; the evicted one reopens as a new source.
+		expect(await registry.getOrOpen(mediaItem("m0"), "e")).toBe(opened[0]);
+		const reopened = await registry.getOrOpen(mediaItem("m1"), "e");
+		expect(reopened).not.toBe(opened[1]);
+		await registry.disposeAll();
+	});
+
 	it("returns null for every item while the debug disable flag is set", async () => {
 		setSequentialDecodeDisabled(true);
 		const registry = new SequentialVideoRegistry();
