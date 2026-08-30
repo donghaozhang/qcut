@@ -353,6 +353,7 @@ async function renderDirectGifFrame({
 				return rendered;
 			},
 			(error: unknown) => {
+				resetDirectGifComposition({ state: composition });
 				composition.pendingRequests -= 1;
 				throw error;
 			}
