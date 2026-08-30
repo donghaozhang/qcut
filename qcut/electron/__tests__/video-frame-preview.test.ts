@@ -78,6 +78,7 @@ describe("video frame preview command", () => {
 		expect(filter).toContain("force_original_aspect_ratio=increase");
 		expect(filter).toContain("deshake=rx=32:ry=32:edge=mirror");
 		expect(filter).toContain("unsharp=5:5:0.4");
+		expect(filter.indexOf("deshake=")).toBeLessThan(filter.indexOf("scale="));
 		expect(filter).toContain("trim=start=0.5:duration=");
 	});
 
