@@ -387,6 +387,11 @@ export interface ExportJobRequest {
 		codec?: string;
 	};
 	outputPath?: string;
+	/**
+	 * When set on a renderer export, the renderer writes a structured export
+	 * profile (stage timings, counters) to this absolute path. Off otherwise.
+	 */
+	profilePath?: string;
 
 	/** GIF-specific export options */
 	gifConfig?: {
