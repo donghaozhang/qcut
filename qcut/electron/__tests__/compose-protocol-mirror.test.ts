@@ -1,16 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
 	computeComposeSourceFingerprint as coreFingerprint,
+	validateComposeJob as coreValidateJob,
 	validateComposePatch as coreValidatePatch,
 	validateComposeSnapshot as coreValidateSnapshot,
+	type ComposeJob as CoreComposeJob,
 	type ComposePatch as CoreComposePatch,
 	type ComposeSnapshot as CoreComposeSnapshot,
 } from "@qcut/editor-core/compose";
 import {
 	COMPOSE_PROTOCOL_VERSION,
 	computeComposeSourceFingerprint as mirrorFingerprint,
+	validateComposeJob as mirrorValidateJob,
 	validateComposePatch as mirrorValidatePatch,
 	validateComposeSnapshot as mirrorValidateSnapshot,
+	type ComposeJob,
 	type ComposePatch,
 	type ComposeSnapshot,
 } from "../native-pipeline/compose/compose-protocol.js";
@@ -121,6 +125,29 @@ describe("compose protocol mirror stays equivalent to editor-core", () => {
 		expect(mirrorValidateSnapshot({ snapshot: broken })).toEqual(
 			coreValidateSnapshot({
 				snapshot: broken as unknown as CoreComposeSnapshot,
+			})
+		);
+	});
+
+	it("emits identical job validation issues", () => {
+		const snapshot = fixtureSnapshot();
+		const job: ComposeJob = {
+			schemaVersion: COMPOSE_PROTOCOL_VERSION,
+			id: "job-1",
+			provider: "local",
+			intentKind: "smart-packaging",
+			snapshotId: "other-snapshot",
+			snapshotFingerprint: "0".repeat(64),
+			status: "completed",
+			progress: 2,
+			createdAt: "2026-08-30T00:00:00.000Z",
+			updatedAt: "2026-08-30T00:01:00.000Z",
+			attempt: 1,
+		};
+		expect(mirrorValidateJob({ job, snapshot })).toEqual(
+			coreValidateJob({
+				job: job as unknown as CoreComposeJob,
+				snapshot: snapshot as unknown as CoreComposeSnapshot,
 			})
 		);
 	});
