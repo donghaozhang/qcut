@@ -443,9 +443,6 @@ function collectBakedVideoMediaUsage({
 					mediaIds: nonStickerMediaIds,
 					mediaIdsByName,
 				});
-			}
-
-			if (element.type !== "sticker") {
 				restrictedTimelineIds.push(...restrictedStickerLabIds({ element }));
 			}
 		},
