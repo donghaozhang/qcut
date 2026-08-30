@@ -164,17 +164,26 @@ export function setSequentialDecodeDisabled(disabled: boolean): void {
 	sequentialDecodeDisabled = disabled;
 }
 
-/** Per-export registry: one sequential source per media item, or null. */
+/** Per-export registry: one sequential source per media item (and lane), or null. */
 export class SequentialVideoRegistry {
 	private readonly sources = new Map<
 		string,
 		Promise<SequentialVideoFrameSource | null>
 	>();
 
-	/** Opens (once) the sequential source for a media item. */
-	getOrOpen(mediaItem: MediaItem): Promise<SequentialVideoFrameSource | null> {
+	/**
+	 * Opens (once) the sequential source for a media item. A lane keeps a
+	 * second decoder for the same file so two clips reading far-apart
+	 * timestamps in the same frame (a transition's incoming clip) don't
+	 * restart the outgoing clip's decoder every frame.
+	 */
+	getOrOpen(
+		mediaItem: MediaItem,
+		lane?: string
+	): Promise<SequentialVideoFrameSource | null> {
 		if (sequentialDecodeDisabled) return Promise.resolve(null);
-		const existing = this.sources.get(mediaItem.id);
+		const key = lane ? `${mediaItem.id}#${lane}` : mediaItem.id;
+		const existing = this.sources.get(key);
 		if (existing) return existing;
 		const opened = (async () => {
 			const blob = await resolveMediaBlob(mediaItem);
@@ -185,7 +194,7 @@ export class SequentialVideoRegistry {
 			);
 			return source;
 		})();
-		this.sources.set(mediaItem.id, opened);
+		this.sources.set(key, opened);
 		return opened;
 	}
 
