@@ -28,10 +28,7 @@ vi.mock("mediabunny", () => {
 		}
 	}
 	class CanvasSink {
-		constructor(
-			private track: unknown,
-			private options: unknown
-		) {}
+		constructor(_track: unknown, _options: unknown) {}
 		canvases(startTimestamp = 0) {
 			mediabunnyMocks.iteratorStarts.push(startTimestamp);
 			const d = mediabunnyMocks.frameDuration;
