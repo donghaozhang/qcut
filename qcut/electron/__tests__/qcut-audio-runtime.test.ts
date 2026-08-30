@@ -3,6 +3,10 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { AudioSettings } from "../ffmpeg/audio-settings";
+import {
+	clearQcutAudioCache,
+	getQcutAudioCacheStats,
+} from "../qcut-audio-runtime/cache";
 import { inspectQcutAudioRuntime } from "../qcut-audio-runtime/capabilities";
 import {
 	buildQcutAudioProcessCommand,
@@ -114,6 +118,34 @@ describe("QCut local audio runtime", () => {
 			request: { requestId: "four", sourcePath, audio: firstAudio },
 		});
 		expect(changedSource.cacheKey).not.toBe(first.cacheKey);
+	});
+
+	it("never treats in-flight partial artifacts as cache entries", async () => {
+		const cacheDirectory = path.join(directory, "cache");
+		fs.mkdirSync(cacheDirectory);
+		const completedPath = path.join(cacheDirectory, "aaaa.flac");
+		const freshPartialPath = path.join(
+			cacheDirectory,
+			"bbbb.123-1.partial.flac"
+		);
+		const stalePartialPath = path.join(
+			cacheDirectory,
+			"cccc.123-2.partial.flac"
+		);
+		for (const filePath of [completedPath, freshPartialPath, stalePartialPath]) {
+			fs.writeFileSync(filePath, Buffer.alloc(64, 1));
+		}
+		const staleTime = new Date(Date.now() - 2 * 60 * 60 * 1_000);
+		fs.utimesSync(stalePartialPath, staleTime, staleTime);
+
+		const stats = await getQcutAudioCacheStats({ cacheDirectory });
+		expect(stats.entryCount).toBe(1);
+
+		const cleared = await clearQcutAudioCache({ cacheDirectory });
+		expect(cleared.removedEntries).toBe(1);
+		expect(fs.existsSync(completedPath)).toBe(false);
+		expect(fs.existsSync(stalePartialPath)).toBe(false);
+		expect(fs.existsSync(freshPartialPath)).toBe(true);
 	});
 
 	it("builds one lossless local command from the canonical QCut effect chain", () => {
