@@ -18,7 +18,6 @@ import {
 import {
 	defaultTrackingRuntimeRoot,
 	JIANYING_MOTION_TRACKING_ROUTE,
-	sha256File,
 	verifyTrackingRuntimeSnapshot,
 } from "./runtime-assets.js";
 import {
@@ -284,21 +283,18 @@ export async function trackWithJianyingMotionRuntime({
 		const rawPath = path.join(workDirectory, "frames.rgb24");
 		const nativeOutputPath = path.join(workDirectory, "track.json");
 		report({ progress: 20, stage: "decode", status: "正在解码可见片段" });
-		const [sourceSha256] = await Promise.all([
-			sha256File({ filePath: request.sourcePath }),
-			runMotionTrackingProcess({
-				command: getFFmpegPath(),
-				args: buildRgbDecodeArguments({
-					rangeEndTimeSeconds: request.rangeEndTimeSeconds,
-					rangeStartTimeSeconds: request.rangeStartTimeSeconds,
-					rawPath,
-					sourcePath: request.sourcePath,
-					height: dimensions.height,
-					width: dimensions.width,
-				}),
-				signal,
+		await runMotionTrackingProcess({
+			command: getFFmpegPath(),
+			args: buildRgbDecodeArguments({
+				rangeEndTimeSeconds: request.rangeEndTimeSeconds,
+				rangeStartTimeSeconds: request.rangeStartTimeSeconds,
+				rawPath,
+				sourcePath: request.sourcePath,
+				height: dimensions.height,
+				width: dimensions.width,
 			}),
-		]);
+			signal,
+		});
 		const rawMetadata = await stat(rawPath);
 		const frameBytes = dimensions.width * dimensions.height * 3;
 		if (rawMetadata.size === 0 || rawMetadata.size % frameBytes !== 0) {
@@ -359,7 +355,6 @@ export async function trackWithJianyingMotionRuntime({
 				...sample,
 				sourceTimeUs: sample.sourceTimeUs + rangeOffsetUs,
 			})),
-			sourceSha256,
 		};
 	} finally {
 		await rm(workDirectory, { force: true, recursive: true });
