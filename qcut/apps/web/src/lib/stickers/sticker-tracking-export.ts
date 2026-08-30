@@ -12,7 +12,7 @@ import type {
 	TimelineTrack,
 } from "@/types/timeline";
 
-type TrackingExportProperty = "x" | "y" | "width" | "height";
+type TrackingExportProperty = "x" | "y" | "width" | "height" | "rotation";
 
 export type StickerTrackingExportKeyframes = Partial<
 	Record<TrackingExportProperty, StickerPropertyKeyframe[]>
@@ -133,9 +133,9 @@ export function buildStickerTrackingExportKeyframes({
 		});
 	}
 
-	const properties: TrackingExportProperty[] = tracking.followScale
-		? ["x", "y", "width", "height"]
-		: ["x", "y"];
+	const properties: TrackingExportProperty[] = ["x", "y"];
+	if (tracking.followScale) properties.push("width", "height");
+	if (tracking.followRotation) properties.push("rotation");
 	const result: StickerTrackingExportKeyframes = {};
 	for (const property of properties) {
 		result[property] = [];
@@ -156,7 +156,8 @@ export function buildStickerTrackingExportKeyframes({
 			canvasHeight,
 		});
 		for (const property of properties) {
-			const value = resolved[property];
+			const value =
+				resolved[property] ?? (property === "rotation" ? 0 : undefined);
 			if (typeof value !== "number" || !Number.isFinite(value)) {
 				throw new StickerTrackingExportDataError({
 					elementId: element.id,
