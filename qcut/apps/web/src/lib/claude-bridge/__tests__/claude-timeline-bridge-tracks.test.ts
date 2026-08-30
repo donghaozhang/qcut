@@ -269,7 +269,7 @@ describe("Claude track bridge transitions", () => {
 		trackHandler(addTransitionRequest({ transition: { engine: "premiere" } }));
 
 		const responses = sendResponse.mock.calls.map(
-			([, response]: [string, { success: boolean; error?: string }]) => response
+			(call) => call[1] as { success: boolean; error?: string }
 		);
 		expect(responses[0].success).toBe(false);
 		expect(responses[0].error).toContain("jianying-local");
