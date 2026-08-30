@@ -111,6 +111,35 @@ function tracks({
 }
 
 describe("sticker tracking export keyframes", () => {
+	it("leaves planar bindings for the planar export pipeline", () => {
+		const element: StickerElement = {
+			...sticker({ followScale: false }),
+			tracking: {
+				mode: "planar",
+				sourceElementId: "video",
+				surfaceTrackingId: "surface-1",
+				seedPtsUs: 1_000_000,
+				seedTargetQuad: {
+					topLeft: { x: 0.2, y: 0.2 },
+					topRight: { x: 0.4, y: 0.2 },
+					bottomRight: { x: 0.4, y: 0.4 },
+					bottomLeft: { x: 0.2, y: 0.4 },
+				},
+				lostBehavior: "hold",
+			},
+		};
+
+		expect(
+			buildStickerTrackingExportKeyframes({
+				element,
+				tracks: tracks({ element }),
+				fps: 30,
+				canvasWidth: 1920,
+				canvasHeight: 1080,
+			})
+		).toBeUndefined();
+	});
+
 	it("bakes target motion into clip-local position keys with boundary holds", () => {
 		const element = sticker({ followScale: false });
 		const keyframes = buildStickerTrackingExportKeyframes({

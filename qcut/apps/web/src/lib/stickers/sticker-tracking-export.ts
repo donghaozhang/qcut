@@ -98,7 +98,7 @@ export function buildStickerTrackingExportKeyframes({
 	canvasHeight: number;
 }): StickerTrackingExportKeyframes | undefined {
 	const tracking = element.tracking;
-	if (!tracking) return;
+	if (!tracking || tracking.mode !== "motion") return;
 	if (
 		!Number.isFinite(canvasWidth) ||
 		!Number.isFinite(canvasHeight) ||
