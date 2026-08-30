@@ -139,7 +139,7 @@ export async function handleComposeSnapshot(
 }
 
 /** Operation kinds that create timeline elements keyed by operation id. */
-const ELEMENT_CREATING_KINDS = new Set<ComposePatchOperation["kind"]>([
+export const ELEMENT_CREATING_KINDS = new Set<ComposePatchOperation["kind"]>([
 	"add-caption",
 	"add-text-overlay",
 	"add-sticker",
