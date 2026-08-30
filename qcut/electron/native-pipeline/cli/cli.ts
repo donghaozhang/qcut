@@ -498,6 +498,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"gif-loop": { type: "boolean", default: false },
 			"gif-quality": { type: "string" },
 			"profile-path": { type: "string" },
+			"no-sequential-decode": { type: "boolean", default: false },
 			mic: { type: "boolean", default: false },
 			// Default true matches the command-registry advertisement and user
 			// docs — capturing system audio is the intended out-of-box
@@ -1202,6 +1203,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		...(values["profile-path"]
 			? { "profile-path": values["profile-path"] as string }
 			: {}),
+		...(values["no-sequential-decode"] ? { "no-sequential-decode": true } : {}),
 		...(values.mic ? { mic: true } : {}),
 		...(values["system-audio"] ? { "system-audio": true } : {}),
 		// ui options
