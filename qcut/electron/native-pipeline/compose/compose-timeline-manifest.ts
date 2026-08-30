@@ -24,6 +24,8 @@ export interface ComposeTimelineManifestPlan {
 	plannedOperationIds: string[];
 	/** Operation ids that became manifest transitions. */
 	plannedTransitionOperationIds: string[];
+	/** Operation ids applied as element updates (e.g. filter stacks). */
+	plannedUpdateOperationIds: string[];
 	skipped: ComposeSkippedOperation[];
 }
 
@@ -31,6 +33,7 @@ const TEXT_TRACK_ALIAS = "compose-text";
 const CAPTION_TRACK_ALIAS = "compose-captions";
 const STICKER_TRACK_ALIAS = "compose-stickers";
 const AUDIO_TRACK_ALIAS = "compose-audio";
+const ADJUSTMENT_TRACK_ALIAS = "compose-adjustments";
 
 function editorTransitionPreset({ presetId }: { presetId: string }): string {
 	return presetId === "crossfade" ? "dissolve" : presetId;
@@ -149,6 +152,47 @@ function soundSourceDuration({
 }
 
 /**
+ * Builds one adjustment-element color payload from an ordered filter layer.
+ * A single effect keeps its native payload; a pure-LUT chain compiles into
+ * one ordered multiPass program. Mixed multi-effect layers return undefined
+ * so the caller reports them instead of silently reordering backends.
+ */
+function adjustmentLayerColor({
+	operationId,
+	name,
+	effects,
+}: {
+	operationId: string;
+	name?: string;
+	effects: Array<{
+		intensity: number;
+		color: { lut?: Record<string, unknown>; multiPass?: JsonRecord };
+	}>;
+}): JsonRecord | undefined {
+	if (effects.length === 1) {
+		const only = effects[0];
+		if (!only.color.lut && !only.color.multiPass) return;
+		return { enabled: true, ...only.color };
+	}
+	if (!effects.every((effect) => effect.color.lut?.cube)) return;
+	return {
+		enabled: true,
+		multiPass: {
+			enabled: true,
+			presetId: `compose:${operationId}`,
+			name: name ?? "Compose Filter Layer",
+			intensity: 100,
+			fidelity: "structural",
+			passes: effects.map((effect) => ({
+				kind: "lut",
+				cube: effect.color.lut?.cube,
+				intensity: effect.intensity,
+			})),
+		},
+	};
+}
+
+/**
  * Converts an already-validated ComposePatch into the declarative manifest
  * accepted by `editor timeline apply`. Additive operations land on dedicated
  * compose tracks; transitions target the snapshot's existing elements.
@@ -186,6 +230,8 @@ export function timelineManifestFromComposePatch({
 	});
 	const plannedOperationIds: string[] = [...mediaPlan.plannedOperationIds];
 	const plannedTransitionOperationIds: string[] = [];
+	const plannedUpdateOperationIds: string[] = [];
+	const adjustmentElements: LanedElement[] = [];
 	const skipped: ComposeSkippedOperation[] = [...mediaPlan.skipped];
 	const pendingClipIds = new Set(
 		patch.operations
@@ -404,15 +450,78 @@ export function timelineManifestFromComposePatch({
 			case "insert-media-clip":
 				// Planned separately by planComposeMediaClips above.
 				break;
-			case "set-media-filter-stack":
-			case "add-filter-layer":
-				skipped.push({
-					operationId: operation.id,
-					kind: operation.kind,
-					reason:
-						"Filter operations are not applied by the v1 timeline bridge yet.",
+			case "set-media-filter-stack": {
+				const binding = bindings[operation.id]?.filterStack;
+				if (!binding) {
+					skipped.push({
+						operationId: operation.id,
+						kind: operation.kind,
+						reason: "No resolved filter stack was bound for this element.",
+					});
+					break;
+				}
+				const pendingTarget = pendingClipIds.has(operation.elementId);
+				if (pendingTarget && !plannedClipIds.has(operation.elementId)) {
+					skipped.push({
+						operationId: operation.id,
+						kind: operation.kind,
+						reason: "The pending target clip was not planned.",
+					});
+					break;
+				}
+				updates.push({
+					elementId: operation.elementId,
+					type: "media",
+					filterStack: { enabled: true, effects: binding.effects },
 				});
+				plannedUpdateOperationIds.push(operation.id);
 				break;
+			}
+			case "add-filter-layer": {
+				const binding = bindings[operation.id]?.filterStack;
+				const enabledEffects = binding?.effects.filter(
+					(effect) => effect.enabled
+				);
+				if (!enabledEffects || enabledEffects.length === 0) {
+					skipped.push({
+						operationId: operation.id,
+						kind: operation.kind,
+						reason: binding
+							? "The filter layer has no enabled effects."
+							: "No resolved filter stack was bound for this layer.",
+					});
+					break;
+				}
+				const color = adjustmentLayerColor({
+					operationId: operation.id,
+					name: operation.name,
+					effects: enabledEffects,
+				});
+				if (!color) {
+					skipped.push({
+						operationId: operation.id,
+						kind: operation.kind,
+						reason:
+							"Multi-effect adjustment layers currently support LUT chains only.",
+					});
+					break;
+				}
+				adjustmentElements.push({
+					start: operation.startTime,
+					end: operation.startTime + operation.duration,
+					element: {
+						alias: operation.id,
+						id: operation.id,
+						type: "adjustment",
+						name: operation.name ?? "Compose Filter Layer",
+						startTime: operation.startTime,
+						duration: operation.duration,
+						color,
+					},
+				});
+				plannedOperationIds.push(operation.id);
+				break;
+			}
 			default:
 				skipped.push({
 					operationId: (operation as ComposePatchOperation).id,
@@ -449,6 +558,12 @@ export function timelineManifestFromComposePatch({
 			name: "Compose Sound Effects",
 			entries: audioElements,
 		}),
+		...lanedComposeTracks({
+			alias: ADJUSTMENT_TRACK_ALIAS,
+			type: "adjustment",
+			name: "Compose Filter Layers",
+			entries: adjustmentElements,
+		}),
 	];
 
 	const allMedia = [...mediaPlan.media, ...media];
@@ -462,6 +577,7 @@ export function timelineManifestFromComposePatch({
 		},
 		plannedOperationIds,
 		plannedTransitionOperationIds,
+		plannedUpdateOperationIds,
 		skipped,
 	};
 }
