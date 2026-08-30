@@ -42,10 +42,10 @@ const ANALYZE_MODELS: AnalyzeModel[] = [
 		description: "Fast and cost-effective (default)",
 	},
 	{
-		key: "gemini-2.5-pro",
+		key: "gemini-3.7-flash",
 		provider: "fal",
-		modelId: "google/gemini-2.5-pro",
-		description: "Higher quality, balanced speed",
+		modelId: "google/gemini-3.7-flash",
+		description: "Current Flash workhorse",
 	},
 	{
 		key: "gemini-3-pro",
@@ -64,7 +64,7 @@ const ANALYZE_MODELS: AnalyzeModel[] = [
 /** Map editor model keys to OpenRouter model IDs for the FAL endpoint */
 const MODEL_ID_MAP: Record<string, string> = {
 	"gemini-2.5-flash": "google/gemini-2.5-flash",
-	"gemini-2.5-pro": "google/gemini-2.5-pro",
+	"gemini-3.7-flash": "google/gemini-3.7-flash",
 	"gemini-3-pro": "google/gemini-3-pro-preview",
 };
 

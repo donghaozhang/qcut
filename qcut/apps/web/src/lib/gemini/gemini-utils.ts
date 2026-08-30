@@ -1,7 +1,7 @@
 /**
  * Gemini API Configuration Utilities
  *
- * Provides configuration validation for Google Gemini 2.5 Pro transcription.
+ * Provides configuration validation for Google Gemini 3.7 Flash transcription.
  * Replaces legacy Modal Whisper + R2 configuration utilities.
  */
 
