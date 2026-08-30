@@ -7,6 +7,12 @@ import {
 	resolveComposeProject,
 	type ResolvedComposeProject,
 } from "../compose/compose-resolver.js";
+import {
+	hasComposeValidationErrors,
+	validateComposePatch,
+	validateComposeSnapshot,
+} from "../compose/compose-protocol.js";
+import { loadComposeSnapshotAndPatch } from "./cli-handlers-compose-editor.js";
 import type {
 	CLIResult,
 	CLIRunOptions,
@@ -72,6 +78,48 @@ async function loadAndResolve({
 	return dependencies.resolve({ loaded, signal });
 }
 
+async function validatePatchMode({
+	options,
+	onProgress,
+	startedAt,
+}: {
+	options: CLIRunOptions;
+	onProgress: ProgressFn;
+	startedAt: number;
+}): Promise<CLIResult> {
+	const { snapshot, patch } = await loadComposeSnapshotAndPatch({ options });
+	onProgress({
+		stage: "validating",
+		percent: 30,
+		message: "Validating the compose patch against its snapshot...",
+	});
+	const issues = [
+		...validateComposeSnapshot({ snapshot }),
+		...validateComposePatch({ snapshot, patch }),
+	];
+	const valid = !hasComposeValidationErrors({ issues });
+	onProgress({
+		stage: "complete",
+		percent: 100,
+		message: valid
+			? "Compose patch is applicable"
+			: "Compose patch failed validation",
+	});
+	return {
+		success: valid,
+		...(valid ? {} : { error: "Compose patch failed validation." }),
+		data: {
+			mode: "patch",
+			valid,
+			snapshotId: snapshot.id,
+			patchId: patch.id,
+			operationCount: patch.operations.length,
+			issues,
+		},
+		duration: (Date.now() - startedAt) / 1000,
+	};
+}
+
 export async function handleComposeValidate(
 	options: CLIRunOptions,
 	onProgress: ProgressFn,
@@ -80,6 +128,15 @@ export async function handleComposeValidate(
 ): Promise<CLIResult> {
 	const startedAt = Date.now();
 	try {
+		const hasPatchInputs = Boolean(options.snapshot || options.patch);
+		if (options.config && hasPatchInputs) {
+			throw new Error(
+				"--config selects manifest mode and --snapshot/--patch select patch mode; pass one set, not both."
+			);
+		}
+		if (hasPatchInputs) {
+			return await validatePatchMode({ options, onProgress, startedAt });
+		}
 		onProgress({
 			stage: "validating",
 			percent: 10,
