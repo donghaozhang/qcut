@@ -35,7 +35,8 @@ export type ComposeAssetType =
 	| "sound-effect"
 	| "filter"
 	| "transition"
-	| "generated-media";
+	| "generated-media"
+	| "media";
 
 export type ComposeAssetLicense = "commercial-ok" | "personal-only" | "unknown";
 
@@ -173,7 +174,10 @@ export interface ComposeJob {
 	error?: ComposeJobError;
 }
 
-export type ComposePatchSource = "cloud" | "local-heuristic";
+export type ComposePatchSource =
+	| "cloud"
+	| "local-heuristic"
+	| "manifest-compiler";
 
 export type ComposePatchMode = "idempotent" | "duplicate";
 
@@ -253,13 +257,69 @@ export interface ComposeUpsertTransitionOperation
 	asset?: ComposeAssetReference;
 }
 
+export interface ComposeInsertMediaClipOperation
+	extends ComposeBasePatchOperation {
+	kind: "insert-media-clip";
+	/** The media file to import; provenance records identity, never secrets. */
+	asset: ComposeAssetReference;
+	mediaKind: "video" | "image";
+	trackRole: "main-video" | "overlay-video";
+	/** Existing track id; omitted for a compiler-created track. */
+	trackId?: string;
+	/** Source seconds removed from the head/tail of the file. */
+	trimStart: number;
+	trimEnd: number;
+	/** Full source duration in seconds (explicit for images). */
+	sourceDuration: number;
+	volume?: number;
+	playbackRate?: number;
+	fitMode?: "contain" | "cover" | "fill";
+}
+
+export interface ComposeFilterStep {
+	/** Stable step id, unique within its stack. */
+	id: string;
+	/** Filter Lab resource identity (never a raw package path). */
+	asset: ComposeAssetReference;
+	/** 0..100, matching the Filter Lab intensity contract. */
+	intensity: number;
+	enabled: boolean;
+}
+
+export interface ComposeSetMediaFilterStackOperation
+	extends ComposeBasePatchOperation {
+	kind: "set-media-filter-stack";
+	/**
+	 * Track owning the target element. When `elementId` references a pending
+	 * `insert-media-clip` operation in the same patch, this must repeat that
+	 * operation id (the real track id does not exist yet).
+	 */
+	trackId: string;
+	/** Snapshot element id, or a pending insert-media-clip operation id. */
+	elementId: string;
+	/** Ordered, clip-scoped filter stack (1..16 steps). */
+	filters: ComposeFilterStep[];
+}
+
+export interface ComposeAddFilterLayerOperation
+	extends ComposeBasePatchOperation {
+	kind: "add-filter-layer";
+	trackRole: "adjustment";
+	/** Ordered timeline-range filter stack (1..16 steps). */
+	filters: ComposeFilterStep[];
+	name?: string;
+}
+
 export type ComposePatchOperation =
 	| ComposeAddCaptionOperation
 	| ComposeAddTextOverlayOperation
 	| ComposeAddStickerOperation
 	| ComposeAddSoundEffectOperation
 	| ComposeUpdateMediaZoomOperation
-	| ComposeUpsertTransitionOperation;
+	| ComposeUpsertTransitionOperation
+	| ComposeInsertMediaClipOperation
+	| ComposeSetMediaFilterStackOperation
+	| ComposeAddFilterLayerOperation;
 
 export type ComposePatchOperationKind = ComposePatchOperation["kind"];
 
