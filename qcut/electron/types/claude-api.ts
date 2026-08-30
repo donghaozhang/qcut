@@ -372,11 +372,12 @@ export interface ExportRecommendation {
 
 export interface ExportJobRequest {
 	/**
-	 * Main-process export engine. Unsupported values are rejected with an
-	 * error; all accepted values currently resolve to the single native
-	 * FFmpeg CLI engine ("native-cli").
+	 * Export engine. On the main-process path every accepted value resolves
+	 * to the native FFmpeg CLI engine ("native-cli"). Renderer exports also
+	 * accept "muxer" to pin the canvas/WebCodecs engine (benchmarks, parity
+	 * checks); other values are rejected there.
 	 */
-	engine?: "auto" | "native" | "cli";
+	engine?: "auto" | "native" | "cli" | "muxer";
 	preset?: string;
 	settings?: {
 		width?: number;
