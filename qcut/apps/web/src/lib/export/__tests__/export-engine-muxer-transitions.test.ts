@@ -35,12 +35,36 @@ vi.mock("mediabunny", () => ({
 	BufferTarget: class {
 		buffer = new ArrayBuffer(100);
 	},
-	CanvasSource: class {
+	VideoSampleSource: class {
 		add = mocks.add;
+	},
+	VideoSample: class {
+		close = vi.fn();
 	},
 	AudioBufferSource: class {
 		add = mocks.add;
 	},
+}));
+
+// The engine converts frames itself; keep the converter out of jsdom's way.
+vi.mock("../export-canvas-yuv", () => ({
+	EXPORT_VIDEO_COLOR_SPACE: {
+		primaries: "bt709",
+		transfer: "bt709",
+		matrix: "bt709",
+		fullRange: false,
+	},
+	createCanvasYuvConverter: vi.fn(
+		({ width, height }: { width: number; height: number }) => ({
+			kind: "cpu" as const,
+			convert: () => ({
+				data: new Uint8Array((width * height * 3) / 2),
+				codedWidth: width,
+				codedHeight: height,
+			}),
+			dispose: vi.fn(),
+		})
+	),
 }));
 
 vi.mock("@qcut/platform-core", () => ({
