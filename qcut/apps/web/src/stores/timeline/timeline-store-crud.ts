@@ -237,6 +237,21 @@ export function createCrudOperations(
 				normalizedElementData.id.trim().length > 0
 					? normalizedElementData.id
 					: generateUUID();
+			const idAlreadyExists = currentState._tracks.some((candidateTrack) =>
+				candidateTrack.elements.some((element) => element.id === requestedId)
+			);
+			if (idAlreadyExists) {
+				handleError(
+					new Error(`Timeline element id already exists: ${requestedId}`),
+					{
+						operation: "Add Element to Track",
+						category: ErrorCategory.VALIDATION,
+						severity: ErrorSeverity.MEDIUM,
+						metadata: { elementId: requestedId, trackId },
+					}
+				);
+				return null;
+			}
 
 			const newElement: TimelineElement = {
 				...normalizedElementData,
