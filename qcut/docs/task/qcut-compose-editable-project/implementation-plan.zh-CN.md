@@ -1,7 +1,7 @@
 # QCut 可编辑 Compose 工程实施任务书
 
 日期：2026-08-31  
-状态：Phase A 完成（协议 + compiler + 校验 + 测试），Phase B 未开始  
+状态：Phase A、Phase B 完成（真实桌面 E2E 门禁通过），Phase C 未开始  
 依赖：PR #441 `feat: complete Compose resource labs` 及其性能/CI 收尾  
 建议执行者：Claude（完成当前 Compose Export Performance Hardening 后开始）
 
@@ -755,6 +755,15 @@ apps/web/src/lib/export/*
 - atomic cleanup/idempotent replay。
 
 门禁：3 个无滤镜 clips 可创建、保存、重开、导出。
+
+**状态：✅ 完成（2026-08-31，分支 `codex/compose-editable-project-v2`）**
+
+- `compose project --target editor`（新增，portable 模式不受影响；`--name`/`--project-id` 互斥、`--project-dir` 冲突报结构化错误）。
+- 传输复用 `editor timeline apply`：`insert-media-clip` → `manifest.media[]`（按名+大小去重导入）+ isMain 主轨元素（元素 id = op id，duration 用**源时长**语义）；pending 转场经元素别名解析落库；`set-media-filter-stack`/`add-filter-layer` 显式 skipped 且 `compose project` 视 skipped 为失败。
+- 事务：apply 原子回滚 + 新导入媒体清理（既有）；编排层补偿 —— 本轮创建的项目在任何后续失败时删除，根因错误保留（真实触发验证过一次）。
+- 幂等：`ELEMENT_CREATING_KINDS` 纳入 `insert-media-clip`；replay 实测 applied={}、5 op 全 alreadyApplied、无重复。
+- 重开校验：导航去另一项目再回来 + 元素轮询（水合竞态修复），期望集只含 element-creating op。
+- 真实桌面 E2E 门禁通过：3 个异源 10s 片段 + 2 个 crossfade → 29.0s 时间线精确、导出 29.021s 1080p30、转场中点真实溶解帧（SSIM 0.53–0.71 双侧）、三窗口音频 RMS 各异。证据：`evidence/2026-08-31-phase-b/`。
 
 ### Phase C：Filter Lab stack
 
