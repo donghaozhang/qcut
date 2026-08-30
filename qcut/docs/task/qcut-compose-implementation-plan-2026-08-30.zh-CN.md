@@ -320,7 +320,9 @@ QCut 工程内应保存：
 
 ## 推荐实现顺序
 
-### PR 1：Compose Core 类型与验证
+这份文档描述的是一个连续实现路线，不要求按文档章节拆成多个文档 PR。文档、调研和方案记录可以合并在一个较大的 docs PR 里；真正进入代码实现时，再按功能边界、风险和可验证性拆小。
+
+### 阶段 1：Compose Core 类型与验证
 
 目标：把协议落在 `packages/editor-core/src/compose/`。
 
@@ -343,7 +345,7 @@ QCut 工程内应保存：
 - snapshot mismatch 拒绝。
 - SmartPackaging patch 能转换成 ComposePatch。
 
-### PR 2：CLI snapshot/validate/apply
+### 阶段 2：CLI snapshot/validate/apply
 
 目标：让 ComposePatch 能从 CLI 进入真实编辑器 timeline。
 
@@ -362,7 +364,7 @@ QCut 工程内应保存：
 - apply conversion unit tests。
 - editor timeline apply 集成测试。
 
-### PR 3：资源 Resolver
+### 阶段 3：资源 Resolver
 
 目标：把贴纸、音效、转场、文字资产从本地路径升级成 QCut resource identity。
 
@@ -380,7 +382,7 @@ QCut 工程内应保存：
 - license policy。
 - portable project asset digest。
 
-### PR 4：Cloud Job Adapter
+### 阶段 4：Cloud Job Adapter
 
 目标：打通真实云端调用。
 
@@ -400,7 +402,7 @@ QCut 工程内应保存：
 - retry/cancel/idempotency。
 - secret redaction。
 
-### PR 5：Render/Export 验证闭环
+### 阶段 5：Render/Export 验证闭环
 
 目标：把 patch apply 后的真实编辑器导出纳入 compose 验收。
 
@@ -427,7 +429,7 @@ QCut 工程内应保存：
 3. `packages/editor-core/src/compose/smart-packaging-adapter.ts`
 4. 单元测试覆盖 Smart Packaging 到 ComposePatch 的转换和 snapshot mismatch。
 
-这一 PR 不需要接真实云端、不需要渲染、不需要 UI。它的价值是把后续所有“智能包装、字幕实验室、素材匹配、滤镜转场音效贴纸组合”都放到同一个协议里。
+这个最小版本不需要接真实云端、不需要渲染、不需要 UI。它的价值是把后续所有“智能包装、字幕实验室、素材匹配、滤镜转场音效贴纸组合”都放到同一个协议里。
 
 ## 不做什么
 
