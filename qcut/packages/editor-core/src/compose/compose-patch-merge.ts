@@ -88,6 +88,9 @@ export function countComposeOperations({
 		"add-sound-effect": 0,
 		"update-media-zoom": 0,
 		"upsert-transition": 0,
+		"insert-media-clip": 0,
+		"set-media-filter-stack": 0,
+		"add-filter-layer": 0,
 	};
 	for (const operation of patch.operations) {
 		counts[operation.kind] += 1;
