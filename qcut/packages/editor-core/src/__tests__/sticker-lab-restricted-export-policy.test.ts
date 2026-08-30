@@ -20,6 +20,13 @@ const restrictedMetadata = {
 	usage: "internal-reference-only",
 } as const;
 
+const RUNTIME_RESOURCE_MEDIA_ID = "restricted-atlas";
+const RUNTIME_RESOURCE_NAME = "asset_0001";
+const strippedRestrictedRuntimeMetadata = {
+	source: "sticker-runtime-resource",
+	stickerAssetId: `sticker-lab:${restrictedMetadata.batchId}:${restrictedMetadata.itemId}`,
+} as const;
+
 const noncanonicalPrimaryMetadataCases = [
 	{
 		label: "missing animatedSticker",
@@ -46,20 +53,59 @@ const noncanonicalPrimaryMetadataCases = [
 function createRestrictedRuntimeMetadata({
 	checksumSha256 = "a".repeat(64),
 	itemId = "18001",
-	resourceName = "atlas.png",
+	resourceName = RUNTIME_RESOURCE_NAME,
+	sourceUrl = "runtime/atlas.png",
 }: {
 	checksumSha256?: string;
 	itemId?: string;
 	resourceName?: string;
+	sourceUrl?: string;
 } = {}) {
 	return {
-		...restrictedMetadata,
+		batchId: restrictedMetadata.batchId,
 		checksumSha256,
 		itemId,
+		redistribution: restrictedMetadata.redistribution,
+		referenceOnly: restrictedMetadata.referenceOnly,
 		source: "sticker-runtime-resource" as const,
 		stickerAssetId: `sticker-lab:${restrictedMetadata.batchId}:${itemId}`,
 		stickerAssetVersion: 1,
 		stickerRuntimeResourceName: resourceName,
+		stickerRuntimeSourceUrl: sourceUrl,
+		usage: restrictedMetadata.usage,
+	};
+}
+
+function createRestrictedRuntimePrimaryMetadata({
+	resourceMediaId = RUNTIME_RESOURCE_MEDIA_ID,
+}: {
+	resourceMediaId?: string;
+} = {}) {
+	return {
+		...restrictedMetadata,
+		stickerRuntime: {
+			atlasSize: { height: 1, width: 1 },
+			atlasSource: `$resource:${RUNTIME_RESOURCE_NAME}`,
+			completion: "freeze-last",
+			cycleDurationSeconds: 1,
+			frames: [
+				{
+					durationSeconds: 1,
+					frameRect: { height: 1, width: 1, x: 0, y: 0 },
+					id: "frame-1",
+					rotated: false,
+					sourceSize: { height: 1, width: 1 },
+					spriteSourceRect: { height: 1, width: 1, x: 0, y: 0 },
+					startSeconds: 0,
+					trimmed: false,
+				},
+			],
+			kind: "atlas-animation",
+			repeat: { kind: "infinite" },
+		},
+		stickerRuntimeResources: {
+			[RUNTIME_RESOURCE_NAME]: resourceMediaId,
+		},
 	};
 }
 
@@ -215,10 +261,7 @@ describe("Sticker Lab restricted export policy", () => {
 		const mediaItems = [
 			{
 				id: "restricted-primary",
-				metadata: {
-					...restrictedMetadata,
-					stickerRuntimeResources: { atlas: "restricted-atlas" },
-				},
+				metadata: createRestrictedRuntimePrimaryMetadata(),
 			},
 			{
 				id: "restricted-atlas",
@@ -376,10 +419,9 @@ describe("Sticker Lab restricted export policy", () => {
 				mediaItems: [
 					{
 						id: "restricted-primary",
-						metadata: {
-							...restrictedMetadata,
-							stickerRuntimeResources: { atlas: "missing-atlas" },
-						},
+						metadata: createRestrictedRuntimePrimaryMetadata({
+							resourceMediaId: "missing-atlas",
+						}),
 					},
 				],
 				operation: "video",
@@ -395,10 +437,7 @@ describe("Sticker Lab restricted export policy", () => {
 	it("fails closed for malformed or mismatched runtime provenance", () => {
 		const primary = {
 			id: "restricted-primary",
-			metadata: {
-				...restrictedMetadata,
-				stickerRuntimeResources: { atlas: "restricted-atlas" },
-			},
+			metadata: createRestrictedRuntimePrimaryMetadata(),
 		};
 		const tracks = [
 			{
@@ -432,6 +471,66 @@ describe("Sticker Lab restricted export policy", () => {
 				],
 				operation: "video",
 				tracks,
+			})
+		).toThrow(RESTRICTED_MEDIA_EXPORT_MESSAGE);
+	});
+
+	it("fails closed when runtime resource names do not match the primary map", () => {
+		expect(() =>
+			assertLocalFinalVideoExportAllowed({
+				mediaItems: [
+					{
+						id: "restricted-primary",
+						metadata: createRestrictedRuntimePrimaryMetadata(),
+					},
+					{
+						id: RUNTIME_RESOURCE_MEDIA_ID,
+						metadata: createRestrictedRuntimeMetadata({
+							resourceName: "asset_0002",
+						}),
+					},
+				],
+				operation: "video",
+				tracks: [
+					{
+						elements: [{ mediaId: "restricted-primary", type: "sticker" }],
+					},
+				],
+			})
+		).toThrow(RESTRICTED_MEDIA_EXPORT_MESSAGE);
+	});
+
+	it("fails closed when runtime resource metadata omits its private source", () => {
+		const incompleteResourceMetadata = {
+			batchId: restrictedMetadata.batchId,
+			checksumSha256: restrictedMetadata.checksumSha256,
+			itemId: restrictedMetadata.itemId,
+			redistribution: restrictedMetadata.redistribution,
+			referenceOnly: restrictedMetadata.referenceOnly,
+			source: "sticker-runtime-resource",
+			stickerAssetId: `sticker-lab:${restrictedMetadata.batchId}:${restrictedMetadata.itemId}`,
+			stickerAssetVersion: 1,
+			stickerRuntimeResourceName: RUNTIME_RESOURCE_NAME,
+			usage: restrictedMetadata.usage,
+		};
+		expect(() =>
+			assertLocalFinalVideoExportAllowed({
+				mediaItems: [
+					{
+						id: "restricted-primary",
+						metadata: createRestrictedRuntimePrimaryMetadata(),
+					},
+					{
+						id: RUNTIME_RESOURCE_MEDIA_ID,
+						metadata: incompleteResourceMetadata,
+					},
+				],
+				operation: "video",
+				tracks: [
+					{
+						elements: [{ mediaId: "restricted-primary", type: "sticker" }],
+					},
+				],
 			})
 		).toThrow(RESTRICTED_MEDIA_EXPORT_MESSAGE);
 	});
@@ -512,6 +611,39 @@ describe("Sticker Lab restricted export policy", () => {
 				scope: "all-media",
 			})
 		).toEqual(["restricted-media"]);
+	});
+
+	it("blocks a private runtime resource with stripped flags from all-media exports", () => {
+		expect(
+			findRestrictedMediaForExport({
+				mediaItems: [
+					{
+						id: RUNTIME_RESOURCE_MEDIA_ID,
+						metadata: strippedRestrictedRuntimeMetadata,
+					},
+				],
+				scope: "all-media",
+			})
+		).toEqual([RUNTIME_RESOURCE_MEDIA_ID]);
+	});
+
+	it("blocks a private runtime resource with stripped flags from local final video", () => {
+		expect(() =>
+			assertLocalFinalVideoExportAllowed({
+				mediaItems: [
+					{
+						id: RUNTIME_RESOURCE_MEDIA_ID,
+						metadata: strippedRestrictedRuntimeMetadata,
+					},
+				],
+				operation: "video",
+				tracks: [
+					{
+						elements: [{ mediaId: RUNTIME_RESOURCE_MEDIA_ID, type: "sticker" }],
+					},
+				],
+			})
+		).toThrow(RESTRICTED_MEDIA_EXPORT_MESSAGE);
 	});
 
 	it("blocks a durable restricted Sticker Lab timeline ID when metadata is missing", () => {
@@ -638,6 +770,25 @@ describe("Sticker Lab restricted export policy", () => {
 				tracks: [{ elements: [{ mediaId: "public-runtime" }] }],
 			})
 		).toEqual(["restricted-atlas"]);
+	});
+
+	it("does not restrict public runtime resources by source label alone", () => {
+		expect(
+			findRestrictedMediaForExport({
+				mediaItems: [
+					{
+						id: "public-runtime-resource",
+						metadata: { source: "sticker-runtime-resource" },
+					},
+				],
+				scope: "timeline",
+				tracks: [
+					{
+						elements: [{ mediaId: "public-runtime-resource", type: "sticker" }],
+					},
+				],
+			})
+		).toEqual([]);
 	});
 
 	it("does not classify public Sticker Lab asset IDs as restricted", () => {
