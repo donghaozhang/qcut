@@ -134,6 +134,15 @@ export interface ClaudeProjectAPI {
 		sendLocalVideoExportResponse: (
 			response: ClaudeLocalVideoExportRendererResponse
 		) => void;
+		/** Streams live renderer export progress into the main-process job. */
+		reportExportProgress: (payload: {
+			jobId: string;
+			progress: number;
+			currentFrame?: number;
+			totalFrames?: number;
+			fps?: number;
+			estimatedTimeRemaining?: number;
+		}) => void;
 	};
 	diagnostics: {
 		analyze: (error: ErrorReport) => Promise<DiagnosticResult>;
