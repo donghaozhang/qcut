@@ -1,6 +1,7 @@
 import { debugError } from "@/lib/debug/debug-config";
 import { exportProfiler } from "@/lib/export/export-profiler";
 import { setActiveExportJob } from "@/lib/export/export-progress-reporter";
+import { setSequentialDecodeDisabled } from "@/lib/export/export-sequential-video-source";
 import { useExportStore } from "@/stores/export-store";
 import { useProjectStore } from "@/stores/project-store";
 import { PanelView } from "@/types/panel";
@@ -85,6 +86,7 @@ export function setupClaudeLocalVideoExportBridge(): void {
 				if (request.profilePath) {
 					exportProfiler.arm({ targetPath: request.profilePath });
 				}
+				setSequentialDecodeDisabled(request.disableSequentialDecode === true);
 				await actions.exportLocalVideo(request);
 				exportApi.sendLocalVideoExportResponse({ requestId, success: true });
 			} catch (error) {
@@ -96,6 +98,7 @@ export function setupClaudeLocalVideoExportBridge(): void {
 			} finally {
 				setActiveExportJob({ jobId: null });
 				exportProfiler.disarm();
+				setSequentialDecodeDisabled(false);
 				localVideoExportInFlight = false;
 			}
 		})();
