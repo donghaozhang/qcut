@@ -75,7 +75,6 @@ export interface JianyingMotionTrackingResult {
 		localOnly: true;
 	};
 	samples: JianyingMotionTrackingSample[];
-	sourceSha256: string;
 	width: number;
 }
 
