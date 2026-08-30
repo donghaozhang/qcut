@@ -2,7 +2,6 @@ import { StickerRuntimeError } from "./runtime-model.js";
 
 const MEDIA_TIME_DECIMAL_PLACES = 15;
 const MEDIA_TIME_TICKS_PER_SECOND = 10n ** BigInt(MEDIA_TIME_DECIMAL_PLACES);
-const MEDIA_TIME_TICKS_PER_SECOND_NUMBER = Number(MEDIA_TIME_TICKS_PER_SECOND);
 
 function powerOfTen({ exponent }: { exponent: number }): bigint {
 	return 10n ** BigInt(exponent);
@@ -42,12 +41,19 @@ export function mediaTimeToTicks({ seconds }: { seconds: number }): bigint {
 }
 
 export function mediaTicksToSeconds({ ticks }: { ticks: bigint }): number {
-	const wholeSeconds = ticks / MEDIA_TIME_TICKS_PER_SECOND;
-	const fractionalTicks = ticks % MEDIA_TIME_TICKS_PER_SECOND;
-	return (
-		Number(wholeSeconds) +
-		Number(fractionalTicks) / MEDIA_TIME_TICKS_PER_SECOND_NUMBER
-	);
+	const negative = ticks < 0n;
+	const absoluteTicks = negative ? -ticks : ticks;
+	const wholeSeconds = absoluteTicks / MEDIA_TIME_TICKS_PER_SECOND;
+	const fractionalSeconds = (absoluteTicks % MEDIA_TIME_TICKS_PER_SECOND)
+		.toString()
+		.padStart(MEDIA_TIME_DECIMAL_PLACES, "0")
+		.replace(/0+$/, "");
+	const magnitude = fractionalSeconds
+		? `${wholeSeconds}.${fractionalSeconds}`
+		: wholeSeconds.toString();
+	// Parse the complete fixed-point value once; adding separately converted
+	// whole and fractional numbers can double-round exact frame boundaries.
+	return Number(negative ? `-${magnitude}` : magnitude);
 }
 
 export function normalizeMediaTimeSeconds({

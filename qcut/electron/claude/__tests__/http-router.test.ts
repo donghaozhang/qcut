@@ -8,6 +8,8 @@ import { createRouter, HttpError } from "../utils/http-router";
 import * as http from "node:http";
 import { EventEmitter } from "node:events";
 
+const MEBIBYTE = 1024 * 1024;
+
 // Mock electron modules (imported transitively)
 vi.mock("electron", () => ({
 	app: {
@@ -134,6 +136,26 @@ describe("HTTP Router", () => {
 		expect(res._status).toBe(200);
 	});
 
+	it("accepts media imports larger than 1 MiB", async () => {
+		const router = createRouter();
+		const handler = vi.fn(async (req) => req.body.padding.length);
+		router.post("/api/claude/media/:projectId/import", handler);
+
+		const padding = "x".repeat(MEBIBYTE);
+		const req = createMockReq(
+			"POST",
+			"/api/claude/media/proj_1/import",
+			JSON.stringify({ padding })
+		);
+		const res = createMockRes();
+
+		await router.handle(req, res);
+
+		expect(handler).toHaveBeenCalledOnce();
+		expect(res._status).toBe(200);
+		expect(JSON.parse(res._body).data).toBe(MEBIBYTE);
+	});
+
 	it("returns 404 for unknown routes", async () => {
 		const router = createRouter();
 		router.get("/api/claude/health", async () => ({ status: "ok" }));
@@ -178,16 +200,17 @@ describe("HTTP Router", () => {
 		expect(body.error).toBe("Invalid JSON");
 	});
 
-	it("returns 413 for oversized body", async () => {
+	it("keeps the 1 MiB limit for ordinary routes", async () => {
 		const router = createRouter();
-		router.post("/api/test", async (req) => req.body);
+		const handler = vi.fn(async (req) => req.body);
+		router.post("/api/test", handler);
 
 		const req = new EventEmitter() as http.IncomingMessage;
 		req.method = "POST";
 		req.url = "/api/test";
 		req.headers = {};
 		req.setTimeout = vi.fn();
-		(req as any).destroy = vi.fn();
+		req.destroy = vi.fn(() => req);
 
 		const res = createMockRes();
 
@@ -195,7 +218,7 @@ describe("HTTP Router", () => {
 		const handlePromise = router.handle(req, res);
 
 		// Send >1MB of data
-		const chunk = Buffer.alloc(1024 * 1024 + 1, "x");
+		const chunk = Buffer.alloc(MEBIBYTE + 1, "x");
 		req.emit("data", chunk);
 
 		await handlePromise;
@@ -203,6 +226,31 @@ describe("HTTP Router", () => {
 		expect(res._status).toBe(413);
 		const body = JSON.parse(res._body);
 		expect(body.error).toBe("Payload too large");
+		expect(handler).not.toHaveBeenCalled();
+	});
+
+	it("returns 413 for media imports larger than 16 MiB", async () => {
+		const router = createRouter();
+		const handler = vi.fn(async (req) => req.body);
+		router.post("/api/claude/media/:projectId/import", handler);
+
+		const req = new EventEmitter() as http.IncomingMessage;
+		req.method = "POST";
+		req.url = "/api/claude/media/proj_1/import";
+		req.headers = {};
+		req.setTimeout = vi.fn();
+		req.destroy = vi.fn(() => req);
+
+		const res = createMockRes();
+		const handlePromise = router.handle(req, res);
+
+		req.emit("data", Buffer.alloc(16 * MEBIBYTE + 1, "x"));
+
+		await handlePromise;
+
+		expect(res._status).toBe(413);
+		expect(JSON.parse(res._body).error).toBe("Payload too large");
+		expect(handler).not.toHaveBeenCalled();
 	});
 
 	it("handles HttpError thrown by handler", async () => {

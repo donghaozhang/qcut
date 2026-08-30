@@ -448,12 +448,14 @@ export async function exportLocalStickerVideo({
 	artifacts,
 	electronApp,
 	filePath,
+	includeAudio = false,
 	page,
 	profile = DEFAULT_STICKER_VIDEO_EVIDENCE_PROFILE,
 }: {
 	artifacts?: StickerVideoEvidenceArtifacts;
 	electronApp: ElectronApplication;
 	filePath: string;
+	includeAudio?: boolean;
 	page: Page;
 	profile?: StickerVideoEvidenceProfile;
 }): Promise<ExportedStickerVideoEvidence> {
@@ -474,11 +476,14 @@ export async function exportLocalStickerVideo({
 		.getByRole("radio", { name: `${profile.frameRate} fps`, exact: true })
 		.locator("..")
 		.click();
-	const includeAudio = page.getByRole("checkbox", {
+	const includeAudioCheckbox = page.getByRole("checkbox", {
 		name: "Include audio in export",
 	});
-	if ((await includeAudio.count()) > 0 && (await includeAudio.isChecked())) {
-		await includeAudio.click();
+	if (
+		(await includeAudioCheckbox.count()) > 0 &&
+		(await includeAudioCheckbox.isChecked()) !== includeAudio
+	) {
+		await includeAudioCheckbox.click();
 	}
 	await page.getByTestId("export-start-button").click();
 	await waitForExportArtifact({
@@ -629,6 +634,7 @@ export async function exportAndVerifyRealCachedStickerVideo({
 	artifacts,
 	electronApp,
 	filePath,
+	includeAudio = false,
 	page,
 	profile,
 }: {
@@ -636,6 +642,7 @@ export async function exportAndVerifyRealCachedStickerVideo({
 	artifacts?: StickerVideoEvidenceArtifacts;
 	electronApp: ElectronApplication;
 	filePath: string;
+	includeAudio?: boolean;
 	page: Page;
 	profile: StickerVideoEvidenceProfile;
 }): Promise<ExportedStickerVideoEvidence> {
@@ -643,6 +650,7 @@ export async function exportAndVerifyRealCachedStickerVideo({
 		artifacts,
 		electronApp,
 		filePath,
+		includeAudio,
 		page,
 		profile,
 	});

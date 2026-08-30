@@ -305,6 +305,60 @@ describe("setupClaudeTimelineBridge - add element", () => {
 		);
 	});
 
+	it("preserves a CLI-provided runtime package instead of replacing it from the preview", async () => {
+		const { mediaImportedHandler } = setupTimelineBridgeWithHandlers();
+		const stickerRuntime = {
+			kind: "atlas-animation",
+			atlasSource: "$resource:asset_0001",
+			atlasSize: { height: 256, width: 256 },
+			completion: "freeze-last",
+			cycleDurationSeconds: 1,
+			frames: [
+				{
+					durationSeconds: 1,
+					frameRect: { height: 256, width: 256, x: 0, y: 0 },
+					id: "frame-1",
+					rotated: false,
+					sourceSize: { height: 256, width: 256 },
+					spriteSourceRect: { height: 256, width: 256, x: 0, y: 0 },
+					startSeconds: 0,
+					trimmed: false,
+				},
+			],
+			repeat: { kind: "infinite" },
+		} as const;
+		const metadata = {
+			animatedSticker: true,
+			batchId: "jianying-2026-08-30-batch-19-v2",
+			checksumSha256: "a".repeat(64),
+			itemId: "9901000000000000001",
+			redistribution: "prohibited",
+			referenceOnly: true,
+			source: "sticker-lab",
+			stickerRuntime,
+			stickerRuntimeResources: { asset_0001: "runtime-atlas" },
+			usage: "internal-reference-only",
+		};
+
+		await mediaImportedHandler({
+			id: "media-runtime-preview",
+			metadata,
+			name: "runtime-preview.gif",
+			path: "/tmp/runtime-preview.gif",
+			projectId: "project-1",
+			size: 4,
+			type: "image",
+		});
+
+		expect(storeMocks.mediaStoreState.addMediaItem).toHaveBeenCalledWith(
+			"project-1",
+			expect.objectContaining({
+				id: "media-runtime-preview",
+				metadata,
+			})
+		);
+	});
+
 	it("rejects a media import event for a different project", async () => {
 		storeMocks.projectStoreState.activeProject = { id: "project-active" };
 		const { mediaImportedHandler } = setupTimelineBridgeWithHandlers();

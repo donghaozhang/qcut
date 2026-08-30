@@ -55,6 +55,53 @@ const REAL_GAME_LIFE_GIF_RUNTIME = {
 	repeat: { kind: "infinite" },
 } as const;
 
+const REAL_EXTREME_GIF_RUNTIME = {
+	canvasSize: { width: 800, height: 800 },
+	completion: "freeze-last",
+	cycleDurationSeconds: 13.5,
+	frames: Array.from({ length: 225 }, (_, index) => ({
+		delayCentiseconds: 6,
+		disposalMethod: 2,
+		durationSeconds: 0.06,
+		frameRect: { x: 0, y: 0, width: 800, height: 800 },
+		hasTransparency: true,
+		startSeconds: Number((index * 0.06).toFixed(2)),
+		transparentColorIndex: 0,
+	})),
+	kind: "direct-gif",
+	repeat: { kind: "infinite" },
+} as const;
+
+export const REAL_STICKER_CACHE_EXTREME_GIF_CASE = {
+	animated: true,
+	batchId: "jianying-2026-08-22-batch-4",
+	byteSize: 8_306_771,
+	categoryId: "10527",
+	checksumSha256:
+		"58f8b4d5ddd62dc4c9d4b82ad33bffb7bfec41ae30d6bc9df72cb469ffdaca3e",
+	displayName: "蓝紫色仙女棒",
+	expectedVisibleExportTimes: [0.21, 0.41, 0.61, 2.99, 3.01, 4.2, 5.8],
+	exportTrigger: "cli",
+	fileName: "7331012810559802624-蓝紫色仙女棒.gif",
+	frameCount: 225,
+	frameRate: 16.666666666666668,
+	height: 800,
+	itemId: "7331012810559802624",
+	mimeType: "image/gif",
+	runtime: REAL_EXTREME_GIF_RUNTIME,
+	runtimeSeek: {
+		changedFrame: "99",
+		changedTimeSeconds: 5.99,
+		fullSplitLeftFrame: "49",
+		fullSplitRightFrame: "50",
+		initialFrame: "0",
+		initialTimeSeconds: 0.01,
+		splitLeftFrame: "49",
+		splitRightFrame: "50",
+	},
+	width: 800,
+} as const;
+
 export const REAL_STICKER_CACHE_CASES = [
 	{
 		animated: true,
@@ -110,6 +157,7 @@ export const REAL_STICKER_CACHE_CASES = [
 		checksumSha256:
 			"e68449e989b3c84204f1291aa80cdf6170c9c68a3a3e60aaf37ea6585df73913",
 		displayName: "生命",
+		expectedVisibleExportTimes: [0.01, 0.21, 0.41, 2.99, 3.01, 4.2, 5.8],
 		exportTrigger: "cli",
 		fileName: "7299844209714924827-生命.gif",
 		frameCount: 3,
@@ -150,4 +198,6 @@ export const REAL_STICKER_CACHE_CASES = [
 	},
 ] as const;
 
-export type RealStickerCacheCase = (typeof REAL_STICKER_CACHE_CASES)[number];
+export type RealStickerCacheCase =
+	| (typeof REAL_STICKER_CACHE_CASES)[number]
+	| typeof REAL_STICKER_CACHE_EXTREME_GIF_CASE;

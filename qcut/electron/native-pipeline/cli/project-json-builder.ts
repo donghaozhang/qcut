@@ -13,7 +13,7 @@ import type {
 	MediaEntry,
 	ProjectSettings,
 } from "./project-json-types.js";
-import { parseStickerLabMediaMetadata } from "../../types/sticker-lab-media-metadata.js";
+import { parseStickerLabRestrictedMediaMetadata } from "../../types/sticker-lab-media-metadata.js";
 import {
 	isRestrictedStickerLabMetadata,
 	RestrictedMediaExportError,
@@ -282,7 +282,7 @@ function parseRestrictedMediaMetadata({
 }) {
 	if (!isRestrictedStickerLabMetadata({ metadata: candidate })) return;
 	try {
-		return parseStickerLabMediaMetadata({
+		return parseStickerLabRestrictedMediaMetadata({
 			candidate,
 			label: "Project media metadata",
 		});

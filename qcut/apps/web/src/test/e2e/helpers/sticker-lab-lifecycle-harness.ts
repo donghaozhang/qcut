@@ -26,13 +26,21 @@ interface HarnessMediaItem {
 
 interface HarnessTimelineElement {
 	duration: number;
+	height?: number;
 	id: string;
 	mediaId?: string;
+	opacity?: number;
+	rotation?: number;
 	startTime: number;
+	stickerAssetId?: string;
 	stickerId?: string;
+	stickerRuntime?: Record<string, unknown>;
 	trimEnd: number;
 	trimStart: number;
 	type: string;
+	width?: number;
+	x?: number;
+	y?: number;
 }
 
 interface HarnessTimelineTrack {
@@ -115,6 +123,37 @@ export interface RestrictedState {
 	projectId: string | null;
 	runtimeResources: PersistedMediaState[];
 	stickers: HarnessTimelineElement[];
+	trackTypes: string[];
+}
+
+async function findElectronBridgeWindow({
+	deadline,
+	electronApp,
+}: {
+	deadline: number;
+	electronApp: ElectronApplication;
+}): Promise<Page> {
+	const windows = electronApp.windows();
+	const bridgeStates = await Promise.all(
+		windows.map(async (page) => ({
+			page,
+			ready: await page
+				.evaluate(() => Boolean(window.electronAPI))
+				.catch(() => false),
+		}))
+	);
+	const bridgeWindow = bridgeStates.find(({ ready }) => ready)?.page;
+	if (bridgeWindow) return bridgeWindow;
+	if (Date.now() >= deadline) {
+		throw new Error(
+			`No QCut Electron bridge window appeared; observed ${windows.length} window(s)`
+		);
+	}
+	await Promise.race([
+		electronApp.waitForEvent("window", { timeout: 500 }).catch(() => undefined),
+		new Promise<void>((resolve) => setTimeout(resolve, 100)),
+	]);
+	return findElectronBridgeWindow({ deadline, electronApp });
 }
 
 export function withoutTransientFileMime({
@@ -148,7 +187,10 @@ export async function launchIsolatedQCut({
 		await electronApp.evaluate(({ app }, testVideosDirectory) => {
 			app.setPath("videos", testVideosDirectory);
 		}, videosDirectory);
-		const page = await electronApp.firstWindow();
+		const page = await findElectronBridgeWindow({
+			deadline: Date.now() + 30_000,
+			electronApp,
+		});
 		await page.waitForLoadState("domcontentloaded");
 		await page.waitForFunction(
 			() => Boolean(document.querySelector("#root")?.children.length),
@@ -344,6 +386,9 @@ export async function readRestrictedState({
 			projectId: harness.__projectStore.getState().activeProject?.id ?? null,
 			runtimeResources,
 			stickers,
+			trackTypes: harness.__timelineStore
+				.getState()
+				.tracks.map((track) => track.type),
 		};
 	});
 }

@@ -24,6 +24,16 @@ export function calculateTotalFrames(
 	return Math.ceil(totalDuration * fps);
 }
 
+export function calculateFrameTime({
+	frameIndex,
+	frameRate,
+}: {
+	frameIndex: number;
+	frameRate: number;
+}): number {
+	return frameIndex / frameRate;
+}
+
 /** Get active elements at a specific time */
 export function getActiveElements(
 	tracks: TimelineTrack[],

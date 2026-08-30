@@ -13,6 +13,7 @@ import {
 	type StickerRuntimeCanvasFactory,
 	type StickerRuntimeResolvedAsset,
 } from "../sticker-runtime-renderer";
+import { GIF_FRAME_CACHE_LIMIT_PER_SOURCE } from "../sticker-runtime-browser-assets";
 
 function solidCanvas({
 	color,
@@ -51,6 +52,28 @@ const createTestCanvas: StickerRuntimeCanvasFactory = ({ height, width }) => {
 		width,
 	};
 };
+
+function countingTestCanvas({
+	counts,
+	onDrawSource,
+}: {
+	counts: { canvases: number; draws: number };
+	onDrawSource?: ({ image }: { image: CanvasImageSource }) => void;
+}): StickerRuntimeCanvasFactory {
+	return ({ height, width }) => {
+		counts.canvases += 1;
+		const surface = createTestCanvas({ height, width });
+		const drawImage = surface.context.drawImage.bind(surface.context);
+		surface.context.drawImage = ((
+			...args: Parameters<CanvasRenderingContext2D["drawImage"]>
+		) => {
+			counts.draws += 1;
+			onDrawSource?.({ image: args[0] });
+			drawImage(...args);
+		}) as typeof surface.context.drawImage;
+		return surface;
+	};
+}
 
 function pixel({
 	image,
@@ -101,7 +124,357 @@ function gifDescriptor(): DirectGifRuntimeDescriptor {
 	};
 }
 
+function disposalGifDescriptor({
+	middleDisposalMethod,
+}: {
+	middleDisposalMethod: number;
+}): DirectGifRuntimeDescriptor {
+	return {
+		kind: "direct-gif",
+		canvasSize: { width: 3, height: 1 },
+		cycleDurationSeconds: 0.6,
+		frames: [
+			{
+				startSeconds: 0,
+				durationSeconds: 0.2,
+				delayCentiseconds: 20,
+				disposalMethod: 1,
+				frameRect: { x: 0, y: 0, width: 3, height: 1 },
+				hasTransparency: true,
+			},
+			{
+				startSeconds: 0.2,
+				durationSeconds: 0.2,
+				delayCentiseconds: 20,
+				disposalMethod: middleDisposalMethod,
+				frameRect: { x: 1, y: 0, width: 1, height: 1 },
+				hasTransparency: true,
+			},
+			{
+				startSeconds: 0.4,
+				durationSeconds: 0.2,
+				delayCentiseconds: 20,
+				disposalMethod: 1,
+				frameRect: { x: 2, y: 0, width: 1, height: 1 },
+				hasTransparency: true,
+			},
+		],
+		repeat: { kind: "infinite" },
+		completion: "freeze-last",
+	};
+}
+
+function largeJumpGifDescriptor({
+	frameCount,
+}: {
+	frameCount: number;
+}): DirectGifRuntimeDescriptor {
+	return {
+		kind: "direct-gif",
+		canvasSize: { width: frameCount, height: 1 },
+		cycleDurationSeconds: frameCount / 100,
+		frames: Array.from({ length: frameCount }, (_, frameIndex) => ({
+			startSeconds: frameIndex / 100,
+			durationSeconds: 0.01,
+			delayCentiseconds: 1,
+			disposalMethod: 1,
+			frameRect: { x: frameIndex, y: 0, width: 1, height: 1 },
+			hasTransparency: true,
+		})),
+		repeat: { kind: "infinite" },
+		completion: "freeze-last",
+	};
+}
+
+function incrementalGifAssets({
+	resolvedFrameIndices,
+}: {
+	resolvedFrameIndices?: number[];
+} = {}): StickerRuntimeAssetResolver {
+	const frames = [
+		canvasAsset({ canvas: solidCanvas({ color: "#ff0000", width: 3 }) }),
+		canvasAsset({ canvas: solidCanvas({ color: "#00ff00" }) }),
+		canvasAsset({ canvas: solidCanvas({ color: "#0000ff" }) }),
+	];
+	return resolver({
+		resolve: (request) => {
+			if (request.kind !== "direct-gif-frame") {
+				throw new Error("Unexpected asset request");
+			}
+			resolvedFrameIndices?.push(request.frameIndex);
+			const frame = frames[request.frameIndex];
+			if (!frame) throw new Error("Missing GIF frame");
+			return frame;
+		},
+	});
+}
+
 describe("sticker runtime renderer", () => {
+	it("coalesces incremental GIF frames that keep the previous canvas", async () => {
+		const rendered = await renderStickerRuntimeFrame({
+			assets: incrementalGifAssets(),
+			createCanvas: createTestCanvas,
+			descriptor: disposalGifDescriptor({ middleDisposalMethod: 1 }),
+			timeline: { timelineStartSeconds: 0, timelineDurationSeconds: 1 },
+			timelineTimeSeconds: 0.21,
+		});
+
+		if (!rendered.active) throw new Error("Expected an active GIF frame");
+		expect([rendered.width, rendered.height]).toEqual([3, 1]);
+		expect(pixel({ image: rendered.image, x: 0 })).toEqual([255, 0, 0, 255]);
+		expect(pixel({ image: rendered.image, x: 1 })).toEqual([0, 255, 0, 255]);
+		expect(pixel({ image: rendered.image, x: 2 })).toEqual([255, 0, 0, 255]);
+	});
+
+	it("clears a disposed incremental GIF frame before drawing the next frame", async () => {
+		const rendered = await renderStickerRuntimeFrame({
+			assets: incrementalGifAssets(),
+			createCanvas: createTestCanvas,
+			descriptor: disposalGifDescriptor({ middleDisposalMethod: 2 }),
+			timeline: { timelineStartSeconds: 0, timelineDurationSeconds: 1 },
+			timelineTimeSeconds: 0.41,
+		});
+
+		if (!rendered.active) throw new Error("Expected an active GIF frame");
+		expect(pixel({ image: rendered.image, x: 0 })).toEqual([255, 0, 0, 255]);
+		expect(pixel({ image: rendered.image, x: 1 })).toEqual([0, 0, 0, 0]);
+		expect(pixel({ image: rendered.image, x: 2 })).toEqual([0, 0, 255, 255]);
+	});
+
+	it("restores the previous canvas after a disposal-three GIF frame", async () => {
+		const rendered = await renderStickerRuntimeFrame({
+			assets: incrementalGifAssets(),
+			createCanvas: createTestCanvas,
+			descriptor: disposalGifDescriptor({ middleDisposalMethod: 3 }),
+			timeline: { timelineStartSeconds: 0, timelineDurationSeconds: 1 },
+			timelineTimeSeconds: 0.41,
+		});
+
+		if (!rendered.active) throw new Error("Expected an active GIF frame");
+		expect(pixel({ image: rendered.image, x: 0 })).toEqual([255, 0, 0, 255]);
+		expect(pixel({ image: rendered.image, x: 1 })).toEqual([255, 0, 0, 255]);
+		expect(pixel({ image: rendered.image, x: 2 })).toEqual([0, 0, 255, 255]);
+	});
+
+	it("incrementally advances, reuses, and resets one GIF composition canvas", async () => {
+		const descriptor = disposalGifDescriptor({ middleDisposalMethod: 1 });
+		const resolvedFrameIndices: number[] = [];
+		const counts = { canvases: 0, draws: 0 };
+		const assets = incrementalGifAssets({ resolvedFrameIndices });
+		const createCanvas = countingTestCanvas({ counts });
+		const renderAt = ({
+			timelineTimeSeconds,
+		}: {
+			timelineTimeSeconds: number;
+		}) =>
+			renderStickerRuntimeFrame({
+				assets,
+				createCanvas,
+				descriptor,
+				timeline: { timelineStartSeconds: 0, timelineDurationSeconds: 2 },
+				timelineTimeSeconds,
+			});
+
+		const frameZero = await renderAt({ timelineTimeSeconds: 0.01 });
+		expect(resolvedFrameIndices).toEqual([0]);
+		expect(counts.draws).toBe(1);
+
+		await renderAt({ timelineTimeSeconds: 0.21 });
+		expect(resolvedFrameIndices).toEqual([0, 1]);
+		expect(counts.draws).toBe(2);
+
+		const frameTwo = await renderAt({ timelineTimeSeconds: 0.41 });
+		expect(resolvedFrameIndices).toEqual([0, 1, 2]);
+		expect(counts.draws).toBe(3);
+
+		const repeatedFrameTwo = await renderAt({ timelineTimeSeconds: 0.41 });
+		expect(resolvedFrameIndices).toEqual([0, 1, 2]);
+		expect(counts.draws).toBe(3);
+		if (!(frameZero.active && frameTwo.active && repeatedFrameTwo.active)) {
+			throw new Error("Expected active GIF frames");
+		}
+		expect(frameTwo.image).toBe(frameZero.image);
+		expect(repeatedFrameTwo.image).toBe(frameZero.image);
+
+		const backwardFrame = await renderAt({ timelineTimeSeconds: 0.21 });
+		expect(resolvedFrameIndices).toEqual([0, 1, 2, 0, 1]);
+		expect(counts.draws).toBe(5);
+		if (!backwardFrame.active) throw new Error("Expected an active GIF frame");
+		expect(pixel({ image: backwardFrame.image, x: 0 })).toEqual([
+			255, 0, 0, 255,
+		]);
+		expect(pixel({ image: backwardFrame.image, x: 1 })).toEqual([
+			0, 255, 0, 255,
+		]);
+
+		await renderAt({ timelineTimeSeconds: 0.61 });
+		expect(resolvedFrameIndices).toEqual([0, 1, 2, 0, 1, 0]);
+		expect(counts.draws).toBe(6);
+		expect(counts.canvases).toBe(1);
+	});
+
+	it("rebuilds GIF composition after a frame draw fails", async () => {
+		const descriptor = disposalGifDescriptor({ middleDisposalMethod: 2 });
+		const frames = [
+			canvasAsset({ canvas: solidCanvas({ color: "#ff0000", width: 3 }) }),
+			canvasAsset({ canvas: solidCanvas({ color: "#00ff00" }) }),
+			canvasAsset({ canvas: solidCanvas({ color: "#0000ff" }) }),
+		];
+		const resolvedFrameIndices: number[] = [];
+		const assets = resolver({
+			resolve: (request) => {
+				if (request.kind !== "direct-gif-frame") {
+					throw new Error("Unexpected asset request");
+				}
+				resolvedFrameIndices.push(request.frameIndex);
+				const frame = frames[request.frameIndex];
+				if (!frame) throw new Error("Missing GIF frame");
+				return frame;
+			},
+		});
+		let failBlueDraw = true;
+		const createCanvas = countingTestCanvas({
+			counts: { canvases: 0, draws: 0 },
+			onDrawSource: ({ image }) => {
+				if (image !== frames[2]?.image || !failBlueDraw) return;
+				failBlueDraw = false;
+				throw new Error("Injected frame draw failure");
+			},
+		});
+		const renderAt = ({
+			timelineTimeSeconds,
+		}: {
+			timelineTimeSeconds: number;
+		}) =>
+			renderStickerRuntimeFrame({
+				assets,
+				createCanvas,
+				descriptor,
+				timeline: { timelineStartSeconds: 0, timelineDurationSeconds: 1 },
+				timelineTimeSeconds,
+			});
+
+		const beforeFailure = await renderAt({ timelineTimeSeconds: 0.21 });
+		if (!beforeFailure.active) throw new Error("Expected an active GIF frame");
+		expect(pixel({ image: beforeFailure.image, x: 1 })).toEqual([
+			0, 255, 0, 255,
+		]);
+
+		await expect(renderAt({ timelineTimeSeconds: 0.41 })).rejects.toThrow(
+			"Injected frame draw failure"
+		);
+		const recovered = await renderAt({ timelineTimeSeconds: 0.21 });
+		if (!recovered.active) throw new Error("Expected a recovered GIF frame");
+		expect(pixel({ image: recovered.image, x: 1 })).toEqual([0, 255, 0, 255]);
+		expect(resolvedFrameIndices).toEqual([0, 1, 2, 0, 1]);
+	});
+
+	it("draws each decoded GIF frame before resolving beyond the raw-frame LRU", async () => {
+		const frameCount = 100;
+		const resolvedFrameIndices: number[] = [];
+		const outstandingFrames: CanvasImageSource[] = [];
+		const frameStates = new WeakMap<
+			CanvasImageSource,
+			{ invalidated: boolean }
+		>();
+		const assets = resolver({
+			resolve: (request) => {
+				if (request.kind !== "direct-gif-frame") {
+					throw new Error("Unexpected asset request");
+				}
+				resolvedFrameIndices.push(request.frameIndex);
+				const canvas = solidCanvas({
+					color: request.frameIndex === frameCount - 1 ? "#0000ff" : "#ff0000",
+				});
+				const asset = canvasAsset({ canvas });
+				frameStates.set(asset.image, { invalidated: false });
+				outstandingFrames.push(asset.image);
+				if (outstandingFrames.length > GIF_FRAME_CACHE_LIMIT_PER_SOURCE) {
+					const oldest = outstandingFrames.shift();
+					const oldestState = oldest ? frameStates.get(oldest) : undefined;
+					if (oldestState) oldestState.invalidated = true;
+				}
+				return asset;
+			},
+		});
+		const counts = { canvases: 0, draws: 0 };
+		const createCanvas = countingTestCanvas({
+			counts,
+			onDrawSource: ({ image }) => {
+				const frameState = frameStates.get(image);
+				if (!frameState) return;
+				if (frameState.invalidated) {
+					throw new Error("Decoded GIF frame was invalidated before drawing");
+				}
+				const outstandingIndex = outstandingFrames.indexOf(image);
+				if (outstandingIndex >= 0)
+					outstandingFrames.splice(outstandingIndex, 1);
+			},
+		});
+
+		const rendered = await renderStickerRuntimeFrame({
+			assets,
+			createCanvas,
+			descriptor: largeJumpGifDescriptor({ frameCount }),
+			timeline: { timelineStartSeconds: 0, timelineDurationSeconds: 2 },
+			timelineTimeSeconds: 0.995,
+		});
+
+		if (!rendered.active) throw new Error("Expected an active GIF frame");
+		expect(resolvedFrameIndices).toEqual(
+			Array.from({ length: frameCount }, (_, frameIndex) => frameIndex)
+		);
+		expect(counts).toEqual({ canvases: 1, draws: frameCount });
+		expect(outstandingFrames).toHaveLength(0);
+		expect(pixel({ image: rendered.image, x: 0 })).toEqual([255, 0, 0, 255]);
+		expect(pixel({ image: rendered.image, x: frameCount - 1 })).toEqual([
+			0, 0, 255, 255,
+		]);
+	});
+
+	it("serializes concurrent GIF composition requests", async () => {
+		const descriptor = disposalGifDescriptor({ middleDisposalMethod: 1 });
+		const resolvedFrameIndices: number[] = [];
+		const counts = { canvases: 0, draws: 0 };
+		const assets = incrementalGifAssets({ resolvedFrameIndices });
+		const createCanvas = countingTestCanvas({ counts });
+		const renderAt = ({
+			timelineTimeSeconds,
+		}: {
+			timelineTimeSeconds: number;
+		}) =>
+			renderStickerRuntimeFrame({
+				assets,
+				createCanvas,
+				descriptor,
+				timeline: { timelineStartSeconds: 0, timelineDurationSeconds: 1 },
+				timelineTimeSeconds,
+			});
+
+		const frames = await Promise.all([
+			renderAt({ timelineTimeSeconds: 0.01 }),
+			renderAt({ timelineTimeSeconds: 0.21 }),
+			renderAt({ timelineTimeSeconds: 0.41 }),
+		]);
+
+		expect(resolvedFrameIndices).toEqual([0, 1, 2]);
+		expect(counts.draws).toBe(5);
+		expect(counts.canvases).toBe(3);
+		const [frameZero, frameOne, frameTwo] = frames;
+		if (!(frameZero?.active && frameOne?.active && frameTwo?.active)) {
+			throw new Error("Expected active GIF frames");
+		}
+		expect(
+			new Set([frameZero.image, frameOne.image, frameTwo.image]).size
+		).toBe(3);
+		expect(pixel({ image: frameZero.image, x: 0 })).toEqual([255, 0, 0, 255]);
+		expect(pixel({ image: frameZero.image, x: 1 })).toEqual([255, 0, 0, 255]);
+		expect(pixel({ image: frameOne.image, x: 0 })).toEqual([255, 0, 0, 255]);
+		expect(pixel({ image: frameOne.image, x: 1 })).toEqual([0, 255, 0, 255]);
+		expect(pixel({ image: frameTwo.image, x: 1 })).toEqual([0, 255, 0, 255]);
+		expect(pixel({ image: frameTwo.image, x: 2 })).toEqual([0, 0, 255, 255]);
+	});
+
 	it("renders variable-delay GIF seeks and split offsets from timeline time", async () => {
 		const frames = [
 			canvasAsset({ canvas: solidCanvas({ color: "#ff0000" }) }),

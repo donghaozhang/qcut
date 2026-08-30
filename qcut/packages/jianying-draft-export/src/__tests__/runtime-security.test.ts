@@ -184,6 +184,40 @@ describe("snapshot transition identity", () => {
 	});
 });
 
+describe("snapshot sticker identity", () => {
+	it("rejects a non-string sticker asset identity", () => {
+		const snapshot = createEmptySnapshot();
+		snapshot.tracks = [
+			{
+				elements: [
+					{
+						duration: 1,
+						id: "sticker-element",
+						mediaId: "sticker-media",
+						name: "Sticker",
+						startTime: 0,
+						stickerAssetId: 18001 as never,
+						stickerId: "sticker-instance",
+						trimEnd: 0,
+						trimStart: 0,
+						type: "sticker",
+					},
+				],
+				id: "sticker-track",
+				name: "Stickers",
+				type: "sticker",
+			},
+		];
+
+		expect(() =>
+			validateSnapshot({
+				path: "$.snapshot",
+				value: snapshot as unknown as JsonValue,
+			})
+		).toThrow("$.snapshot.tracks[0].elements[0].stickerAssetId");
+	});
+});
+
 describe("runtime request budgets", () => {
 	it("rejects aggregate string data below the per-string limit", () => {
 		const chunk = "x".repeat(4 * 1024 * 1024);

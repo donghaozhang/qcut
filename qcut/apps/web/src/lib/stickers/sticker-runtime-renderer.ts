@@ -79,20 +79,290 @@ export type StickerRuntimeRenderedFrame =
 			state: Exclude<StickerRuntimeState, { active: false }>;
 	  };
 
+type DirectGifDescriptor = Extract<
+	StickerRuntimeDescriptor,
+	{ kind: "direct-gif" }
+>;
+
+interface DirectGifCompositionState {
+	canvas: StickerRuntimeCanvasSurface;
+	frameIndex: number | null;
+	iterationIndex: number | null;
+	pendingRequests: number;
+	queue: Promise<void>;
+	restoreImage: ImageData | null;
+}
+
+const directGifCompositionCache = new WeakMap<
+	StickerRuntimeAssetResolver,
+	WeakMap<DirectGifDescriptor, DirectGifCompositionState>
+>();
+
 function positivePixelDimension({ value }: { value: number }): number {
 	return Math.max(1, Math.round(value));
 }
 
-function renderDirectGifFrame({
+function drawDirectGifSourceFrame({
+	asset,
+	canvasSize,
+	context,
+	frame,
+}: {
+	asset: StickerRuntimeResolvedAsset;
+	canvasSize: { width: number; height: number };
+	context: StickerRuntimeCanvasContext;
+	frame: DirectGifRuntimeState["frame"];
+}): void {
+	const decoderReturnedLogicalScreen =
+		asset.width === canvasSize.width && asset.height === canvasSize.height;
+	const target = decoderReturnedLogicalScreen
+		? { x: 0, y: 0, width: canvasSize.width, height: canvasSize.height }
+		: frame.frameRect;
+	context.drawImage(
+		asset.image,
+		0,
+		0,
+		asset.width,
+		asset.height,
+		target.x,
+		target.y,
+		target.width,
+		target.height
+	);
+}
+
+function applyDirectGifDisposal({
+	context,
+	frame,
+	restoreImage,
+}: {
+	context: StickerRuntimeCanvasContext;
+	frame: DirectGifRuntimeState["frame"];
+	restoreImage: ImageData | null;
+}): void {
+	if (frame.disposalMethod === 2) {
+		context.clearRect(
+			frame.frameRect.x,
+			frame.frameRect.y,
+			frame.frameRect.width,
+			frame.frameRect.height
+		);
+		return;
+	}
+	if (frame.disposalMethod === 3 && restoreImage) {
+		context.putImageData(restoreImage, 0, 0);
+	}
+}
+
+function directGifCompositionState({
 	assets,
+	createCanvas,
+	descriptor,
+}: {
+	assets: StickerRuntimeAssetResolver;
+	createCanvas: StickerRuntimeCanvasFactory;
+	descriptor: DirectGifDescriptor;
+}): DirectGifCompositionState {
+	let descriptorCache = directGifCompositionCache.get(assets);
+	if (!descriptorCache) {
+		descriptorCache = new WeakMap();
+		directGifCompositionCache.set(assets, descriptorCache);
+	}
+	let state = descriptorCache.get(descriptor);
+	if (state) return state;
+	state = {
+		canvas: createCanvas(descriptor.canvasSize),
+		frameIndex: null,
+		iterationIndex: null,
+		pendingRequests: 0,
+		queue: Promise.resolve(),
+		restoreImage: null,
+	};
+	descriptorCache.set(descriptor, state);
+	return state;
+}
+
+function resetDirectGifComposition({
+	state,
+}: {
+	state: DirectGifCompositionState;
+}): void {
+	state.canvas.context.clearRect(0, 0, state.canvas.width, state.canvas.height);
+	state.frameIndex = null;
+	state.iterationIndex = null;
+	state.restoreImage = null;
+}
+
+async function drawDirectGifCompositionRange({
+	assets,
+	descriptor,
+	frameIndex,
+	state,
+	targetFrameIndex,
+	targetIterationIndex,
+}: {
+	assets: StickerRuntimeAssetResolver;
+	descriptor: DirectGifDescriptor;
+	frameIndex: number;
+	state: DirectGifCompositionState;
+	targetFrameIndex: number;
+	targetIterationIndex: number;
+}): Promise<void> {
+	if (frameIndex > targetFrameIndex) return;
+	const frame = descriptor.frames[frameIndex];
+	if (!frame) throw new Error(`Missing GIF descriptor frame ${frameIndex}`);
+	const asset = await assets.resolve({
+		request: { kind: "direct-gif-frame", frameIndex },
+	});
+	if (state.frameIndex !== null) {
+		const previousFrame = descriptor.frames[state.frameIndex];
+		if (!previousFrame) {
+			throw new Error(`Missing GIF descriptor frame ${state.frameIndex}`);
+		}
+		applyDirectGifDisposal({
+			context: state.canvas.context,
+			frame: previousFrame,
+			restoreImage: state.restoreImage,
+		});
+	}
+	const restoreImage =
+		frame.disposalMethod === 3
+			? state.canvas.context.getImageData(
+					0,
+					0,
+					state.canvas.width,
+					state.canvas.height
+				)
+			: null;
+	drawDirectGifSourceFrame({
+		asset,
+		canvasSize: descriptor.canvasSize,
+		context: state.canvas.context,
+		frame,
+	});
+	state.frameIndex = frameIndex;
+	state.iterationIndex = targetIterationIndex;
+	state.restoreImage = restoreImage;
+	return drawDirectGifCompositionRange({
+		assets,
+		descriptor,
+		frameIndex: frameIndex + 1,
+		state,
+		targetFrameIndex,
+		targetIterationIndex,
+	});
+}
+
+async function advanceDirectGifComposition({
+	assets,
+	descriptor,
+	state,
+	target,
+}: {
+	assets: StickerRuntimeAssetResolver;
+	descriptor: DirectGifDescriptor;
+	state: DirectGifCompositionState;
+	target: DirectGifRuntimeState;
+}): Promise<void> {
+	const changedIteration =
+		state.iterationIndex !== null &&
+		state.iterationIndex !== target.iterationIndex;
+	const movedBackward =
+		state.frameIndex !== null && state.frameIndex > target.frameIndex;
+	if (changedIteration || movedBackward) {
+		resetDirectGifComposition({ state });
+	}
+	if (state.frameIndex === target.frameIndex) return;
+	return drawDirectGifCompositionRange({
+		assets,
+		descriptor,
+		frameIndex: (state.frameIndex ?? -1) + 1,
+		state,
+		targetFrameIndex: target.frameIndex,
+		targetIterationIndex: target.iterationIndex,
+	});
+}
+
+function snapshotDirectGifComposition({
+	createCanvas,
+	state,
+}: {
+	createCanvas: StickerRuntimeCanvasFactory;
+	state: DirectGifCompositionState;
+}): StickerRuntimeResolvedAsset {
+	const snapshot = createCanvas({
+		width: state.canvas.width,
+		height: state.canvas.height,
+	});
+	snapshot.context.drawImage(
+		state.canvas.canvas,
+		0,
+		0,
+		state.canvas.width,
+		state.canvas.height
+	);
+	return {
+		image: snapshot.canvas,
+		width: snapshot.width,
+		height: snapshot.height,
+	};
+}
+
+async function renderDirectGifFrame({
+	assets,
+	createCanvas,
+	descriptor,
 	state,
 }: {
 	assets: StickerRuntimeAssetResolver;
+	createCanvas: StickerRuntimeCanvasFactory;
+	descriptor: DirectGifDescriptor;
 	state: DirectGifRuntimeState;
 }): Promise<StickerRuntimeResolvedAsset> {
-	return assets.resolve({
-		request: { kind: "direct-gif-frame", frameIndex: state.frameIndex },
+	const composition = directGifCompositionState({
+		assets,
+		createCanvas,
+		descriptor,
 	});
+	composition.pendingRequests += 1;
+	const result = composition.queue
+		.catch(() => undefined)
+		.then(() =>
+			advanceDirectGifComposition({
+				assets,
+				descriptor,
+				state: composition,
+				target: state,
+			})
+		)
+		.then(() =>
+			composition.pendingRequests > 1
+				? snapshotDirectGifComposition({
+						createCanvas,
+						state: composition,
+					})
+				: {
+						image: composition.canvas.canvas,
+						width: composition.canvas.width,
+						height: composition.canvas.height,
+					}
+		)
+		.then(
+			(rendered) => {
+				composition.pendingRequests -= 1;
+				return rendered;
+			},
+			(error: unknown) => {
+				resetDirectGifComposition({ state: composition });
+				composition.pendingRequests -= 1;
+				throw error;
+			}
+		);
+	composition.queue = result.then(
+		() => undefined,
+		() => undefined
+	);
+	return result;
 }
 
 async function renderAtlasFrame({
@@ -335,9 +605,18 @@ export async function renderStickerRuntimeFrame({
 
 	let rendered: StickerRuntimeResolvedAsset;
 	switch (state.kind) {
-		case "direct-gif":
-			rendered = await renderDirectGifFrame({ assets, state });
+		case "direct-gif": {
+			if (descriptor.kind !== "direct-gif") {
+				throw new Error("Sticker runtime state did not match its descriptor");
+			}
+			rendered = await renderDirectGifFrame({
+				assets,
+				createCanvas,
+				descriptor,
+				state,
+			});
 			break;
+		}
 		case "atlas-animation": {
 			if (descriptor.kind !== "atlas-animation") {
 				throw new Error("Sticker runtime state did not match its descriptor");

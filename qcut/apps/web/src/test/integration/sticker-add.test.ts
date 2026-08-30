@@ -54,4 +54,35 @@ describe("Sticker Addition", () => {
 		expect(updated?.position.x).toBe(75);
 		expect(updated?.position.y).toBe(85);
 	});
+
+	it("preserves a caller-provided instance ID", () => {
+		const store = useStickersOverlayStore.getState();
+		const stickerId = store.addOverlaySticker("media-test-003", {
+			id: "timeline-sticker-003",
+		});
+
+		expect(stickerId).toBe("timeline-sticker-003");
+		expect(
+			useStickersOverlayStore.getState().overlayStickers.get(stickerId)
+		).toMatchObject({
+			id: stickerId,
+			mediaItemId: "media-test-003",
+		});
+	});
+
+	it("rejects a duplicate caller-provided instance ID", () => {
+		const store = useStickersOverlayStore.getState();
+		store.addOverlaySticker("media-test-004", { id: "timeline-sticker-004" });
+
+		expect(() =>
+			store.addOverlaySticker("media-test-005", {
+				id: "timeline-sticker-004",
+			})
+		).toThrow("Sticker instance ID already exists");
+		expect(
+			useStickersOverlayStore
+				.getState()
+				.overlayStickers.get("timeline-sticker-004")?.mediaItemId
+		).toBe("media-test-004");
+	});
 });

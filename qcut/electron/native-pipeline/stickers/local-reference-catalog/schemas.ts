@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { MAX_LOCAL_REFERENCE_ASSET_BYTES } from "./filesystem.js";
+import { MAX_LOCAL_REFERENCE_ASSET_BYTES } from "./limits.js";
 import { localStickerMediaTimeToTicks } from "./media-time.js";
 
 const RESOURCE_ID_PATTERN = /^\d+$/;
@@ -102,10 +102,45 @@ const frameTimingShape = {
 	startSeconds: z.number().nonnegative().finite(),
 	durationSeconds: z.number().positive().finite(),
 } as const;
+const runtimeFrameIdSchema = z
+	.string()
+	.trim()
+	.min(1)
+	.max(300)
+	.regex(/^[^\u0000-\u001f]+$/, "must not contain control characters");
+const directGifFrameSchema = z
+	.object({
+		...frameTimingShape,
+		delayCentiseconds: z.number().int().safe().min(0).max(65_535),
+		disposalMethod: z.number().int().safe().min(0).max(7),
+		frameRect: pixelRectSchema,
+		hasTransparency: z.boolean(),
+		transparentColorIndex: z.number().int().safe().min(0).max(255).optional(),
+	})
+	.strict()
+	.superRefine((frame, context) => {
+		if (frame.transparentColorIndex !== undefined && !frame.hasTransparency) {
+			context.addIssue({
+				code: z.ZodIssueCode.custom,
+				path: ["transparentColorIndex"],
+				message: "transparent color requires frame transparency to be enabled",
+			});
+		}
+	});
+const directGifRuntimeDescriptorSchema = z
+	.object({
+		kind: z.literal("direct-gif"),
+		canvasSize: positivePixelSizeSchema,
+		cycleDurationSeconds: z.number().positive().finite(),
+		frames: z.array(directGifFrameSchema).min(1).max(10_000),
+		repeat: runtimeRepeatSchema,
+		completion: runtimeCompletionSchema,
+	})
+	.strict();
 const atlasFrameSchema = z
 	.object({
 		...frameTimingShape,
-		id: z.string().trim().min(1).max(300),
+		id: runtimeFrameIdSchema,
 		frameRect: pixelRectSchema,
 		rotated: z.boolean(),
 		trimmed: z.boolean(),
@@ -272,11 +307,35 @@ function normalizedRectsOverlap({
 
 const runtimeDescriptorSchema = z
 	.discriminatedUnion("kind", [
+		directGifRuntimeDescriptorSchema,
 		atlasRuntimeDescriptorSchema,
 		pngSequenceRuntimeDescriptorSchema,
 		alphaVideoRuntimeDescriptorSchema,
 	])
 	.superRefine((descriptor, context) => {
+		if (descriptor.kind === "direct-gif") {
+			validateFrameTiming({
+				context,
+				cycleDurationSeconds: descriptor.cycleDurationSeconds,
+				frames: descriptor.frames,
+			});
+			for (const [index, frame] of descriptor.frames.entries()) {
+				if (
+					pixelRectFits({
+						container: descriptor.canvasSize,
+						rect: frame.frameRect,
+					})
+				) {
+					continue;
+				}
+				context.addIssue({
+					code: z.ZodIssueCode.custom,
+					path: ["frames", index, "frameRect"],
+					message: "GIF frame lies outside its canvas",
+				});
+			}
+			return;
+		}
 		if (descriptor.kind === "atlas-animation") {
 			validateFrameTiming({
 				context,
@@ -409,7 +468,19 @@ const runtimeDescriptorSchema = z
 		}
 	});
 
-type StickerRuntimeDescriptor = z.infer<typeof runtimeDescriptorSchema>;
+export type StickerRuntimeDescriptor = z.infer<typeof runtimeDescriptorSchema>;
+type LocalStickerRuntimeDescriptor = Exclude<
+	StickerRuntimeDescriptor,
+	{ kind: "direct-gif" }
+>;
+
+const localRuntimeDescriptorSchema = runtimeDescriptorSchema.refine(
+	(descriptor): descriptor is LocalStickerRuntimeDescriptor =>
+		descriptor.kind !== "direct-gif",
+	{
+		message: "direct GIF runtimes are derived from the primary GIF",
+	}
+);
 
 const localRuntimeResourceSchema = z
 	.object({
@@ -422,7 +493,7 @@ const localRuntimeResourceSchema = z
 
 const localRuntimePackageSchema = z
 	.object({
-		descriptor: runtimeDescriptorSchema,
+		descriptor: localRuntimeDescriptorSchema,
 		resources: z.array(localRuntimeResourceSchema).max(100),
 	})
 	.strict();
@@ -430,7 +501,7 @@ const localRuntimePackageSchema = z
 function descriptorSourceRequirements({
 	descriptor,
 }: {
-	descriptor: StickerRuntimeDescriptor;
+	descriptor: LocalStickerRuntimeDescriptor;
 }): Array<{ expectedMimePrefix: "image/" | "video/"; source: string }> {
 	switch (descriptor.kind) {
 		case "atlas-animation":
@@ -473,6 +544,17 @@ function validateRuntimePackage({
 	runtimePackage: z.infer<typeof localRuntimePackageSchema>;
 	sourceKind: z.infer<typeof sourceKindSchema>;
 }): void {
+	if (
+		(runtimePackage.descriptor as StickerRuntimeDescriptor).kind ===
+		"direct-gif"
+	) {
+		context.addIssue({
+			code: z.ZodIssueCode.custom,
+			path: ["runtimePackage", "descriptor", "kind"],
+			message: "direct GIF runtimes are derived from the primary GIF",
+		});
+		return;
+	}
 	if (runtimePackage.descriptor.kind !== sourceKind) {
 		context.addIssue({
 			code: z.ZodIssueCode.custom,
@@ -727,6 +809,22 @@ function formatSchemaError({ error }: { error: z.ZodError }): string {
 	return error.issues
 		.map(({ message, path }) => `${path.join(".") || "root"}: ${message}`)
 		.join("; ");
+}
+
+export function parseStickerRuntimeDescriptor({
+	candidate,
+	label = "Sticker runtime descriptor",
+}: {
+	candidate: unknown;
+	label?: string;
+}): StickerRuntimeDescriptor {
+	const result = runtimeDescriptorSchema.safeParse(candidate);
+	if (!result.success) {
+		throw new Error(
+			`${label} is invalid: ${formatSchemaError({ error: result.error })}`
+		);
+	}
+	return result.data;
 }
 
 export function parseLocalReferenceManifest({

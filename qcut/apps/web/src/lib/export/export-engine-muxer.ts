@@ -12,6 +12,7 @@ import type { TimelineTrack } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import { shouldIncludeAudio } from "@/types/export";
 import { renderBrowserTimelineAudio } from "@/lib/audio/browser-audio-export";
+import { calculateFrameTime } from "./export-engine-utils";
 
 // Progress callback type
 type ProgressCallback = (progress: number, status: string) => void;
@@ -130,7 +131,10 @@ export class ExportEngineMuxer extends ExportEngine {
 					throw new Error("Export cancelled by user");
 				}
 
-				const currentTime = frame * frameDuration;
+				const currentTime = calculateFrameTime({
+					frameIndex: frame,
+					frameRate: fps,
+				});
 
 				// Render frame to canvas using existing renderer
 				await this.renderFrame(currentTime);

@@ -3,9 +3,15 @@ import { constants } from "node:fs";
 import { lstat, open, realpath, stat } from "node:fs/promises";
 import { isAbsolute, relative, resolve, sep } from "node:path";
 import { TextDecoder } from "node:util";
+import {
+	MAX_LOCAL_REFERENCE_ASSET_BYTES,
+	MAX_LOCAL_REFERENCE_JSON_BYTES,
+} from "./limits.js";
 
-export const MAX_LOCAL_REFERENCE_ASSET_BYTES = 25 * 1024 * 1024;
-export const MAX_LOCAL_REFERENCE_JSON_BYTES = 16 * 1024 * 1024;
+export {
+	MAX_LOCAL_REFERENCE_ASSET_BYTES,
+	MAX_LOCAL_REFERENCE_JSON_BYTES,
+} from "./limits.js";
 
 interface FileIdentity {
 	dev: number;

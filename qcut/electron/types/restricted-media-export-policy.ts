@@ -1,4 +1,7 @@
-import { parseStickerLabMediaMetadata } from "./sticker-lab-media-metadata.js";
+import {
+	parseStickerLabRestrictedMediaMetadata,
+	type StickerLabRuntimeMediaMetadata,
+} from "./sticker-lab-media-metadata.js";
 
 export const RESTRICTED_MEDIA_EXPORT_ERROR_CODE =
 	"QCUT_RESTRICTED_MEDIA_EXPORT" as const;
@@ -10,6 +13,17 @@ const RESTRICTED_STICKER_LAB_ID_PATTERN =
 	/^sticker-lab:jianying-\d{4}-\d{2}-\d{2}(?:-batch-[1-9]\d*)?(?:-v[1-9]\d*)?:\d+$/;
 const MAX_COMPOUND_MEDIA_DEPTH = 32;
 const COMPOUND_MEDIA_DEPTH_LIMIT_ID = "[compound-media-depth-limit]";
+
+function restrictedStickerLabIds({
+	element,
+}: {
+	element: Record<string, unknown>;
+}): string[] {
+	return [element.stickerId, element.stickerAssetId].filter(
+		(value): value is string =>
+			typeof value === "string" && RESTRICTED_STICKER_LAB_ID_PATTERN.test(value)
+	);
+}
 
 type RestrictedMediaExportScope = "all-media" | "timeline";
 
@@ -138,8 +152,13 @@ export function isRestrictedStickerLabMetadata({
 }): boolean {
 	const metadataRecord = toRecord({ value: metadata });
 	if (!metadataRecord) return false;
+	const hasPrivateRuntimeAssetIdentity =
+		metadataRecord.source === "sticker-runtime-resource" &&
+		typeof metadataRecord.stickerAssetId === "string" &&
+		RESTRICTED_STICKER_LAB_ID_PATTERN.test(metadataRecord.stickerAssetId);
 	return (
 		metadataRecord.source === "sticker-lab" ||
+		hasPrivateRuntimeAssetIdentity ||
 		metadataRecord.referenceOnly === true ||
 		metadataRecord.usage === "internal-reference-only" ||
 		metadataRecord.redistribution === "prohibited"
@@ -225,12 +244,7 @@ function collectTimelineMediaIds({
 				mediaIds,
 				mediaIdsByName,
 			});
-			if (
-				typeof element.stickerId === "string" &&
-				RESTRICTED_STICKER_LAB_ID_PATTERN.test(element.stickerId)
-			) {
-				restrictedTimelineIds.push(element.stickerId);
-			}
+			restrictedTimelineIds.push(...restrictedStickerLabIds({ element }));
 		},
 		tracks,
 	});
@@ -326,45 +340,59 @@ interface LocalStickerProvenance {
 	itemId: string;
 }
 
-function resolveCompleteLocalStickerProvenance({
+interface LocalStickerPrimaryProvenance extends LocalStickerProvenance {
+	resourceMediaIdsByName: Readonly<Record<string, string>>;
+}
+
+interface LocalStickerRuntimeResourceProvenance extends LocalStickerProvenance {
+	resourceName: string;
+}
+
+function parseCompleteLocalStickerMetadata({
 	metadata,
-	source,
 }: {
 	metadata: unknown;
-	source: "sticker-lab" | "sticker-runtime-resource";
-}): LocalStickerProvenance | null {
-	const record = toRecord({ value: metadata });
-	if (!record || record.source !== source) return null;
+}) {
 	try {
-		const parsed = parseStickerLabMediaMetadata({
-			candidate: {
-				animatedSticker:
-					source === "sticker-lab" ? record.animatedSticker : true,
-				batchId: record.batchId,
-				checksumSha256: record.checksumSha256,
-				itemId: record.itemId,
-				redistribution: record.redistribution,
-				referenceOnly: record.referenceOnly,
-				source: "sticker-lab",
-				usage: record.usage,
-			},
+		return parseStickerLabRestrictedMediaMetadata({
+			candidate: metadata,
 			label: "Sticker Lab export provenance",
 		});
-		if (
-			source === "sticker-runtime-resource" &&
-			(record.stickerAssetId !==
-				`sticker-lab:${parsed.batchId}:${parsed.itemId}` ||
-				record.stickerAssetVersion !== 1 ||
-				typeof record.stickerRuntimeResourceName !== "string" ||
-				record.stickerRuntimeResourceName.length === 0 ||
-				record.stickerRuntimeResourceName.length > 256)
-		) {
-			return null;
-		}
-		return { batchId: parsed.batchId, itemId: parsed.itemId };
 	} catch {
 		return null;
 	}
+}
+
+function resolveCompleteLocalStickerPrimary({
+	metadata,
+}: {
+	metadata: unknown;
+}): LocalStickerPrimaryProvenance | null {
+	const parsed = parseCompleteLocalStickerMetadata({ metadata });
+	if (!parsed || parsed.source !== "sticker-lab") return null;
+	return {
+		batchId: parsed.batchId,
+		itemId: parsed.itemId,
+		resourceMediaIdsByName:
+			"stickerRuntime" in parsed
+				? ((parsed as StickerLabRuntimeMediaMetadata).stickerRuntimeResources ??
+					{})
+				: {},
+	};
+}
+
+function resolveCompleteLocalStickerRuntimeResource({
+	metadata,
+}: {
+	metadata: unknown;
+}): LocalStickerRuntimeResourceProvenance | null {
+	const parsed = parseCompleteLocalStickerMetadata({ metadata });
+	if (!parsed || parsed.source !== "sticker-runtime-resource") return null;
+	return {
+		batchId: parsed.batchId,
+		itemId: parsed.itemId,
+		resourceName: parsed.stickerRuntimeResourceName,
+	};
 }
 
 function collectBakedVideoMediaUsage({
@@ -415,10 +443,8 @@ function collectBakedVideoMediaUsage({
 					mediaIds: primaryStickerMediaIds,
 					mediaIdsByName,
 				});
-				if (
-					typeof element.stickerId === "string" &&
-					RESTRICTED_STICKER_LAB_ID_PATTERN.test(element.stickerId)
-				) {
+				const restrictedStickerIds = restrictedStickerLabIds({ element });
+				if (restrictedStickerIds.length > 0) {
 					if (sourceNameMediaIds.length > 0) {
 						for (const mediaId of sourceNameMediaIds) {
 							requiredLocalStickerMediaIds.add(mediaId);
@@ -429,7 +455,7 @@ function collectBakedVideoMediaUsage({
 					) {
 						requiredLocalStickerMediaIds.add(element.mediaId);
 					} else {
-						restrictedTimelineIds.push(element.stickerId);
+						restrictedTimelineIds.push(...restrictedStickerIds);
 					}
 				}
 			} else {
@@ -439,14 +465,7 @@ function collectBakedVideoMediaUsage({
 					mediaIds: nonStickerMediaIds,
 					mediaIdsByName,
 				});
-			}
-
-			if (
-				typeof element.stickerId === "string" &&
-				RESTRICTED_STICKER_LAB_ID_PATTERN.test(element.stickerId) &&
-				element.type !== "sticker"
-			) {
-				restrictedTimelineIds.push(element.stickerId);
+				restrictedTimelineIds.push(...restrictedStickerLabIds({ element }));
 			}
 		},
 		tracks,
@@ -467,46 +486,36 @@ function collectRequiredLocalRuntimeResourceMediaIds({
 	mediaById: ReadonlyMap<string, ExportMediaRecord>;
 	primaryMediaIds: ReadonlySet<string>;
 	restrictedMediaIds: string[];
-}): Map<string, LocalStickerProvenance> {
-	const resourceProvenanceByMediaId = new Map<string, LocalStickerProvenance>();
-	const pendingMedia = [...primaryMediaIds].flatMap((mediaId) => {
-		const provenance = resolveCompleteLocalStickerProvenance({
+}): Map<string, LocalStickerRuntimeResourceProvenance> {
+	const resourceProvenanceByMediaId = new Map<
+		string,
+		LocalStickerRuntimeResourceProvenance
+	>();
+	for (const mediaId of primaryMediaIds) {
+		const provenance = resolveCompleteLocalStickerPrimary({
 			metadata: mediaById.get(mediaId)?.metadata,
-			source: "sticker-lab",
 		});
-		return provenance ? [{ mediaId, provenance }] : [];
-	});
-	const visitedMediaIds = new Set<string>();
-	for (let index = 0; index < pendingMedia.length; index += 1) {
-		const { mediaId, provenance } = pendingMedia[index];
-		if (!mediaId || visitedMediaIds.has(mediaId)) continue;
-		visitedMediaIds.add(mediaId);
-		const metadata = toRecord({ value: mediaById.get(mediaId)?.metadata });
-		const resourcesValue = metadata?.stickerRuntimeResources;
-		if (resourcesValue === undefined) continue;
-		const resources = toRecord({ value: resourcesValue });
-		if (!resources) {
-			restrictedMediaIds.push(mediaId);
-			continue;
-		}
-		for (const resourceMediaId of Object.values(resources)) {
-			if (typeof resourceMediaId !== "string" || resourceMediaId.length === 0) {
-				restrictedMediaIds.push(mediaId);
-				continue;
-			}
+		if (!provenance) continue;
+		for (const [resourceName, resourceMediaId] of Object.entries(
+			provenance.resourceMediaIdsByName
+		)) {
 			const existingProvenance =
 				resourceProvenanceByMediaId.get(resourceMediaId);
 			if (
 				existingProvenance &&
 				(existingProvenance.batchId !== provenance.batchId ||
-					existingProvenance.itemId !== provenance.itemId)
+					existingProvenance.itemId !== provenance.itemId ||
+					existingProvenance.resourceName !== resourceName)
 			) {
 				restrictedMediaIds.push(resourceMediaId);
 				continue;
 			}
 			if (existingProvenance) continue;
-			resourceProvenanceByMediaId.set(resourceMediaId, provenance);
-			pendingMedia.push({ mediaId: resourceMediaId, provenance });
+			resourceProvenanceByMediaId.set(resourceMediaId, {
+				batchId: provenance.batchId,
+				itemId: provenance.itemId,
+				resourceName,
+			});
 		}
 	}
 	return resourceProvenanceByMediaId;
@@ -524,9 +533,8 @@ function collectUnprovenancedRestrictedRuntimeResourceMediaIds({
 	const mediaItems = [...mediaById.values()];
 	for (const primaryMediaId of primaryMediaIds) {
 		if (
-			resolveCompleteLocalStickerProvenance({
+			resolveCompleteLocalStickerPrimary({
 				metadata: mediaById.get(primaryMediaId)?.metadata,
-				source: "sticker-lab",
 			})
 		) {
 			continue;
@@ -617,9 +625,8 @@ export function assertLocalFinalVideoExportAllowed({
 
 	for (const mediaId of requiredLocalStickerMediaIds) {
 		if (
-			!resolveCompleteLocalStickerProvenance({
+			!resolveCompleteLocalStickerPrimary({
 				metadata: mediaById.get(mediaId)?.metadata,
-				source: "sticker-lab",
 			})
 		) {
 			restrictedMediaIds.push(mediaId);
@@ -633,15 +640,15 @@ export function assertLocalFinalVideoExportAllowed({
 			restrictedMediaIds,
 		});
 	for (const [mediaId, expectedProvenance] of requiredRuntimeResourceMediaIds) {
-		const actualProvenance = resolveCompleteLocalStickerProvenance({
+		const actualProvenance = resolveCompleteLocalStickerRuntimeResource({
 			metadata: mediaById.get(mediaId)?.metadata,
-			source: "sticker-runtime-resource",
 		});
 		if (
 			nonStickerMediaIds.has(mediaId) ||
 			!actualProvenance ||
 			actualProvenance.batchId !== expectedProvenance.batchId ||
-			actualProvenance.itemId !== expectedProvenance.itemId
+			actualProvenance.itemId !== expectedProvenance.itemId ||
+			actualProvenance.resourceName !== expectedProvenance.resourceName
 		) {
 			restrictedMediaIds.push(mediaId);
 		}

@@ -1,9 +1,9 @@
 import {
-	parseStickerLabMediaMetadata,
-	type StickerLabMediaMetadata,
+	parseStickerLabRestrictedMediaMetadata,
+	type StickerLabRestrictedMediaMetadata,
 } from "../../types/sticker-lab-media-metadata.js";
 
-export type StickerLabMediaImportMetadata = StickerLabMediaMetadata;
+export type StickerLabMediaImportMetadata = StickerLabRestrictedMediaMetadata;
 
 export function parseStickerLabMediaImportMetadata({
 	candidate,
@@ -11,7 +11,7 @@ export function parseStickerLabMediaImportMetadata({
 	candidate: unknown;
 }): StickerLabMediaImportMetadata | undefined {
 	if (candidate === undefined) return;
-	return parseStickerLabMediaMetadata({
+	return parseStickerLabRestrictedMediaMetadata({
 		candidate,
 		label: "Media import metadata",
 	});
