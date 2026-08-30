@@ -1,10 +1,6 @@
 import { useCallback } from "react";
 import { toast } from "sonner";
-import {
-	parseDirectGifRuntimeDescriptor,
-	type StickerRuntimeDescriptor,
-	StickerRuntimeError,
-} from "@qcut/editor-core/sticker-lab";
+import type { StickerRuntimeDescriptor } from "@qcut/editor-core/sticker-lab";
 import { resolveStickerAssetEntry } from "@/lib/assets/qcut-asset-manifest";
 import { debugError } from "@/lib/debug/debug-config";
 import { extractVideoMetadataFromUrl } from "@/lib/media/video-metadata";
@@ -22,6 +18,7 @@ import {
 	rollbackStickerRuntimePackageResources,
 } from "@/lib/stickers/sticker-runtime-project-import";
 import type { PreparedStickerRuntimePackage } from "@/lib/stickers/sticker-runtime-package";
+import { parseStickerFileRuntime } from "@/lib/stickers/sticker-file-runtime";
 import { useAssetLibraryStore } from "@/stores/asset-library-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import type { MediaType } from "@/stores/media/media-store-types";
@@ -139,30 +136,7 @@ function localRuntimeAssetIdentity({
 	};
 }
 
-export async function parseStickerFileRuntime({
-	animatedSticker,
-	file,
-}: {
-	animatedSticker: boolean;
-	file: File;
-}): Promise<StickerRuntimeDescriptor | undefined> {
-	const isGif =
-		file.type === "image/gif" || file.name.toLocaleLowerCase().endsWith(".gif");
-	if (!animatedSticker || !isGif) return;
-	const bytes = new Uint8Array(await file.arrayBuffer());
-	try {
-		return parseDirectGifRuntimeDescriptor({ bytes });
-	} catch (error) {
-		if (error instanceof StickerRuntimeError) {
-			debugError(
-				`[StickerSelect] Skipping GIF runtime metadata for ${file.name}:`,
-				error
-			);
-			return;
-		}
-		throw error;
-	}
-}
+export { parseStickerFileRuntime } from "@/lib/stickers/sticker-file-runtime";
 
 export function useStickerSelect() {
 	const addMediaItem = useMediaStore((state) => state.addMediaItem);
