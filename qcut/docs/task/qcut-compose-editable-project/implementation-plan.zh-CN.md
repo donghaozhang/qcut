@@ -1,7 +1,7 @@
 # QCut 可编辑 Compose 工程实施任务书
 
 日期：2026-08-31  
-状态：Phase A–E 完成（三平台 CI 等待 #441 合并后 retarget 触发）  
+状态：Phase A–E 完成；#441 已合并，#443 已 rebase 到 master 并 retarget，三平台 CI 矩阵运行中  
 依赖：PR #441 `feat: complete Compose resource labs` 及其性能/CI 收尾  
 建议执行者：Claude（完成当前 Compose Export Performance Hardening 后开始）
 
@@ -811,7 +811,7 @@ apps/web/src/lib/export/*
 
 - 30s 功能门禁 = Phase D 的 29s 全组合配方（全链路 + 帧/音频证据）。
 - 80s benchmark（`--engine muxer`，与 #441 优化基线同引擎同规格）：**12.42–12.69s（≈192fps，6.3–6.4× realtime）**，与基线 12.47–12.50s 持平——可编辑工程管线零性能回归。
-- 三平台 CI：`ci.yml` 只在 base=master 的 PR 触发；PR #443 stacked 在 #441 上故矩阵未跑。本地全量（electron 3401 / editor-core 842 / web 相关 352+、四处 tsc 0 错、biome 干净）作为过渡证据。**#441 合并后：retarget #443 → master、rebase、跑矩阵、triage 全部评论。**
+- 三平台 CI：`ci.yml` 只在 base=master 的 PR 触发；PR #443 stacked 在 #441 上故矩阵未跑。本地全量（electron 3401 / editor-core 842 / web 相关 352+、四处 tsc 0 错、biome 干净）作为过渡证据。**#441 已于 2026-08-31 合并：#443 已 rebase 到 origin/master（1 处冲突：master 的转场 fingerprint replay 与本分支 mainTrackId/媒体 replay 合并保留双方；fingerprint 匹配补了 preset 词汇/main-video 标记归一化，纯转场 replay 的轨解析也已修复并实测幂等）、retarget base=master、close/reopen 触发矩阵（run 33356853696）。评论 triage 待矩阵/评审产出。**
 - 顺手修复：显式 `--engine muxer` 请求现在正确路由到 renderer。
 
 ## 18. Git 与 PR 约束
