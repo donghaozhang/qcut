@@ -14,7 +14,10 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { useTranslation } from "@/lib/i18n";
-import { buildTimelineStickerPlanarSeedTargetQuad } from "@/lib/stickers/planar-sticker-seed-target";
+import {
+	buildTimelineStickerPlanarSeedTargetQuad,
+	resolvePlanarSourceDisplaySize,
+} from "@/lib/stickers/planar-sticker-seed-target";
 import { getStickerTrackingMediaTargets } from "@/lib/stickers/sticker-tracking";
 import { getPlanarTrackingResultStore } from "@/lib/tracking/planar-result-store";
 import {
@@ -110,12 +113,19 @@ export function StickerPlanarTrackingProperties({
 	const mediaItem = target
 		? mediaItems.find((item) => item.id === target.element.mediaId)
 		: undefined;
+	const sourceDisplaySize =
+		target && mediaItem
+			? resolvePlanarSourceDisplaySize({
+					sourceElement: target.element,
+					sourceMedia: mediaItem,
+				})
+			: undefined;
 	const seedTargetQuad = buildTimelineStickerPlanarSeedTargetQuad({
 		canvasSize,
 		currentTime,
 		fps,
+		sourceDisplaySize,
 		sourceElement: target?.element,
-		sourceMedia: mediaItem,
 		stickerElement: element,
 	});
 	const reference = target
@@ -184,6 +194,7 @@ export function StickerPlanarTrackingProperties({
 			!projectId ||
 			!target ||
 			!mediaItem?.file ||
+			!sourceDisplaySize ||
 			!editingSelection ||
 			!seedTargetQuad
 		)
@@ -257,9 +268,8 @@ export function StickerPlanarTrackingProperties({
 						seedQuad: selection.quad,
 						seedTargetQuad,
 						signal,
-						sourceDisplayHeight:
-							mediaItem.height ?? target.element.height ?? 1080,
-						sourceDisplayWidth: mediaItem.width ?? target.element.width ?? 1920,
+						sourceDisplayHeight: sourceDisplaySize.height,
+						sourceDisplayWidth: sourceDisplaySize.width,
 						sourceElementId: target.element.id,
 						sourceMediaId: target.element.mediaId,
 						trackingId,

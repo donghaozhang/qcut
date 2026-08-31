@@ -107,29 +107,42 @@ export function buildStickerPlanarSeedTargetQuad({
 	});
 }
 
+export function resolvePlanarSourceDisplaySize({
+	sourceElement,
+	sourceMedia,
+}: {
+	sourceElement: Pick<MediaElement, "height" | "width">;
+	sourceMedia: { height?: number; width?: number };
+}): { height: number; width: number } {
+	return {
+		height: sourceMedia.height ?? sourceElement.height ?? 1080,
+		width: sourceMedia.width ?? sourceElement.width ?? 1920,
+	};
+}
+
 export function buildTimelineStickerPlanarSeedTargetQuad({
 	canvasSize,
 	currentTime,
 	fps,
+	sourceDisplaySize,
 	sourceElement,
-	sourceMedia,
 	stickerElement,
 }: {
 	canvasSize: { height: number; width: number };
 	currentTime: number;
 	fps: number;
+	sourceDisplaySize?: { height: number; width: number };
 	sourceElement?: MediaElement;
-	sourceMedia?: { height?: number; width?: number };
 	stickerElement: StickerElement;
 }): PlanarQuad | undefined {
-	if (!sourceElement || !sourceMedia) return undefined;
+	if (!sourceElement || !sourceDisplaySize) return undefined;
 	return buildStickerPlanarSeedTargetQuad({
 		canvasHeight: canvasSize.height,
 		canvasWidth: canvasSize.width,
 		currentTime,
 		fps,
-		sourceDisplayHeight: sourceMedia.height ?? canvasSize.height,
-		sourceDisplayWidth: sourceMedia.width ?? canvasSize.width,
+		sourceDisplayHeight: sourceDisplaySize.height,
+		sourceDisplayWidth: sourceDisplaySize.width,
 		sourceElement,
 		sticker: resolveTimelineStickerVisualAtTime({
 			currentTime,
