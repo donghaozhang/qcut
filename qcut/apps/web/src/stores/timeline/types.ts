@@ -740,6 +740,7 @@ export interface TimelineStore {
 				| "comboAnimationIntensity"
 				| "adjustments"
 				| "color"
+				| "filterStack"
 				| "mask"
 				| "masks"
 				| "customCutout"

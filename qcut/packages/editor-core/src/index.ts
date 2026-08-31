@@ -76,6 +76,8 @@ export type {
 	ColorWheelSettings,
 	ColorWheelsSettings,
 	MediaColorSettings,
+	MediaFilterEffect,
+	MediaFilterStack,
 	BlurIntensity,
 	DraftInteropProjectBindingV1,
 	DraftInteropWritebackStatus,

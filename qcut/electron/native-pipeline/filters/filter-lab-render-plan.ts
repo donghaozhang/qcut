@@ -52,8 +52,22 @@ export interface FilterLabRenderEvidence {
 	fidelity: "lut" | "structural" | "native-local" | "safe-passthrough";
 }
 
+/** Editor-facing color payload so the render plan can seed a MediaFilterEffect. */
+export interface FilterLabEditorColorPayload {
+	/** Raw (intensity-neutral) cube for single-LUT filters. */
+	lutCube?: {
+		size: number;
+		domainMin: [number, number, number];
+		domainMax: [number, number, number];
+		values: number[];
+	};
+	/** ColorMultiPassSettings-shaped renderer result for multi-pass filters. */
+	multiPass?: Awaited<ReturnType<typeof loadJianyingFilterLabRenderer>>;
+}
+
 export type FilterLabRenderPlan = {
 	evidence: FilterLabRenderEvidence;
+	editorColor?: FilterLabEditorColorPayload;
 } & (
 	| { kind: "ffmpeg"; filterGraph: string; outputLabel: string }
 	| {
@@ -140,6 +154,7 @@ export async function resolveFilterLabRenderPlan({
 			return {
 				kind: "native",
 				mode: "multi-pass",
+				editorColor: { multiPass: settings },
 				captureFace: false,
 				packagePath: resolveMultiPassPackagePath({
 					cacheRoot,
@@ -165,6 +180,7 @@ export async function resolveFilterLabRenderPlan({
 				...graph.filterSteps,
 			].join(";"),
 			outputLabel: graph.outputLabel,
+			editorColor: { multiPass: settings },
 			evidence: {
 				...evidence,
 				backend: "ffmpeg-multi-pass",
@@ -299,6 +315,14 @@ export async function resolveFilterLabRenderPlan({
 	const lutPlan = {
 		kind: "ffmpeg" as const,
 		outputLabel: "filter_output",
+		editorColor: {
+			lutCube: {
+				size: cube.size,
+				domainMin: cube.domainMin ?? ([0, 0, 0] as [number, number, number]),
+				domainMax: cube.domainMax ?? ([1, 1, 1] as [number, number, number]),
+				values: Array.from(cube.values),
+			},
+		},
 		evidence: {
 			...evidence,
 			backend: "ffmpeg-lut" as const,

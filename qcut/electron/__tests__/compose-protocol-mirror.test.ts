@@ -181,4 +181,90 @@ describe("compose protocol mirror stays equivalent to editor-core", () => {
 			])
 		);
 	});
+
+	it("emits identical issues for editable-project operations", () => {
+		const snapshot = fixtureSnapshot();
+		const mediaAsset = {
+			provider: "local" as const,
+			assetType: "media" as const,
+			assetId: "manifest:a.mp4",
+		};
+		const patch: ComposePatch = {
+			...fixturePatch({ snapshot }),
+			source: "manifest-compiler",
+			operations: [
+				{
+					kind: "insert-media-clip",
+					id: "clip:a",
+					startTime: 0,
+					duration: 10,
+					asset: mediaAsset,
+					mediaKind: "video",
+					trackRole: "main-video",
+					trimStart: 1,
+					trimEnd: 1,
+					sourceDuration: 12,
+				},
+				{
+					kind: "insert-media-clip",
+					id: "clip:overlap",
+					startTime: 5,
+					duration: 10,
+					asset: mediaAsset,
+					mediaKind: "video",
+					trackRole: "main-video",
+					trimStart: 1,
+					trimEnd: 1,
+					sourceDuration: 12,
+				},
+				{
+					kind: "set-media-filter-stack",
+					id: "stack:bad",
+					startTime: 0,
+					duration: 10,
+					trackId: "wrong-track",
+					elementId: "clip:a",
+					filters: [
+						{
+							id: "step-1",
+							asset: {
+								provider: "local",
+								assetType: "filter",
+								assetId: "123",
+							},
+							intensity: 150,
+							enabled: true,
+						},
+					],
+				},
+				{
+					kind: "upsert-transition",
+					id: "transition:mixed",
+					startTime: 9.75,
+					duration: 0.5,
+					trackId: "main-video",
+					fromElementId: "clip:a",
+					toElementId: "element-1",
+					presetId: "crossfade",
+				},
+				{
+					kind: "add-filter-layer",
+					id: "layer:empty",
+					startTime: 0,
+					duration: 5,
+					trackRole: "adjustment",
+					filters: [],
+				},
+			],
+			warnings: [],
+		};
+		const mirrorIssues = mirrorValidatePatch({ snapshot, patch });
+		expect(mirrorIssues.length).toBeGreaterThan(0);
+		expect(mirrorIssues).toEqual(
+			coreValidatePatch({
+				snapshot: snapshot as unknown as CoreComposeSnapshot,
+				patch: patch as unknown as CoreComposePatch,
+			})
+		);
+	});
 });

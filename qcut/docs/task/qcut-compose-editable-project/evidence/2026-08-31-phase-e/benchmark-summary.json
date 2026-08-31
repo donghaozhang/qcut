@@ -1,0 +1,29 @@
+{
+ "recipe": "80s editable project (zh-final 0-40 + en-final 0-40, 0.5s crossfade), 1920x1080@30, --engine muxer",
+ "jobWallSeconds": [
+  12.689,
+  12.449,
+  12.422
+ ],
+ "fpsApprox": [
+  188.1,
+  191.7,
+  192.2
+ ],
+ "realtimeFactor": [
+  6.27,
+  6.39,
+  6.4
+ ],
+ "pr441OptimizedBaselineSeconds": [
+  12.5,
+  12.47,
+  12.49
+ ],
+ "conclusion": "editable-project pipeline export parity with the PR #441 optimized muxer baseline; no regression",
+ "timingScopes": {
+  "jobWallSeconds": "export job startedAt->completedAt (same scope as the PR #441 baseline)",
+  "cliWallSecondsApprox": 15.2,
+  "cliWallNote": "benchmark-times.txt records full CLI wall time incl. submit + ~1s poll interval + process startup; not used for the baseline comparison"
+ }
+}

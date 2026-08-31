@@ -1,0 +1,2 @@
+elements: 10 transitions: 2 stacks: 3
+digest: 14f45d0261e4e22e8ea84d1113128ac91c4d6eee980f5a136d207d069437bb36

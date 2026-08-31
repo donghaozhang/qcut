@@ -7,7 +7,7 @@
  * @module @qcut/editor-core/types/timeline
  */
 
-import type { MediaColorSettings } from "./color.js";
+import type { MediaColorSettings, MediaFilterStack } from "./color.js";
 import type { EffectChain, EffectInstance } from "./effects.js";
 import type { TextAnimationsV1 } from "../text-animation/model.js";
 import type { MediaPortraitAdjustments } from "../portrait-adjustments.js";
@@ -808,6 +808,8 @@ export interface MediaElement extends BaseTimelineElement {
 	adjustments?: MediaAdjustments;
 	/** Canonical non-destructive color grading state. */
 	color?: MediaColorSettings;
+	/** Ordered per-clip Filter Lab stack, rendered after `color`. */
+	filterStack?: MediaFilterStack;
 	/** Legacy single-mask field retained for project compatibility. */
 	mask?: MediaMask;
 	/** Ordered non-destructive mask stack. */

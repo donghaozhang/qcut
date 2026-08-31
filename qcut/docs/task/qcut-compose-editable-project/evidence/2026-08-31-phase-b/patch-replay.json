@@ -1,0 +1,96 @@
+{
+  "schemaVersion": 1,
+  "id": "cmp-bcb7ed0fa9f1e1a640317ec9",
+  "source": "manifest-compiler",
+  "intentKind": "full-compose",
+  "mode": "idempotent",
+  "snapshotId": "070b7303-4cf7-4c9e-bb27-122084ec73b8",
+  "sourceFingerprint": "ae7c4f71aa97e3af16a76bfd3e56d646bc9f29938b5a8e43f06e7024d653c628",
+  "createdAt": "2026-08-30T17:47:34.841Z",
+  "operations": [
+    {
+      "kind": "insert-media-clip",
+      "id": "cmp-d04c4cfc5c91c3624a3a9dfc",
+      "startTime": 0,
+      "duration": 9.75,
+      "asset": {
+        "provider": "local",
+        "assetType": "media",
+        "assetId": "manifest:clip1.mp4",
+        "displayName": "clip1.mp4",
+        "provenance": {
+          "manifestSource": "clip1.mp4"
+        },
+        "localPath": "$EVIDENCE_ROOT/editable-phase-b/clip1.mp4"
+      },
+      "mediaKind": "video",
+      "trackRole": "main-video",
+      "trimStart": 0,
+      "trimEnd": 0.25,
+      "sourceDuration": 10
+    },
+    {
+      "kind": "insert-media-clip",
+      "id": "cmp-7cd50d36fae76165c95f0c2b",
+      "startTime": 9.75,
+      "duration": 9.5,
+      "asset": {
+        "provider": "local",
+        "assetType": "media",
+        "assetId": "manifest:clip2.mp4",
+        "displayName": "clip2.mp4",
+        "provenance": {
+          "manifestSource": "clip2.mp4"
+        },
+        "localPath": "$EVIDENCE_ROOT/editable-phase-b/clip2.mp4"
+      },
+      "mediaKind": "video",
+      "trackRole": "main-video",
+      "trimStart": 0.25,
+      "trimEnd": 0.25,
+      "sourceDuration": 10
+    },
+    {
+      "kind": "insert-media-clip",
+      "id": "cmp-2ad8e9a9549d3a91e99756d0",
+      "startTime": 19.25,
+      "duration": 9.75,
+      "asset": {
+        "provider": "local",
+        "assetType": "media",
+        "assetId": "manifest:clip3.mp4",
+        "displayName": "clip3.mp4",
+        "provenance": {
+          "manifestSource": "clip3.mp4"
+        },
+        "localPath": "$EVIDENCE_ROOT/editable-phase-b/clip3.mp4"
+      },
+      "mediaKind": "video",
+      "trackRole": "main-video",
+      "trimStart": 0.25,
+      "trimEnd": 0,
+      "sourceDuration": 10
+    },
+    {
+      "kind": "upsert-transition",
+      "id": "cmp-71f88bb78c59441c38c3541a",
+      "startTime": 9.5,
+      "duration": 0.5,
+      "trackId": "main-video",
+      "fromElementId": "cmp-d04c4cfc5c91c3624a3a9dfc",
+      "toElementId": "cmp-7cd50d36fae76165c95f0c2b",
+      "presetId": "crossfade"
+    },
+    {
+      "kind": "upsert-transition",
+      "id": "cmp-769272e6be41c6d58988332b",
+      "startTime": 19,
+      "duration": 0.5,
+      "trackId": "main-video",
+      "fromElementId": "cmp-7cd50d36fae76165c95f0c2b",
+      "toElementId": "cmp-2ad8e9a9549d3a91e99756d0",
+      "presetId": "crossfade"
+    }
+  ],
+  "warnings": []
+}

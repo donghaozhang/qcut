@@ -1,0 +1,13 @@
+{
+	"schemaVersion": 1,
+	"canvas": { "width": 1920, "height": 1080, "fps": 30 },
+	"clips": [
+		{ "id": "c1", "source": "clip1.mp4", "trim": { "in": 0, "out": 10 } },
+		{ "id": "c2", "source": "clip2.mp4", "trim": { "in": 0, "out": 10 } },
+		{ "id": "c3", "source": "clip3.mp4", "trim": { "in": 0, "out": 10 } }
+	],
+	"transitions": [
+		{ "between": ["c1", "c2"], "preset": "crossfade", "duration": 0.5 },
+		{ "between": ["c2", "c3"], "preset": "crossfade", "duration": 0.5 }
+	]
+}

@@ -310,6 +310,8 @@ export interface ClaudeElement
 	 * from `color`, which is the text color string.
 	 */
 	colorSettings?: Record<string, unknown>;
+	/** Ordered per-clip Filter Lab stack (untrusted; renderer validates). */
+	filterStack?: unknown;
 	/** Untrusted portrait adjustment JSON; normalized by the renderer bridge. */
 	portraitAdjustments?: unknown;
 	/** Untrusted local video enhancement JSON; normalized by the renderer bridge. */

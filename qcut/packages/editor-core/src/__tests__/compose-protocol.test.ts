@@ -889,3 +889,387 @@ describe("smart packaging issue severities", () => {
 		expect(hasComposeValidationErrors({ issues: [issue] })).toBe(false);
 	});
 });
+
+describe("compose editable-project operations", () => {
+	const mediaAsset = {
+		provider: "local" as const,
+		assetType: "media" as const,
+		assetId: "manifest:a.mp4",
+	};
+
+	function insertClip({
+		id,
+		startTime,
+		duration,
+		trimStart = 1,
+		trimEnd = 1,
+		sourceDuration = duration + 2,
+		trackRole = "main-video" as const,
+	}: {
+		id: string;
+		startTime: number;
+		duration: number;
+		trimStart?: number;
+		trimEnd?: number;
+		sourceDuration?: number;
+		trackRole?: "main-video" | "overlay-video";
+	}) {
+		return {
+			kind: "insert-media-clip" as const,
+			id,
+			startTime,
+			duration,
+			asset: mediaAsset,
+			mediaKind: "video" as const,
+			trackRole,
+			trimStart,
+			trimEnd,
+			sourceDuration,
+		};
+	}
+
+	function filterStep({ id = "step-1", intensity = 60 } = {}) {
+		return {
+			id,
+			asset: {
+				provider: "local" as const,
+				assetType: "filter" as const,
+				assetId: "123",
+			},
+			intensity,
+			enabled: true,
+		};
+	}
+
+	it("accepts pending clips, transitions between them, and filter stacks", () => {
+		const snapshot = makeSnapshot();
+		const patch = makePatch({
+			snapshot,
+			overrides: {
+				source: "manifest-compiler",
+				operations: [
+					insertClip({ id: "clip:a", startTime: 0, duration: 10 }),
+					insertClip({ id: "clip:b", startTime: 10, duration: 5 }),
+					{
+						kind: "upsert-transition",
+						id: "transition:a-b",
+						startTime: 9.75,
+						duration: 0.5,
+						trackId: "main-video",
+						fromElementId: "clip:a",
+						toElementId: "clip:b",
+						presetId: "crossfade",
+					},
+					{
+						kind: "set-media-filter-stack",
+						id: "stack:a",
+						startTime: 0,
+						duration: 10,
+						trackId: "clip:a",
+						elementId: "clip:a",
+						filters: [filterStep()],
+					},
+					{
+						kind: "set-media-filter-stack",
+						id: "stack:element-1",
+						startTime: 0,
+						duration: 20,
+						trackId: "track-video",
+						elementId: "element-1",
+						filters: [filterStep({ id: "step-2", intensity: 40 })],
+					},
+					{
+						kind: "add-filter-layer",
+						id: "layer:1",
+						startTime: 0,
+						duration: 15,
+						trackRole: "adjustment",
+						filters: [filterStep({ id: "step-3" })],
+					},
+				],
+			},
+		});
+		expect(validateComposePatch({ snapshot, patch })).toEqual([]);
+	});
+
+	it("rejects clip trims and durations that disagree with the source", () => {
+		const snapshot = makeSnapshot();
+		const patch = makePatch({
+			snapshot,
+			overrides: {
+				operations: [
+					insertClip({
+						id: "clip:short",
+						startTime: 0,
+						duration: 9,
+						sourceDuration: 12,
+					}),
+					insertClip({
+						id: "clip:eaten",
+						startTime: 9,
+						duration: 1,
+						trimStart: 6,
+						trimEnd: 6,
+						sourceDuration: 12,
+					}),
+				],
+			},
+		});
+		const issues = validateComposePatch({ snapshot, patch });
+		expect(
+			issues.some(
+				(issue) =>
+					issue.operationId === "clip:short" && issue.path.endsWith(".duration")
+			)
+		).toBe(true);
+		expect(
+			issues.some(
+				(issue) =>
+					issue.operationId === "clip:eaten" && issue.path.endsWith(".trimEnd")
+			)
+		).toBe(true);
+	});
+
+	it("rejects malformed filter stacks", () => {
+		const snapshot = makeSnapshot();
+		const tooMany = Array.from({ length: 17 }, (unused, index) =>
+			filterStep({ id: `step-${index}` })
+		);
+		const patch = makePatch({
+			snapshot,
+			overrides: {
+				operations: [
+					{
+						kind: "set-media-filter-stack",
+						id: "stack:empty",
+						startTime: 0,
+						duration: 5,
+						trackId: "track-video",
+						elementId: "element-1",
+						filters: [],
+					},
+					{
+						kind: "add-filter-layer",
+						id: "layer:bad",
+						startTime: 0,
+						duration: 5,
+						trackRole: "adjustment",
+						filters: [
+							filterStep({ intensity: 150 }),
+							filterStep({ id: "step-1" }),
+							...tooMany,
+						],
+					},
+				],
+			},
+		});
+		const issues = validateComposePatch({ snapshot, patch });
+		const codes = issues.map((issue) => issue.code);
+		expect(codes).toContain("invalid-filter-stack");
+		expect(
+			issues.filter((issue) => issue.code === "invalid-filter-stack").length
+		).toBeGreaterThanOrEqual(3);
+	});
+
+	it("requires pending filter stacks to repeat the insert id as trackId", () => {
+		const snapshot = makeSnapshot();
+		const patch = makePatch({
+			snapshot,
+			overrides: {
+				operations: [
+					insertClip({ id: "clip:a", startTime: 0, duration: 10 }),
+					{
+						kind: "set-media-filter-stack",
+						id: "stack:wrong",
+						startTime: 0,
+						duration: 10,
+						trackId: "track-video",
+						elementId: "clip:a",
+						filters: [filterStep()],
+					},
+				],
+			},
+		});
+		const issues = validateComposePatch({ snapshot, patch });
+		expect(
+			issues.some(
+				(issue) =>
+					issue.code === "unknown-target-element" &&
+					issue.operationId === "stack:wrong"
+			)
+		).toBe(true);
+	});
+
+	it("rejects transitions that mix pending clips with snapshot elements", () => {
+		const snapshot = makeSnapshot();
+		const patch = makePatch({
+			snapshot,
+			overrides: {
+				operations: [
+					insertClip({ id: "clip:a", startTime: 0, duration: 10 }),
+					{
+						kind: "upsert-transition",
+						id: "transition:mixed",
+						startTime: 9.75,
+						duration: 0.5,
+						trackId: "main-video",
+						fromElementId: "clip:a",
+						toElementId: "element-1",
+						presetId: "crossfade",
+					},
+				],
+			},
+		});
+		const issues = validateComposePatch({ snapshot, patch });
+		expect(
+			issues.some(
+				(issue) =>
+					issue.operationId === "transition:mixed" &&
+					issue.message.includes("mix")
+			)
+		).toBe(true);
+	});
+
+	it("checks pending transition track markers and endpoint roles", () => {
+		const snapshot = makeSnapshot();
+		const patch = makePatch({
+			snapshot,
+			overrides: {
+				operations: [
+					insertClip({ id: "clip:a", startTime: 0, duration: 10 }),
+					insertClip({
+						id: "clip:overlay",
+						startTime: 10,
+						duration: 5,
+						trackRole: "overlay-video",
+					}),
+					{
+						kind: "upsert-transition",
+						id: "transition:bad",
+						startTime: 9.75,
+						duration: 0.5,
+						trackId: "track-video",
+						fromElementId: "clip:a",
+						toElementId: "clip:overlay",
+						presetId: "crossfade",
+					},
+				],
+			},
+		});
+		const issues = validateComposePatch({ snapshot, patch });
+		expect(issues.some((issue) => issue.path.endsWith(".trackId"))).toBe(true);
+		expect(issues.some((issue) => issue.path.endsWith(".toElementId"))).toBe(
+			true
+		);
+	});
+
+	it("flags overlapping main-video clips and duplicate filter stacks", () => {
+		const snapshot = makeSnapshot();
+		const patch = makePatch({
+			snapshot,
+			overrides: {
+				operations: [
+					insertClip({ id: "clip:a", startTime: 0, duration: 10 }),
+					insertClip({ id: "clip:b", startTime: 5, duration: 10 }),
+					{
+						kind: "set-media-filter-stack",
+						id: "stack:1",
+						startTime: 0,
+						duration: 10,
+						trackId: "clip:a",
+						elementId: "clip:a",
+						filters: [filterStep()],
+					},
+					{
+						kind: "set-media-filter-stack",
+						id: "stack:2",
+						startTime: 0,
+						duration: 10,
+						trackId: "clip:a",
+						elementId: "clip:a",
+						filters: [filterStep({ id: "step-9" })],
+					},
+				],
+			},
+		});
+		const issues = validateComposePatch({ snapshot, patch });
+		const conflicts = issues.filter(
+			(issue) => issue.code === "operation-conflict"
+		);
+		expect(conflicts.some((issue) => issue.message.includes("overlap"))).toBe(
+			true
+		);
+		expect(
+			conflicts.some((issue) => issue.message.includes("Filter stacks"))
+		).toBe(true);
+	});
+
+	it("extends the out-of-bounds horizon with pending clips", () => {
+		const snapshot = makeSnapshot();
+		const longClip = insertClip({
+			id: "clip:long",
+			startTime: 0,
+			duration: 40,
+		});
+		const sticker = {
+			kind: "add-sticker" as const,
+			id: "sticker:late",
+			startTime: 32,
+			duration: 3,
+			asset: {
+				provider: "local" as const,
+				assetType: "sticker" as const,
+				assetId: "sticker-asset",
+			},
+		};
+		const withClip = validateComposePatch({
+			snapshot,
+			patch: makePatch({
+				snapshot,
+				overrides: { operations: [longClip, sticker] },
+			}),
+		});
+		expect(withClip).toEqual([]);
+		const withoutClip = validateComposePatch({
+			snapshot,
+			patch: makePatch({ snapshot, overrides: { operations: [sticker] } }),
+		});
+		expect(
+			withoutClip.some((issue) => issue.code === "operation-out-of-bounds")
+		).toBe(true);
+	});
+
+	it("counts the editable-project operation kinds", () => {
+		const snapshot = makeSnapshot();
+		const patch = makePatch({
+			snapshot,
+			overrides: {
+				operations: [
+					insertClip({ id: "clip:a", startTime: 0, duration: 10 }),
+					{
+						kind: "set-media-filter-stack",
+						id: "stack:a",
+						startTime: 0,
+						duration: 10,
+						trackId: "clip:a",
+						elementId: "clip:a",
+						filters: [filterStep()],
+					},
+					{
+						kind: "add-filter-layer",
+						id: "layer:1",
+						startTime: 0,
+						duration: 5,
+						trackRole: "adjustment",
+						filters: [filterStep({ id: "step-2" })],
+					},
+				],
+			},
+		});
+		const counts = countComposeOperations({ patch });
+		expect(counts["insert-media-clip"]).toBe(1);
+		expect(counts["set-media-filter-stack"]).toBe(1);
+		expect(counts["add-filter-layer"]).toBe(1);
+		expect(counts["add-caption"]).toBe(0);
+	});
+});

@@ -338,7 +338,7 @@ export class EditorApiClient {
 					`Cannot connect to QCut at ${this.config.baseUrl}`
 				);
 			}
-			throw new EditorApiError(`HTTP request failed: ${msg}`);
+			throw new EditorApiError(`HTTP request failed for ${url}: ${msg}`);
 		}
 
 		if (!response.body) {
@@ -462,7 +462,7 @@ export class EditorApiClient {
 			if (signal?.aborted) {
 				return;
 			}
-			throw new EditorApiError(`HTTP request failed: ${msg}`);
+			throw new EditorApiError(`HTTP request failed for ${url}: ${msg}`);
 		}
 
 		if (!response.ok) {
@@ -951,7 +951,7 @@ export class EditorApiClient {
 					`Cannot connect to QCut at ${this.config.baseUrl}`
 				);
 			}
-			throw new EditorApiError(`HTTP request failed: ${msg}`);
+			throw new EditorApiError(`HTTP request failed for ${url}: ${msg}`);
 		}
 
 		let envelope: ApiEnvelope<T>;

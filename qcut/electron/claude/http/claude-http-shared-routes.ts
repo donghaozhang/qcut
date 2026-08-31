@@ -17,6 +17,7 @@
 import * as fsPromises from "node:fs/promises";
 import * as path from "node:path";
 import type { Router } from "../utils/http-router.js";
+import { timelineRequiresRendererFilterStackExport } from "../../types/filter-stack-export-policy.js";
 import { HttpError } from "../utils/http-router.js";
 import { getProjectPath, isValidSourcePath } from "../utils/helpers.js";
 import type {
@@ -557,7 +558,11 @@ function scheduleProjectJsonAutoSync({
  * advertises snapshot support, mutations fail closed if the renderer cannot
  * prove which project is open.
  */
-const PROJECT_SCOPE_TIMEOUT_MS = 750;
+// Generous on purpose: right after a media batch-import the renderer can
+// be busy generating thumbnails/waveforms for seconds, and a too-tight
+// window makes every mutation guard flake with 503s. The guard still
+// fails closed when the snapshot never arrives.
+const PROJECT_SCOPE_TIMEOUT_MS = 5000;
 
 export async function assertProjectIsOpen({
 	accessor,
@@ -1605,6 +1610,7 @@ export function registerSharedRoutes(
 				accessor,
 			});
 			const requiresRendererExport =
+				(req.body as { engine?: string } | undefined)?.engine === "muxer" ||
 				hasStickerRuntimeForExport({
 					mediaItems: mediaFiles,
 					tracks: timeline.tracks,
@@ -1614,7 +1620,8 @@ export function registerSharedRoutes(
 					scope: "timeline",
 					tracks: timeline.tracks,
 				}).length > 0 ||
-				timelineRequiresRendererPortraitExport({ timeline });
+				timelineRequiresRendererPortraitExport({ timeline }) ||
+				timelineRequiresRendererFilterStackExport({ timeline });
 			if (requiresRendererExport) {
 				if (!accessor.requestLocalVideoExport) {
 					throw new HttpError(

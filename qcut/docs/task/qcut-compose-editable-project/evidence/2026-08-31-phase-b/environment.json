@@ -1,0 +1,9 @@
+{
+  "date": "2026-08-31",
+  "hardware": "Apple M4 Pro (14 cores, 48 GiB RAM)",
+  "os": "26.5.2",
+  "appBranch": "codex/compose-labs-complete (labs worktree, running app)",
+  "cliBranch": "codex/compose-editable-project-v2 (editable worktree)",
+  "cliCommit": "f0dd90a28366c05111197001ec37390981f19b46",
+  "projectId": "1a515458-931e-4ece-a6fe-c0102fbe7c3a"
+}

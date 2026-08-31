@@ -1,0 +1,3 @@
+window 2s+3s: [Parsed_astats_0 @ 0x1436253a0] RMS level dB: -33.507413
+window 14s+3s: [Parsed_astats_0 @ 0x111e04ab0] RMS level dB: -28.777308
+window 25s+3s: [Parsed_astats_0 @ 0x1371042e0] RMS level dB: -24.855013

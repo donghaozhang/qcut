@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+import { promises as fs } from "node:fs";
+import { basename, isAbsolute } from "node:path";
 import { resolveStickerLabRootOverride } from "../cli/sticker-lab-root.js";
 import {
 	importStickerLabReference,
@@ -17,6 +20,10 @@ import {
 	type ComposeTransitionResolution,
 	type MaterializedComposeSound,
 } from "./compose-lab-resource-resolver.js";
+import {
+	resolveComposeFilterStack,
+	type ResolvedComposeFilterEffect,
+} from "./compose-filter-stack-resolver.js";
 import type {
 	ComposePatch,
 	ComposePatchOperation,
@@ -47,9 +54,21 @@ export interface ComposeTransitionEditorBinding {
 	maskShape?: string;
 }
 
+export interface ComposeMediaClipEditorBinding {
+	path: string;
+	filename?: string;
+}
+
+export interface ComposeFilterStackEditorBinding {
+	effects: ResolvedComposeFilterEffect[];
+	warnings: string[];
+}
+
 export interface ComposeEditorAssetBinding {
 	sticker?: ComposeStickerEditorBinding;
 	transition?: ComposeTransitionEditorBinding;
+	mediaClip?: ComposeMediaClipEditorBinding;
+	filterStack?: ComposeFilterStackEditorBinding;
 }
 
 export type ComposeEditorAssetBindings = Record<
@@ -70,6 +89,7 @@ export interface ComposeEditorAssetPreparerDependencies {
 	rollbackStickerMedia: typeof rollbackStickerLabMedia;
 	materializeSound: typeof materializeComposeSoundLabReference;
 	resolveTransition: typeof resolveComposeTransitionReference;
+	resolveFilterStack: typeof resolveComposeFilterStack;
 }
 
 const DEFAULT_DEPENDENCIES: ComposeEditorAssetPreparerDependencies = {
@@ -79,6 +99,7 @@ const DEFAULT_DEPENDENCIES: ComposeEditorAssetPreparerDependencies = {
 	rollbackStickerMedia: rollbackStickerLabMedia,
 	materializeSound: materializeComposeSoundLabReference,
 	resolveTransition: resolveComposeTransitionReference,
+	resolveFilterStack: resolveComposeFilterStack,
 };
 
 interface PreparedOperation {
@@ -209,6 +230,37 @@ function transitionResolutionPromise({
 	return pending;
 }
 
+async function resolveMediaClipBinding({
+	operation,
+}: {
+	operation: Extract<ComposePatchOperation, { kind: "insert-media-clip" }>;
+}): Promise<ComposeMediaClipEditorBinding> {
+	const localPath = operation.asset.localPath;
+	if (!localPath || !isAbsolute(localPath)) {
+		throw new Error(
+			`Media clip ${operation.id} needs an absolute localPath on its asset.`
+		);
+	}
+	const stats = await fs.stat(localPath).catch(() => null);
+	if (!stats?.isFile() || stats.size === 0) {
+		throw new Error(
+			`Media clip ${operation.id} source is missing or empty: ${localPath}`
+		);
+	}
+	const expectedSha = operation.asset.provenance?.sha256;
+	if (typeof expectedSha === "string" && expectedSha.length === 64) {
+		const digest = createHash("sha256")
+			.update(await fs.readFile(localPath))
+			.digest("hex");
+		if (digest !== expectedSha) {
+			throw new Error(
+				`Media clip ${operation.id} failed its checksum: expected ${expectedSha}, got ${digest}.`
+			);
+		}
+	}
+	return { path: localPath, filename: basename(localPath) };
+}
+
 async function prepareOperation({
 	operation,
 	client,
@@ -274,6 +326,31 @@ async function prepareOperation({
 					...operation.asset,
 					localPath: materialized.localPath,
 					cacheKey: materialized.sha256,
+				},
+			},
+			importedMediaIds: [],
+		};
+	}
+	if (operation.kind === "insert-media-clip") {
+		return {
+			operation,
+			binding: { mediaClip: await resolveMediaClipBinding({ operation }) },
+			importedMediaIds: [],
+		};
+	}
+	if (
+		operation.kind === "set-media-filter-stack" ||
+		operation.kind === "add-filter-layer"
+	) {
+		const resolved = await dependencies.resolveFilterStack({
+			steps: operation.filters,
+		});
+		return {
+			operation,
+			binding: {
+				filterStack: {
+					effects: resolved.effects,
+					warnings: resolved.warnings,
 				},
 			},
 			importedMediaIds: [],

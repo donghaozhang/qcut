@@ -21,6 +21,7 @@ import type {
 	MediaAdjustments,
 	MediaAnimationType,
 	MediaColorSettings,
+	MediaFilterStack,
 	MediaMask,
 	StickerAnimationLoopType,
 	TextAnimationsV1,
@@ -523,6 +524,82 @@ type ClaudeAdjustmentFields = Partial<{
 	adjustments: MediaAdjustments;
 	masks: MediaMask[];
 }>;
+
+const FILTER_STACK_FIDELITIES = new Set([
+	"lut",
+	"structural",
+	"native-local",
+	"safe-passthrough",
+]);
+
+/**
+ * Validates an untrusted `filterStack` payload from the bridge. Invalid
+ * shapes throw (matching enhancements/keyframes behavior) so a malformed
+ * stack fails the batch instead of being silently dropped.
+ */
+export function parseClaudeMediaFilterStack({
+	value,
+}: {
+	value: unknown;
+}): MediaFilterStack {
+	if (!isPlainObject(value)) {
+		throw new Error("filterStack must be an object");
+	}
+	const stack = value as Record<string, unknown>;
+	if (typeof stack.enabled !== "boolean") {
+		throw new Error("filterStack.enabled must be a boolean");
+	}
+	if (!Array.isArray(stack.effects) || stack.effects.length > 16) {
+		throw new Error("filterStack.effects must be an array of at most 16");
+	}
+	const seenIds = new Set<string>();
+	for (const [index, entry] of stack.effects.entries()) {
+		if (!isPlainObject(entry)) {
+			throw new Error(`filterStack.effects[${index}] must be an object`);
+		}
+		const effect = entry as Record<string, unknown>;
+		if (typeof effect.id !== "string" || effect.id.length === 0) {
+			throw new Error(`filterStack.effects[${index}].id must be a string`);
+		}
+		if (seenIds.has(effect.id)) {
+			throw new Error(`filterStack effect id ${effect.id} repeats`);
+		}
+		seenIds.add(effect.id);
+		if (typeof effect.enabled !== "boolean") {
+			throw new Error(`filterStack.effects[${index}].enabled must be boolean`);
+		}
+		if (typeof effect.resourceId !== "string" || !effect.resourceId) {
+			throw new Error(`filterStack.effects[${index}].resourceId is required`);
+		}
+		if (typeof effect.version !== "string" || !effect.version) {
+			throw new Error(`filterStack.effects[${index}].version is required`);
+		}
+		const intensity = effect.intensity;
+		if (
+			typeof intensity !== "number" ||
+			!Number.isFinite(intensity) ||
+			intensity < 0 ||
+			intensity > 100
+		) {
+			throw new Error(`filterStack.effects[${index}].intensity must be 0..100`);
+		}
+		if (typeof effect.implementation !== "string") {
+			throw new Error(
+				`filterStack.effects[${index}].implementation is required`
+			);
+		}
+		if (
+			typeof effect.fidelity !== "string" ||
+			!FILTER_STACK_FIDELITIES.has(effect.fidelity)
+		) {
+			throw new Error(`filterStack.effects[${index}].fidelity is invalid`);
+		}
+		if (!isPlainObject(effect.color)) {
+			throw new Error(`filterStack.effects[${index}].color must be an object`);
+		}
+	}
+	return value as unknown as MediaFilterStack;
+}
 
 export function getClaudeAdjustmentFields({
 	element,
@@ -1880,6 +1957,9 @@ function formatElementForExport({
 				audioFadeOut: element.audioFadeOut,
 				keyframes: element.keyframes as ClaudeElement["keyframes"],
 				colorSettings: resolveExportElementColorSettings({ element }),
+				// Raw ordered Filter Lab stack; identity + payload round-trips
+				// verbatim so apply-side read-back can digest-compare it.
+				filterStack: element.filterStack,
 				timelineDuration,
 			};
 		}

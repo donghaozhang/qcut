@@ -1,0 +1,4 @@
+window 5s+2.5s (applause-2x): [Parsed_astats_0 @ 0x133622bf0] RMS level dB: -18.067731
+window 6.2s+2.5s (laugh-overlap): [Parsed_astats_0 @ 0x143f07730] RMS level dB: -21.118431
+window 20s+5s (sitcom-fadeout): [Parsed_astats_0 @ 0x14c804bc0] RMS level dB: -23.788299
+window 16s+2.5s (no-sfx-reference): [Parsed_astats_0 @ 0x125f05100] RMS level dB: -27.701940

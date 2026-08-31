@@ -1,0 +1,72 @@
+{
+ "schemaVersion": 1,
+ "canvas": {
+  "width": 1920,
+  "height": 1080,
+  "fps": 30
+ },
+ "clips": [
+  {
+   "id": "c1",
+   "source": "../editable-phase-b/clip1.mp4",
+   "trim": {
+    "in": 0,
+    "out": 10
+   },
+   "filters": [
+    {
+     "resourceId": "9999999999999999999",
+     "intensity": 100
+    }
+   ]
+  },
+  {
+   "id": "c2",
+   "source": "../editable-phase-b/clip2.mp4",
+   "trim": {
+    "in": 0,
+    "out": 10
+   },
+   "filters": [
+    {
+     "resourceId": "7647099764940557618",
+     "intensity": 100
+    },
+    {
+     "resourceId": "7639191499833429274",
+     "intensity": 60
+    }
+   ]
+  },
+  {
+   "id": "c3",
+   "source": "../editable-phase-b/clip3.mp4",
+   "trim": {
+    "in": 0,
+    "out": 10
+   },
+   "filters": [
+    {
+     "resourceId": "7617814057051016484",
+     "intensity": 100
+    }
+   ]
+  }
+ ],
+ "transitions": [
+  {
+   "between": [
+    "c1",
+    "c2"
+   ],
+   "duration": 0.5
+  },
+  {
+   "between": [
+    "c2",
+    "c3"
+   ],
+   "duration": 0.5
+  }
+ ]
+}
