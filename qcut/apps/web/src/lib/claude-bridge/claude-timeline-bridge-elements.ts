@@ -24,6 +24,7 @@ import {
 	getClaudeTextProperties,
 	getClaudeMediaTimingProperties,
 	resolveClaudeStickerRuntime,
+	parseClaudeMediaFilterStack,
 } from "./claude-timeline-bridge-helpers";
 import type { ClaudeTimelineBridgeAPI } from "./claude-timeline-bridge";
 import {
@@ -87,6 +88,12 @@ export const applyElementChanges = ({
 			);
 			return false;
 		}
+		// Validate up front: a malformed stack must fail the whole update
+		// before any state (history, timing, trims) has been touched.
+		const parsedFilterStack =
+			changes.filterStack !== undefined
+				? parseClaudeMediaFilterStack({ value: changes.filterStack })
+				: undefined;
 		const updatesColorLabel = Object.hasOwn(changes, "colorLabel");
 		const colorLabel = updatesColorLabel
 			? parseTimelineColorLabel({ value: changes.colorLabel })
@@ -279,6 +286,9 @@ export const applyElementChanges = ({
 					throw new Error("keyframes must be an object");
 				}
 				mediaUpdates.keyframes = changes.keyframes as MediaElement["keyframes"];
+			}
+			if (parsedFilterStack !== undefined) {
+				mediaUpdates.filterStack = parsedFilterStack;
 			}
 			if (Object.keys(mediaUpdates).length > 0) {
 				timelineStore.updateMediaElement(

@@ -1,0 +1,1922 @@
+{
+  "schemaVersion": 1,
+  "id": "070b7303-4cf7-4c9e-bb27-122084ec73b8",
+  "createdAt": "2026-08-30T17:47:34.429Z",
+  "sourceFingerprint": "ae7c4f71aa97e3af16a76bfd3e56d646bc9f29938b5a8e43f06e7024d653c628",
+  "project": {
+    "id": "1a515458-931e-4ece-a6fe-c0102fbe7c3a",
+    "fps": 30,
+    "canvasSize": {
+      "width": 1920,
+      "height": 1080
+    },
+    "duration": 28.75
+  },
+  "media": [
+    {
+      "id": "media_Y2xpcDEubXA0",
+      "kind": "video",
+      "trackId": "f88db652-bf17-46fc-a812-07f544308382",
+      "elementId": "cmp-d04c4cfc5c91c3624a3a9dfc",
+      "startTime": 0,
+      "duration": 9.75,
+      "trimStart": 0
+    },
+    {
+      "id": "media_Y2xpcDIubXA0",
+      "kind": "video",
+      "trackId": "f88db652-bf17-46fc-a812-07f544308382",
+      "elementId": "cmp-7cd50d36fae76165c95f0c2b",
+      "startTime": 9.75,
+      "duration": 9.5,
+      "trimStart": 0.25
+    },
+    {
+      "id": "media_Y2xpcDMubXA0",
+      "kind": "video",
+      "trackId": "f88db652-bf17-46fc-a812-07f544308382",
+      "elementId": "cmp-2ad8e9a9549d3a91e99756d0",
+      "startTime": 19.25,
+      "duration": 9.75,
+      "trimStart": 0.25
+    }
+  ],
+  "captions": [],
+  "beats": [],
+  "shots": [],
+  "availableResources": [
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7437023238108105995",
+      "displayName": "红圈 圈重点",
+      "tags": [
+        "热门",
+        "剪映贴纸分类 endpoint row 1182",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "10515",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7437023640958291219",
+      "displayName": "黄色箭头向左下指引",
+      "tags": [
+        "热门",
+        "剪映贴纸分类 endpoint row 1182",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "10515",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7383960561135996211",
+      "displayName": "夏日限定甜美可爱Y2K标题",
+      "tags": [
+        "热门",
+        "剪映贴纸分类 endpoint row 1182",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "10515",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7383962876756692262",
+      "displayName": "如果你想快乐英文点击界面像素云",
+      "tags": [
+        "热门",
+        "剪映贴纸分类 endpoint row 1182",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "10515",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7661895332271377688",
+      "displayName": "水豚噜噜-进度条",
+      "tags": [
+        "🍊水豚噜噜",
+        "剪映贴纸分类 endpoint row 1183",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "5914954",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7661906741831093529",
+      "displayName": "水豚噜噜-彩色星星",
+      "tags": [
+        "🍊水豚噜噜",
+        "剪映贴纸分类 endpoint row 1183",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "5914954",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7667353037438176536",
+      "displayName": "水豚噜噜-惊讶",
+      "tags": [
+        "🍊水豚噜噜",
+        "剪映贴纸分类 endpoint row 1183",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "5914954",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7667035372702092568",
+      "displayName": "水豚噜噜-关注我",
+      "tags": [
+        "🍊水豚噜噜",
+        "剪映贴纸分类 endpoint row 1183",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "5914954",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7638191599641546009",
+      "displayName": "线条小狗-蹦跳撒花",
+      "tags": [
+        "🐶线条小狗",
+        "剪映贴纸分类 endpoint row 1184",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "5914728",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7602178694878235929",
+      "displayName": "线条小狗-旅行拍照",
+      "tags": [
+        "🐶线条小狗",
+        "剪映贴纸分类 endpoint row 1184",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "5914728",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7637083911151045912",
+      "displayName": "线条小狗-快乐跳跃",
+      "tags": [
+        "🐶线条小狗",
+        "剪映贴纸分类 endpoint row 1184",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "5914728",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7602174250677439806",
+      "displayName": "线条小狗-互动-超推荐",
+      "tags": [
+        "🐶线条小狗",
+        "剪映贴纸分类 endpoint row 1184",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "5914728",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7437023409881550121",
+      "displayName": "疑问 黄色问号",
+      "tags": [
+        "👍互动",
+        "剪映贴纸分类 endpoint row 1186",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "10523",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7480089187409153305",
+      "displayName": "像素互动-点击手势",
+      "tags": [
+        "👍互动",
+        "剪映贴纸分类 endpoint row 1186",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "10523",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7525695400712654105",
+      "displayName": "综艺情绪-生气元素",
+      "tags": [
+        "👍互动",
+        "剪映贴纸分类 endpoint row 1186",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "10523",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7566184879830994201",
+      "displayName": "生气",
+      "tags": [
+        "👍互动",
+        "剪映贴纸分类 endpoint row 1186",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "10523",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7659734709911424318",
+      "displayName": "记录拍照小白可爱卡通",
+      "tags": [
+        "🍉夏日",
+        "剪映贴纸分类 endpoint row 1185",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "5914412",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7659688280841178393",
+      "displayName": "夏日粘土-大块西瓜",
+      "tags": [
+        "🍉夏日",
+        "剪映贴纸分类 endpoint row 1185",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "5914412",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7659263440242117912",
+      "displayName": "可爱的小太阳",
+      "tags": [
+        "🍉夏日",
+        "剪映贴纸分类 endpoint row 1185",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "5914412",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7632371465672772888",
+      "displayName": "不期而遇的夏天",
+      "tags": [
+        "🍉夏日",
+        "剪映贴纸分类 endpoint row 1185",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "5914412",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7604216596185222424",
+      "displayName": "粉红兔子-摇摆",
+      "tags": [
+        "🐰粉红兔子",
+        "剪映贴纸分类 endpoint row 1187",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "5914747",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7633755207553289497",
+      "displayName": "粉红兔子-520 心跳加速",
+      "tags": [
+        "🐰粉红兔子",
+        "剪映贴纸分类 endpoint row 1187",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "5914747",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7618981860072787225",
+      "displayName": "粉红兔子-互动-超推荐",
+      "tags": [
+        "🐰粉红兔子",
+        "剪映贴纸分类 endpoint row 1187",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "5914747",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "sticker",
+      "assetId": "sticker-lab:jianying-2026-07-31:7596249823058103577",
+      "displayName": "粉红兔子-情人节爱心",
+      "tags": [
+        "🐰粉红兔子",
+        "剪映贴纸分类 endpoint row 1187",
+        "preview-gif"
+      ],
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true
+      },
+      "provenance": {
+        "backend": "sticker-lab",
+        "batchId": "jianying-2026-07-31",
+        "categoryId": "5914747",
+        "sourceKind": "preview-gif",
+        "animated": true
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000324894",
+      "displayName": "Crowd laugh",
+      "tags": [
+        "综艺感",
+        "笑声"
+      ],
+      "duration": 3.309188,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000371562",
+      "displayName": "Sitcom Laughter with Applause, Small Audience",
+      "tags": [
+        "综艺感",
+        "笑声"
+      ],
+      "duration": 5.8,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000347547",
+      "displayName": "Applause",
+      "tags": [
+        "综艺感",
+        "笑声"
+      ],
+      "duration": 8.940295,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000017121",
+      "displayName": "small audience laughter",
+      "tags": [
+        "综艺感",
+        "笑声"
+      ],
+      "duration": 3.445102,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000017122",
+      "displayName": "bell crowd laughter",
+      "tags": [
+        "综艺感",
+        "笑声"
+      ],
+      "duration": 4.696553,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000346682",
+      "displayName": "Crowd awkward laughter",
+      "tags": [
+        "综艺感",
+        "笑声"
+      ],
+      "duration": 5.257542,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000452749",
+      "displayName": "Laughter",
+      "tags": [
+        "综艺感",
+        "笑声"
+      ],
+      "duration": 2.48,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000242244",
+      "displayName": "ShortStockLaughter2",
+      "tags": [
+        "综艺感",
+        "笑声"
+      ],
+      "duration": 2.022857,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000452748",
+      "displayName": "Laughter",
+      "tags": [
+        "综艺感",
+        "笑声"
+      ],
+      "duration": 1.28,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000767470",
+      "displayName": "Female crowd laughing",
+      "tags": [
+        "综艺感",
+        "笑声"
+      ],
+      "duration": 12,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000866519",
+      "displayName": "Sci-Fi Sub Drop 1",
+      "tags": [
+        "最新",
+        "热门"
+      ],
+      "duration": 3.559569,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000866444",
+      "displayName": "Alert Monster",
+      "tags": [
+        "最新",
+        "热门"
+      ],
+      "duration": 3.387506,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000676000",
+      "displayName": "S24-24 Comedy cartoon cork pop",
+      "tags": [
+        "综艺感",
+        "网感口播🔥"
+      ],
+      "duration": 1.109667,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000814305",
+      "displayName": "Pop Gun",
+      "tags": [
+        "综艺感",
+        "网感口播🔥"
+      ],
+      "duration": 1.250188,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000432288",
+      "displayName": "Magic Circle Medium Ringing SFX",
+      "tags": [
+        "抽象",
+        "魔法"
+      ],
+      "duration": 3.036979,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000388750",
+      "displayName": "Dystopian Future - FX Sounds (7)",
+      "tags": [
+        "环境音",
+        "悬疑"
+      ],
+      "duration": 17.194458,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000240566",
+      "displayName": "blip-plock-pop",
+      "tags": [
+        "综艺感"
+      ],
+      "duration": 11.825333,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000169349",
+      "displayName": "Cartoon Blink",
+      "tags": [
+        "综艺感"
+      ],
+      "duration": 6.035351,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000511485",
+      "displayName": "cartoon_wink_magic_sparkle",
+      "tags": [
+        "综艺感"
+      ],
+      "duration": 1.271293,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000407258",
+      "displayName": "Ding! idea",
+      "tags": [
+        "综艺感"
+      ],
+      "duration": 3.3578,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000161122",
+      "displayName": "Cartoon Boing",
+      "tags": [
+        "综艺感"
+      ],
+      "duration": 2.252354,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000019284",
+      "displayName": "cartoon poppyup appearances -0001",
+      "tags": [
+        "综艺感"
+      ],
+      "duration": 1.484966,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000417994",
+      "displayName": "Body fall",
+      "tags": [
+        "综艺感"
+      ],
+      "duration": 1.783542,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "qcut",
+      "assetType": "sound-effect",
+      "assetId": "sound-effects-lab:8800000000000348845",
+      "displayName": "cartoon blinking",
+      "tags": [
+        "综艺感"
+      ],
+      "duration": 0.267029,
+      "availability": "downloadable",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": true,
+        "requiresAuth": true
+      },
+      "provenance": {
+        "backend": "sound-effects-lab",
+        "provider": "freesound",
+        "redistribution": "allowed"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "lab-clean-dissolve",
+      "displayName": "实验叠化",
+      "tags": [
+        "Clean Dissolve",
+        "dissolve"
+      ],
+      "duration": 0.5,
+      "availability": "ready",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false
+      },
+      "provenance": {
+        "backend": "transition-lab",
+        "origin": "qcut-clean-room"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "lab-quint-move-left",
+      "displayName": "五次缓动左移",
+      "tags": [
+        "Quint Move Left",
+        "push",
+        "right"
+      ],
+      "duration": 1,
+      "availability": "ready",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false
+      },
+      "provenance": {
+        "backend": "transition-lab",
+        "origin": "qcut-clean-room"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "lab-quint-move-right",
+      "displayName": "五次缓动右移",
+      "tags": [
+        "Quint Move Right",
+        "push",
+        "left"
+      ],
+      "duration": 1,
+      "availability": "ready",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false
+      },
+      "provenance": {
+        "backend": "transition-lab",
+        "origin": "qcut-clean-room"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "lab-page-curl",
+      "displayName": "实验卷页",
+      "tags": [
+        "Clean-room Page Curl",
+        "page-flip",
+        "left"
+      ],
+      "duration": 0.5,
+      "availability": "ready",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false
+      },
+      "provenance": {
+        "backend": "transition-lab",
+        "origin": "qcut-clean-room"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "lab-horizontal-smear",
+      "displayName": "实验横移模糊",
+      "tags": [
+        "Horizontal Smear",
+        "motion-blur",
+        "left"
+      ],
+      "duration": 0.8,
+      "availability": "ready",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false
+      },
+      "provenance": {
+        "backend": "transition-lab",
+        "origin": "qcut-clean-room"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "lab-cube-rotate",
+      "displayName": "实验立方旋转",
+      "tags": [
+        "Shared Cube Rotate",
+        "cube",
+        "left"
+      ],
+      "duration": 1,
+      "availability": "ready",
+      "license": "commercial-ok",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false
+      },
+      "provenance": {
+        "backend": "transition-lab",
+        "origin": "qcut-clean-room"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "jianying-local-overlay",
+      "displayName": "叠加",
+      "tags": [
+        "Overlay",
+        "dissolve",
+        "simple-glsl",
+        "dissolve"
+      ],
+      "duration": 1,
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false,
+        "requiresLocalRuntime": true
+      },
+      "provenance": {
+        "backend": "jianying-local",
+        "group": "dissolve",
+        "access": "free",
+        "runtimeKind": "transition-segment"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "jianying-local-6724845717472416269",
+      "displayName": "叠化",
+      "tags": [
+        "叠化",
+        "dissolve",
+        "catalog-package",
+        "dissolve"
+      ],
+      "duration": 0.5,
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false,
+        "requiresLocalRuntime": true
+      },
+      "provenance": {
+        "backend": "jianying-local",
+        "group": "dissolve",
+        "access": "free",
+        "runtimeKind": "transition-segment"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "jianying-local-6789846828788486664",
+      "displayName": "画笔擦除",
+      "tags": [
+        "画笔擦除",
+        "dissolve",
+        "catalog-package",
+        "dissolve"
+      ],
+      "duration": 0.5,
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false,
+        "requiresLocalRuntime": true
+      },
+      "provenance": {
+        "backend": "jianying-local",
+        "group": "dissolve",
+        "access": "free",
+        "runtimeKind": "transition-segment"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "jianying-local-6919369138800431629",
+      "displayName": "渐变擦除",
+      "tags": [
+        "渐变擦除",
+        "dissolve",
+        "catalog-package",
+        "dissolve"
+      ],
+      "duration": 1,
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false,
+        "requiresLocalRuntime": true
+      },
+      "provenance": {
+        "backend": "jianying-local",
+        "group": "dissolve",
+        "access": "free",
+        "runtimeKind": "transition-segment"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "jianying-local-6724846004274729480",
+      "displayName": "色彩溶解",
+      "tags": [
+        "色彩溶解",
+        "dissolve",
+        "catalog-package",
+        "dissolve"
+      ],
+      "duration": 0.5,
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false,
+        "requiresLocalRuntime": true
+      },
+      "provenance": {
+        "backend": "jianying-local",
+        "group": "dissolve",
+        "access": "free",
+        "runtimeKind": "transition-segment"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "jianying-local-6724866927933526542",
+      "displayName": "色彩溶解 II",
+      "tags": [
+        "色彩溶解 II",
+        "dissolve",
+        "catalog-package",
+        "dissolve"
+      ],
+      "duration": 1,
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false,
+        "requiresLocalRuntime": true
+      },
+      "provenance": {
+        "backend": "jianying-local",
+        "group": "dissolve",
+        "access": "free",
+        "runtimeKind": "transition-segment"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "jianying-local-6724867032312975875",
+      "displayName": "色彩溶解 III",
+      "tags": [
+        "色彩溶解 III",
+        "dissolve",
+        "catalog-package",
+        "dissolve"
+      ],
+      "duration": 1,
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false,
+        "requiresLocalRuntime": true
+      },
+      "provenance": {
+        "backend": "jianying-local",
+        "group": "dissolve",
+        "access": "free",
+        "runtimeKind": "transition-segment"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "jianying-local-6724845376098013708",
+      "displayName": "闪白",
+      "tags": [
+        "闪白",
+        "dissolve",
+        "catalog-package",
+        "dissolve"
+      ],
+      "duration": 0.5,
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false,
+        "requiresLocalRuntime": true
+      },
+      "provenance": {
+        "backend": "jianying-local",
+        "group": "dissolve",
+        "access": "free",
+        "runtimeKind": "transition-segment"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "jianying-local-7306818286413419017",
+      "displayName": "闪白 II",
+      "tags": [
+        "闪白 II",
+        "dissolve",
+        "catalog-package",
+        "dissolve"
+      ],
+      "duration": 0.3,
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false,
+        "requiresLocalRuntime": true
+      },
+      "provenance": {
+        "backend": "jianying-local",
+        "group": "dissolve",
+        "access": "free",
+        "runtimeKind": "transition-segment"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "jianying-local-6724239388189921806",
+      "displayName": "闪黑",
+      "tags": [
+        "闪黑",
+        "dissolve",
+        "catalog-package",
+        "dissolve"
+      ],
+      "duration": 0.5,
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false,
+        "requiresLocalRuntime": true
+      },
+      "provenance": {
+        "backend": "jianying-local",
+        "group": "dissolve",
+        "access": "free",
+        "runtimeKind": "transition-segment"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "jianying-local-6789847231873683976",
+      "displayName": "水墨",
+      "tags": [
+        "水墨",
+        "dissolve",
+        "catalog-package",
+        "dissolve"
+      ],
+      "duration": 0.5,
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false,
+        "requiresLocalRuntime": true
+      },
+      "provenance": {
+        "backend": "jianying-local",
+        "group": "dissolve",
+        "access": "free",
+        "runtimeKind": "transition-segment"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "jianying-local-7216171159589491259",
+      "displayName": "雾化",
+      "tags": [
+        "雾化",
+        "dissolve",
+        "catalog-package",
+        "dissolve"
+      ],
+      "duration": 1.2,
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false,
+        "requiresLocalRuntime": true
+      },
+      "provenance": {
+        "backend": "jianying-local",
+        "group": "dissolve",
+        "access": "free",
+        "runtimeKind": "transition-segment"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "jianying-local-6955722927161479694",
+      "displayName": "云朵",
+      "tags": [
+        "云朵",
+        "dissolve",
+        "catalog-package",
+        "dissolve"
+      ],
+      "duration": 0.5,
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false,
+        "requiresLocalRuntime": true
+      },
+      "provenance": {
+        "backend": "jianying-local",
+        "group": "dissolve",
+        "access": "free",
+        "runtimeKind": "transition-segment"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "jianying-local-7598083584708054335",
+      "displayName": "爱心喷漆",
+      "tags": [
+        "爱心喷漆",
+        "dissolve",
+        "catalog-package",
+        "dissolve"
+      ],
+      "duration": 2,
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false,
+        "requiresLocalRuntime": true
+      },
+      "provenance": {
+        "backend": "jianying-local",
+        "group": "dissolve",
+        "access": "vip",
+        "runtimeKind": "transition-segment"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "jianying-local-7435897594078843419",
+      "displayName": "笔迹涂抹",
+      "tags": [
+        "笔迹涂抹",
+        "dissolve",
+        "catalog-package",
+        "dissolve"
+      ],
+      "duration": 2,
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false,
+        "requiresLocalRuntime": true
+      },
+      "provenance": {
+        "backend": "jianying-local",
+        "group": "dissolve",
+        "access": "vip",
+        "runtimeKind": "transition-segment"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "jianying-local-7361758664182469157",
+      "displayName": "波光粼粼",
+      "tags": [
+        "波光粼粼",
+        "dissolve",
+        "catalog-package",
+        "dissolve"
+      ],
+      "duration": 1.1666,
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false,
+        "requiresLocalRuntime": true
+      },
+      "provenance": {
+        "backend": "jianying-local",
+        "group": "dissolve",
+        "access": "vip",
+        "runtimeKind": "transition-segment"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "jianying-local-7573613324462492955",
+      "displayName": "波浪擦除",
+      "tags": [
+        "波浪擦除",
+        "dissolve",
+        "catalog-package",
+        "dissolve"
+      ],
+      "duration": 2,
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false,
+        "requiresLocalRuntime": true
+      },
+      "provenance": {
+        "backend": "jianying-local",
+        "group": "dissolve",
+        "access": "vip",
+        "runtimeKind": "transition-segment"
+      }
+    },
+    {
+      "provider": "local",
+      "assetType": "transition",
+      "assetId": "jianying-local-7524662056595819795",
+      "displayName": "波纹叠化",
+      "tags": [
+        "波纹叠化",
+        "dissolve",
+        "catalog-package",
+        "dissolve"
+      ],
+      "duration": 2.000001,
+      "availability": "ready",
+      "license": "personal-only",
+      "capabilities": {
+        "preview": true,
+        "editorApply": true,
+        "editorExport": true,
+        "headlessRender": false,
+        "requiresLocalRuntime": true
+      },
+      "provenance": {
+        "backend": "jianying-local",
+        "group": "dissolve",
+        "access": "vip",
+        "runtimeKind": "transition-segment"
+      }
+    }
+  ],
+  "resourceWarnings": [
+    "Sound Effects Lab omitted 1422 reference-only asset(s) from Compose candidates."
+  ],
+  "capabilities": {
+    "headlessRender": true,
+    "editorApply": true,
+    "editorExport": true,
+    "resourceBroker": true,
+    "jianyingLocalTransitions": true
+  }
+}

@@ -129,6 +129,7 @@ const MEDIA_ELEMENT_KEYS = createAllowedKeySet<MediaElement>({
 		effectIds: true,
 		effects: true,
 		enhancements: true,
+		filterStack: true,
 		fitMode: true,
 		flipHorizontal: true,
 		flipVertical: true,

@@ -4,6 +4,14 @@ import type {
 	ComposeSnapshot,
 } from "./compose-protocol.js";
 import type { ComposeEditorAssetBindings } from "./compose-editor-asset-preparer.js";
+import {
+	lanedComposeTracks,
+	type LanedElement,
+} from "./compose-timeline-lanes.js";
+import {
+	MAIN_VIDEO_TRACK_ALIAS,
+	planComposeMediaClips,
+} from "./compose-timeline-media.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -19,6 +27,8 @@ export interface ComposeTimelineManifestPlan {
 	plannedOperationIds: string[];
 	/** Operation ids that became manifest transitions. */
 	plannedTransitionOperationIds: string[];
+	/** Operation ids applied as element updates (e.g. filter stacks). */
+	plannedUpdateOperationIds: string[];
 	skipped: ComposeSkippedOperation[];
 }
 
@@ -26,53 +36,13 @@ const TEXT_TRACK_ALIAS = "compose-text";
 const CAPTION_TRACK_ALIAS = "compose-captions";
 const STICKER_TRACK_ALIAS = "compose-stickers";
 const AUDIO_TRACK_ALIAS = "compose-audio";
+const ADJUSTMENT_TRACK_ALIAS = "compose-adjustments";
 
-/** A manifest element together with the timeline span it will occupy. */
-interface LanedElement {
-	element: JsonRecord;
-	start: number;
-	end: number;
-}
-
-/**
- * Partitions elements into non-overlapping lanes and emits one track per
- * lane. QCut tracks refuse overlapping elements, but overlapping compose
- * operations (layered sound effects, simultaneous stickers) are legitimate —
- * they belong on parallel tracks, the way an editor would lay them out.
- */
-function lanedComposeTracks({
-	alias,
-	type,
-	name,
-	entries,
+export function editorTransitionPreset({
+	presetId,
 }: {
-	alias: string;
-	type: string;
-	name: string;
-	entries: LanedElement[];
-}): JsonRecord[] {
-	const sorted = [...entries].sort(
-		(left, right) => left.start - right.start || left.end - right.end
-	);
-	const lanes: Array<{ end: number; elements: JsonRecord[] }> = [];
-	for (const entry of sorted) {
-		const lane = lanes.find((candidate) => candidate.end <= entry.start);
-		if (lane) {
-			lane.end = entry.end;
-			lane.elements.push(entry.element);
-		} else {
-			lanes.push({ end: entry.end, elements: [entry.element] });
-		}
-	}
-	return lanes.map((lane, index) => ({
-		alias: index === 0 ? alias : `${alias}-${index + 1}`,
-		type,
-		name: index === 0 ? name : `${name} ${index + 1}`,
-		elements: lane.elements,
-	}));
-}
-
-function editorTransitionPreset({ presetId }: { presetId: string }): string {
+	presetId: string;
+}): string {
 	return presetId === "crossfade" ? "dissolve" : presetId;
 }
 
@@ -189,6 +159,47 @@ function soundSourceDuration({
 }
 
 /**
+ * Builds one adjustment-element color payload from an ordered filter layer.
+ * A single effect keeps its native payload; a pure-LUT chain compiles into
+ * one ordered multiPass program. Mixed multi-effect layers return undefined
+ * so the caller reports them instead of silently reordering backends.
+ */
+function adjustmentLayerColor({
+	operationId,
+	name,
+	effects,
+}: {
+	operationId: string;
+	name?: string;
+	effects: Array<{
+		intensity: number;
+		color: { lut?: Record<string, unknown>; multiPass?: JsonRecord };
+	}>;
+}): JsonRecord | undefined {
+	if (effects.length === 1) {
+		const only = effects[0];
+		if (!only.color.lut && !only.color.multiPass) return;
+		return { enabled: true, ...only.color };
+	}
+	if (!effects.every((effect) => effect.color.lut?.cube)) return;
+	return {
+		enabled: true,
+		multiPass: {
+			enabled: true,
+			presetId: `compose:${operationId}`,
+			name: name ?? "Compose Filter Layer",
+			intensity: 100,
+			fidelity: "structural",
+			passes: effects.map((effect) => ({
+				kind: "lut",
+				cube: effect.color.lut?.cube,
+				intensity: effect.intensity,
+			})),
+		},
+	};
+}
+
+/**
  * Converts an already-validated ComposePatch into the declarative manifest
  * accepted by `editor timeline apply`. Additive operations land on dedicated
  * compose tracks; transitions target the snapshot's existing elements.
@@ -203,11 +214,14 @@ export function timelineManifestFromComposePatch({
 	projectId,
 	snapshot,
 	bindings = {},
+	mainVideoTrackId,
 }: {
 	patch: ComposePatch;
 	projectId?: string;
 	snapshot?: ComposeSnapshot;
 	bindings?: ComposeEditorAssetBindings;
+	/** Existing main track id so media clips land on QCut's main track. */
+	mainVideoTrackId?: string;
 }): ComposeTimelineManifestPlan {
 	const textElements: LanedElement[] = [];
 	const captionElements: LanedElement[] = [];
@@ -216,9 +230,22 @@ export function timelineManifestFromComposePatch({
 	const media: JsonRecord[] = [];
 	const updates: JsonRecord[] = [];
 	const transitions: JsonRecord[] = [];
-	const plannedOperationIds: string[] = [];
+	const mediaPlan = planComposeMediaClips({
+		operations: patch.operations,
+		bindings,
+		mainVideoTrackId,
+	});
+	const plannedOperationIds: string[] = [...mediaPlan.plannedOperationIds];
 	const plannedTransitionOperationIds: string[] = [];
-	const skipped: ComposeSkippedOperation[] = [];
+	const plannedUpdateOperationIds: string[] = [];
+	const adjustmentElements: LanedElement[] = [];
+	const skipped: ComposeSkippedOperation[] = [...mediaPlan.skipped];
+	const pendingClipIds = new Set(
+		patch.operations
+			.filter((operation) => operation.kind === "insert-media-clip")
+			.map((operation) => operation.id)
+	);
+	const plannedClipIds = new Set(mediaPlan.plannedOperationIds);
 
 	for (const operation of patch.operations) {
 		switch (operation.kind) {
@@ -382,12 +409,36 @@ export function timelineManifestFromComposePatch({
 				break;
 			}
 			case "upsert-transition": {
+				const touchesPending =
+					pendingClipIds.has(operation.fromElementId) ||
+					pendingClipIds.has(operation.toElementId);
+				if (
+					touchesPending &&
+					!(
+						plannedClipIds.has(operation.fromElementId) &&
+						plannedClipIds.has(operation.toElementId)
+					)
+				) {
+					skipped.push({
+						operationId: operation.id,
+						kind: operation.kind,
+						reason:
+							"Transition endpoints reference pending clips that were not planned.",
+					});
+					break;
+				}
 				const binding = bindings[operation.id]?.transition;
 				const presetId = editorTransitionPreset({
 					presetId: binding?.presetId ?? operation.presetId,
 				});
 				transitions.push({
-					track: operation.trackId,
+					// The "main-video" marker only exists as a track alias when
+					// this patch also plans clips; resolve it to the real main
+					// track so transition-only replays still find their track.
+					track:
+						operation.trackId === MAIN_VIDEO_TRACK_ALIAS && mainVideoTrackId
+							? mainVideoTrackId
+							: operation.trackId,
 					from: operation.fromElementId,
 					to: operation.toElementId,
 					type: binding?.type ?? presetId,
@@ -409,10 +460,95 @@ export function timelineManifestFromComposePatch({
 				plannedTransitionOperationIds.push(operation.id);
 				break;
 			}
+			case "insert-media-clip":
+				// Planned separately by planComposeMediaClips above.
+				break;
+			case "set-media-filter-stack": {
+				const binding = bindings[operation.id]?.filterStack;
+				if (!binding) {
+					skipped.push({
+						operationId: operation.id,
+						kind: operation.kind,
+						reason: "No resolved filter stack was bound for this element.",
+					});
+					break;
+				}
+				const pendingTarget = pendingClipIds.has(operation.elementId);
+				if (pendingTarget && !plannedClipIds.has(operation.elementId)) {
+					skipped.push({
+						operationId: operation.id,
+						kind: operation.kind,
+						reason: "The pending target clip was not planned.",
+					});
+					break;
+				}
+				updates.push({
+					elementId: operation.elementId,
+					type: "media",
+					filterStack: { enabled: true, effects: binding.effects },
+				});
+				plannedUpdateOperationIds.push(operation.id);
+				break;
+			}
+			case "add-filter-layer": {
+				const binding = bindings[operation.id]?.filterStack;
+				const enabledEffects = binding?.effects.filter(
+					(effect) => effect.enabled
+				);
+				if (!enabledEffects || enabledEffects.length === 0) {
+					skipped.push({
+						operationId: operation.id,
+						kind: operation.kind,
+						reason: binding
+							? "The filter layer has no enabled effects."
+							: "No resolved filter stack was bound for this layer.",
+					});
+					break;
+				}
+				const color = adjustmentLayerColor({
+					operationId: operation.id,
+					name: operation.name,
+					effects: enabledEffects,
+				});
+				if (!color) {
+					skipped.push({
+						operationId: operation.id,
+						kind: operation.kind,
+						reason:
+							enabledEffects.length === 1
+								? "The effect resolved without a renderable color payload."
+								: "Multi-effect adjustment layers currently support LUT chains only.",
+					});
+					break;
+				}
+				adjustmentElements.push({
+					start: operation.startTime,
+					end: operation.startTime + operation.duration,
+					element: {
+						alias: operation.id,
+						id: operation.id,
+						type: "adjustment",
+						name: operation.name ?? "Compose Filter Layer",
+						startTime: operation.startTime,
+						duration: operation.duration,
+						color,
+					},
+				});
+				plannedOperationIds.push(operation.id);
+				break;
+			}
+			default:
+				skipped.push({
+					operationId: (operation as ComposePatchOperation).id,
+					kind: (operation as ComposePatchOperation).kind,
+					reason: "Unknown compose operation kind.",
+				});
+				break;
 		}
 	}
 
 	const tracks: JsonRecord[] = [
+		...mediaPlan.tracks,
 		...lanedComposeTracks({
 			alias: TEXT_TRACK_ALIAS,
 			type: "text",
@@ -437,18 +573,26 @@ export function timelineManifestFromComposePatch({
 			name: "Compose Sound Effects",
 			entries: audioElements,
 		}),
+		...lanedComposeTracks({
+			alias: ADJUSTMENT_TRACK_ALIAS,
+			type: "adjustment",
+			name: "Compose Filter Layers",
+			entries: adjustmentElements,
+		}),
 	];
 
+	const allMedia = [...mediaPlan.media, ...media];
 	return {
 		manifest: {
 			...(projectId ? { projectId } : {}),
-			...(media.length > 0 ? { media } : {}),
+			...(allMedia.length > 0 ? { media: allMedia } : {}),
 			tracks,
 			...(updates.length > 0 ? { updates } : {}),
 			...(transitions.length > 0 ? { transitions } : {}),
 		},
 		plannedOperationIds,
 		plannedTransitionOperationIds,
+		plannedUpdateOperationIds,
 		skipped,
 	};
 }

@@ -1,0 +1,125 @@
+{
+ "schemaVersion": 1,
+ "id": "phd-patch-bad",
+ "source": "local-heuristic",
+ "intentKind": "full-compose",
+ "mode": "idempotent",
+ "snapshotId": "ef90c1dd-93cf-4854-9ab9-e24af9d25bd0",
+ "sourceFingerprint": "05b324b287bb8ededdd77b64d5bde0fb7185bb02f68cc415fd724bb08ff931d0",
+ "createdAt": "2026-08-31T00:00:00.000Z",
+ "operations": [
+  {
+   "kind": "add-caption",
+   "id": "phd-caption-1-bad",
+   "startTime": 1,
+   "duration": 2.5,
+   "text": "Phase D \u7ec4\u5408\u9a8c\u6536",
+   "language": "zh"
+  },
+  {
+   "kind": "add-text-overlay",
+   "id": "phd-text-1-bad",
+   "startTime": 10.5,
+   "duration": 3,
+   "text": "Compose Editable",
+   "textTemplateId": "default"
+  },
+  {
+   "kind": "add-sticker",
+   "id": "phd-sticker-anim-bad",
+   "startTime": 3,
+   "duration": 5,
+   "asset": {
+    "provider": "local",
+    "assetType": "sticker",
+    "assetId": "sticker-lab:jianying-2026-07-31:7661895332271377688"
+   },
+   "x": 0.78,
+   "y": 0.2,
+   "width": 0.28,
+   "maintainAspectRatio": true,
+   "animationInType": "fade",
+   "animationInDuration": 0.4,
+   "animationLoopType": "pulse",
+   "animationLoopIntensity": 0.5,
+   "animationOutType": "fade",
+   "animationOutDuration": 0.4
+  },
+  {
+   "kind": "add-sticker",
+   "id": "phd-sticker-static-bad",
+   "startTime": 4,
+   "duration": 3,
+   "asset": {
+    "provider": "local",
+    "assetType": "sticker",
+    "assetId": "sticker-lab:jianying-2026-07-31:7437023238108105995"
+   },
+   "x": 0.3,
+   "y": 0.35,
+   "width": 0.22,
+   "maintainAspectRatio": true
+  },
+  {
+   "kind": "add-sound-effect",
+   "id": "phd-sound-applause-bad",
+   "startTime": 5,
+   "duration": 2.5,
+   "asset": {
+    "provider": "qcut",
+    "assetType": "sound-effect",
+    "assetId": "sound-effects-lab:8800000000000347547",
+    "duration": 8.940295
+   },
+   "volume": 0.9,
+   "trimStart": 1,
+   "trimEnd": 2.940295,
+   "playbackRate": 2,
+   "fadeIn": 0.3,
+   "fadeOut": 0.5
+  },
+  {
+   "kind": "add-sound-effect",
+   "id": "phd-sound-laugh-bad",
+   "startTime": 6,
+   "duration": 3.309188,
+   "asset": {
+    "provider": "qcut",
+    "assetType": "sound-effect",
+    "assetId": "sound-effects-lab:8800000000000324894",
+    "duration": 3.309188
+   },
+   "volume": 0.7
+  },
+  {
+   "kind": "add-sound-effect",
+   "id": "phd-sound-sitcom-bad",
+   "startTime": 20,
+   "duration": 5.3,
+   "asset": {
+    "provider": "qcut",
+    "assetType": "sound-effect",
+    "assetId": "sound-effects-lab:8800000000000371562",
+    "duration": 5.8
+   },
+   "volume": 0.8,
+   "trimStart": 0.5,
+   "fadeOut": 1
+  },
+  {
+   "kind": "add-sound-effect",
+   "id": "phd-sound-missing",
+   "startTime": 20,
+   "duration": 5.3,
+   "asset": {
+    "provider": "qcut",
+    "assetType": "sound-effect",
+    "assetId": "sound-effects-lab:0000000000000000000"
+   },
+   "volume": 0.8,
+   "trimStart": 0.5,
+   "fadeOut": 1
+  }
+ ],
+ "warnings": []
+}

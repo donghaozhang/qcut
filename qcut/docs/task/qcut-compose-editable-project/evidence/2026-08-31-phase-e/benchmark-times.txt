@@ -1,0 +1,3 @@
+run1 exit=0 wall=15.2s
+run2 exit=0 wall=15.2s
+run3 exit=0 wall=15.2s

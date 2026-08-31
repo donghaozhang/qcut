@@ -1,6 +1,7 @@
 export {
 	COMPOSE_PROTOCOL_VERSION,
 	type ComposeAddCaptionOperation,
+	type ComposeAddFilterLayerOperation,
 	type ComposeAddSoundEffectOperation,
 	type ComposeAddStickerOperation,
 	type ComposeAddTextOverlayOperation,
@@ -9,6 +10,8 @@ export {
 	type ComposeAssetType,
 	type ComposeBasePatchOperation,
 	type ComposeCanvasSize,
+	type ComposeFilterStep,
+	type ComposeInsertMediaClipOperation,
 	type ComposeIntent,
 	type ComposeIntentKind,
 	type ComposeJob,
@@ -26,6 +29,7 @@ export {
 	type ComposeProjectRecordSnapshot,
 	type ComposeProtocolVersion,
 	type ComposeProvider,
+	type ComposeSetMediaFilterStackOperation,
 	type ComposeSnapshot,
 	type ComposeSnapshotBeat,
 	type ComposeSnapshotCapabilities,
@@ -42,6 +46,7 @@ export {
 	type ComposeFingerprintInput,
 } from "./compose-fingerprint.js";
 export {
+	COMPOSE_MAIN_VIDEO_TRACK_ROLE,
 	hasComposeValidationErrors,
 	validateComposeJob,
 	validateComposePatch,

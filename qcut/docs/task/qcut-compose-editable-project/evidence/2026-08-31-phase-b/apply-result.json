@@ -1,0 +1,76 @@
+{
+  "status": "ok",
+  "data": {
+    "schema_version": "1",
+    "command": "compose-project",
+    "outputPaths": [
+      "$EVIDENCE_ROOT/editable-phase-b/out/compose-project-editor/d4d62c2a-ed56-4c71-8737-f9a93c85e89a.snapshot.json",
+      "$EVIDENCE_ROOT/editable-phase-b/out/compose-project-editor/cmp-de8f11c3083c1c4be5e5ac84.patch.json"
+    ],
+    "data": {
+      "projectId": "1a515458-931e-4ece-a6fe-c0102fbe7c3a",
+      "createdProject": true,
+      "manifestSha256": "b75a7e650aef86867fb24ce96b18a2a045e2059f09d3486295edcf8f3a16640f",
+      "timelineDuration": 29,
+      "snapshotId": "d4d62c2a-ed56-4c71-8737-f9a93c85e89a",
+      "patchId": "cmp-de8f11c3083c1c4be5e5ac84",
+      "operationCount": 5,
+      "apply": {
+        "projectId": "1a515458-931e-4ece-a6fe-c0102fbe7c3a",
+        "snapshotId": "d4d62c2a-ed56-4c71-8737-f9a93c85e89a",
+        "patchId": "cmp-de8f11c3083c1c4be5e5ac84",
+        "issues": [],
+        "assets": [
+          {
+            "operationId": "cmp-71f88bb78c59441c38c3541a",
+            "provider": "local",
+            "assetType": "transition",
+            "assetId": "crossfade",
+            "status": "cached",
+            "evidence": {
+              "backend": "editor-preset",
+              "cacheStatus": "builtin",
+              "verification": "unverified"
+            }
+          },
+          {
+            "operationId": "cmp-769272e6be41c6d58988332b",
+            "provider": "local",
+            "assetType": "transition",
+            "assetId": "crossfade",
+            "status": "cached",
+            "evidence": {
+              "backend": "editor-preset",
+              "cacheStatus": "builtin",
+              "verification": "unverified"
+            }
+          }
+        ],
+        "applied": {
+          "cmp-d04c4cfc5c91c3624a3a9dfc": "cmp-d04c4cfc5c91c3624a3a9dfc",
+          "cmp-7cd50d36fae76165c95f0c2b": "cmp-7cd50d36fae76165c95f0c2b",
+          "cmp-2ad8e9a9549d3a91e99756d0": "cmp-2ad8e9a9549d3a91e99756d0"
+        },
+        "alreadyAppliedOperationIds": [],
+        "importedMediaCount": 0,
+        "transitionOperationIds": [
+          "cmp-71f88bb78c59441c38c3541a",
+          "cmp-769272e6be41c6d58988332b"
+        ],
+        "transitionIds": [
+          "b60dd969-6773-45a8-b76c-96bc2134ff58",
+          "6f02a27c-f6a9-44c4-ad89-ed2c998bf473"
+        ],
+        "skipped": [],
+        "verified": true
+      },
+      "reopen": {
+        "navigatedAway": true,
+        "missingElementIds": []
+      }
+    },
+    "duration": 1.828
+  },
+  "command_id": "cmd-1788111982781-y4meyi",
+  "duration_ms": 1830
+}

@@ -69,7 +69,11 @@ import { renderTextToCanvas } from "@/lib/text/text-canvas-renderer";
 import { resolveAnimatedTextElement } from "@/lib/text/text-element-animation";
 import { resolveMediaKeyframes } from "@/lib/video/video-properties";
 import { getMediaSourcePlaybackTime } from "@/lib/video/video-timing";
-import { drawColorGradedSourceWithMasks } from "@/lib/color/browser-color-rendering";
+import {
+	drawColorGradedSourceStack,
+	drawColorGradedSourceWithMasks,
+} from "@/lib/color/browser-color-rendering";
+import { mediaFilterStackLayers } from "@/lib/color/color-filter-stack";
 import {
 	hasMediaColorEdits,
 	resolveMediaColorAtTime,
@@ -623,15 +627,19 @@ export async function renderImage(
 						visual: drawVisual,
 						bounds: { x, y, width, height },
 						draw: () =>
-							drawColorGradedSourceWithMasks({
+							drawColorGradedSourceStack({
 								context: ctx,
 								source: img,
 								x,
 								y,
 								width,
 								height,
-								masks: visual.masks,
-								settings: visual.color,
+								layers: [
+									{ settings: visual.color, masks: visual.masks },
+									...mediaFilterStackLayers({
+										filterStack: (element as MediaElement).filterStack,
+									}),
+								],
 								portraitAdjustments: visual.portraitAdjustments,
 								frameSeed: Math.round(currentTime * context.fps),
 								sourceKey: `image:${element.id}:${mediaItem.id}`,
@@ -860,15 +868,19 @@ async function renderVideoAttempt(
 					visual: drawVisual,
 					bounds: { x, y, width, height },
 					draw: () =>
-						drawColorGradedSourceWithMasks({
+						drawColorGradedSourceStack({
 							context: ctx,
 							source: resolvedSource,
 							x,
 							y,
 							width,
 							height,
-							masks: visual.masks,
-							settings: visual.color,
+							layers: [
+								{ settings: visual.color, masks: visual.masks },
+								...mediaFilterStackLayers({
+									filterStack: (element as MediaElement).filterStack,
+								}),
+							],
 							portraitAdjustments: visual.portraitAdjustments,
 							frameSeed: Math.round(
 								(element.startTime + timeOffset) * context.fps

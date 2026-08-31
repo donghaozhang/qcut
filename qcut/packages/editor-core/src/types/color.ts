@@ -300,6 +300,38 @@ export interface ColorPropertyKeyframe {
 	easing: "linear" | "easeIn" | "easeOut" | "easeInOut" | "spring";
 }
 
+/**
+ * One ordered Filter Lab effect inside a media element's filter stack.
+ * `color` carries only the renderable payload (a raw LUT or a multi-pass
+ * program); identity fields lock the resolved resource for provenance and
+ * read-back verification. `safe-passthrough` effects carry no color payload
+ * and must be surfaced as warnings, never reported as applied filters.
+ */
+export interface MediaFilterEffect {
+	/** Stable step id, unique within its stack. */
+	id: string;
+	enabled: boolean;
+	resourceId: string;
+	/** Resolved package version (the package hash directory name). */
+	version: string;
+	/** 0..100, mirrored into the color payload's own intensity. */
+	intensity: number;
+	implementation: string;
+	fidelity: "lut" | "structural" | "native-local" | "safe-passthrough";
+	/** Both slots optional: safe-passthrough effects carry no payload. */
+	color: Partial<Pick<MediaColorSettings, "lut" | "multiPass">>;
+}
+
+/**
+ * Ordered per-clip Filter Lab stack. Effect order is render order; the
+ * stack renders after the element's own `color` grade. Legacy projects
+ * without a stack behave exactly as before.
+ */
+export interface MediaFilterStack {
+	enabled: boolean;
+	effects: MediaFilterEffect[];
+}
+
 export interface MediaColorSettings {
 	enabled: boolean;
 	filter: ColorFilterApplication;

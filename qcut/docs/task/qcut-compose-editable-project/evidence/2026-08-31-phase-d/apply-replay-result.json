@@ -1,0 +1,94 @@
+{
+ "status": "ok",
+ "data": {
+  "schema_version": "1",
+  "command": "compose-apply",
+  "data": {
+   "projectId": "90563237-da3d-469c-82e6-0ca6fa1ab6e0",
+   "snapshotId": "ef90c1dd-93cf-4854-9ab9-e24af9d25bd0",
+   "patchId": "phd-patch-1",
+   "issues": [],
+   "assets": [
+    {
+     "operationId": "phd-sticker-anim",
+     "provider": "local",
+     "assetType": "sticker",
+     "assetId": "sticker-lab:jianying-2026-07-31:7661895332271377688",
+     "status": "cached",
+     "evidence": {
+      "backend": "sticker-lab",
+      "cacheStatus": "local-reference",
+      "verification": "unverified"
+     }
+    },
+    {
+     "operationId": "phd-sticker-static",
+     "provider": "local",
+     "assetType": "sticker",
+     "assetId": "sticker-lab:jianying-2026-07-31:7437023238108105995",
+     "status": "cached",
+     "evidence": {
+      "backend": "sticker-lab",
+      "cacheStatus": "local-reference",
+      "verification": "unverified"
+     }
+    },
+    {
+     "operationId": "phd-sound-applause",
+     "provider": "qcut",
+     "assetType": "sound-effect",
+     "assetId": "sound-effects-lab:8800000000000347547",
+     "status": "downloadable",
+     "bytes": 204298,
+     "evidence": {
+      "backend": "sound-effects-lab",
+      "cacheStatus": "authenticated-download",
+      "verification": "unverified"
+     }
+    },
+    {
+     "operationId": "phd-sound-laugh",
+     "provider": "qcut",
+     "assetType": "sound-effect",
+     "assetId": "sound-effects-lab:8800000000000324894",
+     "status": "downloadable",
+     "bytes": 29493,
+     "evidence": {
+      "backend": "sound-effects-lab",
+      "cacheStatus": "authenticated-download",
+      "verification": "unverified"
+     }
+    },
+    {
+     "operationId": "phd-sound-sitcom",
+     "provider": "qcut",
+     "assetType": "sound-effect",
+     "assetId": "sound-effects-lab:8800000000000371562",
+     "status": "downloadable",
+     "bytes": 132501,
+     "evidence": {
+      "backend": "sound-effects-lab",
+      "cacheStatus": "authenticated-download",
+      "verification": "unverified"
+     }
+    }
+   ],
+   "applied": {},
+   "alreadyAppliedOperationIds": [
+    "phd-caption-1",
+    "phd-text-1",
+    "phd-sticker-anim",
+    "phd-sticker-static",
+    "phd-sound-applause",
+    "phd-sound-laugh",
+    "phd-sound-sitcom"
+   ],
+   "transitionIds": [],
+   "skipped": [],
+   "importedMediaCount": 0
+  },
+  "duration": 1.123
+ },
+ "command_id": "cmd-1788116107801-l4fw4j",
+ "duration_ms": 1124
+}

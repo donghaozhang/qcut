@@ -1,0 +1,9 @@
+{
+	"schemaVersion": 1,
+	"canvas": { "width": 1920, "height": 1080, "fps": 30 },
+	"clips": [
+		{ "id": "zh", "source": "../artifacts/zh-final.mp4", "trim": { "in": 0, "out": 40 } },
+		{ "id": "en", "source": "../artifacts/en-final.mp4", "trim": { "in": 0, "out": 40 } }
+	],
+	"transitions": [{ "between": ["zh", "en"], "preset": "crossfade", "duration": 0.5 }]
+}

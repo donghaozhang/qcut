@@ -13,8 +13,12 @@ import { resolveComposePatchAssets } from "../compose/compose-asset-resolver.js"
 import { prepareComposeEditorAssets } from "../compose/compose-editor-asset-preparer.js";
 import { rollbackStickerLabMedia } from "../editor/editor-sticker-runtime-import.js";
 import { captureComposeSnapshot } from "../compose/compose-snapshot.js";
-import { timelineManifestFromComposePatch } from "../compose/compose-timeline-manifest.js";
 import {
+	editorTransitionPreset,
+	timelineManifestFromComposePatch,
+} from "../compose/compose-timeline-manifest.js";
+import {
+	COMPOSE_MAIN_VIDEO_TRACK_ROLE,
 	hasComposeValidationErrors,
 	validateComposePatch,
 	validateComposeSnapshot,
@@ -139,16 +143,19 @@ export async function handleComposeSnapshot(
 }
 
 /** Operation kinds that create timeline elements keyed by operation id. */
-const ELEMENT_CREATING_KINDS = new Set<ComposePatchOperation["kind"]>([
+export const ELEMENT_CREATING_KINDS = new Set<ComposePatchOperation["kind"]>([
 	"add-caption",
 	"add-text-overlay",
 	"add-sticker",
 	"add-sound-effect",
+	"insert-media-clip",
+	"add-filter-layer",
 ]);
 
-interface LiveTimelineState {
+export interface LiveTimelineState {
 	elementIds: Set<string>;
 	transitionFingerprints: Set<string>;
+	mainTrackId?: string;
 }
 
 function transitionFingerprint({
@@ -188,7 +195,7 @@ function transitionFingerprint({
  * operations: additive elements carry their operation id as the element id,
  * and transitions are matched against their complete editable identity.
  */
-async function readLiveTimelineState({
+export async function readLiveTimelineState({
 	client,
 	projectId,
 }: {
@@ -198,6 +205,7 @@ async function readLiveTimelineState({
 	const timeline = await client.get<{
 		tracks?: Array<{
 			id?: string;
+			isMain?: boolean;
 			elements?: Array<{ id?: string }>;
 			transitions?: Array<{
 				duration?: number;
@@ -209,7 +217,11 @@ async function readLiveTimelineState({
 	}>(`/api/claude/timeline/${encodeURIComponent(projectId)}`);
 	const elementIds = new Set<string>();
 	const transitionFingerprints = new Set<string>();
+	let mainTrackId: string | undefined;
 	for (const track of timeline.tracks ?? []) {
+		if (track.isMain && typeof track.id === "string") {
+			mainTrackId = track.id;
+		}
 		for (const element of track.elements ?? []) {
 			if (typeof element.id === "string") elementIds.add(element.id);
 		}
@@ -224,7 +236,7 @@ async function readLiveTimelineState({
 			if (fingerprint) transitionFingerprints.add(fingerprint);
 		}
 	}
-	return { elementIds, transitionFingerprints };
+	return { elementIds, transitionFingerprints, mainTrackId };
 }
 
 function splitAlreadyApplied({
@@ -242,9 +254,18 @@ function splitAlreadyApplied({
 				? transitionFingerprint({
 						duration: operation.duration,
 						fromElementId: operation.fromElementId,
-						presetId: operation.presetId,
+						// Live transitions store the EDITOR vocabulary: presets
+						// are mapped (crossfade → dissolve) and pending-clip
+						// transitions land on the real main track, so the
+						// operation side normalizes the same way before matching.
+						presetId: editorTransitionPreset({
+							presetId: operation.presetId,
+						}),
 						toElementId: operation.toElementId,
-						trackId: operation.trackId,
+						trackId:
+							operation.trackId === COMPOSE_MAIN_VIDEO_TRACK_ROLE
+								? (live.mainTrackId ?? operation.trackId)
+								: operation.trackId,
 					})
 				: null;
 		const replayed =
@@ -355,10 +376,12 @@ export async function handleComposeApply(
 			projectId,
 			snapshot,
 			bindings: prepared.bindings,
+			mainVideoTrackId: live.mainTrackId,
 		});
 		if (
 			plan.plannedOperationIds.length === 0 &&
-			plan.plannedTransitionOperationIds.length === 0
+			plan.plannedTransitionOperationIds.length === 0 &&
+			plan.plannedUpdateOperationIds.length === 0
 		) {
 			// Nothing will reach the timeline, so prepared-but-unused imports
 			// must not linger in the project's media library.
@@ -450,6 +473,7 @@ export async function handleComposeApply(
 				applied,
 				alreadyAppliedOperationIds: alreadyApplied,
 				importedMediaCount: prepared.importedMediaIds.length,
+				appliedUpdateOperationIds: plan.plannedUpdateOperationIds,
 				transitionOperationIds: plan.plannedTransitionOperationIds,
 				transitionIds:
 					(applyResult.data as { transitionIds?: string[] } | undefined)

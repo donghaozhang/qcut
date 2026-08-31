@@ -103,6 +103,7 @@ import {
 	mergeEffectMotionWithAudioReactive,
 } from "@/lib/effects/effect-audio-reactive-state";
 import type { BrowserColorGradeLayer } from "@/lib/color/browser-color-rendering";
+import { mediaFilterStackLayers } from "@/lib/color/color-filter-stack";
 
 interface ElementResizeParams {
 	elementId: string;
@@ -888,11 +889,15 @@ export function PreviewElementRenderer({
 					height: previewHeight,
 					perspective: visual.perspective,
 				});
+				const filterStackLayers = mediaFilterStackLayers({
+					filterStack: element.filterStack,
+				});
 				const usesPixelColor =
 					hasMediaColorEdits({ settings: visual.color }) ||
 					hasMediaPortraitAdjustments({
 						adjustments: visual.portraitAdjustments,
 					}) ||
+					filterStackLayers.length > 0 ||
 					additionalColorLayers.length > 0;
 				const enhancementFilter = buildMediaEnhancementCssFilter(
 					visual.enhancements
@@ -1107,7 +1112,10 @@ export function PreviewElementRenderer({
 										currentTime * (activeProject?.fps ?? 30)
 									)}
 									filter={combinedFilter || undefined}
-									additionalLayers={additionalColorLayers}
+									additionalLayers={[
+										...filterStackLayers,
+										...additionalColorLayers,
+									]}
 									portraitAdjustments={visual.portraitAdjustments}
 								/>
 							) : null}
@@ -1273,11 +1281,15 @@ export function PreviewElementRenderer({
 					}),
 					audioReactive,
 				});
+				const filterStackLayers = mediaFilterStackLayers({
+					filterStack: element.filterStack,
+				});
 				const usesPixelColor =
 					hasMediaColorEdits({ settings: visual.color }) ||
 					hasMediaPortraitAdjustments({
 						adjustments: visual.portraitAdjustments,
 					}) ||
+					filterStackLayers.length > 0 ||
 					additionalColorLayers.length > 0;
 				const gradeMaskIds = visual.color.mask.enabled
 					? new Set(visual.color.mask.maskIds)
@@ -1414,7 +1426,10 @@ export function PreviewElementRenderer({
 										frameSeed={Math.round(
 											currentTime * (activeProject?.fps ?? 30)
 										)}
-										additionalLayers={additionalColorLayers}
+										additionalLayers={[
+											...filterStackLayers,
+											...additionalColorLayers,
+										]}
 										portraitAdjustments={visual.portraitAdjustments}
 									/>
 								) : null}
@@ -1526,7 +1541,10 @@ export function PreviewElementRenderer({
 									frameSeed={Math.round(
 										currentTime * (activeProject?.fps ?? 30)
 									)}
-									additionalLayers={additionalColorLayers}
+									additionalLayers={[
+										...filterStackLayers,
+										...additionalColorLayers,
+									]}
 									portraitAdjustments={visual.portraitAdjustments}
 								/>
 							) : null}
