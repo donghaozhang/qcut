@@ -93,6 +93,12 @@ const VIDEO_SPECS: VideoSpec[] = [
 		sourceTrack: "noisy-person",
 	},
 	{
+		id: "qcut-private-deflicker",
+		fileName: "qcut-private-deflicker.mp4",
+		editor: "qcut",
+		sourceTrack: "noisy-person",
+	},
+	{
 		id: "qcut-smart-baseline",
 		fileName: "qcut-smart-baseline.mp4",
 		editor: "qcut",
@@ -189,9 +195,10 @@ const FEATURE_SPECS: FeatureSpec[] = [
 		localizedName: "防闪烁",
 		sourceTrack: "noisy-person",
 		qcut: {
-			baselineId: "qcut-pixel-baseline",
-			candidateId: "qcut-deflicker",
-			implementation: "FFmpeg deflicker at strength 70",
+			baselineId: "source-noisy-person",
+			candidateId: "qcut-private-deflicker",
+			implementation:
+				"Verified Jianying 11.3.0 VideoDeflickerGpuBackend cache at strength 70",
 		},
 		jianying: {
 			baselineId: "jianying-pixel-baseline",
