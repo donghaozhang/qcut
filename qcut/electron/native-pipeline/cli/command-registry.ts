@@ -1237,6 +1237,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			f("--strength", "number", "Deflicker strength from 1 to 100", {
 				default: 70,
 			}),
+			f("--force", "boolean", "Replace an existing output"),
 		],
 		examples: [
 			"qcut edit deflicker -i source.mp4 --strength 70 --output source-deflicker.mp4",
