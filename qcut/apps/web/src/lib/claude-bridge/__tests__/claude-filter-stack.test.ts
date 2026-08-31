@@ -37,7 +37,7 @@ describe("parseClaudeMediaFilterStack", () => {
 			parseClaudeMediaFilterStack({
 				value: {
 					enabled: true,
-					effects: Array.from({ length: 17 }, (unused, index) =>
+					effects: Array.from({ length: 17 }, (_, index) =>
 						validEffect({ id: `s${index}` })
 					),
 				},
