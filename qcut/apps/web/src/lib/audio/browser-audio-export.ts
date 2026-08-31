@@ -42,15 +42,30 @@ function scheduleParameter({
 	}
 }
 
-function createImpulse({
+/**
+ * Builds the reverb impulse response.
+ *
+ * The generator is seeded with a fixed constant and reset on every call, so
+ * two calls with the same room size and damping produce byte-identical
+ * samples. `cache` therefore only avoids rebuilding a buffer that would have
+ * been identical anyway; it never changes the rendered audio. The cache is
+ * created per export so it cannot outlive the context whose sample rate
+ * determined the buffer length.
+ */
+export function createImpulse({
 	context,
 	roomSize,
 	damping,
+	cache,
 }: {
 	context: OfflineAudioContext;
 	roomSize: number;
 	damping: number;
+	cache?: Map<string, AudioBuffer>;
 }): AudioBuffer {
+	const cacheKey = `${roomSize}|${damping}`;
+	const cached = cache?.get(cacheKey);
+	if (cached) return cached;
 	const duration = 0.25 + (roomSize / 100) * 2.75;
 	const length = Math.max(1, Math.round(context.sampleRate * duration));
 	const impulse = context.createBuffer(2, length, context.sampleRate);
@@ -65,6 +80,7 @@ function createImpulse({
 			samples[index] = noise * envelope;
 		}
 	}
+	cache?.set(cacheKey, impulse);
 	return impulse;
 }
 
@@ -87,11 +103,13 @@ async function scheduleClip({
 	clip,
 	fps,
 	pitchNodeConstructor,
+	impulseCache,
 }: {
 	context: OfflineAudioContext;
 	clip: DecodedBrowserAudioExportClip;
 	fps: number;
 	pitchNodeConstructor?: typeof FormantCorrectionNode;
+	impulseCache?: Map<string, AudioBuffer>;
 }) {
 	const { element, buffer } = clip;
 	const startTime = Math.max(0, element.startTime);
@@ -219,9 +237,10 @@ async function scheduleClip({
 		? Math.min(0.85, baseSettings.echo.feedback / 100)
 		: 0;
 	convolver.buffer = createImpulse({
+		cache: impulseCache,
 		context,
-		roomSize: baseSettings.reverb.roomSize,
 		damping: baseSettings.reverb.damping,
+		roomSize: baseSettings.reverb.roomSize,
 	});
 
 	const points = buildBrowserAudioAutomation({ element, duration, fps });
@@ -329,12 +348,16 @@ export async function renderBrowserTimelineAudio({
 		pitchNodeConstructor = formantModule.FormantCorrectionNode;
 		await pitchNodeConstructor.register(context, formantProcessorUrl);
 	}
+	// Shared for this export only: clips with the same reverb settings would
+	// otherwise each rebuild an identical impulse buffer.
+	const impulseCache = new Map<string, AudioBuffer>();
 	await Promise.all(
 		decodedClips.map((clip) =>
 			scheduleClip({
-				context,
 				clip,
+				context,
 				fps,
+				impulseCache,
 				pitchNodeConstructor,
 			})
 		)
