@@ -21,7 +21,7 @@ Lower levels do not imply higher ones. A client symbol is not proof of local exe
 
 | Capability | Locality | Level | Verified boundary |
 | --- | --- | --- | --- |
-| Deflicker | Confirmed local | `model-loaded` | Lens factory plus Deflicker Metal library |
+| Deflicker | Confirmed local | `input-processed` | Deflicker 2.0.0, Metal library, consecutive real frames, derived MP4, CLI/UI E2E |
 | Stabilization | Confirmed local | `runtime-callable` | VAS factory construction and release |
 | ByteNN denoise | Confirmed local | `model-loaded` | `nn_denoise.bytenn` parsed by ByteNN |
 | UMVFI interpolation | Confirmed local | `model-loaded` | UMVFI factory plus Metal library |
@@ -48,6 +48,8 @@ The process environment was cleared with `env -i`. All seven native modes succee
 ```
 
 This proves local execution after a private on-device backup. It does not grant redistribution rights: Jianying libraries and models must not enter Git, QCut packages, or public downloads.
+
+Deflicker has since advanced beyond model loading. The production host processed 90 consecutive BGRA frames with `51,992,477` changed bytes, and the full pipeline produced validated real-person MP4s through CLI, packaged simulation, and visible QCut UI. The strength-70 real-person result preserved 360 x 640, 24 fps, 72 frames, and three seconds while reducing frame-luma variation by `3.305%`. This is `input-processed` evidence, not proof that QCut's low-level strength is calibrated to Jianying's visible control.
 
 AI super resolution is intentionally excluded. The current installation exposes `SuperResolutionClient` and `uploadVideoForSuperResolution`, but the probe found no identifiable bundled or cached local model. It remains `local-provider-unresolved` until both a local model mapping and a local inference ABI are proven.
 
