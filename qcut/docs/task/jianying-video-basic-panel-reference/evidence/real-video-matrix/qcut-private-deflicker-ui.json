@@ -15,12 +15,12 @@
     "lensSha256": "fdf576dd066a11db7b54d815621893ed62a8ed223e22834d5753738dc66df161",
     "message": "剪映 11.3.0 防闪烁本机缓存已就绪"
   },
-  "sourcePath": "/Users/peter/Desktop/code/qcut/qcut/docs/task/jianying-video-basic-panel-reference/evidence/real-video-matrix/02-real-person-challenge-noisy-3s.mp4",
+  "sourcePath": "docs/task/jianying-video-basic-panel-reference/evidence/real-video-matrix/02-real-person-challenge-noisy-3s.mp4",
   "state": {
     "deflickerStrength": 0,
     "fileSize": 1619760,
     "mediaId": "027094c0-be9a-fc76-526d-2ae8159f4ce0",
-    "localPath": "/Users/peter/Library/Caches/QCut/JianyingBasicVideo/deflicker/f2512e0d440700bbcfc9aba2681ade2eb742a2f2bfcddaf30e37f0c64bf5945d.mp4",
+    "localPath": "<redacted-user-cache>/QCut/JianyingBasicVideo/deflicker/f2512e0d440700bbcfc9aba2681ade2eb742a2f2bfcddaf30e37f0c64bf5945d.mp4",
     "mediaName": "02-real-person-challenge-noisy-3s-deflicker.mp4",
     "mediaType": "video"
   }
