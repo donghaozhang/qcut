@@ -1,12 +1,9 @@
 import {
-	buildPlanarHomography,
 	buildRelativePlanarHomography,
-	projectPlanarPoint,
 	projectPlanarQuad,
 } from "@qcut/editor-core";
 import type {
 	MediaElement,
-	MediaPerspective,
 	NormalizedPoint,
 	PlanarQuad,
 	PlanarTrackingSample,
@@ -15,9 +12,8 @@ import type {
 	TimelineTrack,
 } from "@/types/timeline";
 import type { OverlaySticker } from "@/types/sticker-overlay";
-import { getPlanarFitMapping } from "@/lib/tracking/planar-tracking-overlay-geometry";
 import { getMediaSourcePlaybackTime } from "@/lib/video/video-timing";
-import { resolveMediaKeyframes } from "@/lib/video/video-properties";
+import { mapPlanarSourceQuadToCanvas } from "./planar-source-canvas-transform";
 
 interface PlanarSampleResolution {
 	quad?: PlanarQuad;
@@ -117,153 +113,6 @@ export function resolvePlanarSampleQuad({
 		quad: interpolateQuad({ from: left.quad, progress, to: right.quad }),
 		visible: true,
 	};
-}
-
-function sourcePointToCanvas({
-	canvasHeight,
-	canvasWidth,
-	fitMode,
-	perspective,
-	point,
-	sourceHeight,
-	sourceWidth,
-}: {
-	canvasHeight: number;
-	canvasWidth: number;
-	fitMode: "contain" | "cover" | "fill";
-	perspective: MediaPerspective;
-	point: NormalizedPoint;
-	sourceHeight: number;
-	sourceWidth: number;
-}): NormalizedPoint {
-	const mapping = getPlanarFitMapping({
-		containerHeight: canvasHeight,
-		containerWidth: canvasWidth,
-		fitMode,
-		sourceHeight,
-		sourceWidth,
-	});
-	const fitted = {
-		x: mapping.offsetX + point.x * mapping.displayWidth,
-		y: mapping.offsetY + point.y * mapping.displayHeight,
-	};
-	const matrix = buildPlanarHomography({
-		source: {
-			topLeft: { x: 0, y: 0 },
-			topRight: { x: canvasWidth, y: 0 },
-			bottomRight: { x: canvasWidth, y: canvasHeight },
-			bottomLeft: { x: 0, y: canvasHeight },
-		},
-		destination: {
-			topLeft: {
-				x: perspective.topLeftX * canvasWidth,
-				y: perspective.topLeftY * canvasHeight,
-			},
-			topRight: {
-				x: perspective.topRightX * canvasWidth,
-				y: perspective.topRightY * canvasHeight,
-			},
-			bottomRight: {
-				x: perspective.bottomRightX * canvasWidth,
-				y: perspective.bottomRightY * canvasHeight,
-			},
-			bottomLeft: {
-				x: perspective.bottomLeftX * canvasWidth,
-				y: perspective.bottomLeftY * canvasHeight,
-			},
-		},
-	});
-	return matrix
-		? (projectPlanarPoint({ point: fitted, matrix }) ?? fitted)
-		: fitted;
-}
-
-function applyMediaTransform({
-	canvasHeight,
-	canvasWidth,
-	flipHorizontal,
-	flipVertical,
-	point,
-	rotation,
-	scaleX,
-	scaleY,
-	x,
-	y,
-}: {
-	canvasHeight: number;
-	canvasWidth: number;
-	flipHorizontal: boolean;
-	flipVertical: boolean;
-	point: NormalizedPoint;
-	rotation: number;
-	scaleX: number;
-	scaleY: number;
-	x: number;
-	y: number;
-}): NormalizedPoint {
-	const centerX = canvasWidth / 2;
-	const centerY = canvasHeight / 2;
-	const radians = (rotation * Math.PI) / 180;
-	const cosine = Math.cos(radians);
-	const sine = Math.sin(radians);
-	const deltaX = (point.x - centerX) * scaleX * (flipHorizontal ? -1 : 1);
-	const deltaY = (point.y - centerY) * scaleY * (flipVertical ? -1 : 1);
-	return {
-		x: centerX + x + deltaX * cosine - deltaY * sine,
-		y: centerY + y + deltaX * sine + deltaY * cosine,
-	};
-}
-
-function trackedQuadToCanvas({
-	canvasHeight,
-	canvasWidth,
-	currentTime,
-	fps,
-	quad,
-	sidecar,
-	sourceElement,
-}: {
-	canvasHeight: number;
-	canvasWidth: number;
-	currentTime: number;
-	fps: number;
-	quad: PlanarQuad;
-	sidecar: PlanarTrackingSidecarV1;
-	sourceElement: MediaElement;
-}): PlanarQuad {
-	const visual = resolveMediaKeyframes({
-		element: sourceElement,
-		currentTime,
-		fps,
-	});
-	return Object.fromEntries(
-		QUAD_KEYS.map((key) => {
-			const fitted = sourcePointToCanvas({
-				canvasHeight,
-				canvasWidth,
-				fitMode: visual.fitMode,
-				perspective: visual.perspective,
-				point: quad[key],
-				sourceHeight: sidecar.source.displayHeight,
-				sourceWidth: sidecar.source.displayWidth,
-			});
-			return [
-				key,
-				applyMediaTransform({
-					canvasHeight,
-					canvasWidth,
-					flipHorizontal: visual.flipHorizontal,
-					flipVertical: visual.flipVertical,
-					point: fitted,
-					rotation: visual.rotation,
-					scaleX: visual.scaleX,
-					scaleY: visual.scaleY,
-					x: visual.x,
-					y: visual.y,
-				}),
-			];
-		})
-	) as unknown as PlanarQuad;
 }
 
 function applyCanvasQuadToSticker({
@@ -373,13 +222,14 @@ export function resolveStickerPlanarTracking({
 	return applyCanvasQuadToSticker({
 		canvasHeight,
 		canvasWidth,
-		quad: trackedQuadToCanvas({
+		quad: mapPlanarSourceQuadToCanvas({
 			canvasHeight,
 			canvasWidth,
 			currentTime,
 			fps,
 			quad: targetQuad,
-			sidecar,
+			sourceDisplayHeight: sidecar.source.displayHeight,
+			sourceDisplayWidth: sidecar.source.displayWidth,
 			sourceElement,
 		}),
 		sticker,

@@ -12,6 +12,7 @@ import {
 	resolvePlanarSampleQuad,
 	resolveStickerPlanarTracking,
 } from "../planar-sticker-binding";
+import { buildStickerPlanarSeedTargetQuad } from "../planar-sticker-seed-target";
 
 function translatedQuad({ x }: { x: number }): PlanarQuad {
 	return {
@@ -282,5 +283,58 @@ describe("planar sticker binding", () => {
 		expect(visual.position.y).toBeCloseTo(50);
 		expect(visual.size.width).toBeCloseTo(56.25);
 		expect(visual.size.height).toBeCloseTo(100);
+	});
+
+	it("preserves the sticker layout when attaching at the seed frame", () => {
+		const media = source({ fitMode: "contain" });
+		const initialSticker = {
+			...overlay(),
+			position: { x: 50, y: 50 },
+			size: { height: 18, width: 18 },
+		};
+		const seedTargetQuad = buildStickerPlanarSeedTargetQuad({
+			canvasHeight: 360,
+			canvasWidth: 640,
+			currentTime: 1,
+			fps: 30,
+			sourceDisplayHeight: 240,
+			sourceDisplayWidth: 320,
+			sourceElement: media,
+			sticker: initialSticker,
+		});
+		if (!seedTargetQuad) throw new Error("Seed target quad was not resolved");
+		const result = {
+			...sidecar({ samples: [sample({ ptsUs: 1_000_000, x: 0.2 })] }),
+			source: {
+				...sidecar({ samples: [] }).source,
+				displayHeight: 240,
+				displayWidth: 320,
+			},
+		};
+		const targetSticker = sticker();
+		targetSticker.tracking = {
+			lostBehavior: "hold",
+			mode: "planar",
+			seedPtsUs: 1_000_000,
+			seedTargetQuad,
+			sourceElementId: media.id,
+			surfaceTrackingId: "surface",
+		};
+
+		const visual = resolveStickerPlanarTracking({
+			canvasHeight: 360,
+			canvasWidth: 640,
+			currentTime: 1,
+			element: targetSticker,
+			fps: 30,
+			sidecar: result,
+			sticker: initialSticker,
+			tracks: tracks({ media }),
+		});
+
+		expect(visual.position.x).toBeCloseTo(50);
+		expect(visual.position.y).toBeCloseTo(50);
+		expect(visual.size.width).toBeCloseTo(18);
+		expect(visual.size.height).toBeCloseTo(18);
 	});
 });

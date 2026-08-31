@@ -292,6 +292,7 @@ export function StickerTrackingProperties({
 
 			<PropertyGroup title={t("stickerProperties.tracking.planar")}>
 				<StickerPlanarTrackingProperties
+					canvasSize={canvasSize}
 					currentTime={currentTime}
 					element={element}
 					fps={fps}

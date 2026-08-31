@@ -23,6 +23,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 import { useTranslation } from "@/lib/i18n";
+import { buildTimelineStickerPlanarSeedTargetQuad } from "@/lib/stickers/planar-sticker-seed-target";
 import { getStickerTrackingMediaTargets } from "@/lib/stickers/sticker-tracking";
 import { getPlanarTrackingResultStore } from "@/lib/tracking/planar-result-store";
 import {
@@ -54,14 +55,15 @@ const DIRECTION_OPTIONS = [
 	{ direction: "both", icon: ArrowLeftRight },
 	{ direction: "forward", icon: StepForward },
 ] as const;
-
 export function StickerPlanarTrackingProperties({
+	canvasSize,
 	currentTime,
 	element,
 	fps,
 	tracks,
 	update,
 }: {
+	canvasSize: { height: number; width: number };
 	currentTime: number;
 	element: StickerElement;
 	fps: number;
@@ -105,7 +107,6 @@ export function StickerPlanarTrackingProperties({
 	const [lostBehavior, setLostBehavior] = useState<
 		StickerPlanarTracking["lostBehavior"]
 	>(planarBinding?.lostBehavior ?? "hold");
-
 	useEffect(() => {
 		if (targets.some(({ element: media }) => media.id === sourceElementId))
 			return;
@@ -120,6 +121,14 @@ export function StickerPlanarTrackingProperties({
 	const mediaItem = target
 		? mediaItems.find((item) => item.id === target.element.mediaId)
 		: undefined;
+	const seedTargetQuad = buildTimelineStickerPlanarSeedTargetQuad({
+		canvasSize,
+		currentTime,
+		fps,
+		sourceElement: target?.element,
+		sourceMedia: mediaItem,
+		stickerElement: element,
+	});
 	const reference = target?.element.surfaceTrackings?.find(
 		(candidate) =>
 			candidate.id === planarBinding?.surfaceTrackingId ||
@@ -138,7 +147,12 @@ export function StickerPlanarTrackingProperties({
 		selection.sourceElementId === sourceElementId;
 	const processing = job?.status === "processing";
 	const canStart = Boolean(
-		projectId && target && mediaItem?.file && editingSelection && !processing
+		projectId &&
+			target &&
+			mediaItem?.file &&
+			seedTargetQuad &&
+			editingSelection &&
+			!processing
 	);
 
 	const editSelection = (): void => {
@@ -159,7 +173,8 @@ export function StickerPlanarTrackingProperties({
 		update({ history: true, updates: { tracking: undefined } });
 	};
 	const attachReference = (): void => {
-		if (!target || !reusableReference || !editingSelection) return;
+		if (!target || !reusableReference || !editingSelection || !seedTargetQuad)
+			return;
 		update({
 			history: true,
 			updates: {
@@ -167,7 +182,7 @@ export function StickerPlanarTrackingProperties({
 					mode: "planar",
 					lostBehavior,
 					seedPtsUs: reusableReference.seedPtsUs,
-					seedTargetQuad: selection.quad,
+					seedTargetQuad,
 					sourceElementId: target.element.id,
 					surfaceTrackingId: reusableReference.id,
 				},
@@ -175,7 +190,14 @@ export function StickerPlanarTrackingProperties({
 		});
 	};
 	const startTracking = (): void => {
-		if (!projectId || !target || !mediaItem?.file || !editingSelection) return;
+		if (
+			!projectId ||
+			!target ||
+			!mediaItem?.file ||
+			!editingSelection ||
+			!seedTargetQuad
+		)
+			return;
 		const trackingId =
 			reference?.id ?? `planar-${generateUUID().toLowerCase()}`;
 		const sourceTime = getMediaSourcePlaybackTime({
@@ -235,7 +257,7 @@ export function StickerPlanarTrackingProperties({
 						resultStore: getPlanarTrackingResultStore(),
 						seedPtsUs,
 						seedQuad: selection.quad,
-						seedTargetQuad: selection.quad,
+						seedTargetQuad,
 						signal,
 						sourceDisplayHeight:
 							mediaItem.height ?? target.element.height ?? 1080,
@@ -257,6 +279,7 @@ export function StickerPlanarTrackingProperties({
 					});
 					return result;
 				} catch (cause) {
+					console.error(`[PlanarTracking] Job ${trackingId} failed`, cause);
 					const code =
 						terminalReference?.errorCode ??
 						readPlanarTrackingErrorCode({ cause });
