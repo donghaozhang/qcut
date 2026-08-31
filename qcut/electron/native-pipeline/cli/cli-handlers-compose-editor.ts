@@ -13,8 +13,12 @@ import { resolveComposePatchAssets } from "../compose/compose-asset-resolver.js"
 import { prepareComposeEditorAssets } from "../compose/compose-editor-asset-preparer.js";
 import { rollbackStickerLabMedia } from "../editor/editor-sticker-runtime-import.js";
 import { captureComposeSnapshot } from "../compose/compose-snapshot.js";
-import { timelineManifestFromComposePatch } from "../compose/compose-timeline-manifest.js";
 import {
+	editorTransitionPreset,
+	timelineManifestFromComposePatch,
+} from "../compose/compose-timeline-manifest.js";
+import {
+	COMPOSE_MAIN_VIDEO_TRACK_ROLE,
 	hasComposeValidationErrors,
 	validateComposePatch,
 	validateComposeSnapshot,
@@ -249,9 +253,18 @@ function splitAlreadyApplied({
 				? transitionFingerprint({
 						duration: operation.duration,
 						fromElementId: operation.fromElementId,
-						presetId: operation.presetId,
+						// Live transitions store the EDITOR vocabulary: presets
+						// are mapped (crossfade → dissolve) and pending-clip
+						// transitions land on the real main track, so the
+						// operation side normalizes the same way before matching.
+						presetId: editorTransitionPreset({
+							presetId: operation.presetId,
+						}),
 						toElementId: operation.toElementId,
-						trackId: operation.trackId,
+						trackId:
+							operation.trackId === COMPOSE_MAIN_VIDEO_TRACK_ROLE
+								? (live.mainTrackId ?? operation.trackId)
+								: operation.trackId,
 					})
 				: null;
 		const replayed =
