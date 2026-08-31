@@ -1,6 +1,7 @@
 import type {
 	PlanarQuad,
 	PlanarTrackingReference,
+	StickerMotionTracking,
 	StickerPlanarTracking,
 } from "@qcut/editor-core";
 import type { QCutDraftExportSnapshotV1 } from "@qcut/editor-core/jianying-draft";
@@ -47,6 +48,23 @@ function createBinding(): StickerPlanarTracking {
 		seedPtsUs: 500_000,
 		seedTargetQuad: createQuad(),
 		lostBehavior: "hold",
+	};
+}
+
+function createMotionBinding(): StickerMotionTracking {
+	return {
+		mode: "motion",
+		targetElementId: "video-element",
+		targetMaskId: "person-mask",
+		anchor: {
+			centerX: 0.5,
+			centerY: 0.5,
+			width: 0.25,
+			height: 0.25,
+			rotation: 12,
+		},
+		followScale: true,
+		followRotation: true,
 	};
 }
 
@@ -139,6 +157,46 @@ describe("planar tracking snapshot validation", () => {
 	it("accepts a media result reference and planar sticker binding", () => {
 		const snapshot = createSnapshot();
 		expect(() => validate({ snapshot })).not.toThrow();
+	});
+
+	it("accepts motion tracking rotation fields", () => {
+		const snapshot = createSnapshot();
+		const stickerElement = snapshot.tracks[1]?.elements[0];
+		if (!stickerElement || stickerElement.type !== "sticker") return;
+		stickerElement.tracking = createMotionBinding();
+
+		expect(() => validate({ snapshot })).not.toThrow();
+	});
+
+	it("rejects a malformed motion followRotation value", () => {
+		const snapshot = createSnapshot();
+		const stickerElement = snapshot.tracks[1]?.elements[0];
+		if (!stickerElement || stickerElement.type !== "sticker") return;
+		stickerElement.tracking = {
+			...createMotionBinding(),
+			followRotation: "yes",
+		} as never;
+
+		expect(() => validate({ snapshot })).toThrow(
+			"$.snapshot.tracks[1].elements[0].tracking.followRotation"
+		);
+	});
+
+	it("rejects a malformed motion anchor rotation value", () => {
+		const snapshot = createSnapshot();
+		const stickerElement = snapshot.tracks[1]?.elements[0];
+		if (!stickerElement || stickerElement.type !== "sticker") return;
+		stickerElement.tracking = {
+			...createMotionBinding(),
+			anchor: {
+				...createMotionBinding().anchor,
+				rotation: "clockwise",
+			},
+		} as never;
+
+		expect(() => validate({ snapshot })).toThrow(
+			"$.snapshot.tracks[1].elements[0].tracking.anchor.rotation"
+		);
 	});
 
 	it("rejects unsafe result locations with the exact snapshot path", () => {
