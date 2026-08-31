@@ -8,7 +8,10 @@ import {
 	lanedComposeTracks,
 	type LanedElement,
 } from "./compose-timeline-lanes.js";
-import { planComposeMediaClips } from "./compose-timeline-media.js";
+import {
+	MAIN_VIDEO_TRACK_ALIAS,
+	planComposeMediaClips,
+} from "./compose-timeline-media.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -35,7 +38,11 @@ const STICKER_TRACK_ALIAS = "compose-stickers";
 const AUDIO_TRACK_ALIAS = "compose-audio";
 const ADJUSTMENT_TRACK_ALIAS = "compose-adjustments";
 
-function editorTransitionPreset({ presetId }: { presetId: string }): string {
+export function editorTransitionPreset({
+	presetId,
+}: {
+	presetId: string;
+}): string {
 	return presetId === "crossfade" ? "dissolve" : presetId;
 }
 
@@ -425,7 +432,13 @@ export function timelineManifestFromComposePatch({
 					presetId: binding?.presetId ?? operation.presetId,
 				});
 				transitions.push({
-					track: operation.trackId,
+					// The "main-video" marker only exists as a track alias when
+					// this patch also plans clips; resolve it to the real main
+					// track so transition-only replays still find their track.
+					track:
+						operation.trackId === MAIN_VIDEO_TRACK_ALIAS && mainVideoTrackId
+							? mainVideoTrackId
+							: operation.trackId,
 					from: operation.fromElementId,
 					to: operation.toElementId,
 					type: binding?.type ?? presetId,
