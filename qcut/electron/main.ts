@@ -86,6 +86,10 @@ import {
 	setupJianyingMotionTrackingIPC,
 	type JianyingMotionTrackingIPCController,
 } from "./jianying-motion-tracking-handler.js";
+import {
+	setupJianyingBasicVideoIPC,
+	type JianyingBasicVideoIPCController,
+} from "./jianying-basic-video-handler.js";
 import { watchJianyingFilterCaches } from "./jianying-filter-cache-watcher.js";
 import {
 	setupJianyingFontLabIPC,
@@ -160,6 +164,7 @@ let jianyingPortraitAdjustmentController: JianyingPortraitAdjustmentIPCControlle
 	null;
 let jianyingMotionTrackingController: JianyingMotionTrackingIPCController | null =
 	null;
+let jianyingBasicVideoController: JianyingBasicVideoIPCController | null = null;
 let jianyingFontLabController: JianyingFontLabIPCController | null = null;
 let jianyingTextStyleLabController: JianyingTextStyleLabIPCController | null =
 	null;
@@ -1107,6 +1112,14 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 				},
 			],
 			[
+				"JianyingBasicVideoIPC",
+				() => {
+					jianyingBasicVideoController = setupJianyingBasicVideoIPC({
+						getMainWindow: () => mainWindow,
+					});
+				},
+			],
+			[
 				"JianyingFontLabIPC",
 				() => {
 					jianyingFontLabController = setupJianyingFontLabIPC({
@@ -1278,6 +1291,8 @@ app.on("before-quit", () => {
 	jianyingPortraitAdjustmentController = null;
 	jianyingMotionTrackingController?.dispose();
 	jianyingMotionTrackingController = null;
+	jianyingBasicVideoController?.dispose();
+	jianyingBasicVideoController = null;
 	jianyingFontLabController?.dispose();
 	jianyingFontLabController = null;
 	jianyingTextStyleLabController?.dispose();

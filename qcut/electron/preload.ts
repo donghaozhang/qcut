@@ -113,6 +113,12 @@ import {
 	JIANYING_MOTION_TRACKING_TRACK_CHANNEL,
 } from "./jianying-motion-tracking-contract.js";
 import {
+	JIANYING_BASIC_VIDEO_CANCEL_CHANNEL,
+	JIANYING_BASIC_VIDEO_DEFLICKER_CHANNEL,
+	JIANYING_BASIC_VIDEO_INSPECT_CHANNEL,
+	JIANYING_BASIC_VIDEO_PROGRESS_CHANNEL,
+} from "./jianying-basic-video-contract.js";
+import {
 	JIANYING_FONT_LAB_INSPECT_CHANNEL,
 	JIANYING_FONT_LAB_LIST_CHANNEL,
 	JIANYING_FONT_LAB_LOAD_CHANNEL,
@@ -313,6 +319,26 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			return () => {
 				ipcRenderer.removeListener(
 					JIANYING_MOTION_TRACKING_PROGRESS_CHANNEL,
+					listener
+				);
+			};
+		},
+	},
+	jianyingBasicVideo: {
+		inspect: () => ipcRenderer.invoke(JIANYING_BASIC_VIDEO_INSPECT_CHANNEL),
+		deflicker: (request) =>
+			ipcRenderer.invoke(JIANYING_BASIC_VIDEO_DEFLICKER_CHANNEL, request),
+		cancel: (request) =>
+			ipcRenderer.invoke(JIANYING_BASIC_VIDEO_CANCEL_CHANNEL, request),
+		onProgress: (callback) => {
+			const listener = (
+				_event: IpcRendererEvent,
+				progress: Parameters<typeof callback>[0]
+			) => callback(progress);
+			ipcRenderer.on(JIANYING_BASIC_VIDEO_PROGRESS_CHANNEL, listener);
+			return () => {
+				ipcRenderer.removeListener(
+					JIANYING_BASIC_VIDEO_PROGRESS_CHANNEL,
 					listener
 				);
 			};

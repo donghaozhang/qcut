@@ -100,6 +100,7 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 			"background-replace": "person-cutout",
 			"portrait-filter": "portrait-filter",
 			beautify: "portrait-filter",
+			deflicker: "video-lab-deflicker",
 			"sticker-search": "sticker-search",
 			"sticker-overlay": "sticker-overlay",
 		},

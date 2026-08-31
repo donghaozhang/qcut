@@ -27,8 +27,9 @@
 - 剪映十项均经过真实 UI 与独立时间线导出。
 - QCut 补帧尾帧缺失已在本轮修复；非方形像素源的输出几何仍与剪映不同。
 - QCut 的防抖、降噪、补帧和超分是本地替代实现，不能按剪映模型名宣称等价。
+- 2026-08-31 新增第一条剪映本机私有 Provider：防闪烁已从“模型可加载”提升到连续帧输入、派生视频缓存、CLI/UI 时间线替换和真人 E2E；私有文件仍不分发。
 
-完整结论见 [中文真人对比报告](./REAL_PERSON_COMPARISON.zh-CN.md) 和 [English real-person comparison](./REAL_PERSON_COMPARISON.en.md)。
+完整结论见 [本机缓存防闪烁实现](./PRIVATE_RUNTIME_DEFLICKER.zh-CN.md)、[English private-runtime deflicker](./PRIVATE_RUNTIME_DEFLICKER.en.md)、[中文真人对比报告](./REAL_PERSON_COMPARISON.zh-CN.md) 和 [English real-person comparison](./REAL_PERSON_COMPARISON.en.md)。
 
 ## 草稿和运行时分层
 
@@ -96,6 +97,8 @@ QCut 不应在每次播放或拖动参数时重新处理整段视频。
 - [Local algorithm probe status (English)](./PROBES.en.md)
 - [QCut 实验室本地实现与 E2E](./LAB_IMPLEMENTATION.zh-CN.md)
 - [QCut local lab implementation and E2E (English)](./LAB_IMPLEMENTATION.en.md)
+- [剪映本机缓存防闪烁 Provider](./PRIVATE_RUNTIME_DEFLICKER.zh-CN.md)
+- [Jianying on-device cache deflicker provider (English)](./PRIVATE_RUNTIME_DEFLICKER.en.md)
 - [CLI / UI 真人视频与剪映基线对比](./REAL_PERSON_COMPARISON.zh-CN.md)
 - [CLI / UI real-person video vs Jianying baseline (English)](./REAL_PERSON_COMPARISON.en.md)
 

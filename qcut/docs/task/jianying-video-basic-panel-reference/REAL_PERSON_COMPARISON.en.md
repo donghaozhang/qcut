@@ -1,6 +1,6 @@
 # QCut Ten-Feature Local Video Lab: Real-Person E2E vs Jianying
 
-> Validation date: 2026-08-30  
+> Validation date: 2026-08-30; private-deflicker rerun: 2026-08-31
 > Scope: QCut CLI, visible QCut UI, real Jianying UI, and actual exports from both editors  
 > Media: two three-second tracks derived from the same real-person footage
 
@@ -12,7 +12,7 @@ The outcome has three levels:
 
 1. **The workflow is connected**: all ten QCut outputs have hashes distinct from their matching baselines; preview, persistence, and export work.
 2. **The effect direction is measurable**: denoise, deflicker, motion blur, motion, crop, and tracking produce the expected metric changes.
-3. **Model equivalence is not established**: four QCut features are local substitutes for Jianying's named models. Interpolation duration is fixed, but the implementation is still not UMVFI.
+3. **Overall model equivalence is not established**: deflicker now uses the verified Jianying 11.3.0 on-device backend, but visible strength and export baselines are not calibrated. Stabilization, denoise, interpolation, and super resolution remain QCut substitutes.
 
 The machine probe covers `26` sources, baselines, and effect exports. The darkest frame still has a mean luma of `14.775417`; there are no zero-frame files or full black frames. Every 30 fps QCut and Jianying effect export is now `90` frames / `3.000s`.
 
@@ -33,7 +33,7 @@ Every SSIM value compares an editor's effect export with that editor's own same-
 | --- | --- | --- | --- |
 | Stabilization | FFmpeg `deshake`; estimated translation `-5.95%`, SSIM `0.680675` | Real stabilization export, SSIM `0.991019`, subtle change | Workflow passes; not Jianying's stabilizer |
 | ByteNN denoise | Actually `hqdn3d`; spatial detail `-1.64%` | UI model explicitly set to Local; detail `-7.73%` | Workflow passes; not ByteNN |
-| Deflicker | FFmpeg `deflicker`; frame-luma variation `-59.71%` | Frame-luma variation `-1.17%` | Both act; strengths are not calibrated |
+| Deflicker | Verified Jianying 11.3.0 `VideoDeflickerGpuBackend` cache at strength 70; luma variation `-3.305%`, SSIM `0.982599` | Luma variation `-1.172%`, SSIM `0.976897` | Stronger shared-backend evidence; visible settings and separate baselines remain uncalibrated |
 | Optical-flow motion blur | `minterpolate -> tmix -> fps`; detail/temporal difference `-44.84% / -32.61%` | `-61.37% / -52.33%` | Both have a clearly visible blur result |
 | Lab eye correction | Local bright-eye and eye-bag reduction, SSIM `0.828571` | Jianying eye correction, SSIM `0.993849` | Similar label, different semantics; QCut does not redirect gaze |
 | Lab AI super resolution | Lanczos 2x + unsharp; normalized detail `+0.48%` | Real asynchronous task; detail `+0.08%` | Both export; AI-model and clarity parity are unproven |
@@ -45,6 +45,8 @@ Every SSIM value compares an editor's effect export with that editor's own same-
 ## CLI and UI Evidence
 
 The QCut pixel run uses `editor:element:patch`, reads the persisted value back with `editor:timeline:export`, and exports with `editor:export:start --preset tiktok --fps 30 --poll`. The visible UI was also exercised and captured for every feature, then exported once with the combined state as `qcut-ui-combined.mp4`.
+
+Deflicker now also has a separate derived-media path. `qcut edit deflicker -i ... --strength 70 --output ...` and the visible UI action share the same private provider. UI E2E proves a changed timeline media ID, a reset strength, a non-empty derived file, and a visible preview. This is intentionally distinguished from the historical FFmpeg parameter-export matrix.
 
 The smart-tool run imports the real clip into visible QCut, completes local MediaPipe tracking with `12` samples, `100%` progress, and `ready` status, then produces separate motion, crop, and tracking keyframes. All three exports differ from their same-source baseline.
 
@@ -75,6 +77,9 @@ Jianying results are not inferred from draft fields. Seven pixel features and th
 - [QCut pixel-feature CLI/UI evidence](./evidence/real-video-matrix/qcut-pixel-matrix-evidence.json)
 - [QCut real-person tracking and keyframe evidence](./evidence/real-video-matrix/qcut-smart-tools-evidence.json)
 - [QCut combined UI](./evidence/real-video-matrix/20-qcut-ui-combined-features.png)
+- [QCut private deflicker UI](./evidence/real-video-matrix/qcut-private-deflicker-ui.png)
+- [QCut private deflicker state JSON](./evidence/real-video-matrix/qcut-private-deflicker-ui.json)
+- [Deflicker four-way frame comparison](./evidence/real-video-matrix/qcut-private-deflicker-contact-sheet.png)
 - [Jianying local denoise UI](./evidence/real-video-matrix/34-jianying-denoise-local-ui.png)
 - [Jianying super-resolution completion](./evidence/real-video-matrix/38-jianying-super-resolution-complete.png)
 - [Jianying completed smart motion](./evidence/real-video-matrix/43-jianying-smart-motion-clean-ui.png)
@@ -85,6 +90,7 @@ Jianying results are not inferred from draft fields. Seven pixel features and th
 
 ```bash
 bun x playwright test apps/web/src/test/e2e/media-lab-real-video-matrix.e2e.ts
+bun x playwright test apps/web/src/test/e2e/jianying-private-deflicker.e2e.ts --project=electron
 bun run research/jianying-basic-video-probe/measure-real-video-matrix.ts
 bun run research/jianying-basic-video-probe/build-real-video-comparison.ts
 ```

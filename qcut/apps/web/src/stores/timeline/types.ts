@@ -443,7 +443,8 @@ export interface TimelineStore {
 	replaceElementMedia: (
 		trackId: string,
 		elementId: string,
-		newFile: File
+		newFile: File,
+		options?: { localPath?: string }
 	) => Promise<{ success: boolean; error?: string }>;
 
 	// Ripple editing functions

@@ -4,6 +4,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { JIANYING_FILTER_LOCAL_BRIDGE_FILE_NAME } from "../../electron/jianying-filter-local-runtime/bridge-resolver.js";
+import {
+	JIANYING_DEFLICKER_HOST_FILE_NAME,
+	JIANYING_DEFLICKER_HOST_REQUIRED_MARKERS,
+} from "../../electron/jianying-basic-video-runtime/bridge-resolver.js";
 import { JIANYING_PORTRAIT_ADJUSTMENT_HOST_FILE_NAME } from "../../electron/jianying-portrait-adjustment-runtime/bridge-resolver.js";
 import { JIANYING_PERSON_CUTOUT_BRIDGE_FILE_NAME } from "../../electron/jianying-person-cutout/bridge-resolver.js";
 import { JIANYING_SALIENCY_BRIDGE_FILE_NAME } from "../../electron/jianying-person-cutout/saliency-bridge-resolver.js";
@@ -31,6 +35,7 @@ async function writeBridge({
 }
 
 async function createFixture({
+	deflickerCapabilities = JIANYING_DEFLICKER_HOST_REQUIRED_MARKERS.join(" "),
 	personCutoutCapabilities = "TEMattingBlendEffectV2-native-metal-canary Vision-person-fusion-v1",
 	saliencyCapabilities = "video-object-general-seg-v1 video-object-alpha-quality-v1",
 	videoObjectBachCapabilities = VIDEO_OBJECT_BACH_BRIDGE_REQUIRED_MARKERS.join(
@@ -39,6 +44,7 @@ async function createFixture({
 	videoObjectCoreMLCapabilities = "video-object-same-model-coreml-v1",
 	transitionUsage = "transition-video|effect-video",
 }: {
+	deflickerCapabilities?: string;
 	personCutoutCapabilities?: string;
 	saliencyCapabilities?: string;
 	videoObjectBachCapabilities?: string;
@@ -92,6 +98,10 @@ async function createFixture({
 			name: VIDEO_OBJECT_COREML_BRIDGE_FILE_NAME,
 			contents: `#!/bin/sh\n# ${videoObjectCoreMLCapabilities}\nexit 0\n`,
 		},
+		{
+			name: JIANYING_DEFLICKER_HOST_FILE_NAME,
+			contents: `#!/bin/sh\n# ${deflickerCapabilities}\nexit 0\n`,
+		},
 	];
 	await Promise.all(
 		bridges.flatMap(({ name, contents }) => [
@@ -140,7 +150,17 @@ describe("packaged Jianying runtime bridge verification", () => {
 			videoObjectCoreMLBridge: expect.stringContaining(
 				VIDEO_OBJECT_COREML_BRIDGE_FILE_NAME
 			),
+			deflickerHost: expect.stringContaining(JIANYING_DEFLICKER_HOST_FILE_NAME),
 		});
+	});
+
+	it("rejects a deflicker host without the audited execution route", async () => {
+		const fixture = await createFixture({
+			deflickerCapabilities: JIANYING_DEFLICKER_HOST_REQUIRED_MARKERS[0],
+		});
+		await expect(verifyPackagedJianyingRuntimeBridges(fixture)).rejects.toThrow(
+			JIANYING_DEFLICKER_HOST_REQUIRED_MARKERS[1]
+		);
 	});
 
 	it("rejects a transition bridge built before effect rendering existed", async () => {

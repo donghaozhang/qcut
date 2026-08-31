@@ -24,6 +24,10 @@ import {
 	compileVideoObjectCoreMLBridge,
 	VIDEO_OBJECT_COREML_BRIDGE_FILE_NAME,
 } from "../electron/jianying-person-cutout/video-object-coreml-bridge-resolver.js";
+import {
+	compileJianyingDeflickerHost,
+	JIANYING_DEFLICKER_HOST_FILE_NAME,
+} from "../electron/jianying-basic-video-runtime/bridge-resolver.js";
 
 if (process.platform !== "darwin") {
 	console.log("Skipping Jianying filter local bridge: macOS only.");
@@ -73,6 +77,13 @@ const videoObjectBachOutputPath = path.join(
 	"bin",
 	VIDEO_OBJECT_BACH_BRIDGE_FILE_NAME
 );
+const deflickerOutputPath = path.join(
+	projectRoot,
+	"electron",
+	"resources",
+	"bin",
+	JIANYING_DEFLICKER_HOST_FILE_NAME
+);
 
 await Promise.all([
 	rm(filterOutputPath, { force: true }),
@@ -81,6 +92,7 @@ await Promise.all([
 	rm(saliencyOutputPath, { force: true }),
 	rm(videoObjectCoreMLOutputPath, { force: true }),
 	rm(videoObjectBachOutputPath, { force: true }),
+	rm(deflickerOutputPath, { force: true }),
 ]);
 await Promise.all([
 	compileJianyingFilterLocalBridge({
@@ -107,6 +119,10 @@ await Promise.all([
 		projectRoot,
 		outputPath: videoObjectBachOutputPath,
 	}),
+	compileJianyingDeflickerHost({
+		projectRoot,
+		outputPath: deflickerOutputPath,
+	}),
 ]);
 console.log(`Staged Jianying filter local bridge: ${filterOutputPath}`);
 console.log(`Staged Jianying portrait adjustment host: ${portraitOutputPath}`);
@@ -118,3 +134,4 @@ console.log(
 console.log(
 	`Staged Jianying video-object Bach bridge: ${videoObjectBachOutputPath}`
 );
+console.log(`Staged Jianying deflicker host: ${deflickerOutputPath}`);

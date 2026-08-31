@@ -1722,6 +1722,20 @@ const EN_TRANSLATIONS = {
 	"mediaProperties.lab.localSuperResolution": "Lab local super resolution",
 	"mediaProperties.lab.apply": "Apply",
 	"mediaProperties.lab.trackingRequired": "Create a local person track first",
+	"mediaProperties.lab.privateDeflickerAction":
+		"Process with local Jianying cache",
+	"mediaProperties.lab.privateDeflickerUnavailable":
+		"Set deflicker above 0% in QCut desktop first",
+	"mediaProperties.lab.privateDeflickerSetStrength":
+		"Set deflicker strength above 0% first",
+	"mediaProperties.lab.privateDeflickerPreparing":
+		"Preparing verified local runtime...",
+	"mediaProperties.lab.privateDeflickerReplacing":
+		"Replacing the selected timeline clip...",
+	"mediaProperties.lab.privateDeflickerComplete": "Local deflicker complete",
+	"mediaProperties.lab.privateDeflickerCacheHit":
+		"Reused the verified local deflicker cache",
+	"mediaProperties.lab.privateDeflickerFailed": "Local deflicker failed",
 	"mediaProperties.off": "Off",
 	"mediaProperties.clipAnimation": "Clip animation",
 	"mediaProperties.animation.in": "In",
@@ -3663,6 +3677,18 @@ const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
 	"mediaProperties.lab.localSuperResolution": "实验室本地超分",
 	"mediaProperties.lab.apply": "应用",
 	"mediaProperties.lab.trackingRequired": "请先创建本地人物跟踪",
+	"mediaProperties.lab.privateDeflickerAction": "使用本机剪映缓存处理",
+	"mediaProperties.lab.privateDeflickerUnavailable":
+		"请在 QCut 桌面版先把防闪烁强度设为大于 0%",
+	"mediaProperties.lab.privateDeflickerSetStrength":
+		"请先把防闪烁强度设为大于 0%",
+	"mediaProperties.lab.privateDeflickerPreparing":
+		"正在准备已校验的本机运行时...",
+	"mediaProperties.lab.privateDeflickerReplacing": "正在替换所选时间线视频...",
+	"mediaProperties.lab.privateDeflickerComplete": "本机防闪烁处理完成",
+	"mediaProperties.lab.privateDeflickerCacheHit":
+		"已复用校验通过的本机防闪烁缓存",
+	"mediaProperties.lab.privateDeflickerFailed": "本机防闪烁处理失败",
 	"mediaProperties.off": "关闭",
 	"mediaProperties.clipAnimation": "片段动画",
 	"mediaProperties.animation.in": "入场",
