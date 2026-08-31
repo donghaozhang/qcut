@@ -20,8 +20,6 @@ import type {
 	RemotionElement,
 	StickerElement,
 	StickerKeyframeProperty,
-	StickerMotionTracking,
-	StickerTrackingAnchor,
 	SubtitleStyle,
 	TextElement,
 	TextFontAssetReference,
@@ -43,11 +41,11 @@ import {
 	validationIssue,
 } from "./runtime-json.js";
 import { validateMediaElement } from "./snapshot-media-runtime-validation.js";
-import { validateStickerPlanarTrackingRuntime } from "./snapshot-planar-tracking-runtime-validation.js";
 import {
 	createAllowedKeySet,
 	validateRecordOfArrays,
 } from "./snapshot-runtime-helpers.js";
+import { validateStickerTrackingRuntime } from "./snapshot-sticker-tracking-runtime-validation.js";
 import {
 	evaluateStickerRuntime,
 	type StickerRuntimeDescriptor,
@@ -359,30 +357,6 @@ const AUDIO_LYRICS_WORD_KEYS = createAllowedKeySet<AudioLyricsWord>({
 		type: true,
 	},
 });
-const STICKER_MOTION_TRACKING_KEYS = createAllowedKeySet<StickerMotionTracking>(
-	{
-		keys: {
-			anchor: true,
-			followRotation: true,
-			followScale: true,
-			mode: true,
-			targetElementId: true,
-			targetMaskId: true,
-		},
-	}
-);
-const STICKER_TRACKING_MODES = new Set(["motion", "planar"]);
-const STICKER_TRACKING_ANCHOR_KEYS = createAllowedKeySet<StickerTrackingAnchor>(
-	{
-		keys: {
-			centerX: true,
-			centerY: true,
-			height: true,
-			rotation: true,
-			width: true,
-		},
-	}
-);
 const HYPERFRAMES_VARIABLE_DEFINITION_KEYS =
 	createAllowedKeySet<HyperframesVariableDefinition>({
 		keys: {
@@ -1067,65 +1041,9 @@ function validateStickerElement({
 		});
 	}
 	if (element.tracking !== undefined) {
-		const trackingPath = `${path}.tracking`;
-		const tracking = getRecord({
-			path: trackingPath,
+		validateStickerTrackingRuntime({
+			path: `${path}.tracking`,
 			value: element.tracking,
-		});
-		const mode = assertStringLiteral({
-			allowed: STICKER_TRACKING_MODES,
-			path: `${trackingPath}.mode`,
-			value: tracking.mode,
-		});
-		if (mode === "planar") {
-			validateStickerPlanarTrackingRuntime({
-				path: trackingPath,
-				value: tracking,
-			});
-			return;
-		}
-		assertKeys({
-			allowed: STICKER_MOTION_TRACKING_KEYS,
-			path: trackingPath,
-			record: tracking,
-		});
-		getString({
-			path: `${trackingPath}.targetElementId`,
-			value: tracking.targetElementId,
-		});
-		if (tracking.targetMaskId !== undefined) {
-			getString({
-				path: `${trackingPath}.targetMaskId`,
-				value: tracking.targetMaskId,
-			});
-		}
-		assertOptionalBoolean({
-			path: `${trackingPath}.followScale`,
-			value: tracking.followScale,
-		});
-		assertOptionalBoolean({
-			path: `${trackingPath}.followRotation`,
-			value: tracking.followRotation,
-		});
-		const anchorPath = `${trackingPath}.anchor`;
-		const anchor = getRecord({
-			path: anchorPath,
-			value: tracking.anchor,
-		});
-		assertKeys({
-			allowed: STICKER_TRACKING_ANCHOR_KEYS,
-			path: anchorPath,
-			record: anchor,
-		});
-		for (const key of ["centerX", "centerY", "width", "height"]) {
-			getFiniteNumber({
-				path: `${anchorPath}.${key}`,
-				value: anchor[key],
-			});
-		}
-		assertOptionalFiniteNumber({
-			path: `${anchorPath}.rotation`,
-			value: anchor.rotation,
 		});
 	}
 }

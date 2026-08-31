@@ -5,7 +5,7 @@ import type {
 	StickerPlanarTracking,
 } from "@qcut/editor-core";
 import type { QCutDraftExportSnapshotV1 } from "@qcut/editor-core/jianying-draft";
-import { describe, expect, it } from "vitest";
+import { assert, describe, expect, it } from "vitest";
 import type { JsonValue } from "../runtime-json.js";
 import { validateSnapshot } from "../snapshot-runtime-validation.js";
 
@@ -162,7 +162,7 @@ describe("planar tracking snapshot validation", () => {
 	it("accepts motion tracking rotation fields", () => {
 		const snapshot = createSnapshot();
 		const stickerElement = snapshot.tracks[1]?.elements[0];
-		if (!stickerElement || stickerElement.type !== "sticker") return;
+		assert(stickerElement?.type === "sticker");
 		stickerElement.tracking = createMotionBinding();
 
 		expect(() => validate({ snapshot })).not.toThrow();
@@ -171,7 +171,7 @@ describe("planar tracking snapshot validation", () => {
 	it("rejects a malformed motion followRotation value", () => {
 		const snapshot = createSnapshot();
 		const stickerElement = snapshot.tracks[1]?.elements[0];
-		if (!stickerElement || stickerElement.type !== "sticker") return;
+		assert(stickerElement?.type === "sticker");
 		stickerElement.tracking = {
 			...createMotionBinding(),
 			followRotation: "yes",
@@ -185,7 +185,7 @@ describe("planar tracking snapshot validation", () => {
 	it("rejects a malformed motion anchor rotation value", () => {
 		const snapshot = createSnapshot();
 		const stickerElement = snapshot.tracks[1]?.elements[0];
-		if (!stickerElement || stickerElement.type !== "sticker") return;
+		assert(stickerElement?.type === "sticker");
 		stickerElement.tracking = {
 			...createMotionBinding(),
 			anchor: {
@@ -202,7 +202,7 @@ describe("planar tracking snapshot validation", () => {
 	it("rejects unsafe result locations with the exact snapshot path", () => {
 		const snapshot = createSnapshot();
 		const mediaElement = snapshot.tracks[0]?.elements[0];
-		if (!mediaElement || mediaElement.type !== "media") return;
+		assert(mediaElement?.type === "media");
 		mediaElement.surfaceTrackings = [
 			{ ...createReference(), resultUri: "file:///tmp/result.json" },
 		];
@@ -215,7 +215,7 @@ describe("planar tracking snapshot validation", () => {
 	it("rejects unknown reference fields", () => {
 		const snapshot = createSnapshot();
 		const mediaElement = snapshot.tracks[0]?.elements[0];
-		if (!mediaElement || mediaElement.type !== "media") return;
+		assert(mediaElement?.type === "media");
 		mediaElement.surfaceTrackings = [
 			{ ...createReference(), privatePath: "/tmp/private" } as never,
 		];
@@ -226,7 +226,7 @@ describe("planar tracking snapshot validation", () => {
 	it("rejects malformed planar bindings at their nested field", () => {
 		const snapshot = createSnapshot();
 		const stickerElement = snapshot.tracks[1]?.elements[0];
-		if (!stickerElement || stickerElement.type !== "sticker") return;
+		assert(stickerElement?.type === "sticker");
 		stickerElement.tracking = {
 			...createBinding(),
 			lostBehavior: "drift",
