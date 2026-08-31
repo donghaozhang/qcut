@@ -78,6 +78,47 @@ async function activeEditorProjectId({
 	return typeof id === "string" ? id : undefined;
 }
 
+function throwIfAborted({ signal }: { signal: AbortSignal }): void {
+	if (signal.aborted) {
+		throw new Error("Compose project command was aborted.");
+	}
+}
+
+async function abortAwareDelay({
+	milliseconds,
+	signal,
+}: {
+	milliseconds: number;
+	signal: AbortSignal;
+}): Promise<void> {
+	await new Promise<void>((resolveDelay, rejectDelay) => {
+		const timer = setTimeout(() => {
+			signal.removeEventListener("abort", onAbort);
+			resolveDelay();
+		}, milliseconds);
+		const onAbort = () => {
+			clearTimeout(timer);
+			rejectDelay(new Error("Compose project command was aborted."));
+		};
+		signal.addEventListener("abort", onAbort, { once: true });
+	});
+}
+
+/** Key-sorted JSON so persisted-state comparisons ignore key order. */
+function canonicalJson(value: unknown): string {
+	if (Array.isArray(value)) {
+		return `[${value.map((entry) => canonicalJson(entry)).join(",")}]`;
+	}
+	if (typeof value === "object" && value !== null) {
+		const record = value as Record<string, unknown>;
+		const keys = Object.keys(record).sort();
+		return `{${keys
+			.map((key) => `${JSON.stringify(key)}:${canonicalJson(record[key])}`)
+			.join(",")}}`;
+	}
+	return JSON.stringify(value) ?? "null";
+}
+
 /**
  * Readiness alone is not enough: right after opening a freshly created
  * project the renderer can still be tearing down the previous one, and
@@ -87,15 +128,18 @@ async function activeEditorProjectId({
 async function waitForActiveProject({
 	client,
 	projectId,
+	signal,
 	timeoutMs,
 }: {
 	client: EditorApiClient;
 	projectId: string;
+	signal: AbortSignal;
 	timeoutMs?: number;
 }): Promise<void> {
 	const deadline = Date.now() + Math.min(timeoutMs ?? 30_000, 120_000);
 	let confirmations = 0;
 	for (;;) {
+		throwIfAborted({ signal });
 		const active = await activeEditorProjectId({ client }).catch(
 			() => undefined
 		);
@@ -106,7 +150,7 @@ async function waitForActiveProject({
 				`Project ${projectId} did not become the active editor project in time.`
 			);
 		}
-		await new Promise((resolveDelay) => setTimeout(resolveDelay, 1000));
+		await abortAwareDelay({ milliseconds: 1000, signal });
 	}
 }
 
@@ -154,19 +198,59 @@ async function listEditorProjectIds({
  * every expected element survived the reopen. This is the CLI-level
  * save/close/reopen gate; full app-restart persistence stays an E2E concern.
  */
+async function readElementFilterStacks({
+	client,
+	projectId,
+	elementIds,
+}: {
+	client: EditorApiClient;
+	projectId: string;
+	elementIds: readonly string[];
+}): Promise<Map<string, string>> {
+	const timeline = await client.get<{
+		tracks?: Array<{
+			elements?: Array<{ id?: string; filterStack?: unknown }>;
+		}>;
+	}>(`/api/claude/timeline/${encodeURIComponent(projectId)}`);
+	const wanted = new Set(elementIds);
+	const stacks = new Map<string, string>();
+	for (const track of timeline.tracks ?? []) {
+		for (const element of track.elements ?? []) {
+			if (typeof element.id === "string" && wanted.has(element.id)) {
+				stacks.set(element.id, canonicalJson(element.filterStack ?? null));
+			}
+		}
+	}
+	return stacks;
+}
+
 async function reopenAndVerify({
 	client,
 	projectId,
 	expectedElementIds,
+	signal,
 	timeoutMs,
 	dependencies,
 }: {
 	client: EditorApiClient;
 	projectId: string;
 	expectedElementIds: readonly string[];
+	signal: AbortSignal;
 	timeoutMs?: number;
 	dependencies: ComposeEditorProjectDependencies;
-}): Promise<{ navigatedAway: boolean; missingElementIds: string[] }> {
+}): Promise<{
+	navigatedAway: boolean;
+	missingElementIds: string[];
+	changedFilterStackElementIds: string[];
+}> {
+	// Applied updates (ordered filter stacks) must survive the reopen too, so
+	// the persisted state is captured before navigating away and compared
+	// canonically afterwards.
+	const stacksBefore = await readElementFilterStacks({
+		client,
+		projectId,
+		elementIds: expectedElementIds,
+	});
 	const otherProjectId = (await listEditorProjectIds({ client })).find(
 		(candidate) => candidate !== projectId
 	);
@@ -188,16 +272,27 @@ async function reopenAndVerify({
 	const deadline = Date.now() + Math.min(timeoutMs ?? 15_000, 60_000);
 	let missingElementIds = [...expectedElementIds];
 	for (;;) {
+		throwIfAborted({ signal });
 		const live = await dependencies.readTimeline({ client, projectId });
 		missingElementIds = expectedElementIds.filter(
 			(elementId) => !live.elementIds.has(elementId)
 		);
 		if (missingElementIds.length === 0 || Date.now() >= deadline) break;
-		await new Promise((resolveDelay) => setTimeout(resolveDelay, 500));
+		await abortAwareDelay({ milliseconds: 500, signal });
 	}
+	const stacksAfter = await readElementFilterStacks({
+		client,
+		projectId,
+		elementIds: expectedElementIds,
+	});
+	const changedFilterStackElementIds = [...stacksBefore.entries()]
+		.filter(([elementId, before]) => stacksAfter.get(elementId) !== before)
+		.map(([elementId]) => elementId)
+		.filter((elementId) => !missingElementIds.includes(elementId));
 	return {
 		navigatedAway: Boolean(otherProjectId),
 		missingElementIds,
+		changedFilterStackElementIds,
 	};
 }
 
@@ -260,6 +355,7 @@ export async function handleComposeEditorProject(
 		await waitForActiveProject({
 			client,
 			projectId,
+			signal,
 			timeoutMs: options.timeoutMs,
 		});
 
@@ -329,12 +425,18 @@ export async function handleComposeEditorProject(
 				client,
 				projectId,
 				expectedElementIds: appliedElementIds,
+				signal,
 				timeoutMs: options.timeoutMs,
 				dependencies,
 			});
 			if (reopen.missingElementIds.length > 0) {
 				throw new Error(
 					`Elements disappeared after reopen: ${reopen.missingElementIds.join(", ")}`
+				);
+			}
+			if (reopen.changedFilterStackElementIds.length > 0) {
+				throw new Error(
+					`Filter stacks changed after reopen: ${reopen.changedFilterStackElementIds.join(", ")}`
 				);
 			}
 		}
