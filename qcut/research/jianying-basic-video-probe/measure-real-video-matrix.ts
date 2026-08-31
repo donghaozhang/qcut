@@ -195,10 +195,13 @@ const FEATURE_SPECS: FeatureSpec[] = [
 		localizedName: "防闪烁",
 		sourceTrack: "noisy-person",
 		qcut: {
+			// Source-relative on purpose: the private deflicker cache consumes
+			// the source directly, so a qcut-pixel-baseline would conflate
+			// renderer differences with the deflicker treatment.
 			baselineId: "source-noisy-person",
 			candidateId: "qcut-private-deflicker",
 			implementation:
-				"Verified Jianying 11.3.0 VideoDeflickerGpuBackend cache at strength 70",
+				"Verified Jianying 11.3.0 VideoDeflickerGpuBackend cache at strength 70 (source-relative baseline: deltas include source re-encode artifacts)",
 		},
 		jianying: {
 			baselineId: "jianying-pixel-baseline",
