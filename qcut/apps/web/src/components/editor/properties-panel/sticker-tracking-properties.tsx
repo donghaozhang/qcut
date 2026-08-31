@@ -232,7 +232,7 @@ export function StickerTrackingProperties({
 									{t("stickerProperties.tracking.followRotation")}
 								</PropertyItemLabel>
 								<Switch
-									checked={Boolean(element.tracking.followRotation)}
+									checked={Boolean(motionTracking.followRotation)}
 									disabled={!rotationTrackingAvailable}
 									onCheckedChange={(followRotation) =>
 										updateTracking({ updates: { followRotation } })
