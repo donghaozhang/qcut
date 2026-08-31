@@ -94,8 +94,10 @@ export function PlanarTrackingSelectionOverlay({
 	const setSelectionQuad = usePlanarTrackingEditorStore(
 		(state) => state.setSelectionQuad
 	);
+	const isActive = selection?.sourceElementId === sourceElementId;
 
 	useLayoutEffect(() => {
+		if (!isActive) return;
 		const root = rootRef.current;
 		if (!root) return;
 		const update = (): void =>
@@ -104,7 +106,7 @@ export function PlanarTrackingSelectionOverlay({
 		const observer = new ResizeObserver(update);
 		observer.observe(root);
 		return () => observer.disconnect();
-	}, []);
+	}, [isActive]);
 
 	const mapping = useMemo(
 		() =>
@@ -117,7 +119,7 @@ export function PlanarTrackingSelectionOverlay({
 			}),
 		[containerSize, fitMode, sourceHeight, sourceWidth]
 	);
-	if (!selection || selection.sourceElementId !== sourceElementId) return null;
+	if (!selection || !isActive) return null;
 
 	const points = Object.fromEntries(
 		HANDLES.map(({ corner }) => [
