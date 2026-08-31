@@ -52,7 +52,7 @@ Lab eye correction merges conservative eye-detail values into the existing local
 - The three FFmpeg features, tracking-to-keyframe tools, and Jianying on-device deflicker require no network. The private host explicitly runs with network denied.
 - Smart tools require a ready local person track. Their buttons stay disabled until that prerequisite exists.
 - Eye treatment requires QCut's private local portrait runtime. This machine has the private runtime snapshot; Jianying libraries and models are not committed, packaged, or redistributed.
-- A standalone `inspect({ refresh: true })` diagnostic did not return within 90 seconds and was terminated. The properties panel does not call this blocking refresh. Any future availability UI should use cached status and a timeout.
+- A standalone `inspect()` diagnostic (the API takes no options) did not return within 90 seconds and was terminated. The properties panel does not call this blocking refresh. Any future availability UI should use cached status and a timeout.
 - Deflicker now has a verified consecutive-frame ABI. ByteNN, UMVFI, VAS, VMB, gaze correction, and local AI super-resolution still lack complete stable frame-processing ABIs, so the remaining controls continue to use verifiable QCut implementations without borrowing private product names.
 
 ## Verification
