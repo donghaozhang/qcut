@@ -77,7 +77,7 @@ function getMaxBodySize({
 		return MEDIA_IMPORT_MAX_BODY_SIZE;
 	}
 	if (
-		(method === "POST" || method === "PATCH") &&
+		(method === "POST" || method === "PATCH" || method === "DELETE") &&
 		TIMELINE_BATCH_PATH.test(pathname)
 	) {
 		return TIMELINE_BATCH_MAX_BODY_SIZE;
