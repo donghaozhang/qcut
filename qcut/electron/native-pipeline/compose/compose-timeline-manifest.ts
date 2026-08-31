@@ -515,7 +515,9 @@ export function timelineManifestFromComposePatch({
 						operationId: operation.id,
 						kind: operation.kind,
 						reason:
-							"Multi-effect adjustment layers currently support LUT chains only.",
+							enabledEffects.length === 1
+								? "The effect resolved without a renderable color payload."
+								: "Multi-effect adjustment layers currently support LUT chains only.",
 					});
 					break;
 				}
