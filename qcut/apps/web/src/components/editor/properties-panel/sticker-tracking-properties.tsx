@@ -29,6 +29,7 @@ import {
 	PropertyItemValue,
 } from "./property-item";
 import type { UpdateStickerProperties } from "./sticker-property-types";
+import { StickerPlanarTrackingProperties } from "./sticker-planar-tracking-properties";
 
 const NONE_TARGET = "none";
 
@@ -272,12 +273,13 @@ export function StickerTrackingProperties({
 			</PropertyGroup>
 
 			<PropertyGroup title={t("stickerProperties.tracking.planar")}>
-				<div
-					className="rounded border border-dashed p-3 text-xs text-muted-foreground"
-					aria-disabled="true"
-				>
-					{t("stickerProperties.tracking.planarUnavailable")}
-				</div>
+				<StickerPlanarTrackingProperties
+					currentTime={currentTime}
+					element={element}
+					fps={fps}
+					tracks={tracks}
+					update={update}
+				/>
 			</PropertyGroup>
 		</div>
 	);
