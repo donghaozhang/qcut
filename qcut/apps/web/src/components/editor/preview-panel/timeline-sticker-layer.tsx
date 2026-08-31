@@ -1,6 +1,7 @@
 import { useMemo, useRef, type RefObject } from "react";
 import { StickerElement as InteractiveStickerElement } from "@/components/editor/stickers-overlay/StickerElement";
 import { resolveTimelineStickerVisualAtTime } from "@/lib/stickers/timeline-sticker-visual";
+import { usePlanarTrackingSidecar } from "@/lib/tracking/use-planar-tracking-sidecar";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
@@ -28,6 +29,7 @@ export function TimelineStickerLayer({
 		state.overlayStickers.get(element.stickerId)
 	);
 	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
+	const planarTrackingSidecar = usePlanarTrackingSidecar({ element, tracks });
 	const sticker = useMemo(
 		() =>
 			resolveTimelineStickerVisualAtTime({
@@ -39,6 +41,7 @@ export function TimelineStickerLayer({
 				tracks,
 				canvasWidth: canvasSize.width,
 				canvasHeight: canvasSize.height,
+				planarTrackingSidecar,
 			}),
 		[
 			canvasSize.height,
@@ -48,6 +51,7 @@ export function TimelineStickerLayer({
 			elementOrder,
 			fallback,
 			fps,
+			planarTrackingSidecar,
 			tracks,
 		]
 	);
@@ -93,6 +97,7 @@ function TimelineStickerInteractionItem({
 		state.overlayStickers.get(element.stickerId)
 	);
 	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
+	const planarTrackingSidecar = usePlanarTrackingSidecar({ element, tracks });
 	const sticker = useMemo(
 		() =>
 			resolveTimelineStickerVisualAtTime({
@@ -104,6 +109,7 @@ function TimelineStickerInteractionItem({
 				tracks,
 				canvasWidth: canvasSize.width,
 				canvasHeight: canvasSize.height,
+				planarTrackingSidecar,
 			}),
 		[
 			canvasSize.height,
@@ -113,6 +119,7 @@ function TimelineStickerInteractionItem({
 			elementOrder,
 			fallback,
 			fps,
+			planarTrackingSidecar,
 			tracks,
 		]
 	);
