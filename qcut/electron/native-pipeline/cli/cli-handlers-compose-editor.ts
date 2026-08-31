@@ -149,6 +149,7 @@ export const ELEMENT_CREATING_KINDS = new Set<ComposePatchOperation["kind"]>([
 	"add-sticker",
 	"add-sound-effect",
 	"insert-media-clip",
+	"add-filter-layer",
 ]);
 
 export interface LiveTimelineState {
