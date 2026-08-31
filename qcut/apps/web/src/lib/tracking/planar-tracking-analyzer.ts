@@ -70,6 +70,8 @@ export interface AnalyzePlanarTrackingOptions {
 }
 
 export interface PlanarTrackingAnalysisResult {
+	analysisHeight: number;
+	analysisWidth: number;
 	lostDirections: PlanarTrackingDirection[];
 	providerVersion: string;
 	sidecar: PlanarTrackingSidecarV1;
@@ -347,6 +349,8 @@ export async function analyzePlanarTracking({
 			progress: 1,
 		});
 		return {
+			analysisHeight: metadata.analysisHeight,
+			analysisWidth: metadata.analysisWidth,
 			lostDirections,
 			providerVersion: provider.providerVersion,
 			sidecar,
