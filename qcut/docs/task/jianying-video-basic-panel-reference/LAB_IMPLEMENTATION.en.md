@@ -1,6 +1,6 @@
 # QCut Local Video Lab Implementation and E2E
 
-> Implemented: 2026-08-30
+> Implemented: 2026-08-30; Jianying private-provider update: 2026-08-31
 >
 > Scope: deflicker, optical-flow motion blur, smart motion, smart crop, camera tracking, eye correction, local super resolution, and the existing stabilization, denoise, and frame interpolation controls
 
@@ -26,7 +26,7 @@ Panel close-up: `evidence/qcut-media-lab-panel.png`
 
 | Target | QCut entry | Local | Honest implementation boundary |
 | --- | --- | --- | --- |
-| Deflicker | Lab deflicker | Yes | FFmpeg `deflicker`, with strength mapped to an odd 3-31 frame window |
+| Deflicker | Lab deflicker | Yes | Explicit on-device path through Jianying 11.3.0 `VideoDeflickerGpuBackend` and derived media; public FFmpeg `deflicker` remains the fallback |
 | Stabilization | Video stabilization > Local stabilization | Yes | Existing FFmpeg `deshake`; not Jianying VAS 2.0.0 |
 | ByteNN denoise | Quality enhancement > Video denoise | Yes | Existing FFmpeg `hqdn3d`; the private ByteNN model remains probe-only |
 | UMVFI interpolation | Speed > Smart frame interpolation | Yes | Existing motion-compensated FFmpeg `minterpolate`; not UMVFI 3.2.0 |
@@ -41,7 +41,7 @@ Panel close-up: `evidence/qcut-media-lab-panel.png`
 
 The four continuous settings are persisted on each clip as `labDeflicker`, `labOpticalFlowMotionBlur`, `labEyeCorrection`, and `labLocalSuperResolution`.
 
-Deflicker, motion blur, and local super resolution share the FFmpeg frame-preview, proxy-preview, and export chain. Temporal preview context is derived from the active filter window and project fps instead of always using 0.5 seconds.
+Without the local-cache action, deflicker, motion blur, and local super resolution share the FFmpeg frame-preview, proxy-preview, and export chain. `Process with local Jianying cache` instead runs the full clip through an isolated native host, validates and caches a derived MP4, replaces the timeline media, and resets `labDeflicker` so export cannot apply the fallback twice. See [the private deflicker provider report](./PRIVATE_RUNTIME_DEFLICKER.en.md).
 
 Smart motion, smart crop, and camera tracking consume a completed local Mask track whose source is `mediapipe` or `optical-flow`. They generate ordinary `x`, `y`, `scaleX`, and `scaleY` keyframes, so the result remains undoable and editable and uses the existing export path.
 
@@ -49,11 +49,11 @@ Lab eye correction merges conservative eye-detail values into the existing local
 
 ## Local-use boundary
 
-- The three FFmpeg features and three tracking-to-keyframe tools require no network.
+- The three FFmpeg features, tracking-to-keyframe tools, and Jianying on-device deflicker require no network. The private host explicitly runs with network denied.
 - Smart tools require a ready local person track. Their buttons stay disabled until that prerequisite exists.
 - Eye treatment requires QCut's private local portrait runtime. This machine has the private runtime snapshot; Jianying libraries and models are not committed, packaged, or redistributed.
 - A standalone `inspect({ refresh: true })` diagnostic did not return within 90 seconds and was terminated. The properties panel does not call this blocking refresh. Any future availability UI should use cached status and a timeout.
-- ByteNN, UMVFI, VAS, gaze correction, and local AI super-resolution do not have a complete public frame-processing ABI in QCut. The UI therefore uses verifiable QCut implementations without borrowing those private product names.
+- Deflicker now has a verified consecutive-frame ABI. ByteNN, UMVFI, VAS, VMB, gaze correction, and local AI super-resolution still lack complete stable frame-processing ABIs, so the remaining controls continue to use verifiable QCut implementations without borrowing private product names.
 
 ## Verification
 
@@ -63,6 +63,7 @@ Lab eye correction merges conservative eye-detail values into the existing local
 - Web production build: passed with pre-existing route, dynamic-import, and chunk-size warnings.
 - Real packaged FFmpeg: rendered a three-second H.264 result at 640 x 360, 30 fps, 90 frames in 5.66 seconds.
 - Electron Playwright E2E: passed in 19.3 seconds after a real project creation, video import, seek into the clip, pointer slider drag, all three smart-action clicks, persisted settings check, keyframe count check, and a non-empty preview assertion.
+- Private deflicker visible-UI E2E: real-person import, button processing, changed media ID, non-empty derived file, strength reset, non-empty preview, screenshot, and state JSON; `1 passed (10.7s)`.
 
 Evidence:
 
@@ -75,6 +76,6 @@ Evidence:
 
 ## Follow-up work
 
-1. Add derived-media caching for long deflicker, motion-blur, and reconstruction jobs.
+1. Extend the private-deflicker derived-media cache model to long motion-blur and reconstruction jobs.
 2. Add a real-face before/after pixel assertion for the lab eye treatment.
 3. Add ByteNN, UMVFI, gaze redirection, or local AI super-resolution only after a legal, stable, redistributable provider exposes a complete processing API.
