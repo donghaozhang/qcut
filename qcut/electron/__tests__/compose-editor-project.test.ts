@@ -1,7 +1,7 @@
 // @vitest-environment node
 import { mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { buildComposeEditorProjectPatch } from "../native-pipeline/compose/compose-editor-project.js";
 import {
@@ -94,7 +94,8 @@ describe("buildComposeEditorProjectPatch", () => {
 		);
 		expect(clips).toHaveLength(2);
 		for (const clip of clips) {
-			expect(clip.asset.localPath).toMatch(/^\//);
+			// Platform-neutral: Windows absolute paths start with a drive letter.
+			expect(isAbsolute(clip.asset.localPath ?? "")).toBe(true);
 			expect(clip.asset.localPath?.startsWith(resolve(configDirectory))).toBe(
 				true
 			);
