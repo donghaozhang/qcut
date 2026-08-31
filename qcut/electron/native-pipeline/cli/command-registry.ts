@@ -132,7 +132,13 @@ export const CATEGORIES: CategoryDef[] = [
 	{
 		name: "editing",
 		label: "Editing Commands",
-		commands: ["edit-plan", "edit-verify", "sticker-search", "sticker-overlay"],
+		commands: [
+			"edit-plan",
+			"edit-verify",
+			"video-lab-deflicker",
+			"sticker-search",
+			"sticker-overlay",
+		],
 	},
 	{
 		name: "transition",
@@ -1215,6 +1221,25 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		],
 		examples: [
 			"qcut edit verify --edl edl.json --video final.mp4 --cut-window 1.5",
+		],
+	},
+	"video-lab-deflicker": {
+		name: "video-lab-deflicker",
+		description:
+			"Deflicker a local video with a verified, offline Jianying runtime cache",
+		category: "editing",
+		flags: [
+			f("--input", "string", "Local source video", {
+				short: "-i",
+				required: true,
+			}),
+			f("--output", "string", "Output MP4 path"),
+			f("--strength", "number", "Deflicker strength from 1 to 100", {
+				default: 70,
+			}),
+		],
+		examples: [
+			"qcut edit deflicker -i source.mp4 --strength 70 --output source-deflicker.mp4",
 		],
 	},
 	"analyze-consistency": {
