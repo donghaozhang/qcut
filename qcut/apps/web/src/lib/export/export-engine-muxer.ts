@@ -13,6 +13,17 @@ import type { MediaItem } from "@/stores/media/media-store-types";
 import { shouldIncludeAudio } from "@/types/export";
 import { renderBrowserTimelineAudio } from "@/lib/audio/browser-audio-export";
 import { calculateFrameTime } from "./export-engine-utils";
+import { exportProfiler } from "./export-profiler";
+import { reportExportFrameProgress } from "./export-progress-reporter";
+import { assertCanvasClipTransitionsRenderable } from "./export-clip-transitions";
+import {
+	type CanvasYuvConverter,
+	createCanvasYuvConverter,
+	EXPORT_VIDEO_COLOR_SPACE,
+} from "./export-canvas-yuv";
+import { isJianyingTimelineRendererAvailable } from "./export-engine-cli-jianying";
+import { applyJianyingTransitionsToRenderedVideo } from "./export-muxer-jianying-pass";
+import { destroyExportCompositor } from "./export-engine-renderer";
 
 // Progress callback type
 type ProgressCallback = (progress: number, status: string) => void;
@@ -64,16 +75,36 @@ export class ExportEngineMuxer extends ExportEngine {
 
 		this.isExporting = true;
 		this.abortController = new AbortController();
+		let yuvConverter: CanvasYuvConverter | null = null;
 
 		try {
 			progressCallback?.(0, "Initializing WebCodecs encoder...");
+
+			// Transitions are decided before any frame is encoded: canvas renders
+			// the ones it can express exactly, jianying-local seams go through the
+			// native pass after muxing, and anything else fails closed here rather
+			// than exporting a silent hard cut.
+			const clipTransitions = this.getExportRenderIndex().clipTransitions;
+			assertCanvasClipTransitionsRenderable({
+				plan: clipTransitions,
+				engineLabel: "muxer",
+			});
+			if (
+				clipTransitions.jianyingTransitions.length > 0 &&
+				!isJianyingTimelineRendererAvailable()
+			) {
+				throw new Error(
+					"本机剪映转场需要 QCut 桌面版的剪映引擎；当前环境无法渲染这些转场，已中止导出以避免静默硬切。"
+				);
+			}
 
 			// Dynamic import to avoid loading mediabunny on desktop
 			const {
 				Output,
 				Mp4OutputFormat,
 				BufferTarget,
-				CanvasSource,
+				VideoSample,
+				VideoSampleSource,
 				AudioBufferSource,
 			} = await import("mediabunny");
 
@@ -90,23 +121,34 @@ export class ExportEngineMuxer extends ExportEngine {
 				target,
 			});
 
-			// Create video source from canvas
-			// Use "no-preference" so it works on both real hardware (GPU) and simulator (software)
-			const videoSource = new CanvasSource(this.canvas, {
+			// Every frame is converted to BT.709 limited-range I420 on our
+			// side before it reaches the encoder. Chromium fixes the stream's
+			// color tags when the encoder is configured but chooses the
+			// RGB→Y'CbCr matrix per frame from mutable canvas state, so raw
+			// canvas frames can mix BT.601- and BT.709-coded frames under one
+			// tag; pre-converted I420 keeps the tags truthful for the whole
+			// stream. "no-preference" works on real hardware and simulators.
+			const videoSource = new VideoSampleSource({
 				codec: "avc",
 				bitrate: videoBitrate,
 				hardwareAcceleration: "no-preference",
 			});
 			output.addVideoTrack(videoSource, { frameRate: fps });
+			yuvConverter = createCanvasYuvConverter({
+				width: this.canvas.width,
+				height: this.canvas.height,
+			});
 
 			// Prepare audio if timeline has audio elements
 			const audioData = shouldIncludeAudio(this.settings)
-				? await renderBrowserTimelineAudio({
-						tracks: this.tracks,
-						mediaItems: this.mediaItems,
-						totalDuration: this.totalDuration,
-						fps,
-					})
+				? await exportProfiler.time("audio-render", () =>
+						renderBrowserTimelineAudio({
+							tracks: this.tracks,
+							mediaItems: this.mediaItems,
+							totalDuration: this.totalDuration,
+							fps,
+						})
+					)
 				: null;
 			let audioSource: InstanceType<typeof AudioBufferSource> | null = null;
 
@@ -125,7 +167,11 @@ export class ExportEngineMuxer extends ExportEngine {
 
 			const frameDuration = 1 / fps;
 
-			// Render and encode each frame
+			// Render and encode each frame. `CanvasSource.add` captures the
+			// canvas synchronously and returns a backpressure promise, so the
+			// encoder chews on frame N while frame N+1 renders — a bounded
+			// one-frame pipeline that respects WebCodecs backpressure.
+			let pendingEncode: Promise<void> | null = null;
 			for (let frame = 0; frame < totalFrames; frame++) {
 				if (this.isExportCancelled()) {
 					throw new Error("Export cancelled by user");
@@ -136,16 +182,53 @@ export class ExportEngineMuxer extends ExportEngine {
 					frameRate: fps,
 				});
 
-				// Render frame to canvas using existing renderer
-				await this.renderFrame(currentTime);
+				exportProfiler.frameStart(frame);
 
-				// Feed canvas to mediabunny's CanvasSource with timeout
-				// (WebCodecs encoder can stall on simulator or unsupported platforms)
-				await withTimeout(
-					videoSource.add(currentTime, frameDuration),
+				// Render frame to canvas using existing renderer
+				await exportProfiler.time("render-frame", () =>
+					this.renderFrame(currentTime)
+				);
+
+				// Issue this frame's BT.709 I420 conversion, let the GPU work
+				// while the encoder finishes the previous frame, then collect
+				// the bytes: the readback overlaps the backpressure wait.
+				const converter = yuvConverter;
+				if (!converter) throw new Error("YUV converter was disposed");
+				exportProfiler.timeSync("yuv-begin", () =>
+					converter.begin(this.canvas)
+				);
+				if (pendingEncode) {
+					const settled = pendingEncode;
+					pendingEncode = null;
+					await exportProfiler.time("encode-wait", () => settled);
+				}
+
+				// Capture the canvas as a BT.709 I420 sample (the sample copies
+				// the bytes, so the converter's buffer can be reused) and feed
+				// it to mediabunny with a timeout (WebCodecs encoders can stall
+				// on simulator or unsupported platforms).
+				const yuvFrame = exportProfiler.timeSync("yuv-finish", () =>
+					converter.finish(this.canvas)
+				);
+				const sample = new VideoSample(yuvFrame.data, {
+					format: "I420",
+					codedWidth: yuvFrame.codedWidth,
+					codedHeight: yuvFrame.codedHeight,
+					timestamp: currentTime,
+					duration: frameDuration,
+					colorSpace: EXPORT_VIDEO_COLOR_SPACE,
+				});
+				const encodePromise = withTimeout(
+					videoSource.add(sample).then(() => sample.close()),
 					10_000,
 					`Encoder stalled at frame ${frame + 1}/${totalFrames}`
 				);
+				// Keep an exception between add() and the next await from
+				// surfacing as an unhandled rejection.
+				encodePromise.catch(() => {});
+				pendingEncode = encodePromise;
+
+				exportProfiler.frameEnd();
 
 				// Progress (reserve 5% for finalization)
 				const progress = 2 + (frame / totalFrames) * 90;
@@ -153,11 +236,21 @@ export class ExportEngineMuxer extends ExportEngine {
 					progress,
 					`Encoding frame ${frame + 1}/${totalFrames}`
 				);
+				reportExportFrameProgress({
+					progressPercent: progress,
+					currentFrame: frame + 1,
+					totalFrames,
+				});
 
 				// Yield to UI every 10 frames
 				if (frame % 10 === 0) {
 					await new Promise((resolve) => setTimeout(resolve, 0));
 				}
+			}
+			if (pendingEncode) {
+				const settled = pendingEncode;
+				pendingEncode = null;
+				await exportProfiler.time("encode-wait", () => settled);
 			}
 
 			// Add audio data if present
@@ -167,13 +260,39 @@ export class ExportEngineMuxer extends ExportEngine {
 			}
 
 			progressCallback?.(96, "Finalizing MP4...");
-			await output.finalize();
+			await exportProfiler.time("mp4-finalize", () => output.finalize());
 
 			if (!target.buffer) {
 				throw new Error("Export finalization failed — no output buffer");
 			}
-			const blob = new Blob([target.buffer], { type: "video/mp4" });
+			let blob = new Blob([target.buffer], { type: "video/mp4" });
+			if (clipTransitions.jianyingTransitions.length > 0) {
+				if (this.isExportCancelled()) {
+					throw new Error("Export cancelled by user");
+				}
+				progressCallback?.(97, "正在用本机剪映引擎渲染转场…");
+				blob = await exportProfiler.time("jianying-transition-pass", () =>
+					applyJianyingTransitionsToRenderedVideo({
+						blob,
+						transitions: clipTransitions.jianyingTransitions,
+						tracks: this.tracks,
+						fps,
+						width: this.canvas.width,
+						height: this.canvas.height,
+						onProgress: progressCallback,
+					})
+				);
+			}
 			progressCallback?.(100, "Export complete!");
+
+			await exportProfiler.finishAndSave({
+				engine: "muxer",
+				totalFrames,
+				fps,
+				width: this.canvas.width,
+				height: this.canvas.height,
+				quality,
+			});
 
 			return blob;
 		} catch (error) {
@@ -186,8 +305,12 @@ export class ExportEngineMuxer extends ExportEngine {
 			console.error("[ExportEngineMuxer] Export failed:", error);
 			throw error;
 		} finally {
+			yuvConverter?.dispose();
+			yuvConverter = null;
 			this.activeOutput = null;
 			this.isExporting = false;
+			destroyExportCompositor();
+			await this.disposeSequentialVideo();
 		}
 	}
 

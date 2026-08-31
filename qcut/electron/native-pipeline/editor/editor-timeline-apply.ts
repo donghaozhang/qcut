@@ -142,6 +142,8 @@ const TEXT_VERIFY_KEYS = [
 const MEDIA_VERIFY_KEYS = [
 	"colorLabel",
 	"volume",
+	"audioFadeIn",
+	"audioFadeOut",
 	"fitMode",
 	"x",
 	"y",
@@ -157,10 +159,12 @@ const MEDIA_VERIFY_KEYS = [
 	"freezeFrameDuration",
 	"preservePitch",
 	"frameInterpolation",
+	"timelineDuration",
 ] as const;
 
 const STICKER_VERIFY_KEYS = [
 	"stickerId",
+	"stickerAssetId",
 	"mediaId",
 	"stickerRuntime",
 	"x",
@@ -169,6 +173,13 @@ const STICKER_VERIFY_KEYS = [
 	"height",
 	"rotation",
 	"opacity",
+	"maintainAspectRatio",
+	"animationInType",
+	"animationInDuration",
+	"animationOutType",
+	"animationOutDuration",
+	"animationLoopType",
+	"animationLoopIntensity",
 ] as const;
 
 const TRANSITION_VERIFY_KEYS = [
@@ -177,6 +188,8 @@ const TRANSITION_VERIFY_KEYS = [
 	"duration",
 	"direction",
 	"easing",
+	"engine",
+	"packageHash",
 	"tuning",
 	"maskShape",
 ] as const;
@@ -214,6 +227,18 @@ function valuesMatch(expected: unknown, actual: unknown): boolean {
 	return expected === actual;
 }
 
+const MEDIA_FAMILY_TYPES = new Set(["media", "video", "audio", "image"]);
+
+function expectedManifestTrims({ expected }: { expected: ManifestElement }): {
+	trimStart: number;
+	trimEnd: number;
+} {
+	return {
+		trimStart: typeof expected.trimStart === "number" ? expected.trimStart : 0,
+		trimEnd: typeof expected.trimEnd === "number" ? expected.trimEnd : 0,
+	};
+}
+
 function expectedReadBackValue({
 	expected,
 	key,
@@ -225,16 +250,39 @@ function expectedReadBackValue({
 	if (key === "textAnimationPreset" && isRecord(value)) {
 		return stringValue(value, "presetId");
 	}
+	// The timeline reports timeline seconds: (source duration − trims) ÷
+	// playbackRate. The manifest carries source seconds, so derive what the
+	// editor must have stored — a 2× audio clip occupies half its source span.
+	// Speed keyframes and freeze frames reshape the span in ways this formula
+	// cannot express, so those elements skip the derived check.
+	if (
+		key === "timelineDuration" &&
+		MEDIA_FAMILY_TYPES.has(expected.type ?? "") &&
+		typeof expected.duration === "number" &&
+		!(
+			Array.isArray(expected.speedKeyframes) &&
+			expected.speedKeyframes.length > 0
+		) &&
+		expected.freezeFrameDuration === undefined &&
+		expected.freezeFrameTime === undefined
+	) {
+		const { trimStart, trimEnd } = expectedManifestTrims({ expected });
+		const playbackRate =
+			typeof expected.playbackRate === "number" &&
+			Number.isFinite(expected.playbackRate) &&
+			expected.playbackRate > 0
+				? expected.playbackRate
+				: 1;
+		return Math.max(0, expected.duration - trimStart - trimEnd) / playbackRate;
+	}
 	if (
 		key !== "duration" ||
-		expected.type !== "media" ||
+		!MEDIA_FAMILY_TYPES.has(expected.type ?? "") ||
 		typeof value !== "number"
 	) {
 		return value;
 	}
-	const trimStart =
-		typeof expected.trimStart === "number" ? expected.trimStart : 0;
-	const trimEnd = typeof expected.trimEnd === "number" ? expected.trimEnd : 0;
+	const { trimStart, trimEnd } = expectedManifestTrims({ expected });
 	return Math.max(0, value - trimStart - trimEnd);
 }
 
@@ -525,13 +573,15 @@ async function addManifestElements({
 				throw new Error(`Element '${alias}' needs duration > 0`);
 			}
 
+			// `id` stays in the body: the bridge honors requested element ids,
+			// which is what lets an idempotent replay detect already-applied
+			// operations instead of duplicating them.
 			const body: JsonRecord = {
 				...element,
 				trackId: resolvedTrackId,
 				duration,
 			};
 			delete body.alias;
-			delete body.id;
 			delete body.track;
 			delete body.media;
 			delete body.source;

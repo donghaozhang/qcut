@@ -1,5 +1,4 @@
 import type {
-	ComposeIntent,
 	ComposeJobError,
 	ComposePatch,
 	ComposePatchOperation,
@@ -13,18 +12,11 @@ import {
 	transitionComposeJob,
 	type ComposeProviderAdapter,
 } from "./compose-provider.js";
+import { sanitizeComposeModelOperations } from "./compose-model-response.js";
 
 const OPENROUTER_COMPLETIONS_URL =
 	"https://openrouter.ai/api/v1/chat/completions";
 const DEFAULT_MODEL = "google/gemini-3.7-flash";
-const KNOWN_OPERATION_KINDS = new Set([
-	"add-caption",
-	"add-text-overlay",
-	"add-sticker",
-	"add-sound-effect",
-	"update-media-zoom",
-	"upsert-transition",
-]);
 
 export interface OpenRouterComposeProviderDependencies {
 	fetchImpl?: typeof fetch;
@@ -36,18 +28,33 @@ export interface OpenRouterComposeProviderDependencies {
 
 function systemPrompt(): string {
 	return [
-		"You plan QCut timeline patches. Respond with a JSON object:",
-		'{"operations": [...]}. Each operation needs kind, startTime, duration.',
-		'Kinds: "add-text-overlay" (text, textTemplateId), "add-caption" (text,',
-		'language), "upsert-transition" (trackId, fromElementId, toElementId,',
-		'presetId of "crossfade"|"dissolve"), "update-media-zoom" (trackId,',
-		"elementId, fromScale, toScale). Only reference elementIds present in",
-		"the snapshot. Respond with JSON only, no prose.",
+		"You plan a QCut timeline patch. Respond with JSON only:",
+		'{"operations": [...]}. Every operation needs kind, startTime, duration.',
+		'Use "add-text-overlay" (text, textTemplateId), "add-caption" (text, language),',
+		'"add-sticker" (asset, optional x/y/width/height/rotation/opacity and animation fields),',
+		'"add-sound-effect" (asset, volume 0..1, optional trimStart/trimEnd/fadeIn/fadeOut),',
+		'"upsert-transition" (trackId, fromElementId, toElementId, presetId), or',
+		'"update-media-zoom" (trackId, elementId, fromScale, toScale).',
+		"For sticker, sound-effect, and non-builtin transition assets, copy provider,",
+		"assetType, and assetId exactly from availableResources. Never invent an asset ID.",
+		"Only target elementIds and trackIds present in the snapshot. Keep effects sparse,",
+		"avoid overlaps, and keep every operation inside the project duration.",
 	].join(" ");
 }
 
 /** The upload payload carries timeline structure only — never local paths. */
 function snapshotSummary({ snapshot }: { snapshot: ComposeSnapshot }): string {
+	const availableResources = snapshot.availableResources.map((resource) => ({
+		provider: resource.provider,
+		assetType: resource.assetType,
+		assetId: resource.assetId,
+		displayName: resource.displayName,
+		tags: resource.tags,
+		duration: resource.duration,
+		availability: resource.availability,
+		license: resource.license,
+		capabilities: resource.capabilities,
+	}));
 	return JSON.stringify({
 		project: snapshot.project,
 		media: snapshot.media.map(
@@ -64,6 +71,8 @@ function snapshotSummary({ snapshot }: { snapshot: ComposeSnapshot }): string {
 		captions: snapshot.captions,
 		beats: snapshot.beats,
 		shots: snapshot.shots,
+		availableResources,
+		capabilities: snapshot.capabilities,
 	});
 }
 
@@ -115,37 +124,6 @@ function extractJson({ content }: { content: string }): unknown {
 	return JSON.parse(unfenced);
 }
 
-function sanitizeOperations({
-	value,
-}: {
-	value: unknown;
-}): ComposePatchOperation[] {
-	const record = value as { operations?: unknown };
-	if (!Array.isArray(record?.operations)) {
-		throw new Error("The model response has no operations array.");
-	}
-	const operations: ComposePatchOperation[] = [];
-	for (const [index, candidate] of record.operations.entries()) {
-		if (typeof candidate !== "object" || candidate === null) continue;
-		const operation = candidate as Record<string, unknown>;
-		const kind = operation.kind;
-		if (typeof kind !== "string" || !KNOWN_OPERATION_KINDS.has(kind)) {
-			continue;
-		}
-		if (
-			typeof operation.startTime !== "number" ||
-			typeof operation.duration !== "number"
-		) {
-			continue;
-		}
-		operations.push({
-			...(operation as unknown as ComposePatchOperation),
-			id: `openrouter:${kind}:${index}`,
-		});
-	}
-	return operations;
-}
-
 /**
  * Plans a patch with an OpenRouter-routed model. The request carries a
  * path-free snapshot summary; the API key lives only in the request header
@@ -174,7 +152,7 @@ export function createOpenRouterComposeProvider({
 						{ role: "system", content: systemPrompt() },
 						{
 							role: "user",
-							content: `Intent: ${intent.kind}. Snapshot: ${snapshotSummary({ snapshot })}`,
+							content: `Intent: ${intent.kind}. Options: ${JSON.stringify(intent.options)}. Snapshot: ${snapshotSummary({ snapshot })}`,
 						},
 					],
 				};
@@ -258,8 +236,9 @@ export function createOpenRouterComposeProvider({
 			}
 			let operations: ComposePatchOperation[];
 			try {
-				operations = sanitizeOperations({
+				operations = sanitizeComposeModelOperations({
 					value: extractJson({ content }),
+					snapshot,
 				});
 			} catch (error) {
 				return transitionComposeJob({

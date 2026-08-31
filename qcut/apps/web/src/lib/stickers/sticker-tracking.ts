@@ -31,6 +31,7 @@ export interface StickerTrackingMediaTarget {
 export interface StickerMotionTrackingTransform {
 	offsetX: number;
 	offsetY: number;
+	rotation: number;
 	scale: number;
 }
 
@@ -69,10 +70,21 @@ function distance({ from, to }: { from: Point; to: Point }): number {
 	return Math.hypot(to.x - from.x, to.y - from.y);
 }
 
+function angleBetween({ from, to }: { from: Point; to: Point }): number {
+	return (Math.atan2(to.y - from.y, to.x - from.x) * 180) / Math.PI;
+}
+
+function normalizedAngleDelta({ degrees }: { degrees: number }): number {
+	return ((((degrees + 180) % 360) + 360) % 360) - 180;
+}
+
 function hasRealTrackingResult({ mask }: { mask: MediaMask }): boolean {
 	const source = mask.tracking?.source;
 	const trackedSource =
-		source === "mediapipe" || source === "sam3" || source === "optical-flow";
+		source === "mediapipe" ||
+		source === "sam3" ||
+		source === "optical-flow" ||
+		source === "jianying-bingo";
 	return Boolean(
 		trackedSource &&
 			mask.tracking?.status === "ready" &&
@@ -275,6 +287,7 @@ export function resolveStickerTrackingTargetAnchor({
 				2 /
 				shortEdge) *
 			100,
+		rotation: angleBetween({ from: topLeft, to: topRight }),
 	};
 }
 
@@ -305,6 +318,7 @@ export function createStickerMotionTracking({
 		targetMaskId: target.mask.id,
 		anchor,
 		followScale: false,
+		followRotation: false,
 	};
 }
 
@@ -338,6 +352,8 @@ export function resolveStickerMotionTracking({
 		y: finiteOr({ value: element.y, fallback: 50 }) + transform.offsetY,
 		width: finiteOr({ value: element.width, fallback: 15 }) * transform.scale,
 		height: finiteOr({ value: element.height, fallback: 15 }) * transform.scale,
+		rotation:
+			finiteOr({ value: element.rotation, fallback: 0 }) + transform.rotation,
 	};
 }
 
@@ -386,6 +402,13 @@ export function resolveStickerMotionTrackingTransform({
 	return {
 		offsetX: current.centerX - binding.anchor.centerX,
 		offsetY: current.centerY - binding.anchor.centerY,
+		rotation: binding.followRotation
+			? normalizedAngleDelta({
+					degrees:
+						finiteOr({ value: current.rotation, fallback: 0 }) -
+						finiteOr({ value: binding.anchor.rotation, fallback: 0 }),
+				})
+			: 0,
 		scale,
 	};
 }

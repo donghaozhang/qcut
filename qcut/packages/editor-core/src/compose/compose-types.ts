@@ -39,10 +39,30 @@ export type ComposeAssetType =
 
 export type ComposeAssetLicense = "commercial-ok" | "personal-only" | "unknown";
 
+export type ComposeAssetAvailability =
+	| "ready"
+	| "downloadable"
+	| "reference-only"
+	| "unavailable";
+
+export interface ComposeAssetCapabilities {
+	preview: boolean;
+	editorApply: boolean;
+	editorExport: boolean;
+	headlessRender: boolean;
+	requiresAuth?: boolean;
+	requiresLocalRuntime?: boolean;
+}
+
 export interface ComposeAssetReference {
 	provider: ComposeProvider;
 	assetType: ComposeAssetType;
 	assetId: string;
+	displayName?: string;
+	tags?: string[];
+	duration?: number;
+	availability?: ComposeAssetAvailability;
+	capabilities?: ComposeAssetCapabilities;
 	cacheKey?: string;
 	localPath?: string;
 	license?: ComposeAssetLicense;
@@ -102,6 +122,9 @@ export interface ComposeSnapshotShot {
 export interface ComposeSnapshotCapabilities {
 	headlessRender: boolean;
 	editorApply: boolean;
+	editorExport?: boolean;
+	resourceBroker?: boolean;
+	jianyingLocalTransitions?: boolean;
 }
 
 export interface ComposeSnapshot {
@@ -115,6 +138,7 @@ export interface ComposeSnapshot {
 	beats: ComposeSnapshotBeat[];
 	shots: ComposeSnapshotShot[];
 	availableResources: ComposeAssetReference[];
+	resourceWarnings?: string[];
 	capabilities: ComposeSnapshotCapabilities;
 }
 
@@ -187,6 +211,15 @@ export interface ComposeAddStickerOperation extends ComposeBasePatchOperation {
 	/** Size normalized to the shorter project-canvas dimension (0..1). */
 	width?: number;
 	height?: number;
+	rotation?: number;
+	opacity?: number;
+	maintainAspectRatio?: boolean;
+	animationInType?: "none" | "fade" | "slide" | "scale" | "bounce";
+	animationInDuration?: number;
+	animationOutType?: "none" | "fade" | "slide" | "scale";
+	animationOutDuration?: number;
+	animationLoopType?: "none" | "pulse" | "float" | "spin" | "bounce";
+	animationLoopIntensity?: number;
 }
 
 export interface ComposeAddSoundEffectOperation
@@ -194,6 +227,11 @@ export interface ComposeAddSoundEffectOperation
 	kind: "add-sound-effect";
 	asset: ComposeAssetReference;
 	volume: number;
+	trimStart?: number;
+	trimEnd?: number;
+	fadeIn?: number;
+	fadeOut?: number;
+	playbackRate?: number;
 }
 
 export interface ComposeUpdateMediaZoomOperation

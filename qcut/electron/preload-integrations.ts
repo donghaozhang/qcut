@@ -751,6 +751,9 @@ export function createClaudeAPI(): NonNullable<ElectronAPI["claude"]> {
 			sendLocalVideoExportResponse: (response) => {
 				ipcRenderer.send(CLAUDE_LOCAL_VIDEO_EXPORT_RESPONSE_CHANNEL, response);
 			},
+			reportExportProgress: (payload) => {
+				ipcRenderer.send("ffmpeg-progress", payload);
+			},
 		},
 		diagnostics: {
 			analyze: (error) =>

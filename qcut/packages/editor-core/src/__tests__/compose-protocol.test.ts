@@ -252,6 +252,51 @@ describe("compose validation", () => {
 		]);
 	});
 
+	it("rejects invalid sticker aspect and animation options", () => {
+		const snapshot = makeSnapshot();
+		const patch = makePatch({
+			snapshot,
+			overrides: {
+				operations: [
+					{
+						kind: "add-sticker",
+						id: "sticker:bad-options",
+						startTime: 2,
+						duration: 3,
+						maintainAspectRatio: "yes",
+						animationInType: "wipe",
+						animationOutType: "bounce",
+						animationLoopType: "flash",
+						asset: {
+							provider: "local",
+							assetType: "sticker",
+							assetId: "sticker-asset",
+						},
+					} as unknown as ComposePatch["operations"][number],
+				],
+			},
+		});
+
+		expect(validateComposePatch({ snapshot, patch })).toMatchObject([
+			{
+				code: "invalid-sticker-geometry",
+				path: "operations.0.maintainAspectRatio",
+			},
+			{
+				code: "invalid-sticker-geometry",
+				path: "operations.0.animationInType",
+			},
+			{
+				code: "invalid-sticker-geometry",
+				path: "operations.0.animationOutType",
+			},
+			{
+				code: "invalid-sticker-geometry",
+				path: "operations.0.animationLoopType",
+			},
+		]);
+	});
+
 	it("rejects a patch whose snapshot fingerprint is stale", () => {
 		const snapshot = makeSnapshot();
 		const patch = makePatch({
@@ -607,6 +652,102 @@ describe("compose validation edge cases", () => {
 			{ severity: "warning", code: "operation-out-of-bounds" },
 		]);
 		expect(hasComposeValidationErrors({ issues })).toBe(false);
+	});
+
+	it("checks sound source bounds at playbackRate speed", () => {
+		const snapshot = makeSnapshot();
+		const soundOperation = ({
+			overrides = {},
+		}: {
+			overrides?: Record<string, unknown>;
+		} = {}) => ({
+			kind: "add-sound-effect" as const,
+			id: "sfx:1",
+			startTime: 1,
+			duration: 6,
+			volume: 0.8,
+			asset: {
+				provider: "qcut" as const,
+				assetType: "sound-effect" as const,
+				assetId: "sound-effects-lab:whoosh",
+				duration: 10,
+			},
+			...overrides,
+		});
+
+		// 6s timeline × 2 = 12s of source, but the asset only has 10s.
+		const doubled = validateComposePatch({
+			snapshot,
+			patch: makePatch({
+				snapshot,
+				overrides: {
+					operations: [soundOperation({ overrides: { playbackRate: 2 } })],
+				},
+			}),
+		});
+		expect(doubled).toMatchObject([
+			{
+				severity: "error",
+				code: "invalid-range",
+				path: expect.stringContaining(".duration"),
+			},
+		]);
+
+		// 6s timeline × 0.5 = 3s of source; with 1s + 2s trims that is 6s ≤ 10s.
+		const halved = validateComposePatch({
+			snapshot,
+			patch: makePatch({
+				snapshot,
+				overrides: {
+					operations: [
+						soundOperation({
+							overrides: { playbackRate: 0.5, trimStart: 1, trimEnd: 2 },
+						}),
+					],
+				},
+			}),
+		});
+		expect(halved).toEqual([]);
+
+		// At 1× the trims alone push past the source: 1 + 2 + 8 = 11 > 10.
+		const trimmedOver = validateComposePatch({
+			snapshot,
+			patch: makePatch({
+				snapshot,
+				overrides: {
+					operations: [
+						soundOperation({
+							overrides: { duration: 8, trimStart: 1, trimEnd: 2 },
+						}),
+					],
+				},
+			}),
+		});
+		expect(trimmedOver).toMatchObject([
+			{
+				severity: "error",
+				code: "invalid-range",
+				path: expect.stringContaining(".duration"),
+			},
+		]);
+
+		// A fade longer than the operation stays rejected alongside the rule.
+		const longFade = validateComposePatch({
+			snapshot,
+			patch: makePatch({
+				snapshot,
+				overrides: {
+					operations: [soundOperation({ overrides: { fadeIn: 7 } })],
+				},
+			}),
+		});
+		expect(longFade).toMatchObject([
+			{
+				severity: "error",
+				code: "invalid-range",
+				path: expect.stringContaining(".fadeIn"),
+			},
+		]);
 	});
 
 	it("rejects empty asset ids, bad schema versions, and empty ranges", () => {

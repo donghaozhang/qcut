@@ -21,6 +21,34 @@ function makeOptions(manifest: object): CLIRunOptions {
 	} as CLIRunOptions;
 }
 
+function fixtureSourceDuration(
+	element: Record<string, unknown>
+): number | undefined {
+	if (typeof element.duration !== "number") return undefined;
+	const trimStart =
+		typeof element.trimStart === "number" && element.trimStart > 0
+			? element.trimStart
+			: 0;
+	const trimEnd =
+		typeof element.trimEnd === "number" && element.trimEnd > 0
+			? element.trimEnd
+			: 0;
+	return Math.max(0, element.duration - trimStart - trimEnd);
+}
+
+/** Mirror of the live bridge's constant-rate timelineDuration read-back. */
+function fixtureTimelineDuration(
+	element: Record<string, unknown>
+): number | undefined {
+	const sourceDuration = fixtureSourceDuration(element);
+	if (sourceDuration === undefined) return undefined;
+	const playbackRate =
+		typeof element.playbackRate === "number" && element.playbackRate > 0
+			? element.playbackRate
+			: 1;
+	return sourceDuration / playbackRate;
+}
+
 function makeClient({
 	finalName = "Titles",
 	videoElement = { startTime: 0, duration: 2 },
@@ -74,6 +102,11 @@ function makeClient({
 					{
 						id: "video-1",
 						...videoElement,
+						duration: fixtureSourceDuration(videoElement),
+						timelineDuration:
+							typeof videoElement.timelineDuration === "number"
+								? videoElement.timelineDuration
+								: fixtureTimelineDuration(videoElement),
 					},
 				],
 				transitions: mediaTransitions,
@@ -225,7 +258,9 @@ function makeImportedMediaClient({ exportFails = false } = {}) {
 						name: "Main Video",
 						type: "media",
 						isMain: true,
-						elements: [{ id: "video-1", startTime: 0, duration: 2 }],
+						elements: [
+							{ id: "video-1", startTime: 0, duration: 2, timelineDuration: 2 },
+						],
 						transitions: [],
 					},
 				],
@@ -559,7 +594,7 @@ describe("editor timeline apply", () => {
 		const { client } = makeClient({
 			videoElement: {
 				startTime: 0,
-				duration: 6,
+				duration: 20,
 				trimStart: 2.4,
 				trimEnd: 11.6,
 			},
@@ -684,7 +719,7 @@ describe("editor timeline apply", () => {
 		const { client } = makeClient({
 			videoElement: {
 				startTime: 0,
-				duration: 6,
+				duration: 20,
 				trimStart: 2.5,
 				trimEnd: 11.5,
 			},
@@ -850,5 +885,285 @@ describe("editor timeline apply", () => {
 			post.mock.calls.some(([url]) => String(url).endsWith("/rollback"))
 		).toBe(false);
 		expect(remove).not.toHaveBeenCalled();
+	});
+});
+
+/** Fake editor with one sticker lane, for read-back verification tests. */
+function makeStickerClient({
+	stickerElement,
+}: {
+	stickerElement: Record<string, unknown>;
+}) {
+	let timelineReads = 0;
+	const get = vi.fn(async (url: string) => {
+		if (url === "/api/claude/navigator/projects") {
+			return { activeProjectId: "project-1", projects: [] };
+		}
+		if (url === "/api/claude/media/project-1") return [];
+		if (url === "/api/claude/timeline/project-1") {
+			timelineReads += 1;
+			const mainTrack = {
+				id: "main-track",
+				index: 1,
+				name: "Main Track",
+				type: "media",
+				isMain: true,
+				elements: [],
+			};
+			if (timelineReads <= 2) return { tracks: [mainTrack] };
+			return {
+				tracks: [
+					{
+						id: "track-1",
+						index: 0,
+						name: "Stickers",
+						type: "sticker",
+						elements: [{ id: "element-1", ...stickerElement }],
+						transitions: [],
+					},
+					mainTrack,
+				],
+			};
+		}
+		throw new Error(`Unexpected GET ${url}`);
+	});
+	const post = vi.fn(async (url: string) => {
+		if (url === "/api/claude/navigator/open") {
+			return { navigated: true, projectId: "project-1" };
+		}
+		if (url === "/api/claude/transaction/begin") {
+			return { transactionId: "transaction-1" };
+		}
+		if (url === "/api/claude/timeline/project-1/tracks") {
+			return { trackId: "track-1" };
+		}
+		if (url === "/api/claude/timeline/project-1/elements/batch") {
+			return {
+				added: [{ index: 0, success: true, elementId: "element-1" }],
+				failedCount: 0,
+			};
+		}
+		if (url === "/api/claude/transaction/transaction-1/commit") return {};
+		if (url === "/api/claude/transaction/transaction-1/rollback") return {};
+		throw new Error(`Unexpected POST ${url}`);
+	});
+	return {
+		client: {
+			get,
+			post,
+			patch: vi.fn(async () => ({ success: true })),
+			delete: vi.fn(async () => true),
+		} as unknown as EditorApiClient,
+		post,
+	};
+}
+
+describe("timeline read-back catches dropped fields", () => {
+	const audioFadeManifest = {
+		replace: true,
+		tracks: [
+			{
+				alias: "main",
+				name: "Main Video",
+				type: "media",
+				elements: [
+					{
+						alias: "clip",
+						type: "media",
+						mediaId: "existing-media",
+						startTime: 0,
+						duration: 2,
+						audioFadeIn: 1,
+						audioFadeOut: 0.5,
+					},
+				],
+			},
+		],
+	};
+
+	it("fails and rolls back when the editor drops audio fades", async () => {
+		const { client, post } = makeClient({
+			videoElement: { startTime: 0, duration: 2 },
+		});
+		const result = await timelineApplyManifest(
+			client,
+			makeOptions(audioFadeManifest)
+		);
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("audioFadeIn");
+		expect(post).toHaveBeenCalledWith(
+			"/api/claude/transaction/transaction-1/rollback",
+			expect.objectContaining({ reason: expect.stringContaining("audioFade") })
+		);
+	});
+
+	it("passes when the editor persists the audio fades", async () => {
+		const { client } = makeClient({
+			videoElement: {
+				startTime: 0,
+				duration: 2,
+				audioFadeIn: 1,
+				audioFadeOut: 0.5,
+			},
+		});
+		const result = await timelineApplyManifest(
+			client,
+			makeOptions(audioFadeManifest)
+		);
+		expect(result.success).toBe(true);
+	});
+
+	it("catches a 2x clip whose timeline span ignored the playback rate", async () => {
+		const ratedManifest = {
+			replace: true,
+			tracks: [
+				{
+					alias: "main",
+					name: "Main Video",
+					type: "media",
+					elements: [
+						{
+							alias: "clip",
+							type: "media",
+							mediaId: "existing-media",
+							startTime: 0,
+							duration: 2,
+							playbackRate: 2,
+						},
+					],
+				},
+			],
+		};
+		// A lying editor reports the raw 2s span instead of 2s / 2 = 1s.
+		const lying = makeClient({
+			videoElement: {
+				startTime: 0,
+				duration: 2,
+				playbackRate: 2,
+				timelineDuration: 2,
+			},
+		});
+		const badResult = await timelineApplyManifest(
+			lying.client,
+			makeOptions(ratedManifest)
+		);
+		expect(badResult.success).toBe(false);
+		expect(badResult.error).toContain("timelineDuration");
+
+		// The truthful editor reports (2 − 0) / 2 = 1s and verifies.
+		const truthful = makeClient({
+			videoElement: { startTime: 0, duration: 2, playbackRate: 2 },
+		});
+		const goodResult = await timelineApplyManifest(
+			truthful.client,
+			makeOptions(ratedManifest)
+		);
+		expect(goodResult.success).toBe(true);
+	});
+
+	it("catches transitions that lose their engine identity", async () => {
+		const packageHash = "b".repeat(40);
+		const transitionManifest = {
+			...manifest,
+			transitions: [
+				{
+					track: "main",
+					from: "video",
+					to: "headline",
+					type: "wipe",
+					presetId: "jianying-wipe",
+					duration: 1,
+					engine: "jianying-local",
+					packageHash,
+				},
+			],
+		};
+		const { client } = makeClient({
+			mediaTransitions: [
+				{
+					id: "transition-1",
+					fromElementId: "video-1",
+					toElementId: "element-1",
+					type: "wipe",
+					presetId: "jianying-wipe",
+					duration: 1,
+					engine: "qcut",
+				},
+			],
+		});
+		const result = await timelineApplyManifest(
+			client,
+			makeOptions(transitionManifest)
+		);
+		expect(result.success).toBe(false);
+		expect(result.error).toContain("engine");
+		expect(result.error).toContain("packageHash");
+	});
+
+	it("catches stickers that lose animation and aspect-lock fields", async () => {
+		const stickerManifest = {
+			tracks: [
+				{
+					alias: "stickers",
+					name: "Stickers",
+					type: "sticker",
+					elements: [
+						{
+							alias: "sticker-op",
+							type: "sticker",
+							stickerId: "sticker-op",
+							stickerAssetId: "sticker-lab:batch:1",
+							mediaId: "m1",
+							startTime: 0,
+							duration: 2,
+							maintainAspectRatio: false,
+							animationInType: "fade",
+							animationInDuration: 0.5,
+							animationLoopType: "pulse",
+							animationLoopIntensity: 0.5,
+						},
+					],
+				},
+			],
+		};
+		const storedSticker = {
+			type: "sticker",
+			stickerId: "sticker-op",
+			stickerAssetId: "sticker-lab:batch:1",
+			mediaId: "m1",
+			startTime: 0,
+			duration: 2,
+			maintainAspectRatio: false,
+			animationInType: "fade",
+			animationInDuration: 0.5,
+			animationLoopType: "pulse",
+			animationLoopIntensity: 0.5,
+		};
+
+		// Dropping just the loop animation must fail the whole apply.
+		const lying = makeStickerClient({
+			stickerElement: {
+				...storedSticker,
+				animationLoopType: undefined,
+				animationLoopIntensity: undefined,
+			},
+		});
+		const badResult = await timelineApplyManifest(
+			lying.client,
+			makeOptions(stickerManifest)
+		);
+		expect(badResult.success).toBe(false);
+		expect(badResult.error).toContain("animationLoopType");
+		expect(lying.post).toHaveBeenCalledWith(
+			"/api/claude/transaction/transaction-1/rollback",
+			expect.anything()
+		);
+
+		const truthful = makeStickerClient({ stickerElement: storedSticker });
+		const goodResult = await timelineApplyManifest(
+			truthful.client,
+			makeOptions(stickerManifest)
+		);
+		expect(goodResult.success).toBe(true);
 	});
 });

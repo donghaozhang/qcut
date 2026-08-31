@@ -7,6 +7,10 @@ import {
 	type ComposeSnapshotCaption,
 	type ComposeSnapshotMedia,
 } from "./compose-protocol.js";
+import {
+	composeResourceQuery,
+	discoverComposeResources,
+} from "./compose-resource-broker.js";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -90,19 +94,21 @@ async function resolveActiveProjectId({
 
 /**
  * Reads the live editor over the Claude HTTP bridge and produces a
- * ComposeSnapshot. Beats, shots, and available resources stay empty until the
- * corresponding analyzers and resolvers join the pipeline.
+ * ComposeSnapshot. Resource candidates contain public identities and matching
+ * metadata only; local paths and private package hashes stay on the machine.
  */
 export async function captureComposeSnapshot({
 	client,
 	projectId,
 	snapshotId = randomUUID(),
 	createdAt = new Date().toISOString(),
+	discoverResources = discoverComposeResources,
 }: {
 	client: EditorApiClient;
 	projectId?: string;
 	snapshotId?: string;
 	createdAt?: string;
+	discoverResources?: typeof discoverComposeResources;
 }): Promise<ComposeSnapshot> {
 	const resolvedProjectId =
 		projectId ?? (await resolveActiveProjectId({ client }));
@@ -196,6 +202,9 @@ export async function captureComposeSnapshot({
 		},
 		duration: timelineEnd > 0 ? timelineEnd : 1,
 	};
+	const resourceBroker = await discoverResources({
+		query: composeResourceQuery({ snapshot: { captions, shots: [] } }),
+	});
 
 	return {
 		schemaVersion: COMPOSE_PROTOCOL_VERSION,
@@ -211,7 +220,15 @@ export async function captureComposeSnapshot({
 		captions,
 		beats: [],
 		shots: [],
-		availableResources: [],
-		capabilities: { headlessRender: true, editorApply: true },
+		availableResources: resourceBroker.resources,
+		...(resourceBroker.warnings.length > 0
+			? { resourceWarnings: resourceBroker.warnings }
+			: {}),
+		capabilities: {
+			headlessRender: true,
+			editorApply: true,
+			editorExport: true,
+			...resourceBroker.capabilities,
+		},
 	};
 }

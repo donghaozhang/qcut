@@ -66,6 +66,18 @@ export type UtilityToMainMessage =
 
 // ─── Messages FROM main process TO utility process ───
 
+export interface MainExportProgressMessage {
+	type: "export-progress";
+	payload: {
+		jobId: string;
+		progress: number;
+		currentFrame?: number;
+		totalFrames?: number;
+		fps?: number;
+		estimatedTimeRemaining?: number;
+	};
+}
+
 export interface MainInitMessage {
 	type: "init";
 	config: {
@@ -134,6 +146,7 @@ export interface MainShutdownMessage {
 
 /** All messages the main process can send to the utility process. */
 export type MainToUtilityMessage =
+	| MainExportProgressMessage
 	| MainInitMessage
 	| MainResponseMessage
 	| MainPtySpawnMessage

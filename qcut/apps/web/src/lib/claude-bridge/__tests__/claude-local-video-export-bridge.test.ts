@@ -15,6 +15,8 @@ import {
 
 vi.mock("@/lib/debug/debug-config", () => ({
 	debugError: vi.fn(),
+	debugLog: vi.fn(),
+	debugWarn: vi.fn(),
 }));
 
 interface ExportAutomationWindow extends Window {
@@ -224,5 +226,91 @@ describe("Claude local video export bridge", () => {
 				success: true,
 			})
 		);
+	});
+});
+
+describe("Claude local video export bridge instrumentation", () => {
+	beforeEach(() => {
+		useProjectStore.setState({
+			activeProject: createProject({ id: "project-a" }),
+		});
+		useExportStore.getState().resetExport();
+		Reflect.deleteProperty(automationWindow, "__exportActions");
+	});
+
+	afterEach(() => {
+		cleanupClaudeLocalVideoExportBridge();
+		useExportStore.getState().resetExport();
+		useProjectStore.setState({ activeProject: null });
+		Reflect.deleteProperty(automationWindow, "__exportActions");
+		if (originalElectronApi) {
+			window.electronAPI = originalElectronApi;
+		} else {
+			Reflect.deleteProperty(window, "electronAPI");
+		}
+	});
+
+	it("arms the profiler and sequential-decode flag per export and always cleans up", async () => {
+		const { exportProfiler } = await import("@/lib/export/export-profiler");
+		const sequential = await import(
+			"@/lib/export/export-sequential-video-source"
+		);
+		const { emitRequest, sendResponse } = installExportApi();
+		setupClaudeLocalVideoExportBridge();
+
+		let armedDuringExport = false;
+		automationWindow.__exportActions = {
+			exportLocalVideo: vi.fn(async () => {
+				armedDuringExport = exportProfiler.isEnabled;
+			}),
+		};
+
+		emitRequest({
+			request: {
+				...request,
+				jobId: "export_test_1",
+				profilePath: "/tmp/profile.json",
+				disableSequentialDecode: true,
+			},
+			requestId: "request-armed",
+		});
+		await vi.waitFor(() => {
+			expect(sendResponse).toHaveBeenCalledWith({
+				requestId: "request-armed",
+				success: true,
+			});
+		});
+
+		// Profiler was armed while the export ran and disarmed afterwards.
+		expect(armedDuringExport).toBe(true);
+		expect(exportProfiler.isEnabled).toBe(false);
+		// The sequential-decode debug flag was reset in the finally block.
+		const registry = new sequential.SequentialVideoRegistry();
+		const opened = registry.getOrOpen({
+			id: "post-export",
+			file: new Blob(["x"]),
+		} as never);
+		await expect(opened).resolves.not.toBe(undefined);
+	});
+
+	it("disarms the profiler when the export action throws", async () => {
+		const { exportProfiler } = await import("@/lib/export/export-profiler");
+		const { emitRequest, sendResponse } = installExportApi();
+		setupClaudeLocalVideoExportBridge();
+
+		automationWindow.__exportActions = {
+			exportLocalVideo: vi.fn(async () => {
+				throw new Error("render exploded");
+			}),
+		};
+
+		emitRequest({
+			request: { ...request, profilePath: "/tmp/profile.json" },
+			requestId: "request-failed",
+		});
+		await vi.waitFor(() => {
+			expectErrorResponse({ requestId: "request-failed", sendResponse });
+		});
+		expect(exportProfiler.isEnabled).toBe(false);
 	});
 });

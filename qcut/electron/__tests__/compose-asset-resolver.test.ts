@@ -181,6 +181,46 @@ describe("resolveComposeAssetReference", () => {
 		expect(textTemplate.status).toBe("unsupported");
 	});
 
+	it("admits reusable Sound Effects Lab assets from the authenticated catalog", async () => {
+		const resolveSoundLabReference = vi.fn(async () => ({
+			status: "downloadable" as const,
+			asset: {
+				id: "impact-1",
+				name: "Impact",
+				durationSeconds: 1.5,
+				tags: ["impact"],
+				categoryIds: ["hits"],
+				fileName: "impact.wav",
+				objectKey: "private/impact.wav",
+				byteSize: 512,
+				checksumSha256: "a".repeat(64),
+				provider: "freesound" as const,
+				redistribution: "allowed" as const,
+				reusable: true,
+			},
+		}));
+		const resolved = await resolveComposeAssetReference({
+			operationId: "sound:lab",
+			reference: {
+				provider: "qcut",
+				assetType: "sound-effect",
+				assetId: "sound-effects-lab:impact-1",
+			},
+			dependencies: { ...missingLabDependencies, resolveSoundLabReference },
+		});
+		expect(resolveSoundLabReference).toHaveBeenCalledOnce();
+		expect(resolved).toMatchObject({
+			status: "downloadable",
+			bytes: 512,
+			evidence: {
+				backend: "sound-effects-lab",
+				cacheStatus: "authenticated-download",
+				verification: "unverified",
+			},
+		});
+		expect(resolved).not.toHaveProperty("sha256");
+	});
+
 	it("never leaks local paths into the portable report", async () => {
 		const resolved = await resolveComposeAssetReference({
 			operationId: "sound:1",
@@ -197,7 +237,7 @@ describe("resolveComposeAssetReference", () => {
 });
 
 describe("resolveComposePatchAssets", () => {
-	it("maps statuses onto blocking and advisory issues", async () => {
+	it("blocks assets that cannot be applied to the editor", async () => {
 		const { reports, issues } = await resolveComposePatchAssets({
 			patch: makePatch({
 				operations: [
@@ -242,7 +282,7 @@ describe("resolveComposePatchAssets", () => {
 		expect(issues).toMatchObject([
 			{ severity: "error", operationId: "sticker:missing" },
 			{ severity: "error", operationId: "transition:bad" },
-			{ severity: "warning", operationId: "sound:cloud" },
+			{ severity: "error", operationId: "sound:cloud" },
 		]);
 	});
 });
@@ -291,6 +331,66 @@ describe("materializeComposePatchAssets", () => {
 		);
 		expect(sticker.asset.localPath).toContain(scratchDirectory);
 		expect(materialized.operations[1]).toEqual(patch.operations[1]);
+		expect(patch.operations[0]).not.toHaveProperty("asset.localPath");
+	});
+
+	it("injects a verified reusable Sound Effects Lab file", async () => {
+		const soundPath = path.join(directory, "scratch-sound", "impact.wav");
+		const materializeSoundLabReference = vi.fn(async () => {
+			fs.mkdirSync(path.dirname(soundPath), { recursive: true });
+			fs.writeFileSync(soundPath, Buffer.alloc(256, 7));
+			return {
+				localPath: soundPath,
+				sha256: "b".repeat(64),
+				bytes: 256,
+				asset: {
+					id: "impact-1",
+					name: "Impact",
+					durationSeconds: 1,
+					tags: [],
+					categoryIds: [],
+					provider: "freesound" as const,
+					redistribution: "allowed" as const,
+					reusable: true,
+				},
+			};
+		});
+		const patch = makePatch({
+			operations: [
+				{
+					kind: "add-sound-effect",
+					id: "sound:lab",
+					startTime: 0.5,
+					duration: 1,
+					volume: 0.75,
+					asset: {
+						provider: "qcut",
+						assetType: "sound-effect",
+						assetId: "sound-effects-lab:impact-1",
+					},
+				},
+			],
+		});
+		const materialized = await materializeComposePatchAssets({
+			patch,
+			scratchDirectory: path.dirname(soundPath),
+			dependencies: {
+				...missingLabDependencies,
+				materializeSoundLabReference,
+			},
+		});
+		const sound = materialized.operations[0];
+		if (sound.kind !== "add-sound-effect") throw new Error("expected sound");
+		expect(materializeSoundLabReference).toHaveBeenCalledOnce();
+		expect(sound.asset).toMatchObject({
+			localPath: soundPath,
+			cacheKey: "b".repeat(64),
+			provenance: {
+				backend: "sound-effects-lab",
+				sha256: "b".repeat(64),
+				bytes: 256,
+			},
+		});
 		expect(patch.operations[0]).not.toHaveProperty("asset.localPath");
 	});
 });

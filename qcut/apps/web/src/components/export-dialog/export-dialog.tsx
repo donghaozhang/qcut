@@ -193,7 +193,10 @@ export function ExportDialog() {
 						filename: request.filename,
 						format: request.format,
 					}),
-					engineType: "auto",
+					engineType:
+						command.kind === "local-video" && command.request.engine === "muxer"
+							? "muxer"
+							: "auto",
 					resolution,
 					frameRate:
 						command.kind === "local-video" ? command.request.frameRate : 30,
@@ -221,6 +224,7 @@ export function ExportDialog() {
 					},
 				}),
 			exportLocalVideo: async ({
+				engine,
 				filename,
 				format,
 				frameRate,
@@ -234,6 +238,7 @@ export function ExportDialog() {
 					command: {
 						kind: "local-video",
 						request: {
+							engine,
 							filename,
 							format,
 							frameRate,

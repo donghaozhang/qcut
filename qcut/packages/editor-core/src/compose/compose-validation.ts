@@ -35,6 +35,7 @@ export interface ComposeValidationIssue {
 }
 
 const OUT_OF_BOUNDS_TOLERANCE_SECONDS = 0.05;
+const SOURCE_BOUNDS_TOLERANCE_SECONDS = 0.001;
 
 function isFinitePositiveRange({
 	startTime,
@@ -177,6 +178,35 @@ function validateAssetReference({
 	}
 }
 
+function validateStickerAnimationType({
+	allowedValues,
+	issues,
+	key,
+	operation,
+	path,
+}: {
+	allowedValues: readonly string[];
+	issues: ComposeValidationIssue[];
+	key: "animationInType" | "animationOutType" | "animationLoopType";
+	operation: Extract<ComposePatchOperation, { kind: "add-sticker" }>;
+	path: string;
+}): void {
+	const value: unknown = operation[key];
+	if (
+		value === undefined ||
+		(typeof value === "string" && allowedValues.includes(value))
+	) {
+		return;
+	}
+	issues.push({
+		severity: "error",
+		code: "invalid-sticker-geometry",
+		path: `${path}.${key}`,
+		operationId: operation.id,
+		message: `Sticker ${key} must be one of ${allowedValues.join(", ")}.`,
+	});
+}
+
 function validateStickerGeometry({
 	operation,
 	path,
@@ -186,6 +216,39 @@ function validateStickerGeometry({
 	path: string;
 	issues: ComposeValidationIssue[];
 }): void {
+	if (
+		operation.maintainAspectRatio !== undefined &&
+		typeof operation.maintainAspectRatio !== "boolean"
+	) {
+		issues.push({
+			severity: "error",
+			code: "invalid-sticker-geometry",
+			path: `${path}.maintainAspectRatio`,
+			operationId: operation.id,
+			message: "Sticker maintainAspectRatio must be a boolean.",
+		});
+	}
+	validateStickerAnimationType({
+		allowedValues: ["none", "fade", "slide", "scale", "bounce"],
+		issues,
+		key: "animationInType",
+		operation,
+		path,
+	});
+	validateStickerAnimationType({
+		allowedValues: ["none", "fade", "slide", "scale"],
+		issues,
+		key: "animationOutType",
+		operation,
+		path,
+	});
+	validateStickerAnimationType({
+		allowedValues: ["none", "pulse", "float", "spin", "bounce"],
+		issues,
+		key: "animationLoopType",
+		operation,
+		path,
+	});
 	for (const key of ["x", "y", "width", "height"] as const) {
 		const value = operation[key];
 		if (value === undefined) continue;
@@ -202,6 +265,150 @@ function validateStickerGeometry({
 				operationId: operation.id,
 				message:
 					"Sticker x/y must be normalized to 0..1 and width/height to 0..1 exclusive of zero.",
+			});
+		}
+	}
+	if (
+		operation.rotation !== undefined &&
+		!Number.isFinite(operation.rotation)
+	) {
+		issues.push({
+			severity: "error",
+			code: "invalid-sticker-geometry",
+			path: `${path}.rotation`,
+			operationId: operation.id,
+			message: "Sticker rotation must be finite.",
+		});
+	}
+	if (
+		operation.opacity !== undefined &&
+		(!Number.isFinite(operation.opacity) ||
+			operation.opacity < 0 ||
+			operation.opacity > 1)
+	) {
+		issues.push({
+			severity: "error",
+			code: "invalid-sticker-geometry",
+			path: `${path}.opacity`,
+			operationId: operation.id,
+			message: "Sticker opacity must be between 0 and 1.",
+		});
+	}
+	for (const key of ["animationInDuration", "animationOutDuration"] as const) {
+		const value = operation[key];
+		if (
+			value !== undefined &&
+			(!Number.isFinite(value) || value < 0 || value > operation.duration)
+		) {
+			issues.push({
+				severity: "error",
+				code: "invalid-sticker-geometry",
+				path: `${path}.${key}`,
+				operationId: operation.id,
+				message: "Sticker animation timing must fit inside the operation.",
+			});
+		}
+	}
+	if (
+		operation.animationLoopIntensity !== undefined &&
+		(!Number.isFinite(operation.animationLoopIntensity) ||
+			operation.animationLoopIntensity < 0 ||
+			operation.animationLoopIntensity > 2)
+	) {
+		issues.push({
+			severity: "error",
+			code: "invalid-sticker-geometry",
+			path: `${path}.animationLoopIntensity`,
+			operationId: operation.id,
+			message: "Sticker loop intensity must be between 0 and 2.",
+		});
+	}
+}
+
+function validateSoundSettings({
+	operation,
+	path,
+	issues,
+}: {
+	operation: Extract<ComposePatchOperation, { kind: "add-sound-effect" }>;
+	path: string;
+	issues: ComposeValidationIssue[];
+}): void {
+	if (
+		!Number.isFinite(operation.volume) ||
+		operation.volume < 0 ||
+		operation.volume > 1
+	) {
+		issues.push({
+			severity: "error",
+			code: "invalid-range",
+			path: `${path}.volume`,
+			operationId: operation.id,
+			message: "Sound-effect volume must be between 0 and 1.",
+		});
+	}
+	for (const key of ["trimStart", "trimEnd", "fadeIn", "fadeOut"] as const) {
+		const value = operation[key];
+		if (
+			value !== undefined &&
+			(!Number.isFinite(value) ||
+				value < 0 ||
+				((key === "fadeIn" || key === "fadeOut") && value > operation.duration))
+		) {
+			issues.push({
+				severity: "error",
+				code: "invalid-range",
+				path: `${path}.${key}`,
+				operationId: operation.id,
+				message:
+					"Sound trims must be non-negative and fades must fit inside the operation.",
+			});
+		}
+	}
+	if (
+		operation.playbackRate !== undefined &&
+		(!Number.isFinite(operation.playbackRate) ||
+			operation.playbackRate < 0.25 ||
+			operation.playbackRate > 4)
+	) {
+		issues.push({
+			severity: "error",
+			code: "invalid-range",
+			path: `${path}.playbackRate`,
+			operationId: operation.id,
+			message: "Sound-effect playbackRate must be between 0.25 and 4.",
+		});
+	}
+	// Timeline duration consumes source seconds at playbackRate speed, so the
+	// source must cover trims plus duration × rate — a 2× clip needs twice the
+	// source footage its timeline span suggests.
+	const sourceDuration = operation.asset?.duration;
+	if (
+		sourceDuration !== undefined &&
+		Number.isFinite(sourceDuration) &&
+		Number.isFinite(operation.duration)
+	) {
+		const playbackRate =
+			operation.playbackRate !== undefined &&
+			Number.isFinite(operation.playbackRate) &&
+			operation.playbackRate > 0
+				? operation.playbackRate
+				: 1;
+		const consumedSourceSeconds =
+			(operation.trimStart ?? 0) +
+			(operation.trimEnd ?? 0) +
+			operation.duration * playbackRate;
+		if (
+			consumedSourceSeconds >
+			sourceDuration + SOURCE_BOUNDS_TOLERANCE_SECONDS
+		) {
+			issues.push({
+				severity: "error",
+				code: "invalid-range",
+				path: `${path}.duration`,
+				operationId: operation.id,
+				message:
+					"Sound-effect trims plus duration × playbackRate exceed the source duration.",
 			});
 		}
 	}
@@ -370,6 +577,9 @@ export function validateComposePatch({
 		}
 		if (operation.kind === "add-sticker") {
 			validateStickerGeometry({ operation, path, issues });
+		}
+		if (operation.kind === "add-sound-effect") {
+			validateSoundSettings({ operation, path, issues });
 		}
 		if (operation.kind === "add-text-overlay" && operation.asset) {
 			validateAssetReference({

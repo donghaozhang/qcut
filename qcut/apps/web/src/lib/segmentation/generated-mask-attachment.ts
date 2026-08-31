@@ -23,6 +23,7 @@ export type GeneratedMaskSource =
 	| "mediapipe"
 	| "qcut-person-matting"
 	| "jianying-gru"
+	| "jianying-bingo"
 	| "sam3";
 
 interface TimelineMediaTarget {

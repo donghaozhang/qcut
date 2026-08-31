@@ -1,5 +1,4 @@
 import { resolve, sep } from "node:path";
-import { getKey } from "../infra/key-manager.js";
 import {
 	searchFreesound,
 	type SoundSearchResult,
@@ -8,6 +7,10 @@ import {
 	downloadSoundEffectsLabAsset,
 	searchSoundEffectsLab,
 } from "../sounds/sound-effects-lab-client.js";
+import {
+	defaultSoundEffectsLabManifestSource,
+	soundEffectsLabAssetsUrl,
+} from "../sounds/sound-effects-lab-config.js";
 import type {
 	CLIResult,
 	CLIRunOptions,
@@ -15,19 +18,6 @@ import type {
 } from "./cli-runner/types.js";
 
 export type SoundSearchSource = "freesound" | "lab" | "all";
-
-const LICENSE_SERVER_URL =
-	process.env.QCUT_LICENSE_SERVER_URL ||
-	"https://qcut-license-server.zdhpeter.workers.dev";
-
-/** True only for URLs on the license server's own origin. */
-function isLicenseServerUrl({ url }: { url: string }): boolean {
-	try {
-		return new URL(url).origin === new URL(LICENSE_SERVER_URL).origin;
-	} catch {
-		return false;
-	}
-}
 
 /**
  * Without an explicit manifest the lab catalog comes from the license server,
@@ -39,17 +29,10 @@ function isLicenseServerUrl({ url }: { url: string }): boolean {
  * hand it to whoever runs that host.
  */
 function labManifestSource({ options }: { options: CLIRunOptions }) {
-	if (options.manifest) return { manifestPath: resolve(options.manifest) };
-	const manifestUrl =
-		options.manifestUrl ??
-		`${LICENSE_SERVER_URL.replace(/\/+$/, "")}/api/sound-effects-lab/private-manifest`;
-	const token = isLicenseServerUrl({ url: manifestUrl })
-		? getKey("QCUT_AUTH_TOKEN")
-		: undefined;
-	return {
-		manifestUrl,
-		...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
-	};
+	return defaultSoundEffectsLabManifestSource({
+		manifestPath: options.manifest,
+		manifestUrl: options.manifestUrl,
+	});
 }
 
 /**
@@ -165,15 +148,14 @@ export async function handleSoundSearch(
 	const returned = results.slice(0, limit);
 
 	if (options.downloadDir) {
-		const assetsUrl = `${LICENSE_SERVER_URL.replace(/\/+$/, "")}/api/sound-effects-lab/assets`;
-		const token = getKey("QCUT_AUTH_TOKEN");
+		const source = labManifestSource({ options });
 		for (const entry of returned) {
 			if (!(entry.objectKey && entry.fileName)) continue;
 			try {
 				entry.localPath = await dependencies.downloadSoundEffectsLabAsset({
 					objectKey: entry.objectKey,
-					assetsUrl,
-					headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+					assetsUrl: soundEffectsLabAssetsUrl(),
+					headers: source.headers,
 					destinationPath: assetDestination({
 						downloadDir: options.downloadDir,
 						fileName: entry.fileName,

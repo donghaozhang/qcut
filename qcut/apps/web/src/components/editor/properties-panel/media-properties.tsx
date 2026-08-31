@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
 	AlignHorizontalJustifyCenter,
 	AlignHorizontalJustifyEnd,
@@ -31,6 +31,7 @@ import { createObjectURL } from "@/lib/media/blob-manager";
 import { requestSelectedVideoUpscale } from "@/lib/ai-video/selected-upscale-source";
 import { useTranslation } from "@/lib/i18n";
 import type { TranslationKey } from "@/lib/i18n/translations";
+import type { JianyingMotionTrackingStatus } from "@/types/electron/api-jianying-motion-tracking";
 import { generateUUID } from "@/lib/utils";
 import { useMediaKeyframeShortcuts } from "@/hooks/keyboard/use-media-keyframe-shortcuts";
 import { Button } from "@/components/ui/button";
@@ -59,6 +60,7 @@ import {
 	upsertMediaKeyframe,
 } from "@/lib/video/video-properties";
 import { getMediaTimelineDuration } from "@/lib/video/video-timing";
+import { runJianyingMotionTracking } from "@/lib/video/jianying-motion-tracking-controller";
 import { DEFAULT_MEDIA_CUSTOM_CUTOUT } from "@/lib/video/media-custom-cutout";
 import {
 	PropertyGroup,
@@ -199,6 +201,11 @@ export function MediaProperties({
 		useState<MediaPropertiesTab>("basic");
 	const [cropExpanded, setCropExpanded] = useState(false);
 	const [keyframesExpanded, setKeyframesExpanded] = useState(false);
+	const [motionTrackingStatus, setMotionTrackingStatus] =
+		useState<JianyingMotionTrackingStatus | null>(null);
+	const [motionTrackingStatusLoading, setMotionTrackingStatusLoading] =
+		useState(false);
+	const motionTrackingApi = window.electronAPI?.jianyingMotionTracking;
 	const interactionActive = useRef(false);
 	const panelRef = useRef<HTMLDivElement>(null);
 	const visual = resolveMediaVisualProperties(element);
@@ -212,6 +219,29 @@ export function MediaProperties({
 			(mask.keyframes?.centerY?.length ?? 0) > 0
 		);
 	});
+	const refreshMotionTrackingStatus = useCallback(async () => {
+		if (!motionTrackingApi) {
+			setMotionTrackingStatus(null);
+			setMotionTrackingStatusLoading(false);
+			return;
+		}
+		setMotionTrackingStatusLoading(true);
+		try {
+			setMotionTrackingStatus(await motionTrackingApi.inspect());
+		} catch (error) {
+			setMotionTrackingStatus({
+				available: false,
+				localOnly: true,
+				message:
+					error instanceof Error ? error.message : "无法检查本机运动跟踪运行时",
+				offlineReady: false,
+				platformSupported: false,
+				route: "jianying-bingo-object-tracking-11.3.0",
+			});
+		} finally {
+			setMotionTrackingStatusLoading(false);
+		}
+	}, [motionTrackingApi]);
 
 	useEffect(() => {
 		const handleOpenPropertiesTab = (event: Event) => {
@@ -259,6 +289,11 @@ export function MediaProperties({
 			?.closest<HTMLElement>("[data-radix-scroll-area-viewport]")
 			?.scrollTo({ top: 0, behavior: "auto" });
 	}, [activePropertiesTab, element.id]);
+
+	useEffect(() => {
+		if (activePropertiesTab !== "tracking") return;
+		void refreshMotionTrackingStatus();
+	}, [activePropertiesTab, refreshMotionTrackingStatus]);
 
 	const update = (updates: MediaUpdates, history = true) =>
 		updateMediaElement(trackId, element.id, updates, history);
@@ -554,6 +589,32 @@ export function MediaProperties({
 		openSegmentation({
 			backend: mask.type === "person" ? "local-person" : "sam3",
 			prompt: mask.type === "person" ? "" : (mask.name ?? "object"),
+		});
+	};
+	const startJianyingMotionTracking = async ({
+		mask,
+		direction,
+	}: {
+		mask: MediaMask;
+		direction: MediaMaskTrackingDirection;
+	}) => {
+		if (!mask.id) return;
+		if (!motionTrackingApi) return;
+		const sourcePath =
+			mediaItem?.localPath ??
+			(mediaItem?.file
+				? window.electronAPI?.getPathForFile(mediaItem.file)
+				: "") ??
+			"";
+		await runJianyingMotionTracking({
+			api: motionTrackingApi,
+			currentFrame,
+			direction,
+			elementId: element.id,
+			fps,
+			maskId: mask.id,
+			sourcePath,
+			trackId,
 		});
 	};
 	const applySmartLabAction = ({
@@ -1388,7 +1449,19 @@ export function MediaProperties({
 						currentFrame={currentFrame}
 						onChange={(masks, history = true) => update({ masks }, history)}
 						onTrack={startMaskTracking}
+						onTrackMotion={
+							motionTrackingApi
+								? (request) => {
+										void startJianyingMotionTracking(request);
+									}
+								: undefined
+						}
 						onOpenMasks={() => setActivePropertiesTab("mask")}
+						motionTrackingStatus={motionTrackingStatus}
+						motionTrackingStatusLoading={motionTrackingStatusLoading}
+						onRefreshMotionTrackingStatus={() => {
+							void refreshMotionTrackingStatus();
+						}}
 					/>
 				</TabsContent>
 
