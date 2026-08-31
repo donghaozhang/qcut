@@ -12,13 +12,13 @@ import { join } from "node:path";
 import type {
 	PlanarTrackingResultStore,
 	StoredPlanarTrackingResult,
-} from "@qcut/editor-core";
+} from "../editor-core-tracking-runtime.js";
 import {
 	createPlanarTrackingResultUri,
 	parsePlanarTrackingResultUri,
 	parsePlanarTrackingSidecar,
 	serializePlanarTrackingSidecar,
-} from "@qcut/editor-core";
+} from "../editor-core-tracking-runtime.js";
 
 const MAX_PLANAR_TRACKING_RESULT_BYTES = 256 * 1024 * 1024;
 const SHA256_PATTERN = /^[a-f\d]{64}$/i;
