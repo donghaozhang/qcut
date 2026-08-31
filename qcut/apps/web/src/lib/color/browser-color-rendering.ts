@@ -382,17 +382,104 @@ export async function drawColorGradedSourceWithMasks({
 	});
 }
 
-function createGradeCanvas({
+/**
+ * Pooled scratch canvases for the colour stack.
+ *
+ * Every graded layer used to allocate a fresh full-resolution canvas, so an
+ * export paid one canvas per media element per frame even with nothing to
+ * grade. These pools hand out reusable canvases instead.
+ *
+ * A lease is required rather than a single shared canvas because the layer walk
+ * feeds each layer's output in as the next layer's source: a leased canvas must
+ * never be handed out again while it is still someone's source. Leases are held
+ * until the finished stack has been blitted onto the destination.
+ *
+ * "graded" and "blended" are separate pools because their contexts are created
+ * with different attributes, and a canvas's context attributes are fixed at
+ * first `getContext` call.
+ */
+interface GradeCanvasLease {
+	canvas: HTMLCanvasElement;
+	inUse: boolean;
+}
+
+type GradeCanvasKind = "graded" | "blended";
+
+/** Bounds pool growth; concurrent exports and previews each hold leases. */
+const MAX_POOLED_CANVASES = 8;
+
+const gradeCanvasPools: Record<GradeCanvasKind, GradeCanvasLease[]> = {
+	blended: [],
+	graded: [],
+};
+
+function acquireGradeCanvas({
 	width,
 	height,
+	kind,
+	leased,
 }: {
 	width: number;
 	height: number;
+	kind: GradeCanvasKind;
+	leased: Array<{ canvas: HTMLCanvasElement; kind: GradeCanvasKind }>;
 }): HTMLCanvasElement {
-	const canvas = document.createElement("canvas");
-	canvas.width = width;
-	canvas.height = height;
+	const pool = gradeCanvasPools[kind];
+	const existing = pool.find((candidate) => !candidate.inUse);
+	if (!existing) {
+		// Fresh canvas: size it here and hand it straight back, so its context is
+		// still created by the caller with that call site's own attributes.
+		const canvas = document.createElement("canvas");
+		canvas.width = width;
+		canvas.height = height;
+		const entry = { canvas, inUse: true };
+		if (pool.length < MAX_POOLED_CANVASES) pool.push(entry);
+		leased.push({ canvas, kind });
+		return canvas;
+	}
+
+	existing.inUse = true;
+	leased.push({ canvas: existing.canvas, kind });
+	const canvas = existing.canvas;
+	if (canvas.width !== width || canvas.height !== height) {
+		// Assigning either dimension resets the bitmap and the context state.
+		canvas.width = width;
+		canvas.height = height;
+		return canvas;
+	}
+	// Same size, so the bitmap and context state survive from the previous
+	// lease and have to be returned to what a freshly created canvas would give.
+	// getContext returns the context this canvas already has; the attributes
+	// passed here are ignored after the first call, so they cannot change it.
+	const context = canvas.getContext("2d");
+	if (context) {
+		context.setTransform(1, 0, 0, 1, 0, 0);
+		context.globalAlpha = 1;
+		context.globalCompositeOperation = "source-over";
+		context.filter = "none";
+		context.clearRect(0, 0, width, height);
+	}
 	return canvas;
+}
+
+function releaseGradeCanvases({
+	leased,
+}: {
+	leased: Array<{ canvas: HTMLCanvasElement; kind: GradeCanvasKind }>;
+}): void {
+	for (const lease of leased) {
+		const entry = gradeCanvasPools[lease.kind].find(
+			(candidate) => candidate.canvas === lease.canvas
+		);
+		if (entry) entry.inUse = false;
+	}
+	leased.length = 0;
+}
+
+/** Drops every pooled canvas. Exposed so tests can start from a clean pool. */
+export function clearGradeCanvasPool(): void {
+	gradeCanvasPools.blended.length = 0;
+	gradeCanvasPools.graded.length = 0;
 }
 
 async function renderColorGradeLayers({
@@ -404,6 +491,7 @@ async function renderColorGradeLayers({
 	frameSeed,
 	sourceKey,
 	timestampSeconds,
+	leased,
 }: {
 	source: CanvasImageSource;
 	layers: BrowserColorGradeLayer[];
@@ -413,24 +501,26 @@ async function renderColorGradeLayers({
 	frameSeed: number;
 	sourceKey?: string;
 	timestampSeconds?: number;
+	leased: Array<{ canvas: HTMLCanvasElement; kind: GradeCanvasKind }>;
 }): Promise<CanvasImageSource> {
 	const layer = layers[index];
 	if (!layer) return source;
 	const opacity = Math.min(1, Math.max(0, layer.opacity ?? 1));
 	if (opacity === 0) {
 		return renderColorGradeLayers({
-			source,
-			layers,
-			index: index + 1,
-			width,
-			height,
 			frameSeed,
+			height,
+			index: index + 1,
+			layers,
+			leased,
+			source,
 			sourceKey,
 			timestampSeconds,
+			width,
 		});
 	}
 
-	const graded = createGradeCanvas({ width, height });
+	const graded = acquireGradeCanvas({ height, kind: "graded", leased, width });
 	const gradedContext = graded.getContext("2d", { willReadFrequently: true });
 	if (!gradedContext) throw new Error("Unable to create color layer canvas");
 	await drawColorGradedSourceWithMasks({
@@ -449,7 +539,12 @@ async function renderColorGradeLayers({
 
 	let output: CanvasImageSource = graded;
 	if (opacity < 1) {
-		const blended = createGradeCanvas({ width, height });
+		const blended = acquireGradeCanvas({
+			height,
+			kind: "blended",
+			leased,
+			width,
+		});
 		const blendedContext = blended.getContext("2d");
 		if (!blendedContext) throw new Error("Unable to blend color layer canvas");
 		blendedContext.drawImage(source, 0, 0, width, height);
@@ -460,14 +555,15 @@ async function renderColorGradeLayers({
 	}
 
 	return renderColorGradeLayers({
-		source: output,
-		layers,
-		index: index + 1,
-		width,
-		height,
 		frameSeed,
+		height,
+		index: index + 1,
+		layers,
+		leased,
+		source: output,
 		sourceKey,
 		timestampSeconds,
+		width,
 	});
 }
 
@@ -507,17 +603,26 @@ export async function drawColorGradedSourceStack({
 		sourceKey,
 		timestampSeconds,
 	});
-	const output = await renderColorGradeLayers({
-		source: adjustedSource,
-		layers,
-		index: 0,
-		width: pixelWidth,
-		height: pixelHeight,
-		frameSeed,
-		sourceKey,
-		timestampSeconds,
-	});
-	context.drawImage(output, x, y, width, height);
+	// Leases are held until the finished stack has been blitted, because each
+	// layer's canvas is still the next layer's source until then.
+	const leased: Array<{ canvas: HTMLCanvasElement; kind: GradeCanvasKind }> =
+		[];
+	try {
+		const output = await renderColorGradeLayers({
+			frameSeed,
+			height: pixelHeight,
+			index: 0,
+			layers,
+			leased,
+			source: adjustedSource,
+			sourceKey,
+			timestampSeconds,
+			width: pixelWidth,
+		});
+		context.drawImage(output, x, y, width, height);
+	} finally {
+		releaseGradeCanvases({ leased });
+	}
 }
 
 export function clearBrowserColorRenderingCache() {
