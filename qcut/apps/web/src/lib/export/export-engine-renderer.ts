@@ -346,7 +346,9 @@ async function renderElement(
 	} else if (element.type === "adjustment") {
 		await applyCanvasAdjustment({ context, element, currentTime });
 	} else if (element.type === "effect") {
-		applyCanvasRegionEffect({ context, element, currentTime });
+		exportProfiler.timeSync("effect-region", () =>
+			applyCanvasRegionEffect({ context, element, currentTime })
+		);
 	} else if (element.type === "remotion") {
 		// Remotion elements are handled by RemotionExportEngine.compositeRemotionFrames()
 		// Skip in standard canvas render to avoid double-rendering
@@ -381,6 +383,7 @@ function applyCanvasRegionEffect({
 		adjustmentFrameCanvas.width !== canvas.width ||
 		adjustmentFrameCanvas.height !== canvas.height
 	) {
+		exportProfiler.count("effect-frame-canvas-created");
 		adjustmentFrameCanvas = document.createElement("canvas");
 		adjustmentFrameCanvas.width = canvas.width;
 		adjustmentFrameCanvas.height = canvas.height;
@@ -388,6 +391,7 @@ function applyCanvasRegionEffect({
 	}
 	if (!adjustmentFrameCtx) return;
 
+	exportProfiler.count("effect-region-frames");
 	adjustmentFrameCtx.clearRect(0, 0, canvas.width, canvas.height);
 	adjustmentFrameCtx.drawImage(canvas, 0, 0);
 	ctx.save();
