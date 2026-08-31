@@ -624,6 +624,9 @@ describe("Claude export trigger", () => {
 		await vi.waitFor(() => {
 			expect(dispatch).toHaveBeenCalledWith(
 				expect.objectContaining({
+					// Persisted runtime metadata pins the muxer so the renderer's
+					// in-memory stores cannot drift the engine after a reopen.
+					engine: "muxer",
 					format: "mp4",
 					outputPath: resolve("/tmp/runtime-output.mp4"),
 					projectId: "project_renderer_runtime",
@@ -632,6 +635,28 @@ describe("Claude export trigger", () => {
 			expect(getExportJobStatus(result.jobId)).toMatchObject({
 				engine: "renderer-muxer",
 				fileSize: 4096,
+				status: "completed",
+			});
+		});
+	});
+
+	it("leaves engine selection to the renderer when persisted inputs need no muxer", async () => {
+		const dispatch = vi.fn(async () => {});
+
+		const result = await startRendererExportJob({
+			dispatch,
+			mediaFiles: testMediaFiles,
+			projectId: "project_renderer_auto",
+			request: { outputPath: "/tmp/renderer-auto.mp4" },
+			timeline: testTimeline,
+		});
+
+		await vi.waitFor(() => {
+			expect(dispatch).toHaveBeenCalledOnce();
+			expect(dispatch).toHaveBeenCalledWith(
+				expect.not.objectContaining({ engine: "muxer" })
+			);
+			expect(getExportJobStatus(result.jobId)).toMatchObject({
 				status: "completed",
 			});
 		});

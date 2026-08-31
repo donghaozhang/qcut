@@ -19,13 +19,16 @@ import {
 import type {
 	AdjustmentElement,
 	MediaAdjustments,
+	MediaAnimationType,
 	MediaColorSettings,
 	MediaMask,
+	StickerAnimationLoopType,
 	TextAnimationsV1,
 	TextElement,
 	TimelineElement,
 	TimelineTrack,
 } from "@/types/timeline";
+import { STICKER_DEFAULTS } from "@/types/sticker-overlay";
 import type {
 	ClaudeTimeline,
 	ClaudeTrack,
@@ -939,6 +942,179 @@ export function addClaudeAdjustmentElement({
 
 const DEFAULT_STICKER_DURATION_SECONDS = 5;
 
+const STICKER_ANIMATION_IN_OUT_TYPES = new Set<string>([
+	"none",
+	"fade",
+	"slide-left",
+	"slide-right",
+	"slide-up",
+	"slide-down",
+	"zoom-in",
+	"zoom-out",
+]);
+const STICKER_ANIMATION_LOOP_TYPES = new Set<string>([
+	"none",
+	"pulse",
+	"drift",
+	"spin",
+	"wobble",
+	"bounce",
+	"blink",
+]);
+const STICKER_LOOP_INTENSITY_MAX = 2;
+
+export interface ClaudeStickerVisuals {
+	rotation: number;
+	opacity: number;
+	maintainAspectRatio: boolean;
+	animationInType?: MediaAnimationType;
+	animationInDuration?: number;
+	animationOutType?: MediaAnimationType;
+	animationOutDuration?: number;
+	animationLoopType?: StickerAnimationLoopType;
+	animationLoopIntensity?: number;
+}
+
+function clampedStickerNumber({
+	label,
+	value,
+	min,
+	max,
+}: {
+	label: string;
+	value: unknown;
+	min: number;
+	max: number;
+}): number {
+	if (typeof value !== "number" || !Number.isFinite(value)) {
+		throw new Error(`${label} must be a finite number`);
+	}
+	return Math.min(max, Math.max(min, value));
+}
+
+function validatedStickerAnimationType({
+	allowed,
+	label,
+	value,
+}: {
+	allowed: Set<string>;
+	label: string;
+	value: unknown;
+}): string {
+	if (typeof value !== "string" || !allowed.has(value)) {
+		throw new Error(`Unsupported ${label}: ${String(value)}`);
+	}
+	return value;
+}
+
+/**
+ * Resolves sticker visual fields (rotation, opacity, aspect lock, and the
+ * in/out/loop animations) from external input using Sticker Lab defaults,
+ * clamping numeric ranges and rejecting unknown animation types. The result
+ * is written verbatim to both the timeline element and the overlay sticker so
+ * the two stores stay in lockstep.
+ */
+export function resolveClaudeStickerVisuals({
+	element,
+	duration,
+}: {
+	element: Partial<ClaudeElement> & Record<string, unknown>;
+	duration: number;
+}): ClaudeStickerVisuals {
+	if (
+		element.maintainAspectRatio !== undefined &&
+		typeof element.maintainAspectRatio !== "boolean"
+	) {
+		throw new Error("Sticker maintainAspectRatio must be a boolean");
+	}
+	const visuals: ClaudeStickerVisuals = {
+		rotation:
+			element.rotation === undefined
+				? STICKER_DEFAULTS.rotation
+				: clampedStickerNumber({
+						label: "Sticker rotation",
+						value: element.rotation,
+						min: Number.MIN_SAFE_INTEGER,
+						max: Number.MAX_SAFE_INTEGER,
+					}),
+		opacity:
+			element.opacity === undefined
+				? STICKER_DEFAULTS.opacity
+				: clampedStickerNumber({
+						label: "Sticker opacity",
+						value: element.opacity,
+						min: 0,
+						max: 1,
+					}),
+		maintainAspectRatio:
+			element.maintainAspectRatio ?? STICKER_DEFAULTS.maintainAspectRatio,
+	};
+
+	if (element.animationInType !== undefined) {
+		visuals.animationInType = validatedStickerAnimationType({
+			allowed: STICKER_ANIMATION_IN_OUT_TYPES,
+			label: "sticker entrance animation",
+			value: element.animationInType,
+		}) as MediaAnimationType;
+	}
+	const animationInDuration =
+		element.animationInDuration ??
+		(visuals.animationInType && visuals.animationInType !== "none"
+			? STICKER_DEFAULTS.animationInDuration
+			: undefined);
+	if (animationInDuration !== undefined) {
+		visuals.animationInDuration = clampedStickerNumber({
+			label: "Sticker entrance animation duration",
+			value: animationInDuration,
+			min: 0,
+			max: duration,
+		});
+	}
+
+	if (element.animationOutType !== undefined) {
+		visuals.animationOutType = validatedStickerAnimationType({
+			allowed: STICKER_ANIMATION_IN_OUT_TYPES,
+			label: "sticker exit animation",
+			value: element.animationOutType,
+		}) as MediaAnimationType;
+	}
+	const animationOutDuration =
+		element.animationOutDuration ??
+		(visuals.animationOutType && visuals.animationOutType !== "none"
+			? STICKER_DEFAULTS.animationOutDuration
+			: undefined);
+	if (animationOutDuration !== undefined) {
+		visuals.animationOutDuration = clampedStickerNumber({
+			label: "Sticker exit animation duration",
+			value: animationOutDuration,
+			min: 0,
+			max: duration,
+		});
+	}
+
+	if (element.animationLoopType !== undefined) {
+		visuals.animationLoopType = validatedStickerAnimationType({
+			allowed: STICKER_ANIMATION_LOOP_TYPES,
+			label: "sticker loop animation",
+			value: element.animationLoopType,
+		}) as StickerAnimationLoopType;
+	}
+	const animationLoopIntensity =
+		element.animationLoopIntensity ??
+		(visuals.animationLoopType && visuals.animationLoopType !== "none"
+			? STICKER_DEFAULTS.animationLoopIntensity
+			: undefined);
+	if (animationLoopIntensity !== undefined) {
+		visuals.animationLoopIntensity = clampedStickerNumber({
+			label: "Sticker loop animation intensity",
+			value: animationLoopIntensity,
+			min: 0,
+			max: STICKER_LOOP_INTENSITY_MAX,
+		});
+	}
+	return visuals;
+}
+
 export function resolveClaudeStickerRuntime({
 	candidate,
 }: {
@@ -1046,6 +1222,10 @@ export async function addClaudeStickerElement({
 		patch: element,
 		space: element.stickerGeometrySpace,
 	});
+	const stickerVisuals = resolveClaudeStickerVisuals({
+		element: element as Partial<ClaudeElement> & Record<string, unknown>,
+		duration,
+	});
 
 	const elementId = timelineStore.addElementToTrack(trackId, {
 		...requestedElementId({ element }),
@@ -1062,8 +1242,7 @@ export async function addClaudeStickerElement({
 		trimStart: 0,
 		trimEnd: 0,
 		...geometry,
-		rotation: element.rotation ?? 0,
-		opacity: element.opacity ?? 1,
+		...stickerVisuals,
 	});
 	const addedElementId = requireAddedElementId({
 		elementId,
@@ -1092,8 +1271,7 @@ export async function addClaudeStickerElement({
 				id: stickerId,
 				position: { x: geometry.x, y: geometry.y },
 				size: { width: geometry.width, height: geometry.height },
-				rotation: element.rotation ?? 0,
-				opacity: element.opacity ?? 1,
+				...stickerVisuals,
 			});
 		}
 		// Verify it was added
@@ -1698,6 +1876,8 @@ function formatElementForExport({
 				scaleY: element.scaleY,
 				opacity: element.opacity,
 				volume: element.volume,
+				audioFadeIn: element.audioFadeIn,
+				audioFadeOut: element.audioFadeOut,
 				keyframes: element.keyframes as ClaudeElement["keyframes"],
 				colorSettings: resolveExportElementColorSettings({ element }),
 				timelineDuration,
@@ -1735,6 +1915,13 @@ function formatElementForExport({
 				height: element.height,
 				rotation: element.rotation,
 				opacity: element.opacity,
+				maintainAspectRatio: element.maintainAspectRatio,
+				animationInType: element.animationInType,
+				animationInDuration: element.animationInDuration,
+				animationOutType: element.animationOutType,
+				animationOutDuration: element.animationOutDuration,
+				animationLoopType: element.animationLoopType,
+				animationLoopIntensity: element.animationLoopIntensity,
 				zIndex: element.zIndex,
 			};
 		case "adjustment":

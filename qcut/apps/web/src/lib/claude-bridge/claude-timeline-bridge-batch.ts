@@ -28,6 +28,67 @@ import {
 import { parseTimelineColorLabel } from "@/lib/timeline/timeline-color-labels";
 
 const MAX_TIMELINE_BATCH_ITEMS = 50;
+const AUDIO_FADE_TOLERANCE_SECONDS = 0.001;
+
+/** Honor an explicitly requested element id so replays stay deterministic. */
+function requestedBatchElementId({
+	element,
+}: {
+	element: Record<string, unknown>;
+}): { id?: string } {
+	return typeof element.id === "string" && element.id.trim().length > 0
+		? { id: element.id }
+		: {};
+}
+
+/**
+ * Maps external fadeIn/fadeOut (or audioFadeIn/audioFadeOut) onto the media
+ * element's audio fade fields. Fades are timeline seconds, so they must fit
+ * inside the clip's visible span: (duration - trims) / playbackRate.
+ */
+function resolveClaudeAudioFades({
+	element,
+}: {
+	element: Record<string, unknown>;
+}): { audioFadeIn?: number; audioFadeOut?: number } {
+	const trimStart =
+		typeof element.trimStart === "number" && Number.isFinite(element.trimStart)
+			? element.trimStart
+			: 0;
+	const trimEnd =
+		typeof element.trimEnd === "number" && Number.isFinite(element.trimEnd)
+			? element.trimEnd
+			: 0;
+	const duration = typeof element.duration === "number" ? element.duration : 0;
+	const playbackRate =
+		typeof element.playbackRate === "number" &&
+		Number.isFinite(element.playbackRate) &&
+		element.playbackRate > 0
+			? element.playbackRate
+			: 1;
+	const timelineDuration = Math.max(
+		0,
+		(duration - trimStart - trimEnd) / playbackRate
+	);
+	const fades: { audioFadeIn?: number; audioFadeOut?: number } = {};
+	for (const [inputKey, outputKey] of [
+		["fadeIn", "audioFadeIn"],
+		["fadeOut", "audioFadeOut"],
+	] as const) {
+		const raw = element[outputKey] ?? element[inputKey];
+		if (raw === undefined) continue;
+		if (typeof raw !== "number" || !Number.isFinite(raw) || raw < 0) {
+			throw new Error(`${outputKey} must be a non-negative finite number`);
+		}
+		if (raw > timelineDuration + AUDIO_FADE_TOLERANCE_SECONDS) {
+			throw new Error(
+				`${outputKey} (${raw}s) must fit inside the clip's ${timelineDuration}s timeline span`
+			);
+		}
+		fades[outputKey] = raw;
+	}
+	return fades;
+}
 
 export function setupBatchHandlers({
 	claudeAPI,
@@ -170,6 +231,7 @@ export function setupBatchHandlers({
 							createdElementId = timelineStore.addElementToTrack(
 								element.trackId,
 								{
+									...requestedBatchElementId({ element }),
 									type: "media",
 									name: element.sourceName || "Media",
 									mediaId,
@@ -185,6 +247,7 @@ export function setupBatchHandlers({
 									...(typeof element.volume === "number"
 										? { volume: element.volume }
 										: {}),
+									...resolveClaudeAudioFades({ element }),
 									...getClaudeMediaTimingProperties({ element }),
 								},
 								addOptions
@@ -212,6 +275,7 @@ export function setupBatchHandlers({
 							createdElementId = timelineStore.addElementToTrack(
 								element.trackId,
 								{
+									...requestedBatchElementId({ element }),
 									type: "text",
 									name: content,
 									content,
@@ -266,6 +330,7 @@ export function setupBatchHandlers({
 							createdElementId = timelineStore.addElementToTrack(
 								element.trackId,
 								{
+									...requestedBatchElementId({ element }),
 									type: "markdown",
 									name: markdownContent.slice(0, 50),
 									markdownContent,
@@ -316,6 +381,7 @@ export function setupBatchHandlers({
 							createdElementId = timelineStore.addElementToTrack(
 								element.trackId,
 								{
+									...requestedBatchElementId({ element }),
 									type: "captions",
 									name: captionText.slice(0, 50),
 									text: captionText,

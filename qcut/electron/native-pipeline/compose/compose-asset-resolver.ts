@@ -8,7 +8,11 @@ import {
 	readLocalReference,
 	resolveDefaultLocalReferenceRoot,
 } from "../stickers/local-reference-catalog/index.js";
-import { TRANSITION_LAB_RECIPES } from "../transitions/transition-lab-catalog.js";
+import {
+	materializeComposeSoundLabReference,
+	resolveComposeSoundLabReference,
+	resolveComposeTransitionReference,
+} from "./compose-lab-resource-resolver.js";
 import type {
 	ComposeAssetReference,
 	ComposePatch,
@@ -56,17 +60,12 @@ export interface ComposeAssetResolverDependencies {
 		fileName: string;
 		checksumSha256: string;
 	}>;
+	resolveSoundLabReference?: typeof resolveComposeSoundLabReference;
+	materializeSoundLabReference?: typeof materializeComposeSoundLabReference;
+	resolveTransitionReference?: typeof resolveComposeTransitionReference;
 }
 
 const STICKER_LAB_PREFIX = "sticker-lab:";
-const EDITOR_TRANSITION_PRESETS = new Set([
-	"crossfade",
-	"dissolve",
-	"whip-pan-right",
-]);
-const TRANSITION_LAB_RECIPE_IDS = new Set(
-	TRANSITION_LAB_RECIPES.map(({ id }) => id)
-);
 
 async function defaultFindStickerLabItem({
 	batchId,
@@ -127,7 +126,7 @@ function localFileDigest({ path }: { path: string }): {
 	};
 }
 
-function parseStickerLabAssetId({ assetId }: { assetId: string }): {
+export function parseStickerLabAssetId({ assetId }: { assetId: string }): {
 	batchId: string;
 	stickerId: string;
 } | null {
@@ -247,8 +246,89 @@ export async function resolveComposeAssetReference({
 				},
 			});
 		}
-		case "sound-effect":
-			if (reference.provider === "qcut") {
+		case "sound-effect": {
+			if (
+				reference.provider !== "qcut" ||
+				!reference.assetId.startsWith("sound-effects-lab:")
+			) {
+				return report({
+					operationId,
+					reference,
+					status: reference.provider === "qcut" ? "cloud-only" : "missing",
+					evidence: {
+						backend:
+							reference.provider === "qcut"
+								? "sound-effects-lab"
+								: "local-file",
+						cacheStatus: "none",
+						verification: "unverified",
+						detail:
+							reference.provider === "qcut"
+								? "Use a sound-effects-lab:<id> reference from the authenticated catalog."
+								: "Sound effects need a localPath or a recognized Sound Effects Lab identity.",
+					},
+				});
+			}
+			try {
+				const resolveSound =
+					dependencies.resolveSoundLabReference ??
+					resolveComposeSoundLabReference;
+				const resolution = await resolveSound({ reference });
+				if (!resolution) {
+					return report({
+						operationId,
+						reference,
+						status: "missing",
+						evidence: {
+							backend: "sound-effects-lab",
+							cacheStatus: "none",
+							verification: "unverified",
+							detail:
+								"The asset identity is not a Sound Effects Lab reference.",
+						},
+					});
+				}
+				if (resolution.status === "missing") {
+					return report({
+						operationId,
+						reference,
+						status: "missing",
+						evidence: {
+							backend: "sound-effects-lab",
+							cacheStatus: "none",
+							verification: "unverified",
+							detail: resolution.detail,
+						},
+					});
+				}
+				if (resolution.status === "reference-only") {
+					return report({
+						operationId,
+						reference,
+						status: "unsupported",
+						evidence: {
+							backend: "sound-effects-lab",
+							cacheStatus: "reference-only",
+							verification: "unverified",
+							detail: resolution.detail,
+						},
+					});
+				}
+				return report({
+					operationId,
+					reference,
+					status: resolution.status === "ready" ? "cached" : "downloadable",
+					bytes: resolution.asset.byteSize,
+					evidence: {
+						backend: "sound-effects-lab",
+						cacheStatus:
+							resolution.status === "ready"
+								? "local-catalog"
+								: "authenticated-download",
+						verification: "unverified",
+					},
+				});
+			} catch (error) {
 				return report({
 					operationId,
 					reference,
@@ -257,44 +337,37 @@ export async function resolveComposeAssetReference({
 						backend: "sound-effects-lab",
 						cacheStatus: "none",
 						verification: "unverified",
-						detail:
-							"Needs the private Sound Effects Lab manifest and an allowlisted sign-in.",
+						detail: error instanceof Error ? error.message : String(error),
 					},
 				});
 			}
-			return report({
-				operationId,
-				reference,
-				status: "missing",
-				evidence: {
-					backend: "local-file",
-					cacheStatus: "none",
-					verification: "unverified",
-					detail: "Sound effects need a localPath until a download path lands.",
-				},
-			});
+		}
 		case "transition": {
-			if (EDITOR_TRANSITION_PRESETS.has(reference.assetId)) {
+			const resolveTransition =
+				dependencies.resolveTransitionReference ??
+				resolveComposeTransitionReference;
+			const resolution = await resolveTransition({
+				assetId: reference.assetId,
+			});
+			if (resolution.status === "ready") {
 				return report({
 					operationId,
 					reference,
 					status: "cached",
 					evidence: {
-						backend: "editor-preset",
-						cacheStatus: "builtin",
+						backend: resolution.backend,
+						cacheStatus:
+							resolution.backend === "editor-preset"
+								? "builtin"
+								: resolution.backend === "transition-lab"
+									? "builtin-recipe"
+									: "verified-local-runtime",
 						verification: "unverified",
-					},
-				});
-			}
-			if (TRANSITION_LAB_RECIPE_IDS.has(reference.assetId)) {
-				return report({
-					operationId,
-					reference,
-					status: "cached",
-					evidence: {
-						backend: "transition-lab",
-						cacheStatus: "builtin-recipe",
-						verification: "unverified",
+						...(resolution.backend === "jianying-local"
+							? {
+									detail: `Local runtime admitted package ${resolution.packageHash}.`,
+								}
+							: {}),
 					},
 				});
 			}
@@ -303,10 +376,10 @@ export async function resolveComposeAssetReference({
 				reference,
 				status: "unsupported",
 				evidence: {
-					backend: "editor-preset",
+					backend: resolution.backend,
 					cacheStatus: "none",
 					verification: "unverified",
-					detail: `Unknown transition preset: ${reference.assetId}`,
+					detail: resolution.detail,
 				},
 			});
 		}
@@ -369,28 +442,24 @@ function issueForReport({
 	index: number;
 }): ComposeValidationIssue | null {
 	const path = `operations.${index}.asset`;
-	if (resolved.status === "missing") {
-		return {
-			severity: "error",
-			code: "invalid-asset-reference",
-			path,
-			operationId: resolved.operationId,
-			message: `Asset ${resolved.assetId} (${resolved.assetType}) is not available: ${resolved.evidence.detail ?? "missing"}`,
-			fixHint: "Provide a localPath or cache the asset before applying.",
-		};
-	}
+	const blocksEditorApply =
+		resolved.assetType === "sticker" ||
+		resolved.assetType === "sound-effect" ||
+		resolved.assetType === "transition";
 	if (
-		resolved.status === "unsupported" &&
-		resolved.assetType === "transition"
+		blocksEditorApply &&
+		(resolved.status === "missing" ||
+			resolved.status === "unsupported" ||
+			resolved.status === "cloud-only")
 	) {
 		return {
 			severity: "error",
 			code: "invalid-asset-reference",
 			path,
 			operationId: resolved.operationId,
-			message:
-				resolved.evidence.detail ??
-				`Unsupported transition ${resolved.assetId}`,
+			message: `Asset ${resolved.assetId} (${resolved.assetType}) is not available: ${resolved.evidence.detail ?? "missing"}`,
+			fixHint:
+				"Sign in if required, then cache or download the asset before applying.",
 		};
 	}
 	if (resolved.status === "unsupported" || resolved.status === "cloud-only") {
@@ -453,6 +522,32 @@ export async function materializeComposePatchAssets({
 }): Promise<ComposePatch> {
 	const operations: ComposePatchOperation[] = [];
 	for (const operation of patch.operations) {
+		if (operation.kind === "add-sound-effect" && !operation.asset.localPath) {
+			const materializeSound =
+				dependencies.materializeSoundLabReference ??
+				materializeComposeSoundLabReference;
+			const materialized = await materializeSound({
+				reference: operation.asset,
+				scratchDirectory,
+			});
+			if (materialized) {
+				operations.push({
+					...operation,
+					asset: {
+						...operation.asset,
+						localPath: materialized.localPath,
+						cacheKey: materialized.sha256,
+						provenance: {
+							...operation.asset.provenance,
+							backend: "sound-effects-lab",
+							sha256: materialized.sha256,
+							bytes: materialized.bytes,
+						},
+					},
+				});
+				continue;
+			}
+		}
 		if (
 			operation.kind !== "add-sticker" ||
 			operation.asset.localPath ||

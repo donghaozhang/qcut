@@ -107,6 +107,12 @@ import {
 	JIANYING_PERSON_CUTOUT_RENDER_CHANNEL,
 } from "./jianying-person-cutout-contract.js";
 import {
+	JIANYING_MOTION_TRACKING_CANCEL_CHANNEL,
+	JIANYING_MOTION_TRACKING_INSPECT_CHANNEL,
+	JIANYING_MOTION_TRACKING_PROGRESS_CHANNEL,
+	JIANYING_MOTION_TRACKING_TRACK_CHANNEL,
+} from "./jianying-motion-tracking-contract.js";
+import {
 	JIANYING_FONT_LAB_INSPECT_CHANNEL,
 	JIANYING_FONT_LAB_LIST_CHANNEL,
 	JIANYING_FONT_LAB_LOAD_CHANNEL,
@@ -291,6 +297,26 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 		},
 		release: (request) =>
 			ipcRenderer.invoke(JIANYING_PERSON_CUTOUT_RELEASE_CHANNEL, request),
+	},
+	jianyingMotionTracking: {
+		inspect: () => ipcRenderer.invoke(JIANYING_MOTION_TRACKING_INSPECT_CHANNEL),
+		track: (request) =>
+			ipcRenderer.invoke(JIANYING_MOTION_TRACKING_TRACK_CHANNEL, request),
+		cancel: (request) =>
+			ipcRenderer.invoke(JIANYING_MOTION_TRACKING_CANCEL_CHANNEL, request),
+		onProgress: (callback) => {
+			const listener = (
+				_event: IpcRendererEvent,
+				progress: Parameters<typeof callback>[0]
+			) => callback(progress);
+			ipcRenderer.on(JIANYING_MOTION_TRACKING_PROGRESS_CHANNEL, listener);
+			return () => {
+				ipcRenderer.removeListener(
+					JIANYING_MOTION_TRACKING_PROGRESS_CHANNEL,
+					listener
+				);
+			};
+		},
 	},
 	jianyingFontLab: {
 		list: (request) =>

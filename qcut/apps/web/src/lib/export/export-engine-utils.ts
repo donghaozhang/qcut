@@ -39,11 +39,17 @@ export function getActiveElements(
 	tracks: TimelineTrack[],
 	mediaItems: MediaItem[],
 	currentTime: number,
-	fps = 30
+	fps = 30,
+	transitions?: {
+		forceActiveElementIds: ReadonlySet<string>;
+		activeTransitionIds: ReadonlySet<string>;
+	}
 ): ActiveElement[] {
 	const plan = buildCompositionPlan({
 		tracks,
 		currentTime,
+		forceActiveElementIds: transitions?.forceActiveElementIds,
+		activeTransitionIds: transitions?.activeTransitionIds,
 		getElementDuration: ({ element }) =>
 			getTimelineElementDuration({ element, fps }),
 	});

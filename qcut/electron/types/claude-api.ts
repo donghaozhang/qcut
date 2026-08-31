@@ -98,6 +98,8 @@ export interface ClaudeTransition {
 	fromElementId: string;
 	toElementId: string;
 	presetId: string;
+	engine?: "qcut" | "jianying-local";
+	packageHash?: string;
 	type: string;
 	duration: number;
 	direction?: "left" | "right" | "up" | "down";
@@ -260,6 +262,36 @@ export interface ClaudeElement
 	stickerGeometrySpace?: "canvas-percent";
 	/** Untrusted deterministic sticker source descriptor from the renderer. */
 	stickerRuntime?: unknown;
+	maintainAspectRatio?: boolean;
+	animationInType?:
+		| "none"
+		| "fade"
+		| "slide-left"
+		| "slide-right"
+		| "slide-up"
+		| "slide-down"
+		| "zoom-in"
+		| "zoom-out";
+	animationInDuration?: number;
+	animationOutType?:
+		| "none"
+		| "fade"
+		| "slide-left"
+		| "slide-right"
+		| "slide-up"
+		| "slide-down"
+		| "zoom-in"
+		| "zoom-out";
+	animationOutDuration?: number;
+	animationLoopType?:
+		| "none"
+		| "pulse"
+		| "drift"
+		| "spin"
+		| "wobble"
+		| "bounce"
+		| "blink";
+	animationLoopIntensity?: number;
 	zIndex?: number;
 	content?: string;
 	language?: string;
@@ -268,6 +300,8 @@ export interface ClaudeElement
 	name?: string;
 	opacity?: number;
 	volume?: number;
+	audioFadeIn?: number;
+	audioFadeOut?: number;
 	adjustments?: Record<string, unknown>;
 	/**
 	 * Resolved media color grade (MediaColorSettings with any filter preset
@@ -338,11 +372,12 @@ export interface ExportRecommendation {
 
 export interface ExportJobRequest {
 	/**
-	 * Main-process export engine. Unsupported values are rejected with an
-	 * error; all accepted values currently resolve to the single native
-	 * FFmpeg CLI engine ("native-cli").
+	 * Export engine. On the main-process path every accepted value resolves
+	 * to the native FFmpeg CLI engine ("native-cli"). Renderer exports also
+	 * accept "muxer" to pin the canvas/WebCodecs engine (benchmarks, parity
+	 * checks); other values are rejected there.
 	 */
-	engine?: "auto" | "native" | "cli";
+	engine?: "auto" | "native" | "cli" | "muxer";
 	preset?: string;
 	settings?: {
 		width?: number;
@@ -353,6 +388,13 @@ export interface ExportJobRequest {
 		codec?: string;
 	};
 	outputPath?: string;
+	/**
+	 * When set on a renderer export, the renderer writes a structured export
+	 * profile (stage timings, counters) to this absolute path. Off otherwise.
+	 */
+	profilePath?: string;
+	/** Debug: force the renderer's per-frame seek path (baseline profiling). */
+	disableSequentialDecode?: boolean;
 
 	/** GIF-specific export options */
 	gifConfig?: {

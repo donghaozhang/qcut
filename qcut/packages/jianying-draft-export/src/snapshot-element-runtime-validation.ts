@@ -363,6 +363,7 @@ const STICKER_MOTION_TRACKING_KEYS = createAllowedKeySet<StickerMotionTracking>(
 	{
 		keys: {
 			anchor: true,
+			followRotation: true,
 			followScale: true,
 			mode: true,
 			targetElementId: true,
@@ -377,6 +378,7 @@ const STICKER_TRACKING_ANCHOR_KEYS = createAllowedKeySet<StickerTrackingAnchor>(
 			centerX: true,
 			centerY: true,
 			height: true,
+			rotation: true,
 			width: true,
 		},
 	}
@@ -1101,6 +1103,10 @@ function validateStickerElement({
 			path: `${trackingPath}.followScale`,
 			value: tracking.followScale,
 		});
+		assertOptionalBoolean({
+			path: `${trackingPath}.followRotation`,
+			value: tracking.followRotation,
+		});
 		const anchorPath = `${trackingPath}.anchor`;
 		const anchor = getRecord({
 			path: anchorPath,
@@ -1117,6 +1123,10 @@ function validateStickerElement({
 				value: anchor[key],
 			});
 		}
+		assertOptionalFiniteNumber({
+			path: `${anchorPath}.rotation`,
+			value: anchor.rotation,
+		});
 	}
 }
 

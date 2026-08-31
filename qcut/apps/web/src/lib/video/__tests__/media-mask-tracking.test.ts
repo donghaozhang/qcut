@@ -72,6 +72,54 @@ describe("media mask tracking", () => {
 		expect(tracked.keyframes?.width).toHaveLength(2);
 	});
 
+	it("preserves nonlinear rotation while simplifying box geometry", () => {
+		const mask = createMediaMask({ id: "subject", type: "object", index: 0 });
+		const samples = [0, 1, 2].map((frame) => ({
+			frame,
+			centerX: 0.4 + frame * 0.1,
+			centerY: 0.5,
+			width: 0.3,
+			height: 0.7,
+			rotation: frame * frame,
+		}));
+		const tracked = applyMaskTrackingSamples({
+			mask,
+			samples,
+			direction: "both",
+			anchorFrame: 1,
+			source: "jianying-bingo",
+		});
+
+		expect(tracked.keyframes?.centerX).toHaveLength(2);
+		expect(tracked.keyframes?.rotation?.map(({ value }) => value)).toEqual([
+			0, 1, 4,
+		]);
+	});
+
+	it("reduces linear per-frame rotation to its endpoints", () => {
+		const mask = createMediaMask({ id: "subject", type: "object", index: 0 });
+		const samples = Array.from({ length: 121 }, (_, frame) => ({
+			frame,
+			centerX: 0.5,
+			centerY: 0.5,
+			width: 0.3,
+			height: 0.7,
+			rotation: frame * 0.5 + (frame % 2 === 0 ? 0.1 : -0.1),
+		}));
+		const tracked = applyMaskTrackingSamples({
+			mask,
+			samples,
+			direction: "both",
+			anchorFrame: 60,
+			source: "jianying-bingo",
+		});
+
+		expect(tracked.keyframes?.rotation).toHaveLength(2);
+		expect(tracked.keyframes?.rotation?.map(({ frame }) => frame)).toEqual([
+			0, 120,
+		]);
+	});
+
 	it("filters invalid engine samples before marking a track ready", () => {
 		const mask = createMediaMask({ id: "subject", type: "person", index: 0 });
 		const tracked = applyMaskTrackingSamples({
