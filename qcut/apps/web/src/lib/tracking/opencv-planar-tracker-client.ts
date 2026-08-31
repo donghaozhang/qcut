@@ -15,6 +15,14 @@ interface PendingRequest {
 	resolve: (response: PlanarTrackerWorkerResponse) => void;
 }
 
+const DISPOSE_TIMEOUT_MS = 1_000;
+
+function requestError({ cause }: { cause: unknown }): Error {
+	return cause instanceof Error
+		? cause
+		: new Error("OpenCV planar worker request failed.", { cause });
+}
+
 function openCvRuntimeUrl(): string {
 	return new URL(
 		`${import.meta.env.BASE_URL}opencv/opencv.js`,
@@ -78,17 +86,53 @@ export class OpenCvPlanarTrackerClient {
 		if (this.disposed) {
 			return Promise.reject(new Error("OpenCV planar tracker was disposed."));
 		}
-		const response = new Promise<PlanarTrackerWorkerResponse>(
-			(resolve, reject) => {
-				this.pending.set(message.id, { reject, resolve });
+		return new Promise<PlanarTrackerWorkerResponse>((resolve, reject) => {
+			this.pending.set(message.id, { reject, resolve });
+			try {
+				this.worker.postMessage(message, transfer);
+			} catch (cause) {
+				this.pending.delete(message.id);
+				reject(requestError({ cause }));
 			}
-		);
-		this.worker.postMessage(message, transfer);
-		return response;
+		});
+	}
+
+	private requestWithTimeout({
+		message,
+		timeoutMs,
+	}: {
+		message: PlanarTrackerWorkerRequest;
+		timeoutMs: number;
+	}): Promise<PlanarTrackerWorkerResponse> {
+		return new Promise((resolve, reject) => {
+			const timeout = setTimeout(
+				() => reject(new Error("OpenCV planar worker disposal timed out.")),
+				timeoutMs
+			);
+			void this.request({ message }).then(
+				(response) => {
+					clearTimeout(timeout);
+					resolve(response);
+				},
+				(cause: unknown) => {
+					clearTimeout(timeout);
+					reject(requestError({ cause }));
+				}
+			);
+		});
+	}
+
+	private shutdown({ error }: { error: Error }): void {
+		this.disposed = true;
+		this.worker.removeEventListener("message", this.handleMessage);
+		this.worker.removeEventListener("error", this.handleWorkerError);
+		this.worker.terminate();
+		this.rejectPending({ error });
 	}
 
 	initialize(): Promise<{ providerVersion: string }> {
-		this.initializePromise ??= (async () => {
+		if (this.initializePromise) return this.initializePromise;
+		const pending = (async () => {
 			const response = await this.request({
 				message: {
 					id: ++this.requestId,
@@ -101,7 +145,12 @@ export class OpenCvPlanarTrackerClient {
 			}
 			return response.result;
 		})();
-		return this.initializePromise;
+		this.initializePromise = pending;
+		void pending.catch(() => {
+			if (this.initializePromise === pending)
+				this.initializePromise = undefined;
+		});
+		return pending;
 	}
 
 	async begin({
@@ -163,15 +212,17 @@ export class OpenCvPlanarTrackerClient {
 	async dispose(): Promise<void> {
 		if (this.disposed) return;
 		try {
-			await this.request({
+			const response = await this.requestWithTimeout({
 				message: { id: ++this.requestId, type: "dispose" },
+				timeoutMs: DISPOSE_TIMEOUT_MS,
 			});
+			if (response.type !== "disposed") {
+				throw new Error(
+					"OpenCV planar worker returned an invalid dispose response."
+				);
+			}
 		} finally {
-			this.disposed = true;
-			this.worker.removeEventListener("message", this.handleMessage);
-			this.worker.removeEventListener("error", this.handleWorkerError);
-			this.worker.terminate();
-			this.rejectPending({
+			this.shutdown({
 				error: new Error("OpenCV planar tracker was disposed."),
 			});
 		}
@@ -179,9 +230,7 @@ export class OpenCvPlanarTrackerClient {
 
 	terminate(): void {
 		if (this.disposed) return;
-		this.disposed = true;
-		this.worker.terminate();
-		this.rejectPending({
+		this.shutdown({
 			error: new Error("OpenCV planar tracker was terminated."),
 		});
 	}

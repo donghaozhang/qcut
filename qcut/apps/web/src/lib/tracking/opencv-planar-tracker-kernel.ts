@@ -192,67 +192,77 @@ export class OpenCvPlanarTrackerKernel {
 	}): PlanarTrackerBeginResult {
 		this.dispose();
 		const seedGray = this.frameMat({ frame });
-		const seedQuadPixels = denormalizePlanarQuad({
-			height: frame.height,
-			quad: seedQuad,
-			width: frame.width,
-		});
-		const mask = this.cv.matFromArray(
-			frame.height,
-			frame.width,
-			this.cv.CV_8UC1,
-			buildPlanarQuadMask({
-				height: frame.height,
-				quad: seedQuadPixels,
-				width: frame.width,
-			})
-		);
-		let points: PixelPoint[];
+		let prevGray: Mat | undefined;
+		let stateOwnsSeedMats = false;
 		try {
-			points = this.detectFeatures({ configuration, gray: seedGray, mask });
-		} finally {
-			mask.delete();
-		}
-		if (points.length < configuration.minTrackedPoints) {
-			seedGray.delete();
-			throw new OpenCvPlanarTrackerError({
-				code: "insufficient-texture",
-				message: `Planar seed contains only ${points.length} trackable features.`,
-			});
-		}
-		this.state = {
-			configuration,
-			height: frame.height,
-			lastQuad: seedQuad,
-			prevGray: seedGray.clone(),
-			prevPoints: points.map((point) => ({ ...point })),
-			seedGray,
-			seedPoints: points.map((point) => ({ ...point })),
-			seedPointsOriginal: points.map((point) => ({ ...point })),
-			seedQuad,
-			seedQuadPixels,
-			seedPtsUs: frame.ptsUs,
-			width: frame.width,
-		};
-		const diagnostics = calculatePlanarTrackingDiagnostics({
-			currentInliers: points,
-			inliers: points.length,
-			matrix: [1, 0, 0, 0, 1, 0, 0, 0, 1],
-			seedInliers: points,
-			seedQuad: seedQuadPixels,
-			trackedPoints: points.length,
-		});
-		return {
-			diagnostics,
-			featureCount: points.length,
-			sample: {
-				ptsUs: frame.ptsUs,
+			const seedQuadPixels = denormalizePlanarQuad({
+				height: frame.height,
 				quad: seedQuad,
-				status: "corrected",
-				confidence: 1,
+				width: frame.width,
+			});
+			const mask = this.cv.matFromArray(
+				frame.height,
+				frame.width,
+				this.cv.CV_8UC1,
+				buildPlanarQuadMask({
+					height: frame.height,
+					quad: seedQuadPixels,
+					width: frame.width,
+				})
+			);
+			let points: PixelPoint[];
+			try {
+				points = this.detectFeatures({ configuration, gray: seedGray, mask });
+			} finally {
+				mask.delete();
+			}
+			if (points.length < configuration.minTrackedPoints) {
+				throw new OpenCvPlanarTrackerError({
+					code: "insufficient-texture",
+					message: `Planar seed contains only ${points.length} trackable features.`,
+				});
+			}
+			const diagnostics = calculatePlanarTrackingDiagnostics({
+				currentInliers: points,
+				inliers: points.length,
+				matrix: [1, 0, 0, 0, 1, 0, 0, 0, 1],
+				seedInliers: points,
+				seedQuad: seedQuadPixels,
+				trackedPoints: points.length,
+			});
+			prevGray = seedGray.clone();
+			this.state = {
+				configuration,
+				height: frame.height,
+				lastQuad: seedQuad,
+				prevGray,
+				prevPoints: points.map((point) => ({ ...point })),
+				seedGray,
+				seedPoints: points.map((point) => ({ ...point })),
+				seedPointsOriginal: points.map((point) => ({ ...point })),
+				seedQuad,
+				seedQuadPixels,
+				seedPtsUs: frame.ptsUs,
+				width: frame.width,
+			};
+			stateOwnsSeedMats = true;
+			return {
 				diagnostics,
-			},
-		};
+				featureCount: points.length,
+				sample: {
+					ptsUs: frame.ptsUs,
+					quad: seedQuad,
+					status: "corrected",
+					confidence: 1,
+					diagnostics,
+				},
+			};
+		} finally {
+			if (!stateOwnsSeedMats) {
+				prevGray?.delete();
+				seedGray.delete();
+			}
+		}
 	}
 
 	reset(): void {

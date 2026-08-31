@@ -18,28 +18,51 @@ interface PlanarWorkerScope {
 const workerScope = self as unknown as PlanarWorkerScope;
 let kernelPromise: Promise<OpenCvPlanarTrackerKernel> | undefined;
 
+async function createKernel({
+	runtimeUrl,
+}: {
+	runtimeUrl: string;
+}): Promise<OpenCvPlanarTrackerKernel> {
+	// The UMD runtime installs a real initialization Promise on the worker global.
+	await import(/* @vite-ignore */ runtimeUrl);
+	const runtime = await workerScope.cv;
+	if (
+		runtime === null ||
+		(typeof runtime !== "object" && typeof runtime !== "function")
+	) {
+		throw new OpenCvPlanarTrackerError({
+			code: "provider-unavailable",
+			message: "The bundled OpenCV runtime did not initialize.",
+		});
+	}
+	const cv = runtime as OpenCvPlanarRuntime;
+	if (
+		typeof cv.GFTTDetector !== "function" ||
+		typeof cv.calcOpticalFlowPyrLK !== "function" ||
+		typeof cv.findHomography !== "function"
+	) {
+		throw new OpenCvPlanarTrackerError({
+			code: "provider-unavailable",
+			message: "The bundled OpenCV runtime lacks planar tracking APIs.",
+		});
+	}
+	return new OpenCvPlanarTrackerKernel({ cv });
+}
+
 async function loadKernel({
 	runtimeUrl,
 }: {
 	runtimeUrl: string;
 }): Promise<OpenCvPlanarTrackerKernel> {
-	kernelPromise ??= (async () => {
-		// The UMD runtime installs a real initialization Promise on the worker global.
-		await import(/* @vite-ignore */ runtimeUrl);
-		const cv = (await workerScope.cv) as OpenCvPlanarRuntime;
-		if (
-			typeof cv.GFTTDetector !== "function" ||
-			typeof cv.calcOpticalFlowPyrLK !== "function" ||
-			typeof cv.findHomography !== "function"
-		) {
-			throw new OpenCvPlanarTrackerError({
-				code: "provider-unavailable",
-				message: "The bundled OpenCV runtime lacks planar tracking APIs.",
-			});
-		}
-		return new OpenCvPlanarTrackerKernel({ cv });
-	})();
-	return kernelPromise;
+	if (kernelPromise) return kernelPromise;
+	const pending = createKernel({ runtimeUrl });
+	kernelPromise = pending;
+	try {
+		return await pending;
+	} catch (cause) {
+		if (kernelPromise === pending) kernelPromise = undefined;
+		throw cause;
+	}
 }
 
 async function handleRequest({
