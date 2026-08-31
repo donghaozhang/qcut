@@ -17,8 +17,6 @@ export const PLANAR_TRACKING_DIRECTIONS = [
 	"both",
 ] as const satisfies readonly PlanarTrackingDirection[];
 
-type UnknownRecord = Record<string, unknown>;
-
 export function invalidPlanarValidationResult<T>({
 	issues,
 }: {
@@ -50,9 +48,9 @@ export function readPlanarRecord({
 	value: unknown;
 	path: string;
 	issues: PlanarTrackingValidationIssue[];
-}): UnknownRecord | null {
+}): Record<string, unknown> | null {
 	if (typeof value === "object" && value !== null && !Array.isArray(value)) {
-		return value as UnknownRecord;
+		return value as Record<string, unknown>;
 	}
 	addPlanarValidationIssue({
 		issues,

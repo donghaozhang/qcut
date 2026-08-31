@@ -204,7 +204,7 @@ function distance({
 }
 
 function median({ values }: { values: number[] }): number {
-	if (values.length === 0) return Number.POSITIVE_INFINITY;
+	if (values.length === 0) return Number.MAX_VALUE;
 	values.sort((left, right) => left - right);
 	const middle = Math.floor(values.length / 2);
 	return values.length % 2 === 0

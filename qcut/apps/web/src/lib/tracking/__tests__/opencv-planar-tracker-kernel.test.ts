@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { execFile } from "node:child_process";
-import { cwd } from "node:process";
+import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { beforeAll, describe, expect, it } from "vitest";
 
@@ -16,18 +16,23 @@ interface KernelCheckReport {
 }
 
 const execFileAsync = promisify(execFile);
+const repositoryRoot = fileURLToPath(
+	new URL("../../../../../../", import.meta.url)
+);
+const kernelCheckPath = fileURLToPath(
+	new URL(
+		"../../../../../../scripts/planar-tracking-kernel-check.ts",
+		import.meta.url
+	)
+);
 let report: KernelCheckReport;
 
 beforeAll(async () => {
-	const result = await execFileAsync(
-		"bun",
-		["scripts/planar-tracking-kernel-check.ts"],
-		{
-			cwd: cwd(),
-			maxBuffer: 1024 * 1024,
-			timeout: 120_000,
-		}
-	);
+	const result = await execFileAsync("bun", [kernelCheckPath], {
+		cwd: repositoryRoot,
+		maxBuffer: 1024 * 1024,
+		timeout: 120_000,
+	});
 	report = JSON.parse(result.stdout) as KernelCheckReport;
 }, 120_000);
 

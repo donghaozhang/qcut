@@ -30,13 +30,6 @@ const SAMPLE_STATUSES = [
 	"corrected",
 ] as const satisfies readonly PlanarSampleStatus[];
 
-interface ValidatedSample {
-	index: number;
-	ptsUs: number;
-	quad: PlanarQuad;
-	sample: PlanarTrackingSample;
-}
-
 function quadsMatch({
 	left,
 	right,
@@ -63,7 +56,12 @@ function readTrackingSample({
 	value: unknown;
 	index: number;
 	issues: PlanarTrackingValidationIssue[];
-}): ValidatedSample | null {
+}): {
+	index: number;
+	ptsUs: number;
+	quad: PlanarQuad;
+	sample: PlanarTrackingSample;
+} | null {
 	const path = `samples.${index}`;
 	const issueCount = issues.length;
 	const record = readPlanarRecord({ value, path, issues });
@@ -246,11 +244,13 @@ export function validatePlanarTrackingSidecar({
 	}
 
 	let previousPtsUs: number | undefined;
-	let matchingSeedSample: ValidatedSample | null = null;
-	for (let index = 0; index < samples.length; index++) {
+	let matchingSeedSample: NonNullable<
+		ReturnType<typeof readTrackingSample>
+	> | null = null;
+	for (const [index, value] of samples.entries()) {
 		if (issues.length >= MAX_PLANAR_TRACKING_VALIDATION_ISSUES) break;
 		const validated = readTrackingSample({
-			value: samples[index],
+			value,
 			index,
 			issues,
 		});
