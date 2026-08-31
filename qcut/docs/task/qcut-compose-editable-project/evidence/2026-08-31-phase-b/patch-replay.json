@@ -21,7 +21,7 @@
         "provenance": {
           "manifestSource": "clip1.mp4"
         },
-        "localPath": "/Users/peter/Desktop/QCut-Compose-Labs-E2E-2026-08-31/editable-phase-b/clip1.mp4"
+        "localPath": "$EVIDENCE_ROOT/editable-phase-b/clip1.mp4"
       },
       "mediaKind": "video",
       "trackRole": "main-video",
@@ -42,7 +42,7 @@
         "provenance": {
           "manifestSource": "clip2.mp4"
         },
-        "localPath": "/Users/peter/Desktop/QCut-Compose-Labs-E2E-2026-08-31/editable-phase-b/clip2.mp4"
+        "localPath": "$EVIDENCE_ROOT/editable-phase-b/clip2.mp4"
       },
       "mediaKind": "video",
       "trackRole": "main-video",
@@ -63,7 +63,7 @@
         "provenance": {
           "manifestSource": "clip3.mp4"
         },
-        "localPath": "/Users/peter/Desktop/QCut-Compose-Labs-E2E-2026-08-31/editable-phase-b/clip3.mp4"
+        "localPath": "$EVIDENCE_ROOT/editable-phase-b/clip3.mp4"
       },
       "mediaKind": "video",
       "trackRole": "main-video",

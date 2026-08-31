@@ -20,5 +20,10 @@
   12.47,
   12.49
  ],
- "conclusion": "editable-project pipeline export parity with the PR #441 optimized muxer baseline; no regression"
+ "conclusion": "editable-project pipeline export parity with the PR #441 optimized muxer baseline; no regression",
+ "timingScopes": {
+  "jobWallSeconds": "export job startedAt->completedAt (same scope as the PR #441 baseline)",
+  "cliWallSecondsApprox": 15.2,
+  "cliWallNote": "benchmark-times.txt records full CLI wall time incl. submit + ~1s poll interval + process startup; not used for the baseline comparison"
+ }
 }

@@ -4,8 +4,8 @@
     "schema_version": "1",
     "command": "compose-project",
     "outputPaths": [
-      "/Users/peter/Desktop/QCut-Compose-Labs-E2E-2026-08-31/editable-phase-b/out/compose-project-editor/d4d62c2a-ed56-4c71-8737-f9a93c85e89a.snapshot.json",
-      "/Users/peter/Desktop/QCut-Compose-Labs-E2E-2026-08-31/editable-phase-b/out/compose-project-editor/cmp-de8f11c3083c1c4be5e5ac84.patch.json"
+      "$EVIDENCE_ROOT/editable-phase-b/out/compose-project-editor/d4d62c2a-ed56-4c71-8737-f9a93c85e89a.snapshot.json",
+      "$EVIDENCE_ROOT/editable-phase-b/out/compose-project-editor/cmp-de8f11c3083c1c4be5e5ac84.patch.json"
     ],
     "data": {
       "projectId": "1a515458-931e-4ece-a6fe-c0102fbe7c3a",

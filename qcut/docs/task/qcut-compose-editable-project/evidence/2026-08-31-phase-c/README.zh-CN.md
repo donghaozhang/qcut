@@ -1,7 +1,9 @@
 # Phase C 门禁证据 — 逐片段 Filter Lab 有序滤镜栈
 
+> 路径占位符：`$EVIDENCE_ROOT` = 本机证据目录（`~/Desktop/QCut-Compose-Labs-E2E-2026-08-31`）；`$REPO_ROOT` = 本仓库检出根。大文件不入 Git，仅存本机。
+
 日期：2026-08-31 · QCut Desktop：`bun run electron`（editable worktree 新构建，含 renderer + main 改动）
-素材与成片在本机（不入 Git）：`/Users/peter/Desktop/QCut-Compose-Labs-E2E-2026-08-31/editable-phase-c/`
+素材与成片在本机（不入 Git）：`$EVIDENCE_ROOT/editable-phase-c/`
 
 ## 配方（compose-config.json）
 
@@ -17,11 +19,11 @@ Phase B 的 3 个片段 + 2 个 crossfade，加逐片段滤镜：
 2. **时间线真实状态**（HTTP GET）：三个元素分别携带 `[lut@100]`、`[native-local@100, lut@60]`（顺序保留）、`[native-local@100]`。
 3. **Reopen 一致**：导航去别的项目再回来，3 个 filterStack 的 canonical JSON sha256 **逐字节一致**（`stack-digest-before/after-reopen.txt`）。
 4. **幂等 replay**（`replay-result.json`）：`applied: {}`，无 skips，元素/转场/栈数量不变（3/2/3）。
-5. **导出**：engine `renderer-muxer`（新策略强制：服务端 `timelineRequiresRendererFilterStackExport` + renderer 端 factory 双保险），1080p30、29.02s（`ffprobe.json`）。
+5. **导出**：engine `renderer-muxer`（新策略强制：服务端 `timelineRequiresRendererFilterStackExport` + renderer 端 factory 双保险），1080p30、29.077s（`ffprobe.json` format.duration=29.077333）。
 6. **夸张 vs neutral 量化差异**（`filter-diff-ssim.txt`，对照 Phase B 同素材无滤镜导出）：
    - t=5s（c1 LUT）：SSIM 0.882，R 通道 0.806（暖色 LUT 特征）
    - t=14.5s（c2 双效果栈）：SSIM 0.890（vignette+LUT 复合）
-   - t=24s（c3 native 肤色分割）：SSIM 0.799，**B 通道 0.686**；`frames/filtered-24.png` 肉眼可见磨皮/肤色处理。
+   - t=24s（c3 native 肤色分割）：SSIM 0.799，**B 通道 0.686**；`$EVIDENCE_ROOT/editable-phase-c/frames/filtered-24.png`（仅存本机，不入 Git）肉眼可见磨皮/肤色处理。
    - 关键推理：c3 的 multiPass `passes: []`（纯 nativeEffect），若原生路径未真实执行则画面**零变化**——巨大色差证明本机剪映运行时真实渲染。
 7. **负面/回滚**（`badfilter-result.json`）：未编目资源 id → `Filter … is not in the local catalog`，事务回滚 + 本轮新建项目删除，媒体库无孤儿。
 

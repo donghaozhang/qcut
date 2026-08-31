@@ -1,5 +1,7 @@
 # Phase B 门禁证据 — 3 个无滤镜 clips 创建/保存/重开/导出
 
+> 路径占位符：`$EVIDENCE_ROOT` = 本机证据目录（`~/Desktop/QCut-Compose-Labs-E2E-2026-08-31`）；`$REPO_ROOT` = 本仓库检出根。大文件不入 Git，仅存本机。
+
 日期：2026-08-31 · 硬件：Apple M4 Pro，macOS 26.5.2
 运行中的 QCut Desktop：`bun run electron`（labs worktree，分支 codex/compose-labs-complete 基座）
 CLI：editable worktree（分支 `codex/compose-editable-project-v2`，commit 见 environment.json）
@@ -9,7 +11,7 @@ CLI：editable worktree（分支 `codex/compose-editable-project-v2`，commit �
 `compose-config.json`：3 个真实视频片段（中文口播成片 / 英文口播成片 / Jianying 转场成片，各 10s，来源与画面均不同）+ 2 个 0.5s crossfade。预期时间线时长 30 − 2×0.5 = **29.0s**。
 
 素材与成片均在本机（不入 Git）：
-`/Users/peter/Desktop/QCut-Compose-Labs-E2E-2026-08-31/editable-phase-b/`
+`$EVIDENCE_ROOT/editable-phase-b/`
 （clip1/2/3.mp4、phase-b-export.mp4、frames/、project-cli.log、replay-cli.log、export-cli.log；SHA256 见 `sha256.txt`）
 
 ## 命令与结果

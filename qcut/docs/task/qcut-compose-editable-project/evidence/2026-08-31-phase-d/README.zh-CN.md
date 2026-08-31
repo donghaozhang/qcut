@@ -1,7 +1,9 @@
 # Phase D 门禁证据 — 全实验室组合（滤镜栈 + 转场 + 贴纸 + 音效 + caption/text 同一时间线）
 
+> 路径占位符：`$EVIDENCE_ROOT` = 本机证据目录（`~/Desktop/QCut-Compose-Labs-E2E-2026-08-31`）；`$REPO_ROOT` = 本仓库检出根。大文件不入 Git，仅存本机。
+
 日期：2026-08-31 · QCut Desktop：`bun run electron`（editable worktree）
-本机大文件（不入 Git）：`/Users/peter/Desktop/QCut-Compose-Labs-E2E-2026-08-31/editable-phase-d/`
+本机大文件（不入 Git）：`$EVIDENCE_ROOT/editable-phase-d/`
 （phase-d-export.mp4、headless.mp4、frames/、frames-headless/、diffs/、screenshots/、*-cli.log；SHA256 见 `sha256.txt`）
 
 ## 配方
