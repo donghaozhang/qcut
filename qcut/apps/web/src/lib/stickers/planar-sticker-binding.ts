@@ -98,7 +98,7 @@ export function resolvePlanarSampleQuad({
 	const right = samples[rightIndex];
 	if (!left || !right) {
 		const boundary = left ?? right;
-		return lostBehavior === "hold" && boundary?.status !== "lost"
+		return lostBehavior === "hold" && boundary && boundary.status !== "lost"
 			? { quad: boundary.quad, visible: true }
 			: { visible: false };
 	}

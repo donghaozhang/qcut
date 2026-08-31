@@ -28,6 +28,13 @@ const HANDLES: Array<{ corner: QuadCorner; label: string }> = [
 	{ corner: "bottomLeft", label: "Bottom left tracking corner" },
 ];
 
+const ARROW_KEY_MOVEMENT = {
+	ArrowDown: { x: 0, y: 1 },
+	ArrowLeft: { x: -1, y: 0 },
+	ArrowRight: { x: 1, y: 0 },
+	ArrowUp: { x: 0, y: -1 },
+} as const;
+
 function clampNormalized({ value }: { value: number }): number {
 	return Math.min(1, Math.max(0, value));
 }
@@ -161,17 +168,9 @@ export function PlanarTrackingSelectionOverlay({
 		event: KeyboardEvent<HTMLButtonElement>;
 	}): void => {
 		const delta = event.shiftKey ? 0.02 : 0.005;
-		const movement =
-			event.key === "ArrowLeft"
-				? { x: -delta, y: 0 }
-				: event.key === "ArrowRight"
-					? { x: delta, y: 0 }
-					: event.key === "ArrowUp"
-						? { x: 0, y: -delta }
-						: event.key === "ArrowDown"
-							? { x: 0, y: delta }
-							: null;
-		if (!movement) return;
+		const unit =
+			ARROW_KEY_MOVEMENT[event.key as keyof typeof ARROW_KEY_MOVEMENT];
+		if (!unit) return;
 		event.preventDefault();
 		const current = selection.quad[corner];
 		setSelectionQuad({
@@ -179,11 +178,23 @@ export function PlanarTrackingSelectionOverlay({
 			quad: {
 				...selection.quad,
 				[corner]: {
-					x: clampNormalized({ value: current.x + movement.x }),
-					y: clampNormalized({ value: current.y + movement.y }),
+					x: clampNormalized({ value: current.x + unit.x * delta }),
+					y: clampNormalized({ value: current.y + unit.y * delta }),
 				},
 			},
 		});
+	};
+	const finishPointerInteraction = ({
+		corner,
+		event,
+	}: {
+		corner: QuadCorner;
+		event: PointerEvent<HTMLButtonElement>;
+	}): void => {
+		if (activeCorner.current === corner) activeCorner.current = null;
+		if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+			event.currentTarget.releasePointerCapture(event.pointerId);
+		}
 	};
 
 	return (
@@ -235,10 +246,12 @@ export function PlanarTrackingSelectionOverlay({
 							corner,
 						});
 					}}
-					onPointerUp={(event: PointerEvent<HTMLButtonElement>) => {
-						if (activeCorner.current === corner) activeCorner.current = null;
-						event.currentTarget.releasePointerCapture(event.pointerId);
-					}}
+					onPointerUp={(event: PointerEvent<HTMLButtonElement>) =>
+						finishPointerInteraction({ corner, event })
+					}
+					onPointerCancel={(event: PointerEvent<HTMLButtonElement>) =>
+						finishPointerInteraction({ corner, event })
+					}
 				/>
 			))}
 		</div>

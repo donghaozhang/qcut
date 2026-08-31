@@ -43,12 +43,12 @@ export function loadPlanarTrackingSidecar({
 			projectId,
 			resultUri: reference.resultUri,
 		})
-		.then(({ sidecar }) => sidecar)
-		.catch((cause: unknown) => {
-			sidecarPromises.delete(key);
-			throw cause;
-		});
+		.then(({ sidecar }) => sidecar);
 	sidecarPromises.set(key, pending);
+	const evict = (): void => {
+		if (sidecarPromises.get(key) === pending) sidecarPromises.delete(key);
+	};
+	void pending.then(evict, evict);
 	return pending;
 }
 

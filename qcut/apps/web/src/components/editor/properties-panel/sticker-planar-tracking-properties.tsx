@@ -3,16 +3,7 @@ import type {
 	PlanarTrackingReference,
 	StickerPlanarTracking,
 } from "@qcut/editor-core";
-import {
-	ArrowLeftRight,
-	Link2,
-	Link2Off,
-	Play,
-	Scan,
-	Square,
-	StepBack,
-	StepForward,
-} from "lucide-react";
+import { Link2, Link2Off, Play, Scan, Square } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,7 +19,9 @@ import { getStickerTrackingMediaTargets } from "@/lib/stickers/sticker-tracking"
 import { getPlanarTrackingResultStore } from "@/lib/tracking/planar-result-store";
 import {
 	DEFAULT_PLANAR_SEED_QUAD,
+	isPlanarTrackingReferenceUsedByAnotherSticker,
 	readPlanarTrackingErrorCode,
+	resolvePlanarTrackingReference,
 	upsertPlanarTrackingReference,
 } from "@/lib/tracking/planar-tracking-properties-model";
 import {
@@ -48,13 +41,9 @@ import {
 	PropertyItemLabel,
 	PropertyItemValue,
 } from "./property-item";
+import { PlanarTrackingDirectionControl } from "./planar-tracking-direction-control";
 import type { UpdateStickerProperties } from "./sticker-property-types";
 
-const DIRECTION_OPTIONS = [
-	{ direction: "backward", icon: StepBack },
-	{ direction: "both", icon: ArrowLeftRight },
-	{ direction: "forward", icon: StepForward },
-] as const;
 export function StickerPlanarTrackingProperties({
 	canvasSize,
 	currentTime,
@@ -129,12 +118,13 @@ export function StickerPlanarTrackingProperties({
 		sourceMedia: mediaItem,
 		stickerElement: element,
 	});
-	const reference = target?.element.surfaceTrackings?.find(
-		(candidate) =>
-			candidate.id === planarBinding?.surfaceTrackingId ||
-			(candidate.sourceMediaId === target.element.mediaId &&
-				candidate.status !== "error")
-	);
+	const reference = target
+		? resolvePlanarTrackingReference({
+				binding: planarBinding,
+				references: target.element.surfaceTrackings,
+				sourceMediaId: target.element.mediaId,
+			})
+		: undefined;
 	const reusableReference =
 		reference &&
 		(reference.status === "ready" || reference.status === "partial") &&
@@ -198,8 +188,16 @@ export function StickerPlanarTrackingProperties({
 			!seedTargetQuad
 		)
 			return;
-		const trackingId =
-			reference?.id ?? `planar-${generateUUID().toLowerCase()}`;
+		const canReuseTrackingId =
+			reference &&
+			!isPlanarTrackingReferenceUsedByAnotherSticker({
+				referenceId: reference.id,
+				stickerElementId: element.id,
+				tracks,
+			});
+		const trackingId = canReuseTrackingId
+			? reference.id
+			: `planar-${generateUUID().toLowerCase()}`;
 		const sourceTime = getMediaSourcePlaybackTime({
 			element: target.element,
 			fps,
@@ -336,28 +334,11 @@ export function StickerPlanarTrackingProperties({
 				</PropertyItemValue>
 			</PropertyItem>
 
-			<div
-				className="grid grid-cols-3 gap-1"
-				role="group"
-				aria-label={t("stickerProperties.tracking.direction")}
-			>
-				{DIRECTION_OPTIONS.map(({ direction: option, icon: Icon }) => (
-					<Button
-						key={option}
-						type="button"
-						variant={direction === option ? "default" : "outline"}
-						size="icon"
-						className="h-8 w-full"
-						title={t(`stickerProperties.tracking.direction.${option}`)}
-						aria-label={t(`stickerProperties.tracking.direction.${option}`)}
-						onClick={() => setDirection(option)}
-						onKeyDown={(event) => event.stopPropagation()}
-						disabled={processing}
-					>
-						<Icon className="size-4" />
-					</Button>
-				))}
-			</div>
+			<PlanarTrackingDirectionControl
+				disabled={processing}
+				onChange={({ direction: nextDirection }) => setDirection(nextDirection)}
+				value={direction}
+			/>
 
 			<PropertyItem>
 				<PropertyItemLabel>

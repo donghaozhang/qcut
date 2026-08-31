@@ -77,7 +77,7 @@ function store({
 describe("planar tracking result loader", () => {
 	beforeEach(() => clearPlanarTrackingSidecarCache());
 
-	it("deduplicates verified reads for the same project result", async () => {
+	it("deduplicates in-flight reads and evicts the fulfilled promise", async () => {
 		const read = vi.fn(async () => result());
 		const resultStore = store({ read });
 		const first = loadPlanarTrackingSidecar({
@@ -93,6 +93,15 @@ describe("planar tracking result loader", () => {
 		expect(first).toBe(second);
 		await expect(first).resolves.toBe(sidecar);
 		expect(read).toHaveBeenCalledOnce();
+
+		await expect(
+			loadPlanarTrackingSidecar({
+				projectId: "project",
+				reference,
+				resultStore,
+			})
+		).resolves.toBe(sidecar);
+		expect(read).toHaveBeenCalledTimes(2);
 	});
 
 	it("evicts failed reads so a repaired sidecar can be retried", async () => {
