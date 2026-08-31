@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-08-30T07:31:09.801Z",
+  "generatedAt": "2026-08-31T02:04:41.667Z",
   "methodology": {
     "sameSourceWithinEachFeature": true,
     "pixelFeaturesSource": "02-real-person-challenge-noisy-3s.mp4",
@@ -120,6 +120,34 @@
         "temporalDifference": 27.086323,
         "adjacentExactDuplicateFrames": 0,
         "estimatedGlobalTranslationPixels": 4.163222
+      }
+    },
+    {
+      "id": "qcut-private-deflicker",
+      "fileName": "qcut-private-deflicker.mp4",
+      "editor": "qcut",
+      "sourceTrack": "noisy-person",
+      "sha256": "824e11b75d4618e16b2db18e6f20e13cf14d1e7623c11d64f5b857174fae4960",
+      "bytes": 1619760,
+      "codec": "h264",
+      "width": 360,
+      "height": 640,
+      "sampleAspectRatio": "unknown",
+      "displayAspectRatio": "unknown",
+      "pixelFormat": "yuv420p",
+      "averageFrameRate": "24/1",
+      "frameCount": 72,
+      "durationSeconds": 3,
+      "visual": {
+        "normalizedFrameCount": 90,
+        "meanLuma": 82.859559,
+        "minimumFrameMeanLuma": 63.319236,
+        "maximumFrameMeanLuma": 102.678333,
+        "frameLumaStandardDeviation": 11.164973,
+        "spatialDetail": 6.650897,
+        "temporalDifference": 26.975428,
+        "adjacentExactDuplicateFrames": 18,
+        "estimatedGlobalTranslationPixels": 4.204074
       }
     },
     {
@@ -827,22 +855,22 @@
       "localizedName": "防闪烁",
       "sourceTrack": "noisy-person",
       "qcut": {
-        "implementation": "FFmpeg deflicker at strength 70",
-        "baselineId": "qcut-pixel-baseline",
-        "candidateId": "qcut-deflicker",
+        "implementation": "Verified Jianying 11.3.0 VideoDeflickerGpuBackend cache at strength 70",
+        "baselineId": "source-noisy-person",
+        "candidateId": "qcut-private-deflicker",
         "similarity": {
-          "ssim": 0.981486,
-          "psnrDb": 28.490049
+          "ssim": 0.982599,
+          "psnrDb": 40.769495
         },
         "deltaPercent": {
-          "frameLumaStandardDeviation": -59.706,
-          "spatialDetail": -1.173,
-          "temporalDifference": -6.09,
-          "estimatedGlobalTranslationPixels": 0
+          "frameLumaStandardDeviation": -3.305,
+          "spatialDetail": -1.403,
+          "temporalDifference": -0.907,
+          "estimatedGlobalTranslationPixels": 0.435
         },
-        "candidateFrameCount": 90,
+        "candidateFrameCount": 72,
         "candidateDurationSeconds": 3,
-        "candidateSha256": "473e92021f741bc12b8a19bc510b245d02e7a545a2fd834881c667afe082af12"
+        "candidateSha256": "824e11b75d4618e16b2db18e6f20e13cf14d1e7623c11d64f5b857174fae4960"
       },
       "jianying": {
         "implementation": "Jianying deflicker UI defaults",
