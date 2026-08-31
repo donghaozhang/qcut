@@ -587,7 +587,9 @@ describe("compose manifest lane partitioning", () => {
 		>;
 		expect(transitions).toHaveLength(1);
 		expect(transitions[0]).toMatchObject({
-			track: "main-video",
+			// The "main-video" marker resolves to the real main track id so
+			// transition-only replays still find their track.
+			track: "track-main",
 			from: "clip:a",
 			to: "clip:b",
 			presetId: "dissolve",
