@@ -1,4 +1,4 @@
-import { Sparkles } from "lucide-react";
+import { LoaderCircle, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
 	Select,
@@ -28,14 +28,22 @@ const SMART_ACTIONS = [
 export function MediaLabProperties({
 	enhancements,
 	hasLocalTracking,
+	privateDeflickerBusy,
+	privateDeflickerEnabled,
+	privateDeflickerStatus,
 	onChange,
+	onApplyPrivateDeflicker,
 	onApplySmartAction,
 	onInteractionStart,
 	onInteractionEnd,
 }: {
 	enhancements: MediaEnhancements;
 	hasLocalTracking: boolean;
+	privateDeflickerBusy: boolean;
+	privateDeflickerEnabled: boolean;
+	privateDeflickerStatus?: string;
 	onChange: (enhancements: MediaEnhancements, history?: boolean) => void;
+	onApplyPrivateDeflicker: () => void;
 	onApplySmartAction: ({
 		action,
 	}: {
@@ -72,6 +80,34 @@ export function MediaLabProperties({
 					onInteractionStart={onInteractionStart}
 					onInteractionEnd={onInteractionEnd}
 				/>
+				<div className="space-y-1.5">
+					<Button
+						type="button"
+						variant="outline"
+						size="sm"
+						className="w-full justify-start"
+						disabled={!privateDeflickerEnabled || privateDeflickerBusy}
+						title={
+							privateDeflickerEnabled
+								? t("mediaProperties.lab.privateDeflickerAction")
+								: t("mediaProperties.lab.privateDeflickerUnavailable")
+						}
+						onClick={onApplyPrivateDeflicker}
+						onKeyDown={(event) => event.stopPropagation()}
+					>
+						{privateDeflickerBusy ? (
+							<LoaderCircle className="size-3.5 animate-spin" />
+						) : (
+							<ShieldCheck className="size-3.5" />
+						)}
+						{t("mediaProperties.lab.privateDeflickerAction")}
+					</Button>
+					{privateDeflickerStatus ? (
+						<p className="text-[11px] text-muted-foreground" aria-live="polite">
+							{privateDeflickerStatus}
+						</p>
+					) : null}
+				</div>
 				<NumberControl
 					label={t("mediaProperties.lab.motionBlur")}
 					value={enhancements.labOpticalFlowMotionBlur ?? 0}
