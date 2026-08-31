@@ -28,7 +28,14 @@ function stackHasRenderableEffect({ stack }: { stack: unknown }): boolean {
 		const color = entry.color;
 		if (typeof color !== "object" || color === null) return false;
 		const payload = color as Record<string, unknown>;
-		return Boolean(payload.lut) || Boolean(payload.multiPass);
+		// Mirror the renderer's hasEnabledFilterStack: only an enabled LUT
+		// with a cube, or an enabled multi-pass program, actually renders.
+		const lut = payload.lut as Record<string, unknown> | undefined;
+		const multiPass = payload.multiPass as Record<string, unknown> | undefined;
+		return (
+			Boolean(lut && lut.enabled === true && lut.cube) ||
+			Boolean(multiPass && multiPass.enabled === true)
+		);
 	});
 }
 
