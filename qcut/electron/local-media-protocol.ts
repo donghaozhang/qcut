@@ -63,7 +63,7 @@ function allowedRoots(): string[] {
 function isUnderRoot({ real, root }: { real: string; root: string }): boolean {
 	let realRoot: string;
 	try {
-		realRoot = fs.realpathSync(root);
+		realRoot = fs.realpathSync.native(root);
 	} catch {
 		return false;
 	}
@@ -89,7 +89,10 @@ export function resolveLocalMediaFilename({
 	if (!decoded || !path.isAbsolute(decoded)) return null;
 	let real: string;
 	try {
-		real = fs.realpathSync(decoded);
+		// `.native` canonicalizes Windows 8.3 short names (RUNNER~1) and
+		// on-disk casing; the JS realpath keeps them, so containment checks
+		// and callers comparing against native realpaths would disagree.
+		real = fs.realpathSync.native(decoded);
 	} catch {
 		return null;
 	}
