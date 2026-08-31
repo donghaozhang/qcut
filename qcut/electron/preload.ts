@@ -163,6 +163,11 @@ import {
 	QCUT_AUDIO_RUNTIME_STATUS_CHANNEL,
 	type QcutAudioProcessRequest,
 } from "./qcut-audio-runtime-contract.js";
+import {
+	PLANAR_TRACKING_STORAGE_READ_CHANNEL,
+	PLANAR_TRACKING_STORAGE_REMOVE_CHANNEL,
+	PLANAR_TRACKING_STORAGE_WRITE_CHANNEL,
+} from "./planar-tracking-storage-contract.js";
 
 function resolveNativeFilePath({ file }: { file: File }): string {
 	const filePath = webUtils.getPathForFile(file);
@@ -179,6 +184,14 @@ function resolveNativeFilePath({ file }: { file: File }): string {
 const electronAPI: ElectronAPI & Record<string, unknown> = {
 	// System info
 	platform: process.platform,
+	planarTrackingStorage: {
+		write: (request) =>
+			ipcRenderer.invoke(PLANAR_TRACKING_STORAGE_WRITE_CHANNEL, request),
+		read: (request) =>
+			ipcRenderer.invoke(PLANAR_TRACKING_STORAGE_READ_CHANNEL, request),
+		remove: (request) =>
+			ipcRenderer.invoke(PLANAR_TRACKING_STORAGE_REMOVE_CHANNEL, request),
+	},
 	getAppVersion: (): Promise<string> => ipcRenderer.invoke("get-app-version"),
 	onOpenMediaFile: (callback: (filePath: string) => void) => {
 		const listener = (_event: unknown, filePath: string) => callback(filePath);

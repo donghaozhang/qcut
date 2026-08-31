@@ -83,6 +83,7 @@ import type {
 } from "./api-types/system-api";
 import type { YouTubeApi } from "./api-types/youtube-api";
 import type { StickerLabAPI } from "./api-types/sticker-lab-api";
+import type { PlanarTrackingStoragePreloadAPI } from "./api-types/planar-tracking-storage-api";
 
 // ============================================================================
 // Master ElectronAPI interface
@@ -119,6 +120,7 @@ export interface ElectronAPI
 		LicenseAPI,
 		YouTubeApi,
 		StickerLabAPI,
+		PlanarTrackingStoragePreloadAPI,
 		JianyingDraftExportPreloadAPI,
 		JianyingTransitionPreloadAPI,
 		JianyingEffectPreloadAPI,

@@ -7,8 +7,11 @@
 
 import type { OverlaySticker } from "@/types/sticker-overlay";
 import type { MediaItem } from "@/stores/media/media-store-types";
-import type { StickerElement } from "@/types/timeline";
-import type { TimelineTrack } from "@/types/timeline";
+import type {
+	PlanarTrackingSidecarV1,
+	StickerElement,
+	TimelineTrack,
+} from "@/types/timeline";
 import type { StickerRuntimeDescriptor } from "@qcut/editor-core/sticker-lab";
 import { getStickerTiming } from "./sticker-timeline-query";
 import { resolveStickerGeometry } from "./sticker-geometry";
@@ -43,6 +46,7 @@ export interface StickerRenderOptions {
 	opacity?: number;
 	timelineElement?: StickerElement;
 	tracks?: TimelineTrack[];
+	planarTrackingSidecar?: PlanarTrackingSidecarV1;
 	failOnError?: boolean;
 }
 
@@ -173,7 +177,8 @@ export class StickerExportHelper {
 					options.currentTime ?? 0,
 					options.fps ?? 30,
 					timelineElement,
-					options.tracks
+					options.tracks,
+					options.planarTrackingSidecar
 				);
 				result.successful++;
 			} catch (error) {
@@ -230,7 +235,8 @@ export class StickerExportHelper {
 		currentTime: number,
 		fps: number,
 		timelineElement?: StickerElement,
-		tracks?: TimelineTrack[]
+		tracks?: TimelineTrack[],
+		planarTrackingSidecar?: PlanarTrackingSidecarV1
 	): Promise<void> {
 		const animationElement =
 			timelineElement ?? getStickerTiming(sticker.id)?.element;
@@ -250,6 +256,7 @@ export class StickerExportHelper {
 					tracks,
 					canvasWidth,
 					canvasHeight,
+					planarTrackingSidecar,
 				})
 			: sticker;
 		const animation = animationElement

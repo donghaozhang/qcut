@@ -348,7 +348,7 @@ describe("StickerProperties", () => {
 		);
 
 		animationSelects = screen.getAllByRole("combobox");
-		expect(animationSelects).toHaveLength(4);
+		expect(animationSelects).toHaveLength(6);
 	});
 
 	it("names every supported real tracker when no target is ready", () => {
@@ -359,7 +359,7 @@ describe("StickerProperties", () => {
 		).toBeInTheDocument();
 	});
 
-	it("binds to a real tracked mask and exposes the honest planar limitation", () => {
+	it("binds to a real tracked mask and exposes planar tracking controls", () => {
 		const element = createElement();
 		const media: MediaElement = {
 			id: "media-element",
@@ -438,7 +438,7 @@ describe("StickerProperties", () => {
 			false
 		);
 		expect(
-			screen.getByText(/当前跟踪引擎没有单应性或平面表面求解器/)
+			screen.getByTestId("sticker-planar-tracking-properties")
 		).toBeInTheDocument();
 	});
 

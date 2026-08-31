@@ -101,6 +101,7 @@ export type {
 	MediaComboAnimationType,
 	StickerAnimationLoopType,
 	StickerMotionTracking,
+	StickerTracking,
 	StickerTrackingAnchor,
 	ClipTransition,
 	ClipTransitionDirection,
@@ -244,6 +245,66 @@ export type {
 	EffectRenderStage,
 	EffectRenderStageKind,
 } from "./types/index.js";
+
+export type {
+	NormalizedPoint,
+	PlanarMatrix3,
+	PlanarQuad,
+	PlanarSampleStatus,
+	PlanarTrackingDiagnostics,
+	PlanarTrackingDirection,
+	PlanarTrackingErrorCode,
+	PlanarTrackingRange,
+	PlanarTrackingReference,
+	PlanarTrackingReferenceStatus,
+	PlanarTrackingSample,
+	PlanarTrackingSidecarV1,
+	PlanarTrackingValidationIssue,
+	PlanarTrackingValidationIssueCode,
+	PlanarTrackingValidationResult,
+	StickerPlanarTracking,
+} from "./tracking/planar-types.js";
+
+export {
+	buildPlanarHomography,
+	buildRelativePlanarHomography,
+	hasClockwisePlanarQuadWinding,
+	invertPlanarHomography,
+	isConvexPlanarQuad,
+	isFinitePlanarPoint,
+	isSelfIntersectingPlanarQuad,
+	isValidPlanarQuad,
+	MIN_PLANAR_QUAD_AREA,
+	multiplyPlanarHomographies,
+	planarQuadArea,
+	planarQuadPoints,
+	planarQuadSignedArea,
+	projectPlanarPoint,
+	projectPlanarQuad,
+	UNIT_PLANAR_QUAD,
+} from "./tracking/planar-geometry.js";
+
+export {
+	MAX_PLANAR_TRACKING_SAMPLES,
+	validatePlanarTrackingReference,
+	validatePlanarTrackingSidecar,
+	validateStickerPlanarTracking,
+} from "./tracking/planar-result-validation.js";
+
+export type {
+	PlanarTrackingResultStore,
+	StoredPlanarTrackingResult,
+} from "./tracking/planar-result-storage.js";
+export {
+	createPlanarTrackingResultUri,
+	isPlanarTrackingStorageId,
+	parsePlanarTrackingResultUri,
+} from "./tracking/planar-result-storage.js";
+export {
+	parsePlanarTrackingSidecar,
+	PlanarTrackingSidecarValidationError,
+	serializePlanarTrackingSidecar,
+} from "./tracking/planar-sidecar-serialization.js";
 
 export {
 	DEFAULT_PROJECT_TIMELINE_SETTINGS,

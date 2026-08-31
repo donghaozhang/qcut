@@ -91,6 +91,7 @@ import {
 import { validatePortraitFaceEntries } from "./portrait-faces-validation.js";
 import { validateColorLutRuntime } from "./snapshot-color-lut-runtime-validation.js";
 import { validateColorMultiPassRuntime } from "./snapshot-color-multi-pass-runtime-validation.js";
+import { validatePlanarTrackingReferencesRuntime } from "./snapshot-planar-tracking-runtime-validation.js";
 
 const AUDIO_STEM_NAMES = new Set([
 	"vocals",
@@ -155,6 +156,7 @@ const MEDIA_ELEMENT_KEYS = createAllowedKeySet<MediaElement>({
 		scaleY: true,
 		speedKeyframes: true,
 		startTime: true,
+		surfaceTrackings: true,
 		templateBinding: true,
 		trimEnd: true,
 		trimStart: true,
@@ -2125,6 +2127,12 @@ export function validateMediaElement({
 			path: `${path}.compound`,
 			validateNestedElement,
 			value: element.compound,
+		});
+	}
+	if (element.surfaceTrackings !== undefined) {
+		validatePlanarTrackingReferencesRuntime({
+			path: `${path}.surfaceTrackings`,
+			value: element.surfaceTrackings,
 		});
 	}
 }

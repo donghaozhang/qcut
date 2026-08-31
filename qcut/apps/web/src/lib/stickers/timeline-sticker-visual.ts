@@ -2,11 +2,15 @@ import type {
 	OverlaySticker,
 	ValidatedStickerUpdate,
 } from "@/types/sticker-overlay";
-import type { StickerElement } from "@/types/timeline";
+import type {
+	PlanarTrackingSidecarV1,
+	StickerElement,
+	TimelineTrack,
+} from "@/types/timeline";
 import { clampMediaPerspective } from "@/lib/video/video-properties";
+import { resolveStickerPlanarTracking } from "./planar-sticker-binding";
 import { resolveStickerKeyframes } from "./sticker-keyframes";
 import { resolveStickerMotionTracking } from "./sticker-tracking";
-import type { TimelineTrack } from "@/types/timeline";
 
 type StickerVisualFallback = Pick<
 	OverlaySticker,
@@ -178,6 +182,7 @@ export function resolveTimelineStickerVisualAtTime({
 	tracks,
 	canvasWidth,
 	canvasHeight,
+	planarTrackingSidecar,
 }: {
 	element: StickerElement;
 	currentTime: number;
@@ -187,6 +192,7 @@ export function resolveTimelineStickerVisualAtTime({
 	tracks?: TimelineTrack[];
 	canvasWidth?: number;
 	canvasHeight?: number;
+	planarTrackingSidecar?: PlanarTrackingSidecarV1;
 }): OverlaySticker {
 	const keyframedElement = resolveStickerKeyframes({
 		element,
@@ -204,11 +210,23 @@ export function resolveTimelineStickerVisualAtTime({
 					canvasHeight,
 				})
 			: keyframedElement;
-	return resolveTimelineStickerVisual({
+	const sticker = resolveTimelineStickerVisual({
 		element: resolvedElement,
 		fallback,
 		elementOrder,
 	});
+	return tracks && canvasWidth && canvasHeight
+		? resolveStickerPlanarTracking({
+				canvasHeight,
+				canvasWidth,
+				currentTime,
+				element: resolvedElement,
+				fps,
+				sticker,
+				sidecar: planarTrackingSidecar,
+				tracks,
+			})
+		: sticker;
 }
 
 export type StickerVisualUpdates = Pick<
