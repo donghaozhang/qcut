@@ -351,7 +351,17 @@ async function stageTarget({
 			`[stage-ffmpeg] ${targetKey}: staged and verified FFmpeg ${manifest.nativeVersion}\n`
 		);
 	} catch (error: unknown) {
-		await rm(tempTargetRoot, { recursive: true, force: true });
+		// Best-effort cleanup: Windows throws transient EBUSY while antivirus
+		// still holds freshly extracted binaries, and a throwing cleanup would
+		// mask the original staging error (observed in CI as a bare EBUSY).
+		for (let attempt = 0; attempt < 3; attempt += 1) {
+			try {
+				await rm(tempTargetRoot, { recursive: true, force: true });
+				break;
+			} catch {
+				await new Promise((resolveDelay) => setTimeout(resolveDelay, 500));
+			}
+		}
 		throw error;
 	}
 }
