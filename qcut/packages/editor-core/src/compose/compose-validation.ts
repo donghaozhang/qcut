@@ -487,6 +487,17 @@ function validateInsertMediaClip({
 	path: string;
 	issues: ComposeValidationIssue[];
 }): void {
+	// Deserialized patches can carry arbitrary shapes; issues, not throws.
+	if (typeof operation.asset !== "object" || operation.asset === null) {
+		issues.push({
+			severity: "error",
+			code: "invalid-asset-reference",
+			path: `${path}.asset`,
+			operationId: operation.id,
+			message: "insert-media-clip needs an asset reference object.",
+		});
+		return;
+	}
 	if (operation.asset.assetType !== "media") {
 		issues.push({
 			severity: "error",
@@ -641,6 +652,16 @@ function validateFilterStack({
 	const stepIds = new Set<string>();
 	for (const [index, step] of filters.entries()) {
 		const stepPath = `${path}.${index}`;
+		if (typeof step !== "object" || step === null) {
+			issues.push({
+				severity: "error",
+				code: "invalid-filter-stack",
+				path: stepPath,
+				operationId,
+				message: "Filter steps must be objects.",
+			});
+			continue;
+		}
 		if (typeof step.id !== "string" || step.id.trim().length === 0) {
 			issues.push({
 				severity: "error",
@@ -681,6 +702,16 @@ function validateFilterStack({
 				operationId,
 				message: "Filter steps need an explicit enabled flag.",
 			});
+		}
+		if (typeof step.asset !== "object" || step.asset === null) {
+			issues.push({
+				severity: "error",
+				code: "invalid-filter-stack",
+				path: `${stepPath}.asset`,
+				operationId,
+				message: "Filter steps need an asset reference object.",
+			});
+			continue;
 		}
 		validateAssetReference({
 			asset: step.asset,
