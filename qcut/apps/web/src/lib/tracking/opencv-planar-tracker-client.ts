@@ -1,4 +1,5 @@
 import type { PlanarQuad } from "@qcut/editor-core";
+import OpenCvPlanarTrackerWorker from "./opencv-planar-tracker-worker?worker&inline";
 import {
 	DEFAULT_PLANAR_TRACKER_CONFIGURATION,
 	type PlanarAnalysisFrame,
@@ -30,13 +31,9 @@ export class OpenCvPlanarTrackerClient {
 
 	constructor({
 		createWorker = () =>
-			new Worker(
-				new URL("./opencv-planar-tracker-worker.ts", import.meta.url),
-				{
-					name: "qcut-opencv-planar-tracker",
-					type: "module",
-				}
-			),
+			new OpenCvPlanarTrackerWorker({
+				name: "qcut-opencv-planar-tracker",
+			}),
 	}: {
 		createWorker?: () => Worker;
 	} = {}) {
