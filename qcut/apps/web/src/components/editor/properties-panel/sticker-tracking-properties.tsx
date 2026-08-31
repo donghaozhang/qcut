@@ -29,6 +29,7 @@ import {
 	PropertyItemValue,
 } from "./property-item";
 import type { UpdateStickerProperties } from "./sticker-property-types";
+import { StickerPlanarTrackingProperties } from "./sticker-planar-tracking-properties";
 
 const NONE_TARGET = "none";
 
@@ -83,10 +84,12 @@ export function StickerTrackingProperties({
 			currentTime >= media.startTime &&
 			currentTime <= getTimelineElementEndTime({ element: media, fps })
 	);
-	const selectedTargetValue = element.tracking
+	const motionTracking =
+		element.tracking?.mode === "motion" ? element.tracking : undefined;
+	const selectedTargetValue = motionTracking
 		? targetValue({
-				elementId: element.tracking.targetElementId,
-				maskId: element.tracking.targetMaskId,
+				elementId: motionTracking.targetElementId,
+				maskId: motionTracking.targetMaskId,
 			})
 		: NONE_TARGET;
 	const selectedTargetExists = targets.some(
@@ -136,12 +139,12 @@ export function StickerTrackingProperties({
 	}: {
 		updates: Partial<StickerMotionTracking>;
 	}) => {
-		if (!element.tracking) return;
+		if (!motionTracking) return;
 		update({
 			history: true,
 			updates: {
 				tracking: {
-					...element.tracking,
+					...motionTracking,
 					...updates,
 				},
 			},
@@ -187,7 +190,7 @@ export function StickerTrackingProperties({
 									<SelectItem value={NONE_TARGET}>
 										{t("common.none")}
 									</SelectItem>
-									{element.tracking && !selectedTargetExists ? (
+									{motionTracking && !selectedTargetExists ? (
 										<SelectItem value={selectedTargetValue}>
 											{t("stickerProperties.tracking.missing")}
 										</SelectItem>
@@ -208,14 +211,14 @@ export function StickerTrackingProperties({
 						</PropertyItemValue>
 					</PropertyItem>
 
-					{element.tracking ? (
+					{motionTracking ? (
 						<>
 							<div className="flex items-center justify-between gap-3">
 								<PropertyItemLabel>
 									{t("stickerProperties.tracking.followScale")}
 								</PropertyItemLabel>
 								<Switch
-									checked={element.tracking.followScale}
+									checked={motionTracking.followScale}
 									onCheckedChange={(followScale) =>
 										updateTracking({ updates: { followScale } })
 									}
@@ -229,7 +232,7 @@ export function StickerTrackingProperties({
 									{t("stickerProperties.tracking.followRotation")}
 								</PropertyItemLabel>
 								<Switch
-									checked={Boolean(element.tracking.followRotation)}
+									checked={Boolean(motionTracking.followRotation)}
 									disabled={!rotationTrackingAvailable}
 									onCheckedChange={(followRotation) =>
 										updateTracking({ updates: { followRotation } })
@@ -288,12 +291,14 @@ export function StickerTrackingProperties({
 			</PropertyGroup>
 
 			<PropertyGroup title={t("stickerProperties.tracking.planar")}>
-				<div
-					className="rounded border border-dashed p-3 text-xs text-muted-foreground"
-					aria-disabled="true"
-				>
-					{t("stickerProperties.tracking.planarUnavailable")}
-				</div>
+				<StickerPlanarTrackingProperties
+					canvasSize={canvasSize}
+					currentTime={currentTime}
+					element={element}
+					fps={fps}
+					tracks={tracks}
+					update={update}
+				/>
 			</PropertyGroup>
 		</div>
 	);

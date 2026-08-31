@@ -16,6 +16,7 @@
 		"./collaboration": "./src/collaboration/index.ts",
 		"./templates": "./src/templates/index.ts",
 		"./compose": "./src/compose/index.ts",
+		"./tracking": "./src/tracking/index.ts",
 		"./sticker-lab": "./src/sticker-lab/index.ts",
 		"./text-animation": "./src/text-animation/index.ts",
 		"./jianying-draft": "./src/jianying-draft/index.ts",

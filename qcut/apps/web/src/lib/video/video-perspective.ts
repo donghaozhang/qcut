@@ -1,32 +1,6 @@
+import { buildPlanarHomography, projectPlanarPoint } from "@qcut/editor-core";
 import type { MediaPerspective } from "@/types/timeline";
 import { DEFAULT_MEDIA_PERSPECTIVE } from "./video-properties";
-
-function solveLinearSystem(rows: number[][]): number[] | null {
-	const size = rows.length;
-	for (let column = 0; column < size; column++) {
-		let pivot = column;
-		for (let row = column + 1; row < size; row++) {
-			if (Math.abs(rows[row][column]) > Math.abs(rows[pivot][column])) {
-				pivot = row;
-			}
-		}
-		if (Math.abs(rows[pivot][column]) < 1e-9) return null;
-		[rows[column], rows[pivot]] = [rows[pivot], rows[column]];
-
-		const divisor = rows[column][column];
-		for (let index = column; index <= size; index++) {
-			rows[column][index] /= divisor;
-		}
-		for (let row = 0; row < size; row++) {
-			if (row === column) continue;
-			const factor = rows[row][column];
-			for (let index = column; index <= size; index++) {
-				rows[row][index] -= factor * rows[column][index];
-			}
-		}
-	}
-	return rows.map((row) => row[size]);
-}
 
 export function isDefaultMediaPerspective(
 	perspective: MediaPerspective
@@ -47,28 +21,35 @@ export function buildPerspectiveMatrix3d({
 	perspective: MediaPerspective;
 }): number[] | null {
 	if (width <= 0 || height <= 0) return null;
-	const source = [
-		[0, 0],
-		[width, 0],
-		[width, height],
-		[0, height],
-	] as const;
-	const destination = [
-		[perspective.topLeftX * width, perspective.topLeftY * height],
-		[perspective.topRightX * width, perspective.topRightY * height],
-		[perspective.bottomRightX * width, perspective.bottomRightY * height],
-		[perspective.bottomLeftX * width, perspective.bottomLeftY * height],
-	] as const;
-	const rows: number[][] = [];
-	for (let index = 0; index < source.length; index++) {
-		const [x, y] = source[index];
-		const [u, v] = destination[index];
-		rows.push([x, y, 1, 0, 0, 0, -u * x, -u * y, u]);
-		rows.push([0, 0, 0, x, y, 1, -v * x, -v * y, v]);
-	}
-	const solution = solveLinearSystem(rows);
-	if (!solution) return null;
-	const [h11, h12, h13, h21, h22, h23, h31, h32] = solution;
+	const matrix = buildPlanarHomography({
+		source: {
+			topLeft: { x: 0, y: 0 },
+			topRight: { x: width, y: 0 },
+			bottomRight: { x: width, y: height },
+			bottomLeft: { x: 0, y: height },
+		},
+		destination: {
+			topLeft: {
+				x: perspective.topLeftX * width,
+				y: perspective.topLeftY * height,
+			},
+			topRight: {
+				x: perspective.topRightX * width,
+				y: perspective.topRightY * height,
+			},
+			bottomRight: {
+				x: perspective.bottomRightX * width,
+				y: perspective.bottomRightY * height,
+			},
+			bottomLeft: {
+				x: perspective.bottomLeftX * width,
+				y: perspective.bottomLeftY * height,
+			},
+		},
+		epsilon: 1e-9,
+	});
+	if (!matrix) return null;
+	const [h11, h12, h13, h21, h22, h23, h31, h32] = matrix;
 	return [h11, h21, 0, h31, h12, h22, 0, h32, 0, 0, 1, 0, h13, h23, 0, 1];
 }
 
@@ -81,12 +62,22 @@ export function projectMediaPerspectivePoint({
 	y: number;
 	matrix: number[];
 }): { x: number; y: number } {
-	const denominator = matrix[3] * x + matrix[7] * y + matrix[15];
-	if (Math.abs(denominator) < 1e-9) return { x, y };
-	return {
-		x: (matrix[0] * x + matrix[4] * y + matrix[12]) / denominator,
-		y: (matrix[1] * x + matrix[5] * y + matrix[13]) / denominator,
-	};
+	const projected = projectPlanarPoint({
+		point: { x, y },
+		matrix: [
+			matrix[0],
+			matrix[4],
+			matrix[12],
+			matrix[1],
+			matrix[5],
+			matrix[13],
+			matrix[3],
+			matrix[7],
+			matrix[15],
+		],
+		epsilon: 1e-9,
+	});
+	return projected ?? { x, y };
 }
 
 export function buildCssPerspectiveTransform({

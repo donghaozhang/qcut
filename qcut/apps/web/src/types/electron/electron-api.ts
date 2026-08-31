@@ -56,6 +56,7 @@ import type { ElectronJianyingEnvelopeOps } from "./api-jianying-envelope";
 import type { ElectronJianyingDraftImportOps } from "./api-jianying-draft-import";
 import type { ElectronJianyingSameProfileWritebackOps } from "./api-jianying-same-profile-writeback";
 import type { ElectronJianyingProjectExportOps } from "./api-jianying-project-export";
+import type { ElectronPlanarTrackingStorageOps } from "./api-planar-tracking-storage";
 import type {
 	AIPipelineProgress,
 	AIPipelineGenerateOptions,
@@ -98,6 +99,7 @@ export interface ElectronAPI
 		ElectronPiAgentOps,
 		ElectronYouTubeOps,
 		ElectronWallpaperOps,
+		ElectronPlanarTrackingStorageOps,
 		ElectronJianyingDraftExportOps,
 		ElectronJianyingTransitionOps,
 		ElectronJianyingEffectOps,

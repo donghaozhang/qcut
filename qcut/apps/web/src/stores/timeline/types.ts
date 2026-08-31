@@ -708,6 +708,7 @@ export interface TimelineStore {
 			Pick<
 				MediaElement,
 				| "mediaId"
+				| "surfaceTrackings"
 				| "name"
 				| "duration"
 				| "trimStart"

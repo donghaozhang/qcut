@@ -74,6 +74,7 @@ import { buildMediaMaskStrokeCssFilter } from "@/lib/video/media-mask-stroke";
 import { CaptionsDisplay } from "@/components/captions/captions-display";
 import { WORD_FILTER_STATE } from "@/types/word-timeline";
 import { TimelineStickerLayer } from "./timeline-sticker-layer";
+import { PlanarTrackingSelectionOverlay } from "./planar-tracking-selection-overlay";
 import type { AudioCrossfadePreviewState } from "@/lib/audio/audio-crossfade-preview";
 import { useNativeVideoEnhancementPreview } from "@/hooks/preview/use-native-video-enhancement-preview";
 import {
@@ -1043,6 +1044,12 @@ export function PreviewElementRenderer({
 								...maskStyle,
 							}}
 						>
+							<PlanarTrackingSelectionOverlay
+								fitMode={visual.fitMode}
+								sourceElementId={element.id}
+								sourceHeight={mediaItem.height ?? canvasSize.height}
+								sourceWidth={mediaItem.width ?? canvasSize.width}
+							/>
 							<VideoPlayer
 								videoSource={generatedMaskSource ?? previewSource.videoSource}
 								poster={
