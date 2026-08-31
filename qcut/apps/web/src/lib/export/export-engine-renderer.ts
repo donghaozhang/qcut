@@ -225,11 +225,13 @@ export async function renderFrame(
 	const transitionTracks =
 		context.renderIndex?.clipTransitions.canvasTracks ?? null;
 	const transitions = transitionTracks
-		? resolveActiveClipTransitionPreview({
-				tracks: transitionTracks,
-				currentTime,
-				fps: context.fps,
-			})
+		? exportProfiler.timeSync("transition-resolve", () =>
+				resolveActiveClipTransitionPreview({
+					tracks: transitionTracks,
+					currentTime,
+					fps: context.fps,
+				})
+			)
 		: null;
 	const activeElements = exportProfiler.timeSync("active-elements", () =>
 		getActiveElements(
