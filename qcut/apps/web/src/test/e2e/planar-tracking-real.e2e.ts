@@ -22,6 +22,7 @@ import {
 } from "./helpers/planar-tracking-video-fixture";
 import {
 	attachPlanarTrackingExportEvidence,
+	configurePlanarTrackingExportCanvas,
 	exportAndInspectPlanarTrackingVideo,
 } from "./helpers/planar-tracking-export-evidence";
 
@@ -35,7 +36,6 @@ interface HarnessMediaItem {
 	type: string;
 	width?: number;
 }
-
 interface HarnessTimelineElement {
 	id: string;
 	mediaId?: string;
@@ -44,14 +44,12 @@ interface HarnessTimelineElement {
 	tracking?: StickerPlanarTracking;
 	type: string;
 }
-
 interface HarnessTimelineTrack {
 	elements: HarnessTimelineElement[];
 	id: string;
 	isMain?: boolean;
 	type: string;
 }
-
 interface HarnessTimelineState {
 	addElementToTrack: (
 		trackId: string,
@@ -342,6 +340,7 @@ test.describe("Real planar tracking", () => {
 			page,
 			path.resolve("apps/web/src/test/e2e/fixtures/media/sample-image.png")
 		);
+		await configurePlanarTrackingExportCanvas({ page });
 		const setup = await setupTimeline({ page });
 
 		const stickerProperties = page.getByTestId("sticker-properties");

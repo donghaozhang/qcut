@@ -12,6 +12,7 @@ import {
 const SAMPLE_WIDTH = 640;
 const EARLY_TIME_SECONDS = 0.2;
 const LATE_TIME_SECONDS = 1.8;
+const PLANAR_EXPORT_CANVAS_SIZE = { height: 1080, width: 1440 };
 
 const PLANAR_EXPORT_PROFILE: StickerVideoEvidenceProfile = {
 	durationSeconds: 2,
@@ -50,6 +51,39 @@ export interface PlanarTrackingExportEvidence {
 	lateFramePath: string;
 	sizeBytes: number;
 	width: number;
+}
+
+interface PlanarExportHarnessWindow extends Window {
+	__editorStore: {
+		getState: () => {
+			setCanvasSize: (
+				size: { height: number; width: number },
+				mode: "custom"
+			) => void;
+		};
+	};
+	__projectStore: {
+		getState: () => {
+			updateProjectCanvasSize: (
+				size: { height: number; width: number },
+				mode: "custom"
+			) => Promise<void>;
+		};
+	};
+}
+
+export async function configurePlanarTrackingExportCanvas({
+	page,
+}: {
+	page: Page;
+}): Promise<void> {
+	await page.evaluate(async (canvasSize) => {
+		const harness = window as unknown as PlanarExportHarnessWindow;
+		harness.__editorStore.getState().setCanvasSize(canvasSize, "custom");
+		await harness.__projectStore
+			.getState()
+			.updateProjectCanvasSize(canvasSize, "custom");
+	}, PLANAR_EXPORT_CANVAS_SIZE);
 }
 
 function runBinary({
