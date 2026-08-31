@@ -1,3 +1,4 @@
+import { exportProfiler } from "@/lib/export/export-profiler";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { MediaElement, TimelineTrack } from "@/types/timeline";
 import {
@@ -108,9 +109,14 @@ export async function decodeBrowserAudioExportClips({
 	}: BrowserAudioExportClip): Promise<AudioBuffer> => {
 		const existing = decodedByMediaId.get(mediaItem.id);
 		if (existing) return existing;
-		const pending = readMediaBytes({ mediaItem }).then((bytes) =>
-			context.decodeAudioData(bytes.slice(0))
-		);
+		const pending = exportProfiler
+			.time("audio-read-bytes", () => readMediaBytes({ mediaItem }))
+			.then((bytes) => {
+				exportProfiler.count("audio-source-bytes", bytes.byteLength);
+				return exportProfiler.time("audio-decode-data", () =>
+					context.decodeAudioData(bytes.slice(0))
+				);
+			});
 		decodedByMediaId.set(mediaItem.id, pending);
 		return pending;
 	};
