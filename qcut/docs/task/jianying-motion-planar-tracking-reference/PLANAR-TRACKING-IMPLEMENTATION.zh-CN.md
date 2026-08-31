@@ -257,6 +257,8 @@ surfaceTrackings?: PlanarTrackingReference[];
 
 持久化 `processing` 状态是允许的，但工程重开时必须规范化为 `paused`，不能假装后台任务仍然存在。
 
+结果字段不变量：**持久化的 `ready` 或 `partial` reference 必须同时携带 `resultUri` 和 `resultSha256`**。状态切换与这两个字段的写入必须是同一次原子更新（见 13.2 的"timeline 只在写入成功后切换为 ready"）；缺少任一字段的 `ready`/`partial` reference 在加载时视为损坏，规范化为 `error` 并携带 `result-corrupt`。
+
 ### 6.3 贴纸绑定
 
 ```ts
@@ -275,6 +277,8 @@ export type StickerTracking =
 ```
 
 `seedTargetQuad` 表示绑定时贴纸四角在源显示空间的位置。它保留用户在种子帧上设置的贴纸大小、旋转和已有透视。
+
+PTS 一致性约束：`StickerPlanarTracking.seedPtsUs` **必须等于**所引用 `PlanarTrackingReference.seedPtsUs`。`H_relative(t)` 以跟踪种子帧为恒等原点（见 15.1），若绑定锚点取自其他帧，求值器会在绑定帧上再次应用非恒等变换，贴纸初始位置就会偏移。绑定 UI 只允许在种子帧上确认锚点；若未来要支持任意帧绑定，必须先把 `seedTargetQuad` 用 `inverse(H_relative(bindPts))` 反变换回种子帧坐标后再存储——当前版本不实现该路径。
 
 ### 6.4 逐帧结果 sidecar
 
@@ -316,6 +320,8 @@ export interface PlanarTrackingSidecarV1 {
   };
   direction: PlanarTrackingDirection;
   samples: PlanarTrackingSample[];
+  /** 用户修正锚点（见 17.1）；按 ptsUs 升序，随结果一起原子持久化。 */
+  corrections?: PlanarTrackingCorrection[];
 }
 ```
 
@@ -358,6 +364,12 @@ const ptsUs = Math.round(sourceTime * 1_000_000);
 ### 7.2 VFR 视频的求值
 
 sidecar 保存每个真实帧的 PTS。播放到任意 `ptsUs` 时，默认选择最后一个 `sample.ptsUs <= ptsUs` 的样本，即 sample-and-hold。
+
+`trackedRange` 之外的求值行为必须显式定义，不允许把 sample-and-hold 隐式外推到未分析区间：
+
+- `ptsUs < trackedRange.startPtsUs`（首个样本之前）：没有可用样本，求值返回 `outside-range`，贴纸按绑定的 `lostBehavior` 处理（`hide` 置零透明，`hold` 使用**首个**有效样本的四角）。
+- `ptsUs > trackedRange.endPtsUs`（末个样本之后）：同样返回 `outside-range`，`hide` 隐藏；`hold` 使用**末个**有效样本的四角。
+- 两种情况都不得把 `tracked`/`corrected` 样本静默延伸为"仍在跟踪"；UI 应能区分 lost（区间内失败）与 outside-range（未分析）。
 
 这是第一版的正确默认，因为视频解码器在下一帧展示时间到来前同样保持上一帧。直接按两个样本线性插值四角，反而可能让贴纸在静止视频帧上提前移动。
 
@@ -429,6 +441,32 @@ canvas point
 ## 9. 平面跟踪算法
 
 ### 9.1 输入
+
+求解参数是显式类型契约（Section 10 的表格是初始取值，不替代本契约）：
+
+```ts
+export interface PlanarTrackingParameters {
+  schemaVersion: 1;
+  analysisMaxWidth: number;          // 默认 960
+  maxFeatures: number;               // 默认 240
+  shiTomasiQuality: number;          // 默认 0.01
+  minFeatureDistancePx: number;      // 默认 8（分析分辨率下）
+  lkWindowSize: number;              // 默认 21（奇数）
+  lkPyramidLevels: number;           // 默认 3
+  retryLkWindowSizes: number[];      // 默认 [31]，失败重试逐档放大
+  forwardBackwardLimitPx: number;    // 默认 1.5（随分析缩放校正）
+  ransacThresholdScale: number;      // 默认 0.0025，thresholdPx = clamp(diagonal * scale, ransacThresholdMinPx, ransacThresholdMaxPx)
+  ransacThresholdMinPx: number;      // 默认 1.5
+  ransacThresholdMaxPx: number;      // 默认 4.0
+  minInliers: number;                // 默认 12
+  minInlierRatio: number;            // 默认 0.55
+  maxMedianSymmetricErrorPx: number; // 默认 2.5
+  minGridCoverage: number;           // 默认 0.15
+  reseedThresholdPoints: number;     // 默认 80
+}
+```
+
+`parametersHash` 的规范化序列化规则：所有字段**显式写出**（不得省略默认值）、key 按字典序升序、数值使用 JavaScript `JSON.stringify` 的默认表示，序列化结果做 SHA-256。任何字段新增/删除/默认值变化都必须 bump `schemaVersion`，从而使旧缓存 key 全部失效。`PlanarTrackingRequest.analysisMaxWidth` 是 `parameters.analysisMaxWidth` 的镜像字段，创建请求时必须校验二者一致。
 
 一次 provider 请求包含：
 
@@ -546,6 +584,14 @@ H_t = findHomography(seedPoints, currentPoints, RANSAC, threshold)
 ```text
 s [x_t, y_t, 1]^T = H_t [x_seed, y_seed, 1]^T
 ```
+
+`findHomography` 在无法估计时返回**空矩阵**。在把 `H_t` 交给 `inverse`、对称误差计算或 `perspectiveTransform` 之前，必须先做前置校验（后置几何门禁无法保护这些调用本身）：
+
+1. 矩阵非空且尺寸为 3×3；
+2. 所有元素有限；
+3. 可逆：`|det(H_t)|` 大于下限（建议 1e-8），且左上 2×2 子阵行列式同号检查排除翻转退化。
+
+任一校验失败：该帧输出 `lost` 样本，错误上下文使用 `degenerate-homography`，跳过后续误差计算，进入 9.10 的恢复流程。
 
 Homography 理论上只需四组点，但产品实现必须要求更多点和足够分布。建议第一版至少 `12` 个 RANSAC 内点。
 
@@ -824,17 +870,34 @@ Electron IPC 写入必须：
 
 读取时重新计算或核对 SHA-256。文件缺失或损坏时将 reference 标记为 `stale`/`error`，不得默默回退为恒定四角。
 
+文件 hash 只证明 sidecar 内容未被篡改，不证明它属于当前源视频——一个有效但关联错误的 sidecar 仍能通过 schema 和 SHA-256 校验。恢复或绑定前必须额外核对身份三元组：`sidecar.source.mediaId === reference.sourceMediaId`、`sidecar.source.contentSha256 === 当前源媒体内容 hash`、`sidecar.seed.ptsUs === reference.seedPtsUs`。任一不匹配即标记 `stale`（内容 hash 变化）或 `error`（关联错误），拒绝驱动贴合。
+
 ### 13.3 Browser/iPad
 
 定义 `PlanarTrackingResultStore` 接口：
 
 ```ts
+export interface StoredPlanarTrackingResult {
+  trackingId: string;         // 对应 PlanarTrackingReference.id
+  resultUri: string;          // 逻辑 URI，如 project-tracking:<trackingId>
+  resultSha256: string;       // 规范化 sidecar 字节的 SHA-256
+  byteSize: number;
+  sampleCount: number;
+  writtenAt: string;          // ISO-8601，仅诊断用途，不参与身份
+}
+
 export interface PlanarTrackingResultStore {
-  write({ projectId, result }: { projectId: string; result: PlanarTrackingSidecarV1 }): Promise<StoredPlanarTrackingResult>;
+  write({ projectId, trackingId, result }: {
+    projectId: string;
+    trackingId: string;
+    result: PlanarTrackingSidecarV1;
+  }): Promise<StoredPlanarTrackingResult>;
   read({ projectId, resultUri }: { projectId: string; resultUri: string }): Promise<PlanarTrackingSidecarV1>;
   remove({ projectId, resultUri }: { projectId: string; resultUri: string }): Promise<void>;
 }
 ```
+
+`trackingId` 决定物理文件名与逻辑 URI（`resultUri = project-tracking:<trackingId>`），store 不自造标识；`write` 返回的 `resultUri`/`resultSha256` 原样写入对应的 `PlanarTrackingReference`（见 6.2 的 ready/partial 不变量）。同一 `trackingId` 重复 `write` 是原子替换语义。
 
 Electron 实现写项目文件；浏览器/iPad 实现写 IndexedDB。timeline 中的 URI 使用带 scheme 的逻辑引用，例如 `project-tracking:<id>`，不保存平台绝对路径。
 
@@ -864,6 +927,8 @@ sha256(
 )
 ```
 
+`requestedSourceRange` 参与完整键，因此**第一版明确规定：可见源范围变化总是重新求解**——扩大后的范围生成新键，不会也不应精确命中旧的较小范围结果。"只补缺失区间"的增量复用需要另一套设计（不含范围的基础键 + 已覆盖区间索引 + 重叠样本合并规则），列为后续增强；在那之前文档其余部分不得依赖区间复用假设。
+
 ### 14.2 哪些变化需要重跑
 
 | 变化 | 是否重跑求解器 | 原因 |
@@ -872,7 +937,7 @@ sha256(
 | 修改种子 PTS | 是 | 初始参考帧变化 |
 | 修改种子四角 | 是 | 平面定义变化 |
 | provider/参数版本变化 | 是 | 轨迹不可复用 |
-| 扩大可见源时间范围 | 可能 | 可复用已有区间，只补缺失部分 |
+| 扩大可见源时间范围 | 是（第一版） | 范围进入完整缓存键，键不同即重解；见 14.1 的复用备注 |
 | trim 改变 | 可能 | 结果仍有效，但覆盖范围可能不足 |
 | 变速曲线改变 | 否 | 只改变时间映射 |
 | reverse 改变 | 否 | 只改变访问顺序 |
@@ -985,6 +1050,8 @@ export interface PlanarTrackingCorrection {
 ```
 
 用户在某帧拖动跟踪四角后生成 correction，不应直接覆盖原始 sidecar 某一个样本而让相邻帧保持断裂。
+
+持久化归属：corrections **存放在 sidecar 内**（`PlanarTrackingSidecarV1.corrections`，见 6.4），与受其影响的重算样本属于同一份版本化结果——局部重跟踪完成后，新 sidecar（合并样本 + 全量 corrections）经 13.2 的原子写入落盘，`PlanarTrackingReference` 的 `resultUri`/`resultSha256` 在同一次更新中指向新结果。这样保存并重开工程后，correction 锚点与其局部重跟踪范围可以完整恢复；不存在游离于结果之外、需要单独 GC 的 correction 资源。
 
 ### 17.2 重算规则
 
