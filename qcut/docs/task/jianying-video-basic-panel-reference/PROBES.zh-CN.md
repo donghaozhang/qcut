@@ -19,7 +19,7 @@
 
 | 能力 | 本地性 | 当前等级 | 已验证 | 仍缺 |
 | --- | --- | --- | --- | --- |
-| 防闪烁 | 已确认本地 | `model-loaded` | Lens 工厂创建/释放；Deflicker 2.0.0；Metal 库装载 | 连续帧输入和去闪输出 |
+| 防闪烁 | 已确认本地 | `input-processed` | Lens Deflicker 2.0.0、Metal 库、真实连续帧、派生 MP4、CLI/UI E2E | UI 强度与低层参数校准 |
 | 剪映防抖 | 已确认本地 | `runtime-callable` | VAS 2.0.0 工厂创建/释放 | 稳定矩阵和安全裁切输出 |
 | ByteNN 降噪 | 已确认本地 | `model-loaded` | ByteNN 真实解析 `nn_denoise.bytenn` | 三帧输入和降噪像素输出 |
 | UMVFI 补帧 | 已确认本地 | `model-loaded` | UMVFI 3.2.0 工厂；Metal 库装载 | 两帧输入和中间帧 |
@@ -48,7 +48,7 @@
 
 | 能力 | 私有路径结果 |
 | --- | --- |
-| 防闪烁 | `model-loaded` |
+| 防闪烁 | `input-processed`，连续帧和派生 MP4 已验证 |
 | 剪映防抖 | `runtime-callable` |
 | ByteNN 降噪 | `model-loaded` |
 | UMVFI 补帧 | `model-loaded` |
@@ -83,13 +83,15 @@ bun research/jianying-basic-video-probe/prepare-private-models.ts --version 11.3
 - 原生宿主：`research/jianying-basic-video-probe/native/runtime-probe.mm`
 - 模式：`deflicker`
 
-### 2026-08-30 本机结果
+### 2026-08-31 本机结果
 
-探针完成了三件互相独立的检查：
+探针和产品宿主完成了五件互相独立的检查：
 
 1. 动态装载 `liblens.dylib`。
 2. 调用 `DeflickerFactory::createDeflickerInstance`，确认对象非空后调用对应删除函数。
 3. 通过当前 Metal 设备装载 `deflicker/deflicker.bundle/deflicker.metallib`。
+4. 通过 `VideoDeflickerGpuBackend` 输入 90 帧连续 BGRA 画面，输出帧累计改变 `51,992,477` 字节。
+5. 用 FFmpeg 解码/编码管线生成 3 秒派生 MP4，并通过真人 CLI、带音频 CLI、打包态和可见 QCut UI E2E。
 
 关键结果：
 
@@ -101,7 +103,7 @@ bun research/jianying-basic-video-probe/prepare-private-models.ts --version 11.3
 }
 ```
 
-运行时同时报告 `lens_deflicker: deflicker version v2.0.0`。该结果证明本地低层对象和 GPU 程序可用，但还没有向算法输入连续帧，因此当前不能宣称已经得到去闪视频。
+运行时同时报告 `lens_deflicker: deflicker version v2.0.0`。该项现已达到 `input-processed`。真人强度 70 输出为 360×640、24 fps、72 帧、3 秒；亮度波动下降 `3.305%`。它证明真实视频已由本机私有后端处理，但不证明 QCut 参数与剪映 UI 默认值逐像素等价。
 
 ### 复查命令
 

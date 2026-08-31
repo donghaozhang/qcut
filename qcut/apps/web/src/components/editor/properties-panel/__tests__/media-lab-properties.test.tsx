@@ -5,22 +5,28 @@ import { MediaLabProperties } from "../media-lab-properties";
 
 function renderLab({
 	hasLocalTracking = false,
+	privateDeflickerEnabled = false,
 }: {
 	hasLocalTracking?: boolean;
+	privateDeflickerEnabled?: boolean;
 } = {}) {
 	const onChange = vi.fn();
 	const onApplySmartAction = vi.fn();
+	const onApplyPrivateDeflicker = vi.fn();
 	render(
 		<MediaLabProperties
 			enhancements={DEFAULT_MEDIA_ENHANCEMENTS}
 			hasLocalTracking={hasLocalTracking}
+			privateDeflickerBusy={false}
+			privateDeflickerEnabled={privateDeflickerEnabled}
 			onChange={onChange}
+			onApplyPrivateDeflicker={onApplyPrivateDeflicker}
 			onApplySmartAction={onApplySmartAction}
 			onInteractionStart={vi.fn()}
 			onInteractionEnd={vi.fn()}
 		/>
 	);
-	return { onApplySmartAction, onChange };
+	return { onApplyPrivateDeflicker, onApplySmartAction, onChange };
 }
 
 describe("MediaLabProperties", () => {
@@ -65,6 +71,21 @@ describe("MediaLabProperties", () => {
 		expect(
 			screen.getByRole("button", { name: "实验室镜头追踪" })
 		).toBeDisabled();
+	});
+
+	it("runs the verified private-cache action only after strength is enabled", () => {
+		const { onApplyPrivateDeflicker } = renderLab({
+			privateDeflickerEnabled: true,
+		});
+		const action = screen.getByRole("button", {
+			name: "使用本机剪映缓存处理",
+		});
+
+		fireEvent.keyDown(action, { key: "Enter" });
+		expect(onApplyPrivateDeflicker).not.toHaveBeenCalled();
+		fireEvent.click(action);
+
+		expect(onApplyPrivateDeflicker).toHaveBeenCalledOnce();
 	});
 
 	it("dispatches each smart tool against a ready local track", () => {
