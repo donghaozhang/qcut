@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
 import { constants as fsConstants, existsSync } from "node:fs";
-import { access, mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -104,20 +104,31 @@ async function generateTrackingVideo({
 	return videoPath;
 }
 
-export async function createPlanarTrackingWorkspace(): Promise<PlanarTrackingWorkspace> {
+export async function createPlanarTrackingWorkspace({
+	generateVideo = generateTrackingVideo,
+}: {
+	generateVideo?: (input: { rootDirectory: string }) => Promise<string>;
+} = {}): Promise<PlanarTrackingWorkspace> {
 	const rootDirectory = await mkdtemp(
 		path.join(tmpdir(), "qcut-planar-tracking-e2e-")
 	);
-	const documentsDirectory = path.join(rootDirectory, "Documents");
-	const profileDirectory = path.join(rootDirectory, "profile");
-	await Promise.all([
-		mkdir(documentsDirectory, { recursive: true }),
-		mkdir(profileDirectory, { recursive: true }),
-	]);
-	return {
-		documentsDirectory,
-		profileDirectory,
-		rootDirectory,
-		videoPath: await generateTrackingVideo({ rootDirectory }),
-	};
+	try {
+		const documentsDirectory = path.join(rootDirectory, "Documents");
+		const profileDirectory = path.join(rootDirectory, "profile");
+		await Promise.all([
+			mkdir(documentsDirectory, { recursive: true }),
+			mkdir(profileDirectory, { recursive: true }),
+		]);
+		return {
+			documentsDirectory,
+			profileDirectory,
+			rootDirectory,
+			videoPath: await generateVideo({ rootDirectory }),
+		};
+	} catch (cause) {
+		await rm(rootDirectory, { force: true, recursive: true }).catch(
+			() => undefined
+		);
+		throw cause;
+	}
 }
