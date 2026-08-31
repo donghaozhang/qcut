@@ -16,13 +16,18 @@ import { platform } from "@qcut/platform-core";
 import { dataUrlToBlob } from "@/lib/media/data-url";
 import { resolveStickerGeometry } from "@/lib/stickers/sticker-geometry";
 import {
+	buildStickerPlanarTrackingExportKeyframes,
 	buildStickerTrackingExportKeyframes,
+	StickerPlanarTrackingExportDataError,
 	StickerTrackingExportError,
 } from "@/lib/stickers/sticker-tracking-export";
+import { loadStickerPlanarTrackingSidecar } from "@/lib/tracking/planar-tracking-result-loader";
+import { useProjectStore } from "@/stores/project-store";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type {
 	MediaAnimationType,
 	MediaPerspective,
+	PlanarTrackingSidecarV1,
 	StickerAnimationLoopType,
 } from "@/types/timeline";
 
@@ -217,6 +222,7 @@ export async function extractStickerSources(
 
 		const timingMap = getStickerTimingMap();
 		const timelineTracks = useTimelineStore.getState()._tracks;
+		const projectId = useProjectStore.getState().activeProject?.id;
 		const normalizedKeyframeFps =
 			Number.isFinite(keyframeFps) && keyframeFps > 0 ? keyframeFps : 30;
 		const stickerById = new Map(
@@ -301,14 +307,41 @@ export async function extractStickerSources(
 				const topLeftX = geometry.left;
 				const topLeftY = geometry.top;
 				const timing = timingMap.get(sticker.id);
+				let planarSidecar: PlanarTrackingSidecarV1 | undefined;
+				try {
+					planarSidecar = timing?.element
+						? await loadStickerPlanarTrackingSidecar({
+								element: timing.element,
+								projectId,
+								tracks: timelineTracks,
+							})
+						: undefined;
+				} catch (cause) {
+					throw new StickerPlanarTrackingExportDataError({
+						detail:
+							cause instanceof Error
+								? cause.message
+								: "the sidecar could not be read",
+						elementId: timing?.element?.id ?? sticker.id,
+					});
+				}
 				const trackingKeyframes = timing?.element
-					? buildStickerTrackingExportKeyframes({
-							element: timing.element,
-							tracks: timelineTracks,
-							fps: normalizedKeyframeFps,
-							canvasWidth,
-							canvasHeight,
-						})
+					? timing.element.tracking?.mode === "planar"
+						? buildStickerPlanarTrackingExportKeyframes({
+								canvasHeight,
+								canvasWidth,
+								element: timing.element,
+								fps: normalizedKeyframeFps,
+								sidecar: planarSidecar,
+								tracks: timelineTracks,
+							})
+						: buildStickerTrackingExportKeyframes({
+								element: timing.element,
+								tracks: timelineTracks,
+								fps: normalizedKeyframeFps,
+								canvasWidth,
+								canvasHeight,
+							})
 					: undefined;
 
 				stickerSources.push({
@@ -329,7 +362,10 @@ export async function extractStickerSources(
 					zIndex: sticker.zIndex,
 					opacity: sticker.opacity,
 					rotation: sticker.rotation,
-					maintainAspectRatio: sticker.maintainAspectRatio,
+					maintainAspectRatio:
+						timing?.element?.tracking?.mode === "planar"
+							? false
+							: sticker.maintainAspectRatio,
 					perspective: sticker.perspective,
 					animationInType: sticker.animationInType,
 					animationInDuration: sticker.animationInDuration,

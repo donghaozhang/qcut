@@ -3,6 +3,7 @@ import type {
 	PlanarTrackingResultStore,
 	PlanarTrackingSidecarV1,
 } from "@qcut/editor-core";
+import type { StickerElement, TimelineTrack } from "@/types/timeline";
 import { getPlanarTrackingResultStore } from "./planar-result-store";
 
 const sidecarPromises = new Map<string, Promise<PlanarTrackingSidecarV1>>();
@@ -53,4 +54,43 @@ export function loadPlanarTrackingSidecar({
 
 export function clearPlanarTrackingSidecarCache(): void {
 	sidecarPromises.clear();
+}
+
+export function findStickerPlanarTrackingReference({
+	element,
+	tracks,
+}: {
+	element: StickerElement;
+	tracks: TimelineTrack[];
+}): PlanarTrackingReference | undefined {
+	const binding = element.tracking;
+	if (binding?.mode !== "planar") return;
+	const source = tracks
+		.flatMap((track) => track.elements)
+		.find(
+			(candidate) =>
+				candidate.type === "media" && candidate.id === binding.sourceElementId
+		);
+	if (!source || source.type !== "media") return;
+	return source.surfaceTrackings?.find(
+		(reference) =>
+			reference.id === binding.surfaceTrackingId &&
+			(reference.status === "ready" || reference.status === "partial")
+	);
+}
+
+export async function loadStickerPlanarTrackingSidecar({
+	element,
+	projectId,
+	tracks,
+}: {
+	element: StickerElement;
+	projectId: string | undefined;
+	tracks: TimelineTrack[];
+}): Promise<PlanarTrackingSidecarV1 | undefined> {
+	if (element.tracking?.mode !== "planar" || !projectId) return;
+	const reference = findStickerPlanarTrackingReference({ element, tracks });
+	return reference
+		? loadPlanarTrackingSidecar({ projectId, reference })
+		: undefined;
 }

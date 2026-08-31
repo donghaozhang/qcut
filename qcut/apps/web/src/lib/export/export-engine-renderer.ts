@@ -62,6 +62,9 @@ import {
 	resolveMediaColorAtTime,
 } from "@/lib/color/color-properties";
 import { resolveTimelineStickerVisualAtTime } from "@/lib/stickers/timeline-sticker-visual";
+import { StickerPlanarTrackingExportDataError } from "@/lib/stickers/sticker-tracking-export";
+import { loadStickerPlanarTrackingSidecar } from "@/lib/tracking/planar-tracking-result-loader";
+import { useProjectStore } from "@/stores/project-store";
 import { resolveTimelineElementEffects } from "@/lib/effects/adjustment-layer";
 import { canvasFontFamily } from "@/lib/text/canvas-font";
 import { drawMediaSourceWithMasks } from "@/lib/video/media-mask-canvas";
@@ -407,6 +410,17 @@ async function renderTimelineStickerElement({
 	const fallback = useStickersOverlayStore
 		.getState()
 		.overlayStickers.get(element.stickerId);
+	const planarTrackingSidecar = await loadStickerPlanarTrackingSidecar({
+		element,
+		projectId: useProjectStore.getState().activeProject?.id,
+		tracks: context.tracks,
+	});
+	if (element.tracking?.mode === "planar" && !planarTrackingSidecar) {
+		throw new StickerPlanarTrackingExportDataError({
+			detail: "the verified sidecar is unavailable",
+			elementId: element.id,
+		});
+	}
 	const sticker = resolveTimelineStickerVisualAtTime({
 		element,
 		fallback,
@@ -415,6 +429,7 @@ async function renderTimelineStickerElement({
 		tracks: context.tracks,
 		canvasWidth: context.canvas.width,
 		canvasHeight: context.canvas.height,
+		planarTrackingSidecar,
 	});
 	const mediaItems = new Map(
 		context.mediaItems.map((item) => [item.id, item] as const)
@@ -425,6 +440,7 @@ async function renderTimelineStickerElement({
 		currentTime,
 		failOnError: true,
 		fps: context.fps,
+		planarTrackingSidecar,
 		timelineElement: element,
 		tracks: context.tracks,
 	});
