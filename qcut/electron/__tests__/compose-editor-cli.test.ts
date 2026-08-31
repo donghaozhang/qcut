@@ -677,7 +677,9 @@ describe("compose apply handler", () => {
 			timeline.tracks[0].transitions.push({
 				duration: 1,
 				fromElementId: "element-1",
-				presetId: "crossfade",
+				// The bridge stores the EDITOR preset vocabulary
+				// (crossfade → dissolve), which replay matching normalizes to.
+				presetId: "dissolve",
 				toElementId: "element-2",
 			});
 			return {
