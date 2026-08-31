@@ -52,7 +52,9 @@ async function publishOutput({
 	const temporaryPath = `${outputPath}.${process.pid}.partial.mp4`;
 	try {
 		await copyFile(cachePath, temporaryPath);
-		await rm(outputPath, { force: true });
+		// POSIX rename replaces the destination atomically on the supported
+		// macOS target, so an interruption never leaves the previous output
+		// deleted without a replacement.
 		await rename(temporaryPath, outputPath);
 	} finally {
 		await rm(temporaryPath, { force: true });
