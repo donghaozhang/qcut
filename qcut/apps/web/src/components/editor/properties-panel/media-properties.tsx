@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import {
 	AlignHorizontalJustifyCenter,
 	AlignHorizontalJustifyEnd,
@@ -61,6 +62,7 @@ import {
 } from "@/lib/video/video-properties";
 import { getMediaTimelineDuration } from "@/lib/video/video-timing";
 import { runJianyingMotionTracking } from "@/lib/video/jianying-motion-tracking-controller";
+import { exportJianyingPrivateDeflicker } from "@/lib/video/jianying-private-deflicker-client";
 import { DEFAULT_MEDIA_CUSTOM_CUTOUT } from "@/lib/video/media-custom-cutout";
 import {
 	PropertyGroup,
@@ -174,6 +176,9 @@ export function MediaProperties({
 	const updateMediaElement = useTimelineStore(
 		(state) => state.updateMediaElement
 	);
+	const replaceElementMedia = useTimelineStore(
+		(state) => state.replaceElementMedia
+	);
 	const pushHistory = useTimelineStore((state) => state.pushHistory);
 	const canvasSize = useEditorStore((state) => state.canvasSize);
 	const currentTime = usePlaybackStore((state) => state.currentTime);
@@ -205,6 +210,8 @@ export function MediaProperties({
 		useState<JianyingMotionTrackingStatus | null>(null);
 	const [motionTrackingStatusLoading, setMotionTrackingStatusLoading] =
 		useState(false);
+	const [privateDeflickerBusy, setPrivateDeflickerBusy] = useState(false);
+	const [privateDeflickerStatus, setPrivateDeflickerStatus] = useState("");
 	const motionTrackingApi = window.electronAPI?.jianyingMotionTracking;
 	const interactionActive = useRef(false);
 	const panelRef = useRef<HTMLDivElement>(null);
@@ -652,6 +659,64 @@ export function MediaProperties({
 		});
 		setKeyframeProperty("x");
 		setKeyframesExpanded(true);
+	};
+	const applyPrivateDeflicker = async () => {
+		if (!mediaItem || privateDeflickerBusy) return;
+		const strength = Math.round(visual.enhancements.labDeflicker ?? 0);
+		if (strength < 1) {
+			toast.error(t("mediaProperties.lab.privateDeflickerSetStrength"));
+			return;
+		}
+		setPrivateDeflickerBusy(true);
+		setPrivateDeflickerStatus(
+			t("mediaProperties.lab.privateDeflickerPreparing")
+		);
+		try {
+			const result = await exportJianyingPrivateDeflicker({
+				file: mediaItem.file,
+				sourcePath: mediaItem.localPath,
+				strength,
+				onProgress: ({ status }) => setPrivateDeflickerStatus(status),
+			});
+			setPrivateDeflickerStatus(
+				t("mediaProperties.lab.privateDeflickerReplacing")
+			);
+			const replacement = await replaceElementMedia(
+				trackId,
+				element.id,
+				result.file,
+				{ localPath: result.runtime.outputPath }
+			);
+			if (!replacement.success) {
+				throw new Error(replacement.error ?? "无法替换时间线视频");
+			}
+			update(
+				{
+					enhancements: {
+						...visual.enhancements,
+						labDeflicker: 0,
+					},
+				},
+				false
+			);
+			setPrivateDeflickerStatus(
+				t("mediaProperties.lab.privateDeflickerComplete")
+			);
+			toast.success(
+				result.runtime.cacheHit
+					? t("mediaProperties.lab.privateDeflickerCacheHit")
+					: t("mediaProperties.lab.privateDeflickerComplete")
+			);
+		} catch (error) {
+			const message =
+				error instanceof Error
+					? error.message
+					: t("mediaProperties.lab.privateDeflickerFailed");
+			setPrivateDeflickerStatus(message);
+			toast.error(message);
+		} finally {
+			setPrivateDeflickerBusy(false);
+		}
 	};
 	const isVisualTab = VISUAL_PROPERTY_TABS.includes(
 		activePropertiesTab as VisualPropertyTab
@@ -1291,9 +1356,18 @@ export function MediaProperties({
 						<MediaLabProperties
 							enhancements={visual.enhancements}
 							hasLocalTracking={Boolean(localTrackingMask)}
+							privateDeflickerBusy={privateDeflickerBusy}
+							privateDeflickerEnabled={Boolean(
+								window.electronAPI?.jianyingBasicVideo &&
+									(visual.enhancements.labDeflicker ?? 0) > 0
+							)}
+							privateDeflickerStatus={privateDeflickerStatus}
 							onChange={(enhancements, history = true) =>
 								update({ enhancements }, history)
 							}
+							onApplyPrivateDeflicker={() => {
+								void applyPrivateDeflicker();
+							}}
 							onApplySmartAction={applySmartLabAction}
 							onInteractionStart={beginInteraction}
 							onInteractionEnd={endInteraction}
