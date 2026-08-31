@@ -8,6 +8,31 @@ import { getPlanarTrackingResultStore } from "./planar-result-store";
 
 const sidecarPromises = new Map<string, Promise<PlanarTrackingSidecarV1>>();
 
+/**
+ * Most recently used keys, oldest first. The cached sidecars are keyed by
+ * content hash and are never mutated, so retaining them is safe; this bound
+ * only stops a long editing session from holding every tracking result it has
+ * ever opened.
+ */
+const cacheOrder: string[] = [];
+const MAX_CACHED_SIDECARS = 8;
+
+function touchCacheEntry({ key }: { key: string }): void {
+	const index = cacheOrder.indexOf(key);
+	if (index !== -1) cacheOrder.splice(index, 1);
+	cacheOrder.push(key);
+	while (cacheOrder.length > MAX_CACHED_SIDECARS) {
+		const evicted = cacheOrder.shift();
+		if (evicted !== undefined) sidecarPromises.delete(evicted);
+	}
+}
+
+function dropCacheEntry({ key }: { key: string }): void {
+	sidecarPromises.delete(key);
+	const index = cacheOrder.indexOf(key);
+	if (index !== -1) cacheOrder.splice(index, 1);
+}
+
 function resultCacheKey({
 	projectId,
 	reference,
@@ -36,7 +61,10 @@ export function loadPlanarTrackingSidecar({
 	}
 	const key = resultCacheKey({ projectId, reference });
 	const existing = sidecarPromises.get(key);
-	if (existing) return existing;
+	if (existing) {
+		touchCacheEntry({ key });
+		return existing;
+	}
 	const pending = resultStore
 		.read({
 			expectedSha256: reference.resultSha256,
@@ -45,14 +73,19 @@ export function loadPlanarTrackingSidecar({
 		})
 		.then(({ sidecar }) => sidecar);
 	sidecarPromises.set(key, pending);
-	const evict = (): void => {
-		if (sidecarPromises.get(key) === pending) sidecarPromises.delete(key);
-	};
-	void pending.then(evict, evict);
+	touchCacheEntry({ key });
+	// A fulfilled sidecar is kept: the key contains the result's SHA-256, so a
+	// re-tracked surface produces a different key and can never be served a
+	// stale entry. A rejected read is dropped so a repaired sidecar can be
+	// retried rather than the failure being cached forever.
+	void pending.catch(() => {
+		if (sidecarPromises.get(key) === pending) dropCacheEntry({ key });
+	});
 	return pending;
 }
 
 export function clearPlanarTrackingSidecarCache(): void {
+	cacheOrder.length = 0;
 	sidecarPromises.clear();
 }
 
