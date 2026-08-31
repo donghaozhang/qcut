@@ -1,0 +1,27 @@
+{
+  "clip": {
+    "elementId": "09a9970a-cc38-4a70-bf35-d7ee57e051c0",
+    "originalMediaId": "c158dd25-4dcd-5986-8ef3-97a398e9cc67",
+    "trackId": "28c3bcdb-5e91-4157-bf17-c3c4eb1572f2"
+  },
+  "runtime": {
+    "available": true,
+    "localOnly": true,
+    "offlineReady": true,
+    "platformSupported": true,
+    "route": "qcut-jianying-private-deflicker-v2",
+    "appVersion": "11.3.0",
+    "deflickerModelSha256": "0d398bb6a77650a5a07c038473e54ba488443821257f7fa729a9be0e05c777db",
+    "lensSha256": "fdf576dd066a11db7b54d815621893ed62a8ed223e22834d5753738dc66df161",
+    "message": "剪映 11.3.0 防闪烁本机缓存已就绪"
+  },
+  "sourcePath": "/Users/peter/Desktop/code/qcut/qcut/docs/task/jianying-video-basic-panel-reference/evidence/real-video-matrix/02-real-person-challenge-noisy-3s.mp4",
+  "state": {
+    "deflickerStrength": 0,
+    "fileSize": 1619760,
+    "mediaId": "027094c0-be9a-fc76-526d-2ae8159f4ce0",
+    "localPath": "/Users/peter/Library/Caches/QCut/JianyingBasicVideo/deflicker/f2512e0d440700bbcfc9aba2681ade2eb742a2f2bfcddaf30e37f0c64bf5945d.mp4",
+    "mediaName": "02-real-person-challenge-noisy-3s-deflicker.mp4",
+    "mediaType": "video"
+  }
+}
