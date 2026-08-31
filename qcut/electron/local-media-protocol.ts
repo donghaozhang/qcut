@@ -4,9 +4,8 @@
  * `app://local-media/<base64url(absolute path)>` streams a media file from
  * disk with Range support, so the renderer can play project media without
  * routing the whole file through IPC into a blob. Paths are only served when
- * their realpath lives under an allowed root (the qcut-videos temp
- * extraction dir or the app's userData tree), which keeps the route from
- * becoming an arbitrary-file read.
+ * their realpath lives under an explicit QCut media root, which keeps the
+ * route from becoming an arbitrary-file read.
  *
  * @module electron/local-media-protocol
  */
@@ -50,6 +49,14 @@ function allowedRoots(): string[] {
 		path.join(app.getPath("temp"), "qcut-videos"),
 		path.join(app.getPath("documents"), "QCut", "Projects"),
 		path.join(app.getPath("userData"), "projects"),
+		path.join(
+			app.getPath("home"),
+			"Library",
+			"Caches",
+			"QCut",
+			"JianyingBasicVideo",
+			"deflicker"
+		),
 	];
 }
 
