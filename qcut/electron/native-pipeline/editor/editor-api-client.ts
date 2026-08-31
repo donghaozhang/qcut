@@ -562,8 +562,18 @@ export class EditorApiClient {
 			}
 
 			if (Date.now() - start > timeout) {
+				// A poll timeout is NOT a job failure: the job keeps running in
+				// the app. Name the job so callers can keep querying it.
+				const jobIdCandidate = (job as unknown as { jobId?: unknown }).jobId;
+				const pathSegments = statusPath.split("/");
+				const jobId =
+					typeof jobIdCandidate === "string"
+						? jobIdCandidate
+						: pathSegments[pathSegments.length - 1];
 				throw new EditorApiError(
-					`Polling timed out after ${Math.round(timeout / 1000)}s`
+					`Polling timed out after ${Math.round(timeout / 1000)}s, but job ` +
+						`${jobId} is still ${job.status} (progress ${job.progress ?? "?"}). ` +
+						`Keep polling ${statusPath} to follow it.`
 				);
 			}
 

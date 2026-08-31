@@ -186,6 +186,7 @@ export function useExportProgress() {
 			> = {
 				cli: ExportEngineType.CLI,
 				ffmpeg: ExportEngineType.FFMPEG,
+				muxer: ExportEngineType.MUXER,
 				standard: ExportEngineType.STANDARD,
 			};
 			// Auto delegates to the factory; every explicit selection is honored on

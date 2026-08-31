@@ -158,6 +158,7 @@ import {
 	handleComposeSnapshot,
 } from "../cli-handlers-compose-editor.js";
 import { handleComposePlan } from "../cli-handlers-compose-plan.js";
+import { handleVideoLabDeflicker } from "../cli-handlers-video-lab.js";
 
 /**
  * Unified handler signature.
@@ -214,6 +215,7 @@ export const HANDLER_MAP: Record<string, CommandHandler> = {
 	"compose-validate": wrapOPS(handleComposeValidate),
 	"compose-render": wrapOPS(handleComposeRender),
 	"compose-project": wrapOPS(handleComposeProject),
+	"video-lab-deflicker": wrapOPS(handleVideoLabDeflicker),
 	"instances-list": wrap(handleInstancesCommand),
 	"instances-use": wrap(handleInstancesCommand),
 	"filter-lab-list": wrap((options) =>

@@ -679,13 +679,23 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 		POLL,
 		f("--filename", "string", "Output filename"),
 		f("--output", "string", "Exact output path (absolute or relative)"),
-		f("--engine", "string", "Export engine (auto|native|cli)", {
-			enum: ["auto", "native", "cli"],
+		f("--engine", "string", "Export engine (auto|native|cli|muxer)", {
+			enum: ["auto", "native", "cli", "muxer"],
 		}),
 		f("--verify-frames", "string", "Extract frames at comma-separated seconds"),
 		f("--export-format", "string", "Export format"),
 		f("--format", "string", "Export format (alias)"),
 		f("--fps", "number", "Video frame rate (24|25|30|50|60)"),
+		f(
+			"--profile-path",
+			"string",
+			"Write a structured export profile JSON to this path (renderer exports)"
+		),
+		f(
+			"--no-sequential-decode",
+			"boolean",
+			"Debug: force the per-frame seek path in renderer exports"
+		),
 		// GIF options
 		f("--gif-fps", "number", "GIF frame rate (15|20|25|30)"),
 		f("--gif-loop", "boolean", "GIF loop (true=infinite)"),

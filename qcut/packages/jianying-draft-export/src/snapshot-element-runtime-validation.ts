@@ -20,8 +20,6 @@ import type {
 	RemotionElement,
 	StickerElement,
 	StickerKeyframeProperty,
-	StickerMotionTracking,
-	StickerTrackingAnchor,
 	SubtitleStyle,
 	TextElement,
 	TextFontAssetReference,
@@ -47,6 +45,7 @@ import {
 	createAllowedKeySet,
 	validateRecordOfArrays,
 } from "./snapshot-runtime-helpers.js";
+import { validateStickerTrackingRuntime } from "./snapshot-sticker-tracking-runtime-validation.js";
 import {
 	evaluateStickerRuntime,
 	type StickerRuntimeDescriptor,
@@ -358,25 +357,6 @@ const AUDIO_LYRICS_WORD_KEYS = createAllowedKeySet<AudioLyricsWord>({
 		type: true,
 	},
 });
-const STICKER_TRACKING_KEYS = createAllowedKeySet<StickerMotionTracking>({
-	keys: {
-		anchor: true,
-		followScale: true,
-		mode: true,
-		targetElementId: true,
-		targetMaskId: true,
-	},
-});
-const STICKER_TRACKING_ANCHOR_KEYS = createAllowedKeySet<StickerTrackingAnchor>(
-	{
-		keys: {
-			centerX: true,
-			centerY: true,
-			height: true,
-			width: true,
-		},
-	}
-);
 const HYPERFRAMES_VARIABLE_DEFINITION_KEYS =
 	createAllowedKeySet<HyperframesVariableDefinition>({
 		keys: {
@@ -1061,25 +1041,9 @@ function validateStickerElement({
 		});
 	}
 	if (element.tracking !== undefined) {
-		const trackingPath = `${path}.tracking`;
-		const tracking = getRecord({
-			path: trackingPath,
+		validateStickerTrackingRuntime({
+			path: `${path}.tracking`,
 			value: element.tracking,
-		});
-		assertKeys({
-			allowed: STICKER_TRACKING_KEYS,
-			path: trackingPath,
-			record: tracking,
-		});
-		const anchorPath = `${trackingPath}.anchor`;
-		const anchor = getRecord({
-			path: anchorPath,
-			value: tracking.anchor,
-		});
-		assertKeys({
-			allowed: STICKER_TRACKING_ANCHOR_KEYS,
-			path: anchorPath,
-			record: anchor,
 		});
 	}
 }

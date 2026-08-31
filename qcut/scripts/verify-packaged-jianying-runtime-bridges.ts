@@ -13,6 +13,10 @@ import {
 import { VIDEO_OBJECT_COREML_BRIDGE_FILE_NAME } from "../electron/jianying-person-cutout/video-object-coreml-bridge-resolver.js";
 import { JIANYING_TEXT_RUNTIME_BRIDGE_FILE_NAME } from "../electron/jianying-text-runtime/bridge-resolver.js";
 import { JIANYING_TRANSITION_BRIDGE_FILE_NAME } from "../electron/jianying-transition/bridge-resolver.js";
+import {
+	JIANYING_DEFLICKER_HOST_FILE_NAME,
+	JIANYING_DEFLICKER_HOST_REQUIRED_MARKERS,
+} from "../electron/jianying-basic-video-runtime/bridge-resolver.js";
 import { verifyPackagedJianyingRuntimeBridge } from "./verify-packaged-jianying-runtime-bridge.js";
 
 const execFileAsync = promisify(execFile);
@@ -127,6 +131,16 @@ async function requireAuditedBachRoute({ bridgePath }: { bridgePath: string }) {
 	}
 }
 
+async function requireDeflickerRoute({ hostPath }: { hostPath: string }) {
+	const image = await readFile(hostPath);
+	for (const marker of JIANYING_DEFLICKER_HOST_REQUIRED_MARKERS) {
+		if (image.includes(marker)) continue;
+		throw new Error(
+			`Packaged Jianying deflicker host is missing ${marker}: ${hostPath}. Re-run \`bun run stage-jianying-filter-local-bridge\`.`
+		);
+	}
+}
+
 export async function verifyPackagedJianyingRuntimeBridges({
 	distRoot,
 	projectRoot,
@@ -143,6 +157,7 @@ export async function verifyPackagedJianyingRuntimeBridges({
 		saliencyBridge,
 		videoObjectBachBridge,
 		videoObjectCoreMLBridge,
+		deflickerHost,
 	] = await Promise.all([
 		verifyPackagedJianyingRuntimeBridge({
 			bridgeFileName: JIANYING_TRANSITION_BRIDGE_FILE_NAME,
@@ -184,6 +199,11 @@ export async function verifyPackagedJianyingRuntimeBridges({
 			distRoot,
 			projectRoot,
 		}),
+		verifyPackagedJianyingRuntimeBridge({
+			bridgeFileName: JIANYING_DEFLICKER_HOST_FILE_NAME,
+			distRoot,
+			projectRoot,
+		}),
 	]);
 	await requireTransitionModes({ bridgePath: transitionBridge });
 	await Promise.all([
@@ -192,6 +212,7 @@ export async function verifyPackagedJianyingRuntimeBridges({
 		requireVideoObjectRoute({ bridgePath: saliencyBridge }),
 		requireAuditedBachRoute({ bridgePath: videoObjectBachBridge }),
 		requireSameModelCoreMLRoute({ bridgePath: videoObjectCoreMLBridge }),
+		requireDeflickerRoute({ hostPath: deflickerHost }),
 	]);
 	return {
 		transitionBridge,
@@ -202,6 +223,7 @@ export async function verifyPackagedJianyingRuntimeBridges({
 		saliencyBridge,
 		videoObjectBachBridge,
 		videoObjectCoreMLBridge,
+		deflickerHost,
 	};
 }
 

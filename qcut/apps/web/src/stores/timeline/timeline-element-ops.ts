@@ -467,7 +467,8 @@ export function createElementOps(
 		replaceElementMedia: async (
 			trackId: string,
 			elementId: string,
-			newFile: File
+			newFile: File,
+			options?: { localPath?: string }
 		): Promise<{ success: boolean; error?: string }> => {
 			const { _tracks } = get();
 			const track = _tracks.find((t) => t.id === trackId);
@@ -533,11 +534,16 @@ export function createElementOps(
 					height?: number;
 					duration?: number;
 					thumbnailUrl?: string;
+					localPath?: string;
+					isLocalFile?: boolean;
 				} = {
 					name: newFile.name,
 					type: fileType,
 					file: newFile,
 					url: createObjectURL(newFile, "timeline-add-media"),
+					...(options?.localPath
+						? { isLocalFile: true, localPath: options.localPath }
+						: {}),
 				};
 
 				try {

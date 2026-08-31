@@ -11,6 +11,7 @@ import {
 	getExportRecommendation,
 	applyProgressEvent,
 } from "./public-api.js";
+import { forwardExportProgressToUtility } from "../../../utility/utility-bridge.js";
 
 /** Register Claude export IPC handlers for presets and recommendations. */
 export function setupClaudeExportIPC(): void {
@@ -26,6 +27,18 @@ export function setupClaudeExportIPC(): void {
 
 	ipcMain.on("ffmpeg-progress", (_event, data: ProgressEventPayload) => {
 		applyProgressEvent(data);
+		// Utility-served export jobs live in the utility process's job map, so
+		// renderer progress must be relayed there as well.
+		if (data?.jobId && typeof data.progress === "number") {
+			forwardExportProgressToUtility({
+				jobId: data.jobId,
+				progress: data.progress,
+				currentFrame: data.currentFrame,
+				totalFrames: data.totalFrames,
+				fps: data.fps,
+				estimatedTimeRemaining: data.estimatedTimeRemaining,
+			});
+		}
 	});
 
 	claudeLog.info(HANDLER_NAME, "Export IPC handlers registered");

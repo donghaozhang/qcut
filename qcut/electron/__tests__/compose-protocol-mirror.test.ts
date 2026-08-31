@@ -154,12 +154,31 @@ describe("compose protocol mirror stays equivalent to editor-core", () => {
 
 	it("emits identical patch validation issues", () => {
 		const snapshot = fixtureSnapshot();
-		const patch = fixturePatch({ snapshot });
-		expect(mirrorValidatePatch({ snapshot, patch })).toEqual(
+		const fixture = fixturePatch({ snapshot });
+		const patch = {
+			...fixture,
+			operations: fixture.operations.map((operation) =>
+				operation.kind === "add-sticker"
+					? {
+							...operation,
+							maintainAspectRatio: "yes",
+							animationInType: "wipe",
+						}
+					: operation
+			),
+		} as unknown as ComposePatch;
+		const mirrorIssues = mirrorValidatePatch({ snapshot, patch });
+		expect(mirrorIssues).toEqual(
 			coreValidatePatch({
 				snapshot: snapshot as unknown as CoreComposeSnapshot,
 				patch: patch as unknown as CoreComposePatch,
 			})
+		);
+		expect(mirrorIssues.map((issue) => issue.path)).toEqual(
+			expect.arrayContaining([
+				"operations.0.maintainAspectRatio",
+				"operations.0.animationInType",
+			])
 		);
 	});
 });

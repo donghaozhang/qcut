@@ -8,10 +8,12 @@ import {
 	CircleOff,
 	ClipboardCopy,
 	Copy,
+	Crop,
 	Download,
 	Eye,
 	EyeOff,
 	FileAudio,
+	FlipHorizontal2,
 	FolderOpen,
 	Gauge,
 	Link2,
@@ -19,13 +21,17 @@ import {
 	Music,
 	Palette,
 	RefreshCw,
+	Rewind,
+	RotateCw,
 	Save,
 	Scissors,
+	Snowflake,
 	Sparkles,
 	SplitSquareHorizontal,
 	Trash2,
 	WandSparkles,
 } from "lucide-react";
+import { invokeAction } from "@/constants/actions";
 import {
 	ContextMenuContent,
 	ContextMenuItem,
@@ -231,25 +237,46 @@ export function VideoClipContextMenu({
 					{t("timeline.menu.basicEdit")}
 				</ContextMenuSubTrigger>
 				<ContextMenuSubContent className="w-56">
-					<ContextMenuItem onClick={actions.split}>
-						<Scissors />
-						{t("timeline.menu.splitAtPlayhead")}
-						<ContextMenuShortcut>S</ContextMenuShortcut>
+					<ContextMenuItem onClick={() => invokeAction("freeze-selected")}>
+						<Snowflake />
+						{t("timeline.toolbar.freeze")}
 					</ContextMenuItem>
-					<ContextMenuItem onClick={actions.keepLeft}>
-						<SplitSquareHorizontal />
-						{t("timeline.menu.keepLeft")}
+					<ContextMenuItem onClick={() => invokeAction("reverse-selected")}>
+						<Rewind />
+						{t("timeline.toolbar.reverse")}
 					</ContextMenuItem>
-					<ContextMenuItem onClick={actions.keepRight}>
-						<SplitSquareHorizontal />
-						{t("timeline.menu.keepRight")}
+					<ContextMenuItem onClick={() => invokeAction("mirror-selected")}>
+						<FlipHorizontal2 />
+						{t("timeline.toolbar.mirror")}
 					</ContextMenuItem>
-					<ContextMenuItem onClick={actions.duplicate}>
-						<Copy />
-						{t("timeline.menu.duplicate")}
+					<ContextMenuItem onClick={() => invokeAction("rotate-selected")}>
+						<RotateCw />
+						{t("timeline.toolbar.rotate")}
+					</ContextMenuItem>
+					<ContextMenuItem onClick={() => invokeAction("crop-selected")}>
+						<Crop />
+						{t("timeline.toolbar.crop")}
 					</ContextMenuItem>
 				</ContextMenuSubContent>
 			</ContextMenuSub>
+
+			<ContextMenuItem onClick={actions.split}>
+				<Scissors />
+				{t("timeline.menu.splitAtPlayhead")}
+				<ContextMenuShortcut>S</ContextMenuShortcut>
+			</ContextMenuItem>
+			<ContextMenuItem onClick={actions.keepLeft}>
+				<SplitSquareHorizontal />
+				{t("timeline.menu.keepLeft")}
+			</ContextMenuItem>
+			<ContextMenuItem onClick={actions.keepRight}>
+				<SplitSquareHorizontal />
+				{t("timeline.menu.keepRight")}
+			</ContextMenuItem>
+			<ContextMenuItem onClick={actions.duplicate}>
+				<Copy />
+				{t("timeline.menu.duplicate")}
+			</ContextMenuItem>
 
 			<ContextMenuItem onClick={actions.smartShotSplit}>
 				<SplitSquareHorizontal />

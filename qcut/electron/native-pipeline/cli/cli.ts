@@ -191,6 +191,7 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"portrait-filter": { type: "string" },
 			"filter-intensity": { type: "string" },
 			beauty: { type: "string" },
+			strength: { type: "string" },
 			"list-presets": { type: "boolean", default: false },
 			profile: { type: "string", multiple: true },
 			"save-intermediates": { type: "boolean", default: false },
@@ -497,6 +498,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 			"gif-fps": { type: "string" },
 			"gif-loop": { type: "boolean", default: false },
 			"gif-quality": { type: "string" },
+			"profile-path": { type: "string" },
+			"no-sequential-decode": { type: "boolean", default: false },
 			mic: { type: "boolean", default: false },
 			// Default true matches the command-registry advertisement and user
 			// docs — capturing system audio is the intended out-of-box
@@ -646,6 +649,8 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 				? undefined
 				: Number(values["filter-intensity"]),
 		beauty: values.beauty === undefined ? undefined : Number(values.beauty),
+		strength:
+			values.strength === undefined ? undefined : Number(values.strength),
 		listPresets: (values["list-presets"] as boolean) ?? false,
 		profile: values.profile as string[] | undefined,
 		saveIntermediates: (values["save-intermediates"] as boolean) ?? false,
@@ -1198,6 +1203,10 @@ export function parseCliArgs(argv: string[]): CLIRunOptions {
 		!Number.isNaN(parseInt(values["gif-quality"] as string, 10))
 			? { "gif-quality": parseInt(values["gif-quality"] as string, 10) }
 			: {}),
+		...(values["profile-path"]
+			? { "profile-path": values["profile-path"] as string }
+			: {}),
+		...(values["no-sequential-decode"] ? { "no-sequential-decode": true } : {}),
 		...(values.mic ? { mic: true } : {}),
 		...(values["system-audio"] ? { "system-audio": true } : {}),
 		// ui options

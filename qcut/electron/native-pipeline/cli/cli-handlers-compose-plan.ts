@@ -10,6 +10,10 @@ import {
 	type ComposeSnapshot,
 } from "../compose/compose-protocol.js";
 import { createComposeProviderAdapter } from "../compose/providers/index.js";
+import {
+	composeResourceQuery,
+	discoverComposeResources,
+} from "../compose/compose-resource-broker.js";
 import { loadComposeJsonArgument } from "./cli-handlers-compose-editor.js";
 import type {
 	CLIResult,
@@ -32,13 +36,32 @@ const MAX_POLL_ATTEMPTS = 120;
 
 export interface ComposePlanDependencies {
 	createAdapter: typeof createComposeProviderAdapter;
+	discoverResources: typeof discoverComposeResources;
 	pollDelayMs: number;
 }
 
 const DEFAULT_DEPENDENCIES: ComposePlanDependencies = {
 	createAdapter: createComposeProviderAdapter,
+	discoverResources: discoverComposeResources,
 	pollDelayMs: 1_000,
 };
+
+function mergeResourceCandidates({
+	existing,
+	discovered,
+}: {
+	existing: ComposeSnapshot["availableResources"];
+	discovered: ComposeSnapshot["availableResources"];
+}): ComposeSnapshot["availableResources"] {
+	const byIdentity = new Map<
+		string,
+		ComposeSnapshot["availableResources"][number]
+	>();
+	for (const resource of [...existing, ...discovered]) {
+		byIdentity.set(`${resource.assetType}:${resource.assetId}`, resource);
+	}
+	return [...byIdentity.values()];
+}
 
 function sleep(ms: number): Promise<void> {
 	return new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
@@ -99,13 +122,35 @@ export async function handleComposePlan(
 		if (!options.snapshot) {
 			throw new Error("compose plan needs --snapshot.");
 		}
-		const snapshot = (await loadComposeJsonArgument({
+		let snapshot = (await loadComposeJsonArgument({
 			value: options.snapshot,
 		})) as ComposeSnapshot;
 		const intent = await resolveComposeIntent({ value: options.intent });
 		const providerName = options.provider ?? "local";
 		if (!["qcut", "openrouter", "fal", "local"].includes(providerName)) {
 			throw new Error(`Unknown compose provider: ${providerName}`);
+		}
+		if (providerName === "qcut" || providerName === "openrouter") {
+			const broker = await dependencies.discoverResources({
+				query: composeResourceQuery({
+					snapshot,
+					intentQuery: intent.options.resourceQuery,
+				}),
+			});
+			snapshot = {
+				...snapshot,
+				availableResources: mergeResourceCandidates({
+					existing: Array.isArray(snapshot.availableResources)
+						? snapshot.availableResources
+						: [],
+					discovered: broker.resources,
+				}),
+				resourceWarnings: [
+					...(snapshot.resourceWarnings ?? []),
+					...broker.warnings,
+				],
+				capabilities: { ...snapshot.capabilities, ...broker.capabilities },
+			};
 		}
 		const adapter = dependencies.createAdapter({
 			provider: providerName as ComposeJob["provider"],

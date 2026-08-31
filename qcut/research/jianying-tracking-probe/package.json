@@ -1,0 +1,12 @@
+{
+	"name": "jianying-tracking-probes",
+	"private": true,
+	"type": "module",
+	"scripts": {
+		"probe": "node ./tracking-probe.mjs",
+		"test": "node --test ./tracking-probe.test.mjs"
+	},
+	"engines": {
+		"node": ">=18"
+	}
+}

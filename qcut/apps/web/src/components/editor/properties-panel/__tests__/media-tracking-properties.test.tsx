@@ -78,6 +78,124 @@ describe("MediaTrackingProperties", () => {
 		);
 	});
 
+	it("distinguishes tracked frames from compressed keyframes", () => {
+		const mask = {
+			...createMediaMask({
+				id: "object-mask",
+				type: "object",
+				index: 0,
+			}),
+			keyframes: {
+				centerX: [0, 17].map((frame) => ({
+					id: `center-x-${frame}`,
+					frame,
+					value: frame / 100,
+					easing: "linear" as const,
+				})),
+			},
+			tracking: {
+				direction: "both" as const,
+				status: "ready" as const,
+				source: "jianying-bingo" as const,
+				trackedFrames: 18,
+				totalFrames: 20,
+			},
+		};
+		render(
+			<MediaTrackingProperties
+				elementId="clip-1"
+				masks={[mask]}
+				currentFrame={0}
+				onChange={vi.fn()}
+				onTrack={vi.fn()}
+				onOpenMasks={vi.fn()}
+			/>
+		);
+
+		expect(
+			screen.getByText("已跟踪 18/20 帧 · 2 个关键帧")
+		).toBeInTheDocument();
+	});
+
+	it("routes a ready desktop motion task to the Bingo runtime", () => {
+		const mask = createMediaMask({
+			id: "object-mask",
+			type: "object",
+			index: 0,
+			name: "物体",
+		});
+		const onTrack = vi.fn();
+		const onTrackMotion = vi.fn();
+		const onChange = vi.fn();
+		render(
+			<MediaTrackingProperties
+				elementId="clip-1"
+				masks={[mask]}
+				currentFrame={12}
+				onChange={onChange}
+				onTrack={onTrack}
+				onTrackMotion={onTrackMotion}
+				onOpenMasks={vi.fn()}
+				motionTrackingStatus={{
+					available: true,
+					appVersion: "11.3.0",
+					localOnly: true,
+					message: "剪映 11.3.0 Bingo 私有 oracle 已就绪",
+					offlineReady: true,
+					platformSupported: true,
+					route: "jianying-bingo-object-tracking-11.3.0",
+				}}
+			/>
+		);
+
+		fireEvent.click(screen.getByRole("button", { name: "双向跟踪" }));
+
+		expect(onTrackMotion).toHaveBeenCalledWith({ mask, direction: "both" });
+		expect(onTrack).not.toHaveBeenCalled();
+		expect(onChange).toHaveBeenCalledWith(
+			[
+				expect.objectContaining({
+					tracking: expect.objectContaining({
+						source: "jianying-bingo",
+						status: "processing",
+						anchorFrame: 12,
+					}),
+				}),
+			],
+			true
+		);
+	});
+
+	it("disables private motion tracking when the runtime is not ready", () => {
+		const mask = createMediaMask({
+			id: "object-mask",
+			type: "object",
+			index: 0,
+		});
+		render(
+			<MediaTrackingProperties
+				elementId="clip-1"
+				masks={[mask]}
+				currentFrame={0}
+				onChange={vi.fn()}
+				onTrack={vi.fn()}
+				onTrackMotion={vi.fn()}
+				onOpenMasks={vi.fn()}
+				motionTrackingStatus={{
+					available: false,
+					localOnly: true,
+					message: "请先完全退出剪映",
+					offlineReady: true,
+					platformSupported: true,
+					route: "jianying-bingo-object-tracking-11.3.0",
+				}}
+			/>
+		);
+
+		expect(screen.getByText("请先完全退出剪映")).toBeInTheDocument();
+		expect(screen.getByRole("button", { name: "双向跟踪" })).toBeDisabled();
+	});
+
 	it("pauses tracking and writes a correction keyframe from the tracking tab", () => {
 		const mask = {
 			...createMediaMask({

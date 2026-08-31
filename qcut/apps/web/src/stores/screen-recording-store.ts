@@ -190,8 +190,11 @@ export const useScreenRecordingEnhancementStore =
 		setSystemAudioEnabled: (enabled) => set({ systemAudioEnabled: enabled }),
 	}));
 
-// Expose store for E2E testing (dev/test only)
-if (typeof window !== "undefined" && import.meta.env.DEV) {
+// Expose store for E2E/CLI automation, matching the unconditional exposure
+// used by useExportStore/useTimelineStore/useWordTimelineStore — E2E tests
+// run against a production build, where an import.meta.env.DEV guard here
+// would be dead-code-eliminated and the hook would never exist.
+if (typeof window !== "undefined") {
 	(
 		window as Window & {
 			__screenRecordingEnhancementStore__?: typeof useScreenRecordingEnhancementStore;

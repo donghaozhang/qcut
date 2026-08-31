@@ -42,6 +42,8 @@ export interface CLIRunOptions {
 	filterIntensity?: number;
 	/** Local portrait smoothing amount from 0 to 100. */
 	beauty?: number;
+	/** Local video-lab processing strength from 1 to 100. */
+	strength?: number;
 	/** Print available portrait filter presets. */
 	listPresets?: boolean;
 	duration?: string;

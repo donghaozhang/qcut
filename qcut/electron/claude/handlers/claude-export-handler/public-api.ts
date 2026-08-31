@@ -43,8 +43,14 @@ import {
 } from "./export-engine.js";
 import { collectJianyingTextOverlays } from "./jianying-text-overlay.js";
 import { collectTextOverlays } from "./text-overlay.js";
-import { assertLocalFinalVideoExportAllowed } from "../../../types/restricted-media-export-policy.js";
-import { assertNativeStickerRuntimeExportAllowed } from "../../../types/sticker-runtime-export-policy.js";
+import {
+	assertLocalFinalVideoExportAllowed,
+	findRestrictedMediaForExport,
+} from "../../../types/restricted-media-export-policy.js";
+import {
+	assertNativeStickerRuntimeExportAllowed,
+	hasStickerRuntimeForExport,
+} from "../../../types/sticker-runtime-export-policy.js";
 import type { ClaudeLocalVideoExportRequest } from "../../../types/claude-local-video-export-api.js";
 
 const RENDERER_EXPORT_FRAME_RATES = [24, 25, 30, 50, 60] as const;
@@ -110,6 +116,33 @@ function isTimelineEmpty({ timeline }: { timeline: ClaudeTimeline }): boolean {
 	}
 }
 
+/**
+ * Sticker runtime and restricted Sticker Lab media are only exportable by
+ * the renderer's muxer engine. The renderer factory reaches the same verdict
+ * from its in-memory stores, but those can lag behind the persisted policy
+ * inputs (disk sidecars, serialized timeline) after a project reopen, so the
+ * decision made here from the durable inputs is pinned onto the request.
+ */
+function rendererExportRequiresMuxer({
+	mediaFiles,
+	timeline,
+}: {
+	mediaFiles: MediaFile[];
+	timeline: ClaudeTimeline;
+}): boolean {
+	return (
+		hasStickerRuntimeForExport({
+			mediaItems: mediaFiles,
+			tracks: timeline.tracks,
+		}) ||
+		findRestrictedMediaForExport({
+			mediaItems: mediaFiles,
+			scope: "timeline",
+			tracks: timeline.tracks,
+		}).length > 0
+	);
+}
+
 function assertRendererExportRequestCompatible({
 	request,
 }: {
@@ -117,7 +150,11 @@ function assertRendererExportRequestCompatible({
 }): void {
 	const topLevel = request as Record<string, unknown>;
 	const unsupportedOptions: string[] = [];
-	if (request.engine && request.engine !== "auto") {
+	if (
+		request.engine &&
+		request.engine !== "auto" &&
+		request.engine !== "muxer"
+	) {
 		unsupportedOptions.push("engine");
 	}
 	if (request.cursorConfig !== undefined) {
@@ -278,6 +315,9 @@ export async function startRendererExportJob({
 	}
 
 	const frameRate = rendererExportFrameRate({ fps: settings.fps });
+	const pinMuxerEngine =
+		request.engine === "muxer" ||
+		rendererExportRequiresMuxer({ mediaFiles, timeline });
 	const jobId = `export_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 	const now = Date.now();
 	const newJob: ExportJobInternal = {
@@ -298,11 +338,20 @@ export async function startRendererExportJob({
 		try {
 			updateJobProgress({ jobId, progress: 0.01 });
 			await dispatch({
+				...(pinMuxerEngine ? { engine: "muxer" as const } : {}),
 				filename: path.basename(outputPath),
 				format: "mp4",
 				frameRate,
 				height: settings.height,
+				// The renderer streams real frame progress back against this id.
+				jobId,
 				outputPath,
+				...(request.profilePath?.trim()
+					? { profilePath: path.resolve(request.profilePath.trim()) }
+					: {}),
+				...(request.disableSequentialDecode === true
+					? { disableSequentialDecode: true }
+					: {}),
 				projectId,
 				quality: rendererExportQuality({
 					height: settings.height,
@@ -340,6 +389,12 @@ export async function startExportJob({
 	mediaFiles: MediaFile[];
 }): Promise<{ jobId: string; status: ExportJobStatus["status"] }> {
 	try {
+		if (request.engine === "muxer") {
+			throw new Error(
+				"The muxer engine runs in the renderer; this timeline resolved to " +
+					"the native export path. Use --engine auto or cli here."
+			);
+		}
 		if (isTimelineEmpty({ timeline })) {
 			throw new Error("Cannot export an empty timeline");
 		}

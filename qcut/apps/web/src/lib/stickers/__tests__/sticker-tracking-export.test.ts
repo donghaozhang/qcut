@@ -62,7 +62,13 @@ function media({
 	};
 }
 
-function sticker({ followScale }: { followScale: boolean }): StickerElement {
+function sticker({
+	followRotation = false,
+	followScale,
+}: {
+	followRotation?: boolean;
+	followScale: boolean;
+}): StickerElement {
 	return {
 		id: "sticker-element",
 		type: "sticker",
@@ -82,6 +88,7 @@ function sticker({ followScale }: { followScale: boolean }): StickerElement {
 			targetElementId: "video",
 			targetMaskId: "person",
 			followScale,
+			followRotation,
 			anchor: {
 				centerX: 25,
 				centerY: 50,
@@ -111,6 +118,35 @@ function tracks({
 }
 
 describe("sticker tracking export keyframes", () => {
+	it("leaves planar bindings for the planar export pipeline", () => {
+		const element: StickerElement = {
+			...sticker({ followScale: false }),
+			tracking: {
+				mode: "planar",
+				sourceElementId: "video",
+				surfaceTrackingId: "surface-1",
+				seedPtsUs: 1_000_000,
+				seedTargetQuad: {
+					topLeft: { x: 0.2, y: 0.2 },
+					topRight: { x: 0.4, y: 0.2 },
+					bottomRight: { x: 0.4, y: 0.4 },
+					bottomLeft: { x: 0.2, y: 0.4 },
+				},
+				lostBehavior: "hold",
+			},
+		};
+
+		expect(
+			buildStickerTrackingExportKeyframes({
+				element,
+				tracks: tracks({ element }),
+				fps: 30,
+				canvasWidth: 1920,
+				canvasHeight: 1080,
+			})
+		).toBeUndefined();
+	});
+
 	it("bakes target motion into clip-local position keys with boundary holds", () => {
 		const element = sticker({ followScale: false });
 		const keyframes = buildStickerTrackingExportKeyframes({
@@ -148,6 +184,33 @@ describe("sticker tracking export keyframes", () => {
 		);
 		expect(atTrackedEnd?.value).toBeCloseTo(40);
 		expect(heightAtTrackedEnd?.value).toBeCloseTo(20);
+	});
+
+	it("bakes optional Bingo rotation into export keyframes", () => {
+		const element = sticker({ followRotation: true, followScale: false });
+		const target = media();
+		const mask = target.masks?.[0];
+		if (!mask?.keyframes) throw new Error("Expected tracked mask fixture");
+		mask.tracking = {
+			direction: "both",
+			status: "ready",
+			source: "jianying-bingo",
+		};
+		mask.keyframes.rotation = [
+			{ id: "r-start", frame: 0, value: 0, easing: "linear" },
+			{ id: "r-end", frame: 30, value: 30, easing: "linear" },
+		];
+		const keyframes = buildStickerTrackingExportKeyframes({
+			element,
+			tracks: tracks({ element, target }),
+			fps: 30,
+			canvasWidth: 1920,
+			canvasHeight: 1080,
+		});
+
+		expect(keyframes?.rotation).toHaveLength(121);
+		expect(keyframes?.rotation?.[30].value).toBeCloseTo(0);
+		expect(keyframes?.rotation?.[60].value).toBeCloseTo(30);
 	});
 
 	it("samples nonlinear target rotation at every project frame", () => {

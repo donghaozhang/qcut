@@ -3,7 +3,12 @@ import { StickerExportHelper } from "../stickers/sticker-export-helper";
 import type { OverlaySticker } from "@/types/sticker-overlay";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type { StickerRenderOptions } from "../stickers/sticker-export-helper";
-import type { StickerElement } from "@/types/timeline";
+import type {
+	MediaElement,
+	PlanarTrackingSidecarV1,
+	StickerElement,
+	TimelineTrack,
+} from "@/types/timeline";
 import * as stickerRuntimeRenderer from "../stickers/sticker-runtime-renderer";
 
 // ---------------------------------------------------------------------------
@@ -817,6 +822,101 @@ describe("StickerExportHelper", () => {
 
 			expect(ctx.translate).toHaveBeenCalledWith(960, 540);
 			expect(ctx.rotate).toHaveBeenCalledWith(Math.PI / 2);
+		});
+
+		it("renders a verified planar sidecar at the requested canvas frame", async () => {
+			const source: MediaElement = {
+				duration: 2,
+				fitMode: "fill",
+				id: "video",
+				mediaId: "video-media",
+				name: "Video",
+				startTime: 0,
+				trimEnd: 0,
+				trimStart: 0,
+				type: "media",
+			};
+			const seedQuad = {
+				topLeft: { x: 0.2, y: 0.2 },
+				topRight: { x: 0.4, y: 0.2 },
+				bottomRight: { x: 0.4, y: 0.4 },
+				bottomLeft: { x: 0.2, y: 0.4 },
+			};
+			const timelineElement: StickerElement = {
+				duration: 2,
+				height: 20,
+				id: "planar-sticker",
+				mediaId: "media-1",
+				name: "Planar sticker",
+				startTime: 0,
+				stickerId: "sticker-1",
+				tracking: {
+					lostBehavior: "hold",
+					mode: "planar",
+					seedPtsUs: 0,
+					seedTargetQuad: seedQuad,
+					sourceElementId: "video",
+					surfaceTrackingId: "surface",
+				},
+				trimEnd: 0,
+				trimStart: 0,
+				type: "sticker",
+				width: 20,
+				x: 10,
+				y: 10,
+			};
+			const tracks: TimelineTrack[] = [
+				{ elements: [source], id: "media", name: "Media", type: "media" },
+			];
+			const planarTrackingSidecar: PlanarTrackingSidecarV1 = {
+				coordinateSpace: "source-display-normalized",
+				direction: "forward",
+				provider: {
+					id: "opencv-wasm",
+					parametersHash: "a".repeat(64),
+					version: "test",
+				},
+				samples: [
+					{ confidence: 1, ptsUs: 0, quad: seedQuad, status: "tracked" },
+					{
+						confidence: 1,
+						ptsUs: 1_000_000,
+						quad: {
+							topLeft: { x: 0.4, y: 0.2 },
+							topRight: { x: 0.6, y: 0.2 },
+							bottomRight: { x: 0.6, y: 0.4 },
+							bottomLeft: { x: 0.4, y: 0.4 },
+						},
+						status: "tracked",
+					},
+				],
+				schemaVersion: 1,
+				seed: { ptsUs: 0, quad: seedQuad },
+				source: {
+					contentSha256: "b".repeat(64),
+					displayHeight: 100,
+					displayWidth: 100,
+					mediaId: "video-media",
+				},
+				timebase: "microseconds",
+			};
+
+			await helper.renderStickersToCanvas(
+				ctx,
+				[createMockSticker({ position: { x: 10, y: 10 } })],
+				new Map([["media-1", createMockMediaItem()]]),
+				{
+					canvasHeight: 100,
+					canvasWidth: 100,
+					currentTime: 1,
+					fps: 30,
+					planarTrackingSidecar,
+					timelineElement,
+					tracks,
+				}
+			);
+
+			expect(ctx.translate).toHaveBeenCalledWith(50, 30);
 		});
 	});
 

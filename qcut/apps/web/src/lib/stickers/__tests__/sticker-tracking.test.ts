@@ -186,6 +186,7 @@ describe("sticker motion tracking", () => {
 			centerY: 50,
 			width: ((1920 * 0.2) / 1080) * 100,
 			height: 40,
+			rotation: 0,
 		});
 	});
 
@@ -266,8 +267,52 @@ describe("sticker motion tracking", () => {
 			targetElementId: "video",
 			targetMaskId: "person",
 			followScale: false,
+			followRotation: false,
 			anchor: { centerX: 50, centerY: 50 },
 		});
+	});
+
+	it("optionally follows Bingo mask rotation without jumping at the anchor", () => {
+		const bingoMask = trackedMask({
+			overrides: {
+				tracking: {
+					direction: "both",
+					status: "ready",
+					source: "jianying-bingo",
+				},
+				keyframes: {
+					...trackedMask().keyframes,
+					rotation: [
+						{ id: "r-0", frame: 0, value: 350, easing: "linear" },
+						{ id: "r-30", frame: 30, value: 370, easing: "linear" },
+					],
+				},
+			},
+		});
+		const media = mediaElement({ overrides: { masks: [bingoMask] } });
+		const initial = createStickerMotionTracking({
+			target: target({ media }),
+			currentTime: 2,
+			fps: 30,
+			canvasWidth: 1920,
+			canvasHeight: 1080,
+		});
+		const sticker = stickerElement({
+			overrides: {
+				rotation: 5,
+				tracking: initial ? { ...initial, followRotation: true } : undefined,
+			},
+		});
+		const resolved = resolveStickerMotionTracking({
+			element: sticker,
+			tracks: tracks({ media, sticker }),
+			currentTime: 3,
+			fps: 30,
+			canvasWidth: 1920,
+			canvasHeight: 1080,
+		});
+
+		expect(resolved.rotation).toBeCloseTo(25);
 	});
 
 	it("follows target position without jumping at the binding frame", () => {

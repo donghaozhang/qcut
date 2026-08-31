@@ -51,6 +51,21 @@ describe("Jianying local export selection", () => {
 		).toBe(false);
 	});
 
+	it("tolerates a partial color object from a programmatic caller", () => {
+		// addElementToTrack stores caller-provided elements verbatim; only a
+		// project reload normalizes them. The policy walker must not crash on
+		// a color grade that carries just the fields the caller set.
+		const element = mediaElement({ portraitEnabled: false });
+		element.color = {
+			enabled: true,
+			basic: { enabled: true, saturation: -100 },
+		} as unknown as MediaElement["color"];
+
+		expect(
+			requiresJianyingLocalColorExport({ tracks: tracks({ element }) })
+		).toBe(false);
+	});
+
 	it("keeps experimental eye correction on the fixed-timestamp renderer path", () => {
 		const element = mediaElement({ portraitEnabled: false });
 		element.enhancements = {

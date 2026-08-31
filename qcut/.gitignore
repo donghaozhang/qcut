@@ -117,6 +117,7 @@ docs/issues/video-effect/
 
 # FFmpeg WebAssembly files (installed as dependencies)
 /apps/web/public/ffmpeg/
+/apps/web/public/opencv/
 /electron/resources/ffmpeg/*.js
 /electron/resources/ffmpeg/*.wasm
 

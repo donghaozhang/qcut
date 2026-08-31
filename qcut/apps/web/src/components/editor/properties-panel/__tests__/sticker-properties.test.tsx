@@ -348,7 +348,7 @@ describe("StickerProperties", () => {
 		);
 
 		animationSelects = screen.getAllByRole("combobox");
-		expect(animationSelects).toHaveLength(4);
+		expect(animationSelects).toHaveLength(6);
 	});
 
 	it("names every supported real tracker when no target is ready", () => {
@@ -359,7 +359,7 @@ describe("StickerProperties", () => {
 		).toBeInTheDocument();
 	});
 
-	it("binds to a real tracked mask and exposes the honest planar limitation", () => {
+	it("binds to a real tracked mask and exposes planar tracking controls", () => {
 		const element = createElement();
 		const media: MediaElement = {
 			id: "media-element",
@@ -425,19 +425,109 @@ describe("StickerProperties", () => {
 					targetElementId: "media-element",
 					targetMaskId: "person-mask",
 					followScale: false,
+					followRotation: false,
 					anchor: {
 						centerX: 50,
 						centerY: 50,
 						width: (1920 * 0.2 * 100) / 1080,
 						height: 40,
+						rotation: 0,
 					},
 				},
 			},
 			false
 		);
 		expect(
-			screen.getByText(/当前跟踪引擎没有单应性或平面表面求解器/)
+			screen.getByTestId("sticker-planar-tracking-properties")
 		).toBeInTheDocument();
+	});
+
+	it("enables rotation following for a Bingo-backed mask", () => {
+		const element = createElement({
+			overrides: {
+				tracking: {
+					mode: "motion",
+					targetElementId: "media-element",
+					targetMaskId: "bingo-mask",
+					followScale: false,
+					followRotation: false,
+					anchor: {
+						centerX: 50,
+						centerY: 50,
+						width: 20,
+						height: 40,
+						rotation: 0,
+					},
+				},
+			},
+		});
+		const media: MediaElement = {
+			id: "media-element",
+			type: "media",
+			name: "采访视频",
+			mediaId: "video-media",
+			startTime: 0,
+			duration: 5,
+			trimStart: 0,
+			trimEnd: 0,
+			masks: [
+				{
+					id: "bingo-mask",
+					name: "物体",
+					type: "object",
+					centerX: 0.5,
+					centerY: 0.5,
+					width: 0.2,
+					height: 0.4,
+					rotation: 0,
+					feather: 0,
+					invert: false,
+					keyframes: {
+						centerX: [{ id: "x", frame: 0, value: 0.5, easing: "linear" }],
+						centerY: [{ id: "y", frame: 0, value: 0.5, easing: "linear" }],
+						rotation: [
+							{ id: "r-0", frame: 0, value: 0, easing: "linear" },
+							{ id: "r-30", frame: 30, value: 12, easing: "linear" },
+						],
+					},
+					tracking: {
+						direction: "both",
+						status: "ready",
+						source: "jianying-bingo",
+					},
+				},
+			],
+		};
+		useTimelineStore.setState({
+			tracks: [
+				{
+					id: "media-track",
+					name: "Media",
+					type: "media",
+					elements: [media],
+				},
+				{
+					id: "sticker-track",
+					name: "Sticker",
+					type: "sticker",
+					elements: [element],
+				},
+			],
+		});
+		setup({ element });
+
+		const rotation = screen.getByRole("switch", { name: "跟随旋转" });
+		expect(rotation).toBeEnabled();
+		fireEvent.click(rotation);
+
+		expect(updateStickerElement).toHaveBeenLastCalledWith(
+			"sticker-track",
+			"sticker-element-1",
+			{
+				tracking: expect.objectContaining({ followRotation: true }),
+			},
+			false
+		);
 	});
 
 	it("adds and removes a diamond keyframe at the current clip-local frame", () => {

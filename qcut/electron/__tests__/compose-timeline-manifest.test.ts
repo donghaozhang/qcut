@@ -99,11 +99,18 @@ describe("timelineManifestFromComposePatch", () => {
 		]);
 		const [textTrack, captionTrack, overlayTrack, audioTrack] = tracks;
 		expect(textTrack.elements).toMatchObject([
-			{ alias: "title:1", type: "text", content: "Opening title" },
+			{
+				alias: "title:1",
+				// The operation id doubles as the requested element id for replays.
+				id: "title:1",
+				type: "text",
+				content: "Opening title",
+			},
 		]);
 		expect(captionTrack.elements).toMatchObject([
 			{
 				alias: "caption:1",
+				id: "caption:1",
 				type: "captions",
 				content: "hello",
 				language: "en",
@@ -112,6 +119,7 @@ describe("timelineManifestFromComposePatch", () => {
 		expect(overlayTrack.elements).toMatchObject([
 			{
 				alias: "sticker:1",
+				id: "sticker:1",
 				type: "sticker",
 				mediaId: "media:sticker:1",
 				stickerId: "sticker:1",
@@ -123,7 +131,12 @@ describe("timelineManifestFromComposePatch", () => {
 			},
 		]);
 		expect(audioTrack.elements).toMatchObject([
-			{ alias: "sound:1", media: "media:sound:1", volume: 0.82 },
+			{
+				alias: "sound:1",
+				id: "sound:1",
+				media: "media:sound:1",
+				volume: 0.82,
+			},
 		]);
 		expect(plan.manifest.media).toMatchObject([
 			{ alias: "media:sticker:1", path: "/assets/sticker.webp" },
@@ -223,5 +236,210 @@ describe("timelineManifestFromComposePatch", () => {
 		expect(plan.manifest.transitions).toMatchObject([
 			{ type: "dissolve", presetId: "dissolve" },
 		]);
+	});
+
+	it("preserves prepared Sticker, Sound, and Jianying runtime controls", () => {
+		const stickerRuntime = {
+			kind: "png-sequence" as const,
+			cycleDurationSeconds: 1,
+			frames: [
+				{
+					startSeconds: 0,
+					durationSeconds: 1,
+					source: "$primary",
+				},
+			],
+			repeat: { kind: "infinite" as const },
+			completion: "freeze-last" as const,
+		};
+		const plan = timelineManifestFromComposePatch({
+			projectId: "project-1",
+			patch: makePatch({
+				operations: [
+					{
+						kind: "add-sticker",
+						id: "sticker:runtime",
+						startTime: 1,
+						duration: 3,
+						x: 0.25,
+						y: 0.75,
+						rotation: 12,
+						opacity: 0.7,
+						maintainAspectRatio: true,
+						animationInType: "slide",
+						animationInDuration: 0.25,
+						animationOutType: "scale",
+						animationOutDuration: 0.4,
+						animationLoopType: "float",
+						animationLoopIntensity: 0.6,
+						asset: {
+							provider: "local",
+							assetType: "sticker",
+							assetId: "sticker-lab:batch-01:18001",
+						},
+					},
+					{
+						kind: "add-sound-effect",
+						id: "sound:trimmed",
+						startTime: 2,
+						duration: 2,
+						volume: 0.65,
+						trimStart: 0.5,
+						trimEnd: 0.25,
+						fadeIn: 0.2,
+						fadeOut: 0.3,
+						playbackRate: 1.5,
+						asset: {
+							provider: "qcut",
+							assetType: "sound-effect",
+							assetId: "sound-effects-lab:impact-1",
+							localPath: "/assets/impact.wav",
+						},
+					},
+					{
+						kind: "upsert-transition",
+						id: "transition:jianying",
+						trackId: "track-video",
+						fromElementId: "element-1",
+						toElementId: "element-2",
+						startTime: 3.5,
+						duration: 1,
+						presetId: "jianying-local-white-flash",
+					},
+				],
+			}),
+			bindings: {
+				"sticker:runtime": {
+					sticker: {
+						mediaId: "imported-sticker-media",
+						stickerAssetId: "sticker-lab:batch-01:18001",
+						stickerRuntime,
+					},
+				},
+				"transition:jianying": {
+					transition: {
+						presetId: "jianying-local-white-flash",
+						engine: "jianying-local",
+						packageHash: "a".repeat(32),
+						type: "fade-white",
+						easing: "easeInOut",
+						tuning: { intensity: 0.8 },
+					},
+				},
+			},
+		});
+
+		const tracks = plan.manifest.tracks as Array<Record<string, unknown>>;
+		const stickerTrack = tracks.find((track) => track.type === "sticker");
+		const audioTrack = tracks.find((track) => track.type === "audio");
+		expect(stickerTrack?.elements).toMatchObject([
+			{
+				mediaId: "imported-sticker-media",
+				stickerAssetId: "sticker-lab:batch-01:18001",
+				stickerRuntime,
+				x: 25,
+				y: 75,
+				rotation: 12,
+				opacity: 0.7,
+				maintainAspectRatio: true,
+				animationInType: "slide-up",
+				animationInDuration: 0.25,
+				animationOutType: "zoom-out",
+				animationOutDuration: 0.4,
+				animationLoopType: "drift",
+				animationLoopIntensity: 0.6,
+			},
+		]);
+		expect(audioTrack?.elements).toMatchObject([
+			{
+				duration: 3.75,
+				trimStart: 0.5,
+				trimEnd: 0.25,
+				audioFadeIn: 0.2,
+				audioFadeOut: 0.3,
+				playbackRate: 1.5,
+			},
+		]);
+		expect(plan.manifest.media).toEqual([
+			{ alias: "media:sound:trimmed", path: "/assets/impact.wav" },
+		]);
+		expect(plan.manifest.transitions).toMatchObject([
+			{
+				presetId: "jianying-local-white-flash",
+				engine: "jianying-local",
+				packageHash: "a".repeat(32),
+				type: "fade-white",
+				easing: "easeInOut",
+				tuning: { intensity: 0.8 },
+			},
+		]);
+	});
+});
+
+describe("compose manifest lane partitioning", () => {
+	it("splits overlapping sounds and stickers onto parallel tracks", () => {
+		const plan = timelineManifestFromComposePatch({
+			patch: makePatch({
+				operations: [
+					{
+						kind: "add-sound-effect",
+						id: "sfx:a",
+						startTime: 39.5,
+						duration: 3,
+						volume: 0.8,
+						asset: {
+							provider: "qcut",
+							assetType: "sound-effect",
+							assetId: "sound-effects-lab:a",
+							localPath: "/assets/a.wav",
+						},
+					},
+					{
+						kind: "add-sound-effect",
+						id: "sfx:b",
+						startTime: 41,
+						duration: 2.5,
+						volume: 0.8,
+						asset: {
+							provider: "qcut",
+							assetType: "sound-effect",
+							assetId: "sound-effects-lab:b",
+							localPath: "/assets/b.wav",
+						},
+					},
+					{
+						kind: "add-sound-effect",
+						id: "sfx:c",
+						startTime: 44,
+						duration: 1,
+						volume: 0.8,
+						asset: {
+							provider: "qcut",
+							assetType: "sound-effect",
+							assetId: "sound-effects-lab:c",
+							localPath: "/assets/c.wav",
+						},
+					},
+				],
+			}),
+		});
+		const tracks = (
+			plan.manifest.tracks as Array<{
+				alias: string;
+				elements: Array<{ alias: string }>;
+			}>
+		).filter((track) => track.alias.startsWith("compose-audio"));
+		// sfx:a (39.5–42.5) and sfx:b (41–43.5) overlap; sfx:c (44–45)
+		// reuses the first lane after it frees up.
+		expect(tracks.map((track) => track.alias)).toEqual([
+			"compose-audio",
+			"compose-audio-2",
+		]);
+		expect(tracks[0].elements.map(({ alias }) => alias)).toEqual([
+			"sfx:a",
+			"sfx:c",
+		]);
+		expect(tracks[1].elements.map(({ alias }) => alias)).toEqual(["sfx:b"]);
+		expect(plan.plannedOperationIds).toEqual(["sfx:a", "sfx:b", "sfx:c"]);
 	});
 });

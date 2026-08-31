@@ -295,6 +295,23 @@ function sendToUtility(msg: QueuedMessage): void {
 	}
 }
 
+/**
+ * Relay renderer export progress into the utility process, whose HTTP server
+ * owns the job record for utility-served export requests.
+ */
+export function forwardExportProgressToUtility(payload: {
+	jobId: string;
+	progress: number;
+	currentFrame?: number;
+	totalFrames?: number;
+	fps?: number;
+	estimatedTimeRemaining?: number;
+}): void {
+	if (utilityChild && utilityReady) {
+		utilityChild.postMessage({ type: "export-progress", payload });
+	}
+}
+
 /** Flush queued messages to the utility process once it is ready */
 function flushMessageQueue(): void {
 	if (!utilityChild) return;

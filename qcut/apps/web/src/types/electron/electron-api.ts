@@ -47,6 +47,8 @@ import type { ElectronJianyingTransitionOps } from "./api-jianying-transitions";
 import type { ElectronJianyingFilterLabOps } from "./api-jianying-filter-lab";
 import type { ElectronJianyingPortraitAdjustmentOps } from "./api-jianying-portrait-adjustment";
 import type { ElectronJianyingPersonCutoutOps } from "./api-jianying-person-cutout";
+import type { ElectronJianyingMotionTrackingOps } from "./api-jianying-motion-tracking";
+import type { ElectronJianyingBasicVideoOps } from "./api-jianying-basic-video";
 import type { ElectronJianyingFontLabOps } from "./api-jianying-font-lab";
 import type { ElectronJianyingTextStyleLabOps } from "./api-jianying-text-style-lab";
 import type { ElectronJianyingTextRuntimeOps } from "./api-jianying-text-runtime";
@@ -54,6 +56,7 @@ import type { ElectronJianyingEnvelopeOps } from "./api-jianying-envelope";
 import type { ElectronJianyingDraftImportOps } from "./api-jianying-draft-import";
 import type { ElectronJianyingSameProfileWritebackOps } from "./api-jianying-same-profile-writeback";
 import type { ElectronJianyingProjectExportOps } from "./api-jianying-project-export";
+import type { ElectronPlanarTrackingStorageOps } from "./api-planar-tracking-storage";
 import type {
 	AIPipelineProgress,
 	AIPipelineGenerateOptions,
@@ -96,12 +99,15 @@ export interface ElectronAPI
 		ElectronPiAgentOps,
 		ElectronYouTubeOps,
 		ElectronWallpaperOps,
+		ElectronPlanarTrackingStorageOps,
 		ElectronJianyingDraftExportOps,
 		ElectronJianyingTransitionOps,
 		ElectronJianyingEffectOps,
 		ElectronJianyingFilterLabOps,
 		ElectronJianyingPortraitAdjustmentOps,
 		ElectronJianyingPersonCutoutOps,
+		ElectronJianyingMotionTrackingOps,
+		ElectronJianyingBasicVideoOps,
 		ElectronJianyingFontLabOps,
 		ElectronJianyingTextStyleLabOps,
 		ElectronJianyingTextRuntimeOps,

@@ -1,6 +1,6 @@
 # QCut 十项本地视频实验室：真人 E2E 与剪映对比
 
-> 验证日期：2026-08-30  
+> 验证日期：2026-08-30；私有防闪烁复测：2026-08-31
 > 范围：QCut CLI、可见 QCut UI、剪映专业版真实 UI、双方实际导出文件  
 > 素材：同一位真人的两条 3 秒测试轨
 
@@ -12,7 +12,7 @@
 
 1. **功能链已打通**：十项 QCut 输出都与各自基线哈希不同，预览、持久化和导出可用。
 2. **效果方向可测**：降噪、去闪、运动模糊、运镜、裁剪和追踪均产生与预期一致的指标变化。
-3. **不能宣称模型等价**：QCut 目前有四项是本地替代实现，不是剪映同名模型；补帧时长已修复，但仍不是 UMVFI。
+3. **不能宣称整体模型等价**：防闪烁现在使用已校验的剪映 11.3.0 本机后端，但 UI 参数和导出基线尚未校准；防抖、降噪、补帧和超分仍是 QCut 本地替代实现。
 
 机器探针覆盖 `26` 个源片、基线和效果导出；最暗帧的平均亮度仍为 `14.775417`，没有零帧或整帧黑屏。QCut 与剪映的 30 fps 效果导出均为 `90` 帧 / `3.000s`。
 
@@ -33,7 +33,7 @@
 | --- | --- | --- | --- |
 | 视频防抖 | FFmpeg `deshake`，估计全局位移下降 `5.95%`，SSIM `0.680675` | 真实防抖导出，SSIM `0.991019`，变化较轻 | 链路通过；不是剪映防抖算法 |
 | ByteNN 降噪 | 实际为 `hqdn3d`，空间细节下降 `1.64%` | UI 明确选择“本地”模型，细节下降 `7.73%` | 链路通过；不是 ByteNN |
-| 防闪烁 | FFmpeg `deflicker`，帧亮度波动下降 `59.71%` | 帧亮度波动下降 `1.17%` | 两边均生效；强度未校准 |
+| 防闪烁 | 剪映 11.3.0 `VideoDeflickerGpuBackend` 本机缓存，强度 70；亮度波动 `-3.305%`、SSIM `0.982599` | 亮度波动 `-1.172%`、SSIM `0.976897` | 同属剪映低层后端证据更强；UI 参数和各自基线仍未校准 |
 | 光流运动模糊 | `minterpolate -> tmix -> fps`，细节/时域差下降 `44.84% / 32.61%` | 下降 `61.37% / 52.33%` | 两边都有明显模糊效果 |
 | 实验室眼神修正 | 本地亮眼与眼袋弱化，SSIM `0.828571` | 剪映眼神修正，SSIM `0.993849` | 名称相近但语义不同；QCut 不改变视线方向 |
 | 实验室 AI 超分 | Lanczos 2x + unsharp，归一化后细节 `+0.48%` | 真实异步超分任务，细节 `+0.08%` | 都有导出；不能证明 AI 模型或清晰度等价 |
@@ -45,6 +45,8 @@
 ## CLI 与 UI 证据
 
 QCut 像素测试使用 `editor:element:patch` 写入参数，再由 `editor:timeline:export` 回读持久化状态，最后用 `editor:export:start --preset tiktok --fps 30 --poll` 导出。可见 UI 还逐项切换并截图，组合状态也导出为 `qcut-ui-combined.mp4`。
+
+防闪烁新增独立派生媒体路径：`qcut edit deflicker -i ... --strength 70 --output ...` 与可见 UI 按钮使用同一私有 Provider。UI E2E 证明真人素材的时间线 `mediaId` 已替换、强度归零且预览非空；这与旧矩阵中的 FFmpeg 参数导出是两条明确区分的路径。
 
 智能工具测试在可见 QCut 中导入真人源片，通过本地 MediaPipe 得到 `12` 个采样点、`100%` 进度和 `ready` 状态，再分别生成运镜、裁剪和追踪关键帧。三份输出均不同于同源基线。
 
@@ -75,6 +77,9 @@ QCut 像素测试使用 `editor:element:patch` 写入参数，再由 `editor:tim
 - [QCut 像素功能 CLI / UI 证据](./evidence/real-video-matrix/qcut-pixel-matrix-evidence.json)
 - [QCut 真人追踪与关键帧证据](./evidence/real-video-matrix/qcut-smart-tools-evidence.json)
 - [QCut 组合 UI 截图](./evidence/real-video-matrix/20-qcut-ui-combined-features.png)
+- [QCut 私有防闪烁 UI](./evidence/real-video-matrix/qcut-private-deflicker-ui.png)
+- [QCut 私有防闪烁状态 JSON](./evidence/real-video-matrix/qcut-private-deflicker-ui.json)
+- [防闪烁四路静帧对比](./evidence/real-video-matrix/qcut-private-deflicker-contact-sheet.png)
 - [剪映本地降噪 UI](./evidence/real-video-matrix/34-jianying-denoise-local-ui.png)
 - [剪映超分完成 UI](./evidence/real-video-matrix/38-jianying-super-resolution-complete.png)
 - [剪映智能运镜完成 UI](./evidence/real-video-matrix/43-jianying-smart-motion-clean-ui.png)
@@ -85,6 +90,7 @@ QCut 像素测试使用 `editor:element:patch` 写入参数，再由 `editor:tim
 
 ```bash
 bun x playwright test apps/web/src/test/e2e/media-lab-real-video-matrix.e2e.ts
+bun x playwright test apps/web/src/test/e2e/jianying-private-deflicker.e2e.ts --project=electron
 bun run research/jianying-basic-video-probe/measure-real-video-matrix.ts
 bun run research/jianying-basic-video-probe/build-real-video-comparison.ts
 ```

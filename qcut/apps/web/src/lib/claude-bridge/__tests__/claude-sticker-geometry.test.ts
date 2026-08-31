@@ -694,3 +694,164 @@ describe("Claude sticker geometry", () => {
 		expect(updateStickerElement).not.toHaveBeenCalled();
 	});
 });
+
+describe("Claude sticker visuals", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		timelineBridgeMocks.getState.mockReturnValue({});
+		mediaMocks.mediaItems = [{ id: "m1" }];
+		overlayMocks.overlayStickers.clear();
+	});
+
+	it("writes identical visual fields to the timeline and overlay stores", async () => {
+		const timelineStore = makeTimelineStore();
+
+		await addClaudeStickerElement({
+			element: {
+				stickerId: "s-visuals",
+				mediaId: "m1",
+				duration: 6,
+				rotation: 30,
+				opacity: 0.7,
+				maintainAspectRatio: false,
+				animationInType: "zoom-in",
+				animationInDuration: 0.8,
+				animationOutType: "slide-down",
+				animationOutDuration: 0.4,
+				animationLoopType: "drift",
+				animationLoopIntensity: 1.2,
+			},
+			projectId: "project-1",
+			timelineStore: timelineStore as never,
+		});
+
+		const expectedVisuals = {
+			rotation: 30,
+			opacity: 0.7,
+			maintainAspectRatio: false,
+			animationInType: "zoom-in",
+			animationInDuration: 0.8,
+			animationOutType: "slide-down",
+			animationOutDuration: 0.4,
+			animationLoopType: "drift",
+			animationLoopIntensity: 1.2,
+		};
+		expect(timelineStore.addElementToTrack).toHaveBeenCalledOnce();
+		const [, stored] = timelineStore.addElementToTrack.mock.calls[0];
+		expect(stored).toMatchObject(expectedVisuals);
+		expect(overlayMocks.addOverlaySticker).toHaveBeenCalledOnce();
+		const [, overlayOptions] = overlayMocks.addOverlaySticker.mock
+			.calls[0] as unknown as [string, Record<string, unknown>];
+		expect(overlayOptions).toMatchObject(expectedVisuals);
+		// Every shared visual key carries the exact same value on both sides.
+		for (const key of Object.keys(expectedVisuals)) {
+			expect(overlayOptions[key]).toBe(
+				(stored as Record<string, unknown>)[key]
+			);
+		}
+	});
+
+	it("applies Sticker Lab defaults and clamps abnormal values", async () => {
+		const timelineStore = makeTimelineStore();
+
+		await addClaudeStickerElement({
+			element: {
+				stickerId: "s-clamped",
+				mediaId: "m1",
+				duration: 2,
+				opacity: 1.5,
+				animationInType: "fade",
+				animationInDuration: 99,
+				animationLoopType: "pulse",
+				animationLoopIntensity: 5,
+			},
+			projectId: "project-1",
+			timelineStore: timelineStore as never,
+		});
+
+		const [, stored] = timelineStore.addElementToTrack.mock.calls[0];
+		expect(stored).toMatchObject({
+			rotation: 0,
+			opacity: 1,
+			maintainAspectRatio: true,
+			animationInType: "fade",
+			// Entrance duration clamps to the element duration.
+			animationInDuration: 2,
+			animationLoopType: "pulse",
+			animationLoopIntensity: 2,
+		});
+		const [, overlayOptions] = overlayMocks.addOverlaySticker.mock
+			.calls[0] as unknown as [string, Record<string, unknown>];
+		expect(overlayOptions).toMatchObject({
+			opacity: 1,
+			animationInDuration: 2,
+			animationLoopIntensity: 2,
+		});
+	});
+
+	it("defaults animation durations when only a type is given", async () => {
+		const timelineStore = makeTimelineStore();
+
+		await addClaudeStickerElement({
+			element: {
+				stickerId: "s-defaults",
+				mediaId: "m1",
+				duration: 6,
+				animationInType: "fade",
+				animationOutType: "fade",
+				animationLoopType: "spin",
+			},
+			projectId: "project-1",
+			timelineStore: timelineStore as never,
+		});
+
+		const [, stored] = timelineStore.addElementToTrack.mock.calls[0];
+		expect(stored).toMatchObject({
+			animationInDuration: 0.5,
+			animationOutDuration: 0.5,
+			animationLoopIntensity: 0.5,
+		});
+	});
+
+	it("rejects unknown animation types before touching the timeline", async () => {
+		const timelineStore = makeTimelineStore();
+
+		await expect(
+			addClaudeStickerElement({
+				element: {
+					stickerId: "s-bad-type",
+					mediaId: "m1",
+					animationInType: "explode" as never,
+				},
+				projectId: "project-1",
+				timelineStore: timelineStore as never,
+			})
+		).rejects.toThrow(/sticker entrance animation/);
+		expect(timelineStore.addElementToTrack).not.toHaveBeenCalled();
+		expect(overlayMocks.addOverlaySticker).not.toHaveBeenCalled();
+	});
+
+	it("rolls the timeline element back when the overlay write fails", async () => {
+		const timelineStore = makeTimelineStore();
+		overlayMocks.addOverlaySticker.mockImplementationOnce(() => {
+			throw new Error("overlay store rejected the sticker");
+		});
+
+		await expect(
+			addClaudeStickerElement({
+				element: {
+					stickerId: "s-rollback",
+					mediaId: "m1",
+					animationLoopType: "pulse",
+				},
+				projectId: "project-1",
+				timelineStore: timelineStore as never,
+			})
+		).rejects.toThrow(/overlay store rejected/);
+		expect(timelineStore.removeElementFromTrack).toHaveBeenCalledWith(
+			"sticker-track",
+			"sticker-element",
+			false
+		);
+	});
+});

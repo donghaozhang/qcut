@@ -9,10 +9,9 @@ import { resolveJsonInput } from "../editor/editor-api-types.js";
 import { verifyExportFrames } from "../editor/editor-export-verification.js";
 import { timelineApplyManifest } from "../editor/editor-timeline-apply.js";
 import { probeComposeMedia } from "../compose/compose-resolver.js";
-import {
-	materializeComposePatchAssets,
-	resolveComposePatchAssets,
-} from "../compose/compose-asset-resolver.js";
+import { resolveComposePatchAssets } from "../compose/compose-asset-resolver.js";
+import { prepareComposeEditorAssets } from "../compose/compose-editor-asset-preparer.js";
+import { rollbackStickerLabMedia } from "../editor/editor-sticker-runtime-import.js";
 import { captureComposeSnapshot } from "../compose/compose-snapshot.js";
 import { timelineManifestFromComposePatch } from "../compose/compose-timeline-manifest.js";
 import {
@@ -20,6 +19,7 @@ import {
 	validateComposePatch,
 	validateComposeSnapshot,
 	type ComposePatch,
+	type ComposePatchOperation,
 	type ComposeSnapshot,
 } from "../compose/compose-protocol.js";
 import type {
@@ -33,7 +33,8 @@ export interface ComposeEditorDependencies {
 	capture: typeof captureComposeSnapshot;
 	applyManifest: typeof timelineApplyManifest;
 	resolveAssets: typeof resolveComposePatchAssets;
-	materializeAssets: typeof materializeComposePatchAssets;
+	prepareAssets: typeof prepareComposeEditorAssets;
+	rollbackStickerMedia: typeof rollbackStickerLabMedia;
 	probeOutput: typeof probeComposeMedia;
 	verifyFrames: typeof verifyExportFrames;
 }
@@ -43,7 +44,8 @@ const DEFAULT_DEPENDENCIES: ComposeEditorDependencies = {
 	capture: captureComposeSnapshot,
 	applyManifest: timelineApplyManifest,
 	resolveAssets: resolveComposePatchAssets,
-	materializeAssets: materializeComposePatchAssets,
+	prepareAssets: prepareComposeEditorAssets,
+	rollbackStickerMedia: rollbackStickerLabMedia,
 	probeOutput: probeComposeMedia,
 	verifyFrames: verifyExportFrames,
 };
@@ -136,6 +138,157 @@ export async function handleComposeSnapshot(
 	}
 }
 
+/** Operation kinds that create timeline elements keyed by operation id. */
+const ELEMENT_CREATING_KINDS = new Set<ComposePatchOperation["kind"]>([
+	"add-caption",
+	"add-text-overlay",
+	"add-sticker",
+	"add-sound-effect",
+]);
+
+interface LiveTimelineState {
+	elementIds: Set<string>;
+	transitionFingerprints: Set<string>;
+}
+
+function transitionFingerprint({
+	duration,
+	fromElementId,
+	presetId,
+	toElementId,
+	trackId,
+}: {
+	duration: unknown;
+	fromElementId: unknown;
+	presetId: unknown;
+	toElementId: unknown;
+	trackId: unknown;
+}): string | null {
+	if (
+		typeof trackId !== "string" ||
+		typeof fromElementId !== "string" ||
+		typeof toElementId !== "string" ||
+		typeof presetId !== "string" ||
+		typeof duration !== "number" ||
+		!Number.isFinite(duration)
+	) {
+		return null;
+	}
+	return JSON.stringify([
+		trackId,
+		fromElementId,
+		toElementId,
+		presetId,
+		duration,
+	]);
+}
+
+/**
+ * Reads the live timeline so a replayed patch can recognize already-applied
+ * operations: additive elements carry their operation id as the element id,
+ * and transitions are matched against their complete editable identity.
+ */
+async function readLiveTimelineState({
+	client,
+	projectId,
+}: {
+	client: EditorApiClient;
+	projectId: string;
+}): Promise<LiveTimelineState> {
+	const timeline = await client.get<{
+		tracks?: Array<{
+			id?: string;
+			elements?: Array<{ id?: string }>;
+			transitions?: Array<{
+				duration?: number;
+				fromElementId?: string;
+				presetId?: string;
+				toElementId?: string;
+			}>;
+		}>;
+	}>(`/api/claude/timeline/${encodeURIComponent(projectId)}`);
+	const elementIds = new Set<string>();
+	const transitionFingerprints = new Set<string>();
+	for (const track of timeline.tracks ?? []) {
+		for (const element of track.elements ?? []) {
+			if (typeof element.id === "string") elementIds.add(element.id);
+		}
+		for (const transition of track.transitions ?? []) {
+			const fingerprint = transitionFingerprint({
+				duration: transition.duration,
+				fromElementId: transition.fromElementId,
+				presetId: transition.presetId,
+				toElementId: transition.toElementId,
+				trackId: track.id,
+			});
+			if (fingerprint) transitionFingerprints.add(fingerprint);
+		}
+	}
+	return { elementIds, transitionFingerprints };
+}
+
+function splitAlreadyApplied({
+	patch,
+	live,
+}: {
+	patch: ComposePatch;
+	live: LiveTimelineState;
+}): { operations: ComposePatchOperation[]; alreadyApplied: string[] } {
+	const operations: ComposePatchOperation[] = [];
+	const alreadyApplied: string[] = [];
+	for (const operation of patch.operations) {
+		const transitionIdentity =
+			operation.kind === "upsert-transition"
+				? transitionFingerprint({
+						duration: operation.duration,
+						fromElementId: operation.fromElementId,
+						presetId: operation.presetId,
+						toElementId: operation.toElementId,
+						trackId: operation.trackId,
+					})
+				: null;
+		const replayed =
+			(ELEMENT_CREATING_KINDS.has(operation.kind) &&
+				live.elementIds.has(operation.id)) ||
+			(transitionIdentity !== null &&
+				live.transitionFingerprints.has(transitionIdentity));
+		if (replayed) alreadyApplied.push(operation.id);
+		else operations.push(operation);
+	}
+	return { operations, alreadyApplied };
+}
+
+/** Best-effort delete of prepared-but-unused imports; returns failure text. */
+async function rollbackPreparedMedia({
+	cause,
+	client,
+	context,
+	dependencies,
+	mediaIds,
+	projectId,
+}: {
+	cause: unknown;
+	client: EditorApiClient;
+	context: string;
+	dependencies: ComposeEditorDependencies;
+	mediaIds: readonly string[];
+	projectId: string;
+}): Promise<string | undefined> {
+	if (mediaIds.length === 0) return;
+	try {
+		await dependencies.rollbackStickerMedia({
+			cause,
+			client,
+			context,
+			mediaIds,
+			projectId,
+		});
+		return;
+	} catch (error) {
+		return errorMessage({ error });
+	}
+}
+
 export async function handleComposeApply(
 	options: CLIRunOptions,
 	onProgress: ProgressFn,
@@ -165,21 +318,63 @@ export async function handleComposeApply(
 		}
 
 		const projectId = options.projectId ?? snapshot.project.id;
-		const materialized = await dependencies.materializeAssets({
+		// The client exists before any asset work: sticker imports go through
+		// it, and replay detection needs the live timeline.
+		const client: EditorApiClient = dependencies.createClient(options);
+		const live = await readLiveTimelineState({ client, projectId });
+		const { operations, alreadyApplied } = splitAlreadyApplied({
 			patch,
-			scratchDirectory: resolve(options.outputDir, "compose-assets"),
+			live,
 		});
+
+		onProgress({
+			stage: "processing",
+			percent: 25,
+			message: "Preparing lab assets for the editor...",
+		});
+		let prepared: Awaited<ReturnType<typeof prepareComposeEditorAssets>>;
+		try {
+			prepared = await dependencies.prepareAssets({
+				patch: { ...patch, operations },
+				client,
+				projectId,
+				scratchDirectory: resolve(options.outputDir, "compose-assets"),
+			});
+		} catch (error) {
+			// The preparer already rolled back its own sticker imports.
+			return {
+				success: false,
+				error: `Compose asset preparation failed: ${errorMessage({ error })}`,
+				data: { issues, alreadyAppliedOperationIds: alreadyApplied },
+				duration: (Date.now() - startedAt) / 1000,
+			};
+		}
+
 		const plan = timelineManifestFromComposePatch({
-			patch: materialized,
+			patch: prepared.patch,
 			projectId,
 			snapshot,
+			bindings: prepared.bindings,
 		});
 		if (
 			plan.plannedOperationIds.length === 0 &&
 			plan.plannedTransitionOperationIds.length === 0
 		) {
+			// Nothing will reach the timeline, so prepared-but-unused imports
+			// must not linger in the project's media library.
+			const cleanupError = await rollbackPreparedMedia({
+				cause: new Error("Compose patch planned no operations"),
+				client,
+				context: "Compose apply had nothing to do",
+				dependencies,
+				mediaIds: prepared.importedMediaIds,
+				projectId,
+			});
 			return {
-				success: true,
+				success: cleanupError === undefined,
+				...(cleanupError
+					? { error: `Unused compose media cleanup failed: ${cleanupError}` }
+					: {}),
 				data: {
 					projectId,
 					snapshotId: snapshot.id,
@@ -187,8 +382,10 @@ export async function handleComposeApply(
 					issues,
 					assets: assets.reports,
 					applied: {},
+					alreadyAppliedOperationIds: alreadyApplied,
 					transitionIds: [],
 					skipped: plan.skipped,
+					importedMediaCount: 0,
 				},
 				duration: (Date.now() - startedAt) / 1000,
 			};
@@ -199,17 +396,31 @@ export async function handleComposeApply(
 			percent: 40,
 			message: "Applying the compose patch to the editor timeline...",
 		});
-		const client: EditorApiClient = dependencies.createClient(options);
 		const applyResult = await dependencies.applyManifest(client, {
 			...options,
 			projectId,
 			manifest: JSON.stringify(plan.manifest),
 		});
 		if (!applyResult.success) {
+			// Apply or read-back verification failed: the timeline rolled back,
+			// so this run's imported sticker media must go too.
+			const cleanupError = await rollbackPreparedMedia({
+				cause: new Error(applyResult.error ?? "Timeline apply failed"),
+				client,
+				context: "Compose apply failed",
+				dependencies,
+				mediaIds: prepared.importedMediaIds,
+				projectId,
+			});
 			return {
 				success: false,
-				error: applyResult.error ?? "Timeline apply failed",
-				data: { issues, skipped: plan.skipped, apply: applyResult.data },
+				error: cleanupError ?? applyResult.error ?? "Timeline apply failed",
+				data: {
+					issues,
+					skipped: plan.skipped,
+					alreadyAppliedOperationIds: alreadyApplied,
+					apply: applyResult.data,
+				},
 				duration: (Date.now() - startedAt) / 1000,
 			};
 		}
@@ -237,6 +448,8 @@ export async function handleComposeApply(
 				issues,
 				assets: assets.reports,
 				applied,
+				alreadyAppliedOperationIds: alreadyApplied,
+				importedMediaCount: prepared.importedMediaIds.length,
 				transitionOperationIds: plan.plannedTransitionOperationIds,
 				transitionIds:
 					(applyResult.data as { transitionIds?: string[] } | undefined)

@@ -36,6 +36,8 @@ export const REQUIRED_PROJECT_FOLDERS = [
 	"media/temp",
 	"output",
 	"cache",
+	"tracking",
+	"tracking/planar",
 ] as const;
 
 // ============================================================================

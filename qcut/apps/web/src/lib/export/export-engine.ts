@@ -12,6 +12,11 @@ import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useEffectsStore } from "@/stores/ai/effects-store";
 import { expandCompoundMediaTracks } from "@/lib/timeline/compound-media";
+import {
+	buildExportRenderIndex,
+	type ExportRenderIndex,
+} from "./export-render-index";
+import { SequentialVideoRegistry } from "./export-sequential-video-source";
 import { assertLocalFinalVideoExportAllowed } from "../../../../../electron/types/restricted-media-export-policy";
 import {
 	assertLocalMp4EngineNotRequired,
@@ -87,6 +92,12 @@ export class ExportEngine {
 
 	// Track images used during export
 	private usedImages = new Set<string>();
+
+	// Static per-export lookups; tracks/media are fixed for one export.
+	private renderIndex: ExportRenderIndex | null = null;
+
+	// Sequential decoders replacing per-frame video element seeks.
+	private sequentialVideo = new SequentialVideoRegistry();
 
 	constructor(
 		canvas: HTMLCanvasElement,
@@ -198,8 +209,21 @@ export class ExportEngine {
 
 	// --- Delegated render methods ---
 
+	/** Static per-export lookups, built on first use. */
+	protected getExportRenderIndex(): ExportRenderIndex {
+		this.renderIndex ??= buildExportRenderIndex({
+			tracks: this.tracks,
+			mediaItems: this.mediaItems,
+			fps: this.fps,
+			canvasWidth: this.canvas.width,
+			canvasHeight: this.canvas.height,
+		});
+		return this.renderIndex;
+	}
+
 	/** Build the render context from current class state */
 	private buildRenderContext(): RenderContext {
+		const renderIndex = this.getExportRenderIndex();
 		return {
 			ctx: this.ctx,
 			canvas: this.canvas,
@@ -213,7 +237,14 @@ export class ExportEngine {
 				isElectron: platform().isElectron,
 				outputPath: this.settings.outputPath,
 			}),
+			renderIndex,
+			sequentialVideo: this.sequentialVideo,
 		};
+	}
+
+	/** Release sequential decoders after an export finishes or fails. */
+	protected async disposeSequentialVideo(): Promise<void> {
+		await this.sequentialVideo.disposeAll();
 	}
 
 	/** Build the recorder context from current class state */
@@ -549,6 +580,7 @@ export class ExportEngine {
 				this.ffmpegRecorder.cleanup();
 				this.ffmpegRecorder = null;
 			}
+			await this.disposeSequentialVideo();
 		}
 	}
 
