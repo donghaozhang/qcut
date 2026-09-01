@@ -114,15 +114,18 @@ export const MediaItemCard = memo(function MediaItemCard({
 
 							// The timeline element is what gives the overlay its start/end;
 							// without it the sticker would render on every exported frame.
-							void addMediaItemAsOverlay({ mediaItemId: item.id }).then(
-								(result) => {
+							void addMediaItemAsOverlay({ mediaItemId: item.id })
+								.then((result) => {
 									if (result.success) {
 										toast.success(`Added "${item.name}" as overlay`);
 									} else {
 										toast.error(result.error ?? "Could not add the overlay");
 									}
-								}
-							);
+								})
+								.catch((error) => {
+									debugError("[MediaPanel] Add as overlay failed:", error);
+									toast.error("Could not add the overlay");
+								});
 						}}
 					>
 						<Layers className="h-4 w-4 mr-2" aria-hidden="true" />
