@@ -115,4 +115,17 @@ describe("addMediaItemAsOverlay", () => {
 		expect(result.error).toBe("boom");
 		expect(overlayStickers.size).toBe(0);
 	});
+
+	it("returns a failure instead of rejecting when creation itself throws", async () => {
+		addOverlaySticker.mockImplementationOnce(() => {
+			throw new Error("store unavailable");
+		});
+		const result = await addMediaItemAsOverlay({ mediaItemId: "media-1" });
+
+		expect(result.success).toBe(false);
+		expect(result.error).toBe("store unavailable");
+		// Nothing was created, so nothing may be rolled back.
+		expect(removeOverlaySticker).not.toHaveBeenCalled();
+		expect(overlayStickers.size).toBe(0);
+	});
 });
