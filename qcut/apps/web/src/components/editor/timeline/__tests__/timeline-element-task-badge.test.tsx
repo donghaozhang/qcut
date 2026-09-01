@@ -100,4 +100,49 @@ describe("timeline element task status", () => {
 			detail: "Quota exhausted",
 		});
 	});
+
+	it("tolerates partially populated audio settings", () => {
+		// The export path normalizes partial audio settings, and
+		// addElementToTrack does not run normalizeMediaElement, so an element
+		// whose audio carries only one group is reachable. The badge must not
+		// crash the renderer on it.
+		const partialAudioElement = {
+			...element,
+			audio: {
+				reverb: { damping: 50, enabled: true, mix: 35, roomSize: 60 },
+			},
+		} as unknown as MediaElement;
+
+		expect(
+			resolveTimelineElementTaskStatus({ element: partialAudioElement })
+		).toBeNull();
+
+		render(
+			<TimelineElementTaskBadge element={partialAudioElement} showLabel />
+		);
+		expect(screen.queryByTestId("timeline-task-badge")).toBeNull();
+	});
+
+	it("still surfaces a status group that is present in partial audio", () => {
+		const partialAudioElement = {
+			...element,
+			audio: {
+				denoise: {
+					amount: 40,
+					enabled: true,
+					mode: "offline",
+					noiseFloorDb: -50,
+					status: "processing",
+				},
+			},
+		} as unknown as MediaElement;
+
+		expect(
+			resolveTimelineElementTaskStatus({ element: partialAudioElement })
+		).toEqual({
+			detail: undefined,
+			label: "Audio denoise",
+			state: "processing",
+		});
+	});
 });
