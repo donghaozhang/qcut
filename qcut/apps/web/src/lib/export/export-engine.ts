@@ -89,6 +89,8 @@ export class ExportEngine {
 
 	// Video element cache for performance
 	private videoCache = new Map<string, HTMLVideoElement>();
+	/** Still images decoded once per export instead of once per frame. */
+	private imageCache = new Map<string, Promise<HTMLImageElement>>();
 
 	// Track images used during export
 	private usedImages = new Set<string>();
@@ -230,6 +232,7 @@ export class ExportEngine {
 			tracks: this.tracks,
 			mediaItems: this.mediaItems,
 			videoCache: this.videoCache,
+			imageCache: this.imageCache,
 			usedImages: this.usedImages,
 			fps: this.fps,
 			finalVideoOutput: resolveLocalFinalVideoExportOutput({
