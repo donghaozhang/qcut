@@ -195,6 +195,12 @@ export interface RenderContext {
 	tracks: import("@/types/timeline").TimelineTrack[];
 	mediaItems: MediaItem[];
 	videoCache: Map<string, HTMLVideoElement>;
+	/**
+	 * Decoded still images, keyed by url and shared across frames. Without it
+	 * every frame re-decodes the same file: a 30 s/30 fps export of one still
+	 * pays 900 decodes of identical bytes.
+	 */
+	imageCache?: Map<string, Promise<HTMLImageElement>>;
 	usedImages: Set<string>;
 	fps: number;
 	/** Canvas fill behind the composition; defaults to black. */
@@ -346,7 +352,9 @@ async function renderElement(
 	} else if (element.type === "adjustment") {
 		await applyCanvasAdjustment({ context, element, currentTime });
 	} else if (element.type === "effect") {
-		applyCanvasRegionEffect({ context, element, currentTime });
+		exportProfiler.timeSync("effect-region", () =>
+			applyCanvasRegionEffect({ context, element, currentTime })
+		);
 	} else if (element.type === "remotion") {
 		// Remotion elements are handled by RemotionExportEngine.compositeRemotionFrames()
 		// Skip in standard canvas render to avoid double-rendering
@@ -381,6 +389,7 @@ function applyCanvasRegionEffect({
 		adjustmentFrameCanvas.width !== canvas.width ||
 		adjustmentFrameCanvas.height !== canvas.height
 	) {
+		exportProfiler.count("effect-frame-canvas-created");
 		adjustmentFrameCanvas = document.createElement("canvas");
 		adjustmentFrameCanvas.width = canvas.width;
 		adjustmentFrameCanvas.height = canvas.height;
@@ -388,6 +397,7 @@ function applyCanvasRegionEffect({
 	}
 	if (!adjustmentFrameCtx) return;
 
+	exportProfiler.count("effect-region-frames");
 	adjustmentFrameCtx.clearRect(0, 0, canvas.width, canvas.height);
 	adjustmentFrameCtx.drawImage(canvas, 0, 0);
 	ctx.save();
@@ -574,6 +584,39 @@ async function renderMediaElement(
 	}
 }
 
+/**
+ * Resolves a still image, decoding each url at most once per export.
+ *
+ * The promise (not the element) is cached so two elements sharing one file in
+ * the same frame await a single decode. A failed load is evicted so a later
+ * frame can retry exactly like the uncached path did.
+ */
+async function loadExportImage({
+	cache,
+	url,
+}: {
+	cache: Map<string, Promise<HTMLImageElement>> | undefined;
+	url: string;
+}): Promise<HTMLImageElement> {
+	const cached = cache?.get(url);
+	if (cached) return cached;
+	const loading = new Promise<HTMLImageElement>((resolve, reject) => {
+		const img = new Image();
+		img.crossOrigin = "anonymous";
+		img.onload = () => resolve(img);
+		img.onerror = () => {
+			debugError(`[ExportEngine] Failed to load image: ${url}`);
+			reject(new Error(`Failed to load image: ${url}`));
+		};
+		img.src = url;
+	});
+	cache?.set(url, loading);
+	if (cache) {
+		loading.catch(() => cache.delete(url));
+	}
+	return loading;
+}
+
 /** Render image element with effects support */
 export async function renderImage(
 	context: RenderContext,
@@ -591,123 +634,108 @@ export async function renderImage(
 		`🖼️ EXPORT: Using image - ID: ${mediaItem.id}, Name: ${mediaItem.name || "Unnamed"}, URL: ${mediaItem.url}`
 	);
 
-	return new Promise((resolve, reject) => {
-		const img = new Image();
-		img.crossOrigin = "anonymous";
-
-		img.onload = async () => {
-			try {
-				const { x, y, width, height } = calculateElementBounds(
-					element,
-					img.width,
-					img.height,
-					canvas.width,
-					canvas.height
-				);
-
-				debugLog(
-					`🖼️ EXPORT: Rendered image "${mediaItem.name || mediaItem.id}" at position (${x}, ${y}) with size ${width}x${height}`
-				);
-				const visual = resolveMediaKeyframes({
-					element: element as MediaElement,
-					currentTime,
-					fps: context.fps,
-				});
-				const layer = beginMediaTransitionLayer({
-					context,
-					transitionState,
-					visual,
-				});
-				const ctx = layer.ctx;
-				// The group layer owns the element opacity when a transition is active.
-				const drawVisual = layer.active ? { ...visual, opacity: 1 } : visual;
-				const drawImage = () =>
-					drawWithMediaTransform({
-						ctx,
-						visual: drawVisual,
-						bounds: { x, y, width, height },
-						draw: () =>
-							drawColorGradedSourceStack({
-								context: ctx,
-								source: img,
-								x,
-								y,
-								width,
-								height,
-								layers: [
-									{ settings: visual.color, masks: visual.masks },
-									...mediaFilterStackLayers({
-										filterStack: (element as MediaElement).filterStack,
-									}),
-								],
-								portraitAdjustments: visual.portraitAdjustments,
-								frameSeed: Math.round(currentTime * context.fps),
-								sourceKey: `image:${element.id}:${mediaItem.id}`,
-								timestampSeconds: 0,
-							}),
-					});
-
-				try {
-					if (EFFECTS_ENABLED) {
-						try {
-							const effects = useEffectsStore
-								.getState()
-								.getElementEffects(element.id);
-							debugLog(
-								`🎨 EXPORT ENGINE: Retrieved ${effects.length} effects for image element ${element.id}`
-							);
-							const enabledEffects = effects.filter((e) => e.enabled);
-							debugLog(
-								`✨ EXPORT ENGINE: ${enabledEffects.length} enabled effects for image element ${element.id}`
-							);
-
-							if (enabledEffects.length > 0) {
-								ctx.save();
-								const mergedParams = mergeEffectParameters(
-									...enabledEffects.map((e) => e.parameters)
-								);
-								debugLog(
-									"🔨 EXPORT ENGINE: Applying effects to image canvas:",
-									mergedParams
-								);
-								applyEffectsToCanvas(ctx, mergedParams);
-								await drawImage();
-								applyAdvancedCanvasEffects(ctx, mergedParams);
-								ctx.restore();
-							} else {
-								debugLog(
-									`🚫 EXPORT ENGINE: No enabled effects for image element ${element.id}, drawing normally`
-								);
-								await drawImage();
-							}
-						} catch (error) {
-							debugError(
-								`❌ EXPORT ENGINE: Effects failed for image element ${element.id}:`,
-								error
-							);
-							debugWarn(`[Export] Effects failed for ${element.id}:`, error);
-							await drawImage();
-						}
-					} else {
-						await drawImage();
-					}
-				} finally {
-					layer.finish();
-				}
-
-				resolve();
-			} catch (error) {
-				reject(error);
-			}
-		};
-
-		img.onerror = () => {
-			debugError(`[ExportEngine] Failed to load image: ${mediaItem.url}`);
-			reject(new Error(`Failed to load image: ${mediaItem.url}`));
-		};
-
-		img.src = mediaItem.url as string;
+	const img = await loadExportImage({
+		cache: context.imageCache,
+		url: mediaItem.url as string,
 	});
+
+	const { x, y, width, height } = calculateElementBounds(
+		element,
+		img.width,
+		img.height,
+		canvas.width,
+		canvas.height
+	);
+
+	debugLog(
+		`🖼️ EXPORT: Rendered image "${mediaItem.name || mediaItem.id}" at position (${x}, ${y}) with size ${width}x${height}`
+	);
+	const visual = resolveMediaKeyframes({
+		element: element as MediaElement,
+		currentTime,
+		fps: context.fps,
+	});
+	const layer = beginMediaTransitionLayer({
+		context,
+		transitionState,
+		visual,
+	});
+	const ctx = layer.ctx;
+	// The group layer owns the element opacity when a transition is active.
+	const drawVisual = layer.active ? { ...visual, opacity: 1 } : visual;
+	const drawImage = () =>
+		drawWithMediaTransform({
+			ctx,
+			visual: drawVisual,
+			bounds: { x, y, width, height },
+			draw: () =>
+				drawColorGradedSourceStack({
+					context: ctx,
+					source: img,
+					x,
+					y,
+					width,
+					height,
+					layers: [
+						{ settings: visual.color, masks: visual.masks },
+						...mediaFilterStackLayers({
+							filterStack: (element as MediaElement).filterStack,
+						}),
+					],
+					portraitAdjustments: visual.portraitAdjustments,
+					frameSeed: Math.round(currentTime * context.fps),
+					sourceKey: `image:${element.id}:${mediaItem.id}`,
+					timestampSeconds: 0,
+				}),
+		});
+
+	try {
+		if (EFFECTS_ENABLED) {
+			try {
+				const effects = useEffectsStore
+					.getState()
+					.getElementEffects(element.id);
+				debugLog(
+					`🎨 EXPORT ENGINE: Retrieved ${effects.length} effects for image element ${element.id}`
+				);
+				const enabledEffects = effects.filter((e) => e.enabled);
+				debugLog(
+					`✨ EXPORT ENGINE: ${enabledEffects.length} enabled effects for image element ${element.id}`
+				);
+
+				if (enabledEffects.length > 0) {
+					ctx.save();
+					const mergedParams = mergeEffectParameters(
+						...enabledEffects.map((e) => e.parameters)
+					);
+					debugLog(
+						"🔨 EXPORT ENGINE: Applying effects to image canvas:",
+						mergedParams
+					);
+					applyEffectsToCanvas(ctx, mergedParams);
+					await drawImage();
+					applyAdvancedCanvasEffects(ctx, mergedParams);
+					ctx.restore();
+				} else {
+					debugLog(
+						`🚫 EXPORT ENGINE: No enabled effects for image element ${element.id}, drawing normally`
+					);
+					await drawImage();
+				}
+			} catch (error) {
+				debugError(
+					`❌ EXPORT ENGINE: Effects failed for image element ${element.id}:`,
+					error
+				);
+				debugWarn(`[Export] Effects failed for ${element.id}:`, error);
+				await drawImage();
+			}
+		} else {
+			await drawImage();
+		}
+	} finally {
+		layer.finish();
+	}
 }
 
 /** Render video element with retry mechanism */
