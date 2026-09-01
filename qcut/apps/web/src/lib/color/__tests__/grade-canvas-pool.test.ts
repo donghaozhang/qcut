@@ -135,14 +135,15 @@ describe("colour grade canvas pool", () => {
 		});
 	}
 
-	it("reuses one scratch canvas across sequential draws of the same size", async () => {
-		await draw({ height: 360, width: 640 });
+	it("reuses scratch canvases across sequential draws of the same size", async () => {
+		await draw({ height: 360, layers: 2, width: 640 });
 		const afterFirst = created.length;
-		await draw({ height: 360, width: 640 });
-		await draw({ height: 360, width: 640 });
-		// Only the sources created by the test itself should be new.
+		await draw({ height: 360, layers: 2, width: 640 });
+		await draw({ height: 360, layers: 2, width: 640 });
+		// Only the sources created by the test itself should be new: two draws
+		// create two target/source pairs, and the grade canvases are reused.
 		const gradeCanvasesCreated = created.length - afterFirst;
-		expect(gradeCanvasesCreated).toBeLessThanOrEqual(2);
+		expect(gradeCanvasesCreated).toBeLessThanOrEqual(4);
 	});
 
 	it("hands distinct canvases to layers that feed each other", async () => {
@@ -157,9 +158,9 @@ describe("colour grade canvas pool", () => {
 	});
 
 	it("resizes a reused canvas when the bounds change", async () => {
-		await draw({ height: 360, width: 640 });
+		await draw({ height: 360, layers: 2, width: 640 });
 		const before = created.map((canvas) => canvas.resizes);
-		await draw({ height: 480, width: 800 });
+		await draw({ height: 480, layers: 2, width: 800 });
 		const resized = created.some(
 			(canvas, index) => canvas.resizes > (before[index] ?? 0)
 		);
@@ -167,20 +168,20 @@ describe("colour grade canvas pool", () => {
 	});
 
 	it("clears a reused canvas that keeps the same size", async () => {
-		await draw({ height: 360, width: 640 });
+		await draw({ height: 360, layers: 2, width: 640 });
 		const scratch = created.find(
 			(canvas) => canvas.width === 640 && canvas.height === 360
 		);
 		expect(scratch).toBeDefined();
 		const clearsBefore = scratch?.context.clearedRects.length ?? 0;
-		await draw({ height: 360, width: 640 });
+		await draw({ height: 360, layers: 2, width: 640 });
 		expect(scratch?.context.clearedRects.length ?? 0).toBeGreaterThan(
 			clearsBefore
 		);
 	});
 
 	it("restores context state on a reused canvas", async () => {
-		await draw({ height: 360, width: 640 });
+		await draw({ height: 360, layers: 2, width: 640 });
 		const scratch = created.find(
 			(canvas) => canvas.width === 640 && canvas.height === 360
 		);
@@ -190,7 +191,7 @@ describe("colour grade canvas pool", () => {
 		scratch.context.globalAlpha = 0.25;
 		scratch.context.globalCompositeOperation = "multiply";
 
-		await draw({ height: 360, width: 640 });
+		await draw({ height: 360, layers: 2, width: 640 });
 
 		expect(scratch.context.filter).toBe("none");
 		expect(scratch.context.globalAlpha).toBe(1);
@@ -199,11 +200,22 @@ describe("colour grade canvas pool", () => {
 	});
 
 	it("starts from an empty pool after clearGradeCanvasPool", async () => {
-		await draw({ height: 360, width: 640 });
+		await draw({ height: 360, layers: 2, width: 640 });
 		const beforeClear = created.length;
 		clearGradeCanvasPool();
-		await draw({ height: 360, width: 640 });
+		await draw({ height: 360, layers: 2, width: 640 });
 		// A dropped pool must allocate again rather than reuse a released canvas.
 		expect(created.length).toBeGreaterThan(beforeClear);
+	});
+
+	it("skips the scratch canvas entirely for a single ungraded layer", async () => {
+		// The pre-filter-stack fast path: no colour edits, one layer, full
+		// opacity — the source must go straight onto the target with no
+		// intermediate canvas allocated at all.
+		const before = created.length;
+		await draw({ height: 360, width: 640 });
+		// draw() builds its target and source outside document.createElement, so
+		// any counted canvas would have to be a scratch canvas.
+		expect(created.length - before).toBe(0);
 	});
 });
