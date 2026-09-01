@@ -603,6 +603,34 @@ export async function drawColorGradedSourceStack({
 		sourceKey,
 		timestampSeconds,
 	});
+	// With a single ungraded base layer the intermediate canvas contributes
+	// nothing, so draw straight onto the target exactly the way
+	// drawColorGradedSourceWithMasks does. Besides skipping a full-resolution
+	// scratch canvas per element per frame, this keeps fractional bounds to a
+	// single resample on the target context instead of a rounded intermediate
+	// followed by a second resample. Multi-layer stacks and edited grades keep
+	// the canvas walk below.
+	const [baseLayer] = layers;
+	if (
+		layers.length === 1 &&
+		baseLayer &&
+		(baseLayer.opacity ?? 1) === 1 &&
+		!hasMediaColorEdits({ settings: baseLayer.settings })
+	) {
+		await drawMediaSourceWithMasks({
+			context,
+			source: adjustedSource,
+			x,
+			y,
+			width,
+			height,
+			masks: finalMediaMasks({
+				masks: baseLayer.masks,
+				settings: baseLayer.settings,
+			}),
+		});
+		return;
+	}
 	// Leases are held until the finished stack has been blitted, because each
 	// layer's canvas is still the next layer's source until then.
 	const leased: Array<{ canvas: HTMLCanvasElement; kind: GradeCanvasKind }> =
