@@ -77,7 +77,7 @@ function store({
 describe("planar tracking result loader", () => {
 	beforeEach(() => clearPlanarTrackingSidecarCache());
 
-	it("deduplicates in-flight reads and evicts the fulfilled promise", async () => {
+	it("deduplicates in-flight reads and keeps the fulfilled result", async () => {
 		const read = vi.fn(async () => result());
 		const resultStore = store({ read });
 		const first = loadPlanarTrackingSidecar({
@@ -94,6 +94,9 @@ describe("planar tracking result loader", () => {
 		await expect(first).resolves.toBe(sidecar);
 		expect(read).toHaveBeenCalledOnce();
 
+		// A settled read is retained. Previously the entry was evicted here, so
+		// every later caller re-read, re-hashed and re-parsed the sidecar; during
+		// export that meant one full read per rendered frame.
 		await expect(
 			loadPlanarTrackingSidecar({
 				projectId: "project",
@@ -101,7 +104,89 @@ describe("planar tracking result loader", () => {
 				resultStore,
 			})
 		).resolves.toBe(sidecar);
+		expect(read).toHaveBeenCalledOnce();
+	});
+
+	it("serves many sequential callers from one read", async () => {
+		const read = vi.fn(async () => result());
+		const resultStore = store({ read });
+		// Mirrors an export: each frame awaits the previous one, so the in-flight
+		// window never spans two frames and only a real result cache can help.
+		for (let frame = 0; frame < 60; frame += 1) {
+			await expect(
+				loadPlanarTrackingSidecar({
+					projectId: "project",
+					reference,
+					resultStore,
+				})
+			).resolves.toBe(sidecar);
+		}
+		expect(read).toHaveBeenCalledOnce();
+	});
+
+	it("re-reads when the tracking result hash changes", async () => {
+		const read = vi.fn(async () => result());
+		const resultStore = store({ read });
+		await loadPlanarTrackingSidecar({
+			projectId: "project",
+			reference,
+			resultStore,
+		});
+		// A re-tracked surface writes a new sha256, which is part of the key, so
+		// a cached entry can never be served for changed tracking data.
+		await loadPlanarTrackingSidecar({
+			projectId: "project",
+			reference: { ...reference, resultSha256: "d".repeat(64) },
+			resultStore,
+		});
 		expect(read).toHaveBeenCalledTimes(2);
+	});
+
+	it("keeps separate entries per project", async () => {
+		const read = vi.fn(async () => result());
+		const resultStore = store({ read });
+		await loadPlanarTrackingSidecar({
+			projectId: "project-a",
+			reference,
+			resultStore,
+		});
+		await loadPlanarTrackingSidecar({
+			projectId: "project-b",
+			reference,
+			resultStore,
+		});
+		expect(read).toHaveBeenCalledTimes(2);
+	});
+
+	it("bounds how many sidecars it retains", async () => {
+		const read = vi.fn(async () => result());
+		const resultStore = store({ read });
+		// Nine distinct results, one more than the retention bound.
+		const keys = Array.from({ length: 9 }, (_, index) =>
+			String(index).repeat(64).slice(0, 64)
+		);
+		for (const resultSha256 of keys) {
+			await loadPlanarTrackingSidecar({
+				projectId: "project",
+				reference: { ...reference, resultSha256 },
+				resultStore,
+			});
+		}
+		expect(read).toHaveBeenCalledTimes(9);
+		// The most recent entry is still cached.
+		await loadPlanarTrackingSidecar({
+			projectId: "project",
+			reference: { ...reference, resultSha256: keys[8] },
+			resultStore,
+		});
+		expect(read).toHaveBeenCalledTimes(9);
+		// The oldest was dropped and must be re-read.
+		await loadPlanarTrackingSidecar({
+			projectId: "project",
+			reference: { ...reference, resultSha256: keys[0] },
+			resultStore,
+		});
+		expect(read).toHaveBeenCalledTimes(10);
 	});
 
 	it("evicts failed reads so a repaired sidecar can be retried", async () => {
