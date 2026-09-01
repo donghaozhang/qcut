@@ -1,4 +1,5 @@
 import type { EffectParameters } from "@/types/effects";
+import { isDebugEnabled } from "@/lib/debug/debug-config";
 import { generateUUID } from "@/lib/utils";
 
 /**
@@ -164,12 +165,22 @@ export function applyEffectsToCanvas(
 	parameters: EffectParameters
 ): void {
 	const filterString = parametersToCSSFilters(parameters);
-	console.log("🎨 CANVAS EFFECTS: Applying filter to canvas context");
-	console.log("  🔧 Parameters:", parameters);
-	console.log(`  ✨ CSS Filter: "${filterString || "none"}"`);
-	console.log(`  🎯 Canvas filter before: "${ctx.filter}"`);
+	// This runs once per element per frame, so five unconditional console.log
+	// calls here cost about 48us per frame per element for output nobody reads
+	// outside debugging. The callers already gate their own tracing the same
+	// way. The flag is read once rather than per line: the checks are cheap but
+	// this is a per-frame path.
+	const debug = isDebugEnabled();
+	if (debug) {
+		console.log("🎨 CANVAS EFFECTS: Applying filter to canvas context");
+		console.log("  🔧 Parameters:", parameters);
+		console.log(`  ✨ CSS Filter: "${filterString || "none"}"`);
+		console.log(`  🎯 Canvas filter before: "${ctx.filter}"`);
+	}
 	ctx.filter = filterString ? filterString : "none";
-	console.log(`  ✅ Canvas filter after: "${ctx.filter}"`);
+	if (debug) {
+		console.log(`  ✅ Canvas filter after: "${ctx.filter}"`);
+	}
 }
 
 /**
