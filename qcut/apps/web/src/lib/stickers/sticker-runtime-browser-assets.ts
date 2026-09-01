@@ -1,3 +1,4 @@
+import { exportProfiler } from "@/lib/export/export-profiler";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type {
 	StickerRuntimeAssetRequest,
@@ -433,6 +434,7 @@ export const createBrowserStickerRuntimeCanvas: StickerRuntimeCanvasFactory = ({
 	height,
 	width,
 }) => {
+	exportProfiler.count("sticker-runtime-canvas-created");
 	const canvas = document.createElement("canvas");
 	canvas.width = width;
 	canvas.height = height;

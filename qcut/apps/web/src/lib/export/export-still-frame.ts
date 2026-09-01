@@ -77,6 +77,7 @@ export async function exportStillFrame(): Promise<StillFrameExportResult> {
 		tracks: expandCompoundMediaTracks({ tracks }),
 		mediaItems,
 		videoCache: new Map(),
+		imageCache: new Map(),
 		usedImages: new Set(),
 		fps,
 		// Blur backdrops are preview-only; fall back to the stored project

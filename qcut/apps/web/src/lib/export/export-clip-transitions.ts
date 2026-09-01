@@ -19,6 +19,7 @@
  */
 
 import type { MediaItem } from "@/stores/media/media-store-types";
+import { exportProfiler } from "./export-profiler";
 import type { ClipTransition, TimelineTrack } from "@/types/timeline";
 import {
 	buildClipTransitionCssFilter,
@@ -417,6 +418,8 @@ export function beginClipTransitionLayer({
 		return { ctx, active: false, finish: () => undefined };
 	}
 
+	exportProfiler.count("transition-layer-frames");
+	const layerStart = performance.now();
 	group.setTransform(1, 0, 0, 1, 0, 0);
 	group.filter = "none";
 	group.globalAlpha = 1;
@@ -430,10 +433,16 @@ export function beginClipTransitionLayer({
 	group.translate(-anchor.x, -anchor.y);
 	group.globalAlpha = Math.min(1, Math.max(0, presentation.contentOpacity));
 
+	exportProfiler.record(
+		"transition-layer-begin",
+		performance.now() - layerStart
+	);
+
 	return {
 		ctx: group,
 		active: true,
 		finish: () => {
+			const finishStart = performance.now();
 			group.restore();
 			const clip = presentation.clipPath
 				? parseClipTransitionClipPath({ clipPath: presentation.clipPath })
@@ -459,6 +468,10 @@ export function beginClipTransitionLayer({
 				ctx.drawImage(group.canvas, 0, 0);
 			} finally {
 				ctx.restore();
+				exportProfiler.record(
+					"transition-layer-finish",
+					performance.now() - finishStart
+				);
 			}
 		},
 	};
