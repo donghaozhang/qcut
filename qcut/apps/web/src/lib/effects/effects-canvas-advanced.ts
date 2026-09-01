@@ -1,3 +1,4 @@
+import { exportProfiler } from "@/lib/export/export-profiler";
 import type { EffectParameters } from "@/types/effects";
 
 /**
@@ -76,15 +77,12 @@ export function applyWaveEffect(
 	const width = canvas.width;
 	const height = canvas.height;
 
-	// Create temporary canvas
-	const tempCanvas = document.createElement("canvas");
-	tempCanvas.width = width;
-	tempCanvas.height = height;
-	const tempCtx = tempCanvas.getContext("2d");
-	if (!tempCtx) return;
+	const scratch = acquireDistortionScratch({ width, height });
+	if (!scratch) return;
+	const tempCanvas = scratch.canvas;
 
 	// Copy original image
-	tempCtx.drawImage(canvas, 0, 0);
+	scratch.ctx.drawImage(canvas, 0, 0);
 
 	// Clear original canvas
 	ctx.clearRect(0, 0, width, height);
@@ -95,6 +93,52 @@ export function applyWaveEffect(
 			Math.sin((y / height) * frequency * Math.PI * 2) * amplitude;
 		ctx.drawImage(tempCanvas, 0, y, width, 1, offsetX, y, width, 1);
 	}
+}
+
+/**
+ * Scratch canvas shared by the distortion passes.
+ *
+ * The wave pass needs an untouched copy of the frame to sample from while it
+ * redraws the destination row by row. That copy is written in full on every
+ * use and never escapes the call, so one canvas per size can serve every
+ * frame instead of allocating a full-resolution canvas per frame — the same
+ * lifecycle the export renderer already uses for its adjustment frame.
+ */
+let distortionScratchCanvas: HTMLCanvasElement | null = null;
+let distortionScratchCtx: CanvasRenderingContext2D | null = null;
+
+function acquireDistortionScratch({
+	width,
+	height,
+}: {
+	width: number;
+	height: number;
+}): {
+	canvas: HTMLCanvasElement;
+	ctx: CanvasRenderingContext2D;
+} | null {
+	if (
+		!distortionScratchCanvas ||
+		distortionScratchCanvas.width !== width ||
+		distortionScratchCanvas.height !== height
+	) {
+		exportProfiler.count("effect-temp-canvas-created");
+		distortionScratchCanvas = document.createElement("canvas");
+		distortionScratchCanvas.width = width;
+		distortionScratchCanvas.height = height;
+		distortionScratchCtx = distortionScratchCanvas.getContext("2d");
+	}
+	if (!distortionScratchCtx) return null;
+	// A freshly created canvas starts fully transparent; clearing reproduces
+	// that for a reused one, so the copy below is the only content.
+	distortionScratchCtx.clearRect(0, 0, width, height);
+	return { canvas: distortionScratchCanvas, ctx: distortionScratchCtx };
+}
+
+/** Releases the shared scratch canvas (used when an export finishes). */
+export function releaseDistortionScratchCanvas(): void {
+	distortionScratchCanvas = null;
+	distortionScratchCtx = null;
 }
 
 /**
@@ -286,6 +330,7 @@ export function applyAdvancedCanvasEffects(
 	ctx: CanvasRenderingContext2D,
 	parameters: EffectParameters
 ): void {
+	const startedAt = performance.now();
 	ctx.save();
 	try {
 		// Apply distortion effects
@@ -317,6 +362,7 @@ export function applyAdvancedCanvasEffects(
 		}
 	} finally {
 		ctx.restore();
+		exportProfiler.record("effect-advanced", performance.now() - startedAt);
 	}
 }
 
