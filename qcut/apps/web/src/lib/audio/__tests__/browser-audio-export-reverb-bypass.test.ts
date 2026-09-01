@@ -97,7 +97,10 @@ function mediaElement({
 	audio?: Partial<MediaElement["audio"]>;
 } = {}): MediaElement {
 	return {
-		audio: { ...DEFAULT_MEDIA_AUDIO_SETTINGS, ...audio } as MediaElement["audio"],
+		audio: {
+			...DEFAULT_MEDIA_AUDIO_SETTINGS,
+			...audio,
+		} as MediaElement["audio"],
 		duration: 2,
 		id: "clip",
 		mediaId: "sound",
@@ -163,7 +166,9 @@ describe("browser audio export reverb bypass", () => {
 			tracks: [
 				track({
 					element: mediaElement({
-						audio: { reverb: { enabled: true, mix: 40, roomSize: 50, damping: 50 } },
+						audio: {
+							reverb: { enabled: true, mix: 40, roomSize: 50, damping: 50 },
+						},
 					}),
 				}),
 			],
