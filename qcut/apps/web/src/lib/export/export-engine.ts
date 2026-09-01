@@ -41,7 +41,6 @@ import {
 import {
 	type RenderContext,
 	renderFrame as renderFrameImpl,
-	renderOverlayStickers as renderOverlayStickersImpl,
 	destroyExportCompositor,
 } from "./export-engine-renderer";
 
@@ -272,10 +271,6 @@ export class ExportEngine {
 
 	async renderFrame(currentTime: number): Promise<void> {
 		return renderFrameImpl(this.buildRenderContext(), currentTime);
-	}
-
-	protected async renderOverlayStickers(currentTime: number): Promise<void> {
-		return renderOverlayStickersImpl(this.buildRenderContext(), currentTime);
 	}
 
 	// --- Core methods (kept in class) ---
