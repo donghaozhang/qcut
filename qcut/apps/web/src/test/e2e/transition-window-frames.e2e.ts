@@ -331,6 +331,21 @@ test.describe("transition window frames", () => {
 			).toBe(3);
 		}
 
+		// Identity-at-window-start contract: the presentation is identity at
+		// progress 0, and every frame before the window is identical across the
+		// three exports, so the window START frame must hash identically for all
+		// transition types. The window END frame cannot be asserted this way:
+		// H.264 predicts it from the preceding (per-type different) window
+		// interior, so its bytes legitimately differ between exports even though
+		// the source canvas frame is identical.
+		const startHashes = results.map(
+			(result) => result.hashes[windowStartFrame]
+		);
+		expect(
+			new Set(startHashes).size,
+			`window start frames must match across types, got ${JSON.stringify(startHashes)}`
+		).toBe(1);
+
 		// Every transition type must produce a different result from the others,
 		// otherwise the transition type is not reaching the renderer at all.
 		const midHashes = results.map((result) => result.hashes[midFrame]);
