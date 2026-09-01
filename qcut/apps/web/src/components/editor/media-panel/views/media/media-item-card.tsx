@@ -25,8 +25,7 @@ import {
 } from "@/components/ui/context-menu";
 import { DraggableMediaItem } from "@/components/ui/draggable-item";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
-import { usePlaybackStore } from "@/stores/editor/playback-store";
-import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
+import { addMediaItemAsOverlay } from "@/lib/stickers/add-media-overlay";
 import { cn } from "@/lib/utils";
 import { MediaPreview } from "./media-preview";
 import { useTranslation } from "@/lib/i18n";
@@ -106,44 +105,24 @@ export const MediaItemCard = memo(function MediaItemCard({
 						onClick={(e) => {
 							e.stopPropagation();
 
-							const mediaExists = filteredMediaItems.some(
-								(m) => m.id === item.id
-							);
-
 							debugLog("[MediaPanel] Overlay creation check:", {
 								targetItemId: item.id,
 								targetItemName: item.name,
-								mediaExists,
 								totalMediaItems: filteredMediaItems.length,
-								availableMediaIds: filteredMediaItems.map((m) => m.id),
 								timestamp: new Date().toISOString(),
 							});
 
-							const { addOverlaySticker } = useStickersOverlayStore.getState();
-							const { currentTime } = usePlaybackStore.getState();
-							const { getTotalDuration } = useTimelineStore.getState();
-							const totalDuration = getTotalDuration();
-
-							if (totalDuration <= 0) {
-								toast.error("Add media to timeline first");
-								return;
-							}
-
-							const start = Math.max(
-								0,
-								Math.min(currentTime, totalDuration - 0.1)
+							// The timeline element is what gives the overlay its start/end;
+							// without it the sticker would render on every exported frame.
+							void addMediaItemAsOverlay({ mediaItemId: item.id }).then(
+								(result) => {
+									if (result.success) {
+										toast.success(`Added "${item.name}" as overlay`);
+									} else {
+										toast.error(result.error ?? "Could not add the overlay");
+									}
+								}
 							);
-							const end = Math.min(start + 5, totalDuration);
-
-							const overlayData = {
-								timing: {
-									startTime: start,
-									endTime: end,
-								},
-							};
-
-							addOverlaySticker(item.id, overlayData);
-							toast.success(`Added "${item.name}" as overlay`);
 						}}
 					>
 						<Layers className="h-4 w-4 mr-2" aria-hidden="true" />
