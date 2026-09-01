@@ -42,8 +42,9 @@ export async function addMediaItemAsOverlay({
 	const start = Math.max(0, Math.min(currentTime, totalDuration - 0.1));
 	const end = Math.min(start + DEFAULT_OVERLAY_SECONDS, totalDuration);
 
-	const stickerId = addOverlaySticker(mediaItemId, {});
+	let stickerId: string | undefined;
 	try {
+		stickerId = addOverlaySticker(mediaItemId, {});
 		const sticker = useStickersOverlayStore
 			.getState()
 			.overlayStickers.get(stickerId);
@@ -67,8 +68,9 @@ export async function addMediaItemAsOverlay({
 		}
 		return { stickerId, success: true };
 	} catch (error) {
-		// The overlay entry must not outlive a failed timeline insert.
-		removeOverlaySticker(stickerId);
+		// The overlay entry must not outlive a failed timeline insert; when the
+		// creation itself threw there is nothing to clean up.
+		if (stickerId !== undefined) removeOverlaySticker(stickerId);
 		return {
 			error: error instanceof Error ? error.message : String(error),
 			success: false,
