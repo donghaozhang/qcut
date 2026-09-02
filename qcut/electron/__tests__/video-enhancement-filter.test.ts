@@ -64,3 +64,25 @@ describe("video enhancement filter", () => {
 		expect(hasVideoEnhancements({ enhancements: { clarity: 1 } })).toBe(true);
 	});
 });
+
+describe("stabilization level quantization", () => {
+	it("maps the four editor levels (25/50/75/100) onto distinct deshake radii", () => {
+		const radii = [25, 50, 75, 100].map((stabilization) => {
+			const filter = buildVideoEnhancementFilter({
+				width: 640,
+				height: 360,
+				enhancements: {
+					stabilization,
+					denoise: 0,
+					clarity: 0,
+					upscale: 1,
+					relight: 0,
+					beauty: 0,
+				},
+			});
+			return /deshake=rx=(\d+):ry=\1:edge=mirror/.exec(filter)?.[1];
+		});
+		// apps/web/src/lib/video/stabilization-levels.ts mirrors this table.
+		expect(radii).toEqual(["16", "32", "48", "64"]);
+	});
+});
