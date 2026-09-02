@@ -15,6 +15,7 @@ import { useMaskEditorStore } from "@/stores/editor/mask-editor-store";
 import { usePerspectiveEditorStore } from "@/stores/editor/perspective-editor-store";
 import { usePortraitManualBodyStore } from "@/stores/editor/portrait-manual-body-store";
 import {
+	perspectiveDeltaFromScreen,
 	perspectiveFromLocalDelta,
 	type PerspectiveCorner,
 } from "./media-perspective-geometry";
@@ -404,16 +405,12 @@ export function MediaTransformOverlay({
 				interaction.items.length === 1
 			) {
 				const item = interaction.items[0];
-				const rotated = rotateVector({
-					point: delta,
-					degrees: -item.rotation,
+				const localDelta = perspectiveDeltaFromScreen({
+					delta,
+					rotation: item.rotation,
+					flipHorizontal: item.flipHorizontal,
+					flipVertical: item.flipVertical,
 				});
-				// Flips mirror the box, so pointer motion maps to the opposite
-				// corner direction in normalized space.
-				const localDelta = {
-					x: item.flipHorizontal ? -rotated.x : rotated.x,
-					y: item.flipVertical ? -rotated.y : rotated.y,
-				};
 				nextItems = [
 					{
 						...item,
@@ -520,14 +517,17 @@ export function MediaTransformOverlay({
 		if (!target) return;
 		const width = canvasSize.width * item.scaleX;
 		const height = canvasSize.height * item.scaleY;
-		// One key press moves the corner by 1% of the box (10% with Shift).
+		// Arrow keys nudge the visible corner in screen direction by 1% of the
+		// box (10% with Shift), through the same mapping the pointer uses.
 		const perspective = perspectiveFromLocalDelta({
 			perspective: item.perspective,
 			corner,
-			delta: {
-				x: (item.flipHorizontal ? -step.x : step.x) * width * 0.01,
-				y: (item.flipVertical ? -step.y : step.y) * height * 0.01,
-			},
+			delta: perspectiveDeltaFromScreen({
+				delta: { x: step.x * width * 0.01, y: step.y * height * 0.01 },
+				rotation: item.rotation,
+				flipHorizontal: item.flipHorizontal,
+				flipVertical: item.flipVertical,
+			}),
 			width,
 			height,
 		});
