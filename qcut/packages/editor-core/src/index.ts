@@ -671,6 +671,13 @@ export {
 // Utils
 export { generateUUID } from "./utils.js";
 
+export {
+	CANVAS_PRESET_MATCH_TOLERANCE,
+	DEFAULT_CANVAS_PRESETS,
+	findBestCanvasPreset,
+	findCanvasPresetByName,
+} from "./canvas-presets.js";
+
 export { computeShatterTiles, shatterNoise } from "./text-animation/shatter.js";
 export type { ShatterTile } from "./text-animation/shatter.js";
 
