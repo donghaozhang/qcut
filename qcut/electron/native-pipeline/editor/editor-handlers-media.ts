@@ -434,7 +434,7 @@ async function projectUpdateSettings(
 		return { success: false, error: "--data must be a JSON object" };
 	const settings = parsed as Record<string, unknown>;
 	if (ratioName) {
-		const preset = findCanvasPresetByName(ratioName);
+		const preset = findCanvasPresetByName({ name: ratioName });
 		if (!preset)
 			return {
 				success: false,
