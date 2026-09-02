@@ -13,6 +13,10 @@ import type { EditorApiClient } from "../editor/editor-api-client.js";
 import type { CLIRunOptions, CLIResult } from "../cli/cli-runner/types.js";
 import { resolveJsonInput } from "./editor-api-types.js";
 import {
+	CANVAS_PRESET_NAMES,
+	findCanvasPresetByName,
+} from "./canvas-presets.js";
+import {
 	buildProjectJSON,
 	buildProjectJSONMinimal,
 } from "../cli/project-json-builder.js";
@@ -416,15 +420,30 @@ async function projectUpdateSettings(
 ): Promise<CLIResult> {
 	const o = opts as CLIRunOptions & { data?: string };
 	if (!opts.projectId) return { success: false, error: "Missing --project-id" };
-	// Accept --data as the JSON settings
+	// Accept --data as the JSON settings, --ratio as a catalog preset, or both
 	const dataStr = o.data ?? opts.input;
-	if (!dataStr)
+	const ratioName = opts.aspectRatio?.trim();
+	if (!dataStr && !ratioName)
 		return {
 			success: false,
-			error: "Missing --data (JSON settings object)",
+			error: "Missing --data (JSON settings object) or --ratio <preset>",
 		};
 
-	const settings = await resolveJsonInput(dataStr);
+	const parsed: unknown = dataStr ? await resolveJsonInput(dataStr) : {};
+	if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed))
+		return { success: false, error: "--data must be a JSON object" };
+	const settings = parsed as Record<string, unknown>;
+	if (ratioName) {
+		const preset = findCanvasPresetByName(ratioName);
+		if (!preset)
+			return {
+				success: false,
+				error: `Unknown --ratio "${ratioName}". Known presets: ${CANVAS_PRESET_NAMES.join(", ")}`,
+			};
+		settings.width = preset.width;
+		settings.height = preset.height;
+		settings.aspectRatio = preset.name;
+	}
 	const data = await client.patch(
 		`/api/claude/project/${encodeURIComponent(opts.projectId)}/settings`,
 		settings
