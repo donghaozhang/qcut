@@ -10,6 +10,7 @@ import type {
 import { Crop, RotateCcw, RotateCw } from "lucide-react";
 import { DEFAULT_MEDIA_CROP } from "@/lib/video/video-properties";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import { useCustomCutoutEditorStore } from "@/stores/editor/custom-cutout-editor-store";
 import { useMaskEditorStore } from "@/stores/editor/mask-editor-store";
 import { usePerspectiveEditorStore } from "@/stores/editor/perspective-editor-store";
 import { usePortraitManualBodyStore } from "@/stores/editor/portrait-manual-body-store";
@@ -138,6 +139,9 @@ export function MediaTransformOverlay({
 	fps,
 }: MediaTransformOverlayProps) {
 	const isEditingMask = useMaskEditorStore((state) => state.isEditing);
+	// Painting a custom cutout needs the whole clip surface, so the transform
+	// box yields exactly like it does for mask editing.
+	const isPaintingCutout = useCustomCutoutEditorStore((state) => state.editing);
 	const isEditingManualBody = usePortraitManualBodyStore(
 		(state) => state.active
 	);
@@ -650,7 +654,12 @@ export function MediaTransformOverlay({
 		});
 	}, [applySnapshotChange, singleItem]);
 
-	if (snapshots.length === 0 || isEditingMask || isEditingManualBody)
+	if (
+		snapshots.length === 0 ||
+		isEditingMask ||
+		isEditingManualBody ||
+		isPaintingCutout
+	)
 		return null;
 
 	const frameStyle: CSSProperties = singleItem
