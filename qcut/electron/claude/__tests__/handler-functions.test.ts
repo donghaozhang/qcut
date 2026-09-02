@@ -58,6 +58,7 @@ import {
 	resolvePanelId,
 } from "../handlers/claude-ui-handler";
 import { resolveProjectCanvasSettings } from "../handlers/claude-project-handler";
+import { DEFAULT_CANVAS_PRESETS } from "../../native-pipeline/editor/canvas-presets";
 
 describe("UI Handler Functions", () => {
 	it("recognizes the standard audio library independently from AI audio", () => {
@@ -121,6 +122,35 @@ describe("Export Handler Functions", () => {
 });
 
 describe("Project Canvas Settings", () => {
+	it("round-trips every catalog preset name the CLI --ratio flag sends", () => {
+		const current = {
+			name: "p",
+			width: 1920,
+			height: 1080,
+			fps: 30,
+			aspectRatio: "16:9",
+			backgroundColor: "#000000",
+			exportFormat: "mp4",
+			exportQuality: "high",
+		};
+		for (const preset of DEFAULT_CANVAS_PRESETS) {
+			expect(
+				resolveProjectCanvasSettings({
+					current,
+					update: {
+						width: preset.width,
+						height: preset.height,
+						aspectRatio: preset.name,
+					},
+				})
+			).toEqual({
+				width: preset.width,
+				height: preset.height,
+				aspectRatio: preset.name,
+			});
+		}
+	});
+
 	const current = {
 		name: "Test",
 		width: 1280,
