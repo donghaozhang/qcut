@@ -15,7 +15,10 @@ import {
 } from "@/types/timeline";
 import type { MediaItem } from "@/stores/media/media-store";
 import { platform, PlatformCapability } from "@qcut/platform-core";
-import { resolveMediaVisualProperties } from "@/lib/video/video-properties";
+import {
+	resolveMediaVisualProperties,
+	effectiveMediaKeyframes,
+} from "@/lib/video/video-properties";
 
 /**
  * Logger function type for dependency injection.
@@ -251,7 +254,7 @@ export async function extractVideoSources(
 				frameInterpolation: element.frameInterpolation,
 				visual: {
 					...exportVisual,
-					keyframes: element.keyframes,
+					keyframes: effectiveMediaKeyframes(element),
 					keyframeFps: fps,
 				},
 			});
