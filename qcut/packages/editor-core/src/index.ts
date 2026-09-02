@@ -48,6 +48,7 @@ export type {
 	CanvasSize,
 	CanvasMode,
 	CanvasPreset,
+	CanvasPresetGroup,
 	ColorBasicSettings,
 	ColorCubeLut,
 	ColorDualLutSettings,
