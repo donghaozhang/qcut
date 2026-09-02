@@ -10,6 +10,7 @@ import {
 	DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import {
+	Check,
 	Play,
 	Pause,
 	Expand,
@@ -39,6 +40,16 @@ import type { TProject } from "@/types/project";
 import type { ActiveElement } from "./preview-panel/types";
 import { AdjustmentLayerStack } from "./preview-panel/adjustment-layer-stack";
 import { useTranslation } from "@/lib/i18n";
+import type { TranslationKey } from "@/lib/i18n/translations";
+import {
+	Dialog,
+	DialogContent,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import type { CanvasPreset } from "@/types/editor";
 import { PREVIEW_QUALITY_OPTIONS } from "@/lib/preview/preview-quality";
 import type { BrowserColorGradeLayer } from "@/lib/color/browser-color-rendering";
 
@@ -378,7 +389,8 @@ export function PreviewToolbar({
 		runtimePreviewQualityDiagnostic,
 		setPreviewQuality,
 	} = usePlaybackStore();
-	const { setCanvasSize, setCanvasSizeToOriginal } = useEditorStore();
+	const { canvasSize, setCanvasSize, setCanvasSizeToOriginal } =
+		useEditorStore();
 	const { activeProject, updateProjectCanvasSize } = useProjectStore();
 	const timecodeFormat = useAppSettingsStore((state) => state.timecodeFormat);
 	const [previewProxyCacheStats, setPreviewProxyCacheStats] =
@@ -408,6 +420,11 @@ export function PreviewToolbar({
 		const nextSize = { width: preset.width, height: preset.height };
 		setCanvasSize(nextSize, "preset");
 		void updateProjectCanvasSize(nextSize, "preset");
+	};
+
+	const handleCustomApply = (size: { width: number; height: number }) => {
+		setCanvasSize(size, "custom");
+		void updateProjectCanvasSize(size, "custom");
 	};
 
 	const handleOriginalSelect = () => {
@@ -826,39 +843,19 @@ export function PreviewToolbar({
 				>
 					<ScanLine className="size-4" />
 				</Button>
-				<DropdownMenu>
-					<DropdownMenuTrigger asChild>
-						<Button
-							type="button"
-							size="sm"
-							className="bg-panel-accent! text-foreground/85 text-[0.70rem] h-4 rounded-none border border-muted-foreground px-0.5 py-0 font-light"
-							disabled={!hasAnyElements}
-						>
-							{isOriginal ? t("editor.preview.original") : getDisplayName()}
-						</Button>
-					</DropdownMenuTrigger>
-					<DropdownMenuContent align="end">
-						<DropdownMenuItem
-							onClick={handleOriginalSelect}
-							className={cn("text-xs", isOriginal && "font-semibold")}
-						>
-							{t("editor.preview.original")}
-						</DropdownMenuItem>
-						<DropdownMenuSeparator />
-						{canvasPresets.map((preset) => (
-							<DropdownMenuItem
-								key={preset.name}
-								onClick={() => handlePresetSelect(preset)}
-								className={cn(
-									"text-xs",
-									currentPreset?.name === preset.name && "font-semibold"
-								)}
-							>
-								{preset.name}
-							</DropdownMenuItem>
-						))}
-					</DropdownMenuContent>
-				</DropdownMenu>
+				<AspectRatioMenu
+					disabled={!hasAnyElements}
+					triggerLabel={
+						isOriginal ? t("editor.preview.original") : getDisplayName()
+					}
+					isOriginal={isOriginal}
+					currentPreset={currentPreset}
+					canvasPresets={canvasPresets}
+					canvasSize={canvasSize}
+					onSelectOriginal={handleOriginalSelect}
+					onSelectPreset={handlePresetSelect}
+					onApplyCustom={handleCustomApply}
+				/>
 				<Button
 					type="button"
 					variant="text"
@@ -871,6 +868,197 @@ export function PreviewToolbar({
 				</Button>
 			</div>
 		</div>
+	);
+}
+
+/** Outline glyph depicting a preset's shape, like the ratio menu in 剪映. */
+function RatioGlyph({ width, height }: { width: number; height: number }) {
+	const ratio = width / Math.max(1, height);
+	const glyphWidth = ratio >= 1 ? 18 : Math.max(6, Math.round(18 * ratio));
+	const glyphHeight = ratio >= 1 ? Math.max(6, Math.round(18 / ratio)) : 18;
+	return (
+		<span
+			aria-hidden="true"
+			className="ml-auto inline-block shrink-0 rounded-[2px] border border-muted-foreground/70"
+			style={{ height: glyphHeight, width: glyphWidth }}
+		/>
+	);
+}
+
+/** One row of the ratio menu: check gutter, label, optional badge, glyph. */
+function RatioMenuItem({
+	active,
+	label,
+	badge,
+	glyph,
+	onSelect,
+}: {
+	active: boolean;
+	label: string;
+	badge?: string;
+	glyph?: { width: number; height: number };
+	onSelect: () => void;
+}) {
+	return (
+		<DropdownMenuItem
+			onClick={onSelect}
+			className={cn("gap-2 text-xs", active && "font-semibold")}
+		>
+			<span className="flex w-4 shrink-0 items-center justify-center">
+				{active ? <Check className="size-3.5" /> : null}
+			</span>
+			<span className="flex-1 whitespace-nowrap">
+				{label}
+				{badge ? (
+					<span className="text-muted-foreground"> ({badge})</span>
+				) : null}
+			</span>
+			{glyph ? <RatioGlyph height={glyph.height} width={glyph.width} /> : null}
+		</DropdownMenuItem>
+	);
+}
+
+/**
+ * The preview ratio menu: fit-to-original, custom size, then the landscape and
+ * portrait preset sections, each row carrying a shape glyph and the active row
+ * a leading check mark.
+ */
+function AspectRatioMenu({
+	disabled,
+	triggerLabel,
+	isOriginal,
+	currentPreset,
+	canvasPresets,
+	canvasSize,
+	onSelectOriginal,
+	onSelectPreset,
+	onApplyCustom,
+}: {
+	disabled: boolean;
+	triggerLabel: string;
+	isOriginal: boolean;
+	currentPreset: CanvasPreset | undefined;
+	canvasPresets: CanvasPreset[];
+	canvasSize: { width: number; height: number };
+	onSelectOriginal: () => void;
+	onSelectPreset: (preset: CanvasPreset) => void;
+	onApplyCustom: (size: { width: number; height: number }) => void;
+}) {
+	const { t } = useTranslation();
+	const [customOpen, setCustomOpen] = useState(false);
+	const [customWidth, setCustomWidth] = useState("");
+	const [customHeight, setCustomHeight] = useState("");
+	const isCustom = !isOriginal && !currentPreset;
+
+	const presetLabel = (preset: CanvasPreset) =>
+		preset.nameKey ? t(preset.nameKey as TranslationKey) : preset.name;
+	const sections = (["landscape", "portrait"] as const).map((group) =>
+		canvasPresets.filter((preset) => (preset.group ?? "landscape") === group)
+	);
+
+	const openCustomDialog = () => {
+		setCustomWidth(String(canvasSize.width));
+		setCustomHeight(String(canvasSize.height));
+		setCustomOpen(true);
+	};
+
+	const applyCustom = () => {
+		const width = Math.round(Number(customWidth));
+		const height = Math.round(Number(customHeight));
+		if (!Number.isFinite(width) || !Number.isFinite(height)) return;
+		if (width < 2 || height < 2 || width > 8192 || height > 8192) return;
+		onApplyCustom({ height, width });
+		setCustomOpen(false);
+	};
+
+	return (
+		<>
+			<DropdownMenu>
+				<DropdownMenuTrigger asChild>
+					<Button
+						type="button"
+						size="sm"
+						className="bg-panel-accent! text-foreground/85 text-[0.70rem] h-4 rounded-none border border-muted-foreground px-0.5 py-0 font-light"
+						disabled={disabled}
+						data-testid="aspect-ratio-trigger"
+					>
+						{triggerLabel}
+					</Button>
+				</DropdownMenuTrigger>
+				<DropdownMenuContent align="end" className="min-w-48">
+					<RatioMenuItem
+						active={isOriginal}
+						label={t("editor.preview.fitOriginal")}
+						onSelect={onSelectOriginal}
+					/>
+					<RatioMenuItem
+						active={isCustom}
+						label={t("editor.preview.customRatio")}
+						onSelect={openCustomDialog}
+					/>
+					{sections.map((presets, sectionIndex) =>
+						presets.length > 0 ? (
+							<div key={presets[0]?.name ?? sectionIndex}>
+								<DropdownMenuSeparator />
+								{presets.map((preset) => (
+									<RatioMenuItem
+										key={preset.name}
+										active={currentPreset?.name === preset.name}
+										label={presetLabel(preset)}
+										badge={
+											preset.badgeKey
+												? t(preset.badgeKey as TranslationKey)
+												: undefined
+										}
+										glyph={{ height: preset.height, width: preset.width }}
+										onSelect={() => onSelectPreset(preset)}
+									/>
+								))}
+							</div>
+						) : null
+					)}
+				</DropdownMenuContent>
+			</DropdownMenu>
+			<Dialog open={customOpen} onOpenChange={setCustomOpen}>
+				<DialogContent className="max-w-xs">
+					<DialogHeader>
+						<DialogTitle>{t("editor.preview.customRatioTitle")}</DialogTitle>
+					</DialogHeader>
+					<div className="grid grid-cols-2 gap-2">
+						<label className="text-xs text-muted-foreground">
+							{t("editor.preview.customWidth")}
+							<Input
+								className="mt-1"
+								inputMode="numeric"
+								value={customWidth}
+								onChange={(event) => setCustomWidth(event.target.value)}
+								data-testid="custom-canvas-width"
+							/>
+						</label>
+						<label className="text-xs text-muted-foreground">
+							{t("editor.preview.customHeight")}
+							<Input
+								className="mt-1"
+								inputMode="numeric"
+								value={customHeight}
+								onChange={(event) => setCustomHeight(event.target.value)}
+								data-testid="custom-canvas-height"
+							/>
+						</label>
+					</div>
+					<DialogFooter>
+						<Button
+							type="button"
+							size="sm"
+							onClick={applyCustom}
+							data-testid="custom-canvas-apply"
+						>
+							{t("editor.preview.customApply")}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+		</>
 	);
 }
 
