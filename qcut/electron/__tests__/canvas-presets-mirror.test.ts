@@ -30,10 +30,12 @@ describe("canvas preset mirror", () => {
 			"",
 		];
 		for (const probe of probes) {
-			expect(mirrorFindByName(probe)?.name).toBe(coreFindByName(probe)?.name);
+			expect(mirrorFindByName({ name: probe })?.name).toBe(
+				coreFindByName({ name: probe })?.name
+			);
 		}
-		expect(mirrorFindByName("16 : 9")?.name).toBe("16:9");
-		expect(mirrorFindByName("5.8-INCH")?.name).toBe("9:19.5");
+		expect(mirrorFindByName({ name: "16 : 9" })?.name).toBe("16:9");
+		expect(mirrorFindByName({ name: "5.8-INCH" })?.name).toBe("9:19.5");
 	});
 
 	it("lists every preset once in the help text, aliases folded in", () => {
