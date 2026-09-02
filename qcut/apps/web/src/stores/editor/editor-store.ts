@@ -1,3 +1,7 @@
+import {
+	DEFAULT_CANVAS_PRESETS,
+	findBestCanvasPreset,
+} from "@qcut/editor-core";
 import { create } from "zustand";
 import type { CanvasMode, CanvasPreset, CanvasSize } from "@/types/editor";
 
@@ -32,89 +36,13 @@ interface EditorState {
 	setCanvasSizeFromAspectRatio: (aspectRatio: number) => void;
 }
 
-/**
- * Ratio menu presets, mirroring the layout editors are used to: a landscape
- * section, then a portrait section. Every dimension is even so H.264/yuv420p
- * export never sees an odd size; "5.8寸" is the 9:19.5 phone-screen ratio at
- * even dimensions rather than the native 1125×2436 panel.
- */
-const DEFAULT_CANVAS_PRESETS: CanvasPreset[] = [
-	{
-		badgeKey: "editor.preview.ratioBadgeXigua",
-		group: "landscape",
-		height: 1080,
-		name: "16:9",
-		width: 1920,
-	},
-	{ group: "landscape", height: 1080, name: "4:3", width: 1440 },
-	{ group: "landscape", height: 816, name: "2.35:1", width: 1920 },
-	{ group: "landscape", height: 960, name: "2:1", width: 1920 },
-	{ group: "landscape", height: 1038, name: "1.85:1", width: 1920 },
-	{
-		badgeKey: "editor.preview.ratioBadgeDouyin",
-		group: "portrait",
-		height: 1920,
-		name: "9:16",
-		width: 1080,
-	},
-	{ group: "portrait", height: 1440, name: "3:4", width: 1080 },
-	{
-		group: "portrait",
-		height: 2340,
-		name: "9:19.5",
-		nameKey: "editor.preview.ratio58Inch",
-		width: 1080,
-	},
-	{ group: "portrait", height: 1080, name: "1:1", width: 1080 },
-	{ group: "portrait", height: 2160, name: "1:2", width: 1080 },
-];
-
-/**
- * Finds the best matching canvas preset for a given aspect ratio
- * Falls back to custom dimensions if no preset matches closely enough
- * @param aspectRatio - Target aspect ratio (width/height)
- * @returns Canvas size with width and height dimensions
- */
-const findBestCanvasPreset = (aspectRatio: number): CanvasSize => {
-	// Calculate aspect ratio for each preset and find the closest match
-	let bestMatch = DEFAULT_CANVAS_PRESETS[0]; // Default to 16:9 HD
-	let smallestDifference = Math.abs(
-		aspectRatio - bestMatch.width / bestMatch.height
-	);
-
-	for (const preset of DEFAULT_CANVAS_PRESETS) {
-		const presetAspectRatio = preset.width / preset.height;
-		const difference = Math.abs(aspectRatio - presetAspectRatio);
-
-		if (difference < smallestDifference) {
-			smallestDifference = difference;
-			bestMatch = preset;
-		}
-	}
-
-	// If the difference is still significant (> 0.1), create a custom size
-	// based on the media aspect ratio with a reasonable resolution
-	const bestAspectRatio = bestMatch.width / bestMatch.height;
-	if (Math.abs(aspectRatio - bestAspectRatio) > 0.1) {
-		// Create custom dimensions based on the aspect ratio
-		if (aspectRatio > 1) {
-			// Landscape - use 1920 width
-			return { width: 1920, height: Math.round(1920 / aspectRatio) };
-		}
-		// Portrait or square - use 1080 height
-		return { width: Math.round(1080 * aspectRatio), height: 1080 };
-	}
-
-	return { width: bestMatch.width, height: bestMatch.height };
-};
-
 export const useEditorStore = create<EditorState>((set, get) => ({
 	// Initial states
 	isInitializing: true,
 	isPanelsReady: false,
 	canvasSize: { width: 1920, height: 1080 }, // Default 16:9 HD
 	canvasMode: "preset" as CanvasMode,
-	canvasPresets: DEFAULT_CANVAS_PRESETS,
+	canvasPresets: [...DEFAULT_CANVAS_PRESETS],
 
 	// Actions
 	setInitializing: (loading) => {
