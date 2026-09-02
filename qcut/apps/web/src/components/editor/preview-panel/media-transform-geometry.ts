@@ -1,4 +1,4 @@
-import type { MediaCrop } from "@/types/timeline";
+import type { MediaCrop, MediaPerspective } from "@/types/timeline";
 
 export interface CanvasPoint {
 	x: number;
@@ -25,7 +25,10 @@ export interface MediaTransformSnapshot {
 	scaleY: number;
 	rotation: number;
 	maintainAspectRatio: boolean;
+	flipHorizontal: boolean;
+	flipVertical: boolean;
 	crop: MediaCrop;
+	perspective: MediaPerspective;
 }
 
 export type ResizeHandle =
