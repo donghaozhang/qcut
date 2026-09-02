@@ -424,3 +424,66 @@ describe("JianYing draft silent-loss policy", () => {
 		]);
 	});
 });
+
+describe("section toggles in draft diagnostics", () => {
+	type LossyElement = Parameters<
+		typeof collectLossyMediaFeatureIssues
+	>[0]["element"];
+	const warped: LossyElement = {
+		id: "clip-toggles",
+		type: "media",
+		name: "clip",
+		mediaId: "media-1",
+		startTime: 0,
+		duration: 4,
+		trimStart: 0,
+		trimEnd: 0,
+		perspective: {
+			topLeftX: 0.2,
+			topLeftY: 0,
+			topRightX: 1,
+			topRightY: 0,
+			bottomRightX: 1,
+			bottomRightY: 1,
+			bottomLeftX: 0,
+			bottomLeftY: 1,
+		},
+		keyframes: {
+			topLeftX: [
+				{ id: "k0", frame: 0, value: 0, easing: "linear" },
+				{ id: "k1", frame: 30, value: 0.2, easing: "linear" },
+			],
+		},
+	} as LossyElement;
+
+	it("reports a live corner pin and its keyframes", () => {
+		expect(collectLossyMediaFeatureIssues({ element: warped })).not.toEqual([]);
+	});
+
+	it("ignores the corner pin and its keyframes once 变形 is switched off", () => {
+		expect(
+			collectLossyMediaFeatureIssues({
+				element: { ...warped, perspectiveEnabled: false },
+			})
+		).toEqual([]);
+	});
+
+	it("ignores opacity keyframes once 混合 is switched off", () => {
+		const faded: LossyElement = {
+			...warped,
+			perspective: undefined,
+			keyframes: {
+				opacity: [
+					{ id: "o0", frame: 0, value: 1, easing: "linear" },
+					{ id: "o1", frame: 30, value: 0.2, easing: "linear" },
+				],
+			},
+		};
+		expect(collectLossyMediaFeatureIssues({ element: faded })).not.toEqual([]);
+		expect(
+			collectLossyMediaFeatureIssues({
+				element: { ...faded, blendEnabled: false },
+			})
+		).toEqual([]);
+	});
+});
