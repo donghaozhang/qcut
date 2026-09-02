@@ -183,16 +183,18 @@ test.describe("Main-track video properties", () => {
 			.getByRole("button", { name: "裁剪与适应", exact: true })
 			.click();
 
-		await properties.getByRole("button", { name: "透视", exact: true }).click();
-		await setNumber(page, "左上角X", 8);
-		await setNumber(page, "左上角Y", 10);
-		await setNumber(page, "右上角X", 94);
-		await setNumber(page, "右下角Y", 92);
+		// 变形 rows read as offsets from each resting corner, so the right and
+		// bottom edges move inward with negative values.
+		await properties.getByRole("button", { name: "变形", exact: true }).click();
+		await setNumber(page, "左上角 X", 8);
+		await setNumber(page, "左上角 Y", 10);
+		await setNumber(page, "右上角 X", -6);
+		await setNumber(page, "右下角 Y", -8);
 		await properties.screenshot({
 			path: path.join(outputDir, "03-perspective-properties.png"),
 			animations: "disabled",
 		});
-		await properties.getByRole("button", { name: "透视", exact: true }).click();
+		await properties.getByRole("button", { name: "变形", exact: true }).click();
 
 		await properties.getByLabel("添加位置 X关键帧").click();
 		await expect(properties.getByLabel("移除位置 X关键帧")).toBeVisible();
@@ -646,9 +648,9 @@ test.describe("Main-track video properties", () => {
 			.getByRole("button", { name: "视频防抖", exact: true })
 			.click();
 		await properties
-			.getByRole("button", { name: "画质增强", exact: true })
+			.getByRole("button", { name: "超清画质", exact: true })
 			.click();
-		await properties.getByText("本地超采样").scrollIntoViewIfNeeded();
+		await properties.getByText("AI 超分（云端）").scrollIntoViewIfNeeded();
 		await propertiesViewport.screenshot({
 			path: path.join(outputDir, "11d-basic-enhancements.png"),
 			animations: "disabled",
