@@ -36,4 +36,6 @@ export interface CanvasPreset {
 	group?: CanvasPresetGroup;
 	/** i18n key for a platform annotation shown after the name (e.g. 抖音). */
 	badgeKey?: string;
+	/** Alternative names accepted by name lookups (e.g. "5.8寸" for 9:19.5). */
+	aliases?: string[];
 }
