@@ -362,8 +362,21 @@ export function clampMediaPerspective(
 }
 
 export function resolveMediaVisualProperties(
-	element: MediaElement
+	element: MediaElement,
+	{
+		applySectionToggles = true,
+	}: {
+		/**
+		 * Renderers keep the default so disabled 混合 / 变形 sections resolve to
+		 * neutral values; the properties panel passes false to keep showing and
+		 * editing the stored values while a section is switched off.
+		 */
+		applySectionToggles?: boolean;
+	} = {}
 ): ResolvedMediaVisualProperties {
+	const blendOff = applySectionToggles && element.blendEnabled === false;
+	const perspectiveOff =
+		applySectionToggles && element.perspectiveEnabled === false;
 	const masks = resolveMediaMasks(element);
 	const enhancements = {
 		...DEFAULT_MEDIA_ENHANCEMENTS,
@@ -385,11 +398,17 @@ export function resolveMediaVisualProperties(
 		maintainAspectRatio: element.maintainAspectRatio ?? true,
 		flipHorizontal: element.flipHorizontal ?? false,
 		flipVertical: element.flipVertical ?? false,
-		opacity: Math.min(1, Math.max(0, finiteOr(element.opacity, 1))),
-		blendMode: element.blendMode ?? "normal",
+		// Section toggles resolve here so preview, canvas export and the CLI
+		// payload all see the same effective values without their own checks.
+		opacity: blendOff
+			? 1
+			: Math.min(1, Math.max(0, finiteOr(element.opacity, 1))),
+		blendMode: blendOff ? "normal" : (element.blendMode ?? "normal"),
 		fitMode: element.fitMode ?? "cover",
 		crop: clampMediaCrop(element.crop),
-		perspective: clampMediaPerspective(element.perspective),
+		perspective: perspectiveOff
+			? { ...DEFAULT_MEDIA_PERSPECTIVE }
+			: clampMediaPerspective(element.perspective),
 		animationInType: element.animationInType ?? "none",
 		animationInDuration: Math.max(
 			0.05,
@@ -423,11 +442,37 @@ export function resolveMediaVisualProperties(
 	};
 }
 
+/**
+ * Keyframes the renderers may animate: a switched-off 混合 section drops its
+ * opacity keyframes and a switched-off 变形 section drops its corner keyframes,
+ * matching what resolveMediaKeyframes renders in the preview.
+ */
+export function effectiveMediaKeyframes(
+	element: MediaElement
+): MediaElement["keyframes"] {
+	const keyframes = element.keyframes;
+	if (!keyframes) return keyframes;
+	const blendOff = element.blendEnabled === false;
+	const perspectiveOff = element.perspectiveEnabled === false;
+	if (!blendOff && !perspectiveOff) return keyframes;
+	const next: NonNullable<MediaElement["keyframes"]> = {};
+	for (const [property, frames] of Object.entries(keyframes) as Array<
+		[MediaKeyframeProperty, MediaPropertyKeyframe[] | undefined]
+	>) {
+		if (blendOff && property === "opacity") continue;
+		if (perspectiveOff && property in DEFAULT_MEDIA_PERSPECTIVE) continue;
+		next[property] = frames;
+	}
+	return next;
+}
+
 export function getMediaPropertyValue(
 	element: MediaElement,
 	property: MediaKeyframeProperty
 ): number {
-	const resolved = resolveMediaVisualProperties(element);
+	const resolved = resolveMediaVisualProperties(element, {
+		applySectionToggles: false,
+	});
 	if (property in CROP_KEY_MAP) {
 		return resolved.crop[CROP_KEY_MAP[property as keyof typeof CROP_KEY_MAP]];
 	}
@@ -463,12 +508,20 @@ export function resolveMediaKeyframes({
 	element,
 	currentTime,
 	fps,
+	applySectionToggles = true,
 }: {
 	element: MediaElement;
 	currentTime: number;
 	fps: number;
+	/** See resolveMediaVisualProperties; editors pass false. */
+	applySectionToggles?: boolean;
 }): ResolvedMediaVisualProperties {
-	const resolved = resolveMediaVisualProperties(element);
+	const resolved = resolveMediaVisualProperties(element, {
+		applySectionToggles,
+	});
+	const blendOff = applySectionToggles && element.blendEnabled === false;
+	const perspectiveOff =
+		applySectionToggles && element.perspectiveEnabled === false;
 	const masks = resolveMediaMasksAtTime({ element, currentTime, fps });
 	const color = resolveMediaColorAtTime({ element, currentTime, fps });
 	const chromaKey = resolveMediaChromaKeyAtTime({
@@ -517,11 +570,14 @@ export function resolveMediaKeyframes({
 	return {
 		...resolved,
 		...numeric,
-		opacity: Math.min(1, Math.max(0, numeric.opacity)),
+		// Disabled sections win over their own keyframes.
+		opacity: blendOff ? 1 : Math.min(1, Math.max(0, numeric.opacity)),
 		scaleX: Math.max(0.01, numeric.scaleX),
 		scaleY: Math.max(0.01, numeric.scaleY),
 		crop: clampMediaCrop(crop),
-		perspective: clampMediaPerspective(perspective),
+		perspective: perspectiveOff
+			? resolved.perspective
+			: clampMediaPerspective(perspective),
 		color,
 		chromaKey,
 		masks,
