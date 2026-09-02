@@ -19,12 +19,21 @@ export interface CanvasSize {
 /** Canvas sizing mode determining how dimensions are set */
 export type CanvasMode = "preset" | "original" | "custom";
 
+/** Orientation group a canvas preset is listed under in the ratio menu. */
+export type CanvasPresetGroup = "landscape" | "portrait";
+
 /** Predefined canvas size preset (e.g., 16:9, 9:16, 1:1) */
 export interface CanvasPreset {
 	/** Display name of the preset (e.g., "16:9", "9:16") */
 	name: string;
+	/** i18n key overriding `name` in menus, for locale-specific labels. */
+	nameKey?: string;
 	/** Preset width in pixels */
 	width: number;
 	/** Preset height in pixels */
 	height: number;
+	/** Menu section the preset belongs to; ungrouped presets list first. */
+	group?: CanvasPresetGroup;
+	/** i18n key for a platform annotation shown after the name (e.g. 抖音). */
+	badgeKey?: string;
 }
