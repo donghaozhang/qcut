@@ -60,14 +60,15 @@ export const CANVAS_PRESET_MATCH_TOLERANCE = 0.02;
  * Pick the preset closest to `aspectRatio`; when none is within tolerance,
  * return an exact-ratio custom size at 1920 wide (landscape) or 1080 tall.
  */
-export function findBestCanvasPreset(
-	aspectRatio: number,
-	presets: readonly CanvasPreset[] = DEFAULT_CANVAS_PRESETS
-): CanvasSize {
-	let bestMatch = presets[0];
-	let smallestDifference = Math.abs(
-		aspectRatio - bestMatch.width / bestMatch.height
-	);
+export function findBestCanvasPreset({
+	aspectRatio,
+	presets = DEFAULT_CANVAS_PRESETS,
+}: {
+	aspectRatio: number;
+	presets?: readonly CanvasPreset[];
+}): CanvasSize {
+	let bestMatch: CanvasPreset | undefined;
+	let smallestDifference = Number.POSITIVE_INFINITY;
 	for (const preset of presets) {
 		const difference = Math.abs(aspectRatio - preset.width / preset.height);
 		if (difference < smallestDifference) {
@@ -76,7 +77,8 @@ export function findBestCanvasPreset(
 		}
 	}
 
-	if (smallestDifference > CANVAS_PRESET_MATCH_TOLERANCE) {
+	// An empty catalog simply has nothing to snap to.
+	if (!bestMatch || smallestDifference > CANVAS_PRESET_MATCH_TOLERANCE) {
 		if (aspectRatio > 1) {
 			return { width: 1920, height: roundToEven(1920 / aspectRatio) };
 		}
@@ -90,22 +92,25 @@ function roundToEven(value: number): number {
 	return Math.max(2, Math.round(value / 2) * 2);
 }
 
-function normalizeCanvasPresetName(name: string): string {
+function normalizeCanvasPresetName({ name }: { name: string }): string {
 	return name.trim().toLowerCase().replace(/：/g, ":").replace(/\s+/g, "");
 }
 
 /** Resolve a preset by its display name or one of its aliases (e.g. 5.8寸). */
-export function findCanvasPresetByName(
-	name: string,
-	presets: readonly CanvasPreset[] = DEFAULT_CANVAS_PRESETS
-): CanvasPreset | undefined {
-	const wanted = normalizeCanvasPresetName(name);
+export function findCanvasPresetByName({
+	name,
+	presets = DEFAULT_CANVAS_PRESETS,
+}: {
+	name: string;
+	presets?: readonly CanvasPreset[];
+}): CanvasPreset | undefined {
+	const wanted = normalizeCanvasPresetName({ name });
 	if (!wanted) return undefined;
 	return presets.find(
 		(preset) =>
-			normalizeCanvasPresetName(preset.name) === wanted ||
+			normalizeCanvasPresetName({ name: preset.name }) === wanted ||
 			(preset.aliases ?? []).some(
-				(alias) => normalizeCanvasPresetName(alias) === wanted
+				(alias) => normalizeCanvasPresetName({ name: alias }) === wanted
 			)
 	);
 }
