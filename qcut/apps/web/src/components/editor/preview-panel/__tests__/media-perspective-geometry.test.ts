@@ -6,6 +6,7 @@ import {
 	PERSPECTIVE_CORNER_MIN,
 	perspectiveCornerFromOffsetPercent,
 	perspectiveCornerOffsetPercent,
+	perspectiveDeltaFromScreen,
 	perspectiveFromLocalDelta,
 } from "../media-perspective-geometry";
 
@@ -76,5 +77,48 @@ describe("corner offset percent", () => {
 		expect(
 			perspectiveCornerFromOffsetPercent({ key: "topLeftY", percent: 40 })
 		).toBeCloseTo(0.4);
+	});
+});
+
+describe("perspectiveDeltaFromScreen", () => {
+	it("passes an unrotated, unflipped delta through unchanged", () => {
+		expect(
+			perspectiveDeltaFromScreen({
+				delta: { x: 10, y: 4 },
+				rotation: 0,
+				flipHorizontal: false,
+				flipVertical: false,
+			})
+		).toEqual({ x: 10, y: 4 });
+	});
+
+	it("undoes a 90 degree rotation so screen-right becomes local-up", () => {
+		const local = perspectiveDeltaFromScreen({
+			delta: { x: 10, y: 0 },
+			rotation: 90,
+			flipHorizontal: false,
+			flipVertical: false,
+		});
+		expect(local.x).toBeCloseTo(0);
+		expect(local.y).toBeCloseTo(-10);
+	});
+
+	it("mirrors the axes a flip reversed, after the rotation", () => {
+		expect(
+			perspectiveDeltaFromScreen({
+				delta: { x: 10, y: 4 },
+				rotation: 0,
+				flipHorizontal: true,
+				flipVertical: true,
+			})
+		).toEqual({ x: -10, y: -4 });
+		const rotatedAndFlipped = perspectiveDeltaFromScreen({
+			delta: { x: 10, y: 0 },
+			rotation: 90,
+			flipHorizontal: false,
+			flipVertical: true,
+		});
+		expect(rotatedAndFlipped.x).toBeCloseTo(0);
+		expect(rotatedAndFlipped.y).toBeCloseTo(10);
 	});
 });
