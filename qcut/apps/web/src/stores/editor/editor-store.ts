@@ -64,12 +64,12 @@ export const useEditorStore = create<EditorState>((set, get) => ({
 	},
 
 	setCanvasSizeToOriginal: (aspectRatio) => {
-		const newCanvasSize = findBestCanvasPreset(aspectRatio);
+		const newCanvasSize = findBestCanvasPreset({ aspectRatio });
 		set({ canvasSize: newCanvasSize, canvasMode: "original" });
 	},
 
 	setCanvasSizeFromAspectRatio: (aspectRatio) => {
-		const newCanvasSize = findBestCanvasPreset(aspectRatio);
+		const newCanvasSize = findBestCanvasPreset({ aspectRatio });
 		set({ canvasSize: newCanvasSize, canvasMode: "custom" });
 	},
 }));
