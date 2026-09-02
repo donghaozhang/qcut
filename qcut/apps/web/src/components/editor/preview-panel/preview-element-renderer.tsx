@@ -1271,6 +1271,13 @@ export function PreviewElementRenderer({
 					currentTime,
 					fps: activeProject?.fps ?? 30,
 				});
+				// Images share the video branch's corner-pin so 拖拽变形 previews
+				// identically for both media kinds.
+				const imagePerspectiveTransform = buildCssPerspectiveTransform({
+					width: previewDimensions.width || canvasSize.width,
+					height: previewDimensions.height || canvasSize.height,
+					perspective: visual.perspective,
+				});
 				const effectMotion = mergeEffectMotionWithAudioReactive({
 					motion: getEffectMotionState({
 						program: effectRendering.renderProgram,
@@ -1327,6 +1334,11 @@ export function PreviewElementRenderer({
 						: (element.y ?? 0);
 					const currentWidth = element.width ?? 200;
 					const currentHeight = element.height ?? 200;
+					const sizedImagePerspectiveTransform = buildCssPerspectiveTransform({
+						width: currentWidth * scaleRatio,
+						height: currentHeight * scaleRatio,
+						perspective: visual.perspective,
+					});
 
 					return (
 						<div
@@ -1399,9 +1411,14 @@ export function PreviewElementRenderer({
 							<div
 								className="size-full"
 								data-preview-effect-render-mode={previewEffectRenderMode}
-								style={buildClipTransitionContentStyle({
-									presentation: transitionPresentation,
-								})}
+								style={{
+									...buildClipTransitionContentStyle({
+										presentation: transitionPresentation,
+										baseTransform: sizedImagePerspectiveTransform,
+									}),
+									// The corner-pin homography maps from the box origin.
+									transformOrigin: "0 0",
+								}}
 							>
 								<img
 									src={mediaItem.url}
@@ -1514,9 +1531,13 @@ export function PreviewElementRenderer({
 						<div
 							className="size-full"
 							data-preview-effect-render-mode={previewEffectRenderMode}
-							style={buildClipTransitionContentStyle({
-								presentation: transitionPresentation,
-							})}
+							style={{
+								...buildClipTransitionContentStyle({
+									presentation: transitionPresentation,
+									baseTransform: imagePerspectiveTransform,
+								}),
+								transformOrigin: "0 0",
+							}}
 						>
 							<img
 								src={mediaItem.url}
