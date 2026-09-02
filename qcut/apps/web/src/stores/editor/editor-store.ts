@@ -32,11 +32,41 @@ interface EditorState {
 	setCanvasSizeFromAspectRatio: (aspectRatio: number) => void;
 }
 
+/**
+ * Ratio menu presets, mirroring the layout editors are used to: a landscape
+ * section, then a portrait section. Every dimension is even so H.264/yuv420p
+ * export never sees an odd size; "5.8寸" is the 9:19.5 phone-screen ratio at
+ * even dimensions rather than the native 1125×2436 panel.
+ */
 const DEFAULT_CANVAS_PRESETS: CanvasPreset[] = [
-	{ name: "16:9", width: 1920, height: 1080 },
-	{ name: "9:16", width: 1080, height: 1920 },
-	{ name: "1:1", width: 1080, height: 1080 },
-	{ name: "4:3", width: 1440, height: 1080 },
+	{
+		badgeKey: "editor.preview.ratioBadgeXigua",
+		group: "landscape",
+		height: 1080,
+		name: "16:9",
+		width: 1920,
+	},
+	{ group: "landscape", height: 1080, name: "4:3", width: 1440 },
+	{ group: "landscape", height: 816, name: "2.35:1", width: 1920 },
+	{ group: "landscape", height: 960, name: "2:1", width: 1920 },
+	{ group: "landscape", height: 1038, name: "1.85:1", width: 1920 },
+	{
+		badgeKey: "editor.preview.ratioBadgeDouyin",
+		group: "portrait",
+		height: 1920,
+		name: "9:16",
+		width: 1080,
+	},
+	{ group: "portrait", height: 1440, name: "3:4", width: 1080 },
+	{
+		group: "portrait",
+		height: 2340,
+		name: "9:19.5",
+		nameKey: "editor.preview.ratio58Inch",
+		width: 1080,
+	},
+	{ group: "portrait", height: 1080, name: "1:1", width: 1080 },
+	{ group: "portrait", height: 2160, name: "1:2", width: 1080 },
 ];
 
 /**
