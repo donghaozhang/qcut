@@ -1,5 +1,6 @@
 import {
 	buildCompositionPlan,
+	type MediaBlendMode,
 	type TimelineElement,
 	type TimelineTrack,
 } from "@/types/timeline";
@@ -154,6 +155,32 @@ export interface MediaTransformVisual {
 	flipHorizontal: boolean;
 	flipVertical: boolean;
 	opacity: number;
+	/** Element blend mode; undefined and "normal" both mean source-over. */
+	blendMode?: MediaBlendMode;
+}
+
+/**
+ * The editor's blend modes are the CSS mix-blend-mode names the preview uses,
+ * and Canvas 2D spells the same operations identically.
+ */
+const CANVAS_COMPOSITE_BY_BLEND_MODE: Record<
+	Exclude<MediaBlendMode, "normal">,
+	GlobalCompositeOperation
+> = {
+	multiply: "multiply",
+	screen: "screen",
+	overlay: "overlay",
+	darken: "darken",
+	lighten: "lighten",
+};
+
+export function canvasCompositeForBlendMode({
+	blendMode,
+}: {
+	blendMode: MediaBlendMode | undefined;
+}): GlobalCompositeOperation | undefined {
+	if (!blendMode || blendMode === "normal") return undefined;
+	return CANVAS_COMPOSITE_BY_BLEND_MODE[blendMode];
 }
 
 export function isIdentityMediaTransform({
@@ -169,7 +196,8 @@ export function isIdentityMediaTransform({
 		visual.scaleY === 1 &&
 		!visual.flipHorizontal &&
 		!visual.flipVertical &&
-		visual.opacity === 1
+		visual.opacity === 1 &&
+		canvasCompositeForBlendMode({ blendMode: visual.blendMode }) === undefined
 	);
 }
 
@@ -208,6 +236,10 @@ export async function drawWithMediaTransform({
 		);
 		ctx.translate(-centerX, -centerY);
 		ctx.globalAlpha *= Math.min(1, Math.max(0, visual.opacity));
+		const composite = canvasCompositeForBlendMode({
+			blendMode: visual.blendMode,
+		});
+		if (composite) ctx.globalCompositeOperation = composite;
 		await draw();
 	} finally {
 		ctx.restore();

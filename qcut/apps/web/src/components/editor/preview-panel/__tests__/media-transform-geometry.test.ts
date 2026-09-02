@@ -9,6 +9,7 @@ import {
 	snapSelectionMove,
 	type MediaTransformSnapshot,
 } from "../media-transform-geometry";
+import { DEFAULT_MEDIA_PERSPECTIVE } from "@/lib/video/video-properties";
 
 const canvasSize = { width: 100, height: 100 };
 
@@ -29,7 +30,10 @@ function snapshot({
 		scaleY,
 		rotation,
 		maintainAspectRatio: true,
+		flipHorizontal: false,
+		flipVertical: false,
 		crop: { top: 0, right: 0, bottom: 0, left: 0 },
+		perspective: DEFAULT_MEDIA_PERSPECTIVE,
 	};
 }
 

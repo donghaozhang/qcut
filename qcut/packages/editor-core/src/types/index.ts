@@ -28,6 +28,7 @@ export type {
 	CanvasSize,
 	CanvasMode,
 	CanvasPreset,
+	CanvasPresetGroup,
 } from "./editor.js";
 
 export type {

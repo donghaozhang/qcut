@@ -12,6 +12,7 @@ import { createExtraEditorCommands } from "./command-registry-editor-extra.js";
 import { JIANYING_TRANSITION_COMMANDS } from "./command-registry-editor-jianying.js";
 import { JIANYING_IMPORT_COMMANDS } from "./command-registry-editor-jianying-import.js";
 import { INTEROP_COMMANDS } from "./command-registry-editor-interop.js";
+import { CANVAS_PRESET_NAMES } from "../editor/canvas-presets.js";
 
 /** Shorthand flag builder. */
 function f(
@@ -176,7 +177,19 @@ export const EDITOR_COMMANDS: Record<string, CommandDef> = {
 	"editor:project:update-settings": ed(
 		"editor:project:update-settings",
 		"Update project settings",
-		[PID, DATA_REQ]
+		[
+			PID,
+			DATA,
+			f(
+				"--ratio",
+				"string",
+				`Canvas ratio preset, applied over --data: ${CANVAS_PRESET_NAMES.join(", ")}`
+			),
+		],
+		[
+			"qcut-pipeline editor:project:update-settings --project-id <id> --ratio 9:16 --json",
+			"qcut-pipeline editor:project:update-settings --project-id <id> --data '{\"fps\":30}' --json",
+		]
 	),
 	"editor:project:stats": ed("editor:project:stats", "Get project statistics", [
 		PID,

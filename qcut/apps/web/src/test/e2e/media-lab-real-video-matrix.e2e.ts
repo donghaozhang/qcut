@@ -841,16 +841,25 @@ test.describe("Local video lab real-video matrix", () => {
 
 		await resetPixelFeatures({ apiPort, clip, projectId });
 		const properties = page.getByTestId("media-properties");
+		// 视频防抖 is a level dropdown bound to deshake's four radii; "高" stores 75.
 		await openPropertyGroup({ properties, title: "视频防抖" });
-		await setNumericInputWithPointer({
+		await clickWithPointer({
 			page,
-			input: properties.getByLabel("本地防抖数值"),
-			value: "45",
+			target: properties.getByLabel("启用视频防抖"),
 		});
-		await openPropertyGroup({ properties, title: "画质增强" });
+		await clickWithPointer({
+			page,
+			target: properties.getByTestId("media-stabilization-level"),
+		});
+		await page.getByRole("option", { name: "高", exact: true }).click();
+		await openPropertyGroup({ properties, title: "画面降噪" });
+		await clickWithPointer({
+			page,
+			target: properties.getByLabel("启用画面降噪"),
+		});
 		await setNumericInputWithPointer({
 			page,
-			input: properties.getByLabel("视频降噪数值"),
+			input: properties.getByLabel("强度数值"),
 			value: "45",
 		});
 		const lab = page.getByTestId("media-lab-properties");

@@ -8,14 +8,18 @@ import type {
 	RefObject,
 } from "react";
 import { Crop, RotateCcw, RotateCw } from "lucide-react";
-import type { MediaElement } from "@/types/timeline";
-import {
-	DEFAULT_MEDIA_CROP,
-	resolveMediaKeyframes,
-} from "@/lib/video/video-properties";
+import { DEFAULT_MEDIA_CROP } from "@/lib/video/video-properties";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import { useCustomCutoutEditorStore } from "@/stores/editor/custom-cutout-editor-store";
 import { useMaskEditorStore } from "@/stores/editor/mask-editor-store";
+import { usePerspectiveEditorStore } from "@/stores/editor/perspective-editor-store";
 import { usePortraitManualBodyStore } from "@/stores/editor/portrait-manual-body-store";
+import {
+	perspectiveDeltaFromScreen,
+	perspectiveFromLocalDelta,
+	type PerspectiveCorner,
+} from "./media-perspective-geometry";
+import { MediaPerspectiveHandles } from "./media-perspective-handles";
 import {
 	cropFromLocalDelta,
 	getSelectionBounds,
@@ -25,22 +29,25 @@ import {
 	rotateMediaSelection,
 	rotateVector,
 	snapSelectionMove,
-	type CanvasBounds,
-	type CanvasPoint,
 	type CropSide,
 	type MediaTransformSnapshot,
 	type ResizeHandle,
 	type SnapGuides,
 } from "./media-transform-geometry";
+import { buildMediaCanvasUpdate } from "./media-transform-update";
 import {
-	buildMediaCanvasUpdate,
-	type MediaCanvasMutation,
-} from "./media-transform-update";
+	canvasPointFromClient,
+	keyboardPoint,
+	pendingUpdatesFromSnapshots,
+	pointerAngle,
+	snapshotsFromTargets,
+	type InteractionKind,
+	type InteractionState,
+	type PendingUpdate,
+	type SelectedMediaTransformTarget,
+} from "./media-transform-overlay-helpers";
 
-export interface SelectedMediaTransformTarget {
-	trackId: string;
-	element: MediaElement;
-}
+export type { SelectedMediaTransformTarget } from "./media-transform-overlay-helpers";
 
 interface MediaTransformOverlayProps {
 	targets: SelectedMediaTransformTarget[];
@@ -48,27 +55,6 @@ interface MediaTransformOverlayProps {
 	previewRef: RefObject<HTMLDivElement | null>;
 	currentTime: number;
 	fps: number;
-}
-
-type InteractionKind = "drag" | "resize" | "rotate" | "crop";
-
-interface InteractionState {
-	kind: InteractionKind;
-	items: MediaTransformSnapshot[];
-	targets: SelectedMediaTransformTarget[];
-	bounds: CanvasBounds;
-	startPoint: CanvasPoint;
-	handle?: ResizeHandle;
-	cropSide?: CropSide;
-	startAngle: number;
-	currentTime: number;
-	fps: number;
-}
-
-interface PendingUpdate {
-	trackId: string;
-	elementId: string;
-	updates: ReturnType<typeof buildMediaCanvasUpdate>;
 }
 
 const RESIZE_HANDLES: Array<{
@@ -145,118 +131,6 @@ const CROP_HANDLES: Array<{
 	},
 ];
 
-function canvasPointFromClient({
-	clientX,
-	clientY,
-	previewRect,
-	canvasSize,
-}: {
-	clientX: number;
-	clientY: number;
-	previewRect: DOMRect;
-	canvasSize: { width: number; height: number };
-}): CanvasPoint {
-	return {
-		x:
-			((clientX - previewRect.left) / previewRect.width) * canvasSize.width -
-			canvasSize.width / 2,
-		y:
-			((clientY - previewRect.top) / previewRect.height) * canvasSize.height -
-			canvasSize.height / 2,
-	};
-}
-
-function pointerAngle({
-	point,
-	center,
-}: {
-	point: CanvasPoint;
-	center: CanvasPoint;
-}) {
-	return (Math.atan2(point.y - center.y, point.x - center.x) * 180) / Math.PI;
-}
-
-function snapshotsFromTargets({
-	targets,
-	currentTime,
-	fps,
-}: {
-	targets: SelectedMediaTransformTarget[];
-	currentTime: number;
-	fps: number;
-}): MediaTransformSnapshot[] {
-	return targets.map(({ trackId, element }) => {
-		const visual = resolveMediaKeyframes({ element, currentTime, fps });
-		return {
-			trackId,
-			elementId: element.id,
-			x: visual.x,
-			y: visual.y,
-			scaleX: visual.scaleX,
-			scaleY: visual.scaleY,
-			rotation: visual.rotation,
-			maintainAspectRatio: visual.maintainAspectRatio,
-			crop: visual.crop,
-		};
-	});
-}
-
-function mutationFromSnapshot({
-	item,
-}: {
-	item: MediaTransformSnapshot;
-}): MediaCanvasMutation {
-	return {
-		x: item.x,
-		y: item.y,
-		scaleX: item.scaleX,
-		scaleY: item.scaleY,
-		rotation: item.rotation,
-		crop: item.crop,
-	};
-}
-
-function pendingUpdatesFromSnapshots({
-	items,
-	interaction,
-}: {
-	items: MediaTransformSnapshot[];
-	interaction: InteractionState;
-}): PendingUpdate[] {
-	return items.flatMap((item) => {
-		const target = interaction.targets.find(
-			(candidate) => candidate.element.id === item.elementId
-		);
-		if (!target) return [];
-		return [
-			{
-				trackId: target.trackId,
-				elementId: target.element.id,
-				updates: buildMediaCanvasUpdate({
-					element: target.element,
-					mutation: mutationFromSnapshot({ item }),
-					currentTime: interaction.currentTime,
-					fps: interaction.fps,
-				}),
-			},
-		];
-	});
-}
-
-function keyboardPoint({
-	event,
-	step,
-}: {
-	event: ReactKeyboardEvent;
-	step: number;
-}): CanvasPoint | null {
-	if (event.key === "ArrowLeft") return { x: -step, y: 0 };
-	if (event.key === "ArrowRight") return { x: step, y: 0 };
-	if (event.key === "ArrowUp") return { x: 0, y: -step };
-	if (event.key === "ArrowDown") return { x: 0, y: step };
-	return null;
-}
-
 /** Direct manipulation controls for selected media on the preview canvas. */
 export function MediaTransformOverlay({
 	targets,
@@ -266,11 +140,20 @@ export function MediaTransformOverlay({
 	fps,
 }: MediaTransformOverlayProps) {
 	const isEditingMask = useMaskEditorStore((state) => state.isEditing);
+	// Painting a custom cutout needs the whole clip surface, so the transform
+	// box yields exactly like it does for mask editing.
+	const isPaintingCutout = useCustomCutoutEditorStore((state) => state.editing);
 	const isEditingManualBody = usePortraitManualBodyStore(
 		(state) => state.active
 	);
 	const snappingEnabled = useTimelineStore((state) => state.snappingEnabled);
 	const [cropMode, setCropMode] = useState(false);
+	const perspectiveEditingId = usePerspectiveEditorStore(
+		(state) => state.editingElementId
+	);
+	const setPerspectiveEditing = usePerspectiveEditorStore(
+		(state) => state.setEditing
+	);
 	const [activeInteraction, setActiveInteraction] =
 		useState<InteractionKind | null>(null);
 	const [snapGuides, setSnapGuides] = useState<SnapGuides>({});
@@ -287,6 +170,22 @@ export function MediaTransformOverlay({
 		[snapshots, canvasSize]
 	);
 	const singleItem = snapshots.length === 1 ? snapshots[0] : null;
+	const singleTarget = targets.length === 1 ? targets[0] : null;
+	const perspectiveMode =
+		singleItem !== null &&
+		perspectiveEditingId === singleItem.elementId &&
+		singleTarget?.element.perspectiveEnabled !== false;
+
+	// Drag-warp mode is tied to one enabled, solely selected element; leave it
+	// when the selection changes, the clip disappears or the section is off.
+	useEffect(() => {
+		if (perspectiveEditingId === null) return;
+		const stillValid =
+			singleTarget !== null &&
+			singleTarget.element.id === perspectiveEditingId &&
+			singleTarget.element.perspectiveEnabled !== false;
+		if (!stillValid) setPerspectiveEditing(null);
+	}, [perspectiveEditingId, singleTarget, setPerspectiveEditing]);
 
 	const flushPendingUpdates = useCallback(() => {
 		const pending = pendingUpdatesRef.current;
@@ -340,11 +239,13 @@ export function MediaTransformOverlay({
 			kind,
 			handle,
 			cropSide,
+			corner,
 		}: {
 			event: ReactPointerEvent<HTMLElement>;
 			kind: InteractionKind;
 			handle?: ResizeHandle;
 			cropSide?: CropSide;
+			corner?: PerspectiveCorner;
 		}) => {
 			const preview = previewRef.current;
 			if (!preview || snapshots.length === 0) return;
@@ -365,6 +266,7 @@ export function MediaTransformOverlay({
 				startPoint,
 				handle,
 				cropSide,
+				corner,
 				startAngle: pointerAngle({
 					point: startPoint,
 					center: { x: bounds.centerX, y: bounds.centerY },
@@ -497,6 +399,32 @@ export function MediaTransformOverlay({
 				];
 			}
 
+			if (
+				interaction.kind === "perspective" &&
+				interaction.corner &&
+				interaction.items.length === 1
+			) {
+				const item = interaction.items[0];
+				const localDelta = perspectiveDeltaFromScreen({
+					delta,
+					rotation: item.rotation,
+					flipHorizontal: item.flipHorizontal,
+					flipVertical: item.flipVertical,
+				});
+				nextItems = [
+					{
+						...item,
+						perspective: perspectiveFromLocalDelta({
+							perspective: item.perspective,
+							corner: interaction.corner,
+							delta: localDelta,
+							width: canvasSize.width * item.scaleX,
+							height: canvasSize.height * item.scaleY,
+						}),
+					},
+				];
+			}
+
 			queueUpdates({
 				updates: pendingUpdatesFromSnapshots({
 					items: nextItems,
@@ -529,12 +457,18 @@ export function MediaTransformOverlay({
 	useEffect(() => {
 		const handleKeyDown = (event: KeyboardEvent) => {
 			if (event.key !== "Escape") return;
+			if (perspectiveMode) setPerspectiveEditing(null);
 			if (activeInteraction) finishInteraction();
 			setCropMode(false);
 		};
 		window.addEventListener("keydown", handleKeyDown);
 		return () => window.removeEventListener("keydown", handleKeyDown);
-	}, [activeInteraction, finishInteraction]);
+	}, [
+		activeInteraction,
+		finishInteraction,
+		perspectiveMode,
+		setPerspectiveEditing,
+	]);
 
 	useEffect(() => {
 		return () => {
@@ -563,6 +497,55 @@ export function MediaTransformOverlay({
 		},
 		[applyImmediately, bounds, currentTime, fps, snapshots, targets]
 	);
+
+	const handlePerspectiveKeyDown = ({
+		event,
+		corner,
+	}: {
+		event: ReactKeyboardEvent<HTMLElement>;
+		corner: PerspectiveCorner;
+	}) => {
+		const item = singleItem;
+		if (!item) return;
+		const step = keyboardPoint({ event, step: event.shiftKey ? 10 : 1 });
+		if (!step) return;
+		event.preventDefault();
+		event.stopPropagation();
+		const target = targets.find(
+			(candidate) => candidate.element.id === item.elementId
+		);
+		if (!target) return;
+		const width = canvasSize.width * item.scaleX;
+		const height = canvasSize.height * item.scaleY;
+		// Arrow keys nudge the visible corner in screen direction by 1% of the
+		// box (10% with Shift), through the same mapping the pointer uses.
+		const perspective = perspectiveFromLocalDelta({
+			perspective: item.perspective,
+			corner,
+			delta: perspectiveDeltaFromScreen({
+				delta: { x: step.x * width * 0.01, y: step.y * height * 0.01 },
+				rotation: item.rotation,
+				flipHorizontal: item.flipHorizontal,
+				flipVertical: item.flipVertical,
+			}),
+			width,
+			height,
+		});
+		applyImmediately({
+			updates: [
+				{
+					trackId: target.trackId,
+					elementId: target.element.id,
+					updates: buildMediaCanvasUpdate({
+						element: target.element,
+						mutation: { perspective },
+						currentTime,
+						fps,
+					}),
+				},
+			],
+		});
+	};
 
 	const handleDragKeyDown = useCallback(
 		(event: ReactKeyboardEvent) => {
@@ -671,7 +654,12 @@ export function MediaTransformOverlay({
 		});
 	}, [applySnapshotChange, singleItem]);
 
-	if (snapshots.length === 0 || isEditingMask || isEditingManualBody)
+	if (
+		snapshots.length === 0 ||
+		isEditingMask ||
+		isEditingManualBody ||
+		isPaintingCutout
+	)
 		return null;
 
 	const frameStyle: CSSProperties = singleItem
@@ -779,7 +767,19 @@ export function MediaTransformOverlay({
 					) : null}
 				</div>
 
-				{cropMode && cropStyle ? (
+				{perspectiveMode && singleItem ? (
+					<MediaPerspectiveHandles
+						perspective={singleItem.perspective}
+						flipHorizontal={singleItem.flipHorizontal}
+						flipVertical={singleItem.flipVertical}
+						onCornerPointerDown={({ event, corner }) =>
+							beginInteraction({ event, kind: "perspective", corner })
+						}
+						onCornerKeyDown={({ event, corner }) =>
+							handlePerspectiveKeyDown({ event, corner })
+						}
+					/>
+				) : cropMode && cropStyle ? (
 					<div
 						className="pointer-events-none absolute z-10 border border-dashed border-white shadow-[0_0_0_9999px_rgba(0,0,0,0.48)]"
 						data-testid="media-crop-box"

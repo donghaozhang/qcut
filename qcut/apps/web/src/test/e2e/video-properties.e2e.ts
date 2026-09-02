@@ -29,6 +29,10 @@ async function paintCutoutPoint({
 	await overlay.click();
 }
 
+// A long visual audit: dozens of panel interactions plus screenshots exceed
+// the 60 s default, so it gets the same budget as the other long-running specs.
+test.setTimeout(600_000);
+
 test.describe("Main-track video properties", () => {
 	test("edits, undoes, keyframes, and captures P0 video visuals", async ({
 		page,
@@ -183,16 +187,18 @@ test.describe("Main-track video properties", () => {
 			.getByRole("button", { name: "裁剪与适应", exact: true })
 			.click();
 
-		await properties.getByRole("button", { name: "透视", exact: true }).click();
-		await setNumber(page, "左上角X", 8);
-		await setNumber(page, "左上角Y", 10);
-		await setNumber(page, "右上角X", 94);
-		await setNumber(page, "右下角Y", 92);
+		// 变形 rows read as offsets from each resting corner, so the right and
+		// bottom edges move inward with negative values.
+		await properties.getByRole("button", { name: "变形", exact: true }).click();
+		await setNumber(page, "左上角 X", 8);
+		await setNumber(page, "左上角 Y", 10);
+		await setNumber(page, "右上角 X", -6);
+		await setNumber(page, "右下角 Y", -8);
 		await properties.screenshot({
 			path: path.join(outputDir, "03-perspective-properties.png"),
 			animations: "disabled",
 		});
-		await properties.getByRole("button", { name: "透视", exact: true }).click();
+		await properties.getByRole("button", { name: "变形", exact: true }).click();
 
 		await properties.getByLabel("添加位置 X关键帧").click();
 		await expect(properties.getByLabel("移除位置 X关键帧")).toBeVisible();
@@ -382,9 +388,16 @@ test.describe("Main-track video properties", () => {
 
 		await maskEditor.getByRole("button", { name: "新建蒙版" }).click();
 		await maskEditor.getByRole("button", { name: "选择钢笔蒙版" }).click();
-		const maskNameInputs = maskEditor.getByLabel("蒙版名称");
-		await maskNameInputs.last().fill("Bezier Accent");
-		await maskNameInputs.last().press("Tab");
+		// The compact inspector has no rename field; the new mask keeps its
+		// generated name, which the overlay handles echo back.
+		const penMaskName = await page.evaluate(() => {
+			const store = (window as any).__timelineStore.getState();
+			const track = store.tracks.find((item: any) => item.type === "media");
+			const masks = track.elements[0].masks ?? [];
+			const pen = masks.find((mask: any) => mask.type === "pen");
+			if (!pen) throw new Error("No pen mask in the stack");
+			return String(pen.name ?? "蒙版");
+		});
 		await maskEditor.getByText("更多蒙版设置", { exact: true }).click();
 		await maskEditor.getByLabel("扩展数值").fill("8");
 		await maskEditor.getByLabel("扩展数值").press("Tab");
@@ -393,11 +406,11 @@ test.describe("Main-track video properties", () => {
 		await maskEditor.getByLabel("蒙版混合方式").click();
 		await page.getByRole("option", { name: "相减", exact: true }).click();
 		await expect(
-			maskOverlay.getByRole("button", { name: /编辑Bezier Accent节点 1/ })
+			maskOverlay.getByRole("button", { name: `编辑${penMaskName}节点 1` })
 		).toBeVisible();
 		await expect(
 			maskOverlay.getByRole("button", {
-				name: /编辑Bezier Accent入切线/,
+				name: new RegExp(`^编辑${penMaskName}入切线`),
 			})
 		).toHaveCount(4);
 		await maskEditor.screenshot({
@@ -412,11 +425,12 @@ test.describe("Main-track video properties", () => {
 			"xpath=ancestor::*[@data-radix-scroll-area-viewport][1]"
 		);
 		await visualTabs.getByRole("tab", { name: "抠像", exact: true }).click();
+		// The cutout inspector splits local person / cloud object into tabs.
 		await expect(
-			properties.getByRole("button", { name: "智能抠像" })
+			properties.getByRole("tab", { name: "人物抠像", exact: true })
 		).toBeVisible();
 		await expect(
-			properties.getByRole("button", { name: "生成并应用人物蒙版" })
+			properties.getByRole("button", { name: "开始并应用" })
 		).toBeVisible();
 		await expect(
 			properties.getByText("色度抠像", { exact: true })
@@ -427,7 +441,7 @@ test.describe("Main-track video properties", () => {
 		});
 
 		await properties
-			.getByRole("tab", { name: "云端物体", exact: true })
+			.getByRole("tab", { name: "物体抠像", exact: true })
 			.click();
 		await properties.getByLabel("物体描述").fill("person");
 		await expect(
@@ -442,7 +456,9 @@ test.describe("Main-track video properties", () => {
 			animations: "disabled",
 		});
 
-		await properties.getByRole("button", { name: "智能抠像" }).click();
+		await properties
+			.getByRole("tab", { name: "人物抠像", exact: true })
+			.click();
 		await page.evaluate(() => {
 			const store = (window as any).__timelineStore.getState();
 			const track = store.tracks.find((item: any) => item.type === "media");
@@ -463,7 +479,7 @@ test.describe("Main-track video properties", () => {
 			"media-custom-cutout-properties"
 		);
 		await customCutout.scrollIntoViewIfNeeded();
-		const customCutoutSwitch = customCutout.getByRole("switch", {
+		const customCutoutSwitch = customCutout.getByRole("checkbox", {
 			name: "启用自定义抠像",
 		});
 		await expect(customCutoutSwitch).not.toBeChecked();
@@ -600,8 +616,11 @@ test.describe("Main-track video properties", () => {
 
 		const chromaKey = properties.getByTestId("media-chroma-key-properties");
 		await expect(
-			chromaKey.getByRole("switch", { name: "启用色度抠像" })
+			chromaKey.getByRole("checkbox", { name: "启用色度抠像" })
 		).toBeChecked();
+		// 高级 swaps the four basic sliders for the keyframable full list, which is
+		// the only place 溢色抑制 and the keyframe buttons live.
+		await chromaKey.getByText("高级", { exact: true }).click();
 		for (const label of [
 			"强度数值",
 			"阴影数值",
@@ -646,9 +665,9 @@ test.describe("Main-track video properties", () => {
 			.getByRole("button", { name: "视频防抖", exact: true })
 			.click();
 		await properties
-			.getByRole("button", { name: "画质增强", exact: true })
+			.getByRole("button", { name: "超清画质", exact: true })
 			.click();
-		await properties.getByText("本地超采样").scrollIntoViewIfNeeded();
+		await properties.getByText("AI 超分（云端）").scrollIntoViewIfNeeded();
 		await propertiesViewport.screenshot({
 			path: path.join(outputDir, "11d-basic-enhancements.png"),
 			animations: "disabled",
@@ -657,7 +676,13 @@ test.describe("Main-track video properties", () => {
 		await visualTabs
 			.getByRole("tab", { name: "美颜美体", exact: true })
 			.click();
-		await expect(properties.getByText("人像磨皮")).toBeVisible();
+		// The portrait inspector opens on its 美颜 / 美体 / preset sub-tabs.
+		await expect(
+			properties.getByRole("tab", { name: "美颜", exact: true })
+		).toBeVisible();
+		await expect(
+			properties.getByRole("button", { name: "皮肤管理" })
+		).toBeVisible();
 		await propertiesViewport.screenshot({
 			path: path.join(outputDir, "11e-portrait-enhancement.png"),
 			animations: "disabled",
@@ -741,7 +766,7 @@ test.describe("Main-track video properties", () => {
 					pointCount: 0,
 				},
 				{
-					name: "Bezier Accent",
+					name: penMaskName,
 					blendMode: "subtract",
 					type: "pen",
 					keyframeCount: 0,

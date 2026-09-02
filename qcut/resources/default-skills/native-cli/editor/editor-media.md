@@ -87,6 +87,17 @@ qcut editor:project:update-settings \
   --data '{"fps":30,"width":1920,"height":1080}'
 ```
 
+Pick a canvas ratio by its menu name instead of spelling out dimensions
+(`--ratio` accepts 16:9, 4:3, 2.35:1, 2:1, 1.85:1, 9:16, 3:4, 9:19.5 / 5.8寸,
+1:1, 1:2 and lands on the same size the preview ratio menu uses; it merges
+over `--data` when both are given). Passing only `"aspectRatio"` inside
+`--data` derives the size from the *current* canvas instead (1920×1080 +
+`"9:16"` → 608×1080), so prefer `--ratio` for named presets:
+
+```bash
+qcut editor:project:update-settings --project-id <id> --ratio 9:16
+```
+
 ### Get statistics
 
 ```bash

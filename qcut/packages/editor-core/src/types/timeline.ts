@@ -795,9 +795,13 @@ export interface MediaElement extends BaseTimelineElement {
 	flipVertical?: boolean;
 	opacity?: number;
 	blendMode?: MediaBlendMode;
+	/** False switches opacity + blend mode off while keeping their values. */
+	blendEnabled?: boolean;
 	fitMode?: MediaFitMode;
 	crop?: MediaCrop;
 	perspective?: MediaPerspective;
+	/** False renders the clip un-warped while keeping the corner values. */
+	perspectiveEnabled?: boolean;
 	keyframes?: Partial<Record<MediaKeyframeProperty, MediaPropertyKeyframe[]>>;
 	animationInType?: MediaAnimationType;
 	animationInDuration?: number;

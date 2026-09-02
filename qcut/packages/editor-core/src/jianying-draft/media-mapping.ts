@@ -131,7 +131,7 @@ function createClipSettings({
 	element: MediaElement;
 }): NonNullable<JianyingDraftSegment["clip"]> {
 	return {
-		alpha: element.opacity ?? 1,
+		alpha: element.blendEnabled === false ? 1 : (element.opacity ?? 1),
 		flip: {
 			horizontal: element.flipHorizontal ?? false,
 			vertical: element.flipVertical ?? false,
