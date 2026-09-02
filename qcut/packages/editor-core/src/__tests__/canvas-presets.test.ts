@@ -19,9 +19,9 @@ describe("findBestCanvasPreset", () => {
 		["2:1 univisium", 2000 / 1000, { width: 1920, height: 960 }],
 		["1.85:1 flat", 1998 / 1080, { width: 1920, height: 1038 }],
 		["iPhone 9:19.5 panel", 1170 / 2532, { width: 1080, height: 2340 }],
-		["21:9 ultrawide", 2560 / 1080, { width: 1920, height: 816 }],
+		["21:9 ultrawide", 21 / 9, { width: 1920, height: 816 }],
 	])("snaps %s to the catalog", (_label, ratio, expected) => {
-		expect(findBestCanvasPreset(ratio)).toEqual(expected);
+		expect(findBestCanvasPreset({ aspectRatio: ratio })).toEqual(expected);
 	});
 
 	it.each([
@@ -29,7 +29,7 @@ describe("findBestCanvasPreset", () => {
 		["DCI 2.39:1", 2048 / 858, { width: 1920, height: 804 }],
 		["academy 1.375:1", 1.375, { width: 1920, height: 1396 }],
 	])("keeps %s at its exact custom size", (_label, ratio, expected) => {
-		expect(findBestCanvasPreset(ratio)).toEqual(expected);
+		expect(findBestCanvasPreset({ aspectRatio: ratio })).toEqual(expected);
 	});
 
 	it.each([
@@ -37,7 +37,7 @@ describe("findBestCanvasPreset", () => {
 		["link image 1200×628", 1200 / 628, { width: 1920, height: 1004 }],
 		["tall 571×1080", 571 / 1080, { width: 572, height: 1080 }],
 	])("rounds the custom size for %s to even dimensions", (_label, ratio, expected) => {
-		const size = findBestCanvasPreset(ratio);
+		const size = findBestCanvasPreset({ aspectRatio: ratio });
 		expect(size).toEqual(expected);
 		expect(size.width % 2).toBe(0);
 		expect(size.height % 2).toBe(0);
@@ -45,9 +45,20 @@ describe("findBestCanvasPreset", () => {
 
 	it("honours a caller-supplied catalog", () => {
 		const square = [{ name: "1:1", width: 720, height: 720 }];
-		expect(findBestCanvasPreset(1, square)).toEqual({
+		expect(findBestCanvasPreset({ aspectRatio: 1, presets: square })).toEqual({
 			width: 720,
 			height: 720,
+		});
+	});
+
+	it("treats an empty catalog as no match instead of throwing", () => {
+		expect(findBestCanvasPreset({ aspectRatio: 16 / 9, presets: [] })).toEqual({
+			width: 1920,
+			height: 1080,
+		});
+		expect(findBestCanvasPreset({ aspectRatio: 0.5, presets: [] })).toEqual({
+			width: 540,
+			height: 1080,
 		});
 	});
 });
@@ -55,21 +66,21 @@ describe("findBestCanvasPreset", () => {
 describe("findCanvasPresetByName", () => {
 	it("resolves every catalog name to itself", () => {
 		for (const preset of DEFAULT_CANVAS_PRESETS) {
-			expect(findCanvasPresetByName(preset.name)).toBe(preset);
+			expect(findCanvasPresetByName({ name: preset.name })).toBe(preset);
 		}
 	});
 
 	it("accepts aliases, fullwidth colons and stray whitespace", () => {
-		const phone = findCanvasPresetByName("9:19.5");
-		expect(findCanvasPresetByName("5.8寸")).toBe(phone);
-		expect(findCanvasPresetByName("5.8-inch")).toBe(phone);
-		expect(findCanvasPresetByName(" 9：16 ")?.name).toBe("9:16");
-		expect(findCanvasPresetByName("16 : 9")?.name).toBe("16:9");
+		const phone = findCanvasPresetByName({ name: "9:19.5" });
+		expect(findCanvasPresetByName({ name: "5.8寸" })).toBe(phone);
+		expect(findCanvasPresetByName({ name: "5.8-inch" })).toBe(phone);
+		expect(findCanvasPresetByName({ name: " 9：16 " })?.name).toBe("9:16");
+		expect(findCanvasPresetByName({ name: "16 : 9" })?.name).toBe("16:9");
 	});
 
 	it("rejects unknown names and empty input", () => {
-		expect(findCanvasPresetByName("4:5")).toBeUndefined();
-		expect(findCanvasPresetByName("1080x1920")).toBeUndefined();
-		expect(findCanvasPresetByName("")).toBeUndefined();
+		expect(findCanvasPresetByName({ name: "4:5" })).toBeUndefined();
+		expect(findCanvasPresetByName({ name: "1080x1920" })).toBeUndefined();
+		expect(findCanvasPresetByName({ name: "" })).toBeUndefined();
 	});
 });
