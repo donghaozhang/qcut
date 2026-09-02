@@ -74,6 +74,35 @@ export function perspectiveFromLocalDelta({
 	};
 }
 
+/**
+ * Map a screen-space delta (canvas pixels) onto the element's local, un-rotated
+ * frame: undo the rotation, then mirror the axes a flip reversed. Pointer drags
+ * and arrow-key nudges share this so both move the visible corner the same way.
+ */
+export function perspectiveDeltaFromScreen({
+	delta,
+	rotation,
+	flipHorizontal,
+	flipVertical,
+}: {
+	delta: { x: number; y: number };
+	rotation: number;
+	flipHorizontal: boolean;
+	flipVertical: boolean;
+}): { x: number; y: number } {
+	const radians = (-rotation * Math.PI) / 180;
+	const cosine = Math.cos(radians);
+	const sine = Math.sin(radians);
+	const rotated = {
+		x: delta.x * cosine - delta.y * sine,
+		y: delta.x * sine + delta.y * cosine,
+	};
+	return {
+		x: flipHorizontal ? -rotated.x : rotated.x,
+		y: flipVertical ? -rotated.y : rotated.y,
+	};
+}
+
 /** Offset of a corner from its resting position, as the UI shows it (percent). */
 export function perspectiveCornerOffsetPercent({
 	perspective,
