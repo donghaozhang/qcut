@@ -58,22 +58,25 @@ export const CANVAS_PRESET_NAMES: readonly string[] =
 			: preset.name
 	);
 
-function normalizeCanvasPresetName(name: string): string {
+function normalizeCanvasPresetName({ name }: { name: string }): string {
 	return name.trim().toLowerCase().replace(/：/g, ":").replace(/\s+/g, "");
 }
 
 /** Resolve a preset by its display name or one of its aliases (e.g. 5.8寸). */
-export function findCanvasPresetByName(
-	name: string,
-	presets: readonly CanvasPresetMirror[] = DEFAULT_CANVAS_PRESETS
-): CanvasPresetMirror | undefined {
-	const wanted = normalizeCanvasPresetName(name);
+export function findCanvasPresetByName({
+	name,
+	presets = DEFAULT_CANVAS_PRESETS,
+}: {
+	name: string;
+	presets?: readonly CanvasPresetMirror[];
+}): CanvasPresetMirror | undefined {
+	const wanted = normalizeCanvasPresetName({ name });
 	if (!wanted) return undefined;
 	return presets.find(
 		(preset) =>
-			normalizeCanvasPresetName(preset.name) === wanted ||
+			normalizeCanvasPresetName({ name: preset.name }) === wanted ||
 			(preset.aliases ?? []).some(
-				(alias) => normalizeCanvasPresetName(alias) === wanted
+				(alias) => normalizeCanvasPresetName({ name: alias }) === wanted
 			)
 	);
 }
