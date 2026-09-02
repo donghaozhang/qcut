@@ -124,7 +124,8 @@ function hasCropPerspectiveOrFitEdits({
 	const hasCrop = Object.values(element.crop ?? {}).some(
 		(value) => value !== 0
 	);
-	const perspective = element.perspective;
+	const perspective =
+		element.perspectiveEnabled === false ? undefined : element.perspective;
 	const hasPerspective =
 		perspective !== undefined &&
 		(perspective.topLeftX !== 0 ||
@@ -384,7 +385,11 @@ export function collectLossyMediaFeatureIssues({
 			severity: "error",
 		});
 	}
-	if (element.blendMode !== undefined && element.blendMode !== "normal") {
+	if (
+		element.blendEnabled !== false &&
+		element.blendMode !== undefined &&
+		element.blendMode !== "normal"
+	) {
 		addFeatureIssue({
 			element,
 			issues,
