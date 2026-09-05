@@ -15,6 +15,11 @@ import {
 } from "@/stores/app-settings-store";
 import { create } from "zustand";
 import { storageService } from "@/lib/storage/storage-service";
+import { coverRepository } from "@/lib/cover/cover-repository";
+import {
+	assertProjectCover,
+	type ProjectCoverBindingV1,
+} from "@qcut/editor-core/cover";
 import { toast } from "sonner";
 import { getMediaStore } from "./media/media-store-loader";
 // Dynamic import to break circular dependency
@@ -82,6 +87,11 @@ interface ProjectStore {
 	closeProject: () => Promise<void>;
 	renameProject: (projectId: string, name: string) => Promise<void>;
 	duplicateProject: (projectId: string) => Promise<string>;
+	setProjectCover: (options: {
+		projectId: string;
+		cover?: ProjectCoverBindingV1;
+		expectedCover?: ProjectCoverBindingV1;
+	}) => Promise<void>;
 	updateProjectBackground: (backgroundColor: string) => Promise<void>;
 	updateProjectCanvasSize: (
 		canvasSize: CanvasSize,
@@ -537,6 +547,9 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 				storageService.deleteProjectTimeline({ projectId: id }),
 				storageService.deleteProject(id),
 			]);
+			await coverRepository.removeProject({ projectId: id }).catch((error) => {
+				handleStorageError(error, "Clean up project cover", { projectId: id });
+			});
 			await get().loadAllProjects(); // Refresh the list
 
 			// If we deleted the active project, close it and clear data
@@ -650,6 +663,13 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 				updatedAt: new Date(),
 			};
 
+			if (project.cover) {
+				await coverRepository.copyProject({
+					sourceProjectId: projectId,
+					targetProjectId: newProject.id,
+					cover: project.cover,
+				});
+			}
 			await storageService.saveProject({ project: newProject });
 			await get().loadAllProjects();
 			return newProject.id;
@@ -661,6 +681,51 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 					operation: "duplicateProject",
 				});
 			}
+			throw error;
+		}
+	},
+
+	setProjectCover: async ({ projectId, cover, expectedCover }) => {
+		const active = get().activeProject;
+		if (!active || active.id !== projectId)
+			throw new Error("The active project changed; reopen the cover editor");
+		if (JSON.stringify(active.cover) !== JSON.stringify(expectedCover))
+			throw new Error("The project cover changed; reopen the cover editor");
+		if (cover) {
+			assertProjectCover({ cover });
+			if (
+				cover.canvas.width !== active.canvasSize.width ||
+				cover.canvas.height !== active.canvasSize.height
+			)
+				throw new Error("The project canvas changed; recapture the cover");
+		}
+		const updated = { ...active, cover, updatedAt: new Date() };
+		set({
+			activeProject: updated,
+			savedProjects: get().savedProjects.map((project) =>
+				project.id === projectId
+					? { ...project, cover, updatedAt: updated.updatedAt }
+					: project
+			),
+		});
+		try {
+			await storageService.saveProject({ project: updated });
+			const saved = await storageService.loadProject({ id: projectId });
+			if (!saved || JSON.stringify(saved.cover) !== JSON.stringify(cover))
+				throw new Error("Project cover read-back failed");
+		} catch (error) {
+			set((state) => ({
+				activeProject:
+					state.activeProject?.id === projectId &&
+					state.activeProject.cover === cover
+						? { ...state.activeProject, cover: expectedCover }
+						: state.activeProject,
+				savedProjects: state.savedProjects.map((project) =>
+					project.id === projectId && project.cover === cover
+						? { ...project, cover: expectedCover }
+						: project
+				),
+			}));
 			throw error;
 		}
 	},
