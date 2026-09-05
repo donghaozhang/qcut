@@ -1,4 +1,9 @@
 import { createHash } from "node:crypto";
+import { resolveComposeGeneratedMedia } from "./compose-generated-media.js";
+import {
+	resolveComposeText,
+	type ComposeTextBinding,
+} from "./compose-text-resolver.js";
 import { promises as fs } from "node:fs";
 import { basename, isAbsolute } from "node:path";
 import { resolveStickerLabRootOverride } from "../cli/sticker-lab-root.js";
@@ -65,6 +70,7 @@ export interface ComposeFilterStackEditorBinding {
 }
 
 export interface ComposeEditorAssetBinding {
+	text?: ComposeTextBinding;
 	sticker?: ComposeStickerEditorBinding;
 	transition?: ComposeTransitionEditorBinding;
 	mediaClip?: ComposeMediaClipEditorBinding;
@@ -90,6 +96,7 @@ export interface ComposeEditorAssetPreparerDependencies {
 	materializeSound: typeof materializeComposeSoundLabReference;
 	resolveTransition: typeof resolveComposeTransitionReference;
 	resolveFilterStack: typeof resolveComposeFilterStack;
+	resolveText: typeof resolveComposeText;
 }
 
 const DEFAULT_DEPENDENCIES: ComposeEditorAssetPreparerDependencies = {
@@ -100,6 +107,7 @@ const DEFAULT_DEPENDENCIES: ComposeEditorAssetPreparerDependencies = {
 	materializeSound: materializeComposeSoundLabReference,
 	resolveTransition: resolveComposeTransitionReference,
 	resolveFilterStack: resolveComposeFilterStack,
+	resolveText: resolveComposeText,
 };
 
 interface PreparedOperation {
@@ -282,6 +290,16 @@ async function prepareOperation({
 	transitions: Map<string, Promise<ComposeTransitionResolution>>;
 	dependencies: ComposeEditorAssetPreparerDependencies;
 }): Promise<PreparedOperation> {
+	if (
+		operation.kind === "add-caption" ||
+		operation.kind === "add-text-overlay"
+	) {
+		return {
+			operation,
+			binding: { text: await dependencies.resolveText({ operation }) },
+			importedMediaIds: [],
+		};
+	}
 	if (operation.kind === "add-sticker") {
 		const imported = stickerImportPromise({
 			operation,
@@ -332,9 +350,31 @@ async function prepareOperation({
 		};
 	}
 	if (operation.kind === "insert-media-clip") {
+		const resolvedOperation =
+			operation.asset.assetType === "generated-media"
+				? {
+						...operation,
+						asset: await resolveComposeGeneratedMedia({
+							reference: operation.asset,
+							client,
+							projectId,
+						}),
+					}
+				: operation;
+		if (
+			operation.asset.assetType === "generated-media" &&
+			resolvedOperation.asset.provenance?.mediaKind !== operation.mediaKind
+		)
+			throw new Error(
+				"Generated media kind does not match the saved project asset."
+			);
 		return {
-			operation,
-			binding: { mediaClip: await resolveMediaClipBinding({ operation }) },
+			operation: resolvedOperation,
+			binding: {
+				mediaClip: await resolveMediaClipBinding({
+					operation: resolvedOperation,
+				}),
+			},
 			importedMediaIds: [],
 		};
 	}
