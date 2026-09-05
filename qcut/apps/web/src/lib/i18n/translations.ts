@@ -3,6 +3,16 @@ export const SUPPORTED_LOCALES = ["zh", "en"] as const;
 export type AppLocale = (typeof SUPPORTED_LOCALES)[number];
 
 const EN_TRANSLATIONS = {
+	"editor.cover.title": "Project cover",
+	"editor.cover.currentFrame": "Current frame",
+	"editor.cover.importImage": "Import image",
+	"editor.cover.fit": "Image fit",
+	"editor.cover.contain": "Fit entire image",
+	"editor.cover.fill": "Fill canvas",
+	"editor.cover.preview": "Cover preview",
+	"editor.cover.working": "Preparing cover",
+	"editor.cover.clear": "Clear cover",
+	"editor.cover.publish": "Set as cover",
 	"language.label": "Interface language",
 	"language.zh": "中文",
 	"language.en": "English",
@@ -2056,6 +2066,16 @@ const EN_TRANSLATIONS = {
 export type TranslationKey = keyof typeof EN_TRANSLATIONS;
 
 const ZH_TRANSLATIONS: Record<TranslationKey, string> = {
+	"editor.cover.title": "项目封面",
+	"editor.cover.currentFrame": "当前帧",
+	"editor.cover.importImage": "导入图片",
+	"editor.cover.fit": "图片适配",
+	"editor.cover.contain": "完整显示",
+	"editor.cover.fill": "填满画布",
+	"editor.cover.preview": "封面预览",
+	"editor.cover.working": "正在准备封面",
+	"editor.cover.clear": "清除封面",
+	"editor.cover.publish": "设为封面",
 	"language.label": "界面语言",
 	"language.zh": "中文",
 	"language.en": "English",
