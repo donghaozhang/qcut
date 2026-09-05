@@ -48,6 +48,7 @@ export interface ResolvedComposeAssetReport {
 }
 
 export interface ComposeAssetResolverDependencies {
+	resolveText?: typeof import("./compose-text-resolver.js").resolveComposeText;
 	findStickerLabItem: (input: {
 		batchId: string;
 		stickerId: string;
@@ -404,7 +405,7 @@ export async function resolveComposeAssetReference({
 					backend: "text-lab",
 					cacheStatus: "none",
 					verification: "unverified",
-					detail: `No resolver for ${reference.assetType} assets yet; text applies as plain content.`,
+					detail: `${reference.assetType} requires operation-level editor asset preparation.`,
 				},
 			});
 	}
@@ -420,7 +421,13 @@ function assetsForOperation({
 		case "add-sound-effect":
 			return [operation.asset];
 		case "add-text-overlay":
-			return operation.asset ? [operation.asset] : [];
+		case "add-caption":
+			return [
+				operation.asset,
+				operation.font,
+				operation.fancyWord,
+				operation.textAnimation,
+			].filter((asset): asset is ComposeAssetReference => asset !== undefined);
 		case "upsert-transition":
 			return [
 				operation.asset ?? {
@@ -445,7 +452,10 @@ function issueForReport({
 	const blocksEditorApply =
 		resolved.assetType === "sticker" ||
 		resolved.assetType === "sound-effect" ||
-		resolved.assetType === "transition";
+		resolved.assetType === "transition" ||
+		["font", "text-template", "fancy-word", "text-animation"].includes(
+			resolved.assetType
+		);
 	if (
 		blocksEditorApply &&
 		(resolved.status === "missing" ||
@@ -484,21 +494,62 @@ export async function resolveComposePatchAssets({
 	reports: ResolvedComposeAssetReport[];
 	issues: ComposeValidationIssue[];
 }> {
-	const reports: ResolvedComposeAssetReport[] = [];
-	const issues: ComposeValidationIssue[] = [];
-	for (const [index, operation] of patch.operations.entries()) {
-		for (const reference of assetsForOperation({ operation })) {
-			const resolved = await resolveComposeAssetReference({
-				operationId: operation.id,
-				reference,
-				dependencies,
-			});
-			reports.push(resolved);
-			const issue = issueForReport({ resolved, index });
-			if (issue) issues.push(issue);
-		}
-	}
-	return { reports, issues };
+	const groups = await Promise.all(
+		patch.operations.map(async (operation, index) => {
+			const references = assetsForOperation({ operation });
+			let textError: string | undefined;
+			const isText =
+				operation.kind === "add-caption" ||
+				operation.kind === "add-text-overlay";
+			if (isText && references.length) {
+				try {
+					const resolveText =
+						dependencies.resolveText ??
+						(await import("./compose-text-resolver.js")).resolveComposeText;
+					await resolveText({ operation });
+				} catch {
+					textError =
+						"Text Lab binding unavailable or incompatible; the text will not be downgraded to plain content.";
+				}
+			}
+			const reports = await Promise.all(
+				references.map((reference) =>
+					isText
+						? Promise.resolve(
+								report({
+									operationId: operation.id,
+									reference,
+									status: textError ? "unsupported" : "cached",
+									evidence: {
+										backend: "text-lab",
+										cacheStatus: textError
+											? "unavailable"
+											: "resolved-editor-binding",
+										verification: "unverified",
+										detail: textError,
+									},
+								})
+							)
+						: resolveComposeAssetReference({
+								operationId: operation.id,
+								reference,
+								dependencies,
+							})
+				)
+			);
+			return {
+				reports,
+				issues: reports.flatMap((resolved) => {
+					const issue = issueForReport({ resolved, index });
+					return issue ? [issue] : [];
+				}),
+			};
+		})
+	);
+	return {
+		reports: groups.flatMap(({ reports }) => reports),
+		issues: groups.flatMap(({ issues }) => issues),
+	};
 }
 
 function safeScratchName({ value }: { value: string }): string {
