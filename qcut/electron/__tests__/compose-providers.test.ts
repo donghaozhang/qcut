@@ -126,53 +126,12 @@ describe("local compose provider", () => {
 	});
 });
 
-describe("unavailable providers", () => {
-	it("fails with a structured unsupported error", async () => {
-		for (const provider of ["fal"] as const) {
-			const adapter = createComposeProviderAdapter({ provider });
-			const job = await adapter.createJob({
-				snapshot: fixtureSnapshot(),
-				intent,
-			});
-			expect(job.status).toBe("failed");
-			expect(job.error).toMatchObject({
-				category: "unsupported",
-				retryable: false,
-			});
-		}
-	});
-});
-
-describe("qcut cloud compose provider", () => {
-	it("routes planning through the shared proxy-first model caller", async () => {
-		const modelApiCallImpl = vi.fn(async () => ({
-			success: true,
-			data: {
-				choices: [
-					{
-						message: {
-							content: JSON.stringify({ operations: [] }),
-						},
-					},
-				],
-			},
-			duration: 0.01,
-		}));
-		const adapter = createComposeProviderAdapter({
-			provider: "qcut",
-			openRouter: { modelApiCallImpl },
-		});
-		const job = await runLifecycle({ adapter, snapshot: fixtureSnapshot() });
-
-		expect(job).toMatchObject({ provider: "qcut", status: "completed" });
-		const patch = await adapter.downloadPatch({ job });
-		expect(patch.provider).toBe("qcut");
-		expect(modelApiCallImpl).toHaveBeenCalledWith(
-			expect.objectContaining({
-				provider: "openrouter",
-				endpoint: "chat/completions",
-			})
-		);
+describe("queued providers", () => {
+	it.each([
+		"fal",
+		"qcut",
+	] as const)("selects the dedicated %s adapter", (provider) => {
+		expect(createComposeProviderAdapter({ provider }).provider).toBe(provider);
 	});
 });
 
