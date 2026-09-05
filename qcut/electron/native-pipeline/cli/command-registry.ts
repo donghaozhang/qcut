@@ -295,6 +295,11 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		category: "composition",
 		flags: [
 			f("--project-id", "string", "Project to snapshot (defaults to active)"),
+			f(
+				"--analysis-type",
+				"string",
+				"Use visual to add opt-in AI frame semantics; local beats and scenes are analyzed by default"
+			),
 			f("--output", "string", "Snapshot JSON output path"),
 		],
 		examples: [
@@ -308,9 +313,16 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 			"Plan a ComposePatch from a snapshot with a local or cloud provider",
 		category: "composition",
 		flags: [
-			f("--snapshot", "string", "ComposeSnapshot JSON (path or @file)", {
-				required: true,
-			}),
+			f(
+				"--snapshot",
+				"string",
+				"ComposeSnapshot JSON (path or @file); required for a new job"
+			),
+			f(
+				"--job-id",
+				"string",
+				"Resume a persisted qcut or fal job using its original snapshot and intent"
+			),
 			f(
 				"--intent",
 				"string",
@@ -324,6 +336,7 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		examples: [
 			"qcut compose plan --snapshot snapshot.json --provider local --output patch.json --json",
 			"qcut compose plan --snapshot snapshot.json --provider openrouter --intent smart-packaging --json",
+			"qcut compose plan --job-id saved-job-id --output patch.json --json",
 		],
 	},
 	"compose-validate": {
