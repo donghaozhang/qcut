@@ -92,7 +92,7 @@ export async function loadComposeSnapshotAndPatch({
 export async function handleComposeSnapshot(
 	options: CLIRunOptions,
 	onProgress: ProgressFn,
-	_signal: AbortSignal,
+	signal: AbortSignal,
 	dependencies: ComposeEditorDependencies = DEFAULT_DEPENDENCIES
 ): Promise<CLIResult> {
 	const startedAt = Date.now();
@@ -106,6 +106,9 @@ export async function handleComposeSnapshot(
 		const snapshot = await dependencies.capture({
 			client,
 			projectId: options.projectId,
+			visualAnalysis: options.analysisType === "visual",
+			includeAnalysis: true,
+			signal,
 		});
 		const issues = validateComposeSnapshot({ snapshot });
 		let outputPath: string | undefined;
