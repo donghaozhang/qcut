@@ -1,4 +1,9 @@
 import { randomUUID } from "node:crypto";
+import { discoverComposeGeneratedMedia } from "./compose-generated-media.js";
+import {
+	analyzeComposeMedia,
+	type ComposeAnalysisClip,
+} from "./compose-media-analysis.js";
 import type { EditorApiClient } from "../editor/editor-api-client.js";
 import {
 	COMPOSE_PROTOCOL_VERSION,
@@ -103,12 +108,20 @@ export async function captureComposeSnapshot({
 	snapshotId = randomUUID(),
 	createdAt = new Date().toISOString(),
 	discoverResources = discoverComposeResources,
+	analyzeMedia = analyzeComposeMedia,
+	visualAnalysis = false,
+	includeAnalysis = true,
+	signal,
 }: {
 	client: EditorApiClient;
 	projectId?: string;
 	snapshotId?: string;
 	createdAt?: string;
 	discoverResources?: typeof discoverComposeResources;
+	analyzeMedia?: typeof analyzeComposeMedia;
+	visualAnalysis?: boolean;
+	includeAnalysis?: boolean;
+	signal?: AbortSignal;
 }): Promise<ComposeSnapshot> {
 	const resolvedProjectId =
 		projectId ?? (await resolveActiveProjectId({ client }));
@@ -130,6 +143,7 @@ export async function captureComposeSnapshot({
 		: [];
 
 	const media: ComposeSnapshotMedia[] = [];
+	const analysisClips: ComposeAnalysisClip[] = [];
 	const captions: ComposeSnapshotCaption[] = [];
 	let timelineEnd = 0;
 	for (const [trackIndex, track] of tracks.entries()) {
@@ -150,7 +164,8 @@ export async function captureComposeSnapshot({
 				value: element.startTime,
 				fallback: 0,
 			});
-			const shown = visibleDuration({ element });
+			const rate = positiveNumber({ value: element.playbackRate, fallback: 1 });
+			const shown = visibleDuration({ element }) / rate;
 			timelineEnd = Math.max(timelineEnd, startTime + shown);
 			if (
 				trackType === "text" ||
@@ -188,6 +203,23 @@ export async function captureComposeSnapshot({
 				startTime,
 				duration: finiteNumber({ value: element.duration, fallback: shown }),
 				trimStart: finiteNumber({ value: element.trimStart, fallback: 0 }),
+				...(element.trimEnd
+					? { trimEnd: finiteNumber({ value: element.trimEnd, fallback: 0 }) }
+					: {}),
+				...(rate !== 1 ? { playbackRate: rate } : {}),
+			});
+			analysisClips.push({
+				media: media[media.length - 1],
+				visibleDuration: shown,
+				playbackRate: rate,
+				muted:
+					track.muted === true ||
+					element.muted === true ||
+					element.volume === 0,
+				unsupportedTiming:
+					element.reverse === true ||
+					(Array.isArray(element.speedKeyframes) &&
+						element.speedKeyframes.length > 0),
 			});
 		}
 	}
@@ -202,9 +234,31 @@ export async function captureComposeSnapshot({
 		},
 		duration: timelineEnd > 0 ? timelineEnd : 1,
 	};
-	const resourceBroker = await discoverResources({
-		query: composeResourceQuery({ snapshot: { captions, shots: [] } }),
+	const analysis =
+		includeAnalysis || visualAnalysis
+			? await analyzeMedia({
+					client,
+					projectId: resolvedProjectId,
+					clips: analysisClips,
+					visual: visualAnalysis,
+					signal,
+				})
+			: { beats: [], shots: [], warnings: [] as string[] };
+	const generatedMedia = await discoverComposeGeneratedMedia({
+		client,
+		projectId: resolvedProjectId,
+	}).catch(() => {
+		analysis.warnings.push("Compose generated media discovery unavailable.");
+		return [];
 	});
+	const resourceBroker = await discoverResources({
+		query: composeResourceQuery({
+			snapshot: { captions, shots: analysis.shots },
+		}),
+		signal,
+		generatedMedia,
+	});
+	const warnings = [...analysis.warnings, ...resourceBroker.warnings];
 
 	return {
 		schemaVersion: COMPOSE_PROTOCOL_VERSION,
@@ -218,12 +272,10 @@ export async function captureComposeSnapshot({
 		project,
 		media,
 		captions,
-		beats: [],
-		shots: [],
+		beats: analysis.beats,
+		shots: analysis.shots,
 		availableResources: resourceBroker.resources,
-		...(resourceBroker.warnings.length > 0
-			? { resourceWarnings: resourceBroker.warnings }
-			: {}),
+		...(warnings.length > 0 ? { resourceWarnings: warnings } : {}),
 		capabilities: {
 			headlessRender: true,
 			editorApply: true,
