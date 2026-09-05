@@ -1,9 +1,13 @@
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, writeFile, rename } from "node:fs/promises";
+import { randomUUID } from "node:crypto";
+import { setTimeout as delay } from "node:timers/promises";
+import { createComposeJobStore } from "../compose/providers/compose-job-store.js";
 import { dirname, join, resolve } from "node:path";
 import {
 	COMPOSE_PROTOCOL_VERSION,
 	hasComposeValidationErrors,
 	validateComposePatch,
+	validateComposeSnapshot,
 	type ComposeIntent,
 	type ComposeIntentKind,
 	type ComposeJob,
@@ -58,13 +62,12 @@ function mergeResourceCandidates({
 		ComposeSnapshot["availableResources"][number]
 	>();
 	for (const resource of [...existing, ...discovered]) {
-		byIdentity.set(`${resource.assetType}:${resource.assetId}`, resource);
+		byIdentity.set(
+			`${resource.provider}:${resource.assetType}:${resource.assetId}`,
+			resource
+		);
 	}
 	return [...byIdentity.values()];
-}
-
-function sleep(ms: number): Promise<void> {
-	return new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 }
 
 async function resolveComposeIntent({
@@ -106,8 +109,15 @@ async function persistComposeJob({
 	outputDir: string;
 }): Promise<string> {
 	const jobPath = resolve(join(outputDir, "compose", "jobs", `${job.id}.json`));
+	if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]{0,179}$/.test(job.id))
+		throw new Error("Invalid Compose job ID.");
 	await mkdir(dirname(jobPath), { recursive: true });
-	await writeFile(jobPath, `${JSON.stringify(job, null, 2)}\n`);
+	const temporary = `${jobPath}.${randomUUID()}.tmp`;
+	await writeFile(temporary, `${JSON.stringify(job, null, 2)}\n`, {
+		mode: 0o600,
+		flag: "wx",
+	});
+	await rename(temporary, jobPath);
 	return jobPath;
 }
 
@@ -118,24 +128,50 @@ export async function handleComposePlan(
 	dependencies: ComposePlanDependencies = DEFAULT_DEPENDENCIES
 ): Promise<CLIResult> {
 	const startedAt = Date.now();
+	let activeJob: ComposeJob | undefined;
 	try {
-		if (!options.snapshot) {
-			throw new Error("compose plan needs --snapshot.");
+		const resumed = options.jobId
+			? await createComposeJobStore().read({ id: options.jobId })
+			: undefined;
+		if (resumed && (options.snapshot || options.intent))
+			throw new Error(
+				"Resume uses the original snapshot and intent; omit --snapshot and --intent."
+			);
+		if (!options.snapshot && !resumed) {
+			throw new Error("compose plan needs --snapshot or --job-id to resume.");
 		}
-		let snapshot = (await loadComposeJsonArgument({
-			value: options.snapshot,
-		})) as ComposeSnapshot;
-		const intent = await resolveComposeIntent({ value: options.intent });
-		const providerName = options.provider ?? "local";
+		let snapshot =
+			resumed?.snapshot ??
+			((await loadComposeJsonArgument({
+				value: options.snapshot ?? "",
+			})) as ComposeSnapshot);
+		const intent =
+			resumed?.intent ??
+			(await resolveComposeIntent({ value: options.intent }));
+		const providerName = resumed?.job.provider ?? options.provider ?? "local";
+		if (resumed && options.provider && options.provider !== providerName)
+			throw new Error("Cannot change a resumed job's provider.");
 		if (!["qcut", "openrouter", "fal", "local"].includes(providerName)) {
 			throw new Error(`Unknown compose provider: ${providerName}`);
 		}
-		if (providerName === "qcut" || providerName === "openrouter") {
+		if (
+			hasComposeValidationErrors({
+				issues: validateComposeSnapshot({ snapshot }),
+			})
+		)
+			throw new Error("Invalid Compose snapshot.");
+		if (
+			!resumed &&
+			(providerName === "qcut" ||
+				providerName === "openrouter" ||
+				providerName === "fal")
+		) {
 			const broker = await dependencies.discoverResources({
 				query: composeResourceQuery({
 					snapshot,
 					intentQuery: intent.options.resourceQuery,
 				}),
+				signal,
 			});
 			snapshot = {
 				...snapshot,
@@ -161,25 +197,45 @@ export async function handleComposePlan(
 			percent: 10,
 			message: `Planning with the ${providerName} provider...`,
 		});
-		let job = await adapter.createJob({ snapshot, intent });
+		let job = resumed?.job ?? (await adapter.createJob({ snapshot, intent }));
+		activeJob = job;
+		await persistComposeJob({ job, outputDir: options.outputDir });
 		if (!TERMINAL_JOB_STATUSES.has(job.status)) {
 			job = await adapter.uploadAssets({ job, snapshot });
+			activeJob = job;
+			await persistComposeJob({ job, outputDir: options.outputDir });
 		}
-		let attempts = 0;
-		while (!TERMINAL_JOB_STATUSES.has(job.status)) {
-			if (attempts >= MAX_POLL_ATTEMPTS) {
-				job = await adapter.cancelJob({ job });
-				break;
-			}
-			if (attempts > 0) await sleep(dependencies.pollDelayMs);
-			attempts += 1;
-			job = await adapter.pollJob({ job, snapshot, intent, signal });
+		const poll = async ({
+			current,
+			attempts,
+		}: {
+			current: ComposeJob;
+			attempts: number;
+		}): Promise<ComposeJob> => {
+			if (
+				TERMINAL_JOB_STATUSES.has(current.status) ||
+				attempts >= MAX_POLL_ATTEMPTS
+			)
+				return current;
+			signal.throwIfAborted();
+			if (attempts > 0)
+				await delay(dependencies.pollDelayMs, undefined, { signal });
+			const next = await adapter.pollJob({
+				job: current,
+				snapshot,
+				intent,
+				signal,
+			});
+			activeJob = next;
+			await persistComposeJob({ job: next, outputDir: options.outputDir });
 			onProgress({
 				stage: "polling",
-				percent: Math.round(job.progress * 100),
-				message: `Compose job ${job.id}: ${job.status}`,
+				percent: Math.round(next.progress * 100),
+				message: `Compose job ${next.id}: ${next.status}`,
 			});
-		}
+			return poll({ current: next, attempts: attempts + 1 });
+		};
+		job = await poll({ current: job, attempts: 0 });
 
 		const jobPath = await persistComposeJob({
 			job,
@@ -189,7 +245,12 @@ export async function handleComposePlan(
 			return {
 				success: false,
 				error:
-					job.error?.message ?? `Compose plan ended with status ${job.status}`,
+					job.error?.message ??
+					`Compose plan is ${job.status}.` +
+						((providerName === "qcut" || providerName === "fal") &&
+						!TERMINAL_JOB_STATUSES.has(job.status)
+							? ` Resume with --job-id ${job.id}; the remote job was not canceled.`
+							: ""),
 				data: { job, jobPath },
 				duration: (Date.now() - startedAt) / 1000,
 			};
@@ -234,6 +295,9 @@ export async function handleComposePlan(
 		return {
 			success: false,
 			error: `Compose plan failed: ${error instanceof Error ? error.message : String(error)}`,
+			...(activeJob
+				? { data: { job: activeJob, resumeJobId: activeJob.id } }
+				: {}),
 			duration: (Date.now() - startedAt) / 1000,
 		};
 	}
