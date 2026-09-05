@@ -13,6 +13,23 @@ import {
 } from "@/components/ui/dialog";
 
 describe("Dialog Component", () => {
+	it("allows a cover modal to raise its overlay without changing default dialogs", () => {
+		render(
+			<Dialog open>
+				<DialogContent
+					overlayClassName="cover-overlay-test z-[1000]"
+					className="z-[1001]"
+					aria-describedby={undefined}
+				>
+					<DialogTitle>Cover layer</DialogTitle>
+				</DialogContent>
+			</Dialog>
+		);
+		expect(document.querySelector(".cover-overlay-test")).toHaveClass(
+			"z-[1000]"
+		);
+		expect(screen.getByRole("dialog")).toHaveClass("z-[1001]");
+	});
 	it("renders dialog trigger", () => {
 		const { getByText } = render(
 			<Dialog>
