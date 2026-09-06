@@ -18,6 +18,8 @@ import {
 import { VIDEO_OBJECT_COREML_BRIDGE_FILE_NAME } from "../../electron/jianying-person-cutout/video-object-coreml-bridge-resolver.js";
 import { JIANYING_TEXT_RUNTIME_BRIDGE_FILE_NAME } from "../../electron/jianying-text-runtime/bridge-resolver.js";
 import { JIANYING_TRANSITION_BRIDGE_FILE_NAME } from "../../electron/jianying-transition/bridge-resolver.js";
+import { INDEPENDENT_FILTER_HOST } from "../../electron/qcut-independent-filter/bridge.js";
+import { SOFT_GLOW_HOST } from "../../electron/qcut-independent-filter/soft-glow-bridge.js";
 import { verifyPackagedJianyingRuntimeBridges } from "../verify-packaged-jianying-runtime-bridges.js";
 
 const temporaryDirectories: string[] = [];
@@ -102,6 +104,14 @@ async function createFixture({
 			name: JIANYING_DEFLICKER_HOST_FILE_NAME,
 			contents: `#!/bin/sh\n# ${deflickerCapabilities}\nexit 0\n`,
 		},
+		{
+			name: INDEPENDENT_FILTER_HOST,
+			contents: "#!/bin/sh\n# independent-metal-host\nexit 0\n",
+		},
+		{
+			name: SOFT_GLOW_HOST,
+			contents: "#!/bin/sh\n# independent-soft-glow-host\nexit 0\n",
+		},
 	];
 	await Promise.all(
 		bridges.flatMap(({ name, contents }) => [
@@ -109,7 +119,7 @@ async function createFixture({
 			writeBridge({ filePath: path.join(packagedRoot, name), contents }),
 		])
 	);
-	return { distRoot, projectRoot };
+	return { distRoot, projectRoot, stagedRoot, packagedRoot };
 }
 
 afterEach(async () => {
@@ -151,7 +161,48 @@ describe("packaged Jianying runtime bridge verification", () => {
 				VIDEO_OBJECT_COREML_BRIDGE_FILE_NAME
 			),
 			deflickerHost: expect.stringContaining(JIANYING_DEFLICKER_HOST_FILE_NAME),
+			independentFilterHost: expect.stringContaining(INDEPENDENT_FILTER_HOST),
+			softGlowHost: expect.stringContaining(SOFT_GLOW_HOST),
 		});
+	});
+
+	describe.each([INDEPENDENT_FILTER_HOST, SOFT_GLOW_HOST])("%s", (hostName) => {
+		it("rejects a helper omitted from the packaged app", async () => {
+			const fixture = await createFixture();
+			await rm(path.join(fixture.packagedRoot, hostName));
+			await expect(
+				verifyPackagedJianyingRuntimeBridges(fixture)
+			).rejects.toThrow(
+				`Packaged Jianying runtime bridge not found under ${fixture.distRoot}: ${hostName}`
+			);
+		});
+
+		it("rejects a packaged helper that differs from the freshly staged helper", async () => {
+			const fixture = await createFixture();
+			await writeBridge({
+				filePath: path.join(fixture.packagedRoot, hostName),
+				contents: "#!/bin/sh\n# stale-independent-helper\nexit 0\n",
+			});
+			await expect(
+				verifyPackagedJianyingRuntimeBridges(fixture)
+			).rejects.toThrow(
+				`Packaged Jianying runtime bridge differs from the staged binary: ${hostName}`
+			);
+		});
+
+		it.skipIf(process.platform === "win32")(
+			"rejects a packaged helper without executable permissions",
+			async () => {
+				const fixture = await createFixture();
+				const packagedPath = path.join(fixture.packagedRoot, hostName);
+				await chmod(packagedPath, 0o644);
+				await expect(
+					verifyPackagedJianyingRuntimeBridges(fixture)
+				).rejects.toThrow(
+					`Jianying runtime bridge is not executable: ${packagedPath}`
+				);
+			}
+		);
 	});
 
 	it("rejects a deflicker host without the audited execution route", async () => {
