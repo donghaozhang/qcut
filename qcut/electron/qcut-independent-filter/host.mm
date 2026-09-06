@@ -1,16 +1,18 @@
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
 #include <mach-o/dyld.h>
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <stdexcept>
 #include <string>
 #include <vector>
 #include "fog-shader-source.h"
+#include "graph-plan.h"
 
 struct Parameters { float width; float height; float strength; uint32_t stage; };
 struct FrameHeader { uint32_t width; uint32_t height; float strength; };
-struct GraphConfig { uint32_t kind; uint32_t alphaWeighted; float corner; uint32_t overlayWidth; uint32_t overlayHeight; uint32_t reserved; };
+struct GraphConfig { uint32_t kind; uint32_t alphaWeighted; float corner; uint32_t overlayWidth; uint32_t overlayHeight; uint32_t detailVariant; };
 static_assert(sizeof(GraphConfig) == 24);
 static_assert(sizeof(Parameters) == 16);
 static_assert(sizeof(FrameHeader) == 12);
@@ -64,8 +66,9 @@ int main(int argc, const char* argv[]) {
             GraphConfig graph{};
             if (graphMode) {
                 readExact(&graph, sizeof(graph));
-                if (graph.kind > 3 || graph.alphaWeighted > 1 || !std::isfinite(graph.corner) ||
-                    graph.corner < 0 || graph.corner > 1 || graph.reserved ||
+                if (graph.kind > 10 || graph.alphaWeighted > 1 || !std::isfinite(graph.corner) ||
+                    graph.corner < 0 || graph.corner > 1 || graph.detailVariant > 1 ||
+                    (graph.kind != 4 && graph.detailVariant) ||
                     graph.overlayWidth > 4096 || graph.overlayHeight > 4096 ||
                     (graph.kind == 2 && (!graph.overlayWidth || !graph.overlayHeight)) ||
                     (graph.kind != 2 && (graph.overlayWidth || graph.overlayHeight)))
@@ -109,8 +112,8 @@ int main(int argc, const char* argv[]) {
             std::cout.write(reinterpret_cast<const char*>(&ready), sizeof(ready)).flush();
             uint32_t lastWidth = 0, lastHeight = 0;
             id<MTLTexture> original;
-            id<MTLTexture> stages[4];
-            const uint32_t stageCount = graphMode ? (graph.kind == 3 ? 2 : graph.kind + 1) : cubeMode ? 1 : 4;
+            id<MTLTexture> stages[11];
+            std::vector<GraphStage> plan;
             while (std::cin.peek() != std::char_traits<char>::eof()) {
                 @autoreleasepool {
                     FrameHeader header;
@@ -128,29 +131,34 @@ int main(int argc, const char* argv[]) {
                     }
                     if (header.width != lastWidth || header.height != lastHeight) {
                         original = makeTexture(device, header.width, header.height);
-                        for (uint32_t index = 0; index < stageCount; ++index) stages[index] = makeTexture(device, header.width, header.height);
+                        plan = makeGraphPlan(graphMode ? graph.kind : cubeMode ? 0 : 6,
+                            graph.detailVariant, header.width, header.height);
+                        for (size_t index = 0; index < plan.size(); ++index)
+                            stages[index] = makeTexture(device, plan[index].width, plan[index].height);
                         lastWidth = header.width; lastHeight = header.height;
                     }
                     [original replaceRegion:MTLRegionMake2D(0, 0, header.width, header.height) mipmapLevel:0
                         withBytes:bytes.data() bytesPerRow:header.width * 4];
                     auto command = [queue commandBuffer];
-                    for (uint32_t index = 0; index < stageCount; ++index) {
+                    for (uint32_t index = 0; index < plan.size(); ++index) {
+                        const auto& stage = plan[index];
                         auto pass = [MTLRenderPassDescriptor renderPassDescriptor];
                         pass.colorAttachments[0].texture = stages[index];
                         pass.colorAttachments[0].loadAction = MTLLoadActionDontCare;
                         pass.colorAttachments[0].storeAction = MTLStoreActionStore;
                         auto encoder = [command renderCommandEncoderWithDescriptor:pass];
                         [encoder setRenderPipelineState:pipeline];
-                        [encoder setViewport:MTLViewport{0, 0, double(header.width), double(header.height), 0, 1}];
+                        [encoder setViewport:MTLViewport{0, 0, double(stages[index].width), double(stages[index].height), 0, 1}];
                         [encoder setCullMode:MTLCullModeNone];
-                        const Parameters params = {float(header.width), float(header.height), header.strength, index};
+                        const Parameters params = {stage.sampleWidth, stage.sampleHeight, header.strength, index};
                         [encoder setFragmentBytes:&params length:sizeof(params) atIndex:0];
-                        [encoder setFragmentTexture:(graphMode ? (index == 0 ? original : stages[index - 1]) :
+                        [encoder setFragmentTexture:(graphMode ? (stage.source < 0 ? original : stages[stage.source]) :
                             (index == 0 || index == 2 ? original : stages[index - 1])) atIndex:0];
                         [encoder setFragmentTexture:(!graphMode && index == 2 ? stages[1] : lut) atIndex:1];
                         if (graphMode) {
                             [encoder setFragmentBytes:&graph length:sizeof(graph) atIndex:1];
                             [encoder setFragmentTexture:overlay atIndex:2];
+                            [encoder setFragmentTexture:(stage.base < 0 ? original : stages[stage.base]) atIndex:3];
                         }
                         [encoder setFragmentSamplerState:sampler atIndex:0];
                         [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];
@@ -159,7 +167,7 @@ int main(int argc, const char* argv[]) {
                     [command commit]; [command waitUntilCompleted];
                     if (command.status != MTLCommandBufferStatusCompleted)
                         throw std::runtime_error(command.error.localizedDescription.UTF8String);
-                    [stages[stageCount - 1] getBytes:bytes.data() bytesPerRow:header.width * 4
+                    [stages[plan.size() - 1] getBytes:bytes.data() bytesPerRow:header.width * 4
                         fromRegion:MTLRegionMake2D(0, 0, header.width, header.height) mipmapLevel:0];
                     std::cout.write(reinterpret_cast<const char*>(bytes.data()), bytes.size()).flush();
                     if (!std::cout) throw std::runtime_error("Output stream closed");
