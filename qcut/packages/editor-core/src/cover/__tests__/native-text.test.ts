@@ -32,6 +32,32 @@ const text = createCoverText({
 	canvas: { width: 1920, height: 1080, backgroundColor: "#000000" },
 });
 describe("cover native text references", () => {
+	it("rejects orphan and malformed color modes while preserving legacy defaults", () => {
+		expect(() =>
+			assertCoverText({
+				layer: { ...text, nativeUseEffectDefaultColor: false },
+			})
+		).toThrow("color mode");
+		for (const nativeUseEffectDefaultColor of [true, false, undefined])
+			expect(() =>
+				assertCoverText({
+					layer: {
+						...text,
+						jianyingTextStyle: reference,
+						nativeUseEffectDefaultColor,
+					},
+				})
+			).not.toThrow();
+		expect(() =>
+			assertCoverText({
+				layer: {
+					...text,
+					jianyingTextStyle: reference,
+					nativeUseEffectDefaultColor: "false" as unknown as boolean,
+				},
+			})
+		).toThrow("color mode");
+	});
 	it.each([
 		"TextStyle",
 		"InfoSticker",
@@ -42,6 +68,7 @@ describe("cover native text references", () => {
 			jianyingTextStyle: { ...reference, packageKind },
 			fontAsset: font,
 			nativeFrameTime: 1.1,
+			nativeUseEffectDefaultColor: false,
 		};
 		const restored = JSON.parse(JSON.stringify(saved));
 		expect(() => assertCoverText({ layer: restored })).not.toThrow();
