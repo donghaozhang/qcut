@@ -1,8 +1,15 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+	cleanup,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createCoverText } from "@qcut/editor-core/cover";
 import type { TextFontAssetReference } from "@qcut/editor-core";
 import { CoverTextToolbar } from "./cover-text-toolbar";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 const font: TextFontAssetReference = {
 	kind: "local-font",
@@ -43,6 +50,99 @@ const layer = createCoverText({
 afterEach(cleanup);
 
 describe("cover native text toolbar", () => {
+	it("opens geometry on demand and bounds dimensions and rotation", () => {
+		const onChange = vi.fn();
+		render(
+			<CoverTextToolbar
+				layer={layer}
+				disabled={false}
+				onChange={onChange}
+				onDelete={vi.fn()}
+				onOrder={vi.fn()}
+			/>
+		);
+		expect(screen.queryByLabelText("editor.cover.textWidth 数值")).toBeNull();
+		fireEvent.keyDown(screen.getByTestId("cover-geometry"), { key: "Enter" });
+		fireEvent.change(screen.getByLabelText("editor.cover.textWidth 数值"), {
+			target: { value: "120" },
+		});
+		expect(onChange).toHaveBeenLastCalledWith({ width: 1 });
+		fireEvent.change(screen.getByLabelText("editor.cover.textHeight 数值"), {
+			target: { value: "0" },
+		});
+		expect(onChange).toHaveBeenLastCalledWith({ height: 0.05 });
+		fireEvent.change(
+			screen.getByRole("slider", { name: "editor.cover.textHeight" }),
+			{ target: { value: "35" } }
+		);
+		expect(onChange).toHaveBeenLastCalledWith({ height: 0.35 });
+		fireEvent.change(screen.getByLabelText("editor.cover.rotation 数值"), {
+			target: { value: "270" },
+		});
+		expect(onChange).toHaveBeenLastCalledWith({ rotation: 180 });
+		fireEvent.change(screen.getByLabelText("editor.cover.rotation 数值"), {
+			target: { value: "-270" },
+		});
+		expect(onChange).toHaveBeenLastCalledWith({ rotation: -180 });
+		onChange.mockClear();
+		fireEvent.change(screen.getByLabelText("editor.cover.rotation 数值"), {
+			target: { value: "" },
+		});
+		expect(onChange).not.toHaveBeenCalled();
+	});
+	it("closes geometry on layer changes and disables it when unavailable", () => {
+		const props = {
+			disabled: false,
+			onChange: vi.fn(),
+			onDelete: vi.fn(),
+			onOrder: vi.fn(),
+		};
+		const view = render(<CoverTextToolbar {...props} layer={layer} />);
+		fireEvent.click(screen.getByTestId("cover-geometry"));
+		expect(screen.getByLabelText("editor.cover.rotation 数值")).toBeDefined();
+		view.rerender(
+			<CoverTextToolbar {...props} layer={{ ...layer, id: "two" }} />
+		);
+		expect(screen.queryByLabelText("editor.cover.rotation 数值")).toBeNull();
+		fireEvent.click(screen.getByTestId("cover-geometry"));
+		view.rerender(
+			<CoverTextToolbar {...props} layer={{ ...layer, id: "two" }} disabled />
+		);
+		expect(screen.queryByLabelText("editor.cover.rotation 数值")).toBeNull();
+		expect(screen.getByTestId("cover-geometry")).toBeDisabled();
+		view.rerender(
+			<CoverTextToolbar {...props} layer={{ ...layer, id: "two" }} />
+		);
+		expect(screen.queryByLabelText("editor.cover.rotation 数值")).toBeNull();
+		view.rerender(<CoverTextToolbar {...props} />);
+		expect(screen.getByTestId("cover-geometry")).toBeDisabled();
+	});
+	it("dismisses geometry with Escape without dismissing the cover editor", async () => {
+		const onOpenChange = vi.fn();
+		render(
+			<Dialog open onOpenChange={onOpenChange}>
+				<DialogContent>
+					<DialogTitle>Cover</DialogTitle>
+					<CoverTextToolbar
+						layer={layer}
+						disabled={false}
+						onChange={vi.fn()}
+						onDelete={vi.fn()}
+						onOrder={vi.fn()}
+					/>
+				</DialogContent>
+			</Dialog>
+		);
+		fireEvent.click(screen.getByTestId("cover-geometry"));
+		fireEvent.keyDown(screen.getByLabelText("editor.cover.rotation 数值"), {
+			key: "Escape",
+		});
+		await waitFor(() =>
+			expect(screen.queryByLabelText("editor.cover.rotation 数值")).toBeNull()
+		);
+		expect(onOpenChange).not.toHaveBeenCalled();
+		expect(screen.getByRole("dialog", { name: "Cover" })).toBeDefined();
+	});
 	it("reuses the font picker for the selected text and clears the asset on generic font selection", () => {
 		const onChange = vi.fn();
 		const props = {
