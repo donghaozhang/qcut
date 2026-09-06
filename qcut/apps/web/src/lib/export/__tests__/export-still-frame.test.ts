@@ -102,6 +102,19 @@ describe("exportStillFrame", () => {
 		});
 		expect(mocks.renderFrame).not.toHaveBeenCalled();
 	});
+	it("samples an explicit frame without changing the playback position", async () => {
+		expect(await captureStillFrame({ timeSeconds: 1.012 })).toMatchObject({
+			ok: true,
+			frame: 30,
+			timeSeconds: 1,
+		});
+		expect(await captureStillFrame()).toMatchObject({
+			ok: true,
+			frame: 75,
+			timeSeconds: 2.5,
+		});
+		expect(mocks.saveExportedFile).not.toHaveBeenCalled();
+	});
 	it("refuses missing visible media rather than silently producing a black frame", async () => {
 		mocks.tracks = [
 			{
