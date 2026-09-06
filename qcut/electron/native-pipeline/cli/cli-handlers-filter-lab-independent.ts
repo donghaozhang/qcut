@@ -3,6 +3,13 @@ import {
 	validateIndependentFilterIdentity,
 } from "../../qcut-independent-filter/assets.js";
 import { resolveIndependentFilterHost } from "../../qcut-independent-filter/bridge.js";
+import { resolveSoftGlowLut } from "../../qcut-independent-filter/soft-glow-assets.js";
+import { resolveSoftGlowHost } from "../../qcut-independent-filter/soft-glow-bridge.js";
+import {
+	SOFT_GLOW_RESOURCE,
+	independentSoftGlowSettings,
+	validateSoftGlowIdentity,
+} from "../../qcut-independent-filter/soft-glow-contract.js";
 import {
 	loadIndependentGraph,
 	supportsIndependentGraph,
@@ -49,6 +56,33 @@ export async function resolveIndependentFilterPlan({
 	card: JianyingFilterCatalogExport["cards"][number];
 	intensity: number;
 }): Promise<FilterLabRenderPlan> {
+	if (card.resourceId === SOFT_GLOW_RESOURCE) {
+		validateSoftGlowIdentity({
+			resourceId: card.resourceId,
+			version: card.version ?? "",
+		});
+		const [lut] = await Promise.all([
+			resolveSoftGlowLut(),
+			resolveSoftGlowHost(),
+		]);
+		return {
+			kind: "native",
+			mode: "qcut-cpu-soft-glow",
+			lut,
+			editorColor: { multiPass: independentSoftGlowSettings() },
+			evidence: {
+				intensityMode: "ui-snapshot",
+				resourceId: card.resourceId,
+				version: card.version!,
+				title: card.title,
+				implementation: "shader",
+				verification: "unverified",
+				intensity,
+				backend: "qcut-cpu-soft-glow",
+				fidelity: "native-local",
+			},
+		};
+	}
 	if (supportsIndependentGraph({ card })) {
 		const graph = await loadIndependentGraph({ card });
 		await resolveIndependentFilterHost();
