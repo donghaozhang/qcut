@@ -74,6 +74,11 @@ export type FilterLabRenderPlan = {
 	| { kind: "native"; mode: "qcut-metal"; lutPath: string }
 	| {
 			kind: "native";
+			mode: "qcut-metal-graph";
+			graph: import("../../qcut-independent-filter/graph-data.js").IndependentGraphData;
+	  }
+	| {
+			kind: "native";
 			mode: "qcut-metal-lut";
 			cube: import("../../qcut-independent-filter/lut-data.js").IndependentCube;
 	  }
