@@ -320,6 +320,11 @@ export async function cacheJianyingCovers({
 				)
 			);
 			const materials = template.cover.cover_draft.materials;
+			const retainedEntry = previous?.entries.find(
+				(entry) =>
+					entry.packageHash === observation.packageHash &&
+					entry.definition.sha256 === definition.sha256
+			);
 			const preview = await retain({
 				sourceRoot,
 				relativePath: `image/${observation.previewHash}`,
@@ -351,13 +356,21 @@ export async function cacheJianyingCovers({
 					const resolved = recovered?.source;
 					const relativeDirectory =
 						resolved?.relativePath ?? candidates.sort()[0];
-					if (!relativeDirectory)
+					if (!relativeDirectory) {
+						const retainedDependency = retainedEntry?.dependencies.find(
+							(dependency) =>
+								dependency.reference === reference &&
+								dependency.status === "cached" &&
+								dependency.files.length > 0
+						);
+						if (retainedDependency) return retainedDependency;
 						return {
 							reference,
 							files: [],
 							status: hash ? "missing" : "unsupported-path",
 							...(recovered?.reason ? { reason: recovered.reason } : {}),
 						};
+					}
 					const root = resolved?.root ?? sourceRoot;
 					const paths = resolved?.singleFile
 						? [relativeDirectory]
@@ -382,6 +395,12 @@ export async function cacheJianyingCovers({
 			});
 			return {
 				...observation,
+				categories: [
+					...new Set([
+						...(retainedEntry?.categories ?? []),
+						...observation.categories,
+					]),
+				],
 				definition,
 				preview,
 				dependencies,
