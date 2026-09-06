@@ -92,7 +92,13 @@ async function createNativeSession({
 						}
 		);
 		return {
-			render: ({ rgba }: { rgba: Uint8Array; timestampSeconds: number }) =>
+			render: ({
+				rgba,
+				timestampSeconds,
+			}: {
+				rgba: Uint8Array;
+				timestampSeconds: number;
+			}) =>
 				session.render({
 					...createIndependentFrameRequest({
 						rgba,
@@ -102,6 +108,8 @@ async function createNativeSession({
 					}),
 					resourceId: plan.evidence.resourceId,
 					version: plan.evidence.version,
+					timestampSeconds,
+					sourceKey: "filter-lab-export",
 				}),
 			dispose: session.dispose,
 		};
