@@ -17,6 +17,8 @@ import {
 	type IndependentFilterIdentity,
 } from "./contract.js";
 import { validateIndependentCube, type IndependentCube } from "./lut-data.js";
+import { supportsIndependentGraph } from "./graph-data.js";
+import { findIndependentGraphProfile } from "./graph-profiles.js";
 
 export function supportsIndependentLut({
 	card,
@@ -58,15 +60,25 @@ export function selectIndependentCatalog({
 		available: true,
 		verification: "unverified",
 		lutCount: 1,
+		independentKind: "fog",
 	};
 	const cards = [
 		fog,
 		...catalog.cards.filter(
 			(card) =>
 				card.resourceId !== QCUT_FOG_RESOURCE &&
-				supportsIndependentLut({ card })
+				(supportsIndependentLut({ card }) || supportsIndependentGraph({ card }))
 		),
-	].map((card) => ({ ...card, verification: "unverified" as const }));
+	].map((card) => ({
+		...card,
+		verification: "unverified" as const,
+		independentKind:
+			card.independentKind ??
+			findIndependentGraphProfile({
+				identity: { resourceId: card.resourceId, version: card.version! },
+			})?.kind ??
+			("lut" as const),
+	}));
 	return { count: cards.length, cards };
 }
 
