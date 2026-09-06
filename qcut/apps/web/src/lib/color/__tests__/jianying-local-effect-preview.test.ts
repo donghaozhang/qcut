@@ -103,6 +103,7 @@ describe("Jianying local multi-pass preview", () => {
 	it.each([
 		"qcut-metal-fog-v1",
 		"qcut-metal-lut-v1",
+		"qcut-metal-graph-v1",
 	] as const)("routes %s frames only to the new API and preserves alpha", async (provider) => {
 		const settings = localSettings();
 		settings.multiPass!.nativeEffect!.provider = provider;
