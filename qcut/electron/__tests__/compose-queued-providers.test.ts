@@ -106,9 +106,12 @@ describe("durable Compose providers", () => {
 			"utf8"
 		);
 		expect(stored).not.toMatch(/private-source|private-hash|\/private\/fonts/);
-		expect(
-			(await stat(join(directory, `${created.id}.json`))).mode & 0o777
-		).toBe(0o600);
+		// Windows stat mode does not represent POSIX owner/group permissions.
+		if (process.platform !== "win32") {
+			expect(
+				(await stat(join(directory, `${created.id}.json`))).mode & 0o777
+			).toBe(0o600);
+		}
 		expect((await store.read({ id: created.id })).job.status).toBe("completed");
 	});
 	it("serializes duplicate uploads across independent adapters", async () => {
