@@ -205,6 +205,7 @@ export function CoverSourceStrip({
 					<div
 						className="cover-filmstrip"
 						data-testid="cover-filmstrip"
+						role="group"
 						aria-busy={loading || mediaLoading}
 						aria-label={t("editor.cover.frames")}
 					>

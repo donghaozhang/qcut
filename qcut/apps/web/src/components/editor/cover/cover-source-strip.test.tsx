@@ -96,7 +96,7 @@ describe("cover real frame strip", () => {
 	});
 	it("opens with ten bounded real frames without changing the chosen cover", async () => {
 		const view = render(<CoverSourceStrip {...props} />);
-		const strip = screen.getByTestId("cover-filmstrip");
+		const strip = screen.getByRole("group", { name: "editor.cover.frames" });
 		expect(within(strip).getAllByRole("button")).toHaveLength(10);
 		await waitFor(() => expect(strip.querySelectorAll("img")).toHaveLength(10));
 		expect(
