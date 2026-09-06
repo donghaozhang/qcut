@@ -2,6 +2,16 @@ import type { IndependentFilterIdentity } from "./contract.js";
 import { INDEPENDENT_DETAIL_CHAIN_PROFILES } from "./graph-profiles-detail.js";
 import { INDEPENDENT_SPATIAL_PROFILES } from "./graph-profiles-spatial.js";
 import { INDEPENDENT_INVARIANT_PROFILES } from "./graph-profiles-invariant.js";
+import { HYBRID_DUAL_PROFILES } from "./graph-profiles-dual.js";
+
+export interface DualLutProfile {
+	format: "vf" | "tiled" | "tiled-floor";
+	backgroundPath: string;
+	skinPath: string;
+	backgroundStrength: number;
+	skinStrength: number;
+	clampAlpha: boolean;
+}
 
 export interface IndependentGraphProfile extends IndependentFilterIdentity {
 	title: string;
@@ -16,9 +26,11 @@ export interface IndependentGraphProfile extends IndependentFilterIdentity {
 		| "edge-camera"
 		| "edge-glow"
 		| "mask-invariant"
-		| "mask-invariant-sharpen";
+		| "mask-invariant-sharpen"
+		| "skin-dual-lut";
+	dualLut?: DualLutProfile;
 	maskInvariant?: "vf" | "tiled";
-	featureDirectory?: "AmazingFeature_2998";
+	featureDirectory?: string;
 	detailVariant?: "sanyo";
 	controlHash: string;
 	assetHash: string;
@@ -343,6 +355,7 @@ export const INDEPENDENT_GRAPH_PROFILES: readonly IndependentGraphProfile[] = [
 	...INDEPENDENT_DETAIL_CHAIN_PROFILES,
 	...INDEPENDENT_SPATIAL_PROFILES,
 	...INDEPENDENT_INVARIANT_PROFILES,
+	...HYBRID_DUAL_PROFILES,
 ];
 
 export function findIndependentGraphProfile({
