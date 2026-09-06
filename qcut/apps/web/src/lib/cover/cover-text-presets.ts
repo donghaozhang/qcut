@@ -6,6 +6,8 @@ import {
 } from "@qcut/editor-core/cover";
 import type { TextStylePreset } from "@/lib/text/text-presets";
 import type { JianyingTextStyleLabStyleSummary } from "@/types/electron";
+import { normalizeJianyingTextRuntimeReference } from "@qcut/editor-core/assets";
+import { buildTextStyleLabUpdates } from "@/components/editor/media-panel/views/text-style-lab/text-style-lab-mapping";
 
 export function coverLabPreset({
 	style,
@@ -66,6 +68,43 @@ export function coverTextPresetChanges({
 			textStyle.backgroundOpacity > 0 &&
 			updates.backgroundColor !== "transparent",
 		textStyle,
+		jianyingTextStyle: undefined,
+		nativeFrameTime: undefined,
+	};
+	assertCoverText({ layer: { ...layer, ...changes } });
+	return changes;
+}
+
+export function coverWordArtChanges({
+	layer,
+	canvas,
+	style,
+}: {
+	layer: CoverTextLayerV1;
+	canvas: { width: number; height: number };
+	style: JianyingTextStyleLabStyleSummary;
+}): Partial<CoverTextLayerV1> {
+	const updates = buildTextStyleLabUpdates({ style });
+	if (!updates) throw new Error("Word-art style is preview-only");
+	const reference = style.runtimeReference
+		? normalizeJianyingTextRuntimeReference({ value: style.runtimeReference })
+		: undefined;
+	if (style.runtimeReference && !reference)
+		throw new Error("Invalid word-art runtime reference");
+	const changes = {
+		...coverTextPresetChanges({
+			layer,
+			canvas,
+			preset: {
+				id: style.styleId,
+				name: style.title ?? style.resourceId,
+				updates,
+			},
+		}),
+		jianyingTextStyle: reference ?? undefined,
+		nativeFrameTime: reference
+			? Math.min(1, reference.templateDuration / 2)
+			: undefined,
 	};
 	assertCoverText({ layer: { ...layer, ...changes } });
 	return changes;
