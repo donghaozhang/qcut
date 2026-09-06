@@ -1,5 +1,7 @@
 # 剪映封面机制研究
 
+> 2026-09-06 更正：本文 2026-08-30 实验观察的是 Web/CEF 路径，不能概括所有封面入口。后续原生“封面设计”实测确认 `Cache/template/<hash>/template.json` 包含 `cover.cover_draft`，并成功套用文字模板。下文“Cache/template 仅属常规视频模板”“封面只走在线图文编辑器”的推断已被该证据推翻；历史正文保留供追溯。当前缓存、分类、依赖与未实现边界见 [原生模板缓存实测](./native-cache-2026-09-06.zh-CN.md)。
+
 - 研究日期：2026-08-30
 - 应用：剪映专业版 macOS 11.3.0
 - Bundle ID：`com.lemon.lvpro`
