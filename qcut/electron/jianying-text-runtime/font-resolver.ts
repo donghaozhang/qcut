@@ -17,6 +17,10 @@ import {
 	isValidJianyingFontId,
 } from "../jianying-font-lab-catalog.js";
 import type { JianyingTextRuntimeDiagnostic } from "../jianying-text-runtime-contract.js";
+import {
+	jianyingPrivateFontRoot,
+	readPrivateJianyingFont,
+} from "../jianying-font-private-cache.js";
 
 const FONT_CACHE_EXTENSIONS = ["otf", "ttf"] as const;
 const MAXIMUM_FONT_BYTES = 128 * 1024 * 1024;
@@ -187,12 +191,14 @@ export async function resolveJianyingTextRuntimeFont({
 	getCatalog = fontCatalog,
 	fallbackCandidates,
 	persistentCacheRoot = defaultPersistentFontCacheRoot(),
+	privateCacheRoot = jianyingPrivateFontRoot(),
 }: {
 	fontAssetId?: string;
 	runtimeRoot?: string;
 	getCatalog?: () => Promise<JianyingFontCatalog>;
 	fallbackCandidates?: string[];
 	persistentCacheRoot?: string;
+	privateCacheRoot?: string;
 }): Promise<JianyingTextRuntimeFontResolution> {
 	const resolvedFallbackCandidates =
 		fallbackCandidates ?? defaultFontCandidates({ runtimeRoot });
@@ -218,6 +224,30 @@ export async function resolveJianyingTextRuntimeFont({
 			state: "requested",
 			diagnostics: [],
 		};
+	}
+	const owned = await Promise.all(
+		FONT_CACHE_EXTENSIONS.map(async (format) => ({
+			format,
+			bytes: await readPrivateJianyingFont({
+				root: privateCacheRoot,
+				sha256: fontSha256({ fontAssetId }),
+				format,
+			}),
+		}))
+	);
+	const privateFont = owned.find((font) => font.bytes !== null);
+	if (privateFont?.bytes) {
+		const filePath = await persistVerifiedFont({
+			bytes: privateFont.bytes,
+			format: privateFont.format,
+			fontAssetId,
+			persistentCacheRoot,
+		});
+		if (!filePath)
+			throw new Error(
+				"Could not retain verified private font for native rendering"
+			);
+		return { filePath, state: "requested", diagnostics: [] };
 	}
 	const catalog = await getCatalog();
 	const entry = catalog.entries.find(({ fontId }) => fontId === fontAssetId);
