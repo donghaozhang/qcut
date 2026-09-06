@@ -9,6 +9,8 @@ import {
 } from "./contract.js";
 import { createIndependentFilterProvider } from "./provider.js";
 import { createIndependentLutProvider } from "./lut-provider.js";
+import { createSoftGlowProvider } from "./soft-glow-provider.js";
+import { SOFT_GLOW_RESOURCE } from "./soft-glow-contract.js";
 import {
 	listIndependentFilters,
 	parseIndependentIdentity,
@@ -21,6 +23,7 @@ export function setupIndependentFilterIPC({
 }) {
 	const provider = createIndependentFilterProvider();
 	const lutProvider = createIndependentLutProvider();
+	const softGlowProvider = createSoftGlowProvider();
 	const assertTrusted = ({ event }: { event: IpcMainInvokeEvent }) => {
 		const window = getMainWindow();
 		if (
@@ -49,6 +52,8 @@ export function setupIndependentFilterIPC({
 		assertTrusted({ event });
 		if (request !== undefined) {
 			const identity = parseIndependentIdentity({ request });
+			if (identity.resourceId === SOFT_GLOW_RESOURCE)
+				return softGlowProvider.load(identity);
 			if (identity.resourceId !== QCUT_FOG_RESOURCE)
 				return lutProvider.load(identity);
 			validateIndependentFilterIdentity(identity);
@@ -67,6 +72,8 @@ export function setupIndependentFilterIPC({
 			throw new Error("Independent filter requires an exact version.");
 		}
 		const input = { ...parsed, version: request.version };
+		if (input.resourceId === SOFT_GLOW_RESOURCE)
+			return softGlowProvider.render(input);
 		if (input.resourceId !== QCUT_FOG_RESOURCE) {
 			parseIndependentIdentity({ request: input });
 			return lutProvider.render(input);
@@ -81,6 +88,7 @@ export function setupIndependentFilterIPC({
 			ipcMain.removeHandler(QCUT_FILTER_LIST);
 			void provider.dispose();
 			void lutProvider.dispose();
+			void softGlowProvider.dispose();
 		},
 	};
 }
