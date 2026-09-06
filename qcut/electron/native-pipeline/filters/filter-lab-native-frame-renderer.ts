@@ -8,6 +8,7 @@ import {
 } from "../../jianying-filter-swing-runtime/render.js";
 import type { FilterLabMediaInfo } from "./filter-lab-media.js";
 import type { FilterLabRenderPlan } from "./filter-lab-render-plan.js";
+import { createSoftGlowSession } from "../../qcut-independent-filter/soft-glow-session.js";
 import {
 	createIndependentFilterSession,
 	createIndependentFrameRequest,
@@ -62,11 +63,41 @@ async function createNativeSession({
 	plan,
 	bootstrapRgba,
 	media,
+	signal,
 }: {
 	plan: FilterLabNativeRenderPlan;
 	bootstrapRgba: Uint8Array;
 	media: FilterLabMediaInfo;
+	signal: AbortSignal;
 }): Promise<FilterLabNativeSession> {
+	if (plan.mode === "qcut-cpu-soft-glow") {
+		const session = await createSoftGlowSession({
+			width: media.width,
+			height: media.height,
+			intensity: plan.evidence.intensity,
+			lut: plan.lut,
+			signal,
+		});
+		return {
+			render: ({
+				rgba,
+				timestampSeconds,
+			}: {
+				rgba: Uint8Array;
+				timestampSeconds: number;
+			}) =>
+				session.render({
+					rgba,
+					timestampSeconds,
+					width: media.width,
+					height: media.height,
+					intensity: plan.evidence.intensity,
+					resourceId: plan.evidence.resourceId,
+					version: plan.evidence.version,
+				}),
+			dispose: session.dispose,
+		};
+	}
 	if (
 		plan.mode === "qcut-metal" ||
 		plan.mode === "qcut-metal-lut" ||
@@ -166,6 +197,7 @@ export function createFilterLabNativeFrameRenderer({
 						plan,
 						bootstrapRgba: current,
 						media,
+						signal,
 					});
 					if (disposePromise || signal.aborted) {
 						await session.dispose();
@@ -191,7 +223,8 @@ export function createFilterLabNativeFrameRenderer({
 						plan.mode === "swing" ||
 						plan.mode === "qcut-metal" ||
 						plan.mode === "qcut-metal-lut" ||
-						plan.mode === "qcut-metal-graph"
+						plan.mode === "qcut-metal-graph" ||
+						plan.mode === "qcut-cpu-soft-glow"
 							? 100
 							: plan.evidence.intensity,
 				});
