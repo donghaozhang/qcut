@@ -26,6 +26,7 @@ import { registerAppMaintenanceHandlers } from "./app-maintenance-handlers.js";
 import { registerStickerLabHandlers } from "./sticker-lab-handlers.js";
 import { registerQcutAudioRuntimeHandlers } from "./qcut-audio-runtime-handlers.js";
 import { registerPlanarTrackingStorageHandlers } from "./planar-tracking-storage-handlers.js";
+import { registerJianyingCoverHandlers } from "./jianying-cover-handlers.js";
 
 export function registerMainIpcHandlers(deps: MainIpcDeps): void {
 	registerAudioVideoHandlers(deps);
@@ -42,4 +43,5 @@ export function registerMainIpcHandlers(deps: MainIpcDeps): void {
 	registerStickerLabHandlers();
 	registerQcutAudioRuntimeHandlers();
 	registerPlanarTrackingStorageHandlers();
+	registerJianyingCoverHandlers(deps);
 }
