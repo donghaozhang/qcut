@@ -4,12 +4,9 @@ import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 import { HYBRID_DUAL_PROFILES } from "../electron/qcut-independent-filter/graph-profiles-dual.js";
-import {
-	independentGraphPackageRoot,
-	loadIndependentGraph,
-} from "../electron/qcut-independent-filter/graph-data.js";
+import { loadIndependentGraph } from "../electron/qcut-independent-filter/graph-data.js";
 import { createIndependentFilterSession } from "../electron/qcut-independent-filter/session.js";
-import { createJianyingFilterLocalRenderSession } from "../electron/jianying-filter-local-runtime/render.js";
+import { createHybridNativeReference } from "./jianying-filter-parity/hybrid-reference.js";
 import { inspectJianyingFilterLocalRuntime } from "../electron/jianying-filter-local-runtime/runtime-discovery.js";
 import type { SkinMaskFrame } from "../electron/qcut-independent-filter/skin-mask-source.js";
 
@@ -63,8 +60,9 @@ const started = Date.now();
 for (const profile of selected) {
 	const begin = Date.now();
 	let oracle:
-		| Awaited<ReturnType<typeof createJianyingFilterLocalRenderSession>>
+		| Awaited<ReturnType<typeof createHybridNativeReference>>
 		| undefined;
+	let partialOracle: typeof oracle;
 	let metal:
 		| Awaited<ReturnType<typeof createIndependentFilterSession>>
 		| undefined;
@@ -80,15 +78,24 @@ for (const profile of selected) {
 				lutCount: 2,
 			},
 		});
-		oracle = await createJianyingFilterLocalRenderSession({
-			resourceId: profile.resourceId,
-			packagePath: await independentGraphPackageRoot({ profile }),
+		oracle = await createHybridNativeReference({
+			profile,
 			width,
 			height,
 			bootstrapRgba: rgba,
 			runtime,
-			mode: "portrait",
+			intensity: 100,
 		});
+		if (profile.dualLut?.sharpen) {
+			partialOracle = await createHybridNativeReference({
+				profile,
+				runtime,
+				width,
+				height,
+				bootstrapRgba: rgba,
+				intensity: 37,
+			});
+		}
 		let currentMask: SkinMaskFrame | undefined;
 		metal = await createIndependentFilterSession({
 			graph,
@@ -124,15 +131,24 @@ for (const profile of selected) {
 			if (!expected.mask)
 				throw new Error("Native oracle did not return a mask.");
 			currentMask = expected.mask;
-			let maskMax = 0,
-				maskSum = 0;
-			for (const value of currentMask.bytes) {
-				maskMax = Math.max(maskMax, value);
-				maskSum += value;
-			}
-			if (!maskMax)
-				throw new Error("Portrait verification received an empty skin mask.");
 			for (const intensity of [0, 37, 100]) {
+				const reference =
+					intensity === 37 && partialOracle
+						? await partialOracle.render({
+								rgba: source,
+								timestampSeconds: frame / 30,
+							})
+						: expected;
+				if (!reference.mask) throw new Error("Missing reference mask.");
+				currentMask = reference.mask;
+				let maskMax = 0,
+					maskSum = 0;
+				for (const value of currentMask.bytes) {
+					maskMax = Math.max(maskMax, value);
+					maskSum += value;
+				}
+				if (!maskMax)
+					throw new Error("Portrait verification received an empty skin mask.");
 				const request = {
 					...profile,
 					width,
@@ -150,7 +166,10 @@ for (const profile of selected) {
 						i % 4 === 3
 							? source[i]
 							: Math.round(
-									source[i] + ((expected.rgba[i] - source[i]) * intensity) / 100
+									intensity === 37 && partialOracle
+										? reference.rgba[i]
+										: source[i] +
+												((reference.rgba[i] - source[i]) * intensity) / 100
 								);
 					const difference = Math.abs(target - actual.rgba[i]);
 					if (i % 4 === 3) alphaMax = Math.max(alphaMax, difference);
@@ -195,6 +214,7 @@ for (const profile of selected) {
 			resourceId: profile.resourceId,
 			title: profile.title,
 			format: profile.dualLut!.format,
+			intensityMode: oracle.intensityMode,
 			passed: metrics.every((m) => m.passed),
 			seconds: (Date.now() - begin) / 1000,
 			metrics,
@@ -207,7 +227,11 @@ for (const profile of selected) {
 			error: error instanceof Error ? error.message : String(error),
 		});
 	} finally {
-		await Promise.allSettled([oracle?.dispose(), metal?.dispose()]);
+		await Promise.allSettled([
+			oracle?.dispose(),
+			partialOracle?.dispose(),
+			metal?.dispose(),
+		]);
 	}
 	console.log(JSON.stringify(results.at(-1)));
 	await writeFile(
