@@ -7,7 +7,7 @@ struct GraphStage {
 };
 
 std::vector<GraphStage> makeGraphPlan(uint32_t kind, uint32_t variant, uint32_t width, uint32_t height) {
-    constexpr uint32_t counts[] = {1, 2, 3, 2, 5, 1, 4, 7, 11, 1, 2};
+    constexpr uint32_t counts[] = {1, 2, 3, 2, 5, 1, 4, 7, 11, 1, 2, 1};
     if (kind >= std::size(counts)) throw std::runtime_error("Unknown graph topology");
     std::vector<GraphStage> plan;
     for (uint32_t index = 0; index < counts[kind]; ++index)
