@@ -4,7 +4,12 @@ import { dirname, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { exportCatalogDefault } from "../electron/native-pipeline/cli/cli-handlers-filter-lab-catalog.js";
 import { jianyingFilterCacheRoots } from "../electron/native-pipeline/filters/filter-lab-lut.js";
-import { selectIndependentCatalog } from "../electron/qcut-independent-filter/lut-catalog.js";
+import {
+	selectIndependentCatalog,
+	supportsIndependentLut,
+} from "../electron/qcut-independent-filter/lut-catalog.js";
+import { supportsIndependentGraph } from "../electron/qcut-independent-filter/graph-data.js";
+import { QCUT_FOG_RESOURCE } from "../electron/qcut-independent-filter/contract.js";
 import { mapWithConcurrency } from "../electron/lib/map-with-concurrency.js";
 
 const { values } = parseArgs({ options: { output: { type: "string" } } });
@@ -12,8 +17,15 @@ if (!values.output)
 	throw new Error("--output is required; package data is not written to Git.");
 const catalog = await exportCatalogDefault();
 const independent = selectIndependentCatalog({ catalog });
+// The shared shelf may also contain non-Metal renderers, outside this migration audit.
+const metalCards = independent.cards.filter(
+	(card) =>
+		card.resourceId === QCUT_FOG_RESOURCE ||
+		supportsIndependentLut({ card }) ||
+		supportsIndependentGraph({ card })
+);
 const supported = new Set(
-	independent.cards.map((card) => `${card.resourceId}/${card.version}`)
+	metalCards.map((card) => `${card.resourceId}/${card.version}`)
 );
 const remaining = catalog.cards.filter(
 	(card) => !supported.has(`${card.resourceId}/${card.version}`)
@@ -44,7 +56,8 @@ const cards = await mapWithConcurrency({
 		if (files.length > 10000 || files.some((file) => file.isSymbolicLink()))
 			throw new Error(`Unsafe package: ${card.resourceId}`);
 		const background = files.filter(
-			(file) => file.isFile() && /^filter_bg\.(png|3dl\.vf)$/.test(file.name)
+			(file) =>
+				file.isFile() && /^filter_bg\.(png|3dl(?:\.vf)?)$/.test(file.name)
 		);
 		const lutPairs = await Promise.all(
 			background.map(async (file) => {
@@ -63,8 +76,14 @@ const cards = await mapWithConcurrency({
 						readFile(bgPath),
 						readFile(skinPath),
 					]);
+					const extension = file.name.slice("filter_bg.".length);
+					const formats: Record<string, string> = {
+						png: "tiled",
+						"3dl.vf": "vf",
+						"3dl": "adobe-3dl",
+					};
 					return {
-						format: file.name.endsWith(".png") ? "tiled" : "vf",
+						format: formats[extension],
 						equalBytes: bg.equals(skin),
 						backgroundSha256: createHash("sha256").update(bg).digest("hex"),
 						skinSha256: createHash("sha256").update(skin).digest("hex"),
@@ -97,10 +116,10 @@ for (const card of cards)
 const result = {
 	generatedAt: new Date().toISOString(),
 	catalogCount: catalog.count,
-	metalCatalogCount: independent.count,
-	independentCount: independent.cards.filter((card) => !card.maskProvider)
-		.length,
-	hybridCount: independent.cards.filter((card) => card.maskProvider).length,
+	metalCatalogCount: metalCards.length,
+	otherRendererCount: independent.count - metalCards.length,
+	independentCount: metalCards.filter((card) => !card.maskProvider).length,
+	hybridCount: metalCards.filter((card) => card.maskProvider).length,
 	remainingCount: cards.length,
 	counts,
 	missingPackages: cards
