@@ -166,6 +166,7 @@ describe("private cover library", () => {
 		expect(card.textContent).toContain("缺背景滤镜");
 		expect(card.textContent).toContain("文字资源就绪");
 		fireEvent.click(card);
+		expect(onApply).toHaveBeenCalledExactlyOnceWith(entry.packageHash);
 		expect(screen.getByText(/A-log/)).toBeDefined();
 		expect(screen.getByText(/背景轨道/)).toBeDefined();
 		fireEvent.click(screen.getByRole("button", { name: "套用文字布局" }));
@@ -181,6 +182,28 @@ describe("private cover library", () => {
 		expect(
 			screen.getByRole("button", { name: "准备中…" }).hasAttribute("disabled")
 		).toBe(true);
+	});
+	it.each([
+		{ ready: false, requiresNative: false },
+		{ ready: true, requiresNative: true },
+	])("does not apply unavailable layouts on a card click: %j", async (textLayout) => {
+		vi.mocked(loadPrivateCoverLibrary).mockResolvedValue({
+			...catalog,
+			entries: [{ ...entry, textLayout }],
+		});
+		const onApply = vi.fn();
+		render(
+			<CoverPrivateLibrary
+				onClear={vi.fn()}
+				onApply={onApply}
+				disabled={false}
+			/>
+		);
+		fireEvent.click(
+			await screen.findByTestId(`cover-cached-${entry.packageHash}`)
+		);
+		expect(onApply).not.toHaveBeenCalled();
+		expect(screen.getByText("完整模板：未接入")).toBeDefined();
 	});
 	it("distinguishes unsupported vertical layout from a missing asset", async () => {
 		vi.mocked(loadPrivateCoverLibrary).mockResolvedValue({
