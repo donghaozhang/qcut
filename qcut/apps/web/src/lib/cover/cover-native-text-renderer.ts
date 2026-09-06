@@ -67,7 +67,12 @@ export async function paintCoverTextLayer({
 		signal?.throwIfAborted();
 		const result = validateJianyingTextRenderResult({
 			entry,
-			result: await api.render(entry.renderRequest),
+			result: await api.render({
+				...entry.renderRequest,
+				...(layer.nativeUseEffectDefaultColor === false
+					? { textColor: layer.color }
+					: {}),
+			}),
 		});
 		signal?.throwIfAborted();
 		if (
