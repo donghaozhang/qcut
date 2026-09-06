@@ -24,9 +24,8 @@ describeOnMac("video-object alpha quality gate", () => {
 
 	it("checks complete streams without rejecting empty prefixes or all-zero masks", async () => {
 		const nativeDirectory = path.resolve(
-			"electron",
-			"jianying-person-cutout",
-			"native"
+			__dirname,
+			"../jianying-person-cutout/native"
 		);
 		const executablePath = path.join(
 			temporaryDirectory,

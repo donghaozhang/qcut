@@ -16,6 +16,26 @@
 
 需要复现实验时，应由研究者在仓库之外提供自己有权使用的 SDK、模型和素材。不得从本目录推导出重新分发第三方运行时的许可。
 
+2026-09-06 的“调用链 → 参数 → Shader/纹理 → 独立实现 → 逐像素对照”单卡闭环见
+[迷雾独立 Metal 实现](independent-fog-chain-2026-09-06.zh.md)。该研究实现不加载剪映运行库，
+六组输入/强度与本轮原生输出相同，且一个样本匹配保存的剪映 UI 无损参考；仍依赖本机私有 LUT，
+该研究阶段不代表全部滤镜已独立复刻。
+
+后续产品接入与实测见 [QCut 自有 Metal 渲染器：预览、独立 CLI 与导出](independent-filter-product-2026-09-06.zh.md)。
+
+批量扩展见 [667 张本地 LUT：独立 Metal、目录、预览、CLI 和导出](independent-lut-batch-2026-09-06.zh.md)。
+复杂 graph 迁移见 [第一批 26 张](independent-complex-migration-2026-09-06.zh.md)、
+[第二批新增 13 张与全量回归](independent-complex-batch2-2026-09-06.zh.md)，以及
+[第三批 6 张、等价双 LUT 与库存审计](independent-complex-batch3-2026-09-06.zh.md)。
+混合路径首批见 [57 张双 LUT：保留本地模型](hybrid-dual-lut-batch-2026-09-06.zh.md)，
+[第二批新增 43 张：锐化、不同尺寸 LUT 与真实运动测试](hybrid-dual-sharpen-batch2-2026-09-06.zh.md)，
+以及最新[第三批新增 17 张：文本 3DL、完整场景图和三张灰图失败](hybrid-dual-3dl-batch3-2026-09-06.zh.md)：
+完全独立 713 张，混合路径 117 张，QCut Metal 共 830 张，剩余迁移 62 张，其中 4 张缺包。
+第三批 20 张候选中，青提、亮肤、烘培因灰图门禁失败暂缓；不算完成，也不放宽门禁。
+混合路径仍通过剪映私有运行时取得 mask，不计为完全独立，也未新增逐卡 UI verified 结论。
+新增 `QCut Metal` 界面入口和 `filter-lab render-independent`，保留旧剪映后端与命令。
+首张支持迷雾；同解码链的 30 帧视频对照一致，编辑器与 CLI 的完整编解码输出仍有已量化差异。
+
 中文剪映专业版美颜美体的 UI、资源目录、效果包、模型和 Swing 调用链见
 [jianying-professional-retouch-architecture.zh.md](jianying-professional-retouch-architecture.zh.md)。在该基线之上，
 QCut 当前 77 个控件、15 张美妆卡、多人/CLI E2E、离线状态和剩余产品缺口见

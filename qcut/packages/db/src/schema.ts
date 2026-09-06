@@ -11,6 +11,7 @@ import {
 	timestamp,
 	uniqueIndex,
 	boolean,
+	check,
 } from "drizzle-orm/pg-core";
 
 export const users = pgTable("users", {
@@ -511,6 +512,46 @@ export const sandboxSessions = pgTable(
 		),
 		expiresActive: index("sandbox_sessions_expires_active_idx").on(t.expiresAt),
 	})
+).enableRLS();
+
+export const composeJobs = pgTable(
+	"compose_jobs",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		status: text("status", {
+			enum: ["queued", "running", "completed", "failed", "canceled"],
+		})
+			.notNull()
+			.default("queued"),
+		input: jsonb("input").$type<Record<string, unknown>>().notNull(),
+		inputHash: text("input_hash").notNull(),
+		result: jsonb("result").$type<unknown>(),
+		attempt: integer("attempt").notNull().default(0),
+		leaseToken: text("lease_token"),
+		leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+		errorCode: text("error_code"),
+		createdAt: timestamp("created_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+		updatedAt: timestamp("updated_at", { withTimezone: true })
+			.notNull()
+			.defaultNow(),
+	},
+	(table) => [
+		check(
+			"compose_jobs_status_check",
+			sql`${table.status} IN ('queued', 'running', 'completed', 'failed', 'canceled')`
+		),
+		index("compose_jobs_queue_idx").on(
+			table.status,
+			table.leaseExpiresAt,
+			table.createdAt
+		),
+		index("compose_jobs_owner_idx").on(table.userId, table.createdAt),
+	]
 ).enableRLS();
 
 // --- Inferred types (consumers should import from @qcut/db) ---

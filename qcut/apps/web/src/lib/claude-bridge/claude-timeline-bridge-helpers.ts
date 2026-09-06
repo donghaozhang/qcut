@@ -5,6 +5,8 @@
  */
 
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
+import { resolveClaudeTextTemplate } from "./claude-text-template";
+import { isLocalFontAssetReference } from "@/lib/fonts/local-font-runtime";
 import { useProjectStore } from "@/stores/project-store";
 import { useMediaStore, type MediaItem } from "@/stores/media/media-store";
 import { platform } from "@qcut/platform-core";
@@ -99,6 +101,10 @@ function requireAddedElementId({
 
 export const CLAUDE_TEXT_PROPERTY_KEYS = [
 	"jianyingTextStyle",
+	"fontAsset",
+	"textTemplateId",
+	"stylePresetId",
+	"language",
 	"fontSize",
 	"fontFamily",
 	"color",
@@ -173,6 +179,10 @@ const CLAUDE_TEXT_PROPERTY_VALIDATORS: Record<
 	(value: unknown) => boolean
 > = {
 	jianyingTextStyle: isPlainObject,
+	fontAsset: (value) => isLocalFontAssetReference({ value }),
+	textTemplateId: isString,
+	stylePresetId: isString,
+	language: isString,
 	fontSize: isFiniteNumber,
 	fontFamily: isString,
 	color: isString,
@@ -267,6 +277,7 @@ export function getClaudeTextProperties({
 	element: { style?: Record<string, unknown> } & Record<string, unknown>;
 	fps?: number;
 }): ValidatedClaudeTextProperties {
+	element = resolveClaudeTextTemplate({ element });
 	const properties: Record<string, unknown> = {};
 	const style = element.style ?? {};
 	for (const key of CLAUDE_TEXT_PROPERTY_KEYS) {
@@ -1505,7 +1516,7 @@ export function addClaudeCaptionElement({
 		type: "captions",
 		name: captionText.slice(0, 50),
 		text: captionText,
-		language: "en",
+		language: typeof element.language === "string" ? element.language : "en",
 		source: "manual",
 		startTime,
 		duration,

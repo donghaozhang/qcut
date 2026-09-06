@@ -66,6 +66,8 @@ export interface ComposeSnapshotProject {
 }
 
 export interface ComposeSnapshotMedia {
+	trimEnd?: number;
+	playbackRate?: number;
 	id: string;
 	kind: "video" | "audio" | "image";
 	trackId: string;
@@ -129,21 +131,33 @@ export interface ComposeBasePatchOperation {
 	reason?: string;
 }
 
-export interface ComposeAddCaptionOperation extends ComposeBasePatchOperation {
+export interface ComposeTextResources {
+	font?: ComposeAssetReference;
+	fancyWord?: ComposeAssetReference;
+	textAnimation?: ComposeAssetReference;
+}
+
+export interface ComposeAddCaptionOperation
+	extends ComposeBasePatchOperation,
+		ComposeTextResources {
 	kind: "add-caption";
 	text: string;
 	language: string;
 	confidence?: number;
 	wordIds?: string[];
 	stylePresetId?: string;
+	textTemplateId?: string;
+	asset?: ComposeAssetReference;
 }
 
 export interface ComposeAddTextOverlayOperation
-	extends ComposeBasePatchOperation {
+	extends ComposeBasePatchOperation,
+		ComposeTextResources {
 	kind: "add-text-overlay";
 	sourceCaptionId?: string;
 	text: string;
 	textTemplateId: string;
+	stylePresetId?: string;
 	asset?: ComposeAssetReference;
 }
 
@@ -863,13 +877,17 @@ function validateInsertMediaClip({
 		});
 		return;
 	}
-	if (operation.asset.assetType !== "media") {
+	if (
+		operation.asset.assetType !== "media" &&
+		operation.asset.assetType !== "generated-media"
+	) {
 		issues.push({
 			severity: "error",
 			code: "invalid-asset-reference",
 			path: `${path}.asset`,
 			operationId: operation.id,
-			message: "insert-media-clip requires an asset of type media.",
+			message:
+				"insert-media-clip requires an asset of type media or generated-media.",
 		});
 	}
 	if (operation.mediaKind !== "video" && operation.mediaKind !== "image") {
@@ -1326,13 +1344,39 @@ export function validateComposePatch({
 		if (operation.kind === "add-sound-effect") {
 			validateSoundSettings({ operation, path, issues });
 		}
-		if (operation.kind === "add-text-overlay" && operation.asset) {
-			validateAssetReference({
-				asset: operation.asset,
-				path: `${path}.asset`,
-				operationId: operation.id,
-				issues,
-			});
+		if (
+			operation.kind === "add-text-overlay" ||
+			operation.kind === "add-caption"
+		) {
+			for (const [key, expectedType] of [
+				["asset", "text-template"],
+				["font", "font"],
+				["fancyWord", "fancy-word"],
+				["textAnimation", "text-animation"],
+			] as const) {
+				const asset = operation[key];
+				if (asset === undefined) continue;
+				if (
+					!asset ||
+					typeof asset !== "object" ||
+					asset.assetType !== expectedType
+				) {
+					issues.push({
+						severity: "error",
+						code: "invalid-asset-reference",
+						path: `${path}.${key}`,
+						operationId: operation.id,
+						message: `Text ${key} requires a ${expectedType} asset.`,
+					});
+					continue;
+				}
+				validateAssetReference({
+					asset,
+					path: `${path}.${key}`,
+					operationId: operation.id,
+					issues,
+				});
+			}
 		}
 		if (operation.kind === "update-media-zoom") {
 			requireTargetElement({

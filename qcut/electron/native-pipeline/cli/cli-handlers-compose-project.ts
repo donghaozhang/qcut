@@ -364,7 +364,11 @@ export async function handleComposeEditorProject(
 			percent: 15,
 			message: "Capturing the compose snapshot...",
 		});
-		const snapshot = await dependencies.capture({ client, projectId });
+		const snapshot = await dependencies.capture({
+			client,
+			projectId,
+			includeAnalysis: false,
+		});
 
 		onProgress({
 			stage: "processing",

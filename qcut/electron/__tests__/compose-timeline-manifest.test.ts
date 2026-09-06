@@ -25,6 +25,67 @@ function makePatch({
 }
 
 describe("timelineManifestFromComposePatch", () => {
+	it("preserves subtitle styles and emits rich captions as editable text", () => {
+		const patch = makePatch({
+			operations: [
+				{
+					kind: "add-caption",
+					id: "plain",
+					text: "Caption",
+					language: "zh",
+					stylePresetId: "cinematic",
+					startTime: 0,
+					duration: 2,
+				},
+				{
+					kind: "add-caption",
+					id: "rich",
+					text: "Title",
+					language: "zh",
+					textTemplateId: "social-hook",
+					startTime: 0,
+					duration: 2,
+				},
+			],
+		});
+		expect(() =>
+			timelineManifestFromComposePatch({ projectId: "project", patch })
+		).toThrow("asset preparation");
+		const plan = timelineManifestFromComposePatch({
+			projectId: "project",
+			patch,
+			bindings: {
+				rich: {
+					text: {
+						richCaption: true,
+						properties: {
+							textTemplateId: "social-hook",
+							fontFamily: "LocalFont",
+							fontSize: 44,
+						},
+					},
+				},
+			},
+		});
+		const tracks = plan.manifest.tracks as Array<{
+			type: string;
+			elements: unknown[];
+		}>;
+		expect(tracks.find(({ type }) => type === "text")?.elements).toMatchObject([
+			{
+				id: "rich",
+				type: "text",
+				textTemplateId: "social-hook",
+				fontFamily: "LocalFont",
+				language: "zh",
+			},
+		]);
+		expect(
+			tracks.find(({ type }) => type === "captions")?.elements
+		).toMatchObject([
+			{ id: "plain", style: { fontFamily: "Georgia" }, language: "zh" },
+		]);
+	});
 	it("plans additive operations on dedicated compose tracks", () => {
 		const plan = timelineManifestFromComposePatch({
 			projectId: "project-1",

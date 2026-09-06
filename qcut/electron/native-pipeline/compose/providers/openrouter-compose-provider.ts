@@ -26,7 +26,7 @@ export interface OpenRouterComposeProviderDependencies {
 	jobProvider?: Extract<ComposeProvider, "openrouter" | "qcut">;
 }
 
-function systemPrompt(): string {
+export function composeSystemPrompt(): string {
 	return [
 		"You plan a QCut timeline patch. Respond with JSON only:",
 		'{"operations": [...]}. Every operation needs kind, startTime, duration.',
@@ -35,6 +35,8 @@ function systemPrompt(): string {
 		'"add-sound-effect" (asset, volume 0..1, optional trimStart/trimEnd/fadeIn/fadeOut),',
 		'"upsert-transition" (trackId, fromElementId, toElementId, presetId), or',
 		'"update-media-zoom" (trackId, elementId, fromScale, toScale).',
+		'Also use "set-media-filter-stack" (trackId, elementId, filters: [{asset,intensity:0..100,enabled}]), "add-filter-layer" (filters), and "insert-media-clip" (asset, mediaKind:video|image) for saved generated media.',
+		"Caption/text operations may carry stylePresetId, font, fancyWord, textAnimation, and a text-template asset; copy resource identities from availableResources. Jianying animations require a runtime text template. Caption presets: default, cinematic, bold, minimal, karaoke, news. Built-in text templates include social-hook, dark-bubble, social-breaking.",
 		"For sticker, sound-effect, and non-builtin transition assets, copy provider,",
 		"assetType, and assetId exactly from availableResources. Never invent an asset ID.",
 		"Only target elementIds and trackIds present in the snapshot. Keep effects sparse,",
@@ -43,7 +45,11 @@ function systemPrompt(): string {
 }
 
 /** The upload payload carries timeline structure only — never local paths. */
-function snapshotSummary({ snapshot }: { snapshot: ComposeSnapshot }): string {
+export function snapshotSummary({
+	snapshot,
+}: {
+	snapshot: ComposeSnapshot;
+}): string {
 	const availableResources = snapshot.availableResources.map((resource) => ({
 		provider: resource.provider,
 		assetType: resource.assetType,
@@ -56,9 +62,17 @@ function snapshotSummary({ snapshot }: { snapshot: ComposeSnapshot }): string {
 		capabilities: resource.capabilities,
 	}));
 	return JSON.stringify({
-		project: snapshot.project,
+		project: {
+			id: snapshot.project.id,
+			fps: snapshot.project.fps,
+			duration: snapshot.project.duration,
+			canvasSize: {
+				width: snapshot.project.canvasSize.width,
+				height: snapshot.project.canvasSize.height,
+			},
+		},
 		media: snapshot.media.map(
-			({ id, kind, trackId, elementId, startTime, duration, trimStart }) => ({
+			({
 				id,
 				kind,
 				trackId,
@@ -66,11 +80,41 @@ function snapshotSummary({ snapshot }: { snapshot: ComposeSnapshot }): string {
 				startTime,
 				duration,
 				trimStart,
+				trimEnd,
+				playbackRate,
+			}) => ({
+				id,
+				kind,
+				trackId,
+				elementId,
+				startTime,
+				duration,
+				trimStart,
+				trimEnd,
+				playbackRate,
 			})
 		),
-		captions: snapshot.captions,
-		beats: snapshot.beats,
-		shots: snapshot.shots,
+		captions: snapshot.captions.map(
+			({ id, text, startTime, duration, language, confidence }) => ({
+				id,
+				text,
+				startTime,
+				duration,
+				language,
+				confidence,
+			})
+		),
+		beats: snapshot.beats.map(({ id, timestamp, confidence }) => ({
+			id,
+			timestamp,
+			confidence,
+		})),
+		shots: snapshot.shots.map(({ id, startTime, duration, label }) => ({
+			id,
+			startTime,
+			duration,
+			label,
+		})),
 		availableResources,
 		capabilities: snapshot.capabilities,
 	});
@@ -149,7 +193,7 @@ export function createOpenRouterComposeProvider({
 				const requestPayload = {
 					model,
 					messages: [
-						{ role: "system", content: systemPrompt() },
+						{ role: "system", content: composeSystemPrompt() },
 						{
 							role: "user",
 							content: `Intent: ${intent.kind}. Options: ${JSON.stringify(intent.options)}. Snapshot: ${snapshotSummary({ snapshot })}`,

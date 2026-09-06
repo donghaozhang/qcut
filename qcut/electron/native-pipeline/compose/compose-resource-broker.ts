@@ -35,12 +35,17 @@ export interface ComposeResourceBrokerResult {
 }
 
 export interface ComposeResourceBrokerDependencies {
+	discoverLabs?: typeof import("./compose-lab-candidates.js").discoverComposeLabCandidates;
 	discoverStickers: typeof discoverLocalReferences;
 	listSounds: typeof listSoundEffectsLabAssets;
 	inspectJianyingTransitions: typeof inspectJianyingTransitionRuntime;
 }
 
 const DEFAULT_DEPENDENCIES: ComposeResourceBrokerDependencies = {
+	discoverLabs: async () =>
+		(
+			await import("./compose-lab-candidates.js")
+		).discoverComposeLabCandidates(),
 	discoverStickers: discoverLocalReferences,
 	listSounds: listSoundEffectsLabAssets,
 	inspectJianyingTransitions: inspectJianyingTransitionRuntime,
@@ -265,11 +270,13 @@ export async function discoverComposeResources({
 	query = "",
 	perTypeLimit,
 	signal,
+	generatedMedia = [],
 	dependencies = DEFAULT_DEPENDENCIES,
 }: {
 	query?: string;
 	perTypeLimit?: number;
 	signal?: AbortSignal;
+	generatedMedia?: ComposeAssetReference[];
 	dependencies?: ComposeResourceBrokerDependencies;
 } = {}): Promise<ComposeResourceBrokerResult> {
 	const limit = normalizedLimit({ value: perTypeLimit });
@@ -338,6 +345,29 @@ export async function discoverComposeResources({
 			limit,
 		}),
 	];
+	const labs = await dependencies.discoverLabs?.().catch(() => ({
+		resources: [],
+		warnings: ["Compose Lab discovery unavailable."],
+	}));
+	warnings.push(...(labs?.warnings ?? []));
+	const additional = [
+		...(labs?.resources ?? []),
+		...generatedMedia.filter(
+			(asset) =>
+				asset.assetType === "generated-media" &&
+				asset.availability === "ready" &&
+				asset.capabilities?.editorApply === true
+		),
+	];
+	for (const assetType of new Set(additional.map((asset) => asset.assetType))) {
+		resources.push(
+			...selectCandidates({
+				query,
+				resources: additional.filter((asset) => asset.assetType === assetType),
+				limit,
+			})
+		);
+	}
 
 	return {
 		resources,

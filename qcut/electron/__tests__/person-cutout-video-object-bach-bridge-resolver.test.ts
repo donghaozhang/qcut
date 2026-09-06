@@ -33,8 +33,8 @@ describe("video-object Bach native closure contract", () => {
 	it("keeps every native framework SHA and aggregate marker aligned with TypeScript", async () => {
 		const source = await readFile(
 			path.resolve(
-				process.cwd(),
-				"electron/jianying-person-cutout/native/video-object-bach-bridge.mm"
+				__dirname,
+				"../jianying-person-cutout/native/video-object-bach-bridge.mm"
 			),
 			"utf8"
 		);

@@ -23,9 +23,8 @@ describeOnMac("person cutout temporal foreground stabilizer", () => {
 
 	it("holds stable-color foreground confidence without retaining background", async () => {
 		const nativeDirectory = path.resolve(
-			"electron",
-			"jianying-person-cutout",
-			"native"
+			__dirname,
+			"../jianying-person-cutout/native"
 		);
 		const executablePath = path.join(temporaryDirectory, "stabilizer-test");
 		await execFileAsync("xcrun", [
