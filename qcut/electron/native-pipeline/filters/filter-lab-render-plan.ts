@@ -42,6 +42,7 @@ export interface FilterLabRenderEvidence {
 	verification: JianyingFilterCatalogCard["verification"];
 	intensity: number;
 	backend:
+		| "qcut-metal"
 		| "ffmpeg-lut"
 		| "ffmpeg-multi-pass"
 		| "qcut-safe-passthrough"
@@ -70,6 +71,12 @@ export type FilterLabRenderPlan = {
 	editorColor?: FilterLabEditorColorPayload;
 } & (
 	| { kind: "ffmpeg"; filterGraph: string; outputLabel: string }
+	| { kind: "native"; mode: "qcut-metal"; lutPath: string }
+	| {
+			kind: "native";
+			mode: "qcut-metal-lut";
+			cube: import("../../qcut-independent-filter/lut-data.js").IndependentCube;
+	  }
 	| {
 			kind: "native";
 			mode: "portrait" | "face-region" | "multi-pass" | "swing";
