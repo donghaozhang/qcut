@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CoverRepository } from "../cover-repository";
 import type { CoverBlobStore } from "../cover-blob-store";
 import type { CoverDesignV1 } from "@qcut/editor-core/cover";
+import { applyCoverTemplate } from "@qcut/editor-core/cover";
 
 const records = new Map<string, Blob>();
 const store: CoverBlobStore = {
@@ -48,6 +49,27 @@ function outputs() {
 }
 
 describe("cover repository transactions", () => {
+	it("persists editable templates and crop metadata through copy and reopen", async () => {
+		const design = applyCoverTemplate({
+			design: await createDesign(),
+			templateId: "editorial",
+		});
+		design.layers[0].position = { x: 0.25, y: 0.8, zoom: 1.5 };
+		const cover = await repository.saveRevision({
+			projectId: "p1",
+			design,
+			...outputs(),
+		});
+		await repository.copyProject({
+			sourceProjectId: "p1",
+			targetProjectId: "p2",
+			cover,
+		});
+		await repository.removeProject({ projectId: "p1" });
+		expect(await repository.loadDesign({ projectId: "p2", cover })).toEqual(
+			design
+		);
+	});
 	beforeEach(() => {
 		records.clear();
 		vi.clearAllMocks();
