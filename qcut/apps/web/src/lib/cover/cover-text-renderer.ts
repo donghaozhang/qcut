@@ -104,7 +104,7 @@ export function coverTextElement({
 		x: (layer.x - 0.5) * canvas.width,
 		y: (layer.y - 0.5) * canvas.height,
 		rotation: layer.rotation,
-		opacity: 1,
+		opacity: layer.opacity ?? 1,
 		letterSpacing: style.letterSpacing,
 		lineHeight: style.lineHeight,
 		verticalAlign: style.verticalAlign,
