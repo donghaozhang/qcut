@@ -13,6 +13,8 @@ import {
 import { homedir } from "node:os";
 import path from "node:path";
 import { z } from "zod";
+import { coverDependencyReferences } from "./jianying-cover-dependencies.js";
+export { coverDependencyReferences } from "./jianying-cover-dependencies.js";
 import {
 	coverCatalogSchema,
 	coverObservationsSchema,
@@ -20,6 +22,7 @@ import {
 	type CoverCachedFile,
 	type CoverCatalog,
 	type CoverLibraryResult,
+	type CoverDependencyResolver,
 } from "./jianying-cover-contract.js";
 
 const MAX_FILE_BYTES = 200_000_000;
@@ -201,6 +204,7 @@ async function directoryFiles({
 	const lists = await sequence({
 		values: entries,
 		run: async (entry) => {
+			if (entry.name.startsWith("._") || entry.name === ".DS_Store") return [];
 			const child = path.join(relativePath, entry.name);
 			if (entry.isSymbolicLink())
 				throw new Error(`Symlink in resource package: ${child}`);
@@ -256,32 +260,6 @@ async function indexPackages({
 	return index;
 }
 
-export function coverDependencyReferences({
-	materials,
-}: {
-	materials: Record<string, unknown>;
-}): string[] {
-	const references = new Set<string>();
-	const visit = ({ value }: { value: unknown }): void => {
-		if (!value || typeof value !== "object") return;
-		for (const [key, child] of Object.entries(value)) {
-			if (
-				typeof child === "string" &&
-				/(^path$|_path$)/.test(key) &&
-				child &&
-				child !== "text/"
-			)
-				references.add(child);
-			else if (typeof child === "object") visit({ value: child });
-		}
-	};
-	// The template author's video/photo is a replaceable background slot, not a redistributable dependency.
-	for (const [kind, value] of Object.entries(materials)) {
-		if (kind !== "videos" && kind !== "audios") visit({ value });
-	}
-	return [...references].sort();
-}
-
 export async function readCoverCatalog({
 	root = coverCacheRoot(),
 }: {
@@ -300,10 +278,12 @@ export async function cacheJianyingCovers({
 	sourceRoot,
 	destination = coverCacheRoot(),
 	observations,
+	resolveDependency,
 }: {
 	sourceRoot: string;
 	destination?: string;
 	observations: unknown;
+	resolveDependency?: CoverDependencyResolver;
 }): Promise<CoverCatalog> {
 	const observed = coverObservationsSchema.parse(observations);
 	if (
@@ -359,30 +339,39 @@ export async function cacheJianyingCovers({
 						/^(?:text|textEffect|filter|effect|sticker|animation)\/([a-f0-9]{32})$/.exec(
 							reference
 						)?.[1];
-					if (!hash)
-						return { reference, files: [], status: "unsupported-path" };
-					const candidates = packages.get(hash) ?? [];
-					if (!candidates.length)
-						return { reference, files: [], status: "missing" };
-					const relativeDirectory = candidates.sort()[0];
-					const paths = await directoryFiles({
-						root: sourceRoot,
-						relativePath: relativeDirectory,
-					});
+					const candidates = hash ? (packages.get(hash) ?? []) : [];
+					const recovered = candidates.length
+						? undefined
+						: await resolveDependency?.({ reference, materials });
+					const resolved = recovered?.source;
+					const relativeDirectory =
+						resolved?.relativePath ?? candidates.sort()[0];
+					if (!relativeDirectory)
+						return {
+							reference,
+							files: [],
+							status: hash ? "missing" : "unsupported-path",
+							...(recovered?.reason ? { reason: recovered.reason } : {}),
+						};
+					const root = resolved?.root ?? sourceRoot;
+					const paths = resolved?.singleFile
+						? [relativeDirectory]
+						: await directoryFiles({ root, relativePath: relativeDirectory });
 					const files = await sequence({
 						values: paths,
 						run: (file) =>
 							retain({
-								sourceRoot,
+								sourceRoot: root,
 								relativePath: file,
 								destination,
-								logicalPath: `${reference}/${path.relative(relativeDirectory, file)}`,
+								logicalPath: `${reference}/${resolved?.singleFile ? path.basename(file) : path.relative(relativeDirectory, file)}`,
 							}),
 					});
 					return {
 						reference,
 						files,
 						status: files.length ? "cached" : "missing",
+						...(resolved ? { resolution: resolved.resolution } : {}),
 					};
 				},
 			});
