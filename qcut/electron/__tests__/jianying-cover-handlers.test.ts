@@ -1,12 +1,22 @@
 // @vitest-environment node
 import type { BrowserWindow, IpcMainInvokeEvent } from "electron";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { JIANYING_COVER_LIST_CHANNEL } from "../jianying-cover-contract.js";
+import {
+	JIANYING_COVER_LIST_CHANNEL,
+	JIANYING_COVER_LAYOUT_CHANNEL,
+} from "../jianying-cover-contract.js";
 
-const { handle, list } = vi.hoisted(() => ({ handle: vi.fn(), list: vi.fn() }));
+const { handle, list, prepare } = vi.hoisted(() => ({
+	handle: vi.fn(),
+	list: vi.fn(),
+	prepare: vi.fn(),
+}));
 vi.mock("electron", () => ({ ipcMain: { handle } }));
 vi.mock("../jianying-cover-private-cache.js", () => ({
 	listPrivateCovers: list,
+}));
+vi.mock("../jianying-cover-prepare-layout.js", () => ({
+	preparePrivateCoverTextLayout: prepare,
 }));
 import { registerJianyingCoverHandlers } from "../main-ipc/jianying-cover-handlers.js";
 
@@ -32,6 +42,20 @@ function setup() {
 
 describe("private cover IPC", () => {
 	beforeEach(() => vi.clearAllMocks());
+	it("prepares layouts only for the trusted main frame", async () => {
+		const { event } = setup();
+		const invoke = handle.mock.calls.find(
+			([channel]) => channel === JIANYING_COVER_LAYOUT_CHANNEL
+		)?.[1] as (event: IpcMainInvokeEvent, request: unknown) => Promise<unknown>;
+		const request = { packageHash: "a".repeat(32) };
+		prepare.mockResolvedValue({ texts: [] });
+		await expect(
+			invoke({ ...event, senderFrame: null }, request)
+		).rejects.toThrow("main window");
+		expect(prepare).not.toHaveBeenCalled();
+		await expect(invoke(event, request)).resolves.toEqual({ texts: [] });
+		expect(prepare).toHaveBeenCalledExactlyOnceWith({ request });
+	});
 	it("reads the owned catalog for the main frame", async () => {
 		const { invoke, event } = setup();
 		list.mockResolvedValue({ entries: [] });
