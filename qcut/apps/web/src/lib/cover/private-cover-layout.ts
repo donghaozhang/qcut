@@ -130,6 +130,8 @@ export function applyPrivateCoverTextLayout({
 			: undefined;
 		if (effect && !native)
 			throw new Error(`Cover word-art unavailable: ${effect.name}`);
+		// Latin-only vertical runs use the same glyph layout, turned clockwise.
+		const rotation = segment.clip.rotation + (text.typesetting === 1 ? 90 : 0);
 		const layer: CoverTextLayerV1 = {
 			...createCoverText({
 				canvas: design.canvas,
@@ -144,7 +146,7 @@ export function applyPrivateCoverTextLayout({
 			y: (1 - segment.clip.transform.y) / 2,
 			width: Math.min(1, Math.max(0.05, width / design.canvas.width)),
 			height: Math.min(1, Math.max(0.05, height / design.canvas.height)),
-			rotation: segment.clip.rotation,
+			rotation: rotation > 180 ? rotation - 360 : rotation,
 			opacity: text.text_alpha * segment.clip.alpha,
 			bold: text.bold_width > 0,
 			italic: text.italic_degree !== 0,
