@@ -32,7 +32,13 @@ export async function compileIndependentFilterHost({
 		join(dirname(outputPath), ".qcut-metal-build-")
 	);
 	try {
-		const shader = await readFile(join(source, "fog.metal"), "utf8");
+		const shader = (
+			await Promise.all(
+				["fog.metal", "graph.metal"].map((name) =>
+					readFile(join(source, name), "utf8")
+				)
+			)
+		).join("\n");
 		await writeFile(
 			join(temporary, "fog-shader-source.h"),
 			`static const char* kFogShaderSource = ${JSON.stringify(shader)};\n`
@@ -96,12 +102,15 @@ async function resolveHost() {
 			"QCut Metal filter host is not installed. Rebuild QCut with its independent filter host."
 		);
 	const sources = await Promise.all(
-		["host.mm", "fog.metal"].map((name) => readFile(join(root, SOURCE, name)))
+		["host.mm", "fog.metal", "graph.metal"].map((name) =>
+			readFile(join(root, SOURCE, name))
+		)
 	);
 	const fingerprint = createHash("sha256")
 		.update(process.arch)
 		.update(sources[0])
 		.update(sources[1])
+		.update(sources[2])
 		.digest("hex");
 	const outputPath = join(
 		homedir(),
