@@ -4,7 +4,6 @@ import {
 	Eye,
 	EyeOff,
 	GripVertical,
-	Image as ImageIcon,
 	Lock,
 	Unlock,
 	Volume2,
@@ -16,6 +15,7 @@ import { getTrackHeight } from "@/constants/timeline-constants";
 import { TrackIcon } from "./track-icon";
 import { useTranslation } from "@/lib/i18n";
 import { localizeTrackName } from "@/lib/i18n/timeline-names";
+import { CoverButton } from "../cover/cover-editor";
 
 interface TimelineTrackLabelProps {
 	track: TimelineTrack;
@@ -99,18 +99,7 @@ export function TimelineTrackLabel({
 				</span>
 			</div>
 
-			{track.isMain ? (
-				<div
-					className="flex h-6 shrink-0 items-center gap-1 rounded-sm border border-cyan-400/35 bg-cyan-400/10 px-1.5 text-cyan-700 dark:text-cyan-200"
-					title={t("timeline.track.cover")}
-					data-testid="main-track-cover-badge"
-				>
-					<ImageIcon className="size-3" />
-					<span className="text-[10px] leading-none">
-						{t("timeline.track.cover")}
-					</span>
-				</div>
-			) : null}
+			{track.isMain ? <CoverButton placement="timeline" /> : null}
 
 			<button
 				type="button"
