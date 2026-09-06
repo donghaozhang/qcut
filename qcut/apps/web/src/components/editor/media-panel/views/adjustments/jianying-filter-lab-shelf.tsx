@@ -1,6 +1,6 @@
 import type { ColorCubeLut, ColorMultiPassSettings } from "@/types/timeline";
 import type { JianyingFilterLabLutSummary } from "@/types/electron";
-import { JianyingFilterLab } from "./jianying-filter-lab";
+import { FilterLabBackends as JianyingFilterLab } from "./filter-lab-backends";
 import { useAdjustmentLut } from "./use-adjustment-lut";
 
 /**
