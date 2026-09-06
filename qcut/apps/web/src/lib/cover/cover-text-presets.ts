@@ -70,6 +70,7 @@ export function coverTextPresetChanges({
 		textStyle,
 		jianyingTextStyle: undefined,
 		nativeFrameTime: undefined,
+		nativeUseEffectDefaultColor: undefined,
 	};
 	assertCoverText({ layer: { ...layer, ...changes } });
 	return changes;
