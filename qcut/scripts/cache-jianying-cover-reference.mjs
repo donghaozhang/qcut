@@ -9,10 +9,31 @@ import {
 } from "node:fs/promises";
 import { homedir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const output = path.resolve(
-	process.argv[2] ?? "../.local-reference/jianying-cover"
+// Harvested bytes never belong in the Git worktree; default to a private,
+// per-user location and refuse any explicit path that resolves inside the repo.
+const repository = path.resolve(
+	path.dirname(fileURLToPath(import.meta.url)),
+	"../.."
 );
+const output = path.resolve(
+	process.argv[2] ??
+		path.join(
+			homedir(),
+			"Library/Application Support/QCut/PrivateAssets/JianyingCoverReference"
+		)
+);
+const relativeToRepository = path.relative(repository, output);
+if (
+	!path.isAbsolute(relativeToRepository) &&
+	relativeToRepository !== ".." &&
+	!relativeToRepository.startsWith(`..${path.sep}`)
+) {
+	throw new Error(
+		`Output must stay outside the Git worktree (${repository}): ${output}`
+	);
+}
 const userData = path.join(homedir(), "Movies/JianyingPro/User Data");
 const project = path.resolve(
 	process.argv[3] ??

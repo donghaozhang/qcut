@@ -103,7 +103,7 @@ cover/designs/<designId>/<revision>.json
 
 ## 历史图片参考缓存
 
-私有路径：`$SSD_ROOT/qcut/.local-reference/jianying-cover/`。
+私有路径：脚本默认写入 `$HOME/Library/Application Support/QCut/PrivateAssets/JianyingCoverReference/`；第一个参数可改为其他仓库外目录。
 
 | 内容 | 数量 | 说明 |
 | --- | ---: | --- |
@@ -112,12 +112,12 @@ cover/designs/<designId>/<revision>.json
 | 可编辑模板资源包 | 0 | 仅指这份历史图片采样，不代表本机原生模板目录不存在 |
 | 总计 | 78 | 2,997,082 字节，所有文件按 manifest 重新计算 SHA-256 通过 |
 
-缓存只用于本地行为研究，不成为 QCut 内置素材，也没有加入 Git。`.git/info/exclude` 排除根目录 `.local-reference/`。仅抽取图片载荷，不复制账号令牌、完整 CEF 请求头、MMKV、IndexedDB 或加密草稿正文。校准项目在原实验之后有过修改，当前 `draft_cover.jpg` 不等同于原实验时状态。
+缓存只用于本地行为研究，不成为 QCut 内置素材，也没有加入 Git。脚本拒绝任何解析后位于 Git 工作树内的输出路径，不再依赖 `.gitignore` 或 `.git/info/exclude`。仅抽取图片载荷，不复制账号令牌、完整 CEF 请求头、MMKV、IndexedDB 或加密草稿正文。校准项目在原实验之后有过修改，当前 `draft_cover.jpg` 不等同于原实验时状态。
 
 重建已知样本缓存，在应用根目录运行：
 
 ```sh
-node scripts/cache-jianying-cover-reference.mjs '../.local-reference/jianying-cover'
+node scripts/cache-jianying-cover-reference.mjs
 ```
 
 脚本第三个参数可指定实验项目目录，但该目录仍须具有脚本中列出的已知样本文件。它是本地证据留存脚本，不是通用剪映模板下载器。
