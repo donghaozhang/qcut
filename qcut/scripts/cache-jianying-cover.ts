@@ -18,6 +18,8 @@ const { values } = parseArgs({
 		destination: { type: "string" },
 		backup: { type: "string" },
 		verify: { type: "boolean", default: false },
+		recover: { type: "boolean", default: false },
+		"application-resources": { type: "string" },
 	},
 });
 const root = values.destination ?? coverCacheRoot();
@@ -30,12 +32,35 @@ if (values.verify) {
 		throw new Error(
 			"--observations is required; categories must be observed, not inferred"
 		);
+	const sourceRoot =
+		values.source ?? path.join(homedir(), "Movies/JianyingPro/User Data/Cache");
+	const textCache = path.join(
+		homedir(),
+		"Library/Application Support/QCut/PrivateAssets/JianyingText/Cache"
+	);
+	const resolveDependency = values.recover
+		? (
+				await import("../electron/jianying-cover-dependency-recovery")
+			).createCoverDependencyResolver({
+				cacheRoots: [textCache, sourceRoot],
+				databaseRoots: [
+					path.join(sourceRoot, "ressdk_db"),
+					path.join(textCache, "ressdk_db"),
+				],
+				recoveryRoot: path.join(textCache, "recovered-resources"),
+				filterRoot: path.join(
+					homedir(),
+					"Library/Application Support/QCut/JianyingFilterPackages"
+				),
+				applicationResources: values["application-resources"],
+				allowDownload: true,
+			})
+		: undefined;
 	await cacheJianyingCovers({
-		sourceRoot:
-			values.source ??
-			path.join(homedir(), "Movies/JianyingPro/User Data/Cache"),
+		sourceRoot,
 		destination: root,
 		observations: JSON.parse(await readFile(values.observations, "utf8")),
+		resolveDependency,
 	});
 }
 if (values.backup)
