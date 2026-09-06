@@ -13,7 +13,8 @@ export function canRenderJianyingLocalEffect({
 			multiPass.fidelity === "native-local" &&
 			(multiPass.nativeEffect?.provider === "jianying-local-effect-v1" ||
 				multiPass.nativeEffect?.provider === "qcut-metal-fog-v1" ||
-				multiPass.nativeEffect?.provider === "qcut-metal-lut-v1") &&
+				multiPass.nativeEffect?.provider === "qcut-metal-lut-v1" ||
+				multiPass.nativeEffect?.provider === "qcut-metal-graph-v1") &&
 			multiPass.nativeEffect.resourceId
 	);
 }
@@ -78,7 +79,8 @@ export async function renderJianyingLocalEffectPreview({
 	const api = window.electronAPI?.jianyingFilterLab;
 	const independent =
 		nativeEffect.provider === "qcut-metal-fog-v1" ||
-		nativeEffect.provider === "qcut-metal-lut-v1";
+		nativeEffect.provider === "qcut-metal-lut-v1" ||
+		nativeEffect.provider === "qcut-metal-graph-v1";
 	const independentApi = window.electronAPI?.qcutIndependentFilter;
 	if (independent && !independentApi)
 		throw new Error("QCut Metal renderer is unavailable.");
