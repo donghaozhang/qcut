@@ -23,8 +23,11 @@ preprocess() {
     local content
     # Check if file contains <details> block (CodeRabbit/Gemini style)
     if grep -q '<details>' "$INPUT_FILE"; then
-        # CodeRabbit/Gemini: get everything before <details>, remove HTML comments
-        content=$(sed -n '1,/<details>/p' "$INPUT_FILE" | sed '/<details>/d' | sed 's/<!--.*-->//g' | sed '/^$/N;/^\n$/d')
+        # CodeRabbit/Gemini: drop every <details> block (static-analysis logs,
+        # committable suggestions, AI prompts) but keep the prose around them.
+        # Newer CodeRabbit comments put a <details> block BEFORE the body, so
+        # truncating at the first <details> would lose the actual review text.
+        content=$(sed '/<details>/,/<\/details>/d' "$INPUT_FILE" | sed '/^<\/details>$/d' | sed '/<!--/,/-->/d' | sed '/^$/N;/^\n$/d')
     else
         # Devin or plain comments: remove devin metadata HTML comments, keep the rest
         content=$(sed 's/<!-- devin-review-comment .* -->//g' "$INPUT_FILE" | sed 's/<!--.*-->//g' | sed '/^$/N;/^\n$/d')
