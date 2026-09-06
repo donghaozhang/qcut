@@ -14,6 +14,11 @@ import { homedir } from "node:os";
 import path from "node:path";
 import { z } from "zod";
 import { coverDependencyReferences } from "./jianying-cover-dependencies.js";
+import {
+	describeCoverDependencies,
+	parseCoverTextLayout,
+	resolveCoverLayoutFontDependency,
+} from "./jianying-cover-layout.js";
 export { coverDependencyReferences } from "./jianying-cover-dependencies.js";
 import {
 	coverCatalogSchema,
@@ -469,10 +474,53 @@ export async function listPrivateCovers({
 	await verifyCoverCatalog({ root, catalog });
 	const entries = await sequence({
 		values: catalog.entries,
-		run: async (entry) => ({
-			...entry,
-			previewDataUrl: `data:image/webp;base64,${(await verifyCoverFile({ root, file: entry.preview })).toString("base64")}`,
-		}),
+		run: async (entry) => {
+			const definition = JSON.parse(
+				(await verifyCoverFile({ root, file: entry.definition })).toString(
+					"utf8"
+				)
+			);
+			let dependencies = entry.dependencies;
+			let textLayout: NonNullable<CoverCachedEntry["textLayout"]> = {
+				ready: false,
+				requiresNative: false,
+				reason: "unsupported-layout",
+			};
+			try {
+				dependencies = describeCoverDependencies({ entry, definition });
+				const layout = parseCoverTextLayout({ definition });
+				const ready = layout.texts.every(({ text, effect }) => {
+					try {
+						resolveCoverLayoutFontDependency({ text, entry, catalog });
+					} catch {
+						return false;
+					}
+					return (
+						!effect ||
+						dependencies.some(
+							(item) =>
+								item.reference === effect.path &&
+								item.status === "cached" &&
+								item.files.length
+						)
+					);
+				});
+				textLayout = {
+					ready,
+					requiresNative: layout.texts.some((text) => text.effect),
+					...(ready ? {} : { reason: "missing-text-dependencies" }),
+				};
+			} catch (error) {
+				if (error instanceof Error && error.message.startsWith("Vertical"))
+					textLayout.reason = "vertical-text";
+			}
+			return {
+				...entry,
+				dependencies,
+				textLayout,
+				previewDataUrl: `data:image/webp;base64,${(await verifyCoverFile({ root, file: entry.preview })).toString("base64")}`,
+			};
+		},
 	});
 	return {
 		entries,
