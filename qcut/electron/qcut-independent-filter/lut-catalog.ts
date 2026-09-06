@@ -69,16 +69,20 @@ export function selectIndependentCatalog({
 				card.resourceId !== QCUT_FOG_RESOURCE &&
 				(supportsIndependentLut({ card }) || supportsIndependentGraph({ card }))
 		),
-	].map((card) => ({
-		...card,
-		verification: "unverified" as const,
-		independentKind:
-			card.independentKind ??
-			findIndependentGraphProfile({
-				identity: { resourceId: card.resourceId, version: card.version! },
-			})?.kind ??
-			("lut" as const),
-	}));
+	].map((card) => {
+		const profile = findIndependentGraphProfile({
+			identity: { resourceId: card.resourceId, version: card.version! },
+		});
+		return {
+			...card,
+			...(profile?.dualLut
+				? { maskProvider: "jianying-local-skin-v1" as const }
+				: {}),
+			verification: "unverified" as const,
+			independentKind:
+				card.independentKind ?? profile?.kind ?? ("lut" as const),
+		};
+	});
 	return { count: cards.length, cards };
 }
 
