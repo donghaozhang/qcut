@@ -13,6 +13,19 @@ import {
 } from "@/components/ui/dialog";
 
 describe("Dialog Component", () => {
+	it("lets fixed workspaces own their layout without the default scroll wrapper", () => {
+		render(
+			<Dialog open>
+				<DialogContent scrollable={false} aria-describedby={undefined}>
+					<DialogTitle>Fixed workspace</DialogTitle>
+					<main data-testid="workspace-body" />
+				</DialogContent>
+			</Dialog>
+		);
+		expect(screen.getByTestId("workspace-body").parentElement).toBe(
+			screen.getByRole("dialog")
+		);
+	});
 	it("allows a cover modal to raise its overlay without changing default dialogs", () => {
 		render(
 			<Dialog open>
