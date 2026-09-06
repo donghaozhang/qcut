@@ -7,6 +7,8 @@ import type { MediaItem } from "@/stores/media/media-store-types";
 import type { OverlaySticker } from "@/types/sticker-overlay";
 import { debugLog, debugError, debugWarn } from "@/lib/debug/debug-config";
 import {
+	getStickerExportHelper,
+	type PreparedStickerRender,
 	renderStickersToCanvas,
 	StickerRenderFailureError,
 } from "@/lib/stickers/sticker-export-helper";
@@ -98,6 +100,47 @@ let compositorFrameCanvas: HTMLCanvasElement | null = null;
 let compositorFrameCtx: CanvasRenderingContext2D | null = null;
 let adjustmentFrameCanvas: HTMLCanvasElement | null = null;
 let adjustmentFrameCtx: CanvasRenderingContext2D | null = null;
+
+const MAX_STICKER_PREPARATION_CONCURRENCY = 6;
+
+type TimelineStickerPreparation =
+	| { ok: true; prepared: PreparedStickerRender | null }
+	| { ok: false; error: unknown };
+
+type StickerPreparationPool = <Result>({
+	run,
+}: {
+	run: () => Promise<Result>;
+}) => Promise<Result>;
+
+function createStickerPreparationPool({
+	limit,
+}: {
+	limit: number;
+}): StickerPreparationPool {
+	let active = 0;
+	const queued: Array<() => void> = [];
+	const startNext = () => {
+		if (active >= limit) return;
+		const start = queued.shift();
+		if (!start) return;
+		active += 1;
+		start();
+		startNext();
+	};
+	return ({ run }) =>
+		new Promise((resolve, reject) => {
+			queued.push(() => {
+				run()
+					.then(resolve, reject)
+					.finally(() => {
+						active -= 1;
+						startNext();
+					});
+			});
+			startNext();
+		});
+}
 
 /** Get or create the screen recording export compositor. */
 function getExportCompositor(
@@ -255,6 +298,15 @@ export async function renderFrame(
 			`🎨 FRAME RENDER: Time=${currentTime.toFixed(2)}s, Elements=${activeElements.length}`
 		);
 	}
+	const stickerPreparations = scheduleTimelineStickerPreparations({
+		context,
+		currentTime,
+		elements: activeElements
+			.map(({ element }) => element)
+			.filter(
+				(element): element is StickerElement => element.type === "sticker"
+			),
+	});
 
 	for (const { element, mediaItem } of activeElements) {
 		await renderElement(
@@ -262,7 +314,8 @@ export async function renderFrame(
 			element,
 			mediaItem,
 			currentTime,
-			transitions?.statesByElementId.get(element.id)
+			transitions?.statesByElementId.get(element.id),
+			stickerPreparations.get(element.id)
 		);
 	}
 
@@ -308,7 +361,8 @@ async function renderElement(
 	element: TimelineElement,
 	mediaItem: MediaItem | null,
 	currentTime: number,
-	transitionState?: ClipTransitionPreviewState
+	transitionState?: ClipTransitionPreviewState,
+	stickerPreparation?: Promise<TimelineStickerPreparation>
 ): Promise<void> {
 	const elementTimeOffset = currentTime - element.startTime;
 
@@ -349,6 +403,7 @@ async function renderElement(
 				context,
 				element,
 				currentTime,
+				preparation: stickerPreparation,
 			})
 		);
 	} else if (element.type === "adjustment") {
@@ -502,7 +557,7 @@ async function applyCanvasAdjustment({
 	applyAdvancedCanvasEffects(ctx, parameters);
 }
 
-async function renderTimelineStickerElement({
+async function prepareTimelineStickerElement({
 	context,
 	element,
 	currentTime,
@@ -510,7 +565,7 @@ async function renderTimelineStickerElement({
 	context: RenderContext;
 	element: StickerElement;
 	currentTime: number;
-}): Promise<void> {
+}): Promise<PreparedStickerRender | null> {
 	const fallback = useStickersOverlayStore
 		.getState()
 		.overlayStickers.get(element.stickerId);
@@ -538,15 +593,84 @@ async function renderTimelineStickerElement({
 	const mediaItems =
 		context.renderIndex?.mediaItemsById ??
 		new Map(context.mediaItems.map((item) => [item.id, item] as const));
-	await renderStickersToCanvas(context.ctx, [sticker], mediaItems, {
+	const mediaItem = mediaItems.get(sticker.mediaItemId);
+	if (!mediaItem) {
+		throw new Error(`Sticker media item not found: ${sticker.mediaItemId}`);
+	}
+	return getStickerExportHelper().prepareStickerFrame({
+		sticker,
+		mediaItem,
+		mediaItemsById: mediaItems,
 		canvasWidth: context.canvas.width,
 		canvasHeight: context.canvas.height,
 		currentTime,
-		failOnError: true,
 		fps: context.fps,
 		planarTrackingSidecar,
 		timelineElement: element,
 		tracks: context.tracks,
+	});
+}
+
+function scheduleTimelineStickerPreparations({
+	context,
+	currentTime,
+	elements,
+}: {
+	context: RenderContext;
+	currentTime: number;
+	elements: StickerElement[];
+}): Map<string, Promise<TimelineStickerPreparation>> {
+	const preparations = new Map<string, Promise<TimelineStickerPreparation>>();
+	if (elements.length === 0) return preparations;
+	const schedule = createStickerPreparationPool({
+		limit: Math.min(MAX_STICKER_PREPARATION_CONCURRENCY, elements.length),
+	});
+	exportProfiler.count("sticker-prepare-groups");
+	exportProfiler.count(
+		"sticker-prepare-capacity",
+		Math.min(MAX_STICKER_PREPARATION_CONCURRENCY, elements.length)
+	);
+
+	for (const element of elements) {
+		const preparation = schedule({
+			run: () =>
+				exportProfiler.time("sticker-timeline-prepare", () =>
+					prepareTimelineStickerElement({ context, element, currentTime })
+				),
+		}).then<TimelineStickerPreparation, TimelineStickerPreparation>(
+			(prepared) => ({ ok: true, prepared }),
+			(error: unknown) => ({ ok: false, error })
+		);
+		preparations.set(element.id, preparation);
+	}
+	return preparations;
+}
+
+async function renderTimelineStickerElement({
+	context,
+	element,
+	currentTime,
+	preparation,
+}: {
+	context: RenderContext;
+	element: StickerElement;
+	currentTime: number;
+	preparation?: Promise<TimelineStickerPreparation>;
+}): Promise<void> {
+	const result = preparation
+		? await preparation
+		: await prepareTimelineStickerElement({
+				context,
+				element,
+				currentTime,
+			}).then<TimelineStickerPreparation, TimelineStickerPreparation>(
+				(prepared) => ({ ok: true, prepared }),
+				(error: unknown) => ({ ok: false, error })
+			);
+	if (!result.ok) throw result.error;
+	if (!result.prepared) return;
+	exportProfiler.timeSync("sticker-timeline-composite", () => {
+		result.prepared?.draw({ ctx: context.ctx });
 	});
 }
 
