@@ -13,9 +13,9 @@
 struct Parameters { float width; float height; float strength; uint32_t stage; };
 struct FrameHeader { uint32_t width; uint32_t height; float strength; };
 struct GraphConfig { uint32_t kind; uint32_t alphaWeighted; float corner; uint32_t overlayWidth; uint32_t overlayHeight; uint32_t detailVariant; };
-struct DualConfig { float backgroundStrength; float skinStrength; uint32_t sampling; uint32_t clampAlpha; };
+struct DualConfig { float backgroundStrength; float skinStrength; uint32_t sampling; uint32_t clampAlpha; float sharpen; uint32_t skinSize; };
 struct MaskHeader { uint32_t width; uint32_t height; };
-static_assert(sizeof(DualConfig) == 16);
+static_assert(sizeof(DualConfig) == 24);
 static_assert(sizeof(GraphConfig) == 24);
 static_assert(sizeof(Parameters) == 16);
 static_assert(sizeof(FrameHeader) == 12);
@@ -109,19 +109,23 @@ int main(int argc, const char* argv[]) {
                 readExact(&dual, sizeof(dual));
                 if (!std::isfinite(dual.backgroundStrength) || !std::isfinite(dual.skinStrength) ||
                     dual.backgroundStrength < 0 || dual.backgroundStrength > 1 ||
-                    dual.skinStrength < 0 || dual.skinStrength > 1 || dual.sampling > 2 || dual.clampAlpha > 1)
+                    dual.skinStrength < 0 || dual.skinStrength > 1 || dual.sampling > 2 || dual.clampAlpha > 1 ||
+                    !std::isfinite(dual.sharpen) || dual.sharpen < 0 || dual.sharpen > 1 ||
+                    dual.skinSize < 2 || dual.skinSize > 65)
                     throw std::runtime_error("Invalid dual LUT configuration");
+                const uint32_t skinSize = dual.skinSize;
+                lutBytes.resize(size_t(skinSize) * skinSize * skinSize * 16);
                 readExact(lutBytes.data(), lutBytes.size());
                 auto skinDescriptor = [MTLTextureDescriptor new];
                 skinDescriptor.textureType = MTLTextureType3D;
                 skinDescriptor.pixelFormat = MTLPixelFormatRGBA32Float;
-                skinDescriptor.width = cubeSize; skinDescriptor.height = cubeSize; skinDescriptor.depth = cubeSize;
+                skinDescriptor.width = skinSize; skinDescriptor.height = skinSize; skinDescriptor.depth = skinSize;
                 skinDescriptor.storageMode = MTLStorageModeShared;
                 skinDescriptor.usage = MTLTextureUsageShaderRead;
                 skinLut = [device newTextureWithDescriptor:skinDescriptor];
                 if (!skinLut) throw std::runtime_error("Metal skin LUT allocation failed");
-                [skinLut replaceRegion:MTLRegionMake3D(0, 0, 0, cubeSize, cubeSize, cubeSize) mipmapLevel:0 slice:0
-                    withBytes:lutBytes.data() bytesPerRow:cubeSize * 16 bytesPerImage:cubeSize * cubeSize * 16];
+                [skinLut replaceRegion:MTLRegionMake3D(0, 0, 0, skinSize, skinSize, skinSize) mipmapLevel:0 slice:0
+                    withBytes:lutBytes.data() bytesPerRow:skinSize * 16 bytesPerImage:skinSize * skinSize * 16];
             }
             id<MTLTexture> overlay = makeTexture(device, graph.overlayWidth ? graph.overlayWidth : 1,
                                                 graph.overlayHeight ? graph.overlayHeight : 1);
@@ -138,7 +142,7 @@ int main(int argc, const char* argv[]) {
                     throw std::runtime_error("Unexpected third-party renderer loaded");
             }
             std::cerr << (graphMode ? "qcut-metal-graph-v1" : cubeMode ? "qcut-metal-lut-v1" : "qcut-metal-fog-v1") << " ready; device=" << device.name.UTF8String << "; jianyingLibraries=0\n";
-            const uint32_t ready = 0x51464d31;
+            const uint32_t ready = dualMode ? 0x51464d33 : 0x51464d31;
             std::cout.write(reinterpret_cast<const char*>(&ready), sizeof(ready)).flush();
             uint32_t lastWidth = 0, lastHeight = 0;
             id<MTLTexture> original;
@@ -180,7 +184,7 @@ int main(int argc, const char* argv[]) {
                     if (header.width != lastWidth || header.height != lastHeight) {
                         original = makeTexture(device, header.width, header.height);
                         plan = makeGraphPlan(graphMode ? graph.kind : cubeMode ? 0 : 6,
-                            graph.detailVariant, header.width, header.height);
+                            graph.detailVariant, header.width, header.height, dual.sharpen > 0);
                         for (size_t index = 0; index < plan.size(); ++index)
                             stages[index] = makeTexture(device, plan[index].width, plan[index].height);
                         lastWidth = header.width; lastHeight = header.height;
