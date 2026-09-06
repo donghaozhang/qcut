@@ -4,6 +4,8 @@ Date: 2026-09-06. Branch: `codex/cover-design`. Existing PR: [#463](https://gith
 
 This supplements the [earlier UI comparison](./ui-comparison-2026-09-06.en.md). Historical screenshots and cache completeness are not evidence of current native rendering parity.
 
+This is the historical first-phase record. The subsequent [native word-art and font integration](./native-word-art-2026-09-06.en.md) reuses the existing labs and native renderer. Test counts and static-approximation limitations below describe the first phase only.
+
 ## Changes
 
 | Area | Before | Now |
@@ -17,7 +19,7 @@ This supplements the [earlier UI comparison](./ui-comparison-2026-09-06.en.md). 
 | Word-art lab | Template dependency mapping only | Existing catalog/categories and static approximation parameters |
 | Narrow screens | Old horizontal text list displaced the style library | Shared vertical scroll area and viewport-constrained popovers |
 
-Validated parameters persist in `CoverDesignV1.textLayers[].textStyle`. Cover output, preview and style cards reuse the timeline text renderer. Legacy designs without overrides retain their default appearance. Disabling an effect preserves its settings for re-enabling.
+Validated parameters persist in the `textStyle` of text entries in `CoverDesignV1.layers[]`. Cover output, preview and style cards reuse the timeline text renderer. Legacy designs without overrides retain their default appearance. Disabling an effect preserves its settings for re-enabling.
 
 Applying a style preserves text, layer ID, font family, size, geometry and rotation. Preset font families are deliberately not imported here. Thumbnail text uses a default font, so it is not a pixel-identical preview of a user's current font. No private package paths or transient runtime references are persisted in the design.
 
@@ -49,7 +51,7 @@ Source: `/Volumes/MOVE SPEED/qcut/qcut`. APFS runtime mirror: `/Users/peter/.cac
 
 ## Remaining Gaps
 
-- Native cover templates are still not directly applicable. InfoSticker, complex textured word art, native rendering and missing dependencies need separate work.
+- The first phase did not connect InfoSticker, textured word art or real fonts. These already had labs and a runtime; a replacement engine was not needed. See the subsequent integration record above. Complete native cover templates remain non-applicable.
 - Approximation imports supported static paint parameters only, not animation, textures, images or native fonts. Non-flat-compatible entries are labeled Approximate.
 - The three system font families remain; no new Jianying font download, bubble asset library, multi-selection or on-canvas resize/rotation handles.
 - Catalog coverage, continuous filmstrips, complex transition frame parity, native filesystem persistence and cross-machine packaging were outside this change.
