@@ -7,6 +7,40 @@ import type { CoverCachedEntry } from "../jianying-cover-contract";
 import { coverLayoutFixture } from "./fixtures/cover-layout";
 
 describe("cover text layout graph", () => {
+	it("accepts sideways Latin text while preserving source content and rotation", () => {
+		const fixture = coverLayoutFixture();
+		fixture.text.typesetting = 1;
+		fixture.text.content = "TRAVEL WITH FRIENDS\n";
+		fixture.segment.clip.rotation = 25;
+		const layout = parseCoverTextLayout({ definition: fixture.definition });
+		expect(layout.texts[0].text).toMatchObject({
+			typesetting: 1,
+			content: "TRAVEL WITH FRIENDS\n",
+		});
+		expect(layout.texts[0].segment.clip.rotation).toBe(25);
+	});
+	it.each([
+		"中文竖排",
+		"Latin 中文",
+		"A\tB",
+		"e\u0301",
+		"🙂",
+	])("rejects unverified vertical glyph layout %s", (content) => {
+		const fixture = coverLayoutFixture();
+		fixture.text.typesetting = 1;
+		fixture.text.content = content;
+		expect(() =>
+			parseCoverTextLayout({ definition: fixture.definition })
+		).toThrow("plain Latin");
+	});
+	it("rejects vertical native effects rather than rotating an unverified layout", () => {
+		const fixture = coverLayoutFixture();
+		fixture.text.typesetting = 1;
+		fixture.segment.extra_material_refs = [fixture.effect.id];
+		expect(() =>
+			parseCoverTextLayout({ definition: fixture.definition })
+		).toThrow("plain Latin");
+	});
 	it.each([
 		false,
 		true,
@@ -101,7 +135,7 @@ describe("cover text layout graph", () => {
 		expect(layout.texts[0].effect).toBeUndefined();
 	});
 	it.each([
-		"vertical",
+		"unknown-typesetting",
 		"keyframes",
 		"nonuniform",
 		"flip",
@@ -111,7 +145,7 @@ describe("cover text layout graph", () => {
 		"overflow",
 	])("blocks %s without partial text import", (kind) => {
 		const fixture = coverLayoutFixture();
-		if (kind === "vertical") fixture.text.typesetting = 1;
+		if (kind === "unknown-typesetting") fixture.text.typesetting = 2;
 		if (kind === "keyframes") fixture.segment.keyframe_refs = ["animation"];
 		if (kind === "nonuniform") fixture.segment.clip.scale.y = 2;
 		if (kind === "flip") fixture.segment.clip.flip.horizontal = true;
