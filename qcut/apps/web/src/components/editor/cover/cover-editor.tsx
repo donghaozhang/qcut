@@ -1,54 +1,62 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-	ImagePlus,
 	Image as ImageIcon,
-	Loader2,
+	Undo2,
+	Redo2,
+	Crop,
+	RotateCcw,
 	Trash2,
-	Camera,
 } from "lucide-react";
+import {
+	createCoverText,
+	updateCoverText,
+	type CoverTextLayerV1,
+} from "@qcut/editor-core/cover";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useTranslation } from "@/lib/i18n";
-import { captureStillFrame } from "@/lib/export/export-still-frame";
-import { coverRepository } from "@/lib/cover/cover-repository";
-import {
-	normalizeCoverImage,
-	renderCoverDesign,
-} from "@/lib/cover/cover-renderer";
 import { useProjectStore } from "@/stores/project-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
+import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import type { TProject } from "@/types/project";
-import type { CoverDesignV1, CoverSourceV1 } from "@qcut/editor-core/cover";
+import { useCoverDesign } from "./use-cover-design";
+import { CoverTool, activateCoverControl } from "./cover-tool";
+import { CoverTextToolbar } from "./cover-text-toolbar";
+import { CoverCanvas } from "./cover-canvas";
+import { CoverTemplateBrowser } from "./cover-template-browser";
+import { CoverSourceStrip } from "./cover-source-strip";
+import "./cover-editor.css";
 
-function activateCoverControl({
-	event,
+export function CoverButton({
+	placement = "preview",
 }: {
-	event: KeyboardEvent<HTMLButtonElement>;
-}) {
-	if (event.key !== "Enter" && event.key !== " ") return;
-	event.preventDefault();
-	event.stopPropagation();
-	event.currentTarget.click();
-}
-
-export function CoverButton() {
+	placement?: "preview" | "timeline";
+} = {}) {
 	const project = useProjectStore((state) => state.activeProject);
 	const [open, setOpen] = useState(false);
-	const triggerRef = useRef<HTMLButtonElement>(null);
+	const trigger = useRef<HTMLButtonElement>(null);
 	const { t } = useTranslation();
 	return (
 		<>
 			<Button
-				ref={triggerRef}
+				ref={trigger}
 				type="button"
 				variant="text"
-				size="icon"
+				size={placement === "timeline" ? "sm" : "icon"}
+				className={
+					placement === "timeline"
+						? "h-6 shrink-0 gap-1 rounded-sm border border-cyan-400/35 bg-cyan-400/10 px-1.5 text-cyan-700 dark:text-cyan-200"
+						: undefined
+				}
 				disabled={!project}
 				title={t("editor.cover.title")}
 				aria-label={t("editor.cover.title")}
-				data-testid="cover-open"
+				data-testid={
+					placement === "timeline" ? "main-track-cover-badge" : "cover-open"
+				}
 				onKeyDown={(event) => activateCoverControl({ event })}
-				onClick={() => {
+				onClick={(event) => {
+					event.stopPropagation();
 					usePlaybackStore.getState().pause();
 					setOpen(true);
 				}}
@@ -56,6 +64,11 @@ export function CoverButton() {
 				<ImageIcon className="size-4">
 					<title>{t("editor.cover.title")}</title>
 				</ImageIcon>
+				{placement === "timeline" && (
+					<span className="text-[10px] leading-none">
+						{t("timeline.track.cover")}
+					</span>
+				)}
 			</Button>
 			{open && project && (
 				<CoverEditor
@@ -63,7 +76,7 @@ export function CoverButton() {
 					project={project}
 					onClose={() => {
 						setOpen(false);
-						triggerRef.current?.focus();
+						trigger.current?.focus();
 					}}
 				/>
 			)}
@@ -79,184 +92,65 @@ export function CoverEditor({
 	onClose: () => void;
 }) {
 	const { t } = useTranslation();
-	const [initialProject] = useState(project);
-	const [design, setDesign] = useState<CoverDesignV1 | null>(null);
-	const [outputs, setOutputs] = useState<{
-		render: Blob;
-		thumbnail: Blob;
-	} | null>(null);
-	const [preview, setPreview] = useState<string | null>(null);
-	const [busy, setBusy] = useState(Boolean(project.cover));
-	const [rendering, setRendering] = useState(false);
-	const [error, setError] = useState<string | null>(null);
-	const fileInput = useRef<HTMLInputElement>(null);
-	const titleRef = useRef<HTMLHeadingElement>(null);
-	const mounted = useRef(true);
-	const sourceRequest = useRef(0);
+	const editor = useCoverDesign({ project, onClose });
+	const { design, edit, busy } = editor;
+	const [selectedId, setSelectedId] = useState<string | null>(null);
+	const [cropping, setCropping] = useState(false);
+	const title = useRef<HTMLHeadingElement>(null);
+	const initialized = useRef(false);
 	useEffect(() => {
-		mounted.current = true;
-		return () => {
-			mounted.current = false;
-			sourceRequest.current += 1;
-		};
-	}, []);
-
-	useEffect(() => {
-		let cancelled = false;
-		if (!initialProject.cover) return;
-		void coverRepository
-			.loadDesign({ projectId: initialProject.id, cover: initialProject.cover })
-			.then((saved) => {
-				if (!cancelled)
-					setDesign({ ...saved, id: crypto.randomUUID(), revision: 1 });
-			})
-			.catch((reason: unknown) => {
-				if (!cancelled) setError(String(reason));
-			})
-			.finally(() => {
-				if (!cancelled) setBusy(false);
+		if (initialized.current) return;
+		const timer = setTimeout(() => {
+			initialized.current = true;
+			if (!project.cover && useTimelineStore.getState().getTotalDuration() > 0)
+				void editor.chooseSource();
+		}, 0);
+		return () => clearTimeout(timer);
+	}, [project.cover, editor.chooseSource]);
+	const texts =
+		design?.layers
+			.slice(1)
+			.filter((layer): layer is CoverTextLayerV1 => layer.kind === "text") ??
+		[];
+	const selected = texts.find((layer) => layer.id === selectedId);
+	const changeText = (changes: Partial<CoverTextLayerV1>) => {
+		if (design && selected)
+			edit(updateCoverText({ design, id: selected.id, changes }));
+	};
+	const deleteText = () => {
+		if (design && selected) {
+			edit({
+				...design,
+				layers: [
+					design.layers[0],
+					...texts.filter((layer) => layer.id !== selected.id),
+				],
 			});
-		return () => {
-			cancelled = true;
-		};
-	}, [initialProject]);
-
-	useEffect(() => {
-		let cancelled = false;
-		setOutputs(null);
-		if (!design) return;
-		setRendering(true);
-		void renderCoverDesign({
-			design,
-			resolveAsset: ({ asset }) =>
-				coverRepository.readAsset({ projectId: initialProject.id, asset }),
-		})
-			.then((result) => {
-				if (!cancelled) {
-					setOutputs(result);
-					setError(null);
-				}
-			})
-			.catch((reason: unknown) => {
-				if (!cancelled) setError(String(reason));
-			})
-			.finally(() => {
-				if (!cancelled) setRendering(false);
-			});
-		return () => {
-			cancelled = true;
-		};
-	}, [design, initialProject.id]);
-
-	useEffect(() => {
-		if (!outputs) {
-			setPreview(null);
-			return;
+			setSelectedId(null);
 		}
-		const url = URL.createObjectURL(outputs.render);
-		setPreview(url);
-		return () => URL.revokeObjectURL(url);
-	}, [outputs]);
-
-	const prepareSource = async ({
-		blob,
-		source,
-		request,
-	}: {
-		blob: Blob;
-		source: CoverSourceV1;
-		request: number;
-	}) => {
-		const normalized = await normalizeCoverImage({ blob });
-		const asset = await coverRepository.saveAsset({
-			projectId: initialProject.id,
-			...normalized,
-		});
-		if (!mounted.current || request !== sourceRequest.current) return;
-		const now = new Date().toISOString();
-		setDesign({
-			schema: "qcut.cover-design",
-			schemaVersion: 1,
+	};
+	const addText = () => {
+		if (!design || texts.length >= 20) return;
+		const layer = createCoverText({
+			canvas: design.canvas,
+			content: t("editor.cover.newText"),
 			id: crypto.randomUUID(),
-			revision: 1,
-			canvas: {
-				...initialProject.canvasSize,
-				backgroundColor: /^#[a-f0-9]{6}$/i.test(
-					initialProject.backgroundColor ?? ""
-				)
-					? initialProject.backgroundColor!
-					: "#000000",
-			},
-			source,
-			layers: [{ id: "background", kind: "image", asset, fit: "contain" }],
-			createdAt: now,
-			updatedAt: now,
 		});
+		edit({ ...design, layers: [design.layers[0], ...texts, layer] });
+		setSelectedId(layer.id);
+		setCropping(false);
 	};
-
-	const chooseSource = async ({ file }: { file?: File } = {}) => {
-		const request = ++sourceRequest.current;
-		setBusy(true);
-		setOutputs(null);
-		setError(null);
-		try {
-			if (file)
-				await prepareSource({
-					blob: file,
-					source: { kind: "local-image", originalName: file.name },
-					request,
-				});
-			else {
-				const capture = await captureStillFrame();
-				if (!capture.ok) throw new Error(capture.error);
-				if (capture.projectId !== initialProject.id)
-					throw new Error("The active project changed");
-				await prepareSource({
-					blob: capture.blob,
-					source: {
-						kind: "timeline-frame",
-						sceneId: capture.sceneId,
-						frame: capture.frame,
-						fps: capture.fps,
-						timeSeconds: capture.timeSeconds,
-					},
-					request,
-				});
-			}
-		} catch (reason) {
-			if (mounted.current) setError(String(reason));
-		} finally {
-			if (mounted.current) setBusy(false);
-		}
-	};
-
-	const publish = async ({ clear = false }: { clear?: boolean } = {}) => {
-		if (!clear && (!design || !outputs)) return;
-		setBusy(true);
-		setError(null);
-		try {
-			const cover = clear
-				? undefined
-				: await coverRepository.saveRevision({
-						projectId: initialProject.id,
-						design: design!,
-						...outputs!,
-					});
-			if (!mounted.current) return;
-			await useProjectStore.getState().setProjectCover({
-				projectId: initialProject.id,
-				cover,
-				expectedCover: initialProject.cover,
+	const position = design?.layers[0].position ?? { x: 0.5, y: 0.5, zoom: 1 };
+	const changeCrop = (changes: Partial<typeof position>) => {
+		if (design)
+			edit({
+				...design,
+				layers: [
+					{ ...design.layers[0], position: { ...position, ...changes } },
+					...texts,
+				],
 			});
-			if (mounted.current) onClose();
-		} catch (reason) {
-			if (mounted.current) setError(String(reason));
-		} finally {
-			if (mounted.current) setBusy(false);
-		}
 	};
-
-	const pending = busy || rendering;
 	return (
 		<Dialog
 			open
@@ -265,146 +159,259 @@ export function CoverEditor({
 			}}
 		>
 			<DialogContent
-				className="z-[1001] max-w-3xl"
+				scrollable={false}
+				className="cover-workspace z-[1001]"
 				overlayClassName="z-[1000]"
 				aria-describedby={undefined}
 				data-testid="cover-editor"
 				onOpenAutoFocus={(event) => {
 					event.preventDefault();
-					titleRef.current?.focus();
+					title.current?.focus();
+				}}
+				onKeyDown={(event) => {
+					const editable =
+						event.target instanceof HTMLElement &&
+						Boolean(
+							event.target.closest(
+								"input, textarea, select, [contenteditable=true]"
+							)
+						);
+					if (editable || busy) return;
+					if (
+						(event.metaKey || event.ctrlKey) &&
+						event.key.toLowerCase() === "z"
+					) {
+						event.preventDefault();
+						event.stopPropagation();
+						editor.dispatch({ type: event.shiftKey ? "redo" : "undo" });
+					}
+					if (
+						(event.key === "Backspace" || event.key === "Delete") &&
+						selected
+					) {
+						event.preventDefault();
+						event.stopPropagation();
+						deleteText();
+					}
 				}}
 			>
-				<DialogTitle ref={titleRef} tabIndex={-1}>
-					{t("editor.cover.title")}
-				</DialogTitle>
-				<div className="flex flex-wrap items-center gap-2">
-					<Button
-						type="button"
-						variant="outline"
-						disabled={pending}
-						onClick={() => void chooseSource()}
-						onKeyDown={(event) => activateCoverControl({ event })}
-						data-testid="cover-current-frame"
-					>
-						<Camera className="size-4" />
-						{t("editor.cover.currentFrame")}
-					</Button>
-					<Button
-						type="button"
-						variant="outline"
-						disabled={pending}
-						onClick={() => fileInput.current?.click()}
-						onKeyDown={(event) => activateCoverControl({ event })}
-					>
-						<ImagePlus className="size-4" />
-						{t("editor.cover.importImage")}
-					</Button>
-					<input
-						ref={fileInput}
-						type="file"
-						accept="image/png,image/jpeg,image/webp"
-						className="sr-only"
-						tabIndex={-1}
-						aria-label={t("editor.cover.importImage")}
-						data-testid="cover-file"
-						disabled={pending}
-						onChange={(event) => {
-							const file = event.target.files?.[0];
-							event.target.value = "";
-							if (file) void chooseSource({ file });
+				<header className="cover-header">
+					<DialogTitle ref={title} tabIndex={-1}>
+						{t("editor.cover.title")}
+					</DialogTitle>
+					<span>
+						{project.canvasSize.width} × {project.canvasSize.height}
+					</span>
+				</header>
+				<div className="cover-workarea">
+					<CoverTemplateBrowser
+						design={design}
+						projectId={project.id}
+						onEdit={edit}
+						disabled={busy || cropping}
+						selectedId={selectedId}
+						onSelect={(id) => {
+							setSelectedId(id);
+							setCropping(false);
 						}}
+						onAdd={addText}
+						onError={editor.setError}
 					/>
-					{design && (
-						<label className="ml-auto flex items-center gap-2 text-sm">
-							{t("editor.cover.fit")}
-							<select
-								className="rounded border bg-background p-2 text-foreground"
-								aria-label={t("editor.cover.fit")}
-								value={design.layers[0].fit}
-								disabled={pending}
-								onChange={(event) => {
-									const fit =
-										event.target.value === "cover" ? "cover" : "contain";
-									setOutputs(null);
-									setDesign({
-										...design,
-										id: crypto.randomUUID(),
-										revision: 1,
-										updatedAt: new Date().toISOString(),
-										layers: [{ ...design.layers[0], fit }],
-									});
-								}}
-							>
-								<option value="contain">{t("editor.cover.contain")}</option>
-								<option value="cover">{t("editor.cover.fill")}</option>
-							</select>
-						</label>
-					)}
-				</div>
-				<div
-					className="relative flex h-[min(38vh,320px)] w-full items-center justify-center overflow-hidden bg-black sm:h-[min(48vh,420px)]"
-					data-testid="cover-preview"
-				>
-					{preview && (
-						<img
-							src={preview}
-							alt={t("editor.cover.preview")}
-							className="size-full object-contain"
+					<main className="cover-main">
+						<CoverTextToolbar
+							layer={selected}
+							disabled={busy || cropping}
+							onChange={changeText}
+							onDelete={deleteText}
+							onOrder={(direction) => {
+								if (!design || !selected) return;
+								const rest = texts.filter((layer) => layer.id !== selected.id);
+								edit({
+									...design,
+									layers: [
+										design.layers[0],
+										...(direction === "front"
+											? [...rest, selected]
+											: [selected, ...rest]),
+									],
+								});
+							}}
 						/>
-					)}
-					{pending && (
-						<Loader2 className="absolute size-6 animate-spin text-white">
-							<title>{t("editor.cover.working")}</title>
-						</Loader2>
-					)}
-					{!preview && !pending && (
-						<ImageIcon className="size-10 text-neutral-500">
-							<title>{t("editor.cover.preview")}</title>
-						</ImageIcon>
-					)}
+						<CoverCanvas
+							projectId={project.id}
+							onError={editor.setError}
+							design={design}
+							preview={editor.preview}
+							selectedId={selectedId}
+							onSelect={setSelectedId}
+							onEdit={edit}
+							cropping={cropping}
+							disabled={busy}
+							rendering={
+								busy || Boolean(design && !editor.ready && !editor.error)
+							}
+						/>
+						<div className="cover-canvas-tools">
+							<CoverTool
+								icon={Undo2}
+								label={t("editor.cover.undo")}
+								disabled={busy || !editor.history.past.length}
+								onClick={() => editor.dispatch({ type: "undo" })}
+								testId="cover-undo"
+							/>
+							<CoverTool
+								icon={Redo2}
+								label={t("editor.cover.redo")}
+								disabled={busy || !editor.history.future.length}
+								onClick={() => editor.dispatch({ type: "redo" })}
+								testId="cover-redo"
+							/>
+							<CoverTool
+								icon={Crop}
+								label={t("editor.cover.crop")}
+								active={cropping}
+								disabled={busy || !design}
+								onClick={() => {
+									setCropping(!cropping);
+									setSelectedId(null);
+								}}
+								testId="cover-crop"
+							/>
+							{design && (
+								<select
+									aria-label={t("editor.cover.fit")}
+									disabled={busy}
+									value={design.layers[0].fit}
+									onChange={(event) =>
+										edit({
+											...design,
+											layers: [
+												{
+													...design.layers[0],
+													fit:
+														event.target.value === "cover"
+															? "cover"
+															: "contain",
+													position: { x: 0.5, y: 0.5, zoom: 1 },
+												},
+												...texts,
+											],
+										})
+									}
+								>
+									<option value="contain">{t("editor.cover.contain")}</option>
+									<option value="cover">{t("editor.cover.fill")}</option>
+								</select>
+							)}
+							{cropping && (
+								<button
+									type="button"
+									className="cover-command"
+									onClick={() => setCropping(false)}
+									onKeyDown={(event) => activateCoverControl({ event })}
+								>
+									{t("editor.cover.doneCrop")}
+								</button>
+							)}
+						</div>
+						{cropping && (
+							<div className="cover-crop-controls">
+								<label>
+									{t("editor.cover.zoom")}
+									<input
+										type="range"
+										min={1}
+										max={4}
+										step={0.01}
+										value={position.zoom}
+										disabled={busy}
+										onChange={(event) =>
+											changeCrop({ zoom: Number(event.target.value) })
+										}
+									/>
+								</label>
+								<label>
+									{t("editor.cover.horizontal")}
+									<input
+										type="range"
+										min={0}
+										max={1}
+										step={0.01}
+										value={position.x}
+										disabled={busy}
+										onChange={(event) =>
+											changeCrop({ x: Number(event.target.value) })
+										}
+									/>
+								</label>
+								<label>
+									{t("editor.cover.vertical")}
+									<input
+										type="range"
+										min={0}
+										max={1}
+										step={0.01}
+										value={position.y}
+										disabled={busy}
+										onChange={(event) =>
+											changeCrop({ y: Number(event.target.value) })
+										}
+									/>
+								</label>
+								<CoverTool
+									icon={RotateCcw}
+									label={t("editor.cover.resetCrop")}
+									disabled={busy}
+									onClick={() => changeCrop({ x: 0.5, y: 0.5, zoom: 1 })}
+								/>
+							</div>
+						)}
+						<CoverSourceStrip
+							source={design?.source}
+							projectId={project.id}
+							fps={project.fps ?? 30}
+							disabled={busy}
+							onChoose={editor.chooseSource}
+						/>
+					</main>
 				</div>
-				<div className="text-xs text-muted-foreground">
-					{initialProject.canvasSize.width} × {initialProject.canvasSize.height}
-				</div>
-				{error && (
-					<p role="alert" className="break-words text-sm text-destructive">
-						{error}
+				{editor.error && (
+					<p role="alert" className="cover-error">
+						{editor.error}
 					</p>
 				)}
-				<div className="flex flex-wrap justify-end gap-2">
-					{initialProject.cover && (
-						<Button
-							type="button"
-							variant="outline"
-							className="mr-auto"
-							disabled={pending}
-							onClick={() => void publish({ clear: true })}
-							onKeyDown={(event) => activateCoverControl({ event })}
-							data-testid="cover-clear"
-						>
-							<Trash2 className="size-4" />
-							{t("editor.cover.clear")}
-						</Button>
+				<footer className="cover-footer">
+					{project.cover && (
+						<CoverTool
+							icon={Trash2}
+							label={t("editor.cover.clear")}
+							disabled={busy}
+							onClick={() => void editor.publish({ clear: true })}
+							testId="cover-clear"
+						/>
 					)}
-					<Button
-						type="button"
-						variant="outline"
-						disabled={busy}
-						onClick={onClose}
-						onKeyDown={(event) => activateCoverControl({ event })}
-					>
-						{t("common.cancel")}
-					</Button>
-					<Button
-						type="button"
-						disabled={pending || !outputs}
-						onClick={() => void publish()}
-						onKeyDown={(event) => activateCoverControl({ event })}
-						data-testid="cover-publish"
-					>
-						{t("editor.cover.publish")}
-					</Button>
-				</div>
+					<div className="cover-footer-actions">
+						<button
+							type="button"
+							className="cover-command"
+							disabled={busy}
+							onClick={onClose}
+							onKeyDown={(event) => activateCoverControl({ event })}
+						>
+							{t("common.cancel")}
+						</button>
+						<button
+							type="button"
+							className="cover-command cover-publish"
+							disabled={busy || !editor.ready}
+							onClick={() => void editor.publish()}
+							onKeyDown={(event) => activateCoverControl({ event })}
+							data-testid="cover-publish"
+						>
+							{t("editor.cover.publish")}
+						</button>
+					</div>
+				</footer>
 			</DialogContent>
 		</Dialog>
 	);
