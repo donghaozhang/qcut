@@ -22,6 +22,7 @@ const textSchema = z.object({
 	typesetting: z.literal(0),
 	text_alpha: finite.min(0).max(1),
 	text_color: color,
+	use_effect_default_color: z.boolean().optional(),
 	bold_width: finite.nonnegative(),
 	italic_degree: finite,
 	underline: z.boolean(),
