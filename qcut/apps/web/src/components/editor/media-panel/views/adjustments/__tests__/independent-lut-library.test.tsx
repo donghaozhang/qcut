@@ -30,6 +30,31 @@ beforeEach(() => {
 	});
 });
 describe("independent local LUT library", () => {
+	it("shows intensity and comparison controls for the CPU cinematic soft glow card", async () => {
+		const change = vi.fn();
+		const enabled = vi.fn();
+		render(
+			<IndependentLutLibrary
+				onApply={vi.fn()}
+				activeEffect={{
+					name: "电影柔光 · QCut CPU",
+					enabled: true,
+					intensity: 37,
+				}}
+				onEffectEnabledChange={enabled}
+				onEffectIntensityChange={change}
+				onEffectIntensityCommit={vi.fn()}
+			/>
+		);
+		expect(
+			screen.getByRole("slider", { name: "剪映滤镜强度" })
+		).toHaveAttribute("aria-valuenow", "37");
+		fireEvent.keyDown(screen.getByRole("slider"), { key: "ArrowRight" });
+		expect(change).toHaveBeenCalledWith({ value: 38 });
+		fireEvent.click(screen.getByRole("button", { name: "A 原图" }));
+		expect(enabled).toHaveBeenCalledWith({ enabled: false });
+		await screen.findByText("本地滤镜 · 40");
+	});
 	it("paginates the catalog and filters by title, ID and category", async () => {
 		render(
 			<IndependentLutLibrary onApply={vi.fn()} onApplyMultiPass={vi.fn()} />
