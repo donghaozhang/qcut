@@ -260,7 +260,8 @@ export interface JianyingFilterLabLoadRendererResult {
 		provider:
 			| "jianying-local-effect-v1"
 			| "qcut-metal-fog-v1"
-			| "qcut-metal-lut-v1";
+			| "qcut-metal-lut-v1"
+			| "qcut-metal-graph-v1";
 		resourceId: string;
 		version: string;
 	};
