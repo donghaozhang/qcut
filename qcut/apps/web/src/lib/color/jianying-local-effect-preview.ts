@@ -11,7 +11,9 @@ export function canRenderJianyingLocalEffect({
 		settings.enabled &&
 			multiPass?.enabled &&
 			multiPass.fidelity === "native-local" &&
-			multiPass.nativeEffect?.provider === "jianying-local-effect-v1" &&
+			(multiPass.nativeEffect?.provider === "jianying-local-effect-v1" ||
+				multiPass.nativeEffect?.provider === "qcut-metal-fog-v1" ||
+				multiPass.nativeEffect?.provider === "qcut-metal-lut-v1") &&
 			multiPass.nativeEffect.resourceId
 	);
 }
@@ -74,9 +76,15 @@ export async function renderJianyingLocalEffectPreview({
 		);
 	}
 	const api = window.electronAPI?.jianyingFilterLab;
-	if (!api) return null;
+	const independent =
+		nativeEffect.provider === "qcut-metal-fog-v1" ||
+		nativeEffect.provider === "qcut-metal-lut-v1";
+	const independentApi = window.electronAPI?.qcutIndependentFilter;
+	if (independent && !independentApi)
+		throw new Error("QCut Metal renderer is unavailable.");
+	if (!independent && !api) return null;
 	try {
-		const result = await api.renderLocalEffect({
+		const request = {
 			resourceId: nativeEffect.resourceId,
 			width: source.width,
 			height: source.height,
@@ -88,7 +96,13 @@ export async function renderJianyingLocalEffectPreview({
 				source.data.byteOffset,
 				source.data.byteLength
 			),
-		});
+		};
+		const result = independent
+			? await independentApi!.render({
+					...request,
+					version: nativeEffect.version,
+				})
+			: await api!.renderLocalEffect(request);
 		if (
 			result.provider !== nativeEffect.provider ||
 			result.resourceId !== nativeEffect.resourceId ||
@@ -103,6 +117,7 @@ export async function renderJianyingLocalEffectPreview({
 			maskData,
 		});
 	} catch (cause) {
+		if (independent) throw cause;
 		const detail = cause instanceof Error ? cause.message : String(cause);
 		if (!detail.includes("正在处理另一帧")) {
 			reportColorDegradation({
