@@ -31,7 +31,7 @@ const catalog = await listIndependentFilters({
 	exporter: exportCatalogDefault,
 });
 const cards = catalog.cards
-	.filter((card) => card.resourceId !== "7160594413847203085")
+	.filter((card) => card.independentKind === "lut")
 	.slice(0, Number(values.limit) || undefined);
 const width = 289,
 	height = 17;
