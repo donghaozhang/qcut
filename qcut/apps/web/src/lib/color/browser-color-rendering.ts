@@ -351,6 +351,17 @@ export async function drawColorGradedSourceWithMasks({
 			);
 		}
 	} catch (error) {
+		if (
+			settings.multiPass?.enabled &&
+			(settings.multiPass.nativeEffect?.provider === "qcut-metal-fog-v1" ||
+				settings.multiPass.nativeEffect?.provider === "qcut-metal-lut-v1")
+		) {
+			reportColorDegradation({
+				reason: "qcut-independent-filter-unavailable",
+				detail: error instanceof Error ? error.message : String(error),
+			});
+			throw error;
+		}
 		if (!cssFallbackWarned) {
 			cssFallbackWarned = true;
 			console.warn(
