@@ -57,10 +57,12 @@ export interface JianyingFilterCatalogCard {
 	verification: JianyingFilterVerificationStatus;
 	/** Locally cached LUT files behind this card (count only). */
 	lutCount: number;
+	maskProvider?: "jianying-local-skin-v1";
 	tiledRendererKind?: string;
 	multiPassKind?: string;
 	multiPassCount?: number;
 	independentKind?:
+		| "skin-dual-lut"
 		| "fog"
 		| "lut"
 		| "sharpen"
