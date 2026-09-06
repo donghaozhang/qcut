@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+	act,
+	fireEvent,
+	render,
+	screen,
+	waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
 	JianyingFontLabFontSummary,
@@ -138,5 +144,44 @@ describe("JianyingFontLabDialog", () => {
 		expect(await screen.findByText(/U\+5B57/)).toBeInTheDocument();
 		expect(onApply).not.toHaveBeenCalled();
 		expect(runtimeMocks.ensureLocalFontLoaded).not.toHaveBeenCalled();
+	});
+	it("discards a pending glyph check after the selected text changes", async () => {
+		const api = installFontLabAPI({ covered: true });
+		let complete:
+			| ((value: Awaited<ReturnType<typeof api.inspect>>) => void)
+			| undefined;
+		api.inspect.mockImplementationOnce(
+			() =>
+				new Promise((resolve) => {
+					complete = resolve;
+				})
+		);
+		const onApply = vi.fn();
+		const view = render(
+			<JianyingFontLabDialog initialSample="原文" onApply={onApply} />
+		);
+		fireEvent.click(screen.getByLabelText("打开本机字体实验室"));
+		fireEvent.click((await screen.findAllByTestId("jianying-font-card"))[0]);
+		view.rerender(
+			<JianyingFontLabDialog initialSample="新文字" onApply={onApply} />
+		);
+		await act(async () => {
+			complete?.({
+				fontId: api.result.fonts[0].fontId,
+				covered: true,
+				checkedCodePointCount: 2,
+				missing: [],
+			});
+		});
+		expect(onApply).not.toHaveBeenCalled();
+		expect(runtimeMocks.ensureLocalFontLoaded).not.toHaveBeenCalled();
+	});
+	it("keeps a disabled cover font trigger closed", () => {
+		const api = installFontLabAPI({ covered: true });
+		render(
+			<JianyingFontLabDialog initialSample="" disabled onApply={vi.fn()} />
+		);
+		fireEvent.click(screen.getByLabelText("打开本机字体实验室"));
+		expect(api.list).not.toHaveBeenCalled();
 	});
 });
