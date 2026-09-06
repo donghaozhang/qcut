@@ -57,6 +57,7 @@ export interface CoverTextLayerV1 {
 	fontAsset?: TextFontAssetReference;
 	jianyingTextStyle?: JianyingTextStyleReference;
 	nativeFrameTime?: number;
+	nativeUseEffectDefaultColor?: boolean;
 	templateId?: string;
 }
 
