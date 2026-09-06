@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type { MediaElement, TimelineTrack } from "@/types/timeline";
 import { DEFAULT_MEDIA_ENHANCEMENTS } from "@/lib/video/video-properties";
 import { requiresJianyingLocalColorExport } from "../jianying-local-color-export";
+import { DEFAULT_MEDIA_COLOR_SETTINGS } from "@/lib/color/color-properties";
+import { independentFogSettings } from "../../../../../../electron/qcut-independent-filter/contract";
 
 function mediaElement({
 	portraitEnabled,
@@ -38,6 +40,60 @@ function tracks({ element }: { element: MediaElement }): TimelineTrack[] {
 }
 
 describe("Jianying local export selection", () => {
+	it.each([
+		"qcut-metal-fog-v1",
+		"qcut-metal-lut-v1",
+	] as const)("routes %s media, stacks, and adjustment layers through canvas export", (provider) => {
+		const color = {
+			...structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS),
+			multiPass: independentFogSettings(),
+		};
+		color.multiPass.nativeEffect!.provider = provider;
+		const element = mediaElement({ portraitEnabled: false });
+		element.color = color;
+		expect(
+			requiresJianyingLocalColorExport({ tracks: tracks({ element }) })
+		).toBe(true);
+		element.color = undefined;
+		element.filterStack = {
+			enabled: true,
+			effects: [
+				{
+					id: "own-fog",
+					resourceId: color.multiPass.resourceId,
+					version: color.multiPass.version,
+					intensity: 100,
+					implementation: "shader",
+					fidelity: "native-local",
+					enabled: true,
+					color,
+				},
+			],
+		};
+		expect(
+			requiresJianyingLocalColorExport({ tracks: tracks({ element }) })
+		).toBe(true);
+		element.filterStack.enabled = false;
+		expect(
+			requiresJianyingLocalColorExport({ tracks: tracks({ element }) })
+		).toBe(false);
+		const adjustmentTracks = tracks({ element });
+		adjustmentTracks[0].elements = [
+			{
+				id: "grade",
+				type: "adjustment",
+				name: "Fog",
+				startTime: 0,
+				duration: 1,
+				trimStart: 0,
+				trimEnd: 0,
+				color,
+			},
+		];
+		expect(requiresJianyingLocalColorExport({ tracks: adjustmentTracks })).toBe(
+			true
+		);
+	});
 	it("forces fixed-timestamp canvas export for active binary retouch", () => {
 		expect(
 			requiresJianyingLocalColorExport({
