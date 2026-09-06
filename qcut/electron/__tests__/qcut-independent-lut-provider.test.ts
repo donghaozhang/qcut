@@ -4,6 +4,8 @@ import { createIndependentLutProvider } from "../qcut-independent-filter/lut-pro
 import type { IndependentFilterRequest } from "../qcut-independent-filter/contract.js";
 import { createIndependentFilterSession } from "../qcut-independent-filter/session.js";
 import { loadIndependentCube } from "../qcut-independent-filter/lut-catalog.js";
+import * as graphData from "../qcut-independent-filter/graph-data.js";
+import { INDEPENDENT_GRAPH_PROFILES } from "../qcut-independent-filter/graph-profiles.js";
 
 vi.mock("../qcut-independent-filter/lut-catalog.js", async (original) => ({
 	...(await original<
@@ -41,9 +43,36 @@ beforeEach(() => {
 });
 afterEach(() => {
 	vi.useRealTimers();
+	vi.restoreAllMocks();
 });
 
 describe("independent LUT provider LRU and lifecycle", () => {
+	it("loads graphs through their own data path and persists the graph provider", async () => {
+		vi.spyOn(graphData, "supportsIndependentGraph").mockReturnValue(true);
+		const graph = {
+			profile: { ...INDEPENDENT_GRAPH_PROFILES[0], ...identity },
+			cube: {
+				size: 2,
+				values: new Float32Array(24),
+				domainMin: [0, 0, 0] as [number, number, number],
+				domainMax: [1, 1, 1] as [number, number, number],
+			},
+		};
+		vi.spyOn(graphData, "loadIndependentGraph").mockResolvedValue(graph);
+		const provider = createIndependentLutProvider();
+		try {
+			expect((await provider.load(identity)).nativeEffect?.provider).toBe(
+				"qcut-metal-graph-v1"
+			);
+			expect(loadIndependentCube).not.toHaveBeenCalled();
+			expect(createIndependentFilterSession).toHaveBeenCalledWith({
+				graph,
+				identity,
+			});
+		} finally {
+			await provider.dispose();
+		}
+	});
 	it("reuses a loaded card and releases idle hosts", async () => {
 		const provider = createIndependentLutProvider();
 		await provider.load(identity);
