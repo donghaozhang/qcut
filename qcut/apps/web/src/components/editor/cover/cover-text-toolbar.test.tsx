@@ -95,7 +95,14 @@ describe("cover native text toolbar", () => {
 				onOrder={vi.fn()}
 			/>
 		);
-		expect(screen.getByLabelText("editor.cover.color")).toBeDisabled();
+		expect(screen.getByLabelText("editor.cover.color")).toBeEnabled();
+		fireEvent.change(screen.getByLabelText("editor.cover.color"), {
+			target: { value: "#047bff" },
+		});
+		expect(onChange).toHaveBeenLastCalledWith({
+			color: "#047bff",
+			nativeUseEffectDefaultColor: false,
+		});
 		expect(
 			screen.getByRole("button", { name: "editor.cover.bold" })
 		).toBeDisabled();
@@ -108,6 +115,7 @@ describe("cover native text toolbar", () => {
 		expect(onChange).toHaveBeenLastCalledWith({
 			jianyingTextStyle: undefined,
 			nativeFrameTime: undefined,
+			nativeUseEffectDefaultColor: undefined,
 		});
 	});
 	it("does not allow applying fonts with no text selection", () => {
