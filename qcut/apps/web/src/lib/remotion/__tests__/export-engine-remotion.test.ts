@@ -15,6 +15,8 @@ import {
 	afterEach,
 	beforeAll,
 } from "vitest";
+import { initPlatform } from "@qcut/platform-core";
+import { createWebAdapter } from "@qcut/platform-web";
 import {
 	RemotionExportEngine,
 	createRemotionExportEngine,
@@ -33,6 +35,7 @@ import type { MediaItem } from "@/stores/media/media-store-types";
 
 // Mock canvas for JSDOM environment
 beforeAll(() => {
+	initPlatform(createWebAdapter());
 	HTMLCanvasElement.prototype.toDataURL = vi.fn(
 		() => "data:image/png;base64,test"
 	);
