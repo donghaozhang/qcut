@@ -68,6 +68,69 @@ describe("Jianying local multi-pass preview", () => {
 		});
 		expect(Array.from(output.data)).toEqual([60, 70, 80, 255, 50, 60, 70, 128]);
 	});
+	it("renders the CPU UI snapshot at zero and uses disabled state for the original image", async () => {
+		const settings = localSettings();
+		settings.multiPass!.nativeEffect!.provider =
+			"qcut-cpu-soft-glow-ui-snapshot-v1";
+		settings.multiPass!.intensity = 0;
+		const render = vi.fn(async () => ({
+			provider: "qcut-cpu-soft-glow-ui-snapshot-v1" as const,
+			resourceId: "7403664041945681191",
+			width: 1,
+			height: 1,
+			rgba: new Uint8Array([90, 80, 70, 255]),
+		}));
+		Object.defineProperty(window, "electronAPI", {
+			configurable: true,
+			value: { qcutIndependentFilter: { render } },
+		});
+		const source = imageData({ data: [10, 20, 30, 255] });
+		const output = await renderJianyingLocalEffectPreview({ source, settings });
+		expect(Array.from(output!.data)).toEqual([90, 80, 70, 255]);
+		expect(render).toHaveBeenCalledWith(
+			expect.objectContaining({ intensity: 0 })
+		);
+		settings.multiPass!.enabled = false;
+		expect(
+			await renderJianyingLocalEffectPreview({ source, settings })
+		).toBeNull();
+		expect(render).toHaveBeenCalledTimes(1);
+	});
+	it("rejects the old experimental CPU descriptor instead of changing its intensity meaning", async () => {
+		const settings = localSettings();
+		settings.multiPass!.nativeEffect!.provider = "qcut-cpu-soft-glow-v1";
+		settings.multiPass!.intensity = 0;
+		await expect(
+			renderJianyingLocalEffectPreview({
+				source: imageData({ data: [10, 20, 30, 255] }),
+				settings,
+			})
+		).rejects.toThrow("重新应用");
+	});
+	it.each([
+		"jianying-local-effect-v1",
+		"qcut-metal-fog-v1",
+		"qcut-metal-lut-v1",
+		"qcut-metal-graph-v1",
+	] as const)("keeps zero passthrough for %s", async (provider) => {
+		const settings = localSettings();
+		settings.multiPass!.nativeEffect!.provider = provider;
+		settings.multiPass!.intensity = 0;
+		const render = vi.fn();
+		Object.defineProperty(window, "electronAPI", {
+			configurable: true,
+			value: {
+				qcutIndependentFilter: { render },
+				jianyingFilterLab: { renderLocalEffect: render },
+			},
+		});
+		const output = await renderJianyingLocalEffectPreview({
+			source: imageData({ data: [10, 20, 30, 255] }),
+			settings,
+		});
+		expect(Array.from(output!.data)).toEqual([10, 20, 30, 255]);
+		expect(render).not.toHaveBeenCalled();
+	});
 
 	it("sends intensity and frame time to the persistent Electron provider", async () => {
 		const renderLocalEffect = vi.fn(async () => ({
@@ -104,6 +167,7 @@ describe("Jianying local multi-pass preview", () => {
 		"qcut-metal-fog-v1",
 		"qcut-metal-lut-v1",
 		"qcut-metal-graph-v1",
+		"qcut-cpu-soft-glow-ui-snapshot-v1",
 	] as const)("routes %s frames only to the new API and preserves alpha", async (provider) => {
 		const settings = localSettings();
 		settings.multiPass!.nativeEffect!.provider = provider;
