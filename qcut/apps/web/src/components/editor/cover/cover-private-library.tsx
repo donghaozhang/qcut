@@ -66,6 +66,18 @@ export function CoverPrivateLibrary({
 		) ?? [];
 	const detail = entries.find((entry) => entry.packageHash === selected);
 	const nativeAvailable = Boolean(window.electronAPI?.jianyingTextRuntime);
+	const canApply = ({
+		entry,
+	}: {
+		entry: CoverLibraryResult["entries"][number];
+	}) =>
+		Boolean(
+			onApply &&
+				entry.textLayout?.ready &&
+				(!entry.textLayout.requiresNative || nativeAvailable) &&
+				!disabled &&
+				!importing
+		);
 	return (
 		<div className="cover-template-body" data-testid="cover-private-library">
 			<nav
@@ -132,7 +144,11 @@ export function CoverPrivateLibrary({
 							key={entry.packageHash}
 							title={entry.title}
 							aria-pressed={selected === entry.packageHash}
-							onClick={() => setSelected(entry.packageHash)}
+							disabled={disabled || importing}
+							onClick={() => {
+								setSelected(entry.packageHash);
+								if (canApply({ entry })) onApply?.(entry.packageHash);
+							}}
 							onKeyDown={(event) => activateCoverControl({ event })}
 							data-testid={`cover-cached-${entry.packageHash}`}
 						>
@@ -184,12 +200,7 @@ export function CoverPrivateLibrary({
 							<button
 								type="button"
 								className="cover-command"
-								disabled={
-									disabled ||
-									importing ||
-									!onApply ||
-									(detail.textLayout.requiresNative && !nativeAvailable)
-								}
+								disabled={!canApply({ entry: detail })}
 								onClick={() => onApply?.(detail.packageHash)}
 								onKeyDown={(event) => activateCoverControl({ event })}
 							>
