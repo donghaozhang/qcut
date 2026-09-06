@@ -97,20 +97,21 @@ describe("private cover layout application", () => {
 		).toBe(`sha256:${hash}`);
 		expect(design.layers).toHaveLength(1);
 	});
-	it("fits source coordinates uniformly when importing onto a portrait canvas", () => {
+	it("preserves relative anchors and short-edge text scale on a portrait canvas", () => {
 		const { layout, ctx } = fixture();
 		const result = applyPrivateCoverTextLayout({
 			design: { ...design, canvas: { ...canvas, width: 720, height: 1280 } },
 			layout,
 			ctx,
 		});
-		expect(result.layers[1]).toMatchObject({ fontSize: 45, x: 0.25 });
+		expect(result.layers[1]).toMatchObject({ fontSize: 80, x: 0.25 });
 		expect(result.layers[1].kind === "text" && result.layers[1].y).toBeCloseTo(
-			0.4208984375
+			0.25
 		);
 	});
 	it("retains the lab runtime identity and rejects missing effects instead of flattening", () => {
 		const { layout, ctx, source } = fixture();
+		layout.texts[0].text.use_effect_default_color = false;
 		layout.texts[0].effect = { ...source.effect, type: "text_effect" };
 		expect(() => applyPrivateCoverTextLayout({ design, layout, ctx })).toThrow(
 			"word-art unavailable"
@@ -129,6 +130,7 @@ describe("private cover layout application", () => {
 		const result = applyPrivateCoverTextLayout({ design, layout, ctx });
 		expect(result.layers[1]).toMatchObject({
 			jianyingTextStyle: layout.wordArt[source.effectReference],
+			nativeUseEffectDefaultColor: false,
 		});
 	});
 	it("rejects missing font references and too many layers", () => {
