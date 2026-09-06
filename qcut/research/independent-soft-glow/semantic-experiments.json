@@ -1,0 +1,283 @@
+{
+	"experiment": "fixed native outputs; one semantic substitution per independent render",
+	"date": "2026-09-06",
+	"native_reference_reused_with_hash_verification": true,
+	"native_per_pass_capture": false,
+	"canonical_baselines_byte_identical": true,
+	"variant_count_per_fixture": 10,
+	"fixtures": [
+		{
+			"name": "chart-320x180",
+			"width": 320,
+			"height": 180,
+			"intensity": 1,
+			"input_sha256": "74fea03ff5679c7b4996c7677dea3c9fa99ddeb6f9393cffe87013dd15c51066",
+			"reference_sha256": "42254b2d5b4ec4c74c44406dcc4959caa9a09dfdbfee9b9d53e1b2db4c571146",
+			"results": [
+				{
+					"id": "baseline",
+					"rgb_mae": 0.0544849537037037,
+					"rgb_rmse": 0.26296255542482766,
+					"rgb_max": 6,
+					"changed_pixels_vs_baseline": 0,
+					"sha256": "9bb8329e8f87c97691b4de861e8d3db1a7731c6d18d45e53ffab1ee42089ea53"
+				},
+				{
+					"id": "export-lut-opacity",
+					"rgb_mae": 0.9527893518518519,
+					"rgb_rmse": 1.5870679639581355,
+					"rgb_max": 10,
+					"changed_pixels_vs_baseline": 39364,
+					"sha256": "47055fc44851dbf6d22f8aac9e0914fbca394284d1db6c80771f07a10acdae82"
+				},
+				{
+					"id": "export-threshold",
+					"rgb_mae": 0.23725694444444445,
+					"rgb_rmse": 0.707540405860984,
+					"rgb_max": 11,
+					"changed_pixels_vs_baseline": 13582,
+					"sha256": "a5aacfdeccbf4c216d2b1cd2316bdd5289492507b75bc2dfe21da409201233e1"
+				},
+				{
+					"id": "flipped-lut-y",
+					"rgb_mae": 62.39541666666667,
+					"rgb_rmse": 79.6607567688224,
+					"rgb_max": 130,
+					"changed_pixels_vs_baseline": 57600,
+					"sha256": "7bd640e374f4ce8a27d23499cb446b6d2d837e9cc3d6ad4e3b62f64f60d02e59"
+				},
+				{
+					"id": "no-inverse-gamma",
+					"rgb_mae": 0.920150462962963,
+					"rgb_rmse": 1.77019759830281,
+					"rgb_max": 14,
+					"changed_pixels_vs_baseline": 37321,
+					"sha256": "6031b9d151b60d76ee8dd06eee87a452f950c398af5c1e99da49b15106494725"
+				},
+				{
+					"id": "normal-base-input",
+					"rgb_mae": 2.4527083333333333,
+					"rgb_rmse": 3.136039759054462,
+					"rgb_max": 11,
+					"changed_pixels_vs_baseline": 51670,
+					"sha256": "e7263cbfd8b0a3c80944f51a53dc425505b5084eb734ebf1d1d66e91e459cc16"
+				},
+				{
+					"id": "obsolete-channel-widths",
+					"rgb_mae": 2.5036805555555555,
+					"rgb_rmse": 5.655756449717272,
+					"rgb_max": 46,
+					"changed_pixels_vs_baseline": 45122,
+					"sha256": "28e52c5ee3127708aa6acddc35ffa27d2fd13f80ce4e2d9e5b1e2305cf30d0ef"
+				},
+				{
+					"id": "unbound-filter-lut",
+					"rgb_mae": 4.720283564814815,
+					"rgb_rmse": 7.625024666019606,
+					"rgb_max": 47,
+					"changed_pixels_vs_baseline": 44385,
+					"sha256": "378b690f86f83a7f00c7856375333e83e0979bb79d00d493c9c9350868f33b9d"
+				},
+				{
+					"id": "unit-layer-scale",
+					"rgb_mae": 0.7441377314814814,
+					"rgb_rmse": 1.5423027966863923,
+					"rgb_max": 13,
+					"changed_pixels_vs_baseline": 33929,
+					"sha256": "68f84940e005423e34dc5072c352cf1ce4404cae3f20d26872b566a9b86d28a5"
+				},
+				{
+					"id": "zero-glow-dither",
+					"rgb_mae": 0.2213136574074074,
+					"rgb_rmse": 0.5991940961114477,
+					"rgb_max": 9,
+					"changed_pixels_vs_baseline": 17448,
+					"sha256": "29013492f9abd6e5e2a975664011846ec0346b708fe663a62aab831e162c8600"
+				}
+			]
+		},
+		{
+			"name": "offaxis-257x145",
+			"width": 257,
+			"height": 145,
+			"intensity": 1,
+			"input_sha256": "f8a5c76ce4bc0a224f2de0da306a6d854707f3dd7ca3d3bc99da3d209a035179",
+			"reference_sha256": "cbdc1dd0c4a65a5bdca6aecb686c8d3f7f87d7420735bc106dca123bd3bd0180",
+			"results": [
+				{
+					"id": "baseline",
+					"rgb_mae": 0.04095889798291516,
+					"rgb_rmse": 0.22586060943274625,
+					"rgb_max": 5,
+					"changed_pixels_vs_baseline": 0,
+					"sha256": "38bb93028fae7201eb25145d3f788f8acbc7aa8a6077af028cae5f9812b826f2"
+				},
+				{
+					"id": "export-lut-opacity",
+					"rgb_mae": 0.3028042399033946,
+					"rgb_rmse": 0.5910312580819022,
+					"rgb_max": 6,
+					"changed_pixels_vs_baseline": 26456,
+					"sha256": "a9ac8c7d635cb8e6f1d321db291e83d9603a1a4b13e575b19c71200a83f41335"
+				},
+				{
+					"id": "export-threshold",
+					"rgb_mae": 0.5912518448946733,
+					"rgb_rmse": 1.337955448423823,
+					"rgb_max": 10,
+					"changed_pixels_vs_baseline": 14116,
+					"sha256": "97344b290a3cbc21476bf384f78f5b20d1588d5fa3b0228c326f8bb19fdc3b89"
+				},
+				{
+					"id": "flipped-lut-y",
+					"rgb_mae": 78.59841674493492,
+					"rgb_rmse": 96.62117783334905,
+					"rgb_max": 126,
+					"changed_pixels_vs_baseline": 37265,
+					"sha256": "28373c4fdf7b93b78ca3ad3447a7ad67943c61e65246345d2f782191c0e7fb04"
+				},
+				{
+					"id": "no-inverse-gamma",
+					"rgb_mae": 0.9220448141687911,
+					"rgb_rmse": 1.8416056169188117,
+					"rgb_max": 12,
+					"changed_pixels_vs_baseline": 13936,
+					"sha256": "8839473606da4fa2f1dbaba49b1112047b2d5b9822cd3641bdf280399ac7d8dc"
+				},
+				{
+					"id": "normal-base-input",
+					"rgb_mae": 2.779623417863053,
+					"rgb_rmse": 3.0732168984217973,
+					"rgb_max": 8,
+					"changed_pixels_vs_baseline": 36660,
+					"sha256": "17ed04f50894a05eee2144277dfe2580a09af238320831d23f3418d3ba972c20"
+				},
+				{
+					"id": "obsolete-channel-widths",
+					"rgb_mae": 1.0395277069636388,
+					"rgb_rmse": 2.758600228020183,
+					"rgb_max": 27,
+					"changed_pixels_vs_baseline": 19361,
+					"sha256": "8ad2ab709bbbc9b527e8253dcdfbc691d44729a087bd5929b2e18173ac2e1954"
+				},
+				{
+					"id": "unbound-filter-lut",
+					"rgb_mae": 0.805474305648732,
+					"rgb_rmse": 1.571129119613309,
+					"rgb_max": 13,
+					"changed_pixels_vs_baseline": 34830,
+					"sha256": "32c797d1511a4d7ddb1e9c30dafff4ddf950a89033281dc76226fdfb85197c94"
+				},
+				{
+					"id": "unit-layer-scale",
+					"rgb_mae": 0.31944183550248223,
+					"rgb_rmse": 1.078069778344076,
+					"rgb_max": 14,
+					"changed_pixels_vs_baseline": 8200,
+					"sha256": "86a99e15d0af167c0dc0336ab2a9dacb6aaa6bbb8f64b0545651176e7c501745"
+				},
+				{
+					"id": "zero-glow-dither",
+					"rgb_mae": 0.28588040610045173,
+					"rgb_rmse": 0.7192509185292564,
+					"rgb_max": 8,
+					"changed_pixels_vs_baseline": 10369,
+					"sha256": "96a2b89464c29fd53c8354d0ed2f14490185e1b71005d86c1447e03380ec61c2"
+				}
+			]
+		},
+		{
+			"name": "ramp-321x181",
+			"width": 321,
+			"height": 181,
+			"intensity": 1,
+			"input_sha256": "424f75cd163174bb21b679a96d1be7dd8e1f7aa35111397a092778db3c333975",
+			"reference_sha256": "0187508ed7c4b135dd10b4fb66619c213fa21f3433241898b28aa655f60654a4",
+			"results": [
+				{
+					"id": "baseline",
+					"rgb_mae": 0.020630740721616955,
+					"rgb_rmse": 0.14796253113933847,
+					"rgb_max": 4,
+					"changed_pixels_vs_baseline": 0,
+					"sha256": "93d5d37c663cd342bdc4619fd4ae691b05dd0890aa0837749af59598b73b39e8"
+				},
+				{
+					"id": "export-lut-opacity",
+					"rgb_mae": 1.401134805482407,
+					"rgb_rmse": 1.9630909257889226,
+					"rgb_max": 7,
+					"changed_pixels_vs_baseline": 45837,
+					"sha256": "e0c80168cfda8527f8a7d1b13f5f4d28cdf3d71602eccf1ef3e77eadb15c5e3d"
+				},
+				{
+					"id": "export-threshold",
+					"rgb_mae": 0.6660470559887093,
+					"rgb_rmse": 1.4226669420814249,
+					"rgb_max": 20,
+					"changed_pixels_vs_baseline": 24536,
+					"sha256": "f8d76623d959a897525eefc20c3fbbda41aee68b698badbee20fd197666b43c7"
+				},
+				{
+					"id": "flipped-lut-y",
+					"rgb_mae": 56.90641010194891,
+					"rgb_rmse": 74.05085835897688,
+					"rgb_max": 131,
+					"changed_pixels_vs_baseline": 58101,
+					"sha256": "576f0ededfc05b0c5cf3a6c2f3689bfbb2a39fb53b409ba2be6d008b8beb0b0c"
+				},
+				{
+					"id": "no-inverse-gamma",
+					"rgb_mae": 0.15279714061146393,
+					"rgb_rmse": 0.6701643158275884,
+					"rgb_max": 11,
+					"changed_pixels_vs_baseline": 8169,
+					"sha256": "d78056f22408c85fde2c34956833f766d027e0260c3502a0d25a9bb0f114a76c"
+				},
+				{
+					"id": "normal-base-input",
+					"rgb_mae": 2.95780910253983,
+					"rgb_rmse": 3.3875481324552985,
+					"rgb_max": 8,
+					"changed_pixels_vs_baseline": 56137,
+					"sha256": "1d167fbe861cc1757956e4a9513b34642cfa9e610980784f97d76c7bf1e058cc"
+				},
+				{
+					"id": "obsolete-channel-widths",
+					"rgb_mae": 0.46286065070595456,
+					"rgb_rmse": 1.7134599142081512,
+					"rgb_max": 30,
+					"changed_pixels_vs_baseline": 21133,
+					"sha256": "76bdd6cbd7019e0252321096284e2ef4f7f80d5e1ea391247a6830f0c867e1a6"
+				},
+				{
+					"id": "unbound-filter-lut",
+					"rgb_mae": 6.899146887890627,
+					"rgb_rmse": 9.51691078293874,
+					"rgb_max": 30,
+					"changed_pixels_vs_baseline": 50513,
+					"sha256": "bc59c75eebff12b297ac251701d522f8be76875625972bd8a571c427d1d55b41"
+				},
+				{
+					"id": "unit-layer-scale",
+					"rgb_mae": 0.2768741788724233,
+					"rgb_rmse": 0.5667950795914446,
+					"rgb_max": 5,
+					"changed_pixels_vs_baseline": 24047,
+					"sha256": "03a1956e971c2f789a2bbf34be3c8dc0c20a271e0973d1c201d3389d67b012d1"
+				},
+				{
+					"id": "zero-glow-dither",
+					"rgb_mae": 0.034629352334727456,
+					"rgb_rmse": 0.2039466482338963,
+					"rgb_max": 6,
+					"changed_pixels_vs_baseline": 2342,
+					"sha256": "245304f565fdfb35d9efc3ef3ced89709a9a60cb9bae249e43b047eff6c59aa4"
+				}
+			]
+		}
+	],
+	"probe_source_sha256": "f997cfecd94b4f77e19e605ec905c50d2047d4b08f846c5657adfea42bbea611",
+	"probe_binary_sha256": "8ee7145f42d4e68f9d0c7ac3efd7bd266cec43502486236be23ae44928bb15b6",
+	"private_reproduction_directory": "/Users/peter/Downloads/QCut-Soft-Glow-Semantics-2026-09-06"
+}

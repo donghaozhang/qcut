@@ -24,9 +24,8 @@ describeOnMac("video-object CoreML tensor preprocessing", () => {
 
 	it("compiles and verifies color, temporal-state, reset, and raw Alpha contracts", async () => {
 		const nativeDirectory = path.resolve(
-			"electron",
-			"jianying-person-cutout",
-			"native"
+			__dirname,
+			"../jianying-person-cutout/native"
 		);
 		const executablePath = path.join(
 			temporaryDirectory,

@@ -67,9 +67,26 @@ describe("compose snapshot", () => {
 			projectId: "project-e2e",
 			snapshotId: "snapshot-e2e",
 			createdAt: "2026-08-30T00:00:00.000Z",
+			discoverResources: vi.fn().mockResolvedValue({
+				resources: [],
+				warnings: [],
+				capabilities: {
+					resourceBroker: true,
+					jianyingLocalTransitions: false,
+				},
+			}),
+			analyzeMedia: vi.fn().mockResolvedValue({
+				beats: [{ id: "beat", timestamp: 2 }],
+				shots: [
+					{ id: "shot", startTime: 0, duration: 5, label: "A wide stage" },
+				],
+				warnings: [],
+			}),
 		});
 
 		expect(snapshot.project.duration).toBe(10);
+		expect(snapshot.beats).toEqual([{ id: "beat", timestamp: 2 }]);
+		expect(snapshot.shots[0]).toMatchObject({ label: "A wide stage" });
 		expect(snapshot.media).toEqual([
 			{
 				id: "media-dance",

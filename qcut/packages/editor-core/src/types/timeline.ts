@@ -889,6 +889,9 @@ export interface JianyingTextStyleReference {
 }
 
 export interface TextElement extends BaseTimelineElement {
+	textTemplateId?: string;
+	stylePresetId?: string;
+	language?: string;
 	type: "text";
 	content: string;
 	fontSize: number;

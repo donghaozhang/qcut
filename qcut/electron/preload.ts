@@ -13,6 +13,11 @@ import {
 	type IpcRendererEvent,
 } from "electron";
 import type { AudioSettings } from "./ffmpeg/audio-settings";
+import {
+	QCUT_FILTER_LOAD,
+	QCUT_FILTER_RENDER,
+	QCUT_FILTER_LIST,
+} from "./qcut-independent-filter/contract.js";
 import type {
 	AudioWaveformOptions,
 	AudioWaveformResult,
@@ -237,6 +242,11 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 			ipcRenderer.invoke(JIANYING_TRANSITION_RENDER_CHANNEL, request),
 		renderTimeline: (request) =>
 			ipcRenderer.invoke(JIANYING_TRANSITION_RENDER_TIMELINE_CHANNEL, request),
+	},
+	qcutIndependentFilter: {
+		load: (request) => ipcRenderer.invoke(QCUT_FILTER_LOAD, request),
+		list: (request) => ipcRenderer.invoke(QCUT_FILTER_LIST, request),
+		render: (request) => ipcRenderer.invoke(QCUT_FILTER_RENDER, request),
 	},
 	jianyingFilterLab: {
 		list: (request) =>

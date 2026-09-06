@@ -85,6 +85,8 @@ export interface ComposeSnapshotProject {
 export type ComposeSnapshotMediaKind = "video" | "audio" | "image";
 
 export interface ComposeSnapshotMedia {
+	trimEnd?: number;
+	playbackRate?: number;
 	id: string;
 	kind: ComposeSnapshotMediaKind;
 	trackId: string;
@@ -188,21 +190,33 @@ export interface ComposeBasePatchOperation {
 	reason?: string;
 }
 
-export interface ComposeAddCaptionOperation extends ComposeBasePatchOperation {
+export interface ComposeTextResources {
+	font?: ComposeAssetReference;
+	fancyWord?: ComposeAssetReference;
+	textAnimation?: ComposeAssetReference;
+}
+
+export interface ComposeAddCaptionOperation
+	extends ComposeBasePatchOperation,
+		ComposeTextResources {
 	kind: "add-caption";
 	text: string;
 	language: string;
 	confidence?: number;
 	wordIds?: string[];
 	stylePresetId?: string;
+	textTemplateId?: string;
+	asset?: ComposeAssetReference;
 }
 
 export interface ComposeAddTextOverlayOperation
-	extends ComposeBasePatchOperation {
+	extends ComposeBasePatchOperation,
+		ComposeTextResources {
 	kind: "add-text-overlay";
 	sourceCaptionId?: string;
 	text: string;
 	textTemplateId: string;
+	stylePresetId?: string;
 	asset?: ComposeAssetReference;
 }
 

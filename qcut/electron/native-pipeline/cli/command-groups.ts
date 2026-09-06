@@ -136,6 +136,8 @@ export const COMMAND_GROUPS: CommandGroup[] = [
 			list: "filter-lab-list",
 			catalog: "filter-lab-catalog",
 			render: "filter-lab-render",
+			"render-independent": "filter-lab-render-independent",
+			"catalog-independent": "filter-lab-catalog-independent",
 			apply: "filter-lab-render",
 			pipeline: "filter-lab-pipeline",
 			compare: "filter-lab-compare",

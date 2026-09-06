@@ -1,3 +1,4 @@
+import { sanitizeResourceOperation } from "./compose-model-resource-operations.js";
 import type {
 	ComposeAssetReference,
 	ComposeAssetType,
@@ -12,6 +13,9 @@ const KNOWN_OPERATION_KINDS = new Set([
 	"add-sound-effect",
 	"update-media-zoom",
 	"upsert-transition",
+	"set-media-filter-stack",
+	"add-filter-layer",
+	"insert-media-clip",
 ]);
 const BUILTIN_TRANSITION_PRESETS = new Set(["crossfade", "dissolve"]);
 const STICKER_ANIMATION_IN_TYPES = new Set([
@@ -112,6 +116,7 @@ function portableAssetReference({
 		provider: resource.provider,
 		assetType: resource.assetType,
 		assetId: resource.assetId,
+		...(resource.tags ? { tags: resource.tags } : {}),
 		...(resource.displayName ? { displayName: resource.displayName } : {}),
 		...(resource.duration !== undefined ? { duration: resource.duration } : {}),
 		...(resource.license ? { license: resource.license } : {}),
@@ -395,25 +400,25 @@ function sanitizeOperation({
 }): ComposePatchOperation | undefined {
 	const base = sanitizeBase({ operation, index, context });
 	if (!base) return;
+	if (
+		[
+			"add-caption",
+			"add-text-overlay",
+			"set-media-filter-stack",
+			"add-filter-layer",
+			"insert-media-clip",
+		].includes(base.kind)
+	) {
+		return sanitizeResourceOperation({
+			operation,
+			base,
+			resolveAsset: (input) =>
+				resolveAllowedAsset({ ...input, resources: context.resources }),
+			targetExists: (input) => targetExists({ ...input, context }),
+		});
+	}
 
 	switch (base.kind) {
-		case "add-caption": {
-			const text = stringField({ record: operation, key: "text" });
-			const language = stringField({ record: operation, key: "language" });
-			return text && language
-				? { ...base, kind: "add-caption", text, language }
-				: undefined;
-		}
-		case "add-text-overlay": {
-			const text = stringField({ record: operation, key: "text" });
-			const textTemplateId = stringField({
-				record: operation,
-				key: "textTemplateId",
-			});
-			return text && textTemplateId
-				? { ...base, kind: "add-text-overlay", text, textTemplateId }
-				: undefined;
-		}
 		case "add-sticker":
 			return sanitizeSticker({ operation, base, context });
 		case "add-sound-effect":

@@ -9,7 +9,10 @@ import type {
 	JianyingFilterLabLoadRendererResult,
 } from "../../../../../electron/jianying-filter-lab-contract";
 
+import type { IndependentFilterAPI } from "../../../../../electron/qcut-independent-filter/contract";
+
 export interface ElectronJianyingFilterLabOps {
+	qcutIndependentFilter?: IndependentFilterAPI;
 	jianyingFilterLab?: JianyingFilterLabAPI;
 }
 

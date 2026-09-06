@@ -23,9 +23,8 @@ describeOnMac("TEMattingBlendEffectV2 frame contract", () => {
 
 	it("accepts low-resolution Alpha and enforces source Alpha bounds", async () => {
 		const nativeDirectory = path.resolve(
-			"electron",
-			"jianying-person-cutout",
-			"native"
+			__dirname,
+			"../jianying-person-cutout/native"
 		);
 		const executablePath = path.join(
 			temporaryDirectory,
