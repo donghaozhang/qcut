@@ -60,6 +60,13 @@ export interface JianyingFilterCatalogCard {
 	tiledRendererKind?: string;
 	multiPassKind?: string;
 	multiPassCount?: number;
+	independentKind?:
+		| "fog"
+		| "lut"
+		| "sharpen"
+		| "vignette"
+		| "direct"
+		| "soften";
 }
 
 export interface JianyingFilterCatalogExport {
