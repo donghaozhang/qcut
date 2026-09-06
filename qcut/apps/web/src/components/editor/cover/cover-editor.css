@@ -241,7 +241,6 @@
 	accent-color: #41cdbd;
 	min-width: 40px;
 }
-.cover-text-geometry,
 .cover-crop-controls {
 	display: flex;
 	flex-wrap: wrap;
@@ -251,18 +250,13 @@
 	font-size: 11px;
 	color: #ccc;
 }
-.cover-text-geometry label,
 .cover-crop-controls label {
 	display: flex;
 	align-items: center;
 	gap: 6px;
 }
-.cover-text-geometry input[type="range"],
 .cover-crop-controls input {
 	width: 85px;
-}
-.cover-text-geometry input[type="number"] {
-	width: 56px;
 }
 .cover-stage {
 	position: relative;
@@ -445,6 +439,37 @@
 	display: flex;
 	gap: 8px;
 }
+@media (min-width: 641px) {
+	.cover-text-toolbar textarea {
+		display: block;
+		height: 28px;
+		padding: 4px 6px;
+	}
+	.cover-toolbar-row {
+		gap: 4px;
+		margin-top: 4px;
+	}
+	.cover-text-toolbar .cover-tool {
+		width: 26px;
+		height: 26px;
+	}
+	.cover-text-toolbar select {
+		max-width: 132px;
+		height: 26px;
+	}
+	.cover-text-toolbar .cover-number {
+		width: 54px;
+		height: 26px;
+	}
+	.cover-filmstrip {
+		height: 44px;
+		margin-top: 4px;
+	}
+	.cover-source-strip {
+		margin-top: 4px;
+		padding-top: 4px;
+	}
+}
 @media (max-width: 1050px) {
 	.cover-workarea {
 		grid-template-columns: 300px minmax(0, 1fr);
@@ -509,10 +534,6 @@
 	.cover-text-toolbar textarea {
 		height: 34px;
 	}
-	.cover-text-geometry {
-		gap: 6px;
-	}
-	.cover-text-geometry input[type="range"],
 	.cover-crop-controls input {
 		width: 68px;
 	}
