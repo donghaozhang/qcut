@@ -191,8 +191,7 @@ export async function loadIndependentGraph({
 			)
 		);
 		const [cube, skinCube] = cubes;
-		if (!cube || !skinCube || cube.size !== skinCube.size)
-			throw new Error("Invalid dual LUT dimensions.");
+		if (!cube || !skinCube) throw new Error("Invalid dual LUT dimensions.");
 		return { profile, cube, skinCube };
 	}
 	if (profile.maskInvariant) {
@@ -294,19 +293,20 @@ export function encodeIndependentGraph({
 	let dualBytes = Buffer.alloc(0);
 	if (dual && graph.skinCube) {
 		if (
-			graph.skinCube.size !== graph.cube.size ||
-			![dual.backgroundStrength, dual.skinStrength].every(
+			![dual.backgroundStrength, dual.skinStrength, dual.sharpen ?? 0].every(
 				(value) => Number.isFinite(value) && value >= 0 && value <= 1
 			)
 		)
 			throw new Error("Invalid dual LUT configuration.");
 		const sampling = ["vf", "tiled", "tiled-floor"].indexOf(dual.format);
 		if (sampling < 0) throw new Error("Unknown dual LUT sampling.");
-		const config = Buffer.alloc(16);
+		const config = Buffer.alloc(24);
 		config.writeFloatLE(dual.backgroundStrength, 0);
 		config.writeFloatLE(dual.skinStrength, 4);
 		config.writeUInt32LE(sampling, 8);
 		config.writeUInt32LE(dual.clampAlpha ? 1 : 0, 12);
+		config.writeFloatLE(dual.sharpen ?? 0, 16);
+		config.writeUInt32LE(graph.skinCube.size, 20);
 		dualBytes = Buffer.concat([
 			config,
 			encodeIndependentCube({ cube: graph.skinCube }),
