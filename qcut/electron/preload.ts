@@ -13,7 +13,10 @@ import {
 	type IpcRendererEvent,
 } from "electron";
 import type { AudioSettings } from "./ffmpeg/audio-settings";
-import { JIANYING_COVER_LIST_CHANNEL } from "./jianying-cover-contract";
+import {
+	JIANYING_COVER_LIST_CHANNEL,
+	JIANYING_COVER_LAYOUT_CHANNEL,
+} from "./jianying-cover-contract";
 import type {
 	AudioWaveformOptions,
 	AudioWaveformResult,
@@ -347,6 +350,8 @@ const electronAPI: ElectronAPI & Record<string, unknown> = {
 	},
 	jianyingCover: {
 		list: () => ipcRenderer.invoke(JIANYING_COVER_LIST_CHANNEL),
+		prepareTextLayout: (request) =>
+			ipcRenderer.invoke(JIANYING_COVER_LAYOUT_CHANNEL, request),
 	},
 	jianyingFontLab: {
 		list: (request) =>
