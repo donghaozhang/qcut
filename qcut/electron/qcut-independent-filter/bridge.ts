@@ -34,7 +34,7 @@ export async function compileIndependentFilterHost({
 	try {
 		const shader = (
 			await Promise.all(
-				["fog.metal", "graph.metal"].map((name) =>
+				["fog.metal", "graph.metal", "dual.metal"].map((name) =>
 					readFile(join(source, name), "utf8")
 				)
 			)
@@ -102,8 +102,8 @@ async function resolveHost() {
 			"QCut Metal filter host is not installed. Rebuild QCut with its independent filter host."
 		);
 	const sources = await Promise.all(
-		["host.mm", "fog.metal", "graph.metal", "graph-plan.h"].map((name) =>
-			readFile(join(root, SOURCE, name))
+		["host.mm", "fog.metal", "graph.metal", "graph-plan.h", "dual.metal"].map(
+			(name) => readFile(join(root, SOURCE, name))
 		)
 	);
 	const fingerprint = createHash("sha256")
@@ -112,6 +112,7 @@ async function resolveHost() {
 		.update(sources[1])
 		.update(sources[2])
 		.update(sources[3])
+		.update(sources[4])
 		.digest("hex");
 	const outputPath = join(
 		homedir(),
