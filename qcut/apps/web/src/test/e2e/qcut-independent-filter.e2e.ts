@@ -160,24 +160,29 @@ test.describe("QCut independent Metal filter", () => {
 				.poll(() => readEffect({ page }))
 				.toMatchObject({ nativeEffect: { provider: "qcut-metal-fog-v1" } });
 			const lutExports = [];
-			if (process.env.QCUT_INDEPENDENT_LUT_E2E === "1") {
+			const graphTest = process.env.QCUT_INDEPENDENT_GRAPH_E2E === "1";
+			if (process.env.QCUT_INDEPENDENT_LUT_E2E === "1" || graphTest) {
 				const library = page.getByTestId("independent-lut-library");
-				await expect(library.getByRole("status")).toContainText("本地 LUT", {
+				await expect(library.getByRole("status")).toContainText("本地滤镜", {
 					timeout: 60_000,
 				});
 				const cards = await page.evaluate(
 					async () =>
 						(await window.electronAPI!.qcutIndependentFilter!.list()).cards
 				);
-				const selected = [
-					cards.find((card) => card.implementation === "single-lut")!,
-					cards.find((card) => card.tiledRendererKind === "tiled-lut-8x8")!,
-					cards.find(
-						(card) =>
-							card.implementation === "single-lut" &&
-							card.categories.includes("黑白")
-					)!,
-				];
+				const selected = graphTest
+					? ["sharpen", "vignette", "soften", "direct"].map(
+							(kind) => cards.find((card) => card.independentKind === kind)!
+						)
+					: [
+							cards.find((card) => card.implementation === "single-lut")!,
+							cards.find((card) => card.tiledRendererKind === "tiled-lut-8x8")!,
+							cards.find(
+								(card) =>
+									card.implementation === "single-lut" &&
+									card.categories.includes("黑白")
+							)!,
+						];
 				expect(selected.every(Boolean)).toBe(true);
 				await library.getByRole("button", { name: "下一页 LUT" }).click();
 				await expect(
@@ -206,7 +211,9 @@ test.describe("QCut independent Metal filter", () => {
 						.poll(() => readEffect({ page }), { timeout: 60_000 })
 						.toMatchObject({
 							nativeEffect: {
-								provider: "qcut-metal-lut-v1",
+								provider: graphTest
+									? "qcut-metal-graph-v1"
+									: "qcut-metal-lut-v1",
 								resourceId: card.resourceId,
 							},
 							intensity: 100,
@@ -235,8 +242,8 @@ test.describe("QCut independent Metal filter", () => {
 					.poll(() => readEffect({ page }), { timeout: 30_000 })
 					.toMatchObject({
 						nativeEffect: {
-							provider: "qcut-metal-lut-v1",
-							resourceId: selected[2].resourceId,
+							provider: graphTest ? "qcut-metal-graph-v1" : "qcut-metal-lut-v1",
+							resourceId: selected.at(-1)!.resourceId,
 						},
 					});
 				await expectRenderedPreview({ page });
