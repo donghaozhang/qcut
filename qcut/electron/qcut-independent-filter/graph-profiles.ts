@@ -5,7 +5,7 @@ import { INDEPENDENT_INVARIANT_PROFILES } from "./graph-profiles-invariant.js";
 import { HYBRID_DUAL_PROFILES } from "./graph-profiles-dual.js";
 
 export interface DualLutProfile {
-	format: "vf" | "tiled" | "tiled-floor";
+	format: "vf" | "adobe-3dl" | "tiled" | "tiled-floor";
 	backgroundPath: string;
 	skinPath: string;
 	backgroundStrength: number;
