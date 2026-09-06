@@ -13,6 +13,9 @@
 struct Parameters { float width; float height; float strength; uint32_t stage; };
 struct FrameHeader { uint32_t width; uint32_t height; float strength; };
 struct GraphConfig { uint32_t kind; uint32_t alphaWeighted; float corner; uint32_t overlayWidth; uint32_t overlayHeight; uint32_t detailVariant; };
+struct DualConfig { float backgroundStrength; float skinStrength; uint32_t sampling; uint32_t clampAlpha; };
+struct MaskHeader { uint32_t width; uint32_t height; };
+static_assert(sizeof(DualConfig) == 16);
 static_assert(sizeof(GraphConfig) == 24);
 static_assert(sizeof(Parameters) == 16);
 static_assert(sizeof(FrameHeader) == 12);
@@ -66,13 +69,19 @@ int main(int argc, const char* argv[]) {
             GraphConfig graph{};
             if (graphMode) {
                 readExact(&graph, sizeof(graph));
-                if (graph.kind > 10 || graph.alphaWeighted > 1 || !std::isfinite(graph.corner) ||
+                if (graph.kind > 11 || graph.alphaWeighted > 1 || !std::isfinite(graph.corner) ||
                     graph.corner < 0 || graph.corner > 1 || graph.detailVariant > 1 ||
                     (graph.kind != 4 && graph.detailVariant) ||
                     graph.overlayWidth > 4096 || graph.overlayHeight > 4096 ||
                     (graph.kind == 2 && (!graph.overlayWidth || !graph.overlayHeight)) ||
                     (graph.kind != 2 && (graph.overlayWidth || graph.overlayHeight)))
                     throw std::runtime_error("Invalid independent graph configuration");
+            }
+            const bool dualMode = graphMode && graph.kind == 11;
+            if (dualMode) {
+                descriptor.fragmentFunction = [library newFunctionWithName:@"dualFrame"];
+                pipeline = [device newRenderPipelineStateWithDescriptor:descriptor error:&error];
+                if (!pipeline) throw std::runtime_error(error.localizedDescription.UTF8String);
             }
             std::vector<uint8_t> lutBytes(cubeMode ? size_t(cubeSize) * cubeSize * cubeSize * 16 : 512 * 512 * 4);
             readExact(lutBytes.data(), lutBytes.size());
@@ -92,6 +101,27 @@ int main(int argc, const char* argv[]) {
                 lut = makeTexture(device, 512, 512);
                 [lut replaceRegion:MTLRegionMake2D(0, 0, 512, 512) mipmapLevel:0
                     withBytes:lutBytes.data() bytesPerRow:512 * 4];
+            }
+            DualConfig dual{};
+            id<MTLTexture> skinLut;
+            id<MTLTexture> skinMask;
+            if (dualMode) {
+                readExact(&dual, sizeof(dual));
+                if (!std::isfinite(dual.backgroundStrength) || !std::isfinite(dual.skinStrength) ||
+                    dual.backgroundStrength < 0 || dual.backgroundStrength > 1 ||
+                    dual.skinStrength < 0 || dual.skinStrength > 1 || dual.sampling > 2 || dual.clampAlpha > 1)
+                    throw std::runtime_error("Invalid dual LUT configuration");
+                readExact(lutBytes.data(), lutBytes.size());
+                auto skinDescriptor = [MTLTextureDescriptor new];
+                skinDescriptor.textureType = MTLTextureType3D;
+                skinDescriptor.pixelFormat = MTLPixelFormatRGBA32Float;
+                skinDescriptor.width = cubeSize; skinDescriptor.height = cubeSize; skinDescriptor.depth = cubeSize;
+                skinDescriptor.storageMode = MTLStorageModeShared;
+                skinDescriptor.usage = MTLTextureUsageShaderRead;
+                skinLut = [device newTextureWithDescriptor:skinDescriptor];
+                if (!skinLut) throw std::runtime_error("Metal skin LUT allocation failed");
+                [skinLut replaceRegion:MTLRegionMake3D(0, 0, 0, cubeSize, cubeSize, cubeSize) mipmapLevel:0 slice:0
+                    withBytes:lutBytes.data() bytesPerRow:cubeSize * 16 bytesPerImage:cubeSize * cubeSize * 16];
             }
             id<MTLTexture> overlay = makeTexture(device, graph.overlayWidth ? graph.overlayWidth : 1,
                                                 graph.overlayHeight ? graph.overlayHeight : 1);
@@ -124,6 +154,24 @@ int main(int argc, const char* argv[]) {
                         throw std::runtime_error("Invalid frame dimensions or intensity (maximum 1080p)");
                     std::vector<uint8_t> bytes(pixels * 4);
                     readExact(bytes.data(), bytes.size());
+                    if (dualMode) {
+                        MaskHeader maskHeader;
+                        readExact(&maskHeader, sizeof(maskHeader));
+                        if (!maskHeader.width || !maskHeader.height || maskHeader.width > 2048 || maskHeader.height > 2048)
+                            throw std::runtime_error("Invalid skin mask dimensions");
+                        std::vector<uint8_t> maskBytes(size_t(maskHeader.width) * maskHeader.height);
+                        readExact(maskBytes.data(), maskBytes.size());
+                        if (!skinMask || skinMask.width != maskHeader.width || skinMask.height != maskHeader.height) {
+                            auto maskDescriptor = [MTLTextureDescriptor texture2DDescriptorWithPixelFormat:MTLPixelFormatR8Unorm
+                                width:maskHeader.width height:maskHeader.height mipmapped:NO];
+                            maskDescriptor.storageMode = MTLStorageModeShared;
+                            maskDescriptor.usage = MTLTextureUsageShaderRead;
+                            skinMask = [device newTextureWithDescriptor:maskDescriptor];
+                            if (!skinMask) throw std::runtime_error("Metal mask allocation failed");
+                        }
+                        [skinMask replaceRegion:MTLRegionMake2D(0, 0, maskHeader.width, maskHeader.height) mipmapLevel:0
+                            withBytes:maskBytes.data() bytesPerRow:maskHeader.width];
+                    }
                     if (header.strength == 0) {
                         std::cout.write(reinterpret_cast<const char*>(bytes.data()), bytes.size()).flush();
                         if (!std::cout) throw std::runtime_error("Output stream closed");
@@ -159,6 +207,11 @@ int main(int argc, const char* argv[]) {
                             [encoder setFragmentBytes:&graph length:sizeof(graph) atIndex:1];
                             [encoder setFragmentTexture:overlay atIndex:2];
                             [encoder setFragmentTexture:(stage.base < 0 ? original : stages[stage.base]) atIndex:3];
+                        }
+                        if (dualMode) {
+                            [encoder setFragmentBytes:&dual length:sizeof(dual) atIndex:2];
+                            [encoder setFragmentTexture:skinLut atIndex:4];
+                            [encoder setFragmentTexture:skinMask atIndex:5];
                         }
                         [encoder setFragmentSamplerState:sampler atIndex:0];
                         [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];
