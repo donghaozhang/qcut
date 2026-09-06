@@ -28,8 +28,10 @@
 [第二批新增 13 张与全量回归](independent-complex-batch2-2026-09-06.zh.md)，以及
 [第三批 6 张、等价双 LUT 与库存审计](independent-complex-batch3-2026-09-06.zh.md)。
 混合路径首批见 [57 张双 LUT：保留本地模型](hybrid-dual-lut-batch-2026-09-06.zh.md)，
-最新进展见 [第二批新增 43 张：锐化、不同尺寸 LUT 与真实运动测试](hybrid-dual-sharpen-batch2-2026-09-06.zh.md)：
-完全独立 713 张，混合路径 100 张，QCut Metal 共 813 张，剩余迁移 79 张，其中 4 张缺包。
+[第二批新增 43 张：锐化、不同尺寸 LUT 与真实运动测试](hybrid-dual-sharpen-batch2-2026-09-06.zh.md)，
+以及最新[第三批新增 17 张：文本 3DL、完整场景图和三张灰图失败](hybrid-dual-3dl-batch3-2026-09-06.zh.md)：
+完全独立 713 张，混合路径 117 张，QCut Metal 共 830 张，剩余迁移 62 张，其中 4 张缺包。
+第三批 20 张候选中，青提、亮肤、烘培因灰图门禁失败暂缓；不算完成，也不放宽门禁。
 混合路径仍通过剪映私有运行时取得 mask，不计为完全独立，也未新增逐卡 UI verified 结论。
 新增 `QCut Metal` 界面入口和 `filter-lab render-independent`，保留旧剪映后端与命令。
 首张支持迷雾；同解码链的 30 帧视频对照一致，编辑器与 CLI 的完整编解码输出仍有已量化差异。
