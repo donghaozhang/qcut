@@ -16,6 +16,7 @@ import { useTranslation } from "@/lib/i18n";
 import { activateCoverControl } from "./cover-tool";
 import { CoverPrivateLibrary } from "./cover-private-library";
 import { CoverTextStyleLibrary } from "./cover-text-style-library";
+import { usePrivateCoverLayout } from "./use-private-cover-layout";
 
 function CoverTemplateCard({
 	template,
@@ -112,6 +113,14 @@ export function CoverTemplateBrowser({
 	const [mode, setMode] = useState("templates");
 	const [library, setLibrary] = useState("jianying");
 	const [category, setCategory] = useState("all");
+	const privateLayout = usePrivateCoverLayout({
+		design,
+		disabled,
+		projectId,
+		onEdit,
+		onSelect,
+		onError,
+	});
 	const imageLayer = design?.layers[0];
 	const canvas = design?.canvas;
 	const source = design?.source;
@@ -187,6 +196,10 @@ export function CoverTemplateBrowser({
 			{mode === "templates" && library === "jianying" ? (
 				<CoverPrivateLibrary
 					disabled={disabled || !design}
+					importing={privateLayout.importing}
+					onApply={(packageHash) => {
+						void privateLayout.apply({ packageHash });
+					}}
 					onClear={() => {
 						if (!design) return;
 						try {
