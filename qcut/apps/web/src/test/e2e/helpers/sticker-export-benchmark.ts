@@ -2,9 +2,9 @@
  * Reproducible sticker export benchmark harness.
  *
  * Every scenario exports the same background clip; only the stickers differ —
- * none, one static, three overlapping static, and one animated (direct-GIF
- * runtime) sticker. That makes the control a true baseline for the sticker
- * pipeline's own cost.
+ * none, one static, three overlapping static, one animated, and six independent
+ * animated runtime stickers. That makes the control a true baseline and gives
+ * preparation concurrency a production export workload.
  *
  * The report records the renderer's wall time, the sticker profiler stages
  * (`sticker-timeline`, `sticker-overlay`), per-frame percentiles, resource
@@ -68,7 +68,8 @@ export type StickerScenarioName =
 	| "no-stickers"
 	| "single-static"
 	| "three-overlapping"
-	| "animated-runtime";
+	| "animated-runtime"
+	| "six-animated-runtime";
 
 /**
  * Normalized placements. The three-overlapping case deliberately overlaps so
@@ -78,6 +79,9 @@ export const STICKER_PLACEMENTS = [
 	{ x: 30, y: 30, width: 26, height: 26 },
 	{ x: 42, y: 38, width: 26, height: 26 },
 	{ x: 54, y: 46, width: 26, height: 26 },
+	{ x: 66, y: 54, width: 22, height: 22 },
+	{ x: 38, y: 66, width: 22, height: 22 },
+	{ x: 58, y: 72, width: 22, height: 22 },
 ] as const;
 
 export interface StickerBenchmarkMeasurement {
@@ -163,23 +167,23 @@ export async function buildStickerTimeline({
 	scenario,
 	videoName,
 	stickerName,
-	gifName,
-	stickerRuntime,
+	gifNames,
+	stickerRuntimes,
 }: {
 	page: Page;
 	scenario: StickerScenarioName;
 	videoName: string;
 	stickerName: string;
-	gifName: string;
-	stickerRuntime: unknown;
+	gifNames: string[];
+	stickerRuntimes: unknown[];
 }): Promise<{ projectId: string; duration: number; stickerCount: number }> {
 	return page.evaluate(
 		({
 			scenario,
 			videoName,
 			stickerName,
-			gifName,
-			stickerRuntime,
+			gifNames,
+			stickerRuntimes,
 			seconds,
 			placements,
 			window: stickerWindow,
@@ -216,12 +220,22 @@ export async function buildStickerTimeline({
 				scenario === "no-stickers"
 					? 0
 					: scenario === "three-overlapping"
-						? placements.length
-						: 1;
-			const animated = scenario === "animated-runtime";
+						? 3
+						: scenario === "six-animated-runtime"
+							? 6
+							: 1;
+			const animated =
+				scenario === "animated-runtime" || scenario === "six-animated-runtime";
 			for (let index = 0; index < stickerCount; index += 1) {
 				const placement = placements[index];
+				if (!placement) throw new Error(`Missing sticker placement ${index}`);
 				const trackId = timeline.insertTrackAt("sticker", 0);
+				const runtimeIndex = scenario === "six-animated-runtime" ? index : 0;
+				const gifName = gifNames[runtimeIndex];
+				const stickerRuntime = stickerRuntimes[runtimeIndex];
+				if (animated && (!gifName || !stickerRuntime)) {
+					throw new Error(`Missing animated sticker fixture ${runtimeIndex}`);
+				}
 				const media = byName(animated ? gifName : stickerName);
 				const added = timeline.addElementToTrack(trackId, {
 					type: "sticker",
@@ -257,8 +271,8 @@ export async function buildStickerTimeline({
 			scenario,
 			videoName,
 			stickerName,
-			gifName,
-			stickerRuntime,
+			gifNames,
+			stickerRuntimes,
 			seconds: STICKER_BENCHMARK_SECONDS,
 			placements: STICKER_PLACEMENTS,
 			window: STICKER_WINDOW,
