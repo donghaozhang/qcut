@@ -79,7 +79,7 @@ describe("private cover library", () => {
 		const onClear = vi.fn();
 		render(<CoverPrivateLibrary onClear={onClear} disabled={false} />);
 		fireEvent.click(await screen.findByText("Food fixture"));
-		expect(screen.getByText("原生渲染尚未接入")).toBeDefined();
+		expect(screen.getByText("完整模板：未接入")).toBeDefined();
 		expect(onClear).not.toHaveBeenCalled();
 		fireEvent.click(screen.getByRole("button", { name: "无模板" }));
 		expect(onClear).toHaveBeenCalledOnce();
@@ -117,7 +117,7 @@ describe("private cover library", () => {
 		expect(screen.getByText(/Recovered word art/)).toBeDefined();
 		expect(screen.getByText(/已映射当前版本/)).toBeDefined();
 		expect(screen.getByText("资源目录未找到此 ID")).toBeDefined();
-		expect(screen.getByText("原生渲染尚未接入")).toBeDefined();
+		expect(screen.getByText("完整模板：未接入")).toBeDefined();
 	});
 	it("shows integrity failures and refreshes after recovery", async () => {
 		vi.mocked(loadPrivateCoverLibrary)
@@ -130,6 +130,76 @@ describe("private cover library", () => {
 		fireEvent.click(screen.getByRole("button", { name: "刷新缓存" }));
 		await screen.findByText("Food fixture");
 		expect(screen.queryByRole("alert")).toBeNull();
+	});
+	it("names missing background resources without disabling a ready text layout", async () => {
+		vi.mocked(loadPrivateCoverLibrary).mockResolvedValue({
+			...catalog,
+			entries: [
+				{
+					...entry,
+					textLayout: { ready: true, requiresNative: false },
+					dependencies: [
+						{
+							reference: "filter/old",
+							status: "missing",
+							files: [],
+							usage: {
+								role: "background",
+								kind: "filter",
+								name: "A-log",
+								resourceId: "456",
+							},
+						},
+					],
+				},
+			],
+		});
+		const onApply = vi.fn();
+		const view = render(
+			<CoverPrivateLibrary
+				onClear={vi.fn()}
+				onApply={onApply}
+				disabled={false}
+			/>
+		);
+		const card = await screen.findByTestId(`cover-cached-${entry.packageHash}`);
+		expect(card.textContent).toContain("缺背景滤镜");
+		expect(card.textContent).toContain("文字资源就绪");
+		fireEvent.click(card);
+		expect(screen.getByText(/A-log/)).toBeDefined();
+		expect(screen.getByText(/背景轨道/)).toBeDefined();
+		fireEvent.click(screen.getByRole("button", { name: "套用文字布局" }));
+		expect(onApply).toHaveBeenCalledWith(entry.packageHash);
+		view.rerender(
+			<CoverPrivateLibrary
+				onClear={vi.fn()}
+				onApply={onApply}
+				disabled={false}
+				importing
+			/>
+		);
+		expect(
+			screen.getByRole("button", { name: "准备中…" }).hasAttribute("disabled")
+		).toBe(true);
+	});
+	it("distinguishes unsupported vertical layout from a missing asset", async () => {
+		vi.mocked(loadPrivateCoverLibrary).mockResolvedValue({
+			...catalog,
+			entries: [
+				{
+					...entry,
+					textLayout: {
+						ready: false,
+						requiresNative: false,
+						reason: "vertical-text",
+					},
+				},
+			],
+		});
+		render(<CoverPrivateLibrary onClear={vi.fn()} disabled={false} />);
+		fireEvent.click(await screen.findByText("Food fixture"));
+		expect(screen.getByText("竖排文字待接入")).toBeDefined();
+		expect(screen.queryByRole("button", { name: "套用文字布局" })).toBeNull();
 	});
 	it("does not allow a stale read to replace a refreshed catalog", async () => {
 		let resolveOld: (value: CoverLibraryResult) => void = () => {};
