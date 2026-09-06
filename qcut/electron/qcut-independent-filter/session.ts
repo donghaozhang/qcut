@@ -5,6 +5,11 @@ import {
 	validateIndependentFilterIdentity,
 } from "./assets.js";
 import { resolveIndependentFilterHost } from "./bridge.js";
+import {
+	createLocalSkinMaskSource,
+	encodeSkinMask,
+	type SkinMaskSource,
+} from "./skin-mask-source.js";
 import { encodeIndependentCube, type IndependentCube } from "./lut-data.js";
 import {
 	encodeIndependentGraph,
@@ -44,7 +49,7 @@ type SessionOptions =
 	  };
 
 export async function createIndependentFilterSession(
-	options: SessionOptions
+	options: SessionOptions & { maskSource?: SkinMaskSource }
 ): Promise<IndependentFilterSession> {
 	const identity = {
 		...(options.identity ?? {
@@ -60,6 +65,12 @@ export async function createIndependentFilterSession(
 	)
 		throw new Error("Graph data does not match the requested filter identity.");
 	const graphMode = Boolean(options.graph);
+	if (options.maskSource && !options.graph?.profile.dualLut)
+		throw new Error("A skin mask source requires a dual LUT graph.");
+	const maskSource = options.graph?.profile.dualLut
+		? (options.maskSource ??
+			createLocalSkinMaskSource({ profile: options.graph.profile }))
+		: undefined;
 	const provider = options.graph
 		? QCUT_GRAPH_PROVIDER
 		: options.cube
@@ -173,6 +184,8 @@ export async function createIndependentFilterSession(
 			child.kill("SIGKILL");
 		}
 		await exited;
+		await tail;
+		await maskSource?.dispose();
 	};
 	try {
 		const response = read({ size: 4 });
@@ -205,8 +218,24 @@ export async function createIndependentFilterSession(
 			queued += 1;
 			const { width, height, intensity } = request;
 			const input = new Uint8Array(request.rgba);
+			const snapshot = { ...request, rgba: input };
 			const operation = tail
 				.then(async (): Promise<IndependentFilterResult> => {
+					if (failure || closed)
+						throw failure ?? new Error("QCut Metal session is closed.");
+					const mask = maskSource
+						? encodeSkinMask({
+								mask:
+									intensity === 0
+										? {
+												width: 1,
+												height: 1,
+												bytes: new Uint8Array(1),
+												orientation: "bottom-left",
+											}
+										: await maskSource.render(snapshot),
+							})
+						: new Uint8Array();
 					if (failure || closed)
 						throw failure ?? new Error("QCut Metal session is closed.");
 					const header = Buffer.alloc(12);
@@ -215,7 +244,7 @@ export async function createIndependentFilterSession(
 					header.writeFloatLE(intensity / 100, 8);
 					const response = read({ size: input.length });
 					const [, rgba] = await Promise.all([
-						write({ bytes: Buffer.concat([header, input]) }),
+						write({ bytes: Buffer.concat([header, input, mask]) }),
 						response,
 					]);
 					return {
@@ -224,6 +253,9 @@ export async function createIndependentFilterSession(
 						width,
 						height,
 						rgba: new Uint8Array(rgba),
+						...(maskSource
+							? { maskProvider: "jianying-local-skin-v1" as const }
+							: {}),
 					};
 				})
 				.finally(() => {
