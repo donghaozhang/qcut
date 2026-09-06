@@ -561,6 +561,23 @@
 }
 .cover-private-content .cover-template-grid {
 	overflow: visible;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 100px), 1fr));
+}
+.cover-private-content .cover-template > span {
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+	min-height: 35px;
+}
+.cover-cache-detail .cover-command {
+	width: 100%;
+	height: auto;
+	min-height: 32px;
+	white-space: normal;
+}
+.cover-cache-detail .cover-command svg {
+	flex-shrink: 0;
 }
 .cover-private-content > p,
 .cover-cache-detail {
