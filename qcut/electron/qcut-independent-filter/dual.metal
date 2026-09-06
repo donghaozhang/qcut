@@ -1,4 +1,4 @@
-struct DualConfig { float backgroundStrength; float skinStrength; uint sampling; uint clampAlpha; };
+struct DualConfig { float backgroundStrength; float skinStrength; uint sampling; uint clampAlpha; float sharpen; uint skinSize; };
 
 float3 sampleDualCube(texture3d<float> cube, sampler sampling, float3 color, uint mode) {
     float n = float(cube.get_width());
@@ -12,6 +12,8 @@ fragment float4 dualFrame(VertexOutput in [[stage_in]], constant Parameters& par
     constant GraphConfig& graph [[buffer(1)]], constant DualConfig& dual [[buffer(2)]],
     texture2d<float> source [[texture(0)]], texture3d<float> background [[texture(1)]],
     texture3d<float> skin [[texture(4)]], texture2d<float> mask [[texture(5)]], sampler sampling [[sampler(0)]]) {
+    if (dual.sharpen > 0 && params.stage == 0)
+        return graphSharpen(source, sampling, in.uv, params, dual.sharpen);
     float4 pixel = source.sample(sampling, in.uv);
     float weight = mask.sample(sampling, float2(in.uv.x, 1.0 - in.uv.y)).r;
     float strength = params.strength * (graph.alphaWeighted ? pixel.a : 1.0);
