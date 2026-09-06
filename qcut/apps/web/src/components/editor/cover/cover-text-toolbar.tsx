@@ -14,6 +14,7 @@ import type { CoverTextLayerV1 } from "@qcut/editor-core/cover";
 import { useTranslation } from "@/lib/i18n";
 import { CoverTool } from "./cover-tool";
 import { CoverTextStyleControls } from "./cover-text-style-controls";
+import { CoverTextGeometry } from "./cover-text-geometry";
 import { JianyingFontLabDialog } from "../properties-panel/jianying-font-lab-dialog";
 
 export function CoverTextToolbar({
@@ -186,6 +187,12 @@ export function CoverTextToolbar({
 					disabled={off}
 					onClick={onDelete}
 				/>
+				<CoverTextGeometry
+					key={`geometry:${layer?.id ?? "none"}:${off}`}
+					layer={layer}
+					disabled={off}
+					onChange={onChange}
+				/>
 			</div>
 			{layer?.jianyingTextStyle && (
 				<div className="cover-native-frame">
@@ -235,51 +242,6 @@ export function CoverTextToolbar({
 							})
 						}
 					/>
-				</div>
-			)}
-			{layer && (
-				<div className="cover-text-geometry">
-					<label>
-						{t("editor.cover.textWidth")}
-						<input
-							type="range"
-							min={5}
-							max={100}
-							value={Math.round(layer.width * 100)}
-							disabled={off}
-							onChange={(event) =>
-								onChange({ width: Number(event.target.value) / 100 })
-							}
-						/>
-					</label>
-					<label>
-						{t("editor.cover.textHeight")}
-						<input
-							type="range"
-							min={5}
-							max={100}
-							value={Math.round(layer.height * 100)}
-							disabled={off}
-							onChange={(event) =>
-								onChange({ height: Number(event.target.value) / 100 })
-							}
-						/>
-					</label>
-					<label>
-						{t("editor.cover.rotation")}
-						<input
-							type="number"
-							min={-180}
-							max={180}
-							value={layer.rotation}
-							disabled={off}
-							onChange={(event) => {
-								const value = event.target.valueAsNumber;
-								if (Number.isFinite(value))
-									onChange({ rotation: Math.max(-180, Math.min(180, value)) });
-							}}
-						/>
-					</label>
 				</div>
 			)}
 		</div>
