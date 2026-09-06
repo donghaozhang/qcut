@@ -1,3 +1,5 @@
+import { assertCoverTextStyle, type CoverTextStyleV1 } from "./text-style.js";
+
 export interface CoverAssetRefV1 {
 	assetId: string;
 	relativePath: string;
@@ -45,6 +47,7 @@ export interface CoverTextLayerV1 {
 	stroke: boolean;
 	shadow: boolean;
 	background: boolean;
+	textStyle?: Partial<CoverTextStyleV1>;
 	templateId?: string;
 }
 
@@ -247,6 +250,7 @@ export function assertCoverText({ layer }: { layer: CoverTextLayerV1 }): void {
 		].every((value) => typeof value === "boolean")
 	)
 		throw new Error("Invalid cover text layer");
+	assertCoverTextStyle({ style: layer.textStyle });
 }
 
 export function assertProjectCover({
