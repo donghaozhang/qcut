@@ -54,7 +54,7 @@ describe("mask-invariant graph admission", () => {
 			{
 				...card,
 				resourceId: "7617814057051016484",
-				version: "4fd60974ac9c764dce89084a739fa738",
+				version: "0".repeat(32),
 			},
 			{
 				...card,
