@@ -1,10 +1,15 @@
-import type { CoverDesignV1, CoverTextLayerV1 } from "@qcut/editor-core/cover";
+import {
+	resolveCoverTextStyle,
+	type CoverDesignV1,
+	type CoverTextLayerV1,
+} from "@qcut/editor-core/cover";
 import type { TextElement } from "@/types/timeline";
 import {
 	renderTextToCanvas,
 	wrapTextForBox,
 } from "@/lib/text/text-canvas-renderer";
 import { canvasFontFamily } from "@/lib/text/canvas-font";
+import { measureTextWithSpacing } from "@/lib/text/text-animation-canvas-layout";
 
 export function coverTextElement({
 	layer,
@@ -17,7 +22,17 @@ export function coverTextElement({
 }): TextElement {
 	const width = layer.width * canvas.width;
 	const height = layer.height * canvas.height;
-	const padding = Math.min(width, height) * 0.05;
+	const initialStyle = resolveCoverTextStyle({
+		fontSize: layer.fontSize,
+		width,
+		height,
+		style: layer.textStyle,
+	});
+	const padding = Math.min(
+		initialStyle.backgroundPadding,
+		Math.min(width, height) * 0.45
+	);
+	const contentWidth = Math.max(1, width - padding * 2);
 	let fontSize = layer.fontSize;
 	// Keep the same line breaker as timeline text; fit long titles before painting.
 	for (let attempt = 0; attempt < 50; attempt += 1) {
@@ -25,20 +40,33 @@ export function coverTextElement({
 		const lines = wrapTextForBox({
 			ctx,
 			text: layer.content,
-			maxWidth: width - padding * 2,
-			letterSpacing: 0,
+			maxWidth: contentWidth,
+			letterSpacing: initialStyle.letterSpacing,
 		});
 		const widest = Math.max(
 			0,
-			...lines.map((line) => ctx.measureText(line).width)
+			...lines.map((text) =>
+				measureTextWithSpacing({
+					ctx,
+					text,
+					letterSpacing: initialStyle.letterSpacing,
+				})
+			)
 		);
 		if (
-			lines.length * fontSize * 1.2 <= height - padding * 2 &&
-			widest <= width - padding * 2
+			lines.length * fontSize * initialStyle.lineHeight <=
+				height - padding * 2 &&
+			widest <= contentWidth
 		)
 			break;
 		fontSize *= 0.9;
 	}
+	const style = resolveCoverTextStyle({
+		fontSize,
+		width,
+		height,
+		style: layer.textStyle,
+	});
 	return {
 		id: layer.id,
 		type: "text",
@@ -55,27 +83,30 @@ export function coverTextElement({
 		textDecoration: layer.underline ? "underline" : "none",
 		textAlign: layer.align,
 		color: layer.color,
-		backgroundColor: layer.background ? "#171717" : "transparent",
-		backgroundOpacity: layer.background ? 0.82 : 0,
-		backgroundRadius: Math.min(8, fontSize * 0.1),
+		backgroundColor: layer.background ? style.backgroundColor : "transparent",
+		backgroundOpacity: layer.background ? style.backgroundOpacity : 0,
+		backgroundRadius: style.backgroundRadius,
 		backgroundPadding: padding,
-		strokeColor: "#161616",
-		strokeWidth: layer.stroke ? fontSize * 0.035 : 0,
-		strokeOpacity: 1,
-		shadowColor: "#000000",
-		shadowOpacity: layer.shadow ? 0.7 : 0,
-		shadowBlur: fontSize * 0.08,
-		shadowOffsetX: 0,
-		shadowOffsetY: fontSize * 0.04,
+		strokeColor: style.strokeColor,
+		strokeWidth: layer.stroke ? style.strokeWidth : 0,
+		strokeOpacity: style.strokeOpacity,
+		shadowColor: style.shadowColor,
+		shadowOpacity: layer.shadow ? style.shadowOpacity : 0,
+		shadowBlur: style.shadowBlur,
+		shadowOffsetX: style.shadowOffsetX,
+		shadowOffsetY: style.shadowOffsetY,
+		glowColor: style.glowColor,
+		glowOpacity: style.glowEnabled ? style.glowOpacity : 0,
+		glowBlur: style.glowBlur,
 		width,
 		height,
 		x: (layer.x - 0.5) * canvas.width,
 		y: (layer.y - 0.5) * canvas.height,
 		rotation: layer.rotation,
 		opacity: 1,
-		letterSpacing: 0,
-		lineHeight: 1.2,
-		verticalAlign: "middle",
+		letterSpacing: style.letterSpacing,
+		lineHeight: style.lineHeight,
+		verticalAlign: style.verticalAlign,
 	};
 }
 
