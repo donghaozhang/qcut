@@ -84,6 +84,41 @@ describe("private cover library", () => {
 		fireEvent.click(screen.getByRole("button", { name: "无模板" }));
 		expect(onClear).toHaveBeenCalledOnce();
 	});
+	it("shows lab provenance, mapped versions and unresolved catalog IDs", async () => {
+		vi.mocked(loadPrivateCoverLibrary).mockResolvedValue({
+			...catalog,
+			entries: [
+				{
+					...entry,
+					dependencies: [
+						{
+							reference: "textEffect/old",
+							status: "cached",
+							files: [file],
+							resolution: {
+								method: "catalog-version",
+								source: "text-lab",
+								label: "Recovered word art",
+								packageHash: "c".repeat(32),
+							},
+						},
+						{
+							reference: "filter/old",
+							status: "missing",
+							files: [],
+							reason: "catalog-missing",
+						},
+					],
+				},
+			],
+		});
+		render(<CoverPrivateLibrary onClear={vi.fn()} disabled={false} />);
+		fireEvent.click(await screen.findByText("Food fixture"));
+		expect(screen.getByText(/Recovered word art/)).toBeDefined();
+		expect(screen.getByText(/已映射当前版本/)).toBeDefined();
+		expect(screen.getByText("资源目录未找到此 ID")).toBeDefined();
+		expect(screen.getByText("原生渲染尚未接入")).toBeDefined();
+	});
 	it("shows integrity failures and refreshes after recovery", async () => {
 		vi.mocked(loadPrivateCoverLibrary)
 			.mockRejectedValueOnce(new Error("checksum"))
