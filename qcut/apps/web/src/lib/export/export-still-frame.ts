@@ -49,7 +49,11 @@ function sanitizeFileName(name: string): string {
  * transitions are export-graph-only and are not rendered at the boundary
  * frame.
  */
-export async function captureStillFrame(): Promise<StillFrameCaptureResult> {
+export async function captureStillFrame({
+	timeSeconds: requestedTime,
+}: {
+	timeSeconds?: number;
+} = {}): Promise<StillFrameCaptureResult> {
 	const project = useProjectStore.getState().activeProject;
 	if (!project) {
 		return { ok: false, error: "No active project" };
@@ -77,7 +81,7 @@ export async function captureStillFrame(): Promise<StillFrameCaptureResult> {
 			error: error instanceof Error ? error.message : String(error),
 		};
 	}
-	const currentTime = usePlaybackStore.getState().currentTime;
+	const currentTime = requestedTime ?? usePlaybackStore.getState().currentTime;
 	const fps = project.fps ?? 30;
 	const { width, height } = project.canvasSize;
 	try {
