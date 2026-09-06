@@ -8,6 +8,23 @@ import { loadPrivateCoverLibrary } from "@/lib/cover/private-cover-library";
 import { useTranslation } from "@/lib/i18n";
 import { activateCoverControl } from "./cover-tool";
 
+function dependencySourceLabel({
+	source,
+	reference,
+	zh,
+}: {
+	source: string;
+	reference: string;
+	zh: boolean;
+}) {
+	if (source === "filter-lab") return zh ? "滤镜实验室" : "Filter Lab";
+	if (source === "application-builtin")
+		return zh ? "应用内置资源" : "Application builtin";
+	if (reference.startsWith("textEffect/"))
+		return zh ? "花字实验室" : "Word Art Lab";
+	return zh ? "字体实验室" : "Font Lab";
+}
+
 export function CoverPrivateLibrary({
 	onClear,
 	disabled,
@@ -165,7 +182,32 @@ export function CoverPrivateLibrary({
 						<ul>
 							{detail.dependencies.map((item) => (
 								<li key={item.reference}>
-									{item.status === "cached" ? "✓" : "!"} {item.reference}
+									{item.status === "cached" ? "✓" : "!"}{" "}
+									{item.resolution?.label || item.reference}
+									{item.resolution && (
+										<small>
+											{dependencySourceLabel({
+												source: item.resolution.source,
+												reference: item.reference,
+												zh,
+											})}
+											{item.resolution.method === "catalog-version" &&
+												(zh
+													? " · 已映射当前版本"
+													: " · Mapped catalog version")}
+										</small>
+									)}
+									{item.reason && (
+										<small>
+											{item.reason === "catalog-missing"
+												? zh
+													? "资源目录未找到此 ID"
+													: "ID absent from resource catalog"
+												: zh
+													? "尚未恢复"
+													: "Not recovered"}
+										</small>
+									)}
 								</li>
 							))}
 						</ul>
