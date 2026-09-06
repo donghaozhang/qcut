@@ -14,6 +14,10 @@ import type { ElectronApplication, Page } from "@playwright/test";
 
 export interface AudioPreviewStats {
 	installed: boolean;
+	audioWorkletModulesTotal: number;
+	audioWorkletNodeConnectsTotal: number;
+	audioWorkletNodesTotal: number;
+	audioWorkletProcessorNames: Record<string, number>;
 	setTargetAtTime: number;
 	cancelScheduledValues: number;
 	linearRamp: number;
@@ -55,6 +59,11 @@ export async function installAudioPreviewProbe({
 
 		const state = {
 			audioContexts: 0,
+			audioWorkletModulesTotal: 0,
+			audioWorkletModuleUrls: {} as Record<string, number>,
+			audioWorkletNodeConnectsTotal: 0,
+			audioWorkletNodesTotal: 0,
+			audioWorkletProcessorNames: {} as Record<string, number>,
 			cancelScheduledValues: 0,
 			contexts: [] as AudioContext[],
 			linearRamp: 0,
@@ -62,7 +71,7 @@ export async function installAudioPreviewProbe({
 			mediaElementSources: 0,
 			mediaElementSourcesTotal: 0,
 			paramMs: 0,
-			restore: () => undefined as void,
+			restore: () => undefined,
 			setTargetAtTime: 0,
 			setValueAtTime: 0,
 		};
@@ -84,6 +93,46 @@ export async function installAudioPreviewProbe({
 		wrapParam("cancelScheduledValues", "cancelScheduledValues");
 		wrapParam("linearRamp", "linearRampToValueAtTime");
 		wrapParam("setValueAtTime", "setValueAtTime");
+
+		const originalAudioWorkletNode = AudioWorkletNode;
+		originals.push([target, "AudioWorkletNode", originalAudioWorkletNode]);
+		target.AudioWorkletNode = new Proxy(originalAudioWorkletNode, {
+			construct(workletNode, args, newTarget) {
+				state.audioWorkletNodesTotal += 1;
+				const processorName = typeof args[1] === "string" ? args[1] : "unknown";
+				state.audioWorkletProcessorNames[processorName] =
+					(state.audioWorkletProcessorNames[processorName] ?? 0) + 1;
+				return Reflect.construct(workletNode, args, newTarget);
+			},
+		});
+		const audioWorkletProto = AudioWorklet.prototype as unknown as Record<
+			string,
+			(...args: unknown[]) => unknown
+		>;
+		const originalAddModule = audioWorkletProto.addModule;
+		originals.push([audioWorkletProto, "addModule", originalAddModule]);
+		audioWorkletProto.addModule = function wrappedAddModule(
+			...args: unknown[]
+		) {
+			state.audioWorkletModulesTotal += 1;
+			const moduleUrl = String(args[0] ?? "unknown");
+			state.audioWorkletModuleUrls[moduleUrl] =
+				(state.audioWorkletModuleUrls[moduleUrl] ?? 0) + 1;
+			return originalAddModule.apply(this, args);
+		};
+		const audioWorkletNodeProto =
+			AudioWorkletNode.prototype as unknown as Record<
+				string,
+				(...args: unknown[]) => unknown
+			>;
+		const originalWorkletConnect = audioWorkletNodeProto.connect;
+		originals.push([audioWorkletNodeProto, "connect", originalWorkletConnect]);
+		audioWorkletNodeProto.connect = function wrappedWorkletConnect(
+			...args: unknown[]
+		) {
+			state.audioWorkletNodeConnectsTotal += 1;
+			return originalWorkletConnect.apply(this, args);
+		};
 
 		const originalCreateSource = contextProto.createMediaElementSource;
 		originals.push([
@@ -152,6 +201,10 @@ export async function readAudioPreviewProbe({
 		const state = (window as unknown as Record<string, unknown>)[probeKey] as
 			| {
 					audioContexts: number;
+					audioWorkletModulesTotal: number;
+					audioWorkletNodeConnectsTotal: number;
+					audioWorkletNodesTotal: number;
+					audioWorkletProcessorNames: Record<string, number>;
 					cancelScheduledValues: number;
 					contexts: AudioContext[];
 					linearRamp: number;
@@ -166,6 +219,10 @@ export async function readAudioPreviewProbe({
 		if (!state) {
 			return {
 				audioContexts: 0,
+				audioWorkletModulesTotal: 0,
+				audioWorkletNodeConnectsTotal: 0,
+				audioWorkletNodesTotal: 0,
+				audioWorkletProcessorNames: {},
 				baseLatencyMs: null,
 				cancelScheduledValues: 0,
 				contextState: null,
@@ -183,6 +240,12 @@ export async function readAudioPreviewProbe({
 		const context = state.contexts[0];
 		return {
 			audioContexts: state.audioContexts,
+			audioWorkletModulesTotal: state.audioWorkletModulesTotal,
+			audioWorkletNodeConnectsTotal: state.audioWorkletNodeConnectsTotal,
+			audioWorkletNodesTotal: state.audioWorkletNodesTotal,
+			audioWorkletProcessorNames: {
+				...state.audioWorkletProcessorNames,
+			},
 			baseLatencyMs: context ? context.baseLatency * 1000 : null,
 			cancelScheduledValues: state.cancelScheduledValues,
 			contextState: context ? context.state : null,
@@ -309,7 +372,9 @@ export function formatAudioStats({
 		`cancel=${String(stats.cancelScheduledValues).padStart(6)} ` +
 		`perClipPerTick=${perClipTick.toFixed(1).padStart(5)} ` +
 		`paramMs=${stats.paramMs.toFixed(1).padStart(7)} ` +
-		`graphsTotal=${stats.mediaElementSourcesTotal} disconnects=${stats.disconnectsTotal} contexts=${stats.audioContexts} ` +
+		`graphsTotal=${stats.mediaElementSourcesTotal} workletModules=${stats.audioWorkletModulesTotal} ` +
+		`workletConnects=${stats.audioWorkletNodeConnectsTotal} ` +
+		`disconnects=${stats.disconnectsTotal} contexts=${stats.audioContexts} ` +
 		`clockHz=${clock.clockHz.toFixed(1)} clockP95=${clock.clockP95Ms.toFixed(1)}ms ` +
 		`longTasks=${clock.longTasks} cpu=${cpuPercent.toFixed(1)}% mem=${memoryMb.toFixed(0)}MB ` +
 		`ctx=${stats.contextState}`
