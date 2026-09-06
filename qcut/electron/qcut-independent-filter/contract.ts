@@ -27,7 +27,9 @@ export interface IndependentFilterResult {
 	provider:
 		| typeof QCUT_FOG_PROVIDER
 		| typeof QCUT_LUT_PROVIDER
-		| typeof QCUT_GRAPH_PROVIDER;
+		| typeof QCUT_GRAPH_PROVIDER
+		| "qcut-cpu-soft-glow-v1"
+		| "qcut-cpu-soft-glow-ui-snapshot-v1";
 	resourceId: string;
 	width: number;
 	height: number;
