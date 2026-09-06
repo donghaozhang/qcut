@@ -47,6 +47,7 @@ export interface JianyingTextRawSequenceRequest {
 	content?: string;
 	fontPath?: string;
 	fontSize?: number;
+	textColor?: string;
 	resolutionType?: number;
 	scriptParameters?: string;
 }
@@ -114,6 +115,12 @@ export function resolveJianyingTextBridgeEnvironment({
 		studioScriptRoot,
 		timelineDuration: request.timelineDuration,
 	});
+	if (
+		request.textColor !== undefined &&
+		(request.packageKind === "ScriptInfoSticker" ||
+			studioAnimationEnvironment.JY_TEXT_SEGMENT_PAYLOAD)
+	)
+		throw new Error("Custom textColor requires a host-text payload.");
 	return {
 		...environment,
 		JY_TEXT_PACKAGE: request.packagePath,
@@ -125,6 +132,7 @@ export function resolveJianyingTextBridgeEnvironment({
 		JY_TEXT_CONTENT: request.content ?? "",
 		JY_TEXT_FONT_PATH: request.fontPath ?? "",
 		JY_TEXT_FONT_SIZE: String(request.fontSize ?? 12),
+		JY_TEXT_COLOR: request.textColor ?? "",
 		JY_TEXT_RESOLUTION_TYPE: String(request.resolutionType ?? -1),
 		JY_TEXT_TIMESTAMP: String(request.startTimestamp),
 		JY_TEXT_TIMESTAMP_STEP: String(request.timestampStep),

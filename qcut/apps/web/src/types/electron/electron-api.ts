@@ -118,6 +118,7 @@ export interface ElectronAPI
 	// System info
 	platform: string;
 	isElectron: boolean;
+	jianyingCover?: import("../../../../../electron/jianying-cover-contract").JianyingCoverAPI;
 
 	/** Date-based release version, e.g. "2026.07.26.5". */
 	getAppVersion?: () => Promise<string>;

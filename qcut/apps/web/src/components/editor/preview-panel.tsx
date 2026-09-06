@@ -50,6 +50,7 @@ import { usePreviewSizing } from "./preview-panel/use-preview-sizing";
 import { PortraitFaceOverlay } from "./preview-panel/portrait-face-overlay";
 import { PreviewGuidesLayer } from "./preview-panel/preview-guides-layer";
 import { PreviewViewOptionsMenu } from "./preview-panel/preview-view-options-menu";
+import { CoverButton } from "./cover/cover-editor";
 import { PreviewScopeDock } from "./preview-panel/preview-scope-dock";
 import type { ActiveElement } from "./preview-panel/types";
 import {
@@ -1129,7 +1130,10 @@ export function PreviewPanel() {
 				data-testid="preview-panel"
 			>
 				<div className="flex items-center justify-between px-3 py-2 border-b">
-					<PreviewViewOptionsMenu />
+					<div className="flex items-center gap-1">
+						<PreviewViewOptionsMenu />
+						<CoverButton />
+					</div>
 					{modeToggle}
 				</div>
 				<div

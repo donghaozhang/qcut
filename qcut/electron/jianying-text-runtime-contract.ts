@@ -143,6 +143,8 @@ export interface JianyingTextRuntimeRenderRequest {
 	content: string;
 	fontAssetId?: string;
 	fontSize: number;
+	/** Optional host-text fill override; omitted keeps the effect package palette. */
+	textColor?: string;
 	canvasWidth: number;
 	canvasHeight: number;
 	transform: JianyingTextRuntimeTransform;

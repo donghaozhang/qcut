@@ -60,7 +60,11 @@ function packageKindLabel({
 	return "运行时";
 }
 
-function useStyleCover({ style }: { style: JianyingTextStyleLabStyleSummary }) {
+export function useStyleCover({
+	style,
+}: {
+	style: JianyingTextStyleLabStyleSummary;
+}) {
 	const [state, setState] = useState<CoverState>(
 		style.hasCover ? "loading" : "missing"
 	);

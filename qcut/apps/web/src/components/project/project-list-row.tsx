@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Loader2, MoreHorizontal, Video } from "lucide-react";
+import { MoreHorizontal } from "lucide-react";
+import { ProjectThumbnail } from "./project-thumbnail";
 import { DeleteProjectDialog } from "@/components/delete-project-dialog";
 import { RenameProjectDialog } from "@/components/rename-project-dialog";
 import { Button } from "@/components/ui/button";
@@ -55,29 +56,9 @@ export function ProjectListRow({
 	const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 	const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 	const [isRenameDialogOpen, setIsRenameDialogOpen] = useState(false);
-	const [dynamicThumbnail, setDynamicThumbnail] = useState<string | null>(null);
-	const [isLoadingThumbnail, setIsLoadingThumbnail] = useState(true);
 	const [duration, setDuration] = useState<number | null>(null);
 	const { deleteProject, renameProject, duplicateProject } = useProjectStore();
 	const { t } = useTranslation();
-
-	useEffect(() => {
-		let cancelled = false;
-		setIsLoadingThumbnail(true);
-		void getProjectThumbnail(project.id)
-			.then((thumbnail) => {
-				if (!cancelled) setDynamicThumbnail(thumbnail);
-			})
-			.catch(() => {
-				if (!cancelled) setDynamicThumbnail(null);
-			})
-			.finally(() => {
-				if (!cancelled) setIsLoadingThumbnail(false);
-			});
-		return () => {
-			cancelled = true;
-		};
-	}, [project.id, getProjectThumbnail]);
 
 	useEffect(() => {
 		if (!getProjectDuration) return;
@@ -125,22 +106,10 @@ export function ProjectListRow({
 
 	const thumbnail = (
 		<div className="w-16 h-9 rounded bg-muted dark:bg-muted/80 overflow-hidden shrink-0">
-			{isLoadingThumbnail ? (
-				<div className="w-full h-full flex items-center justify-center">
-					<Loader2 className="size-3 text-muted-foreground animate-spin" />
-				</div>
-			) : dynamicThumbnail ? (
-				<img
-					src={dynamicThumbnail}
-					alt="Project thumbnail"
-					loading="lazy"
-					className="w-full h-full object-cover"
-				/>
-			) : (
-				<div className="w-full h-full flex items-center justify-center">
-					<Video className="size-3.5 text-muted-foreground" />
-				</div>
-			)}
+			<ProjectThumbnail
+				project={project}
+				getProjectThumbnail={getProjectThumbnail}
+			/>
 		</div>
 	);
 

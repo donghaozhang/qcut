@@ -29,6 +29,7 @@ struct TextFrameProbeRequest {
   std::string studioScriptParameters;
   std::string studioAnimationParameters;
   std::string text;
+  std::string textColor;
   std::vector<std::string> stickerParams;
   double fontSize = 12.0;
   std::optional<double> innerPadding;
