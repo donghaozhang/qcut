@@ -152,6 +152,8 @@ export const CATEGORIES: CategoryDef[] = [
 			"filter-lab-list",
 			"filter-lab-catalog",
 			"filter-lab-render",
+			"filter-lab-render-independent",
+			"filter-lab-catalog-independent",
 			"filter-lab-pipeline",
 			"filter-lab-compare",
 			"filter-lab-match",
@@ -530,6 +532,39 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 		examples: [
 			"qcut filter-lab render --resource-id 7524288987129810214 -i portrait.jpg --output filtered.png --json",
 			"qcut filter-lab apply --resource-id 7392898023505792319 -i clip.mp4 --output filtered.mp4 --duration 2 --json",
+		],
+	},
+	"filter-lab-catalog-independent": {
+		name: "filter-lab-catalog-independent",
+		description:
+			"List locally cached filters supported by the independent QCut Metal renderer",
+		category: "filter-lab",
+		flags: [],
+		examples: ["qcut filter-lab catalog-independent --json"],
+	},
+	"filter-lab-render-independent": {
+		name: "filter-lab-render-independent",
+		description:
+			"Render supported local LUTs or Fog with QCut's own Metal host, without Jianying libraries (macOS, up to 1080p)",
+		category: "filter-lab",
+		flags: [
+			f("--resource-id", "string", "Fog resource ID: 7160594413847203085", {
+				required: true,
+			}),
+			f("--input", "string", "Local image or video", {
+				short: "-i",
+				required: true,
+			}),
+			f("--output", "string", "New output PNG or MP4 path", { required: true }),
+			f("--filter-version", "string", "Require exact local LUT version"),
+			f("--filter-intensity", "number", "Intensity 0 to 100 (default: 100)"),
+			f("--duration", "string", "Maximum video duration in seconds"),
+			f("--fps", "number", "Output video frame rate"),
+			f("--dry-run", "boolean", "Validate input, local LUT, and host"),
+			f("--force", "boolean", "Replace output only after successful rendering"),
+		],
+		examples: [
+			"qcut filter-lab render-independent --resource-id 7160594413847203085 -i source.png --output fog-qcut.png --json",
 		],
 	},
 	"filter-lab-pipeline": {
