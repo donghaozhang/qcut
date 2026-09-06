@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { CoverTextLayout } from "./jianying-cover-layout.js";
 
 export const JIANYING_COVER_CATEGORIES = [
 	{ id: "default", zh: "默认", en: "Default" },
@@ -71,11 +72,26 @@ export const coverCachedEntrySchema = coverObservationSchema.extend({
 			status: z.enum(["cached", "missing", "builtin", "unsupported-path"]),
 			resolution: coverDependencyResolutionSchema.optional(),
 			reason: z.string().optional(),
+			usage: z
+				.object({
+					role: z.enum(["text", "background", "unknown"]),
+					name: z.string(),
+					kind: z.enum(["font", "word-art", "filter", "unknown"]),
+					resourceId: z.string().optional(),
+				})
+				.optional(),
 		})
 	),
 	textCount: z.number().int().nonnegative(),
 	cacheStatus: z.enum(["complete", "missing-dependencies"]),
 	renderStatus: z.literal("native-renderer-required"),
+	textLayout: z
+		.object({
+			ready: z.boolean(),
+			requiresNative: z.boolean(),
+			reason: z.string().optional(),
+		})
+		.optional(),
 });
 export const coverCatalogSchema = z.object({
 	schema: z.literal("qcut.private-jianying-cover"),
@@ -94,5 +110,10 @@ export type CoverLibraryResult = {
 };
 export interface JianyingCoverAPI {
 	list: () => Promise<CoverLibraryResult>;
+	prepareTextLayout: (request: {
+		packageHash: string;
+	}) => Promise<CoverTextLayout>;
 }
 export const JIANYING_COVER_LIST_CHANNEL = "jianying-cover:list-private-cache";
+export const JIANYING_COVER_LAYOUT_CHANNEL =
+	"jianying-cover:prepare-text-layout";
