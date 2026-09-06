@@ -1,4 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { applyCoverTemplate, COVER_TEMPLATES } from "../templates";
+import {
+	createCoverText,
+	reduceCoverHistory,
+	updateCoverText,
+} from "../editing";
 import {
 	assertCoverAsset,
 	assertCoverCanvas,
@@ -143,5 +149,121 @@ describe("cover domain", () => {
 				},
 			})
 		).toThrow();
+	});
+	it.each(COVER_TEMPLATES)("creates valid editable $id templates", ({ id }) => {
+		const next = applyCoverTemplate({ design, templateId: id });
+		expect(() =>
+			assertCoverDesign({ design: JSON.parse(JSON.stringify(next)) })
+		).not.toThrow();
+		expect(next.layers[0]).toBe(design.layers[0]);
+		expect(next.layers.length).toBe(id === "none" ? 1 : 3);
+	});
+	it("switches only template-owned layers and preserves manual text", () => {
+		const manual = createCoverText({
+			canvas: design.canvas,
+			content: "我的标题",
+			id: "manual",
+		});
+		const custom: CoverDesignV1 = {
+			...design,
+			layers: [design.layers[0], manual],
+		};
+		const first = applyCoverTemplate({ design: custom, templateId: "travel" });
+		const second = applyCoverTemplate({ design: first, templateId: "journal" });
+		expect(second.layers).toHaveLength(4);
+		expect(second.layers[1]).toEqual(manual);
+		expect(
+			applyCoverTemplate({ design: second, templateId: "none" }).layers
+		).toEqual(custom.layers);
+		expect(() =>
+			applyCoverTemplate({ design, templateId: "remote-unknown" })
+		).toThrow();
+	});
+	it.each([
+		{ x: NaN },
+		{ fontSize: 0 },
+		{ height: -1 },
+		{ rotation: Infinity },
+		{ color: "url(secret)" },
+		{ fontFamily: "unknown" },
+		{ bold: 1 },
+		{ content: "x".repeat(2001) },
+	])("rejects malformed text %j", (changes) => {
+		const layer = {
+			...createCoverText({
+				canvas: design.canvas,
+				content: "Title",
+				id: "text",
+			}),
+			...changes,
+		};
+		expect(() =>
+			assertCoverDesign({
+				design: {
+					...design,
+					layers: [design.layers[0], layer],
+				} as CoverDesignV1,
+			})
+		).toThrow();
+	});
+	it("rejects invalid crop coordinates and excess layers", () => {
+		expect(() =>
+			assertCoverDesign({
+				design: {
+					...design,
+					layers: [
+						{ ...design.layers[0], position: { x: 2, y: 0.5, zoom: 1 } },
+					],
+				},
+			})
+		).toThrow();
+		const texts = Array.from({ length: 21 }, (_, index) =>
+			createCoverText({
+				canvas: design.canvas,
+				content: "Title",
+				id: `text-${index}`,
+			})
+		);
+		expect(() =>
+			assertCoverDesign({
+				design: { ...design, layers: [design.layers[0], ...texts] },
+			})
+		).toThrow();
+	});
+	it("undoes a whole template and invalidates redo on new edits", () => {
+		const first = { past: [], present: design, future: [] };
+		const next = applyCoverTemplate({ design, templateId: "travel" });
+		const edited = reduceCoverHistory(first, { type: "edit", design: next });
+		const undone = reduceCoverHistory(edited, { type: "undo" });
+		expect(undone.present).toBe(design);
+		expect(reduceCoverHistory(undone, { type: "redo" }).present).toBe(next);
+		expect(
+			reduceCoverHistory(undone, {
+				type: "edit",
+				design: applyCoverTemplate({ design, templateId: "journal" }),
+			}).future
+		).toEqual([]);
+	});
+	it("bounds history and preserves unrelated layers during text edits", () => {
+		let state = {
+			past: [] as CoverDesignV1[],
+			present: design as CoverDesignV1 | null,
+			future: [] as CoverDesignV1[],
+		};
+		for (let index = 0; index < 80; index += 1)
+			state = reduceCoverHistory(state, {
+				type: "edit",
+				design: { ...design, updatedAt: new Date(index * 1000).toISOString() },
+			});
+		expect(state.past).toHaveLength(60);
+		const template = applyCoverTemplate({ design, templateId: "travel" });
+		const edited = updateCoverText({
+			design: template,
+			id: template.layers[1].id,
+			changes: { color: "#00ff00", x: 0.7 },
+		});
+		expect(edited.layers[0]).toBe(template.layers[0]);
+		expect(edited.layers[2]).toBe(template.layers[2]);
+		expect(edited.layers[1]).toMatchObject({ color: "#00ff00", x: 0.7 });
 	});
 });
