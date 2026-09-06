@@ -10,12 +10,14 @@ import {
 import {
 	coverLabPreset,
 	coverTextPresetChanges,
+	coverWordArtChanges,
 } from "@/lib/cover/cover-text-presets";
 import { paintCoverText } from "@/lib/cover/cover-text-renderer";
 import { useTranslation } from "@/lib/i18n";
 import { useJianyingTextStyleLab } from "../media-panel/views/text-style-lab/use-jianying-text-style-lab";
 import { activateCoverControl } from "./cover-tool";
 import "./cover-text-style.css";
+import { CoverWordArtCard } from "./cover-word-art-card";
 
 const PRESET_ZH: Record<string, string> = {
 	"clean-white": "纯白",
@@ -136,10 +138,15 @@ export function CoverTextStyleLibrary({
 		() =>
 			lab.result.styles.flatMap((style) => {
 				const preset = coverLabPreset({ style });
-				return preset
+				return preset || style.runtimeReference
 					? [
 							{
-								preset,
+								preset: preset ?? {
+									id: style.styleId,
+									name: style.title ?? style.resourceId,
+									updates: {},
+								},
+								style,
 								categoryIds: style.categoryIds,
 								approximate: style.compatibility !== "flat-compatible",
 							},
@@ -153,6 +160,7 @@ export function CoverTextStyleLibrary({
 			? labPresets
 			: BUILT_IN_TEXT_PRESETS.map((preset) => ({
 					preset,
+					style: undefined,
 					categoryIds: [] as string[],
 					approximate: false,
 				}));
@@ -161,7 +169,7 @@ export function CoverTextStyleLibrary({
 			...entry,
 			label:
 				source === "lab"
-					? `${entry.approximate ? (zh ? "近似样式" : "Approximate") : zh ? "兼容样式" : "Compatible"} · ${entry.preset.name}`
+					? `${entry.style?.runtimeReference ? (zh ? "本机原版渲染" : "Native runtime") : entry.approximate ? (zh ? "近似样式" : "Approximate") : zh ? "兼容样式" : "Compatible"} · ${entry.preset.name}`
 					: zh
 						? (PRESET_ZH[entry.preset.id] ?? entry.preset.name)
 						: entry.preset.name,
@@ -171,7 +179,7 @@ export function CoverTextStyleLibrary({
 				(source !== "lab" ||
 					category === "all" ||
 					entry.categoryIds.some((id) => id === category)) &&
-				`${entry.label} ${entry.preset.name}`
+				`${entry.label} ${entry.preset.name} ${entry.style?.resourceId ?? ""}`
 					.toLowerCase()
 					.includes(query.trim().toLowerCase())
 		);
@@ -240,7 +248,7 @@ export function CoverTextStyleLibrary({
 								? "正在读取花字实验室…"
 								: "Loading word-art lab…"
 							: lab.error ||
-								`${labPresets.length} / ${lab.result.count} ${zh ? "可转为静态样式" : "static styles available"}`}
+								`${labPresets.length} / ${lab.result.count} ${zh ? "可应用花字" : "applicable styles"}`}
 					</div>
 				</>
 			)}
@@ -250,24 +258,48 @@ export function CoverTextStyleLibrary({
 				</div>
 			)}
 			<div className="cover-style-grid">
-				{entries.slice(0, limit).map(({ preset, label }) => (
-					<StyleCard
-						key={preset.id}
-						preset={preset}
-						label={label}
-						disabled={disabled || !layer || !canvas}
-						onApply={() => {
-							if (!layer || !canvas) return;
-							try {
-								onChange(coverTextPresetChanges({ layer, canvas, preset }));
-							} catch (reason) {
-								onError(
-									reason instanceof Error ? reason.message : String(reason)
-								);
+				{entries.slice(0, limit).map(({ preset, label, style }) =>
+					style ? (
+						<CoverWordArtCard
+							key={style.styleId}
+							style={style}
+							zh={zh}
+							disabled={disabled || !layer || !canvas}
+							selected={
+								layer?.jianyingTextStyle?.resourceId === style.resourceId &&
+								layer?.jianyingTextStyle?.packageHash ===
+									style.runtimeReference?.packageHash
 							}
-						}}
-					/>
-				))}
+							onApply={() => {
+								if (!layer || !canvas) return;
+								try {
+									onChange(coverWordArtChanges({ layer, canvas, style }));
+								} catch (reason) {
+									onError(
+										reason instanceof Error ? reason.message : String(reason)
+									);
+								}
+							}}
+						/>
+					) : (
+						<StyleCard
+							key={preset.id}
+							preset={preset}
+							label={label}
+							disabled={disabled || !layer || !canvas}
+							onApply={() => {
+								if (!layer || !canvas) return;
+								try {
+									onChange(coverTextPresetChanges({ layer, canvas, preset }));
+								} catch (reason) {
+									onError(
+										reason instanceof Error ? reason.message : String(reason)
+									);
+								}
+							}}
+						/>
+					)
+				)}
 			</div>
 			{!entries.length && !lab.checking && !lab.error && (
 				<div className="cover-style-status">
