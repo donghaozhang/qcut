@@ -87,7 +87,11 @@ export function createIndependentLutProvider() {
 						await session.dispose();
 						throw new Error("Independent LUT provider is disposed.");
 					}
-					active = { session, title: card.title, graph };
+					active = {
+						session,
+						title: card.maskProvider ? `${card.title} · 本地模型` : card.title,
+						graph,
+					};
 				}
 				sessions.delete(key);
 				sessions.set(key, active);
