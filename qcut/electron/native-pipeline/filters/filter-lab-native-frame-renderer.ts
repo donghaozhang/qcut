@@ -8,6 +8,10 @@ import {
 } from "../../jianying-filter-swing-runtime/render.js";
 import type { FilterLabMediaInfo } from "./filter-lab-media.js";
 import type { FilterLabRenderPlan } from "./filter-lab-render-plan.js";
+import {
+	createIndependentFilterSession,
+	createIndependentFrameRequest,
+} from "../../qcut-independent-filter/session.js";
 
 export type FilterLabNativeRenderPlan = Extract<
 	FilterLabRenderPlan,
@@ -16,7 +20,14 @@ export type FilterLabNativeRenderPlan = Extract<
 
 type FilterLabNativeSession =
 	| JianyingFilterLocalRenderSession
-	| JianyingFilterSwingRenderSession;
+	| JianyingFilterSwingRenderSession
+	| {
+			render: (input: {
+				rgba: Uint8Array;
+				timestampSeconds: number;
+			}) => Promise<{ rgba: Uint8Array }>;
+			dispose: () => Promise<void>;
+	  };
 
 export interface FilterLabNativeFrameRenderer {
 	renderFrame(input: { rgba: Buffer; index: number }): Promise<Uint8Array>;
@@ -56,6 +67,33 @@ async function createNativeSession({
 	bootstrapRgba: Uint8Array;
 	media: FilterLabMediaInfo;
 }): Promise<FilterLabNativeSession> {
+	if (plan.mode === "qcut-metal" || plan.mode === "qcut-metal-lut") {
+		const session = await createIndependentFilterSession(
+			plan.mode === "qcut-metal"
+				? { lutPath: plan.lutPath }
+				: {
+						cube: plan.cube,
+						identity: {
+							resourceId: plan.evidence.resourceId,
+							version: plan.evidence.version,
+						},
+					}
+		);
+		return {
+			render: ({ rgba }: { rgba: Uint8Array; timestampSeconds: number }) =>
+				session.render({
+					...createIndependentFrameRequest({
+						rgba,
+						width: media.width,
+						height: media.height,
+						intensity: plan.evidence.intensity,
+					}),
+					resourceId: plan.evidence.resourceId,
+					version: plan.evidence.version,
+				}),
+			dispose: session.dispose,
+		};
+	}
 	if (plan.mode === "swing") {
 		return createJianyingFilterSwingRenderSession({
 			resourceId: plan.evidence.resourceId,
@@ -98,6 +136,7 @@ export function createFilterLabNativeFrameRenderer({
 	let disposePromise: Promise<void> | undefined;
 	return {
 		async renderFrame({ rgba, index }) {
+			if (disposePromise) throw new Error("Filter frame renderer is disposed.");
 			signal.throwIfAborted();
 			let current: Uint8Array = rgba;
 			for (const [planIndex, plan] of plans.entries()) {
@@ -108,6 +147,13 @@ export function createFilterLabNativeFrameRenderer({
 						bootstrapRgba: current,
 						media,
 					});
+					if (disposePromise || signal.aborted) {
+						await session.dispose();
+						signal.throwIfAborted();
+						throw new Error(
+							"Filter frame renderer was disposed during startup."
+						);
+					}
 					sessions[planIndex] = session;
 				}
 				signal.throwIfAborted();
@@ -121,7 +167,10 @@ export function createFilterLabNativeFrameRenderer({
 					source: current,
 					rendered: result.rgba,
 					intensity:
-						plan.mode === "multi-pass" || plan.mode === "swing"
+						plan.mode === "multi-pass" ||
+						plan.mode === "swing" ||
+						plan.mode === "qcut-metal" ||
+						plan.mode === "qcut-metal-lut"
 							? 100
 							: plan.evidence.intensity,
 				});
