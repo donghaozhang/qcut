@@ -5,6 +5,7 @@ import {
 	type FilterLabNativeRenderPlan,
 } from "../native-pipeline/filters/filter-lab-native-frame-renderer.js";
 import { createIndependentFilterSession } from "../qcut-independent-filter/session.js";
+import { INDEPENDENT_GRAPH_PROFILES } from "../qcut-independent-filter/graph-profiles.js";
 import {
 	QCUT_FOG_RESOURCE,
 	QCUT_FOG_VERSION,
@@ -57,6 +58,57 @@ function renderer({
 	});
 }
 describe("independent CLI frame adapter", () => {
+	it("starts a graph session with graph data and keeps intensity inside its passes", async () => {
+		const profile = INDEPENDENT_GRAPH_PROFILES[0];
+		const graph = {
+			profile,
+			cube: {
+				size: 2,
+				values: new Float32Array(24),
+				domainMin: [0, 0, 0] as [number, number, number],
+				domainMax: [1, 1, 1] as [number, number, number],
+			},
+		};
+		const frames = createFilterLabNativeFrameRenderer({
+			plans: [
+				{
+					...plan,
+					mode: "qcut-metal-graph",
+					graph,
+					evidence: {
+						...plan.evidence,
+						resourceId: profile.resourceId,
+						version: profile.version,
+					},
+				},
+			],
+			isImage: false,
+			media: {
+				width: 1,
+				height: 1,
+				frameRate: 30,
+				duration: 1,
+				hasAudio: false,
+			},
+			signal: new AbortController().signal,
+		});
+		try {
+			const output = await frames.renderFrame({
+				rgba: Buffer.from([10, 20, 30, 128]),
+				index: 0,
+			});
+			expect(createIndependentFilterSession).toHaveBeenCalledWith({
+				graph,
+				identity: { resourceId: profile.resourceId, version: profile.version },
+			});
+			expect(Array.from(output)).toEqual([90, 80, 70, 128]);
+			expect(render).toHaveBeenCalledWith(
+				expect.objectContaining({ intensity: 50 })
+			);
+		} finally {
+			await frames.dispose();
+		}
+	});
 	it("applies intensity exactly once and preserves source alpha", async () => {
 		const frames = renderer();
 		const rgba = await frames.renderFrame({
