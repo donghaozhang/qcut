@@ -184,4 +184,28 @@ describe("JianyingFontLabDialog", () => {
 		fireEvent.click(screen.getByLabelText("打开本机字体实验室"));
 		expect(api.list).not.toHaveBeenCalled();
 	});
+	it("stays closed after being disabled while open and then re-enabled", async () => {
+		const api = installFontLabAPI({ covered: true });
+		const onApply = vi.fn();
+		const view = render(
+			<JianyingFontLabDialog initialSample="字体" onApply={onApply} />
+		);
+		fireEvent.click(screen.getByLabelText("打开本机字体实验室"));
+		expect(await screen.findAllByTestId("jianying-font-card")).toHaveLength(5);
+
+		view.rerender(
+			<JianyingFontLabDialog initialSample="字体" disabled onApply={onApply} />
+		);
+		expect(screen.queryByTestId("jianying-font-picker-popover")).toBeNull();
+
+		view.rerender(
+			<JianyingFontLabDialog initialSample="字体" onApply={onApply} />
+		);
+		expect(screen.queryByTestId("jianying-font-picker-popover")).toBeNull();
+		expect(screen.getByLabelText("打开本机字体实验室")).toHaveAttribute(
+			"aria-expanded",
+			"false"
+		);
+		expect(api.list).toHaveBeenCalledTimes(1);
+	});
 });

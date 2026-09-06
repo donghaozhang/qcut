@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
 	AlertTriangle,
 	Check,
@@ -226,8 +226,10 @@ function JianyingFontLabBody({
 	const [coverageMessage, setCoverageMessage] = useState("");
 	const selectionGeneration = useRef(0);
 	// Invalidate an in-flight glyph check when the text or selection changes.
+	// Layout effect: the bump must land inside the commit, before a resolved
+	// inspect() promise can observe the new props with a stale generation.
 	// biome-ignore lint/correctness/useExhaustiveDependencies: these values define the lifetime of a font selection request.
-	useEffect(() => {
+	useLayoutEffect(() => {
 		selectionGeneration.current += 1;
 		setApplyingFontId("");
 		setCoverageMessage("");
@@ -478,6 +480,10 @@ export function JianyingFontLabDialog({
 	contentClassName?: string;
 }) {
 	const [open, setOpen] = useState(false);
+	// Drop a stale open state so re-enabling does not reopen the popover.
+	useEffect(() => {
+		if (disabled) setOpen(false);
+	}, [disabled]);
 	return (
 		<Popover open={open && !disabled} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>
