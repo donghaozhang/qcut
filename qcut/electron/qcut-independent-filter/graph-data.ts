@@ -9,6 +9,7 @@ import {
 } from "../native-pipeline/filters/filter-lab-lut.js";
 import { loadTiledLutCube } from "../native-pipeline/filters/filter-lab-tiled-lut.js";
 import { parseAdobeThreeDl } from "./adobe-three-dl.js";
+import { loadDualTiledCube } from "./dual-lut-data.js";
 import {
 	findIndependentGraphProfile,
 	type IndependentGraphProfile,
@@ -18,6 +19,7 @@ import { encodeIndependentCube, type IndependentCube } from "./lut-data.js";
 export interface IndependentGraphData {
 	profile: IndependentGraphProfile;
 	cube: IndependentCube;
+	skinCube?: IndependentCube;
 	overlay?: { width: number; height: number; rgba: Uint8Array };
 }
 
@@ -31,9 +33,11 @@ export function supportsIndependentGraph({
 				identity: { resourceId: card.resourceId, version: card.version },
 			})
 		: undefined;
-	const allowedRequirements = profile?.maskInvariant
-		? ["blit", "skin_seg", "face"]
-		: ["blit"];
+	const allowedRequirements = profile?.dualLut
+		? ["blit", "skin_seg", "face", "ext_texture_producer", "texture_blit"]
+		: profile?.maskInvariant
+			? ["blit", "skin_seg", "face"]
+			: ["blit"];
 	return Boolean(
 		card.available &&
 			card.cacheStatus === "cached" &&
@@ -86,19 +90,21 @@ export async function hashIndependentGraphAssets({
 	root: string;
 	profile: Pick<
 		IndependentGraphProfile,
-		"kind" | "alphaWeighted" | "featureDirectory" | "maskInvariant"
+		"kind" | "alphaWeighted" | "featureDirectory" | "maskInvariant" | "dualLut"
 	>;
 }) {
-	const paths = profile.maskInvariant
-		? invariantAssetPaths({ format: profile.maskInvariant })
-		: profile.kind === "direct"
-			? [profile.alphaWeighted ? "texture/filter1.3dl" : "texture/filter.3dl"]
-			: [
-					profile.kind === "vignette" || profile.kind === "soften"
-						? "image/lut0.png"
-						: "image/filter.png",
-					...(profile.kind === "vignette" ? ["image/src1.png"] : []),
-				];
+	const paths = profile.dualLut
+		? [profile.dualLut.backgroundPath, profile.dualLut.skinPath]
+		: profile.maskInvariant
+			? invariantAssetPaths({ format: profile.maskInvariant })
+			: profile.kind === "direct"
+				? [profile.alphaWeighted ? "texture/filter1.3dl" : "texture/filter.3dl"]
+				: [
+						profile.kind === "vignette" || profile.kind === "soften"
+							? "image/lut0.png"
+							: "image/filter.png",
+						...(profile.kind === "vignette" ? ["image/src1.png"] : []),
+					];
 	const chunks = await Promise.all(
 		paths.map(async (path) => {
 			const file = join(
@@ -175,6 +181,20 @@ export async function loadIndependentGraph({
 	})!;
 	const root = await independentGraphPackageRoot({ profile });
 	const feature = join(root, profile.featureDirectory ?? "AmazingFeature");
+	if (profile.dualLut) {
+		const cubes = await Promise.all(
+			[profile.dualLut.backgroundPath, profile.dualLut.skinPath].map(
+				async (path) =>
+					profile.dualLut!.format === "vf"
+						? decodeVfCube({ data: await readFile(join(feature, path)) })
+						: loadDualTiledCube({ filePath: join(feature, path) })
+			)
+		);
+		const [cube, skinCube] = cubes;
+		if (!cube || !skinCube || cube.size !== skinCube.size)
+			throw new Error("Invalid dual LUT dimensions.");
+		return { profile, cube, skinCube };
+	}
 	if (profile.maskInvariant) {
 		const paths = invariantAssetPaths({ format: profile.maskInvariant });
 		const [background, skin] = await Promise.all(
@@ -255,6 +275,7 @@ export function encodeIndependentGraph({
 		"edge-glow",
 		"mask-invariant",
 		"mask-invariant-sharpen",
+		"skin-dual-lut",
 	].indexOf(graph.profile.kind);
 	if (kind < 0 || ![0.5, 1].includes(graph.profile.corner))
 		throw new Error("Invalid independent graph configuration.");
@@ -264,6 +285,33 @@ export function encodeIndependentGraph({
 	)
 		throw new Error("Invalid detail-chain variant.");
 	const overlay = graph.overlay;
+	const dual = graph.profile.dualLut;
+	if (
+		(kind === 11) !== Boolean(dual) ||
+		Boolean(dual) !== Boolean(graph.skinCube)
+	)
+		throw new Error("Dual LUT graph requires both cubes and a model profile.");
+	let dualBytes = Buffer.alloc(0);
+	if (dual && graph.skinCube) {
+		if (
+			graph.skinCube.size !== graph.cube.size ||
+			![dual.backgroundStrength, dual.skinStrength].every(
+				(value) => Number.isFinite(value) && value >= 0 && value <= 1
+			)
+		)
+			throw new Error("Invalid dual LUT configuration.");
+		const sampling = ["vf", "tiled", "tiled-floor"].indexOf(dual.format);
+		if (sampling < 0) throw new Error("Unknown dual LUT sampling.");
+		const config = Buffer.alloc(16);
+		config.writeFloatLE(dual.backgroundStrength, 0);
+		config.writeFloatLE(dual.skinStrength, 4);
+		config.writeUInt32LE(sampling, 8);
+		config.writeUInt32LE(dual.clampAlpha ? 1 : 0, 12);
+		dualBytes = Buffer.concat([
+			config,
+			encodeIndependentCube({ cube: graph.skinCube }),
+		]);
+	}
 	if (kind !== 2 && overlay) throw new Error("Unexpected graph overlay.");
 	if (
 		kind === 2 &&
@@ -287,6 +335,7 @@ export function encodeIndependentGraph({
 	return Buffer.concat([
 		header,
 		encodeIndependentCube({ cube: graph.cube }),
+		dualBytes,
 		overlay?.rgba ?? new Uint8Array(),
 	]);
 }
