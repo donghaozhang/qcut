@@ -14,7 +14,10 @@ export function canRenderJianyingLocalEffect({
 			(multiPass.nativeEffect?.provider === "jianying-local-effect-v1" ||
 				multiPass.nativeEffect?.provider === "qcut-metal-fog-v1" ||
 				multiPass.nativeEffect?.provider === "qcut-metal-lut-v1" ||
-				multiPass.nativeEffect?.provider === "qcut-metal-graph-v1") &&
+				multiPass.nativeEffect?.provider === "qcut-metal-graph-v1" ||
+				multiPass.nativeEffect?.provider === "qcut-cpu-soft-glow-v1" ||
+				multiPass.nativeEffect?.provider ===
+					"qcut-cpu-soft-glow-ui-snapshot-v1") &&
 			multiPass.nativeEffect.resourceId
 	);
 }
@@ -68,8 +71,13 @@ export async function renderJianyingLocalEffectPreview({
 	if (!canRenderJianyingLocalEffect({ settings })) return null;
 	const nativeEffect = settings.multiPass?.nativeEffect;
 	if (!nativeEffect) return null;
+	if (nativeEffect.provider === "qcut-cpu-soft-glow-v1")
+		throw new Error("请重新应用电影柔光，旧实验卡使用不同的强度模式。");
 	const intensity = settings.multiPass?.intensity ?? 0;
-	if (intensity <= 0) {
+	if (
+		intensity <= 0 &&
+		nativeEffect.provider !== "qcut-cpu-soft-glow-ui-snapshot-v1"
+	) {
 		return new ImageData(
 			new Uint8ClampedArray(source.data),
 			source.width,
@@ -80,10 +88,11 @@ export async function renderJianyingLocalEffectPreview({
 	const independent =
 		nativeEffect.provider === "qcut-metal-fog-v1" ||
 		nativeEffect.provider === "qcut-metal-lut-v1" ||
-		nativeEffect.provider === "qcut-metal-graph-v1";
+		nativeEffect.provider === "qcut-metal-graph-v1" ||
+		nativeEffect.provider === "qcut-cpu-soft-glow-ui-snapshot-v1";
 	const independentApi = window.electronAPI?.qcutIndependentFilter;
 	if (independent && !independentApi)
-		throw new Error("QCut Metal renderer is unavailable.");
+		throw new Error("QCut independent renderer is unavailable.");
 	if (!independent && !api) return null;
 	try {
 		const request = {
