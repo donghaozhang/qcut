@@ -61,6 +61,7 @@ describe("cover text renderer adapter", () => {
 			strokeWidth: 0,
 			shadowOpacity: 0,
 			backgroundOpacity: 0,
+			backgroundPadding: 0,
 			glowOpacity: 0,
 		});
 	});
@@ -79,7 +80,11 @@ describe("cover text renderer adapter", () => {
 		});
 		expect(spaced.fontSize).toBeLessThan(original.fontSize);
 		const padded = coverTextElement({
-			layer: { ...layer, textStyle: { backgroundPadding: 200 } },
+			layer: {
+				...layer,
+				background: true,
+				textStyle: { backgroundPadding: 200 },
+			},
 			canvas,
 			ctx: context(),
 		});
@@ -87,6 +92,14 @@ describe("cover text renderer adapter", () => {
 			(layer.height * canvas.height) / 2
 		);
 		expect(padded.fontSize).toBeGreaterThan(0);
+		expect(padded.fontSize).toBeLessThan(original.fontSize);
+		const inert = coverTextElement({
+			layer: { ...layer, textStyle: { backgroundPadding: 200 } },
+			canvas,
+			ctx: context(),
+		});
+		expect(inert.backgroundPadding).toBe(0);
+		expect(inert.fontSize).toBe(original.fontSize);
 	});
 	it("maps cover coordinates and all visible style controls into timeline text", () => {
 		const layer = {

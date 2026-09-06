@@ -28,10 +28,9 @@ export function coverTextElement({
 		height,
 		style: layer.textStyle,
 	});
-	const padding = Math.min(
-		initialStyle.backgroundPadding,
-		Math.min(width, height) * 0.45
-	);
+	const padding = layer.background
+		? Math.min(initialStyle.backgroundPadding, Math.min(width, height) * 0.45)
+		: 0;
 	const contentWidth = Math.max(1, width - padding * 2);
 	let fontSize = layer.fontSize;
 	// Keep the same line breaker as timeline text; fit long titles before painting.
