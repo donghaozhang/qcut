@@ -78,6 +78,7 @@ export function ColorPreviewCanvas({
 	portraitAdjustments?: MediaPortraitAdjustments;
 }) {
 	const canvasRef = useRef<HTMLCanvasElement>(null);
+	const renderTailRef = useRef<Promise<void>>(Promise.resolve());
 	const colorPickerActive = useColorPickerStore((state) => state.active);
 	const completeColorPick = useColorPickerStore((state) => state.complete);
 	const previewBypassed = useColorPreviewStore((state) => state.bypassed);
@@ -231,84 +232,94 @@ export function ColorPreviewCanvas({
 			if (source instanceof HTMLVideoElement && source.readyState < 2) return;
 			if (source instanceof HTMLImageElement && !source.complete) return;
 			drawing = true;
-			try {
-				if (source instanceof HTMLVideoElement)
-					lastVideoTime = source.currentTime;
-				const fitted = document.createElement("canvas");
-				fitted.width = canvas.width;
-				fitted.height = canvas.height;
-				const rendered = document.createElement("canvas");
-				rendered.width = canvas.width;
-				rendered.height = canvas.height;
-				const fittedContext = fitted.getContext("2d");
-				const renderedContext = rendered.getContext("2d", {
-					willReadFrequently: true,
-				});
-				const outputContext = canvas.getContext("2d", {
-					willReadFrequently: true,
-				});
-				if (!fittedContext || !renderedContext || !outputContext) return;
-				if (
-					!drawObjectFit({
-						context: fittedContext,
-						source,
-						width: fitted.width,
-						height: fitted.height,
-						fitMode,
-					})
-				)
-					return;
-				await drawColorGradedSourceStack({
-					context: renderedContext,
-					source: fitted,
-					x: 0,
-					y: 0,
-					width: canvas.width,
-					height: canvas.height,
-					layers: renderedLayers,
-					frameSeed,
-					sourceKey,
-					timestampSeconds:
-						source instanceof HTMLVideoElement ? source.currentTime : 0,
-					portraitAdjustments,
-				});
-				if (cancelled) return;
-				if (
-					rendered.width !== canvas.width ||
-					rendered.height !== canvas.height
-				) {
-					return;
+			// Effect cleanup cancels commits, but cannot cancel an IPC frame already running.
+			const operation = renderTailRef.current.then(async () => {
+				try {
+					if (cancelled) return;
+					if (source instanceof HTMLVideoElement)
+						lastVideoTime = source.currentTime;
+					const fitted = document.createElement("canvas");
+					fitted.width = canvas.width;
+					fitted.height = canvas.height;
+					const rendered = document.createElement("canvas");
+					rendered.width = canvas.width;
+					rendered.height = canvas.height;
+					const fittedContext = fitted.getContext("2d");
+					const renderedContext = rendered.getContext("2d", {
+						willReadFrequently: true,
+					});
+					const outputContext = canvas.getContext("2d", {
+						willReadFrequently: true,
+					});
+					if (!fittedContext || !renderedContext || !outputContext) return;
+					if (
+						!drawObjectFit({
+							context: fittedContext,
+							source,
+							width: fitted.width,
+							height: fitted.height,
+							fitMode,
+						})
+					)
+						return;
+					await drawColorGradedSourceStack({
+						context: renderedContext,
+						source: fitted,
+						x: 0,
+						y: 0,
+						width: canvas.width,
+						height: canvas.height,
+						layers: renderedLayers,
+						frameSeed,
+						sourceKey,
+						timestampSeconds:
+							source instanceof HTMLVideoElement ? source.currentTime : 0,
+						portraitAdjustments,
+					});
+					if (cancelled) return;
+					if (
+						rendered.width !== canvas.width ||
+						rendered.height !== canvas.height
+					) {
+						return;
+					}
+					outputContext.clearRect(0, 0, canvas.width, canvas.height);
+					outputContext.drawImage(rendered, 0, 0);
+					canvas.dataset.renderedColorResources = renderedLayers
+						.flatMap(({ settings }) => {
+							const effect = settings.multiPass;
+							return effect?.enabled && effect.nativeEffect
+								? [`${effect.nativeEffect.resourceId}:${effect.intensity}`]
+								: [];
+						})
+						.join(",");
+				} catch (error) {
+					const independent = renderedLayers.some(
+						({ settings }) =>
+							settings.multiPass?.enabled &&
+							(settings.multiPass.nativeEffect?.provider ===
+								"qcut-metal-fog-v1" ||
+								settings.multiPass.nativeEffect?.provider ===
+									"qcut-metal-lut-v1" ||
+								settings.multiPass.nativeEffect?.provider ===
+									"qcut-metal-graph-v1" ||
+								settings.multiPass.nativeEffect?.provider ===
+									"qcut-cpu-soft-glow-v1" ||
+								settings.multiPass.nativeEffect?.provider ===
+									"qcut-cpu-soft-glow-ui-snapshot-v1")
+					);
+					// The color layer reports the failure; retain the last good preview.
+					if (!independent) throw error;
+				} finally {
+					drawing = false;
+					if (queuedDraw && !cancelled) {
+						queuedDraw = false;
+						void draw();
+					}
 				}
-				outputContext.clearRect(0, 0, canvas.width, canvas.height);
-				outputContext.drawImage(rendered, 0, 0);
-				canvas.dataset.renderedColorResources = renderedLayers
-					.flatMap(({ settings }) => {
-						const effect = settings.multiPass;
-						return effect?.enabled && effect.nativeEffect
-							? [`${effect.nativeEffect.resourceId}:${effect.intensity}`]
-							: [];
-					})
-					.join(",");
-			} catch (error) {
-				const independent = renderedLayers.some(
-					({ settings }) =>
-						settings.multiPass?.enabled &&
-						(settings.multiPass.nativeEffect?.provider ===
-							"qcut-metal-fog-v1" ||
-							settings.multiPass.nativeEffect?.provider ===
-								"qcut-metal-lut-v1" ||
-							settings.multiPass.nativeEffect?.provider ===
-								"qcut-metal-graph-v1")
-				);
-				// The color layer reports the failure; retain the last good preview.
-				if (!independent) throw error;
-			} finally {
-				drawing = false;
-				if (queuedDraw && !cancelled) {
-					queuedDraw = false;
-					void draw();
-				}
-			}
+			});
+			renderTailRef.current = operation.catch(() => {});
+			await operation;
 		};
 		const loop = () => {
 			if (cancelled) return;
