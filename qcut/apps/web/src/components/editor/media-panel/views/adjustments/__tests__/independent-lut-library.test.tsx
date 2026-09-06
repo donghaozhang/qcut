@@ -34,7 +34,7 @@ describe("independent local LUT library", () => {
 		render(
 			<IndependentLutLibrary onApply={vi.fn()} onApplyMultiPass={vi.fn()} />
 		);
-		await screen.findByText("本地 LUT · 40");
+		await screen.findByText("本地滤镜 · 40");
 		expect(
 			screen.queryByRole("button", { name: "应用 Local 40 QCut Metal" })
 		).toBeNull();
@@ -86,7 +86,7 @@ describe("independent local LUT library", () => {
 		render(<IndependentLutLibrary onApply={vi.fn()} />);
 		await screen.findByRole("alert");
 		fireEvent.click(screen.getByRole("button", { name: "刷新本地 LUT" }));
-		await screen.findByText("本地 LUT · 40");
+		await screen.findByText("本地滤镜 · 40");
 		expect(list).toHaveBeenLastCalledWith({ refresh: true });
 	});
 });
