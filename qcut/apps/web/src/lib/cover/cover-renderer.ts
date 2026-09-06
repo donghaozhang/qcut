@@ -5,6 +5,7 @@ import {
 	type CoverDesignV1,
 	type CoverAssetRefV1,
 } from "@qcut/editor-core/cover";
+import { paintCoverText } from "./cover-text-renderer";
 
 export function encodeCoverCanvas({
 	canvas,
@@ -42,10 +43,12 @@ export function getCoverImageRect({
 	source,
 	target,
 	fit,
+	position = { x: 0.5, y: 0.5, zoom: 1 },
 }: {
 	source: { width: number; height: number };
 	target: { width: number; height: number };
 	fit: "cover" | "contain";
+	position?: { x: number; y: number; zoom: number };
 }) {
 	assertCoverCanvas(source);
 	assertCoverCanvas(target);
@@ -53,11 +56,11 @@ export function getCoverImageRect({
 		fit === "contain"
 			? Math.min(target.width / source.width, target.height / source.height)
 			: Math.max(target.width / source.width, target.height / source.height);
-	const width = source.width * scale;
-	const height = source.height * scale;
+	const width = source.width * scale * position.zoom;
+	const height = source.height * scale * position.zoom;
 	return {
-		x: (target.width - width) / 2,
-		y: (target.height - height) / 2,
+		x: (target.width - width) * position.x,
+		y: (target.height - height) * position.y,
 		width,
 		height,
 	};
@@ -88,17 +91,33 @@ export async function normalizeCoverImage({
 	}
 }
 
-export async function renderCoverDesign({
+export async function paintCoverDesign({
 	design,
 	resolveAsset,
+	maxWidth,
 }: {
 	design: CoverDesignV1;
 	resolveAsset: (options: { asset: CoverAssetRefV1 }) => Promise<Blob>;
-}): Promise<{ render: Blob; thumbnail: Blob }> {
+	maxWidth?: number;
+}): Promise<HTMLCanvasElement> {
 	assertCoverDesign({ design });
-	const { canvas, ctx } = createCanvas(design.canvas);
+	const scale = maxWidth
+		? Math.min(
+				1,
+				maxWidth / design.canvas.width,
+				maxWidth / design.canvas.height
+			)
+		: 1;
+	const { canvas, ctx } = createCanvas({
+		width: Math.max(2, Math.round(design.canvas.width * scale)),
+		height: Math.max(2, Math.round(design.canvas.height * scale)),
+	});
+	ctx.scale(
+		canvas.width / design.canvas.width,
+		canvas.height / design.canvas.height
+	);
 	ctx.fillStyle = design.canvas.backgroundColor;
-	ctx.fillRect(0, 0, canvas.width, canvas.height);
+	ctx.fillRect(0, 0, design.canvas.width, design.canvas.height);
 	const layer = design.layers[0];
 	const image = await createImageBitmap(
 		await resolveAsset({ asset: layer.asset })
@@ -111,13 +130,30 @@ export async function renderCoverDesign({
 			throw new Error("Cover image dimensions do not match metadata");
 		const rect = getCoverImageRect({
 			source: image,
-			target: canvas,
+			target: design.canvas,
 			fit: layer.fit,
+			position: layer.position,
 		});
 		ctx.drawImage(image, rect.x, rect.y, rect.width, rect.height);
 	} finally {
 		image.close();
 	}
+	await document.fonts?.ready;
+	for (const text of design.layers.slice(1)) {
+		if (text.kind === "text")
+			paintCoverText({ ctx, canvas: design.canvas, layer: text });
+	}
+	return canvas;
+}
+
+export async function renderCoverDesign({
+	design,
+	resolveAsset,
+}: {
+	design: CoverDesignV1;
+	resolveAsset: (options: { asset: CoverAssetRefV1 }) => Promise<Blob>;
+}): Promise<{ render: Blob; thumbnail: Blob }> {
+	const canvas = await paintCoverDesign({ design, resolveAsset });
 	const preview = createCanvas({ width: 640, height: 360 });
 	preview.ctx.fillStyle = design.canvas.backgroundColor;
 	preview.ctx.fillRect(0, 0, 640, 360);
