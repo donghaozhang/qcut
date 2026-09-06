@@ -52,6 +52,7 @@ export interface CoverTextLayerV1 {
 	stroke: boolean;
 	shadow: boolean;
 	background: boolean;
+	opacity?: number;
 	textStyle?: Partial<CoverTextStyleV1>;
 	fontAsset?: TextFontAssetReference;
 	jianyingTextStyle?: JianyingTextStyleReference;
@@ -245,6 +246,7 @@ export function assertCoverText({ layer }: { layer: CoverTextLayerV1 }): void {
 		!inRange(layer.height, 0.05, 1) ||
 		!inRange(layer.fontSize, 8, 512) ||
 		!inRange(layer.rotation, -180, 180) ||
+		(layer.opacity !== undefined && !inRange(layer.opacity, 0, 1)) ||
 		!["sans-serif", "serif", "monospace"].includes(layer.fontFamily) ||
 		!["left", "center", "right"].includes(layer.align) ||
 		!/^#[a-f0-9]{6}$/i.test(layer.color) ||
