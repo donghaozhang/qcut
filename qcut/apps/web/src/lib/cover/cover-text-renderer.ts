@@ -36,7 +36,7 @@ export function coverTextElement({
 	let fontSize = layer.fontSize;
 	// Keep the same line breaker as timeline text; fit long titles before painting.
 	for (let attempt = 0; attempt < 50; attempt += 1) {
-		ctx.font = `${layer.italic ? "italic" : "normal"} ${layer.bold ? "bold" : "normal"} ${fontSize}px ${canvasFontFamily(layer.fontFamily)}`;
+		ctx.font = `${layer.italic ? "italic" : "normal"} ${layer.bold ? "bold" : "normal"} ${fontSize}px ${canvasFontFamily(layer.fontAsset?.cssFamily ?? layer.fontFamily)}`;
 		const lines = wrapTextForBox({
 			ctx,
 			text: layer.content,
@@ -77,7 +77,8 @@ export function coverTextElement({
 		trimStart: 0,
 		trimEnd: 0,
 		fontSize,
-		fontFamily: layer.fontFamily,
+		fontFamily: layer.fontAsset?.cssFamily ?? layer.fontFamily,
+		fontAsset: layer.fontAsset,
 		fontWeight: layer.bold ? "bold" : "normal",
 		fontStyle: layer.italic ? "italic" : "normal",
 		textDecoration: layer.underline ? "underline" : "none",
@@ -119,6 +120,8 @@ export function paintCoverText({
 	canvas: CoverDesignV1["canvas"];
 	layer: CoverTextLayerV1;
 }) {
+	if (layer.jianyingTextStyle)
+		throw new Error("Native cover text requires the word-art renderer");
 	renderTextToCanvas({
 		ctx,
 		canvas,
