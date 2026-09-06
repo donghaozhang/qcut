@@ -354,7 +354,8 @@ export async function drawColorGradedSourceWithMasks({
 		if (
 			settings.multiPass?.enabled &&
 			(settings.multiPass.nativeEffect?.provider === "qcut-metal-fog-v1" ||
-				settings.multiPass.nativeEffect?.provider === "qcut-metal-lut-v1")
+				settings.multiPass.nativeEffect?.provider === "qcut-metal-lut-v1" ||
+				settings.multiPass.nativeEffect?.provider === "qcut-metal-graph-v1")
 		) {
 			reportColorDegradation({
 				reason: "qcut-independent-filter-unavailable",
