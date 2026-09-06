@@ -17,8 +17,8 @@ const cube = {
 };
 const skinCube = { ...cube, values: new Float32Array(24).fill(1) };
 describe("hybrid dual catalog", () => {
-	it("pins 57 variants, exposes model dependency and never inherits verified", () => {
-		expect(HYBRID_DUAL_PROFILES).toHaveLength(57);
+	it("pins 100 variants, exposes model dependency and never inherits verified", () => {
+		expect(HYBRID_DUAL_PROFILES).toHaveLength(100);
 		const cards = HYBRID_DUAL_PROFILES.map((p) => ({
 			...p,
 			available: true,
@@ -38,7 +38,7 @@ describe("hybrid dual catalog", () => {
 			expect(card.maskProvider).toBe("jianying-local-skin-v1");
 			expect(card.verification).toBe("unverified");
 		}
-		expect(listed.count).toBe(58);
+		expect(listed.count).toBe(101);
 		expect(
 			supportsIndependentGraph({
 				card: { ...cards[0], version: "0".repeat(32) },
@@ -68,11 +68,79 @@ describe("hybrid dual catalog", () => {
 			})
 		).toThrow("configuration");
 	});
+	it("encodes independent dimensions without resampling either cube", () => {
+		const largerSkin = { ...skinCube, size: 3, values: new Float32Array(81) };
+		const bytes = encodeIndependentGraph({
+			graph: { profile: base, cube, skinCube: largerSkin },
+		});
+		expect(bytes.readUInt32LE(24 + 8 * 16 + 20)).toBe(3);
+		expect(bytes.length).toBe(24 + 8 * 16 + 24 + 27 * 16);
+		expect(() =>
+			encodeIndependentGraph({
+				graph: {
+					profile: base,
+					cube,
+					skinCube: { ...largerSkin, size: 66 },
+				},
+			})
+		).toThrow("2-65");
+	});
 });
 describe.skipIf(
 	process.platform !== "darwin" ||
 		process.env.QCUT_INDEPENDENT_METAL_TEST !== "1"
 )("real hybrid Metal composition", () => {
+	it.each([
+		3, 64,
+	])("samples a %i-level skin cube independently of the background", async (size) => {
+		const identitySkin = {
+			...skinCube,
+			size,
+			values: Float32Array.from({ length: size ** 3 * 3 }, (_, i) => {
+				const pixel = Math.floor(i / 3);
+				return (Math.floor(pixel / size ** (i % 3)) % size) / (size - 1);
+			}),
+		};
+		const profile = {
+			...base,
+			alphaWeighted: false,
+			dualLut: {
+				...base.dualLut!,
+				format: "tiled" as const,
+				backgroundStrength: 1,
+				skinStrength: 1,
+				clampAlpha: false,
+			},
+		};
+		const session = await createIndependentFilterSession({
+			identity: base,
+			graph: { profile, cube, skinCube: identitySkin },
+			maskSource: {
+				render: async () => ({
+					width: 2,
+					height: 1,
+					bytes: new Uint8Array([0, 255]),
+					orientation: "bottom-left",
+				}),
+				dispose: async () => {},
+			},
+		});
+		try {
+			const rgba = new Uint8Array([40, 90, 160, 255, 40, 90, 160, 255]);
+			const result = await session.render({
+				...base,
+				width: 2,
+				height: 1,
+				rgba,
+				intensity: 100,
+			});
+			expect(result.rgba).toEqual(
+				new Uint8Array([0, 0, 0, 255, 40, 90, 160, 255])
+			);
+		} finally {
+			await session.dispose();
+		}
+	}, 120_000);
 	it.each([
 		"vf",
 		"tiled",
