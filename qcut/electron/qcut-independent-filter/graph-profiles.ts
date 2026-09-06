@@ -1,8 +1,25 @@
 import type { IndependentFilterIdentity } from "./contract.js";
+import { INDEPENDENT_DETAIL_CHAIN_PROFILES } from "./graph-profiles-detail.js";
+import { INDEPENDENT_SPATIAL_PROFILES } from "./graph-profiles-spatial.js";
+import { INDEPENDENT_INVARIANT_PROFILES } from "./graph-profiles-invariant.js";
 
 export interface IndependentGraphProfile extends IndependentFilterIdentity {
 	title: string;
-	kind: "sharpen" | "vignette" | "direct" | "soften";
+	kind:
+		| "sharpen"
+		| "vignette"
+		| "direct"
+		| "soften"
+		| "detail-chain"
+		| "tiled-alpha"
+		| "spring"
+		| "edge-camera"
+		| "edge-glow"
+		| "mask-invariant"
+		| "mask-invariant-sharpen";
+	maskInvariant?: "vf" | "tiled";
+	featureDirectory?: "AmazingFeature_2998";
+	detailVariant?: "sanyo";
 	controlHash: string;
 	assetHash: string;
 	alphaWeighted: boolean;
@@ -323,6 +340,9 @@ export const INDEPENDENT_GRAPH_PROFILES: readonly IndependentGraphProfile[] = [
 		"alphaWeighted": false,
 		"corner": 0.5,
 	},
+	...INDEPENDENT_DETAIL_CHAIN_PROFILES,
+	...INDEPENDENT_SPATIAL_PROFILES,
+	...INDEPENDENT_INVARIANT_PROFILES,
 ];
 
 export function findIndependentGraphProfile({
