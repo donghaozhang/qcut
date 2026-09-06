@@ -1,7 +1,7 @@
 import type { AudioPreviewState } from "./audio-preview-state";
 import { dbToGain } from "./audio-properties";
 import { clampPlaybackRate } from "@/lib/video/video-timing";
-import { FormantCorrectionNode } from "@soundtouchjs/formant-correction-worklet";
+import type { FormantCorrectionNode } from "@soundtouchjs/formant-correction-worklet";
 import formantProcessorUrl from "@soundtouchjs/formant-correction-worklet/processor?url";
 import {
 	getAudioMixContext,
@@ -56,15 +56,14 @@ function createImpulse({
 
 function registerPitchProcessor({
 	context,
+	PitchNode,
 }: {
 	context: AudioContext;
+	PitchNode: typeof FormantCorrectionNode;
 }): Promise<void> {
 	const existing = pitchRegistrations.get(context);
 	if (existing) return existing;
-	const registration = FormantCorrectionNode.register(
-		context,
-		formantProcessorUrl
-	);
+	const registration = PitchNode.register(context, formantProcessorUrl);
 	pitchRegistrations.set(context, registration);
 	return registration;
 }
@@ -170,7 +169,23 @@ function createGraph({
 	let connected = true;
 	let impulseSignature = "";
 	let pitchNode: FormantCorrectionNode | null = null;
+	let pitchSetup: Promise<void> | null = null;
 	let latestState: AudioPreviewState | null = null;
+	const ensurePitchNode = () => {
+		if (pitchNode || pitchSetup) return;
+		mediaElement.dataset.audioPreviewPitch = "loading";
+		pitchSetup = import("@soundtouchjs/formant-correction-worklet")
+			.then(async ({ FormantCorrectionNode: PitchNode }) => {
+				await registerPitchProcessor({ context, PitchNode });
+				pitchNode = new PitchNode({ context });
+				presence.connect(pitchNode);
+				pitchNode.connect(pitchWet);
+				if (latestState) applyPitch({ state: latestState });
+			})
+			.catch(() => {
+				mediaElement.dataset.audioPreviewPitch = "unavailable";
+			});
+	};
 	const applyPitch = ({ state }: { state: AudioPreviewState }) => {
 		const pitchEnabled =
 			state.settings.pitch.enabled &&
@@ -178,7 +193,8 @@ function createGraph({
 		if (!pitchNode) {
 			smooth({ parameter: pitchDry.gain, value: 1, context });
 			smooth({ parameter: pitchWet.gain, value: 0, context });
-			mediaElement.dataset.audioPreviewPitch = pitchEnabled ? "loading" : "off";
+			if (pitchEnabled) ensurePitchNode();
+			else mediaElement.dataset.audioPreviewPitch = "off";
 			return;
 		}
 		const playbackRate = clampPlaybackRate(mediaElement.playbackRate);
@@ -206,16 +222,6 @@ function createGraph({
 			: "off";
 		mediaElement.dataset.audioPreviewPitchRate = playbackRate.toFixed(4);
 	};
-	registerPitchProcessor({ context })
-		.then(() => {
-			pitchNode = new FormantCorrectionNode({ context });
-			presence.connect(pitchNode);
-			pitchNode.connect(pitchWet);
-			if (latestState) applyPitch({ state: latestState });
-		})
-		.catch(() => {
-			mediaElement.dataset.audioPreviewPitch = "unavailable";
-		});
 
 	return {
 		update: ({ state }) => {
