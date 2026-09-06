@@ -47,7 +47,8 @@ async function packageFiles({
 			const files = await previous;
 			if (entry.name === ".DS_Store" || entry.name.startsWith("._"))
 				return files;
-			const child = path.join(relative, entry.name);
+			// Logical "/" path so it matches file.relative on Windows too.
+			const child = path.posix.join(relative, entry.name);
 			if (entry.isDirectory())
 				return [
 					...files,
