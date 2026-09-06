@@ -3,7 +3,10 @@ import { readFile, readdir, realpath, stat } from "node:fs/promises";
 import { dirname, join, relative, sep } from "node:path";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
 import type { JianyingFilterCatalogCard } from "../jianying-filter-catalog-export.js";
-import { jianyingFilterCacheRoots } from "../native-pipeline/filters/filter-lab-lut.js";
+import {
+	decodeVfCube,
+	jianyingFilterCacheRoots,
+} from "../native-pipeline/filters/filter-lab-lut.js";
 import { loadTiledLutCube } from "../native-pipeline/filters/filter-lab-tiled-lut.js";
 import { parseAdobeThreeDl } from "./adobe-three-dl.js";
 import {
@@ -23,15 +26,23 @@ export function supportsIndependentGraph({
 }: {
 	card: JianyingFilterCatalogCard;
 }) {
+	const profile = card.version
+		? findIndependentGraphProfile({
+				identity: { resourceId: card.resourceId, version: card.version },
+			})
+		: undefined;
+	const allowedRequirements = profile?.maskInvariant
+		? ["blit", "skin_seg", "face"]
+		: ["blit"];
 	return Boolean(
 		card.available &&
 			card.cacheStatus === "cached" &&
 			card.version &&
 			!card.sdkModel &&
-			!card.requirements?.some((value) => value !== "blit") &&
-			findIndependentGraphProfile({
-				identity: { resourceId: card.resourceId, version: card.version },
-			})
+			!card.requirements?.some(
+				(value) => !allowedRequirements.includes(value)
+			) &&
+			profile
 	);
 }
 
@@ -73,18 +84,28 @@ export async function hashIndependentGraphAssets({
 	profile,
 }: {
 	root: string;
-	profile: Pick<IndependentGraphProfile, "kind" | "alphaWeighted">;
+	profile: Pick<
+		IndependentGraphProfile,
+		"kind" | "alphaWeighted" | "featureDirectory" | "maskInvariant"
+	>;
 }) {
-	const paths =
-		profile.kind === "direct"
+	const paths = profile.maskInvariant
+		? invariantAssetPaths({ format: profile.maskInvariant })
+		: profile.kind === "direct"
 			? [profile.alphaWeighted ? "texture/filter1.3dl" : "texture/filter.3dl"]
 			: [
-					profile.kind === "sharpen" ? "image/filter.png" : "image/lut0.png",
+					profile.kind === "vignette" || profile.kind === "soften"
+						? "image/lut0.png"
+						: "image/filter.png",
 					...(profile.kind === "vignette" ? ["image/src1.png"] : []),
 				];
 	const chunks = await Promise.all(
 		paths.map(async (path) => {
-			const file = join(root, "AmazingFeature", path);
+			const file = join(
+				root,
+				profile.featureDirectory ?? "AmazingFeature",
+				path
+			);
 			if ((await stat(file)).size > 16 * 1024 * 1024)
 				throw new Error("Graph asset exceeds size limit.");
 			return { path, bytes: await readFile(file) };
@@ -94,6 +115,12 @@ export async function hashIndependentGraphAssets({
 	for (const { path, bytes } of chunks)
 		hash.update(path).update("\0").update(bytes).update("\0");
 	return hash.digest("hex");
+}
+
+function invariantAssetPaths({ format }: { format: "vf" | "tiled" }) {
+	return format === "vf"
+		? ["texture/filter_bg.3dl.vf", "texture/filter_skin.3dl.vf"]
+		: ["image/filter_bg.png", "image/filter_skin.png"];
 }
 
 export async function independentGraphPackageRoot({
@@ -147,7 +174,21 @@ export async function loadIndependentGraph({
 		identity: { resourceId: card.resourceId, version: card.version! },
 	})!;
 	const root = await independentGraphPackageRoot({ profile });
-	const feature = join(root, "AmazingFeature");
+	const feature = join(root, profile.featureDirectory ?? "AmazingFeature");
+	if (profile.maskInvariant) {
+		const paths = invariantAssetPaths({ format: profile.maskInvariant });
+		const [background, skin] = await Promise.all(
+			paths.map((path) => readFile(join(feature, path)))
+		);
+		if (!background.equals(skin))
+			throw new Error("Mask-invariant LUTs no longer match.");
+		const cube =
+			profile.maskInvariant === "vf"
+				? decodeVfCube({ data: background })
+				: await loadTiledLutCube({ filePath: join(feature, paths[0]) });
+		if (!cube) throw new Error("Invalid mask-invariant LUT.");
+		return { profile, cube };
+	}
 	if (profile.kind === "direct") {
 		const path = join(
 			feature,
@@ -164,7 +205,9 @@ export async function loadIndependentGraph({
 		filePath: join(
 			feature,
 			"image",
-			profile.kind === "sharpen" ? "filter.png" : "lut0.png"
+			profile.kind === "vignette" || profile.kind === "soften"
+				? "lut0.png"
+				: "filter.png"
 		),
 	});
 	if (!cube) throw new Error("Independent graph LUT is invalid.");
@@ -200,11 +243,26 @@ export function encodeIndependentGraph({
 }: {
 	graph: IndependentGraphData;
 }) {
-	const kind = ["direct", "sharpen", "vignette", "soften"].indexOf(
-		graph.profile.kind
-	);
+	const kind = [
+		"direct",
+		"sharpen",
+		"vignette",
+		"soften",
+		"detail-chain",
+		"tiled-alpha",
+		"spring",
+		"edge-camera",
+		"edge-glow",
+		"mask-invariant",
+		"mask-invariant-sharpen",
+	].indexOf(graph.profile.kind);
 	if (kind < 0 || ![0.5, 1].includes(graph.profile.corner))
 		throw new Error("Invalid independent graph configuration.");
+	if (
+		graph.profile.detailVariant &&
+		(kind !== 4 || graph.profile.detailVariant !== "sanyo")
+	)
+		throw new Error("Invalid detail-chain variant.");
 	const overlay = graph.overlay;
 	if (kind !== 2 && overlay) throw new Error("Unexpected graph overlay.");
 	if (
@@ -225,6 +283,7 @@ export function encodeIndependentGraph({
 	header.writeFloatLE(graph.profile.corner, 8);
 	header.writeUInt32LE(overlay?.width ?? 0, 12);
 	header.writeUInt32LE(overlay?.height ?? 0, 16);
+	header.writeUInt32LE(graph.profile.detailVariant === "sanyo" ? 1 : 0, 20);
 	return Buffer.concat([
 		header,
 		encodeIndependentCube({ cube: graph.cube }),
