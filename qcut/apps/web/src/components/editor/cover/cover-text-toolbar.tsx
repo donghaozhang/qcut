@@ -108,8 +108,17 @@ export function CoverTextToolbar({
 					aria-label={t("editor.cover.color")}
 					title={t("editor.cover.color")}
 					value={layer?.color ?? "#ffffff"}
-					disabled={flatOff}
-					onChange={(event) => onChange({ color: event.target.value })}
+					disabled={
+						off || layer?.jianyingTextStyle?.packageKind === "ScriptInfoSticker"
+					}
+					onChange={(event) =>
+						onChange({
+							color: event.target.value,
+							...(layer?.jianyingTextStyle
+								? { nativeUseEffectDefaultColor: false }
+								: {}),
+						})
+					}
 				/>
 				<CoverTool
 					icon={Bold}
@@ -222,6 +231,7 @@ export function CoverTextToolbar({
 							onChange({
 								jianyingTextStyle: undefined,
 								nativeFrameTime: undefined,
+								nativeUseEffectDefaultColor: undefined,
 							})
 						}
 					/>
