@@ -16,9 +16,11 @@ export function useCoverInteractionPreview({
 	useEffect(() => {
 		if (!design) return;
 		let cancelled = false;
+		const controller = new AbortController();
 		const frame = requestAnimationFrame(() => {
 			void paintCoverDesign({
 				design,
+				signal: controller.signal,
 				maxWidth: 1024,
 				resolveAsset: ({ asset }) =>
 					coverRepository.readAsset({ projectId, asset }),
@@ -37,6 +39,7 @@ export function useCoverInteractionPreview({
 		return () => {
 			cancelled = true;
 			cancelAnimationFrame(frame);
+			controller.abort();
 		};
 	}, [design, projectId, onError]);
 	return canvasRef;
