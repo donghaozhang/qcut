@@ -19,6 +19,13 @@ const RENDERER_LABELS = {
 	sharpen: "锐化 · 2 Pass",
 	vignette: "纹理暗角 · 3 Pass",
 	soften: "柔化 · 2 Pass",
+	"detail-chain": "细节增强 · 5 Pass",
+	"tiled-alpha": "LUT · Alpha 混合",
+	spring: "柔光 · 4 Pass",
+	"edge-camera": "边缘与色散 · 7 Pass",
+	"edge-glow": "边缘柔光 · 11 Pass",
+	"mask-invariant": "等价双 LUT · 1 Pass",
+	"mask-invariant-sharpen": "等价双 LUT · 2 Pass",
 };
 
 function IndependentLutTile({
