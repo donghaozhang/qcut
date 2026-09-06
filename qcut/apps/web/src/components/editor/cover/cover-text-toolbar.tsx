@@ -34,7 +34,8 @@ export function CoverTextToolbar({
 }) {
 	const { t, locale } = useTranslation();
 	const off = disabled || !layer;
-	const flatOff = off || Boolean(layer?.jianyingTextStyle);
+	const native = layer?.jianyingTextStyle;
+	const flatOff = off || Boolean(native);
 	return (
 		<div className="cover-text-toolbar">
 			<textarea
@@ -51,7 +52,7 @@ export function CoverTextToolbar({
 					aria-label={t("editor.cover.font")}
 					value={
 						layer?.fontAsset?.assetId ??
-						(layer?.jianyingTextStyle ? "sans-serif" : layer?.fontFamily) ??
+						(native ? "sans-serif" : layer?.fontFamily) ??
 						"sans-serif"
 					}
 					disabled={off}
@@ -64,13 +65,10 @@ export function CoverTextToolbar({
 					}}
 				>
 					<option value="sans-serif">{t("editor.cover.sans")}</option>
-					<option value="serif" disabled={Boolean(layer?.jianyingTextStyle)}>
+					<option value="serif" disabled={Boolean(native)}>
 						{t("editor.cover.serif")}
 					</option>
-					<option
-						value="monospace"
-						disabled={Boolean(layer?.jianyingTextStyle)}
-					>
+					<option value="monospace" disabled={Boolean(native)}>
 						{t("editor.cover.mono")}
 					</option>
 					{layer?.fontAsset && (
@@ -109,15 +107,11 @@ export function CoverTextToolbar({
 					aria-label={t("editor.cover.color")}
 					title={t("editor.cover.color")}
 					value={layer?.color ?? "#ffffff"}
-					disabled={
-						off || layer?.jianyingTextStyle?.packageKind === "ScriptInfoSticker"
-					}
+					disabled={off || native?.packageKind === "ScriptInfoSticker"}
 					onChange={(event) =>
 						onChange({
 							color: event.target.value,
-							...(layer?.jianyingTextStyle
-								? { nativeUseEffectDefaultColor: false }
-								: {}),
+							...(native ? { nativeUseEffectDefaultColor: false } : {}),
 						})
 					}
 				/>
@@ -194,26 +188,23 @@ export function CoverTextToolbar({
 					onChange={onChange}
 				/>
 			</div>
-			{layer?.jianyingTextStyle && (
+			{native && (
 				<div className="cover-native-frame">
 					<span>
 						{locale === "zh" ? "本机原版花字" : "Native word art"} ·{" "}
-						{layer.jianyingTextStyle.packageKind}
+						{native.packageKind}
 					</span>
 					<label>
 						{locale === "zh" ? "取帧 (秒)" : "Frame (s)"}
 						<input
 							type="number"
 							min={0}
-							max={Math.max(
-								0,
-								layer.jianyingTextStyle.templateDuration - 0.001
-							)}
+							max={Math.max(0, native.templateDuration - 0.001)}
 							step={0.1}
 							disabled={off}
 							value={
 								layer.nativeFrameTime ??
-								Math.min(1, layer.jianyingTextStyle.templateDuration / 2)
+								Math.min(1, native.templateDuration / 2)
 							}
 							onChange={(event) => {
 								const value = event.target.valueAsNumber;
@@ -221,10 +212,7 @@ export function CoverTextToolbar({
 									onChange({
 										nativeFrameTime: Math.max(
 											0,
-											Math.min(
-												layer.jianyingTextStyle!.templateDuration - 0.001,
-												value
-											)
+											Math.min(native.templateDuration - 0.001, value)
 										),
 									});
 							}}
