@@ -35,6 +35,7 @@ import {
 } from "./filter-lab-tiled-lut.js";
 
 export interface FilterLabRenderEvidence {
+	maskProvider?: "jianying-local-skin-v1";
 	resourceId: string;
 	title: string;
 	version: string;
