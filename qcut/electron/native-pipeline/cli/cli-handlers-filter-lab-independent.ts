@@ -4,6 +4,10 @@ import {
 } from "../../qcut-independent-filter/assets.js";
 import { resolveIndependentFilterHost } from "../../qcut-independent-filter/bridge.js";
 import {
+	loadIndependentGraph,
+	supportsIndependentGraph,
+} from "../../qcut-independent-filter/graph-data.js";
+import {
 	independentFogSettings,
 	independentLutSettings,
 	QCUT_FOG_RESOURCE,
@@ -45,6 +49,33 @@ export async function resolveIndependentFilterPlan({
 	card: JianyingFilterCatalogExport["cards"][number];
 	intensity: number;
 }): Promise<FilterLabRenderPlan> {
+	if (supportsIndependentGraph({ card })) {
+		const graph = await loadIndependentGraph({ card });
+		await resolveIndependentFilterHost();
+		return {
+			kind: "native",
+			mode: "qcut-metal-graph",
+			graph,
+			editorColor: {
+				multiPass: independentLutSettings({
+					resourceId: card.resourceId,
+					version: card.version!,
+					title: card.title,
+					graph: true,
+				}),
+			},
+			evidence: {
+				resourceId: card.resourceId,
+				version: card.version!,
+				title: card.title,
+				implementation: card.implementation,
+				verification: "unverified",
+				intensity,
+				backend: "qcut-metal",
+				fidelity: "native-local",
+			},
+		};
+	}
 	if (card.resourceId !== QCUT_FOG_RESOURCE) {
 		const cube = await loadIndependentCube({ card });
 		await resolveIndependentFilterHost();
