@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+	jianyingPrivateFontRoot,
 	readPrivateJianyingFont,
 	retainPrivateJianyingFont,
 } from "../jianying-font-private-cache.js";
@@ -27,11 +28,19 @@ async function fixture() {
 	};
 }
 afterEach(async () => {
+	vi.unstubAllEnvs();
 	await Promise.all(
 		roots.splice(0).map((root) => rm(root, { recursive: true, force: true }))
 	);
 });
 describe("QCut private font cache", () => {
+	it("stores fonts under the platform QCut user-data directory", async () => {
+		const data = await fixture();
+		vi.stubEnv("QCUT_USER_DATA_DIR", data.root);
+		expect(jianyingPrivateFontRoot()).toBe(
+			join(data.root, "PrivateAssets", "JianyingFonts")
+		);
+	});
 	it("keeps a single verified object across concurrent reads and writes", async () => {
 		const data = await fixture();
 		await Promise.all(
