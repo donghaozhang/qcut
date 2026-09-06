@@ -14,6 +14,7 @@ import { createIndependentFilterSession } from "../electron/qcut-independent-fil
 import { inspectJianyingFilterLocalRuntime } from "../electron/jianying-filter-local-runtime/runtime-discovery.js";
 import { createJianyingFilterSwingRenderSession } from "../electron/jianying-filter-swing-runtime/render.js";
 import { createJianyingFilterLocalRenderSession } from "../electron/jianying-filter-local-runtime/render.js";
+import { renderStableGraphReference } from "./jianying-filter-parity/stable-reference.js";
 
 const { values } = parseArgs({
 	options: {
@@ -143,10 +144,15 @@ for (const profile of selected) {
 					})
 				: await createJianyingFilterSwingRenderSession(oracleOptions);
 			let expected: Uint8Array;
+			let referenceHashes: string[];
 			try {
 				if (!oracle.processId)
 					throw new Error("Oracle returned a passthrough session.");
-				expected = (await oracle.render({ rgba: input })).rgba;
+				const stable = await renderStableGraphReference({
+					render: async () => (await oracle.render({ rgba: input })).rgba,
+				});
+				expected = stable.rgba;
+				referenceHashes = stable.hashes;
 				await encode({ rgba: expected, path: reference });
 			} finally {
 				await oracle.dispose();
@@ -181,6 +187,7 @@ for (const profile of selected) {
 				max,
 				changed,
 				alphaMax,
+				referenceHashes,
 				ownPath,
 				reference,
 				rgbaSha256: hash({ bytes: actual.rgba }),
