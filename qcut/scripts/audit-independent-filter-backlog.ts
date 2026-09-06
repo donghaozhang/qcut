@@ -97,7 +97,10 @@ for (const card of cards)
 const result = {
 	generatedAt: new Date().toISOString(),
 	catalogCount: catalog.count,
-	independentCount: independent.count,
+	metalCatalogCount: independent.count,
+	independentCount: independent.cards.filter((card) => !card.maskProvider)
+		.length,
+	hybridCount: independent.cards.filter((card) => card.maskProvider).length,
 	remainingCount: cards.length,
 	counts,
 	missingPackages: cards
