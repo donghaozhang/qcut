@@ -17,6 +17,8 @@ import {
 	JIANYING_DEFLICKER_HOST_FILE_NAME,
 	JIANYING_DEFLICKER_HOST_REQUIRED_MARKERS,
 } from "../electron/jianying-basic-video-runtime/bridge-resolver.js";
+import { INDEPENDENT_FILTER_HOST } from "../electron/qcut-independent-filter/bridge.js";
+import { SOFT_GLOW_HOST } from "../electron/qcut-independent-filter/soft-glow-bridge.js";
 import { verifyPackagedJianyingRuntimeBridge } from "./verify-packaged-jianying-runtime-bridge.js";
 
 const execFileAsync = promisify(execFile);
@@ -158,6 +160,8 @@ export async function verifyPackagedJianyingRuntimeBridges({
 		videoObjectBachBridge,
 		videoObjectCoreMLBridge,
 		deflickerHost,
+		independentFilterHost,
+		softGlowHost,
 	] = await Promise.all([
 		verifyPackagedJianyingRuntimeBridge({
 			bridgeFileName: JIANYING_TRANSITION_BRIDGE_FILE_NAME,
@@ -204,6 +208,16 @@ export async function verifyPackagedJianyingRuntimeBridges({
 			distRoot,
 			projectRoot,
 		}),
+		verifyPackagedJianyingRuntimeBridge({
+			bridgeFileName: INDEPENDENT_FILTER_HOST,
+			distRoot,
+			projectRoot,
+		}),
+		verifyPackagedJianyingRuntimeBridge({
+			bridgeFileName: SOFT_GLOW_HOST,
+			distRoot,
+			projectRoot,
+		}),
 	]);
 	await requireTransitionModes({ bridgePath: transitionBridge });
 	await Promise.all([
@@ -224,6 +238,8 @@ export async function verifyPackagedJianyingRuntimeBridges({
 		videoObjectBachBridge,
 		videoObjectCoreMLBridge,
 		deflickerHost,
+		independentFilterHost,
+		softGlowHost,
 	};
 }
 
