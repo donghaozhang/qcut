@@ -8,10 +8,12 @@ export function assertCoverNativeText({
 	fontAsset,
 	jianyingTextStyle,
 	nativeFrameTime,
+	nativeUseEffectDefaultColor,
 }: {
 	fontAsset?: TextFontAssetReference;
 	jianyingTextStyle?: JianyingTextStyleReference;
 	nativeFrameTime?: number;
+	nativeUseEffectDefaultColor?: boolean;
 }): void {
 	if (fontAsset !== undefined) {
 		if (
@@ -35,6 +37,11 @@ export function assertCoverNativeText({
 		!normalizeJianyingTextRuntimeReference({ value: jianyingTextStyle })
 	)
 		throw new Error("Invalid cover word-art reference");
+	if (
+		nativeUseEffectDefaultColor !== undefined &&
+		(!jianyingTextStyle || typeof nativeUseEffectDefaultColor !== "boolean")
+	)
+		throw new Error("Invalid cover word-art color mode");
 	if (
 		nativeFrameTime !== undefined &&
 		(!jianyingTextStyle ||
