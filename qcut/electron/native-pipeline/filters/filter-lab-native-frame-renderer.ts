@@ -67,17 +67,29 @@ async function createNativeSession({
 	bootstrapRgba: Uint8Array;
 	media: FilterLabMediaInfo;
 }): Promise<FilterLabNativeSession> {
-	if (plan.mode === "qcut-metal" || plan.mode === "qcut-metal-lut") {
+	if (
+		plan.mode === "qcut-metal" ||
+		plan.mode === "qcut-metal-lut" ||
+		plan.mode === "qcut-metal-graph"
+	) {
 		const session = await createIndependentFilterSession(
 			plan.mode === "qcut-metal"
 				? { lutPath: plan.lutPath }
-				: {
-						cube: plan.cube,
-						identity: {
-							resourceId: plan.evidence.resourceId,
-							version: plan.evidence.version,
-						},
-					}
+				: plan.mode === "qcut-metal-graph"
+					? {
+							graph: plan.graph,
+							identity: {
+								resourceId: plan.evidence.resourceId,
+								version: plan.evidence.version,
+							},
+						}
+					: {
+							cube: plan.cube,
+							identity: {
+								resourceId: plan.evidence.resourceId,
+								version: plan.evidence.version,
+							},
+						}
 		);
 		return {
 			render: ({ rgba }: { rgba: Uint8Array; timestampSeconds: number }) =>
@@ -170,7 +182,8 @@ export function createFilterLabNativeFrameRenderer({
 						plan.mode === "multi-pass" ||
 						plan.mode === "swing" ||
 						plan.mode === "qcut-metal" ||
-						plan.mode === "qcut-metal-lut"
+						plan.mode === "qcut-metal-lut" ||
+						plan.mode === "qcut-metal-graph"
 							? 100
 							: plan.evidence.intensity,
 				});
