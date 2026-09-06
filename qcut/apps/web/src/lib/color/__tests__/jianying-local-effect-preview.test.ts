@@ -99,4 +99,69 @@ describe("Jianying local multi-pass preview", () => {
 		});
 		expect(Array.from(output?.data ?? [])).toEqual([90, 80, 70, 255]);
 	});
+
+	it.each([
+		"qcut-metal-fog-v1",
+		"qcut-metal-lut-v1",
+	] as const)("routes %s frames only to the new API and preserves alpha", async (provider) => {
+		const settings = localSettings();
+		settings.multiPass!.nativeEffect!.provider = provider;
+		const render = vi.fn(async () => ({
+			provider,
+			resourceId: "7403664041945681191",
+			width: 1,
+			height: 1,
+			rgba: new Uint8Array([90, 80, 70, 255]),
+		}));
+		const oldRender = vi.fn();
+		Object.defineProperty(window, "electronAPI", {
+			configurable: true,
+			value: {
+				qcutIndependentFilter: { render },
+				jianyingFilterLab: { renderLocalEffect: oldRender },
+			},
+		});
+		const output = await renderJianyingLocalEffectPreview({
+			source: imageData({ data: [10, 20, 30, 128] }),
+			settings,
+		});
+		expect(render).toHaveBeenCalledWith(
+			expect.objectContaining({ version: "test-version", intensity: 60 })
+		);
+		expect(oldRender).not.toHaveBeenCalled();
+		expect(Array.from(output!.data)).toEqual([90, 80, 70, 128]);
+	});
+
+	it.each([
+		"missing",
+		"failure",
+		"wrong-provider",
+		"wrong-size",
+	])("does not silently omit the independent filter: %s", async (mode) => {
+		const settings = localSettings();
+		settings.multiPass!.nativeEffect!.provider = "qcut-metal-fog-v1";
+		const render = vi.fn(async () => {
+			if (mode === "failure") throw new Error("Metal failed");
+			return {
+				provider:
+					mode === "wrong-provider"
+						? "jianying-local-effect-v1"
+						: "qcut-metal-fog-v1",
+				resourceId: "7403664041945681191",
+				width: mode === "wrong-size" ? 2 : 1,
+				height: 1,
+				rgba: new Uint8Array(4),
+			};
+		});
+		Object.defineProperty(window, "electronAPI", {
+			configurable: true,
+			value: mode === "missing" ? {} : { qcutIndependentFilter: { render } },
+		});
+		await expect(
+			renderJianyingLocalEffectPreview({
+				source: imageData({ data: [1, 2, 3, 255] }),
+				settings,
+			})
+		).rejects.toThrow();
+	});
 });
