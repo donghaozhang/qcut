@@ -39,6 +39,13 @@ describe("cover text preset adapter", () => {
 			runtimeReference,
 		} as unknown as JianyingTextStyleLabStyleSummary;
 		const changes = coverWordArtChanges({ layer, canvas, style });
+		expect(
+			coverWordArtChanges({
+				layer: { ...layer, ...changes, nativeUseEffectDefaultColor: false },
+				canvas,
+				style,
+			})
+		).toHaveProperty("nativeUseEffectDefaultColor", undefined);
 		expect(changes.jianyingTextStyle).toMatchObject({
 			packageKind,
 			packageHash: "a".repeat(32),
@@ -59,12 +66,13 @@ describe("cover text preset adapter", () => {
 		] as const)
 			expect(changes).not.toHaveProperty(key);
 		const plain = coverTextPresetChanges({
-			layer: { ...layer, ...changes },
+			layer: { ...layer, ...changes, nativeUseEffectDefaultColor: false },
 			canvas,
 			preset: BUILT_IN_TEXT_PRESETS[0],
 		});
 		expect(plain).toHaveProperty("jianyingTextStyle", undefined);
 		expect(plain).toHaveProperty("nativeFrameTime", undefined);
+		expect(plain).toHaveProperty("nativeUseEffectDefaultColor", undefined);
 	});
 	it("rejects invalid native references instead of silently approximating them", () => {
 		const style = {
