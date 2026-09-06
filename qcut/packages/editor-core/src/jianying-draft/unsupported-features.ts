@@ -116,6 +116,42 @@ function hasEnhancementEdits({ element }: { element: MediaElement }): boolean {
 	);
 }
 
+const PERSPECTIVE_KEYFRAME_PROPERTIES = new Set<string>([
+	"topLeftX",
+	"topLeftY",
+	"topRightX",
+	"topRightY",
+	"bottomRightX",
+	"bottomRightY",
+	"bottomLeftX",
+	"bottomLeftY",
+]);
+
+/**
+ * Keyframes that still render: a switched-off 混合 section drops its opacity
+ * keyframes and a switched-off 变形 section drops its corner keyframes, so
+ * neither should count as an unmapped transform animation.
+ */
+function retainedTransformKeyframes({
+	element,
+}: {
+	element: MediaElement;
+}): MediaElement["keyframes"] {
+	const keyframes = element.keyframes;
+	if (!keyframes) return keyframes;
+	const blendOff = element.blendEnabled === false;
+	const perspectiveOff = element.perspectiveEnabled === false;
+	if (!blendOff && !perspectiveOff) return keyframes;
+	return Object.fromEntries(
+		Object.entries(keyframes).filter(([property]) => {
+			if (blendOff && property === "opacity") return false;
+			if (perspectiveOff && PERSPECTIVE_KEYFRAME_PROPERTIES.has(property))
+				return false;
+			return true;
+		})
+	) as MediaElement["keyframes"];
+}
+
 function hasCropPerspectiveOrFitEdits({
 	element,
 }: {
@@ -124,7 +160,8 @@ function hasCropPerspectiveOrFitEdits({
 	const hasCrop = Object.values(element.crop ?? {}).some(
 		(value) => value !== 0
 	);
-	const perspective = element.perspective;
+	const perspective =
+		element.perspectiveEnabled === false ? undefined : element.perspective;
 	const hasPerspective =
 		perspective !== undefined &&
 		(perspective.topLeftX !== 0 ||
@@ -384,7 +421,11 @@ export function collectLossyMediaFeatureIssues({
 			severity: "error",
 		});
 	}
-	if (element.blendMode !== undefined && element.blendMode !== "normal") {
+	if (
+		element.blendEnabled !== false &&
+		element.blendMode !== undefined &&
+		element.blendMode !== "normal"
+	) {
 		addFeatureIssue({
 			element,
 			issues,
@@ -426,7 +467,7 @@ export function collectLossyMediaFeatureIssues({
 			severity: "error",
 		});
 	}
-	if (hasKeyframeEntries({ value: element.keyframes })) {
+	if (hasKeyframeEntries({ value: retainedTransformKeyframes({ element }) })) {
 		addFeatureIssue({
 			element,
 			issues,

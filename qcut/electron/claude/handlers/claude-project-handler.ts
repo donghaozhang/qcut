@@ -120,7 +120,9 @@ function ratiosMatch({
 }): boolean {
 	const actual = width / height;
 	const requested = aspectWidth / aspectHeight;
-	return Math.abs(actual - requested) <= Math.max(0.0005, requested * 0.001);
+	// 0.5% matches the renderer's preset-name contract: even-dimension presets
+	// such as 2.35:1 at 1920×816 sit 0.125% off their label and must keep it.
+	return Math.abs(actual - requested) <= Math.max(0.0005, requested * 0.005);
 }
 
 /** Resolve a settings patch into one coherent canvas size and aspect ratio. */

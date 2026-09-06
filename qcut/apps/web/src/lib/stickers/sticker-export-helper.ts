@@ -5,6 +5,7 @@
  * Integrates with the export engine to composite stickers on top of video frames.
  */
 
+import { exportProfiler } from "@/lib/export/export-profiler";
 import type { OverlaySticker } from "@/types/sticker-overlay";
 import type { MediaItem } from "@/stores/media/media-store-types";
 import type {
@@ -293,6 +294,7 @@ export class StickerExportHelper {
 				}),
 				timelineTimeSeconds: currentTime,
 			});
+			exportProfiler.count("sticker-runtime-frames");
 			if (!runtimeFrame.active) return;
 			image = runtimeFrame.image;
 			sourceWidth = runtimeFrame.width;
@@ -301,6 +303,11 @@ export class StickerExportHelper {
 			if (!mediaItem.url) {
 				throw new Error(`Static sticker media URL not found: ${mediaItem.id}`);
 			}
+			exportProfiler.count(
+				this.imageCache.has(mediaItem.url)
+					? "sticker-image-cache-hit"
+					: "sticker-image-cache-miss"
+			);
 			const staticImage = await this.loadImage(mediaItem.url);
 			image = staticImage;
 			sourceWidth = staticImage.naturalWidth;

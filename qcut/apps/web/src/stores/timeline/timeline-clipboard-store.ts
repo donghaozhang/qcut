@@ -31,9 +31,11 @@ export type MediaAttributeSnapshot = Partial<
 		| "flipVertical"
 		| "opacity"
 		| "blendMode"
+		| "blendEnabled"
 		| "fitMode"
 		| "crop"
 		| "perspective"
+		| "perspectiveEnabled"
 		| "keyframes"
 		| "animationInType"
 		| "animationInDuration"
@@ -80,9 +82,11 @@ const MEDIA_ATTRIBUTE_KEYS = [
 	"flipVertical",
 	"opacity",
 	"blendMode",
+	"blendEnabled",
 	"fitMode",
 	"crop",
 	"perspective",
+	"perspectiveEnabled",
 	"keyframes",
 	"animationInType",
 	"animationInDuration",

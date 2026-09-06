@@ -2,17 +2,29 @@ import type {
 	MediaCrop,
 	MediaElement,
 	MediaKeyframeProperty,
+	MediaPerspective,
 } from "@/types/timeline";
 import { upsertMediaKeyframe } from "@/lib/video/video-properties";
+import { PERSPECTIVE_CORNERS } from "./media-perspective-geometry";
 
 export type MediaCanvasMutation = Partial<
-	Pick<MediaElement, "x" | "y" | "scaleX" | "scaleY" | "rotation" | "crop">
+	Pick<
+		MediaElement,
+		"x" | "y" | "scaleX" | "scaleY" | "rotation" | "crop" | "perspective"
+	>
 >;
 
 type MediaCanvasUpdate = Partial<
 	Pick<
 		MediaElement,
-		"x" | "y" | "scaleX" | "scaleY" | "rotation" | "crop" | "keyframes"
+		| "x"
+		| "y"
+		| "scaleX"
+		| "scaleY"
+		| "rotation"
+		| "crop"
+		| "perspective"
+		| "keyframes"
 	>
 >;
 
@@ -22,6 +34,10 @@ const CROP_PROPERTIES: Record<keyof MediaCrop, MediaKeyframeProperty> = {
 	bottom: "cropBottom",
 	left: "cropLeft",
 };
+
+/** The eight corner coordinates, in catalog order. */
+export const PERSPECTIVE_PROPERTIES: ReadonlyArray<keyof MediaPerspective> =
+	PERSPECTIVE_CORNERS.flatMap((corner) => [corner.x, corner.y]);
 
 function keyframeValues({
 	mutation,
@@ -36,6 +52,11 @@ function keyframeValues({
 	if (mutation.crop) {
 		for (const side of Object.keys(CROP_PROPERTIES) as Array<keyof MediaCrop>) {
 			values[CROP_PROPERTIES[side]] = mutation.crop[side];
+		}
+	}
+	if (mutation.perspective) {
+		for (const corner of PERSPECTIVE_PROPERTIES) {
+			values[corner] = mutation.perspective[corner];
 		}
 	}
 	return values;

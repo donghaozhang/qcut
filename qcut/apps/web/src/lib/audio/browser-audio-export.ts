@@ -22,6 +22,7 @@ import {
 	type DecodedBrowserAudioExportClip,
 } from "./browser-audio-export-clips";
 import { reverseAudioBuffer } from "./audio-buffer-transform";
+import { exportProfiler } from "@/lib/export/export-profiler";
 
 function scheduleParameter({
 	parameter,
@@ -42,15 +43,30 @@ function scheduleParameter({
 	}
 }
 
-function createImpulse({
+/**
+ * Builds the reverb impulse response.
+ *
+ * The generator is seeded with a fixed constant and reset on every call, so
+ * two calls with the same room size and damping produce byte-identical
+ * samples. `cache` therefore only avoids rebuilding a buffer that would have
+ * been identical anyway; it never changes the rendered audio. The cache is
+ * created per export so it cannot outlive the context whose sample rate
+ * determined the buffer length.
+ */
+export function createImpulse({
 	context,
 	roomSize,
 	damping,
+	cache,
 }: {
 	context: OfflineAudioContext;
 	roomSize: number;
 	damping: number;
+	cache?: Map<string, AudioBuffer>;
 }): AudioBuffer {
+	const cacheKey = `${roomSize}|${damping}`;
+	const cached = cache?.get(cacheKey);
+	if (cached) return cached;
 	const duration = 0.25 + (roomSize / 100) * 2.75;
 	const length = Math.max(1, Math.round(context.sampleRate * duration));
 	const impulse = context.createBuffer(2, length, context.sampleRate);
@@ -65,6 +81,7 @@ function createImpulse({
 			samples[index] = noise * envelope;
 		}
 	}
+	cache?.set(cacheKey, impulse);
 	return impulse;
 }
 
@@ -87,11 +104,13 @@ async function scheduleClip({
 	clip,
 	fps,
 	pitchNodeConstructor,
+	impulseCache,
 }: {
 	context: OfflineAudioContext;
 	clip: DecodedBrowserAudioExportClip;
 	fps: number;
 	pitchNodeConstructor?: typeof FormantCorrectionNode;
+	impulseCache?: Map<string, AudioBuffer>;
 }) {
 	const { element, buffer } = clip;
 	const startTime = Math.max(0, element.startTime);
@@ -103,6 +122,26 @@ async function scheduleClip({
 		)
 	);
 	if (duration <= 0) return;
+
+	// Both are pure functions of the element, so they can be resolved before
+	// the graph exists — which is what lets a fully disabled reverb skip its
+	// nodes entirely.
+	const points = buildBrowserAudioAutomation({ element, duration, fps });
+	const baseSettings = calculateAudioPreviewState({
+		element,
+		timelineTime: element.startTime,
+		fps,
+		duration,
+		masterVolume: 1,
+		muted: false,
+		trackMuted: false,
+		forceMuted: false,
+	}).settings;
+	// `reverbMix` is exactly 0 at every point when reverb is off (see
+	// buildBrowserAudioAutomation), so the convolution branch would sum zero
+	// samples into the panner. Convolution is the most expensive node in this
+	// graph, so an always-zero branch is skipped rather than rendered.
+	const reverbActive = points.some((point) => point.reverbMix !== 0);
 
 	const source = context.createBufferSource();
 	const input = context.createGain();
@@ -123,8 +162,8 @@ async function scheduleClip({
 	const telephoneWet = context.createGain();
 	const effectsBus = context.createGain();
 	const dryGain = context.createGain();
-	const convolver = context.createConvolver();
-	const reverbGain = context.createGain();
+	const convolver = reverbActive ? context.createConvolver() : null;
+	const reverbGain = reverbActive ? context.createGain() : null;
 	const delay = context.createDelay(2);
 	const echoGain = context.createGain();
 	const feedbackGain = context.createGain();
@@ -190,9 +229,11 @@ async function scheduleClip({
 	telephoneWet.connect(effectsBus);
 	effectsBus.connect(dryGain);
 	dryGain.connect(panner);
-	effectsBus.connect(convolver);
-	convolver.connect(reverbGain);
-	reverbGain.connect(panner);
+	if (convolver && reverbGain) {
+		effectsBus.connect(convolver);
+		convolver.connect(reverbGain);
+		reverbGain.connect(panner);
+	}
 	effectsBus.connect(delay);
 	delay.connect(echoGain);
 	echoGain.connect(panner);
@@ -201,16 +242,6 @@ async function scheduleClip({
 	panner.connect(output);
 	output.connect(context.destination);
 
-	const baseSettings = calculateAudioPreviewState({
-		element,
-		timelineTime: element.startTime,
-		fps,
-		duration,
-		masterVolume: 1,
-		muted: false,
-		trackMuted: false,
-		forceMuted: false,
-	}).settings;
 	compressor.attack.value = baseSettings.compressor.attackMs / 1_000;
 	compressor.release.value = baseSettings.compressor.releaseMs / 1_000;
 	limiter.release.value = baseSettings.limiter.releaseMs / 1_000;
@@ -218,13 +249,15 @@ async function scheduleClip({
 	feedbackGain.gain.value = baseSettings.echo.enabled
 		? Math.min(0.85, baseSettings.echo.feedback / 100)
 		: 0;
-	convolver.buffer = createImpulse({
-		context,
-		roomSize: baseSettings.reverb.roomSize,
-		damping: baseSettings.reverb.damping,
-	});
+	if (convolver) {
+		convolver.buffer = createImpulse({
+			cache: impulseCache,
+			context,
+			damping: baseSettings.reverb.damping,
+			roomSize: baseSettings.reverb.roomSize,
+		});
+	}
 
-	const points = buildBrowserAudioAutomation({ element, duration, fps });
 	const schedules: Array<
 		[AudioParam, (point: BrowserAudioAutomationPoint) => number]
 	> = [
@@ -245,7 +278,11 @@ async function scheduleClip({
 		[telephoneDry.gain, (point) => point.telephoneDry],
 		[telephoneWet.gain, (point) => point.telephoneWet],
 		[dryGain.gain, (point) => point.dryMix],
-		[reverbGain.gain, (point) => point.reverbMix],
+		...(reverbGain
+			? ([[reverbGain.gain, (point) => point.reverbMix]] as Array<
+					[AudioParam, (point: BrowserAudioAutomationPoint) => number]
+				>)
+			: []),
 		[echoGain.gain, (point) => point.echoMix],
 	];
 	for (const [parameter, value] of schedules) {
@@ -304,14 +341,23 @@ export async function renderBrowserTimelineAudio({
 	fps: number;
 	sampleRate?: number;
 }): Promise<AudioBuffer | null> {
-	const clips = collectBrowserAudioExportClips({ tracks, mediaItems });
+	const clips = exportProfiler.timeSync("audio-collect", () =>
+		collectBrowserAudioExportClips({ tracks, mediaItems })
+	);
 	if (clips.length === 0 || totalDuration <= 0) return null;
+	exportProfiler.count("audio-clips", clips.length);
+	exportProfiler.count(
+		"audio-unique-sources",
+		new Set(clips.map(({ mediaItem }) => mediaItem.id)).size
+	);
 	const context = new OfflineAudioContext(
 		2,
 		Math.max(1, Math.ceil(totalDuration * sampleRate)),
 		sampleRate
 	);
-	const decodedClips = await decodeBrowserAudioExportClips({ context, clips });
+	const decodedClips = await exportProfiler.time("audio-decode", () =>
+		decodeBrowserAudioExportClips({ context, clips })
+	);
 	if (decodedClips.length === 0) {
 		if (clips.every(({ mediaItem }) => mediaItem.type === "video")) {
 			return null;
@@ -323,21 +369,31 @@ export async function renderBrowserTimelineAudio({
 	);
 	let pitchNodeConstructor: typeof FormantCorrectionNode | undefined;
 	if (needsPitch) {
-		const formantModule = await import(
-			"@soundtouchjs/formant-correction-worklet"
-		);
-		pitchNodeConstructor = formantModule.FormantCorrectionNode;
-		await pitchNodeConstructor.register(context, formantProcessorUrl);
+		await exportProfiler.time("audio-pitch-setup", async () => {
+			const formantModule = await import(
+				"@soundtouchjs/formant-correction-worklet"
+			);
+			pitchNodeConstructor = formantModule.FormantCorrectionNode;
+			await pitchNodeConstructor.register(context, formantProcessorUrl);
+		});
 	}
-	await Promise.all(
-		decodedClips.map((clip) =>
-			scheduleClip({
-				context,
-				clip,
-				fps,
-				pitchNodeConstructor,
-			})
+	// Shared for this export only: clips with the same reverb settings would
+	// otherwise each rebuild an identical impulse buffer.
+	const impulseCache = new Map<string, AudioBuffer>();
+	await exportProfiler.time("audio-schedule", () =>
+		Promise.all(
+			decodedClips.map((clip) =>
+				scheduleClip({
+					clip,
+					context,
+					fps,
+					impulseCache,
+					pitchNodeConstructor,
+				})
+			)
 		)
 	);
-	return context.startRendering();
+	return exportProfiler.time("audio-offline-render", () =>
+		context.startRendering()
+	);
 }

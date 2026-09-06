@@ -347,8 +347,8 @@ describe("Project handlers — uncovered actions", () => {
 		});
 	});
 
-	describe("project:update-settings missing data", () => {
-		it("requires --data flag", async () => {
+	describe("project:update-settings", () => {
+		it("requires --data or --ratio", async () => {
 			const result = await handleMediaProjectCommand(
 				client,
 				makeOpts({
@@ -359,6 +359,86 @@ describe("Project handlers — uncovered actions", () => {
 			);
 			expect(result.success).toBe(false);
 			expect(result.error).toContain("--data");
+			expect(result.error).toContain("--ratio");
+		});
+
+		it("resolves --ratio to the catalog size and patches settings", async () => {
+			mockRoute("PATCH", "/api/claude/project/p1/settings", {
+				success: true,
+				data: { width: 1080, height: 1920 },
+			});
+			const result = await handleMediaProjectCommand(
+				client,
+				makeOpts({
+					command: "editor:project:update-settings",
+					projectId: "p1",
+					aspectRatio: "9:16",
+				}),
+				noopProgress
+			);
+			expect(result.success).toBe(true);
+			expect(lastCapturedMethod).toBe("PATCH");
+			expect(JSON.parse(lastCapturedBody ?? "{}")).toEqual({
+				width: 1080,
+				height: 1920,
+				aspectRatio: "9:16",
+			});
+		});
+
+		it("accepts aliases and layers --ratio over --data", async () => {
+			mockRoute("PATCH", "/api/claude/project/p1/settings", {
+				success: true,
+				data: {},
+			});
+			const result = await handleMediaProjectCommand(
+				client,
+				makeOpts({
+					command: "editor:project:update-settings",
+					projectId: "p1",
+					aspectRatio: "5.8寸",
+					input: '{"fps":25,"width":1}',
+				}),
+				noopProgress
+			);
+			expect(result.success).toBe(true);
+			expect(JSON.parse(lastCapturedBody ?? "{}")).toEqual({
+				fps: 25,
+				width: 1080,
+				height: 2340,
+				aspectRatio: "9:19.5",
+			});
+		});
+
+		it("rejects a non-object --data instead of merging into it", async () => {
+			for (const input of ["[]", "null", '"x"']) {
+				const result = await handleMediaProjectCommand(
+					client,
+					makeOpts({
+						command: "editor:project:update-settings",
+						projectId: "p1",
+						aspectRatio: "9:16",
+						input,
+					}),
+					noopProgress
+				);
+				expect(result.success).toBe(false);
+				expect(result.error).toContain("--data must be a JSON object");
+			}
+		});
+
+		it("rejects an unknown --ratio without calling the API", async () => {
+			const result = await handleMediaProjectCommand(
+				client,
+				makeOpts({
+					command: "editor:project:update-settings",
+					projectId: "p1",
+					aspectRatio: "4:5",
+				}),
+				noopProgress
+			);
+			expect(result.success).toBe(false);
+			expect(result.error).toContain('Unknown --ratio "4:5"');
+			expect(result.error).toContain("9:19.5 (5.8寸)");
 		});
 	});
 

@@ -1,13 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
-	AlignHorizontalJustifyCenter,
-	AlignHorizontalJustifyEnd,
-	AlignHorizontalJustifyStart,
-	AlignVerticalJustifyCenter,
-	AlignVerticalJustifyEnd,
-	AlignVerticalJustifyStart,
-	Diamond,
 	FlipHorizontal2,
 	FlipVertical2,
 	Link2,
@@ -16,6 +9,7 @@ import {
 } from "lucide-react";
 import type {
 	MediaElement,
+	MediaEnhancements,
 	MediaKeyframeProperty,
 	MediaMask,
 	MediaMaskTrackingDirection,
@@ -36,7 +30,6 @@ import type { JianyingMotionTrackingStatus } from "@/types/electron/api-jianying
 import { generateUUID } from "@/lib/utils";
 import { useMediaKeyframeShortcuts } from "@/hooks/keyboard/use-media-keyframe-shortcuts";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import {
 	Select,
@@ -72,7 +65,6 @@ import {
 } from "./property-item";
 import { KeyframeEditor } from "./keyframe-editor";
 import { MediaMaskProperties } from "./media-mask-properties";
-import { MaskIconButton } from "./media-mask-controls";
 import { MediaAutomaticCutoutProperties } from "./media-automatic-cutout-properties";
 import { MediaChromaKeyProperties } from "./media-chroma-key-properties";
 import { MediaCustomCutoutProperties } from "./media-custom-cutout-properties";
@@ -98,8 +90,16 @@ import {
 	CLIP_ANIMATION_OPTIONS,
 	IconButton,
 	NumberControl,
-	PERSPECTIVE_FIELDS,
 } from "./visual-property-controls";
+import { MediaAlignmentToolbar } from "./media-alignment-toolbar";
+import { MediaKeyframeNav } from "./media-keyframe-nav";
+import { MediaWarpSection } from "./media-warp-section";
+import {
+	DenoiseSection,
+	QuickEnhanceSection,
+	StabilizationSection,
+	SuperResolutionSection,
+} from "./media-enhancement-sections";
 
 type MediaUpdates = Parameters<
 	ReturnType<typeof useTimelineStore.getState>["updateMediaElement"]
@@ -182,6 +182,7 @@ export function MediaProperties({
 	const pushHistory = useTimelineStore((state) => state.pushHistory);
 	const canvasSize = useEditorStore((state) => state.canvasSize);
 	const currentTime = usePlaybackStore((state) => state.currentTime);
+	const seek = usePlaybackStore((state) => state.seek);
 	const fps = useProjectStore((state) => state.activeProject?.fps ?? 30);
 	const mediaItem = useMediaStore((state) =>
 		state.mediaItems.find((item) => item.id === element.mediaId)
@@ -215,7 +216,11 @@ export function MediaProperties({
 	const motionTrackingApi = window.electronAPI?.jianyingMotionTracking;
 	const interactionActive = useRef(false);
 	const panelRef = useRef<HTMLDivElement>(null);
-	const visual = resolveMediaVisualProperties(element);
+	// The panel edits stored values even while a section is switched off;
+	// renderers resolve the same element with the toggles applied.
+	const visual = resolveMediaVisualProperties(element, {
+		applySectionToggles: false,
+	});
 	const timelineDuration = getMediaTimelineDuration(element, fps);
 	const localTrackingMask = visual.masks.find((mask) => {
 		const source = mask.tracking?.source;
@@ -523,6 +528,11 @@ export function MediaProperties({
 		}
 		setActiveMediaTab("segmentation");
 	};
+	const updateEnhancements = (
+		enhancements: MediaEnhancements,
+		history = true
+	) => update({ enhancements }, history);
+	const seekToFrame = (frame: number) => seek(element.startTime + frame / fps);
 	const openAIUpscale = () => {
 		if (mediaItem?.file) requestSelectedVideoUpscale({ file: mediaItem.file });
 		setActiveMediaTab("upscale");
@@ -824,6 +834,7 @@ export function MediaProperties({
 
 			<Tabs value={activePropertiesTab}>
 				<TabsContent value="basic" className="mt-4 space-y-4">
+					<MediaAlignmentToolbar onAlignX={alignX} onAlignY={alignY} />
 					<PropertyGroup
 						title={t("mediaProperties.positionAndSize")}
 						defaultExpanded
@@ -968,48 +979,6 @@ export function MediaProperties({
 								onInteractionEnd={endInteraction}
 							/>
 
-							<div className="flex items-center justify-between gap-2">
-								<div className="flex gap-1">
-									<IconButton
-										label={t("mediaProperties.alignLeft")}
-										onClick={() => alignX("left")}
-									>
-										<AlignHorizontalJustifyStart className="size-4" />
-									</IconButton>
-									<IconButton
-										label={t("mediaProperties.alignCenter")}
-										onClick={() => alignX("center")}
-									>
-										<AlignHorizontalJustifyCenter className="size-4" />
-									</IconButton>
-									<IconButton
-										label={t("mediaProperties.alignRight")}
-										onClick={() => alignX("right")}
-									>
-										<AlignHorizontalJustifyEnd className="size-4" />
-									</IconButton>
-								</div>
-								<div className="flex gap-1">
-									<IconButton
-										label={t("mediaProperties.alignTop")}
-										onClick={() => alignY("top")}
-									>
-										<AlignVerticalJustifyStart className="size-4" />
-									</IconButton>
-									<IconButton
-										label={t("mediaProperties.alignMiddle")}
-										onClick={() => alignY("center")}
-									>
-										<AlignVerticalJustifyCenter className="size-4" />
-									</IconButton>
-									<IconButton
-										label={t("mediaProperties.alignBottom")}
-										onClick={() => alignY("bottom")}
-									>
-										<AlignVerticalJustifyEnd className="size-4" />
-									</IconButton>
-								</div>
-							</div>
 							<div className="flex items-center gap-2">
 								<IconButton
 									label={t("mediaProperties.flipHorizontal")}
@@ -1041,7 +1010,44 @@ export function MediaProperties({
 						</div>
 					</PropertyGroup>
 
-					<PropertyGroup title={t("mediaProperties.blend")} defaultExpanded>
+					<PropertyGroup
+						title={t("mediaProperties.blend")}
+						defaultExpanded
+						testId="media-blend-section"
+						enabled={element.blendEnabled !== false}
+						enableLabel={t("mediaProperties.enableSection", {
+							label: t("mediaProperties.blend"),
+						})}
+						onEnabledChange={(checked) => update({ blendEnabled: checked })}
+						resetLabel={t("mediaProperties.resetSection", {
+							label: t("mediaProperties.blend"),
+						})}
+						onReset={() =>
+							resetNumericProperties({
+								updates: { opacity: 1, blendMode: "normal" },
+								properties: ["opacity"],
+							})
+						}
+						headerActions={
+							<MediaKeyframeNav
+								label={t("mediaProperties.opacity")}
+								frames={keyframesFor({ property: "opacity" }).map(
+									(keyframe) => keyframe.frame
+								)}
+								currentFrame={currentFrame}
+								keyframed={isKeyframedHere({ property: "opacity" })}
+								onToggle={() =>
+									togglePropertyKeyframes({
+										values: {
+											opacity: currentPropertyValue({ property: "opacity" }),
+										},
+									})
+								}
+								onSeekFrame={seekToFrame}
+								testId="media-blend-keyframes"
+							/>
+						}
+					>
 						<div className="space-y-4">
 							<NumberControl
 								label={t("mediaProperties.opacity")}
@@ -1056,14 +1062,6 @@ export function MediaProperties({
 										values: { opacity },
 									});
 								}}
-								keyframed={isKeyframedHere({ property: "opacity" })}
-								onToggleKeyframe={() =>
-									togglePropertyKeyframes({
-										values: {
-											opacity: currentPropertyValue({ property: "opacity" }),
-										},
-									})
-								}
 								onInteractionStart={beginInteraction}
 								onInteractionEnd={endInteraction}
 							/>
@@ -1168,189 +1166,46 @@ export function MediaProperties({
 						</div>
 					</PropertyGroup>
 
-					<PropertyGroup
-						title={t("mediaProperties.perspective")}
-						defaultExpanded={false}
-					>
-						<div className="space-y-3">
-							{PERSPECTIVE_FIELDS.map((field) => (
-								<div key={field.labelKey} className="space-y-1">
-									<p className="text-[11px] text-muted-foreground">
-										{t(field.labelKey)}
-									</p>
-									<div className="grid grid-cols-2 gap-2">
-										{([field.x, field.y] as const).map((key, index) => {
-											const property = key as MediaKeyframeProperty;
-											const axis = index === 0 ? "X" : "Y";
-											return (
-												<div key={key} className="flex items-center gap-1">
-													<span className="w-3 text-[10px] text-muted-foreground">
-														{axis}
-													</span>
-													<MaskIconButton
-														label={
-															isKeyframedHere({ property })
-																? t("mediaProperties.removeKeyframe", {
-																		label: `${t(field.labelKey)} ${axis}`,
-																	})
-																: t("mediaProperties.addKeyframe", {
-																		label: `${t(field.labelKey)} ${axis}`,
-																	})
-														}
-														active={isKeyframedHere({ property })}
-														onClick={() =>
-															togglePropertyKeyframes({
-																values: {
-																	[property]: currentPropertyValue({
-																		property,
-																	}),
-																},
-															})
-														}
-													>
-														<Diamond
-															className={`size-3 ${
-																isKeyframedHere({ property })
-																	? "fill-primary text-primary"
-																	: ""
-															}`}
-														/>
-													</MaskIconButton>
-													<Input
-														type="number"
-														aria-label={t("mediaProperties.value", {
-															label: `${t(field.labelKey)} ${axis}`,
-														})}
-														value={Math.round(
-															currentPropertyValue({ property }) * 100
-														)}
-														min={0}
-														max={100}
-														onFocus={beginInteraction}
-														onBlur={endInteraction}
-														onChange={(event) => {
-															const percent = Number(event.target.value);
-															if (!Number.isFinite(percent)) return;
-															const value = percent / 100;
-															updateNumericProperties({
-																updates: {
-																	perspective: {
-																		...visual.perspective,
-																		[key]: value,
-																	},
-																},
-																values: { [property]: value },
-															});
-														}}
-														className="h-8 min-w-0 text-xs"
-													/>
-												</div>
-											);
-										})}
-									</div>
-								</div>
-							))}
-							<Button
-								type="button"
-								variant="outline"
-								size="sm"
-								onClick={() =>
-									resetNumericProperties({
-										updates: {
-											perspective: { ...DEFAULT_MEDIA_PERSPECTIVE },
-										},
-										properties: PERSPECTIVE_FIELDS.flatMap(({ x, y }) => [
-											x,
-											y,
-										]),
-									})
-								}
-							>
-								<RotateCcw className="mr-2 size-3.5" />
-								{t("mediaProperties.resetPerspective")}
-							</Button>
-						</div>
-					</PropertyGroup>
+					<MediaWarpSection
+						element={element}
+						perspective={visual.perspective}
+						currentFrame={currentFrame}
+						keyframesFor={keyframesFor}
+						isKeyframedHere={isKeyframedHere}
+						currentPropertyValue={currentPropertyValue}
+						togglePropertyKeyframes={togglePropertyKeyframes}
+						updateNumericProperties={updateNumericProperties}
+						resetNumericProperties={resetNumericProperties}
+						update={update}
+						onSeekFrame={seekToFrame}
+						onInteractionStart={beginInteraction}
+						onInteractionEnd={endInteraction}
+					/>
 
-					<PropertyGroup
-						title={t("mediaProperties.stabilization")}
-						defaultExpanded={false}
-					>
-						<NumberControl
-							label={t("mediaProperties.localStabilization")}
-							value={visual.enhancements.stabilization}
-							min={0}
-							max={100}
-							onChange={(stabilization) =>
-								updateLive({
-									enhancements: { ...visual.enhancements, stabilization },
-								})
-							}
-							onInteractionStart={beginInteraction}
-							onInteractionEnd={endInteraction}
+					{mediaItem?.type === "video" ? (
+						<StabilizationSection
+							enhancements={visual.enhancements}
+							onChange={updateEnhancements}
 						/>
-					</PropertyGroup>
+					) : null}
 
-					<PropertyGroup
-						title={t("mediaProperties.qualityEnhancement")}
-						defaultExpanded={false}
-					>
-						<div className="space-y-4">
-							{(
-								[
-									["denoise", "mediaProperties.denoise"],
-									["clarity", "mediaProperties.clarity"],
-								] as const
-							).map(([property, labelKey]) => (
-								<NumberControl
-									key={property}
-									label={t(labelKey)}
-									value={visual.enhancements[property]}
-									min={0}
-									max={100}
-									onChange={(value) =>
-										updateLive({
-											enhancements: {
-												...visual.enhancements,
-												[property]: value,
-											},
-										})
-									}
-									onInteractionStart={beginInteraction}
-									onInteractionEnd={endInteraction}
-								/>
-							))}
-							<PropertyItem>
-								<PropertyItemLabel>
-									{t("mediaProperties.localUpscale")}
-								</PropertyItemLabel>
-								<PropertyItemValue>
-									<Select
-										value={String(visual.enhancements.upscale)}
-										onValueChange={(value) =>
-											update({
-												enhancements: {
-													...visual.enhancements,
-													upscale: Number(value) as 1 | 2 | 4,
-												},
-											})
-										}
-									>
-										<SelectTrigger className="h-8 text-xs">
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent>
-											<SelectItem value="1">
-												{t("mediaProperties.off")}
-											</SelectItem>
-											<SelectItem value="2">2x</SelectItem>
-											<SelectItem value="4">4x</SelectItem>
-										</SelectContent>
-									</Select>
-								</PropertyItemValue>
-							</PropertyItem>
-						</div>
-					</PropertyGroup>
+					<QuickEnhanceSection
+						enhancements={visual.enhancements}
+						onChange={updateEnhancements}
+					/>
+
+					<SuperResolutionSection
+						enhancements={visual.enhancements}
+						onChange={updateEnhancements}
+						onOpenAIUpscale={openAIUpscale}
+					/>
+
+					<DenoiseSection
+						enhancements={visual.enhancements}
+						onChange={updateEnhancements}
+						onInteractionStart={beginInteraction}
+						onInteractionEnd={endInteraction}
+					/>
 
 					{mediaItem?.type === "video" ? (
 						<MediaLabProperties
@@ -1362,9 +1217,7 @@ export function MediaProperties({
 									(visual.enhancements.labDeflicker ?? 0) > 0
 							)}
 							privateDeflickerStatus={privateDeflickerStatus}
-							onChange={(enhancements, history = true) =>
-								update({ enhancements }, history)
-							}
+							onChange={updateEnhancements}
 							onApplyPrivateDeflicker={() => {
 								void applyPrivateDeflicker();
 							}}
