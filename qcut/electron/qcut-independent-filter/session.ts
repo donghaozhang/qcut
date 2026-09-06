@@ -7,8 +7,13 @@ import {
 import { resolveIndependentFilterHost } from "./bridge.js";
 import { encodeIndependentCube, type IndependentCube } from "./lut-data.js";
 import {
+	encodeIndependentGraph,
+	type IndependentGraphData,
+} from "./graph-data.js";
+import {
 	QCUT_FOG_PROVIDER,
 	QCUT_LUT_PROVIDER,
+	QCUT_GRAPH_PROVIDER,
 	QCUT_FOG_RESOURCE,
 	QCUT_FOG_VERSION,
 	type IndependentFilterRequest,
@@ -24,11 +29,18 @@ export interface IndependentFilterSession {
 }
 
 type SessionOptions =
-	| { lutPath: string; cube?: never; identity?: never }
+	| { lutPath: string; cube?: never; graph?: never; identity?: never }
+	| {
+			graph: IndependentGraphData;
+			identity: IndependentFilterIdentity;
+			cube?: never;
+			lutPath?: never;
+	  }
 	| {
 			cube: IndependentCube;
 			identity: IndependentFilterIdentity;
 			lutPath?: never;
+			graph?: never;
 	  };
 
 export async function createIndependentFilterSession(
@@ -40,24 +52,41 @@ export async function createIndependentFilterSession(
 			version: QCUT_FOG_VERSION,
 		}),
 	};
-	const cubeSize = options.cube?.size;
-	const provider = options.cube ? QCUT_LUT_PROVIDER : QCUT_FOG_PROVIDER;
-	const lutData = options.cube
-		? encodeIndependentCube({ cube: options.cube })
-		: loadIndependentFogLut({ filePath: options.lutPath });
+	const cubeSize = options.graph?.cube.size ?? options.cube?.size;
+	if (
+		options.graph &&
+		(options.graph.profile.resourceId !== identity.resourceId ||
+			options.graph.profile.version !== identity.version)
+	)
+		throw new Error("Graph data does not match the requested filter identity.");
+	const graphMode = Boolean(options.graph);
+	const provider = options.graph
+		? QCUT_GRAPH_PROVIDER
+		: options.cube
+			? QCUT_LUT_PROVIDER
+			: QCUT_FOG_PROVIDER;
+	const lutData = options.graph
+		? encodeIndependentGraph({ graph: options.graph })
+		: options.cube
+			? encodeIndependentCube({ cube: options.cube })
+			: loadIndependentFogLut({ filePath: options.lutPath });
 	const [host, lut] = await Promise.all([
 		resolveIndependentFilterHost(),
 		lutData,
 	]);
-	const child = spawn(host, cubeSize ? ["--cube", String(cubeSize)] : [], {
-		stdio: ["pipe", "pipe", "pipe"],
-		env: {
-			...process.env,
-			DYLD_LIBRARY_PATH: "",
-			DYLD_INSERT_LIBRARIES: "",
-			DYLD_FRAMEWORK_PATH: "",
-		},
-	});
+	const child = spawn(
+		host,
+		cubeSize ? [graphMode ? "--graph" : "--cube", String(cubeSize)] : [],
+		{
+			stdio: ["pipe", "pipe", "pipe"],
+			env: {
+				...process.env,
+				DYLD_LIBRARY_PATH: "",
+				DYLD_INSERT_LIBRARIES: "",
+				DYLD_FRAMEWORK_PATH: "",
+			},
+		}
+	);
 	let failure: Error | undefined;
 	let stderr = "";
 	let buffered = Buffer.alloc(0);
@@ -165,7 +194,7 @@ export async function createIndependentFilterSession(
 					throw new Error(
 						"Independent frame does not match the loaded LUT version."
 					);
-				if (!options.cube) validateIndependentFilterIdentity(request);
+				if (!cubeSize) validateIndependentFilterIdentity(request);
 				parseFilterLabRenderLocalEffectRequest({ request });
 				if (closed || failure)
 					throw failure ?? new Error("QCut Metal session is closed.");
