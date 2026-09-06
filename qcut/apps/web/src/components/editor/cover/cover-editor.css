@@ -579,6 +579,14 @@
 .cover-cache-detail ul {
 	padding-left: 12px;
 }
+.cover-cache-detail li {
+	margin: 8px 0;
+}
+.cover-cache-detail li small {
+	display: block;
+	margin-top: 3px;
+	color: #a8a8a8;
+}
 .cover-template small {
 	display: flex;
 	gap: 4px;
