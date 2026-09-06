@@ -109,11 +109,14 @@ describe("independent graph asset contracts", () => {
 	])("rejects malformed or unsupported 3DL data", (text) => {
 		expect(() => parseAdobeThreeDl({ text })).toThrow();
 	});
-	it("pins all 45 graph identities without importing old parity labels", () => {
-		expect(INDEPENDENT_GRAPH_PROFILES).toHaveLength(45);
+	it("pins 45 independent and 57 hybrid graph identities without importing old parity labels", () => {
+		expect(INDEPENDENT_GRAPH_PROFILES).toHaveLength(102);
+		expect(INDEPENDENT_GRAPH_PROFILES.filter((p) => !p.dualLut)).toHaveLength(
+			45
+		);
 		expect(
 			new Set(INDEPENDENT_GRAPH_PROFILES.map((p) => p.resourceId)).size
-		).toBe(45);
+		).toBe(102);
 		for (const p of INDEPENDENT_GRAPH_PROFILES) {
 			expect(p.controlHash).toMatch(/^[a-f0-9]{64}$/);
 			expect(p.assetHash).toMatch(/^[a-f0-9]{64}$/);
