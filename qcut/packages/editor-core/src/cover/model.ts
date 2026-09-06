@@ -1,4 +1,9 @@
 import { assertCoverTextStyle, type CoverTextStyleV1 } from "./text-style.js";
+import type {
+	TextFontAssetReference,
+	JianyingTextStyleReference,
+} from "../types/timeline.js";
+import { assertCoverNativeText } from "./native-text.js";
 
 export interface CoverAssetRefV1 {
 	assetId: string;
@@ -48,6 +53,9 @@ export interface CoverTextLayerV1 {
 	shadow: boolean;
 	background: boolean;
 	textStyle?: Partial<CoverTextStyleV1>;
+	fontAsset?: TextFontAssetReference;
+	jianyingTextStyle?: JianyingTextStyleReference;
+	nativeFrameTime?: number;
 	templateId?: string;
 }
 
@@ -251,6 +259,7 @@ export function assertCoverText({ layer }: { layer: CoverTextLayerV1 }): void {
 	)
 		throw new Error("Invalid cover text layer");
 	assertCoverTextStyle({ style: layer.textStyle });
+	assertCoverNativeText(layer);
 }
 
 export function assertProjectCover({
