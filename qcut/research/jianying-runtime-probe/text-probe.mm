@@ -209,6 +209,7 @@ struct TextSymbols {
   SetDoubleReferenceMethod setTextLineMaxWidth;
   SetDoubleReferenceMethod setTextShadowSmoothing;
   SetBoolReferenceMethod setUseEffectDefaultColor;
+  SetStringReferenceMethod setTextColor;
   TextStickerToJsonMethod textStickerToJson;
   SeekDeviceTextureMethod seekManagerDeviceTexture;
   SetParameterBoolMethod setManagerParameterBool;
@@ -274,6 +275,8 @@ struct TextSymbols {
           core, kSetTextShadowSmoothing),
       .setUseEffectDefaultColor = resolveSymbol<SetBoolReferenceMethod>(
           core, kSetUseEffectDefaultColor),
+      .setTextColor =
+          resolveSymbol<SetStringReferenceMethod>(core, kSetTextColor),
       .textStickerToJson =
           resolveSymbol<TextStickerToJsonMethod>(core, kTextStickerToJson),
       .seekManagerDeviceTexture = resolveSymbol<SeekDeviceTextureMethod>(
@@ -396,11 +399,7 @@ void writeTextFile(const fs::path& outputPath, const std::string& text) {
   const bool useEffectDefaultColor = request.textColor.empty();
   symbols.setUseEffectDefaultColor(sticker.get(), useEffectDefaultColor);
   if (!useEffectDefaultColor) {
-    void* core =
-        openLibrary(request.runtimeRoot / "Frameworks" / "libcccreator.dylib");
-    const auto setTextColor =
-        resolveSymbol<SetStringReferenceMethod>(core, kSetTextColor);
-    setTextColor(sticker.get(), request.textColor);
+    symbols.setTextColor(sticker.get(), request.textColor);
   }
   const std::string payload = symbols.textStickerToJson(sticker);
   if (payload.empty()) {
@@ -692,7 +691,8 @@ void validateTextFrameRequest(const TextFrameProbeRequest& request) {
           return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
                  (c >= 'A' && c <= 'F');
         });
-    if (!validHex || request.segmentType != 3 || !request.segmentPayload.empty()) {
+    if (!validHex || request.text.empty() || request.segmentType != 3 ||
+        !request.segmentPayload.empty()) {
       throw std::runtime_error(
           "text color requires a host-text payload and six-digit hex color");
     }
