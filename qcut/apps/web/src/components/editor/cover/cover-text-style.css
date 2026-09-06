@@ -114,6 +114,42 @@
 	font-size: 11px;
 	overflow-wrap: anywhere;
 }
+.cover-word-art-image {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	aspect-ratio: 2;
+	background: #202020;
+}
+.cover-word-art-image img {
+	width: 100%;
+	height: 100%;
+	object-fit: contain;
+}
+.cover-style-card small {
+	display: block;
+	padding: 0 6px 6px;
+	font-size: 10px;
+	overflow-wrap: anywhere;
+	color: #b8d9d4;
+}
+.cover-native-frame {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+	font-size: 12px;
+}
+.cover-native-frame input {
+	width: 80px;
+	background: #303030;
+	border: 1px solid #555;
+}
+.cover-font-popover {
+	z-index: 1010;
+	max-height: calc(100vh - 32px);
+	overflow: auto;
+}
 .cover-style-status {
 	font-size: 11px;
 	color: #bbb;
