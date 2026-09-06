@@ -1,6 +1,6 @@
 # QCut 封面：实现状态与本地资料
 
-更新：2026-09-06。状态：可编辑原创模板工作区、剪映八分类私有缓存，以及复用花字/字体实验室的原生文字渲染；完整 `cover.cover_draft` 封面模板尚未直接套用。
+更新：2026-09-06。状态：可编辑原创模板工作区、剪映八分类私有缓存、缓存模板文字布局套用，以及复用花字/字体实验室的原生文字渲染；完整 `cover.cover_draft` 背景与文字合成尚未直接套用。
 
 ## 工作目录
 
@@ -29,6 +29,8 @@
 - [English: editable text styles and word-art lab reuse](./text-editing-parity-2026-09-06.en.md)
 - [中文：原生花字、字体自有缓存与实机验证](./native-word-art-2026-09-06.zh-CN.md)
 - [English: native word art, retained fonts and desktop verification](./native-word-art-2026-09-06.en.md)
+- [中文：缓存文字布局、依赖诊断与真实模板验证](./cached-layout-2026-09-06.zh-CN.md)
+- [English: cached text layouts, dependency diagnostics and real-template validation](./cached-layout-2026-09-06.en.md)
 
 ## 已实现
 
@@ -46,6 +48,7 @@
 12. 文字可编辑内容、字号、三类系统字体、颜色、粗斜体、下划线、对齐、前后层级、文本框宽高和旋转；支持画布拖动和键盘微调。描边、阴影、背景和发光增加颜色与数值参数，排版增加字间距、行距与垂直对齐；复用 13 个文字预设和花字实验室的静态近似参数，支持保存重开。该增量通过 191 项相关回归测试，详见文字编辑记录。
 13. 背景支持完整显示/填满、缩放、位置和裁剪模式；裁剪时暂时隐藏文字并停用文字工具。独立撤销重做保留最多 60 步，完整拖动只提交一步。
 14. 花字实验室的 TextStyle、InfoSticker 和 ScriptInfoSticker 已连接封面原生渲染，支持改字、真实字体、几何和取帧时间；预览与保存使用同一路径。真实 Electron 验证 InfoSticker 换字体、ScriptInfoSticker 2.1 秒帧保存重开后 PNG hash 一致。最新相关回归 322 项通过、1 项环境门控测试跳过，Web 类型检查与完整 Electron 构建通过。
+15. 新增“套用文字布局”：八个真实缓存样本中七个通过资源准备；周末、S23、HERO 完成实际出图和保存重开，HERO 可改为 QCUT 并保留原生效果。依赖状态区分缺背景滤镜、文字资源就绪和竖排不支持；复用自有字体与花字缓存，不替换用户背景。该增量 281 项相关测试通过、1 项环境门控测试跳过，类型检查和 Electron 构建通过；仍有五个旧背景滤镜未找回，完整合成和模板颜色覆盖未完成，详见最新布局记录。
 
 ## 存储边界
 
