@@ -8,6 +8,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 const execFileAsync = promisify(execFile);
 const describeOnMac = process.platform === "darwin" ? describe : describe.skip;
+const nativeDirectory = path.resolve(
+	__dirname,
+	"../jianying-person-cutout/native"
+);
 let temporaryDirectory = "";
 
 describeOnMac("person cutout Vision fusion", () => {
@@ -23,11 +27,6 @@ describeOnMac("person cutout Vision fusion", () => {
 	});
 
 	it("boosts missing person confidence without weakening the GRU alpha", async () => {
-		const nativeDirectory = path.resolve(
-			"electron",
-			"jianying-person-cutout",
-			"native"
-		);
 		const executablePath = path.join(temporaryDirectory, "alpha-fusion-test");
 		await execFileAsync("xcrun", [
 			"clang++",
@@ -44,11 +43,6 @@ describeOnMac("person cutout Vision fusion", () => {
 	});
 
 	it("resizes model alpha with centered bilinear sampling", async () => {
-		const nativeDirectory = path.resolve(
-			"electron",
-			"jianying-person-cutout",
-			"native"
-		);
 		const executablePath = path.join(temporaryDirectory, "alpha-resize-test");
 		await execFileAsync("xcrun", [
 			"clang++",
@@ -65,11 +59,6 @@ describeOnMac("person cutout Vision fusion", () => {
 	});
 
 	it("returns a full-size mask through the macOS Vision runtime", async () => {
-		const nativeDirectory = path.resolve(
-			"electron",
-			"jianying-person-cutout",
-			"native"
-		);
 		const executablePath = path.join(temporaryDirectory, "vision-runtime-test");
 		await execFileAsync("xcrun", [
 			"clang++",
