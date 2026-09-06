@@ -13,6 +13,7 @@ import {
 import { coverRepository } from "@/lib/cover/cover-repository";
 import { useTranslation } from "@/lib/i18n";
 import { activateCoverControl } from "./cover-tool";
+import { CoverPrivateLibrary } from "./cover-private-library";
 
 function CoverTemplateCard({
 	template,
@@ -105,8 +106,9 @@ export function CoverTemplateBrowser({
 	onAdd: () => void;
 	onError: (message: string) => void;
 }) {
-	const { t } = useTranslation();
+	const { t, locale } = useTranslation();
 	const [mode, setMode] = useState("templates");
+	const [library, setLibrary] = useState("jianying");
 	const [category, setCategory] = useState("all");
 	const imageLayer = design?.layers[0];
 	const canvas = design?.canvas;
@@ -156,7 +158,43 @@ export function CoverTemplateBrowser({
 					</button>
 				))}
 			</div>
-			{mode === "templates" ? (
+			{mode === "templates" && (
+				<div
+					className="cover-tabs cover-library-source"
+					role="group"
+					aria-label={locale === "zh" ? "模板来源" : "Template source"}
+				>
+					<button
+						type="button"
+						aria-pressed={library === "jianying"}
+						onClick={() => setLibrary("jianying")}
+						onKeyDown={(event) => activateCoverControl({ event })}
+					>
+						{locale === "zh" ? "剪映缓存" : "Jianying cache"}
+					</button>
+					<button
+						type="button"
+						aria-pressed={library === "qcut"}
+						onClick={() => setLibrary("qcut")}
+						onKeyDown={(event) => activateCoverControl({ event })}
+					>
+						{locale === "zh" ? "QCut 原创" : "QCut originals"}
+					</button>
+				</div>
+			)}
+			{mode === "templates" && library === "jianying" ? (
+				<CoverPrivateLibrary
+					disabled={disabled || !design}
+					onClear={() => {
+						if (!design) return;
+						try {
+							onEdit(applyCoverTemplate({ design, templateId: "none" }));
+						} catch (reason) {
+							onError(String(reason));
+						}
+					}}
+				/>
+			) : mode === "templates" ? (
 				<div className="cover-template-body">
 					<nav
 						className="cover-categories"
