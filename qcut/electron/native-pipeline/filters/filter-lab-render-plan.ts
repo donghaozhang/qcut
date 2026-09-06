@@ -35,6 +35,7 @@ import {
 } from "./filter-lab-tiled-lut.js";
 
 export interface FilterLabRenderEvidence {
+	intensityMode?: "ui-snapshot";
 	maskProvider?: "jianying-local-skin-v1";
 	resourceId: string;
 	title: string;
@@ -43,6 +44,7 @@ export interface FilterLabRenderEvidence {
 	verification: JianyingFilterCatalogCard["verification"];
 	intensity: number;
 	backend:
+		| "qcut-cpu-soft-glow"
 		| "qcut-metal"
 		| "ffmpeg-lut"
 		| "ffmpeg-multi-pass"
@@ -73,6 +75,7 @@ export type FilterLabRenderPlan = {
 } & (
 	| { kind: "ffmpeg"; filterGraph: string; outputLabel: string }
 	| { kind: "native"; mode: "qcut-metal"; lutPath: string }
+	| { kind: "native"; mode: "qcut-cpu-soft-glow"; lut: Uint8Array }
 	| {
 			kind: "native";
 			mode: "qcut-metal-graph";
