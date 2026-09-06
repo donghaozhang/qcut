@@ -220,6 +220,7 @@ export function CoverEditor({
 					<main className="cover-main">
 						<CoverTextToolbar
 							layer={selected}
+							canvas={editor.design?.canvas}
 							disabled={busy || cropping}
 							onChange={changeText}
 							onDelete={deleteText}
