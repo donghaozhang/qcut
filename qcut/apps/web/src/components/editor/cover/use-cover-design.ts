@@ -71,9 +71,11 @@ export function useCoverDesign({
 	useEffect(() => {
 		let cancelled = false;
 		if (!design) return;
+		const controller = new AbortController();
 		const timer = setTimeout(() => {
 			void renderCoverDesign({
 				design,
+				signal: controller.signal,
 				resolveAsset: ({ asset }) =>
 					coverRepository.readAsset({ projectId: initialProject.id, asset }),
 			})
@@ -87,6 +89,7 @@ export function useCoverDesign({
 		return () => {
 			cancelled = true;
 			clearTimeout(timer);
+			controller.abort();
 		};
 	}, [design, initialProject.id]);
 	useEffect(() => {
