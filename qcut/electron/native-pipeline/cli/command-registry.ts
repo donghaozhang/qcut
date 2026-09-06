@@ -545,10 +545,10 @@ const CORE_COMMANDS: Record<string, CommandDef> = {
 	"filter-lab-render-independent": {
 		name: "filter-lab-render-independent",
 		description:
-			"Render supported local LUTs or Fog with QCut's own Metal host, without Jianying libraries (macOS, up to 1080p)",
+			"Render supported local LUTs and multi-pass graphs with QCut's own Metal host, without Jianying libraries (macOS, up to 1080p)",
 		category: "filter-lab",
 		flags: [
-			f("--resource-id", "string", "Fog resource ID: 7160594413847203085", {
+			f("--resource-id", "string", "Resource ID from catalog-independent", {
 				required: true,
 			}),
 			f("--input", "string", "Local image or video", {
