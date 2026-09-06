@@ -122,6 +122,7 @@ describe("project cover publication", () => {
 			cover: undefined,
 		});
 		expect(useProjectStore.getState().savedProjects[0].cover).toBeUndefined();
+		expect(storage.saveProject).toHaveBeenCalledTimes(1);
 	});
 	it("does not overwrite the new active project when a late save fails", async () => {
 		storage.saveProject.mockImplementationOnce(async () => {
@@ -147,6 +148,18 @@ describe("project cover publication", () => {
 		await expect(
 			useProjectStore.getState().setProjectCover({ projectId: "p1", cover })
 		).rejects.toThrow("read-back");
+	});
+	it("restores storage when a persisted publish fails read-back", async () => {
+		storage.saveProject.mockResolvedValueOnce(undefined);
+		storage.loadProject.mockResolvedValueOnce(project);
+		await expect(
+			useProjectStore.getState().setProjectCover({ projectId: "p1", cover })
+		).rejects.toThrow("read-back");
+		expect(storage.saveProject).toHaveBeenCalledTimes(2);
+		expect(storage.saveProject.mock.calls[1][0].project).toMatchObject({
+			id: "p1",
+			cover: undefined,
+		});
 	});
 	it("copies cover assets before publishing the duplicated project", async () => {
 		storage.loadProject.mockResolvedValue({ ...project, cover });

@@ -708,8 +708,10 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 					: project
 			),
 		});
+		let persisted = false;
 		try {
 			await storageService.saveProject({ project: updated });
+			persisted = true;
 			const saved = await storageService.loadProject({ id: projectId });
 			if (!saved || JSON.stringify(saved.cover) !== JSON.stringify(cover))
 				throw new Error("Project cover read-back failed");
@@ -726,6 +728,20 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
 						: project
 				),
 			}));
+			if (persisted) {
+				// The write landed but could not be verified. Persist the
+				// rolled-back state so storage matches what the user is told.
+				const current = get().activeProject;
+				const restore = current?.id === projectId ? current : active;
+				await storageService
+					.saveProject({ project: restore })
+					.catch((restoreError) => {
+						handleStorageError(restoreError, "Restore project cover", {
+							projectId,
+							operation: "setProjectCover",
+						});
+					});
+			}
 			throw error;
 		}
 	},
