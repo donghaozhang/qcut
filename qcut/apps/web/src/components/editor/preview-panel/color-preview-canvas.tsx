@@ -281,6 +281,14 @@ export function ColorPreviewCanvas({
 				}
 				outputContext.clearRect(0, 0, canvas.width, canvas.height);
 				outputContext.drawImage(rendered, 0, 0);
+				canvas.dataset.renderedColorResources = renderedLayers
+					.flatMap(({ settings }) => {
+						const effect = settings.multiPass;
+						return effect?.enabled && effect.nativeEffect
+							? [`${effect.nativeEffect.resourceId}:${effect.intensity}`]
+							: [];
+					})
+					.join(",");
 			} catch (error) {
 				const independent = renderedLayers.some(
 					({ settings }) =>
