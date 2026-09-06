@@ -16,9 +16,9 @@ float4 thresholdAlpha(float4 color) {
 }
 
 float4 blurAxis(texture2d<float> source, sampler sampling, float2 uv,
-                constant Parameters& params, bool horizontal) {
+                constant Parameters& params, bool horizontal, float blurScale = 0.90) {
     constexpr float weights[] = {0.20, 0.19, 0.17, 0.15, 0.13, 0.11, 0.08, 0.05, 0.02};
-    float blurSize = params.strength * 0.90 * 4.0;
+    float blurSize = params.strength * blurScale * 4.0;
     float2 step = float2(blurSize / params.width, blurSize / params.height) * 1.25;
     float4 center = source.sample(sampling, uv);
     if (horizontal) center = thresholdAlpha(center);
@@ -37,13 +37,13 @@ float4 blurAxis(texture2d<float> source, sampler sampling, float2 uv,
     return (accumulated + center) / denominator;
 }
 
-float4 applyFog(float4 original, float4 blurred, float strength) {
+float4 applyFog(float4 original, float4 blurred, float strength, float blendAmount = 0.50) {
     float shadowWeight = blurred.a * 0.457;
     blurred.a = 1;
     float4 softened = mix(original, blurred, float4(1.0 - shadowWeight));
     float4 screened = float4(1.0 - (1.0 - original.rgb) * (1.0 - softened.rgb), original.a);
     float4 result = mix(screened, softened, float4(0.25));
-    result = mix(result, original, float4(1.0 - strength * 0.50));
+    result = mix(result, original, float4(1.0 - strength * blendAmount));
     result.a = original.a;
     return clamp(result, float4(0), float4(original.a));
 }
