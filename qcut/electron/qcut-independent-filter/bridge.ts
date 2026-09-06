@@ -102,7 +102,7 @@ async function resolveHost() {
 			"QCut Metal filter host is not installed. Rebuild QCut with its independent filter host."
 		);
 	const sources = await Promise.all(
-		["host.mm", "fog.metal", "graph.metal"].map((name) =>
+		["host.mm", "fog.metal", "graph.metal", "graph-plan.h"].map((name) =>
 			readFile(join(root, SOURCE, name))
 		)
 	);
@@ -111,6 +111,7 @@ async function resolveHost() {
 		.update(sources[0])
 		.update(sources[1])
 		.update(sources[2])
+		.update(sources[3])
 		.digest("hex");
 	const outputPath = join(
 		homedir(),
