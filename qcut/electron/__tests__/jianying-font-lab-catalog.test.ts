@@ -96,13 +96,35 @@ describe("Jianying font lab catalog", () => {
 			}),
 		});
 		const entry = catalog.entries[0];
-		expect((await readVerifiedJianyingFontBytes({ entry })).toString()).toBe(
-			"original-font"
-		);
+		const privateCacheRoot = join(cache, "private");
+		expect(
+			(
+				await readVerifiedJianyingFontBytes({ entry, privateCacheRoot })
+			).toString()
+		).toBe("original-font");
 
 		await writeFile(fontPath, "replacement-font");
-		await expect(readVerifiedJianyingFontBytes({ entry })).rejects.toThrow(
-			"已经变化"
+		expect(
+			(
+				await readVerifiedJianyingFontBytes({ entry, privateCacheRoot })
+			).toString()
+		).toBe("original-font");
+		const restored = await buildJianyingFontCatalog({
+			roots: [{ path: privateCacheRoot, sourceKind: "qcut-cache" }],
+			readFontMetadata: () => ({
+				familyName: "Test",
+				fullName: "Test Regular",
+				postscriptName: "Test-Regular",
+				subfamilyName: "Regular",
+			}),
+		});
+		expect(restored.entries[0].fontId).toBe(entry.fontId);
+		await writeFile(
+			join(privateCacheRoot, `${entry.sha256}.${entry.format}`),
+			"corrupt-retained-font"
 		);
+		await expect(
+			readVerifiedJianyingFontBytes({ entry, privateCacheRoot })
+		).rejects.toThrow("已经变化");
 	});
 });
