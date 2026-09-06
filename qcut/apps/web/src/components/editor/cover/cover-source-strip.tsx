@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
 	Camera,
 	ImagePlus,
@@ -9,6 +9,7 @@ import {
 import { captureStillFrame } from "@/lib/export/export-still-frame";
 import { useTimelineStore } from "@/stores/timeline/timeline-store";
 import { usePlaybackStore } from "@/stores/editor/playback-store";
+import { useMediaStore } from "@/stores/media-store";
 import { useTranslation } from "@/lib/i18n";
 import type { CoverSourceV1 } from "@qcut/editor-core/cover";
 import { CoverTool, activateCoverControl } from "./cover-tool";
@@ -28,9 +29,8 @@ export function CoverSourceStrip({
 }) {
 	const { t } = useTranslation();
 	const input = useRef<HTMLInputElement>(null);
-	const [duration] = useState(() =>
-		useTimelineStore.getState().getTotalDuration()
-	);
+	const mediaLoading = useMediaStore((state) => state.isLoading);
+	const duration = useTimelineStore((state) => state.getTotalDuration());
 	const lastFrame = Math.max(0, Math.ceil(duration * fps) - 1);
 	const [frame, setFrame] = useState(() =>
 		Math.min(
@@ -38,25 +38,31 @@ export function CoverSourceStrip({
 			Math.round(usePlaybackStore.getState().currentTime * fps)
 		)
 	);
-	const [expanded, setExpanded] = useState(false);
+	const [expansionOverride, setExpanded] = useState<boolean | null>(null);
+	const expanded = expansionOverride ?? duration > 0;
 	const [frames, setFrames] = useState<{ frame: number; url: string }[]>([]);
 	const [failed, setFailed] = useState(false);
+	const [loading, setLoading] = useState(false);
+	const samples = useMemo(
+		() => [
+			...new Set(
+				Array.from({ length: 10 }, (_, index) =>
+					Math.round((lastFrame * index) / 9)
+				)
+			),
+		],
+		[lastFrame]
+	);
 	useEffect(() => {
 		if (source?.kind === "timeline-frame") setFrame(source.frame);
 	}, [source]);
 	useEffect(() => {
-		if (!expanded || duration <= 0) return;
+		if (!expanded || duration <= 0 || mediaLoading) return;
 		let cancelled = false;
 		const urls: string[] = [];
 		setFrames([]);
 		setFailed(false);
-		const samples = [
-			...new Set(
-				Array.from({ length: 7 }, (_, index) =>
-					Math.round((lastFrame * index) / 6)
-				)
-			),
-		];
+		setLoading(true);
 		void samples
 			.reduce(async (previous, sample) => {
 				await previous;
@@ -82,7 +88,8 @@ export function CoverSourceStrip({
 					const blob = await new Promise<Blob | null>((resolve) =>
 						canvas.toBlob(resolve, "image/webp")
 					);
-					if (cancelled || !blob) return;
+					if (cancelled) return;
+					if (!blob) throw new Error("Frame thumbnail encoding failed");
 					const url = URL.createObjectURL(blob);
 					urls.push(url);
 					setFrames((current) => [...current, { frame: sample, url }]);
@@ -92,12 +99,15 @@ export function CoverSourceStrip({
 			}, Promise.resolve())
 			.catch(() => {
 				if (!cancelled) setFailed(true);
+			})
+			.finally(() => {
+				if (!cancelled) setLoading(false);
 			});
 		return () => {
 			cancelled = true;
 			for (const url of urls) URL.revokeObjectURL(url);
 		};
-	}, [expanded, duration, lastFrame, fps, projectId]);
+	}, [expanded, duration, samples, fps, projectId, mediaLoading]);
 	const chooseFrame = ({ next }: { next: number }) => {
 		const bounded = Math.max(0, Math.min(lastFrame, Math.round(next)));
 		setFrame(bounded);
@@ -194,25 +204,31 @@ export function CoverSourceStrip({
 				<>
 					<div
 						className="cover-filmstrip"
+						data-testid="cover-filmstrip"
+						aria-busy={loading || mediaLoading}
 						aria-label={t("editor.cover.frames")}
 					>
-						{frames.map((sample) => (
-							<button
-								type="button"
-								key={sample.frame}
-								aria-label={`${t("editor.cover.frameNumber")} ${sample.frame}`}
-								aria-pressed={
-									source?.kind === "timeline-frame" &&
-									source.frame === sample.frame
-								}
-								disabled={disabled}
-								onClick={() => chooseFrame({ next: sample.frame })}
-								onKeyDown={(event) => activateCoverControl({ event })}
-							>
-								<img src={sample.url} alt="" />
-								<span>{(sample.frame / fps).toFixed(2)}s</span>
-							</button>
-						))}
+						{samples.map((sample) => {
+							const thumbnail = mediaLoading
+								? undefined
+								: frames.find((item) => item.frame === sample);
+							return (
+								<button
+									type="button"
+									key={sample}
+									aria-label={`${t("editor.cover.frameNumber")} ${sample}`}
+									aria-pressed={
+										source?.kind === "timeline-frame" && source.frame === sample
+									}
+									disabled={disabled || !thumbnail || mediaLoading}
+									onClick={() => chooseFrame({ next: sample })}
+									onKeyDown={(event) => activateCoverControl({ event })}
+								>
+									{thumbnail && <img src={thumbnail.url} alt="" />}
+									<span>{(sample / fps).toFixed(2)}s</span>
+								</button>
+							);
+						})}
 					</div>
 					<input
 						className="cover-frame-slider"
