@@ -89,7 +89,7 @@ CodeRabbit 的 5 条评论只覆盖其中 5 处（见 [README](README.zh-CN.md) 
 | 模式 | 出现次数 | 文件数 | 主要来源 |
 | --- | --- | --- | --- |
 | dylib / 二进制 UUID | 48 | 26 | `research/jianying-runtime-probe/README.md`（6）、`research/jianying-tracking-probe/README.md`（4）、各 `*-2026-09-06.zh.md` 每篇 2 个（ARM64 + x86_64） |
-| 64 位十六进制摘要（SHA-256） | 720 | 62 | `electron/qcut-independent-filter/graph-profiles*.ts` 合计 324 个，为产品运行时校验 LUT 资产/控制文件身份的 `assetHash` / `controlHash`；研究文档中是私有包文件与 dylib 的摘要 |
+| SHA-256 摘要（64 个十六进制字符） | 720 | 62 | `electron/qcut-independent-filter/graph-profiles*.ts` 合计 324 个，为产品运行时校验 LUT 资产/控制文件身份的 `assetHash` / `controlHash`；研究文档中是私有包文件与 dylib 的摘要 |
 | 代码偏移地址 `0x…` | 289 | 33 | `probes/jianying-matting-runtime-trace.mm`（61）、`videoeditor-filter-chain-2026-09-06.zh.md`（54）、`agfx-texture-contract-2026-09-06.zh.md`（29）、`vecreator-filter-params-2026-09-06.zh.md`（19） |
 | 剪映缓存路径（`Movies/JianyingPro/User Data/Cache`、`PrivateAssets/JianyingText/Cache`） | 12 | 9 | 多为 `~/` 前缀的可移植形式 |
 
@@ -120,7 +120,16 @@ CodeRabbit 的 5 条评论只覆盖其中 5 处（见 [README](README.zh-CN.md) 
 ## 复现本审计
 
 ```bash
-git grep -I -o -E '/Users/[a-z]+/' origin/master -- qcut/docs qcut/research | wc -l
+# 在仓库根目录执行（不是 qcut/ 子目录）；两个路径族一起统计
+git grep -I -o -E '/(Users|Volumes)/[^/]+/' origin/master -- qcut/docs qcut/research | wc -l
+```
+
+上表的逐文件数字来自把三个目录导出后用脚本统计，比单条 `git grep` 更严格地区分了
+`/Users/`、`/Volumes/`、剪映缓存路径、UUID、SHA-256 和偏移地址六类：
+
+```bash
+git archive origin/master qcut/docs/task/jianying-filter-runtime-research \
+  qcut/research qcut/electron/qcut-independent-filter | tar -x -C <临时目录>
 ```
 
 注意 `git grep` / `git ls-tree` 的 pathspec 相对于**当前目录**解析：在 `qcut/` 子目录里执行时不要再加 `qcut/` 前缀，
