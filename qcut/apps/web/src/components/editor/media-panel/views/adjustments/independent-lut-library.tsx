@@ -12,6 +12,14 @@ import { JianyingFilterLabControls } from "./jianying-filter-lab-controls";
 import { useJianyingFilterThumbnail } from "./use-jianying-filter-thumbnail";
 
 const PAGE_SIZE = 36;
+const RENDERER_LABELS = {
+	fog: "雾化 · 4 Pass",
+	lut: "3D LUT",
+	direct: "3DL",
+	sharpen: "锐化 · 2 Pass",
+	vignette: "纹理暗角 · 3 Pass",
+	soften: "柔化 · 2 Pass",
+};
 
 function IndependentLutTile({
 	card,
@@ -58,7 +66,7 @@ function IndependentLutTile({
 					{card.title}
 				</div>
 				<div className="text-[10px] text-muted-foreground">
-					{pending ? "加载中…" : "3D LUT"}
+					{pending ? "加载中…" : RENDERER_LABELS[card.independentKind ?? "lut"]}
 				</div>
 			</div>
 		</button>
@@ -157,7 +165,7 @@ export function IndependentLutLibrary({
 		>
 			<div className="flex items-center justify-between text-xs">
 				<span role="status">
-					{loading ? "扫描本地 LUT…" : `本地 LUT · ${cards.length}`}
+					{loading ? "扫描本地滤镜…" : `本地滤镜 · ${cards.length}`}
 				</span>
 				<button
 					type="button"
