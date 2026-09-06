@@ -65,6 +65,9 @@ export async function resolveIndependentFilterPlan({
 				}),
 			},
 			evidence: {
+				...(graph.profile.dualLut
+					? { maskProvider: "jianying-local-skin-v1" as const }
+					: {}),
 				resourceId: card.resourceId,
 				version: card.version!,
 				title: card.title,
