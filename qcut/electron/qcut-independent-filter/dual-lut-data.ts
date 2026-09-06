@@ -1,9 +1,30 @@
 import { readFile, stat } from "node:fs/promises";
 import { createCanvas, loadImage } from "@napi-rs/canvas";
+import { decodeVfCube } from "../native-pipeline/filters/filter-lab-lut.js";
+import { parseAdobeThreeDl } from "./adobe-three-dl.js";
+import type { DualLutProfile } from "./graph-profiles.js";
 import {
 	decodeTiledLutPixels,
 	loadTiledLutCube,
 } from "../native-pipeline/filters/filter-lab-tiled-lut.js";
+
+export async function loadDualLutCube({
+	filePath,
+	format,
+}: {
+	filePath: string;
+	format: DualLutProfile["format"];
+}) {
+	if (format === "tiled" || format === "tiled-floor")
+		return loadDualTiledCube({ filePath });
+	if ((await stat(filePath)).size > 16 * 1024 * 1024)
+		throw new Error("Dual LUT file exceeds size limit.");
+	const data = await readFile(filePath);
+	if (format === "adobe-3dl")
+		return parseAdobeThreeDl({ text: data.toString("utf8") });
+	if (format === "vf") return decodeVfCube({ data });
+	throw new Error("Unknown dual LUT format.");
+}
 
 export async function loadDualTiledCube({ filePath }: { filePath: string }) {
 	if ((await stat(filePath)).size > 16 * 1024 * 1024)
