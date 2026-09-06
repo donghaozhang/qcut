@@ -44,12 +44,14 @@ describe("Jianying local export selection", () => {
 		"qcut-metal-fog-v1",
 		"qcut-metal-lut-v1",
 		"qcut-metal-graph-v1",
+		"qcut-cpu-soft-glow-ui-snapshot-v1",
 	] as const)("routes %s media, stacks, and adjustment layers through canvas export", (provider) => {
 		const color = {
 			...structuredClone(DEFAULT_MEDIA_COLOR_SETTINGS),
 			multiPass: independentFogSettings(),
 		};
 		color.multiPass.nativeEffect!.provider = provider;
+		color.multiPass.intensity = 0;
 		const element = mediaElement({ portraitEnabled: false });
 		element.color = color;
 		expect(
