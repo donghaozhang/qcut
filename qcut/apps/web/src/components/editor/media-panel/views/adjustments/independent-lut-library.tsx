@@ -13,6 +13,7 @@ import { useJianyingFilterThumbnail } from "./use-jianying-filter-thumbnail";
 
 const PAGE_SIZE = 36;
 const RENDERER_LABELS = {
+	"skin-dual-lut": "双 LUT · 本地模型",
 	fog: "雾化 · 4 Pass",
 	lut: "3D LUT",
 	direct: "3DL",
