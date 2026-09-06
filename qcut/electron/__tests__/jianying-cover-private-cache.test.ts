@@ -136,6 +136,34 @@ describe("private Jianying cover cache", () => {
 		const catalog = await cacheJianyingCovers({ ...options, observations: [] });
 		expect(catalog.entries).toHaveLength(1);
 	});
+	it("keeps verified owned dependencies and category memberships when retrying a depleted source", async () => {
+		const options = await fixture();
+		const before = await cacheJianyingCovers(options);
+		await rm(path.join(options.sourceRoot, "effect"), { recursive: true });
+		const after = await cacheJianyingCovers({
+			...options,
+			observations: [{ ...observation, categories: ["games"] }],
+		});
+		expect(after.entries[0].dependencies).toEqual(
+			before.entries[0].dependencies
+		);
+		expect(after.entries[0].categories).toEqual([
+			"life",
+			"recommended",
+			"games",
+		]);
+		await verifyCoverCatalog({ root: options.destination, catalog: after });
+	});
+	it("does not reuse dependencies from a changed template definition", async () => {
+		const options = await fixture();
+		await cacheJianyingCovers(options);
+		await rm(path.join(options.sourceRoot, "effect"), { recursive: true });
+		const changed = JSON.parse(await readFile(options.definition, "utf8"));
+		changed.cover.cover_draft.materials.texts[0].content = "Changed";
+		await writeFile(options.definition, JSON.stringify(changed));
+		const after = await cacheJianyingCovers(options);
+		expect(after.entries[0].dependencies[0].status).toBe("missing");
+	});
 	it("retains recovered lab packages and provenance independently of both sources", async () => {
 		const options = await fixture();
 		await rm(path.join(options.sourceRoot, "effect"), { recursive: true });
@@ -199,6 +227,7 @@ describe("private Jianying cover cache", () => {
 		);
 		const missing = await cacheJianyingCovers({
 			...options,
+			destination: path.join(options.root, "fresh-missing-cache"),
 			resolveDependency: async () => ({ reason: "catalog-missing" }),
 		});
 		expect(missing.entries[0].dependencies[0]).toMatchObject({
