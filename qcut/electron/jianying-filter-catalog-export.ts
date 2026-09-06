@@ -66,7 +66,14 @@ export interface JianyingFilterCatalogCard {
 		| "sharpen"
 		| "vignette"
 		| "direct"
-		| "soften";
+		| "soften"
+		| "detail-chain"
+		| "tiled-alpha"
+		| "spring"
+		| "edge-camera"
+		| "edge-glow"
+		| "mask-invariant"
+		| "mask-invariant-sharpen";
 }
 
 export interface JianyingFilterCatalogExport {
