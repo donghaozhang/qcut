@@ -79,7 +79,9 @@ const hash = ({ bytes }: { bytes: Uint8Array }) =>
 const results: Array<Record<string, unknown>> = [];
 const started = Date.now();
 const selected = INDEPENDENT_GRAPH_PROFILES.filter(
-	(profile) => !values.ids || values.ids.split(",").includes(profile.resourceId)
+	(profile) =>
+		!profile.dualLut &&
+		(!values.ids || values.ids.split(",").includes(profile.resourceId))
 );
 if (
 	!selected.length ||
