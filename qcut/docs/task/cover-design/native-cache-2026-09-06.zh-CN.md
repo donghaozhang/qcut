@@ -49,46 +49,71 @@ QCut“剪映缓存”按原生顺序显示 **默认、推荐、生活、游戏�
 - 备份：`/Volumes/MOVE SPEED/qcut-materials/PrivateAssets/JianyingCover`
 - 可用 `QCUT_JIANYING_COVER_CACHE_ROOT` 指定另一份库，需重启读取它的 Electron/Vite 进程。
 - `catalog.json` 保存定义、预览、依赖、逻辑路径和 SHA-256；文件按 `objects/<sha256>` 去重。
-- 首批 **8 套、69 个去重文件、33,938,996 字节**，不包含清单本身。
-- 当前 **1 套显式依赖齐全、7 套依赖未解析完整**；全部标记 `native-renderer-required`，不能称为离线可套用。
+- 首次采集为 8 套、69 个去重文件、33,938,996 字节。依赖恢复后为 **8 套、119 个去重文件、46,579,803 字节**，不包含清单本身或未引用对象。
+- 当前 **3 套的显式依赖已有文件副本，5 套仍各缺一个旧滤镜**；含目录版本映射和内置资源绑定，不代表旧版逐字节相同。全部标记 `native-renderer-required`，不能称为离线可套用。
 
 导入器顺序复制并验证每个文件，最后原子更新目录。重复导入按内容去重；下一批合并已有条目。失败不会发布部分目录，但可能留下未引用的内容对象。拒绝越界、符号链接文件、无效模板、错误预览类型和读写期间变化的文件。当前未提供跨进程导入锁，勿同时运行多个写入进程。
 
 UI 的 Electron IPC 与本地 Vite 开发接口只读取这份独立库，不回退到剪映源目录；校验失败显示错误。Electron 限定主窗口主 frame；开发接口拒绝跨站请求、非 localhost Host 和非 GET 方法。生产浏览器版不开放本机文件接口。
 
+## 依赖恢复与实验室复用
+
+封面恢复器复用现有文字实验室的 `resource-catalog`、`local-package-index`、`resource-recovery-installer`，以及滤镜实验室的下载器。没有另建一套花字下载协议。按精确 hash 优先，再按资源 ID 或目录中明确的 `third_resource_id_str` 别名解析；不按标题猜替代资源。下载沿用包 MD5、归档安全检查和受限 CDN。恢复后的包仍逐文件复制进封面自己的 SHA-256 对象库，不依赖实验室源路径长期存在。
+
+| 已恢复依赖 | 证据与处理 |
+| --- | --- |
+| 周末：中秀体 | `6917512631515353607`，恢复原 hash `9561161c74ae03658e101577ec5cfae6`，2 个文件 |
+| 游戏：花字 002 | 旧 ID `6724177156223537672` 明确映射目录 ID `6896137661153578248`；新版 hash `77c43f3eca3e0979c3c5972ec6fe4822`，22 个文件。包为 **InfoSticker**，不能只用 TextStyle 校验器判定下载失败 |
+| 美食：德古拉 | 旧 ID `6830373641172029966` 映射目录 ID `7127678346472819982`，从滤镜实验室复制新版 `46a045d4b8ed3d6058a4d2141efba43a`，15 个文件 |
+| 知识：系统字体 | 仅对明确标记“系统”且没有资源 ID 的字体绑定应用 `Font/SystemFont/zh-hans.ttf`，复制实际字体；不宣称等同历史字体 hash |
+| 游戏：亮度 | 仅识别已知 iOS 内置路径和 brightness 类型，并保留模板 `v1` 选择，复制 `DefaultAdjustBundle/brightness_v1` 的 13 个文件；未知版本拒绝猜测 |
+
+原始 `template.json` 不改写。每项新增 `resolution` 保存来源、解析方法、资源 ID 和新版 hash；UI 展示花字/字体/滤镜实验室来源及版本映射。内置绑定和目录版本映射只是资源解析结果，**不是渲染对齐证明**。只有原始 ZIP、没有可解析配置的花字归档不会被当成已恢复依赖。
+
 ## 仍缺什么
 
-本批有 9 个未找到精确包的逻辑引用和 1 个旧 iOS 绝对路径，详见本地目录：
+仍缺的都是实际被封面轨道引用的旧滤镜，不能作为无用材料删除：
 
-- 周末：一个滤镜和一个字体；旅行、冰岛、HERO、美食：各一个滤镜。
-- 游戏：自然滤镜、花字，以及旧 iOS 内置 brightness 路径。
-- 知识：`text/b07e8afaad96368f7a5056a9dc3ab1f2`；材料标记系统字体但路径未解析。保守列为缺失，不假装精确字体已复制。
-- 美食的旧资源 ID 可以在本地目录元数据中关联到新版滤镜包，但新版 hash 不同。尚未将其视为旧版同字节依赖，也未悄悄替换。
+| 滤镜 | 旧资源 ID | 模板 |
+| --- | --- | --- |
+| A-log | `6867493201318515207` | 周末的仪式感 |
+| 午后 | `6709359425695519240` | Jessica's Travel Vlog |
+| 小镇 | `6877828523751379470` | Iceland Vlog |
+| 自然 | `6864084600281371150` | S23 |
+| 赛博朋克 | `6746808141544952323` | HERO |
 
-这不是全部在线模板下载器。后续批次需要在剪映内正常下载，核对分类、卡片、定义及预览；当前脚本不绕过登录、付费或下载限制。尚需实现旧资源映射、完整渲染兼容、套用后的编辑和离线重开验证。卡片点击目前只查看依赖详情，原生渲染未接入时不会将预览图套到设计上。
+当前剪映两个账号的目录、QCut 文字缓存目录、888 项滤镜候选及滤镜运行时的 36 份历史资源数据库中，均未取得这些旧 ID 的可用映射或下载地址。旧 hash 也未在已检查的本地包索引中找到。UI 保留 `catalog-missing`；这不是已经证明官方永久下架。需要剪映返回原包或可核验的 ID 映射后继续恢复，不能以同名滤镜或恒等 LUT 冒充。
+
+这不是全部在线模板下载器。后续批次需要在剪映内正常下载，核对分类、卡片、定义及预览；当前脚本不绕过登录、付费或下载限制。完整渲染兼容、套用后的编辑和离线重开仍未实现。卡片点击目前只查看依赖详情，不会将预览图套到设计上。
 
 ## 运行与恢复
 
 在有 Bun 和依赖的应用根目录运行；本机是 `/Users/peter/.cache/qcut-cover-validation/qcut`，源码仍以 SSD 为准：
 
 ```sh
-bun scripts/cache-jianying-cover.ts \
+bun build scripts/cache-jianying-cover.ts --target=node --outfile /tmp/qcut-cache-cover.mjs
+node /tmp/qcut-cache-cover.mjs --recover \
   --observations "$HOME/Library/Application Support/QCut/PrivateAssets/JianyingCover/observations.json" \
+  --application-resources /Applications/VideoFusion-macOS.app/Contents/Resources \
   --backup '/Volumes/MOVE SPEED/qcut-materials/PrivateAssets/JianyingCover'
 
 bun scripts/cache-jianying-cover.ts --verify \
   --destination '/Volumes/MOVE SPEED/qcut-materials/PrivateAssets/JianyingCover'
 ```
 
+恢复模式用 Node 22.13+ 执行，因为共享实验室目录解析器使用 `node:sqlite`。不传 `--recover` 时保持原来的仅复制剪映已下载精确包行为，不访问网络；`--verify` 不读取实验室或剪映源目录。不要在同一库上并发运行恢复命令。
+
 新增批次使用另一个 observations JSON 数组，每项为 `packageHash`、`previewHash`、`title`、`categories`、`evidence: "native-ui-and-template-content"`；无需重建既有库。备份含全部目录引用对象，可复制整个备份到新位置后运行 `--verify`，或将环境变量指向备份。观察文件只用于下一次导入，读取和恢复不依赖它。
 
 ## 验证
 
-- 17 个测试文件、121 项测试通过；Web TypeScript 与变更代码 Biome 检查通过。
+- 恢复后 18 个测试文件、139 项测试通过；Web/Electron TypeScript 与变更代码 Biome 检查通过。
+- 新测试覆盖实验室复用、64 位 ID、版本映射、InfoSticker 花字恢复、原始归档拒绝、内置版本选择、禁止默认下载、不可信滤镜 URL、符号链接和来源消失后的独立备份。
 - 缓存测试覆盖源目录删除后读取、备份恢复、重复/分批导入、缺依赖、排除作者素材、路径与符号链接、损坏和失败不发布；组件测试覆盖八分类、多分类成员、详情而非套用、刷新错误和过期异步响应。
-- 真实 SSD 备份在 macOS sandbox 明确禁止读取整个 `~/Movies/JianyingPro` 后仍成功校验 69 个对象，证明不依赖剪映源路径。没有移动或删除真实剪映数据。
+- 真实 SSD 备份在 macOS sandbox 禁止读取剪映用户目录、剪映应用、QCut 文字缓存和托管滤镜包目录后仍成功校验 **119 个对象**。没有移动或删除真实剪映数据。
+- 浏览器恢复后显示知识、时尚、美食资源已缓存；游戏详情为 5/6，能看到花字实验室及版本映射，唯一缺项为自然滤镜。现有原创封面内容未改变。
 - 本地开发接口 GET 返回 8 条；外部 Origin 返回 403，POST 返回 405。
 - 浏览器实际显示 8 张解码成功的 250×141 卡片；游戏分类仅显示 S23。点击时尚模板出现 4 个文字图层及 3/3 依赖信息，现有封面设计保持不变。
 - 1440×900 和 390×844 布局检查；缓存卡片使用实际预览，窄屏保持两列和区内滚动。未做原生 Electron 缓存 UI E2E 或剪映模板渲染对齐。
 
-完整自动化命令在 README 的封面回归命令上增加 `electron/__tests__/jianying-cover-private-cache.test.ts` 和 `electron/__tests__/jianying-cover-handlers.test.ts`；使用非 AppleDouble 的实际测试文件。exFAT 同步必须排除 `._*` 与 `.DS_Store`，不能将磁盘元数据当源码同步到 APFS。
+完整自动化命令在 README 的封面回归命令上增加 `electron/__tests__/jianying-cover-private-cache.test.ts`、`electron/__tests__/jianying-cover-handlers.test.ts` 和 `electron/__tests__/jianying-cover-dependency-recovery.test.ts`；使用非 AppleDouble 的实际测试文件。exFAT 同步必须排除 `._*` 与 `.DS_Store`，不能将磁盘元数据当源码同步到 APFS。
