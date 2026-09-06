@@ -537,3 +537,65 @@
 		padding: 8px 10px;
 	}
 }
+.cover-library-source {
+	margin-top: -6px;
+	padding-top: 0;
+}
+.cover-library-source button[aria-pressed="true"] {
+	background: #393939;
+	color: #ffffff;
+}
+.cover-private-content {
+	min-width: 0;
+	min-height: 0;
+	overflow: auto;
+	flex: 1;
+}
+.cover-cache-status {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 0 10px;
+	font-size: 11px;
+	color: #bfbfbf;
+}
+.cover-private-content .cover-template-grid {
+	overflow: visible;
+}
+.cover-private-content > p,
+.cover-cache-detail {
+	margin: 8px 10px;
+	font-size: 11px;
+	color: #c6c6c6;
+	overflow-wrap: anywhere;
+}
+.cover-cache-detail {
+	border-top: 1px solid #3a3a3a;
+	padding-top: 10px;
+}
+.cover-cache-detail p {
+	margin: 6px 0;
+}
+.cover-cache-detail ul {
+	padding-left: 12px;
+}
+.cover-template small {
+	display: flex;
+	gap: 4px;
+	align-items: center;
+	font-size: 10px;
+	color: #b8b8b8;
+}
+.cover-private-content .cover-template-image {
+	aspect-ratio: 16 / 9;
+	height: auto;
+}
+@media (max-width: 640px) {
+	.cover-library {
+		height: 250px;
+	}
+	.cover-private-content .cover-template-grid {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
