@@ -7,6 +7,22 @@ import type { CoverCachedEntry } from "../jianying-cover-contract";
 import { coverLayoutFixture } from "./fixtures/cover-layout";
 
 describe("cover text layout graph", () => {
+	it.each([
+		false,
+		true,
+		undefined,
+	])("preserves native effect color mode %s", (mode) => {
+		const fixture = coverLayoutFixture();
+		Object.assign(fixture.text, { use_effect_default_color: mode });
+		expect(
+			parseCoverTextLayout({ definition: fixture.definition }).texts[0].text
+				.use_effect_default_color
+		).toBe(mode);
+		Object.assign(fixture.text, { use_effect_default_color: "false" });
+		expect(() =>
+			parseCoverTextLayout({ definition: fixture.definition })
+		).toThrow();
+	});
 	it("imports text and does not confuse referenced background filters with text dependencies", () => {
 		const fixture = coverLayoutFixture();
 		const entry = {
