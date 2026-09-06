@@ -23,6 +23,29 @@ export interface CoverImageLayerV1 {
 	kind: "image";
 	asset: CoverAssetRefV1;
 	fit: "contain" | "cover";
+	position?: { x: number; y: number; zoom: number };
+}
+
+export interface CoverTextLayerV1 {
+	id: string;
+	kind: "text";
+	content: string;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	rotation: number;
+	fontSize: number;
+	fontFamily: "sans-serif" | "serif" | "monospace";
+	color: string;
+	bold: boolean;
+	italic: boolean;
+	underline: boolean;
+	align: "left" | "center" | "right";
+	stroke: boolean;
+	shadow: boolean;
+	background: boolean;
+	templateId?: string;
 }
 
 export interface CoverDesignV1 {
@@ -32,7 +55,8 @@ export interface CoverDesignV1 {
 	revision: number;
 	canvas: { width: number; height: number; backgroundColor: string };
 	source: CoverSourceV1;
-	layers: CoverImageLayerV1[];
+	layers: [CoverImageLayerV1, ...CoverTextLayerV1[]];
+	templateId?: string;
 	createdAt: string;
 	updatedAt: string;
 }
@@ -156,18 +180,73 @@ export function assertCoverDesign({ design }: { design: CoverDesignV1 }): void {
 		!Number.isFinite(Date.parse(design.updatedAt))
 	)
 		throw new Error("Invalid cover design metadata");
-	if (!Array.isArray(design.layers) || design.layers.length !== 1)
-		throw new Error("This cover renderer requires one image layer");
+	if (
+		!Array.isArray(design.layers) ||
+		design.layers.length < 1 ||
+		design.layers.length > 21 ||
+		design.layers[0].kind !== "image"
+	)
+		throw new Error(
+			"A cover requires one background and at most 20 text layers"
+		);
+	const ids = new Set<string>();
 	for (const layer of design.layers) {
 		if (
+			!layer ||
 			typeof layer.id !== "string" ||
 			!layer.id.trim() ||
-			layer.kind !== "image" ||
-			!["cover", "contain"].includes(layer.fit)
+			ids.has(layer.id)
 		)
-			throw new Error("Unsupported cover layer");
-		assertCoverAsset({ asset: layer.asset });
+			throw new Error("Invalid or duplicate cover layer ID");
+		ids.add(layer.id);
+		if (layer.kind === "image") {
+			if (
+				layer !== design.layers[0] ||
+				!["cover", "contain"].includes(layer.fit)
+			)
+				throw new Error("Unsupported cover image layer");
+			assertCoverAsset({ asset: layer.asset });
+			if (
+				layer.position &&
+				(!inRange(layer.position.x, 0, 1) ||
+					!inRange(layer.position.y, 0, 1) ||
+					!inRange(layer.position.zoom, 1, 4))
+			)
+				throw new Error("Invalid cover crop");
+			continue;
+		}
+		assertCoverText({ layer });
 	}
+}
+
+function inRange(value: number, min: number, max: number): boolean {
+	return Number.isFinite(value) && value >= min && value <= max;
+}
+
+export function assertCoverText({ layer }: { layer: CoverTextLayerV1 }): void {
+	if (
+		layer.kind !== "text" ||
+		typeof layer.content !== "string" ||
+		layer.content.length > 2000 ||
+		!inRange(layer.x, 0, 1) ||
+		!inRange(layer.y, 0, 1) ||
+		!inRange(layer.width, 0.05, 1) ||
+		!inRange(layer.height, 0.05, 1) ||
+		!inRange(layer.fontSize, 8, 512) ||
+		!inRange(layer.rotation, -180, 180) ||
+		!["sans-serif", "serif", "monospace"].includes(layer.fontFamily) ||
+		!["left", "center", "right"].includes(layer.align) ||
+		!/^#[a-f0-9]{6}$/i.test(layer.color) ||
+		![
+			layer.bold,
+			layer.italic,
+			layer.underline,
+			layer.stroke,
+			layer.shadow,
+			layer.background,
+		].every((value) => typeof value === "boolean")
+	)
+		throw new Error("Invalid cover text layer");
 }
 
 export function assertProjectCover({
