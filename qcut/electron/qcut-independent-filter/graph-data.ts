@@ -9,7 +9,7 @@ import {
 } from "../native-pipeline/filters/filter-lab-lut.js";
 import { loadTiledLutCube } from "../native-pipeline/filters/filter-lab-tiled-lut.js";
 import { parseAdobeThreeDl } from "./adobe-three-dl.js";
-import { loadDualTiledCube } from "./dual-lut-data.js";
+import { loadDualLutCube } from "./dual-lut-data.js";
 import {
 	findIndependentGraphProfile,
 	type IndependentGraphProfile,
@@ -183,11 +183,11 @@ export async function loadIndependentGraph({
 	const feature = join(root, profile.featureDirectory ?? "AmazingFeature");
 	if (profile.dualLut) {
 		const cubes = await Promise.all(
-			[profile.dualLut.backgroundPath, profile.dualLut.skinPath].map(
-				async (path) =>
-					profile.dualLut!.format === "vf"
-						? decodeVfCube({ data: await readFile(join(feature, path)) })
-						: loadDualTiledCube({ filePath: join(feature, path) })
+			[profile.dualLut.backgroundPath, profile.dualLut.skinPath].map((path) =>
+				loadDualLutCube({
+					filePath: join(feature, path),
+					format: profile.dualLut!.format,
+				})
 			)
 		);
 		const [cube, skinCube] = cubes;
@@ -298,7 +298,10 @@ export function encodeIndependentGraph({
 			)
 		)
 			throw new Error("Invalid dual LUT configuration.");
-		const sampling = ["vf", "tiled", "tiled-floor"].indexOf(dual.format);
+		const sampling =
+			dual.format === "adobe-3dl"
+				? 0
+				: ["vf", "tiled", "tiled-floor"].indexOf(dual.format);
 		if (sampling < 0) throw new Error("Unknown dual LUT sampling.");
 		const config = Buffer.alloc(24);
 		config.writeFloatLE(dual.backgroundStrength, 0);
