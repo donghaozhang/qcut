@@ -62,6 +62,7 @@ export interface JianyingFilterCatalogCard {
 	multiPassKind?: string;
 	multiPassCount?: number;
 	independentKind?:
+		| "cinematic-soft-glow"
 		| "skin-dual-lut"
 		| "fog"
 		| "lut"
