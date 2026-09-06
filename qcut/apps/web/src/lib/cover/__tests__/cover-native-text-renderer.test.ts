@@ -105,6 +105,20 @@ afterEach(() => {
 });
 describe("cover native word-art paint", () => {
 	it.each([
+		false,
+		true,
+		undefined,
+	])("honors native color mode %s", async (nativeUseEffectDefaultColor) => {
+		await paintCoverTextLayer({
+			ctx,
+			canvas,
+			layer: { ...layer, nativeUseEffectDefaultColor, color: "#047bff" },
+		});
+		expect(renderNative.mock.calls[0][0].textColor).toBe(
+			nativeUseEffectDefaultColor === false ? "#047bff" : undefined
+		);
+	});
+	it.each([
 		"TextStyle",
 		"InfoSticker",
 		"ScriptInfoSticker",
