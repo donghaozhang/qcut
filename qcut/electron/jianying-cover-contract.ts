@@ -37,6 +37,30 @@ export const coverCachedFileSchema = z.object({
 	bytes: z.number().int().nonnegative().max(200_000_000),
 	logicalPath: z.string().min(1),
 });
+export const coverDependencyResolutionSchema = z.object({
+	method: z.enum(["exact-package", "catalog-version", "builtin"]),
+	source: z.enum(["text-lab", "filter-lab", "application-builtin"]),
+	resourceId: z.string().optional(),
+	catalogResourceId: z.string().optional(),
+	packageHash: hashSchema.optional(),
+	label: z.string().optional(),
+});
+export type CoverDependencyResolution = z.infer<
+	typeof coverDependencyResolutionSchema
+>;
+export interface CoverDependencySource {
+	root: string;
+	relativePath: string;
+	singleFile?: boolean;
+	resolution: CoverDependencyResolution;
+}
+export type CoverDependencyResolver = (request: {
+	reference: string;
+	materials: Record<string, unknown>;
+}) => Promise<{
+	source?: CoverDependencySource;
+	reason?: string;
+}>;
 export const coverCachedEntrySchema = coverObservationSchema.extend({
 	definition: coverCachedFileSchema,
 	preview: coverCachedFileSchema,
@@ -45,6 +69,8 @@ export const coverCachedEntrySchema = coverObservationSchema.extend({
 			reference: z.string(),
 			files: z.array(coverCachedFileSchema),
 			status: z.enum(["cached", "missing", "builtin", "unsupported-path"]),
+			resolution: coverDependencyResolutionSchema.optional(),
+			reason: z.string().optional(),
 		})
 	),
 	textCount: z.number().int().nonnegative(),
