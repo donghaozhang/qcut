@@ -26,7 +26,10 @@
 批量扩展见 [667 张本地 LUT：独立 Metal、目录、预览、CLI 和导出](independent-lut-batch-2026-09-06.zh.md)。
 复杂 graph 迁移见 [第一批 26 张](independent-complex-migration-2026-09-06.zh.md)、
 [第二批新增 13 张与全量回归](independent-complex-batch2-2026-09-06.zh.md)，以及
-[第三批 6 张、等价双 LUT 与库存审计](independent-complex-batch3-2026-09-06.zh.md)。当前独立目录 713 张，复杂部分仍剩 179 张，其中 4 张缺包。
+[第三批 6 张、等价双 LUT 与库存审计](independent-complex-batch3-2026-09-06.zh.md)。
+最新进展见 [57 张双 LUT 混合路径：保留本地模型](hybrid-dual-lut-batch-2026-09-06.zh.md)：
+完全独立 713 张，混合路径 57 张，QCut Metal 共 770 张，剩余迁移 122 张，其中 4 张缺包。
+混合路径仍通过剪映私有运行时取得 mask，不计为完全独立，也未新增逐卡 UI verified 结论。
 新增 `QCut Metal` 界面入口和 `filter-lab render-independent`，保留旧剪映后端与命令。
 首张支持迷雾；同解码链的 30 帧视频对照一致，编辑器与 CLI 的完整编解码输出仍有已量化差异。
 
