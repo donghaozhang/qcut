@@ -5,7 +5,7 @@ import {
 	type CoverDesignV1,
 	type CoverAssetRefV1,
 } from "@qcut/editor-core/cover";
-import { paintCoverText } from "./cover-text-renderer";
+import { paintCoverTextLayer } from "./cover-native-text-renderer";
 
 export function encodeCoverCanvas({
 	canvas,
@@ -95,12 +95,15 @@ export async function paintCoverDesign({
 	design,
 	resolveAsset,
 	maxWidth,
+	signal,
 }: {
 	design: CoverDesignV1;
 	resolveAsset: (options: { asset: CoverAssetRefV1 }) => Promise<Blob>;
 	maxWidth?: number;
+	signal?: AbortSignal;
 }): Promise<HTMLCanvasElement> {
 	assertCoverDesign({ design });
+	signal?.throwIfAborted();
 	const scale = maxWidth
 		? Math.min(
 				1,
@@ -139,21 +142,30 @@ export async function paintCoverDesign({
 		image.close();
 	}
 	await document.fonts?.ready;
-	for (const text of design.layers.slice(1)) {
+	await design.layers.slice(1).reduce(async (previous, text) => {
+		await previous;
 		if (text.kind === "text")
-			paintCoverText({ ctx, canvas: design.canvas, layer: text });
-	}
+			await paintCoverTextLayer({
+				ctx,
+				canvas: design.canvas,
+				layer: text,
+				signal,
+			});
+	}, Promise.resolve());
+	signal?.throwIfAborted();
 	return canvas;
 }
 
 export async function renderCoverDesign({
 	design,
 	resolveAsset,
+	signal,
 }: {
 	design: CoverDesignV1;
 	resolveAsset: (options: { asset: CoverAssetRefV1 }) => Promise<Blob>;
+	signal?: AbortSignal;
 }): Promise<{ render: Blob; thumbnail: Blob }> {
-	const canvas = await paintCoverDesign({ design, resolveAsset });
+	const canvas = await paintCoverDesign({ design, resolveAsset, signal });
 	const preview = createCanvas({ width: 640, height: 360 });
 	preview.ctx.fillStyle = design.canvas.backgroundColor;
 	preview.ctx.fillRect(0, 0, 640, 360);
