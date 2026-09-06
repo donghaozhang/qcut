@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderFrame, renderOverlayStickers } from "../export-engine-renderer";
+import { getActiveElements } from "../export-engine-utils";
 import { useMediaStore } from "@/stores/media/media-store";
 import { useStickersOverlayStore } from "@/stores/stickers-overlay-store";
 import type { MediaItem } from "@/stores/media/media-store-types";
@@ -11,6 +12,38 @@ function brokenImageClass(): typeof Image {
 		Object.defineProperty(this, "src", {
 			set: () => queueMicrotask(() => this.onerror?.(new Event("error"))),
 		});
+	} as unknown as typeof Image;
+}
+
+function delayedImageClass({
+	delayMs,
+	onFinish,
+	onStart,
+}: {
+	delayMs: number;
+	onFinish: ({ src }: { src: string }) => void;
+	onStart: ({ src }: { src: string }) => void;
+}): typeof Image {
+	return class DelayedImage {
+		crossOrigin = "";
+		naturalHeight = 64;
+		naturalWidth = 64;
+		onerror: OnErrorEventHandler | null = null;
+		onload: (() => void) | null = null;
+		private source = "";
+
+		get src(): string {
+			return this.source;
+		}
+
+		set src(value: string) {
+			this.source = value;
+			onStart({ src: value });
+			setTimeout(() => {
+				onFinish({ src: value });
+				this.onload?.();
+			}, delayMs);
+		}
 	} as unknown as typeof Image;
 }
 
@@ -200,5 +233,67 @@ describe("export renderer sticker failures", () => {
 		await expect(
 			renderOverlayStickers(createContext({ mediaItems: [], tracks: [] }), 0.5)
 		).rejects.toThrow("Media item not found: missing-overlay-media");
+	});
+
+	it("prepares six timeline stickers concurrently and draws in composition order", async () => {
+		let activeLoads = 0;
+		let maxActiveLoads = 0;
+		vi.stubGlobal(
+			"Image",
+			delayedImageClass({
+				delayMs: 20,
+				onStart: () => {
+					activeLoads += 1;
+					maxActiveLoads = Math.max(maxActiveLoads, activeLoads);
+				},
+				onFinish: () => {
+					activeLoads -= 1;
+				},
+			})
+		);
+		const mediaItems = Array.from({ length: 8 }, (_, index) =>
+			createMediaItem({
+				id: `parallel-media-${index}`,
+				url: `blob:parallel-sticker-${index}`,
+			})
+		);
+		const tracks: TimelineTrack[] = mediaItems.map((mediaItem, index) => ({
+			elements: [
+				{
+					duration: 1,
+					id: `parallel-element-${index}`,
+					mediaId: mediaItem.id,
+					name: `Parallel sticker ${index}`,
+					startTime: 0,
+					stickerId: `parallel-sticker-${index}`,
+					trimEnd: 0,
+					trimStart: 0,
+					type: "sticker",
+				} satisfies StickerElement,
+			],
+			id: `parallel-track-${index}`,
+			name: `Sticker track ${index}`,
+			type: "sticker",
+		}));
+		const context = createContext({ mediaItems, tracks });
+		const expectedDrawOrder = getActiveElements(tracks, mediaItems, 0.5, 30)
+			.map(({ element }) => element)
+			.filter(
+				(element): element is StickerElement => element.type === "sticker"
+			)
+			.map(
+				(element) =>
+					mediaItems.find((mediaItem) => mediaItem.id === element.mediaId)?.url
+			);
+
+		await renderFrame(context, 0.5);
+
+		expect(maxActiveLoads).toBe(6);
+		expect(context.ctx.drawImage).toHaveBeenCalledTimes(8);
+		expect(
+			vi
+				.mocked(context.ctx.drawImage)
+				.mock.calls.map(([image]) => (image as HTMLImageElement).src)
+		).toEqual(expectedDrawOrder);
 	});
 });
