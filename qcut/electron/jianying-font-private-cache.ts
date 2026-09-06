@@ -79,7 +79,13 @@ export async function retainPrivateJianyingFont({
 	const temporary = join(root, `.${sha256}-${randomUUID()}.tmp`);
 	try {
 		await writeFile(temporary, bytes, { flag: "wx", mode: 0o600 });
-		await rename(temporary, destination);
+		try {
+			await rename(temporary, destination);
+		} catch (error) {
+			// Windows can reject replacement after another writer publishes the same hash.
+			if (!(await readPrivateJianyingFont({ sha256, format, root })))
+				throw error;
+		}
 	} finally {
 		await rm(temporary, { force: true });
 	}
