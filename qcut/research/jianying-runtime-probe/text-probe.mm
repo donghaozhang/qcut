@@ -118,6 +118,9 @@ constexpr std::string_view kSetTextShadowSmoothing =
     "_ZN5vesdk3pub17TextStickerFilter20set_shadow_smoothingERKd";
 constexpr std::string_view kSetUseEffectDefaultColor =
     "_ZN5vesdk3pub17TextStickerFilter28set_use_effect_default_colorERKb";
+constexpr std::string_view kSetTextColor =
+    "_ZN5vesdk3pub17TextStickerFilter14set_text_colorERKNSt3__112basic_string"
+    "IcNS2_11char_traitsIcEENS2_9allocatorIcEEEE";
 constexpr std::string_view kTextStickerToJson =
     "_Z17textStickerToJsonNSt3__110shared_ptrIN5vesdk3pub17TextStickerFilter"
     "EEE";
@@ -171,6 +174,7 @@ using SetTextEffectMethod = void (*)(const HostTextSticker&,
                                      bool, bool);
 using SetDoubleReferenceMethod = void (*)(void*, const double&);
 using SetBoolReferenceMethod = void (*)(void*, const bool&);
+using SetStringReferenceMethod = void (*)(void*, const std::string&);
 using TextStickerToJsonMethod = std::string (*)(HostTextSticker);
 using SeekDeviceTextureMethod = int (*)(void*, std::int64_t,
                                         const DeviceTextureProbe*,
@@ -389,8 +393,15 @@ void writeTextFile(const fs::path& outputPath, const std::string& text) {
   if (request.shadowSmoothing.has_value()) {
     symbols.setTextShadowSmoothing(sticker.get(), *request.shadowSmoothing);
   }
-  constexpr bool kUseEffectDefaultColor = true;
-  symbols.setUseEffectDefaultColor(sticker.get(), kUseEffectDefaultColor);
+  const bool useEffectDefaultColor = request.textColor.empty();
+  symbols.setUseEffectDefaultColor(sticker.get(), useEffectDefaultColor);
+  if (!useEffectDefaultColor) {
+    void* core =
+        openLibrary(request.runtimeRoot / "Frameworks" / "libcccreator.dylib");
+    const auto setTextColor =
+        resolveSymbol<SetStringReferenceMethod>(core, kSetTextColor);
+    setTextColor(sticker.get(), request.textColor);
+  }
   const std::string payload = symbols.textStickerToJson(sticker);
   if (payload.empty()) {
     throw std::runtime_error("Jianying generated an empty text payload");
@@ -674,6 +685,18 @@ void validateOptionalTextNumber(const std::optional<double>& value,
 }
 
 void validateTextFrameRequest(const TextFrameProbeRequest& request) {
+  if (!request.textColor.empty()) {
+    const bool validHex =
+        request.textColor.size() == 7 && request.textColor[0] == '#' &&
+        std::all_of(request.textColor.begin() + 1, request.textColor.end(), [](char c) {
+          return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') ||
+                 (c >= 'A' && c <= 'F');
+        });
+    if (!validHex || request.segmentType != 3 || !request.segmentPayload.empty()) {
+      throw std::runtime_error(
+          "text color requires a host-text payload and six-digit hex color");
+    }
+  }
   if (!fs::is_directory(request.packagePath)) {
     throw std::runtime_error("text package does not exist: " +
                              request.packagePath.string());
