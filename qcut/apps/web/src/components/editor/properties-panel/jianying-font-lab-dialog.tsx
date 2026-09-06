@@ -36,6 +36,7 @@ const ALL_SOURCES = "all";
 const TRIAL_FONT_COUNT = 5;
 const SOURCE_OPTIONS = [
 	{ id: ALL_SOURCES, label: "本机剪映缓存" },
+	{ id: "qcut-cache", label: "QCut 自有缓存" },
 	{ id: "effect", label: "字体与效果" },
 	{ id: "artist-effect", label: "花字资源" },
 	{ id: "ai-text-template", label: "AI 文字模板" },
@@ -223,6 +224,17 @@ function JianyingFontLabBody({
 	const [selectedFontId, setSelectedFontId] = useState(currentAssetId ?? "");
 	const [applyingFontId, setApplyingFontId] = useState("");
 	const [coverageMessage, setCoverageMessage] = useState("");
+	const selectionGeneration = useRef(0);
+	// Invalidate an in-flight glyph check when the text or selection changes.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: these values define the lifetime of a font selection request.
+	useEffect(() => {
+		selectionGeneration.current += 1;
+		setApplyingFontId("");
+		setCoverageMessage("");
+		return () => {
+			selectionGeneration.current += 1;
+		};
+	}, [initialSample, currentAssetId]);
 
 	useEffect(() => {
 		setSelectedFontId(currentAssetId ?? "");
@@ -265,6 +277,7 @@ function JianyingFontLabBody({
 	);
 
 	const applyFont = async ({ font }: { font: JianyingFontLabFontSummary }) => {
+		const generation = ++selectionGeneration.current;
 		const api = window.electronAPI?.jianyingFontLab;
 		if (!api) {
 			setCoverageMessage("字体实验室仅在 QCut 桌面版中可用");
@@ -275,6 +288,7 @@ function JianyingFontLabBody({
 		try {
 			const text = initialSample.trim() || "字体实验";
 			const inspection = await api.inspect({ fontId: font.fontId, text });
+			if (generation !== selectionGeneration.current) return;
 			if (!inspection.covered) {
 				const missing = inspection.missing
 					.slice(0, 8)
@@ -285,14 +299,16 @@ function JianyingFontLabBody({
 			}
 			const asset = createLocalFontAssetReference({ font });
 			await ensureLocalFontLoaded({ asset });
+			if (generation !== selectionGeneration.current) return;
 			onApply({ asset });
 			setSelectedFontId(font.fontId);
 		} catch (cause) {
+			if (generation !== selectionGeneration.current) return;
 			setCoverageMessage(
 				cause instanceof Error ? cause.message : "无法加载本机剪映字体"
 			);
 		} finally {
-			setApplyingFontId("");
+			if (generation === selectionGeneration.current) setApplyingFontId("");
 		}
 	};
 
@@ -452,14 +468,18 @@ export function JianyingFontLabDialog({
 	initialSample,
 	currentAssetId,
 	onApply,
+	disabled = false,
+	contentClassName,
 }: {
 	initialSample: string;
 	currentAssetId?: string;
 	onApply: ({ asset }: { asset: TextFontAssetReference }) => void;
+	disabled?: boolean;
+	contentClassName?: string;
 }) {
 	const [open, setOpen] = useState(false);
 	return (
-		<Popover open={open} onOpenChange={setOpen}>
+		<Popover open={open && !disabled} onOpenChange={setOpen}>
 			<PopoverTrigger asChild>
 				<Button
 					type="button"
@@ -468,6 +488,7 @@ export function JianyingFontLabDialog({
 					className="size-9 shrink-0"
 					title="打开本机字体实验室"
 					aria-label="打开本机字体实验室"
+					disabled={disabled}
 				>
 					<FlaskConical className="size-4" />
 				</Button>
@@ -476,7 +497,11 @@ export function JianyingFontLabDialog({
 				align="end"
 				side="bottom"
 				sideOffset={6}
-				className="w-[520px] max-w-[calc(100vw-16px)] rounded-md border-white/10 bg-[#292929] p-2 shadow-2xl"
+				className={cn(
+					"w-[520px] max-w-[calc(100vw-16px)] rounded-md border-white/10 bg-[#292929] p-2 shadow-2xl",
+					contentClassName
+				)}
+				onEscapeKeyDown={(event) => event.stopPropagation()}
 			>
 				{open ? (
 					<JianyingFontLabBody
