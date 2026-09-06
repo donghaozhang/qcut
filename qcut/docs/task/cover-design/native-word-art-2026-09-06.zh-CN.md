@@ -31,7 +31,7 @@ QCut 已有花字实验室、字体实验室和剪映文字原生运行时。上
 
 QCut 持久目录：`~/Library/Application Support/QCut/PrivateAssets/JianyingFonts/`。
 
-备份目录：`/Volumes/MOVE SPEED/qcut-materials/PrivateAssets/JianyingFonts/`。
+备份目录：`$BACKUP_ROOT/qcut-materials/PrivateAssets/JianyingFonts/`。
 
 - 按原始字体 SHA-256 命名；先校验并保留原始字节，再做浏览器兼容转换，避免转换后内容破坏字体身份。
 - 每个字体限制 128 MiB，使用临时文件和原子替换；原始缓存发生变化时，优先使用校验通过的 QCut 副本。
@@ -43,7 +43,7 @@ QCut 持久目录：`~/Library/Application Support/QCut/PrivateAssets/JianyingFo
 
 ## 验证
 
-自动验证在 APFS 镜像 `/Users/peter/.cache/qcut-cover-validation/qcut` 完成，源文件逐个与 SSD 工作目录同步：
+自动验证在 APFS 镜像 `$HOME/.cache/qcut-cover-validation/qcut` 完成，源文件逐个与 SSD 工作目录同步：
 
 - 43 个测试文件、**322 项测试通过**；1 个已有环境门控测试文件（1 项）跳过。
 - 覆盖三种原生引用、字体身份与持久化、渲染错误/取消/输出边界、保存复制、字体弹窗竞态以及共享实验室回归。
@@ -65,7 +65,7 @@ ScriptInfoSticker 2.1 秒帧及重开的封面 SHA-256：`ce7084f70972f81c305344
 
 ## 截图与剩余差距
 
-本地证据目录：`/Users/peter/Desktop/qcut-cover-comparison-2026-09-06/`。
+本地证据目录：`$EVIDENCE_ROOT/qcut-cover-comparison-2026-09-06/`。
 
 - `qcut-cover-native-infosticker.png`：复杂纹理花字实际应用。
 - `qcut-cover-native-font-picker.png`：复用字体实验室及真实字体效果。

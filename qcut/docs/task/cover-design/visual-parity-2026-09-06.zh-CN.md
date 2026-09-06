@@ -42,7 +42,7 @@ S23 保存与刷新重开 PNG：1080×1920，2,088,036 字节，SHA-256 `601afe2
 
 ## 本地证据
 
-桌面目录：`/Users/peter/Desktop/qcut-cover-comparison-2026-09-06/parity-pass-2/`。
+桌面目录：`$EVIDENCE_ROOT/qcut-cover-comparison-2026-09-06/parity-pass-2/`。
 
 - `jianying-s23-same-source.jpg`、`jianying-weekend-same-source.jpg`：原生截图。
 - `qcut-s23-1136.png`、`qcut-weekend-1136.png`：同尺寸 QCut 对照；另有 390、790、1440 宽度截图。
@@ -51,7 +51,7 @@ S23 保存与刷新重开 PNG：1080×1920，2,088,036 字节，SHA-256 `601afe2
 - `color-evidence.json`、`ui-evidence.json`：原生颜色结果、哈希和布局测量。
 - `color-audit.ts`、`ui-audit.cjs`、`filmstrip-audit.cjs`：本机复核脚本，含本地路径，不是跨机器测试套件。
 
-代码验证使用 APFS 镜像 `/Users/peter/.cache/qcut-cover-validation/qcut`，与 SSD 修改文件逐字节同步。原生桥使用 `-Wall -Wextra -Werror` 编译，实际执行验证，不只做语法检查。
+代码验证使用 APFS 镜像 `$HOME/.cache/qcut-cover-validation/qcut`，与 SSD 修改文件逐字节同步。原生桥使用 `-Wall -Wextra -Werror` 编译，实际执行验证，不只做语法检查。
 
 最终覆盖封面 UI/模型/渲染、缓存与原生桥的 32 个测试文件、296 项测试通过；Web TypeScript、Electron 构建、变更文件 Biome 和 `git diff --check` 通过。测试中的模拟包不能替代上述真实原生输出证据。
 

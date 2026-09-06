@@ -31,7 +31,7 @@ The existing font picker is shared. Changing text/selection or unmounting invali
 
 Persistent QCut directory: `~/Library/Application Support/QCut/PrivateAssets/JianyingFonts/`.
 
-Backup: `/Volumes/MOVE SPEED/qcut-materials/PrivateAssets/JianyingFonts/`.
+Backup: `$BACKUP_ROOT/qcut-materials/PrivateAssets/JianyingFonts/`.
 
 - Files are named by original SHA-256. Original bytes are verified and retained before browser-compatibility rewrites, preserving content identity.
 - Each font is limited to 128 MiB; writes use temporary files and atomic replacement. Verified QCut copies take priority over changed original caches.
@@ -43,7 +43,7 @@ Fonts and native packages remain local private assets, outside Git. Possession o
 
 ## Verification
 
-Changed source was individually synchronized from the SSD checkout to the APFS validation mirror at `/Users/peter/.cache/qcut-cover-validation/qcut`.
+Changed source was individually synchronized from the SSD checkout to the APFS validation mirror at `$HOME/.cache/qcut-cover-validation/qcut`.
 
 - **322 tests across 43 files passed**; one existing environment-gated test file containing one test was skipped.
 - Coverage includes all three reference kinds, font identity/persistence, renderer errors/cancellation/output limits, saved copies, font-picker races and shared lab regressions.
@@ -65,7 +65,7 @@ ScriptInfoSticker at 2.1 seconds and after reopen: `ce7084f70972f81c3053448156f9
 
 ## Screenshots and Remaining Gaps
 
-Private evidence directory: `/Users/peter/Desktop/qcut-cover-comparison-2026-09-06/`.
+Private evidence directory: `$EVIDENCE_ROOT/qcut-cover-comparison-2026-09-06/`.
 
 - `qcut-cover-native-infosticker.png`: actual textured word-art application.
 - `qcut-cover-native-font-picker.png`: shared font lab and actual selected font.

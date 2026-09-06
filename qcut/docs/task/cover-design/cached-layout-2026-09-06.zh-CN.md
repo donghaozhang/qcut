@@ -59,19 +59,19 @@
 
 两份封面缓存本轮重新校验通过，均有 8 个模板、119 个去重对象、46,579,803 字节；解析后目录 JSON 的 SHA-256 相同：`d51da387b21b7e1ae2278c26da11a3e77bcac599bafbc2d813fe40c6ff7af318`。
 
-- 主缓存：`/Users/peter/Library/Application Support/QCut/PrivateAssets/JianyingCover`
-- 备份：`/Volumes/MOVE SPEED/qcut-materials/PrivateAssets/JianyingCover`
-- 截图：`/Users/peter/Desktop/qcut-cover-comparison-2026-09-06/`
+- 主缓存：`$HOME/Library/Application Support/QCut/PrivateAssets/JianyingCover`
+- 备份：`$BACKUP_ROOT/qcut-materials/PrivateAssets/JianyingCover`
+- 截图：`$EVIDENCE_ROOT/qcut-cover-comparison-2026-09-06/`
 
 截图文件：`qcut-cover-layout-weekend-reopened.png`、`qcut-cover-layout-mobile.png`、`qcut-cover-layout-s23.png`、`qcut-cover-layout-s23-reopened.png`、`qcut-cover-layout-hero.png`、`qcut-cover-layout-hero-edited.png`、`qcut-cover-layout-hero-edited-reopened.png`。截图包含真实灰色背景上的文字渲染，用于隔离文字效果，不替代与同背景剪映输出的逐像素比较。
 
-浏览器验证项目为 `ed8c9463-739a-4136-b4b5-c2d7769493c7`；Electron 使用隔离 profile `/Users/peter/.cache/qcut-cover-native-audit-profile`，项目 `6a06e56b-8d45-4561-9b2a-33b8bd7abeee`。未修改用户原浏览器项目 `77e01234-cb19-4a84-b4d3-2d7396382b13`。
+浏览器验证项目为 `ed8c9463-739a-4136-b4b5-c2d7769493c7`；Electron 使用隔离 profile `$HOME/.cache/qcut-cover-native-audit-profile`，项目 `6a06e56b-8d45-4561-9b2a-33b8bd7abeee`。未修改用户原浏览器项目 `77e01234-cb19-4a84-b4d3-2d7396382b13`。
 
 HERO 改为 QCUT 后的项目正式引用记录：1920×1080 PNG，166,701 字节，SHA-256 `26f3f0e82ca8cffef101be7b5b5b0d1383ceda2c4b9ab10b19b46ed49c3038bb`；640×360 WebP 缩略图，8,626 字节。重开截图可见 QCUT 原生效果和另外两个文字层。此处哈希来自保存后的项目引用，不声称本轮重开后重新导出的 PNG 已做哈希一致性比较。
 
 ## 验证
 
-源码位于 SSD `/Volumes/MOVE SPEED/qcut/qcut`；依赖和验证运行于同步后的 APFS 镜像 `/Users/peter/.cache/qcut-cover-validation/qcut`。未把专有字体、花字包、预览或生成产物提交进 Git。
+源码位于 SSD `$SSD_ROOT/qcut/qcut`；依赖和验证运行于同步后的 APFS 镜像 `$HOME/.cache/qcut-cover-validation/qcut`。未把专有字体、花字包、预览或生成产物提交进 Git。
 
 ```sh
 bun x vitest run apps/web/src/lib/cover apps/web/src/components/editor/cover apps/web/src/lib/fonts electron/__tests__/jianying-cover electron/__tests__/jianying-font-private-cache.test.ts electron/__tests__/jianying-text-font-resolver.test.ts packages/editor-core/src/cover electron/__tests__/jianying-text-runtime electron/__tests__/jianying-text-render apps/web/src/lib/preview/__tests__/jianying-text-render-entry.test.ts

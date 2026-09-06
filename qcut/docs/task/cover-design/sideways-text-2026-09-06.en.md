@@ -27,7 +27,7 @@ The saved design was read back: one background, three editable text layers, a 90
 
 Artifacts and replay scripts:
 
-`/Users/peter/Desktop/qcut-cover-comparison-2026-09-06/parity-pass-3/`
+`$EVIDENCE_ROOT/qcut-cover-comparison-2026-09-06/parity-pass-3/`
 
 - `index.html`: native reference, QCut before/after, narrow UI and actual output.
 - `ui-audit.cjs` and `ui-evidence.json`: UI actions, persisted design and output hashes.
@@ -41,7 +41,7 @@ The existing collection audit validates cached objects, prepares text layouts, i
 
 ```text
 ~/Library/Application Support/QCut/PrivateAssets/JianyingCover
-/Volumes/MOVE SPEED/qcut-materials/PrivateAssets/JianyingCover
+$BACKUP_ROOT/qcut-materials/PrivateAssets/JianyingCover
 ```
 
 Original definitions are unchanged. Private fonts, previews, packages and binaries are excluded from Git.

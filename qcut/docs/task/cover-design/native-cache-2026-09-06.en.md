@@ -42,7 +42,7 @@ Exact package hashes are documented in the [Chinese audit](./native-cache-2026-0
 ## Independent QCut Storage
 
 - Primary: `~/Library/Application Support/QCut/PrivateAssets/JianyingCover`.
-- Backup: `/Volumes/MOVE SPEED/qcut-materials/PrivateAssets/JianyingCover`.
+- Backup: `$BACKUP_ROOT/qcut-materials/PrivateAssets/JianyingCover`.
 - Override: `QCUT_JIANYING_COVER_CACHE_ROOT`, read by the Electron/Vite process.
 - Structure: `catalog.json` and content-addressed `objects/<sha256>`.
 - Initial batch: 8 templates, 69 unique files, 33,938,996 bytes. After recovery: **8 templates, 119 referenced unique files, 46,579,803 bytes**, excluding manifests and unreferenced objects.
@@ -74,17 +74,17 @@ This is an observed downloaded subset, not the full online library. Native rende
 
 ## Import and Restore
 
-Run in an app checkout with Bun/dependencies. On this Mac the APFS runtime mirror is `/Users/peter/.cache/qcut-cover-validation/qcut`; the SSD remains the source checkout.
+Run in an app checkout with Bun/dependencies. On this Mac the APFS runtime mirror is `$HOME/.cache/qcut-cover-validation/qcut`; the SSD remains the source checkout.
 
 ```sh
 bun build scripts/cache-jianying-cover.ts --target=node --outfile /tmp/qcut-cache-cover.mjs
 node /tmp/qcut-cache-cover.mjs --recover \
   --observations "$HOME/Library/Application Support/QCut/PrivateAssets/JianyingCover/observations.json" \
   --application-resources /Applications/VideoFusion-macOS.app/Contents/Resources \
-  --backup '/Volumes/MOVE SPEED/qcut-materials/PrivateAssets/JianyingCover'
+  --backup "$BACKUP_ROOT/qcut-materials/PrivateAssets/JianyingCover"
 
 bun scripts/cache-jianying-cover.ts --verify \
-  --destination '/Volumes/MOVE SPEED/qcut-materials/PrivateAssets/JianyingCover'
+  --destination "$BACKUP_ROOT/qcut-materials/PrivateAssets/JianyingCover"
 ```
 
 Recovery requires Node 22.13+ because the shared catalog reader uses `node:sqlite`. Without `--recover`, import retains its original exact-package, local-copy-only behavior and does not download. Verification reads neither Jianying nor the other labs. Use one writer at a time.

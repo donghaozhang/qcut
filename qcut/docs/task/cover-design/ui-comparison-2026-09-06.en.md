@@ -52,7 +52,7 @@ Publishing requires a completed render for the current design. Source operations
 
 ## Verification
 
-Source: `/Volumes/MOVE SPEED/qcut/qcut`. APFS dependency/runtime mirror: `/Users/peter/.cache/qcut-cover-validation/qcut`. This accommodates the SSD's exFAT filesystem; it is not a second development branch.
+Source: `$SSD_ROOT/qcut/qcut`. APFS dependency/runtime mirror: `$HOME/.cache/qcut-cover-validation/qcut`. This accommodates the SSD's exFAT filesystem; it is not a second development branch.
 
 1. Imported a generated H.264 calibration video through the real file picker: 1280x720, 24 FPS, four seconds. Added it to the timeline through UI in a 1920x1080, 30 FPS project.
 2. Opened the editor, captured frame zero, applied the travel template and edited its Chinese title. Expanded the seven sampled thumbnails and selected frame 36, or 1.2 seconds.

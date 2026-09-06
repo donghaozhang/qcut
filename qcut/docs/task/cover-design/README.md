@@ -2,10 +2,22 @@
 
 更新：2026-09-06。状态：可编辑原创模板工作区、剪映八分类私有缓存、缓存模板文字布局套用，以及复用花字/字体实验室的原生文字渲染；完整 `cover.cover_draft` 背景与文字合成尚未直接套用。
 
+## 路径占位符
+
+本目录的文档不写本机绝对路径。出现的变量含义如下，实际取值由各人自行设定，均在仓库之外：
+
+| 占位符 | 含义 |
+| --- | --- |
+| `$SSD_ROOT` | 外置 exFAT SSD 上的源码检出根目录 |
+| `$BACKUP_ROOT` | 外置 SSD 上的私有资料备份根目录（字体、封面包等） |
+| `$EVIDENCE_ROOT` | 本机截图与对照证据目录 |
+| `$QCUT_ROOT` | 本机 QCut 仓库检出根目录 |
+| `$HOME` | 当前用户主目录 |
+
 ## 工作目录
 
-- Git 根目录：`/Volumes/MOVE SPEED/qcut`
-- 应用根目录：`/Volumes/MOVE SPEED/qcut/qcut`
+- Git 根目录：`$SSD_ROOT/qcut`
+- 应用根目录：`$SSD_ROOT/qcut/qcut`
 - 分支：`codex/cover-design`
 - 基线：`origin/master`，`2b9f355bd7accfd24a0e02a584e6ab6f223853d0`
 - 首次实现验收时尚未提交；后续按单文件提交方式交付，发布状态以该分支的 Git/PR 记录为准。原 Desktop 工作区和机械盘副本保留，未清理。
@@ -73,14 +85,14 @@ cover/designs/<designId>/<revision>.json
 
 边界限制：单张输入不超过 32 MiB，单边不超过 8192，像素总数不超过 33,554,432；模型只接受一个背景图片和最多 20 个已知文字图层。未知图层类型会报错，不静默丢弃。普通文字效果参数可编辑，原生花字通过已有运行时取帧；仍没有独立气泡或贴纸图层。
 
-字体实验室读取时将校验后的原始字体保留在 `~/Library/Application Support/QCut/PrivateAssets/JianyingFonts/`，先保留再做浏览器兼容转换。当前 147 个字体、约 446 MiB，已逐文件校验备份到 `/Volumes/MOVE SPEED/qcut-materials/PrivateAssets/JianyingFonts/`。自有字体目录可独立扫描；字体与运行时仍是私有本机依赖，不自动随 OPFS 封面复制到其他机器。
+字体实验室读取时将校验后的原始字体保留在 `~/Library/Application Support/QCut/PrivateAssets/JianyingFonts/`，先保留再做浏览器兼容转换。当前 147 个字体、约 446 MiB，已逐文件校验备份到 `$BACKUP_ROOT/qcut-materials/PrivateAssets/JianyingFonts/`。自有字体目录可独立扫描；字体与运行时仍是私有本机依赖，不自动随 OPFS 封面复制到其他机器。
 
 ## QCut 独立剪映缓存
 
 首批原生 UI 逐项对应的 8 套模板，依赖恢复后为 119 个去重文件、46,579,803 字节，已复制并校验：
 
 - 主库：`~/Library/Application Support/QCut/PrivateAssets/JianyingCover`
-- SSD 备份：`/Volumes/MOVE SPEED/qcut-materials/PrivateAssets/JianyingCover`
+- SSD 备份：`$BACKUP_ROOT/qcut-materials/PrivateAssets/JianyingCover`
 - 结构：`catalog.json` + `objects/<sha256>`；主库另存人工核对的 `observations.json`。
 - 分类：默认、推荐、生活、游戏、知识、时尚、影视、美食。允许同一模板出现在多个实际观察到的分类；没有凭名称猜分类。
 - UI 默认展示“剪映缓存”，原来的五款预设移到单独的“QCut 原创”。卡片读取独立缓存，不再读取剪映源目录。
@@ -91,7 +103,7 @@ cover/designs/<designId>/<revision>.json
 
 ## 历史图片参考缓存
 
-私有路径：`/Volumes/MOVE SPEED/qcut/.local-reference/jianying-cover/`。
+私有路径：`$SSD_ROOT/qcut/.local-reference/jianying-cover/`。
 
 | 内容 | 数量 | 说明 |
 | --- | ---: | --- |
@@ -135,7 +147,7 @@ node scripts/cache-jianying-cover-reference.mjs '../.local-reference/jianying-co
 - 直接导入与该单图片时间线取图的 PNG 哈希相同：`9852b45fd26df78df8a9eeff2599692d377fd1951d47ec32ad6bc5460824d7ea`。
 - PNG 为 1080×1920、2,124,093 字节；缩略图为 640×360、23,026 字节。PNG 中心 RGBA 为 `[222, 201, 51, 255]`，并已人工查看截图，非空白图。
 
-本地截图：`/Volumes/MOVE SPEED/qcut/.local-reference/validation/`，重点查看 `cover-frame-desktop.png`、`cover-frame-mobile.png`、`cover-reopened-mobile.png`、`cover-project-card.png`。机器可读摘要为同目录 `cover-validation.json`。
+本地截图：`$SSD_ROOT/qcut/.local-reference/validation/`，重点查看 `cover-frame-desktop.png`、`cover-frame-mobile.png`、`cover-reopened-mobile.png`、`cover-project-card.png`。机器可读摘要为同目录 `cover-validation.json`。
 
 测试命令，在应用根目录运行：
 
@@ -148,14 +160,14 @@ bunx vitest run packages/editor-core/src/cover apps/web/src/lib/cover apps/web/s
 MOVE SPEED 是 SSD，但当前格式是 exFAT，不支持正常依赖树所需的符号链接。源码和私有资料已放 SSD；本轮依赖、测试和 Vite 在内置 APFS 的字节一致镜像运行：
 
 ```text
-/Users/peter/.cache/qcut-cover-validation/qcut
+$HOME/.cache/qcut-cover-validation/qcut
 http://127.0.0.1:5188/#/projects
 ```
 
 这不是自动双向同步。后续以 SSD 源码为准，停止开发服务器后可先预览同步：
 
 ```sh
-rsync -rltn --exclude=node_modules --exclude=.git --exclude=dist --exclude=output --exclude=.playwright-cli --exclude='._*' '/Volumes/MOVE SPEED/qcut/qcut/' "$HOME/.cache/qcut-cover-validation/qcut/"
+rsync -rltn --exclude=node_modules --exclude=.git --exclude=dist --exclude=output --exclude=.playwright-cli --exclude='._*' "$BACKUP_ROOT/qcut/qcut/" "$HOME/.cache/qcut-cover-validation/qcut/"
 ```
 
 确认目标是上述专用运行镜像，再去掉 `-n` 同步。在镜像里运行 `bun install --frozen-lockfile --ignore-scripts`，随后进入 `apps/web` 执行 `VITE_BUILD_TARGET=web bunx vite --host 127.0.0.1 --port 5188 --strictPort`。该同步不删除镜像多余文件；源码发生删除或重命名时需另行核对。不要把镜像依赖、自动生成产物或缓存批量复制回 SSD。

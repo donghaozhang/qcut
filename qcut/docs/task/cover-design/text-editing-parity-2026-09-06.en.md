@@ -37,7 +37,7 @@ These are raw local catalog counts, not deduplicated UI-visible totals or pixel-
 
 ## Local Artifacts
 
-Directory: `/Users/peter/Desktop/qcut-cover-comparison-2026-09-06/`.
+Directory: `$EVIDENCE_ROOT/qcut-cover-comparison-2026-09-06/`.
 
 - `jianying-native.png`: unchanged earlier native Jianying screenshot.
 - `qcut-recommended.jpg`, `qcut-word-art-recovery.jpg`: unchanged earlier QCut catalog/dependency screenshots.
@@ -47,7 +47,7 @@ Directory: `/Users/peter/Desktop/qcut-cover-comparison-2026-09-06/`.
 
 Screenshots preserve actual UI content and remain local, outside Git. Different projects and media were used, so this is a structural/interaction comparison, not matched-template rendering parity.
 
-Source: `/Volumes/MOVE SPEED/qcut/qcut`. APFS runtime mirror: `/Users/peter/.cache/qcut-cover-validation/qcut`. Dev URL: `http://127.0.0.1:5188/`. Changed files were explicitly synchronized before validation.
+Source: `$SSD_ROOT/qcut/qcut`. APFS runtime mirror: `$HOME/.cache/qcut-cover-validation/qcut`. Dev URL: `http://127.0.0.1:5188/`. Changed files were explicitly synchronized before validation.
 
 ## Remaining Gaps
 

@@ -46,7 +46,7 @@ QCut“剪映缓存”按原生顺序显示 **默认、推荐、生活、游戏�
 “自有”指 QCut 管理的独立文件副本，不代表获得模板版权或再分发许可。专有资源留在用户本机，不加入仓库和发布包，不提取登录令牌、请求头或加密项目正文。
 
 - 主库：`~/Library/Application Support/QCut/PrivateAssets/JianyingCover`
-- 备份：`/Volumes/MOVE SPEED/qcut-materials/PrivateAssets/JianyingCover`
+- 备份：`$BACKUP_ROOT/qcut-materials/PrivateAssets/JianyingCover`
 - 可用 `QCUT_JIANYING_COVER_CACHE_ROOT` 指定另一份库，需重启读取它的 Electron/Vite 进程。
 - `catalog.json` 保存定义、预览、依赖、逻辑路径和 SHA-256；文件按 `objects/<sha256>` 去重。
 - 首次采集为 8 套、69 个去重文件、33,938,996 字节。依赖恢复后为 **8 套、119 个去重文件、46,579,803 字节**，不包含清单本身或未引用对象。
@@ -88,17 +88,17 @@ UI 的 Electron IPC 与本地 Vite 开发接口只读取这份独立库，不回
 
 ## 运行与恢复
 
-在有 Bun 和依赖的应用根目录运行；本机是 `/Users/peter/.cache/qcut-cover-validation/qcut`，源码仍以 SSD 为准：
+在有 Bun 和依赖的应用根目录运行；本机是 `$HOME/.cache/qcut-cover-validation/qcut`，源码仍以 SSD 为准：
 
 ```sh
 bun build scripts/cache-jianying-cover.ts --target=node --outfile /tmp/qcut-cache-cover.mjs
 node /tmp/qcut-cache-cover.mjs --recover \
   --observations "$HOME/Library/Application Support/QCut/PrivateAssets/JianyingCover/observations.json" \
   --application-resources /Applications/VideoFusion-macOS.app/Contents/Resources \
-  --backup '/Volumes/MOVE SPEED/qcut-materials/PrivateAssets/JianyingCover'
+  --backup "$BACKUP_ROOT/qcut-materials/PrivateAssets/JianyingCover"
 
 bun scripts/cache-jianying-cover.ts --verify \
-  --destination '/Volumes/MOVE SPEED/qcut-materials/PrivateAssets/JianyingCover'
+  --destination "$BACKUP_ROOT/qcut-materials/PrivateAssets/JianyingCover"
 ```
 
 恢复模式用 Node 22.13+ 执行，因为共享实验室目录解析器使用 `node:sqlite`。不传 `--recover` 时保持原来的仅复制剪映已下载精确包行为，不访问网络；`--verify` 不读取实验室或剪映源目录。不要在同一库上并发运行恢复命令。

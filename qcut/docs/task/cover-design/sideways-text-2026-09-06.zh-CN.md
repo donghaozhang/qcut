@@ -26,7 +26,7 @@
 
 截图和可复跑脚本：
 
-`/Users/peter/Desktop/qcut-cover-comparison-2026-09-06/parity-pass-3/`
+`$EVIDENCE_ROOT/qcut-cover-comparison-2026-09-06/parity-pass-3/`
 
 - `index.html`：剪映、修改前后 QCut、窄屏与实际渲染图。
 - `ui-audit.cjs` / `ui-evidence.json`：实际 UI、保存重开、字体引用与尺寸证据。
@@ -40,7 +40,7 @@
 
 ```text
 ~/Library/Application Support/QCut/PrivateAssets/JianyingCover
-/Volumes/MOVE SPEED/qcut-materials/PrivateAssets/JianyingCover
+$BACKUP_ROOT/qcut-materials/PrivateAssets/JianyingCover
 ```
 
 使用现有 `collect-jianying-covers.ts --audit-only` 校验对象、准备布局、导入验证凭据并同步备份。原始定义不改写，私有字体、缩略图、模板及二进制均不进入 Git。

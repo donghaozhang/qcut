@@ -42,7 +42,7 @@ A real three-second `00-real-person-clean-3s.mp4` was imported through the media
 
 ## Evidence Location
 
-Local directory: `/Users/peter/Desktop/qcut-cover-comparison-2026-09-06/parity-pass-2/`.
+Local directory: `$EVIDENCE_ROOT/qcut-cover-comparison-2026-09-06/parity-pass-2/`.
 
 - `jianying-s23-same-source.jpg`, `jianying-weekend-same-source.jpg`: native screenshots.
 - `qcut-s23-1136.png`, `qcut-weekend-1136.png`: QCut comparison screenshots; additional widths are available.
@@ -51,7 +51,7 @@ Local directory: `/Users/peter/Desktop/qcut-cover-comparison-2026-09-06/parity-p
 - `color-evidence.json`, `ui-evidence.json`: color, hash and layout measurements.
 - `color-audit.ts`, `ui-audit.cjs`, `filmstrip-audit.cjs`: local reproduction scripts with machine-specific paths.
 
-Validation uses the APFS dependency mirror `/Users/peter/.cache/qcut-cover-validation/qcut`, byte-synchronized with changed SSD source files. The native bridge compiled with `-Wall -Wextra -Werror` and was executed against real packages.
+Validation uses the APFS dependency mirror `$HOME/.cache/qcut-cover-validation/qcut`, byte-synchronized with changed SSD source files. The native bridge compiled with `-Wall -Wextra -Werror` and was executed against real packages.
 
 Final validation: 296 tests across 32 files passed, covering cover UI/model/rendering, caches and the native bridge. Web TypeScript, the Electron build, changed-file Biome checks and `git diff --check` passed. Mocked unit fixtures do not replace the real native-output evidence above.
 

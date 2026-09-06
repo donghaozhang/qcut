@@ -38,8 +38,8 @@
 
 ## 文件与恢复
 
-- 主库：`/Users/peter/Library/Application Support/QCut/PrivateAssets/JianyingCover`
-- SSD：`/Volumes/MOVE SPEED/qcut-materials/PrivateAssets/JianyingCover`
+- 主库：`$HOME/Library/Application Support/QCut/PrivateAssets/JianyingCover`
+- SSD：`$BACKUP_ROOT/qcut-materials/PrivateAssets/JianyingCover`
 - `collection-observations.json`：累积去重后的观察目录。
 - `collection-report.json`：逐分类四阶段统计、缺失引用、准备失败原因、最近运行的批次状态。不是永久追加日志；重新运行会替换最新报告。
 - `collection-verifications.json`、`collection-evidence/<sha256>`：验证收据与实际证据字节，两边均保留。外部截图源消失后可以从自有副本重新校验。
@@ -55,7 +55,7 @@ node /tmp/qcut-collect-jianying-covers.mjs \
   --observations /absolute/path/new-observations.json \
   --batch-size 5 --recover \
   --application-resources /Applications/VideoFusion-macOS.app/Contents/Resources \
-  --backup '/Volumes/MOVE SPEED/qcut-materials/PrivateAssets/JianyingCover'
+  --backup "$BACKUP_ROOT/qcut-materials/PrivateAssets/JianyingCover"
 ```
 
 仅重校已有库用 `--audit-only`，不需要剪映源目录存在。已缓存包默认跳过，修复缺失依赖时显式使用 `--retry-missing --recover`。每批 1–25 套；主库与备份各保留至少 5 GB 空间。锁冲突直接停止，不删除他人的锁；异常退出留下锁时先核对记录中的进程，不能盲目清理。

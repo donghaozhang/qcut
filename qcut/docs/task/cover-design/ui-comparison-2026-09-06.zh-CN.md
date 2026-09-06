@@ -52,7 +52,7 @@ QCut 使用五款原创文字模板；没有复制剪映的模板图片、字体
 
 ## 验证记录
 
-源码在 `/Volumes/MOVE SPEED/qcut/qcut`，依赖与运行镜像在 `/Users/peter/.cache/qcut-cover-validation/qcut`。这是 exFAT SSD 与 APFS 依赖环境的分离，不是两个开发分支。
+源码在 `$SSD_ROOT/qcut/qcut`，依赖与运行镜像在 `$HOME/.cache/qcut-cover-validation/qcut`。这是 exFAT SSD 与 APFS 依赖环境的分离，不是两个开发分支。
 
 1. 通过真实文件选择器导入自生成 H.264 校准视频，1280×720、24 FPS、4 秒，再通过 UI 加入时间线；QCut 项目为 1920×1080、30 FPS。
 2. 打开封面自动取得第 0 帧；应用旅行模板，将标题改成“夏天的旅行”。展开七点缩略图，指定第 36 帧，即 1.2 秒。

@@ -1,8 +1,8 @@
 # QCut 封面与封面模板实现方案
 
 - 日期：2026-08-31
-- 目标代码库：`/Users/peter/Desktop/code/qcut/qcut`
-- 参考研究：`/Users/peter/Desktop/剪映封面机制研究.md`
+- 目标代码库：`$QCUT_ROOT`
+- 参考研究：`$EVIDENCE_ROOT/剪映封面机制研究.md`
 - 文档状态：可拆分实施
 
 ## 一句话方案

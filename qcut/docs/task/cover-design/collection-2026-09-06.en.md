@@ -38,8 +38,8 @@ Retrying an unchanged definition now retains verified owned dependencies if the 
 
 ## Storage and Commands
 
-- Owned root: `/Users/peter/Library/Application Support/QCut/PrivateAssets/JianyingCover`
-- Backup root: `/Volumes/MOVE SPEED/qcut-materials/PrivateAssets/JianyingCover`
+- Owned root: `$HOME/Library/Application Support/QCut/PrivateAssets/JianyingCover`
+- Backup root: `$BACKUP_ROOT/qcut-materials/PrivateAssets/JianyingCover`
 - `collection-observations.json`: cumulative deduplicated observations.
 - `collection-report.json`: current per-category stages, missing references, preparation failures and latest run's batches. It is a replaceable snapshot, not an append-only history.
 - `collection-verifications.json` and `collection-evidence/<sha256>`: receipts and retained evidence on both drives, independently readable after external screenshots disappear.
@@ -55,7 +55,7 @@ node /tmp/qcut-collect-jianying-covers.mjs \
   --observations /absolute/path/new-observations.json \
   --batch-size 5 --recover \
   --application-resources /Applications/VideoFusion-macOS.app/Contents/Resources \
-  --backup '/Volumes/MOVE SPEED/qcut-materials/PrivateAssets/JianyingCover'
+  --backup "$BACKUP_ROOT/qcut-materials/PrivateAssets/JianyingCover"
 ```
 
 Use `--audit-only` to recheck the owned store without requiring the source directory. Existing packages are skipped unless `--retry-missing` is requested. Batch size is 1–25, each destination must retain 5 GB free, and an existing collector lock is never removed automatically. Confirm that the recorded process has stopped before handling a stale lock.

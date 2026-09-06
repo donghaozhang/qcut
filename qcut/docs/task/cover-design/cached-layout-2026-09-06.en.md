@@ -59,19 +59,19 @@ The Chinese companion includes the original names. Recovery needs exact identity
 
 Both caches were reverified: eight templates, 119 unique objects, 46,579,803 bytes. SHA-256 of the parsed catalog serialized as JSON matches: `d51da387b21b7e1ae2278c26da11a3e77bcac599bafbc2d813fe40c6ff7af318`.
 
-- Owned cache: `/Users/peter/Library/Application Support/QCut/PrivateAssets/JianyingCover`
-- Backup: `/Volumes/MOVE SPEED/qcut-materials/PrivateAssets/JianyingCover`
-- Screenshots: `/Users/peter/Desktop/qcut-cover-comparison-2026-09-06/`
+- Owned cache: `$HOME/Library/Application Support/QCut/PrivateAssets/JianyingCover`
+- Backup: `$BACKUP_ROOT/qcut-materials/PrivateAssets/JianyingCover`
+- Screenshots: `$EVIDENCE_ROOT/qcut-cover-comparison-2026-09-06/`
 
 Evidence files: `qcut-cover-layout-weekend-reopened.png`, `qcut-cover-layout-mobile.png`, `qcut-cover-layout-s23.png`, `qcut-cover-layout-s23-reopened.png`, `qcut-cover-layout-hero.png`, `qcut-cover-layout-hero-edited.png`, and `qcut-cover-layout-hero-edited-reopened.png`. The neutral background isolates text rendering; this is not a same-background pixel comparison with Jianying.
 
-Browser test project: `ed8c9463-739a-4136-b4b5-c2d7769493c7`. Electron used the isolated `/Users/peter/.cache/qcut-cover-native-audit-profile` and project `6a06e56b-8d45-4561-9b2a-33b8bd7abeee`. The user's original browser project `77e01234-cb19-4a84-b4d3-2d7396382b13` was not edited.
+Browser test project: `ed8c9463-739a-4136-b4b5-c2d7769493c7`. Electron used the isolated `$HOME/.cache/qcut-cover-native-audit-profile` and project `6a06e56b-8d45-4561-9b2a-33b8bd7abeee`. The user's original browser project `77e01234-cb19-4a84-b4d3-2d7396382b13` was not edited.
 
 The saved QCUT title project reference records a 1920x1080 PNG, 166,701 bytes, SHA-256 `26f3f0e82ca8cffef101be7b5b5b0d1383ceda2c4b9ab10b19b46ed49c3038bb`, plus a 640x360 WebP thumbnail of 8,626 bytes. The reopened UI visibly retains QCUT's native effect and both other text layers. This hash comes from the saved project reference; no claim is made that a fresh post-reopen export was hash-compared this run.
 
 ## Validation
 
-Source: `/Volumes/MOVE SPEED/qcut/qcut`. Dependencies/tests/build: synchronized APFS mirror `/Users/peter/.cache/qcut-cover-validation/qcut`. No proprietary font, word-art, preview, or generated build files were added to Git.
+Source: `$SSD_ROOT/qcut/qcut`. Dependencies/tests/build: synchronized APFS mirror `$HOME/.cache/qcut-cover-validation/qcut`. No proprietary font, word-art, preview, or generated build files were added to Git.
 
 ```sh
 bun x vitest run apps/web/src/lib/cover apps/web/src/components/editor/cover apps/web/src/lib/fonts electron/__tests__/jianying-cover electron/__tests__/jianying-font-private-cache.test.ts electron/__tests__/jianying-text-font-resolver.test.ts packages/editor-core/src/cover electron/__tests__/jianying-text-runtime electron/__tests__/jianying-text-render apps/web/src/lib/preview/__tests__/jianying-text-render-entry.test.ts

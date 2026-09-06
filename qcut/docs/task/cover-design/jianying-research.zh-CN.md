@@ -6,7 +6,7 @@
 - 应用：剪映专业版 macOS 11.3.0
 - Bundle ID：`com.lemon.lvpro`
 - 安装包：`/Applications/VideoFusion-macOS.app`
-- 草稿根目录：`/Users/peter/Movies/JianyingPro/User Data/Projects/com.lveditor.draft`
+- 草稿根目录：`$HOME/Movies/JianyingPro/User Data/Projects/com.lveditor.draft`
 - 受控样本：`8月30日 (4)`，画布 `720 x 1280`
 
 ## 一句话结论
@@ -350,7 +350,7 @@ draft_cover.jpg（最终扁平输出）
 证据来自：
 
 ```text
-/Users/peter/Movies/JianyingPro/User Data/MMKV/settings_json
+$HOME/Movies/JianyingPro/User Data/MMKV/settings_json
 ```
 
 CEF 主页面缓存还保留了本次封面编辑器的真实入口。去掉无关参数后，形式如下：
@@ -371,7 +371,7 @@ https://www.jianying.com/editor-graphic
 对应缓存文件为：
 
 ```text
-/Users/peter/Movies/JianyingPro/User Data/CEF/Cache/Cache/Cache_Data/a8158a319a5bbcc6_0
+$HOME/Movies/JianyingPro/User Data/CEF/Cache/Cache/Cache_Data/a8158a319a5bbcc6_0
 ```
 
 这证明原生剪映会把画布宽高、视频草稿 ID、语言、入口来源和页面模式传给 `jianying.com` 的图文编辑器。`commonSetting.ini` 还持久化了 `web_cover_login_id`；二进制桥接代码也有登录态和 token 传递能力。本文不记录或复用这些身份值。
@@ -379,7 +379,7 @@ https://www.jianying.com/editor-graphic
 本机另有：
 
 ```text
-/Users/peter/Movies/JianyingPro/User Data/Cache/template
+$HOME/Movies/JianyingPro/User Data/Cache/template
 ```
 
 该目录中的 `template.json`、ZIP 和附件属于剪映常规视频模板缓存。当前封面模板的列表、预览和图文编辑路径出现在 CEF/IndexedDB 中，没有证据表明它们使用这个常规视频模板目录，也没有表现为一个 `effect`/`artistEffect` 包。

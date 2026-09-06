@@ -37,7 +37,7 @@
 
 ## 截图与运行环境
 
-本地对照目录：`/Users/peter/Desktop/qcut-cover-comparison-2026-09-06/`。
+本地对照目录：`$EVIDENCE_ROOT/qcut-cover-comparison-2026-09-06/`。
 
 - `jianying-native.png`：前一轮原生剪映截图，保留不变。
 - `qcut-recommended.jpg`、`qcut-word-art-recovery.jpg`：前一轮 QCut 缓存和依赖详情，保留不变。
@@ -47,7 +47,7 @@
 
 图片保持实际截图内容，不合成剪映效果、不发布私有图像到 Git。对照来自不同项目与不同素材，只证明结构和操作状态，不是同素材同模板的渲染对照。
 
-源码位于 `/Volumes/MOVE SPEED/qcut/qcut`。APFS 运行镜像位于 `/Users/peter/.cache/qcut-cover-validation/qcut`，开发地址 `http://127.0.0.1:5188/`；本轮变更逐文件同步后验证。
+源码位于 `$SSD_ROOT/qcut/qcut`。APFS 运行镜像位于 `$HOME/.cache/qcut-cover-validation/qcut`，开发地址 `http://127.0.0.1:5188/`；本轮变更逐文件同步后验证。
 
 ## 剩余差距
 
