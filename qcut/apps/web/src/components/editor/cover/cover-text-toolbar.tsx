@@ -5,9 +5,6 @@ import {
 	Bold,
 	Italic,
 	Underline,
-	Square,
-	Layers,
-	Sun,
 	Trash2,
 	ArrowUpToLine,
 	ArrowDownToLine,
@@ -15,15 +12,18 @@ import {
 import type { CoverTextLayerV1 } from "@qcut/editor-core/cover";
 import { useTranslation } from "@/lib/i18n";
 import { CoverTool } from "./cover-tool";
+import { CoverTextStyleControls } from "./cover-text-style-controls";
 
 export function CoverTextToolbar({
 	layer,
+	canvas,
 	disabled,
 	onChange,
 	onDelete,
 	onOrder,
 }: {
 	layer?: CoverTextLayerV1;
+	canvas?: { width: number; height: number };
 	disabled: boolean;
 	onChange: (changes: Partial<CoverTextLayerV1>) => void;
 	onDelete: () => void;
@@ -101,26 +101,11 @@ export function CoverTextToolbar({
 					disabled={off}
 					onClick={() => onChange({ underline: !layer?.underline })}
 				/>
-				<CoverTool
-					icon={Square}
-					label={t("editor.cover.stroke")}
-					active={layer?.stroke}
+				<CoverTextStyleControls
+					layer={layer}
+					canvas={canvas}
 					disabled={off}
-					onClick={() => onChange({ stroke: !layer?.stroke })}
-				/>
-				<CoverTool
-					icon={Sun}
-					label={t("editor.cover.shadow")}
-					active={layer?.shadow}
-					disabled={off}
-					onClick={() => onChange({ shadow: !layer?.shadow })}
-				/>
-				<CoverTool
-					icon={Layers}
-					label={t("editor.cover.textBackground")}
-					active={layer?.background}
-					disabled={off}
-					onClick={() => onChange({ background: !layer?.background })}
+					onChange={onChange}
 				/>
 				<CoverTool
 					icon={AlignLeft}
