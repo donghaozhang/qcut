@@ -91,10 +91,9 @@ export function applyPrivateCoverTextLayout({
 	ctx: CanvasRenderingContext2D;
 }): CoverDesignV1 {
 	const templateId = `jianying:${layout.packageHash}`;
-	const fit = Math.min(
-		design.canvas.width / layout.canvas.width,
-		design.canvas.height / layout.canvas.height
-	);
+	const fit =
+		Math.min(design.canvas.width, design.canvas.height) /
+		Math.min(layout.canvas.width, layout.canvas.height);
 	const manual = design.layers
 		.slice(1)
 		.filter(
@@ -141,14 +140,8 @@ export function applyPrivateCoverTextLayout({
 			fontAsset,
 			fontSize,
 			color: text.text_color || "#ffffff",
-			x:
-				0.5 +
-				(segment.clip.transform.x * layout.canvas.width * fit) /
-					(2 * design.canvas.width),
-			y:
-				0.5 -
-				(segment.clip.transform.y * layout.canvas.height * fit) /
-					(2 * design.canvas.height),
+			x: (1 + segment.clip.transform.x) / 2,
+			y: (1 - segment.clip.transform.y) / 2,
 			width: Math.min(1, Math.max(0.05, width / design.canvas.width)),
 			height: Math.min(1, Math.max(0.05, height / design.canvas.height)),
 			rotation: segment.clip.rotation,
@@ -166,6 +159,9 @@ export function applyPrivateCoverTextLayout({
 			shadow: text.has_shadow,
 			background: Boolean(text.background_color),
 			jianyingTextStyle: native ?? undefined,
+			nativeUseEffectDefaultColor: native
+				? text.use_effect_default_color
+				: undefined,
 			textStyle: {
 				letterSpacing,
 				lineHeight,
