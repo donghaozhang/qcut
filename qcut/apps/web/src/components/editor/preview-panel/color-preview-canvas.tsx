@@ -154,6 +154,13 @@ export function ColorPreviewCanvas({
 	}, [colorPickerActive, samplePreviewColor]);
 	useEffect(() => {
 		return subscribeColorDegradation(({ detail, reason }) => {
+			if (reason === "qcut-independent-filter-unavailable") {
+				toast.error("QCut Metal 渲染失败，预览未更新", {
+					description: detail,
+					id: reason,
+				});
+				return;
+			}
 			const localPortraitFallback =
 				reason === "jianying-local-portrait-fallback";
 			const localEffectFallback = reason === "jianying-local-effect-fallback";
@@ -274,6 +281,16 @@ export function ColorPreviewCanvas({
 				}
 				outputContext.clearRect(0, 0, canvas.width, canvas.height);
 				outputContext.drawImage(rendered, 0, 0);
+			} catch (error) {
+				const independent = renderedLayers.some(
+					({ settings }) =>
+						settings.multiPass?.enabled &&
+						(settings.multiPass.nativeEffect?.provider ===
+							"qcut-metal-fog-v1" ||
+							settings.multiPass.nativeEffect?.provider === "qcut-metal-lut-v1")
+				);
+				// The color layer reports the failure; retain the last good preview.
+				if (!independent) throw error;
 			} finally {
 				drawing = false;
 				if (queuedDraw && !cancelled) {
