@@ -17,7 +17,8 @@ function requiresLocalColorRuntime({
 		multiPass.fidelity === "native-local" &&
 		(multiPass.nativeEffect?.provider === "jianying-local-effect-v1" ||
 			multiPass.nativeEffect?.provider === "qcut-metal-fog-v1" ||
-			multiPass.nativeEffect?.provider === "qcut-metal-lut-v1")
+			multiPass.nativeEffect?.provider === "qcut-metal-lut-v1" ||
+			multiPass.nativeEffect?.provider === "qcut-metal-graph-v1")
 	) {
 		return true;
 	}
@@ -45,7 +46,8 @@ function filterStackRequiresLocalColorRuntime({
 			(effect.color.multiPass.nativeEffect?.provider ===
 				"jianying-local-effect-v1" ||
 				effect.color.multiPass.nativeEffect?.provider === "qcut-metal-fog-v1" ||
-				effect.color.multiPass.nativeEffect?.provider === "qcut-metal-lut-v1")
+				effect.color.multiPass.nativeEffect?.provider === "qcut-metal-lut-v1" ||
+				effect.color.multiPass.nativeEffect?.provider === "qcut-metal-graph-v1")
 	);
 }
 
