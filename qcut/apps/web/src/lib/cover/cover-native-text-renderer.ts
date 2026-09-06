@@ -5,6 +5,7 @@ import {
 	validateJianyingTextRenderResult,
 } from "@/lib/preview/jianying-text-render-entry";
 import { ensureLocalFontLoaded } from "@/lib/fonts/local-font-runtime";
+import { privateFontAPI } from "@/lib/fonts/private-font-api";
 import { coverTextElement, paintCoverText } from "./cover-text-renderer";
 
 export async function paintCoverTextLayer({
@@ -20,7 +21,7 @@ export async function paintCoverTextLayer({
 }): Promise<void> {
 	signal?.throwIfAborted();
 	if (layer.fontAsset) {
-		const api = window.electronAPI?.jianyingFontLab;
+		const api = privateFontAPI();
 		if (!api) throw new Error("封面本机字体需要 QCut 桌面版字体实验室");
 		const coverage = await api.inspect({
 			fontId: layer.fontAsset.assetId,
