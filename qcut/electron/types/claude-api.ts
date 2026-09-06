@@ -148,6 +148,18 @@ export interface ClaudeTrackOperationResponse {
 }
 
 export interface ClaudeTextProperties {
+	textTemplateId?: string;
+	language?: string;
+	stylePresetId?: string;
+	fontAsset?: {
+		kind: "local-font";
+		source: "jianying-cache";
+		assetId: string;
+		cssFamily: string;
+		familyName: string;
+		fullName: string;
+		postscriptName: string;
+	};
 	jianyingTextStyle?: JianyingTextRuntimeReference;
 	fontSize?: number;
 	fontFamily?: string;

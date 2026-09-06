@@ -32,6 +32,7 @@ WORKDIR /opt/qcut
 # first arg in a multi-source COPY.
 COPY package.json ./
 COPY bun.lock ./
+COPY patches patches
 COPY turbo.json ./
 COPY tsconfig.json ./
 COPY apps apps

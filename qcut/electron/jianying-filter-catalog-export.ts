@@ -57,9 +57,26 @@ export interface JianyingFilterCatalogCard {
 	verification: JianyingFilterVerificationStatus;
 	/** Locally cached LUT files behind this card (count only). */
 	lutCount: number;
+	maskProvider?: "jianying-local-skin-v1";
 	tiledRendererKind?: string;
 	multiPassKind?: string;
 	multiPassCount?: number;
+	independentKind?:
+		| "cinematic-soft-glow"
+		| "skin-dual-lut"
+		| "fog"
+		| "lut"
+		| "sharpen"
+		| "vignette"
+		| "direct"
+		| "soften"
+		| "detail-chain"
+		| "tiled-alpha"
+		| "spring"
+		| "edge-camera"
+		| "edge-glow"
+		| "mask-invariant"
+		| "mask-invariant-sharpen";
 }
 
 export interface JianyingFilterCatalogExport {

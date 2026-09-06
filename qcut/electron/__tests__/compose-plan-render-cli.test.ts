@@ -14,6 +14,9 @@ import {
 	type ComposeSnapshot,
 } from "../native-pipeline/compose/compose-protocol.js";
 import { createLocalComposeProvider } from "../native-pipeline/compose/providers/local-compose-provider.js";
+import { unsupportedComposeProvider } from "../native-pipeline/compose/providers/compose-provider.js";
+import { createComposeJobStore } from "../native-pipeline/compose/providers/compose-job-store.js";
+import { createQueuedComposeProvider } from "../native-pipeline/compose/providers/queued-compose-provider.js";
 import type { CLIRunOptions } from "../native-pipeline/cli/cli-runner/types.js";
 import { CLIPipelineRunner } from "../native-pipeline/cli/cli-runner/runner.js";
 
@@ -82,6 +85,56 @@ afterAll(() => {
 });
 
 describe("compose plan handler", () => {
+	it("resumes a persisted job without rediscovery or a second submission", async () => {
+		vi.stubEnv("QCUT_COMPOSE_JOB_DIR", path.join(directory, "durable-jobs"));
+		try {
+			const snapshot = fixtureSnapshot();
+			const intent = {
+				schemaVersion: 1 as const,
+				kind: "smart-packaging" as const,
+				options: {},
+			};
+			const transport = {
+				submit: vi.fn(async () => "remote"),
+				status: vi.fn(async () => "completed" as const),
+				result: vi.fn(async () => ({ operations: [] })),
+				cancel: vi.fn(async () => {}),
+			};
+			const adapter = createQueuedComposeProvider({
+				provider: "qcut",
+				store: createComposeJobStore(),
+				transport,
+			});
+			const job = await adapter.uploadAssets({
+				job: await adapter.createJob({ snapshot, intent }),
+				snapshot,
+			});
+			const discoverResources = vi.fn();
+			const result = await handleComposePlan(
+				options({
+					jobId: job.id,
+					output: path.join(directory, "resumed-patch.json"),
+				}),
+				noProgress,
+				signal,
+				{
+					createAdapter: () =>
+						createQueuedComposeProvider({
+							provider: "qcut",
+							store: createComposeJobStore(),
+							transport,
+						}),
+					discoverResources,
+					pollDelayMs: 0,
+				}
+			);
+			expect(result.success).toBe(true);
+			expect(discoverResources).not.toHaveBeenCalled();
+			expect(transport.submit).toHaveBeenCalledTimes(1);
+		} finally {
+			vi.unstubAllEnvs();
+		}
+	});
 	it("passes compose providers through the full CLI runner", async () => {
 		const outputPath = path.join(directory, "runner", "patch.json");
 		const runner = new CLIPipelineRunner();
@@ -127,11 +180,27 @@ describe("compose plan handler", () => {
 		expect(jobRecord).not.toMatch(/api[-_]?key|bearer|authorization/i);
 	});
 
-	it("surfaces the structured error for unavailable providers", async () => {
+	it("surfaces structured provider errors without contacting a live service", async () => {
 		const result = await handleComposePlan(
 			options({ snapshot: snapshotPath, provider: "fal" }),
 			noProgress,
-			signal
+			signal,
+			{
+				createAdapter: () =>
+					unsupportedComposeProvider({
+						provider: "fal",
+						detail: "Test provider unavailable",
+					}),
+				discoverResources: async () => ({
+					resources: [],
+					warnings: [],
+					capabilities: {
+						resourceBroker: true,
+						jianyingLocalTransitions: false,
+					},
+				}),
+				pollDelayMs: 0,
+			}
 		);
 		expect(result.success).toBe(false);
 		const data = result.data as { job: { error?: { category: string } } };

@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { composeRoutes } from "./routes/compose";
 import { cors } from "hono/cors";
 import { licenseRoutes } from "./routes/license";
 import { usageRoutes } from "./routes/usage";
@@ -95,5 +96,7 @@ app.route("/api/keys", keysRoutes);
 app.route("/api/audio-metrics", audioMetricsRoutes);
 app.route("/api/sticker-lab", stickerLabRoutes);
 app.route("/api/sound-effects-lab", soundEffectsLabRoutes);
+
+app.route("/api/compose", composeRoutes);
 
 export default app;

@@ -14,6 +14,7 @@ WORKDIR /build
 
 # Lock & manifest layer (cache-friendly: only changes when deps change)
 COPY package.json bun.lock turbo.json ./
+COPY patches patches
 
 # Source layers
 COPY apps apps

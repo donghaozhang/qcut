@@ -23,9 +23,8 @@ describeOnMac("person cutout alpha refinement", () => {
 
 	it("keeps parity defaults and applies advanced controls", async () => {
 		const nativeDirectory = path.resolve(
-			"electron",
-			"jianying-person-cutout",
-			"native"
+			__dirname,
+			"../jianying-person-cutout/native"
 		);
 		const executablePath = path.join(
 			temporaryDirectory,

@@ -1,4 +1,5 @@
 import {
+	act,
 	fireEvent,
 	render,
 	screen,
@@ -16,6 +17,24 @@ import type { MediaElement, TimelineTrack } from "@/types/timeline";
 import { JIANYING_TRANSITIONS } from "../../../../../../../../../electron/jianying-transition-catalog";
 import { TransitionsView } from "../index";
 import { getTransitionPresetById } from "../transition-presets";
+
+const previewFixtures = vi.hoisted(() => ({
+	realPresetIds: new Set<string>(),
+}));
+
+vi.mock("../transition-preview", async (importOriginal) => {
+	const actual = await importOriginal<typeof import("../transition-preview")>();
+	return {
+		...actual,
+		TransitionPreview: ({
+			preset,
+			...props
+		}: Parameters<typeof actual.TransitionPreview>[0]) =>
+			previewFixtures.realPresetIds.has(preset.id) ? (
+				<actual.TransitionPreview preset={preset} {...props} />
+			) : null,
+	};
+});
 
 vi.mock("sonner", () => ({
 	toast: {
@@ -108,6 +127,11 @@ function selectAdjacentClips() {
 	});
 }
 
+function selectCategory({ name }: { name: string }) {
+	const sidebar = within(screen.getByTestId("transition-sidebar"));
+	fireEvent.click(sidebar.getByRole("button", { name }));
+}
+
 function installReadyJianyingRuntime() {
 	const originalDescriptor = Object.getOwnPropertyDescriptor(
 		window,
@@ -168,6 +192,7 @@ function installReadyJianyingRuntime() {
 
 describe("TransitionsView", () => {
 	beforeEach(() => {
+		previewFixtures.realPresetIds.clear();
 		useTimelineStore.setState({
 			selectedElements: [],
 			_tracks: [],
@@ -213,7 +238,7 @@ describe("TransitionsView", () => {
 	it("switches categories", () => {
 		render(<TransitionsView />);
 
-		fireEvent.click(screen.getByRole("button", { name: "模糊" }));
+		selectCategory({ name: "模糊" });
 
 		expect(
 			screen.getByTestId("transition-card-soft-zoom-blur")
@@ -225,9 +250,10 @@ describe("TransitionsView", () => {
 	});
 
 	it("exposes clean-room shader recipes in Transition Lab", () => {
+		previewFixtures.realPresetIds.add("lab-page-curl");
 		render(<TransitionsView />);
 
-		fireEvent.click(screen.getByRole("button", { name: "转场实验室" }));
+		selectCategory({ name: "转场实验室" });
 
 		expect(screen.getByText("526 个转场")).toBeVisible();
 		expect(screen.getByTestId("transition-card-lab-page-curl")).toBeVisible();
@@ -239,7 +265,7 @@ describe("TransitionsView", () => {
 	it("applies a Transition Lab recipe through the normal timeline contract", () => {
 		selectAdjacentClips();
 		render(<TransitionsView />);
-		fireEvent.click(screen.getByRole("button", { name: "转场实验室" }));
+		selectCategory({ name: "转场实验室" });
 		fireEvent.doubleClick(
 			screen.getByTestId("transition-card-lab-cube-rotate")
 		);
@@ -275,7 +301,7 @@ describe("TransitionsView", () => {
 			["MG 动画", "kinetic-jump", 25],
 			["互动 emoji", "love-flash", 20],
 		] as const) {
-			fireEvent.click(screen.getByRole("button", { name: category }));
+			selectCategory({ name: category });
 			expect(screen.getByTestId(`transition-card-${presetId}`)).toBeVisible();
 			expect(screen.getByText(`${expectedCount} 个转场`)).toBeVisible();
 		}
@@ -286,34 +312,39 @@ describe("TransitionsView", () => {
 		selectAdjacentClips();
 
 		try {
-			render(<TransitionsView />);
+			await act(async () => {
+				render(<TransitionsView />);
+			});
 			expect(
 				screen.queryByTestId("transition-card-jianying-local-3d-space")
 			).not.toBeInTheDocument();
 
-			fireEvent.click(screen.getByRole("button", { name: "转场实验室" }));
+			selectCategory({ name: "转场实验室" });
 
-			await waitFor(() =>
-				expect(
-					screen.getByTestId("transition-card-jianying-local-3d-space")
-				).toBeVisible()
-			);
-			expect(screen.getByText("526 个转场")).toBeVisible();
 			expect(
-				screen.getByText(
+				await screen.findByText(
 					"520 个剪映本机转场可用；20 个 AI 一镜到底效果需使用首尾帧生成。"
 				)
 			).toBeVisible();
-			expect(screen.getByRole("tab", { name: /全部\s+526/ })).toBeVisible();
 			expect(
-				screen.getByRole("tab", { name: /QCut Shader\s+6/ })
+				screen.getByTestId("transition-card-jianying-local-3d-space")
 			).toBeVisible();
-			expect(screen.getByRole("tab", { name: /本机剪映\s+520/ })).toBeVisible();
+			expect(screen.getByText("526 个转场")).toBeVisible();
+			const sources = within(
+				screen.getByRole("tablist", { name: "转场实验室来源" })
+			);
+			expect(sources.getByRole("tab", { name: /全部\s+526/ })).toBeVisible();
+			expect(
+				sources.getByRole("tab", { name: /QCut Shader\s+6/ })
+			).toBeVisible();
+			expect(
+				sources.getByRole("tab", { name: /本机剪映\s+520/ })
+			).toBeVisible();
 			expect(
 				screen.getByTestId("transition-card-lab-clean-dissolve")
 			).toBeVisible();
 
-			fireEvent.click(screen.getByRole("tab", { name: /本机剪映\s+520/ }));
+			fireEvent.click(sources.getByRole("tab", { name: /本机剪映\s+520/ }));
 			fireEvent.click(
 				within(screen.getByTestId("transition-lab-categories")).getByRole(
 					"button",
@@ -328,7 +359,11 @@ describe("TransitionsView", () => {
 				screen.queryByTestId("transition-card-jianying-local-3d-space")
 			).not.toBeInTheDocument();
 
-			fireEvent.click(screen.getByRole("button", { name: "应用爱心" }));
+			fireEvent.click(
+				within(
+					screen.getByTestId("transition-card-jianying-local-heart")
+				).getByRole("button", { name: "应用爱心" })
+			);
 			const transition = useTimelineStore
 				.getState()
 				.tracks.find((track) => track.id === "track-1")
@@ -553,6 +588,7 @@ describe("TransitionsView", () => {
 	});
 
 	it("keeps dedicated preview art when clips are selected", () => {
+		previewFixtures.realPresetIds.add("dissolve");
 		selectAdjacentClips();
 		useMediaStore.setState({
 			mediaItems: [
@@ -574,6 +610,7 @@ describe("TransitionsView", () => {
 	});
 
 	it("falls back to bundled preview art when no clips are selected", () => {
+		previewFixtures.realPresetIds.add("dissolve");
 		render(<TransitionsView />);
 
 		const card = screen.getByTestId("transition-card-dissolve");

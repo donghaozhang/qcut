@@ -72,6 +72,7 @@ import {
 	type JianyingDraftExportIPCController,
 } from "./jianying-draft-export-handler.js";
 import { setupJianyingEffectIPC } from "./jianying-effect-handler.js";
+import { setupIndependentFilterIPC } from "./qcut-independent-filter/ipc.js";
 import { setupJianyingTransitionIPC } from "./jianying-transition-handler.js";
 import {
 	setupJianyingFilterLabIPC,
@@ -160,6 +161,9 @@ let jianyingSameProfileWritebackController: JianyingSameProfileWritebackIPCContr
 let jianyingProjectExportController: JianyingProjectExportIPCController | null =
 	null;
 let jianyingFilterLabController: JianyingFilterLabIPCController | null = null;
+let independentFilterController: ReturnType<
+	typeof setupIndependentFilterIPC
+> | null = null;
 let jianyingPortraitAdjustmentController: JianyingPortraitAdjustmentIPCController | null =
 	null;
 let jianyingMotionTrackingController: JianyingMotionTrackingIPCController | null =
@@ -1085,6 +1089,14 @@ if (!isCliKeyCommand && !isHeadlessRecorder) {
 			["JianyingTransitionIPC", setupJianyingTransitionIPC],
 			["JianyingEffectIPC", setupJianyingEffectIPC],
 			[
+				"IndependentFilterIPC",
+				() => {
+					independentFilterController = setupIndependentFilterIPC({
+						getMainWindow: () => mainWindow,
+					});
+				},
+			],
+			[
 				"JianyingFilterLabIPC",
 				() => {
 					jianyingFilterLabController = setupJianyingFilterLabIPC({
@@ -1286,6 +1298,8 @@ app.on("before-quit", () => {
 	jianyingDraftImportController?.dispose();
 	jianyingDraftImportController = null;
 	jianyingFilterLabController?.dispose();
+	independentFilterController?.dispose();
+	independentFilterController = null;
 	jianyingFilterLabController = null;
 	jianyingPortraitAdjustmentController?.dispose();
 	jianyingPortraitAdjustmentController = null;

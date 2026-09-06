@@ -1,0 +1,445 @@
+import type { IndependentGraphProfile } from "./graph-profiles.js";
+
+export const PROFILES: readonly IndependentGraphProfile[] = [
+	{
+		"resourceId": "7127822311708691726",
+		"version": "0d065e12aea6adda802dd117721e7663",
+		"title": "宿营",
+		"kind": "skin-dual-lut",
+		"featureDirectory": "AmazingFeature",
+		"alphaWeighted": true,
+		"corner": 0.5,
+		"dualLut": {
+			"format": "vf",
+			"backgroundPath": "texture/filter_bg.3dl.vf",
+			"skinPath": "texture/filter_skin.3dl.vf",
+			"backgroundStrength": 1,
+			"skinStrength": 1,
+			"clampAlpha": false,
+		},
+		"controlHash":
+			"28797872cd433ea0576cafbbbda0b9656d20c88de1a29cdfcd62268d11f8a422",
+		"assetHash":
+			"8df2970e13822d1830d3539f822c045e4c1def3bb924258a980a8397c56297cd",
+	},
+	{
+		"resourceId": "7226995248814165308",
+		"version": "b015d4352c11e78a1d92bb6f8d2d5de2",
+		"title": "好莱坞II",
+		"kind": "skin-dual-lut",
+		"featureDirectory": "AmazingFeature",
+		"alphaWeighted": true,
+		"corner": 0.5,
+		"dualLut": {
+			"format": "vf",
+			"backgroundPath": "texture/filter_bg.3dl.vf",
+			"skinPath": "texture/filter_skin.3dl.vf",
+			"backgroundStrength": 1,
+			"skinStrength": 1,
+			"clampAlpha": false,
+		},
+		"controlHash":
+			"27016701fdb2e6dc940f47d07f2a378b0a164c6d36a7c534bc8a0e643ce50275",
+		"assetHash":
+			"a5b192ac94b70ddf197d9b46ea29be56859195b6f9dd60dd03154ba27723dd28",
+	},
+	{
+		"resourceId": "7281166048273943867",
+		"version": "768b1341f30760387e2cf2dec5fae6e9",
+		"title": "仲夏夜",
+		"kind": "skin-dual-lut",
+		"featureDirectory": "AmazingFeature",
+		"alphaWeighted": true,
+		"corner": 0.5,
+		"dualLut": {
+			"format": "vf",
+			"backgroundPath": "texture/filter_bg.3dl.vf",
+			"skinPath": "texture/filter_skin.3dl.vf",
+			"backgroundStrength": 1,
+			"skinStrength": 1,
+			"clampAlpha": false,
+		},
+		"controlHash":
+			"5f0d034a8976b2efff1aefdcbc89245d758dac71731c1175995102f3c81f712c",
+		"assetHash":
+			"f0c30db73f0509e6a096f96b3cc1b7619b2a5cd2e33a95fd81c168f17b6d599f",
+	},
+	{
+		"resourceId": "7127618237117877518",
+		"version": "fc8cb40f01bbeb3722f30b3cc62bd48a",
+		"title": "冷蓝",
+		"kind": "skin-dual-lut",
+		"featureDirectory": "AmazingFeature",
+		"alphaWeighted": true,
+		"corner": 0.5,
+		"dualLut": {
+			"format": "vf",
+			"backgroundPath": "texture/filter_bg.3dl.vf",
+			"skinPath": "texture/filter_skin.3dl.vf",
+			"backgroundStrength": 1,
+			"skinStrength": 1,
+			"clampAlpha": false,
+		},
+		"controlHash":
+			"a74f455e994e99bcb8413f0f70c71a2f72db3f473abb583172b8ec43b4cdaf08",
+		"assetHash":
+			"e1bd0696b0c199e3dc0d7b7a0a690de61e6870db22aefac5faf38cb05a8e5747",
+	},
+	{
+		"resourceId": "7127622617699290399",
+		"version": "50e5326d41ebb8a127f1e08fb9ecafd0",
+		"title": "红绿",
+		"kind": "skin-dual-lut",
+		"featureDirectory": "AmazingFeature",
+		"alphaWeighted": true,
+		"corner": 0.5,
+		"dualLut": {
+			"format": "vf",
+			"backgroundPath": "texture/filter_bg.3dl.vf",
+			"skinPath": "texture/filter_skin.3dl.vf",
+			"backgroundStrength": 1,
+			"skinStrength": 1,
+			"clampAlpha": false,
+		},
+		"controlHash":
+			"3aac152f505d8e36d4bb421f9658e5abcedfbb5d8f0e135d09b72955d84ed08a",
+		"assetHash":
+			"4a119d2e660808562591bed1e81b5f3ff57213edadf64833b19a6c4e7ec194b0",
+	},
+	{
+		"resourceId": "7281575818621455628",
+		"version": "aeeb45bdc0ac056b554811769cb28087",
+		"title": "青红夜",
+		"kind": "skin-dual-lut",
+		"featureDirectory": "AmazingFeature",
+		"alphaWeighted": true,
+		"corner": 0.5,
+		"dualLut": {
+			"format": "vf",
+			"backgroundPath": "texture/filter_bg.3dl.vf",
+			"skinPath": "texture/filter_skin.3dl.vf",
+			"backgroundStrength": 1,
+			"skinStrength": 1,
+			"clampAlpha": false,
+		},
+		"controlHash":
+			"78d495bb4eb3aa406f8d61de4703cee2f74e4b0d4e0226563c2715441adb6c43",
+		"assetHash":
+			"0cadc110047501b762ba6c8ef1c60fe6a97a3b788569d9d32835cd0e8f33bb59",
+	},
+	{
+		"resourceId": "7281162426219859255",
+		"version": "f7c5eb9aeba50c51d608b44acc48f4d9",
+		"title": "海山",
+		"kind": "skin-dual-lut",
+		"featureDirectory": "AmazingFeature",
+		"alphaWeighted": true,
+		"corner": 0.5,
+		"dualLut": {
+			"format": "vf",
+			"backgroundPath": "texture/filter_bg.3dl.vf",
+			"skinPath": "texture/filter_skin.3dl.vf",
+			"backgroundStrength": 1,
+			"skinStrength": 1,
+			"clampAlpha": false,
+		},
+		"controlHash":
+			"5e8baca1d5d80efb3813d26ca13d56695e879c5c897e1b7bc1fd1f532f735177",
+		"assetHash":
+			"c308acc3535b3862aabf7ddda2f6b0244e21143a608eaa34c2e2efd147d7d7b0",
+	},
+	{
+		"resourceId": "7283013745788357925",
+		"version": "68c02521c8d84264b079083eb2c0ccfd",
+		"title": "增色",
+		"kind": "skin-dual-lut",
+		"featureDirectory": "AmazingFeature",
+		"alphaWeighted": true,
+		"corner": 0.5,
+		"dualLut": {
+			"format": "vf",
+			"backgroundPath": "texture/filter_bg.3dl.vf",
+			"skinPath": "texture/filter_skin.3dl.vf",
+			"backgroundStrength": 1,
+			"skinStrength": 1,
+			"clampAlpha": false,
+		},
+		"controlHash":
+			"806c948fa54e7a24ac034c3b771dc1d5df91523c40c60fb1956bfdceaa480a10",
+		"assetHash":
+			"adc7ccdc739a261bce3f60794888ed24d588757f8cf03ccd935dce32ec73354b",
+	},
+	{
+		"resourceId": "7221472488079904060",
+		"version": "8ed40c32cf7f268191bd26c30c26e663",
+		"title": "岩灰",
+		"kind": "skin-dual-lut",
+		"featureDirectory": "AmazingFeature",
+		"alphaWeighted": true,
+		"corner": 0.5,
+		"dualLut": {
+			"format": "vf",
+			"backgroundPath": "texture/filter_bg.3dl.vf",
+			"skinPath": "texture/filter_skin.3dl.vf",
+			"backgroundStrength": 1,
+			"skinStrength": 1,
+			"clampAlpha": false,
+		},
+		"controlHash":
+			"a1a91edbaecd00e20e7099baeced1ab52a34a8c53baa3e5d6ea5df5256985d76",
+		"assetHash":
+			"37dc80f3e3ec95dd5cd7ae6863824bf0e872205f030c62a30a6b1caa576125ee",
+	},
+	{
+		"resourceId": "7221479156318489893",
+		"version": "334cec7916f064ef2b2810480b552925",
+		"title": "IG白",
+		"kind": "skin-dual-lut",
+		"featureDirectory": "AmazingFeature",
+		"alphaWeighted": true,
+		"corner": 0.5,
+		"dualLut": {
+			"format": "vf",
+			"backgroundPath": "texture/filter_bg.3dl.vf",
+			"skinPath": "texture/filter_skin.3dl.vf",
+			"backgroundStrength": 1,
+			"skinStrength": 1,
+			"clampAlpha": false,
+		},
+		"controlHash":
+			"dc9b30914a9b5483ad4d23cf626fab4ff4e518541731bbd1f25a035f3ab0d20b",
+		"assetHash":
+			"03b1fafac25be971788191128da80633957b3e61bdf5a1db55aff205fa3df10f",
+	},
+	{
+		"resourceId": "7221481120083283257",
+		"version": "2007e4a805c8fa0f2b99850f1e183bfb",
+		"title": "浅茶",
+		"kind": "skin-dual-lut",
+		"featureDirectory": "AmazingFeature",
+		"alphaWeighted": true,
+		"corner": 0.5,
+		"dualLut": {
+			"format": "vf",
+			"backgroundPath": "texture/filter_bg.3dl.vf",
+			"skinPath": "texture/filter_skin.3dl.vf",
+			"backgroundStrength": 1,
+			"skinStrength": 1,
+			"clampAlpha": false,
+		},
+		"controlHash":
+			"3d1eb49733ad3fcc256092c5b8eca6a9a2528ba35a385561a6ffc9ca4efa8967",
+		"assetHash":
+			"f414d14335380b95355b0732b32b21df194d3c9d28f09c6afd681f1c346f93ae",
+	},
+	{
+		"resourceId": "7221477781043973413",
+		"version": "9d70dffcf42e6bb48e28399ad54458dd",
+		"title": "米棕",
+		"kind": "skin-dual-lut",
+		"featureDirectory": "AmazingFeature",
+		"alphaWeighted": true,
+		"corner": 0.5,
+		"dualLut": {
+			"format": "vf",
+			"backgroundPath": "texture/filter_bg.3dl.vf",
+			"skinPath": "texture/filter_skin.3dl.vf",
+			"backgroundStrength": 1,
+			"skinStrength": 1,
+			"clampAlpha": false,
+		},
+		"controlHash":
+			"e4e332287b7d177efc0b07d3724e4f29772b0f567a6b770809dda09df315acdf",
+		"assetHash":
+			"358b0253f4966baca6ddd8ff76535c01f9e8a2433fd4cebef7dedb08decb28c5",
+	},
+	{
+		"resourceId": "7127675195812351239",
+		"version": "060948455dfcaeb35580e82ef2f96b10",
+		"title": "原木",
+		"kind": "skin-dual-lut",
+		"featureDirectory": "AmazingFeature",
+		"alphaWeighted": true,
+		"corner": 0.5,
+		"dualLut": {
+			"format": "vf",
+			"backgroundPath": "texture/filter_bg.3dl.vf",
+			"skinPath": "texture/filter_skin.3dl.vf",
+			"backgroundStrength": 1,
+			"skinStrength": 1,
+			"clampAlpha": false,
+		},
+		"controlHash":
+			"c456061970656ba9c4534e36d9664121ed63412eb37a6443f9e38599ca515626",
+		"assetHash":
+			"4902eae012b62400ca48b21d9313fad0008dc96ead39159dcb3718f1fa332594",
+	},
+	{
+		"resourceId": "7127608212483820837",
+		"version": "c1d31943c1c0cb266ef95064a8641817",
+		"title": "复古工业",
+		"kind": "skin-dual-lut",
+		"featureDirectory": "AmazingFeature",
+		"alphaWeighted": true,
+		"corner": 0.5,
+		"dualLut": {
+			"format": "vf",
+			"backgroundPath": "texture/filter_bg.3dl.vf",
+			"skinPath": "texture/filter_skin.3dl.vf",
+			"backgroundStrength": 1,
+			"skinStrength": 1,
+			"clampAlpha": false,
+		},
+		"controlHash":
+			"dfd734e391a500b8b8036dbcf917367399aafd7685d1987a6940c50bf00b8df4",
+		"assetHash":
+			"c1eeb8b77cf8286613863754f03c6cc35a1b591433e27c7f2df4f9024fe1afeb",
+	},
+	{
+		"resourceId": "7242211155131862332",
+		"version": "cf50e7a2c500f4b8d778c7d6a590590d",
+		"title": "暮光",
+		"kind": "skin-dual-lut",
+		"featureDirectory": "AmazingFeature",
+		"alphaWeighted": true,
+		"corner": 0.5,
+		"dualLut": {
+			"format": "vf",
+			"backgroundPath": "texture/filter_bg.3dl.vf",
+			"skinPath": "texture/filter_skin.3dl.vf",
+			"backgroundStrength": 1,
+			"skinStrength": 1,
+			"clampAlpha": false,
+		},
+		"controlHash":
+			"ef96b0ebe1fe4526981bbc3f8bf3f73d1d40fde11b2d6746ffeb96e7d8ab5f0a",
+		"assetHash":
+			"6a1ddf731b36cba2e22b7efdbca8796429d606fa9853ffbac0174a4fbdf03f21",
+	},
+	{
+		"resourceId": "7223645151820877093",
+		"version": "1a8753b26720ac7875830140c4ad99c9",
+		"title": "INS暗",
+		"kind": "skin-dual-lut",
+		"featureDirectory": "AmazingFeature",
+		"alphaWeighted": true,
+		"corner": 0.5,
+		"dualLut": {
+			"format": "vf",
+			"backgroundPath": "texture/filter_bg.3dl.vf",
+			"skinPath": "texture/filter_skin.3dl.vf",
+			"backgroundStrength": 1,
+			"skinStrength": 1,
+			"clampAlpha": false,
+		},
+		"controlHash":
+			"f159d81de67ebe539f26c206fce1993384520003e67d1188c042e8928bdb5d31",
+		"assetHash":
+			"63693bb790e0a31f1d94a76e72729d399310ca3e85d269c084aa242198c91d2e",
+	},
+	{
+		"resourceId": "7297144048903556388",
+		"version": "279d1ae552f3217a845fd2772bd80f34",
+		"title": "煦日",
+		"kind": "skin-dual-lut",
+		"featureDirectory": "AmazingFeature",
+		"alphaWeighted": true,
+		"corner": 0.5,
+		"dualLut": {
+			"format": "vf",
+			"backgroundPath": "texture/filter_bg.3dl.vf",
+			"skinPath": "texture/filter_skin.3dl.vf",
+			"backgroundStrength": 1,
+			"skinStrength": 1,
+			"clampAlpha": false,
+		},
+		"controlHash":
+			"76c5969583fec6593a4028f4f4265fe0392ac4c441419aeb7619adb48d2f40e5",
+		"assetHash":
+			"a03a274b892db3d4826a596c7afe5d341c374bd6bd3a3a6720d1794f604905a3",
+	},
+	{
+		"resourceId": "7226994246471945530",
+		"version": "996395260317617af66b9b0369fd2c83",
+		"title": "富士蓝II",
+		"kind": "skin-dual-lut",
+		"featureDirectory": "AmazingFeature",
+		"alphaWeighted": true,
+		"corner": 0.5,
+		"dualLut": {
+			"format": "vf",
+			"backgroundPath": "texture/filter_bg.3dl.vf",
+			"skinPath": "texture/filter_skin.3dl.vf",
+			"backgroundStrength": 1,
+			"skinStrength": 1,
+			"clampAlpha": false,
+		},
+		"controlHash":
+			"37386bd052e6037a3842f5e99dbc20fdbc85938890b0f98ab99a9dcecd17e17d",
+		"assetHash":
+			"12d64dca95c03d45f74cca1f907bde57f706eb39b97914d017e83cb9ee01c01a",
+	},
+	{
+		"resourceId": "7226994214029184313",
+		"version": "0666161a99caccedc28ca22fed13a8b0",
+		"title": "富士青",
+		"kind": "skin-dual-lut",
+		"featureDirectory": "AmazingFeature",
+		"alphaWeighted": true,
+		"corner": 0.5,
+		"dualLut": {
+			"format": "vf",
+			"backgroundPath": "texture/filter_bg.3dl.vf",
+			"skinPath": "texture/filter_skin.3dl.vf",
+			"backgroundStrength": 1,
+			"skinStrength": 1,
+			"clampAlpha": false,
+		},
+		"controlHash":
+			"573a4a5f8a6c9cebbe42b6af2fd8320a87522d39c6329f25936eafdc4cc5b5f5",
+		"assetHash":
+			"f7d4738c9e69e88a4b5af72d4ed89538aeb4a82bc653ec0f81b90103815c50e5",
+	},
+	{
+		"resourceId": "7202480720843984131",
+		"version": "5cc17ca6719adf56cc62398985c6260d",
+		"title": "不要抬头",
+		"kind": "skin-dual-lut",
+		"featureDirectory": "AmazingFeature",
+		"alphaWeighted": true,
+		"corner": 0.5,
+		"dualLut": {
+			"format": "vf",
+			"backgroundPath": "texture/filter_bg.3dl.vf",
+			"skinPath": "texture/filter_skin.3dl.vf",
+			"backgroundStrength": 1,
+			"skinStrength": 1,
+			"clampAlpha": false,
+		},
+		"controlHash":
+			"37f6e1c0ad7d92c5e8bb3e96ff85d2a2a929acccd64ecbf6f6d90da00b19ab41",
+		"assetHash":
+			"c3d0fa3b2aa2c97be302f2278e911db42e82b309130ac7b533784f15d7e3f377",
+	},
+	{
+		"resourceId": "7202485617026977056",
+		"version": "c856d1bb0ea4b76cbd99b97420ab1b64",
+		"title": "独行侠",
+		"kind": "skin-dual-lut",
+		"featureDirectory": "AmazingFeature",
+		"alphaWeighted": true,
+		"corner": 0.5,
+		"dualLut": {
+			"format": "vf",
+			"backgroundPath": "texture/filter_bg.3dl.vf",
+			"skinPath": "texture/filter_skin.3dl.vf",
+			"backgroundStrength": 1,
+			"skinStrength": 1,
+			"clampAlpha": false,
+		},
+		"controlHash":
+			"7dd330cd2e6d43f38564da910baec4189aa63acdd0e905797f2cfbf09fea5b7f",
+		"assetHash":
+			"b68299a76efb4e1401e97ac628449db0c3f16352339f2f9ac113b6ef87692bf1",
+	},
+];

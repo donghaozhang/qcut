@@ -25,6 +25,7 @@
 		"stripe": "^17.0.0"
 	},
 	"devDependencies": {
+		"@electric-sql/pglite": "0.3.15",
 		"@types/bun": "latest",
 		"vitest": "^4.0.0",
 		"wrangler": "^3.0.0"

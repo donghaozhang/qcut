@@ -248,15 +248,38 @@ export function timelineManifestFromComposePatch({
 	const plannedClipIds = new Set(mediaPlan.plannedOperationIds);
 
 	for (const operation of patch.operations) {
+		if (
+			(operation.kind === "add-caption" ||
+				operation.kind === "add-text-overlay") &&
+			(operation.font ||
+				operation.asset ||
+				operation.fancyWord ||
+				operation.textAnimation ||
+				(operation.kind === "add-caption" && operation.textTemplateId)) &&
+			!bindings[operation.id]?.text
+		)
+			throw new Error(
+				`Compose text operation ${operation.id} requires editor asset preparation.`
+			);
 		switch (operation.kind) {
-			case "add-caption":
-				captionElements.push({
+			case "add-caption": {
+				const text = bindings[operation.id]?.text;
+				const captionStyle =
+					text?.captionStyle ??
+					(operation.stylePresetId
+						? resolveStyleFromCLI(operation.stylePresetId)
+						: undefined);
+				(text?.richCaption ? textElements : captionElements).push({
 					start: operation.startTime,
 					end: operation.startTime + operation.duration,
 					element: {
 						alias: operation.id,
 						id: operation.id,
-						type: "captions",
+						type: text?.richCaption ? "text" : "captions",
+						...(captionStyle && !text?.richCaption
+							? { style: captionStyle }
+							: {}),
+						...text?.properties,
 						content: operation.text,
 						language: operation.language,
 						startTime: operation.startTime,
@@ -265,6 +288,7 @@ export function timelineManifestFromComposePatch({
 				});
 				plannedOperationIds.push(operation.id);
 				break;
+			}
 			case "add-text-overlay":
 				textElements.push({
 					start: operation.startTime,
@@ -273,6 +297,10 @@ export function timelineManifestFromComposePatch({
 						alias: operation.id,
 						id: operation.id,
 						type: "text",
+						...(bindings[operation.id]?.text?.properties ?? {
+							textTemplateId: operation.textTemplateId,
+							stylePresetId: operation.stylePresetId,
+						}),
 						content: operation.text,
 						startTime: operation.startTime,
 						duration: operation.duration,
@@ -596,3 +624,4 @@ export function timelineManifestFromComposePatch({
 		skipped,
 	};
 }
+import { resolveStyleFromCLI } from "../subtitle/style-presets.js";

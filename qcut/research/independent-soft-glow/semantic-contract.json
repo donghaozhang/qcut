@@ -1,0 +1,572 @@
+{
+	"schema_version": 2,
+	"id": "cinematic-soft-glow-opaque-intensity-v2",
+	"date": "2026-09-06",
+	"scope": "Opaque SDR RGBA8 fixed graph with explicit output-mix (default, historical CGL reference) and ui-snapshot (measured editor export parameter reconstruction); not a complete preview or event model.",
+	"package": {
+		"resource_id": "7447126702137904420",
+		"version": "9673f80b8e2f5a07f02f9ce1130b784a",
+		"files": 121,
+		"tree_sha256": "9db2974298a914c4a465c4fc42a1e797f4c2e416bd2d9442d2ab57174526f971",
+		"tree_hash_rule": "Relative paths sorted by code point; concatenate path UTF-8, NUL, file bytes, NUL."
+	},
+	"evidence_levels": [
+		"static-read",
+		"derived",
+		"endpoint-verified",
+		"implementation-convention",
+		"unresolved"
+	],
+	"inputs": {
+		"I": {
+			"kind": "image",
+			"channels": ["r", "g", "b", "a"],
+			"storage": "RGBA8",
+			"row_order": "top-down",
+			"alpha": 255,
+			"color_contract": "normalized SDR channel values; no additional ICC or sRGB conversion"
+		},
+		"T": {
+			"kind": "lut-atlas",
+			"width": 512,
+			"height": 512,
+			"storage": "RGBA8",
+			"row_order": "top-down",
+			"cube_size": 64,
+			"tiles_per_axis": 8,
+			"active_scene_field": "lutImage",
+			"package_relative_path": "AmazingFeature/resource/images/reference map2.png",
+			"png_sha256": "4dc2e1a87a571a18ed4729c04159ddaf18ccf3f79ac35d7cc1141b6aedb2e39f",
+			"decoded_rgba_sha256": "f9f142849b99e77d5b9174b054c7634d0945f6fd731c4133def07900d0bd9239",
+			"bundled": false
+		},
+		"intensity": {
+			"range": [0, 1],
+			"unit": "fraction",
+			"applies_to": "Selected by intensity_mode; see intensity_modes",
+			"zero_behavior": "output-mix: byte-identical I; ui-snapshot: SoftLight result B",
+			"package_event_dispatched": false
+		},
+		"intensity_mode": {
+			"values": ["output-mix", "ui-snapshot"],
+			"default": "output-mix",
+			"unknown": "reject",
+			"stream_lifetime": "fixed per process"
+		}
+	},
+	"precision": {
+		"accumulation": "floating point; C++ reference uses float except selected sizing/geometry arithmetic",
+		"target_write": "Q(c)=round(clamp(c,0,1)*255)/255",
+		"cpu_halfway_rounding": "away from zero",
+		"target_write_status": "implementation-convention supported by endpoint verification, not captured old-CGL per-pass rounding",
+		"pixel_centers": "((x+0.5)/width,(y+0.5)/height)",
+		"sampler": "bilinear before nonlinear gamma or packed-channel decode",
+		"gpu_bit_exact": false
+	},
+	"dimensions": {
+		"full": {
+			"width": "W",
+			"height": "H"
+		},
+		"gaussian-half": {
+			"width": "floor(W/2)",
+			"height": "floor(H/2)",
+			"tiny_input_convention": "C++ floors each dimension then clamps minimum to 1; native unverified"
+		},
+		"glow-working": {
+			"working_width": "min(W,clamp(quality*1200,120,360))",
+			"width": "floor(working_width)",
+			"height": "floor(H*working_width/W)",
+			"tiny_input_convention": "C++ rejects empty target; native unverified"
+		}
+	},
+	"parameters": {
+		"gaussian": {
+			"intensity": 70,
+			"quality": 0.2,
+			"horizontal_strength": 1,
+			"vertical_strength": 1,
+			"gamma": 2.2,
+			"inverse_gamma": true,
+			"blur_alpha": true,
+			"normalization_size": 1000,
+			"radius_over_sigma": 2.5,
+			"space_dither": 0,
+			"direction": "both",
+			"border": "renormalize-outside-UV-taps",
+			"radius_unit": "normalized UV"
+		},
+		"soft_light": {
+			"layer_type": "Precomp",
+			"opacity": 0.7,
+			"scale": [1.03, 1.03],
+			"anchor": "center",
+			"rotation": 0,
+			"matte": false
+		},
+		"glow": {
+			"threshold": 0.84,
+			"brightness": 2.4,
+			"glow_width": 0.13,
+			"width_x": 0.41,
+			"width_y": 0.65,
+			"width_rgb": [1, 1, 1],
+			"quality": 0.2,
+			"dither": 1,
+			"threshold_color": [0, 0, 0],
+			"glow_color": [1, 1, 1],
+			"source_opacity": 1,
+			"bg_brightness": 1,
+			"glow_from_alpha": 0,
+			"glow_under_source": 0,
+			"light_background": 0,
+			"background_texture": null,
+			"combine": "Screen",
+			"edge": "Reflect",
+			"radius_unit": "working texture pixels",
+			"alpha_radius": "glow_width*working_width",
+			"loop_limit_channels": "RGB only"
+		},
+		"lut": {
+			"opacity": 0.8,
+			"input_alpha_scales_mix": true,
+			"y_flip": "Top-down lookup without extra Y flip: derived from requested loader flip plus shader flip and supported by single-factor endpoint experiment; native loader operation not directly captured."
+		},
+		"normal": {
+			"layer_type": "Adjustment",
+			"opacity": 0.64,
+			"base": "B",
+			"scale": [1, 1]
+		}
+	},
+	"channel_layouts": {
+		"image-rgba": ["color-r", "color-g", "color-b", "coverage-alpha"],
+		"highlight-rgba": [
+			"highlight-r",
+			"highlight-g",
+			"highlight-b",
+			"highlight-weight-alpha"
+		],
+		"packed-rg": ["red-high", "red-remainder", "green-high", "green-remainder"],
+		"packed-ba": [
+			"blue-high",
+			"blue-remainder",
+			"alpha-high",
+			"alpha-remainder"
+		]
+	},
+	"nodes": [
+		{
+			"id": "GD",
+			"operation": "bilinear-resize",
+			"inputs": {
+				"source": "I"
+			},
+			"dimensions": "gaussian-half",
+			"channel_layout": "image-rgba",
+			"write": "Q",
+			"trace_name": "gaussian.downsample",
+			"source_evidence": ["scene", "gaussian-control"],
+			"semantic_status": ["derived", "endpoint-verified"]
+		},
+		{
+			"id": "GX",
+			"operation": "gamma-gaussian-x",
+			"inputs": {
+				"source": "GD"
+			},
+			"dimensions": "gaussian-half",
+			"channel_layout": "image-rgba",
+			"write": "Q",
+			"trace_name": "gaussian.x",
+			"source_evidence": ["gaussian-control", "gaussian-x"],
+			"semantic_status": ["derived", "endpoint-verified"]
+		},
+		{
+			"id": "GY",
+			"operation": "gamma-gaussian-y",
+			"inputs": {
+				"source": "GX"
+			},
+			"dimensions": "gaussian-half",
+			"channel_layout": "image-rgba",
+			"write": "Q",
+			"trace_name": "gaussian.y",
+			"source_evidence": ["gaussian-control", "gaussian-y"],
+			"semantic_status": ["derived", "endpoint-verified"]
+		},
+		{
+			"id": "GU",
+			"operation": "bilinear-resize",
+			"inputs": {
+				"source": "GY"
+			},
+			"dimensions": "full",
+			"channel_layout": "image-rgba",
+			"write": "Q",
+			"trace_name": "gaussian.output",
+			"source_evidence": ["gaussian-control"],
+			"semantic_status": ["derived", "endpoint-verified"]
+		},
+		{
+			"id": "B",
+			"operation": "soft-light-precomp",
+			"inputs": {
+				"base": "I",
+				"source": "GU"
+			},
+			"dimensions": "full",
+			"channel_layout": "image-rgba",
+			"write": "Q",
+			"trace_name": "02-soft-light",
+			"source_evidence": ["scene", "layer-control", "layer-math"],
+			"semantic_status": ["derived", "endpoint-verified"]
+		},
+		{
+			"id": "M",
+			"operation": "channel-threshold-mask",
+			"inputs": {
+				"source": "B"
+			},
+			"dimensions": "glow-working",
+			"channel_layout": "highlight-rgba",
+			"write": "Q",
+			"trace_name": "glow.mask",
+			"source_evidence": ["scene", "glow-control", "mask-math"],
+			"semantic_status": ["derived", "endpoint-verified"],
+			"parameter_override": "intensity_modes[selected].glow_threshold"
+		},
+		{
+			"id": "HR",
+			"operation": "glow-x-pack-rg",
+			"inputs": {
+				"source": "M"
+			},
+			"dimensions": "glow-working",
+			"channel_layout": "packed-rg",
+			"write": "Q",
+			"trace_name": "glow.horizontal_rg",
+			"source_evidence": ["glow-control", "glow-hr"],
+			"semantic_status": ["derived", "endpoint-verified"]
+		},
+		{
+			"id": "VR",
+			"operation": "glow-y-decode-pack-rg",
+			"inputs": {
+				"source": "HR"
+			},
+			"dimensions": "glow-working",
+			"channel_layout": "packed-rg",
+			"write": "Q",
+			"trace_name": "glow.vertical_rg",
+			"source_evidence": ["glow-control", "glow-vr"],
+			"semantic_status": ["derived", "endpoint-verified"]
+		},
+		{
+			"id": "HA",
+			"operation": "glow-x-pack-ba",
+			"inputs": {
+				"source": "M"
+			},
+			"dimensions": "glow-working",
+			"channel_layout": "packed-ba",
+			"write": "Q",
+			"trace_name": "glow.horizontal_ba",
+			"source_evidence": ["glow-control", "glow-ha"],
+			"semantic_status": ["derived", "endpoint-verified"]
+		},
+		{
+			"id": "VA",
+			"operation": "glow-y-decode-pack-ba",
+			"inputs": {
+				"source": "HA"
+			},
+			"dimensions": "glow-working",
+			"channel_layout": "packed-ba",
+			"write": "Q",
+			"trace_name": "glow.vertical_ba",
+			"source_evidence": ["glow-control", "glow-va"],
+			"semantic_status": ["derived", "endpoint-verified"]
+		},
+		{
+			"id": "E",
+			"operation": "screen-glow",
+			"inputs": {
+				"base": "B",
+				"packed_rg": "VR",
+				"packed_ba": "VA"
+			},
+			"dimensions": "full",
+			"channel_layout": "image-rgba",
+			"write": "Q",
+			"trace_name": "glow.result",
+			"source_evidence": ["glow-control", "glow-blend"],
+			"semantic_status": ["derived", "endpoint-verified"],
+			"parameter_override": "intensity_modes[selected].glow_brightness"
+		},
+		{
+			"id": "L",
+			"operation": "tiled-64-cube-lut",
+			"inputs": {
+				"source": "E",
+				"atlas": "T"
+			},
+			"dimensions": "full",
+			"channel_layout": "image-rgba",
+			"write": "Q",
+			"trace_name": "04-lut",
+			"source_evidence": ["scene", "lut-control", "lut-math"],
+			"semantic_status": ["derived", "endpoint-verified"],
+			"parameter_override": "intensity_modes[selected].lut_opacity"
+		},
+		{
+			"id": "F",
+			"operation": "normal-adjustment",
+			"inputs": {
+				"base": "B",
+				"source": "L"
+			},
+			"dimensions": "full",
+			"channel_layout": "image-rgba",
+			"write": "Q",
+			"trace_name": "05-normal",
+			"source_evidence": ["scene", "layer-control", "layer-math"],
+			"semantic_status": ["derived", "endpoint-verified"]
+		},
+		{
+			"id": "O",
+			"operation": "mode-selected-output",
+			"inputs": {
+				"base": "I",
+				"source": "F",
+				"intensity": "intensity"
+			},
+			"dimensions": "full",
+			"channel_layout": "image-rgba",
+			"write": "Q",
+			"trace_name": "06-output",
+			"source_evidence": [],
+			"semantic_status": ["endpoint-verified"],
+			"by_mode": {
+				"output-mix": "Q((1-t)*I+t*F)",
+				"ui-snapshot": "F"
+			}
+		}
+	],
+	"resource_lifetimes": {
+		"I": "through O",
+		"B": "through F",
+		"M": "through HA; VA may reuse its physical storage only after this read"
+	},
+	"lifecycle": {
+		"active_profile": "Explicit intensity mode, default output-mix; ui-snapshot reconstructs parameters without persistent event state.",
+		"export_parameter_init_calls": "commented out",
+		"export_durations": "active",
+		"non_editor_xt_effect_ae_time": 0.016661666666665,
+		"editor_sdk_override": "possible; live host macro not measured",
+		"package_intensity_event": "D634 independent FeatureSegment host reports missing global step and self.LumiLayer_301; complete host event bindings remain unresolved. ui-snapshot does not execute or fix these scripts."
+	},
+	"examples": [
+		{
+			"input": [320, 180],
+			"gaussian": [160, 90],
+			"glow": [240, 135]
+		},
+		{
+			"input": [257, 145],
+			"gaussian": [128, 72],
+			"glow": [240, 135]
+		},
+		{
+			"input": [321, 181],
+			"gaussian": [160, 90],
+			"glow": [240, 135]
+		}
+	],
+	"invariants": [
+		"output-mix intensity zero preserves source bytes; ui-snapshot zero retains SoftLight B",
+		"Gaussian constant fields remain constant",
+		"both packed branches start from M",
+		"Alpha remainder channels are not coverage",
+		"full-resolution source survives to O",
+		"identical static input and parameters produce identical output",
+		"both modes agree byte-for-byte at intensity one",
+		"ui-snapshot recomputes from current strength independent of invocation order",
+		"ui-snapshot retains the threshold branch change between 0.8 and 0.81"
+	],
+	"unresolved": [
+		"actual old-CGL intermediate formats, sampler precision, rounding and matrix arithmetic",
+		"host bindings for SGlow step/mix and LumiLayer self.LumiLayer_301",
+		"full transparent/HDR and package-event behavior",
+		"complete preview history, arbitrary timeline/export paths and broader video parity",
+		"cause of remaining small endpoint differences"
+	],
+	"source_evidence": [
+		{
+			"id": "scene",
+			"package_relative_path": "AmazingFeature/main.scene",
+			"sha256": "09424db1ae0fefdbd459a509db8c04dd4e589db5d7f3ad5586fd86cb5684a7d7",
+			"evidence_kind": "static-read"
+		},
+		{
+			"id": "gaussian-control",
+			"package_relative_path": "AmazingFeature/effects/LumiGaussianBlur/lua/ScriptCompGaussianBlur.lua",
+			"sha256": "3e78a5dfbdb315aba064504bada7d81a4339370c88ce6594829ef29d34c4306e",
+			"evidence_kind": "static-read"
+		},
+		{
+			"id": "layer-control",
+			"package_relative_path": "AmazingFeature/effects/LumiLayer/lua/LumiLayer.lua",
+			"sha256": "8cd4f968894980d6b8a6b5180e9db71f5a8fc8ae492bac9b75aa69d5e34ecce5",
+			"evidence_kind": "static-read"
+		},
+		{
+			"id": "glow-control",
+			"package_relative_path": "AmazingFeature/effects/LumiSGlow/lua/SGlow.lua",
+			"sha256": "6744d5e18cc0558b1c8255d18e3af507a693375cb7cf343be0b3a01ba6e6bf6b",
+			"evidence_kind": "static-read"
+		},
+		{
+			"id": "lut-control",
+			"package_relative_path": "AmazingFeature/effects/LumiLvFilter/lua/LVFilter.lua",
+			"sha256": "d43f0a1a1a147cf8672e742f305b079aa7d5a4249734bc528770dee1b223542d",
+			"evidence_kind": "static-read"
+		},
+		{
+			"id": "manager",
+			"package_relative_path": "AmazingFeature/lua/LumiFamily/LumiManager.lua",
+			"sha256": "5cab07246412833c724a7c483c94fcd0db7f8a494ca984fddf5db92770a360fe",
+			"evidence_kind": "static-read"
+		},
+		{
+			"id": "parameter-setter",
+			"package_relative_path": "AmazingFeature/lua/LumiFamily/LumiParamsSetter.lua",
+			"sha256": "342e87a41c2754ef25059f3ad070220c95727028f2b085bb045841c8d820858e",
+			"evidence_kind": "static-read"
+		},
+		{
+			"id": "export-data",
+			"package_relative_path": "AmazingFeature/lua/LumiFamily/LumiExportData.lua",
+			"sha256": "2822d0b101d034de9399d86dee45535ca5b7c6b39d14233e22564e37045020d7",
+			"evidence_kind": "static-read"
+		},
+		{
+			"id": "gaussian-x",
+			"package_relative_path": "AmazingFeature/shaders/gaussianBlurX-0-2f94/gles2/26e6.frag",
+			"sha256": "44c9b16e34754437997911f28b52bb2e5013e08cae27f0f8edbba2704ad0ec08",
+			"evidence_kind": "static-read"
+		},
+		{
+			"id": "gaussian-y",
+			"package_relative_path": "AmazingFeature/shaders/gaussianBlurY-0-c9ab/gles2/dbaf.frag",
+			"sha256": "e29ce68714d322f2caedddba9cab45e4e04f228da584af8273fb26e1d15dc9c7",
+			"evidence_kind": "static-read"
+		},
+		{
+			"id": "layer-math",
+			"package_relative_path": "AmazingFeature/shaders/layer-0-17bc/gles2/0037.frag",
+			"sha256": "046d08e29661630421ed8791452b73cec9460225ce784cf1e3ff462b6b39a9a1",
+			"evidence_kind": "static-read"
+		},
+		{
+			"id": "mask-math",
+			"package_relative_path": "AmazingFeature/shaders/mask-0-5170/gles2/82ee.frag",
+			"sha256": "e9e6399c25bff3cff15e2edc5dffa2042898d2367599f5e8e35c72abb62ed440",
+			"evidence_kind": "static-read"
+		},
+		{
+			"id": "glow-hr",
+			"package_relative_path": "AmazingFeature/shaders/BlurHorz-0-8805/gles2/e69d.frag",
+			"sha256": "7df9c1046c992a068d7ed1f384dcceaf91857313522f56e7f8fe293594edce4b",
+			"evidence_kind": "static-read"
+		},
+		{
+			"id": "glow-vr",
+			"package_relative_path": "AmazingFeature/shaders/BlurVert-0-3f66/gles2/7399.frag",
+			"sha256": "df127bde1a0c220cd74ebf2b5e4faf738ee4f0f3d2b6854f387dc75a6bbe540f",
+			"evidence_kind": "static-read"
+		},
+		{
+			"id": "glow-ha",
+			"package_relative_path": "AmazingFeature/shaders/BlurHorz2-0-91a4/gles2/ec77.frag",
+			"sha256": "94838a16b08a98e3ded94c9fd9226a3e7315b6a1fbe97b9728c8d73ad6cf20be",
+			"evidence_kind": "static-read"
+		},
+		{
+			"id": "glow-va",
+			"package_relative_path": "AmazingFeature/shaders/BlurVert2-0-a4a0/gles2/b51e.frag",
+			"sha256": "1fd2c83e1e236a105de6f25b0ab8a9ca51fd3691d8a78c1611e70d33ac09e415",
+			"evidence_kind": "static-read"
+		},
+		{
+			"id": "glow-blend",
+			"package_relative_path": "AmazingFeature/shaders/blend-0-9c37/gles2/baeb.frag",
+			"sha256": "5d5b74ecac64192b019e7b485561722b49b530785b862bd95881a90657aa7668",
+			"evidence_kind": "static-read"
+		},
+		{
+			"id": "lut-math",
+			"package_relative_path": "AmazingFeature/shaders/pass6-0-c667/gles2/8e0d.frag",
+			"sha256": "bfdbdc49e7801619e1c637304076bfdcc222a951f9b0a391089dd2536d794846",
+			"evidence_kind": "static-read"
+		}
+	],
+	"human_spec": "semantic-contract.zh.md",
+	"reference_protocol": {
+		"runtime": "D634 private compatible CGL multi-pass provider",
+		"cccreator_arm64_uuid": "D6342ECD-5432-33F0-A2AD-0C28F5699994",
+		"agfx_arm64_uuid": "57ECC10F-8BB8-319C-BA46-AF286E2EBD43",
+		"timestamp_seconds": 0,
+		"fixtures": 3,
+		"intensities": [1, 0.37],
+		"processes_per_case": 2,
+		"frames_per_process": 3,
+		"native_frame_count": 36,
+		"unchanged_reference_hashes_verified": true,
+		"native_per_pass_captured": false,
+		"intensity_mode": "output-mix",
+		"scope": "Historical native reference protocol; original source hashes and raw evidence retained unchanged."
+	},
+	"single_factor_experiments": {
+		"independent_outputs": 30,
+		"substitutions_per_fixture": 9,
+		"fixtures": 3,
+		"all_increase_mae_against_fixed_native": true,
+		"local_report": "/Users/peter/Downloads/QCut-Soft-Glow-Semantics-2026-09-06/semantic-experiments.json",
+		"purpose": "Discriminate alternate semantic interpretations; not fit parameters or directly trace native internal state",
+		"portable_metrics": "semantic-experiments.json",
+		"intensity_mode": "output-mix"
+	},
+	"previous_contract": "cinematic-soft-glow-static-opaque-v1",
+	"intensity_modes": {
+		"output-mix": {
+			"parameter_source": "parameters (instantiated static scene)",
+			"glow_threshold": 0.84,
+			"glow_brightness": 2.4,
+			"lut_opacity": 0.8,
+			"output": "Q((1-t)*I+t*F)",
+			"zero_behavior": "byte-identical I",
+			"source_evidence": "historical private D634 CGL endpoint outputs",
+			"historical_hashes": "Historical source hashes identify that earlier build; six outputs reproduced byte-identically by the new default CLI."
+		},
+		"ui-snapshot": {
+			"parameter_source": "parameters with explicit overrides below",
+			"glow_threshold": "t <= 0.8 ? 1 - 0.175*t : 0.84",
+			"glow_brightness": "t <= 0.8 ? 3*t : 2.4",
+			"lut_opacity": "0.8*t",
+			"soft_light_opacity": 0.7,
+			"soft_light_scale": [1.03, 1.03],
+			"normal_opacity": 0.64,
+			"output": "F",
+			"host_output_mix": false,
+			"zero_behavior": "SoftLight result B; not passthrough",
+			"one_behavior": "byte-identical to output-mix at t=1",
+			"state": "stateless; recompute all parameters each invocation",
+			"package_event_dispatched": false,
+			"vendor_scripts_modified": false,
+			"source_evidence": "Measured editor export snapshots plus controlled independent candidate; this is not proof that missing Lua helpers are defined.",
+			"human_evidence": "intensity-modes.zh.md",
+			"local_evidence_snapshot": "/Users/peter/Downloads/QCut-Soft-Glow-Video-2026-09-06/intensity-modes/ui-evidence-snapshot.json"
+		}
+	}
+}

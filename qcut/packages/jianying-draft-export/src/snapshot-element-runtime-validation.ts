@@ -120,6 +120,7 @@ const TEXT_ELEMENT_KEYS = createElementAllowedKeySet<TextElement>({
 		glowOpacity: true,
 		jianyingTextStyle: true,
 		keyframes: true,
+		language: true,
 		letterSpacing: true,
 		lineHeight: true,
 		opacity: true,
@@ -131,9 +132,11 @@ const TEXT_ELEMENT_KEYS = createElementAllowedKeySet<TextElement>({
 		strokeColor: true,
 		strokeOpacity: true,
 		strokeWidth: true,
+		stylePresetId: true,
 		textAlign: true,
 		textAnimations: true,
 		textDecoration: true,
+		textTemplateId: true,
 		trackingOffsetX: true,
 		trackingOffsetY: true,
 		trackingRotation: true,
@@ -931,6 +934,15 @@ function validateTextElement({
 	path: string;
 }): void {
 	assertKeys({ allowed: TEXT_ELEMENT_KEYS, path, record: element });
+	for (const key of ["textTemplateId", "stylePresetId", "language"]) {
+		if (element[key] !== undefined) {
+			getString({
+				allowEmpty: true,
+				path: `${path}.${key}`,
+				value: element[key],
+			});
+		}
+	}
 	for (const key of ["content", "fontFamily", "color", "backgroundColor"]) {
 		getString({
 			allowEmpty: key === "content" || key === "backgroundColor",
