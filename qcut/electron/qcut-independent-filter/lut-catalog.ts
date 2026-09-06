@@ -19,6 +19,7 @@ import {
 import { validateIndependentCube, type IndependentCube } from "./lut-data.js";
 import { supportsIndependentGraph } from "./graph-data.js";
 import { findIndependentGraphProfile } from "./graph-profiles.js";
+import { isSoftGlowIdentity } from "./soft-glow-contract.js";
 
 export function supportsIndependentLut({
 	card,
@@ -67,7 +68,13 @@ export function selectIndependentCatalog({
 		...catalog.cards.filter(
 			(card) =>
 				card.resourceId !== QCUT_FOG_RESOURCE &&
-				(supportsIndependentLut({ card }) || supportsIndependentGraph({ card }))
+				(supportsIndependentLut({ card }) ||
+					supportsIndependentGraph({ card }) ||
+					(card.cacheStatus === "cached" &&
+						isSoftGlowIdentity({
+							resourceId: card.resourceId,
+							version: card.version ?? "",
+						})))
 		),
 	].map((card) => {
 		const profile = findIndependentGraphProfile({
@@ -75,12 +82,22 @@ export function selectIndependentCatalog({
 		});
 		return {
 			...card,
+			...(isSoftGlowIdentity({
+				resourceId: card.resourceId,
+				version: card.version ?? "",
+			})
+				? { available: true }
+				: {}),
 			...(profile?.dualLut
 				? { maskProvider: "jianying-local-skin-v1" as const }
 				: {}),
 			verification: "unverified" as const,
-			independentKind:
-				card.independentKind ?? profile?.kind ?? ("lut" as const),
+			independentKind: isSoftGlowIdentity({
+				resourceId: card.resourceId,
+				version: card.version ?? "",
+			})
+				? ("cinematic-soft-glow" as const)
+				: (card.independentKind ?? profile?.kind ?? ("lut" as const)),
 		};
 	});
 	return { count: cards.length, cards };
