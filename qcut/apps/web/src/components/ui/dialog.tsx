@@ -67,36 +67,46 @@ const DialogContent = React.forwardRef<
 	React.ElementRef<typeof DialogPrimitive.Content>,
 	React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & {
 		overlayClassName?: string;
+		scrollable?: boolean;
 	}
->(({ className, overlayClassName, children, ...props }, ref) => (
-	<DialogPortal>
-		<DialogOverlay className={overlayClassName} />
-		<DialogPrimitive.Content
-			ref={ref}
-			className={cn(
-				"fixed left-[50%] top-[50%] z-150 grid w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-popover shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:pointer-events-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 rounded-lg",
-				className
-			)}
-			onCloseAutoFocus={(e) => {
-				e.stopPropagation();
-				e.preventDefault();
-			}}
-			onOpenAutoFocus={(e) => {
-				e.stopPropagation();
-				e.preventDefault();
-			}}
-			{...props}
-		>
-			<ScrollArea className="max-h-[75vh]">
-				<div className="p-6 space-y-4">{children}</div>
-			</ScrollArea>
-			<DialogPrimitive.Close className="absolute right-4 top-4 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
-				<X className="h-4 w-4" />
-				<span className="sr-only">Close</span>
-			</DialogPrimitive.Close>
-		</DialogPrimitive.Content>
-	</DialogPortal>
-));
+>(
+	(
+		{ className, overlayClassName, scrollable = true, children, ...props },
+		ref
+	) => (
+		<DialogPortal>
+			<DialogOverlay className={overlayClassName} />
+			<DialogPrimitive.Content
+				ref={ref}
+				className={cn(
+					"fixed left-[50%] top-[50%] z-150 grid w-[calc(100%-2rem)] max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-popover shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:pointer-events-none data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 rounded-lg",
+					className
+				)}
+				onCloseAutoFocus={(e) => {
+					e.stopPropagation();
+					e.preventDefault();
+				}}
+				onOpenAutoFocus={(e) => {
+					e.stopPropagation();
+					e.preventDefault();
+				}}
+				{...props}
+			>
+				{scrollable ? (
+					<ScrollArea className="max-h-[75vh]">
+						<div className="p-6 space-y-4">{children}</div>
+					</ScrollArea>
+				) : (
+					children
+				)}
+				<DialogPrimitive.Close className="absolute right-4 top-4 opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-hidden focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+					<X className="h-4 w-4" />
+					<span className="sr-only">Close</span>
+				</DialogPrimitive.Close>
+			</DialogPrimitive.Content>
+		</DialogPortal>
+	)
+);
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 const DialogHeader = ({
