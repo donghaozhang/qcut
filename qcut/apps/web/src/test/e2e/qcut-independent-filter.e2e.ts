@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
@@ -42,6 +42,14 @@ async function readEffect({ page }: { page: Page }) {
 async function expectRenderedPreview({ page }: { page: Page }) {
 	const preview = page.getByTestId("color-preview-canvas").first();
 	await expect(preview).toBeVisible({ timeout: 30_000 });
+	const effect = await readEffect({ page });
+	if (effect?.nativeEffect) {
+		await expect(preview).toHaveAttribute(
+			"data-rendered-color-resources",
+			`${effect.nativeEffect.resourceId}:${effect.intensity}`,
+			{ timeout: 30_000 }
+		);
+	}
 	await expect
 		.poll(
 			() =>
@@ -67,6 +75,18 @@ test.describe("QCut independent Metal filter", () => {
 	test("applies, previews, changes intensity, exports and reloads without native filter fallback", async ({}, testInfo) => {
 		test.setTimeout(300_000);
 		const profile = await mkdtemp(join(tmpdir(), "qcut-independent-e2e-"));
+		const thumbnailCache = process.env.QCUT_INDEPENDENT_THUMBNAIL_CACHE;
+		if (thumbnailCache) {
+			await cp(
+				thumbnailCache,
+				join(profile, "Cache", "jianying-filter-thumbnails"),
+				{
+					recursive: true,
+					force: false,
+					errorOnExist: true,
+				}
+			);
+		}
 		const evidence =
 			process.env.QCUT_INDEPENDENT_FILTER_EVIDENCE ??
 			testInfo.outputPath("evidence");
@@ -136,6 +156,7 @@ test.describe("QCut independent Metal filter", () => {
 			await expect
 				.poll(() => readEffect({ page }))
 				.toMatchObject({ intensity: 0 });
+			await expectRenderedPreview({ page });
 			await page.screenshot({ path: join(evidence, "02-qcut-metal-zero.png") });
 			await page
 				.getByTestId("preview-capture-surface")
@@ -160,7 +181,14 @@ test.describe("QCut independent Metal filter", () => {
 				.poll(() => readEffect({ page }))
 				.toMatchObject({ nativeEffect: { provider: "qcut-metal-fog-v1" } });
 			const lutExports = [];
-			const graphTest = process.env.QCUT_INDEPENDENT_GRAPH_E2E === "1";
+			let catalogCount: number | undefined;
+			const requestedIds =
+				process.env.QCUT_INDEPENDENT_GRAPH_IDS?.split(",").filter(Boolean);
+			const graphTest =
+				process.env.QCUT_INDEPENDENT_GRAPH_E2E === "1" ||
+				Boolean(requestedIds?.length);
+			if (requestedIds?.length)
+				test.setTimeout(300_000 + requestedIds.length * 30_000);
 			if (process.env.QCUT_INDEPENDENT_LUT_E2E === "1" || graphTest) {
 				const library = page.getByTestId("independent-lut-library");
 				await expect(library.getByRole("status")).toContainText("本地滤镜", {
@@ -170,19 +198,27 @@ test.describe("QCut independent Metal filter", () => {
 					async () =>
 						(await window.electronAPI!.qcutIndependentFilter!.list()).cards
 				);
-				const selected = graphTest
-					? ["sharpen", "vignette", "soften", "direct"].map(
-							(kind) => cards.find((card) => card.independentKind === kind)!
+				catalogCount = cards.length;
+				const selected = requestedIds?.length
+					? requestedIds.map(
+							(resourceId) =>
+								cards.find((card) => card.resourceId === resourceId)!
 						)
-					: [
-							cards.find((card) => card.implementation === "single-lut")!,
-							cards.find((card) => card.tiledRendererKind === "tiled-lut-8x8")!,
-							cards.find(
-								(card) =>
-									card.implementation === "single-lut" &&
-									card.categories.includes("黑白")
-							)!,
-						];
+					: graphTest
+						? ["sharpen", "vignette", "soften", "direct"].map(
+								(kind) => cards.find((card) => card.independentKind === kind)!
+							)
+						: [
+								cards.find((card) => card.implementation === "single-lut")!,
+								cards.find(
+									(card) => card.tiledRendererKind === "tiled-lut-8x8"
+								)!,
+								cards.find(
+									(card) =>
+										card.implementation === "single-lut" &&
+										card.categories.includes("黑白")
+								)!,
+							];
 				expect(selected.every(Boolean)).toBe(true);
 				await library.getByRole("button", { name: "下一页 LUT" }).click();
 				await expect(
@@ -190,6 +226,42 @@ test.describe("QCut independent Metal filter", () => {
 				).toBeEnabled();
 				await library.getByRole("button", { name: "上一页 LUT" }).click();
 				await library.getByRole("searchbox").scrollIntoViewIfNeeded();
+				const thumbnails = await page.evaluate(
+					async (ids) =>
+						Promise.all(
+							ids.map(async (resourceId) => {
+								try {
+									const result =
+										await window.electronAPI!.jianyingFilterLab!.thumbnail({
+											resourceId,
+										});
+									return {
+										resourceId,
+										mimeType: result.mimeType,
+										bytes: result.bytes.length,
+									};
+								} catch (error) {
+									return {
+										resourceId,
+										error:
+											error instanceof Error ? error.message : String(error),
+									};
+								}
+							})
+						),
+					cards
+						.filter((card) => card.independentKind !== "fog")
+						.slice(0, 3)
+						.map((card) => card.resourceId)
+				);
+				await writeFile(
+					join(evidence, "thumbnail-evidence.json"),
+					JSON.stringify(
+						{ cacheSeeded: Boolean(thumbnailCache), thumbnails },
+						null,
+						2
+					)
+				);
 				await expect
 					.poll(() => library.locator("img").count(), { timeout: 30_000 })
 					.toBeGreaterThan(2);
@@ -318,6 +390,7 @@ test.describe("QCut independent Metal filter", () => {
 					{
 						filtered,
 						lutExports,
+						catalogCount,
 						original,
 						previewHashes: hashes,
 						reopened: await readEffect({ page }),
