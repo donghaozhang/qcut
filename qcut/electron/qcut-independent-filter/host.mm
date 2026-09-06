@@ -10,6 +10,8 @@
 
 struct Parameters { float width; float height; float strength; uint32_t stage; };
 struct FrameHeader { uint32_t width; uint32_t height; float strength; };
+struct GraphConfig { uint32_t kind; uint32_t alphaWeighted; float corner; uint32_t overlayWidth; uint32_t overlayHeight; uint32_t reserved; };
+static_assert(sizeof(GraphConfig) == 24);
 static_assert(sizeof(Parameters) == 16);
 static_assert(sizeof(FrameHeader) == 12);
 
@@ -31,7 +33,8 @@ int main(int argc, const char* argv[]) {
     @autoreleasepool {
         try {
             std::ios::sync_with_stdio(false);
-            const bool cubeMode = argc == 3 && std::string(argv[1]) == "--cube";
+            const bool graphMode = argc == 3 && std::string(argv[1]) == "--graph";
+            const bool cubeMode = graphMode || (argc == 3 && std::string(argv[1]) == "--cube");
             const int cubeSize = cubeMode ? std::stoi(argv[2]) : 0;
             if ((argc != 1 && !cubeMode) || (cubeMode && (cubeSize < 2 || cubeSize > 65)))
                 throw std::runtime_error("Invalid cube configuration");
@@ -45,7 +48,7 @@ int main(int argc, const char* argv[]) {
             if (!library) throw std::runtime_error(error.localizedDescription.UTF8String);
             auto descriptor = [MTLRenderPipelineDescriptor new];
             descriptor.vertexFunction = [library newFunctionWithName:@"fullFrame"];
-            descriptor.fragmentFunction = [library newFunctionWithName:(cubeMode ? @"cubeFrame" : @"filterFrame")];
+            descriptor.fragmentFunction = [library newFunctionWithName:(graphMode ? @"graphFrame" : cubeMode ? @"cubeFrame" : @"filterFrame")];
             descriptor.colorAttachments[0].pixelFormat = MTLPixelFormatRGBA8Unorm;
             descriptor.colorAttachments[0].blendingEnabled = NO;
             auto pipeline = [device newRenderPipelineStateWithDescriptor:descriptor error:&error];
@@ -58,6 +61,16 @@ int main(int argc, const char* argv[]) {
             samplerDescriptor.rAddressMode = MTLSamplerAddressModeClampToEdge;
             auto sampler = [device newSamplerStateWithDescriptor:samplerDescriptor];
             auto queue = [device newCommandQueue];
+            GraphConfig graph{};
+            if (graphMode) {
+                readExact(&graph, sizeof(graph));
+                if (graph.kind > 3 || graph.alphaWeighted > 1 || !std::isfinite(graph.corner) ||
+                    graph.corner < 0 || graph.corner > 1 || graph.reserved ||
+                    graph.overlayWidth > 4096 || graph.overlayHeight > 4096 ||
+                    (graph.kind == 2 && (!graph.overlayWidth || !graph.overlayHeight)) ||
+                    (graph.kind != 2 && (graph.overlayWidth || graph.overlayHeight)))
+                    throw std::runtime_error("Invalid independent graph configuration");
+            }
             std::vector<uint8_t> lutBytes(cubeMode ? size_t(cubeSize) * cubeSize * cubeSize * 16 : 512 * 512 * 4);
             readExact(lutBytes.data(), lutBytes.size());
             id<MTLTexture> lut;
@@ -77,19 +90,27 @@ int main(int argc, const char* argv[]) {
                 [lut replaceRegion:MTLRegionMake2D(0, 0, 512, 512) mipmapLevel:0
                     withBytes:lutBytes.data() bytesPerRow:512 * 4];
             }
+            id<MTLTexture> overlay = makeTexture(device, graph.overlayWidth ? graph.overlayWidth : 1,
+                                                graph.overlayHeight ? graph.overlayHeight : 1);
+            if (graphMode && graph.kind == 2) {
+                std::vector<uint8_t> overlayBytes(size_t(graph.overlayWidth) * graph.overlayHeight * 4);
+                readExact(overlayBytes.data(), overlayBytes.size());
+                [overlay replaceRegion:MTLRegionMake2D(0, 0, graph.overlayWidth, graph.overlayHeight) mipmapLevel:0
+                    withBytes:overlayBytes.data() bytesPerRow:graph.overlayWidth * 4];
+            }
             for (uint32_t index = 0; index < _dyld_image_count(); ++index) {
                 const std::string image(_dyld_get_image_name(index));
                 if (image.find("libcccreator") != std::string::npos || image.find("libAGFX") != std::string::npos ||
                     image.find("PrivateRuntimes") != std::string::npos || image.find("VideoFusion") != std::string::npos)
                     throw std::runtime_error("Unexpected third-party renderer loaded");
             }
-            std::cerr << (cubeMode ? "qcut-metal-lut-v1" : "qcut-metal-fog-v1") << " ready; device=" << device.name.UTF8String << "; jianyingLibraries=0\n";
+            std::cerr << (graphMode ? "qcut-metal-graph-v1" : cubeMode ? "qcut-metal-lut-v1" : "qcut-metal-fog-v1") << " ready; device=" << device.name.UTF8String << "; jianyingLibraries=0\n";
             const uint32_t ready = 0x51464d31;
             std::cout.write(reinterpret_cast<const char*>(&ready), sizeof(ready)).flush();
             uint32_t lastWidth = 0, lastHeight = 0;
             id<MTLTexture> original;
             id<MTLTexture> stages[4];
-            const uint32_t stageCount = cubeMode ? 1 : 4;
+            const uint32_t stageCount = graphMode ? (graph.kind == 3 ? 2 : graph.kind + 1) : cubeMode ? 1 : 4;
             while (std::cin.peek() != std::char_traits<char>::eof()) {
                 @autoreleasepool {
                     FrameHeader header;
@@ -124,8 +145,13 @@ int main(int argc, const char* argv[]) {
                         [encoder setCullMode:MTLCullModeNone];
                         const Parameters params = {float(header.width), float(header.height), header.strength, index};
                         [encoder setFragmentBytes:&params length:sizeof(params) atIndex:0];
-                        [encoder setFragmentTexture:(index == 0 || index == 2 ? original : stages[index - 1]) atIndex:0];
-                        [encoder setFragmentTexture:(index == 2 ? stages[1] : lut) atIndex:1];
+                        [encoder setFragmentTexture:(graphMode ? (index == 0 ? original : stages[index - 1]) :
+                            (index == 0 || index == 2 ? original : stages[index - 1])) atIndex:0];
+                        [encoder setFragmentTexture:(!graphMode && index == 2 ? stages[1] : lut) atIndex:1];
+                        if (graphMode) {
+                            [encoder setFragmentBytes:&graph length:sizeof(graph) atIndex:1];
+                            [encoder setFragmentTexture:overlay atIndex:2];
+                        }
                         [encoder setFragmentSamplerState:sampler atIndex:0];
                         [encoder drawPrimitives:MTLPrimitiveTypeTriangle vertexStart:0 vertexCount:6];
                         [encoder endEncoding];
