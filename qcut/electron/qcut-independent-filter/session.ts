@@ -190,7 +190,7 @@ export async function createIndependentFilterSession(
 	try {
 		const response = read({ size: 4 });
 		const [, ready] = await Promise.all([write({ bytes: lut }), response]);
-		if (ready.readUInt32LE() !== 0x51464d31)
+		if (ready.readUInt32LE() !== (maskSource ? 0x51464d33 : 0x51464d31))
 			throw new Error("Unsupported Metal host protocol.");
 	} catch (error) {
 		await dispose();
