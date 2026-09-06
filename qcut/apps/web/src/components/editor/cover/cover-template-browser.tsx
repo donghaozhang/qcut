@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Ban, Type, Plus } from "lucide-react";
 import {
 	applyCoverTemplate,
+	updateCoverText,
 	COVER_TEMPLATES,
 	type CoverDesignV1,
 	type CoverTextLayerV1,
@@ -14,6 +15,7 @@ import { coverRepository } from "@/lib/cover/cover-repository";
 import { useTranslation } from "@/lib/i18n";
 import { activateCoverControl } from "./cover-tool";
 import { CoverPrivateLibrary } from "./cover-private-library";
+import { CoverTextStyleLibrary } from "./cover-text-style-library";
 
 function CoverTemplateCard({
 	template,
@@ -277,6 +279,16 @@ export function CoverTemplateBrowser({
 							<span>{layer.content || t("editor.cover.newText")}</span>
 						</button>
 					))}
+					<CoverTextStyleLibrary
+						layer={texts.find((layer) => layer.id === selectedId)}
+						canvas={design?.canvas}
+						disabled={disabled}
+						onError={onError}
+						onChange={(changes) => {
+							if (design && selectedId)
+								onEdit(updateCoverText({ design, id: selectedId, changes }));
+						}}
+					/>
 				</div>
 			)}
 		</aside>
