@@ -136,6 +136,102 @@ describe("private Jianying cover cache", () => {
 		const catalog = await cacheJianyingCovers({ ...options, observations: [] });
 		expect(catalog.entries).toHaveLength(1);
 	});
+	it("retains recovered lab packages and provenance independently of both sources", async () => {
+		const options = await fixture();
+		await rm(path.join(options.sourceRoot, "effect"), { recursive: true });
+		const lab = path.join(options.root, "lab");
+		await mkdir(path.join(lab, "package"), { recursive: true });
+		await writeFile(path.join(lab, "package", "effect.frag"), "shader payload");
+		await writeFile(
+			path.join(lab, "package", "._effect.frag"),
+			"disk metadata"
+		);
+		const resolution = {
+			method: "catalog-version" as const,
+			source: "text-lab" as const,
+			packageHash: "d".repeat(32),
+		};
+		const catalog = await cacheJianyingCovers({
+			...options,
+			resolveDependency: async () => ({
+				source: { root: lab, relativePath: "package", resolution },
+			}),
+		});
+		expect(catalog.entries[0].dependencies[0]).toMatchObject({
+			status: "cached",
+			resolution,
+		});
+		expect(catalog.entries[0].dependencies[0].files).toHaveLength(1);
+		await rm(lab, { recursive: true });
+		await rm(options.sourceRoot, { recursive: true });
+		await verifyCoverCatalog({ root: options.destination, catalog });
+		const backup = path.join(options.root, "backup");
+		await backupCoverCatalog({
+			root: options.destination,
+			destination: backup,
+		});
+		expect(
+			(await readCoverCatalog({ root: backup }))?.entries[0].dependencies[0]
+				.resolution
+		).toEqual(resolution);
+	});
+	it("copies only the selected builtin font and preserves a missing reason", async () => {
+		const options = await fixture();
+		await rm(path.join(options.sourceRoot, "effect"), { recursive: true });
+		const lab = path.join(options.root, "lab");
+		await mkdir(lab);
+		await writeFile(path.join(lab, "font.ttf"), "font");
+		await writeFile(path.join(lab, "unrelated.ttf"), "unrelated");
+		const catalog = await cacheJianyingCovers({
+			...options,
+			resolveDependency: async () => ({
+				source: {
+					root: lab,
+					relativePath: "font.ttf",
+					singleFile: true,
+					resolution: { method: "builtin", source: "application-builtin" },
+				},
+			}),
+		});
+		expect(catalog.entries[0].dependencies[0].files).toHaveLength(1);
+		expect(catalog.entries[0].dependencies[0].files[0].logicalPath).toBe(
+			`text/${fontHash}/font.ttf`
+		);
+		const missing = await cacheJianyingCovers({
+			...options,
+			resolveDependency: async () => ({ reason: "catalog-missing" }),
+		});
+		expect(missing.entries[0].dependencies[0]).toMatchObject({
+			status: "missing",
+			reason: "catalog-missing",
+		});
+	});
+	it("rejects symlinks inside recovered lab packages without replacing the catalog", async () => {
+		const options = await fixture();
+		await cacheJianyingCovers(options);
+		const before = await readFile(
+			path.join(options.destination, "catalog.json")
+		);
+		await rm(path.join(options.sourceRoot, "effect"), { recursive: true });
+		const lab = path.join(options.root, "lab");
+		await mkdir(lab);
+		await symlink(options.definition, path.join(lab, "escape"));
+		await expect(
+			cacheJianyingCovers({
+				...options,
+				resolveDependency: async () => ({
+					source: {
+						root: options.root,
+						relativePath: "lab",
+						resolution: { method: "exact-package", source: "text-lab" },
+					},
+				}),
+			})
+		).rejects.toThrow("Symlink");
+		expect(
+			await readFile(path.join(options.destination, "catalog.json"))
+		).toEqual(before);
+	});
 	it("reports missing dependencies instead of claiming offline readiness", async () => {
 		const options = await fixture();
 		await rm(path.join(options.sourceRoot, "effect"), { recursive: true });
