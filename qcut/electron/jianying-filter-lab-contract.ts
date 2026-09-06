@@ -257,7 +257,10 @@ export interface JianyingFilterLabLoadRendererResult {
 	intensity: number;
 	fidelity: "structural" | "native-local";
 	nativeEffect?: {
-		provider: "jianying-local-effect-v1";
+		provider:
+			| "jianying-local-effect-v1"
+			| "qcut-metal-fog-v1"
+			| "qcut-metal-lut-v1";
 		resourceId: string;
 		version: string;
 	};
